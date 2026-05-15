@@ -178,7 +178,9 @@ function fakeLogin() {
 
 async function cargarDatos() {
   try {
-    supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    if (!supabase) {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    }
     
     // Cargar cursantes
     const { data: cursantes, error: errC } = await supabase
