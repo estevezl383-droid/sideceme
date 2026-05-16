@@ -421,17 +421,24 @@ async function cargarDatos(forzar){
   S.cursantes = c.data || [];
   S.sancionesRaw = s.data || [];          // todas las filas tal cual vienen
   // ---- DEDUPLICACIÓN CANÓNICA ----
-  // Clave: cursante + falta + día + profesor + puntos. Si 2+ coinciden, es duplicado.
+  // Una sanción es duplicada si comparte (cursante + falta + día) con otra.
+  // Criterio aflojado a propósito: el reglamento ECEME no permite que la misma falta
+  // se cuente dos veces el mismo día contra el mismo cursante (sería doble castigo).
+  // Si dos filas coinciden, conservamos sólo la primera (la más "completa" si difieren).
   const vistos = new Map();
   const duplicados = [];
-  for(const x of S.sancionesRaw){
+  // Ordenar por presencia de huella_forense (las firmadas digitales primero, son más confiables)
+  const ordenadas = [...S.sancionesRaw].sort((a,b)=>{
+    const ah = a.huella_forense && a.huella_forense.firma_digital ? 1 : 0;
+    const bh = b.huella_forense && b.huella_forense.firma_digital ? 1 : 0;
+    return bh - ah; // las firmadas primero → ganan en caso de duplicado
+  });
+  for(const x of ordenadas){
     const dia = (x.creado_en||'').slice(0,10); // YYYY-MM-DD
     const k = [
       x.cursante_id||x.cursante_ci||'',
-      x.falta_id||x.falta_articulo||'',
+      (x.falta_articulo||x.falta_id||'').trim().toLowerCase(),
       dia,
-      x.profesor_id||x.profesor_nombre||'',
-      x.puntos_aplicados||0,
     ].join('|');
     if(vistos.has(k)){
       duplicados.push(x);                 // conserva sólo la 1ª ocurrencia
@@ -804,7 +811,7 @@ function renderJDPanel(){
 function renderJDCursantes(){
   S.currentTab='cursantes';
   clear();
-  app.appendChild(topbar('Cursantes',null,`${S.cursantes.length} registrados`));
+  app.appendChild(topbar('Cursantes',()=>renderJD('panel'),`${S.cursantes.length} registrados`));
   const main=el('div',{class:'main with-bottomnav'});
 
   main.appendChild($(`
@@ -826,16 +833,20 @@ function renderJDCursantes(){
   if(filtroActivo==='consejo') filtroActivo='observados';
   S._filtroInicial = null;
   opciones.forEach(op=>{
-    filtros.appendChild(el('button',{class:'chip'+(op.id===filtroActivo?' active':''),onclick:(e)=>{filtroActivo=op.id;[...filtros.children].forEach(c=>c.classList.remove('active'));e.currentTarget.classList.add('active');render(document.getElementById('q').value)}},op.label));
+    filtros.appendChild(el('button',{class:'chip'+(op.id===filtroActivo?' active':''),onclick:(e)=>{filtroActivo=op.id;[...filtros.children].forEach(c=>c.classList.remove('active'));e.currentTarget.classList.add('active');render(main.querySelector('#q')?.value||'')}},op.label));
   });
   main.appendChild(filtros);
 
   const lista = el('div',{class:'list',id:'lst'});
   main.appendChild(lista);
 
+  // *** IMPORTANTE: insertar main en el DOM ANTES de usar getElementById ***
+  app.appendChild(main);
+  app.appendChild(bottomNavJD());
+
   function render(filter=''){
     lista.innerHTML='';
-    const f = filter.toLowerCase().trim();
+    const f = (filter||'').toLowerCase().trim();
     let arr = S.cursantes
       .filter(c=>!f||(c.nombre_completo||'').toLowerCase().includes(f)||(c.id||'').toLowerCase().includes(f)||String(c.ci||'').includes(f))
       .map(c=>({...c,_pts:calcularPerdida(c.id)}));
@@ -867,10 +878,8 @@ function renderJDCursantes(){
     });
   }
   render();
-  document.getElementById('q').oninput = (e)=>render(e.target.value);
-
-  app.appendChild(main);
-  app.appendChild(bottomNavJD());
+  const qInput = main.querySelector('#q');
+  if(qInput) qInput.oninput = (e)=>render(e.target.value);
 }
 
 function abrirDetalleCursante(c){
@@ -1217,6 +1226,16 @@ function abrirGestionarProfesores(){
     <button class="btn btn-gold" id="btn-np">✓ Registrar profesor</button>
   `));
   main.appendChild(cardAlta);
+
+  // Búsqueda
+  main.appendChild($(`<div class="search-bar"><input type="text" id="qp" placeholder="🔍 Buscar por nombre o CI..."></div>`));
+
+  const lista = el('div',{class:'list',id:'lstp'});
+  main.appendChild(lista);
+
+  // *** IMPORTANTE: insertar main ANTES de usar getElementById ***
+  app.appendChild(main);
+
   document.getElementById('btn-np').onclick = ()=>{
     const grado = document.getElementById('np-grado').value.trim();
     const nombre = document.getElementById('np-nombre').value.trim();
@@ -1229,15 +1248,9 @@ function abrirGestionarProfesores(){
     abrirGestionarProfesores();
   };
 
-  // Búsqueda
-  main.appendChild($(`<div class="search-bar"><input type="text" id="qp" placeholder="🔍 Buscar por nombre o CI..."></div>`));
-
-  const lista = el('div',{class:'list',id:'lstp'});
-  main.appendChild(lista);
-
   function renderProfs(filter=''){
     lista.innerHTML='';
-    const f = filter.toLowerCase().trim();
+    const f = (filter||'').toLowerCase().trim();
     const arr = S.profesores
       .filter(p=>!f||p.nombre.toLowerCase().includes(f)||p.ci.includes(f))
       .sort((a,b)=>a.nombre.localeCompare(b.nombre));
@@ -1260,8 +1273,8 @@ function abrirGestionarProfesores(){
     });
   }
   renderProfs();
-  document.getElementById('qp').oninput = (e)=>renderProfs(e.target.value);
-  app.appendChild(main);
+  const qpInput = document.getElementById('qp');
+  if(qpInput) qpInput.oninput = (e)=>renderProfs(e.target.value);
 
   function cambiarRol(p){
     const body=el('div',{});
