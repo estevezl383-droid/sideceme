@@ -182,6 +182,7 @@ const CFG = {
   PUNTAJE_BASE: 100,
   UMBRAL_WARN: 6,
   UMBRAL_BAD: 11,
+  UMBRAL_OBSERVADO: 25, // > 25 pts perdidos = grupo crítico "Observados"
 };
 
 const ROLES = {
@@ -343,7 +344,7 @@ const FALTAS_REGLAMENTO = [
 /* ESTADO GLOBAL */
 const S = {
   client:null, user:null,
-  cursantes:[], sanciones:[], reglamentos:[], profesores:[],
+  cursantes:[], sanciones:[], sancionesRaw:[], sancionesDuplicadas:[], reglamentos:[], profesores:[],
   loaded:false, currentTab:'panel',
 };
 
@@ -418,7 +419,29 @@ async function cargarDatos(forzar){
   if(c.error)throw c.error;
   if(s.error)throw s.error;
   S.cursantes = c.data || [];
-  S.sanciones = s.data || [];
+  S.sancionesRaw = s.data || [];          // todas las filas tal cual vienen
+  // ---- DEDUPLICACIÓN CANÓNICA ----
+  // Clave: cursante + falta + día + profesor + puntos. Si 2+ coinciden, es duplicado.
+  const vistos = new Map();
+  const duplicados = [];
+  for(const x of S.sancionesRaw){
+    const dia = (x.creado_en||'').slice(0,10); // YYYY-MM-DD
+    const k = [
+      x.cursante_id||x.cursante_ci||'',
+      x.falta_id||x.falta_articulo||'',
+      dia,
+      x.profesor_id||x.profesor_nombre||'',
+      x.puntos_aplicados||0,
+    ].join('|');
+    if(vistos.has(k)){
+      duplicados.push(x);                 // conserva sólo la 1ª ocurrencia
+    } else {
+      vistos.set(k, x);
+    }
+  }
+  S.sanciones = [...vistos.values()];     // lista limpia para todos los cálculos
+  S.sancionesDuplicadas = duplicados;     // disponibles para diagnóstico/export
+  // ---- /DEDUPLICACIÓN ----
   // Reglamento (opcional)
   try{const r=await S.client.from('reglamentos').select('*');S.reglamentos=r.data||[]}catch(e){S.reglamentos=[]}
   // Profesores: combinar locales con remotos si existieran
@@ -725,25 +748,37 @@ function renderJDPanel(){
   const main=el('div',{class:'main with-bottomnav'});
 
   const total = S.cursantes.length;
-  const consejo = S.cursantes.filter(c=>calcularPerdida(c.id)>=CFG.UMBRAL_BAD).length;
-  const observacion = S.cursantes.filter(c=>{const p=calcularPerdida(c.id);return p>=CFG.UMBRAL_WARN&&p<CFG.UMBRAL_BAD}).length;
-  const sancs = S.sanciones.length;
+  const observados = S.cursantes.filter(c=>calcularPerdida(c.id)>CFG.UMBRAL_OBSERVADO).length;
+  const observacion = S.cursantes.filter(c=>{const p=calcularPerdida(c.id);return p>=CFG.UMBRAL_WARN&&p<=CFG.UMBRAL_OBSERVADO}).length;
+  const sancs = S.sanciones.length;                  // ya deduplicada
+  const dupCount = (S.sancionesDuplicadas||[]).length;
+  const rawCount = (S.sancionesRaw||[]).length;
 
-  main.appendChild($(`
-    <div class="stats">
-      <div class="stat" onclick="window._verCursantes&&window._verCursantes('all')" style="cursor:pointer"><div class="num">${total}</div><div class="lbl">Cursantes</div></div>
-      <div class="stat" onclick="window._verSanciones&&window._verSanciones()" style="cursor:pointer"><div class="num">${sancs}</div><div class="lbl">Sanciones</div></div>
-      <div class="stat bad" onclick="window._verCursantes&&window._verCursantes('consejo')" style="cursor:pointer"><div class="num">${consejo}</div><div class="lbl">Consejo</div></div>
-    </div>
-  `));
-  window._verCursantes = (filtro)=>{ S._filtroInicial = filtro; renderJD('cursantes'); };
-  window._verSanciones = ()=>{ abrirActividadReciente(); };
+  // Stats — sin onclick en strings; usamos listeners directos
+  const stCursantes = el('div',{class:'stat',style:'cursor:pointer'},
+    $(`<div class="num">${total}</div>`), $(`<div class="lbl">Cursantes</div>`));
+  const stSanciones = el('div',{class:'stat',style:'cursor:pointer'},
+    $(`<div class="num">${sancs}</div>`), $(`<div class="lbl">Sanciones</div>`));
+  const stObservados = el('div',{class:'stat bad',style:'cursor:pointer'},
+    $(`<div class="num">${observados}</div>`), $(`<div class="lbl">Observados</div>`));
+  stCursantes.onclick = ()=>{ S._filtroInicial='all'; renderJD('cursantes'); };
+  stSanciones.onclick = ()=>{ abrirSancionesMasCometidas(); };
+  stObservados.onclick = ()=>{ S._filtroInicial='observados'; renderJD('cursantes'); };
+  const stats = el('div',{class:'stats'}, stCursantes, stSanciones, stObservados);
+  main.appendChild(stats);
 
-  if(consejo>0){
-    main.appendChild($(`<div class="alert alert-error"><strong>🚨 ${consejo} cursante(s) en Consejo Académico</strong><br>Tienen 11+ puntos perdidos. Requiere acción inmediata.</div>`));
+  // Aviso de duplicados detectados (informativo, no destructivo)
+  if(dupCount>0){
+    main.appendChild($(`<div class="alert alert-warn"><strong>⚠️ Se detectaron ${dupCount} sanciones duplicadas</strong><br>
+      Supabase tiene ${rawCount} filas, pero ${dupCount} son copias exactas (mismo cursante, falta, día y profesor). El sistema está usando las ${sancs} sanciones únicas para todos los cálculos.<br>
+      <span style="font-size:12px;color:var(--muted)">Para eliminarlas definitivamente, ve a <strong>Mantenimiento → Diagnóstico de duplicados</strong>.</span></div>`));
+  }
+
+  if(observados>0){
+    main.appendChild($(`<div class="alert alert-error"><strong>🚨 ${observados} cursante(s) observado(s)</strong><br>Tienen más de ${CFG.UMBRAL_OBSERVADO} puntos perdidos. Requiere acción inmediata.</div>`));
   }
   if(observacion>0){
-    main.appendChild($(`<div class="alert alert-warn"><strong>⚠️ ${observacion} cursante(s) en observación</strong><br>Entre 6 y 10 puntos perdidos. Deben ser monitoreados.</div>`));
+    main.appendChild($(`<div class="alert alert-warn"><strong>⚠️ ${observacion} cursante(s) en observación</strong><br>Entre ${CFG.UMBRAL_WARN} y ${CFG.UMBRAL_OBSERVADO} puntos perdidos. Deben ser monitoreados.</div>`));
   }
 
   // Accesos rápidos
@@ -782,11 +817,13 @@ function renderJDCursantes(){
   const filtros = el('div',{class:'filtros'});
   const opciones = [
     {id:'all',label:'Todos'},
-    {id:'consejo',label:'Consejo'},
-    {id:'obs',label:'Observación'},
+    {id:'observados',label:`Observados (>${CFG.UMBRAL_OBSERVADO})`},
+    {id:'obs',label:'Observación (6-25)'},
     {id:'aldia',label:'Al día'},
   ];
   let filtroActivo = S._filtroInicial || 'all';
+  // compatibilidad con el filtro antiguo "consejo"
+  if(filtroActivo==='consejo') filtroActivo='observados';
   S._filtroInicial = null;
   opciones.forEach(op=>{
     filtros.appendChild(el('button',{class:'chip'+(op.id===filtroActivo?' active':''),onclick:(e)=>{filtroActivo=op.id;[...filtros.children].forEach(c=>c.classList.remove('active'));e.currentTarget.classList.add('active');render(document.getElementById('q').value)}},op.label));
@@ -802,8 +839,8 @@ function renderJDCursantes(){
     let arr = S.cursantes
       .filter(c=>!f||(c.nombre_completo||'').toLowerCase().includes(f)||(c.id||'').toLowerCase().includes(f)||String(c.ci||'').includes(f))
       .map(c=>({...c,_pts:calcularPerdida(c.id)}));
-    if(filtroActivo==='consejo')arr=arr.filter(c=>c._pts>=CFG.UMBRAL_BAD);
-    else if(filtroActivo==='obs')arr=arr.filter(c=>c._pts>=CFG.UMBRAL_WARN&&c._pts<CFG.UMBRAL_BAD);
+    if(filtroActivo==='observados')arr=arr.filter(c=>c._pts>CFG.UMBRAL_OBSERVADO);
+    else if(filtroActivo==='obs')arr=arr.filter(c=>c._pts>=CFG.UMBRAL_WARN&&c._pts<=CFG.UMBRAL_OBSERVADO);
     else if(filtroActivo==='aldia')arr=arr.filter(c=>c._pts<CFG.UMBRAL_WARN);
     arr.sort((a,b)=>b._pts-a._pts);
 
@@ -840,38 +877,126 @@ function abrirDetalleCursante(c){
   const sancs = S.sanciones.filter(s=>s.cursante_id===c.id).sort((a,b)=>new Date(b.creado_en)-new Date(a.creado_en));
   const pts = calcularPerdida(c.id);
   const bcl = badgeClassByPerdida(pts);
+
+  // Top profesores que más sancionaron a este cursante
+  const porProf = {};
+  sancs.forEach(s=>{ const k=s.profesor_nombre||'(sin profesor)'; porProf[k]=(porProf[k]||0)+1; });
+  const topProf = Object.entries(porProf).sort((a,b)=>b[1]-a[1]).slice(0,3);
+
   const body=el('div',{});
   body.appendChild($(`
     <div style="text-align:center;margin-bottom:14px">
       <div class="avatar" style="width:64px;height:64px;margin:0 auto 10px;font-size:20px">${iniciales(c.nombre_completo)}</div>
       <h3 style="color:var(--azul);font-size:17px">${escapeHtml(c.nombre_completo||'—')}</h3>
       <p style="color:var(--muted);font-size:13px;margin-top:4px">${escapeHtml(c.id||'')} · CI ${escapeHtml(c.ci||'—')} · ${escapeHtml(c.paralelo||'')}</p>
-      <div style="margin-top:10px;display:flex;gap:8px;justify-content:center">
+      <div style="margin-top:10px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
         <span class="badge ${bcl}">Perdido: ${pts}</span>
         <span class="badge azul">Restante: ${CFG.PUNTAJE_BASE-pts}/100</span>
         <span class="badge ${bcl}">${estadoLabel(pts)}</span>
       </div>
     </div>
-    <h3 style="margin-top:14px;color:var(--muted);font-size:11px">Historial de sanciones (${sancs.length})</h3>
   `));
+
+  if(topProf.length){
+    const tp = el('div',{style:'background:#f9fafb;border-radius:8px;padding:10px;margin-bottom:12px;font-size:12px'});
+    tp.appendChild($(`<strong style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px">Sancionado más por</strong>`));
+    topProf.forEach(([nom,n])=>{
+      tp.appendChild($(`<div style="display:flex;justify-content:space-between;padding:4px 0;border-top:1px solid var(--border);margin-top:4px"><span>${escapeHtml(nom)}</span><strong>${n}</strong></div>`));
+    });
+    body.appendChild(tp);
+  }
+
+  body.appendChild($(`<h3 style="margin-top:14px;color:var(--muted);font-size:11px">Historial de sanciones (${sancs.length})</h3>`));
   if(!sancs.length){
     body.appendChild($(`<p style="text-align:center;color:var(--muted);padding:14px">Sin sanciones registradas</p>`));
   }else{
     const cont=el('div',{class:'list',style:'margin-top:8px'});
     sancs.forEach(s=>{
-      cont.appendChild($(`
-        <div class="item bd-bad" style="cursor:default">
-          <div class="info">
-            <strong>${escapeHtml(s.falta_articulo||'—')}</strong>
-            <span>${escapeHtml(s.falta_descripcion||'—')}<br>${fmtFechaCorta(s.creado_en)} · ${escapeHtml(s.profesor_nombre||'—')}</span>
-          </div>
-          <span class="badge bad">-${s.puntos_aplicados||0}</span>
-        </div>
-      `));
+      const analogica = esAnalogica(s);
+      const it = el('div',{class:'item bd-bad',onclick:()=>{document.querySelector('.modal-bg')?.remove(); abrirDetalleSancion(s);}},
+        el('div',{class:'info'},
+          $(`<strong>${escapeHtml(s.falta_articulo||'—')} ${analogica?'<span class="badge warn" style="margin-left:6px;font-size:9px;padding:2px 8px">📋 Analógico</span>':''}</strong>`),
+          $(`<span>${escapeHtml((s.falta_descripcion||'—').slice(0,80))}${(s.falta_descripcion||'').length>80?'…':''}<br>${fmtFechaCorta(s.creado_en)} · ${escapeHtml(s.profesor_nombre||'—')}</span>`),
+        ),
+        $(`<span class="badge bad">-${s.puntos_aplicados||0}</span>`),
+      );
+      cont.appendChild(it);
     });
     body.appendChild(cont);
   }
   abrirModal('Detalle del cursante',body);
+}
+
+// Heurística: sanción analógica = migrada del Excel pre-digital (sin firma digital pero con puntos ya aplicados)
+function esAnalogica(s){
+  const h = s.huella_forense || null;
+  if(!h) return (s.puntos_aplicados||0) > 0; // sin huella pero con puntos → migrada
+  if(!h.firma_digital && (s.puntos_aplicados||0) > 0) return true;
+  if(h.origen === 'analogico' || h.tipo === 'analogico' || h.estado === 'migrado') return true;
+  return false;
+}
+
+/* ============================================================
+   DETALLE DE UNA SANCIÓN INDIVIDUAL
+   ============================================================ */
+function abrirDetalleSancion(s){
+  const cur = S.cursantes.find(c=>c.id===s.cursante_id) || {};
+  const analogica = esAnalogica(s);
+  const h = s.huella_forense || {};
+
+  const body = el('div',{});
+  // Cabecera analógica si aplica
+  if(analogica){
+    body.appendChild($(`
+      <div style="background:#fef3c7;border-left:4px solid var(--dorado);border-radius:8px;padding:12px;margin-bottom:14px">
+        <strong style="color:#92400e;font-size:13px">📋 DATOS DEL REGISTRO ANALÓGICO</strong>
+        <p style="font-size:12px;color:#78350f;margin-top:4px">Sanción migrada de la planilla histórica (sistema pre-digital). Conserva los datos originales con que fue impuesta.</p>
+      </div>
+    `));
+  }
+
+  // Cursante
+  body.appendChild($(`
+    <div style="background:#fffbeb;border-radius:8px;padding:12px;margin-bottom:10px">
+      <strong style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px">🎖️ Cursante sancionado</strong>
+      <div style="margin-top:6px;font-size:14px;font-weight:700;color:var(--azul)">${escapeHtml(s.cursante_nombre || cur.nombre_completo || '—')}</div>
+      <div style="margin-top:4px;font-size:12px;color:var(--muted)">CI ${escapeHtml(s.cursante_ci || cur.ci || '—')} · ${escapeHtml(cur.paralelo||'—')}</div>
+    </div>
+  `));
+
+  // Falta
+  body.appendChild($(`
+    <div class="detalle-falta" style="margin-bottom:10px">
+      <div class="articulo">📖 ${escapeHtml(s.falta_articulo||'—')}${s.falta_categoria?' · '+escapeHtml(s.falta_categoria):''}</div>
+      <div class="desc">${escapeHtml(s.falta_descripcion||'—')}</div>
+      <div class="pts">−${s.puntos_aplicados||0} pts</div>
+    </div>
+  `));
+
+  // Registrada por
+  body.appendChild($(`
+    <div style="background:#f9fafb;border-radius:8px;padding:12px;margin-bottom:10px">
+      <strong style="color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.5px">🎖️ Registrada por</strong>
+      <div style="margin-top:6px;font-size:13px;font-weight:700;color:var(--azul)">${escapeHtml(s.profesor_nombre||'—')}</div>
+      <div style="margin-top:4px;font-size:12px;color:var(--muted)">Fecha: ${fmtFecha(s.creado_en)}</div>
+    </div>
+  `));
+
+  // Observaciones
+  if(h.observacion_profesor){
+    body.appendChild($(`<div class="alert alert-info" style="margin-bottom:8px"><strong>Observación del profesor:</strong><br>${escapeHtml(h.observacion_profesor)}</div>`));
+  }
+  if(h.observacion_cursante){
+    body.appendChild($(`<div class="alert alert-warn" style="margin-bottom:8px"><strong>Observación del cursante:</strong><br>${escapeHtml(h.observacion_cursante)}</div>`));
+  }
+  if(!h.observacion_profesor && !h.observacion_cursante && !analogica){
+    body.appendChild($(`<p style="font-size:12px;color:var(--muted);text-align:center;padding:8px">Sin observaciones registradas.</p>`));
+  }
+
+  // Pie con ID/folio para auditoría
+  body.appendChild($(`<p style="font-size:10px;color:var(--muted);text-align:center;margin-top:10px;font-family:monospace">${escapeHtml(s.id||'')}${analogica?' · Registro pre-digital':' · Registro digital firmado'}</p>`));
+
+  abrirModal('Detalle de la sanción', body);
 }
 
 /* ----- REPORTES ----- */
@@ -996,16 +1121,16 @@ function renderJDAlertas(){
   app.appendChild(topbar('Alertas',null,'Cursantes que requieren atención'));
   const main=el('div',{class:'main with-bottomnav'});
 
-  const enConsejo = S.cursantes.map(c=>({...c,_p:calcularPerdida(c.id)})).filter(c=>c._p>=CFG.UMBRAL_BAD).sort((a,b)=>b._p-a._p);
-  const enObs = S.cursantes.map(c=>({...c,_p:calcularPerdida(c.id)})).filter(c=>c._p>=CFG.UMBRAL_WARN&&c._p<CFG.UMBRAL_BAD).sort((a,b)=>b._p-a._p);
+  const observados = S.cursantes.map(c=>({...c,_p:calcularPerdida(c.id)})).filter(c=>c._p>CFG.UMBRAL_OBSERVADO).sort((a,b)=>b._p-a._p);
+  const enObs = S.cursantes.map(c=>({...c,_p:calcularPerdida(c.id)})).filter(c=>c._p>=CFG.UMBRAL_WARN&&c._p<=CFG.UMBRAL_OBSERVADO).sort((a,b)=>b._p-a._p);
 
   const cardC=el('div',{class:'card'});
-  cardC.appendChild(el('h2',{html:`🚨 En Consejo Académico <span style="font-size:13px;color:var(--bad)">(${enConsejo.length})</span>`}));
-  if(!enConsejo.length){
+  cardC.appendChild(el('h2',{html:`🚨 Observados <span style="font-size:13px;color:var(--bad)">(${observados.length}) — más de ${CFG.UMBRAL_OBSERVADO} pts perdidos</span>`}));
+  if(!observados.length){
     cardC.appendChild($(`<p style="color:var(--muted);text-align:center;padding:14px">Ninguno por el momento ✅</p>`));
   }else{
     const lst=el('div',{class:'list'});
-    enConsejo.forEach(c=>{
+    observados.forEach(c=>{
       lst.appendChild(el('div',{class:'item bd-bad',onclick:()=>abrirDetalleCursante(c)},
         el('div',{class:'avatar'},iniciales(c.nombre_completo)),
         el('div',{class:'info'},
@@ -1020,7 +1145,7 @@ function renderJDAlertas(){
   main.appendChild(cardC);
 
   const cardO=el('div',{class:'card'});
-  cardO.appendChild(el('h2',{html:`⚠️ En Observación <span style="font-size:13px;color:var(--warn)">(${enObs.length})</span>`}));
+  cardO.appendChild(el('h2',{html:`⚠️ En Observación <span style="font-size:13px;color:var(--warn)">(${enObs.length}) — entre ${CFG.UMBRAL_WARN} y ${CFG.UMBRAL_OBSERVADO} pts</span>`}));
   if(!enObs.length){
     cardO.appendChild($(`<p style="color:var(--muted);text-align:center;padding:14px">Ninguno por el momento</p>`));
   }else{
@@ -1269,8 +1394,67 @@ function exportarPerdidaCSV(fd,fh){
 }
 
 /* ============================================================
-   ACTIVIDAD RECIENTE
+   FALTAS MÁS COMETIDAS (click en card "Sanciones" del panel)
    ============================================================ */
+function abrirSancionesMasCometidas(){
+  clear();
+  app.appendChild(topbar('Faltas más cometidas',()=>renderJD('panel'),'Agrupadas por artículo'));
+  const main=el('div',{class:'main'});
+
+  const total = S.sanciones.length;
+  const rawTotal = (S.sancionesRaw||[]).length;
+  const dup = (S.sancionesDuplicadas||[]).length;
+  const conPuntos = S.sanciones.filter(s=>(s.puntos_aplicados||0)>0).length;
+  const sinFirmar = S.sanciones.filter(s=>(s.puntos_aplicados||0)===0).length;
+
+  // Resumen
+  main.appendChild($(`
+    <div class="card">
+      <h2>📊 Resumen general</h2>
+      <div style="display:grid;gap:6px;font-size:13px">
+        <div style="display:flex;justify-content:space-between;padding:8px;background:#f9fafb;border-radius:6px"><span><strong>Sanciones únicas</strong></span><strong style="color:var(--azul)">${total}</strong></div>
+        <div style="display:flex;justify-content:space-between;padding:8px;background:#dcfce7;border-radius:6px"><span>✅ Con puntos aplicados (firmadas o migradas)</span><strong style="color:var(--ok)">${conPuntos}</strong></div>
+        <div style="display:flex;justify-content:space-between;padding:8px;background:#fef3c7;border-radius:6px"><span>⏳ Sin firmar (puntos = 0)</span><strong style="color:var(--warn)">${sinFirmar}</strong></div>
+        ${dup>0?`<div style="display:flex;justify-content:space-between;padding:8px;background:#fee2e2;border-radius:6px"><span>🚨 Duplicados detectados en Supabase</span><strong style="color:var(--bad)">${dup} de ${rawTotal}</strong></div>`:''}
+      </div>
+    </div>
+  `));
+
+  // Agrupar por falta (artículo + descripción + puntos)
+  const mapa = new Map();
+  S.sanciones.forEach(s=>{
+    const k = (s.falta_articulo||'(sin artículo)') + ' · ' + (s.puntos_aplicados||0);
+    if(!mapa.has(k)){
+      mapa.set(k, { articulo:s.falta_articulo||'(sin artículo)', descripcion:s.falta_descripcion||'', categoria:s.falta_categoria||'', puntos:s.puntos_aplicados||0, count:0 });
+    }
+    mapa.get(k).count++;
+  });
+  const ranking = [...mapa.values()].sort((a,b)=>b.count-a.count);
+
+  const card = el('div',{class:'card'});
+  card.appendChild(el('h2',{},`Top de faltas (${ranking.length} tipos distintos)`));
+  if(!ranking.length){
+    card.appendChild($(`<p style="text-align:center;color:var(--muted);padding:14px">Sin sanciones registradas</p>`));
+  }else{
+    const lst = el('div',{class:'list'});
+    ranking.forEach((r,i)=>{
+      lst.appendChild($(`
+        <div class="item bd-bad" style="cursor:default">
+          <div class="info">
+            <strong>${i+1}. ${escapeHtml(r.articulo)} <span class="badge azul" style="margin-left:6px;font-size:10px">-${r.puntos} pt${r.puntos===1?'':'s'}</span></strong>
+            <span>${escapeHtml((r.descripcion||'—').slice(0,120))}${(r.descripcion||'').length>120?'…':''}</span>
+          </div>
+          <span class="badge bad" style="font-size:14px;padding:6px 14px">${r.count}×</span>
+        </div>
+      `));
+    });
+    card.appendChild(lst);
+  }
+  main.appendChild(card);
+  app.appendChild(main);
+}
+
+
 function abrirActividadReciente(){
   clear();
   app.appendChild(topbar('Actividad Reciente',()=>renderJD('panel'),'Últimas 50 sanciones'));
@@ -1306,6 +1490,22 @@ function abrirMantenimiento(){
   app.appendChild(topbar('Mantenimiento',()=>renderJD('panel'),'Respaldo y configuración'));
   const main=el('div',{class:'main'});
   main.appendChild($(`<div class="alert alert-warn">⚠️ Operaciones administrativas — usar con cuidado.</div>`));
+
+  // Diagnóstico de duplicados
+  const dup = (S.sancionesDuplicadas||[]).length;
+  const raw = (S.sancionesRaw||[]).length;
+  if(dup>0){
+    main.appendChild($(`<div class="alert alert-error">
+      <strong>🚨 Diagnóstico: ${dup} sanciones duplicadas en Supabase</strong><br>
+      La tabla <code>sanciones</code> tiene ${raw} filas, pero ${dup} son copias exactas (mismo cursante, falta, día, profesor y puntos).
+      El sistema usa las ${S.sanciones.length} únicas para todos los cálculos.<br>
+      <span style="font-size:12px">Descarga la lista de IDs duplicados y elimínalos manualmente en Supabase Studio cuando estés seguro.</span>
+    </div>`));
+    main.appendChild(el('button',{class:'btn btn-danger',style:'margin-bottom:8px',onclick:exportarDuplicadosCSV},`📋 Descargar IDs duplicados (${dup}) en CSV`));
+  } else {
+    main.appendChild($(`<div class="alert alert-ok">✅ No se detectaron sanciones duplicadas. Total único: ${S.sanciones.length}.</div>`));
+  }
+
   main.appendChild(el('button',{class:'btn btn-gold',style:'margin-bottom:8px',onclick:exportarRespaldoJSON},'💾 Descargar respaldo JSON'));
   main.appendChild(el('button',{class:'btn btn-gold',style:'margin-bottom:8px',onclick:exportarCSVSanciones},'📊 Descargar sanciones CSV'));
   main.appendChild(el('button',{class:'btn btn-gold',style:'margin-bottom:8px',onclick:exportarCSVCursantes},'📋 Descargar cursantes CSV'));
@@ -1313,6 +1513,15 @@ function abrirMantenimiento(){
   main.appendChild(el('button',{class:'btn btn-ghost',style:'margin-bottom:8px',onclick:abrirInstalarApp},'📲 Instalar app / Compartir QR'));
   main.appendChild($(`<div class="alert alert-info" style="margin-top:12px"><strong>Operaciones destructivas</strong><br>"Limpiar datos", "Resetear firmas" y similares se ejecutan desde Supabase Studio directamente. No se exponen aquí para evitar accidentes.</div>`));
   app.appendChild(main);
+}
+
+function exportarDuplicadosCSV(){
+  const dups = S.sancionesDuplicadas || [];
+  const rows = [['ID a eliminar','Cursante','CI','Falta','Puntos','Profesor','Fecha']];
+  dups.forEach(s=>{
+    rows.push([s.id, s.cursante_nombre||'', s.cursante_ci||'', s.falta_articulo||'', s.puntos_aplicados||0, s.profesor_nombre||'', s.creado_en||'']);
+  });
+  exportarCSV(`duplicados_a_eliminar_${new Date().toISOString().slice(0,10)}.csv`, rows);
 }
 
 /* ============================================================
