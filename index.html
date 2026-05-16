@@ -1,235 +1,1801 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SIDECEME - Sistema de Disciplina ECEME</title>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { 
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: linear-gradient(135deg, #1a2332 0%, #2c3e50 100%);
-      color: #333;
-      min-height: 100vh;
-      padding: 20px;
-    }
-    .container { max-width: 1200px; margin: 0 auto; }
-    .header {
-      background: white;
-      padding: 30px;
-      border-radius: 10px;
-      margin-bottom: 30px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    .header h1 { color: #1a2332; margin-bottom: 10px; }
-    .header p { color: #666; }
-    .stats {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 20px;
-      margin-bottom: 30px;
-    }
-    .stat-box {
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      text-align: center;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    .stat-number { font-size: 32px; font-weight: bold; color: #1a2332; }
-    .stat-label { color: #666; margin-top: 10px; font-size: 14px; }
-    .search-box {
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      margin-bottom: 20px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    }
-    .search-box input {
-      width: 100%;
-      padding: 12px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
-      font-size: 16px;
-    }
-    .results { display: grid; gap: 15px; }
-    .result-card {
-      background: white;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .result-info h3 { color: #1a2332; margin-bottom: 5px; }
-    .result-info p { color: #666; font-size: 14px; }
-    .result-stats { text-align: right; }
-    .pts-badge {
-      display: inline-block;
-      background: #51cf66;
-      color: white;
-      padding: 8px 16px;
-      border-radius: 20px;
-      font-weight: bold;
-      margin-top: 5px;
-    }
-    .pts-badge.red { background: #ff6b6b; }
-    .pts-badge.yellow { background: #ffd43b; color: #333; }
-    .loading { text-align: center; padding: 40px; color: white; }
-    .error { background: #ff6b6b; color: white; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
-    .login-box {
-      background: white;
-      padding: 40px;
-      border-radius: 10px;
-      max-width: 400px;
-      margin: 100px auto;
-      box-shadow: 0 2px 20px rgba(0,0,0,0.2);
-    }
-    .login-box h2 { color: #1a2332; margin-bottom: 30px; text-align: center; }
-    .login-box input { width: 100%; padding: 12px; margin-bottom: 15px; border: 1px solid #ddd; border-radius: 5px; }
-    .login-box button { width: 100%; padding: 12px; background: #1a2332; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-    .login-box button:hover { background: #2c3e50; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1a2332">
+<title>SIDECEME · Sistema de Disciplina ECEME</title>
+<link rel="manifest" href="manifest.json">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.7/dist/signature_pad.umd.min.js"></script>
+<style>
+:root{
+  --azul:#1a2332; --azul-2:#2c3e50; --dorado:#d4af37; --dorado-2:#b8941f;
+  --bg:#f4f6fa; --card:#ffffff; --text:#1a2332; --muted:#6b7280;
+  --ok:#16a34a; --warn:#eab308; --bad:#dc2626; --info:#2563eb; --border:#e5e7eb;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.4}
+.app{min-height:100vh;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)}
+.with-bottomnav{padding-bottom:72px}
+
+/* HEADER */
+.topbar{background:linear-gradient(135deg,var(--azul) 0%,var(--azul-2) 100%);color:#fff;padding:14px 18px;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(0,0,0,.15);position:sticky;top:0;z-index:50}
+.topbar .logo{width:36px;height:36px;border-radius:8px;background:var(--dorado);color:var(--azul);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;letter-spacing:.5px;flex-shrink:0}
+.topbar h1{font-size:16px;font-weight:700;flex:1;line-height:1.1}
+.topbar h1 small{display:block;font-size:11px;font-weight:400;opacity:.75;margin-top:2px}
+.topbar .btn-icon{background:transparent;border:0;color:#fff;font-size:22px;cursor:pointer;padding:6px 8px;border-radius:6px}
+.topbar .btn-icon:hover{background:rgba(255,255,255,.1)}
+
+/* MAIN */
+.main{flex:1;padding:16px;max-width:1100px;margin:0 auto;width:100%}
+.card{background:var(--card);border-radius:14px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:12px}
+.card h2{font-size:17px;margin-bottom:12px;color:var(--azul);font-weight:700}
+.card h3{font-size:13px;margin-bottom:10px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px}
+
+/* LANDING */
+.landing{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:24px;text-align:center}
+.landing .brand{margin-bottom:32px}
+.landing .brand-logo{width:88px;height:88px;border-radius:20px;background:linear-gradient(135deg,var(--azul),var(--azul-2));color:var(--dorado);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:28px;margin:0 auto 14px;box-shadow:0 8px 24px rgba(26,35,50,.25)}
+.landing h1{font-size:24px;color:var(--azul);margin-bottom:4px}
+.landing .lema{color:var(--dorado-2);font-style:italic;font-size:13px;margin-bottom:6px;font-weight:600}
+.landing p.sub{color:var(--muted);font-size:14px}
+.choice-grid{display:grid;gap:14px;width:100%;max-width:420px;margin-top:8px}
+.choice-btn{background:#fff;border:2px solid var(--border);border-radius:14px;padding:22px 18px;text-align:left;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:16px;font-family:inherit}
+.choice-btn:hover,.choice-btn:active{border-color:var(--dorado);transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.08)}
+.choice-btn .ico{width:48px;height:48px;border-radius:12px;background:var(--azul);color:var(--dorado);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.choice-btn .txt strong{display:block;font-size:16px;color:var(--azul);margin-bottom:2px}
+.choice-btn .txt span{font-size:12px;color:var(--muted)}
+
+/* FORMS */
+.login-wrap{max-width:400px;margin:16px auto}
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px;font-weight:600}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:15px;background:#fff;color:var(--text);font-family:inherit}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{outline:none;border-color:var(--azul);box-shadow:0 0 0 3px rgba(26,35,50,.1)}
+
+/* BUTTONS */
+.btn{width:100%;padding:13px;border:0;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;transition:all .15s;font-family:inherit}
+.btn-primary{background:var(--azul);color:#fff}
+.btn-primary:hover{background:var(--azul-2)}
+.btn-gold{background:var(--dorado);color:var(--azul)}
+.btn-gold:hover{filter:brightness(.95)}
+.btn-ghost{background:#fff;color:var(--azul);border:1px solid var(--border)}
+.btn-danger{background:var(--bad);color:#fff}
+.btn-ok{background:var(--ok);color:#fff}
+.btn-sm{padding:8px 12px;font-size:13px;width:auto}
+
+/* STATS */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.stat{background:#fff;border-radius:12px;padding:14px 8px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.stat .num{font-size:24px;font-weight:800;color:var(--azul);line-height:1}
+.stat .lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-top:6px}
+.stat.bad .num{color:var(--bad)} .stat.warn .num{color:var(--warn)} .stat.ok .num{color:var(--ok)}
+
+/* LISTA */
+.search-bar{margin-bottom:12px}
+.search-bar input{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;font-size:15px;background:#fff}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{background:#fff;border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;box-shadow:0 1px 3px rgba(0,0,0,.06);cursor:pointer;transition:all .12s;border-left:4px solid transparent}
+.item:hover{transform:translateX(2px);box-shadow:0 2px 8px rgba(0,0,0,.08)}
+.item.bd-bad{border-left-color:var(--bad)}
+.item.bd-warn{border-left-color:var(--warn)}
+.item.bd-ok{border-left-color:var(--ok)}
+.item .info{flex:1;min-width:0}
+.item .info strong{display:block;color:var(--azul);font-size:14px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item .info span{font-size:11px;color:var(--muted)}
+.item .stats-mini{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+.badge{display:inline-block;padding:4px 10px;border-radius:14px;font-size:11px;font-weight:700;white-space:nowrap}
+.badge.ok{background:#dcfce7;color:#166534} .badge.warn{background:#fef3c7;color:#92400e} .badge.bad{background:#fee2e2;color:#991b1b}
+.badge.azul{background:#dbeafe;color:#1e40af}
+
+/* MODULES GRID */
+.modules{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.module-btn{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px 10px;text-align:center;cursor:pointer;transition:all .15s;font-family:inherit}
+.module-btn:hover{border-color:var(--dorado);transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.module-btn .ico{font-size:24px;margin-bottom:6px;display:block}
+.module-btn .nombre{font-size:12px;font-weight:700;color:var(--azul);line-height:1.2}
+
+/* BOTTOM NAV */
+.bottomnav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--border);display:flex;justify-content:space-around;padding:8px 0;z-index:40;padding-bottom:calc(8px + env(safe-area-inset-bottom))}
+.bnav-btn{background:none;border:0;flex:1;padding:6px;cursor:pointer;color:var(--muted);font-family:inherit;font-size:11px;font-weight:600;display:flex;flex-direction:column;align-items:center;gap:2px}
+.bnav-btn.active{color:var(--azul)}
+.bnav-btn .ico{font-size:20px}
+
+/* QR */
+.qr-wrap{text-align:center;padding:16px;background:#fff;border-radius:12px;margin:12px 0}
+.qr-wrap canvas,.qr-wrap img{max-width:100%;height:auto;border-radius:8px}
+.qr-info{background:#fef3c7;border-radius:10px;padding:12px;margin:10px 0;font-size:13px;color:#92400e}
+.qr-link{background:#f3f4f6;border-radius:8px;padding:10px;font-family:monospace;font-size:11px;word-break:break-all;color:var(--muted);margin-top:10px}
+
+/* FIRMA */
+#sig-canvas{border:2px dashed var(--border);border-radius:10px;background:#fff;width:100%;height:200px;display:block;touch-action:none}
+.sig-actions{display:flex;gap:8px;margin-top:10px}
+
+/* ALERTS */
+.alert{padding:12px 14px;border-radius:10px;margin-bottom:12px;font-size:14px;line-height:1.4}
+.alert-error{background:#fee2e2;color:#991b1b;border-left:4px solid var(--bad)}
+.alert-ok{background:#dcfce7;color:#166534;border-left:4px solid var(--ok)}
+.alert-info{background:#dbeafe;color:#1e40af;border-left:4px solid var(--info)}
+.alert-warn{background:#fef3c7;color:#92400e;border-left:4px solid var(--warn)}
+
+/* MODAL */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;display:flex;align-items:center;justify-content:center;padding:16px}
+.modal{background:#fff;border-radius:14px;max-width:520px;width:100%;max-height:90vh;overflow-y:auto}
+.modal-head{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.modal-head h3{color:var(--azul);font-size:16px;text-transform:none;letter-spacing:0}
+.modal-body{padding:16px}
+.modal-foot{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:8px;justify-content:flex-end}
+
+/* LOADER */
+.loader{text-align:center;padding:40px 20px;color:var(--muted)}
+.spinner{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--azul);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* DETALLE */
+.detalle-falta{background:#fef9e7;border-left:4px solid var(--dorado);padding:12px;border-radius:8px;margin-bottom:12px}
+.detalle-falta .articulo{font-weight:700;color:var(--azul);margin-bottom:4px;font-size:13px}
+.detalle-falta .desc{font-size:14px;margin-bottom:6px}
+.detalle-falta .pts{font-size:13px;color:var(--bad);font-weight:700}
+.meta-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px;font-size:12px}
+.meta-grid div{padding:8px;background:#f9fafb;border-radius:6px}
+.meta-grid strong{display:block;color:var(--muted);font-size:10px;text-transform:uppercase;margin-bottom:2px}
+
+/* FILTROS */
+.filtros{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.chip{padding:6px 12px;border-radius:14px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:12px;color:var(--text);font-family:inherit;font-weight:600}
+.chip.active{background:var(--azul);color:#fff;border-color:var(--azul)}
+.range-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px}
+
+/* AVATAR */
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--azul);color:var(--dorado);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0}
+
+/* PROGRESS */
+.steps{display:flex;gap:4px;margin-bottom:14px}
+.step{flex:1;height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+.step.done{background:var(--dorado)}
+
+/* RESPONSIVE */
+@media (max-width:520px){
+  .main{padding:12px}
+  .card{padding:14px}
+  .topbar h1{font-size:14px}
+  .stat .num{font-size:20px}
+  .stat .lbl{font-size:9px}
+}
+</style>
 </head>
 <body>
-
-<div class="container">
-  <div id="login-section">
-    <div class="login-box">
-      <h2>SIDECEME</h2>
-      <input id="username" type="text" placeholder="Usuario" value="quinto">
-      <input id="password" type="password" placeholder="Contraseña" value="2016">
-      <button onclick="iniciarSesion()">Entrar</button>
-    </div>
-  </div>
-
-  <div id="app-section" style="display: none;">
-    <div class="header">
-      <h1>SIDECEME - Sistema de Disciplina ECEME</h1>
-      <p>Registro integral de sanciones y demérito académico</p>
-    </div>
-
-    <div class="stats">
-      <div class="stat-box">
-        <div class="stat-number" id="total-cursantes">-</div>
-        <div class="stat-label">Cursantes</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-number" id="total-sanciones">-</div>
-        <div class="stat-label">Sanciones</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-number" id="consejo-count">-</div>
-        <div class="stat-label">En Consejo</div>
-      </div>
-    </div>
-
-    <div class="search-box">
-      <input type="text" id="search-input" placeholder="Buscar cursante por nombre..." onkeyup="filtrarCursantes()">
-    </div>
-
-    <div id="error-box" style="display: none;" class="error"></div>
-    <div id="loading" class="loading">Cargando datos...</div>
-    <div id="results" class="results" style="display: none;"></div>
-  </div>
-</div>
+<div class="app" id="app"></div>
 
 <script>
-const SUPABASE_URL = 'https://dmjgtztkdbzzgytlduwb.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_ZGggKeK0PY2bB3pxUrAGRg_h9yIzj3d';
+/* ============================================================
+   SIDECEME v3 — ECEME · Sistema de Disciplina
+   ============================================================ */
 
-let client = null;
-let cursantes = [];
-let sanciones = [];
+const CFG = {
+  SUPABASE_URL: 'https://dmjgtztkdbzzgytlduwb.supabase.co',
+  SUPABASE_KEY: 'sb_publishable_ZGggKeK0PY2bB3pxUrAGRg_h9yIzj3d',
+  PASSWORD_DEFAULT: '201615',
+  PUNTAJE_BASE: 100,
+  UMBRAL_WARN: 6,
+  UMBRAL_BAD: 11,
+};
 
-function iniciarSesion() {
-  document.getElementById('login-section').style.display = 'none';
-  document.getElementById('app-section').style.display = 'block';
-  cargarDatos();
+const ROLES = {
+  PROFESOR:'profesor', J_DISCIPLINA:'jefe_disciplina', J_ENTRENAMIENTO:'jefe_entrenamiento',
+  J_EVALUACIONES:'jefe_evaluaciones', J_ESTUDIOS:'jefe_estudios', COMANDANTE:'comandante',
+  CURSANTE:'cursante',
+};
+
+const ROL_LABEL = {
+  profesor:'Profesor', jefe_disciplina:'Jefe de Disciplina', jefe_entrenamiento:'Jefe de Entrenamiento',
+  jefe_evaluaciones:'Jefe de Evaluaciones', jefe_estudios:'Jefe de Estudios', comandante:'Comandante',
+};
+
+/* PLANTEL DOCENTE (29) — embebido. Se persiste en localStorage para que el Jefe pueda asignar roles. */
+const PROFESORES_DEFAULT = [
+  {id:"prof_3604515",ci:"3604515",grado:"CNL",nombre:"PARDO PARDO JOSE JHONNY",especialidad:"CAB. DAEN.",rol:"profesor",activo:true},
+  {id:"prof_3511111",ci:"3511111",grado:"CNL",nombre:"BAPTISTA ROCABADO WILLIAM GUSTAVO",especialidad:"ART. DAEN.",rol:"profesor",activo:true},
+  {id:"prof_3726224",ci:"3726224",grado:"CNL",nombre:"TAPIA SALINAS CHRISTIAN YAMIL",especialidad:"INF. DAEN.",rol:"profesor",activo:true},
+  {id:"prof_3818978",ci:"3818978",grado:"CNL",nombre:"MONTECINOS ARNEZ JOHANN ANTONIO",especialidad:"CAB. DAEN.",rol:"profesor",activo:true},
+  {id:"prof_2388600",ci:"2388600",grado:"CNL",nombre:"WOLFF BALDIVIEZO PEDRO RENE",especialidad:"ING. DAEN.",rol:"profesor",activo:true},
+  {id:"prof_5002201",ci:"5002201",grado:"CNL",nombre:"SERRANO VALERIANO ROBERTO",especialidad:"ING. DAEN.",rol:"profesor",activo:true},
+  {id:"prof_4478669",ci:"4478669",grado:"CNL",nombre:"TORANZO GUZMAN MARCO ANTONIO",especialidad:"INF. DAEN.",rol:"comandante",activo:true},
+  {id:"prof_4314966",ci:"4314966",grado:"TCNL",nombre:"DIAZ ANDIA EDGAR ARIEL",especialidad:"CAB. DEM.",rol:"profesor",activo:true},
+  {id:"prof_3450202",ci:"3450202",grado:"TCNL",nombre:"FERNANDEZ ALIAGA NIELSEN AMADO",especialidad:"INF. DEM.",rol:"profesor",activo:true},
+  {id:"prof_4794001",ci:"4794001",grado:"TCNL",nombre:"GALVEZ GALVEZ PEDRO PETER",especialidad:"INF. DEM.",rol:"profesor",activo:true},
+  {id:"prof_4538271",ci:"4538271",grado:"TCNL",nombre:"ANGULO ANTEZANA DANIEL",especialidad:"CAB. DEM.",rol:"profesor",activo:true},
+  {id:"prof_4534509",ci:"4534509",grado:"TCNL",nombre:"ROJAS CALDERON VLADIMIR",especialidad:"INF. DEM.",rol:"profesor",activo:true},
+  {id:"prof_4657366",ci:"4657366",grado:"TCNL",nombre:"SOSSA MONTAÑO HAROLD",especialidad:"COM. DEM.",rol:"profesor",activo:true},
+  {id:"prof_4071472",ci:"4071472",grado:"TCNL",nombre:"AVILA RIVAS GASTON JAROL",especialidad:"CAB. DEM.",rol:"profesor",activo:true},
+  {id:"prof_5313731",ci:"5313731",grado:"TCNL",nombre:"FUENTES ALVAREZ IVAN",especialidad:"ART. DEM.",rol:"profesor",activo:true},
+  {id:"prof_5236983",ci:"5236983",grado:"TCNL",nombre:"JALDIN DAVILA ROGER",especialidad:"INF. DEM.",rol:"profesor",activo:true},
+  {id:"prof_6094337",ci:"6094337",grado:"TCNL",nombre:"SOTO FARFAN BLADIMIR",especialidad:"INF. DEM.",rol:"profesor",activo:true},
+  {id:"prof_4889191",ci:"4889191",grado:"TCNL",nombre:"MORALES MILLAN SERGIO HERNAN",especialidad:"INF. DEM.",rol:"jefe_disciplina",activo:true},
+  {id:"prof_4305718",ci:"4305718",grado:"TCNL",nombre:"AGUIRRE CLAVEL DANILO HECTOR",especialidad:"CAB. DEM.",rol:"profesor",activo:true},
+  {id:"prof_6087355",ci:"6087355",grado:"MY",nombre:"LINARES ALARCON DEMIS HENRY",especialidad:"CAB. DEM.",rol:"profesor",activo:true},
+  {id:"prof_6408633",ci:"6408633",grado:"MY",nombre:"ZAMBRANA GOMEZ MIGUEL ANGEL",especialidad:"ART. DEM.",rol:"profesor",activo:true},
+  {id:"prof_5906893",ci:"5906893",grado:"MY",nombre:"SOTO SANCHEZ MARIO PABLO",especialidad:"INF. DEM.",rol:"profesor",activo:true},
+  {id:"prof_5997509",ci:"5997509",grado:"MY",nombre:"PEREIRA CORTEZ ROGER FIDEL",especialidad:"ART. DEM.",rol:"jefe_entrenamiento",activo:true},
+  {id:"prof_4194576",ci:"4194576",grado:"MY",nombre:"GODA BALCAZAR JOSE NAPOLEON",especialidad:"CAB. DEM.",rol:"profesor",activo:true},
+  {id:"prof_3450913",ci:"3450913",grado:"MY",nombre:"FERNANDEZ SEJAS BRIAN ROLANDO",especialidad:"CAB. DEM.",rol:"jefe_evaluaciones",activo:true},
+  {id:"prof_3454247",ci:"3454247",grado:"MY",nombre:"SALGUERO LLANOS JEANETTE MELISSA",especialidad:"INF. DEM.",rol:"profesor",activo:true},
+  {id:"prof_4009667",ci:"4009667",grado:"MY",nombre:"SIRPA RIVEROS RAUMI VANYA",especialidad:"INF. DEM.",rol:"jefe_estudios",activo:true},
+  {id:"prof_6410969",ci:"6410969",grado:"MY",nombre:"ORTIZ VALENCIA CHARLES MICHAEL",especialidad:"INF. DEM.",rol:"profesor",activo:true},
+  {id:"prof_5906205",ci:"5906205",grado:"MY",nombre:"TORRICO LUIZAGA JUAN MARCELO",especialidad:"ART. DEM.",rol:"profesor",activo:true},
+];
+
+/* Faltas demo si no hay tabla reglamentos */
+const FALTAS_REGLAMENTO = [
+  {id:'falta_001',articulo:'Art. 8.a',descripcion:'Utilizar bolígrafo de color distinto al autorizado por el Instituto durante el desarrollo de las evaluaciones y/o en la identificación de los mismos.',categoria:'Leve',puntos:1},
+  {id:'falta_002',articulo:'Art. 8.b',descripcion:'No portar o prestarse bolígrafos, gomas de borrar, papel, plantillas de símbolos, Reglamentos o cualquier material didáctico, durante las evaluaciones.',categoria:'Leve',puntos:1},
+  {id:'falta_003',articulo:'Art. 8.c',descripcion:'Sobrepasarse en el tiempo asignado para el desarrollo de las evaluaciones o identificación de los mismos.',categoria:'Leve',puntos:1},
+  {id:'falta_004',articulo:'Art. 8.d',descripcion:'Hablar en filas o en clases sin autorización.',categoria:'Leve',puntos:1},
+  {id:'falta_005',articulo:'Art. 8.e',descripcion:'Omitir el registro de los datos requeridos en el talón de las evaluaciones.',categoria:'Leve',puntos:1},
+  {id:'falta_006',articulo:'Art. 8.f',descripcion:'Moverse y promover desorden en filas o en clases.',categoria:'Leve',puntos:1},
+  {id:'falta_007',articulo:'Art. 8.g',descripcion:'Presentar documentos personales no actualizados (Cedula de Identidad, Cédula Militar, Licencia de Conducir, etc.)',categoria:'Leve',puntos:1},
+  {id:'falta_008',articulo:'Art. 8.h',descripcion:'Para las Oficiales Superiores Cursantes, no llevar el peinado sobrio "no melenas debajo del cuello del uniforme", color natural, sujetadores permitidos, redes de color natural sin adornos para moños.',categoria:'Leve',puntos:1},
+  {id:'falta_009',articulo:'Art. 8.i',descripcion:'Para las Oficiales Superiores Cursantes: Utilizar aretes colgantes, semi colgantes o el uso de más de un arete en cada oreja, así como el pintado de uñas con esmalte de colores fuertes.',categoria:'Leve',puntos:1},
+  {id:'falta_010',articulo:'Art. 8.j',descripcion:'No llevar zapatos y/o botas de acuerdo a Reglamento.',categoria:'Leve',puntos:1},
+  {id:'falta_011',articulo:'Art. 8.a',descripcion:'No llevar correctamente el uniforme (Lustrado de zapatos o botas, planchado, limpieza, chapa de cinturón, otros).',categoria:'Leve',puntos:2},
+  {id:'falta_012',articulo:'Art. 8.b',descripcion:'No llevar correctamente el uniforme deportivo reglamentario.',categoria:'Leve',puntos:2},
+  {id:'falta_013',articulo:'Art. 8.c',descripcion:'Descuido en la entrega del documento de evaluación (prolijidad, orden, sintaxis, errores ortográficos, etc.).',categoria:'Leve',puntos:2},
+  {id:'falta_014',articulo:'Art. 8.d',descripcion:'Hacer uso del permiso concedido, sin dar parte al Jefe de Curso, luego de que este haya sido autorizado por la autoridad correspondiente.',categoria:'Leve',puntos:2},
+  {id:'falta_015',articulo:'Art. 8.e',descripcion:'Falta de postura militar en los diferentes actos de presentación y actividades internas del Instituto.',categoria:'Leve',puntos:2},
+  {id:'falta_016',articulo:'Art. 8.f',descripcion:'No contribuir en la limpieza del curso y de las instalaciones del Instituto.',categoria:'Leve',puntos:2},
+  {id:'falta_017',articulo:'Art. 8.g',descripcion:'Consultar con los Profesores fuera del tiempo asignado para realizar las aclaraciones durante las evaluaciones.',categoria:'Leve',puntos:2},
+  {id:'falta_018',articulo:'Art. 8.h',descripcion:'Demostrar falta de interés en clases.',categoria:'Leve',puntos:2},
+  {id:'falta_019',articulo:'Art. 8.i',descripcion:'Falta de espíritu deportivo y/o falta de interés en la realización de ejercicios físicos o deportivos.',categoria:'Leve',puntos:2},
+  {id:'falta_020',articulo:'Art. 8.j',descripcion:'Durante el desarrollo de la clase, realizar trabajos o estudiar temas que no se refieran a la Unidad Temática que se imparte en clases.',categoria:'Leve',puntos:2},
+  {id:'falta_021',articulo:'Art. 8.k',descripcion:'No presentar las tareas de acuerdo normas establecidas.',categoria:'Leve',puntos:2},
+  {id:'falta_022',articulo:'Art. 8.l',descripcion:'Falta de interés en actividades programadas por el Instituto.',categoria:'Leve',puntos:2},
+  {id:'falta_023',articulo:'Art. 8.m',descripcion:'Falta de camaradería con los integrantes de su equipo de trabajo. Faltas Sancionadas con pérdida de 2 ( Dos ) punto s :',categoria:'Leve',puntos:2},
+  {id:'falta_024',articulo:'Art. 8.n',descripcion:'No cumplir con disposiciones académicas y/o administrativas del Instituto.',categoria:'Leve',puntos:2},
+  {id:'falta_025',articulo:'Art. 8.o',descripcion:'No cumplir con sus obligaciones como Encargado de Curso',categoria:'Leve',puntos:2},
+  {id:'falta_026',articulo:'Art. 8.p',descripcion:'Asistir a clases sin el material didáctico prescrito.',categoria:'Leve',puntos:2},
+  {id:'falta_027',articulo:'Art. 8.q',descripcion:'Fumar en ambientes prohibidos (Plaza del Estudiante área permitida).',categoria:'Leve',puntos:2},
+  {id:'falta_028',articulo:'Art. 8.r',descripcion:'Ingerir alimentos en el desarrollo de clases, conferencias, exposiciones, charlas o reuniones.',categoria:'Leve',puntos:2},
+  {id:'falta_029',articulo:'Art. 8.s',descripcion:'Asistir al Instituto fuera de horario con vestuario inadecuado.',categoria:'Leve',puntos:2},
+  {id:'falta_030',articulo:'Art. 8.t',descripcion:'No dar parte oportunamente a su Jefe de Curso, por cualquier situación que le impida asistir a las actividades del Instituto.',categoria:'Leve',puntos:2},
+  {id:'falta_031',articulo:'Art. 8.u',descripcion:'No dar parte oportunamente de problemas familiares y/o personales.',categoria:'Leve',puntos:2},
+  {id:'falta_032',articulo:'Art. 8.v',descripcion:'Atrasarse a clases y/o formaciones (Hasta 15 minutos).',categoria:'Leve',puntos:2},
+  {id:'falta_033',articulo:'Art. 8.w',descripcion:'No presentar su documentación personal.',categoria:'Leve',puntos:2},
+  {id:'falta_034',articulo:'Art. 8.x',descripcion:'No utilizar el cinturón de seguridad en los vehículos y/o el casco de protección en las motocicletas (conductor y acompañante). Faltas Sancionadas con pérdida de 2 ( Dos ) punto s:',categoria:'Leve',puntos:2},
+  {id:'falta_035',articulo:'Art. 9.a',descripcion:'No apagar el celular en actos programados y/o usar durante el desarrollo de clases y actividades del Instituto.',categoria:'Leve',puntos:3},
+  {id:'falta_036',articulo:'Art. 9.b',descripcion:'Solicitar postergación para la entrega de trabajos.',categoria:'Leve',puntos:3},
+  {id:'falta_037',articulo:'Art. 9.c',descripcion:'Alterar el uniforme reglamentario.',categoria:'Leve',puntos:3},
+  {id:'falta_038',articulo:'Art. 9.d',descripcion:'Formular reclamos de evaluaciones verbalmente de la Unidad de Competencia, sin presentar su papeleta de reclamo.',categoria:'Leve',puntos:3},
+  {id:'falta_039',articulo:'Art. 9.e',descripcion:'Demostrar falta de cortesía militar en las diferentes actividades internas y externas del Instituto.',categoria:'Leve',puntos:3},
+  {id:'falta_040',articulo:'Art. 9.f',descripcion:'Presentarse a las actividades del Instituto con uniforme no prescrito.',categoria:'Leve',puntos:3},
+  {id:'falta_041',articulo:'Art. 9.g',descripcion:'Eludir el conducto regular en asuntos académicos para hablar con los superiores, siempre que no hubiera sido requerido por ellos.',categoria:'Leve',puntos:3},
+  {id:'falta_042',articulo:'Art. 9.h',descripcion:'Dormir en clases, conferencias, exposiciones o reuniones.',categoria:'Leve',puntos:3},
+  {id:'falta_043',articulo:'Art. 9.i',descripcion:'Presentar trabajos de investigación en forma incompleta.',categoria:'Leve',puntos:3},
+  {id:'falta_044',articulo:'Art. 9.j',descripcion:'Atrasarse a clases y/o formaciones (más de 15 minutos).',categoria:'Leve',puntos:3},
+  {id:'falta_045',articulo:'Art. 9.k',descripcion:'En tiempos de pandemia no tomar en cuenta las medidas de bioseguridad (barbijo, alcohol en gel, distanciamiento social, etc.).',categoria:'Leve',puntos:3},
+  {id:'falta_046',articulo:'Art. 9.l',descripcion:'Realizar reclamos infundados, que fueron considerados improcedentes en las evaluaciones, trabajos y ejercicios militares. Faltas sancionadas con la pérdida de 3 (Tres) puntos:',categoria:'Leve',puntos:3},
+  {id:'falta_047',articulo:'Art. 9.a',descripcion:'Emplear sin autorización al personal de servicio de guardia o de apoyo en asuntos particulares o personales.',categoria:'Leve',puntos:4},
+  {id:'falta_048',articulo:'Art. 9.b',descripcion:'Entregar trabajos académicos fuera de plazos.',categoria:'Leve',puntos:4},
+  {id:'falta_049',articulo:'Art. 9.c',descripcion:'No cumplir con las normas e instrucciones particulares emitidas mediante directivas, para el desarrollo de los exámenes y/o exposiciones.',categoria:'Leve',puntos:4},
+  {id:'falta_050',articulo:'Art. 9.d',descripcion:'Interrumpir y/o abandonar una exposición, sin la autorización debida.',categoria:'Leve',puntos:4},
+  {id:'falta_051',articulo:'Art. 9.e',descripcion:'Uso de computadoras durante el desarrollo de clases, sin que exista autorización.',categoria:'Leve',puntos:4},
+  {id:'falta_052',articulo:'Art. 9.f',descripcion:'Reprender públicamente y en términos indecorosos a sus Subalternos.',categoria:'Leve',puntos:4},
+  {id:'falta_053',articulo:'Art. 9.g',descripcion:'Excederse en sus atribuciones.',categoria:'Leve',puntos:4},
+  {id:'falta_054',articulo:'Art. 9.h',descripcion:'Faltar a la palabra empeñada a un superior.',categoria:'Leve',puntos:4},
+  {id:'falta_055',articulo:'Art. 9.i',descripcion:'No cumplir compromisos asumidos.',categoria:'Leve',puntos:4},
+  {id:'falta_056',articulo:'Art. 9.j',descripcion:'Estacionar su vehículo en lugares o parqueos que no le corresponda.',categoria:'Leve',puntos:4},
+  {id:'falta_057',articulo:'Art. 9.k',descripcion:'Durante el desarrollo de las clases y Ejercicios Militares, ser sorprendido(a) realizando otras actividades ajenas. Faltas Sancionadas con pérdida de 4 (Cuatro) puntos:',categoria:'Leve',puntos:4},
+  {id:'falta_058',articulo:'Art. 9.a',descripcion:'Interferir el Plan de Llamadas, obstaculizando su flujo por no llamar a quienes corresponda hacerlo.',categoria:'Leve',puntos:5},
+  {id:'falta_059',articulo:'Art. 9.b',descripcion:'Hacer abandono del Instituto, durante el desarrollo de las actividades del Instituto.',categoria:'Leve',puntos:5},
+  {id:'falta_060',articulo:'Art. 9.c',descripcion:'Abandonar arbitrariamente el aula.',categoria:'Leve',puntos:5},
+  {id:'falta_061',articulo:'Art. 9.d',descripcion:'Presentar información falsa ante cualquier requerimiento del Instituto.',categoria:'Leve',puntos:5},
+  {id:'falta_062',articulo:'Art. 9.e',descripcion:'Efectuar reclamos solicitando la modificación de notas directamente al Profesor.',categoria:'Leve',puntos:5},
+  {id:'falta_063',articulo:'Art. 9.f',descripcion:'Descuido en la conservación de los medios didácticos del Instituto.',categoria:'Leve',puntos:5},
+  {id:'falta_064',articulo:'Art. 9.g',descripcion:'Destrucción, deterioro o pérdida de materiales, bienes y otros del Instituto, sin perjuicio de su reposición.',categoria:'Leve',puntos:5},
+  {id:'falta_065',articulo:'Art. 9.h',descripcion:'Descuido con la documentación y material clasificado.',categoria:'Leve',puntos:5},
+  {id:'falta_066',articulo:'Art. 9.i',descripcion:'Falta de consideración y respeto a los Profesores y entre los/las Oficiales Superiores Cursantes.',categoria:'Leve',puntos:5},
+  {id:'falta_067',articulo:'Art. 9.j',descripcion:'Mantener una conducta inadecuada entre Oficiales Superiores Cursantes permitiendo la promiscuidad y la falta de respeto a la jerarquía.',categoria:'Leve',puntos:5},
+  {id:'falta_068',articulo:'Art. 9.k',descripcion:'Intervenir en clases u otro tipo de actividades del Instituto en forma airada e inadecuada.',categoria:'Leve',puntos:5},
+  {id:'falta_069',articulo:'Art. 9.l',descripcion:'Faltar a la realización de trabajos grupales.',categoria:'Leve',puntos:5},
+  {id:'falta_070',articulo:'Art. 10.a',descripcion:'Prolongar o abreviar los castigos disciplinarios recibidos.',categoria:'Grave',puntos:6},
+  {id:'falta_071',articulo:'Art. 10.b',descripcion:'Eludir responsabilidades académicas o actividades programadas por el Instituto.',categoria:'Grave',puntos:6},
+  {id:'falta_072',articulo:'Art. 10.c',descripcion:'Faltar a actividades del Instituto.',categoria:'Grave',puntos:6},
+  {id:'falta_073',articulo:'Art. 10.d',descripcion:'Tomar fotografías, efectuar filmaciones o grabaciones, durante actividades académicas dentro o fuera de las instalaciones del Instituto, sin autorización. Faltas sancionadas con la pérdida de 7 (siete) puntos:',categoria:'Grave',puntos:6},
+  {id:'falta_074',articulo:'Art. 10.a',descripcion:'Demostrar falta de respeto con un Superior o Profesor Invitado durante el desarrollo de las clases presenciales o virtuales .',categoria:'Grave',puntos:6},
+  {id:'falta_075',articulo:'Art. 10.b',descripcion:'Efectuar comentarios con particulares o personal militar que denigren o permitan realizar conjeturas o especulaciones negativas que afecten al prestigio e imagen del Instituto, de su personal o la Institución.',categoria:'Grave',puntos:6},
+  {id:'falta_076',articulo:'Art. 10.c',descripcion:'Responder o dirigirse indebidamente a un Superior o Profesor. Faltas sancionadas con la pérdida de 6 (seis) puntos:',categoria:'Grave',puntos:6},
+  {id:'falta_077',articulo:'Art. 10.a',descripcion:'No entregar trabajos académicos impuestos, salvo que exista causa justificada verificada y aceptada.',categoria:'Grave',puntos:8},
+  {id:'falta_078',articulo:'Art. 10.b',descripcion:'Elevar informes falsos para justificar faltas cometidas en el desempeño de las actividades académicas.',categoria:'Grave',puntos:8},
+  {id:'falta_079',articulo:'Art. 10.c',descripcion:'Durante los Ejercicios Militares y actividades académicas, hacer mal uso del Internet, navegando en las redes sociales o visitando páginas no autorizadas.',categoria:'Grave',puntos:8},
+  {id:'falta_080',articulo:'Art. 10.d',descripcion:'Ser sorprendido(a) en posesión y/o empleo de material con contenido pornográfico. Faltas sancionadas con la pérdida de 9 ( nueve ) puntos:',categoria:'Grave',puntos:8},
+  {id:'falta_081',articulo:'Art. 10.a',descripcion:'Fingir enfermedad para eludir actividades del Instituto.',categoria:'Grave',puntos:8},
+  {id:'falta_082',articulo:'Art. 10.b',descripcion:'No conducirse con pulcritud y decoro en todo acto dentro del servicio o fuera de él.',categoria:'Grave',puntos:8},
+  {id:'falta_083',articulo:'Art. 10.c',descripcion:'Atrasarse a la formación del Pl an de Llamadas hasta 60 minutos . Faltas sancionadas con la pérdida de 8 ( ocho ) puntos:',categoria:'Grave',puntos:8},
+  {id:'falta_084',articulo:'Art. 10.c',descripcion:'Atrasarse a la formación del Plan de Llamadas hasta 60 minutos. Faltas sancionadas con la pérdida de 8 ( ocho ) puntos:',categoria:'Grave',puntos:8},
+  {id:'falta_085',articulo:'Art. 10.a',descripcion:'Valerse de influencias externas o internas, para obtener beneficios personales y/o académicos.',categoria:'Grave',puntos:10},
+  {id:'falta_086',articulo:'Art. 10.b',descripcion:'Faltar al Plan de Llamadas.',categoria:'Grave',puntos:10},
+  {id:'falta_087',articulo:'Art. 10.c',descripcion:'Acceder a la documentación del Profesor sin la autorización debida. Faltas sancionadas con la pérdida de 10 (diez) puntos:',categoria:'Grave',puntos:10},
+  {id:'falta_088',articulo:'Art. 10.1',descripcion:'No presentarse a rendir una Evaluación sin que exista causa justificada o autorización expresa del Comando del Instituto.',categoria:'Consejo',puntos:11},
+  {id:'falta_089',articulo:'Art. 10.2',descripcion:'Entregar premeditadamente en blanco cualquier Prueba de Evaluación.',categoria:'Consejo',puntos:11},
+  {id:'falta_090',articulo:'Art. 10.3',descripcion:'Demostrar tibieza, indiferencia y/o disgusto ante órdenes y llamado de un Profesor o de un/una Oficial Superior Cursante de mayor jerarquía.',categoria:'Consejo',puntos:11},
+  {id:'falta_091',articulo:'Art. 10.4',descripcion:'Sobrepasar el tiempo de su licencia sin causas justificadas.',categoria:'Consejo',puntos:11},
+  {id:'falta_092',articulo:'Art. 10.5',descripcion:'Hacer circular anónimos, pasquines, rumores u otras publicaciones físicas o electrónicas lesivas a la dignidad de los componentes del Instituto.',categoria:'Consejo',puntos:11},
+  {id:'falta_093',articulo:'Art. 10.6',descripcion:'Presentarse con aliento a bebidas alcohólicas a cualquier actividad del Instituto.',categoria:'Consejo',puntos:11},
+  {id:'falta_094',articulo:'Art. 10.7',descripcion:'Efectuar comentarios que denigren y/o permitan realizar especulaciones negativas que afecten al prestigio e imagen del personal del Instituto o de la Institución.',categoria:'Consejo',puntos:11},
+  {id:'falta_095',articulo:'Art. 10.8',descripcion:'Hacer insinuaciones o proposiciones personales para lograr ventajas académicas de cualquier tipo a los Profesores, Evaluadores o personal de apoyo del Instituto.',categoria:'Consejo',puntos:11},
+  {id:'falta_096',articulo:'Art. 10.9',descripcion:'Faltar uno o más días a clases y/o a las actividades programadas por el Instituto sin causa justificada.',categoria:'Consejo',puntos:11},
+  {id:'falta_097',articulo:'Art. 10.10',descripcion:'Ser causante de desórdenes, escándalos y reyertas públicas dentro o fuera del Instituto, mientras no constituya delito.',categoria:'Consejo',puntos:11},
+  {id:'falta_098',articulo:'Art. 11.1 (Virtual 1p)',descripcion:'No registrarse adecuadamente en la plataforma educativa, empleando otros nombres o sobrenombres, fotos u otros que no estén de acuerdo a disposiciones emanadas por el Comando del Instituto.',categoria:'Virtual',puntos:1},
+  {id:'falta_099',articulo:'Art. 11.2 (Virtual 1p)',descripcion:'Activar el micrófono sin la autorización del Profesor.',categoria:'Virtual',puntos:1},
+  {id:'falta_100',articulo:'Art. 11.1 (Virtual 2p)',descripcion:'No llevar correctamente el uniforme durante el desarrollo de las clases en la modalidad en línea (Blusa, polera , pantalón y otros).',categoria:'Virtual',puntos:2},
+  {id:'falta_101',articulo:'Art. 11.2 (Virtual 2p)',descripcion:'Desconectarse o salir de la plataforma sin ningún justificativo.',categoria:'Virtual',puntos:2},
+  {id:'falta_102',articulo:'Art. 11.3 (Virtual 2p)',descripcion:'No responder oportunamente al requerimiento del profesor durante el desarrollo de las clases en la modalidad en línea.',categoria:'Virtual',puntos:2},
+  {id:'falta_103',articulo:'Art. 11.4 (Virtual 2p)',descripcion:'No conectarse a la plataforma en el horario establecido (hasta los 5 minutos después del inicio de clases sin dar el parte respectivo al profesor).',categoria:'Virtual',puntos:2},
+  {id:'falta_104',articulo:'Art. 11.1 (Virtual 4p)',descripcion:'Permitir que personal no autorizado se conecte con su cuenta.',categoria:'Virtual',puntos:4},
+  {id:'falta_105',articulo:'Art. 11.2 (Virtual 4p)',descripcion:'Subir a la plataforma y/o compartir material no autorizado.',categoria:'Virtual',puntos:4},
+  {id:'falta_106',articulo:'Art. 11.1 (Virtual 3p)',descripcion:'No cumplir con las normas e instrucciones particulares emitidas mediante directivas, para el desarrollo de las evaluaciones y/o exposiciones con apoyo de medios tecnológicos.',categoria:'Virtual',puntos:3},
+  {id:'falta_107',articulo:'Art. 11.2 (Virtual 3p)',descripcion:'Realizar la grabación del desarrollo de las clases a través de la plataforma sin autorización.',categoria:'Virtual',puntos:3},
+  {id:'falta_108',articulo:'Art. 11.3 (Virtual 3p)',descripcion:'Iniciar o crear una reunión en la plataforma sin la autorización correspondiente.',categoria:'Virtual',puntos:3}
+];
+
+/* ESTADO GLOBAL */
+const S = {
+  client:null, user:null,
+  cursantes:[], sanciones:[], reglamentos:[], profesores:[],
+  loaded:false, currentTab:'panel',
+};
+
+const app = document.getElementById('app');
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+function $(html){
+  const t=document.createElement('template');
+  t.innerHTML=html.trim();
+  // Si solo hay 1 elemento, lo retorna directamente. Si hay varios, retorna el fragment (que puede appendearse).
+  return t.content.children.length===1 ? t.content.firstElementChild : t.content;
 }
-
-async function cargarDatos() {
-  try {
-    client = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    
-    const { data: c, error: e1 } = await client.from('cursantes').select('*');
-    if (e1) throw e1;
-    cursantes = c || [];
-    
-    const { data: s, error: e2 } = await client.from('sanciones').select('*');
-    if (e2) throw e2;
-    sanciones = s || [];
-    
-    mostrarDatos();
-  } catch (err) {
-    mostrarError(err.message);
+function el(tag,attrs={},...children){
+  const e=document.createElement(tag);
+  for(const k in attrs){
+    if(k==='class')e.className=attrs[k];
+    else if(k==='html')e.innerHTML=attrs[k];
+    else if(k.startsWith('on'))e[k.toLowerCase()]=attrs[k];
+    else e.setAttribute(k,attrs[k]);
   }
-}
-
-function mostrarDatos() {
-  document.getElementById('loading').style.display = 'none';
-  document.getElementById('results').style.display = 'block';
-  
-  document.getElementById('total-cursantes').textContent = cursantes.length;
-  document.getElementById('total-sanciones').textContent = sanciones.length;
-  
-  const enConsejo = cursantes.filter(c => calcularPuntos(c.id) >= 11).length;
-  document.getElementById('consejo-count').textContent = enConsejo;
-  
-  filtrarCursantes();
-}
-
-function calcularPuntos(cursanteId) {
-  return sanciones
-    .filter(s => s.cursante_id === cursanteId)
-    .reduce((sum, s) => sum + (s.puntos_aplicados || 0), 0);
-}
-
-function filtrarCursantes() {
-  const query = document.getElementById('search-input').value.toLowerCase();
-  let filtered = cursantes;
-  
-  if (query) {
-    filtered = cursantes.filter(c => 
-      (c.nombre_completo || '').toLowerCase().includes(query) ||
-      (c.id || '').toLowerCase().includes(query)
-    );
-  }
-  
-  const resultsDiv = document.getElementById('results');
-  resultsDiv.innerHTML = '';
-  
-  filtered.forEach(c => {
-    const pts = calcularPuntos(c.id);
-    const count = sanciones.filter(s => s.cursante_id === c.id).length;
-    let badgeClass = 'green';
-    if (pts >= 11) badgeClass = 'red';
-    else if (pts >= 6) badgeClass = 'yellow';
-    
-    const card = document.createElement('div');
-    card.className = 'result-card';
-    card.innerHTML = `
-      <div class="result-info">
-        <h3>${c.nombre_completo || 'N/A'}</h3>
-        <p>${c.id} · ${count} sanciones</p>
-      </div>
-      <div class="result-stats">
-        <div class="pts-badge ${badgeClass}">${pts} PTS</div>
-      </div>
-    `;
-    resultsDiv.appendChild(card);
+  children.flat().forEach(c=>{
+    if(c==null)return;
+    e.appendChild(typeof c==='string'?document.createTextNode(c):c);
   });
+  return e;
+}
+function clear(){app.innerHTML=''}
+function alertBox(type,msg){return $(`<div class="alert alert-${type}">${msg}</div>`)}
+function loader(txt='Cargando...'){return $(`<div class="loader"><div class="spinner"></div>${txt}</div>`)}
+function calcularPerdida(cursanteId){
+  return S.sanciones.filter(s=>s.cursante_id===cursanteId).reduce((sum,s)=>sum+(s.puntos_aplicados||0),0);
+}
+function puntajeActual(cursanteId){return Math.max(0,CFG.PUNTAJE_BASE-calcularPerdida(cursanteId))}
+function badgeClassByPerdida(p){if(p>=CFG.UMBRAL_BAD)return'bad';if(p>=CFG.UMBRAL_WARN)return'warn';return'ok'}
+function estadoLabel(p){if(p>=CFG.UMBRAL_BAD)return'Consejo';if(p>=CFG.UMBRAL_WARN)return'Observación';return'Al día'}
+function fmtFecha(iso){if(!iso)return'-';try{return new Date(iso).toLocaleString('es-BO',{dateStyle:'short',timeStyle:'short'})}catch(e){return iso}}
+function fmtFechaCorta(iso){if(!iso)return'-';try{return new Date(iso).toLocaleDateString('es-BO')}catch(e){return iso}}
+function iniciales(nombre){return(nombre||'').split(' ').slice(0,2).map(s=>s[0]||'').join('').toUpperCase()||'??'}
+function escapeHtml(s){return String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c])}
+
+/* ============================================================
+   PROFESORES — persistencia en localStorage
+   ============================================================ */
+function cargarProfesoresLocales(){
+  try{
+    const raw = localStorage.getItem('sideceme_profesores');
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return [...PROFESORES_DEFAULT];
+}
+function guardarProfesoresLocales(){
+  try{ localStorage.setItem('sideceme_profesores', JSON.stringify(S.profesores)); }catch(e){}
 }
 
-function mostrarError(msg) {
-  document.getElementById('loading').style.display = 'none';
-  const errorDiv = document.getElementById('error-box');
-  errorDiv.style.display = 'block';
-  errorDiv.textContent = 'Error: ' + msg;
+/* ============================================================
+   SUPABASE
+   ============================================================ */
+async function initSupabase(){
+  if(S.client)return S.client;
+  S.client=window.supabase.createClient(CFG.SUPABASE_URL,CFG.SUPABASE_KEY);
+  return S.client;
 }
+async function cargarDatos(forzar){
+  if(S.loaded && !forzar) return;
+  await initSupabase();
+  const [c,s] = await Promise.all([
+    S.client.from('cursantes').select('*'),
+    S.client.from('sanciones').select('*'),
+  ]);
+  if(c.error)throw c.error;
+  if(s.error)throw s.error;
+  S.cursantes = c.data || [];
+  S.sanciones = s.data || [];
+  // Reglamento (opcional)
+  try{const r=await S.client.from('reglamentos').select('*');S.reglamentos=r.data||[]}catch(e){S.reglamentos=[]}
+  // Profesores: combinar locales con remotos si existieran
+  S.profesores = cargarProfesoresLocales();
+  S.loaded = true;
+}
+
+/* ============================================================
+   ROUTER
+   ============================================================ */
+function go(screen,params){
+  window.scrollTo(0,0);
+  switch(screen){
+    case'landing':return renderLanding();
+    case'login-docente':return renderLoginDocente();
+    case'login-cursante':return renderLoginCursante();
+    case'dashboard':return renderDashboard();
+    case'sancion-pendiente':return renderSancionPendiente(params);
+    default:return renderLanding();
+  }
+}
+function detectarDeepLink(){
+  const u=new URL(window.location.href);
+  return u.searchParams.get('s');
+}
+
+/* ============================================================
+   COMPONENTES
+   ============================================================ */
+function topbar(titulo,onBack,subtitle){
+  const bar=el('header',{class:'topbar'});
+  if(onBack)bar.appendChild(el('button',{class:'btn-icon',onclick:onBack},'←'));
+  bar.appendChild(el('div',{class:'logo'},'SD'));
+  bar.appendChild(el('h1',{html:`${escapeHtml(titulo)}${subtitle?`<small>${escapeHtml(subtitle)}</small>`:''}`}));
+  if(S.user)bar.appendChild(el('button',{class:'btn-icon',onclick:logout,title:'Cerrar sesión'},'⎋'));
+  return bar;
+}
+function logout(){
+  S.user=null;
+  window.history.replaceState({},'',window.location.pathname);
+  go('landing');
+}
+function abrirModal(titulo,contenido){
+  const bg=el('div',{class:'modal-bg',onclick:(e)=>{if(e.target===bg)bg.remove()}});
+  const m=el('div',{class:'modal'});
+  m.appendChild($(`<div class="modal-head"><h3>${escapeHtml(titulo)}</h3><button style="background:none;border:0;font-size:24px;cursor:pointer;color:var(--azul)" onclick="this.closest('.modal-bg').remove()">×</button></div>`));
+  const body=el('div',{class:'modal-body'});
+  if(typeof contenido==='string')body.innerHTML=contenido; else body.appendChild(contenido);
+  m.appendChild(body);
+  bg.appendChild(m);
+  document.body.appendChild(bg);
+  return bg;
+}
+
+/* ============================================================
+   LANDING
+   ============================================================ */
+function renderLanding(){
+  clear();
+  app.appendChild(el('div',{class:'landing'},
+    el('div',{class:'brand'},
+      el('div',{class:'brand-logo'},'SD'),
+      el('div',{class:'lema'},'SER ANTES QUE PARECER'),
+      el('h1',{},'SIDECEME'),
+      el('p',{class:'sub'},'Sistema de Disciplina · ECEME'),
+    ),
+    el('div',{class:'choice-grid'},
+      el('button',{class:'choice-btn',onclick:()=>go('login-docente')},
+        el('div',{class:'ico'},'🎖️'),
+        el('div',{class:'txt'},el('strong',{},'Plantel Docente'),el('span',{},'Profesores y jefes de área')),
+      ),
+      el('button',{class:'choice-btn',onclick:()=>go('login-cursante')},
+        el('div',{class:'ico'},'🎓'),
+        el('div',{class:'txt'},el('strong',{},'Plantel Cursantes'),el('span',{},'Mis notas, sanciones y horario')),
+      ),
+    ),
+  ));
+}
+
+/* ============================================================
+   LOGIN DOCENTE — CI + 201615 (validado contra plantel)
+   ============================================================ */
+function renderLoginDocente(){
+  clear();
+  app.appendChild(topbar('Ingreso Docente',()=>go('landing'),'Verifica tu identidad'));
+  const main=el('div',{class:'main'});
+  main.appendChild($(`
+    <div class="card login-wrap">
+      <div class="alert alert-info" style="font-size:13px">Plantel Docente ECEME. Usa tu Carnet de Identidad y la contraseña asignada.</div>
+      <div class="form-group">
+        <label>Carnet de Identidad</label>
+        <input id="ci" type="text" inputmode="numeric" placeholder="Número de CI" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>Contraseña</label>
+        <input id="pw" type="password" placeholder="Contraseña" autocomplete="current-password" value="201615">
+      </div>
+      <div id="err"></div>
+      <button class="btn btn-primary" id="btn-login">Ingresar</button>
+    </div>
+  `));
+  app.appendChild(main);
+
+  document.getElementById('btn-login').onclick=async()=>{
+    const ciInput=document.getElementById('ci').value.trim();
+    const pw=document.getElementById('pw').value.trim();
+    const errBox=document.getElementById('err');
+    errBox.innerHTML='';
+    if(!ciInput||!pw){errBox.appendChild(alertBox('error','Completa ambos campos'));return}
+    if(pw!==CFG.PASSWORD_DEFAULT){errBox.appendChild(alertBox('error','Contraseña incorrecta'));return}
+
+    errBox.appendChild(loader('Verificando...'));
+    try{
+      await cargarDatos();
+      const ciNum = ciInput.replace(/\D/g,'');
+      const prof = S.profesores.find(p => p.ci.replace(/\D/g,'') === ciNum && p.activo);
+      if(!prof){
+        errBox.innerHTML='';
+        errBox.appendChild(alertBox('error','CI no encontrado en el plantel docente'));
+        return;
+      }
+      S.user = {
+        tipo:'docente', rol:prof.rol, id:prof.id, nombre:prof.nombre,
+        grado:prof.grado, ci:prof.ci, datos:prof,
+      };
+      go('dashboard');
+    }catch(e){
+      errBox.innerHTML='';
+      errBox.appendChild(alertBox('error','Error: '+e.message));
+    }
+  };
+}
+
+/* ============================================================
+   LOGIN CURSANTE — CI + 201615
+   ============================================================ */
+function renderLoginCursante(){
+  clear();
+  app.appendChild(topbar('Ingreso Cursante',()=>go('landing'),'Verifica tu identidad'));
+  const main=el('div',{class:'main'});
+  main.appendChild($(`
+    <div class="card login-wrap">
+      <div class="alert alert-info" style="font-size:13px">Usa tu Carnet de Identidad y la contraseña asignada.</div>
+      <div class="form-group">
+        <label>Carnet de Identidad</label>
+        <input id="ci" type="text" inputmode="numeric" placeholder="Tu número de CI" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>Contraseña</label>
+        <input id="pw" type="password" placeholder="Contraseña" autocomplete="current-password" value="201615">
+      </div>
+      <div id="err"></div>
+      <button class="btn btn-primary" id="btn-cur">Ingresar</button>
+    </div>
+  `));
+  app.appendChild(main);
+
+  document.getElementById('btn-cur').onclick=async()=>{
+    const ciInput=document.getElementById('ci').value.trim();
+    const pw=document.getElementById('pw').value.trim();
+    const errBox=document.getElementById('err');
+    errBox.innerHTML='';
+    if(!ciInput||!pw){errBox.appendChild(alertBox('error','Completa ambos campos'));return}
+    if(pw!==CFG.PASSWORD_DEFAULT){errBox.appendChild(alertBox('error','Contraseña incorrecta'));return}
+
+    errBox.appendChild(loader('Verificando...'));
+    try{
+      await cargarDatos();
+      // Normalizar: solo números, sin espacios ni sufijo de oficina
+      const ciNum = ciInput.replace(/\D/g,'');
+      const c = S.cursantes.find(x => {
+        const ciCur = String(x.ci||'').replace(/\D/g,'');
+        return ciCur === ciNum && ciNum.length >= 4;
+      });
+      if(!c){
+        errBox.innerHTML='';
+        errBox.appendChild(alertBox('error',`CI "${ciInput}" no encontrado entre los ${S.cursantes.length} cursantes`));
+        return;
+      }
+      S.user = { tipo:'cursante', rol:ROLES.CURSANTE, id:c.id, nombre:c.nombre_completo, ci:c.ci, datos:c };
+      go('dashboard');
+    }catch(e){
+      errBox.innerHTML='';
+      errBox.appendChild(alertBox('error','Error: '+e.message));
+    }
+  };
+}
+
+/* ============================================================
+   DASHBOARD ROUTER
+   ============================================================ */
+function renderDashboard(){
+  if(!S.user)return go('landing');
+  if(S.user.tipo==='cursante')return renderDashCursante();
+  if(S.user.rol===ROLES.J_DISCIPLINA||S.user.rol===ROLES.COMANDANTE)return renderJDPanel();
+  return renderDashProfesor();
+}
+
+/* ============================================================
+   DASHBOARD PROFESOR (otros docentes)
+   ============================================================ */
+function renderDashProfesor(){
+  clear();
+  app.appendChild(topbar(`${S.user.grado||''} ${S.user.nombre.split(' ').slice(0,2).join(' ')}`,null,ROL_LABEL[S.user.rol]||'Docente'));
+  const main=el('div',{class:'main'});
+
+  // Stats de SUS sanciones (las que él impuso)
+  const misSancs = S.sanciones.filter(s => s.profesor_id === S.user.id);
+  const ptsImpuestos = misSancs.reduce((sum,s)=>sum+(s.puntos_aplicados||0),0);
+
+  main.appendChild($(`
+    <div class="stats">
+      <div class="stat"><div class="num">${misSancs.length}</div><div class="lbl">Mis sanciones</div></div>
+      <div class="stat"><div class="num">${ptsImpuestos}</div><div class="lbl">Pts impuestos</div></div>
+      <div class="stat"><div class="num">${S.cursantes.length}</div><div class="lbl">Cursantes</div></div>
+    </div>
+  `));
+
+  const modulos = el('div',{class:'card'},
+    el('h2',{},'Accesos'),
+    el('div',{class:'modules'},
+      el('button',{class:'module-btn',onclick:abrirNuevaSancion},el('span',{class:'ico'},'⚖️'),el('span',{class:'nombre'},'Nueva Sanción')),
+      el('button',{class:'module-btn',onclick:()=>abrirMisSancionesImpuestas()},el('span',{class:'ico'},'📋'),el('span',{class:'nombre'},'Mis Sanciones Emitidas')),
+      el('button',{class:'module-btn',onclick:abrirListaCursantes},el('span',{class:'ico'},'👥'),el('span',{class:'nombre'},'Ver Cursantes')),
+      S.user.rol===ROLES.J_ENTRENAMIENTO ? el('button',{class:'module-btn',onclick:()=>infoModulo('Notas de Entrenamiento Físico','Cargar 2 notas por semestre (4/año) por cursante. Requiere tabla `notas_efm` en Supabase.')},el('span',{class:'ico'},'🏃'),el('span',{class:'nombre'},'Notas EFM')) : null,
+      S.user.rol===ROLES.J_EVALUACIONES ? el('button',{class:'module-btn',onclick:()=>infoModulo('Evaluaciones Académicas','Materias, mallas curriculares y calificaciones. Requiere tabla `notas` en Supabase.')},el('span',{class:'ico'},'📚'),el('span',{class:'nombre'},'Notas Académicas')) : null,
+      S.user.rol===ROLES.J_ESTUDIOS ? el('button',{class:'module-btn',onclick:abrirReportes},el('span',{class:'ico'},'📊'),el('span',{class:'nombre'},'Reportes')) : null,
+    )
+  );
+  main.appendChild(modulos);
+  app.appendChild(main);
+}
+
+function abrirMisSancionesImpuestas(){
+  const misSancs = S.sanciones
+    .filter(s => s.profesor_id === S.user.id)
+    .sort((a,b)=>new Date(b.creado_en)-new Date(a.creado_en));
+
+  clear();
+  app.appendChild(topbar('Sanciones que emití',renderDashProfesor));
+  const main=el('div',{class:'main'});
+  const card=el('div',{class:'card'});
+  card.appendChild(el('h2',{},`Total: ${misSancs.length}`));
+  if(!misSancs.length){
+    card.appendChild($(`<p style="text-align:center;color:var(--muted);padding:20px">Aún no has emitido sanciones</p>`));
+  }else{
+    const lst=el('div',{class:'list'});
+    misSancs.forEach(s=>{
+      const huella = s.huella_forense || {};
+      const firmada = huella.estado === 'firmada' || (s.puntos_aplicados||0) > 0;
+      lst.appendChild($(`
+        <div class="item ${firmada?'bd-bad':'bd-warn'}" style="cursor:default">
+          <div class="info">
+            <strong>${escapeHtml(s.cursante_nombre||'—')}</strong>
+            <span>${escapeHtml(s.falta_articulo||'')} · ${fmtFechaCorta(s.creado_en)}</span>
+          </div>
+          <span class="badge ${firmada?'bad':'warn'}">${firmada?('+'+(s.puntos_aplicados||0)+' pts'):'Pendiente'}</span>
+        </div>
+      `));
+    });
+    card.appendChild(lst);
+  }
+  main.appendChild(card);
+  app.appendChild(main);
+}
+
+function infoModulo(titulo,msg){
+  abrirModal(titulo,$(`<p style="line-height:1.5">${escapeHtml(msg)}</p><br><div class="alert alert-info">Módulo en preparación. La estructura está lista.</div>`));
+}
+
+/* ============================================================
+   JEFE DE DISCIPLINA · TAB CONTROL
+   ============================================================ */
+function renderJD(tab){
+  S.currentTab = tab || S.currentTab || 'panel';
+  if(S.currentTab==='panel')return renderJDPanel();
+  if(S.currentTab==='cursantes')return renderJDCursantes();
+  if(S.currentTab==='reportes')return renderJDReportes();
+  if(S.currentTab==='alertas')return renderJDAlertas();
+}
+
+function bottomNavJD(){
+  const tabs = [
+    {id:'panel',ico:'🏠',label:'Panel'},
+    {id:'cursantes',ico:'👥',label:'Cursantes'},
+    {id:'reportes',ico:'📊',label:'Reportes'},
+    {id:'alertas',ico:'🔔',label:'Alertas'},
+  ];
+  const nav=el('nav',{class:'bottomnav'});
+  tabs.forEach(t=>{
+    nav.appendChild(el('button',{class:'bnav-btn'+(S.currentTab===t.id?' active':''),onclick:()=>renderJD(t.id)},
+      el('span',{class:'ico'},t.ico),
+      el('span',{},t.label),
+    ));
+  });
+  return nav;
+}
+
+/* ----- PANEL ----- */
+function renderJDPanel(){
+  S.currentTab='panel';
+  clear();
+  app.appendChild(topbar('Panel de Control',null,`${ROL_LABEL[S.user.rol]} · ${new Date().toLocaleDateString('es-BO')}`));
+  const main=el('div',{class:'main with-bottomnav'});
+
+  const total = S.cursantes.length;
+  const consejo = S.cursantes.filter(c=>calcularPerdida(c.id)>=CFG.UMBRAL_BAD).length;
+  const observacion = S.cursantes.filter(c=>{const p=calcularPerdida(c.id);return p>=CFG.UMBRAL_WARN&&p<CFG.UMBRAL_BAD}).length;
+  const sancs = S.sanciones.length;
+
+  main.appendChild($(`
+    <div class="stats">
+      <div class="stat" onclick="window._verCursantes&&window._verCursantes('all')" style="cursor:pointer"><div class="num">${total}</div><div class="lbl">Cursantes</div></div>
+      <div class="stat" onclick="window._verSanciones&&window._verSanciones()" style="cursor:pointer"><div class="num">${sancs}</div><div class="lbl">Sanciones</div></div>
+      <div class="stat bad" onclick="window._verCursantes&&window._verCursantes('consejo')" style="cursor:pointer"><div class="num">${consejo}</div><div class="lbl">Consejo</div></div>
+    </div>
+  `));
+  window._verCursantes = (filtro)=>{ S._filtroInicial = filtro; renderJD('cursantes'); };
+  window._verSanciones = ()=>{ abrirActividadReciente(); };
+
+  if(consejo>0){
+    main.appendChild($(`<div class="alert alert-error"><strong>🚨 ${consejo} cursante(s) en Consejo Académico</strong><br>Tienen 11+ puntos perdidos. Requiere acción inmediata.</div>`));
+  }
+  if(observacion>0){
+    main.appendChild($(`<div class="alert alert-warn"><strong>⚠️ ${observacion} cursante(s) en observación</strong><br>Entre 6 y 10 puntos perdidos. Deben ser monitoreados.</div>`));
+  }
+
+  // Accesos rápidos
+  const accesos = el('div',{class:'card'},
+    el('h3',{},'Accesos rápidos'),
+    el('div',{class:'modules'},
+      el('button',{class:'module-btn',onclick:abrirNuevaSancion},el('span',{class:'ico'},'⚖️'),el('span',{class:'nombre'},'Nueva Sanción')),
+      el('button',{class:'module-btn',onclick:abrirGestionarCursantes},el('span',{class:'ico'},'🛠️'),el('span',{class:'nombre'},'Gestionar Cursantes')),
+      el('button',{class:'module-btn',onclick:abrirGestionarProfesores},el('span',{class:'ico'},`👨‍🏫`),el('span',{class:'nombre'},`Profesores (${S.profesores.length})`)),
+      el('button',{class:'module-btn',onclick:abrirPerdidaPuntaje},el('span',{class:'ico'},'📉'),el('span',{class:'nombre'},'Pérdida de Puntaje')),
+      el('button',{class:'module-btn',onclick:abrirActividadReciente},el('span',{class:'ico'},'🕐'),el('span',{class:'nombre'},'Actividad Reciente')),
+      el('button',{class:'module-btn',onclick:abrirMantenimiento},el('span',{class:'ico'},'🛡️'),el('span',{class:'nombre'},'Mantenimiento')),
+      el('button',{class:'module-btn',onclick:abrirInstalarApp},el('span',{class:'ico'},'📲'),el('span',{class:'nombre'},'Instalar App')),
+    )
+  );
+  main.appendChild(accesos);
+
+  app.appendChild(main);
+  app.appendChild(bottomNavJD());
+}
+
+/* ----- CURSANTES ----- */
+function renderJDCursantes(){
+  S.currentTab='cursantes';
+  clear();
+  app.appendChild(topbar('Cursantes',null,`${S.cursantes.length} registrados`));
+  const main=el('div',{class:'main with-bottomnav'});
+
+  main.appendChild($(`
+    <div class="search-bar">
+      <input type="text" id="q" placeholder="🔍 Buscar por nombre, CI o ID...">
+    </div>
+  `));
+
+  // Filtros
+  const filtros = el('div',{class:'filtros'});
+  const opciones = [
+    {id:'all',label:'Todos'},
+    {id:'consejo',label:'Consejo'},
+    {id:'obs',label:'Observación'},
+    {id:'aldia',label:'Al día'},
+  ];
+  let filtroActivo = S._filtroInicial || 'all';
+  S._filtroInicial = null;
+  opciones.forEach(op=>{
+    filtros.appendChild(el('button',{class:'chip'+(op.id===filtroActivo?' active':''),onclick:(e)=>{filtroActivo=op.id;[...filtros.children].forEach(c=>c.classList.remove('active'));e.currentTarget.classList.add('active');render(document.getElementById('q').value)}},op.label));
+  });
+  main.appendChild(filtros);
+
+  const lista = el('div',{class:'list',id:'lst'});
+  main.appendChild(lista);
+
+  function render(filter=''){
+    lista.innerHTML='';
+    const f = filter.toLowerCase().trim();
+    let arr = S.cursantes
+      .filter(c=>!f||(c.nombre_completo||'').toLowerCase().includes(f)||(c.id||'').toLowerCase().includes(f)||String(c.ci||'').includes(f))
+      .map(c=>({...c,_pts:calcularPerdida(c.id)}));
+    if(filtroActivo==='consejo')arr=arr.filter(c=>c._pts>=CFG.UMBRAL_BAD);
+    else if(filtroActivo==='obs')arr=arr.filter(c=>c._pts>=CFG.UMBRAL_WARN&&c._pts<CFG.UMBRAL_BAD);
+    else if(filtroActivo==='aldia')arr=arr.filter(c=>c._pts<CFG.UMBRAL_WARN);
+    arr.sort((a,b)=>b._pts-a._pts);
+
+    if(!arr.length){
+      lista.appendChild($(`<div class="card" style="text-align:center;color:var(--muted)">Sin resultados</div>`));
+      return;
+    }
+
+    arr.forEach(c=>{
+      const count = S.sanciones.filter(s=>s.cursante_id===c.id).length;
+      const bcl = badgeClassByPerdida(c._pts);
+      const restante = CFG.PUNTAJE_BASE - c._pts;
+      lista.appendChild(el('div',{class:`item bd-${bcl}`,onclick:()=>abrirDetalleCursante(c)},
+        el('div',{class:'avatar'},iniciales(c.nombre_completo)),
+        el('div',{class:'info'},
+          $(`<strong>${escapeHtml(c.nombre_completo||'—')}</strong>`),
+          $(`<span>${escapeHtml(c.id||'')} · CI ${escapeHtml(c.ci||'—')} · ${count} sanc.</span>`),
+        ),
+        el('div',{class:'stats-mini'},
+          $(`<span class="badge ${bcl}">-${c._pts}</span>`),
+          $(`<span class="badge azul">${restante}/100</span>`),
+        ),
+      ));
+    });
+  }
+  render();
+  document.getElementById('q').oninput = (e)=>render(e.target.value);
+
+  app.appendChild(main);
+  app.appendChild(bottomNavJD());
+}
+
+function abrirDetalleCursante(c){
+  const sancs = S.sanciones.filter(s=>s.cursante_id===c.id).sort((a,b)=>new Date(b.creado_en)-new Date(a.creado_en));
+  const pts = calcularPerdida(c.id);
+  const bcl = badgeClassByPerdida(pts);
+  const body=el('div',{});
+  body.appendChild($(`
+    <div style="text-align:center;margin-bottom:14px">
+      <div class="avatar" style="width:64px;height:64px;margin:0 auto 10px;font-size:20px">${iniciales(c.nombre_completo)}</div>
+      <h3 style="color:var(--azul);font-size:17px">${escapeHtml(c.nombre_completo||'—')}</h3>
+      <p style="color:var(--muted);font-size:13px;margin-top:4px">${escapeHtml(c.id||'')} · CI ${escapeHtml(c.ci||'—')} · ${escapeHtml(c.paralelo||'')}</p>
+      <div style="margin-top:10px;display:flex;gap:8px;justify-content:center">
+        <span class="badge ${bcl}">Perdido: ${pts}</span>
+        <span class="badge azul">Restante: ${CFG.PUNTAJE_BASE-pts}/100</span>
+        <span class="badge ${bcl}">${estadoLabel(pts)}</span>
+      </div>
+    </div>
+    <h3 style="margin-top:14px;color:var(--muted);font-size:11px">Historial de sanciones (${sancs.length})</h3>
+  `));
+  if(!sancs.length){
+    body.appendChild($(`<p style="text-align:center;color:var(--muted);padding:14px">Sin sanciones registradas</p>`));
+  }else{
+    const cont=el('div',{class:'list',style:'margin-top:8px'});
+    sancs.forEach(s=>{
+      cont.appendChild($(`
+        <div class="item bd-bad" style="cursor:default">
+          <div class="info">
+            <strong>${escapeHtml(s.falta_articulo||'—')}</strong>
+            <span>${escapeHtml(s.falta_descripcion||'—')}<br>${fmtFechaCorta(s.creado_en)} · ${escapeHtml(s.profesor_nombre||'—')}</span>
+          </div>
+          <span class="badge bad">-${s.puntos_aplicados||0}</span>
+        </div>
+      `));
+    });
+    body.appendChild(cont);
+  }
+  abrirModal('Detalle del cursante',body);
+}
+
+/* ----- REPORTES ----- */
+function renderJDReportes(){
+  S.currentTab='reportes';
+  clear();
+  app.appendChild(topbar('Reportes',null,'Estadísticas y exportación'));
+  const main=el('div',{class:'main with-bottomnav'});
+
+  // Estadísticas
+  const total = S.cursantes.length;
+  const sinSanc = S.cursantes.filter(c=>calcularPerdida(c.id)===0).length;
+  const enRiesgo = S.cursantes.filter(c=>{const p=calcularPerdida(c.id);return p>=CFG.UMBRAL_WARN&&p<CFG.UMBRAL_BAD}).length;
+  const enConsejo = S.cursantes.filter(c=>calcularPerdida(c.id)>=CFG.UMBRAL_BAD).length;
+  const tSanc = S.sanciones.length;
+  const leves = S.sanciones.filter(s=>(s.puntos_aplicados||0)>=1&&(s.puntos_aplicados||0)<=5).length;
+  const graves = S.sanciones.filter(s=>(s.puntos_aplicados||0)>=6&&(s.puntos_aplicados||0)<=10).length;
+  const consejo = S.sanciones.filter(s=>(s.puntos_aplicados||0)>=11).length;
+  const pct = (n,t)=>t?((n/t*100).toFixed(1)+'%'):'0%';
+
+  const card1=el('div',{class:'card'});
+  card1.appendChild($(`
+    <h2>📊 Estadísticas generales</h2>
+    <div style="display:grid;gap:6px;font-size:13px;line-height:1.6">
+      <div style="display:flex;justify-content:space-between;padding:8px;background:#f9fafb;border-radius:6px"><span><strong>👥 Total cursantes</strong></span><strong style="color:var(--azul)">${total}</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:8px;background:#dcfce7;border-radius:6px"><span>🟢 Sin sanciones</span><strong style="color:var(--ok)">${sinSanc} (${pct(sinSanc,total)})</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:8px;background:#fef3c7;border-radius:6px"><span>🟡 En riesgo (6-10 pts)</span><strong style="color:var(--warn)">${enRiesgo} (${pct(enRiesgo,total)})</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:8px;background:#fee2e2;border-radius:6px"><span>🔴 En Consejo (≥11 pts)</span><strong style="color:var(--bad)">${enConsejo} (${pct(enConsejo,total)})</strong></div>
+      <div style="height:1px;background:var(--border);margin:6px 0"></div>
+      <div style="display:flex;justify-content:space-between;padding:8px;background:#f9fafb;border-radius:6px"><span><strong>📋 Total sanciones</strong></span><strong style="color:var(--azul)">${tSanc}</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:8px"><span>· Leves (1-5)</span><strong style="color:var(--info)">${leves} (${pct(leves,tSanc)})</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:8px"><span>· Graves (6-10)</span><strong style="color:var(--warn)">${graves} (${pct(graves,tSanc)})</strong></div>
+      <div style="display:flex;justify-content:space-between;padding:8px"><span>· Consejo Acad. (≥11)</span><strong style="color:var(--bad)">${consejo} (${pct(consejo,tSanc)})</strong></div>
+    </div>
+  `));
+  main.appendChild(card1);
+
+  // Por paralelo
+  const porParalelo = {};
+  S.sanciones.forEach(s=>{
+    const cur = S.cursantes.find(c=>c.id===s.cursante_id);
+    const par = cur?.paralelo || 'Sin paralelo';
+    porParalelo[par] = (porParalelo[par]||0)+1;
+  });
+  const card2=el('div',{class:'card'});
+  card2.appendChild(el('h3',{},'🎯 Sanciones por paralelo'));
+  const lst = Object.entries(porParalelo).sort((a,b)=>b[1]-a[1]);
+  if(!lst.length){
+    card2.appendChild($(`<p style="color:var(--muted);text-align:center;padding:10px">Sin datos</p>`));
+  }else{
+    const div=el('div',{style:'display:grid;gap:4px;font-size:13px'});
+    lst.forEach(([k,v])=>{
+      div.appendChild($(`<div style="display:flex;justify-content:space-between;padding:8px;background:#f9fafb;border-radius:6px"><span>${escapeHtml(k)}</span><strong>${v} (${pct(v,tSanc)})</strong></div>`));
+    });
+    card2.appendChild(div);
+  }
+  main.appendChild(card2);
+
+  // Exportar
+  const card3=el('div',{class:'card'});
+  card3.appendChild($(`<h3>📥 Exportar</h3>`));
+  card3.appendChild(el('button',{class:'btn btn-ok',style:'margin-bottom:8px',onclick:exportarCSVSanciones},'📊 Descargar sanciones (CSV)'));
+  card3.appendChild(el('button',{class:'btn btn-primary',style:'margin-bottom:8px',onclick:exportarCSVCursantes},'📋 Descargar cursantes con puntaje (CSV)'));
+  card3.appendChild(el('button',{class:'btn btn-gold',onclick:exportarRespaldoJSON},'💾 Respaldo completo (JSON)'));
+  main.appendChild(card3);
+
+  app.appendChild(main);
+  app.appendChild(bottomNavJD());
+}
+
+function exportarCSV(filename, rows){
+  const csv = rows.map(r => r.map(v => {
+    const s = (v==null?'':String(v));
+    return s.includes(',')||s.includes('"')||s.includes('\n') ? '"'+s.replace(/"/g,'""')+'"' : s;
+  }).join(',')).join('\n');
+  const blob = new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+function exportarCSVSanciones(){
+  const rows = [['ID','Cursante','CI','Paralelo','Falta','Categoría','Puntos','Profesor','Fecha']];
+  S.sanciones.forEach(s=>{
+    const cur = S.cursantes.find(c=>c.id===s.cursante_id);
+    rows.push([s.id, s.cursante_nombre||cur?.nombre_completo||'', s.cursante_ci||cur?.ci||'', cur?.paralelo||'', s.falta_articulo||'', s.falta_categoria||'', s.puntos_aplicados||0, s.profesor_nombre||'', s.creado_en||'']);
+  });
+  exportarCSV(`sanciones_${new Date().toISOString().slice(0,10)}.csv`, rows);
+}
+
+function exportarCSVCursantes(){
+  const rows = [['ID','Nombre','CI','Paralelo','Ciclo','Sanciones','Puntos perdidos','Puntaje actual','Estado']];
+  S.cursantes.forEach(c=>{
+    const p = calcularPerdida(c.id);
+    const count = S.sanciones.filter(s=>s.cursante_id===c.id).length;
+    rows.push([c.id, c.nombre_completo||'', c.ci||'', c.paralelo||'', c.ciclo||'', count, p, CFG.PUNTAJE_BASE-p, estadoLabel(p)]);
+  });
+  exportarCSV(`cursantes_${new Date().toISOString().slice(0,10)}.csv`, rows);
+}
+
+function exportarRespaldoJSON(){
+  const data = {
+    fecha: new Date().toISOString(),
+    cursantes: S.cursantes,
+    sanciones: S.sanciones,
+    profesores: S.profesores,
+  };
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `sideceme_respaldo_${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 1000);
+}
+
+/* ----- ALERTAS ----- */
+function renderJDAlertas(){
+  S.currentTab='alertas';
+  clear();
+  app.appendChild(topbar('Alertas',null,'Cursantes que requieren atención'));
+  const main=el('div',{class:'main with-bottomnav'});
+
+  const enConsejo = S.cursantes.map(c=>({...c,_p:calcularPerdida(c.id)})).filter(c=>c._p>=CFG.UMBRAL_BAD).sort((a,b)=>b._p-a._p);
+  const enObs = S.cursantes.map(c=>({...c,_p:calcularPerdida(c.id)})).filter(c=>c._p>=CFG.UMBRAL_WARN&&c._p<CFG.UMBRAL_BAD).sort((a,b)=>b._p-a._p);
+
+  const cardC=el('div',{class:'card'});
+  cardC.appendChild(el('h2',{html:`🚨 En Consejo Académico <span style="font-size:13px;color:var(--bad)">(${enConsejo.length})</span>`}));
+  if(!enConsejo.length){
+    cardC.appendChild($(`<p style="color:var(--muted);text-align:center;padding:14px">Ninguno por el momento ✅</p>`));
+  }else{
+    const lst=el('div',{class:'list'});
+    enConsejo.forEach(c=>{
+      lst.appendChild(el('div',{class:'item bd-bad',onclick:()=>abrirDetalleCursante(c)},
+        el('div',{class:'avatar'},iniciales(c.nombre_completo)),
+        el('div',{class:'info'},
+          $(`<strong>${escapeHtml(c.nombre_completo||'—')}</strong>`),
+          $(`<span>${escapeHtml(c.id||'')} · ${escapeHtml(c.paralelo||'')}</span>`),
+        ),
+        $(`<span class="badge bad">-${c._p}</span>`),
+      ));
+    });
+    cardC.appendChild(lst);
+  }
+  main.appendChild(cardC);
+
+  const cardO=el('div',{class:'card'});
+  cardO.appendChild(el('h2',{html:`⚠️ En Observación <span style="font-size:13px;color:var(--warn)">(${enObs.length})</span>`}));
+  if(!enObs.length){
+    cardO.appendChild($(`<p style="color:var(--muted);text-align:center;padding:14px">Ninguno por el momento</p>`));
+  }else{
+    const lst=el('div',{class:'list'});
+    enObs.forEach(c=>{
+      lst.appendChild(el('div',{class:'item bd-warn',onclick:()=>abrirDetalleCursante(c)},
+        el('div',{class:'avatar'},iniciales(c.nombre_completo)),
+        el('div',{class:'info'},
+          $(`<strong>${escapeHtml(c.nombre_completo||'—')}</strong>`),
+          $(`<span>${escapeHtml(c.id||'')} · ${escapeHtml(c.paralelo||'')}</span>`),
+        ),
+        $(`<span class="badge warn">-${c._p}</span>`),
+      ));
+    });
+    cardO.appendChild(lst);
+  }
+  main.appendChild(cardO);
+
+  app.appendChild(main);
+  app.appendChild(bottomNavJD());
+}
+
+/* ============================================================
+   GESTIONAR CURSANTES (Jefe Disciplina)
+   ============================================================ */
+function abrirGestionarCursantes(){
+  clear();
+  app.appendChild(topbar('Gestionar Cursantes',()=>renderJD('panel'),`${S.cursantes.length} registros · solo Jefe Disciplina`));
+  const main=el('div',{class:'main'});
+  main.appendChild($(`
+    <div class="alert alert-info">🛠️ Aquí puedes editar CI, paralelo o marcar inactivos. Los cambios persisten en Supabase.</div>
+  `));
+  main.appendChild(el('button',{class:'btn btn-gold',style:'margin-bottom:10px',onclick:()=>infoModulo('Agregar cursante','Para alta de cursantes debes insertarlos en la tabla `cursantes` de Supabase. La importación masiva desde Excel se conectará próximamente.')},'➕ Agregar nuevo cursante'));
+  main.appendChild(el('button',{class:'btn btn-ghost',onclick:abrirListaCursantes},'👥 Ver lista (modo lectura)'));
+  app.appendChild(main);
+}
+
+function abrirListaCursantes(){
+  renderJD('cursantes'); // reusar la pantalla
+}
+
+/* ============================================================
+   GESTIONAR PROFESORES
+   ============================================================ */
+function abrirGestionarProfesores(){
+  clear();
+  app.appendChild(topbar('Profesores',()=>renderJD('panel'),`${S.profesores.length} registrados`));
+  const main=el('div',{class:'main'});
+
+  main.appendChild($(`<div class="alert alert-info">ℹ️ Los profesores no aparecen en RR.NN. de cursantes. Aquí se gestiona el plantel docente con su rol asignado.</div>`));
+
+  // Form alta
+  const cardAlta=el('div',{class:'card'});
+  cardAlta.appendChild($(`
+    <h3>➕ Registrar nuevo profesor</h3>
+    <div class="form-group"><input id="np-grado" placeholder="Grado (ej: My., Cnl.)"></div>
+    <div class="form-group"><input id="np-nombre" placeholder="Nombre completo"></div>
+    <div class="form-group"><input id="np-ci" type="text" inputmode="numeric" placeholder="CI (solo números)"></div>
+    <div class="form-group">
+      <select id="np-rol">
+        <option value="profesor">Profesor</option>
+        <option value="jefe_disciplina">Jefe de Disciplina</option>
+        <option value="jefe_entrenamiento">Jefe de Entrenamiento</option>
+        <option value="jefe_evaluaciones">Jefe de Evaluaciones</option>
+        <option value="jefe_estudios">Jefe de Estudios</option>
+        <option value="comandante">Comandante</option>
+      </select>
+    </div>
+    <button class="btn btn-gold" id="btn-np">✓ Registrar profesor</button>
+  `));
+  main.appendChild(cardAlta);
+  document.getElementById('btn-np').onclick = ()=>{
+    const grado = document.getElementById('np-grado').value.trim();
+    const nombre = document.getElementById('np-nombre').value.trim();
+    const ci = document.getElementById('np-ci').value.trim();
+    const rol = document.getElementById('np-rol').value;
+    if(!grado||!nombre||!ci){alert('Completa todos los campos');return}
+    if(S.profesores.find(p=>p.ci===ci)){alert('Ya existe un profesor con ese CI');return}
+    S.profesores.push({id:'prof_'+ci, ci, grado:grado.toUpperCase().replace('.',''), nombre:nombre.toUpperCase(), especialidad:'', rol, activo:true});
+    guardarProfesoresLocales();
+    abrirGestionarProfesores();
+  };
+
+  // Búsqueda
+  main.appendChild($(`<div class="search-bar"><input type="text" id="qp" placeholder="🔍 Buscar por nombre o CI..."></div>`));
+
+  const lista = el('div',{class:'list',id:'lstp'});
+  main.appendChild(lista);
+
+  function renderProfs(filter=''){
+    lista.innerHTML='';
+    const f = filter.toLowerCase().trim();
+    const arr = S.profesores
+      .filter(p=>!f||p.nombre.toLowerCase().includes(f)||p.ci.includes(f))
+      .sort((a,b)=>a.nombre.localeCompare(b.nombre));
+    arr.forEach((p,idx)=>{
+      const sancs = S.sanciones.filter(s=>s.profesor_id===p.id).length;
+      const it = el('div',{class:'item',style:'cursor:default;flex-direction:column;align-items:stretch'});
+      it.appendChild(el('div',{style:'display:flex;gap:10px;align-items:center;width:100%'},
+        el('div',{class:'avatar'},iniciales(p.nombre)),
+        el('div',{class:'info'},
+          $(`<strong>${escapeHtml(p.grado)}. ${escapeHtml(p.nombre)}</strong>`),
+          $(`<span>CI ${escapeHtml(p.ci)} · ${sancs} sanciones · <span style="color:var(--azul);font-weight:600">${ROL_LABEL[p.rol]||p.rol}</span></span>`),
+        ),
+        $(`<span class="badge ${p.activo?'ok':'bad'}">${p.activo?'Activo':'Inactivo'}</span>`),
+      ));
+      it.appendChild(el('div',{style:'display:flex;gap:6px;margin-top:8px'},
+        el('button',{class:'btn btn-ghost btn-sm',style:'flex:1',onclick:()=>cambiarRol(p)},'🎖️ Rol'),
+        el('button',{class:'btn btn-ghost btn-sm',style:'flex:1',onclick:()=>toggleActivo(p)},p.activo?'⏸️ Desactivar':'▶️ Activar'),
+      ));
+      lista.appendChild(it);
+    });
+  }
+  renderProfs();
+  document.getElementById('qp').oninput = (e)=>renderProfs(e.target.value);
+  app.appendChild(main);
+
+  function cambiarRol(p){
+    const body=el('div',{});
+    Object.entries(ROL_LABEL).forEach(([k,v])=>{
+      body.appendChild(el('button',{class:'btn '+(p.rol===k?'btn-primary':'btn-ghost'),style:'margin-bottom:6px',onclick:()=>{
+        p.rol=k; guardarProfesoresLocales(); document.querySelector('.modal-bg')?.remove(); renderProfs(document.getElementById('qp').value);
+      }},v));
+    });
+    abrirModal(`Asignar rol a ${p.nombre.split(' ').slice(0,2).join(' ')}`, body);
+  }
+  function toggleActivo(p){
+    p.activo = !p.activo; guardarProfesoresLocales(); renderProfs(document.getElementById('qp').value);
+  }
+}
+
+/* ============================================================
+   PÉRDIDA DE PUNTAJE — con filtros de tiempo
+   ============================================================ */
+function abrirPerdidaPuntaje(){
+  clear();
+  app.appendChild(topbar('Pérdida de Puntaje',()=>renderJD('panel'),'Acumulado por periodo'));
+  const main=el('div',{class:'main'});
+
+  let fechaDesde = new Date(Date.now() - 365*24*60*60*1000).toISOString().slice(0,10);
+  let fechaHasta = new Date().toISOString().slice(0,10);
+
+  const ctrl = el('div',{class:'card'});
+  ctrl.appendChild($(`
+    <div class="alert alert-info">📅 Selecciona el rango de fechas para ver cuántos puntos ha perdido cada cursante.</div>
+    <div class="range-grid">
+      <div class="form-group"><label>Desde</label><input type="date" id="fd" value="${fechaDesde}"></div>
+      <div class="form-group"><label>Hasta</label><input type="date" id="fh" value="${fechaHasta}"></div>
+    </div>
+    <div class="filtros">
+      <button class="chip" data-r="7">Últimos 7d</button>
+      <button class="chip" data-r="30">Últimos 30d</button>
+      <button class="chip" data-r="90">Últimos 3 meses</button>
+      <button class="chip" data-r="all">Todo</button>
+    </div>
+  `));
+  main.appendChild(ctrl);
+
+  const statsDiv = el('div',{id:'pp-stats'});
+  main.appendChild(statsDiv);
+
+  const btnExp = el('button',{class:'btn btn-ok',style:'margin-bottom:12px',onclick:()=>exportarPerdidaCSV(fechaDesde,fechaHasta)},'📥 Exportar a CSV');
+  main.appendChild(btnExp);
+
+  const lista = el('div',{class:'list',id:'lstpp'});
+  main.appendChild(lista);
+
+  app.appendChild(main);
+
+  function render(){
+    const ini = new Date(fechaDesde+'T00:00:00').getTime();
+    const fin = new Date(fechaHasta+'T23:59:59').getTime();
+    const sancsRng = S.sanciones.filter(s=>{const t=new Date(s.creado_en).getTime();return t>=ini&&t<=fin});
+    const totalPerd = sancsRng.reduce((sum,s)=>sum+(s.puntos_aplicados||0),0);
+    const cursIds = new Set(sancsRng.map(s=>s.cursante_id));
+
+    statsDiv.innerHTML='';
+    statsDiv.appendChild($(`
+      <div class="stats">
+        <div class="stat"><div class="num">${sancsRng.length}</div><div class="lbl">Sanciones</div></div>
+        <div class="stat bad"><div class="num">-${totalPerd}</div><div class="lbl">Pts perd.</div></div>
+        <div class="stat"><div class="num">${cursIds.size}</div><div class="lbl">Cursantes</div></div>
+      </div>
+    `));
+
+    // Ranking por pérdida en el rango
+    const ranking = [...cursIds].map(id=>{
+      const c = S.cursantes.find(x=>x.id===id);
+      const ptsRng = sancsRng.filter(s=>s.cursante_id===id).reduce((sum,s)=>sum+(s.puntos_aplicados||0),0);
+      const ptsTotal = calcularPerdida(id);
+      const count = sancsRng.filter(s=>s.cursante_id===id).length;
+      return { c, ptsRng, ptsTotal, count, restante: CFG.PUNTAJE_BASE - ptsTotal };
+    }).filter(r=>r.c).sort((a,b)=>b.ptsRng-a.ptsRng);
+
+    lista.innerHTML='';
+    if(!ranking.length){
+      lista.appendChild($(`<div class="card" style="text-align:center;color:var(--muted)">Sin sanciones en este rango</div>`));
+      return;
+    }
+
+    ranking.forEach((r,i)=>{
+      const bcl = badgeClassByPerdida(r.ptsTotal);
+      lista.appendChild(el('div',{class:`item bd-${bcl}`,onclick:()=>abrirDetalleCursante(r.c)},
+        el('div',{class:'avatar'},String(i+1)),
+        el('div',{class:'info'},
+          $(`<strong>${escapeHtml(r.c.nombre_completo||'—')}</strong>`),
+          $(`<span>${escapeHtml(r.c.paralelo||'')} · ${r.count} sanc. en el rango</span>`),
+        ),
+        el('div',{class:'stats-mini'},
+          $(`<span class="badge bad">-${r.ptsRng}</span>`),
+          $(`<span class="badge azul">${r.restante}/100</span>`),
+        ),
+      ));
+    });
+  }
+
+  document.getElementById('fd').onchange = (e)=>{fechaDesde=e.target.value;render()};
+  document.getElementById('fh').onchange = (e)=>{fechaHasta=e.target.value;render()};
+  ctrl.querySelectorAll('[data-r]').forEach(b=>{
+    b.onclick = ()=>{
+      const r = b.dataset.r;
+      fechaHasta = new Date().toISOString().slice(0,10);
+      if(r==='all') fechaDesde = '2024-01-01';
+      else fechaDesde = new Date(Date.now() - parseInt(r)*24*60*60*1000).toISOString().slice(0,10);
+      document.getElementById('fd').value = fechaDesde;
+      document.getElementById('fh').value = fechaHasta;
+      render();
+    };
+  });
+  render();
+}
+
+function exportarPerdidaCSV(fd,fh){
+  const ini=new Date(fd+'T00:00:00').getTime(); const fin=new Date(fh+'T23:59:59').getTime();
+  const sancsRng = S.sanciones.filter(s=>{const t=new Date(s.creado_en).getTime();return t>=ini&&t<=fin});
+  const ids = new Set(sancsRng.map(s=>s.cursante_id));
+  const rows=[['Cursante','CI','Paralelo','Pts perdidos en rango','Pts perdidos totales','Puntaje actual','# sanciones en rango']];
+  [...ids].forEach(id=>{
+    const c = S.cursantes.find(x=>x.id===id); if(!c) return;
+    const ptsRng = sancsRng.filter(s=>s.cursante_id===id).reduce((sum,s)=>sum+(s.puntos_aplicados||0),0);
+    const ptsTotal = calcularPerdida(id);
+    const cnt = sancsRng.filter(s=>s.cursante_id===id).length;
+    rows.push([c.nombre_completo||'', c.ci||'', c.paralelo||'', ptsRng, ptsTotal, CFG.PUNTAJE_BASE-ptsTotal, cnt]);
+  });
+  exportarCSV(`perdida_puntaje_${fd}_a_${fh}.csv`, rows);
+}
+
+/* ============================================================
+   ACTIVIDAD RECIENTE
+   ============================================================ */
+function abrirActividadReciente(){
+  clear();
+  app.appendChild(topbar('Actividad Reciente',()=>renderJD('panel'),'Últimas 50 sanciones'));
+  const main=el('div',{class:'main'});
+  const recientes = [...S.sanciones].sort((a,b)=>new Date(b.creado_en)-new Date(a.creado_en)).slice(0,50);
+  const card=el('div',{class:'card'});
+  if(!recientes.length){
+    card.appendChild($(`<p style="text-align:center;color:var(--muted);padding:14px">Sin actividad</p>`));
+  }else{
+    const lst=el('div',{class:'list'});
+    recientes.forEach(s=>{
+      lst.appendChild($(`
+        <div class="item bd-bad" style="cursor:default">
+          <div class="info">
+            <strong>${escapeHtml(s.profesor_nombre||'—')} → ${escapeHtml(s.cursante_nombre||'—')}</strong>
+            <span>${escapeHtml(s.falta_articulo||'')} · ${escapeHtml(s.falta_categoria||'')} · ${fmtFechaCorta(s.creado_en)}</span>
+          </div>
+          <span class="badge bad">-${s.puntos_aplicados||0}</span>
+        </div>
+      `));
+    });
+    card.appendChild(lst);
+  }
+  main.appendChild(card);
+  app.appendChild(main);
+}
+
+/* ============================================================
+   MANTENIMIENTO
+   ============================================================ */
+function abrirMantenimiento(){
+  clear();
+  app.appendChild(topbar('Mantenimiento',()=>renderJD('panel'),'Respaldo y configuración'));
+  const main=el('div',{class:'main'});
+  main.appendChild($(`<div class="alert alert-warn">⚠️ Operaciones administrativas — usar con cuidado.</div>`));
+  main.appendChild(el('button',{class:'btn btn-gold',style:'margin-bottom:8px',onclick:exportarRespaldoJSON},'💾 Descargar respaldo JSON'));
+  main.appendChild(el('button',{class:'btn btn-gold',style:'margin-bottom:8px',onclick:exportarCSVSanciones},'📊 Descargar sanciones CSV'));
+  main.appendChild(el('button',{class:'btn btn-gold',style:'margin-bottom:8px',onclick:exportarCSVCursantes},'📋 Descargar cursantes CSV'));
+  main.appendChild(el('button',{class:'btn btn-ghost',style:'margin-bottom:8px',onclick:async()=>{S.loaded=false;await cargarDatos(true);renderJD('panel')}},'🔄 Recargar datos desde Supabase'));
+  main.appendChild(el('button',{class:'btn btn-ghost',style:'margin-bottom:8px',onclick:abrirInstalarApp},'📲 Instalar app / Compartir QR'));
+  main.appendChild($(`<div class="alert alert-info" style="margin-top:12px"><strong>Operaciones destructivas</strong><br>"Limpiar datos", "Resetear firmas" y similares se ejecutan desde Supabase Studio directamente. No se exponen aquí para evitar accidentes.</div>`));
+  app.appendChild(main);
+}
+
+/* ============================================================
+   INSTALAR APP (QR)
+   ============================================================ */
+function abrirInstalarApp(){
+  clear();
+  app.appendChild(topbar('Instalar SIDECEME',()=>renderJD('panel'),'Escanea el QR para instalar'));
+  const main=el('div',{class:'main'});
+  const url = window.location.origin + window.location.pathname;
+  const card = el('div',{class:'card'});
+  card.appendChild($(`
+    <h2 style="text-align:center">📲 Instalar en tu celular</h2>
+    <p style="text-align:center;color:var(--muted);font-size:13px;margin-bottom:12px">Escuela de Comando y Estado Mayor — SIDECEME</p>
+    <div class="qr-wrap"><canvas id="qr-inst"></canvas><p style="margin-top:8px;font-size:12px;color:var(--muted)">🎯 Escanee con la cámara de su celular</p></div>
+    <div class="qr-link">${escapeHtml(url)}</div>
+    <div class="alert alert-info" style="margin-top:12px">
+      <strong>📱 iPhone (iOS):</strong> Abra el QR con la cámara → Safari → Compartir → "Agregar a pantalla de inicio".<br><br>
+      <strong>🤖 Android:</strong> Escanee con cámara o Google Lens → Chrome → menú → "Instalar app" o "Agregar a pantalla de inicio".
+    </div>
+    <button class="btn btn-ghost" style="margin-top:8px" onclick="(async()=>{try{await navigator.clipboard.writeText('${url}');alert('Enlace copiado');}catch(e){prompt('Copia el enlace:','${url}');}})()">📋 Copiar enlace</button>
+  `));
+  main.appendChild(card);
+  app.appendChild(main);
+  setTimeout(()=>{
+    const c=document.getElementById('qr-inst');
+    if(c) QRCode.toCanvas(c, url, {width:240, margin:2, color:{dark:'#1a2332', light:'#ffffff'}});
+  }, 50);
+}
+
+/* ============================================================
+   NUEVA SANCIÓN — QR (profesor)
+   ============================================================ */
+function abrirNuevaSancion(){
+  clear();
+  const backTo = (S.user.rol===ROLES.J_DISCIPLINA||S.user.rol===ROLES.COMANDANTE) ? ()=>renderJD('panel') : renderDashProfesor;
+  app.appendChild(topbar('Nueva Sanción',backTo,'Paso 1 de 3: Seleccionar cursante'));
+  const main=el('div',{class:'main'});
+
+  // Paso 1: buscar cursante
+  main.appendChild($(`
+    <div class="steps"><div class="step done"></div><div class="step"></div><div class="step"></div></div>
+    <div class="card">
+      <h2>👤 ¿A quién sancionas?</h2>
+      <div class="form-group">
+        <input type="text" id="bsc" placeholder="🔍 Busca por nombre, CI o ID...">
+      </div>
+      <div class="alert alert-info" style="font-size:13px"><strong>${S.cursantes.length} cursantes disponibles</strong></div>
+      <div id="bsc-res" style="max-height:300px;overflow:auto"></div>
+    </div>
+  `));
+  app.appendChild(main);
+
+  const inp = document.getElementById('bsc');
+  const res = document.getElementById('bsc-res');
+  inp.oninput = ()=>{
+    const q = inp.value.toLowerCase().trim();
+    res.innerHTML='';
+    if(q.length < 2) return;
+    const matches = S.cursantes.filter(c =>
+      (c.nombre_completo||'').toLowerCase().includes(q) ||
+      (c.id||'').toLowerCase().includes(q) ||
+      String(c.ci||'').includes(q)
+    ).slice(0, 10);
+    matches.forEach(c=>{
+      const pts = calcularPerdida(c.id);
+      const item = el('div',{class:'item',onclick:()=>paso2Falta(c)},
+        el('div',{class:'avatar'},iniciales(c.nombre_completo)),
+        el('div',{class:'info'},
+          $(`<strong>${escapeHtml(c.nombre_completo||'')}</strong>`),
+          $(`<span>${escapeHtml(c.id||'')} · CI ${escapeHtml(c.ci||'')} · ${escapeHtml(c.paralelo||'')}</span>`),
+        ),
+        $(`<span class="badge ${badgeClassByPerdida(pts)}">${CFG.PUNTAJE_BASE-pts}/100</span>`),
+      );
+      res.appendChild(item);
+    });
+    if(!matches.length){
+      res.appendChild($(`<p style="color:var(--muted);text-align:center;padding:14px">Sin resultados</p>`));
+    }
+  };
+  inp.focus();
+}
+
+function paso2Falta(cursante){
+  const backTo = (S.user.rol===ROLES.J_DISCIPLINA||S.user.rol===ROLES.COMANDANTE) ? ()=>renderJD('panel') : renderDashProfesor;
+  clear();
+  app.appendChild(topbar('Nueva Sanción',abrirNuevaSancion,'Paso 2 de 3: Elegir falta'));
+  const main=el('div',{class:'main'});
+
+  let faltas = S.reglamentos.length ? S.reglamentos : FALTAS_REGLAMENTO;
+  let filtroPts = 'all';
+  let busquedaQ = '';
+
+  main.appendChild($(`
+    <div class="steps"><div class="step done"></div><div class="step done"></div><div class="step"></div></div>
+    <div class="card" style="padding:12px;display:flex;gap:10px;align-items:center">
+      <div class="avatar">${iniciales(cursante.nombre_completo)}</div>
+      <div style="flex:1;min-width:0">
+        <strong style="color:var(--azul);font-size:14px;display:block">${escapeHtml(cursante.nombre_completo)}</strong>
+        <span style="color:var(--muted);font-size:12px">${escapeHtml(cursante.id||'')} · CI ${escapeHtml(cursante.ci||'')}</span>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="btn-cambiar-cur">Cambiar</button>
+    </div>
+  `));
+
+  // Filtros por puntaje
+  const cardF=el('div',{class:'card'});
+  cardF.appendChild($(`<h2>📖 ¿Qué falta cometió?</h2><p style="color:var(--muted);font-size:12px;margin-bottom:10px">${faltas.length} faltas · filtra por puntaje</p>`));
+  const fchips = el('div',{class:'filtros'});
+  ['all','1','2','3','4','5','6','7','8','9','10','11'].forEach(p=>{
+    const lbl = p==='all'?'Todas':(p==='11'?'Consejo':p+' pt'+(p==='1'?'':'s'));
+    fchips.appendChild(el('button',{class:'chip'+(p===filtroPts?' active':''),onclick:(e)=>{filtroPts=p;[...fchips.children].forEach(c=>c.classList.remove('active'));e.currentTarget.classList.add('active');renderFaltas()}},lbl));
+  });
+  cardF.appendChild(fchips);
+  cardF.appendChild($(`<div class="form-group" style="margin-top:8px"><input type="text" id="qf" placeholder="🔍 Buscar en reglamento..."></div>`));
+  cardF.appendChild(el('div',{id:'faltas-res'}));
+  main.appendChild(cardF);
+  app.appendChild(main);
+
+  function renderFaltas(){
+    const cont = document.getElementById('faltas-res');
+    cont.innerHTML='';
+    let arr = faltas;
+    if(filtroPts !== 'all'){
+      if(filtroPts === '11') arr = arr.filter(f=>(f.puntos||0) >= 11);
+      else arr = arr.filter(f=>(f.puntos||0) === parseInt(filtroPts));
+    }
+    if(busquedaQ){
+      const q = busquedaQ.toLowerCase();
+      arr = arr.filter(f=>(f.articulo||'').toLowerCase().includes(q) || (f.descripcion||'').toLowerCase().includes(q));
+    }
+    cont.appendChild($(`<p style="font-size:12px;color:var(--muted);margin:8px 0">${arr.length} resultado(s)</p>`));
+    arr.forEach(f=>{
+      cont.appendChild(el('div',{class:'item bd-warn',style:'cursor:pointer;margin-bottom:6px',onclick:()=>paso3Observacion(cursante,f)},
+        el('div',{class:'info'},
+          $(`<strong>${escapeHtml(f.articulo||'')}</strong>`),
+          $(`<span>${escapeHtml(f.descripcion||'')}</span>`),
+        ),
+        $(`<span class="badge azul">${f.puntos} pt${f.puntos===1?'':'s'}</span>`),
+      ));
+    });
+  }
+  document.getElementById('qf').oninput = (e)=>{busquedaQ=e.target.value;renderFaltas()};
+  const btnCambiar = document.getElementById('btn-cambiar-cur');
+  if(btnCambiar) btnCambiar.onclick = abrirNuevaSancion;
+  renderFaltas();
+}
+
+function paso3Observacion(cursante,falta){
+  clear();
+  app.appendChild(topbar('Nueva Sanción',()=>paso2Falta(cursante),'Paso 3 de 3: Confirmar'));
+  const main=el('div',{class:'main'});
+  main.appendChild($(`
+    <div class="steps"><div class="step done"></div><div class="step done"></div><div class="step done"></div></div>
+    <div class="card" style="padding:12px;display:flex;gap:10px;align-items:center;margin-bottom:8px">
+      <div class="avatar">${iniciales(cursante.nombre_completo)}</div>
+      <div style="flex:1;min-width:0">
+        <strong style="color:var(--azul);font-size:14px;display:block">${escapeHtml(cursante.nombre_completo)}</strong>
+        <span style="color:var(--muted);font-size:12px">${escapeHtml(cursante.id||'')} · CI ${escapeHtml(cursante.ci||'')}</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="detalle-falta">
+        <div class="articulo">${escapeHtml(falta.articulo||'')} · ${escapeHtml(falta.categoria||'')}</div>
+        <div class="desc">${escapeHtml(falta.descripcion||'')}</div>
+        <div class="pts">−${falta.puntos} puntos</div>
+      </div>
+      <div class="form-group">
+        <label>Observación del profesor (opcional)</label>
+        <textarea id="obs" rows="3" placeholder="Detalles, contexto, hora exacta..."></textarea>
+      </div>
+      <div id="err"></div>
+      <button class="btn btn-primary" id="btn-gen">📱 Generar QR de sanción</button>
+    </div>
+  `));
+  app.appendChild(main);
+
+  document.getElementById('btn-gen').onclick = ()=>{
+    const obs = document.getElementById('obs').value.trim();
+    generarQrSancion(cursante, falta, obs);
+  };
+}
+
+async function generarQrSancion(cursante,falta,observacion){
+  const token = 'sanc_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,8);
+  let saveError = null;
+  try{
+    await initSupabase();
+    const huella = {
+      estado:'pendiente_firma', token, observacion_profesor:observacion,
+      puntos_esperados: falta.puntos,
+      dispositivo:{ ua:navigator.userAgent, plataforma:navigator.platform, idioma:navigator.language },
+      timestamp_creacion:new Date().toISOString(),
+    };
+    const { error } = await S.client.from('sanciones').insert([{
+      id: token,
+      cursante_id: cursante.id,
+      cursante_nombre: cursante.nombre_completo,
+      cursante_ci: cursante.ci,
+      profesor_id: S.user.id,
+      profesor_nombre: `${S.user.grado||''} ${S.user.nombre}`.trim(),
+      falta_id: falta.id,
+      falta_articulo: falta.articulo,
+      falta_descripcion: falta.descripcion,
+      falta_categoria: falta.categoria,
+      puntos_aplicados: 0,
+      huella_forense: huella,
+    }]);
+    if(error) saveError = error;
+  }catch(e){ saveError = e; }
+
+  const baseUrl = window.location.origin + window.location.pathname;
+  const qrUrl = `${baseUrl}?s=${token}`;
+
+  clear();
+  const backTo = (S.user.rol===ROLES.J_DISCIPLINA||S.user.rol===ROLES.COMANDANTE) ? ()=>renderJD('panel') : renderDashProfesor;
+  app.appendChild(topbar('QR de Sanción',backTo));
+  const main=el('div',{class:'main'});
+  const card=el('div',{class:'card'});
+  card.appendChild($(`
+    <h2 style="text-align:center">📱 Sanción lista para firma</h2>
+    <div class="detalle-falta">
+      <div class="articulo">${escapeHtml(falta.articulo||'')} · ${escapeHtml(falta.categoria||'')}</div>
+      <div class="desc">${escapeHtml(falta.descripcion||'')}</div>
+      <div class="pts">−${falta.puntos} puntos</div>
+    </div>
+    <p style="text-align:center;font-size:13px;color:var(--muted);margin-bottom:8px">
+      Cursante: <strong style="color:var(--azul)">${escapeHtml(cursante.nombre_completo)}</strong>
+    </p>
+  `));
+  if(saveError){
+    card.appendChild(alertBox('error', 'Aviso: no se pudo registrar pendiente en Supabase ('+saveError.message+').'));
+  }
+  card.appendChild($(`<div class="qr-wrap"><canvas id="qr-canvas"></canvas></div>`));
+  card.appendChild($(`<div class="qr-info">⚡ El cursante escanea este QR con la cámara del celular. Verá los datos y deberá firmar para confirmar. Los puntos se aplicarán solo al firmar.</div>`));
+  card.appendChild($(`<div class="qr-link">${escapeHtml(qrUrl)}</div>`));
+  main.appendChild(card);
+  app.appendChild(main);
+
+  setTimeout(()=>{
+    const c=document.getElementById('qr-canvas');
+    if(c) QRCode.toCanvas(c, qrUrl, {width:260, margin:2, color:{dark:'#1a2332', light:'#ffffff'}});
+  }, 50);
+}
+
+/* ============================================================
+   CURSANTE escanea QR → ver y firmar
+   ============================================================ */
+async function renderSancionPendiente(token){
+  clear();
+  app.appendChild(topbar('Sanción para firmar',null));
+  const main=el('div',{class:'main'});
+  main.appendChild(loader('Buscando sanción...'));
+  app.appendChild(main);
+
+  try{
+    await initSupabase();
+    const { data, error } = await S.client.from('sanciones').select('*').eq('id', token).single();
+    if(error || !data){
+      main.innerHTML='';
+      main.appendChild(alertBox('error','Sanción no encontrada o ya firmada'));
+      return;
+    }
+    const huella = data.huella_forense || {};
+    if(huella.estado === 'firmada' || (data.puntos_aplicados||0) > 0){
+      main.innerHTML='';
+      main.appendChild(alertBox('ok','Esta sanción ya fue firmada anteriormente.'));
+      main.appendChild(el('button',{class:'btn btn-ghost',style:'margin-top:14px',onclick:logout},'Salir'));
+      return;
+    }
+    if(S.user && S.user.tipo==='cursante' && S.user.id !== data.cursante_id){
+      main.innerHTML='';
+      main.appendChild(alertBox('error','Esta sanción no corresponde a tu cuenta.'));
+      return;
+    }
+    if(!S.user){
+      // Pedir CI para confirmar identidad
+      main.innerHTML='';
+      const auth = $(`
+        <div class="card">
+          <h2>🔒 Confirma tu identidad</h2>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Para firmar, ingresa tu CI.</p>
+          <div class="form-group"><label>Tu CI</label><input type="text" id="ci-confirm" placeholder="CI"></div>
+          <div id="err-ci"></div>
+          <button class="btn btn-primary" id="btn-ci">Verificar</button>
+        </div>
+      `);
+      main.appendChild(auth);
+      document.getElementById('btn-ci').onclick = ()=>{
+        const ci = document.getElementById('ci-confirm').value.trim();
+        if(String(data.cursante_ci||'').trim() !== ci){
+          document.getElementById('err-ci').innerHTML='';
+          document.getElementById('err-ci').appendChild(alertBox('error','CI no coincide'));
+          return;
+        }
+        S.user = { tipo:'cursante', rol:ROLES.CURSANTE, id:data.cursante_id, nombre:data.cursante_nombre, ci };
+        renderSancionPendiente(token);
+      };
+      return;
+    }
+
+    // Mostrar detalle + firma
+    main.innerHTML='';
+    const card=el('div',{class:'card'});
+    card.appendChild($(`
+      <h2>📋 Sanción para firmar</h2>
+      <div class="detalle-falta">
+        <div class="articulo">${escapeHtml(data.falta_articulo||'')} · ${escapeHtml(data.falta_categoria||'')}</div>
+        <div class="desc">${escapeHtml(data.falta_descripcion||'')}</div>
+        <div class="pts">−${huella.puntos_esperados||0} puntos</div>
+      </div>
+      <div class="meta-grid">
+        <div><strong>Profesor</strong>${escapeHtml(data.profesor_nombre||'—')}</div>
+        <div><strong>Fecha</strong>${fmtFecha(data.creado_en)}</div>
+        <div><strong>Categoría</strong>${escapeHtml(data.falta_categoria||'—')}</div>
+        <div><strong>Cursante</strong>${escapeHtml(data.cursante_nombre||'—')}</div>
+      </div>
+      ${huella.observacion_profesor?`<div class="alert alert-info" style="margin-top:12px"><strong>Observación del profesor:</strong><br>${escapeHtml(huella.observacion_profesor)}</div>`:''}
+      <div class="form-group" style="margin-top:14px"><label>Mi observación (opcional)</label><textarea id="obs-cur" rows="3" placeholder="Si quieres dejar una observación..."></textarea></div>
+      <div class="form-group"><label>Mi firma</label><canvas id="sig-canvas"></canvas><div class="sig-actions"><button class="btn btn-ghost btn-sm" id="sig-clear">Limpiar</button></div></div>
+      <div id="err"></div>
+      <button class="btn btn-gold" id="btn-firmar">✓ Aceptar y firmar</button>
+    `));
+    main.appendChild(card);
+
+    const canvas=document.getElementById('sig-canvas');
+    function resizeCanvas(){const r=Math.max(window.devicePixelRatio||1,1);canvas.width=canvas.offsetWidth*r;canvas.height=canvas.offsetHeight*r;canvas.getContext('2d').scale(r,r)}
+    resizeCanvas();
+    const pad = new SignaturePad(canvas,{backgroundColor:'#fff',penColor:'#1a2332'});
+    document.getElementById('sig-clear').onclick = ()=>pad.clear();
+
+    document.getElementById('btn-firmar').onclick = async()=>{
+      const errBox=document.getElementById('err');
+      errBox.innerHTML='';
+      if(pad.isEmpty()){errBox.appendChild(alertBox('error','Debes firmar antes de aceptar'));return}
+      const obsCur=document.getElementById('obs-cur').value.trim();
+      const firma_b64=pad.toDataURL('image/png');
+      const ahora=new Date().toISOString();
+      const pts = huella.puntos_esperados || 0;
+
+      const huellaUpdate = {
+        ...huella, estado:'firmada',
+        observacion_cursante:obsCur, firma_digital:firma_b64,
+        timestamp_firma:ahora,
+        dispositivo_firma:{ua:navigator.userAgent,plataforma:navigator.platform,idioma:navigator.language},
+      };
+      errBox.appendChild(loader('Guardando...'));
+      try{
+        const {error}=await S.client.from('sanciones').update({puntos_aplicados:pts,huella_forense:huellaUpdate}).eq('id',token);
+        if(error)throw error;
+        clear();
+        app.appendChild(topbar('Sanción firmada',null));
+        const m=el('div',{class:'main'});
+        m.appendChild($(`
+          <div class="card" style="text-align:center;padding:28px">
+            <div style="font-size:48px;margin-bottom:8px">✅</div>
+            <h2 style="color:var(--ok)">Sanción firmada</h2>
+            <p style="color:var(--muted);margin-top:6px">Quedó registrada en el sistema con −${pts} puntos.</p>
+          </div>
+        `));
+        m.appendChild(el('button',{class:'btn btn-primary',onclick:()=>{window.history.replaceState({},'',window.location.pathname);go('dashboard')}},'Ir a mi panel'));
+        app.appendChild(m);
+        S.loaded=false;await cargarDatos(true);
+      }catch(e){
+        errBox.innerHTML='';
+        errBox.appendChild(alertBox('error','Error al guardar: '+e.message));
+      }
+    };
+  }catch(e){
+    main.innerHTML='';
+    main.appendChild(alertBox('error','Error: '+e.message));
+  }
+}
+
+/* ============================================================
+   DASHBOARD CURSANTE
+   ============================================================ */
+function renderDashCursante(){
+  clear();
+  app.appendChild(topbar(`Hola, ${S.user.nombre.split(' ')[0]}`,null,'Plantel Cursantes'));
+  const main=el('div',{class:'main'});
+
+  const pts = calcularPerdida(S.user.id);
+  const restante = CFG.PUNTAJE_BASE - pts;
+  const sancs = S.sanciones.filter(s=>s.cursante_id===S.user.id);
+  const bcl = badgeClassByPerdida(pts);
+
+  main.appendChild($(`
+    <div class="stats">
+      <div class="stat ${bcl}"><div class="num">${restante}</div><div class="lbl">Puntaje /100</div></div>
+      <div class="stat bad"><div class="num">-${pts}</div><div class="lbl">Pts perdidos</div></div>
+      <div class="stat"><div class="num">${sancs.length}</div><div class="lbl">Sanciones</div></div>
+    </div>
+    <div class="card" style="text-align:center;padding:14px">
+      <span class="badge ${bcl}" style="font-size:14px;padding:6px 16px">${estadoLabel(pts)}</span>
+    </div>
+  `));
+
+  const card=el('div',{class:'card'});
+  card.appendChild(el('h2',{},'Mis consultas'));
+  card.appendChild(el('div',{class:'modules'},
+    el('button',{class:'module-btn',onclick:verMisSanciones},el('span',{class:'ico'},'⚠️'),el('span',{class:'nombre'},'Mis Sanciones')),
+    el('button',{class:'module-btn',onclick:()=>infoModulo('Notas Académicas','Calificaciones por materia y promedio. Requiere tabla `notas` en Supabase.')},el('span',{class:'ico'},'📚'),el('span',{class:'nombre'},'Notas Académicas')),
+    el('button',{class:'module-btn',onclick:()=>infoModulo('Entrenamiento Físico','Notas de EFM. Requiere tabla `notas_efm` en Supabase.')},el('span',{class:'ico'},'🏃'),el('span',{class:'nombre'},'Entrenamiento')),
+    el('button',{class:'module-btn',onclick:verOrdenMerito},el('span',{class:'ico'},'🏅'),el('span',{class:'nombre'},'Orden de Mérito')),
+    el('button',{class:'module-btn',onclick:()=>infoModulo('Horario Semanal','Visualización del horario académico. Requiere tabla `horarios` en Supabase.')},el('span',{class:'ico'},'📅'),el('span',{class:'nombre'},'Horario')),
+  ));
+  main.appendChild(card);
+  app.appendChild(main);
+}
+
+function verMisSanciones(){
+  const sancs = S.sanciones.filter(s=>s.cursante_id===S.user.id).sort((a,b)=>new Date(b.creado_en)-new Date(a.creado_en));
+  clear();
+  app.appendChild(topbar('Mis Sanciones',renderDashCursante));
+  const main=el('div',{class:'main'});
+  const card=el('div',{class:'card'});
+  card.appendChild(el('h2',{},`Historial (${sancs.length})`));
+  if(!sancs.length){
+    card.appendChild($(`<p style="text-align:center;color:var(--muted);padding:20px">Sin sanciones registradas 🎉</p>`));
+  }else{
+    const lst=el('div',{class:'list'});
+    sancs.forEach(s=>{
+      lst.appendChild($(`
+        <div class="item bd-bad" style="cursor:default">
+          <div class="info">
+            <strong>${escapeHtml(s.falta_articulo||'—')}</strong>
+            <span>${escapeHtml(s.falta_descripcion||'—')}<br>${fmtFechaCorta(s.creado_en)} · ${escapeHtml(s.profesor_nombre||'—')}</span>
+          </div>
+          <span class="badge bad">-${s.puntos_aplicados||0}</span>
+        </div>
+      `));
+    });
+    card.appendChild(lst);
+  }
+  main.appendChild(card);
+  app.appendChild(main);
+}
+
+function verOrdenMerito(){
+  const ranking = [...S.cursantes].map(c=>({...c,_pts:calcularPerdida(c.id)})).sort((a,b)=>a._pts-b._pts);
+  const miPos = ranking.findIndex(r=>r.id===S.user.id) + 1;
+  clear();
+  app.appendChild(topbar('Orden de Mérito',renderDashCursante,'Disciplinario'));
+  const main=el('div',{class:'main'});
+  main.appendChild($(`
+    <div class="card" style="text-align:center">
+      <h3>Tu posición</h3>
+      <div style="font-size:42px;font-weight:800;color:var(--dorado-2);margin:8px 0">#${miPos}</div>
+      <p style="color:var(--muted);font-size:13px">de ${ranking.length} cursantes</p>
+    </div>
+    <div class="alert alert-info">Este ranking se basa en puntos de demérito (menos puntos perdidos = mejor posición). Cuando se carguen las notas académicas y físicas, se generará el orden de mérito completo por semestre.</div>
+  `));
+  const card=el('div',{class:'card'});
+  card.appendChild(el('h2',{},'Top 20 mejores'));
+  const lst=el('div',{class:'list'});
+  ranking.slice(0,20).forEach((c,i)=>{
+    const esYo = c.id===S.user.id;
+    lst.appendChild($(`
+      <div class="item bd-ok" style="cursor:default;${esYo?'border:2px solid var(--dorado);background:#fef9e7':''}">
+        <div class="info">
+          <strong>${i+1}. ${esYo?'⭐ ':''}${escapeHtml(c.nombre_completo||'—')}</strong>
+          <span>${escapeHtml(c.id||'')} · ${escapeHtml(c.paralelo||'')}</span>
+        </div>
+        <span class="badge ${badgeClassByPerdida(c._pts)}">${CFG.PUNTAJE_BASE-c._pts}/100</span>
+      </div>
+    `));
+  });
+  card.appendChild(lst);
+  main.appendChild(card);
+  app.appendChild(main);
+}
+
+/* ============================================================
+   ARRANQUE
+   ============================================================ */
+(async function init(){
+  const token = detectarDeepLink();
+  if(token){
+    return renderSancionPendiente(token);
+  }
+  go('landing');
+})();
 </script>
-
 </body>
 </html>
