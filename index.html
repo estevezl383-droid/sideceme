@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <style>
 :root{
   --bg-deep:#050a14;--bg-base:#0a1628;--bg-elevated:#11203a;
@@ -214,6 +215,64 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .stat-block .sb-row .label{color:var(--text-secondary)}
 .stat-block .sb-row .val{color:var(--gold-light);font-weight:600}
 
+/* ============ SANCIONES (lista + detalle) ============ */
+.sancion-card{
+  display:flex;flex-direction:column;gap:8px;
+  padding:14px 16px;border-radius:var(--radius-md);
+  margin-bottom:10px;cursor:pointer;transition:all .2s;
+  border:1px solid var(--border-subtle);position:relative;
+  background:var(--bg-card);border-left-width:4px;
+}
+.sancion-card:hover{transform:translateX(3px);background:var(--bg-elevated)}
+.sancion-card.analogica{border-left-color:#7a7468;background:linear-gradient(90deg,rgba(122,116,104,.10),var(--bg-card) 30%)}
+.sancion-card.digital-firmada{border-left-color:#4a90d9;background:linear-gradient(90deg,rgba(74,144,217,.12),var(--bg-card) 30%)}
+.sancion-card.digital-aceptada{border-left-color:#4ca36b;background:linear-gradient(90deg,rgba(76,163,107,.12),var(--bg-card) 30%)}
+.sancion-card.digital-pendiente{border-left-color:#c84a4a;background:linear-gradient(90deg,rgba(200,74,74,.14),var(--bg-card) 30%)}
+.sancion-card.anulada{opacity:.45;border-left-color:#444}
+.sc-row1{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.sc-cursante{font-family:var(--font-display);font-size:15px;color:var(--text-primary);font-weight:600;flex:1;min-width:0}
+.sc-pts{font-family:var(--font-display);font-weight:700;font-size:14px;padding:4px 10px;border-radius:14px;background:rgba(212,175,55,.08);border:1px solid var(--border-subtle);white-space:nowrap;color:var(--gold-light)}
+.sc-desc{font-size:13px;color:var(--text-secondary);line-height:1.4}
+.sc-row3{display:flex;justify-content:space-between;align-items:center;font-size:11px;margin-top:4px}
+.sc-status{display:flex;align-items:center;gap:6px;font-weight:600;letter-spacing:.5px}
+.sc-status.analogica{color:#a8a18d}
+.sc-status.firmada{color:#7fb4e0}
+.sc-status.aceptada{color:#7dc096}
+.sc-status.pendiente{color:#e87878}
+.sc-folio{color:var(--text-muted);font-family:monospace}
+
+/* Tabs sanciones */
+.tabs-row{display:flex;gap:6px;margin-bottom:14px;background:var(--bg-card);padding:5px;border-radius:var(--radius-sm);border:1px solid var(--border-subtle)}
+.tab-btn{flex:1;background:transparent;border:none;color:var(--text-secondary);padding:10px;font-family:var(--font-display);font-size:11px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;border-radius:4px;transition:all .2s;font-weight:600}
+.tab-btn.active{background:linear-gradient(135deg,var(--gold-dark),var(--gold));color:var(--bg-deep)}
+
+/* DETALLE DE SANCIÓN — bloques tipo documento */
+.sd-banner{padding:14px 18px;border-radius:var(--radius-md);text-align:center;margin-bottom:16px;border:1px solid;font-family:var(--font-display);letter-spacing:1.5px}
+.sd-banner.analogica{background:rgba(122,116,104,.15);border-color:rgba(168,161,141,.4);color:#cfc9b5}
+.sd-banner.firmada{background:rgba(74,144,217,.12);border-color:rgba(74,144,217,.4);color:#a8c8e8}
+.sd-banner.aceptada{background:rgba(76,163,107,.14);border-color:rgba(76,163,107,.4);color:#a3d4b5}
+.sd-banner.pendiente{background:rgba(200,74,74,.14);border-color:rgba(200,74,74,.45);color:#e8a8a8}
+.sd-banner-title{font-size:14px;font-weight:700;text-transform:uppercase;margin-bottom:4px}
+.sd-banner-sub{font-size:12px;opacity:.85;font-style:italic;letter-spacing:.5px}
+
+.sd-block{background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--radius-md);padding:18px;margin-bottom:14px;position:relative}
+.sd-block::before{content:'';position:absolute;top:0;left:18px;right:18px;height:2px;background:linear-gradient(90deg,transparent,var(--gold),transparent);opacity:.4}
+.sd-block-title{font-family:var(--font-display);font-size:13px;letter-spacing:2px;text-transform:uppercase;color:var(--gold-light);margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border-subtle);display:flex;align-items:center;gap:8px}
+.sd-row{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;padding:8px 0;font-size:13px;border-bottom:1px dashed rgba(212,175,55,.08)}
+.sd-row:last-child{border-bottom:none}
+.sd-row .lbl{color:var(--text-secondary);text-transform:uppercase;font-size:10px;letter-spacing:1.5px;font-weight:600;flex-shrink:0;padding-top:2px}
+.sd-row .vl{color:var(--text-primary);font-weight:500;text-align:right;flex:1;word-break:break-word}
+.sd-row .vl.big{font-family:var(--font-display);font-size:22px;color:#e87878;font-weight:700}
+.sd-row .vl.gold{color:var(--gold-light);font-weight:600}
+.sd-block.cursante{background:rgba(212,175,55,.04)}
+.sd-block.falta{background:rgba(70,130,200,.04)}
+
+.sd-actions{margin-top:18px;display:flex;flex-direction:column;gap:10px}
+.sd-fuente{font-family:monospace;font-size:11px;color:var(--text-muted);text-align:right;margin-top:8px;font-style:italic}
+
+#leaflet-map{height:280px;border-radius:var(--radius-md);border:1px solid var(--border-subtle);margin:8px 0}
+.gps-coords{background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);padding:10px 14px;font-family:monospace;font-size:12px;color:var(--gold-light);text-align:center;margin:8px 0}
+
 @media (max-width:480px){
   .access-cards{grid-template-columns:1fr}
   .home-title{letter-spacing:4px}
@@ -400,16 +459,53 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   </nav>
 </section>
 
-<!-- DISC: SANCIONES -->
+<!-- DISC: SANCIONES (listado completo) -->
 <section id="screen-disc-sanciones" class="screen with-bottom-nav">
-  <div class="app-header"><button class="back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Sanciones</div><div class="header-sub">Desglose por categoría y falta</div></div></div>
-  <div class="disc-container"><div id="sanciones-breakdown" class="list-loading">Cargando...</div></div>
+  <div class="app-header"><button class="back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Sanciones</div><div class="header-sub" id="sanc-subtitle">— registros</div></div></div>
+  <div class="disc-container">
+    <div class="tabs-row">
+      <button class="tab-btn active" id="tab-list" onclick="switchTabSanc('list')">📋 Listado</button>
+      <button class="tab-btn" id="tab-break" onclick="switchTabSanc('break')">📊 Por categoría</button>
+    </div>
+    <div id="sanc-list-view">
+      <div class="search-bar"><span class="search-icon">🔍</span><input type="text" id="search-sanc" placeholder="Buscar por cursante, profesor, folio, falta..." oninput="renderSancionesList()"></div>
+      <div id="sanciones-list" class="list-loading">Cargando...</div>
+    </div>
+    <div id="sanc-break-view" style="display:none">
+      <div id="sanciones-breakdown" class="list-loading">Cargando...</div>
+    </div>
+  </div>
   <nav class="bottom-nav">
     <button class="bottom-nav-item" onclick="goDiscPanel()"><span class="nav-icon">🏠</span><span class="nav-label">Panel</span></button>
     <button class="bottom-nav-item" onclick="goDiscCursantes()"><span class="nav-icon">👥</span><span class="nav-label">Cursantes</span></button>
     <button class="bottom-nav-item" onclick="goDiscReportes()"><span class="nav-icon">📊</span><span class="nav-label">Reportes</span></button>
     <button class="bottom-nav-item" onclick="goDiscAlertas()"><span class="nav-icon">🔔</span><span class="nav-label">Alertas</span></button>
   </nav>
+</section>
+
+<!-- DISC: DETALLE DE SANCIÓN -->
+<section id="screen-sancion-detalle" class="screen">
+  <div class="app-header"><button class="back-btn" onclick="volverDeSancionDetalle()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title" id="sd-title">Detalle de sanción</div><div class="header-sub" id="sd-subtitle">—</div></div></div>
+  <div class="form-container"><div id="sd-content"></div></div>
+</section>
+
+<!-- DISC: AUDITORÍA FORENSE -->
+<section id="screen-sancion-auditoria" class="screen">
+  <div class="app-header"><button class="back-btn" onclick="verSancionDetalle(selectedSancionId)">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Auditoría forense</div><div class="header-sub" id="aud-subtitle">—</div></div></div>
+  <div class="form-container"><div id="aud-content"></div></div>
+</section>
+
+<!-- DISC: SOLICITAR ANULACIÓN -->
+<section id="screen-solicitar-anulacion" class="screen">
+  <div class="app-header"><button class="back-btn" onclick="verSancionDetalle(selectedSancionId)">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Solicitar anulación</div><div class="header-sub">Comentario al Comandante</div></div></div>
+  <div class="form-container"><div class="form-card">
+    <div id="anul-sancion-info" style="margin-bottom:18px"></div>
+    <div class="error-msg" id="err-anul"></div>
+    <div class="field"><label>Comentario / Motivo</label><textarea id="anul-comentario" placeholder="Explicá por qué solicitás la revisión o anulación de esta sanción..."></textarea></div>
+    <div class="field"><label style="display:flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" id="anul-enviar" style="width:auto"> <span>Enviar al Comandante para revisión</span></label></div>
+    <button class="btn-primary" id="btn-anul" onclick="enviarAnulacion()">Guardar solicitud</button>
+    <button class="btn-secondary" onclick="verSancionDetalle(selectedSancionId)">Cancelar</button>
+  </div></div>
 </section>
 
 <!-- DISC: CONSEJO -->
@@ -621,6 +717,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 const SUPABASE_URL = 'https://ofsyiylhdrdiqtnbaovo.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_GQGDGICE0V74xBr0ECp9ag_FEm9h94E';
@@ -638,6 +735,8 @@ const UMBRAL_CONSEJO = 25;
 const UMBRAL_OBSERVACION = 11;
 
 let selectedCargo=null, currentUser=null, activeRole=null;
+let selectedSancionId=null, lastSancionListScroll=0;
+let leafletMap=null;
 let discData = {cursantes:[], sanciones:[], profesores:[], byCursanteLost:{}, loaded:false, lastSync:null};
 
 function showScreen(id){
@@ -949,7 +1048,7 @@ function renderDiscPanel(){
 
 function goDiscPanel(){ renderDiscPanel(); showScreen('screen-disc-panel'); }
 function goDiscCursantes(){ renderCursantesList(); showScreen('screen-disc-cursantes'); }
-function goDiscSanciones(){ renderSancionesBreakdown(); showScreen('screen-disc-sanciones'); }
+function goDiscSanciones(){ switchTabSanc('list'); showScreen('screen-disc-sanciones'); }
 function goDiscConsejo(){ renderConsejoList(); showScreen('screen-disc-consejo'); }
 function goDiscReportes(){ renderReportes(); showScreen('screen-disc-reportes'); }
 function goDiscAlertas(){ renderAlertas(); showScreen('screen-disc-alertas'); }
@@ -1004,6 +1103,336 @@ function renderSancionesBreakdown(){
     html+=`</div>`;
   });
   cnt.innerHTML=html;
+}
+
+/* ============ SANCIONES: LISTADO + DETALLE ============ */
+function clasificarSancion(s){
+  if(s.anulada) return {tipo:'anulada', label:'Anulada', cls:'anulada', statusCls:'analogica'};
+  const tipoRaw = (s.tipo||'').toLowerCase();
+  const esAnalogica = !tipoRaw || tipoRaw.includes('anal') || tipoRaw==='papel' || tipoRaw==='pre' || tipoRaw==='migrado' || tipoRaw==='pre-digital';
+  if(esAnalogica) return {tipo:'analogica', label:'Registro analógico', cls:'analogica', statusCls:'analogica', icon:'📋'};
+  const conf = (s.confirmacion_estado||'').toLowerCase();
+  if(conf.includes('acept') || conf==='firmada-aceptada') return {tipo:'aceptada', label:'Firmada (aceptada)', cls:'digital-aceptada', statusCls:'aceptada', icon:'✅'};
+  if(conf.includes('firm')) return {tipo:'firmada', label:'Firmada', cls:'digital-firmada', statusCls:'firmada', icon:'✅'};
+  return {tipo:'pendiente', label:'Sin firma', cls:'digital-pendiente', statusCls:'pendiente', icon:'⏳'};
+}
+
+function switchTabSanc(which){
+  document.getElementById('tab-list').classList.toggle('active', which==='list');
+  document.getElementById('tab-break').classList.toggle('active', which==='break');
+  document.getElementById('sanc-list-view').style.display = which==='list' ? 'block' : 'none';
+  document.getElementById('sanc-break-view').style.display = which==='break' ? 'block' : 'none';
+  if(which==='list') renderSancionesList();
+  else renderSancionesBreakdown();
+}
+
+function renderSancionesList(){
+  const q = (document.getElementById('search-sanc').value||'').trim().toLowerCase();
+  const c = document.getElementById('sanciones-list'); c.className='';
+  let arr = discData.sanciones;
+  if(q) arr = arr.filter(s=>
+    (s.cursante_nombre||'').toLowerCase().includes(q) ||
+    (s.cursante_id||'').toLowerCase().includes(q) ||
+    (s.cursante_ci||'').toLowerCase().includes(q) ||
+    (s.profesor_nombre||'').toLowerCase().includes(q) ||
+    (s.folio||'').toString().includes(q) ||
+    (s.falta_id||'').toLowerCase().includes(q) ||
+    (s.falta_descripcion||'').toLowerCase().includes(q)
+  );
+  arr = [...arr].sort((a,b)=>new Date(b.creado_en||0)-new Date(a.creado_en||0));
+  document.getElementById('sanc-subtitle').textContent = `${arr.length} registro(s)`;
+  if(!arr.length){ c.innerHTML='<div class="list-empty">Sin resultados.</div>'; return; }
+  c.innerHTML = arr.map(s=>{
+    const cls = clasificarSancion(s);
+    const fecha = s.creado_en ? new Date(s.creado_en).toLocaleDateString('es-BO') : '—';
+    const folio = s.folio ? `Folio ${s.folio}` : (s.id ? `${s.id}` : '');
+    const desc = (s.falta_descripcion||'—').slice(0,110) + ((s.falta_descripcion||'').length>110?'…':'');
+    return `<div class="sancion-card ${cls.cls}" onclick="verSancionDetalle('${s.id}')">
+      <div class="sc-row1">
+        <div class="sc-cursante">${s.cursante_nombre||s.cursante_id||'—'}</div>
+        <div class="sc-pts">−${s.puntos_aplicados||0} PTS</div>
+      </div>
+      <div class="sc-desc">${desc}</div>
+      <div class="sc-row3">
+        <span class="sc-status ${cls.statusCls}">${cls.icon||''} ${cls.label}</span>
+        <span class="sc-folio">${folio} · ${fecha}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function volverDeSancionDetalle(){
+  if(leafletMap){ try{ leafletMap.remove(); }catch(e){} leafletMap=null; }
+  goDiscSanciones();
+}
+
+function verSancionDetalle(sancionId){
+  const s = discData.sanciones.find(x=>String(x.id)===String(sancionId));
+  if(!s){ alert('No se encontró la sanción.'); return; }
+  selectedSancionId = sancionId;
+  if(leafletMap){ try{ leafletMap.remove(); }catch(e){} leafletMap=null; }
+
+  const cls = clasificarSancion(s);
+  document.getElementById('sd-title').textContent = `Sanción ${s.folio?'#'+s.folio:''}`;
+  document.getElementById('sd-subtitle').textContent = cls.label;
+
+  // Forensic data
+  const hf = parseHF(s.huella_forense);
+  const gps = hf.gps || (hf.lat&&hf.lng?{lat:hf.lat,lng:hf.lng}:null);
+
+  // Profesor data (para CI completo)
+  const prof = discData.profesores.find(p=>p.id===s.profesor_id);
+  const profCI = prof?.ci || s.profesor_ci || 'N/A';
+
+  // Cursante data
+  const cur = discData.cursantes.find(c=>c.id===s.cursante_id);
+  const paralelo = cur?.paralelo || s.cursante_paralelo || '—';
+  const ciclo = hf.ciclo || cur?.ciclo || '';
+  const paraleloFmt = ciclo ? `${ciclo} "${paralelo}"` : paralelo;
+
+  // Reincidencia
+  let reincTexto = '1ra vez';
+  if(s.es_reincidencia){
+    reincTexto = hf.reincidencia_num ? `${hf.reincidencia_num}ª reincidencia` : 'Reincidencia';
+  }
+
+  const fechaCreacion = s.creado_en ? new Date(s.creado_en).toLocaleString('es-BO',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'}) : '—';
+  const fechaOriginal = hf.fecha_original || s.fecha_original || (s.creado_en ? new Date(s.creado_en).toLocaleDateString('es-BO') : '—');
+
+  let html = '';
+
+  // Banner según tipo
+  if(cls.tipo==='analogica'){
+    html += `<div class="sd-banner analogica"><div class="sd-banner-title">📋 Registro analógico (pre-digital)</div><div class="sd-banner-sub">Migrado del sistema anterior. No requiere firma digital.</div></div>`;
+  } else if(cls.tipo==='aceptada'){
+    html += `<div class="sd-banner aceptada"><div class="sd-banner-title">✅ Firmada y aceptada</div><div class="sd-banner-sub">El cursante firmó digitalmente</div></div>`;
+  } else if(cls.tipo==='firmada'){
+    html += `<div class="sd-banner firmada"><div class="sd-banner-title">✅ Sanción firmada</div><div class="sd-banner-sub">Registrada digitalmente</div></div>`;
+  } else if(cls.tipo==='pendiente'){
+    html += `<div class="sd-banner pendiente"><div class="sd-banner-title">⏳ Pendiente de firma</div><div class="sd-banner-sub">Esperando que el cursante firme</div></div>`;
+  } else if(cls.tipo==='anulada'){
+    html += `<div class="sd-banner analogica"><div class="sd-banner-title">🚫 Anulada</div><div class="sd-banner-sub">Esta sanción ya no está vigente</div></div>`;
+  }
+
+  // Bloque 1: SOLO si es analógica → mostrar datos del registro analógico
+  if(cls.tipo==='analogica'){
+    html += `<div class="sd-block">
+      <div class="sd-block-title">📋 Datos del registro analógico</div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;line-height:1.5">Sanción migrada de la planilla histórica. Conserva los datos originales con que fue impuesta.</div>
+      <div class="sd-row"><span class="lbl">Fecha original</span><span class="vl">${fechaOriginal}</span></div>
+      <div class="sd-row"><span class="lbl">Nombre (Excel)</span><span class="vl">${hf.nombre_excel || s.cursante_nombre || '—'}</span></div>
+      <div class="sd-row"><span class="lbl">Tipo de falta</span><span class="vl gold">${s.falta_categoria||'—'} ${(s.falta_articulo||'').match(/\d+/)?.[0] || ''}</span></div>
+      <div class="sd-row"><span class="lbl">Inciso</span><span class="vl gold">${(s.falta_id||'').split('_').pop()||'—'}</span></div>
+      <div class="sd-row"><span class="lbl">Puntaje</span><span class="vl gold">${s.puntos_aplicados||0} pts</span></div>
+      <div class="sd-row"><span class="lbl">Autoridad que sancionó</span><span class="vl">${s.profesor_nombre || '—'}</span></div>
+      ${hf.fuente_archivo ? `<div class="sd-fuente">Fuente: ${hf.fuente_archivo}</div>` : ''}
+    </div>`;
+  }
+
+  // Bloque 2: CURSANTE SANCIONADO
+  html += `<div class="sd-block cursante">
+    <div class="sd-block-title">🎖️ Cursante sancionado</div>
+    <div class="sd-row"><span class="lbl">Nombre</span><span class="vl">${s.cursante_nombre||cur?.nombre_completo||'—'}</span></div>
+    <div class="sd-row"><span class="lbl">CI</span><span class="vl">${s.cursante_ci||cur?.ci||'—'}</span></div>
+    <div class="sd-row"><span class="lbl">Paralelo</span><span class="vl">${paraleloFmt}</span></div>
+    <div class="sd-row"><span class="lbl">ID interno</span><span class="vl"><span style="font-family:monospace;font-size:11px;color:var(--text-muted)">${s.cursante_id||'—'}</span></span></div>
+  </div>`;
+
+  // Bloque 3: FALTA COMETIDA
+  html += `<div class="sd-block falta">
+    <div class="sd-block-title">📖 Falta cometida</div>
+    <div style="font-size:13px;color:var(--text-primary);line-height:1.5;margin-bottom:10px;padding:10px;background:rgba(70,130,200,.05);border-radius:6px">${s.falta_descripcion||'—'}</div>
+    <div class="sd-row"><span class="lbl">Artículo</span><span class="vl gold">${s.falta_articulo||'—'} · ${s.falta_categoria||'—'}</span></div>
+    <div class="sd-row"><span class="lbl">Identificador</span><span class="vl"><span style="font-family:monospace;font-size:11px;color:var(--text-muted)">${s.falta_id||'—'}</span></span></div>
+    <div class="sd-row"><span class="lbl">Puntaje base</span><span class="vl">${s.puntos_base||s.puntos_aplicados||0} pts</span></div>
+    <div class="sd-row"><span class="lbl">Reincidencia</span><span class="vl">${reincTexto}</span></div>
+    <div class="sd-row"><span class="lbl">Puntaje final</span><span class="vl big">−${s.puntos_aplicados||0} PTS</span></div>
+    ${s.observaciones?`<div class="sd-row"><span class="lbl">Observaciones</span><span class="vl" style="font-style:italic">${s.observaciones}</span></div>`:''}
+  </div>`;
+
+  // Bloque 4: REGISTRADA POR
+  html += `<div class="sd-block">
+    <div class="sd-block-title">👨‍🏫 Registrada por</div>
+    <div class="sd-row"><span class="lbl">Profesor</span><span class="vl">${s.profesor_nombre||prof?.nombre_completo||'—'}</span></div>
+    <div class="sd-row"><span class="lbl">CI profesor</span><span class="vl">${profCI}</span></div>
+    <div class="sd-row"><span class="lbl">Grado</span><span class="vl">${prof?.grado||s.profesor_grado||'—'}</span></div>
+    <div class="sd-row"><span class="lbl">Fecha y hora</span><span class="vl">${fechaCreacion}</span></div>
+  </div>`;
+
+  // Bloque GPS si hay coordenadas
+  if(gps && gps.lat && gps.lng){
+    html += `<div class="sd-block">
+      <div class="sd-block-title">📍 Ubicación del registro</div>
+      <div id="leaflet-map"></div>
+      <div class="gps-coords">📍 GPS: ${Number(gps.lat).toFixed(6)} , ${Number(gps.lng).toFixed(6)}${hf.gps_precision?` (±${hf.gps_precision}m)`:''}</div>
+    </div>`;
+  }
+
+  // Acciones
+  html += `<div class="sd-actions">
+    <button class="btn-primary" onclick="verAuditoriaForense('${s.id}')">🔍 Ver auditoría forense</button>
+    <button class="btn-secondary" onclick="abrirSolicitudAnulacion('${s.id}')">✉️ Solicitar anulación al Cmte.</button>
+    <button class="btn-secondary" onclick="volverDeSancionDetalle()">← Volver al listado</button>
+  </div>`;
+
+  document.getElementById('sd-content').innerHTML = html;
+  showScreen('screen-sancion-detalle');
+
+  // Inicializar mapa si hay GPS (tras render del DOM)
+  if(gps && gps.lat && gps.lng){
+    setTimeout(()=>initLeafletMap(Number(gps.lat), Number(gps.lng)), 150);
+  }
+}
+
+function parseHF(hf){
+  if(!hf) return {};
+  if(typeof hf==='string'){
+    try{ return JSON.parse(hf); }catch(e){ return {raw:hf}; }
+  }
+  return hf;
+}
+
+function initLeafletMap(lat, lng){
+  const el = document.getElementById('leaflet-map');
+  if(!el || typeof L==='undefined') return;
+  try{
+    leafletMap = L.map('leaflet-map').setView([lat,lng], 16);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
+      attribution:'© OpenStreetMap', maxZoom: 19
+    }).addTo(leafletMap);
+    L.marker([lat,lng]).addTo(leafletMap).bindPopup(`📍 Registro de sanción<br>${lat.toFixed(5)}, ${lng.toFixed(5)}`).openPopup();
+  }catch(e){ console.error('Mapa error:',e); }
+}
+
+/* ============ AUDITORÍA FORENSE ============ */
+function verAuditoriaForense(sancionId){
+  const s = discData.sanciones.find(x=>String(x.id)===String(sancionId));
+  if(!s){ alert('Sanción no encontrada'); return; }
+  selectedSancionId = sancionId;
+  const cls = clasificarSancion(s);
+  const hf = parseHF(s.huella_forense);
+
+  document.getElementById('aud-subtitle').textContent = `${s.folio?'Folio '+s.folio:s.id} · ${cls.label}`;
+
+  let html = '';
+
+  if(cls.tipo==='analogica'){
+    // Auditoría simplificada para analógicas
+    html += `<div class="sd-banner analogica"><div class="sd-banner-title">📋 Sanción analógica</div><div class="sd-banner-sub">Datos limitados — proviene de migración de planilla</div></div>`;
+    html += `<div class="sd-block">
+      <div class="sd-block-title">📁 Origen del registro</div>
+      <div class="sd-row"><span class="lbl">Tipo</span><span class="vl">Registro analógico (pre-digital)</span></div>
+      <div class="sd-row"><span class="lbl">Documento fuente</span><span class="vl">${hf.fuente_archivo||hf.archivo||'—'}</span></div>
+      <div class="sd-row"><span class="lbl">Hoja / sección</span><span class="vl">${hf.hoja||hf.sheet||'—'}</span></div>
+      <div class="sd-row"><span class="lbl">Fila en planilla</span><span class="vl">${hf.fila_planilla||hf.row||'—'}</span></div>
+      <div class="sd-row"><span class="lbl">Fecha de migración</span><span class="vl">${hf.fecha_migracion||'—'}</span></div>
+      <div class="sd-row"><span class="lbl">Migrado por</span><span class="vl">${hf.migrado_por||'Sistema'}</span></div>
+    </div>`;
+  } else {
+    // Auditoría completa para digitales
+    html += `<div class="sd-banner firmada"><div class="sd-banner-title">🔐 Auditoría forense digital</div><div class="sd-banner-sub">Registro completo de creación de la sanción</div></div>`;
+
+    // Identificación del dispositivo
+    html += `<div class="sd-block">
+      <div class="sd-block-title">📱 Dispositivo del profesor</div>
+      <div class="sd-row"><span class="lbl">Dirección IP</span><span class="vl" style="font-family:monospace">${hf.ip||'—'}</span></div>
+      <div class="sd-row"><span class="lbl">Navegador</span><span class="vl">${hf.navegador||hf.browser||'—'}</span></div>
+      <div class="sd-row"><span class="lbl">Sistema operativo</span><span class="vl">${hf.os||hf.sistema_operativo||'—'}</span></div>
+      <div class="sd-row"><span class="lbl">Dispositivo</span><span class="vl">${hf.dispositivo||hf.device||'—'}</span></div>
+      <div class="sd-row"><span class="lbl">User-Agent</span><span class="vl" style="font-family:monospace;font-size:10px">${hf.user_agent||'—'}</span></div>
+    </div>`;
+
+    // Ubicación
+    const gps = hf.gps || (hf.lat&&hf.lng?{lat:hf.lat,lng:hf.lng}:null);
+    if(gps && gps.lat && gps.lng){
+      const mapsUrl = `https://www.google.com/maps?q=${gps.lat},${gps.lng}`;
+      html += `<div class="sd-block">
+        <div class="sd-block-title">📍 Ubicación GPS</div>
+        <div class="sd-row"><span class="lbl">Latitud</span><span class="vl" style="font-family:monospace">${Number(gps.lat).toFixed(6)}</span></div>
+        <div class="sd-row"><span class="lbl">Longitud</span><span class="vl" style="font-family:monospace">${Number(gps.lng).toFixed(6)}</span></div>
+        <div class="sd-row"><span class="lbl">Precisión</span><span class="vl">${hf.gps_precision?'±'+hf.gps_precision+' metros':'—'}</span></div>
+        <div class="sd-row"><span class="lbl">Fuente GPS</span><span class="vl">${hf.gps_source||'Navegador'}</span></div>
+        <button class="btn-secondary" onclick="window.open('${mapsUrl}','_blank')" style="margin-top:10px">🗺️ Abrir en Google Maps</button>
+      </div>`;
+    }
+
+    // Línea de tiempo del QR
+    html += `<div class="sd-block">
+      <div class="sd-block-title">⏱️ Línea de tiempo</div>
+      <div class="sd-row"><span class="lbl">Sanción creada</span><span class="vl">${s.creado_en?new Date(s.creado_en).toLocaleString('es-BO'):'—'}</span></div>
+      <div class="sd-row"><span class="lbl">QR generado</span><span class="vl">${hf.qr_generado_en?new Date(hf.qr_generado_en).toLocaleString('es-BO'):'—'}</span></div>
+      <div class="sd-row"><span class="lbl">QR escaneado</span><span class="vl">${hf.qr_escaneado_en?new Date(hf.qr_escaneado_en).toLocaleString('es-BO'):'No escaneado'}</span></div>
+      <div class="sd-row"><span class="lbl">Firmado en</span><span class="vl">${hf.firmado_en?new Date(hf.firmado_en).toLocaleString('es-BO'):'No firmado'}</span></div>
+    </div>`;
+
+    // Token / Hash criptográfico
+    html += `<div class="sd-block">
+      <div class="sd-block-title">🔐 Identidad criptográfica</div>
+      <div class="sd-row"><span class="lbl">Token de sesión</span><span class="vl" style="font-family:monospace;font-size:10px;word-break:break-all">${hf.token||hf.session_token||'—'}</span></div>
+      <div class="sd-row"><span class="lbl">Hash de la sanción</span><span class="vl" style="font-family:monospace;font-size:10px;word-break:break-all">${hf.hash||'—'}</span></div>
+      <div class="sd-row"><span class="lbl">Firma del alumno</span><span class="vl" style="font-family:monospace;font-size:10px;word-break:break-all">${hf.firma_alumno||'No firmada'}</span></div>
+    </div>`;
+  }
+
+  // Datos crudos (siempre, por transparencia)
+  html += `<div class="sd-block">
+    <div class="sd-block-title">🧾 Datos crudos (huella_forense)</div>
+    <pre style="font-family:monospace;font-size:10px;color:var(--text-secondary);background:rgba(5,10,20,.5);padding:12px;border-radius:6px;overflow-x:auto;max-height:280px;line-height:1.5">${Object.keys(hf).length ? JSON.stringify(hf,null,2) : '(sin datos forenses registrados)'}</pre>
+  </div>`;
+
+  html += `<div class="sd-actions"><button class="btn-secondary" onclick="verSancionDetalle(selectedSancionId)">← Volver al detalle</button></div>`;
+
+  document.getElementById('aud-content').innerHTML = html;
+  showScreen('screen-sancion-auditoria');
+}
+
+/* ============ SOLICITAR ANULACIÓN ============ */
+function abrirSolicitudAnulacion(sancionId){
+  const s = discData.sanciones.find(x=>String(x.id)===String(sancionId));
+  if(!s) return;
+  selectedSancionId = sancionId;
+  clearErrors();
+  document.getElementById('anul-comentario').value='';
+  document.getElementById('anul-enviar').checked = false;
+  document.getElementById('anul-sancion-info').innerHTML = `
+    <div class="sd-block">
+      <div class="sd-row"><span class="lbl">Sanción</span><span class="vl gold">${s.folio?'Folio '+s.folio:s.id}</span></div>
+      <div class="sd-row"><span class="lbl">Cursante</span><span class="vl">${s.cursante_nombre||'—'}</span></div>
+      <div class="sd-row"><span class="lbl">Falta</span><span class="vl">${s.falta_descripcion||'—'}</span></div>
+      <div class="sd-row"><span class="lbl">Puntos</span><span class="vl gold">−${s.puntos_aplicados||0}</span></div>
+    </div>
+  `;
+  showScreen('screen-solicitar-anulacion');
+}
+
+async function enviarAnulacion(){
+  clearErrors();
+  const coment = document.getElementById('anul-comentario').value.trim();
+  if(!coment){ showError('err-anul','Escribí un comentario antes de enviar.'); return; }
+  const enviar = document.getElementById('anul-enviar').checked;
+  const s = discData.sanciones.find(x=>String(x.id)===String(selectedSancionId));
+  if(!s){ showError('err-anul','Sanción no encontrada.'); return; }
+
+  const btn = document.getElementById('btn-anul');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  try{
+    const payload = {
+      sancion_id: String(s.id),
+      cursante_id: s.cursante_id,
+      comentario_disciplina: coment,
+      estado: enviar ? 'enviado' : 'pendiente',
+      enviado_a_comandante: enviar,
+      creada_por: currentUser?.id || 'desconocido'
+    };
+    const {error} = await sb.from('solicitudes_anulacion').insert(payload);
+    if(error) throw error;
+    alert(enviar ? '✅ Solicitud guardada y enviada al Comandante.' : '✅ Solicitud guardada como pendiente.');
+    verSancionDetalle(selectedSancionId);
+  }catch(e){
+    showError('err-anul','Error: '+(e.message||JSON.stringify(e)));
+  }finally{
+    btn.disabled=false; btn.textContent='Guardar solicitud';
+  }
 }
 
 function renderConsejoList(){
