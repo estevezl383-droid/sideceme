@@ -82,6 +82,11 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .btn-primary:disabled{opacity:.5;cursor:not-allowed;transform:none}
 .btn-secondary{width:100%;padding:13px;font-family:var(--font-display);font-size:14px;letter-spacing:2px;text-transform:uppercase;font-weight:600;background:transparent;color:var(--gold-light);border:1px solid var(--border-strong);border-radius:var(--radius-sm);cursor:pointer;transition:all .2s;margin-top:10px}
 .btn-secondary:hover{background:var(--border-subtle)}
+.btn-bio{width:100%;padding:14px;font-family:var(--font-display);font-size:14px;letter-spacing:2px;text-transform:uppercase;font-weight:600;background:linear-gradient(135deg,#2a5577,#3d7fa8);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;transition:all .2s;margin-bottom:14px;display:flex;align-items:center;justify-content:center;gap:10px}
+.btn-bio:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(61,127,168,.4)}
+.btn-bio:disabled{opacity:.5;cursor:not-allowed}
+.bio-divider{display:flex;align-items:center;gap:12px;margin:14px 0;color:var(--text-muted);font-size:11px;letter-spacing:2px;text-transform:uppercase}
+.bio-divider::before,.bio-divider::after{content:'';flex:1;height:1px;background:var(--border-subtle)}
 .btn-danger{width:100%;padding:14px;font-family:var(--font-display);font-size:14px;letter-spacing:2px;text-transform:uppercase;font-weight:600;background:var(--danger);color:#fff;border:none;border-radius:var(--radius-sm);cursor:pointer;transition:all .2s}
 .btn-danger:hover{background:#a83a3a}
 .btn-danger:disabled{opacity:.5;cursor:not-allowed}
@@ -282,9 +287,12 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
     <div class="login-target" id="login-target">Sub. Sec. Disciplina</div>
     <div class="info-banner">Plantel Docente ECEME. Ingresá con tu Carnet de Identidad y contraseña asignada.</div>
     <div class="error-msg" id="err-docente"></div>
-    <div class="field"><label>Carnet de Identidad</label><input type="text" id="docente-ci" inputmode="numeric" placeholder="Número de CI"></div>
-    <div class="field"><label>Contraseña</label><input type="password" id="docente-pwd" placeholder="••••••"></div>
-    <button class="btn-primary" id="btn-login-docente" onclick="loginDocente()">Ingresar</button>
+    <button class="btn-bio" id="btn-bio-docente" onclick="loginBiometrico('docente')" style="display:none">👆 Ingresar con biometría</button>
+    <form onsubmit="event.preventDefault(); loginDocente()">
+      <div class="field"><label>Carnet de Identidad</label><input type="text" id="docente-ci" name="username" inputmode="numeric" autocomplete="username" placeholder="Número de CI"></div>
+      <div class="field"><label>Contraseña</label><input type="password" id="docente-pwd" name="password" autocomplete="current-password" placeholder="••••••"></div>
+      <button type="submit" class="btn-primary" id="btn-login-docente">Ingresar</button>
+    </form>
   </div></div>
 </section>
 
@@ -298,9 +306,12 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   <div class="login-container"><div class="login-card">
     <div class="info-banner">Cursantes ECEME. Tu contraseña inicial es tu mismo CI — luego podrás cambiarla.</div>
     <div class="error-msg" id="err-cursante"></div>
-    <div class="field"><label>Carnet de Identidad</label><input type="text" id="cursante-ci" inputmode="numeric" placeholder="Número de CI"></div>
-    <div class="field"><label>Contraseña</label><input type="password" id="cursante-pwd" placeholder="••••••"></div>
-    <button class="btn-primary" id="btn-login-cursante" onclick="loginCursante()">Ingresar</button>
+    <button class="btn-bio" id="btn-bio-cursante" onclick="loginBiometrico('cursante')" style="display:none">👆 Ingresar con biometría</button>
+    <form onsubmit="event.preventDefault(); loginCursante()">
+      <div class="field"><label>Carnet de Identidad</label><input type="text" id="cursante-ci" name="username" inputmode="numeric" autocomplete="username" placeholder="Número de CI"></div>
+      <div class="field"><label>Contraseña</label><input type="password" id="cursante-pwd" name="password" autocomplete="current-password" placeholder="••••••"></div>
+      <button type="submit" class="btn-primary" id="btn-login-cursante">Ingresar</button>
+    </form>
   </div></div>
 </section>
 
@@ -583,6 +594,12 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   <div class="disc-container"><div id="estadisticas-content" class="list-loading">Cargando...</div></div>
 </section>
 
+<!-- DISC: ESTADÍSTICAS DETALLE PROFESOR -->
+<section id="screen-est-profesor" class="screen with-bottom-nav">
+  <div class="app-header"><button class="back-btn" onclick="goEstadisticas()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title" id="est-prof-title">Detalle de profesor</div><div class="header-sub" id="est-prof-sub">—</div></div></div>
+  <div class="disc-container"><div id="est-prof-content" class="list-loading">Cargando...</div></div>
+</section>
+
 <!-- DISC: ANULACIONES -->
 <section id="screen-anulaciones" class="screen with-bottom-nav">
   <div class="app-header"><button class="back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Solicitudes de Anulación</div><div class="header-sub">Comentarios y revisiones</div></div></div>
@@ -630,7 +647,7 @@ function showScreen(id){
 }
 function goHome(){ showScreen('screen-home'); }
 function goCargos(){ showScreen('screen-cargos'); }
-function goLoginCursante(){ showScreen('screen-login-cursante'); }
+function goLoginCursante(){ showScreen('screen-login-cursante'); mostrarBotonBio('cursante'); }
 function goLoginCargo(k){
   selectedCargo=k;
   const c=CARGOS[k]; if(!c) return;
@@ -638,6 +655,10 @@ function goLoginCargo(k){
   document.getElementById('docente-ci').value='';
   document.getElementById('docente-pwd').value='';
   showScreen('screen-login-docente');
+  // Sólo mostrar bio si el cargo coincide con el guardado
+  const stored = bioObtenerCred('docente');
+  if(stored && stored.role===k) mostrarBotonBio('docente');
+  else document.getElementById('btn-bio-docente').style.display='none';
 }
 function clearErrors(){
   document.querySelectorAll('.error-msg').forEach(el=>{el.classList.remove('visible'); el.textContent=''});
@@ -654,6 +675,142 @@ function logout(){
   discData={cursantes:[],sanciones:[],profesores:[],byCursanteLost:{},loaded:false,lastSync:null};
   ['docente-ci','docente-pwd','cursante-ci','cursante-pwd'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
   goHome();
+}
+
+/* ==================== BIOMETRÍA (WebAuthn) ==================== */
+const BIO_RP_NAME = 'SIDECEME';
+function bioSoportado(){
+  return !!(window.PublicKeyCredential && navigator.credentials);
+}
+function bioCredKey(tipo){ return `sideceme_bio_${tipo}`; }
+function bioObtenerCred(tipo){
+  try{ const r = localStorage.getItem(bioCredKey(tipo)); return r ? JSON.parse(r) : null; }
+  catch(e){ return null; }
+}
+function bioGuardarCred(tipo, data){
+  localStorage.setItem(bioCredKey(tipo), JSON.stringify(data));
+}
+function bioBorrarCred(tipo){
+  localStorage.removeItem(bioCredKey(tipo));
+}
+function b64ToU8(b64){
+  const bin = atob(b64);
+  const u8 = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) u8[i]=bin.charCodeAt(i);
+  return u8;
+}
+function u8ToB64(u8){
+  let s=''; for(let i=0;i<u8.length;i++) s+=String.fromCharCode(u8[i]);
+  return btoa(s);
+}
+
+async function bioRegistrar(ci, tipo){
+  if(!bioSoportado()){ alert('Este dispositivo/navegador no soporta biometría.'); return false; }
+  try{
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const userId = new TextEncoder().encode(`${tipo}_${ci}`);
+    const credential = await navigator.credentials.create({
+      publicKey: {
+        challenge,
+        rp: { name: BIO_RP_NAME, id: window.location.hostname },
+        user: { id: userId, name: ci, displayName: `${tipo} ${ci}` },
+        pubKeyCredParams: [{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+        authenticatorSelection: {
+          authenticatorAttachment: 'platform',
+          userVerification: 'required',
+          requireResidentKey: false
+        },
+        timeout: 60000,
+        attestation: 'none'
+      }
+    });
+    const credId = u8ToB64(new Uint8Array(credential.rawId));
+    bioGuardarCred(tipo, { ci, credId, fecha: new Date().toISOString() });
+    return true;
+  }catch(e){
+    console.error('bioRegistrar:', e);
+    if(e.name==='NotAllowedError') alert('Cancelaste la activación.');
+    else alert('No se pudo activar biometría: '+(e.message||e.name));
+    return false;
+  }
+}
+
+async function bioAutenticar(tipo){
+  const stored = bioObtenerCred(tipo);
+  if(!stored) return null;
+  try{
+    const challenge = crypto.getRandomValues(new Uint8Array(32));
+    const assertion = await navigator.credentials.get({
+      publicKey: {
+        challenge,
+        allowCredentials: [{ type:'public-key', id: b64ToU8(stored.credId) }],
+        timeout: 60000,
+        userVerification: 'required'
+      }
+    });
+    return assertion ? stored.ci : null;
+  }catch(e){
+    console.error('bioAutenticar:', e);
+    if(e.name==='NotAllowedError') return null;
+    alert('Error en biometría: '+(e.message||e.name));
+    return null;
+  }
+}
+
+async function loginBiometrico(tipo){
+  const btn = document.getElementById(`btn-bio-${tipo}`);
+  btn.disabled = true; btn.textContent = '🔐 Verificando...';
+  try{
+    const ci = await bioAutenticar(tipo);
+    if(!ci){ btn.disabled=false; btn.innerHTML='👆 Ingresar con biometría'; return; }
+    // Login sin pedir password
+    if(tipo==='docente'){
+      const stored = bioObtenerCred('docente');
+      const role = stored?.role;
+      if(!role){ alert('Se perdió el cargo asociado. Ingresá manualmente una vez para reactivar.'); bioBorrarCred('docente'); btn.style.display='none'; btn.disabled=false; return; }
+      const {data,error} = await sb.from('profesores').select('*').eq('ci',ci).limit(1);
+      if(error || !data || !data.length){ alert('CI no encontrado. Reactivá biometría.'); bioBorrarCred('docente'); btn.style.display='none'; return; }
+      currentUser = data[0]; activeRole = role; selectedCargo = role;
+      saveSession(currentUser,'docente',activeRole);
+      await enterRole(activeRole);
+    } else {
+      const {data,error} = await sb.from('cursantes').select('*').eq('ci',ci).limit(1);
+      if(error || !data || !data.length){ alert('CI no encontrado.'); bioBorrarCred('cursante'); btn.style.display='none'; return; }
+      currentUser = data[0];
+      saveSession(currentUser,'cursante',null);
+      renderCursanteHome();
+      showScreen('screen-cursante-home');
+    }
+  }catch(e){
+    console.error(e); alert('Error: '+(e.message||e));
+  }finally{
+    btn.disabled = false;
+    btn.innerHTML = '👆 Ingresar con biometría';
+  }
+}
+
+function mostrarBotonBio(tipo){
+  const btn = document.getElementById(`btn-bio-${tipo}`);
+  if(!btn) return;
+  if(bioSoportado() && bioObtenerCred(tipo)) btn.style.display='flex';
+  else btn.style.display='none';
+}
+
+async function ofrecerActivarBio(tipo){
+  if(!bioSoportado()) return;
+  if(bioObtenerCred(tipo)) return; // ya activada
+  const ci = currentUser?.ci; if(!ci) return;
+  if(!confirm('¿Querés activar inicio con Face ID / huella digital en este dispositivo?\n\nEs más rápido y seguro: la próxima vez no vas a tener que escribir tu contraseña.')) return;
+  const ok = await bioRegistrar(ci, tipo);
+  if(ok){
+    // Para docentes, también guardar el cargo
+    if(tipo==='docente'){
+      const cred = bioObtenerCred('docente');
+      cred.role = activeRole;
+      bioGuardarCred('docente', cred);
+    }
+    alert('✅ Biometría activada. La próxima vez vas a ver el botón "Ingresar con biometría" en esta pantalla.');
+  }
 }
 
 async function loginDocente(){
@@ -673,6 +830,7 @@ async function loginDocente(){
     currentUser=prof; activeRole=selectedCargo;
     saveSession(prof,'docente',activeRole);
     await enterRole(activeRole);
+    setTimeout(()=>ofrecerActivarBio('docente'), 600);
   }catch(e){console.error(e); showError('err-docente','Error: '+(e.message||e));}
   finally{btn.disabled=false; btn.textContent='Ingresar';}
 }
@@ -694,6 +852,7 @@ async function loginCursante(){
     saveSession(cur,'cursante',null);
     renderCursanteHome();
     showScreen('screen-cursante-home');
+    setTimeout(()=>ofrecerActivarBio('cursante'), 600);
   }catch(e){console.error(e); showError('err-cursante','Error: '+(e.message||e));}
   finally{btn.disabled=false; btn.textContent='Ingresar';}
 }
@@ -1301,14 +1460,15 @@ function renderEstadisticas(){
   const topCurCount = Object.entries(byCur).map(([id,v])=>({id,...v})).sort((a,b)=>b.count-a.count).slice(0,10);
   const topCurPts   = Object.entries(byCur).map(([id,v])=>({id,...v})).sort((a,b)=>b.pts-a.pts).slice(0,10);
 
-  // Top profesores que más sancionan
+  // Top profesores que más sancionan (con detalle clickeable)
   const byProf={};
   validas.forEach(s=>{
-    const pid=s.profesor_id;
-    if(!byProf[pid]) byProf[pid]={count:0,nombre:s.profesor_nombre||pid};
+    const pid=s.profesor_id||'sin_id';
+    if(!byProf[pid]) byProf[pid]={count:0,nombre:s.profesor_nombre||pid,sanciones:[]};
     byProf[pid].count++;
+    byProf[pid].sanciones.push(s);
   });
-  const topProf = Object.entries(byProf).map(([id,v])=>({id,...v})).sort((a,b)=>b.count-a.count).slice(0,10);
+  const topProf = Object.entries(byProf).map(([id,v])=>({id,...v})).sort((a,b)=>b.count-a.count).slice(0,7);
 
   // Top paralelos (si hay datos)
   const byParalelo={};
@@ -1336,8 +1496,8 @@ function renderEstadisticas(){
     </div>
 
     <div class="stat-block">
-      <div class="sb-title">Top profesores que más sancionan</div>
-      ${topProf.map(x=>`<div class="sb-row"><span class="label">${x.nombre} <span style="color:var(--text-muted);font-size:11px">[${x.id}]</span></span><span class="val">${x.count}</span></div>`).join('')||'<div class="sb-row"><span class="label">Sin datos</span></div>'}
+      <div class="sb-title">Top 7 profesores que más sancionan</div>
+      ${topProf.map(x=>`<div class="sb-row" style="cursor:pointer" onclick="verEstadisticasProfesor('${x.id}')"><span class="label">${x.nombre} <span style="color:var(--text-muted);font-size:11px">[${x.id}]</span></span><span class="val">${x.count} ›</span></div>`).join('')||'<div class="sb-row"><span class="label">Sin datos</span></div>'}
     </div>
 
     <div class="stat-block">
@@ -1352,6 +1512,61 @@ function renderEstadisticas(){
 
     <button class="btn-primary" onclick="downloadXLSX()" style="margin-top:16px">📊 Exportar todo a Excel</button>
   `;
+}
+
+function verEstadisticasProfesor(profId){
+  const sancs = discData.sanciones.filter(s=>!s.anulada && s.profesor_id===profId).sort((a,b)=>new Date(b.creado_en||0)-new Date(a.creado_en||0));
+  const profNombre = sancs[0]?.profesor_nombre || profId;
+  const totalPts = sancs.reduce((sum,s)=>sum+(Number(s.puntos_aplicados)||0), 0);
+
+  // Agrupar por cursante
+  const byCur = {};
+  sancs.forEach(s=>{
+    const cid = s.cursante_id;
+    if(!byCur[cid]) byCur[cid]={nombre:s.cursante_nombre||cid, count:0, pts:0};
+    byCur[cid].count++;
+    byCur[cid].pts += Number(s.puntos_aplicados)||0;
+  });
+  const topCursantes = Object.entries(byCur).map(([id,v])=>({id,...v})).sort((a,b)=>b.count-a.count);
+
+  // Agrupar por categoría
+  const byCat = {};
+  sancs.forEach(s=>{
+    const c = s.falta_categoria||'SIN CAT';
+    byCat[c] = (byCat[c]||0)+1;
+  });
+
+  document.getElementById('est-prof-title').textContent = profNombre;
+  document.getElementById('est-prof-sub').textContent = `${sancs.length} sanciones · ${totalPts} pts`;
+
+  const c = document.getElementById('est-prof-content'); c.className='';
+  c.innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-num">${sancs.length}</div><div class="stat-label">Sanciones</div></div>
+      <div class="stat-card"><div class="stat-num">${totalPts}</div><div class="stat-label">Pts aplicados</div></div>
+      <div class="stat-card"><div class="stat-num">${Object.keys(byCur).length}</div><div class="stat-label">Cursantes</div></div>
+    </div>
+
+    <div class="stat-block">
+      <div class="sb-title">Por categoría de falta</div>
+      ${Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([cat,n])=>`<div class="sb-row"><span class="label">${cat}</span><span class="val">${n}</span></div>`).join('')}
+    </div>
+
+    <div class="stat-block">
+      <div class="sb-title">Cursantes sancionados (${topCursantes.length})</div>
+      ${topCursantes.map(x=>`<div class="sb-row"><span class="label">${x.nombre} <span style="color:var(--text-muted);font-size:11px">[${x.id}]</span></span><span class="val">${x.count} · ${x.pts} pts</span></div>`).join('')}
+    </div>
+
+    <div class="section-label">Todas las sanciones impuestas</div>
+    ${sancs.map(s=>`
+      <div class="falta-row">
+        <div class="falta-id">${s.falta_id||'—'}</div>
+        <div class="falta-desc"><strong>${s.cursante_nombre||s.cursante_id}</strong> · ${s.falta_categoria||'?'} · Art. ${s.falta_articulo||'—'}<br><span style="font-size:11px;color:var(--text-muted)">${s.falta_descripcion||'—'} · ${s.creado_en?new Date(s.creado_en).toLocaleDateString('es-BO'):'sin fecha'}</span></div>
+        <div class="falta-count">-${s.puntos_aplicados}</div>
+      </div>
+    `).join('')}
+  `;
+  showScreen('screen-est-profesor');
 }
 
 /* ==================== ANULACIONES ==================== */
