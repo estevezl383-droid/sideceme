@@ -495,6 +495,12 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   <div class="form-container"><div id="aud-content"></div></div>
 </section>
 
+<!-- DISC: FICHA DEL CURSANTE (sanciones del cursante) -->
+<section id="screen-ficha-cursante" class="screen">
+  <div class="app-header"><button class="back-btn" id="ficha-back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title" id="ficha-title">Ficha de cursante</div><div class="header-sub" id="ficha-sub">—</div></div></div>
+  <div class="form-container"><div id="ficha-content"></div></div>
+</section>
+
 <!-- DISC: SOLICITAR ANULACIÓN -->
 <section id="screen-solicitar-anulacion" class="screen">
   <div class="app-header"><button class="back-btn" onclick="verSancionDetalle(selectedSancionId)">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Solicitar anulación</div><div class="header-sub">Comentario al Comandante</div></div></div>
@@ -737,7 +743,7 @@ const UMBRAL_OBSERVACION = 11;
 let selectedCargo=null, currentUser=null, activeRole=null;
 let selectedSancionId=null, lastSancionListScroll=0;
 let leafletMap=null;
-let discData = {cursantes:[], sanciones:[], profesores:[], byCursanteLost:{}, loaded:false, lastSync:null};
+let discData = {cursantes:[], sanciones:[], profesores:[], reglamentos:[], byCursanteLost:{}, byCursanteSanc:{}, loaded:false, lastSync:null};
 
 function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -988,24 +994,29 @@ function renderCursanteHome(){
 async function loadDiscData(force=false){
   if(discData.loaded && !force) return;
   try{
-    const [curRes,sanRes,profRes] = await Promise.all([
+    const [curRes,sanRes,profRes,regRes] = await Promise.all([
       sb.from('cursantes').select('*').order('id'),
       sb.from('sanciones').select('*'),
-      sb.from('profesores').select('*').order('id')
+      sb.from('profesores').select('*').order('id'),
+      sb.from('reglamentos').select('*')
     ]);
     if(curRes.error) console.error('cursantes:',curRes.error);
     if(sanRes.error) console.error('sanciones:',sanRes.error);
     if(profRes.error) console.error('profesores:',profRes.error);
+    if(regRes.error) console.error('reglamentos:',regRes.error);
     discData.cursantes = curRes.data||[];
     discData.sanciones = sanRes.data||[];
     discData.profesores = profRes.data||[];
+    discData.reglamentos = regRes.data||[];
     discData.byCursanteLost = {};
+    discData.byCursanteSanc = {};
     discData.sanciones.forEach(s=>{
-      // Solo contar sanciones del semestre actual (no archivadas)
       if(s.anulada===true) return;
       const cid=s.cursante_id;
       const pts=Number(s.puntos_aplicados)||0;
       discData.byCursanteLost[cid] = (discData.byCursanteLost[cid]||0) + pts;
+      if(!discData.byCursanteSanc[cid]) discData.byCursanteSanc[cid] = [];
+      discData.byCursanteSanc[cid].push(s);
     });
     discData.loaded=true;
     discData.lastSync=new Date();
@@ -1064,9 +1075,10 @@ function drawCursantesList(arr){
     const perd = discData.byCursanteLost[cu.id]||0;
     const est = getEstado(perd);
     const inactClass = cu.activo===false ? 'inactive' : '';
-    return `<div class="list-item ${inactClass}">
+    const cyp = fmtCicloPara(cu);
+    return `<div class="list-item ${inactClass}" style="cursor:pointer" onclick="verFichaCursante('${cu.id}','cursantes')">
       <div class="li-id">${cu.id}</div>
-      <div class="li-name">${cu.nombre_completo||'—'}${cu.activo===false?'<span class="badge baja">Baja</span>':''}<br><span class="li-ci">CI ${cu.ci||'—'}${cu.departamento?' '+cu.departamento:''}</span></div>
+      <div class="li-name">${cu.nombre_completo||'—'}${cu.activo===false?'<span class="badge baja">Baja</span>':''}<br><span class="li-ci">CI ${cu.ci||'—'}${cu.departamento?' '+cu.departamento:''}${cyp?' · '+cyp:''}</span></div>
       <div class="li-score ${est==='consejo'?'danger':est==='observacion'?'warn':'ok'}">${100-perd}</div>
     </div>`;
   }).join('');
@@ -1109,12 +1121,33 @@ function renderSancionesBreakdown(){
 function clasificarSancion(s){
   if(s.anulada) return {tipo:'anulada', label:'Anulada', cls:'anulada', statusCls:'analogica'};
   const tipoRaw = (s.tipo||'').toLowerCase();
-  const esAnalogica = !tipoRaw || tipoRaw.includes('anal') || tipoRaw==='papel' || tipoRaw==='pre' || tipoRaw==='migrado' || tipoRaw==='pre-digital';
+  const hf = parseHF(s.huella_forense);
+  // Analógica si el tipo lo dice o si tiene marca de migración desde Excel
+  const esAnalogica = !tipoRaw || tipoRaw.includes('anal') || tipoRaw==='papel' || tipoRaw==='pre' || tipoRaw==='migrado' || tipoRaw==='pre-digital' || !!hf.import_excel;
   if(esAnalogica) return {tipo:'analogica', label:'Registro analógico', cls:'analogica', statusCls:'analogica', icon:'📋'};
   const conf = (s.confirmacion_estado||'').toLowerCase();
   if(conf.includes('acept') || conf==='firmada-aceptada') return {tipo:'aceptada', label:'Firmada (aceptada)', cls:'digital-aceptada', statusCls:'aceptada', icon:'✅'};
   if(conf.includes('firm')) return {tipo:'firmada', label:'Firmada', cls:'digital-firmada', statusCls:'firmada', icon:'✅'};
   return {tipo:'pendiente', label:'Sin firma', cls:'digital-pendiente', statusCls:'pendiente', icon:'⏳'};
+}
+
+/* Helper: formato ciclo + paralelo */
+function fmtCicloPara(c){
+  if(!c) return '';
+  const ciclo = c.ciclo || '';
+  const par = c.paralelo || '';
+  if(ciclo && par) return `${ciclo} "${par}"`;
+  if(par) return `Paralelo ${par}`;
+  if(ciclo) return ciclo;
+  return '';
+}
+
+/* Helper: obtener descripción de falta desde reglamentos */
+function getDescripcionFalta(falta_id){
+  if(!falta_id) return null;
+  const r = discData.reglamentos.find(x=>x.id===falta_id);
+  if(!r) return null;
+  return r.descripcion || r.texto || r.detalle || null;
 }
 
 function switchTabSanc(which){
@@ -1147,13 +1180,15 @@ function renderSancionesList(){
     const fecha = s.creado_en ? new Date(s.creado_en).toLocaleDateString('es-BO') : '—';
     const folio = s.folio ? `Folio ${s.folio}` : (s.id ? `${s.id}` : '');
     const desc = (s.falta_descripcion||'—').slice(0,110) + ((s.falta_descripcion||'').length>110?'…':'');
-    return `<div class="sancion-card ${cls.cls}" onclick="verSancionDetalle('${s.id}')">
+    const cur = discData.cursantes.find(x=>x.id===s.cursante_id);
+    const cyp = fmtCicloPara(cur);
+    return `<div class="sancion-card ${cls.cls}">
       <div class="sc-row1">
-        <div class="sc-cursante">${s.cursante_nombre||s.cursante_id||'—'}</div>
+        <div class="sc-cursante" onclick="event.stopPropagation(); verFichaCursante('${s.cursante_id}','cursantes')" style="cursor:pointer">${s.cursante_nombre||s.cursante_id||'—'}${cyp?` <span style="font-size:11px;font-weight:400;color:var(--text-muted);letter-spacing:1px">· ${cyp}</span>`:''}</div>
         <div class="sc-pts">−${s.puntos_aplicados||0} PTS</div>
       </div>
-      <div class="sc-desc">${desc}</div>
-      <div class="sc-row3">
+      <div class="sc-desc" onclick="verSancionDetalle('${s.id}')" style="cursor:pointer">${desc}</div>
+      <div class="sc-row3" onclick="verSancionDetalle('${s.id}')" style="cursor:pointer">
         <span class="sc-status ${cls.statusCls}">${cls.icon||''} ${cls.label}</span>
         <span class="sc-folio">${folio} · ${fecha}</span>
       </div>
@@ -1232,16 +1267,26 @@ function verSancionDetalle(sancionId){
   // Bloque 2: CURSANTE SANCIONADO
   html += `<div class="sd-block cursante">
     <div class="sd-block-title">🎖️ Cursante sancionado</div>
-    <div class="sd-row"><span class="lbl">Nombre</span><span class="vl">${s.cursante_nombre||cur?.nombre_completo||'—'}</span></div>
-    <div class="sd-row"><span class="lbl">CI</span><span class="vl">${s.cursante_ci||cur?.ci||'—'}</span></div>
-    <div class="sd-row"><span class="lbl">Paralelo</span><span class="vl">${paraleloFmt}</span></div>
+    <div class="sd-row"><span class="lbl">Nombre</span><span class="vl"><a onclick="verFichaCursante('${s.cursante_id}','sancion-detalle')" style="color:var(--gold-light);cursor:pointer;text-decoration:underline;text-decoration-color:rgba(212,175,55,.3)">${s.cursante_nombre||cur?.nombre_completo||'—'}</a></span></div>
+    <div class="sd-row"><span class="lbl">CI</span><span class="vl">${s.cursante_ci||cur?.ci||'—'}${cur?.departamento?' '+cur.departamento:''}</span></div>
+    <div class="sd-row"><span class="lbl">Ciclo</span><span class="vl gold">${cur?.ciclo||hf.ciclo||hf.ciclo_original||'—'}</span></div>
+    <div class="sd-row"><span class="lbl">Paralelo</span><span class="vl gold">${cur?.paralelo||hf.paralelo||hf.paralelo_original||paralelo||'—'}</span></div>
     <div class="sd-row"><span class="lbl">ID interno</span><span class="vl"><span style="font-family:monospace;font-size:11px;color:var(--text-muted)">${s.cursante_id||'—'}</span></span></div>
   </div>`;
 
   // Bloque 3: FALTA COMETIDA
+  const descReglamento = getDescripcionFalta(s.falta_id);
+  const descTextoFalta = s.falta_descripcion || descReglamento || '—';
+  // Si la descripción original viene como "[Registro pre-digital] FALTA LEVE X (inciso Y)"
+  // mostramos también la descripción real del reglamento
+  const esDescPlaceholder = /^\s*\[Registro pre-?digital\]/i.test(descTextoFalta) || /^\s*FALTA\s+\w+\s+\d+\s*\(inciso/i.test(descTextoFalta);
+  const descMostrar = esDescPlaceholder && descReglamento && descReglamento!==descTextoFalta
+    ? `<div style="font-family:var(--font-display);font-size:11px;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">${descTextoFalta}</div><div style="font-size:13px;color:var(--text-primary);line-height:1.5">${descReglamento}</div>`
+    : `<div style="font-size:13px;color:var(--text-primary);line-height:1.5">${descTextoFalta}${descReglamento && descReglamento!==descTextoFalta ? '<div style="margin-top:8px;padding-top:8px;border-top:1px dashed rgba(212,175,55,.15);font-size:12px;color:var(--text-secondary);font-style:italic">📖 '+descReglamento+'</div>':''}</div>`;
+
   html += `<div class="sd-block falta">
     <div class="sd-block-title">📖 Falta cometida</div>
-    <div style="font-size:13px;color:var(--text-primary);line-height:1.5;margin-bottom:10px;padding:10px;background:rgba(70,130,200,.05);border-radius:6px">${s.falta_descripcion||'—'}</div>
+    <div style="padding:12px;background:rgba(70,130,200,.05);border-radius:6px;margin-bottom:10px">${descMostrar}</div>
     <div class="sd-row"><span class="lbl">Artículo</span><span class="vl gold">${s.falta_articulo||'—'} · ${s.falta_categoria||'—'}</span></div>
     <div class="sd-row"><span class="lbl">Identificador</span><span class="vl"><span style="font-family:monospace;font-size:11px;color:var(--text-muted)">${s.falta_id||'—'}</span></span></div>
     <div class="sd-row"><span class="lbl">Puntaje base</span><span class="vl">${s.puntos_base||s.puntos_aplicados||0} pts</span></div>
@@ -1374,11 +1419,18 @@ function verAuditoriaForense(sancionId){
     </div>`;
   }
 
-  // Datos crudos (siempre, por transparencia)
-  html += `<div class="sd-block">
-    <div class="sd-block-title">🧾 Datos crudos (huella_forense)</div>
-    <pre style="font-family:monospace;font-size:10px;color:var(--text-secondary);background:rgba(5,10,20,.5);padding:12px;border-radius:6px;overflow-x:auto;max-height:280px;line-height:1.5">${Object.keys(hf).length ? JSON.stringify(hf,null,2) : '(sin datos forenses registrados)'}</pre>
-  </div>`;
+  // Datos crudos: SOLO para digitales (en analógicas no exponemos el JSON)
+  if(cls.tipo !== 'analogica'){
+    html += `<div class="sd-block">
+      <div class="sd-block-title">🧾 Datos crudos (huella_forense)</div>
+      <pre style="font-family:monospace;font-size:10px;color:var(--text-secondary);background:rgba(5,10,20,.5);padding:12px;border-radius:6px;overflow-x:auto;max-height:280px;line-height:1.5">${Object.keys(hf).length ? JSON.stringify(hf,null,2) : '(sin datos forenses registrados)'}</pre>
+    </div>`;
+  } else {
+    html += `<div class="sd-block">
+      <div class="sd-block-title">📋 Origen del registro</div>
+      <p style="font-size:13px;color:var(--text-primary);line-height:1.6;margin:0">Sanción registrada a través de la emisión de la papeleta de sanción analógica (sistema pre-digital). Los datos de auditoría arriba reflejan únicamente la información administrativa del registro.</p>
+    </div>`;
+  }
 
   html += `<div class="sd-actions"><button class="btn-secondary" onclick="verSancionDetalle(selectedSancionId)">← Volver al detalle</button></div>`;
 
@@ -1386,7 +1438,82 @@ function verAuditoriaForense(sancionId){
   showScreen('screen-sancion-auditoria');
 }
 
-/* ============ SOLICITAR ANULACIÓN ============ */
+/* ============ FICHA DEL CURSANTE ============ */
+let _fichaBackTarget = 'panel'; // 'panel' | 'cursantes' | 'consejo' | 'gest-cursantes' | 'alertas'
+function verFichaCursante(cursanteId, backTarget){
+  const cur = discData.cursantes.find(c=>c.id===cursanteId);
+  if(!cur){ alert('Cursante no encontrado.'); return; }
+  if(backTarget) _fichaBackTarget = backTarget;
+  const sancs = (discData.byCursanteSanc[cursanteId]||[]).slice().sort((a,b)=>new Date(b.creado_en||0)-new Date(a.creado_en||0));
+  const perd = discData.byCursanteLost[cursanteId]||0;
+  const vigente = 100 - perd;
+  const est = getEstado(perd);
+  const estLabel = est==='consejo'?'En consejo':est==='observacion'?'En observación':'OK';
+
+  document.getElementById('ficha-title').textContent = cur.nombre_completo || cur.id;
+  document.getElementById('ficha-sub').textContent = fmtCicloPara(cur) || 'Cursante';
+
+  let html = `
+    <div class="sd-banner ${est==='consejo'?'pendiente':est==='observacion'?'analogica':'aceptada'}">
+      <div class="sd-banner-title">${est==='consejo'?'🚨':est==='observacion'?'⚠️':'✅'} ${estLabel}</div>
+      <div class="sd-banner-sub">Puntaje vigente · ${perd} pts perdidos · ${sancs.length} sanción(es)</div>
+    </div>
+    <div class="sd-block cursante">
+      <div class="sd-block-title">🎖️ Datos del cursante</div>
+      <div class="sd-row"><span class="lbl">Nombre</span><span class="vl">${cur.nombre_completo||'—'}</span></div>
+      <div class="sd-row"><span class="lbl">CI</span><span class="vl">${cur.ci||'—'}${cur.departamento?' '+cur.departamento:''}</span></div>
+      <div class="sd-row"><span class="lbl">Ciclo</span><span class="vl gold">${cur.ciclo||'—'}</span></div>
+      <div class="sd-row"><span class="lbl">Paralelo</span><span class="vl gold">${cur.paralelo||'—'}</span></div>
+      <div class="sd-row"><span class="lbl">ID interno</span><span class="vl" style="font-family:monospace;font-size:11px;color:var(--text-muted)">${cur.id}</span></div>
+      <div class="sd-row"><span class="lbl">Estado</span><span class="vl">${cur.activo===false?'<span class="badge baja">Baja</span>':'<span class="badge activo">Activo</span>'}</span></div>
+      <div class="sd-row"><span class="lbl">Puntaje vigente</span><span class="vl big" style="color:${est==='consejo'?'#e87878':est==='observacion'?'#e0a83a':'#7dc096'}">${vigente}</span></div>
+      ${cur.observaciones?`<div class="sd-row"><span class="lbl">Observaciones</span><span class="vl" style="font-style:italic">${cur.observaciones}</span></div>`:''}
+    </div>
+  `;
+
+  if(sancs.length){
+    html += `<div style="margin:18px 4px 10px 4px"><div class="section-label">Papeletas de sanción (${sancs.length})</div></div>`;
+    html += sancs.map(s=>{
+      const cls = clasificarSancion(s);
+      const fecha = s.creado_en ? new Date(s.creado_en).toLocaleDateString('es-BO') : '—';
+      const folio = s.folio ? `Folio ${s.folio}` : (s.id ? `${s.id}` : '');
+      const desc = (s.falta_descripcion||'—').slice(0,110) + ((s.falta_descripcion||'').length>110?'…':'');
+      return `<div class="sancion-card ${cls.cls}" onclick="verSancionDetalle('${s.id}')">
+        <div class="sc-row1">
+          <div class="sc-cursante">${s.falta_categoria||'?'} · Art. ${s.falta_articulo||'—'}</div>
+          <div class="sc-pts">−${s.puntos_aplicados||0} PTS</div>
+        </div>
+        <div class="sc-desc">${desc}</div>
+        <div class="sc-row3">
+          <span class="sc-status ${cls.statusCls}">${cls.icon||''} ${cls.label}</span>
+          <span class="sc-folio">${folio} · ${fecha}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    html += `<div class="sd-block"><div class="placeholder-container" style="padding:30px 12px"><div class="placeholder-icon">✅</div><div class="placeholder-text">Este cursante no tiene sanciones registradas.</div></div></div>`;
+  }
+
+  html += `<div class="sd-actions"><button class="btn-secondary" onclick="volverDeFichaCursante()">← Volver</button></div>`;
+
+  document.getElementById('ficha-content').innerHTML = html;
+  showScreen('screen-ficha-cursante');
+}
+
+function volverDeFichaCursante(){
+  switch(_fichaBackTarget){
+    case 'cursantes': goDiscCursantes(); break;
+    case 'consejo': goDiscConsejo(); break;
+    case 'gest-cursantes': goGestionarCursantes(); break;
+    case 'alertas': goDiscAlertas(); break;
+    case 'auditoria': goAuditoria(); break;
+    case 'sancion-detalle':
+      if(selectedSancionId) verSancionDetalle(selectedSancionId);
+      else goDiscSanciones();
+      break;
+    default: goDiscPanel();
+  }
+}
 function abrirSolicitudAnulacion(sancionId){
   const s = discData.sanciones.find(x=>String(x.id)===String(sancionId));
   if(!s) return;
@@ -1439,7 +1566,10 @@ function renderConsejoList(){
   const c=document.getElementById('consejo-list'); c.className='';
   const lst=discData.cursantes.map(cu=>({...cu,perd:discData.byCursanteLost[cu.id]||0})).filter(x=>x.perd>=UMBRAL_CONSEJO).sort((a,b)=>b.perd-a.perd);
   if(!lst.length){ c.innerHTML='<div class="list-empty">✅ Ningún cursante en consejo.</div>'; return; }
-  c.innerHTML=lst.map(cu=>`<div class="list-item"><div class="li-id">${cu.id}</div><div class="li-name">${cu.nombre_completo}<br><span class="li-ci">${cu.perd} pts perdidos · CI ${cu.ci||'—'}</span></div><div class="li-score danger">${100-cu.perd}</div></div>`).join('');
+  c.innerHTML=lst.map(cu=>{
+    const cyp = fmtCicloPara(cu);
+    return `<div class="list-item" style="cursor:pointer" onclick="verFichaCursante('${cu.id}','consejo')"><div class="li-id">${cu.id}</div><div class="li-name">${cu.nombre_completo}<br><span class="li-ci">${cu.perd} pts perdidos · CI ${cu.ci||'—'}${cyp?' · '+cyp:''}</span></div><div class="li-score danger">${100-cu.perd}</div></div>`;
+  }).join('');
 }
 
 function renderReportes(){
@@ -1464,11 +1594,17 @@ function renderAlertas(){
   let h='';
   if(enC.length){
     h+=`<div class="alert-banner red"><div class="alert-emoji">🚨</div><div class="alert-text"><div class="alert-title">${enC.length} en consejo académico</div><div class="alert-desc">25+ pts perdidos.</div></div></div>`;
-    enC.forEach(cu=>{h+=`<div class="list-item"><div class="li-id">${cu.id}</div><div class="li-name">${cu.nombre_completo}<br><span class="li-ci">${cu.perd} pts perdidos</span></div><div class="li-score danger">${100-cu.perd}</div></div>`;});
+    enC.forEach(cu=>{
+      const cyp = fmtCicloPara(cu);
+      h+=`<div class="list-item" style="cursor:pointer" onclick="verFichaCursante('${cu.id}','alertas')"><div class="li-id">${cu.id}</div><div class="li-name">${cu.nombre_completo}<br><span class="li-ci">${cu.perd} pts perdidos${cyp?' · '+cyp:''}</span></div><div class="li-score danger">${100-cu.perd}</div></div>`;
+    });
   }
   if(enO.length){
     h+=`<div class="alert-banner yellow" style="margin-top:18px"><div class="alert-emoji">⚠️</div><div class="alert-text"><div class="alert-title">${enO.length} en observación</div><div class="alert-desc">11-24 pts.</div></div></div>`;
-    enO.forEach(cu=>{h+=`<div class="list-item"><div class="li-id">${cu.id}</div><div class="li-name">${cu.nombre_completo}<br><span class="li-ci">${cu.perd} pts perdidos</span></div><div class="li-score warn">${100-cu.perd}</div></div>`;});
+    enO.forEach(cu=>{
+      const cyp = fmtCicloPara(cu);
+      h+=`<div class="list-item" style="cursor:pointer" onclick="verFichaCursante('${cu.id}','alertas')"><div class="li-id">${cu.id}</div><div class="li-name">${cu.nombre_completo}<br><span class="li-ci">${cu.perd} pts perdidos${cyp?' · '+cyp:''}</span></div><div class="li-score warn">${100-cu.perd}</div></div>`;
+    });
   }
   if(!h) h='<div class="list-empty">✅ Sin alertas activas.</div>';
   c.innerHTML=h;
@@ -1482,15 +1618,18 @@ function renderGestCursantes(){
   let arr=discData.cursantes;
   if(q) arr=arr.filter(x=>(x.nombre_completo||'').toLowerCase().includes(q)||(x.ci||'').toLowerCase().includes(q)||(x.id||'').toLowerCase().includes(q));
   if(!arr.length){ c.innerHTML='<div class="list-empty">Sin resultados.</div>'; return; }
-  c.innerHTML=arr.map(cu=>`
+  c.innerHTML=arr.map(cu=>{
+    const cyp = fmtCicloPara(cu);
+    return `
     <div class="list-item ${cu.activo===false?'inactive':''}">
       <div class="li-id">${cu.id}</div>
-      <div class="li-name">${cu.nombre_completo||'—'}${cu.activo===false?'<span class="badge baja">Baja</span>':'<span class="badge activo">Activo</span>'}<br><span class="li-ci">CI ${cu.ci||'—'}${cu.departamento?' '+cu.departamento:''}${cu.paralelo?' · '+cu.paralelo:''}</span>${cu.observaciones?'<br><span style="font-size:11px;color:var(--text-muted);font-style:italic">📝 '+cu.observaciones+'</span>':''}</div>
+      <div class="li-name" style="cursor:pointer" onclick="verFichaCursante('${cu.id}','gest-cursantes')">${cu.nombre_completo||'—'}${cu.activo===false?'<span class="badge baja">Baja</span>':'<span class="badge activo">Activo</span>'}<br><span class="li-ci">CI ${cu.ci||'—'}${cu.departamento?' '+cu.departamento:''}${cyp?' · '+cyp:''}</span>${cu.observaciones?'<br><span style="font-size:11px;color:var(--text-muted);font-style:italic">📝 '+cu.observaciones+'</span>':''}</div>
       <div class="li-actions">
         <button onclick="openCursanteForm('${cu.id}')">Editar</button>
         ${cu.activo===false?`<button onclick="reactivarCursante('${cu.id}')">Reactivar</button>`:`<button class="danger" onclick="darBajaCursante('${cu.id}')">Baja</button>`}
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 function openCursanteForm(id){
   clearErrors();
@@ -2044,9 +2183,10 @@ function renderAuditoriaList(){
   if(!filtered.length){ c.innerHTML='<div class="list-empty">Sin resultados.</div>'; return; }
   c.innerHTML = filtered.map(cu=>{
     const perd=discData.byCursanteLost[cu.id]||0;
-    return `<div class="list-item" onclick="verAuditoria('${cu.id}')" style="cursor:pointer">
+    const cyp = fmtCicloPara(cu);
+    return `<div class="list-item" onclick="verFichaCursante('${cu.id}','auditoria')" style="cursor:pointer">
       <div class="li-id">${cu.id}</div>
-      <div class="li-name">${cu.nombre_completo}<br><span class="li-ci">CI ${cu.ci||'—'}</span></div>
+      <div class="li-name">${cu.nombre_completo}<br><span class="li-ci">CI ${cu.ci||'—'}${cyp?' · '+cyp:''}</span></div>
       <div class="li-score ${perd>=UMBRAL_CONSEJO?'danger':perd>=UMBRAL_OBSERVACION?'warn':'ok'}">${100-perd}</div>
     </div>`;
   }).join('');
