@@ -344,7 +344,9 @@ const FALTAS_REGLAMENTO = [
 /* ESTADO GLOBAL */
 const S = {
   client:null, user:null,
-  cursantes:[], sanciones:[], sancionesRaw:[], sancionesDuplicadas:[], reglamentos:[], profesores:[],
+  cursantes:[], sanciones:[], sancionesRaw:[], sancionesDuplicadas:[],
+  sancImportadas:[], sancApp:[], sancOtras:[],
+  reglamentos:[], profesores:[],
   loaded:false, currentTab:'panel',
 };
 
@@ -420,34 +422,27 @@ async function cargarDatos(forzar){
   if(s.error)throw s.error;
   S.cursantes = c.data || [];
   S.sancionesRaw = s.data || [];          // todas las filas tal cual vienen
-  // ---- DEDUPLICACIÓN CANÓNICA ----
-  // Una sanción es duplicada si comparte (cursante + falta + día) con otra.
-  // Criterio aflojado a propósito: el reglamento ECEME no permite que la misma falta
-  // se cuente dos veces el mismo día contra el mismo cursante (sería doble castigo).
-  // Si dos filas coinciden, conservamos sólo la primera (la más "completa" si difieren).
-  const vistos = new Map();
-  const duplicados = [];
-  // Ordenar por presencia de huella_forense (las firmadas digitales primero, son más confiables)
-  const ordenadas = [...S.sancionesRaw].sort((a,b)=>{
-    const ah = a.huella_forense && a.huella_forense.firma_digital ? 1 : 0;
-    const bh = b.huella_forense && b.huella_forense.firma_digital ? 1 : 0;
-    return bh - ah; // las firmadas primero → ganan en caso de duplicado
-  });
-  for(const x of ordenadas){
-    const dia = (x.creado_en||'').slice(0,10); // YYYY-MM-DD
-    const k = [
-      x.cursante_id||x.cursante_ci||'',
-      (x.falta_articulo||x.falta_id||'').trim().toLowerCase(),
-      dia,
-    ].join('|');
-    if(vistos.has(k)){
-      duplicados.push(x);                 // conserva sólo la 1ª ocurrencia
-    } else {
-      vistos.set(k, x);
-    }
+  // ---- DEDUPLICACIÓN MÍNIMA Y SEGURA ----
+  // SOLO eliminamos filas con `id` EXACTAMENTE idéntico (lo que en SQL sería un constraint UNIQUE).
+  // NO agrupamos por contenido — cada sanción legítima del CSV es única aunque coincida
+  // con otra en cursante+falta+día. Confiamos en el `id` como clave primaria.
+  const porId = new Map();
+  const idsRepetidos = [];
+  for(const x of S.sancionesRaw){
+    const key = x.id || `__sin_id_${Math.random()}`;
+    if(porId.has(key)){ idsRepetidos.push(x); }
+    else porId.set(key, x);
   }
-  S.sanciones = [...vistos.values()];     // lista limpia para todos los cálculos
-  S.sancionesDuplicadas = duplicados;     // disponibles para diagnóstico/export
+  S.sanciones = [...porId.values()];
+  S.sancionesDuplicadas = idsRepetidos;  // solo duplicados por id (raro, pero posible)
+
+  // Clasificar por origen del id:
+  //   sanc_imp_2026_*  → importadas del CSV/Excel histórico
+  //   sanc_*           → creadas desde la app (módulo QR de sanción)
+  //   otros            → desconocido
+  S.sancImportadas = S.sanciones.filter(x => (x.id||'').startsWith('sanc_imp_'));
+  S.sancApp = S.sanciones.filter(x => (x.id||'').startsWith('sanc_') && !(x.id||'').startsWith('sanc_imp_'));
+  S.sancOtras = S.sanciones.filter(x => !(x.id||'').startsWith('sanc_'));
   // ---- /DEDUPLICACIÓN ----
   // Reglamento (opcional)
   try{const r=await S.client.from('reglamentos').select('*');S.reglamentos=r.data||[]}catch(e){S.reglamentos=[]}
@@ -774,11 +769,18 @@ function renderJDPanel(){
   const stats = el('div',{class:'stats'}, stCursantes, stSanciones, stObservados);
   main.appendChild(stats);
 
-  // Aviso de duplicados detectados (informativo, no destructivo)
-  if(dupCount>0){
-    main.appendChild($(`<div class="alert alert-warn"><strong>⚠️ Se detectaron ${dupCount} sanciones duplicadas</strong><br>
-      Supabase tiene ${rawCount} filas, pero ${dupCount} son copias exactas (mismo cursante, falta, día y profesor). El sistema está usando las ${sancs} sanciones únicas para todos los cálculos.<br>
-      <span style="font-size:12px;color:var(--muted)">Para eliminarlas definitivamente, ve a <strong>Mantenimiento → Diagnóstico de duplicados</strong>.</span></div>`));
+  // Aviso de origen — la numeración del CSV histórico llega hasta sanc_imp_2026_0487.
+  // El archivo tiene 485 filas porque faltan los folios 0397 y 0410 (huecos en la numeración).
+  // La referencia que maneja el usuario es 487 (folio máximo).
+  const nImp = S.sancImportadas.length, nApp = S.sancApp.length, nOtras = S.sancOtras.length;
+  const FOLIO_MAX_CSV = 487;
+  if(nImp !== FOLIO_MAX_CSV || nApp > 0 || nOtras > 0){
+    main.appendChild($(`<div class="alert alert-warn"><strong>📋 Composición de las ${sancs} sanciones en Supabase</strong><br>
+      • <strong>${nImp}</strong> importadas del CSV histórico (id <code>sanc_imp_*</code>) — máximo de folio esperado: ${FOLIO_MAX_CSV}<br>
+      • <strong>${nApp}</strong> creadas desde la app (id <code>sanc_*</code>) — pruebas o sanciones digitales nuevas<br>
+      ${nOtras>0?`• <strong>${nOtras}</strong> con id desconocido (posibles restos de v1)<br>`:''}
+      ${dupCount>0?`• <strong>${dupCount}</strong> filas con id duplicado (raro, ver Mantenimiento)<br>`:''}
+      <span style="font-size:12px;color:var(--muted)">Si las "importadas" no coinciden con tu archivo original, el CSV no se cargó completo o se cargó dos veces. Ve a <strong>Mantenimiento → Diagnóstico</strong> para investigar.</span></div>`));
   }
 
   if(observados>0){
@@ -1419,16 +1421,19 @@ function abrirSancionesMasCometidas(){
   const dup = (S.sancionesDuplicadas||[]).length;
   const conPuntos = S.sanciones.filter(s=>(s.puntos_aplicados||0)>0).length;
   const sinFirmar = S.sanciones.filter(s=>(s.puntos_aplicados||0)===0).length;
+  const nImp = S.sancImportadas.length, nApp = S.sancApp.length, nOtras = S.sancOtras.length;
 
   // Resumen
   main.appendChild($(`
     <div class="card">
       <h2>📊 Resumen general</h2>
       <div style="display:grid;gap:6px;font-size:13px">
-        <div style="display:flex;justify-content:space-between;padding:8px;background:#f9fafb;border-radius:6px"><span><strong>Sanciones únicas</strong></span><strong style="color:var(--azul)">${total}</strong></div>
-        <div style="display:flex;justify-content:space-between;padding:8px;background:#dcfce7;border-radius:6px"><span>✅ Con puntos aplicados (firmadas o migradas)</span><strong style="color:var(--ok)">${conPuntos}</strong></div>
-        <div style="display:flex;justify-content:space-between;padding:8px;background:#fef3c7;border-radius:6px"><span>⏳ Sin firmar (puntos = 0)</span><strong style="color:var(--warn)">${sinFirmar}</strong></div>
-        ${dup>0?`<div style="display:flex;justify-content:space-between;padding:8px;background:#fee2e2;border-radius:6px"><span>🚨 Duplicados detectados en Supabase</span><strong style="color:var(--bad)">${dup} de ${rawTotal}</strong></div>`:''}
+        <div style="display:flex;justify-content:space-between;padding:8px;background:#f9fafb;border-radius:6px"><span><strong>Sanciones totales</strong></span><strong style="color:var(--azul)">${total}</strong></div>
+        <div style="display:flex;justify-content:space-between;padding:8px;background:#fffbeb;border-radius:6px"><span>📥 Importadas del CSV histórico</span><strong style="color:#92400e">${nImp}</strong></div>
+        ${nApp>0?`<div style="display:flex;justify-content:space-between;padding:8px;background:#fef3c7;border-radius:6px"><span>📱 Creadas desde la app</span><strong style="color:var(--warn)">${nApp}</strong></div>`:''}
+        ${nOtras>0?`<div style="display:flex;justify-content:space-between;padding:8px;background:#fee2e2;border-radius:6px"><span>❓ Id desconocido</span><strong style="color:var(--bad)">${nOtras}</strong></div>`:''}
+        <div style="display:flex;justify-content:space-between;padding:8px;background:#dcfce7;border-radius:6px"><span>✅ Con puntos aplicados</span><strong style="color:var(--ok)">${conPuntos}</strong></div>
+        ${sinFirmar>0?`<div style="display:flex;justify-content:space-between;padding:8px;background:#fef3c7;border-radius:6px"><span>⏳ Sin firmar (puntos = 0)</span><strong style="color:var(--warn)">${sinFirmar}</strong></div>`:''}
       </div>
     </div>
   `));
@@ -1500,41 +1505,123 @@ function abrirActividadReciente(){
    ============================================================ */
 function abrirMantenimiento(){
   clear();
-  app.appendChild(topbar('Mantenimiento',()=>renderJD('panel'),'Respaldo y configuración'));
+  app.appendChild(topbar('Mantenimiento',()=>renderJD('panel'),'Diagnóstico y respaldo'));
   const main=el('div',{class:'main'});
-  main.appendChild($(`<div class="alert alert-warn">⚠️ Operaciones administrativas — usar con cuidado.</div>`));
 
-  // Diagnóstico de duplicados
-  const dup = (S.sancionesDuplicadas||[]).length;
-  const raw = (S.sancionesRaw||[]).length;
-  if(dup>0){
-    main.appendChild($(`<div class="alert alert-error">
-      <strong>🚨 Diagnóstico: ${dup} sanciones duplicadas en Supabase</strong><br>
-      La tabla <code>sanciones</code> tiene ${raw} filas, pero ${dup} son copias exactas (mismo cursante, falta, día, profesor y puntos).
-      El sistema usa las ${S.sanciones.length} únicas para todos los cálculos.<br>
-      <span style="font-size:12px">Descarga la lista de IDs duplicados y elimínalos manualmente en Supabase Studio cuando estés seguro.</span>
-    </div>`));
-    main.appendChild(el('button',{class:'btn btn-danger',style:'margin-bottom:8px',onclick:exportarDuplicadosCSV},`📋 Descargar IDs duplicados (${dup}) en CSV`));
-  } else {
-    main.appendChild($(`<div class="alert alert-ok">✅ No se detectaron sanciones duplicadas. Total único: ${S.sanciones.length}.</div>`));
+  const nImp = S.sancImportadas.length;
+  const nApp = S.sancApp.length;
+  const nOtras = S.sancOtras.length;
+  const nRaw = (S.sancionesRaw||[]).length;
+  const nIdDup = (S.sancionesDuplicadas||[]).length;
+  const FOLIO_MAX_CSV = 487;  // último folio del archivo original
+
+  // Analizar la numeración de los IDs sanc_imp_2026_NNNN
+  const numsPresentes = new Set();
+  S.sancImportadas.forEach(s => {
+    const m = (s.id||'').match(/^sanc_imp_2026_(\d+)$/);
+    if(m) numsPresentes.add(parseInt(m[1],10));
+  });
+  const faltantes = [];
+  const extras = [];
+  for(let i=1; i<=FOLIO_MAX_CSV; i++){
+    if(!numsPresentes.has(i)) faltantes.push(i);
   }
+  numsPresentes.forEach(n => { if(n > FOLIO_MAX_CSV) extras.push(n); });
+  faltantes.sort((a,b)=>a-b);
+  extras.sort((a,b)=>a-b);
+  const sobranImp = nImp - FOLIO_MAX_CSV;
 
-  main.appendChild(el('button',{class:'btn btn-gold',style:'margin-bottom:8px',onclick:exportarRespaldoJSON},'💾 Descargar respaldo JSON'));
-  main.appendChild(el('button',{class:'btn btn-gold',style:'margin-bottom:8px',onclick:exportarCSVSanciones},'📊 Descargar sanciones CSV'));
-  main.appendChild(el('button',{class:'btn btn-gold',style:'margin-bottom:8px',onclick:exportarCSVCursantes},'📋 Descargar cursantes CSV'));
-  main.appendChild(el('button',{class:'btn btn-ghost',style:'margin-bottom:8px',onclick:async()=>{S.loaded=false;await cargarDatos(true);renderJD('panel')}},'🔄 Recargar datos desde Supabase'));
-  main.appendChild(el('button',{class:'btn btn-ghost',style:'margin-bottom:8px',onclick:abrirInstalarApp},'📲 Instalar app / Compartir QR'));
-  main.appendChild($(`<div class="alert alert-info" style="margin-top:12px"><strong>Operaciones destructivas</strong><br>"Limpiar datos", "Resetear firmas" y similares se ejecutan desde Supabase Studio directamente. No se exponen aquí para evitar accidentes.</div>`));
+  // Diagnóstico principal
+  const diag = el('div',{class:'card'});
+  diag.appendChild($(`<h2>🔍 Diagnóstico de Supabase</h2>`));
+  diag.appendChild($(`
+    <div style="display:grid;gap:6px;font-size:13px;line-height:1.6">
+      <div style="display:flex;justify-content:space-between;padding:8px;background:#f9fafb;border-radius:6px">
+        <span><strong>Filas totales en tabla <code>sanciones</code></strong></span>
+        <strong style="color:var(--azul)">${nRaw}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px;background:${faltantes.length===0&&extras.length===0?'#dcfce7':'#fee2e2'};border-radius:6px">
+        <span>📥 Importadas del CSV (id <code>sanc_imp_2026_*</code>)<br><span style="font-size:11px;color:var(--muted)">Folio máximo del archivo original: ${FOLIO_MAX_CSV}</span></span>
+        <strong style="color:${faltantes.length===0&&extras.length===0?'var(--ok)':'var(--bad)'}">${nImp}${sobranImp!==0?` (${sobranImp>0?'+':''}${sobranImp})`:' ✓'}</strong>
+      </div>
+      ${faltantes.length>0?`<div style="padding:8px;background:#fee2e2;border-radius:6px;font-size:12px">
+        <strong>📭 Folios que faltan (${faltantes.length}):</strong> ${faltantes.length<=30 ? faltantes.join(', ') : faltantes.slice(0,30).join(', ')+`… (+${faltantes.length-30} más)`}
+      </div>`:''}
+      ${extras.length>0?`<div style="padding:8px;background:#fee2e2;border-radius:6px;font-size:12px">
+        <strong>📬 Folios extra (no estaban en el CSV original):</strong> ${extras.slice(0,30).join(', ')}${extras.length>30?`… (+${extras.length-30} más)`:''}
+      </div>`:''}
+      <div style="display:flex;justify-content:space-between;padding:8px;background:${nApp===0?'#dcfce7':'#fef3c7'};border-radius:6px">
+        <span>📱 Creadas desde la app (id <code>sanc_*</code>)</span>
+        <strong style="color:${nApp===0?'var(--ok)':'var(--warn)'}">${nApp}</strong>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:8px;background:${nOtras===0?'#dcfce7':'#fee2e2'};border-radius:6px">
+        <span>❓ Con id desconocido (¿restos de v1?)</span>
+        <strong style="color:${nOtras===0?'var(--ok)':'var(--bad)'}">${nOtras}</strong>
+      </div>
+      ${nIdDup>0?`<div style="display:flex;justify-content:space-between;padding:8px;background:#fee2e2;border-radius:6px">
+        <span>🚨 Filas con id duplicado (no debería pasar)</span>
+        <strong style="color:var(--bad)">${nIdDup}</strong>
+      </div>`:''}
+    </div>
+  `));
+  main.appendChild(diag);
+
+  // Interpretación
+  const interp = el('div',{class:'card'});
+  interp.appendChild($(`<h3>📖 Interpretación</h3>`));
+  const cleanCSV = faltantes.length === 0 && extras.length === 0;
+  if(cleanCSV && nApp === 0 && nOtras === 0 && nIdDup === 0){
+    interp.appendChild($(`<div class="alert alert-ok">✅ <strong>Estado limpio.</strong> Tienes exactamente los folios del 1 al ${FOLIO_MAX_CSV} del CSV y nada más.</div>`));
+  } else {
+    const partes = [];
+    if(faltantes.length > 0) partes.push(`<li>Faltan ${faltantes.length} folio(s) del CSV original. El import puede haberse cortado o algunas filas no se insertaron por error.</li>`);
+    if(extras.length > 0) partes.push(`<li>Hay ${extras.length} folio(s) que no estaban en el CSV original (números mayores a ${FOLIO_MAX_CSV}). Probablemente vinieron de una segunda carga.</li>`);
+    if(nApp > 0) partes.push(`<li>Hay ${nApp} sanciones creadas desde la app. Si son pruebas que no querías guardar, exporta sus IDs abajo y bórralas en Supabase Studio.</li>`);
+    if(nOtras > 0) partes.push(`<li>Hay ${nOtras} sanciones con id en formato desconocido (no empieza con <code>sanc_</code>). Pueden ser restos de la v1 vieja. Revísalas antes de borrar.</li>`);
+    if(nIdDup > 0) partes.push(`<li>${nIdDup} filas tienen id duplicado. Eso solo puede pasar si la tabla no tiene constraint UNIQUE en <code>id</code>. Revisa el esquema en Supabase.</li>`);
+    interp.appendChild($(`<div class="alert alert-warn"><ul style="margin-left:18px;line-height:1.6">${partes.join('')}</ul></div>`));
+    interp.appendChild($(`<p style="font-size:12px;color:var(--muted);margin-top:8px"><strong>Importante:</strong> esta app NO elimina filas en Supabase. Solo te muestra qué hay y te da los IDs. Tú decides qué borrar y lo haces desde Supabase Studio.</p>`));
+  }
+  main.appendChild(interp);
+
+  // Exportar listas para limpieza
+  const exp = el('div',{class:'card'});
+  exp.appendChild($(`<h3>📥 Exportar para limpieza manual</h3>`));
+  if(nApp > 0){
+    exp.appendChild(el('button',{class:'btn btn-ghost',style:'margin-bottom:8px',onclick:()=>exportarSubconjuntoCSV(S.sancApp, 'sanciones_creadas_en_app')},
+      `📋 IDs creados desde la app (${nApp})`));
+  }
+  if(nOtras > 0){
+    exp.appendChild(el('button',{class:'btn btn-ghost',style:'margin-bottom:8px',onclick:()=>exportarSubconjuntoCSV(S.sancOtras, 'sanciones_id_desconocido')},
+      `📋 IDs desconocidos (${nOtras})`));
+  }
+  if(nIdDup > 0){
+    exp.appendChild(el('button',{class:'btn btn-danger',style:'margin-bottom:8px',onclick:()=>exportarSubconjuntoCSV(S.sancionesDuplicadas, 'sanciones_id_duplicado')},
+      `📋 IDs duplicados (${nIdDup})`));
+  }
+  exp.appendChild(el('button',{class:'btn btn-ghost',style:'margin-bottom:8px',onclick:()=>exportarSubconjuntoCSV(S.sancImportadas, 'sanciones_csv_importadas')},
+    `📋 Todas las importadas del CSV (${nImp})`));
+  main.appendChild(exp);
+
+  // Respaldo / utilidades
+  const util = el('div',{class:'card'});
+  util.appendChild($(`<h3>🛠️ Utilidades</h3>`));
+  util.appendChild(el('button',{class:'btn btn-gold',style:'margin-bottom:8px',onclick:exportarRespaldoJSON},'💾 Descargar respaldo JSON completo'));
+  util.appendChild(el('button',{class:'btn btn-gold',style:'margin-bottom:8px',onclick:exportarCSVSanciones},'📊 Descargar todas las sanciones (CSV)'));
+  util.appendChild(el('button',{class:'btn btn-gold',style:'margin-bottom:8px',onclick:exportarCSVCursantes},'📋 Descargar cursantes (CSV)'));
+  util.appendChild(el('button',{class:'btn btn-ghost',style:'margin-bottom:8px',onclick:async()=>{S.loaded=false;await cargarDatos(true);abrirMantenimiento()}},'🔄 Recargar desde Supabase'));
+  main.appendChild(util);
+
+  main.appendChild($(`<div class="alert alert-info" style="margin-top:12px"><strong>Operaciones destructivas</strong><br>"Limpiar datos", "Eliminar pruebas", "Borrar duplicados" y similares se ejecutan desde Supabase Studio directamente. Esta app no expone esas acciones para evitar accidentes.</div>`));
   app.appendChild(main);
 }
 
-function exportarDuplicadosCSV(){
-  const dups = S.sancionesDuplicadas || [];
-  const rows = [['ID a eliminar','Cursante','CI','Falta','Puntos','Profesor','Fecha']];
-  dups.forEach(s=>{
-    rows.push([s.id, s.cursante_nombre||'', s.cursante_ci||'', s.falta_articulo||'', s.puntos_aplicados||0, s.profesor_nombre||'', s.creado_en||'']);
+function exportarSubconjuntoCSV(lista, prefijo){
+  const rows = [['id','cursante_nombre','cursante_ci','falta_articulo','puntos_aplicados','profesor_nombre','creado_en']];
+  lista.forEach(s=>{
+    rows.push([s.id||'', s.cursante_nombre||'', s.cursante_ci||'', s.falta_articulo||'', s.puntos_aplicados||0, s.profesor_nombre||'', s.creado_en||'']);
   });
-  exportarCSV(`duplicados_a_eliminar_${new Date().toISOString().slice(0,10)}.csv`, rows);
+  exportarCSV(`${prefijo}_${new Date().toISOString().slice(0,10)}.csv`, rows);
 }
 
 /* ============================================================
