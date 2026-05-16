@@ -8,7 +8,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-/* ========== TOKENS ========== */
 :root {
   --bg-deep:        #050a14;
   --bg-base:        #0a1628;
@@ -26,16 +25,12 @@
   --info-bg:        rgba(70, 130, 200, 0.12);
   --info-border:    #4a90d9;
   --info-text:      #a8c8e8;
-
   --font-display: 'Cinzel', 'Georgia', serif;
   --font-body:    'Manrope', system-ui, sans-serif;
-
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
 }
-
-/* ========== RESET ========== */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; }
 body {
@@ -47,12 +42,8 @@ body {
   -webkit-font-smoothing: antialiased;
   position: relative;
 }
-
-/* Fondo decorativo */
 body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
+  content: ''; position: fixed; inset: 0;
   background:
     radial-gradient(ellipse at top, rgba(212, 175, 55, 0.06) 0%, transparent 50%),
     radial-gradient(ellipse at bottom, rgba(70, 130, 200, 0.04) 0%, transparent 50%),
@@ -60,93 +51,72 @@ body::before {
   z-index: -2;
 }
 body::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background-image:
-    repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
-  pointer-events: none;
-  z-index: -1;
+  content: ''; position: fixed; inset: 0;
+  background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.012) 0px, rgba(255,255,255,0.012) 1px, transparent 1px, transparent 3px);
+  pointer-events: none; z-index: -1;
 }
-
-/* ========== PANTALLAS ========== */
 .screen { display: none; min-height: 100vh; animation: fadeIn 0.35s ease-out; }
 .screen.active { display: block; }
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(6px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-
-/* ========== HEADER ========== */
 .app-header {
   display: flex; align-items: center; gap: 16px;
   padding: 18px 24px;
-  background: linear-gradient(180deg, rgba(10, 22, 40, 0.95), rgba(10, 22, 40, 0.7));
-  border-bottom: 1px solid var(--border-subtle);
+  background: linear-gradient(180deg, rgba(212, 175, 55, 0.18), rgba(154, 123, 31, 0.05));
+  border-bottom: 1px solid var(--border-strong);
   backdrop-filter: blur(8px);
 }
 .back-btn {
-  width: 40px; height: 40px;
+  width: 40px; height: 40px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  border: 1px solid var(--border-subtle);
-  background: transparent;
+  border: 1px solid var(--border-strong);
+  background: rgba(5, 10, 20, 0.4);
   color: var(--gold-light);
   border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 18px;
+  cursor: pointer; font-size: 18px;
   transition: all 0.2s;
 }
-.back-btn:hover { background: var(--border-subtle); border-color: var(--border-strong); }
-.header-icon {
-  width: 44px; height: 44px;
-  background: linear-gradient(135deg, var(--gold), var(--gold-dark));
-  border-radius: var(--radius-sm);
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 700; font-family: var(--font-display);
-  color: var(--bg-deep); font-size: 18px;
-  box-shadow: 0 2px 8px rgba(212, 175, 55, 0.25);
+.back-btn:hover { background: var(--border-subtle); }
+.header-crest { width: 44px; height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+.header-crest svg { width: 100%; height: 100%; }
+.header-text { min-width: 0; flex: 1; }
+.header-title {
+  font-family: var(--font-display);
+  font-size: 20px; font-weight: 700; letter-spacing: 2px;
+  color: var(--gold-light); text-transform: uppercase;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
 }
-.header-title { font-family: var(--font-display); font-size: 22px; font-weight: 600; letter-spacing: 1px; color: var(--text-primary); text-transform: uppercase; }
-.header-sub { font-family: var(--font-body); font-size: 13px; color: var(--text-secondary); font-style: italic; margin-top: 2px; }
-
-/* ========== HOME ========== */
+.header-sub {
+  font-family: var(--font-display);
+  font-size: 13px; color: var(--text-primary);
+  font-style: italic; margin-top: 2px; opacity: 0.85;
+}
 .home-container {
   min-height: 100vh;
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  padding: 40px 24px;
-  text-align: center;
+  padding: 40px 24px; text-align: center;
 }
-.crest {
-  width: 90px; height: 90px;
-  margin-bottom: 24px;
-  position: relative;
-  display: flex; align-items: center; justify-content: center;
-}
-.crest svg { width: 100%; height: 100%; filter: drop-shadow(0 4px 12px rgba(212, 175, 55, 0.4)); }
+.crest-large { width: 90px; height: 90px; margin-bottom: 24px; display: flex; align-items: center; justify-content: center; }
+.crest-large svg { width: 100%; height: 100%; filter: drop-shadow(0 4px 12px rgba(212, 175, 55, 0.4)); }
 .home-title {
   font-family: var(--font-display);
   font-size: clamp(38px, 7vw, 64px);
-  font-weight: 700;
-  letter-spacing: 6px;
-  color: var(--gold-light);
-  margin-bottom: 8px;
+  font-weight: 700; letter-spacing: 6px;
+  color: var(--gold-light); margin-bottom: 8px;
   text-shadow: 0 2px 20px rgba(212, 175, 55, 0.25);
 }
 .home-sub {
   font-family: var(--font-body);
-  font-size: 14px;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
+  font-size: 14px; letter-spacing: 3px;
+  text-transform: uppercase; color: var(--text-secondary); margin-bottom: 8px;
 }
 .home-institute {
   font-family: var(--font-display);
-  font-size: 13px;
-  letter-spacing: 4px;
-  color: var(--text-muted);
-  margin-bottom: 56px;
+  font-size: 13px; letter-spacing: 4px;
+  color: var(--text-muted); margin-bottom: 56px;
 }
 .divider {
   width: 80px; height: 1px;
@@ -156,26 +126,17 @@ body::after {
 .access-cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 24px;
-  width: 100%;
-  max-width: 720px;
+  gap: 24px; width: 100%; max-width: 720px;
 }
 .access-card {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  padding: 36px 28px;
-  cursor: pointer;
-  transition: all 0.3s;
-  position: relative;
-  overflow: hidden;
-  text-align: left;
+  padding: 36px 28px; cursor: pointer;
+  transition: all 0.3s; position: relative; overflow: hidden; text-align: left;
 }
 .access-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
   background: linear-gradient(90deg, transparent, var(--gold), transparent);
   opacity: 0.5;
 }
@@ -190,45 +151,79 @@ body::after {
   border-radius: var(--radius-sm);
   background: linear-gradient(135deg, var(--gold-dark), var(--gold));
   display: flex; align-items: center; justify-content: center;
-  font-size: 28px;
-  margin-bottom: 20px;
+  font-size: 28px; margin-bottom: 20px;
 }
 .access-card h3 {
   font-family: var(--font-display);
-  font-size: 22px;
-  letter-spacing: 2px;
-  color: var(--gold-light);
-  text-transform: uppercase;
-  margin-bottom: 8px;
+  font-size: 22px; letter-spacing: 2px;
+  color: var(--gold-light); text-transform: uppercase; margin-bottom: 8px;
 }
-.access-card p {
-  font-size: 13px;
-  color: var(--text-secondary);
-  line-height: 1.5;
-  font-style: italic;
+.access-card p { font-size: 13px; color: var(--text-secondary); line-height: 1.5; font-style: italic; }
+.menu-container { padding: 24px 20px; max-width: 800px; margin: 0 auto; }
+.section-label {
+  font-family: var(--font-display);
+  font-size: 12px; letter-spacing: 3px;
+  color: var(--text-muted); text-transform: uppercase;
+  margin: 20px 4px 12px 4px;
 }
-
-/* ========== LOGIN ========== */
+.role-card {
+  display: flex; align-items: center; gap: 18px;
+  padding: 22px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  margin-bottom: 14px; cursor: pointer;
+  transition: all 0.25s; position: relative; overflow: hidden;
+}
+.role-card:hover {
+  border-color: var(--border-strong);
+  transform: translateX(4px);
+  background: var(--bg-elevated);
+  box-shadow: -2px 0 0 var(--gold);
+}
+.role-card .role-icon {
+  width: 56px; height: 56px; flex-shrink: 0;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.18), rgba(212, 175, 55, 0.06));
+  border: 1px solid var(--border-subtle);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px;
+}
+.role-card .role-text { flex: 1; min-width: 0; }
+.role-card .role-name {
+  font-family: var(--font-display);
+  font-size: 17px; letter-spacing: 1.5px;
+  color: var(--gold-light); text-transform: uppercase;
+  margin-bottom: 4px; font-weight: 600;
+}
+.role-card .role-desc { font-size: 13px; color: var(--text-secondary); font-style: italic; }
+.role-card .lock-icon { font-size: 16px; color: var(--text-muted); margin-left: auto; opacity: 0.6; }
+.role-card.unlocked .lock-icon { color: var(--gold); opacity: 1; }
 .login-container {
   display: flex; align-items: center; justify-content: center;
   padding: 40px 24px;
   min-height: calc(100vh - 80px);
 }
 .login-card {
-  width: 100%;
-  max-width: 440px;
+  width: 100%; max-width: 440px;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  padding: 32px 28px;
-  position: relative;
+  padding: 32px 28px; position: relative;
 }
 .login-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 24px; right: 24px;
-  height: 2px;
+  content: ''; position: absolute; top: 0; left: 24px; right: 24px; height: 2px;
   background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+.login-target {
+  font-family: var(--font-display);
+  font-size: 14px; letter-spacing: 2px;
+  color: var(--gold-light); text-transform: uppercase; text-align: center;
+  padding: 12px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  margin-bottom: 20px;
+  background: rgba(212, 175, 55, 0.04);
 }
 .info-banner {
   background: var(--info-bg);
@@ -236,53 +231,38 @@ body::after {
   color: var(--info-text);
   padding: 14px 16px;
   border-radius: var(--radius-sm);
-  font-size: 14px;
-  line-height: 1.5;
-  margin-bottom: 24px;
+  font-size: 14px; line-height: 1.5; margin-bottom: 24px;
 }
 .field { margin-bottom: 18px; }
 .field label {
-  display: block;
-  font-size: 12px;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
-  font-weight: 600;
+  display: block; font-size: 12px; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--text-secondary);
+  margin-bottom: 8px; font-weight: 600;
 }
 .field input {
-  width: 100%;
-  padding: 14px 16px;
+  width: 100%; padding: 14px 16px;
   font-family: var(--font-body);
   font-size: 16px;
   background: rgba(5, 10, 20, 0.5);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);
-  color: var(--text-primary);
-  transition: all 0.2s;
+  color: var(--text-primary); transition: all 0.2s;
 }
 .field input:focus {
-  outline: none;
-  border-color: var(--gold);
+  outline: none; border-color: var(--gold);
   background: rgba(5, 10, 20, 0.7);
   box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.12);
 }
 .field input::placeholder { color: var(--text-muted); }
 .btn-primary {
-  width: 100%;
-  padding: 15px;
+  width: 100%; padding: 15px;
   font-family: var(--font-display);
-  font-size: 15px;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  font-weight: 600;
+  font-size: 15px; letter-spacing: 3px;
+  text-transform: uppercase; font-weight: 600;
   background: linear-gradient(135deg, var(--gold-dark), var(--gold));
-  color: var(--bg-deep);
-  border: none;
+  color: var(--bg-deep); border: none;
   border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: all 0.2s;
-  margin-top: 8px;
+  cursor: pointer; transition: all 0.2s; margin-top: 8px;
 }
 .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(212, 175, 55, 0.3); }
 .btn-primary:active { transform: translateY(0); }
@@ -293,14 +273,10 @@ body::after {
   color: #e8a8a8;
   padding: 12px 14px;
   border-radius: var(--radius-sm);
-  font-size: 14px;
-  margin-bottom: 16px;
-  display: none;
+  font-size: 13px; line-height: 1.5; margin-bottom: 16px;
+  display: none; word-break: break-word;
 }
 .error-msg.visible { display: block; }
-
-/* ========== MENÚ DOCENTE ========== */
-.menu-container { padding: 24px; max-width: 720px; margin: 0 auto; }
 .user-strip {
   display: flex; align-items: center; gap: 12px;
   padding: 14px 18px;
@@ -310,163 +286,109 @@ body::after {
   margin-bottom: 20px;
 }
 .user-avatar {
-  width: 40px; height: 40px;
-  border-radius: 50%;
+  width: 42px; height: 42px; border-radius: 50%;
   background: linear-gradient(135deg, var(--gold-dark), var(--gold));
   display: flex; align-items: center; justify-content: center;
   color: var(--bg-deep);
   font-family: var(--font-display);
-  font-weight: 700;
-  font-size: 16px;
+  font-weight: 700; font-size: 16px;
 }
-.user-info { flex: 1; }
-.user-name { font-weight: 600; font-size: 14px; color: var(--text-primary); }
-.user-rank { font-size: 12px; color: var(--text-secondary); }
+.user-info { flex: 1; min-width: 0; }
+.user-name {
+  font-weight: 600; font-size: 14px; color: var(--text-primary);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.user-rank { font-size: 12px; color: var(--text-secondary); font-style: italic; }
 .btn-logout {
   background: transparent;
   border: 1px solid var(--border-subtle);
   color: var(--text-secondary);
   padding: 8px 14px;
   border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 12px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  transition: all 0.2s;
+  cursor: pointer; font-size: 12px; letter-spacing: 1px;
+  text-transform: uppercase; transition: all 0.2s;
 }
 .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
-
-.role-card {
-  display: flex; align-items: center; gap: 18px;
-  padding: 20px;
+.panel-feature {
+  display: flex; align-items: center; gap: 16px;
+  padding: 18px;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
-  margin-bottom: 14px;
-  cursor: pointer;
-  transition: all 0.25s;
-  position: relative;
-  overflow: hidden;
+  margin-bottom: 12px; cursor: pointer; transition: all 0.25s;
 }
-.role-card:hover {
-  border-color: var(--border-strong);
-  transform: translateX(4px);
-  background: var(--bg-elevated);
-}
-.role-card.coming-soon { opacity: 0.55; cursor: not-allowed; }
-.role-card.coming-soon:hover { transform: none; }
-.role-card .role-icon {
-  width: 52px; height: 52px;
-  flex-shrink: 0;
+.panel-feature:hover { border-color: var(--border-strong); background: var(--bg-elevated); }
+.panel-feature .feat-icon {
+  width: 44px; height: 44px;
   border-radius: var(--radius-sm);
-  background: linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0.05));
+  background: rgba(212, 175, 55, 0.08);
   border: 1px solid var(--border-subtle);
   display: flex; align-items: center; justify-content: center;
-  font-size: 26px;
+  font-size: 22px; flex-shrink: 0;
 }
-.role-card .role-text { flex: 1; }
-.role-card .role-name {
+.panel-feature .feat-text { flex: 1; }
+.panel-feature .feat-name {
   font-family: var(--font-display);
-  font-size: 17px;
-  letter-spacing: 1px;
-  color: var(--gold-light);
-  text-transform: uppercase;
-  margin-bottom: 4px;
+  font-size: 15px; letter-spacing: 1px;
+  color: var(--gold-light); text-transform: uppercase; margin-bottom: 3px;
 }
-.role-card .role-desc {
-  font-size: 13px;
-  color: var(--text-secondary);
-  font-style: italic;
-}
-.role-card .badge-soon {
-  position: absolute;
-  top: 10px; right: 12px;
-  font-size: 9px;
-  letter-spacing: 1.5px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  font-weight: 600;
-}
-
-/* ========== PLACEHOLDER ========== */
+.panel-feature .feat-desc { font-size: 12px; color: var(--text-secondary); font-style: italic; }
+.panel-feature .arrow { color: var(--text-muted); font-size: 18px; }
 .placeholder-container {
   display: flex; flex-direction: column;
   align-items: center; justify-content: center;
-  padding: 80px 24px;
-  text-align: center;
-  min-height: calc(100vh - 80px);
+  padding: 60px 24px; text-align: center;
 }
-.placeholder-icon {
-  font-size: 64px;
-  margin-bottom: 24px;
-  opacity: 0.4;
-}
+.placeholder-icon { font-size: 56px; margin-bottom: 20px; opacity: 0.4; }
 .placeholder-title {
   font-family: var(--font-display);
-  font-size: 28px;
-  letter-spacing: 3px;
-  color: var(--gold-light);
-  text-transform: uppercase;
-  margin-bottom: 12px;
+  font-size: 22px; letter-spacing: 3px;
+  color: var(--gold-light); text-transform: uppercase; margin-bottom: 10px;
 }
-.placeholder-text {
-  font-size: 15px;
-  color: var(--text-secondary);
-  max-width: 420px;
-  line-height: 1.6;
-}
-
-/* ========== UTIL ========== */
-.section-label {
-  font-family: var(--font-display);
-  font-size: 12px;
-  letter-spacing: 3px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  margin-bottom: 12px;
-  padding-left: 4px;
-}
-
+.placeholder-text { font-size: 14px; color: var(--text-secondary); max-width: 420px; line-height: 1.6; }
 @media (max-width: 480px) {
   .access-cards { grid-template-columns: 1fr; }
   .home-title { letter-spacing: 4px; }
   .menu-container { padding: 16px; }
+  .role-card { padding: 16px; gap: 14px; }
+  .role-card .role-icon { width: 48px; height: 48px; font-size: 24px; }
+  .role-card .role-name { font-size: 14px; letter-spacing: 1px; }
+  .header-title { font-size: 16px; letter-spacing: 1.5px; }
 }
 </style>
 </head>
 <body>
 
-<!-- ============================================================ -->
-<!-- PANTALLA 1: HOME (selección de tipo de usuario) -->
-<!-- ============================================================ -->
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#f4d57a"/>
+      <stop offset="100%" stop-color="#9a7b1f"/>
+    </linearGradient>
+    <symbol id="crest" viewBox="0 0 100 100">
+      <path d="M50 5 L85 20 L85 50 Q85 78 50 95 Q15 78 15 50 L15 20 Z"
+            fill="rgba(212, 175, 55, 0.1)" stroke="url(#goldGrad)" stroke-width="2"/>
+      <path d="M50 25 L50 65 M40 35 L60 35 M38 50 L62 50" stroke="url(#goldGrad)" stroke-width="2" stroke-linecap="round"/>
+      <circle cx="50" cy="72" r="3" fill="url(#goldGrad)"/>
+    </symbol>
+  </defs>
+</svg>
+
+<!-- HOME -->
 <section id="screen-home" class="screen active">
   <div class="home-container">
-    <div class="crest">
-      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stop-color="#f4d57a"/>
-            <stop offset="100%" stop-color="#9a7b1f"/>
-          </linearGradient>
-        </defs>
-        <path d="M50 5 L85 20 L85 50 Q85 78 50 95 Q15 78 15 50 L15 20 Z"
-              fill="none" stroke="url(#goldGrad)" stroke-width="2"/>
-        <path d="M50 25 L50 65 M40 35 L60 35 M38 50 L62 50" stroke="url(#goldGrad)" stroke-width="2" stroke-linecap="round"/>
-        <circle cx="50" cy="72" r="3" fill="url(#goldGrad)"/>
-      </svg>
-    </div>
+    <div class="crest-large"><svg><use href="#crest"/></svg></div>
     <h1 class="home-title">SIDECEME</h1>
     <div class="home-sub">Sistema de Disciplina Escolar</div>
     <div class="home-institute">ECEME — Escuela de Comando y Estado Mayor</div>
     <div class="divider"></div>
-
     <div class="access-cards">
-      <div class="access-card" onclick="showScreen('screen-login-docente')">
+      <div class="access-card" onclick="goCargos()">
         <div class="icon">⚔️</div>
         <h3>Plantel Docente</h3>
         <p>Acceso para personal docente y administrativo de la institución</p>
       </div>
-      <div class="access-card" onclick="showScreen('screen-login-cursante')">
+      <div class="access-card" onclick="goLoginCursante()">
         <div class="icon">🎖️</div>
         <h3>Cursantes</h3>
         <p>Acceso para cursantes registrados de la ECEME</p>
@@ -475,22 +397,75 @@ body::after {
   </div>
 </section>
 
-<!-- ============================================================ -->
-<!-- PANTALLA 2A: LOGIN DOCENTE -->
-<!-- ============================================================ -->
+<!-- CARGOS DEL PLANTEL DOCENTE -->
+<section id="screen-cargos" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goHome()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text">
+      <div class="header-title">Plantel Docente</div>
+      <div class="header-sub">Selecciona tu cargo</div>
+    </div>
+  </div>
+  <div class="menu-container">
+    <div class="role-card" onclick="goLoginCargo('ef')">
+      <div class="role-icon">🏃</div>
+      <div class="role-text">
+        <div class="role-name">Sub. Sec. Entrenamiento Físico</div>
+        <div class="role-desc">Notas de Entrenamiento Físico Militar</div>
+      </div>
+      <span class="lock-icon">🔒</span>
+    </div>
+    <div class="role-card" onclick="goLoginCargo('disciplina')">
+      <div class="role-icon">⭐</div>
+      <div class="role-text">
+        <div class="role-name">Sub. Sec. Disciplina</div>
+        <div class="role-desc">Panel administrativo completo</div>
+      </div>
+      <span class="lock-icon">🔒</span>
+    </div>
+    <div class="role-card" onclick="goLoginCargo('evaluaciones')">
+      <div class="role-icon">📝</div>
+      <div class="role-text">
+        <div class="role-name">Sub. Sec. Evaluaciones</div>
+        <div class="role-desc">Cargar planillas y notas académicas</div>
+      </div>
+      <span class="lock-icon">🔒</span>
+    </div>
+    <div class="role-card" onclick="goLoginCargo('estudios')">
+      <div class="role-icon">📚</div>
+      <div class="role-text">
+        <div class="role-name">Jefe de Estudios</div>
+        <div class="role-desc">Visualización académica y avisos</div>
+      </div>
+      <span class="lock-icon">🔒</span>
+    </div>
+    <div class="role-card" onclick="goLoginCargo('comandante')">
+      <div class="role-icon">🎖️</div>
+      <div class="role-text">
+        <div class="role-name">Comandante</div>
+        <div class="role-desc">Dashboard ejecutivo y aprobaciones</div>
+      </div>
+      <span class="lock-icon">🔒</span>
+    </div>
+  </div>
+</section>
+
+<!-- LOGIN DOCENTE -->
 <section id="screen-login-docente" class="screen">
   <div class="app-header">
-    <button class="back-btn" onclick="showScreen('screen-home')">←</button>
-    <div class="header-icon">SD</div>
-    <div>
+    <button class="back-btn" onclick="goCargos()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text">
       <div class="header-title">Ingreso Docente</div>
       <div class="header-sub">Verifica tu identidad</div>
     </div>
   </div>
   <div class="login-container">
     <div class="login-card">
+      <div class="login-target" id="login-target">Sub. Sec. Disciplina</div>
       <div class="info-banner">
-        Plantel Docente ECEME. Usa tu Carnet de Identidad y la contraseña asignada.
+        Plantel Docente ECEME. Ingresá con tu Carnet de Identidad y contraseña asignada.
       </div>
       <div class="error-msg" id="err-docente"></div>
       <div class="field">
@@ -506,14 +481,12 @@ body::after {
   </div>
 </section>
 
-<!-- ============================================================ -->
-<!-- PANTALLA 2B: LOGIN CURSANTE -->
-<!-- ============================================================ -->
+<!-- LOGIN CURSANTE -->
 <section id="screen-login-cursante" class="screen">
   <div class="app-header">
-    <button class="back-btn" onclick="showScreen('screen-home')">←</button>
-    <div class="header-icon">SC</div>
-    <div>
+    <button class="back-btn" onclick="goHome()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text">
       <div class="header-title">Ingreso Cursante</div>
       <div class="header-sub">Verifica tu identidad</div>
     </div>
@@ -521,7 +494,7 @@ body::after {
   <div class="login-container">
     <div class="login-card">
       <div class="info-banner">
-        Cursantes ECEME. Usa tu Carnet de Identidad. Tu contraseña inicial es tu mismo CI — luego podrás cambiarla.
+        Cursantes ECEME. Tu contraseña inicial es tu mismo CI — luego podrás cambiarla desde tu perfil.
       </div>
       <div class="error-msg" id="err-cursante"></div>
       <div class="field">
@@ -537,16 +510,14 @@ body::after {
   </div>
 </section>
 
-<!-- ============================================================ -->
-<!-- PANTALLA 3A: MENÚ DOCENTE (cargos) -->
-<!-- ============================================================ -->
-<section id="screen-menu-docente" class="screen">
+<!-- PANEL DEL DOCENTE LOGUEADO -->
+<section id="screen-panel-docente" class="screen">
   <div class="app-header">
     <button class="back-btn" onclick="logout()">←</button>
-    <div class="header-icon">PD</div>
-    <div>
-      <div class="header-title">Plantel Docente</div>
-      <div class="header-sub">Selecciona tu cargo</div>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text">
+      <div class="header-title" id="panel-title">Sub. Sec. Disciplina</div>
+      <div class="header-sub">Panel administrativo</div>
     </div>
   </div>
   <div class="menu-container">
@@ -558,72 +529,19 @@ body::after {
       </div>
       <button class="btn-logout" onclick="logout()">Salir</button>
     </div>
-
-    <div class="section-label">Cargos disponibles</div>
-
-    <div class="role-card" onclick="showScreen('screen-disciplina')">
-      <div class="role-icon">⭐</div>
-      <div class="role-text">
-        <div class="role-name">Jefe de Disciplina</div>
-        <div class="role-desc">Panel administrativo completo</div>
-      </div>
-    </div>
-
-    <div class="role-card coming-soon">
-      <div class="role-icon">📝</div>
-      <div class="role-text">
-        <div class="role-name">Jefe de Evaluaciones</div>
-        <div class="role-desc">Cargar planillas y notas académicas</div>
-      </div>
-      <div class="badge-soon">Próximamente</div>
-    </div>
-
-    <div class="role-card coming-soon">
-      <div class="role-icon">🏃</div>
-      <div class="role-text">
-        <div class="role-name">Jefe de Entrenamiento Físico</div>
-        <div class="role-desc">Notas de Entrenamiento Físico Militar</div>
-      </div>
-      <div class="badge-soon">Próximamente</div>
-    </div>
-
-    <div class="role-card coming-soon">
-      <div class="role-icon">📚</div>
-      <div class="role-text">
-        <div class="role-name">Jefe de Estudios</div>
-        <div class="role-desc">Visualización académica y avisos</div>
-      </div>
-      <div class="badge-soon">Próximamente</div>
-    </div>
-
-    <div class="role-card coming-soon">
-      <div class="role-icon">🎖️</div>
-      <div class="role-text">
-        <div class="role-name">Comandante</div>
-        <div class="role-desc">Dashboard ejecutivo y aprobaciones</div>
-      </div>
-      <div class="badge-soon">Próximamente</div>
-    </div>
-
-    <div class="role-card coming-soon">
-      <div class="role-icon">👨‍🏫</div>
-      <div class="role-text">
-        <div class="role-name">Profesor</div>
-        <div class="role-desc">Registrar sanciones disciplinarias</div>
-      </div>
-      <div class="badge-soon">Próximamente</div>
-    </div>
+    <div class="section-label">Funciones del cargo</div>
+    <div id="panel-features"></div>
+    <div class="section-label">Otras subsecciones</div>
+    <div id="panel-other-roles"></div>
   </div>
 </section>
 
-<!-- ============================================================ -->
-<!-- PANTALLA 3B: DASHBOARD CURSANTE (placeholder) -->
-<!-- ============================================================ -->
+<!-- HOME CURSANTE -->
 <section id="screen-cursante-home" class="screen">
   <div class="app-header">
     <button class="back-btn" onclick="logout()">←</button>
-    <div class="header-icon">CU</div>
-    <div>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text">
       <div class="header-title">Mi Cuenta</div>
       <div class="header-sub">Cursante ECEME</div>
     </div>
@@ -637,7 +555,7 @@ body::after {
       </div>
       <button class="btn-logout" onclick="logout()">Salir</button>
     </div>
-    <div class="placeholder-container" style="min-height: auto; padding: 60px 20px;">
+    <div class="placeholder-container">
       <div class="placeholder-icon">🎓</div>
       <div class="placeholder-title">Panel del Cursante</div>
       <div class="placeholder-text">
@@ -647,185 +565,232 @@ body::after {
   </div>
 </section>
 
-<!-- ============================================================ -->
-<!-- PANTALLA 4: PANEL DISCIPLINA (placeholder) -->
-<!-- ============================================================ -->
-<section id="screen-disciplina" class="screen">
-  <div class="app-header">
-    <button class="back-btn" onclick="showScreen('screen-menu-docente')">←</button>
-    <div class="header-icon">JD</div>
-    <div>
-      <div class="header-title">Jefe de Disciplina</div>
-      <div class="header-sub">Panel administrativo</div>
-    </div>
-  </div>
-  <div class="placeholder-container">
-    <div class="placeholder-icon">⚔️</div>
-    <div class="placeholder-title">Panel en construcción</div>
-    <div class="placeholder-text">
-      Acá va el panel completo de gestión disciplinaria: listado de cursantes con puntaje vigente,
-      registro de sanciones, reportes semanales, historial completo. Próxima iteración.
-    </div>
-  </div>
-</section>
-
-<!-- ============================================================ -->
-<!-- SUPABASE + LÓGICA -->
-<!-- ============================================================ -->
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
-/* ====== CONFIG ====== */
 const SUPABASE_URL = 'https://ofsyiylhdrdiqtnbaovo.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_GQGDGICE0V74xBr0ECp9ag_FEm9h94E';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-/* ====== NAVEGACIÓN ====== */
+const CARGOS = {
+  ef:           { nombre: 'Sub. Sec. Entrenamiento Físico', icono: '🏃', desc: 'Notas de Entrenamiento Físico Militar' },
+  disciplina:   { nombre: 'Sub. Sec. Disciplina',           icono: '⭐', desc: 'Panel administrativo completo' },
+  evaluaciones: { nombre: 'Sub. Sec. Evaluaciones',         icono: '📝', desc: 'Cargar planillas y notas académicas' },
+  estudios:     { nombre: 'Jefe de Estudios',               icono: '📚', desc: 'Visualización académica y avisos' },
+  comandante:   { nombre: 'Comandante',                     icono: '🎖️', desc: 'Dashboard ejecutivo y aprobaciones' }
+};
+
+const FEATURES = {
+  disciplina: [
+    { icono: '👥', nombre: 'Listado de Cursantes', desc: 'Ver puntaje vigente de los 224 cursantes' },
+    { icono: '📋', nombre: 'Registrar Sanción',    desc: 'Crear papeleta de sanción digital' },
+    { icono: '📊', nombre: 'Reportes Semanales',   desc: 'Cursantes con puntaje bajo' },
+    { icono: '🗂️', nombre: 'Historial Completo',   desc: 'Buscar sanciones por cursante, fecha o falta' }
+  ],
+  ef:           [{ icono: '🏃', nombre: 'En construcción', desc: 'Funciones del cargo próximamente' }],
+  evaluaciones: [{ icono: '📝', nombre: 'En construcción', desc: 'Funciones del cargo próximamente' }],
+  estudios:     [{ icono: '📚', nombre: 'En construcción', desc: 'Funciones del cargo próximamente' }],
+  comandante:   [{ icono: '🎖️', nombre: 'En construcción', desc: 'Funciones del cargo próximamente' }]
+};
+
+let selectedCargo = null;
+let currentUser   = null;
+let activeRole    = null;
+
 function showScreen(id) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-  const target = document.getElementById(id);
-  if (target) {
-    target.classList.add('active');
+  const el = document.getElementById(id);
+  if (el) {
+    el.classList.add('active');
     window.scrollTo({ top: 0, behavior: 'instant' });
     clearErrors();
   }
 }
-
+function goHome()          { showScreen('screen-home'); }
+function goCargos()        { showScreen('screen-cargos'); }
+function goLoginCursante() { showScreen('screen-login-cursante'); }
+function goLoginCargo(k) {
+  selectedCargo = k;
+  const c = CARGOS[k]; if (!c) return;
+  document.getElementById('login-target').textContent = c.nombre;
+  document.getElementById('docente-ci').value  = '';
+  document.getElementById('docente-pwd').value = '';
+  showScreen('screen-login-docente');
+}
 function clearErrors() {
   document.querySelectorAll('.error-msg').forEach(el => {
     el.classList.remove('visible');
     el.textContent = '';
   });
 }
-
 function showError(id, msg) {
   const el = document.getElementById(id);
   if (!el) return;
   el.textContent = msg;
   el.classList.add('visible');
 }
-
-/* ====== SESIÓN ====== */
-function saveSession(user, tipo) {
-  sessionStorage.setItem('sideceme_user', JSON.stringify({ ...user, _tipo: tipo }));
+function saveSession(u, t, r) {
+  sessionStorage.setItem('sideceme_session', JSON.stringify({ user: u, tipo: t, role: r }));
 }
 function getSession() {
-  const raw = sessionStorage.getItem('sideceme_user');
+  const raw = sessionStorage.getItem('sideceme_session');
   return raw ? JSON.parse(raw) : null;
 }
 function logout() {
-  sessionStorage.removeItem('sideceme_user');
-  showScreen('screen-home');
-  ['docente-ci', 'docente-pwd', 'cursante-ci', 'cursante-pwd'].forEach(id => {
+  sessionStorage.removeItem('sideceme_session');
+  currentUser = null; activeRole = null; selectedCargo = null;
+  ['docente-ci','docente-pwd','cursante-ci','cursante-pwd'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
+  goHome();
 }
 
-/* ====== LOGIN DOCENTE ====== */
 async function loginDocente() {
   clearErrors();
   const ci  = document.getElementById('docente-ci').value.trim();
   const pwd = document.getElementById('docente-pwd').value;
-
-  if (!ci || !pwd) {
-    showError('err-docente', 'Ingresá tu CI y contraseña.');
-    return;
-  }
+  if (!ci || !pwd) { showError('err-docente', 'Ingresá tu CI y contraseña.'); return; }
+  if (!selectedCargo) { showError('err-docente', 'No se seleccionó cargo. Volvé atrás.'); return; }
 
   const btn = document.getElementById('btn-login-docente');
   btn.disabled = true; btn.textContent = 'Verificando...';
-
   try {
-    const { data, error } = await sb
-      .from('profesores')
-      .select('*')
-      .eq('ci', ci)
-      .limit(1);
-
-    if (error) throw error;
+    const { data, error } = await sb.from('profesores').select('*').eq('ci', ci).limit(1);
+    if (error) {
+      showError('err-docente', 'Error Supabase: ' + (error.message || JSON.stringify(error)));
+      return;
+    }
     if (!data || data.length === 0) {
       showError('err-docente', 'CI no encontrado en plantel docente.');
       return;
     }
     const prof = data[0];
+    if (!('password' in prof)) {
+      showError('err-docente', 'La tabla "profesores" no tiene columna "password". Corré primero el SQL del paso 1 en Supabase.');
+      return;
+    }
     if (String(prof.password) !== String(pwd)) {
       showError('err-docente', 'Contraseña incorrecta.');
       return;
     }
-
-    saveSession(prof, 'docente');
-    renderDocenteMenu(prof);
-    showScreen('screen-menu-docente');
+    currentUser = prof;
+    activeRole  = selectedCargo;
+    saveSession(prof, 'docente', activeRole);
+    renderPanelDocente();
+    showScreen('screen-panel-docente');
   } catch (e) {
     console.error(e);
-    showError('err-docente', 'Error de conexión. Revisá tu red.');
+    showError('err-docente', 'Error de conexión: ' + (e.message || e));
   } finally {
     btn.disabled = false; btn.textContent = 'Ingresar';
   }
 }
 
-function renderDocenteMenu(prof) {
-  const name = prof.nombre_completo || prof.nombre || 'Docente';
-  const grade = prof.grado || '';
-  const arm = prof.arma || '';
-  const initials = name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
-  document.getElementById('user-name').textContent = name;
-  document.getElementById('user-rank').textContent = [grade, arm].filter(Boolean).join(' · ') || 'Plantel docente';
-  document.getElementById('user-initials').textContent = initials || '—';
-}
-
-/* ====== LOGIN CURSANTE ====== */
 async function loginCursante() {
   clearErrors();
   const ci  = document.getElementById('cursante-ci').value.trim();
   const pwd = document.getElementById('cursante-pwd').value;
-
-  if (!ci || !pwd) {
-    showError('err-cursante', 'Ingresá tu CI y contraseña.');
-    return;
-  }
+  if (!ci || !pwd) { showError('err-cursante', 'Ingresá tu CI y contraseña.'); return; }
 
   const btn = document.getElementById('btn-login-cursante');
   btn.disabled = true; btn.textContent = 'Verificando...';
-
   try {
-    const { data, error } = await sb
-      .from('cursantes')
-      .select('*')
-      .eq('ci', ci)
-      .limit(1);
-
-    if (error) throw error;
+    const { data, error } = await sb.from('cursantes').select('*').eq('ci', ci).limit(1);
+    if (error) {
+      showError('err-cursante', 'Error Supabase: ' + (error.message || JSON.stringify(error)));
+      return;
+    }
     if (!data || data.length === 0) {
       showError('err-cursante', 'CI no encontrado en el registro de cursantes.');
       return;
     }
     const cur = data[0];
+    if (!('password' in cur)) {
+      showError('err-cursante', 'La tabla "cursantes" no tiene columna "password". Corré primero el SQL del paso 1 en Supabase.');
+      return;
+    }
     if (String(cur.password) !== String(pwd)) {
       showError('err-cursante', 'Contraseña incorrecta.');
       return;
     }
-
-    saveSession(cur, 'cursante');
-    renderCursanteHome(cur);
+    currentUser = cur;
+    saveSession(cur, 'cursante', null);
+    renderCursanteHome();
     showScreen('screen-cursante-home');
   } catch (e) {
     console.error(e);
-    showError('err-cursante', 'Error de conexión. Revisá tu red.');
+    showError('err-cursante', 'Error de conexión: ' + (e.message || e));
   } finally {
     btn.disabled = false; btn.textContent = 'Ingresar';
   }
 }
 
-function renderCursanteHome(cur) {
-  const name = cur.nombre_completo || cur.nombre || cur.apellidos || 'Cursante';
+function renderPanelDocente() {
+  if (!currentUser || !activeRole) return;
+  const cargo = CARGOS[activeRole];
+  document.getElementById('panel-title').textContent = cargo.nombre;
+
+  const name = currentUser.nombre_completo || currentUser.nombre || 'Docente';
+  const grade = currentUser.grado || '';
+  const arm = currentUser.arma || '';
+  const initials = name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  document.getElementById('user-name').textContent = name;
+  document.getElementById('user-rank').textContent = [grade, arm].filter(Boolean).join(' · ') || 'Plantel docente';
+  document.getElementById('user-initials').textContent = initials || '—';
+
+  const featuresEl = document.getElementById('panel-features');
+  featuresEl.innerHTML = '';
+  (FEATURES[activeRole] || []).forEach(f => {
+    const div = document.createElement('div');
+    div.className = 'panel-feature';
+    div.innerHTML = `
+      <div class="feat-icon">${f.icono}</div>
+      <div class="feat-text">
+        <div class="feat-name">${f.nombre}</div>
+        <div class="feat-desc">${f.desc}</div>
+      </div>
+      <div class="arrow">›</div>
+    `;
+    div.onclick = () => alert(`"${f.nombre}" — próxima iteración`);
+    featuresEl.appendChild(div);
+  });
+
+  const otherEl = document.getElementById('panel-other-roles');
+  otherEl.innerHTML = '';
+  Object.keys(CARGOS).forEach(k => {
+    if (k === activeRole) return;
+    const c = CARGOS[k];
+    const div = document.createElement('div');
+    div.className = 'role-card unlocked';
+    div.innerHTML = `
+      <div class="role-icon">${c.icono}</div>
+      <div class="role-text">
+        <div class="role-name">${c.nombre}</div>
+        <div class="role-desc">${c.desc}</div>
+      </div>
+      <span class="lock-icon">›</span>
+    `;
+    div.onclick = () => switchRole(k);
+    otherEl.appendChild(div);
+  });
+}
+
+function switchRole(newRole) {
+  activeRole = newRole;
+  saveSession(currentUser, 'docente', activeRole);
+  renderPanelDocente();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function renderCursanteHome() {
+  if (!currentUser) return;
+  const name = currentUser.nombre_completo || currentUser.nombre || currentUser.apellidos || 'Cursante';
   const initials = name.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
   document.getElementById('cursante-name').textContent = name;
-  document.getElementById('cursante-id').textContent = `ID: ${cur.id || '—'}`;
+  document.getElementById('cursante-id').textContent = `ID: ${currentUser.id || '—'}`;
   document.getElementById('cursante-initials').textContent = initials || '—';
 }
 
-/* ====== UX: Enter para submit ====== */
 document.addEventListener('keydown', (e) => {
   if (e.key !== 'Enter') return;
   const active = document.querySelector('.screen.active');
@@ -834,15 +799,16 @@ document.addEventListener('keydown', (e) => {
   if (active.id === 'screen-login-cursante') loginCursante();
 });
 
-/* ====== RESTAURAR SESIÓN AL CARGAR ====== */
 (function restoreSession() {
   const s = getSession();
   if (!s) return;
-  if (s._tipo === 'docente') {
-    renderDocenteMenu(s);
-    showScreen('screen-menu-docente');
-  } else if (s._tipo === 'cursante') {
-    renderCursanteHome(s);
+  currentUser = s.user;
+  if (s.tipo === 'docente' && s.role) {
+    activeRole = s.role;
+    renderPanelDocente();
+    showScreen('screen-panel-docente');
+  } else if (s.tipo === 'cursante') {
+    renderCursanteHome();
     showScreen('screen-cursante-home');
   }
 })();
