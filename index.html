@@ -1096,6 +1096,95 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   letter-spacing:1.5px;text-transform:uppercase;font-weight:700;
 }
 
+/* === Tarjeta DESTACADA: pérdida anual de puntaje (gestión) === */
+/* Versión para el panel del cursante (fondo crema-dorado) */
+.cur-anual-card{
+  position:relative;
+  border-radius:var(--radius-md);
+  padding:14px 14px 12px;
+  margin:-6px 0 18px;
+  border:2px solid;
+  box-shadow:0 4px 12px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.45);
+  background:linear-gradient(180deg,#fef5e0,#f5e2b8);
+  border-color:#3a7050;
+}
+.cur-anual-card.warn   {background:linear-gradient(180deg,#fbecc8,#f1d893); border-color:#a87010}
+.cur-anual-card.alto   {background:linear-gradient(180deg,#fcdcb2,#f0bd7a); border-color:#b3601a}
+.cur-anual-card.riesgo {background:linear-gradient(180deg,#f6c9b2,#ea9d7e); border-color:#a83a1a}
+.cur-anual-card.baja   {background:linear-gradient(180deg,#e89a8a,#c14a3a); border-color:#7a1a0a; color:#fff}
+.cac-header{
+  display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;
+}
+.cac-title{
+  font-family:var(--font-display);font-size:13px;font-weight:700;color:#3a2810;letter-spacing:.5px;
+}
+.cur-anual-card.baja .cac-title{color:#fff}
+.cac-articulo{
+  font-family:var(--font-display);font-size:9.5px;color:#5c4a1a;letter-spacing:1.2px;text-transform:uppercase;
+  background:rgba(255,255,255,.45);padding:3px 7px;border-radius:8px;
+}
+.cur-anual-card.baja .cac-articulo{background:rgba(255,255,255,.18);color:#fff}
+.cac-body{display:flex;gap:14px;align-items:stretch;}
+.cac-col{flex:1;text-align:center;}
+.cac-num{
+  font-family:var(--font-display);font-size:30px;font-weight:700;color:#1a0e02;line-height:1;margin-bottom:3px;
+}
+.cur-anual-card.baja .cac-num{color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.4)}
+.cac-num.danger{color:#a83a3a}
+.cac-num.warn{color:#a87010}
+.cac-lbl{
+  font-family:var(--font-display);font-size:9.5px;color:#5c4a1a;
+  letter-spacing:1px;text-transform:uppercase;font-weight:600;line-height:1.3;
+}
+.cur-anual-card.baja .cac-lbl{color:rgba(255,255,255,.85)}
+.cac-divider{width:1px;background:rgba(0,0,0,.12);align-self:stretch;}
+.cur-anual-card.baja .cac-divider{background:rgba(255,255,255,.25)}
+.cac-progress{
+  margin-top:10px;height:8px;background:rgba(0,0,0,.1);border-radius:4px;overflow:hidden;
+}
+.cur-anual-card.baja .cac-progress{background:rgba(0,0,0,.25)}
+.cac-progress-fill{
+  height:100%;background:#3a7050;transition:width .4s ease, background .4s ease;
+}
+.cur-anual-card.warn   .cac-progress-fill{background:#c89020}
+.cur-anual-card.alto   .cac-progress-fill{background:#d97020}
+.cur-anual-card.riesgo .cac-progress-fill{background:#c13a1a}
+.cur-anual-card.baja   .cac-progress-fill{background:#fff}
+.cac-msg{
+  margin-top:8px;font-size:11.5px;line-height:1.35;color:#3a2810;
+  font-style:italic;
+}
+.cur-anual-card.baja .cac-msg{color:#fff;font-style:normal;font-weight:600}
+
+/* Versión para el panel oscuro de Disciplina / Comandante / Jefe Estudios */
+.sd-anual-card{
+  position:relative;
+  border-radius:var(--radius-md);
+  padding:14px 14px 12px;
+  margin:14px 0;
+  border:2px solid;
+  box-shadow:0 4px 12px rgba(0,0,0,.35);
+  background:linear-gradient(180deg, rgba(58,112,80,.18), rgba(58,112,80,.06));
+  border-color:rgba(125,192,150,.55);
+  color:#cfe5d6;
+}
+.sd-anual-card.warn   {background:linear-gradient(180deg, rgba(224,168,58,.22), rgba(224,168,58,.06)); border-color:rgba(224,168,58,.55); color:#f0d28a}
+.sd-anual-card.alto   {background:linear-gradient(180deg, rgba(217,112,32,.25), rgba(217,112,32,.06)); border-color:rgba(217,112,32,.55); color:#f3b88a}
+.sd-anual-card.riesgo {background:linear-gradient(180deg, rgba(193,58,26,.28), rgba(193,58,26,.08)); border-color:rgba(232,120,120,.6); color:#f4a89a}
+.sd-anual-card.baja   {background:linear-gradient(180deg, rgba(180,30,20,.55), rgba(120,20,15,.35)); border-color:#ff7a6a; color:#fff}
+.sd-anual-card .cac-title{color:inherit;font-size:13px;}
+.sd-anual-card .cac-articulo{background:rgba(255,255,255,.10);color:inherit;}
+.sd-anual-card .cac-num{color:inherit;}
+.sd-anual-card .cac-lbl{color:inherit;opacity:.85}
+.sd-anual-card .cac-divider{background:rgba(255,255,255,.15)}
+.sd-anual-card .cac-progress{background:rgba(0,0,0,.35)}
+.sd-anual-card .cac-progress-fill{background:#7dc096}
+.sd-anual-card.warn   .cac-progress-fill{background:#e0a83a}
+.sd-anual-card.alto   .cac-progress-fill{background:#d97020}
+.sd-anual-card.riesgo .cac-progress-fill{background:#e87878}
+.sd-anual-card.baja   .cac-progress-fill{background:#fff}
+.sd-anual-card .cac-msg{color:inherit;opacity:.92}
+
 /* Banner estado */
 .cur-estado-banner{
   border-radius:var(--radius-md);padding:14px 16px;margin-bottom:18px;
@@ -1607,6 +1696,27 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
         </div>
       </div>
 
+      <!-- 4to cuadro destacado: PÉRDIDA ANUAL DE PUNTAJE (causal de baja) -->
+      <div class="cur-anual-card" id="cur-anual-card">
+        <div class="cac-header">
+          <div class="cac-title">📅 Pérdida anual de puntaje</div>
+          <div class="cac-articulo" id="cur-anual-articulo">Art. 5</div>
+        </div>
+        <div class="cac-body">
+          <div class="cac-col">
+            <div class="cac-num danger" id="cur-anual-perdido">−0</div>
+            <div class="cac-lbl">Pts perdidos · Gestión <span id="cur-anual-year">—</span></div>
+          </div>
+          <div class="cac-divider"></div>
+          <div class="cac-col">
+            <div class="cac-num success" id="cur-anual-restante">50</div>
+            <div class="cac-lbl" id="cur-anual-restante-lbl">Pts antes de baja</div>
+          </div>
+        </div>
+        <div class="cac-progress"><div class="cac-progress-fill" id="cur-anual-progress" style="width:0%"></div></div>
+        <div class="cac-msg" id="cur-anual-msg">Margen amplio. Mantén la disciplina.</div>
+      </div>
+
       <!-- Banner estado -->
       <div class="cur-estado-banner" id="cur-estado-banner">
         <div class="ceb-title" id="cur-estado-title">— Sin sanciones</div>
@@ -2030,6 +2140,17 @@ const CARGOS = {
 const UMBRAL_CONSEJO = 25;
 const UMBRAL_OBSERVACION = 11;
 
+// === Regla anual (gestión) — causal de baja por disciplina ===
+// Art. 5 (Puntaje Semestral) del Reglamento: "Al inicio de cada semestre se asignan
+// 100 puntos en Disciplina; los deméritos son ACUMULATIVOS DURANTE LA GESTIÓN para su
+// consideración como causal de separación." → Gestión se interpreta por AÑO.
+// Tope: 50 puntos perdidos en el año (con 50 pts la nota da 71 = mínima de aprobación
+// por la fórmula del Art. 15). Al llegar a 51 → baja por disciplina.
+const LIMITE_ANUAL_BAJA = 51;        // 51+ pts perdidos en el año = motivo de baja
+const TOPE_ANUAL_PERMITIDO = 50;     // máximo permitido antes de baja
+const ARTICULO_BAJA_ANUAL = 'Art. 5 (Puntaje Semestral) — Reglamento de Régimen Disciplinario';
+const ARTICULO_BAJA_ANUAL_CORTO = 'Art. 5';
+
 let selectedCargo=null, currentUser=null, activeRole=null;
 let selectedSancionId=null, lastSancionListScroll=0;
 let leafletMap=null;
@@ -2308,6 +2429,127 @@ function getEstadoCursante(puntosPerdidos){
   return 'regla';
 }
 
+// === Helpers para la regla anual de baja por disciplina ===
+// Determina la fecha real de la sanción (prioriza fecha del hecho, no de migración).
+function fechaSancion(s){
+  if(!s) return null;
+  const raw = s.fecha_original
+           || s.firmada_prof_en
+           || s.creado_en
+           || s.fecha_creacion
+           || s.created_at
+           || s.fecha
+           || s.fecha_sancion
+           || s.fecha_registro;
+  if(!raw) return null;
+  const d = new Date(raw);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// Calcula los puntos perdidos del cursante DURANTE la gestión (año en curso).
+// - Excluye anuladas y de prueba (igual que el resto del sistema).
+// - Sólo cuenta sanciones cuya fecha cae en el año `year` (default = año actual).
+// - Sanciones sin fecha NO se cuentan al anual (no se puede afirmar a qué gestión pertenecen).
+function calcularPerdidaAnual(sanciones, year){
+  const target = (year ?? new Date().getFullYear());
+  let perdido = 0;
+  let cantidad = 0;
+  let sinFecha = 0;
+  (sanciones || []).forEach(s => {
+    if(s.anulada === true) return;
+    if(s.es_prueba === true) return;
+    const f = fechaSancion(s);
+    if(!f){ sinFecha++; return; }
+    if(f.getFullYear() !== target) return;
+    perdido += Number(s.puntos_aplicados) || 0;
+    cantidad++;
+  });
+  const restante = TOPE_ANUAL_PERMITIDO - perdido;
+  let nivel; // ok | warn | alto | riesgo | baja
+  if(perdido >= LIMITE_ANUAL_BAJA)      nivel = 'baja';
+  else if(perdido >= 46)                nivel = 'riesgo';
+  else if(perdido >= 31)                nivel = 'alto';
+  else if(perdido >= 16)                nivel = 'warn';
+  else                                  nivel = 'ok';
+  return { perdidoAnual: perdido, restanteParaBaja: restante, nivel, year: target, cantidad, sinFecha };
+}
+
+// Devuelve el array de sanciones del cursante desde discData (centralizado, evita
+// inconsistencias entre vistas: cursante / disciplina / detalle / preview).
+function getSancionesDeCursante(cursanteId){
+  if(!cursanteId) return [];
+  return (discData.byCursanteSanc && discData.byCursanteSanc[cursanteId]) || [];
+}
+
+// Genera el HTML de la tarjeta de pérdida anual (versión dark — Disciplina/Comandante/Preview).
+// Toma el cursante y opcionalmente puntos adicionales que se aplicarían (para preview de sanción).
+// Si se pasa puntosExtra > 0 muestra un escenario "si se aplica esta sanción".
+function htmlTarjetaAnualDark(cursanteId, opciones){
+  const opts = opciones || {};
+  const sancs = getSancionesDeCursante(cursanteId);
+  const stat = calcularPerdidaAnual(sancs);
+  const extra = Number(opts.puntosExtra) || 0;
+  const perdidoProyectado = stat.perdidoAnual + extra;
+  const restanteProyectado = TOPE_ANUAL_PERMITIDO - perdidoProyectado;
+
+  // Determinar nivel proyectado (con extra incluido)
+  let nivel = stat.nivel;
+  if(extra > 0){
+    if(perdidoProyectado >= LIMITE_ANUAL_BAJA)      nivel = 'baja';
+    else if(perdidoProyectado >= 46)                nivel = 'riesgo';
+    else if(perdidoProyectado >= 31)                nivel = 'alto';
+    else if(perdidoProyectado >= 16)                nivel = 'warn';
+    else                                            nivel = 'ok';
+  }
+
+  const pct = Math.min(100, Math.round((perdidoProyectado / TOPE_ANUAL_PERMITIDO) * 100));
+  const restanteTxt = restanteProyectado > 0
+    ? `${restanteProyectado} pts disponibles`
+    : `<strong>BAJA POR DISCIPLINA</strong>`;
+
+  let mensaje;
+  if(nivel === 'baja'){
+    mensaje = `🚨 Acumulado ${perdidoProyectado} pts en la gestión ${stat.year} — supera el límite de ${TOPE_ANUAL_PERMITIDO} pts. Causal de baja por disciplina.`;
+  } else if(nivel === 'riesgo'){
+    mensaje = `⚠️ A ${restanteProyectado} pts de la baja por disciplina. Una sanción más podría ser definitiva.`;
+  } else if(nivel === 'alto'){
+    mensaje = `⚠️ Pérdida alta en la gestión ${stat.year}. Quedan ${restanteProyectado} pts antes de la baja.`;
+  } else if(nivel === 'warn'){
+    mensaje = `Pérdida moderada en la gestión ${stat.year}. Quedan ${restanteProyectado} pts antes de la baja por disciplina.`;
+  } else {
+    mensaje = `Margen amplio en la gestión ${stat.year}. Quedan ${restanteProyectado} pts antes de la baja por disciplina.`;
+  }
+
+  const tituloExtra = extra > 0
+    ? `<span style="font-size:11px;font-weight:400;opacity:.85"> (si se aplica esta sanción: <strong>+${extra} pts</strong>)</span>`
+    : '';
+
+  const sinFechaNota = stat.sinFecha > 0
+    ? `<div style="margin-top:6px;font-size:10.5px;opacity:.75;font-style:italic">ℹ️ ${stat.sinFecha} sanción(es) sin fecha registrada — no se contaron al anual.</div>`
+    : '';
+
+  return `<div class="sd-anual-card ${nivel}">
+    <div class="cac-header">
+      <div class="cac-title">📅 Pérdida anual de puntaje${tituloExtra}</div>
+      <div class="cac-articulo">${escapeHtml(ARTICULO_BAJA_ANUAL)}</div>
+    </div>
+    <div class="cac-body">
+      <div class="cac-col">
+        <div class="cac-num">−${perdidoProyectado}</div>
+        <div class="cac-lbl">Pts perdidos · Gestión ${stat.year}</div>
+      </div>
+      <div class="cac-divider"></div>
+      <div class="cac-col">
+        <div class="cac-num">${restanteProyectado > 0 ? restanteProyectado : 0}<span style="font-size:14px;opacity:.6"> / ${TOPE_ANUAL_PERMITIDO}</span></div>
+        <div class="cac-lbl">${restanteTxt}</div>
+      </div>
+    </div>
+    <div class="cac-progress"><div class="cac-progress-fill" style="width:${pct}%"></div></div>
+    <div class="cac-msg">${mensaje}</div>
+    ${sinFechaNota}
+  </div>`;
+}
+
 async function renderCursanteHome(){
   if(!currentUser) return;
   // Si no hay data cargada, la cargamos primero (para tener sanciones, etc.)
@@ -2356,14 +2598,55 @@ async function renderCursanteHome(){
   document.getElementById('cur-stat-demeritos').textContent = `-${puntosPerdidos}`;
   document.getElementById('cur-stat-nota').textContent = notaTxt;
 
-  // Banner estado
+  // === 4to cuadro destacado: Pérdida anual de puntaje (causal de baja) ===
+  const anualStat = calcularPerdidaAnual(todasSanciones);
+  const anualCard = document.getElementById('cur-anual-card');
+  anualCard.className = 'cur-anual-card ' + anualStat.nivel;
+  document.getElementById('cur-anual-perdido').textContent = `−${anualStat.perdidoAnual}`;
+  document.getElementById('cur-anual-year').textContent = anualStat.year;
+  document.getElementById('cur-anual-articulo').textContent = ARTICULO_BAJA_ANUAL_CORTO; // "Art. 5" en el badge
+  const restPos = Math.max(0, anualStat.restanteParaBaja);
+  document.getElementById('cur-anual-restante').textContent = restPos;
+  document.getElementById('cur-anual-restante-lbl').textContent = anualStat.restanteParaBaja > 0
+    ? `Pts antes de baja (de ${TOPE_ANUAL_PERMITIDO})`
+    : '⚠️ Causal de baja';
+  // Ajustar color del número "restante" según nivel
+  const restanteEl = document.getElementById('cur-anual-restante');
+  restanteEl.className = 'cac-num';
+  if(anualStat.nivel === 'ok') restanteEl.classList.add('success');
+  else if(anualStat.nivel === 'warn') restanteEl.classList.add('warn');
+  else restanteEl.classList.add('danger');
+
+  const pct = Math.min(100, Math.round((anualStat.perdidoAnual / TOPE_ANUAL_PERMITIDO) * 100));
+  document.getElementById('cur-anual-progress').style.width = pct + '%';
+
+  let anualMsg;
+  if(anualStat.nivel === 'baja'){
+    anualMsg = `🚨 Has acumulado ${anualStat.perdidoAnual} pts en la gestión ${anualStat.year}. Supera el límite de ${TOPE_ANUAL_PERMITIDO} pts: causal de baja por disciplina.`;
+  } else if(anualStat.nivel === 'riesgo'){
+    anualMsg = `⚠️ Estás a ${restPos} pts de la baja por disciplina. Extremá precauciones.`;
+  } else if(anualStat.nivel === 'alto'){
+    anualMsg = `⚠️ Pérdida alta en la gestión ${anualStat.year}. Quedan ${restPos} pts antes de la baja por disciplina.`;
+  } else if(anualStat.nivel === 'warn'){
+    anualMsg = `Pérdida moderada. Quedan ${restPos} pts antes de la baja por disciplina.`;
+  } else {
+    anualMsg = `Margen amplio en la gestión ${anualStat.year}. Mantén la disciplina.`;
+  }
+  document.getElementById('cur-anual-msg').textContent = anualMsg;
+
+  // Banner estado — corregido: NO decir "Sin sanciones" si hay deméritos/sanciones
   const banner = document.getElementById('cur-estado-banner');
   banner.className = 'cur-estado-banner ' + (estado === 'regla' ? 'ok' : estado);
   if(estado === 'regla'){
-    document.getElementById('cur-estado-title').textContent = '✓ Sin sanciones';
-    document.getElementById('cur-estado-text').textContent = cantSanciones === 0
-      ? 'Mantén tu buen desempeño disciplinario.'
-      : 'Mantén la disciplina. Tu nota sigue alta.';
+    if(cantSanciones === 0 && puntosPerdidos === 0){
+      // Realmente sin sanciones
+      document.getElementById('cur-estado-title').textContent = '✓ Sin sanciones';
+      document.getElementById('cur-estado-text').textContent = 'Mantén tu buen desempeño disciplinario.';
+    } else {
+      // Tiene sanciones pero aún en regla (puntos < 11)
+      document.getElementById('cur-estado-title').textContent = `📋 ${cantSanciones} sanción${cantSanciones===1?'':'es'} registrada${cantSanciones===1?'':'s'}`;
+      document.getElementById('cur-estado-text').textContent = `Has perdido ${puntosPerdidos} pts. Tu nota se mantiene en regla — mantén la disciplina.`;
+    }
   } else if(estado === 'observacion'){
     document.getElementById('cur-estado-title').textContent = '⚠ En observación';
     document.getElementById('cur-estado-text').textContent = `Has perdido ${puntosPerdidos} pts. Si llegas a 25 pts pasarás a Consejo Académico.`;
@@ -2883,6 +3166,11 @@ function verSancionDetalle(sancionId){
     <div class="sd-row"><span class="lbl">ID interno</span><span class="vl"><span style="font-family:monospace;font-size:11px;color:var(--text-muted)">${s.cursante_id||'—'}</span></span></div>
   </div>`;
 
+  // Tarjeta de pérdida anual del cursante (situación al día de hoy)
+  if(s.cursante_id){
+    html += htmlTarjetaAnualDark(s.cursante_id);
+  }
+
   // Bloque 3: FALTA COMETIDA
   const descReglamento = getDescripcionFalta(s.falta_id);
   const descTextoFalta = s.falta_descripcion || descReglamento || '—';
@@ -3078,6 +3366,7 @@ function verFichaCursante(cursanteId, backTarget){
       <div class="sd-row"><span class="lbl">Puntaje vigente</span><span class="vl big" style="color:${est==='consejo'?'#e87878':est==='observacion'?'#e0a83a':'#7dc096'}">${vigente}</span></div>
       ${cur.observaciones?`<div class="sd-row"><span class="lbl">Observaciones</span><span class="vl" style="font-style:italic">${cur.observaciones}</span></div>`:''}
     </div>
+    ${htmlTarjetaAnualDark(cur.id)}
   `;
 
   if(sancs.length){
@@ -4525,6 +4814,11 @@ function renderPrevia(){
     <div class="pb-row"><span class="pb-lbl">CI</span><span class="pb-val">${escapeHtml(c.ci||'—')}</span></div>
     ${cycloPar?`<div class="pb-row"><span class="pb-lbl">Ciclo</span><span class="pb-val">${escapeHtml(cycloPar)}</span></div>`:''}
   </div>`;
+
+  // 1.5 Situación anual del cursante (ADVERTENCIA con puntos proyectados de ESTA sanción)
+  // Sólo proyecta puntos si NO es modo prueba (las de prueba no afectan al puntaje oficial).
+  const puntosProyectados = MODO_PRUEBA ? 0 : (Number(reinc.puntosFinal) || 0);
+  html += htmlTarjetaAnualDark(c.id, { puntosExtra: puntosProyectados });
 
   // 2. Falta
   html += `<div class="papeleta-block">
