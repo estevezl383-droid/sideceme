@@ -1865,6 +1865,8 @@ async function loadDiscData(force=false){
     });
     discData.loaded=true;
     discData.lastSync=new Date();
+    // Detectar schema de la tabla sanciones (para inserts seguros)
+    detectarSchemaSanciones();
   }catch(e){
     console.error('loadDiscData failed:',e);
     alert('Error cargando datos: '+(e.message||e));
@@ -3132,6 +3134,35 @@ function renderProfPanel(){
     try { return new Date(f) >= inicioMes; } catch(e) { return false; }
   });
   document.getElementById('prof-stat-mes').textContent = delMes.length;
+
+  // Avisar si hay sanciones en backup local sin sincronizar
+  mostrarAvisoBackupSiAplica();
+}
+
+function mostrarAvisoBackupSiAplica(){
+  const backups = obtenerBackups();
+  let aviso = document.getElementById('prof-backup-aviso');
+  if(!backups.length){
+    if(aviso) aviso.remove();
+    return;
+  }
+  if(!aviso){
+    aviso = document.createElement('div');
+    aviso.id = 'prof-backup-aviso';
+    aviso.style.cssText = 'background:linear-gradient(135deg,#c84a4a,#a83a3a);color:#fff;padding:14px 16px;border-radius:12px;margin-bottom:14px;display:flex;align-items:center;gap:12px;box-shadow:0 4px 14px rgba(200,74,74,.35)';
+    const heroEl = document.querySelector('#screen-prof-panel .prof-hero');
+    if(heroEl && heroEl.parentNode){
+      heroEl.parentNode.insertBefore(aviso, heroEl);
+    }
+  }
+  aviso.innerHTML = `
+    <div style="font-size:24px">⚠️</div>
+    <div style="flex:1">
+      <div style="font-family:var(--font-display);font-weight:700;letter-spacing:1.5px;font-size:13px;text-transform:uppercase">${backups.length} sanción(es) sin guardar</div>
+      <div style="font-size:12px;opacity:.9;margin-top:2px">Quedaron respaldadas localmente por un error de conexión o schema.</div>
+    </div>
+    <button onclick="reintentarBackups()" style="background:#fff;color:#a83a3a;border:none;padding:8px 14px;border-radius:8px;font-family:var(--font-display);font-weight:700;font-size:12px;letter-spacing:1px;cursor:pointer">REINTENTAR</button>
+  `;
 }
 
 function goProfPanel(){
@@ -3662,15 +3693,23 @@ async function confirmarYFirmarSancion(){
       anulada: false
     };
 
-    // 5. Insertar en Supabase
-    const { data, error } = await sb.from('sanciones').insert(sancion).select();
-    if(error){
-      console.error('Error insertando sanción:', error);
-      alert('Error al guardar: ' + (error.message || JSON.stringify(error)));
+    // 5. Insertar en Supabase (con auto-detección y reintento)
+    const insertRes = await insertarSancionSegura(sancion);
+    if(insertRes.error){
+      // Backup en localStorage para no perder la firma
+      guardarBackupSancion(sancion, insertRes.error);
+      console.error('Error insertando sanción:', insertRes.error);
+      alert(
+        '⚠️ La sanción se firmó correctamente pero no se pudo guardar en la base de datos.\n\n' +
+        'Causa: ' + (insertRes.error.message || 'desconocida') + '\n\n' +
+        '✅ Tus datos quedaron respaldados localmente. ' +
+        'Toca "Reintentar guardado" en el panel del profesor cuando vuelvas a conectarte.'
+      );
       btn.disabled = false;
       btn.innerHTML = '✓ Confirmar y firmar';
       return;
     }
+    const data = insertRes.data;
 
     // 6. Refrescar discData en memoria
     if(data && data[0]){
@@ -3687,9 +3726,150 @@ async function confirmarYFirmarSancion(){
 
   }catch(e){
     console.error(e);
-    alert('Error inesperado: ' + (e.message || e));
+    // Backup defensivo si tenemos la sanción construida
+    try{ guardarBackupSancion({ error_inesperado: e.message||String(e), folio: nuevaSancion.folio, firma: nuevaSancion.firmaProfesor }); }catch(_){}
+    alert('Error inesperado: ' + (e.message || e) + '\n\nTus datos quedaron respaldados localmente.');
     btn.disabled = false;
     btn.innerHTML = '✓ Confirmar y firmar';
+  }
+}
+
+/* ==================== INSERT SEGURO CON AUTO-HEAL ==================== */
+// Variable que cachea las columnas detectadas de la tabla sanciones
+let sancionesSchema = null;
+
+function detectarSchemaSanciones(){
+  // Detecta columnas mirando una sanción existente
+  if(discData.sanciones && discData.sanciones.length){
+    sancionesSchema = new Set(Object.keys(discData.sanciones[0]));
+    console.log('[schema sanciones]', [...sancionesSchema]);
+  } else {
+    sancionesSchema = null;
+  }
+}
+
+async function insertarSancionSegura(sancionOriginal){
+  // Si no detectamos el schema aún, intentamos ahora
+  if(!sancionesSchema) detectarSchemaSanciones();
+
+  let working = { ...sancionOriginal };
+
+  // 1. Mapeo defensivo de columnas de fecha
+  //    Si la tabla no tiene 'fecha_creacion', probamos con created_at, fecha, fecha_registro
+  if(sancionesSchema && !sancionesSchema.has('fecha_creacion')){
+    const value = working.fecha_creacion;
+    delete working.fecha_creacion;
+    if(sancionesSchema.has('created_at')) working.created_at = value;
+    else if(sancionesSchema.has('fecha')) working.fecha = value;
+    else if(sancionesSchema.has('fecha_registro')) working.fecha_registro = value;
+    // Si ninguna existe, lo dejamos sin la columna (Supabase pondrá su default si lo tiene)
+  }
+
+  // 2. Si tenemos schema, filtramos: solo mandamos columnas que existen
+  if(sancionesSchema){
+    const filtered = {};
+    Object.keys(working).forEach(k => {
+      if(sancionesSchema.has(k)) filtered[k] = working[k];
+      else console.warn('[insert] columna ignorada (no existe en schema):', k);
+    });
+    // Verificamos que las columnas CRÍTICAS estén presentes
+    const requiredCols = ['cursante_id','falta_id','puntos_aplicados'];
+    const missing = requiredCols.filter(c => !(c in filtered));
+    if(missing.length){
+      return { data:null, error:{ message:`Faltan columnas críticas en el schema: ${missing.join(', ')}. Verifique la estructura de la tabla 'sanciones' en Supabase.` }};
+    }
+    working = filtered;
+  }
+
+  // 3. Intento con auto-heal: si Supabase reporta una columna desconocida, la quitamos y reintentamos
+  let attempt = 0;
+  const MAX_ATTEMPTS = 20;
+
+  while(attempt < MAX_ATTEMPTS){
+    attempt++;
+    try{
+      const { data, error } = await sb.from('sanciones').insert(working).select();
+
+      if(!error){
+        // Éxito → actualizamos el schema cache con cualquier columna nueva
+        if(data && data[0]){
+          sancionesSchema = new Set(Object.keys(data[0]));
+        }
+        return { data, error:null };
+      }
+
+      const msg = String(error.message || error.details || error.hint || '');
+      const match = msg.match(/Could not find the '([^']+)' column/i)
+                 || msg.match(/column "([^"]+)" of relation/i)
+                 || msg.match(/unknown column[: ]+'?([a-z_0-9]+)/i);
+
+      if(match && match[1]){
+        const col = match[1];
+        console.warn(`[autoheal] columna "${col}" no existe → la quito y reintento`);
+        if(sancionesSchema) sancionesSchema.delete(col);
+        delete working[col];
+        // No reintentar si nos quedamos sin columnas críticas
+        if(!working.cursante_id || !working.falta_id){
+          return { data:null, error:{ message:'Se eliminaron demasiadas columnas en el auto-heal. La tabla parece tener un schema inesperado.' }};
+        }
+        continue;
+      }
+
+      // Error que NO es de columna desconocida → no reintentar
+      return { data:null, error };
+
+    }catch(e){
+      return { data:null, error:{ message: e.message || String(e) }};
+    }
+  }
+
+  return { data:null, error:{ message:`Demasiados reintentos (${MAX_ATTEMPTS}). Hay un problema serio con el schema.` }};
+}
+
+/* ==================== BACKUP LOCAL (NUNCA PERDER UNA FIRMA) ==================== */
+const BACKUP_KEY = 'sideceme_sanciones_backup';
+
+function guardarBackupSancion(sancion, errorInfo){
+  try{
+    const lista = obtenerBackups();
+    lista.push({
+      ts: new Date().toISOString(),
+      sancion: sancion,
+      error: errorInfo ? (errorInfo.message || String(errorInfo)) : null
+    });
+    localStorage.setItem(BACKUP_KEY, JSON.stringify(lista));
+    console.log('[backup] sanción guardada localmente, total backups:', lista.length);
+  }catch(e){ console.error('No se pudo guardar backup:', e); }
+}
+
+function obtenerBackups(){
+  try{
+    const raw = localStorage.getItem(BACKUP_KEY);
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){ return []; }
+}
+
+function limpiarBackups(){
+  try{ localStorage.removeItem(BACKUP_KEY); }catch(e){}
+}
+
+async function reintentarBackups(){
+  const lista = obtenerBackups();
+  if(!lista.length){ alert('No hay sanciones pendientes de reintentar.'); return; }
+  let ok = 0, fail = 0;
+  const restantes = [];
+  for(const item of lista){
+    if(!item.sancion || !item.sancion.cursante_id){ continue; }
+    const res = await insertarSancionSegura(item.sancion);
+    if(!res.error){ ok++; }
+    else{ fail++; restantes.push(item); }
+  }
+  // Guardar solo los que siguen fallando
+  try{ localStorage.setItem(BACKUP_KEY, JSON.stringify(restantes)); }catch(_){}
+  alert(`Reintento completado:\n  ✅ ${ok} guardadas con éxito\n  ❌ ${fail} siguen fallando`);
+  if(ok > 0){
+    await loadDiscData();
+    renderProfPanel();
   }
 }
 
