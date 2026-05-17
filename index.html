@@ -1345,7 +1345,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.5 · fix-2da-sanc</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.6 · sec+roles+idle</div>
 
 <svg width="0" height="0" style="position:absolute">
   <defs>
@@ -1903,6 +1903,12 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
       <div class="stat-card" onclick="goDiscSanciones()"><div class="stat-num" id="stat-sanciones">—</div><div class="stat-label">Sanciones</div></div>
       <div class="stat-card danger" onclick="goDiscConsejo()"><div class="stat-num" id="stat-consejo">—</div><div class="stat-label">Consejo</div></div>
     </div>
+
+    <button class="btn-mega" onclick="goProfNuevaSancion()" style="margin:8px 0 16px 0">
+      <span class="mega-icon">📝</span>
+      <span>Registrar nueva sanción</span>
+    </button>
+
     <div id="alert-consejo" class="alert-banner red" style="display:none"><div class="alert-emoji">🚨</div><div class="alert-text"><div class="alert-title" id="alert-consejo-title">— en consejo académico</div><div class="alert-desc">Acumularon 25+ pts perdidos.</div></div></div>
     <div id="alert-observacion" class="alert-banner yellow" style="display:none"><div class="alert-emoji">⚠️</div><div class="alert-text"><div class="alert-title" id="alert-observacion-title">— en observación</div><div class="alert-desc">Entre 11 y 24 pts perdidos.</div></div></div>
     <div class="section-label">Accesos rápidos</div>
@@ -2324,12 +2330,44 @@ function showError(id,msg){
 function saveSession(u,t,r){ sessionStorage.setItem('sideceme_session', JSON.stringify({user:u,tipo:t,role:r})); }
 function getSession(){ const r=sessionStorage.getItem('sideceme_session'); return r?JSON.parse(r):null; }
 function logout(){
+  // Cancelar timer de inactividad si estaba activo
+  if(idleTimer){ clearTimeout(idleTimer); idleTimer = null; }
   sessionStorage.removeItem('sideceme_session');
   currentUser=null; activeRole=null; selectedCargo=null;
   discData={cursantes:[],sanciones:[],profesores:[],byCursanteLost:{},loaded:false,lastSync:null};
   ['docente-ci','docente-pwd','cursante-ci','cursante-pwd'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
   goHome();
 }
+
+/* ==================== AUTO-LOGOUT POR INACTIVIDAD ====================
+   Cierra sesión automáticamente después de 3 minutos sin interacción.
+   Cualquier toque, click, scroll o tecla resetea el contador. */
+const IDLE_TIMEOUT_MS = 180000; // 3 minutos
+let idleTimer = null;
+let idleWarned = false;
+
+function iniciarIdleTimer(){
+  if(idleTimer){ clearTimeout(idleTimer); idleTimer = null; }
+  if(!currentUser) return; // No hay sesión, no hay timer
+  idleWarned = false;
+  idleTimer = setTimeout(() => {
+    if(!currentUser) return;
+    idleWarned = true;
+    alert('⏱️ Sesión cerrada por inactividad (3 minutos sin actividad).\n\nPor seguridad, vuelva a iniciar sesión.');
+    logout();
+  }, IDLE_TIMEOUT_MS);
+}
+
+function resetIdleTimer(){
+  if(!currentUser) return;
+  if(idleWarned) return; // Ya disparó, no hacer nada
+  iniciarIdleTimer();
+}
+
+// Eventos que cuentan como "actividad del usuario"
+['mousedown','touchstart','keydown','click','scroll'].forEach(ev => {
+  document.addEventListener(ev, resetIdleTimer, {passive:true, capture:true});
+});
 
 /* ==================== BIOMETRÍA (WebAuthn) ==================== */
 const BIO_RP_NAME = 'SIDECEME';
@@ -2426,12 +2464,14 @@ async function loginBiometrico(tipo){
       if(error || !data || !data.length){ alert('CI no encontrado. Reactivá biometría.'); bioBorrarCred('docente'); btn.style.display='none'; return; }
       currentUser = data[0]; activeRole = role; selectedCargo = role;
       saveSession(currentUser,'docente',activeRole);
+      iniciarIdleTimer();
       await enterRole(activeRole);
     } else {
       const {data,error} = await sb.from('cursantes').select('*').eq('ci',ci).limit(1);
       if(error || !data || !data.length){ alert('CI no encontrado.'); bioBorrarCred('cursante'); btn.style.display='none'; return; }
       currentUser = data[0];
       saveSession(currentUser,'cursante',null);
+      iniciarIdleTimer();
       await renderCursanteHome();
       showScreen('screen-cursante-home');
     }
@@ -2483,6 +2523,7 @@ async function loginDocente(){
     if(!passwordOK(prof, pwd)){showError('err-docente','Contraseña incorrecta.'); return;}
     currentUser=prof; activeRole=selectedCargo;
     saveSession(prof,'docente',activeRole);
+    iniciarIdleTimer();
     await enterRole(activeRole);
     setTimeout(()=>ofrecerActivarBio('docente'), 600);
   }catch(e){console.error(e); showError('err-docente','Error: '+(e.message||e));}
@@ -2504,6 +2545,7 @@ async function loginCursante(){
     if(!passwordOK(cur, pwd)){showError('err-cursante','Contraseña incorrecta.'); return;}
     currentUser=cur;
     saveSession(cur,'cursante',null);
+    iniciarIdleTimer();
     await renderCursanteHome();
     showScreen('screen-cursante-home');
     setTimeout(()=>ofrecerActivarBio('cursante'), 600);
@@ -2528,7 +2570,9 @@ function passwordOK(usuario, intento){
 }
 
 async function enterRole(role){
-  if(role==='disciplina'){
+  // Comandante y Jefe de Estudios usan el mismo panel que Disciplina
+  // (tienen acceso a las mismas estadísticas, auditorías y reportes).
+  if(role==='disciplina' || role==='comandante' || role==='estudios'){
     await loadDiscData();
     renderDiscPanel();
     showScreen('screen-disc-panel');
@@ -2690,6 +2734,14 @@ function htmlTarjetaAnualDark(cursanteId, opciones){
 
 async function renderCursanteHome(){
   if(!currentUser) return;
+  // === DEFENSA DE SEGURIDAD ===
+  // Solo cursantes pueden ver este panel.
+  const _sess = getSession();
+  if(_sess && _sess.tipo !== 'cursante'){
+    console.error('[SEGURIDAD] Acceso denegado a panel-cursante: tipo de sesión =', _sess.tipo);
+    logout();
+    return;
+  }
   // Si no hay data cargada, la cargamos primero (para tener sanciones, etc.)
   if(!discData.loaded){ try{ await loadDiscData(); }catch(e){ console.warn(e); } }
 
@@ -3066,6 +3118,14 @@ function getEstado(p){
 
 function renderDiscPanel(){
   if(!currentUser) return;
+  // === DEFENSA DE SEGURIDAD ===
+  const s = getSession();
+  if(s && s.tipo !== 'docente'){
+    console.error('[SEGURIDAD] Acceso denegado a panel-disciplina: tipo de sesión =', s.tipo);
+    alert('Acceso no autorizado. Su cuenta es de cursante, no puede acceder a este panel.');
+    logout();
+    return;
+  }
   const name=currentUser.nombre_completo||'Docente';
   const initials=name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
   document.getElementById('disc-name').textContent=name;
@@ -3073,7 +3133,9 @@ function renderDiscPanel(){
   document.getElementById('disc-initials').textContent=initials||'—';
   const today=new Date();
   const fecha=today.toLocaleDateString('es-BO',{day:'2-digit',month:'2-digit',year:'numeric'});
-  document.getElementById('disc-subtitle').textContent=`Jefe de Sección · ${fecha}`;
+  // Subtítulo dinámico según el cargo que está usando
+  const cargoNombre = (CARGOS[activeRole] && CARGOS[activeRole].nombre) || 'Jefe de Sección';
+  document.getElementById('disc-subtitle').textContent=`${cargoNombre} · ${fecha}`;
 
   const activosCursantes = discData.cursantes.filter(c=>c.activo!==false).length;
   document.getElementById('stat-cursantes').textContent = activosCursantes;
@@ -5094,6 +5156,16 @@ function restaurarModoPrueba(){
 
 function renderProfPanel(){
   if(!currentUser) return;
+  // === DEFENSA DE SEGURIDAD ===
+  // Solo registros de la tabla 'profesores' pueden ver este panel.
+  // Si alguien con sesión de cursante llega acá, lo expulsamos.
+  const s = getSession();
+  if(s && s.tipo !== 'docente'){
+    console.error('[SEGURIDAD] Acceso denegado a panel-profesor: tipo de sesión =', s.tipo);
+    alert('Acceso no autorizado. Su cuenta es de cursante, no puede acceder al panel de profesor.');
+    logout();
+    return;
+  }
   const name = currentUser.nombre_completo || 'Profesor';
   const initials = name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
   document.getElementById('prof-name').textContent = nombreConGrado(currentUser);
@@ -5401,7 +5473,7 @@ function verDetalleSancion(sancionId){
   }
 
   // Acciones
-  html += `<button class="btn-papeleta" onclick="goProfPanel()">← Volver al panel</button>`;
+  html += `<button class="btn-papeleta" onclick="goAnyPanel()">← Volver al panel</button>`;
 
   document.getElementById('det-content').innerHTML = html;
   showScreen('screen-prof-detalle-sancion');
@@ -5461,6 +5533,18 @@ function mostrarAvisoBackupSiAplica(){
 function goProfPanel(){
   renderProfPanel();
   showScreen('screen-prof-panel');
+}
+
+// === Volver al panel principal del rol activo ===
+// Profesor → panel profesor; Disciplina / Comandante / Jefe Estudios → panel disciplina
+function goAnyPanel(){
+  if(activeRole === 'profesor'){
+    goProfPanel();
+  } else if(activeRole === 'disciplina' || activeRole === 'comandante' || activeRole === 'estudios'){
+    goDiscPanel();
+  } else {
+    goProfPanel();  // fallback
+  }
 }
 
 function goProfNuevaSancion(){
@@ -6392,7 +6476,7 @@ function mostrarFichaFinal(sancion, tokenQR){
 
   // Acciones
   html += `<button class="btn-papeleta primary" onclick="copiarUrlFirma('${escapeAttr(urlQR)}')">📋 Copiar enlace de firma</button>`;
-  html += `<button class="btn-papeleta" onclick="goProfPanel()">🏠 Volver al panel</button>`;
+  html += `<button class="btn-papeleta" onclick="goAnyPanel()">🏠 Volver al panel</button>`;
   html += `<button class="btn-papeleta" onclick="goProfNuevaSancion()">➕ Registrar otra sanción</button>`;
 
   document.getElementById('ficha-content').innerHTML = html;
@@ -7065,6 +7149,7 @@ function goHomeFromFirma(){
   const s=getSession();
   if(!s) return;
   currentUser=s.user;
+  iniciarIdleTimer();  // Arrancar contador de inactividad al restaurar sesión
   if(s.tipo==='docente' && s.role){
     activeRole=s.role;
     await enterRole(activeRole);
