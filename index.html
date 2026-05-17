@@ -3,7 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>SIDECEME — Sistema de Disciplina Escolar</title>
+<title>SIDECEME — Escuela de Comando y Estado Mayor</title>
+<meta name="description" content="SIDECEME · Sistema Disciplinario de la ECEME · Ser antes que parecer">
+
+<!-- PWA: instalable en Android, iOS y otros dispositivos -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1a1f3a">
+<meta name="application-name" content="SIDECEME">
+
+<!-- iOS: agregar a pantalla de inicio con icono propio -->
+<link rel="apple-touch-icon" sizes="180x180" href="assets/icon-sideceme.png">
+<link rel="apple-touch-icon" href="assets/icon-sideceme.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SIDECEME">
+
+<!-- Favicon -->
+<link rel="icon" type="image/png" sizes="512x512" href="assets/icon-sideceme.png">
+<link rel="shortcut icon" href="assets/icon-sideceme.png">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -1340,12 +1359,189 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* ============================================================
+   HOME V3 — Diseño SIDECEME con 3 escudos + estética metálica
+   Inspirado en imagen 4 (referencia visual del Tcnl. Morales)
+   ============================================================ */
+.home-v3-container{
+  min-height:100vh;
+  padding:24px 18px 56px;
+  display:flex;flex-direction:column;align-items:center;
+  background:
+    radial-gradient(ellipse at top, rgba(212,175,55,.08), transparent 55%),
+    radial-gradient(circle at 50% 90%, rgba(40,30,12,.5), transparent 60%),
+    linear-gradient(180deg, #0a0f1c 0%, #050a14 100%);
+}
+.home-v3-crest-row{
+  display:flex;align-items:center;justify-content:center;
+  gap:14px;width:100%;max-width:480px;
+  margin-top:16px;margin-bottom:18px;
+}
+.home-v3-side-crest{
+  width:74px;height:74px;
+  object-fit:contain;
+  filter:drop-shadow(0 4px 10px rgba(0,0,0,.7)) drop-shadow(0 0 6px rgba(212,175,55,.15));
+  flex-shrink:0;
+}
+.home-v3-main-icon{
+  width:134px;height:134px;
+  object-fit:contain;
+  border-radius:24px;
+  box-shadow:
+    0 0 0 2px rgba(212,175,55,.55),
+    0 0 0 4px rgba(0,0,0,.6),
+    0 0 28px rgba(212,175,55,.22),
+    0 10px 28px rgba(0,0,0,.65);
+  flex-shrink:0;
+}
+.home-v3-title{
+  font-family:var(--font-display);
+  font-size:42px;font-weight:700;
+  letter-spacing:7px;
+  color:#f4d57a;
+  text-shadow:0 2px 6px rgba(0,0,0,.65), 0 0 16px rgba(212,175,55,.18);
+  margin-top:10px;text-align:center;
+}
+.home-v3-institute{
+  font-family:var(--font-display);
+  font-size:12px;letter-spacing:3px;
+  color:var(--text-secondary);
+  text-transform:uppercase;
+  margin-top:10px;text-align:center;
+}
+.home-v3-institute-sub{
+  font-family:var(--font-display);
+  font-size:11px;letter-spacing:2.5px;
+  color:var(--text-muted);
+  font-style:italic;
+  margin-top:4px;text-align:center;
+}
+.home-v3-motto{
+  font-family:var(--font-display);
+  font-size:13px;letter-spacing:5px;font-weight:600;
+  color:var(--gold-light);
+  margin-top:22px;
+  padding:10px 26px;
+  border-top:1px solid rgba(212,175,55,.35);
+  border-bottom:1px solid rgba(212,175,55,.35);
+  text-align:center;
+  text-shadow:0 1px 2px rgba(0,0,0,.6);
+}
+.home-v3-divider{
+  width:64px;height:2px;
+  background:linear-gradient(90deg, transparent, var(--gold), transparent);
+  margin:28px 0 22px;
+}
+.home-v3-cards{
+  width:100%;max-width:420px;
+  display:flex;flex-direction:column;gap:22px;
+}
+
+/* === TARJETAS METÁLICAS (estilo imagen 4: bronce/fierro embossed) === */
+.metal-card{
+  position:relative;
+  padding:22px 22px 20px;
+  border-radius:14px;
+  cursor:pointer;
+  background:
+    radial-gradient(circle at 25% 15%, rgba(212,175,55,.14), transparent 55%),
+    linear-gradient(135deg, #2c2218 0%, #1a1410 50%, #2c2218 100%);
+  border:1px solid #4a3a20;
+  box-shadow:
+    inset 0 1px 0 rgba(255,225,160,.22),
+    inset 0 -2px 0 rgba(0,0,0,.55),
+    0 8px 20px rgba(0,0,0,.55),
+    0 0 0 1px rgba(0,0,0,.4);
+  transition:transform .22s ease, box-shadow .22s ease;
+  isolation:isolate;
+}
+/* Marco interno dorado (segundo borde decorativo) */
+.metal-card::before{
+  content:'';position:absolute;inset:5px;
+  border:1px solid rgba(212,175,55,.32);
+  border-radius:9px;
+  pointer-events:none;
+}
+/* Halo tricolor boliviano detrás de la tarjeta (sutil, como imagen 4) */
+.metal-card::after{
+  content:'';position:absolute;inset:-3px;
+  border-radius:17px;
+  background:linear-gradient(135deg,
+    rgba(220,30,30,0) 0%,
+    rgba(220,30,30,.45) 18%,
+    rgba(245,200,40,.42) 50%,
+    rgba(40,160,80,.45) 82%,
+    rgba(40,160,80,0) 100%);
+  filter:blur(7px);
+  z-index:-1;
+  opacity:.5;
+  transition:opacity .22s;
+}
+.metal-card:hover{transform:translateY(-2px)}
+.metal-card:hover::after{opacity:.75}
+.metal-card:active{transform:translateY(0)}
+.metal-card-icon-wrap{
+  display:inline-block;
+  margin-bottom:14px;
+}
+.metal-card-icon{
+  width:58px;height:58px;
+  background:linear-gradient(135deg, #f4d57a 0%, #d4af37 45%, #8a6f17 100%);
+  border-radius:11px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:30px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,245,200,.75),
+    inset 0 -2px 0 rgba(80,60,20,.6),
+    0 4px 7px rgba(0,0,0,.55),
+    0 0 0 1px rgba(40,30,10,.85);
+}
+.metal-card-title{
+  font-family:var(--font-display);
+  font-size:19px;font-weight:700;
+  letter-spacing:3px;
+  color:#f4d57a;
+  text-transform:uppercase;
+  text-shadow:0 1px 2px rgba(0,0,0,.6);
+  margin-bottom:7px;
+}
+.metal-card-desc{
+  font-size:13px;line-height:1.55;
+  color:#b8b29d;
+  font-style:italic;
+}
+
+/* Mejoras al cargar la pantalla — entrada suave */
+.home-v3-crest-row, .home-v3-title, .home-v3-institute, .home-v3-motto, .home-v3-cards{
+  animation:home-v3-fade .55s ease both;
+}
+.home-v3-title{animation-delay:.05s}
+.home-v3-institute{animation-delay:.1s}
+.home-v3-motto{animation-delay:.2s}
+.home-v3-cards{animation-delay:.3s}
+@keyframes home-v3-fade{
+  from{opacity:0;transform:translateY(6px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+/* Responsive móvil — celulares angostos */
+@media (max-width:380px){
+  .home-v3-crest-row{gap:10px}
+  .home-v3-side-crest{width:62px;height:62px}
+  .home-v3-main-icon{width:110px;height:110px;border-radius:20px}
+  .home-v3-title{font-size:34px;letter-spacing:5px}
+  .home-v3-motto{font-size:12px;letter-spacing:3.5px;padding:9px 20px}
+  .metal-card{padding:20px 18px}
+  .metal-card-title{font-size:17px;letter-spacing:2.5px}
+  .metal-card-icon{width:52px;height:52px;font-size:27px}
+}
+
 </style>
 </head>
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.6 · sec+roles+idle</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.7 · home+pwa</div>
 
 <svg width="0" height="0" style="position:absolute">
   <defs>
@@ -1363,15 +1559,28 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 
 <!-- HOME -->
 <section id="screen-home" class="screen active">
-  <div class="home-container">
-    <div class="crest-large"><svg><use href="#crest"/></svg></div>
-    <h1 class="home-title">SIDECEME</h1>
-    <div class="home-sub">Sistema de Disciplina Escolar</div>
-    <div class="home-institute">ECEME — Escuela de Comando y Estado Mayor</div>
-    <div class="divider"></div>
-    <div class="access-cards">
-      <div class="access-card" onclick="goCargos()"><div class="icon">⚔️</div><h3>Plantel Docente</h3><p>Acceso para personal docente y administrativo</p></div>
-      <div class="access-card" onclick="goLoginCursante()"><div class="icon">🎖️</div><h3>Cursantes</h3><p>Acceso para cursantes registrados de la ECEME</p></div>
+  <div class="home-v3-container">
+    <div class="home-v3-crest-row">
+      <img src="assets/escudo-eceme.png" alt="ECEME" class="home-v3-side-crest" onerror="this.style.display='none'">
+      <img src="assets/icon-sideceme.png" alt="SIDECEME" class="home-v3-main-icon" onerror="this.style.display='none'">
+      <img src="assets/escudo-ejercito.png" alt="Ejército de Bolivia" class="home-v3-side-crest" onerror="this.style.display='none'">
+    </div>
+    <h1 class="home-v3-title">SIDECEME</h1>
+    <div class="home-v3-institute">Escuela de Comando y Estado Mayor</div>
+    <div class="home-v3-institute-sub">«Mariscal Andrés de Santa Cruz»</div>
+    <div class="home-v3-motto">« SER ANTES QUE PARECER »</div>
+    <div class="home-v3-divider"></div>
+    <div class="home-v3-cards">
+      <div class="metal-card" onclick="goCargos()" role="button" tabindex="0">
+        <div class="metal-card-icon-wrap"><div class="metal-card-icon">⚔️</div></div>
+        <h3 class="metal-card-title">Plantel Docente</h3>
+        <p class="metal-card-desc">Acceso para personal docente y administrativo</p>
+      </div>
+      <div class="metal-card" onclick="goLoginCursante()" role="button" tabindex="0">
+        <div class="metal-card-icon-wrap"><div class="metal-card-icon">🎖️</div></div>
+        <h3 class="metal-card-title">Cursantes</h3>
+        <p class="metal-card-desc">Acceso para cursantes registrados de la ECEME</p>
+      </div>
     </div>
   </div>
 </section>
@@ -4868,7 +5077,7 @@ async function copyAppUrl(){
 async function shareApp(){
   const url = document.getElementById('app-url').textContent;
   if(navigator.share){
-    try{ await navigator.share({title:'SIDECEME', text:'Sistema de Disciplina Escolar - ECEME', url}); }
+    try{ await navigator.share({title:'SIDECEME', text:'SIDECEME — Escuela de Comando y Estado Mayor «Mariscal Andrés de Santa Cruz»', url}); }
     catch(e){ /* canceló */ }
   } else {
     copyAppUrl();

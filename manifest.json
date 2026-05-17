@@ -1,0 +1,38 @@
+{
+  "name": "SIDECEME",
+  "short_name": "SIDECEME",
+  "description": "Sistema Disciplinario ECEME — Escuela de Comando y Estado Mayor \"Mariscal Andrés de Santa Cruz\"",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0f1c",
+  "theme_color": "#1a1f3a",
+  "lang": "es-BO",
+  "icons": [
+    {
+      "src": "assets/icon-sideceme.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-sideceme.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "assets/icon-sideceme.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "assets/icon-sideceme.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
