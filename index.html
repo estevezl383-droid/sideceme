@@ -1386,14 +1386,14 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   flex-shrink:0;
 }
 .home-v3-main-icon{
-  width:108px;height:108px;
+  width:160px;height:160px;
   object-fit:contain;
-  border-radius:20px;
+  border-radius:28px;
   box-shadow:
-    0 0 0 2px rgba(212,175,55,.55),
+    0 0 0 2px rgba(212,175,55,.6),
     0 0 0 4px rgba(0,0,0,.55),
-    0 0 22px rgba(212,175,55,.2),
-    0 8px 22px rgba(0,0,0,.65);
+    0 0 32px rgba(212,175,55,.25),
+    0 12px 28px rgba(0,0,0,.7);
   flex-shrink:0;
 }
 .home-v3-title{
@@ -1535,9 +1535,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 
 /* Responsive — celulares angostos */
 @media (max-width:380px){
-  .home-v3-crest-row{gap:10px}
-  .home-v3-side-crest{height:74px;max-width:88px}
-  .home-v3-main-icon{width:92px;height:92px;border-radius:16px}
+  .home-v3-main-icon{width:140px;height:140px;border-radius:24px}
   .home-v3-title{font-size:32px;letter-spacing:5px}
   .home-v3-motto{font-size:12px;letter-spacing:3.5px;padding:9px 20px}
   .metal-card{padding:18px 18px}
@@ -1550,7 +1548,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.8.1 · swap-escudos</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.8.2 · solo-centro</div>
 
 <svg width="0" height="0" style="position:absolute">
   <defs>
@@ -1570,9 +1568,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 <section id="screen-home" class="screen active">
   <div class="home-v3-container">
     <div class="home-v3-crest-row">
-      <img src="assets/escudo-ejercito.png" alt="Ejército de Bolivia" class="home-v3-side-crest" onerror="this.style.display='none'">
       <img src="assets/icon-sideceme.png" alt="SIDECEME" class="home-v3-main-icon" onerror="this.style.display='none'">
-      <img src="assets/escudo-eceme.png" alt="ECEME" class="home-v3-side-crest" onerror="this.style.display='none'">
     </div>
     <h1 class="home-v3-title">SIDECEME</h1>
     <div class="home-v3-institute">Escuela de Comando y Estado Mayor</div>
