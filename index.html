@@ -963,6 +963,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .ms-card.firmada{border-left-color:#4ca36b;background:linear-gradient(90deg,rgba(76,163,107,.08),rgba(17,32,58,.6))}
 .ms-card.pendiente{border-left-color:#c84a4a;background:linear-gradient(90deg,rgba(200,74,74,.06),rgba(17,32,58,.6))}
 .ms-card.prueba{border-left-color:#e0a83a;background:linear-gradient(90deg,rgba(224,168,58,.06),rgba(17,32,58,.6))}
+.ms-card.analogica{border-left-color:#888;background:linear-gradient(90deg,rgba(140,140,140,.08),rgba(17,32,58,.6))}
 
 .ms-card .ms-icon{
   flex-shrink:0;width:38px;height:38px;border-radius:50%;
@@ -972,6 +973,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .ms-card.firmada .ms-icon{background:rgba(76,163,107,.18);color:#9bcfa9}
 .ms-card.pendiente .ms-icon{background:rgba(200,74,74,.18);color:#e8a8a8}
 .ms-card.prueba .ms-icon{background:rgba(224,168,58,.18);color:#e8c87a}
+.ms-card.analogica .ms-icon{background:rgba(160,160,160,.2);color:#c8c8c8}
 
 .ms-card .ms-body{flex:1;min-width:0}
 .ms-card .ms-row1{
@@ -1003,6 +1005,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .ms-card .ms-badge.firmada{background:rgba(76,163,107,.22);color:#9bcfa9;border:1px solid rgba(76,163,107,.35)}
 .ms-card .ms-badge.pendiente{background:rgba(200,74,74,.22);color:#e8a8a8;border:1px solid rgba(200,74,74,.35)}
 .ms-card .ms-badge.prueba{background:rgba(224,168,58,.18);color:#e8c87a;border:1px solid rgba(224,168,58,.35)}
+.ms-card .ms-badge.analogica{background:rgba(160,160,160,.2);color:#c8c8c8;border:1px solid rgba(160,160,160,.35)}
 
 .ms-empty{
   background:rgba(17,32,58,.4);border:1px dashed var(--border-subtle);
@@ -1134,6 +1137,10 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 #cur-historial-list .ms-card.firmada{border-left-color:#3a7050;background:linear-gradient(90deg,rgba(76,163,107,.15),rgba(254,245,224,.85))}
 #cur-sanciones-list .ms-card.pendiente,
 #cur-historial-list .ms-card.pendiente{border-left-color:#a83a3a;background:linear-gradient(90deg,rgba(200,74,74,.1),rgba(254,245,224,.85))}
+#cur-sanciones-list .ms-card.analogica,
+#cur-historial-list .ms-card.analogica{border-left-color:#787878;background:linear-gradient(90deg,rgba(160,160,160,.2),rgba(254,245,224,.85))}
+#cur-sanciones-list .ms-card.prueba,
+#cur-historial-list .ms-card.prueba{border-left-color:#c89030;background:linear-gradient(90deg,rgba(224,168,58,.18),rgba(254,245,224,.85))}
 #cur-sanciones-list .ms-empty,
 #cur-historial-list .ms-empty{background:rgba(254,245,224,.6);border-color:rgba(212,175,55,.4);color:#5c4a1a}
 
@@ -2308,20 +2315,29 @@ async function renderCursanteHome(){
 
   const name = currentUser.nombre_completo||'Cursante';
   const initials = name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  // Nombre con formato militar completo: "My. Inf. Pereira Arevalo Brayan Alberto"
   document.getElementById('cursante-name').textContent = nombreConGrado(currentUser);
-  const grado = [currentUser.grado||'', currentUser.arma||''].filter(Boolean).join(' · ');
+  // Subtítulo: solo ciclo + CI (sin repetir grado/arma)
   const cycloPar = [currentUser.ciclo, currentUser.paralelo].filter(Boolean).join(' "') + (currentUser.paralelo?'"':'');
-  document.getElementById('cursante-id').textContent = [grado, cycloPar, `CI ${currentUser.ci||'—'}`].filter(Boolean).join(' · ');
+  document.getElementById('cursante-id').textContent = [cycloPar, `CI ${currentUser.ci||'—'}`].filter(Boolean).join(' · ');
   document.getElementById('cursante-initials').textContent = initials||'—';
   document.getElementById('cursante-header-sub').textContent = cycloPar || 'Cursante ECEME';
 
-  // Sanciones del cursante (solo REALES — las de prueba no cuentan)
-  const misSanciones = (discData.byCursanteSanc[currentUser.id] || [])
-    .filter(s => !s.anulada && s.es_prueba !== true);
-  const cantSanciones = misSanciones.length;
-  const puntosPerdidos = misSanciones.reduce((acc,s) => acc + (Number(s.puntos_aplicados)||0), 0);
+  // Sanciones del cursante: incluye REALES + PRUEBA (para que pueda probar el flujo end-to-end)
+  // Las analógicas también cuentan al puntaje de deméritos (son las 485 ya cargadas).
+  const todasSanciones = (discData.byCursanteSanc[currentUser.id] || [])
+    .filter(s => !s.anulada);
+  // Sumar deméritos: TODAS las no anuladas (analógicas + digitales firmadas + digitales pendientes + prueba)
+  const cantSanciones = todasSanciones.length;
+  const puntosPerdidos = todasSanciones.reduce((acc,s) => acc + (Number(s.puntos_aplicados)||0), 0);
   const nota = calcularNotaDisciplinaria(puntosPerdidos);
   const estado = getEstadoCursante(puntosPerdidos);
+
+  // Para mostrar separadamente el desglose
+  const cantPrueba = todasSanciones.filter(s => s.es_prueba === true).length;
+  const cantAnalogicas = todasSanciones.filter(s => esSancionAnalogica(s)).length;
+  const cantDigitalesFirmadas = todasSanciones.filter(s => !esSancionAnalogica(s) && (s.confirmacion_estado==='firmada' || s.confirmacion_estado==='aceptada' || s.firma_cursante) && !s.es_prueba).length;
+  const cantDigitalesPendientes = todasSanciones.filter(s => !esSancionAnalogica(s) && !s.firma_cursante && s.confirmacion_estado!=='firmada' && s.confirmacion_estado!=='aceptada' && !s.es_prueba).length;
 
   // Actualizar círculo grande
   const circle = document.getElementById('cur-nota-circle');
@@ -2357,14 +2373,14 @@ async function renderCursanteHome(){
   }
 
   // Listado de sanciones (en el tab Inicio — las 5 más recientes)
-  renderCursanteSancionesInline(misSanciones.slice().sort((a,b)=>{
+  renderCursanteSancionesInline(todasSanciones.slice().sort((a,b)=>{
     const fa = new Date(a.firmada_prof_en||a.fecha_creacion||a.created_at||0).getTime();
     const fb = new Date(b.firmada_prof_en||b.fecha_creacion||b.created_at||0).getTime();
     return fb-fa;
   }), 'cur-sanciones-list', 5);
 
   // Y el historial completo en el tab Historial
-  renderCursanteSancionesInline(misSanciones.slice().sort((a,b)=>{
+  renderCursanteSancionesInline(todasSanciones.slice().sort((a,b)=>{
     const fa = new Date(a.firmada_prof_en||a.fecha_creacion||a.created_at||0).getTime();
     const fb = new Date(b.firmada_prof_en||b.fecha_creacion||b.created_at||0).getTime();
     return fb-fa;
@@ -2388,15 +2404,33 @@ function renderCursanteSancionesInline(sanciones, containerId, limit){
   }
 
   cont.innerHTML = lista.map(s => {
-    const firmada = s.confirmacion_estado === 'firmada' || s.confirmacion_estado === 'aceptada' || !!s.firma_cursante;
-    const claseCard = firmada ? 'firmada' : 'pendiente';
-    const icono = firmada ? '✅' : '⏳';
+    const analogica = esSancionAnalogica(s);
+    const firmada = !analogica && (s.confirmacion_estado === 'firmada' || s.confirmacion_estado === 'aceptada' || !!s.firma_cursante);
+    const esPrueba = !analogica && s.es_prueba === true;
+    let claseCard, icono, badge;
+    if(analogica){
+      claseCard = 'analogica';
+      icono = '📜';
+      badge = '<span class="ms-badge analogica">📜 Pre-digital</span>';
+    } else if(firmada){
+      claseCard = 'firmada';
+      icono = '✅';
+      badge = '<span class="ms-badge firmada">✅ Firmada</span>';
+    } else if(esPrueba){
+      claseCard = 'prueba';
+      icono = '🧪';
+      badge = '<span class="ms-badge prueba">🧪 Prueba</span>';
+    } else {
+      claseCard = 'pendiente';
+      icono = '⏳';
+      badge = '<span class="ms-badge pendiente">⏳ Pendiente firma</span>';
+    }
     const fecha = s.firmada_prof_en || s.fecha_creacion || s.created_at;
     const fechaTxt = fecha ? new Date(fecha).toLocaleDateString('es-BO',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
-    const profNombre = (s.profesor_nombre||'').split(' ').slice(-2).join(' ') || 'Profesor';
-    const badge = firmada
-      ? '<span class="ms-badge firmada">✅ Firmada</span>'
-      : '<span class="ms-badge pendiente">⏳ Pendiente firma</span>';
+    // El profesor también con grado: buscar en discData.profesores
+    const profId = s.profesor_id;
+    const profObj = discData.profesores && discData.profesores.find ? discData.profesores.find(p => p.id === profId) : null;
+    const profNombre = profObj ? gradoApellido(profObj) : (s.profesor_nombre || 'Profesor');
     const desc = (s.falta_descripcion||'').slice(0,60) + ((s.falta_descripcion||'').length>60?'…':'');
     return `<div class="ms-card ${claseCard}" onclick="verDetalleSancionCursante('${escapeAttr(s.id)}')">
       <div class="ms-icon">${icono}</div>
@@ -3834,20 +3868,18 @@ function renderProfPanel(){
   if(!currentUser) return;
   const name = currentUser.nombre_completo || 'Profesor';
   const initials = name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
-  document.getElementById('prof-name').textContent = name;
-  document.getElementById('prof-rank').textContent = [currentUser.grado||'', currentUser.arma||''].filter(Boolean).join(' · ') || 'Plantel docente';
+  document.getElementById('prof-name').textContent = nombreConGrado(currentUser);
+  document.getElementById('prof-rank').textContent = 'Plantel docente ECEME';
   document.getElementById('prof-initials').textContent = initials || '—';
 
   // Restaurar y reflejar modo prueba
   restaurarModoPrueba();
   setModoPrueba(MODO_PRUEBA);
 
-  // Saludo según hora del día
+  // Saludo según hora del día — formato militar: "Buenas noches, My. DEM. Morales Millan"
   const h = new Date().getHours();
   const saludo = h<12 ? 'Buenos días' : (h<19 ? 'Buenas tardes' : 'Buenas noches');
-  const grado = currentUser.grado ? `${currentUser.grado} ` : '';
-  const apellido = name.split(' ').slice(-1)[0] || '';
-  document.getElementById('prof-greeting').textContent = `${saludo}, ${grado}${apellido}`;
+  document.getElementById('prof-greeting').textContent = `${saludo}, ${gradoApellido(currentUser)}`;
 
   // Estadísticas (incluye prueba para que vea el profesor su actividad)
   const misSanciones = discData.sanciones.filter(s => s.profesor_id === currentUser.id);
@@ -3898,9 +3930,9 @@ function renderMisSancionesInline(){
       try{ return new Date(f) >= inicioMes; }catch(e){ return false; }
     });
   } else if(misSancionesFiltro === 'pendientes'){
-    lista = lista.filter(s => s.confirmacion_estado !== 'firmada' && s.confirmacion_estado !== 'aceptada' && !s.firma_cursante);
+    lista = lista.filter(s => !esSancionAnalogica(s) && s.confirmacion_estado !== 'firmada' && s.confirmacion_estado !== 'aceptada' && !s.firma_cursante);
   } else if(misSancionesFiltro === 'firmadas'){
-    lista = lista.filter(s => s.confirmacion_estado === 'firmada' || s.confirmacion_estado === 'aceptada' || s.firma_cursante);
+    lista = lista.filter(s => !esSancionAnalogica(s) && (s.confirmacion_estado === 'firmada' || s.confirmacion_estado === 'aceptada' || s.firma_cursante));
   }
 
   // Ordenar por fecha descendente (las más nuevas primero)
@@ -3919,19 +3951,33 @@ function renderMisSancionesInline(){
   }
 
   cont.innerHTML = lista.map(s => {
-    const firmada = s.confirmacion_estado === 'firmada' || s.confirmacion_estado === 'aceptada' || !!s.firma_cursante;
-    const esPrueba = s.es_prueba === true;
-    const claseCard = firmada ? 'firmada' : (esPrueba ? 'prueba pendiente' : 'pendiente');
-    const icono = firmada ? '✅' : (esPrueba ? '🧪' : '⏳');
+    const analogica = esSancionAnalogica(s);
+    const firmada = !analogica && (s.confirmacion_estado === 'firmada' || s.confirmacion_estado === 'aceptada' || !!s.firma_cursante);
+    const esPrueba = !analogica && s.es_prueba === true;
+    let claseCard, icono, badge;
+    if(analogica){
+      claseCard = 'analogica';
+      icono = '📜';
+      badge = '<span class="ms-badge analogica">📜 Pre-digital</span>';
+    } else if(firmada){
+      claseCard = 'firmada';
+      icono = '✅';
+      badge = '<span class="ms-badge firmada">✅ Firmada</span>';
+    } else if(esPrueba){
+      claseCard = 'prueba';
+      icono = '🧪';
+      badge = '<span class="ms-badge prueba">🧪 Prueba — pendiente</span>';
+    } else {
+      claseCard = 'pendiente';
+      icono = '⏳';
+      badge = '<span class="ms-badge pendiente">⏳ Pendiente firma</span>';
+    }
     const fecha = s.firmada_prof_en || s.fecha_creacion || s.created_at || s.fecha;
     const fechaTxt = fecha ? new Date(fecha).toLocaleDateString('es-BO',{day:'2-digit',month:'2-digit',year:'2-digit'}) + ' ' + new Date(fecha).toLocaleTimeString('es-BO',{hour:'2-digit',minute:'2-digit'}) : '—';
-    const cursNombre = s.cursante_nombre || s.cursante_id || '—';
-    const cortado = cursNombre.length > 38 ? cursNombre.slice(0,36)+'…' : cursNombre;
-    const badge = firmada
-      ? '<span class="ms-badge firmada">✅ Firmada</span>'
-      : (esPrueba
-        ? '<span class="ms-badge prueba">🧪 Prueba</span>'
-        : '<span class="ms-badge pendiente">⏳ Pendiente firma</span>');
+    const cursId = s.cursante_id;
+    const curObj = discData.cursantes.find(c => c.id === cursId);
+    const cursNombre = curObj ? nombreConGrado(curObj) : (s.cursante_nombre || '—');
+    const cortado = cursNombre.length > 42 ? cursNombre.slice(0,40)+'…' : cursNombre;
     return `<div class="ms-card ${claseCard}" onclick="verDetalleSancion('${escapeAttr(s.id)}')">
       <div class="ms-icon">${icono}</div>
       <div class="ms-body">
@@ -3976,17 +4022,24 @@ function verDetalleSancion(sancionId){
   };
   const fullName = nombreConGrado(cur);
   const cycloPar = [cur.ciclo, cur.paralelo].filter(Boolean).join(' "') + (cur.paralelo?'"':'');
-  const fechaProf = s.firmada_prof_en ? new Date(s.firmada_prof_en).toLocaleString('es-BO')
-                   : (s.fecha_creacion ? new Date(s.fecha_creacion).toLocaleString('es-BO') : '—');
+  const fechaRaw = s.firmada_prof_en || s.fecha_creacion || s.created_at || s.fecha || s.fecha_sancion || s.fecha_registro;
+  const fechaProf = fechaRaw ? new Date(fechaRaw).toLocaleString('es-BO') : '—';
   const firmada = s.confirmacion_estado === 'firmada' || s.confirmacion_estado === 'aceptada' || !!s.firma_cursante;
 
   document.getElementById('det-folio').textContent = `SANCIÓN ${s.folio || (s.id||'').slice(0,10)}`;
   document.getElementById('det-fecha').textContent = fechaProf;
 
   let html = '';
+  const analogica = esSancionAnalogica(s);
 
   // Status
-  if(firmada){
+  if(analogica){
+    html += `<div class="ficha-status" style="background:linear-gradient(135deg,#888,#666);color:#fff">
+      <div class="fs-icon">📜</div>
+      <div class="fs-title">Sanción pre-digital</div>
+      <div class="fs-sub">Registro cargado del sistema anterior — no requiere firma electrónica</div>
+    </div>`;
+  } else if(firmada){
     html += `<div class="ficha-status firmada">
       <div class="fs-icon">✅</div>
       <div class="fs-title">Sanción firmada</div>
@@ -4051,10 +4104,12 @@ function verDetalleSancion(sancionId){
   }
 
   // Profesor que registra
+  const profId = s.profesor_id;
+  const profObj = discData.profesores && discData.profesores.find ? discData.profesores.find(p => p.id === profId) : null;
+  const profDisplay = profObj ? nombreConGrado(profObj) : (s.profesor_nombre || '').toUpperCase();
   html += `<div class="papeleta-block">
     <div class="pb-title">👨‍🏫 Registrada por</div>
-    <div class="pb-row"><span class="pb-lbl">Profesor</span><span class="pb-val">${escapeHtml((s.profesor_nombre||'').toUpperCase())}</span></div>
-    ${s.profesor_grado?`<div class="pb-row"><span class="pb-lbl">Grado</span><span class="pb-val">${escapeHtml(s.profesor_grado)}</span></div>`:''}
+    <div class="pb-row"><span class="pb-lbl">Profesor</span><span class="pb-val">${escapeHtml(profDisplay)}</span></div>
     <div class="pb-row"><span class="pb-lbl">Fecha y hora</span><span class="pb-val">${fechaProf}</span></div>
   </div>`;
 
@@ -4202,14 +4257,34 @@ function goProfBuscarCursante(){
   showScreen('screen-prof-buscar-cursante');
 }
 
-// Construye el nombre con grado militar si está disponible
+// Construye el nombre con grado militar y arma/especialidad
+// Formato: "<Grado> <Arma> <Nombre Completo>" → ej "My. Inf. Julio Cesar Castro Salazar"
 function nombreConGrado(c){
   if(!c) return '—';
-  const partes = [];
-  if(c.grado) partes.push(c.grado);
-  if(c.arma) partes.push(c.arma);
-  const prefix = partes.length ? partes.join(' ') + ' ' : '';
-  return prefix + (c.nombre_completo || '');
+  const grado = (c.grado || c.grado_militar || c.rango || '').toString().trim();
+  const arma = (c.arma || c.especialidad || c.categoria_militar || '').toString().trim();
+  const nombre = (c.nombre_completo || c.nombre || '').toString().trim();
+  const partes = [grado, arma, nombre].filter(Boolean);
+  return partes.length ? partes.join(' ') : (nombre || '—');
+}
+
+// Sólo el apellido + grado para saludos/encabezados militares
+// Ej "My. Inf. Castro Salazar"
+function gradoApellido(c){
+  if(!c) return '';
+  const grado = (c.grado || c.grado_militar || c.rango || '').toString().trim();
+  const arma = (c.arma || c.especialidad || '').toString().trim();
+  const nombre = (c.nombre_completo || c.nombre || '').toString().trim();
+  const partes = nombre.split(' ').filter(Boolean);
+  // En Bolivia los oficiales suelen usar 2 apellidos al final → tomamos los últimos 2
+  const apellidos = partes.length >= 2 ? partes.slice(-2).join(' ') : nombre;
+  const prefix = [grado, arma].filter(Boolean).join(' ');
+  return prefix ? `${prefix} ${apellidos}` : apellidos;
+}
+
+// Detecta si una sanción es analógica (cargada pre-digital de las 485)
+function esSancionAnalogica(s){
+  return s.tipo !== 'digital' && !s.firma_profesor && !s.firma_cursante;
 }
 
 function filterCursantesNuevaSancion(){
