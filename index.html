@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <style>
 :root{
   --bg-deep:#050a14;--bg-base:#0a1628;--bg-elevated:#11203a;
@@ -286,6 +287,657 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   .list-item{flex-wrap:wrap}
   .li-actions{width:100%;justify-content:flex-end;margin-top:6px}
 }
+
+/* ==================== MÓDULO PROFESOR ==================== */
+.role-card-featured{
+  background:linear-gradient(135deg,rgba(212,175,55,.14),rgba(212,175,55,.04));
+  border:1px solid var(--border-strong);
+  box-shadow:0 4px 16px rgba(212,175,55,.08), inset 0 1px 0 rgba(244,213,122,.15);
+}
+.role-card-featured::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);
+}
+.role-card-featured{position:relative}
+.role-card-featured .role-icon{background:linear-gradient(135deg,var(--gold-dark),var(--gold));color:var(--bg-deep);border-color:var(--gold)}
+.role-card-featured:hover{background:linear-gradient(135deg,rgba(212,175,55,.22),rgba(212,175,55,.08));box-shadow:0 8px 24px rgba(212,175,55,.18)}
+
+/* Panel profesor */
+.prof-hero{
+  background:linear-gradient(135deg,rgba(212,175,55,.12),rgba(70,130,200,.04));
+  border:1px solid var(--border-strong);
+  border-radius:var(--radius-lg);
+  padding:24px 22px;
+  margin-bottom:20px;
+  text-align:center;
+  position:relative;
+  overflow:hidden;
+}
+.prof-hero::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,var(--gold),transparent);
+}
+.prof-hero-label{font-family:var(--font-display);font-size:11px;letter-spacing:3px;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px}
+.prof-hero-greeting{font-family:var(--font-display);font-size:20px;color:var(--gold-light);letter-spacing:2px;margin-bottom:4px;text-transform:uppercase}
+.prof-hero-sub{font-size:13px;color:var(--text-secondary);font-style:italic}
+
+.btn-mega{
+  width:100%;
+  padding:24px 20px;
+  font-family:var(--font-display);
+  font-size:16px;
+  letter-spacing:3px;
+  text-transform:uppercase;
+  font-weight:700;
+  background:linear-gradient(135deg,var(--gold-dark),var(--gold));
+  color:var(--bg-deep);
+  border:none;
+  border-radius:var(--radius-md);
+  cursor:pointer;
+  transition:all .25s;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:14px;
+  margin-bottom:18px;
+  box-shadow:0 8px 24px rgba(212,175,55,.25);
+}
+.btn-mega:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(212,175,55,.4)}
+.btn-mega .mega-icon{font-size:28px;line-height:1}
+
+.prof-mini-stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:20px}
+.prof-mini-card{
+  background:var(--bg-card);
+  border:1px solid var(--border-subtle);
+  border-radius:var(--radius-md);
+  padding:16px 14px;
+  text-align:center;
+  cursor:pointer;
+  transition:all .2s;
+}
+.prof-mini-card:hover{border-color:var(--border-strong);transform:translateY(-1px)}
+.prof-mini-num{font-family:var(--font-display);font-size:30px;font-weight:700;color:var(--gold-light);line-height:1;margin-bottom:6px}
+.prof-mini-label{font-size:11px;letter-spacing:1.5px;color:var(--text-secondary);text-transform:uppercase}
+
+/* Buscador de cursantes — Paso 1 */
+.search-toolbar{
+  background:var(--bg-card);
+  border:1px solid var(--border-subtle);
+  border-radius:var(--radius-md);
+  padding:14px;
+  margin-bottom:16px;
+  position:sticky;
+  top:0;
+  z-index:5;
+  backdrop-filter:blur(8px);
+}
+.search-input-wrap{position:relative;margin-bottom:12px}
+.search-input-wrap input{
+  width:100%;padding:13px 16px 13px 42px;
+  background:rgba(5,10,20,.5);
+  border:1px solid var(--border-subtle);
+  border-radius:var(--radius-sm);
+  color:var(--text-primary);
+  font-family:var(--font-body);
+  font-size:15px;
+  transition:all .2s;
+}
+.search-input-wrap input:focus{outline:none;border-color:var(--gold);background:rgba(5,10,20,.7);box-shadow:0 0 0 3px rgba(212,175,55,.12)}
+.search-input-wrap::before{content:'🔍';position:absolute;left:14px;top:50%;transform:translateY(-50%);font-size:16px;opacity:.6}
+
+.filter-row{display:flex;gap:8px;flex-wrap:wrap}
+.filter-chip-group{display:flex;gap:6px;flex-wrap:wrap}
+.filter-chip{
+  padding:8px 14px;
+  background:rgba(5,10,20,.4);
+  border:1px solid var(--border-subtle);
+  border-radius:20px;
+  color:var(--text-secondary);
+  font-size:12px;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  cursor:pointer;
+  transition:all .2s;
+  font-family:var(--font-display);
+  font-weight:600;
+}
+.filter-chip:hover{border-color:var(--border-strong);color:var(--text-primary)}
+.filter-chip.active{background:linear-gradient(135deg,var(--gold-dark),var(--gold));color:var(--bg-deep);border-color:var(--gold)}
+
+.filter-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-right:6px;align-self:center;font-weight:600}
+
+.result-count{font-size:12px;color:var(--text-muted);padding:8px 4px;letter-spacing:1px;text-transform:uppercase;font-family:var(--font-display)}
+
+.cursante-pick{
+  display:flex;align-items:center;gap:14px;
+  background:var(--bg-card);
+  border:1px solid var(--border-subtle);
+  border-radius:var(--radius-md);
+  padding:14px 16px;
+  margin-bottom:10px;
+  cursor:pointer;
+  transition:all .2s;
+}
+.cursante-pick:hover{border-color:var(--gold);transform:translateX(2px);box-shadow:-2px 0 0 var(--gold)}
+.cursante-pick.inactive{opacity:.45}
+.cursante-pick .cp-avatar{
+  width:42px;height:42px;border-radius:50%;flex-shrink:0;
+  background:linear-gradient(135deg,rgba(212,175,55,.18),rgba(212,175,55,.06));
+  border:1px solid var(--border-subtle);
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-display);font-weight:600;color:var(--gold-light);font-size:14px;
+}
+.cursante-pick .cp-main{flex:1;min-width:0}
+.cursante-pick .cp-name{font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cursante-pick .cp-meta{font-size:11px;color:var(--text-muted);letter-spacing:.5px;display:flex;gap:10px;flex-wrap:wrap}
+.cursante-pick .cp-meta span.gold{color:var(--gold-light)}
+.cursante-pick .cp-arrow{color:var(--gold);font-size:18px;flex-shrink:0}
+
+.empty-state{text-align:center;padding:40px 20px;color:var(--text-muted)}
+.empty-state .es-icon{font-size:48px;margin-bottom:12px;opacity:.4}
+.empty-state .es-text{font-size:13px;letter-spacing:1px}
+
+/* Selector de falta — Paso 2 */
+.cursante-summary-bar{
+  display:flex;align-items:center;gap:12px;
+  background:linear-gradient(135deg,rgba(76,163,107,.08),rgba(76,163,107,.02));
+  border:1px solid rgba(76,163,107,.3);
+  border-left:3px solid var(--success);
+  border-radius:var(--radius-md);
+  padding:12px 14px;
+  margin-bottom:16px;
+}
+.cursante-summary-bar .csb-check{font-size:20px;color:var(--success)}
+.cursante-summary-bar .csb-text{flex:1;min-width:0}
+.cursante-summary-bar .csb-name{font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cursante-summary-bar .csb-meta{font-size:11px;color:var(--text-muted);letter-spacing:.5px}
+.cursante-summary-bar .csb-change{
+  background:transparent;border:1px solid var(--border-subtle);color:var(--text-secondary);
+  padding:6px 10px;border-radius:var(--radius-sm);cursor:pointer;font-size:11px;
+  letter-spacing:1px;text-transform:uppercase;transition:all .2s;font-family:var(--font-display);font-weight:600;
+}
+.cursante-summary-bar .csb-change:hover{border-color:var(--gold);color:var(--gold-light)}
+
+.falta-cat-header{
+  display:flex;align-items:center;gap:10px;
+  font-family:var(--font-display);
+  font-size:12px;letter-spacing:2px;
+  text-transform:uppercase;
+  margin:18px 0 10px 4px;
+  padding:8px 12px;
+  border-radius:var(--radius-sm);
+  font-weight:600;
+}
+.falta-cat-leve{background:rgba(76,163,107,.1);color:#9bcfa9;border-left:3px solid var(--success)}
+.falta-cat-grave{background:rgba(224,168,58,.1);color:#e8c87a;border-left:3px solid var(--warning)}
+.falta-cat-gravisima{background:rgba(200,74,74,.1);color:#e8a8a8;border-left:3px solid var(--danger)}
+.falta-cat-virtual{background:rgba(70,130,200,.1);color:#a8c8e8;border-left:3px solid var(--info-border)}
+.falta-cat-other{background:rgba(184,178,157,.1);color:var(--text-secondary);border-left:3px solid var(--text-muted)}
+.falta-cat-count{margin-left:auto;background:rgba(0,0,0,.3);padding:2px 9px;border-radius:10px;font-size:11px;letter-spacing:.5px}
+
+.falta-pick{
+  display:flex;align-items:flex-start;gap:12px;
+  background:var(--bg-card);
+  border:1px solid var(--border-subtle);
+  border-radius:var(--radius-md);
+  padding:12px 14px;
+  margin-bottom:8px;
+  cursor:pointer;
+  transition:all .2s;
+}
+.falta-pick:hover{border-color:var(--gold);transform:translateX(2px)}
+.falta-pick .fp-art{
+  flex-shrink:0;
+  font-family:var(--font-display);
+  font-weight:600;
+  font-size:12px;
+  letter-spacing:1px;
+  color:var(--gold-light);
+  background:rgba(212,175,55,.08);
+  border:1px solid var(--border-subtle);
+  padding:6px 10px;
+  border-radius:var(--radius-sm);
+  min-width:54px;
+  text-align:center;
+}
+.falta-pick .fp-body{flex:1;min-width:0}
+.falta-pick .fp-desc{font-size:13px;color:var(--text-primary);line-height:1.45;margin-bottom:4px}
+.falta-pick .fp-tags{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.falta-pick .fp-pts{font-size:11px;color:var(--text-muted);letter-spacing:.5px}
+.falta-pick .fp-pts strong{color:var(--gold-light);font-weight:600}
+.falta-pick .fp-id{font-family:monospace;font-size:10px;color:var(--text-muted);opacity:.6}
+
+/* Vista previa de sanción — Paso 3 */
+.preview-wrap{padding:0 4px}
+.preview-block{
+  background:var(--bg-card);
+  border:1px solid var(--border-subtle);
+  border-radius:var(--radius-md);
+  padding:16px;
+  margin-bottom:14px;
+}
+.preview-block-title{
+  font-family:var(--font-display);
+  font-size:11px;letter-spacing:2px;
+  text-transform:uppercase;
+  color:var(--text-muted);
+  margin-bottom:10px;
+  padding-bottom:8px;
+  border-bottom:1px dashed rgba(212,175,55,.15);
+  display:flex;align-items:center;gap:8px;
+}
+.preview-row{display:flex;justify-content:space-between;gap:14px;padding:6px 0;font-size:13px}
+.preview-row .pv-lbl{color:var(--text-muted);font-size:11px;letter-spacing:1px;text-transform:uppercase;flex-shrink:0;padding-top:1px}
+.preview-row .pv-val{color:var(--text-primary);text-align:right;flex:1;min-width:0;word-break:break-word}
+.preview-row .pv-val.gold{color:var(--gold-light)}
+.preview-row .pv-val.big{font-family:var(--font-display);font-size:22px;color:var(--gold-light);font-weight:700;letter-spacing:1px}
+
+.preview-falta-desc{
+  background:rgba(70,130,200,.05);
+  border-radius:var(--radius-sm);
+  padding:14px;
+  margin-bottom:10px;
+  font-size:13px;
+  color:var(--text-primary);
+  line-height:1.55;
+}
+
+.reinc-badge{
+  display:inline-flex;
+  align-items:center;gap:8px;
+  padding:8px 14px;
+  border-radius:20px;
+  font-family:var(--font-display);
+  font-size:12px;
+  letter-spacing:1.5px;
+  text-transform:uppercase;
+  font-weight:600;
+}
+.reinc-badge.first{background:rgba(76,163,107,.15);color:#9bcfa9;border:1px solid rgba(76,163,107,.4)}
+.reinc-badge.repeat{background:rgba(224,168,58,.15);color:#e8c87a;border:1px solid rgba(224,168,58,.4)}
+.reinc-badge.severe{background:rgba(200,74,74,.15);color:#e8a8a8;border:1px solid rgba(200,74,74,.4)}
+
+.preview-warning{
+  background:rgba(224,168,58,.08);
+  border-left:3px solid var(--warning);
+  color:#e8c87a;
+  padding:12px 14px;
+  border-radius:var(--radius-sm);
+  font-size:13px;
+  line-height:1.5;
+  margin-bottom:16px;
+}
+
+.preview-warning strong{color:var(--gold-light)}
+
+/* ==================== MÓDULO PROFESOR v2 (matchea capturas) ==================== */
+
+/* Header dorado para flujo de sanción */
+.app-header-gold{
+  display:flex;align-items:center;gap:16px;padding:18px 24px;
+  background:linear-gradient(180deg, #d4af37 0%, #b8941f 100%);
+  border-bottom:2px solid #8a6f17;
+  box-shadow:0 4px 12px rgba(0,0,0,.3);
+  position:relative;
+}
+.app-header-gold .back-btn{
+  background:rgba(5,10,20,.6);
+  border-color:rgba(5,10,20,.3);
+  color:#f4d57a;
+}
+.app-header-gold .back-btn:hover{background:rgba(5,10,20,.85)}
+.app-header-gold .header-title{
+  font-family:var(--font-display);font-size:22px;letter-spacing:3px;
+  color:#1a0e02;text-shadow:0 1px 0 rgba(244,213,122,.4);
+  text-transform:uppercase;font-weight:700;
+}
+.app-header-gold .header-sub{
+  font-family:var(--font-display);font-size:13px;color:#3a2a0a;
+  font-style:italic;margin-top:2px;font-weight:500;
+}
+
+/* Step progress bar */
+.step-progress{
+  display:flex;gap:6px;padding:14px 24px;
+  background:linear-gradient(180deg,rgba(212,175,55,.08),transparent);
+  border-bottom:1px solid var(--border-subtle);
+}
+.step-progress .step-seg{
+  flex:1;height:5px;border-radius:3px;
+  background:rgba(255,255,255,.12);
+  transition:background .35s;
+}
+.step-progress .step-seg.done{background:var(--gold)}
+.step-progress .step-seg.active{
+  background:linear-gradient(90deg,var(--gold),var(--gold-light));
+  box-shadow:0 0 12px rgba(212,175,55,.5);
+}
+
+/* Section title big with icon */
+.section-big-title{
+  display:flex;align-items:center;gap:12px;
+  font-family:var(--font-display);font-size:22px;
+  letter-spacing:2px;color:var(--gold-light);
+  margin:18px 0 4px 0;
+  text-transform:uppercase;font-weight:600;
+}
+.section-big-sub{font-size:13px;color:var(--text-secondary);margin-bottom:16px;font-style:italic}
+
+/* Info banner glass (azul claro tipo screenshot) */
+.info-banner-glass{
+  background:linear-gradient(135deg,rgba(180,200,232,.92),rgba(160,185,220,.85));
+  border-radius:var(--radius-md);
+  padding:14px 18px;
+  margin:16px 0;
+  color:#1a1f3a;
+  font-size:14px;line-height:1.5;
+  box-shadow:0 4px 12px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.4);
+}
+.info-banner-glass .ibg-title{
+  font-family:var(--font-display);font-weight:700;letter-spacing:1.5px;
+  font-size:15px;color:#0f1530;margin-bottom:4px;display:flex;align-items:center;gap:8px;
+}
+.info-banner-glass strong{color:#0a0f24}
+
+/* Search input estilo crema (matchea screenshot) */
+.search-cream{
+  display:flex;align-items:center;gap:10px;
+  width:100%;padding:14px 18px;
+  background:linear-gradient(180deg,#f8edc7,#ead7a0);
+  border:1px solid rgba(212,175,55,.4);
+  border-radius:var(--radius-md);
+  color:#1a0e02;
+  font-family:var(--font-body);font-size:16px;
+  margin-bottom:14px;
+  transition:all .2s;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 2px 6px rgba(0,0,0,.15);
+}
+.search-cream:focus{outline:none;border-color:var(--gold);box-shadow:inset 0 1px 0 rgba(255,255,255,.5),0 0 0 3px rgba(212,175,55,.25)}
+.search-cream::placeholder{color:#5c4a1a;opacity:.7}
+
+/* Cursante search result (cards crema con borde dorado) */
+.cs-result{
+  display:flex;align-items:center;gap:14px;
+  background:linear-gradient(180deg,#f8edc7,#ead7a0);
+  border:1px solid rgba(212,175,55,.5);
+  border-radius:var(--radius-md);
+  padding:14px 16px;margin-bottom:12px;
+  cursor:pointer;transition:all .2s;
+  box-shadow:0 3px 8px rgba(0,0,0,.2),inset 0 1px 0 rgba(255,255,255,.4);
+}
+.cs-result:hover{transform:translateX(3px);box-shadow:0 6px 14px rgba(212,175,55,.3),inset 0 1px 0 rgba(255,255,255,.5);border-color:var(--gold)}
+.cs-result .cs-circle{
+  width:54px;height:54px;flex-shrink:0;border-radius:50%;
+  background:linear-gradient(135deg,#d4af37,#b8941f);
+  border:2px solid #8a6f17;
+  display:flex;align-items:center;justify-content:center;
+  font-family:var(--font-display);font-weight:700;font-size:17px;
+  color:#1a0e02;text-shadow:0 1px 0 rgba(244,213,122,.5);
+  letter-spacing:1px;
+}
+.cs-result .cs-main{flex:1;min-width:0}
+.cs-result .cs-name{
+  font-family:var(--font-display);font-size:16px;letter-spacing:.8px;
+  color:#1a0e02;margin-bottom:4px;font-weight:600;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.cs-result .cs-sub{font-size:13px;color:#3a2a0a;letter-spacing:.3px}
+.cs-result .cs-sub b{color:#1a0e02}
+
+/* Point filter chips */
+.pts-chips-wrap{
+  display:flex;flex-wrap:wrap;gap:8px;margin:14px 0;
+}
+.pt-chip{
+  padding:9px 16px;background:rgba(5,10,20,.4);
+  border:1px solid var(--border-subtle);border-radius:20px;
+  color:var(--text-secondary);font-family:var(--font-display);
+  font-size:12px;letter-spacing:1.5px;text-transform:uppercase;font-weight:600;
+  cursor:pointer;transition:all .2s;
+}
+.pt-chip:hover{border-color:var(--gold);color:var(--gold-light)}
+.pt-chip.active{
+  background:linear-gradient(135deg,#9a7b1f,#d4af37);
+  color:#1a0e02;border-color:#8a6f17;
+  box-shadow:0 2px 6px rgba(212,175,55,.3);
+}
+.pt-chip.special{border-color:rgba(76,163,107,.4);color:#9bcfa9}
+.pt-chip.special.active{background:linear-gradient(135deg,#3a7050,#4ca36b);color:#fff;border-color:#3a7050}
+.pt-chip.virtual{border-color:rgba(70,130,200,.4);color:#a8c8e8}
+.pt-chip.virtual.active{background:linear-gradient(135deg,#3a6090,#4a90d9);color:#fff;border-color:#3a6090}
+
+/* Falta card crema */
+.falta-result{
+  display:flex;align-items:flex-start;gap:14px;
+  background:linear-gradient(180deg,#f8edc7,#ead7a0);
+  border:1px solid rgba(212,175,55,.5);
+  border-radius:var(--radius-md);
+  padding:14px 16px;margin-bottom:10px;
+  cursor:pointer;transition:all .2s;
+  box-shadow:0 2px 6px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.4);
+}
+.falta-result:hover{transform:translateX(3px);border-color:var(--gold);box-shadow:0 4px 10px rgba(212,175,55,.3)}
+.falta-result .fr-body{flex:1;min-width:0}
+.falta-result .fr-art{
+  font-family:var(--font-display);font-size:13px;letter-spacing:1.5px;
+  color:#1a0e02;font-weight:700;margin-bottom:6px;text-transform:uppercase;
+}
+.falta-result .fr-desc{
+  font-size:13px;color:#2a1c08;line-height:1.5;margin-bottom:4px;
+}
+.falta-result .fr-pts{
+  flex-shrink:0;
+  background:rgba(180,200,232,.85);border:1px solid rgba(70,130,200,.5);
+  color:#0f1530;padding:6px 12px;border-radius:14px;
+  font-family:var(--font-display);font-size:12px;font-weight:700;letter-spacing:1px;
+  text-transform:uppercase;
+}
+
+/* Papeleta crema (vista previa y ficha final) */
+.papeleta-block{
+  background:linear-gradient(180deg,#f8edc7,#ead7a0);
+  border:1px solid rgba(212,175,55,.5);
+  border-radius:var(--radius-md);
+  padding:18px 20px;margin-bottom:14px;
+  color:#1a0e02;
+  box-shadow:0 3px 10px rgba(0,0,0,.18),inset 0 1px 0 rgba(255,255,255,.4);
+}
+.papeleta-block .pb-title{
+  font-family:var(--font-display);font-size:17px;font-weight:700;
+  letter-spacing:1.5px;color:#0f1530;
+  margin-bottom:12px;padding-bottom:8px;
+  border-bottom:1px dashed rgba(26,14,2,.25);
+  display:flex;align-items:center;gap:10px;text-transform:uppercase;
+}
+.papeleta-block .pb-row{
+  display:flex;justify-content:space-between;gap:14px;
+  padding:7px 0;font-size:14px;
+  border-bottom:1px dashed rgba(26,14,2,.12);
+}
+.papeleta-block .pb-row:last-child{border-bottom:none}
+.papeleta-block .pb-row .pb-lbl{
+  font-family:var(--font-display);font-size:11px;letter-spacing:2px;
+  text-transform:uppercase;color:#5c4a1a;flex-shrink:0;font-weight:600;
+}
+.papeleta-block .pb-row .pb-val{
+  color:#1a0e02;text-align:right;flex:1;min-width:0;font-weight:500;
+}
+.papeleta-block .pb-falta-desc{
+  font-size:14px;color:#1a0e02;line-height:1.55;
+  padding:0 0 12px 0;border-bottom:1px dashed rgba(26,14,2,.12);
+  margin-bottom:8px;
+}
+
+/* Memorandum / Consejo warning grande */
+.memo-banner{
+  background:linear-gradient(180deg,#f8c8c8,#e8a8a8);
+  border:1px solid #b85050;border-left:6px solid #c84a4a;
+  color:#3a0f0f;
+  border-radius:var(--radius-md);
+  padding:16px 18px;margin-bottom:14px;
+  box-shadow:0 3px 10px rgba(200,74,74,.2);
+}
+.memo-banner .mb-title{
+  font-family:var(--font-display);font-size:15px;font-weight:700;
+  letter-spacing:1.5px;text-transform:uppercase;
+  margin-bottom:6px;display:flex;align-items:center;gap:8px;
+}
+.memo-banner .mb-text{font-size:13px;line-height:1.5}
+
+.consejo-banner{
+  background:linear-gradient(180deg,#f0d090,#d8b870);
+  border:1px solid #aa7820;border-left:6px solid #9a6810;
+  color:#3a2a08;
+}
+
+/* Puntaje final MEGA */
+.puntaje-final-mega{
+  background:linear-gradient(135deg,#d4af37,#9a7b1f);
+  border:2px solid #8a6f17;
+  border-radius:var(--radius-md);
+  padding:22px 24px;margin-bottom:14px;
+  box-shadow:0 4px 14px rgba(212,175,55,.3),inset 0 1px 0 rgba(244,213,122,.4);
+}
+.puntaje-final-mega .pfm-label{
+  font-family:var(--font-display);font-size:12px;letter-spacing:2.5px;
+  color:#3a2a08;text-transform:uppercase;font-weight:600;margin-bottom:6px;
+}
+.puntaje-final-mega .pfm-value{
+  font-family:var(--font-display);font-size:54px;font-weight:700;
+  color:#1a0e02;line-height:1;letter-spacing:1px;
+}
+.puntaje-final-mega .pfm-detail{
+  font-size:12px;color:#3a2a08;margin-top:6px;font-style:italic;
+}
+
+/* Modo prueba toggle */
+.modo-toggle{
+  display:flex;background:rgba(5,10,20,.5);
+  border:1px solid var(--border-subtle);
+  border-radius:20px;padding:3px;
+  font-family:var(--font-display);
+}
+.modo-toggle button{
+  flex:1;padding:7px 12px;border:none;background:transparent;
+  color:var(--text-muted);font-size:11px;letter-spacing:1.5px;
+  text-transform:uppercase;cursor:pointer;border-radius:18px;
+  font-weight:600;transition:all .2s;font-family:var(--font-display);
+}
+.modo-toggle button.active.test{background:rgba(224,168,58,.25);color:#e8c87a;box-shadow:inset 0 1px 0 rgba(224,168,58,.3)}
+.modo-toggle button.active.real{background:rgba(200,74,74,.25);color:#e8a8a8;box-shadow:inset 0 1px 0 rgba(200,74,74,.3)}
+.modo-strip{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:rgba(224,168,58,.08);border:1px solid rgba(224,168,58,.3);
+  border-radius:var(--radius-md);padding:12px 14px;margin-bottom:16px;
+}
+.modo-strip.real{background:rgba(200,74,74,.1);border-color:rgba(200,74,74,.35)}
+.modo-strip .ms-label{font-size:12px;color:var(--text-secondary);font-family:var(--font-display);letter-spacing:1.5px;text-transform:uppercase;font-weight:600}
+
+/* Firma digital — canvas */
+.sig-wrap{
+  background:linear-gradient(180deg,#f8edc7,#ead7a0);
+  border:2px dashed rgba(26,14,2,.35);
+  border-radius:var(--radius-md);
+  padding:0;margin-bottom:14px;overflow:hidden;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.4);
+}
+.sig-canvas{display:block;width:100%;height:200px;cursor:crosshair;touch-action:none;background:transparent}
+.btn-clear-sig{
+  width:100%;padding:12px;background:rgba(5,10,20,.4);
+  border:1px solid var(--border-subtle);color:var(--text-secondary);
+  border-radius:var(--radius-sm);cursor:pointer;font-family:var(--font-display);
+  font-size:13px;letter-spacing:2px;text-transform:uppercase;
+  margin-bottom:14px;transition:all .2s;font-weight:600;
+}
+.btn-clear-sig:hover{border-color:var(--gold);color:var(--gold-light)}
+
+/* Ficha final */
+.ficha-screen{background:linear-gradient(180deg,#f8edc7 0%,#e8d5a0 100%);min-height:100vh}
+.ficha-screen .app-header{background:linear-gradient(180deg,#1a1f3a,#0f1530);border-bottom:2px solid #d4af37}
+.ficha-screen .app-header .header-title{color:#f4d57a}
+.ficha-screen .app-header .header-sub{color:#c8b88a}
+
+.ficha-container{padding:20px 16px;max-width:480px;margin:0 auto}
+
+.ficha-status{
+  background:linear-gradient(135deg,#c84a4a,#a83a3a);color:#fff;
+  border-radius:var(--radius-md);padding:18px;margin-bottom:18px;
+  text-align:center;box-shadow:0 4px 14px rgba(200,74,74,.35);
+}
+.ficha-status.firmada{background:linear-gradient(135deg,#3a7050,#4ca36b)}
+.ficha-status .fs-icon{font-size:32px;margin-bottom:6px}
+.ficha-status .fs-title{font-family:var(--font-display);font-size:15px;font-weight:700;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px}
+.ficha-status .fs-sub{font-size:13px;opacity:.92}
+
+.qr-card{
+  background:linear-gradient(180deg,#fef5e0,#fdebc8);
+  border:2px solid #c84a4a;border-radius:var(--radius-md);
+  padding:18px;margin-bottom:18px;text-align:center;
+  box-shadow:0 4px 14px rgba(200,74,74,.15);
+}
+.qr-card.firmada{border-color:#4ca36b;box-shadow:0 4px 14px rgba(76,163,107,.15)}
+.qr-card canvas, .qr-card img{margin:0 auto;display:block;max-width:240px;width:100%;height:auto}
+.qr-card .qr-cap{
+  font-family:var(--font-display);font-weight:700;color:#1a0e02;
+  font-size:14px;letter-spacing:1px;margin-top:12px;
+}
+.qr-card .qr-sub{font-size:12px;color:#5c4a1a;margin-top:2px}
+.qr-card .qr-folio{font-family:monospace;color:#5c4a1a;margin-top:6px;font-size:11px;letter-spacing:.5px}
+
+.qr-url-display{
+  font-family:monospace;font-size:11px;color:var(--text-muted);
+  word-break:break-all;text-align:center;margin-bottom:14px;
+  padding:8px 12px;background:rgba(5,10,20,.3);border-radius:var(--radius-sm);
+}
+
+.firma-display{
+  background:#fff;border:1px solid rgba(26,14,2,.15);
+  border-radius:var(--radius-sm);padding:8px;
+  text-align:center;
+}
+.firma-display img{max-width:100%;height:80px;object-fit:contain}
+
+#leaflet-map-prof{height:240px;border-radius:var(--radius-sm);margin-bottom:8px}
+.gps-coords-prof{
+  font-family:monospace;font-size:11px;color:#5c4a1a;
+  background:rgba(0,0,0,.04);padding:8px 12px;border-radius:var(--radius-sm);
+  text-align:center;letter-spacing:.5px;
+}
+
+.btn-papeleta{
+  width:100%;padding:14px 16px;margin-bottom:10px;
+  border-radius:var(--radius-sm);cursor:pointer;
+  font-family:var(--font-display);font-size:13px;letter-spacing:2px;
+  text-transform:uppercase;font-weight:600;transition:all .2s;
+  border:1px solid rgba(26,14,2,.25);background:rgba(248,237,199,.6);color:#1a0e02;
+}
+.btn-papeleta:hover{background:rgba(248,237,199,.9);border-color:#1a0e02}
+.btn-papeleta.primary{background:linear-gradient(135deg,#d4af37,#9a7b1f);color:#1a0e02;border-color:#8a6f17}
+.btn-papeleta.primary:hover{box-shadow:0 4px 12px rgba(212,175,55,.4)}
+.btn-papeleta.danger{background:rgba(200,74,74,.15);border-color:rgba(200,74,74,.5);color:#7a2020}
+.btn-papeleta.danger:hover{background:rgba(200,74,74,.3)}
+
+/* Reincidencia badge en flujo */
+.reinc-badge-flow{
+  display:inline-block;padding:8px 16px;border-radius:20px;
+  font-family:var(--font-display);font-size:12px;font-weight:700;
+  letter-spacing:1.5px;text-transform:uppercase;
+  background:rgba(76,163,107,.18);color:#9bcfa9;border:1px solid rgba(76,163,107,.4);
+}
+.reinc-badge-flow.r1{background:rgba(224,168,58,.18);color:#e8c87a;border-color:rgba(224,168,58,.4)}
+.reinc-badge-flow.r2{background:rgba(200,74,74,.18);color:#e8a8a8;border-color:rgba(200,74,74,.4)}
+.reinc-badge-flow.r3{background:rgba(154,40,40,.22);color:#ffb0b0;border-color:rgba(200,74,74,.7);box-shadow:0 0 12px rgba(200,74,74,.3)}
+
+/* Loading spinner */
+.spinner-inline{
+  display:inline-block;width:18px;height:18px;
+  border:2px solid rgba(212,175,55,.25);
+  border-top-color:var(--gold);border-radius:50%;
+  animation:spin .8s linear infinite;
+  vertical-align:middle;margin-right:8px;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
 </style>
 </head>
 <body>
@@ -327,6 +979,8 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
     <div class="header-text"><div class="header-title">Plantel Docente</div><div class="header-sub">Selecciona tu cargo</div></div>
   </div>
   <div class="menu-container">
+    <div class="role-card role-card-featured" onclick="goLoginCargo('profesor')"><div class="role-icon">✍️</div><div class="role-text"><div class="role-name">Profesor / Docente</div><div class="role-desc">Registrar sanciones a cursantes</div></div><span class="lock-icon">🔒</span></div>
+    <div class="section-label" style="margin-top:24px">Subsecciones administrativas</div>
     <div class="role-card" onclick="goLoginCargo('ef')"><div class="role-icon">🏃</div><div class="role-text"><div class="role-name">Sub. Sec. Entrenamiento Físico</div><div class="role-desc">Notas de Entrenamiento Físico Militar</div></div><span class="lock-icon">🔒</span></div>
     <div class="role-card" onclick="goLoginCargo('disciplina')"><div class="role-icon">⭐</div><div class="role-text"><div class="role-name">Sub. Sec. Disciplina</div><div class="role-desc">Panel administrativo completo</div></div><span class="lock-icon">🔒</span></div>
     <div class="role-card" onclick="goLoginCargo('evaluaciones')"><div class="role-icon">📝</div><div class="role-text"><div class="role-name">Sub. Sec. Evaluaciones</div><div class="role-desc">Cargar planillas y notas académicas</div></div><span class="lock-icon">🔒</span></div>
@@ -387,6 +1041,187 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   </div>
 </section>
 
+<!-- ============================================ -->
+<!-- MÓDULO PROFESOR — v2 (matchea capturas)        -->
+<!-- ============================================ -->
+
+<!-- Panel principal del Profesor -->
+<section id="screen-prof-panel" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="logout()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Panel del Profesor</div><div class="header-sub">Registro de sanciones</div></div>
+  </div>
+  <div class="menu-container">
+    <div class="user-strip">
+      <div class="user-avatar" id="prof-initials">—</div>
+      <div class="user-info"><div class="user-name" id="prof-name">—</div><div class="user-rank" id="prof-rank">—</div></div>
+      <button class="btn-logout" onclick="logout()">Salir</button>
+    </div>
+
+    <div class="modo-strip" id="modo-strip">
+      <div>
+        <div class="ms-label">Modo de operación</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px" id="modo-help">Las sanciones de prueba no afectan estadísticas oficiales</div>
+      </div>
+      <div class="modo-toggle">
+        <button id="btn-modo-test" class="active test" onclick="setModoPrueba(true)">🟡 Prueba</button>
+        <button id="btn-modo-real" class="real" onclick="setModoPrueba(false)">🔴 Real</button>
+      </div>
+    </div>
+
+    <div class="prof-hero">
+      <div class="prof-hero-label">✍️ Modo Profesor</div>
+      <div class="prof-hero-greeting" id="prof-greeting">Buenos días</div>
+      <div class="prof-hero-sub">Registra una nueva sanción siguiendo el reglamento</div>
+    </div>
+
+    <button class="btn-mega" onclick="goProfNuevaSancion()">
+      <span class="mega-icon">📝</span>
+      <span>Registrar nueva sanción</span>
+    </button>
+
+    <div class="prof-mini-stats">
+      <div class="prof-mini-card" onclick="qaProf('mis_sanciones')">
+        <div class="prof-mini-num" id="prof-stat-mias">—</div>
+        <div class="prof-mini-label">Mis sanciones</div>
+      </div>
+      <div class="prof-mini-card" onclick="qaProf('mes_actual')">
+        <div class="prof-mini-num" id="prof-stat-mes">—</div>
+        <div class="prof-mini-label">Este mes</div>
+      </div>
+    </div>
+
+    <div class="section-label">Acciones</div>
+    <div class="quick-grid">
+      <button class="quick-btn" onclick="qaProf('mis_sanciones')"><span class="qa-icon">📋</span><span class="qa-text">Ver mis sanciones registradas</span></button>
+      <button class="quick-btn" onclick="qaProf('cambiar_pwd')"><span class="qa-icon">🔐</span><span class="qa-text">Cambiar mi contraseña</span></button>
+    </div>
+  </div>
+</section>
+
+<!-- Paso 1: Buscar cursante -->
+<section id="screen-prof-buscar-cursante" class="screen">
+  <div class="app-header-gold">
+    <button class="back-btn" onclick="goProfPanel()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Nueva Sanción</div><div class="header-sub">Paso 1 de 4: Seleccionar cursante</div></div>
+  </div>
+  <div class="step-progress">
+    <div class="step-seg active"></div>
+    <div class="step-seg"></div>
+    <div class="step-seg"></div>
+    <div class="step-seg"></div>
+  </div>
+  <div class="menu-container">
+    <div class="section-big-title">👤 ¿A quién sancionas?</div>
+    <div class="section-big-sub">Busca por nombre, CI o grado</div>
+
+    <input type="text" class="search-cream" id="prof-search-input" placeholder="🔍  Buscar cursante..." autocomplete="off" oninput="filterCursantesNuevaSancion()">
+
+    <div class="info-banner-glass" id="prof-info-banner">
+      <div class="ibg-title">ℹ️ <span id="prof-info-count">— cursantes disponibles</span></div>
+      <div id="prof-info-detail">Datos oficiales RR.NN. 2026.</div>
+    </div>
+
+    <div id="prof-cursantes-list"></div>
+  </div>
+</section>
+
+<!-- Paso 2: Elegir falta -->
+<section id="screen-prof-elegir-falta" class="screen">
+  <div class="app-header-gold">
+    <button class="back-btn" onclick="goProfBuscarCursante()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Nueva Sanción</div><div class="header-sub">Paso 2 de 4: Seleccionar falta</div></div>
+  </div>
+  <div class="step-progress">
+    <div class="step-seg done"></div>
+    <div class="step-seg active"></div>
+    <div class="step-seg"></div>
+    <div class="step-seg"></div>
+  </div>
+  <div class="menu-container">
+    <div class="info-banner-glass" id="prof-historial-banner">
+      <div class="ibg-title">ℹ️ Historial del cursante</div>
+      <div id="prof-historial-text">—</div>
+    </div>
+
+    <div class="section-big-title">📖 ¿Qué falta cometió?</div>
+    <div class="section-big-sub" id="prof-faltas-sub">108 faltas del Reglamento ECEME · filtre por puntaje</div>
+
+    <div class="pts-chips-wrap" id="prof-filter-pts"></div>
+
+    <input type="text" class="search-cream" id="prof-falta-search" placeholder="🔍  Buscar en reglamento..." autocomplete="off" oninput="filterFaltas()">
+
+    <div class="result-count" id="prof-faltas-count">— resultado(s)</div>
+    <div id="prof-faltas-list"></div>
+  </div>
+</section>
+
+<!-- Paso 3: Vista previa -->
+<section id="screen-prof-previa" class="screen">
+  <div class="app-header-gold">
+    <button class="back-btn" onclick="goProfElegirFalta()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Nueva Sanción</div><div class="header-sub">Paso 3 de 4: Vista previa</div></div>
+  </div>
+  <div class="step-progress">
+    <div class="step-seg done"></div>
+    <div class="step-seg done"></div>
+    <div class="step-seg active"></div>
+    <div class="step-seg"></div>
+  </div>
+  <div class="menu-container">
+    <div id="prof-previa-content"></div>
+    <button class="btn-papeleta primary" onclick="goProfFirma()">✍️  Continuar a firma</button>
+    <button class="btn-papeleta" onclick="goProfElegirFalta()">← Cambiar falta</button>
+    <button class="btn-papeleta" onclick="goProfBuscarCursante()">← Cambiar cursante</button>
+  </div>
+</section>
+
+<!-- Paso 4: Firma digital del profesor -->
+<section id="screen-prof-firma" class="screen">
+  <div class="app-header-gold">
+    <button class="back-btn" onclick="goProfPrevia()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Nueva Sanción</div><div class="header-sub">Paso 4 de 4: Firma del profesor</div></div>
+  </div>
+  <div class="step-progress">
+    <div class="step-seg done"></div>
+    <div class="step-seg done"></div>
+    <div class="step-seg done"></div>
+    <div class="step-seg active"></div>
+  </div>
+  <div class="menu-container">
+    <div class="section-big-title">✍️ Firma digital</div>
+    <div class="section-big-sub">Firma con el dedo o mouse para confirmar la sanción</div>
+
+    <div class="sig-wrap">
+      <canvas id="sig-canvas-prof" class="sig-canvas"></canvas>
+    </div>
+    <button class="btn-clear-sig" onclick="clearSignature()">🧹  Borrar firma</button>
+
+    <div class="info-banner-glass">
+      <div class="ibg-title">🔒 Firma con no repudio</div>
+      <div>Al confirmar: se registra tu <strong>CI, fecha/hora exacta, GPS, IP y dispositivo</strong>. Tu firma queda asociada a la sanción y se genera un <strong>folio único</strong>.</div>
+    </div>
+
+    <button class="btn-papeleta primary" id="btn-confirmar-sancion" onclick="confirmarYFirmarSancion()">✓ Confirmar y firmar</button>
+    <button class="btn-papeleta" onclick="goProfPrevia()">← Volver</button>
+  </div>
+</section>
+
+<!-- FICHA FINAL: sanción registrada con QR -->
+<section id="screen-prof-ficha-final" class="screen ficha-screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goProfPanel()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title" id="ficha-folio">SANCIÓN —</div><div class="header-sub" id="ficha-fecha">—</div></div>
+  </div>
+  <div class="ficha-container" id="ficha-content"></div>
+</section>
+
 <!-- CURSANTE HOME -->
 <section id="screen-cursante-home" class="screen">
   <div class="app-header">
@@ -427,6 +1262,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
       <button class="quick-btn" onclick="goInstalar()"><span class="qa-icon">📲</span><span class="qa-text">Instalar app / Compartir QR</span></button>
       <button class="quick-btn" onclick="goAnulaciones()"><span class="qa-icon">📋</span><span class="qa-text">Mis solicitudes de anulación</span></button>
       <button class="quick-btn warning" onclick="goReiniciar()"><span class="qa-icon">🔄</span><span class="qa-text">Reiniciar semestre disciplinario</span></button>
+      <button class="quick-btn" onclick="gestionarSancionesPrueba()"><span class="qa-icon">🧪</span><span class="qa-text">Gestionar sanciones de prueba</span></button>
       <button class="quick-btn" onclick="qa('cambiar_pwd_otro')"><span class="qa-icon">🔑</span><span class="qa-text">Cambiar contraseña de cursante / profesor</span></button>
       <button class="quick-btn" onclick="qa('cambiar_mi_pwd')"><span class="qa-icon">🔐</span><span class="qa-text">Cambiar mi usuario y contraseña</span></button>
       <button class="quick-btn" onclick="qa('crear_usuario_modulo')"><span class="qa-icon">➕</span><span class="qa-text">Crear usuario para otro módulo</span></button>
@@ -730,6 +1566,7 @@ const SUPABASE_KEY = 'sb_publishable_GQGDGICE0V74xBr0ECp9ag_FEm9h94E';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const CARGOS = {
+  profesor:{nombre:'Profesor / Docente',icono:'✍️'},
   ef:{nombre:'Sub. Sec. Entrenamiento Físico',icono:'🏃'},
   disciplina:{nombre:'Sub. Sec. Disciplina',icono:'⭐'},
   evaluaciones:{nombre:'Sub. Sec. Evaluaciones',icono:'📝'},
@@ -967,6 +1804,10 @@ async function enterRole(role){
     await loadDiscData();
     renderDiscPanel();
     showScreen('screen-disc-panel');
+  } else if(role==='profesor'){
+    await loadDiscData();      // Reutilizamos: trae cursantes + reglamentos + sanciones
+    renderProfPanel();
+    showScreen('screen-prof-panel');
   } else {
     renderGenericoPanel(role);
     showScreen('screen-panel-generico');
@@ -1014,7 +1855,11 @@ async function loadDiscData(force=false){
       if(s.anulada===true) return;
       const cid=s.cursante_id;
       const pts=Number(s.puntos_aplicados)||0;
-      discData.byCursanteLost[cid] = (discData.byCursanteLost[cid]||0) + pts;
+      // SOLO sanciones REALES suman al puntaje vigente (las de prueba NO afectan estadísticas oficiales)
+      if(s.es_prueba !== true){
+        discData.byCursanteLost[cid] = (discData.byCursanteLost[cid]||0) + pts;
+      }
+      // Pero TODAS las sanciones (reales + prueba) van al listado del cursante
       if(!discData.byCursanteSanc[cid]) discData.byCursanteSanc[cid] = [];
       discData.byCursanteSanc[cid].push(s);
     });
@@ -1045,7 +1890,8 @@ function renderDiscPanel(){
 
   const activosCursantes = discData.cursantes.filter(c=>c.activo!==false).length;
   document.getElementById('stat-cursantes').textContent = activosCursantes;
-  document.getElementById('stat-sanciones').textContent = discData.sanciones.filter(s=>!s.anulada).length;
+  // Conteo oficial: excluye anuladas y de prueba
+  document.getElementById('stat-sanciones').textContent = discData.sanciones.filter(s=>!s.anulada && s.es_prueba!==true).length;
   const enConsejo=Object.values(discData.byCursanteLost).filter(p=>p>=UMBRAL_CONSEJO).length;
   const enObs=Object.values(discData.byCursanteLost).filter(p=>p>=UMBRAL_OBSERVACION && p<UMBRAL_CONSEJO).length;
   document.getElementById('stat-consejo').textContent=enConsejo;
@@ -2212,6 +3058,892 @@ function verAuditoria(cid){
       </div>
     `).join(''):'<div class="list-empty">Sin sanciones registradas.</div>'}
   `;
+}
+
+/* ==================== MÓDULO PROFESOR — v2 (matchea capturas) ==================== */
+
+// Estado de la nueva sanción en curso
+let nuevaSancion = {
+  cursante: null,
+  falta: null,
+  filtros: { ciclo:'todos', paralelo:'todos', q:'' },
+  filtroFalta: { pts:'todas', q:'' },
+  reincidencia: { num:0, requiereMemo:false, requiereConsejo:false, puntosBase:0, puntosFinal:0 },
+  forense: { gps:null, ip:null, userAgent:'', os:'', timestamp:null, intentoGps:false },
+  firmaProfesor: null,  // dataURL del canvas
+  folio: null
+};
+
+// Modo prueba (toggle en panel) — por defecto TRUE para no fregar nada
+let MODO_PRUEBA = true;
+const MODO_PRUEBA_KEY = 'sideceme_modo_prueba';
+
+function setModoPrueba(activo){
+  MODO_PRUEBA = !!activo;
+  try{ localStorage.setItem(MODO_PRUEBA_KEY, activo?'1':'0'); }catch(e){}
+  document.getElementById('btn-modo-test').classList.toggle('active', MODO_PRUEBA);
+  document.getElementById('btn-modo-real').classList.toggle('active', !MODO_PRUEBA);
+  const strip = document.getElementById('modo-strip');
+  if(strip){
+    strip.classList.toggle('real', !MODO_PRUEBA);
+    const help = document.getElementById('modo-help');
+    if(help) help.textContent = MODO_PRUEBA
+      ? 'Las sanciones de prueba NO afectan estadísticas oficiales'
+      : '⚠️ Las sanciones REALES se aplican al puntaje oficial del cursante';
+  }
+}
+
+function restaurarModoPrueba(){
+  try{
+    const v = localStorage.getItem(MODO_PRUEBA_KEY);
+    if(v==='0') MODO_PRUEBA = false;
+    else MODO_PRUEBA = true;
+  }catch(e){ MODO_PRUEBA = true; }
+}
+
+function renderProfPanel(){
+  if(!currentUser) return;
+  const name = currentUser.nombre_completo || 'Profesor';
+  const initials = name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  document.getElementById('prof-name').textContent = name;
+  document.getElementById('prof-rank').textContent = [currentUser.grado||'', currentUser.arma||''].filter(Boolean).join(' · ') || 'Plantel docente';
+  document.getElementById('prof-initials').textContent = initials || '—';
+
+  // Restaurar y reflejar modo prueba
+  restaurarModoPrueba();
+  setModoPrueba(MODO_PRUEBA);
+
+  // Saludo según hora del día
+  const h = new Date().getHours();
+  const saludo = h<12 ? 'Buenos días' : (h<19 ? 'Buenas tardes' : 'Buenas noches');
+  const grado = currentUser.grado ? `${currentUser.grado} ` : '';
+  const apellido = name.split(' ').slice(-1)[0] || '';
+  document.getElementById('prof-greeting').textContent = `${saludo}, ${grado}${apellido}`;
+
+  // Estadísticas (incluye prueba para que vea el profesor su actividad)
+  const misSanciones = discData.sanciones.filter(s => s.profesor_id === currentUser.id);
+  document.getElementById('prof-stat-mias').textContent = misSanciones.length;
+
+  const now = new Date();
+  const inicioMes = new Date(now.getFullYear(), now.getMonth(), 1);
+  const delMes = misSanciones.filter(s => {
+    const f = s.fecha_creacion || s.created_at || s.fecha;
+    if(!f) return false;
+    try { return new Date(f) >= inicioMes; } catch(e) { return false; }
+  });
+  document.getElementById('prof-stat-mes').textContent = delMes.length;
+}
+
+function goProfPanel(){
+  renderProfPanel();
+  showScreen('screen-prof-panel');
+}
+
+function goProfNuevaSancion(){
+  // Reset state
+  nuevaSancion = {
+    cursante: null, falta: null,
+    filtros: { ciclo:'todos', paralelo:'todos', q:'' },
+    filtroFalta: { pts:'todas', q:'' },
+    reincidencia: { num:0, requiereMemo:false, requiereConsejo:false, puntosBase:0, puntosFinal:0 },
+    forense: { gps:null, ip:null, userAgent:'', os:'', timestamp:null, intentoGps:false },
+    firmaProfesor: null, folio: null
+  };
+  const si = document.getElementById('prof-search-input');
+  if(si) si.value='';
+  // Iniciar captura forense desde ya (en background, no bloquea UI)
+  iniciarCapturaForense();
+  goProfBuscarCursante();
+}
+
+function goProfBuscarCursante(){
+  filterCursantesNuevaSancion();
+  showScreen('screen-prof-buscar-cursante');
+}
+
+// Construye el nombre con grado militar si está disponible
+function nombreConGrado(c){
+  if(!c) return '—';
+  const partes = [];
+  if(c.grado) partes.push(c.grado);
+  if(c.arma) partes.push(c.arma);
+  const prefix = partes.length ? partes.join(' ') + ' ' : '';
+  return prefix + (c.nombre_completo || '');
+}
+
+function filterCursantesNuevaSancion(){
+  const q = (document.getElementById('prof-search-input').value||'').trim().toLowerCase();
+  nuevaSancion.filtros.q = q;
+
+  const cursActivos = discData.cursantes.filter(c => c.activo !== false);
+
+  const lista = cursActivos.filter(c => {
+    if(!q) return true;
+    return (c.nombre_completo||'').toLowerCase().includes(q) ||
+           (c.ci||'').toLowerCase().includes(q) ||
+           (c.id||'').toLowerCase().includes(q) ||
+           (c.grado||'').toLowerCase().includes(q) ||
+           (c.arma||'').toLowerCase().includes(q) ||
+           nombreConGrado(c).toLowerCase().includes(q);
+  }).sort((a,b) => (a.nombre_completo||'').localeCompare(b.nombre_completo||''));
+
+  // Banner info: totales por ciclo (solo cuando no hay búsqueda activa)
+  const banner = document.getElementById('prof-info-banner');
+  if(!q){
+    const ciclo1 = cursActivos.filter(c => /1.*er.*ciclo/i.test(c.ciclo||'') || /^1/i.test(c.ciclo||'')).length;
+    const ciclo2 = cursActivos.filter(c => /2.*do.*ciclo/i.test(c.ciclo||'') || /^2/i.test(c.ciclo||'')).length;
+    document.getElementById('prof-info-count').textContent = `${cursActivos.length} cursantes disponibles`;
+    document.getElementById('prof-info-detail').innerHTML = `1er Ciclo: <strong>${ciclo1}</strong> · 2do Ciclo: <strong>${ciclo2}</strong>. Datos oficiales RR.NN. 2026.`;
+    banner.style.display='';
+  } else {
+    document.getElementById('prof-info-count').textContent = `${lista.length} coincidencia${lista.length===1?'':'s'}`;
+    document.getElementById('prof-info-detail').textContent = `Buscando: "${q}"`;
+  }
+
+  const cont = document.getElementById('prof-cursantes-list');
+  if(!lista.length){
+    cont.innerHTML = `<div class="empty-state"><div class="es-icon">🔍</div><div class="es-text">Ningún cursante coincide</div></div>`;
+    return;
+  }
+
+  // Limitar a 50 resultados para performance (cuando no hay query)
+  const visible = q ? lista : lista.slice(0, 50);
+
+  cont.innerHTML = visible.map(c => {
+    const fullName = nombreConGrado(c);
+    const ini = (c.nombre_completo||'').split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase() || '—';
+    const cycloParalelo = [c.ciclo, c.paralelo].filter(Boolean).join(' "') + (c.paralelo?'"':'');
+    return `<div class="cs-result" onclick="seleccionarCursanteSancion('${escapeAttr(c.id)}')">
+      <div class="cs-circle">${ini}</div>
+      <div class="cs-main">
+        <div class="cs-name">${escapeHtml(fullName)}</div>
+        <div class="cs-sub">${cycloParalelo?`Ciclo ${escapeHtml(cycloParalelo)} · `:''}CI ${escapeHtml(c.ci||'—')}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  if(!q && lista.length > 50){
+    cont.innerHTML += `<div class="empty-state" style="padding:20px"><div class="es-text">Mostrando 50 de ${lista.length} · escribe para filtrar</div></div>`;
+  }
+}
+
+function seleccionarCursanteSancion(cursId){
+  const cur = discData.cursantes.find(c => c.id===cursId);
+  if(!cur){ alert('Cursante no encontrado'); return; }
+  nuevaSancion.cursante = cur;
+  goProfElegirFalta();
+}
+
+function goProfElegirFalta(){
+  if(!nuevaSancion.cursante){ goProfBuscarCursante(); return; }
+  const c = nuevaSancion.cursante;
+  // Historial del cursante (excluyendo sanciones de prueba para conteo oficial)
+  const todasReales = (discData.byCursanteSanc[c.id] || []).filter(s => !s.es_prueba && !s.anulada);
+  const ptsActual = todasReales.reduce((acc,s) => acc + (Number(s.puntos_aplicados)||0), 0);
+  document.getElementById('prof-historial-text').innerHTML =
+    `Tiene <strong>${todasReales.length} sanción(es) previa(s)</strong> · Puntaje actual: <strong>${ptsActual} pts</strong>. La reincidencia se evaluará al seleccionar la falta (solo se aplica si ya cometió EXACTAMENTE la misma falta antes).`;
+
+  // Total de faltas para el subtítulo
+  document.getElementById('prof-faltas-sub').textContent = `${discData.reglamentos.length} faltas del Reglamento ECEME · filtre por puntaje`;
+
+  buildFiltrosPts();
+  filterFaltas();
+  const fs = document.getElementById('prof-falta-search');
+  if(fs) fs.value='';
+  showScreen('screen-prof-elegir-falta');
+}
+
+function buildFiltrosPts(){
+  // Recoger puntajes únicos del reglamento
+  const ptsSet = new Set();
+  discData.reglamentos.forEach(r => {
+    const p = getReglPts(r);
+    if(p!==null && p!==undefined && !isNaN(p)) ptsSet.add(Number(p));
+  });
+  const ptsList = [...ptsSet].sort((a,b)=>a-b);
+
+  let html = `<button class="pt-chip ${nuevaSancion.filtroFalta.pts==='todas'?'active':''}" onclick="setFiltroPts('todas')">Todas</button>`;
+  ptsList.forEach(p => {
+    html += `<button class="pt-chip ${nuevaSancion.filtroFalta.pts===String(p)?'active':''}" onclick="setFiltroPts('${p}')">${p} pt${p===1?'':'s'}</button>`;
+  });
+  html += `<button class="pt-chip special ${nuevaSancion.filtroFalta.pts==='consejo'?'active':''}" onclick="setFiltroPts('consejo')">⚖️ Consejo Académico</button>`;
+  html += `<button class="pt-chip virtual ${nuevaSancion.filtroFalta.pts==='virtual'?'active':''}" onclick="setFiltroPts('virtual')">💻 Modalidad Virtual</button>`;
+  document.getElementById('prof-filter-pts').innerHTML = html;
+}
+
+function setFiltroPts(v){ nuevaSancion.filtroFalta.pts = v; buildFiltrosPts(); filterFaltas(); }
+
+function normalizarCategoria(r){
+  const c = (r.categoria || r.tipo || r.gravedad || '').toString().toUpperCase().trim();
+  if(!c) return 'OTROS';
+  if(c.includes('GRAVISIM') || c.includes('GRAVÍSIM')) return 'GRAVÍSIMA';
+  if(c.includes('GRAVE') && !c.includes('GRAVISIM') && !c.includes('GRAVÍSIM')) return 'GRAVE';
+  if(c.includes('LEVE')) return 'LEVE';
+  if(c.includes('VIRTUAL')) return 'VIRTUAL';
+  return c;
+}
+
+function esConsejoAcademico(r){
+  // Categoría GRAVE o GRAVÍSIMA → Consejo Académico
+  const cat = normalizarCategoria(r);
+  return cat === 'GRAVE' || cat === 'GRAVÍSIMA';
+}
+
+function getReglDesc(r){ return r.descripcion || r.texto || r.detalle || ''; }
+function getReglPts(r){
+  const p = r.puntaje ?? r.puntos ?? r.puntos_base ?? r.demerito;
+  if(p===null || p===undefined || p==='') return null;
+  const n = Number(p);
+  return isNaN(n) ? null : n;
+}
+function getReglArt(r){ return r.articulo || r.art || r.codigo || '—'; }
+
+function filterFaltas(){
+  const q = (document.getElementById('prof-falta-search').value||'').trim().toLowerCase();
+  nuevaSancion.filtroFalta.q = q;
+  const fp = nuevaSancion.filtroFalta.pts;
+
+  const lista = discData.reglamentos.filter(r => {
+    // Filtro de puntaje / consejo / virtual
+    if(fp === 'consejo') {
+      if(!esConsejoAcademico(r)) return false;
+    } else if(fp === 'virtual') {
+      if(normalizarCategoria(r) !== 'VIRTUAL') return false;
+    } else if(fp !== 'todas') {
+      const p = getReglPts(r);
+      if(p === null || String(p) !== fp) return false;
+    }
+    // Filtro de búsqueda
+    if(q){
+      return getReglDesc(r).toLowerCase().includes(q) ||
+             String(getReglArt(r)).toLowerCase().includes(q) ||
+             (r.id||'').toString().toLowerCase().includes(q) ||
+             normalizarCategoria(r).toLowerCase().includes(q);
+    }
+    return true;
+  });
+
+  // Ordenar por artículo
+  lista.sort((a,b) => String(getReglArt(a)).localeCompare(String(getReglArt(b)), 'es', {numeric:true}));
+
+  document.getElementById('prof-faltas-count').textContent = `${lista.length} resultado${lista.length===1?'':'s'}`;
+
+  if(!lista.length){
+    document.getElementById('prof-faltas-list').innerHTML = `<div class="empty-state"><div class="es-icon">🔍</div><div class="es-text">No se encontraron faltas con esos criterios</div></div>`;
+    return;
+  }
+
+  document.getElementById('prof-faltas-list').innerHTML = lista.map(r => {
+    const desc = getReglDesc(r) || '(sin descripción)';
+    const pts = getReglPts(r);
+    const art = getReglArt(r);
+    return `<div class="falta-result" onclick="seleccionarFaltaSancion('${escapeAttr(r.id)}')">
+      <div class="fr-body">
+        <div class="fr-art">Art. ${escapeHtml(art)}</div>
+        <div class="fr-desc">${escapeHtml(desc)}</div>
+      </div>
+      ${pts!==null ? `<div class="fr-pts">${pts} pts</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function seleccionarFaltaSancion(faltaId){
+  const r = discData.reglamentos.find(x => x.id===faltaId);
+  if(!r){ alert('Falta no encontrada'); return; }
+  nuevaSancion.falta = r;
+  calcularReincidencia();
+  renderPrevia();
+  showScreen('screen-prof-previa');
+}
+
+/* Reglas de reincidencia:
+   - 1ª vez (0 previas):    × 1 puntaje base
+   - 2ª vez (1 previa):     × 2 (1ª reincidencia)
+   - 3ª vez (2 previas):    × 2 + memorandum Jefe de Sección (2ª reincidencia)
+   - 4ª vez+ (3+ previas):  × 2 + parte al Consejo Académico (3ª+ reincidencia) */
+function calcularReincidencia(){
+  const c = nuevaSancion.cursante;
+  const r = nuevaSancion.falta;
+  if(!c || !r){ return; }
+
+  // Buscar sanciones previas REALES (no de prueba ni anuladas) con la MISMA falta_id
+  const previas = discData.sanciones.filter(s =>
+    s.cursante_id === c.id && s.falta_id === r.id && !s.anulada && !s.es_prueba
+  );
+  const num = previas.length;  // 0 = primera, 1 = primera reincidencia, etc.
+  const ptsBase = getReglPts(r) || 0;
+  let ptsFinal = ptsBase;
+  let requiereMemo = false, requiereConsejo = false;
+
+  if(num === 1){
+    ptsFinal = ptsBase * 2;
+  } else if(num === 2){
+    ptsFinal = ptsBase * 2;
+    requiereMemo = true;
+  } else if(num >= 3){
+    ptsFinal = ptsBase * 2;
+    requiereMemo = true;
+    requiereConsejo = true;
+  }
+
+  nuevaSancion.reincidencia = { num, requiereMemo, requiereConsejo, puntosBase: ptsBase, puntosFinal: ptsFinal };
+}
+
+function renderPrevia(){
+  if(!nuevaSancion.cursante || !nuevaSancion.falta){ goProfPanel(); return; }
+  const c = nuevaSancion.cursante;
+  const r = nuevaSancion.falta;
+  const reinc = nuevaSancion.reincidencia;
+  const cat = normalizarCategoria(r);
+  const fullName = nombreConGrado(c);
+  const cycloPar = [c.ciclo, c.paralelo].filter(Boolean).join(' "') + (c.paralelo?'"':'');
+  const desc = getReglDesc(r) || '(sin descripción)';
+  const art = getReglArt(r);
+
+  let html = '';
+
+  // 1. Cursante
+  html += `<div class="papeleta-block">
+    <div class="pb-title">🎖️ Cursante</div>
+    <div class="pb-row"><span class="pb-lbl">Nombre</span><span class="pb-val">${escapeHtml(fullName)}</span></div>
+    <div class="pb-row"><span class="pb-lbl">CI</span><span class="pb-val">${escapeHtml(c.ci||'—')}</span></div>
+    ${cycloPar?`<div class="pb-row"><span class="pb-lbl">Ciclo</span><span class="pb-val">${escapeHtml(cycloPar)}</span></div>`:''}
+  </div>`;
+
+  // 2. Falta
+  html += `<div class="papeleta-block">
+    <div class="pb-title">📖 Falta</div>
+    <div class="pb-falta-desc">${escapeHtml(desc)}</div>
+    <div class="pb-row"><span class="pb-lbl">Artículo</span><span class="pb-val">Art. ${escapeHtml(art)}</span></div>
+    <div class="pb-row"><span class="pb-lbl">Categoría</span><span class="pb-val">${escapeHtml(cat)}</span></div>
+    <div class="pb-row"><span class="pb-lbl">Puntaje base</span><span class="pb-val">${reinc.puntosBase} pts</span></div>
+  </div>`;
+
+  // 3. Reincidencia & Memorandum / Consejo
+  let reincTxt = '✓ Primera vez — sin reincidencia';
+  let reincClass = '';
+  if(reinc.num === 1){ reincTxt = '⚠️ 1ª reincidencia — puntaje DOBLE'; reincClass = 'r1'; }
+  else if(reinc.num === 2){ reincTxt = '⚠️ 2ª reincidencia — DOBLE + memorandum'; reincClass = 'r2'; }
+  else if(reinc.num >= 3){ reincTxt = `🚨 ${reinc.num}ª reincidencia — DOBLE + Consejo Académico`; reincClass = 'r3'; }
+
+  html += `<div class="papeleta-block" style="text-align:center">
+    <div class="pb-title" style="justify-content:center">🔁 Reincidencia</div>
+    <div class="reinc-badge-flow ${reincClass}">${reincTxt}</div>
+  </div>`;
+
+  if(reinc.requiereMemo){
+    html += `<div class="memo-banner">
+      <div class="mb-title">📄 Requiere memorandum</div>
+      <div class="mb-text">Corresponde Memorandum de Sanción (${reinc.num+1}ª sanción por la misma falta).</div>
+    </div>`;
+  }
+  if(reinc.requiereConsejo){
+    html += `<div class="memo-banner consejo-banner">
+      <div class="mb-title">⚖️ Parte al Consejo Académico</div>
+      <div class="mb-text">Esta es la <strong>${reinc.num+1}ª sanción</strong> por la misma falta. Se dará parte en observaciones para que sea elevado al <strong>Consejo Académico</strong>.</div>
+    </div>`;
+  }
+
+  // 4. Puntaje final mega
+  const operacion = reinc.puntosBase !== reinc.puntosFinal
+    ? `${reinc.puntosBase} pts × 2 = ${reinc.puntosFinal} pts`
+    : `${reinc.puntosBase} pts (sin multiplicador)`;
+  html += `<div class="puntaje-final-mega">
+    <div class="pfm-label">Puntaje final a aplicar</div>
+    <div class="pfm-value">−${reinc.puntosFinal} pts</div>
+    <div class="pfm-detail">${operacion}</div>
+  </div>`;
+
+  // 5. Profesor que registra
+  html += `<div class="papeleta-block">
+    <div class="pb-title">👨‍🏫 Registra esta sanción</div>
+    <div class="pb-row"><span class="pb-lbl">Profesor</span><span class="pb-val">${escapeHtml(nombreConGrado(currentUser))}</span></div>
+    <div class="pb-row"><span class="pb-lbl">CI</span><span class="pb-val">${escapeHtml(currentUser.ci||'—')}</span></div>
+    <div class="pb-row"><span class="pb-lbl">Fecha y hora</span><span class="pb-val">${new Date().toLocaleString('es-BO')}</span></div>
+    <div class="pb-row"><span class="pb-lbl">Modo</span><span class="pb-val">${MODO_PRUEBA?'🟡 PRUEBA (no afecta puntaje oficial)':'🔴 REAL (afecta puntaje oficial)'}</span></div>
+  </div>`;
+
+  document.getElementById('prof-previa-content').innerHTML = html;
+}
+
+function goProfPrevia(){ renderPrevia(); showScreen('screen-prof-previa'); }
+
+/* ==================== PASO 4: FIRMA DEL PROFESOR ==================== */
+
+let sigCanvas = null, sigCtx = null, sigDrawing = false, sigHasContent = false;
+
+function goProfFirma(){
+  showScreen('screen-prof-firma');
+  // Pedir GPS si todavía no lo tenemos
+  pedirGPSSiHaceFalta();
+  setTimeout(()=>initSignatureCanvas(), 100);
+}
+
+function initSignatureCanvas(){
+  sigCanvas = document.getElementById('sig-canvas-prof');
+  if(!sigCanvas) return;
+  // Ajustar tamaño real del canvas según viewport
+  const rect = sigCanvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  sigCanvas.width = rect.width * dpr;
+  sigCanvas.height = rect.height * dpr;
+  sigCtx = sigCanvas.getContext('2d');
+  sigCtx.scale(dpr, dpr);
+  sigCtx.strokeStyle = '#0f1530';
+  sigCtx.lineWidth = 2.4;
+  sigCtx.lineCap = 'round';
+  sigCtx.lineJoin = 'round';
+  sigHasContent = false;
+
+  const start = (x,y)=>{ sigDrawing=true; sigCtx.beginPath(); sigCtx.moveTo(x,y); };
+  const draw = (x,y)=>{ if(!sigDrawing) return; sigCtx.lineTo(x,y); sigCtx.stroke(); sigHasContent=true; };
+  const end = ()=>{ sigDrawing=false; };
+
+  const getPos = (e)=>{
+    const r = sigCanvas.getBoundingClientRect();
+    if(e.touches && e.touches[0]) return { x: e.touches[0].clientX - r.left, y: e.touches[0].clientY - r.top };
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  };
+
+  sigCanvas.onmousedown = e => { const p=getPos(e); start(p.x,p.y); };
+  sigCanvas.onmousemove = e => { const p=getPos(e); draw(p.x,p.y); };
+  sigCanvas.onmouseup   = end;
+  sigCanvas.onmouseleave= end;
+  sigCanvas.ontouchstart= e => { e.preventDefault(); const p=getPos(e); start(p.x,p.y); };
+  sigCanvas.ontouchmove = e => { e.preventDefault(); const p=getPos(e); draw(p.x,p.y); };
+  sigCanvas.ontouchend  = e => { e.preventDefault(); end(); };
+}
+
+function clearSignature(){
+  if(!sigCtx || !sigCanvas) return;
+  sigCtx.clearRect(0,0,sigCanvas.width,sigCanvas.height);
+  sigHasContent = false;
+}
+
+/* ==================== CAPTURA FORENSE ==================== */
+
+function iniciarCapturaForense(){
+  nuevaSancion.forense.timestamp = new Date().toISOString();
+  nuevaSancion.forense.userAgent = navigator.userAgent || '';
+  nuevaSancion.forense.os = detectarOS();
+  // IP en background (no bloqueante)
+  obtenerIP().then(ip => { nuevaSancion.forense.ip = ip; }).catch(()=>{});
+}
+
+function detectarOS(){
+  const ua = (navigator.userAgent||'').toLowerCase();
+  if(ua.includes('iphone') || ua.includes('ipad') || ua.includes('ipod')) return 'iOS';
+  if(ua.includes('android')) return 'Android';
+  if(ua.includes('mac os')) return 'macOS';
+  if(ua.includes('windows')) return 'Windows';
+  if(ua.includes('linux')) return 'Linux';
+  return 'Otro';
+}
+
+async function obtenerIP(){
+  try{
+    const r = await fetch('https://api.ipify.org?format=json', {cache:'no-store'});
+    if(!r.ok) return null;
+    const d = await r.json();
+    return d.ip || null;
+  }catch(e){ return null; }
+}
+
+function pedirGPSSiHaceFalta(){
+  if(nuevaSancion.forense.gps || nuevaSancion.forense.intentoGps) return;
+  nuevaSancion.forense.intentoGps = true;
+  if(!navigator.geolocation) return;
+  navigator.geolocation.getCurrentPosition(
+    pos => {
+      nuevaSancion.forense.gps = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        precision: pos.coords.accuracy
+      };
+    },
+    err => { console.warn('GPS denegado/error:', err && err.message); },
+    { enableHighAccuracy:true, timeout:8000, maximumAge:60000 }
+  );
+}
+
+/* ==================== GUARDAR SANCIÓN ==================== */
+
+function generarFolio(){
+  // Formato: 2026-05-NNNN
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth()+1).padStart(2,'0');
+  // Tomar el siguiente número correlativo del mes
+  const prefix = `${yyyy}-${mm}-`;
+  const existentes = discData.sanciones
+    .map(s => s.folio || '')
+    .filter(f => f.startsWith(prefix))
+    .map(f => parseInt(f.split('-')[2],10) || 0);
+  const next = (existentes.length ? Math.max(...existentes) : 1000) + 1;
+  return `${prefix}${next}`;
+}
+
+function generarUuidLight(){
+  // UUID v4 simple (suficiente para identificadores de token QR)
+  return 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'.replace(/x/g, () => Math.floor(Math.random()*16).toString(16));
+}
+
+async function confirmarYFirmarSancion(){
+  if(!sigHasContent){
+    alert('Por favor, firma en el recuadro antes de confirmar.');
+    return;
+  }
+  const btn = document.getElementById('btn-confirmar-sancion');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-inline"></span> Registrando...';
+
+  try{
+    // 1. Capturar firma como data URL
+    nuevaSancion.firmaProfesor = sigCanvas.toDataURL('image/png');
+
+    // 2. Generar folio y token
+    nuevaSancion.folio = generarFolio();
+    const tokenQR = generarUuidLight();
+
+    // 3. Esperar GPS un poco si todavía no llegó (máx 2s extra)
+    if(!nuevaSancion.forense.gps && nuevaSancion.forense.intentoGps){
+      await new Promise(res => setTimeout(res, 1500));
+    }
+
+    // 4. Construir objeto a guardar
+    const c = nuevaSancion.cursante;
+    const r = nuevaSancion.falta;
+    const reinc = nuevaSancion.reincidencia;
+    const now = new Date();
+
+    const huellaForense = {
+      ip: nuevaSancion.forense.ip || null,
+      user_agent: nuevaSancion.forense.userAgent,
+      os: nuevaSancion.forense.os,
+      timestamp_iniciado: nuevaSancion.forense.timestamp,
+      timestamp_firmado: now.toISOString(),
+      gps: nuevaSancion.forense.gps,
+      token_qr: tokenQR,
+      modo_prueba: MODO_PRUEBA,
+      reincidencia_num: reinc.num,
+      puntos_base: reinc.puntosBase,
+      puntos_final: reinc.puntosFinal,
+      requiere_memorandum: reinc.requiereMemo,
+      requiere_consejo: reinc.requiereConsejo
+    };
+
+    const sancion = {
+      id: `S_${nuevaSancion.folio.replace(/-/g,'_')}_${tokenQR.slice(0,8)}`,
+      folio: nuevaSancion.folio,
+      cursante_id: c.id,
+      cursante_nombre: c.nombre_completo,
+      cursante_ci: c.ci,
+      falta_id: r.id,
+      falta_descripcion: getReglDesc(r),
+      falta_articulo: String(getReglArt(r)),
+      falta_categoria: normalizarCategoria(r),
+      profesor_id: currentUser.id,
+      profesor_nombre: currentUser.nombre_completo,
+      profesor_grado: currentUser.grado || null,
+      puntos_base: reinc.puntosBase,
+      puntos_aplicados: reinc.puntosFinal,
+      es_reincidencia: reinc.num > 0,
+      reincidencia_num: reinc.num,
+      requiere_memorandum: reinc.requiereMemo,
+      requiere_consejo: reinc.requiereConsejo,
+      tipo: 'digital',
+      confirmacion_estado: 'pendiente',  // pendiente hasta que firme el cursante
+      es_prueba: MODO_PRUEBA,
+      firma_profesor: nuevaSancion.firmaProfesor,
+      firmada_prof_en: now.toISOString(),
+      fecha_creacion: now.toISOString(),
+      huella_forense: huellaForense,
+      semestre: '2026-1',
+      anulada: false
+    };
+
+    // 5. Insertar en Supabase
+    const { data, error } = await sb.from('sanciones').insert(sancion).select();
+    if(error){
+      console.error('Error insertando sanción:', error);
+      alert('Error al guardar: ' + (error.message || JSON.stringify(error)));
+      btn.disabled = false;
+      btn.innerHTML = '✓ Confirmar y firmar';
+      return;
+    }
+
+    // 6. Refrescar discData en memoria
+    if(data && data[0]){
+      discData.sanciones.push(data[0]);
+      if(!discData.byCursanteSanc[c.id]) discData.byCursanteSanc[c.id] = [];
+      discData.byCursanteSanc[c.id].push(data[0]);
+      if(!MODO_PRUEBA){
+        discData.byCursanteLost[c.id] = (discData.byCursanteLost[c.id]||0) + reinc.puntosFinal;
+      }
+    }
+
+    // 7. Mostrar ficha final con QR
+    mostrarFichaFinal(data && data[0] ? data[0] : sancion, tokenQR);
+
+  }catch(e){
+    console.error(e);
+    alert('Error inesperado: ' + (e.message || e));
+    btn.disabled = false;
+    btn.innerHTML = '✓ Confirmar y firmar';
+  }
+}
+
+/* ==================== FICHA FINAL CON QR ==================== */
+
+function urlFirmaCursante(sancionId, tokenQR){
+  // URL base = host actual + path actual (funciona en GitHub Pages o local)
+  const base = window.location.origin + window.location.pathname;
+  return `${base}?firma=${encodeURIComponent(sancionId)}&t=${encodeURIComponent(tokenQR)}`;
+}
+
+function mostrarFichaFinal(sancion, tokenQR){
+  const c = nuevaSancion.cursante;
+  const r = nuevaSancion.falta;
+  const reinc = nuevaSancion.reincidencia;
+  const gps = nuevaSancion.forense.gps;
+  const fullName = nombreConGrado(c);
+  const desc = getReglDesc(r) || '—';
+  const art = getReglArt(r);
+  const cat = normalizarCategoria(r);
+  const cycloPar = [c.ciclo, c.paralelo].filter(Boolean).join(' "') + (c.paralelo?'"':'');
+  const fechaTxt = new Date(sancion.fecha_creacion).toLocaleString('es-BO');
+
+  // Header
+  document.getElementById('ficha-folio').textContent = `SANCIÓN ${sancion.folio}`;
+  document.getElementById('ficha-fecha').textContent = fechaTxt;
+
+  // URL para QR
+  const urlQR = urlFirmaCursante(sancion.id, tokenQR);
+
+  let html = '';
+
+  // Status
+  html += `<div class="ficha-status">
+    <div class="fs-icon">⏳</div>
+    <div class="fs-title">Pendiente de firma</div>
+    <div class="fs-sub">Solicite al cursante que escanee el QR</div>
+  </div>`;
+
+  // QR card
+  html += `<div class="qr-card">
+    <div id="qr-container-final"></div>
+    <div class="qr-cap">Firma digital del alumno</div>
+    <div class="qr-sub">Escanee para confirmar recepción</div>
+    <div class="qr-folio">Folio ${sancion.folio}</div>
+  </div>
+  <div class="qr-url-display">${escapeHtml(urlQR)}</div>`;
+
+  // Cursante sancionado (papeleta crema)
+  html += `<div class="papeleta-block">
+    <div class="pb-title">🎖️ Cursante sancionado</div>
+    <div class="pb-row"><span class="pb-lbl">Nombre</span><span class="pb-val">${escapeHtml(fullName)}</span></div>
+    <div class="pb-row"><span class="pb-lbl">CI</span><span class="pb-val">${escapeHtml(c.ci||'—')}</span></div>
+    ${cycloPar?`<div class="pb-row"><span class="pb-lbl">Paralelo</span><span class="pb-val">${escapeHtml(cycloPar)}</span></div>`:''}
+  </div>`;
+
+  // Falta cometida
+  html += `<div class="papeleta-block">
+    <div class="pb-title">📖 Falta cometida</div>
+    <div class="pb-falta-desc">${escapeHtml(desc)}</div>
+    <div class="pb-row"><span class="pb-lbl">Artículo</span><span class="pb-val">Art. ${escapeHtml(art)}</span></div>
+    <div class="pb-row"><span class="pb-lbl">Categoría</span><span class="pb-val">${escapeHtml(cat)}</span></div>
+    <div class="pb-row"><span class="pb-lbl">Puntaje base</span><span class="pb-val">${reinc.puntosBase} pts</span></div>
+    <div class="pb-row"><span class="pb-lbl">Puntaje final</span><span class="pb-val" style="color:#a83a3a;font-family:var(--font-display);font-weight:700;font-size:18px">−${reinc.puntosFinal} PTS</span></div>
+  </div>`;
+
+  // Registrada por
+  html += `<div class="papeleta-block">
+    <div class="pb-title">👨‍🏫 Registrada por</div>
+    <div class="pb-row"><span class="pb-lbl">Profesor</span><span class="pb-val">${escapeHtml((currentUser.nombre_completo||'').toUpperCase())}</span></div>
+    <div class="pb-row"><span class="pb-lbl">CI profesor</span><span class="pb-val">${escapeHtml(currentUser.ci||'—')}</span></div>
+    ${currentUser.grado?`<div class="pb-row"><span class="pb-lbl">Grado</span><span class="pb-val">${escapeHtml(currentUser.grado)}${currentUser.arma?' · '+escapeHtml(currentUser.arma):''}</span></div>`:''}
+    <div class="pb-row"><span class="pb-lbl">Fecha y hora</span><span class="pb-val">${fechaTxt}</span></div>
+  </div>`;
+
+  // Firma digital del profesor
+  if(nuevaSancion.firmaProfesor){
+    html += `<div class="papeleta-block">
+      <div class="pb-title">✍️ Firma digital</div>
+      <div class="firma-display"><img src="${nuevaSancion.firmaProfesor}" alt="Firma del profesor"></div>
+    </div>`;
+  }
+
+  // Memorandum / Consejo
+  if(reinc.requiereMemo){
+    html += `<div class="memo-banner">
+      <div class="mb-title">📄 Requiere memorandum</div>
+      <div class="mb-text">Corresponde Memorandum de Sanción (${reinc.num+1}ª sanción por la misma falta).</div>
+    </div>`;
+  }
+  if(reinc.requiereConsejo){
+    html += `<div class="memo-banner consejo-banner">
+      <div class="mb-title">⚖️ Parte al Consejo Académico</div>
+      <div class="mb-text">${reinc.num+1}ª sanción por la misma falta.</div>
+    </div>`;
+  }
+
+  // Modo (si es prueba, banderazo)
+  if(MODO_PRUEBA){
+    html += `<div class="memo-banner" style="background:linear-gradient(180deg,#fff4d0,#f8e0a0);border-color:#d4af37;border-left-color:#9a7b1f;color:#3a2a08">
+      <div class="mb-title" style="color:#3a2a08">🟡 Sanción de prueba</div>
+      <div class="mb-text">Esta sanción NO afecta el puntaje oficial del cursante. Está marcada como <code>es_prueba=true</code>. Para activar el modo real, ve al panel del profesor.</div>
+    </div>`;
+  }
+
+  // GPS / Mapa
+  if(gps && gps.lat && gps.lng){
+    html += `<div class="papeleta-block">
+      <div class="pb-title" style="color:#2a5577">📍 Ubicación del profesor (donde se registró)</div>
+      <div id="leaflet-map-prof"></div>
+      <div class="gps-coords-prof">📍 GPS Profesor: ${gps.lat.toFixed(6)} , ${gps.lng.toFixed(6)}${gps.precision?` (±${Math.round(gps.precision)}m)`:''}</div>
+    </div>`;
+  } else {
+    html += `<div class="papeleta-block" style="background:rgba(180,200,232,.3)">
+      <div class="pb-title" style="color:#3a4a6a">📍 Ubicación</div>
+      <div style="font-size:13px;color:#3a4a6a">No se obtuvo permiso de GPS. La sanción se registró igual con el resto de datos forenses.</div>
+    </div>`;
+  }
+
+  // Acciones
+  html += `<button class="btn-papeleta primary" onclick="copiarUrlFirma('${escapeAttr(urlQR)}')">📋 Copiar enlace de firma</button>`;
+  html += `<button class="btn-papeleta" onclick="goProfPanel()">🏠 Volver al panel</button>`;
+  html += `<button class="btn-papeleta" onclick="goProfNuevaSancion()">➕ Registrar otra sanción</button>`;
+
+  document.getElementById('ficha-content').innerHTML = html;
+  showScreen('screen-prof-ficha-final');
+
+  // Generar QR y mapa después de render
+  setTimeout(()=>{
+    if(typeof QRCode !== 'undefined'){
+      const cont = document.getElementById('qr-container-final');
+      if(cont){
+        cont.innerHTML = '';
+        const canvas = document.createElement('canvas');
+        cont.appendChild(canvas);
+        QRCode.toCanvas(canvas, urlQR, { width: 240, margin: 1, color:{ dark:'#1a0e02', light:'#fef5e0' }}, err => {
+          if(err) console.error('QR error:', err);
+        });
+      }
+    }
+    if(gps && gps.lat && gps.lng){
+      initLeafletMapProf(gps.lat, gps.lng, gps.precision);
+    }
+  }, 100);
+}
+
+function initLeafletMapProf(lat, lng, precision){
+  if(typeof L === 'undefined') return;
+  const cont = document.getElementById('leaflet-map-prof');
+  if(!cont) return;
+  // Limpiar mapa previo si existe
+  if(cont._leaflet_id){ cont.innerHTML=''; }
+  const map = L.map('leaflet-map-prof').setView([lat,lng], 16);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+  L.marker([lat,lng]).addTo(map)
+    .bindPopup(`📍 Registro de sanción<br>${lat.toFixed(5)} , ${lng.toFixed(5)}`)
+    .openPopup();
+}
+
+function copiarUrlFirma(url){
+  try{
+    navigator.clipboard.writeText(url).then(()=>{
+      alert('✅ Enlace copiado al portapapeles.\n\nPuedes compartirlo con el cursante o esperar a que escanee el QR.');
+    }).catch(()=>{
+      prompt('Copia el siguiente enlace:', url);
+    });
+  }catch(e){
+    prompt('Copia el siguiente enlace:', url);
+  }
+}
+
+function qaProf(action){
+  const labels = {
+    mis_sanciones: 'Ver mis sanciones registradas',
+    mes_actual: 'Sanciones de este mes',
+    cambiar_pwd: 'Cambiar mi contraseña'
+  };
+  alert(`"${labels[action]||action}" — en próxima iteración.`);
+}
+
+// Helpers de escape
+if(typeof escapeHtml === 'undefined'){
+  window.escapeHtml = function(s){
+    return String(s==null?'':s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  };
+}
+if(typeof escapeAttr === 'undefined'){
+  window.escapeAttr = function(s){
+    return String(s==null?'':s).replace(/'/g,"\\'").replace(/"/g,'&quot;');
+  };
+}
+
+/* ==================== GESTIÓN DE SANCIONES DE PRUEBA ==================== */
+async function gestionarSancionesPrueba(){
+  const pruebas = discData.sanciones.filter(s => s.es_prueba === true);
+  if(!pruebas.length){
+    alert('✅ No hay sanciones de prueba en la base de datos.\n\nTodas las sanciones registradas son reales.');
+    return;
+  }
+
+  // Resumen
+  const porCursante = {};
+  pruebas.forEach(s => {
+    const k = s.cursante_nombre || s.cursante_id || '—';
+    porCursante[k] = (porCursante[k]||0) + 1;
+  });
+  const resumen = Object.entries(porCursante)
+    .map(([k,n]) => `  • ${k}: ${n}`)
+    .slice(0,10)
+    .join('\n');
+  const extra = Object.keys(porCursante).length > 10 ? `\n  ... y ${Object.keys(porCursante).length-10} cursantes más` : '';
+
+  const msg = `🧪 Hay ${pruebas.length} sanción(es) de prueba:\n\n${resumen}${extra}\n\n¿Deseas eliminarlas TODAS de la base de datos?\n\nEsta acción NO se puede deshacer.`;
+
+  if(!confirm(msg)) return;
+
+  // Confirmación adicional
+  const confirma = prompt(`Escribe BORRAR para confirmar la eliminación de las ${pruebas.length} sanciones de prueba:`);
+  if(confirma !== 'BORRAR'){
+    alert('Cancelado. No se eliminó nada.');
+    return;
+  }
+
+  try{
+    const ids = pruebas.map(s => s.id);
+    const { error } = await sb.from('sanciones').delete().in('id', ids);
+    if(error){
+      alert('Error al borrar: ' + (error.message || JSON.stringify(error)));
+      return;
+    }
+    // Refrescar discData
+    discData.sanciones = discData.sanciones.filter(s => s.es_prueba !== true);
+    // Re-construir byCursanteLost y byCursanteSanc desde cero
+    discData.byCursanteLost = {};
+    discData.byCursanteSanc = {};
+    discData.sanciones.forEach(s => {
+      if(s.anulada===true) return;
+      const cid=s.cursante_id;
+      const pts=Number(s.puntos_aplicados)||0;
+      if(s.es_prueba !== true){
+        discData.byCursanteLost[cid] = (discData.byCursanteLost[cid]||0) + pts;
+      }
+      if(!discData.byCursanteSanc[cid]) discData.byCursanteSanc[cid] = [];
+      discData.byCursanteSanc[cid].push(s);
+    });
+    renderDiscPanel();
+    alert(`✅ Eliminadas ${ids.length} sanciones de prueba.`);
+  }catch(e){
+    alert('Error: ' + (e.message || e));
+  }
 }
 
 /* ==================== QA placeholder ==================== */
