@@ -897,7 +897,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 }
 .firma-display img{max-width:100%;height:80px;object-fit:contain}
 
-#leaflet-map-prof{height:240px;border-radius:var(--radius-sm);margin-bottom:8px}
+#leaflet-map-prof, #det-leaflet-map{height:240px;border-radius:var(--radius-sm);margin-bottom:8px}
 .gps-coords-prof{
   font-family:monospace;font-size:11px;color:#5c4a1a;
   background:rgba(0,0,0,.04);padding:8px 12px;border-radius:var(--radius-sm);
@@ -928,7 +928,101 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .reinc-badge-flow.r2{background:rgba(200,74,74,.18);color:#e8a8a8;border-color:rgba(200,74,74,.4)}
 .reinc-badge-flow.r3{background:rgba(154,40,40,.22);color:#ffb0b0;border-color:rgba(200,74,74,.7);box-shadow:0 0 12px rgba(200,74,74,.3)}
 
-/* Loading spinner */
+/* ==================== LISTADO INLINE DE SANCIONES (PANEL PROFESOR) ==================== */
+.mis-sanciones-section{margin:8px 0 20px 0}
+.mis-sanciones-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding:0 4px}
+.mss-title{font-family:var(--font-display);font-size:14px;letter-spacing:2.5px;color:var(--gold-light);text-transform:uppercase;font-weight:600}
+.btn-refresh{
+  background:rgba(212,175,55,.12);border:1px solid var(--border-subtle);
+  color:var(--gold);width:36px;height:36px;border-radius:50%;
+  font-size:16px;cursor:pointer;transition:all .2s;
+  display:flex;align-items:center;justify-content:center;
+}
+.btn-refresh:hover{background:rgba(212,175,55,.25);border-color:var(--gold);transform:rotate(180deg)}
+.btn-refresh.spinning #prof-refresh-icon, .btn-refresh.spinning{animation:spin 1s linear infinite}
+
+.mis-sanciones-filtros{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.ms-filtro{
+  padding:6px 12px;background:rgba(5,10,20,.4);
+  border:1px solid var(--border-subtle);border-radius:14px;
+  color:var(--text-secondary);font-family:var(--font-display);
+  font-size:11px;letter-spacing:1.2px;text-transform:uppercase;cursor:pointer;
+  font-weight:600;transition:all .15s;
+}
+.ms-filtro:hover{border-color:var(--gold);color:var(--gold-light)}
+.ms-filtro.active{background:linear-gradient(135deg,#9a7b1f,#d4af37);color:#1a0e02;border-color:#8a6f17}
+
+.ms-card{
+  display:flex;align-items:flex-start;gap:12px;
+  background:rgba(17,32,58,.6);
+  border:1px solid var(--border-subtle);border-left:4px solid var(--text-muted);
+  border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:10px;
+  cursor:pointer;transition:all .2s;position:relative;
+}
+.ms-card:hover{border-left-color:var(--gold);transform:translateX(2px);background:rgba(17,32,58,.85)}
+.ms-card.firmada{border-left-color:#4ca36b;background:linear-gradient(90deg,rgba(76,163,107,.08),rgba(17,32,58,.6))}
+.ms-card.pendiente{border-left-color:#c84a4a;background:linear-gradient(90deg,rgba(200,74,74,.06),rgba(17,32,58,.6))}
+.ms-card.prueba{border-left-color:#e0a83a;background:linear-gradient(90deg,rgba(224,168,58,.06),rgba(17,32,58,.6))}
+
+.ms-card .ms-icon{
+  flex-shrink:0;width:38px;height:38px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;
+}
+.ms-card.firmada .ms-icon{background:rgba(76,163,107,.18);color:#9bcfa9}
+.ms-card.pendiente .ms-icon{background:rgba(200,74,74,.18);color:#e8a8a8}
+.ms-card.prueba .ms-icon{background:rgba(224,168,58,.18);color:#e8c87a}
+
+.ms-card .ms-body{flex:1;min-width:0}
+.ms-card .ms-row1{
+  display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:3px;
+}
+.ms-card .ms-folio{
+  font-family:var(--font-display);font-size:12px;letter-spacing:1.5px;
+  color:var(--gold-light);font-weight:700;text-transform:uppercase;
+}
+.ms-card .ms-pts{
+  font-family:var(--font-display);font-size:14px;font-weight:700;
+  color:#e8a8a8;flex-shrink:0;
+}
+.ms-card.firmada .ms-pts{color:#9bcfa9}
+.ms-card .ms-cursante{
+  font-family:var(--font-display);font-size:14px;color:var(--text-primary);
+  letter-spacing:.5px;margin-bottom:3px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.ms-card .ms-meta{
+  display:flex;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--text-muted);
+  align-items:center;
+}
+.ms-card .ms-badge{
+  display:inline-block;padding:2px 8px;border-radius:10px;
+  font-family:var(--font-display);font-size:10px;letter-spacing:1px;
+  font-weight:600;text-transform:uppercase;
+}
+.ms-card .ms-badge.firmada{background:rgba(76,163,107,.22);color:#9bcfa9;border:1px solid rgba(76,163,107,.35)}
+.ms-card .ms-badge.pendiente{background:rgba(200,74,74,.22);color:#e8a8a8;border:1px solid rgba(200,74,74,.35)}
+.ms-card .ms-badge.prueba{background:rgba(224,168,58,.18);color:#e8c87a;border:1px solid rgba(224,168,58,.35)}
+
+.ms-empty{
+  background:rgba(17,32,58,.4);border:1px dashed var(--border-subtle);
+  border-radius:var(--radius-sm);padding:24px 20px;text-align:center;color:var(--text-muted);
+  font-size:13px;
+}
+.ms-empty .me-icon{font-size:32px;margin-bottom:8px;opacity:.5}
+
+/* Botón "Abrir en Google Maps" */
+.btn-google-maps{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  background:linear-gradient(135deg,#4285f4,#2967d4);color:#fff;
+  border:none;padding:11px 16px;border-radius:var(--radius-sm);
+  font-family:var(--font-display);font-size:12px;letter-spacing:1.5px;
+  text-transform:uppercase;font-weight:700;cursor:pointer;width:100%;
+  margin-top:8px;text-decoration:none;
+  box-shadow:0 3px 8px rgba(66,133,244,.3);
+}
+.btn-google-maps:hover{box-shadow:0 5px 12px rgba(66,133,244,.4)}
+
 .spinner-inline{
   display:inline-block;width:18px;height:18px;
   border:2px solid rgba(212,175,55,.25);
@@ -1082,19 +1176,32 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
     </button>
 
     <div class="prof-mini-stats">
-      <div class="prof-mini-card" onclick="qaProf('mis_sanciones')">
+      <div class="prof-mini-card" onclick="filtrarMisSanciones('todas')">
         <div class="prof-mini-num" id="prof-stat-mias">—</div>
         <div class="prof-mini-label">Mis sanciones</div>
       </div>
-      <div class="prof-mini-card" onclick="qaProf('mes_actual')">
+      <div class="prof-mini-card" onclick="filtrarMisSanciones('mes')">
         <div class="prof-mini-num" id="prof-stat-mes">—</div>
         <div class="prof-mini-label">Este mes</div>
       </div>
     </div>
 
+    <div class="mis-sanciones-section">
+      <div class="mis-sanciones-header">
+        <div class="mss-title">📋 Mis sanciones registradas</div>
+        <button class="btn-refresh" onclick="refrescarMisSanciones()" title="Sincronizar"><span id="prof-refresh-icon">🔄</span></button>
+      </div>
+      <div class="mis-sanciones-filtros" id="mis-sanciones-filtros">
+        <button class="ms-filtro active" data-f="todas" onclick="filtrarMisSanciones('todas')">Todas</button>
+        <button class="ms-filtro" data-f="mes" onclick="filtrarMisSanciones('mes')">Este mes</button>
+        <button class="ms-filtro" data-f="pendientes" onclick="filtrarMisSanciones('pendientes')">⏳ Pendientes</button>
+        <button class="ms-filtro" data-f="firmadas" onclick="filtrarMisSanciones('firmadas')">✅ Firmadas</button>
+      </div>
+      <div id="prof-mis-sanciones-list"></div>
+    </div>
+
     <div class="section-label">Acciones</div>
     <div class="quick-grid">
-      <button class="quick-btn" onclick="qaProf('mis_sanciones')"><span class="qa-icon">📋</span><span class="qa-text">Ver mis sanciones registradas</span></button>
       <button class="quick-btn" onclick="qaProf('cambiar_pwd')"><span class="qa-icon">🔐</span><span class="qa-text">Cambiar mi contraseña</span></button>
     </div>
   </div>
@@ -1222,8 +1329,17 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   <div class="ficha-container" id="ficha-content"></div>
 </section>
 
+<!-- DETALLE DE SANCIÓN (al clic desde el listado) -->
+<section id="screen-prof-detalle-sancion" class="screen ficha-screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goProfPanel()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title" id="det-folio">SANCIÓN —</div><div class="header-sub" id="det-fecha">—</div></div>
+  </div>
+  <div class="ficha-container" id="det-content"></div>
+</section>
+
 <!-- ============================================ -->
-<!-- FLUJO FIRMA DEL CURSANTE (al escanear QR)      -->
 <!-- ============================================ -->
 
 <!-- Pantalla 0: Loading mientras buscamos la sanción -->
@@ -3250,6 +3366,289 @@ function renderProfPanel(){
 
   // Avisar si hay sanciones en backup local sin sincronizar
   mostrarAvisoBackupSiAplica();
+
+  // Renderizar listado inline de sanciones del profesor
+  renderMisSancionesInline();
+}
+
+/* ==================== LISTADO INLINE DE SANCIONES DEL PROFESOR ==================== */
+let misSancionesFiltro = 'todas';
+
+function filtrarMisSanciones(f){
+  misSancionesFiltro = f;
+  // Marcar el botón activo
+  document.querySelectorAll('#mis-sanciones-filtros .ms-filtro').forEach(b => {
+    b.classList.toggle('active', b.dataset.f === f);
+  });
+  renderMisSancionesInline();
+}
+
+function renderMisSancionesInline(){
+  if(!currentUser) return;
+  const cont = document.getElementById('prof-mis-sanciones-list');
+  if(!cont) return;
+
+  let lista = discData.sanciones.filter(s => s.profesor_id === currentUser.id && !s.anulada);
+
+  // Aplicar filtro
+  const now = new Date();
+  const inicioMes = new Date(now.getFullYear(), now.getMonth(), 1);
+  if(misSancionesFiltro === 'mes'){
+    lista = lista.filter(s => {
+      const f = s.firmada_prof_en || s.fecha_creacion || s.created_at || s.fecha;
+      if(!f) return false;
+      try{ return new Date(f) >= inicioMes; }catch(e){ return false; }
+    });
+  } else if(misSancionesFiltro === 'pendientes'){
+    lista = lista.filter(s => s.confirmacion_estado !== 'firmada' && s.confirmacion_estado !== 'aceptada' && !s.firma_cursante);
+  } else if(misSancionesFiltro === 'firmadas'){
+    lista = lista.filter(s => s.confirmacion_estado === 'firmada' || s.confirmacion_estado === 'aceptada' || s.firma_cursante);
+  }
+
+  // Ordenar por fecha descendente (las más nuevas primero)
+  lista.sort((a,b) => {
+    const fa = new Date(a.firmada_prof_en || a.fecha_creacion || a.created_at || 0).getTime();
+    const fb = new Date(b.firmada_prof_en || b.fecha_creacion || b.created_at || 0).getTime();
+    return fb - fa;
+  });
+
+  if(!lista.length){
+    cont.innerHTML = `<div class="ms-empty">
+      <div class="me-icon">📋</div>
+      <div>Aún no registraste sanciones${misSancionesFiltro!=='todas'?' en este filtro':''}.</div>
+    </div>`;
+    return;
+  }
+
+  cont.innerHTML = lista.map(s => {
+    const firmada = s.confirmacion_estado === 'firmada' || s.confirmacion_estado === 'aceptada' || !!s.firma_cursante;
+    const esPrueba = s.es_prueba === true;
+    const claseCard = firmada ? 'firmada' : (esPrueba ? 'prueba pendiente' : 'pendiente');
+    const icono = firmada ? '✅' : (esPrueba ? '🧪' : '⏳');
+    const fecha = s.firmada_prof_en || s.fecha_creacion || s.created_at || s.fecha;
+    const fechaTxt = fecha ? new Date(fecha).toLocaleDateString('es-BO',{day:'2-digit',month:'2-digit',year:'2-digit'}) + ' ' + new Date(fecha).toLocaleTimeString('es-BO',{hour:'2-digit',minute:'2-digit'}) : '—';
+    const cursNombre = s.cursante_nombre || s.cursante_id || '—';
+    const cortado = cursNombre.length > 38 ? cursNombre.slice(0,36)+'…' : cursNombre;
+    const badge = firmada
+      ? '<span class="ms-badge firmada">✅ Firmada</span>'
+      : (esPrueba
+        ? '<span class="ms-badge prueba">🧪 Prueba</span>'
+        : '<span class="ms-badge pendiente">⏳ Pendiente firma</span>');
+    return `<div class="ms-card ${claseCard}" onclick="verDetalleSancion('${escapeAttr(s.id)}')">
+      <div class="ms-icon">${icono}</div>
+      <div class="ms-body">
+        <div class="ms-row1">
+          <div class="ms-folio">${escapeHtml(s.folio || ('S-'+(s.id||'').slice(0,8)))}</div>
+          <div class="ms-pts">−${s.puntos_aplicados||0} pts</div>
+        </div>
+        <div class="ms-cursante">${escapeHtml(cortado)}</div>
+        <div class="ms-meta">
+          ${badge}
+          <span>Art. ${escapeHtml(s.falta_articulo||'—')}</span>
+          <span>·</span>
+          <span>${fechaTxt}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function refrescarMisSanciones(){
+  const btn = document.querySelector('.btn-refresh');
+  if(btn) btn.classList.add('spinning');
+  try{
+    await loadDiscData();
+    renderProfPanel();
+  }catch(e){
+    console.error('refresh falló:', e);
+  }finally{
+    if(btn) setTimeout(()=>btn.classList.remove('spinning'), 400);
+  }
+}
+
+/* ==================== DETALLE DE SANCIÓN (al hacer clic) ==================== */
+function verDetalleSancion(sancionId){
+  const s = discData.sanciones.find(x => x.id === sancionId);
+  if(!s){ alert('Sanción no encontrada en memoria. Refrescá y volvé a intentar.'); return; }
+
+  const cur = discData.cursantes.find(c => c.id === s.cursante_id) || {
+    nombre_completo: s.cursante_nombre,
+    ci: s.cursante_ci,
+    ciclo: '', paralelo: '', grado: '', arma: ''
+  };
+  const fullName = nombreConGrado(cur);
+  const cycloPar = [cur.ciclo, cur.paralelo].filter(Boolean).join(' "') + (cur.paralelo?'"':'');
+  const fechaProf = s.firmada_prof_en ? new Date(s.firmada_prof_en).toLocaleString('es-BO')
+                   : (s.fecha_creacion ? new Date(s.fecha_creacion).toLocaleString('es-BO') : '—');
+  const firmada = s.confirmacion_estado === 'firmada' || s.confirmacion_estado === 'aceptada' || !!s.firma_cursante;
+
+  document.getElementById('det-folio').textContent = `SANCIÓN ${s.folio || (s.id||'').slice(0,10)}`;
+  document.getElementById('det-fecha').textContent = fechaProf;
+
+  let html = '';
+
+  // Status
+  if(firmada){
+    html += `<div class="ficha-status firmada">
+      <div class="fs-icon">✅</div>
+      <div class="fs-title">Sanción firmada</div>
+      <div class="fs-sub">Firmada por el cursante y sincronizada</div>
+    </div>`;
+  } else {
+    html += `<div class="ficha-status">
+      <div class="fs-icon">⏳</div>
+      <div class="fs-title">Pendiente de firma</div>
+      <div class="fs-sub">El cursante aún no escaneó el QR</div>
+    </div>`;
+    // Mostrar el QR otra vez para que pueda volver a presentarlo
+    const tokenQR = s.huella_forense && s.huella_forense.token_qr;
+    if(tokenQR){
+      const urlQR = urlFirmaCursante(s.id, tokenQR);
+      html += `<div class="qr-card">
+        <div id="det-qr-container"></div>
+        <div class="qr-cap">Firma digital del alumno</div>
+        <div class="qr-sub">Escanee para confirmar recepción</div>
+        <div class="qr-folio">Folio ${s.folio||'—'}</div>
+      </div>
+      <button class="btn-papeleta primary" onclick="copiarUrlFirma('${escapeAttr(urlQR)}')">📋 Copiar enlace de firma</button>`;
+    }
+  }
+
+  // Cursante
+  html += `<div class="papeleta-block">
+    <div class="pb-title">🎖️ Cursante sancionado</div>
+    <div class="pb-row"><span class="pb-lbl">Nombre</span><span class="pb-val">${escapeHtml(fullName)}</span></div>
+    <div class="pb-row"><span class="pb-lbl">CI</span><span class="pb-val">${escapeHtml(cur.ci||s.cursante_ci||'—')}</span></div>
+    ${cycloPar?`<div class="pb-row"><span class="pb-lbl">Paralelo</span><span class="pb-val">${escapeHtml(cycloPar)}</span></div>`:''}
+  </div>`;
+
+  // Falta
+  html += `<div class="papeleta-block">
+    <div class="pb-title">📖 Falta cometida</div>
+    <div class="pb-falta-desc">${escapeHtml(s.falta_descripcion||'—')}</div>
+    <div class="pb-row"><span class="pb-lbl">Artículo</span><span class="pb-val">Art. ${escapeHtml(s.falta_articulo||'—')}</span></div>
+    <div class="pb-row"><span class="pb-lbl">Categoría</span><span class="pb-val">${escapeHtml(s.falta_categoria||'—')}</span></div>
+    <div class="pb-row"><span class="pb-lbl">Puntaje base</span><span class="pb-val">${s.puntos_base||0} pts</span></div>
+    <div class="pb-row"><span class="pb-lbl">Puntaje final</span><span class="pb-val" style="color:#a83a3a;font-family:var(--font-display);font-weight:700;font-size:18px">−${s.puntos_aplicados||0} PTS</span></div>
+  </div>`;
+
+  // Reincidencia
+  if(typeof s.reincidencia_num === 'number' && s.reincidencia_num > 0){
+    html += `<div class="papeleta-block">
+      <div class="pb-title">🔁 Reincidencia</div>
+      <div class="pb-row"><span class="pb-lbl">Es la</span><span class="pb-val">${s.reincidencia_num+1}ª sanción por la misma falta</span></div>
+    </div>`;
+  }
+  if(s.requiere_memorandum){
+    html += `<div class="memo-banner">
+      <div class="mb-title">📄 Requiere memorandum</div>
+      <div class="mb-text">Corresponde Memorandum de Sanción.</div>
+    </div>`;
+  }
+  if(s.requiere_consejo){
+    html += `<div class="memo-banner consejo-banner">
+      <div class="mb-title">⚖️ Parte al Consejo Académico</div>
+      <div class="mb-text">Esta sanción se elevará al Consejo Académico.</div>
+    </div>`;
+  }
+
+  // Profesor que registra
+  html += `<div class="papeleta-block">
+    <div class="pb-title">👨‍🏫 Registrada por</div>
+    <div class="pb-row"><span class="pb-lbl">Profesor</span><span class="pb-val">${escapeHtml((s.profesor_nombre||'').toUpperCase())}</span></div>
+    ${s.profesor_grado?`<div class="pb-row"><span class="pb-lbl">Grado</span><span class="pb-val">${escapeHtml(s.profesor_grado)}</span></div>`:''}
+    <div class="pb-row"><span class="pb-lbl">Fecha y hora</span><span class="pb-val">${fechaProf}</span></div>
+  </div>`;
+
+  // Firma del profesor
+  if(s.firma_profesor){
+    html += `<div class="papeleta-block">
+      <div class="pb-title">✍️ Firma del profesor</div>
+      <div class="firma-display"><img src="${s.firma_profesor}" alt="Firma del profesor"></div>
+    </div>`;
+  }
+
+  // Firma del cursante (si firmó)
+  if(s.firma_cursante){
+    const fechaCurs = s.firmada_curs_en ? new Date(s.firmada_curs_en).toLocaleString('es-BO') : '';
+    html += `<div class="papeleta-block">
+      <div class="pb-title">✍️ Firma del cursante</div>
+      <div class="firma-display"><img src="${s.firma_cursante}" alt="Firma del cursante"></div>
+      ${fechaCurs?`<div style="text-align:center;font-size:11px;color:#5c4a1a;margin-top:6px;font-family:monospace">Firmada: ${fechaCurs}</div>`:''}
+    </div>`;
+  }
+
+  // Observaciones del cursante
+  if(s.observaciones_cursante){
+    html += `<div class="papeleta-block" style="background:rgba(180,200,232,.5)">
+      <div class="pb-title">💬 Observaciones del cursante</div>
+      <div style="font-size:14px;line-height:1.55;color:#1a0e02">${escapeHtml(s.observaciones_cursante)}</div>
+    </div>`;
+  }
+
+  // Modo prueba
+  if(s.es_prueba){
+    html += `<div class="memo-banner" style="background:linear-gradient(180deg,#fff4d0,#f8e0a0);border-color:#d4af37;border-left-color:#9a7b1f;color:#3a2a08">
+      <div class="mb-title" style="color:#3a2a08">🟡 Sanción de prueba</div>
+      <div class="mb-text">Esta sanción NO afecta el puntaje oficial.</div>
+    </div>`;
+  }
+
+  // GPS y mapa
+  const gps = s.huella_forense && s.huella_forense.gps;
+  if(gps && gps.lat && gps.lng){
+    const gmapUrl = `https://www.google.com/maps?q=${gps.lat},${gps.lng}`;
+    html += `<div class="papeleta-block">
+      <div class="pb-title" style="color:#2a5577">📍 Ubicación del registro</div>
+      <div id="det-leaflet-map"></div>
+      <div class="gps-coords-prof">📍 GPS: ${gps.lat.toFixed(6)} , ${gps.lng.toFixed(6)}${gps.precision?` (±${Math.round(gps.precision)}m)`:''}</div>
+      <a href="${gmapUrl}" target="_blank" rel="noopener" class="btn-google-maps">🗺️ Abrir en Google Maps</a>
+    </div>`;
+  }
+
+  // Huella forense (resumen)
+  if(s.huella_forense){
+    const hf = s.huella_forense;
+    html += `<div class="papeleta-block" style="background:rgba(180,200,232,.4)">
+      <div class="pb-title" style="color:#2a3a5a">🔍 Auditoría forense</div>
+      ${hf.ip?`<div class="pb-row"><span class="pb-lbl">IP</span><span class="pb-val" style="font-family:monospace;font-size:12px">${escapeHtml(hf.ip)}</span></div>`:''}
+      ${hf.os?`<div class="pb-row"><span class="pb-lbl">Sistema</span><span class="pb-val">${escapeHtml(hf.os)}</span></div>`:''}
+      ${hf.timestamp_firmado?`<div class="pb-row"><span class="pb-lbl">Timestamp firma profesor</span><span class="pb-val" style="font-family:monospace;font-size:11px">${escapeHtml(hf.timestamp_firmado)}</span></div>`:''}
+      ${hf.firma_cursante_meta && hf.firma_cursante_meta.timestamp_firmado_curs?`<div class="pb-row"><span class="pb-lbl">Timestamp firma cursante</span><span class="pb-val" style="font-family:monospace;font-size:11px">${escapeHtml(hf.firma_cursante_meta.timestamp_firmado_curs)}</span></div>`:''}
+      ${hf.token_qr?`<div class="pb-row"><span class="pb-lbl">Token QR</span><span class="pb-val" style="font-family:monospace;font-size:10px">${escapeHtml(hf.token_qr)}</span></div>`:''}
+    </div>`;
+  }
+
+  // Acciones
+  html += `<button class="btn-papeleta" onclick="goProfPanel()">← Volver al panel</button>`;
+
+  document.getElementById('det-content').innerHTML = html;
+  showScreen('screen-prof-detalle-sancion');
+
+  // Inicializar mapa y QR después del render
+  setTimeout(()=>{
+    if(gps && gps.lat && gps.lng){
+      initLeafletMapDetalle(gps.lat, gps.lng);
+    }
+    // Re-generar QR si está pendiente
+    const tokenQR = s.huella_forense && s.huella_forense.token_qr;
+    if(!firmada && tokenQR){
+      const urlQR = urlFirmaCursante(s.id, tokenQR);
+      generarQRRobusto(urlQR, 'det-qr-container', 220);
+    }
+  }, 100);
+}
+
+function initLeafletMapDetalle(lat, lng){
+  if(typeof L === 'undefined') return;
+  const cont = document.getElementById('det-leaflet-map');
+  if(!cont) return;
+  if(cont._leaflet_id){ cont.innerHTML=''; }
+  const map = L.map('det-leaflet-map').setView([lat,lng], 16);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+  L.marker([lat,lng]).addTo(map)
+    .bindPopup(`📍 Registro de sanción<br>${lat.toFixed(5)} , ${lng.toFixed(5)}`)
+    .openPopup();
 }
 
 function mostrarAvisoBackupSiAplica(){
@@ -4090,10 +4489,12 @@ function mostrarFichaFinal(sancion, tokenQR){
 
   // GPS / Mapa
   if(gps && gps.lat && gps.lng){
+    const gmapUrl = `https://www.google.com/maps?q=${gps.lat},${gps.lng}`;
     html += `<div class="papeleta-block">
       <div class="pb-title" style="color:#2a5577">📍 Ubicación del profesor (donde se registró)</div>
       <div id="leaflet-map-prof"></div>
       <div class="gps-coords-prof">📍 GPS Profesor: ${gps.lat.toFixed(6)} , ${gps.lng.toFixed(6)}${gps.precision?` (±${Math.round(gps.precision)}m)`:''}</div>
+      <a href="${gmapUrl}" target="_blank" rel="noopener" class="btn-google-maps">🗺️ Abrir en Google Maps</a>
     </div>`;
   } else {
     html += `<div class="papeleta-block" style="background:rgba(180,200,232,.3)">
