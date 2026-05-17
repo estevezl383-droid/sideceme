@@ -1897,7 +1897,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 <!-- DISC: FICHA DEL CURSANTE (sanciones del cursante) -->
 <section id="screen-ficha-cursante" class="screen">
   <div class="app-header"><button class="back-btn" id="ficha-back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title" id="ficha-title">Ficha de cursante</div><div class="header-sub" id="ficha-sub">—</div></div></div>
-  <div class="form-container"><div id="ficha-content"></div></div>
+  <div class="form-container"><div id="ficha-cursante-content"></div></div>
 </section>
 
 <!-- DISC: SOLICITAR ANULACIÓN -->
@@ -1930,16 +1930,17 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   <div class="app-header"><button class="back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Reportes</div><div class="header-sub">Resumen general</div></div></div>
   <div class="disc-container">
     <div class="stats-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:18px">
-      <div class="stat-card"><div class="stat-num" id="rep-leve">—</div><div class="stat-label">Sanciones leves</div></div>
-      <div class="stat-card"><div class="stat-num" id="rep-grave">—</div><div class="stat-label">Sanciones graves</div></div>
-      <div class="stat-card"><div class="stat-num" id="rep-gravisima">—</div><div class="stat-label">Gravísimas</div></div>
-      <div class="stat-card"><div class="stat-num" id="rep-virtual">—</div><div class="stat-label">Virtuales</div></div>
+      <div class="stat-card" style="cursor:pointer" onclick="verDetalleStat('sanc-leve')"><div class="stat-num" id="rep-leve">—</div><div class="stat-label">Sanciones leves</div></div>
+      <div class="stat-card" style="cursor:pointer" onclick="verDetalleStat('sanc-grave')"><div class="stat-num" id="rep-grave">—</div><div class="stat-label">Sanciones graves</div></div>
+      <div class="stat-card" style="cursor:pointer" onclick="verDetalleStat('sanc-gravisima')"><div class="stat-num" id="rep-gravisima">—</div><div class="stat-label">Gravísimas</div></div>
+      <div class="stat-card" style="cursor:pointer" onclick="verDetalleStat('sanc-virtual')"><div class="stat-num" id="rep-virtual">—</div><div class="stat-label">Virtuales</div></div>
     </div>
     <div class="section-label">Distribución por estado</div>
     <div class="quick-grid">
-      <div class="quick-btn"><span class="qa-icon">✅</span><span class="qa-text">Sin sanciones / OK: <strong id="rep-ok">—</strong></span></div>
-      <div class="quick-btn warning"><span class="qa-icon">⚠️</span><span class="qa-text">En observación (11-24 pts): <strong id="rep-obs">—</strong></span></div>
-      <div class="quick-btn danger"><span class="qa-icon">🚨</span><span class="qa-text">En consejo (25+ pts): <strong id="rep-cons">—</strong></span></div>
+      <div class="quick-btn" style="cursor:pointer" onclick="verDetalleStat('curs-sin')"><span class="qa-icon">✓</span><span class="qa-text">Sin sanciones (0 pts): <strong id="rep-sin">—</strong></span></div>
+      <div class="quick-btn" style="cursor:pointer" onclick="verDetalleStat('curs-regla')"><span class="qa-icon">✅</span><span class="qa-text">En regla (1-10 pts): <strong id="rep-ok">—</strong></span></div>
+      <div class="quick-btn warning" style="cursor:pointer" onclick="verDetalleStat('curs-obs')"><span class="qa-icon">⚠️</span><span class="qa-text">En observación (11-24 pts): <strong id="rep-obs">—</strong></span></div>
+      <div class="quick-btn danger" style="cursor:pointer" onclick="verDetalleStat('curs-cons')"><span class="qa-icon">🚨</span><span class="qa-text">En consejo (25+ pts): <strong id="rep-cons">—</strong></span></div>
     </div>
   </div>
   <nav class="bottom-nav">
@@ -1950,6 +1951,17 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   </nav>
 </section>
 
+<!-- DISC: DETALLE DE ESTADÍSTICA (drill-down desde reportes) -->
+<section id="screen-stat-detail" class="screen with-bottom-nav">
+  <div class="app-header"><button class="back-btn" onclick="goDiscReportes()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title" id="stat-detail-title">Detalle</div><div class="header-sub" id="stat-detail-sub">—</div></div></div>
+  <div class="disc-container"><div id="stat-detail-content"></div></div>
+  <nav class="bottom-nav">
+    <button class="bottom-nav-item" onclick="goDiscPanel()"><span class="nav-icon">🏠</span><span class="nav-label">Panel</span></button>
+    <button class="bottom-nav-item" onclick="goDiscCursantes()"><span class="nav-icon">👥</span><span class="nav-label">Cursantes</span></button>
+    <button class="bottom-nav-item active" onclick="goDiscReportes()"><span class="nav-icon">📊</span><span class="nav-label">Reportes</span></button>
+    <button class="bottom-nav-item" onclick="goDiscAlertas()"><span class="nav-icon">🔔</span><span class="nav-label">Alertas</span></button>
+  </nav>
+</section>
 <!-- DISC: ALERTAS -->
 <section id="screen-disc-alertas" class="screen with-bottom-nav">
   <div class="app-header"><button class="back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Alertas Activas</div><div class="header-sub">Acción requerida</div></div></div>
@@ -3394,7 +3406,7 @@ function verFichaCursante(cursanteId, backTarget){
 
   html += `<div class="sd-actions"><button class="btn-secondary" onclick="volverDeFichaCursante()">← Volver</button></div>`;
 
-  document.getElementById('ficha-content').innerHTML = html;
+  document.getElementById('ficha-cursante-content').innerHTML = html;
   showScreen('screen-ficha-cursante');
 }
 
@@ -3405,6 +3417,10 @@ function volverDeFichaCursante(){
     case 'gest-cursantes': goGestionarCursantes(); break;
     case 'alertas': goDiscAlertas(); break;
     case 'auditoria': goAuditoria(); break;
+    case 'stat-detail':
+      // Volver al detalle de estadística de donde venía no es trivial sin guardar el tipo;
+      // como fallback, vuelve a Reportes (UX aceptable, no rompe nada).
+      goDiscReportes(); break;
     case 'sancion-detalle':
       if(selectedSancionId) verSancionDetalle(selectedSancionId);
       else goDiscSanciones();
@@ -3477,11 +3493,102 @@ function renderReportes(){
   document.getElementById('rep-grave').textContent=c.GRAVE;
   document.getElementById('rep-gravisima').textContent=c['GRAVÍSIMA'];
   document.getElementById('rep-virtual').textContent=c.VIRTUAL;
-  let ok=0,obs=0,cons=0;
-  discData.cursantes.forEach(cu=>{const p=discData.byCursanteLost[cu.id]||0; const e=getEstado(p); if(e==='ok')ok++; else if(e==='observacion')obs++; else cons++;});
+  // 4 buckets reales: Sin sanciones (0 pts) | En regla (1-10) | Observación (11-24) | Consejo (25+)
+  let sin=0, ok=0, obs=0, cons=0;
+  discData.cursantes.forEach(cu=>{
+    const p=discData.byCursanteLost[cu.id]||0;
+    if(p===0) sin++;
+    else if(p < UMBRAL_OBSERVACION) ok++;
+    else if(p < UMBRAL_CONSEJO) obs++;
+    else cons++;
+  });
+  document.getElementById('rep-sin').textContent=sin;
   document.getElementById('rep-ok').textContent=ok;
   document.getElementById('rep-obs').textContent=obs;
   document.getElementById('rep-cons').textContent=cons;
+}
+
+/* ============ DETALLE DE ESTADÍSTICA (drill-down desde Reportes) ============ */
+// Tipos soportados:
+//   sanc-leve / sanc-grave / sanc-gravisima / sanc-virtual  → lista de sanciones por categoría
+//   curs-sin / curs-regla / curs-obs / curs-cons            → lista de cursantes por estado disciplinario
+function verDetalleStat(tipo){
+  if(!discData.loaded){ alert('Datos aún no cargados. Esperá un momento.'); return; }
+  let titulo, sub, html;
+
+  if(tipo === 'sanc-leve' || tipo === 'sanc-grave' || tipo === 'sanc-gravisima' || tipo === 'sanc-virtual'){
+    const catMap = {'sanc-leve':'LEVE','sanc-grave':'GRAVE','sanc-gravisima':'GRAVÍSIMA','sanc-virtual':'VIRTUAL'};
+    const cat = catMap[tipo];
+    const sancs = discData.sanciones
+      .filter(s => !s.anulada && s.falta_categoria === cat && s.es_prueba !== true)
+      .sort((a,b) => new Date(b.creado_en||0) - new Date(a.creado_en||0));
+    titulo = `Sanciones ${cat}`;
+    sub = `${sancs.length} sanción(es)`;
+    if(!sancs.length){
+      html = '<div class="list-empty">Sin sanciones de esta categoría.</div>';
+    } else {
+      html = sancs.map(s => {
+        const cls = clasificarSancion(s);
+        const fecha = s.creado_en ? new Date(s.creado_en).toLocaleDateString('es-BO') : '—';
+        const folio = s.folio ? `Folio ${s.folio}` : (s.id ? `${s.id}` : '');
+        const desc = (s.falta_descripcion||'—').slice(0,110) + ((s.falta_descripcion||'').length>110?'…':'');
+        const cur = discData.cursantes.find(x => x.id === s.cursante_id);
+        const cyp = fmtCicloPara(cur);
+        return `<div class="sancion-card ${cls.cls}" style="cursor:pointer" onclick="verSancionDetalle('${s.id}')">
+          <div class="sc-row1">
+            <div class="sc-cursante">${escapeHtml(s.cursante_nombre||s.cursante_id||'—')}${cyp?` <span style="font-size:11px;font-weight:400;color:var(--text-muted);letter-spacing:1px">· ${escapeHtml(cyp)}</span>`:''}</div>
+            <div class="sc-pts">−${s.puntos_aplicados||0} PTS</div>
+          </div>
+          <div class="sc-desc">${escapeHtml(desc)}</div>
+          <div class="sc-row3">
+            <span class="sc-status ${cls.statusCls}">${cls.icon||''} ${cls.label}</span>
+            <span class="sc-folio">${escapeHtml(folio)} · ${fecha}</span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  }
+  else if(tipo === 'curs-sin' || tipo === 'curs-regla' || tipo === 'curs-obs' || tipo === 'curs-cons'){
+    const cursList = discData.cursantes.filter(cu => {
+      const p = discData.byCursanteLost[cu.id] || 0;
+      if(tipo === 'curs-sin')   return p === 0;
+      if(tipo === 'curs-regla') return p > 0 && p < UMBRAL_OBSERVACION;
+      if(tipo === 'curs-obs')   return p >= UMBRAL_OBSERVACION && p < UMBRAL_CONSEJO;
+      if(tipo === 'curs-cons')  return p >= UMBRAL_CONSEJO;
+      return false;
+    }).sort((a,b) => (discData.byCursanteLost[b.id]||0) - (discData.byCursanteLost[a.id]||0));
+    const titMap = {
+      'curs-sin':   {t:'Sin sanciones', s:'Cursantes con 0 deméritos',  cls:'ok'},
+      'curs-regla': {t:'En regla',       s:'Cursantes con 1 a 10 deméritos', cls:'ok'},
+      'curs-obs':   {t:'En observación', s:'Cursantes con 11 a 24 deméritos', cls:'warn'},
+      'curs-cons':  {t:'En consejo académico', s:'Cursantes con 25+ deméritos', cls:'danger'}
+    }[tipo];
+    titulo = titMap.t;
+    sub = `${cursList.length} cursante(s) · ${titMap.s}`;
+    if(!cursList.length){
+      html = `<div class="list-empty">Sin cursantes en esta categoría.</div>`;
+    } else {
+      html = cursList.map(cu => {
+        const perd = discData.byCursanteLost[cu.id]||0;
+        const cyp = fmtCicloPara(cu);
+        const scoreCls = titMap.cls;
+        return `<div class="list-item" style="cursor:pointer" onclick="verFichaCursante('${cu.id}','stat-detail')">
+          <div class="li-id">${cu.id}</div>
+          <div class="li-name">${escapeHtml(cu.nombre_completo||'—')}${cu.activo===false?'<span class="badge baja">Baja</span>':''}<br><span class="li-ci">CI ${escapeHtml(cu.ci||'—')}${cu.departamento?' '+escapeHtml(cu.departamento):''}${cyp?' · '+escapeHtml(cyp):''} · ${perd} pts perdidos</span></div>
+          <div class="li-score ${scoreCls}">${100-perd}</div>
+        </div>`;
+      }).join('');
+    }
+  }
+  else {
+    alert('Tipo de estadística desconocido: '+tipo);
+    return;
+  }
+
+  document.getElementById('stat-detail-title').textContent = titulo;
+  document.getElementById('stat-detail-sub').textContent = sub;
+  document.getElementById('stat-detail-content').innerHTML = html;
+  showScreen('screen-stat-detail');
 }
 
 function renderAlertas(){
