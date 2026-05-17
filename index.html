@@ -1023,6 +1023,130 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 }
 .btn-google-maps:hover{box-shadow:0 5px 12px rgba(66,133,244,.4)}
 
+/* ==================== PANEL DEL CURSANTE (crema-dorado) ==================== */
+.cursante-screen{background:linear-gradient(180deg,#f8edc7 0%,#e8d5a0 100%);min-height:100vh;color:#1a0e02}
+.cursante-app-header{
+  background:linear-gradient(180deg,#1a1f3a,#0f1530);border-bottom:2px solid #d4af37;
+}
+.cursante-app-header .header-title{color:#f4d57a}
+.cursante-app-header .header-sub{color:#c8b88a}
+
+.cursante-container{padding:16px 14px 90px;max-width:520px;margin:0 auto}
+
+.user-strip-cursante{
+  display:flex;align-items:center;gap:12px;
+  background:linear-gradient(180deg,#fef5e0,#f5e2b8);
+  border:1px solid rgba(212,175,55,.5);border-radius:var(--radius-md);
+  padding:12px 14px;margin-bottom:16px;
+  box-shadow:0 3px 8px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.5);
+}
+.user-strip-cursante .user-avatar{background:linear-gradient(135deg,#d4af37,#9a7b1f);color:#1a0e02;border:2px solid #8a6f17}
+.user-strip-cursante .user-name{color:#1a0e02;font-family:var(--font-display);font-weight:700}
+.user-strip-cursante .user-rank{color:#5c4a1a;font-size:12px}
+.user-strip-cursante .btn-logout{color:#5c4a1a;background:rgba(26,14,2,.1);border-color:rgba(26,14,2,.25)}
+.user-strip-cursante .btn-logout:hover{background:rgba(26,14,2,.2)}
+
+/* Círculo grande de nota disciplinaria */
+.nota-circle-wrap{text-align:center;margin:20px 0 24px 0}
+.nota-circle{
+  width:200px;height:200px;border-radius:50%;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  margin:0 auto 8px;
+  border:8px solid;
+  transition:all .3s;
+}
+.nota-circle.regla{border-color:#3a7050;background:radial-gradient(circle,rgba(76,163,107,.05),rgba(76,163,107,.15));color:#3a7050}
+.nota-circle.observacion{border-color:#c89030;background:radial-gradient(circle,rgba(224,168,58,.05),rgba(224,168,58,.15));color:#a87010}
+.nota-circle.consejo{border-color:#a83a3a;background:radial-gradient(circle,rgba(200,74,74,.05),rgba(200,74,74,.15));color:#a83a3a}
+.nota-circle .nc-num{
+  font-family:var(--font-display);font-size:64px;font-weight:700;line-height:1;letter-spacing:1px;
+}
+.nota-circle .nc-sub{
+  font-size:11px;letter-spacing:2.5px;text-transform:uppercase;margin-top:6px;font-weight:600;
+}
+.nota-status{
+  font-family:var(--font-display);font-size:14px;letter-spacing:2px;
+  text-transform:uppercase;font-weight:700;
+}
+.nota-status.regla{color:#3a7050}
+.nota-status.observacion{color:#a87010}
+.nota-status.consejo{color:#a83a3a}
+
+/* 3 cuadros stats del cursante */
+.cur-stats-grid{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px;
+}
+.cur-stat-card{
+  background:linear-gradient(180deg,#fef5e0,#f5e2b8);
+  border:1px solid rgba(212,175,55,.5);border-radius:var(--radius-md);
+  padding:18px 8px;text-align:center;
+  box-shadow:0 3px 8px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.5);
+}
+.cur-stat-card .cs-num{
+  font-family:var(--font-display);font-size:34px;font-weight:700;color:#1a0e02;
+  line-height:1;margin-bottom:4px;
+}
+.cur-stat-card .cs-num.danger{color:#a83a3a}
+.cur-stat-card .cs-num.success{color:#3a7050}
+.cur-stat-card .cs-label{
+  font-family:var(--font-display);font-size:10px;color:#5c4a1a;
+  letter-spacing:1.5px;text-transform:uppercase;font-weight:700;
+}
+
+/* Banner estado */
+.cur-estado-banner{
+  border-radius:var(--radius-md);padding:14px 16px;margin-bottom:18px;
+  border-left:5px solid;
+}
+.cur-estado-banner.ok{background:linear-gradient(135deg,rgba(76,163,107,.18),rgba(76,163,107,.06));border-left-color:#3a7050;color:#2a5040}
+.cur-estado-banner.observacion{background:linear-gradient(135deg,rgba(224,168,58,.18),rgba(224,168,58,.06));border-left-color:#a87010;color:#5a4010}
+.cur-estado-banner.consejo{background:linear-gradient(135deg,rgba(200,74,74,.18),rgba(200,74,74,.06));border-left-color:#a83a3a;color:#7a2020}
+.cur-estado-banner .ceb-title{
+  font-family:var(--font-display);font-size:14px;font-weight:700;
+  letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px;
+}
+.cur-estado-banner .ceb-text{font-size:13px;line-height:1.5}
+
+/* Botones grandes dorados (Ver notas, EFM, etc) */
+.cur-btn-gold{
+  display:block;width:100%;padding:16px;margin-bottom:10px;
+  background:linear-gradient(180deg,#d4af37,#a8861f);
+  color:#1a0e02;border:1px solid #8a6f17;border-radius:var(--radius-md);
+  font-family:var(--font-display);font-size:14px;letter-spacing:2px;
+  font-weight:700;text-transform:uppercase;cursor:pointer;
+  box-shadow:0 3px 8px rgba(0,0,0,.18),inset 0 1px 0 rgba(244,213,122,.4);
+  transition:all .2s;
+}
+.cur-btn-gold:hover{transform:translateY(-1px);box-shadow:0 5px 14px rgba(212,175,55,.35)}
+
+/* Sanción cards en lista del cursante (tema crema) */
+#cur-sanciones-list .ms-card, #cur-historial-list .ms-card{
+  background:rgba(254,245,224,.85);
+  border:1px solid rgba(212,175,55,.45);border-left:5px solid #c89030;
+}
+#cur-sanciones-list .ms-card .ms-folio,
+#cur-historial-list .ms-card .ms-folio{color:#5c4a1a}
+#cur-sanciones-list .ms-card .ms-cursante,
+#cur-historial-list .ms-card .ms-cursante{color:#1a0e02;font-weight:600}
+#cur-sanciones-list .ms-card .ms-meta,
+#cur-historial-list .ms-card .ms-meta{color:#5c4a1a}
+#cur-sanciones-list .ms-card.firmada,
+#cur-historial-list .ms-card.firmada{border-left-color:#3a7050;background:linear-gradient(90deg,rgba(76,163,107,.15),rgba(254,245,224,.85))}
+#cur-sanciones-list .ms-card.pendiente,
+#cur-historial-list .ms-card.pendiente{border-left-color:#a83a3a;background:linear-gradient(90deg,rgba(200,74,74,.1),rgba(254,245,224,.85))}
+#cur-sanciones-list .ms-empty,
+#cur-historial-list .ms-empty{background:rgba(254,245,224,.6);border-color:rgba(212,175,55,.4);color:#5c4a1a}
+
+/* Bottom nav del cursante (tema oscuro contraste) */
+.cursante-bottom-nav{
+  background:linear-gradient(180deg,#0f1530,#0a0f24);
+  border-top:2px solid #d4af37;
+}
+.cursante-bottom-nav .bottom-nav-item{color:#c8b88a}
+.cursante-bottom-nav .bottom-nav-item.active{color:#f4d57a}
+.cursante-bottom-nav .bottom-nav-item.active .nav-icon{filter:drop-shadow(0 0 4px rgba(244,213,122,.5))}
+
+
 .spinner-inline{
   display:inline-block;width:18px;height:18px;
   border:2px solid rgba(212,175,55,.25);
@@ -1436,16 +1560,125 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 </section>
 
 <!-- CURSANTE HOME -->
-<section id="screen-cursante-home" class="screen">
-  <div class="app-header">
+<section id="screen-cursante-home" class="screen with-bottom-nav cursante-screen">
+  <div class="app-header cursante-app-header">
     <button class="back-btn" onclick="logout()">←</button>
     <div class="header-crest"><svg><use href="#crest"/></svg></div>
-    <div class="header-text"><div class="header-title">Mi Cuenta</div><div class="header-sub">Cursante ECEME</div></div>
+    <div class="header-text"><div class="header-title">Mi Cuenta</div><div class="header-sub" id="cursante-header-sub">—</div></div>
   </div>
-  <div class="menu-container">
-    <div class="user-strip"><div class="user-avatar" id="cursante-initials">—</div><div class="user-info"><div class="user-name" id="cursante-name">—</div><div class="user-rank" id="cursante-id">—</div></div><button class="btn-logout" onclick="logout()">Salir</button></div>
-    <div class="placeholder-container"><div class="placeholder-icon">🎓</div><div class="placeholder-title">Panel del Cursante</div><div class="placeholder-text">Historial disciplinario y puntaje vigente. En construcción.</div></div>
+  <div class="cursante-container">
+    <!-- TAB: INICIO -->
+    <div id="cur-tab-inicio" class="cur-tab">
+      <div class="user-strip-cursante">
+        <div class="user-avatar" id="cursante-initials">—</div>
+        <div class="user-info"><div class="user-name" id="cursante-name">—</div><div class="user-rank" id="cursante-id">—</div></div>
+        <button class="btn-logout" onclick="logout()">Salir</button>
+      </div>
+
+      <!-- Círculo grande con nota disciplinaria -->
+      <div class="nota-circle-wrap">
+        <div class="nota-circle" id="cur-nota-circle">
+          <div class="nc-num" id="cur-nota-num">—</div>
+          <div class="nc-sub">sobre 100</div>
+        </div>
+        <div class="nota-status" id="cur-nota-status">—</div>
+      </div>
+
+      <!-- 3 cuadros: SANCIONES / DEMÉRITOS / NOTA DISC -->
+      <div class="cur-stats-grid">
+        <div class="cur-stat-card">
+          <div class="cs-num" id="cur-stat-sanciones">0</div>
+          <div class="cs-label">Sanciones</div>
+        </div>
+        <div class="cur-stat-card">
+          <div class="cs-num danger" id="cur-stat-demeritos">-0</div>
+          <div class="cs-label">Deméritos</div>
+        </div>
+        <div class="cur-stat-card">
+          <div class="cs-num success" id="cur-stat-nota">100</div>
+          <div class="cs-label">Nota Disc.</div>
+        </div>
+      </div>
+
+      <!-- Banner estado -->
+      <div class="cur-estado-banner" id="cur-estado-banner">
+        <div class="ceb-title" id="cur-estado-title">— Sin sanciones</div>
+        <div class="ceb-text" id="cur-estado-text">Mantén tu buen desempeño disciplinario.</div>
+      </div>
+
+      <!-- Accesos -->
+      <button class="cur-btn-gold" onclick="alert('📚 Ver notas académicas — próxima iteración')">📚 Ver mis notas académicas</button>
+      <button class="cur-btn-gold" onclick="alert('🏃 Mis notas EFM — próxima iteración')">🏃 Mis notas EFM</button>
+      <button class="cur-btn-gold" onclick="alert('🏆 Mi orden de mérito — próxima iteración')">🏆 Mi orden de mérito</button>
+      <button class="cur-btn-gold" onclick="alert('📖 Biblioteca de reglamentos — próxima iteración')">📖 Biblioteca de reglamentos</button>
+
+      <!-- Listado de mis sanciones (inline) -->
+      <div class="mis-sanciones-section" style="margin-top:18px">
+        <div class="mis-sanciones-header">
+          <div class="mss-title" style="color:#5c4a1a">📋 Mis sanciones</div>
+          <button class="btn-refresh" onclick="refrescarCursanteHome()" title="Sincronizar"><span>🔄</span></button>
+        </div>
+        <div id="cur-sanciones-list"></div>
+      </div>
+    </div>
+
+    <!-- TAB: HISTORIAL -->
+    <div id="cur-tab-historial" class="cur-tab" style="display:none">
+      <div class="section-big-title" style="color:#5c4a1a">📋 Mi historial disciplinario</div>
+      <div class="section-big-sub" style="color:#5c4a1a">Todas las sanciones recibidas (firmadas + pendientes)</div>
+      <div id="cur-historial-list"></div>
+    </div>
+
+    <!-- TAB: REGLAMENTO -->
+    <div id="cur-tab-reglamento" class="cur-tab" style="display:none">
+      <div class="section-big-title" style="color:#5c4a1a">📖 Reglamento ECEME</div>
+      <input type="text" class="search-cream" id="cur-regl-search" placeholder="🔍  Buscar en el reglamento..." oninput="renderCursanteReglamento()">
+      <div class="result-count" id="cur-regl-count">— faltas</div>
+      <div id="cur-regl-list"></div>
+    </div>
+
+    <!-- TAB: PERFIL -->
+    <div id="cur-tab-perfil" class="cur-tab" style="display:none">
+      <div class="section-big-title" style="color:#5c4a1a">👤 Mi perfil</div>
+
+      <div class="papeleta-block" style="text-align:center">
+        <div class="user-avatar" id="perf-initials" style="margin:0 auto 12px;width:80px;height:80px;font-size:26px;border:2px solid #8a6f17;background:linear-gradient(135deg,#d4af37,#b8941f)">—</div>
+        <div class="pb-title" style="justify-content:center;border:none;margin-bottom:4px" id="perf-name">—</div>
+        <div style="font-size:13px;color:#5c4a1a">Cursante</div>
+        <div style="font-size:13px;color:#5c4a1a" id="perf-grado">—</div>
+      </div>
+
+      <div class="papeleta-block">
+        <div class="pb-title">🔐 Contraseña personal</div>
+        <div style="font-size:13px;color:#3a2a08;margin-bottom:10px">Para iniciar sesión y firmar sanciones.</div>
+        <div class="pb-row"><span class="pb-lbl">CI (usuario)</span><span class="pb-val" id="perf-ci">—</span></div>
+        <div class="pb-row"><span class="pb-lbl">Estado</span><span class="pb-val"><span style="display:inline-block;padding:4px 10px;border-radius:14px;background:rgba(76,163,107,.22);color:#3a7050;border:1px solid rgba(76,163,107,.5);font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase">✓ Activa</span></span></div>
+        <button class="btn-papeleta primary" style="margin-top:12px" onclick="cambiarMiPasswordCursante()">🔄 Cambiar contraseña</button>
+      </div>
+
+      <div class="papeleta-block">
+        <div class="pb-title">🔔 Notificaciones</div>
+        <div style="font-size:13px;color:#3a2a08;margin-bottom:10px">Recibe alertas cuando el Comandante o Jefe de Estudios publican un aviso o cuando recibes una sanción.</div>
+        <div class="pb-row"><span class="pb-lbl">Estado actual</span><span class="pb-val" id="perf-notif-status">—</span></div>
+        <button class="btn-papeleta" onclick="toggleNotificacionesCursante()" id="btn-toggle-notif">🔔 Activar notificaciones</button>
+      </div>
+
+      <div class="papeleta-block">
+        <div class="pb-title">⚙️ Configuración</div>
+        <div class="pb-row"><span class="pb-lbl">Versión</span><span class="pb-val" style="font-family:monospace">SIDECEME 2.0</span></div>
+        <div class="pb-row"><span class="pb-lbl">Conexión</span><span class="pb-val" id="perf-conn-status">—</span></div>
+        <button class="btn-papeleta" style="margin-top:12px" onclick="reiniciarDatosPrototipo()">🔄 Reiniciar datos del prototipo</button>
+      </div>
+
+      <button class="btn-papeleta danger" style="margin-top:14px" onclick="logout()">🚪 Cerrar sesión</button>
+    </div>
   </div>
+  <nav class="bottom-nav cursante-bottom-nav">
+    <button class="bottom-nav-item active" id="cur-nav-inicio" onclick="switchCurTab('inicio')"><span class="nav-icon">🏠</span><span class="nav-label">Inicio</span></button>
+    <button class="bottom-nav-item" id="cur-nav-historial" onclick="switchCurTab('historial')"><span class="nav-icon">📋</span><span class="nav-label">Historial</span></button>
+    <button class="bottom-nav-item" id="cur-nav-reglamento" onclick="switchCurTab('reglamento')"><span class="nav-icon">📖</span><span class="nav-label">Reglamento</span></button>
+    <button class="bottom-nav-item" id="cur-nav-perfil" onclick="switchCurTab('perfil')"><span class="nav-icon">👤</span><span class="nav-label">Perfil</span></button>
+  </nav>
 </section>
 
 <!-- ===== DISCIPLINA: PANEL ===== -->
@@ -1933,7 +2166,7 @@ async function loginBiometrico(tipo){
       if(error || !data || !data.length){ alert('CI no encontrado.'); bioBorrarCred('cursante'); btn.style.display='none'; return; }
       currentUser = data[0];
       saveSession(currentUser,'cursante',null);
-      renderCursanteHome();
+      await renderCursanteHome();
       showScreen('screen-cursante-home');
     }
   }catch(e){
@@ -2005,7 +2238,7 @@ async function loginCursante(){
     if(!passwordOK(cur, pwd)){showError('err-cursante','Contraseña incorrecta.'); return;}
     currentUser=cur;
     saveSession(cur,'cursante',null);
-    renderCursanteHome();
+    await renderCursanteHome();
     showScreen('screen-cursante-home');
     setTimeout(()=>ofrecerActivarBio('cursante'), 600);
   }catch(e){console.error(e); showError('err-cursante','Error: '+(e.message||e));}
@@ -2052,13 +2285,278 @@ function renderGenericoPanel(role){
   document.getElementById('generico-rank').textContent=[currentUser.grado||'',currentUser.arma||''].filter(Boolean).join(' · ')||'Plantel docente';
   document.getElementById('generico-initials').textContent=initials||'—';
 }
-function renderCursanteHome(){
+/* ==================== PANEL DEL CURSANTE (rediseñado) ==================== */
+const FACTOR_DEMERITO = 0.58;  // 1 punto = 0.58, regla del Art. 15 del Reglamento
+
+function calcularNotaDisciplinaria(puntosPerdidos){
+  const nota = 100 - (Number(puntosPerdidos||0) * FACTOR_DEMERITO);
+  // Redondeo a 3 decimales pero mostramos según convenga
+  return Math.max(0, Math.round(nota * 10000) / 10000);
+}
+
+function getEstadoCursante(puntosPerdidos){
+  // Mismas reglas que Disciplina: <11 OK, 11-24 observación, 25+ consejo
+  if(puntosPerdidos >= UMBRAL_CONSEJO) return 'consejo';
+  if(puntosPerdidos >= UMBRAL_OBSERVACION) return 'observacion';
+  return 'regla';
+}
+
+async function renderCursanteHome(){
   if(!currentUser) return;
-  const name=currentUser.nombre_completo||'Cursante';
-  const initials=name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
-  document.getElementById('cursante-name').textContent=name;
-  document.getElementById('cursante-id').textContent=`ID: ${currentUser.id||'—'}`;
-  document.getElementById('cursante-initials').textContent=initials||'—';
+  // Si no hay data cargada, la cargamos primero (para tener sanciones, etc.)
+  if(!discData.loaded){ try{ await loadDiscData(); }catch(e){ console.warn(e); } }
+
+  const name = currentUser.nombre_completo||'Cursante';
+  const initials = name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  document.getElementById('cursante-name').textContent = nombreConGrado(currentUser);
+  const grado = [currentUser.grado||'', currentUser.arma||''].filter(Boolean).join(' · ');
+  const cycloPar = [currentUser.ciclo, currentUser.paralelo].filter(Boolean).join(' "') + (currentUser.paralelo?'"':'');
+  document.getElementById('cursante-id').textContent = [grado, cycloPar, `CI ${currentUser.ci||'—'}`].filter(Boolean).join(' · ');
+  document.getElementById('cursante-initials').textContent = initials||'—';
+  document.getElementById('cursante-header-sub').textContent = cycloPar || 'Cursante ECEME';
+
+  // Sanciones del cursante (solo REALES — las de prueba no cuentan)
+  const misSanciones = (discData.byCursanteSanc[currentUser.id] || [])
+    .filter(s => !s.anulada && s.es_prueba !== true);
+  const cantSanciones = misSanciones.length;
+  const puntosPerdidos = misSanciones.reduce((acc,s) => acc + (Number(s.puntos_aplicados)||0), 0);
+  const nota = calcularNotaDisciplinaria(puntosPerdidos);
+  const estado = getEstadoCursante(puntosPerdidos);
+
+  // Actualizar círculo grande
+  const circle = document.getElementById('cur-nota-circle');
+  const statusEl = document.getElementById('cur-nota-status');
+  circle.className = 'nota-circle ' + estado;
+  statusEl.className = 'nota-status ' + estado;
+  // Mostrar nota con hasta 2 decimales
+  const notaTxt = (nota === Math.floor(nota)) ? String(nota) : nota.toFixed(2);
+  document.getElementById('cur-nota-num').textContent = notaTxt;
+  statusEl.textContent = estado === 'regla' ? '✓ EN REGLA'
+                      : estado === 'observacion' ? '⚠ EN OBSERVACIÓN'
+                      : '🚨 EN CONSEJO ACADÉMICO';
+
+  // 3 cuadros
+  document.getElementById('cur-stat-sanciones').textContent = cantSanciones;
+  document.getElementById('cur-stat-demeritos').textContent = `-${puntosPerdidos}`;
+  document.getElementById('cur-stat-nota').textContent = notaTxt;
+
+  // Banner estado
+  const banner = document.getElementById('cur-estado-banner');
+  banner.className = 'cur-estado-banner ' + (estado === 'regla' ? 'ok' : estado);
+  if(estado === 'regla'){
+    document.getElementById('cur-estado-title').textContent = '✓ Sin sanciones';
+    document.getElementById('cur-estado-text').textContent = cantSanciones === 0
+      ? 'Mantén tu buen desempeño disciplinario.'
+      : 'Mantén la disciplina. Tu nota sigue alta.';
+  } else if(estado === 'observacion'){
+    document.getElementById('cur-estado-title').textContent = '⚠ En observación';
+    document.getElementById('cur-estado-text').textContent = `Has perdido ${puntosPerdidos} pts. Si llegas a 25 pts pasarás a Consejo Académico.`;
+  } else {
+    document.getElementById('cur-estado-title').textContent = '🚨 En Consejo Académico';
+    document.getElementById('cur-estado-text').textContent = `Has acumulado ${puntosPerdidos} pts. Tu situación se elevará al Consejo Académico.`;
+  }
+
+  // Listado de sanciones (en el tab Inicio — las 5 más recientes)
+  renderCursanteSancionesInline(misSanciones.slice().sort((a,b)=>{
+    const fa = new Date(a.firmada_prof_en||a.fecha_creacion||a.created_at||0).getTime();
+    const fb = new Date(b.firmada_prof_en||b.fecha_creacion||b.created_at||0).getTime();
+    return fb-fa;
+  }), 'cur-sanciones-list', 5);
+
+  // Y el historial completo en el tab Historial
+  renderCursanteSancionesInline(misSanciones.slice().sort((a,b)=>{
+    const fa = new Date(a.firmada_prof_en||a.fecha_creacion||a.created_at||0).getTime();
+    const fb = new Date(b.firmada_prof_en||b.fecha_creacion||b.created_at||0).getTime();
+    return fb-fa;
+  }), 'cur-historial-list', null);
+
+  // Render del perfil
+  renderCursantePerfilTab();
+}
+
+function renderCursanteSancionesInline(sanciones, containerId, limit){
+  const cont = document.getElementById(containerId);
+  if(!cont) return;
+  const lista = limit ? sanciones.slice(0, limit) : sanciones;
+
+  if(!lista.length){
+    cont.innerHTML = `<div class="ms-empty">
+      <div class="me-icon">✅</div>
+      <div>No tienes sanciones registradas.</div>
+    </div>`;
+    return;
+  }
+
+  cont.innerHTML = lista.map(s => {
+    const firmada = s.confirmacion_estado === 'firmada' || s.confirmacion_estado === 'aceptada' || !!s.firma_cursante;
+    const claseCard = firmada ? 'firmada' : 'pendiente';
+    const icono = firmada ? '✅' : '⏳';
+    const fecha = s.firmada_prof_en || s.fecha_creacion || s.created_at;
+    const fechaTxt = fecha ? new Date(fecha).toLocaleDateString('es-BO',{day:'2-digit',month:'2-digit',year:'2-digit'}) : '—';
+    const profNombre = (s.profesor_nombre||'').split(' ').slice(-2).join(' ') || 'Profesor';
+    const badge = firmada
+      ? '<span class="ms-badge firmada">✅ Firmada</span>'
+      : '<span class="ms-badge pendiente">⏳ Pendiente firma</span>';
+    const desc = (s.falta_descripcion||'').slice(0,60) + ((s.falta_descripcion||'').length>60?'…':'');
+    return `<div class="ms-card ${claseCard}" onclick="verDetalleSancionCursante('${escapeAttr(s.id)}')">
+      <div class="ms-icon">${icono}</div>
+      <div class="ms-body">
+        <div class="ms-row1">
+          <div class="ms-folio">${escapeHtml(s.folio || ('S-'+(s.id||'').slice(0,8)))}</div>
+          <div class="ms-pts">−${s.puntos_aplicados||0} pts</div>
+        </div>
+        <div class="ms-cursante">${escapeHtml(desc||'—')}</div>
+        <div class="ms-meta">
+          ${badge}
+          <span>Art. ${escapeHtml(s.falta_articulo||'—')}</span>
+          <span>·</span>
+          <span>${fechaTxt}</span>
+          <span>·</span>
+          <span>${escapeHtml(profNombre)}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function verDetalleSancionCursante(sancionId){
+  // Reutilizamos verDetalleSancion pero forzando tema crema (la vista es la misma)
+  // En el panel del cursante NO mostramos el QR (ya firmó o no le toca a él generarlo)
+  // Pero conserve toda la info útil incluyendo el mapa, firma del profesor, etc.
+  verDetalleSancion(sancionId);
+}
+
+async function refrescarCursanteHome(){
+  const btn = document.querySelector('#cur-tab-inicio .btn-refresh');
+  if(btn) btn.classList.add('spinning');
+  try{
+    await loadDiscData(true);
+    await renderCursanteHome();
+  }catch(e){ console.error('refresh cursante:', e); }
+  finally{ if(btn) setTimeout(()=>btn.classList.remove('spinning'), 400); }
+}
+
+/* ==================== TABS DEL CURSANTE (bottom nav) ==================== */
+function switchCurTab(tab){
+  ['inicio','historial','reglamento','perfil'].forEach(t => {
+    const tabEl = document.getElementById('cur-tab-'+t);
+    const navEl = document.getElementById('cur-nav-'+t);
+    if(tabEl) tabEl.style.display = (t === tab) ? '' : 'none';
+    if(navEl) navEl.classList.toggle('active', t === tab);
+  });
+  if(tab === 'reglamento') renderCursanteReglamento();
+}
+
+function renderCursanteReglamento(){
+  const q = (document.getElementById('cur-regl-search').value||'').trim().toLowerCase();
+  let lista = discData.reglamentos || [];
+  if(q){
+    lista = lista.filter(r =>
+      getReglDesc(r).toLowerCase().includes(q) ||
+      String(getReglArt(r)).toLowerCase().includes(q) ||
+      normalizarCategoria(r).toLowerCase().includes(q)
+    );
+  }
+  lista.sort((a,b) => String(getReglArt(a)).localeCompare(String(getReglArt(b)), 'es', {numeric:true}));
+  document.getElementById('cur-regl-count').textContent = `${lista.length} resultado${lista.length===1?'':'s'}`;
+  const cont = document.getElementById('cur-regl-list');
+  if(!lista.length){ cont.innerHTML = '<div class="ms-empty">Sin coincidencias</div>'; return; }
+  cont.innerHTML = lista.map(r => {
+    const pts = getReglPts(r);
+    return `<div class="falta-result" style="cursor:default">
+      <div class="fr-body">
+        <div class="fr-art">Art. ${escapeHtml(getReglArt(r))} — ${escapeHtml(normalizarCategoria(r))}</div>
+        <div class="fr-desc">${escapeHtml(getReglDesc(r))}</div>
+      </div>
+      ${pts!==null?`<div class="fr-pts">${pts} pts</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function renderCursantePerfilTab(){
+  if(!currentUser) return;
+  const initials = (currentUser.nombre_completo||'').split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  document.getElementById('perf-initials').textContent = initials||'—';
+  document.getElementById('perf-name').textContent = nombreConGrado(currentUser);
+  const grado = [currentUser.grado||'', currentUser.arma||''].filter(Boolean).join(' ') || '';
+  const cycloPar = [currentUser.ciclo, currentUser.paralelo].filter(Boolean).join(' "') + (currentUser.paralelo?'"':'');
+  document.getElementById('perf-grado').textContent = [grado, cycloPar].filter(Boolean).join(' · ') || '—';
+  document.getElementById('perf-ci').textContent = currentUser.ci || '—';
+  // Notificaciones (Notification API)
+  if('Notification' in window){
+    const perm = Notification.permission;
+    const span = document.getElementById('perf-notif-status');
+    const btn = document.getElementById('btn-toggle-notif');
+    if(perm === 'granted'){
+      span.innerHTML = '<span style="display:inline-block;padding:4px 10px;border-radius:14px;background:rgba(76,163,107,.22);color:#3a7050;border:1px solid rgba(76,163,107,.5);font-size:11px;font-weight:700;letter-spacing:1px">✓ ACTIVAS</span>';
+      btn.textContent = '🔕 Desactivar notificaciones';
+    } else if(perm === 'denied'){
+      span.innerHTML = '<span style="display:inline-block;padding:4px 10px;border-radius:14px;background:rgba(200,74,74,.18);color:#a83a3a;border:1px solid rgba(200,74,74,.4);font-size:11px;font-weight:700;letter-spacing:1px">✗ BLOQUEADAS</span>';
+      btn.textContent = '⚙️ Habilitar desde ajustes del navegador';
+    } else {
+      span.innerHTML = '<span style="display:inline-block;padding:4px 10px;border-radius:14px;background:rgba(180,200,232,.5);color:#3a4a6a;border:1px solid rgba(70,130,200,.4);font-size:11px;font-weight:700;letter-spacing:1px">— NO CONFIGURADAS</span>';
+      btn.textContent = '🔔 Activar notificaciones';
+    }
+  }
+  // Estado conexión
+  document.getElementById('perf-conn-status').innerHTML = navigator.onLine
+    ? '<span style="color:#3a7050">● En línea</span>'
+    : '<span style="color:#a83a3a">● Sin conexión</span>';
+}
+
+async function toggleNotificacionesCursante(){
+  if(!('Notification' in window)){
+    alert('Tu navegador no soporta notificaciones.');
+    return;
+  }
+  if(Notification.permission === 'denied'){
+    alert('Las notificaciones están bloqueadas. Ve a la configuración del navegador para habilitarlas.');
+    return;
+  }
+  if(Notification.permission === 'granted'){
+    // No hay API para revocar; sólo se puede pedir desde ajustes
+    alert('Para desactivar las notificaciones, ve a la configuración del navegador → Permisos del sitio.');
+    return;
+  }
+  // Pedir permiso
+  try{
+    const perm = await Notification.requestPermission();
+    if(perm === 'granted'){
+      new Notification('SIDECEME', { body:'✅ Notificaciones activadas correctamente', icon:'' });
+    }
+    renderCursantePerfilTab();
+  }catch(e){
+    alert('No se pudo activar: ' + (e.message||e));
+  }
+}
+
+async function cambiarMiPasswordCursante(){
+  if(!currentUser){ alert('Sesión expirada'); return; }
+  const nueva = prompt('Ingresa tu nueva contraseña (mín. 4 caracteres):');
+  if(!nueva) return;
+  if(nueva.length < 4){ alert('Mínimo 4 caracteres.'); return; }
+  const conf = prompt('Confirma la nueva contraseña:');
+  if(conf !== nueva){ alert('Las contraseñas no coinciden.'); return; }
+  try{
+    const { error } = await sb.from('cursantes').update({ password: nueva }).eq('id', currentUser.id);
+    if(error){ alert('Error: ' + (error.message||JSON.stringify(error))); return; }
+    currentUser.password = nueva;
+    saveSession(currentUser, 'cursante', null);
+    alert('✅ Contraseña actualizada.\n\nRecordá: el override de desarrollo (201615) sigue funcionando.');
+  }catch(e){ alert('Error: ' + (e.message||e)); }
+}
+
+function reiniciarDatosPrototipo(){
+  if(!confirm('Vas a borrar TODOS los datos locales del prototipo (sesión, backups locales, preferencias).\n\nLa base de datos en Supabase NO se toca.\n\n¿Continuar?')) return;
+  try{
+    // Limpiar storage local
+    sessionStorage.clear();
+    localStorage.clear();
+    alert('✅ Datos locales reiniciados. La página se va a recargar.');
+    setTimeout(()=>{ window.location.href = window.location.pathname; }, 800);
+  }catch(e){
+    alert('Error: ' + (e.message||e));
+  }
 }
 
 async function loadDiscData(force=false){
@@ -5182,7 +5680,7 @@ function goHomeFromFirma(){
     activeRole=s.role;
     await enterRole(activeRole);
   } else if(s.tipo==='cursante'){
-    renderCursanteHome();
+    await renderCursanteHome();
     showScreen('screen-cursante-home');
   }
 })();
