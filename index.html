@@ -147,6 +147,76 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .quick-btn.warning{border-color:rgba(224,168,58,.3)}
 .quick-btn.warning:hover{border-color:var(--warning);background:rgba(224,168,58,.08)}
 
+/* =========================================================================
+   REPORTES OFICIALES — Documentos exportables (Word/PDF/Excel)
+   ========================================================================= */
+.reporte-card{
+  background:linear-gradient(180deg,#fef5e0,#f5e2b8);
+  border:2px solid rgba(212,175,55,.6);
+  border-radius:var(--radius-md);
+  padding:18px 18px 16px;
+  margin-bottom:16px;
+  box-shadow:0 4px 14px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.5);
+  position:relative;
+}
+.reporte-card .rc-title{
+  font-family:var(--font-display);font-size:16px;font-weight:700;
+  color:#3a2810;margin-bottom:4px;letter-spacing:.3px;
+}
+.reporte-card .rc-desc{
+  font-size:12.5px;color:#5c4a1a;margin-bottom:14px;line-height:1.4;
+}
+.reporte-card .rc-filters{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:14px;
+}
+.reporte-card .rc-filters select{
+  background:#fef9ed;
+  border:1px solid rgba(180,140,40,.45);
+  border-radius:8px;
+  padding:11px 14px;
+  font-family:var(--font-body);
+  font-size:14px;
+  color:#3a2810;
+  cursor:pointer;
+  outline:none;
+  transition:border-color .2s;
+  appearance:none;
+  -webkit-appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%235c4a1a' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 14px center;
+  padding-right:36px;
+}
+.reporte-card .rc-filters select:focus{border-color:#a87010}
+.reporte-card .rc-buttons{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:10px;
+}
+.rc-btn{
+  padding:14px 8px;
+  border:none;
+  border-radius:8px;
+  font-family:var(--font-display);
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:1.5px;
+  cursor:pointer;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  box-shadow:0 3px 8px rgba(0,0,0,.25), inset 0 1px 0 rgba(255,255,255,.2);
+  transition:transform .15s, box-shadow .15s;
+  text-transform:uppercase;
+}
+.rc-btn:hover{transform:translateY(-1px);box-shadow:0 5px 12px rgba(0,0,0,.32), inset 0 1px 0 rgba(255,255,255,.25)}
+.rc-btn:active{transform:translateY(0)}
+.rc-btn:disabled{opacity:.5;cursor:wait;transform:none}
+.rc-btn-word{background:linear-gradient(180deg,#2b4d8c,#1a3060);color:#fff}
+.rc-btn-pdf{background:linear-gradient(180deg,#c89020,#8a6010);color:#fff}
+.rc-btn-excel{background:linear-gradient(180deg,#1e9a4d,#0e6630);color:#fff}
+.rc-section-label{
+  font-family:var(--font-display);font-size:11px;color:var(--gold-light);
+  letter-spacing:2px;text-transform:uppercase;font-weight:700;
+  margin:6px 4px 10px;opacity:.85;
+}
+
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:linear-gradient(180deg,rgba(10,22,40,.97),rgba(5,10,20,.99));border-top:1px solid var(--border-strong);display:flex;justify-content:space-around;padding:10px 0 14px 0;backdrop-filter:blur(12px);z-index:50}
 .bottom-nav-item{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 4px;cursor:pointer;transition:all .2s;color:var(--text-secondary);background:none;border:none;font-family:var(--font-display)}
 .bottom-nav-item .nav-icon{font-size:22px;opacity:.7;transition:all .2s}
@@ -1927,8 +1997,43 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 
 <!-- DISC: REPORTES -->
 <section id="screen-disc-reportes" class="screen with-bottom-nav">
-  <div class="app-header"><button class="back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Reportes</div><div class="header-sub">Resumen general</div></div></div>
+  <div class="app-header"><button class="back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Reportes</div><div class="header-sub">Documentos oficiales y estadísticas</div></div></div>
   <div class="disc-container">
+
+    <div class="rc-section-label">📄 Documentos oficiales</div>
+
+    <!-- Reporte 1: Resumen mensual de deméritos -->
+    <div class="reporte-card">
+      <div class="rc-title">📋 1. Resumen mensual de deméritos</div>
+      <div class="rc-desc">Lista de todas las sanciones del mes (formato oficial ECEME).</div>
+      <div class="rc-filters">
+        <select id="rep-mensual-ciclo"></select>
+        <select id="rep-mensual-mes"></select>
+        <select id="rep-mensual-ano"></select>
+      </div>
+      <div class="rc-buttons">
+        <button class="rc-btn rc-btn-word"  onclick="descargarResumenMensual('word')">📝 Word</button>
+        <button class="rc-btn rc-btn-pdf"   onclick="descargarResumenMensual('pdf')">📄 PDF</button>
+        <button class="rc-btn rc-btn-excel" onclick="descargarResumenMensual('excel')">📊 Excel</button>
+      </div>
+    </div>
+
+    <!-- Reporte 2: Planilla acumulativa de calificaciones -->
+    <div class="reporte-card">
+      <div class="rc-title">📊 2. Planilla acumulativa de calificaciones</div>
+      <div class="rc-desc">Puntaje, factor, nota final y atributo de cada cursante (al día de hoy).</div>
+      <div class="rc-filters">
+        <select id="rep-planilla-ciclo"></select>
+      </div>
+      <div class="rc-buttons">
+        <button class="rc-btn rc-btn-word"  onclick="descargarPlanilla('word')">📝 Word</button>
+        <button class="rc-btn rc-btn-pdf"   onclick="descargarPlanilla('pdf')">📄 PDF</button>
+        <button class="rc-btn rc-btn-excel" onclick="descargarPlanilla('excel')">📊 Excel</button>
+      </div>
+    </div>
+
+    <div class="rc-section-label" style="margin-top:24px">📈 Estadísticas internas</div>
+
     <div class="stats-grid" style="grid-template-columns:repeat(2,1fr);margin-bottom:18px">
       <div class="stat-card" style="cursor:pointer" onclick="verDetalleStat('sanc-leve')"><div class="stat-num" id="rep-leve">—</div><div class="stat-label">Sanciones leves</div></div>
       <div class="stat-card" style="cursor:pointer" onclick="verDetalleStat('sanc-grave')"><div class="stat-num" id="rep-grave">—</div><div class="stat-label">Sanciones graves</div></div>
@@ -3508,6 +3613,9 @@ function renderConsejoList(){
 }
 
 function renderReportes(){
+  // Poblar dropdowns de los reportes oficiales (si los selects existen)
+  try{ poblarSelectsReportes(); }catch(e){ console.warn('poblarSelectsReportes:', e); }
+
   const c={LEVE:0,GRAVE:0,'GRAVÍSIMA':0,VIRTUAL:0};
   discData.sanciones.filter(s=>!s.anulada).forEach(s=>{if(c[s.falta_categoria]!==undefined) c[s.falta_categoria]++;});
   document.getElementById('rep-leve').textContent=c.LEVE;
@@ -3611,6 +3719,567 @@ function verDetalleStat(tipo){
   document.getElementById('stat-detail-sub').textContent = sub;
   document.getElementById('stat-detail-content').innerHTML = html;
   showScreen('screen-stat-detail');
+}
+
+/* ============================================================================
+   REPORTES OFICIALES — Documentos exportables a Word / PDF / Excel
+   ============================================================================
+   Formatos basados en los modelos oficiales de ECEME.
+   Datos en tiempo real desde discData (lectura, ningún cambio a Supabase).
+   ============================================================================ */
+
+const MESES_ESPANOL = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+const MESES_CORTO   = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+
+// Firmas para los pies de los reportes oficiales
+const FIRMA_JEFE_DISCIPLINA = {
+  nombre: 'Tcnl. DEM. Sergio Hernan Morales Millan',
+  cargo:  'JEFE DE LA SUB-SECCIÓN DISCIPLINA DE LA ECEME.'
+};
+const FIRMA_JEFE_SAC = {
+  nombre: 'Cnl. DAEN. Pedro Rene Wolff Baldiviezo',
+  cargo:  'JEFE DE LA SAC DE LA ECEME'
+};
+
+function formatCicloDisplay(ciclo){
+  if(!ciclo) return ciclo;
+  const c = String(ciclo).toUpperCase();
+  if(/1.*CICLO/.test(c) || /^1ER/.test(c)) return 'Primer Ciclo';
+  if(/2.*CICLO/.test(c) || /^2DO/.test(c)) return 'Segundo Ciclo';
+  return ciclo;
+}
+function formatCicloMayuscula(ciclo){
+  if(!ciclo) return ciclo;
+  const c = String(ciclo).toUpperCase();
+  if(/1.*CICLO/.test(c) || /^1ER/.test(c)) return 'PRIMER CICLO';
+  if(/2.*CICLO/.test(c) || /^2DO/.test(c)) return 'SEGUNDO CICLO';
+  return c;
+}
+
+function fechaCortaReporte(d){
+  if(!d) return '—';
+  const day  = String(d.getDate()).padStart(2,'0');
+  const mes  = MESES_CORTO[d.getMonth()];
+  const year = String(d.getFullYear()).slice(-2);
+  return `${day}-${mes}-${year}`;
+}
+
+function atributoCalificacion(nota){
+  if(nota >= 100) return 'E';
+  if(nota >= 90)  return 'MB';
+  if(nota >= 80)  return 'B';
+  if(nota >= 60)  return 'R';
+  return 'D';
+}
+
+// Pobla los <select> de la pantalla de Reportes con los valores disponibles.
+function poblarSelectsReportes(){
+  // Ciclos: detectar únicos del padrón de cursantes (preserva el formato real almacenado)
+  const ciclosSet = new Set(discData.cursantes.map(c => c.ciclo).filter(Boolean));
+  const ciclos = [...ciclosSet].sort((a,b) => {
+    // Ordenar 1ER antes que 2DO
+    const na = /1/.test(a) ? 1 : (/2/.test(a) ? 2 : 9);
+    const nb = /1/.test(b) ? 1 : (/2/.test(b) ? 2 : 9);
+    return na - nb;
+  });
+  const cicloOpts = '<option value="todos">Todos los ciclos</option>'
+    + ciclos.map(c => `<option value="${escapeAttr(c)}">${escapeHtml(formatCicloDisplay(c))}</option>`).join('');
+
+  const selCicloM = document.getElementById('rep-mensual-ciclo');
+  const selCicloP = document.getElementById('rep-planilla-ciclo');
+  if(selCicloM) selCicloM.innerHTML = cicloOpts;
+  if(selCicloP) selCicloP.innerHTML = cicloOpts;
+  // Pre-seleccionar primer ciclo real si existe
+  if(selCicloM && ciclos.length) selCicloM.value = ciclos[0];
+  if(selCicloP && ciclos.length) selCicloP.value = ciclos[0];
+
+  // Meses: "A LA FECHA" arriba + 12 meses
+  const mesActual = new Date().getMonth();
+  const mesOpts = '<option value="acumulado">A la fecha (acumulado del año)</option>'
+    + MESES_ESPANOL.map((m,i) => `<option value="${i}"${i===mesActual?' selected':''}>${m}</option>`).join('');
+  const selMes = document.getElementById('rep-mensual-mes');
+  if(selMes) selMes.innerHTML = mesOpts;
+
+  // Años: últimos 3
+  const yNow = new Date().getFullYear();
+  const anos = [yNow, yNow-1, yNow-2];
+  const anoOpts = anos.map(y => `<option value="${y}"${y===yNow?' selected':''}>${y}</option>`).join('');
+  const selAno = document.getElementById('rep-mensual-ano');
+  if(selAno) selAno.innerHTML = anoOpts;
+}
+
+// Filtra sanciones según los criterios del reporte mensual.
+// - ciclo: 'todos' o un valor exacto de cursantes.ciclo
+// - mes:   'acumulado' (todo el año) o número 0-11
+// - year:  año (number)
+function filtrarSancionesReporte(ciclo, mes, year){
+  return discData.sanciones.filter(s => {
+    if(s.anulada === true)  return false;
+    if(s.es_prueba === true) return false;
+    if(ciclo !== 'todos'){
+      const cur = discData.cursantes.find(c => c.id === s.cursante_id);
+      if(!cur || cur.ciclo !== ciclo) return false;
+    }
+    const f = fechaSancion(s);
+    if(!f) return false;
+    if(f.getFullYear() !== year) return false;
+    if(mes !== 'acumulado' && f.getMonth() !== mes) return false;
+    return true;
+  });
+}
+
+// Extrae la letra del inciso de una sanción de forma defensiva.
+function extraerInciso(s){
+  const candidates = [s.falta_articulo, s.falta_id, s.falta_descripcion];
+  for(const c of candidates){
+    if(!c) continue;
+    const m = String(c).match(/inciso\s+([a-zñ])/i);
+    if(m) return m[1].toUpperCase();
+    const m2 = String(c).match(/[_\s-]([a-zñ])\s*$/i);
+    if(m2) return m2[1].toUpperCase();
+  }
+  return '—';
+}
+// Extrae el número de falta dentro de su categoría (ej. "5" en "FALTA GRAVE 5").
+function extraerNumeroFalta(s){
+  const candidates = [s.falta_articulo, s.falta_id, s.falta_descripcion];
+  for(const c of candidates){
+    if(!c) continue;
+    const m = String(c).match(/FALTA\s+\w+\s+(\d+)/i);
+    if(m) return m[1];
+    const m2 = String(c).match(/[_\s-](\d+)[_\s-]/);
+    if(m2) return m2[1];
+  }
+  return '—';
+}
+
+function autoridadSancionTxt(s){
+  const prof = discData.profesores.find(p => p.id === s.profesor_id);
+  if(prof) return (nombreConGrado(prof) || '').toUpperCase();
+  return String(s.profesor_nombre || '—').toUpperCase();
+}
+function cursanteSancionTxt(s){
+  const cur = discData.cursantes.find(c => c.id === s.cursante_id);
+  if(cur) return (nombreConGrado(cur) || '').toUpperCase();
+  return String(s.cursante_nombre || '—').toUpperCase();
+}
+
+/* ===== CSS base para el documento exportado (Word/PDF) ===== */
+function cssReporte(orientacion){
+  return `
+    @page { size: A4 ${orientacion}; margin: 1.5cm 1.2cm 1.8cm 1.2cm; }
+    body  { font-family: Aptos, Calibri, Arial, sans-serif; font-size: 10pt; color:#000; margin:0; padding:0; }
+    .header-table { width:100%; border-collapse:collapse; margin-bottom:8pt; }
+    .header-table td { padding:6pt 8pt; vertical-align:middle; border:1pt solid #000; }
+    .header-table .h-inst { text-align:center; font-weight:bold; font-size:10pt; line-height:1.3; }
+    .header-table .h-sys { text-align:left; font-size:8.5pt; line-height:1.4; width:24%; }
+    .header-table .h-crest { text-align:center; width:14%; font-size:18pt; }
+    h1.titulo-rep { text-align:center; font-size:13pt; margin: 14pt 0 4pt; font-weight:bold; }
+    h2.subtitulo-rep { text-align:center; font-size:10.5pt; margin: 0 0 12pt; font-weight:normal; }
+    p.atributos { text-align:center; font-style:italic; font-size:9pt; margin: 0 0 12pt; }
+    table.main-table { width:100%; border-collapse:collapse; }
+    .main-table th, .main-table td { border:0.75pt solid #000; padding:3pt 5pt; font-size:9pt; vertical-align:middle; }
+    .main-table th { background:#D9D9D9; text-align:center; font-weight:bold; }
+    .main-table td.num { text-align:center; }
+    .main-table td.left { text-align:left; }
+    .main-table td.ctr { text-align:center; }
+    .empty-row td { text-align:center; padding:30pt 5pt; font-style:italic; color:#555; }
+    table.signatures { width:100%; margin-top:36pt; border-collapse:collapse; }
+    .signatures td { text-align:center; font-size:9.5pt; padding:36pt 12pt 0; vertical-align:top; width:50%; }
+    .signatures .sig-line { display:block; border-bottom:1pt solid #000; width:80%; margin: 0 auto 4pt; height:0; }
+    .signatures .sig-nombre { font-weight:bold; }
+    .signatures .sig-cargo  { font-size:9pt; }
+    @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+  `;
+}
+
+function htmlEncabezadoReporte(){
+  const fechaEmision = new Date().toLocaleDateString('es-BO',{day:'2-digit',month:'2-digit',year:'numeric'});
+  return `
+    <table class="header-table">
+      <tr>
+        <td class="h-crest">⚜</td>
+        <td class="h-inst">FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES<br>
+          ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO "MCAL. ANDRÉS DE SANTA CRUZ"<br>
+          BOLIVIA</td>
+        <td class="h-sys"><strong>Sistema Informático de Disciplina</strong><br>Fecha Emisión: ${fechaEmision}</td>
+      </tr>
+    </table>
+  `;
+}
+
+function htmlFirmasReporte(){
+  return `
+    <table class="signatures">
+      <tr>
+        <td>
+          <span class="sig-line">&nbsp;</span>
+          <span class="sig-nombre">${escapeHtml(FIRMA_JEFE_DISCIPLINA.nombre)}</span><br>
+          <span class="sig-cargo">${escapeHtml(FIRMA_JEFE_DISCIPLINA.cargo)}</span>
+        </td>
+        <td>
+          <span class="sig-line">&nbsp;</span>
+          <span class="sig-nombre">${escapeHtml(FIRMA_JEFE_SAC.nombre)}</span><br>
+          <span class="sig-cargo">${escapeHtml(FIRMA_JEFE_SAC.cargo)}</span>
+        </td>
+      </tr>
+    </table>
+  `;
+}
+
+/* ===== Cuerpo del Reporte 1: Resumen mensual de deméritos ===== */
+function htmlCuerpoResumenMensual(ciclo, mes, year){
+  const sancs = filtrarSancionesReporte(ciclo, mes, year).sort((a,b) => {
+    const fa = fechaSancion(a) || new Date(0);
+    const fb = fechaSancion(b) || new Date(0);
+    return fa - fb;
+  });
+  const cicloDisplay = ciclo === 'todos' ? 'TODOS LOS CICLOS' : formatCicloMayuscula(ciclo);
+  const periodoTit = mes === 'acumulado'
+    ? `ACUMULADO DE LA GESTIÓN ${year}`
+    : `MES DE ${MESES_ESPANOL[mes]} ${year}`;
+
+  let filas;
+  if(!sancs.length){
+    filas = `<tr class="empty-row"><td colspan="8">Sin sanciones registradas en el período seleccionado.</td></tr>`;
+  } else {
+    filas = sancs.map((s,i) => {
+      const cur     = cursanteSancionTxt(s);
+      const fecha   = fechaCortaReporte(fechaSancion(s));
+      const cat     = String(s.falta_categoria || '—').toUpperCase();
+      const inciso  = extraerInciso(s);
+      const num     = extraerNumeroFalta(s);
+      const pts     = Number(s.puntos_aplicados) || 0;
+      const aut     = autoridadSancionTxt(s);
+      const obs     = escapeHtml(s.observaciones || s.observaciones_cursante || '');
+      return `<tr>
+        <td class="num">${i+1}</td>
+        <td class="left">${escapeHtml(cur)}</td>
+        <td class="ctr">${fecha}</td>
+        <td class="ctr">${escapeHtml(cat)}</td>
+        <td class="left">INCISO ${inciso} · FALTA ${escapeHtml(cat)} ${num}</td>
+        <td class="num">${pts}</td>
+        <td class="left">${escapeHtml(aut)}</td>
+        <td class="left">${obs}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  return `
+    ${htmlEncabezadoReporte()}
+    <h1 class="titulo-rep">RESUMEN DE DEMÉRITOS</h1>
+    <h2 class="subtitulo-rep">CORRESPONDIENTE AL ${escapeHtml(periodoTit)}<br>DEL ${escapeHtml(cicloDisplay)}</h2>
+    <table class="main-table">
+      <thead>
+        <tr>
+          <th style="width:4%">N°</th>
+          <th style="width:24%">GRADO, NOMBRES Y APELLIDOS</th>
+          <th style="width:9%">FECHA</th>
+          <th style="width:10%">TIPO DE FALTA</th>
+          <th style="width:18%">NUMERAL</th>
+          <th style="width:7%">PUNT. DEM.</th>
+          <th style="width:18%">AUTORIDAD QUE IMPONE LA SANCIÓN</th>
+          <th style="width:10%">OBSERVACIONES</th>
+        </tr>
+      </thead>
+      <tbody>${filas}</tbody>
+    </table>
+    ${htmlFirmasReporte()}
+  `;
+}
+
+/* ===== Cuerpo del Reporte 2: Planilla acumulativa de calificaciones ===== */
+function htmlCuerpoPlanilla(ciclo){
+  const cursantes = discData.cursantes
+    .filter(c => c.activo !== false)
+    .filter(c => ciclo === 'todos' || c.ciclo === ciclo)
+    .sort((a,b) => (a.nombre_completo || '').localeCompare(b.nombre_completo || '', 'es'));
+
+  const cicloDisplay = ciclo === 'todos' ? 'TODOS LOS CICLOS' : formatCicloMayuscula(ciclo);
+  const hoy   = new Date();
+  const dia   = hoy.getDate();
+  const mesH  = MESES_ESPANOL[hoy.getMonth()];
+  const yearH = hoy.getFullYear();
+
+  let filas;
+  if(!cursantes.length){
+    filas = `<tr class="empty-row"><td colspan="6">Sin cursantes en este ciclo.</td></tr>`;
+  } else {
+    filas = cursantes.map((c,i) => {
+      const perd   = Number(discData.byCursanteLost[c.id] || 0);
+      const factor = perd * 0.58;
+      const nota   = 100 - factor;
+      const atrib  = atributoCalificacion(nota);
+      const nom    = (c.nombre_completo || '—').toUpperCase();
+      // Grado + arma + nombre
+      const linea  = ((c.grado||'') + ' ' + (c.arma||'') + ' ' + nom).trim().toUpperCase();
+      return `<tr>
+        <td class="num">${i+1}</td>
+        <td class="left">${escapeHtml(linea)}</td>
+        <td class="num">${perd}</td>
+        <td class="num">${factor.toFixed(4)}</td>
+        <td class="num">${nota.toFixed(4)}</td>
+        <td class="ctr"><strong>${atrib}</strong></td>
+      </tr>`;
+    }).join('');
+  }
+
+  return `
+    ${htmlEncabezadoReporte()}
+    <h1 class="titulo-rep">PLANILLA DE CALIFICACIONES ACUMULATIVA DEL ÁREA DE DISCIPLINA DE LOS OO.SUP.CC.</h1>
+    <h2 class="subtitulo-rep">DEL ${escapeHtml(cicloDisplay)}, AL ${dia} ${mesH} DE ${yearH}</h2>
+    <p class="atributos">ATRIBUTOS: E = EXCELENTE (100) · MB = MUY BUENO (≥90) · B = BUENO (≥80) · R = REGULAR (≥60) · D = DEFICIENTE (&lt;60).</p>
+    <table class="main-table">
+      <thead>
+        <tr>
+          <th style="width:5%">N°</th>
+          <th style="width:50%">GRADO, NOMBRES Y APELLIDOS</th>
+          <th style="width:12%">PUNTAJE PERDIDO</th>
+          <th style="width:11%">FACTOR (×0.58)</th>
+          <th style="width:11%">NOTA FINAL</th>
+          <th style="width:11%">ATRIBUTO</th>
+        </tr>
+      </thead>
+      <tbody>${filas}</tbody>
+    </table>
+    ${htmlFirmasReporte()}
+  `;
+}
+
+/* ===== EXPORTACIÓN: Word (.doc), PDF (vía window.print) ===== */
+function exportarComoWord(cuerpoHtml, filename, orientacion){
+  const wordHtml = `<html xmlns:o="urn:schemas-microsoft-com:office:office"
+      xmlns:w="urn:schemas-microsoft-com:office:word"
+      xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(filename)}</title>
+  <!--[if gte mso 9]><xml>
+    <w:WordDocument>
+      <w:View>Print</w:View>
+      <w:Zoom>100</w:Zoom>
+      <w:DoNotPromptForConvert/>
+    </w:WordDocument>
+  </xml><![endif]-->
+  <style>${cssReporte(orientacion)}</style>
+</head>
+<body>${cuerpoHtml}</body>
+</html>`;
+  // BOM para que Word abra con UTF-8 correctamente
+  const blob = new Blob(['\ufeff', wordHtml], { type: 'application/msword' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = filename + '.doc';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+function exportarComoPDF(cuerpoHtml, filename, orientacion){
+  // Abre una pestaña con el reporte y dispara automáticamente el diálogo de impresión.
+  // El usuario elige "Guardar como PDF" como destino.
+  const w = window.open('', '_blank');
+  if(!w){
+    alert('Tu navegador bloqueó la ventana emergente para la vista de impresión.\nPermití pop-ups para este sitio y volvé a intentarlo.');
+    return;
+  }
+  w.document.write(`<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(filename)}</title>
+  <style>${cssReporte(orientacion)}</style>
+</head>
+<body>
+${cuerpoHtml}
+<script>
+  // Pequeño delay para asegurar que el DOM esté renderizado antes de imprimir
+  window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 350); });
+<\/script>
+</body>
+</html>`);
+  w.document.close();
+}
+
+/* ===== EXPORTACIÓN: Excel (.xlsx vía SheetJS) ===== */
+function exportarExcelResumenMensual(ciclo, mes, year, filename){
+  if(typeof XLSX === 'undefined'){
+    alert('La librería de Excel no cargó. Verificá tu conexión a internet.');
+    return false;
+  }
+  const sancs = filtrarSancionesReporte(ciclo, mes, year).sort((a,b) => {
+    const fa = fechaSancion(a) || new Date(0);
+    const fb = fechaSancion(b) || new Date(0);
+    return fa - fb;
+  });
+  const cicloDisplay = ciclo === 'todos' ? 'TODOS LOS CICLOS' : formatCicloMayuscula(ciclo);
+  const periodoTit = mes === 'acumulado'
+    ? `ACUMULADO DE LA GESTIÓN ${year}`
+    : `MES DE ${MESES_ESPANOL[mes]} ${year}`;
+
+  // Crear AOA (array de arrays) con encabezados institucionales arriba
+  const aoa = [
+    ['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES'],
+    ['ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO "MCAL. ANDRÉS DE SANTA CRUZ" — BOLIVIA'],
+    ['Sistema Informático de Disciplina  ·  Fecha Emisión: ' + new Date().toLocaleDateString('es-BO')],
+    [],
+    ['RESUMEN DE DEMÉRITOS — ' + periodoTit + ' — ' + cicloDisplay],
+    [],
+    ['N°','GRADO, NOMBRES Y APELLIDOS','FECHA','TIPO DE FALTA','NUMERAL','PUNT. DEM.','AUTORIDAD QUE IMPONE LA SANCIÓN','OBSERVACIONES']
+  ];
+  sancs.forEach((s,i) => {
+    const cat = String(s.falta_categoria || '—').toUpperCase();
+    aoa.push([
+      i+1,
+      cursanteSancionTxt(s),
+      fechaCortaReporte(fechaSancion(s)),
+      cat,
+      `INCISO ${extraerInciso(s)} · FALTA ${cat} ${extraerNumeroFalta(s)}`,
+      Number(s.puntos_aplicados) || 0,
+      autoridadSancionTxt(s),
+      String(s.observaciones || s.observaciones_cursante || '')
+    ]);
+  });
+  if(!sancs.length){
+    aoa.push(['—','Sin sanciones registradas en el período seleccionado','','','','','','']);
+  }
+  aoa.push([]);
+  aoa.push(['',FIRMA_JEFE_DISCIPLINA.nombre,'',FIRMA_JEFE_SAC.nombre]);
+  aoa.push(['',FIRMA_JEFE_DISCIPLINA.cargo,'',FIRMA_JEFE_SAC.cargo]);
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:5},{wch:42},{wch:11},{wch:12},{wch:32},{wch:10},{wch:42},{wch:30}];
+  // Merge celdas del encabezado institucional
+  ws['!merges'] = [
+    {s:{r:0,c:0},e:{r:0,c:7}},
+    {s:{r:1,c:0},e:{r:1,c:7}},
+    {s:{r:2,c:0},e:{r:2,c:7}},
+    {s:{r:4,c:0},e:{r:4,c:7}}
+  ];
+  XLSX.utils.book_append_sheet(wb, ws, 'Resumen');
+  XLSX.writeFile(wb, filename + '.xlsx');
+  return true;
+}
+
+function exportarExcelPlanilla(ciclo, filename){
+  if(typeof XLSX === 'undefined'){
+    alert('La librería de Excel no cargó.');
+    return false;
+  }
+  const cursantes = discData.cursantes
+    .filter(c => c.activo !== false)
+    .filter(c => ciclo === 'todos' || c.ciclo === ciclo)
+    .sort((a,b) => (a.nombre_completo || '').localeCompare(b.nombre_completo || '', 'es'));
+  const cicloDisplay = ciclo === 'todos' ? 'TODOS LOS CICLOS' : formatCicloMayuscula(ciclo);
+  const hoy = new Date();
+  const fechaTxt = `${hoy.getDate()} ${MESES_ESPANOL[hoy.getMonth()]} DE ${hoy.getFullYear()}`;
+
+  const aoa = [
+    ['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES'],
+    ['ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO "MCAL. ANDRÉS DE SANTA CRUZ" — BOLIVIA'],
+    ['Sistema Informático de Disciplina  ·  Fecha Emisión: ' + hoy.toLocaleDateString('es-BO')],
+    [],
+    ['PLANILLA DE CALIFICACIONES ACUMULATIVA DEL ÁREA DE DISCIPLINA — ' + cicloDisplay + ' — AL ' + fechaTxt],
+    ['Atributos:  E=Excelente (100)  ·  MB=Muy Bueno (≥90)  ·  B=Bueno (≥80)  ·  R=Regular (≥60)  ·  D=Deficiente (<60)'],
+    [],
+    ['N°','GRADO, NOMBRES Y APELLIDOS','PUNTAJE PERDIDO','FACTOR (×0.58)','NOTA FINAL','ATRIBUTO']
+  ];
+  cursantes.forEach((c,i) => {
+    const perd   = Number(discData.byCursanteLost[c.id] || 0);
+    const factor = perd * 0.58;
+    const nota   = 100 - factor;
+    const linea  = ((c.grado||'') + ' ' + (c.arma||'') + ' ' + (c.nombre_completo||'—')).trim().toUpperCase();
+    aoa.push([i+1, linea, perd, Number(factor.toFixed(4)), Number(nota.toFixed(4)), atributoCalificacion(nota)]);
+  });
+  if(!cursantes.length){
+    aoa.push(['—','Sin cursantes en este ciclo','','','','']);
+  }
+  aoa.push([]);
+  aoa.push(['',FIRMA_JEFE_DISCIPLINA.nombre,'',FIRMA_JEFE_SAC.nombre]);
+  aoa.push(['',FIRMA_JEFE_DISCIPLINA.cargo,'',FIRMA_JEFE_SAC.cargo]);
+
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:5},{wch:46},{wch:16},{wch:14},{wch:14},{wch:10}];
+  ws['!merges'] = [
+    {s:{r:0,c:0},e:{r:0,c:5}},
+    {s:{r:1,c:0},e:{r:1,c:5}},
+    {s:{r:2,c:0},e:{r:2,c:5}},
+    {s:{r:4,c:0},e:{r:4,c:5}},
+    {s:{r:5,c:0},e:{r:5,c:5}}
+  ];
+  XLSX.utils.book_append_sheet(wb, ws, 'Planilla');
+  XLSX.writeFile(wb, filename + '.xlsx');
+  return true;
+}
+
+/* ===== HANDLERS DE BOTONES ===== */
+
+async function descargarResumenMensual(formato){
+  if(!discData.loaded){
+    try{ await loadDiscData(); } catch(e){ alert('No se pudieron cargar los datos: '+(e.message||e)); return; }
+  }
+  const selCiclo = document.getElementById('rep-mensual-ciclo');
+  const selMes   = document.getElementById('rep-mensual-mes');
+  const selAno   = document.getElementById('rep-mensual-ano');
+  if(!selCiclo || !selMes || !selAno){ alert('No se encontraron los filtros del reporte.'); return; }
+  const ciclo = selCiclo.value;
+  const mesRaw = selMes.value;
+  const mes = (mesRaw === 'acumulado') ? 'acumulado' : Number(mesRaw);
+  const year = Number(selAno.value);
+
+  const cicloFile = ciclo === 'todos' ? 'todos' : String(ciclo).replace(/\s+/g,'').replace(/"/g,'');
+  const mesFile   = (mes === 'acumulado') ? 'acumulado' : MESES_ESPANOL[mes];
+  const filename  = `Resumen_${cicloFile}_${mesFile}_${year}`;
+
+  try{
+    if(formato === 'word'){
+      const cuerpo = htmlCuerpoResumenMensual(ciclo, mes, year);
+      exportarComoWord(cuerpo, filename, 'landscape');
+    } else if(formato === 'pdf'){
+      const cuerpo = htmlCuerpoResumenMensual(ciclo, mes, year);
+      exportarComoPDF(cuerpo, filename, 'landscape');
+    } else if(formato === 'excel'){
+      exportarExcelResumenMensual(ciclo, mes, year, filename);
+    } else {
+      alert('Formato desconocido: '+formato);
+    }
+  } catch(e){
+    console.error('Error generando reporte:', e);
+    alert('Hubo un error generando el reporte: '+(e.message||e));
+  }
+}
+
+async function descargarPlanilla(formato){
+  if(!discData.loaded){
+    try{ await loadDiscData(); } catch(e){ alert('No se pudieron cargar los datos: '+(e.message||e)); return; }
+  }
+  const selCiclo = document.getElementById('rep-planilla-ciclo');
+  if(!selCiclo){ alert('No se encontró el filtro de ciclo.'); return; }
+  const ciclo = selCiclo.value;
+  const cicloFile = ciclo === 'todos' ? 'todos' : String(ciclo).replace(/\s+/g,'').replace(/"/g,'');
+  const today = new Date().toISOString().slice(0,10);
+  const filename = `Planilla_${cicloFile}_${today}`;
+
+  try{
+    if(formato === 'word'){
+      const cuerpo = htmlCuerpoPlanilla(ciclo);
+      exportarComoWord(cuerpo, filename, 'portrait');
+    } else if(formato === 'pdf'){
+      const cuerpo = htmlCuerpoPlanilla(ciclo);
+      exportarComoPDF(cuerpo, filename, 'portrait');
+    } else if(formato === 'excel'){
+      exportarExcelPlanilla(ciclo, filename);
+    } else {
+      alert('Formato desconocido: '+formato);
+    }
+  } catch(e){
+    console.error('Error generando planilla:', e);
+    alert('Hubo un error generando la planilla: '+(e.message||e));
+  }
 }
 
 function renderAlertas(){
