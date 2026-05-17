@@ -2667,14 +2667,15 @@ async function renderCursanteHome(){
     document.getElementById('cur-estado-text').textContent = `Has acumulado ${puntosPerdidos} pts. Tu situación se elevará al Consejo Académico.`;
   }
 
-  // Listado de sanciones (en el tab Inicio — las 5 más recientes)
+  // Listado de sanciones (en el tab Inicio — TODAS, para que el cursante
+  // pueda cotejar que todas sus sanciones están registradas correctamente)
   renderCursanteSancionesInline(todasSanciones.slice().sort((a,b)=>{
     const fa = new Date(a.firmada_prof_en||a.fecha_creacion||a.created_at||0).getTime();
     const fb = new Date(b.firmada_prof_en||b.fecha_creacion||b.created_at||0).getTime();
     return fb-fa;
-  }), 'cur-sanciones-list', 5);
+  }), 'cur-sanciones-list', null);
 
-  // Y el historial completo en el tab Historial
+  // Y el historial completo en el tab Historial (idéntico, pero accesible desde el tab)
   renderCursanteSancionesInline(todasSanciones.slice().sort((a,b)=>{
     const fa = new Date(a.firmada_prof_en||a.fecha_creacion||a.created_at||0).getTime();
     const fb = new Date(b.firmada_prof_en||b.fecha_creacion||b.created_at||0).getTime();
@@ -2726,7 +2727,9 @@ function renderCursanteSancionesInline(sanciones, containerId, limit){
     const profId = s.profesor_id;
     const profObj = discData.profesores && discData.profesores.find ? discData.profesores.find(p => p.id === profId) : null;
     const profNombre = profObj ? gradoApellido(profObj) : (s.profesor_nombre || 'Profesor');
-    const desc = (s.falta_descripcion||'').slice(0,60) + ((s.falta_descripcion||'').length>60?'…':'');
+    // Descripción real del reglamento si la almacenada es placeholder pre-digital
+    const descCompleta = obtenerDescripcionSancion(s);
+    const desc = descCompleta.length > 110 ? descCompleta.slice(0,110) + '…' : descCompleta;
     return `<div class="ms-card ${claseCard}" onclick="verDetalleSancionCursante('${escapeAttr(s.id)}')">
       <div class="ms-icon">${icono}</div>
       <div class="ms-body">
@@ -3054,6 +3057,22 @@ function getDescripcionFalta(falta_id){
   return r.descripcion || r.texto || r.detalle || null;
 }
 
+/* Helper: descripción legible de una sanción.
+ * Para sanciones analógicas migradas la descripción almacenada suele ser un
+ * placeholder técnico (ej. "[Registro pre-digital] FALTA GRAVE 5 (inciso i)").
+ * Si detectamos ese patrón y tenemos la descripción real en el reglamento,
+ * devolvemos el texto del reglamento. Caso contrario, lo que haya.
+ */
+function obtenerDescripcionSancion(s){
+  if(!s) return '—';
+  const descRaw = (s.falta_descripcion || '').trim();
+  const descReglamento = getDescripcionFalta(s.falta_id);
+  const esPlaceholder = /^\s*\[Registro\s+pre-?digital\]/i.test(descRaw)
+                     || /^\s*FALTA\s+\w+\s+\d+\s*\(\s*inciso/i.test(descRaw);
+  if(esPlaceholder && descReglamento) return descReglamento;
+  return descRaw || descReglamento || '—';
+}
+
 function switchTabSanc(which){
   document.getElementById('tab-list').classList.toggle('active', which==='list');
   document.getElementById('tab-break').classList.toggle('active', which==='break');
@@ -3083,7 +3102,8 @@ function renderSancionesList(){
     const cls = clasificarSancion(s);
     const fecha = s.creado_en ? new Date(s.creado_en).toLocaleDateString('es-BO') : '—';
     const folio = s.folio ? `Folio ${s.folio}` : (s.id ? `${s.id}` : '');
-    const desc = (s.falta_descripcion||'—').slice(0,110) + ((s.falta_descripcion||'').length>110?'…':'');
+    const descCompleta = obtenerDescripcionSancion(s);
+    const desc = descCompleta.length > 110 ? descCompleta.slice(0,110) + '…' : descCompleta;
     const cur = discData.cursantes.find(x=>x.id===s.cursante_id);
     const cyp = fmtCicloPara(cur);
     return `<div class="sancion-card ${cls.cls}">
@@ -3387,7 +3407,8 @@ function verFichaCursante(cursanteId, backTarget){
       const cls = clasificarSancion(s);
       const fecha = s.creado_en ? new Date(s.creado_en).toLocaleDateString('es-BO') : '—';
       const folio = s.folio ? `Folio ${s.folio}` : (s.id ? `${s.id}` : '');
-      const desc = (s.falta_descripcion||'—').slice(0,110) + ((s.falta_descripcion||'').length>110?'…':'');
+      const descCompleta = obtenerDescripcionSancion(s);
+      const desc = descCompleta.length > 110 ? descCompleta.slice(0,110) + '…' : descCompleta;
       return `<div class="sancion-card ${cls.cls}" onclick="verSancionDetalle('${s.id}')">
         <div class="sc-row1">
           <div class="sc-cursante">${s.falta_categoria||'?'} · Art. ${s.falta_articulo||'—'}</div>
@@ -3531,7 +3552,8 @@ function verDetalleStat(tipo){
         const cls = clasificarSancion(s);
         const fecha = s.creado_en ? new Date(s.creado_en).toLocaleDateString('es-BO') : '—';
         const folio = s.folio ? `Folio ${s.folio}` : (s.id ? `${s.id}` : '');
-        const desc = (s.falta_descripcion||'—').slice(0,110) + ((s.falta_descripcion||'').length>110?'…':'');
+        const descCompleta = obtenerDescripcionSancion(s);
+        const desc = descCompleta.length > 110 ? descCompleta.slice(0,110) + '…' : descCompleta;
         const cur = discData.cursantes.find(x => x.id === s.cursante_id);
         const cyp = fmtCicloPara(cur);
         return `<div class="sancion-card ${cls.cls}" style="cursor:pointer" onclick="verSancionDetalle('${s.id}')">
@@ -4134,7 +4156,7 @@ function verEstadisticasProfesor(profId){
     ${sancs.map(s=>`
       <div class="falta-row">
         <div class="falta-id">${s.falta_id||'—'}</div>
-        <div class="falta-desc"><strong>${s.cursante_nombre||s.cursante_id}</strong> · ${s.falta_categoria||'?'} · Art. ${s.falta_articulo||'—'}<br><span style="font-size:11px;color:var(--text-muted)">${s.falta_descripcion||'—'} · ${s.creado_en?new Date(s.creado_en).toLocaleDateString('es-BO'):'sin fecha'}</span></div>
+        <div class="falta-desc"><strong>${s.cursante_nombre||s.cursante_id}</strong> · ${s.falta_categoria||'?'} · Art. ${s.falta_articulo||'—'}<br><span style="font-size:11px;color:var(--text-muted)">${escapeHtml(obtenerDescripcionSancion(s))} · ${s.creado_en?new Date(s.creado_en).toLocaleDateString('es-BO'):'sin fecha'}</span></div>
         <div class="falta-count">-${s.puntos_aplicados}</div>
       </div>
     `).join('')}
@@ -4212,7 +4234,7 @@ function verAuditoria(cid){
     ${sancs.length?sancs.map(s=>`
       <div class="falta-row">
         <div class="falta-id">${s.falta_id||'—'}</div>
-        <div class="falta-desc"><strong>${s.falta_categoria||'?'}</strong> · Art. ${s.falta_articulo||'—'} — ${s.falta_descripcion||'—'}<br><span style="font-size:11px;color:var(--text-muted)">${s.creado_en?new Date(s.creado_en).toLocaleDateString('es-BO'):'sin fecha'} · ${s.profesor_nombre||s.profesor_id||'—'}</span></div>
+        <div class="falta-desc"><strong>${s.falta_categoria||'?'}</strong> · Art. ${s.falta_articulo||'—'} — ${escapeHtml(obtenerDescripcionSancion(s))}<br><span style="font-size:11px;color:var(--text-muted)">${s.creado_en?new Date(s.creado_en).toLocaleDateString('es-BO'):'sin fecha'} · ${s.profesor_nombre||s.profesor_id||'—'}</span></div>
         <div class="falta-count">-${s.puntos_aplicados}</div>
       </div>
     `).join(''):'<div class="list-empty">Sin sanciones registradas.</div>'}
