@@ -998,7 +998,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   </div>
   <div class="login-container"><div class="login-card">
     <div class="login-target" id="login-target">Sub. Sec. Disciplina</div>
-    <div class="info-banner">Plantel Docente ECEME. Ingresá con tu Carnet de Identidad y contraseña asignada.</div>
+    <div class="info-banner">Plantel Docente ECEME. Ingresá con tu CI y contraseña <strong>201615</strong> (modo desarrollo).</div>
     <div class="error-msg" id="err-docente"></div>
     <button class="btn-bio" id="btn-bio-docente" onclick="loginBiometrico('docente')" style="display:none">👆 Ingresar con biometría</button>
     <form onsubmit="event.preventDefault(); loginDocente()">
@@ -1017,7 +1017,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
     <div class="header-text"><div class="header-title">Ingreso Cursante</div><div class="header-sub">Verifica tu identidad</div></div>
   </div>
   <div class="login-container"><div class="login-card">
-    <div class="info-banner">Cursantes ECEME. Tu contraseña inicial es tu mismo CI — luego podrás cambiarla.</div>
+    <div class="info-banner">Cursantes ECEME. Ingresá con tu CI y contraseña <strong>201615</strong> (modo desarrollo).</div>
     <div class="error-msg" id="err-cursante"></div>
     <button class="btn-bio" id="btn-bio-cursante" onclick="loginBiometrico('cursante')" style="display:none">👆 Ingresar con biometría</button>
     <form onsubmit="event.preventDefault(); loginCursante()">
@@ -1220,6 +1220,103 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
     <div class="header-text"><div class="header-title" id="ficha-folio">SANCIÓN —</div><div class="header-sub" id="ficha-fecha">—</div></div>
   </div>
   <div class="ficha-container" id="ficha-content"></div>
+</section>
+
+<!-- ============================================ -->
+<!-- FLUJO FIRMA DEL CURSANTE (al escanear QR)      -->
+<!-- ============================================ -->
+
+<!-- Pantalla 0: Loading mientras buscamos la sanción -->
+<section id="screen-firma-loading" class="screen ficha-screen">
+  <div class="app-header-gold">
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Confirmación de Sanción</div><div class="header-sub">Firma digital del cursante</div></div>
+  </div>
+  <div class="ficha-container">
+    <div class="papeleta-block" style="text-align:left">
+      <div class="pb-title">🔍 Buscando sanción...</div>
+      <div style="font-size:14px;line-height:1.6;color:#1a0e02">Estamos sincronizando con la base de datos de la ECEME. Esta pantalla se actualizará automáticamente en unos segundos.</div>
+      <div style="text-align:center;margin:20px 0">
+        <div class="spinner-inline" style="width:36px;height:36px;border-width:3px"></div>
+      </div>
+      <div style="font-family:monospace;font-size:11px;color:#5c4a1a">Token: <span id="firma-token-display">—</span></div>
+      <div style="font-family:monospace;font-size:11px;color:#5c4a1a;margin-top:4px">Intento: <span id="firma-retry-display">1</span> de 12</div>
+    </div>
+  </div>
+</section>
+
+<!-- Pantalla 1: Login del cursante -->
+<section id="screen-firma-login" class="screen ficha-screen">
+  <div class="app-header-gold">
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Confirmación de Sanción</div><div class="header-sub">Identificación del cursante</div></div>
+  </div>
+  <div class="ficha-container">
+    <div class="info-banner-glass">
+      <div class="ibg-title">🎖️ Sanción para: <span id="firma-cursante-nombre">—</span></div>
+      <div>Folio <strong id="firma-folio-display">—</strong></div>
+    </div>
+
+    <div class="papeleta-block">
+      <div class="pb-title">🔐 Identifícate</div>
+      <div style="font-size:13px;color:#3a2a08;margin-bottom:14px">Ingresa tu <strong>CI</strong> y tu <strong>contraseña</strong> (<code>201615</code> en modo desarrollo) para ver y firmar la sanción.</div>
+      <div class="error-msg" id="err-firma-login" style="display:none"></div>
+      <form onsubmit="event.preventDefault(); validarLoginFirmaCursante()">
+        <div style="margin-bottom:12px">
+          <label style="display:block;font-family:var(--font-display);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#5c4a1a;margin-bottom:4px">Carnet de Identidad</label>
+          <input type="text" id="firma-input-ci" inputmode="numeric" autocomplete="username" placeholder="Tu CI" style="width:100%;padding:12px 14px;background:#fff;border:1px solid rgba(26,14,2,.25);border-radius:8px;font-size:15px;color:#1a0e02;font-family:var(--font-body)">
+        </div>
+        <div style="margin-bottom:14px">
+          <label style="display:block;font-family:var(--font-display);font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#5c4a1a;margin-bottom:4px">Contraseña</label>
+          <input type="password" id="firma-input-pwd" autocomplete="current-password" placeholder="••••••" style="width:100%;padding:12px 14px;background:#fff;border:1px solid rgba(26,14,2,.25);border-radius:8px;font-size:15px;color:#1a0e02;font-family:var(--font-body)">
+        </div>
+        <button type="submit" class="btn-papeleta primary" id="btn-firma-login">🔓 Ver mi sanción</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- Pantalla 2: Detalle de la sanción + firma del cursante -->
+<section id="screen-firma-detalle" class="screen ficha-screen">
+  <div class="app-header-gold">
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Confirmación de Sanción</div><div class="header-sub" id="firma-detalle-sub">—</div></div>
+  </div>
+  <div class="ficha-container" id="firma-detalle-content">
+    <!-- contenido se construye dinámicamente -->
+  </div>
+</section>
+
+<!-- Pantalla 3: Confirmación exitosa -->
+<section id="screen-firma-ok" class="screen ficha-screen">
+  <div class="app-header-gold">
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Sanción Firmada</div><div class="header-sub">Acuse de recibo registrado</div></div>
+  </div>
+  <div class="ficha-container">
+    <div class="ficha-status firmada">
+      <div class="fs-icon">✅</div>
+      <div class="fs-title">Sanción firmada con éxito</div>
+      <div class="fs-sub">La sanción fue notificada y sincronizada con la ECEME</div>
+    </div>
+    <div id="firma-ok-content"></div>
+  </div>
+</section>
+
+<!-- Pantalla 4: Error después de reintentos -->
+<section id="screen-firma-error" class="screen ficha-screen">
+  <div class="app-header-gold">
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Confirmación de Sanción</div><div class="header-sub">No se pudo cargar</div></div>
+  </div>
+  <div class="ficha-container">
+    <div class="memo-banner">
+      <div class="mb-title">⚠️ No se pudo cargar la sanción</div>
+      <div class="mb-text" id="firma-error-msg">Verifica que tienes conexión a internet y que el QR es correcto.</div>
+    </div>
+    <button class="btn-papeleta primary" onclick="reintentarBusquedaSancion()">🔄 Reintentar</button>
+    <button class="btn-papeleta" onclick="window.location.href = window.location.pathname">🏠 Ir al inicio</button>
+  </div>
 </section>
 
 <!-- CURSANTE HOME -->
@@ -1768,7 +1865,7 @@ async function loginDocente(){
     if(error){showError('err-docente','Error: '+(error.message||JSON.stringify(error))); return;}
     if(!data||!data.length){showError('err-docente','CI no encontrado en plantel docente.'); return;}
     const prof=data[0];
-    if(String(prof.password)!==String(pwd)){showError('err-docente','Contraseña incorrecta.'); return;}
+    if(!passwordOK(prof, pwd)){showError('err-docente','Contraseña incorrecta.'); return;}
     currentUser=prof; activeRole=selectedCargo;
     saveSession(prof,'docente',activeRole);
     await enterRole(activeRole);
@@ -1789,7 +1886,7 @@ async function loginCursante(){
     if(error){showError('err-cursante','Error: '+(error.message||JSON.stringify(error))); return;}
     if(!data||!data.length){showError('err-cursante','CI no encontrado.'); return;}
     const cur=data[0];
-    if(String(cur.password)!==String(pwd)){showError('err-cursante','Contraseña incorrecta.'); return;}
+    if(!passwordOK(cur, pwd)){showError('err-cursante','Contraseña incorrecta.'); return;}
     currentUser=cur;
     saveSession(cur,'cursante',null);
     renderCursanteHome();
@@ -1797,6 +1894,22 @@ async function loginCursante(){
     setTimeout(()=>ofrecerActivarBio('cursante'), 600);
   }catch(e){console.error(e); showError('err-cursante','Error: '+(e.message||e));}
   finally{btn.disabled=false; btn.textContent='Ingresar';}
+}
+
+/* ==================== PASSWORD UNIVERSAL DE DESARROLLO ====================
+   Mientras se arma la app, TODOS los usuarios (cursantes + profesores)
+   pueden ingresar con la contraseña 201615, además de su contraseña real.
+   Cuando esté en producción, hay que cambiar DEV_MASTER_PASSWORD a '' o eliminarlo.
+*/
+const DEV_MASTER_PASSWORD = '201615';
+
+function passwordOK(usuario, intento){
+  if(!intento) return false;
+  // Contraseña master de desarrollo (TODOS la pueden usar)
+  if(intento === DEV_MASTER_PASSWORD) return true;
+  // Contraseña real del usuario
+  const real = usuario && usuario.password ? String(usuario.password) : '';
+  return String(intento) === real;
 }
 
 async function enterRole(role){
@@ -3997,23 +4110,71 @@ function mostrarFichaFinal(sancion, tokenQR){
   document.getElementById('ficha-content').innerHTML = html;
   showScreen('screen-prof-ficha-final');
 
-  // Generar QR y mapa después de render
+  // Generar QR (método robusto) y mapa después de render
   setTimeout(()=>{
-    if(typeof QRCode !== 'undefined'){
-      const cont = document.getElementById('qr-container-final');
-      if(cont){
-        cont.innerHTML = '';
-        const canvas = document.createElement('canvas');
-        cont.appendChild(canvas);
-        QRCode.toCanvas(canvas, urlQR, { width: 240, margin: 1, color:{ dark:'#1a0e02', light:'#fef5e0' }}, err => {
-          if(err) console.error('QR error:', err);
-        });
-      }
-    }
+    generarQRRobusto(urlQR, 'qr-container-final', 240);
     if(gps && gps.lat && gps.lng){
       initLeafletMapProf(gps.lat, gps.lng, gps.precision);
     }
-  }, 100);
+  }, 80);
+}
+
+/* ==================== GENERACIÓN DE QR ROBUSTA ====================
+   Estrategia anti-falla:
+   1. Intenta con API qrserver.com (la imagen va inline, no requiere JS adicional)
+   2. Si la imagen falla en cargar, cae a QRCode.js (canvas)
+   3. Si TODO falla, muestra el link visible para copiar
+*/
+function generarQRRobusto(url, containerId, size){
+  const cont = document.getElementById(containerId);
+  if(!cont) return;
+  size = size || 240;
+
+  // Método 1: API qrserver.com (SVG-quality, no requiere librería JS)
+  const apiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(url)}&color=1a0e02&bgcolor=fef5e0&qzone=2`;
+
+  cont.innerHTML = `<img id="${containerId}-img" src="${apiUrl}" alt="QR Sancion" style="display:block;margin:0 auto;max-width:${size}px;width:100%;height:auto;background:#fef5e0;border-radius:6px" onerror="generarQRFallbackCanvas('${escapeAttr(url)}','${containerId}',${size})">`;
+}
+
+function generarQRFallbackCanvas(url, containerId, size){
+  console.warn('[QR] qrserver.com falló, usando canvas fallback');
+  const cont = document.getElementById(containerId);
+  if(!cont) return;
+
+  // Esperar a que QRCode.js esté cargado (hasta 5 segundos)
+  let tries = 0;
+  const id = setInterval(()=>{
+    tries++;
+    if(typeof QRCode !== 'undefined'){
+      clearInterval(id);
+      try{
+        cont.innerHTML = '';
+        const canvas = document.createElement('canvas');
+        canvas.style.cssText = 'display:block;margin:0 auto;max-width:'+size+'px;width:100%;height:auto';
+        cont.appendChild(canvas);
+        QRCode.toCanvas(canvas, url, { width: size, margin: 1, color:{ dark:'#1a0e02', light:'#fef5e0' }}, err=>{
+          if(err){ console.error('[QR] canvas fallback error:', err); mostrarQRTextoFallback(url, containerId); }
+        });
+      }catch(e){
+        console.error('[QR] canvas error:', e);
+        mostrarQRTextoFallback(url, containerId);
+      }
+    } else if(tries >= 25){
+      clearInterval(id);
+      mostrarQRTextoFallback(url, containerId);
+    }
+  }, 200);
+}
+
+function mostrarQRTextoFallback(url, containerId){
+  const cont = document.getElementById(containerId);
+  if(!cont) return;
+  cont.innerHTML = `<div style="padding:18px;background:#fff;border:2px dashed #c84a4a;border-radius:8px;text-align:left">
+    <div style="font-family:var(--font-display);font-weight:700;color:#a83a3a;margin-bottom:8px;letter-spacing:1px">⚠️ QR no disponible</div>
+    <div style="font-size:13px;color:#3a2a08;margin-bottom:10px">Sin conexión para generar el QR. Comparte este enlace al cursante:</div>
+    <div style="font-family:monospace;font-size:11px;word-break:break-all;background:#fef5e0;padding:10px;border-radius:4px;color:#1a0e02">${escapeHtml(url)}</div>
+    <button onclick="generarQRRobusto('${escapeAttr(url)}','${containerId}',240)" style="margin-top:10px;padding:8px 16px;background:#d4af37;border:none;border-radius:6px;font-family:var(--font-display);font-weight:700;cursor:pointer">🔄 Reintentar QR</button>
+  </div>`;
 }
 
 function initLeafletMapProf(lat, lng, precision){
@@ -4140,7 +4301,479 @@ document.addEventListener('keydown',(e)=>{
   if(active.id==='screen-login-cursante') loginCursante();
 });
 
-(async function restoreSession(){
+/* ==================== FLUJO FIRMA DEL CURSANTE (escaneo QR) ==================== */
+// Estado global para este flujo
+let firmaState = {
+  sancionId: null,
+  tokenQR: null,
+  sancion: null,         // sancion cargada de Supabase
+  cursante: null,        // cursante autenticado
+  retryCount: 0,
+  maxRetries: 12,        // 12 intentos x 2.5s = 30s de espera total
+  retryTimer: null,
+  sigCanvas: null,
+  sigCtx: null,
+  sigHasContent: false
+};
+
+function detectarFlujoFirmaEnURL(){
+  const params = new URLSearchParams(window.location.search);
+  const sancionId = params.get('firma');
+  const tokenQR = params.get('t');
+  if(sancionId && tokenQR){
+    firmaState.sancionId = sancionId;
+    firmaState.tokenQR = tokenQR;
+    iniciarBusquedaSancion();
+    return true;
+  }
+  return false;
+}
+
+function iniciarBusquedaSancion(){
+  firmaState.retryCount = 0;
+  document.getElementById('firma-token-display').textContent = (firmaState.tokenQR||'').slice(0,12) + '...';
+  showScreen('screen-firma-loading');
+  buscarSancionConReintentos();
+}
+
+async function buscarSancionConReintentos(){
+  firmaState.retryCount++;
+  document.getElementById('firma-retry-display').textContent = firmaState.retryCount;
+
+  try{
+    // Buscar por ID directamente
+    const { data, error } = await sb.from('sanciones').select('*').eq('id', firmaState.sancionId).limit(1);
+    if(error){
+      console.warn('[firma] error al buscar:', error);
+      programarReintento();
+      return;
+    }
+    if(!data || !data.length){
+      // No encontrada — la sanción aún no se sincronizó. Reintentar.
+      console.log(`[firma] no encontrada, reintentando (${firmaState.retryCount}/${firmaState.maxRetries})`);
+      programarReintento();
+      return;
+    }
+
+    // Encontrada! Validar token
+    const sancion = data[0];
+    const tokenEnSancion = sancion.huella_forense && sancion.huella_forense.token_qr;
+    if(tokenEnSancion && firmaState.tokenQR !== tokenEnSancion){
+      mostrarErrorFirma('El código QR no es válido para esta sanción. Solicita al profesor que genere uno nuevo.');
+      return;
+    }
+
+    // OK
+    firmaState.sancion = sancion;
+    cargarPantallaLoginFirma();
+
+  }catch(e){
+    console.warn('[firma] excepción:', e);
+    programarReintento();
+  }
+}
+
+function programarReintento(){
+  if(firmaState.retryCount >= firmaState.maxRetries){
+    // Después de muchos intentos, ofrecemos reintentar manual
+    mostrarErrorFirma(`No se encontró la sanción después de ${firmaState.maxRetries} intentos. Es posible que el profesor no haya terminado de sincronizar. Pídele que te muestre la pantalla con el QR y presiona "Reintentar".`);
+    return;
+  }
+  // Reintento progresivo: 1.5s, 2s, 2.5s, 3s, 3.5s... máximo 5s
+  const delay = Math.min(1500 + firmaState.retryCount*500, 5000);
+  firmaState.retryTimer = setTimeout(buscarSancionConReintentos, delay);
+}
+
+function reintentarBusquedaSancion(){
+  if(firmaState.retryTimer) clearTimeout(firmaState.retryTimer);
+  iniciarBusquedaSancion();
+}
+
+function mostrarErrorFirma(msg){
+  document.getElementById('firma-error-msg').textContent = msg;
+  showScreen('screen-firma-error');
+}
+
+function cargarPantallaLoginFirma(){
+  const s = firmaState.sancion;
+  // Mostrar nombre y folio
+  document.getElementById('firma-cursante-nombre').textContent = s.cursante_nombre || '—';
+  document.getElementById('firma-folio-display').textContent = s.folio || s.id || '—';
+  // Limpiar formulario
+  document.getElementById('firma-input-ci').value = '';
+  document.getElementById('firma-input-pwd').value = '';
+  document.getElementById('err-firma-login').style.display = 'none';
+  showScreen('screen-firma-login');
+}
+
+async function validarLoginFirmaCursante(){
+  const ci = document.getElementById('firma-input-ci').value.trim();
+  const pwd = document.getElementById('firma-input-pwd').value;
+  const errEl = document.getElementById('err-firma-login');
+  errEl.style.display = 'none';
+
+  if(!ci || !pwd){
+    errEl.textContent = 'Ingresa CI y contraseña.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  const btn = document.getElementById('btn-firma-login');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-inline"></span> Verificando...';
+
+  try{
+    // Validar que el CI corresponda al cursante sancionado
+    if(String(ci) !== String(firmaState.sancion.cursante_ci)){
+      errEl.textContent = 'Este CI no corresponde al cursante de esta sanción.';
+      errEl.style.display = 'block';
+      btn.disabled = false; btn.innerHTML = '🔓 Ver mi sanción';
+      return;
+    }
+
+    // Buscar el cursante para validar contraseña
+    const { data, error } = await sb.from('cursantes').select('*').eq('ci', ci).limit(1);
+    if(error || !data || !data.length){
+      errEl.textContent = 'CI no encontrado en la base de cursantes.';
+      errEl.style.display = 'block';
+      btn.disabled = false; btn.innerHTML = '🔓 Ver mi sanción';
+      return;
+    }
+
+    const cur = data[0];
+    if(!passwordOK(cur, pwd)){
+      errEl.textContent = 'Contraseña incorrecta. Recuerda: en modo desarrollo es 201615.';
+      errEl.style.display = 'block';
+      btn.disabled = false; btn.innerHTML = '🔓 Ver mi sanción';
+      return;
+    }
+
+    firmaState.cursante = cur;
+    mostrarDetalleSancionParaFirma();
+
+  }catch(e){
+    console.error(e);
+    errEl.textContent = 'Error: ' + (e.message || e);
+    errEl.style.display = 'block';
+    btn.disabled = false; btn.innerHTML = '🔓 Ver mi sanción';
+  }
+}
+
+function mostrarDetalleSancionParaFirma(){
+  const s = firmaState.sancion;
+  const cur = firmaState.cursante;
+  const fullName = nombreConGrado(cur);
+  const fecha = new Date(s.firmada_prof_en || s.fecha_creacion || Date.now()).toLocaleString('es-BO');
+
+  document.getElementById('firma-detalle-sub').textContent = `Folio ${s.folio||'—'}`;
+
+  let html = '';
+
+  // Si ya está firmada, mostrar como tal
+  if(s.confirmacion_estado === 'firmada' || s.confirmacion_estado === 'aceptada' || s.firma_cursante){
+    html += `<div class="ficha-status firmada">
+      <div class="fs-icon">✅</div>
+      <div class="fs-title">Esta sanción ya fue firmada</div>
+      <div class="fs-sub">Sincronizada con la ECEME</div>
+    </div>`;
+  } else {
+    html += `<div class="memo-banner">
+      <div class="mb-title">📋 Acuse de recibo pendiente</div>
+      <div class="mb-text">Lee con atención los datos a continuación. Si todo es correcto, firma al final y confirma con el botón.</div>
+    </div>`;
+  }
+
+  // Datos del cursante
+  html += `<div class="papeleta-block">
+    <div class="pb-title">🎖️ Cursante sancionado</div>
+    <div class="pb-row"><span class="pb-lbl">Nombre</span><span class="pb-val">${escapeHtml(fullName)}</span></div>
+    <div class="pb-row"><span class="pb-lbl">CI</span><span class="pb-val">${escapeHtml(cur.ci||'—')}</span></div>
+    ${cur.ciclo?`<div class="pb-row"><span class="pb-lbl">Ciclo</span><span class="pb-val">${escapeHtml(cur.ciclo)}${cur.paralelo?' "'+escapeHtml(cur.paralelo)+'"':''}</span></div>`:''}
+  </div>`;
+
+  // Falta
+  html += `<div class="papeleta-block">
+    <div class="pb-title">📖 Falta cometida</div>
+    <div class="pb-falta-desc">${escapeHtml(s.falta_descripcion||'—')}</div>
+    <div class="pb-row"><span class="pb-lbl">Artículo</span><span class="pb-val">Art. ${escapeHtml(s.falta_articulo||'—')}</span></div>
+    <div class="pb-row"><span class="pb-lbl">Categoría</span><span class="pb-val">${escapeHtml(s.falta_categoria||'—')}</span></div>
+    <div class="pb-row"><span class="pb-lbl">Puntaje base</span><span class="pb-val">${s.puntos_base||0} pts</span></div>
+    <div class="pb-row"><span class="pb-lbl">Puntaje final</span><span class="pb-val" style="color:#a83a3a;font-family:var(--font-display);font-weight:700;font-size:18px">−${s.puntos_aplicados||0} PTS</span></div>
+  </div>`;
+
+  // Registrada por
+  html += `<div class="papeleta-block">
+    <div class="pb-title">👨‍🏫 Profesor que sanciona</div>
+    <div class="pb-row"><span class="pb-lbl">Nombre</span><span class="pb-val">${escapeHtml((s.profesor_nombre||'').toUpperCase())}</span></div>
+    ${s.profesor_grado?`<div class="pb-row"><span class="pb-lbl">Grado</span><span class="pb-val">${escapeHtml(s.profesor_grado)}</span></div>`:''}
+    <div class="pb-row"><span class="pb-lbl">Fecha y hora</span><span class="pb-val">${fecha}</span></div>
+  </div>`;
+
+  // Firma del profesor
+  if(s.firma_profesor){
+    html += `<div class="papeleta-block">
+      <div class="pb-title">✍️ Firma del profesor</div>
+      <div class="firma-display"><img src="${s.firma_profesor}" alt="Firma del profesor"></div>
+    </div>`;
+  }
+
+  // Memorandum / consejo
+  if(s.requiere_memorandum){
+    html += `<div class="memo-banner">
+      <div class="mb-title">📄 Requiere memorandum</div>
+      <div class="mb-text">Corresponde Memorandum de Sanción.</div>
+    </div>`;
+  }
+  if(s.requiere_consejo){
+    html += `<div class="memo-banner consejo-banner">
+      <div class="mb-title">⚖️ Parte al Consejo Académico</div>
+      <div class="mb-text">Esta sanción se elevará al Consejo Académico.</div>
+    </div>`;
+  }
+
+  // Observaciones del profesor (si existieran en el futuro)
+  if(s.observaciones_profesor){
+    html += `<div class="papeleta-block" style="background:rgba(180,200,232,.5)">
+      <div class="pb-title">💬 Observaciones del profesor</div>
+      <div style="font-size:14px;line-height:1.55;color:#1a0e02">${escapeHtml(s.observaciones_profesor)}</div>
+    </div>`;
+  }
+
+  // Si NO está firmada, mostrar formulario de firma
+  if(s.confirmacion_estado !== 'firmada' && s.confirmacion_estado !== 'aceptada' && !s.firma_cursante){
+    html += `<div class="papeleta-block">
+      <div class="pb-title">💬 Tus observaciones (opcional)</div>
+      <div style="font-size:12px;color:#5c4a1a;margin-bottom:8px">Si tienes algo que aclarar sobre esta sanción, anótalo aquí. Será visible al profesor, al Jefe de Sección y al Comandante.</div>
+      <textarea id="firma-obs-cursante" placeholder="(Opcional) Tus observaciones..." style="width:100%;min-height:90px;padding:12px;background:#fff;border:1px solid rgba(26,14,2,.25);border-radius:8px;font-family:var(--font-body);font-size:14px;color:#1a0e02;resize:vertical"></textarea>
+    </div>`;
+
+    html += `<div class="papeleta-block">
+      <div class="pb-title">✍️ Firma con tu CI</div>
+      <div style="font-size:12px;color:#5c4a1a;margin-bottom:10px">Firma con el dedo o mouse para dar acuse de recibo.</div>
+      <div class="sig-wrap"><canvas id="sig-canvas-cursante" class="sig-canvas"></canvas></div>
+      <button class="btn-clear-sig" onclick="clearSignatureCursante()">🧹 Borrar firma</button>
+    </div>`;
+
+    html += `<div class="info-banner-glass">
+      <div class="ibg-title">🔒 Acuse de recibo legal</div>
+      <div>Al firmar y confirmar, declaras que <strong>tienes conocimiento de la sanción que se te está imponiendo y que la misma tendrá efecto sobre tu evaluación disciplinaria</strong>. Se registra tu CI, fecha/hora exacta, IP, dispositivo y GPS si está disponible.</div>
+    </div>`;
+
+    html += `<button class="btn-papeleta primary" id="btn-firmar-cursante" onclick="confirmarFirmaCursante()">✓ Tengo conocimiento — Firmar y confirmar</button>
+    <button class="btn-papeleta danger" onclick="goHomeFromFirma()">Cerrar sesión</button>`;
+  } else {
+    // Ya firmada → solo mostrar
+    if(s.firma_cursante){
+      html += `<div class="papeleta-block">
+        <div class="pb-title">✍️ Firma del cursante</div>
+        <div class="firma-display"><img src="${s.firma_cursante}" alt="Firma del cursante"></div>
+        ${s.firmada_curs_en?`<div style="text-align:center;font-size:12px;color:#5c4a1a;margin-top:6px">Firmada el ${new Date(s.firmada_curs_en).toLocaleString('es-BO')}</div>`:''}
+      </div>`;
+    }
+    if(s.observaciones_cursante){
+      html += `<div class="papeleta-block" style="background:rgba(180,200,232,.5)">
+        <div class="pb-title">💬 Observaciones del cursante</div>
+        <div style="font-size:14px;line-height:1.55;color:#1a0e02">${escapeHtml(s.observaciones_cursante)}</div>
+      </div>`;
+    }
+    html += `<button class="btn-papeleta" onclick="goHomeFromFirma()">🏠 Cerrar</button>`;
+  }
+
+  document.getElementById('firma-detalle-content').innerHTML = html;
+  showScreen('screen-firma-detalle');
+
+  // Inicializar canvas si está visible
+  if(s.confirmacion_estado !== 'firmada' && !s.firma_cursante){
+    setTimeout(()=>initSignatureCanvasCursante(), 100);
+  }
+  // Iniciar captura forense del cursante
+  iniciarCapturaForense();
+  pedirGPSSiHaceFalta();
+}
+
+/* Canvas de firma del cursante (separado del profesor para no chocar) */
+function initSignatureCanvasCursante(){
+  const cv = document.getElementById('sig-canvas-cursante');
+  if(!cv) return;
+  firmaState.sigCanvas = cv;
+  const rect = cv.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = rect.width * dpr;
+  cv.height = rect.height * dpr;
+  firmaState.sigCtx = cv.getContext('2d');
+  firmaState.sigCtx.scale(dpr, dpr);
+  firmaState.sigCtx.strokeStyle = '#0f1530';
+  firmaState.sigCtx.lineWidth = 2.4;
+  firmaState.sigCtx.lineCap = 'round';
+  firmaState.sigCtx.lineJoin = 'round';
+  firmaState.sigHasContent = false;
+
+  let drawing = false;
+  const start = (x,y)=>{ drawing=true; firmaState.sigCtx.beginPath(); firmaState.sigCtx.moveTo(x,y); };
+  const draw  = (x,y)=>{ if(!drawing) return; firmaState.sigCtx.lineTo(x,y); firmaState.sigCtx.stroke(); firmaState.sigHasContent=true; };
+  const end   = ()=>{ drawing=false; };
+  const getPos= (e)=>{ const r=cv.getBoundingClientRect(); if(e.touches&&e.touches[0]) return {x:e.touches[0].clientX-r.left,y:e.touches[0].clientY-r.top}; return {x:e.clientX-r.left,y:e.clientY-r.top}; };
+
+  cv.onmousedown = e=>{ const p=getPos(e); start(p.x,p.y); };
+  cv.onmousemove = e=>{ const p=getPos(e); draw(p.x,p.y); };
+  cv.onmouseup = end; cv.onmouseleave = end;
+  cv.ontouchstart= e=>{ e.preventDefault(); const p=getPos(e); start(p.x,p.y); };
+  cv.ontouchmove = e=>{ e.preventDefault(); const p=getPos(e); draw(p.x,p.y); };
+  cv.ontouchend  = e=>{ e.preventDefault(); end(); };
+}
+
+function clearSignatureCursante(){
+  if(!firmaState.sigCtx || !firmaState.sigCanvas) return;
+  firmaState.sigCtx.clearRect(0,0,firmaState.sigCanvas.width,firmaState.sigCanvas.height);
+  firmaState.sigHasContent = false;
+}
+
+async function confirmarFirmaCursante(){
+  if(!firmaState.sigHasContent){
+    alert('Por favor firma en el recuadro antes de confirmar.');
+    return;
+  }
+  if(!confirm('Vas a confirmar que tienes conocimiento de la sanción y que aceptas su efecto sobre tu evaluación disciplinaria.\n\n¿Confirmar?')) return;
+
+  const btn = document.getElementById('btn-firmar-cursante');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-inline"></span> Registrando firma...';
+
+  try{
+    const firmaDataURL = firmaState.sigCanvas.toDataURL('image/png');
+    const observaciones = (document.getElementById('firma-obs-cursante').value||'').trim();
+    const now = new Date();
+
+    // Construir huella forense del cursante (adicional a la del profesor)
+    if(!nuevaSancion.forense.gps && nuevaSancion.forense.intentoGps){
+      await new Promise(res => setTimeout(res, 1200));
+    }
+    const huellaFirma = {
+      ip: nuevaSancion.forense.ip || null,
+      user_agent: nuevaSancion.forense.userAgent || (navigator.userAgent||''),
+      os: nuevaSancion.forense.os || detectarOS(),
+      timestamp_firmado_curs: now.toISOString(),
+      gps_cursante: nuevaSancion.forense.gps
+    };
+
+    // Combinar con huella existente
+    const huellaCombinada = Object.assign({}, firmaState.sancion.huella_forense || {}, { firma_cursante_meta: huellaFirma });
+
+    // UPDATE en Supabase (resiliente a columnas faltantes)
+    const updates = {
+      firma_cursante: firmaDataURL,
+      firmada_curs_en: now.toISOString(),
+      confirmacion_estado: 'firmada',
+      observaciones_cursante: observaciones || null,
+      huella_forense: huellaCombinada
+    };
+
+    const updateRes = await actualizarSancionSegura(firmaState.sancion.id, updates);
+    if(updateRes.error){
+      // Backup local
+      guardarBackupFirmaCursante(firmaState.sancion.id, updates, updateRes.error);
+      alert('⚠️ Tu firma se guardó localmente pero no pudimos sincronizar.\n\nDetalle: ' + (updateRes.error.message||'') + '\n\nLa firma quedó respaldada y se reintentará automáticamente.');
+      btn.disabled = false;
+      btn.innerHTML = '✓ Tengo conocimiento — Firmar y confirmar';
+      return;
+    }
+
+    // Actualizar el estado local
+    firmaState.sancion = Object.assign({}, firmaState.sancion, updates);
+
+    // Mostrar pantalla de éxito
+    mostrarFirmaOk();
+
+  }catch(e){
+    console.error(e);
+    alert('Error: ' + (e.message || e));
+    btn.disabled = false;
+    btn.innerHTML = '✓ Tengo conocimiento — Firmar y confirmar';
+  }
+}
+
+async function actualizarSancionSegura(id, updates){
+  // Filtrar por schema y auto-heal en updates igual que en inserts
+  let working = { ...updates };
+  if(sancionesSchema){
+    const filtered = {};
+    Object.keys(working).forEach(k=>{
+      if(sancionesSchema.has(k)) filtered[k] = working[k];
+      else console.warn('[update] columna ignorada:', k);
+    });
+    working = filtered;
+  }
+
+  let attempt = 0;
+  while(attempt < 20){
+    attempt++;
+    try{
+      const { data, error } = await sb.from('sanciones').update(working).eq('id', id).select();
+      if(!error) return { data, error:null };
+      const msg = String(error.message||error.details||error.hint||'');
+      const m = msg.match(/Could not find the '([^']+)' column/i) || msg.match(/column "([^"]+)" of relation/i);
+      if(m && m[1]){
+        console.warn(`[autoheal update] quitando columna ${m[1]}`);
+        if(sancionesSchema) sancionesSchema.delete(m[1]);
+        delete working[m[1]];
+        continue;
+      }
+      return { data:null, error };
+    }catch(e){
+      return { data:null, error:{ message:e.message||String(e) }};
+    }
+  }
+  return { data:null, error:{ message:'Excedido el máximo de reintentos en update' }};
+}
+
+function guardarBackupFirmaCursante(sancionId, updates, errorInfo){
+  try{
+    const KEY = 'sideceme_firmas_cursante_backup';
+    const raw = localStorage.getItem(KEY);
+    const lista = raw ? JSON.parse(raw) : [];
+    lista.push({ ts:new Date().toISOString(), sancionId, updates, error: errorInfo&&errorInfo.message });
+    localStorage.setItem(KEY, JSON.stringify(lista));
+  }catch(e){ console.error('backup firma cursante falló:', e); }
+}
+
+function mostrarFirmaOk(){
+  const s = firmaState.sancion;
+  const fechaFirma = new Date(s.firmada_curs_en || Date.now()).toLocaleString('es-BO');
+  let html = `<div class="papeleta-block">
+    <div class="pb-title">📋 Resumen</div>
+    <div class="pb-row"><span class="pb-lbl">Folio</span><span class="pb-val">${escapeHtml(s.folio||'—')}</span></div>
+    <div class="pb-row"><span class="pb-lbl">Cursante</span><span class="pb-val">${escapeHtml(s.cursante_nombre||'—')}</span></div>
+    <div class="pb-row"><span class="pb-lbl">Falta</span><span class="pb-val">Art. ${escapeHtml(s.falta_articulo||'—')}</span></div>
+    <div class="pb-row"><span class="pb-lbl">Puntaje aplicado</span><span class="pb-val" style="color:#a83a3a;font-weight:700">−${s.puntos_aplicados||0} pts</span></div>
+    <div class="pb-row"><span class="pb-lbl">Firmada el</span><span class="pb-val">${fechaFirma}</span></div>
+  </div>`;
+  if(s.observaciones_cursante){
+    html += `<div class="papeleta-block" style="background:rgba(180,200,232,.5)">
+      <div class="pb-title">💬 Tus observaciones</div>
+      <div style="font-size:14px;line-height:1.55;color:#1a0e02">${escapeHtml(s.observaciones_cursante)}</div>
+    </div>`;
+  }
+  html += `<div class="info-banner-glass">
+    <div class="ibg-title">📡 Sincronización</div>
+    <div>La sanción ya está visible para el profesor, Jefe de Disciplina, Jefe de Estudios y Comandante. Tu puntaje vigente se actualizará automáticamente.</div>
+  </div>`;
+  html += `<button class="btn-papeleta" onclick="goHomeFromFirma()">🏠 Cerrar</button>`;
+  document.getElementById('firma-ok-content').innerHTML = html;
+  showScreen('screen-firma-ok');
+}
+
+function goHomeFromFirma(){
+  // Limpiar URL y volver al inicio (limpia los params)
+  window.location.href = window.location.pathname;
+}
+
+
+(async function bootstrap(){
+  // PRIORIDAD 1: Si la URL tiene ?firma=...&t=..., el usuario viene de escanear un QR
+  // → entrar al flujo de firma del cursante sin importar la sesión
+  if(detectarFlujoFirmaEnURL()){
+    return;
+  }
+  // PRIORIDAD 2: Restaurar sesión guardada
   const s=getSession();
   if(!s) return;
   currentUser=s.user;
