@@ -1360,38 +1360,40 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* ============================================================
-   HOME V3 — Diseño SIDECEME con 3 escudos + estética metálica
-   Inspirado en imagen 4 (referencia visual del Tcnl. Morales)
+   HOME V3 — SIDECEME con 3 escudos + tarjetas FIERRO/METAL real
+   Inspirado en el estilo embossed bronze de la referencia visual
    ============================================================ */
 .home-v3-container{
   min-height:100vh;
   padding:24px 18px 56px;
   display:flex;flex-direction:column;align-items:center;
   background:
-    radial-gradient(ellipse at top, rgba(212,175,55,.08), transparent 55%),
-    radial-gradient(circle at 50% 90%, rgba(40,30,12,.5), transparent 60%),
+    radial-gradient(ellipse at top, rgba(212,175,55,.07), transparent 55%),
+    radial-gradient(circle at 50% 88%, rgba(40,30,12,.55), transparent 60%),
     linear-gradient(180deg, #0a0f1c 0%, #050a14 100%);
 }
+
+/* === FILA DE LOS 3 ESCUDOS — todos al mismo tamaño visual === */
 .home-v3-crest-row{
   display:flex;align-items:center;justify-content:center;
-  gap:14px;width:100%;max-width:480px;
-  margin-top:16px;margin-bottom:18px;
+  gap:16px;width:100%;max-width:480px;
+  margin:18px 0 16px;
 }
 .home-v3-side-crest{
-  width:74px;height:74px;
+  height:92px;width:auto;max-width:110px;
   object-fit:contain;
-  filter:drop-shadow(0 4px 10px rgba(0,0,0,.7)) drop-shadow(0 0 6px rgba(212,175,55,.15));
+  filter:drop-shadow(0 4px 8px rgba(0,0,0,.6)) drop-shadow(0 0 4px rgba(212,175,55,.12));
   flex-shrink:0;
 }
 .home-v3-main-icon{
-  width:134px;height:134px;
+  width:108px;height:108px;
   object-fit:contain;
-  border-radius:24px;
+  border-radius:20px;
   box-shadow:
     0 0 0 2px rgba(212,175,55,.55),
-    0 0 0 4px rgba(0,0,0,.6),
-    0 0 28px rgba(212,175,55,.22),
-    0 10px 28px rgba(0,0,0,.65);
+    0 0 0 4px rgba(0,0,0,.55),
+    0 0 22px rgba(212,175,55,.2),
+    0 8px 22px rgba(0,0,0,.65);
   flex-shrink:0;
 }
 .home-v3-title{
@@ -1399,8 +1401,8 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   font-size:42px;font-weight:700;
   letter-spacing:7px;
   color:#f4d57a;
-  text-shadow:0 2px 6px rgba(0,0,0,.65), 0 0 16px rgba(212,175,55,.18);
-  margin-top:10px;text-align:center;
+  text-shadow:0 2px 6px rgba(0,0,0,.65), 0 0 14px rgba(212,175,55,.18);
+  margin-top:6px;text-align:center;
 }
 .home-v3-institute{
   font-family:var(--font-display);
@@ -1420,7 +1422,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   font-family:var(--font-display);
   font-size:13px;letter-spacing:5px;font-weight:600;
   color:var(--gold-light);
-  margin-top:22px;
+  margin-top:20px;
   padding:10px 26px;
   border-top:1px solid rgba(212,175,55,.35);
   border-bottom:1px solid rgba(212,175,55,.35);
@@ -1430,71 +1432,78 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .home-v3-divider{
   width:64px;height:2px;
   background:linear-gradient(90deg, transparent, var(--gold), transparent);
-  margin:28px 0 22px;
+  margin:26px 0 22px;
 }
 .home-v3-cards{
   width:100%;max-width:420px;
-  display:flex;flex-direction:column;gap:22px;
+  display:flex;flex-direction:column;gap:18px;
 }
 
-/* === TARJETAS METÁLICAS (estilo imagen 4: bronce/fierro embossed) === */
+/* === TARJETAS METÁLICAS — estilo FIERRO REAL embossed, sin halo lavado === */
 .metal-card{
   position:relative;
   padding:22px 22px 20px;
-  border-radius:14px;
+  border-radius:8px;
   cursor:pointer;
+  /* Fondo: metal café/fierro con líneas verticales sutiles de "cepillado" */
   background:
-    radial-gradient(circle at 25% 15%, rgba(212,175,55,.14), transparent 55%),
-    linear-gradient(135deg, #2c2218 0%, #1a1410 50%, #2c2218 100%);
-  border:1px solid #4a3a20;
+    repeating-linear-gradient(90deg,
+      rgba(255,220,160,.025) 0px,
+      rgba(255,220,160,.025) 1px,
+      transparent 1px,
+      transparent 3px),
+    linear-gradient(180deg,
+      #3d2c1a 0%,
+      #2d2012 35%,
+      #1f160c 65%,
+      #2d2012 100%);
+  border:1px solid #6a5418;
+  /* Embossing pronunciado: brillo arriba + sombra fuerte abajo + bordes laterales */
   box-shadow:
-    inset 0 1px 0 rgba(255,225,160,.22),
-    inset 0 -2px 0 rgba(0,0,0,.55),
-    0 8px 20px rgba(0,0,0,.55),
-    0 0 0 1px rgba(0,0,0,.4);
-  transition:transform .22s ease, box-shadow .22s ease;
-  isolation:isolate;
+    inset 0 2px 0 rgba(255,225,160,.35),
+    inset 0 -3px 0 rgba(0,0,0,.7),
+    inset 2px 0 0 rgba(212,175,55,.12),
+    inset -2px 0 0 rgba(0,0,0,.4),
+    0 6px 14px rgba(0,0,0,.65),
+    0 0 0 1px rgba(0,0,0,.55);
+  transition:transform .15s ease, filter .15s ease;
 }
-/* Marco interno dorado (segundo borde decorativo) */
+/* Doble marco: línea dorada interna decorativa */
 .metal-card::before{
   content:'';position:absolute;inset:5px;
-  border:1px solid rgba(212,175,55,.32);
-  border-radius:9px;
+  border:1px solid rgba(212,175,55,.4);
+  border-radius:4px;
   pointer-events:none;
+  box-shadow:inset 0 1px 0 rgba(255,225,160,.18);
 }
-/* Halo tricolor boliviano detrás de la tarjeta (sutil, como imagen 4) */
-.metal-card::after{
-  content:'';position:absolute;inset:-3px;
-  border-radius:17px;
-  background:linear-gradient(135deg,
-    rgba(220,30,30,0) 0%,
-    rgba(220,30,30,.45) 18%,
-    rgba(245,200,40,.42) 50%,
-    rgba(40,160,80,.45) 82%,
-    rgba(40,160,80,0) 100%);
-  filter:blur(7px);
-  z-index:-1;
-  opacity:.5;
-  transition:opacity .22s;
+.metal-card:hover{
+  transform:translateY(-1px);
+  filter:brightness(1.1);
 }
-.metal-card:hover{transform:translateY(-2px)}
-.metal-card:hover::after{opacity:.75}
-.metal-card:active{transform:translateY(0)}
-.metal-card-icon-wrap{
-  display:inline-block;
-  margin-bottom:14px;
+.metal-card:hover::before{
+  border-color:rgba(212,175,55,.65);
 }
+.metal-card:active{transform:translateY(1px)}
+
+.metal-card-icon-wrap{display:inline-block;margin-bottom:14px}
 .metal-card-icon{
-  width:58px;height:58px;
-  background:linear-gradient(135deg, #f4d57a 0%, #d4af37 45%, #8a6f17 100%);
-  border-radius:11px;
+  width:60px;height:60px;
+  border-radius:8px;
+  /* Cuadro de metal pesado: gradiente bronce con embossing fuerte */
+  background:
+    linear-gradient(180deg,
+      #7a5a30 0%,
+      #5a3f1f 40%,
+      #3a2812 100%);
+  border:1px solid #8a6f17;
   display:flex;align-items:center;justify-content:center;
   font-size:30px;
   box-shadow:
-    inset 0 1px 0 rgba(255,245,200,.75),
-    inset 0 -2px 0 rgba(80,60,20,.6),
-    0 4px 7px rgba(0,0,0,.55),
-    0 0 0 1px rgba(40,30,10,.85);
+    inset 0 2px 0 rgba(255,235,180,.6),
+    inset 0 -3px 0 rgba(0,0,0,.65),
+    inset 0 0 0 1px rgba(212,175,55,.3),
+    0 4px 8px rgba(0,0,0,.6),
+    0 0 0 1px rgba(0,0,0,.5);
 }
 .metal-card-title{
   font-family:var(--font-display);
@@ -1502,7 +1511,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   letter-spacing:3px;
   color:#f4d57a;
   text-transform:uppercase;
-  text-shadow:0 1px 2px rgba(0,0,0,.6);
+  text-shadow:0 1px 2px rgba(0,0,0,.7), 0 0 8px rgba(212,175,55,.15);
   margin-bottom:7px;
 }
 .metal-card-desc{
@@ -1511,7 +1520,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   font-style:italic;
 }
 
-/* Mejoras al cargar la pantalla — entrada suave */
+/* Animación de entrada */
 .home-v3-crest-row, .home-v3-title, .home-v3-institute, .home-v3-motto, .home-v3-cards{
   animation:home-v3-fade .55s ease both;
 }
@@ -1524,16 +1533,16 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   to{opacity:1;transform:translateY(0)}
 }
 
-/* Responsive móvil — celulares angostos */
+/* Responsive — celulares angostos */
 @media (max-width:380px){
   .home-v3-crest-row{gap:10px}
-  .home-v3-side-crest{width:62px;height:62px}
-  .home-v3-main-icon{width:110px;height:110px;border-radius:20px}
-  .home-v3-title{font-size:34px;letter-spacing:5px}
+  .home-v3-side-crest{height:74px;max-width:88px}
+  .home-v3-main-icon{width:92px;height:92px;border-radius:16px}
+  .home-v3-title{font-size:32px;letter-spacing:5px}
   .home-v3-motto{font-size:12px;letter-spacing:3.5px;padding:9px 20px}
-  .metal-card{padding:20px 18px}
+  .metal-card{padding:18px 18px}
   .metal-card-title{font-size:17px;letter-spacing:2.5px}
-  .metal-card-icon{width:52px;height:52px;font-size:27px}
+  .metal-card-icon{width:54px;height:54px;font-size:27px}
 }
 
 </style>
@@ -1541,7 +1550,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.7 · home+pwa</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.8.1 · swap-escudos</div>
 
 <svg width="0" height="0" style="position:absolute">
   <defs>
@@ -1561,9 +1570,9 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 <section id="screen-home" class="screen active">
   <div class="home-v3-container">
     <div class="home-v3-crest-row">
-      <img src="assets/escudo-eceme.png" alt="ECEME" class="home-v3-side-crest" onerror="this.style.display='none'">
-      <img src="assets/icon-sideceme.png" alt="SIDECEME" class="home-v3-main-icon" onerror="this.style.display='none'">
       <img src="assets/escudo-ejercito.png" alt="Ejército de Bolivia" class="home-v3-side-crest" onerror="this.style.display='none'">
+      <img src="assets/icon-sideceme.png" alt="SIDECEME" class="home-v3-main-icon" onerror="this.style.display='none'">
+      <img src="assets/escudo-eceme.png" alt="ECEME" class="home-v3-side-crest" onerror="this.style.display='none'">
     </div>
     <h1 class="home-v3-title">SIDECEME</h1>
     <div class="home-v3-institute">Escuela de Comando y Estado Mayor</div>
