@@ -1344,6 +1344,9 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 </head>
 <body>
 
+<!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.4 · t5s</div>
+
 <svg width="0" height="0" style="position:absolute">
   <defs>
     <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -5924,7 +5927,10 @@ function pedirGPSSiHaceFalta(){
       };
     },
     err => { console.warn('GPS denegado/error:', err && err.message); },
-    { enableHighAccuracy:true, timeout:8000, maximumAge:60000 }
+    // enableHighAccuracy:false → más rápido (usa Wi-Fi/celda en vez de GPS satelital)
+    // timeout:3000 → corta a 3s para no bloquear nada
+    // maximumAge:300000 → permite usar posición cacheada de hasta 5 min (instantáneo si ya pidió)
+    { enableHighAccuracy:false, timeout:3000, maximumAge:300000 }
   );
 }
 
@@ -5959,6 +5965,20 @@ async function confirmarYFirmarSancion(){
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner-inline"></span> Registrando...';
 
+  // === SAFETY TIMER GLOBAL ===
+  // Cinturón Y tirantes: pase lo que pase, a los 7 segundos el botón se libera.
+  // Si la operación se cuelga por una razón que no previmos, el usuario NO queda
+  // atrapado en "Registrando..." para siempre.
+  let safetyDisparado = false;
+  const safetyTimer = setTimeout(() => {
+    safetyDisparado = true;
+    console.error('[SAFETY] La operación tardó más de 7s. Forzando reset del botón.');
+    try{ guardarBackupSancion({ safety_timeout:true, folio:nuevaSancion.folio, firma:nuevaSancion.firmaProfesor }, {message:'safety timer 7s'}); }catch(_){}
+    btn.disabled = false;
+    btn.innerHTML = '✓ Confirmar y firmar';
+    alert('⏱️ La operación tardó demasiado (más de 7 segundos).\n\n✅ Sus datos quedaron respaldados localmente.\n\nVerifique su conexión a internet y vuelva a intentar.');
+  }, 7000);
+
   try{
     // 1. Capturar firma como data URL
     nuevaSancion.firmaProfesor = sigCanvas.toDataURL('image/png');
@@ -5967,10 +5987,10 @@ async function confirmarYFirmarSancion(){
     nuevaSancion.folio = generarFolio();
     const tokenQR = generarUuidLight();
 
-    // 3. Esperar GPS un poco si todavía no llegó (máx 2s extra)
-    if(!nuevaSancion.forense.gps && nuevaSancion.forense.intentoGps){
-      await new Promise(res => setTimeout(res, 1500));
-    }
+    // 3. GPS opcional - usar lo que haya, NO esperar.
+    //    En lugares cerrados o con señal débil, esperar al GPS solo retrasa la firma
+    //    sin ganar precisión. Si no llegó, va null y el resto de la huella forense
+    //    (IP, dispositivo, timestamp) basta para no-repudio.
 
     // 4. Construir objeto a guardar
     const c = nuevaSancion.cursante;
@@ -6027,6 +6047,8 @@ async function confirmarYFirmarSancion(){
 
     // 5. Insertar en Supabase (con auto-detección y reintento)
     const insertRes = await insertarSancionSegura(sancion);
+    if(safetyDisparado) return; // El safety ya manejó la UI; salimos silenciosos
+    clearTimeout(safetyTimer);
     if(insertRes.error){
       // Backup en localStorage para no perder la firma
       guardarBackupSancion(sancion, insertRes.error);
@@ -6057,6 +6079,8 @@ async function confirmarYFirmarSancion(){
     mostrarFichaFinal(data && data[0] ? data[0] : sancion, tokenQR);
 
   }catch(e){
+    if(safetyDisparado) return; // El safety ya manejó la UI
+    clearTimeout(safetyTimer);
     console.error(e);
     // Backup defensivo si tenemos la sanción construida
     try{ guardarBackupSancion({ error_inesperado: e.message||String(e), folio: nuevaSancion.folio, firma: nuevaSancion.firmaProfesor }); }catch(_){}
@@ -6120,11 +6144,11 @@ async function insertarSancionSegura(sancionOriginal){
   while(attempt < MAX_ATTEMPTS){
     attempt++;
     try{
-      // === FIX CRÍTICO: timeout duro de 12s ===
-      // Sin esto, si la red se cuelga o LTE tiene un hiccup, el await nunca
-      // resuelve y el botón se queda en "Registrando..." para siempre.
-      // Con Promise.race el peor caso es 12s y el usuario puede reintentar.
-      const TIMEOUT_MS = 12000;
+      // === FIX CRÍTICO: timeout duro de 5s ===
+      // Antes 12s, ahora 5s para que el usuario no espere demasiado.
+      // Si la red no respondió en 5s en una sanción simple, ya hay un problema
+      // y mejor que el usuario reintente que esperar más.
+      const TIMEOUT_MS = 5000;
       const insertPromise = sb.from('sanciones').insert(working).select();
       const timeoutPromise = new Promise(resolve =>
         setTimeout(() => resolve({
