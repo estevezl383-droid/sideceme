@@ -3731,7 +3731,7 @@ function verDetalleStat(tipo){
 const MESES_ESPANOL = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
 const MESES_CORTO   = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
 
-// Firmas para los pies de los reportes oficiales
+// Firmas para los pies de los reportes oficiales (4 firmas total, en 3 filas según modelo)
 const FIRMA_JEFE_DISCIPLINA = {
   nombre: 'Tcnl. DEM. Sergio Hernan Morales Millan',
   cargo:  'JEFE DE LA SUB-SECCIÓN DISCIPLINA DE LA ECEME.'
@@ -3739,6 +3739,14 @@ const FIRMA_JEFE_DISCIPLINA = {
 const FIRMA_JEFE_SAC = {
   nombre: 'Cnl. DAEN. Pedro Rene Wolff Baldiviezo',
   cargo:  'JEFE DE LA SAC DE LA ECEME'
+};
+const FIRMA_JEFE_ESTUDIOS = {
+  nombre: 'Cnl. DAEN. William Gustavo Baptista Rocabado',
+  cargo:  'JEFE DE ESTUDIOS DE LA ECEME.'
+};
+const FIRMA_COMANDANTE = {
+  nombre: 'Cnl. DAEN. José Jhonny Pardo Pardo',
+  cargo:  'COMANDANTE DE LA ECEME.'
 };
 
 function formatCicloDisplay(ciclo){
@@ -3864,63 +3872,151 @@ function cursanteSancionTxt(s){
   return String(s.cursante_nombre || '—').toUpperCase();
 }
 
-/* ===== CSS base para el documento exportado (Word/PDF) ===== */
+/* ===== CSS base para el documento exportado (Word/PDF) =====
+   - Tamaño CARTA (Letter) 8.5 x 11 in
+   - Fuente ARIAL en todo el documento
+   - Encabezado sin bordes (imagen 3)
+   - Firmas en 3 filas según modelo: 1ª fila 2 firmas, 2ª y 3ª centradas
+*/
 function cssReporte(orientacion){
+  const isLandscape = orientacion === 'landscape';
+  const wordPageSize = isLandscape ? '11.0in 8.5in' : '8.5in 11.0in';
   return `
-    @page { size: A4 ${orientacion}; margin: 1.5cm 1.2cm 1.8cm 1.2cm; }
-    body  { font-family: Aptos, Calibri, Arial, sans-serif; font-size: 10pt; color:#000; margin:0; padding:0; }
-    .header-table { width:100%; border-collapse:collapse; margin-bottom:8pt; }
-    .header-table td { padding:6pt 8pt; vertical-align:middle; border:1pt solid #000; }
-    .header-table .h-inst { text-align:center; font-weight:bold; font-size:10pt; line-height:1.3; }
-    .header-table .h-sys { text-align:left; font-size:8.5pt; line-height:1.4; width:24%; }
-    .header-table .h-crest { text-align:center; width:14%; font-size:18pt; }
-    h1.titulo-rep { text-align:center; font-size:13pt; margin: 14pt 0 4pt; font-weight:bold; }
-    h2.subtitulo-rep { text-align:center; font-size:10.5pt; margin: 0 0 12pt; font-weight:normal; }
-    p.atributos { text-align:center; font-style:italic; font-size:9pt; margin: 0 0 12pt; }
+    /* === Tamaño Carta (Letter) para navegador y para Word === */
+    @page { size: letter ${orientacion}; margin: 2cm 2cm 2cm 3cm; }
+    @page Section1 {
+      size: ${wordPageSize};
+      margin: 2cm 2cm 2cm 3cm;
+      mso-page-orientation: ${orientacion};
+      mso-header-margin: 0.5in;
+      mso-footer-margin: 0.5in;
+      mso-paper-source: 0;
+    }
+    div.Section1 { page: Section1; }
+
+    /* === Tipografía Arial en TODO === */
+    body, table, td, th, p, h1, h2, h3, div, span {
+      font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
+    }
+    body  { font-size: 10pt; color:#000; margin:0; padding:0; }
+
+    /* === Encabezado: SIN bordes, layout 60/15/25 según modelo === */
+    .header-table { width:100%; border-collapse:collapse; margin-bottom:14pt; }
+    .header-table td { padding:4pt 6pt; vertical-align:top; border:none; }
+    .header-table .h-inst {
+      text-align:center; font-weight:bold; font-size:11pt; line-height:1.35;
+      width:60%;
+    }
+    .header-table .h-spacer { width:15%; }
+    .header-table .h-sys {
+      text-align:right; font-size:9pt; line-height:1.4; width:25%;
+    }
+    .header-table .h-sys strong { font-weight:bold; }
+
+    /* === Títulos del reporte === */
+    h1.titulo-rep {
+      text-align:center; font-size:13pt; margin: 20pt 0 6pt;
+      font-weight:bold; line-height:1.3;
+    }
+    h2.subtitulo-rep {
+      text-align:center; font-size:11pt; margin: 0 0 14pt;
+      font-weight:bold; line-height:1.35;
+    }
+    p.atributos {
+      text-align:center; font-style:italic; font-size:9pt;
+      margin: 0 0 14pt;
+    }
+
+    /* === Tabla principal de datos === */
     table.main-table { width:100%; border-collapse:collapse; }
-    .main-table th, .main-table td { border:0.75pt solid #000; padding:3pt 5pt; font-size:9pt; vertical-align:middle; }
-    .main-table th { background:#D9D9D9; text-align:center; font-weight:bold; }
+    .main-table th, .main-table td {
+      border:0.75pt solid #000; padding:3pt 5pt;
+      font-size:9pt; vertical-align:middle;
+    }
+    .main-table th {
+      background:#D9D9D9; text-align:center; font-weight:bold;
+    }
     .main-table td.num { text-align:center; }
     .main-table td.left { text-align:left; }
     .main-table td.ctr { text-align:center; }
-    .empty-row td { text-align:center; padding:30pt 5pt; font-style:italic; color:#555; }
-    table.signatures { width:100%; margin-top:36pt; border-collapse:collapse; }
-    .signatures td { text-align:center; font-size:9.5pt; padding:36pt 12pt 0; vertical-align:top; width:50%; }
-    .signatures .sig-line { display:block; border-bottom:1pt solid #000; width:80%; margin: 0 auto 4pt; height:0; }
-    .signatures .sig-nombre { font-weight:bold; }
-    .signatures .sig-cargo  { font-size:9pt; }
-    @media print { body { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+    .empty-row td {
+      text-align:center; padding:30pt 5pt;
+      font-style:italic; color:#555;
+    }
+
+    /* === FIRMAS: 3 tablas separadas según modelo (sin bordes) === */
+    table.firma-row { width:100%; border-collapse:collapse; }
+    table.firma-row td {
+      text-align:center; font-size:10pt; vertical-align:top;
+      border:none; padding:0 8pt;
+    }
+    table.firma-row.firma-1 { margin-top:48pt; }
+    table.firma-row.firma-1 td { width:50%; }
+    table.firma-row.firma-2 { margin-top:56pt; }
+    table.firma-row.firma-3 { margin-top:56pt; }
+    .firma-nombre { display:block; font-weight:normal; padding-bottom:1pt; }
+    .firma-cargo  { display:block; font-weight:bold; font-size:10pt; }
+
+    @media print {
+      body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+      table.firma-row { page-break-inside: avoid; }
+    }
   `;
 }
 
 function htmlEncabezadoReporte(){
   const fechaEmision = new Date().toLocaleDateString('es-BO',{day:'2-digit',month:'2-digit',year:'numeric'});
+  // HTML defensivo con inline styles y align="center" para máxima compatibilidad con Word
   return `
-    <table class="header-table">
+    <table class="header-table" cellspacing="0" cellpadding="0">
       <tr>
-        <td class="h-crest">⚜</td>
-        <td class="h-inst">FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES<br>
-          ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO "MCAL. ANDRÉS DE SANTA CRUZ"<br>
-          BOLIVIA</td>
-        <td class="h-sys"><strong>Sistema Informático de Disciplina</strong><br>Fecha Emisión: ${fechaEmision}</td>
+        <td class="h-inst" width="60%" align="center" valign="top" style="border:none;padding:4pt 6pt;text-align:center;vertical-align:top">
+          <p align="center" style="text-align:center;font-weight:bold;font-size:11pt;margin:0;font-family:Arial,sans-serif;line-height:1.35">FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES</p>
+          <p align="center" style="text-align:center;font-weight:bold;font-size:11pt;margin:0;font-family:Arial,sans-serif;line-height:1.35">ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO</p>
+          <p align="center" style="text-align:center;font-weight:bold;font-size:11pt;margin:0;font-family:Arial,sans-serif;line-height:1.35">"MCAL. ANDRÉS DE SANTA CRUZ"</p>
+          <p align="center" style="text-align:center;font-weight:bold;font-size:11pt;margin:0;font-family:Arial,sans-serif;line-height:1.35">BOLIVIA</p>
+        </td>
+        <td class="h-spacer" width="15%" style="border:none">&nbsp;</td>
+        <td class="h-sys" width="25%" align="right" valign="top" style="border:none;padding:4pt 6pt;text-align:right;vertical-align:top">
+          <p align="right" style="text-align:right;font-weight:bold;font-size:9pt;margin:0;font-family:Arial,sans-serif;line-height:1.4">Sistema Informático de Disciplina</p>
+          <p align="right" style="text-align:right;font-size:9pt;margin:0;font-family:Arial,sans-serif;line-height:1.4">Fecha Emisión: ${fechaEmision}</p>
+        </td>
       </tr>
     </table>
   `;
 }
 
 function htmlFirmasReporte(){
+  // 3 tablas independientes — coincide con el modelo MODELO_ENCABEZADO_Y_FIRMAS.docx
+  // HTML defensivo con inline styles para que Word y navegadores rendericen igual
+  const stN = 'text-align:center;font-family:Arial,sans-serif;font-size:10pt;margin:0;font-weight:normal';
+  const stC = 'text-align:center;font-family:Arial,sans-serif;font-size:10pt;margin:0;font-weight:bold';
   return `
-    <table class="signatures">
+    <table class="firma-row firma-1" cellspacing="0" cellpadding="0" style="width:100%;margin-top:48pt;border-collapse:collapse">
       <tr>
-        <td>
-          <span class="sig-line">&nbsp;</span>
-          <span class="sig-nombre">${escapeHtml(FIRMA_JEFE_DISCIPLINA.nombre)}</span><br>
-          <span class="sig-cargo">${escapeHtml(FIRMA_JEFE_DISCIPLINA.cargo)}</span>
+        <td width="50%" align="center" valign="top" style="border:none;padding:0 8pt;text-align:center;vertical-align:top">
+          <p align="center" style="${stN}">${escapeHtml(FIRMA_JEFE_DISCIPLINA.nombre)}</p>
+          <p align="center" style="${stC}">${escapeHtml(FIRMA_JEFE_DISCIPLINA.cargo)}</p>
         </td>
-        <td>
-          <span class="sig-line">&nbsp;</span>
-          <span class="sig-nombre">${escapeHtml(FIRMA_JEFE_SAC.nombre)}</span><br>
-          <span class="sig-cargo">${escapeHtml(FIRMA_JEFE_SAC.cargo)}</span>
+        <td width="50%" align="center" valign="top" style="border:none;padding:0 8pt;text-align:center;vertical-align:top">
+          <p align="center" style="${stN}">${escapeHtml(FIRMA_JEFE_SAC.nombre)}</p>
+          <p align="center" style="${stC}">${escapeHtml(FIRMA_JEFE_SAC.cargo)}</p>
+        </td>
+      </tr>
+    </table>
+    <table class="firma-row firma-2" cellspacing="0" cellpadding="0" style="width:100%;margin-top:56pt;border-collapse:collapse">
+      <tr>
+        <td align="center" valign="top" style="border:none;padding:0 8pt;text-align:center;vertical-align:top">
+          <p align="center" style="${stN}">${escapeHtml(FIRMA_JEFE_ESTUDIOS.nombre)}</p>
+          <p align="center" style="${stC}">${escapeHtml(FIRMA_JEFE_ESTUDIOS.cargo)}</p>
+        </td>
+      </tr>
+    </table>
+    <table class="firma-row firma-3" cellspacing="0" cellpadding="0" style="width:100%;margin-top:56pt;border-collapse:collapse">
+      <tr>
+        <td align="center" valign="top" style="border:none;padding:0 8pt;text-align:center;vertical-align:top">
+          <p align="center" style="${stN}">${escapeHtml(FIRMA_COMANDANTE.nombre)}</p>
+          <p align="center" style="${stC}">${escapeHtml(FIRMA_COMANDANTE.cargo)}</p>
         </td>
       </tr>
     </table>
@@ -4059,11 +4155,14 @@ function exportarComoWord(cuerpoHtml, filename, orientacion){
       <w:View>Print</w:View>
       <w:Zoom>100</w:Zoom>
       <w:DoNotPromptForConvert/>
+      <w:DoNotShowRevisions/>
     </w:WordDocument>
   </xml><![endif]-->
   <style>${cssReporte(orientacion)}</style>
 </head>
-<body>${cuerpoHtml}</body>
+<body>
+  <div class="Section1">${cuerpoHtml}</div>
+</body>
 </html>`;
   // BOM para que Word abra con UTF-8 correctamente
   const blob = new Blob(['\ufeff', wordHtml], { type: 'application/msword' });
@@ -4093,7 +4192,7 @@ function exportarComoPDF(cuerpoHtml, filename, orientacion){
   <style>${cssReporte(orientacion)}</style>
 </head>
 <body>
-${cuerpoHtml}
+<div class="Section1">${cuerpoHtml}</div>
 <script>
   // Pequeño delay para asegurar que el DOM esté renderizado antes de imprimir
   window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 350); });
@@ -4145,9 +4244,19 @@ function exportarExcelResumenMensual(ciclo, mes, year, filename){
   if(!sancs.length){
     aoa.push(['—','Sin sanciones registradas en el período seleccionado','','','','','','']);
   }
+  // Firmas (3 filas según modelo): fila 1 = 2 firmas, fila 2 = Jefe Estudios, fila 3 = Comandante
   aoa.push([]);
-  aoa.push(['',FIRMA_JEFE_DISCIPLINA.nombre,'',FIRMA_JEFE_SAC.nombre]);
-  aoa.push(['',FIRMA_JEFE_DISCIPLINA.cargo,'',FIRMA_JEFE_SAC.cargo]);
+  aoa.push([]);
+  aoa.push(['',FIRMA_JEFE_DISCIPLINA.nombre,'','',FIRMA_JEFE_SAC.nombre,'','','']);
+  aoa.push(['',FIRMA_JEFE_DISCIPLINA.cargo,'','',FIRMA_JEFE_SAC.cargo,'','','']);
+  aoa.push([]);
+  aoa.push([]);
+  aoa.push(['','','',FIRMA_JEFE_ESTUDIOS.nombre,'','','','']);
+  aoa.push(['','','',FIRMA_JEFE_ESTUDIOS.cargo,'','','','']);
+  aoa.push([]);
+  aoa.push([]);
+  aoa.push(['','','',FIRMA_COMANDANTE.nombre,'','','','']);
+  aoa.push(['','','',FIRMA_COMANDANTE.cargo,'','','','']);
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(aoa);
@@ -4197,9 +4306,19 @@ function exportarExcelPlanilla(ciclo, filename){
   if(!cursantes.length){
     aoa.push(['—','Sin cursantes en este ciclo','','','','']);
   }
+  // Firmas (3 filas según modelo)
   aoa.push([]);
-  aoa.push(['',FIRMA_JEFE_DISCIPLINA.nombre,'',FIRMA_JEFE_SAC.nombre]);
-  aoa.push(['',FIRMA_JEFE_DISCIPLINA.cargo,'',FIRMA_JEFE_SAC.cargo]);
+  aoa.push([]);
+  aoa.push(['',FIRMA_JEFE_DISCIPLINA.nombre,'',FIRMA_JEFE_SAC.nombre,'','']);
+  aoa.push(['',FIRMA_JEFE_DISCIPLINA.cargo,'',FIRMA_JEFE_SAC.cargo,'','']);
+  aoa.push([]);
+  aoa.push([]);
+  aoa.push(['','',FIRMA_JEFE_ESTUDIOS.nombre,'','','']);
+  aoa.push(['','',FIRMA_JEFE_ESTUDIOS.cargo,'','','']);
+  aoa.push([]);
+  aoa.push([]);
+  aoa.push(['','',FIRMA_COMANDANTE.nombre,'','','']);
+  aoa.push(['','',FIRMA_COMANDANTE.cargo,'','','']);
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(aoa);
