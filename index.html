@@ -1667,7 +1667,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9 · auth-efm</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.1 · gest-sanc</div>
 
 <svg width="0" height="0" style="position:absolute">
   <defs>
@@ -2381,6 +2381,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
     <div class="quick-grid">
       <button class="quick-btn" onclick="goGestionarCursantes()"><span class="qa-icon">👥</span><span class="qa-text">Gestionar cursantes (agregar / editar / dar de baja)</span></button>
       <button class="quick-btn" onclick="goGestionarProfesores()"><span class="qa-icon">👨‍🏫</span><span class="qa-text" id="qa-profs-text">Gestionar profesores (—)</span></button>
+      <button class="quick-btn" id="qa-gest-sanciones" onclick="goGestionSanciones()" style="background:linear-gradient(180deg,rgba(76,163,107,.15),rgba(76,163,107,.05));border-color:#4ca36b"><span class="qa-icon">⚖️</span><span class="qa-text"><strong>Gestionar sanciones</strong> (editar / corregir / anular / crear manual)</span></button>
       <button class="quick-btn" onclick="goAuditoria()"><span class="qa-icon">🔍</span><span class="qa-text">Auditoría de sanciones por cursante</span></button>
       <button class="quick-btn" onclick="goEstadisticas()"><span class="qa-icon">📈</span><span class="qa-text">Estadísticas: pérdida de puntaje (por período)</span></button>
       <button class="quick-btn" onclick="goDiagnostico()"><span class="qa-icon">🔧</span><span class="qa-text">Diagnóstico y forzar sincronización</span></button>
@@ -2486,6 +2487,132 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
     <button class="bottom-nav-item" onclick="goDiscReportes()"><span class="nav-icon">📊</span><span class="nav-label">Reportes</span></button>
     <button class="bottom-nav-item active" onclick="goDiscAlertas()"><span class="nav-icon">🔔</span><span class="nav-label">Alertas</span></button>
   </nav>
+</section>
+
+<!-- ==================== v2.9: GESTIÓN DE SANCIONES (Jefe Disciplina) ==================== -->
+<section id="screen-gest-sanciones" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goDiscPanel()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Gestión de Sanciones</div><div class="header-sub">Editar / Corregir / Anular / Crear manual</div></div>
+  </div>
+  <div class="disc-container">
+    <div style="background:rgba(212,175,55,.08);border:1px solid var(--gold);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--text-secondary);line-height:1.5">
+      <strong style="color:var(--gold)">⚠️ Herramienta del Jefe de Sección Disciplina.</strong> Toda modificación queda registrada en auditoría con fecha, hora y usuario responsable. Las sanciones anuladas no se borran físicamente: quedan marcadas como anuladas para preservar trazabilidad.
+    </div>
+
+    <button class="btn-mega" onclick="goCrearSancionManual()" style="margin-bottom:14px;background:linear-gradient(180deg,#4ca36b,#2d7a4a)">
+      <span class="mega-icon">➕</span>
+      <span>Crear sanción manual (aumentar)</span>
+    </button>
+
+    <div class="ef-filtros" style="margin-top:6px">
+      <input type="text" id="gs-filtro-nombre" placeholder="🔎 Buscar nombre, CI o folio..." oninput="filtrarGestSanciones()">
+      <select id="gs-filtro-estado" onchange="filtrarGestSanciones()">
+        <option value="">Todas</option>
+        <option value="vigente">Solo vigentes</option>
+        <option value="anulada">Solo anuladas</option>
+      </select>
+    </div>
+
+    <div id="gs-lista" style="margin-top:8px"></div>
+  </div>
+</section>
+
+<!-- ==================== v2.9: EDITAR SANCIÓN ==================== -->
+<section id="screen-editar-sancion" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="cancelarEdicionSancion()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Editar Sanción</div><div class="header-sub" id="es-subtitle">—</div></div>
+  </div>
+  <div class="disc-container">
+    <div style="background:rgba(200,74,74,.08);border:1px solid #c84a4a;border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#e8a8a8;line-height:1.5">
+      <strong style="color:#c84a4a">⚠️ Estás corrigiendo una sanción oficial.</strong> Indicá la razón del cambio. Quedará registro completo en auditoría.
+    </div>
+    <div class="error-msg" id="err-editar"></div>
+    <div id="es-info-cursante" style="background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:10px;padding:10px 14px;margin-bottom:14px"></div>
+
+    <div class="field"><label>Folio</label><input type="text" id="es-folio"></div>
+    <div class="field"><label>Categoría</label>
+      <select id="es-categoria">
+        <option value="LEVE">LEVE</option>
+        <option value="GRAVE">GRAVE</option>
+        <option value="GRAVÍSIMA">GRAVÍSIMA</option>
+      </select>
+    </div>
+    <div class="field"><label>Artículo / Falta ID</label><input type="text" id="es-falta-id" placeholder="ej. LEVE_1_a"></div>
+    <div class="field"><label>Descripción de la falta</label><textarea id="es-descripcion" rows="3" style="width:100%;background:var(--bg-deep);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:6px;padding:10px;font-family:inherit;font-size:14px"></textarea></div>
+    <div class="field"><label>Puntos aplicados (deméritos)</label><input type="number" id="es-puntos" min="0" max="100" step="1"></div>
+    <div class="field"><label>Fecha original (opcional)</label><input type="date" id="es-fecha"></div>
+    <div class="field"><label>Observaciones</label><textarea id="es-observaciones" rows="2" style="width:100%;background:var(--bg-deep);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:6px;padding:10px;font-family:inherit;font-size:14px"></textarea></div>
+
+    <div style="background:rgba(212,175,55,.06);border:2px solid var(--gold);border-radius:10px;padding:14px;margin-top:14px">
+      <div style="font-size:11px;letter-spacing:1px;color:var(--gold);font-weight:700;margin-bottom:6px">RAZÓN DE LA CORRECCIÓN (obligatorio)</div>
+      <textarea id="es-razon" rows="3" placeholder="Ej: Se detectó error en la cantidad de puntos aplicados. Reglamento Art. X establece..." style="width:100%;background:var(--bg-deep);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:6px;padding:10px;font-family:inherit;font-size:14px"></textarea>
+    </div>
+
+    <div class="primer-actions" style="margin-top:14px">
+      <button class="btn-secondary" onclick="cancelarEdicionSancion()">Cancelar</button>
+      <button class="btn-primary" id="btn-guardar-edicion" onclick="guardarEdicionSancion()">💾 Guardar cambios</button>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== v2.9: CREAR SANCIÓN MANUAL ==================== -->
+<section id="screen-crear-sancion-manual" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goGestionSanciones()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Crear Sanción Manual</div><div class="header-sub">Aumentar registro disciplinario</div></div>
+  </div>
+  <div class="disc-container">
+    <div style="background:rgba(212,175,55,.08);border:1px solid var(--gold);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:var(--text-secondary);line-height:1.5">
+      <strong style="color:var(--gold)">ℹ️ Carga manual del Jefe Disciplina.</strong> Usá esta herramienta solo para sanciones que no pasaron por el flujo normal del profesor (por ejemplo, carga retroactiva).
+    </div>
+    <div class="error-msg" id="err-crear-manual"></div>
+
+    <div class="field"><label>Cursante (buscar por nombre o CI)</label>
+      <input type="text" id="csm-cursante-search" placeholder="🔎 Empezá a escribir..." oninput="buscarCursanteManual()">
+      <div id="csm-cursante-resultados" style="max-height:140px;overflow-y:auto;margin-top:4px"></div>
+      <div id="csm-cursante-seleccionado" style="display:none;margin-top:8px;padding:10px;background:rgba(76,163,107,.1);border:1px solid #4ca36b;border-radius:8px"></div>
+    </div>
+
+    <div class="field"><label>Categoría</label>
+      <select id="csm-categoria">
+        <option value="LEVE">LEVE</option>
+        <option value="GRAVE">GRAVE</option>
+        <option value="GRAVÍSIMA">GRAVÍSIMA</option>
+      </select>
+    </div>
+    <div class="field"><label>Artículo / Falta ID</label><input type="text" id="csm-falta-id" placeholder="ej. LEVE_1_a"></div>
+    <div class="field"><label>Descripción de la falta</label><textarea id="csm-descripcion" rows="3" style="width:100%;background:var(--bg-deep);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:6px;padding:10px;font-family:inherit;font-size:14px" placeholder="Texto que describe la falta cometida..."></textarea></div>
+    <div class="field"><label>Puntos aplicados (deméritos)</label><input type="number" id="csm-puntos" min="1" max="100" step="1" value="1"></div>
+    <div class="field"><label>Fecha de la sanción</label><input type="date" id="csm-fecha"></div>
+    <div class="field"><label>Observaciones (opcional)</label><textarea id="csm-observaciones" rows="2" style="width:100%;background:var(--bg-deep);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:6px;padding:10px;font-family:inherit;font-size:14px"></textarea></div>
+
+    <div style="background:rgba(212,175,55,.06);border:2px solid var(--gold);border-radius:10px;padding:14px;margin-top:14px">
+      <div style="font-size:11px;letter-spacing:1px;color:var(--gold);font-weight:700;margin-bottom:6px">RAZÓN DE LA CARGA MANUAL (obligatorio)</div>
+      <textarea id="csm-razon" rows="2" placeholder="Ej: Sanción de papeleta física fecha XX/XX que no se cargó digitalmente." style="width:100%;background:var(--bg-deep);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:6px;padding:10px;font-family:inherit;font-size:14px"></textarea>
+    </div>
+
+    <div class="primer-actions" style="margin-top:14px">
+      <button class="btn-secondary" onclick="goGestionSanciones()">Cancelar</button>
+      <button class="btn-primary" id="btn-guardar-manual" onclick="guardarSancionManual()" style="background:linear-gradient(180deg,#4ca36b,#2d7a4a)">✓ Crear sanción</button>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== v2.9: HISTORIAL DE EDICIONES DE UNA SANCIÓN ==================== -->
+<section id="screen-historial-sancion" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="verSancionDetalle(selectedSancionId)">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Historial de cambios</div><div class="header-sub" id="hs-subtitle">—</div></div>
+  </div>
+  <div class="disc-container">
+    <div id="hs-lista">Cargando...</div>
+  </div>
 </section>
 
 <!-- DISC: REPORTES -->
@@ -3501,6 +3628,454 @@ function verEfCursante(cursanteId){
   showScreen('screen-ef-cursante');
 }
 
+/* ==================== v2.9: GESTIÓN DE SANCIONES (Jefe Disciplina) ==================== */
+let editandoSancionId = null;
+let cursanteSeleccionadoManual = null;
+
+function goGestionSanciones(){
+  if(activeRole !== 'disciplina'){
+    alert('Esta herramienta es exclusiva del Jefe de Sección Disciplina.');
+    return;
+  }
+  renderGestSancionesList();
+  showScreen('screen-gest-sanciones');
+}
+
+function filtrarGestSanciones(){
+  renderGestSancionesList();
+}
+
+function renderGestSancionesList(){
+  const cont = document.getElementById('gs-lista');
+  if(!cont) return;
+  const filtroTexto = (document.getElementById('gs-filtro-nombre').value||'').trim().toLowerCase();
+  const filtroEstado = document.getElementById('gs-filtro-estado').value;
+  let arr = (discData.sanciones||[]).slice();
+  // Filtrar por estado
+  if(filtroEstado === 'vigente') arr = arr.filter(s => s.anulada !== true);
+  else if(filtroEstado === 'anulada') arr = arr.filter(s => s.anulada === true);
+  // Filtrar por texto (nombre, ci, folio)
+  if(filtroTexto){
+    arr = arr.filter(s => {
+      const blob = ((s.cursante_nombre||'') + ' ' + (s.cursante_ci||'') + ' ' + (s.folio||'') + ' ' + (s.id||'')).toLowerCase();
+      return blob.includes(filtroTexto);
+    });
+  }
+  // Ordenar por fecha desc
+  arr.sort((a,b) => {
+    const fa = new Date(a.firmada_prof_en || a.fecha_creacion || a.creado_en || a.created_at || 0).getTime();
+    const fb = new Date(b.firmada_prof_en || b.fecha_creacion || b.creado_en || b.created_at || 0).getTime();
+    return fb - fa;
+  });
+  // Limitar a 200 para perf
+  const total = arr.length;
+  arr = arr.slice(0, 200);
+  if(!arr.length){
+    cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">No hay sanciones que coincidan.</div>';
+    return;
+  }
+  cont.innerHTML = arr.map(s => {
+    const anulada = s.anulada === true;
+    const fecha = s.fecha_original || s.firmada_prof_en || s.creado_en || s.fecha_creacion;
+    const fechaTxt = fecha ? new Date(fecha).toLocaleDateString('es-BO') : '—';
+    const estadoBadge = anulada
+      ? '<span style="background:rgba(200,74,74,.2);color:#e88a8a;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700">🚫 ANULADA</span>'
+      : '<span style="background:rgba(76,163,107,.2);color:#7ac899;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700">✓ VIGENTE</span>';
+    return `
+      <div class="ef-cursante-row" onclick="verSancionDetalle('${s.id}')" style="${anulada?'opacity:.65':''}">
+        <div>
+          <div class="ef-cur-nombre">${s.cursante_nombre || '—'} ${estadoBadge}</div>
+          <div class="ef-cur-meta">
+            ${s.folio?'Folio '+s.folio+' · ':''}${s.falta_categoria||'—'} · ${s.puntos_aplicados||0} pts · ${fechaTxt}
+          </div>
+        </div>
+        <div class="ef-cur-nota" style="font-size:14px;color:var(--gold)">▸</div>
+      </div>`;
+  }).join('') + (total > 200 ? `<div style="text-align:center;padding:14px;color:var(--text-muted);font-size:12px">Mostrando 200 de ${total}. Refiná el filtro para ver más.</div>` : '');
+}
+
+/* ------- EDITAR SANCIÓN ------- */
+function editarSancion(sancionId){
+  if(activeRole !== 'disciplina'){
+    alert('Solo el Jefe de Sección Disciplina puede editar sanciones.');
+    return;
+  }
+  const s = discData.sanciones.find(x => String(x.id) === String(sancionId));
+  if(!s){ alert('Sanción no encontrada.'); return; }
+  editandoSancionId = sancionId;
+  // Poblar campos
+  document.getElementById('es-subtitle').textContent = `${s.folio?'Folio '+s.folio:''} · ${s.cursante_nombre||'—'}`;
+  document.getElementById('es-info-cursante').innerHTML = `
+    <div style="font-size:12px;color:var(--text-secondary)">Cursante:</div>
+    <div style="font-weight:600;color:var(--gold-light);margin-top:2px">${s.cursante_nombre||'—'} (CI ${s.cursante_ci||'—'})</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${s.cursante_ciclo||''} ${s.cursante_paralelo?'"'+s.cursante_paralelo+'"':''} · ID: ${s.id}</div>`;
+  document.getElementById('es-folio').value = s.folio || '';
+  document.getElementById('es-categoria').value = s.falta_categoria || 'LEVE';
+  document.getElementById('es-falta-id').value = s.falta_id || '';
+  document.getElementById('es-descripcion').value = s.falta_descripcion || s.descripcion || '';
+  document.getElementById('es-puntos').value = s.puntos_aplicados || 0;
+  // Fecha: intentar parsear
+  let fechaIso = '';
+  if(s.fecha_original){
+    try{ fechaIso = new Date(s.fecha_original).toISOString().slice(0,10); }catch(e){}
+  } else if(s.creado_en){
+    try{ fechaIso = new Date(s.creado_en).toISOString().slice(0,10); }catch(e){}
+  }
+  document.getElementById('es-fecha').value = fechaIso;
+  document.getElementById('es-observaciones').value = s.observaciones || '';
+  document.getElementById('es-razon').value = '';
+  clearErrors();
+  showScreen('screen-editar-sancion');
+}
+
+function cancelarEdicionSancion(){
+  const id = editandoSancionId;
+  editandoSancionId = null;
+  if(id) verSancionDetalle(id);
+  else goGestionSanciones();
+}
+
+async function guardarEdicionSancion(){
+  clearErrors();
+  if(!editandoSancionId){ showError('err-editar','Sesión inválida.'); return; }
+  const original = discData.sanciones.find(x => String(x.id) === String(editandoSancionId));
+  if(!original){ showError('err-editar','Sanción ya no existe en memoria. Sincronizá.'); return; }
+  const razon = document.getElementById('es-razon').value.trim();
+  if(!razon || razon.length < 5){ showError('err-editar','La razón de la corrección es obligatoria (mínimo 5 caracteres).'); return; }
+
+  const nuevos = {
+    folio: document.getElementById('es-folio').value.trim() || null,
+    falta_categoria: document.getElementById('es-categoria').value,
+    falta_id: document.getElementById('es-falta-id').value.trim() || null,
+    falta_descripcion: document.getElementById('es-descripcion').value.trim() || null,
+    puntos_aplicados: Number(document.getElementById('es-puntos').value) || 0,
+    fecha_original: document.getElementById('es-fecha').value || null,
+    observaciones: document.getElementById('es-observaciones').value.trim() || null
+  };
+
+  // Detectar campos cambiados
+  const cambios = {};
+  const previo = {};
+  for(const [k,v] of Object.entries(nuevos)){
+    const valOriginal = original[k];
+    if(String(valOriginal||'') !== String(v||'')){
+      cambios[k] = v;
+      previo[k] = valOriginal;
+    }
+  }
+  if(Object.keys(cambios).length === 0){
+    showError('err-editar','No hay cambios para guardar.');
+    return;
+  }
+
+  const btn = document.getElementById('btn-guardar-edicion');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  try{
+    // 1) Actualizar sanción
+    const {error} = await sb.from('sanciones').update(cambios).eq('id', editandoSancionId);
+    if(error) throw error;
+    // 2) Registrar en auditoría
+    await registrarAuditSancion({
+      sancion_id: editandoSancionId,
+      accion: 'editar',
+      campos_antes: previo,
+      campos_despues: cambios,
+      razon: razon
+    });
+    // 3) Actualizar memoria local
+    Object.assign(original, cambios);
+    // 4) Volver al detalle
+    alert('✓ Sanción actualizada correctamente.');
+    const id = editandoSancionId;
+    editandoSancionId = null;
+    verSancionDetalle(id);
+  }catch(e){
+    console.error('Error guardando edición:', e);
+    showError('err-editar','Error guardando: ' + (e.message||JSON.stringify(e)));
+  }finally{
+    btn.disabled = false; btn.textContent = '💾 Guardar cambios';
+  }
+}
+
+/* ------- ANULAR SANCIÓN DIRECTO (Jefe Disc, sin pedir al Cmte) ------- */
+async function anularSancionDirecto(sancionId){
+  if(activeRole !== 'disciplina'){
+    alert('Solo el Jefe Disciplina puede anular sanciones directamente.');
+    return;
+  }
+  const s = discData.sanciones.find(x => String(x.id) === String(sancionId));
+  if(!s){ alert('Sanción no encontrada.'); return; }
+  const razon = prompt(`⚠️ ANULAR SANCIÓN ${s.folio?'#'+s.folio:''}\n\nCursante: ${s.cursante_nombre||'—'}\nPuntos: ${s.puntos_aplicados||0}\n\nIndicá la razón de la anulación (obligatorio):`);
+  if(razon === null) return;  // canceló
+  if(!razon || razon.trim().length < 5){
+    alert('La razón debe tener al menos 5 caracteres.');
+    return;
+  }
+  const confirmar = confirm(`¿Confirmás anular esta sanción?\n\nLos ${s.puntos_aplicados||0} pts serán removidos del cómputo del cursante. La sanción queda marcada como anulada (no se borra físicamente).`);
+  if(!confirmar) return;
+  try{
+    const ahora = new Date().toISOString();
+    const updates = {
+      anulada: true,
+      anulada_razon: razon.trim(),
+      anulada_por: currentUser.id,
+      anulada_por_nombre: currentUser.nombre_completo,
+      anulada_en: ahora
+    };
+    const {error} = await sb.from('sanciones').update(updates).eq('id', sancionId);
+    if(error) throw error;
+    await registrarAuditSancion({
+      sancion_id: sancionId,
+      accion: 'anular',
+      campos_antes: {anulada:false},
+      campos_despues: updates,
+      razon: razon.trim()
+    });
+    Object.assign(s, updates);
+    alert('✓ Sanción anulada correctamente.');
+    verSancionDetalle(sancionId);
+  }catch(e){
+    console.error('Error anulando:', e);
+    alert('❌ Error: ' + (e.message||JSON.stringify(e)));
+  }
+}
+
+/* ------- REACTIVAR SANCIÓN ANULADA ------- */
+async function reactivarSancion(sancionId){
+  if(activeRole !== 'disciplina'){ alert('Solo Jefe Disciplina.'); return; }
+  const s = discData.sanciones.find(x => String(x.id) === String(sancionId));
+  if(!s || s.anulada !== true){ alert('Esta sanción no está anulada.'); return; }
+  const razon = prompt(`↩️ REACTIVAR SANCIÓN ${s.folio?'#'+s.folio:''}\n\nLos ${s.puntos_aplicados||0} pts volverán al cómputo del cursante.\n\nRazón de la reactivación:`);
+  if(razon === null) return;
+  if(!razon || razon.trim().length < 5){ alert('Razón mínima 5 caracteres.'); return; }
+  try{
+    const ahora = new Date().toISOString();
+    const updates = {
+      anulada: false,
+      reactivada_razon: razon.trim(),
+      reactivada_por: currentUser.id,
+      reactivada_en: ahora
+    };
+    const {error} = await sb.from('sanciones').update(updates).eq('id', sancionId);
+    if(error) throw error;
+    await registrarAuditSancion({
+      sancion_id: sancionId,
+      accion: 'reactivar',
+      campos_antes: {anulada:true},
+      campos_despues: updates,
+      razon: razon.trim()
+    });
+    Object.assign(s, updates);
+    alert('✓ Sanción reactivada.');
+    verSancionDetalle(sancionId);
+  }catch(e){
+    console.error(e); alert('❌ Error: ' + (e.message||e));
+  }
+}
+
+/* ------- CREAR SANCIÓN MANUAL ------- */
+function goCrearSancionManual(){
+  if(activeRole !== 'disciplina'){ alert('Solo Jefe Disciplina.'); return; }
+  cursanteSeleccionadoManual = null;
+  document.getElementById('csm-cursante-search').value = '';
+  document.getElementById('csm-cursante-resultados').innerHTML = '';
+  document.getElementById('csm-cursante-seleccionado').style.display = 'none';
+  document.getElementById('csm-categoria').value = 'LEVE';
+  document.getElementById('csm-falta-id').value = '';
+  document.getElementById('csm-descripcion').value = '';
+  document.getElementById('csm-puntos').value = '1';
+  document.getElementById('csm-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('csm-observaciones').value = '';
+  document.getElementById('csm-razon').value = '';
+  clearErrors();
+  showScreen('screen-crear-sancion-manual');
+}
+
+function buscarCursanteManual(){
+  const q = (document.getElementById('csm-cursante-search').value||'').trim().toLowerCase();
+  const cont = document.getElementById('csm-cursante-resultados');
+  if(q.length < 2){ cont.innerHTML = ''; return; }
+  const matches = (discData.cursantes||[])
+    .filter(c => c.activo !== false)
+    .filter(c => ((c.nombre_completo||'') + ' ' + (c.ci||'')).toLowerCase().includes(q))
+    .slice(0, 8);
+  if(!matches.length){
+    cont.innerHTML = '<div style="padding:8px;color:var(--text-muted);font-size:12px">Ningún cursante coincide.</div>';
+    return;
+  }
+  cont.innerHTML = matches.map(c => `
+    <div onclick="seleccionarCursanteManual('${c.id}')" style="padding:8px 10px;background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:6px;margin-bottom:4px;cursor:pointer">
+      <div style="font-weight:600;font-size:13px">${c.nombre_completo||'—'}</div>
+      <div style="font-size:11px;color:var(--text-muted)">${c.ciclo||''} ${c.paralelo?'"'+c.paralelo+'"':''} · CI ${c.ci||'—'}</div>
+    </div>`).join('');
+}
+
+function seleccionarCursanteManual(cursanteId){
+  const c = (discData.cursantes||[]).find(x => x.id === cursanteId);
+  if(!c) return;
+  cursanteSeleccionadoManual = c;
+  document.getElementById('csm-cursante-resultados').innerHTML = '';
+  document.getElementById('csm-cursante-search').value = '';
+  const sel = document.getElementById('csm-cursante-seleccionado');
+  sel.style.display = '';
+  sel.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:start">
+      <div>
+        <div style="font-size:11px;color:#7ac899;text-transform:uppercase;letter-spacing:1px;font-weight:700">✓ Cursante seleccionado</div>
+        <div style="font-weight:600;color:var(--text-primary);margin-top:4px">${c.nombre_completo||'—'}</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px">${c.ciclo||''} ${c.paralelo?'"'+c.paralelo+'"':''} · CI ${c.ci||'—'}</div>
+      </div>
+      <button class="btn-secondary" style="padding:4px 8px;font-size:11px" onclick="cursanteSeleccionadoManual=null;document.getElementById('csm-cursante-seleccionado').style.display='none'">✕ Cambiar</button>
+    </div>`;
+}
+
+async function guardarSancionManual(){
+  clearErrors();
+  if(!cursanteSeleccionadoManual){ showError('err-crear-manual','Seleccioná un cursante primero.'); return; }
+  const categoria = document.getElementById('csm-categoria').value;
+  const faltaId = document.getElementById('csm-falta-id').value.trim();
+  const descripcion = document.getElementById('csm-descripcion').value.trim();
+  const puntos = Number(document.getElementById('csm-puntos').value);
+  const fecha = document.getElementById('csm-fecha').value;
+  const observaciones = document.getElementById('csm-observaciones').value.trim();
+  const razon = document.getElementById('csm-razon').value.trim();
+
+  if(!descripcion){ showError('err-crear-manual','La descripción es obligatoria.'); return; }
+  if(!puntos || puntos < 1){ showError('err-crear-manual','Los puntos deben ser al menos 1.'); return; }
+  if(!fecha){ showError('err-crear-manual','La fecha es obligatoria.'); return; }
+  if(!razon || razon.length < 5){ showError('err-crear-manual','La razón de la carga manual es obligatoria.'); return; }
+
+  const btn = document.getElementById('btn-guardar-manual');
+  btn.disabled = true; btn.textContent = 'Creando...';
+  try{
+    const c = cursanteSeleccionadoManual;
+    const sancionId = 'manual_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
+    const nueva = {
+      id: sancionId,
+      cursante_id: c.id,
+      cursante_nombre: c.nombre_completo,
+      cursante_ci: c.ci,
+      cursante_ciclo: c.ciclo,
+      cursante_paralelo: c.paralelo,
+      profesor_id: currentUser.id,
+      profesor_nombre: currentUser.nombre_completo,
+      profesor_ci: currentUser.ci,
+      falta_categoria: categoria,
+      falta_id: faltaId || null,
+      falta_descripcion: descripcion,
+      puntos_aplicados: puntos,
+      fecha_original: fecha,
+      observaciones: observaciones || null,
+      creado_en: new Date().toISOString(),
+      es_carga_manual: true,
+      carga_manual_razon: razon,
+      anulada: false,
+      huella_forense: JSON.stringify({
+        tipo:'carga_manual_jefe_disciplina',
+        creado_por: currentUser.id,
+        creado_por_nombre: currentUser.nombre_completo,
+        razon: razon,
+        timestamp: new Date().toISOString(),
+        user_agent: navigator.userAgent.slice(0,200)
+      })
+    };
+    const {error} = await sb.from('sanciones').insert([nueva]);
+    if(error) throw error;
+    await registrarAuditSancion({
+      sancion_id: sancionId,
+      accion: 'crear_manual',
+      campos_antes: {},
+      campos_despues: nueva,
+      razon: razon
+    });
+    // Actualizar memoria local
+    discData.sanciones.push(nueva);
+    if(!discData.byCursanteSanc[c.id]) discData.byCursanteSanc[c.id] = [];
+    discData.byCursanteSanc[c.id].push(nueva);
+    alert('✓ Sanción creada manualmente. ID: ' + sancionId);
+    goGestionSanciones();
+  }catch(e){
+    console.error('Error creando sanción manual:', e);
+    showError('err-crear-manual','Error: ' + (e.message||JSON.stringify(e)));
+  }finally{
+    btn.disabled = false; btn.textContent = '✓ Crear sanción';
+  }
+}
+
+/* ------- AUDITORÍA: registrar cambios ------- */
+async function registrarAuditSancion(payload){
+  try{
+    const registro = {
+      sancion_id: String(payload.sancion_id),
+      accion: payload.accion,
+      realizado_por: currentUser ? currentUser.id : 'desconocido',
+      realizado_por_nombre: currentUser ? currentUser.nombre_completo : 'desconocido',
+      campos_antes: payload.campos_antes || {},
+      campos_despues: payload.campos_despues || {},
+      razon: payload.razon || null,
+      user_agent: (navigator.userAgent||'').slice(0,300),
+      creado_en: new Date().toISOString()
+    };
+    const {error} = await sb.from('sanciones_audit').insert([registro]);
+    if(error){
+      console.warn('No se pudo registrar auditoría (¿tabla sanciones_audit existe?):', error);
+      // No bloqueamos la operación principal — guardamos en localStorage como respaldo
+      const backups = JSON.parse(localStorage.getItem('audit_sanciones_pendientes')||'[]');
+      backups.push(registro);
+      localStorage.setItem('audit_sanciones_pendientes', JSON.stringify(backups));
+    }
+  }catch(e){
+    console.warn('registrarAuditSancion error:', e);
+  }
+}
+
+/* ------- VER HISTORIAL DE EDICIONES DE UNA SANCIÓN ------- */
+async function verHistorialEdicionesSancion(sancionId){
+  selectedSancionId = sancionId;
+  const s = discData.sanciones.find(x => String(x.id) === String(sancionId));
+  document.getElementById('hs-subtitle').textContent = s ? `${s.folio?'Folio '+s.folio:''} · ${s.cursante_nombre||'—'}` : sancionId;
+  const cont = document.getElementById('hs-lista');
+  cont.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">⏳ Cargando historial...</div>';
+  showScreen('screen-historial-sancion');
+  try{
+    const {data, error} = await sb.from('sanciones_audit')
+      .select('*')
+      .eq('sancion_id', String(sancionId))
+      .order('creado_en', {ascending: false});
+    if(error){
+      cont.innerHTML = `<div class="efm-no-data" style="color:#e88a8a">⚠️ ${error.message}<br><br>Si decís que la tabla <code>sanciones_audit</code> no existe, ejecutá el SQL provisto.</div>`;
+      return;
+    }
+    if(!data || !data.length){
+      cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">📋 Esta sanción no tiene cambios registrados en auditoría.</div>';
+      return;
+    }
+    cont.innerHTML = data.map(a => {
+      const fecha = new Date(a.creado_en).toLocaleString('es-BO');
+      const accionLabel = {editar:'✏️ EDITADA', anular:'🚫 ANULADA', reactivar:'↩️ REACTIVADA', crear_manual:'➕ CREADA MANUAL'}[a.accion] || a.accion;
+      const cambiosHtml = Object.keys(a.campos_despues||{}).map(k => {
+        const antes = (a.campos_antes||{})[k];
+        const despues = (a.campos_despues||{})[k];
+        if(typeof antes === 'object' || typeof despues === 'object') return '';
+        return `<div style="display:grid;grid-template-columns:auto 1fr;gap:6px;font-size:11px;padding:4px 0;border-bottom:1px dotted var(--border-subtle)">
+          <span style="color:var(--text-muted);min-width:120px;font-weight:600">${k}:</span>
+          <span><span style="color:#e88a8a;text-decoration:line-through">${antes||'(vacío)'}</span> → <span style="color:#7ac899">${despues||'(vacío)'}</span></span>
+        </div>`;
+      }).join('');
+      return `<div class="sd-block" style="margin-bottom:10px">
+        <div class="sd-block-title">${accionLabel}</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">
+          <strong>${a.realizado_por_nombre||a.realizado_por}</strong> · ${fecha}
+        </div>
+        ${a.razon ? `<div style="background:rgba(212,175,55,.08);padding:6px 10px;border-left:3px solid var(--gold);border-radius:4px;font-size:12px;font-style:italic;color:var(--text-secondary);margin-bottom:8px">"${a.razon}"</div>` : ''}
+        ${cambiosHtml || '<div style="font-size:11px;color:var(--text-muted)">(sin cambios de campos detallados)</div>'}
+      </div>`;
+    }).join('');
+  }catch(e){
+    cont.innerHTML = `<div class="efm-no-data" style="color:#e88a8a">⚠️ Error: ${e.message||e}</div>`;
+  }
+}
+
 /* ==================== PANEL DEL CURSANTE (rediseñado) ==================== */
 const FACTOR_DEMERITO = 0.58;  // 1 punto = 0.58, regla del Art. 15 del Reglamento
 
@@ -4362,6 +4937,20 @@ function verSancionDetalle(sancionId){
     <button class="btn-secondary" onclick="abrirSolicitudAnulacion('${s.id}')">✉️ Solicitar anulación al Cmte.</button>
     <button class="btn-secondary" onclick="volverDeSancionDetalle()">← Volver al listado</button>
   </div>`;
+
+  // === v2.9: ACCIONES ADMIN — solo Jefe Disciplina ===
+  if(activeRole === 'disciplina'){
+    const anuladaActual = s.anulada === true;
+    html += `<div class="sd-actions" style="margin-top:14px;padding-top:14px;border-top:2px solid var(--border-strong)">
+      <div style="font-size:11px;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;font-weight:700">⚙️ Acciones administrativas (Jefe Disciplina)</div>
+      <button class="btn-primary" onclick="editarSancion('${s.id}')" style="background:linear-gradient(180deg,#4ca36b,#2d7a4a)">✏️ Editar / Corregir esta sanción</button>
+      ${anuladaActual
+        ? `<button class="btn-secondary" onclick="reactivarSancion('${s.id}')" style="background:rgba(76,163,107,.15);border-color:#4ca36b;color:#4ca36b">↩️ Reactivar (deshacer anulación)</button>`
+        : `<button class="btn-secondary" onclick="anularSancionDirecto('${s.id}')" style="background:rgba(200,74,74,.15);border-color:#c84a4a;color:#c84a4a">🚫 Anular esta sanción</button>`
+      }
+      <button class="btn-secondary" onclick="verHistorialEdicionesSancion('${s.id}')">📜 Ver historial de cambios</button>
+    </div>`;
+  }
 
   document.getElementById('sd-content').innerHTML = html;
   showScreen('screen-sancion-detalle');
