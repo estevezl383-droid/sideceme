@@ -1687,7 +1687,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.7 · pwd-reset</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.8 · login-edge</div>
 
 <svg width="0" height="0" style="position:absolute">
   <defs>
@@ -3060,10 +3060,25 @@ function showError(id,msg){
 }
 function saveSession(u,t,r){ sessionStorage.setItem('sideceme_session', JSON.stringify({user:u,tipo:t,role:r})); }
 function getSession(){ const r=sessionStorage.getItem('sideceme_session'); return r?JSON.parse(r):null; }
+// v2.9.8: token de sesión emitido por Edge Function auth-login (expira 8h)
+function guardarTokenSesion(token, expiraEn){
+  if(!token) return;
+  sessionStorage.setItem('sideceme_token', token);
+  if(expiraEn) sessionStorage.setItem('sideceme_token_expira', expiraEn);
+}
+function getTokenSesion(){ return sessionStorage.getItem('sideceme_token') || null; }
+function tokenSesionExpirado(){
+  const exp = sessionStorage.getItem('sideceme_token_expira');
+  if(!exp) return false;
+  return new Date(exp).getTime() < Date.now();
+}
 function logout(){
   // Cancelar timer de inactividad si estaba activo
   if(idleTimer){ clearTimeout(idleTimer); idleTimer = null; }
   sessionStorage.removeItem('sideceme_session');
+  // v2.9.8: limpiar token de sesión emitido por Edge Function
+  sessionStorage.removeItem('sideceme_token');
+  sessionStorage.removeItem('sideceme_token_expira');
   currentUser=null; activeRole=null; selectedCargo=null;
   discData={cursantes:[],sanciones:[],profesores:[],byCursanteLost:{},loaded:false,lastSync:null};
   ['docente-ci','docente-pwd','cursante-ci','cursante-pwd'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
@@ -3247,18 +3262,34 @@ async function loginDocente(){
   const btn=document.getElementById('btn-login-docente');
   btn.disabled=true; btn.textContent='Verificando...';
   try{
+    // v2.9.8: autenticar contra Edge Function auth-login (valida password SERVER-SIDE)
+    const {data:authResp, error:fnErr} = await sb.functions.invoke('auth-login', {
+      body:{ ci, password:pwd, cargo:selectedCargo }
+    });
+    if(fnErr){
+      console.error('auth-login error:', fnErr);
+      showError('err-docente','Error de conexión: '+(fnErr.message||fnErr));
+      return;
+    }
+    if(!authResp || !authResp.ok){
+      showError('err-docente', (authResp && authResp.error) || 'Credenciales inválidas.');
+      return;
+    }
+    if(!authResp.usuario || authResp.usuario.tabla !== 'profesores'){
+      showError('err-docente','Este CI no pertenece al plantel docente.');
+      return;
+    }
+    // Cargar registro completo del profesor (para tener firma_url, especialidad, etc.)
     // Sin .limit(1) — un mismo CI puede tener múltiples registros (doble rol)
     const {data,error} = await sb.from('profesores').select('*').eq('ci',ci);
     if(error){showError('err-docente','Error: '+(error.message||JSON.stringify(error))); return;}
-    if(!data||!data.length){showError('err-docente','CI no encontrado en plantel docente.'); return;}
-    // Validar password contra CUALQUIERA de los registros (todos los roles del mismo CI comparten password)
-    const profValido = data.find(p => passwordOK(p, pwd));
-    if(!profValido){showError('err-docente','Contraseña incorrecta.'); return;}
+    if(!data||!data.length){showError('err-docente','No se pudo cargar perfil completo.'); return;}
     // Usar el registro que coincide con el cargo seleccionado (si existe)
-    // Mapeo cargo seleccionado → posibles valores en columna 'especialidad' o 'departamento'
-    const prof = data.find(p => coincideCargo(p, selectedCargo)) || profValido;
-    // Si usuario requiere primer ingreso → ir a esa pantalla
-    if(requierePrimerIngreso(prof, pwd)){
+    const prof = data.find(p => coincideCargo(p, selectedCargo)) || data[0];
+    // Guardar token de sesión emitido por Edge Function (válido 8h)
+    guardarTokenSesion(authResp.token, authResp.expira_en);
+    // Si Edge Function dice que requiere primer ingreso → ir a esa pantalla
+    if(authResp.es_primer_ingreso){
       ingresoPendiente = {tipo:'docente', usuario:prof, role:selectedCargo, ci:ci};
       mostrarPrimerIngreso();
       return;
@@ -3298,13 +3329,32 @@ async function loginCursante(){
   const btn=document.getElementById('btn-login-cursante');
   btn.disabled=true; btn.textContent='Verificando...';
   try{
+    // v2.9.8: autenticar contra Edge Function auth-login (valida password SERVER-SIDE)
+    const {data:authResp, error:fnErr} = await sb.functions.invoke('auth-login', {
+      body:{ ci, password:pwd, cargo:'cursante' }
+    });
+    if(fnErr){
+      console.error('auth-login error:', fnErr);
+      showError('err-cursante','Error de conexión: '+(fnErr.message||fnErr));
+      return;
+    }
+    if(!authResp || !authResp.ok){
+      showError('err-cursante', (authResp && authResp.error) || 'Credenciales inválidas.');
+      return;
+    }
+    if(!authResp.usuario || authResp.usuario.tabla !== 'cursantes'){
+      showError('err-cursante','Este CI no pertenece a cursantes.');
+      return;
+    }
+    // Cargar registro completo del cursante (para tener firma_url, foto, etc.)
     const {data,error} = await sb.from('cursantes').select('*').eq('ci',ci).limit(1);
     if(error){showError('err-cursante','Error: '+(error.message||JSON.stringify(error))); return;}
-    if(!data||!data.length){showError('err-cursante','CI no encontrado.'); return;}
+    if(!data||!data.length){showError('err-cursante','No se pudo cargar perfil completo.'); return;}
     const cur=data[0];
-    if(!passwordOK(cur, pwd)){showError('err-cursante','Contraseña incorrecta.'); return;}
+    // Guardar token de sesión emitido por Edge Function (válido 8h)
+    guardarTokenSesion(authResp.token, authResp.expira_en);
     // Primer ingreso → cambio de password + firma
-    if(requierePrimerIngreso(cur, pwd)){
+    if(authResp.es_primer_ingreso){
       ingresoPendiente = {tipo:'cursante', usuario:cur, role:null, ci:ci};
       mostrarPrimerIngreso();
       return;
