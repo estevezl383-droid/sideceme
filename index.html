@@ -28,6 +28,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
 <style>
 :root{
   --bg-deep:#050a14;--bg-base:#0a1628;--bg-elevated:#11203a;
@@ -1543,12 +1544,130 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   .metal-card-icon{width:54px;height:54px;font-size:27px}
 }
 
+/* ==================== v2.9: 4 CUADROS NAVEGABLES CURSANTE ==================== */
+.cur-areas-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0}
+.cur-area-card{
+  background:linear-gradient(180deg,#fcf4dc,#e9d8a8);
+  border:2px solid #b8902c;
+  border-radius:14px;
+  padding:14px 10px;
+  cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55), 0 2px 6px rgba(0,0,0,.18);
+  transition:all .2s ease;
+  font-family:inherit;
+}
+.cur-area-card:hover{transform:translateY(-1px);box-shadow:inset 0 1px 0 rgba(255,255,255,.55), 0 4px 10px rgba(0,0,0,.22)}
+.cur-area-card:active{transform:translateY(0)}
+.cur-area-card.active{
+  background:linear-gradient(180deg,#5c4a1a,#3a2f10);
+  border-color:#d4af37;
+  color:#f4d57a;
+  box-shadow:inset 0 1px 0 rgba(212,175,55,.45), 0 3px 10px rgba(0,0,0,.35);
+}
+.cur-area-card .ca-icon{font-size:26px;line-height:1}
+.cur-area-card .ca-title{font-weight:700;font-size:12px;letter-spacing:.5px;text-align:center;color:#5c4a1a;text-transform:uppercase}
+.cur-area-card.active .ca-title{color:#f4d57a}
+.cur-area-card .ca-value{font-family:var(--font-display);font-size:22px;font-weight:700;color:#5c4a1a;line-height:1}
+.cur-area-card.active .ca-value{color:#fff}
+.cur-area-card .ca-sub{font-size:10px;color:#7a6326;opacity:.85;text-align:center}
+.cur-area-card.active .ca-sub{color:rgba(244,213,122,.85)}
+
+.cur-section{margin-top:6px}
+
+/* Tarjeta EFM del cursante */
+.efm-cur-card{
+  background:#f5edd5;
+  border:2px solid #c9a64b;
+  border-radius:14px;
+  padding:18px 14px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55), 0 2px 6px rgba(0,0,0,.15);
+}
+.efm-cur-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid rgba(184,144,44,.3)}
+.efm-cur-title{font-family:var(--font-display);font-size:18px;color:#5c4a1a;font-weight:700;letter-spacing:1px}
+.efm-cur-badge{background:#5c4a1a;color:#f4d57a;padding:4px 10px;border-radius:10px;font-size:11px;font-weight:700;letter-spacing:.5px}
+.efm-cur-final{
+  background:linear-gradient(180deg,#5c4a1a,#3a2f10);
+  color:#f4d57a;
+  border-radius:10px;
+  padding:14px;
+  margin-bottom:14px;
+  text-align:center;
+  box-shadow:inset 0 1px 0 rgba(212,175,55,.45);
+}
+.efm-cur-final-num{font-family:var(--font-display);font-size:42px;font-weight:700;line-height:1;color:#fff}
+.efm-cur-final-lbl{font-size:11px;letter-spacing:2px;opacity:.85;margin-top:4px}
+.efm-cur-final-atr{display:inline-block;margin-top:6px;background:rgba(244,213,122,.18);padding:3px 10px;border-radius:8px;font-size:12px;font-weight:700;letter-spacing:1px}
+.efm-prueba-grid{display:grid;grid-template-columns:1fr;gap:8px}
+.efm-prueba-row{
+  background:rgba(255,255,255,.55);
+  border:1px solid rgba(184,144,44,.35);
+  border-radius:8px;
+  padding:10px 12px;
+  display:grid;
+  grid-template-columns:1fr auto auto;
+  gap:8px;
+  align-items:center;
+}
+.efm-prueba-nombre{font-weight:600;color:#5c4a1a;font-size:13px}
+.efm-prueba-cant{font-family:monospace;color:#7a6326;font-size:12px}
+.efm-prueba-nota{font-family:var(--font-display);font-weight:700;font-size:18px;color:#5c4a1a;text-align:right;min-width:50px}
+.efm-cur-obs{margin-top:12px;padding:10px;background:rgba(184,144,44,.12);border-left:3px solid #b8902c;border-radius:6px;font-size:12px;color:#5c4a1a;font-style:italic}
+.efm-no-data{padding:30px 12px;text-align:center;color:#7a6326;font-size:14px}
+
+/* ==================== v2.9: PANEL JEFE EFM ==================== */
+.ef-panel-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:14px 0}
+.ef-stat-card{
+  background:var(--bg-card);border:1px solid var(--border-strong);border-radius:10px;
+  padding:12px 8px;text-align:center;
+}
+.ef-stat-num{font-family:var(--font-display);font-size:24px;font-weight:700;color:var(--gold)}
+.ef-stat-lbl{font-size:10px;letter-spacing:1px;color:var(--text-secondary);text-transform:uppercase;margin-top:3px}
+.ef-filtros{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;padding:10px;background:var(--bg-card);border-radius:10px;border:1px solid var(--border-subtle)}
+.ef-filtros select, .ef-filtros input{
+  background:var(--bg-deep);color:var(--text-primary);
+  border:1px solid var(--border-subtle);border-radius:6px;
+  padding:8px 10px;font-size:13px;flex:1;min-width:100px;
+  font-family:inherit;
+}
+.ef-cursante-row{
+  background:var(--bg-card);border:1px solid var(--border-subtle);
+  border-radius:10px;padding:12px;margin-bottom:8px;
+  display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;
+  cursor:pointer;transition:all .15s ease;
+}
+.ef-cursante-row:hover{border-color:var(--gold);background:rgba(212,175,55,.05)}
+.ef-cur-nombre{font-weight:600;color:var(--text-primary);font-size:14px}
+.ef-cur-meta{font-size:11px;color:var(--text-muted);margin-top:2px}
+.ef-cur-nota{
+  font-family:var(--font-display);font-size:22px;font-weight:700;
+  min-width:50px;text-align:center;color:var(--gold);
+}
+.ef-cur-nota.sin{color:var(--text-muted);font-size:14px}
+.ef-cur-nota.E{color:#4ca36b}
+.ef-cur-nota.MB{color:#a8c87a}
+.ef-cur-nota.B{color:#e0a83a}
+.ef-cur-nota.R{color:#e08a3a}
+.ef-cur-nota.D{color:#c84a4a}
+
+/* ==================== v2.9: PRIMER INGRESO ==================== */
+.primer-card{
+  background:var(--bg-card);border:2px solid var(--gold);
+  border-radius:14px;padding:20px;margin:14px;
+  box-shadow:0 6px 20px rgba(0,0,0,.4);
+}
+.primer-step-title{font-family:var(--font-display);color:var(--gold);font-size:18px;letter-spacing:1px;margin-bottom:8px;text-align:center}
+.primer-step-sub{color:var(--text-secondary);font-size:13px;text-align:center;margin-bottom:18px;line-height:1.4}
+.firma-canvas-wrap{background:#fff;border:2px solid var(--gold);border-radius:10px;padding:8px;margin:10px 0}
+#firma-canvas-primer{width:100%;height:180px;background:#fff;display:block;touch-action:none;border-radius:6px}
+.primer-actions{display:flex;gap:10px;margin-top:14px}
+.primer-actions button{flex:1}
 </style>
 </head>
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.8.2 · solo-centro</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9 · auth-efm</div>
 
 <svg width="0" height="0" style="position:absolute">
   <defs>
@@ -1617,7 +1736,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   </div>
   <div class="login-container"><div class="login-card">
     <div class="login-target" id="login-target">Sub. Sec. Disciplina</div>
-    <div class="info-banner">Plantel Docente ECEME. Ingresá con tu CI y contraseña <strong>201615</strong> (modo desarrollo).</div>
+    <div class="info-banner">Plantel Docente ECEME. Ingresá con tu <strong>Carnet de Identidad</strong>. Si es tu primer ingreso, la contraseña inicial es el mismo CI.</div>
     <div class="error-msg" id="err-docente"></div>
     <button class="btn-bio" id="btn-bio-docente" onclick="loginBiometrico('docente')" style="display:none">👆 Ingresar con biometría</button>
     <form onsubmit="event.preventDefault(); loginDocente()">
@@ -1636,7 +1755,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
     <div class="header-text"><div class="header-title">Ingreso Cursante</div><div class="header-sub">Verifica tu identidad</div></div>
   </div>
   <div class="login-container"><div class="login-card">
-    <div class="info-banner">Cursantes ECEME. Ingresá con tu CI y contraseña <strong>201615</strong> (modo desarrollo).</div>
+    <div class="info-banner">Cursantes ECEME. Ingresá con tu <strong>Carnet de Identidad</strong>. Si es tu primer ingreso, la contraseña inicial es el mismo CI.</div>
     <div class="error-msg" id="err-cursante"></div>
     <button class="btn-bio" id="btn-bio-cursante" onclick="loginBiometrico('cursante')" style="display:none">👆 Ingresar con biometría</button>
     <form onsubmit="event.preventDefault(); loginCursante()">
@@ -1645,6 +1764,85 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
       <button type="submit" class="btn-primary" id="btn-login-cursante">Ingresar</button>
     </form>
   </div></div>
+</section>
+
+<!-- =============== v2.9: PRIMER INGRESO (cambiar password + firma) =============== -->
+<section id="screen-primer-ingreso" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="cancelarPrimerIngreso()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Primer Ingreso</div><div class="header-sub">Configuración inicial</div></div>
+  </div>
+  <div class="primer-card">
+    <div class="primer-step-title">🔐 Bienvenido a SIDECEME</div>
+    <div class="primer-step-sub">Es tu primer ingreso al sistema. Por seguridad debes establecer una nueva contraseña personal y dejar tu firma digital para autenticar tus actos administrativos.</div>
+    <div class="error-msg" id="err-primer"></div>
+    <div style="background:rgba(212,175,55,.08);border:1px solid var(--border-subtle);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--text-secondary)">
+      <div style="color:var(--gold);font-weight:600;margin-bottom:3px">Usuario:</div>
+      <div id="primer-usuario-nombre">—</div>
+      <div id="primer-usuario-ci" style="font-family:monospace;font-size:11px;margin-top:3px">CI —</div>
+    </div>
+    <div class="field"><label>Nueva contraseña (mínimo 6 caracteres)</label><input type="password" id="primer-pwd-1" placeholder="••••••" autocomplete="new-password"></div>
+    <div class="field"><label>Confirmar contraseña</label><input type="password" id="primer-pwd-2" placeholder="••••••" autocomplete="new-password"></div>
+    <div class="primer-step-title" style="font-size:14px;margin-top:18px">✍️ Tu firma digital</div>
+    <div class="primer-step-sub" style="font-size:12px;margin-bottom:8px">Dibuja tu firma usando el dedo o el mouse. Esta firma quedará vinculada a tu cuenta y reemplazará a la firma manuscrita en documentos digitales.</div>
+    <div class="firma-canvas-wrap"><canvas id="firma-canvas-primer"></canvas></div>
+    <div class="primer-actions">
+      <button class="btn-secondary" onclick="limpiarFirmaPrimer()">🗑️ Limpiar</button>
+      <button class="btn-primary" id="btn-confirmar-primer" onclick="confirmarPrimerIngreso()">✓ Confirmar y entrar</button>
+    </div>
+  </div>
+</section>
+
+<!-- =============== v2.9: PANEL JEFE SECCIÓN EFM =============== -->
+<section id="screen-ef-panel" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="logout()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Sub. Sec. Entrenamiento Físico</div><div class="header-sub">Notas EFM · Examen Diagnóstico</div></div>
+  </div>
+  <div class="menu-container">
+    <div class="user-strip">
+      <div class="user-avatar" id="ef-initials">—</div>
+      <div class="user-info"><div class="user-name" id="ef-name">—</div><div class="user-rank" id="ef-rank">—</div></div>
+      <button class="btn-logout" onclick="logout()">Salir</button>
+    </div>
+
+    <div class="ef-panel-stats">
+      <div class="ef-stat-card">
+        <div class="ef-stat-num" id="ef-stat-total">0</div>
+        <div class="ef-stat-lbl">Cursantes</div>
+      </div>
+      <div class="ef-stat-card">
+        <div class="ef-stat-num" id="ef-stat-evaluados">0</div>
+        <div class="ef-stat-lbl">Evaluados</div>
+      </div>
+      <div class="ef-stat-card">
+        <div class="ef-stat-num" id="ef-stat-promedio">—</div>
+        <div class="ef-stat-lbl">Promedio</div>
+      </div>
+    </div>
+
+    <div class="ef-filtros">
+      <input type="text" id="ef-filtro-nombre" placeholder="🔎 Buscar nombre o CI..." oninput="filtrarCursantesEf()">
+      <select id="ef-filtro-ciclo" onchange="filtrarCursantesEf()"><option value="">Todos ciclos</option></select>
+      <select id="ef-filtro-paralelo" onchange="filtrarCursantesEf()"><option value="">Todos paralelos</option></select>
+    </div>
+
+    <div id="ef-cursantes-list"></div>
+  </div>
+</section>
+
+<!-- =============== v2.9: DETALLE CURSANTE EFM (vista del Jefe EFM) =============== -->
+<section id="screen-ef-cursante" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goEfPanel()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Ficha EFM</div><div class="header-sub" id="ef-det-sub">Detalle del cursante</div></div>
+  </div>
+  <div class="menu-container">
+    <div id="ef-det-content"></div>
+  </div>
 </section>
 
 <!-- PANEL GENÉRICO -->
@@ -1985,62 +2183,116 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
         <div class="nota-status" id="cur-nota-status">—</div>
       </div>
 
-      <!-- 3 cuadros: SANCIONES / DEMÉRITOS / NOTA DISC -->
-      <div class="cur-stats-grid">
-        <div class="cur-stat-card">
-          <div class="cs-num" id="cur-stat-sanciones">0</div>
-          <div class="cs-label">Sanciones</div>
-        </div>
-        <div class="cur-stat-card">
-          <div class="cs-num danger" id="cur-stat-demeritos">-0</div>
-          <div class="cs-label">Deméritos</div>
-        </div>
-        <div class="cur-stat-card">
-          <div class="cs-num success" id="cur-stat-nota">100</div>
-          <div class="cs-label">Nota Disc.</div>
-        </div>
+      <!-- 4 CUADROS NAVEGABLES: DISCIPLINA / EFM / NOTAS ACADÉMICAS / ORDEN DE MÉRITO -->
+      <div class="cur-areas-grid">
+        <button class="cur-area-card active" id="cur-area-disciplina" onclick="mostrarSeccionCursante('disciplina')">
+          <div class="ca-icon">⭐</div>
+          <div class="ca-title">Disciplina</div>
+          <div class="ca-value" id="cur-area-disc-val">—</div>
+          <div class="ca-sub" id="cur-area-disc-sub">Nota Disc.</div>
+        </button>
+        <button class="cur-area-card" id="cur-area-efm" onclick="mostrarSeccionCursante('efm')">
+          <div class="ca-icon">🏃</div>
+          <div class="ca-title">EFM</div>
+          <div class="ca-value" id="cur-area-efm-val">—</div>
+          <div class="ca-sub" id="cur-area-efm-sub">Diagnóstico</div>
+        </button>
+        <button class="cur-area-card" id="cur-area-academicas" onclick="mostrarSeccionCursante('academicas')">
+          <div class="ca-icon">📚</div>
+          <div class="ca-title">Notas Académicas</div>
+          <div class="ca-value">—</div>
+          <div class="ca-sub">Próximamente</div>
+        </button>
+        <button class="cur-area-card" id="cur-area-merito" onclick="mostrarSeccionCursante('merito')">
+          <div class="ca-icon">🏆</div>
+          <div class="ca-title">Orden de Mérito</div>
+          <div class="ca-value">—</div>
+          <div class="ca-sub">Próximamente</div>
+        </button>
       </div>
 
-      <!-- 4to cuadro destacado: PÉRDIDA ANUAL DE PUNTAJE (causal de baja) -->
-      <div class="cur-anual-card" id="cur-anual-card">
-        <div class="cac-header">
-          <div class="cac-title">📅 Pérdida anual de puntaje</div>
-          <div class="cac-articulo" id="cur-anual-articulo">Art. 5</div>
-        </div>
-        <div class="cac-body">
-          <div class="cac-col">
-            <div class="cac-num danger" id="cur-anual-perdido">−0</div>
-            <div class="cac-lbl">Pts perdidos · Gestión <span id="cur-anual-year">—</span></div>
+      <!-- =================== SECCIÓN DISCIPLINA (default visible) =================== -->
+      <div class="cur-section" id="cur-section-disciplina">
+        <!-- 3 cuadros stats originales -->
+        <div class="cur-stats-grid">
+          <div class="cur-stat-card">
+            <div class="cs-num" id="cur-stat-sanciones">0</div>
+            <div class="cs-label">Sanciones</div>
           </div>
-          <div class="cac-divider"></div>
-          <div class="cac-col">
-            <div class="cac-num success" id="cur-anual-restante">50</div>
-            <div class="cac-lbl" id="cur-anual-restante-lbl">Pts antes de baja</div>
+          <div class="cur-stat-card">
+            <div class="cs-num danger" id="cur-stat-demeritos">-0</div>
+            <div class="cs-label">Deméritos</div>
+          </div>
+          <div class="cur-stat-card">
+            <div class="cs-num success" id="cur-stat-nota">100</div>
+            <div class="cs-label">Nota Disc.</div>
           </div>
         </div>
-        <div class="cac-progress"><div class="cac-progress-fill" id="cur-anual-progress" style="width:0%"></div></div>
-        <div class="cac-msg" id="cur-anual-msg">Margen amplio. Mantén la disciplina.</div>
-      </div>
 
-      <!-- Banner estado -->
-      <div class="cur-estado-banner" id="cur-estado-banner">
-        <div class="ceb-title" id="cur-estado-title">— Sin sanciones</div>
-        <div class="ceb-text" id="cur-estado-text">Mantén tu buen desempeño disciplinario.</div>
-      </div>
-
-      <!-- Accesos -->
-      <button class="cur-btn-gold" onclick="alert('📚 Ver notas académicas — próxima iteración')">📚 Ver mis notas académicas</button>
-      <button class="cur-btn-gold" onclick="alert('🏃 Mis notas EFM — próxima iteración')">🏃 Mis notas EFM</button>
-      <button class="cur-btn-gold" onclick="alert('🏆 Mi orden de mérito — próxima iteración')">🏆 Mi orden de mérito</button>
-      <button class="cur-btn-gold" onclick="alert('📖 Biblioteca de reglamentos — próxima iteración')">📖 Biblioteca de reglamentos</button>
-
-      <!-- Listado de mis sanciones (inline) -->
-      <div class="mis-sanciones-section" style="margin-top:18px">
-        <div class="mis-sanciones-header">
-          <div class="mss-title" style="color:#5c4a1a">📋 Mis sanciones</div>
-          <button class="btn-refresh" onclick="refrescarCursanteHome()" title="Sincronizar"><span>🔄</span></button>
+        <!-- 4to cuadro destacado: PÉRDIDA ANUAL DE PUNTAJE (causal de baja) -->
+        <div class="cur-anual-card" id="cur-anual-card">
+          <div class="cac-header">
+            <div class="cac-title">📅 Pérdida anual de puntaje</div>
+            <div class="cac-articulo" id="cur-anual-articulo">Art. 5</div>
+          </div>
+          <div class="cac-body">
+            <div class="cac-col">
+              <div class="cac-num danger" id="cur-anual-perdido">−0</div>
+              <div class="cac-lbl">Pts perdidos · Gestión <span id="cur-anual-year">—</span></div>
+            </div>
+            <div class="cac-divider"></div>
+            <div class="cac-col">
+              <div class="cac-num success" id="cur-anual-restante">50</div>
+              <div class="cac-lbl" id="cur-anual-restante-lbl">Pts antes de baja</div>
+            </div>
+          </div>
+          <div class="cac-progress"><div class="cac-progress-fill" id="cur-anual-progress" style="width:0%"></div></div>
+          <div class="cac-msg" id="cur-anual-msg">Margen amplio. Mantén la disciplina.</div>
         </div>
-        <div id="cur-sanciones-list"></div>
+
+        <!-- Banner estado -->
+        <div class="cur-estado-banner" id="cur-estado-banner">
+          <div class="ceb-title" id="cur-estado-title">— Sin sanciones</div>
+          <div class="ceb-text" id="cur-estado-text">Mantén tu buen desempeño disciplinario.</div>
+        </div>
+
+        <!-- Listado de mis sanciones (inline) -->
+        <div class="mis-sanciones-section" style="margin-top:18px">
+          <div class="mis-sanciones-header">
+            <div class="mss-title" style="color:#5c4a1a">📋 Mis sanciones</div>
+            <button class="btn-refresh" onclick="refrescarCursanteHome()" title="Sincronizar"><span>🔄</span></button>
+          </div>
+          <div id="cur-sanciones-list"></div>
+        </div>
+      </div>
+
+      <!-- =================== SECCIÓN EFM =================== -->
+      <div class="cur-section" id="cur-section-efm" style="display:none">
+        <div class="efm-cur-card" id="cur-efm-content">
+          <div class="placeholder-container" style="padding:24px 12px">
+            <div class="placeholder-icon">🏃</div>
+            <div class="placeholder-title">Cargando notas EFM...</div>
+            <div class="placeholder-text">Un momento por favor.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- =================== SECCIÓN NOTAS ACADÉMICAS =================== -->
+      <div class="cur-section" id="cur-section-academicas" style="display:none">
+        <div class="placeholder-container" style="background:#f5edd5;border-radius:14px;padding:30px 20px;border:2px solid #c9a64b">
+          <div class="placeholder-icon">📚</div>
+          <div class="placeholder-title" style="color:#5c4a1a">Notas Académicas</div>
+          <div class="placeholder-text" style="color:#7a6326">Módulo en desarrollo. Próximamente podrás consultar tus calificaciones por materia.</div>
+        </div>
+      </div>
+
+      <!-- =================== SECCIÓN ORDEN DE MÉRITO =================== -->
+      <div class="cur-section" id="cur-section-merito" style="display:none">
+        <div class="placeholder-container" style="background:#f5edd5;border-radius:14px;padding:30px 20px;border:2px solid #c9a64b">
+          <div class="placeholder-icon">🏆</div>
+          <div class="placeholder-title" style="color:#5c4a1a">Orden de Mérito</div>
+          <div class="placeholder-text" style="color:#7a6326">Módulo en desarrollo. Próximamente podrás consultar tu orden de mérito consolidado.</div>
+        </div>
       </div>
     </div>
 
@@ -2730,18 +2982,47 @@ async function loginDocente(){
   const btn=document.getElementById('btn-login-docente');
   btn.disabled=true; btn.textContent='Verificando...';
   try{
-    const {data,error} = await sb.from('profesores').select('*').eq('ci',ci).limit(1);
+    // Sin .limit(1) — un mismo CI puede tener múltiples registros (doble rol)
+    const {data,error} = await sb.from('profesores').select('*').eq('ci',ci);
     if(error){showError('err-docente','Error: '+(error.message||JSON.stringify(error))); return;}
     if(!data||!data.length){showError('err-docente','CI no encontrado en plantel docente.'); return;}
-    const prof=data[0];
-    if(!passwordOK(prof, pwd)){showError('err-docente','Contraseña incorrecta.'); return;}
+    // Validar password contra CUALQUIERA de los registros (todos los roles del mismo CI comparten password)
+    const profValido = data.find(p => passwordOK(p, pwd));
+    if(!profValido){showError('err-docente','Contraseña incorrecta.'); return;}
+    // Usar el registro que coincide con el cargo seleccionado (si existe)
+    // Mapeo cargo seleccionado → posibles valores en columna 'especialidad' o 'departamento'
+    const prof = data.find(p => coincideCargo(p, selectedCargo)) || profValido;
+    // Si usuario requiere primer ingreso → ir a esa pantalla
+    if(requierePrimerIngreso(prof, pwd)){
+      ingresoPendiente = {tipo:'docente', usuario:prof, role:selectedCargo, ci:ci};
+      mostrarPrimerIngreso();
+      return;
+    }
     currentUser=prof; activeRole=selectedCargo;
     saveSession(prof,'docente',activeRole);
     iniciarIdleTimer();
+    // Actualizar último login (best-effort, no bloqueante)
+    try{ sb.from('profesores').update({ultimo_login:new Date().toISOString()}).eq('id',prof.id).then(()=>{}); }catch(e){}
     await enterRole(activeRole);
     setTimeout(()=>ofrecerActivarBio('docente'), 600);
   }catch(e){console.error(e); showError('err-docente','Error: '+(e.message||e));}
   finally{btn.disabled=false; btn.textContent='Ingresar';}
+}
+
+// Heurística: ¿este registro profesor sirve para el cargo seleccionado?
+function coincideCargo(prof, cargoKey){
+  if(!prof || !cargoKey) return false;
+  const blob = ((prof.especialidad||'') + ' ' + (prof.departamento||'') + ' ' + (prof.observaciones||'')).toLowerCase();
+  const map = {
+    'profesor': ['profesor','docente'],
+    'ef': ['entrenamiento físico','entrenamiento fisico','ef','educación física','educacion fisica','físic','fisic'],
+    'disciplina': ['disciplina'],
+    'evaluaciones': ['evaluacion','evaluación'],
+    'estudios': ['estudios'],
+    'comandante': ['comandante']
+  };
+  const kws = map[cargoKey] || [];
+  return kws.some(k => blob.includes(k));
 }
 
 async function loginCursante(){
@@ -2757,9 +3038,16 @@ async function loginCursante(){
     if(!data||!data.length){showError('err-cursante','CI no encontrado.'); return;}
     const cur=data[0];
     if(!passwordOK(cur, pwd)){showError('err-cursante','Contraseña incorrecta.'); return;}
+    // Primer ingreso → cambio de password + firma
+    if(requierePrimerIngreso(cur, pwd)){
+      ingresoPendiente = {tipo:'cursante', usuario:cur, role:null, ci:ci};
+      mostrarPrimerIngreso();
+      return;
+    }
     currentUser=cur;
     saveSession(cur,'cursante',null);
     iniciarIdleTimer();
+    try{ sb.from('cursantes').update({ultimo_login:new Date().toISOString()}).eq('id',cur.id).then(()=>{}); }catch(e){}
     await renderCursanteHome();
     showScreen('screen-cursante-home');
     setTimeout(()=>ofrecerActivarBio('cursante'), 600);
@@ -2767,20 +3055,73 @@ async function loginCursante(){
   finally{btn.disabled=false; btn.textContent='Ingresar';}
 }
 
-/* ==================== PASSWORD UNIVERSAL DE DESARROLLO ====================
-   Mientras se arma la app, TODOS los usuarios (cursantes + profesores)
-   pueden ingresar con la contraseña 201615, además de su contraseña real.
-   Cuando esté en producción, hay que cambiar DEV_MASTER_PASSWORD a '' o eliminarlo.
+/* ==================== AUTENTICACIÓN v2.9 ====================
+   - Master password única para Jefe Disciplina: 20161615
+     Entra a CUALQUIER cuenta sin disparar primer ingreso.
+   - Login normal: CI + contraseña (hasheada con bcrypt).
+   - Contraseña inicial = mismo CI del usuario.
+   - Primer ingreso: forzar cambio de password + dibujar firma.
 */
-const DEV_MASTER_PASSWORD = '201615';
+const MASTER_PASSWORD = '20161515';
+
+// bcryptjs expone global "dcodeIO.bcrypt" o "bcrypt"
+const bcryptLib = (typeof dcodeIO !== 'undefined' && dcodeIO.bcrypt) ? dcodeIO.bcrypt
+                : (typeof bcrypt !== 'undefined') ? bcrypt
+                : null;
+
+function hashPassword(plain){
+  if(!bcryptLib){
+    console.warn('bcryptjs no disponible — guardando plaintext (fallback)');
+    return String(plain);
+  }
+  try{
+    const salt = bcryptLib.genSaltSync(10);
+    return bcryptLib.hashSync(String(plain), salt);
+  }catch(e){
+    console.error('Error hasheando:', e);
+    return String(plain);
+  }
+}
+
+function compararPassword(intento, hashOPlaintext){
+  if(!intento || !hashOPlaintext) return false;
+  const stored = String(hashOPlaintext);
+  // Si parece un hash bcrypt (empieza con $2a$, $2b$, $2y$): comparar con bcrypt
+  if(/^\$2[aby]\$/.test(stored)){
+    try{ return bcryptLib && bcryptLib.compareSync(String(intento), stored); }
+    catch(e){ console.error('Error comparando hash:', e); return false; }
+  }
+  // Si no es hash, comparación plaintext (compatibilidad con datos viejos)
+  return String(intento) === stored;
+}
 
 function passwordOK(usuario, intento){
   if(!intento) return false;
-  // Contraseña master de desarrollo (TODOS la pueden usar)
-  if(intento === DEV_MASTER_PASSWORD) return true;
-  // Contraseña real del usuario
+  // Master password — entra a cualquier cuenta (solo Jefe Disciplina la conoce)
+  if(String(intento) === MASTER_PASSWORD) return true;
+  // Si el usuario tiene password_hash, usar bcrypt
+  if(usuario && usuario.password_hash){
+    return compararPassword(intento, usuario.password_hash);
+  }
+  // Fallback: comparar con password antigua (plaintext)
   const real = usuario && usuario.password ? String(usuario.password) : '';
-  return String(intento) === real;
+  if(real && String(intento) === real) return true;
+  // Contraseña inicial: el mismo CI del usuario
+  const ciUsuario = usuario && usuario.ci ? String(usuario.ci) : '';
+  if(ciUsuario && String(intento) === ciUsuario) return true;
+  return false;
+}
+
+// Detecta si el usuario debe pasar por la pantalla de primer ingreso
+function requierePrimerIngreso(usuario, intentoUsado){
+  // Si se usó la master, NO forzar primer ingreso
+  if(String(intentoUsado) === MASTER_PASSWORD) return false;
+  // Si ya tiene password_hash Y firma_dataurl, no es primer ingreso
+  if(usuario && usuario.password_hash && usuario.firma_dataurl) return false;
+  // Si el campo primer_ingreso es explícito false, no
+  if(usuario && usuario.primer_ingreso === false && usuario.password_hash) return false;
+  // En cualquier otro caso (sin hash, sin firma, o primer_ingreso true): SÍ
+  return true;
 }
 
 async function enterRole(role){
@@ -2794,6 +3135,12 @@ async function enterRole(role){
     await loadDiscData();      // Reutilizamos: trae cursantes + reglamentos + sanciones
     renderProfPanel();
     showScreen('screen-prof-panel');
+  } else if(role==='ef'){
+    // Jefe Sección Entrenamiento Físico → panel propio con cursantes y notas EFM
+    await loadDiscData();
+    await loadEvaluacionesFisicas();
+    renderEfPanel();
+    showScreen('screen-ef-panel');
   } else {
     renderGenericoPanel(role);
     showScreen('screen-panel-generico');
@@ -2809,6 +3156,351 @@ function renderGenericoPanel(role){
   document.getElementById('generico-rank').textContent=[currentUser.grado||'',currentUser.arma||''].filter(Boolean).join(' · ')||'Plantel docente';
   document.getElementById('generico-initials').textContent=initials||'—';
 }
+
+/* ==================== v2.9: PRIMER INGRESO ====================
+   Flujo: usuario válido → si requiere primer ingreso → esta pantalla
+   → escribe nueva password (2x) + dibuja firma → confirma
+   → guarda hash + firma_dataurl + primer_ingreso=false
+   → sincroniza por CI en cursantes + profesores (mismo CI = misma persona)
+   → entra al panel correspondiente
+*/
+let ingresoPendiente = null;     // {tipo, usuario, role, ci}
+let firmaCanvasPrimer = null;
+let firmaCtxPrimer = null;
+let firmaDibujandoPrimer = false;
+let firmaTienePazosPrimer = false;
+
+function mostrarPrimerIngreso(){
+  if(!ingresoPendiente) return;
+  const u = ingresoPendiente.usuario;
+  document.getElementById('primer-usuario-nombre').textContent = u.nombre_completo || '—';
+  document.getElementById('primer-usuario-ci').textContent = 'CI ' + (u.ci || '—');
+  document.getElementById('primer-pwd-1').value = '';
+  document.getElementById('primer-pwd-2').value = '';
+  clearErrors();
+  showScreen('screen-primer-ingreso');
+  // Inicializar canvas DESPUÉS de mostrar la pantalla
+  setTimeout(()=>initFirmaCanvasPrimer(), 100);
+}
+
+function cancelarPrimerIngreso(){
+  ingresoPendiente = null;
+  firmaTienePazosPrimer = false;
+  goHome();
+}
+
+function initFirmaCanvasPrimer(){
+  const canvas = document.getElementById('firma-canvas-primer');
+  if(!canvas) return;
+  firmaCanvasPrimer = canvas;
+  // Ajustar tamaño físico al display
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width * 2;   // hi-dpi
+  canvas.height = 180 * 2;
+  firmaCtxPrimer = canvas.getContext('2d');
+  firmaCtxPrimer.scale(2,2);
+  firmaCtxPrimer.lineWidth = 2.2;
+  firmaCtxPrimer.lineCap = 'round';
+  firmaCtxPrimer.lineJoin = 'round';
+  firmaCtxPrimer.strokeStyle = '#1a1a2e';
+  firmaCtxPrimer.fillStyle = '#fff';
+  firmaCtxPrimer.fillRect(0,0,rect.width,180);
+  firmaTienePazosPrimer = false;
+
+  const getPos = (e) => {
+    const r = canvas.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return { x: t.clientX - r.left, y: t.clientY - r.top };
+  };
+  const start = (e) => { e.preventDefault(); firmaDibujandoPrimer = true; const p = getPos(e); firmaCtxPrimer.beginPath(); firmaCtxPrimer.moveTo(p.x, p.y); };
+  const move = (e) => { if(!firmaDibujandoPrimer) return; e.preventDefault(); const p = getPos(e); firmaCtxPrimer.lineTo(p.x, p.y); firmaCtxPrimer.stroke(); firmaTienePazosPrimer = true; };
+  const end = () => { firmaDibujandoPrimer = false; };
+
+  canvas.onmousedown = start; canvas.onmousemove = move;
+  canvas.onmouseup = end; canvas.onmouseleave = end;
+  canvas.ontouchstart = start; canvas.ontouchmove = move; canvas.ontouchend = end;
+}
+
+function limpiarFirmaPrimer(){
+  if(!firmaCanvasPrimer || !firmaCtxPrimer) return;
+  const rect = firmaCanvasPrimer.getBoundingClientRect();
+  firmaCtxPrimer.fillStyle = '#fff';
+  firmaCtxPrimer.fillRect(0,0,rect.width,180);
+  firmaTienePazosPrimer = false;
+}
+
+async function confirmarPrimerIngreso(){
+  clearErrors();
+  if(!ingresoPendiente){ showError('err-primer','Sesión inválida. Volvé a iniciar sesión.'); return; }
+  const p1 = document.getElementById('primer-pwd-1').value;
+  const p2 = document.getElementById('primer-pwd-2').value;
+  if(!p1 || p1.length < 6){ showError('err-primer','La contraseña debe tener al menos 6 caracteres.'); return; }
+  if(p1 !== p2){ showError('err-primer','Las contraseñas no coinciden.'); return; }
+  if(p1 === ingresoPendiente.ci){ showError('err-primer','La nueva contraseña no puede ser tu CI. Elegí una contraseña distinta.'); return; }
+  if(!firmaTienePazosPrimer){ showError('err-primer','Por favor dibujá tu firma antes de continuar.'); return; }
+  if(!firmaCanvasPrimer){ showError('err-primer','Canvas de firma no disponible.'); return; }
+
+  const btn = document.getElementById('btn-confirmar-primer');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+
+  try{
+    const pwdHash = hashPassword(p1);
+    const firmaDataUrl = firmaCanvasPrimer.toDataURL('image/png');
+    const now = new Date().toISOString();
+    const updates = {
+      password_hash: pwdHash,
+      firma_dataurl: firmaDataUrl,
+      primer_ingreso: false,
+      ultimo_login: now
+    };
+    const ci = ingresoPendiente.ci;
+    // Actualizar TODOS los registros con ese CI en ambas tablas (doble rol = mismas credenciales)
+    const promesas = [];
+    promesas.push(sb.from('profesores').update(updates).eq('ci', ci));
+    promesas.push(sb.from('cursantes').update(updates).eq('ci', ci));
+    const [pProf, pCur] = await Promise.allSettled(promesas);
+    // Recargar usuario actualizado
+    const tablaUsuario = ingresoPendiente.tipo === 'docente' ? 'profesores' : 'cursantes';
+    let usuarioActualizado = ingresoPendiente.usuario;
+    try{
+      const {data} = await sb.from(tablaUsuario).select('*').eq('id', ingresoPendiente.usuario.id).limit(1);
+      if(data && data.length) usuarioActualizado = data[0];
+    }catch(e){ console.warn('No se pudo recargar usuario:', e); }
+
+    currentUser = usuarioActualizado;
+    if(ingresoPendiente.tipo === 'docente'){
+      activeRole = ingresoPendiente.role;
+      saveSession(currentUser, 'docente', activeRole);
+      iniciarIdleTimer();
+      const role = activeRole;
+      ingresoPendiente = null;
+      await enterRole(role);
+    } else {
+      saveSession(currentUser, 'cursante', null);
+      iniciarIdleTimer();
+      ingresoPendiente = null;
+      await renderCursanteHome();
+      showScreen('screen-cursante-home');
+    }
+  }catch(e){
+    console.error('Error en primer ingreso:', e);
+    showError('err-primer','Error guardando: ' + (e.message||e));
+  }finally{
+    btn.disabled = false; btn.textContent = '✓ Confirmar y entrar';
+  }
+}
+
+/* ==================== v2.9: NAVEGACIÓN ENTRE SECCIONES DEL CURSANTE ==================== */
+function mostrarSeccionCursante(seccion){
+  const validas = ['disciplina','efm','academicas','merito'];
+  if(!validas.includes(seccion)) return;
+  // Toggle de cards
+  validas.forEach(s => {
+    const card = document.getElementById('cur-area-' + s);
+    const sec = document.getElementById('cur-section-' + s);
+    if(card) card.classList.toggle('active', s === seccion);
+    if(sec) sec.style.display = (s === seccion) ? '' : 'none';
+  });
+  // Si abre EFM, cargar las notas
+  if(seccion === 'efm') renderCursanteEfmSection();
+}
+
+async function renderCursanteEfmSection(){
+  const cont = document.getElementById('cur-efm-content');
+  if(!cont || !currentUser) return;
+  cont.innerHTML = '<div class="placeholder-container" style="padding:24px 12px"><div class="placeholder-icon">⏳</div><div class="placeholder-title">Cargando notas EFM...</div></div>';
+  try{
+    const {data, error} = await sb.from('evaluaciones_fisicas')
+      .select('*')
+      .eq('cursante_id', currentUser.id)
+      .order('tipo_evaluacion', {ascending:true});
+    if(error){
+      cont.innerHTML = '<div class="efm-no-data">⚠️ Error cargando: ' + (error.message||'') + '</div>';
+      return;
+    }
+    if(!data || !data.length){
+      cont.innerHTML = '<div class="efm-no-data">🏃 Todavía no tenés notas físicas cargadas. Consultá con el Sub. Sec. de Entrenamiento Físico.</div>';
+      return;
+    }
+    cont.innerHTML = data.map(ev => htmlTarjetaEvaluacionFisica(ev, false)).join('');
+  }catch(e){
+    cont.innerHTML = '<div class="efm-no-data">⚠️ Error: ' + (e.message||e) + '</div>';
+  }
+}
+
+// Devuelve HTML de una tarjeta de evaluación física (compartida por vista cursante y vista jefe EFM)
+function htmlTarjetaEvaluacionFisica(ev, conEditar){
+  const nota = ev.nota_final;
+  const atributo = atributoCalificacion(Number(nota)||0);
+  const pruebas = [
+    {nombre:'Talla / Peso', cant: [ev.talla, ev.peso].filter(Boolean).join(' · '), nota: ev.nota_talla_peso},
+    {nombre:'Natación', cant: [ev.natacion_distancia, ev.natacion_tiempo].filter(Boolean).join(' · '), nota: ev.natacion_nota},
+    {nombre:'Abdominales', cant: ev.abdominales_cant, nota: ev.abdominales_nota},
+    {nombre:'Flexiones', cant: ev.flexiones_cant, nota: ev.flexiones_nota},
+    {nombre:'Barra (dominadas)', cant: ev.barra_cant, nota: ev.barra_nota},
+    {nombre:'Aeróbica', cant: ev.aerobica_tiempo, nota: ev.aerobica_nota}
+  ];
+  const tipoLabel = (ev.tipo_evaluacion||'—').toUpperCase();
+  const categoria = ev.categoria ? `Categoría: ${ev.categoria}` : '';
+  const edad = ev.edad ? `Edad: ${ev.edad}` : '';
+  return `
+    <div class="efm-cur-card">
+      <div class="efm-cur-header">
+        <div class="efm-cur-title">🏃 Examen ${tipoLabel}</div>
+        <div class="efm-cur-badge">${[categoria, edad].filter(Boolean).join(' · ')||'EFM'}</div>
+      </div>
+      <div class="efm-cur-final">
+        <div class="efm-cur-final-num">${nota||'—'}</div>
+        <div class="efm-cur-final-lbl">NOTA FINAL</div>
+        <div class="efm-cur-final-atr">${atributo}</div>
+      </div>
+      <div class="efm-prueba-grid">
+        ${pruebas.map(p => `
+          <div class="efm-prueba-row">
+            <div>
+              <div class="efm-prueba-nombre">${p.nombre}</div>
+              ${p.cant ? `<div class="efm-prueba-cant">${p.cant}</div>` : ''}
+            </div>
+            <div class="efm-prueba-nota">${p.nota||'—'}</div>
+          </div>
+        `).join('')}
+      </div>
+      ${ev.observaciones ? `<div class="efm-cur-obs">📝 ${ev.observaciones}</div>` : ''}
+    </div>`;
+}
+
+/* ==================== v2.9: PANEL JEFE SECCIÓN EFM ==================== */
+let efmData = { evaluaciones: [], byCursante: {}, loaded: false };
+
+async function loadEvaluacionesFisicas(){
+  try{
+    const {data, error} = await sb.from('evaluaciones_fisicas').select('*');
+    if(error){ console.error('Error cargando evaluaciones:', error); return; }
+    efmData.evaluaciones = data || [];
+    efmData.byCursante = {};
+    for(const ev of efmData.evaluaciones){
+      if(!efmData.byCursante[ev.cursante_id]) efmData.byCursante[ev.cursante_id] = [];
+      efmData.byCursante[ev.cursante_id].push(ev);
+    }
+    efmData.loaded = true;
+  }catch(e){ console.error('loadEvaluacionesFisicas:', e); }
+}
+
+function goEfPanel(){
+  renderEfPanel();
+  showScreen('screen-ef-panel');
+}
+
+function renderEfPanel(){
+  if(!currentUser) return;
+  // Defensa
+  const s = getSession();
+  if(s && s.tipo !== 'docente'){
+    console.error('[SEGURIDAD] Acceso denegado a panel EFM: tipo =', s.tipo);
+    logout(); return;
+  }
+  const name = currentUser.nombre_completo || 'Jefe EFM';
+  const initials = name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  document.getElementById('ef-name').textContent = nombreConGrado(currentUser);
+  document.getElementById('ef-rank').textContent = 'Sub. Sec. Entrenamiento Físico';
+  document.getElementById('ef-initials').textContent = initials || '—';
+
+  // Stats
+  const total = (discData.cursantes||[]).filter(c => c.activo !== false).length;
+  const evaluados = Object.keys(efmData.byCursante||{}).length;
+  const notas = efmData.evaluaciones
+    .map(e => Number(e.nota_final))
+    .filter(n => !isNaN(n) && n > 0);
+  const promedio = notas.length ? (notas.reduce((a,b)=>a+b,0) / notas.length).toFixed(1) : '—';
+  document.getElementById('ef-stat-total').textContent = total;
+  document.getElementById('ef-stat-evaluados').textContent = evaluados;
+  document.getElementById('ef-stat-promedio').textContent = promedio;
+
+  // Llenar filtros con ciclos y paralelos distintos
+  const ciclos = [...new Set((discData.cursantes||[]).map(c => c.ciclo).filter(Boolean))].sort();
+  const paralelos = [...new Set((discData.cursantes||[]).map(c => c.paralelo).filter(Boolean))].sort();
+  const selCiclo = document.getElementById('ef-filtro-ciclo');
+  const selPara = document.getElementById('ef-filtro-paralelo');
+  if(selCiclo.options.length <= 1){
+    ciclos.forEach(c => { const o = document.createElement('option'); o.value=c; o.textContent=c; selCiclo.appendChild(o); });
+  }
+  if(selPara.options.length <= 1){
+    paralelos.forEach(p => { const o = document.createElement('option'); o.value=p; o.textContent=p; selPara.appendChild(o); });
+  }
+
+  filtrarCursantesEf();
+}
+
+function filtrarCursantesEf(){
+  const nombreFiltro = (document.getElementById('ef-filtro-nombre').value||'').trim().toLowerCase();
+  const cicloFiltro = document.getElementById('ef-filtro-ciclo').value;
+  const paraFiltro = document.getElementById('ef-filtro-paralelo').value;
+  const cursantes = (discData.cursantes||[]).filter(c => {
+    if(c.activo === false) return false;
+    if(cicloFiltro && c.ciclo !== cicloFiltro) return false;
+    if(paraFiltro && c.paralelo !== paraFiltro) return false;
+    if(nombreFiltro){
+      const blob = ((c.nombre_completo||'') + ' ' + (c.ci||'')).toLowerCase();
+      if(!blob.includes(nombreFiltro)) return false;
+    }
+    return true;
+  });
+  drawCursantesEf(cursantes);
+}
+
+function drawCursantesEf(arr){
+  const cont = document.getElementById('ef-cursantes-list');
+  if(!cont) return;
+  if(!arr.length){
+    cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">No hay cursantes que coincidan con los filtros.</div>';
+    return;
+  }
+  // Ordenar alfabéticamente
+  arr.sort((a,b) => (a.nombre_completo||'').localeCompare(b.nombre_completo||''));
+  cont.innerHTML = arr.map(c => {
+    const evals = efmData.byCursante[c.id] || [];
+    // Tomar la evaluación más reciente (asumir tipo DIAGNOSTICA por defecto)
+    const ev = evals[0];
+    const nota = ev && ev.nota_final ? Number(ev.nota_final) : null;
+    const atributo = nota ? atributoCalificacion(nota) : '';
+    const claseNota = nota ? atributo : 'sin';
+    const notaTxt = nota ? (Number.isInteger(nota) ? nota : nota.toFixed(2)) : 'Sin evaluar';
+    const nombre = nombreConGrado(c);
+    const meta = [c.ciclo, c.paralelo ? `"${c.paralelo}"` : '', `CI ${c.ci||'—'}`].filter(Boolean).join(' · ');
+    return `
+      <div class="ef-cursante-row" onclick="verEfCursante('${c.id}')">
+        <div>
+          <div class="ef-cur-nombre">${nombre}</div>
+          <div class="ef-cur-meta">${meta}</div>
+        </div>
+        <div class="ef-cur-nota ${claseNota}">${notaTxt}</div>
+      </div>`;
+  }).join('');
+}
+
+function verEfCursante(cursanteId){
+  const cur = (discData.cursantes||[]).find(c => c.id === cursanteId);
+  if(!cur){ alert('Cursante no encontrado.'); return; }
+  const evals = efmData.byCursante[cursanteId] || [];
+  document.getElementById('ef-det-sub').textContent = nombreConGrado(cur);
+  const headerHtml = `
+    <div class="user-strip" style="margin-bottom:14px">
+      <div class="user-avatar">${(cur.nombre_completo||'').split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase()||'—'}</div>
+      <div class="user-info">
+        <div class="user-name">${nombreConGrado(cur)}</div>
+        <div class="user-rank">${[cur.ciclo, cur.paralelo?'"'+cur.paralelo+'"':''].filter(Boolean).join(' ')} · CI ${cur.ci||'—'}</div>
+      </div>
+    </div>`;
+  let body;
+  if(!evals.length){
+    body = `<div class="efm-no-data">📋 Este cursante todavía no tiene evaluaciones físicas cargadas.</div>`;
+  } else {
+    body = evals.map(ev => htmlTarjetaEvaluacionFisica(ev, true)).join('');
+  }
+  document.getElementById('ef-det-content').innerHTML = headerHtml + body;
+  showScreen('screen-ef-cursante');
+}
+
 /* ==================== PANEL DEL CURSANTE (rediseñado) ==================== */
 const FACTOR_DEMERITO = 0.58;  // 1 punto = 0.58, regla del Art. 15 del Reglamento
 
@@ -3001,6 +3693,26 @@ async function renderCursanteHome(){
   document.getElementById('cur-stat-sanciones').textContent = cantSanciones;
   document.getElementById('cur-stat-demeritos').textContent = `-${puntosPerdidos}`;
   document.getElementById('cur-stat-nota').textContent = notaTxt;
+
+  // === v2.9: poblar los 4 cuadros de áreas (Disciplina/EFM/Académicas/Mérito) ===
+  document.getElementById('cur-area-disc-val').textContent = notaTxt;
+  document.getElementById('cur-area-disc-sub').textContent = estado === 'regla' ? '✓ En regla' : estado === 'observacion' ? '⚠ Observación' : '🚨 Consejo';
+  // Buscar nota EFM (best-effort, sin bloquear)
+  try{
+    const {data: efs} = await sb.from('evaluaciones_fisicas')
+      .select('nota_final,tipo_evaluacion')
+      .eq('cursante_id', currentUser.id)
+      .limit(1);
+    if(efs && efs.length && efs[0].nota_final){
+      const nf = Number(efs[0].nota_final);
+      const nfTxt = isNaN(nf) ? '—' : (Number.isInteger(nf) ? nf : nf.toFixed(1));
+      document.getElementById('cur-area-efm-val').textContent = nfTxt;
+      document.getElementById('cur-area-efm-sub').textContent = (efs[0].tipo_evaluacion||'EFM');
+    } else {
+      document.getElementById('cur-area-efm-val').textContent = '—';
+      document.getElementById('cur-area-efm-sub').textContent = 'Sin evaluar';
+    }
+  }catch(e){ /* silent */ }
 
   // === 4to cuadro destacado: Pérdida anual de puntaje (causal de baja) ===
   const anualStat = calcularPerdidaAnual(todasSanciones);
