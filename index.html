@@ -1687,7 +1687,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.6 · prof-delete</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.7 · pwd-reset</div>
 
 <svg width="0" height="0" style="position:absolute">
   <defs>
@@ -2853,7 +2853,8 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
     <input type="hidden" id="cur-form-id">
     <div class="field"><label>ID (auto si vacío)</label><input type="text" id="cur-form-idtext" placeholder="Ej: C225"></div>
     <div class="field"><label>Nombre completo *</label><input type="text" id="cur-form-nombre" placeholder="Apellido(s) Nombre(s)"></div>
-    <div class="field"><label>CI *</label><input type="text" id="cur-form-ci" inputmode="numeric" placeholder="Solo números"></div>
+    <div class="field"><label>CI * <span id="cur-form-ci-hint" style="font-size:10px;color:#8a7a4a;display:none">(no editable — usá el botón para cambiar la contraseña)</span></label><input type="text" id="cur-form-ci" inputmode="numeric" placeholder="Solo números"></div>
+    <button type="button" class="btn-secondary" id="cur-form-btn-pwd" onclick="cambiarPasswordCursanteDesdeFichaForm()" style="display:none;background:linear-gradient(135deg,#5a4422,#7a5a2a);color:#f0d890;border-color:#a87e3a;margin:-4px 0 14px">🔑 Cambiar contraseña del cursante</button>
     <div class="field"><label>Departamento</label><input type="text" id="cur-form-depto" placeholder="LP / CB / SC / TJ / etc"></div>
     <div class="field"><label>Paralelo</label><input type="text" id="cur-form-paralelo" placeholder="A / B / C / V / N / J / L"></div>
     <div class="field"><label>Observaciones</label><textarea id="cur-form-obs" placeholder="Cualquier nota relevante..."></textarea></div>
@@ -2881,7 +2882,8 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
     <input type="hidden" id="prof-form-id">
     <div class="field"><label>ID (auto si vacío)</label><input type="text" id="prof-form-idtext" placeholder="Ej: P031"></div>
     <div class="field"><label>Nombre completo *</label><input type="text" id="prof-form-nombre"></div>
-    <div class="field"><label>CI *</label><input type="text" id="prof-form-ci" inputmode="numeric"></div>
+    <div class="field"><label>CI * <span id="prof-form-ci-hint" style="font-size:10px;color:#8a7a4a;display:none">(no editable — usá el botón para cambiar la contraseña)</span></label><input type="text" id="prof-form-ci" inputmode="numeric"></div>
+    <button type="button" class="btn-secondary" id="prof-form-btn-pwd" onclick="cambiarPasswordProfesorDesdeFichaForm()" style="display:none;background:linear-gradient(135deg,#5a4422,#7a5a2a);color:#f0d890;border-color:#a87e3a;margin:-4px 0 14px">🔑 Cambiar contraseña del profesor</button>
     <div class="field"><label>Grado militar</label><input type="text" id="prof-form-grado" placeholder="Ej: TCNL, CNL, MAY, CAP"></div>
     <div class="field"><label>Arma</label><input type="text" id="prof-form-arma" placeholder="Ej: Ejército, FAB, Armada"></div>
     <div class="field"><label>Especialidad</label><input type="text" id="prof-form-esp"></div>
@@ -5056,6 +5058,144 @@ async function cambiarMiPasswordCursante(){
   }catch(e){ alert('Error: ' + (e.message||e)); }
 }
 
+// v2.9.7: Jefe Disciplina cambia la contraseña de un cursante desde su ficha
+async function cambiarPasswordCursanteDesdeFicha(cursanteId){
+  if(activeRole !== 'disciplina'){
+    alert('Solo el Jefe de Sección Disciplina puede cambiar contraseñas de cursantes.');
+    return;
+  }
+  if(!cursanteId){ alert('Cursante inválido.'); return; }
+  const cur = discData.cursantes.find(c => c.id === cursanteId);
+  if(!cur){ alert('Cursante no encontrado.'); return; }
+  // Paso 1: confirmar la acción con texto exacto
+  const aviso = `⚠️ CAMBIO DE CONTRASEÑA\n\n`+
+                `Cursante: ${cur.nombre_completo||'—'}\n`+
+                `CI: ${cur.ci||'—'}\n\n`+
+                `Vas a establecer una nueva contraseña para este cursante.\n`+
+                `El cursante deberá usar la nueva contraseña en su próximo ingreso.\n\n`+
+                `Para continuar, escribí exactamente:  CAMBIAR CONTRASEÑA`;
+  const confirma = prompt(aviso);
+  if(confirma !== 'CAMBIAR CONTRASEÑA'){
+    alert('Cancelado. No se hizo ningún cambio.');
+    return;
+  }
+  // Paso 2: pedir la nueva contraseña
+  const nueva = (prompt('Nueva contraseña (mínimo 6 caracteres, distinta al CI):')||'').trim();
+  if(!nueva){ alert('Cancelado.'); return; }
+  if(nueva.length < 6){ alert('La contraseña debe tener al menos 6 caracteres.'); return; }
+  if(nueva === (cur.ci||'')){ alert('La contraseña no puede ser igual al CI del cursante.'); return; }
+  // Paso 3: confirmar
+  const nueva2 = prompt('Repetí la nueva contraseña para confirmar:');
+  if(nueva2 !== nueva){ alert('Las contraseñas no coinciden. Cancelado.'); return; }
+  try{
+    // Hashear y actualizar
+    const hash = hashPassword(nueva);
+    const updates = {
+      password_hash: hash,
+      password: null,                     // limpiar plaintext viejo si existía
+      primer_ingreso: false,              // no rehacer primer ingreso (mantiene firma)
+      ultimo_login: null                  // resetear última actividad
+    };
+    const { error } = await sb.from('cursantes').update(updates).eq('id', cursanteId);
+    if(error){
+      alert('Error al guardar: ' + (error.message||JSON.stringify(error)));
+      return;
+    }
+    // Actualizar memoria local
+    Object.assign(cur, updates);
+    // Log local (auditoría manual — la tabla de audit es solo para sanciones por ahora)
+    console.info('[AUDIT pwd_change]', {
+      accion: 'cambio_password_cursante_por_disciplina',
+      por: { id: currentUser.id, nombre: currentUser.nombre_completo, ci: currentUser.ci },
+      a:   { id: cur.id,         nombre: cur.nombre_completo,         ci: cur.ci  },
+      timestamp: new Date().toISOString(),
+      user_agent: navigator.userAgent.slice(0,200)
+    });
+    alert(`✅ Contraseña actualizada\n\n`+
+          `Cursante: ${cur.nombre_completo}\n`+
+          `Nueva contraseña: ${nueva}\n\n`+
+          `📋 Anotá la contraseña y comunicásela al cursante de manera segura.\n`+
+          `El cursante podrá usarla en su próximo ingreso.`);
+  }catch(e){
+    alert('Error inesperado: ' + (e.message||e));
+  }
+}
+
+// v2.9.6: helper para botón del formulario de editar cursante
+function cambiarPasswordCursanteDesdeFichaForm(){
+  const id = document.getElementById('cur-form-id').value;
+  if(!id){ alert('Guardá primero el cursante antes de cambiar su contraseña.'); return; }
+  cambiarPasswordCursanteDesdeFicha(id);
+}
+
+// v2.9.6: cambiar contraseña de profesor (análogo a la de cursante)
+async function cambiarPasswordProfesorDesdeFicha(profesorId){
+  if(activeRole !== 'disciplina'){
+    alert('Solo el Jefe de Sección Disciplina puede cambiar contraseñas de profesores.');
+    return;
+  }
+  if(!profesorId){ alert('Profesor inválido.'); return; }
+  const prof = discData.profesores.find(p => p.id === profesorId);
+  if(!prof){ alert('Profesor no encontrado.'); return; }
+  // Paso 1: confirmar la acción con texto exacto
+  const aviso = `⚠️ CAMBIO DE CONTRASEÑA\n\n`+
+                `Profesor: ${prof.nombre_completo||'—'}\n`+
+                `CI: ${prof.ci||'—'}\n`+
+                `Cargo: ${prof.grado||''} ${prof.especialidad||''}\n\n`+
+                `Vas a establecer una nueva contraseña para este profesor.\n`+
+                `El profesor deberá usar la nueva contraseña en su próximo ingreso.\n\n`+
+                `Para continuar, escribí exactamente:  CAMBIAR CONTRASEÑA`;
+  const confirma = prompt(aviso);
+  if(confirma !== 'CAMBIAR CONTRASEÑA'){
+    alert('Cancelado. No se hizo ningún cambio.');
+    return;
+  }
+  // Paso 2: pedir la nueva contraseña
+  const nueva = (prompt('Nueva contraseña (mínimo 6 caracteres, distinta al CI):')||'').trim();
+  if(!nueva){ alert('Cancelado.'); return; }
+  if(nueva.length < 6){ alert('La contraseña debe tener al menos 6 caracteres.'); return; }
+  if(nueva === (prof.ci||'')){ alert('La contraseña no puede ser igual al CI del profesor.'); return; }
+  // Paso 3: confirmar repetida
+  const nueva2 = prompt('Repetí la nueva contraseña para confirmar:');
+  if(nueva2 !== nueva){ alert('Las contraseñas no coinciden. Cancelado.'); return; }
+  try{
+    const hash = hashPassword(nueva);
+    const updates = {
+      password_hash: hash,
+      password: null,
+      primer_ingreso: false,
+      ultimo_login: null
+    };
+    const { error } = await sb.from('profesores').update(updates).eq('id', profesorId);
+    if(error){
+      alert('Error al guardar: ' + (error.message||JSON.stringify(error)));
+      return;
+    }
+    Object.assign(prof, updates);
+    console.info('[AUDIT pwd_change]', {
+      accion: 'cambio_password_profesor_por_disciplina',
+      por: { id: currentUser.id, nombre: currentUser.nombre_completo, ci: currentUser.ci },
+      a:   { id: prof.id,        nombre: prof.nombre_completo,        ci: prof.ci  },
+      timestamp: new Date().toISOString(),
+      user_agent: navigator.userAgent.slice(0,200)
+    });
+    alert(`✅ Contraseña actualizada\n\n`+
+          `Profesor: ${prof.nombre_completo}\n`+
+          `Nueva contraseña: ${nueva}\n\n`+
+          `📋 Anotá la contraseña y comunicásela al profesor de manera segura.\n`+
+          `El profesor podrá usarla en su próximo ingreso.`);
+  }catch(e){
+    alert('Error inesperado: ' + (e.message||e));
+  }
+}
+
+// v2.9.6: helper para botón del formulario de editar profesor
+function cambiarPasswordProfesorDesdeFichaForm(){
+  const id = document.getElementById('prof-form-id').value;
+  if(!id){ alert('Guardá primero el profesor antes de cambiar su contraseña.'); return; }
+  cambiarPasswordProfesorDesdeFicha(id);
+}
+
 function reiniciarDatosPrototipo(){
   if(!confirm('Vas a borrar TODOS los datos locales del prototipo (sesión, backups locales, preferencias).\n\nLa base de datos en Supabase NO se toca.\n\n¿Continuar?')) return;
   try{
@@ -5627,7 +5767,10 @@ function verFichaCursante(cursanteId, backTarget){
     html += `<div class="sd-block"><div class="placeholder-container" style="padding:30px 12px"><div class="placeholder-icon">✅</div><div class="placeholder-text">Este cursante no tiene sanciones registradas.</div></div></div>`;
   }
 
-  html += `<div class="sd-actions"><button class="btn-secondary" onclick="volverDeFichaCursante()">← Volver</button></div>`;
+  html += `<div class="sd-actions">
+    <button class="btn-secondary" onclick="volverDeFichaCursante()">← Volver</button>
+    ${activeRole === 'disciplina' ? `<button class="btn-secondary" style="background:linear-gradient(135deg,#5a4422,#7a5a2a);color:#f0d890;border-color:#a87e3a;margin-top:8px" onclick="cambiarPasswordCursanteDesdeFicha('${cursanteId}')">🔑 Cambiar contraseña del cursante</button>` : ''}
+  </div>`;
 
   document.getElementById('ficha-cursante-content').innerHTML = html;
   showScreen('screen-ficha-cursante');
@@ -6554,6 +6697,11 @@ function openCursanteForm(id){
     document.getElementById('cur-form-idtext').disabled=true;
     document.getElementById('cur-form-nombre').value=c.nombre_completo||'';
     document.getElementById('cur-form-ci').value=c.ci||'';
+    // v2.9.6: CI no editable al editar — usar botón para cambiar contraseña
+    document.getElementById('cur-form-ci').disabled=true;
+    document.getElementById('cur-form-ci').style.opacity='0.7';
+    document.getElementById('cur-form-ci-hint').style.display='';
+    document.getElementById('cur-form-btn-pwd').style.display='';
     document.getElementById('cur-form-depto').value=c.departamento||'';
     document.getElementById('cur-form-paralelo').value=c.paralelo||'';
     document.getElementById('cur-form-obs').value=c.observaciones||'';
@@ -6565,6 +6713,11 @@ function openCursanteForm(id){
     document.getElementById('cur-form-idtext').disabled=false;
     document.getElementById('cur-form-nombre').value='';
     document.getElementById('cur-form-ci').value='';
+    // v2.9.6: al crear sí se puede escribir CI; ocultar botón cambiar pwd
+    document.getElementById('cur-form-ci').disabled=false;
+    document.getElementById('cur-form-ci').style.opacity='';
+    document.getElementById('cur-form-ci-hint').style.display='none';
+    document.getElementById('cur-form-btn-pwd').style.display='none';
     document.getElementById('cur-form-depto').value='';
     document.getElementById('cur-form-paralelo').value='';
     document.getElementById('cur-form-obs').value='';
@@ -6580,20 +6733,25 @@ async function saveCursante(){
   const ci=document.getElementById('cur-form-ci').value.trim();
   if(!nombre||!ci){ showError('err-cur-form','Nombre y CI son obligatorios.'); return; }
   const activo=document.getElementById('cur-form-activo').value==='true';
+  // v2.9.6: payload base SIN password ni CI (CI no se cambia al editar; password se cambia con botón aparte)
   const payload={
-    nombre_completo:nombre, ci,
+    nombre_completo:nombre,
     departamento:document.getElementById('cur-form-depto').value.trim()||null,
     paralelo:document.getElementById('cur-form-paralelo').value.trim()||null,
     observaciones:document.getElementById('cur-form-obs').value.trim()||null,
-    activo, password:ci
+    activo
   };
   const btn=document.getElementById('btn-save-cur');
   btn.disabled=true; btn.textContent='Guardando...';
   try{
     if(id){
+      // EDITAR: no toca ci ni password
       const {error} = await sb.from('cursantes').update(payload).eq('id',id);
       if(error) throw error;
     } else {
+      // CREAR NUEVO: sí setea CI y password inicial = CI
+      payload.ci = ci;
+      payload.password = ci;
       // Auto-generar ID si está vacío
       let newId=idtext;
       if(!newId){
@@ -6663,6 +6821,11 @@ function openProfesorForm(id){
     document.getElementById('prof-form-idtext').disabled=true;
     document.getElementById('prof-form-nombre').value=p.nombre_completo||'';
     document.getElementById('prof-form-ci').value=p.ci||'';
+    // v2.9.6: CI no editable al editar — usar botón para cambiar contraseña
+    document.getElementById('prof-form-ci').disabled=true;
+    document.getElementById('prof-form-ci').style.opacity='0.7';
+    document.getElementById('prof-form-ci-hint').style.display='';
+    document.getElementById('prof-form-btn-pwd').style.display='';
     document.getElementById('prof-form-grado').value=p.grado||'';
     document.getElementById('prof-form-arma').value=p.arma||'';
     document.getElementById('prof-form-esp').value=p.especialidad||'';
@@ -6673,6 +6836,11 @@ function openProfesorForm(id){
     document.getElementById('prof-form-id').value='';
     document.getElementById('prof-form-idtext').value='';
     document.getElementById('prof-form-idtext').disabled=false;
+    // v2.9.6: al crear sí se puede escribir CI; ocultar botón cambiar pwd
+    document.getElementById('prof-form-ci').disabled=false;
+    document.getElementById('prof-form-ci').style.opacity='';
+    document.getElementById('prof-form-ci-hint').style.display='none';
+    document.getElementById('prof-form-btn-pwd').style.display='none';
     ['prof-form-nombre','prof-form-ci','prof-form-grado','prof-form-arma','prof-form-esp','prof-form-obs'].forEach(i=>document.getElementById(i).value='');
     document.getElementById('prof-form-activo').value='true';
   }
@@ -6686,8 +6854,9 @@ async function saveProfesor(){
   const ci=document.getElementById('prof-form-ci').value.trim();
   if(!nombre||!ci){ showError('err-prof-form','Nombre y CI son obligatorios.'); return; }
   const activo=document.getElementById('prof-form-activo').value==='true';
+  // v2.9.6: payload base SIN ci (CI no se cambia al editar)
   const payload={
-    nombre_completo:nombre, ci,
+    nombre_completo:nombre,
     grado:document.getElementById('prof-form-grado').value.trim()||null,
     arma:document.getElementById('prof-form-arma').value.trim()||null,
     especialidad:document.getElementById('prof-form-esp').value.trim()||null,
@@ -6698,9 +6867,12 @@ async function saveProfesor(){
   btn.disabled=true; btn.textContent='Guardando...';
   try{
     if(id){
+      // EDITAR: no toca ci ni password
       const {error}=await sb.from('profesores').update(payload).eq('id',id);
       if(error) throw error;
     } else {
+      // CREAR NUEVO: sí setea CI y password inicial = CI
+      payload.ci = ci;
       let newId=idtext;
       if(!newId){
         const ids=discData.profesores.map(p=>p.id).filter(x=>/^P\d+$/.test(x)).map(x=>parseInt(x.slice(1),10));
@@ -6708,7 +6880,7 @@ async function saveProfesor(){
         newId='P'+String(max+1).padStart(3,'0');
       }
       payload.id=newId;
-      payload.password=ci; // password default
+      payload.password=ci; // password default = CI
       const {error}=await sb.from('profesores').insert(payload);
       if(error) throw error;
     }
