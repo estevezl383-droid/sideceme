@@ -29,6 +29,7 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <style>
 :root{
   --bg-deep:#050a14;--bg-base:#0a1628;--bg-elevated:#11203a;
@@ -1667,7 +1668,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.4 · pdf-blob</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.5 · pdfjs</div>
 
 <svg width="0" height="0" style="position:absolute">
   <defs>
@@ -2667,21 +2668,16 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   <div class="disc-container">
     <div id="hv-meta" style="margin-bottom:10px"></div>
 
-    <!-- v2.9.4: botón abrir en pestaña primero (más confiable, especialmente móvil) -->
-    <button class="btn-mega" onclick="abrirHorarioEnPestaña()" style="background:linear-gradient(180deg,#4a90d9,#2d5a8a);margin-bottom:10px;color:#fff">
-      <span class="mega-icon">📄</span>
-      <span>ABRIR PDF EN PESTAÑA NUEVA</span>
-    </button>
-    <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-bottom:10px">⬆️ Recomendado en celular. Abre el PDF a pantalla completa con zoom.</div>
-
-    <div id="hv-aviso-mobile" style="display:none;background:rgba(70,130,200,.12);border:1px solid var(--info-border);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--info-text);text-align:center">
-      💡 Si el preview de abajo aparece en blanco, tocá el botón azul de arriba para ver el PDF.
+    <!-- Visor PDF.js: renderiza el PDF como canvas (funciona en TODOS los navegadores) -->
+    <div id="hv-pdf-container" style="background:#525659;border:2px solid var(--gold);border-radius:10px;overflow-y:auto;height:65vh;min-height:400px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:12px">
+      <div id="hv-loading" style="color:#fff;padding:30px;text-align:center">
+        <div style="font-size:28px">⏳</div>
+        <div style="margin-top:8px">Cargando PDF...</div>
+      </div>
     </div>
 
-    <div style="background:#fff;border:2px solid var(--gold);border-radius:10px;overflow:hidden;height:60vh;min-height:300px">
-      <iframe id="hv-iframe" style="width:100%;height:100%;border:0;background:#fff" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>
-    </div>
     <div id="hv-actions" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-secondary" onclick="abrirHorarioEnPestaña()">📄 Pantalla completa</button>
       <button class="btn-secondary" onclick="descargarHorarioActual()">⬇️ Descargar PDF</button>
       <button class="btn-secondary" id="hv-btn-eliminar" onclick="eliminarHorarioActual()" style="display:none;background:rgba(200,74,74,.15);border-color:#c84a4a;color:#c84a4a">🗑️ Eliminar (Jefe Disc.)</button>
     </div>
@@ -3862,11 +3858,11 @@ async function verHorario(id){
 
   document.getElementById('hv-titulo').textContent = 'Cargando...';
   document.getElementById('hv-sub').textContent = '—';
-  document.getElementById('hv-meta').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">⏳ Descargando archivo desde Supabase...</div>';
-  document.getElementById('hv-iframe').src = 'about:blank';
+  document.getElementById('hv-meta').innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-muted)">⏳ Descargando archivo desde Supabase...</div>';
+  const cont = document.getElementById('hv-pdf-container');
+  cont.innerHTML = '<div id="hv-loading" style="color:#fff;padding:30px;text-align:center"><div style="font-size:28px">⏳</div><div style="margin-top:8px">Cargando PDF...</div></div>';
   showScreen('screen-horario-visor');
   try{
-    // Traer el archivo (dataURL)
     const {data, error} = await sb.from('horarios_semanales')
       .select('*')
       .eq('id', id)
@@ -3879,50 +3875,104 @@ async function verHorario(id){
     const hasta = h.semana_fin ? new Date(h.semana_fin).toLocaleDateString('es-BO') : '';
     document.getElementById('hv-sub').textContent = (desde && hasta) ? `${desde} – ${hasta}` : 'Horario';
 
-    const audLabel = {todos:'📢 Para todos',planta:'👔 Personal de planta','1er_ciclo':'📘 1er Ciclo','2do_ciclo':'📗 2do Ciclo'};
-    const meta = document.getElementById('hv-meta');
-    meta.innerHTML = `
+    const audLabel = {todos:'📢 Para todos',planta:'👔 Personal de planta','1er_ciclo':'📘 1er Ciclo','2do_ciclo':'2do Ciclo'};
+    document.getElementById('hv-meta').innerHTML = `
       <div style="background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--text-secondary)">
         ${audLabel[h.audiencia]||h.audiencia||''} · Subido por <strong style="color:var(--gold-light)">${h.subido_por_nombre||'—'}</strong> el ${h.subido_en?new Date(h.subido_en).toLocaleString('es-BO'):'—'}
         ${h.descripcion?'<div style="margin-top:4px;font-style:italic">'+h.descripcion+'</div>':''}
       </div>`;
 
-    // Validar archivo antes de mostrar
-    const iframe = document.getElementById('hv-iframe');
+    // Botón eliminar para admins
+    const esAdminH = activeRole === 'disciplina' || activeRole === 'comandante' || activeRole === 'estudios';
+    document.getElementById('hv-btn-eliminar').style.display = esAdminH ? '' : 'none';
+
+    // Validar archivo
     if(!h.archivo_dataurl){
-      iframe.srcdoc = '<div style="padding:20px;font-family:sans-serif;color:#c84a4a;text-align:center">⚠️ Este horario no tiene archivo adjunto.</div>';
+      cont.innerHTML = '<div style="color:#fff;padding:30px;text-align:center">⚠️ Este horario no tiene archivo adjunto.</div>';
       return;
     }
     if(!h.archivo_dataurl.startsWith('data:')){
-      iframe.srcdoc = '<div style="padding:20px;font-family:sans-serif;color:#c84a4a;text-align:center">⚠️ El archivo está corrupto o incompleto. Probablemente excedió el límite de tamaño al subirlo. Subílo de nuevo comprimido.</div>';
+      cont.innerHTML = '<div style="color:#fff;padding:30px;text-align:center">⚠️ El archivo está corrupto. Volvé a subirlo.</div>';
       return;
     }
 
-    // === FIX v2.9.4: convertir dataURL → blob URL para que el iframe lo renderice ===
+    // Crear blob URL para descargar/abrir en pestaña
     horarioBlobUrlActual = dataUrlToBlobUrl(h.archivo_dataurl);
-    if(!horarioBlobUrlActual){
-      iframe.srcdoc = '<div style="padding:20px;font-family:sans-serif;color:#c84a4a;text-align:center">⚠️ No se pudo procesar el archivo. Usá el botón "Abrir en pestaña nueva" abajo.</div>';
-      return;
-    }
-    iframe.src = horarioBlobUrlActual;
 
-    // En iOS Safari el iframe puede no mostrar PDFs ni con blob. Por las dudas,
-    // después de 1.5 segundos si sigue vacío sugerimos abrir en pestaña nueva.
-    setTimeout(() => {
-      try{
-        // Si el iframe falla a cargar, no hay forma simple de detectarlo cross-origin.
-        // Mostramos siempre el aviso/botón para abrir en pestaña.
-        const aviso = document.getElementById('hv-aviso-mobile');
-        if(aviso) aviso.style.display = '';
-      }catch(e){}
-    }, 1200);
+    // Renderizar PDF con PDF.js (funciona en TODOS los navegadores)
+    await renderPdfEnCanvas(h.archivo_dataurl, 'hv-pdf-container');
 
-    // Botón eliminar para Jefe Disciplina, Comandante o Jefe Estudios
-    const esAdminH = activeRole === 'disciplina' || activeRole === 'comandante' || activeRole === 'estudios';
-    document.getElementById('hv-btn-eliminar').style.display = esAdminH ? '' : 'none';
   }catch(e){
     console.error(e);
-    document.getElementById('hv-meta').innerHTML = '<div style="padding:14px;color:#e88a8a">⚠️ ' + (e.message||e) + '</div>';
+    document.getElementById('hv-pdf-container').innerHTML = `<div style="color:#fff;padding:30px;text-align:center">⚠️ Error: ${e.message||e}<br><br><button class="btn-primary" onclick="abrirHorarioEnPestaña()" style="margin-top:10px">📄 Intentar abrir en pestaña nueva</button></div>`;
+  }
+}
+
+// Render PDF usando PDF.js en canvas (compatible con TODOS los navegadores)
+async function renderPdfEnCanvas(dataUrl, containerId){
+  const container = document.getElementById(containerId);
+  container.innerHTML = '<div style="color:#fff;padding:20px;text-align:center"><div style="font-size:28px">⏳</div><div style="margin-top:8px">Renderizando páginas...</div></div>';
+
+  // Verificar que PDF.js esté cargado
+  if(typeof pdfjsLib === 'undefined'){
+    container.innerHTML = '<div style="color:#fff;padding:30px;text-align:center">⚠️ PDF.js no cargó. Verificá tu conexión a internet.<br><br><button class="btn-primary" onclick="abrirHorarioEnPestaña()" style="margin-top:10px">📄 Abrir en pestaña nueva</button></div>';
+    return;
+  }
+
+  // Configurar worker de PDF.js (necesario)
+  try{
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+  }catch(e){}
+
+  // Convertir dataURL a Uint8Array
+  const b64 = dataUrl.split(',')[1];
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+
+  try{
+    const loadingTask = pdfjsLib.getDocument({data: arr});
+    const pdf = await loadingTask.promise;
+    const totalPaginas = pdf.numPages;
+
+    // Limpiar container
+    container.innerHTML = '';
+
+    // Indicador de páginas
+    const info = document.createElement('div');
+    info.style.cssText = 'color:#fff;font-size:12px;padding:4px 10px;background:rgba(0,0,0,.4);border-radius:6px;align-self:center';
+    info.textContent = `📄 ${totalPaginas} página${totalPaginas===1?'':'s'}`;
+    container.appendChild(info);
+
+    // Calcular ancho disponible (descontando padding y borde)
+    const containerWidth = container.clientWidth - 28;  // 14px padding cada lado
+
+    // Renderizar cada página
+    for(let i = 1; i <= totalPaginas; i++){
+      const page = await pdf.getPage(i);
+      const viewportBase = page.getViewport({scale: 1});
+      // Escala para que ocupe el ancho disponible
+      const scale = Math.min(2.0, Math.max(1.0, containerWidth / viewportBase.width));
+      const viewport = page.getViewport({scale: scale});
+
+      const canvas = document.createElement('canvas');
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.style.cssText = 'width:100%;max-width:' + viewport.width + 'px;height:auto;display:block;box-shadow:0 2px 12px rgba(0,0,0,.4);background:#fff;border-radius:2px';
+      container.appendChild(canvas);
+
+      const ctx = canvas.getContext('2d');
+      await page.render({canvasContext: ctx, viewport: viewport}).promise;
+
+      // Label de página
+      const lbl = document.createElement('div');
+      lbl.style.cssText = 'color:rgba(255,255,255,.6);font-size:11px;font-family:monospace';
+      lbl.textContent = `— página ${i} de ${totalPaginas} —`;
+      container.appendChild(lbl);
+    }
+  }catch(e){
+    console.error('Error renderizando PDF con PDF.js:', e);
+    container.innerHTML = `<div style="color:#fff;padding:30px;text-align:center">⚠️ No se pudo renderizar el PDF.<br><span style="font-size:11px;opacity:.7">${(e.message||e).slice(0,200)}</span><br><br><button class="btn-primary" onclick="abrirHorarioEnPestaña()" style="margin-top:10px">📄 Abrir en pestaña nueva</button></div>`;
   }
 }
 
