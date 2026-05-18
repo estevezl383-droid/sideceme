@@ -1667,7 +1667,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.2 · horarios+ci</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.3 · solo-real</div>
 
 <svg width="0" height="0" style="position:absolute">
   <defs>
@@ -1881,16 +1881,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
       <button class="btn-logout" onclick="logout()">Salir</button>
     </div>
 
-    <div class="modo-strip" id="modo-strip">
-      <div>
-        <div class="ms-label">Modo de operación</div>
-        <div style="font-size:11px;color:var(--text-muted);margin-top:2px" id="modo-help">Las sanciones de prueba no afectan estadísticas oficiales</div>
-      </div>
-      <div class="modo-toggle">
-        <button id="btn-modo-test" class="active test" onclick="setModoPrueba(true)">🟡 Prueba</button>
-        <button id="btn-modo-real" class="real" onclick="setModoPrueba(false)">🔴 Real</button>
-      </div>
-    </div>
+    <!-- v2.9.3: Modo de operación eliminado. Todas las sanciones son REALES desde 18/05/2026. -->
 
     <div class="prof-hero">
       <div class="prof-hero-label">✍️ Modo Profesor</div>
@@ -2406,7 +2397,6 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
       <button class="quick-btn" onclick="goInstalar()"><span class="qa-icon">📲</span><span class="qa-text">Instalar app / Compartir QR</span></button>
       <button class="quick-btn" onclick="goAnulaciones()"><span class="qa-icon">📋</span><span class="qa-text">Mis solicitudes de anulación</span></button>
       <button class="quick-btn warning" onclick="goReiniciar()"><span class="qa-icon">🔄</span><span class="qa-text">Reiniciar semestre disciplinario</span></button>
-      <button class="quick-btn" onclick="gestionarSancionesPrueba()"><span class="qa-icon">🧪</span><span class="qa-text">Gestionar sanciones de prueba</span></button>
       <button class="quick-btn" onclick="qa('cambiar_pwd_otro')"><span class="qa-icon">🔑</span><span class="qa-text">Cambiar contraseña de cursante / profesor</span></button>
       <button class="quick-btn" onclick="qa('cambiar_mi_pwd')"><span class="qa-icon">🔐</span><span class="qa-text">Cambiar mi usuario y contraseña</span></button>
       <button class="quick-btn" onclick="qa('crear_usuario_modulo')"><span class="qa-icon">➕</span><span class="qa-text">Crear usuario para otro módulo</span></button>
@@ -2644,11 +2634,13 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
       📅 Acá podés consultar el horario semanal vigente y los anteriores. Se actualiza semanalmente.
     </div>
 
+    <!-- Área administrativa - botón grande verde para subir nuevo horario (solo Jefe Disciplina) -->
     <div id="hor-admin-area" style="display:none;margin-bottom:14px">
-      <button class="btn-mega" onclick="goSubirHorario()" style="background:linear-gradient(180deg,#4ca36b,#2d7a4a)">
+      <button class="btn-mega" onclick="goSubirHorario()" style="background:linear-gradient(180deg,#4ca36b,#2d7a4a);box-shadow:0 4px 12px rgba(76,163,107,.35)">
         <span class="mega-icon">📤</span>
-        <span>Subir horario nuevo</span>
+        <span>SUBIR HORARIO NUEVO</span>
       </button>
+      <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:4px">⬆️ Cargar archivo PDF del horario semanal (solo Jefe Disciplina)</div>
     </div>
 
     <div class="ef-filtros" style="margin-top:6px">
@@ -3754,8 +3746,10 @@ function goHorarios(){
   // Recordar de dónde venimos
   const active = document.querySelector('.screen.active');
   if(active && !active.id.startsWith('screen-horario')) pantallaOrigenHorarios = active.id;
-  // Mostrar área admin solo si Jefe Disciplina
-  document.getElementById('hor-admin-area').style.display = activeRole === 'disciplina' ? '' : 'none';
+  // v2.9.3: Mostrar área admin a Jefe Disciplina, Comandante y Jefe Estudios (todos pueden subir horarios institucionales)
+  const esAdmin = activeRole === 'disciplina' || activeRole === 'comandante' || activeRole === 'estudios';
+  const adminArea = document.getElementById('hor-admin-area');
+  if(adminArea) adminArea.style.display = esAdmin ? '' : 'none';
   renderHorariosLista();
   showScreen('screen-horarios');
   cargarHorarios();
@@ -3865,8 +3859,9 @@ async function verHorario(id){
     } else {
       iframe.srcdoc = '<div style="padding:20px;font-family:sans-serif;color:#333">⚠️ Archivo no disponible.</div>';
     }
-    // Botón eliminar solo para Jefe Disciplina
-    document.getElementById('hv-btn-eliminar').style.display = activeRole === 'disciplina' ? '' : 'none';
+    // Botón eliminar para Jefe Disciplina, Comandante o Jefe Estudios
+    const esAdminH = activeRole === 'disciplina' || activeRole === 'comandante' || activeRole === 'estudios';
+    document.getElementById('hv-btn-eliminar').style.display = esAdminH ? '' : 'none';
   }catch(e){
     console.error(e);
     alert('Error cargando horario: ' + (e.message||e));
@@ -3890,7 +3885,8 @@ async function descargarHorarioActual(){
 }
 
 async function eliminarHorarioActual(){
-  if(activeRole !== 'disciplina'){ alert('Solo Jefe Disciplina.'); return; }
+  const esAdmin = activeRole === 'disciplina' || activeRole === 'comandante' || activeRole === 'estudios';
+  if(!esAdmin){ alert('Solo Jefe Disciplina, Comandante o Jefe Estudios pueden eliminar.'); return; }
   if(!horarioVisualizandoId) return;
   if(!confirm('¿Eliminar este horario? Quedará marcado como inactivo (no se borra físicamente).')) return;
   try{
@@ -3905,7 +3901,8 @@ async function eliminarHorarioActual(){
 }
 
 function goSubirHorario(){
-  if(activeRole !== 'disciplina'){ alert('Solo Jefe Disciplina puede subir horarios.'); return; }
+  const esAdmin = activeRole === 'disciplina' || activeRole === 'comandante' || activeRole === 'estudios';
+  if(!esAdmin){ alert('Solo Jefe Disciplina, Comandante o Jefe Estudios pueden subir horarios.'); return; }
   document.getElementById('hsu-titulo').value = '';
   document.getElementById('hsu-audiencia').value = 'todos';
   document.getElementById('hsu-desde').value = '';
@@ -6993,31 +6990,20 @@ let nuevaSancion = {
   observaciones: ''  // texto opcional del profesor (máx 500 chars)
 };
 
-// Modo prueba (toggle en panel) — por defecto TRUE para no fregar nada
-let MODO_PRUEBA = true;
+// v2.9.3: Modo prueba ELIMINADO. Todas las sanciones a partir del 18/05/2026 son REALES.
+// Se mantienen las funciones como no-ops para no romper llamadas existentes.
+let MODO_PRUEBA = false;
 const MODO_PRUEBA_KEY = 'sideceme_modo_prueba';
 
 function setModoPrueba(activo){
-  MODO_PRUEBA = !!activo;
-  try{ localStorage.setItem(MODO_PRUEBA_KEY, activo?'1':'0'); }catch(e){}
-  document.getElementById('btn-modo-test').classList.toggle('active', MODO_PRUEBA);
-  document.getElementById('btn-modo-real').classList.toggle('active', !MODO_PRUEBA);
-  const strip = document.getElementById('modo-strip');
-  if(strip){
-    strip.classList.toggle('real', !MODO_PRUEBA);
-    const help = document.getElementById('modo-help');
-    if(help) help.textContent = MODO_PRUEBA
-      ? 'Las sanciones de prueba NO afectan estadísticas oficiales'
-      : '⚠️ Las sanciones REALES se aplican al puntaje oficial del cursante';
-  }
+  // No-op: el modo prueba ya no existe. Siempre REAL.
+  MODO_PRUEBA = false;
+  try{ localStorage.setItem(MODO_PRUEBA_KEY, '0'); }catch(e){}
 }
 
 function restaurarModoPrueba(){
-  try{
-    const v = localStorage.getItem(MODO_PRUEBA_KEY);
-    if(v==='0') MODO_PRUEBA = false;
-    else MODO_PRUEBA = true;
-  }catch(e){ MODO_PRUEBA = true; }
+  // No-op
+  MODO_PRUEBA = false;
 }
 
 function renderProfPanel(){
