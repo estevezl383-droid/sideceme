@@ -81,6 +81,29 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 /* CARGOS */
 .menu-container{padding:24px 20px;max-width:800px;margin:0 auto}
 .section-label{font-family:var(--font-display);font-size:12px;letter-spacing:3px;color:var(--text-muted);text-transform:uppercase;margin:20px 4px 12px 4px}
+/* v2.9.9: Feed de actividad reciente */
+.actividad-feed{display:flex;flex-direction:column;gap:8px;margin:4px 0 8px 0}
+.actividad-empty{padding:14px;text-align:center;color:var(--text-muted);font-size:13px;background:var(--bg-card);border:1px dashed var(--border-subtle);border-radius:var(--radius-sm)}
+.act-item{display:flex;align-items:flex-start;gap:10px;padding:11px 12px;background:var(--bg-card);border:1px solid var(--border-subtle);border-left:3px solid #888;border-radius:var(--radius-sm);cursor:pointer;transition:all .2s}
+.act-item:hover{background:var(--bg-elevated);border-color:var(--border-strong);transform:translateX(2px)}
+.act-item.firmada{border-left-color:#4ca36b}
+.act-item.pendiente{border-left-color:#e55b3c}
+.act-item.anulada{border-left-color:#888;opacity:.65}
+.act-item.analogica{border-left-color:#8a7330}
+.act-emoji{font-size:18px;flex-shrink:0;line-height:1.2;margin-top:1px}
+.act-body{flex:1;min-width:0}
+.act-line1{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:3px}
+.act-badge{font-size:9px;font-weight:700;letter-spacing:1.2px;padding:2px 7px;border-radius:8px;text-transform:uppercase;white-space:nowrap}
+.act-badge.firmada{background:rgba(76,163,107,.2);color:#9bcfa9;border:1px solid rgba(76,163,107,.4)}
+.act-badge.pendiente{background:rgba(229,91,60,.2);color:#f0a890;border:1px solid rgba(229,91,60,.4)}
+.act-badge.anulada{background:rgba(136,136,136,.18);color:#aaa;border:1px solid rgba(136,136,136,.3)}
+.act-badge.analogica{background:rgba(138,115,48,.2);color:#d4af55;border:1px solid rgba(138,115,48,.4)}
+.act-time{font-size:10px;color:var(--text-muted);font-family:monospace;letter-spacing:.5px;white-space:nowrap}
+.act-title{font-size:13px;color:var(--text-primary);font-weight:600;line-height:1.3;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.act-meta{font-size:11px;color:var(--text-muted);line-height:1.3}
+.act-meta .act-pts{color:var(--gold-light);font-weight:600}
+.btn-link-gold{background:transparent;border:none;color:var(--gold-light);font-family:var(--font-display);font-size:12px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;padding:6px 10px}
+.btn-link-gold:hover{color:var(--gold);text-decoration:underline}
 .role-card{display:flex;align-items:center;gap:18px;padding:22px;background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--radius-md);margin-bottom:14px;cursor:pointer;transition:all .25s}
 .role-card:hover{border-color:var(--border-strong);transform:translateX(4px);background:var(--bg-elevated);box-shadow:-2px 0 0 var(--gold)}
 .role-card .role-icon{width:56px;height:56px;flex-shrink:0;border-radius:var(--radius-sm);background:linear-gradient(135deg,rgba(212,175,55,.18),rgba(212,175,55,.06));border:1px solid var(--border-subtle);display:flex;align-items:center;justify-content:center;font-size:28px}
@@ -1687,7 +1710,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.8 · login-edge</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.9 · puntos+feed</div>
 
 <svg width="0" height="0" style="position:absolute">
   <defs>
@@ -2420,6 +2443,15 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
       <button class="quick-btn" onclick="qa('cambiar_pwd_otro')"><span class="qa-icon">🔑</span><span class="qa-text">Cambiar contraseña de cursante / profesor</span></button>
       <button class="quick-btn" onclick="qa('cambiar_mi_pwd')"><span class="qa-icon">🔐</span><span class="qa-text">Cambiar mi usuario y contraseña</span></button>
       <button class="quick-btn" onclick="qa('crear_usuario_modulo')"><span class="qa-icon">➕</span><span class="qa-text">Crear usuario para otro módulo</span></button>
+    </div>
+
+    <!-- v2.9.9: Feed de actividad reciente — últimas sanciones (firmadas o no) -->
+    <div class="section-label" style="margin-top:18px">📋 Actividad reciente</div>
+    <div id="actividad-reciente-list" class="actividad-feed">
+      <div class="actividad-empty">Cargando actividad...</div>
+    </div>
+    <div style="text-align:center;margin:8px 0 16px 0">
+      <button class="btn-link-gold" onclick="goDiscSanciones()">Ver todas las sanciones →</button>
     </div>
   </div>
   <nav class="bottom-nav">
@@ -4672,6 +4704,8 @@ function calcularPerdidaAnual(sanciones, year){
   (sanciones || []).forEach(s => {
     if(s.anulada === true) return;
     if(s.es_prueba === true) return;
+    // v2.9.9: solo cuenta si sumó al puntaje (analógicas + digitales firmadas)
+    if(!sancionCuentaParaPuntaje(s)) return;
     const f = fechaSancion(s);
     if(!f){ sinFecha++; return; }
     if(f.getFullYear() !== target) return;
@@ -4788,12 +4822,14 @@ async function renderCursanteHome(){
   document.getElementById('cursante-header-sub').textContent = cycloPar || 'Cursante ECEME';
 
   // Sanciones del cursante: incluye REALES + PRUEBA (para que pueda probar el flujo end-to-end)
-  // Las analógicas también cuentan al puntaje de deméritos (son las 485 ya cargadas).
+  // v2.9.9: solo analógicas + digitales FIRMADAS suman al puntaje (regla institucional)
   const todasSanciones = (discData.byCursanteSanc[currentUser.id] || [])
     .filter(s => !s.anulada);
-  // Sumar deméritos: TODAS las no anuladas (analógicas + digitales firmadas + digitales pendientes + prueba)
   const cantSanciones = todasSanciones.length;
-  const puntosPerdidos = todasSanciones.reduce((acc,s) => acc + (Number(s.puntos_aplicados)||0), 0);
+  // v2.9.9: deméritos VIGENTES (las pendientes de firma NO se suman hasta que firme)
+  const puntosPerdidos = todasSanciones.reduce((acc,s) => acc + (sancionCuentaParaPuntaje(s) ? (Number(s.puntos_aplicados)||0) : 0), 0);
+  // v2.9.9: puntaje "pendiente" — pasará a contar cuando firme las digitales en rojo
+  const puntosPendientes = todasSanciones.reduce((acc,s) => acc + ((!sancionCuentaParaPuntaje(s) && s.es_prueba!==true) ? (Number(s.puntos_aplicados)||0) : 0), 0);
   const nota = calcularNotaDisciplinaria(puntosPerdidos);
   const estado = getEstadoCursante(puntosPerdidos);
 
@@ -5278,15 +5314,21 @@ async function loadDiscData(force=false){
     discData.reglamentos = regRes.data||[];
     discData.byCursanteLost = {};
     discData.byCursanteSanc = {};
+    // v2.9.9: además del puntaje vigente, computar puntaje "pendiente de firma"
+    //         (sanciones digitales en rojo que pasarán a contar cuando el cursante firme)
+    discData.byCursantePendiente = {};
     discData.sanciones.forEach(s=>{
-      if(s.anulada===true) return;
+      if(s.anulada===true) return;  // anuladas no participan en nada
       const cid=s.cursante_id;
       const pts=Number(s.puntos_aplicados)||0;
-      // SOLO sanciones REALES suman al puntaje vigente (las de prueba NO afectan estadísticas oficiales)
-      if(s.es_prueba !== true){
+      // v2.9.9: regla nueva — solo cuentan analógicas + digitales firmadas por cursante
+      if(sancionCuentaParaPuntaje(s)){
         discData.byCursanteLost[cid] = (discData.byCursanteLost[cid]||0) + pts;
+      } else if(s.es_prueba !== true && !esSancionAnalogica(s)){
+        // Digital pendiente de firma → al puntaje "pendiente" (informativo)
+        discData.byCursantePendiente[cid] = (discData.byCursantePendiente[cid]||0) + pts;
       }
-      // Pero TODAS las sanciones (reales + prueba) van al listado del cursante
+      // TODAS las sanciones no-anuladas (reales + prueba) van al listado del cursante
       if(!discData.byCursanteSanc[cid]) discData.byCursanteSanc[cid] = [];
       discData.byCursanteSanc[cid].push(s);
     });
@@ -5340,6 +5382,104 @@ function renderDiscPanel(){
   if(enObs>0){document.getElementById('alert-observacion-title').textContent=`${enObs} cursante(s) en observación`; aO.style.display='flex';}else{aO.style.display='none';}
   const activosProfs = discData.profesores.filter(p=>p.activo!==false).length;
   document.getElementById('qa-profs-text').textContent=`Gestionar profesores (${activosProfs})`;
+  // v2.9.9: feed de actividad reciente al final del panel
+  renderActividadReciente();
+}
+
+// v2.9.9: Feed de actividad reciente — últimas 10 sanciones (firmadas + pendientes + anuladas)
+function renderActividadReciente(){
+  const cnt = document.getElementById('actividad-reciente-list');
+  if(!cnt) return;
+  const sanciones = (discData.sanciones||[])
+    .filter(s => s.es_prueba !== true);
+  if(!sanciones.length){
+    cnt.innerHTML = '<div class="actividad-empty">Sin actividad registrada todavía.</div>';
+    return;
+  }
+  // Ordenar por fecha real (creado_en > firmada_prof_en > fecha_creacion > created_at), descendente
+  const conFecha = sanciones.map(s => {
+    const ts = new Date(s.creado_en || s.firmada_prof_en || s.fecha_creacion || s.created_at || 0).getTime();
+    return {s, ts};
+  }).sort((a,b) => b.ts - a.ts);
+  const top = conFecha.slice(0, 10);
+  cnt.innerHTML = top.map(({s, ts}) => {
+    // Determinar estado y badge
+    let claseEstado, txtBadge, emoji;
+    if(s.anulada === true){
+      claseEstado = 'anulada'; txtBadge = 'Anulada'; emoji = '🚫';
+    } else if(esSancionAnalogica(s)){
+      claseEstado = 'analogica'; txtBadge = 'Analógica'; emoji = '📄';
+    } else if(sancionCuentaParaPuntaje(s)){
+      claseEstado = 'firmada'; txtBadge = 'Firmada'; emoji = '🟢';
+    } else {
+      claseEstado = 'pendiente'; txtBadge = 'Pendiente firma'; emoji = '🔴';
+    }
+    // Nombres
+    const cursanteNombre = s.cursante_nombre || (discData.cursantes.find(c => c.id === s.cursante_id) || {}).nombre_completo || s.cursante_id || '—';
+    const profesor = discData.profesores.find(p => p.id === s.profesor_id);
+    const profNombre = s.profesor_nombre || (profesor && profesor.nombre_completo) || s.profesor_id || '—';
+    // Falta
+    const falta = s.falta_descripcion || s.descripcion || s.motivo || '—';
+    const cat = s.falta_categoria || '';
+    const art = s.falta_articulo ? `Art. ${s.falta_articulo}` : '';
+    const pts = Number(s.puntos_aplicados) || 0;
+    // Tiempo relativo
+    const tiempo = ts > 0 ? formatTiempoRelativo(ts) : '—';
+    // Folio
+    const folio = s.folio ? `#${s.folio}` : '';
+    return `<div class="act-item ${claseEstado}" onclick="verSancionDesdeFeed('${s.id}')">
+      <div class="act-emoji">${emoji}</div>
+      <div class="act-body">
+        <div class="act-line1">
+          <span class="act-badge ${claseEstado}">${txtBadge}</span>
+          <span class="act-time">${tiempo}</span>
+        </div>
+        <div class="act-title">${escapeHTML(cursanteNombre)} ${folio?'<span style="color:var(--text-muted);font-weight:400">· '+folio+'</span>':''}</div>
+        <div class="act-meta">
+          <span class="act-pts">−${pts} pts</span> · ${cat?cat+' · ':''}${art?art+' — ':''}${escapeHTML(truncar(falta, 60))}<br>
+          <span style="color:var(--text-muted)">Por: ${escapeHTML(profNombre)}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// v2.9.9: helper — tiempo relativo amigable
+function formatTiempoRelativo(ts){
+  const diff = Date.now() - ts;
+  const min = Math.floor(diff / 60000);
+  const hr = Math.floor(diff / 3600000);
+  const dia = Math.floor(diff / 86400000);
+  if(diff < 60000) return 'ahora';
+  if(min < 60) return `hace ${min} min`;
+  if(hr < 24) return `hace ${hr}h`;
+  if(dia < 7) return `hace ${dia}d`;
+  const d = new Date(ts);
+  const dd = String(d.getDate()).padStart(2,'0');
+  const mm = String(d.getMonth()+1).padStart(2,'0');
+  return `${dd}/${mm}`;
+}
+
+// v2.9.9: helpers visuales
+function escapeHTML(str){
+  if(str == null) return '';
+  return String(str).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function truncar(str, n){
+  if(!str) return '';
+  str = String(str);
+  return str.length > n ? str.slice(0, n-1) + '…' : str;
+}
+
+// v2.9.9: abrir detalle de una sanción desde el feed
+function verSancionDesdeFeed(sancionId){
+  const s = (discData.sanciones||[]).find(x => x.id === sancionId);
+  if(!s){ alert('Sanción no encontrada.'); return; }
+  if(typeof verSancionDetalle === 'function'){
+    verSancionDetalle(sancionId);
+  } else if(typeof verFichaCursante === 'function' && s.cursante_id){
+    verFichaCursante(s.cursante_id, 'cursantes');
+  }
 }
 
 function goDiscPanel(){ renderDiscPanel(); showScreen('screen-disc-panel'); }
@@ -7855,6 +7995,25 @@ function esSancionAnalogica(s){
   if(conf === 'analogico' || conf === 'analogica') return true;
   // Autoridad #2: si el tipo NO es exactamente 'digital', es analógica
   if((s.tipo||'').toLowerCase() !== 'digital') return true;
+  return false;
+}
+
+// v2.9.9: ¿esta sanción debe sumar al puntaje vigente del cursante?
+// Regla institucional confirmada por Jefe Disc:
+//   - Anuladas o de prueba → NO cuentan
+//   - Analógicas (485 legacy + nuevas a mano) → SIEMPRE cuentan (ya firmadas en papel)
+//   - Digitales: SOLO cuentan si el cursante las firmó digitalmente (🟢 verde)
+//   - Digitales PENDIENTES de firma (🔴 rojo) → NO cuentan hasta que firme
+function sancionCuentaParaPuntaje(s){
+  if(!s) return false;
+  if(s.anulada === true) return false;
+  if(s.es_prueba === true) return false;
+  if(esSancionAnalogica(s)) return true;
+  // Digital: chequear firma del cursante
+  if(s.firma_cursante) return true;
+  const conf = (s.confirmacion_estado||'').toLowerCase();
+  if(conf === 'firmada' || conf === 'aceptada') return true;
+  // Digital pendiente de firma → NO cuenta
   return false;
 }
 
