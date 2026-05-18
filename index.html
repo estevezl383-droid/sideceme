@@ -1667,7 +1667,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.1 · gest-sanc</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.2 · horarios+ci</div>
 
 <svg width="0" height="0" style="position:absolute">
   <defs>
@@ -1823,6 +1823,11 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
       </div>
     </div>
 
+    <button class="btn-mega" onclick="goHorarios()" style="background:linear-gradient(180deg,#4a90d9,#2d5a8a);margin:8px 0">
+      <span class="mega-icon">📅</span>
+      <span>Horario Semanal</span>
+    </button>
+
     <div class="ef-filtros">
       <input type="text" id="ef-filtro-nombre" placeholder="🔎 Buscar nombre o CI..." oninput="filtrarCursantesEf()">
       <select id="ef-filtro-ciclo" onchange="filtrarCursantesEf()"><option value="">Todos ciclos</option></select>
@@ -1896,6 +1901,11 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
     <button class="btn-mega" onclick="goProfNuevaSancion()">
       <span class="mega-icon">📝</span>
       <span>Registrar nueva sanción</span>
+    </button>
+
+    <button class="btn-mega" onclick="goHorarios()" style="background:linear-gradient(180deg,#4a90d9,#2d5a8a);margin-top:8px">
+      <span class="mega-icon">📅</span>
+      <span>Horario Semanal</span>
     </button>
 
     <div class="prof-mini-stats">
@@ -2211,6 +2221,12 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
         </button>
       </div>
 
+      <!-- v2.9.2: botón acceso Horario Semanal -->
+      <button class="btn-mega" onclick="goHorarios()" style="background:linear-gradient(180deg,#4a90d9,#2d5a8a);margin:0 0 10px 0;color:#fff">
+        <span class="mega-icon">📅</span>
+        <span>Horario Semanal</span>
+      </button>
+
       <!-- =================== SECCIÓN DISCIPLINA (default visible) =================== -->
       <div class="cur-section" id="cur-section-disciplina">
         <!-- 3 cuadros stats originales -->
@@ -2382,6 +2398,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
       <button class="quick-btn" onclick="goGestionarCursantes()"><span class="qa-icon">👥</span><span class="qa-text">Gestionar cursantes (agregar / editar / dar de baja)</span></button>
       <button class="quick-btn" onclick="goGestionarProfesores()"><span class="qa-icon">👨‍🏫</span><span class="qa-text" id="qa-profs-text">Gestionar profesores (—)</span></button>
       <button class="quick-btn" id="qa-gest-sanciones" onclick="goGestionSanciones()" style="background:linear-gradient(180deg,rgba(76,163,107,.15),rgba(76,163,107,.05));border-color:#4ca36b"><span class="qa-icon">⚖️</span><span class="qa-text"><strong>Gestionar sanciones</strong> (editar / corregir / anular / crear manual)</span></button>
+      <button class="quick-btn" onclick="goHorarios()" style="background:linear-gradient(180deg,rgba(70,130,200,.15),rgba(70,130,200,.05));border-color:#4a90d9"><span class="qa-icon">📅</span><span class="qa-text"><strong>Horario semanal</strong> (ver / subir nuevo)</span></button>
       <button class="quick-btn" onclick="goAuditoria()"><span class="qa-icon">🔍</span><span class="qa-text">Auditoría de sanciones por cursante</span></button>
       <button class="quick-btn" onclick="goEstadisticas()"><span class="qa-icon">📈</span><span class="qa-text">Estadísticas: pérdida de puntaje (por período)</span></button>
       <button class="quick-btn" onclick="goDiagnostico()"><span class="qa-icon">🔧</span><span class="qa-text">Diagnóstico y forzar sincronización</span></button>
@@ -2612,6 +2629,106 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   </div>
   <div class="disc-container">
     <div id="hs-lista">Cargando...</div>
+  </div>
+</section>
+
+<!-- ==================== v2.9.2: HORARIO SEMANAL (todos los usuarios) ==================== -->
+<section id="screen-horarios" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="volverDeHorarios()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Horario Semanal</div><div class="header-sub">Cronograma de actividades</div></div>
+  </div>
+  <div class="disc-container">
+    <div style="background:rgba(212,175,55,.08);border:1px solid var(--gold);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--text-secondary);line-height:1.5">
+      📅 Acá podés consultar el horario semanal vigente y los anteriores. Se actualiza semanalmente.
+    </div>
+
+    <div id="hor-admin-area" style="display:none;margin-bottom:14px">
+      <button class="btn-mega" onclick="goSubirHorario()" style="background:linear-gradient(180deg,#4ca36b,#2d7a4a)">
+        <span class="mega-icon">📤</span>
+        <span>Subir horario nuevo</span>
+      </button>
+    </div>
+
+    <div class="ef-filtros" style="margin-top:6px">
+      <select id="hor-filtro-audiencia" onchange="filtrarHorarios()">
+        <option value="">Todas las audiencias</option>
+        <option value="todos">📢 Para todos</option>
+        <option value="planta">👔 Personal de planta</option>
+        <option value="1er_ciclo">📘 1er Ciclo</option>
+        <option value="2do_ciclo">📗 2do Ciclo</option>
+      </select>
+    </div>
+
+    <div id="hor-lista" style="margin-top:10px">Cargando...</div>
+  </div>
+</section>
+
+<!-- Visor de PDF de horario -->
+<section id="screen-horario-visor" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goHorarios()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title" id="hv-titulo">Horario</div><div class="header-sub" id="hv-sub">—</div></div>
+  </div>
+  <div class="disc-container">
+    <div id="hv-meta" style="margin-bottom:10px"></div>
+    <div style="background:#fff;border:2px solid var(--gold);border-radius:10px;overflow:hidden;height:calc(100vh - 280px);min-height:400px">
+      <iframe id="hv-iframe" style="width:100%;height:100%;border:0;background:#fff"></iframe>
+    </div>
+    <div id="hv-actions" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-secondary" onclick="descargarHorarioActual()">⬇️ Descargar PDF</button>
+      <button class="btn-secondary" id="hv-btn-eliminar" onclick="eliminarHorarioActual()" style="display:none;background:rgba(200,74,74,.15);border-color:#c84a4a;color:#c84a4a">🗑️ Eliminar (Jefe Disc.)</button>
+    </div>
+  </div>
+</section>
+
+<!-- Subir horario nuevo (solo Jefe Disciplina) -->
+<section id="screen-horario-subir" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goHorarios()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Subir Horario</div><div class="header-sub">Nuevo horario semanal</div></div>
+  </div>
+  <div class="disc-container">
+    <div style="background:rgba(212,175,55,.08);border:1px solid var(--gold);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--text-secondary);line-height:1.5">
+      📄 Subí el PDF del horario semanal. Tamaño máximo: <strong>4 MB</strong>. Si el PDF pesa más, comprimilo antes (en <a href="https://www.ilovepdf.com/compress_pdf" target="_blank" style="color:var(--gold-light)">iLovePDF</a> o similar).
+    </div>
+    <div class="error-msg" id="err-subir-horario"></div>
+
+    <div class="field"><label>Título del horario</label>
+      <input type="text" id="hsu-titulo" placeholder="Ej: Semana del 18 al 24 de Mayo 2026">
+    </div>
+
+    <div class="field"><label>Audiencia</label>
+      <select id="hsu-audiencia">
+        <option value="todos">📢 Para todos</option>
+        <option value="planta">👔 Personal de planta</option>
+        <option value="1er_ciclo">📘 1er Ciclo</option>
+        <option value="2do_ciclo">📗 2do Ciclo</option>
+      </select>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="field"><label>Semana desde</label><input type="date" id="hsu-desde"></div>
+      <div class="field"><label>Semana hasta</label><input type="date" id="hsu-hasta"></div>
+    </div>
+
+    <div class="field"><label>Descripción (opcional)</label>
+      <textarea id="hsu-descripcion" rows="2" style="width:100%;background:var(--bg-deep);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:6px;padding:10px;font-family:inherit;font-size:14px" placeholder="Notas adicionales..."></textarea>
+    </div>
+
+    <div class="field">
+      <label>Archivo PDF</label>
+      <input type="file" id="hsu-archivo" accept="application/pdf" onchange="previewArchivoHorario()">
+      <div id="hsu-preview" style="margin-top:8px;font-size:12px;color:var(--text-secondary)"></div>
+    </div>
+
+    <div class="primer-actions" style="margin-top:14px">
+      <button class="btn-secondary" onclick="goHorarios()">Cancelar</button>
+      <button class="btn-primary" id="btn-confirmar-subir-horario" onclick="confirmarSubirHorario()" style="background:linear-gradient(180deg,#4ca36b,#2d7a4a)">📤 Subir horario</button>
+    </div>
   </div>
 </section>
 
@@ -3628,7 +3745,241 @@ function verEfCursante(cursanteId){
   showScreen('screen-ef-cursante');
 }
 
-/* ==================== v2.9: GESTIÓN DE SANCIONES (Jefe Disciplina) ==================== */
+/* ==================== v2.9.2: HORARIO SEMANAL (todos los usuarios) ==================== */
+let horariosData = { lista: [], loaded: false };
+let horarioVisualizandoId = null;
+let pantallaOrigenHorarios = null;  // Para volver al panel correcto
+
+function goHorarios(){
+  // Recordar de dónde venimos
+  const active = document.querySelector('.screen.active');
+  if(active && !active.id.startsWith('screen-horario')) pantallaOrigenHorarios = active.id;
+  // Mostrar área admin solo si Jefe Disciplina
+  document.getElementById('hor-admin-area').style.display = activeRole === 'disciplina' ? '' : 'none';
+  renderHorariosLista();
+  showScreen('screen-horarios');
+  cargarHorarios();
+}
+
+function volverDeHorarios(){
+  if(pantallaOrigenHorarios){
+    showScreen(pantallaOrigenHorarios);
+    pantallaOrigenHorarios = null;
+  } else {
+    // Fallback: detectar rol
+    if(activeRole === 'disciplina' || activeRole === 'comandante' || activeRole === 'estudios') showScreen('screen-disc-panel');
+    else if(activeRole === 'profesor') showScreen('screen-prof-panel');
+    else if(activeRole === 'ef') showScreen('screen-ef-panel');
+    else if(currentUser && getSession() && getSession().tipo === 'cursante') showScreen('screen-cursante-home');
+    else goHome();
+  }
+}
+
+async function cargarHorarios(){
+  const cont = document.getElementById('hor-lista');
+  cont.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">⏳ Cargando horarios...</div>';
+  try{
+    const {data, error} = await sb.from('horarios_semanales')
+      .select('id,semana_inicio,semana_fin,titulo,descripcion,archivo_nombre,archivo_size_kb,subido_por,subido_por_nombre,subido_en,activo,audiencia')
+      .eq('activo', true)
+      .order('semana_inicio', {ascending: false})
+      .limit(50);
+    if(error){
+      cont.innerHTML = `<div class="efm-no-data" style="color:#e88a8a">⚠️ ${error.message}<br><br>Si la tabla <code>horarios_semanales</code> no existe, ejecutá el SQL de la documentación v2.9.2.</div>`;
+      return;
+    }
+    horariosData.lista = data || [];
+    horariosData.loaded = true;
+    renderHorariosLista();
+  }catch(e){
+    cont.innerHTML = `<div class="efm-no-data" style="color:#e88a8a">⚠️ Error: ${e.message||e}</div>`;
+  }
+}
+
+function filtrarHorarios(){ renderHorariosLista(); }
+
+function renderHorariosLista(){
+  const cont = document.getElementById('hor-lista');
+  if(!cont) return;
+  const filtroAud = document.getElementById('hor-filtro-audiencia').value;
+  let arr = (horariosData.lista||[]).slice();
+  if(filtroAud) arr = arr.filter(h => h.audiencia === filtroAud);
+  if(!arr.length){
+    cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">📅 No hay horarios cargados todavía' + (filtroAud?' para esta audiencia':'') + '.</div>';
+    return;
+  }
+  const audIcon = {todos:'📢',planta:'👔','1er_ciclo':'📘','2do_ciclo':'📗'};
+  const audLabel = {todos:'Para todos',planta:'Personal de planta','1er_ciclo':'1er Ciclo','2do_ciclo':'2do Ciclo'};
+  cont.innerHTML = arr.map(h => {
+    const desde = h.semana_inicio ? new Date(h.semana_inicio).toLocaleDateString('es-BO',{day:'2-digit',month:'short'}) : '';
+    const hasta = h.semana_fin ? new Date(h.semana_fin).toLocaleDateString('es-BO',{day:'2-digit',month:'short',year:'numeric'}) : '';
+    const semana = (desde && hasta) ? `${desde} – ${hasta}` : (h.titulo||'—');
+    const aud = h.audiencia || 'todos';
+    const subidoFecha = h.subido_en ? new Date(h.subido_en).toLocaleDateString('es-BO') : '';
+    return `
+      <div class="ef-cursante-row" onclick="verHorario(${h.id})">
+        <div>
+          <div class="ef-cur-nombre">${audIcon[aud]||'📅'} ${h.titulo || semana}</div>
+          <div class="ef-cur-meta">
+            ${audLabel[aud]||aud} · ${semana}${h.archivo_size_kb?' · '+h.archivo_size_kb+' KB':''}${subidoFecha?' · subido '+subidoFecha:''}
+          </div>
+        </div>
+        <div class="ef-cur-nota" style="font-size:14px;color:var(--gold)">👁️</div>
+      </div>`;
+  }).join('');
+}
+
+async function verHorario(id){
+  horarioVisualizandoId = id;
+  document.getElementById('hv-titulo').textContent = 'Cargando...';
+  document.getElementById('hv-sub').textContent = '—';
+  document.getElementById('hv-meta').innerHTML = '';
+  document.getElementById('hv-iframe').src = 'about:blank';
+  showScreen('screen-horario-visor');
+  try{
+    // Traer el archivo (dataURL)
+    const {data, error} = await sb.from('horarios_semanales')
+      .select('*')
+      .eq('id', id)
+      .limit(1);
+    if(error) throw error;
+    if(!data || !data.length){ alert('Horario no encontrado.'); return; }
+    const h = data[0];
+    document.getElementById('hv-titulo').textContent = h.titulo || 'Horario';
+    const desde = h.semana_inicio ? new Date(h.semana_inicio).toLocaleDateString('es-BO') : '';
+    const hasta = h.semana_fin ? new Date(h.semana_fin).toLocaleDateString('es-BO') : '';
+    document.getElementById('hv-sub').textContent = (desde && hasta) ? `${desde} – ${hasta}` : 'Horario';
+
+    const audLabel = {todos:'📢 Para todos',planta:'👔 Personal de planta','1er_ciclo':'📘 1er Ciclo','2do_ciclo':'📗 2do Ciclo'};
+    const meta = document.getElementById('hv-meta');
+    meta.innerHTML = `
+      <div style="background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--text-secondary)">
+        ${audLabel[h.audiencia]||h.audiencia||''} · Subido por <strong style="color:var(--gold-light)">${h.subido_por_nombre||'—'}</strong> el ${h.subido_en?new Date(h.subido_en).toLocaleString('es-BO'):'—'}
+        ${h.descripcion?'<div style="margin-top:4px;font-style:italic">'+h.descripcion+'</div>':''}
+      </div>`;
+
+    // Mostrar PDF en iframe
+    const iframe = document.getElementById('hv-iframe');
+    if(h.archivo_dataurl){
+      iframe.src = h.archivo_dataurl;
+    } else {
+      iframe.srcdoc = '<div style="padding:20px;font-family:sans-serif;color:#333">⚠️ Archivo no disponible.</div>';
+    }
+    // Botón eliminar solo para Jefe Disciplina
+    document.getElementById('hv-btn-eliminar').style.display = activeRole === 'disciplina' ? '' : 'none';
+  }catch(e){
+    console.error(e);
+    alert('Error cargando horario: ' + (e.message||e));
+  }
+}
+
+async function descargarHorarioActual(){
+  if(!horarioVisualizandoId) return;
+  try{
+    const {data} = await sb.from('horarios_semanales')
+      .select('archivo_dataurl,archivo_nombre,titulo')
+      .eq('id', horarioVisualizandoId)
+      .limit(1);
+    if(!data || !data.length || !data[0].archivo_dataurl) return alert('Archivo no disponible.');
+    const h = data[0];
+    const a = document.createElement('a');
+    a.href = h.archivo_dataurl;
+    a.download = h.archivo_nombre || ((h.titulo||'horario').replace(/[^a-z0-9]/gi,'_') + '.pdf');
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  }catch(e){ alert('Error: '+(e.message||e)); }
+}
+
+async function eliminarHorarioActual(){
+  if(activeRole !== 'disciplina'){ alert('Solo Jefe Disciplina.'); return; }
+  if(!horarioVisualizandoId) return;
+  if(!confirm('¿Eliminar este horario? Quedará marcado como inactivo (no se borra físicamente).')) return;
+  try{
+    const {error} = await sb.from('horarios_semanales')
+      .update({activo:false, eliminado_por: currentUser.id, eliminado_en: new Date().toISOString()})
+      .eq('id', horarioVisualizandoId);
+    if(error) throw error;
+    alert('✓ Horario eliminado.');
+    horariosData.loaded = false;
+    goHorarios();
+  }catch(e){ alert('Error: '+(e.message||e)); }
+}
+
+function goSubirHorario(){
+  if(activeRole !== 'disciplina'){ alert('Solo Jefe Disciplina puede subir horarios.'); return; }
+  document.getElementById('hsu-titulo').value = '';
+  document.getElementById('hsu-audiencia').value = 'todos';
+  document.getElementById('hsu-desde').value = '';
+  document.getElementById('hsu-hasta').value = '';
+  document.getElementById('hsu-descripcion').value = '';
+  document.getElementById('hsu-archivo').value = '';
+  document.getElementById('hsu-preview').textContent = '';
+  clearErrors();
+  showScreen('screen-horario-subir');
+}
+
+function previewArchivoHorario(){
+  const f = document.getElementById('hsu-archivo').files[0];
+  const prev = document.getElementById('hsu-preview');
+  if(!f){ prev.textContent = ''; return; }
+  const sizeKB = Math.round(f.size/1024);
+  const sizeMB = (f.size/1024/1024).toFixed(2);
+  const ok = f.size <= 4*1024*1024 && f.type === 'application/pdf';
+  prev.innerHTML = `📄 <strong>${f.name}</strong> · ${sizeKB} KB (${sizeMB} MB) · ${ok?'<span style="color:#7ac899">✓ OK</span>':'<span style="color:#e88a8a">✗ Excede 4MB o no es PDF</span>'}`;
+}
+
+async function confirmarSubirHorario(){
+  clearErrors();
+  const titulo = document.getElementById('hsu-titulo').value.trim();
+  const audiencia = document.getElementById('hsu-audiencia').value;
+  const desde = document.getElementById('hsu-desde').value;
+  const hasta = document.getElementById('hsu-hasta').value;
+  const descripcion = document.getElementById('hsu-descripcion').value.trim();
+  const archivo = document.getElementById('hsu-archivo').files[0];
+
+  if(!titulo){ showError('err-subir-horario','El título es obligatorio.'); return; }
+  if(!archivo){ showError('err-subir-horario','Seleccioná un archivo PDF.'); return; }
+  if(archivo.type !== 'application/pdf'){ showError('err-subir-horario','El archivo debe ser PDF.'); return; }
+  if(archivo.size > 4*1024*1024){ showError('err-subir-horario','El archivo excede 4 MB. Comprimilo antes.'); return; }
+
+  const btn = document.getElementById('btn-confirmar-subir-horario');
+  btn.disabled = true; btn.textContent = 'Subiendo...';
+  try{
+    // Convertir a dataURL
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(archivo);
+    });
+    const sizeKB = Math.round(archivo.size/1024);
+    const registro = {
+      semana_inicio: desde || null,
+      semana_fin: hasta || null,
+      titulo: titulo,
+      descripcion: descripcion || null,
+      archivo_nombre: archivo.name,
+      archivo_dataurl: dataUrl,
+      archivo_size_kb: sizeKB,
+      subido_por: currentUser.id,
+      subido_por_nombre: currentUser.nombre_completo,
+      subido_en: new Date().toISOString(),
+      activo: true,
+      audiencia: audiencia
+    };
+    const {error} = await sb.from('horarios_semanales').insert([registro]);
+    if(error) throw error;
+    alert('✓ Horario subido correctamente.');
+    horariosData.loaded = false;
+    goHorarios();
+  }catch(e){
+    console.error('Error subiendo horario:', e);
+    showError('err-subir-horario','Error: ' + (e.message||JSON.stringify(e)));
+  }finally{
+    btn.disabled = false; btn.textContent = '📤 Subir horario';
+  }
+}
+
+
 let editandoSancionId = null;
 let cursanteSeleccionadoManual = null;
 
@@ -6697,7 +7048,8 @@ function renderProfPanel(){
   document.getElementById('prof-greeting').textContent = `${saludo}, ${gradoApellido(currentUser)}`;
 
   // Estadísticas (incluye prueba para que vea el profesor su actividad)
-  const misSanciones = discData.sanciones.filter(s => s.profesor_id === currentUser.id);
+  // v2.9.2: filtrar por TODOS los P-IDs con mismo CI (doble rol = mismas sanciones)
+  const misSanciones = filtrarSancionesImpuestasPorMi();
   document.getElementById('prof-stat-mias').textContent = misSanciones.length;
 
   const now = new Date();
@@ -6719,6 +7071,27 @@ function renderProfPanel(){
 /* ==================== LISTADO INLINE DE SANCIONES DEL PROFESOR ==================== */
 let misSancionesFiltro = 'todas';
 
+// v2.9.2: Devuelve TODAS las sanciones impuestas por cualquier registro de profesor
+// que comparta el CI del usuario actual (soporte para doble rol).
+// Si Sergio es Profesor + Jefe Disciplina con dos P-IDs distintos pero mismo CI,
+// ve TODAS las sanciones que impuso bajo cualquiera de los dos registros.
+function filtrarSancionesImpuestasPorMi(){
+  if(!currentUser) return [];
+  const miCI = String(currentUser.ci||'').trim();
+  const misPIds = new Set();
+  misPIds.add(String(currentUser.id));
+  if(miCI && Array.isArray(discData.profesores)){
+    for(const p of discData.profesores){
+      if(String(p.ci||'').trim() === miCI) misPIds.add(String(p.id));
+    }
+  }
+  return (discData.sanciones||[]).filter(s => {
+    if(misPIds.has(String(s.profesor_id||''))) return true;
+    if(miCI && String(s.profesor_ci||'').trim() === miCI) return true;
+    return false;
+  });
+}
+
 function filtrarMisSanciones(f){
   misSancionesFiltro = f;
   // Marcar el botón activo
@@ -6733,7 +7106,8 @@ function renderMisSancionesInline(){
   const cont = document.getElementById('prof-mis-sanciones-list');
   if(!cont) return;
 
-  let lista = discData.sanciones.filter(s => s.profesor_id === currentUser.id && !s.anulada);
+  // v2.9.2: incluir TODOS los P-IDs que comparten mi CI (doble rol)
+  let lista = filtrarSancionesImpuestasPorMi().filter(s => !s.anulada);
 
   // Aplicar filtro
   const now = new Date();
