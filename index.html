@@ -1116,6 +1116,25 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .ms-card .ms-badge.prueba{background:rgba(224,168,58,.18);color:#e8c87a;border:1px solid rgba(224,168,58,.35)}
 .ms-card .ms-badge.analogica{background:rgba(160,160,160,.2);color:#c8c8c8;border:1px solid rgba(160,160,160,.35)}
 
+/* v2.9.6: botón eliminar en card mis sanciones (profesor, solo pendientes) */
+.ms-card .ms-del-btn{
+  flex-shrink:0;align-self:center;
+  background:rgba(200,74,74,.18);
+  border:1px solid rgba(200,74,74,.4);
+  color:#e8a8a8;
+  width:34px;height:34px;border-radius:50%;
+  font-size:16px;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  transition:all .15s;
+  margin-left:6px;
+}
+.ms-card .ms-del-btn:hover{
+  background:rgba(200,74,74,.35);color:#fff;
+  transform:scale(1.08);
+  box-shadow:0 2px 8px rgba(200,74,74,.4);
+}
+.ms-card .ms-del-btn:active{transform:scale(.95)}
+
 .ms-empty{
   background:rgba(17,32,58,.4);border:1px dashed var(--border-subtle);
   border-radius:var(--radius-sm);padding:24px 20px;text-align:center;color:var(--text-muted);
@@ -1668,7 +1687,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.5 · pdfjs</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.6 · prof-delete</div>
 
 <svg width="0" height="0" style="position:absolute">
   <defs>
@@ -4448,6 +4467,8 @@ async function guardarSancionManual(){
       es_carga_manual: true,
       carga_manual_razon: razon,
       anulada: false,
+      tipo: 'analogica',
+      confirmacion_estado: 'analogico',
       huella_forense: JSON.stringify({
         tipo:'carga_manual_jefe_disciplina',
         creado_por: currentUser.id,
@@ -7283,6 +7304,11 @@ function renderMisSancionesInline(){
     const curObj = discData.cursantes.find(c => c.id === cursId);
     const cursNombre = curObj ? nombreConGrado(curObj) : (s.cursante_nombre || '—');
     const cortado = cursNombre.length > 42 ? cursNombre.slice(0,40)+'…' : cursNombre;
+    // v2.9.6: botón eliminar solo si el profesor puede borrarla (digital + sin firma cursante)
+    const puedeEliminar = puedeProfesorEliminarSancion(s);
+    const btnEliminar = puedeEliminar
+      ? `<button class="ms-del-btn" title="Eliminar (solo posible antes de firma del cursante)" onclick="eliminarSancionPropia('${escapeAttr(s.id)}', event)">🗑️</button>`
+      : '';
     return `<div class="ms-card ${claseCard}" onclick="verDetalleSancion('${escapeAttr(s.id)}')">
       <div class="ms-icon">${icono}</div>
       <div class="ms-body">
@@ -7298,6 +7324,7 @@ function renderMisSancionesInline(){
           <span>${fechaTxt}</span>
         </div>
       </div>
+      ${btnEliminar}
     </div>`;
   }).join('');
 }
@@ -7601,7 +7628,97 @@ function gradoApellido(c){
 
 // Detecta si una sanción es analógica (cargada pre-digital de las 485)
 function esSancionAnalogica(s){
-  return s.tipo !== 'digital' && !s.firma_profesor && !s.firma_cursante;
+  // v2.9.6: autoridad #1 → confirmacion_estado='analogico' (legacy migradas)
+  const conf = (s.confirmacion_estado||'').toLowerCase();
+  if(conf === 'analogico' || conf === 'analogica') return true;
+  // Autoridad #2: si el tipo NO es exactamente 'digital', es analógica
+  if((s.tipo||'').toLowerCase() !== 'digital') return true;
+  return false;
+}
+
+// v2.9.6: ¿el profesor logueado puede ELIMINAR esta sanción?
+// Reglas: debe ser digital, no firmada por cursante, no anulada,
+// creada por el usuario actual (o algún P-ID que comparta su CI por doble rol).
+function puedeProfesorEliminarSancion(s){
+  if(!currentUser) return false;
+  if(s.anulada) return false;
+  if(esSancionAnalogica(s)) return false;
+  // No se puede eliminar si ya firmó el cursante
+  const conf = (s.confirmacion_estado||'').toLowerCase();
+  if(s.firma_cursante) return false;
+  if(conf === 'firmada' || conf === 'aceptada' || conf.includes('firm') || conf.includes('acept')) return false;
+  // Debe ser una sanción del profesor actual (soporta doble rol vía CI)
+  if(s.profesor_id === currentUser.id) return true;
+  // Doble rol: ver si algún profesor con mi mismo CI tiene este id
+  try{
+    const miCI = currentUser.ci;
+    if(miCI && Array.isArray(discData?.profesores)){
+      const misIds = discData.profesores.filter(p => p.ci === miCI).map(p => p.id);
+      if(misIds.includes(s.profesor_id)) return true;
+    }
+  }catch(e){}
+  // Fallback: comparar por CI directo
+  if(s.profesor_ci && currentUser.ci && s.profesor_ci === currentUser.ci) return true;
+  return false;
+}
+
+// v2.9.6: Eliminar sanción propia (profesor, antes de firma del cursante)
+async function eliminarSancionPropia(sancionId, ev){
+  if(ev){ ev.stopPropagation(); ev.preventDefault(); }
+  if(!sancionId) return;
+  const s = discData.sanciones.find(x => x.id === sancionId);
+  if(!s){ alert('No se encontró la sanción.'); return; }
+  if(!puedeProfesorEliminarSancion(s)){
+    alert('No se puede eliminar esta sanción.\n\nMotivos posibles:\n• Ya fue firmada por el cursante\n• Es analógica\n• Está anulada\n• No es tuya');
+    return;
+  }
+  const cursanteNombre = s.cursante_nombre || '—';
+  const puntos = s.puntos_aplicados || 0;
+  const folio = s.folio || ('S-' + (s.id||'').slice(0,8));
+  const msg = `⚠️ Eliminar sanción\n\n`+
+              `Folio: ${folio}\n`+
+              `Cursante: ${cursanteNombre}\n`+
+              `Puntos: -${puntos}\n`+
+              `Falta Art. ${s.falta_articulo||'—'}\n\n`+
+              `Esta acción NO se puede deshacer.\n`+
+              `Solo procede porque el cursante AÚN no firmó.\n\n`+
+              `¿Continuar?`;
+  if(!confirm(msg)) return;
+  const confirma = prompt('Para confirmar, escribí ELIMINAR (en mayúsculas):');
+  if(confirma !== 'ELIMINAR'){ alert('Cancelado. No se eliminó.'); return; }
+  const razon = (prompt('Motivo del borrado (mínimo 5 caracteres):')||'').trim();
+  if(razon.length < 5){ alert('Motivo demasiado corto. Cancelado.'); return; }
+  try{
+    // 1) Registrar auditoría ANTES de borrar (por si falla luego)
+    try{
+      await registrarAuditSancion({
+        sancion_id: sancionId,
+        accion: 'eliminada_por_profesor',
+        campos_antes: s,
+        campos_despues: {},
+        razon: razon
+      });
+    }catch(e){ console.warn('No se pudo auditar, sigo con DELETE:', e); }
+    // 2) DELETE en Supabase
+    const {error} = await sb.from('sanciones').delete().eq('id', sancionId);
+    if(error){ alert('Error al eliminar: ' + (error.message||JSON.stringify(error))); return; }
+    // 3) Actualizar memoria local
+    discData.sanciones = discData.sanciones.filter(x => x.id !== sancionId);
+    if(discData.byCursanteSanc[s.cursante_id]){
+      discData.byCursanteSanc[s.cursante_id] = discData.byCursanteSanc[s.cursante_id].filter(x => x.id !== sancionId);
+    }
+    if(!s.es_prueba && !s.anulada){
+      discData.byCursanteLost[s.cursante_id] = Math.max(0, (discData.byCursanteLost[s.cursante_id]||0) - (Number(s.puntos_aplicados)||0));
+    }
+    // 4) Refrescar UI
+    if(typeof renderMisSancionesInline === 'function') renderMisSancionesInline();
+    if(typeof renderProfPanel === 'function') renderProfPanel();
+    if(typeof renderDiscPanel === 'function') renderDiscPanel();
+    if(typeof renderGestSanciones === 'function') renderGestSanciones();
+    alert('✅ Sanción eliminada correctamente.\nFolio: ' + folio);
+  }catch(e){
+    alert('Error inesperado: ' + (e.message||e));
+  }
 }
 
 function filterCursantesNuevaSancion(){
