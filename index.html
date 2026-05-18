@@ -1667,7 +1667,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.3 · solo-real</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.4 · pdf-blob</div>
 
 <svg width="0" height="0" style="position:absolute">
   <defs>
@@ -2666,8 +2666,20 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   </div>
   <div class="disc-container">
     <div id="hv-meta" style="margin-bottom:10px"></div>
-    <div style="background:#fff;border:2px solid var(--gold);border-radius:10px;overflow:hidden;height:calc(100vh - 280px);min-height:400px">
-      <iframe id="hv-iframe" style="width:100%;height:100%;border:0;background:#fff"></iframe>
+
+    <!-- v2.9.4: botón abrir en pestaña primero (más confiable, especialmente móvil) -->
+    <button class="btn-mega" onclick="abrirHorarioEnPestaña()" style="background:linear-gradient(180deg,#4a90d9,#2d5a8a);margin-bottom:10px;color:#fff">
+      <span class="mega-icon">📄</span>
+      <span>ABRIR PDF EN PESTAÑA NUEVA</span>
+    </button>
+    <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-bottom:10px">⬆️ Recomendado en celular. Abre el PDF a pantalla completa con zoom.</div>
+
+    <div id="hv-aviso-mobile" style="display:none;background:rgba(70,130,200,.12);border:1px solid var(--info-border);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:11px;color:var(--info-text);text-align:center">
+      💡 Si el preview de abajo aparece en blanco, tocá el botón azul de arriba para ver el PDF.
+    </div>
+
+    <div style="background:#fff;border:2px solid var(--gold);border-radius:10px;overflow:hidden;height:60vh;min-height:300px">
+      <iframe id="hv-iframe" style="width:100%;height:100%;border:0;background:#fff" sandbox="allow-same-origin allow-scripts allow-popups allow-forms"></iframe>
     </div>
     <div id="hv-actions" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn-secondary" onclick="descargarHorarioActual()">⬇️ Descargar PDF</button>
@@ -3823,11 +3835,34 @@ function renderHorariosLista(){
   }).join('');
 }
 
+// Helper: convertir dataURL (base64) → blob URL (los iframes SÍ lo renderizan)
+function dataUrlToBlobUrl(dataUrl){
+  try{
+    const [meta, b64] = dataUrl.split(',');
+    if(!b64) return null;
+    const mime = (meta.match(/data:([^;]+)/) || [null,'application/pdf'])[1];
+    const bin = atob(b64);
+    const len = bin.length;
+    const arr = new Uint8Array(len);
+    for(let i=0;i<len;i++) arr[i] = bin.charCodeAt(i);
+    const blob = new Blob([arr], {type: mime});
+    return URL.createObjectURL(blob);
+  }catch(e){
+    console.error('Error convirtiendo dataURL a blob:', e);
+    return null;
+  }
+}
+
+let horarioBlobUrlActual = null;  // Para liberar memoria al cerrar
+
 async function verHorario(id){
   horarioVisualizandoId = id;
+  // Liberar blob anterior si había
+  if(horarioBlobUrlActual){ try{ URL.revokeObjectURL(horarioBlobUrlActual); }catch(e){} horarioBlobUrlActual = null; }
+
   document.getElementById('hv-titulo').textContent = 'Cargando...';
   document.getElementById('hv-sub').textContent = '—';
-  document.getElementById('hv-meta').innerHTML = '';
+  document.getElementById('hv-meta').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">⏳ Descargando archivo desde Supabase...</div>';
   document.getElementById('hv-iframe').src = 'about:blank';
   showScreen('screen-horario-visor');
   try{
@@ -3852,19 +3887,59 @@ async function verHorario(id){
         ${h.descripcion?'<div style="margin-top:4px;font-style:italic">'+h.descripcion+'</div>':''}
       </div>`;
 
-    // Mostrar PDF en iframe
+    // Validar archivo antes de mostrar
     const iframe = document.getElementById('hv-iframe');
-    if(h.archivo_dataurl){
-      iframe.src = h.archivo_dataurl;
-    } else {
-      iframe.srcdoc = '<div style="padding:20px;font-family:sans-serif;color:#333">⚠️ Archivo no disponible.</div>';
+    if(!h.archivo_dataurl){
+      iframe.srcdoc = '<div style="padding:20px;font-family:sans-serif;color:#c84a4a;text-align:center">⚠️ Este horario no tiene archivo adjunto.</div>';
+      return;
     }
+    if(!h.archivo_dataurl.startsWith('data:')){
+      iframe.srcdoc = '<div style="padding:20px;font-family:sans-serif;color:#c84a4a;text-align:center">⚠️ El archivo está corrupto o incompleto. Probablemente excedió el límite de tamaño al subirlo. Subílo de nuevo comprimido.</div>';
+      return;
+    }
+
+    // === FIX v2.9.4: convertir dataURL → blob URL para que el iframe lo renderice ===
+    horarioBlobUrlActual = dataUrlToBlobUrl(h.archivo_dataurl);
+    if(!horarioBlobUrlActual){
+      iframe.srcdoc = '<div style="padding:20px;font-family:sans-serif;color:#c84a4a;text-align:center">⚠️ No se pudo procesar el archivo. Usá el botón "Abrir en pestaña nueva" abajo.</div>';
+      return;
+    }
+    iframe.src = horarioBlobUrlActual;
+
+    // En iOS Safari el iframe puede no mostrar PDFs ni con blob. Por las dudas,
+    // después de 1.5 segundos si sigue vacío sugerimos abrir en pestaña nueva.
+    setTimeout(() => {
+      try{
+        // Si el iframe falla a cargar, no hay forma simple de detectarlo cross-origin.
+        // Mostramos siempre el aviso/botón para abrir en pestaña.
+        const aviso = document.getElementById('hv-aviso-mobile');
+        if(aviso) aviso.style.display = '';
+      }catch(e){}
+    }, 1200);
+
     // Botón eliminar para Jefe Disciplina, Comandante o Jefe Estudios
     const esAdminH = activeRole === 'disciplina' || activeRole === 'comandante' || activeRole === 'estudios';
     document.getElementById('hv-btn-eliminar').style.display = esAdminH ? '' : 'none';
   }catch(e){
     console.error(e);
-    alert('Error cargando horario: ' + (e.message||e));
+    document.getElementById('hv-meta').innerHTML = '<div style="padding:14px;color:#e88a8a">⚠️ ' + (e.message||e) + '</div>';
+  }
+}
+
+// Abrir el PDF en una pestaña nueva del navegador (fallback más robusto, especialmente móvil)
+function abrirHorarioEnPestaña(){
+  if(horarioBlobUrlActual){
+    window.open(horarioBlobUrlActual, '_blank');
+  } else if(horarioVisualizandoId){
+    // Re-fetch y abrir
+    sb.from('horarios_semanales').select('archivo_dataurl').eq('id', horarioVisualizandoId).limit(1)
+      .then(({data}) => {
+        if(data && data.length && data[0].archivo_dataurl){
+          const url = dataUrlToBlobUrl(data[0].archivo_dataurl);
+          if(url) window.open(url, '_blank');
+          else alert('No se pudo abrir el archivo.');
+        } else alert('Archivo no disponible.');
+      });
   }
 }
 
@@ -3877,10 +3952,15 @@ async function descargarHorarioActual(){
       .limit(1);
     if(!data || !data.length || !data[0].archivo_dataurl) return alert('Archivo no disponible.');
     const h = data[0];
+    // Usar blob URL — más confiable en móviles
+    const blobUrl = dataUrlToBlobUrl(h.archivo_dataurl);
+    if(!blobUrl){ alert('No se pudo procesar el archivo.'); return; }
     const a = document.createElement('a');
-    a.href = h.archivo_dataurl;
+    a.href = blobUrl;
     a.download = h.archivo_nombre || ((h.titulo||'horario').replace(/[^a-z0-9]/gi,'_') + '.pdf');
     document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    // Liberar el blob después de un rato
+    setTimeout(() => { try{ URL.revokeObjectURL(blobUrl); }catch(e){} }, 3000);
   }catch(e){ alert('Error: '+(e.message||e)); }
 }
 
