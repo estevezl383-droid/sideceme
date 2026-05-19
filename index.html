@@ -27,9 +27,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js" defer></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
 <style>
 :root{
   --bg-deep:#050a14;--bg-base:#0a1628;--bg-elevated:#11203a;
@@ -3140,7 +3140,168 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.9 · puntos+feed</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.13 · fix duplicados+visibilidad</div>
+
+<!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
+<style>
+.pwa-install-banner{
+  position:fixed;top:8px;left:8px;right:8px;z-index:9998;
+  background:linear-gradient(135deg,rgba(70,130,200,.95),rgba(45,90,140,.95));
+  border:1px solid rgba(244,213,122,.6);border-radius:10px;
+  padding:10px 14px;display:none;
+  box-shadow:0 4px 14px rgba(0,0,0,.4);
+  font-family:var(--font-body);color:var(--text-primary);
+  align-items:center;gap:10px;
+}
+.pwa-install-banner.show{display:flex}
+.pwa-install-banner .pwa-icon{font-size:22px;flex-shrink:0}
+.pwa-install-banner .pwa-text{flex:1;font-size:12px;line-height:1.3}
+.pwa-install-banner .pwa-text strong{color:var(--gold-light);font-family:var(--font-display);letter-spacing:.5px;font-size:13px}
+.pwa-install-banner .pwa-btn{background:var(--gold);color:#2a1f0a;border:none;padding:7px 12px;border-radius:6px;font-family:var(--font-display);font-weight:700;font-size:11px;letter-spacing:1px;cursor:pointer;text-transform:uppercase}
+.pwa-install-banner .pwa-close{background:transparent;border:none;color:rgba(244,238,219,.7);font-size:18px;cursor:pointer;padding:0 4px;line-height:1}
+.pwa-modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:10000;display:none;align-items:center;justify-content:center;padding:20px}
+.pwa-modal-bg.show{display:flex}
+.pwa-modal{background:var(--bg-elevated);border:1px solid var(--border-strong);border-radius:12px;padding:20px;max-width:380px;width:100%;color:var(--text-primary);font-family:var(--font-body);max-height:90vh;overflow-y:auto}
+.pwa-modal h3{font-family:var(--font-display);color:var(--gold-light);letter-spacing:1.2px;font-size:16px;margin-bottom:12px}
+.pwa-modal ol{padding-left:20px;font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:14px}
+.pwa-modal ol li{margin-bottom:6px}
+.pwa-modal ol li strong{color:var(--text-primary)}
+.pwa-modal .pwa-modal-icon{text-align:center;font-size:40px;margin-bottom:8px}
+.pwa-modal .pwa-modal-close{background:var(--gold);color:#2a1f0a;border:none;padding:10px;border-radius:8px;font-family:var(--font-display);font-weight:700;letter-spacing:1px;cursor:pointer;width:100%;text-transform:uppercase;font-size:12px}
+</style>
+<div id="pwa-install-banner" class="pwa-install-banner">
+  <span class="pwa-icon">📲</span>
+  <div class="pwa-text"><strong>Instalar SIDECEME</strong><br>Tocá Instalar para agregar la app a tu pantalla de inicio.</div>
+  <button class="pwa-btn" onclick="pwaInstall()">Instalar</button>
+  <button class="pwa-close" onclick="pwaDismiss()" aria-label="Cerrar">×</button>
+</div>
+<div id="pwa-modal-bg" class="pwa-modal-bg" onclick="if(event.target===this)pwaCloseModal()">
+  <div class="pwa-modal" id="pwa-modal-content"></div>
+</div>
+<script>
+(function(){
+  let deferredInstallPrompt = null;
+  const BANNER = () => document.getElementById('pwa-install-banner');
+  const MODAL_BG = () => document.getElementById('pwa-modal-bg');
+  const MODAL_CONTENT = () => document.getElementById('pwa-modal-content');
+
+  function esStandalone(){
+    return (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) ||
+           (window.navigator.standalone === true);
+  }
+  function detectarPlataforma(){
+    const ua = navigator.userAgent || '';
+    const esIOS = /iPhone|iPad|iPod/i.test(ua);
+    const esAndroid = /Android/i.test(ua);
+    const esSafariIOS = esIOS && /Safari/i.test(ua) && !/CriOS|FxiOS/i.test(ua);
+    const esInApp = /Instagram|FBAN|FBAV|Line|Twitter|MicroMessenger/i.test(ua);
+    return { esIOS, esAndroid, esSafariIOS, esInApp };
+  }
+  function pwaDismiss(){
+    sessionStorage.setItem('sideceme_pwa_dismissed', '1');
+    const b = BANNER(); if(b) b.classList.remove('show');
+  }
+  window.pwaDismiss = pwaDismiss;
+
+  function mostrarBanner(){
+    if(esStandalone()) return;
+    if(sessionStorage.getItem('sideceme_pwa_dismissed') === '1') return;
+    const b = BANNER(); if(b) b.classList.add('show');
+  }
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredInstallPrompt = e;
+    mostrarBanner();
+  });
+
+  function pwaCloseModal(){
+    const bg = MODAL_BG(); if(bg) bg.classList.remove('show');
+  }
+  window.pwaCloseModal = pwaCloseModal;
+
+  function mostrarInstruccionesIOS(){
+    const html = `
+      <div class="pwa-modal-icon">🍎</div>
+      <h3>Instalar en iPhone / iPad</h3>
+      <ol>
+        <li>Tocá el ícono <strong>Compartir</strong> (cuadrado con flecha hacia arriba) en la barra inferior de Safari.</li>
+        <li>Bajá y elegí <strong>"Agregar a inicio"</strong> (o "Añadir a pantalla de inicio").</li>
+        <li>Tocá <strong>Agregar</strong> en la esquina superior derecha.</li>
+        <li>La app aparece como ícono en tu pantalla principal.</li>
+      </ol>
+      <button class="pwa-modal-close" onclick="pwaCloseModal()">Entendido</button>`;
+    MODAL_CONTENT().innerHTML = html;
+    MODAL_BG().classList.add('show');
+  }
+
+  function mostrarInstruccionesAndroid(){
+    const html = `
+      <div class="pwa-modal-icon">🤖</div>
+      <h3>Instalar en Android</h3>
+      <ol>
+        <li>Tocá el menú <strong>⋮</strong> (tres puntos) arriba a la derecha del navegador.</li>
+        <li>Elegí <strong>"Instalar aplicación"</strong> o <strong>"Agregar a pantalla principal"</strong>.</li>
+        <li>Confirmá tocando <strong>Instalar</strong>.</li>
+        <li>La app aparece como ícono en tu pantalla principal.</li>
+      </ol>
+      <button class="pwa-modal-close" onclick="pwaCloseModal()">Entendido</button>`;
+    MODAL_CONTENT().innerHTML = html;
+    MODAL_BG().classList.add('show');
+  }
+
+  function mostrarInstruccionesInApp(){
+    const html = `
+      <div class="pwa-modal-icon">🌐</div>
+      <h3>Abrí en el navegador</h3>
+      <ol>
+        <li>Estás viendo SIDECEME dentro de otra app (Instagram, Facebook, etc.).</li>
+        <li>Tocá el menú <strong>⋮</strong> y elegí <strong>"Abrir en navegador"</strong> (Chrome o Safari).</li>
+        <li>Una vez abierto en el navegador, volvé a tocar Instalar.</li>
+      </ol>
+      <button class="pwa-modal-close" onclick="pwaCloseModal()">Entendido</button>`;
+    MODAL_CONTENT().innerHTML = html;
+    MODAL_BG().classList.add('show');
+  }
+
+  async function pwaInstall(){
+    const plat = detectarPlataforma();
+    if(plat.esInApp){
+      mostrarInstruccionesInApp();
+      return;
+    }
+    // Android Chrome con beforeinstallprompt disponible
+    if(deferredInstallPrompt){
+      try{
+        deferredInstallPrompt.prompt();
+        const choice = await deferredInstallPrompt.userChoice;
+        if(choice && choice.outcome === 'accepted'){
+          pwaDismiss();
+        }
+        deferredInstallPrompt = null;
+        return;
+      }catch(e){
+        console.warn('[pwa] prompt falló, mostramos instrucciones manuales:', e);
+      }
+    }
+    if(plat.esIOS){
+      mostrarInstruccionesIOS();
+    } else {
+      mostrarInstruccionesAndroid();
+    }
+  }
+  window.pwaInstall = pwaInstall;
+
+  // Mostrar el banner al cargar (excepto si ya está instalada o el usuario lo cerró esta sesión)
+  document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+      if(esStandalone()) return;
+      if(sessionStorage.getItem('sideceme_pwa_dismissed') === '1') return;
+      mostrarBanner();
+    }, 800);
+  });
+})();
+</script>
 
 <svg width="0" height="0" style="position:absolute">
   <defs>
@@ -3209,11 +3370,10 @@ input::placeholder, textarea::placeholder {
   </div>
   <div class="login-container"><div class="login-card">
     <div class="login-target" id="login-target">Sub. Sec. Disciplina</div>
-    <div class="info-banner">Plantel Docente ECEME. Ingresá con tu <strong>Carnet de Identidad</strong>. Si es tu primer ingreso, la contraseña inicial es el mismo CI.</div>
-    <div style="background:linear-gradient(135deg,rgba(200,74,74,.18),rgba(212,175,55,.08));border:1px solid var(--danger);border-left:4px solid var(--danger);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:16px;font-size:12px;color:var(--text-primary);line-height:1.55">
-      <div style="color:var(--danger);font-weight:700;font-family:var(--font-display);letter-spacing:1.5px;margin-bottom:6px;font-size:13px">⚠ AVISO OFICIAL — SIDECEME</div>
-      <div>Toda interacción con este sistema queda registrada con identificación de usuario, dirección IP, navegador, geolocalización y hora exacta. La manipulación, alteración o uso no autorizado constituye <strong>falta grave</strong> conforme al Reglamento de Régimen Disciplinario y será detectada automáticamente.</div>
-      <div style="margin-top:8px;color:var(--text-muted);font-size:11px;font-style:italic">ECEME · Comando del Ejército de Bolivia</div>
+    <div class="info-banner">Ingresá con tu <strong>CI</strong>. La contraseña inicial es el mismo CI.</div>
+    <div style="background:linear-gradient(135deg,rgba(200,74,74,.18),rgba(212,175,55,.08));border:1px solid var(--danger);border-left:4px solid var(--danger);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:14px;font-size:11px;color:var(--text-primary);line-height:1.45">
+      <div style="color:var(--danger);font-weight:700;font-family:var(--font-display);letter-spacing:1.3px;margin-bottom:4px;font-size:12px">⚠ AVISO OFICIAL</div>
+      <div>Toda actividad queda registrada (usuario, IP, dispositivo, ubicación y hora). La alteración o uso no autorizado constituye <strong>falta grave</strong>.</div>
     </div>
     <div class="error-msg" id="err-docente"></div>
     <button class="btn-bio" id="btn-bio-docente" onclick="loginBiometrico('docente')" style="display:none">👆 Ingresar con biometría</button>
@@ -3233,11 +3393,10 @@ input::placeholder, textarea::placeholder {
     <div class="header-text"><div class="header-title">Ingreso Cursante</div><div class="header-sub">Verifica tu identidad</div></div>
   </div>
   <div class="login-container"><div class="login-card">
-    <div class="info-banner">Cursantes ECEME. Ingresá con tu <strong>Carnet de Identidad</strong>. Si es tu primer ingreso, la contraseña inicial es el mismo CI.</div>
-    <div style="background:linear-gradient(135deg,rgba(200,74,74,.18),rgba(212,175,55,.08));border:1px solid var(--danger);border-left:4px solid var(--danger);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:16px;font-size:12px;color:var(--text-primary);line-height:1.55">
-      <div style="color:var(--danger);font-weight:700;font-family:var(--font-display);letter-spacing:1.5px;margin-bottom:6px;font-size:13px">⚠ AVISO OFICIAL — SIDECEME</div>
-      <div>Toda interacción con este sistema queda registrada con identificación de usuario, dirección IP, navegador, geolocalización y hora exacta. La manipulación, alteración o uso no autorizado constituye <strong>falta grave</strong> conforme al Reglamento de Régimen Disciplinario y será detectada automáticamente.</div>
-      <div style="margin-top:8px;color:var(--text-muted);font-size:11px;font-style:italic">ECEME · Comando del Ejército de Bolivia</div>
+    <div class="info-banner">Ingresá con tu <strong>CI</strong>. La contraseña inicial es el mismo CI.</div>
+    <div style="background:linear-gradient(135deg,rgba(200,74,74,.18),rgba(212,175,55,.08));border:1px solid var(--danger);border-left:4px solid var(--danger);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:14px;font-size:11px;color:var(--text-primary);line-height:1.45">
+      <div style="color:var(--danger);font-weight:700;font-family:var(--font-display);letter-spacing:1.3px;margin-bottom:4px;font-size:12px">⚠ AVISO OFICIAL</div>
+      <div>Toda actividad queda registrada (usuario, IP, dispositivo, ubicación y hora). La alteración o uso no autorizado constituye <strong>falta grave</strong>.</div>
     </div>
     <div class="error-msg" id="err-cursante"></div>
     <button class="btn-bio" id="btn-bio-cursante" onclick="loginBiometrico('cursante')" style="display:none">👆 Ingresar con biometría</button>
@@ -6829,11 +6988,15 @@ function renderDiscPanel(){
 }
 
 // v2.9.9: Feed de actividad reciente — últimas 10 sanciones (firmadas + pendientes + anuladas)
+// v2.9.13: las ANULADAS solo se ven en la vista del Jefe de Disciplina (no comandante ni estudios)
 function renderActividadReciente(){
   const cnt = document.getElementById('actividad-reciente-list');
   if(!cnt) return;
+  // v2.9.13: solo Jefe Disciplina ve sanciones anuladas en el feed
+  const verAnuladas = (activeRole === 'disciplina');
   const sanciones = (discData.sanciones||[])
-    .filter(s => s.es_prueba !== true);
+    .filter(s => s.es_prueba !== true)
+    .filter(s => verAnuladas || s.anulada !== true);
   if(!sanciones.length){
     cnt.innerHTML = '<div class="actividad-empty">Sin actividad registrada todavía.</div>';
     return;
@@ -7046,6 +7209,10 @@ function renderSancionesList(){
   const q = (document.getElementById('search-sanc').value||'').trim().toLowerCase();
   const c = document.getElementById('sanciones-list'); c.className='';
   let arr = discData.sanciones;
+  // v2.9.13: las ANULADAS solo se ven en la vista del Jefe de Disciplina (no comandante ni estudios)
+  if(activeRole !== 'disciplina'){
+    arr = arr.filter(s => s.anulada !== true);
+  }
   if(q) arr = arr.filter(s=>
     (s.cursante_nombre||'').toLowerCase().includes(q) ||
     (s.cursante_id||'').toLowerCase().includes(q) ||
@@ -9016,19 +9183,35 @@ let misSancionesFiltro = 'todas';
 // que comparta el CI del usuario actual (soporte para doble rol).
 // Si Sergio es Profesor + Jefe Disciplina con dos P-IDs distintos pero mismo CI,
 // ve TODAS las sanciones que impuso bajo cualquiera de los dos registros.
+// v2.9.13: defensa estricta — si no hay currentUser.id, NUNCA devolver nada
+//          (evita que durante un re-render se filtre todo)
 function filtrarSancionesImpuestasPorMi(){
   if(!currentUser) return [];
+  const miId = String(currentUser.id||'').trim();
+  if(!miId) return [];  // sin id, no devolvemos nada (seguridad)
   const miCI = String(currentUser.ci||'').trim();
   const misPIds = new Set();
-  misPIds.add(String(currentUser.id));
+  misPIds.add(miId);
   if(miCI && Array.isArray(discData.profesores)){
+    const compartenCI = [];
     for(const p of discData.profesores){
-      if(String(p.ci||'').trim() === miCI) misPIds.add(String(p.id));
+      if(String(p.ci||'').trim() === miCI){
+        misPIds.add(String(p.id));
+        if(String(p.id) !== miId) compartenCI.push(p.id);
+      }
+    }
+    // Log defensivo: si hay registros de profesor con el mismo CI, alertar
+    if(compartenCI.length > 0){
+      console.warn('[doble-rol] CI compartido detectado para usuario', miId, '/ CI', miCI, '→ otros P-IDs:', compartenCI);
     }
   }
   return (discData.sanciones||[]).filter(s => {
-    if(misPIds.has(String(s.profesor_id||''))) return true;
-    if(miCI && String(s.profesor_ci||'').trim() === miCI) return true;
+    const sPid = String(s.profesor_id||'').trim();
+    if(!sPid) return false;  // sanción sin profesor_id → no es de nadie
+    if(misPIds.has(sPid)) return true;
+    // v2.9.13: el match por profesor_ci ya NO es suficiente sin verificar profesor_id;
+    // si el id está vacío Y el CI coincide, lo aceptamos como legacy (sanciones analógicas)
+    if(!sPid && miCI && String(s.profesor_ci||'').trim() === miCI) return true;
     return false;
   });
 }
@@ -10157,6 +10340,41 @@ function detectarSchemaSanciones(){
 async function insertarSancionSegura(sancionOriginal){
   // Si no detectamos el schema aún, intentamos ahora
   if(!sancionesSchema) detectarSchemaSanciones();
+
+  // ========== v2.9.13: DEDUP PRE-INSERT (evita doble sanción por red lenta) ==========
+  // Si ya existe una sanción con misma (profesor_id + cursante_id + falta_id)
+  // en los últimos 5 minutos, NO insertamos y devolvemos la existente como éxito.
+  // Esto cubre los dos caminos por los que se generaba duplicado:
+  //   A) Usuario hace clic en "Reintentar" después de timeout pero la primera SÍ se grabó
+  //   B) Usuario hace doble clic en "Confirmar" generando dos folios distintos
+  try{
+    if(sancionOriginal.profesor_id && sancionOriginal.cursante_id && sancionOriginal.falta_id){
+      const haceCincoMin = new Date(Date.now() - 5*60*1000).toISOString();
+      const dupPromise = sb.from('sanciones').select('id, folio, creado_en')
+        .eq('profesor_id', sancionOriginal.profesor_id)
+        .eq('cursante_id', sancionOriginal.cursante_id)
+        .eq('falta_id', sancionOriginal.falta_id)
+        .gte('creado_en', haceCincoMin)
+        .limit(1);
+      // Timeout duro de 3s para el chequeo (si la red está mal igual avanzamos)
+      const dupTimeout = new Promise(resolve => setTimeout(() => resolve({data:null, error:null, __timeout:true}), 3000));
+      const dupRes = await Promise.race([dupPromise, dupTimeout]);
+      if(dupRes && dupRes.data && dupRes.data.length > 0){
+        const existente = dupRes.data[0];
+        console.warn('[dedup] sanción duplicada detectada en ventana de 5min, no se reinserta. Folio existente:', existente.folio);
+        // Devolvemos como éxito con la fila existente (refrescada)
+        const refresh = await sb.from('sanciones').select('*').eq('id', existente.id).limit(1);
+        if(refresh.data && refresh.data.length > 0){
+          return { data: refresh.data, error: null, __duplicate_skipped: true };
+        }
+        return { data: [existente], error: null, __duplicate_skipped: true };
+      }
+    }
+  }catch(e){
+    // Si falla el chequeo de dedup, NO bloqueamos el flujo, solo logueamos
+    console.warn('[dedup] chequeo falló (continuamos con insert normal):', e.message||e);
+  }
+  // ========================================================================
 
   let working = { ...sancionOriginal };
 
