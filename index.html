@@ -7296,6 +7296,29 @@ function verSancionDetalle(sancionId){
     html += `<div class="sd-banner firmada"><div class="sd-banner-title">✅ Sanción firmada</div><div class="sd-banner-sub">Registrada digitalmente</div></div>`;
   } else if(cls.tipo==='pendiente'){
     html += `<div class="sd-banner pendiente"><div class="sd-banner-title">⏳ Pendiente de firma</div><div class="sd-banner-sub">Esperando que el cursante firme</div></div>`;
+    // v2.9.14: QR + Enlace de firma SOLO para Jefe de Disciplina
+    if(activeRole === 'disciplina'){
+      let tokenQR = hf.token_qr;
+      if(!tokenQR){
+        tokenQR = generarUuidLight();
+        try{
+          const huellaActualizada = Object.assign({}, s.huella_forense || {}, { token_qr: tokenQR });
+          sb.from('sanciones').update({ huella_forense: huellaActualizada }).eq('id', s.id).then(()=>{
+            s.huella_forense = huellaActualizada;
+          });
+        }catch(e){ console.warn('No se pudo persistir token_qr', e); }
+      }
+      const urlQR = urlFirmaCursante(s.id, tokenQR);
+      html += `<div class="sd-block" style="text-align:center;padding:20px">
+        <div class="sd-block-title">📱 QR para firma del cursante</div>
+        <div id="disc-qr-container" style="display:inline-block;margin:12px auto"></div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:8px">Muestra al cursante para que escanee y firme</div>
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px">
+          <button class="btn-primary" onclick="copiarUrlFirma('${escapeAttr(urlQR)}')" style="width:100%">📋 Copiar enlace de firma</button>
+          <button class="btn-secondary" onclick="compartirEnlaceFirma('${escapeAttr(urlQR)}','${escapeAttr(s.cursante_nombre||'cursante')}','${escapeAttr(s.falta_articulo||'')}')" style="width:100%">📤 Enviar enlace al cursante</button>
+        </div>
+      </div>`;
+    }
   } else if(cls.tipo==='anulada'){
     html += `<div class="sd-banner analogica"><div class="sd-banner-title">🚫 Anulada</div><div class="sd-banner-sub">Esta sanción ya no está vigente</div></div>`;
   }
@@ -7396,6 +7419,20 @@ function verSancionDetalle(sancionId){
   // Inicializar mapa si hay GPS (tras render del DOM)
   if(gps && gps.lat && gps.lng){
     setTimeout(()=>initLeafletMap(Number(gps.lat), Number(gps.lng)), 150);
+  }
+  // v2.9.14: Generar QR para sanciones pendientes en vista disciplina
+  if(cls.tipo==='pendiente' && activeRole === 'disciplina'){
+    setTimeout(()=>{
+      let tokenQR = hf.token_qr;
+      if(!tokenQR){
+        // Ya fue generado arriba y debería estar en el DOM
+        tokenQR = s.huella_forense && s.huella_forense.token_qr;
+      }
+      if(tokenQR){
+        const urlQR = urlFirmaCursante(s.id, tokenQR);
+        generarQRRobusto(urlQR, 'disc-qr-container', 220);
+      }
+    }, 200);
   }
 }
 
@@ -10781,6 +10818,41 @@ function copiarUrlFirma(url){
     });
   }catch(e){
     prompt('Copia el siguiente enlace:', url);
+  }
+}
+
+// v2.9.14: Compartir enlace de firma (solo Jefe Disciplina)
+function compartirEnlaceFirma(url, cursanteNombre, articuloFalta){
+  const texto = `SIDECEME — Firma de Sanción Pendiente\n\n` +
+    `Cursante: ${cursanteNombre}\n` +
+    `Falta: Art. ${articuloFalta}\n\n` +
+    `Ingresa al siguiente enlace para firmar tu sanción:\n${url}\n\n` +
+    `⚠️ Este enlace es personal e intransferible.`;
+  
+  // Intentar Web Share API (funciona en celulares)
+  if(navigator.share){
+    navigator.share({
+      title: 'SIDECEME — Firma de Sanción',
+      text: texto,
+      url: url
+    }).catch(()=>{
+      // Fallback: copiar al portapapeles
+      copiarTextoCompartir(texto);
+    });
+  } else {
+    copiarTextoCompartir(texto);
+  }
+}
+
+function copiarTextoCompartir(texto){
+  try{
+    navigator.clipboard.writeText(texto).then(()=>{
+      alert('✅ Mensaje copiado al portapapeles.\n\nPégalo en WhatsApp, Telegram o donde necesites enviarlo al cursante.');
+    }).catch(()=>{
+      prompt('Copia este mensaje y envíalo al cursante:', texto);
+    });
+  }catch(e){
+    prompt('Copia este mensaje y envíalo al cursante:', texto);
   }
 }
 
