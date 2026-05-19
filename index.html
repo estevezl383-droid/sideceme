@@ -3140,7 +3140,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.13 · fix duplicados+visibilidad</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.14 · anti-dup+qr+anular</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -9294,7 +9294,7 @@ function renderMisSancionesInline(){
     // v2.9.6: botón eliminar solo si el profesor puede borrarla (digital + sin firma cursante)
     const puedeEliminar = puedeProfesorEliminarSancion(s);
     const btnEliminar = puedeEliminar
-      ? `<button class="ms-del-btn" title="Eliminar (solo posible antes de firma del cursante)" onclick="eliminarSancionPropia('${escapeAttr(s.id)}', event)">🗑️</button>`
+      ? `<button class="ms-del-btn" title="Anular (solo posible antes de firma del cursante)" onclick="eliminarSancionPropia('${escapeAttr(s.id)}', event)">🚫</button>`
       : '';
     return `<div class="ms-card ${claseCard}" onclick="verDetalleSancion('${escapeAttr(s.id)}')">
       <div class="ms-icon">${icono}</div>
@@ -9370,18 +9370,27 @@ function verDetalleSancion(sancionId){
       <div class="fs-title">Pendiente de firma</div>
       <div class="fs-sub">El cursante aún no escaneó el QR</div>
     </div>`;
-    // Mostrar el QR otra vez para que pueda volver a presentarlo
-    const tokenQR = s.huella_forense && s.huella_forense.token_qr;
-    if(tokenQR){
-      const urlQR = urlFirmaCursante(s.id, tokenQR);
-      html += `<div class="qr-card">
-        <div id="det-qr-container"></div>
-        <div class="qr-cap">Firma digital del alumno</div>
-        <div class="qr-sub">Escanee para confirmar recepción</div>
-        <div class="qr-folio">Folio ${s.folio||'—'}</div>
-      </div>
-      <button class="btn-papeleta primary" onclick="copiarUrlFirma('${escapeAttr(urlQR)}')">📋 Copiar enlace de firma</button>`;
+    // v2.9.14: Mostrar QR SIEMPRE para sanciones pendientes (genera token si falta)
+    let tokenQR = s.huella_forense && s.huella_forense.token_qr;
+    if(!tokenQR){
+      // Generar y persistir el token si la sanción no lo tiene
+      tokenQR = generarUuidLight();
+      try{
+        const huella = s.huella_forense || {};
+        huella.token_qr = tokenQR;
+        sb.from('sanciones').update({ huella_forense: huella }).eq('id', s.id).then(()=>{
+          s.huella_forense = huella;
+        });
+      }catch(e){ console.warn('No se pudo persistir token_qr', e); }
     }
+    const urlQR = urlFirmaCursante(s.id, tokenQR);
+    html += `<div class="qr-card">
+      <div id="det-qr-container"></div>
+      <div class="qr-cap">Firma digital del alumno</div>
+      <div class="qr-sub">Muestra al cursante para que escanee y firme</div>
+      <div class="qr-folio">Folio ${s.folio||'—'}</div>
+    </div>
+    <button class="btn-papeleta primary" onclick="copiarUrlFirma('${escapeAttr(urlQR)}')">📋 Copiar enlace de firma</button>`;
   }
 
   // Cursante
@@ -9502,11 +9511,13 @@ function verDetalleSancion(sancionId){
     if(gps && gps.lat && gps.lng){
       initLeafletMapDetalle(gps.lat, gps.lng);
     }
-    // Re-generar QR si está pendiente
-    const tokenQR = s.huella_forense && s.huella_forense.token_qr;
-    if(!firmada && tokenQR){
-      const urlQR = urlFirmaCursante(s.id, tokenQR);
-      generarQRRobusto(urlQR, 'det-qr-container', 220);
+    // v2.9.14: Re-generar QR si está pendiente (token_qr ya garantizado por arriba)
+    if(!firmada){
+      let tokenQR = s.huella_forense && s.huella_forense.token_qr;
+      if(tokenQR){
+        const urlQR = urlFirmaCursante(s.id, tokenQR);
+        generarQRRobusto(urlQR, 'det-qr-container', 220);
+      }
     }
   }, 100);
 }
@@ -9681,18 +9692,18 @@ async function eliminarSancionPropia(sancionId, ev){
   const cursanteNombre = s.cursante_nombre || '—';
   const puntos = s.puntos_aplicados || 0;
   const folio = s.folio || ('S-' + (s.id||'').slice(0,8));
-  const msg = `⚠️ Eliminar sanción\n\n`+
+  const msg = `⚠️ Anular sanción\n\n`+
               `Folio: ${folio}\n`+
               `Cursante: ${cursanteNombre}\n`+
               `Puntos: -${puntos}\n`+
               `Falta Art. ${s.falta_articulo||'—'}\n\n`+
-              `Esta acción NO se puede deshacer.\n`+
+              `La sanción quedará marcada como ANULADA (no se borra físicamente).\n`+
               `Solo procede porque el cursante AÚN no firmó.\n\n`+
               `¿Continuar?`;
   if(!confirm(msg)) return;
-  const confirma = prompt('Para confirmar, escribí ELIMINAR (en mayúsculas):');
-  if(confirma !== 'ELIMINAR'){ alert('Cancelado. No se eliminó.'); return; }
-  const razon = (prompt('Motivo del borrado (mínimo 5 caracteres):')||'').trim();
+  const confirma = prompt('Para confirmar, escribí ANULAR (en mayúsculas):');
+  if(confirma !== 'ANULAR'){ alert('Cancelado. No se anuló.'); return; }
+  const razon = (prompt('Motivo de la anulación (mínimo 5 caracteres):')||'').trim();
   if(razon.length < 5){ alert('Motivo demasiado corto. Cancelado.'); return; }
   try{
     // 1) Registrar auditoría ANTES de borrar (por si falla luego)
@@ -9705,13 +9716,27 @@ async function eliminarSancionPropia(sancionId, ev){
         razon: razon
       });
     }catch(e){ console.warn('No se pudo auditar, sigo con DELETE:', e); }
-    // 2) DELETE en Supabase
-    const {error} = await sb.from('sanciones').delete().eq('id', sancionId);
-    if(error){ alert('Error al eliminar: ' + (error.message||JSON.stringify(error))); return; }
-    // 3) Actualizar memoria local
-    discData.sanciones = discData.sanciones.filter(x => x.id !== sancionId);
+    // 2) v2.9.14: En lugar de DELETE (bloqueado por trigger de seguridad),
+    //    marcamos como anulada con razón. Audit trail mantiene historial.
+    const {error} = await sb.from('sanciones').update({
+      anulada: true,
+      anulada_razon: razon,
+      anulada_por: currentUser.id,
+      anulada_por_nombre: currentUser.nombre_completo,
+      anulada_en: new Date().toISOString()
+    }).eq('id', sancionId);
+    if(error){ alert('Error al anular: ' + (error.message||JSON.stringify(error))); return; }
+    // 3) Actualizar memoria local: marcar como anulada en lugar de quitar
+    const idx = discData.sanciones.findIndex(x => x.id === sancionId);
+    if(idx >= 0){
+      discData.sanciones[idx].anulada = true;
+      discData.sanciones[idx].anulada_razon = razon;
+    }
     if(discData.byCursanteSanc[s.cursante_id]){
-      discData.byCursanteSanc[s.cursante_id] = discData.byCursanteSanc[s.cursante_id].filter(x => x.id !== sancionId);
+      const idx2 = discData.byCursanteSanc[s.cursante_id].findIndex(x => x.id === sancionId);
+      if(idx2 >= 0){
+        discData.byCursanteSanc[s.cursante_id][idx2].anulada = true;
+      }
     }
     if(!s.es_prueba && !s.anulada){
       discData.byCursanteLost[s.cursante_id] = Math.max(0, (discData.byCursanteLost[s.cursante_id]||0) - (Number(s.puntos_aplicados)||0));
@@ -9721,7 +9746,7 @@ async function eliminarSancionPropia(sancionId, ev){
     if(typeof renderProfPanel === 'function') renderProfPanel();
     if(typeof renderDiscPanel === 'function') renderDiscPanel();
     if(typeof renderGestSanciones === 'function') renderGestSanciones();
-    alert('✅ Sanción eliminada correctamente.\nFolio: ' + folio);
+    alert('✅ Sanción anulada correctamente.\nFolio: ' + folio + '\n\nLa sanción queda registrada en el historial pero no afecta puntaje.');
   }catch(e){
     alert('Error inesperado: ' + (e.message||e));
   }
@@ -10341,29 +10366,45 @@ async function insertarSancionSegura(sancionOriginal){
   // Si no detectamos el schema aún, intentamos ahora
   if(!sancionesSchema) detectarSchemaSanciones();
 
+  // ========== v2.9.14: BLOQUEO LOCAL ANTI-DOBLE-INSERT ==========
+  // Antes del dedup server-side, marcamos en memoria que esta combinación
+  // (profesor+cursante+falta) está EN PROCESO. Si llega otro intento mientras
+  // este aún no termina, lo rechazamos de inmediato.
+  if(!window.__sancionesEnProceso) window.__sancionesEnProceso = new Map();
+  const keyLocal = `${sancionOriginal.profesor_id}_${sancionOriginal.cursante_id}_${sancionOriginal.falta_id}`;
+  const enProceso = window.__sancionesEnProceso.get(keyLocal);
+  if(enProceso && (Date.now() - enProceso) < 15000){
+    console.warn('[anti-dup local] ya hay un insert en proceso para esta combinación, rechazando duplicado');
+    return { data:null, error:{ message:'Ya estás registrando esta sanción. Espera unos segundos.' }};
+  }
+  window.__sancionesEnProceso.set(keyLocal, Date.now());
+  // Limpiar el lock después de 15s pase lo que pase
+  setTimeout(()=>{ try{ window.__sancionesEnProceso.delete(keyLocal); }catch(_){} }, 15000);
+  // ============================================================
+
   // ========== v2.9.13: DEDUP PRE-INSERT (evita doble sanción por red lenta) ==========
   // Si ya existe una sanción con misma (profesor_id + cursante_id + falta_id)
-  // en los últimos 5 minutos, NO insertamos y devolvemos la existente como éxito.
-  // Esto cubre los dos caminos por los que se generaba duplicado:
-  //   A) Usuario hace clic en "Reintentar" después de timeout pero la primera SÍ se grabó
-  //   B) Usuario hace doble clic en "Confirmar" generando dos folios distintos
+  // en los últimos 10 minutos, NO insertamos y devolvemos la existente como éxito.
+  // v2.9.14: ventana ampliada de 5min a 10min para cubrir red muy intermitente
   try{
     if(sancionOriginal.profesor_id && sancionOriginal.cursante_id && sancionOriginal.falta_id){
-      const haceCincoMin = new Date(Date.now() - 5*60*1000).toISOString();
+      const haceDiezMin = new Date(Date.now() - 10*60*1000).toISOString();
       const dupPromise = sb.from('sanciones').select('id, folio, creado_en')
         .eq('profesor_id', sancionOriginal.profesor_id)
         .eq('cursante_id', sancionOriginal.cursante_id)
         .eq('falta_id', sancionOriginal.falta_id)
-        .gte('creado_en', haceCincoMin)
+        .gte('creado_en', haceDiezMin)
         .limit(1);
-      // Timeout duro de 3s para el chequeo (si la red está mal igual avanzamos)
-      const dupTimeout = new Promise(resolve => setTimeout(() => resolve({data:null, error:null, __timeout:true}), 3000));
+      // Timeout duro de 4s para el chequeo (si la red está mal igual avanzamos)
+      const dupTimeout = new Promise(resolve => setTimeout(() => resolve({data:null, error:null, __timeout:true}), 4000));
       const dupRes = await Promise.race([dupPromise, dupTimeout]);
       if(dupRes && dupRes.data && dupRes.data.length > 0){
         const existente = dupRes.data[0];
-        console.warn('[dedup] sanción duplicada detectada en ventana de 5min, no se reinserta. Folio existente:', existente.folio);
+        console.warn('[dedup] sanción duplicada detectada en ventana de 10min, no se reinserta. Folio existente:', existente.folio);
         // Devolvemos como éxito con la fila existente (refrescada)
         const refresh = await sb.from('sanciones').select('*').eq('id', existente.id).limit(1);
+        // Liberar lock local
+        try{ window.__sancionesEnProceso.delete(keyLocal); }catch(_){}
         if(refresh.data && refresh.data.length > 0){
           return { data: refresh.data, error: null, __duplicate_skipped: true };
         }
@@ -10434,6 +10475,8 @@ async function insertarSancionSegura(sancionOriginal){
         if(data && data[0]){
           sancionesSchema = new Set(Object.keys(data[0]));
         }
+        // v2.9.14: Liberar lock anti-duplicado al terminar exitosamente
+        try{ window.__sancionesEnProceso && window.__sancionesEnProceso.delete(keyLocal); }catch(_){}
         return { data, error:null };
       }
 
@@ -10441,6 +10484,8 @@ async function insertarSancionSegura(sancionOriginal){
       // usuario decida. El backup local ya queda guardado en la capa superior.
       if(error.__timeout){
         console.warn('[insert] timeout duro a los', TIMEOUT_MS/1000, 's');
+        // v2.9.14: Liberar lock al fallar
+        try{ window.__sancionesEnProceso && window.__sancionesEnProceso.delete(keyLocal); }catch(_){}
         return { data:null, error };
       }
 
