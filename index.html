@@ -3210,6 +3210,11 @@ input::placeholder, textarea::placeholder {
   <div class="login-container"><div class="login-card">
     <div class="login-target" id="login-target">Sub. Sec. Disciplina</div>
     <div class="info-banner">Plantel Docente ECEME. Ingresá con tu <strong>Carnet de Identidad</strong>. Si es tu primer ingreso, la contraseña inicial es el mismo CI.</div>
+    <div style="background:linear-gradient(135deg,rgba(200,74,74,.18),rgba(212,175,55,.08));border:1px solid var(--danger);border-left:4px solid var(--danger);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:16px;font-size:12px;color:var(--text-primary);line-height:1.55">
+      <div style="color:var(--danger);font-weight:700;font-family:var(--font-display);letter-spacing:1.5px;margin-bottom:6px;font-size:13px">⚠ AVISO OFICIAL — SIDECEME</div>
+      <div>Toda interacción con este sistema queda registrada con identificación de usuario, dirección IP, navegador, geolocalización y hora exacta. La manipulación, alteración o uso no autorizado constituye <strong>falta grave</strong> conforme al Reglamento de Régimen Disciplinario y será detectada automáticamente.</div>
+      <div style="margin-top:8px;color:var(--text-muted);font-size:11px;font-style:italic">ECEME · Comando del Ejército de Bolivia</div>
+    </div>
     <div class="error-msg" id="err-docente"></div>
     <button class="btn-bio" id="btn-bio-docente" onclick="loginBiometrico('docente')" style="display:none">👆 Ingresar con biometría</button>
     <form onsubmit="event.preventDefault(); loginDocente()">
@@ -3229,6 +3234,11 @@ input::placeholder, textarea::placeholder {
   </div>
   <div class="login-container"><div class="login-card">
     <div class="info-banner">Cursantes ECEME. Ingresá con tu <strong>Carnet de Identidad</strong>. Si es tu primer ingreso, la contraseña inicial es el mismo CI.</div>
+    <div style="background:linear-gradient(135deg,rgba(200,74,74,.18),rgba(212,175,55,.08));border:1px solid var(--danger);border-left:4px solid var(--danger);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:16px;font-size:12px;color:var(--text-primary);line-height:1.55">
+      <div style="color:var(--danger);font-weight:700;font-family:var(--font-display);letter-spacing:1.5px;margin-bottom:6px;font-size:13px">⚠ AVISO OFICIAL — SIDECEME</div>
+      <div>Toda interacción con este sistema queda registrada con identificación de usuario, dirección IP, navegador, geolocalización y hora exacta. La manipulación, alteración o uso no autorizado constituye <strong>falta grave</strong> conforme al Reglamento de Régimen Disciplinario y será detectada automáticamente.</div>
+      <div style="margin-top:8px;color:var(--text-muted);font-size:11px;font-style:italic">ECEME · Comando del Ejército de Bolivia</div>
+    </div>
     <div class="error-msg" id="err-cursante"></div>
     <button class="btn-bio" id="btn-bio-cursante" onclick="loginBiometrico('cursante')" style="display:none">👆 Ingresar con biometría</button>
     <form onsubmit="event.preventDefault(); loginCursante()">
@@ -3572,7 +3582,7 @@ input::placeholder, textarea::placeholder {
 
     <div class="papeleta-block">
       <div class="pb-title">🔐 Identifícate</div>
-      <div style="font-size:13px;color:#3a2a08;margin-bottom:14px">Ingresa tu <strong>CI</strong> y tu <strong>contraseña</strong> (<code>201615</code> en modo desarrollo) para ver y firmar la sanción.</div>
+      <div style="font-size:13px;color:#3a2a08;margin-bottom:14px">Ingresa tu <strong>CI</strong> y tu <strong>contraseña</strong> para ver y firmar la sanción.</div>
       <div class="error-msg" id="err-firma-login" style="display:none"></div>
       <form onsubmit="event.preventDefault(); validarLoginFirmaCursante()">
         <div style="margin-bottom:12px">
@@ -4833,13 +4843,15 @@ async function loginCursante(){
 }
 
 /* ==================== AUTENTICACIÓN v2.9 ====================
-   - Master password única para Jefe Disciplina: 20161615
-     Entra a CUALQUIER cuenta sin disparar primer ingreso.
-   - Login normal: CI + contraseña (hasheada con bcrypt).
+   - Master password única para Jefe Disciplina: gestionada server-side
+     en Edge Function auth-login (frontend ya no la conoce).
+   - Login normal: CI + contraseña (validada server-side, bcrypt).
    - Contraseña inicial = mismo CI del usuario.
    - Primer ingreso: forzar cambio de password + dibujar firma.
 */
-const MASTER_PASSWORD = '20161515';
+// SEGURIDAD: master password movida 100% a Edge Function auth-login.
+// El frontend ya NO la conoce. Cualquier login con master se valida server-side.
+const MASTER_PASSWORD = null;
 
 // bcryptjs expone global "dcodeIO.bcrypt" o "bcrypt"
 const bcryptLib = (typeof dcodeIO !== 'undefined' && dcodeIO.bcrypt) ? dcodeIO.bcrypt
@@ -6570,7 +6582,7 @@ async function cambiarMiPasswordCursante(){
     if(error){ alert('Error: ' + (error.message||JSON.stringify(error))); return; }
     currentUser.password = nueva;
     saveSession(currentUser, 'cursante', null);
-    alert('✅ Contraseña actualizada.\n\nRecordá: el override de desarrollo (201615) sigue funcionando.');
+    alert('✅ Contraseña actualizada.');
   }catch(e){ alert('Error: ' + (e.message||e)); }
 }
 
@@ -10746,7 +10758,7 @@ async function validarLoginFirmaCursante(){
 
     const cur = data[0];
     if(!passwordOK(cur, pwd)){
-      errEl.textContent = 'Contraseña incorrecta. Recuerda: en modo desarrollo es 201615.';
+      errEl.textContent = 'Contraseña incorrecta.';
       errEl.style.display = 'block';
       btn.disabled = false; btn.innerHTML = '🔓 Ver mi sanción';
       return;
