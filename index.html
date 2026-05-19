@@ -5953,9 +5953,29 @@ async function guardarEdicionSancion(){
   const btn = document.getElementById('btn-guardar-edicion');
   btn.disabled = true; btn.textContent = 'Guardando...';
   try{
-    // 1) Actualizar sanción
-    const {error} = await sb.from('sanciones').update(cambios).eq('id', editandoSancionId);
-    if(error) throw error;
+    // 1) Actualizar sanción usando Edge Function sanciones-modificar (más seguro con RLS)
+    const token = sessionStorage.getItem('token');
+    const updateRes = await (async () => {
+      try {
+        const res = await fetch('https://ofsyiylhdrdiqtnbaovo.supabase.co/functions/v1/sanciones-modificar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: token,
+            sancion_id: editandoSancionId,
+            observaciones: cambios.observaciones,
+            anular: cambios.anulada === true,
+            anulada_razon: cambios.anulada_razon
+          })
+        });
+        const json = await res.json();
+        if (!res.ok) throw json;
+        return { data: [json.sancion], error: null };
+      } catch (err) {
+        return { data: null, error: err };
+      }
+    })();
+    if(updateRes.error) throw updateRes.error;
     // 2) Registrar en auditoría
     await registrarAuditSancion({
       sancion_id: editandoSancionId,
@@ -10417,7 +10437,28 @@ async function insertarSancionSegura(sancionOriginal){
       // Si la red no respondió en 5s en una sanción simple, ya hay un problema
       // y mejor que el usuario reintente que esperar más.
       const TIMEOUT_MS = 5000;
-      const insertPromise = sb.from('sanciones').insert(working).select();
+      // OPCIÓN A: Usar Edge Function sanciones-crear (más seguro con RLS)
+      const token = sessionStorage.getItem('token');
+      const insertPromise = (async () => {
+        try {
+          const res = await fetch('https://ofsyiylhdrdiqtnbaovo.supabase.co/functions/v1/sanciones-crear', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              token: token,
+              cursante_id: working.cursante_id,
+              falta_id: working.falta_id,
+              observaciones: working.observaciones
+            })
+          });
+          const json = await res.json();
+          if (!res.ok) throw json;
+          return { data: [json.sancion], error: null };
+        } catch (err) {
+          return { data: null, error: err };
+        }
+      })();
+      
       const timeoutPromise = new Promise(resolve =>
         setTimeout(() => resolve({
           data: null,
@@ -11193,16 +11234,28 @@ async function confirmarFirmaCursante(){
     // Combinar con huella existente
     const huellaCombinada = Object.assign({}, firmaState.sancion.huella_forense || {}, { firma_cursante_meta: huellaFirma });
 
-    // UPDATE en Supabase (resiliente a columnas faltantes)
-    const updates = {
-      firma_cursante: firmaDataURL,
-      firmada_curs_en: now.toISOString(),
-      confirmacion_estado: 'firmada',
-      observaciones_cursante: observaciones || null,
-      huella_forense: huellaCombinada
-    };
-
-    const updateRes = await actualizarSancionSegura(firmaState.sancion.id, updates);
+    // UPDATE usando Edge Function sanciones-firmar (más seguro con RLS)
+    const token = sessionStorage.getItem('token');
+    const updateRes = await (async () => {
+      try {
+        const res = await fetch('https://ofsyiylhdrdiqtnbaovo.supabase.co/functions/v1/sanciones-firmar', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            token: token,
+            sancion_id: firmaState.sancion.id,
+            cursante_ci: currentUser.ci,
+            cursante_password: prompt('Ingresa tu contraseña para confirmar la firma:') || '',
+            firma_cursante_dataurl: firmaDataURL
+          })
+        });
+        const json = await res.json();
+        if (!res.ok) throw json;
+        return { data: [json.sancion], error: null };
+      } catch (err) {
+        return { data: null, error: err };
+      }
+    })();
     if(updateRes.error){
       // Backup local
       guardarBackupFirmaCursante(firmaState.sancion.id, updates, updateRes.error);
