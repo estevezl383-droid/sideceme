@@ -3140,7 +3140,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.14 · anti-dup+qr+anular</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.15 · stats-fix</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -8956,16 +8956,40 @@ function renderEstadisticas(){
     byProf[pid].count++;
     byProf[pid].sanciones.push(s);
   });
-  const topProf = Object.entries(byProf).map(([id,v])=>({id,...v})).sort((a,b)=>b.count-a.count).slice(0,7);
+  const topProf = Object.entries(byProf).map(([id,v])=>({id,...v})).sort((a,b)=>b.count-a.count).slice(0,10);
 
-  // Top paralelos (si hay datos)
-  const byParalelo={};
+  // Sanciones por ciclo + paralelo (6 combinaciones fijas: 1er A/B/C, 2do A/B/C)
+  // v2.9.15: antes era solo paralelo (A/B/C) sumando ambos ciclos. Ahora separa por ciclo.
+  const LABEL_CICLO = { '1er_ciclo':'1er Ciclo', '2do_ciclo':'2do Ciclo' };
+  const ORDEN_CICLO_PARALELO = [
+    ['1er_ciclo','A','1er Ciclo A'],
+    ['1er_ciclo','B','1er Ciclo B'],
+    ['1er_ciclo','C','1er Ciclo C'],
+    ['2do_ciclo','A','2do Ciclo A'],
+    ['2do_ciclo','B','2do Ciclo B'],
+    ['2do_ciclo','C','2do Ciclo C'],
+  ];
+  const byCicloPar = {};
   validas.forEach(s=>{
     const cur = discData.cursantes.find(x=>x.id===s.cursante_id);
-    const par = cur?.paralelo || 'SIN PARALELO';
-    byParalelo[par] = (byParalelo[par]||0)+1;
+    const ciclo = cur?.ciclo || s.cursante_ciclo || '';
+    const par   = cur?.paralelo || s.cursante_paralelo || '';
+    const key = `${ciclo}__${par}`;
+    byCicloPar[key] = (byCicloPar[key]||0)+1;
   });
-  const topPar = Object.entries(byParalelo).sort((a,b)=>b[1]-a[1]);
+  const usadosCP = new Set();
+  const topPar = ORDEN_CICLO_PARALELO.map(([c,p,label])=>{
+    const k = `${c}__${p}`;
+    usadosCP.add(k);
+    return [label, byCicloPar[k] || 0];
+  });
+  // Cualquier otra combinación (paralelos V/N/J/L, o cursantes sin ciclo asignado)
+  Object.entries(byCicloPar).forEach(([k,v])=>{
+    if(usadosCP.has(k)) return;
+    const [c,p] = k.split('__');
+    const label = `${LABEL_CICLO[c]||c||'(sin ciclo)'} ${p||'(sin paralelo)'}`.trim();
+    topPar.push([label, v]);
+  });
 
   // Top puntajes (pts_aplicados más altos)
   const topPts = [...validas].sort((a,b)=>(b.puntos_aplicados||0)-(a.puntos_aplicados||0)).slice(0,10);
@@ -8984,12 +9008,12 @@ function renderEstadisticas(){
     </div>
 
     <div class="stat-block">
-      <div class="sb-title">Top 7 profesores que más sancionan</div>
+      <div class="sb-title">Top 10 profesores que más sancionan</div>
       ${topProf.map(x=>`<div class="sb-row" style="cursor:pointer" onclick="verEstadisticasProfesor('${x.id}')"><span class="label">${x.nombre} <span style="color:var(--text-muted);font-size:11px">[${x.id}]</span></span><span class="val">${x.count} ›</span></div>`).join('')||'<div class="sb-row"><span class="label">Sin datos</span></div>'}
     </div>
 
     <div class="stat-block">
-      <div class="sb-title">Sanciones por paralelo</div>
+      <div class="sb-title">Sanciones por ciclo y paralelo</div>
       ${topPar.map(([p,n])=>`<div class="sb-row"><span class="label">${p}</span><span class="val">${n}</span></div>`).join('')||'<div class="sb-row"><span class="label">Sin datos</span></div>'}
     </div>
 
@@ -9007,7 +9031,7 @@ function verEstadisticasProfesor(profId){
   const profNombre = sancs[0]?.profesor_nombre || profId;
   const totalPts = sancs.reduce((sum,s)=>sum+(Number(s.puntos_aplicados)||0), 0);
 
-  // Agrupar por cursante
+  // Agrupar por cursante (solo para contar cursantes únicos en la stat card)
   const byCur = {};
   sancs.forEach(s=>{
     const cid = s.cursante_id;
@@ -9015,7 +9039,6 @@ function verEstadisticasProfesor(profId){
     byCur[cid].count++;
     byCur[cid].pts += Number(s.puntos_aplicados)||0;
   });
-  const topCursantes = Object.entries(byCur).map(([id,v])=>({id,...v})).sort((a,b)=>b.count-a.count);
 
   // Agrupar por categoría
   const byCat = {};
@@ -9040,19 +9063,20 @@ function verEstadisticasProfesor(profId){
       ${Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([cat,n])=>`<div class="sb-row"><span class="label">${cat}</span><span class="val">${n}</span></div>`).join('')}
     </div>
 
-    <div class="stat-block">
-      <div class="sb-title">Cursantes sancionados (${topCursantes.length})</div>
-      ${topCursantes.map(x=>`<div class="sb-row"><span class="label">${x.nombre} <span style="color:var(--text-muted);font-size:11px">[${x.id}]</span></span><span class="val">${x.count} · ${x.pts} pts</span></div>`).join('')}
-    </div>
-
-    <div class="section-label">Todas las sanciones impuestas</div>
-    ${sancs.map(s=>`
-      <div class="falta-row">
+    <div class="section-label">Todas las sanciones impuestas (${sancs.length})</div>
+    ${sancs.map(s=>{
+      const cur = discData.cursantes.find(x=>x.id===s.cursante_id);
+      const ciclo = cur?.ciclo || s.cursante_ciclo || '';
+      const par   = cur?.paralelo || s.cursante_paralelo || '';
+      const LABEL = {'1er_ciclo':'1er Ciclo','2do_ciclo':'2do Ciclo'};
+      const cicloLabel = LABEL[ciclo] || ciclo;
+      const meta = [cicloLabel, par?`"${par}"`:''].filter(Boolean).join(' ');
+      return `<div class="falta-row" style="cursor:pointer" onclick="verSancionDetalle('${s.id}')">
         <div class="falta-id">${s.falta_id||'—'}</div>
-        <div class="falta-desc"><strong>${s.cursante_nombre||s.cursante_id}</strong> · ${s.falta_categoria||'?'} · Art. ${s.falta_articulo||'—'}<br><span style="font-size:11px;color:var(--text-muted)">${escapeHtml(obtenerDescripcionSancion(s))} · ${s.creado_en?new Date(s.creado_en).toLocaleDateString('es-BO'):'sin fecha'}</span></div>
+        <div class="falta-desc"><strong>${s.cursante_nombre||s.cursante_id}</strong>${meta?` <span style="color:var(--text-muted);font-size:11px">· ${meta}</span>`:''} · ${s.falta_categoria||'?'} · Art. ${s.falta_articulo||'—'}<br><span style="font-size:11px;color:var(--text-muted)">${escapeHtml(obtenerDescripcionSancion(s))} · ${s.creado_en?new Date(s.creado_en).toLocaleDateString('es-BO'):'sin fecha'}</span></div>
         <div class="falta-count">-${s.puntos_aplicados}</div>
-      </div>
-    `).join('')}
+      </div>`;
+    }).join('')}
   `;
   showScreen('screen-est-profesor');
 }
