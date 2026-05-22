@@ -3149,15 +3149,16 @@ input::placeholder, textarea::placeholder {
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
 .pwa-install-banner{
+  display:none !important;
   position:fixed;top:8px;left:8px;right:8px;z-index:9998;
   background:linear-gradient(135deg,rgba(70,130,200,.95),rgba(45,90,140,.95));
   border:1px solid rgba(244,213,122,.6);border-radius:10px;
-  padding:10px 14px;display:none;
+  padding:10px 14px;
   box-shadow:0 4px 14px rgba(0,0,0,.4);
   font-family:var(--font-body);color:var(--text-primary);
   align-items:center;gap:10px;
 }
-.pwa-install-banner.show{display:flex}
+.pwa-install-banner.show{display:none !important}
 .pwa-install-banner .pwa-icon{font-size:22px;flex-shrink:0}
 .pwa-install-banner .pwa-text{flex:1;font-size:12px;line-height:1.3}
 .pwa-install-banner .pwa-text strong{color:var(--gold-light);font-family:var(--font-display);letter-spacing:.5px;font-size:13px}
@@ -8971,38 +8972,25 @@ function renderEstadisticas(){
   });
   const topProf = Object.entries(byProf).map(([id,v])=>({id,...v})).sort((a,b)=>b.count-a.count).slice(0,10);
 
-  // Sanciones por ciclo + paralelo (6 combinaciones fijas: 1er A/B/C, 2do A/B/C)
-  // v2.9.15: antes era solo paralelo (A/B/C) sumando ambos ciclos. Ahora separa por ciclo.
-  const LABEL_CICLO = { '1er_ciclo':'1er Ciclo', '2do_ciclo':'2do Ciclo' };
-  const ORDEN_CICLO_PARALELO = [
-    ['1er_ciclo','A','1er Ciclo A'],
-    ['1er_ciclo','B','1er Ciclo B'],
-    ['1er_ciclo','C','1er Ciclo C'],
-    ['2do_ciclo','A','2do Ciclo A'],
-    ['2do_ciclo','B','2do Ciclo B'],
-    ['2do_ciclo','C','2do Ciclo C'],
-  ];
+  // Sanciones por ciclo + paralelo — agrupa según datos reales de la BD
+  // v2.9.16: matching directo contra valores de cursantes (no hardcodeados)
   const byCicloPar = {};
   validas.forEach(s=>{
     const cur = discData.cursantes.find(x=>x.id===s.cursante_id);
-    const ciclo = cur?.ciclo || s.cursante_ciclo || '';
-    const par   = cur?.paralelo || s.cursante_paralelo || '';
-    const key = `${ciclo}__${par}`;
-    byCicloPar[key] = (byCicloPar[key]||0)+1;
+    const ciclo = (cur?.ciclo || s.cursante_ciclo || '').toString().trim();
+    const par   = (cur?.paralelo || s.cursante_paralelo || '').toString().trim();
+    const key = `${ciclo}||${par}`;
+    if(!byCicloPar[key]) byCicloPar[key] = { ciclo, par, count:0 };
+    byCicloPar[key].count++;
   });
-  const usadosCP = new Set();
-  const topPar = ORDEN_CICLO_PARALELO.map(([c,p,label])=>{
-    const k = `${c}__${p}`;
-    usadosCP.add(k);
-    return [label, byCicloPar[k] || 0];
-  });
-  // Cualquier otra combinación (paralelos V/N/J/L, o cursantes sin ciclo asignado)
-  Object.entries(byCicloPar).forEach(([k,v])=>{
-    if(usadosCP.has(k)) return;
-    const [c,p] = k.split('__');
-    const label = `${LABEL_CICLO[c]||c||'(sin ciclo)'} ${p||'(sin paralelo)'}`.trim();
-    topPar.push([label, v]);
-  });
+  // Convertir a array y ordenar descendente por cantidad
+  const topPar = Object.values(byCicloPar)
+    .filter(x => x.count > 0)
+    .sort((a,b) => b.count - a.count)
+    .map(x => {
+      const label = [x.ciclo, x.par].filter(Boolean).join(' ') || '(sin datos)';
+      return { label, count: x.count, ciclo: x.ciclo, par: x.par };
+    });
 
   // Top puntajes (pts_aplicados más altos)
   const topPts = [...validas].sort((a,b)=>(b.puntos_aplicados||0)-(a.puntos_aplicados||0)).slice(0,10);
@@ -9027,7 +9015,7 @@ function renderEstadisticas(){
 
     <div class="stat-block">
       <div class="sb-title">Sanciones por ciclo y paralelo</div>
-      ${topPar.filter(([p,n])=>n>0).map(([p,n])=>`<div class="sb-row" style="cursor:pointer" onclick="expandirCicloParalelo('${escapeAttr(p)}')"><span class="label">${p}</span><span class="val">${n} ›</span></div>`).join('')||'<div class="sb-row"><span class="label">Sin sanciones registradas</span></div>'}
+      ${topPar.map(x=>`<div class="sb-row" style="cursor:pointer" onclick="expandirCicloParalelo('${escapeAttr(x.ciclo)}','${escapeAttr(x.par)}','${escapeAttr(x.label)}')"><span class="label">${x.label}</span><span class="val">${x.count} ›</span></div>`).join('')||'<div class="sb-row"><span class="label">Sin sanciones registradas</span></div>'}
     </div>
 
     <div class="stat-block">
@@ -9095,40 +9083,18 @@ function verEstadisticasProfesor(profId){
 }
 
 /* ==================== EXPANDIR CICLO/PARALELO EN ESTADÍSTICAS ==================== */
-function expandirCicloParalelo(label){
-  // Parse label like "1er Ciclo A", "2DO CICLO B", "1ER CICLO C"
-  const labelUp = label.toUpperCase().trim();
-  const LABEL_TO_CICLO = {'1ER CICLO':'1er_ciclo','2DO CICLO':'2do_ciclo','1ER':'1er_ciclo','2DO':'2do_ciclo'};
-  let cicloKey='', parKey='';
-  for(const [k,v] of Object.entries(LABEL_TO_CICLO)){
-    if(labelUp.startsWith(k)){
-      cicloKey = v;
-      parKey = labelUp.replace(k,'').trim();
-      break;
-    }
-  }
-  if(!cicloKey){
-    // fallback: try to match direct data
-    const parts = label.split(' ');
-    parKey = parts.pop() || '';
-    cicloKey = parts.join('_').toLowerCase();
-  }
-  // Find matching sanctions
+function expandirCicloParalelo(cicloVal, parVal, label){
+  // Filtrar sanciones que coinciden con el ciclo y paralelo del cursante
   const validas = discData.sanciones.filter(s=>!s.anulada && !s.es_prueba);
   const matching = validas.filter(s=>{
     const cur = discData.cursantes.find(x=>x.id===s.cursante_id);
-    const c = (cur?.ciclo || s.cursante_ciclo || '').toUpperCase();
-    const p = (cur?.paralelo || s.cursante_paralelo || '').toUpperCase();
-    return c.includes(cicloKey.replace('_',' ').toUpperCase().replace('1ER ','1ER_').replace('2DO ','2DO_').toUpperCase()) || 
-           (c === cicloKey.toUpperCase() || c === cicloKey);
-  }).filter(s=>{
-    const cur = discData.cursantes.find(x=>x.id===s.cursante_id);
-    const p = (cur?.paralelo || s.cursante_paralelo || '').toUpperCase();
-    return p === parKey;
+    const c = (cur?.ciclo || s.cursante_ciclo || '').toString().trim();
+    const p = (cur?.paralelo || s.cursante_paralelo || '').toString().trim();
+    return c === cicloVal && p === parVal;
   }).sort((a,b)=>new Date(b.creado_en||0)-new Date(a.creado_en||0));
 
   // Show in est-profesor screen reusing the layout
-  document.getElementById('est-prof-title').textContent = label;
+  document.getElementById('est-prof-title').textContent = label || `${cicloVal} ${parVal}`;
   document.getElementById('est-prof-sub').textContent = `${matching.length} sanciones`;
   const c = document.getElementById('est-prof-content');
   // Group by cursante
@@ -9147,12 +9113,11 @@ function expandirCicloParalelo(label){
       <div class="stat-card"><div class="stat-num">${topCur.length}</div><div class="stat-label">Cursantes</div></div>
     </div>
     <div class="stat-block">
-      <div class="sb-title">Cursantes sancionados en ${label}</div>
+      <div class="sb-title">Cursantes sancionados en ${label||cicloVal+' '+parVal}</div>
       ${topCur.map(x=>`<div class="sb-row" style="cursor:pointer" onclick="verFichaCursante('${x.id}','estadisticas')"><span class="label">${x.nombre}</span><span class="val">${x.pts} pts (${x.count}) ›</span></div>`).join('')||'<div class="sb-row"><span class="label">Sin cursantes sancionados</span></div>'}
     </div>
     <div class="section-label">Todas las sanciones (${matching.length})</div>
     ${matching.map(s=>{
-      const cur = discData.cursantes.find(x=>x.id===s.cursante_id);
       return `<div class="falta-row" style="cursor:pointer" onclick="verSancionDetalle('${s.id}')">
         <div class="falta-id">${s.falta_id||'—'}</div>
         <div class="falta-desc"><strong>${s.cursante_nombre||s.cursante_id}</strong> · ${s.falta_categoria||'?'} · Art. ${s.falta_articulo||'—'}<br><span style="font-size:11px;color:var(--text-muted)">${escapeHtml(obtenerDescripcionSancion(s))} · ${s.creado_en?new Date(s.creado_en).toLocaleDateString('es-BO'):'sin fecha'}</span></div>
@@ -9862,12 +9827,19 @@ function nombreConGrado(c){
   // Cursantes (tienen ciclo/paralelo) → Grado + Arma + Nombre (ej: My. Cab. Renzo Vargas)
   // Profesores Tcnl. → Grado + DEM. + Nombre (ej: Tcnl. DEM. Sergio Morales)
   // Profesores Cnl. → Grado + DAEN. + Nombre (ej: Cnl. DAEN. William Baptista)
-  // Profesores My./Cap. → Grado + Arma + Nombre
   let armaMostrar = armaOrig;
   const esCursante = !!(c.ciclo || c.paralelo);
-  if(!esCursante && grado){
-    const g = grado.toUpperCase().replace(/\./g,'').trim();
-    if(/^TCNL|^TTE\s*C|^TNTE\s*C/.test(g)){
+  const gradoUp = grado.toUpperCase();
+  // Si grado ya contiene DEM o DAEN, no agregar arma (ya está incluida)
+  if(gradoUp.includes('DEM') || gradoUp.includes('DAEN')){
+    armaMostrar = '';
+  } else if(!esCursante && grado){
+    const g = gradoUp.replace(/\./g,'').trim();
+    // Si arma ya es DEM o DAEN, dejarlo tal cual
+    const armaUp = armaOrig.toUpperCase().replace(/\./g,'').trim();
+    if(armaUp === 'DEM' || armaUp === 'DAEN'){
+      // ya correcto, no duplicar
+    } else if(/^TCNL|^TTE\s*C|^TNTE\s*C/.test(g)){
       armaMostrar = 'DEM.';
     } else if(/^CNL|^CRL|^GRAL|^GRL/.test(g) && !/^T/.test(g)){
       armaMostrar = 'DAEN.';
@@ -9878,7 +9850,7 @@ function nombreConGrado(c){
 }
 
 // Sólo el apellido + grado para saludos/encabezados militares
-// Ej "My. Inf. Castro Salazar"
+// Ej "Tcnl. DEM. Morales Millan"
 function gradoApellido(c){
   if(!c) return '';
   const grado = (c.grado || c.grado_militar || c.rango || '').toString().trim();
@@ -9888,9 +9860,15 @@ function gradoApellido(c){
   const apellidos = partes.length >= 2 ? partes.slice(-2).join(' ') : nombre;
   let armaMostrar = armaOrig;
   const esCursante = !!(c.ciclo || c.paralelo);
-  if(!esCursante && grado){
-    const g = grado.toUpperCase().replace(/\./g,'').trim();
-    if(/^TCNL|^TTE\s*C|^TNTE\s*C/.test(g)) armaMostrar = 'DEM.';
+  const gradoUp = grado.toUpperCase();
+  if(gradoUp.includes('DEM') || gradoUp.includes('DAEN')){
+    armaMostrar = '';
+  } else if(!esCursante && grado){
+    const g = gradoUp.replace(/\./g,'').trim();
+    const armaUp = armaOrig.toUpperCase().replace(/\./g,'').trim();
+    if(armaUp === 'DEM' || armaUp === 'DAEN'){
+      // ya correcto
+    } else if(/^TCNL|^TTE\s*C|^TNTE\s*C/.test(g)) armaMostrar = 'DEM.';
     else if(/^CNL|^CRL|^GRAL|^GRL/.test(g) && !/^T/.test(g)) armaMostrar = 'DAEN.';
   }
   const prefix = [grado, armaMostrar].filter(Boolean).join(' ');
