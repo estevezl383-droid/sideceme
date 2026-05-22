@@ -88,7 +88,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .act-item:hover{background:var(--bg-elevated);border-color:var(--border-strong);transform:translateX(2px)}
 .act-item.firmada{border-left-color:#4ca36b}
 .act-item.pendiente{border-left-color:#e55b3c}
-.act-item.anulada{border-left-color:#888;opacity:.65}
+.act-item.anulada{border-left-color:#9b59b6;opacity:.8}
 .act-item.analogica{border-left-color:#8a7330}
 .act-emoji{font-size:18px;flex-shrink:0;line-height:1.2;margin-top:1px}
 .act-body{flex:1;min-width:0}
@@ -96,7 +96,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .act-badge{font-size:9px;font-weight:700;letter-spacing:1.2px;padding:2px 7px;border-radius:8px;text-transform:uppercase;white-space:nowrap}
 .act-badge.firmada{background:rgba(76,163,107,.2);color:#9bcfa9;border:1px solid rgba(76,163,107,.4)}
 .act-badge.pendiente{background:rgba(229,91,60,.2);color:#f0a890;border:1px solid rgba(229,91,60,.4)}
-.act-badge.anulada{background:rgba(136,136,136,.18);color:#aaa;border:1px solid rgba(136,136,136,.3)}
+.act-badge.anulada{background:rgba(155,89,182,.2);color:#c49bdb;border:1px solid rgba(155,89,182,.4)}
 .act-badge.analogica{background:rgba(138,115,48,.2);color:#d4af55;border:1px solid rgba(138,115,48,.4)}
 .act-time{font-size:10px;color:var(--text-muted);font-family:monospace;letter-spacing:.5px;white-space:nowrap}
 .act-title{font-size:13px;color:var(--text-primary);font-weight:600;line-height:1.3;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -343,7 +343,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .sancion-card.digital-firmada{border-left-color:#4a90d9;background:linear-gradient(90deg,rgba(74,144,217,.12),var(--bg-card) 30%)}
 .sancion-card.digital-aceptada{border-left-color:#4ca36b;background:linear-gradient(90deg,rgba(76,163,107,.12),var(--bg-card) 30%)}
 .sancion-card.digital-pendiente{border-left-color:#c84a4a;background:linear-gradient(90deg,rgba(200,74,74,.14),var(--bg-card) 30%)}
-.sancion-card.anulada{opacity:.45;border-left-color:#444}
+.sancion-card.anulada{opacity:.75;border-left-color:#9b59b6;background:rgba(155,89,182,.06)}
 .sc-row1{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .sc-cursante{font-family:var(--font-display);font-size:15px;color:var(--text-primary);font-weight:600;flex:1;min-width:0}
 .sc-pts{font-family:var(--font-display);font-weight:700;font-size:14px;padding:4px 10px;border-radius:14px;background:rgba(212,175,55,.08);border:1px solid var(--border-subtle);white-space:nowrap;color:var(--gold-light)}
@@ -1096,6 +1096,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .ms-card.pendiente{border-left-color:#c84a4a;background:linear-gradient(90deg,rgba(200,74,74,.06),rgba(17,32,58,.6))}
 .ms-card.prueba{border-left-color:#e0a83a;background:linear-gradient(90deg,rgba(224,168,58,.06),rgba(17,32,58,.6))}
 .ms-card.analogica{border-left-color:#888;background:linear-gradient(90deg,rgba(140,140,140,.08),rgba(17,32,58,.6))}
+.ms-card.anulada{border-left-color:#9b59b6;background:linear-gradient(90deg,rgba(155,89,182,.08),rgba(17,32,58,.6));opacity:.8}
 
 .ms-card .ms-icon{
   flex-shrink:0;width:38px;height:38px;border-radius:50%;
@@ -1106,6 +1107,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .ms-card.pendiente .ms-icon{background:rgba(200,74,74,.18);color:#e8a8a8}
 .ms-card.prueba .ms-icon{background:rgba(224,168,58,.18);color:#e8c87a}
 .ms-card.analogica .ms-icon{background:rgba(160,160,160,.2);color:#c8c8c8}
+.ms-card.anulada .ms-icon{background:rgba(155,89,182,.2);color:#c49bdb}
 
 .ms-card .ms-body{flex:1;min-width:0}
 .ms-card .ms-row1{
@@ -1381,6 +1383,8 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 #cur-historial-list .ms-card.analogica{border-left-color:#787878;background:linear-gradient(90deg,rgba(160,160,160,.2),rgba(254,245,224,.85))}
 #cur-sanciones-list .ms-card.prueba,
 #cur-historial-list .ms-card.prueba{border-left-color:#c89030;background:linear-gradient(90deg,rgba(224,168,58,.18),rgba(254,245,224,.85))}
+#cur-sanciones-list .ms-card.anulada,
+#cur-historial-list .ms-card.anulada{border-left-color:#9b59b6;background:linear-gradient(90deg,rgba(155,89,182,.12),rgba(254,245,224,.85));opacity:.8}
 #cur-sanciones-list .ms-empty,
 #cur-historial-list .ms-empty{background:rgba(254,245,224,.6);border-color:rgba(212,175,55,.4);color:#5c4a1a}
 
@@ -2415,14 +2419,14 @@ input::placeholder, textarea::placeholder {
 /* ─── BORDES DE LISTAS DE ACTIVIDAD ────────────────────────────── */
 .act-item.firmada     { border-left: 4px solid #4ca36b !important; }
 .act-item.pendiente   { border-left: 4px solid #e55b3c !important; }
-.act-item.anulada     { border-left: 4px solid #888 !important; opacity: 0.65; }
+.act-item.anulada     { border-left: 4px solid #9b59b6 !important; opacity: 0.8; }
 .act-item.analogica   { border-left: 4px solid #b08a3a !important; }
 .act-title { color: var(--mf-laton-claro) !important; text-shadow: 0 1px 0 rgba(0,0,0,0.7); }
 .act-meta { color: var(--mf-texto-medio) !important; }
 .act-meta .act-pts { color: var(--mf-laton-claro) !important; font-weight: 700; }
 .act-badge.firmada    { background: rgba(76,163,107,.25) !important; color: #b0e0c0 !important; border: 1px solid #4ca36b !important; }
 .act-badge.pendiente  { background: rgba(229,91,60,.25) !important; color: #f5b4a0 !important; border: 1px solid #e55b3c !important; }
-.act-badge.anulada    { background: rgba(136,136,136,.22) !important; color: #c8c8c8 !important; border: 1px solid #888 !important; }
+.act-badge.anulada    { background: rgba(155,89,182,.22) !important; color: #c49bdb !important; border: 1px solid #9b59b6 !important; }
 .act-badge.analogica  { background: rgba(176,138,58,.25) !important; color: #e8c878 !important; border: 1px solid #b08a3a !important; }
 
 /* ─── REPORTE CARDS (Excel/Word/PDF exports) ───────────────────── */
@@ -3140,7 +3144,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.15 · stats-fix</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.16 · multi-fix</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -3569,6 +3573,7 @@ input::placeholder, textarea::placeholder {
     <div class="section-label">Acciones</div>
     <div class="quick-grid">
       <button class="quick-btn" onclick="qaProf('cambiar_pwd')"><span class="qa-icon">🔐</span><span class="qa-text">Cambiar mi contraseña</span></button>
+      <button class="quick-btn" onclick="ofrecerGuardarCredenciales()"><span class="qa-icon">🔑</span><span class="qa-text">Guardar credenciales (Face ID / huella / llenado automático)</span></button>
     </div>
   </div>
 </section>
@@ -4928,6 +4933,8 @@ async function loginDocente(){
     currentUser=prof; activeRole=selectedCargo;
     saveSession(prof,'docente',activeRole);
     iniciarIdleTimer();
+    // Guardar credenciales en navegador (auto-fill / Face ID / huella)
+    try{ if(window.PasswordCredential){ const cr=new PasswordCredential({id:ci,password:pwd,name:prof.nombre_completo||ci}); navigator.credentials.store(cr).catch(()=>{}); } }catch(e){}
     // Actualizar último login (best-effort, no bloqueante)
     try{ sb.from('profesores').update({ultimo_login:new Date().toISOString()}).eq('id',prof.id).then(()=>{}); }catch(e){}
     await enterRole(activeRole);
@@ -4993,6 +5000,8 @@ async function loginCursante(){
     currentUser=cur;
     saveSession(cur,'cursante',null);
     iniciarIdleTimer();
+    // Guardar credenciales en navegador (auto-fill / Face ID / huella)
+    try{ if(window.PasswordCredential){ const cr=new PasswordCredential({id:ci,password:pwd,name:cur.nombre_completo||ci}); navigator.credentials.store(cr).catch(()=>{}); } }catch(e){}
     try{ sb.from('cursantes').update({ultimo_login:new Date().toISOString()}).eq('id',cur.id).then(()=>{}); }catch(e){}
     await renderCursanteHome();
     showScreen('screen-cursante-home');
@@ -5093,6 +5102,8 @@ async function enterRole(role){
     renderGenericoPanel(role);
     showScreen('screen-panel-generico');
   }
+  // v2.9.16: Iniciar polling de notificaciones
+  try{ iniciarNotificaciones(); }catch(e){}
 }
 
 function renderGenericoPanel(role){
@@ -6571,7 +6582,11 @@ function renderCursanteSancionesInline(sanciones, containerId, limit){
     const firmada = !analogica && (s.confirmacion_estado === 'firmada' || s.confirmacion_estado === 'aceptada' || !!s.firma_cursante);
     const esPrueba = !analogica && s.es_prueba === true;
     let claseCard, icono, badge;
-    if(analogica){
+    if(s.anulada === true){
+      claseCard = 'anulada';
+      icono = '🟣';
+      badge = '<span class="ms-badge" style="background:rgba(155,89,182,.22);color:#6a50b4;border:1px solid rgba(155,89,182,.4)">🟣 Anulada</span>';
+    } else if(analogica){
       claseCard = 'analogica';
       icono = '📜';
       badge = '<span class="ms-badge analogica">📜 Pre-digital</span>';
@@ -6731,18 +6746,7 @@ async function toggleNotificacionesCursante(){
 
 async function cambiarMiPasswordCursante(){
   if(!currentUser){ alert('Sesión expirada'); return; }
-  const nueva = prompt('Ingresa tu nueva contraseña (mín. 4 caracteres):');
-  if(!nueva) return;
-  if(nueva.length < 4){ alert('Mínimo 4 caracteres.'); return; }
-  const conf = prompt('Confirma la nueva contraseña:');
-  if(conf !== nueva){ alert('Las contraseñas no coinciden.'); return; }
-  try{
-    const { error } = await sb.from('cursantes').update({ password: nueva }).eq('id', currentUser.id);
-    if(error){ alert('Error: ' + (error.message||JSON.stringify(error))); return; }
-    currentUser.password = nueva;
-    saveSession(currentUser, 'cursante', null);
-    alert('✅ Contraseña actualizada.');
-  }catch(e){ alert('Error: ' + (e.message||e)); }
+  cambiarMiPassword('cursante');
 }
 
 // v2.9.7: Jefe Disciplina cambia la contraseña de un cursante desde su ficha
@@ -7149,7 +7153,7 @@ function renderSancionesBreakdown(){
 
 /* ============ SANCIONES: LISTADO + DETALLE ============ */
 function clasificarSancion(s){
-  if(s.anulada) return {tipo:'anulada', label:'Anulada', cls:'anulada', statusCls:'analogica'};
+  if(s.anulada) return {tipo:'anulada', label:'Anulada / Modificada', cls:'anulada', statusCls:'anulada', icon:'🟣'};
   const tipoRaw = (s.tipo||'').toLowerCase();
   const hf = parseHF(s.huella_forense);
   // Analógica si el tipo lo dice o si tiene marca de migración desde Excel
@@ -7320,7 +7324,7 @@ function verSancionDetalle(sancionId){
       </div>`;
     }
   } else if(cls.tipo==='anulada'){
-    html += `<div class="sd-banner analogica"><div class="sd-banner-title">🚫 Anulada</div><div class="sd-banner-sub">Esta sanción ya no está vigente</div></div>`;
+    html += `<div class="sd-banner" style="background:linear-gradient(135deg,rgba(155,89,182,.25),rgba(155,89,182,.08));border-left:4px solid #9b59b6"><div class="sd-banner-title" style="color:#c49bdb">🟣 Anulada / Modificada</div><div class="sd-banner-sub" style="color:#a88bc0">Esta sanción ya no está vigente — el puntaje no se descuenta</div></div>`;
   }
 
   // Bloque 1: SOLO si es analógica → mostrar datos del registro analógico
@@ -7373,6 +7377,15 @@ function verSancionDetalle(sancionId){
     <div class="sd-row"><span class="lbl">Puntaje final</span><span class="vl big">−${s.puntos_aplicados||0} PTS</span></div>
     ${s.observaciones?`<div class="sd-row"><span class="lbl">Observaciones</span><span class="vl" style="font-style:italic">${s.observaciones}</span></div>`:''}
   </div>`;
+
+  // Bloque 3b: OBSERVACIÓN DEL CURSANTE (si escribió descargo al firmar)
+  if(s.observaciones_cursante){
+    html += `<div class="sd-block" style="border-left:3px solid #6a9fd8">
+      <div class="sd-block-title">💬 Observación del cursante</div>
+      <div style="font-size:14px;color:var(--text-primary);line-height:1.6;padding:10px 14px;background:rgba(70,130,200,.08);border-radius:8px;font-style:italic">${escapeHtml(s.observaciones_cursante)}</div>
+      ${s.firmada_curs_en?`<div style="font-size:11px;color:var(--text-muted);margin-top:6px">Escrita al momento de firmar · ${new Date(s.firmada_curs_en).toLocaleString('es-BO')}</div>`:''}
+    </div>`;
+  }
 
   // Bloque 4: REGISTRADA POR
   html += `<div class="sd-block">
@@ -9014,7 +9027,7 @@ function renderEstadisticas(){
 
     <div class="stat-block">
       <div class="sb-title">Sanciones por ciclo y paralelo</div>
-      ${topPar.map(([p,n])=>`<div class="sb-row"><span class="label">${p}</span><span class="val">${n}</span></div>`).join('')||'<div class="sb-row"><span class="label">Sin datos</span></div>'}
+      ${topPar.filter(([p,n])=>n>0).map(([p,n])=>`<div class="sb-row" style="cursor:pointer" onclick="expandirCicloParalelo('${escapeAttr(p)}')"><span class="label">${p}</span><span class="val">${n} ›</span></div>`).join('')||'<div class="sb-row"><span class="label">Sin sanciones registradas</span></div>'}
     </div>
 
     <div class="stat-block">
@@ -9074,6 +9087,75 @@ function verEstadisticasProfesor(profId){
       return `<div class="falta-row" style="cursor:pointer" onclick="verSancionDetalle('${s.id}')">
         <div class="falta-id">${s.falta_id||'—'}</div>
         <div class="falta-desc"><strong>${s.cursante_nombre||s.cursante_id}</strong>${meta?` <span style="color:var(--text-muted);font-size:11px">· ${meta}</span>`:''} · ${s.falta_categoria||'?'} · Art. ${s.falta_articulo||'—'}<br><span style="font-size:11px;color:var(--text-muted)">${escapeHtml(obtenerDescripcionSancion(s))} · ${s.creado_en?new Date(s.creado_en).toLocaleDateString('es-BO'):'sin fecha'}</span></div>
+        <div class="falta-count">-${s.puntos_aplicados}</div>
+      </div>`;
+    }).join('')}
+  `;
+  showScreen('screen-est-profesor');
+}
+
+/* ==================== EXPANDIR CICLO/PARALELO EN ESTADÍSTICAS ==================== */
+function expandirCicloParalelo(label){
+  // Parse label like "1er Ciclo A", "2DO CICLO B", "1ER CICLO C"
+  const labelUp = label.toUpperCase().trim();
+  const LABEL_TO_CICLO = {'1ER CICLO':'1er_ciclo','2DO CICLO':'2do_ciclo','1ER':'1er_ciclo','2DO':'2do_ciclo'};
+  let cicloKey='', parKey='';
+  for(const [k,v] of Object.entries(LABEL_TO_CICLO)){
+    if(labelUp.startsWith(k)){
+      cicloKey = v;
+      parKey = labelUp.replace(k,'').trim();
+      break;
+    }
+  }
+  if(!cicloKey){
+    // fallback: try to match direct data
+    const parts = label.split(' ');
+    parKey = parts.pop() || '';
+    cicloKey = parts.join('_').toLowerCase();
+  }
+  // Find matching sanctions
+  const validas = discData.sanciones.filter(s=>!s.anulada && !s.es_prueba);
+  const matching = validas.filter(s=>{
+    const cur = discData.cursantes.find(x=>x.id===s.cursante_id);
+    const c = (cur?.ciclo || s.cursante_ciclo || '').toUpperCase();
+    const p = (cur?.paralelo || s.cursante_paralelo || '').toUpperCase();
+    return c.includes(cicloKey.replace('_',' ').toUpperCase().replace('1ER ','1ER_').replace('2DO ','2DO_').toUpperCase()) || 
+           (c === cicloKey.toUpperCase() || c === cicloKey);
+  }).filter(s=>{
+    const cur = discData.cursantes.find(x=>x.id===s.cursante_id);
+    const p = (cur?.paralelo || s.cursante_paralelo || '').toUpperCase();
+    return p === parKey;
+  }).sort((a,b)=>new Date(b.creado_en||0)-new Date(a.creado_en||0));
+
+  // Show in est-profesor screen reusing the layout
+  document.getElementById('est-prof-title').textContent = label;
+  document.getElementById('est-prof-sub').textContent = `${matching.length} sanciones`;
+  const c = document.getElementById('est-prof-content');
+  // Group by cursante
+  const byCur = {};
+  matching.forEach(s=>{
+    const cid = s.cursante_id;
+    if(!byCur[cid]) byCur[cid] = { nombre: s.cursante_nombre||cid, count:0, pts:0 };
+    byCur[cid].count++;
+    byCur[cid].pts += Number(s.puntos_aplicados)||0;
+  });
+  const topCur = Object.entries(byCur).map(([id,x])=>({id,...x})).sort((a,b)=>b.pts-a.pts);
+  c.innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-num">${matching.length}</div><div class="stat-label">Sanciones</div></div>
+      <div class="stat-card"><div class="stat-num">${matching.reduce((s,x)=>s+(Number(x.puntos_aplicados)||0),0)}</div><div class="stat-label">Pts totales</div></div>
+      <div class="stat-card"><div class="stat-num">${topCur.length}</div><div class="stat-label">Cursantes</div></div>
+    </div>
+    <div class="stat-block">
+      <div class="sb-title">Cursantes sancionados en ${label}</div>
+      ${topCur.map(x=>`<div class="sb-row" style="cursor:pointer" onclick="verFichaCursante('${x.id}','estadisticas')"><span class="label">${x.nombre}</span><span class="val">${x.pts} pts (${x.count}) ›</span></div>`).join('')||'<div class="sb-row"><span class="label">Sin cursantes sancionados</span></div>'}
+    </div>
+    <div class="section-label">Todas las sanciones (${matching.length})</div>
+    ${matching.map(s=>{
+      const cur = discData.cursantes.find(x=>x.id===s.cursante_id);
+      return `<div class="falta-row" style="cursor:pointer" onclick="verSancionDetalle('${s.id}')">
+        <div class="falta-id">${s.falta_id||'—'}</div>
+        <div class="falta-desc"><strong>${s.cursante_nombre||s.cursante_id}</strong> · ${s.falta_categoria||'?'} · Art. ${s.falta_articulo||'—'}<br><span style="font-size:11px;color:var(--text-muted)">${escapeHtml(obtenerDescripcionSancion(s))} · ${s.creado_en?new Date(s.creado_en).toLocaleDateString('es-BO'):'sin fecha'}</span></div>
         <div class="falta-count">-${s.puntos_aplicados}</div>
       </div>`;
     }).join('')}
@@ -9329,7 +9411,11 @@ function renderMisSancionesInline(){
     const firmada = !analogica && (s.confirmacion_estado === 'firmada' || s.confirmacion_estado === 'aceptada' || !!s.firma_cursante);
     const esPrueba = !analogica && s.es_prueba === true;
     let claseCard, icono, badge;
-    if(analogica){
+    if(s.anulada === true){
+      claseCard = 'anulada';
+      icono = '🟣';
+      badge = '<span class="ms-badge" style="background:rgba(155,89,182,.22);color:#c49bdb;border:1px solid rgba(155,89,182,.4)">🟣 Anulada</span>';
+    } else if(analogica){
       claseCard = 'analogica';
       icono = '📜';
       badge = '<span class="ms-badge analogica">📜 Pre-digital</span>';
@@ -9561,7 +9647,36 @@ function verDetalleSancion(sancionId){
     </div>`;
   }
 
-  // Acciones
+  // Acciones del profesor
+  if(!analogica && currentUser && s.profesor_id === currentUser.id){
+    html += `<div class="papeleta-block" style="background:rgba(106,80,180,.08);border:1px solid rgba(140,120,200,.3)">
+      <div class="pb-title" style="color:#9080c0">📋 Solicitar al Jefe de Disciplina</div>
+      <div style="font-size:13px;color:#3a2a08;margin-bottom:10px">Si consideras que esta sanción debe ser anulada o modificada, puedes enviar una solicitud formal.</div>
+      <div id="form-solicitud-prof-${sancionId}" style="display:none">
+        <div style="margin-bottom:10px">
+          <label style="font-size:12px;color:#5c4a1a;display:block;margin-bottom:4px">Tipo de solicitud</label>
+          <select id="sol-tipo-${sancionId}" style="width:100%;padding:10px;background:#fff;border:1px solid rgba(26,14,2,.25);border-radius:8px;font-size:14px;color:#1a0e02;font-family:var(--font-body)">
+            <option value="anulacion">Anulación (eliminar puntaje)</option>
+            <option value="modificacion">Modificación (cambiar datos)</option>
+          </select>
+        </div>
+        <div style="margin-bottom:10px">
+          <label style="font-size:12px;color:#5c4a1a;display:block;margin-bottom:4px">Detalle / Justificación (obligatorio)</label>
+          <textarea id="sol-detalle-${sancionId}" placeholder="Explique el motivo de la solicitud..." maxlength="500" rows="3" style="width:100%;padding:10px;background:#fff;border:1px solid rgba(26,14,2,.25);border-radius:8px;font-size:14px;color:#1a0e02;font-family:var(--font-body);resize:vertical"></textarea>
+          <div style="font-size:11px;color:#888;text-align:right;margin-top:2px"><span id="sol-chars-${sancionId}">0</span>/500</div>
+        </div>
+        <div style="margin-bottom:12px">
+          <label style="font-size:12px;color:#5c4a1a;display:block;margin-bottom:4px">Firma del profesor (constancia)</label>
+          <canvas id="sol-firma-canvas-${sancionId}" width="320" height="120" style="width:100%;height:120px;background:#fff;border:1px solid rgba(26,14,2,.25);border-radius:8px;touch-action:none;cursor:crosshair"></canvas>
+          <button onclick="limpiarCanvasSolicitud('${sancionId}')" style="margin-top:4px;font-size:11px;color:#888;background:none;border:1px solid #ccc;border-radius:4px;padding:4px 10px;cursor:pointer">Borrar firma</button>
+        </div>
+        <button onclick="enviarSolicitudProfesor('${sancionId}')" class="btn-papeleta primary" id="btn-enviar-sol-${sancionId}">📨 Enviar solicitud al Jefe de Disciplina</button>
+        <button onclick="document.getElementById('form-solicitud-prof-${sancionId}').style.display='none'" class="btn-papeleta" style="margin-top:6px">Cancelar</button>
+      </div>
+      <button onclick="mostrarFormSolicitudProf('${sancionId}')" class="btn-papeleta" id="btn-abrir-sol-${sancionId}" style="background:rgba(140,120,200,.15);border-color:rgba(140,120,200,.4);color:#6a50b4">📝 Solicitar anulación o modificación</button>
+    </div>`;
+  }
+
   html += `<button class="btn-papeleta" onclick="goAnyPanel()">← Volver al panel</button>`;
 
   document.getElementById('det-content').innerHTML = html;
@@ -9593,6 +9708,81 @@ function initLeafletMapDetalle(lat, lng){
   L.marker([lat,lng]).addTo(map)
     .bindPopup(`📍 Registro de sanción<br>${lat.toFixed(5)} , ${lng.toFixed(5)}`)
     .openPopup();
+}
+
+// ==================== SOLICITUD ANULACIÓN/MODIFICACIÓN (PROFESOR) ====================
+let solFirmaState = {};
+function mostrarFormSolicitudProf(sancionId){
+  document.getElementById('form-solicitud-prof-'+sancionId).style.display = 'block';
+  document.getElementById('btn-abrir-sol-'+sancionId).style.display = 'none';
+  // Setup canvas firma
+  const canvas = document.getElementById('sol-firma-canvas-'+sancionId);
+  if(canvas && !solFirmaState[sancionId]){
+    const ctx = canvas.getContext('2d');
+    let drawing = false;
+    solFirmaState[sancionId] = { ctx, hasContent:false, canvas };
+    ctx.strokeStyle = '#1a0e02'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+    const getPos = (e) => {
+      const r = canvas.getBoundingClientRect();
+      const t = e.touches ? e.touches[0] : e;
+      return { x: (t.clientX - r.left) * (canvas.width / r.width), y: (t.clientY - r.top) * (canvas.height / r.height) };
+    };
+    const start = (e) => { e.preventDefault(); drawing = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
+    const move = (e) => { if(!drawing) return; e.preventDefault(); const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); solFirmaState[sancionId].hasContent = true; };
+    const end = () => { drawing = false; };
+    canvas.addEventListener('mousedown', start); canvas.addEventListener('mousemove', move); canvas.addEventListener('mouseup', end); canvas.addEventListener('mouseleave', end);
+    canvas.addEventListener('touchstart', start, {passive:false}); canvas.addEventListener('touchmove', move, {passive:false}); canvas.addEventListener('touchend', end);
+  }
+  // Char counter
+  const ta = document.getElementById('sol-detalle-'+sancionId);
+  if(ta) ta.oninput = () => { document.getElementById('sol-chars-'+sancionId).textContent = ta.value.length; };
+}
+function limpiarCanvasSolicitud(sancionId){
+  const st = solFirmaState[sancionId];
+  if(st){ st.ctx.clearRect(0, 0, st.canvas.width, st.canvas.height); st.hasContent = false; }
+}
+async function enviarSolicitudProfesor(sancionId){
+  const tipo = document.getElementById('sol-tipo-'+sancionId).value;
+  const detalle = (document.getElementById('sol-detalle-'+sancionId).value||'').trim();
+  const st = solFirmaState[sancionId];
+  if(!detalle){ alert('Debes escribir la justificación.'); return; }
+  if(!st || !st.hasContent){ alert('Debes firmar para constancia.'); return; }
+  const firmaData = st.canvas.toDataURL('image/png');
+  const btn = document.getElementById('btn-enviar-sol-'+sancionId);
+  btn.disabled = true; btn.textContent = 'Enviando...';
+  try{
+    const s = discData.sanciones.find(x=>String(x.id)===String(sancionId));
+    const solicitud = {
+      sancion_id: sancionId,
+      cursante_id: s?.cursante_id || null,
+      tipo_solicitud: tipo,
+      detalle_profesor: detalle,
+      firma_profesor_solicitud: firmaData,
+      profesor_id: currentUser?.id || null,
+      profesor_nombre: currentUser ? nombreConGrado(currentUser) : '',
+      estado: 'pendiente',
+      fecha_creacion: new Date().toISOString()
+    };
+    const {error} = await sb.from('solicitudes_anulacion').insert([solicitud]);
+    if(error){
+      // Si la tabla no tiene todas las columnas, intentar sin firma
+      if(error.message && error.message.includes('column')){
+        delete solicitud.firma_profesor_solicitud;
+        delete solicitud.tipo_solicitud;
+        solicitud.comentario_disciplina = `[${tipo.toUpperCase()}] ${detalle}`;
+        const {error:e2} = await sb.from('solicitudes_anulacion').insert([solicitud]);
+        if(e2) throw e2;
+      } else throw error;
+    }
+    alert('✅ Solicitud enviada al Jefe de Disciplina.\n\nRecibirás respuesta cuando sea procesada.');
+    document.getElementById('form-solicitud-prof-'+sancionId).style.display = 'none';
+    document.getElementById('btn-abrir-sol-'+sancionId).innerHTML = '✅ Solicitud enviada';
+    document.getElementById('btn-abrir-sol-'+sancionId).disabled = true;
+    document.getElementById('btn-abrir-sol-'+sancionId).style.display = 'block';
+  }catch(e){
+    console.error(e);
+    alert('Error al enviar: '+(e.message||e));
+  }finally{ btn.disabled = false; btn.textContent = '📨 Enviar solicitud al Jefe de Disciplina'; }
 }
 
 function mostrarAvisoBackupSiAplica(){
@@ -9665,9 +9855,24 @@ function goProfBuscarCursante(){
 function nombreConGrado(c){
   if(!c) return '—';
   const grado = (c.grado || c.grado_militar || c.rango || '').toString().trim();
-  const arma = (c.arma || c.especialidad || c.categoria_militar || '').toString().trim();
+  const armaOrig = (c.arma || '').toString().trim();
   const nombre = (c.nombre_completo || c.nombre || '').toString().trim();
-  const partes = [grado, arma, nombre].filter(Boolean);
+  // Doctrina militar ECEME:
+  // Cursantes (tienen ciclo/paralelo) → Grado + Arma + Nombre (ej: My. Cab. Renzo Vargas)
+  // Profesores Tcnl. → Grado + DEM. + Nombre (ej: Tcnl. DEM. Sergio Morales)
+  // Profesores Cnl. → Grado + DAEN. + Nombre (ej: Cnl. DAEN. William Baptista)
+  // Profesores My./Cap. → Grado + Arma + Nombre
+  let armaMostrar = armaOrig;
+  const esCursante = !!(c.ciclo || c.paralelo);
+  if(!esCursante && grado){
+    const g = grado.toUpperCase().replace(/\./g,'').trim();
+    if(/^TCNL|^TTE\s*C|^TNTE\s*C/.test(g)){
+      armaMostrar = 'DEM.';
+    } else if(/^CNL|^CRL|^GRAL|^GRL/.test(g) && !/^T/.test(g)){
+      armaMostrar = 'DAEN.';
+    }
+  }
+  const partes = [grado, armaMostrar, nombre].filter(Boolean);
   return partes.length ? partes.join(' ') : (nombre || '—');
 }
 
@@ -9676,12 +9881,18 @@ function nombreConGrado(c){
 function gradoApellido(c){
   if(!c) return '';
   const grado = (c.grado || c.grado_militar || c.rango || '').toString().trim();
-  const arma = (c.arma || c.especialidad || '').toString().trim();
+  const armaOrig = (c.arma || '').toString().trim();
   const nombre = (c.nombre_completo || c.nombre || '').toString().trim();
   const partes = nombre.split(' ').filter(Boolean);
-  // En Bolivia los oficiales suelen usar 2 apellidos al final → tomamos los últimos 2
   const apellidos = partes.length >= 2 ? partes.slice(-2).join(' ') : nombre;
-  const prefix = [grado, arma].filter(Boolean).join(' ');
+  let armaMostrar = armaOrig;
+  const esCursante = !!(c.ciclo || c.paralelo);
+  if(!esCursante && grado){
+    const g = grado.toUpperCase().replace(/\./g,'').trim();
+    if(/^TCNL|^TTE\s*C|^TNTE\s*C/.test(g)) armaMostrar = 'DEM.';
+    else if(/^CNL|^CRL|^GRAL|^GRL/.test(g) && !/^T/.test(g)) armaMostrar = 'DAEN.';
+  }
+  const prefix = [grado, armaMostrar].filter(Boolean).join(' ');
   return prefix ? `${prefix} ${apellidos}` : apellidos;
 }
 
@@ -10886,7 +11097,148 @@ function qaProf(action){
     mes_actual: 'Sanciones de este mes',
     cambiar_pwd: 'Cambiar mi contraseña'
   };
+  if(action === 'cambiar_pwd'){
+    cambiarMiPassword('profesor');
+    return;
+  }
   alert(`"${labels[action]||action}" — en próxima iteración.`);
+}
+
+// ==================== CAMBIO DE CONTRASEÑA (universal) ====================
+async function cambiarMiPassword(tipoUsuario){
+  const s = getSession();
+  if(!s) { alert('Sesión expirada. Volvé a iniciar sesión.'); return; }
+  const tabla = tipoUsuario === 'profesor' ? 'profesores' : 'cursantes';
+  const userId = s.usuario_id || currentUser?.id;
+  if(!userId){ alert('No se encontró el usuario actual.'); return; }
+
+  // Modal HTML
+  const overlay = document.createElement('div');
+  overlay.id = 'modal-cambiar-pwd';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(4px)';
+  overlay.innerHTML = `
+    <div style="background:var(--bg-elevated);border:1px solid var(--border-strong);border-radius:var(--radius-lg);padding:28px 24px;max-width:400px;width:100%">
+      <div style="font-family:var(--font-display);font-size:16px;color:var(--gold-light);letter-spacing:2px;text-transform:uppercase;margin-bottom:18px">🔐 Cambiar contraseña</div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Contraseña actual</label>
+        <input type="password" id="pwd-actual" style="width:100%;padding:12px;background:var(--bg-deep);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:6px;font-size:15px" autocomplete="current-password">
+      </div>
+      <div style="margin-bottom:14px">
+        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Nueva contraseña</label>
+        <input type="password" id="pwd-nueva" style="width:100%;padding:12px;background:var(--bg-deep);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:6px;font-size:15px" autocomplete="new-password">
+      </div>
+      <div style="margin-bottom:18px">
+        <label style="font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px">Confirmar nueva contraseña</label>
+        <input type="password" id="pwd-confirmar" style="width:100%;padding:12px;background:var(--bg-deep);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:6px;font-size:15px" autocomplete="new-password">
+      </div>
+      <div id="pwd-error" style="display:none;color:var(--danger);font-size:13px;margin-bottom:10px"></div>
+      <div style="display:flex;gap:10px">
+        <button onclick="document.getElementById('modal-cambiar-pwd').remove()" style="flex:1;padding:12px;background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:8px;color:var(--text-primary);cursor:pointer;font-family:var(--font-body)">Cancelar</button>
+        <button id="btn-guardar-pwd" onclick="ejecutarCambioPassword('${tabla}','${userId}')" style="flex:1;padding:12px;background:linear-gradient(180deg,var(--gold),var(--gold-dark));border:none;border-radius:8px;color:#1a0e02;font-weight:700;cursor:pointer;font-family:var(--font-body)">Guardar</button>
+      </div>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border-subtle);text-align:center">
+        <button onclick="guardarCredencialesNavegador()" style="padding:10px 16px;background:rgba(70,130,200,.15);border:1px solid rgba(70,130,200,.4);border-radius:8px;color:var(--info-text);cursor:pointer;font-size:12px;width:100%">🔑 Guardar usuario/contraseña en este dispositivo</button>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:6px">Permite usar Face ID, huella dactilar o llenado automático</div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+async function ejecutarCambioPassword(tabla, userId){
+  const actual = document.getElementById('pwd-actual').value;
+  const nueva = document.getElementById('pwd-nueva').value;
+  const confirmar = document.getElementById('pwd-confirmar').value;
+  const errDiv = document.getElementById('pwd-error');
+  errDiv.style.display = 'none';
+
+  if(!actual || !nueva){ errDiv.textContent='Completá todos los campos.'; errDiv.style.display='block'; return; }
+  if(nueva.length < 4){ errDiv.textContent='La contraseña debe tener al menos 4 caracteres.'; errDiv.style.display='block'; return; }
+  if(nueva !== confirmar){ errDiv.textContent='Las contraseñas nuevas no coinciden.'; errDiv.style.display='block'; return; }
+
+  const btn = document.getElementById('btn-guardar-pwd');
+  btn.disabled = true; btn.textContent = 'Guardando...';
+
+  try{
+    // Verificar contraseña actual
+    const {data:usuario, error:fetchErr} = await sb.from(tabla).select('password_hash,ci').eq('id',userId).single();
+    if(fetchErr || !usuario){ errDiv.textContent='No se encontró el usuario.'; errDiv.style.display='block'; btn.disabled=false; btn.textContent='Guardar'; return; }
+
+    const hashActual = usuario.password_hash || '';
+    let pwdValida = false;
+    if(hashActual.startsWith('$2')){ 
+      pwdValida = await dcodeIO.bcrypt.compare(actual, hashActual);
+    } else {
+      pwdValida = (actual === hashActual);
+    }
+    if(!pwdValida){ errDiv.textContent='La contraseña actual es incorrecta.'; errDiv.style.display='block'; btn.disabled=false; btn.textContent='Guardar'; return; }
+
+    // Hashear nueva contraseña
+    const salt = await dcodeIO.bcrypt.genSalt(10);
+    const nuevoHash = await dcodeIO.bcrypt.hash(nueva, salt);
+
+    const {error:updateErr} = await sb.from(tabla).update({password_hash: nuevoHash}).eq('id',userId);
+    if(updateErr){ errDiv.textContent='Error al guardar: '+updateErr.message; errDiv.style.display='block'; btn.disabled=false; btn.textContent='Guardar'; return; }
+
+    // Ofrecer guardar en navegador
+    try{
+      if(window.PasswordCredential){
+        const cred = new PasswordCredential({ id: usuario.ci || userId, password: nueva, name: currentUser?.nombre_completo || '' });
+        await navigator.credentials.store(cred);
+      }
+    }catch(e){ console.log('Credential store skip:', e); }
+
+    document.getElementById('modal-cambiar-pwd').remove();
+    alert('✅ Contraseña actualizada correctamente.\n\nUsá la nueva contraseña en tu próximo inicio de sesión.');
+  }catch(e){
+    errDiv.textContent='Error: '+(e.message||e); errDiv.style.display='block'; btn.disabled=false; btn.textContent='Guardar';
+  }
+}
+
+function guardarCredencialesNavegador(){
+  const s = getSession();
+  if(!s || !currentUser) { alert('No hay sesión activa.'); return; }
+  const ci = currentUser.ci || s.ci || '';
+  if(!ci){ alert('No se encontró el CI del usuario.'); return; }
+
+  if(window.PasswordCredential){
+    try{
+      const pwdInput = document.getElementById('pwd-actual');
+      const pwd = pwdInput ? pwdInput.value : '';
+      if(!pwd){ alert('Escribí tu contraseña actual para guardarla en el dispositivo.'); return; }
+      const cred = new PasswordCredential({
+        id: ci,
+        password: pwd,
+        name: currentUser.nombre_completo || ci
+      });
+      navigator.credentials.store(cred).then(()=>{
+        alert('✅ Credenciales guardadas.\n\nLa próxima vez que inicies sesión, tu navegador te ofrecerá autocompletar con Face ID, huella o contraseña del dispositivo.');
+      }).catch(e=>{
+        alert('Tu navegador no permitió guardar las credenciales.\n\nIntentá desde la configuración de contraseñas de tu navegador.');
+      });
+    }catch(e){
+      alert('Este navegador no soporta el guardado automático de credenciales.\n\nPodés guardar las credenciales manualmente desde la configuración del navegador.');
+    }
+  } else {
+    alert('Para guardar tu usuario y contraseña en este dispositivo:\n\n📱 iPhone/iPad: Ajustes → Contraseñas → agregar manualmente\n🤖 Android Chrome: Configuración → Contraseñas\n💻 PC: Tu navegador te ofrecerá guardar al iniciar sesión\n\nEsto permite usar Face ID o huella dactilar para acceder.');
+  }
+}
+
+function ofrecerGuardarCredenciales(){
+  const s = getSession();
+  if(!s || !currentUser){ alert('No hay sesión activa.'); return; }
+  const ci = currentUser.ci || '';
+  if(window.PasswordCredential){
+    const pwd = prompt('Ingresá tu contraseña actual para guardarla en el dispositivo:');
+    if(!pwd) return;
+    const cred = new PasswordCredential({ id: ci, password: pwd, name: currentUser.nombre_completo || ci });
+    navigator.credentials.store(cred).then(()=>{
+      alert('✅ Credenciales guardadas.\n\nAhora tu dispositivo te ofrecerá autocompletar con Face ID, huella o contraseña guardada.');
+    }).catch(()=>{
+      alert('No se pudo guardar. Intentá desde la configuración de contraseñas del navegador.');
+    });
+  } else {
+    alert('Para acceso rápido con Face ID o huella:\n\n📱 iPhone: Ajustes → Contraseñas → + → Sitio: estevezl383-droid.github.io → CI y contraseña\n🤖 Android: Chrome → Configuración → Contraseñas → Agregar\n\nAl iniciar sesión, el navegador rellenará automáticamente.');
+  }
 }
 
 // Helpers de escape
@@ -10966,6 +11318,10 @@ async function gestionarSancionesPrueba(){
 /* ==================== QA placeholder ==================== */
 function qa(action){
   const labels={cambiar_pwd_otro:'Cambiar contraseña de cursante/profesor',cambiar_mi_pwd:'Cambiar mi contraseña',crear_usuario_modulo:'Crear usuario para otro módulo'};
+  if(action === 'cambiar_mi_pwd'){
+    cambiarMiPassword('profesor');
+    return;
+  }
   alert(`"${labels[action]||action}" — en próxima iteración.`);
 }
 
@@ -11441,6 +11797,104 @@ function goHomeFromFirma(){
   // Limpiar URL y volver al inicio (limpia los params)
   window.location.href = window.location.pathname;
 }
+
+// ==================== NOTIFICACIONES DE FIRMAS PENDIENTES ====================
+let notifTimer = null;
+let notifLastKnown = {};
+
+function iniciarNotificaciones(){
+  if(notifTimer) clearInterval(notifTimer);
+  // Polling cada 45 segundos
+  notifTimer = setInterval(verificarNotificaciones, 45000);
+  // Primera verificación a los 5 segundos
+  setTimeout(verificarNotificaciones, 5000);
+}
+
+async function verificarNotificaciones(){
+  if(!currentUser || !sb) return;
+  const s = getSession();
+  if(!s) return;
+  try{
+    if(s.tipo === 'cursante'){
+      // Cursante: verificar sanciones pendientes de firmar
+      const {data} = await sb.from('sanciones')
+        .select('id,folio,falta_articulo,profesor_nombre,creado_en')
+        .eq('cursante_id', currentUser.id)
+        .eq('tipo', 'digital')
+        .is('firma_cursante', null)
+        .neq('confirmacion_estado', 'firmada')
+        .neq('confirmacion_estado', 'aceptada')
+        .eq('anulada', false)
+        .order('creado_en', {ascending:false})
+        .limit(5);
+      if(data && data.length > 0){
+        const nuevas = data.filter(d => !notifLastKnown['cur_'+d.id]);
+        if(nuevas.length > 0 && Notification.permission === 'granted'){
+          new Notification('SIDECEME — Firma pendiente', {
+            body: `Tienes ${data.length} sanción(es) pendiente(s) de firma.`,
+            icon: 'assets/icon-sideceme.png',
+            tag: 'firma-pendiente'
+          });
+        }
+        data.forEach(d => notifLastKnown['cur_'+d.id] = true);
+        // Actualizar badge en nav si existe
+        const navBadge = document.getElementById('cur-nav-badge');
+        if(navBadge) navBadge.textContent = data.length;
+        else{
+          const navBtn = document.getElementById('cur-nav-inicio');
+          if(navBtn && data.length > 0){
+            const badge = document.createElement('span');
+            badge.id = 'cur-nav-badge';
+            badge.style.cssText = 'position:absolute;top:2px;right:12px;background:#c84a4a;color:#fff;font-size:10px;font-weight:700;min-width:16px;height:16px;line-height:16px;text-align:center;border-radius:8px;padding:0 4px';
+            badge.textContent = data.length;
+            navBtn.style.position = 'relative';
+            navBtn.appendChild(badge);
+          }
+        }
+      }
+    } else if(s.tipo === 'docente'){
+      // Profesor: verificar si alguna sanción suya fue firmada recientemente
+      const {data} = await sb.from('sanciones')
+        .select('id,folio,cursante_nombre,firmada_curs_en,confirmacion_estado')
+        .eq('profesor_id', currentUser.id)
+        .in('confirmacion_estado', ['firmada','aceptada'])
+        .order('firmada_curs_en', {ascending:false})
+        .limit(5);
+      if(data){
+        const nuevas = data.filter(d => {
+          if(!d.firmada_curs_en) return false;
+          const t = new Date(d.firmada_curs_en).getTime();
+          const prev = notifLastKnown['prof_'+d.id];
+          if(prev) return false;
+          // Solo notificar si firmada hace menos de 2 minutos
+          return (Date.now() - t) < 120000;
+        });
+        if(nuevas.length > 0 && Notification.permission === 'granted'){
+          nuevas.forEach(n => {
+            new Notification('SIDECEME — Sanción firmada', {
+              body: `${n.cursante_nombre||'Un cursante'} firmó la sanción ${n.folio||''}`,
+              icon: 'assets/icon-sideceme.png',
+              tag: 'firma-'+n.id
+            });
+          });
+        }
+        data.forEach(d => notifLastKnown['prof_'+d.id] = true);
+      }
+    }
+  }catch(e){ console.log('Notif check skip:', e.message); }
+}
+
+// Auto-iniciar notificaciones al entrar a un rol
+const _origEnterRole = typeof enterRole === 'function' ? enterRole : null;
+if(_origEnterRole){
+  const _origRCH = typeof renderCursanteHome === 'function' ? renderCursanteHome : null;
+  // Hook para iniciar notificaciones al cargar
+  document.addEventListener('visibilitychange', () => {
+    if(!document.hidden && currentUser) verificarNotificaciones();
+  });
+}
+// Iniciar polling si ya hay sesión
+setTimeout(()=>{ if(currentUser) iniciarNotificaciones(); }, 3000);
 
 
 (async function bootstrap(){
