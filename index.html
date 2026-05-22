@@ -9563,12 +9563,13 @@ function verDetalleSancion(sancionId){
     html += `<div class="papeleta-block">
       <div class="pb-title">🔁 Reincidencia</div>
       <div class="pb-row"><span class="pb-lbl">Es la</span><span class="pb-val">${s.reincidencia_num+1}ª sanción por la misma falta</span></div>
+      ${s.reincidencia_num >= 2 ? '<div class="pb-row"><span class="pb-lbl">Puntaje</span><span class="pb-val" style="color:#9b59b6;font-weight:700">0 pts — Memorándum (foja de conceptos)</span></div>' : ''}
     </div>`;
   }
   if(s.requiere_memorandum){
     html += `<div class="memo-banner">
-      <div class="mb-title">📄 Requiere memorandum</div>
-      <div class="mb-text">Corresponde Memorandum de Sanción.</div>
+      <div class="mb-title">📄 Memorándum de sanción</div>
+      <div class="mb-text">Registrada con <strong>0 puntos</strong> — constancia en <strong>foja de conceptos</strong> del cursante.</div>
     </div>`;
   }
   if(s.requiere_consejo){
@@ -10209,11 +10210,11 @@ function seleccionarFaltaSancion(faltaId){
   showScreen('screen-prof-previa');
 }
 
-/* Reglas de reincidencia:
+/* Reglas de reincidencia (doctrina ECEME):
    - 1ª vez (0 previas):    × 1 puntaje base
-   - 2ª vez (1 previa):     × 2 (1ª reincidencia)
-   - 3ª vez (2 previas):    × 2 + memorandum Jefe de Sección (2ª reincidencia)
-   - 4ª vez+ (3+ previas):  × 2 + parte al Consejo Académico (3ª+ reincidencia) */
+   - 2ª vez (1 previa):     × 2 (1ª reincidencia — puntaje doble)
+   - 3ª vez (2 previas):    0 pts + memorandum de sanción (2ª reincidencia — foja de conceptos)
+   - 4ª vez+ (3+ previas):  0 pts + memorandum + parte al Consejo Académico */
 function calcularReincidencia(){
   const c = nuevaSancion.cursante;
   const r = nuevaSancion.falta;
@@ -10229,12 +10230,15 @@ function calcularReincidencia(){
   let requiereMemo = false, requiereConsejo = false;
 
   if(num === 1){
+    // 1ª reincidencia: doble puntaje
     ptsFinal = ptsBase * 2;
   } else if(num === 2){
-    ptsFinal = ptsBase * 2;
+    // 2ª reincidencia: memorandum de sanción, puntaje 0 (va a foja de conceptos)
+    ptsFinal = 0;
     requiereMemo = true;
   } else if(num >= 3){
-    ptsFinal = ptsBase * 2;
+    // 3ª+ reincidencia: memorandum + consejo académico, puntaje 0
+    ptsFinal = 0;
     requiereMemo = true;
     requiereConsejo = true;
   }
@@ -10281,8 +10285,8 @@ function renderPrevia(){
   let reincTxt = '✓ Primera vez — sin reincidencia';
   let reincClass = '';
   if(reinc.num === 1){ reincTxt = '⚠️ 1ª reincidencia — puntaje DOBLE'; reincClass = 'r1'; }
-  else if(reinc.num === 2){ reincTxt = '⚠️ 2ª reincidencia — DOBLE + memorandum'; reincClass = 'r2'; }
-  else if(reinc.num >= 3){ reincTxt = `🚨 ${reinc.num}ª reincidencia — DOBLE + Consejo Académico`; reincClass = 'r3'; }
+  else if(reinc.num === 2){ reincTxt = '📄 2ª reincidencia — MEMORÁNDUM (0 pts, foja de conceptos)'; reincClass = 'r2'; }
+  else if(reinc.num >= 3){ reincTxt = `🚨 ${reinc.num}ª reincidencia — MEMORÁNDUM + Consejo Académico (0 pts)`; reincClass = 'r3'; }
 
   html += `<div class="papeleta-block" style="text-align:center">
     <div class="pb-title" style="justify-content:center">🔁 Reincidencia</div>
@@ -10291,8 +10295,8 @@ function renderPrevia(){
 
   if(reinc.requiereMemo){
     html += `<div class="memo-banner">
-      <div class="mb-title">📄 Requiere memorandum</div>
-      <div class="mb-text">Corresponde Memorandum de Sanción (${reinc.num+1}ª sanción por la misma falta).</div>
+      <div class="mb-title">📄 Memorándum de sanción</div>
+      <div class="mb-text">Se registra con <strong>0 puntos</strong> — constancia en <strong>foja de conceptos</strong> (${reinc.num+1}ª sanción por la misma falta).</div>
     </div>`;
   }
   if(reinc.requiereConsejo){
@@ -10303,7 +10307,9 @@ function renderPrevia(){
   }
 
   // 4. Puntaje final mega
-  const operacion = reinc.puntosBase !== reinc.puntosFinal
+  const operacion = reinc.num >= 2
+    ? `Memorándum de sanción (0 pts — constancia en foja de conceptos)`
+    : reinc.puntosBase !== reinc.puntosFinal
     ? `${reinc.puntosBase} pts × 2 = ${reinc.puntosFinal} pts`
     : `${reinc.puntosBase} pts (sin multiplicador)`;
   html += `<div class="puntaje-final-mega">
@@ -10919,14 +10925,14 @@ function mostrarFichaFinal(sancion, tokenQR){
   // Memorandum / Consejo
   if(reinc.requiereMemo){
     html += `<div class="memo-banner">
-      <div class="mb-title">📄 Requiere memorandum</div>
-      <div class="mb-text">Corresponde Memorandum de Sanción (${reinc.num+1}ª sanción por la misma falta).</div>
+      <div class="mb-title">📄 Memorándum de sanción</div>
+      <div class="mb-text">Se registra con <strong>0 puntos</strong> — constancia en <strong>foja de conceptos</strong> (${reinc.num+1}ª sanción por la misma falta).</div>
     </div>`;
   }
   if(reinc.requiereConsejo){
     html += `<div class="memo-banner consejo-banner">
       <div class="mb-title">⚖️ Parte al Consejo Académico</div>
-      <div class="mb-text">${reinc.num+1}ª sanción por la misma falta.</div>
+      <div class="mb-text">${reinc.num+1}ª sanción por la misma falta — 0 puntos, memorándum + Consejo.</div>
     </div>`;
   }
 
@@ -11551,8 +11557,8 @@ function mostrarDetalleSancionParaFirma(){
   // Memorandum / consejo
   if(s.requiere_memorandum){
     html += `<div class="memo-banner">
-      <div class="mb-title">📄 Requiere memorandum</div>
-      <div class="mb-text">Corresponde Memorandum de Sanción.</div>
+      <div class="mb-title">📄 Memorándum de sanción</div>
+      <div class="mb-text">Esta sanción se registra con <strong>0 puntos</strong> y queda como constancia en la <strong>foja de conceptos</strong>.</div>
     </div>`;
   }
   if(s.requiere_consejo){
