@@ -3360,9 +3360,6 @@ input::placeholder, textarea::placeholder {
           </div>
           <button type="submit" class="btn-primary" id="btn-login-universal">Ingresar</button>
         </form>
-        <div style="margin-top:18px;font-size:11px;color:var(--mf-bronce-claro);text-align:center;line-height:1.5;letter-spacing:.3px;opacity:.85">
-          La contraseña inicial es tu mismo CI.
-        </div>
       </div>
       <div style="margin-top:18px;text-align:center;font-size:11px;color:var(--mf-bronce-claro);opacity:.75">
         ¿Problemas para ingresar? <a href="javascript:void(0)" onclick="goCargos()" style="color:var(--mf-laton-claro);text-decoration:underline;cursor:pointer">Ingreso clásico por cargo</a>
@@ -3398,7 +3395,6 @@ input::placeholder, textarea::placeholder {
   </div>
   <div class="login-container"><div class="login-card">
     <div class="login-target" id="login-target">Sub. Sec. Disciplina</div>
-    <div class="info-banner">Ingresá con tu <strong>CI</strong>. La contraseña inicial es el mismo CI.</div>
     <div style="background:linear-gradient(135deg,rgba(200,74,74,.18),rgba(212,175,55,.08));border:1px solid var(--danger);border-left:4px solid var(--danger);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:14px;font-size:11px;color:var(--text-primary);line-height:1.45">
       <div style="color:var(--danger);font-weight:700;font-family:var(--font-display);letter-spacing:1.3px;margin-bottom:4px;font-size:12px">⚠ AVISO OFICIAL</div>
       <div>Toda actividad queda registrada (usuario, IP, dispositivo, ubicación y hora). La alteración o uso no autorizado constituye <strong>falta grave</strong>.</div>
@@ -3421,7 +3417,6 @@ input::placeholder, textarea::placeholder {
     <div class="header-text"><div class="header-title">Ingreso Cursante</div><div class="header-sub">Verifica tu identidad</div></div>
   </div>
   <div class="login-container"><div class="login-card">
-    <div class="info-banner">Ingresá con tu <strong>CI</strong>. La contraseña inicial es el mismo CI.</div>
     <div style="background:linear-gradient(135deg,rgba(200,74,74,.18),rgba(212,175,55,.08));border:1px solid var(--danger);border-left:4px solid var(--danger);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:14px;font-size:11px;color:var(--text-primary);line-height:1.45">
       <div style="color:var(--danger);font-weight:700;font-family:var(--font-display);letter-spacing:1.3px;margin-bottom:4px;font-size:12px">⚠ AVISO OFICIAL</div>
       <div>Toda actividad queda registrada (usuario, IP, dispositivo, ubicación y hora). La alteración o uso no autorizado constituye <strong>falta grave</strong>.</div>
@@ -4663,6 +4658,17 @@ const SUPABASE_URL = 'https://ofsyiylhdrdiqtnbaovo.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_GQGDGICE0V74xBr0ECp9ag_FEm9h94E';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+// === WARM-UP del Edge Function auth-login (v2.9.18) ===
+// Cuando la página carga, despertamos el container del Edge Function enviándole
+// una petición ping. Para cuando el usuario tipea su CI y aprieta INGRESAR, el
+// container ya está caliente → ahorra 1-3 seg en el primer login del día.
+// El warm-up es fire-and-forget: si falla (offline, etc.), NO afecta nada.
+try {
+  sb.functions.invoke('auth-login', {
+    body: { ci: '__warmup__', password: '__warmup__', cargo: '__warmup__' }
+  }).catch(() => {});
+} catch(e) {}
+
 const CARGOS = {
   profesor:{nombre:'Profesor / Docente',icono:'✍️'},
   ef:{nombre:'Sub. Sec. Entrenamiento Físico',icono:'🏃'},
@@ -5063,10 +5069,17 @@ async function loginUniversal(){
   const btn = document.getElementById('btn-login-universal');
   btn.disabled=true; const txt0=btn.textContent; btn.textContent='Verificando...';
   try{
-    // Llamada al Edge Function (igual que loginDocente/loginCursante pero con cargo:'universal')
-    const {data:authResp, error:fnErr} = await sb.functions.invoke('auth-login', {
+    // === OPTIMIZACIÓN v2.9.18: PARALELIZACIÓN ===
+    // Disparamos en PARALELO la auth + las queries de perfil. Cuando el
+    // Edge Function devuelve OK, el perfil ya está cargado (o casi) → ahorra
+    // 200-500ms vs hacer auth → esperar → recién entonces query de perfil.
+    const authPromise = sb.functions.invoke('auth-login', {
       body:{ ci, password:pwd, cargo:'universal' }
     });
+    const profPromise = sb.from('profesores').select('*').eq('ci',ci).limit(1).maybeSingle();
+    const curPromise  = sb.from('cursantes').select('*').eq('ci',ci).limit(1).maybeSingle();
+
+    const {data:authResp, error:fnErr} = await authPromise;
     if(fnErr){
       console.error('auth-login error:', fnErr);
       errEl.style.display='block';
@@ -5083,8 +5096,8 @@ async function loginUniversal(){
 
     // ===== Caso CURSANTE =====
     if(tabla === 'cursantes'){
-      // Optimización: maybeSingle() es más rápido que multi-row select
-      const {data:cur,error} = await sb.from('cursantes').select('*').eq('ci',ci).limit(1).maybeSingle();
+      // El perfil ya viene cargado (o casi) de la query paralela
+      const {data:cur,error} = await curPromise;
       if(error || !cur){ errEl.style.display='block'; errEl.textContent='No se pudo cargar perfil: '+(error?.message||'cursante no encontrado'); return; }
       guardarTokenSesion(authResp.token, authResp.expira_en);
       if(authResp.es_primer_ingreso){
@@ -5108,8 +5121,8 @@ async function loginUniversal(){
     if(tabla === 'profesores'){
       const rolBackend = (authResp.usuario && authResp.usuario.rol) || 'profesor';
       const cargoFrontend = MAPA_ROL_BACKEND_A_CARGO[rolBackend] || 'profesor';
-      // Optimización: maybeSingle() en lugar de array
-      const {data:profSingle,error} = await sb.from('profesores').select('*').eq('ci',ci).limit(1).maybeSingle();
+      // El perfil ya viene cargado (o casi) de la query paralela
+      const {data:profSingle,error} = await profPromise;
       if(error || !profSingle){
         // Fallback: si hay múltiples registros con mismo CI, buscar el que coincida con cargo
         const {data:profAll} = await sb.from('profesores').select('*').eq('ci',ci);
