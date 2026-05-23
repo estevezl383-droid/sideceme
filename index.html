@@ -3139,6 +3139,155 @@ input::placeholder, textarea::placeholder {
   display: block !important;
 }
 
+/* ==================== v2.9.17: LOGIN UNIVERSAL ORNAMENTADO ==================== */
+/* CAMPOS PLACA 3D CON GRABADO */
+.placa {
+  position:relative; width:100%; height:80px;
+  background: linear-gradient(180deg, #e8c547 0%, #c9a55c 6%, #a8884a 14%, #6b5414 50%, #a8884a 86%, #c9a55c 94%, #e8c547 100%);
+  border-radius:16px; padding:10px;
+  box-shadow: 0 10px 28px rgba(0,0,0,.8), 0 4px 8px rgba(0,0,0,.6), 
+              inset 0 3px 0 rgba(255,240,180,.5), inset 0 -3px 0 rgba(0,0,0,.75),
+              inset 4px 0 0 rgba(255,240,180,.25), inset -4px 0 0 rgba(0,0,0,.45);
+  margin-bottom:18px;
+}
+
+/* Orejas laterales 3D */
+.placa::before, .placa::after {
+  content:''; position:absolute; top:50%; transform:translateY(-50%);
+  width:36px; height:100px;
+  background: linear-gradient(90deg, #d4af37 0%, #b8932d 25%, #7a5f1a 50%, #4d3810 100%);
+  border-radius:8px;
+  box-shadow: inset 0 2px 4px rgba(255,240,180,.5), inset 0 -3px 5px rgba(0,0,0,.7),
+              inset 3px 0 4px rgba(255,240,180,.3), inset -3px 0 4px rgba(0,0,0,.4);
+  z-index:3;
+}
+.placa::before { left:-16px; border-radius:8px 4px 4px 8px; }
+.placa::after { right:-16px; border-radius:4px 8px 8px 4px; }
+
+/* Interior pergamino con grabado profundo */
+.placa-inner {
+  position:relative; width:100%; height:100%;
+  background: linear-gradient(180deg, #f5e8c5 0%, #e8daa8 20%, #d4c28a 60%, #b8a06a 100%);
+  border-radius:8px;
+  box-shadow: inset 0 4px 10px rgba(30,20,5,.75), inset 0 -4px 8px rgba(30,20,5,.6),
+              inset 3px 0 8px rgba(30,20,5,.5), inset -3px 0 8px rgba(30,20,5,.5),
+              inset 0 1px 0 rgba(255,240,180,.3);
+  padding:0 68px 0 28px; display:flex; align-items:center; overflow:hidden; z-index:1;
+}
+
+/* Patrón art-deco grabado profundo */
+.placa-inner::after {
+  content:''; position:absolute; right:10px; top:4px; width:54px; height:calc(100% - 8px);
+  background: linear-gradient(45deg, transparent 32%, rgba(30,15,2,.85) 33%, rgba(30,15,2,.85) 35%, transparent 36%),
+              linear-gradient(-45deg, transparent 32%, rgba(30,15,2,.85) 33%, rgba(30,15,2,.85) 35%, transparent 36%),
+              linear-gradient(45deg, transparent 52%, rgba(30,15,2,.7) 53%, rgba(30,15,2,.7) 55%, transparent 56%),
+              linear-gradient(-45deg, transparent 52%, rgba(30,15,2,.7) 53%, rgba(30,15,2,.7) 55%, transparent 56%),
+              linear-gradient(45deg, transparent 72%, rgba(30,15,2,.65) 73%, rgba(30,15,2,.65) 75%, transparent 76%),
+              linear-gradient(-45deg, transparent 72%, rgba(30,15,2,.65) 73%, rgba(30,15,2,.65) 75%, transparent 76%),
+              radial-gradient(ellipse 80% 40% at 50% 15%, rgba(30,15,2,.4) 0%, transparent 70%);
+  pointer-events:none; z-index:2;
+}
+
+/* Tornillos cobre pulido */
+.tornillo {
+  position:absolute; width:14px; height:14px;
+  background: radial-gradient(circle at 30% 30%, #e8c547 0%, #b8932d 40%, #5a4a1a 80%, #2d1f08 100%);
+  border-radius:50%;
+  box-shadow: inset 0 1px 2px rgba(255,240,180,.6), inset 0 -2px 2px rgba(0,0,0,.7),
+              inset 2px 0 2px rgba(255,240,180,.35), inset -2px 0 2px rgba(0,0,0,.5),
+              0 2px 3px rgba(0,0,0,.7);
+  z-index:5;
+}
+.tornillo::after {
+  content:''; position:absolute; top:50%; left:50%;
+  width:8px; height:1.8px; background:rgba(15,10,2,.9); transform:translate(-50%, -50%);
+  border-radius:1px; box-shadow:inset 0 0 1px rgba(255,240,180,.4);
+}
+.t-tl { top:16px; left:16px; }
+.t-tr { top:16px; right:16px; }
+.t-bl { bottom:16px; left:16px; }
+.t-br { bottom:16px; right:16px; }
+
+/* Input transparente sobre pergamino */
+.placa .input-field {
+  width:100%; height:100%; background:transparent; border:none; outline:none;
+  font-family:'Georgia', serif; font-style:italic; font-size:22px; color:#1f140a;
+  letter-spacing:1.5px; padding:0; font-weight:500;
+}
+.placa .input-field::placeholder {
+  color:rgba(40,25,8,.6); font-style:italic; font-weight:400;
+}
+.placa:focus-within {
+  box-shadow: 0 10px 32px rgba(0,0,0,.85), 0 4px 8px rgba(0,0,0,.65),
+              0 0 0 2px rgba(212,175,55,.55),
+              inset 0 3px 0 rgba(255,240,180,.6), inset 0 -3px 0 rgba(0,0,0,.75);
+}
+
+/* BOTÓN INGRESAR — HIERRO VIEJO 3D */
+.btn-ingresar {
+  width:100%; height:88px; margin-top:16px;
+  background: linear-gradient(180deg, #5a6580 0%, #4a556a 10%, #2a3a50 50%, #4a556a 90%, #5a6580 100%);
+  border:none; border-radius:16px; padding:10px; cursor:pointer; position:relative;
+  box-shadow: 0 10px 28px rgba(0,0,0,.85), 0 4px 8px rgba(0,0,0,.65),
+              inset 0 3px 0 rgba(120,140,180,.4), inset 0 -3px 0 rgba(0,0,0,.8),
+              inset 4px 0 0 rgba(120,140,180,.25), inset -4px 0 0 rgba(0,0,0,.5);
+  transition:transform .12s ease;
+}
+
+.btn-inner {
+  width:100%; height:100%;
+  background: linear-gradient(180deg, #4a5575 0%, #34455a 35%, #1f3050 70%, #162038 100%);
+  border-radius:8px; display:flex; align-items:center; justify-content:center;
+  box-shadow: inset 0 3px 8px rgba(100,120,160,.25), inset 0 -3px 8px rgba(0,0,0,.75);
+  position:relative;
+}
+
+.btn-texto {
+  font-size:28px; font-weight:700; letter-spacing:12px; color:#c9a55c;
+  text-transform:uppercase;
+  text-shadow: 0 1px 3px rgba(0,0,0,.95), 0 2px 8px rgba(50,30,10,.7);
+}
+
+.btn-ingresar:active {
+  transform:translateY(3px);
+  box-shadow: 0 5px 14px rgba(0,0,0,.75), inset 0 1px 0 rgba(120,140,180,.3);
+}
+
+/* Tornillos del botón */
+.btn-tornillo {
+  position:absolute; width:16px; height:16px;
+  background: radial-gradient(circle at 30% 30%, #d4a855 0%, #a8872a 40%, #5a4a1a 80%, #2d1f08 100%);
+  border-radius:50%;
+  box-shadow: inset 0 1px 2px rgba(255,240,180,.5), inset 0 -2px 2px rgba(0,0,0,.75),
+              inset 2px 0 2px rgba(255,240,180,.3), inset -2px 0 2px rgba(0,0,0,.55),
+              0 2px 4px rgba(0,0,0,.8);
+  z-index:5;
+}
+.btn-tornillo::after {
+  content:''; position:absolute; top:50%; left:50%;
+  width:9px; height:2px; background:rgba(15,10,2,.92);
+  transform:translate(-50%, -50%) rotate(-25deg); border-radius:1px;
+  box-shadow:inset 0 0 1px rgba(255,240,180,.35);
+}
+.btn-t-tl { top:18px; left:18px; }
+.btn-t-tr { top:18px; right:18px; }
+.btn-t-bl { bottom:18px; left:18px; }
+.btn-t-br { bottom:18px; right:18px; }
+
+/* Container del login universal */
+.login-container { padding:8px 0 24px; min-height:auto; }
+.login-card { max-width:380px; margin:0 auto; }
+.login-card .error-msg { color:#ff6b6b; font-size:13px; margin-bottom:12px; text-align:center; }
+
+/* Responsive */
+@media (max-width:420px) {
+  .placa { height:74px; padding:8px; }
+  .placa::before, .placa::after { width:32px; height:90px; }
+  .placa-inner { padding:0 60px 0 24px; }
+  .btn-ingresar { height:80px; padding:8px; }
+  .btn-texto { font-size:24px; letter-spacing:10px; }
+}
+
 </style>
 </head>
 <body>
@@ -3304,6 +3453,14 @@ input::placeholder, textarea::placeholder {
       if(sessionStorage.getItem('sideceme_pwa_dismissed') === '1') return;
       mostrarBanner();
     }, 800);
+    
+    // v2.9.17: Filtro de números en CI
+    const ciInput = document.getElementById('universal-ci');
+    if(ciInput){
+      ciInput.addEventListener('input', function(e){
+        this.value = this.value.replace(/[^0-9]/g, '');
+      });
+    }
   });
 })();
 </script>
@@ -3333,16 +3490,45 @@ input::placeholder, textarea::placeholder {
     <div class="home-v3-institute-sub">«Mariscal Andrés de Santa Cruz»</div>
     <div class="home-v3-motto">« SER ANTES QUE PARECER »</div>
     <div class="home-v3-divider"></div>
-    <div class="home-v3-cards">
-      <div class="metal-card" onclick="goCargos()" role="button" tabindex="0">
-        <div class="metal-card-icon-wrap"><div class="metal-card-icon">⚔️</div></div>
-        <h3 class="metal-card-title">Plantel Docente</h3>
-        <p class="metal-card-desc">Acceso para personal docente y administrativo</p>
-      </div>
-      <div class="metal-card" onclick="goLoginCursante()" role="button" tabindex="0">
-        <div class="metal-card-icon-wrap"><div class="metal-card-icon">🎖️</div></div>
-        <h3 class="metal-card-title">Cursantes</h3>
-        <p class="metal-card-desc">Acceso para cursantes registrados de la ECEME</p>
+    <!-- v2.9.17: LOGIN UNIVERSAL INLINE (sin selector de rol) -->
+    <div class="login-container">
+      <div class="login-card">
+        <div class="error-msg" id="err-universal" style="display:none"></div>
+        <form onsubmit="event.preventDefault(); loginUniversal()">
+          <div style="margin-bottom:18px">
+            <label style="display:block; font-size:15px; letter-spacing:4px; color:#b8932d; margin-bottom:12px; margin-left:8px; text-transform:uppercase; font-weight:600; text-shadow:0 1px 2px rgba(0,0,0,.7)">Carnet de identidad</label>
+            <div class="placa">
+              <div class="tornillo t-tl"></div>
+              <div class="tornillo t-tr"></div>
+              <div class="tornillo t-bl"></div>
+              <div class="tornillo t-br"></div>
+              <div class="placa-inner">
+                <input type="text" id="universal-ci" class="input-field" placeholder="Número de CI" inputmode="numeric" autocomplete="off">
+              </div>
+            </div>
+          </div>
+          <div style="margin-bottom:18px">
+            <label style="display:block; font-size:15px; letter-spacing:4px; color:#b8932d; margin-bottom:12px; margin-left:8px; text-transform:uppercase; font-weight:600; text-shadow:0 1px 2px rgba(0,0,0,.7)">Contraseña</label>
+            <div class="placa">
+              <div class="tornillo t-tl"></div>
+              <div class="tornillo t-tr"></div>
+              <div class="tornillo t-bl"></div>
+              <div class="tornillo t-br"></div>
+              <div class="placa-inner">
+                <input type="password" id="universal-pwd" class="input-field" placeholder="• • • • • •" autocomplete="off">
+              </div>
+            </div>
+          </div>
+          <button type="submit" class="btn-ingresar">
+            <div class="btn-tornillo btn-t-tl"></div>
+            <div class="btn-tornillo btn-t-tr"></div>
+            <div class="btn-tornillo btn-t-bl"></div>
+            <div class="btn-tornillo btn-t-br"></div>
+            <div class="btn-inner">
+              <span class="btn-texto">Ingresar</span>
+            </div>
+          </button>
+        </form>
       </div>
     </div>
   </div>
@@ -4887,6 +5073,87 @@ async function ofrecerActivarBio(tipo){
       bioGuardarCred('docente', cred);
     }
     alert('✅ Biometría activada. La próxima vez vas a ver el botón "Ingresar con biometría" en esta pantalla.');
+  }
+}
+
+// ============================================================
+// v2.9.17: LOGIN UNIVERSAL (sin selector de rol)
+// Detecta automáticamente si es cursante o profesor llamando
+// al Edge Function auth-login con cargo='universal'.
+// El Edge Function decide server-side cuál es el tipo+rol.
+// ============================================================
+async function loginUniversal(){
+  const errEl = document.getElementById('err-universal');
+  errEl.style.display = 'none';
+  errEl.textContent = '';
+  
+  const ci = document.getElementById('universal-ci').value.trim();
+  const pwd = document.getElementById('universal-pwd').value;
+  
+  if(!ci || !pwd){
+    errEl.style.display = 'block';
+    errEl.textContent = 'Ingresá tu CI y contraseña.';
+    return;
+  }
+  
+  try{
+    // Llamar al Edge Function auth-login con cargo='universal'
+    // El servidor decide si es profesor o cursante
+    const { data: authResp, error: fnErr } = await sb.functions.invoke('auth-login', {
+      body:{ ci, password: pwd, cargo: 'universal' }
+    });
+    
+    if(fnErr){
+      errEl.style.display = 'block';
+      errEl.textContent = 'Error de conexión. Intentá de nuevo.';
+      console.error('loginUniversal error:', fnErr);
+      return;
+    }
+    
+    // Si el servidor devolvió error de credenciales
+    if(!authResp.success){
+      errEl.style.display = 'block';
+      errEl.textContent = authResp.error || 'Credenciales inválidas';
+      return;
+    }
+    
+    // TIPO PROFESOR
+    if(authResp.tipo === 'profesor'){
+      const prof = authResp.profesor;
+      selectedCargo = prof.rol || 'profesor';
+      sessionStorage.setItem('sideceme_token', authResp.token);
+      sessionStorage.setItem('sideceme_token_expira', authResp.expira);
+      sessionActual = { tipo:'profesor', usuario: prof };
+      try{ sb.from('profesores').update({ultimo_login: new Date().toISOString()}).eq('id', prof.id).then(()=>{}); }catch(e){}
+      
+      // Redirigir según rol
+      if(prof.rol === 'jefe_disciplina') showScreen('screen-disciplina');
+      else if(prof.rol === 'comandante') showScreen('screen-comandante');
+      else if(prof.rol === 'jefe_estudios') showScreen('screen-estudios');
+      else if(prof.rol === 'sub_ef') showScreen('screen-ef');
+      else showScreen('screen-profesor');
+      return;
+    }
+    
+    // TIPO CURSANTE
+    if(authResp.tipo === 'cursante'){
+      const cur = authResp.cursante;
+      sessionStorage.setItem('sideceme_token', authResp.token);
+      sessionStorage.setItem('sideceme_token_expira', authResp.expira);
+      sessionActual = { tipo:'cursante', usuario: cur };
+      try{ sb.from('cursantes').update({ultimo_login: new Date().toISOString()}).eq('id', cur.id).then(()=>{}); }catch(e){}
+      showScreen('screen-cursante');
+      return;
+    }
+    
+    // Tipo desconocido
+    errEl.style.display = 'block';
+    errEl.textContent = 'Tipo de usuario no reconocido.';
+    
+  }catch(e){
+    console.error('loginUniversal exception:', e);
+    errEl.style.display = 'block';
+    errEl.textContent = 'Error inesperado. Intentá de nuevo.';
   }
 }
 
