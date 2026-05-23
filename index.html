@@ -5086,34 +5086,39 @@ async function loginUniversal(){
   const btn = document.getElementById('btn-login-universal');
   btn.disabled=true; const txt0=btn.textContent; btn.textContent='Verificando...';
   try{
-    // === OPTIMIZACIÓN v2.9.18: PARALELIZACIÓN ===
-    // Disparamos en PARALELO la auth + las queries de perfil. Cuando el
-    // Edge Function devuelve OK, el perfil ya está cargado (o casi) → ahorra
-    // 200-500ms vs hacer auth → esperar → recién entonces query de perfil.
-    const authPromise = sb.functions.invoke('auth-login', {
-      body:{ ci, password:pwd, cargo:'universal' }
-    });
+    // === v2.9.19: fetch directo (en vez de sb.functions.invoke) para leer body en 401/429 ===
+    // Mantenemos la paralelización: disparamos auth + queries de perfil en simultáneo.
+    const authPromise = fetch(`${sb.supabaseUrl}/functions/v1/auth-login`, {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':`Bearer ${sb.supabaseKey}`,
+        'apikey': sb.supabaseKey
+      },
+      body: JSON.stringify({ ci, password:pwd, cargo:'universal' })
+    }).then(r => r.json()).catch(e => ({ _netError: e }));
     const profPromise = sb.from('profesores').select('*').eq('ci',ci).limit(1).maybeSingle();
     const curPromise  = sb.from('cursantes').select('*').eq('ci',ci).limit(1).maybeSingle();
-
-    const {data:authResp, error:fnErr} = await authPromise;
-    if(fnErr){
-      console.error('auth-login error:', fnErr);
+    const authResp = await authPromise;
+    if(authResp && authResp._netError){
+      console.error('auth-login network error:', authResp._netError);
       errEl.style.display='block';
-      errEl.textContent='Error de conexión: '+(fnErr.message||fnErr);
+      errEl.textContent='Error de red. Verificá tu conexión.';
       return;
     }
     if(!authResp || !authResp.ok){
       errEl.style.display='block';
-      errEl.textContent=(authResp && authResp.error) || 'Credenciales inválidas.';
+      if(authResp && authResp.codigo === 'RATE_LIMIT_EXCEEDED'){
+        errEl.textContent = `Demasiados intentos fallidos. Esperá ${authResp.ventana_minutos||10} minutos antes de volver a intentar.`;
+      } else {
+        errEl.textContent = (authResp && authResp.error) || 'Credenciales inválidas.';
+      }
       return;
     }
     btn.textContent='Cargando datos...';
     const tabla = authResp.usuario && authResp.usuario.tabla;
-
     // ===== Caso CURSANTE =====
     if(tabla === 'cursantes'){
-      // El perfil ya viene cargado (o casi) de la query paralela
       const {data:cur,error} = await curPromise;
       if(error || !cur){ errEl.style.display='block'; errEl.textContent='No se pudo cargar perfil: '+(error?.message||'cursante no encontrado'); return; }
       guardarTokenSesion(authResp.token, authResp.expira_en);
@@ -5125,7 +5130,6 @@ async function loginUniversal(){
       currentUser = cur;
       saveSession(cur,'cursante',null);
       iniciarIdleTimer();
-      // Fire-and-forget: NO bloquean la entrada del usuario
       try{ if(window.PasswordCredential){ const cr=new PasswordCredential({id:ci,password:pwd,name:cur.nombre_completo||ci}); navigator.credentials.store(cr).catch(()=>{}); } }catch(e){}
       try{ sb.from('cursantes').update({ultimo_login:new Date().toISOString()}).eq('id',cur.id).then(()=>{}); }catch(e){}
       await renderCursanteHome();
@@ -5133,15 +5137,12 @@ async function loginUniversal(){
       setTimeout(()=>ofrecerActivarBio('cursante'), 600);
       return;
     }
-
     // ===== Caso PROFESOR =====
     if(tabla === 'profesores'){
       const rolBackend = (authResp.usuario && authResp.usuario.rol) || 'profesor';
       const cargoFrontend = MAPA_ROL_BACKEND_A_CARGO[rolBackend] || 'profesor';
-      // El perfil ya viene cargado (o casi) de la query paralela
       const {data:profSingle,error} = await profPromise;
       if(error || !profSingle){
-        // Fallback: si hay múltiples registros con mismo CI, buscar el que coincida con cargo
         const {data:profAll} = await sb.from('profesores').select('*').eq('ci',ci);
         if(!profAll || !profAll.length){ errEl.style.display='block'; errEl.textContent='No se pudo cargar perfil completo.'; return; }
         var prof = profAll.find(p => coincideCargo(p, cargoFrontend)) || profAll[0];
@@ -5159,14 +5160,12 @@ async function loginUniversal(){
       selectedCargo = cargoFrontend;
       saveSession(prof,'docente',activeRole);
       iniciarIdleTimer();
-      // Fire-and-forget: NO bloquean la entrada del usuario
       try{ if(window.PasswordCredential){ const cr=new PasswordCredential({id:ci,password:pwd,name:prof.nombre_completo||ci}); navigator.credentials.store(cr).catch(()=>{}); } }catch(e){}
       try{ sb.from('profesores').update({ultimo_login:new Date().toISOString()}).eq('id',prof.id).then(()=>{}); }catch(e){}
       await enterRole(activeRole);
       setTimeout(()=>ofrecerActivarBio('docente'), 600);
       return;
     }
-
     // Tabla desconocida (no debería pasar)
     errEl.style.display='block';
     errEl.textContent='Respuesta inesperada del servidor (tabla='+tabla+').';
