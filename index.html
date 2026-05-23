@@ -1584,9 +1584,9 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 
 /* Responsive — celulares angostos */
 @media (max-width:380px){
-  .home-v3-main-icon{width:260px;height:260px;border-radius:50%}
-  .home-v3-title{font-size:18px;letter-spacing:4px}
-  .home-v3-motto{font-size:12px;letter-spacing:3.5px;padding:9px 20px}
+  .home-v3-main-icon{width:170px !important;height:170px !important;border-radius:50% !important}
+  .home-v3-title{font-size:18px !important;letter-spacing:3px !important;margin:8px 0 6px 0 !important}
+  .home-v3-motto{font-size:11px;letter-spacing:2.5px;padding:7px 16px}
   .metal-card{padding:18px 18px}
   .metal-card-title{font-size:17px;letter-spacing:2.5px}
   .metal-card-icon{width:54px;height:54px;font-size:27px}
@@ -2678,6 +2678,37 @@ input::placeholder, textarea::placeholder {
     /* Resplandor cálido bronce sutil */
     0 0 16px rgba(212, 168, 74, 0.25) !important;
   -webkit-text-fill-color: currentColor !important;
+}
+
+/* ═════════════════════════════════════════════════════════════════
+   v2.9.18: RESPONSIVE MÓVIL — escudo y textos proporcionales al celular
+   Estos breakpoints van DESPUÉS del bloque metal-forjado para ganar
+   la cascada CSS frente a las reglas con !important de arriba.
+   ═════════════════════════════════════════════════════════════════ */
+/* Tablet pequeña / móvil grande (iPhone 14 Pro Max, Pixel 7, etc.) */
+@media (max-width: 768px) {
+  .home-v3-main-icon { width: 240px !important; height: 240px !important; }
+  .home-v3-title { font-size: 22px !important; letter-spacing: 4px !important; margin: 12px 0 8px 0 !important; }
+  .home-v3-crest-row { margin: 12px 0 16px 0 !important; }
+  .home-v3-institute { font-size: 13px !important; letter-spacing: 3px !important; }
+  .home-v3-institute-sub { font-size: 12px !important; }
+  .home-v3-motto { font-size: 12px !important; letter-spacing: 2.5px !important; margin: 14px 0 6px !important; padding: 8px 18px !important; }
+  .home-v3-container { padding-top: 8px !important; }
+}
+/* Móvil estándar (iPhone 14, 15, 16, Pixel 8, Galaxy S24, etc. — 390-430px) */
+@media (max-width: 480px) {
+  .home-v3-main-icon { width: 200px !important; height: 200px !important; }
+  .home-v3-title { font-size: 20px !important; letter-spacing: 3.5px !important; margin: 10px 0 6px 0 !important; }
+  .home-v3-crest-row { margin: 8px 0 12px 0 !important; }
+  .home-v3-institute { font-size: 12px !important; letter-spacing: 2.5px !important; }
+  .home-v3-institute-sub { font-size: 11px !important; }
+  .home-v3-motto { font-size: 11px !important; letter-spacing: 2px !important; margin: 10px 0 4px !important; padding: 7px 16px !important; }
+  .home-v3-container { padding-top: 4px !important; }
+}
+/* Móvil angosto (iPhone SE, viejos Android) */
+@media (max-width: 380px) {
+  .home-v3-main-icon { width: 170px !important; height: 170px !important; }
+  .home-v3-title { font-size: 18px !important; letter-spacing: 3px !important; }
 }
 
 .home-v3-institute, .home-v3-institute-sub {
@@ -5030,7 +5061,7 @@ async function loginUniversal(){
     return;
   }
   const btn = document.getElementById('btn-login-universal');
-  btn.disabled=true; const txt0=btn.textContent; btn.textContent='VERIFICANDO...';
+  btn.disabled=true; const txt0=btn.textContent; btn.textContent='Verificando...';
   try{
     // Llamada al Edge Function (igual que loginDocente/loginCursante pero con cargo:'universal')
     const {data:authResp, error:fnErr} = await sb.functions.invoke('auth-login', {
@@ -5047,15 +5078,14 @@ async function loginUniversal(){
       errEl.textContent=(authResp && authResp.error) || 'Credenciales inválidas.';
       return;
     }
-    // authResp.usuario.tabla nos dice si es cursante o profesor
+    btn.textContent='Cargando datos...';
     const tabla = authResp.usuario && authResp.usuario.tabla;
 
     // ===== Caso CURSANTE =====
     if(tabla === 'cursantes'){
-      const {data,error} = await sb.from('cursantes').select('*').eq('ci',ci).limit(1);
-      if(error){ errEl.style.display='block'; errEl.textContent='Error: '+(error.message||JSON.stringify(error)); return; }
-      if(!data || !data.length){ errEl.style.display='block'; errEl.textContent='No se pudo cargar perfil completo.'; return; }
-      const cur = data[0];
+      // Optimización: maybeSingle() es más rápido que multi-row select
+      const {data:cur,error} = await sb.from('cursantes').select('*').eq('ci',ci).limit(1).maybeSingle();
+      if(error || !cur){ errEl.style.display='block'; errEl.textContent='No se pudo cargar perfil: '+(error?.message||'cursante no encontrado'); return; }
       guardarTokenSesion(authResp.token, authResp.expira_en);
       if(authResp.es_primer_ingreso){
         ingresoPendiente = {tipo:'cursante', usuario:cur, role:null, ci:ci};
@@ -5065,6 +5095,7 @@ async function loginUniversal(){
       currentUser = cur;
       saveSession(cur,'cursante',null);
       iniciarIdleTimer();
+      // Fire-and-forget: NO bloquean la entrada del usuario
       try{ if(window.PasswordCredential){ const cr=new PasswordCredential({id:ci,password:pwd,name:cur.nombre_completo||ci}); navigator.credentials.store(cr).catch(()=>{}); } }catch(e){}
       try{ sb.from('cursantes').update({ultimo_login:new Date().toISOString()}).eq('id',cur.id).then(()=>{}); }catch(e){}
       await renderCursanteHome();
@@ -5077,12 +5108,16 @@ async function loginUniversal(){
     if(tabla === 'profesores'){
       const rolBackend = (authResp.usuario && authResp.usuario.rol) || 'profesor';
       const cargoFrontend = MAPA_ROL_BACKEND_A_CARGO[rolBackend] || 'profesor';
-      // Cargar registro completo del profesor (mismo enfoque que loginDocente)
-      const {data,error} = await sb.from('profesores').select('*').eq('ci',ci);
-      if(error){ errEl.style.display='block'; errEl.textContent='Error: '+(error.message||JSON.stringify(error)); return; }
-      if(!data || !data.length){ errEl.style.display='block'; errEl.textContent='No se pudo cargar perfil completo.'; return; }
-      // Si hay multi-registro, intentar matchear por cargo. Si no matchea, primer registro.
-      const prof = data.find(p => coincideCargo(p, cargoFrontend)) || data[0];
+      // Optimización: maybeSingle() en lugar de array
+      const {data:profSingle,error} = await sb.from('profesores').select('*').eq('ci',ci).limit(1).maybeSingle();
+      if(error || !profSingle){
+        // Fallback: si hay múltiples registros con mismo CI, buscar el que coincida con cargo
+        const {data:profAll} = await sb.from('profesores').select('*').eq('ci',ci);
+        if(!profAll || !profAll.length){ errEl.style.display='block'; errEl.textContent='No se pudo cargar perfil completo.'; return; }
+        var prof = profAll.find(p => coincideCargo(p, cargoFrontend)) || profAll[0];
+      } else {
+        var prof = profSingle;
+      }
       guardarTokenSesion(authResp.token, authResp.expira_en);
       if(authResp.es_primer_ingreso){
         ingresoPendiente = {tipo:'docente', usuario:prof, role:cargoFrontend, ci:ci};
@@ -5091,9 +5126,10 @@ async function loginUniversal(){
       }
       currentUser  = prof;
       activeRole   = cargoFrontend;
-      selectedCargo = cargoFrontend;  // necesario para que enterRole sepa qué panel mostrar
+      selectedCargo = cargoFrontend;
       saveSession(prof,'docente',activeRole);
       iniciarIdleTimer();
+      // Fire-and-forget: NO bloquean la entrada del usuario
       try{ if(window.PasswordCredential){ const cr=new PasswordCredential({id:ci,password:pwd,name:prof.nombre_completo||ci}); navigator.credentials.store(cr).catch(()=>{}); } }catch(e){}
       try{ sb.from('profesores').update({ultimo_login:new Date().toISOString()}).eq('id',prof.id).then(()=>{}); }catch(e){}
       await enterRole(activeRole);
