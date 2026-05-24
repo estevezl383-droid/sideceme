@@ -5361,24 +5361,31 @@ async function confirmarPrimerIngreso(){
   btn.disabled = true; btn.textContent = 'Guardando...';
 
   try{
-    const pwdHash = hashPassword(p1);
     const firmaDataUrl = firmaCanvasPrimer.toDataURL('image/png');
-    const now = new Date().toISOString();
-    const updates = {
-      password_hash: pwdHash,
-      firma_dataurl: firmaDataUrl,
-      primer_ingreso: false,
-      ultimo_login: now
-    };
-    const ci = ingresoPendiente.ci;
-    // Actualizar TODOS los registros con ese CI en ambas tablas (doble rol = mismas credenciales)
-    const promesas = [];
-    promesas.push(sb.from('profesores').update(updates).eq('ci', ci));
-    promesas.push(sb.from('cursantes').update(updates).eq('ci', ci));
-    const [pProf, pCur] = await Promise.allSettled(promesas);
+    // Llamar a Edge Function auth-primer-ingreso (hace bcrypt + UPDATE + revoca token + auditoría)
+    const token = sessionStorage.getItem('sideceme_token');
+    if(!token){
+      alert('Sesión no encontrada. Volvé a hacer login.');
+      return;
+    }
+    const { data: respPI, error: errPI } = await sb.functions.invoke('auth-primer-ingreso', {
+      body: {
+        token: token,
+        password: p1,
+        firma_dataurl: firmaDataUrl
+      }
+    });
+    if(errPI || !respPI || respPI.ok !== true){
+      const msg = (respPI && respPI.error) || (errPI && errPI.message) || 'Error desconocido';
+      alert('No se pudo completar el primer ingreso: ' + msg);
+      return;
+    }
+    // Token revocado por Edge Function → limpiar sessionStorage para forzar nuevo login
+    sessionStorage.removeItem('sideceme_token');
+    sessionStorage.removeItem('sideceme_token_expira');
     // Recargar usuario actualizado
     const tablaUsuario = ingresoPendiente.tipo === 'docente' ? 'profesores' : 'cursantes';
-    let usuarioActualizado = ingresoPendiente.usuario;
+    let usuarioActualizado = respPI.usuario || ingresoPendiente.usuario;
     try{
       const {data} = await sb.from(tablaUsuario).select('*').eq('id', ingresoPendiente.usuario.id).limit(1);
       if(data && data.length) usuarioActualizado = data[0];
