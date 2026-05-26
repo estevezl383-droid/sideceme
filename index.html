@@ -11610,35 +11610,7 @@ async function validarLoginFirmaCursante(){
       return;
     }
 
-    // Validar contraseña vía Edge Function auth-login (maneja bcrypt + plain + migración)
-    const { data: authResp, error: fnErr } = await sb.functions.invoke('auth-login', {
-      body: { ci, password: pwd, cargo: 'universal' }
-    });
-
-    if(fnErr){
-      console.error('auth-login error:', fnErr);
-      errEl.textContent = 'Error de conexión: ' + (fnErr.message || fnErr);
-      errEl.style.display = 'block';
-      btn.disabled = false; btn.innerHTML = '🔓 Ver mi sanción';
-      return;
-    }
-
-    if(!authResp || !authResp.ok){
-      errEl.textContent = (authResp && authResp.error) || 'Contraseña incorrecta.';
-      errEl.style.display = 'block';
-      btn.disabled = false; btn.innerHTML = '🔓 Ver mi sanción';
-      return;
-    }
-
-    // Validar que sea cursante (no profesor entrando por error a una sanción)
-    if(!authResp.usuario || authResp.usuario.tabla !== 'cursantes'){
-      errEl.textContent = 'Esta firma es solo para cursantes.';
-      errEl.style.display = 'block';
-      btn.disabled = false; btn.innerHTML = '🔓 Ver mi sanción';
-      return;
-    }
-
-    // Login OK — cargar datos del cursante para continuar el flujo de firma
+    // Buscar el cursante para validar contraseña
     const { data, error } = await sb.from('v_cursantes').select('*').eq('ci', ci).limit(1);
     if(error || !data || !data.length){
       errEl.textContent = 'CI no encontrado en la base de cursantes.';
@@ -11647,7 +11619,15 @@ async function validarLoginFirmaCursante(){
       return;
     }
 
-    firmaState.cursante = data[0];
+    const cur = data[0];
+    if(!passwordOK(cur, pwd)){
+      errEl.textContent = 'Contraseña incorrecta.';
+      errEl.style.display = 'block';
+      btn.disabled = false; btn.innerHTML = '🔓 Ver mi sanción';
+      return;
+    }
+
+    firmaState.cursante = cur;
     mostrarDetalleSancionParaFirma();
 
   }catch(e){
@@ -11656,6 +11636,8 @@ async function validarLoginFirmaCursante(){
     errEl.style.display = 'block';
     btn.disabled = false; btn.innerHTML = '🔓 Ver mi sanción';
   }
+}
+
 function mostrarDetalleSancionParaFirma(){
   const s = firmaState.sancion;
   const cur = firmaState.cursante;
