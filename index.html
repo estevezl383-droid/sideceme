@@ -11611,7 +11611,7 @@ async function validarLoginFirmaCursante(){
     }
 
     // Buscar el cursante para validar contraseña
-    const { data, error } = await sb.from('v_cursantes').select('*').eq('ci', ci).limit(1);
+    const { data, error } = await sb.from('cursantes').select('*').eq('ci', ci).limit(1);
     if(error || !data || !data.length){
       errEl.textContent = 'CI no encontrado en la base de cursantes.';
       errEl.style.display = 'block';
