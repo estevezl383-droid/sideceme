@@ -10871,7 +10871,14 @@ async function insertarSancionSegura(sancionOriginal){
       // Si la red no respondió en 5s en una sanción simple, ya hay un problema
       // y mejor que el usuario reintente que esperar más.
       const TIMEOUT_MS = 5000;
-      const insertPromise = sb.from('sanciones').insert(working).select();
+      const _tok = getTokenSesion();
+      const insertPromise = sb.functions.invoke('sanciones-crear', {
+        body: { token: _tok, sancion: working }
+      }).then(({data: r, error: e}) => {
+        if(e) return {data: null, error: e};
+        if(!r || !r.ok) return {data: null, error: {message: r?.error || 'Error EF sanciones-crear', details: r?.details, hint: r?.hint}};
+        return {data: r.data, error: null};
+      });
       const timeoutPromise = new Promise(resolve =>
         setTimeout(() => resolve({
           data: null,
