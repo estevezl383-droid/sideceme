@@ -11639,8 +11639,23 @@ async function validarLoginFirmaCursante(){
     }
 
     // Login OK — cargar datos del cursante para continuar el flujo de firma
-    const { data, error } = await sb.from('v_cursantes').select('*').eq('ci',
+    const { data, error } = await sb.from('v_cursantes').select('*').eq('ci', ci).limit(1);
+    if(error || !data || !data.length){
+      errEl.textContent = 'CI no encontrado en la base de cursantes.';
+      errEl.style.display = 'block';
+      btn.disabled = false; btn.innerHTML = '🔓 Ver mi sanción';
+      return;
+    }
 
+    firmaState.cursante = data[0];
+    mostrarDetalleSancionParaFirma();
+
+  }catch(e){
+    console.error(e);
+    errEl.textContent = 'Error: ' + (e.message || e);
+    errEl.style.display = 'block';
+    btn.disabled = false; btn.innerHTML = '🔓 Ver mi sanción';
+  }
 function mostrarDetalleSancionParaFirma(){
   const s = firmaState.sancion;
   const cur = firmaState.cursante;
