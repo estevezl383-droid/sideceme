@@ -5361,21 +5361,17 @@ async function confirmarPrimerIngreso(){
   btn.disabled = true; btn.textContent = 'Guardando...';
 
   try{
-    const pwdHash = hashPassword(p1);
     const firmaDataUrl = firmaCanvasPrimer.toDataURL('image/png');
-    const now = new Date().toISOString();
-    const updates = {
-      password_hash: pwdHash,
-      firma_dataurl: firmaDataUrl,
-      primer_ingreso: false,
-      ultimo_login: now
-    };
-    const ci = ingresoPendiente.ci;
-    // Actualizar TODOS los registros con ese CI en ambas tablas (doble rol = mismas credenciales)
-    const promesas = [];
-    promesas.push(sb.from('profesores').update(updates).eq('ci', ci));
-    promesas.push(sb.from('cursantes').update(updates).eq('ci', ci));
-    const [pProf, pCur] = await Promise.allSettled(promesas);
+    const _tok = getTokenSesion();
+    // Usar auth-primer-ingreso EF (bcrypt server-side, compatible con auth-login)
+    const {data: _piData, error: _piErr} = await sb.functions.invoke('auth-primer-ingreso', {
+      body: { token: _tok, password: p1, firma_dataurl: firmaDataUrl }
+    });
+    if(_piErr || !_piData?.ok){
+      throw new Error(_piData?.error || _piErr?.message || 'Error al guardar contraseña');
+    }
+    // Si el EF devuelve nuevo token (sesión renovada), guardarlo
+    if(_piData.token) guardarTokenSesion(_piData.token, _piData.expira_en);
     // Recargar usuario actualizado
     const tablaUsuario = ingresoPendiente.tipo === 'docente' ? 'profesores' : 'cursantes';
     let usuarioActualizado = ingresoPendiente.usuario;
@@ -6122,18 +6118,13 @@ async function guardarEdicionSancion(){
   const btn = document.getElementById('btn-guardar-edicion');
   btn.disabled = true; btn.textContent = 'Guardando...';
   try{
-    // 1) Actualizar sanción
-    const {error} = await sb.from('sanciones').update(cambios).eq('id', editandoSancionId);
-    if(error) throw error;
-    // 2) Registrar en auditoría
-    await registrarAuditSancion({
-      sancion_id: editandoSancionId,
-      accion: 'editar',
-      campos_antes: previo,
-      campos_despues: cambios,
-      razon: razon
+    // 1) Actualizar sanción via Edge Function
+    const _tok = getTokenSesion();
+    const {data: _efData, error: _efErr} = await sb.functions.invoke('sanciones-ops', {
+      body: { token: _tok, accion: 'editar', sancion_id: editandoSancionId, cambios, previo, razon, usuario_nombre: currentUser.nombre_completo }
     });
-    // 3) Actualizar memoria local
+    if(_efErr || !_efData?.ok) throw new Error(_efData?.error || _efErr?.message || 'Error al guardar edición');
+    // 2) Actualizar memoria local
     Object.assign(original, cambios);
     // 4) Volver al detalle
     alert('✓ Sanción actualizada correctamente.');
@@ -6173,15 +6164,11 @@ async function anularSancionDirecto(sancionId){
       anulada_por_nombre: currentUser.nombre_completo,
       anulada_en: ahora
     };
-    const {error} = await sb.from('sanciones').update(updates).eq('id', sancionId);
-    if(error) throw error;
-    await registrarAuditSancion({
-      sancion_id: sancionId,
-      accion: 'anular',
-      campos_antes: {anulada:false},
-      campos_despues: updates,
-      razon: razon.trim()
+    const _tok = getTokenSesion();
+    const {data: _efData, error: _efErr} = await sb.functions.invoke('sanciones-ops', {
+      body: { token: _tok, accion: 'anular', sancion_id: sancionId, razon: razon.trim(), usuario_nombre: currentUser.nombre_completo }
     });
+    if(_efErr || !_efData?.ok) throw new Error(_efData?.error || _efErr?.message || 'Error al anular');
     Object.assign(s, updates);
     alert('✓ Sanción anulada correctamente.');
     verSancionDetalle(sancionId);
@@ -6207,15 +6194,11 @@ async function reactivarSancion(sancionId){
       reactivada_por: currentUser.id,
       reactivada_en: ahora
     };
-    const {error} = await sb.from('sanciones').update(updates).eq('id', sancionId);
-    if(error) throw error;
-    await registrarAuditSancion({
-      sancion_id: sancionId,
-      accion: 'reactivar',
-      campos_antes: {anulada:true},
-      campos_despues: updates,
-      razon: razon.trim()
+    const _tok = getTokenSesion();
+    const {data: _efData, error: _efErr} = await sb.functions.invoke('sanciones-ops', {
+      body: { token: _tok, accion: 'reactivar', sancion_id: sancionId, razon: razon.trim(), usuario_nombre: currentUser.nombre_completo }
     });
+    if(_efErr || !_efData?.ok) throw new Error(_efData?.error || _efErr?.message || 'Error al reactivar');
     Object.assign(s, updates);
     alert('✓ Sanción reactivada.');
     verSancionDetalle(sancionId);
@@ -6332,15 +6315,11 @@ async function guardarSancionManual(){
         user_agent: navigator.userAgent.slice(0,200)
       })
     };
-    const {error} = await sb.from('sanciones').insert([nueva]);
-    if(error) throw error;
-    await registrarAuditSancion({
-      sancion_id: sancionId,
-      accion: 'crear_manual',
-      campos_antes: {},
-      campos_despues: nueva,
-      razon: razon
+    const _tok = getTokenSesion();
+    const {data: _efData, error: _efErr} = await sb.functions.invoke('sanciones-ops', {
+      body: { token: _tok, accion: 'crear_manual', nueva, razon }
     });
+    if(_efErr || !_efData?.ok) throw new Error(_efData?.error || _efErr?.message || 'Error al crear sanción');
     // Actualizar memoria local
     discData.sanciones.push(nueva);
     if(!discData.byCursanteSanc[c.id]) discData.byCursanteSanc[c.id] = [];
@@ -10114,27 +10093,13 @@ async function eliminarSancionPropia(sancionId, ev){
   const razon = (prompt('Motivo de la anulación (mínimo 5 caracteres):')||'').trim();
   if(razon.length < 5){ alert('Motivo demasiado corto. Cancelado.'); return; }
   try{
-    // 1) Registrar auditoría ANTES de borrar (por si falla luego)
-    try{
-      await registrarAuditSancion({
-        sancion_id: sancionId,
-        accion: 'eliminada_por_profesor',
-        campos_antes: s,
-        campos_despues: {},
-        razon: razon
-      });
-    }catch(e){ console.warn('No se pudo auditar, sigo con DELETE:', e); }
-    // 2) v2.9.14: En lugar de DELETE (bloqueado por trigger de seguridad),
-    //    marcamos como anulada con razón. Audit trail mantiene historial.
-    const {error} = await sb.from('sanciones').update({
-      anulada: true,
-      anulada_razon: razon,
-      anulada_por: currentUser.id,
-      anulada_por_nombre: currentUser.nombre_completo,
-      anulada_en: new Date().toISOString()
-    }).eq('id', sancionId);
-    if(error){ alert('Error al anular: ' + (error.message||JSON.stringify(error))); return; }
-    // 3) Actualizar memoria local: marcar como anulada en lugar de quitar
+    // Anular via Edge Function (auditoría + UPDATE server-side con service_role)
+    const _tok = getTokenSesion();
+    const {data: _efData, error: _efErr} = await sb.functions.invoke('sanciones-ops', {
+      body: { token: _tok, accion: 'eliminar_propia', sancion_id: sancionId, razon: razon.trim(), usuario_ci: currentUser.ci, usuario_nombre: currentUser.nombre_completo }
+    });
+    if(_efErr || !_efData?.ok){ alert('Error al anular: ' + (_efData?.error || _efErr?.message || '')); return; }
+    // Actualizar memoria local: marcar como anulada en lugar de quitar
     const idx = discData.sanciones.findIndex(x => x.id === sancionId);
     if(idx >= 0){
       discData.sanciones[idx].anulada = true;
@@ -11488,6 +11453,7 @@ let firmaState = {
   tokenQR: null,
   sancion: null,         // sancion cargada de Supabase
   cursante: null,        // cursante autenticado
+  firmaToken: null,      // token de sesión para sanciones-ops (15 min)
   retryCount: 0,
   maxRetries: 12,        // 12 intentos x 2.5s = 30s de espera total
   retryTimer: null,
@@ -11624,6 +11590,7 @@ async function validarLoginFirmaCursante(){
     }
 
     firmaState.cursante = authData.cursante;
+    firmaState.firmaToken = authData.firma_token || null;
     mostrarDetalleSancionParaFirma();
 
   }catch(e){
@@ -11843,7 +11810,18 @@ async function confirmarFirmaCursante(){
       huella_forense: huellaCombinada
     };
 
-    const updateRes = await actualizarSancionSegura(firmaState.sancion.id, updates);
+    // Intentar via EF (sanciones-ops) si hay firmaToken; fallback a actualizarSancionSegura
+    let updateRes;
+    if(firmaState.firmaToken){
+      const {data: _efD, error: _efE} = await sb.functions.invoke('sanciones-ops', {
+        body: { token: firmaState.firmaToken, accion: 'firma_cursante', sancion_id: firmaState.sancion.id, updates }
+      });
+      updateRes = (_efE || !_efD?.ok)
+        ? { error: { message: _efD?.error || _efE?.message || 'Error al guardar firma' } }
+        : { error: null };
+    } else {
+      updateRes = await actualizarSancionSegura(firmaState.sancion.id, updates);
+    }
     if(updateRes.error){
       // Backup local
       guardarBackupFirmaCursante(firmaState.sancion.id, updates, updateRes.error);
