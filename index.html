@@ -9556,11 +9556,8 @@ function renderMisSancionesInline(){
     const curObj = discData.cursantes.find(c => c.id === cursId);
     const cursNombre = curObj ? nombreConGrado(curObj) : (s.cursante_nombre || '—');
     const cortado = cursNombre.length > 42 ? cursNombre.slice(0,40)+'…' : cursNombre;
-    // v2.9.6: botón eliminar solo si el profesor puede borrarla (digital + sin firma cursante)
-    const puedeEliminar = puedeProfesorEliminarSancion(s);
-    const btnEliminar = puedeEliminar
-      ? `<button class="ms-del-btn" title="Anular (solo posible antes de firma del cursante)" onclick="eliminarSancionPropia('${escapeAttr(s.id)}', event)">🚫</button>`
-      : '';
+    // Anulación reservada al Jefe Disciplina: el profesor no anula sus propias sanciones.
+    const btnEliminar = '';
     return `<div class="ms-card ${claseCard}" onclick="verDetalleSancion('${escapeAttr(s.id)}')">
       <div class="ms-icon">${icono}</div>
       <div class="ms-body">
@@ -10057,95 +10054,8 @@ function sancionCuentaParaPuntaje(s){
   return false;
 }
 
-// v2.9.6: ¿el profesor logueado puede ELIMINAR esta sanción?
-// Reglas: debe ser digital, no firmada por cursante, no anulada,
-// creada por el usuario actual (o algún P-ID que comparta su CI por doble rol).
-function puedeProfesorEliminarSancion(s){
-  if(!currentUser) return false;
-  if(s.anulada) return false;
-  if(esSancionAnalogica(s)) return false;
-  // No se puede eliminar si ya firmó el cursante
-  const conf = (s.confirmacion_estado||'').toLowerCase();
-  if(s.firma_cursante) return false;
-  if(conf === 'firmada' || conf === 'aceptada' || conf.includes('firm') || conf.includes('acept')) return false;
-  // Debe ser una sanción del profesor actual (soporta doble rol vía CI)
-  if(s.profesor_id === currentUser.id) return true;
-  // Doble rol: ver si algún profesor con mi mismo CI tiene este id
-  try{
-    const miCI = currentUser.ci;
-    if(miCI && Array.isArray(discData?.profesores)){
-      const misIds = discData.profesores.filter(p => p.ci === miCI).map(p => p.id);
-      if(misIds.includes(s.profesor_id)) return true;
-    }
-  }catch(e){}
-  // Fallback: comparar por CI directo
-  if(s.profesor_ci && currentUser.ci && s.profesor_ci === currentUser.ci) return true;
-  return false;
-}
-
-// v2.9.6: Eliminar sanción propia (profesor, antes de firma del cursante)
-async function eliminarSancionPropia(sancionId, ev){
-  if(ev){ ev.stopPropagation(); ev.preventDefault(); }
-  if(!sancionId) return;
-  const s = discData.sanciones.find(x => x.id === sancionId);
-  if(!s){ alert('No se encontró la sanción.'); return; }
-  if(!puedeProfesorEliminarSancion(s)){
-    alert('No se puede eliminar esta sanción.\n\nMotivos posibles:\n• Ya fue firmada por el cursante\n• Es analógica\n• Está anulada\n• No es tuya');
-    return;
-  }
-  const cursanteNombre = s.cursante_nombre || '—';
-  const puntos = s.puntos_aplicados || 0;
-  const folio = s.folio || ('S-' + (s.id||'').slice(0,8));
-  const msg = `⚠️ Anular sanción\n\n`+
-              `Folio: ${folio}\n`+
-              `Cursante: ${cursanteNombre}\n`+
-              `Puntos: -${puntos}\n`+
-              `Falta Art. ${s.falta_articulo||'—'}\n\n`+
-              `La sanción quedará marcada como ANULADA (no se borra físicamente).\n`+
-              `Solo procede porque el cursante AÚN no firmó.\n\n`+
-              `¿Continuar?`;
-  if(!confirm(msg)) return;
-  const confirma = prompt('Para confirmar, escribí ANULAR (en mayúsculas):');
-  if(confirma !== 'ANULAR'){ alert('Cancelado. No se anuló.'); return; }
-  const razon = (prompt('Motivo de la anulación (mínimo 5 caracteres):')||'').trim();
-  if(razon.length < 5){ alert('Motivo demasiado corto. Cancelado.'); return; }
-  try{
-    const _tok = getTokenSesion();
-    const { data: r, error: efErr } = await sb.functions.invoke('sanciones-ops', {
-      body: { accion:'eliminar_propia', token:_tok, sancion_id:sancionId, razon:razon, usuario_ci:currentUser.ci, usuario_nombre:currentUser.nombre_completo }
-    });
-    if(efErr){
-      let detalle = efErr.message || 'Error en sanciones-ops';
-      try{ if(efErr.context && typeof efErr.context.json === 'function'){ const b = await efErr.context.json(); detalle = b.error || JSON.stringify(b); } }catch(_){}
-      alert('Error al anular: ' + detalle); return;
-    }
-    if(!r || !r.ok){ alert('Error al anular: ' + (r?.error||'Error en sanciones-ops')); return; }
-    // El EF ya marcó anulada + auditó. Reflejamos en memoria local.
-    // 3) Actualizar memoria local: marcar como anulada en lugar de quitar
-    const idx = discData.sanciones.findIndex(x => x.id === sancionId);
-    if(idx >= 0){
-      discData.sanciones[idx].anulada = true;
-      discData.sanciones[idx].anulada_razon = razon;
-    }
-    if(discData.byCursanteSanc[s.cursante_id]){
-      const idx2 = discData.byCursanteSanc[s.cursante_id].findIndex(x => x.id === sancionId);
-      if(idx2 >= 0){
-        discData.byCursanteSanc[s.cursante_id][idx2].anulada = true;
-      }
-    }
-    if(!s.es_prueba && !s.anulada){
-      discData.byCursanteLost[s.cursante_id] = Math.max(0, (discData.byCursanteLost[s.cursante_id]||0) - (Number(s.puntos_aplicados)||0));
-    }
-    // 4) Refrescar UI
-    if(typeof renderMisSancionesInline === 'function') renderMisSancionesInline();
-    if(typeof renderProfPanel === 'function') renderProfPanel();
-    if(typeof renderDiscPanel === 'function') renderDiscPanel();
-    if(typeof renderGestSanciones === 'function') renderGestSanciones();
-    alert('✅ Sanción anulada correctamente.\nFolio: ' + folio + '\n\nLa sanción queda registrada en el historial pero no afecta puntaje.');
-  }catch(e){
-    alert('Error inesperado: ' + (e.message||e));
-  }
-}
+// Anulación de sanciones reservada al Jefe Disciplina (ver anularSancionDirecto).
+// El profesor ya no puede anular sus propias sanciones.
 
 function filterCursantesNuevaSancion(){
   const q = (document.getElementById('prof-search-input').value||'').trim().toLowerCase();
@@ -11832,25 +11742,7 @@ async function confirmarFirmaCursante(){
       huella_forense: huellaCombinada
     };
 
-    let updateRes;
-    if(firmaState.firmaToken){
-      // Vía segura: el EF valida el token de cursante y escribe la firma con service role.
-      const { data: r, error: efErr } = await sb.functions.invoke('sanciones-ops', {
-        body: { accion:'firma_cursante', token:firmaState.firmaToken, sancion_id:firmaState.sancion.id, updates:updates }
-      });
-      if(efErr){
-        let detalle = efErr.message || 'Error en sanciones-ops';
-        try{ if(efErr.context && typeof efErr.context.json === 'function'){ const b = await efErr.context.json(); detalle = b.error || JSON.stringify(b); } }catch(_){}
-        updateRes = { error: { message: detalle } };
-      } else if(!r || !r.ok){
-        updateRes = { error: { message: (r && r.error) || 'Error en sanciones-ops' } };
-      } else {
-        updateRes = { error: null };
-      }
-    } else {
-      // Fallback: sin token de firma (no se pudo crear sesión), UPDATE directo.
-      updateRes = await actualizarSancionSegura(firmaState.sancion.id, updates);
-    }
+    const updateRes = await actualizarSancionSegura(firmaState.sancion.id, updates);
     if(updateRes.error){
       // Backup local
       guardarBackupFirmaCursante(firmaState.sancion.id, updates, updateRes.error);
