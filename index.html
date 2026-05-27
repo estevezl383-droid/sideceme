@@ -6118,20 +6118,18 @@ async function guardarEdicionSancion(){
   const btn = document.getElementById('btn-guardar-edicion');
   btn.disabled = true; btn.textContent = 'Guardando...';
   try{
-    // 1) Actualizar sanción
-    const {error} = await sb.from('sanciones').update(cambios).eq('id', editandoSancionId);
-    if(error) throw error;
-    // 2) Registrar en auditoría
-    await registrarAuditSancion({
-      sancion_id: editandoSancionId,
-      accion: 'editar',
-      campos_antes: previo,
-      campos_despues: cambios,
-      razon: razon
+    const _tok = getTokenSesion();
+    const { data: r, error: efErr } = await sb.functions.invoke('sanciones-ops', {
+      body: { accion:'editar', token:_tok, sancion_id:editandoSancionId, cambios:cambios, previo:previo, razon:razon, usuario_nombre:currentUser.nombre_completo }
     });
-    // 3) Actualizar memoria local
+    if(efErr){
+      let detalle = efErr.message || 'Error en sanciones-ops';
+      try{ if(efErr.context && typeof efErr.context.json === 'function'){ const b = await efErr.context.json(); detalle = b.error || JSON.stringify(b); } }catch(_){}
+      throw new Error(detalle);
+    }
+    if(!r || !r.ok) throw new Error(r?.error || 'Error en sanciones-ops');
+    // El EF ya guardó la edición + auditoría. Reflejamos en memoria local.
     Object.assign(original, cambios);
-    // 4) Volver al detalle
     alert('✓ Sanción actualizada correctamente.');
     const id = editandoSancionId;
     editandoSancionId = null;
@@ -6198,22 +6196,22 @@ async function reactivarSancion(sancionId){
   if(!razon || razon.trim().length < 5){ alert('Razón mínima 5 caracteres.'); return; }
   try{
     const ahora = new Date().toISOString();
-    const updates = {
+    const _tok = getTokenSesion();
+    const { data: r, error: efErr } = await sb.functions.invoke('sanciones-ops', {
+      body: { accion:'reactivar', token:_tok, sancion_id:sancionId, razon:razon.trim(), usuario_nombre:currentUser.nombre_completo }
+    });
+    if(efErr){
+      let detalle = efErr.message || 'Error en sanciones-ops';
+      try{ if(efErr.context && typeof efErr.context.json === 'function'){ const b = await efErr.context.json(); detalle = b.error || JSON.stringify(b); } }catch(_){}
+      throw new Error(detalle);
+    }
+    if(!r || !r.ok) throw new Error(r?.error || 'Error en sanciones-ops');
+    Object.assign(s, {
       anulada: false,
       reactivada_razon: razon.trim(),
       reactivada_por: currentUser.id,
       reactivada_en: ahora
-    };
-    const {error} = await sb.from('sanciones').update(updates).eq('id', sancionId);
-    if(error) throw error;
-    await registrarAuditSancion({
-      sancion_id: sancionId,
-      accion: 'reactivar',
-      campos_antes: {anulada:true},
-      campos_despues: updates,
-      razon: razon.trim()
     });
-    Object.assign(s, updates);
     alert('✓ Sanción reactivada.');
     verSancionDetalle(sancionId);
   }catch(e){
@@ -6329,16 +6327,17 @@ async function guardarSancionManual(){
         user_agent: navigator.userAgent.slice(0,200)
       })
     };
-    const {error} = await sb.from('sanciones').insert([nueva]);
-    if(error) throw error;
-    await registrarAuditSancion({
-      sancion_id: sancionId,
-      accion: 'crear_manual',
-      campos_antes: {},
-      campos_despues: nueva,
-      razon: razon
+    const _tok = getTokenSesion();
+    const { data: r, error: efErr } = await sb.functions.invoke('sanciones-ops', {
+      body: { accion:'crear_manual', token:_tok, nueva:nueva, razon:razon, usuario_nombre:currentUser.nombre_completo }
     });
-    // Actualizar memoria local
+    if(efErr){
+      let detalle = efErr.message || 'Error en sanciones-ops';
+      try{ if(efErr.context && typeof efErr.context.json === 'function'){ const b = await efErr.context.json(); detalle = b.error || JSON.stringify(b); } }catch(_){}
+      throw new Error(detalle);
+    }
+    if(!r || !r.ok) throw new Error(r?.error || 'Error en sanciones-ops');
+    // El EF ya insertó + auditó. Reflejamos en memoria local.
     discData.sanciones.push(nueva);
     if(!discData.byCursanteSanc[c.id]) discData.byCursanteSanc[c.id] = [];
     discData.byCursanteSanc[c.id].push(nueva);
@@ -10111,26 +10110,17 @@ async function eliminarSancionPropia(sancionId, ev){
   const razon = (prompt('Motivo de la anulación (mínimo 5 caracteres):')||'').trim();
   if(razon.length < 5){ alert('Motivo demasiado corto. Cancelado.'); return; }
   try{
-    // 1) Registrar auditoría ANTES de borrar (por si falla luego)
-    try{
-      await registrarAuditSancion({
-        sancion_id: sancionId,
-        accion: 'eliminada_por_profesor',
-        campos_antes: s,
-        campos_despues: {},
-        razon: razon
-      });
-    }catch(e){ console.warn('No se pudo auditar, sigo con DELETE:', e); }
-    // 2) v2.9.14: En lugar de DELETE (bloqueado por trigger de seguridad),
-    //    marcamos como anulada con razón. Audit trail mantiene historial.
-    const {error} = await sb.from('sanciones').update({
-      anulada: true,
-      anulada_razon: razon,
-      anulada_por: currentUser.id,
-      anulada_por_nombre: currentUser.nombre_completo,
-      anulada_en: new Date().toISOString()
-    }).eq('id', sancionId);
-    if(error){ alert('Error al anular: ' + (error.message||JSON.stringify(error))); return; }
+    const _tok = getTokenSesion();
+    const { data: r, error: efErr } = await sb.functions.invoke('sanciones-ops', {
+      body: { accion:'eliminar_propia', token:_tok, sancion_id:sancionId, razon:razon, usuario_ci:currentUser.ci, usuario_nombre:currentUser.nombre_completo }
+    });
+    if(efErr){
+      let detalle = efErr.message || 'Error en sanciones-ops';
+      try{ if(efErr.context && typeof efErr.context.json === 'function'){ const b = await efErr.context.json(); detalle = b.error || JSON.stringify(b); } }catch(_){}
+      alert('Error al anular: ' + detalle); return;
+    }
+    if(!r || !r.ok){ alert('Error al anular: ' + (r?.error||'Error en sanciones-ops')); return; }
+    // El EF ya marcó anulada + auditó. Reflejamos en memoria local.
     // 3) Actualizar memoria local: marcar como anulada en lugar de quitar
     const idx = discData.sanciones.findIndex(x => x.id === sancionId);
     if(idx >= 0){
@@ -11842,7 +11832,25 @@ async function confirmarFirmaCursante(){
       huella_forense: huellaCombinada
     };
 
-    const updateRes = await actualizarSancionSegura(firmaState.sancion.id, updates);
+    let updateRes;
+    if(firmaState.firmaToken){
+      // Vía segura: el EF valida el token de cursante y escribe la firma con service role.
+      const { data: r, error: efErr } = await sb.functions.invoke('sanciones-ops', {
+        body: { accion:'firma_cursante', token:firmaState.firmaToken, sancion_id:firmaState.sancion.id, updates:updates }
+      });
+      if(efErr){
+        let detalle = efErr.message || 'Error en sanciones-ops';
+        try{ if(efErr.context && typeof efErr.context.json === 'function'){ const b = await efErr.context.json(); detalle = b.error || JSON.stringify(b); } }catch(_){}
+        updateRes = { error: { message: detalle } };
+      } else if(!r || !r.ok){
+        updateRes = { error: { message: (r && r.error) || 'Error en sanciones-ops' } };
+      } else {
+        updateRes = { error: null };
+      }
+    } else {
+      // Fallback: sin token de firma (no se pudo crear sesión), UPDATE directo.
+      updateRes = await actualizarSancionSegura(firmaState.sancion.id, updates);
+    }
     if(updateRes.error){
       // Backup local
       guardarBackupFirmaCursante(firmaState.sancion.id, updates, updateRes.error);
