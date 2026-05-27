@@ -6166,7 +6166,11 @@ async function anularSancionDirecto(sancionId){
     const { data: r, error: efErr } = await sb.functions.invoke('sanciones-ops', {
       body: { accion:'anular', token:_tok, sancion_id:sancionId, razon:razon.trim(), usuario_nombre:currentUser.nombre_completo }
     });
-    if(efErr) throw efErr;
+    if(efErr){
+      let detalle = efErr.message || 'Error en sanciones-ops';
+      try{ if(efErr.context && typeof efErr.context.json === 'function'){ const b = await efErr.context.json(); detalle = b.error || JSON.stringify(b); } }catch(_){}
+      throw new Error(detalle);
+    }
     if(!r || !r.ok) throw new Error(r?.error || 'Error en sanciones-ops');
     // El EF ya escribió la anulación + auditoría. Reflejamos en memoria local para la UI.
     Object.assign(s, {
