@@ -4183,11 +4183,6 @@ input::placeholder, textarea::placeholder {
       <strong style="color:var(--gold)">⚠️ Herramienta del Jefe de Sección Disciplina.</strong> Toda modificación queda registrada en auditoría con fecha, hora y usuario responsable. Las sanciones anuladas no se borran físicamente: quedan marcadas como anuladas para preservar trazabilidad.
     </div>
 
-    <button class="btn-mega" onclick="goCrearSancionManual()" style="margin-bottom:14px;background:linear-gradient(180deg,#4ca36b,#2d7a4a)">
-      <span class="mega-icon">➕</span>
-      <span>Crear sanción manual (aumentar)</span>
-    </button>
-
     <div class="ef-filtros" style="margin-top:6px">
       <input type="text" id="gs-filtro-nombre" placeholder="🔎 Buscar nombre, CI o folio..." oninput="filtrarGestSanciones()">
       <select id="gs-filtro-estado" onchange="filtrarGestSanciones()">
@@ -4226,7 +4221,6 @@ input::placeholder, textarea::placeholder {
     <div class="field"><label>Artículo / Falta ID</label><input type="text" id="es-falta-id" placeholder="ej. LEVE_1_a"></div>
     <div class="field"><label>Descripción de la falta</label><textarea id="es-descripcion" rows="3" style="width:100%;background:var(--bg-deep);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:6px;padding:10px;font-family:inherit;font-size:14px"></textarea></div>
     <div class="field"><label>Puntos aplicados (deméritos)</label><input type="number" id="es-puntos" min="0" max="100" step="1"></div>
-    <div class="field"><label>Fecha original (opcional)</label><input type="date" id="es-fecha"></div>
     <div class="field"><label>Observaciones</label><textarea id="es-observaciones" rows="2" style="width:100%;background:var(--bg-deep);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:6px;padding:10px;font-family:inherit;font-size:14px"></textarea></div>
 
     <div style="background:rgba(212,175,55,.06);border:2px solid var(--gold);border-radius:10px;padding:14px;margin-top:14px">
@@ -6061,14 +6055,6 @@ function editarSancion(sancionId){
   document.getElementById('es-falta-id').value = s.falta_id || '';
   document.getElementById('es-descripcion').value = s.falta_descripcion || s.descripcion || '';
   document.getElementById('es-puntos').value = s.puntos_aplicados || 0;
-  // Fecha: intentar parsear
-  let fechaIso = '';
-  if(s.fecha_original){
-    try{ fechaIso = new Date(s.fecha_original).toISOString().slice(0,10); }catch(e){}
-  } else if(s.creado_en){
-    try{ fechaIso = new Date(s.creado_en).toISOString().slice(0,10); }catch(e){}
-  }
-  document.getElementById('es-fecha').value = fechaIso;
   document.getElementById('es-observaciones').value = s.observaciones || '';
   document.getElementById('es-razon').value = '';
   clearErrors();
@@ -6096,7 +6082,6 @@ async function guardarEdicionSancion(){
     falta_id: document.getElementById('es-falta-id').value.trim() || null,
     falta_descripcion: document.getElementById('es-descripcion').value.trim() || null,
     puntos_aplicados: Number(document.getElementById('es-puntos').value) || 0,
-    fecha_original: document.getElementById('es-fecha').value || null,
     observaciones: document.getElementById('es-observaciones').value.trim() || null
   };
 
