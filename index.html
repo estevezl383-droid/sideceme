@@ -3883,6 +3883,11 @@ input::placeholder, textarea::placeholder {
         <span class="mega-icon">📅</span>
         <span>Horario Semanal</span>
       </button>
+      <!-- botón acceso Planilla de Disciplina -->
+      <button class="btn-mega" onclick="goPlanillas()" style="background:linear-gradient(180deg,#9a7b1f,#d4af37);margin:0 0 10px 0;color:#0a1628">
+        <span class="mega-icon">📋</span>
+        <span>Planilla de Disciplina</span>
+      </button>
 
       <!-- =================== SECCIÓN DISCIPLINA (default visible) =================== -->
       <div class="cur-section" id="cur-section-disciplina">
@@ -4056,6 +4061,7 @@ input::placeholder, textarea::placeholder {
       <button class="quick-btn" onclick="goGestionarProfesores()"><span class="qa-icon">👨‍🏫</span><span class="qa-text" id="qa-profs-text">Gestionar profesores (—)</span></button>
       <button class="quick-btn" id="qa-gest-sanciones" onclick="goGestionSanciones()" style="background:linear-gradient(180deg,rgba(76,163,107,.15),rgba(76,163,107,.05));border-color:#4ca36b"><span class="qa-icon">⚖️</span><span class="qa-text"><strong>Gestionar sanciones</strong> (editar / corregir / anular / crear manual)</span></button>
       <button class="quick-btn" onclick="goHorarios()" style="background:linear-gradient(180deg,rgba(70,130,200,.15),rgba(70,130,200,.05));border-color:#4a90d9"><span class="qa-icon">📅</span><span class="qa-text"><strong>Horario semanal</strong> (ver / subir nuevo)</span></button>
+      <button class="quick-btn" onclick="goPlanillas()" style="background:linear-gradient(180deg,rgba(212,175,55,.15),rgba(212,175,55,.05));border-color:#d4af37"><span class="qa-icon">📋</span><span class="qa-text"><strong>Planilla de disciplina</strong> (ver / subir nueva)</span></button>
       <button class="quick-btn" onclick="goAuditoria()"><span class="qa-icon">🔍</span><span class="qa-text">Auditoría de sanciones por cursante</span></button>
       <button class="quick-btn" onclick="goEstadisticas()"><span class="qa-icon">📈</span><span class="qa-text">Estadísticas: pérdida de puntaje (por período)</span></button>
       <button class="quick-btn" onclick="goDiagnostico()"><span class="qa-icon">🔧</span><span class="qa-text">Diagnóstico y forzar sincronización</span></button>
@@ -4396,6 +4402,61 @@ input::placeholder, textarea::placeholder {
     <div class="primer-actions" style="margin-top:14px">
       <button class="btn-secondary" onclick="goHorarios()">Cancelar</button>
       <button class="btn-primary" id="btn-confirmar-subir-horario" onclick="confirmarSubirHorario()" style="background:linear-gradient(180deg,#4ca36b,#2d7a4a)">📤 Subir horario</button>
+    </div>
+  </div>
+</section>
+
+<!-- PLANILLAS DE DISCIPLINA: lista -->
+<section id="screen-planillas" class="screen with-bottom-nav">
+  <div class="app-header">
+    <button class="back-btn" onclick="volverDePlanillas()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Planilla de Disciplina</div><div class="header-sub">Calificaciones acumulativas</div></div>
+  </div>
+  <div class="disc-container">
+    <div class="alert-banner blue"><div class="alert-emoji">📋</div><div class="alert-text"><div class="alert-desc">Planilla de calificaciones acumulativas del área de Disciplina de los OO.SUP.CC. Se publica periódicamente, firmada por el Comandante.</div></div></div>
+    <div id="pla-admin-area" style="display:none;margin-bottom:14px">
+      <button class="btn-mega" onclick="goSubirPlanilla()" style="background:linear-gradient(180deg,#4ca36b,#2d7a4a);box-shadow:0 4px 12px rgba(76,163,107,.35)">
+        <span class="mega-icon">⬆️</span><span>Subir nueva planilla</span>
+      </button>
+      <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:4px">PDF o imagen (foto del escaneo) · máx 4 MB</div>
+    </div>
+    <div id="pla-filtro-wrap" style="margin-bottom:10px;display:none">
+      <select id="pla-filtro-ciclo" onchange="renderPlanillasLista()">
+        <option value="">Todos los ciclos</option>
+        <option value="1er_ciclo">1er Ciclo</option>
+        <option value="2do_ciclo">2do Ciclo</option>
+      </select>
+    </div>
+    <div id="pla-lista"></div>
+  </div>
+</section>
+
+<!-- PLANILLAS DE DISCIPLINA: subir (solo Jefe/Comandante) -->
+<section id="screen-planilla-subir" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goPlanillas()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Subir Planilla</div><div class="header-sub">Nueva planilla de disciplina</div></div>
+  </div>
+  <div class="disc-container">
+    <div class="alert-banner blue"><div class="alert-emoji">📄</div><div class="alert-text"><div class="alert-desc">Subí la planilla escaneada (PDF o imagen JPG/PNG). Tamaño máximo: <strong>4 MB</strong>. Si pesa más, comprimila o reducí la foto.</div></div></div>
+    <div class="error-msg" id="err-subir-planilla"></div>
+    <div class="field"><label>Ciclo</label>
+      <select id="psu-ciclo">
+        <option value="1er_ciclo">1er Ciclo</option>
+        <option value="2do_ciclo">2do Ciclo</option>
+      </select>
+    </div>
+    <div class="field"><label>Fecha de corte (al...)</label><input type="date" id="psu-fecha"></div>
+    <div class="field"><label>Título</label><input type="text" id="psu-titulo" placeholder="Ej: Planilla acumulativa 1er Ciclo"></div>
+    <div class="field"><label>Archivo (PDF o imagen)</label>
+      <input type="file" id="psu-archivo" accept="application/pdf,image/jpeg,image/png" onchange="previewArchivoPlanilla()">
+      <div id="psu-preview" style="font-size:12px;margin-top:6px;color:var(--text-secondary)"></div>
+    </div>
+    <div class="primer-actions" style="margin-top:14px">
+      <button class="btn-secondary" onclick="goPlanillas()">Cancelar</button>
+      <button class="btn-primary" id="btn-confirmar-subir-planilla" onclick="confirmarSubirPlanilla()" style="background:linear-gradient(180deg,#4ca36b,#2d7a4a)">📤 Subir planilla</button>
     </div>
   </div>
 </section>
@@ -5960,6 +6021,199 @@ async function confirmarSubirHorario(){
     showError('err-subir-horario','Error: ' + (e.message||JSON.stringify(e)));
   }finally{
     btn.disabled = false; btn.textContent = '📤 Subir horario';
+  }
+}
+
+/* ==================== PLANILLAS DE DISCIPLINA ==================== */
+let planillasData = { lista: [], loaded: false };
+let pantallaOrigenPlanillas = null;
+
+// Mapea el ciclo del cursante ("1ER CICLO" / "2DO CICLO") al código interno.
+function cicloDeCursante(cur){
+  const c = ((cur && cur.ciclo) || '').toString().toLowerCase();
+  if(c.includes('2')) return '2do_ciclo';
+  if(c.includes('1')) return '1er_ciclo';
+  return null;
+}
+function esAdminPlanilla(){
+  return activeRole === 'disciplina' || activeRole === 'comandante';
+}
+
+function goPlanillas(){
+  const active = document.querySelector('.screen.active');
+  if(active && !active.id.startsWith('screen-planilla')) pantallaOrigenPlanillas = active.id;
+  const admin = esAdminPlanilla();
+  const adminArea = document.getElementById('pla-admin-area');
+  if(adminArea) adminArea.style.display = admin ? '' : 'none';
+  const filtroWrap = document.getElementById('pla-filtro-wrap');
+  if(filtroWrap) filtroWrap.style.display = admin ? '' : 'none';
+  document.getElementById('pla-lista').innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">⏳ Cargando...</div>';
+  showScreen('screen-planillas');
+  cargarPlanillas();
+}
+
+function volverDePlanillas(){
+  if(pantallaOrigenPlanillas){
+    showScreen(pantallaOrigenPlanillas);
+    pantallaOrigenPlanillas = null;
+  } else if(esAdminPlanilla()){
+    showScreen('screen-disc-panel');
+  } else if(currentUser && getSession() && getSession().tipo === 'cursante'){
+    showScreen('screen-cursante-home');
+  } else {
+    goHome();
+  }
+}
+
+async function cargarPlanillas(){
+  const cont = document.getElementById('pla-lista');
+  try{
+    const {data, error} = await sb.from('planillas_disciplina')
+      .select('id,ciclo,fecha_corte,titulo,archivo_nombre,archivo_size_kb,subido_por_nombre,subido_en,activo')
+      .eq('activo', true)
+      .order('fecha_corte', {ascending: false})
+      .limit(100);
+    if(error){
+      cont.innerHTML = `<div class="efm-no-data" style="color:#e88a8a">⚠️ ${error.message}<br><br>Si la tabla <code>planillas_disciplina</code> no existe, ejecutá el SQL que te pasó Claude.</div>`;
+      return;
+    }
+    planillasData.lista = data || [];
+    planillasData.loaded = true;
+    renderPlanillasLista();
+  }catch(e){
+    cont.innerHTML = `<div class="efm-no-data" style="color:#e88a8a">⚠️ Error: ${e.message||e}</div>`;
+  }
+}
+
+function renderPlanillasLista(){
+  const cont = document.getElementById('pla-lista');
+  if(!cont) return;
+  let arr = (planillasData.lista || []).slice();
+  if(esAdminPlanilla()){
+    const sel = document.getElementById('pla-filtro-ciclo');
+    const f = sel ? sel.value : '';
+    if(f) arr = arr.filter(p => p.ciclo === f);
+  } else {
+    const miCiclo = cicloDeCursante(currentUser);
+    if(miCiclo) arr = arr.filter(p => p.ciclo === miCiclo);
+  }
+  if(!arr.length){
+    cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">📋 No hay planillas publicadas todavía.</div>';
+    return;
+  }
+  const cicloLabel = {'1er_ciclo':'1er Ciclo','2do_ciclo':'2do Ciclo'};
+  const admin = esAdminPlanilla();
+  cont.innerHTML = arr.map(p => {
+    const fecha = p.fecha_corte ? new Date(p.fecha_corte+'T00:00:00').toLocaleDateString('es-BO',{day:'2-digit',month:'long',year:'numeric'}) : '';
+    const sub = p.subido_en ? new Date(p.subido_en).toLocaleDateString('es-BO') : '';
+    return `
+      <div class="ef-cursante-row">
+        <div style="flex:1;cursor:pointer" onclick="verPlanilla(${p.id})">
+          <div class="ef-cur-nombre">📋 ${escapeHtml(p.titulo||'Planilla')}</div>
+          <div class="ef-cur-meta">${cicloLabel[p.ciclo]||p.ciclo}${fecha?' · al '+fecha:''}${p.archivo_size_kb?' · '+p.archivo_size_kb+' KB':''}${sub?' · subido '+sub:''}</div>
+        </div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <span style="cursor:pointer;font-size:16px;color:var(--gold)" onclick="verPlanilla(${p.id})" title="Ver / Descargar">⬇️</span>
+          ${admin?`<span style="cursor:pointer;font-size:15px;color:#c84a4a" onclick="eliminarPlanilla(${p.id})" title="Eliminar">🗑️</span>`:''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function goSubirPlanilla(){
+  if(!esAdminPlanilla()){ alert('Solo Jefe Disciplina o Comandante pueden subir planillas.'); return; }
+  document.getElementById('psu-ciclo').value = '1er_ciclo';
+  document.getElementById('psu-fecha').value = new Date().toISOString().slice(0,10);
+  document.getElementById('psu-titulo').value = '';
+  document.getElementById('psu-archivo').value = '';
+  document.getElementById('psu-preview').textContent = '';
+  clearErrors();
+  showScreen('screen-planilla-subir');
+}
+
+function previewArchivoPlanilla(){
+  const f = document.getElementById('psu-archivo').files[0];
+  const prev = document.getElementById('psu-preview');
+  if(!f){ prev.textContent = ''; return; }
+  const sizeKB = Math.round(f.size/1024);
+  const sizeMB = (f.size/1024/1024).toFixed(2);
+  const tiposOk = ['application/pdf','image/jpeg','image/png'];
+  const ok = f.size <= 4*1024*1024 && tiposOk.includes(f.type);
+  prev.innerHTML = `📄 <strong>${escapeHtml(f.name)}</strong> · ${sizeKB} KB (${sizeMB} MB) · ${ok?'<span style="color:#7ac899">✓ OK</span>':'<span style="color:#e88a8a">✗ Excede 4MB o tipo no permitido (PDF/JPG/PNG)</span>'}`;
+}
+
+async function confirmarSubirPlanilla(){
+  clearErrors();
+  if(!esAdminPlanilla()){ showError('err-subir-planilla','No tenés permiso.'); return; }
+  const ciclo = document.getElementById('psu-ciclo').value;
+  const fecha = document.getElementById('psu-fecha').value;
+  const titulo = document.getElementById('psu-titulo').value.trim();
+  const archivo = document.getElementById('psu-archivo').files[0];
+  const tiposOk = ['application/pdf','image/jpeg','image/png'];
+  if(!titulo){ showError('err-subir-planilla','El título es obligatorio.'); return; }
+  if(!archivo){ showError('err-subir-planilla','Seleccioná un archivo PDF o imagen.'); return; }
+  if(!tiposOk.includes(archivo.type)){ showError('err-subir-planilla','El archivo debe ser PDF, JPG o PNG.'); return; }
+  if(archivo.size > 4*1024*1024){ showError('err-subir-planilla','El archivo excede 4 MB. Comprimilo antes.'); return; }
+
+  const btn = document.getElementById('btn-confirmar-subir-planilla');
+  btn.disabled = true; btn.textContent = 'Subiendo...';
+  try{
+    const dataUrl = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(archivo);
+    });
+    const registro = {
+      ciclo: ciclo,
+      fecha_corte: fecha || null,
+      titulo: titulo,
+      archivo_nombre: archivo.name,
+      archivo_dataurl: dataUrl,
+      archivo_size_kb: Math.round(archivo.size/1024),
+      subido_por: currentUser.id,
+      subido_por_nombre: currentUser.nombre_completo,
+      subido_en: new Date().toISOString(),
+      activo: true
+    };
+    const {error} = await sb.from('planillas_disciplina').insert([registro]);
+    if(error) throw error;
+    alert('✓ Planilla subida correctamente.');
+    planillasData.loaded = false;
+    goPlanillas();
+  }catch(e){
+    console.error('Error subiendo planilla:', e);
+    showError('err-subir-planilla','Error: ' + (e.message||JSON.stringify(e)));
+  }finally{
+    btn.disabled = false; btn.textContent = '📤 Subir planilla';
+  }
+}
+
+async function verPlanilla(id){
+  try{
+    const {data, error} = await sb.from('planillas_disciplina')
+      .select('archivo_dataurl').eq('id', id).limit(1);
+    if(error) throw error;
+    if(!data || !data.length || !data[0].archivo_dataurl){ alert('Archivo no disponible.'); return; }
+    const url = dataUrlToBlobUrl(data[0].archivo_dataurl);
+    if(!url){ alert('No se pudo procesar el archivo.'); return; }
+    window.open(url, '_blank');
+    setTimeout(() => { try{ URL.revokeObjectURL(url); }catch(_){}}, 5000);
+  }catch(e){
+    alert('Error: ' + (e.message||e));
+  }
+}
+
+async function eliminarPlanilla(id){
+  if(!esAdminPlanilla()){ alert('Solo Jefe Disciplina o Comandante.'); return; }
+  if(!confirm('¿Eliminar esta planilla? Dejará de verse para los alumnos (no se borra físicamente).')) return;
+  try{
+    const {error} = await sb.from('planillas_disciplina').update({activo:false}).eq('id', id);
+    if(error) throw error;
+    planillasData.loaded = false;
+    cargarPlanillas();
+  }catch(e){
+    alert('Error: ' + (e.message||e));
   }
 }
 
