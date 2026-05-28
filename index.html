@@ -4062,7 +4062,7 @@ input::placeholder, textarea::placeholder {
       <button class="quick-btn success" onclick="goRespaldo()"><span class="qa-icon">💾</span><span class="qa-text">Descargar respaldo ahora (JSON + .XLSX)</span></button>
       <button class="quick-btn" onclick="goInstalar()"><span class="qa-icon">📲</span><span class="qa-text">Instalar app / Compartir QR</span></button>
       <button class="quick-btn" onclick="goAnulaciones()"><span class="qa-icon">📋</span><span class="qa-text">Mis solicitudes de anulación</span></button>
-      <button class="quick-btn warning" onclick="goReiniciar()"><span class="qa-icon">🔄</span><span class="qa-text">Reiniciar semestre disciplinario</span></button>
+      <button class="quick-btn warning" onclick="goReiniciar()"><span class="qa-icon">📥</span><span class="qa-text">Cierre de semestre (respaldo)</span></button>
       <button class="quick-btn" onclick="qa('cambiar_pwd_otro')"><span class="qa-icon">🔑</span><span class="qa-text">Cambiar contraseña de cursante / profesor</span></button>
       <button class="quick-btn" onclick="qa('cambiar_mi_pwd')"><span class="qa-icon">🔐</span><span class="qa-text">Cambiar mi usuario y contraseña</span></button>
       <button class="quick-btn" onclick="qa('crear_usuario_modulo')"><span class="qa-icon">➕</span><span class="qa-text">Crear usuario para otro módulo</span></button>
@@ -4598,17 +4598,11 @@ input::placeholder, textarea::placeholder {
 
 <!-- DISC: REINICIAR SEMESTRE -->
 <section id="screen-reiniciar" class="screen with-bottom-nav">
-  <div class="app-header"><button class="back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Reiniciar Semestre</div><div class="header-sub">⚠️ Acción crítica</div></div></div>
+  <div class="app-header"><button class="back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Cierre de Semestre</div><div class="header-sub">Descargar respaldo</div></div></div>
   <div class="disc-container">
-    <div class="warning-box">
-      <h4>⚠️ Esto archiva todas las sanciones actuales</h4>
-      <p>Al reiniciar, las <strong id="rein-count">—</strong> sanciones del semestre actual se marcan como <strong>archivadas</strong> (no se borran). Todos los cursantes vuelven a 100 pts y se inicia un nuevo semestre.</p>
-      <p>Las sanciones archivadas siguen disponibles en el historial y respaldos. Esto NO se puede deshacer fácilmente.</p>
-    </div>
-    <div class="field"><label>Etiqueta del nuevo semestre</label><input type="text" id="rein-nuevo-sem" value="2026-2"></div>
-    <div class="field"><label>Escribí <strong>REINICIAR</strong> para confirmar</label><input type="text" id="rein-confirm" placeholder="REINICIAR" autocomplete="off"></div>
+    <div class="alert-banner blue"><div class="alert-emoji">💡</div><div class="alert-text"><div class="alert-title">Respaldo de cierre — no se borra nada</div><div class="alert-desc">Descargá una copia de las <strong id="rein-count">—</strong> sanciones vigentes para el cierre del semestre. <strong>No se anula ni borra ninguna sanción.</strong> El semestre avanza solo según la fecha (ene–jun / jul–dic), y el cómputo anual (para la baja) se mantiene todo el año.</div></div></div>
     <div class="error-msg" id="err-reiniciar"></div>
-    <button class="btn-danger" id="btn-reiniciar" onclick="confirmarReiniciar()">🔄 Reiniciar semestre disciplinario</button>
+    <button class="btn-primary" id="btn-reiniciar" onclick="confirmarReiniciar()">📥 Descargar respaldo de cierre</button>
     <button class="btn-secondary" onclick="goDiscPanel()">Cancelar</button>
   </div>
 </section>
@@ -6443,6 +6437,22 @@ function fechaSancion(s){
   return isNaN(d.getTime()) ? null : d;
 }
 
+// === Semestre académico (regla general: ene-jun = sem 1, jul-dic = sem 2) ===
+// getMonth() es 0-11 → meses 0..5 (ene-jun)=sem 1, 6..11 (jul-dic)=sem 2.
+function semestreDe(fecha){
+  if(!fecha) return null;
+  return { year: fecha.getFullYear(), half: (fecha.getMonth() <= 5) ? 1 : 2 };
+}
+function semestreActual(){ return semestreDe(new Date()); }
+function etiquetaSemestre(sem){ return sem ? (sem.year + '-' + sem.half) : ''; }
+// ¿La sanción cae en el semestre actual? (las sin fecha se cuentan, para no perderlas)
+function sancionEnSemestreActual(s){
+  const f = fechaSancion(s);
+  if(!f) return true;
+  const a = semestreDe(f), b = semestreActual();
+  return a.year === b.year && a.half === b.half;
+}
+
 // Calcula los puntos perdidos del cursante DURANTE la gestión (año en curso).
 // - Excluye anuladas y de prueba (igual que el resto del sistema).
 // - Sólo cuenta sanciones cuya fecha cae en el año `year` (default = año actual).
@@ -7066,8 +7076,12 @@ async function loadDiscData(force=false){
       const cid=s.cursante_id;
       const pts=Number(s.puntos_aplicados)||0;
       // v2.9.9: regla nueva — solo cuentan analógicas + digitales firmadas por cursante
+      // byCursanteLost = puntaje del SEMESTRE ACTUAL (académico: Observación/Consejo).
+      // La baja se mide aparte, sobre el año, en calcularPerdidaAnual().
       if(sancionCuentaParaPuntaje(s)){
-        discData.byCursanteLost[cid] = (discData.byCursanteLost[cid]||0) + pts;
+        if(sancionEnSemestreActual(s)){
+          discData.byCursanteLost[cid] = (discData.byCursanteLost[cid]||0) + pts;
+        }
       } else if(s.es_prueba !== true && !esSancionAnalogica(s)){
         // Digital pendiente de firma → al puntaje "pendiente" (informativo)
         discData.byCursantePendiente[cid] = (discData.byCursantePendiente[cid]||0) + pts;
@@ -9098,34 +9112,24 @@ async function shareApp(){
 /* ==================== REINICIAR SEMESTRE ==================== */
 function goReiniciar(){
   document.getElementById('rein-count').textContent = discData.sanciones.filter(s=>!s.anulada).length;
-  document.getElementById('rein-confirm').value='';
   clearErrors();
   showScreen('screen-reiniciar');
 }
 async function confirmarReiniciar(){
   clearErrors();
-  const confirm1 = document.getElementById('rein-confirm').value.trim();
-  if(confirm1 !== 'REINICIAR'){ showError('err-reiniciar','Tenés que escribir exactamente REINICIAR (en mayúsculas).'); return; }
-  const nuevoSem = document.getElementById('rein-nuevo-sem').value.trim();
-  if(!nuevoSem){ showError('err-reiniciar','Definí la etiqueta del nuevo semestre.'); return; }
-  if(!confirm(`¿Seguro? Esto archivará ${discData.sanciones.filter(s=>!s.anulada).length} sanciones y empezará el semestre "${nuevoSem}".`)) return;
-
   const btn = document.getElementById('btn-reiniciar');
-  btn.disabled=true; btn.textContent='Reiniciando...';
+  btn.disabled=true; btn.textContent='Generando respaldo...';
   try{
-    // Antes de archivar, descargar respaldo automático
+    // Cierre de semestre = SOLO respaldo. NO se anula ni borra nada.
+    // El semestre rota solo por fecha (ene-jun / jul-dic) y el cómputo anual se mantiene para la baja.
     downloadJSON();
-    // Marcar sanciones como anuladas (archivadas)
-    const {error} = await sb.from('sanciones').update({anulada:true}).eq('anulada',false);
-    if(error) throw error;
-    // Actualizar semestre por defecto (sólo informativo, se aplica a futuras inserciones manualmente)
-    await loadDiscData(true);
-    alert(`✅ Semestre reiniciado.\nSe archivaron las sanciones y se descargó un respaldo JSON.\nNuevo semestre activo: ${nuevoSem}`);
+    if(typeof XLSX !== 'undefined'){ try{ downloadXLSX(); }catch(_){} }
+    alert('✅ Respaldo de cierre descargado.\n\nNo se borró ninguna sanción. El semestre avanza automáticamente según la fecha; el cómputo anual (para la baja) se mantiene todo el año.');
     goDiscPanel();
   }catch(e){
     showError('err-reiniciar','Error: '+(e.message||e));
   }finally{
-    btn.disabled=false; btn.textContent='🔄 Reiniciar semestre disciplinario';
+    btn.disabled=false; btn.textContent='📥 Descargar respaldo de cierre';
   }
 }
 
@@ -10635,7 +10639,7 @@ async function confirmarYFirmarSancion(){
       fecha_creacion: now.toISOString(),
       huella_forense: huellaForense,
       observaciones: nuevaSancion.observaciones || null,
-      semestre: '2026-1',
+      semestre: etiquetaSemestre(semestreActual()),
       anulada: false
     };
 
