@@ -352,7 +352,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .sancion-card.digital-firmada{border-left-color:#4a90d9;background:linear-gradient(90deg,rgba(74,144,217,.12),var(--bg-card) 30%)}
 .sancion-card.digital-aceptada{border-left-color:#4ca36b;background:linear-gradient(90deg,rgba(76,163,107,.12),var(--bg-card) 30%)}
 .sancion-card.digital-pendiente{border-left-color:#c84a4a;background:linear-gradient(90deg,rgba(200,74,74,.14),var(--bg-card) 30%)}
-.sancion-card.anulada{opacity:.75;border-left-color:#9b59b6;background:rgba(155,89,182,.06)}
+.sancion-card.anulada{opacity:.72;border-left-color:#6e7070;background:linear-gradient(90deg,rgba(110,112,112,.10),var(--bg-card) 30%)}
 .sc-row1{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .sc-cursante{font-family:var(--font-display);font-size:15px;color:var(--text-primary);font-weight:600;flex:1;min-width:0}
 .sc-pts{font-family:var(--font-display);font-weight:700;font-size:14px;padding:4px 10px;border-radius:14px;background:rgba(212,175,55,.08);border:1px solid var(--border-subtle);white-space:nowrap;color:var(--gold-light)}
@@ -363,6 +363,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .sc-status.firmada{color:#7fb4e0}
 .sc-status.aceptada{color:#7dc096}
 .sc-status.pendiente{color:#e87878}
+.sc-status.anulada{color:#8a8e8e}
 .sc-folio{color:var(--text-muted);font-family:monospace}
 
 /* Tabs sanciones */
@@ -7918,7 +7919,11 @@ function renderSancionesBreakdown(){
 
 /* ============ SANCIONES: LISTADO + DETALLE ============ */
 function clasificarSancion(s){
-  if(s.anulada) return {tipo:'anulada', label:'Anulada / Modificada', cls:'anulada', statusCls:'anulada', icon:'🟣'};
+  if(s.anulada){
+    const quien = s.anulada_por_nombre || 'Jefe Disciplina';
+    const razon = s.anulada_razon ? ` — "${String(s.anulada_razon).slice(0,55)}"` : '';
+    return {tipo:'anulada', label:`Anulada por ${quien}${razon}`, cls:'anulada', statusCls:'anulada', icon:'🚫'};
+  }
   const tipoRaw = (s.tipo||'').toLowerCase();
   const hf = parseHF(s.huella_forense);
   // Analógica si el tipo lo dice o si tiene marca de migración desde Excel
