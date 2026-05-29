@@ -10007,154 +10007,247 @@ function _solInfo(s){
   const nombre = s.cursante_nombre || s.profesor_nombre || s.cursante_id || '—';
   return { esCursante, desarrollo, nombre };
 }
-// Badge de notificación: cuenta solicitudes pendientes para el Jefe.
+// Badge: cuenta solicitudes pendientes filtrado por rol.
 async function actualizarBadgeSolicitudes(){
   const badge = document.getElementById('badge-solicitudes');
   if(!badge) return;
   try{
-    const {data} = await sb.from('solicitudes_anulacion').select('id,estado').limit(500);
-    const pend = (data||[]).filter(x => (x.estado||'pendiente')==='pendiente').length;
-    if(pend > 0){ badge.textContent = pend; badge.style.display = 'inline-block'; }
-    else { badge.style.display = 'none'; }
-  }catch(_){ badge.style.display = 'none'; }
+    const {data} = await sb.from('solicitudes_anulacion')
+      .select('id,estado,enviado_a_comandante,enviado_a_estudios').limit(500);
+    const all = data||[];
+    let pend;
+    if(activeRole==='comandante') pend=all.filter(x=>(x.estado||'pendiente')==='pendiente'&&x.enviado_a_comandante).length;
+    else if(activeRole==='estudios') pend=all.filter(x=>(x.estado||'pendiente')==='pendiente'&&x.enviado_a_estudios).length;
+    else pend=all.filter(x=>(x.estado||'pendiente')==='pendiente').length;
+    if(pend>0){badge.textContent=pend;badge.style.display='inline-block';}
+    else badge.style.display='none';
+  }catch(_){badge.style.display='none';}
 }
-// Fase 2 — el Jefe de Disciplina marca su recomendación y/o eleva la solicitud.
-async function marcarRevisionDisciplina(id, valor){
-  if(activeRole !== 'disciplina' && !esCT()){ alert('Solo el Jefe de Disciplina o C&T.'); return; }
-  const txt = valor==='procedente' ? 'PROCEDENTE (recomendás reconsiderar)' : 'IMPROCEDENTE (recomendás mantener la sanción)';
-  if(!confirm(`¿Marcar esta solicitud como ${txt}?`)) return;
-  try{
-    const {error} = await sb.from('solicitudes_anulacion').update({ revision_disciplina: valor }).eq('id', id);
-    if(error) throw error;
-    goAnulaciones();
-  }catch(e){ alert('Error: '+(e.message||e)+'\n\nSi dice que falta una columna, corré el SQL que amplía la tabla (te lo pasó Claude).'); }
-}
+
+// ── ELEVAR ──────────────────────────────────────────────────────────────────
 async function elevarSolicitud(id, destino){
-  if(activeRole !== 'disciplina' && !esCT()){ alert('Solo el Jefe de Disciplina o C&T.'); return; }
-  const campo = destino==='comandante' ? 'enviado_a_comandante' : 'enviado_a_estudios';
-  const quien = destino==='comandante' ? 'al Comandante' : 'al Jefe de Estudios';
-  if(!confirm(`¿Elevar esta solicitud ${quien}?`)) return;
+  if(activeRole!=='disciplina'&&!esCT()){alert('Solo el Jefe de Disciplina o C&T.');return;}
+  const campo=destino==='comandante'?'enviado_a_comandante':'enviado_a_estudios';
+  const pDest=destino==='comandante'
+    ?discData.profesores.find(p=>p.rol==='comandante')
+    :discData.profesores.find(p=>p.rol==='jefe_estudios');
+  const quien=pDest?nombreConGrado(pDest):(destino==='comandante'?'Comandante':'Jefe de Estudios');
+  if(!confirm(`¿Elevar esta solicitud al ${quien}?`))return;
   try{
-    const upd = {}; upd[campo] = true;
-    const {error} = await sb.from('solicitudes_anulacion').update(upd).eq('id', id);
-    if(error) throw error;
-    alert(`✅ Solicitud elevada ${quien}.`);
+    const upd={};upd[campo]=true;
+    const {error}=await sb.from('solicitudes_anulacion').update(upd).eq('id',id);
+    if(error)throw error;
+    alert(`✅ Solicitud elevada al ${quien}.`);
     goAnulaciones();
-  }catch(e){ alert('Error: '+(e.message||e)+'\n\nSi dice que falta la columna '+campo+', corré el SQL que amplía la tabla.'); }
+  }catch(e){alert('Error: '+(e.message||e));}
 }
-// Fase 3 — el Comandante resuelve: hace lugar (anula) / hace lugar (modificación) / desestima.
-async function comandanteAnular(solId, sancionId){
-  if(activeRole !== 'comandante' && activeRole !== 'estudios' && !esCT()){ alert('Sin permiso para resolver esta solicitud.'); return; }
-  const s = discData.sanciones.find(x => String(x.id)===String(sancionId));
-  const razon = prompt('VISTO BUENO — ANULAR la sanción.\n\nLos puntos dejarán de contar (la sanción cambia de estado, no se borra).\n\nResolución / motivo del Comandante (obligatorio):');
-  if(razon === null) return;
-  if(!razon || razon.trim().length < 5){ alert('El motivo debe tener al menos 5 caracteres.'); return; }
+
+// ── ANULAR DESDE SOLICITUD ───────────────────────────────────────────────────
+async function anularDesdeSolicitud(solId, sancionId){
+  if(activeRole!=='disciplina'&&activeRole!=='comandante'&&activeRole!=='estudios'&&!esCT()){alert('Sin permiso.');return;}
+  const s=discData.sanciones.find(x=>String(x.id)===String(sancionId));
+  const razon=prompt(`⚠️ ANULAR SANCIÓN\n\nCursante: ${s?.cursante_nombre||'—'}\nFolio: ${s?.folio||sancionId}\nPuntos: ${s?.puntos_aplicados||0}\n\nIndicá la razón de la anulación (obligatorio):`);
+  if(razon===null)return;
+  if(!razon||razon.trim().length<5){alert('El motivo debe tener al menos 5 caracteres.');return;}
   try{
-    const _tok = getTokenSesion();
-    const { data:r, error:efErr } = await sb.functions.invoke('sanciones-ops', {
-      body: { accion:'anular', token:_tok, sancion_id:sancionId, razon:razon.trim(), usuario_nombre:currentUser.nombre_completo }
+    const _tok=getTokenSesion();
+    const {data:r,error:efErr}=await sb.functions.invoke('sanciones-ops',{
+      body:{accion:'anular',token:_tok,sancion_id:sancionId,razon:razon.trim(),usuario_nombre:currentUser.nombre_completo}
     });
-    if(efErr){ let d=efErr.message||'Error'; try{ if(efErr.context&&typeof efErr.context.json==='function'){const b=await efErr.context.json(); d=b.error||JSON.stringify(b);} }catch(_){}; throw new Error(d); }
-    if(!r || !r.ok) throw new Error(r?.error || 'Error en sanciones-ops');
-    if(s) Object.assign(s, { anulada:true, anulada_razon:razon.trim(), anulada_por:currentUser.id, anulada_por_nombre:currentUser.nombre_completo, anulada_en:new Date().toISOString() });
-    await sb.from('solicitudes_anulacion').update({ estado:'aprobado', comentario_comandante:'HACE LUGAR (anulación): '+razon.trim() }).eq('id', solId);
-    alert('✓ Sanción anulada y solicitud aprobada. El alumno verá la respuesta.');
+    if(efErr){let d=efErr.message||'Error';try{if(efErr.context&&typeof efErr.context.json==='function'){const b=await efErr.context.json();d=b.error||JSON.stringify(b);}}catch(_){};throw new Error(d);}
+    if(!r||!r.ok)throw new Error(r?.error||'Error en sanciones-ops');
+    if(s)Object.assign(s,{anulada:true,anulada_razon:razon.trim(),anulada_por:currentUser.id,anulada_por_nombre:currentUser.nombre_completo,anulada_en:new Date().toISOString()});
+    await sb.from('solicitudes_anulacion').update({estado:'aprobado',comentario_comandante:'ANULADA por '+currentUser.nombre_completo+': '+razon.trim()}).eq('id',solId);
+    alert('✅ Sanción anulada. La solicitud queda como Aprobada y el cursante verá la respuesta.');
     goAnulaciones();
-  }catch(e){ console.error(e); alert('❌ Error: '+(e.message||e)); }
+  }catch(e){console.error(e);alert('❌ Error: '+(e.message||e));}
 }
-async function comandanteModificar(solId){
-  if(activeRole !== 'comandante' && activeRole !== 'estudios' && !esCT()){ alert('Sin permiso para resolver esta solicitud.'); return; }
-  const razon = prompt('HACER LUGAR para MODIFICACIÓN.\n\nIndicá qué corresponde corregir (lo aplicará el Jefe de Disciplina con su herramienta de edición):');
-  if(razon === null) return;
-  if(!razon || razon.trim().length < 5){ alert('Indicá la modificación (mínimo 5 caracteres).'); return; }
+
+// ── RECHAZAR SOLICITUD ───────────────────────────────────────────────────────
+async function rechazarSolicitud(solId){
+  if(activeRole!=='disciplina'&&activeRole!=='comandante'&&activeRole!=='estudios'&&!esCT()){alert('Sin permiso.');return;}
+  const razon=prompt('RECHAZAR la solicitud.\n\nMotivo del rechazo (obligatorio):');
+  if(razon===null)return;
+  if(!razon||razon.trim().length<5){alert('El motivo debe tener al menos 5 caracteres.');return;}
   try{
-    const { error } = await sb.from('solicitudes_anulacion').update({ estado:'aprobado', comentario_comandante:'HACE LUGAR (modificación): '+razon.trim() }).eq('id', solId);
-    if(error) throw error;
-    alert('✓ Aprobada para modificación. El Jefe de Disciplina aplicará la corrección y el alumno verá la respuesta.');
+    const {error}=await sb.from('solicitudes_anulacion').update({estado:'rechazado',comentario_comandante:'RECHAZADA por '+currentUser.nombre_completo+': '+razon.trim()}).eq('id',solId);
+    if(error)throw error;
+    alert('Solicitud rechazada. El cursante/docente verá la respuesta.');
     goAnulaciones();
-  }catch(e){ alert('Error: '+(e.message||e)); }
+  }catch(e){alert('Error: '+(e.message||e));}
 }
-async function comandanteDesestimar(solId){
-  if(activeRole !== 'comandante' && activeRole !== 'estudios' && !esCT()){ alert('Sin permiso para resolver esta solicitud.'); return; }
-  const razon = prompt('DESESTIMAR la solicitud.\n\nMotivo de la desestimación (obligatorio):');
-  if(razon === null) return;
-  if(!razon || razon.trim().length < 5){ alert('El motivo debe tener al menos 5 caracteres.'); return; }
+
+// ── MODIFICAR SANCIÓN (aprobar para modificación) ───────────────────────────
+async function modificarSolicitud(solId){
+  if(activeRole!=='disciplina'&&activeRole!=='comandante'&&activeRole!=='estudios'&&!esCT()){alert('Sin permiso.');return;}
+  const razon=prompt('APROBAR PARA MODIFICACIÓN.\n\nIndicá qué debe corregirse (el Jefe de Disciplina aplicará el cambio con la herramienta de edición):');
+  if(razon===null)return;
+  if(!razon||razon.trim().length<5){alert('Indicá la modificación requerida (mínimo 5 caracteres).');return;}
   try{
-    const { error } = await sb.from('solicitudes_anulacion').update({ estado:'rechazado', comentario_comandante:'DESESTIMA: '+razon.trim() }).eq('id', solId);
-    if(error) throw error;
-    alert('Solicitud desestimada. El alumno verá la respuesta.');
+    const {error}=await sb.from('solicitudes_anulacion').update({estado:'aprobado',comentario_comandante:'MODIFICAR por '+currentUser.nombre_completo+': '+razon.trim()}).eq('id',solId);
+    if(error)throw error;
+    alert('✅ Aprobada para modificación. El Jefe de Disciplina aplicará la corrección.');
     goAnulaciones();
-  }catch(e){ alert('Error: '+(e.message||e)); }
+  }catch(e){alert('Error: '+(e.message||e));}
 }
+
+// ── DEVOLVER AL JEFE DE DISCIPLINA ───────────────────────────────────────────
+async function devolverAlJefeDisciplina(solId){
+  if(activeRole!=='comandante'&&activeRole!=='estudios'&&!esCT()){alert('Sin permiso.');return;}
+  const obs=prompt('DEVOLVER AL JEFE DE DISCIPLINA para revisión.\n\nObservaciones (opcional):');
+  if(obs===null)return;
+  try{
+    const pDisc=discData.profesores.find(p=>p.rol==='jefe_disciplina');
+    const nDisc=pDisc?nombreConGrado(pDisc):'Jefe de Disciplina';
+    const coment='Devuelta a '+nDisc+(obs&&obs.trim()?': '+obs.trim():'');
+    const {error}=await sb.from('solicitudes_anulacion').update({
+      enviado_a_comandante:false,enviado_a_estudios:false,estado:'pendiente',comentario_comandante:coment
+    }).eq('id',solId);
+    if(error)throw error;
+    alert('✅ Solicitud devuelta al Jefe de Disciplina para su revisión.');
+    goAnulaciones();
+  }catch(e){alert('Error: '+(e.message||e));}
+}
+
+// ── GENERAR INFORME (abre ventana de impresión) ─────────────────────────────
+function generarInformeAnulacion(solId){
+  const allSols=window.__solicitudesCache||[];
+  const s=allSols.find(x=>String(x.id)===String(solId));
+  if(!s){alert('No se encontró la solicitud. Intentá recargar la pantalla.');return;}
+  const san=discData.sanciones.find(x=>String(x.id)===String(s.sancion_id));
+  const info=_solInfo(s);
+  const pCmdte=discData.profesores.find(p=>p.rol==='comandante');
+  const nCmdte=pCmdte?nombreConGrado(pCmdte):'Cnl. DAEN. Jhonni Pardo Pardo';
+  const nDisc=currentUser?nombreConGrado(currentUser):'Tcnl. DEM. Sergio Hernan Morales Millán';
+  const hoy=new Date();
+  const meses=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  const fecha=`Cochabamba, ${hoy.getDate()} de ${meses[hoy.getMonth()]} de ${hoy.getFullYear()}`;
+  const folio=san?.folio||s.sancion_id||'—';
+  const cursante=san?.cursante_nombre||s.cursante_nombre||'—';
+  const articulo=san?.falta_articulo||'—';
+  const descripcion=san?obtenerDescripcionSancion(san):'—';
+  const puntos=san?.puntos_aplicados||'—';
+  const fechaSancion=san?.creado_en?new Date(san.creado_en).toLocaleDateString('es-BO'):'—';
+  const desarrollo=escapeHtml(info.desarrollo||'Sin detalles adicionales.');
+  const html=`<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Informe Solicitud #${s.id}</title>
+<style>body{font-family:Arial,sans-serif;font-size:11pt;margin:2.5cm;line-height:1.5;color:#000}
+.inst{text-align:center;font-weight:bold;font-size:10.5pt;margin:2px 0}
+h1{font-size:14pt;text-align:center;font-weight:bold;text-transform:uppercase;margin:20px 0 18px}
+.campo{display:flex;gap:0;margin:4px 0;font-size:11pt}
+.campo-lbl{font-weight:bold;min-width:130px}
+p{text-align:justify;margin:8px 0}
+.firma{margin-top:70px;text-align:center}
+.linea{display:inline-block;width:300px;border-top:1px solid #000;padding-top:4px}
+@media print{body{margin:2cm}}</style></head><body>
+<div class="inst">FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES</div>
+<div class="inst">ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO</div>
+<div class="inst">"MCAL. ANDRÉS DE SANTA CRUZ"</div>
+<div class="inst" style="margin-bottom:6px">BOLIVIA</div>
+<h1>INFORME</h1>
+<div class="campo"><span class="campo-lbl">Al</span><span>: ${escapeHtml(nCmdte)} / COMANDANTE DE LA ECEME</span></div>
+<div class="campo"><span class="campo-lbl">Del</span><span>: ${escapeHtml(nDisc)} / JEFE SECC. CIENCIA Y TECNOLOGÍA</span></div>
+<div class="campo"><span class="campo-lbl">Objeto</span><span>: Solicitud de reconsideración de sanción — Folio ${escapeHtml(folio)}</span></div>
+<div class="campo"><span class="campo-lbl">Lugar y fecha</span><span>: ${fecha}</span></div>
+<br><p>Señor Coronel:</p>
+<p>En cumplimiento a Normas y Procedimientos establecidos en el Reglamento de Disciplina de la ECEME, elevo a conocimiento de su Autoridad el presente informe sobre el objeto de referencia, de acuerdo al siguiente detalle:</p>
+<p>Que, en fecha <strong>${fechaSancion}</strong>, el/la <strong>${escapeHtml(cursante)}</strong> fue sancionado/a de acuerdo al Art. <strong>${escapeHtml(String(articulo))}</strong> del Reglamento de Disciplina — descripción: "<em>${escapeHtml(descripcion)}</em>" — con la pérdida de <strong>${puntos} punto(s)</strong> disciplinario(s), registrada bajo el Folio N° <strong>${escapeHtml(folio)}</strong>.</p>
+<p>Que, el/la referido/a elevó la siguiente solicitud de reconsideración: <em>"${desarrollo}"</em></p>
+${s.comentario_comandante?`<p>Resolución registrada en el sistema: <em>"${escapeHtml(s.comentario_comandante)}"</em></p>`:''}
+<p>Habiendo analizado los antecedentes del caso y los descargos presentados, esta Sección de Ciencia y Tecnología eleva la presente a su Autoridad para los fines consiguientes.</p>
+<p>Es cuanto tengo a bien informar a su Autoridad, para los fines del caso.</p>
+<div class="firma"><div class="linea"><strong>${escapeHtml(nDisc)}</strong><br>JEFE SECC. CIENCIA Y TECNOLOGÍA — ECEME</div></div>
+<script>setTimeout(function(){window.print();},400);<\/script></body></html>`;
+  const w=window.open('','_blank','width=900,height=1100');
+  if(w){w.document.write(html);w.document.close();}
+  else alert('Activá las ventanas emergentes del navegador para generar el informe.');
+}
+
+// ── PANTALLA SOLICITUDES ─────────────────────────────────────────────────────
 async function goAnulaciones(){
   showScreen('screen-anulaciones');
-  const c = document.getElementById('anulaciones-list');
+  const c=document.getElementById('anulaciones-list');
   c.className='';
   try{
-    const {data,error} = await sb.from('solicitudes_anulacion').select('*').order('fecha_creacion',{ascending:false});
-    if(error){
-      c.innerHTML = `<div class="list-empty">⚠️ No se pudo cargar.<br>Asegurate de haber creado la tabla <code>solicitudes_anulacion</code> con el SQL del paso 1.<br><br>Error: ${error.message||JSON.stringify(error)}</div>`;
-      return;
-    }
-    if(!data||!data.length){
-      c.innerHTML='<div class="list-empty">No hay solicitudes todavía. La creación de solicitudes desde sanciones específicas se implementa cuando armemos el módulo de registro de sanciones.</div>';
-      return;
-    }
-    // Para Estudios: solo ver las dirigidas a él. CT: todas.
-    const soloParaEstudios = (activeRole === 'estudios');
-    const dataMostrar = soloParaEstudios ? data.filter(x => x.enviado_a_estudios) : data;
-    const pendientes = dataMostrar.filter(x => (x.estado||'pendiente')==='pendiente').length;
-    const labelCtx = esCT() ? ' · <span style="color:var(--gold-light);font-size:11px">Vista C&amp;T — acceso total</span>'
-                   : soloParaEstudios ? ' (elevadas a usted)' : '';
-    const encabezado = `<div class="stat-block" style="background:rgba(212,175,55,.08);border-color:var(--gold)"><div class="sb-title">📨 ${dataMostrar.length} solicitud(es) · ${pendientes} pendiente(s)${labelCtx}</div></div>`;
-    c.innerHTML = encabezado + dataMostrar.map(s=>{
-      const info = _solInfo(s);
-      const quien = info.esCursante ? '🎓 Cursante' : '✍️ Profesor';
-      const estado = s.estado || 'pendiente';
-      const estadoBadge = estado==='aprobado'?'✅ Aprobado':estado==='rechazado'?'❌ Desestimado':'⏳ Pendiente';
-      const reenvios = [s.enviado_a_comandante?'Comandante':null, s.enviado_a_estudios?'J. Estudios':null].filter(Boolean).join(' + ');
-      const rev = s.revision_disciplina ? (s.revision_disciplina==='procedente'?'<span style="color:#7ac899">✔️ Procedente</span>':'<span style="color:#e88a8a">✖️ Improcedente</span>') : '';
-      const san = discData.sanciones.find(x => String(x.id)===String(s.sancion_id));
-      const sancTxt = san ? `${san.folio||s.sancion_id} · Art. ${san.falta_articulo||'—'} · −${san.puntos_aplicados||0}` : (s.sancion_id||'—');
-      let acciones = '';
-      const sid = escapeAttr(String(s.id));
-      const sanId = escapeAttr(String(s.sancion_id||''));
-      const btn = (fn,label,col) => `<button class="btn-mini" onclick="${fn}" style="flex:1;min-width:130px;padding:8px;border-radius:8px;border:1px solid ${col.b};background:${col.bg};color:${col.c};cursor:pointer;font-size:12px;font-weight:600">${label}</button>`;
-      const btnsDisc = `
-          ${btn(`marcarRevisionDisciplina('${sid}','procedente')`,'✔️ Procedente',{b:'rgba(76,163,107,.5)',bg:'rgba(76,163,107,.15)',c:'#9bcfa9'})}
-          ${btn(`marcarRevisionDisciplina('${sid}','improcedente')`,'✖️ Improcedente',{b:'rgba(200,74,74,.5)',bg:'rgba(200,74,74,.12)',c:'#f0a890'})}
-          ${btn(`elevarSolicitud('${sid}','comandante')`,'🎖️ Elevar al Comandante',{b:'var(--border-strong)',bg:'rgba(212,175,55,.12)',c:'var(--gold-light)'})}
-          ${btn(`elevarSolicitud('${sid}','estudios')`,'📚 Elevar a J. Estudios',{b:'rgba(70,130,200,.5)',bg:'rgba(70,130,200,.12)',c:'#a8c8e8'})}`;
-      const btnsCmdte = `
-          ${btn(`comandanteAnular('${sid}','${sanId}')`,'✅ Hacer lugar — Anular',{b:'rgba(76,163,107,.5)',bg:'rgba(76,163,107,.18)',c:'#9bcfa9'})}
-          ${btn(`comandanteModificar('${sid}')`,'✏️ Hacer lugar — Modificar',{b:'rgba(224,168,58,.5)',bg:'rgba(224,168,58,.14)',c:'#f0d28a'})}
-          ${btn(`comandanteDesestimar('${sid}')`,'❌ Desestimar',{b:'rgba(200,74,74,.5)',bg:'rgba(200,74,74,.12)',c:'#f0a890'})}`;
-      if(estado === 'pendiente' && activeRole === 'disciplina'){
-        acciones = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">${btnsDisc}</div>`;
-      } else if(estado === 'pendiente' && esCT()){
-        // C&T: acciones completas (disciplina + comandante)
-        acciones = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">${btnsDisc}${btnsCmdte}</div>`;
-      } else if(estado === 'pendiente' && activeRole === 'comandante'){
-        acciones = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">${btnsCmdte}</div>`;
-      } else if(estado === 'pendiente' && activeRole === 'estudios' && s.enviado_a_estudios){
-        // Estudios: puede resolver las que le fueron elevadas
-        acciones = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">${btnsCmdte}</div>`;
+    const {data,error}=await sb.from('solicitudes_anulacion').select('*').order('fecha_creacion',{ascending:false});
+    if(error){c.innerHTML=`<div class="list-empty">⚠️ Error al cargar: ${error.message||JSON.stringify(error)}</div>`;return;}
+    if(!data||!data.length){c.innerHTML='<div class="list-empty">No hay solicitudes todavía.</div>';return;}
+    window.__solicitudesCache=data;
+
+    // Filtrar por rol
+    let dataMostrar;
+    if(activeRole==='comandante') dataMostrar=data.filter(x=>x.enviado_a_comandante);
+    else if(activeRole==='estudios') dataMostrar=data.filter(x=>x.enviado_a_estudios);
+    else dataMostrar=data;
+
+    const pendientes=dataMostrar.filter(x=>(x.estado||'pendiente')==='pendiente').length;
+    const labelCtx=esCT()?' · <span style="color:var(--gold-light);font-size:11px">Vista C&amp;T — acceso total</span>':
+      activeRole==='comandante'?' (elevadas al Comandante)':activeRole==='estudios'?' (elevadas a Ud.)':'';
+
+    // Nombres reales desde BD
+    const pCmdte=discData.profesores.find(p=>p.rol==='comandante');
+    const pEstudios=discData.profesores.find(p=>p.rol==='jefe_estudios');
+    const pDisc=discData.profesores.find(p=>p.rol==='jefe_disciplina');
+    const nCmdte=pCmdte?gradoApellido(pCmdte):'Comandante';
+    const nEstudios=pEstudios?gradoApellido(pEstudios):'J. Estudios';
+    const nDisc=pDisc?gradoApellido(pDisc):'J. Disciplina';
+
+    const encabezado=`<div class="stat-block" style="background:rgba(212,175,55,.08);border-color:var(--gold)"><div class="sb-title">📨 ${dataMostrar.length} solicitud(es) · ${pendientes} pendiente(s)${labelCtx}</div></div>`;
+
+    c.innerHTML=encabezado+dataMostrar.map(s=>{
+      const info=_solInfo(s);
+      const quien=info.esCursante?'🎓 Cursante':'✍️ Profesor/a';
+      const estado=s.estado||'pendiente';
+      const estadoColor=estado==='aprobado'?'#7ac899':estado==='rechazado'?'#e88a8a':'#e8c878';
+      const estadoBadge=`<span style="color:${estadoColor};font-weight:600">${estado==='aprobado'?'✅ Aprobada':estado==='rechazado'?'❌ Rechazada':'⏳ Pendiente'}</span>`;
+      const san=discData.sanciones.find(x=>String(x.id)===String(s.sancion_id));
+      const sancTxt=san?`${san.folio||s.sancion_id} · Art. ${san.falta_articulo||'—'} · −${san.puntos_aplicados||0}`:(s.sancion_id||'—');
+      const elevaciones=[s.enviado_a_comandante?`🎖️ ${nCmdte}`:null,s.enviado_a_estudios?`📚 ${nEstudios}`:null].filter(Boolean).join(' + ');
+      const sid=escapeAttr(String(s.id));
+      const sanId=escapeAttr(String(s.sancion_id||''));
+
+      // Definición de botones
+      const B=(fn,label,col)=>`<button onclick="${fn}" style="flex:1;min-width:145px;padding:9px 8px;border-radius:8px;border:1px solid ${col.b};background:${col.bg};color:${col.c};cursor:pointer;font-size:12px;font-weight:600;text-align:center">${label}</button>`;
+      const btnAnular=B(`anularDesdeSolicitud('${sid}','${sanId}')`, '✅ Anular sanción',      {b:'rgba(76,163,107,.5)',bg:'rgba(76,163,107,.18)',c:'#9bcfa9'});
+      const btnRechazar=B(`rechazarSolicitud('${sid}')`,             '❌ Rechazar solicitud',  {b:'rgba(200,74,74,.5)', bg:'rgba(200,74,74,.12)', c:'#f0a890'});
+      const btnModif=B(`modificarSolicitud('${sid}')`,               '✏️ Modificar sanción',   {b:'rgba(224,168,58,.5)',bg:'rgba(224,168,58,.14)',c:'#f0d28a'});
+      const btnElCmdte=B(`elevarSolicitud('${sid}','comandante')`,   `🎖️ Elevar al ${nCmdte}`, {b:'rgba(212,175,55,.4)',bg:'rgba(212,175,55,.1)', c:'var(--gold-light)'});
+      const btnElEst=B(`elevarSolicitud('${sid}','estudios')`,       `📚 Elevar al ${nEstudios}`,{b:'rgba(70,130,200,.5)',bg:'rgba(70,130,200,.12)',c:'#a8c8e8'});
+      const btnDevolver=B(`devolverAlJefeDisciplina('${sid}')`,      `🔄 Devolver a ${nDisc}`, {b:'rgba(150,120,80,.5)',bg:'rgba(150,120,80,.12)',c:'#d4b880'});
+      const btnInforme=B(`generarInformeAnulacion('${sid}')`,        '📄 Generar Informe',     {b:'rgba(100,100,180,.5)',bg:'rgba(100,100,180,.12)',c:'#a8a8e8'});
+
+      let acciones='';
+      const pendiente=estado==='pendiente';
+      const sinElevar=!s.enviado_a_comandante&&!s.enviado_a_estudios;
+
+      if(pendiente&&(activeRole==='disciplina'||esCT())&&sinElevar){
+        // Nivel 1 — revisión primaria (no elevada aún)
+        acciones=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">${btnAnular}${btnRechazar}${btnModif}${btnElCmdte}${btnElEst}${btnInforme}</div>`;
+      } else if(pendiente&&esCT()&&!sinElevar){
+        // CT con solicitud ya elevada — igual puede resolver
+        acciones=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">${btnAnular}${btnRechazar}${btnModif}${btnDevolver}${btnInforme}</div>`;
+      } else if(pendiente&&activeRole==='comandante'&&s.enviado_a_comandante){
+        // Comandante — Nivel 2
+        acciones=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">${btnAnular}${btnRechazar}${btnModif}${btnDevolver}${btnInforme}</div>`;
+      } else if(pendiente&&activeRole==='estudios'&&s.enviado_a_estudios){
+        // Jefe de Estudios — Nivel 2
+        acciones=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">${btnAnular}${btnRechazar}${btnModif}${btnDevolver}${btnInforme}</div>`;
+      } else if(!pendiente){
+        // Resuelta — solo informe disponible
+        acciones=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">${btnInforme}</div>`;
       }
-      return `<div class="stat-block">
-        <div class="sb-title">${quien} · Solicitud #${s.id} · ${new Date(s.fecha_creacion).toLocaleDateString('es-BO')}</div>
+
+      return `<div class="stat-block" style="${estado==='aprobado'?'border-color:rgba(76,163,107,.4);':estado==='rechazado'?'border-color:rgba(200,74,74,.3);':''}">
+        <div class="sb-title">${quien} · Solicitud #${s.id} · ${new Date(s.fecha_creacion||Date.now()).toLocaleDateString('es-BO')}</div>
         <div class="sb-row"><span class="label">De</span><span class="val">${escapeHtml(String(info.nombre))}</span></div>
         <div class="sb-row"><span class="label">Sanción</span><span class="val">${escapeHtml(String(sancTxt))}</span></div>
-        <div class="sb-row"><span class="label">Estado</span><span class="val">${estadoBadge}${reenvios?' · elevado a '+reenvios:''}</span></div>
-        ${rev?`<div class="sb-row"><span class="label">Revisión Disc.</span><span class="val">${rev}</span></div>`:''}
+        <div class="sb-row"><span class="label">Estado</span><span class="val">${estadoBadge}${elevaciones?` · <span style="font-size:11px;color:var(--text-muted)">Elevada a ${escapeHtml(elevaciones)}</span>`:''}</span></div>
         ${info.desarrollo?`<div style="margin-top:8px;font-size:13px;color:var(--text-primary);line-height:1.5;background:rgba(212,175,55,.06);border-left:3px solid var(--gold);padding:8px 10px;border-radius:4px"><strong>Desarrollo:</strong> ${escapeHtml(info.desarrollo)}</div>`:''}
         ${s.firma_cursante_solicitud?`<div style="margin-top:6px"><img src="${s.firma_cursante_solicitud}" alt="firma" style="max-height:60px;background:#fff;border-radius:4px;padding:2px"></div>`:''}
         ${s.comentario_comandante?`<div style="margin-top:6px;font-size:12px;color:#a3d4b5;font-style:italic">📋 Resolución: "${escapeHtml(s.comentario_comandante)}"</div>`:''}
         ${acciones}
       </div>`;
     }).join('');
-  }catch(e){
-    c.innerHTML='<div class="list-empty">Error: '+(e.message||e)+'</div>';
-  }
+  }catch(e){c.innerHTML='<div class="list-empty">Error: '+(e.message||e)+'</div>';}
 }
 
 /* ==================== AUDITORÍA ==================== */
