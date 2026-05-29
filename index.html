@@ -3381,8 +3381,9 @@ input::placeholder, textarea::placeholder {
     <div class="role-card" onclick="goLoginCargo('ef')"><div class="role-icon">🏃</div><div class="role-text"><div class="role-name">Sub. Sec. Entrenamiento Físico</div><div class="role-desc">Notas de Entrenamiento Físico Militar</div></div><span class="lock-icon">🔒</span></div>
     <div class="role-card" onclick="goLoginCargo('disciplina')"><div class="role-icon">⭐</div><div class="role-text"><div class="role-name">Sub. Sec. Disciplina</div><div class="role-desc">Panel administrativo completo</div></div><span class="lock-icon">🔒</span></div>
     <div class="role-card" onclick="goLoginCargo('evaluaciones')"><div class="role-icon">📝</div><div class="role-text"><div class="role-name">Sub. Sec. Evaluaciones</div><div class="role-desc">Cargar planillas y notas académicas</div></div><span class="lock-icon">🔒</span></div>
-    <div class="role-card" onclick="goLoginCargo('estudios')"><div class="role-icon">📚</div><div class="role-text"><div class="role-name">Jefe de Estudios</div><div class="role-desc">Visualización académica y avisos</div></div><span class="lock-icon">🔒</span></div>
+    <div class="role-card" onclick="goLoginCargo('estudios')"><div class="role-icon">📚</div><div class="role-text"><div class="role-name">Jefe de Estudios</div><div class="role-desc">Visualización académica, sanciones y avisos</div></div><span class="lock-icon">🔒</span></div>
     <div class="role-card" onclick="goLoginCargo('comandante')"><div class="role-icon">🎖️</div><div class="role-text"><div class="role-name">Comandante</div><div class="role-desc">Dashboard ejecutivo y aprobaciones</div></div><span class="lock-icon">🔒</span></div>
+    <div class="role-card" onclick="goLoginCargo('ciencia_tecnologia')" style="border-color:rgba(100,180,255,.35);background:rgba(100,180,255,.04)"><div class="role-icon" style="background:linear-gradient(135deg,rgba(100,180,255,.18),rgba(100,180,255,.06));border-color:rgba(100,180,255,.3)">💻</div><div class="role-text"><div class="role-name" style="color:#a8d4f5">Sec. Ciencia y Tecnología</div><div class="role-desc">Administración del sistema</div></div><span class="lock-icon">🔒</span></div>
   </div>
 </section>
 
@@ -4071,21 +4072,20 @@ input::placeholder, textarea::placeholder {
     <div id="alert-observacion" class="alert-banner yellow" style="display:none"><div class="alert-emoji">⚠️</div><div class="alert-text"><div class="alert-title" id="alert-observacion-title">— en observación</div><div class="alert-desc">Entre 11 y 24 pts perdidos.</div></div></div>
     <div class="section-label">Accesos rápidos</div>
     <div class="quick-grid">
-      <button class="quick-btn" onclick="goGestionarCursantes()"><span class="qa-icon">👥</span><span class="qa-text">Gestionar cursantes (agregar / editar / dar de baja)</span></button>
-      <button class="quick-btn" onclick="goGestionarProfesores()"><span class="qa-icon">👨‍🏫</span><span class="qa-text" id="qa-profs-text">Gestionar profesores (—)</span></button>
+      <button id="qa-btn-gest-cursantes" class="quick-btn" onclick="goGestionarCursantes()"><span class="qa-icon">👥</span><span class="qa-text">Gestionar cursantes (agregar / editar / dar de baja)</span></button>
+      <button id="qa-btn-gest-profesores" class="quick-btn" onclick="goGestionarProfesores()"><span class="qa-icon">👨‍🏫</span><span class="qa-text" id="qa-profs-text">Gestionar profesores (—)</span></button>
       <button class="quick-btn" id="qa-gest-sanciones" onclick="goGestionSanciones()" style="background:linear-gradient(180deg,rgba(76,163,107,.15),rgba(76,163,107,.05));border-color:#4ca36b"><span class="qa-icon">⚖️</span><span class="qa-text"><strong>Gestionar sanciones</strong> (editar / corregir / anular / crear manual)</span></button>
       <button class="quick-btn" onclick="goHorarios()" style="background:linear-gradient(180deg,rgba(70,130,200,.15),rgba(70,130,200,.05));border-color:#4a90d9"><span class="qa-icon">📅</span><span class="qa-text"><strong>Horario semanal</strong> (ver / subir nuevo)</span></button>
       <button class="quick-btn" onclick="goPlanillas()" style="background:linear-gradient(180deg,rgba(212,175,55,.15),rgba(212,175,55,.05));border-color:#d4af37"><span class="qa-icon">📋</span><span class="qa-text"><strong>Planilla de disciplina</strong> (ver / subir nueva)</span></button>
       <button class="quick-btn" onclick="goAuditoria()"><span class="qa-icon">🔍</span><span class="qa-text">Auditoría de sanciones por cursante</span></button>
       <button class="quick-btn" onclick="goEstadisticas()"><span class="qa-icon">📈</span><span class="qa-text">Estadísticas: pérdida de puntaje (por período)</span></button>
-      <button class="quick-btn" onclick="goDiagnostico()"><span class="qa-icon">🔧</span><span class="qa-text">Diagnóstico y forzar sincronización</span></button>
+      <button id="qa-btn-diagnostico" class="quick-btn" onclick="goDiagnostico()"><span class="qa-icon">🔧</span><span class="qa-text">Diagnóstico y forzar sincronización</span></button>
       <button class="quick-btn success" onclick="goRespaldo()"><span class="qa-icon">💾</span><span class="qa-text">Descargar respaldo ahora (JSON + .XLSX)</span></button>
       <button class="quick-btn" onclick="goInstalar()"><span class="qa-icon">📲</span><span class="qa-text">Instalar app / Compartir QR</span></button>
       <button class="quick-btn" onclick="goAnulaciones()"><span class="qa-icon">📋</span><span class="qa-text">Solicitudes de reconsideración / anulación</span><span id="badge-solicitudes" style="display:none;margin-left:auto;background:#c84a4a;color:#fff;font-size:12px;font-weight:700;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;padding:0 6px">0</span></button>
       <button class="quick-btn warning" onclick="goReiniciar()"><span class="qa-icon">📥</span><span class="qa-text">Cierre de semestre (respaldo)</span></button>
-      <button class="quick-btn" onclick="qa('cambiar_pwd_otro')"><span class="qa-icon">🔑</span><span class="qa-text">Cambiar contraseña de cursante / profesor</span></button>
+      <button id="qa-btn-pwd-otro" class="quick-btn" onclick="goGestionarProfesores()"><span class="qa-icon">🔑</span><span class="qa-text">Cambiar contraseña / CI de cursante o profesor</span></button>
       <button class="quick-btn" onclick="qa('cambiar_mi_pwd')"><span class="qa-icon">🔐</span><span class="qa-text">Cambiar mi usuario y contraseña</span></button>
-      <button class="quick-btn" onclick="qa('crear_usuario_modulo')"><span class="qa-icon">➕</span><span class="qa-text">Crear usuario para otro módulo</span></button>
     </div>
 
     <!-- v2.9.9: Feed de actividad reciente — últimas sanciones (firmadas o no) -->
@@ -4666,6 +4666,7 @@ input::placeholder, textarea::placeholder {
     <div class="field"><label>Nombre completo *</label><input type="text" id="prof-form-nombre"></div>
     <div class="field"><label>CI * <span id="prof-form-ci-hint" style="font-size:10px;color:#8a7a4a;display:none">(no editable — usá el botón para cambiar la contraseña)</span></label><input type="text" id="prof-form-ci" inputmode="numeric"></div>
     <button type="button" class="btn-secondary" id="prof-form-btn-pwd" onclick="cambiarPasswordProfesorDesdeFichaForm()" style="display:none;background:linear-gradient(135deg,#5a4422,#7a5a2a);color:#f0d890;border-color:#a87e3a;margin:-4px 0 14px">🔑 Cambiar contraseña del profesor</button>
+    <div id="prof-form-rol-wrap" style="display:none"><div class="field"><label>Rol en el sistema <span style="font-size:10px;color:#6ab0ff">(solo C&T puede editar)</span></label><select id="prof-form-rol"><option value="profesor">Profesor / Docente</option><option value="jefe_disciplina">Jefe Disciplina</option><option value="jefe_estudios">Jefe de Estudios</option><option value="comandante">Comandante</option><option value="sub_ef">Sub. Sec. EF</option><option value="evaluaciones">Sub. Sec. Evaluaciones</option><option value="ciencia_tecnologia">C&T (Ciencia y Tecnología)</option></select></div></div>
     <div class="field"><label>Grado militar</label><input type="text" id="prof-form-grado" placeholder="Ej: TCNL, CNL, MAY, CAP"></div>
     <div class="field"><label>Arma</label><input type="text" id="prof-form-arma" placeholder="Ej: Ejército, FAB, Armada"></div>
     <div class="field"><label>Especialidad</label><input type="text" id="prof-form-esp"></div>
@@ -4796,8 +4797,17 @@ const CARGOS = {
   disciplina:{nombre:'Sub. Sec. Disciplina',icono:'⭐'},
   evaluaciones:{nombre:'Sub. Sec. Evaluaciones',icono:'📝'},
   estudios:{nombre:'Jefe de Estudios',icono:'📚'},
-  comandante:{nombre:'Comandante',icono:'🎖️'}
+  comandante:{nombre:'Comandante',icono:'🎖️'},
+  ciencia_tecnologia:{nombre:'Sec. Ciencia y Tecnología',icono:'💻'}
 };
+
+// ─── Helpers de rol ─────────────────────────────────────────────────────────
+function esCT(){ return activeRole === 'ciencia_tecnologia'; }
+// Panel disciplina: todos los que usan screen-disc-panel
+function esAdminPanel(){ return ['disciplina','comandante','estudios','ciencia_tecnologia'].includes(activeRole); }
+// Puede gestionar sanciones (anular/editar/reactivar)
+function esGestSanc(){ return ['disciplina','estudios','ciencia_tecnologia'].includes(activeRole); }
+// ─────────────────────────────────────────────────────────────────────────────
 
 const UMBRAL_CONSEJO = 25;
 const UMBRAL_OBSERVACION = 11;
@@ -5169,12 +5179,13 @@ async function loginCursante(){
 // y rol automáticamente. Mapea backend.rol → frontend.cargo key.
 // ============================================================
 const MAPA_ROL_BACKEND_A_CARGO = {
-  'jefe_disciplina': 'disciplina',
-  'jefe_estudios':   'estudios',
-  'sub_ef':          'ef',
-  'profesor':        'profesor',
-  'comandante':      'comandante',
-  'evaluaciones':    'evaluaciones'
+  'jefe_disciplina':   'disciplina',
+  'jefe_estudios':     'estudios',
+  'sub_ef':            'ef',
+  'profesor':          'profesor',
+  'comandante':        'comandante',
+  'evaluaciones':      'evaluaciones',
+  'ciencia_tecnologia':'ciencia_tecnologia'
 };
 
 async function loginUniversal(){
@@ -5361,9 +5372,8 @@ function requierePrimerIngreso(usuario, intentoUsado){
 }
 
 async function enterRole(role){
-  // Comandante y Jefe de Estudios usan el mismo panel que Disciplina
-  // (tienen acceso a las mismas estadísticas, auditorías y reportes).
-  if(role==='disciplina' || role==='comandante' || role==='estudios'){
+  // Comandante, Jefe de Estudios y C&T usan el mismo panel que Disciplina.
+  if(role==='disciplina' || role==='comandante' || role==='estudios' || role==='ciencia_tecnologia'){
     await loadDiscData();
     renderDiscPanel();
     showScreen('screen-disc-panel');
@@ -5745,7 +5755,7 @@ function goHorarios(){
   const active = document.querySelector('.screen.active');
   if(active && !active.id.startsWith('screen-horario')) pantallaOrigenHorarios = active.id;
   // v2.9.3: Mostrar área admin a Jefe Disciplina, Comandante y Jefe Estudios (todos pueden subir horarios institucionales)
-  const esAdmin = activeRole === 'disciplina' || activeRole === 'comandante' || activeRole === 'estudios';
+  const esAdmin = esAdminPanel();
   const adminArea = document.getElementById('hor-admin-area');
   if(adminArea) adminArea.style.display = esAdmin ? '' : 'none';
   renderHorariosLista();
@@ -5759,7 +5769,7 @@ function volverDeHorarios(){
     pantallaOrigenHorarios = null;
   } else {
     // Fallback: detectar rol
-    if(activeRole === 'disciplina' || activeRole === 'comandante' || activeRole === 'estudios') showScreen('screen-disc-panel');
+    if(esAdminPanel()) showScreen('screen-disc-panel');
     else if(activeRole === 'profesor') showScreen('screen-prof-panel');
     else if(activeRole === 'ef') showScreen('screen-ef-panel');
     else if(currentUser && getSession() && getSession().tipo === 'cursante') showScreen('screen-cursante-home');
@@ -5873,7 +5883,7 @@ async function verHorario(id){
       </div>`;
 
     // Botón eliminar para admins
-    const esAdminH = activeRole === 'disciplina' || activeRole === 'comandante' || activeRole === 'estudios';
+    const esAdminH = esAdminPanel();
     document.getElementById('hv-btn-eliminar').style.display = esAdminH ? '' : 'none';
 
     // Validar archivo
@@ -6005,7 +6015,7 @@ async function descargarHorarioActual(){
 }
 
 async function eliminarHorarioActual(){
-  const esAdmin = activeRole === 'disciplina' || activeRole === 'comandante' || activeRole === 'estudios';
+  const esAdmin = esAdminPanel();
   if(!esAdmin){ alert('Solo Jefe Disciplina, Comandante o Jefe Estudios pueden eliminar.'); return; }
   if(!horarioVisualizandoId) return;
   if(!confirm('¿Eliminar este horario? Quedará marcado como inactivo (no se borra físicamente).')) return;
@@ -6021,7 +6031,7 @@ async function eliminarHorarioActual(){
 }
 
 function goSubirHorario(){
-  const esAdmin = activeRole === 'disciplina' || activeRole === 'comandante' || activeRole === 'estudios';
+  const esAdmin = esAdminPanel();
   if(!esAdmin){ alert('Solo Jefe Disciplina, Comandante o Jefe Estudios pueden subir horarios.'); return; }
   document.getElementById('hsu-titulo').value = '';
   document.getElementById('hsu-audiencia').value = 'todos';
@@ -6108,7 +6118,7 @@ function cicloDeCursante(cur){
   return null;
 }
 function esAdminPlanilla(){
-  return activeRole === 'disciplina' || activeRole === 'comandante';
+  return activeRole === 'disciplina' || activeRole === 'comandante' || esCT();
 }
 
 function goPlanillas(){
@@ -6452,8 +6462,8 @@ let editandoSancionId = null;
 let cursanteSeleccionadoManual = null;
 
 function goGestionSanciones(){
-  if(activeRole !== 'disciplina'){
-    alert('Esta herramienta es exclusiva del Jefe de Sección Disciplina.');
+  if(!esGestSanc()){
+    alert('Solo Jefe Disciplina, Jefe de Estudios o C&T pueden gestionar sanciones.');
     return;
   }
   renderGestSancionesList();
@@ -6515,8 +6525,8 @@ function renderGestSancionesList(){
 
 /* ------- EDITAR SANCIÓN ------- */
 function editarSancion(sancionId){
-  if(activeRole !== 'disciplina'){
-    alert('Solo el Jefe de Sección Disciplina puede editar sanciones.');
+  if(!esGestSanc()){
+    alert('Solo Jefe Disciplina, Jefe de Estudios o C&T pueden editar sanciones.');
     return;
   }
   const s = discData.sanciones.find(x => String(x.id) === String(sancionId));
@@ -6607,8 +6617,8 @@ async function guardarEdicionSancion(){
 
 /* ------- ANULAR SANCIÓN DIRECTO (Jefe Disc, sin pedir al Cmte) ------- */
 async function anularSancionDirecto(sancionId){
-  if(activeRole !== 'disciplina'){
-    alert('Solo el Jefe Disciplina puede anular sanciones directamente.');
+  if(!esGestSanc()){
+    alert('Solo Jefe Disciplina, Jefe de Estudios o C&T pueden anular sanciones.');
     return;
   }
   const s = discData.sanciones.find(x => String(x.id) === String(sancionId));
@@ -6651,7 +6661,7 @@ async function anularSancionDirecto(sancionId){
 
 /* ------- REACTIVAR SANCIÓN ANULADA ------- */
 async function reactivarSancion(sancionId){
-  if(activeRole !== 'disciplina'){ alert('Solo Jefe Disciplina.'); return; }
+  if(!esGestSanc()){ alert('Solo Jefe Disciplina, Jefe de Estudios o C&T.'); return; }
   const s = discData.sanciones.find(x => String(x.id) === String(sancionId));
   if(!s || s.anulada !== true){ alert('Esta sanción no está anulada.'); return; }
   const razon = prompt(`↩️ REACTIVAR SANCIÓN ${s.folio?'#'+s.folio:''}\n\nLos ${s.puntos_aplicados||0} pts volverán al cómputo del cursante.\n\nRazón de la reactivación:`);
@@ -6684,7 +6694,7 @@ async function reactivarSancion(sancionId){
 
 /* ------- CREAR SANCIÓN MANUAL ------- */
 function goCrearSancionManual(){
-  if(activeRole !== 'disciplina'){ alert('Solo Jefe Disciplina.'); return; }
+  if(!esGestSanc()){ alert('Solo Jefe Disciplina, Estudios o C&T.'); return; }
   cursanteSeleccionadoManual = null;
   document.getElementById('csm-cursante-search').value = '';
   document.getElementById('csm-cursante-resultados').innerHTML = '';
@@ -7445,8 +7455,8 @@ async function cambiarMiPasswordCursante(){
 
 // v2.9.7: Jefe Disciplina cambia la contraseña de un cursante desde su ficha
 async function cambiarPasswordCursanteDesdeFicha(cursanteId){
-  if(activeRole !== 'disciplina'){
-    alert('Solo el Jefe de Sección Disciplina puede cambiar contraseñas de cursantes.');
+  if(!esCT()){
+    alert('Solo C&T (Ciencia y Tecnología) puede cambiar contraseñas de cursantes.');
     return;
   }
   if(!cursanteId){ alert('Cursante inválido.'); return; }
@@ -7515,8 +7525,8 @@ function cambiarPasswordCursanteDesdeFichaForm(){
 
 // v2.9.6: cambiar contraseña de profesor (análogo a la de cursante)
 async function cambiarPasswordProfesorDesdeFicha(profesorId){
-  if(activeRole !== 'disciplina'){
-    alert('Solo el Jefe de Sección Disciplina puede cambiar contraseñas de profesores.');
+  if(!esCT()){
+    alert('Solo C&T (Ciencia y Tecnología) puede cambiar contraseñas de profesores.');
     return;
   }
   if(!profesorId){ alert('Profesor inválido.'); return; }
@@ -7686,6 +7696,18 @@ function renderDiscPanel(){
   if(enObs>0){document.getElementById('alert-observacion-title').textContent=`${enObs} cursante(s) en observación`; aO.style.display='flex';}else{aO.style.display='none';}
   const activosProfs = discData.profesores.filter(p=>p.activo!==false).length;
   document.getElementById('qa-profs-text').textContent=`Gestionar profesores (${activosProfs})`;
+
+  // Visibilidad de botones según rol
+  const soloCT = esCT();
+  const btnsCT = ['qa-btn-gest-cursantes','qa-btn-gest-profesores','qa-btn-diagnostico','qa-btn-pwd-otro'];
+  btnsCT.forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.style.display = soloCT ? '' : 'none';
+  });
+  // Gestionar sanciones: visible para disc + estudios + CT
+  const elGs = document.getElementById('qa-gest-sanciones');
+  if(elGs) elGs.style.display = esGestSanc() ? '' : 'none';
+
   // v2.9.9: feed de actividad reciente al final del panel
   renderActividadReciente();
 }
@@ -7695,8 +7717,8 @@ function renderDiscPanel(){
 function renderActividadReciente(){
   const cnt = document.getElementById('actividad-reciente-list');
   if(!cnt) return;
-  // v2.9.13: solo Jefe Disciplina ve sanciones anuladas en el feed
-  const verAnuladas = (activeRole === 'disciplina');
+  // solo Jefe Disciplina y C&T ven sanciones anuladas en el feed
+  const verAnuladas = (activeRole === 'disciplina' || esCT());
   const sanciones = (discData.sanciones||[])
     .filter(s => s.es_prueba !== true)
     .filter(s => verAnuladas || s.anulada !== true);
@@ -7912,8 +7934,8 @@ function renderSancionesList(){
   const q = (document.getElementById('search-sanc').value||'').trim().toLowerCase();
   const c = document.getElementById('sanciones-list'); c.className='';
   let arr = discData.sanciones;
-  // v2.9.13: las ANULADAS solo se ven en la vista del Jefe de Disciplina (no comandante ni estudios)
-  if(activeRole !== 'disciplina'){
+  // ANULADAS: solo Disciplina y C&T las ven
+  if(activeRole !== 'disciplina' && !esCT()){
     arr = arr.filter(s => s.anulada !== true);
   }
   if(q) arr = arr.filter(s=>
@@ -7999,8 +8021,8 @@ function verSancionDetalle(sancionId){
     html += `<div class="sd-banner firmada"><div class="sd-banner-title">✅ Sanción firmada</div><div class="sd-banner-sub">Registrada digitalmente</div></div>`;
   } else if(cls.tipo==='pendiente'){
     html += `<div class="sd-banner pendiente"><div class="sd-banner-title">⏳ Pendiente de firma</div><div class="sd-banner-sub">Esperando que el cursante firme</div></div>`;
-    // v2.9.14: QR + Enlace de firma SOLO para Jefe de Disciplina
-    if(activeRole === 'disciplina'){
+    // QR + Enlace de firma para Jefe de Disciplina y C&T
+    if(activeRole === 'disciplina' || esCT()){
       let tokenQR = hf.token_qr;
       if(!tokenQR){
         tokenQR = generarUuidLight();
@@ -8111,11 +8133,12 @@ function verSancionDetalle(sancionId){
     <button class="btn-secondary" onclick="volverDeSancionDetalle()">← Volver al listado</button>
   </div>`;
 
-  // === v2.9: ACCIONES ADMIN — solo Jefe Disciplina ===
-  if(activeRole === 'disciplina'){
+  // ACCIONES ADMIN — Jefe Disciplina, Jefe Estudios y C&T
+  if(esGestSanc()){
     const anuladaActual = s.anulada === true;
+    const quienAdmin = esCT() ? 'C&T' : activeRole === 'estudios' ? 'Jefe de Estudios' : 'Jefe Disciplina';
     html += `<div class="sd-actions" style="margin-top:14px;padding-top:14px;border-top:2px solid var(--border-strong)">
-      <div style="font-size:11px;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;font-weight:700">⚙️ Acciones administrativas (Jefe Disciplina)</div>
+      <div style="font-size:11px;letter-spacing:1.5px;color:var(--gold);text-transform:uppercase;margin-bottom:8px;font-weight:700">⚙️ Acciones administrativas (${quienAdmin})</div>
       <button class="btn-primary" onclick="editarSancion('${s.id}')" style="background:linear-gradient(180deg,#4ca36b,#2d7a4a)">✏️ Editar / Corregir esta sanción</button>
       ${anuladaActual
         ? `<button class="btn-secondary" onclick="reactivarSancion('${s.id}')" style="background:rgba(76,163,107,.15);border-color:#4ca36b;color:#4ca36b">↩️ Reactivar (deshacer anulación)</button>`
@@ -8133,7 +8156,7 @@ function verSancionDetalle(sancionId){
     setTimeout(()=>initLeafletMap(Number(gps.lat), Number(gps.lng)), 150);
   }
   // v2.9.14: Generar QR para sanciones pendientes en vista disciplina
-  if(cls.tipo==='pendiente' && activeRole === 'disciplina'){
+  if(cls.tipo==='pendiente' && (activeRole === 'disciplina' || esCT())){
     setTimeout(()=>{
       let tokenQR = hf.token_qr;
       if(!tokenQR){
@@ -8317,7 +8340,7 @@ function verFichaCursante(cursanteId, backTarget){
 
   html += `<div class="sd-actions">
     <button class="btn-secondary" onclick="volverDeFichaCursante()">← Volver</button>
-    ${activeRole === 'disciplina' ? `<button class="btn-secondary" style="background:linear-gradient(135deg,#5a4422,#7a5a2a);color:#f0d890;border-color:#a87e3a;margin-top:8px" onclick="cambiarPasswordCursanteDesdeFicha('${cursanteId}')">🔑 Cambiar contraseña del cursante</button>` : ''}
+    ${esCT() ? `<button class="btn-secondary" style="background:linear-gradient(135deg,#5a4422,#7a5a2a);color:#f0d890;border-color:#a87e3a;margin-top:8px" onclick="cambiarPasswordCursanteDesdeFicha('${cursanteId}')">🔑 Cambiar contraseña del cursante</button>` : ''}
   </div>`;
 
   document.getElementById('ficha-cursante-content').innerHTML = html;
@@ -9214,7 +9237,10 @@ function renderAlertas(){
 }
 
 /* ==================== GESTIONAR CURSANTES ==================== */
-function goGestionarCursantes(){ renderGestCursantes(); showScreen('screen-gestionar-cursantes'); }
+function goGestionarCursantes(){
+  if(!esCT()){ alert('Solo C&T (Ciencia y Tecnología) puede gestionar cursantes.'); return; }
+  renderGestCursantes(); showScreen('screen-gestionar-cursantes');
+}
 function renderGestCursantes(){
   const q=(document.getElementById('search-gest-cur').value||'').trim().toLowerCase();
   const c=document.getElementById('gest-cursantes-list'); c.className='';
@@ -9341,7 +9367,10 @@ async function reactivarCursante(id){
 }
 
 /* ==================== GESTIONAR PROFESORES ==================== */
-function goGestionarProfesores(){ renderGestProfesores(); showScreen('screen-gestionar-profesores'); }
+function goGestionarProfesores(){
+  if(!esCT()){ alert('Solo C&T (Ciencia y Tecnología) puede gestionar profesores.'); return; }
+  renderGestProfesores(); showScreen('screen-gestionar-profesores');
+}
 function renderGestProfesores(){
   const q=(document.getElementById('search-gest-prof').value||'').trim().toLowerCase();
   const c=document.getElementById('gest-profesores-list'); c.className='';
@@ -9379,18 +9408,32 @@ function openProfesorForm(id){
     document.getElementById('prof-form-esp').value=p.especialidad||'';
     document.getElementById('prof-form-obs').value=p.observaciones||'';
     document.getElementById('prof-form-activo').value=String(p.activo!==false);
+    // CT: mostrar rol y habilitar CI para reasignación
+    if(esCT()){
+      document.getElementById('prof-form-rol-wrap').style.display='';
+      document.getElementById('prof-form-rol').value=p.rol||'profesor';
+      document.getElementById('prof-form-ci').disabled=false;
+      document.getElementById('prof-form-ci').style.opacity='';
+      document.getElementById('prof-form-ci-hint').style.display='none';
+    }
   } else {
     document.getElementById('prof-form-title').textContent='Nuevo Profesor';
     document.getElementById('prof-form-id').value='';
     document.getElementById('prof-form-idtext').value='';
     document.getElementById('prof-form-idtext').disabled=false;
-    // v2.9.6: al crear sí se puede escribir CI; ocultar botón cambiar pwd
     document.getElementById('prof-form-ci').disabled=false;
     document.getElementById('prof-form-ci').style.opacity='';
     document.getElementById('prof-form-ci-hint').style.display='none';
     document.getElementById('prof-form-btn-pwd').style.display='none';
     ['prof-form-nombre','prof-form-ci','prof-form-grado','prof-form-arma','prof-form-esp','prof-form-obs'].forEach(i=>document.getElementById(i).value='');
     document.getElementById('prof-form-activo').value='true';
+    // CT: mostrar rol al crear también
+    if(esCT()){
+      document.getElementById('prof-form-rol-wrap').style.display='';
+      document.getElementById('prof-form-rol').value='profesor';
+    } else {
+      document.getElementById('prof-form-rol-wrap').style.display='none';
+    }
   }
   showScreen('screen-profesor-form');
 }
@@ -9402,7 +9445,6 @@ async function saveProfesor(){
   const ci=document.getElementById('prof-form-ci').value.trim();
   if(!nombre||!ci){ showError('err-prof-form','Nombre y CI son obligatorios.'); return; }
   const activo=document.getElementById('prof-form-activo').value==='true';
-  // v2.9.6: payload base SIN ci (CI no se cambia al editar)
   const payload={
     nombre_completo:nombre,
     grado:document.getElementById('prof-form-grado').value.trim()||null,
@@ -9411,15 +9453,19 @@ async function saveProfesor(){
     observaciones:document.getElementById('prof-form-obs').value.trim()||null,
     activo
   };
+  // CT puede cambiar rol
+  if(esCT()) payload.rol = document.getElementById('prof-form-rol').value || 'profesor';
   const btn=document.getElementById('btn-save-prof');
   btn.disabled=true; btn.textContent='Guardando...';
   try{
     if(id){
-      // EDITAR: no toca ci ni password
+      // CT puede también cambiar CI al editar (para reasignación de cargo)
+      if(esCT() && ci){ payload.ci = ci; payload.password=null; payload.password_hash=null; payload.primer_ingreso=true; }
       const {error}=await sb.from('profesores').update(payload).eq('id',id);
       if(error) throw error;
+      if(esCT() && ci) alert('CI actualizado. La contraseña fue reseteada: el usuario deberá ingresar con su CI la primera vez.');
     } else {
-      // CREAR NUEVO: sí setea CI y password inicial = CI
+      // CREAR NUEVO: setea CI y password inicial = CI
       payload.ci = ci;
       let newId=idtext;
       if(!newId){
@@ -9429,6 +9475,7 @@ async function saveProfesor(){
       }
       payload.id=newId;
       payload.password=ci; // password default = CI
+      payload.primer_ingreso=true;
       const {error}=await sb.from('profesores').insert(payload);
       if(error) throw error;
     }
@@ -9462,7 +9509,10 @@ async function reactivarProfesor(id){
 }
 
 /* ==================== DIAGNÓSTICO ==================== */
-function goDiagnostico(){ renderDiagnostico(); showScreen('screen-diagnostico'); }
+function goDiagnostico(){
+  if(!esCT()){ alert('Solo C&T (Ciencia y Tecnología) puede ver el diagnóstico del sistema.'); return; }
+  renderDiagnostico(); showScreen('screen-diagnostico');
+}
 function renderDiagnostico(){
   const c=document.getElementById('diag-status');
   const last = discData.lastSync ? discData.lastSync.toLocaleString('es-BO') : 'Nunca';
@@ -9889,7 +9939,7 @@ async function actualizarBadgeSolicitudes(){
 }
 // Fase 2 — el Jefe de Disciplina marca su recomendación y/o eleva la solicitud.
 async function marcarRevisionDisciplina(id, valor){
-  if(!(activeRole==='disciplina'||activeRole==='comandante')){ alert('Solo el Jefe de Disciplina.'); return; }
+  if(activeRole !== 'disciplina' && !esCT()){ alert('Solo el Jefe de Disciplina o C&T.'); return; }
   const txt = valor==='procedente' ? 'PROCEDENTE (recomendás reconsiderar)' : 'IMPROCEDENTE (recomendás mantener la sanción)';
   if(!confirm(`¿Marcar esta solicitud como ${txt}?`)) return;
   try{
@@ -9899,7 +9949,7 @@ async function marcarRevisionDisciplina(id, valor){
   }catch(e){ alert('Error: '+(e.message||e)+'\n\nSi dice que falta una columna, corré el SQL que amplía la tabla (te lo pasó Claude).'); }
 }
 async function elevarSolicitud(id, destino){
-  if(!(activeRole==='disciplina'||activeRole==='comandante')){ alert('Solo el Jefe de Disciplina.'); return; }
+  if(activeRole !== 'disciplina' && !esCT()){ alert('Solo el Jefe de Disciplina o C&T.'); return; }
   const campo = destino==='comandante' ? 'enviado_a_comandante' : 'enviado_a_estudios';
   const quien = destino==='comandante' ? 'al Comandante' : 'al Jefe de Estudios';
   if(!confirm(`¿Elevar esta solicitud ${quien}?`)) return;
@@ -9910,6 +9960,50 @@ async function elevarSolicitud(id, destino){
     alert(`✅ Solicitud elevada ${quien}.`);
     goAnulaciones();
   }catch(e){ alert('Error: '+(e.message||e)+'\n\nSi dice que falta la columna '+campo+', corré el SQL que amplía la tabla.'); }
+}
+// Fase 3 — el Comandante resuelve: hace lugar (anula) / hace lugar (modificación) / desestima.
+async function comandanteAnular(solId, sancionId){
+  if(activeRole !== 'comandante' && activeRole !== 'estudios' && !esCT()){ alert('Sin permiso para resolver esta solicitud.'); return; }
+  const s = discData.sanciones.find(x => String(x.id)===String(sancionId));
+  const razon = prompt('VISTO BUENO — ANULAR la sanción.\n\nLos puntos dejarán de contar (la sanción cambia de estado, no se borra).\n\nResolución / motivo del Comandante (obligatorio):');
+  if(razon === null) return;
+  if(!razon || razon.trim().length < 5){ alert('El motivo debe tener al menos 5 caracteres.'); return; }
+  try{
+    const _tok = getTokenSesion();
+    const { data:r, error:efErr } = await sb.functions.invoke('sanciones-ops', {
+      body: { accion:'anular', token:_tok, sancion_id:sancionId, razon:razon.trim(), usuario_nombre:currentUser.nombre_completo }
+    });
+    if(efErr){ let d=efErr.message||'Error'; try{ if(efErr.context&&typeof efErr.context.json==='function'){const b=await efErr.context.json(); d=b.error||JSON.stringify(b);} }catch(_){}; throw new Error(d); }
+    if(!r || !r.ok) throw new Error(r?.error || 'Error en sanciones-ops');
+    if(s) Object.assign(s, { anulada:true, anulada_razon:razon.trim(), anulada_por:currentUser.id, anulada_por_nombre:currentUser.nombre_completo, anulada_en:new Date().toISOString() });
+    await sb.from('solicitudes_anulacion').update({ estado:'aprobado', comentario_comandante:'HACE LUGAR (anulación): '+razon.trim() }).eq('id', solId);
+    alert('✓ Sanción anulada y solicitud aprobada. El alumno verá la respuesta.');
+    goAnulaciones();
+  }catch(e){ console.error(e); alert('❌ Error: '+(e.message||e)); }
+}
+async function comandanteModificar(solId){
+  if(activeRole !== 'comandante' && activeRole !== 'estudios' && !esCT()){ alert('Sin permiso para resolver esta solicitud.'); return; }
+  const razon = prompt('HACER LUGAR para MODIFICACIÓN.\n\nIndicá qué corresponde corregir (lo aplicará el Jefe de Disciplina con su herramienta de edición):');
+  if(razon === null) return;
+  if(!razon || razon.trim().length < 5){ alert('Indicá la modificación (mínimo 5 caracteres).'); return; }
+  try{
+    const { error } = await sb.from('solicitudes_anulacion').update({ estado:'aprobado', comentario_comandante:'HACE LUGAR (modificación): '+razon.trim() }).eq('id', solId);
+    if(error) throw error;
+    alert('✓ Aprobada para modificación. El Jefe de Disciplina aplicará la corrección y el alumno verá la respuesta.');
+    goAnulaciones();
+  }catch(e){ alert('Error: '+(e.message||e)); }
+}
+async function comandanteDesestimar(solId){
+  if(activeRole !== 'comandante' && activeRole !== 'estudios' && !esCT()){ alert('Sin permiso para resolver esta solicitud.'); return; }
+  const razon = prompt('DESESTIMAR la solicitud.\n\nMotivo de la desestimación (obligatorio):');
+  if(razon === null) return;
+  if(!razon || razon.trim().length < 5){ alert('El motivo debe tener al menos 5 caracteres.'); return; }
+  try{
+    const { error } = await sb.from('solicitudes_anulacion').update({ estado:'rechazado', comentario_comandante:'DESESTIMA: '+razon.trim() }).eq('id', solId);
+    if(error) throw error;
+    alert('Solicitud desestimada. El alumno verá la respuesta.');
+    goAnulaciones();
+  }catch(e){ alert('Error: '+(e.message||e)); }
 }
 async function goAnulaciones(){
   showScreen('screen-anulaciones');
@@ -9925,10 +10019,12 @@ async function goAnulaciones(){
       c.innerHTML='<div class="list-empty">No hay solicitudes todavía. La creación de solicitudes desde sanciones específicas se implementa cuando armemos el módulo de registro de sanciones.</div>';
       return;
     }
-    const pendientes = data.filter(x => (x.estado||'pendiente')==='pendiente').length;
-    const encabezado = `<div class="stat-block" style="background:rgba(212,175,55,.08);border-color:var(--gold)"><div class="sb-title">📨 ${data.length} solicitud(es) · ${pendientes} pendiente(s)</div></div>`;
-    const esJefeDisc = (activeRole === 'disciplina' || activeRole === 'comandante');
-    c.innerHTML = encabezado + data.map(s=>{
+    // Para Estudios: solo ver las dirigidas a él
+    const soloParaEstudios = (activeRole === 'estudios');
+    const dataMostrar = soloParaEstudios ? data.filter(x => x.enviado_a_estudios) : data;
+    const pendientes = dataMostrar.filter(x => (x.estado||'pendiente')==='pendiente').length;
+    const encabezado = `<div class="stat-block" style="background:rgba(212,175,55,.08);border-color:var(--gold)"><div class="sb-title">📨 ${dataMostrar.length} solicitud(es) · ${pendientes} pendiente(s)${soloParaEstudios?' (elevadas a usted)':''}</div></div>`;
+    c.innerHTML = encabezado + dataMostrar.map(s=>{
       const info = _solInfo(s);
       const quien = info.esCursante ? '🎓 Cursante' : '✍️ Profesor';
       const estado = s.estado || 'pendiente';
@@ -9937,15 +10033,29 @@ async function goAnulaciones(){
       const rev = s.revision_disciplina ? (s.revision_disciplina==='procedente'?'<span style="color:#7ac899">✔️ Procedente</span>':'<span style="color:#e88a8a">✖️ Improcedente</span>') : '';
       const san = discData.sanciones.find(x => String(x.id)===String(s.sancion_id));
       const sancTxt = san ? `${san.folio||s.sancion_id} · Art. ${san.falta_articulo||'—'} · −${san.puntos_aplicados||0}` : (s.sancion_id||'—');
-      // Acciones del Jefe (solo si pendiente)
       let acciones = '';
-      if(esJefeDisc && estado === 'pendiente'){
-        acciones = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
-          <button class="btn-mini" onclick="marcarRevisionDisciplina('${escapeAttr(String(s.id))}','procedente')" style="flex:1;min-width:120px;padding:8px;border-radius:8px;border:1px solid rgba(76,163,107,.5);background:rgba(76,163,107,.15);color:#9bcfa9;cursor:pointer;font-size:12px;font-weight:600">✔️ Procedente</button>
-          <button class="btn-mini" onclick="marcarRevisionDisciplina('${escapeAttr(String(s.id))}','improcedente')" style="flex:1;min-width:120px;padding:8px;border-radius:8px;border:1px solid rgba(200,74,74,.5);background:rgba(200,74,74,.12);color:#f0a890;cursor:pointer;font-size:12px;font-weight:600">✖️ Improcedente</button>
-          <button class="btn-mini" onclick="elevarSolicitud('${escapeAttr(String(s.id))}','comandante')" style="flex:1;min-width:120px;padding:8px;border-radius:8px;border:1px solid var(--border-strong);background:rgba(212,175,55,.12);color:var(--gold-light);cursor:pointer;font-size:12px;font-weight:600">🎖️ Elevar al Comandante</button>
-          <button class="btn-mini" onclick="elevarSolicitud('${escapeAttr(String(s.id))}','estudios')" style="flex:1;min-width:120px;padding:8px;border-radius:8px;border:1px solid rgba(70,130,200,.5);background:rgba(70,130,200,.12);color:#a8c8e8;cursor:pointer;font-size:12px;font-weight:600">📚 Elevar a J. Estudios</button>
-        </div>`;
+      const sid = escapeAttr(String(s.id));
+      const sanId = escapeAttr(String(s.sancion_id||''));
+      const btn = (fn,label,col) => `<button class="btn-mini" onclick="${fn}" style="flex:1;min-width:130px;padding:8px;border-radius:8px;border:1px solid ${col.b};background:${col.bg};color:${col.c};cursor:pointer;font-size:12px;font-weight:600">${label}</button>`;
+      const btnsDisc = `
+          ${btn(`marcarRevisionDisciplina('${sid}','procedente')`,'✔️ Procedente',{b:'rgba(76,163,107,.5)',bg:'rgba(76,163,107,.15)',c:'#9bcfa9'})}
+          ${btn(`marcarRevisionDisciplina('${sid}','improcedente')`,'✖️ Improcedente',{b:'rgba(200,74,74,.5)',bg:'rgba(200,74,74,.12)',c:'#f0a890'})}
+          ${btn(`elevarSolicitud('${sid}','comandante')`,'🎖️ Elevar al Comandante',{b:'var(--border-strong)',bg:'rgba(212,175,55,.12)',c:'var(--gold-light)'})}
+          ${btn(`elevarSolicitud('${sid}','estudios')`,'📚 Elevar a J. Estudios',{b:'rgba(70,130,200,.5)',bg:'rgba(70,130,200,.12)',c:'#a8c8e8'})}`;
+      const btnsCmdte = `
+          ${btn(`comandanteAnular('${sid}','${sanId}')`,'✅ Hacer lugar — Anular',{b:'rgba(76,163,107,.5)',bg:'rgba(76,163,107,.18)',c:'#9bcfa9'})}
+          ${btn(`comandanteModificar('${sid}')`,'✏️ Hacer lugar — Modificar',{b:'rgba(224,168,58,.5)',bg:'rgba(224,168,58,.14)',c:'#f0d28a'})}
+          ${btn(`comandanteDesestimar('${sid}')`,'❌ Desestimar',{b:'rgba(200,74,74,.5)',bg:'rgba(200,74,74,.12)',c:'#f0a890'})}`;
+      if(estado === 'pendiente' && activeRole === 'disciplina'){
+        acciones = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">${btnsDisc}</div>`;
+      } else if(estado === 'pendiente' && esCT()){
+        // C&T: acciones completas (disciplina + comandante)
+        acciones = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">${btnsDisc}${btnsCmdte}</div>`;
+      } else if(estado === 'pendiente' && activeRole === 'comandante'){
+        acciones = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">${btnsCmdte}</div>`;
+      } else if(estado === 'pendiente' && activeRole === 'estudios' && s.enviado_a_estudios){
+        // Estudios: puede resolver las que le fueron elevadas
+        acciones = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">${btnsCmdte}</div>`;
       }
       return `<div class="stat-block">
         <div class="sb-title">${quien} · Solicitud #${s.id} · ${new Date(s.fecha_creacion).toLocaleDateString('es-BO')}</div>
@@ -10605,7 +10715,7 @@ function goAnyPanel(){
   }
   if(activeRole === 'profesor'){
     goProfPanel();
-  } else if(activeRole === 'disciplina' || activeRole === 'comandante' || activeRole === 'estudios'){
+  } else if(esAdminPanel()){
     goDiscPanel();
   } else {
     goProfPanel();  // fallback
