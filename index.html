@@ -6414,15 +6414,16 @@ async function cargarMisSolicitudes(){
   if(!cont || !currentUser) return;
   try{
     const {data, error} = await sb.from('solicitudes_anulacion')
-      .select('id,sancion_id,estado,detalle_cursante,comentario_comandante,enviado_a_comandante,enviado_a_estudios,fecha_creacion,origen,profesor_id')
+      .select('*')
       .eq('cursante_id', currentUser.id)
       .order('fecha_creacion', {ascending:false})
       .limit(50);
     if(error){ cont.innerHTML = `<div class="ms-empty"><div class="me-icon">⚠️</div><div>No se pudo cargar: ${escapeHtml(error.message||'')}</div></div>`; return; }
     // Solo las solicitudes propias del cursante (no las que un profesor hizo sobre él)
-    const mias = (data||[]).filter(x => x.origen === 'cursante' || !!x.detalle_cursante || !x.profesor_id);
+    const mias = (data||[]).filter(x => _solInfo(x).esCursante);
     if(!mias.length){ cont.innerHTML = '<div class="ms-empty"><div class="me-icon">📨</div><div>Todavía no enviaste solicitudes de reconsideración.</div></div>'; return; }
     cont.innerHTML = mias.map(s => {
+      const info = _solInfo(s);
       const estado = s.estado || 'pendiente';
       const badge = estado==='aprobado' ? '<span style="color:#3a7050;font-weight:700">✅ Aprobada</span>'
                   : estado==='rechazado' ? '<span style="color:#a83a3a;font-weight:700">❌ Desestimada</span>'
@@ -6439,7 +6440,7 @@ async function cargarMisSolicitudes(){
         <div class="pb-row"><span class="pb-lbl">Estado</span><span class="pb-val">${badge}</span></div>
         ${reenvio?`<div class="pb-row"><span class="pb-lbl">Elevada a</span><span class="pb-val">${escapeHtml(reenvio)}</span></div>`:''}
         <div class="pb-row"><span class="pb-lbl">Enviada</span><span class="pb-val">${escapeHtml(fecha)}</span></div>
-        ${s.detalle_cursante?`<div style="margin-top:6px;font-size:13px;color:#5c4a1a"><strong>Tu desarrollo:</strong> ${escapeHtml(s.detalle_cursante)}</div>`:''}
+        ${info.desarrollo?`<div style="margin-top:6px;font-size:13px;color:#5c4a1a"><strong>Tu desarrollo:</strong> ${escapeHtml(info.desarrollo)}</div>`:''}
         ${resp?`<div style="margin-top:6px;font-size:13px;color:#1a4a2a;background:rgba(76,163,107,.12);border-radius:6px;padding:8px"><strong>🎖️ Respuesta del Comandante:</strong> ${escapeHtml(resp)}</div>`:''}
       </div>`;
     }).join('');
@@ -9862,6 +9863,19 @@ function expandirCicloParalelo(cicloVal, parVal, label){
 }
 
 /* ==================== ANULACIONES ==================== */
+// Normaliza una solicitud para mostrarla, tolerando el esquema viejo (sin columnas nuevas):
+// detecta si es del cursante por `origen` o por el prefijo [RECONSIDERACIÓN CURSANTE] guardado en comentario_disciplina.
+function _solInfo(s){
+  const comDisc = s.comentario_disciplina || '';
+  const esCursante = s.origen === 'cursante' || !!s.detalle_cursante || !!s.firma_cursante_solicitud || /RECONSIDERACI[OÓ]N CURSANTE/i.test(comDisc);
+  let desarrollo = s.detalle_cursante || '';
+  if(!desarrollo && /RECONSIDERACI[OÓ]N CURSANTE/i.test(comDisc)){
+    desarrollo = comDisc.replace(/^\s*\[RECONSIDERACI[OÓ]N CURSANTE\]\s*/i, '');
+  }
+  if(!desarrollo && !esCursante) desarrollo = s.detalle_profesor || (s.comentario_disciplina || '');
+  const nombre = s.cursante_nombre || s.profesor_nombre || s.cursante_id || '—';
+  return { esCursante, desarrollo, nombre };
+}
 // Badge de notificación: cuenta solicitudes pendientes para el Jefe.
 async function actualizarBadgeSolicitudes(){
   const badge = document.getElementById('badge-solicitudes');
@@ -9872,6 +9886,30 @@ async function actualizarBadgeSolicitudes(){
     if(pend > 0){ badge.textContent = pend; badge.style.display = 'inline-block'; }
     else { badge.style.display = 'none'; }
   }catch(_){ badge.style.display = 'none'; }
+}
+// Fase 2 — el Jefe de Disciplina marca su recomendación y/o eleva la solicitud.
+async function marcarRevisionDisciplina(id, valor){
+  if(!(activeRole==='disciplina'||activeRole==='comandante')){ alert('Solo el Jefe de Disciplina.'); return; }
+  const txt = valor==='procedente' ? 'PROCEDENTE (recomendás reconsiderar)' : 'IMPROCEDENTE (recomendás mantener la sanción)';
+  if(!confirm(`¿Marcar esta solicitud como ${txt}?`)) return;
+  try{
+    const {error} = await sb.from('solicitudes_anulacion').update({ revision_disciplina: valor }).eq('id', id);
+    if(error) throw error;
+    goAnulaciones();
+  }catch(e){ alert('Error: '+(e.message||e)+'\n\nSi dice que falta una columna, corré el SQL que amplía la tabla (te lo pasó Claude).'); }
+}
+async function elevarSolicitud(id, destino){
+  if(!(activeRole==='disciplina'||activeRole==='comandante')){ alert('Solo el Jefe de Disciplina.'); return; }
+  const campo = destino==='comandante' ? 'enviado_a_comandante' : 'enviado_a_estudios';
+  const quien = destino==='comandante' ? 'al Comandante' : 'al Jefe de Estudios';
+  if(!confirm(`¿Elevar esta solicitud ${quien}?`)) return;
+  try{
+    const upd = {}; upd[campo] = true;
+    const {error} = await sb.from('solicitudes_anulacion').update(upd).eq('id', id);
+    if(error) throw error;
+    alert(`✅ Solicitud elevada ${quien}.`);
+    goAnulaciones();
+  }catch(e){ alert('Error: '+(e.message||e)+'\n\nSi dice que falta la columna '+campo+', corré el SQL que amplía la tabla.'); }
 }
 async function goAnulaciones(){
   showScreen('screen-anulaciones');
@@ -9889,23 +9927,36 @@ async function goAnulaciones(){
     }
     const pendientes = data.filter(x => (x.estado||'pendiente')==='pendiente').length;
     const encabezado = `<div class="stat-block" style="background:rgba(212,175,55,.08);border-color:var(--gold)"><div class="sb-title">📨 ${data.length} solicitud(es) · ${pendientes} pendiente(s)</div></div>`;
+    const esJefeDisc = (activeRole === 'disciplina' || activeRole === 'comandante');
     c.innerHTML = encabezado + data.map(s=>{
-      const esCursante = (s.origen === 'cursante') || !!s.detalle_cursante || !!s.firma_cursante_solicitud;
-      const quien = esCursante ? '🎓 Cursante' : '✍️ Profesor';
-      const nombre = s.cursante_nombre || s.profesor_nombre || s.cursante_id || '—';
-      const desarrollo = s.detalle_cursante || s.detalle_profesor || '';
+      const info = _solInfo(s);
+      const quien = info.esCursante ? '🎓 Cursante' : '✍️ Profesor';
       const estado = s.estado || 'pendiente';
       const estadoBadge = estado==='aprobado'?'✅ Aprobado':estado==='rechazado'?'❌ Desestimado':'⏳ Pendiente';
       const reenvios = [s.enviado_a_comandante?'Comandante':null, s.enviado_a_estudios?'J. Estudios':null].filter(Boolean).join(' + ');
+      const rev = s.revision_disciplina ? (s.revision_disciplina==='procedente'?'<span style="color:#7ac899">✔️ Procedente</span>':'<span style="color:#e88a8a">✖️ Improcedente</span>') : '';
+      const san = discData.sanciones.find(x => String(x.id)===String(s.sancion_id));
+      const sancTxt = san ? `${san.folio||s.sancion_id} · Art. ${san.falta_articulo||'—'} · −${san.puntos_aplicados||0}` : (s.sancion_id||'—');
+      // Acciones del Jefe (solo si pendiente)
+      let acciones = '';
+      if(esJefeDisc && estado === 'pendiente'){
+        acciones = `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
+          <button class="btn-mini" onclick="marcarRevisionDisciplina('${escapeAttr(String(s.id))}','procedente')" style="flex:1;min-width:120px;padding:8px;border-radius:8px;border:1px solid rgba(76,163,107,.5);background:rgba(76,163,107,.15);color:#9bcfa9;cursor:pointer;font-size:12px;font-weight:600">✔️ Procedente</button>
+          <button class="btn-mini" onclick="marcarRevisionDisciplina('${escapeAttr(String(s.id))}','improcedente')" style="flex:1;min-width:120px;padding:8px;border-radius:8px;border:1px solid rgba(200,74,74,.5);background:rgba(200,74,74,.12);color:#f0a890;cursor:pointer;font-size:12px;font-weight:600">✖️ Improcedente</button>
+          <button class="btn-mini" onclick="elevarSolicitud('${escapeAttr(String(s.id))}','comandante')" style="flex:1;min-width:120px;padding:8px;border-radius:8px;border:1px solid var(--border-strong);background:rgba(212,175,55,.12);color:var(--gold-light);cursor:pointer;font-size:12px;font-weight:600">🎖️ Elevar al Comandante</button>
+          <button class="btn-mini" onclick="elevarSolicitud('${escapeAttr(String(s.id))}','estudios')" style="flex:1;min-width:120px;padding:8px;border-radius:8px;border:1px solid rgba(70,130,200,.5);background:rgba(70,130,200,.12);color:#a8c8e8;cursor:pointer;font-size:12px;font-weight:600">📚 Elevar a J. Estudios</button>
+        </div>`;
+      }
       return `<div class="stat-block">
         <div class="sb-title">${quien} · Solicitud #${s.id} · ${new Date(s.fecha_creacion).toLocaleDateString('es-BO')}</div>
-        <div class="sb-row"><span class="label">De</span><span class="val">${escapeHtml(String(nombre))}</span></div>
-        <div class="sb-row"><span class="label">Sanción</span><span class="val">${escapeHtml(String(s.sancion_id||'—'))}</span></div>
-        <div class="sb-row"><span class="label">Estado</span><span class="val">${estadoBadge}${reenvios?' · reenviado a '+reenvios:''}</span></div>
-        ${desarrollo?`<div style="margin-top:8px;font-size:13px;color:var(--text-primary);line-height:1.5;background:rgba(212,175,55,.06);border-left:3px solid var(--gold);padding:8px 10px;border-radius:4px"><strong>Desarrollo:</strong> ${escapeHtml(desarrollo)}</div>`:''}
+        <div class="sb-row"><span class="label">De</span><span class="val">${escapeHtml(String(info.nombre))}</span></div>
+        <div class="sb-row"><span class="label">Sanción</span><span class="val">${escapeHtml(String(sancTxt))}</span></div>
+        <div class="sb-row"><span class="label">Estado</span><span class="val">${estadoBadge}${reenvios?' · elevado a '+reenvios:''}</span></div>
+        ${rev?`<div class="sb-row"><span class="label">Revisión Disc.</span><span class="val">${rev}</span></div>`:''}
+        ${info.desarrollo?`<div style="margin-top:8px;font-size:13px;color:var(--text-primary);line-height:1.5;background:rgba(212,175,55,.06);border-left:3px solid var(--gold);padding:8px 10px;border-radius:4px"><strong>Desarrollo:</strong> ${escapeHtml(info.desarrollo)}</div>`:''}
         ${s.firma_cursante_solicitud?`<div style="margin-top:6px"><img src="${s.firma_cursante_solicitud}" alt="firma" style="max-height:60px;background:#fff;border-radius:4px;padding:2px"></div>`:''}
-        ${s.comentario_disciplina?`<div style="margin-top:8px;font-size:12px;color:var(--text-secondary);font-style:italic">📝 Disciplina: "${escapeHtml(s.comentario_disciplina)}"</div>`:''}
         ${s.comentario_comandante?`<div style="margin-top:6px;font-size:12px;color:#a3d4b5;font-style:italic">🎖️ Comandante: "${escapeHtml(s.comentario_comandante)}"</div>`:''}
+        ${acciones}
       </div>`;
     }).join('');
   }catch(e){
