@@ -4076,7 +4076,7 @@ input::placeholder, textarea::placeholder {
       <button class="quick-btn" onclick="goDiagnostico()"><span class="qa-icon">🔧</span><span class="qa-text">Diagnóstico y forzar sincronización</span></button>
       <button class="quick-btn success" onclick="goRespaldo()"><span class="qa-icon">💾</span><span class="qa-text">Descargar respaldo ahora (JSON + .XLSX)</span></button>
       <button class="quick-btn" onclick="goInstalar()"><span class="qa-icon">📲</span><span class="qa-text">Instalar app / Compartir QR</span></button>
-      <button class="quick-btn" onclick="goAnulaciones()"><span class="qa-icon">📋</span><span class="qa-text">Mis solicitudes de anulación</span></button>
+      <button class="quick-btn" onclick="goAnulaciones()"><span class="qa-icon">📋</span><span class="qa-text">Solicitudes de reconsideración / anulación</span></button>
       <button class="quick-btn warning" onclick="goReiniciar()"><span class="qa-icon">📥</span><span class="qa-text">Cierre de semestre (respaldo)</span></button>
       <button class="quick-btn" onclick="qa('cambiar_pwd_otro')"><span class="qa-icon">🔑</span><span class="qa-text">Cambiar contraseña de cursante / profesor</span></button>
       <button class="quick-btn" onclick="qa('cambiar_mi_pwd')"><span class="qa-icon">🔐</span><span class="qa-text">Cambiar mi usuario y contraseña</span></button>
@@ -4467,6 +4467,52 @@ input::placeholder, textarea::placeholder {
       <button class="btn-secondary" onclick="goPlanillas()">Cancelar</button>
       <button class="btn-primary" id="btn-confirmar-subir-planilla" onclick="confirmarSubirPlanilla()" style="background:linear-gradient(180deg,#4ca36b,#2d7a4a)">📤 Subir planilla</button>
     </div>
+  </div>
+</section>
+
+<!-- RECONSIDERACIÓN: informe del cursante al Comandante -->
+<section id="screen-reconsideracion" class="screen ficha-screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goAnyPanel()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Solicitud de Reconsideración</div><div class="header-sub">Informe al Comandante</div></div>
+  </div>
+  <div class="ficha-container">
+    <div class="memo-banner" style="background:rgba(200,74,74,.08);border-color:rgba(200,74,74,.4)">
+      <div class="mb-title">⚠️ Antes de continuar</div>
+      <div class="mb-text">El reclamo debe ser <strong>justo, lógico y dentro de lo normativo</strong>. Solicitar la reconsideración no garantiza su aprobación, y aprovechar la buena fe de un superior con un reclamo improcedente puede derivar en una <strong>nueva sanción</strong>. Presentá tu informe con honestidad.</div>
+    </div>
+
+    <div class="papeleta-block">
+      <div class="pb-title">📄 INFORME</div>
+      <div class="pb-row"><span class="pb-lbl">Al</span><span class="pb-val">Sr. Comandante de la ECEME</span></div>
+      <div class="pb-row"><span class="pb-lbl">Del</span><span class="pb-val" id="rec-del">—</span></div>
+      <div class="pb-row"><span class="pb-lbl">Objeto</span><span class="pb-val">Reconsiderar la sanción impuesta a mi persona</span></div>
+      <div class="pb-row"><span class="pb-lbl">Lugar y fecha</span><span class="pb-val" id="rec-fecha">—</span></div>
+    </div>
+
+    <div class="papeleta-block" id="rec-sancion-resumen"></div>
+
+    <div style="margin:14px 0">
+      <label style="font-size:13px;color:#5c4a1a;font-weight:600;display:block;margin-bottom:6px">Desarrollo (explicá tu solicitud — claro, corto y concreto)</label>
+      <textarea id="rec-desarrollo" maxlength="1200" rows="6" placeholder="Detallá los hechos y el motivo por el que solicitás la reconsideración..." style="width:100%;padding:12px;background:#fff;border:1px solid rgba(26,14,2,.25);border-radius:8px;font-size:14px;color:#1a0e02;font-family:var(--font-body);resize:vertical"></textarea>
+      <div style="font-size:11px;color:#888;text-align:right;margin-top:2px"><span id="rec-chars">0</span>/1200</div>
+    </div>
+
+    <div style="margin:10px 0">
+      <label style="font-size:13px;color:#5c4a1a;font-weight:600;display:block;margin-bottom:6px">Tu firma</label>
+      <div class="firma-canvas-wrap"><canvas id="rec-firma-canvas" style="width:100%;height:150px;background:#fff;display:block;touch-action:none;border-radius:6px"></canvas></div>
+      <button onclick="limpiarFirmaReconsideracion()" style="margin-top:4px;font-size:11px;color:#888;background:none;border:1px solid #ccc;border-radius:4px;padding:4px 10px;cursor:pointer">Borrar firma</button>
+    </div>
+
+    <label style="display:flex;gap:8px;align-items:flex-start;margin:12px 0;font-size:13px;color:#5c4a1a;cursor:pointer">
+      <input type="checkbox" id="rec-acepta" style="margin-top:3px">
+      <span>Declaro que mi solicitud es veraz, justa y se ajusta a lo normativo, y entiendo que un reclamo improcedente puede derivar en una nueva sanción.</span>
+    </label>
+
+    <div class="error-msg" id="err-reconsideracion" style="display:none"></div>
+    <button class="btn-papeleta primary" id="btn-enviar-reconsideracion" onclick="enviarReconsideracion()">📨 Enviar solicitud al Jefe de Disciplina</button>
+    <button class="btn-papeleta" onclick="goAnyPanel()" style="margin-top:6px">Cancelar</button>
   </div>
 </section>
 
@@ -6226,6 +6272,111 @@ async function eliminarPlanilla(id){
   }
 }
 
+/* ==================== RECONSIDERACIÓN (informe del cursante) ==================== */
+let recFirmaState = null;
+let recSancionActual = null;
+
+function goReconsideracion(sancionId){
+  const s = discData.sanciones.find(x => String(x.id) === String(sancionId));
+  if(!s){ alert('Sanción no encontrada.'); return; }
+  if(!currentUser) return;
+  recSancionActual = s;
+  document.getElementById('rec-del').textContent = `${nombreConGrado(currentUser)} — cursante del ${currentUser.ciclo||'—'}`;
+  document.getElementById('rec-fecha').textContent = 'Cochabamba, ' + new Date().toLocaleDateString('es-BO',{day:'2-digit',month:'long',year:'numeric'});
+  const desc = (typeof obtenerDescripcionSancion === 'function') ? obtenerDescripcionSancion(s) : (s.falta_descripcion||'—');
+  document.getElementById('rec-sancion-resumen').innerHTML =
+    `<div class="pb-title">📋 Sanción a reconsiderar</div>
+     <div class="pb-row"><span class="pb-lbl">Folio</span><span class="pb-val">${escapeHtml(s.folio||(s.id||'').slice(0,10))}</span></div>
+     <div class="pb-row"><span class="pb-lbl">Falta</span><span class="pb-val">Art. ${escapeHtml(s.falta_articulo||'—')} · ${escapeHtml(s.falta_categoria||'—')}</span></div>
+     <div class="pb-row"><span class="pb-lbl">Puntos</span><span class="pb-val">−${s.puntos_aplicados||0}</span></div>
+     <div style="margin-top:6px;font-size:13px;color:#5c4a1a">${escapeHtml(desc)}</div>`;
+  document.getElementById('rec-desarrollo').value = '';
+  document.getElementById('rec-chars').textContent = '0';
+  document.getElementById('rec-acepta').checked = false;
+  const err = document.getElementById('err-reconsideracion'); err.style.display='none'; err.textContent='';
+  const btn = document.getElementById('btn-enviar-reconsideracion'); btn.disabled=false; btn.textContent='📨 Enviar solicitud al Jefe de Disciplina';
+  const ta = document.getElementById('rec-desarrollo');
+  ta.oninput = () => { document.getElementById('rec-chars').textContent = ta.value.length; };
+  showScreen('screen-reconsideracion');
+  setTimeout(initCanvasReconsideracion, 60);  // tras render, para medir el canvas
+}
+
+function initCanvasReconsideracion(){
+  const canvas = document.getElementById('rec-firma-canvas');
+  if(!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width > 0 ? rect.width : 320;
+  canvas.height = 150;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle = '#1a0e02'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  recFirmaState = { ctx, hasContent:false, canvas };
+  let drawing = false;
+  const pos = e => { const r = canvas.getBoundingClientRect(); const t = e.touches ? e.touches[0] : e; return { x:(t.clientX-r.left)*(canvas.width/r.width), y:(t.clientY-r.top)*(canvas.height/r.height) }; };
+  const start = e => { e.preventDefault(); drawing=true; const p=pos(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); };
+  const move = e => { if(!drawing) return; e.preventDefault(); const p=pos(e); ctx.lineTo(p.x,p.y); ctx.stroke(); recFirmaState.hasContent=true; };
+  const end = () => { drawing=false; };
+  canvas.onmousedown=start; canvas.onmousemove=move; canvas.onmouseup=end; canvas.onmouseleave=end;
+  canvas.ontouchstart=start; canvas.ontouchmove=move; canvas.ontouchend=end;
+}
+
+function limpiarFirmaReconsideracion(){
+  if(recFirmaState){ recFirmaState.ctx.clearRect(0,0,recFirmaState.canvas.width,recFirmaState.canvas.height); recFirmaState.hasContent=false; }
+}
+
+async function enviarReconsideracion(){
+  const err = document.getElementById('err-reconsideracion');
+  const showErr = m => { err.textContent = m; err.style.display='block'; };
+  err.style.display='none';
+  const s = recSancionActual;
+  if(!s){ showErr('Sanción no disponible. Volvé a abrir el informe.'); return; }
+  const desarrollo = (document.getElementById('rec-desarrollo').value||'').trim();
+  if(desarrollo.length < 20){ showErr('El desarrollo es muy corto. Explicá tu solicitud (mínimo 20 caracteres).'); return; }
+  if(!recFirmaState || !recFirmaState.hasContent){ showErr('Por favor firmá antes de enviar.'); return; }
+  if(!document.getElementById('rec-acepta').checked){ showErr('Debés aceptar la declaración para poder enviar.'); return; }
+  const btn = document.getElementById('btn-enviar-reconsideracion');
+  btn.disabled=true; btn.textContent='Enviando...';
+  try{
+    // Anti-duplicado: ¿ya hay una solicitud pendiente de este cursante para esta sanción?
+    try{
+      const {data:prev} = await sb.from('solicitudes_anulacion').select('id,estado').eq('sancion_id', s.id).eq('cursante_id', currentUser.id).limit(5);
+      if(prev && prev.some(x => (x.estado||'pendiente')==='pendiente')){
+        showErr('Ya tenés una solicitud pendiente para esta sanción.');
+        btn.disabled=false; btn.textContent='📨 Enviar solicitud al Jefe de Disciplina'; return;
+      }
+    }catch(_){}
+    const firma = recFirmaState.canvas.toDataURL('image/png');
+    const solicitud = {
+      sancion_id: s.id,
+      cursante_id: currentUser.id,
+      cursante_nombre: nombreConGrado(currentUser),
+      origen: 'cursante',
+      tipo_solicitud: 'reconsideracion',
+      detalle_cursante: desarrollo,
+      firma_cursante_solicitud: firma,
+      estado: 'pendiente',
+      fecha_creacion: new Date().toISOString()
+    };
+    let {error} = await sb.from('solicitudes_anulacion').insert([solicitud]);
+    if(error && error.message && error.message.toLowerCase().includes('column')){
+      // Fallback si la tabla aún no tiene las columnas nuevas: guardar en comentario genérico
+      const fb = {
+        sancion_id: s.id, cursante_id: currentUser.id,
+        comentario_disciplina: `[RECONSIDERACIÓN CURSANTE] ${nombreConGrado(currentUser)}: ${desarrollo}`,
+        estado: 'pendiente', fecha_creacion: new Date().toISOString()
+      };
+      const r2 = await sb.from('solicitudes_anulacion').insert([fb]);
+      if(r2.error) throw r2.error;
+    } else if(error){ throw error; }
+    alert('✅ Tu solicitud fue enviada al Jefe de Disciplina.\n\nVas a recibir la respuesta del Comandante cuando sea procesada.');
+    goAnyPanel();
+  }catch(e){
+    console.error('reconsideracion:', e);
+    showErr('Error al enviar: ' + (e.message||e));
+    btn.disabled=false; btn.textContent='📨 Enviar solicitud al Jefe de Disciplina';
+  }
+}
+
 
 let editandoSancionId = null;
 let cursanteSeleccionadoManual = null;
@@ -6714,6 +6865,19 @@ function sancionEnSemestreActual(s){
   if(!f) return true;
   const a = semestreDe(f), b = semestreActual();
   return a.year === b.year && a.half === b.half;
+}
+
+// === Ventana para solicitar reconsideración de una sanción ===
+// Abierta para TODOS hasta el martes 2026-06-02 23:59 (Bolivia, UTC-4).
+// Después: hasta 48 h desde la firma del cursante.
+const RECLAMO_ABIERTO_HASTA = new Date('2026-06-02T23:59:59-04:00');
+const RECLAMO_HORAS_LIMITE = 48;
+function dentroVentanaReclamo(s){
+  const ahora = new Date();
+  if(ahora <= RECLAMO_ABIERTO_HASTA) return true;
+  const f = s && s.firmada_curs_en ? new Date(s.firmada_curs_en) : fechaSancion(s);
+  if(!f || isNaN(f.getTime())) return false;
+  return ((ahora - f) / 36e5) <= RECLAMO_HORAS_LIMITE;
 }
 
 // Calcula los puntos perdidos del cursante DURANTE la gestión (año en curso).
@@ -9642,15 +9806,25 @@ async function goAnulaciones(){
       c.innerHTML='<div class="list-empty">No hay solicitudes todavía. La creación de solicitudes desde sanciones específicas se implementa cuando armemos el módulo de registro de sanciones.</div>';
       return;
     }
-    c.innerHTML = data.map(s=>{
-      const stateColor = s.estado==='aprobado'?'green':s.estado==='rechazado'?'red':s.enviado_a_comandante?'yellow':'blue';
+    const pendientes = data.filter(x => (x.estado||'pendiente')==='pendiente').length;
+    const encabezado = `<div class="stat-block" style="background:rgba(212,175,55,.08);border-color:var(--gold)"><div class="sb-title">📨 ${data.length} solicitud(es) · ${pendientes} pendiente(s)</div></div>`;
+    c.innerHTML = encabezado + data.map(s=>{
+      const esCursante = (s.origen === 'cursante') || !!s.detalle_cursante || !!s.firma_cursante_solicitud;
+      const quien = esCursante ? '🎓 Cursante' : '✍️ Profesor';
+      const nombre = s.cursante_nombre || s.profesor_nombre || s.cursante_id || '—';
+      const desarrollo = s.detalle_cursante || s.detalle_profesor || '';
+      const estado = s.estado || 'pendiente';
+      const estadoBadge = estado==='aprobado'?'✅ Aprobado':estado==='rechazado'?'❌ Desestimado':'⏳ Pendiente';
+      const reenvios = [s.enviado_a_comandante?'Comandante':null, s.enviado_a_estudios?'J. Estudios':null].filter(Boolean).join(' + ');
       return `<div class="stat-block">
-        <div class="sb-title">Solicitud #${s.id} · ${new Date(s.fecha_creacion).toLocaleDateString('es-BO')}</div>
-        <div class="sb-row"><span class="label">Sanción</span><span class="val">${s.sancion_id||'—'}</span></div>
-        <div class="sb-row"><span class="label">Cursante</span><span class="val">${s.cursante_id||'—'}</span></div>
-        <div class="sb-row"><span class="label">Estado</span><span class="val">${s.estado||'pendiente'} ${s.enviado_a_comandante?'(enviado al comandante)':''}</span></div>
-        ${s.comentario_disciplina?`<div style="margin-top:8px;font-size:12px;color:var(--text-secondary);font-style:italic">📝 Disciplina: "${s.comentario_disciplina}"</div>`:''}
-        ${s.comentario_comandante?`<div style="margin-top:6px;font-size:12px;color:#a3d4b5;font-style:italic">🎖️ Comandante: "${s.comentario_comandante}"</div>`:''}
+        <div class="sb-title">${quien} · Solicitud #${s.id} · ${new Date(s.fecha_creacion).toLocaleDateString('es-BO')}</div>
+        <div class="sb-row"><span class="label">De</span><span class="val">${escapeHtml(String(nombre))}</span></div>
+        <div class="sb-row"><span class="label">Sanción</span><span class="val">${escapeHtml(String(s.sancion_id||'—'))}</span></div>
+        <div class="sb-row"><span class="label">Estado</span><span class="val">${estadoBadge}${reenvios?' · reenviado a '+reenvios:''}</span></div>
+        ${desarrollo?`<div style="margin-top:8px;font-size:13px;color:var(--text-primary);line-height:1.5;background:rgba(212,175,55,.06);border-left:3px solid var(--gold);padding:8px 10px;border-radius:4px"><strong>Desarrollo:</strong> ${escapeHtml(desarrollo)}</div>`:''}
+        ${s.firma_cursante_solicitud?`<div style="margin-top:6px"><img src="${s.firma_cursante_solicitud}" alt="firma" style="max-height:60px;background:#fff;border-radius:4px;padding:2px"></div>`:''}
+        ${s.comentario_disciplina?`<div style="margin-top:8px;font-size:12px;color:var(--text-secondary);font-style:italic">📝 Disciplina: "${escapeHtml(s.comentario_disciplina)}"</div>`:''}
+        ${s.comentario_comandante?`<div style="margin-top:6px;font-size:12px;color:#a3d4b5;font-style:italic">🎖️ Comandante: "${escapeHtml(s.comentario_comandante)}"</div>`:''}
       </div>`;
     }).join('');
   }catch(e){
@@ -10138,6 +10312,15 @@ function verDetalleSancion(sancionId){
       <button onclick="mostrarFormSolicitudProf('${sancionId}')" class="btn-papeleta" id="btn-abrir-sol-${sancionId}" style="background:rgba(140,120,200,.15);border-color:rgba(140,120,200,.4);color:#6a50b4">📝 Solicitar anulación o modificación</button>
     </div>`;
   }
+
+  // Botón de RECONSIDERACIÓN para el cursante (su propia sanción firmada, dentro de la ventana)
+  try{
+    const _sess = (typeof getSession==='function') ? getSession() : null;
+    if(_sess && _sess.tipo==='cursante' && currentUser && String(s.cursante_id)===String(currentUser.id)
+       && firmada && !analogica && s.anulada!==true && dentroVentanaReclamo(s)){
+      html += `<button class="btn-papeleta" onclick="goReconsideracion('${escapeAttr(s.id)}')" style="background:rgba(212,175,55,.15);border-color:var(--gold);color:#5c4a1a">📝 Solicitar reconsideración de esta sanción</button>`;
+    }
+  }catch(_){}
 
   html += `<button class="btn-papeleta" onclick="goAnyPanel()">← Volver al panel</button>`;
 
