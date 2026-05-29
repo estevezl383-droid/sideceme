@@ -4090,6 +4090,7 @@ input::placeholder, textarea::placeholder {
       <button class="quick-btn" onclick="goPlanillas()" style="background:linear-gradient(180deg,rgba(212,175,55,.15),rgba(212,175,55,.05));border-color:#d4af37"><span class="qa-icon">📋</span><span class="qa-text"><strong>Planilla de disciplina</strong> (ver / subir nueva)</span></button>
       <button class="quick-btn" onclick="goAuditoria()"><span class="qa-icon">🔍</span><span class="qa-text">Auditoría de sanciones por cursante</span></button>
       <button class="quick-btn" onclick="goEstadisticas()"><span class="qa-icon">📈</span><span class="qa-text">Estadísticas: pérdida de puntaje (por período)</span></button>
+      <button id="qa-btn-mis-sancionados" class="quick-btn" onclick="goMisSancionados()"><span class="qa-icon">👥</span><span class="qa-text">Mis sancionados (cursantes que yo sancioné)</span></button>
       <button id="qa-btn-diagnostico" class="quick-btn" onclick="goDiagnostico()"><span class="qa-icon">🔧</span><span class="qa-text">Diagnóstico y forzar sincronización</span></button>
       <button class="quick-btn success" onclick="goRespaldo()"><span class="qa-icon">💾</span><span class="qa-text">Descargar respaldo ahora (JSON + .XLSX)</span></button>
       <button class="quick-btn" onclick="goInstalar()"><span class="qa-icon">📲</span><span class="qa-text">Instalar app / Compartir QR</span></button>
@@ -4793,6 +4794,14 @@ input::placeholder, textarea::placeholder {
   <div class="disc-container">
     <div class="user-strip"><div class="user-avatar" id="jc-initials">—</div><div class="user-info"><div class="user-name" id="jc-name">—</div><div class="user-rank" id="jc-rank">—</div></div><button class="btn-logout" onclick="logout()">Salir</button></div>
     <div id="jc-ciclo-badge" style="text-align:center;margin:10px 0 14px;padding:8px 16px;background:rgba(212,175,55,.1);border:1px solid var(--gold);border-radius:8px;font-family:var(--font-display);letter-spacing:1.5px;color:var(--gold-light);font-size:14px">—</div>
+    <button class="btn-mega" onclick="goProfNuevaSancion()" style="margin:0 0 8px 0">
+      <span class="mega-icon">📝</span>
+      <span>Registrar nueva sanción</span>
+    </button>
+    <button class="btn-mega" onclick="jcDescargarPlanilla()" style="background:linear-gradient(180deg,#9a7b1f,#d4af37);margin:0 0 14px 0;color:#0a1628">
+      <span class="mega-icon">📄</span>
+      <span>Descargar planilla PDF — mi ciclo</span>
+    </button>
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-num" id="jc-stat-cursantes">—</div><div class="stat-label">Cursantes</div></div>
       <div class="stat-card"><div class="stat-num" id="jc-stat-sanciones">—</div><div class="stat-label">Sanciones</div></div>
@@ -4810,6 +4819,12 @@ input::placeholder, textarea::placeholder {
     <button class="bottom-nav-item active" onclick="goJCPanel()"><span class="nav-icon">🏠</span><span class="nav-label">Panel</span></button>
     <button class="bottom-nav-item" onclick="jcIrACursantes()"><span class="nav-icon">👥</span><span class="nav-label">Cursantes</span></button>
   </nav>
+</section>
+
+<!-- MIS SANCIONADOS -->
+<section id="screen-mis-sancionados" class="screen">
+  <div class="app-header"><button class="back-btn" onclick="goAnyPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Mis sancionados</div><div class="header-sub" id="mis-sanc-sub">Cursantes que yo sancioné</div></div></div>
+  <div class="disc-container"><div id="mis-sancionados-content" class="list-loading">Cargando...</div></div>
 </section>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -7752,6 +7767,9 @@ function renderDiscPanel(){
   // Gestionar sanciones: visible para disc + estudios + CT
   const elGs = document.getElementById('qa-gest-sanciones');
   if(elGs) elGs.style.display = esGestSanc() ? '' : 'none';
+  // Mis sancionados: visible para roles instructores (no CT que es admin técnico)
+  const elMs = document.getElementById('qa-btn-mis-sancionados');
+  if(elMs) elMs.style.display = esCT() ? 'none' : '';
 
   // v2.9.9: feed de actividad reciente al final del panel
   renderActividadReciente();
@@ -8411,6 +8429,7 @@ function volverDeFichaCursante(){
     case 'alertas': goDiscAlertas(); break;
     case 'auditoria': goAuditoria(); break;
     case 'jc-panel': goJCPanel(); break;
+    case 'mis-sancionados': goMisSancionados(); break;
     case 'stat-detail':
       // Volver al detalle de estadística de donde venía no es trivial sin guardar el tipo;
       // como fallback, vuelve a Reportes (UX aceptable, no rompe nada).
@@ -10756,6 +10775,7 @@ function mostrarAvisoBackupSiAplica(){
 }
 
 function goProfPanel(){
+  if(activeRole === 'jefe_curso'){ goJCPanel(); return; }
   renderProfPanel();
   showScreen('screen-prof-panel');
 }
@@ -10770,7 +10790,9 @@ function goAnyPanel(){
     if(typeof renderCursanteHome==='function'){ try{ renderCursanteHome(); }catch(_){} }
     return;
   }
-  if(activeRole === 'profesor'){
+  if(activeRole === 'jefe_curso'){
+    goJCPanel();
+  } else if(activeRole === 'profesor'){
     goProfPanel();
   } else if(esAdminPanel()){
     goDiscPanel();
@@ -12387,12 +12409,92 @@ function jcRenderTab(paralelo){
 }
 
 function jcIrACursantes(){
-  // Navegar al tab activo y hacer scroll al listado
   jcRenderTab(jcParaleloActivo);
   setTimeout(()=>{
     const el = document.querySelector('#jc-content .section-label:last-of-type');
     if(el) el.scrollIntoView({behavior:'smooth'});
   }, 150);
+}
+
+/* ── Planilla PDF filtrada al ciclo del Jefe de Curso ─────────────────────── */
+async function jcDescargarPlanilla(){
+  const ciclo = getJCCiclo();
+  if(!ciclo){ alert('No se pudo determinar el ciclo asignado.'); return; }
+  if(!discData.loaded){
+    try{ await loadDiscData(); } catch(e){ alert('Error cargando datos: '+(e.message||e)); return; }
+  }
+  try{
+    const cicloFile = ciclo.replace(/\s+/g,'').replace(/"/g,'');
+    const today = new Date().toISOString().slice(0,10);
+    const cuerpo = htmlCuerpoPlanilla(ciclo);
+    exportarComoPDF(cuerpo, `Planilla_${cicloFile}_${today}`, 'portrait');
+  } catch(e){
+    alert('Error generando planilla: '+(e.message||e));
+  }
+}
+
+/* ── Mis sancionados ──────────────────────────────────────────────────────── */
+async function goMisSancionados(){
+  if(!discData.loaded){
+    try{ await loadDiscData(); } catch(e){ alert('Error cargando datos: '+(e.message||e)); return; }
+  }
+  renderMisSancionados();
+  showScreen('screen-mis-sancionados');
+}
+
+function renderMisSancionados(){
+  const uid = currentUser && currentUser.id;
+  const nombre = currentUser && currentUser.nombre_completo;
+  const sub = document.getElementById('mis-sanc-sub');
+  if(sub) sub.textContent = nombre ? `Sancionados por ${nombre}` : 'Cursantes que yo sancioné';
+
+  // Sanciones vigentes registradas por este usuario
+  const misSancs = (discData.sanciones||[]).filter(s =>
+    !s.anulada && s.es_prueba !== true &&
+    (String(s.profesor_id) === String(uid) || String(s.profesor_nombre||'').toLowerCase() === String(nombre||'').toLowerCase())
+  );
+
+  // Agrupar por cursante
+  const byCur = {};
+  misSancs.forEach(s => {
+    const cid = s.cursante_id;
+    if(!cid) return;
+    if(!byCur[cid]) byCur[cid] = { cant: 0, pts: 0 };
+    byCur[cid].cant++;
+    byCur[cid].pts += Number(s.puntos_aplicados||0);
+  });
+
+  const cont = document.getElementById('mis-sancionados-content');
+  if(!cont) return;
+
+  if(!Object.keys(byCur).length){
+    cont.innerHTML = '<div class="list-empty">✅ No tenés cursantes sancionados registrados.</div>';
+    return;
+  }
+
+  // Ordenar por puntos desc
+  const lista = Object.entries(byCur)
+    .map(([cid, v]) => {
+      const c = discData.cursantes.find(x=>x.id===cid);
+      return { cid, c, ...v };
+    })
+    .sort((a,b) => b.pts - a.pts);
+
+  const cyp = c => fmtCicloPara(c||{});
+  const perd = cid => discData.byCursanteLost[cid]||0;
+  const est = cid => getEstado(perd(cid));
+
+  let html = `<div class="section-label" style="margin-bottom:10px">👥 ${lista.length} cursante(s) con sanciones tuyas</div>`;
+  lista.forEach(({cid, c, cant, pts}) => {
+    const e = est(cid);
+    html += `<div class="list-item" style="cursor:pointer" onclick="verFichaCursante('${cid}','mis-sancionados')">
+      <div class="li-id">${c?c.paralelo?'Par.'+c.paralelo:c.id:cid}</div>
+      <div class="li-name">${escapeHTML(c?c.nombre_completo||'—':'Cursante '+cid)}<br>
+        <span class="li-ci">${cant} sanción(es) · ${pts} pts${c?' · '+cyp(c):''}</span></div>
+      <div class="li-score ${e==='consejo'?'danger':e==='observacion'?'warn':'ok'}">${100-perd(cid)}</div>
+    </div>`;
+  });
+  cont.innerHTML = html;
 }
 // ════════════════════════════════════════════════════════════════════════════
 
