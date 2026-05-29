@@ -10018,6 +10018,7 @@ async function actualizarBadgeSolicitudes(){
     let pend;
     if(activeRole==='comandante') pend=all.filter(x=>(x.estado||'pendiente')==='pendiente'&&x.enviado_a_comandante).length;
     else if(activeRole==='estudios') pend=all.filter(x=>(x.estado||'pendiente')==='pendiente'&&x.enviado_a_estudios).length;
+    else if(activeRole==='disciplina') pend=all.filter(x=>(x.estado||'pendiente')==='pendiente'&&!x.enviado_a_comandante&&!x.enviado_a_estudios).length;
     else pend=all.filter(x=>(x.estado||'pendiente')==='pendiente').length;
     if(pend>0){badge.textContent=pend;badge.style.display='inline-block';}
     else badge.style.display='none';
@@ -10218,6 +10219,7 @@ async function goAnulaciones(){
       let acciones='';
       const pendiente=estado==='pendiente';
       const sinElevar=!s.enviado_a_comandante&&!s.enviado_a_estudios;
+      const elevada=pendiente&&!sinElevar;
 
       if(pendiente&&(activeRole==='disciplina'||esCT())&&sinElevar){
         // Nivel 1 — revisión primaria (no elevada aún)
@@ -10236,11 +10238,22 @@ async function goAnulaciones(){
         acciones=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">${btnInforme}</div>`;
       }
 
-      return `<div class="stat-block" style="${estado==='aprobado'?'border-color:rgba(76,163,107,.4);':estado==='rechazado'?'border-color:rgba(200,74,74,.3);':''}">
+      const cardBorder=estado==='aprobado'?'border-color:rgba(76,163,107,.5);background:rgba(76,163,107,.04);':
+                       estado==='rechazado'?'border-color:rgba(200,74,74,.4);background:rgba(200,74,74,.04);':
+                       elevada?'border-color:rgba(212,175,55,.6);background:rgba(212,175,55,.05);':'';
+      const decisionBanner=estado==='aprobado'
+        ?`<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;margin-bottom:8px;background:rgba(76,163,107,.15);border-radius:6px;font-size:12px;font-weight:700;color:#7ac899">✅ DECISIÓN TOMADA — APROBADA</div>`
+        :estado==='rechazado'
+        ?`<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;margin-bottom:8px;background:rgba(200,74,74,.15);border-radius:6px;font-size:12px;font-weight:700;color:#e88a8a">❌ DECISIÓN TOMADA — RECHAZADA</div>`
+        :elevada
+        ?`<div style="display:flex;align-items:center;gap:6px;padding:6px 10px;margin-bottom:8px;background:rgba(212,175,55,.12);border-radius:6px;font-size:12px;font-weight:700;color:#d4af55">📤 ELEVADA — En revisión de ${escapeHtml(elevaciones)}</div>`
+        :'';
+      return `<div class="stat-block" style="${cardBorder}">
         <div class="sb-title">${quien} · Solicitud #${s.id} · ${new Date(s.fecha_creacion||Date.now()).toLocaleDateString('es-BO')}</div>
+        ${decisionBanner}
         <div class="sb-row"><span class="label">De</span><span class="val">${escapeHtml(String(info.nombre))}</span></div>
         <div class="sb-row"><span class="label">Sanción</span><span class="val">${escapeHtml(String(sancTxt))}</span></div>
-        <div class="sb-row"><span class="label">Estado</span><span class="val">${estadoBadge}${elevaciones?` · <span style="font-size:11px;color:var(--text-muted)">Elevada a ${escapeHtml(elevaciones)}</span>`:''}</span></div>
+        <div class="sb-row"><span class="label">Estado</span><span class="val">${estadoBadge}${elevaciones&&!elevada?` · <span style="font-size:11px;color:var(--text-muted)">Elevada a ${escapeHtml(elevaciones)}</span>`:''}</span></div>
         ${info.desarrollo?`<div style="margin-top:8px;font-size:13px;color:var(--text-primary);line-height:1.5;background:rgba(212,175,55,.06);border-left:3px solid var(--gold);padding:8px 10px;border-radius:4px"><strong>Desarrollo:</strong> ${escapeHtml(info.desarrollo)}</div>`:''}
         ${s.firma_cursante_solicitud?`<div style="margin-top:6px"><img src="${s.firma_cursante_solicitud}" alt="firma" style="max-height:60px;background:#fff;border-radius:4px;padding:2px"></div>`:''}
         ${s.comentario_comandante?`<div style="margin-top:6px;font-size:12px;color:#a3d4b5;font-style:italic">📋 Resolución: "${escapeHtml(s.comentario_comandante)}"</div>`:''}
