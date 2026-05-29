@@ -3722,7 +3722,7 @@ input::placeholder, textarea::placeholder {
 <!-- DETALLE DE SANCIÓN (al clic desde el listado) -->
 <section id="screen-prof-detalle-sancion" class="screen ficha-screen">
   <div class="app-header">
-    <button class="back-btn" onclick="goProfPanel()">←</button>
+    <button class="back-btn" onclick="volverDeDetalleSancion()">←</button>
     <div class="header-crest"><svg><use href="#crest"/></svg></div>
     <div class="header-text"><div class="header-title" id="det-folio">SANCIÓN —</div><div class="header-sub" id="det-fecha">—</div></div>
   </div>
@@ -3887,6 +3887,11 @@ input::placeholder, textarea::placeholder {
       <button class="btn-mega" onclick="goPlanillas()" style="background:linear-gradient(180deg,#9a7b1f,#d4af37);margin:0 0 10px 0;color:#0a1628">
         <span class="mega-icon">📋</span>
         <span>Planilla de Disciplina</span>
+      </button>
+      <!-- botón acceso Mis solicitudes enviadas -->
+      <button class="btn-mega" onclick="goMisSolicitudes()" style="background:linear-gradient(180deg,#3a5a8a,#4a90d9);margin:0 0 10px 0;color:#fff">
+        <span class="mega-icon">📨</span>
+        <span>Mis solicitudes enviadas</span>
       </button>
 
       <!-- =================== SECCIÓN DISCIPLINA (default visible) =================== -->
@@ -4513,6 +4518,18 @@ input::placeholder, textarea::placeholder {
     <div class="error-msg" id="err-reconsideracion" style="display:none"></div>
     <button class="btn-papeleta primary" id="btn-enviar-reconsideracion" onclick="enviarReconsideracion()">📨 Enviar solicitud al Jefe de Disciplina</button>
     <button class="btn-papeleta" onclick="volverDeReconsideracion()" style="margin-top:6px">Cancelar</button>
+  </div>
+</section>
+
+<!-- MIS SOLICITUDES ENVIADAS (cursante) -->
+<section id="screen-mis-solicitudes" class="screen ficha-screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="volverDeMisSolicitudes()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Mis solicitudes</div><div class="header-sub">Reconsideraciones enviadas</div></div>
+  </div>
+  <div class="ficha-container">
+    <div id="mis-sol-lista"><div style="text-align:center;color:#888;padding:20px">Cargando...</div></div>
   </div>
 </section>
 
@@ -6381,6 +6398,52 @@ async function enviarReconsideracion(){
     showErr('Error al enviar: ' + (e.message||e));
     btn.disabled=false; btn.textContent='📨 Enviar solicitud al Jefe de Disciplina';
   }
+}
+
+/* ---- Registro de solicitudes enviadas por el cursante ---- */
+function goMisSolicitudes(){
+  showScreen('screen-mis-solicitudes');
+  cargarMisSolicitudes();
+}
+function volverDeMisSolicitudes(){
+  showScreen('screen-cursante-home');
+  if(typeof renderCursanteHome === 'function'){ try{ renderCursanteHome(); }catch(_){} }
+}
+async function cargarMisSolicitudes(){
+  const cont = document.getElementById('mis-sol-lista');
+  if(!cont || !currentUser) return;
+  try{
+    const {data, error} = await sb.from('solicitudes_anulacion')
+      .select('id,sancion_id,estado,detalle_cursante,comentario_comandante,enviado_a_comandante,enviado_a_estudios,fecha_creacion,origen,profesor_id')
+      .eq('cursante_id', currentUser.id)
+      .order('fecha_creacion', {ascending:false})
+      .limit(50);
+    if(error){ cont.innerHTML = `<div class="ms-empty"><div class="me-icon">⚠️</div><div>No se pudo cargar: ${escapeHtml(error.message||'')}</div></div>`; return; }
+    // Solo las solicitudes propias del cursante (no las que un profesor hizo sobre él)
+    const mias = (data||[]).filter(x => x.origen === 'cursante' || !!x.detalle_cursante || !x.profesor_id);
+    if(!mias.length){ cont.innerHTML = '<div class="ms-empty"><div class="me-icon">📨</div><div>Todavía no enviaste solicitudes de reconsideración.</div></div>'; return; }
+    cont.innerHTML = mias.map(s => {
+      const estado = s.estado || 'pendiente';
+      const badge = estado==='aprobado' ? '<span style="color:#3a7050;font-weight:700">✅ Aprobada</span>'
+                  : estado==='rechazado' ? '<span style="color:#a83a3a;font-weight:700">❌ Desestimada</span>'
+                  : '<span style="color:#a87010;font-weight:700">⏳ Pendiente</span>';
+      const san = discData.sanciones.find(x => String(x.id) === String(s.sancion_id));
+      const folio = san ? (san.folio || (san.id||'').slice(0,10)) : (s.sancion_id || '—');
+      const falta = san ? `Art. ${san.falta_articulo||'—'} · ${san.falta_categoria||''}` : '';
+      const fecha = s.fecha_creacion ? new Date(s.fecha_creacion).toLocaleDateString('es-BO') : '';
+      const resp = s.comentario_comandante || '';
+      const reenvio = [s.enviado_a_comandante?'Comandante':null, s.enviado_a_estudios?'Jefe de Estudios':null].filter(Boolean).join(' y ');
+      return `<div class="papeleta-block">
+        <div class="pb-row"><span class="pb-lbl">Sanción</span><span class="pb-val">${escapeHtml(String(folio))}</span></div>
+        ${falta?`<div class="pb-row"><span class="pb-lbl">Falta</span><span class="pb-val">${escapeHtml(falta)}</span></div>`:''}
+        <div class="pb-row"><span class="pb-lbl">Estado</span><span class="pb-val">${badge}</span></div>
+        ${reenvio?`<div class="pb-row"><span class="pb-lbl">Elevada a</span><span class="pb-val">${escapeHtml(reenvio)}</span></div>`:''}
+        <div class="pb-row"><span class="pb-lbl">Enviada</span><span class="pb-val">${escapeHtml(fecha)}</span></div>
+        ${s.detalle_cursante?`<div style="margin-top:6px;font-size:13px;color:#5c4a1a"><strong>Tu desarrollo:</strong> ${escapeHtml(s.detalle_cursante)}</div>`:''}
+        ${resp?`<div style="margin-top:6px;font-size:13px;color:#1a4a2a;background:rgba(76,163,107,.12);border-radius:6px;padding:8px"><strong>🎖️ Respuesta del Comandante:</strong> ${escapeHtml(resp)}</div>`:''}
+      </div>`;
+    }).join('');
+  }catch(e){ cont.innerHTML = `<div class="ms-empty"><div class="me-icon">⚠️</div><div>Error: ${escapeHtml(e.message||String(e))}</div></div>`; }
 }
 
 
@@ -10482,6 +10545,13 @@ function goProfPanel(){
 // === Volver al panel principal del rol activo ===
 // Profesor → panel profesor; Disciplina / Comandante / Jefe Estudios → panel disciplina
 function goAnyPanel(){
+  // Si la sesión es de cursante, NUNCA mandar al panel de profesor.
+  const _sess = (typeof getSession==='function') ? getSession() : null;
+  if(_sess && _sess.tipo === 'cursante'){
+    showScreen('screen-cursante-home');
+    if(typeof renderCursanteHome==='function'){ try{ renderCursanteHome(); }catch(_){} }
+    return;
+  }
   if(activeRole === 'profesor'){
     goProfPanel();
   } else if(activeRole === 'disciplina' || activeRole === 'comandante' || activeRole === 'estudios'){
@@ -10490,6 +10560,8 @@ function goAnyPanel(){
     goProfPanel();  // fallback
   }
 }
+// Volver desde el detalle de sanción (pantalla compartida): cursante → su inicio; resto → su panel.
+function volverDeDetalleSancion(){ goAnyPanel(); }
 
 function goProfNuevaSancion(){
   // Reset state
