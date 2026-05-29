@@ -4076,7 +4076,7 @@ input::placeholder, textarea::placeholder {
       <button class="quick-btn" onclick="goDiagnostico()"><span class="qa-icon">🔧</span><span class="qa-text">Diagnóstico y forzar sincronización</span></button>
       <button class="quick-btn success" onclick="goRespaldo()"><span class="qa-icon">💾</span><span class="qa-text">Descargar respaldo ahora (JSON + .XLSX)</span></button>
       <button class="quick-btn" onclick="goInstalar()"><span class="qa-icon">📲</span><span class="qa-text">Instalar app / Compartir QR</span></button>
-      <button class="quick-btn" onclick="goAnulaciones()"><span class="qa-icon">📋</span><span class="qa-text">Solicitudes de reconsideración / anulación</span></button>
+      <button class="quick-btn" onclick="goAnulaciones()"><span class="qa-icon">📋</span><span class="qa-text">Solicitudes de reconsideración / anulación</span><span id="badge-solicitudes" style="display:none;margin-left:auto;background:#c84a4a;color:#fff;font-size:12px;font-weight:700;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;padding:0 6px">0</span></button>
       <button class="quick-btn warning" onclick="goReiniciar()"><span class="qa-icon">📥</span><span class="qa-text">Cierre de semestre (respaldo)</span></button>
       <button class="quick-btn" onclick="qa('cambiar_pwd_otro')"><span class="qa-icon">🔑</span><span class="qa-text">Cambiar contraseña de cursante / profesor</span></button>
       <button class="quick-btn" onclick="qa('cambiar_mi_pwd')"><span class="qa-icon">🔐</span><span class="qa-text">Cambiar mi usuario y contraseña</span></button>
@@ -4473,7 +4473,7 @@ input::placeholder, textarea::placeholder {
 <!-- RECONSIDERACIÓN: informe del cursante al Comandante -->
 <section id="screen-reconsideracion" class="screen ficha-screen">
   <div class="app-header">
-    <button class="back-btn" onclick="goAnyPanel()">←</button>
+    <button class="back-btn" onclick="volverDeReconsideracion()">←</button>
     <div class="header-crest"><svg><use href="#crest"/></svg></div>
     <div class="header-text"><div class="header-title">Solicitud de Reconsideración</div><div class="header-sub">Informe al Comandante</div></div>
   </div>
@@ -4512,7 +4512,7 @@ input::placeholder, textarea::placeholder {
 
     <div class="error-msg" id="err-reconsideracion" style="display:none"></div>
     <button class="btn-papeleta primary" id="btn-enviar-reconsideracion" onclick="enviarReconsideracion()">📨 Enviar solicitud al Jefe de Disciplina</button>
-    <button class="btn-papeleta" onclick="goAnyPanel()" style="margin-top:6px">Cancelar</button>
+    <button class="btn-papeleta" onclick="volverDeReconsideracion()" style="margin-top:6px">Cancelar</button>
   </div>
 </section>
 
@@ -6276,6 +6276,12 @@ async function eliminarPlanilla(id){
 let recFirmaState = null;
 let recSancionActual = null;
 
+// El informe siempre lo usa un cursante → volver SIEMPRE a su inicio (nunca al panel profesor).
+function volverDeReconsideracion(){
+  showScreen('screen-cursante-home');
+  if(typeof renderCursanteHome === 'function'){ try{ renderCursanteHome(); }catch(_){} }
+}
+
 function goReconsideracion(sancionId){
   const s = discData.sanciones.find(x => String(x.id) === String(sancionId));
   if(!s){ alert('Sanción no encontrada.'); return; }
@@ -6368,8 +6374,8 @@ async function enviarReconsideracion(){
       const r2 = await sb.from('solicitudes_anulacion').insert([fb]);
       if(r2.error) throw r2.error;
     } else if(error){ throw error; }
-    alert('✅ Tu solicitud fue enviada al Jefe de Disciplina.\n\nVas a recibir la respuesta del Comandante cuando sea procesada.');
-    goAnyPanel();
+    alert('✅ Solicitud enviada al Jefe de Disciplina.');
+    volverDeReconsideracion();
   }catch(e){
     console.error('reconsideracion:', e);
     showErr('Error al enviar: ' + (e.message||e));
@@ -7601,6 +7607,7 @@ function renderDiscPanel(){
   // Subtítulo dinámico según el cargo que está usando
   const cargoNombre = (CARGOS[activeRole] && CARGOS[activeRole].nombre) || 'Jefe de Sección';
   document.getElementById('disc-subtitle').textContent=`${cargoNombre} · ${fecha}`;
+  actualizarBadgeSolicitudes();  // notificación de solicitudes pendientes (fire-and-forget)
 
   const activosCursantes = discData.cursantes.filter(c=>c.activo!==false).length;
   document.getElementById('stat-cursantes').textContent = activosCursantes;
@@ -9792,6 +9799,17 @@ function expandirCicloParalelo(cicloVal, parVal, label){
 }
 
 /* ==================== ANULACIONES ==================== */
+// Badge de notificación: cuenta solicitudes pendientes para el Jefe.
+async function actualizarBadgeSolicitudes(){
+  const badge = document.getElementById('badge-solicitudes');
+  if(!badge) return;
+  try{
+    const {data} = await sb.from('solicitudes_anulacion').select('id,estado').limit(500);
+    const pend = (data||[]).filter(x => (x.estado||'pendiente')==='pendiente').length;
+    if(pend > 0){ badge.textContent = pend; badge.style.display = 'inline-block'; }
+    else { badge.style.display = 'none'; }
+  }catch(_){ badge.style.display = 'none'; }
+}
 async function goAnulaciones(){
   showScreen('screen-anulaciones');
   const c = document.getElementById('anulaciones-list');
