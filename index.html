@@ -8335,6 +8335,8 @@ function verFichaCursante(cursanteId, backTarget){
   const vigente = 100 - perd;
   const est = getEstado(perd);
   const estLabel = est==='consejo'?'En consejo':est==='observacion'?'En observación':'OK';
+  const notaDisc = calcularNotaDisciplinaria(perd);
+  const notaDiscTxt = (notaDisc === Math.floor(notaDisc)) ? String(notaDisc) : notaDisc.toFixed(2);
 
   document.getElementById('ficha-title').textContent = cur.nombre_completo || cur.id;
   document.getElementById('ficha-sub').textContent = fmtCicloPara(cur) || 'Cursante';
@@ -8343,6 +8345,11 @@ function verFichaCursante(cursanteId, backTarget){
     <div class="sd-banner ${est==='consejo'?'pendiente':est==='observacion'?'analogica':'aceptada'}">
       <div class="sd-banner-title">${est==='consejo'?'🚨':est==='observacion'?'⚠️':'✅'} ${estLabel}</div>
       <div class="sd-banner-sub">Puntaje vigente · ${perd} pts perdidos · ${sancs.length} sanción(es)</div>
+    </div>
+    <div class="cur-stats-grid" style="margin:12px 4px 4px 4px">
+      <div class="cur-stat-card"><div class="cs-num">${sancs.length}</div><div class="cs-label">Sanciones</div></div>
+      <div class="cur-stat-card"><div class="cs-num danger">−${perd}</div><div class="cs-label">Deméritos</div></div>
+      <div class="cur-stat-card"><div class="cs-num ${est==='consejo'?'danger':est==='observacion'?'':'success'}">${notaDiscTxt}</div><div class="cs-label">Nota Disc.</div></div>
     </div>
     <div class="sd-block cursante">
       <div class="sd-block-title">🎖️ Datos del cursante</div>
@@ -12343,9 +12350,12 @@ function jcRenderTab(paralelo){
       const cPar = jcCursantes(par);
       const sPar = jcSanciones(par);
       const cons = cPar.filter(c => (discData.byCursanteLost[c.id]||0) >= UMBRAL_CONSEJO).length;
-      html += `<div class="stat-card${cons>0?' danger':''}" onclick="jcSelectTab('${par}')" style="cursor:pointer">
-        <div class="stat-num">${cPar.length}</div>
-        <div class="stat-label">Paralelo ${par}<br><span style="font-size:10px;opacity:.7">${sPar.length} sanc · ${cons} consejo</span></div>
+      html += `<div class="stat-card${cons>0?' danger':''}" onclick="jcSelectTab('${par}')" style="cursor:pointer;padding:12px 8px">
+        <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:4px">Paralelo ${par}</div>
+        <div style="font-family:var(--font-display);font-size:22px;font-weight:700;line-height:1;color:var(--gold-light)">${cPar.length}</div>
+        <div style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px">efectivo</div>
+        <div style="font-family:var(--font-display);font-size:20px;font-weight:700;line-height:1;color:${cons>0?'#e88a8a':sPar.length>0?'#f0c060':'var(--text-secondary)'}">${sPar.length}</div>
+        <div style="font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--text-muted);margin-top:2px">sanc · ${cons} consejo</div>
       </div>`;
     });
     html += `</div>`;
