@@ -10725,6 +10725,8 @@ async function enviarSolicitudProfesor(sancionId){
     const solicitud = {
       sancion_id: sancionId,
       cursante_id: s?.cursante_id || null,
+      cursante_nombre: s ? (s.cursante_nombre || null) : null,
+      origen: 'profesor',
       tipo_solicitud: tipo,
       detalle_profesor: detalle,
       firma_profesor_solicitud: firmaData,
@@ -10735,12 +10737,18 @@ async function enviarSolicitudProfesor(sancionId){
     };
     const {error} = await sb.from('solicitudes_anulacion').insert([solicitud]);
     if(error){
-      // Si la tabla no tiene todas las columnas, intentar sin firma
-      if(error.message && error.message.includes('column')){
-        delete solicitud.firma_profesor_solicitud;
-        delete solicitud.tipo_solicitud;
-        solicitud.comentario_disciplina = `[${tipo.toUpperCase()}] ${detalle}`;
-        const {error:e2} = await sb.from('solicitudes_anulacion').insert([solicitud]);
+      // Fallback progresivo: si hay columnas que no existen aún en la BD,
+      // reintentar con esquema mínimo base (solo columnas conocidas)
+      if(error.message && (error.message.includes('column') || error.message.includes('schema cache') || error.message.includes('does not exist'))){
+        const fallback = {
+          sancion_id: solicitud.sancion_id,
+          cursante_id: solicitud.cursante_id,
+          origen: 'profesor',
+          cursante_nombre: s ? (s.cursante_nombre || null) : null,
+          comentario_disciplina: `[${tipo.toUpperCase()}] ${detalle} — Por: ${solicitud.profesor_nombre||'Profesor'}`,
+          estado: 'pendiente'
+        };
+        const {error:e2} = await sb.from('solicitudes_anulacion').insert([fallback]);
         if(e2) throw e2;
       } else throw error;
     }
