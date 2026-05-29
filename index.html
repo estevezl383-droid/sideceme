@@ -10735,7 +10735,7 @@ function verDetalleSancion(sancionId){
   try{
     const _sess = (typeof getSession==='function') ? getSession() : null;
     if(_sess && _sess.tipo==='cursante' && currentUser && String(s.cursante_id)===String(currentUser.id)
-       && firmada && !analogica && s.anulada!==true && dentroVentanaReclamo(s)){
+       && (firmada || analogica) && s.anulada!==true && dentroVentanaReclamo(s)){
       html += `<button class="btn-papeleta" onclick="goReconsideracion('${escapeAttr(s.id)}')" style="background:rgba(212,175,55,.15);border-color:var(--gold);color:#5c4a1a">📝 Solicitar reconsideración de esta sanción</button>`;
     }
   }catch(_){}
