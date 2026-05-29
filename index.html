@@ -12961,7 +12961,6 @@ async function confirmarFirmaCursante(){
     // Combinar con huella existente
     const huellaCombinada = Object.assign({}, firmaState.sancion.huella_forense || {}, { firma_cursante_meta: huellaFirma });
 
-    // UPDATE en Supabase (resiliente a columnas faltantes)
     const updates = {
       firma_cursante: firmaDataURL,
       firmada_curs_en: now.toISOString(),
@@ -12970,11 +12969,22 @@ async function confirmarFirmaCursante(){
       huella_forense: huellaCombinada
     };
 
-    const updateRes = await actualizarSancionSegura(firmaState.sancion.id, updates);
-    if(updateRes.error){
-      // Backup local
-      guardarBackupFirmaCursante(firmaState.sancion.id, updates, updateRes.error);
-      alert('⚠️ Tu firma se guardó localmente pero no pudimos sincronizar.\n\nDetalle: ' + (updateRes.error.message||'') + '\n\nLa firma quedó respaldada y se reintentará automáticamente.');
+    if(!firmaState.firmaToken){
+      guardarBackupFirmaCursante(firmaState.sancion.id, updates, { message: 'Sin token de sesión' });
+      alert('⚠️ Tu sesión venció. Pedile al profesor que muestre el QR nuevamente y volvé a escanearlo.');
+      btn.disabled = false;
+      btn.innerHTML = '✓ Tengo conocimiento — Firmar y confirmar';
+      return;
+    }
+    const {data: efData, error: efErr} = await sb.functions.invoke('sanciones-ops', {
+      body: { accion: 'firma_cursante', token: firmaState.firmaToken, sancion_id: firmaState.sancion.id, updates }
+    });
+    const updateError = efErr
+      ? { message: efErr.message || 'Error en servidor' }
+      : (!efData || !efData.ok ? { message: efData?.error || 'Error al guardar firma' } : null);
+    if(updateError){
+      guardarBackupFirmaCursante(firmaState.sancion.id, updates, updateError);
+      alert('⚠️ Tu firma se guardó localmente pero no pudimos sincronizar.\n\nDetalle: ' + (updateError.message||'') + '\n\nLa firma quedó respaldada y se reintentará automáticamente.');
       btn.disabled = false;
       btn.innerHTML = '✓ Tengo conocimiento — Firmar y confirmar';
       return;
