@@ -103,6 +103,15 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .act-meta{font-size:11px;color:var(--text-muted);line-height:1.3}
 .act-meta .act-pts{color:var(--gold-light);font-weight:600}
 .btn-link-gold{background:transparent;border:none;color:var(--gold-light);font-family:var(--font-display);font-size:12px;letter-spacing:2px;text-transform:uppercase;cursor:pointer;padding:6px 10px}
+/* ── Jefe de Curso ── */
+.jc-top-list{display:flex;flex-direction:column;gap:6px;margin-bottom:4px}
+.jc-top-row{display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--radius-sm);transition:all .2s}
+.jc-top-row:hover{background:var(--bg-elevated);border-color:var(--border-strong);transform:translateX(2px)}
+.jc-top-num{font-family:var(--font-display);font-size:15px;font-weight:700;width:22px;text-align:center;flex-shrink:0}
+.jc-top-info{flex:1;min-width:0}
+.jc-top-name{font-size:13px;font-weight:600;color:var(--text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.jc-top-meta{font-size:11px;color:var(--text-muted)}
+.jc-top-pts{font-family:var(--font-display);font-size:18px;font-weight:700;flex-shrink:0;min-width:44px;text-align:right}
 .btn-link-gold:hover{color:var(--gold);text-decoration:underline}
 .role-card{display:flex;align-items:center;gap:18px;padding:22px;background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--radius-md);margin-bottom:14px;cursor:pointer;transition:all .25s}
 .role-card:hover{border-color:var(--border-strong);transform:translateX(4px);background:var(--bg-elevated);box-shadow:-2px 0 0 var(--gold)}
@@ -3384,6 +3393,7 @@ input::placeholder, textarea::placeholder {
     <div class="role-card" onclick="goLoginCargo('estudios')"><div class="role-icon">📚</div><div class="role-text"><div class="role-name">Jefe de Estudios</div><div class="role-desc">Visualización académica, sanciones y avisos</div></div><span class="lock-icon">🔒</span></div>
     <div class="role-card" onclick="goLoginCargo('comandante')"><div class="role-icon">🎖️</div><div class="role-text"><div class="role-name">Comandante</div><div class="role-desc">Dashboard ejecutivo y aprobaciones</div></div><span class="lock-icon">🔒</span></div>
     <div class="role-card" onclick="goLoginCargo('ciencia_tecnologia')" style="border-color:rgba(100,180,255,.35);background:rgba(100,180,255,.04)"><div class="role-icon" style="background:linear-gradient(135deg,rgba(100,180,255,.18),rgba(100,180,255,.06));border-color:rgba(100,180,255,.3)">💻</div><div class="role-text"><div class="role-name" style="color:#a8d4f5">Sec. Ciencia y Tecnología</div><div class="role-desc">Administración del sistema</div></div><span class="lock-icon">🔒</span></div>
+    <div class="role-card" onclick="goLoginCargo('jefe_curso')" style="border-color:rgba(120,200,140,.35);background:rgba(120,200,140,.04)"><div class="role-icon" style="background:linear-gradient(135deg,rgba(120,200,140,.18),rgba(120,200,140,.06));border-color:rgba(120,200,140,.3)">🎓</div><div class="role-text"><div class="role-name" style="color:#9bcfa9">Jefe de Curso</div><div class="role-desc">Estadísticas de su ciclo y paralelos</div></div><span class="lock-icon">🔒</span></div>
   </div>
 </section>
 
@@ -4772,6 +4782,35 @@ input::placeholder, textarea::placeholder {
   </div>
 </section>
 
+<!-- JEFE DE CURSO: PANEL -->
+<section id="screen-jc-panel" class="screen with-bottom-nav">
+  <div class="app-header">
+    <button class="back-btn" onclick="logout()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Panel Jefe de Curso</div><div class="header-sub" id="jc-subtitle">—</div></div>
+  </div>
+  <div class="disc-container">
+    <div class="user-strip"><div class="user-avatar" id="jc-initials">—</div><div class="user-info"><div class="user-name" id="jc-name">—</div><div class="user-rank" id="jc-rank">—</div></div><button class="btn-logout" onclick="logout()">Salir</button></div>
+    <div id="jc-ciclo-badge" style="text-align:center;margin:10px 0 14px;padding:8px 16px;background:rgba(212,175,55,.1);border:1px solid var(--gold);border-radius:8px;font-family:var(--font-display);letter-spacing:1.5px;color:var(--gold-light);font-size:14px">—</div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-num" id="jc-stat-cursantes">—</div><div class="stat-label">Cursantes</div></div>
+      <div class="stat-card"><div class="stat-num" id="jc-stat-sanciones">—</div><div class="stat-label">Sanciones</div></div>
+      <div class="stat-card danger"><div class="stat-num" id="jc-stat-consejo">—</div><div class="stat-label">Consejo</div></div>
+    </div>
+    <div class="tabs-row" style="margin:14px 0">
+      <button class="tab-btn active" id="jc-tab-all" onclick="jcSelectTab(null)">📊 Todo</button>
+      <button class="tab-btn" id="jc-tab-a" onclick="jcSelectTab('A')">Par. A</button>
+      <button class="tab-btn" id="jc-tab-b" onclick="jcSelectTab('B')">Par. B</button>
+      <button class="tab-btn" id="jc-tab-c" onclick="jcSelectTab('C')">Par. C</button>
+    </div>
+    <div id="jc-content"><div class="list-loading">Cargando...</div></div>
+  </div>
+  <nav class="bottom-nav">
+    <button class="bottom-nav-item active" onclick="goJCPanel()"><span class="nav-icon">🏠</span><span class="nav-label">Panel</span></button>
+    <button class="bottom-nav-item" onclick="jcIrACursantes()"><span class="nav-icon">👥</span><span class="nav-label">Cursantes</span></button>
+  </nav>
+</section>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -4798,7 +4837,8 @@ const CARGOS = {
   evaluaciones:{nombre:'Sub. Sec. Evaluaciones',icono:'📝'},
   estudios:{nombre:'Jefe de Estudios',icono:'📚'},
   comandante:{nombre:'Comandante',icono:'🎖️'},
-  ciencia_tecnologia:{nombre:'Sec. Ciencia y Tecnología',icono:'💻'}
+  ciencia_tecnologia:{nombre:'Sec. Ciencia y Tecnología',icono:'💻'},
+  jefe_curso:{nombre:'Jefe de Curso',icono:'🎓'}
 };
 
 // ─── Helpers de rol ─────────────────────────────────────────────────────────
@@ -5185,7 +5225,8 @@ const MAPA_ROL_BACKEND_A_CARGO = {
   'profesor':          'profesor',
   'comandante':        'comandante',
   'evaluaciones':      'evaluaciones',
-  'ciencia_tecnologia':'ciencia_tecnologia'
+  'ciencia_tecnologia':'ciencia_tecnologia',
+  'jefe_curso':        'jefe_curso'
 };
 
 async function loginUniversal(){
@@ -5372,8 +5413,11 @@ function requierePrimerIngreso(usuario, intentoUsado){
 }
 
 async function enterRole(role){
-  // Comandante, Jefe de Estudios y C&T usan el mismo panel que Disciplina.
-  if(role==='disciplina' || role==='comandante' || role==='estudios' || role==='ciencia_tecnologia'){
+  if(role==='jefe_curso'){
+    await loadDiscData();
+    renderJCPanel();
+    showScreen('screen-jc-panel');
+  } else if(role==='disciplina' || role==='comandante' || role==='estudios' || role==='ciencia_tecnologia'){
     await loadDiscData();
     renderDiscPanel();
     showScreen('screen-disc-panel');
@@ -8354,6 +8398,7 @@ function volverDeFichaCursante(){
     case 'gest-cursantes': goGestionarCursantes(); break;
     case 'alertas': goDiscAlertas(); break;
     case 'auditoria': goAuditoria(); break;
+    case 'jc-panel': goJCPanel(); break;
     case 'stat-detail':
       // Volver al detalle de estadística de donde venía no es trivial sin guardar el tipo;
       // como fallback, vuelve a Reportes (UX aceptable, no rompe nada).
@@ -12157,6 +12202,184 @@ document.addEventListener('keydown',(e)=>{
   if(active.id==='screen-login-docente') loginDocente();
   if(active.id==='screen-login-cursante') loginCursante();
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// JEFE DE CURSO — panel de estadísticas por ciclo y paralelo
+// ciclo_asignado se lee de currentUser.especialidad ('1ER CICLO' / '2DO CICLO')
+// ════════════════════════════════════════════════════════════════════════════
+let jcParaleloActivo = null;
+
+function getJCCiclo(){ return (currentUser && currentUser.especialidad) || ''; }
+
+function jcCursantes(paralelo){
+  const ciclo = getJCCiclo();
+  return discData.cursantes.filter(c =>
+    c.ciclo === ciclo && c.activo !== false &&
+    (paralelo ? c.paralelo === paralelo : true)
+  );
+}
+
+function jcSanciones(paralelo){
+  const cids = new Set(jcCursantes(paralelo).map(c => c.id));
+  return discData.sanciones.filter(s => cids.has(s.cursante_id) && s.anulada !== true && s.es_prueba !== true);
+}
+
+function jcTop10Sancionados(paralelo){
+  const cursantes = jcCursantes(paralelo);
+  const byC = {};
+  cursantes.forEach(c => byC[c.id] = {c, pts: discData.byCursanteLost[c.id]||0, cant:0});
+  jcSanciones(paralelo).forEach(s => { if(byC[s.cursante_id]) byC[s.cursante_id].cant++; });
+  return Object.values(byC).filter(x => x.pts > 0).sort((a,b) => b.pts - a.pts || b.cant - a.cant).slice(0, 10);
+}
+
+function jcTop10Profesores(paralelo){
+  const byP = {};
+  jcSanciones(paralelo).forEach(s => {
+    const k = s.profesor_id || '?';
+    const p = discData.profesores.find(x => x.id === k);
+    if(!byP[k]) byP[k] = {nombre: s.profesor_nombre || (p && p.nombre_completo) || k, cant:0};
+    byP[k].cant++;
+  });
+  return Object.values(byP).sort((a,b) => b.cant - a.cant).slice(0, 10);
+}
+
+function renderJCPanel(){
+  if(!currentUser) return;
+  const name = currentUser.nombre_completo || '—';
+  const initials = name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+  document.getElementById('jc-initials').textContent = initials || '—';
+  document.getElementById('jc-name').textContent = name;
+  document.getElementById('jc-rank').textContent = [currentUser.grado||'', currentUser.arma||''].filter(Boolean).join(' · ') || 'Jefe de Curso';
+  const ciclo = getJCCiclo();
+  const fecha = new Date().toLocaleDateString('es-BO',{day:'2-digit',month:'2-digit',year:'numeric'});
+  document.getElementById('jc-subtitle').textContent = `${ciclo||'Jefe de Curso'} · ${fecha}`;
+  document.getElementById('jc-ciclo-badge').textContent = ciclo ? `📚 ${ciclo}` : '—';
+  jcParaleloActivo = null;
+  ['all','a','b','c'].forEach(t => {
+    const el = document.getElementById('jc-tab-'+t);
+    if(el) el.classList.toggle('active', t === 'all');
+  });
+  jcRenderTab(null);
+}
+
+function goJCPanel(){ renderJCPanel(); showScreen('screen-jc-panel'); }
+
+function jcSelectTab(paralelo){
+  jcParaleloActivo = paralelo;
+  ['all','a','b','c'].forEach(t => {
+    const el = document.getElementById('jc-tab-'+t);
+    if(el) el.classList.remove('active');
+  });
+  const key = paralelo ? paralelo.toLowerCase() : 'all';
+  const active = document.getElementById('jc-tab-'+key);
+  if(active) active.classList.add('active');
+  jcRenderTab(paralelo);
+}
+
+function jcRenderTab(paralelo){
+  const cursantes = jcCursantes(paralelo);
+  const sanciones = jcSanciones(paralelo);
+  const enConsejo = cursantes.filter(c => (discData.byCursanteLost[c.id]||0) >= UMBRAL_CONSEJO).length;
+  const enObs = cursantes.filter(c => { const p=discData.byCursanteLost[c.id]||0; return p>=UMBRAL_OBSERVACION && p<UMBRAL_CONSEJO; }).length;
+
+  document.getElementById('jc-stat-cursantes').textContent = cursantes.length;
+  document.getElementById('jc-stat-sanciones').textContent = sanciones.length;
+  document.getElementById('jc-stat-consejo').textContent = enConsejo;
+
+  const top10S = jcTop10Sancionados(paralelo);
+  const top10P = jcTop10Profesores(paralelo);
+  const label = paralelo ? `Paralelo ${paralelo}` : (getJCCiclo() || 'Ciclo');
+  let html = '';
+
+  // Alertas
+  if(enConsejo > 0) html += `<div class="alert-banner red" style="margin-bottom:10px"><div class="alert-emoji">🚨</div><div class="alert-text"><div class="alert-title">${enConsejo} cursante(s) en consejo académico — 25+ pts perdidos</div></div></div>`;
+  if(enObs > 0)     html += `<div class="alert-banner yellow" style="margin-bottom:14px"><div class="alert-emoji">⚠️</div><div class="alert-text"><div class="alert-title">${enObs} cursante(s) en observación — 11–24 pts perdidos</div></div></div>`;
+
+  // ── Top 10 más sancionados ──────────────────────────────────────────────
+  html += `<div class="section-label">🏆 Top 10 más puntos perdidos — ${label}</div>`;
+  if(!top10S.length){
+    html += `<div class="list-empty" style="margin-bottom:14px">Sin sanciones registradas.</div>`;
+  } else {
+    html += `<div class="jc-top-list">`;
+    top10S.forEach((item, i) => {
+      const est = getEstado(item.pts);
+      const colorPts = est==='consejo'?'#e88a8a':est==='observacion'?'#f0d28a':'#9bcfa9';
+      html += `<div class="jc-top-row" onclick="verFichaCursante('${item.c.id}','jc-panel')">
+        <div class="jc-top-num" style="color:var(--text-muted)">${i+1}</div>
+        <div class="jc-top-info">
+          <div class="jc-top-name">${escapeHTML(item.c.nombre_completo||'—')}</div>
+          <div class="jc-top-meta">${item.c.paralelo?'Par. '+item.c.paralelo+' · ':''}${item.cant} sanción(es)</div>
+        </div>
+        <div class="jc-top-pts" style="color:${colorPts}">−${item.pts}<span style="font-size:10px;opacity:.7"> pts</span></div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // ── Top 10 instructores que más sancionan ───────────────────────────────
+  html += `<div class="section-label" style="margin-top:18px">✍️ Top 10 instructores que más sancionan — ${label}</div>`;
+  if(!top10P.length){
+    html += `<div class="list-empty" style="margin-bottom:14px">Sin datos.</div>`;
+  } else {
+    html += `<div class="jc-top-list">`;
+    top10P.forEach((item, i) => {
+      html += `<div class="jc-top-row">
+        <div class="jc-top-num" style="color:var(--text-muted)">${i+1}</div>
+        <div class="jc-top-info">
+          <div class="jc-top-name">${escapeHTML(item.nombre)}</div>
+          <div class="jc-top-meta">sanciones registradas a ${label.toLowerCase()}</div>
+        </div>
+        <div class="jc-top-pts" style="color:var(--gold)">${item.cant}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // ── Resumen por paralelo (solo en tab "Todo el ciclo") ──────────────────
+  if(!paralelo){
+    html += `<div class="section-label" style="margin-top:18px">📊 Resumen por paralelo</div>`;
+    html += `<div class="stats-grid">`;
+    ['A','B','C'].forEach(par => {
+      const cPar = jcCursantes(par);
+      const sPar = jcSanciones(par);
+      const cons = cPar.filter(c => (discData.byCursanteLost[c.id]||0) >= UMBRAL_CONSEJO).length;
+      html += `<div class="stat-card${cons>0?' danger':''}" onclick="jcSelectTab('${par}')" style="cursor:pointer">
+        <div class="stat-num">${cPar.length}</div>
+        <div class="stat-label">Paralelo ${par}<br><span style="font-size:10px;opacity:.7">${sPar.length} sanc · ${cons} consejo</span></div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  // ── Lista completa de cursantes ─────────────────────────────────────────
+  html += `<div class="section-label" style="margin-top:18px">👥 Todos los cursantes — ${label} <span style="font-size:11px;font-family:sans-serif;opacity:.6">(ordenados por puntaje)</span></div>`;
+  const sorted = [...cursantes].sort((a,b) => (discData.byCursanteLost[b.id]||0)-(discData.byCursanteLost[a.id]||0));
+  if(!sorted.length){
+    html += `<div class="list-empty">Sin cursantes en este paralelo.</div>`;
+  } else {
+    sorted.forEach(c => {
+      const perd = discData.byCursanteLost[c.id]||0;
+      const est = getEstado(perd);
+      html += `<div class="list-item" style="cursor:pointer" onclick="verFichaCursante('${c.id}','jc-panel')">
+        <div class="li-id">${c.paralelo?'Par.'+c.paralelo:c.id}</div>
+        <div class="li-name">${escapeHTML(c.nombre_completo||'—')}<br><span class="li-ci">CI ${c.ci||'—'}${c.grado?' · '+c.grado:''}</span></div>
+        <div class="li-score ${est==='consejo'?'danger':est==='observacion'?'warn':'ok'}">${100-perd}</div>
+      </div>`;
+    });
+  }
+
+  document.getElementById('jc-content').innerHTML = html;
+}
+
+function jcIrACursantes(){
+  // Navegar al tab activo y hacer scroll al listado
+  jcRenderTab(jcParaleloActivo);
+  setTimeout(()=>{
+    const el = document.querySelector('#jc-content .section-label:last-of-type');
+    if(el) el.scrollIntoView({behavior:'smooth'});
+  }, 150);
+}
+// ════════════════════════════════════════════════════════════════════════════
 
 /* ==================== FLUJO FIRMA DEL CURSANTE (escaneo QR) ==================== */
 // Estado global para este flujo
