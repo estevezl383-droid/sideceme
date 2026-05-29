@@ -5219,7 +5219,7 @@ async function loginCursante(){
     iniciarIdleTimer();
     // Guardar credenciales en navegador (auto-fill / Face ID / huella)
     try{ if(window.PasswordCredential){ const cr=new PasswordCredential({id:ci,password:pwd,name:cur.nombre_completo||ci}); navigator.credentials.store(cr).catch(()=>{}); } }catch(e){}
-    try{ sb.from('cursantes').update({ultimo_login:new Date().toISOString()}).eq('id',cur.id).then(()=>{}); }catch(e){}
+    try{ sb.functions.invoke('cursantes-ops',{body:{accion:'ultimo_login',token:getTokenSesion()}}).catch(()=>{}); }catch(e){}
     await renderCursanteHome();
     showScreen('screen-cursante-home');
     setTimeout(()=>ofrecerActivarBio('cursante'), 600);
@@ -5299,7 +5299,7 @@ async function loginUniversal(){
       iniciarIdleTimer();
       // Fire-and-forget: NO bloquean la entrada del usuario
       try{ if(window.PasswordCredential){ const cr=new PasswordCredential({id:ci,password:pwd,name:cur.nombre_completo||ci}); navigator.credentials.store(cr).catch(()=>{}); } }catch(e){}
-      try{ sb.from('cursantes').update({ultimo_login:new Date().toISOString()}).eq('id',cur.id).then(()=>{}); }catch(e){}
+      try{ sb.functions.invoke('cursantes-ops',{body:{accion:'ultimo_login',token:getTokenSesion()}}).catch(()=>{}); }catch(e){}
       await renderCursanteHome();
       showScreen('screen-cursante-home');
       setTimeout(()=>ofrecerActivarBio('cursante'), 600);
@@ -7551,9 +7551,9 @@ async function cambiarPasswordCursanteDesdeFicha(cursanteId){
       primer_ingreso: false,              // no rehacer primer ingreso (mantiene firma)
       ultimo_login: null                  // resetear última actividad
     };
-    const { error } = await sb.from('cursantes').update(updates).eq('id', cursanteId);
-    if(error){
-      alert('Error al guardar: ' + (error.message||JSON.stringify(error)));
+    const {data:r, error:efErr} = await sb.functions.invoke('cursantes-ops', {body:{accion:'reset_password', token:getTokenSesion(), cursante_id:cursanteId, password_hash:updates.password_hash}});
+    if(efErr || !r?.ok){
+      alert('Error al guardar: ' + (r?.error || efErr?.message || 'Error desconocido'));
       return;
     }
     // Actualizar memoria local
@@ -7669,7 +7669,7 @@ async function loadDiscData(force=false){
   try{
     const [curRes,sanRes,profRes,regRes] = await Promise.all([
       sb.from('v_cursantes').select('*').order('id'),
-      sb.from('sanciones').select('*'),
+      sb.from('v_sanciones').select('*'),
       sb.from('v_profesores').select('*').order('id'),
       sb.from('reglamentos').select('*')
     ]);
@@ -9396,12 +9396,11 @@ async function saveCursante(){
   try{
     if(id){
       // EDITAR: no toca ci ni password
-      const {error} = await sb.from('cursantes').update(payload).eq('id',id);
-      if(error) throw error;
+      const {data:r, error:efErr} = await sb.functions.invoke('cursantes-ops', {body:{accion:'editar', token:getTokenSesion(), cursante_id:id, payload}});
+      if(efErr || !r?.ok) throw new Error(r?.error || efErr?.message || 'Error al editar');
     } else {
-      // CREAR NUEVO: sí setea CI y password inicial = CI
+      // CREAR NUEVO: CI como password inicial, primer_ingreso=true (lo maneja el EF)
       payload.ci = ci;
-      payload.password = ci;
       // Auto-generar ID si está vacío
       let newId=idtext;
       if(!newId){
@@ -9410,8 +9409,8 @@ async function saveCursante(){
         newId='C'+String(max+1).padStart(3,'0');
       }
       payload.id=newId;
-      const {error} = await sb.from('cursantes').insert(payload);
-      if(error) throw error;
+      const {data:r, error:efErr} = await sb.functions.invoke('cursantes-ops', {body:{accion:'crear', token:getTokenSesion(), payload}});
+      if(efErr || !r?.ok) throw new Error(r?.error || efErr?.message || 'Error al crear');
     }
     await loadDiscData(true);
     goGestionarCursantes();
@@ -9426,8 +9425,8 @@ async function darBajaCursante(id){
   const obs = prompt(`Dar de baja a ${c.nombre_completo}.\nMotivo / observación (opcional):`,'');
   if(obs===null) return; // canceló
   try{
-    const {error}=await sb.from('cursantes').update({activo:false, observaciones:obs||c.observaciones||'Dado de baja'}).eq('id',id);
-    if(error) throw error;
+    const {data:r,error:efErr}=await sb.functions.invoke('cursantes-ops',{body:{accion:'dar_baja',token:getTokenSesion(),cursante_id:id,observaciones:obs||c.observaciones||'Dado de baja'}});
+    if(efErr||!r?.ok) throw new Error(r?.error||efErr?.message||'Error al dar de baja');
     await loadDiscData(true);
     renderGestCursantes();
   }catch(e){ alert('Error: '+(e.message||e)); }
@@ -9435,8 +9434,8 @@ async function darBajaCursante(id){
 async function reactivarCursante(id){
   if(!confirm('¿Reactivar este cursante?')) return;
   try{
-    const {error}=await sb.from('cursantes').update({activo:true}).eq('id',id);
-    if(error) throw error;
+    const {data:r,error:efErr}=await sb.functions.invoke('cursantes-ops',{body:{accion:'reactivar',token:getTokenSesion(),cursante_id:id}});
+    if(efErr||!r?.ok) throw new Error(r?.error||efErr?.message||'Error al reactivar');
     await loadDiscData(true);
     renderGestCursantes();
   }catch(e){ alert('Error: '+(e.message||e)); }
@@ -11558,7 +11557,7 @@ async function insertarSancionSegura(sancionOriginal){
   try{
     if(sancionOriginal.profesor_id && sancionOriginal.cursante_id && sancionOriginal.falta_id){
       const haceDiezMin = new Date(Date.now() - 10*60*1000).toISOString();
-      const dupPromise = sb.from('sanciones').select('id, folio, creado_en')
+      const dupPromise = sb.from('v_sanciones').select('id, folio, creado_en')
         .eq('profesor_id', sancionOriginal.profesor_id)
         .eq('cursante_id', sancionOriginal.cursante_id)
         .eq('falta_id', sancionOriginal.falta_id)
@@ -11571,7 +11570,7 @@ async function insertarSancionSegura(sancionOriginal){
         const existente = dupRes.data[0];
         console.warn('[dedup] sanción duplicada detectada en ventana de 10min, no se reinserta. Folio existente:', existente.folio);
         // Devolvemos como éxito con la fila existente (refrescada)
-        const refresh = await sb.from('sanciones').select('*').eq('id', existente.id).limit(1);
+        const refresh = await sb.from('v_sanciones').select('*').eq('id', existente.id).limit(1);
         // Liberar lock local
         try{ window.__sancionesEnProceso.delete(keyLocal); }catch(_){}
         if(refresh.data && refresh.data.length > 0){
@@ -12540,7 +12539,7 @@ async function buscarSancionConReintentos(){
 
   try{
     // Buscar por ID directamente
-    const { data, error } = await sb.from('sanciones').select('*').eq('id', firmaState.sancionId).limit(1);
+    const { data, error } = await sb.from('v_sanciones').select('*').eq('id', firmaState.sancionId).limit(1);
     if(error){
       console.warn('[firma] error al buscar:', error);
       programarReintento();
@@ -12902,7 +12901,7 @@ async function actualizarSancionSegura(id, updates){
   while(attempt < 20){
     attempt++;
     try{
-      const { data, error } = await sb.from('sanciones').update(working).eq('id', id).select();
+      const { data, error } = await sb.from('sanciones').update(working).eq('id', id);
       if(!error) return { data, error:null };
       const msg = String(error.message||error.details||error.hint||'');
       const m = msg.match(/Could not find the '([^']+)' column/i) || msg.match(/column "([^"]+)" of relation/i);
@@ -12980,7 +12979,7 @@ async function verificarNotificaciones(){
   try{
     if(s.tipo === 'cursante'){
       // Cursante: verificar sanciones pendientes de firmar
-      const {data} = await sb.from('sanciones')
+      const {data} = await sb.from('v_sanciones')
         .select('id,folio,falta_articulo,profesor_nombre,creado_en')
         .eq('cursante_id', currentUser.id)
         .eq('tipo', 'digital')
@@ -13017,7 +13016,7 @@ async function verificarNotificaciones(){
       }
     } else if(s.tipo === 'docente'){
       // Profesor: verificar si alguna sanción suya fue firmada recientemente
-      const {data} = await sb.from('sanciones')
+      const {data} = await sb.from('v_sanciones')
         .select('id,folio,cursante_nombre,firmada_curs_en,confirmacion_estado')
         .eq('profesor_id', currentUser.id)
         .in('confirmacion_estado', ['firmada','aceptada'])
