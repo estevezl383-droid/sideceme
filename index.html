@@ -3934,6 +3934,15 @@ input::placeholder, textarea::placeholder {
           <div class="ceb-text" id="cur-estado-text">Mantén tu buen desempeño disciplinario.</div>
         </div>
 
+        <!-- Posición porcentual en el ciclo (disciplina) -->
+        <div class="cur-anual-card" id="cur-posicion-card" style="display:none">
+          <div class="cac-header">
+            <div class="cac-title">📊 Tu posición en el ciclo</div>
+            <div class="cac-articulo" id="cur-posicion-puesto">—</div>
+          </div>
+          <div class="cac-msg" id="cur-posicion-msg" style="margin-top:8px">—</div>
+        </div>
+
         <!-- Listado de mis sanciones (inline) -->
         <div class="mis-sanciones-section" style="margin-top:18px">
           <div class="mis-sanciones-header">
@@ -6813,6 +6822,26 @@ function htmlTarjetaAnualDark(cursanteId, opciones){
   </div>`;
 }
 
+// Posición del alumno respecto a su ciclo en disciplina (puntaje SEMESTRAL ya cargado en discData).
+// Devuelve null si no hay datos suficientes (la tarjeta se oculta).
+function calcularPosicionCiclo(){
+  if(!currentUser || !discData.cursantes || !discData.byCursanteLost) return null;
+  const miCiclo = (currentUser.ciclo||'').toString();
+  if(!miCiclo) return null;
+  const cohorte = discData.cursantes.filter(c => c.activo !== false && (c.ciclo||'').toString() === miCiclo);
+  if(cohorte.length < 3) return null;  // muy pocos para un porcentaje útil
+  const ptsDe = c => (discData.byCursanteLost[c.id] || 0);
+  const miPts = discData.byCursanteLost[currentUser.id] || 0;
+  const N = cohorte.length;
+  const peores  = cohorte.filter(c => ptsDe(c) > miPts).length;   // perdieron MÁS que yo
+  const mejores = cohorte.filter(c => ptsDe(c) < miPts).length;   // perdieron MENOS que yo
+  const impecables = cohorte.filter(c => ptsDe(c) === 0).length;
+  const mejorQuePct = Math.round((peores / (N - 1)) * 100);
+  const puesto = mejores + 1;
+  const pctImpecables = Math.round((impecables / N) * 100);
+  return { miPts, N, puesto, mejorQuePct, impecables, pctImpecables };
+}
+
 async function renderCursanteHome(){
   if(!currentUser) return;
   // === DEFENSA DE SEGURIDAD ===
@@ -6926,6 +6955,34 @@ async function renderCursanteHome(){
     anualMsg = `Margen amplio en la gestión ${anualStat.year}. Mantén la disciplina.`;
   }
   document.getElementById('cur-anual-msg').textContent = anualMsg;
+
+  // === Posición porcentual del alumno en su ciclo (disciplina, semestre actual) ===
+  try{
+    const pos = calcularPosicionCiclo();
+    const posCard = document.getElementById('cur-posicion-card');
+    if(pos && posCard){
+      posCard.style.display = '';
+      let nivel, msg;
+      if(pos.miPts === 0){
+        nivel = 'ok';
+        msg = `🌟 Disciplina impecable este semestre: sin puntos perdidos. Estás en el grupo más alto de tu ciclo (${pos.pctImpecables}% del ciclo también está sin sanciones).`;
+      } else if(pos.mejorQuePct >= 66){
+        nivel = 'warn';
+        msg = `Buena disciplina: estás mejor que el ${pos.mejorQuePct}% de tu ciclo. Llevás ${pos.miPts} pts perdidos este semestre.`;
+      } else if(pos.mejorQuePct >= 33){
+        nivel = 'alto';
+        msg = `Estás en la mitad de tu ciclo (mejor que el ${pos.mejorQuePct}%). Llevás ${pos.miPts} pts perdidos este semestre — cuidá tu disciplina.`;
+      } else {
+        nivel = 'riesgo';
+        msg = `⚠️ Estás entre los que más puntaje perdieron de tu ciclo (mejor solo que el ${pos.mejorQuePct}%). Llevás ${pos.miPts} pts este semestre.`;
+      }
+      posCard.className = 'cur-anual-card ' + nivel;
+      document.getElementById('cur-posicion-puesto').textContent = `Puesto ${pos.puesto}° de ${pos.N}`;
+      document.getElementById('cur-posicion-msg').textContent = msg;
+    } else if(posCard){
+      posCard.style.display = 'none';
+    }
+  }catch(e){ console.warn('posición ciclo:', e); }
 
   // Banner estado — corregido: NO decir "Sin sanciones" si hay deméritos/sanciones
   const banner = document.getElementById('cur-estado-banner');
