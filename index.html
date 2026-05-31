@@ -3879,14 +3879,14 @@ input::placeholder, textarea::placeholder {
         <button class="cur-area-card" id="cur-area-academicas" onclick="mostrarSeccionCursante('academicas')">
           <div class="ca-icon">📚</div>
           <div class="ca-title">Notas Académicas</div>
-          <div class="ca-value">—</div>
-          <div class="ca-sub">Próximamente</div>
+          <div class="ca-value" id="cur-area-acad-val">—</div>
+          <div class="ca-sub" id="cur-area-acad-sub">Ver notas</div>
         </button>
         <button class="cur-area-card" id="cur-area-merito" onclick="mostrarSeccionCursante('merito')">
           <div class="ca-icon">🏆</div>
           <div class="ca-title">Orden de Mérito</div>
-          <div class="ca-value">—</div>
-          <div class="ca-sub">Próximamente</div>
+          <div class="ca-value" id="cur-area-merito-val">—</div>
+          <div class="ca-sub" id="cur-area-merito-sub">Posición gral.</div>
         </button>
       </div>
 
@@ -3983,19 +3983,23 @@ input::placeholder, textarea::placeholder {
 
       <!-- =================== SECCIÓN NOTAS ACADÉMICAS =================== -->
       <div class="cur-section" id="cur-section-academicas" style="display:none">
-        <div class="placeholder-container" style="background:#f5edd5;border-radius:14px;padding:30px 20px;border:2px solid #c9a64b">
-          <div class="placeholder-icon">📚</div>
-          <div class="placeholder-title" style="color:#5c4a1a">Notas Académicas</div>
-          <div class="placeholder-text" style="color:#7a6326">Módulo en desarrollo. Próximamente podrás consultar tus calificaciones por materia.</div>
+        <div id="cur-acad-content">
+          <div class="placeholder-container" style="background:var(--bg-card);border-radius:14px;padding:30px 20px;border:1px solid var(--border-subtle)">
+            <div class="placeholder-icon">📚</div>
+            <div class="placeholder-title">Notas Académicas</div>
+            <div class="placeholder-text">Tocá para cargar tus calificaciones.</div>
+          </div>
         </div>
       </div>
 
       <!-- =================== SECCIÓN ORDEN DE MÉRITO =================== -->
       <div class="cur-section" id="cur-section-merito" style="display:none">
-        <div class="placeholder-container" style="background:#f5edd5;border-radius:14px;padding:30px 20px;border:2px solid #c9a64b">
-          <div class="placeholder-icon">🏆</div>
-          <div class="placeholder-title" style="color:#5c4a1a">Orden de Mérito</div>
-          <div class="placeholder-text" style="color:#7a6326">Módulo en desarrollo. Próximamente podrás consultar tu orden de mérito consolidado.</div>
+        <div id="cur-merito-content">
+          <div class="placeholder-container" style="background:var(--bg-card);border-radius:14px;padding:30px 20px;border:1px solid var(--border-subtle)">
+            <div class="placeholder-icon">🏆</div>
+            <div class="placeholder-title">Orden de Mérito</div>
+            <div class="placeholder-text">Tocá para ver tu posición.</div>
+          </div>
         </div>
       </div>
     </div>
@@ -5611,8 +5615,9 @@ function mostrarSeccionCursante(seccion){
     if(card) card.classList.toggle('active', s === seccion);
     if(sec) sec.style.display = (s === seccion) ? '' : 'none';
   });
-  // Si abre EFM, cargar las notas
   if(seccion === 'efm') renderCursanteEfmSection();
+  if(seccion === 'academicas') renderCursanteAcademicasSection();
+  if(seccion === 'merito') renderCursanteMeritoSection();
 }
 
 async function renderCursanteEfmSection(){
@@ -5636,6 +5641,164 @@ async function renderCursanteEfmSection(){
   }catch(e){
     cont.innerHTML = '<div class="efm-no-data">⚠️ Error: ' + (e.message||e) + '</div>';
   }
+}
+
+// ==================== NOTAS ACADÉMICAS ====================
+let acadCache = null; // cache para no re-query entre secciones
+
+async function cargarNotasAcademicas(){
+  if(acadCache) return acadCache;
+  const {data, error} = await sb.from('notas_academicas')
+    .select('*')
+    .eq('cursante_id', currentUser.id)
+    .order('gestion',{ascending:true})
+    .order('semestre',{ascending:true})
+    .order('materia',{ascending:true});
+  if(!error && data) acadCache = data;
+  return data || [];
+}
+
+async function renderCursanteAcademicasSection(){
+  const cont = document.getElementById('cur-acad-content');
+  if(!cont || !currentUser) return;
+  cont.innerHTML = '<div class="placeholder-container" style="padding:24px 12px"><div class="placeholder-icon">⏳</div><div class="placeholder-title">Cargando notas...</div></div>';
+  try{
+    const data = await cargarNotasAcademicas();
+    if(!data.length){
+      cont.innerHTML = '<div class="efm-no-data">📚 No tenés notas académicas cargadas todavía.</div>';
+      return;
+    }
+    actualizarBadgesAcademicas(data);
+    const grupos = agruparNotasPorPeriodo(data);
+    cont.innerHTML = grupos.map(g => htmlTarjetaAcademica(g)).join('');
+  }catch(e){
+    cont.innerHTML = '<div class="efm-no-data">⚠️ Error: '+(e.message||e)+'</div>';
+  }
+}
+
+async function renderCursanteMeritoSection(){
+  const cont = document.getElementById('cur-merito-content');
+  if(!cont || !currentUser) return;
+  cont.innerHTML = '<div class="placeholder-container" style="padding:24px 12px"><div class="placeholder-icon">⏳</div><div class="placeholder-title">Cargando...</div></div>';
+  try{
+    const data = await cargarNotasAcademicas();
+    if(!data.length){
+      cont.innerHTML = '<div class="efm-no-data">🏆 No hay datos de mérito disponibles todavía.</div>';
+      return;
+    }
+    actualizarBadgesAcademicas(data);
+    const grupos = agruparNotasPorPeriodo(data);
+    cont.innerHTML = grupos.map(g => htmlTarjetaMerito(g)).join('');
+  }catch(e){
+    cont.innerHTML = '<div class="efm-no-data">⚠️ Error: '+(e.message||e)+'</div>';
+  }
+}
+
+function actualizarBadgesAcademicas(data){
+  if(!data || !data.length) return;
+  const ultimo = data[data.length-1];
+  const prom = ultimo.promedio_general;
+  const om = ultimo.om_general;
+  const v = document.getElementById('cur-area-acad-val');
+  const s = document.getElementById('cur-area-acad-sub');
+  const mv = document.getElementById('cur-area-merito-val');
+  const ms = document.getElementById('cur-area-merito-sub');
+  if(v && prom) v.textContent = Number(prom).toFixed(2);
+  if(s) s.textContent = 'Promedio gral.';
+  if(mv && om) mv.textContent = '#' + om;
+  if(ms) ms.textContent = 'Posición gral.';
+}
+
+function agruparNotasPorPeriodo(data){
+  const map = {};
+  for(const n of data){
+    const key = `${n.gestion}-${n.ciclo}-${n.semestre}`;
+    if(!map[key]) map[key] = {gestion:n.gestion, ciclo:n.ciclo, semestre:n.semestre, promedio:n.promedio_general, om:n.om_general, materias:[]};
+    map[key].materias.push(n);
+  }
+  return Object.values(map);
+}
+
+function colorAtributo(atr){
+  const a = (atr||'').toUpperCase().trim();
+  if(a==='E'||a==='EP') return '#d4af37';
+  if(a==='MB'||a==='MBP') return '#4caf72';
+  if(a==='B'||a==='BP') return '#4a90d9';
+  if(a==='R') return '#d08030';
+  return '#c05050';
+}
+
+function htmlTarjetaAcademica(g){
+  const {gestion, ciclo, semestre, promedio, om, materias} = g;
+  const sLabel = semestre===1?'1ER SEMESTRE':'2DO SEMESTRE';
+  const promFmt = promedio ? Number(promedio).toFixed(2) : '—';
+  const filas = materias.map(m => {
+    const color = colorAtributo(m.atributo);
+    const nota = m.nota_final ? Number(m.nota_final).toFixed(2) : '—';
+    const omMat = m.om_materia ? `<span style="font-size:10px;color:var(--text-muted);margin-top:2px;display:block">OM materia: ${m.om_materia}</span>` : '';
+    const comps = [];
+    if(m.trab!=null) comps.push(`Trab: ${Number(m.trab).toFixed(1)}`);
+    if(m.for_!=null) comps.push(`For: ${Number(m.for_).toFixed(1)}`);
+    if(m.sum_!=null) comps.push(`Sum: ${Number(m.sum_).toFixed(1)}`);
+    const compHtml = comps.length ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px">${comps.join(' · ')}</div>` : '';
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border-subtle)">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;color:var(--text-primary);text-transform:uppercase;letter-spacing:.3px;line-height:1.3">${m.materia||'—'}</div>
+        ${compHtml}${omMat}
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;margin-left:12px;flex-shrink:0">
+        <div style="font-size:20px;font-weight:700;color:${color};font-family:var(--font-display)">${nota}</div>
+        <div style="font-size:11px;font-weight:700;color:${color};letter-spacing:1px">${m.atributo||'—'}</div>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div style="background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);padding:16px;margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:2px solid var(--gold-dark)">
+      <div>
+        <div style="font-family:var(--font-display);font-size:10px;color:var(--gold);letter-spacing:2px;text-transform:uppercase">${sLabel} · ${ciclo} · ${gestion}</div>
+        <div style="font-size:22px;font-weight:700;color:var(--text-primary);font-family:var(--font-display);margin-top:2px">${promFmt}</div>
+        <div style="font-size:11px;color:var(--text-muted)">Promedio general</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-size:28px;font-weight:700;color:var(--gold);font-family:var(--font-display)">#${om||'—'}</div>
+        <div style="font-size:11px;color:var(--text-muted)">Orden de mérito</div>
+      </div>
+    </div>
+    ${filas}
+  </div>`;
+}
+
+function htmlTarjetaMerito(g){
+  const {gestion, ciclo, semestre, promedio, om, materias} = g;
+  const sLabel = semestre===1?'1ER SEMESTRE':'2DO SEMESTRE';
+  const promFmt = promedio ? Number(promedio).toFixed(2) : '—';
+  const top3 = [...materias].sort((a,b)=>Number(b.nota_final)-Number(a.nota_final)).slice(0,3);
+  const bot3 = [...materias].sort((a,b)=>Number(a.nota_final)-Number(b.nota_final)).slice(0,3);
+  const fila = (m,lbl) => {
+    const color = colorAtributo(m.atributo);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0">
+      <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;flex:1">${lbl} · ${m.materia}</div>
+      <div style="font-size:14px;font-weight:700;color:${color};margin-left:8px;flex-shrink:0">${Number(m.nota_final).toFixed(2)}</div>
+    </div>`;
+  };
+  return `<div style="background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);padding:20px;margin-bottom:14px">
+    <div style="font-family:var(--font-display);font-size:10px;color:var(--gold);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">${sLabel} · ${ciclo} · ${gestion}</div>
+    <div style="display:flex;justify-content:space-around;text-align:center;margin-bottom:18px;padding:16px;background:var(--bg-elevated);border-radius:10px;border:1px solid var(--border-subtle)">
+      <div>
+        <div style="font-size:36px;font-weight:700;color:var(--gold);font-family:var(--font-display)">#${om||'—'}</div>
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Orden Gral.</div>
+      </div>
+      <div style="width:1px;background:var(--border-subtle)"></div>
+      <div>
+        <div style="font-size:36px;font-weight:700;color:var(--text-primary);font-family:var(--font-display)">${promFmt}</div>
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Promedio</div>
+      </div>
+    </div>
+    <div style="font-size:11px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Mejores materias</div>
+    ${top3.map(m=>fila(m,'⭐')).join('')}
+    <div style="font-size:11px;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin:12px 0 6px">A mejorar</div>
+    ${bot3.map(m=>fila(m,'📈')).join('')}
+  </div>`;
 }
 
 // Devuelve HTML de una tarjeta de evaluación física (compartida por vista cursante y vista jefe EFM)
@@ -7228,6 +7391,13 @@ async function renderCursanteHome(){
       document.getElementById('cur-area-efm-val').textContent = '—';
       document.getElementById('cur-area-efm-sub').textContent = 'Sin evaluar';
     }
+  }catch(e){ /* silent */ }
+
+  // Cargar badges de Notas Académicas y Orden de Mérito (best-effort)
+  try{
+    acadCache = null; // resetear cache al entrar al home
+    const acadData = await cargarNotasAcademicas();
+    if(acadData && acadData.length) actualizarBadgesAcademicas(acadData);
   }catch(e){ /* silent */ }
 
   // === 4to cuadro destacado: Pérdida anual de puntaje (causal de baja) ===
