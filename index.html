@@ -5159,7 +5159,7 @@ async function loginDocente(){
     // Guardar credenciales en navegador (auto-fill / Face ID / huella)
     try{ if(window.PasswordCredential){ const cr=new PasswordCredential({id:ci,password:pwd,name:prof.nombre_completo||ci}); navigator.credentials.store(cr).catch(()=>{}); } }catch(e){}
     // Actualizar último login (best-effort, no bloqueante)
-    try{ sb.from('profesores').update({ultimo_login:new Date().toISOString()}).eq('id',prof.id).then(()=>{}); }catch(e){}
+    try{ sb.functions.invoke('profesores-ops',{body:{accion:'ultimo_login',token:getTokenSesion()}}).catch(()=>{}); }catch(e){}
     await enterRole(activeRole);
     setTimeout(()=>ofrecerActivarBio('docente'), 600);
   }catch(e){console.error(e); showError('err-docente','Error: '+(e.message||e));}
@@ -5339,7 +5339,7 @@ async function loginUniversal(){
       iniciarIdleTimer();
       // Fire-and-forget: NO bloquean la entrada del usuario
       try{ if(window.PasswordCredential){ const cr=new PasswordCredential({id:ci,password:pwd,name:prof.nombre_completo||ci}); navigator.credentials.store(cr).catch(()=>{}); } }catch(e){}
-      try{ sb.from('profesores').update({ultimo_login:new Date().toISOString()}).eq('id',prof.id).then(()=>{}); }catch(e){}
+      try{ sb.functions.invoke('profesores-ops',{body:{accion:'ultimo_login',token:getTokenSesion()}}).catch(()=>{}); }catch(e){}
       await enterRole(activeRole);
       setTimeout(()=>ofrecerActivarBio('docente'), 600);
       return;
@@ -7627,9 +7627,12 @@ async function cambiarPasswordProfesorDesdeFicha(profesorId){
       primer_ingreso: false,
       ultimo_login: null
     };
-    const { error } = await sb.from('profesores').update(updates).eq('id', profesorId);
-    if(error){
-      alert('Error al guardar: ' + (error.message||JSON.stringify(error)));
+    const {data:r, error:efErr} = await sb.functions.invoke('profesores-ops', {
+      body: { accion:'reset_password', token:getTokenSesion(), profesor_id:profesorId, password_hash:hash }
+    });
+    if(efErr || !r || !r.ok){
+      const msg = (r && r.error) ? r.error : (efErr && efErr.message) || 'Error al guardar';
+      alert('Error al guardar: ' + msg);
       return;
     }
     Object.assign(prof, updates);
@@ -9542,8 +9545,8 @@ async function saveProfesor(){
     if(id){
       // CT puede también cambiar CI al editar (para reasignación de cargo)
       if(esCT() && ci){ payload.ci = ci; payload.password=null; payload.password_hash=null; payload.primer_ingreso=true; }
-      const {error}=await sb.from('profesores').update(payload).eq('id',id);
-      if(error) throw error;
+      const {data:r,error:efErr}=await sb.functions.invoke('profesores-ops',{body:{accion:'editar',token:getTokenSesion(),profesor_id:id,payload}});
+      if(efErr || !r || !r.ok){ throw new Error((r&&r.error)||efErr?.message||'Error al editar profesor'); }
       if(esCT() && ci) alert('CI actualizado. La contraseña fue reseteada: el usuario deberá ingresar con su CI la primera vez.');
     } else {
       // CREAR NUEVO: setea CI y password inicial = CI
@@ -9555,10 +9558,8 @@ async function saveProfesor(){
         newId='P'+String(max+1).padStart(3,'0');
       }
       payload.id=newId;
-      payload.password=ci; // password default = CI
-      payload.primer_ingreso=true;
-      const {error}=await sb.from('profesores').insert(payload);
-      if(error) throw error;
+      const {data:r,error:efErr}=await sb.functions.invoke('profesores-ops',{body:{accion:'crear',token:getTokenSesion(),payload}});
+      if(efErr || !r || !r.ok){ throw new Error((r&&r.error)||efErr?.message||'Error al crear profesor'); }
     }
     await loadDiscData(true);
     goGestionarProfesores();
@@ -9573,8 +9574,8 @@ async function darBajaProfesor(id){
   const obs=prompt(`Dar de baja a ${p.nombre_completo}.\nMotivo (opcional):`,'');
   if(obs===null) return;
   try{
-    const {error}=await sb.from('profesores').update({activo:false, observaciones:obs||p.observaciones||'Dado de baja'}).eq('id',id);
-    if(error) throw error;
+    const {data:r,error:efErr}=await sb.functions.invoke('profesores-ops',{body:{accion:'dar_baja',token:getTokenSesion(),profesor_id:id,observaciones:obs||p.observaciones||'Dado de baja'}});
+    if(efErr || !r || !r.ok){ throw new Error((r&&r.error)||efErr?.message||'Error al dar de baja'); }
     await loadDiscData(true);
     renderGestProfesores();
   }catch(e){ alert('Error: '+(e.message||e)); }
@@ -9582,8 +9583,8 @@ async function darBajaProfesor(id){
 async function reactivarProfesor(id){
   if(!confirm('¿Reactivar este profesor?')) return;
   try{
-    const {error}=await sb.from('profesores').update({activo:true}).eq('id',id);
-    if(error) throw error;
+    const {data:r,error:efErr}=await sb.functions.invoke('profesores-ops',{body:{accion:'reactivar',token:getTokenSesion(),profesor_id:id}});
+    if(efErr || !r || !r.ok){ throw new Error((r&&r.error)||efErr?.message||'Error al reactivar'); }
     await loadDiscData(true);
     renderGestProfesores();
   }catch(e){ alert('Error: '+(e.message||e)); }
