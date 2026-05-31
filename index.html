@@ -7381,6 +7381,8 @@ async function renderCursanteHome(){
     const {data: efs} = await sb.from('evaluaciones_fisicas')
       .select('nota_final,tipo_evaluacion')
       .eq('cursante_id', currentUser.id)
+      .not('nota_final', 'is', null)
+      .order('nota_final', {ascending: false})
       .limit(1);
     if(efs && efs.length && efs[0].nota_final){
       const nf = Number(efs[0].nota_final);
