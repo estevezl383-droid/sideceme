@@ -1658,8 +1658,8 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .efm-cur-final-atr{display:inline-block;margin-top:6px;background:rgba(244,213,122,.18);padding:3px 10px;border-radius:8px;font-size:12px;font-weight:700;letter-spacing:1px}
 .efm-prueba-grid{display:grid;grid-template-columns:1fr;gap:8px}
 .efm-prueba-row{
-  background:rgba(255,255,255,.55);
-  border:1px solid rgba(184,144,44,.35);
+  background:rgba(255,255,255,.82);
+  border:1px solid rgba(184,144,44,.45);
   border-radius:8px;
   padding:10px 12px;
   display:grid;
@@ -1667,9 +1667,9 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   gap:8px;
   align-items:center;
 }
-.efm-prueba-nombre{font-weight:600;color:#5c4a1a;font-size:13px}
-.efm-prueba-cant{font-family:monospace;color:#7a6326;font-size:12px}
-.efm-prueba-nota{font-family:var(--font-display);font-weight:700;font-size:18px;color:#5c4a1a;text-align:right;min-width:50px}
+.efm-prueba-nombre{font-weight:700;color:#1a0e04;font-size:14px}
+.efm-prueba-cant{font-family:monospace;color:#3d2c0a;font-size:12px;font-weight:600}
+.efm-prueba-nota{font-family:var(--font-display);font-weight:700;font-size:20px;color:#1a0e04;text-align:right;min-width:50px}
 .efm-cur-obs{margin-top:12px;padding:10px;background:rgba(184,144,44,.12);border-left:3px solid #b8902c;border-radius:6px;font-size:12px;color:#5c4a1a;font-style:italic}
 .efm-no-data{padding:30px 12px;text-align:center;color:#7a6326;font-size:14px}
 
@@ -5637,7 +5637,13 @@ async function renderCursanteEfmSection(){
       cont.innerHTML = '<div class="efm-no-data">🏃 Todavía no tenés notas físicas cargadas. Consultá con el Sub. Sec. de Entrenamiento Físico.</div>';
       return;
     }
-    cont.innerHTML = data.map(ev => htmlTarjetaEvaluacionFisica(ev, false)).join('');
+    // Solo mostrar evaluaciones con nota final cargada
+    const conNota = data.filter(ev => ev.nota_final != null && ev.nota_final !== '');
+    if(!conNota.length){
+      cont.innerHTML = '<div class="efm-no-data">🏃 Evaluación registrada pero sin nota todavía. Consultá con el Sub. Sec. de Entrenamiento Físico.</div>';
+      return;
+    }
+    cont.innerHTML = conNota.map(ev => htmlTarjetaEvaluacionFisica(ev, false)).join('');
   }catch(e){
     cont.innerHTML = '<div class="efm-no-data">⚠️ Error: ' + (e.message||e) + '</div>';
   }
