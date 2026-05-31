@@ -12184,30 +12184,28 @@ async function ejecutarCambioPassword(tabla, userId){
   btn.disabled = true; btn.textContent = 'Guardando...';
 
   try{
-    // Verificar contraseña actual
-    const {data:usuario, error:fetchErr} = await sb.from(tabla).select('password_hash,ci').eq('id',userId).single();
-    if(fetchErr || !usuario){ errDiv.textContent='No se encontró el usuario.'; errDiv.style.display='block'; btn.disabled=false; btn.textContent='Guardar'; return; }
-
-    const hashActual = usuario.password_hash || '';
-    let pwdValida = false;
-    if(hashActual.startsWith('$2')){ 
-      pwdValida = await dcodeIO.bcrypt.compare(actual, hashActual);
-    } else {
-      pwdValida = (actual === hashActual);
-    }
-    if(!pwdValida){ errDiv.textContent='La contraseña actual es incorrecta.'; errDiv.style.display='block'; btn.disabled=false; btn.textContent='Guardar'; return; }
-
-    // Hashear nueva contraseña
+    // Hashear la nueva contraseña en el cliente (igual que antes)
     const salt = await dcodeIO.bcrypt.genSalt(10);
     const nuevoHash = await dcodeIO.bcrypt.hash(nueva, salt);
 
-    const {error:updateErr} = await sb.from(tabla).update({password_hash: nuevoHash}).eq('id',userId);
-    if(updateErr){ errDiv.textContent='Error al guardar: '+updateErr.message; errDiv.style.display='block'; btn.disabled=false; btn.textContent='Guardar'; return; }
+    // Verificar contraseña actual y guardar nueva via EF (con token de sesión)
+    const tok = (typeof getTokenSesion==='function') ? getTokenSesion() : null;
+    if(!tok){ errDiv.textContent='Tu sesión expiró. Volvé a iniciar sesión.'; errDiv.style.display='block'; btn.disabled=false; btn.textContent='Guardar'; return; }
+    const {data:r, error:efErr} = await sb.functions.invoke('cursantes-ops', {
+      body: { accion:'cambiar_mi_password', token:tok, password_actual:actual, password_hash_nuevo:nuevoHash }
+    });
+    if(efErr || !r || !r.ok){
+      const msg = (r && r.error) ? r.error : (efErr && efErr.message) || 'Error al guardar';
+      errDiv.textContent = msg;
+      errDiv.style.display='block'; btn.disabled=false; btn.textContent='Guardar';
+      return;
+    }
 
     // Ofrecer guardar en navegador
     try{
       if(window.PasswordCredential){
-        const cred = new PasswordCredential({ id: usuario.ci || userId, password: nueva, name: currentUser?.nombre_completo || '' });
+        const ciCred = (currentUser && currentUser.ci) || userId;
+        const cred = new PasswordCredential({ id: ciCred, password: nueva, name: currentUser?.nombre_completo || '' });
         await navigator.credentials.store(cred);
       }
     }catch(e){ console.log('Credential store skip:', e); }
