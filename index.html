@@ -8103,10 +8103,14 @@ function verSancionDetalle(sancionId){
       if(!tokenQR){
         tokenQR = generarUuidLight();
         try{
-          const huellaActualizada = Object.assign({}, s.huella_forense || {}, { token_qr: tokenQR });
-          sb.from('sanciones').update({ huella_forense: huellaActualizada }).eq('id', s.id).then(()=>{
+          const _tokSes = getTokenSesion();
+          sb.functions.invoke('sanciones-ops', {body:{accion:'set_token_qr', token:_tokSes, sancion_id:s.id, token_qr:tokenQR}}).then(({data,error})=>{
+            if(error || !data || !data.ok){ console.warn('No se pudo persistir token_qr', error||data); return; }
+            // Si el EF devolvió un token existente (idempotente), usarlo
+            const tokFinal = data.token_qr || tokenQR;
+            const huellaActualizada = Object.assign({}, s.huella_forense || {}, { token_qr: tokFinal });
             s.huella_forense = huellaActualizada;
-          });
+          }).catch(e=>console.warn('No se pudo persistir token_qr', e));
         }catch(e){ console.warn('No se pudo persistir token_qr', e); }
       }
       const urlQR = urlFirmaCursante(s.id, tokenQR);
@@ -10590,11 +10594,13 @@ function verDetalleSancion(sancionId){
       // Generar y persistir el token si la sanción no lo tiene
       tokenQR = generarUuidLight();
       try{
-        const huella = s.huella_forense || {};
-        huella.token_qr = tokenQR;
-        sb.from('sanciones').update({ huella_forense: huella }).eq('id', s.id).then(()=>{
+        const _tokSes = getTokenSesion();
+        sb.functions.invoke('sanciones-ops', {body:{accion:'set_token_qr', token:_tokSes, sancion_id:s.id, token_qr:tokenQR}}).then(({data,error})=>{
+          if(error || !data || !data.ok){ console.warn('No se pudo persistir token_qr', error||data); return; }
+          const tokFinal = data.token_qr || tokenQR;
+          const huella = Object.assign({}, s.huella_forense || {}, { token_qr: tokFinal });
           s.huella_forense = huella;
-        });
+        }).catch(e=>console.warn('No se pudo persistir token_qr', e));
       }catch(e){ console.warn('No se pudo persistir token_qr', e); }
     }
     const urlQR = urlFirmaCursante(s.id, tokenQR);
