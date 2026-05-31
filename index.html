@@ -12194,9 +12194,20 @@ async function ejecutarCambioPassword(tabla, userId){
     const {data:r, error:efErr} = await sb.functions.invoke('cursantes-ops', {
       body: { accion:'cambiar_mi_password', token:tok, password_actual:actual, password_hash_nuevo:nuevoHash }
     });
-    if(efErr || !r || !r.ok){
-      const msg = (r && r.error) ? r.error : (efErr && efErr.message) || 'Error al guardar';
-      errDiv.textContent = msg;
+    let msgError = null;
+    if(efErr){
+      msgError = efErr.message || 'Error en servidor';
+      try{
+        if(efErr.context && typeof efErr.context.json === 'function'){
+          const b = await efErr.context.json();
+          if(b && b.error) msgError = b.error;
+        }
+      }catch(_){}
+    } else if(!r || !r.ok){
+      msgError = (r && r.error) ? r.error : 'Error al guardar';
+    }
+    if(msgError){
+      errDiv.textContent = msgError;
       errDiv.style.display='block'; btn.disabled=false; btn.textContent='Guardar';
       return;
     }
