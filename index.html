@@ -5738,23 +5738,45 @@ function htmlTarjetaAcademica(g){
   const {gestion, ciclo, semestre, promedio, om, materias} = g;
   const sLabel = semestre===1?'1ER SEMESTRE':'2DO SEMESTRE';
   const promFmt = promedio ? Number(promedio).toFixed(2) : '—';
-  const filas = materias.map(m => {
+  const filas = materias.map((m, idx) => {
     const color = colorAtributo(m.atributo);
     const nota = m.nota_final ? Number(m.nota_final).toFixed(2) : '—';
-    const omMat = m.om_materia ? `<span style="font-size:10px;color:var(--text-muted);margin-top:2px;display:block">OM materia: ${m.om_materia}</span>` : '';
-    const comps = [];
-    if(m.trab!=null) comps.push(`Trab: ${Number(m.trab).toFixed(1)}`);
-    if(m.for_!=null) comps.push(`For: ${Number(m.for_).toFixed(1)}`);
-    if(m.sum_!=null) comps.push(`Sum: ${Number(m.sum_).toFixed(1)}`);
-    const compHtml = comps.length ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px">${comps.join(' · ')}</div>` : '';
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border-subtle)">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:12px;font-weight:600;color:var(--text-primary);text-transform:uppercase;letter-spacing:.3px;line-height:1.3">${m.materia||'—'}</div>
-        ${compHtml}${omMat}
+    const detId = `matdet-${gestion}-${semestre}-${idx}`;
+    // Desglose: componentes ponderados (Trabajo/Formativa/Sumativa) que suman la nota
+    const tp = m.trab_pond, fp = m.for_pond, sp = m.sum_pond;
+    const hayDesglose = (tp!=null || fp!=null || sp!=null);
+    const compRow = (lbl, val, extra) => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-subtle)">
+        <div style="font-size:12px;color:var(--text-secondary)">${lbl}${extra?`<span style="color:var(--text-muted);font-size:10px"> ${extra}</span>`:''}</div>
+        <div style="font-size:14px;font-weight:700;color:var(--text-primary)">${val!=null?Number(val).toFixed(2):'—'}</div>
+      </div>`;
+    let detalle;
+    if(hayDesglose){
+      detalle = `
+        ${compRow('📝 Trabajo', tp, m.trab!=null?`(nota ${Number(m.trab).toFixed(1)})`:'')}
+        ${compRow('📊 Formativa', fp, '')}
+        ${compRow('📋 Sumativa (examen)', sp, '')}
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 2px">
+          <div style="font-size:12px;font-weight:700;color:var(--gold-light);text-transform:uppercase;letter-spacing:1px">Nota final</div>
+          <div style="font-size:18px;font-weight:700;color:${color};font-family:var(--font-display)">${nota}</div>
+        </div>
+        ${m.om_materia?`<div style="font-size:11px;color:var(--text-muted);text-align:right;margin-top:4px">🏅 Puesto ${m.om_materia} en esta materia</div>`:''}`;
+    } else {
+      detalle = `<div style="padding:10px 0;font-size:12px;color:var(--text-muted)">Nota final: <b style="color:${color}">${nota}</b>. Esta materia no registra desglose por componentes.${m.om_materia?` · Puesto ${m.om_materia}.`:''}</div>`;
+    }
+    return `<div style="border-bottom:1px solid var(--border-subtle)">
+      <div onclick="(function(e){var d=document.getElementById('${detId}');var a=document.getElementById('${detId}-arr');var op=d.style.display==='none';d.style.display=op?'block':'none';a.textContent=op?'▾':'▸';})()" style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;cursor:pointer">
+        <div style="flex:1;min-width:0;display:flex;align-items:center;gap:8px">
+          <span id="${detId}-arr" style="color:var(--gold);font-size:12px">▸</span>
+          <span style="font-size:12px;font-weight:600;color:var(--text-primary);text-transform:uppercase;letter-spacing:.3px;line-height:1.3">${m.materia||'—'}</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;margin-left:12px;flex-shrink:0">
+          <div style="font-size:20px;font-weight:700;color:${color};font-family:var(--font-display)">${nota}</div>
+          <div style="font-size:11px;font-weight:700;color:${color};letter-spacing:1px">${m.atributo||'—'}</div>
+        </div>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;margin-left:12px;flex-shrink:0">
-        <div style="font-size:20px;font-weight:700;color:${color};font-family:var(--font-display)">${nota}</div>
-        <div style="font-size:11px;font-weight:700;color:${color};letter-spacing:1px">${m.atributo||'—'}</div>
+      <div id="${detId}" style="display:none;padding:4px 0 14px 20px;background:var(--bg-elevated);border-radius:8px;margin-bottom:8px;padding-right:12px;padding-left:20px">
+        ${detalle}
       </div>
     </div>`;
   }).join('');
