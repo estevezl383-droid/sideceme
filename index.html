@@ -5384,17 +5384,22 @@ const bcryptLib = (typeof dcodeIO !== 'undefined' && dcodeIO.bcrypt) ? dcodeIO.b
                 : null;
 
 function hashPassword(plain){
-  if(!bcryptLib){
-    console.warn('bcryptjs no disponible — guardando plaintext (fallback)');
-    return String(plain);
+  // IMPORTANTE: buscar la librería EN EL MOMENTO del llamado (no al cargar la página).
+  // bcrypt.min.js carga con defer → el const bcryptLib de arriba puede quedar null.
+  // Si buscamos acá, ya está disponible cuando el usuario hace clic.
+  const lib = (typeof dcodeIO !== 'undefined' && dcodeIO.bcrypt) ? dcodeIO.bcrypt
+            : (typeof bcrypt !== 'undefined') ? bcrypt
+            : bcryptLib;
+  if(!lib){
+    // NUNCA guardar texto plano: rompería el login (el servidor verifica con bcrypt).
+    throw new Error('La librería de seguridad aún se está cargando. Esperá 3 segundos y volvé a intentar.');
   }
-  try{
-    const salt = bcryptLib.genSaltSync(10);
-    return bcryptLib.hashSync(String(plain), salt);
-  }catch(e){
-    console.error('Error hasheando:', e);
-    return String(plain);
+  const salt = lib.genSaltSync(10);
+  const hash = lib.hashSync(String(plain), salt);
+  if(!String(hash).startsWith('$2')){
+    throw new Error('No se pudo cifrar la contraseña correctamente. Volvé a intentar.');
   }
+  return hash;
 }
 
 function compararPassword(intento, hashOPlaintext){
