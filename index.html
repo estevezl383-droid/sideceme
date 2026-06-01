@@ -5739,57 +5739,93 @@ function colorAtributo(atr){
   return '#c05050';
 }
 
+const ORDEN_GRUPOS = ['METODOLOGÍA DE LA INVESTIGACIÓN','ESTUDIOS MILITARES COMPLEMENTARIOS-I','EJERCICIOS MILITARES'];
+
+function toggleAcad(id){
+  var d=document.getElementById(id); var a=document.getElementById(id+'-arr');
+  if(!d) return; var op=(d.style.display==='none'||!d.style.display);
+  d.style.display=op?'block':'none'; if(a) a.textContent=op?'▾':'▸';
+}
+
+// Detalle de una materia: bloques de componentes (Trabajo/Formativa/Sumativa o los que tenga)
+function htmlDetalleMateria(m){
+  let dj = m.detalle_json;
+  if(typeof dj === 'string'){ try{ dj = JSON.parse(dj); }catch(e){ dj = null; } }
+  const color = colorAtributo(m.atributo);
+  const nota = m.nota_final!=null ? Number(m.nota_final).toFixed(2) : '—';
+  if(!dj || !dj.bloques || !dj.bloques.length){
+    return `<div style="padding:10px 0;font-size:12px;color:var(--text-muted)">Nota final: <b style="color:${color}">${nota}</b>${m.om_materia?` · Puesto ${m.om_materia}`:''}</div>`;
+  }
+  const bloques = dj.bloques.map(b=>{
+    const items = (b.items||[]).map(it=>`
+      <div style="display:flex;justify-content:space-between;padding:4px 0 4px 14px;font-size:12px;color:var(--text-secondary)">
+        <span>${it.n||'—'}</span><span style="font-weight:600;color:var(--text-primary)">${it.v!=null?Number(it.v).toFixed(2):'—'}</span>
+      </div>`).join('');
+    return `<div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border-subtle)">
+        <span style="font-size:12px;font-weight:700;color:var(--gold-light);text-transform:uppercase;letter-spacing:.5px">${b.tipo}</span>
+        ${b.aporte!=null?`<span style="font-size:11px;color:var(--text-muted)">aporta ${Number(b.aporte).toFixed(2)}</span>`:''}
+      </div>${items}</div>`;
+  }).join('');
+  return `${bloques}
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 2px;border-top:2px solid var(--gold-dark);margin-top:4px">
+      <span style="font-size:12px;font-weight:700;color:var(--gold-light);text-transform:uppercase;letter-spacing:1px">Nota final</span>
+      <span style="font-size:18px;font-weight:700;color:${color};font-family:var(--font-display)">${nota}</span>
+    </div>
+    ${m.om_materia?`<div style="font-size:11px;color:var(--text-muted);text-align:right;margin-top:4px">🏅 Puesto ${m.om_materia} en esta materia</div>`:''}`;
+}
+
 function htmlTarjetaAcademica(g){
   const {gestion, ciclo, semestre, promedio, om, materias} = g;
   const sLabel = semestre===1?'1ER SEMESTRE':'2DO SEMESTRE';
   const promFmt = promedio ? Number(promedio).toFixed(2) : '—';
-  const filas = materias.map((m, idx) => {
-    const color = colorAtributo(m.atributo);
-    const nota = m.nota_final ? Number(m.nota_final).toFixed(2) : '—';
-    const detId = `matdet-${gestion}-${semestre}-${idx}`;
-    // Desglose: componentes ponderados (Trabajo/Formativa/Sumativa) que suman la nota
-    const tp = m.trab_pond, fp = m.for_pond, sp = m.sum_pond;
-    const hayDesglose = (tp!=null || fp!=null || sp!=null);
-    const compRow = (lbl, val, extra) => `
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-subtle)">
-        <div style="font-size:12px;color:var(--text-secondary)">${lbl}${extra?`<span style="color:var(--text-muted);font-size:10px"> ${extra}</span>`:''}</div>
-        <div style="font-size:14px;font-weight:700;color:var(--text-primary)">${val!=null?Number(val).toFixed(2):'—'}</div>
+  // Agrupar materias por grupo
+  const porGrupo = {};
+  materias.forEach(m=>{ const k=m.grupo||'OTRAS'; (porGrupo[k]=porGrupo[k]||[]).push(m); });
+  const orden = ORDEN_GRUPOS.filter(x=>porGrupo[x]).concat(Object.keys(porGrupo).filter(x=>!ORDEN_GRUPOS.includes(x)));
+  const gruposHtml = orden.map((gName, gi)=>{
+    const mats = porGrupo[gName];
+    const gProm = mats[0].grupo_promedio!=null ? Number(mats[0].grupo_promedio).toFixed(2) : '—';
+    const grpId = `acadg-${gestion}-${semestre}-${gi}`;
+    const matsHtml = mats.map((m, mi)=>{
+      const color = colorAtributo(m.atributo);
+      const nota = m.nota_final!=null ? Number(m.nota_final).toFixed(2) : '—';
+      const mId = `${grpId}-m${mi}`;
+      return `<div style="border-bottom:1px solid var(--border-subtle)">
+        <div onclick="toggleAcad('${mId}')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;cursor:pointer">
+          <div style="flex:1;min-width:0;display:flex;align-items:center;gap:8px">
+            <span id="${mId}-arr" style="color:var(--gold);font-size:11px">▸</span>
+            <span style="font-size:12px;font-weight:600;color:var(--text-primary);line-height:1.3">${m.materia||'—'}</span>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;margin-left:10px;flex-shrink:0">
+            <div style="font-size:18px;font-weight:700;color:${color};font-family:var(--font-display)">${nota}</div>
+            <div style="font-size:10px;font-weight:700;color:${color};letter-spacing:1px">${m.atributo||''}</div>
+          </div>
+        </div>
+        <div id="${mId}" style="display:none;padding:6px 12px 12px 18px;background:var(--bg-deep);border-radius:8px;margin:0 0 8px">
+          ${htmlDetalleMateria(m)}
+        </div>
       </div>`;
-    let detalle;
-    if(hayDesglose){
-      detalle = `
-        ${compRow('📝 Trabajo', tp, m.trab!=null?`(nota ${Number(m.trab).toFixed(1)})`:'')}
-        ${compRow('📊 Formativa', fp, '')}
-        ${compRow('📋 Sumativa (examen)', sp, '')}
-        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 2px">
-          <div style="font-size:12px;font-weight:700;color:var(--gold-light);text-transform:uppercase;letter-spacing:1px">Nota final</div>
-          <div style="font-size:18px;font-weight:700;color:${color};font-family:var(--font-display)">${nota}</div>
-        </div>
-        ${m.om_materia?`<div style="font-size:11px;color:var(--text-muted);text-align:right;margin-top:4px">🏅 Puesto ${m.om_materia} en esta materia</div>`:''}`;
-    } else {
-      detalle = `<div style="padding:10px 0;font-size:12px;color:var(--text-muted)">Nota final: <b style="color:${color}">${nota}</b>. Esta materia no registra desglose por componentes.${m.om_materia?` · Puesto ${m.om_materia}.`:''}</div>`;
-    }
-    return `<div style="border-bottom:1px solid var(--border-subtle)">
-      <div onclick="(function(e){var d=document.getElementById('${detId}');var a=document.getElementById('${detId}-arr');var op=d.style.display==='none';d.style.display=op?'block':'none';a.textContent=op?'▾':'▸';})()" style="display:flex;justify-content:space-between;align-items:center;padding:11px 0;cursor:pointer">
+    }).join('');
+    return `<div style="background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:10px;margin-bottom:10px;overflow:hidden">
+      <div onclick="toggleAcad('${grpId}')" style="display:flex;justify-content:space-between;align-items:center;padding:13px 14px;cursor:pointer;background:linear-gradient(90deg,rgba(212,175,55,.08),transparent)">
         <div style="flex:1;min-width:0;display:flex;align-items:center;gap:8px">
-          <span id="${detId}-arr" style="color:var(--gold);font-size:12px">▸</span>
-          <span style="font-size:12px;font-weight:600;color:var(--text-primary);text-transform:uppercase;letter-spacing:.3px;line-height:1.3">${m.materia||'—'}</span>
+          <span id="${grpId}-arr" style="color:var(--gold);font-size:13px">▸</span>
+          <span style="font-size:12px;font-weight:700;color:var(--gold-light);text-transform:uppercase;letter-spacing:.5px;line-height:1.3">${gName}</span>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;margin-left:12px;flex-shrink:0">
-          <div style="font-size:20px;font-weight:700;color:${color};font-family:var(--font-display)">${nota}</div>
-          <div style="font-size:11px;font-weight:700;color:${color};letter-spacing:1px">${m.atributo||'—'}</div>
+        <div style="text-align:right;margin-left:10px;flex-shrink:0">
+          <div style="font-size:20px;font-weight:700;color:var(--text-primary);font-family:var(--font-display)">${gProm}</div>
+          <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Promedio</div>
         </div>
       </div>
-      <div id="${detId}" style="display:none;padding:4px 0 14px 20px;background:var(--bg-elevated);border-radius:8px;margin-bottom:8px;padding-right:12px;padding-left:20px">
-        ${detalle}
-      </div>
+      <div id="${grpId}" style="display:none;padding:4px 14px 10px">${matsHtml}</div>
     </div>`;
   }).join('');
   return `<div style="background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);padding:16px;margin-bottom:14px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;padding-bottom:10px;border-bottom:2px solid var(--gold-dark)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid var(--gold-dark)">
       <div>
         <div style="font-family:var(--font-display);font-size:10px;color:var(--gold);letter-spacing:2px;text-transform:uppercase">${sLabel} · ${ciclo} · ${gestion}</div>
-        <div style="font-size:22px;font-weight:700;color:var(--text-primary);font-family:var(--font-display);margin-top:2px">${promFmt}</div>
+        <div style="font-size:24px;font-weight:700;color:var(--text-primary);font-family:var(--font-display);margin-top:2px">${promFmt}</div>
         <div style="font-size:11px;color:var(--text-muted)">Promedio general</div>
       </div>
       <div style="text-align:right">
@@ -5797,7 +5833,8 @@ function htmlTarjetaAcademica(g){
         <div style="font-size:11px;color:var(--text-muted)">Orden de mérito</div>
       </div>
     </div>
-    ${filas}
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">📂 Tocá un grupo para ver sus materias, y una materia para ver el detalle de sus notas.</div>
+    ${gruposHtml}
   </div>`;
 }
 
@@ -5805,12 +5842,22 @@ function htmlTarjetaMerito(g){
   const {gestion, ciclo, semestre, promedio, om, materias} = g;
   const sLabel = semestre===1?'1ER SEMESTRE':'2DO SEMESTRE';
   const promFmt = promedio ? Number(promedio).toFixed(2) : '—';
-  const top3 = [...materias].sort((a,b)=>Number(b.nota_final)-Number(a.nota_final)).slice(0,3);
-  const bot3 = [...materias].sort((a,b)=>Number(a.nota_final)-Number(b.nota_final)).slice(0,3);
+  // Promedio por grupo (valor oficial)
+  const promGrupo = {};
+  materias.forEach(m=>{ const k=m.grupo||'OTRAS'; if(!(k in promGrupo)) promGrupo[k]=m.grupo_promedio; });
+  const ordenG = ORDEN_GRUPOS.filter(x=> x in promGrupo);
+  const gruposHtml = ordenG.map(gName=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border-subtle)">
+      <span style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;flex:1">${gName}</span>
+      <span style="font-size:15px;font-weight:700;color:var(--gold-light);margin-left:8px;flex-shrink:0">${promGrupo[gName]!=null?Number(promGrupo[gName]).toFixed(2):'—'}</span>
+    </div>`).join('');
+  const conNota = [...materias].filter(m=>m.nota_final!=null);
+  const top3 = conNota.sort((a,b)=>Number(b.nota_final)-Number(a.nota_final)).slice(0,3);
+  const bot3 = [...conNota].sort((a,b)=>Number(a.nota_final)-Number(b.nota_final)).slice(0,3);
   const fila = (m,lbl) => {
     const color = colorAtributo(m.atributo);
     return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0">
-      <div style="font-size:11px;color:var(--text-secondary);text-transform:uppercase;flex:1">${lbl} · ${m.materia}</div>
+      <div style="font-size:11px;color:var(--text-secondary);flex:1">${lbl} · ${m.materia}</div>
       <div style="font-size:14px;font-weight:700;color:${color};margin-left:8px;flex-shrink:0">${Number(m.nota_final).toFixed(2)}</div>
     </div>`;
   };
@@ -5827,7 +5874,9 @@ function htmlTarjetaMerito(g){
         <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Promedio</div>
       </div>
     </div>
-    <div style="font-size:11px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Mejores materias</div>
+    <div style="font-size:11px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Promedio por grupo</div>
+    ${gruposHtml}
+    <div style="font-size:11px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin:14px 0 6px">Mejores materias</div>
     ${top3.map(m=>fila(m,'⭐')).join('')}
     <div style="font-size:11px;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin:12px 0 6px">A mejorar</div>
     ${bot3.map(m=>fila(m,'📈')).join('')}
