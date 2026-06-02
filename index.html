@@ -3165,7 +3165,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.21 · OM semestral</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.22 · semestres</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5750,6 +5750,14 @@ function colorAtributo(atr){
   return '#c05050';
 }
 
+// Semestre ACUMULADO: 1er ciclo = 1ER/2DO ; 2do ciclo = 3ER/4TO
+function etiquetaSemestre(ciclo, semestre){
+  const es2do = String(ciclo||'').toUpperCase().includes('2DO');
+  const n = (es2do ? 2 : 0) + Number(semestre||0);
+  const ord = {1:'1ER',2:'2DO',3:'3ER',4:'4TO',5:'5TO',6:'6TO',7:'7MO',8:'8VO'}[n] || (n+'°');
+  return ord + ' SEMESTRE';
+}
+
 const ORDEN_GRUPOS = ['METODOLOGÍA DE LA INVESTIGACIÓN','ESTUDIOS MILITARES COMPLEMENTARIOS-I','EJERCICIOS MILITARES'];
 
 function toggleAcad(id){
@@ -5788,7 +5796,7 @@ function htmlDetalleMateria(m){
 
 function htmlTarjetaAcademica(g){
   const {gestion, ciclo, semestre, promedio, om, materias} = g;
-  const sLabel = semestre===1?'1ER SEMESTRE':'2DO SEMESTRE';
+  const sLabel = etiquetaSemestre(ciclo, semestre);
   const promFmt = promedio ? Number(promedio).toFixed(2) : '—';
   // Desglose del promedio semestral (80% académico + 10% Ent.Físico + 10% Disciplina)
   const m0 = materias[0] || {};
@@ -5868,7 +5876,7 @@ function htmlTarjetaAcademica(g){
 
 function htmlTarjetaMerito(g){
   const {gestion, ciclo, semestre, promedio, om, materias} = g;
-  const sLabel = semestre===1?'1ER SEMESTRE':'2DO SEMESTRE';
+  const sLabel = etiquetaSemestre(ciclo, semestre);
   const promFmt = promedio ? Number(promedio).toFixed(2) : '—';
   // Promedio por grupo (valor oficial)
   const promGrupo = {};
