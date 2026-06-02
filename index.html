@@ -3165,7 +3165,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.25 · más rápido</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.26 · sesión</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4951,18 +4951,21 @@ function logout(){
 /* ==================== AUTO-LOGOUT POR INACTIVIDAD ====================
    Cierra sesión automáticamente después de 3 minutos sin interacción.
    Cualquier toque, click, scroll o tecla resetea el contador. */
-const IDLE_TIMEOUT_MS = 180000; // 3 minutos
+const IDLE_TIMEOUT_MS = 1800000; // 30 minutos (solo para personal/profesores; los alumnos no tienen cierre)
 let idleTimer = null;
 let idleWarned = false;
 
 function iniciarIdleTimer(){
   if(idleTimer){ clearTimeout(idleTimer); idleTimer = null; }
   if(!currentUser) return; // No hay sesión, no hay timer
+  // ALUMNOS (cursantes): SIN cierre automático — solo ven su info, no pueden modificar nada.
+  const _s = (typeof getSession==='function') ? getSession() : null;
+  if(_s && _s.tipo === 'cursante') return;
   idleWarned = false;
   idleTimer = setTimeout(() => {
     if(!currentUser) return;
     idleWarned = true;
-    alert('⏱️ Sesión cerrada por inactividad (3 minutos sin actividad).\n\nPor seguridad, vuelva a iniciar sesión.');
+    alert('⏱️ Sesión cerrada por inactividad (30 minutos sin actividad).\n\nPor seguridad, vuelva a iniciar sesión.');
     logout();
   }, IDLE_TIMEOUT_MS);
 }
