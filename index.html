@@ -3165,7 +3165,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.22 · semestres</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.23 · semestres</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5751,7 +5751,8 @@ function colorAtributo(atr){
 }
 
 // Semestre ACUMULADO: 1er ciclo = 1ER/2DO ; 2do ciclo = 3ER/4TO
-function etiquetaSemestre(ciclo, semestre){
+// (nombre propio para no chocar con etiquetaSemestre(sem) de disciplina)
+function etiquetaSemAcad(ciclo, semestre){
   const es2do = String(ciclo||'').toUpperCase().includes('2DO');
   const n = (es2do ? 2 : 0) + Number(semestre||0);
   const ord = {1:'1ER',2:'2DO',3:'3ER',4:'4TO',5:'5TO',6:'6TO',7:'7MO',8:'8VO'}[n] || (n+'°');
@@ -5796,7 +5797,7 @@ function htmlDetalleMateria(m){
 
 function htmlTarjetaAcademica(g){
   const {gestion, ciclo, semestre, promedio, om, materias} = g;
-  const sLabel = etiquetaSemestre(ciclo, semestre);
+  const sLabel = etiquetaSemAcad(ciclo, semestre);
   const promFmt = promedio ? Number(promedio).toFixed(2) : '—';
   // Desglose del promedio semestral (80% académico + 10% Ent.Físico + 10% Disciplina)
   const m0 = materias[0] || {};
@@ -5857,10 +5858,10 @@ function htmlTarjetaAcademica(g){
     </div>`;
   }).join('');
   return `<div style="background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);padding:16px;margin-bottom:14px">
+    <div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--gold-light);letter-spacing:1px;text-transform:uppercase;text-align:center;background:linear-gradient(90deg,rgba(212,175,55,.20),rgba(212,175,55,.06));padding:11px 12px;border-radius:9px;border:1px solid var(--gold-dark);margin-bottom:14px;line-height:1.35">${sLabel} · ${ciclo} · ${gestion}</div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid var(--gold-dark)">
       <div>
-        <div style="font-family:var(--font-display);font-size:10px;color:var(--gold);letter-spacing:2px;text-transform:uppercase">${sLabel} · ${ciclo} · ${gestion}</div>
-        <div style="font-size:24px;font-weight:700;color:var(--text-primary);font-family:var(--font-display);margin-top:2px">${promFmt}</div>
+        <div style="font-size:24px;font-weight:700;color:var(--text-primary);font-family:var(--font-display)">${promFmt}</div>
         <div style="font-size:11px;color:var(--text-muted)">Promedio semestral</div>
       </div>
       <div style="text-align:right">
@@ -5876,7 +5877,7 @@ function htmlTarjetaAcademica(g){
 
 function htmlTarjetaMerito(g){
   const {gestion, ciclo, semestre, promedio, om, materias} = g;
-  const sLabel = etiquetaSemestre(ciclo, semestre);
+  const sLabel = etiquetaSemAcad(ciclo, semestre);
   const promFmt = promedio ? Number(promedio).toFixed(2) : '—';
   // Promedio por grupo (valor oficial)
   const promGrupo = {};
@@ -5898,7 +5899,7 @@ function htmlTarjetaMerito(g){
     </div>`;
   };
   return `<div style="background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);padding:20px;margin-bottom:14px">
-    <div style="font-family:var(--font-display);font-size:10px;color:var(--gold);letter-spacing:2px;text-transform:uppercase;margin-bottom:8px">${sLabel} · ${ciclo} · ${gestion}</div>
+    <div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--gold-light);letter-spacing:1px;text-transform:uppercase;text-align:center;background:linear-gradient(90deg,rgba(212,175,55,.20),rgba(212,175,55,.06));padding:11px 12px;border-radius:9px;border:1px solid var(--gold-dark);margin-bottom:14px;line-height:1.35">${sLabel} · ${ciclo} · ${gestion}</div>
     <div style="display:flex;justify-content:space-around;text-align:center;margin-bottom:18px;padding:16px;background:var(--bg-elevated);border-radius:10px;border:1px solid var(--border-subtle)">
       <div>
         <div style="font-size:36px;font-weight:700;color:var(--gold);font-family:var(--font-display)">#${om||'—'}</div>
