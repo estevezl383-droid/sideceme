@@ -3165,7 +3165,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.23 · semestres</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.24 · OM anual</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5719,8 +5719,9 @@ async function renderCursanteMeritoSection(){
 function actualizarBadgesAcademicas(data){
   if(!data || !data.length) return;
   const ultimo = data[data.length-1];
-  const prom = ultimo.promedio_general;
-  const om = ultimo.om_general;
+  // Badge del home = posición GENERAL (anual = promedio de los 2 semestres). Si no hay anual, usa el del semestre.
+  const prom = ultimo.promedio_anual != null ? ultimo.promedio_anual : ultimo.promedio_general;
+  const om = ultimo.om_anual != null ? ultimo.om_anual : ultimo.om_general;
   const v = document.getElementById('cur-area-acad-val');
   const s = document.getElementById('cur-area-acad-sub');
   const mv = document.getElementById('cur-area-merito-val');
