@@ -3165,7 +3165,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.20 · fix contraseñas</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.21 · OM semestral</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5790,6 +5790,22 @@ function htmlTarjetaAcademica(g){
   const {gestion, ciclo, semestre, promedio, om, materias} = g;
   const sLabel = semestre===1?'1ER SEMESTRE':'2DO SEMESTRE';
   const promFmt = promedio ? Number(promedio).toFixed(2) : '—';
+  // Desglose del promedio semestral (80% académico + 10% Ent.Físico + 10% Disciplina)
+  const m0 = materias[0] || {};
+  const _acad=m0.promedio_academico, _ef=m0.ef_dep, _disc=m0.disciplina, _sem=m0.promedio_semestral;
+  const desglose = (_acad!=null && _ef!=null && _disc!=null) ? `
+    <div style="background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:10px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-size:10px;color:var(--gold);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:8px">Cómo se formó tu promedio semestral</div>
+      ${[['Académico',_acad,0.8],['Ent. Físico y Dep.',_ef,0.1],['Disciplina',_disc,0.1]].map(function(p){return `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;font-size:12px">
+          <span style="color:var(--text-secondary)">${p[0]} <span style="color:var(--text-muted)">× ${Math.round(p[2]*100)}%</span></span>
+          <span style="color:var(--text-secondary)"><b style="color:var(--text-primary)">${Number(p[1]).toFixed(2)}</b> → ${(Number(p[1])*p[2]).toFixed(2)}</span>
+        </div>`;}).join('')}
+      <div style="display:flex;justify-content:space-between;align-items:center;border-top:2px solid var(--gold-dark);margin-top:6px;padding-top:8px">
+        <span style="font-size:12px;font-weight:700;color:var(--gold-light);text-transform:uppercase;letter-spacing:.5px">Promedio semestral</span>
+        <span style="font-size:18px;font-weight:700;color:var(--gold);font-family:var(--font-display)">${_sem!=null?Number(_sem).toFixed(2):'—'}</span>
+      </div>
+    </div>` : '';
   // Agrupar materias por grupo
   const porGrupo = {};
   materias.forEach(m=>{ const k=m.grupo||'OTRAS'; (porGrupo[k]=porGrupo[k]||[]).push(m); });
@@ -5837,13 +5853,14 @@ function htmlTarjetaAcademica(g){
       <div>
         <div style="font-family:var(--font-display);font-size:10px;color:var(--gold);letter-spacing:2px;text-transform:uppercase">${sLabel} · ${ciclo} · ${gestion}</div>
         <div style="font-size:24px;font-weight:700;color:var(--text-primary);font-family:var(--font-display);margin-top:2px">${promFmt}</div>
-        <div style="font-size:11px;color:var(--text-muted)">Promedio general</div>
+        <div style="font-size:11px;color:var(--text-muted)">Promedio semestral</div>
       </div>
       <div style="text-align:right">
         <div style="font-size:28px;font-weight:700;color:var(--gold);font-family:var(--font-display)">#${om||'—'}</div>
         <div style="font-size:11px;color:var(--text-muted)">Orden de mérito</div>
       </div>
     </div>
+    ${desglose}
     <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">📂 Tocá un grupo para ver sus materias, y una materia para ver el detalle de sus notas.</div>
     ${gruposHtml}
   </div>`;
