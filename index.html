@@ -3165,7 +3165,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.26 · sesión</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.27 · avisos</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -3853,6 +3853,9 @@ input::placeholder, textarea::placeholder {
         <button class="btn-logout" onclick="logout()">Salir</button>
       </div>
 
+      <!-- Aviso de pendientes (sanción sin firmar) -->
+      <div id="cur-pendientes-banner" style="margin:0 0 4px"></div>
+
       <!-- Círculo grande con nota disciplinaria -->
       <div class="nota-circle-wrap">
         <div class="nota-circle" id="cur-nota-circle">
@@ -4072,6 +4075,7 @@ input::placeholder, textarea::placeholder {
   </div>
   <div class="disc-container">
     <div class="user-strip"><div class="user-avatar" id="disc-initials">—</div><div class="user-info"><div class="user-name" id="disc-name">—</div><div class="user-rank" id="disc-rank">—</div></div><button class="btn-logout" onclick="logout()">Salir</button></div>
+    <div id="disc-pendientes-banner" style="margin:10px 0 0"></div>
     <div class="stats-grid">
       <div class="stat-card" onclick="goDiscCursantes()"><div class="stat-num" id="stat-cursantes">—</div><div class="stat-label">Cursantes</div></div>
       <div class="stat-card" onclick="goDiscSanciones()"><div class="stat-num" id="stat-sanciones">—</div><div class="stat-label">Sanciones</div></div>
@@ -7479,6 +7483,14 @@ async function renderCursanteHome(){
   const cantDigitalesFirmadas = todasSanciones.filter(s => !esSancionAnalogica(s) && (s.confirmacion_estado==='firmada' || s.confirmacion_estado==='aceptada' || s.firma_cursante) && !s.es_prueba).length;
   const cantDigitalesPendientes = todasSanciones.filter(s => !esSancionAnalogica(s) && !s.firma_cursante && s.confirmacion_estado!=='firmada' && s.confirmacion_estado!=='aceptada' && !s.es_prueba).length;
 
+  // 🔔 Aviso de pendientes: sanción sin firmar (desaparece solo cuando firma)
+  const _banPend = document.getElementById('cur-pendientes-banner');
+  if(_banPend){
+    _banPend.innerHTML = cantDigitalesPendientes > 0
+      ? `<div class="alert-banner red"><span class="alert-emoji">✍️</span><span class="alert-text"><b>Tenés ${cantDigitalesPendientes} sanción${cantDigitalesPendientes>1?'es':''} sin firmar.</b><br><span style="font-size:13px">Hasta que la firmes queda pendiente. Abrí "Planilla de Disciplina" para revisarla y firmar.</span></span></div>`
+      : '';
+  }
+
   // Actualizar círculo grande
   const circle = document.getElementById('cur-nota-circle');
   const statusEl = document.getElementById('cur-nota-status');
@@ -8025,6 +8037,12 @@ function getEstado(p){
   return 'ok';
 }
 
+// Sanción DIGITAL pendiente de firma del cursante (no analógica, no anulada, no prueba)
+function sancionSinFirmar(s){
+  return s && !s.anulada && s.es_prueba!==true && !esSancionAnalogica(s)
+    && !s.firma_cursante && s.confirmacion_estado!=='firmada' && s.confirmacion_estado!=='aceptada';
+}
+
 function renderDiscPanel(){
   if(!currentUser) return;
   // === DEFENSA DE SEGURIDAD ===
@@ -8040,6 +8058,24 @@ function renderDiscPanel(){
   document.getElementById('disc-name').textContent=name;
   document.getElementById('disc-rank').textContent=[currentUser.grado||'',currentUser.arma||''].filter(Boolean).join(' · ')||'Jefe de Sección';
   document.getElementById('disc-initials').textContent=initials||'—';
+
+  // 🔔 Aviso de pendientes de firma (profesor: las suyas; Jefe Disc/CT: total)
+  const _bp = document.getElementById('disc-pendientes-banner');
+  if(_bp){
+    const uid=currentUser.id, nm=(currentUser.nombre_completo||'').toLowerCase();
+    const todas=(discData.sanciones||[]);
+    const misPend=todas.filter(s=> (String(s.profesor_id)===String(uid) || String(s.profesor_nombre||'').toLowerCase()===nm) && sancionSinFirmar(s));
+    let html='';
+    if(misPend.length){
+      const nombres=[...new Set(misPend.map(s=>{const c=(discData.cursantes||[]).find(x=>String(x.id)===String(s.cursante_id)); return c?c.nombre_completo:(s.cursante_nombre||s.cursante_id);}))].slice(0,4);
+      html+=`<div class="alert-banner yellow"><span class="alert-emoji">✍️</span><span class="alert-text"><b>${misPend.length} de tus sanciones aún no fueron firmadas por el alumno.</b><br><span style="font-size:13px">${nombres.join(' · ')}${misPend.length>nombres.length?' …':''}</span></span></div>`;
+    }
+    if(typeof esAdminPanel==='function' && esAdminPanel()){
+      const totalPend=todas.filter(sancionSinFirmar).length;
+      if(totalPend) html+=`<div class="alert-banner blue"><span class="alert-emoji">📋</span><span class="alert-text"><b>${totalPend} sanción(es) pendientes de firma en total</b> (todos los alumnos).</span></div>`;
+    }
+    _bp.innerHTML=html;
+  }
   const today=new Date();
   const fecha=today.toLocaleDateString('es-BO',{day:'2-digit',month:'2-digit',year:'numeric'});
   // Subtítulo dinámico según el cargo que está usando
