@@ -3165,7 +3165,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.18 · login universal</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.20 · fix contraseñas</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5281,13 +5281,24 @@ async function loginUniversal(){
     const {data:authResp, error:fnErr} = await authPromise;
     if(fnErr){
       console.error('auth-login error:', fnErr);
+      // El servidor devuelve 401 cuando la contraseña es incorrecta. supabase-js lo
+      // marca como "error", pero el mensaje claro ("Credenciales inválidas") viene en
+      // el cuerpo. Lo extraemos para NO mostrar el técnico "non-2xx status code".
+      let msg = 'No se pudo conectar. Revisá tu internet e intentá de nuevo.';
+      try{
+        if(fnErr.context && typeof fnErr.context.json === 'function'){
+          const b = await fnErr.context.json();
+          if(b && (b.error || b.message)) msg = b.error || b.message;
+        }
+      }catch(_){}
+      if(/non-2xx|status code/i.test(msg)) msg = 'CI o contraseña incorrectos.';
       errEl.style.display='block';
-      errEl.textContent='Error de conexión: '+(fnErr.message||fnErr);
+      errEl.textContent = msg;
       return;
     }
     if(!authResp || !authResp.ok){
       errEl.style.display='block';
-      errEl.textContent=(authResp && authResp.error) || 'Credenciales inválidas.';
+      errEl.textContent=(authResp && authResp.error) || 'CI o contraseña incorrectos.';
       return;
     }
     btn.textContent='Cargando datos...';
