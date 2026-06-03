@@ -3165,7 +3165,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.29 · anuladas CT</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.30 · alerta CT</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4076,6 +4076,7 @@ input::placeholder, textarea::placeholder {
   <div class="disc-container">
     <div class="user-strip"><div class="user-avatar" id="disc-initials">—</div><div class="user-info"><div class="user-name" id="disc-name">—</div><div class="user-rank" id="disc-rank">—</div></div><button class="btn-logout" onclick="logout()">Salir</button></div>
     <div id="disc-pendientes-banner" style="margin:10px 0 0"></div>
+    <div id="ct-seguridad-banner" style="margin:10px 0 0"></div>
     <div class="stats-grid">
       <div class="stat-card" onclick="goDiscCursantes()"><div class="stat-num" id="stat-cursantes">—</div><div class="stat-label">Cursantes</div></div>
       <div class="stat-card" onclick="goDiscSanciones()"><div class="stat-num" id="stat-sanciones">—</div><div class="stat-label">Sanciones</div></div>
@@ -8039,6 +8040,33 @@ function getEstado(p){
   return 'ok';
 }
 
+// 🛡️ Alerta de seguridad SOLO para el CT: modificaciones a sanciones en los últimos 7 días
+async function cargarAlertasSeguridadCT(){
+  const cont = document.getElementById('ct-seguridad-banner');
+  if(!cont || typeof esCT!=='function' || !esCT()) { if(cont) cont.innerHTML=''; return; }
+  try{
+    const desde = new Date(Date.now() - 7*24*60*60*1000).toISOString();
+    const {data, error} = await sb.from('sanciones_audit')
+      .select('accion, realizado_por_nombre, creado_en')
+      .gte('creado_en', desde)
+      .order('creado_en', {ascending:false});
+    if(error){ cont.innerHTML=''; return; }
+    const filas = data || [];
+    if(!filas.length){
+      cont.innerHTML = `<div class="alert-banner green"><span class="alert-emoji">🛡️</span><span class="alert-text"><b>Seguridad: sin novedades.</b> Ninguna modificación a sanciones en los últimos 7 días.</span></div>`;
+      return;
+    }
+    const c = filas.reduce((a,x)=>{a[x.accion]=(a[x.accion]||0)+1;return a;},{});
+    const partes=[];
+    if(c.anular) partes.push(`🚫 ${c.anular} anulada(s)`);
+    if(c.editar) partes.push(`✏️ ${c.editar} editada(s)`);
+    if(c.reactivar) partes.push(`↩️ ${c.reactivar} reactivada(s)`);
+    if(c.crear_manual) partes.push(`➕ ${c.crear_manual} creada(s) manual`);
+    const quienes = [...new Set(filas.map(x=>x.realizado_por_nombre).filter(Boolean))].slice(0,5);
+    cont.innerHTML = `<div class="alert-banner red"><span class="alert-emoji">🛡️</span><span class="alert-text"><b>Seguridad — ${filas.length} acción(es) sobre sanciones (últimos 7 días).</b><br><span style="font-size:13px">${partes.join(' · ')}${quienes.length?'<br>Por: '+quienes.join(', '):''}</span></span></div>`;
+  }catch(e){ cont.innerHTML=''; }
+}
+
 // Sanción DIGITAL pendiente de firma del cursante (no analógica, no anulada, no prueba)
 function sancionSinFirmar(s){
   return s && !s.anulada && s.es_prueba!==true && !esSancionAnalogica(s)
@@ -8078,6 +8106,9 @@ function renderDiscPanel(){
     }
     _bp.innerHTML=html;
   }
+  // 🛡️ Alerta de seguridad (solo CT) — async, no bloquea
+  if(typeof esCT==='function' && esCT()){ try{ cargarAlertasSeguridadCT(); }catch(e){} }
+  else { const _ct=document.getElementById('ct-seguridad-banner'); if(_ct) _ct.innerHTML=''; }
   const today=new Date();
   const fecha=today.toLocaleDateString('es-BO',{day:'2-digit',month:'2-digit',year:'numeric'});
   // Subtítulo dinámico según el cargo que está usando
