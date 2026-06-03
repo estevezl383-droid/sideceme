@@ -1675,6 +1675,13 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 
 /* ==================== v2.9: PANEL JEFE EFM ==================== */
 .ef-panel-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:14px 0}
+/* Banner insistente de notificaciones push para personal */
+.banner-push{display:flex;align-items:center;gap:10px;background:linear-gradient(135deg,rgba(183,121,31,.22),rgba(122,80,18,.18));border:1px solid rgba(212,175,55,.45);border-radius:10px;padding:11px 14px;margin:10px 0;cursor:pointer}
+.banner-push-icon{font-size:22px;flex-shrink:0}
+.banner-push-text{flex:1;font-size:13px;color:var(--text-primary);line-height:1.4}
+.banner-push-text strong{display:block;font-size:14px;color:var(--gold);margin-bottom:2px}
+.banner-push-btn{background:var(--gold);color:#000;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0}
+.banner-push-close{color:var(--text-muted);font-size:18px;cursor:pointer;flex-shrink:0;padding:0 2px;line-height:1}
 .ef-stat-card{
   background:var(--bg-card);border:1px solid var(--border-strong);border-radius:10px;
   padding:12px 8px;text-align:center;
@@ -3165,7 +3172,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.42 · mis-sanc detalle</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.43 · EF nav+timeout+push</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -3485,6 +3492,8 @@ input::placeholder, textarea::placeholder {
       <button class="btn-logout" onclick="logout()">Salir</button>
     </div>
 
+    <div id="banner-push-ef"></div>
+
     <div class="ef-panel-stats">
       <div class="ef-stat-card">
         <div class="ef-stat-num" id="ef-stat-total">0</div>
@@ -3569,6 +3578,8 @@ input::placeholder, textarea::placeholder {
     </div>
 
     <!-- v2.9.3: Modo de operación eliminado. Todas las sanciones son REALES desde 18/05/2026. -->
+
+    <div id="banner-push-prof"></div>
 
     <div class="prof-hero">
       <div class="prof-hero-label">✍️ Modo Profesor</div>
@@ -5032,7 +5043,7 @@ function logout(){
 /* ==================== AUTO-LOGOUT POR INACTIVIDAD ====================
    Cierra sesión automáticamente después de 3 minutos sin interacción.
    Cualquier toque, click, scroll o tecla resetea el contador. */
-const IDLE_TIMEOUT_MS = 1800000; // 30 minutos (solo para personal/profesores; los alumnos no tienen cierre)
+const IDLE_TIMEOUT_MS = 18000000; // 5 horas = jornada laboral completa (solo para personal/profesores; los alumnos no tienen cierre)
 let idleTimer = null;
 let idleWarned = false;
 
@@ -5046,7 +5057,7 @@ function iniciarIdleTimer(){
   idleTimer = setTimeout(() => {
     if(!currentUser) return;
     idleWarned = true;
-    alert('⏱️ Sesión cerrada por inactividad (30 minutos sin actividad).\n\nPor seguridad, vuelva a iniciar sesión.');
+    alert('⏱️ Sesión cerrada por inactividad (5 horas sin actividad).\n\nPor seguridad, vuelva a iniciar sesión.');
     logout();
   }, IDLE_TIMEOUT_MS);
 }
@@ -6101,6 +6112,8 @@ async function loadEvaluacionesFisicas(){
 function goEfPanel(){
   renderEfPanel();
   showScreen('screen-ef-panel');
+  // Mostrar banner de notificaciones si no están activas
+  mostrarBannerPushSiNecesario('banner-push-ef');
 }
 
 function renderEfPanel(){
@@ -7937,6 +7950,59 @@ async function activarNotificacionesStaff(){
   }
 }
 
+/* ── Banner insistente de notificaciones push para personal ─────────────────
+   Aparece en el panel EF y panel Profesor si el usuario NO tiene push activo.
+   Desaparece automáticamente en cuanto activa las notificaciones.          */
+async function estaSubscritoPush(){
+  try{
+    if(!('serviceWorker' in navigator) || !('PushManager' in window)) return false;
+    const reg = swRegistration || await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.getSubscription();
+    return !!sub;
+  }catch(e){ return false; }
+}
+
+async function mostrarBannerPushSiNecesario(containerId){
+  const cont = document.getElementById(containerId);
+  if(!cont) return;
+  cont.innerHTML = ''; // limpiar
+
+  // Si el navegador no soporta push, no mostrar nada
+  if(!('Notification' in window) || !('serviceWorker' in navigator)){ return; }
+
+  // Si ya está suscrito → no mostrar banner
+  const suscrito = await estaSubscritoPush();
+  if(suscrito && Notification.permission === 'granted'){ return; }
+
+  // Si el permiso fue denegado → mensaje diferente
+  const denegado = Notification.permission === 'denied';
+
+  cont.innerHTML = `
+    <div class="banner-push" onclick="${denegado?'':'bannerPushActivar(\''+containerId+'\')'}">
+      <div class="banner-push-icon">🔔</div>
+      <div class="banner-push-text">
+        <strong>${denegado ? 'Notificaciones bloqueadas' : 'Activa las notificaciones'}</strong>
+        ${denegado
+          ? 'Activa los permisos en Configuración → Permisos del sitio y recarga la app.'
+          : 'Recibe avisos cuando un alumno firme o tenga pendientes. Toca para activar.'}
+      </div>
+      ${denegado
+        ? `<span class="banner-push-close" onclick="event.stopPropagation();this.closest('.banner-push').style.display='none'">✕</span>`
+        : `<button class="banner-push-btn" onclick="event.stopPropagation();bannerPushActivar('${containerId}')">ACTIVAR</button>`
+      }
+    </div>`;
+}
+
+async function bannerPushActivar(containerId){
+  await activarNotificacionesStaff();
+  // Después de activar, volver a verificar y ocultar el banner si quedó suscrito
+  const ahoraSuscrito = await estaSubscritoPush();
+  if(ahoraSuscrito){
+    const cont = document.getElementById(containerId);
+    if(cont) cont.innerHTML = '';
+  }
+}
+
 async function toggleNotificacionesCursante(){
   if(!('Notification' in window) || !('serviceWorker' in navigator)){
     alert('Tu dispositivo no soporta notificaciones. En iPhone: tocá Compartir → "Agregar a inicio" y abrí la app desde el ícono.');
@@ -8592,14 +8658,27 @@ function renderSancionesList(){
   }).join('');
 }
 
+// Rastrea desde qué pantalla se abrió el detalle de sanción (para volver al lugar correcto)
+let _sancionDetalleOrigen = null;
+
 function volverDeSancionDetalle(){
   if(leafletMap){ try{ leafletMap.remove(); }catch(e){} leafletMap=null; }
-  goDiscSanciones();
+  const origen = _sancionDetalleOrigen;
+  _sancionDetalleOrigen = null;
+  // Volver a la pantalla exacta de origen
+  if(origen === 'screen-mis-sanciones-cursante'){ showScreen('screen-mis-sanciones-cursante'); return; }
+  if(origen === 'screen-mis-sancionados'){ goMisSancionados(); return; }
+  // Panel administrativo (disciplina, CT, estudios, comandante) → lista de sanciones
+  if(esAdminPanel()){ goDiscSanciones(); return; }
+  // Cualquier otro rol (EF, profesor, jc) → su propio panel
+  goAnyPanel();
 }
 
 function verSancionDetalle(sancionId){
   const s = discData.sanciones.find(x=>String(x.id)===String(sancionId));
   if(!s){ alert('No se encontró la sanción.'); return; }
+  // Guardar desde qué pantalla venimos antes de navegar
+  _sancionDetalleOrigen = (document.querySelector('.screen.active')||{}).id || null;
   selectedSancionId = sancionId;
   if(leafletMap){ try{ leafletMap.remove(); }catch(e){} leafletMap=null; }
 
@@ -11451,6 +11530,8 @@ function goProfPanel(){
   if(activeRole === 'ef'){ goEfPanel(); return; }
   renderProfPanel();
   showScreen('screen-prof-panel');
+  // Mostrar banner de notificaciones si no están activas
+  mostrarBannerPushSiNecesario('banner-push-prof');
 }
 
 // === Volver al panel principal del rol activo ===
