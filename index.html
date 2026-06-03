@@ -3165,7 +3165,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.40 · campanita</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.41 · EF sanciones</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -3500,7 +3500,17 @@ input::placeholder, textarea::placeholder {
       </div>
     </div>
 
-    <button class="btn-mega" onclick="goHorarios()" style="background:linear-gradient(180deg,#4a90d9,#2d5a8a);margin:8px 0">
+    <button class="btn-mega" onclick="goProfNuevaSancion()" style="margin-bottom:8px">
+      <span class="mega-icon">📝</span>
+      <span>Registrar nueva sanción</span>
+    </button>
+
+    <button class="btn-mega" onclick="goMisSancionados()" style="background:linear-gradient(180deg,#2d6a4f,#1b4332);margin-bottom:8px">
+      <span class="mega-icon">👥</span>
+      <span>Mis sancionados</span>
+    </button>
+
+    <button class="btn-mega" onclick="goHorarios()" style="background:linear-gradient(180deg,#4a90d9,#2d5a8a);margin-bottom:8px">
       <span class="mega-icon">📅</span>
       <span>Horario Semanal</span>
     </button>
@@ -11432,6 +11442,7 @@ function mostrarAvisoBackupSiAplica(){
 
 function goProfPanel(){
   if(activeRole === 'jefe_curso'){ goJCPanel(); return; }
+  if(activeRole === 'ef'){ goEfPanel(); return; }
   renderProfPanel();
   showScreen('screen-prof-panel');
 }
@@ -11448,6 +11459,8 @@ function goAnyPanel(){
   }
   if(activeRole === 'jefe_curso'){
     goJCPanel();
+  } else if(activeRole === 'ef'){
+    goEfPanel();
   } else if(activeRole === 'profesor'){
     goProfPanel();
   } else if(esAdminPanel()){
