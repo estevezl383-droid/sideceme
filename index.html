@@ -3165,7 +3165,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.34 · push fase 2</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.35 · push diag</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7888,9 +7888,21 @@ async function toggleNotificacionesCursante(){
   // Activa push real (service worker + suscripción guardada en el servidor)
   const okp = await activarPush();
   if(okp){
-    // Aviso inmediato local + push REAL de prueba (confirma que llega con la app en segundo plano)
+    // Aviso inmediato local
     try{ const reg = swRegistration || await navigator.serviceWorker.ready; reg.showNotification('SIDECEME', { body:'✅ Notificaciones activadas. Te avisaremos de tus pendientes.', icon:'assets/icon-sideceme.png' }); }catch(e){}
-    try{ const tok=(typeof getTokenSesion==='function')?getTokenSesion():null; if(tok) sb.functions.invoke('push-ops',{body:{accion:'prueba',token:tok}}).catch(()=>{}); }catch(e){}
+    // Push REAL de prueba — con diagnóstico visible
+    try{
+      const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
+      if(tok){
+        const {data:r, error} = await sb.functions.invoke('push-ops',{body:{accion:'prueba',token:tok}});
+        if(error){ alert('Activadas, pero la PRUEBA de envío falló:\n'+(error.message||error)+'\n\n(Revisá que el Edge Function push-ops esté actualizado y las llaves VAPID guardadas.)'); }
+        else if(r && r.ok){
+          if(r.enviados>0){ alert('✅ Prueba enviada a '+r.enviados+' dispositivo(s). Si no ves la notificación: en compu mirá la esquina; en celular debe estar la app instalada y permisos del sistema activos.'); }
+          else { alert('Activadas, pero la prueba salió a 0 dispositivos.\nCausa probable: las llaves VAPID no están guardadas en Supabase, o el dispositivo no quedó suscrito.'); }
+        }
+        else { alert('Activadas, pero el servidor respondió: '+((r&&r.error)||'desconocido')+'\n(¿push-ops está con el código nuevo y JWT OFF?)'); }
+      }
+    }catch(e){ alert('Activadas, pero la prueba falló: '+(e.message||e)); }
   }
   if(typeof renderCursantePerfilTab==='function') renderCursantePerfilTab();
 }
