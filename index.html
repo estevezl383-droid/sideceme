@@ -3165,7 +3165,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.27 · avisos</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.28 · avisos</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7487,7 +7487,7 @@ async function renderCursanteHome(){
   const _banPend = document.getElementById('cur-pendientes-banner');
   if(_banPend){
     _banPend.innerHTML = cantDigitalesPendientes > 0
-      ? `<div class="alert-banner red"><span class="alert-emoji">✍️</span><span class="alert-text"><b>Tenés ${cantDigitalesPendientes} sanción${cantDigitalesPendientes>1?'es':''} sin firmar.</b><br><span style="font-size:13px">Hasta que la firmes queda pendiente. Abrí "Planilla de Disciplina" para revisarla y firmar.</span></span></div>`
+      ? `<div class="alert-banner" style="background:linear-gradient(90deg,#c0271f,#8f1610);border-left:5px solid #ffd2cd;color:#fff;box-shadow:0 0 16px rgba(192,39,31,.55)"><span class="alert-emoji">🚨</span><span class="alert-text"><b style="color:#fff">Tienes ${cantDigitalesPendientes} sanción${cantDigitalesPendientes>1?'es':''} sin firmar.</b><br><span style="font-size:13px;color:#ffe4e1">Hasta que la firmes queda pendiente. Abre "Planilla de Disciplina" para revisarla y firmar.</span></span></div>`
       : '';
   }
 
