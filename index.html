@@ -3165,7 +3165,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.28 · avisos</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.29 · anuladas CT</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6836,6 +6836,8 @@ function renderGestSancionesList(){
   const filtroTexto = (document.getElementById('gs-filtro-nombre').value||'').trim().toLowerCase();
   const filtroEstado = document.getElementById('gs-filtro-estado').value;
   let arr = (discData.sanciones||[]).slice();
+  // ANULADAS: SOLO el Jefe de Ciencia y Tecnología (C&T) las ve
+  if(!esCT()) arr = arr.filter(s => s.anulada !== true);
   // Filtrar por estado
   if(filtroEstado === 'vigente') arr = arr.filter(s => s.anulada !== true);
   else if(filtroEstado === 'anulada') arr = arr.filter(s => s.anulada === true);
@@ -8120,8 +8122,8 @@ function renderDiscPanel(){
 function renderActividadReciente(){
   const cnt = document.getElementById('actividad-reciente-list');
   if(!cnt) return;
-  // solo Jefe Disciplina y C&T ven sanciones anuladas en el feed
-  const verAnuladas = (activeRole === 'disciplina' || esCT());
+  // SOLO el Jefe de Ciencia y Tecnología (C&T) ve sanciones anuladas en el feed
+  const verAnuladas = esCT();
   const sanciones = (discData.sanciones||[])
     .filter(s => s.es_prueba !== true)
     .filter(s => verAnuladas || s.anulada !== true);
@@ -8341,8 +8343,8 @@ function renderSancionesList(){
   const q = (document.getElementById('search-sanc').value||'').trim().toLowerCase();
   const c = document.getElementById('sanciones-list'); c.className='';
   let arr = discData.sanciones;
-  // ANULADAS: solo Disciplina y C&T las ven
-  if(activeRole !== 'disciplina' && !esCT()){
+  // ANULADAS: SOLO el Jefe de Ciencia y Tecnología (C&T) las ve. Ni siquiera Disciplina.
+  if(!esCT()){
     arr = arr.filter(s => s.anulada !== true);
   }
   if(q) arr = arr.filter(s=>
