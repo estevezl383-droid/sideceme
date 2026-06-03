@@ -3165,7 +3165,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.30 · alerta CT</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.31 · alumnos rápido</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4897,7 +4897,15 @@ let discData = {cursantes:[], sanciones:[], profesores:[], reglamentos:[], byCur
 // Junto con el warm-up del EF, cargamos los datos mientras el usuario
 // está en la pantalla de login. Si llega antes → panel disponible al instante.
 // Si falla (primera vez, vista no existe aún, etc.) → el post-login lo reintenta.
-setTimeout(() => { try{ loadDiscData().catch(()=>{}); }catch(e){} }, 0);
+// v2.9.31: si el ÚLTIMO que usó este equipo fue un ALUMNO, NO bajamos toda la base
+//          (el alumno carga liviano al entrar). El personal mantiene su precarga.
+(function(){
+  let ultimoTipo = null;
+  try{ ultimoTipo = localStorage.getItem('sideceme_last_tipo'); }catch(e){}
+  if(ultimoTipo !== 'cursante'){
+    setTimeout(() => { try{ loadDiscData().catch(()=>{}); }catch(e){} }, 0);
+  }
+})();
 
 function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -4926,7 +4934,7 @@ function showError(id,msg){
   const el = document.getElementById(id); if(!el) return;
   el.textContent=msg; el.classList.add('visible');
 }
-function saveSession(u,t,r){ sessionStorage.setItem('sideceme_session', JSON.stringify({user:u,tipo:t,role:r})); }
+function saveSession(u,t,r){ sessionStorage.setItem('sideceme_session', JSON.stringify({user:u,tipo:t,role:r})); try{ localStorage.setItem('sideceme_last_tipo', t); }catch(e){} }
 function getSession(){ const r=sessionStorage.getItem('sideceme_session'); return r?JSON.parse(r):null; }
 // v2.9.8: token de sesión emitido por Edge Function auth-login (expira 8h)
 function guardarTokenSesion(token, expiraEn){
@@ -5460,6 +5468,41 @@ function requierePrimerIngreso(usuario, intentoUsado){
   if(usuario && usuario.primer_ingreso === false && usuario.password_hash) return false;
   // En cualquier otro caso (sin hash, sin firma, o primer_ingreso true): SÍ
   return true;
+}
+
+// ⚡ Carga LIVIANA para alumnos: solo SUS sanciones + reglamentos (no toda la base de ~900 filas)
+async function loadCursanteData(force=false){
+  if(discData.loaded && !force) return;
+  if(!currentUser) return;
+  try{
+    const [sanRes, regRes] = await Promise.all([
+      sb.from('v_sanciones').select('*').eq('cursante_id', currentUser.id),
+      sb.from('reglamentos').select('*')
+    ]);
+    if(sanRes.error) console.error('sanciones (cursante):', sanRes.error);
+    if(regRes.error) console.error('reglamentos:', regRes.error);
+    discData.cursantes   = [currentUser];
+    discData.sanciones   = sanRes.data || [];
+    discData.profesores  = [];
+    discData.reglamentos = regRes.data || [];
+    discData.byCursanteLost = {};
+    discData.byCursanteSanc = {};
+    discData.byCursantePendiente = {};
+    discData.sanciones.forEach(s=>{
+      if(s.anulada===true) return;
+      const cid=s.cursante_id; const pts=Number(s.puntos_aplicados)||0;
+      if(sancionCuentaParaPuntaje(s)){
+        if(sancionEnSemestreActual(s)) discData.byCursanteLost[cid]=(discData.byCursanteLost[cid]||0)+pts;
+      } else if(s.es_prueba!==true && !esSancionAnalogica(s)){
+        discData.byCursantePendiente[cid]=(discData.byCursantePendiente[cid]||0)+pts;
+      }
+      if(!discData.byCursanteSanc[cid]) discData.byCursanteSanc[cid]=[];
+      discData.byCursanteSanc[cid].push(s);
+    });
+    discData.loaded=true;
+    discData.lastSync=new Date();
+    detectarSchemaSanciones(); // necesario para que la firma del cursante funcione
+  }catch(e){ console.warn('loadCursanteData', e); }
 }
 
 async function enterRole(role){
@@ -7456,7 +7499,7 @@ async function renderCursanteHome(){
     return;
   }
   // Si no hay data cargada, la cargamos primero (para tener sanciones, etc.)
-  if(!discData.loaded){ try{ await loadDiscData(); }catch(e){ console.warn(e); } }
+  if(!discData.loaded){ try{ await loadCursanteData(); }catch(e){ console.warn(e); } }
 
   const name = currentUser.nombre_completo||'Cursante';
   const initials = name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
