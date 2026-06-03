@@ -3165,7 +3165,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.32 · seguridad CT</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.33 · push fase 1</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4906,6 +4906,41 @@ let discData = {cursantes:[], sanciones:[], profesores:[], reglamentos:[], byCur
     setTimeout(() => { try{ loadDiscData().catch(()=>{}); }catch(e){} }, 0);
   }
 })();
+
+// === PUSH (Fase 1): registrar service worker + suscribir dispositivo ===
+const VAPID_PUBLIC_KEY = 'BGT3mQFEFy2twyRdNB3-EvR5K7RmzSFl6ODOzT_nsNEB013tP_bMXa2YjteP7d0IcQMYzXKzmjr6i4jukNp60VM';
+let swRegistration = null;
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js').then(reg => { swRegistration = reg; }).catch(()=>{});
+}
+function urlBase64ToUint8Array(base64String){
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g,'+').replace(/_/g,'/');
+  const raw = atob(base64);
+  const out = new Uint8Array(raw.length);
+  for(let i=0;i<raw.length;i++) out[i] = raw.charCodeAt(i);
+  return out;
+}
+async function activarPush(){
+  if(!('serviceWorker' in navigator) || !('PushManager' in window)){
+    alert('Tu navegador no soporta notificaciones push. En iPhone: tocá Compartir → "Agregar a inicio" y abrí la app desde ese ícono.');
+    return false;
+  }
+  try{
+    const perm = await Notification.requestPermission();
+    if(perm !== 'granted'){ alert('No se activaron las notificaciones (permiso no concedido).'); return false; }
+    const reg = swRegistration || await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if(!sub){
+      sub = await reg.pushManager.subscribe({ userVisibleOnly:true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+    }
+    const tok = (typeof getTokenSesion==='function') ? getTokenSesion() : null;
+    if(!tok){ alert('Sesión no válida. Volvé a iniciar sesión y reintentá.'); return false; }
+    const { data:r, error } = await sb.functions.invoke('push-ops', { body:{ accion:'suscribir', token:tok, subscription: sub.toJSON(), user_agent: navigator.userAgent } });
+    if(error || !(r && r.ok)){ alert('No se pudo registrar el dispositivo. Reintentá en unos segundos.'); return false; }
+    return true;
+  }catch(e){ alert('No se pudo activar: ' + (e.message||e)); return false; }
+}
 
 function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -7842,29 +7877,20 @@ function renderCursantePerfilTab(){
 }
 
 async function toggleNotificacionesCursante(){
-  if(!('Notification' in window)){
-    alert('Tu navegador no soporta notificaciones.');
+  if(!('Notification' in window) || !('serviceWorker' in navigator)){
+    alert('Tu dispositivo no soporta notificaciones. En iPhone: tocá Compartir → "Agregar a inicio" y abrí la app desde el ícono.');
     return;
   }
   if(Notification.permission === 'denied'){
-    alert('Las notificaciones están bloqueadas. Ve a la configuración del navegador para habilitarlas.');
+    alert('Las notificaciones están bloqueadas. Activalas en la configuración del navegador → Permisos del sitio.');
     return;
   }
-  if(Notification.permission === 'granted'){
-    // No hay API para revocar; sólo se puede pedir desde ajustes
-    alert('Para desactivar las notificaciones, ve a la configuración del navegador → Permisos del sitio.');
-    return;
+  // Activa push real (service worker + suscripción guardada en el servidor)
+  const okp = await activarPush();
+  if(okp){
+    try{ const reg = swRegistration || await navigator.serviceWorker.ready; reg.showNotification('SIDECEME', { body:'✅ Notificaciones activadas. Te avisaremos de tus pendientes.', icon:'assets/icon-sideceme.png' }); }catch(e){}
   }
-  // Pedir permiso
-  try{
-    const perm = await Notification.requestPermission();
-    if(perm === 'granted'){
-      new Notification('SIDECEME', { body:'✅ Notificaciones activadas correctamente', icon:'' });
-    }
-    renderCursantePerfilTab();
-  }catch(e){
-    alert('No se pudo activar: ' + (e.message||e));
-  }
+  if(typeof renderCursantePerfilTab==='function') renderCursantePerfilTab();
 }
 
 async function cambiarMiPasswordCursante(){
