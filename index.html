@@ -3165,7 +3165,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.41 · EF sanciones</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.42 · mis-sanc detalle</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4850,6 +4850,12 @@ input::placeholder, textarea::placeholder {
 <section id="screen-mis-sancionados" class="screen">
   <div class="app-header"><button class="back-btn" onclick="goAnyPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Mis sancionados</div><div class="header-sub" id="mis-sanc-sub">Cursantes que yo sancioné</div></div></div>
   <div class="disc-container"><div id="mis-sancionados-content" class="list-loading">Cargando...</div></div>
+</section>
+
+<!-- Detalle: mis sanciones sobre un cursante específico -->
+<section id="screen-mis-sanciones-cursante" class="screen">
+  <div class="app-header"><button class="back-btn" onclick="goMisSancionados()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Mis sanciones</div><div class="header-sub" id="msc-sub">Sanciones impuestas por mí</div></div></div>
+  <div class="disc-container"><div id="msc-content"></div></div>
 </section>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -13172,14 +13178,78 @@ function renderMisSancionados(){
   let html = `<div class="section-label" style="margin-bottom:10px">👥 ${lista.length} cursante(s) con sanciones tuyas</div>`;
   lista.forEach(({cid, c, cant, pts}) => {
     const e = est(cid);
-    html += `<div class="list-item" style="cursor:pointer" onclick="verFichaCursante('${cid}','mis-sancionados')">
+    html += `<div class="list-item" style="cursor:pointer" onclick="verMisSancionesDelCursante('${cid}')">
       <div class="li-id">${c?c.paralelo?'Par.'+c.paralelo:c.id:cid}</div>
       <div class="li-name">${escapeHTML(c?c.nombre_completo||'—':'Cursante '+cid)}<br>
-        <span class="li-ci">${cant} sanción(es) · ${pts} pts${c?' · '+cyp(c):''}</span></div>
-      <div class="li-score ${e==='consejo'?'danger':e==='observacion'?'warn':'ok'}">${100-perd(cid)}</div>
+        <span class="li-ci">${cant} sanción(es) · ${pts} pts impuestos por mí${c?' · '+cyp(c):''}</span></div>
+      <div class="li-score ${e==='consejo'?'danger':e==='observacion'?'warn':'ok'}">${pts} pts</div>
     </div>`;
   });
   cont.innerHTML = html;
+}
+
+/* Detalle: todas las sanciones que YO impuse a un cursante específico */
+function verMisSancionesDelCursante(cid){
+  const uid   = currentUser && currentUser.id;
+  const nombre = currentUser && currentUser.nombre_completo;
+  const cur   = (discData.cursantes||[]).find(c => c.id === cid);
+
+  // Solo las sanciones que impuse YO sobre este cursante (no anuladas, no prueba)
+  const misSancs = (discData.sanciones||[]).filter(s =>
+    String(s.cursante_id) === String(cid) &&
+    !s.anulada && s.es_prueba !== true &&
+    (String(s.profesor_id) === String(uid) ||
+     String(s.profesor_nombre||'').toLowerCase() === String(nombre||'').toLowerCase())
+  ).sort((a,b) => new Date(b.creado_en||0) - new Date(a.creado_en||0));
+
+  const totalPts = misSancs.reduce((acc,s) => acc + Number(s.puntos_aplicados||0), 0);
+
+  // Encabezado del cursante
+  const initials = cur ? (cur.nombre_completo||'').split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase() : '?';
+  const cyp = cur ? fmtCicloPara(cur) : '';
+
+  let html = `
+    <div class="user-strip" style="margin-bottom:14px">
+      <div class="user-avatar">${initials}</div>
+      <div class="user-info">
+        <div class="user-name">${escapeHTML(cur ? nombreConGrado(cur) : cid)}</div>
+        <div class="user-rank">${cyp}${cur?' · CI '+cur.ci:''}</div>
+      </div>
+    </div>
+    <div style="background:rgba(212,175,55,.10);border:1px solid rgba(212,175,55,.3);border-radius:8px;padding:12px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
+      <div style="color:var(--text-muted);font-size:13px">Sanciones impuestas por mí</div>
+      <div style="font-size:22px;font-weight:700;color:var(--gold)">${misSancs.length} sanción${misSancs.length!==1?'es':''} · ${totalPts} pts</div>
+    </div>`;
+
+  if(!misSancs.length){
+    html += '<div class="list-empty">✅ No tienes sanciones registradas a este cursante.</div>';
+  } else {
+    misSancs.forEach(s => {
+      const cls   = clasificarSancion(s);
+      const fecha = s.creado_en ? new Date(s.creado_en).toLocaleDateString('es-BO') : '—';
+      const folio = s.folio ? `Folio ${s.folio}` : (s.id||'');
+      const descCompleta = obtenerDescripcionSancion(s);
+      const desc  = descCompleta.length > 110 ? descCompleta.slice(0,110)+'…' : descCompleta;
+      html += `<div class="sancion-card ${cls.cls}" onclick="verSancionDetalle('${s.id}')" style="cursor:pointer">
+        <div class="sc-row1">
+          <div class="sc-cursante">${s.falta_id||'Falta'}</div>
+          <div class="sc-pts">−${s.puntos_aplicados||0} PTS</div>
+        </div>
+        <div class="sc-desc">${escapeHTML(desc)}</div>
+        <div class="sc-row3">
+          <span class="sc-status ${cls.statusCls}">${cls.icon||''} ${cls.label}</span>
+          <span class="sc-folio">${folio} · ${fecha}</span>
+        </div>
+      </div>`;
+    });
+  }
+
+  // Subtítulo del header
+  const sub = document.getElementById('msc-sub');
+  if(sub) sub.textContent = cur ? `Sanciones mías sobre ${cur.nombre_completo||cid}` : 'Sanciones impuestas por mí';
+
+  document.getElementById('msc-content').innerHTML = html;
+  showScreen('screen-mis-sanciones-cursante');
 }
 // ════════════════════════════════════════════════════════════════════════════
 
