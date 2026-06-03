@@ -3165,7 +3165,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.37 · notif personal</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.38 · notif personal</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7892,16 +7892,8 @@ async function activarNotificacionesStaff(){
     alert('Las notificaciones están bloqueadas. Activalas en la configuración del navegador → Permisos del sitio.');
     return;
   }
-  try{
-    const _reg = swRegistration || await navigator.serviceWorker.ready;
-    const _sub = await _reg.pushManager.getSubscription();
-    if(_sub){
-      const _ep=_sub.endpoint; try{ await _sub.unsubscribe(); }catch(e){}
-      try{ const _t=(typeof getTokenSesion==='function')?getTokenSesion():null; if(_t) await sb.functions.invoke('push-ops',{body:{accion:'desuscribir',token:_t,endpoint:_ep}}); }catch(e){}
-      alert('🔕 Notificaciones desactivadas en este dispositivo.');
-      return;
-    }
-  }catch(e){}
+  // SIEMPRE activa y vincula ESTE dispositivo al usuario logueado ahora.
+  // (Si el dispositivo ya estaba suscrito por otra persona, lo RE-VINCULA al actual.)
   const okp = await activarPush();
   if(okp){
     try{
@@ -7909,7 +7901,7 @@ async function activarNotificacionesStaff(){
       if(_t){
         const {data:r,error}=await sb.functions.invoke('push-ops',{body:{accion:'prueba',token:_t}});
         if(error) alert('Activadas, pero la prueba de envío falló: '+(error.message||error));
-        else if(r&&r.ok&&r.enviados>0) alert('✅ Notificaciones activadas. Te avisaremos cuando un alumno firme su sanción.');
+        else if(r&&r.ok&&r.enviados>0) alert('✅ Notificaciones activadas en este dispositivo. Te avisaremos cuando un alumno firme su sanción.');
         else alert('✅ Activadas (la prueba salió a 0 dispositivos — revisá llaves VAPID).');
       }
     }catch(e){}
