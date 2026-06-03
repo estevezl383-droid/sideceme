@@ -3165,7 +3165,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.31 · alumnos rápido</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.32 · seguridad CT</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -8087,27 +8087,48 @@ function getEstado(p){
 async function cargarAlertasSeguridadCT(){
   const cont = document.getElementById('ct-seguridad-banner');
   if(!cont || typeof esCT!=='function' || !esCT()) { if(cont) cont.innerHTML=''; return; }
+  let html = '';
+  // (A) Modificaciones a sanciones en los últimos 7 días (auditoría)
   try{
     const desde = new Date(Date.now() - 7*24*60*60*1000).toISOString();
     const {data, error} = await sb.from('sanciones_audit')
       .select('accion, realizado_por_nombre, creado_en')
       .gte('creado_en', desde)
       .order('creado_en', {ascending:false});
-    if(error){ cont.innerHTML=''; return; }
-    const filas = data || [];
-    if(!filas.length){
-      cont.innerHTML = `<div class="alert-banner green"><span class="alert-emoji">🛡️</span><span class="alert-text"><b>Seguridad: sin novedades.</b> Ninguna modificación a sanciones en los últimos 7 días.</span></div>`;
-      return;
+    const filas = (!error && data) ? data : [];
+    if(filas.length){
+      const c = filas.reduce((a,x)=>{a[x.accion]=(a[x.accion]||0)+1;return a;},{});
+      const partes=[];
+      if(c.anular) partes.push(`🚫 ${c.anular} anulada(s)`);
+      if(c.editar) partes.push(`✏️ ${c.editar} editada(s)`);
+      if(c.reactivar) partes.push(`↩️ ${c.reactivar} reactivada(s)`);
+      if(c.crear_manual) partes.push(`➕ ${c.crear_manual} creada(s) manual`);
+      const quienes = [...new Set(filas.map(x=>x.realizado_por_nombre).filter(Boolean))].slice(0,5);
+      html += `<div class="alert-banner red"><span class="alert-emoji">🛡️</span><span class="alert-text"><b>Seguridad — ${filas.length} acción(es) sobre sanciones (últimos 7 días).</b><br><span style="font-size:13px">${partes.join(' · ')}${quienes.length?'<br>Por: '+quienes.join(', '):''}</span></span></div>`;
     }
-    const c = filas.reduce((a,x)=>{a[x.accion]=(a[x.accion]||0)+1;return a;},{});
-    const partes=[];
-    if(c.anular) partes.push(`🚫 ${c.anular} anulada(s)`);
-    if(c.editar) partes.push(`✏️ ${c.editar} editada(s)`);
-    if(c.reactivar) partes.push(`↩️ ${c.reactivar} reactivada(s)`);
-    if(c.crear_manual) partes.push(`➕ ${c.crear_manual} creada(s) manual`);
-    const quienes = [...new Set(filas.map(x=>x.realizado_por_nombre).filter(Boolean))].slice(0,5);
-    cont.innerHTML = `<div class="alert-banner red"><span class="alert-emoji">🛡️</span><span class="alert-text"><b>Seguridad — ${filas.length} acción(es) sobre sanciones (últimos 7 días).</b><br><span style="font-size:13px">${partes.join(' · ')}${quienes.length?'<br>Por: '+quienes.join(', '):''}</span></span></div>`;
-  }catch(e){ cont.innerHTML=''; }
+  }catch(e){}
+  // (B) Logins fallidos + cuentas dañadas (Edge Function 'ct-seguridad' — datos protegidos)
+  try{
+    const tok = (typeof getTokenSesion==='function') ? getTokenSesion() : null;
+    if(tok){
+      const {data:r} = await sb.functions.invoke('ct-seguridad',{body:{token:tok}});
+      if(r && r.ok){
+        if(r.intentos_fallidos_24h > 0){
+          const susp = (r.cis_sospechosos||[]).map(x=>`${x.ci} (${x.intentos})`).slice(0,5).join(' · ');
+          html += `<div class="alert-banner yellow"><span class="alert-emoji">🔑</span><span class="alert-text"><b>${r.intentos_fallidos_24h} intento(s) de login fallido(s) en 24h.</b>${susp?`<br><span style="font-size:13px">Repetidos: ${susp}</span>`:''}</span></div>`;
+        }
+        if(r.cuentas_corruptas > 0){
+          const det = (r.detalle_corruptas||[]).map(x=>x.ci).slice(0,6).join(' · ');
+          html += `<div class="alert-banner red"><span class="alert-emoji">🔒</span><span class="alert-text"><b>${r.cuentas_corruptas} cuenta(s) con contraseña dañada (riesgo de bloqueo).</b>${det?`<br><span style="font-size:13px">CIs: ${det} — reseteá por SQL.</span>`:''}</span></div>`;
+        }
+      }
+    }
+  }catch(e){}
+  // (C) Si no hubo ninguna novedad
+  if(!html){
+    html = `<div class="alert-banner green"><span class="alert-emoji">🛡️</span><span class="alert-text"><b>Seguridad: sin novedades.</b> Sin modificaciones a sanciones, logins fallidos ni cuentas dañadas.</span></div>`;
+  }
+  cont.innerHTML = html;
 }
 
 // Sanción DIGITAL pendiente de firma del cursante (no analógica, no anulada, no prueba)
