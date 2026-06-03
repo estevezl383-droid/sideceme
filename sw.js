@@ -23,6 +23,10 @@ self.addEventListener('push', (event) => {
     renotify: !!data.tag,
     data: { url: data.url || './' }
   };
+  // Número rojo en el ícono si el aviso lo incluye
+  if (typeof data.badge === 'number' && 'setAppBadge' in navigator) {
+    try { if (data.badge > 0) navigator.setAppBadge(data.badge); else navigator.clearAppBadge(); } catch (e) {}
+  }
   event.waitUntil(self.registration.showNotification(title, options));
 });
 

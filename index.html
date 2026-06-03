@@ -3165,7 +3165,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.38 · notif personal</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.39 · badge icono</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4919,6 +4919,15 @@ let swRegistration = null;
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').then(reg => { swRegistration = reg; }).catch(()=>{});
 }
+// 🔴 Número rojo en el ícono de la app (como el contador de WhatsApp)
+function actualizarBadgeApp(n){
+  try{
+    if('setAppBadge' in navigator){
+      if(n && n > 0) navigator.setAppBadge(n);
+      else navigator.clearAppBadge();
+    }
+  }catch(e){}
+}
 function urlBase64ToUint8Array(base64String){
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding).replace(/-/g,'+').replace(/_/g,'/');
@@ -4992,6 +5001,8 @@ function tokenSesionExpirado(){
 function logout(){
   // Cancelar timer de inactividad si estaba activo
   if(idleTimer){ clearTimeout(idleTimer); idleTimer = null; }
+  // Quitar el número rojo del ícono al salir
+  try{ if('clearAppBadge' in navigator) navigator.clearAppBadge(); }catch(e){}
   sessionStorage.removeItem('sideceme_session');
   // v2.9.8: limpiar token de sesión emitido por Edge Function
   sessionStorage.removeItem('sideceme_token');
@@ -7577,6 +7588,8 @@ async function renderCursanteHome(){
       ? `<div class="alert-banner" style="background:linear-gradient(90deg,#c0271f,#8f1610);border-left:5px solid #ffd2cd;color:#fff;box-shadow:0 0 16px rgba(192,39,31,.55)"><span class="alert-emoji">🚨</span><span class="alert-text"><b style="color:#fff">Tienes ${cantDigitalesPendientes} sanción${cantDigitalesPendientes>1?'es':''} sin firmar.</b><br><span style="font-size:13px;color:#ffe4e1">Hasta que la firmes queda pendiente. Abre "Planilla de Disciplina" para revisarla y firmar.</span></span></div>`
       : '';
   }
+  // 🔴 Número rojo en el ícono = sanciones sin firmar (se borra solo al firmar)
+  actualizarBadgeApp(cantDigitalesPendientes);
 
   // Actualizar círculo grande
   const circle = document.getElementById('cur-nota-circle');
@@ -8254,6 +8267,8 @@ function renderDiscPanel(){
       if(totalPend) html+=`<div class="alert-banner blue"><span class="alert-emoji">📋</span><span class="alert-text"><b>${totalPend} sanción(es) pendientes de firma en total</b> (todos los alumnos).</span></div>`;
     }
     _bp.innerHTML=html;
+    // 🔴 Número rojo en el ícono = tus sanciones que el alumno aún no firmó
+    try{ actualizarBadgeApp(misPend.length); }catch(e){}
   }
   // 🛡️ Alerta de seguridad (solo CT) — async, no bloquea
   if(typeof esCT==='function' && esCT()){ try{ cargarAlertasSeguridadCT(); }catch(e){} }
