@@ -3165,7 +3165,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.36 · push auto</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.37 · notif personal</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -3574,6 +3574,11 @@ input::placeholder, textarea::placeholder {
     <button class="btn-mega" onclick="goHorarios()" style="background:linear-gradient(180deg,#4a90d9,#2d5a8a);margin-top:8px">
       <span class="mega-icon">📅</span>
       <span>Horario Semanal</span>
+    </button>
+
+    <button class="btn-mega" onclick="activarNotificacionesStaff()" style="background:linear-gradient(180deg,#b7791f,#7a5012);margin-top:8px">
+      <span class="mega-icon">🔔</span>
+      <span>Activar notificaciones</span>
     </button>
 
     <div class="prof-mini-stats">
@@ -4107,6 +4112,7 @@ input::placeholder, textarea::placeholder {
       <button class="quick-btn warning" onclick="goReiniciar()"><span class="qa-icon">📥</span><span class="qa-text">Cierre de semestre (respaldo)</span></button>
       <button id="qa-btn-pwd-otro" class="quick-btn" onclick="goGestionarProfesores()"><span class="qa-icon">🔑</span><span class="qa-text">Cambiar contraseña / CI de cursante o profesor</span></button>
       <button class="quick-btn" onclick="qa('cambiar_mi_pwd')"><span class="qa-icon">🔐</span><span class="qa-text">Cambiar mi usuario y contraseña</span></button>
+      <button class="quick-btn" onclick="activarNotificacionesStaff()"><span class="qa-icon">🔔</span><span class="qa-text">Activar / desactivar notificaciones (avisos de firmas)</span></button>
     </div>
 
     <!-- v2.9.9: Feed de actividad reciente — últimas sanciones (firmadas o no) -->
@@ -7874,6 +7880,40 @@ function renderCursantePerfilTab(){
   document.getElementById('perf-conn-status').innerHTML = navigator.onLine
     ? '<span style="color:#3a7050">● En línea</span>'
     : '<span style="color:#a83a3a">● Sin conexión</span>';
+}
+
+// Activar/desactivar notificaciones push para PERSONAL (profesores, disciplina, CT, etc.)
+async function activarNotificacionesStaff(){
+  if(!('Notification' in window) || !('serviceWorker' in navigator)){
+    alert('Tu dispositivo no soporta notificaciones. En iPhone: tocá Compartir → "Agregar a inicio" y abrí la app desde el ícono.');
+    return;
+  }
+  if(Notification.permission === 'denied'){
+    alert('Las notificaciones están bloqueadas. Activalas en la configuración del navegador → Permisos del sitio.');
+    return;
+  }
+  try{
+    const _reg = swRegistration || await navigator.serviceWorker.ready;
+    const _sub = await _reg.pushManager.getSubscription();
+    if(_sub){
+      const _ep=_sub.endpoint; try{ await _sub.unsubscribe(); }catch(e){}
+      try{ const _t=(typeof getTokenSesion==='function')?getTokenSesion():null; if(_t) await sb.functions.invoke('push-ops',{body:{accion:'desuscribir',token:_t,endpoint:_ep}}); }catch(e){}
+      alert('🔕 Notificaciones desactivadas en este dispositivo.');
+      return;
+    }
+  }catch(e){}
+  const okp = await activarPush();
+  if(okp){
+    try{
+      const _t=(typeof getTokenSesion==='function')?getTokenSesion():null;
+      if(_t){
+        const {data:r,error}=await sb.functions.invoke('push-ops',{body:{accion:'prueba',token:_t}});
+        if(error) alert('Activadas, pero la prueba de envío falló: '+(error.message||error));
+        else if(r&&r.ok&&r.enviados>0) alert('✅ Notificaciones activadas. Te avisaremos cuando un alumno firme su sanción.');
+        else alert('✅ Activadas (la prueba salió a 0 dispositivos — revisá llaves VAPID).');
+      }
+    }catch(e){}
+  }
 }
 
 async function toggleNotificacionesCursante(){
