@@ -3165,7 +3165,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.35 · push diag</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.36 · push auto</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7885,7 +7885,20 @@ async function toggleNotificacionesCursante(){
     alert('Las notificaciones están bloqueadas. Activalas en la configuración del navegador → Permisos del sitio.');
     return;
   }
-  // Activa push real (service worker + suscripción guardada en el servidor)
+  // ¿Ya está suscrito en este dispositivo? → DESACTIVAR (desuscribir)
+  try{
+    const _reg = swRegistration || await navigator.serviceWorker.ready;
+    const _sub = await _reg.pushManager.getSubscription();
+    if(_sub){
+      const _ep = _sub.endpoint;
+      try{ await _sub.unsubscribe(); }catch(e){}
+      try{ const _t=(typeof getTokenSesion==='function')?getTokenSesion():null; if(_t) await sb.functions.invoke('push-ops',{body:{accion:'desuscribir', token:_t, endpoint:_ep}}); }catch(e){}
+      alert('🔕 Notificaciones desactivadas en este dispositivo.');
+      if(typeof renderCursantePerfilTab==='function') renderCursantePerfilTab();
+      return;
+    }
+  }catch(e){}
+  // No estaba suscrito → ACTIVAR push real (service worker + suscripción)
   const okp = await activarPush();
   if(okp){
     // Aviso inmediato local
@@ -12247,6 +12260,13 @@ async function insertarSancionSegura(sancionOriginal){
         if(data && data[0]){
           sancionesSchema = new Set(Object.keys(data[0]));
         }
+        // 🔔 Push automático al cursante: nueva sanción
+        try{
+          if(working && working.cursante_id && working.es_prueba !== true && working.anulada !== true){
+            const _tp = (typeof getTokenSesion==='function') ? getTokenSesion() : null;
+            if(_tp) sb.functions.invoke('push-ops',{body:{accion:'enviar', token:_tp, destino_usuario_id: working.cursante_id, destino_tabla:'cursantes', title:'SIDECEME — Nueva sanción', body:'Tienes una nueva sanción registrada. Ábrela y fírmala.', url:'./'}}).catch(()=>{});
+          }
+        }catch(_){}
         // v2.9.14: Liberar lock anti-duplicado al terminar exitosamente
         try{ window.__sancionesEnProceso && window.__sancionesEnProceso.delete(keyLocal); }catch(_){}
         return { data, error:null };
@@ -13489,6 +13509,16 @@ async function confirmarFirmaCursante(){
 
     // Actualizar el estado local
     firmaState.sancion = Object.assign({}, firmaState.sancion, updates);
+
+    // 🔔 Push automático al PROFESOR: el cursante firmó
+    try{
+      const _tf = firmaState.firmaToken || ((typeof getTokenSesion==='function') ? getTokenSesion() : null);
+      const _profId = firmaState.sancion && firmaState.sancion.profesor_id;
+      if(_tf && _profId){
+        const _nom = (firmaState.sancion.cursante_nombre) || (currentUser && currentUser.nombre_completo) || 'Un cursante';
+        sb.functions.invoke('push-ops',{body:{accion:'enviar', token:_tf, destino_usuario_id:_profId, destino_tabla:'profesores', title:'SIDECEME — Sanción firmada', body:_nom+' firmó la sanción que le registraste.', url:'./'}}).catch(()=>{});
+      }
+    }catch(_){}
 
     // Mostrar pantalla de éxito
     mostrarFirmaOk();
