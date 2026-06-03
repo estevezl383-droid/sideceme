@@ -3165,7 +3165,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.39 · badge icono</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.40 · campanita</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7880,7 +7880,7 @@ function renderCursantePerfilTab(){
     const btn = document.getElementById('btn-toggle-notif');
     if(perm === 'granted'){
       span.innerHTML = '<span style="display:inline-block;padding:4px 10px;border-radius:14px;background:rgba(76,163,107,.22);color:#3a7050;border:1px solid rgba(76,163,107,.5);font-size:11px;font-weight:700;letter-spacing:1px">✓ ACTIVAS</span>';
-      btn.textContent = '🔕 Desactivar notificaciones';
+      btn.textContent = '🔔 Desactivar notificaciones';
     } else if(perm === 'denied'){
       span.innerHTML = '<span style="display:inline-block;padding:4px 10px;border-radius:14px;background:rgba(200,74,74,.18);color:#a83a3a;border:1px solid rgba(200,74,74,.4);font-size:11px;font-weight:700;letter-spacing:1px">✗ BLOQUEADAS</span>';
       btn.textContent = '⚙️ Habilitar desde ajustes del navegador';
