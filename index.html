@@ -3167,12 +3167,66 @@ input::placeholder, textarea::placeholder {
   display: block !important;
 }
 
+/* ════════════════════════════════════════════════════════════════
+   v2.9.45 — TARJETAS ACADÉMICAS 3D (botones con relieve y tornillos)
+   ════════════════════════════════════════════════════════════════ */
+.acad-grupo{position:relative;margin-bottom:14px;border-radius:16px;overflow:hidden;
+  background:linear-gradient(160deg,#2a3550 0%,#1d2740 55%,#161e33 100%);
+  border:1px solid rgba(255,255,255,.10);
+  box-shadow:0 6px 0 #0d1322, 0 10px 18px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.14);
+  transition:transform .12s ease, box-shadow .12s ease;}
+.acad-grupo.open{box-shadow:0 3px 0 #0d1322, 0 6px 12px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.12);}
+.acad-grupo-head{position:relative;display:flex;align-items:center;gap:12px;padding:16px 18px;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;}
+.acad-grupo-head:active{transform:translateY(2px);}
+/* tornillos en las 4 esquinas */
+.acad-grupo-head::before,.acad-grupo-head::after,
+.acad-grupo-bolts span{position:absolute;width:9px;height:9px;border-radius:50%;
+  background:radial-gradient(circle at 35% 30%,#9aa3b8,#4a5268 60%,#2b3145);
+  box-shadow:inset 0 1px 1px rgba(255,255,255,.5), 0 1px 1px rgba(0,0,0,.6);}
+.acad-grupo-head::before{top:9px;left:9px;}
+.acad-grupo-head::after{top:9px;right:9px;}
+.acad-grupo-bolts span:nth-child(1){bottom:9px;left:9px;}
+.acad-grupo-bolts span:nth-child(2){bottom:9px;right:9px;}
+.acad-grupo-chev{flex-shrink:0;width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(180deg,#d4af37,#a07d1e);color:#1a1206;font-size:13px;font-weight:900;
+  box-shadow:0 2px 4px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.4);transition:transform .2s;}
+.acad-grupo.open .acad-grupo-chev{transform:rotate(90deg);}
+.acad-grupo-title{flex:1;min-width:0;font-size:13px;font-weight:800;letter-spacing:.4px;line-height:1.25;
+  color:#f0e4c0;text-transform:uppercase;text-shadow:0 1px 2px rgba(0,0,0,.6);}
+.acad-grupo-sub{display:block;font-size:9.5px;font-weight:600;letter-spacing:1px;color:#7e8aa6;margin-top:4px;text-transform:uppercase;}
+.acad-grupo-prom{flex-shrink:0;text-align:center;min-width:62px;padding:7px 8px;border-radius:11px;
+  background:linear-gradient(180deg,rgba(0,0,0,.35),rgba(0,0,0,.18));
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.6), 0 1px 0 rgba(255,255,255,.08);}
+.acad-grupo-prom .v{font-family:var(--font-display);font-size:21px;font-weight:800;line-height:1;}
+.acad-grupo-prom .l{font-size:8px;letter-spacing:1.5px;color:#8893ad;margin-top:3px;text-transform:uppercase;}
+.acad-grupo-body{padding:6px 12px 12px;display:none;}
+.acad-grupo.open .acad-grupo-body{display:block;}
+
+/* materia: chip-botón 3D pequeño */
+.acad-mat{position:relative;margin:8px 2px;border-radius:12px;overflow:hidden;
+  background:linear-gradient(160deg,#222c44,#19223a);
+  border:1px solid rgba(255,255,255,.07);
+  box-shadow:0 3px 0 rgba(0,0,0,.5),0 5px 9px rgba(0,0,0,.35),inset 0 1px 0 rgba(255,255,255,.08);}
+.acad-mat-head{display:flex;align-items:center;gap:10px;padding:11px 13px;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.acad-mat-head:active{transform:translateY(1px);}
+.acad-mat-dot{flex-shrink:0;width:10px;height:10px;border-radius:50%;box-shadow:0 0 7px currentColor;}
+.acad-mat-name{flex:1;min-width:0;font-size:12.5px;font-weight:600;color:#dfe6f2;line-height:1.3;}
+.acad-mat-grade{flex-shrink:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-width:54px;padding:5px 6px;border-radius:10px;color:#fff;
+  box-shadow:0 2px 5px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.35);}
+.acad-mat-grade .gn{font-family:var(--font-display);font-size:18px;font-weight:800;line-height:1;text-shadow:0 1px 2px rgba(0,0,0,.4);}
+.acad-mat-grade .ga{font-size:9px;font-weight:800;letter-spacing:1px;margin-top:2px;opacity:.95;}
+.acad-mat-body{display:none;padding:4px 14px 12px;background:rgba(0,0,0,.22);}
+.acad-mat.open .acad-mat-body{display:block;}
+.acad-mat-arrow{flex-shrink:0;color:#d4af37;font-size:11px;transition:transform .2s;}
+.acad-mat.open .acad-mat-arrow{transform:rotate(90deg);}
 </style>
 </head>
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.44 · notas 1er ciclo</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.45 · diseño 3D + riesgo</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4106,7 +4160,7 @@ input::placeholder, textarea::placeholder {
     <div class="stats-grid">
       <div class="stat-card" onclick="goDiscCursantes()"><div class="stat-num" id="stat-cursantes">—</div><div class="stat-label">Cursantes</div></div>
       <div class="stat-card" onclick="goDiscSanciones()"><div class="stat-num" id="stat-sanciones">—</div><div class="stat-label">Sanciones</div></div>
-      <div class="stat-card danger" onclick="goDiscConsejo()"><div class="stat-num" id="stat-consejo">—</div><div class="stat-label">Consejo</div></div>
+      <div class="stat-card danger" onclick="goDiscConsejo()"><div class="stat-num" id="stat-consejo">—</div><div class="stat-label">En Riesgo</div></div>
     </div>
 
     <button class="btn-mega" onclick="goProfNuevaSancion()" style="margin:8px 0 16px 0">
@@ -4114,7 +4168,7 @@ input::placeholder, textarea::placeholder {
       <span>Registrar nueva sanción</span>
     </button>
 
-    <div id="alert-consejo" class="alert-banner red" style="display:none"><div class="alert-emoji">🚨</div><div class="alert-text"><div class="alert-title" id="alert-consejo-title">— en consejo académico</div><div class="alert-desc">Acumularon 25+ pts perdidos.</div></div></div>
+    <div id="alert-consejo" class="alert-banner red" style="display:none"><div class="alert-emoji">🚨</div><div class="alert-text"><div class="alert-title" id="alert-consejo-title">— en riesgo</div><div class="alert-desc">Acumularon 25+ pts perdidos.</div></div></div>
     <div id="alert-observacion" class="alert-banner yellow" style="display:none"><div class="alert-emoji">⚠️</div><div class="alert-text"><div class="alert-title" id="alert-observacion-title">— en observación</div><div class="alert-desc">Entre 11 y 24 pts perdidos.</div></div></div>
     <div class="section-label">Accesos rápidos</div>
     <div class="quick-grid">
@@ -4229,7 +4283,7 @@ input::placeholder, textarea::placeholder {
 
 <!-- DISC: CONSEJO -->
 <section id="screen-disc-consejo" class="screen with-bottom-nav">
-  <div class="app-header"><button class="back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">En Consejo Académico</div><div class="header-sub">25+ pts perdidos</div></div></div>
+  <div class="app-header"><button class="back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">En Riesgo</div><div class="header-sub">25+ pts perdidos</div></div></div>
   <div class="disc-container"><div id="consejo-list" class="list-loading">Cargando...</div></div>
   <nav class="bottom-nav">
     <button class="bottom-nav-item" onclick="goDiscPanel()"><span class="nav-icon">🏠</span><span class="nav-label">Panel</span></button>
@@ -4631,7 +4685,7 @@ input::placeholder, textarea::placeholder {
       <div class="quick-btn" style="cursor:pointer" onclick="verDetalleStat('curs-sin')"><span class="qa-icon">✓</span><span class="qa-text">Sin sanciones (0 pts): <strong id="rep-sin">—</strong></span></div>
       <div class="quick-btn" style="cursor:pointer" onclick="verDetalleStat('curs-regla')"><span class="qa-icon">✅</span><span class="qa-text">En regla (1-10 pts): <strong id="rep-ok">—</strong></span></div>
       <div class="quick-btn warning" style="cursor:pointer" onclick="verDetalleStat('curs-obs')"><span class="qa-icon">⚠️</span><span class="qa-text">En observación (11-24 pts): <strong id="rep-obs">—</strong></span></div>
-      <div class="quick-btn danger" style="cursor:pointer" onclick="verDetalleStat('curs-cons')"><span class="qa-icon">🚨</span><span class="qa-text">En consejo (25+ pts): <strong id="rep-cons">—</strong></span></div>
+      <div class="quick-btn danger" style="cursor:pointer" onclick="verDetalleStat('curs-cons')"><span class="qa-icon">🚨</span><span class="qa-text">En riesgo (25+ pts): <strong id="rep-cons">—</strong></span></div>
     </div>
   </div>
   <nav class="bottom-nav">
@@ -4841,7 +4895,7 @@ input::placeholder, textarea::placeholder {
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-num" id="jc-stat-cursantes">—</div><div class="stat-label">Cursantes</div></div>
       <div class="stat-card"><div class="stat-num" id="jc-stat-sanciones">—</div><div class="stat-label">Sanciones</div></div>
-      <div class="stat-card danger"><div class="stat-num" id="jc-stat-consejo">—</div><div class="stat-label">Consejo</div></div>
+      <div class="stat-card danger"><div class="stat-num" id="jc-stat-consejo">—</div><div class="stat-label">En Riesgo</div></div>
     </div>
     <div class="tabs-row" style="margin:14px 0">
       <button class="tab-btn active" id="jc-tab-all" onclick="jcSelectTab(null)">📊 Todo</button>
@@ -5881,6 +5935,18 @@ function colorAtributo(atr){
   return '#c05050';
 }
 
+// Color VÍVIDO digital según la nota numérica (para las tarjetas 3D)
+// Devuelve {grad: gradiente para el badge, solid: color sólido para el punto}
+function gradeColorVivido(nota){
+  const n = Number(nota);
+  if(isNaN(n))      return {grad:'linear-gradient(180deg,#6b7280,#454b56)', solid:'#9aa3b8'};
+  if(n>=90)         return {grad:'linear-gradient(180deg,#1ed88a,#0e9d63)', solid:'#1ed88a'};
+  if(n>=80)         return {grad:'linear-gradient(180deg,#3ea0ff,#1c63c4)', solid:'#3ea0ff'};
+  if(n>=70)         return {grad:'linear-gradient(180deg,#ffc23d,#d89412)', solid:'#ffc23d'};
+  if(n>=60)         return {grad:'linear-gradient(180deg,#ff8a3d,#d65f12)', solid:'#ff8a3d'};
+  return {grad:'linear-gradient(180deg,#ff5b5b,#c52020)', solid:'#ff5b5b'};
+}
+
 // Semestre ACUMULADO: 1er ciclo = 1ER/2DO ; 2do ciclo = 3ER/4TO
 // (nombre propio para no chocar con etiquetaSemestre(sem) de disciplina)
 function etiquetaSemAcad(ciclo, semestre){
@@ -5896,6 +5962,11 @@ function toggleAcad(id){
   var d=document.getElementById(id); var a=document.getElementById(id+'-arr');
   if(!d) return; var op=(d.style.display==='none'||!d.style.display);
   d.style.display=op?'block':'none'; if(a) a.textContent=op?'▾':'▸';
+}
+// v2.9.45: toggle de las tarjetas académicas 3D (clase .open)
+function toggleAcad3D(id){
+  var el=document.getElementById(id);
+  if(el) el.classList.toggle('open');
 }
 
 // Detalle de una materia: bloques de componentes (Trabajo/Formativa/Sumativa o los que tenga)
@@ -5955,37 +6026,31 @@ function htmlTarjetaAcademica(g){
     const gProm = mats[0].grupo_promedio!=null ? Number(mats[0].grupo_promedio).toFixed(2) : '—';
     const grpId = `acadg-${gestion}-${semestre}-${gi}`;
     const matsHtml = mats.map((m, mi)=>{
-      const color = colorAtributo(m.atributo);
+      const gc = gradeColorVivido(m.nota_final);
       const nota = m.nota_final!=null ? Number(m.nota_final).toFixed(2) : '—';
       const mId = `${grpId}-m${mi}`;
-      return `<div style="border-bottom:1px solid var(--border-subtle)">
-        <div onclick="toggleAcad('${mId}')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;cursor:pointer">
-          <div style="flex:1;min-width:0;display:flex;align-items:center;gap:8px">
-            <span id="${mId}-arr" style="color:var(--gold);font-size:11px">▸</span>
-            <span style="font-size:12px;font-weight:600;color:var(--text-primary);line-height:1.3">${m.materia||'—'}</span>
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;margin-left:10px;flex-shrink:0">
-            <div style="font-size:18px;font-weight:700;color:${color};font-family:var(--font-display)">${nota}</div>
-            <div style="font-size:10px;font-weight:700;color:${color};letter-spacing:1px">${m.atributo||''}</div>
-          </div>
+      return `<div class="acad-mat" id="${mId}">
+        <div class="acad-mat-head" onclick="toggleAcad3D('${mId}')">
+          <span class="acad-mat-dot" style="color:${gc.solid}"></span>
+          <span class="acad-mat-name">${m.materia||'—'}</span>
+          <span class="acad-mat-grade" style="background:${gc.grad}">
+            <span class="gn">${nota}</span><span class="ga">${m.atributo||''}</span>
+          </span>
+          <span class="acad-mat-arrow">▸</span>
         </div>
-        <div id="${mId}" style="display:none;padding:6px 12px 12px 18px;background:var(--bg-deep);border-radius:8px;margin:0 0 8px">
-          ${htmlDetalleMateria(m)}
-        </div>
+        <div class="acad-mat-body">${htmlDetalleMateria(m)}</div>
       </div>`;
     }).join('');
-    return `<div style="background:var(--bg-elevated);border:1px solid var(--border-subtle);border-radius:10px;margin-bottom:10px;overflow:hidden">
-      <div onclick="toggleAcad('${grpId}')" style="display:flex;justify-content:space-between;align-items:center;padding:13px 14px;cursor:pointer;background:linear-gradient(90deg,rgba(212,175,55,.08),transparent)">
-        <div style="flex:1;min-width:0;display:flex;align-items:center;gap:8px">
-          <span id="${grpId}-arr" style="color:var(--gold);font-size:13px">▸</span>
-          <span style="font-size:12px;font-weight:700;color:var(--gold-light);text-transform:uppercase;letter-spacing:.5px;line-height:1.3">${gName}</span>
-        </div>
-        <div style="text-align:right;margin-left:10px;flex-shrink:0">
-          <div style="font-size:20px;font-weight:700;color:var(--text-primary);font-family:var(--font-display)">${gProm}</div>
-          <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Promedio</div>
-        </div>
+    const gpVal = mats[0].grupo_promedio;
+    const gpColor = gpVal!=null ? gradeColorVivido(gpVal).solid : '#9aa3b8';
+    return `<div class="acad-grupo" id="${grpId}">
+      <div class="acad-grupo-head" onclick="toggleAcad3D('${grpId}')">
+        <span class="acad-grupo-bolts"><span></span><span></span></span>
+        <span class="acad-grupo-chev">›</span>
+        <span class="acad-grupo-title">${gName}<span class="acad-grupo-sub">${mats.length} materia(s) · toca para abrir</span></span>
+        <span class="acad-grupo-prom"><span class="v" style="color:${gpColor}">${gProm}</span><span class="l">Promedio</span></span>
       </div>
-      <div id="${grpId}" style="display:none;padding:4px 14px 10px">${matsHtml}</div>
+      <div class="acad-grupo-body">${matsHtml}</div>
     </div>`;
   }).join('');
   return `<div style="background:var(--bg-card);border:1px solid var(--border-subtle);border-radius:var(--radius-lg);padding:16px;margin-bottom:14px">
@@ -6001,7 +6066,7 @@ function htmlTarjetaAcademica(g){
       </div>
     </div>
     ${desglose}
-    <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">📂 Tocá un grupo para ver sus materias, y una materia para ver el detalle de sus notas.</div>
+    <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px">👆 Toca un módulo para ver sus materias, y una materia para ver el detalle de sus notas.</div>
     ${gruposHtml}
   </div>`;
 }
@@ -7630,7 +7695,7 @@ async function renderCursanteHome(){
   document.getElementById('cur-nota-num').textContent = notaTxt;
   statusEl.textContent = estado === 'regla' ? '✓ EN REGLA'
                       : estado === 'observacion' ? '⚠ EN OBSERVACIÓN'
-                      : '🚨 EN CONSEJO ACADÉMICO';
+                      : '🚨 EN RIESGO';
 
   // 3 cuadros
   document.getElementById('cur-stat-sanciones').textContent = cantSanciones;
@@ -7745,10 +7810,10 @@ async function renderCursanteHome(){
     }
   } else if(estado === 'observacion'){
     document.getElementById('cur-estado-title').textContent = '⚠ En observación';
-    document.getElementById('cur-estado-text').textContent = `Has perdido ${puntosPerdidos} pts. Si llegas a 25 pts pasarás a Consejo Académico.`;
+    document.getElementById('cur-estado-text').textContent = `Has perdido ${puntosPerdidos} pts. Si llegas a 25 pts pasarás a estado EN RIESGO.`;
   } else {
-    document.getElementById('cur-estado-title').textContent = '🚨 En Consejo Académico';
-    document.getElementById('cur-estado-text').textContent = `Has acumulado ${puntosPerdidos} pts. Tu situación se elevará al Consejo Académico.`;
+    document.getElementById('cur-estado-title').textContent = '🚨 En Riesgo';
+    document.getElementById('cur-estado-text').textContent = `Has acumulado ${puntosPerdidos} pts. Tu situación disciplinaria es crítica.`;
   }
 
   // Listado de sanciones (en el tab Inicio — TODAS, para que el cursante
@@ -8371,7 +8436,7 @@ function renderDiscPanel(){
   document.getElementById('stat-consejo').textContent=enConsejo;
 
   const aC=document.getElementById('alert-consejo'), aO=document.getElementById('alert-observacion');
-  if(enConsejo>0){document.getElementById('alert-consejo-title').textContent=`${enConsejo} cursante(s) en consejo académico`; aC.style.display='flex';}else{aC.style.display='none';}
+  if(enConsejo>0){document.getElementById('alert-consejo-title').textContent=`${enConsejo} cursante(s) en riesgo`; aC.style.display='flex';}else{aC.style.display='none';}
   if(enObs>0){document.getElementById('alert-observacion-title').textContent=`${enObs} cursante(s) en observación`; aO.style.display='flex';}else{aO.style.display='none';}
   const activosProfs = discData.profesores.filter(p=>p.activo!==false).length;
   document.getElementById('qa-profs-text').textContent=`Gestionar profesores (${activosProfs})`;
@@ -8993,7 +9058,7 @@ function verFichaCursante(cursanteId, backTarget){
   const perd = discData.byCursanteLost[cursanteId]||0;
   const vigente = 100 - perd;
   const est = getEstado(perd);
-  const estLabel = est==='consejo'?'En consejo':est==='observacion'?'En observación':'OK';
+  const estLabel = est==='consejo'?'En riesgo':est==='observacion'?'En observación':'OK';
   const notaDisc = calcularNotaDisciplinaria(perd);
   const notaDiscTxt = (notaDisc === Math.floor(notaDisc)) ? String(notaDisc) : notaDisc.toFixed(2);
 
@@ -9128,7 +9193,7 @@ async function enviarAnulacion(){
 function renderConsejoList(){
   const c=document.getElementById('consejo-list'); c.className='';
   const lst=discData.cursantes.map(cu=>({...cu,perd:discData.byCursanteLost[cu.id]||0})).filter(x=>x.perd>=UMBRAL_CONSEJO).sort((a,b)=>b.perd-a.perd);
-  if(!lst.length){ c.innerHTML='<div class="list-empty">✅ Ningún cursante en consejo.</div>'; return; }
+  if(!lst.length){ c.innerHTML='<div class="list-empty">✅ Ningún cursante en riesgo.</div>'; return; }
   c.innerHTML=lst.map(cu=>{
     const cyp = fmtCicloPara(cu);
     return `<div class="list-item" style="cursor:pointer" onclick="verFichaCursante('${cu.id}','consejo')"><div class="li-id">${cu.id}</div><div class="li-name">${cu.nombre_completo}<br><span class="li-ci">${cu.perd} pts perdidos · CI ${cu.ci||'—'}${cyp?' · '+cyp:''}</span></div><div class="li-score danger">${100-cu.perd}</div></div>`;
@@ -9214,7 +9279,7 @@ function verDetalleStat(tipo){
       'curs-sin':   {t:'Sin sanciones', s:'Cursantes con 0 deméritos',  cls:'ok'},
       'curs-regla': {t:'En regla',       s:'Cursantes con 1 a 10 deméritos', cls:'ok'},
       'curs-obs':   {t:'En observación', s:'Cursantes con 11 a 24 deméritos', cls:'warn'},
-      'curs-cons':  {t:'En consejo académico', s:'Cursantes con 25+ deméritos', cls:'danger'}
+      'curs-cons':  {t:'En riesgo', s:'Cursantes con 25+ deméritos', cls:'danger'}
     }[tipo];
     titulo = titMap.t;
     sub = `${cursList.length} cursante(s) · ${titMap.s}`;
@@ -9931,7 +9996,7 @@ function renderAlertas(){
   const enO=en.filter(x=>x.perd>=UMBRAL_OBSERVACION&&x.perd<UMBRAL_CONSEJO).sort((a,b)=>b.perd-a.perd);
   let h='';
   if(enC.length){
-    h+=`<div class="alert-banner red"><div class="alert-emoji">🚨</div><div class="alert-text"><div class="alert-title">${enC.length} en consejo académico</div><div class="alert-desc">25+ pts perdidos.</div></div></div>`;
+    h+=`<div class="alert-banner red"><div class="alert-emoji">🚨</div><div class="alert-text"><div class="alert-title">${enC.length} en riesgo</div><div class="alert-desc">25+ pts perdidos.</div></div></div>`;
     enC.forEach(cu=>{
       const cyp = fmtCicloPara(cu);
       h+=`<div class="list-item" style="cursor:pointer" onclick="verFichaCursante('${cu.id}','alertas')"><div class="li-id">${cu.id}</div><div class="li-name">${cu.nombre_completo}<br><span class="li-ci">${cu.perd} pts perdidos${cyp?' · '+cyp:''}</span></div><div class="li-score danger">${100-cu.perd}</div></div>`;
@@ -10381,7 +10446,7 @@ function downloadXLSX(){
     {metrica:'Sanciones graves', valor:grave},
     {metrica:'Sanciones gravísimas', valor:grav},
     {metrica:'Sanciones virtuales', valor:virt},
-    {metrica:'Cursantes en consejo (25+ pts)', valor:Object.values(discData.byCursanteLost).filter(p=>p>=UMBRAL_CONSEJO).length},
+    {metrica:'Cursantes en riesgo (25+ pts)', valor:Object.values(discData.byCursanteLost).filter(p=>p>=UMBRAL_CONSEJO).length},
     {metrica:'Cursantes en observación (11-24)', valor:Object.values(discData.byCursanteLost).filter(p=>p>=UMBRAL_OBSERVACION&&p<UMBRAL_CONSEJO).length},
     {metrica:'Fecha de respaldo', valor:new Date().toLocaleString('es-BO')}
   ]);
