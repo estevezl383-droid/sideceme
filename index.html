@@ -3226,7 +3226,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.47 · 4 decimales notas</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.49 · aviso notif alumno</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -3933,6 +3933,9 @@ input::placeholder, textarea::placeholder {
         <button class="btn-logout" onclick="logout()">Salir</button>
       </div>
 
+      <!-- Aviso para activar notificaciones (desaparece solo al activar) -->
+      <div id="cur-banner-push" style="margin:0 0 6px"></div>
+
       <!-- Aviso de pendientes (sanción sin firmar) -->
       <div id="cur-pendientes-banner" style="margin:0 0 4px"></div>
 
@@ -4266,6 +4269,12 @@ input::placeholder, textarea::placeholder {
 <section id="screen-ficha-cursante" class="screen">
   <div class="app-header"><button class="back-btn" id="ficha-back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title" id="ficha-title">Ficha de cursante</div><div class="header-sub" id="ficha-sub">—</div></div></div>
   <div class="form-container"><div id="ficha-cursante-content"></div></div>
+</section>
+
+<!-- REPORTE INTEGRAL del cursante (comandante / jefe de estudios / C&T) -->
+<section id="screen-reporte-integral" class="screen">
+  <div class="app-header"><button class="back-btn" onclick="volverDeReporteIntegral()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title" id="repint-title">Reporte integral</div><div class="header-sub" id="repint-sub">—</div></div></div>
+  <div class="form-container"><div id="repint-content"></div></div>
 </section>
 
 <!-- DISC: SOLICITAR ANULACIÓN -->
@@ -7877,6 +7886,13 @@ async function renderCursanteHome(){
 
   // Render del perfil
   renderCursantePerfilTab();
+
+  // Arrancar el polling de notificaciones (puntito rojo) también para el cursante
+  // tras un login fresco (antes solo arrancaba para el personal o al restaurar sesión).
+  try{ iniciarNotificaciones(); }catch(e){}
+
+  // Aviso para activar notificaciones (solo si todavía no las activó).
+  try{ mostrarBannerPushCursante(); }catch(e){}
 }
 
 function renderCursanteSancionesInline(sanciones, containerId, limit){
@@ -8109,6 +8125,45 @@ async function bannerPushActivar(containerId){
   if(ahoraSuscrito){
     const cont = document.getElementById(containerId);
     if(cont) cont.innerHTML = '';
+  }
+}
+
+/* ── Banner de notificaciones para el ALUMNO ────────────────────────────────
+   Aparece en el home del cursante si NO tiene push activo. Texto propio
+   ("avisos muy importantes") y usa el flujo de push del cursante (activarPush).
+   Desaparece solo en cuanto activa.                                          */
+async function mostrarBannerPushCursante(){
+  const cont = document.getElementById('cur-banner-push');
+  if(!cont) return;
+  cont.innerHTML = '';
+  if(!('Notification' in window) || !('serviceWorker' in navigator)) return;
+
+  const suscrito = await estaSubscritoPush();
+  if(suscrito && Notification.permission === 'granted') return; // ya activado → no mostrar
+
+  const denegado = Notification.permission === 'denied';
+  cont.innerHTML = `
+    <div class="banner-push" onclick="${denegado?'':'bannerPushActivarCursante()'}">
+      <div class="banner-push-icon">🔔</div>
+      <div class="banner-push-text">
+        <strong>${denegado ? 'Notificaciones bloqueadas' : 'Activá las notificaciones'}</strong>
+        ${denegado
+          ? 'Habilitá los permisos en Configuración → Permisos del sitio y recargá la app.'
+          : 'Recibí avisos muy importantes (sanciones, firmas y comunicados) aunque tengas la app cerrada. Tocá para activar.'}
+      </div>
+      ${denegado
+        ? `<span class="banner-push-close" onclick="event.stopPropagation();this.closest('.banner-push').style.display='none'">✕</span>`
+        : `<button class="banner-push-btn" onclick="event.stopPropagation();bannerPushActivarCursante()">ACTIVAR</button>`
+      }
+    </div>`;
+}
+
+async function bannerPushActivarCursante(){
+  const ok = await activarPush(); // flujo de push del cursante (permiso + suscribir)
+  if(ok){
+    const cont = document.getElementById('cur-banner-push');
+    if(cont) cont.innerHTML = '';
+    try{ alert('✅ Notificaciones activadas. Vas a recibir los avisos importantes en este dispositivo.'); }catch(e){}
   }
 }
 
@@ -9158,6 +9213,7 @@ function verFichaCursante(cursanteId, backTarget){
   }
 
   html += `<div class="sd-actions">
+    ${puedeVerReporteIntegral() ? `<button class="btn-primary" style="margin-bottom:8px" onclick="verReporteIntegral('${cursanteId}')">📋 Reporte integral (disciplina · físico · notas)</button>` : ''}
     <button class="btn-secondary" onclick="volverDeFichaCursante()">← Volver</button>
     ${esCT() ? `<button class="btn-secondary" style="background:linear-gradient(135deg,#5a4422,#7a5a2a);color:#f0d890;border-color:#a87e3a;margin-top:8px" onclick="cambiarPasswordCursanteDesdeFicha('${cursanteId}')">🔑 Cambiar contraseña del cursante</button>` : ''}
   </div>`;
@@ -9186,6 +9242,147 @@ function volverDeFichaCursante(){
     default: goDiscPanel();
   }
 }
+/* ==================== REPORTE INTEGRAL DEL CURSANTE ====================
+   Vista única (disciplina + entrenamiento físico + notas académicas + orden de mérito)
+   Solo para Comandante, Jefe de Estudios y Ciencia y Tecnología. */
+function puedeVerReporteIntegral(){
+  return ['comandante','estudios','ciencia_tecnologia'].includes(activeRole);
+}
+let _repintBackId = null;
+
+// Devuelve el ÚLTIMO orden de mérito OFICIAL que tenga el cursante (o null si no hay).
+function _resumenOMDeNotas(data){
+  if(!data || !data.length) return null;
+  const periodos = {};
+  for(const n of data){
+    const k = n.gestion+'|'+n.ciclo+'|'+n.semestre;
+    if(!periodos[k]) periodos[k] = {gestion:Number(n.gestion)||0, ciclo:n.ciclo, semestre:Number(n.semestre)||0, rows:[]};
+    periodos[k].rows.push(n);
+  }
+  const lista = Object.values(periodos).sort((a,b)=> (a.gestion-b.gestion) || (a.semestre-b.semestre));
+  for(let i=lista.length-1; i>=0; i--){
+    const rr = lista[i].rows[0] || {};
+    const om = rr.om_anual != null ? rr.om_anual : (rr.om_general != null ? rr.om_general : null);
+    if(om != null){
+      const prom = rr.promedio_anual != null ? rr.promedio_anual : rr.promedio_general;
+      return { om, prom, gestion: lista[i].gestion, ciclo: lista[i].ciclo };
+    }
+  }
+  return null;
+}
+
+async function verReporteIntegral(cursanteId){
+  if(!puedeVerReporteIntegral()){ alert('Sin permiso.'); return; }
+  const cur = discData.cursantes.find(c=>c.id===cursanteId);
+  if(!cur){ alert('Cursante no encontrado.'); return; }
+  _repintBackId = cursanteId;
+  document.getElementById('repint-title').textContent = cur.nombre_completo || cur.id;
+  document.getElementById('repint-sub').textContent = (fmtCicloPara(cur)||'Cursante') + ' · Reporte integral';
+  const cont = document.getElementById('repint-content');
+  cont.innerHTML = '<div class="placeholder-container" style="padding:40px 12px"><div class="placeholder-icon">⏳</div><div class="placeholder-title">Generando reporte...</div></div>';
+  showScreen('screen-reporte-integral');
+
+  const _sec = (icon,txt) => `<div style="margin:22px 4px 10px 4px"><div class="section-label" style="font-size:13px;color:var(--gold-light);letter-spacing:1.5px;text-transform:uppercase;border-bottom:2px solid var(--gold-dark);padding-bottom:6px">${icon} ${txt}</div></div>`;
+
+  // ── 1) DISCIPLINA (ya en memoria para el personal) ──
+  const sancs = (discData.byCursanteSanc[cursanteId]||[]).slice().sort((a,b)=>new Date(b.creado_en||0)-new Date(a.creado_en||0));
+  const perd = discData.byCursanteLost[cursanteId]||0;
+  const est = getEstado(perd);
+  const estLabel = est==='consejo'?'En riesgo':est==='observacion'?'En observación':'OK';
+  const notaDisc = calcularNotaDisciplinaria(perd);
+  const notaDiscTxt = (notaDisc === Math.floor(notaDisc)) ? String(notaDisc) : notaDisc.toFixed(2);
+
+  let html = `
+    <div class="sd-block cursante" style="margin-top:4px">
+      <div class="sd-block-title">🎖️ Datos del cursante</div>
+      <div class="sd-row"><span class="lbl">Nombre</span><span class="vl">${cur.nombre_completo||'—'}</span></div>
+      <div class="sd-row"><span class="lbl">CI</span><span class="vl">${cur.ci||'—'}${cur.departamento?' '+cur.departamento:''}</span></div>
+      <div class="sd-row"><span class="lbl">Ciclo</span><span class="vl gold">${cur.ciclo||'—'}</span></div>
+      <div class="sd-row"><span class="lbl">Paralelo</span><span class="vl gold">${cur.paralelo||'—'}</span></div>
+      <div class="sd-row"><span class="lbl">Estado</span><span class="vl">${cur.activo===false?'<span class="badge baja">Baja</span>':'<span class="badge activo">Activo</span>'}</span></div>
+      <div class="sd-row"><span class="lbl">Generado</span><span class="vl">${new Date().toLocaleString('es-BO')}</span></div>
+    </div>`;
+
+  html += _sec('🛡️','Disciplina');
+  html += `
+    <div class="sd-banner ${est==='consejo'?'pendiente':est==='observacion'?'analogica':'aceptada'}">
+      <div class="sd-banner-title">${est==='consejo'?'🚨':est==='observacion'?'⚠️':'✅'} ${estLabel}</div>
+      <div class="sd-banner-sub">${perd} pts perdidos · ${sancs.length} sanción(es)</div>
+    </div>
+    <div class="cur-stats-grid" style="margin:12px 4px 4px 4px">
+      <div class="cur-stat-card"><div class="cs-num">${sancs.length}</div><div class="cs-label">Sanciones</div></div>
+      <div class="cur-stat-card"><div class="cs-num danger">−${perd}</div><div class="cs-label">Deméritos</div></div>
+      <div class="cur-stat-card"><div class="cs-num ${est==='consejo'?'danger':est==='observacion'?'':'success'}">${notaDiscTxt}</div><div class="cs-label">Nota Disc.</div></div>
+    </div>
+    ${htmlTarjetaAnualDark(cursanteId)}`;
+  if(sancs.length){
+    html += sancs.map(s=>{
+      const cls = clasificarSancion(s);
+      const fecha = s.creado_en ? new Date(s.creado_en).toLocaleDateString('es-BO') : '—';
+      const folio = s.folio ? `Folio ${s.folio}` : (s.id ? `${s.id}` : '');
+      const descCompleta = obtenerDescripcionSancion(s);
+      const desc = descCompleta.length > 110 ? descCompleta.slice(0,110) + '…' : descCompleta;
+      return `<div class="sancion-card ${cls.cls}" onclick="verSancionDetalle('${s.id}')">
+        <div class="sc-row1"><div class="sc-cursante">${s.falta_categoria||'?'} · Art. ${s.falta_articulo||'—'}</div><div class="sc-pts">−${s.puntos_aplicados||0} PTS</div></div>
+        <div class="sc-desc">${desc}</div>
+        <div class="sc-row3"><span class="sc-status ${cls.statusCls}">${cls.icon||''} ${cls.label}</span><span class="sc-folio">${folio} · ${fecha}</span></div>
+      </div>`;
+    }).join('');
+  } else {
+    html += `<div class="sd-block"><div class="placeholder-container" style="padding:20px 12px"><div class="placeholder-icon">✅</div><div class="placeholder-text">Sin sanciones registradas.</div></div></div>`;
+  }
+
+  cont.innerHTML = html;
+
+  // ── 2) ENTRENAMIENTO FÍSICO y 3) NOTAS (consulta on-demand por cursante) ──
+  let efis = [], notas = [];
+  try{
+    const {data} = await sb.from('evaluaciones_fisicas').select('*').eq('cursante_id', cursanteId).order('tipo_evaluacion',{ascending:true});
+    efis = (data||[]).filter(ev => ev.nota_final != null && ev.nota_final !== '');
+  }catch(e){ console.warn('repint efm:', e); }
+  try{
+    const {data} = await sb.from('notas_academicas').select('*').eq('cursante_id', cursanteId).order('gestion',{ascending:true}).order('semestre',{ascending:true}).order('materia',{ascending:true});
+    notas = data || [];
+  }catch(e){ console.warn('repint notas:', e); }
+
+  // Entrenamiento físico
+  html += _sec('🏃','Entrenamiento físico');
+  html += efis.length
+    ? efis.map(ev => htmlTarjetaEvaluacionFisica(ev, false)).join('')
+    : `<div class="efm-no-data">Sin evaluaciones físicas con nota cargada.</div>`;
+
+  // Notas académicas
+  html += _sec('📚','Notas académicas');
+  if(notas.length){
+    const grupos = agruparNotasPorPeriodo(notas);
+    html += grupos.map(g => htmlTarjetaAcademica(g)).join('');
+  } else {
+    html += `<div class="efm-no-data">Sin notas académicas cargadas.</div>`;
+  }
+
+  // Orden de mérito (solo el último OFICIAL que se tenga; si no hay, no se menciona)
+  const om = _resumenOMDeNotas(notas);
+  if(om){
+    html += _sec('🏆','Orden de mérito');
+    html += `<div style="background:var(--bg-card);border:1px solid var(--gold-dark);border-radius:var(--radius-lg);padding:20px;margin-bottom:14px">
+      <div style="display:flex;justify-content:space-around;text-align:center">
+        <div><div style="font-size:40px;font-weight:700;color:var(--gold);font-family:var(--font-display)">#${om.om}</div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Orden de mérito</div></div>
+        <div style="width:1px;background:var(--border-subtle)"></div>
+        <div><div style="font-size:40px;font-weight:700;color:var(--text-primary);font-family:var(--font-display)">${om.prom!=null?fmtNota(om.prom):'—'}</div><div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Promedio</div></div>
+      </div>
+      <div style="text-align:center;margin-top:14px;font-size:12px;color:var(--text-secondary)">${om.ciclo||''} · gestión ${om.gestion||''}</div>
+    </div>`;
+  }
+
+  html += `<div class="sd-actions"><button class="btn-secondary" onclick="volverDeReporteIntegral()">← Volver a la ficha</button></div>`;
+  cont.innerHTML = html;
+}
+
+function volverDeReporteIntegral(){
+  if(_repintBackId && typeof verFichaCursante === 'function'){ verFichaCursante(_repintBackId); }
+  else goDiscPanel();
+}
+
 function abrirSolicitudAnulacion(sancionId){
   const s = discData.sanciones.find(x=>String(x.id)===String(sancionId));
   if(!s) return;
