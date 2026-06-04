@@ -3226,7 +3226,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.50 · reporte imprimible + QR</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.51 · informe Word ECEME</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4283,6 +4283,27 @@ input::placeholder, textarea::placeholder {
   <div class="form-container"><div id="verificar-doc-content"></div>
     <div class="sd-actions"><button class="btn-secondary" onclick="salirVerificacionDoc()">Ir al inicio de SIDECEME</button></div>
   </div>
+</section>
+
+<!-- GENERAR INFORME (formato informe general ECEME → Word .docx) -->
+<section id="screen-generar-informe" class="screen">
+  <div class="app-header"><button class="back-btn" onclick="volverDeGenerarInforme()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Generar Informe</div><div class="header-sub">Formato oficial · Word (.docx)</div></div></div>
+  <div class="form-container"><div class="form-card">
+    <div style="font-size:12px;color:var(--text-muted);margin-bottom:14px;line-height:1.5">Revisá y ajustá el borrador. Al generar se descarga un archivo <b>Word</b> con el formato oficial del informe (membrete, título, Al/Del/Objeto, párrafos numerados, firma y pie).</div>
+    <div class="field"><label>Al (destinatario — nombre)</label><input type="text" id="inf-al-nombre"></div>
+    <div class="field"><label>Cargo del destinatario</label><input type="text" id="inf-al-cargo"></div>
+    <div class="field"><label>Del (remitente — cargo)</label><input type="text" id="inf-del"></div>
+    <div class="field"><label>Objeto (empieza con un verbo: Informar, Dar cuenta…)</label><textarea id="inf-objeto" rows="3"></textarea></div>
+    <div class="field"><label>Lugar y fecha</label><input type="text" id="inf-lugarfecha"></div>
+    <div class="field"><label>Saludo</label><input type="text" id="inf-saludo"></div>
+    <div class="field"><label>Cuerpo — un párrafo por bloque (separá los párrafos con una línea en blanco). Para negrilla usá **texto**.</label><textarea id="inf-cuerpo" rows="14"></textarea></div>
+    <div class="field"><label>Cierre</label><textarea id="inf-cierre" rows="2"></textarea></div>
+    <div class="field"><label>Firma — nombre</label><input type="text" id="inf-firma-nombre"></div>
+    <div class="field"><label>Firma — grado</label><input type="text" id="inf-firma-grado"></div>
+    <input type="hidden" id="inf-archivo-base">
+    <button class="btn-primary" onclick="confirmarGenerarInforme()">📄 Generar y descargar Word</button>
+    <button class="btn-secondary" onclick="volverDeGenerarInforme()">Cancelar</button>
+  </div></div>
 </section>
 
 <!-- DISC: SOLICITAR ANULACIÓN -->
@@ -9020,6 +9041,7 @@ function verSancionDetalle(sancionId){
         : `<button class="btn-secondary" onclick="anularSancionDirecto('${s.id}')" style="background:rgba(200,74,74,.15);border-color:#c84a4a;color:#c84a4a">🚫 Anular esta sanción</button>`
       }
       <button class="btn-secondary" onclick="verHistorialEdicionesSancion('${s.id}')">📜 Ver historial de cambios</button>
+      <button class="btn-secondary" style="background:linear-gradient(135deg,#2a4a6a,#1a3050);border-color:#3a6a9a;color:#cfe0f0" onclick="generarInformeAccionSancion('${anuladaActual?'anular':'auditoria'}','${s.id}','')">📄 Generar Informe de esta sanción</button>
     </div>`;
   }
 
@@ -9222,6 +9244,7 @@ function verFichaCursante(cursanteId, backTarget){
 
   html += `<div class="sd-actions">
     ${puedeVerReporteIntegral() ? `<button class="btn-primary" style="margin-bottom:8px" onclick="verReporteIntegral('${cursanteId}')">📋 Reporte integral (disciplina · físico · notas)</button>` : ''}
+    ${esAdminPanel() ? `<button class="btn-primary" style="margin-bottom:8px;background:linear-gradient(135deg,#2a4a6a,#1a3050);border-color:#3a6a9a" onclick="generarInformeCursante('${cursanteId}')">📄 Generar Informe (situación del cursante)</button>` : ''}
     <button class="btn-secondary" onclick="volverDeFichaCursante()">← Volver</button>
     ${esCT() ? `<button class="btn-secondary" style="background:linear-gradient(135deg,#5a4422,#7a5a2a);color:#f0d890;border-color:#a87e3a;margin-top:8px" onclick="cambiarPasswordCursanteDesdeFicha('${cursanteId}')">🔑 Cambiar contraseña del cursante</button>` : ''}
   </div>`;
@@ -9660,6 +9683,304 @@ function mostrarVerificacionDoc(b64, code){
   showScreen('screen-verificar-doc');
 }
 function salirVerificacionDoc(){ window.location.href = window.location.pathname; }
+
+/* ====================================================================
+   INFORME GENERAL ECEME → archivo Word (.docx) generado en el navegador.
+   Replica fielmente el formato del skill informe-general-eceme:
+   membrete Arial 10, título INFORME Arial 16, bloque Al/Del/Objeto/Lugar,
+   línea doble, cuerpo numerado 1.- 2.- 3.-, firma, pie "página - total".
+   Genera el .docx con un mini-escritor ZIP propio (sin librerías externas).
+==================================================================== */
+
+// ── ZIP (método "store", sin compresión) ──
+const _crcTable = (function(){ let c,t=[]; for(let n=0;n<256;n++){ c=n; for(let k=0;k<8;k++) c = (c&1) ? (0xEDB88320 ^ (c>>>1)) : (c>>>1); t[n]=c>>>0; } return t; })();
+function _crc32(bytes){ let c=0xFFFFFFFF; for(let i=0;i<bytes.length;i++) c = _crcTable[(c ^ bytes[i]) & 0xFF] ^ (c>>>8); return (c ^ 0xFFFFFFFF)>>>0; }
+function _zipStore(files){
+  const enc = new TextEncoder();
+  const u16 = n => [n&255,(n>>8)&255];
+  const u32 = n => [n&255,(n>>8)&255,(n>>16)&255,(n>>24)&255];
+  const parts = [], central = []; let offset = 0;
+  for(const f of files){
+    const nameB = enc.encode(f.name);
+    const dataB = enc.encode(f.str);
+    const crc = _crc32(dataB);
+    const local = new Uint8Array([].concat(
+      u32(0x04034b50), u16(20), u16(0), u16(0), u16(0), u16(0),
+      u32(crc), u32(dataB.length), u32(dataB.length), u16(nameB.length), u16(0)
+    ));
+    parts.push(local, nameB, dataB);
+    central.push(new Uint8Array([].concat(
+      u32(0x02014b50), u16(20), u16(20), u16(0), u16(0), u16(0), u16(0),
+      u32(crc), u32(dataB.length), u32(dataB.length), u16(nameB.length),
+      u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset)
+    )), nameB);
+    offset += local.length + nameB.length + dataB.length;
+  }
+  let centralSize = 0; for(const c of central) centralSize += c.length;
+  const end = new Uint8Array([].concat(
+    u32(0x06054b50), u16(0), u16(0),
+    u16(files.length), u16(files.length), u32(centralSize), u32(offset), u16(0)
+  ));
+  return new Blob(parts.concat(central, [end]), {type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+}
+
+// ── Helpers OOXML ──
+function _xmlEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+const _ARIAL = '<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>';
+// Runs con negrilla en línea (**...**) y subrayado opcional global.
+function _runs(text, sz, bold){
+  sz = sz || 24;
+  const segs = String(text==null?'':text).split('**');
+  let out = '';
+  for(let i=0;i<segs.length;i++){
+    if(segs[i]==='') continue;
+    const b = bold || (i%2===1);
+    out += `<w:r><w:rPr>${_ARIAL}${b?'<w:b/>':''}<w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr><w:t xml:space="preserve">${_xmlEsc(segs[i])}</w:t></w:r>`;
+  }
+  return out || `<w:r><w:rPr>${_ARIAL}<w:sz w:val="${sz}"/></w:rPr><w:t xml:space="preserve"></w:t></w:r>`;
+}
+function _pMembrete(text, underline, after){
+  return `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="${after||0}" w:line="240" w:lineRule="auto"/></w:pPr>`
+    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="20"/><w:szCs w:val="20"/>${underline?'<w:u w:val="single"/>':''}</w:rPr><w:t xml:space="preserve">${_xmlEsc(text)}</w:t></w:r></w:p>`;
+}
+function _pTitulo(){
+  return `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="240" w:after="240"/></w:pPr>`
+    + `<w:r><w:rPr>${_ARIAL}<w:b/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr><w:t>INFORME</w:t></w:r></w:p>`;
+}
+function _pFila(label, content, justify){
+  return `<w:p><w:pPr><w:tabs><w:tab w:val="left" w:pos="1843"/><w:tab w:val="left" w:pos="2268"/></w:tabs>`
+    + `${justify?'<w:jc w:val="both"/>':''}<w:spacing w:after="0" w:line="240" w:lineRule="auto"/><w:ind w:left="2268" w:hanging="2268"/></w:pPr>`
+    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">${_xmlEsc(label)}</w:t></w:r>`
+    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="24"/></w:rPr><w:tab/><w:t>:</w:t><w:tab/></w:r>`
+    + _runs(content, 24) + `</w:p>`;
+}
+function _pCargo(text){
+  return `<w:p><w:pPr><w:ind w:left="2268"/><w:spacing w:after="0"/></w:pPr>${_runs(text,24)}</w:p>`;
+}
+function _pLineaDoble(){
+  return `<w:p><w:pPr><w:pBdr><w:bottom w:val="double" w:sz="6" w:space="1" w:color="000000"/></w:pBdr><w:spacing w:before="80" w:after="200"/></w:pPr></w:p>`;
+}
+function _pSimple(text, opts){
+  opts = opts||{};
+  const ind = opts.firstline ? `<w:ind w:firstLine="${opts.firstline}"/>` : '';
+  return `<w:p><w:pPr>${opts.justify?'<w:jc w:val="both"/>':''}${ind}<w:spacing w:after="${opts.after!=null?opts.after:120}" w:line="276" w:lineRule="auto"/></w:pPr>${_runs(text,24)}</w:p>`;
+}
+function _pNumerado(text){
+  return `<w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="10"/></w:numPr><w:jc w:val="both"/><w:spacing w:after="160" w:line="276" w:lineRule="auto"/></w:pPr>${_runs(text,24)}</w:p>`;
+}
+
+// Construye los XML del .docx a partir del objeto de datos del informe.
+function _docxInformeParts(d){
+  const FOOT = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr><w:jc w:val="center"/></w:pPr>`
+    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="24"/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r>`
+    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="24"/></w:rPr><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r>`
+    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="24"/></w:rPr><w:fldChar w:fldCharType="end"/></w:r>`
+    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="24"/></w:rPr><w:t xml:space="preserve"> - </w:t></w:r>`
+    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="24"/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r>`
+    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="24"/></w:rPr><w:instrText xml:space="preserve"> NUMPAGES </w:instrText></w:r>`
+    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="24"/></w:rPr><w:fldChar w:fldCharType="end"/></w:r>`
+    + `</w:p></w:ftr>`;
+
+  const body = [];
+  body.push(_pMembrete('FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES'));
+  body.push(_pMembrete('ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO'));
+  body.push(_pMembrete('“MARISCAL ANDRÉS DE SANTA CRUZ”'));
+  body.push(_pMembrete('BOLIVIA', true, 200));
+  body.push(_pTitulo());
+  body.push(_pFila('Al', d.destinatario_nombre||''));
+  if(d.destinatario_cargo) body.push(_pCargo(d.destinatario_cargo));
+  body.push(_pFila('Del', d.del||'Jefe de la Sub Sección Disciplina.'));
+  body.push(_pFila('Objeto', d.objeto||'', true));
+  body.push(_pFila('Lugar y fecha', d.lugar_fecha||''));
+  body.push(_pLineaDoble());
+  body.push(_pSimple(d.saludo||'Señor Coronel:', {after:120}));
+  const intro = d.intro || 'En cumplimiento a normas y procedimientos establecidos, elevo para conocimiento y consideración de su Autoridad, el presente informe, sobre el objeto de referencia de acuerdo al siguiente detalle:';
+  body.push(_pSimple(intro, {firstline:1560, justify:true, after:200}));
+  (d.cuerpo||[]).forEach(p => body.push(_pNumerado(p)));
+  body.push(_pSimple(d.cierre||'Es cuanto tengo a bien informar a su Autoridad, para los fines consiguientes.', {firstline:1560, justify:true, after:400}));
+  body.push(_pSimple('', {after:0}));
+  body.push(`<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="240" w:after="0"/></w:pPr>${_runs(d.firma_nombre||'',24)}</w:p>`);
+  body.push(`<w:p><w:pPr><w:jc w:val="center"/></w:pPr>${_runs(d.firma_grado||'',24,true)}</w:p>`);
+
+  const sectPr = `<w:sectPr><w:footerReference w:type="default" r:id="rId10"/><w:pgSz w:w="12240" w:h="15840"/>`
+    + `<w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1701" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr>`;
+
+  const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${body.join('')}${sectPr}</w:body></w:document>`;
+
+  const numberingXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:abstractNum w:abstractNumId="0"><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1.-"/><w:lvlJc w:val="left"/><w:pPr><w:ind w:left="425" w:hanging="425"/></w:pPr><w:rPr>${_ARIAL}<w:b/></w:rPr></w:lvl></w:abstractNum><w:num w:numId="10"><w:abstractNumId w:val="0"/></w:num></w:numbering>`;
+
+  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr>${_ARIAL}<w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:rPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style></w:styles>`;
+
+  const settingsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:updateFields w:val="true"/></w:settings>`;
+
+  const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/><Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/></Types>`;
+
+  const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`;
+
+  const docRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/><Relationship Id="rId10" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/></Relationships>`;
+
+  return [
+    { name:'[Content_Types].xml', str: contentTypes },
+    { name:'_rels/.rels', str: rels },
+    { name:'word/document.xml', str: documentXml },
+    { name:'word/_rels/document.xml.rels', str: docRels },
+    { name:'word/styles.xml', str: stylesXml },
+    { name:'word/numbering.xml', str: numberingXml },
+    { name:'word/settings.xml', str: settingsXml },
+    { name:'word/footer1.xml', str: FOOT }
+  ];
+}
+
+function _descargarInformeDocx(d, nombreArchivo){
+  try{
+    const blob = _zipStore(_docxInformeParts(d));
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = (nombreArchivo||'INFORME') + '.docx';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+    return true;
+  }catch(e){ alert('No se pudo generar el Word: ' + (e.message||e)); return false; }
+}
+
+/* ── Fecha en formato militar "DD-MMM-AA" y "lugar, DD de mes de AAAA" ── */
+const _MESES_ABR = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+const _MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+function _fechaMil(dt){ dt=dt||new Date(); return String(dt.getDate()).padStart(2,'0')+'-'+_MESES_ABR[dt.getMonth()]+'-'+String(dt.getFullYear()).slice(-2); }
+function _lugarFecha(dt){ dt=dt||new Date(); return 'Cochabamba, '+dt.getDate()+' de '+_MESES[dt.getMonth()]+' de '+dt.getFullYear()+'.'; }
+
+/* ── Datos de firma del usuario logueado (Del + firma) ── */
+function _firmaUsuarioActual(){
+  const u = currentUser || {};
+  const nombre = u.nombre_completo || '';
+  // Grado para la firma: usa el grado del perfil tal cual (editable en el formulario).
+  const grado = u.grado ? String(u.grado).toUpperCase() : '';
+  return { nombre, grado };
+}
+
+/* ==================== FORMULARIO + BORRADORES DE INFORME ==================== */
+let _informeBackFn = null;
+
+function abrirGenerarInforme(borrador, backFn){
+  if(!borrador) return;
+  _informeBackFn = backFn || null;
+  const f = _firmaUsuarioActual();
+  document.getElementById('inf-al-nombre').value  = borrador.destinatario_nombre || 'Sr. Cnl. DAEN. — Comandante de la ECEME.';
+  document.getElementById('inf-al-cargo').value   = borrador.destinatario_cargo  || 'COMANDANTE DE LA ESCUELA DE COMANDO Y ESTADO MAYOR.';
+  document.getElementById('inf-del').value        = borrador.del || 'Jefe de la Sub Sección Disciplina.';
+  document.getElementById('inf-objeto').value     = borrador.objeto || '';
+  document.getElementById('inf-lugarfecha').value = borrador.lugar_fecha || _lugarFecha();
+  document.getElementById('inf-saludo').value     = borrador.saludo || 'Señor Coronel:';
+  document.getElementById('inf-cuerpo').value     = (borrador.cuerpo || []).join('\n\n');
+  document.getElementById('inf-cierre').value     = borrador.cierre || 'Es cuanto tengo a bien informar a su Autoridad, para los fines consiguientes.';
+  document.getElementById('inf-firma-nombre').value = borrador.firma_nombre || f.nombre || '';
+  document.getElementById('inf-firma-grado').value  = borrador.firma_grado  || f.grado  || '';
+  document.getElementById('inf-archivo-base').value = borrador._archivo || 'INFORME';
+  showScreen('screen-generar-informe');
+}
+
+function volverDeGenerarInforme(){
+  if(typeof _informeBackFn === 'function'){ _informeBackFn(); }
+  else goDiscPanel();
+}
+
+function confirmarGenerarInforme(){
+  const cuerpoRaw = document.getElementById('inf-cuerpo').value || '';
+  const cuerpo = cuerpoRaw.split(/\n\s*\n/).map(s=>s.trim()).filter(Boolean);
+  if(!cuerpo.length){ alert('El cuerpo del informe no puede estar vacío. Escribí al menos un párrafo.'); return; }
+  const d = {
+    destinatario_nombre: document.getElementById('inf-al-nombre').value.trim(),
+    destinatario_cargo:  document.getElementById('inf-al-cargo').value.trim(),
+    del:                 document.getElementById('inf-del').value.trim(),
+    objeto:              document.getElementById('inf-objeto').value.trim(),
+    lugar_fecha:         document.getElementById('inf-lugarfecha').value.trim(),
+    saludo:              document.getElementById('inf-saludo').value.trim(),
+    cuerpo,
+    cierre:              document.getElementById('inf-cierre').value.trim(),
+    firma_nombre:        document.getElementById('inf-firma-nombre').value.trim(),
+    firma_grado:         document.getElementById('inf-firma-grado').value.trim()
+  };
+  const base = (document.getElementById('inf-archivo-base').value || 'INFORME').replace(/[^\w\-]+/g,'_').slice(0,60);
+  _descargarInformeDocx(d, base);
+}
+
+// Borrador para la SITUACIÓN ACTUAL de un cursante (desde la ficha)
+function generarInformeCursante(cursanteId){
+  const cur = (discData.cursantes||[]).find(c=>c.id===cursanteId);
+  if(!cur){ alert('Cursante no encontrado.'); return; }
+  const sancs = (discData.byCursanteSanc[cursanteId]||[]).filter(s=>!s.anulada)
+    .slice().sort((a,b)=>new Date(a.creado_en||0)-new Date(b.creado_en||0));
+  const perd = discData.byCursanteLost[cursanteId]||0;
+  const vigente = 100 - perd;
+  const est = getEstado(perd);
+  const estTxt = est==='consejo'?'EN RIESGO':est==='observacion'?'EN OBSERVACIÓN':'EN REGLA';
+  const grado = cur.grado ? cur.grado+' ' : '';
+  const cyp = (cur.ciclo||'') + (cur.paralelo?(' paralelo "'+cur.paralelo+'"'):'');
+
+  const cuerpo = [];
+  cuerpo.push(`En fecha ${_fechaMil()}, la Sub Sección Disciplina elabora el presente informe con la finalidad de dar a conocer a su Autoridad la situación disciplinaria actual del Oficial Superior Cursante ${grado}**${cur.nombre_completo||''}**, registrado en el ${cyp}, con Cédula de Identidad N.º ${cur.ci||'—'}.`);
+  if(sancs.length){
+    cuerpo.push(`A la fecha del presente, el citado Oficial Superior Cursante registra **${sancs.length} sanción(es)** que representan un total de **${perd} punto(s)** de demérito, manteniendo un puntaje disciplinario vigente de **${vigente} sobre 100**, lo que lo ubica en situación disciplinaria **${estTxt}**.`);
+    const det = sancs.map((s,i)=>{
+      const f = s.creado_en ? new Date(s.creado_en).toLocaleDateString('es-BO') : '—';
+      const folio = s.folio ? ('Folio '+s.folio) : (s.id||'—');
+      return `${i+1}) ${folio}, de fecha ${f}: ${(s.falta_categoria||'—')}, Art. ${s.falta_articulo||'—'}, ${obtenerDescripcionSancion(s)} (−${s.puntos_aplicados||0} pts)`;
+    }).join('; ');
+    cuerpo.push(`El detalle de las sanciones registradas es el siguiente: ${det}.`);
+  } else {
+    cuerpo.push(`A la fecha del presente, el citado Oficial Superior Cursante **no registra sanciones disciplinarias**, manteniendo un puntaje disciplinario vigente de **${vigente} sobre 100**, en situación disciplinaria **${estTxt}**.`);
+  }
+  try{
+    const anual = calcularPerdidaAnual(discData.byCursanteSanc[cursanteId]||[]);
+    if(anual){
+      cuerpo.push(`En la presente gestión ${anual.year}, el cursante ha acumulado **${anual.perdidoAnual} punto(s)** de demérito. Conforme al Art. 5 del Reglamento de Régimen Disciplinario, la pérdida de más de ${TOPE_ANUAL_PERMITIDO} puntos en la gestión constituye causal de baja por disciplina, restándole un margen de **${Math.max(0,anual.restanteParaBaja)} punto(s)**.`);
+    }
+  }catch(e){}
+  cuerpo.push(`Lo informado se pone en conocimiento de su Autoridad para los fines que considere convenientes, garantizando el debido seguimiento de la situación disciplinaria del Oficial Superior Cursante.`);
+
+  abrirGenerarInforme({
+    objeto: `Informar a su Autoridad respecto a la situación disciplinaria actual del Oficial Superior Cursante ${grado}${cur.nombre_completo||''}, del ${cyp}, en el marco del Reglamento de Disciplina de la ECEME RA-ECEME-01-05.`,
+    cuerpo,
+    _archivo: 'INFORME_'+(cur.nombre_completo||cur.id).replace(/\s+/g,'_')
+  }, () => verFichaCursante(cursanteId));
+}
+
+// Borrador para una ACCIÓN sobre una sanción (anular / modificar / reactivar / auditoría)
+function generarInformeAccionSancion(tipo, sancionId, motivo){
+  const s = (discData.sanciones||[]).find(x=>String(x.id)===String(sancionId));
+  if(!s){ alert('Sanción no encontrada.'); return; }
+  const cur = (discData.cursantes||[]).find(c=>c.id===s.cursante_id);
+  const grado = cur && cur.grado ? cur.grado+' ' : '';
+  const nombre = s.cursante_nombre || (cur && cur.nombre_completo) || s.cursante_id || '—';
+  const folio = s.folio ? ('Folio N.º '+s.folio) : ('registro '+(s.id||'—'));
+  const verbo = tipo==='anular'?'anuló':tipo==='reactivar'?'reactivó':tipo==='modificar'?'modificó':'revisó';
+  const accionSust = tipo==='anular'?'anulación':tipo==='reactivar'?'reactivación':tipo==='modificar'?'modificación':'auditoría';
+  const quien = (typeof activeRole!=='undefined' && esCT()) ? 'la Sub Sección de Ciencia y Tecnología'
+              : activeRole==='comandante' ? 'el Comando de la Escuela'
+              : activeRole==='estudios' ? 'la Jefatura de Estudios'
+              : 'la Sub Sección Disciplina';
+
+  const cuerpo = [];
+  cuerpo.push(`En fecha ${_fechaMil()}, ${quien} ${verbo} la papeleta de sanción ${folio}, correspondiente al Oficial Superior Cursante ${grado}**${nombre}**, registrada por la falta ${(s.falta_categoria||'—')} (Art. ${s.falta_articulo||'—'}): ${obtenerDescripcionSancion(s)}, con una afectación de **${s.puntos_aplicados||0} punto(s)** de demérito.`);
+  if(motivo && motivo.trim()){
+    cuerpo.push(`El motivo que sustenta la presente ${accionSust} es el siguiente: ${motivo.trim()}.`);
+  }
+  cuerpo.push(`La presente acción queda registrada en el sistema SIDECEME con su respectiva trazabilidad (autor, fecha y hora), conllevando la actualización del puntaje disciplinario del Oficial Superior Cursante. Se eleva el presente informe para conocimiento y fines consiguientes de su Autoridad.`);
+
+  abrirGenerarInforme({
+    objeto: `Informar a su Autoridad respecto a la ${accionSust} de la papeleta de sanción ${folio} del Oficial Superior Cursante ${grado}${nombre}.`,
+    cuerpo,
+    _archivo: 'INFORME_'+accionSust.toUpperCase()+'_'+String(nombre).replace(/\s+/g,'_')
+  }, () => { if(typeof verSancionDetalle==='function' && s.id) verSancionDetalle(s.id); else goDiscPanel(); });
+}
 
 function abrirSolicitudAnulacion(sancionId){
   const s = discData.sanciones.find(x=>String(x.id)===String(sancionId));
