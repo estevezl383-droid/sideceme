@@ -3226,7 +3226,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.46 · notas 3er sem 2do ciclo</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.46 · badges 2do ciclo</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5902,18 +5902,38 @@ async function renderCursanteMeritoSection(){
 
 function actualizarBadgesAcademicas(data){
   if(!data || !data.length) return;
-  const ultimo = data[data.length-1];
-  // Badge del home = posición GENERAL (anual = promedio de los 2 semestres). Si no hay anual, usa el del semestre.
-  const prom = ultimo.promedio_anual != null ? ultimo.promedio_anual : ultimo.promedio_general;
-  const om = ultimo.om_anual != null ? ultimo.om_anual : ultimo.om_general;
+  // Agrupar por período (gestion-ciclo-semestre) y tomar el MÁS RECIENTE con notas.
+  const periodos = {};
+  for(const n of data){
+    const key = n.gestion+'|'+n.ciclo+'|'+n.semestre;
+    if(!periodos[key]) periodos[key] = {gestion:Number(n.gestion)||0, semestre:Number(n.semestre)||0, rows:[]};
+    periodos[key].rows.push(n);
+  }
+  const lista = Object.values(periodos).sort((a,b)=> (a.gestion-b.gestion) || (a.semestre-b.semestre));
+  const ult = lista[lista.length-1];
+  const rows = ult.rows;
+  const r0 = rows[0] || {};
+  // PROMEDIO: oficial (anual > general) o, si no hay, CALCULADO como promedio de las materias del período.
+  let prom = r0.promedio_anual != null ? Number(r0.promedio_anual)
+           : r0.promedio_general != null ? Number(r0.promedio_general)
+           : null;
+  if(prom == null){
+    const notas = rows.map(x=>Number(x.nota_final)).filter(x=>!isNaN(x));
+    if(notas.length) prom = notas.reduce((a,b)=>a+b,0)/notas.length;
+  }
+  // ORDEN DE MÉRITO: oficial (anual > general). Si no existe, no se muestra (no se puede inventar).
+  const om = r0.om_anual != null ? r0.om_anual
+           : r0.om_general != null ? r0.om_general
+           : null;
+  const anio = ult.gestion || '';
   const v = document.getElementById('cur-area-acad-val');
   const s = document.getElementById('cur-area-acad-sub');
   const mv = document.getElementById('cur-area-merito-val');
   const ms = document.getElementById('cur-area-merito-sub');
-  if(v && prom) v.textContent = Number(prom).toFixed(2);
-  if(s) s.textContent = 'Promedio gral.';
-  if(mv && om) mv.textContent = '#' + om;
-  if(ms) ms.textContent = 'Posición gral.';
+  if(v)  v.textContent  = prom!=null ? Number(prom).toFixed(2) : '—';
+  if(s)  s.textContent  = anio ? ('Promedio '+anio) : 'Promedio gral.';
+  if(mv) mv.textContent = om!=null ? ('#'+om) : '—';
+  if(ms) ms.textContent = om!=null ? ('Orden de Mérito '+anio) : (anio ? ('Promedio '+anio) : 'Posición gral.');
 }
 
 function agruparNotasPorPeriodo(data){
