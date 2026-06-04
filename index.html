@@ -5910,30 +5910,36 @@ function actualizarBadgesAcademicas(data){
     periodos[key].rows.push(n);
   }
   const lista = Object.values(periodos).sort((a,b)=> (a.gestion-b.gestion) || (a.semestre-b.semestre));
+
+  // ── PROMEDIO: del período MÁS RECIENTE (su avance actual). Oficial si existe; si no, calculado de las notas.
   const ult = lista[lista.length-1];
-  const rows = ult.rows;
-  const r0 = rows[0] || {};
-  // PROMEDIO: oficial (anual > general) o, si no hay, CALCULADO como promedio de las materias del período.
+  const r0 = ult.rows[0] || {};
   let prom = r0.promedio_anual != null ? Number(r0.promedio_anual)
            : r0.promedio_general != null ? Number(r0.promedio_general)
            : null;
   if(prom == null){
-    const notas = rows.map(x=>Number(x.nota_final)).filter(x=>!isNaN(x));
+    const notas = ult.rows.map(x=>Number(x.nota_final)).filter(x=>!isNaN(x));
     if(notas.length) prom = notas.reduce((a,b)=>a+b,0)/notas.length;
   }
-  // ORDEN DE MÉRITO: oficial (anual > general). Si no existe, no se muestra (no se puede inventar).
-  const om = r0.om_anual != null ? r0.om_anual
-           : r0.om_general != null ? r0.om_general
-           : null;
-  const anio = ult.gestion || '';
+  const anioProm = ult.gestion || '';
+
+  // ── ORDEN DE MÉRITO: el período MÁS RECIENTE que tenga un OM OFICIAL (no se inventa).
+  //    Para 2do ciclo, su 2026 aún no tiene OM → usa el OM oficial de 2025 (su 1er ciclo).
+  let om = null, anioOM = '';
+  for(let i=lista.length-1; i>=0; i--){
+    const rr = lista[i].rows[0] || {};
+    const val = rr.om_anual != null ? rr.om_anual : (rr.om_general != null ? rr.om_general : null);
+    if(val != null){ om = val; anioOM = lista[i].gestion; break; }
+  }
+
   const v = document.getElementById('cur-area-acad-val');
   const s = document.getElementById('cur-area-acad-sub');
   const mv = document.getElementById('cur-area-merito-val');
   const ms = document.getElementById('cur-area-merito-sub');
   if(v)  v.textContent  = prom!=null ? Number(prom).toFixed(2) : '—';
-  if(s)  s.textContent  = anio ? ('Promedio '+anio) : 'Promedio gral.';
+  if(s)  s.textContent  = anioProm ? ('Promedio '+anioProm) : 'Promedio gral.';
   if(mv) mv.textContent = om!=null ? ('#'+om) : '—';
-  if(ms) ms.textContent = om!=null ? ('Orden de Mérito '+anio) : (anio ? ('Promedio '+anio) : 'Posición gral.');
+  if(ms) ms.textContent = om!=null ? ('Orden de Mérito '+anioOM) : 'Sin OM aún';
 }
 
 function agruparNotasPorPeriodo(data){
