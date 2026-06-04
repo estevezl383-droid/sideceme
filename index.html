@@ -3226,7 +3226,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.49 · aviso notif alumno</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.50 · reporte imprimible + QR</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4275,6 +4275,14 @@ input::placeholder, textarea::placeholder {
 <section id="screen-reporte-integral" class="screen">
   <div class="app-header"><button class="back-btn" onclick="volverDeReporteIntegral()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title" id="repint-title">Reporte integral</div><div class="header-sub" id="repint-sub">—</div></div></div>
   <div class="form-container"><div id="repint-content"></div></div>
+</section>
+
+<!-- VERIFICACIÓN PÚBLICA de autenticidad (al escanear el QR del reporte) -->
+<section id="screen-verificar-doc" class="screen">
+  <div class="app-header"><button class="back-btn" onclick="salirVerificacionDoc()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Verificación SIDECEME</div><div class="header-sub">Autenticidad del documento</div></div></div>
+  <div class="form-container"><div id="verificar-doc-content"></div>
+    <div class="sd-actions"><button class="btn-secondary" onclick="salirVerificacionDoc()">Ir al inicio de SIDECEME</button></div>
+  </div>
 </section>
 
 <!-- DISC: SOLICITAR ANULACIÓN -->
@@ -9249,6 +9257,10 @@ function puedeVerReporteIntegral(){
   return ['comandante','estudios','ciencia_tecnologia'].includes(activeRole);
 }
 let _repintBackId = null;
+let _repintData = null;
+// Sal fija para el código de control del QR (no es criptografía fuerte: es un
+// control anti-alteración para confirmar "documento original de SIDECEME").
+const SIDECEME_VERIFY_SALT = 'SIDECEME-ECEME-BO-2026-v1';
 
 // Devuelve el ÚLTIMO orden de mérito OFICIAL que tenga el cursante (o null si no hay).
 function _resumenOMDeNotas(data){
@@ -9362,6 +9374,10 @@ async function verReporteIntegral(cursanteId){
 
   // Orden de mérito (solo el último OFICIAL que se tenga; si no hay, no se menciona)
   const om = _resumenOMDeNotas(notas);
+
+  // Guardar lo cargado para la impresión oficial (sin re-consultar)
+  _repintData = { cur, perd, est, notaDisc, notaDiscTxt, sancs, efis, notas, om, fecha: new Date() };
+
   if(om){
     html += _sec('🏆','Orden de mérito');
     html += `<div style="background:var(--bg-card);border:1px solid var(--gold-dark);border-radius:var(--radius-lg);padding:20px;margin-bottom:14px">
@@ -9374,7 +9390,10 @@ async function verReporteIntegral(cursanteId){
     </div>`;
   }
 
-  html += `<div class="sd-actions"><button class="btn-secondary" onclick="volverDeReporteIntegral()">← Volver a la ficha</button></div>`;
+  html += `<div class="sd-actions">
+    <button class="btn-primary" style="margin-bottom:8px" onclick="imprimirReporteIntegral()">🖨️ Imprimir reporte oficial (con sello y QR)</button>
+    <button class="btn-secondary" onclick="volverDeReporteIntegral()">← Volver a la ficha</button>
+  </div>`;
   cont.innerHTML = html;
 }
 
@@ -9382,6 +9401,265 @@ function volverDeReporteIntegral(){
   if(_repintBackId && typeof verFichaCursante === 'function'){ verFichaCursante(_repintBackId); }
   else goDiscPanel();
 }
+
+/* ===== CÓDIGO DE CONTROL + IMPRESIÓN OFICIAL DEL REPORTE INTEGRAL ===== */
+// Hash determinístico (djb2) del contenido + sal → código corto legible.
+function _codigoVerificacion(str){
+  const s = String(str) + '|' + SIDECEME_VERIFY_SALT;
+  let h = 5381;
+  for(let i=0;i<s.length;i++){ h = (((h<<5)+h) + s.charCodeAt(i)) >>> 0; }
+  let h2 = 52711;
+  for(let i=s.length-1;i>=0;i--){ h2 = (((h2<<5)+h2) ^ s.charCodeAt(i)) >>> 0; }
+  return (h.toString(36) + h2.toString(36)).toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,10).padEnd(10,'0');
+}
+function _b64urlEncode(str){
+  return btoa(unescape(encodeURIComponent(str))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
+}
+function _b64urlDecode(b64){
+  let s = b64.replace(/-/g,'+').replace(/_/g,'/');
+  while(s.length % 4) s += '=';
+  return decodeURIComponent(escape(atob(s)));
+}
+// Construye el payload compacto del reporte (lo que viaja en el QR) + su código.
+function _buildVerifyData(d){
+  const om = d.om || null;
+  const p = {
+    id: d.cur.id,
+    n:  d.cur.nombre_completo || '',
+    ci: d.cur.ci || '',
+    g:  d.cur.grado || '',
+    cic:d.cur.ciclo || '',
+    par:d.cur.paralelo || '',
+    f:  (d.fecha instanceof Date ? d.fecha : new Date(d.fecha)).toISOString().slice(0,10),
+    nd: d.notaDiscTxt,
+    pp: d.perd,
+    san:(d.sancs||[]).length,
+    om: om ? om.om : null,
+    pr: om && om.prom != null ? fmtNota(om.prom) : null,
+    omy:om ? (om.gestion || '') : '',
+    omc:om ? (om.ciclo || '') : ''
+  };
+  const json = JSON.stringify(p);
+  const code = _codigoVerificacion(json);
+  const b64  = _b64urlEncode(json);
+  const base = window.location.origin + window.location.pathname;
+  const url  = `${base}?verificar=${b64}&c=${code}`;
+  return { p, code, url };
+}
+
+function imprimirReporteIntegral(){
+  const d = _repintData;
+  if(!d || !d.cur){ alert('Abrí primero el reporte integral del cursante.'); return; }
+  const v = _buildVerifyData(d);
+  const base = window.location.origin + window.location.pathname.replace(/[^/]*$/, ''); // carpeta del sitio
+  const esc = s => String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const fechaTxt = (d.fecha instanceof Date ? d.fecha : new Date(d.fecha)).toLocaleString('es-BO');
+  const qrApi = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&qzone=1&data=${encodeURIComponent(v.url)}`;
+
+  // ── Disciplina: tabla de sanciones ──
+  const sancRows = (d.sancs||[]).slice().sort((a,b)=>new Date(b.creado_en||0)-new Date(a.creado_en||0)).map(s=>{
+    const f = s.creado_en ? new Date(s.creado_en).toLocaleDateString('es-BO') : '—';
+    return `<tr><td>${esc(f)}</td><td>${esc(s.falta_categoria||'—')}</td><td>Art. ${esc(s.falta_articulo||'—')}</td><td>${esc(s.folio||s.id||'—')}</td><td style="text-align:right">−${esc(s.puntos_aplicados||0)}</td></tr>`;
+  }).join('') || `<tr><td colspan="5" style="text-align:center;color:#666">Sin sanciones registradas.</td></tr>`;
+
+  // ── Físico: tabla ──
+  const efRows = (d.efis||[]).map(ev=>`<tr><td>${esc((ev.tipo_evaluacion||'—').toUpperCase())}</td><td>${esc(ev.categoria||'')}</td><td style="text-align:right">${esc(ev.nota_final||'—')}</td></tr>`).join('')
+    || `<tr><td colspan="3" style="text-align:center;color:#666">Sin evaluaciones físicas con nota.</td></tr>`;
+
+  // ── Notas: por período ──
+  let notasHtml = '';
+  if((d.notas||[]).length){
+    const grupos = agruparNotasPorPeriodo(d.notas);
+    notasHtml = grupos.map(g=>{
+      const sLabel = (typeof etiquetaSemAcad==='function') ? etiquetaSemAcad(g.ciclo,g.semestre) : ('Semestre '+g.semestre);
+      const filas = (g.materias||[]).map(m=>`<tr><td>${esc(m.materia||'—')}</td><td style="text-align:center">${esc(m.atributo||'')}</td><td style="text-align:right">${m.nota_final!=null?esc(fmtNota(m.nota_final)):'—'}</td></tr>`).join('');
+      const prom = g.promedio!=null ? fmtNota(g.promedio) : '—';
+      const omTxt = g.om!=null ? ('#'+g.om) : '—';
+      return `<div class="periodo">
+        <div class="periodo-h">${esc(sLabel)} · ${esc(g.ciclo||'')} · ${esc(g.gestion||'')} <span class="periodo-meta">Promedio: <b>${esc(prom)}</b> · OM: <b>${esc(omTxt)}</b></span></div>
+        <table class="tbl"><thead><tr><th>Materia / Módulo</th><th style="width:60px;text-align:center">Atrib.</th><th style="width:70px;text-align:right">Nota</th></tr></thead><tbody>${filas}</tbody></table>
+      </div>`;
+    }).join('');
+  } else {
+    notasHtml = `<div style="color:#666;padding:6px 0">Sin notas académicas cargadas.</div>`;
+  }
+
+  // ── Orden de mérito ──
+  const omBlock = d.om ? `
+    <div class="om-box">
+      <div><div class="om-num">#${esc(d.om.om)}</div><div class="om-lbl">Orden de mérito</div></div>
+      <div class="om-sep"></div>
+      <div><div class="om-num">${d.om.prom!=null?esc(fmtNota(d.om.prom)):'—'}</div><div class="om-lbl">Promedio</div></div>
+      <div class="om-sep"></div>
+      <div><div class="om-num" style="font-size:15px;padding-top:10px">${esc(d.om.ciclo||'')}<br>${esc(d.om.gestion||'')}</div><div class="om-lbl">Período</div></div>
+    </div>` : '';
+
+  const estLabel = d.est==='consejo'?'EN RIESGO':d.est==='observacion'?'EN OBSERVACIÓN':'EN REGLA';
+
+  const doc = `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<title>Reporte Integral - ${esc(d.cur.nombre_completo||d.cur.id)}</title>
+<style>
+  *{box-sizing:border-box}
+  body{font-family:'Times New Roman',Georgia,serif;color:#1a1a1a;margin:0;padding:26px 30px;font-size:12px;line-height:1.4}
+  .hdr{display:flex;align-items:center;justify-content:space-between;border-bottom:3px double #1a2a4a;padding-bottom:10px;margin-bottom:6px}
+  .hdr img{height:74px;width:auto}
+  .hdr-c{text-align:center;flex:1;padding:0 10px}
+  .hdr-c .t1{font-size:13px;font-weight:bold;letter-spacing:1px}
+  .hdr-c .t2{font-size:12px}
+  .hdr-c .t3{font-size:11px;color:#444}
+  .hdr-c .sis{font-size:15px;font-weight:bold;color:#1a2a4a;letter-spacing:3px;margin-top:3px}
+  h1{text-align:center;font-size:17px;letter-spacing:2px;margin:14px 0 4px;text-transform:uppercase}
+  .sub{text-align:center;font-size:11px;color:#555;margin-bottom:14px}
+  .datos{width:100%;border-collapse:collapse;margin-bottom:12px}
+  .datos td{padding:3px 6px;border:1px solid #bbb}
+  .datos td.k{background:#eef1f6;font-weight:bold;width:90px;white-space:nowrap}
+  .sec{font-size:13px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;color:#1a2a4a;border-bottom:2px solid #1a2a4a;padding-bottom:3px;margin:16px 0 8px}
+  .resumen{display:flex;gap:10px;margin-bottom:8px}
+  .resumen .c{flex:1;border:1px solid #bbb;border-radius:5px;padding:8px;text-align:center}
+  .resumen .c .n{font-size:22px;font-weight:bold}
+  .resumen .c .l{font-size:10px;color:#555;text-transform:uppercase}
+  .tbl{width:100%;border-collapse:collapse;margin-bottom:6px;font-size:11px}
+  .tbl th,.tbl td{border:1px solid #bbb;padding:3px 6px}
+  .tbl th{background:#eef1f6;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.5px}
+  .periodo{margin-bottom:10px}
+  .periodo-h{background:#1a2a4a;color:#fff;padding:4px 8px;font-size:11px;font-weight:bold;border-radius:4px 4px 0 0;display:flex;justify-content:space-between;align-items:center}
+  .periodo-meta{font-weight:normal;font-size:10px}
+  .om-box{display:flex;align-items:center;justify-content:space-around;border:2px solid #b8860b;border-radius:6px;padding:10px;margin:6px 0 4px;background:#fffaf0}
+  .om-num{font-size:26px;font-weight:bold;color:#1a2a4a;text-align:center}
+  .om-lbl{font-size:9px;text-transform:uppercase;color:#666;text-align:center;letter-spacing:1px}
+  .om-sep{width:1px;align-self:stretch;background:#d8c08a}
+  .foot{margin-top:22px;border-top:2px solid #1a2a4a;padding-top:12px;display:flex;justify-content:space-between;align-items:flex-start;gap:16px}
+  .qr-wrap{text-align:center;width:170px;flex-shrink:0}
+  .qr-wrap img{width:130px;height:130px;border:1px solid #999;padding:3px;background:#fff}
+  .qr-wrap .cod{font-family:'Courier New',monospace;font-size:13px;font-weight:bold;letter-spacing:2px;margin-top:4px}
+  .qr-wrap .cap{font-size:9px;color:#555;margin-top:3px;line-height:1.3}
+  .firma{flex:1;text-align:center;padding-top:46px}
+  .firma .line{border-top:1px solid #333;width:80%;margin:0 auto 4px}
+  .firma .r1{font-weight:bold;font-size:11px}
+  .firma .r2{font-size:10px;color:#555}
+  .sello{display:flex;flex-direction:column;align-items:center;width:120px;flex-shrink:0}
+  .sello img{width:78px;height:78px;opacity:.92}
+  .sello .t{font-size:9px;color:#666;text-align:center;margin-top:2px;letter-spacing:1px;font-weight:bold}
+  .leg{margin-top:14px;font-size:9px;color:#777;text-align:center;border-top:1px dashed #ccc;padding-top:6px}
+  @media print{ body{padding:14mm 14mm} .noprint{display:none} button{display:none} }
+</style></head><body>
+  <div class="hdr">
+    <img src="${base}assets/escudo-ejercito.png" alt="Ejército">
+    <div class="hdr-c">
+      <div class="t1">EJÉRCITO DE BOLIVIA</div>
+      <div class="t2">ESCUELA DE COMANDO Y ESTADO MAYOR</div>
+      <div class="t3">"Cnl. Gualberto Villarroel"</div>
+      <div class="sis">S I D E C E M E</div>
+    </div>
+    <img src="${base}assets/escudo-eceme.png" alt="ECEME">
+  </div>
+
+  <h1>Reporte Integral del Cursante</h1>
+  <div class="sub">Situación de disciplina, entrenamiento físico y rendimiento académico · Generado el ${esc(fechaTxt)}</div>
+
+  <table class="datos">
+    <tr><td class="k">Cursante</td><td>${esc((d.cur.grado?d.cur.grado+' ':'')+(d.cur.nombre_completo||'—'))}</td><td class="k">C.I.</td><td>${esc(d.cur.ci||'—')}${d.cur.departamento?' '+esc(d.cur.departamento):''}</td></tr>
+    <tr><td class="k">Ciclo</td><td>${esc(d.cur.ciclo||'—')}</td><td class="k">Paralelo</td><td>${esc(d.cur.paralelo||'—')}</td></tr>
+  </table>
+
+  <div class="sec">I. Disciplina</div>
+  <div class="resumen">
+    <div class="c"><div class="n">${esc((d.sancs||[]).length)}</div><div class="l">Sanciones</div></div>
+    <div class="c"><div class="n">−${esc(d.perd)}</div><div class="l">Deméritos</div></div>
+    <div class="c"><div class="n">${esc(d.notaDiscTxt)}</div><div class="l">Nota Disciplina</div></div>
+    <div class="c"><div class="n" style="font-size:13px;padding-top:5px">${esc(estLabel)}</div><div class="l">Situación</div></div>
+  </div>
+  <table class="tbl"><thead><tr><th style="width:80px">Fecha</th><th>Categoría</th><th style="width:70px">Artículo</th><th style="width:90px">Folio</th><th style="width:55px;text-align:right">Pts</th></tr></thead><tbody>${sancRows}</tbody></table>
+
+  <div class="sec">II. Entrenamiento Físico</div>
+  <table class="tbl"><thead><tr><th>Evaluación</th><th>Categoría</th><th style="width:70px;text-align:right">Nota</th></tr></thead><tbody>${efRows}</tbody></table>
+
+  <div class="sec">III. Notas Académicas</div>
+  ${notasHtml}
+
+  ${d.om ? `<div class="sec">IV. Orden de Mérito</div>${omBlock}` : ''}
+
+  <div class="foot">
+    <div class="qr-wrap">
+      <img src="${qrApi}" alt="QR de verificación">
+      <div class="cod">${esc(v.code)}</div>
+      <div class="cap">Escaneá el QR para verificar la autenticidad de este documento en el sistema SIDECEME.</div>
+    </div>
+    <div class="firma">
+      <div class="line"></div>
+      <div class="r1">COMANDANTE / AUTORIDAD QUE EMITE</div>
+      <div class="r2">Escuela de Comando y Estado Mayor</div>
+    </div>
+    <div class="sello">
+      <img src="${base}assets/icon-sideceme.png" alt="Sello SIDECEME">
+      <div class="t">SELLO SIDECEME</div>
+    </div>
+  </div>
+
+  <div class="leg">Documento generado automáticamente por SIDECEME — Sistema de Disciplina de la ECEME. La validez de este reporte se confirma escaneando el código QR. Datos al ${esc(fechaTxt)}.</div>
+
+  <div class="noprint" style="text-align:center;margin-top:18px">
+    <button onclick="window.print()" style="font-size:14px;padding:10px 24px;cursor:pointer">🖨️ Imprimir / Guardar PDF</button>
+  </div>
+  <script>window.addEventListener('load',function(){setTimeout(function(){try{window.print();}catch(e){}},600);});<\/script>
+</body></html>`;
+
+  const w = window.open('', '_blank');
+  if(!w){ alert('El navegador bloqueó la ventana de impresión. Permití las ventanas emergentes y reintentá.'); return; }
+  w.document.open(); w.document.write(doc); w.document.close();
+}
+
+/* ===== PÁGINA PÚBLICA DE VERIFICACIÓN (al escanear el QR) ===== */
+function detectarVerificacionEnURL(){
+  try{
+    const params = new URLSearchParams(window.location.search);
+    const b64 = params.get('verificar');
+    const code = params.get('c');
+    if(!b64 || !code) return false;
+    mostrarVerificacionDoc(b64, code);
+    return true;
+  }catch(e){ return false; }
+}
+
+function mostrarVerificacionDoc(b64, code){
+  let p = null, ok = false;
+  try{
+    const json = _b64urlDecode(b64);
+    const recompute = _codigoVerificacion(json);
+    ok = (recompute === String(code).toUpperCase());
+    p = JSON.parse(json);
+  }catch(e){ ok = false; }
+
+  const cont = document.getElementById('verificar-doc-content');
+  if(ok && p){
+    const omTxt = p.om!=null ? ('#'+p.om + (p.pr!=null?(' · '+p.pr):'') + (p.omc||p.omy?(' · '+[p.omc,p.omy].filter(Boolean).join(' ')):'')) : '—';
+    cont.innerHTML = `
+      <div style="text-align:center;margin-bottom:18px">
+        <div style="font-size:54px;line-height:1">✅</div>
+        <div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:#1ed88a;letter-spacing:1px;margin-top:6px">DOCUMENTO AUTÉNTICO</div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-top:4px">Generado por <b>SIDECEME</b> — Sistema de Disciplina de la ECEME</div>
+      </div>
+      <div class="sd-block">
+        <div class="sd-row"><span class="lbl">Cursante</span><span class="vl">${(p.g?p.g+' ':'')+(p.n||'—')}</span></div>
+        <div class="sd-row"><span class="lbl">C.I.</span><span class="vl">${p.ci||'—'}</span></div>
+        <div class="sd-row"><span class="lbl">Ciclo</span><span class="vl gold">${p.cic||'—'}${p.par?(' · '+p.par):''}</span></div>
+        <div class="sd-row"><span class="lbl">Nota disciplina</span><span class="vl">${p.nd||'—'} (${p.pp||0} pts perdidos · ${p.san||0} sanción/es)</span></div>
+        <div class="sd-row"><span class="lbl">Orden de mérito</span><span class="vl gold">${omTxt}</span></div>
+        <div class="sd-row"><span class="lbl">Fecha del reporte</span><span class="vl">${p.f||'—'}</span></div>
+        <div class="sd-row"><span class="lbl">Código</span><span class="vl" style="font-family:monospace;letter-spacing:2px">${String(code).toUpperCase()}</span></div>
+      </div>
+      <div style="font-size:12px;color:var(--text-muted);text-align:center;margin-top:14px;line-height:1.5">El código del documento coincide con su contenido: <b style="color:#1ed88a">no fue alterado</b>. Esta verificación confirma que el reporte fue emitido por SIDECEME.</div>`;
+  } else {
+    cont.innerHTML = `
+      <div style="text-align:center;margin-bottom:18px">
+        <div style="font-size:54px;line-height:1">⛔</div>
+        <div style="font-family:var(--font-display);font-size:22px;font-weight:700;color:#ff5b5b;letter-spacing:1px;margin-top:6px">NO SE PUDO VERIFICAR</div>
+      </div>
+      <div class="sd-block"><div style="padding:14px;font-size:13px;color:var(--text-secondary);line-height:1.6">El código de control <b>no coincide</b> con el contenido del documento, o el enlace está incompleto. Este documento <b style="color:#ff5b5b">podría no ser auténtico o haber sido alterado</b>.<br><br>Verificá que escaneaste el QR original impreso por SIDECEME.</div></div>`;
+  }
+  showScreen('screen-verificar-doc');
+}
+function salirVerificacionDoc(){ window.location.href = window.location.pathname; }
 
 function abrirSolicitudAnulacion(sancionId){
   const s = discData.sanciones.find(x=>String(x.id)===String(sancionId));
@@ -14223,6 +14501,11 @@ setTimeout(()=>{ if(currentUser) iniciarNotificaciones(); }, 3000);
 
 
 (async function bootstrap(){
+  // PRIORIDAD 0: Si la URL tiene ?verificar=...&c=..., alguien escaneó el QR de un
+  // reporte impreso → mostrar la página pública de verificación de autenticidad.
+  if(detectarVerificacionEnURL()){
+    return;
+  }
   // PRIORIDAD 1: Si la URL tiene ?firma=...&t=..., el usuario viene de escanear un QR
   // → entrar al flujo de firma del cursante sin importar la sesión
   if(detectarFlujoFirmaEnURL()){
