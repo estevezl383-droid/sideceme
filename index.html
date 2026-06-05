@@ -3228,7 +3228,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.61 · detalle logins fallidos CT</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.62 · notif seguridad CT + puntito prof persistente</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -8929,7 +8929,11 @@ function renderDiscPanel(){
   // Puntito rojo en la tarjeta "Sanciones" y el botón "Ver todas"
   try{ actualizarPuntitoSanciones(_nuevasSanc); }catch(e){}
   // 🛡️ Alerta de seguridad (solo CT) — async, no bloquea
-  if(typeof esCT==='function' && esCT()){ try{ cargarAlertasSeguridadCT(); }catch(e){} }
+  if(typeof esCT==='function' && esCT()){
+    try{ cargarAlertasSeguridadCT(); }catch(e){}
+    // v2.9.62: al ver el banner se marca la seguridad como "vista" (apaga puntito + push)
+    try{ ctSegMarcarVista(); }catch(e){}
+  }
   else { const _ct=document.getElementById('ct-seguridad-banner'); if(_ct) _ct.innerHTML=''; }
   const today=new Date();
   const fecha=today.toLocaleDateString('es-BO',{day:'2-digit',month:'2-digit',year:'numeric'});
@@ -11562,6 +11566,8 @@ function goDiagnostico(){
 // ──────────────────────────────────────────────────────────────────
 async function goCTLoginsFallidos(){
   if(!esCT()){ alert('Solo C&T puede ver este detalle.'); return; }
+  // v2.9.62: marcar como vista → apaga el puntito rojo y deja de pushear hasta que haya nuevas
+  try{ ctSegMarcarVista(); actualizarBadgeApp(0); }catch(e){}
   const resumen = document.getElementById('ct-lf-resumen');
   const lista   = document.getElementById('ct-lf-lista');
   if(!resumen || !lista) return;
@@ -15475,8 +15481,123 @@ async function verificarNotificaciones(){
           try{ actualizarBadgeApp(sinVer.length); }catch(_){}
         }
       }
+
+      // 🛡️ v2.9.62: ALERTAS DE SEGURIDAD para C&T (logins fallidos + sanciones modificadas)
+      // Persiste con localStorage (sideceme_ct_seg_seen). El "vista" se marca al entrar al
+      // panel CT o al detalle de logins fallidos.
+      if(typeof esCT==='function' && esCT()){
+        try{
+          await _ctVerificarSeguridadBG();
+        }catch(_){}
+      }
+
+      // 🔴 v2.9.62: PROFESOR (no admin) → puntito persistente con sanciones suyas SIN FIRMAR.
+      // Antes solo se actualizaba al entrar al panel; ahora cada 45s en background.
+      if(activeRole === 'profesor' || activeRole === 'ef'){
+        try{
+          const uid = currentUser.id;
+          const {data:pend} = await sb.from('v_sanciones')
+            .select('id,creado_en')
+            .eq('profesor_id', uid)
+            .eq('anulada', false)
+            .or('firma_cursante.is.null,confirmacion_estado.is.null')
+            .limit(50);
+          const sinFirmar = (pend||[]).filter(s => {
+            const ce = (s.confirmacion_estado||'').toLowerCase();
+            return ce !== 'firmada' && ce !== 'aceptada';
+          });
+          actualizarBadgeApp(sinFirmar.length);
+        }catch(_){}
+      }
     }
   }catch(e){ console.log('Notif check skip:', e.message); }
+}
+
+// v2.9.62: chequeo de seguridad para C&T en background (polling).
+// Detecta NUEVAS alertas desde la última vez que CT vio el panel y dispara
+// notificación + puntito en el ícono. No bloquea.
+const _CT_SEG_SEEN_KEY = 'sideceme_ct_seg_seen';
+function ctSegMarcarVista(){
+  try{ localStorage.setItem(_CT_SEG_SEEN_KEY, String(Date.now())); }catch(e){}
+}
+function ctSegGetSeen(){
+  try{
+    const raw = localStorage.getItem(_CT_SEG_SEEN_KEY);
+    if(raw === null){
+      // Primer arranque: baseline = ahora (no notificar historial completo)
+      const now = Date.now(); ctSegMarcarVista(); return now;
+    }
+    return Number(raw)||0;
+  }catch(e){ return Date.now(); }
+}
+async function _ctVerificarSeguridadBG(){
+  const seen = ctSegGetSeen();
+  let totalVigente = 0;     // para el puntito (vigentes en ventana 24h/7d)
+  let nuevasDesdeVista = 0; // para la notificación push del navegador
+  const partes = [];
+
+  // (A) Auditoría de sanciones (últimos 7 días) — comparar con seen
+  try{
+    const desde = new Date(Math.max(seen, Date.now() - 7*86400000)).toISOString();
+    const {data} = await sb.from('sanciones_audit')
+      .select('id,accion,creado_en')
+      .gt('creado_en', desde)
+      .order('creado_en', {ascending:false})
+      .limit(50);
+    if(data && data.length){
+      nuevasDesdeVista += data.length;
+      partes.push(`${data.length} acción(es) sobre sanciones`);
+    }
+    // total vigente en ventana 7d (independiente de seen)
+    const desde7d = new Date(Date.now() - 7*86400000).toISOString();
+    const {data: data7d} = await sb.from('sanciones_audit')
+      .select('id', {count:'exact', head:true})
+      .gte('creado_en', desde7d);
+    // count viene en respuesta del select head:true → leer header
+  }catch(_){}
+
+  // (B) Logins fallidos + cuentas dañadas (via ct-seguridad EF)
+  try{
+    const tok = (typeof getTokenSesion==='function') ? getTokenSesion() : null;
+    if(tok){
+      const {data:r} = await sb.functions.invoke('ct-seguridad',{body:{token:tok}});
+      if(r && r.ok){
+        if(r.intentos_fallidos_24h > 0){
+          totalVigente += r.intentos_fallidos_24h;
+          // Hay logins fallidos en 24h: si el last seen es de hace >1h, lo consideramos NUEVO aviso
+          if(Date.now() - seen > 60*60*1000){
+            nuevasDesdeVista += 1;
+            partes.push(`${r.intentos_fallidos_24h} login(s) fallido(s)`);
+          }
+        }
+        if(r.cuentas_corruptas > 0){
+          totalVigente += r.cuentas_corruptas;
+          if(Date.now() - seen > 60*60*1000){
+            nuevasDesdeVista += 1;
+            partes.push(`${r.cuentas_corruptas} cuenta(s) dañada(s)`);
+          }
+        }
+      }
+    }
+  }catch(_){}
+
+  // Puntito en el ícono de la app — refleja lo VIGENTE (no lo nuevo)
+  try{ actualizarBadgeApp(totalVigente); }catch(_){}
+
+  // Notificación push del navegador → solo si hay NUEVAS desde la última visita
+  if(nuevasDesdeVista > 0 && typeof Notification!=='undefined' && Notification.permission === 'granted'){
+    const tag = 'ct-seg-'+seen;
+    if(!notifLastKnown[tag]){
+      notifLastKnown[tag] = true;
+      try{
+        new Notification('SIDECEME — Alerta de seguridad (C&T)', {
+          body: partes.join(' · ') || 'Nuevas alertas en el panel C&T.',
+          icon: 'assets/icon-sideceme.png',
+          tag: 'ct-seguridad'
+        });
+      }catch(_){}
+    }
+  }
 }
 
 // Auto-iniciar notificaciones al entrar a un rol
