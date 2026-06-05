@@ -3226,7 +3226,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.51 · informe Word ECEME</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.52 · informe Word (formato fiel)</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -9740,25 +9740,31 @@ function _runs(text, sz, bold){
   return out || `<w:r><w:rPr>${_ARIAL}<w:sz w:val="${sz}"/></w:rPr><w:t xml:space="preserve"></w:t></w:r>`;
 }
 function _pMembrete(text, underline, after){
-  return `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="${after||0}" w:line="240" w:lineRule="auto"/></w:pPr>`
-    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="20"/><w:szCs w:val="20"/>${underline?'<w:u w:val="single"/>':''}</w:rPr><w:t xml:space="preserve">${_xmlEsc(text)}</w:t></w:r></w:p>`;
+  // Igual al skill: centrado pero con sangría derecha 3264 → queda cargado a la izquierda. Negrilla.
+  return `<w:p><w:pPr>${after?`<w:spacing w:after="${after}"/>`:''}<w:ind w:right="3264"/><w:jc w:val="center"/></w:pPr>`
+    + `<w:r><w:rPr>${_ARIAL}<w:b/><w:bCs/>${underline?'<w:u w:val="single"/>':''}<w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve">${_xmlEsc(text)}</w:t></w:r></w:p>`;
 }
 function _pTitulo(){
   return `<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="240" w:after="240"/></w:pPr>`
     + `<w:r><w:rPr>${_ARIAL}<w:b/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr><w:t>INFORME</w:t></w:r></w:p>`;
 }
 function _pFila(label, content, justify){
+  // Igual al skill: etiqueta en NEGRILLA, ": " en NEGRILLA, contenido normal, spacing after 100.
   return `<w:p><w:pPr><w:tabs><w:tab w:val="left" w:pos="1843"/><w:tab w:val="left" w:pos="2268"/></w:tabs>`
-    + `${justify?'<w:jc w:val="both"/>':''}<w:spacing w:after="0" w:line="240" w:lineRule="auto"/><w:ind w:left="2268" w:hanging="2268"/></w:pPr>`
-    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">${_xmlEsc(label)}</w:t></w:r>`
-    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="24"/></w:rPr><w:tab/><w:t>:</w:t><w:tab/></w:r>`
+    + `<w:spacing w:after="100"/><w:ind w:left="2268" w:hanging="2268"/>${justify?'<w:jc w:val="both"/>':''}</w:pPr>`
+    + `<w:r><w:rPr>${_ARIAL}<w:b/><w:bCs/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>${_xmlEsc(label)}</w:t></w:r>`
+    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="24"/></w:rPr><w:tab/></w:r>`
+    + `<w:r><w:rPr>${_ARIAL}<w:b/><w:bCs/><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">: </w:t></w:r>`
+    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="24"/></w:rPr><w:tab/></w:r>`
     + _runs(content, 24) + `</w:p>`;
 }
 function _pCargo(text){
-  return `<w:p><w:pPr><w:ind w:left="2268"/><w:spacing w:after="0"/></w:pPr>${_runs(text,24)}</w:p>`;
+  // Cargo del destinatario en NEGRILLA (igual al skill).
+  return `<w:p><w:pPr><w:spacing w:after="100"/><w:ind w:left="2268"/></w:pPr>`
+    + `<w:r><w:rPr>${_ARIAL}<w:b/><w:bCs/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr><w:t>${_xmlEsc(text)}</w:t></w:r></w:p>`;
 }
 function _pLineaDoble(){
-  return `<w:p><w:pPr><w:pBdr><w:bottom w:val="double" w:sz="6" w:space="1" w:color="000000"/></w:pBdr><w:spacing w:before="80" w:after="200"/></w:pPr></w:p>`;
+  return `<w:p><w:pPr><w:pBdr><w:bottom w:val="double" w:sz="6" w:space="1" w:color="000000"/></w:pBdr><w:spacing w:after="160"/><w:rPr><w:sz w:val="14"/><w:szCs w:val="14"/></w:rPr></w:pPr></w:p>`;
 }
 function _pSimple(text, opts){
   opts = opts||{};
@@ -9771,15 +9777,16 @@ function _pNumerado(text){
 
 // Construye los XML del .docx a partir del objeto de datos del informe.
 function _docxInformeParts(d){
+  const _fr = `${_ARIAL}<w:b/><w:bCs/><w:sz w:val="24"/>`; // pie: Arial 12 NEGRILLA (igual al skill)
   const FOOT = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr><w:jc w:val="center"/></w:pPr>`
-    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="24"/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r>`
-    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="24"/></w:rPr><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r>`
-    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="24"/></w:rPr><w:fldChar w:fldCharType="end"/></w:r>`
-    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="24"/></w:rPr><w:t xml:space="preserve"> - </w:t></w:r>`
-    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="24"/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r>`
-    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="24"/></w:rPr><w:instrText xml:space="preserve"> NUMPAGES </w:instrText></w:r>`
-    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="24"/></w:rPr><w:fldChar w:fldCharType="end"/></w:r>`
+    + `<w:r><w:rPr>${_fr}</w:rPr><w:fldChar w:fldCharType="begin"/></w:r>`
+    + `<w:r><w:rPr>${_fr}</w:rPr><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r>`
+    + `<w:r><w:rPr>${_fr}</w:rPr><w:fldChar w:fldCharType="end"/></w:r>`
+    + `<w:r><w:rPr>${_fr}</w:rPr><w:t xml:space="preserve"> - </w:t></w:r>`
+    + `<w:r><w:rPr>${_fr}</w:rPr><w:fldChar w:fldCharType="begin"/></w:r>`
+    + `<w:r><w:rPr>${_fr}</w:rPr><w:instrText xml:space="preserve"> NUMPAGES </w:instrText></w:r>`
+    + `<w:r><w:rPr>${_fr}</w:rPr><w:fldChar w:fldCharType="end"/></w:r>`
     + `</w:p></w:ftr>`;
 
   const body = [];
@@ -9804,7 +9811,7 @@ function _docxInformeParts(d){
   body.push(`<w:p><w:pPr><w:jc w:val="center"/></w:pPr>${_runs(d.firma_grado||'',24,true)}</w:p>`);
 
   const sectPr = `<w:sectPr><w:footerReference w:type="default" r:id="rId10"/><w:pgSz w:w="12240" w:h="15840"/>`
-    + `<w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1701" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr>`;
+    + `<w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1701" w:header="720" w:footer="454" w:gutter="0"/></w:sectPr>`;
 
   const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${body.join('')}${sectPr}</w:body></w:document>`;
