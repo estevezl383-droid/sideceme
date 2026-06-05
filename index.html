@@ -3226,7 +3226,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.55 · informe membrete+fecha</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.56 · resumen no corta + membrete</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -10374,8 +10374,9 @@ function cssReporte(orientacion){
       border:0.75pt solid #000; padding:2pt 5pt;
       font-size:9pt; vertical-align:middle;
     }
-    /* Altura UNIFORME de todas las filas de datos (entran nombres de 2 líneas y quedan parejas) */
-    .main-table tbody tr { height:0.92cm; mso-height-rule:exactly; }
+    /* Altura MÍNIMA uniforme: las filas cortas quedan parejas, pero si el texto es
+       más largo (3 líneas) la fila se EXPANDE y NUNCA se corta el contenido. */
+    .main-table tbody tr { height:0.92cm; mso-height-rule:atLeast; }
     .main-table tbody td { height:0.92cm; vertical-align:middle; }
     .main-table th {
       background:#D9D9D9; text-align:center; font-weight:bold;
@@ -10413,9 +10414,11 @@ function htmlEncabezadoReporte(orientacion){
   // En HORIZONTAL el membrete va más cargado a la izquierda (celda más angosta + espaciador ancho);
   // en VERTICAL ocupa más ancho para que las líneas no se partan. (Coincide con los modelos.)
   const isLandscape = orientacion === 'landscape';
-  const wInst   = isLandscape ? '52%' : '72%';
-  const wSpacer = isLandscape ? '22%' : '2%';
-  const wSys    = '26%';
+  // Proporciones del membrete: en HORIZONTAL = como el modelo "ejemplo 3" (74% celda
+  // izquierda centrada → queda cargado a la izquierda por el ancho de la página).
+  const wInst   = isLandscape ? '74%' : '72%';
+  const wSpacer = isLandscape ? '2%'  : '2%';
+  const wSys    = isLandscape ? '24%' : '26%';
   // HTML defensivo con inline styles y align="center" para máxima compatibilidad con Word
   return `
     <table class="header-table" cellspacing="0" cellpadding="0">
