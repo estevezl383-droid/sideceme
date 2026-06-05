@@ -3226,7 +3226,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.52 · informe Word (formato fiel)</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.53 · planilla formato fiel</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -10324,10 +10324,13 @@ function cssReporte(orientacion){
       margin: 2cm 2cm 2cm 3cm;
       mso-page-orientation: ${orientacion};
       mso-header-margin: 0.5in;
-      mso-footer-margin: 0.5in;
+      mso-footer-margin: 0.4in;
+      mso-footer: f1;
       mso-paper-source: 0;
     }
     div.Section1 { page: Section1; }
+    /* Pie de página Word: "página - total" en negrilla, centrado, Arial 12 */
+    p.MsoFooter, li.MsoFooter, div.MsoFooter { margin:0; text-align:center; font-family:Arial,sans-serif; font-size:12pt; font-weight:bold; }
 
     /* === Tipografía Arial en TODO === */
     body, table, td, th, p, h1, h2, h3, div, span {
@@ -10339,14 +10342,15 @@ function cssReporte(orientacion){
     .header-table { width:100%; border-collapse:collapse; margin-bottom:14pt; }
     .header-table td { padding:4pt 6pt; vertical-align:top; border:none; }
     .header-table .h-inst {
-      text-align:center; font-weight:bold; font-size:11pt; line-height:1.35;
-      width:60%;
+      text-align:center; font-weight:bold; font-size:10pt; line-height:1.35;
+      width:72%; white-space:nowrap;
     }
-    .header-table .h-spacer { width:15%; }
+    .header-table .h-spacer { width:2%; }
     .header-table .h-sys {
-      text-align:right; font-size:9pt; line-height:1.4; width:25%;
+      text-align:right; font-size:9pt; line-height:1.4; width:26%;
     }
     .header-table .h-sys strong { font-weight:bold; }
+    .header-table .h-bolivia { text-decoration:underline; }
 
     /* === Títulos del reporte === */
     h1.titulo-rep {
@@ -10365,9 +10369,12 @@ function cssReporte(orientacion){
     /* === Tabla principal de datos === */
     table.main-table { width:100%; border-collapse:collapse; }
     .main-table th, .main-table td {
-      border:0.75pt solid #000; padding:3pt 5pt;
+      border:0.75pt solid #000; padding:2pt 5pt;
       font-size:9pt; vertical-align:middle;
     }
+    /* Altura UNIFORME de todas las filas de datos (entran nombres de 2 líneas y quedan parejas) */
+    .main-table tbody tr { height:0.92cm; mso-height-rule:exactly; }
+    .main-table tbody td { height:0.92cm; vertical-align:middle; }
     .main-table th {
       background:#D9D9D9; text-align:center; font-weight:bold;
     }
@@ -10379,18 +10386,18 @@ function cssReporte(orientacion){
       font-style:italic; color:#555;
     }
 
-    /* === FIRMAS: 3 tablas separadas según modelo (sin bordes) === */
-    table.firma-row { width:100%; border-collapse:collapse; }
+    /* === FIRMAS: Arial 12, con espacio para firmar, ordenadas === */
+    .firmas-wrap { margin-top:20pt; }
+    table.firma-row { width:100%; border-collapse:collapse; margin:0; }
     table.firma-row td {
-      text-align:center; font-size:10pt; vertical-align:top;
+      text-align:center; font-size:12pt; vertical-align:top;
       border:none; padding:0 8pt;
     }
-    table.firma-row.firma-1 { margin-top:48pt; }
     table.firma-row.firma-1 td { width:50%; }
-    table.firma-row.firma-2 { margin-top:56pt; }
-    table.firma-row.firma-3 { margin-top:56pt; }
-    .firma-nombre { display:block; font-weight:normal; padding-bottom:1pt; }
-    .firma-cargo  { display:block; font-weight:bold; font-size:10pt; }
+    /* línea(s) en blanco = espacio físico para la firma encima del nombre */
+    p.firma-space { margin:0; font-size:12pt; line-height:1.15; mso-line-height-rule:exactly; }
+    .firma-nombre { display:block; font-weight:normal; font-size:12pt; padding-bottom:1pt; }
+    .firma-cargo  { display:block; font-weight:bold; font-size:12pt; }
 
     @media print {
       body { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
@@ -10405,14 +10412,14 @@ function htmlEncabezadoReporte(){
   return `
     <table class="header-table" cellspacing="0" cellpadding="0">
       <tr>
-        <td class="h-inst" width="60%" align="center" valign="top" style="border:none;padding:4pt 6pt;text-align:center;vertical-align:top">
-          <p align="center" style="text-align:center;font-weight:bold;font-size:11pt;margin:0;font-family:Arial,sans-serif;line-height:1.35">FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES</p>
-          <p align="center" style="text-align:center;font-weight:bold;font-size:11pt;margin:0;font-family:Arial,sans-serif;line-height:1.35">ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO</p>
-          <p align="center" style="text-align:center;font-weight:bold;font-size:11pt;margin:0;font-family:Arial,sans-serif;line-height:1.35">"MCAL. ANDRÉS DE SANTA CRUZ"</p>
-          <p align="center" style="text-align:center;font-weight:bold;font-size:11pt;margin:0;font-family:Arial,sans-serif;line-height:1.35">BOLIVIA</p>
+        <td class="h-inst" width="72%" align="center" valign="top" style="border:none;padding:4pt 6pt;text-align:center;vertical-align:top">
+          <p align="center" style="text-align:center;font-weight:bold;font-size:10pt;margin:0;font-family:Arial,sans-serif;line-height:1.35;white-space:nowrap">FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES</p>
+          <p align="center" style="text-align:center;font-weight:bold;font-size:10pt;margin:0;font-family:Arial,sans-serif;line-height:1.35;white-space:nowrap">ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO</p>
+          <p align="center" style="text-align:center;font-weight:bold;font-size:10pt;margin:0;font-family:Arial,sans-serif;line-height:1.35;white-space:nowrap">"MARISCAL ANDRÉS DE SANTA CRUZ"</p>
+          <p align="center" style="text-align:center;font-weight:bold;font-size:11pt;margin:0;font-family:Arial,sans-serif;line-height:1.35;text-decoration:underline"><u>BOLIVIA</u></p>
         </td>
-        <td class="h-spacer" width="15%" style="border:none">&nbsp;</td>
-        <td class="h-sys" width="25%" align="right" valign="top" style="border:none;padding:4pt 6pt;text-align:right;vertical-align:top">
+        <td class="h-spacer" width="2%" style="border:none">&nbsp;</td>
+        <td class="h-sys" width="26%" align="right" valign="top" style="border:none;padding:4pt 6pt;text-align:right;vertical-align:top">
           <p align="right" style="text-align:right;font-weight:bold;font-size:9pt;margin:0;font-family:Arial,sans-serif;line-height:1.4">Sistema Informático de Disciplina</p>
           <p align="right" style="text-align:right;font-size:9pt;margin:0;font-family:Arial,sans-serif;line-height:1.4">Fecha Emisión: ${fechaEmision}</p>
         </td>
@@ -10422,39 +10429,38 @@ function htmlEncabezadoReporte(){
 }
 
 function htmlFirmasReporte(){
-  // 3 tablas independientes — coincide con el modelo MODELO_ENCABEZADO_Y_FIRMAS.docx
-  // HTML defensivo con inline styles para que Word y navegadores rendericen igual
-  const stN = 'text-align:center;font-family:Arial,sans-serif;font-size:10pt;margin:0;font-weight:normal';
-  const stC = 'text-align:center;font-family:Arial,sans-serif;font-size:10pt;margin:0;font-weight:bold';
+  // Firmas Arial 12, con espacio físico para firmar (líneas en blanco) sobre cada nombre.
+  // Disposición: fila 1 = Disciplina | SAC (2 columnas) · fila 2 = Estudios · fila 3 = Comandante.
+  // Sin page-break-inside:avoid en el bloque completo (para que NO salte a una hoja solo de firmas);
+  // cada fila no se parte internamente. Así las firmas quedan junto a la matriz.
+  const stN = 'text-align:center;font-family:Arial,sans-serif;font-size:12pt;margin:0;font-weight:normal';
+  const stC = 'text-align:center;font-family:Arial,sans-serif;font-size:12pt;margin:0;font-weight:bold';
+  // espacio para firmar = N líneas en blanco
+  const gap = (n) => Array(n).fill('<p class="firma-space" style="margin:0;font-size:12pt;line-height:1.15">&nbsp;</p>').join('');
+  const bloque1cols = (a, b) =>
+    `<table class="firma-row firma-1" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;page-break-inside:avoid"><tr>
+        <td width="50%" align="center" valign="top" style="border:none;padding:0 8pt;text-align:center;vertical-align:top">
+          <p align="center" style="${stN}">${escapeHtml(a.nombre)}</p>
+          <p align="center" style="${stC}">${escapeHtml(a.cargo)}</p></td>
+        <td width="50%" align="center" valign="top" style="border:none;padding:0 8pt;text-align:center;vertical-align:top">
+          <p align="center" style="${stN}">${escapeHtml(b.nombre)}</p>
+          <p align="center" style="${stC}">${escapeHtml(b.cargo)}</p></td>
+     </tr></table>`;
+  const bloque1col = (a) =>
+    `<table class="firma-row" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;page-break-inside:avoid"><tr>
+        <td align="center" valign="top" style="border:none;padding:0 8pt;text-align:center;vertical-align:top">
+          <p align="center" style="${stN}">${escapeHtml(a.nombre)}</p>
+          <p align="center" style="${stC}">${escapeHtml(a.cargo)}</p></td>
+     </tr></table>`;
   return `
-    <table class="firma-row firma-1" cellspacing="0" cellpadding="0" style="width:100%;margin-top:48pt;border-collapse:collapse">
-      <tr>
-        <td width="50%" align="center" valign="top" style="border:none;padding:0 8pt;text-align:center;vertical-align:top">
-          <p align="center" style="${stN}">${escapeHtml(FIRMA_JEFE_DISCIPLINA.nombre)}</p>
-          <p align="center" style="${stC}">${escapeHtml(FIRMA_JEFE_DISCIPLINA.cargo)}</p>
-        </td>
-        <td width="50%" align="center" valign="top" style="border:none;padding:0 8pt;text-align:center;vertical-align:top">
-          <p align="center" style="${stN}">${escapeHtml(FIRMA_JEFE_SAC.nombre)}</p>
-          <p align="center" style="${stC}">${escapeHtml(FIRMA_JEFE_SAC.cargo)}</p>
-        </td>
-      </tr>
-    </table>
-    <table class="firma-row firma-2" cellspacing="0" cellpadding="0" style="width:100%;margin-top:56pt;border-collapse:collapse">
-      <tr>
-        <td align="center" valign="top" style="border:none;padding:0 8pt;text-align:center;vertical-align:top">
-          <p align="center" style="${stN}">${escapeHtml(FIRMA_JEFE_ESTUDIOS.nombre)}</p>
-          <p align="center" style="${stC}">${escapeHtml(FIRMA_JEFE_ESTUDIOS.cargo)}</p>
-        </td>
-      </tr>
-    </table>
-    <table class="firma-row firma-3" cellspacing="0" cellpadding="0" style="width:100%;margin-top:56pt;border-collapse:collapse">
-      <tr>
-        <td align="center" valign="top" style="border:none;padding:0 8pt;text-align:center;vertical-align:top">
-          <p align="center" style="${stN}">${escapeHtml(FIRMA_COMANDANTE.nombre)}</p>
-          <p align="center" style="${stC}">${escapeHtml(FIRMA_COMANDANTE.cargo)}</p>
-        </td>
-      </tr>
-    </table>
+    <div class="firmas-wrap" style="margin-top:16pt">
+      ${gap(3)}
+      ${bloque1cols(FIRMA_JEFE_DISCIPLINA, FIRMA_JEFE_SAC)}
+      ${gap(3)}
+      ${bloque1col(FIRMA_JEFE_ESTUDIOS)}
+      ${gap(3)}
+      ${bloque1col(FIRMA_COMANDANTE)}
+    </div>
   `;
 }
 
@@ -10597,6 +10603,11 @@ function exportarComoWord(cuerpoHtml, filename, orientacion){
 </head>
 <body>
   <div class="Section1">${cuerpoHtml}</div>
+  <div style="mso-element:footer" id="f1">
+    <p class="MsoFooter" align="center" style="text-align:center;font-family:Arial,sans-serif;font-size:12pt;font-weight:bold;margin:0">
+      <b><span style="mso-field-code:&quot; PAGE &quot;"></span> - <span style="mso-field-code:&quot; NUMPAGES &quot;"></span></b>
+    </p>
+  </div>
 </body>
 </html>`;
   // BOM para que Word abra con UTF-8 correctamente
