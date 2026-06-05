@@ -3226,7 +3226,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.53 · planilla formato fiel</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.54 · resumen horizontal</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -10316,12 +10316,14 @@ function cursanteSancionTxt(s){
 function cssReporte(orientacion){
   const isLandscape = orientacion === 'landscape';
   const wordPageSize = isLandscape ? '11.0in 8.5in' : '8.5in 11.0in';
+  // Márgenes (sup der inf izq): VERTICAL = 2/2/2/3 · HORIZONTAL = 3/2/2/2
+  const margenes = isLandscape ? '3cm 2cm 2cm 2cm' : '2cm 2cm 2cm 3cm';
   return `
     /* === Tamaño Carta (Letter) para navegador y para Word === */
-    @page { size: letter ${orientacion}; margin: 2cm 2cm 2cm 3cm; }
+    @page { size: letter ${orientacion}; margin: ${margenes}; }
     @page Section1 {
       size: ${wordPageSize};
-      margin: 2cm 2cm 2cm 3cm;
+      margin: ${margenes};
       mso-page-orientation: ${orientacion};
       mso-header-margin: 0.5in;
       mso-footer-margin: 0.4in;
@@ -10343,11 +10345,10 @@ function cssReporte(orientacion){
     .header-table td { padding:4pt 6pt; vertical-align:top; border:none; }
     .header-table .h-inst {
       text-align:center; font-weight:bold; font-size:10pt; line-height:1.35;
-      width:72%; white-space:nowrap;
+      white-space:nowrap;
     }
-    .header-table .h-spacer { width:2%; }
     .header-table .h-sys {
-      text-align:right; font-size:9pt; line-height:1.4; width:26%;
+      text-align:right; font-size:9pt; line-height:1.4;
     }
     .header-table .h-sys strong { font-weight:bold; }
     .header-table .h-bolivia { text-decoration:underline; }
@@ -10406,20 +10407,26 @@ function cssReporte(orientacion){
   `;
 }
 
-function htmlEncabezadoReporte(){
+function htmlEncabezadoReporte(orientacion){
   const fechaEmision = new Date().toLocaleDateString('es-BO',{day:'2-digit',month:'2-digit',year:'numeric'});
+  // En HORIZONTAL el membrete va más cargado a la izquierda (celda más angosta + espaciador ancho);
+  // en VERTICAL ocupa más ancho para que las líneas no se partan. (Coincide con los modelos.)
+  const isLandscape = orientacion === 'landscape';
+  const wInst   = isLandscape ? '52%' : '72%';
+  const wSpacer = isLandscape ? '22%' : '2%';
+  const wSys    = '26%';
   // HTML defensivo con inline styles y align="center" para máxima compatibilidad con Word
   return `
     <table class="header-table" cellspacing="0" cellpadding="0">
       <tr>
-        <td class="h-inst" width="72%" align="center" valign="top" style="border:none;padding:4pt 6pt;text-align:center;vertical-align:top">
+        <td class="h-inst" width="${wInst}" align="center" valign="top" style="border:none;padding:4pt 6pt;text-align:center;vertical-align:top;width:${wInst}">
           <p align="center" style="text-align:center;font-weight:bold;font-size:10pt;margin:0;font-family:Arial,sans-serif;line-height:1.35;white-space:nowrap">FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES</p>
           <p align="center" style="text-align:center;font-weight:bold;font-size:10pt;margin:0;font-family:Arial,sans-serif;line-height:1.35;white-space:nowrap">ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO</p>
           <p align="center" style="text-align:center;font-weight:bold;font-size:10pt;margin:0;font-family:Arial,sans-serif;line-height:1.35;white-space:nowrap">"MARISCAL ANDRÉS DE SANTA CRUZ"</p>
           <p align="center" style="text-align:center;font-weight:bold;font-size:11pt;margin:0;font-family:Arial,sans-serif;line-height:1.35;text-decoration:underline"><u>BOLIVIA</u></p>
         </td>
-        <td class="h-spacer" width="2%" style="border:none">&nbsp;</td>
-        <td class="h-sys" width="26%" align="right" valign="top" style="border:none;padding:4pt 6pt;text-align:right;vertical-align:top">
+        <td class="h-spacer" width="${wSpacer}" style="border:none;width:${wSpacer}">&nbsp;</td>
+        <td class="h-sys" width="${wSys}" align="right" valign="top" style="border:none;padding:4pt 6pt;text-align:right;vertical-align:top;width:${wSys}">
           <p align="right" style="text-align:right;font-weight:bold;font-size:9pt;margin:0;font-family:Arial,sans-serif;line-height:1.4">Sistema Informático de Disciplina</p>
           <p align="right" style="text-align:right;font-size:9pt;margin:0;font-family:Arial,sans-serif;line-height:1.4">Fecha Emisión: ${fechaEmision}</p>
         </td>
@@ -10503,7 +10510,7 @@ function htmlCuerpoResumenMensual(ciclo, mes, year){
   }
 
   return `
-    ${htmlEncabezadoReporte()}
+    ${htmlEncabezadoReporte('landscape')}
     <h1 class="titulo-rep">RESUMEN DE DEMÉRITOS</h1>
     <h2 class="subtitulo-rep">CORRESPONDIENTE AL ${escapeHtml(periodoTit)}<br>DEL ${escapeHtml(cicloDisplay)}</h2>
     <table class="main-table">
@@ -10562,7 +10569,7 @@ function htmlCuerpoPlanilla(ciclo){
   }
 
   return `
-    ${htmlEncabezadoReporte()}
+    ${htmlEncabezadoReporte('portrait')}
     <h1 class="titulo-rep">PLANILLA DE CALIFICACIONES ACUMULATIVA DEL ÁREA DE DISCIPLINA DE LOS OO.SUP.CC.</h1>
     <h2 class="subtitulo-rep">DEL ${escapeHtml(cicloDisplay)}, AL ${dia} ${mesH} DE ${yearH}</h2>
     <p class="atributos">ATRIBUTOS: E = EXCELENTE (100) · MB = MUY BUENO (≥90) · B = BUENO (≥80) · R = REGULAR (≥60) · D = DEFICIENTE (&lt;60).</p>
