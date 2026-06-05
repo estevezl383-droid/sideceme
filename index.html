@@ -3228,7 +3228,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.60 · arranque ~2.5MB más liviano + caché disc</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.61 · detalle logins fallidos CT</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4828,6 +4828,16 @@ input::placeholder, textarea::placeholder {
     <div id="diag-status"></div>
     <button class="btn-primary" onclick="forzarSincronizacion()" style="margin-top:14px">🔄 Forzar sincronización ahora</button>
     <button class="btn-secondary" onclick="testConnection()">📡 Probar conexión a Supabase</button>
+  </div>
+</section>
+
+<!-- C&T: DETALLE DE LOGINS FALLIDOS -->
+<section id="screen-ct-logins-fallidos" class="screen with-bottom-nav">
+  <div class="app-header"><button class="back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Logins fallidos</div><div class="header-sub">C&amp;T · últimos 7 días</div></div></div>
+  <div class="disc-container">
+    <div class="alert-banner blue" style="margin-bottom:12px"><span class="alert-emoji">🔑</span><span class="alert-text"><b>Quién tuvo intentos fallidos.</b><br><span style="font-size:13px">Usá los datos para contactar a los interesados. Si necesitan reset de contraseña, tocá "Ir a ficha" y desde ahí cambiá su clave.</span></span></div>
+    <div id="ct-lf-resumen" style="margin:14px 0;font-size:14px;color:var(--text-secondary)"></div>
+    <div id="ct-lf-lista"></div>
   </div>
 </section>
 
@@ -8778,6 +8788,38 @@ function getEstado(p){
 }
 
 // 🛡️ Alerta de seguridad SOLO para el CT: modificaciones a sanciones en los últimos 7 días
+// v2.9.61: cache de los logins fallidos enriquecidos (para la pantalla detalle)
+let _ctLoginsFallidosCache = null;
+// Busca en discData a quién pertenece un CI (cursante o profesor) y devuelve sus datos.
+function _ctEnriquecerCI(ci, intentos){
+  const ciStr = String(ci||'').trim();
+  const cur = (discData.cursantes||[]).find(c => String(c.ci||'').trim() === ciStr);
+  if(cur){
+    return {
+      ci: ciStr, intentos, tabla: 'cursantes',
+      id: cur.id,
+      nombre: cur.nombre_completo || '',
+      grado: cur.grado || '',
+      arma: cur.arma || '',
+      detalle: [cur.ciclo, cur.paralelo ? `"${cur.paralelo}"` : null].filter(Boolean).join(' '),
+      activo: cur.activo !== false
+    };
+  }
+  const prof = (discData.profesores||[]).find(p => String(p.ci||'').trim() === ciStr);
+  if(prof){
+    return {
+      ci: ciStr, intentos, tabla: 'profesores',
+      id: prof.id,
+      nombre: prof.nombre_completo || '',
+      grado: prof.grado || '',
+      arma: prof.arma || '',
+      detalle: prof.rol || prof.especialidad || '',
+      activo: prof.activo !== false
+    };
+  }
+  return { ci: ciStr, intentos, tabla: null, id: null, nombre: '', grado: '', arma: '', detalle: '', activo: null };
+}
+
 async function cargarAlertasSeguridadCT(){
   const cont = document.getElementById('ct-seguridad-banner');
   if(!cont || typeof esCT!=='function' || !esCT()) { if(cont) cont.innerHTML=''; return; }
@@ -8808,8 +8850,14 @@ async function cargarAlertasSeguridadCT(){
       const {data:r} = await sb.functions.invoke('ct-seguridad',{body:{token:tok}});
       if(r && r.ok){
         if(r.intentos_fallidos_24h > 0){
-          const susp = (r.cis_sospechosos||[]).map(x=>`${x.ci} (${x.intentos})`).slice(0,5).join(' · ');
-          html += `<div class="alert-banner yellow"><span class="alert-emoji">🔑</span><span class="alert-text"><b>${r.intentos_fallidos_24h} intento(s) de login fallido(s) en 24h.</b>${susp?`<br><span style="font-size:13px">Repetidos: ${susp}</span>`:''}</span></div>`;
+          // v2.9.61: enriquecer cada CI con nombre+grado+arma desde discData (ya cargado).
+          const enriquecidos = (r.cis_sospechosos||[]).map(x => _ctEnriquecerCI(x.ci, x.intentos));
+          _ctLoginsFallidosCache = { total: r.intentos_fallidos_24h, items: enriquecidos };
+          const top5 = enriquecidos.slice(0,5).map(e => {
+            const nom = e.nombre ? `<b style="color:#fff">${escapeHtml(e.nombre)}</b>` : '<i>CI no registrado</i>';
+            return `${nom} (CI ${e.ci}, ${e.intentos})`;
+          }).join(' · ');
+          html += `<div class="alert-banner yellow" style="cursor:pointer" onclick="goCTLoginsFallidos()" title="Tocar para ver detalle completo"><span class="alert-emoji">🔑</span><span class="alert-text"><b>${r.intentos_fallidos_24h} intento(s) de login fallido(s) en 24h.</b>${top5?`<br><span style="font-size:13px;line-height:1.6">${top5}${enriquecidos.length>5?' …':''}</span>`:''}<br><span style="font-size:12px;color:#6ab0ff;margin-top:4px;display:inline-block">🔍 Tocar para ver detalle completo (${enriquecidos.length} CI distintos) →</span></span></div>`;
         }
         if(r.cuentas_corruptas > 0){
           const det = (r.detalle_corruptas||[]).map(x=>x.ci).slice(0,6).join(' · ');
@@ -9611,6 +9659,7 @@ function volverDeFichaCursante(){
       if(selectedSancionId) verSancionDetalle(selectedSancionId);
       else goDiscSanciones();
       break;
+    case 'ct-logins-fallidos': goCTLoginsFallidos(); break;
     default: goDiscPanel();
   }
 }
@@ -11505,6 +11554,66 @@ async function reactivarProfesor(id){
 function goDiagnostico(){
   if(!esCT()){ alert('Solo C&T (Ciencia y Tecnología) puede ver el diagnóstico del sistema.'); return; }
   renderDiagnostico(); showScreen('screen-diagnostico');
+}
+
+// ──────────────────────────────────────────────────────────────────
+// v2.9.61: DETALLE de LOGINS FALLIDOS (solo C&T) — para que el jefe
+// pueda contactar a quien tuvo intentos fallidos en su cuenta.
+// ──────────────────────────────────────────────────────────────────
+async function goCTLoginsFallidos(){
+  if(!esCT()){ alert('Solo C&T puede ver este detalle.'); return; }
+  const resumen = document.getElementById('ct-lf-resumen');
+  const lista   = document.getElementById('ct-lf-lista');
+  if(!resumen || !lista) return;
+  // Si no hay cache (entró directo o se vació) → recargar
+  if(!_ctLoginsFallidosCache){
+    resumen.innerHTML = '⏳ Cargando…';
+    try{ await cargarAlertasSeguridadCT(); }catch(e){}
+  }
+  const cache = _ctLoginsFallidosCache || { total: 0, items: [] };
+  resumen.innerHTML = `<b style="color:var(--gold-light);font-size:16px">${cache.total} intento(s) fallido(s)</b> de <b>${cache.items.length} CI distinto(s)</b> en los últimos 7 días.`;
+  if(!cache.items.length){
+    lista.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">✅ Sin intentos fallidos para mostrar.</div>';
+    showScreen('screen-ct-logins-fallidos');
+    return;
+  }
+  // Ordenar por cantidad de intentos descendente
+  const items = [...cache.items].sort((a,b) => (b.intentos||0) - (a.intentos||0));
+  lista.innerHTML = items.map(it => {
+    const esCur = it.tabla === 'cursantes';
+    const esProf = it.tabla === 'profesores';
+    const desconocido = !it.tabla;
+    const icono = desconocido ? '❓' : (esCur ? '🎓' : '👨‍🏫');
+    const tipoLbl = desconocido ? 'CI NO REGISTRADO' : (esCur ? 'Cursante' : 'Profesor / Docente');
+    const colorBorde = desconocido ? '#c84a4a' : (esCur ? '#4a90d9' : '#d4af37');
+    const nombreLine = it.nombre
+      ? `<div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:3px">${escapeHtml(it.grado||'')} ${escapeHtml(it.nombre)}</div>`
+      : `<div style="font-size:14px;font-style:italic;color:#ffb3b3;margin-bottom:3px">⚠️ Este CI no corresponde a ningún usuario registrado (posible tipeo o ataque externo).</div>`;
+    const detLine = it.detalle ? `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:2px">${escapeHtml(it.arma||'')} ${it.arma && it.detalle?'·':''} ${escapeHtml(it.detalle)}</div>` : '';
+    const activoLbl = it.activo === false
+      ? '<span style="font-size:11px;color:#e88a8a;background:rgba(200,74,74,.15);padding:2px 6px;border-radius:4px;margin-left:6px">CUENTA INACTIVA</span>'
+      : '';
+    const accionesBtns = desconocido
+      ? `<button class="btn-secondary" style="padding:6px 12px" onclick="navigator.clipboard?.writeText('${it.ci}').then(()=>alert('CI ${it.ci} copiado'))">📋 Copiar CI</button>`
+      : `<button class="btn-secondary" style="padding:6px 12px;margin-right:6px" onclick="navigator.clipboard?.writeText('${it.ci}').then(()=>alert('CI ${it.ci} copiado'))">📋 Copiar CI</button>
+         ${esCur ? `<button class="btn-primary" style="padding:6px 12px" onclick="verFichaCursante('${it.id}','ct-logins-fallidos')">👤 Ir a su ficha</button>` : `<button class="btn-primary" style="padding:6px 12px" onclick="goGestionarProfesores()">👤 Ver en profesores</button>`}`;
+    return `<div class="list-item" style="border-color:${colorBorde};border-width:1px;padding:14px 12px;margin-bottom:10px">
+      <div style="display:flex;gap:12px;align-items:flex-start">
+        <div style="font-size:32px;flex-shrink:0;line-height:1">${icono}</div>
+        <div style="flex:1;min-width:0">
+          <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:${colorBorde};margin-bottom:4px;font-weight:700">${tipoLbl}${activoLbl}</div>
+          ${nombreLine}
+          ${detLine}
+          <div style="font-size:13px;color:var(--text-secondary);margin-top:6px">
+            <span style="background:rgba(255,255,255,.05);padding:3px 8px;border-radius:4px;font-family:monospace">CI ${it.ci}</span>
+            <span style="margin-left:8px;color:#e88a8a;font-weight:700">${it.intentos} intento${it.intentos===1?'':'s'} fallido${it.intentos===1?'':'s'}</span>
+          </div>
+          <div style="margin-top:10px">${accionesBtns}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+  showScreen('screen-ct-logins-fallidos');
 }
 
 // ──────────────────────────────────────────────────────────────────
