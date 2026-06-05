@@ -4179,18 +4179,18 @@ input::placeholder, textarea::placeholder {
       <button id="qa-btn-gest-cursantes" class="quick-btn" onclick="goGestionarCursantes()"><span class="qa-icon">👥</span><span class="qa-text">Gestionar cursantes (agregar / editar / dar de baja)</span></button>
       <button id="qa-btn-gest-profesores" class="quick-btn" onclick="goGestionarProfesores()"><span class="qa-icon">👨‍🏫</span><span class="qa-text" id="qa-profs-text">Gestionar profesores (—)</span></button>
       <button class="quick-btn" id="qa-gest-sanciones" onclick="goGestionSanciones()" style="background:linear-gradient(180deg,rgba(76,163,107,.15),rgba(76,163,107,.05));border-color:#4ca36b"><span class="qa-icon">⚖️</span><span class="qa-text"><strong>Gestionar sanciones</strong> (editar / corregir / anular / crear manual)</span></button>
-      <button class="quick-btn" onclick="goHorarios()" style="background:linear-gradient(180deg,rgba(70,130,200,.15),rgba(70,130,200,.05));border-color:#4a90d9"><span class="qa-icon">📅</span><span class="qa-text"><strong>Horario semanal</strong> (ver / subir nuevo)</span></button>
-      <button class="quick-btn" onclick="goPlanillas()" style="background:linear-gradient(180deg,rgba(212,175,55,.15),rgba(212,175,55,.05));border-color:#d4af37"><span class="qa-icon">📋</span><span class="qa-text"><strong>Planilla de disciplina</strong> (ver / subir nueva)</span></button>
-      <button class="quick-btn" onclick="goAuditoria()"><span class="qa-icon">🔍</span><span class="qa-text">Auditoría de sanciones por cursante</span></button>
+      <button class="quick-btn" data-sac-hide="1" onclick="goHorarios()" style="background:linear-gradient(180deg,rgba(70,130,200,.15),rgba(70,130,200,.05));border-color:#4a90d9"><span class="qa-icon">📅</span><span class="qa-text"><strong>Horario semanal</strong> (ver / subir nuevo)</span></button>
+      <button class="quick-btn" data-sac-hide="1" onclick="goPlanillas()" style="background:linear-gradient(180deg,rgba(212,175,55,.15),rgba(212,175,55,.05));border-color:#d4af37"><span class="qa-icon">📋</span><span class="qa-text"><strong>Planilla de disciplina</strong> (ver / subir nueva)</span></button>
+      <button class="quick-btn" data-sac-hide="1" onclick="goAuditoria()"><span class="qa-icon">🔍</span><span class="qa-text">Auditoría de sanciones por cursante</span></button>
       <button class="quick-btn" onclick="goEstadisticas()"><span class="qa-icon">📈</span><span class="qa-text">Estadísticas: pérdida de puntaje (por período)</span></button>
       <button id="qa-btn-mis-sancionados" class="quick-btn" onclick="goMisSancionados()"><span class="qa-icon">👥</span><span class="qa-text">Mis sancionados (cursantes que yo sancioné)</span></button>
       <button id="qa-btn-diagnostico" class="quick-btn" onclick="goDiagnostico()"><span class="qa-icon">🔧</span><span class="qa-text">Diagnóstico y forzar sincronización</span></button>
-      <button class="quick-btn success" onclick="goRespaldo()"><span class="qa-icon">💾</span><span class="qa-text">Descargar respaldo ahora (JSON + .XLSX)</span></button>
-      <button class="quick-btn" onclick="goInstalar()"><span class="qa-icon">📲</span><span class="qa-text">Instalar app / Compartir QR</span></button>
-      <button class="quick-btn" onclick="goAnulaciones()"><span class="qa-icon">📋</span><span class="qa-text">Solicitudes de reconsideración / anulación</span><span id="badge-solicitudes" style="display:none;margin-left:auto;background:#c84a4a;color:#fff;font-size:12px;font-weight:700;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;padding:0 6px">0</span></button>
-      <button class="quick-btn warning" onclick="goReiniciar()"><span class="qa-icon">📥</span><span class="qa-text">Cierre de semestre (respaldo)</span></button>
+      <button class="quick-btn success" data-sac-hide="1" onclick="goRespaldo()"><span class="qa-icon">💾</span><span class="qa-text">Descargar respaldo ahora (JSON + .XLSX)</span></button>
+      <button class="quick-btn" data-sac-hide="1" onclick="goInstalar()"><span class="qa-icon">📲</span><span class="qa-text">Instalar app / Compartir QR</span></button>
+      <button class="quick-btn" data-sac-hide="1" onclick="goAnulaciones()"><span class="qa-icon">📋</span><span class="qa-text">Solicitudes de reconsideración / anulación</span><span id="badge-solicitudes" style="display:none;margin-left:auto;background:#c84a4a;color:#fff;font-size:12px;font-weight:700;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;padding:0 6px">0</span></button>
+      <button class="quick-btn warning" data-sac-hide="1" onclick="goReiniciar()"><span class="qa-icon">📥</span><span class="qa-text">Cierre de semestre (respaldo)</span></button>
       <button id="qa-btn-pwd-otro" class="quick-btn" onclick="goGestionarProfesores()"><span class="qa-icon">🔑</span><span class="qa-text">Cambiar contraseña / CI de cursante o profesor</span></button>
-      <button class="quick-btn" onclick="qa('cambiar_mi_pwd')"><span class="qa-icon">🔐</span><span class="qa-text">Cambiar mi usuario y contraseña</span></button>
+      <button class="quick-btn" data-sac-hide="1" onclick="qa('cambiar_mi_pwd')"><span class="qa-icon">🔐</span><span class="qa-text">Cambiar mi usuario y contraseña</span></button>
       <button class="quick-btn" onclick="activarNotificacionesStaff()"><span class="qa-icon">🔔</span><span class="qa-text">Activar / desactivar notificaciones (avisos de firmas)</span></button>
     </div>
 
@@ -8631,6 +8631,10 @@ function renderDiscPanel(){
   // Mis sancionados: visible para roles instructores (no CT que es admin técnico)
   const elMs = document.getElementById('qa-btn-mis-sancionados');
   if(elMs) elMs.style.display = esCT() ? 'none' : '';
+  // Jefe SAC: ocultar opciones administrativas que no le corresponden
+  document.querySelectorAll('[data-sac-hide]').forEach(el => {
+    el.style.display = esJefeSAC() ? 'none' : '';
+  });
 
   // v2.9.9: feed de actividad reciente al final del panel
   renderActividadReciente();
