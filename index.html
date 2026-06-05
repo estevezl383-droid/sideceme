@@ -6461,7 +6461,7 @@ async function cargarHorarios(){
     const {data, error} = await sb.from('horarios_semanales')
       .select('id,semana_inicio,semana_fin,titulo,descripcion,archivo_nombre,archivo_size_kb,subido_por,subido_por_nombre,subido_en,activo,audiencia')
       .eq('activo', true)
-      .order('semana_inicio', {ascending: false})
+      .order('subido_en', {ascending: false})
       .limit(50);
     if(error){
       cont.innerHTML = `<div class="efm-no-data" style="color:#e88a8a">⚠️ ${error.message}<br><br>Si la tabla <code>horarios_semanales</code> no existe, ejecutá el SQL de la documentación v2.9.2.</div>`;
