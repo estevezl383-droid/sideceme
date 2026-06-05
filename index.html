@@ -3226,7 +3226,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.56 · resumen no corta + membrete</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.57 · jefe_sac + notif jefes + velocidad</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -3456,6 +3456,7 @@ input::placeholder, textarea::placeholder {
     <div class="role-card" onclick="goLoginCargo('comandante')"><div class="role-icon">🎖️</div><div class="role-text"><div class="role-name">Comandante</div><div class="role-desc">Dashboard ejecutivo y aprobaciones</div></div><span class="lock-icon">🔒</span></div>
     <div class="role-card" onclick="goLoginCargo('ciencia_tecnologia')" style="border-color:rgba(100,180,255,.35);background:rgba(100,180,255,.04)"><div class="role-icon" style="background:linear-gradient(135deg,rgba(100,180,255,.18),rgba(100,180,255,.06));border-color:rgba(100,180,255,.3)">💻</div><div class="role-text"><div class="role-name" style="color:#a8d4f5">Sec. Ciencia y Tecnología</div><div class="role-desc">Administración del sistema</div></div><span class="lock-icon">🔒</span></div>
     <div class="role-card" onclick="goLoginCargo('jefe_curso')" style="border-color:rgba(120,200,140,.35);background:rgba(120,200,140,.04)"><div class="role-icon" style="background:linear-gradient(135deg,rgba(120,200,140,.18),rgba(120,200,140,.06));border-color:rgba(120,200,140,.3)">🎓</div><div class="role-text"><div class="role-name" style="color:#9bcfa9">Jefe de Curso</div><div class="role-desc">Estadísticas de su ciclo y paralelos</div></div><span class="lock-icon">🔒</span></div>
+    <div class="role-card" onclick="goLoginCargo('jefe_sac')" style="border-color:rgba(180,140,255,.35);background:rgba(180,140,255,.04)"><div class="role-icon" style="background:linear-gradient(135deg,rgba(180,140,255,.18),rgba(180,140,255,.06));border-color:rgba(180,140,255,.3)">📊</div><div class="role-text"><div class="role-name" style="color:#c8aaff">Jefe de la SAC</div><div class="role-desc">Vista integral de cursantes (notas · disciplina · EF)</div></div><span class="lock-icon">🔒</span></div>
   </div>
 </section>
 
@@ -4806,7 +4807,7 @@ input::placeholder, textarea::placeholder {
     <div class="field"><label>Nombre completo *</label><input type="text" id="prof-form-nombre"></div>
     <div class="field"><label>CI * <span id="prof-form-ci-hint" style="font-size:10px;color:#8a7a4a;display:none">(no editable — usá el botón para cambiar la contraseña)</span></label><input type="text" id="prof-form-ci" inputmode="numeric"></div>
     <button type="button" class="btn-secondary" id="prof-form-btn-pwd" onclick="cambiarPasswordProfesorDesdeFichaForm()" style="display:none;background:linear-gradient(135deg,#5a4422,#7a5a2a);color:#f0d890;border-color:#a87e3a;margin:-4px 0 14px">🔑 Cambiar contraseña del profesor</button>
-    <div id="prof-form-rol-wrap" style="display:none"><div class="field"><label>Rol en el sistema <span style="font-size:10px;color:#6ab0ff">(solo C&T puede editar)</span></label><select id="prof-form-rol"><option value="profesor">Profesor / Docente</option><option value="jefe_disciplina">Jefe Disciplina</option><option value="jefe_estudios">Jefe de Estudios</option><option value="comandante">Comandante</option><option value="sub_ef">Sub. Sec. EF</option><option value="evaluaciones">Sub. Sec. Evaluaciones</option><option value="ciencia_tecnologia">C&T (Ciencia y Tecnología)</option></select></div></div>
+    <div id="prof-form-rol-wrap" style="display:none"><div class="field"><label>Rol en el sistema <span style="font-size:10px;color:#6ab0ff">(solo C&T puede editar)</span></label><select id="prof-form-rol"><option value="profesor">Profesor / Docente</option><option value="jefe_disciplina">Jefe Disciplina</option><option value="jefe_estudios">Jefe de Estudios</option><option value="comandante">Comandante</option><option value="sub_ef">Sub. Sec. EF</option><option value="evaluaciones">Sub. Sec. Evaluaciones</option><option value="ciencia_tecnologia">C&T (Ciencia y Tecnología)</option><option value="jefe_sac">Jefe de la SAC</option></select></div></div>
     <div class="field"><label>Grado militar</label><input type="text" id="prof-form-grado" placeholder="Ej: TCNL, CNL, MAY, CAP"></div>
     <div class="field"><label>Arma</label><input type="text" id="prof-form-arma" placeholder="Ej: Ejército, FAB, Armada"></div>
     <div class="field"><label>Especialidad</label><input type="text" id="prof-form-esp"></div>
@@ -4988,14 +4989,16 @@ const CARGOS = {
   estudios:{nombre:'Jefe de Estudios',icono:'📚'},
   comandante:{nombre:'Comandante',icono:'🎖️'},
   ciencia_tecnologia:{nombre:'Sec. Ciencia y Tecnología',icono:'💻'},
-  jefe_curso:{nombre:'Jefe de Curso',icono:'🎓'}
+  jefe_curso:{nombre:'Jefe de Curso',icono:'🎓'},
+  jefe_sac:{nombre:'Jefe de la SAC',icono:'📊'}
 };
 
 // ─── Helpers de rol ─────────────────────────────────────────────────────────
 function esCT(){ return activeRole === 'ciencia_tecnologia'; }
-// Panel disciplina: todos los que usan screen-disc-panel
-function esAdminPanel(){ return ['disciplina','comandante','estudios','ciencia_tecnologia'].includes(activeRole); }
-// Puede gestionar sanciones (anular/editar/reactivar)
+function esJefeSAC(){ return activeRole === 'jefe_sac'; }
+// Panel disciplina: todos los que usan screen-disc-panel (incluye jefe_sac para vista integral)
+function esAdminPanel(){ return ['disciplina','comandante','estudios','ciencia_tecnologia','jefe_sac'].includes(activeRole); }
+// Puede gestionar sanciones (anular/editar/reactivar) — jefe_sac NO
 function esGestSanc(){ return ['disciplina','estudios','ciencia_tecnologia'].includes(activeRole); }
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -5439,7 +5442,8 @@ const MAPA_ROL_BACKEND_A_CARGO = {
   'comandante':        'comandante',
   'evaluaciones':      'evaluaciones',
   'ciencia_tecnologia':'ciencia_tecnologia',
-  'jefe_curso':        'jefe_curso'
+  'jefe_curso':        'jefe_curso',
+  'jefe_sac':          'jefe_sac'
 };
 
 async function loginUniversal(){
@@ -5676,22 +5680,67 @@ async function loadCursanteData(force=false){
   }catch(e){ console.warn('loadCursanteData', e); }
 }
 
+// v2.9.57: carga rápida para profesor/ef — solo sus sanciones (no las 540+ de todos).
+// Permite mostrar el panel en ~1s en vez de 3-4s en dispositivos sin prefetch.
+// Se lanza loadDiscData(true) en background para que las fichas de cursante queden completas.
+async function _loadProfesorRapido(){
+  try{
+    const uid = currentUser && currentUser.id;
+    const sanQuery = uid
+      ? sb.from('v_sanciones').select('*').eq('profesor_id', uid)
+      : sb.from('v_sanciones').select('*').limit(0);
+    const [curRes, sanRes, regRes] = await Promise.all([
+      sb.from('v_cursantes').select('*').order('id'),
+      sanQuery,
+      sb.from('reglamentos').select('*')
+    ]);
+    discData.cursantes  = curRes.data  || [];
+    discData.sanciones  = sanRes.data  || [];
+    discData.profesores = currentUser ? [currentUser] : [];
+    discData.reglamentos= regRes.data  || [];
+    discData.byCursanteLost={};
+    discData.byCursanteSanc={};
+    discData.byCursantePendiente={};
+    (discData.sanciones||[]).forEach(s=>{
+      if(s.anulada===true) return;
+      const cid=s.cursante_id, pts=Number(s.puntos_aplicados)||0;
+      if(sancionCuentaParaPuntaje(s)){
+        if(sancionEnSemestreActual(s)) discData.byCursanteLost[cid]=(discData.byCursanteLost[cid]||0)+pts;
+      } else if(s.es_prueba!==true && !esSancionAnalogica(s)){
+        discData.byCursantePendiente[cid]=(discData.byCursantePendiente[cid]||0)+pts;
+      }
+      if(!discData.byCursanteSanc[cid]) discData.byCursanteSanc[cid]=[];
+      discData.byCursanteSanc[cid].push(s);
+    });
+    discData.loaded=true;
+    discData.lastSync=new Date();
+    detectarSchemaSanciones();
+  }catch(e){ console.warn('_loadProfesorRapido', e); }
+}
+
 async function enterRole(role){
   if(role==='jefe_curso'){
     await loadDiscData();
     renderJCPanel();
     showScreen('screen-jc-panel');
-  } else if(role==='disciplina' || role==='comandante' || role==='estudios' || role==='ciencia_tecnologia'){
+  } else if(role==='disciplina' || role==='comandante' || role==='estudios' || role==='ciencia_tecnologia' || role==='jefe_sac'){
     await loadDiscData();
     renderDiscPanel();
     showScreen('screen-disc-panel');
   } else if(role==='profesor'){
-    await loadDiscData();      // Reutilizamos: trae cursantes + reglamentos + sanciones
+    // v2.9.57: carga rápida (solo sus sanciones) si el prefetch no terminó aún
+    if(!discData.loaded){
+      await _loadProfesorRapido();
+      loadDiscData(true).catch(()=>{});  // completa en background para fichas de cursante
+    }
     renderProfPanel();
     showScreen('screen-prof-panel');
   } else if(role==='ef'){
     // Jefe Sección Entrenamiento Físico → panel propio con cursantes y notas EFM
-    await loadDiscData();
+    if(!discData.loaded){
+      await _loadProfesorRapido();
+      loadDiscData(true).catch(()=>{});
+    }
     await loadEvaluacionesFisicas();
     renderEfPanel();
     showScreen('screen-ef-panel');
@@ -9244,7 +9293,7 @@ function verFichaCursante(cursanteId, backTarget){
 
   html += `<div class="sd-actions">
     ${puedeVerReporteIntegral() ? `<button class="btn-primary" style="margin-bottom:8px" onclick="verReporteIntegral('${cursanteId}')">📋 Reporte integral (disciplina · físico · notas)</button>` : ''}
-    ${esAdminPanel() ? `<button class="btn-primary" style="margin-bottom:8px;background:linear-gradient(135deg,#2a4a6a,#1a3050);border-color:#3a6a9a" onclick="generarInformeCursante('${cursanteId}')">📄 Generar Informe (situación del cursante)</button>` : ''}
+    ${(esAdminPanel() && !esJefeSAC()) ? `<button class="btn-primary" style="margin-bottom:8px;background:linear-gradient(135deg,#2a4a6a,#1a3050);border-color:#3a6a9a" onclick="generarInformeCursante('${cursanteId}')">📄 Generar Informe (situación del cursante)</button>` : ''}
     <button class="btn-secondary" onclick="volverDeFichaCursante()">← Volver</button>
     ${esCT() ? `<button class="btn-secondary" style="background:linear-gradient(135deg,#5a4422,#7a5a2a);color:#f0d890;border-color:#a87e3a;margin-top:8px" onclick="cambiarPasswordCursanteDesdeFicha('${cursanteId}')">🔑 Cambiar contraseña del cursante</button>` : ''}
   </div>`;
@@ -9277,7 +9326,7 @@ function volverDeFichaCursante(){
    Vista única (disciplina + entrenamiento físico + notas académicas + orden de mérito)
    Solo para Comandante, Jefe de Estudios y Ciencia y Tecnología. */
 function puedeVerReporteIntegral(){
-  return ['comandante','estudios','ciencia_tecnologia'].includes(activeRole);
+  return ['comandante','estudios','ciencia_tecnologia','jefe_sac'].includes(activeRole);
 }
 let _repintBackId = null;
 let _repintData = null;
@@ -13341,11 +13390,17 @@ async function insertarSancionSegura(sancionOriginal){
         if(data && data[0]){
           sancionesSchema = new Set(Object.keys(data[0]));
         }
-        // 🔔 Push automático al cursante: nueva sanción
+        // 🔔 Push automático al cursante + cadena de mando: nueva sanción
         try{
           if(working && working.cursante_id && working.es_prueba !== true && working.anulada !== true){
             const _tp = (typeof getTokenSesion==='function') ? getTokenSesion() : null;
-            if(_tp) sb.functions.invoke('push-ops',{body:{accion:'enviar', token:_tp, destino_usuario_id: working.cursante_id, destino_tabla:'cursantes', title:'SIDECEME — Nueva sanción', body:'Tienes una nueva sanción registrada. Ábrela y fírmala.', url:'./'}}).catch(()=>{});
+            if(_tp){
+              // Al cursante
+              sb.functions.invoke('push-ops',{body:{accion:'enviar', token:_tp, destino_usuario_id: working.cursante_id, destino_tabla:'cursantes', title:'SIDECEME — Nueva sanción', body:'Tienes una nueva sanción registrada. Ábrela y fírmala.', url:'./'}}).catch(()=>{});
+              // A jefe disciplina, jefe estudios, comandante y jefe SAC
+              const _nombre = (working.cursante_nombre || 'un cursante').replace(/'/g,'');
+              sb.functions.invoke('push-ops',{body:{accion:'enviar_a_roles', token:_tp, roles:['jefe_disciplina','jefe_estudios','comandante','jefe_sac'], title:'SIDECEME — Nueva sanción registrada', body:'Nueva sanción a '+_nombre+'.', url:'./'}}).catch(()=>{});
+            }
           }
         }catch(_){}
         // v2.9.14: Liberar lock anti-duplicado al terminar exitosamente
@@ -14655,13 +14710,18 @@ async function confirmarFirmaCursante(){
     // Actualizar el estado local
     firmaState.sancion = Object.assign({}, firmaState.sancion, updates);
 
-    // 🔔 Push automático al PROFESOR: el cursante firmó
+    // 🔔 Push automático al PROFESOR + cadena de mando: el cursante firmó
     try{
       const _tf = firmaState.firmaToken || ((typeof getTokenSesion==='function') ? getTokenSesion() : null);
       const _profId = firmaState.sancion && firmaState.sancion.profesor_id;
+      const _nom = (firmaState.sancion && firmaState.sancion.cursante_nombre) || (currentUser && currentUser.nombre_completo) || 'Un cursante';
       if(_tf && _profId){
-        const _nom = (firmaState.sancion.cursante_nombre) || (currentUser && currentUser.nombre_completo) || 'Un cursante';
+        // Al profesor que registró la sanción
         sb.functions.invoke('push-ops',{body:{accion:'enviar', token:_tf, destino_usuario_id:_profId, destino_tabla:'profesores', title:'SIDECEME — Sanción firmada', body:_nom+' firmó la sanción que le registraste.', url:'./'}}).catch(()=>{});
+      }
+      if(_tf){
+        // A jefe disciplina y comandante
+        sb.functions.invoke('push-ops',{body:{accion:'enviar_a_roles', token:_tf, roles:['jefe_disciplina','comandante'], title:'SIDECEME — Sanción firmada', body:_nom+' firmó una sanción.', url:'./'}}).catch(()=>{});
       }
     }catch(_){}
 
