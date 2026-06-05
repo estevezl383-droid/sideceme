@@ -26,10 +26,11 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js" defer></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
+<!-- v2.9.60: libs pesadas (leaflet/qrcode/bcrypt/pdf.js/xlsx) se cargan LAZY tras el login.
+     Esto ahorra ~2.5MB en el arranque y la app abre instantánea. -->
+<link rel="preconnect" href="https://unpkg.com">
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="preconnect" href="https://cdnjs.cloudflare.com">
 <style>
 :root{
   --bg-deep:#050a14;--bg-base:#0a1628;--bg-elevated:#11203a;
@@ -3227,7 +3228,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.59 · OM pendiente 1er ciclo + bloqueo materias</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.60 · arranque ~2.5MB más liviano + caché disc</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4984,8 +4985,7 @@ input::placeholder, textarea::placeholder {
 </section>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js" defer></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+<!-- v2.9.60: xlsx + leaflet se cargan lazy (warmupLibs) tras login -->
 <script>
 const SUPABASE_URL = 'https://ofsyiylhdrdiqtnbaovo.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_adOxDHyWfXOXDqC9lmnP7g_m4Sf4AIx';
@@ -5062,6 +5062,61 @@ let swRegistration = null;
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js').then(reg => { swRegistration = reg; }).catch(()=>{});
 }
+
+// ─── v2.9.60: LAZY LOADER de librerías pesadas ──────────────────────────────
+// Se cargan SOLO cuando se necesitan (exportar Excel, ver mapa, generar QR,
+// hashear contraseña, ver PDF). Ahorra ~2.5MB de descarga en el arranque.
+// `_warmupLibs()` se llama tras el login para pre-cargar en segundo plano
+// (no bloqueante) — así para cuando el usuario haga clic en "Exportar Excel",
+// la librería ya está lista.
+const _libCache = {};
+function _loadLib(spec){
+  if(_libCache[spec.key]) return _libCache[spec.key];
+  _libCache[spec.key] = new Promise((resolve, reject) => {
+    if(spec.test && spec.test()){ resolve(); return; }
+    if(spec.css){
+      const link = document.createElement('link');
+      link.rel = 'stylesheet'; link.href = spec.css;
+      document.head.appendChild(link);
+    }
+    const s = document.createElement('script');
+    s.src = spec.js;
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => { delete _libCache[spec.key]; reject(new Error('No se pudo cargar '+spec.key)); };
+    document.head.appendChild(s);
+  });
+  return _libCache[spec.key];
+}
+const _LIBS = {
+  xlsx:    {key:'xlsx',    js:'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js', test:()=>typeof XLSX!=='undefined'},
+  leaflet: {key:'leaflet', js:'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', css:'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', test:()=>typeof L!=='undefined'},
+  pdfjs:   {key:'pdfjs',   js:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', test:()=>typeof pdfjsLib!=='undefined'},
+  qrcode:  {key:'qrcode',  js:'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js', test:()=>typeof QRCode!=='undefined'},
+  bcrypt:  {key:'bcrypt',  js:'https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js', test:()=>(typeof dcodeIO!=='undefined' && dcodeIO.bcrypt) || typeof bcrypt!=='undefined'}
+};
+function ensureXLSX()    { return _loadLib(_LIBS.xlsx); }
+function ensureLeaflet() { return _loadLib(_LIBS.leaflet); }
+function ensurePdfJs()   { return _loadLib(_LIBS.pdfjs); }
+function ensureQRCode()  { return _loadLib(_LIBS.qrcode); }
+function ensureBcrypt()  { return _loadLib(_LIBS.bcrypt); }
+
+// Precarga TODAS en background tras el login. No bloquea nada — solo busca que
+// estén listas para cuando el usuario haga clic en exportar/firmar/etc.
+let _libsWarmed = false;
+function _warmupLibs(){
+  if(_libsWarmed) return;
+  _libsWarmed = true;
+  // 1ms de delay para no competir con la primera query post-login
+  setTimeout(() => {
+    ensureBcrypt().catch(()=>{});
+    ensureQRCode().catch(()=>{});
+    ensureXLSX().catch(()=>{});
+    ensureLeaflet().catch(()=>{});
+    ensurePdfJs().catch(()=>{});
+  }, 800);
+}
+// ─────────────────────────────────────────────────────────────────────────────
 // 🔴 Número rojo en el ícono de la app (como el contador de WhatsApp)
 function actualizarBadgeApp(n){
   try{
@@ -5229,6 +5284,8 @@ function logout(){
   // v2.9.8: limpiar token de sesión emitido por Edge Function
   sessionStorage.removeItem('sideceme_token');
   sessionStorage.removeItem('sideceme_token_expira');
+  // v2.9.60: limpiar caché de discData (otro usuario podría loguearse en este equipo)
+  try{ localStorage.removeItem(_DISC_CACHE_KEY); }catch(e){}
   currentUser=null; activeRole=null; selectedCargo=null;
   discData={cursantes:[],sanciones:[],profesores:[],byCursanteLost:{},loaded:false,lastSync:null};
   ['docente-ci','docente-pwd','cursante-ci','cursante-pwd'].forEach(id=>{const el=document.getElementById(id); if(el) el.value='';});
@@ -5685,10 +5742,9 @@ const bcryptLib = (typeof dcodeIO !== 'undefined' && dcodeIO.bcrypt) ? dcodeIO.b
                 : (typeof bcrypt !== 'undefined') ? bcrypt
                 : null;
 
-function hashPassword(plain){
-  // IMPORTANTE: buscar la librería EN EL MOMENTO del llamado (no al cargar la página).
-  // bcrypt.min.js carga con defer → el const bcryptLib de arriba puede quedar null.
-  // Si buscamos acá, ya está disponible cuando el usuario hace clic.
+async function hashPassword(plain){
+  // v2.9.60: bcrypt es lazy → asegurar carga antes de hashear.
+  try{ await ensureBcrypt(); }catch(e){}
   const lib = (typeof dcodeIO !== 'undefined' && dcodeIO.bcrypt) ? dcodeIO.bcrypt
             : (typeof bcrypt !== 'undefined') ? bcrypt
             : bcryptLib;
@@ -5850,6 +5906,8 @@ async function enterRole(role){
   }
   // v2.9.16: Iniciar polling de notificaciones
   try{ iniciarNotificaciones(); }catch(e){}
+  // v2.9.60: precarga libs pesadas en background tras el login (no bloqueante)
+  try{ _warmupLibs(); }catch(e){}
 }
 
 function renderGenericoPanel(role){
@@ -6738,6 +6796,10 @@ async function verHorario(id){
 // Render PDF usando PDF.js en canvas (compatible con TODOS los navegadores)
 async function renderPdfEnCanvas(dataUrl, containerId){
   const container = document.getElementById(containerId);
+  container.innerHTML = '<div style="color:#fff;padding:20px;text-align:center"><div style="font-size:28px">⏳</div><div style="margin-top:8px">Cargando visor PDF...</div></div>';
+  // v2.9.60: PDF.js es lazy → asegurar carga antes de usarlo
+  try{ await ensurePdfJs(); }catch(e){}
+
   container.innerHTML = '<div style="color:#fff;padding:20px;text-align:center"><div style="font-size:28px">⏳</div><div style="margin-top:8px">Renderizando páginas...</div></div>';
 
   // Verificar que PDF.js esté cargado
@@ -7917,6 +7979,8 @@ function calcularPosicionCiclo(){
 
 async function renderCursanteHome(){
   if(!currentUser) return;
+  // v2.9.60: precarga libs pesadas en background tras el login (no bloqueante)
+  try{ _warmupLibs(); }catch(e){}
   // === DEFENSA DE SEGURIDAD ===
   // Solo cursantes pueden ver este panel.
   const _sess = getSession();
@@ -8475,7 +8539,7 @@ async function cambiarPasswordCursanteDesdeFicha(cursanteId){
   if(nueva2 !== nueva){ alert('Las contraseñas no coinciden. Cancelado.'); return; }
   try{
     // Hashear y actualizar
-    const hash = hashPassword(nueva);
+    const hash = await hashPassword(nueva);
     const updates = {
       password_hash: hash,
       password: null,                     // limpiar plaintext viejo si existía
@@ -8545,7 +8609,7 @@ async function cambiarPasswordProfesorDesdeFicha(profesorId){
   const nueva2 = prompt('Repetí la nueva contraseña para confirmar:');
   if(nueva2 !== nueva){ alert('Las contraseñas no coinciden. Cancelado.'); return; }
   try{
-    const hash = hashPassword(nueva);
+    const hash = await hashPassword(nueva);
     const updates = {
       password_hash: hash,
       password: null,
@@ -8598,8 +8662,78 @@ function reiniciarDatosPrototipo(){
   }
 }
 
+// v2.9.60: arma los índices derivados (byCursanteLost/Sanc/Pendiente) desde discData.sanciones
+function _reconstruirIndicesDisc(){
+  discData.byCursanteLost = {};
+  discData.byCursanteSanc = {};
+  discData.byCursantePendiente = {};
+  (discData.sanciones||[]).forEach(s=>{
+    if(s.anulada===true) return;
+    const cid=s.cursante_id;
+    const pts=Number(s.puntos_aplicados)||0;
+    if(sancionCuentaParaPuntaje(s)){
+      if(sancionEnSemestreActual(s)){
+        discData.byCursanteLost[cid] = (discData.byCursanteLost[cid]||0) + pts;
+      }
+    } else if(s.es_prueba !== true && !esSancionAnalogica(s)){
+      discData.byCursantePendiente[cid] = (discData.byCursantePendiente[cid]||0) + pts;
+    }
+    if(!discData.byCursanteSanc[cid]) discData.byCursanteSanc[cid] = [];
+    discData.byCursanteSanc[cid].push(s);
+  });
+}
+
+// v2.9.60: caché localStorage de los 4 datasets pesados (cursantes/sanciones/profesores/reglamentos).
+// TTL = 30 min (los datos cambian poco entre logins consecutivos). El refresh real corre
+// SIEMPRE en background tras pintar con la caché, así nunca quedan datos viejos por mucho.
+const _DISC_CACHE_KEY = 'sideceme_disc_cache_v1';
+const _DISC_CACHE_TTL_MS = 30 * 60 * 1000;
+function _guardarDiscCache(){
+  try{
+    const blob = {
+      ts: Date.now(),
+      cursantes: discData.cursantes,
+      sanciones: discData.sanciones,
+      profesores: discData.profesores,
+      reglamentos: discData.reglamentos
+    };
+    localStorage.setItem(_DISC_CACHE_KEY, JSON.stringify(blob));
+  }catch(e){ /* quota llena → ignorar */ }
+}
+function _cargarDiscCache(){
+  try{
+    const raw = localStorage.getItem(_DISC_CACHE_KEY);
+    if(!raw) return false;
+    const blob = JSON.parse(raw);
+    if(!blob || !blob.ts) return false;
+    if(Date.now() - blob.ts > _DISC_CACHE_TTL_MS) return false;
+    discData.cursantes  = blob.cursantes  || [];
+    discData.sanciones  = blob.sanciones  || [];
+    discData.profesores = blob.profesores || [];
+    discData.reglamentos= blob.reglamentos|| [];
+    _reconstruirIndicesDisc();
+    discData.loaded = true;
+    discData.lastSync = new Date(blob.ts);
+    detectarSchemaSanciones();
+    return true;
+  }catch(e){ return false; }
+}
+
 async function loadDiscData(force=false){
   if(discData.loaded && !force) return;
+  // v2.9.60: si hay caché válida, pintar de inmediato y refrescar en background.
+  // El usuario ve el panel YA, y los datos frescos llegan a los pocos segundos.
+  if(!force && _cargarDiscCache()){
+    // refresh silencioso en background, no bloquea
+    setTimeout(()=>{ _refrescarDiscDataBG().catch(()=>{}); }, 100);
+    return;
+  }
+  return _fetchDiscDataReal();
+}
+async function _refrescarDiscDataBG(){
+  try{ await _fetchDiscDataReal(true); }catch(e){ console.warn('refresh BG:', e); }
+}
+async function _fetchDiscDataReal(silent){
   try{
     const [curRes,sanRes,profRes,regRes] = await Promise.all([
       sb.from('v_cursantes').select('*').order('id'),
@@ -8615,37 +8749,25 @@ async function loadDiscData(force=false){
     discData.sanciones = sanRes.data||[];
     discData.profesores = profRes.data||[];
     discData.reglamentos = regRes.data||[];
-    discData.byCursanteLost = {};
-    discData.byCursanteSanc = {};
-    // v2.9.9: además del puntaje vigente, computar puntaje "pendiente de firma"
-    //         (sanciones digitales en rojo que pasarán a contar cuando el cursante firme)
-    discData.byCursantePendiente = {};
-    discData.sanciones.forEach(s=>{
-      if(s.anulada===true) return;  // anuladas no participan en nada
-      const cid=s.cursante_id;
-      const pts=Number(s.puntos_aplicados)||0;
-      // v2.9.9: regla nueva — solo cuentan analógicas + digitales firmadas por cursante
-      // byCursanteLost = puntaje del SEMESTRE ACTUAL (académico: Observación/Consejo).
-      // La baja se mide aparte, sobre el año, en calcularPerdidaAnual().
-      if(sancionCuentaParaPuntaje(s)){
-        if(sancionEnSemestreActual(s)){
-          discData.byCursanteLost[cid] = (discData.byCursanteLost[cid]||0) + pts;
-        }
-      } else if(s.es_prueba !== true && !esSancionAnalogica(s)){
-        // Digital pendiente de firma → al puntaje "pendiente" (informativo)
-        discData.byCursantePendiente[cid] = (discData.byCursantePendiente[cid]||0) + pts;
-      }
-      // TODAS las sanciones no-anuladas (reales + prueba) van al listado del cursante
-      if(!discData.byCursanteSanc[cid]) discData.byCursanteSanc[cid] = [];
-      discData.byCursanteSanc[cid].push(s);
-    });
+    _reconstruirIndicesDisc();
     discData.loaded=true;
     discData.lastSync=new Date();
-    // Detectar schema de la tabla sanciones (para inserts seguros)
     detectarSchemaSanciones();
+    _guardarDiscCache();
+    // Si fue refresh en background y el panel está visible, re-render
+    if(silent){
+      try{
+        const visible = document.querySelector('.screen.active');
+        if(visible){
+          if(visible.id === 'screen-disc-panel'   && typeof renderDiscPanel==='function')   renderDiscPanel();
+          if(visible.id === 'screen-prof-panel'   && typeof renderProfPanel==='function')   renderProfPanel();
+          if(visible.id === 'screen-jc-panel'    && typeof renderJCPanel==='function')    renderJCPanel();
+        }
+      }catch(_){}
+    }
   }catch(e){
     console.error('loadDiscData failed:',e);
-    alert('Error cargando datos: '+(e.message||e));
+    if(!silent) alert('Error cargando datos: '+(e.message||e));
   }
 }
 
@@ -9293,9 +9415,11 @@ function parseHF(hf){
   return hf;
 }
 
-function initLeafletMap(lat, lng){
+async function initLeafletMap(lat, lng){
   const el = document.getElementById('leaflet-map');
-  if(!el || typeof L==='undefined') return;
+  if(!el) return;
+  try{ await ensureLeaflet(); }catch(e){ console.warn('Leaflet:', e); return; }
+  if(typeof L==='undefined') return;
   try{
     leafletMap = L.map('leaflet-map').setView([lat,lng], 16);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
@@ -10885,7 +11009,8 @@ function exportarComoPDF(cuerpoHtml, filename, orientacion){
 }
 
 /* ===== EXPORTACIÓN: Excel (.xlsx vía SheetJS) ===== */
-function exportarExcelResumenMensual(ciclo, mes, year, filename){
+async function exportarExcelResumenMensual(ciclo, mes, year, filename){
+  try{ await ensureXLSX(); }catch(e){ alert('No se pudo cargar la librería de Excel. Verificá tu conexión a internet.'); return false; }
   if(typeof XLSX === 'undefined'){
     alert('La librería de Excel no cargó. Verificá tu conexión a internet.');
     return false;
@@ -11589,7 +11714,8 @@ function downloadJSON(){
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
-function downloadXLSX(){
+async function downloadXLSX(){
+  try{ await ensureXLSX(); }catch(e){ alert('No se pudo cargar la librería de Excel. Verificá tu conexión a internet.'); return; }
   if(typeof XLSX==='undefined'){ alert('La librería de Excel no cargó. Verificá tu conexión a internet.'); return; }
 
   // Aplica diseño profesional: encabezado con color, bordes, filas alternadas, anchos y filtro.
@@ -12698,7 +12824,8 @@ function verDetalleSancion(sancionId){
   }, 100);
 }
 
-function initLeafletMapDetalle(lat, lng){
+async function initLeafletMapDetalle(lat, lng){
+  try{ await ensureLeaflet(); }catch(e){ return; }
   if(typeof L === 'undefined') return;
   const cont = document.getElementById('det-leaflet-map');
   if(!cont) return;
@@ -13959,6 +14086,8 @@ function generarQRFallbackCanvas(url, containerId, size){
   console.warn('[QR] qrserver.com falló, usando canvas fallback');
   const cont = document.getElementById(containerId);
   if(!cont) return;
+  // v2.9.60: QRCode es lazy → asegurar carga
+  ensureQRCode().catch(()=>{});
 
   // Esperar a que QRCode.js esté cargado (hasta 5 segundos)
   let tries = 0;
@@ -13996,7 +14125,8 @@ function mostrarQRTextoFallback(url, containerId){
   </div>`;
 }
 
-function initLeafletMapProf(lat, lng, precision){
+async function initLeafletMapProf(lat, lng, precision){
+  try{ await ensureLeaflet(); }catch(e){ return; }
   if(typeof L === 'undefined') return;
   const cont = document.getElementById('leaflet-map-prof');
   if(!cont) return;
