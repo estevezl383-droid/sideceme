@@ -3227,7 +3227,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.58 · puntito rojo sanciones nuevas</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.59 · OM pendiente 1er ciclo + bloqueo materias</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4186,6 +4186,7 @@ input::placeholder, textarea::placeholder {
       <button class="quick-btn" onclick="goEstadisticas()"><span class="qa-icon">📈</span><span class="qa-text">Estadísticas: pérdida de puntaje (por período)</span></button>
       <button id="qa-btn-mis-sancionados" class="quick-btn" onclick="goMisSancionados()"><span class="qa-icon">👥</span><span class="qa-text">Mis sancionados (cursantes que yo sancioné)</span></button>
       <button id="qa-btn-diagnostico" class="quick-btn" onclick="goDiagnostico()"><span class="qa-icon">🔧</span><span class="qa-text">Diagnóstico y forzar sincronización</span></button>
+      <button id="qa-btn-bloqueo-materias" class="quick-btn" onclick="goBloqueoMaterias()" style="background:linear-gradient(180deg,rgba(180,140,255,.15),rgba(180,140,255,.05));border-color:#b48cff;display:none"><span class="qa-icon">🔒</span><span class="qa-text"><strong>Bloquear materias / módulos</strong> (ocultar a alumnos)</span></button>
       <button class="quick-btn success" data-sac-hide="1" onclick="goRespaldo()"><span class="qa-icon">💾</span><span class="qa-text">Descargar respaldo ahora (JSON + .XLSX)</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goInstalar()"><span class="qa-icon">📲</span><span class="qa-text">Instalar app / Compartir QR</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goAnulaciones()"><span class="qa-icon">📋</span><span class="qa-text">Solicitudes de reconsideración / anulación</span><span id="badge-solicitudes" style="display:none;margin-left:auto;background:#c84a4a;color:#fff;font-size:12px;font-weight:700;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;padding:0 6px">0</span></button>
@@ -4826,6 +4827,25 @@ input::placeholder, textarea::placeholder {
     <div id="diag-status"></div>
     <button class="btn-primary" onclick="forzarSincronizacion()" style="margin-top:14px">🔄 Forzar sincronización ahora</button>
     <button class="btn-secondary" onclick="testConnection()">📡 Probar conexión a Supabase</button>
+  </div>
+</section>
+
+<!-- C&T: BLOQUEO DE MATERIAS / MÓDULOS -->
+<section id="screen-bloqueo-materias" class="screen with-bottom-nav">
+  <div class="app-header"><button class="back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Bloqueo de materias</div><div class="header-sub">C&amp;T · ocultar a los alumnos</div></div></div>
+  <div class="disc-container">
+    <div class="alert-banner blue" style="margin-bottom:12px"><span class="alert-emoji">🔒</span><span class="alert-text"><b>Bloquear materias o módulos por ciclo.</b><br><span style="font-size:13px">Cuando hay problemas con notas (revisión, error, retrabajo), bloquea la materia para que <u>no se vea</u> en la app del cursante hasta que se resuelva.</span></span></div>
+
+    <div class="field" style="margin-bottom:10px"><label>Gestión</label><select id="bm-gestion"></select></div>
+    <div class="field" style="margin-bottom:10px"><label>Ciclo</label><select id="bm-ciclo"><option value="1ER CICLO">1ER CICLO</option><option value="2DO CICLO">2DO CICLO</option></select></div>
+    <div class="field" style="margin-bottom:10px"><label>Semestre</label><select id="bm-semestre"><option value="1">1er Semestre</option><option value="2">2do Semestre</option></select></div>
+    <button class="btn-primary" onclick="bmCargarMaterias()" style="margin-bottom:14px">🔍 Cargar materias del período</button>
+
+    <div class="section-label">Materias del período</div>
+    <div id="bm-lista" style="margin-bottom:18px"><div class="efm-no-data" style="color:var(--text-muted)">Elegí el período y tocá "Cargar materias".</div></div>
+
+    <div class="section-label">Bloqueos vigentes</div>
+    <div id="bm-vigentes"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
   </div>
 </section>
 
@@ -6019,6 +6039,28 @@ async function renderCursanteEfmSection(){
 // ==================== NOTAS ACADÉMICAS ====================
 let acadCache = null; // cache para no re-query entre secciones
 
+// v2.9.59: cache de materias bloqueadas por C&T. Se ocultan al cursante (y al
+// admin no-CT) cuando hay problemas con notas (revisión, error, etc.).
+let materiasBloqueadasCache = null;
+async function cargarMateriasBloqueadas(force){
+  if(materiasBloqueadasCache && !force) return materiasBloqueadasCache;
+  try{
+    const {data,error} = await sb.from('materias_bloqueadas').select('*');
+    if(error){ console.warn('materias_bloqueadas:', error.message); materiasBloqueadasCache=[]; return []; }
+    materiasBloqueadasCache = data || [];
+    return materiasBloqueadasCache;
+  }catch(e){ materiasBloqueadasCache=[]; return []; }
+}
+function _esMateriaBloqueada(n, blocks){
+  if(!blocks || !blocks.length) return false;
+  return blocks.some(b =>
+    String(b.gestion) === String(n.gestion) &&
+    String(b.ciclo)   === String(n.ciclo)   &&
+    String(b.semestre)=== String(n.semestre)&&
+    String(b.materia) === String(n.materia)
+  );
+}
+
 // Formatea una nota mostrando hasta 4 decimales FIELES al Excel (sin redondear a 2 ni rellenar con ceros).
 // Ej: 97.0851 → "97.0851" · 96 → "96" · 79.042 → "79.042"
 function fmtNota(x){
@@ -6034,8 +6076,17 @@ async function cargarNotasAcademicas(){
     .order('gestion',{ascending:true})
     .order('semestre',{ascending:true})
     .order('materia',{ascending:true});
-  if(!error && data) acadCache = data;
-  return data || [];
+  if(error || !data) return [];
+  // v2.9.59: filtrar materias bloqueadas por C&T (no se muestran al cursante)
+  let filtered = data;
+  try{
+    const blocks = await cargarMateriasBloqueadas();
+    if(blocks && blocks.length){
+      filtered = data.filter(n => !_esMateriaBloqueada(n, blocks));
+    }
+  }catch(e){}
+  acadCache = filtered;
+  return filtered;
 }
 
 async function renderCursanteAcademicasSection(){
@@ -6099,12 +6150,18 @@ function actualizarBadgesAcademicas(data){
 
   // ── ORDEN DE MÉRITO: el período MÁS RECIENTE que tenga un OM OFICIAL (no se inventa).
   //    Para 2do ciclo, su 2026 aún no tiene OM → usa el OM oficial de 2025 (su 1er ciclo).
-  let om = null, anioOM = '';
+  // v2.9.59: los alumnos de 1ER CICLO NO tienen OM semestral. Solo el ANUAL cuenta;
+  //          mientras no esté cerrado el semestre → "Pendiente" (no se calcula).
+  const esCursante1erCiclo = currentUser && (currentUser.ciclo === '1ER CICLO');
+  let om = null, anioOM = '', pendiente1ro = false;
   for(let i=lista.length-1; i>=0; i--){
     const rr = lista[i].rows[0] || {};
-    const val = rr.om_anual != null ? rr.om_anual : (rr.om_general != null ? rr.om_general : null);
+    const val = esCursante1erCiclo
+      ? rr.om_anual                                                 // 1er ciclo: solo anual
+      : (rr.om_anual != null ? rr.om_anual : rr.om_general);        // 2do ciclo: anual, si no, semestral
     if(val != null){ om = val; anioOM = lista[i].gestion; break; }
   }
+  if(om == null && esCursante1erCiclo) pendiente1ro = true;
 
   const v = document.getElementById('cur-area-acad-val');
   const s = document.getElementById('cur-area-acad-sub');
@@ -6112,8 +6169,13 @@ function actualizarBadgesAcademicas(data){
   const ms = document.getElementById('cur-area-merito-sub');
   if(v)  v.textContent  = prom!=null ? fmtNota(prom) : '—';
   if(s)  s.textContent  = anioProm ? ('Promedio '+anioProm) : 'Promedio gral.';
-  if(mv) mv.textContent = om!=null ? ('#'+om) : '—';
-  if(ms) ms.textContent = om!=null ? ('Orden de Mérito '+anioOM) : 'Sin OM aún';
+  if(mv){
+    mv.textContent = om!=null ? ('#'+om) : (pendiente1ro ? 'Pendiente' : '—');
+    // Tipografía menor para "Pendiente" (no cabe a tamaño normal)
+    mv.style.fontSize = pendiente1ro ? '24px' : '';
+  }
+  if(ms) ms.textContent = om!=null ? ('Orden de Mérito '+anioOM)
+                               : (pendiente1ro ? 'Al cierre del semestre' : 'Sin OM aún');
 }
 
 function agruparNotasPorPeriodo(data){
@@ -6285,7 +6347,15 @@ function htmlTarjetaAcademica(g){
 function htmlTarjetaMerito(g){
   const {gestion, ciclo, semestre, promedio, om, materias} = g;
   const sLabel = etiquetaSemAcad(ciclo, semestre);
-  const promFmt = promedio ? fmtNota(promedio) : '—';
+  // v2.9.59: 1er ciclo solo muestra OM ANUAL; mientras no exista → "Pendiente al cierre del semestre".
+  const omAnual = (materias[0]||{}).om_anual;
+  const promAnual = (materias[0]||{}).promedio_anual;
+  const es1erCiclo = ciclo === '1ER CICLO';
+  let omTexto, omLabel;
+  if(omAnual != null){ omTexto = '#'+omAnual; omLabel = 'Orden anual'; }
+  else if(es1erCiclo){ omTexto = 'Pendiente'; omLabel = 'Al cierre del semestre'; }
+  else { omTexto = om!=null ? '#'+om : '—'; omLabel = 'Orden Gral.'; }
+  const promFmt = (promAnual != null ? promAnual : promedio) ? fmtNota(promAnual != null ? promAnual : promedio) : '—';
   // Promedio por grupo (valor oficial)
   const promGrupo = {};
   materias.forEach(m=>{ const k=m.grupo||'OTRAS'; if(!(k in promGrupo)) promGrupo[k]=m.grupo_promedio; });
@@ -6309,8 +6379,8 @@ function htmlTarjetaMerito(g){
     <div style="font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--gold-light);letter-spacing:1px;text-transform:uppercase;text-align:center;background:linear-gradient(90deg,rgba(212,175,55,.20),rgba(212,175,55,.06));padding:11px 12px;border-radius:9px;border:1px solid var(--gold-dark);margin-bottom:14px;line-height:1.35">${sLabel} · ${ciclo} · ${gestion}</div>
     <div style="display:flex;justify-content:space-around;text-align:center;margin-bottom:18px;padding:16px;background:var(--bg-elevated);border-radius:10px;border:1px solid var(--border-subtle)">
       <div>
-        <div style="font-size:36px;font-weight:700;color:var(--gold);font-family:var(--font-display)">#${om||'—'}</div>
-        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Orden Gral.</div>
+        <div style="font-size:${omTexto==='Pendiente'?'22':'36'}px;font-weight:700;color:var(--gold);font-family:var(--font-display)">${omTexto}</div>
+        <div style="font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">${omLabel}</div>
       </div>
       <div style="width:1px;background:var(--border-subtle)"></div>
       <div>
@@ -8714,7 +8784,7 @@ function renderDiscPanel(){
 
   // Visibilidad de botones según rol
   const soloCT = esCT();
-  const btnsCT = ['qa-btn-gest-cursantes','qa-btn-gest-profesores','qa-btn-diagnostico','qa-btn-pwd-otro'];
+  const btnsCT = ['qa-btn-gest-cursantes','qa-btn-gest-profesores','qa-btn-diagnostico','qa-btn-pwd-otro','qa-btn-bloqueo-materias'];
   btnsCT.forEach(id => {
     const el = document.getElementById(id);
     if(el) el.style.display = soloCT ? '' : 'none';
@@ -9524,7 +9594,15 @@ async function verReporteIntegral(cursanteId){
   }catch(e){ console.warn('repint efm:', e); }
   try{
     const {data} = await sb.from('notas_academicas').select('*').eq('cursante_id', cursanteId).order('gestion',{ascending:true}).order('semestre',{ascending:true}).order('materia',{ascending:true});
-    notas = data || [];
+    // v2.9.59: el admin también respeta los bloqueos de C&T (EXCEPTO C&T, que ve todo)
+    let arr = data || [];
+    if(!esCT()){
+      try{
+        const blocks = await cargarMateriasBloqueadas();
+        if(blocks && blocks.length) arr = arr.filter(n => !_esMateriaBloqueada(n, blocks));
+      }catch(e){}
+    }
+    notas = arr;
   }catch(e){ console.warn('repint notas:', e); }
 
   // Entrenamiento físico
@@ -11302,6 +11380,141 @@ async function reactivarProfesor(id){
 function goDiagnostico(){
   if(!esCT()){ alert('Solo C&T (Ciencia y Tecnología) puede ver el diagnóstico del sistema.'); return; }
   renderDiagnostico(); showScreen('screen-diagnostico');
+}
+
+// ──────────────────────────────────────────────────────────────────
+// v2.9.59: BLOQUEO DE MATERIAS / MÓDULOS (solo C&T)
+// ──────────────────────────────────────────────────────────────────
+async function goBloqueoMaterias(){
+  if(!esCT()){ alert('Solo C&T puede gestionar bloqueos de materias.'); return; }
+  // Poblar selector de gestión a partir de los años existentes en notas_academicas
+  try{
+    const sel = document.getElementById('bm-gestion');
+    if(sel && !sel.options.length){
+      const {data} = await sb.from('notas_academicas').select('gestion').order('gestion',{ascending:false});
+      const anios = [...new Set((data||[]).map(x=>x.gestion).filter(x=>x!=null))];
+      if(!anios.length) anios.push(new Date().getFullYear());
+      sel.innerHTML = anios.map(a=>`<option value="${a}">${a}</option>`).join('');
+    }
+  }catch(e){ console.warn(e); }
+  document.getElementById('bm-lista').innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">Elegí el período y tocá "Cargar materias".</div>';
+  await bmRefrescarVigentes();
+  showScreen('screen-bloqueo-materias');
+}
+
+async function bmCargarMaterias(){
+  const cont = document.getElementById('bm-lista');
+  if(!cont) return;
+  const gestion  = Number(document.getElementById('bm-gestion').value);
+  const ciclo    = document.getElementById('bm-ciclo').value;
+  const semestre = Number(document.getElementById('bm-semestre').value);
+  cont.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-muted)">⏳ Cargando materias del período…</div>';
+  try{
+    const {data,error} = await sb.from('notas_academicas')
+      .select('materia, mod_codigo')
+      .eq('gestion', gestion).eq('ciclo', ciclo).eq('semestre', semestre);
+    if(error){ cont.innerHTML = `<div class="efm-no-data" style="color:#e88a8a">⚠️ ${error.message}</div>`; return; }
+    if(!data || !data.length){
+      cont.innerHTML = `<div class="efm-no-data" style="color:var(--text-muted)">No hay materias cargadas en ${ciclo} · ${gestion} · sem ${semestre}.</div>`;
+      return;
+    }
+    // Materias únicas
+    const seen = new Set();
+    const mats = [];
+    data.forEach(x=>{
+      const k = String(x.materia||'').trim();
+      if(!k || seen.has(k)) return;
+      seen.add(k); mats.push({materia:k, mod_codigo:x.mod_codigo||''});
+    });
+    mats.sort((a,b)=> (a.mod_codigo||'').localeCompare(b.mod_codigo||'') || a.materia.localeCompare(b.materia));
+    // Set de bloqueos vigentes para el período
+    const blocks = await cargarMateriasBloqueadas(true);
+    const setBloq = new Set(blocks
+      .filter(b => Number(b.gestion)===gestion && b.ciclo===ciclo && Number(b.semestre)===semestre)
+      .map(b => b.materia));
+    cont.innerHTML = mats.map(m=>{
+      const bloq = setBloq.has(m.materia);
+      const id = 'bm-row-' + btoa(unescape(encodeURIComponent(m.materia))).replace(/[^a-zA-Z0-9]/g,'').slice(0,16);
+      return `<div class="list-item" style="display:flex;align-items:center;gap:10px;padding:10px 12px;${bloq?'background:rgba(226,59,59,.08);border-color:#e23b3b':''}">
+        <div style="flex:1">
+          <div style="font-weight:700;color:${bloq?'#ffb3b3':'var(--text-primary)'};font-size:14px">${escapeHtml(m.materia)}${bloq?' 🔒':''}</div>
+          <div style="font-size:11px;color:var(--text-muted);letter-spacing:1px">${m.mod_codigo||'—'}</div>
+        </div>
+        ${bloq
+          ? `<button class="btn-secondary" style="padding:6px 12px;background:rgba(76,163,107,.15);border-color:#4ca36b;color:#4ca36b" onclick="bmDesbloquear(${gestion},'${escapeHtml(ciclo)}',${semestre},'${escapeHtml(m.materia).replace(/'/g,"\\'")}')">🔓 Desbloquear</button>`
+          : `<button class="btn-secondary" style="padding:6px 12px;background:rgba(226,59,59,.15);border-color:#e23b3b;color:#e23b3b" onclick="bmPedirBloqueo(${gestion},'${escapeHtml(ciclo)}',${semestre},'${escapeHtml(m.materia).replace(/'/g,"\\'")}','${escapeHtml(m.mod_codigo||'').replace(/'/g,"\\'")}')">🔒 Bloquear</button>`
+        }
+      </div>`;
+    }).join('');
+  }catch(e){ cont.innerHTML = `<div class="efm-no-data" style="color:#e88a8a">⚠️ ${e.message||e}</div>`; }
+}
+
+async function bmPedirBloqueo(gestion, ciclo, semestre, materia, mod_codigo){
+  const motivo = prompt(`Bloquear "${materia}" en ${ciclo} · ${gestion} · sem ${semestre}.\n\nMotivo (opcional, lo verás como referencia):`, 'En revisión');
+  if(motivo === null) return; // cancelado
+  try{
+    const tok = (typeof getTokenSesion==='function') ? getTokenSesion() : null;
+    if(!tok){ alert('Sesión no válida. Volvé a entrar.'); return; }
+    const {data, error} = await sb.functions.invoke('materias-bloqueo', {
+      body:{ accion:'bloquear', token:tok, gestion, ciclo, semestre, materia, mod_codigo, motivo }
+    });
+    if(error){ alert('No se pudo bloquear: '+(error.message||error)); return; }
+    if(data && data.ok === false){ alert('Error: '+(data.error||'desconocido')); return; }
+    await cargarMateriasBloqueadas(true);
+    acadCache = null; // invalida cache del cursante
+    bmCargarMaterias();
+    bmRefrescarVigentes();
+  }catch(e){ alert('Error: '+(e.message||e)); }
+}
+
+async function bmDesbloquear(gestion, ciclo, semestre, materia){
+  if(!confirm(`Desbloquear "${materia}" en ${ciclo} · ${gestion} · sem ${semestre}?\n\nLa materia volverá a verse en la app del cursante.`)) return;
+  try{
+    const tok = (typeof getTokenSesion==='function') ? getTokenSesion() : null;
+    if(!tok){ alert('Sesión no válida.'); return; }
+    const {data, error} = await sb.functions.invoke('materias-bloqueo', {
+      body:{ accion:'desbloquear', token:tok, gestion, ciclo, semestre, materia }
+    });
+    if(error){ alert('No se pudo desbloquear: '+(error.message||error)); return; }
+    if(data && data.ok === false){ alert('Error: '+(data.error||'desconocido')); return; }
+    await cargarMateriasBloqueadas(true);
+    acadCache = null;
+    bmCargarMaterias();
+    bmRefrescarVigentes();
+  }catch(e){ alert('Error: '+(e.message||e)); }
+}
+
+async function bmRefrescarVigentes(){
+  const cont = document.getElementById('bm-vigentes');
+  if(!cont) return;
+  cont.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-muted)">⏳ Cargando bloqueos…</div>';
+  try{
+    const blocks = await cargarMateriasBloqueadas(true);
+    if(!blocks.length){
+      cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">✅ No hay materias bloqueadas. Todas se ven normalmente.</div>';
+      return;
+    }
+    // Agrupar por (gestion, ciclo, semestre)
+    const grupos = {};
+    blocks.forEach(b=>{
+      const k = b.gestion+'|'+b.ciclo+'|'+b.semestre;
+      if(!grupos[k]) grupos[k] = {gestion:b.gestion, ciclo:b.ciclo, semestre:b.semestre, items:[]};
+      grupos[k].items.push(b);
+    });
+    cont.innerHTML = Object.values(grupos).sort((a,b)=> b.gestion-a.gestion || a.ciclo.localeCompare(b.ciclo) || a.semestre-b.semestre).map(g=>`
+      <div style="margin-bottom:14px">
+        <div style="font-size:12px;font-weight:700;color:var(--gold-light);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">${g.ciclo} · ${g.gestion} · sem ${g.semestre} · ${g.items.length}</div>
+        ${g.items.map(b=>`
+          <div class="list-item" style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:rgba(226,59,59,.05);border-color:rgba(226,59,59,.3)">
+            <div style="flex:1">
+              <div style="font-weight:700;color:#ffb3b3;font-size:14px">🔒 ${escapeHtml(b.materia)}</div>
+              ${b.motivo?`<div style="font-size:12px;color:var(--text-muted);font-style:italic;margin-top:2px">${escapeHtml(b.motivo)}</div>`:''}
+              <div style="font-size:10px;color:var(--text-muted);margin-top:2px">por ${escapeHtml(b.creado_por_nombre||b.creado_por||'—')}${b.creado_en?' · '+new Date(b.creado_en).toLocaleString('es-BO'):''}</div>
+            </div>
+            <button class="btn-secondary" style="padding:6px 12px;background:rgba(76,163,107,.15);border-color:#4ca36b;color:#4ca36b" onclick="bmDesbloquear(${b.gestion},'${escapeHtml(b.ciclo)}',${b.semestre},'${escapeHtml(b.materia).replace(/'/g,"\\'")}')">🔓 Desbloquear</button>
+          </div>`).join('')}
+      </div>`).join('');
+  }catch(e){ cont.innerHTML = `<div class="efm-no-data" style="color:#e88a8a">⚠️ ${e.message||e}</div>`; }
 }
 function renderDiagnostico(){
   const c=document.getElementById('diag-status');
