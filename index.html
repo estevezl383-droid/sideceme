@@ -50,6 +50,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .screen{display:none;min-height:100vh;animation:fadeIn .35s ease-out}
 .screen.active{display:block}
 @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@keyframes sancPulse{0%,100%{transform:scale(1);box-shadow:0 2px 8px rgba(226,59,59,.6)}50%{transform:scale(1.12);box-shadow:0 2px 14px rgba(226,59,59,.95)}}
 .with-bottom-nav{padding-bottom:90px}
 
 /* HEADER */
@@ -3226,7 +3227,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.57 · jefe_sac + notif jefes + velocidad</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.58 · puntito rojo sanciones nuevas</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4163,7 +4164,7 @@ input::placeholder, textarea::placeholder {
     <div id="ct-seguridad-banner" style="margin:10px 0 0"></div>
     <div class="stats-grid">
       <div class="stat-card" onclick="goDiscCursantes()"><div class="stat-num" id="stat-cursantes">—</div><div class="stat-label">Cursantes</div></div>
-      <div class="stat-card" onclick="goDiscSanciones()"><div class="stat-num" id="stat-sanciones">—</div><div class="stat-label">Sanciones</div></div>
+      <div class="stat-card" id="stat-card-sanciones" onclick="goDiscSanciones()"><div class="stat-num" id="stat-sanciones">—</div><div class="stat-label">Sanciones</div></div>
       <div class="stat-card danger" onclick="goDiscConsejo()"><div class="stat-num" id="stat-consejo">—</div><div class="stat-label">En Riesgo</div></div>
     </div>
 
@@ -4200,7 +4201,7 @@ input::placeholder, textarea::placeholder {
       <div class="actividad-empty">Cargando actividad...</div>
     </div>
     <div style="text-align:center;margin:8px 0 16px 0">
-      <button class="btn-link-gold" onclick="goDiscSanciones()">Ver todas las sanciones →</button>
+      <button class="btn-link-gold" id="btn-ver-todas-sanc" onclick="goDiscSanciones()">Ver todas las sanciones →</button>
     </div>
   </div>
   <nav class="bottom-nav">
@@ -5049,6 +5050,85 @@ function actualizarBadgeApp(n){
       else navigator.clearAppBadge();
     }
   }catch(e){}
+}
+
+// ─── v2.9.58: Puntito rojo de "sanciones nuevas sin ver" (persistente) ───────
+// Roles que monitorean TODAS las sanciones del sistema (reciben el puntito rojo
+// cuando se registra una sanción nueva): Jefe Disciplina, Comandante, C&T,
+// Jefe de Estudios y Jefe de la SAC.
+function esRolMonitorSanciones(){
+  return ['disciplina','comandante','ciencia_tecnologia','estudios','jefe_sac'].includes(activeRole);
+}
+// "Última sanción vista" por usuario — persiste entre recargas (antes se perdía
+// en memoria, por eso el puntito no aparecía tras refrescar la app).
+function _notifSeenKey(){ return 'sideceme_notif_seen_' + (currentUser ? currentUser.id : 'anon'); }
+function getNotifSeenTs(){
+  try{
+    const raw = localStorage.getItem(_notifSeenKey());
+    if(raw === null || raw === undefined){
+      // Primer arranque para este usuario: baseline = ahora (no marcar todo el
+      // historial como "nuevo"). El puntito aparecerá con la PRÓXIMA sanción.
+      const now = Date.now();
+      if(currentUser) setNotifSeenTs(now);
+      return now;
+    }
+    return Number(raw)||0;
+  }catch(e){ return Date.now(); }
+}
+function setNotifSeenTs(ts){ try{ localStorage.setItem(_notifSeenKey(), String(ts)); }catch(e){} }
+
+// Pinta el puntito rojo en la tarjeta "Sanciones" del panel + el botón "Ver todas"
+// + el ícono de la app. n = cantidad de sanciones nuevas sin ver.
+function actualizarPuntitoSanciones(n){
+  const card = document.getElementById('stat-card-sanciones');
+  if(card){
+    let dot = document.getElementById('stat-sanciones-dot');
+    if(n > 0){
+      if(!dot){
+        dot = document.createElement('span');
+        dot.id = 'stat-sanciones-dot';
+        dot.style.cssText = 'position:absolute;top:-7px;right:-7px;background:#e23b3b;color:#fff;font-size:12px;font-weight:800;min-width:23px;height:23px;line-height:23px;text-align:center;border-radius:12px;padding:0 5px;box-shadow:0 2px 8px rgba(226,59,59,.6);border:2px solid #11121e;z-index:6;animation:sancPulse 1.6s ease-in-out infinite';
+        card.style.position = 'relative';
+        card.appendChild(dot);
+      }
+      dot.textContent = n > 99 ? '99+' : n;
+    } else if(dot){ dot.remove(); }
+  }
+  // Badge en el botón "Ver todas las sanciones"
+  const verBtn = document.getElementById('btn-ver-todas-sanc');
+  if(verBtn){
+    let b = document.getElementById('ver-todas-sanc-dot');
+    if(n > 0){
+      if(!b){
+        b = document.createElement('span');
+        b.id = 'ver-todas-sanc-dot';
+        b.style.cssText = 'display:inline-block;margin-left:8px;background:#e23b3b;color:#fff;font-size:11px;font-weight:800;min-width:20px;height:20px;line-height:20px;text-align:center;border-radius:10px;padding:0 5px;vertical-align:middle';
+        verBtn.appendChild(b);
+      }
+      b.textContent = n > 99 ? '99+' : n;
+    } else if(b){ b.remove(); }
+  }
+}
+
+// Cuenta las sanciones registradas DESPUÉS de la última vez que el usuario las vio.
+function contarSancionesNuevasAdmin(){
+  const seen = getNotifSeenTs();
+  return (discData.sanciones||[]).filter(s =>
+    !s.anulada && s.es_prueba !== true && s.creado_en &&
+    new Date(s.creado_en).getTime() > seen
+  ).length;
+}
+
+// Marca todas las sanciones actuales como vistas → el puntito desaparece.
+function marcarSancionesVistas(){
+  let max = 0;
+  (discData.sanciones||[]).forEach(s => {
+    if(s.creado_en){ const t = new Date(s.creado_en).getTime(); if(t > max) max = t; }
+  });
+  setNotifSeenTs(Math.max(max, Date.now()));
+  for(const k in notifLastKnown){ if(k.indexOf('adm_')===0) delete notifLastKnown[k]; }
+  actualizarPuntitoSanciones(0);
+  try{ actualizarBadgeApp(0); }catch(e){}
 }
 function urlBase64ToUint8Array(base64String){
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -8576,12 +8656,24 @@ function renderDiscPanel(){
   document.getElementById('disc-initials').textContent=initials||'—';
 
   // 🔔 Aviso de pendientes de firma (profesor: las suyas; Jefe Disc/CT: total)
+  // 🔴 v2.9.58: puntito rojo de SANCIONES NUEVAS sin ver (para roles monitor)
   const _bp = document.getElementById('disc-pendientes-banner');
+  let _nuevasSanc = 0;
   if(_bp){
     const uid=currentUser.id, nm=(currentUser.nombre_completo||'').toLowerCase();
     const todas=(discData.sanciones||[]);
     const misPend=todas.filter(s=> (String(s.profesor_id)===String(uid) || String(s.profesor_nombre||'').toLowerCase()===nm) && sancionSinFirmar(s));
     let html='';
+    // Banner rojo de sanciones nuevas (roles monitor: Disciplina/Comandante/CT/Estudios/SAC)
+    if(typeof esRolMonitorSanciones==='function' && esRolMonitorSanciones()){
+      _nuevasSanc = contarSancionesNuevasAdmin();
+      if(_nuevasSanc){
+        const ult=[...todas].filter(s=>!s.anulada && s.es_prueba!==true && s.creado_en && new Date(s.creado_en).getTime()>getNotifSeenTs())
+          .sort((a,b)=>new Date(b.creado_en)-new Date(a.creado_en)).slice(0,4)
+          .map(s=>s.cursante_nombre||s.cursante_id||'—');
+        html+=`<div class="alert-banner red"><span class="alert-emoji">🚨</span><span class="alert-text"><b>${_nuevasSanc} sanción(es) NUEVA(S) desde tu última revisión.</b><br><span style="font-size:13px">${ult.join(' · ')}${_nuevasSanc>ult.length?' …':''}</span><br><span style="font-size:12px;opacity:.85">Tocá "Sanciones" para revisarlas (el aviso desaparece al verlas).</span></span></div>`;
+      }
+    }
     if(misPend.length){
       const nombres=[...new Set(misPend.map(s=>{const c=(discData.cursantes||[]).find(x=>String(x.id)===String(s.cursante_id)); return c?c.nombre_completo:(s.cursante_nombre||s.cursante_id);}))].slice(0,4);
       html+=`<div class="alert-banner yellow"><span class="alert-emoji">✍️</span><span class="alert-text"><b>${misPend.length} de tus sanciones aún no fueron firmadas por el alumno.</b><br><span style="font-size:13px">${nombres.join(' · ')}${misPend.length>nombres.length?' …':''}</span></span></div>`;
@@ -8591,9 +8683,11 @@ function renderDiscPanel(){
       if(totalPend) html+=`<div class="alert-banner blue"><span class="alert-emoji">📋</span><span class="alert-text"><b>${totalPend} sanción(es) pendientes de firma en total</b> (todos los alumnos).</span></div>`;
     }
     _bp.innerHTML=html;
-    // 🔴 Número rojo en el ícono = tus sanciones que el alumno aún no firmó
-    try{ actualizarBadgeApp(misPend.length); }catch(e){}
+    // 🔴 Número rojo en el ícono = sanciones nuevas sin ver (monitor) + tus pendientes de firma
+    try{ actualizarBadgeApp((_nuevasSanc||0) + misPend.length); }catch(e){}
   }
+  // Puntito rojo en la tarjeta "Sanciones" y el botón "Ver todas"
+  try{ actualizarPuntitoSanciones(_nuevasSanc); }catch(e){}
   // 🛡️ Alerta de seguridad (solo CT) — async, no bloquea
   if(typeof esCT==='function' && esCT()){ try{ cargarAlertasSeguridadCT(); }catch(e){} }
   else { const _ct=document.getElementById('ct-seguridad-banner'); if(_ct) _ct.innerHTML=''; }
@@ -8742,7 +8836,7 @@ function verSancionDesdeFeed(sancionId){
 
 function goDiscPanel(){ renderDiscPanel(); showScreen('screen-disc-panel'); }
 function goDiscCursantes(){ renderCursantesList(); showScreen('screen-disc-cursantes'); }
-function goDiscSanciones(){ switchTabSanc('list'); showScreen('screen-disc-sanciones'); }
+function goDiscSanciones(){ try{ marcarSancionesVistas(); }catch(e){} switchTabSanc('list'); showScreen('screen-disc-sanciones'); }
 function goDiscConsejo(){ renderConsejoList(); showScreen('screen-disc-consejo'); }
 function goDiscReportes(){ renderReportes(); showScreen('screen-disc-reportes'); }
 function goDiscAlertas(){ renderAlertas(); showScreen('screen-disc-alertas'); }
@@ -14896,6 +14990,38 @@ async function verificarNotificaciones(){
           });
         }
         data.forEach(d => notifLastKnown['prof_'+d.id] = true);
+      }
+
+      // 🚨 v2.9.58: Roles monitor (Disciplina/Comandante/CT/Estudios/SAC) →
+      // detectar SANCIONES NUEVAS registradas en el sistema y mostrar el puntito rojo.
+      if(typeof esRolMonitorSanciones==='function' && esRolMonitorSanciones()){
+        const {data:nuevasS} = await sb.from('v_sanciones')
+          .select('id,folio,cursante_nombre,profesor_nombre,creado_en,anulada,es_prueba')
+          .eq('anulada', false)
+          .order('creado_en', {ascending:false})
+          .limit(30);
+        if(nuevasS){
+          const seen = getNotifSeenTs();
+          const sinVer = nuevasS.filter(d => d.es_prueba!==true && d.creado_en && new Date(d.creado_en).getTime() > seen);
+          // Sincronizar discData para que el panel quede fresco aunque no se re-renderice
+          try{
+            const ids = new Set((discData.sanciones||[]).map(x=>String(x.id)));
+            nuevasS.forEach(d=>{ if(!ids.has(String(d.id))) discData.sanciones.push(d); });
+          }catch(_){}
+          // Notificación del navegador SOLO por las que aún no avisamos en esta sesión
+          const porAvisar = sinVer.filter(d => !notifLastKnown['adm_'+d.id]);
+          if(porAvisar.length > 0 && typeof Notification!=='undefined' && Notification.permission === 'granted'){
+            const quien = porAvisar.slice(0,3).map(d=>d.cursante_nombre||'cursante').join(', ');
+            new Notification('SIDECEME — Nueva(s) sanción(es)', {
+              body: `${sinVer.length} sanción(es) por revisar${quien?': '+quien:''}${sinVer.length>3?' …':''}.`,
+              icon: 'assets/icon-sideceme.png',
+              tag: 'nuevas-sanciones'
+            });
+          }
+          nuevasS.forEach(d => notifLastKnown['adm_'+d.id] = true);
+          actualizarPuntitoSanciones(sinVer.length);
+          try{ actualizarBadgeApp(sinVer.length); }catch(_){}
+        }
       }
     }
   }catch(e){ console.log('Notif check skip:', e.message); }
