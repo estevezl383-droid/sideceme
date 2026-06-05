@@ -3228,7 +3228,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.62 · notif seguridad CT + puntito prof persistente</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.63 · marcar resueltos en logins fallidos</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -8850,14 +8850,20 @@ async function cargarAlertasSeguridadCT(){
       const {data:r} = await sb.functions.invoke('ct-seguridad',{body:{token:tok}});
       if(r && r.ok){
         if(r.intentos_fallidos_24h > 0){
-          // v2.9.61: enriquecer cada CI con nombre+grado+arma desde discData (ya cargado).
+          // v2.9.61/63: enriquecer cada CI con nombre+grado+arma desde discData (ya cargado).
+          // Filtrar los marcados como resueltos (que aún no tienen nuevos intentos).
           const enriquecidos = (r.cis_sospechosos||[]).map(x => _ctEnriquecerCI(x.ci, x.intentos));
           _ctLoginsFallidosCache = { total: r.intentos_fallidos_24h, items: enriquecidos };
-          const top5 = enriquecidos.slice(0,5).map(e => {
-            const nom = e.nombre ? `<b style="color:#fff">${escapeHtml(e.nombre)}</b>` : '<i>CI no registrado</i>';
-            return `${nom} (CI ${e.ci}, ${e.intentos})`;
-          }).join(' · ');
-          html += `<div class="alert-banner yellow" style="cursor:pointer" onclick="goCTLoginsFallidos()" title="Tocar para ver detalle completo"><span class="alert-emoji">🔑</span><span class="alert-text"><b>${r.intentos_fallidos_24h} intento(s) de login fallido(s) en 24h.</b>${top5?`<br><span style="font-size:13px;line-height:1.6">${top5}${enriquecidos.length>5?' …':''}</span>`:''}<br><span style="font-size:12px;color:#6ab0ff;margin-top:4px;display:inline-block">🔍 Tocar para ver detalle completo (${enriquecidos.length} CI distintos) →</span></span></div>`;
+          const resueltosMap = _ctLfGetResueltos();
+          const pendientes = enriquecidos.filter(e => !_ctLfEstaResuelto(e, resueltosMap));
+          if(pendientes.length){
+            const top5 = pendientes.slice(0,5).map(e => {
+              const nom = e.nombre ? `<b style="color:#fff">${escapeHtml(e.nombre)}</b>` : '<i>CI no registrado</i>';
+              return `${nom} (CI ${e.ci}, ${e.intentos})`;
+            }).join(' · ');
+            const totalNum = pendientes.reduce((a,b) => a + (Number(b.intentos)||0), 0);
+            html += `<div class="alert-banner yellow" style="cursor:pointer" onclick="goCTLoginsFallidos()" title="Tocar para ver detalle completo"><span class="alert-emoji">🔑</span><span class="alert-text"><b>${totalNum} intento(s) de login fallido(s) pendientes${enriquecidos.length>pendientes.length?' (otros '+(enriquecidos.length-pendientes.length)+' ya resueltos)':''}.</b>${top5?`<br><span style="font-size:13px;line-height:1.6">${top5}${pendientes.length>5?' …':''}</span>`:''}<br><span style="font-size:12px;color:#6ab0ff;margin-top:4px;display:inline-block">🔍 Tocar para ver detalle completo (${pendientes.length} CI distintos) →</span></span></div>`;
+          }
         }
         if(r.cuentas_corruptas > 0){
           const det = (r.detalle_corruptas||[]).map(x=>x.ci).slice(0,6).join(' · ');
@@ -11563,7 +11569,42 @@ function goDiagnostico(){
 // ──────────────────────────────────────────────────────────────────
 // v2.9.61: DETALLE de LOGINS FALLIDOS (solo C&T) — para que el jefe
 // pueda contactar a quien tuvo intentos fallidos en su cuenta.
+// v2.9.63: opción de "marcar como resuelto" por CI (persistente).
+//          Si el contador de intentos sube respecto al momento de resolver,
+//          el caso reaparece automáticamente (alerta de "ahora hay nuevos").
 // ──────────────────────────────────────────────────────────────────
+const _CT_LF_RESUELTOS_KEY = 'sideceme_ct_lf_resueltos';
+function _ctLfGetResueltos(){
+  try{ return JSON.parse(localStorage.getItem(_CT_LF_RESUELTOS_KEY)||'{}') || {}; }
+  catch(e){ return {}; }
+}
+function _ctLfSetResueltos(map){
+  try{ localStorage.setItem(_CT_LF_RESUELTOS_KEY, JSON.stringify(map)); }catch(e){}
+}
+function ctLfMarcarResuelto(ci, intentos, nombre){
+  const map = _ctLfGetResueltos();
+  map[ci] = { ts: Date.now(), intentos: Number(intentos)||0, nombre: nombre||'' };
+  _ctLfSetResueltos(map);
+  goCTLoginsFallidos();  // re-render
+}
+function ctLfRestaurar(ci){
+  const map = _ctLfGetResueltos();
+  delete map[ci];
+  _ctLfSetResueltos(map);
+  goCTLoginsFallidos();
+}
+function ctLfRestaurarTodos(){
+  if(!confirm('¿Volver a mostrar TODOS los casos marcados como resueltos?')) return;
+  _ctLfSetResueltos({});
+  goCTLoginsFallidos();
+}
+// Devuelve true si el item DEBE ocultarse (resuelto y los intentos no aumentaron).
+function _ctLfEstaResuelto(it, mapResueltos){
+  const r = mapResueltos[it.ci];
+  if(!r) return false;
+  return (Number(it.intentos)||0) <= (Number(r.intentos)||0);
+}
+
 async function goCTLoginsFallidos(){
   if(!esCT()){ alert('Solo C&T puede ver este detalle.'); return; }
   // v2.9.62: marcar como vista → apaga el puntito rojo y deja de pushear hasta que haya nuevas
@@ -11577,21 +11618,34 @@ async function goCTLoginsFallidos(){
     try{ await cargarAlertasSeguridadCT(); }catch(e){}
   }
   const cache = _ctLoginsFallidosCache || { total: 0, items: [] };
-  resumen.innerHTML = `<b style="color:var(--gold-light);font-size:16px">${cache.total} intento(s) fallido(s)</b> de <b>${cache.items.length} CI distinto(s)</b> en los últimos 7 días.`;
-  if(!cache.items.length){
-    lista.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">✅ Sin intentos fallidos para mostrar.</div>';
+  const resueltos = _ctLfGetResueltos();
+  const todos    = [...cache.items].sort((a,b) => (b.intentos||0) - (a.intentos||0));
+  const ocultos  = todos.filter(it => _ctLfEstaResuelto(it, resueltos));
+  const visibles = todos.filter(it => !_ctLfEstaResuelto(it, resueltos));
+  // ⚠️ Si algún caso resuelto VUELVE a tener intentos nuevos, va a aparecer en "visibles"
+  // (porque _ctLfEstaResuelto compara intentos actuales vs los del momento de resolver).
+  const reaparecidos = todos.filter(it => {
+    const r = resueltos[it.ci];
+    return r && (Number(it.intentos)||0) > (Number(r.intentos)||0);
+  });
+
+  resumen.innerHTML = `<b style="color:var(--gold-light);font-size:16px">${cache.total} intento(s) fallido(s)</b> de <b>${cache.items.length} CI distinto(s)</b> en los últimos 7 días.`
+    + (ocultos.length ? `<div style="margin-top:8px;font-size:13px;color:#4ca36b">✅ ${ocultos.length} marcado(s) como resuelto(s) · <a onclick="ctLfRestaurarTodos()" style="color:#6ab0ff;cursor:pointer;text-decoration:underline">mostrar todos</a></div>` : '')
+    + (reaparecidos.length ? `<div style="margin-top:6px;font-size:13px;color:#e88a8a"><b>⚠️ ${reaparecidos.length} caso(s) que ya habías resuelto tienen NUEVOS intentos.</b> Revisalos abajo.</div>` : '');
+
+  if(!visibles.length){
+    lista.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">✅ Todos los casos están resueltos.' + (ocultos.length?' <a onclick="ctLfRestaurarTodos()" style="color:#6ab0ff;cursor:pointer;text-decoration:underline">Mostrar los '+ocultos.length+' resueltos</a>':'') + '</div>';
     showScreen('screen-ct-logins-fallidos');
     return;
   }
-  // Ordenar por cantidad de intentos descendente
-  const items = [...cache.items].sort((a,b) => (b.intentos||0) - (a.intentos||0));
-  lista.innerHTML = items.map(it => {
+  lista.innerHTML = visibles.map(it => {
     const esCur = it.tabla === 'cursantes';
     const esProf = it.tabla === 'profesores';
     const desconocido = !it.tabla;
     const icono = desconocido ? '❓' : (esCur ? '🎓' : '👨‍🏫');
     const tipoLbl = desconocido ? 'CI NO REGISTRADO' : (esCur ? 'Cursante' : 'Profesor / Docente');
     const colorBorde = desconocido ? '#c84a4a' : (esCur ? '#4a90d9' : '#d4af37');
+    const reAparecio = reaparecidos.some(r => r.ci === it.ci);
     const nombreLine = it.nombre
       ? `<div style="font-size:15px;font-weight:700;color:var(--text-primary);margin-bottom:3px">${escapeHtml(it.grado||'')} ${escapeHtml(it.nombre)}</div>`
       : `<div style="font-size:14px;font-style:italic;color:#ffb3b3;margin-bottom:3px">⚠️ Este CI no corresponde a ningún usuario registrado (posible tipeo o ataque externo).</div>`;
@@ -11599,26 +11653,50 @@ async function goCTLoginsFallidos(){
     const activoLbl = it.activo === false
       ? '<span style="font-size:11px;color:#e88a8a;background:rgba(200,74,74,.15);padding:2px 6px;border-radius:4px;margin-left:6px">CUENTA INACTIVA</span>'
       : '';
-    const accionesBtns = desconocido
-      ? `<button class="btn-secondary" style="padding:6px 12px" onclick="navigator.clipboard?.writeText('${it.ci}').then(()=>alert('CI ${it.ci} copiado'))">📋 Copiar CI</button>`
-      : `<button class="btn-secondary" style="padding:6px 12px;margin-right:6px" onclick="navigator.clipboard?.writeText('${it.ci}').then(()=>alert('CI ${it.ci} copiado'))">📋 Copiar CI</button>
-         ${esCur ? `<button class="btn-primary" style="padding:6px 12px" onclick="verFichaCursante('${it.id}','ct-logins-fallidos')">👤 Ir a su ficha</button>` : `<button class="btn-primary" style="padding:6px 12px" onclick="goGestionarProfesores()">👤 Ver en profesores</button>`}`;
-    return `<div class="list-item" style="border-color:${colorBorde};border-width:1px;padding:14px 12px;margin-bottom:10px">
+    const reLbl = reAparecio ? '<span style="font-size:11px;color:#ffb04a;background:rgba(255,176,74,.18);padding:2px 6px;border-radius:4px;margin-left:6px">⚠️ NUEVOS INTENTOS</span>' : '';
+    const nombreEsc = (it.nombre||'').replace(/'/g,"\\'").slice(0,80);
+    const btnCopiar = `<button class="btn-secondary" style="padding:6px 12px;margin-right:6px;margin-bottom:6px" onclick="navigator.clipboard?.writeText('${it.ci}').then(()=>alert('CI ${it.ci} copiado'))">📋 Copiar CI</button>`;
+    const btnFicha  = esCur ? `<button class="btn-primary" style="padding:6px 12px;margin-right:6px;margin-bottom:6px" onclick="verFichaCursante('${it.id}','ct-logins-fallidos')">👤 Ir a su ficha</button>`
+                    : (esProf ? `<button class="btn-primary" style="padding:6px 12px;margin-right:6px;margin-bottom:6px" onclick="goGestionarProfesores()">👤 Ver en profesores</button>` : '');
+    const btnResolver = `<button class="btn-secondary" style="padding:6px 12px;margin-bottom:6px;background:rgba(76,163,107,.15);border-color:#4ca36b;color:#4ca36b" onclick="ctLfMarcarResuelto('${it.ci}',${it.intentos||0},'${nombreEsc}')">✓ Marcar como resuelto</button>`;
+    return `<div class="list-item" style="border-color:${colorBorde};border-width:1px;padding:14px 12px;margin-bottom:10px${reAparecio?';background:rgba(255,176,74,.06)':''}">
       <div style="display:flex;gap:12px;align-items:flex-start">
         <div style="font-size:32px;flex-shrink:0;line-height:1">${icono}</div>
         <div style="flex:1;min-width:0">
-          <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:${colorBorde};margin-bottom:4px;font-weight:700">${tipoLbl}${activoLbl}</div>
+          <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:${colorBorde};margin-bottom:4px;font-weight:700">${tipoLbl}${activoLbl}${reLbl}</div>
           ${nombreLine}
           ${detLine}
           <div style="font-size:13px;color:var(--text-secondary);margin-top:6px">
             <span style="background:rgba(255,255,255,.05);padding:3px 8px;border-radius:4px;font-family:monospace">CI ${it.ci}</span>
             <span style="margin-left:8px;color:#e88a8a;font-weight:700">${it.intentos} intento${it.intentos===1?'':'s'} fallido${it.intentos===1?'':'s'}</span>
           </div>
-          <div style="margin-top:10px">${accionesBtns}</div>
+          <div style="margin-top:10px">${btnCopiar}${btnFicha}${btnResolver}</div>
         </div>
       </div>
     </div>`;
   }).join('');
+
+  // Si hay ocultos, agregar listado expandible al final
+  if(ocultos.length){
+    lista.innerHTML += `
+      <div style="margin-top:20px;padding-top:16px;border-top:1px dashed var(--border-subtle)">
+        <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#4ca36b;margin-bottom:10px;font-weight:700">✅ Casos resueltos (${ocultos.length})</div>
+        ${ocultos.map(it => {
+          const nom = it.nombre || ('CI '+it.ci);
+          const r = resueltos[it.ci] || {};
+          const cuando = r.ts ? new Date(r.ts).toLocaleString('es-BO') : '';
+          return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:rgba(76,163,107,.05);border:1px solid rgba(76,163,107,.25);border-radius:6px;margin-bottom:6px">
+            <span style="font-size:18px;flex-shrink:0">✅</span>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;color:var(--text-primary)">${escapeHtml(nom)}</div>
+              <div style="font-size:11px;color:var(--text-muted)">CI ${it.ci} · resuelto con ${r.intentos||0} intentos${cuando?' · '+cuando:''}</div>
+            </div>
+            <button class="btn-secondary" style="padding:4px 10px;font-size:11px" onclick="ctLfRestaurar('${it.ci}')">↩️ Restaurar</button>
+          </div>`;
+        }).join('')}
+      </div>`;
+  }
+
   showScreen('screen-ct-logins-fallidos');
 }
 
