@@ -3226,7 +3226,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.54 · resumen horizontal</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.55 · informe membrete+fecha</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -9481,7 +9481,7 @@ function imprimirReporteIntegral(){
 
   // ── Disciplina: tabla de sanciones ──
   const sancRows = (d.sancs||[]).slice().sort((a,b)=>new Date(b.creado_en||0)-new Date(a.creado_en||0)).map(s=>{
-    const f = s.creado_en ? new Date(s.creado_en).toLocaleDateString('es-BO') : '—';
+    const f = s.creado_en ? _fechaMil(new Date(s.creado_en)) : '—';
     return `<tr><td>${esc(f)}</td><td>${esc(s.falta_categoria||'—')}</td><td>Art. ${esc(s.falta_articulo||'—')}</td><td>${esc(s.folio||s.id||'—')}</td><td style="text-align:right">−${esc(s.puntos_aplicados||0)}</td></tr>`;
   }).join('') || `<tr><td colspan="5" style="text-align:center;color:#666">Sin sanciones registradas.</td></tr>`;
 
@@ -9740,8 +9740,9 @@ function _runs(text, sz, bold){
   return out || `<w:r><w:rPr>${_ARIAL}<w:sz w:val="${sz}"/></w:rPr><w:t xml:space="preserve"></w:t></w:r>`;
 }
 function _pMembrete(text, underline, after){
-  // Igual al skill: centrado pero con sangría derecha 3264 → queda cargado a la izquierda. Negrilla.
-  return `<w:p><w:pPr>${after?`<w:spacing w:after="${after}"/>`:''}<w:ind w:right="3264"/><w:jc w:val="center"/></w:pPr>`
+  // Igual al skill: centrado con sangría derecha 3264 (cargado a la izquierda). Negrilla.
+  // Interlineado 0: sin espacio antes/después y línea sencilla (líneas del membrete pegadas).
+  return `<w:p><w:pPr><w:spacing w:before="0" w:after="${after||0}" w:line="240" w:lineRule="auto"/><w:ind w:right="3264"/><w:jc w:val="center"/></w:pPr>`
     + `<w:r><w:rPr>${_ARIAL}<w:b/><w:bCs/>${underline?'<w:u w:val="single"/>':''}<w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr><w:t xml:space="preserve">${_xmlEsc(text)}</w:t></w:r></w:p>`;
 }
 function _pTitulo(){
@@ -9793,7 +9794,7 @@ function _docxInformeParts(d){
   body.push(_pMembrete('FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES'));
   body.push(_pMembrete('ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO'));
   body.push(_pMembrete('“MARISCAL ANDRÉS DE SANTA CRUZ”'));
-  body.push(_pMembrete('BOLIVIA', true, 200));
+  body.push(_pMembrete('BOLIVIA', true, 0));
   body.push(_pTitulo());
   body.push(_pFila('Al', d.destinatario_nombre||''));
   if(d.destinatario_cargo) body.push(_pCargo(d.destinatario_cargo));
@@ -9937,7 +9938,7 @@ function generarInformeCursante(cursanteId){
   if(sancs.length){
     cuerpo.push(`A la fecha del presente, el citado Oficial Superior Cursante registra **${sancs.length} sanción(es)** que representan un total de **${perd} punto(s)** de demérito, manteniendo un puntaje disciplinario vigente de **${vigente} sobre 100**, lo que lo ubica en situación disciplinaria **${estTxt}**.`);
     const det = sancs.map((s,i)=>{
-      const f = s.creado_en ? new Date(s.creado_en).toLocaleDateString('es-BO') : '—';
+      const f = s.creado_en ? _fechaMil(new Date(s.creado_en)) : '—';
       const folio = s.folio ? ('Folio '+s.folio) : (s.id||'—');
       return `${i+1}) ${folio}, de fecha ${f}: ${(s.falta_categoria||'—')}, Art. ${s.falta_articulo||'—'}, ${obtenerDescripcionSancion(s)} (−${s.puntos_aplicados||0} pts)`;
     }).join('; ');
