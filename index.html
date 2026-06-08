@@ -3816,7 +3816,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.67 · portada imagen oficial con campos integrados</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.68 · blindaje firma sanciones (token estable + error real)</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -9911,6 +9911,19 @@ function verSancionDetalle(sancionId){
             const tokFinal = data.token_qr || tokenQR;
             const huellaActualizada = Object.assign({}, s.huella_forense || {}, { token_qr: tokFinal });
             s.huella_forense = huellaActualizada;
+            // v2.9.68: el servidor es la autoridad del token. Si ya tenía OTRO token
+            // (idempotencia), el enlace/QR mostrado con el token local quedó inválido →
+            // lo corregimos al token canónico para que el cursante SIEMPRE pueda firmar.
+            if(tokFinal !== tokenQR){
+              try{
+                const urlFix = urlFirmaCursante(s.id, tokFinal);
+                if(typeof generarQRRobusto==='function') generarQRRobusto(urlFix, 'disc-qr-container', 220);
+                const _bc = document.getElementById('disc-btn-copiar-firma');
+                const _be = document.getElementById('disc-btn-enviar-firma');
+                if(_bc) _bc.setAttribute('onclick', "copiarUrlFirma('"+escapeAttr(urlFix)+"')");
+                if(_be) _be.setAttribute('onclick', "compartirEnlaceFirma('"+escapeAttr(urlFix)+"','"+escapeAttr(s.cursante_nombre||'cursante')+"','"+escapeAttr(s.falta_articulo||'')+"')");
+              }catch(_){}
+            }
           }).catch(e=>console.warn('No se pudo persistir token_qr', e));
         }catch(e){ console.warn('No se pudo persistir token_qr', e); }
       }
@@ -9920,8 +9933,8 @@ function verSancionDetalle(sancionId){
         <div id="disc-qr-container" style="display:inline-block;margin:12px auto"></div>
         <div style="font-size:12px;color:var(--text-secondary);margin-top:8px">Muestra al cursante para que escanee y firme</div>
         <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px">
-          <button class="btn-primary" onclick="copiarUrlFirma('${escapeAttr(urlQR)}')" style="width:100%">📋 Copiar enlace de firma</button>
-          <button class="btn-secondary" onclick="compartirEnlaceFirma('${escapeAttr(urlQR)}','${escapeAttr(s.cursante_nombre||'cursante')}','${escapeAttr(s.falta_articulo||'')}')" style="width:100%">📤 Enviar enlace al cursante</button>
+          <button class="btn-primary" id="disc-btn-copiar-firma" onclick="copiarUrlFirma('${escapeAttr(urlQR)}')" style="width:100%">📋 Copiar enlace de firma</button>
+          <button class="btn-secondary" id="disc-btn-enviar-firma" onclick="compartirEnlaceFirma('${escapeAttr(urlQR)}','${escapeAttr(s.cursante_nombre||'cursante')}','${escapeAttr(s.falta_articulo||'')}')" style="width:100%">📤 Enviar enlace al cursante</button>
         </div>
       </div>`;
     }
@@ -13424,6 +13437,16 @@ function verDetalleSancion(sancionId){
           const tokFinal = data.token_qr || tokenQR;
           const huella = Object.assign({}, s.huella_forense || {}, { token_qr: tokFinal });
           s.huella_forense = huella;
+          // v2.9.68: si el servidor ya tenía OTRO token (idempotencia), corregir el
+          // enlace/QR mostrado al token canónico para que el cursante pueda firmar.
+          if(tokFinal !== tokenQR){
+            try{
+              const urlFix = urlFirmaCursante(s.id, tokFinal);
+              if(typeof generarQRRobusto==='function') generarQRRobusto(urlFix, 'det-qr-container', 220);
+              const _bc = document.getElementById('det-btn-copiar-firma');
+              if(_bc) _bc.setAttribute('onclick', "copiarUrlFirma('"+escapeAttr(urlFix)+"')");
+            }catch(_){}
+          }
         }).catch(e=>console.warn('No se pudo persistir token_qr', e));
       }catch(e){ console.warn('No se pudo persistir token_qr', e); }
     }
@@ -13434,7 +13457,7 @@ function verDetalleSancion(sancionId){
       <div class="qr-sub">Muestra al cursante para que escanee y firme</div>
       <div class="qr-folio">Folio ${s.folio||'—'}</div>
     </div>
-    <button class="btn-papeleta primary" onclick="copiarUrlFirma('${escapeAttr(urlQR)}')">📋 Copiar enlace de firma</button>`;
+    <button class="btn-papeleta primary" id="det-btn-copiar-firma" onclick="copiarUrlFirma('${escapeAttr(urlQR)}')">📋 Copiar enlace de firma</button>`;
   }
 
   // Cursante
@@ -14426,9 +14449,21 @@ async function confirmarYFirmarSancion(){
     };
 
     // 5. Insertar en Supabase (con auto-detección y reintento)
-    const insertRes = await insertarSancionSegura(sancion);
+    let insertRes = await insertarSancionSegura(sancion);
     if(safetyDisparado) return; // El safety ya manejó la UI; salimos silenciosos
     clearTimeout(safetyTimer);
+    if(insertRes.error){
+      // v2.9.68: ante error de red/timeout, el insert pudo COMPLETARSE en el servidor
+      // aunque la respuesta no llegó (caso señal débil). Verificamos por id determinista
+      // si la sanción YA se guardó, para no alarmar al profesor ni generar duplicados.
+      try{
+        const verif = await sb.from('v_sanciones').select('*').eq('id', sancion.id).limit(1);
+        if(verif && verif.data && verif.data.length > 0){
+          console.warn('[post-error] la sanción SÍ se había guardado, recuperando:', sancion.id);
+          insertRes = { data: verif.data, error: null, __recuperada: true };
+        }
+      }catch(_){}
+    }
     if(insertRes.error){
       // Backup en localStorage para no perder la firma
       guardarBackupSancion(sancion, insertRes.error);
@@ -14588,8 +14623,19 @@ async function insertarSancionSegura(sancionOriginal){
       const _tok = getTokenSesion();
       const insertPromise = sb.functions.invoke('sanciones-crear', {
         body: { token: _tok, sancion: working }
-      }).then(({data: r, error: e}) => {
-        if(e) return {data: null, error: e};
+      }).then(async ({data: r, error: e}) => {
+        if(e){
+          // v2.9.68: en vez del genérico "Edge Function returned a non-2xx status code",
+          // leer la causa REAL del cuerpo de la respuesta del servidor.
+          let realMsg = e.message || 'Error del servidor';
+          try{
+            if(e.context && typeof e.context.json === 'function'){
+              const b = await e.context.json();
+              if(b && b.error) realMsg = b.error;
+            }
+          }catch(_){}
+          return {data: null, error: {message: realMsg}};
+        }
         if(!r || !r.ok) return {data: null, error: {message: r?.error || 'Error EF sanciones-crear', details: r?.details, hint: r?.hint}};
         return {data: r.data, error: null};
       });
