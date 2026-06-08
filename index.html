@@ -3424,7 +3424,7 @@ input::placeholder, textarea::placeholder {
     width: min(96vw, 168vh) !important;
     max-width: 1500px !important;
     aspect-ratio: 2752 / 1536 !important;
-    background: url('login-portada.jpg') center center / 100% 100% no-repeat !important;
+    background: url('login-portada.webp') center center / 100% 100% no-repeat !important;
     border-radius: 14px !important;
     box-shadow:
       0 0 80px rgba(40,90,140,.22),
@@ -3452,20 +3452,21 @@ input::placeholder, textarea::placeholder {
     padding: 0 !important;
     display: block !important;
   }
-  /* La imagen ya dibuja las etiquetas: ocultar labels del form */
+  /* La imagen ya dibuja las etiquetas "CARNET DE IDENTIDAD"/"CONTRASEÑA":
+     ocultar labels Y placeholders del form para que NO haya texto redundante */
   #screen-home .home-v3-cards .field label {
     display: none !important;
   }
 
-  /* ── INPUT CARNET DE IDENTIDAD — sobre el display azul ── */
+  /* ── INPUT CARNET DE IDENTIDAD — alineado EXACTO al interior del display ── */
   #screen-home #universal-ci {
     position: absolute !important;
-    left: 43.4% !important;
-    width: 14.2% !important;
-    top: 72.4% !important;
-    height: 5.6% !important;
+    left: 42.4% !important;
+    width: 15.6% !important;
+    top: 72.7% !important;
+    height: 4.6% !important;
     margin: 0 !important;
-    padding: 0 0.4% !important;
+    padding: 0 !important;
     background: transparent !important;
     border: none !important;
     border-radius: 0 !important;
@@ -3474,31 +3475,33 @@ input::placeholder, textarea::placeholder {
     text-align: center !important;
     font-family: 'Orbitron', var(--font-display), monospace !important;
     font-weight: 700 !important;
-    font-size: clamp(14px, 2.4vw, 34px) !important;
-    letter-spacing: 0.12em !important;
-    color: #7fe9ff !important;
+    font-size: clamp(15px, 2.45vw, 33px) !important;
+    line-height: 1 !important;
+    letter-spacing: 0.16em !important;
+    color: #9cf3ff !important;
     text-shadow:
-      0 0 8px rgba(90,210,255,.9),
-      0 0 18px rgba(60,170,230,.6) !important;
-    caret-color: #7fe9ff !important;
+      0 0 8px rgba(150,235,255,1),
+      0 0 18px rgba(90,200,250,.95),
+      0 0 32px rgba(60,165,235,.7),
+      0 0 50px rgba(50,140,220,.5) !important;
+    caret-color: #9cf3ff !important;
     z-index: 5 !important;
   }
+  /* placeholder invisible (la etiqueta ya está en la imagen) */
   #screen-home #universal-ci::placeholder {
-    color: rgba(127,233,255,.30) !important;
+    color: transparent !important;
     text-shadow: none !important;
-    font-size: clamp(10px, 1.3vw, 18px) !important;
-    letter-spacing: 2px !important;
   }
 
-  /* ── INPUT CONTRASEÑA — sobre el display de los círculos ── */
+  /* ── INPUT CONTRASEÑA — alineado EXACTO al interior del display ── */
   #screen-home #universal-pwd {
     position: absolute !important;
-    left: 43.4% !important;
-    width: 14.2% !important;
-    top: 82.0% !important;
-    height: 5.6% !important;
+    left: 42.4% !important;
+    width: 15.6% !important;
+    top: 82.7% !important;
+    height: 4.4% !important;
     margin: 0 !important;
-    padding: 0 0.4% !important;
+    padding: 0 !important;
     background: transparent !important;
     border: none !important;
     border-radius: 0 !important;
@@ -3507,31 +3510,33 @@ input::placeholder, textarea::placeholder {
     text-align: center !important;
     font-family: 'Orbitron', var(--font-display), monospace !important;
     font-weight: 700 !important;
-    font-size: clamp(16px, 2.6vw, 38px) !important;
-    letter-spacing: 0.34em !important;
-    color: #8fe6ff !important;
-    text-shadow: 0 0 10px rgba(90,210,255,.85) !important;
-    caret-color: #7fe9ff !important;
+    font-size: clamp(16px, 2.6vw, 35px) !important;
+    line-height: 1 !important;
+    letter-spacing: 0.28em !important;
+    color: #9cf3ff !important;
+    text-shadow:
+      0 0 8px rgba(150,235,255,1),
+      0 0 18px rgba(90,200,250,.9) !important;
+    caret-color: #9cf3ff !important;
     z-index: 5 !important;
   }
   #screen-home #universal-pwd::placeholder {
-    color: rgba(127,233,255,.22) !important;
+    color: transparent !important;
     text-shadow: none !important;
-    letter-spacing: 0.34em !important;
   }
 
   /* ── BOTÓN INGRESAR — zona clickable transparente sobre el botón dibujado ── */
   #screen-home #btn-login-universal {
     position: absolute !important;
-    left: 42.6% !important;
-    width: 15.8% !important;
-    top: 88.8% !important;
-    height: 7.0% !important;
+    left: 42.5% !important;
+    width: 14.5% !important;
+    top: 88.3% !important;
+    height: 5.0% !important;
     margin: 0 !important;
     padding: 0 !important;
     background: transparent !important;
     border: 1px solid transparent !important;
-    border-radius: 8px !important;
+    border-radius: 7px !important;
     box-shadow: none !important;
     color: transparent !important;
     font-size: 0 !important;
@@ -3540,11 +3545,11 @@ input::placeholder, textarea::placeholder {
     transition: background .15s, box-shadow .15s !important;
   }
   #screen-home #btn-login-universal:hover {
-    background: rgba(120,200,255,.10) !important;
-    box-shadow: 0 0 26px rgba(120,200,255,.35) inset !important;
+    background: rgba(130,205,255,.12) !important;
+    box-shadow: 0 0 30px rgba(130,205,255,.4) inset !important;
   }
   #screen-home #btn-login-universal:active {
-    background: rgba(120,200,255,.18) !important;
+    background: rgba(130,205,255,.20) !important;
   }
 
   /* Mensaje de error: flotante sobre la imagen, arriba */
