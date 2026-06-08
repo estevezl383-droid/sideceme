@@ -3225,145 +3225,140 @@ input::placeholder, textarea::placeholder {
 .acad-mat.open .acad-mat-arrow{transform:rotate(90deg);}
 
 /* ═══════════════════════════════════════════════════════════════════
-   SIDECEME v2.9.64 — MODO ESCRITORIO
-   Pantallas ≥ 1024px: sidebar izquierdo, contenedores anchos.
-   Todo lo de abajo es ADITIVO — no borra ni rompe el modo móvil.
+   SIDECEME v2.9.66 — MODO ESCRITORIO
+   Pantallas ≥ 1024px: sidebar, login de impacto, pantallas anchas.
+   ADITIVO — no toca lógica JS, Supabase ni CSS móvil existente.
    ═══════════════════════════════════════════════════════════════════ */
 @media (min-width: 1024px) {
 
-  /* ── 1. SIDEBAR: bottom-nav reposicionado como barra lateral ── */
+  /* ══════════════════════════════════════════════════════
+     1. SIDEBAR — bottom-nav reposicionado a la izquierda
+     ══════════════════════════════════════════════════════ */
   .bottom-nav,
   .cursante-bottom-nav {
     position: fixed !important;
     top: 0 !important; left: 0 !important;
     bottom: 0 !important; right: auto !important;
-    width: 240px !important;
+    width: 248px !important;
     height: 100vh !important;
-    /* Orientación vertical */
     flex-direction: column !important;
     justify-content: flex-start !important;
     align-items: stretch !important;
-    padding: 0 0 24px !important;
-    gap: 1px !important;
-    /* Fondo azul marino profundo */
+    padding: 0 0 28px !important;
+    gap: 2px !important;
     background: linear-gradient(
       180deg,
-      #0b1928 0%,
-      #07101e 55%,
-      #050b16 100%
+      #0c1b30 0%,
+      #08111f 50%,
+      #050c17 100%
     ) !important;
     border-top: none !important;
-    border-right: 1px solid rgba(212,175,55,.4) !important;
-    box-shadow:
-      5px 0 28px rgba(0,0,0,.65),
-      inset -1px 0 0 rgba(212,175,55,.1) !important;
-    backdrop-filter: blur(24px) saturate(1.3) !important;
+    border-right: 1px solid rgba(212,175,55,.38) !important;
+    box-shadow: 6px 0 32px rgba(0,0,0,.7), inset -1px 0 0 rgba(212,175,55,.08) !important;
+    backdrop-filter: blur(20px) !important;
     overflow-y: auto !important;
     overflow-x: hidden !important;
     z-index: 200 !important;
     scrollbar-width: thin;
-    scrollbar-color: rgba(212,175,55,.25) transparent;
+    scrollbar-color: rgba(212,175,55,.2) transparent;
   }
 
-  /* Cabecera del sidebar: escudo + nombre */
+  /* Cabecera sidebar: escudo grande + SIDECEME */
   .bottom-nav::before,
   .cursante-bottom-nav::before {
     content: 'SIDECEME';
     display: block;
     font-family: var(--font-display);
-    font-size: 11.5px;
+    font-size: 13px;
     font-weight: 700;
-    letter-spacing: 5.5px;
+    letter-spacing: 6px;
     color: var(--gold-light);
     text-align: center;
-    /* Escudo como imagen de fondo + gradiente dorado suave */
     background:
-      url('assets/icon-sideceme.png') center 22px / 60px 60px no-repeat,
-      linear-gradient(180deg, rgba(212,175,55,.16) 0%, rgba(212,175,55,.03) 70%, transparent 100%);
-    padding: 102px 12px 18px;
-    border-bottom: 1px solid rgba(212,175,55,.28);
-    margin-bottom: 8px;
+      url('assets/icon-sideceme.png') center 24px / 76px 76px no-repeat,
+      linear-gradient(180deg, rgba(212,175,55,.18) 0%, rgba(212,175,55,.04) 70%, transparent 100%);
+    padding: 118px 12px 20px;
+    border-bottom: 1px solid rgba(212,175,55,.25);
+    margin-bottom: 10px;
     flex-shrink: 0;
-    text-shadow: 0 1px 8px rgba(0,0,0,.9), 0 0 20px rgba(212,175,55,.2);
+    text-shadow: 0 1px 10px rgba(0,0,0,.9), 0 0 24px rgba(212,175,55,.25);
     width: 100%;
   }
 
-  /* Footer del sidebar: lema */
+  /* Pie sidebar: lema institucional */
   .bottom-nav::after,
   .cursante-bottom-nav::after {
-    content: 'Ser antes que parecer';
+    content: '« Ser antes que parecer »';
     display: block;
     font-family: var(--font-display);
-    font-size: 8.5px;
+    font-size: 9px;
     font-style: italic;
-    letter-spacing: 1.5px;
-    color: rgba(212,175,55,.35);
+    letter-spacing: 1px;
+    color: rgba(212,175,55,.3);
     text-align: center;
-    padding: 14px 12px 0;
-    border-top: 1px solid rgba(212,175,55,.12);
+    padding: 16px 12px 0;
+    border-top: 1px solid rgba(212,175,55,.1);
     margin-top: auto;
     flex-shrink: 0;
   }
 
-  /* ── Ítems del sidebar: de columna a fila ─────────── */
+  /* Ítems del sidebar: horizontales, proporcionales */
   .bottom-nav .bottom-nav-item,
   .cursante-bottom-nav .bottom-nav-item {
     flex-direction: row !important;
     justify-content: flex-start !important;
     align-items: center !important;
-    padding: 10px 16px !important;
-    gap: 11px !important;
-    border-radius: 7px !important;
+    padding: 13px 20px !important;
+    gap: 14px !important;
+    border-radius: 8px !important;
     margin: 1px 8px !important;
     width: calc(100% - 16px) !important;
     min-height: 0 !important;
     text-align: left !important;
     border: 1px solid transparent !important;
     background: transparent !important;
-    color: rgba(180,170,150,.75) !important;
-    transition: background .14s, border-color .14s, color .14s, transform .12s !important;
+    color: rgba(190,178,155,.7) !important;
+    transition: background .15s, border-color .15s, color .15s, transform .12s !important;
     box-shadow: none !important;
     text-shadow: none !important;
   }
 
   .bottom-nav .bottom-nav-item:hover,
   .cursante-bottom-nav .bottom-nav-item:hover {
-    background: rgba(212,175,55,.1) !important;
-    border-color: rgba(212,175,55,.22) !important;
+    background: rgba(212,175,55,.09) !important;
+    border-color: rgba(212,175,55,.2) !important;
     color: var(--gold-light) !important;
-    transform: translateX(2px) !important;
+    transform: translateX(3px) !important;
   }
 
   .bottom-nav .bottom-nav-item.active,
   .cursante-bottom-nav .bottom-nav-item.active {
-    background: linear-gradient(
-      90deg,
-      rgba(212,175,55,.2) 0%,
-      rgba(212,175,55,.07) 100%
-    ) !important;
-    border-color: rgba(212,175,55,.38) !important;
+    background: linear-gradient(90deg, rgba(212,175,55,.18) 0%, rgba(212,175,55,.05) 100%) !important;
+    border-color: rgba(212,175,55,.32) !important;
     border-left: 3px solid var(--gold) !important;
-    padding-left: 13px !important;
+    padding-left: 17px !important;
     color: var(--gold-light) !important;
-    text-shadow: 0 0 12px rgba(212,175,55,.3) !important;
-    box-shadow: inset 0 1px 0 rgba(255,255,255,.06) !important;
+    text-shadow: 0 0 14px rgba(212,175,55,.35) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.05) !important;
     transform: none !important;
   }
 
+  /* Iconos — tamaño visible y proporcional */
   .bottom-nav .bottom-nav-item .nav-icon,
   .cursante-bottom-nav .bottom-nav-item .nav-icon {
-    font-size: 15px !important;
-    width: 19px !important;
+    font-size: 20px !important;
+    width: 24px !important;
     text-align: center !important;
     flex-shrink: 0 !important;
     opacity: 1 !important;
     transform: none !important;
   }
 
+  /* Etiquetas — legibles, no microscópicas */
   .bottom-nav .bottom-nav-item .nav-label,
   .cursante-bottom-nav .bottom-nav-item .nav-label {
-    font-size: 10.5px !important;
-    letter-spacing: 1.5px !important;
+    font-size: 13px !important;
+    letter-spacing: 1.8px !important;
     text-transform: uppercase !important;
     font-weight: 600 !important;
     text-align: left !important;
@@ -3372,66 +3367,256 @@ input::placeholder, textarea::placeholder {
     text-overflow: ellipsis !important;
   }
 
-  /* ── 2. CONTENIDO: corrimiento para dejar espacio al sidebar ── */
+  /* ══════════════════════════════════════════════════════
+     2. CONTENIDO — espacio para sidebar
+     ══════════════════════════════════════════════════════ */
   .with-bottom-nav {
     padding-bottom: 0 !important;
-    padding-left: 240px !important;
+    padding-left: 248px !important;
     min-height: 100vh;
   }
 
-  /* ── 3. APP HEADER en escritorio ─────────────────────────────── */
+  /* ══════════════════════════════════════════════════════
+     3. APP HEADER en paneles internos
+     ══════════════════════════════════════════════════════ */
   .app-header {
-    padding: 14px 48px !important;
+    padding: 14px 52px !important;
     position: sticky !important;
     top: 0 !important;
     z-index: 100 !important;
   }
 
-  .header-title { font-size: 20px !important; letter-spacing: 2.5px !important; }
+  .header-title { font-size: 21px !important; letter-spacing: 2.5px !important; }
 
-  /* ── 4. CONTENEDORES MÁS ANCHOS ──────────────────────────────── */
+  /* ══════════════════════════════════════════════════════
+     3.5 PORTADA (HOME) — ESCUDO SIDECEME PROTAGONISTA
+     Imagen oficial a la izquierda (ya trae todos los textos),
+     formulario de ingreso a la derecha. Explota el ancho.
+     ══════════════════════════════════════════════════════ */
+  #screen-home .home-v3-container {
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    justify-content: center !important;
+    align-items: center !important;
+    gap: 52px !important;
+    min-height: 100vh !important;
+    padding: 32px 56px !important;
+    max-width: 1480px !important;
+    margin: 0 auto !important;
+    background:
+      radial-gradient(ellipse 60% 70% at 32% 50%, rgba(30,55,90,.35) 0%, transparent 60%),
+      radial-gradient(ellipse at top, rgba(212,175,55,.06), transparent 55%),
+      linear-gradient(180deg, #0a0f1c 0%, #050a14 100%) !important;
+  }
+
+  /* La fila del escudo: contenedor de la imagen grande */
+  #screen-home .home-v3-crest-row {
+    margin: 0 !important;
+    max-width: none !important;
+    width: auto !important;
+    flex: 0 1 auto !important;
+  }
+
+  /* Reemplaza el escudo circular por la imagen oficial Gemini (rectangular) */
+  #screen-home .home-v3-main-icon {
+    content: url('login-fondo.png') !important;
+    width: auto !important;
+    height: 74vh !important;
+    max-height: 720px !important;
+    border-radius: 16px !important;
+    border: 1px solid rgba(212,175,55,.28) !important;
+    box-shadow:
+      0 0 70px rgba(212,175,55,.16),
+      0 24px 70px rgba(0,0,0,.75) !important;
+    filter: none !important;
+  }
+  #screen-home .home-v3-main-icon:hover { transform: scale(1.01) !important; }
+
+  /* La imagen ya contiene SIDECEME + lema + escuela: ocultar textos duplicados */
+  #screen-home .home-v3-title,
+  #screen-home .home-v3-institute,
+  #screen-home .home-v3-institute-sub,
+  #screen-home .home-v3-motto,
+  #screen-home .home-v3-divider {
+    display: none !important;
+  }
+
+  /* Formulario de ingreso a la derecha, en tarjeta */
+  #screen-home .home-v3-cards {
+    margin: 0 !important;
+    flex: 0 0 390px !important;
+    width: 390px !important;
+    max-width: 390px !important;
+  }
+  #screen-home .home-v3-cards .login-card {
+    background: rgba(8,16,32,.82) !important;
+    backdrop-filter: blur(28px) saturate(1.6) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(1.6) !important;
+    border: 1px solid rgba(212,175,55,.5) !important;
+    border-top: 2px solid rgba(212,175,55,.85) !important;
+    border-radius: 18px !important;
+    padding: 40px 36px !important;
+    box-shadow:
+      0 0 60px rgba(212,175,55,.12),
+      0 28px 70px rgba(0,0,0,.8) !important;
+  }
+
+  /* ══════════════════════════════════════════════════════
+     4. LOGIN CON ESCUDO A PANTALLA COMPLETA
+     ══════════════════════════════════════════════════════ */
+
+  /* LOGIN: fondo oscuro + escudo ECEME con fondo transparente */
+  #screen-login-docente,
+  #screen-login-cursante {
+    min-height: 100vh !important;
+    background: linear-gradient(160deg, #071220 0%, #04080f 50%, #020508 100%) !important;
+    position: relative !important;
+    overflow: hidden !important;
+  }
+
+  /* Escudo ECEME (PNG transparente) — grande, centrado, con halo dorado */
+  #screen-login-docente::before,
+  #screen-login-cursante::before {
+    content: '' !important;
+    position: absolute !important;
+    inset: 0 !important;
+    background: url('escudo-eceme.png') center 34% / 72vh 72vh no-repeat !important;
+    filter: drop-shadow(0 0 40px rgba(212,175,55,.45))
+            drop-shadow(0 0 100px rgba(212,175,55,.20)) !important;
+    z-index: 1 !important;
+  }
+
+  /* Degradado oscuro desde abajo para que la card sea legible */
+  #screen-login-docente::after,
+  #screen-login-cursante::after {
+    content: '' !important;
+    position: absolute !important;
+    inset: 0 !important;
+    background: linear-gradient(
+      to bottom,
+      rgba(4,8,16,.10) 0%,
+      rgba(4,8,16,.15) 45%,
+      rgba(4,8,16,.75) 68%,
+      rgba(4,8,16,.95) 100%
+    ) !important;
+    z-index: 2 !important;
+  }
+
+  /* Ocultar el mini-header en el login desktop */
+  #screen-login-docente .app-header,
+  #screen-login-cursante .app-header {
+    display: none !important;
+  }
+
+  /* Contenedor del formulario: card flotando abajo-centro, por encima de overlays */
+  #screen-login-docente .login-container,
+  #screen-login-cursante .login-container {
+    position: relative !important;
+    z-index: 10 !important;
+    display: flex !important;
+    align-items: flex-end !important;
+    justify-content: center !important;
+    min-height: 100vh !important;
+    padding: 0 0 48px 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+  }
+
+  /* Tarjeta glassmorphism: amplia, centrada, con brillo dorado */
+  #screen-login-docente .login-card,
+  #screen-login-cursante .login-card {
+    max-width: 520px !important;
+    width: 100% !important;
+    background: rgba(6,12,26,.80) !important;
+    backdrop-filter: blur(32px) saturate(1.8) !important;
+    -webkit-backdrop-filter: blur(32px) saturate(1.8) !important;
+    border: 1px solid rgba(212,175,55,.55) !important;
+    border-top: 2px solid rgba(212,175,55,.90) !important;
+    border-radius: 20px !important;
+    padding: 44px 48px !important;
+    box-shadow:
+      0 0 0 1px rgba(212,175,55,.15),
+      0 0 70px rgba(212,175,55,.14),
+      0 32px 80px rgba(0,0,0,.9),
+      inset 0 1px 0 rgba(255,255,255,.10) !important;
+  }
+
+  /* Etiqueta de cargo dentro del login card */
+  #screen-login-docente .login-target,
+  #screen-login-cursante .login-target {
+    font-size: 11px !important;
+    letter-spacing: 3px !important;
+    margin-bottom: 20px !important;
+    text-align: center !important;
+  }
+
+  /* ══════════════════════════════════════════════════════
+     5. PANTALLAS DE DETALLE — ancho completo tipo web
+     ══════════════════════════════════════════════════════ */
+  .ficha-container {
+    max-width: 100% !important;
+    width: 100% !important;
+    padding: 32px 72px !important;
+    margin: 0 !important;
+    box-sizing: border-box !important;
+  }
+
+  /* Sub-pantallas sin sidebar: usan todo el ancho */
+  #screen-sancion-detalle,
+  #screen-sancion-auditoria,
+  #screen-ficha-cursante,
+  #screen-reporte-integral,
+  #screen-generar-informe,
+  #screen-solicitar-anulacion,
+  #screen-gest-sanciones,
+  #screen-editar-sancion,
+  #screen-ct-logins-fallidos,
+  #screen-bloqueo-materias,
+  #screen-diagnostico,
+  #screen-estadisticas,
+  #screen-cursante-home {
+    min-height: 100vh !important;
+  }
+
+  /* ══════════════════════════════════════════════════════
+     6. CONTENEDORES PRINCIPALES MÁS ANCHOS
+     ══════════════════════════════════════════════════════ */
   .disc-container {
-    max-width: 1300px !important;
-    padding: 28px 52px !important;
+    max-width: 1320px !important;
+    padding: 28px 56px !important;
     margin: 0 auto !important;
   }
 
   .menu-container {
-    max-width: 1120px !important;
-    padding: 28px 52px !important;
+    max-width: 1160px !important;
+    padding: 28px 56px !important;
     margin: 0 auto !important;
   }
 
   .form-container {
-    max-width: 740px !important;
-    padding: 28px 52px 52px !important;
-  }
-
-  .ficha-container {
-    max-width: 980px !important;
-    padding: 28px 52px !important;
-    margin: 0 auto !important;
+    max-width: 760px !important;
+    padding: 28px 56px 56px !important;
   }
 
   .cursante-container {
-    max-width: 920px !important;
-    padding: 24px 52px 48px !important;
-    margin: 0 auto !important;
+    max-width: 100% !important;
+    padding: 24px 72px 48px !important;
+    margin: 0 !important;
   }
 
-  /* ── 5. GRIDS EN ESCRITORIO ──────────────────────────────────── */
+  /* ══════════════════════════════════════════════════════
+     7. GRIDS EN ESCRITORIO
+     ══════════════════════════════════════════════════════ */
   .stats-grid {
     grid-template-columns: repeat(3, 1fr) !important;
     gap: 20px !important;
     margin-bottom: 24px !important;
   }
 
-  .stat-card {
-    padding: 24px 20px !important;
-  }
+  .stat-card { padding: 26px 22px !important; }
 
   .stat-card .stat-num {
-    font-size: 46px !important;
+    font-size: 48px !important;
     margin-bottom: 10px !important;
   }
 
@@ -3446,58 +3631,49 @@ input::placeholder, textarea::placeholder {
     gap: 14px !important;
   }
 
-  /* ── 6. HOME PRE-LOGIN en escritorio (centrado, más espacioso) ─ */
+  /* ══════════════════════════════════════════════════════
+     8. HOME PRE-LOGIN — más espacioso en escritorio
+     ══════════════════════════════════════════════════════ */
   .home-container {
-    max-width: 1100px !important;
+    max-width: 1120px !important;
     margin: 0 auto !important;
     padding: 64px 80px !important;
   }
 
   .access-cards {
-    max-width: 880px !important;
+    max-width: 900px !important;
     grid-template-columns: repeat(2, minmax(280px,1fr)) !important;
     gap: 28px !important;
   }
 
-  .access-card {
-    padding: 44px 36px !important;
-  }
+  .access-card { padding: 48px 40px !important; }
 
   .home-title {
-    font-size: clamp(44px, 5vw, 72px) !important;
+    font-size: clamp(46px, 5vw, 74px) !important;
     letter-spacing: 8px !important;
   }
 
   .crest-large {
-    width: 110px !important;
-    height: 110px !important;
-    margin-bottom: 28px !important;
+    width: 120px !important;
+    height: 120px !important;
+    margin-bottom: 30px !important;
   }
 
-  /* ── 7. LOGIN en escritorio ──────────────────────────────────── */
-  .login-card {
-    max-width: 480px !important;
-  }
-
-  /* ── 8. MISCELÁNEOS ──────────────────────────────────────────── */
-  .btn-mega {
-    max-width: 640px !important;
-  }
+  /* ══════════════════════════════════════════════════════
+     9. MISCELÁNEOS
+     ══════════════════════════════════════════════════════ */
+  .btn-mega { max-width: 660px !important; }
 
   .section-label {
-    font-size: 11px !important;
+    font-size: 11.5px !important;
     margin: 24px 4px 14px !important;
   }
 
-  .actividad-feed {
-    max-height: none !important;
-  }
+  .actividad-feed { max-height: none !important; }
 
-  .search-bar {
-    max-width: 580px !important;
-  }
+  .search-bar { max-width: 600px !important; }
 
-  /* Marcador de versión: arriba a la derecha para no tapar contenido */
+  /* Marcador versión: esquina superior derecha */
   #version-marker {
     bottom: auto !important;
     top: 6px !important;
@@ -3511,7 +3687,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.64 · modo escritorio con sidebar</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.66 · login escudo ECEME centrado + sidebar + detalle ancho</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
