@@ -3424,7 +3424,7 @@ input::placeholder, textarea::placeholder {
     width: min(96vw, 168vh) !important;
     max-width: 1500px !important;
     aspect-ratio: 2752 / 1536 !important;
-    background: url('login-portada.webp') center center / 100% 100% no-repeat !important;
+    background: url('login-portada-v3.webp') center center / 100% 100% no-repeat !important;
     border-radius: 14px !important;
     box-shadow:
       0 0 80px rgba(40,90,140,.22),
@@ -3528,28 +3528,28 @@ input::placeholder, textarea::placeholder {
   /* ── BOTÓN INGRESAR — zona clickable transparente sobre el botón dibujado ── */
   #screen-home #btn-login-universal {
     position: absolute !important;
-    left: 42.5% !important;
-    width: 14.5% !important;
+    left: 42.0% !important;
+    width: 15.4% !important;
     top: 88.3% !important;
     height: 5.0% !important;
     margin: 0 !important;
     padding: 0 !important;
     background: transparent !important;
-    border: 1px solid transparent !important;
-    border-radius: 7px !important;
+    border: none !important;
+    border-radius: 9px !important;
     box-shadow: none !important;
     color: transparent !important;
     font-size: 0 !important;
     cursor: pointer !important;
     z-index: 5 !important;
-    transition: background .15s, box-shadow .15s !important;
+    transition: box-shadow .15s !important;
   }
   #screen-home #btn-login-universal:hover {
-    background: rgba(130,205,255,.12) !important;
-    box-shadow: 0 0 30px rgba(130,205,255,.4) inset !important;
+    background: transparent !important;
+    box-shadow: 0 0 24px rgba(140,210,255,.30) inset !important;
   }
   #screen-home #btn-login-universal:active {
-    background: rgba(130,205,255,.20) !important;
+    box-shadow: 0 0 34px rgba(140,210,255,.45) inset !important;
   }
 
   /* Mensaje de error: flotante sobre la imagen, arriba */
