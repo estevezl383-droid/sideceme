@@ -3389,50 +3389,25 @@ input::placeholder, textarea::placeholder {
   .header-title { font-size: 21px !important; letter-spacing: 2.5px !important; }
 
   /* ══════════════════════════════════════════════════════
-     3.5 PORTADA (HOME) — ESCUDO SIDECEME PROTAGONISTA
-     Imagen oficial a la izquierda (ya trae todos los textos),
-     formulario de ingreso a la derecha. Explota el ancho.
+     3.5 PORTADA (HOME) — IMAGEN OFICIAL CON CAMPOS INTEGRADOS
+     La imagen "login-portada.jpg" (2752×1536, 16:9) es el lienzo.
+     Los inputs REALES (#universal-ci/pwd, #btn-login-universal)
+     se reposicionan ENCIMA de los displays dibujados.
+     NO se toca la lógica (loginUniversal sigue intacto).
      ══════════════════════════════════════════════════════ */
   #screen-home .home-v3-container {
-    flex-direction: row !important;
-    flex-wrap: nowrap !important;
+    flex-direction: column !important;
     justify-content: center !important;
     align-items: center !important;
-    gap: 52px !important;
     min-height: 100vh !important;
-    padding: 32px 56px !important;
-    max-width: 1480px !important;
-    margin: 0 auto !important;
-    background:
-      radial-gradient(ellipse 60% 70% at 32% 50%, rgba(30,55,90,.35) 0%, transparent 60%),
-      radial-gradient(ellipse at top, rgba(212,175,55,.06), transparent 55%),
-      linear-gradient(180deg, #0a0f1c 0%, #050a14 100%) !important;
-  }
-
-  /* La fila del escudo: contenedor de la imagen grande */
-  #screen-home .home-v3-crest-row {
+    padding: 0 !important;
     margin: 0 !important;
     max-width: none !important;
-    width: auto !important;
-    flex: 0 1 auto !important;
+    background: #04070e !important;
   }
 
-  /* Reemplaza el escudo circular por la imagen oficial Gemini (rectangular) */
-  #screen-home .home-v3-main-icon {
-    content: url('login-fondo.png') !important;
-    width: auto !important;
-    height: 74vh !important;
-    max-height: 720px !important;
-    border-radius: 16px !important;
-    border: 1px solid rgba(212,175,55,.28) !important;
-    box-shadow:
-      0 0 70px rgba(212,175,55,.16),
-      0 24px 70px rgba(0,0,0,.75) !important;
-    filter: none !important;
-  }
-  #screen-home .home-v3-main-icon:hover { transform: scale(1.01) !important; }
-
-  /* La imagen ya contiene SIDECEME + lema + escuela: ocultar textos duplicados */
+  /* Ocultar todo lo que la imagen ya trae (escudo, textos, lema) */
+  #screen-home .home-v3-crest-row,
   #screen-home .home-v3-title,
   #screen-home .home-v3-institute,
   #screen-home .home-v3-institute-sub,
@@ -3441,24 +3416,173 @@ input::placeholder, textarea::placeholder {
     display: none !important;
   }
 
-  /* Formulario de ingreso a la derecha, en tarjeta */
+  /* El LIENZO: la imagen oficial con su aspect-ratio exacto */
   #screen-home .home-v3-cards {
-    margin: 0 !important;
-    flex: 0 0 390px !important;
-    width: 390px !important;
-    max-width: 390px !important;
-  }
-  #screen-home .home-v3-cards .login-card {
-    background: rgba(8,16,32,.82) !important;
-    backdrop-filter: blur(28px) saturate(1.6) !important;
-    -webkit-backdrop-filter: blur(28px) saturate(1.6) !important;
-    border: 1px solid rgba(212,175,55,.5) !important;
-    border-top: 2px solid rgba(212,175,55,.85) !important;
-    border-radius: 18px !important;
-    padding: 40px 36px !important;
+    position: relative !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+    width: min(96vw, 168vh) !important;
+    max-width: 1500px !important;
+    aspect-ratio: 2752 / 1536 !important;
+    background: url('login-portada.jpg') center center / 100% 100% no-repeat !important;
+    border-radius: 14px !important;
     box-shadow:
-      0 0 60px rgba(212,175,55,.12),
-      0 28px 70px rgba(0,0,0,.8) !important;
+      0 0 80px rgba(40,90,140,.22),
+      0 30px 90px rgba(0,0,0,.8) !important;
+    display: block !important;
+    overflow: hidden !important;
+  }
+
+  /* El card interno se vuelve transparente y NO captura el posicionamiento */
+  #screen-home .home-v3-cards .login-card {
+    position: static !important;
+    background: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  #screen-home .home-v3-cards form,
+  #screen-home .home-v3-cards .field {
+    position: static !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    display: block !important;
+  }
+  /* La imagen ya dibuja las etiquetas: ocultar labels del form */
+  #screen-home .home-v3-cards .field label {
+    display: none !important;
+  }
+
+  /* ── INPUT CARNET DE IDENTIDAD — sobre el display azul ── */
+  #screen-home #universal-ci {
+    position: absolute !important;
+    left: 43.4% !important;
+    width: 14.2% !important;
+    top: 72.4% !important;
+    height: 5.6% !important;
+    margin: 0 !important;
+    padding: 0 0.4% !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+    text-align: center !important;
+    font-family: 'Orbitron', var(--font-display), monospace !important;
+    font-weight: 700 !important;
+    font-size: clamp(14px, 2.4vw, 34px) !important;
+    letter-spacing: 0.12em !important;
+    color: #7fe9ff !important;
+    text-shadow:
+      0 0 8px rgba(90,210,255,.9),
+      0 0 18px rgba(60,170,230,.6) !important;
+    caret-color: #7fe9ff !important;
+    z-index: 5 !important;
+  }
+  #screen-home #universal-ci::placeholder {
+    color: rgba(127,233,255,.30) !important;
+    text-shadow: none !important;
+    font-size: clamp(10px, 1.3vw, 18px) !important;
+    letter-spacing: 2px !important;
+  }
+
+  /* ── INPUT CONTRASEÑA — sobre el display de los círculos ── */
+  #screen-home #universal-pwd {
+    position: absolute !important;
+    left: 43.4% !important;
+    width: 14.2% !important;
+    top: 82.0% !important;
+    height: 5.6% !important;
+    margin: 0 !important;
+    padding: 0 0.4% !important;
+    background: transparent !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+    text-align: center !important;
+    font-family: 'Orbitron', var(--font-display), monospace !important;
+    font-weight: 700 !important;
+    font-size: clamp(16px, 2.6vw, 38px) !important;
+    letter-spacing: 0.34em !important;
+    color: #8fe6ff !important;
+    text-shadow: 0 0 10px rgba(90,210,255,.85) !important;
+    caret-color: #7fe9ff !important;
+    z-index: 5 !important;
+  }
+  #screen-home #universal-pwd::placeholder {
+    color: rgba(127,233,255,.22) !important;
+    text-shadow: none !important;
+    letter-spacing: 0.34em !important;
+  }
+
+  /* ── BOTÓN INGRESAR — zona clickable transparente sobre el botón dibujado ── */
+  #screen-home #btn-login-universal {
+    position: absolute !important;
+    left: 42.6% !important;
+    width: 15.8% !important;
+    top: 88.8% !important;
+    height: 7.0% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    border-radius: 8px !important;
+    box-shadow: none !important;
+    color: transparent !important;
+    font-size: 0 !important;
+    cursor: pointer !important;
+    z-index: 5 !important;
+    transition: background .15s, box-shadow .15s !important;
+  }
+  #screen-home #btn-login-universal:hover {
+    background: rgba(120,200,255,.10) !important;
+    box-shadow: 0 0 26px rgba(120,200,255,.35) inset !important;
+  }
+  #screen-home #btn-login-universal:active {
+    background: rgba(120,200,255,.18) !important;
+  }
+
+  /* Mensaje de error: flotante sobre la imagen, arriba */
+  #screen-home #err-universal {
+    position: absolute !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    top: 3% !important;
+    width: auto !important;
+    max-width: 70% !important;
+    margin: 0 !important;
+    z-index: 8 !important;
+    background: rgba(120,20,20,.92) !important;
+    border: 1px solid #ff6b6b !important;
+    border-radius: 8px !important;
+    padding: 8px 18px !important;
+    box-shadow: 0 8px 30px rgba(0,0,0,.6) !important;
+  }
+
+  /* Botón biometría: flotante esquina inferior */
+  #screen-home #btn-bio-universal {
+    position: absolute !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    bottom: 1.5% !important;
+    width: auto !important;
+    margin: 0 !important;
+    z-index: 8 !important;
+  }
+
+  /* "Ingreso clásico por cargo": flotante en esquina inferior derecha */
+  #screen-home .home-v3-cards > div:last-child {
+    position: absolute !important;
+    right: 2.5% !important;
+    bottom: 2% !important;
+    margin: 0 !important;
+    z-index: 8 !important;
+    text-align: right !important;
   }
 
   /* ══════════════════════════════════════════════════════
@@ -3687,7 +3811,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.66 · login escudo ECEME centrado + sidebar + detalle ancho</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.67 · portada imagen oficial con campos integrados</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
