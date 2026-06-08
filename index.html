@@ -3223,12 +3223,295 @@ input::placeholder, textarea::placeholder {
 .acad-mat.open .acad-mat-body{display:block;}
 .acad-mat-arrow{flex-shrink:0;color:#d4af37;font-size:11px;transition:transform .2s;}
 .acad-mat.open .acad-mat-arrow{transform:rotate(90deg);}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SIDECEME v2.9.64 — MODO ESCRITORIO
+   Pantallas ≥ 1024px: sidebar izquierdo, contenedores anchos.
+   Todo lo de abajo es ADITIVO — no borra ni rompe el modo móvil.
+   ═══════════════════════════════════════════════════════════════════ */
+@media (min-width: 1024px) {
+
+  /* ── 1. SIDEBAR: bottom-nav reposicionado como barra lateral ── */
+  .bottom-nav,
+  .cursante-bottom-nav {
+    position: fixed !important;
+    top: 0 !important; left: 0 !important;
+    bottom: 0 !important; right: auto !important;
+    width: 240px !important;
+    height: 100vh !important;
+    /* Orientación vertical */
+    flex-direction: column !important;
+    justify-content: flex-start !important;
+    align-items: stretch !important;
+    padding: 0 0 24px !important;
+    gap: 1px !important;
+    /* Fondo azul marino profundo */
+    background: linear-gradient(
+      180deg,
+      #0b1928 0%,
+      #07101e 55%,
+      #050b16 100%
+    ) !important;
+    border-top: none !important;
+    border-right: 1px solid rgba(212,175,55,.4) !important;
+    box-shadow:
+      5px 0 28px rgba(0,0,0,.65),
+      inset -1px 0 0 rgba(212,175,55,.1) !important;
+    backdrop-filter: blur(24px) saturate(1.3) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    z-index: 200 !important;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(212,175,55,.25) transparent;
+  }
+
+  /* Cabecera del sidebar: escudo + nombre */
+  .bottom-nav::before,
+  .cursante-bottom-nav::before {
+    content: 'SIDECEME';
+    display: block;
+    font-family: var(--font-display);
+    font-size: 11.5px;
+    font-weight: 700;
+    letter-spacing: 5.5px;
+    color: var(--gold-light);
+    text-align: center;
+    /* Escudo como imagen de fondo + gradiente dorado suave */
+    background:
+      url('assets/icon-sideceme.png') center 22px / 60px 60px no-repeat,
+      linear-gradient(180deg, rgba(212,175,55,.16) 0%, rgba(212,175,55,.03) 70%, transparent 100%);
+    padding: 102px 12px 18px;
+    border-bottom: 1px solid rgba(212,175,55,.28);
+    margin-bottom: 8px;
+    flex-shrink: 0;
+    text-shadow: 0 1px 8px rgba(0,0,0,.9), 0 0 20px rgba(212,175,55,.2);
+    width: 100%;
+  }
+
+  /* Footer del sidebar: lema */
+  .bottom-nav::after,
+  .cursante-bottom-nav::after {
+    content: 'Ser antes que parecer';
+    display: block;
+    font-family: var(--font-display);
+    font-size: 8.5px;
+    font-style: italic;
+    letter-spacing: 1.5px;
+    color: rgba(212,175,55,.35);
+    text-align: center;
+    padding: 14px 12px 0;
+    border-top: 1px solid rgba(212,175,55,.12);
+    margin-top: auto;
+    flex-shrink: 0;
+  }
+
+  /* ── Ítems del sidebar: de columna a fila ─────────── */
+  .bottom-nav .bottom-nav-item,
+  .cursante-bottom-nav .bottom-nav-item {
+    flex-direction: row !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    padding: 10px 16px !important;
+    gap: 11px !important;
+    border-radius: 7px !important;
+    margin: 1px 8px !important;
+    width: calc(100% - 16px) !important;
+    min-height: 0 !important;
+    text-align: left !important;
+    border: 1px solid transparent !important;
+    background: transparent !important;
+    color: rgba(180,170,150,.75) !important;
+    transition: background .14s, border-color .14s, color .14s, transform .12s !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  .bottom-nav .bottom-nav-item:hover,
+  .cursante-bottom-nav .bottom-nav-item:hover {
+    background: rgba(212,175,55,.1) !important;
+    border-color: rgba(212,175,55,.22) !important;
+    color: var(--gold-light) !important;
+    transform: translateX(2px) !important;
+  }
+
+  .bottom-nav .bottom-nav-item.active,
+  .cursante-bottom-nav .bottom-nav-item.active {
+    background: linear-gradient(
+      90deg,
+      rgba(212,175,55,.2) 0%,
+      rgba(212,175,55,.07) 100%
+    ) !important;
+    border-color: rgba(212,175,55,.38) !important;
+    border-left: 3px solid var(--gold) !important;
+    padding-left: 13px !important;
+    color: var(--gold-light) !important;
+    text-shadow: 0 0 12px rgba(212,175,55,.3) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.06) !important;
+    transform: none !important;
+  }
+
+  .bottom-nav .bottom-nav-item .nav-icon,
+  .cursante-bottom-nav .bottom-nav-item .nav-icon {
+    font-size: 15px !important;
+    width: 19px !important;
+    text-align: center !important;
+    flex-shrink: 0 !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .bottom-nav .bottom-nav-item .nav-label,
+  .cursante-bottom-nav .bottom-nav-item .nav-label {
+    font-size: 10.5px !important;
+    letter-spacing: 1.5px !important;
+    text-transform: uppercase !important;
+    font-weight: 600 !important;
+    text-align: left !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  /* ── 2. CONTENIDO: corrimiento para dejar espacio al sidebar ── */
+  .with-bottom-nav {
+    padding-bottom: 0 !important;
+    padding-left: 240px !important;
+    min-height: 100vh;
+  }
+
+  /* ── 3. APP HEADER en escritorio ─────────────────────────────── */
+  .app-header {
+    padding: 14px 48px !important;
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 100 !important;
+  }
+
+  .header-title { font-size: 20px !important; letter-spacing: 2.5px !important; }
+
+  /* ── 4. CONTENEDORES MÁS ANCHOS ──────────────────────────────── */
+  .disc-container {
+    max-width: 1300px !important;
+    padding: 28px 52px !important;
+    margin: 0 auto !important;
+  }
+
+  .menu-container {
+    max-width: 1120px !important;
+    padding: 28px 52px !important;
+    margin: 0 auto !important;
+  }
+
+  .form-container {
+    max-width: 740px !important;
+    padding: 28px 52px 52px !important;
+  }
+
+  .ficha-container {
+    max-width: 980px !important;
+    padding: 28px 52px !important;
+    margin: 0 auto !important;
+  }
+
+  .cursante-container {
+    max-width: 920px !important;
+    padding: 24px 52px 48px !important;
+    margin: 0 auto !important;
+  }
+
+  /* ── 5. GRIDS EN ESCRITORIO ──────────────────────────────────── */
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 20px !important;
+    margin-bottom: 24px !important;
+  }
+
+  .stat-card {
+    padding: 24px 20px !important;
+  }
+
+  .stat-card .stat-num {
+    font-size: 46px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .quick-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+    margin-top: 16px !important;
+  }
+
+  .cur-stats-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 14px !important;
+  }
+
+  /* ── 6. HOME PRE-LOGIN en escritorio (centrado, más espacioso) ─ */
+  .home-container {
+    max-width: 1100px !important;
+    margin: 0 auto !important;
+    padding: 64px 80px !important;
+  }
+
+  .access-cards {
+    max-width: 880px !important;
+    grid-template-columns: repeat(2, minmax(280px,1fr)) !important;
+    gap: 28px !important;
+  }
+
+  .access-card {
+    padding: 44px 36px !important;
+  }
+
+  .home-title {
+    font-size: clamp(44px, 5vw, 72px) !important;
+    letter-spacing: 8px !important;
+  }
+
+  .crest-large {
+    width: 110px !important;
+    height: 110px !important;
+    margin-bottom: 28px !important;
+  }
+
+  /* ── 7. LOGIN en escritorio ──────────────────────────────────── */
+  .login-card {
+    max-width: 480px !important;
+  }
+
+  /* ── 8. MISCELÁNEOS ──────────────────────────────────────────── */
+  .btn-mega {
+    max-width: 640px !important;
+  }
+
+  .section-label {
+    font-size: 11px !important;
+    margin: 24px 4px 14px !important;
+  }
+
+  .actividad-feed {
+    max-height: none !important;
+  }
+
+  .search-bar {
+    max-width: 580px !important;
+  }
+
+  /* Marcador de versión: arriba a la derecha para no tapar contenido */
+  #version-marker {
+    bottom: auto !important;
+    top: 6px !important;
+    right: 12px !important;
+  }
+
+}
+/* ── FIN MODO ESCRITORIO ── */
 </style>
 </head>
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.63 · marcar resueltos en logins fallidos</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.64 · modo escritorio con sidebar</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
