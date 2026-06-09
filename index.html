@@ -3844,7 +3844,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.72 · Aula Virtual Fase 0 (catálogo de materias)</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.73 · Aula Virtual Fase 0 (semestre por ciclo)</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5517,7 +5517,7 @@ input::placeholder, textarea::placeholder {
 
     <div class="section-label" id="aula-form-titulo">➕ Abrir nueva materia</div>
     <div class="field" style="margin-bottom:10px"><label>Nombre de la materia</label><input type="text" id="aula-nombre" placeholder="Ej: Operaciones Ofensivas" autocomplete="off"></div>
-    <div class="field" style="margin-bottom:10px"><label>Ciclo</label><select id="aula-ciclo"><option value="1ER CICLO">1ER CICLO</option><option value="2DO CICLO">2DO CICLO</option></select></div>
+    <div class="field" style="margin-bottom:10px"><label>Ciclo</label><select id="aula-ciclo" onchange="aulaSyncSemestreOpciones()"><option value="1ER CICLO">1ER CICLO</option><option value="2DO CICLO">2DO CICLO</option></select></div>
     <div class="field" style="margin-bottom:10px"><label>Gestión</label><select id="aula-gestion"></select></div>
     <div class="field" style="margin-bottom:10px"><label>Semestre</label><select id="aula-semestre"><option value="1">1er Semestre</option><option value="2">2do Semestre</option></select></div>
     <div class="field" style="margin-bottom:10px"><label>Estado</label><select id="aula-estado"><option value="abierta">Abierta (visible para alumnos)</option><option value="proxima">Próxima (aún no visible)</option><option value="cerrada">Cerrada (archivo)</option></select></div>
@@ -12528,6 +12528,26 @@ const AULA_ESTADO_INFO = {
   proxima: {txt:'Próxima', color:'#d4af37', bg:'rgba(212,175,55,.12)'},
   cerrada: {txt:'Cerrada', color:'#8aa0bd', bg:'rgba(138,160,189,.10)'},
 };
+// El semestre se guarda 1|2 DENTRO del ciclo (igual que notas_academicas),
+// pero se MUESTRA según el ciclo: 1er ciclo = 1°/2°, 2do ciclo = 3°/4°.
+function aulaLabelSemestre(ciclo, sem){
+  const s = Number(sem);
+  if(ciclo === '2DO CICLO') return s===2 ? '4to Semestre' : '3er Semestre';
+  return s===2 ? '2do Semestre' : '1er Semestre';
+}
+function aulaOpcionesSemestre(ciclo, selVal){
+  const labs = (ciclo === '2DO CICLO')
+    ? [['1','3er Semestre'],['2','4to Semestre']]
+    : [['1','1er Semestre'],['2','2do Semestre']];
+  return labs.map(([v,t])=>`<option value="${v}"${String(selVal)===v?' selected':''}>${t}</option>`).join('');
+}
+function aulaSyncSemestreOpciones(){
+  const cSel = document.getElementById('aula-ciclo');
+  const sSel = document.getElementById('aula-semestre');
+  if(!cSel || !sSel) return;
+  const prev = sSel.value || '1';
+  sSel.innerHTML = aulaOpcionesSemestre(cSel.value, prev);
+}
 
 async function cargarMateriasAula(force){
   if(aulaMateriasCache && !force) return aulaMateriasCache;
@@ -12578,7 +12598,7 @@ function goAulaMateriaCursante(id){
   if(!m){ goAulaCursante(); return; }
   aulaMateriaActual = m;
   document.getElementById('aula-mat-titulo').textContent = m.nombre;
-  document.getElementById('aula-mat-sub').textContent = `${m.ciclo} · ${m.gestion} · sem ${m.semestre}`;
+  document.getElementById('aula-mat-sub').textContent = `${m.ciclo} · ${m.gestion} · ${aulaLabelSemestre(m.ciclo, m.semestre)}`;
   const profes = _aulaProfesNombres(m);
   document.getElementById('aula-mat-profes').innerHTML = profes.length
     ? `<div style="font-size:13px;color:var(--text-secondary)"><b>👨‍🏫 Profesores:</b> ${escapeHtml(profes.join(' · '))}</div>`
@@ -12601,6 +12621,7 @@ async function goAulaGestion(){
     }
   }catch(e){ console.warn(e); }
   aulaCancelarEdicion();
+  aulaSyncSemestreOpciones();
   aulaRenderProfesoresBox([]);
   await aulaGestRefrescar();
   showScreen('screen-aula-gestion');
@@ -12662,7 +12683,7 @@ function aulaEditarMateria(id){
   const gSel = document.getElementById('aula-gestion');
   if(![...gSel.options].some(o=>o.value==String(m.gestion))) gSel.insertAdjacentHTML('afterbegin',`<option value="${m.gestion}">${m.gestion}</option>`);
   gSel.value = String(m.gestion);
-  document.getElementById('aula-semestre').value = String(m.semestre||1);
+  document.getElementById('aula-semestre').innerHTML = aulaOpcionesSemestre(m.ciclo||'1ER CICLO', m.semestre||1);
   document.getElementById('aula-estado').value = m.estado||'abierta';
   aulaRenderProfesoresBox(((m.materia_aula_profesores)||[]).map(p=>p.profesor_id));
   document.getElementById('aula-btn-guardar').textContent = '💾 Guardar cambios';
@@ -12718,7 +12739,7 @@ async function aulaGestRefrescar(){
     .sort((a,b)=> b.gestion-a.gestion || a.ciclo.localeCompare(b.ciclo) || a.semestre-b.semestre)
     .map(g=>`
       <div style="margin-bottom:14px">
-        <div style="font-size:12px;font-weight:700;color:var(--gold-light);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">${g.ciclo} · ${g.gestion} · sem ${g.semestre} · ${g.items.length}</div>
+        <div style="font-size:12px;font-weight:700;color:var(--gold-light);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">${g.ciclo} · ${g.gestion} · ${aulaLabelSemestre(g.ciclo, g.semestre)} · ${g.items.length} ${g.items.length===1?'materia':'materias'}</div>
         ${g.items.map(m=> _aulaGestRow(m)).join('')}
       </div>`).join('');
 }
