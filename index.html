@@ -3844,7 +3844,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.73 · Aula Virtual Fase 0 (semestre por ciclo)</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.74 · Aula Virtual Fase 1 (documentos + visor PDF)</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5501,15 +5501,62 @@ input::placeholder, textarea::placeholder {
   <div class="cursante-container">
     <div id="aula-mat-profes" style="margin-bottom:14px"></div>
     <div class="section-label">📋 Hoja de orientación</div>
-    <div class="efm-no-data" style="color:var(--text-muted);margin-bottom:16px">Disponible próximamente.</div>
+    <div id="aula-mat-orientacion" style="margin-bottom:16px"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
     <div class="section-label">📖 Textos / lecturas</div>
-    <div class="efm-no-data" style="color:var(--text-muted);margin-bottom:16px">Disponible próximamente.</div>
+    <div id="aula-mat-textos" style="margin-bottom:16px"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
     <div class="section-label">📤 Mis tareas</div>
-    <div class="efm-no-data" style="color:var(--text-muted)">Disponible próximamente.</div>
+    <div class="efm-no-data" style="color:var(--text-muted)">Disponible en la próxima fase.</div>
   </div>
 </section>
 
 <!-- AULA: gestión C&T (abrir / editar / cerrar materias) -->
+<!-- AULA: VISOR PDF (leer + copiar + resaltar; sesión) -->
+<style>
+  #screen-aula-visor{background:#1a1f2b;}
+  .aula-visor-toolbar{position:sticky;top:0;z-index:5;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px;background:rgba(12,18,30,.96);border-bottom:1px solid rgba(212,175,55,.25)}
+  .avt-btn{font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid #2a3a52;background:rgba(255,255,255,.06);color:#cfe0f5;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+  .avt-btn.on{background:rgba(255,214,0,.22);border-color:#e6c200;color:#ffe98a}
+  .avt-swatch{width:20px;height:20px;border-radius:5px;border:2px solid rgba(255,255,255,.4);cursor:pointer;padding:0}
+  .avt-swatch.on{border-color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.35)}
+  #aula-visor-container{padding:14px;display:flex;flex-direction:column;align-items:center;gap:6px;overflow:auto}
+  .avpage{position:relative;margin:0 auto;box-shadow:0 2px 12px rgba(0,0,0,.45);border-radius:2px;background:#fff}
+  .avpage canvas{display:block;border-radius:2px}
+  .avpage .textLayer{position:absolute;inset:0;overflow:hidden;line-height:1;opacity:.30;mix-blend-mode:normal}
+  .avpage .textLayer span, .avpage .textLayer br{color:transparent;position:absolute;white-space:pre;cursor:text;transform-origin:0 0}
+  .avpage .textLayer ::selection{background:rgba(80,150,255,.45)}
+  .avpage .avhl-layer{position:absolute;inset:0;pointer-events:none;z-index:1}
+  .avpage .avhl{position:absolute;border-radius:2px;pointer-events:none;mix-blend-mode:multiply}
+</style>
+<section id="screen-aula-visor" class="screen">
+  <div class="aula-visor-toolbar">
+    <button class="back-btn" style="position:static;margin:0" onclick="cerrarAulaVisor()">←</button>
+    <div style="flex:1;min-width:0"><div id="aula-visor-titulo" style="font-weight:700;font-size:14px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Documento</div></div>
+    <button id="aula-visor-hl-btn" class="avt-btn" onclick="aulaToggleHighlighter()" title="Activar resaltador">🖍️ Resaltar</button>
+    <button class="avt-swatch on" data-color="rgba(255,221,0,.45)" style="background:#ffdd00" onclick="aulaSetHlColor(this)" title="Amarillo"></button>
+    <button class="avt-swatch" data-color="rgba(120,230,120,.45)" style="background:#7be67b" onclick="aulaSetHlColor(this)" title="Verde"></button>
+    <button class="avt-swatch" data-color="rgba(120,190,255,.5)" style="background:#78beff" onclick="aulaSetHlColor(this)" title="Celeste"></button>
+    <button class="avt-btn" onclick="aulaLimpiarResaltados()" title="Borrar todos los resaltados">🧽 Limpiar</button>
+  </div>
+  <div id="aula-visor-container"><div style="color:#fff;padding:30px;text-align:center"><div style="font-size:28px">⏳</div><div style="margin-top:8px">Cargando documento…</div></div></div>
+</section>
+
+<!-- AULA: gestión de DOCUMENTOS de una materia (C&T) -->
+<section id="screen-aula-docs-gestion" class="screen with-bottom-nav">
+  <div class="app-header"><button class="back-btn" onclick="goAulaGestion()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Documentos</div><div class="header-sub" id="aula-dg-sub">—</div></div></div>
+  <div class="disc-container">
+    <div class="alert-banner blue" style="margin-bottom:12px"><span class="alert-emoji">📄</span><span class="alert-text"><b>Subí la hoja de orientación y los textos (PDF)</b> de esta materia. Los alumnos los leen en la app (pueden copiar y resaltar).</span></div>
+    <div class="section-label">➕ Subir documento</div>
+    <div class="field" style="margin-bottom:10px"><label>Tipo</label><select id="aula-dg-tipo"><option value="orientacion">📋 Hoja de orientación</option><option value="texto">📖 Texto / lectura</option></select></div>
+    <div class="field" style="margin-bottom:10px"><label>Título (opcional — si lo dejás vacío usa el nombre del archivo)</label><input type="text" id="aula-dg-titulo" placeholder="Ej: Hoja de orientación — Operaciones Ofensivas" autocomplete="off"></div>
+    <div class="field" style="margin-bottom:10px"><label>Archivo PDF</label><input type="file" id="aula-dg-file" accept="application/pdf,.pdf"></div>
+    <button class="btn-primary" id="aula-dg-btn-subir" onclick="aulaDocSubir()" style="margin-bottom:6px">⬆️ Subir documento</button>
+    <div id="aula-dg-progreso" style="font-size:12px;color:var(--text-muted);margin-bottom:14px"></div>
+
+    <div class="section-label">Documentos de la materia</div>
+    <div id="aula-dg-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+  </div>
+</section>
+
 <section id="screen-aula-gestion" class="screen with-bottom-nav">
   <div class="app-header"><button class="back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Aula Virtual</div><div class="header-sub">C&amp;T · abrir / cerrar materias</div></div></div>
   <div class="disc-container">
@@ -12604,6 +12651,239 @@ function goAulaMateriaCursante(id){
     ? `<div style="font-size:13px;color:var(--text-secondary)"><b>👨‍🏫 Profesores:</b> ${escapeHtml(profes.join(' · '))}</div>`
     : '';
   showScreen('screen-aula-materia');
+  cargarYrenderDocsMateria(m.id);
+}
+
+// ---------- FASE 1: documentos + visor PDF ----------
+const AULA_DOCS_BUCKET = 'documentos-academicos';
+let aulaDocsGestMateria = null;
+let aulaHlOn = false;
+let aulaHlColor = 'rgba(255,221,0,.45)';
+let aulaVisorBackScreen = 'screen-aula-materia';
+
+async function cargarDocsMateria(materiaId){
+  try{
+    const {data,error} = await sb.from('documentos_academicos')
+      .select('id,tipo,titulo,descripcion,storage_path,nombre_archivo,mime,size_bytes,orden,creado_en')
+      .eq('materia_aula_id', materiaId).eq('activo', true)
+      .order('orden').order('creado_en');
+    if(error){ console.warn('docs:', error.message); return []; }
+    return data||[];
+  }catch(e){ return []; }
+}
+function _fmtBytes(n){ if(!n) return ''; return n>1048576 ? (n/1048576).toFixed(1)+' MB' : Math.max(1,Math.round(n/1024))+' KB'; }
+function _aulaDocItemCursante(d){
+  const meta = [d.nombre_archivo||'', _fmtBytes(d.size_bytes)].filter(Boolean).join(' · ');
+  return `<button class="list-item" style="display:flex;align-items:center;gap:10px;padding:11px 12px;width:100%;text-align:left" onclick="goAulaVisor('${d.id}')">
+    <div style="font-size:20px">📄</div>
+    <div style="flex:1">
+      <div style="font-weight:700;color:var(--text-primary);font-size:14px">${escapeHtml(d.titulo||'Documento')}</div>
+      ${meta?`<div style="font-size:11px;color:var(--text-muted);margin-top:2px">${escapeHtml(meta)}</div>`:''}
+    </div>
+    <div style="font-size:13px;color:var(--gold-light)">Abrir ›</div>
+  </button>`;
+}
+async function cargarYrenderDocsMateria(materiaId){
+  const oCont = document.getElementById('aula-mat-orientacion');
+  const tCont = document.getElementById('aula-mat-textos');
+  if(oCont) oCont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  if(tCont) tCont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const docs = await cargarDocsMateria(materiaId);
+  const ori = docs.filter(d=>d.tipo==='orientacion');
+  const tex = docs.filter(d=>d.tipo!=='orientacion');
+  if(oCont) oCont.innerHTML = ori.length ? ori.map(_aulaDocItemCursante).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">Aún no hay hoja de orientación.</div>';
+  if(tCont) tCont.innerHTML = tex.length ? tex.map(_aulaDocItemCursante).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">Aún no hay textos cargados.</div>';
+}
+
+// ---- Visor PDF: texto seleccionable (copiar) + resaltador de sesión ----
+async function goAulaVisor(docId){
+  aulaVisorBackScreen = (document.querySelector('.screen.active')||{}).id || 'screen-aula-materia';
+  showScreen('screen-aula-visor');
+  const cont = document.getElementById('aula-visor-container');
+  cont.innerHTML = '<div style="color:#fff;padding:30px;text-align:center"><div style="font-size:28px">⏳</div><div style="margin-top:8px">Pidiendo documento…</div></div>';
+  let titulo = 'Documento';
+  try{
+    const {data} = await sb.from('documentos_academicos').select('titulo,nombre_archivo').eq('id',docId).limit(1);
+    if(data&&data[0]) titulo = data[0].titulo||data[0].nombre_archivo||'Documento';
+  }catch(e){}
+  document.getElementById('aula-visor-titulo').textContent = titulo;
+  const tok = (typeof getTokenSesion==='function')?getTokenSesion():null;
+  if(!tok){ cont.innerHTML='<div style="color:#fff;padding:30px;text-align:center">Sesión no válida. Volvé a entrar.</div>'; return; }
+  try{
+    const {data,error} = await sb.functions.invoke('aula-docs', {body:{accion:'ver', token:tok, doc_id:docId}});
+    if(error || !data || data.ok===false || !data.url){
+      cont.innerHTML = `<div style="color:#fff;padding:30px;text-align:center">⚠️ No se pudo abrir el documento.<br><span style="font-size:11px;opacity:.7">${escapeHtml((data&&data.error)|| (error&&error.message)||'')}</span></div>`;
+      return;
+    }
+    await renderPdfConTexto(data.url, 'aula-visor-container');
+  }catch(e){ cont.innerHTML = `<div style="color:#fff;padding:30px;text-align:center">⚠️ ${escapeHtml(e.message||String(e))}</div>`; }
+}
+function cerrarAulaVisor(){
+  const cont = document.getElementById('aula-visor-container');
+  if(cont){ cont.onmouseup=null; cont.ontouchend=null; cont.innerHTML=''; }
+  showScreen(aulaVisorBackScreen||'screen-aula-materia');
+}
+async function renderPdfConTexto(url, containerId){
+  const container = document.getElementById(containerId);
+  container.innerHTML = '<div style="color:#fff;padding:20px;text-align:center"><div style="font-size:28px">⏳</div><div style="margin-top:8px">Cargando visor…</div></div>';
+  try{ await ensurePdfJs(); }catch(e){}
+  if(typeof pdfjsLib === 'undefined'){ container.innerHTML='<div style="color:#fff;padding:30px;text-align:center">⚠️ El visor PDF no cargó. Verificá tu conexión.</div>'; return; }
+  try{ pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; }catch(e){}
+  let arr;
+  try{
+    const resp = await fetch(url);
+    if(!resp.ok) throw new Error('HTTP '+resp.status);
+    arr = new Uint8Array(await resp.arrayBuffer());
+  }catch(e){ container.innerHTML=`<div style="color:#fff;padding:30px;text-align:center">⚠️ No se pudo descargar el PDF.<br><span style="font-size:11px;opacity:.7">${escapeHtml(e.message||String(e))}</span></div>`; return; }
+  container.innerHTML='';
+  try{
+    const pdf = await pdfjsLib.getDocument({data:arr}).promise;
+    const total = pdf.numPages;
+    const info = document.createElement('div');
+    info.style.cssText='color:#fff;font-size:12px;padding:3px 10px;background:rgba(0,0,0,.4);border-radius:6px';
+    info.textContent = `📄 ${total} página${total===1?'':'s'} · seleccioná texto para copiar`;
+    container.appendChild(info);
+    const targetW = Math.min(container.clientWidth-28, 900);
+    for(let i=1;i<=total;i++){
+      const page = await pdf.getPage(i);
+      const base = page.getViewport({scale:1});
+      const scale = Math.min(2.2, Math.max(1.0, targetW/base.width));
+      const viewport = page.getViewport({scale});
+      const wrap = document.createElement('div');
+      wrap.className='avpage';
+      wrap.style.width = viewport.width+'px';
+      wrap.style.height = viewport.height+'px';
+      wrap.style.setProperty('--scale-factor', scale);
+      const canvas = document.createElement('canvas');
+      canvas.width=viewport.width; canvas.height=viewport.height;
+      canvas.style.cssText='width:'+viewport.width+'px;height:'+viewport.height+'px';
+      wrap.appendChild(canvas);
+      const hl = document.createElement('div'); hl.className='avhl-layer'; wrap.appendChild(hl);
+      const tl = document.createElement('div'); tl.className='textLayer';
+      tl.style.width=viewport.width+'px'; tl.style.height=viewport.height+'px';
+      tl.style.setProperty('--scale-factor', scale);
+      wrap.appendChild(tl);
+      container.appendChild(wrap);
+      await page.render({canvasContext:canvas.getContext('2d'), viewport}).promise;
+      try{
+        const tc = await page.getTextContent();
+        await pdfjsLib.renderTextLayer({textContentSource:tc, container:tl, viewport, textDivs:[]}).promise;
+      }catch(e){ /* página sin capa de texto */ }
+    }
+    container.onmouseup = _aulaOnSelect;
+    container.ontouchend = _aulaOnSelect;
+  }catch(e){ container.innerHTML=`<div style="color:#fff;padding:30px;text-align:center">⚠️ No se pudo renderizar.<br><span style="font-size:11px;opacity:.7">${escapeHtml((e.message||String(e)).slice(0,200))}</span></div>`; }
+}
+function aulaToggleHighlighter(){
+  aulaHlOn = !aulaHlOn;
+  const b = document.getElementById('aula-visor-hl-btn');
+  if(b) b.classList.toggle('on', aulaHlOn);
+}
+function aulaSetHlColor(el){
+  aulaHlColor = el.getAttribute('data-color')||aulaHlColor;
+  document.querySelectorAll('#screen-aula-visor .avt-swatch').forEach(s=>s.classList.toggle('on', s===el));
+  if(!aulaHlOn) aulaToggleHighlighter();
+}
+function _aulaOnSelect(){
+  if(!aulaHlOn) return;
+  const sel = window.getSelection();
+  if(!sel || sel.isCollapsed || !sel.rangeCount) return;
+  const range = sel.getRangeAt(0);
+  const rects = range.getClientRects();
+  const pages = [...document.querySelectorAll('#aula-visor-container .avpage')];
+  for(const r of rects){
+    if(r.width<1 || r.height<1) continue;
+    const cx = r.left + r.width/2, cy = r.top + r.height/2;
+    const wrap = pages.find(p=>{ const b=p.getBoundingClientRect(); return cx>=b.left&&cx<=b.right&&cy>=b.top&&cy<=b.bottom; });
+    if(!wrap) continue;
+    const layer = wrap.querySelector('.avhl-layer'); if(!layer) continue;
+    const b = wrap.getBoundingClientRect();
+    const d = document.createElement('div');
+    d.className='avhl';
+    d.style.left=(r.left-b.left)+'px'; d.style.top=(r.top-b.top)+'px';
+    d.style.width=r.width+'px'; d.style.height=r.height+'px';
+    d.style.background=aulaHlColor;
+    layer.appendChild(d);
+  }
+  sel.removeAllRanges();
+}
+function aulaLimpiarResaltados(){
+  document.querySelectorAll('#aula-visor-container .avhl-layer').forEach(l=>l.innerHTML='');
+}
+
+// ---- C&T: gestión de documentos de una materia ----
+async function goAulaDocsGestion(materiaId){
+  if(!esCT()){ alert('Solo C&T puede gestionar documentos.'); return; }
+  const m = (aulaMateriasCache||[]).find(x=>x.id===materiaId);
+  if(!m){ alert('Materia no encontrada.'); return; }
+  aulaDocsGestMateria = m;
+  document.getElementById('aula-dg-sub').textContent = `${m.nombre} · ${m.ciclo}`;
+  document.getElementById('aula-dg-titulo').value='';
+  document.getElementById('aula-dg-file').value='';
+  document.getElementById('aula-dg-progreso').textContent='';
+  showScreen('screen-aula-docs-gestion');
+  await aulaDgRefrescar();
+}
+async function aulaDgRefrescar(){
+  const cont = document.getElementById('aula-dg-lista');
+  if(!cont||!aulaDocsGestMateria) return;
+  cont.innerHTML='<div style="padding:14px;text-align:center;color:var(--text-muted)">⏳ Cargando…</div>';
+  const docs = await cargarDocsMateria(aulaDocsGestMateria.id);
+  if(!docs.length){ cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">Todavía no hay documentos. Subí el primero ☝️</div>'; return; }
+  const tipoTxt = t=> t==='orientacion'?'📋 Orientación':'📖 Texto';
+  cont.innerHTML = docs.map(d=>`<div class="list-item" style="padding:10px 12px;margin-bottom:6px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="flex:1">
+        <div style="font-weight:700;color:var(--text-primary);font-size:14px">${escapeHtml(d.titulo||'Documento')}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${tipoTxt(d.tipo)}${d.size_bytes?' · '+_fmtBytes(d.size_bytes):''}</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+      <button class="btn-secondary" style="padding:5px 10px;font-size:12px" onclick="goAulaVisor('${d.id}')">👁️ Ver</button>
+      <button class="btn-secondary" style="padding:5px 10px;font-size:12px;background:rgba(226,59,59,.12);border-color:#e23b3b;color:#e88a8a" onclick="aulaDocEliminar('${d.id}','${escapeHtml(d.titulo||'Documento').replace(/'/g,"\\'")}')">🗑️ Eliminar</button>
+    </div>
+  </div>`).join('');
+}
+async function aulaDocSubir(){
+  if(!aulaDocsGestMateria){ alert('Elegí una materia primero.'); return; }
+  const fileInput = document.getElementById('aula-dg-file');
+  const file = fileInput.files && fileInput.files[0];
+  if(!file){ alert('Elegí un archivo PDF.'); return; }
+  if(file.type && file.type!=='application/pdf' && !/\.pdf$/i.test(file.name)){ if(!confirm('El archivo no parece un PDF. ¿Subir igual?')) return; }
+  const tok = (typeof getTokenSesion==='function')?getTokenSesion():null;
+  if(!tok){ alert('Sesión no válida.'); return; }
+  const tipo = document.getElementById('aula-dg-tipo').value;
+  const titulo = (document.getElementById('aula-dg-titulo').value||'').trim();
+  const prog = document.getElementById('aula-dg-progreso');
+  const btn = document.getElementById('aula-dg-btn-subir');
+  btn.disabled=true; const txt=btn.textContent; btn.textContent='⏳ Subiendo…';
+  try{
+    prog.textContent='① Pidiendo permiso de subida…';
+    const up = await sb.functions.invoke('aula-docs',{body:{accion:'upload_url', token:tok, materia_aula_id:aulaDocsGestMateria.id, filename:file.name}});
+    if(up.error||!up.data||up.data.ok===false){ throw new Error((up.data&&up.data.error)||(up.error&&up.error.message)||'no se obtuvo URL'); }
+    const path = up.data.path, upToken = up.data.token;
+    prog.textContent='② Subiendo archivo…';
+    const u = await sb.storage.from(AULA_DOCS_BUCKET).uploadToSignedUrl(path, upToken, file);
+    if(u.error) throw new Error(u.error.message||'falló la subida');
+    prog.textContent='③ Registrando…';
+    const reg = await sb.functions.invoke('aula-docs',{body:{accion:'registrar', token:tok, materia_aula_id:aulaDocsGestMateria.id, tipo, titulo, storage_path:path, nombre_archivo:file.name, mime:file.type||'application/pdf', size_bytes:file.size}});
+    if(reg.error||!reg.data||reg.data.ok===false){ throw new Error((reg.data&&reg.data.error)||(reg.error&&reg.error.message)||'no se registró'); }
+    prog.textContent='✅ Documento subido.';
+    document.getElementById('aula-dg-titulo').value=''; fileInput.value='';
+    await aulaDgRefrescar();
+  }catch(e){ prog.textContent='⚠️ '+(e.message||String(e)); alert('No se pudo subir: '+(e.message||e)); }
+  finally{ btn.disabled=false; btn.textContent=txt; }
+}
+async function aulaDocEliminar(docId, titulo){
+  if(!confirm(`¿Eliminar "${titulo}"?\n\nSe borra el archivo y deja de verse para los alumnos.`)) return;
+  const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
+  if(!tok){ alert('Sesión no válida.'); return; }
+  try{
+    const {data,error}=await sb.functions.invoke('aula-docs',{body:{accion:'eliminar', token:tok, doc_id:docId}});
+    if(error){ alert('No se pudo eliminar: '+(error.message||error)); return; }
+    if(data&&data.ok===false){ alert('Error: '+(data.error||'desconocido')); return; }
+    await aulaDgRefrescar();
+  }catch(e){ alert('Error: '+(e.message||e)); }
 }
 
 // ---------- C&T: gestión ----------
@@ -12759,6 +13039,7 @@ function _aulaGestRow(m){
       <span style="font-size:11px;font-weight:700;color:${est.color};background:${est.bg};padding:3px 9px;border-radius:10px">${est.txt}</span>
     </div>
     <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+      <button class="btn-secondary" style="padding:5px 10px;font-size:12px;background:rgba(70,130,200,.15);border-color:#4a90d9;color:#8fc0f0" onclick="goAulaDocsGestion('${m.id}')">📄 Documentos</button>
       ${toggle}
       <button class="btn-secondary" style="padding:5px 10px;font-size:12px" onclick="aulaEditarMateria('${m.id}')">✏️ Editar</button>
       <button class="btn-secondary" style="padding:5px 10px;font-size:12px;background:rgba(226,59,59,.12);border-color:#e23b3b;color:#e88a8a" onclick="aulaEliminarMateria('${m.id}','${nombreJs}')">🗑️ Eliminar</button>
