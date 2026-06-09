@@ -3844,7 +3844,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.74 · Aula Virtual Fase 1 (documentos + visor PDF)</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.75 · Mis sancionados en panel Jefe de Curso</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5677,9 +5677,13 @@ input::placeholder, textarea::placeholder {
       <span class="mega-icon">📝</span>
       <span>Registrar nueva sanción</span>
     </button>
-    <button class="btn-mega" onclick="jcDescargarPlanilla()" style="background:linear-gradient(180deg,#9a7b1f,#d4af37);margin:0 0 14px 0;color:#0a1628">
+    <button class="btn-mega" onclick="jcDescargarPlanilla()" style="background:linear-gradient(180deg,#9a7b1f,#d4af37);margin:0 0 8px 0;color:#0a1628">
       <span class="mega-icon">📄</span>
       <span>Descargar planilla PDF — mi ciclo</span>
+    </button>
+    <button class="btn-mega" onclick="goMisSancionados()" style="background:linear-gradient(180deg,#3a5a8a,#4a90d9);margin:0 0 14px 0;color:#fff">
+      <span class="mega-icon">👥</span>
+      <span>Mis sancionados (seguimiento de los que yo sancioné)</span>
     </button>
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-num" id="jc-stat-cursantes">—</div><div class="stat-label">Cursantes</div></div>
