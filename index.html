@@ -3844,7 +3844,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.71 · CI limpio sin deformar + estrella Gemini borrada</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.72 · Aula Virtual Fase 0 (catálogo de materias)</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4610,6 +4610,11 @@ input::placeholder, textarea::placeholder {
         <span class="mega-icon">📨</span>
         <span>Mis solicitudes enviadas</span>
       </button>
+      <!-- v2.9.72: acceso Aula Virtual (materias) -->
+      <button class="btn-mega" onclick="goAulaCursante()" style="background:linear-gradient(180deg,#5a3a8a,#8c5acb);margin:0 0 10px 0;color:#fff">
+        <span class="mega-icon">📚</span>
+        <span>Aula Virtual</span>
+      </button>
 
       <!-- =================== SECCIÓN DISCIPLINA (default visible) =================== -->
       <div class="cur-section" id="cur-section-disciplina">
@@ -4804,6 +4809,7 @@ input::placeholder, textarea::placeholder {
       <button id="qa-btn-mis-sancionados" class="quick-btn" onclick="goMisSancionados()"><span class="qa-icon">👥</span><span class="qa-text">Mis sancionados (cursantes que yo sancioné)</span></button>
       <button id="qa-btn-diagnostico" class="quick-btn" onclick="goDiagnostico()"><span class="qa-icon">🔧</span><span class="qa-text">Diagnóstico y forzar sincronización</span></button>
       <button id="qa-btn-bloqueo-materias" class="quick-btn" onclick="goBloqueoMaterias()" style="background:linear-gradient(180deg,rgba(180,140,255,.15),rgba(180,140,255,.05));border-color:#b48cff;display:none"><span class="qa-icon">🔒</span><span class="qa-text"><strong>Bloquear materias / módulos</strong> (ocultar a alumnos)</span></button>
+      <button id="qa-btn-aula-gestion" class="quick-btn" onclick="goAulaGestion()" style="background:linear-gradient(180deg,rgba(140,90,203,.18),rgba(140,90,203,.05));border-color:#8c5acb;display:none"><span class="qa-icon">📚</span><span class="qa-text"><strong>Aula Virtual</strong> (abrir / cerrar materias)</span></button>
       <button class="quick-btn success" data-sac-hide="1" onclick="goRespaldo()"><span class="qa-icon">💾</span><span class="qa-text">Descargar respaldo ahora (JSON + .XLSX)</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goInstalar()"><span class="qa-icon">📲</span><span class="qa-text">Instalar app / Compartir QR</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goAnulaciones()"><span class="qa-icon">📋</span><span class="qa-text">Solicitudes de reconsideración / anulación</span><span id="badge-solicitudes" style="display:none;margin-left:auto;background:#c84a4a;color:#fff;font-size:12px;font-weight:700;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;padding:0 6px">0</span></button>
@@ -5473,6 +5479,55 @@ input::placeholder, textarea::placeholder {
 
     <div class="section-label">Bloqueos vigentes</div>
     <div id="bm-vigentes"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+  </div>
+</section>
+
+<!-- ============ AULA VIRTUAL — Fase 0 ============ -->
+<!-- AULA: lista de materias del cursante -->
+<section id="screen-aula-cursante" class="screen with-bottom-nav cursante-screen">
+  <div class="app-header cursante-app-header"><button class="back-btn" onclick="showScreen('screen-cursante-home')">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Aula Virtual</div><div class="header-sub" id="aula-cur-sub">Mis materias</div></div></div>
+  <div class="cursante-container">
+    <div class="alert-banner blue" style="margin-bottom:12px"><span class="alert-emoji">📚</span><span class="alert-text"><b>Tus materias.</b><br><span style="font-size:13px">Acá vas a encontrar la hoja de orientación, los textos de estudio y la entrega de tareas de cada materia.</span></span></div>
+    <div class="section-label">Materias en curso</div>
+    <div id="aula-cur-lista" style="margin-bottom:18px"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+    <div class="section-label">Materias cerradas (archivo)</div>
+    <div id="aula-cur-archivo"><div class="efm-no-data" style="color:var(--text-muted)">—</div></div>
+  </div>
+</section>
+
+<!-- AULA: detalle de una materia (cursante) — Fase 0: secciones stub -->
+<section id="screen-aula-materia" class="screen with-bottom-nav cursante-screen">
+  <div class="app-header cursante-app-header"><button class="back-btn" onclick="goAulaCursante()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title" id="aula-mat-titulo">Materia</div><div class="header-sub" id="aula-mat-sub">—</div></div></div>
+  <div class="cursante-container">
+    <div id="aula-mat-profes" style="margin-bottom:14px"></div>
+    <div class="section-label">📋 Hoja de orientación</div>
+    <div class="efm-no-data" style="color:var(--text-muted);margin-bottom:16px">Disponible próximamente.</div>
+    <div class="section-label">📖 Textos / lecturas</div>
+    <div class="efm-no-data" style="color:var(--text-muted);margin-bottom:16px">Disponible próximamente.</div>
+    <div class="section-label">📤 Mis tareas</div>
+    <div class="efm-no-data" style="color:var(--text-muted)">Disponible próximamente.</div>
+  </div>
+</section>
+
+<!-- AULA: gestión C&T (abrir / editar / cerrar materias) -->
+<section id="screen-aula-gestion" class="screen with-bottom-nav">
+  <div class="app-header"><button class="back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Aula Virtual</div><div class="header-sub">C&amp;T · abrir / cerrar materias</div></div></div>
+  <div class="disc-container">
+    <div class="alert-banner blue" style="margin-bottom:12px"><span class="alert-emoji">📚</span><span class="alert-text"><b>Abrí una materia cuando arranca</b> y cerrala cuando termina. Las abiertas las ven los alumnos de ese ciclo.</span></div>
+
+    <div class="section-label" id="aula-form-titulo">➕ Abrir nueva materia</div>
+    <div class="field" style="margin-bottom:10px"><label>Nombre de la materia</label><input type="text" id="aula-nombre" placeholder="Ej: Operaciones Ofensivas" autocomplete="off"></div>
+    <div class="field" style="margin-bottom:10px"><label>Ciclo</label><select id="aula-ciclo"><option value="1ER CICLO">1ER CICLO</option><option value="2DO CICLO">2DO CICLO</option></select></div>
+    <div class="field" style="margin-bottom:10px"><label>Gestión</label><select id="aula-gestion"></select></div>
+    <div class="field" style="margin-bottom:10px"><label>Semestre</label><select id="aula-semestre"><option value="1">1er Semestre</option><option value="2">2do Semestre</option></select></div>
+    <div class="field" style="margin-bottom:10px"><label>Estado</label><select id="aula-estado"><option value="abierta">Abierta (visible para alumnos)</option><option value="proxima">Próxima (aún no visible)</option><option value="cerrada">Cerrada (archivo)</option></select></div>
+    <div class="field" style="margin-bottom:6px"><label>Profesores de la materia (suele tener 3)</label></div>
+    <div id="aula-profes-box" style="max-height:180px;overflow:auto;border:1px solid var(--border,#2a3a52);border-radius:10px;padding:8px;margin-bottom:12px;background:rgba(255,255,255,.02)"><div class="efm-no-data" style="color:var(--text-muted)">Cargando profesores…</div></div>
+    <button class="btn-primary" id="aula-btn-guardar" onclick="aulaGuardarMateria()" style="margin-bottom:8px">➕ Abrir materia</button>
+    <button class="btn-secondary" id="aula-btn-cancelar" onclick="aulaCancelarEdicion()" style="display:none;margin-bottom:14px">Cancelar edición</button>
+
+    <div class="section-label">Materias del aula</div>
+    <div id="aula-gest-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
   </div>
 </section>
 
@@ -9580,7 +9635,7 @@ function renderDiscPanel(){
 
   // Visibilidad de botones según rol
   const soloCT = esCT();
-  const btnsCT = ['qa-btn-gest-cursantes','qa-btn-gest-profesores','qa-btn-diagnostico','qa-btn-pwd-otro','qa-btn-bloqueo-materias'];
+  const btnsCT = ['qa-btn-gest-cursantes','qa-btn-gest-profesores','qa-btn-diagnostico','qa-btn-pwd-otro','qa-btn-bloqueo-materias','qa-btn-aula-gestion'];
   btnsCT.forEach(id => {
     const el = document.getElementById(id);
     if(el) el.style.display = soloCT ? '' : 'none';
@@ -12463,6 +12518,233 @@ async function bmRefrescarVigentes(){
       </div>`).join('');
   }catch(e){ cont.innerHTML = `<div class="efm-no-data" style="color:#e88a8a">⚠️ ${e.message||e}</div>`; }
 }
+
+// ============ AULA VIRTUAL — Fase 0 ============
+let aulaMateriasCache = null;
+let aulaEditId = null;
+let aulaMateriaActual = null;
+const AULA_ESTADO_INFO = {
+  abierta: {txt:'Abierta', color:'#4ca36b', bg:'rgba(76,163,107,.12)'},
+  proxima: {txt:'Próxima', color:'#d4af37', bg:'rgba(212,175,55,.12)'},
+  cerrada: {txt:'Cerrada', color:'#8aa0bd', bg:'rgba(138,160,189,.10)'},
+};
+
+async function cargarMateriasAula(force){
+  if(aulaMateriasCache && !force) return aulaMateriasCache;
+  try{
+    const {data,error} = await sb.from('materias_aula')
+      .select('*, materia_aula_profesores(profesor_id, profesor_nombre)')
+      .order('gestion',{ascending:false}).order('ciclo').order('semestre').order('orden').order('nombre');
+    if(error){ console.warn('materias_aula:', error.message); aulaMateriasCache=[]; return []; }
+    aulaMateriasCache = data||[];
+    return aulaMateriasCache;
+  }catch(e){ aulaMateriasCache=[]; return []; }
+}
+function _aulaProfesNombres(m){
+  return ((m && m.materia_aula_profesores)||[]).map(p=>p.profesor_nombre||p.profesor_id).filter(Boolean);
+}
+
+// ---------- CURSANTE: lista de materias ----------
+async function goAulaCursante(){
+  showScreen('screen-aula-cursante');
+  const ciclo = currentUser && currentUser.ciclo;
+  const sub = document.getElementById('aula-cur-sub');
+  if(sub) sub.textContent = ciclo ? (ciclo + (currentUser.paralelo?' "'+currentUser.paralelo+'"':'')) : 'Mis materias';
+  const cont = document.getElementById('aula-cur-lista');
+  const arch = document.getElementById('aula-cur-archivo');
+  cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const all = await cargarMateriasAula(true);
+  const mias = all.filter(m=> m.ciclo===ciclo);
+  const abiertas = mias.filter(m=> m.estado==='abierta');
+  const cerradas = mias.filter(m=> m.estado==='cerrada');
+  cont.innerHTML = abiertas.length ? abiertas.map(m=> _aulaCardCursante(m)).join('')
+    : '<div class="efm-no-data" style="color:var(--text-muted)">Todavía no hay materias abiertas para tu ciclo.</div>';
+  arch.innerHTML = cerradas.length ? cerradas.map(m=> _aulaCardCursante(m,true)).join('')
+    : '<div class="efm-no-data" style="color:var(--text-muted)">—</div>';
+}
+function _aulaCardCursante(m, archivo){
+  const profes = _aulaProfesNombres(m);
+  return `<button class="list-item" style="display:flex;align-items:center;gap:10px;padding:12px;width:100%;text-align:left;${archivo?'opacity:.7':''}" onclick="goAulaMateriaCursante('${m.id}')">
+    <div style="font-size:22px">📘</div>
+    <div style="flex:1">
+      <div style="font-weight:700;color:var(--text-primary);font-size:15px">${escapeHtml(m.nombre)}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:2px">${escapeHtml(profes.slice(0,3).join(' · ')||'Sin profesores asignados')}</div>
+    </div>
+    <div style="font-size:18px;color:var(--text-muted)">›</div>
+  </button>`;
+}
+function goAulaMateriaCursante(id){
+  const m = (aulaMateriasCache||[]).find(x=> x.id===id);
+  if(!m){ goAulaCursante(); return; }
+  aulaMateriaActual = m;
+  document.getElementById('aula-mat-titulo').textContent = m.nombre;
+  document.getElementById('aula-mat-sub').textContent = `${m.ciclo} · ${m.gestion} · sem ${m.semestre}`;
+  const profes = _aulaProfesNombres(m);
+  document.getElementById('aula-mat-profes').innerHTML = profes.length
+    ? `<div style="font-size:13px;color:var(--text-secondary)"><b>👨‍🏫 Profesores:</b> ${escapeHtml(profes.join(' · '))}</div>`
+    : '';
+  showScreen('screen-aula-materia');
+}
+
+// ---------- C&T: gestión ----------
+async function goAulaGestion(){
+  if(!esCT()){ alert('Solo C&T puede gestionar el aula virtual.'); return; }
+  // Poblar gestión con años de notas + año actual
+  try{
+    const sel = document.getElementById('aula-gestion');
+    if(sel && !sel.options.length){
+      const {data} = await sb.from('notas_academicas').select('gestion').order('gestion',{ascending:false});
+      const anios = [...new Set((data||[]).map(x=>x.gestion).filter(x=>x!=null))];
+      const hoy = new Date().getFullYear();
+      if(!anios.includes(hoy)) anios.unshift(hoy);
+      sel.innerHTML = anios.map(a=>`<option value="${a}">${a}</option>`).join('');
+    }
+  }catch(e){ console.warn(e); }
+  aulaCancelarEdicion();
+  aulaRenderProfesoresBox([]);
+  await aulaGestRefrescar();
+  showScreen('screen-aula-gestion');
+}
+function aulaRenderProfesoresBox(selectedIds){
+  const box = document.getElementById('aula-profes-box');
+  if(!box) return;
+  const sel = new Set((selectedIds||[]).map(String));
+  const profes = ((discData&&discData.profesores)||[]).filter(p=>p.activo!==false)
+    .slice().sort((a,b)=> (a.nombre_completo||'').localeCompare(b.nombre_completo||''));
+  if(!profes.length){ box.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">No hay profesores cargados.</div>'; return; }
+  box.innerHTML = profes.map(p=>{
+    const nom = p.nombre_completo||p.id;
+    const ck = sel.has(String(p.id)) ? 'checked' : '';
+    return `<label style="display:flex;align-items:center;gap:8px;padding:5px 4px;font-size:13px;cursor:pointer">
+      <input type="checkbox" class="aula-prof-chk" value="${escapeHtml(p.id)}" data-nombre="${escapeHtml(nom)}" ${ck}>
+      <span>${escapeHtml(nom)}${p.especialidad?` <span style="color:var(--text-muted);font-size:11px">(${escapeHtml(p.especialidad)})</span>`:''}</span>
+    </label>`;
+  }).join('');
+}
+function _aulaProfesSeleccionados(){
+  return [...document.querySelectorAll('#aula-profes-box .aula-prof-chk:checked')]
+    .map(ck=> ({id: ck.value, nombre: ck.getAttribute('data-nombre')||''}));
+}
+async function aulaGuardarMateria(){
+  const nombre = (document.getElementById('aula-nombre').value||'').trim();
+  if(!nombre){ alert('Escribí el nombre de la materia.'); return; }
+  const payload = {
+    accion:'guardar',
+    token: (typeof getTokenSesion==='function')?getTokenSesion():null,
+    id: aulaEditId || undefined,
+    nombre,
+    ciclo: document.getElementById('aula-ciclo').value,
+    gestion: Number(document.getElementById('aula-gestion').value),
+    semestre: Number(document.getElementById('aula-semestre').value),
+    estado: document.getElementById('aula-estado').value,
+    profesores: _aulaProfesSeleccionados(),
+  };
+  if(!payload.token){ alert('Sesión no válida. Volvé a entrar.'); return; }
+  const btn = document.getElementById('aula-btn-guardar');
+  const txtPrev = btn.textContent; btn.disabled=true; btn.textContent='⏳ Guardando…';
+  try{
+    const {data, error} = await sb.functions.invoke('aula-ops', {body: payload});
+    if(error){ alert('No se pudo guardar: '+(error.message||error)); return; }
+    if(data && data.ok===false){ alert('Error: '+(data.error||'desconocido')); return; }
+    aulaCancelarEdicion();
+    await cargarMateriasAula(true);
+    await aulaGestRefrescar();
+  }catch(e){ alert('Error: '+(e.message||e)); }
+  finally{ btn.disabled=false; btn.textContent=txtPrev; }
+}
+function aulaEditarMateria(id){
+  const m = (aulaMateriasCache||[]).find(x=> x.id===id);
+  if(!m) return;
+  aulaEditId = id;
+  document.getElementById('aula-form-titulo').textContent = '✏️ Editar materia';
+  document.getElementById('aula-nombre').value = m.nombre||'';
+  document.getElementById('aula-ciclo').value = m.ciclo||'1ER CICLO';
+  const gSel = document.getElementById('aula-gestion');
+  if(![...gSel.options].some(o=>o.value==String(m.gestion))) gSel.insertAdjacentHTML('afterbegin',`<option value="${m.gestion}">${m.gestion}</option>`);
+  gSel.value = String(m.gestion);
+  document.getElementById('aula-semestre').value = String(m.semestre||1);
+  document.getElementById('aula-estado').value = m.estado||'abierta';
+  aulaRenderProfesoresBox(((m.materia_aula_profesores)||[]).map(p=>p.profesor_id));
+  document.getElementById('aula-btn-guardar').textContent = '💾 Guardar cambios';
+  document.getElementById('aula-btn-cancelar').style.display = '';
+  document.getElementById('screen-aula-gestion').scrollTop = 0;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function aulaCancelarEdicion(){
+  aulaEditId = null;
+  const n=document.getElementById('aula-nombre'); if(n) n.value='';
+  const ti=document.getElementById('aula-form-titulo'); if(ti) ti.textContent='➕ Abrir nueva materia';
+  const bg=document.getElementById('aula-btn-guardar'); if(bg) bg.textContent='➕ Abrir materia';
+  const bc=document.getElementById('aula-btn-cancelar'); if(bc) bc.style.display='none';
+  aulaRenderProfesoresBox([]);
+}
+async function aulaCambiarEstado(id, estado){
+  const tok = (typeof getTokenSesion==='function')?getTokenSesion():null;
+  if(!tok){ alert('Sesión no válida.'); return; }
+  try{
+    const {data, error} = await sb.functions.invoke('aula-ops', {body:{accion:'estado', token:tok, id, estado}});
+    if(error){ alert('No se pudo cambiar el estado: '+(error.message||error)); return; }
+    if(data && data.ok===false){ alert('Error: '+(data.error||'desconocido')); return; }
+    await cargarMateriasAula(true);
+    await aulaGestRefrescar();
+  }catch(e){ alert('Error: '+(e.message||e)); }
+}
+async function aulaEliminarMateria(id, nombre){
+  if(!confirm(`¿Eliminar la materia "${nombre}"?\n\nSe borra del aula (y sus profesores asignados). Esta acción no se puede deshacer.`)) return;
+  const tok = (typeof getTokenSesion==='function')?getTokenSesion():null;
+  if(!tok){ alert('Sesión no válida.'); return; }
+  try{
+    const {data, error} = await sb.functions.invoke('aula-ops', {body:{accion:'eliminar', token:tok, id}});
+    if(error){ alert('No se pudo eliminar: '+(error.message||error)); return; }
+    if(data && data.ok===false){ alert('Error: '+(data.error||'desconocido')); return; }
+    if(aulaEditId===id) aulaCancelarEdicion();
+    await cargarMateriasAula(true);
+    await aulaGestRefrescar();
+  }catch(e){ alert('Error: '+(e.message||e)); }
+}
+async function aulaGestRefrescar(){
+  const cont = document.getElementById('aula-gest-lista');
+  if(!cont) return;
+  cont.innerHTML = '<div style="padding:14px;text-align:center;color:var(--text-muted)">⏳ Cargando…</div>';
+  const all = await cargarMateriasAula(true);
+  if(!all.length){ cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">Todavía no hay materias. Creá la primera arriba ☝️</div>'; return; }
+  const grupos = {};
+  all.forEach(m=>{
+    const k = m.gestion+'|'+m.ciclo+'|'+m.semestre;
+    if(!grupos[k]) grupos[k] = {gestion:m.gestion, ciclo:m.ciclo, semestre:m.semestre, items:[]};
+    grupos[k].items.push(m);
+  });
+  cont.innerHTML = Object.values(grupos)
+    .sort((a,b)=> b.gestion-a.gestion || a.ciclo.localeCompare(b.ciclo) || a.semestre-b.semestre)
+    .map(g=>`
+      <div style="margin-bottom:14px">
+        <div style="font-size:12px;font-weight:700;color:var(--gold-light);letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">${g.ciclo} · ${g.gestion} · sem ${g.semestre} · ${g.items.length}</div>
+        ${g.items.map(m=> _aulaGestRow(m)).join('')}
+      </div>`).join('');
+}
+function _aulaGestRow(m){
+  const est = AULA_ESTADO_INFO[m.estado] || AULA_ESTADO_INFO.abierta;
+  const profes = _aulaProfesNombres(m);
+  const nombreJs = escapeHtml(m.nombre).replace(/'/g,"\\'");
+  const toggle = m.estado==='abierta'
+    ? `<button class="btn-secondary" style="padding:5px 10px;font-size:12px;background:rgba(138,160,189,.12);border-color:#8aa0bd;color:#8aa0bd" onclick="aulaCambiarEstado('${m.id}','cerrada')">⏹️ Cerrar</button>`
+    : `<button class="btn-secondary" style="padding:5px 10px;font-size:12px;background:rgba(76,163,107,.15);border-color:#4ca36b;color:#4ca36b" onclick="aulaCambiarEstado('${m.id}','abierta')">▶️ Abrir</button>`;
+  return `<div class="list-item" style="padding:10px 12px;margin-bottom:6px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="flex:1">
+        <div style="font-weight:700;color:var(--text-primary);font-size:14px">${escapeHtml(m.nombre)}</div>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${escapeHtml(profes.join(' · ')||'Sin profesores')}</div>
+      </div>
+      <span style="font-size:11px;font-weight:700;color:${est.color};background:${est.bg};padding:3px 9px;border-radius:10px">${est.txt}</span>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+      ${toggle}
+      <button class="btn-secondary" style="padding:5px 10px;font-size:12px" onclick="aulaEditarMateria('${m.id}')">✏️ Editar</button>
+      <button class="btn-secondary" style="padding:5px 10px;font-size:12px;background:rgba(226,59,59,.12);border-color:#e23b3b;color:#e88a8a" onclick="aulaEliminarMateria('${m.id}','${nombreJs}')">🗑️ Eliminar</button>
+    </div>
+  </div>`;
+}
+
 function renderDiagnostico(){
   const c=document.getElementById('diag-status');
   const last = discData.lastSync ? discData.lastSync.toLocaleString('es-BO') : 'Nunca';
