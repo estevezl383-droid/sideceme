@@ -3847,7 +3847,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.79 · Recalcular puntaje al editar + marca de modificadas</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.80 · EFM CALIFICA (3er sem 2do ciclo) + badge prioriza la que promedia</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7228,10 +7228,17 @@ function htmlTarjetaEvaluacionFisica(ev, conEditar){
   const tipoLabel = (ev.tipo_evaluacion||'—').toUpperCase();
   const categoria = ev.categoria ? `Categoría: ${ev.categoria}` : '';
   const edad = ev.edad ? `Edad: ${ev.edad}` : '';
+  // v2.9.80: distinguir la evaluación que CALIFICA (promedia) de la diagnóstica (no promedia)
+  const esCalifica = tipoLabel === 'CALIFICA';
+  const periodo = ev.semestre ? (etiquetaSemAcad(ev.ciclo, ev.semestre) + (ev.gestion ? ' · ' + ev.gestion : '')) : '';
+  const tituloTxt = esCalifica ? (periodo || 'Evaluación que califica') : ('Examen ' + tipoLabel);
+  const promChip = esCalifica
+    ? `<span style="background:#1e6e3a;color:#bff5cf;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;letter-spacing:.5px;margin-left:6px">✓ PROMEDIA</span>`
+    : `<span style="background:#444;color:#bbb;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;letter-spacing:.5px;margin-left:6px">NO PROMEDIA</span>`;
   return `
     <div class="efm-cur-card">
       <div class="efm-cur-header">
-        <div class="efm-cur-title">🏃 Examen ${tipoLabel}</div>
+        <div class="efm-cur-title">🏃 ${tituloTxt}${promChip}</div>
         <div class="efm-cur-badge">${[categoria, edad].filter(Boolean).join(' · ')||'EFM'}</div>
       </div>
       <div class="efm-cur-final">
@@ -8823,16 +8830,25 @@ async function renderCursanteHome(){
   // Buscar nota EFM (best-effort, sin bloquear)
   try{
     const {data: efs} = await sb.from('evaluaciones_fisicas')
-      .select('nota_final,tipo_evaluacion')
+      .select('nota_final,tipo_evaluacion,gestion,semestre')
       .eq('cursante_id', currentUser.id)
-      .not('nota_final', 'is', null)
-      .order('nota_final', {ascending: false})
-      .limit(1);
-    if(efs && efs.length && efs[0].nota_final){
-      const nf = Number(efs[0].nota_final);
+      .not('nota_final', 'is', null);
+    // v2.9.80: el badge muestra la evaluación que CALIFICA (la que promedia), no la diagnóstica.
+    // Prioridad: CALIFICA > otras; dentro, la más reciente (gestión, semestre, nota).
+    let pick = null;
+    if(efs && efs.length){
+      const cal = efs.filter(e => String(e.tipo_evaluacion||'').toUpperCase() === 'CALIFICA');
+      const pool = cal.length ? cal : efs;
+      pool.sort((a,b)=> (Number(b.gestion||0)-Number(a.gestion||0))
+        || (Number(b.semestre||0)-Number(a.semestre||0))
+        || (Number(b.nota_final||0)-Number(a.nota_final||0)));
+      pick = pool[0];
+    }
+    if(pick && pick.nota_final){
+      const nf = Number(pick.nota_final);
       const nfTxt = isNaN(nf) ? '—' : (Number.isInteger(nf) ? nf : nf.toFixed(1));
       document.getElementById('cur-area-efm-val').textContent = nfTxt;
-      document.getElementById('cur-area-efm-sub').textContent = (efs[0].tipo_evaluacion||'EFM');
+      document.getElementById('cur-area-efm-sub').textContent = (pick.tipo_evaluacion||'EFM');
     } else {
       document.getElementById('cur-area-efm-val').textContent = '—';
       document.getElementById('cur-area-efm-sub').textContent = 'Sin evaluar';
