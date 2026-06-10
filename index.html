@@ -3844,7 +3844,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.75 · Mis sancionados en panel Jefe de Curso</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.77 · Anti-duplicado de sanciones por id (conteo)</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6551,8 +6551,10 @@ async function loadCursanteData(force=false){
     discData.byCursanteLost = {};
     discData.byCursanteSanc = {};
     discData.byCursantePendiente = {};
+    const _seenCur = new Set();
     discData.sanciones.forEach(s=>{
       if(s.anulada===true) return;
+      if(s && s.id!=null){ if(_seenCur.has(s.id)) return; _seenCur.add(s.id); } // v2.9.77: anti-duplicado por id
       const cid=s.cursante_id; const pts=Number(s.puntos_aplicados)||0;
       if(sancionCuentaParaPuntaje(s)){
         if(sancionEnSemestreActual(s)) discData.byCursanteLost[cid]=(discData.byCursanteLost[cid]||0)+pts;
@@ -6589,8 +6591,10 @@ async function _loadProfesorRapido(){
     discData.byCursanteLost={};
     discData.byCursanteSanc={};
     discData.byCursantePendiente={};
+    const _seenProf = new Set();
     (discData.sanciones||[]).forEach(s=>{
       if(s.anulada===true) return;
+      if(s && s.id!=null){ if(_seenProf.has(s.id)) return; _seenProf.add(s.id); } // v2.9.77: anti-duplicado por id
       const cid=s.cursante_id, pts=Number(s.puntos_aplicados)||0;
       if(sancionCuentaParaPuntaje(s)){
         if(sancionEnSemestreActual(s)) discData.byCursanteLost[cid]=(discData.byCursanteLost[cid]||0)+pts;
@@ -8434,9 +8438,10 @@ async function guardarSancionManual(){
     }
     if(!r || !r.ok) throw new Error(r?.error || 'Error en sanciones-ops');
     // El EF ya insertó + auditó. Reflejamos en memoria local.
-    discData.sanciones.push(nueva);
+    const _nidM = nueva.id;  // v2.9.77: no duplicar si ya está en memoria
+    if(!discData.sanciones.some(x=>x && x.id===_nidM)) discData.sanciones.push(nueva);
     if(!discData.byCursanteSanc[c.id]) discData.byCursanteSanc[c.id] = [];
-    discData.byCursanteSanc[c.id].push(nueva);
+    if(!discData.byCursanteSanc[c.id].some(x=>x && x.id===_nidM)) discData.byCursanteSanc[c.id].push(nueva);
     alert('✓ Sanción creada manualmente. ID: ' + sancionId);
     goGestionSanciones();
   }catch(e){
@@ -8721,8 +8726,13 @@ async function renderCursanteHome(){
     logout();
     return;
   }
-  // Si no hay data cargada, la cargamos primero (para tener sanciones, etc.)
-  if(!discData.loaded){ try{ await loadCursanteData(); }catch(e){ console.warn(e); } }
+  // v2.9.76 FIX: SIEMPRE recargar los datos PROPIOS del cursante desde la BD.
+  // Antes era `if(!discData.loaded)`, pero el prefetch de la pantalla de login
+  // (loadDiscData, línea ~5787) ya dejaba discData.loaded=true con datos GLOBALES
+  // tomados de un caché localStorage de hasta 30 min → el cursante mostraba
+  // conteos VIEJOS (caso Tatiana C081: BD=9 sanc/-28, su teléfono mostraba 10/-32).
+  // Forzar la carga fresca de SUS sanciones garantiza que siempre vea la verdad.
+  try{ await loadCursanteData(true); }catch(e){ console.warn(e); }
 
   const name = currentUser.nombre_completo||'Cursante';
   const initials = name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
@@ -9399,8 +9409,10 @@ function _reconstruirIndicesDisc(){
   discData.byCursanteLost = {};
   discData.byCursanteSanc = {};
   discData.byCursantePendiente = {};
+  const _seenRec = new Set();
   (discData.sanciones||[]).forEach(s=>{
     if(s.anulada===true) return;
+    if(s && s.id!=null){ if(_seenRec.has(s.id)) return; _seenRec.add(s.id); } // v2.9.77: anti-duplicado por id
     const cid=s.cursante_id;
     const pts=Number(s.puntos_aplicados)||0;
     if(sancionCuentaParaPuntaje(s)){
@@ -15098,9 +15110,10 @@ async function confirmarYFirmarSancion(){
 
     // 6. Refrescar discData en memoria
     if(data && data[0]){
-      discData.sanciones.push(data[0]);
+      const _nid = data[0].id;  // v2.9.77: no duplicar si ya está en memoria/caché
+      if(!discData.sanciones.some(x=>x && x.id===_nid)) discData.sanciones.push(data[0]);
       if(!discData.byCursanteSanc[c.id]) discData.byCursanteSanc[c.id] = [];
-      discData.byCursanteSanc[c.id].push(data[0]);
+      if(!discData.byCursanteSanc[c.id].some(x=>x && x.id===_nid)) discData.byCursanteSanc[c.id].push(data[0]);
       if(!MODO_PRUEBA){
         discData.byCursanteLost[c.id] = (discData.byCursanteLost[c.id]||0) + reinc.puntosFinal;
       }
@@ -15847,8 +15860,10 @@ async function gestionarSancionesPrueba(){
     // Re-construir byCursanteLost y byCursanteSanc desde cero
     discData.byCursanteLost = {};
     discData.byCursanteSanc = {};
+    const _seenPrueba = new Set();
     discData.sanciones.forEach(s => {
       if(s.anulada===true) return;
+      if(s && s.id!=null){ if(_seenPrueba.has(s.id)) return; _seenPrueba.add(s.id); } // v2.9.77: anti-duplicado por id
       const cid=s.cursante_id;
       const pts=Number(s.puntos_aplicados)||0;
       if(s.es_prueba !== true){
