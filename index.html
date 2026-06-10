@@ -1647,7 +1647,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
   box-shadow:inset 0 1px 0 rgba(255,255,255,.55), 0 2px 6px rgba(0,0,0,.15);
 }
 .efm-cur-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid rgba(184,144,44,.3)}
-.efm-cur-title{font-family:var(--font-display);font-size:18px;color:#5c4a1a;font-weight:700;letter-spacing:1px}
+.efm-cur-title{font-family:var(--font-display);font-size:18px;color:#f4d574;font-weight:700;letter-spacing:1px;display:flex;align-items:center;flex-wrap:wrap;gap:7px;text-shadow:0 1px 0 rgba(0,0,0,.95),0 2px 4px rgba(0,0,0,.6)}
 .efm-cur-badge{background:#5c4a1a;color:#f4d57a;padding:4px 10px;border-radius:10px;font-size:11px;font-weight:700;letter-spacing:.5px}
 .efm-cur-final{
   background:linear-gradient(180deg,#5c4a1a,#3a2f10);
@@ -1675,6 +1675,10 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .efm-prueba-nombre{font-weight:700;color:#1a0e04;font-size:14px}
 .efm-prueba-cant{font-family:monospace;color:#3d2c0a;font-size:12px;font-weight:600}
 .efm-prueba-nota{font-family:var(--font-display);font-weight:700;font-size:20px;color:#1a0e04;text-align:right;min-width:50px}
+.efm-prueba-pon{font-family:var(--font-display);font-weight:800;font-size:16px;color:#eafff0;background:#1e6e3a;border:1px solid #2f8f50;border-radius:8px;padding:3px 9px;text-align:center;min-width:46px;box-shadow:0 1px 2px rgba(0,0,0,.3)}
+.efm-prueba-pon-x{min-width:46px}
+.efm-pon-note{margin-top:11px;font-size:11.5px;line-height:1.45;color:#dff7e6;background:rgba(30,110,58,.20);border:1px solid rgba(47,143,80,.55);border-radius:8px;padding:8px 11px;text-align:center}
+.efm-pon-note b{color:#bff5cf}
 .efm-cur-obs{margin-top:12px;padding:10px;background:rgba(184,144,44,.12);border-left:3px solid #b8902c;border-radius:6px;font-size:12px;color:#5c4a1a;font-style:italic}
 .efm-no-data{padding:30px 12px;text-align:center;color:#7a6326;font-size:14px}
 
@@ -3847,7 +3851,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.80 · EFM CALIFICA (3er sem 2do ciclo) + badge prioriza la que promedia</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.81 · EFM: nota más ponderada (verde) + contraste título + diagnóstica clara</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7217,24 +7221,28 @@ function htmlTarjetaMerito(g){
 function htmlTarjetaEvaluacionFisica(ev, conEditar){
   const nota = ev.nota_final;
   const atributo = atributoCalificacion(Number(nota)||0);
+  // v2.9.81: cada prueba muestra su nota cruda + la "nota más" (ponderada) que SUMA al total.
   const pruebas = [
-    {nombre:'Talla / Peso', cant: [ev.talla, ev.peso].filter(Boolean).join(' · '), nota: ev.nota_talla_peso},
-    {nombre:'Natación', cant: [ev.natacion_distancia, ev.natacion_tiempo].filter(Boolean).join(' · '), nota: ev.natacion_nota},
-    {nombre:'Abdominales', cant: ev.abdominales_cant, nota: ev.abdominales_nota},
-    {nombre:'Flexiones', cant: ev.flexiones_cant, nota: ev.flexiones_nota},
-    {nombre:'Barra (dominadas)', cant: ev.barra_cant, nota: ev.barra_nota},
-    {nombre:'Aeróbica', cant: ev.aerobica_tiempo, nota: ev.aerobica_nota}
+    {nombre:'Talla / Peso', cant: [ev.talla, ev.peso].filter(Boolean).join(' · '), nota: ev.nota_talla_peso, pon: ev.nota_talla_peso_pon},
+    {nombre:'Natación', cant: [ev.natacion_distancia, ev.natacion_tiempo].filter(Boolean).join(' · '), nota: ev.natacion_nota, pon: ev.natacion_nota_pon},
+    {nombre:'Abdominales', cant: ev.abdominales_cant, nota: ev.abdominales_nota, pon: ev.abdominales_nota_pon},
+    {nombre:'Flexiones', cant: ev.flexiones_cant, nota: ev.flexiones_nota, pon: ev.flexiones_nota_pon},
+    {nombre:'Barra (dominadas)', cant: ev.barra_cant, nota: ev.barra_nota, pon: null},
+    {nombre:'Aeróbica', cant: ev.aerobica_tiempo, nota: ev.aerobica_nota, pon: ev.aerobica_nota_pon}
   ];
+  const tienePon = v => v!=null && v!=='';
+  const hayPon = pruebas.some(p => tienePon(p.pon));
   const tipoLabel = (ev.tipo_evaluacion||'—').toUpperCase();
   const categoria = ev.categoria ? `Categoría: ${ev.categoria}` : '';
   const edad = ev.edad ? `Edad: ${ev.edad}` : '';
-  // v2.9.80: distinguir la evaluación que CALIFICA (promedia) de la diagnóstica (no promedia)
+  // v2.9.80/81: distinguir la evaluación que CALIFICA (promedia) de la diagnóstica (no promedia)
   const esCalifica = tipoLabel === 'CALIFICA';
+  const tipoTxt = tipoLabel === 'DIAGNOSTICA' ? 'DIAGNÓSTICA' : tipoLabel;
   const periodo = ev.semestre ? (etiquetaSemAcad(ev.ciclo, ev.semestre) + (ev.gestion ? ' · ' + ev.gestion : '')) : '';
-  const tituloTxt = esCalifica ? (periodo || 'Evaluación que califica') : ('Examen ' + tipoLabel);
+  const tituloTxt = esCalifica ? (periodo || 'EVALUACIÓN QUE CALIFICA') : tipoTxt;
   const promChip = esCalifica
-    ? `<span style="background:#1e6e3a;color:#bff5cf;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;letter-spacing:.5px;margin-left:6px">✓ PROMEDIA</span>`
-    : `<span style="background:#444;color:#bbb;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px;letter-spacing:.5px;margin-left:6px">NO PROMEDIA</span>`;
+    ? `<span style="background:#1e6e3a;color:#bff5cf;font-size:10px;font-weight:700;padding:3px 9px;border-radius:6px;letter-spacing:.5px;white-space:nowrap;display:inline-block">✓ PROMEDIA</span>`
+    : `<span style="background:#7a2230;color:#ffd6dc;font-size:10px;font-weight:700;padding:3px 9px;border-radius:6px;letter-spacing:.5px;white-space:nowrap;display:inline-block">NO PROMEDIA</span>`;
   return `
     <div class="efm-cur-card">
       <div class="efm-cur-header">
@@ -7254,9 +7262,11 @@ function htmlTarjetaEvaluacionFisica(ev, conEditar){
               ${p.cant ? `<div class="efm-prueba-cant">${p.cant}</div>` : ''}
             </div>
             <div class="efm-prueba-nota">${p.nota||'—'}</div>
+            ${tienePon(p.pon) ? `<div class="efm-prueba-pon">+${p.pon}</div>` : `<div class="efm-prueba-pon-x"></div>`}
           </div>
         `).join('')}
       </div>
+      ${hayPon ? `<div class="efm-pon-note">🟢 La <b>nota más</b> en verde es lo que suma cada prueba. La suma de todas = <b>NOTA FINAL ${nota||'—'}</b>.</div>` : ''}
       ${ev.observaciones ? `<div class="efm-cur-obs">📝 ${ev.observaciones}</div>` : ''}
     </div>`;
 }
