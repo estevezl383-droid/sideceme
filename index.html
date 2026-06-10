@@ -3844,7 +3844,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.77 · Anti-duplicado de sanciones por id (conteo)</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.78 · Sincronización blindada (no más "todos en 0")</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5772,7 +5772,7 @@ const ARTICULO_BAJA_ANUAL_CORTO = 'Art. 5';
 let selectedCargo=null, currentUser=null, activeRole=null;
 let selectedSancionId=null, lastSancionListScroll=0;
 let leafletMap=null;
-let discData = {cursantes:[], sanciones:[], profesores:[], reglamentos:[], byCursanteLost:{}, byCursanteSanc:{}, loaded:false, lastSync:null};
+let discData = {cursantes:[], sanciones:[], profesores:[], reglamentos:[], byCursanteLost:{}, byCursanteSanc:{}, loaded:false, fullLoaded:false, lastSync:null};
 
 // === PRE-FETCH de datos en background (v2.9.19) ===
 // Junto con el warm-up del EF, cargamos los datos mientras el usuario
@@ -6565,6 +6565,7 @@ async function loadCursanteData(force=false){
       discData.byCursanteSanc[cid].push(s);
     });
     discData.loaded=true;
+    discData.fullLoaded=false;   // v2.9.78: solo trae las sanciones del propio cursante (no todas)
     discData.lastSync=new Date();
     detectarSchemaSanciones(); // necesario para que la firma del cursante funcione
   }catch(e){ console.warn('loadCursanteData', e); }
@@ -6605,6 +6606,7 @@ async function _loadProfesorRapido(){
       discData.byCursanteSanc[cid].push(s);
     });
     discData.loaded=true;
+    discData.fullLoaded=false;   // v2.9.78: carga rápida = solo MIS sanciones; las fichas piden full
     discData.lastSync=new Date();
     detectarSchemaSanciones();
   }catch(e){ console.warn('_loadProfesorRapido', e); }
@@ -9430,10 +9432,14 @@ function _reconstruirIndicesDisc(){
 // v2.9.60: caché localStorage de los 4 datasets pesados (cursantes/sanciones/profesores/reglamentos).
 // TTL = 30 min (los datos cambian poco entre logins consecutivos). El refresh real corre
 // SIEMPRE en background tras pintar con la caché, así nunca quedan datos viejos por mucho.
-const _DISC_CACHE_KEY = 'sideceme_disc_cache_v1';
+// v2.9.78: clave v2 → ignora cualquier caché viejo (posiblemente envenenado con
+// sanciones=[] por un error de red de versiones anteriores). Arranca limpio.
+const _DISC_CACHE_KEY = 'sideceme_disc_cache_v2';
 const _DISC_CACHE_TTL_MS = 30 * 60 * 1000;
 function _guardarDiscCache(){
   try{
+    // v2.9.78: no cachear si no hay sanciones (evita persistir un estado "todos en 0").
+    if(!Array.isArray(discData.sanciones) || !discData.sanciones.length) return;
     const blob = {
       ts: Date.now(),
       cursantes: discData.cursantes,
@@ -9442,6 +9448,7 @@ function _guardarDiscCache(){
       reglamentos: discData.reglamentos
     };
     localStorage.setItem(_DISC_CACHE_KEY, JSON.stringify(blob));
+    try{ localStorage.removeItem('sideceme_disc_cache_v1'); }catch(_){}
   }catch(e){ /* quota llena → ignorar */ }
 }
 function _cargarDiscCache(){
@@ -9451,12 +9458,15 @@ function _cargarDiscCache(){
     const blob = JSON.parse(raw);
     if(!blob || !blob.ts) return false;
     if(Date.now() - blob.ts > _DISC_CACHE_TTL_MS) return false;
+    // v2.9.78: un caché SIN sanciones es inválido (sería "todos en 0") → forzar fetch real.
+    if(!Array.isArray(blob.sanciones) || !blob.sanciones.length) return false;
     discData.cursantes  = blob.cursantes  || [];
     discData.sanciones  = blob.sanciones  || [];
     discData.profesores = blob.profesores || [];
     discData.reglamentos= blob.reglamentos|| [];
     _reconstruirIndicesDisc();
     discData.loaded = true;
+    discData.fullLoaded = true;
     discData.lastSync = new Date(blob.ts);
     detectarSchemaSanciones();
     return true;
@@ -9489,30 +9499,49 @@ async function _fetchDiscDataReal(silent){
     if(sanRes.error) console.error('sanciones:',sanRes.error);
     if(profRes.error) console.error('profesores:',profRes.error);
     if(regRes.error) console.error('reglamentos:',regRes.error);
-    discData.cursantes = curRes.data||[];
-    discData.sanciones = sanRes.data||[];
-    discData.profesores = profRes.data||[];
-    discData.reglamentos = regRes.data||[];
+    // v2.9.78 SYNC BLINDADO: NUNCA pisar datos buenos con vacío por un error de red.
+    // Solo asignamos cuando la consulta trajo datos OK; si falló, conservamos lo previo.
+    if(!curRes.error  && Array.isArray(curRes.data))  discData.cursantes   = curRes.data;
+    if(!sanRes.error  && Array.isArray(sanRes.data))  discData.sanciones   = sanRes.data;
+    if(!profRes.error && Array.isArray(profRes.data)) discData.profesores  = profRes.data;
+    if(!regRes.error  && Array.isArray(regRes.data))  discData.reglamentos = regRes.data;
     _reconstruirIndicesDisc();
-    discData.loaded=true;
     discData.lastSync=new Date();
     detectarSchemaSanciones();
-    _guardarDiscCache();
-    // Si fue refresh en background y el panel está visible, re-render
-    if(silent){
-      try{
-        const visible = document.querySelector('.screen.active');
-        if(visible){
-          if(visible.id === 'screen-disc-panel'   && typeof renderDiscPanel==='function')   renderDiscPanel();
-          if(visible.id === 'screen-prof-panel'   && typeof renderProfPanel==='function')   renderProfPanel();
-          if(visible.id === 'screen-jc-panel'    && typeof renderJCPanel==='function')    renderJCPanel();
-        }
-      }catch(_){}
+    // La carga se considera COMPLETA solo si lo crítico (cursantes + sanciones) llegó bien.
+    const cargaOK = !curRes.error && !sanRes.error
+                 && Array.isArray(discData.cursantes) && Array.isArray(discData.sanciones);
+    if(cargaOK){
+      discData.loaded = true;
+      discData.fullLoaded = true;
+      _guardarDiscCache();   // solo cacheamos datos COMPLETOS y buenos (nunca un vacío por error)
+    } else {
+      // Falló algo crítico → NO cachear, NO dejar la UI en 0: reintentar en background.
+      console.warn('[sync] carga incompleta (cursantes/sanciones), reintentando en 2.5s…');
+      setTimeout(()=>{ _fetchDiscDataReal(true).catch(()=>{}); }, 2500);
     }
+    // Re-dibujar la pantalla visible cuando llegan datos frescos (sea carga inicial o refresh).
+    _reRenderPantallaActiva();
   }catch(e){
     console.error('loadDiscData failed:',e);
-    if(!silent) alert('Error cargando datos: '+(e.message||e));
+    // Excepción total (red caída momentánea): reintentar solo, sin romper la UI.
+    setTimeout(()=>{ _fetchDiscDataReal(true).catch(()=>{}); }, 3000);
+    if(!silent && !discData.loaded){
+      console.warn('[sync] sin datos todavía; reintentando en background');
+    }
   }
+}
+// v2.9.78: re-render de la pantalla actualmente visible (al llegar datos frescos)
+function _reRenderPantallaActiva(){
+  try{
+    const visible = document.querySelector('.screen.active');
+    if(!visible) return;
+    const id = visible.id;
+    if(id==='screen-disc-panel'     && typeof renderDiscPanel==='function')     renderDiscPanel();
+    else if(id==='screen-prof-panel'&& typeof renderProfPanel==='function')     renderProfPanel();
+    else if(id==='screen-jc-panel'  && typeof renderJCPanel==='function')       renderJCPanel();
+    else if(id==='screen-cursante-home' && typeof renderCursanteHome==='function') renderCursanteHome();
+  }catch(_){}
 }
 
 function getEstado(p){
@@ -10329,6 +10358,15 @@ function verFichaCursante(cursanteId, backTarget){
   const cur = discData.cursantes.find(c=>c.id===cursanteId);
   if(!cur){ alert('Cursante no encontrado.'); return; }
   if(backTarget) _fichaBackTarget = backTarget;
+  // v2.9.78: si la data está PARCIAL (carga rápida del profesor = solo sus sanciones),
+  // completar en background y re-dibujar la ficha → evita mostrar puntaje/sanciones incompletos.
+  if(!discData.fullLoaded){
+    loadDiscData(true).then(()=>{
+      if(discData.fullLoaded && (document.querySelector('.screen.active')||{}).id==='screen-ficha-cursante'){
+        verFichaCursante(cursanteId);
+      }
+    }).catch(()=>{});
+  }
   const sancs = (discData.byCursanteSanc[cursanteId]||[]).slice().sort((a,b)=>new Date(b.creado_en||0)-new Date(a.creado_en||0));
   const perd = discData.byCursanteLost[cursanteId]||0;
   const vigente = 100 - perd;
