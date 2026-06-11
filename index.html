@@ -3872,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.82 · Avisos in-app a cursantes (publicar/desactivar desde panel C&T)</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.84 · Aula: Documentos del Personal Docente (profesores leen, C&T sube)</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4296,6 +4296,11 @@ input::placeholder, textarea::placeholder {
     <button class="btn-mega" onclick="goHorarios()" style="background:linear-gradient(180deg,#4a90d9,#2d5a8a);margin-top:8px">
       <span class="mega-icon">📅</span>
       <span>Horario Semanal</span>
+    </button>
+
+    <button class="btn-mega" onclick="goAulaProfesores()" style="background:linear-gradient(180deg,#5a3a8a,#8c5acb);margin-top:8px;color:#fff">
+      <span class="mega-icon">📚</span>
+      <span>Documentos del personal docente</span>
     </button>
 
     <button class="btn-mega" onclick="activarNotificacionesStaff()" style="background:linear-gradient(180deg,#b7791f,#7a5012);margin-top:8px">
@@ -4840,6 +4845,7 @@ input::placeholder, textarea::placeholder {
       <button id="qa-btn-bloqueo-materias" class="quick-btn" onclick="goBloqueoMaterias()" style="background:linear-gradient(180deg,rgba(180,140,255,.15),rgba(180,140,255,.05));border-color:#b48cff;display:none"><span class="qa-icon">🔒</span><span class="qa-text"><strong>Bloquear materias / módulos</strong> (ocultar a alumnos)</span></button>
       <button id="qa-btn-aula-gestion" class="quick-btn" onclick="goAulaGestion()" style="background:linear-gradient(180deg,rgba(140,90,203,.18),rgba(140,90,203,.05));border-color:#8c5acb;display:none"><span class="qa-icon">📚</span><span class="qa-text"><strong>Aula Virtual</strong> (abrir / cerrar materias)</span></button>
       <button id="qa-btn-avisos" class="quick-btn" onclick="goAvisos()" style="background:linear-gradient(180deg,rgba(70,150,110,.2),rgba(70,150,110,.05));border-color:#46966e;display:none"><span class="qa-icon">📢</span><span class="qa-text"><strong>Avisos a cursantes</strong> (publicar / desactivar cartel in-app)</span></button>
+      <button class="quick-btn" onclick="goDocsProfesoresCT()" style="background:linear-gradient(180deg,rgba(140,90,203,.18),rgba(140,90,203,.05));border-color:#8c5acb"><span class="qa-icon">👨‍🏫</span><span class="qa-text"><strong>Documentos del personal docente</strong> (subir / ver — solo profesores)</span></button>
       <button class="quick-btn success" data-sac-hide="1" onclick="goRespaldo()"><span class="qa-icon">💾</span><span class="qa-text">Descargar respaldo ahora (JSON + .XLSX)</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goInstalar()"><span class="qa-icon">📲</span><span class="qa-text">Instalar app / Compartir QR</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goAnulaciones()"><span class="qa-icon">📋</span><span class="qa-text">Solicitudes de reconsideración / anulación</span><span id="badge-solicitudes" style="display:none;margin-left:auto;background:#c84a4a;color:#fff;font-size:12px;font-weight:700;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;padding:0 6px">0</span></button>
@@ -5584,6 +5590,15 @@ input::placeholder, textarea::placeholder {
 
     <div class="section-label">Documentos de la materia</div>
     <div id="aula-dg-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+  </div>
+</section>
+
+<!-- v2.9.84: lectura de documentos del personal docente (profesores) -->
+<section id="screen-aula-profesores" class="screen">
+  <div class="app-header"><button class="back-btn" onclick="aulaProfVolver()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Personal Docente</div><div class="header-sub">Documentos para profesores</div></div></div>
+  <div class="menu-container">
+    <div class="alert-banner blue" style="margin-bottom:12px"><span class="alert-emoji">👨‍🏫</span><span class="alert-text"><b>Documentos del personal docente.</b> Material para profesores (los alumnos no lo ven).</span></div>
+    <div id="aula-prof-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
   </div>
 </section>
 
@@ -12930,6 +12945,8 @@ function goAulaMateriaCursante(id){
 
 // ---------- FASE 1: documentos + visor PDF ----------
 const AULA_DOCS_BUCKET = 'documentos-academicos';
+// v2.9.84: materia-contenedor del área "Documentos del Personal Docente" (solo profesores)
+const AULA_MATERIA_PROFESORES = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd';
 let aulaDocsGestMateria = null;
 let aulaHlOn = false;
 let aulaHlColor = 'rgba(255,221,0,.45)';
@@ -12996,6 +13013,28 @@ function cerrarAulaVisor(){
   const cont = document.getElementById('aula-visor-container');
   if(cont){ cont.onmouseup=null; cont.ontouchend=null; cont.innerHTML=''; }
   showScreen(aulaVisorBackScreen||'screen-aula-materia');
+}
+
+// v2.9.84: AULA — "Documentos del Personal Docente" (solo profesores; alumnos no lo ven)
+let aulaProfBackScreen = 'screen-prof-panel';
+async function goAulaProfesores(){
+  aulaProfBackScreen = (document.querySelector('.screen.active')||{}).id || 'screen-prof-panel';
+  showScreen('screen-aula-profesores');
+  const cont = document.getElementById('aula-prof-lista');
+  if(cont) cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const docs = await cargarDocsMateria(AULA_MATERIA_PROFESORES);
+  if(cont){
+    cont.innerHTML = docs.length
+      ? docs.map(_aulaDocItemCursante).join('')
+      : '<div class="efm-no-data" style="color:var(--text-muted)">Todavía no hay documentos cargados para el personal docente.</div>';
+  }
+}
+function aulaProfVolver(){ showScreen(aulaProfBackScreen||'screen-prof-panel'); }
+// C&T: subir/gestionar documentos para el personal docente (reusa la pantalla de gestión)
+async function goDocsProfesoresCT(){
+  if(!esCT()){ goAulaProfesores(); return; }  // no-CT: cae a lectura
+  await cargarMateriasAula(true);              // asegura la materia-contenedor en caché
+  goAulaDocsGestion(AULA_MATERIA_PROFESORES);
 }
 async function renderPdfConTexto(url, containerId){
   const container = document.getElementById(containerId);
@@ -15253,6 +15292,44 @@ async function confirmarYFirmarSancion(){
   const btn = document.getElementById('btn-confirmar-sancion');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner-inline"></span> Registrando...';
+
+  // === v2.9.83: ANTI-DUPLICADO CONTRA EL SERVIDOR ===
+  // Causa del bug recurrente: tras una sesión expirada / datos locales viejos, un reenvío
+  // reusaba el mismo folio y creaba una 2da sanción IDÉNTICA con id distinto (el anti-dup
+  // por id no la agarraba). Acá consultamos el SERVIDOR (no discData, que puede estar viejo)
+  // antes de guardar. Si la consulta falla (offline), NO bloqueamos: no perder la sanción.
+  try{
+    const _c = nuevaSancion.cursante, _r = nuevaSancion.falta;
+    if(_c && _r && currentUser){
+      const _desde = new Date(Date.now() - 6*60*60*1000).toISOString(); // últimas 6 h
+      const _dupRes = await sb.from('v_sanciones')
+        .select('folio,confirmacion_estado,creado_en')
+        .eq('cursante_id', _c.id)
+        .eq('falta_id', _r.id)
+        .eq('profesor_id', currentUser.id)
+        .eq('anulada', false)
+        .gte('creado_en', _desde)
+        .order('creado_en', { ascending:false })
+        .limit(1);
+      if(_dupRes && !_dupRes.error && _dupRes.data && _dupRes.data.length){
+        const _d = _dupRes.data[0];
+        const _hace = Math.max(1, Math.round((Date.now() - new Date(_d.creado_en).getTime())/60000));
+        const _estado = _d.confirmacion_estado === 'firmada' ? 'YA FIRMADA por el cursante' : 'pendiente de firma';
+        const seguir = confirm(
+          '⚠️ POSIBLE DUPLICADO\n\n' +
+          'Este alumno YA tiene esta MISMA sanción cargada por usted hace ' + _hace + ' min.\n\n' +
+          'Folio ' + (_d.folio || '—') + ' · ' + _estado + '\n\n' +
+          'Si la anterior se trabó pero en realidad SÍ se guardó, NO la cargue de nuevo (ya está registrada).\n\n' +
+          '¿Cargar OTRA sanción igual de todos modos?'
+        );
+        if(!seguir){
+          btn.disabled = false;
+          btn.innerHTML = '✓ Confirmar y firmar';
+          return;
+        }
+      }
+    }
+  }catch(_){ /* consulta falló (offline): no bloqueamos, seguimos el flujo normal */ }
 
   // === SAFETY TIMER GLOBAL ===
   // Cinturón Y tirantes: pase lo que pase, a los 7 segundos el botón se libera.
