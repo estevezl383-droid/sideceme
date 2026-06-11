@@ -3872,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.92 · Radiogramas: formato Word oficial (membrete Arial 10, título 16, cuerpo 12)</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.93 · Radiogramas Fase 3: panel Dirección (tablero + publicar + seguimiento + export)</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4301,6 +4301,11 @@ input::placeholder, textarea::placeholder {
     <button class="btn-mega" onclick="goAulaProfesores()" style="background:linear-gradient(180deg,#5a3a8a,#8c5acb);margin-top:8px;color:#fff">
       <span class="mega-icon">📚</span>
       <span>Documentos del personal docente</span>
+    </button>
+
+    <button class="btn-mega rgd-access" onclick="goRgDireccion()" style="background:linear-gradient(180deg,#3a5a8a,#4a90d9);margin-top:8px;color:#fff;display:none">
+      <span class="mega-icon">📻</span>
+      <span>Radiogramas — Dirección del Ejercicio</span>
     </button>
 
     <button class="btn-mega" onclick="activarNotificacionesStaff()" style="background:linear-gradient(180deg,#b7791f,#7a5012);margin-top:8px">
@@ -4848,6 +4853,7 @@ input::placeholder, textarea::placeholder {
       <button id="qa-btn-bloqueo-materias" class="quick-btn" onclick="goBloqueoMaterias()" style="background:linear-gradient(180deg,rgba(180,140,255,.15),rgba(180,140,255,.05));border-color:#b48cff;display:none"><span class="qa-icon">🔒</span><span class="qa-text"><strong>Bloquear materias / módulos</strong> (ocultar a alumnos)</span></button>
       <button id="qa-btn-aula-gestion" class="quick-btn" onclick="goAulaGestion()" style="background:linear-gradient(180deg,rgba(140,90,203,.18),rgba(140,90,203,.05));border-color:#8c5acb;display:none"><span class="qa-icon">📚</span><span class="qa-text"><strong>Aula Virtual</strong> (abrir / cerrar materias)</span></button>
       <button id="qa-btn-avisos" class="quick-btn" onclick="goAvisos()" style="background:linear-gradient(180deg,rgba(70,150,110,.2),rgba(70,150,110,.05));border-color:#46966e;display:none"><span class="qa-icon">📢</span><span class="qa-text"><strong>Avisos a cursantes</strong> (publicar / desactivar cartel in-app)</span></button>
+      <button class="quick-btn rgd-access" onclick="goRgDireccion()" style="background:linear-gradient(180deg,rgba(74,144,217,.2),rgba(74,144,217,.05));border-color:#4a90d9;display:none"><span class="qa-icon">📻</span><span class="qa-text"><strong>Radiogramas — Dirección del Ejercicio</strong> (tablero / publicar / seguimiento)</span></button>
       <button class="quick-btn" onclick="goDocsProfesoresCT()" style="background:linear-gradient(180deg,rgba(140,90,203,.18),rgba(140,90,203,.05));border-color:#8c5acb"><span class="qa-icon">👨‍🏫</span><span class="qa-text"><strong>Documentos del personal docente</strong> (subir / ver — solo profesores)</span></button>
       <button class="quick-btn success" data-sac-hide="1" onclick="goRespaldo()"><span class="qa-icon">💾</span><span class="qa-text">Descargar respaldo ahora (JSON + .XLSX)</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goInstalar()"><span class="qa-icon">📲</span><span class="qa-text">Instalar app / Compartir QR</span></button>
@@ -5650,6 +5656,47 @@ input::placeholder, textarea::placeholder {
   </div>
 </section>
 
+<!-- v2.9.93: FASE 3 — Panel de la Dirección del Ejercicio -->
+<style>
+.rgd-filtros{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.rgd-chip{padding:7px 14px;border:1px solid var(--border,#2a3a52);border-radius:20px;background:rgba(255,255,255,.03);color:var(--text-secondary,#9fb3cc);font-size:13px;cursor:pointer}
+.rgd-chip.active{background:rgba(74,144,217,.2);border-color:#4a90d9;color:#cfe0f5;font-weight:600}
+.rgd-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:6px}
+.rgd-mc{background:rgba(255,255,255,.03);border:1px solid var(--border,#2a3a52);border-radius:10px;padding:10px 6px;text-align:center}
+.rgd-mc .v{font-size:20px;font-weight:700;color:#f4d574}
+.rgd-mc .k{font-size:11px;color:var(--text-muted,#7e8aa0);margin-top:2px}
+.rgd-row{border:1px solid var(--border,#2a3a52);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:rgba(255,255,255,.02)}
+.rgd-row-top{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.rgd-bchip{font-size:10px;padding:1px 6px;border-radius:6px;font-weight:700}
+.rgd-b1{background:#1b3a5c;color:#9ec3ef}
+.rgd-b2{background:#5a2230;color:#ffc9c9}
+.rgd-acuse{font-size:12px;margin-top:4px;color:var(--text-secondary,#9fb3cc)}
+.rgd-actions{display:flex;gap:8px;margin-top:8px}
+.rgd-btn{flex:1;padding:7px;border:1px solid var(--border,#2a3a52);border-radius:8px;background:rgba(255,255,255,.03);color:#cfe0f5;font-size:12px;cursor:pointer}
+.rgd-btn.danger{border-color:#7a2230;color:#ffc9c9}
+</style>
+<section id="screen-rg-direccion" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="rgdVolver()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">📻 Dirección del Ejercicio</div><div class="header-sub">Tablero de radiogramas · VENCER O MORIR</div></div>
+  </div>
+  <div class="menu-container">
+    <div class="rgd-filtros" id="rgd-filtros">
+      <button class="rgd-chip active" data-b="" onclick="rgdSetBando('')">Todos</button>
+      <button class="rgd-chip" data-b="1" onclick="rgdSetBando('1')">Bando 1 · TERRAN</button>
+      <button class="rgd-chip" data-b="2" onclick="rgdSetBando('2')">Bando 2 · PROTOS</button>
+    </div>
+    <div class="rgd-metrics" id="rgd-metrics"></div>
+    <div style="display:flex;gap:8px;margin:12px 0">
+      <button class="btn-mega" style="margin:0;background:linear-gradient(180deg,#3a5a8a,#4a90d9);color:#fff;flex:1" onclick="rgdTransmitir()"><span class="mega-icon">📤</span><span>Publicar / transmitir</span></button>
+      <button class="btn-mega" style="margin:0;flex:1" onclick="rgdExportar()"><span class="mega-icon">📑</span><span>Exportar libro (CSV)</span></button>
+    </div>
+    <div class="section-label">Radiogramas (más recientes primero)</div>
+    <div id="rgd-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+  </div>
+</section>
+
 <section id="screen-aula-gestion" class="screen with-bottom-nav">
   <div class="app-header"><button class="back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Aula Virtual</div><div class="header-sub">C&amp;T · abrir / cerrar materias</div></div></div>
   <div class="disc-container">
@@ -5777,6 +5824,10 @@ input::placeholder, textarea::placeholder {
     <button class="btn-mega" onclick="goMisSancionados()" style="background:linear-gradient(180deg,#3a5a8a,#4a90d9);margin:0 0 14px 0;color:#fff">
       <span class="mega-icon">👥</span>
       <span>Mis sancionados (seguimiento de los que yo sancioné)</span>
+    </button>
+    <button class="btn-mega rgd-access" onclick="goRgDireccion()" style="background:linear-gradient(180deg,#3a5a8a,#4a90d9);margin:0 0 14px 0;color:#fff;display:none">
+      <span class="mega-icon">📻</span>
+      <span>Radiogramas — Dirección del Ejercicio</span>
     </button>
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-num" id="jc-stat-cursantes">—</div><div class="stat-label">Cursantes</div></div>
@@ -6079,6 +6130,7 @@ function showScreen(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   const el = document.getElementById(id);
   if(el){ el.classList.add('active'); window.scrollTo({top:0,behavior:'instant'}); clearErrors(); }
+  try{ _rgdToggleAccesos(); }catch(e){}  // v2.9.93: acceso Dirección del Ejercicio
 }
 function goHome(){ showScreen('screen-home'); }
 function goCargos(){ showScreen('screen-cargos'); }
@@ -13688,6 +13740,159 @@ function _descargarRadiogramaDocx(d, nombre){
     setTimeout(()=>URL.revokeObjectURL(url), 4000);
     return true;
   }catch(e){ alert('No se pudo generar el Word: ' + (e.message||e)); return false; }
+}
+
+/* ===== v2.9.93: FASE 3 — Panel de la Dirección del Ejercicio (tablero + publicar) ===== */
+let RGD_BANDO = '';      // ''=todos, '1', '2'
+let RGD_ROWS = {};       // codigo -> fila (tablero)
+let RGD_GRUPOS = null;   // cache de todas las unidades
+let rgdBack = 'screen-disc-panel';
+
+// ¿el usuario logueado es Dirección del Ejercicio? (mismo criterio que ejercicio_direccion)
+function esDireccionEjercicio(){
+  const s = getSession();
+  if(!s || s.tipo !== 'docente') return false;
+  if(['comandante','estudios','ciencia_tecnologia'].includes(activeRole)) return true;
+  if(currentUser && ['P016','P028'].includes(currentUser.id)) return true;
+  return false;
+}
+function _rgdToggleAccesos(){
+  const v = esDireccionEjercicio();
+  document.querySelectorAll('.rgd-access').forEach(b => { b.style.display = v ? '' : 'none'; });
+}
+function rgdVolver(){ showScreen(rgdBack || 'screen-disc-panel'); }
+async function goRgDireccion(){
+  rgdBack = (document.querySelector('.screen.active')||{}).id || 'screen-disc-panel';
+  showScreen('screen-rg-direccion');
+  await rgdCargarTablero();
+}
+function rgdSetBando(b){
+  RGD_BANDO = b;
+  document.querySelectorAll('#rgd-filtros .rgd-chip').forEach(c => c.classList.toggle('active', (c.getAttribute('data-b')||'')===b));
+  rgdCargarTablero();
+}
+function _rgdDur(seg){
+  if(seg==null) return '—';
+  if(seg<60) return seg+'s';
+  const m=Math.floor(seg/60), s=seg%60;
+  if(m<60) return m+'m'+(s?(' '+s+'s'):'');
+  const h=Math.floor(m/60); return h+'h '+(m%60)+'m';
+}
+async function rgdCargarTablero(){
+  const cont=document.getElementById('rgd-lista'), met=document.getElementById('rgd-metrics');
+  if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const r=await _rgInvoke('tablero', RGD_BANDO?{bando:parseInt(RGD_BANDO,10)}:{});
+  if(!r.ok){ if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No autorizado o ejercicio inactivo.</div>'; if(met) met.innerHTML=''; return; }
+  const rows=r.radiogramas||[]; RGD_ROWS={}; rows.forEach(x=>{ if(x.codigo) RGD_ROWS[x.codigo]=x; });
+  let tot=rows.length, dest=0, acus=0, lagSum=0, lagN=0;
+  rows.forEach(x=>{ const a=x.acuse||{}; dest+=a.total||0; acus+=a.acusados||0; if(a.lag_prom_seg!=null){ lagSum+=a.lag_prom_seg; lagN++; } });
+  const pct=dest?Math.round(acus/dest*100):0, lag=lagN?_rgdDur(Math.round(lagSum/lagN)):'—';
+  if(met) met.innerHTML =
+    '<div class="rgd-mc"><div class="v">'+tot+'</div><div class="k">radiogramas</div></div>'+
+    '<div class="rgd-mc"><div class="v">'+pct+'%</div><div class="k">acuse '+acus+'/'+dest+'</div></div>'+
+    '<div class="rgd-mc"><div class="v" style="color:#ff9b9b">'+(dest-acus)+'</div><div class="k">sin acusar</div></div>'+
+    '<div class="rgd-mc"><div class="v">'+lag+'</div><div class="k">lag prom.</div></div>';
+  if(cont) cont.innerHTML = rows.length ? rows.map(_rgdRow).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">Sin radiogramas todavía.</div>';
+}
+function _rgdRow(x){
+  const a=x.acuse||{total:0,acusados:0};
+  const origen = x.origen_tipo==='direccion' ? 'Dirección' : _rgGrp(x.origen_grupo_id);
+  const bchip = x.bando===1 ? '<span class="rgd-bchip rgd-b1">B1 TERRAN</span>' : '<span class="rgd-bchip rgd-b2">B2 PROTOS</span>';
+  const num = x.numero_unidad ? ('N° '+String(x.numero_unidad).padStart(2,'0')) : '';
+  const anul = x.anulado ? '<span class="rg-badge rg-urg" style="margin-left:6px">ANULADO</span>' : '';
+  const completo = a.total && a.acusados===a.total;
+  return '<div class="rgd-row"'+(x.anulado?' style="opacity:.55"':'')+'>'
+    + '<div class="rgd-row-top"><span class="rg-code">'+_rgEsc(x.codigo||'')+'</span> '+bchip+' '+_rgPrioBadge(x.prioridad)+anul+'<span class="rg-meta" style="margin-left:auto">'+_rgEsc(_rgHora(x.enviado_en))+'</span></div>'
+    + '<div class="rg-route" style="margin-top:4px">'+_rgEsc(num)+' · de '+_rgEsc(origen)+' → '+_rgEsc(x.al_label||_rgGrp(x.origen_grupo_id))+'</div>'
+    + '<div class="rg-asunto" style="font-size:13px">'+_rgEsc(x.asunto||x.sistema||'')+'</div>'
+    + '<div class="rgd-acuse"><b style="color:'+(completo?'#7fe3b0':'#f4d574')+'">'+a.acusados+'/'+a.total+' acusaron</b>'+(a.lag_prom_seg!=null?(' · lag '+_rgdDur(a.lag_prom_seg)):'')+'</div>'
+    + '<div class="rgd-actions"><button class="rgd-btn" onclick="_rgdDescargar(\''+_rgEsc(x.codigo)+'\')">📄 Word</button>'+(x.anulado?'':'<button class="rgd-btn danger" onclick="rgdAnular('+x.id+')">🚫 Anular</button>')+'</div>'
+    + '</div>';
+}
+function _rgdDescargar(codigo){ const row=RGD_ROWS[codigo]; if(!row) return; _descargarRadiogramaDocx(_rgDocDeRow(row,'EXPEDIDO'),'RADIOGRAMA_'+codigo); }
+async function rgdAnular(id){
+  if(!confirm('¿Anular este radiograma? Dejará de verse para los destinatarios.')) return;
+  const r=await _rgInvoke('anular',{radiograma_id:id});
+  if(!r.ok){ alert('No se pudo anular: '+(r.error||'')); return; }
+  rgdCargarTablero();
+}
+function rgdExportar(){
+  const rows=Object.values(RGD_ROWS).sort((a,b)=> new Date(b.enviado_en)-new Date(a.enviado_en));
+  if(!rows.length){ alert('No hay radiogramas para exportar.'); return; }
+  const esc=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
+  const head=['Codigo','N','Bando','Origen','Destino','Sistema','Prioridad','Enviado','Destinatarios','Acusaron','% Acuse','Lag prom','Anulado'];
+  const lines=[head.map(esc).join(',')];
+  rows.forEach(x=>{ const a=x.acuse||{}; const pct=a.total?Math.round(a.acusados/a.total*100):0;
+    lines.push([x.codigo, x.numero_unidad||'', 'B'+x.bando, (x.origen_tipo==='direccion'?'Direccion':_rgGrp(x.origen_grupo_id)), x.al_label||'', x.sistema||'', x.prioridad||'', _rgHora(x.enviado_en), a.total||0, a.acusados||0, pct+'%', (a.lag_prom_seg!=null?_rgdDur(a.lag_prom_seg):''), x.anulado?'SI':''].map(esc).join(','));
+  });
+  const blob=new Blob(['﻿'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url;
+  a.download='LIBRO_RADIOGRAMAS'+(RGD_BANDO?('_B'+RGD_BANDO):'')+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+// Dirección: publicar/transmitir a cualquier unidad
+function rgdTransmitir(){
+  _rgInvoke('grupos').then(r=>{
+    if(!r.ok){ alert('No se pudieron cargar las unidades: '+(r.error||'')); return; }
+    RGD_GRUPOS=r.grupos||[]; _rgdAbrirModal();
+  });
+}
+function _rgdAbrirModal(){
+  const old=document.getElementById('rg-modal'); if(old) old.remove();
+  const ov=document.createElement('div'); ov.id='rg-modal'; ov.className='avm-overlay';
+  const fn=(currentUser&&currentUser.nombre_completo)||'';
+  const fg=((currentUser&&currentUser.grado||'')+((currentUser&&currentUser.arma)?currentUser.arma:'')).toUpperCase().replace(/\s+/g,'');
+  const sisOpts=RG_SISTEMAS.map(s=>'<option>'+_rgEsc(s)+'</option>').join('');
+  ov.innerHTML = `
+    <div class="avm-box" onclick="event.stopPropagation()" style="max-height:88vh;overflow:auto">
+      <h3>📻 Publicar radiograma (Dirección)</h3>
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">La Dirección puede transmitir a cualquier unidad de un bando.</div>
+      <div class="field" style="margin-bottom:8px"><label>Bando</label><select id="rgd-bando" onchange="_rgdBandoDestinos()"><option value="1">Bando 1 · TERRAN</option><option value="2">Bando 2 · PROTOS</option></select></div>
+      <div class="field" style="margin-bottom:6px"><label>Destino(s)</label></div>
+      <div id="rgd-dest-box" style="border:1px solid var(--border,#2a3a52);border-radius:10px;padding:8px;margin-bottom:6px;display:flex;flex-direction:column;gap:6px"></div>
+      <label class="rg-chk" style="margin-bottom:8px"><input type="checkbox" id="rgd-cascada"> incluir subordinados (cascada)</label>
+      <div class="field" style="margin-bottom:8px"><label>DEL (remitente)</label><input type="text" id="rgd-del" value="DIRECCIÓN DEL EJERCICIO" autocomplete="off"></div>
+      <div class="field" style="margin-bottom:8px"><label>AL / A LOS (texto)</label><input type="text" id="rgd-al" autocomplete="off"></div>
+      <div class="field" style="margin-bottom:8px"><label>Sistema</label><select id="rgd-sistema">${sisOpts}</select></div>
+      <div class="field" style="margin-bottom:8px"><label>Lugar</label><input type="text" id="rgd-lugar" value="Asunción" autocomplete="off"></div>
+      <div class="field" style="margin-bottom:8px"><label>DTG</label><input type="text" id="rgd-dtg" value="${_rgEsc(_rgDtgNow())}" autocomplete="off"></div>
+      <div class="field" style="margin-bottom:8px"><label>Prioridad</label><select id="rgd-prio"><option value="rutina">Rutina</option><option value="urgente">Urgente</option><option value="flash">Flash</option></select></div>
+      <div class="field" style="margin-bottom:8px"><label>Asunto</label><input type="text" id="rgd-asunto" autocomplete="off"></div>
+      <div class="field" style="margin-bottom:8px"><label>Cuerpo</label><textarea id="rgd-cuerpo" rows="5"></textarea></div>
+      <div class="field" style="margin-bottom:4px"><label>Firma — nombre</label><input type="text" id="rgd-firma-n" value="${_rgEsc(fn)}" autocomplete="off"></div>
+      <div class="field" style="margin-bottom:10px"><label>Firma — grado</label><input type="text" id="rgd-firma-g" value="${_rgEsc(fg)}" autocomplete="off"></div>
+      <div style="display:flex;gap:8px"><button class="btn-primary" onclick="rgdEnviar(this)">📤 Publicar / transmitir</button><button class="btn-secondary" onclick="document.getElementById('rg-modal').remove()">Cancelar</button></div>
+    </div>`;
+  ov.onclick=()=>ov.remove(); document.body.appendChild(ov);
+  _rgdBandoDestinos();
+}
+function _rgdBandoDestinos(){
+  const b=parseInt(document.getElementById('rgd-bando').value,10);
+  const box=document.getElementById('rgd-dest-box');
+  const gs=(RGD_GRUPOS||[]).filter(g=>g.bando===b);
+  box.innerHTML = gs.map(g=>`<label class="rg-chk"><input type="checkbox" value="${_rgEsc(g.id)}" onchange="_rgdSyncAl()"> ${_rgEsc(_rgUnitLabel(g.id,b))} <span style="color:var(--text-muted)">(${_rgEsc(g.nombre)})</span></label>`).join('');
+  _rgdSyncAl();
+}
+function _rgdSyncAl(){
+  const b=parseInt(document.getElementById('rgd-bando').value,10);
+  const ids=[...document.querySelectorAll('#rgd-dest-box input:checked')].map(c=>c.value);
+  const al=document.getElementById('rgd-al'); if(al) al.value=_rgJoinUnits(ids,b);
+}
+async function rgdEnviar(btn){
+  const b=parseInt(document.getElementById('rgd-bando').value,10);
+  const destinos=[...document.querySelectorAll('#rgd-dest-box input:checked')].map(c=>c.value);
+  if(!destinos.length){ alert('Elegí al menos un destino.'); return; }
+  const v=id=>(document.getElementById(id)||{}).value||'';
+  const asunto=v('rgd-asunto').trim(); if(!asunto){ alert('Poné un asunto.'); return; }
+  const payload={ destinos, cascada:document.getElementById('rgd-cascada').checked, asunto, prioridad:v('rgd-prio'), dtg:v('rgd-dtg').trim(), sistema:v('rgd-sistema').trim(), lugar:v('rgd-lugar').trim(), del_label:v('rgd-del').trim()||'DIRECCIÓN DEL EJERCICIO', al_label:v('rgd-al').trim(), cuerpo:v('rgd-cuerpo').trim(), firma_nombre:v('rgd-firma-n').trim(), firma_grado:v('rgd-firma-g').trim() };
+  if(btn){ btn.disabled=true; btn.textContent='Transmitiendo…'; }
+  const r=await _rgInvoke('transmitir', payload);
+  if(!r.ok){ alert('No se pudo transmitir: '+(r.error||'')); if(btn){ btn.disabled=false; btn.textContent='📤 Publicar / transmitir'; } return; }
+  const m=document.getElementById('rg-modal'); if(m) m.remove();
+  const doc={ tipo:'EXPEDIDO', codigo:r.codigo, bando:b, membrete:_rgMembrete(null,b), lugar:payload.lugar, dtg:payload.dtg, del_label:payload.del_label, al_label:payload.al_label, sistema:payload.sistema, numero_unidad:r.numero_unidad, enviado_en:new Date().toISOString(), cuerpo:payload.cuerpo, firma_nombre:payload.firma_nombre, firma_grado:payload.firma_grado };
+  _descargarRadiogramaDocx(doc,'RADIOGRAMA_EXPEDIDO_'+(r.codigo||''));
+  alert('Radiograma '+(r.codigo||'')+' transmitido a '+(r.destinatarios||0)+' destinatario(s).');
+  rgdCargarTablero();
 }
 async function renderPdfConTexto(url, containerId){
   const container = document.getElementById(containerId);
