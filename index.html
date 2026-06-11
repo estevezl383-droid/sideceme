@@ -3872,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.86 · Sesión 24h deslizante + C&T puede bloquear/cerrar sesión de cuentas</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.87 · Reset de contraseña (profes y cursantes): vuelven a entrar con su CI</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -12346,6 +12346,7 @@ function renderGestCursantes(){
       <div class="li-name" style="cursor:pointer" onclick="verFichaCursante('${cu.id}','gest-cursantes')">${cu.nombre_completo||'—'}${cu.activo===false?'<span class="badge baja">Baja</span>':'<span class="badge activo">Activo</span>'}<br><span class="li-ci">CI ${cu.ci||'—'}${cu.departamento?' '+cu.departamento:''}${cyp?' · '+cyp:''}</span>${cu.observaciones?'<br><span style="font-size:11px;color:var(--text-muted);font-style:italic">📝 '+cu.observaciones+'</span>':''}</div>
       <div class="li-actions">
         <button onclick="openCursanteForm('${cu.id}')">Editar</button>
+        <button onclick="resetPasswordACI('cursantes','${cu.id}')">🔑 Reset</button>
         ${cu.activo===false?`<button onclick="reactivarCursante('${cu.id}')">Reactivar</button>`:`<button onclick="bloquearUsuario('cursantes','${cu.id}')">🔒 Bloquear</button><button class="danger" onclick="darBajaCursante('${cu.id}')">Baja</button>`}
       </div>
     </div>`;
@@ -12479,6 +12480,26 @@ async function bloquearUsuario(tabla, id){
   }catch(e){ alert('Error: '+(e.message||e)); }
 }
 
+// v2.9.87: resetear contraseña a "primer ingreso" — vuelve a entrar con su CI (usuario y
+// contraseña) y crea una nueva. Para profesores Y cursantes (cualquiera que la olvide).
+async function resetPasswordACI(tabla, id){
+  if(!esCT()){ alert('Solo C&T puede resetear contraseñas.'); return; }
+  const esCur = tabla==='cursantes';
+  const arr = esCur ? discData.cursantes : discData.profesores;
+  const u = (arr||[]).find(x=>x.id===id);
+  const nombre = u ? (u.nombre_completo||id) : id;
+  const ci = u ? (u.ci||'') : '';
+  if(!confirm(`🔑 Resetear contraseña de ${nombre}\n\nVolverá a entrar con su CI (${ci}) como usuario Y contraseña, y el sistema le pedirá crear una nueva.\n\n¿Confirmás?`)) return;
+  try{
+    const body = { accion:'reset_a_ci', token:getTokenSesion() };
+    body[esCur?'cursante_id':'profesor_id'] = id;
+    const { data:r, error } = await sb.functions.invoke(esCur?'cursantes-ops':'profesores-ops', { body });
+    if(error || !r || !r.ok){ alert('Error: '+((error&&error.message)||(r&&r.error)||'desconocido')); return; }
+    if(u){ u.primer_ingreso = true; }
+    alert(`✅ Listo. ${nombre} entra ahora con su CI (${(r&&r.ci)||ci}) como usuario y contraseña, y crea su nueva clave.`);
+  }catch(e){ alert('Error: '+(e.message||e)); }
+}
+
 function goGestionarProfesores(){
   if(!esCT()){ alert('Solo C&T (Ciencia y Tecnología) puede gestionar profesores.'); return; }
   renderGestProfesores(); showScreen('screen-gestionar-profesores');
@@ -12495,6 +12516,7 @@ function renderGestProfesores(){
       <div class="li-name">${p.nombre_completo||'—'}${p.activo===false?'<span class="badge baja">Baja</span>':'<span class="badge activo">Activo</span>'}<br><span class="li-ci">CI ${p.ci||'—'}${p.grado?' · '+p.grado:''}${p.arma?' · '+p.arma:''}</span>${p.observaciones?'<br><span style="font-size:11px;color:var(--text-muted);font-style:italic">📝 '+p.observaciones+'</span>':''}</div>
       <div class="li-actions">
         <button onclick="openProfesorForm('${p.id}')">Editar</button>
+        <button onclick="resetPasswordACI('profesores','${p.id}')">🔑 Reset</button>
         ${p.activo===false?`<button onclick="reactivarProfesor('${p.id}')">Reactivar</button>`:`<button onclick="bloquearUsuario('profesores','${p.id}')">🔒 Bloquear</button><button class="danger" onclick="darBajaProfesor('${p.id}')">Baja</button>`}
       </div>
     </div>`).join('');
