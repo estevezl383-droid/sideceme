@@ -1691,6 +1691,27 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .banner-push-text strong{display:block;font-size:14px;color:var(--gold);margin-bottom:2px}
 .banner-push-btn{background:var(--gold);color:#000;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0}
 .banner-push-close{color:var(--text-muted);font-size:18px;cursor:pointer;flex-shrink:0;padding:0 2px;line-height:1}
+/* v2.9.82: avisos in-app a cursantes */
+.aviso-card{display:flex;align-items:flex-start;gap:10px;background:linear-gradient(135deg,rgba(70,150,110,.22),rgba(40,100,70,.14));border:1px solid rgba(80,180,120,.5);border-radius:12px;padding:12px 14px;margin-bottom:8px}
+.aviso-ic{font-size:22px;flex-shrink:0;line-height:1.2}
+.aviso-body{flex:1;min-width:0}
+.aviso-tit{font-size:14px;font-weight:700;color:#bff5cf;margin-bottom:2px}
+.aviso-msg{font-size:13px;color:var(--text-primary);line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.aviso-x{color:var(--text-muted);font-size:16px;cursor:pointer;flex-shrink:0;padding:0 2px;line-height:1}
+.aviso-x:hover{color:#ffd0d6}
+.avm-overlay{position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,.62);display:flex;align-items:flex-start;justify-content:center;overflow:auto;padding:24px 12px}
+.avm-box{background:var(--bg-card,#1b212b);border:1px solid var(--border-strong,#3a4350);border-radius:16px;max-width:560px;width:100%;padding:18px;box-shadow:0 12px 40px rgba(0,0,0,.6)}
+.avm-box h3{margin:0 0 4px;color:var(--gold,#d4af37);font-size:17px}
+.avm-box label{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-secondary,#9aa4b2);margin:10px 0 4px}
+.avm-box select,.avm-box input,.avm-box textarea{width:100%;background:var(--bg-deep,#0e1116);color:var(--text-primary,#e6e6e6);border:1px solid var(--border-subtle,#2a323d);border-radius:8px;padding:9px;font-size:14px;font-family:inherit}
+.avm-box textarea{min-height:80px;resize:vertical}
+.avm-row{display:flex;gap:10px;flex-wrap:wrap}
+.avm-row>div{flex:1;min-width:120px}
+.avm-list{margin-top:14px;border-top:1px solid var(--border-subtle,#2a323d);padding-top:10px;max-height:230px;overflow:auto}
+.avm-item{display:flex;align-items:center;gap:8px;background:var(--bg-deep,#0e1116);border:1px solid var(--border-subtle,#2a323d);border-radius:9px;padding:8px 10px;margin-bottom:7px;font-size:12.5px}
+.avm-item .x{flex:1;min-width:0}
+.avm-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap}
+.avm-on{background:#1e6e3a;color:#bff5cf}.avm-off{background:#444;color:#bbb}
 .ef-stat-card{
   background:var(--bg-card);border:1px solid var(--border-strong);border-radius:10px;
   padding:12px 8px;text-align:center;
@@ -3851,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.81 · EFM: nota más ponderada (verde) + contraste título + diagnóstica clara</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.82 · Avisos in-app a cursantes (publicar/desactivar desde panel C&T)</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4560,6 +4581,7 @@ input::placeholder, textarea::placeholder {
       </div>
 
       <!-- Aviso para activar notificaciones (desaparece solo al activar) -->
+      <div id="cur-avisos" style="margin:0 0 6px"></div>
       <div id="cur-banner-push" style="margin:0 0 6px"></div>
 
       <!-- Aviso de pendientes (sanción sin firmar) -->
@@ -4817,6 +4839,7 @@ input::placeholder, textarea::placeholder {
       <button id="qa-btn-diagnostico" class="quick-btn" onclick="goDiagnostico()"><span class="qa-icon">🔧</span><span class="qa-text">Diagnóstico y forzar sincronización</span></button>
       <button id="qa-btn-bloqueo-materias" class="quick-btn" onclick="goBloqueoMaterias()" style="background:linear-gradient(180deg,rgba(180,140,255,.15),rgba(180,140,255,.05));border-color:#b48cff;display:none"><span class="qa-icon">🔒</span><span class="qa-text"><strong>Bloquear materias / módulos</strong> (ocultar a alumnos)</span></button>
       <button id="qa-btn-aula-gestion" class="quick-btn" onclick="goAulaGestion()" style="background:linear-gradient(180deg,rgba(140,90,203,.18),rgba(140,90,203,.05));border-color:#8c5acb;display:none"><span class="qa-icon">📚</span><span class="qa-text"><strong>Aula Virtual</strong> (abrir / cerrar materias)</span></button>
+      <button id="qa-btn-avisos" class="quick-btn" onclick="goAvisos()" style="background:linear-gradient(180deg,rgba(70,150,110,.2),rgba(70,150,110,.05));border-color:#46966e;display:none"><span class="qa-icon">📢</span><span class="qa-text"><strong>Avisos a cursantes</strong> (publicar / desactivar cartel in-app)</span></button>
       <button class="quick-btn success" data-sac-hide="1" onclick="goRespaldo()"><span class="qa-icon">💾</span><span class="qa-text">Descargar respaldo ahora (JSON + .XLSX)</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goInstalar()"><span class="qa-icon">📲</span><span class="qa-text">Instalar app / Compartir QR</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goAnulaciones()"><span class="qa-icon">📋</span><span class="qa-text">Solicitudes de reconsideración / anulación</span><span id="badge-solicitudes" style="display:none;margin-left:auto;background:#c84a4a;color:#fff;font-size:12px;font-weight:700;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;padding:0 6px">0</span></button>
@@ -8981,6 +9004,7 @@ async function renderCursanteHome(){
 
   // Aviso para activar notificaciones (solo si todavía no las activó).
   try{ mostrarBannerPushCursante(); }catch(e){}
+  try{ mostrarAvisosCursante(); }catch(e){}
 }
 
 function renderCursanteSancionesInline(sanciones, containerId, limit){
@@ -9220,6 +9244,138 @@ async function bannerPushActivar(containerId){
    Aparece en el home del cursante si NO tiene push activo. Texto propio
    ("avisos muy importantes") y usa el flujo de push del cursante (activarPush).
    Desaparece solo en cuanto activa.                                          */
+// ===== v2.9.82: AVISOS in-app =====
+function _avEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function _avVistos(){ try{ return JSON.parse(localStorage.getItem('sideceme_avisos_vistos')||'[]'); }catch(e){ return []; } }
+function _avMarcarVisto(id){ try{ const v=_avVistos(); if(!v.includes(id)){ v.push(id); localStorage.setItem('sideceme_avisos_vistos', JSON.stringify(v)); } }catch(e){} }
+
+// CURSANTE: cartel que se ve al abrir la app (sin permisos)
+async function mostrarAvisosCursante(){
+  const cont = document.getElementById('cur-avisos');
+  if(!cont || !currentUser) return;
+  cont.innerHTML = '';
+  try{
+    const { data, error } = await sb.from('v_avisos_activos').select('*').order('creado_en',{ascending:false});
+    if(error || !data || !data.length) return;
+    const cicloCur = currentUser.ciclo || '';
+    const vistos = _avVistos();
+    const rel = data.filter(a => ((a.ambito==='todos') || (a.ciclo && a.ciclo===cicloCur)) && !vistos.includes(a.id));
+    if(!rel.length) return;
+    cont.innerHTML = rel.map(a => `
+      <div class="aviso-card" data-aviso="${a.id}">
+        <div class="aviso-ic">${_avEsc(a.icono||'📢')}</div>
+        <div class="aviso-body">
+          <div class="aviso-tit">${_avEsc(a.titulo)}</div>
+          <div class="aviso-msg">${_avEsc(a.mensaje)}</div>
+        </div>
+        <span class="aviso-x" onclick="cerrarAvisoCursante(${a.id})" title="Marcar como leído">✕</span>
+      </div>`).join('');
+  }catch(e){ /* silencioso */ }
+}
+function cerrarAvisoCursante(id){
+  _avMarcarVisto(id);
+  const el = document.querySelector('.aviso-card[data-aviso="'+id+'"]');
+  if(el) el.remove();
+}
+
+// ADMIN (C&T): publicar / desactivar avisos
+function goAvisos(){
+  let ov = document.getElementById('avisos-modal');
+  if(!ov){
+    ov = document.createElement('div'); ov.id='avisos-modal'; ov.className='avm-overlay';
+    ov.innerHTML = `
+      <div class="avm-box" onclick="event.stopPropagation()">
+        <h3>📢 Avisos a cursantes</h3>
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px">Cartel que ven los cursantes al abrir la app (no necesita permisos). Publicalo y desactivalo cuando quieras.</div>
+        <div class="avm-row">
+          <div>
+            <label>Para</label>
+            <select id="av-ambito" onchange="_avAmbitoCambio()">
+              <option value="ciclo">Un ciclo</option>
+              <option value="todos">Todos los cursantes</option>
+            </select>
+          </div>
+          <div id="av-ciclo-wrap">
+            <label>Ciclo</label>
+            <select id="av-ciclo"><option value="2DO CICLO">2DO CICLO</option><option value="1ER CICLO">1ER CICLO</option></select>
+          </div>
+          <div style="max-width:90px;flex:0 0 90px">
+            <label>Ícono</label>
+            <input id="av-icono" value="📢" maxlength="4">
+          </div>
+        </div>
+        <label>Título</label>
+        <input id="av-titulo" placeholder="Ej: Notas de EFM publicadas">
+        <label>Mensaje</label>
+        <textarea id="av-mensaje" placeholder="Ej: Ya están disponibles tus notas de Evaluación Física Militar (EFM)."></textarea>
+        <div style="display:flex;gap:10px;margin-top:12px">
+          <button class="btn-primary" style="flex:1" onclick="avisosPublicar()">📢 Publicar aviso</button>
+          <button class="btn-secondary" style="flex:0 0 auto" onclick="cerrarAvisosModal()">Cerrar</button>
+        </div>
+        <div class="avm-list" id="av-lista"><div style="color:var(--text-muted);font-size:12px">Cargando…</div></div>
+      </div>`;
+    ov.onclick = cerrarAvisosModal;
+    document.body.appendChild(ov);
+  }
+  ov.style.display='flex';
+  // Prefill EFM por defecto
+  document.getElementById('av-titulo').value = 'Notas de EFM publicadas';
+  document.getElementById('av-mensaje').value = 'Ya están disponibles tus notas de Evaluación Física Militar (EFM). Ingresá a SIDECEME para verlas.';
+  document.getElementById('av-ambito').value = 'ciclo';
+  document.getElementById('av-ciclo').value = '2DO CICLO';
+  _avAmbitoCambio();
+  avisosCargarLista();
+}
+function _avAmbitoCambio(){
+  const w=document.getElementById('av-ciclo-wrap');
+  if(w) w.style.display = document.getElementById('av-ambito').value==='todos' ? 'none' : '';
+}
+function cerrarAvisosModal(){ const ov=document.getElementById('avisos-modal'); if(ov) ov.style.display='none'; }
+
+async function avisosCargarLista(){
+  const cont=document.getElementById('av-lista'); if(!cont) return;
+  try{
+    const { data:r, error } = await sb.functions.invoke('avisos-ops',{body:{accion:'listar', token:getTokenSesion()}});
+    if(error || !r || !r.ok){ cont.innerHTML='<div style="color:#ff9aa6;font-size:12px">No pude cargar la lista.</div>'; return; }
+    const list=r.avisos||[];
+    if(!list.length){ cont.innerHTML='<div style="color:var(--text-muted);font-size:12px">No hay avisos publicados todavía.</div>'; return; }
+    cont.innerHTML = list.map(a=>{
+      const dest = a.ambito==='todos' ? 'Todos' : (a.ciclo||'—');
+      return `<div class="avm-item">
+        <div class="x"><b>${_avEsc(a.icono||'📢')} ${_avEsc(a.titulo)}</b> <span style="color:var(--text-muted)">· ${_avEsc(dest)}</span><br><span style="color:var(--text-secondary)">${_avEsc(a.mensaje)}</span></div>
+        <span class="avm-badge ${a.activo?'avm-on':'avm-off'}">${a.activo?'ACTIVO':'apagado'}</span>
+        ${a.activo?`<button class="btn-secondary" style="padding:5px 9px;font-size:12px" onclick="avisosDesactivar(${a.id})">Desactivar</button>`:''}
+      </div>`;
+    }).join('');
+  }catch(e){ cont.innerHTML='<div style="color:#ff9aa6;font-size:12px">Error: '+(e.message||e)+'</div>'; }
+}
+async function avisosPublicar(){
+  const ambito=document.getElementById('av-ambito').value;
+  const ciclo=document.getElementById('av-ciclo').value;
+  const titulo=(document.getElementById('av-titulo').value||'').trim();
+  const mensaje=(document.getElementById('av-mensaje').value||'').trim();
+  const icono=(document.getElementById('av-icono').value||'📢').trim();
+  if(!titulo || !mensaje){ alert('Completá título y mensaje.'); return; }
+  const destTxt = ambito==='todos' ? 'TODOS los cursantes' : ('los cursantes de '+ciclo);
+  if(!confirm('¿Publicar este aviso para '+destTxt+'?\n\nLo van a ver al abrir la app.')) return;
+  try{
+    const body={accion:'crear', token:getTokenSesion(), ambito, titulo, mensaje, icono};
+    if(ambito==='ciclo') body.ciclo=ciclo;
+    const { data:r, error } = await sb.functions.invoke('avisos-ops',{body});
+    if(error || !r || !r.ok){ alert('Error: '+((error&&error.message)||(r&&r.error)||'desconocido')); return; }
+    alert('✅ Aviso publicado. Los cursantes lo verán al abrir la app.');
+    avisosCargarLista();
+  }catch(e){ alert('Error: '+(e.message||e)); }
+}
+async function avisosDesactivar(id){
+  if(!confirm('¿Desactivar este aviso? Dejará de verse para los cursantes.')) return;
+  try{
+    const { data:r, error } = await sb.functions.invoke('avisos-ops',{body:{accion:'desactivar', token:getTokenSesion(), id}});
+    if(error || !r || !r.ok){ alert('Error: '+((error&&error.message)||(r&&r.error)||'desconocido')); return; }
+    avisosCargarLista();
+  }catch(e){ alert('Error: '+(e.message||e)); }
+}
+
 async function mostrarBannerPushCursante(){
   const cont = document.getElementById('cur-banner-push');
   if(!cont) return;
@@ -9781,7 +9937,7 @@ function renderDiscPanel(){
 
   // Visibilidad de botones según rol
   const soloCT = esCT();
-  const btnsCT = ['qa-btn-gest-cursantes','qa-btn-gest-profesores','qa-btn-diagnostico','qa-btn-pwd-otro','qa-btn-bloqueo-materias','qa-btn-aula-gestion'];
+  const btnsCT = ['qa-btn-gest-cursantes','qa-btn-gest-profesores','qa-btn-diagnostico','qa-btn-pwd-otro','qa-btn-bloqueo-materias','qa-btn-aula-gestion','qa-btn-avisos'];
   btnsCT.forEach(id => {
     const el = document.getElementById(id);
     if(el) el.style.display = soloCT ? '' : 'none';
