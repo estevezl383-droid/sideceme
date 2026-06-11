@@ -3872,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.85 · Mis sancionados: lista plana, más recientes primero (Wolff/JC igual que profes)</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.86 · Sesión 24h deslizante + C&T puede bloquear/cerrar sesión de cuentas</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6056,13 +6056,29 @@ function showError(id,msg){
 }
 function saveSession(u,t,r){ sessionStorage.setItem('sideceme_session', JSON.stringify({user:u,tipo:t,role:r})); try{ localStorage.setItem('sideceme_last_tipo', t); }catch(e){} }
 function getSession(){ const r=sessionStorage.getItem('sideceme_session'); return r?JSON.parse(r):null; }
-// v2.9.8: token de sesión emitido por Edge Function auth-login (expira 8h)
+// v2.9.8: token de sesión emitido por Edge Function auth-login (v2.9.86: 24h deslizante)
 function guardarTokenSesion(token, expiraEn){
   if(!token) return;
   sessionStorage.setItem('sideceme_token', token);
   if(expiraEn) sessionStorage.setItem('sideceme_token_expira', expiraEn);
 }
 function getTokenSesion(){ return sessionStorage.getItem('sideceme_token') || null; }
+// v2.9.86: LATIDO DE SESIÓN — mantiene viva la sesión del servidor (24h deslizante) mientras
+// se usa la app. Llama ultimo_login (que renueva expira_en a 24h) en un intervalo y cuando la
+// app vuelve a primer plano. Si no se usa por 24h, el token vence y el idle timer cierra sesión.
+async function _latidoSesion(){
+  const tok = getTokenSesion(); if(!tok || !currentUser) return;
+  const s = getSession(); if(!s) return;
+  const ef = (s.tipo === 'cursante') ? 'cursantes-ops' : 'profesores-ops';
+  try{
+    const { data } = await sb.functions.invoke(ef, { body:{ accion:'ultimo_login', token:tok } });
+    if(data && data.expira_en) sessionStorage.setItem('sideceme_token_expira', data.expira_en);
+  }catch(e){ /* sin red: no pasa nada, se reintenta en el próximo latido */ }
+}
+try{
+  setInterval(_latidoSesion, 12 * 60 * 1000); // cada 12 min mientras la app está abierta
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') _latidoSesion(); });
+}catch(e){}
 function tokenSesionExpirado(){
   const exp = sessionStorage.getItem('sideceme_token_expira');
   if(!exp) return false;
@@ -6088,7 +6104,7 @@ function logout(){
 /* ==================== AUTO-LOGOUT POR INACTIVIDAD ====================
    Cierra sesión automáticamente después de 3 minutos sin interacción.
    Cualquier toque, click, scroll o tecla resetea el contador. */
-const IDLE_TIMEOUT_MS = 18000000; // 5 horas = jornada laboral completa (solo para personal/profesores; los alumnos no tienen cierre)
+const IDLE_TIMEOUT_MS = 86400000; // v2.9.86: 24 horas sin actividad (sesión deslizante; solo personal/profesores; los alumnos no tienen cierre)
 let idleTimer = null;
 let idleWarned = false;
 
@@ -6102,7 +6118,7 @@ function iniciarIdleTimer(){
   idleTimer = setTimeout(() => {
     if(!currentUser) return;
     idleWarned = true;
-    alert('⏱️ Sesión cerrada por inactividad (5 horas sin actividad).\n\nPor seguridad, vuelva a iniciar sesión.');
+    alert('⏱️ Sesión cerrada por inactividad (24 horas sin actividad).\n\nPor seguridad, vuelva a iniciar sesión.');
     logout();
   }, IDLE_TIMEOUT_MS);
 }
@@ -12330,7 +12346,7 @@ function renderGestCursantes(){
       <div class="li-name" style="cursor:pointer" onclick="verFichaCursante('${cu.id}','gest-cursantes')">${cu.nombre_completo||'—'}${cu.activo===false?'<span class="badge baja">Baja</span>':'<span class="badge activo">Activo</span>'}<br><span class="li-ci">CI ${cu.ci||'—'}${cu.departamento?' '+cu.departamento:''}${cyp?' · '+cyp:''}</span>${cu.observaciones?'<br><span style="font-size:11px;color:var(--text-muted);font-style:italic">📝 '+cu.observaciones+'</span>':''}</div>
       <div class="li-actions">
         <button onclick="openCursanteForm('${cu.id}')">Editar</button>
-        ${cu.activo===false?`<button onclick="reactivarCursante('${cu.id}')">Reactivar</button>`:`<button class="danger" onclick="darBajaCursante('${cu.id}')">Baja</button>`}
+        ${cu.activo===false?`<button onclick="reactivarCursante('${cu.id}')">Reactivar</button>`:`<button onclick="bloquearUsuario('cursantes','${cu.id}')">🔒 Bloquear</button><button class="danger" onclick="darBajaCursante('${cu.id}')">Baja</button>`}
       </div>
     </div>`;
   }).join('');
@@ -12441,6 +12457,28 @@ async function reactivarCursante(id){
 }
 
 /* ==================== GESTIONAR PROFESORES ==================== */
+// v2.9.86: bloqueo temporal de una cuenta (ej. pérdida de dispositivo) — activo=false
+// (auth-login impide el login) + cierra la sesión activa al instante. Desbloquear = "Reactivar".
+async function bloquearUsuario(tabla, id){
+  if(!esCT()){ alert('Solo C&T puede bloquear cuentas.'); return; }
+  const esCur = tabla==='cursantes';
+  const arr = esCur ? discData.cursantes : discData.profesores;
+  const u = (arr||[]).find(x=>x.id===id);
+  const nombre = u ? (u.nombre_completo||id) : id;
+  const motivo = prompt(`🔒 Bloquear a ${nombre}\n\nQuedará SIN poder entrar y se le CERRARÁ la sesión activa al instante (ej. celular perdido). Lo desbloqueás con el botón "Reactivar".\n\nMotivo (opcional):`, 'Bloqueo temporal (pérdida de dispositivo)');
+  if(motivo===null) return;
+  try{
+    const body = { accion:'bloquear', token:getTokenSesion() };
+    body[esCur?'cursante_id':'profesor_id'] = id;
+    if(motivo) body.motivo = motivo;
+    const { data:r, error } = await sb.functions.invoke(esCur?'cursantes-ops':'profesores-ops', { body });
+    if(error || !r || !r.ok){ alert('Error: '+((error&&error.message)||(r&&r.error)||'desconocido')); return; }
+    if(u){ u.activo = false; if(motivo) u.observaciones = motivo; }
+    alert(`🔒 ${nombre} bloqueado. Su sesión activa fue cerrada.`);
+    if(esCur) renderGestCursantes(); else renderGestProfesores();
+  }catch(e){ alert('Error: '+(e.message||e)); }
+}
+
 function goGestionarProfesores(){
   if(!esCT()){ alert('Solo C&T (Ciencia y Tecnología) puede gestionar profesores.'); return; }
   renderGestProfesores(); showScreen('screen-gestionar-profesores');
@@ -12457,7 +12495,7 @@ function renderGestProfesores(){
       <div class="li-name">${p.nombre_completo||'—'}${p.activo===false?'<span class="badge baja">Baja</span>':'<span class="badge activo">Activo</span>'}<br><span class="li-ci">CI ${p.ci||'—'}${p.grado?' · '+p.grado:''}${p.arma?' · '+p.arma:''}</span>${p.observaciones?'<br><span style="font-size:11px;color:var(--text-muted);font-style:italic">📝 '+p.observaciones+'</span>':''}</div>
       <div class="li-actions">
         <button onclick="openProfesorForm('${p.id}')">Editar</button>
-        ${p.activo===false?`<button onclick="reactivarProfesor('${p.id}')">Reactivar</button>`:`<button class="danger" onclick="darBajaProfesor('${p.id}')">Baja</button>`}
+        ${p.activo===false?`<button onclick="reactivarProfesor('${p.id}')">Reactivar</button>`:`<button onclick="bloquearUsuario('profesores','${p.id}')">🔒 Bloquear</button><button class="danger" onclick="darBajaProfesor('${p.id}')">Baja</button>`}
       </div>
     </div>`).join('');
 }
