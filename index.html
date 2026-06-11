@@ -3872,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.84 · Aula: Documentos del Personal Docente (profesores leen, C&T sube)</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.85 · Mis sancionados: lista plana, más recientes primero (Wolff/JC igual que profes)</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4840,7 +4840,7 @@ input::placeholder, textarea::placeholder {
       <button class="quick-btn" data-sac-hide="1" onclick="goPlanillas()" style="background:linear-gradient(180deg,rgba(212,175,55,.15),rgba(212,175,55,.05));border-color:#d4af37"><span class="qa-icon">📋</span><span class="qa-text"><strong>Planilla de disciplina</strong> (ver / subir nueva)</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goAuditoria()"><span class="qa-icon">🔍</span><span class="qa-text">Auditoría de sanciones por cursante</span></button>
       <button class="quick-btn" onclick="goEstadisticas()"><span class="qa-icon">📈</span><span class="qa-text">Estadísticas: pérdida de puntaje (por período)</span></button>
-      <button id="qa-btn-mis-sancionados" class="quick-btn" onclick="goMisSancionados()"><span class="qa-icon">👥</span><span class="qa-text">Mis sancionados (cursantes que yo sancioné)</span></button>
+      <button id="qa-btn-mis-sancionados" class="quick-btn" onclick="goMisSancionados()"><span class="qa-icon">👥</span><span class="qa-text">Mis sanciones (las que yo registré — más recientes primero)</span></button>
       <button id="qa-btn-diagnostico" class="quick-btn" onclick="goDiagnostico()"><span class="qa-icon">🔧</span><span class="qa-text">Diagnóstico y forzar sincronización</span></button>
       <button id="qa-btn-bloqueo-materias" class="quick-btn" onclick="goBloqueoMaterias()" style="background:linear-gradient(180deg,rgba(180,140,255,.15),rgba(180,140,255,.05));border-color:#b48cff;display:none"><span class="qa-icon">🔒</span><span class="qa-text"><strong>Bloquear materias / módulos</strong> (ocultar a alumnos)</span></button>
       <button id="qa-btn-aula-gestion" class="quick-btn" onclick="goAulaGestion()" style="background:linear-gradient(180deg,rgba(140,90,203,.18),rgba(140,90,203,.05));border-color:#8c5acb;display:none"><span class="qa-icon">📚</span><span class="qa-text"><strong>Aula Virtual</strong> (abrir / cerrar materias)</span></button>
@@ -14242,7 +14242,10 @@ function renderMisSancionesInline(){
     return;
   }
 
-  cont.innerHTML = lista.map(s => {
+  cont.innerHTML = lista.map(_msCardHtml).join('');
+}
+// v2.9.85: tarjeta de sanción reutilizable (panel del profesor + "Mis sancionados" de Wolff/JC)
+function _msCardHtml(s){
     const analogica = esSancionAnalogica(s);
     const firmada = !analogica && (s.confirmacion_estado === 'firmada' || s.confirmacion_estado === 'aceptada' || !!s.firma_cursante);
     const esPrueba = !analogica && s.es_prueba === true;
@@ -14293,7 +14296,6 @@ function renderMisSancionesInline(){
       </div>
       ${btnEliminar}
     </div>`;
-  }).join('');
 }
 
 async function refrescarMisSanciones(){
@@ -16438,58 +16440,32 @@ async function goMisSancionados(){
 }
 
 function renderMisSancionados(){
-  const uid = currentUser && currentUser.id;
   const nombre = currentUser && currentUser.nombre_completo;
   const sub = document.getElementById('mis-sanc-sub');
-  if(sub) sub.textContent = nombre ? `Sancionados por ${nombre}` : 'Cursantes que yo sancioné';
-
-  // Sanciones vigentes registradas por este usuario
-  const misSancs = (discData.sanciones||[]).filter(s =>
-    !s.anulada && s.es_prueba !== true &&
-    (String(s.profesor_id) === String(uid) || String(s.profesor_nombre||'').toLowerCase() === String(nombre||'').toLowerCase())
-  );
-
-  // Agrupar por cursante
-  const byCur = {};
-  misSancs.forEach(s => {
-    const cid = s.cursante_id;
-    if(!cid) return;
-    if(!byCur[cid]) byCur[cid] = { cant: 0, pts: 0 };
-    byCur[cid].cant++;
-    byCur[cid].pts += Number(s.puntos_aplicados||0);
-  });
+  if(sub) sub.textContent = nombre ? `Sanciones registradas por ${nombre}` : 'Sanciones que yo registré';
 
   const cont = document.getElementById('mis-sancionados-content');
   if(!cont) return;
 
-  if(!Object.keys(byCur).length){
-    cont.innerHTML = '<div class="list-empty">✅ No tenés cursantes sancionados registrados.</div>';
+  // v2.9.85: igual que el panel del profesor — SOLO mis sanciones (maneja doble-rol por CI),
+  // no anuladas, las MÁS RECIENTES primero, como tarjetas individuales.
+  const lista = filtrarSancionesImpuestasPorMi()
+    .filter(s => !s.anulada && s.es_prueba !== true)
+    .sort((a,b) => {
+      const fa = new Date(a.firmada_prof_en || a.fecha_creacion || a.creado_en || a.created_at || 0).getTime();
+      const fb = new Date(b.firmada_prof_en || b.fecha_creacion || b.creado_en || b.created_at || 0).getTime();
+      return fb - fa;
+    });
+
+  if(!lista.length){
+    cont.innerHTML = '<div class="list-empty">✅ No tenés sanciones registradas.</div>';
     return;
   }
 
-  // Ordenar por puntos desc
-  const lista = Object.entries(byCur)
-    .map(([cid, v]) => {
-      const c = discData.cursantes.find(x=>x.id===cid);
-      return { cid, c, ...v };
-    })
-    .sort((a,b) => b.pts - a.pts);
-
-  const cyp = c => fmtCicloPara(c||{});
-  const perd = cid => discData.byCursanteLost[cid]||0;
-  const est = cid => getEstado(perd(cid));
-
-  let html = `<div class="section-label" style="margin-bottom:10px">👥 ${lista.length} cursante(s) con sanciones tuyas</div>`;
-  lista.forEach(({cid, c, cant, pts}) => {
-    const e = est(cid);
-    html += `<div class="list-item" style="cursor:pointer" onclick="verMisSancionesDelCursante('${cid}')">
-      <div class="li-id">${c?c.paralelo?'Par.'+c.paralelo:c.id:cid}</div>
-      <div class="li-name">${escapeHTML(c?c.nombre_completo||'—':'Cursante '+cid)}<br>
-        <span class="li-ci">${cant} sanción(es) · ${pts} pts impuestos por mí${c?' · '+cyp(c):''}</span></div>
-      <div class="li-score ${e==='consejo'?'danger':e==='observacion'?'warn':'ok'}">${pts} pts</div>
-    </div>`;
-  });
-  cont.innerHTML = html;
+  const nCur = new Set(lista.map(s => s.cursante_id).filter(Boolean)).size;
+  const totalPts = lista.reduce((a,s) => a + Number(s.puntos_aplicados||0), 0);
+  cont.innerHTML = `<div class="section-label" style="margin-bottom:10px">📋 ${lista.length} sanción(es) · ${nCur} cursante(s) · ${totalPts} pts — las más recientes primero</div>`
+    + lista.map(_msCardHtml).join('');
 }
 
 /* Detalle: todas las sanciones que YO impuse a un cursante específico */
