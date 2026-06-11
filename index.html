@@ -3872,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.89 · Planillas: GRADO APELLIDOS NOMBRES (lista oficial) + orden alfabético</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.92 · Radiogramas: formato Word oficial (membrete Arial 10, título 16, cuerpo 12)</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4584,6 +4584,9 @@ input::placeholder, textarea::placeholder {
         <div class="user-info"><div class="user-name" id="cursante-name">—</div><div class="user-rank" id="cursante-id">—</div></div>
         <button class="btn-logout" onclick="logout()">Salir</button>
       </div>
+
+      <!-- v2.9.90: acceso destacado al ejercicio (Radiogramas) — solo para participantes -->
+      <div id="cur-radiograma-banner" style="margin:0 0 8px"></div>
 
       <!-- Aviso para activar notificaciones (desaparece solo al activar) -->
       <div id="cur-avisos" style="margin:0 0 6px"></div>
@@ -5599,6 +5602,51 @@ input::placeholder, textarea::placeholder {
   <div class="menu-container">
     <div class="alert-banner blue" style="margin-bottom:12px"><span class="alert-emoji">👨‍🏫</span><span class="alert-text"><b>Documentos del personal docente.</b> Material para profesores (los alumnos no lo ven).</span></div>
     <div id="aula-prof-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+  </div>
+</section>
+
+<!-- v2.9.90: RADIOGRAMAS (juego de guerra VENCER O MORIR) — vista del cursante -->
+<style>
+.rg-home-banner{width:100%;display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid rgba(212,175,55,.45);border-radius:12px;background:linear-gradient(180deg,rgba(74,144,217,.18),rgba(20,30,50,.55));color:#fff;cursor:pointer;text-align:left}
+.rg-hb-ic{font-size:24px;line-height:1}
+.rg-hb-body{flex:1;display:flex;flex-direction:column}
+.rg-hb-tit{font-weight:700;font-size:14px;color:#f4d574}
+.rg-hb-sub{font-size:12px;color:#cfe0f5}
+.rg-hb-badge{background:#a32d2d;color:#fff;font-size:11px;font-weight:700;border-radius:10px;padding:2px 8px;min-width:20px;text-align:center}
+.rg-hb-go{font-size:13px;color:#9ec3ef;white-space:nowrap}
+.rg-card{border:1px solid var(--border,#2a3a52);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:rgba(255,255,255,.02)}
+.rg-card.rg-unread{border-left:3px solid #4a90d9}
+.rg-card.rg-sent{opacity:.85}
+.rg-card-top{display:flex;align-items:center;gap:6px;margin-bottom:4px}
+.rg-code{font-weight:700;font-size:13px;color:var(--text-secondary,#9fb3cc)}
+.rg-badge{font-size:10px;padding:2px 7px;border-radius:8px;font-weight:700}
+.rg-rut{background:#2a3a52;color:#bcd}
+.rg-urg{background:#7a2230;color:#ffd5da}
+.rg-flash{background:#a32d2d;color:#fff}
+.rg-ok{background:#13402c;color:#7fe3b0}
+.rg-dot{width:9px;height:9px;border-radius:50%;background:#4a90d9;margin-left:auto}
+.rg-route{font-size:12px;color:var(--text-muted,#7e8aa0)}
+.rg-asunto{font-size:14px;color:#fff;margin:4px 0;font-weight:600}
+.rg-cuerpo{font-size:13px;color:#d6deea;white-space:pre-wrap;margin:4px 0}
+.rg-meta{font-size:11px;color:var(--text-muted,#7e8aa0)}
+.rg-acusar{margin-top:8px;width:100%;padding:9px;border:none;border-radius:9px;background:linear-gradient(180deg,#2f8a5a,#1d9e75);color:#fff;font-weight:700;cursor:pointer}
+.rg-doc{margin-top:8px;width:100%;padding:8px;border:1px solid rgba(212,175,55,.4);border-radius:9px;background:rgba(212,175,55,.10);color:#f4d574;font-weight:600;cursor:pointer}
+.rg-chk{display:flex;align-items:center;gap:8px;font-size:13px;color:#e7edf6;cursor:pointer}
+.rg-chk input{width:16px;height:16px}
+.rg-nota-cmd{font-size:12px;color:#ffd5da;background:#5a2230;border:1px solid #7a2230;border-radius:9px;padding:8px 10px;flex:1}
+</style>
+<section id="screen-radiogramas" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('screen-cursante-home')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">📻 Radiogramas</div><div class="header-sub" id="rg-screen-sub">Ejercicio VENCER O MORIR</div></div>
+  </div>
+  <div class="menu-container">
+    <button class="btn-mega" onclick="rgTransmitir()" style="background:linear-gradient(180deg,#3a5a8a,#4a90d9);margin:0 0 12px;color:#fff"><span class="mega-icon">📤</span><span>Generar radiograma</span></button>
+    <div class="section-label">📥 Recibidos</div>
+    <div id="rg-recibidos"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+    <div class="section-label" style="margin-top:14px">📨 Enviados por mi Estado Mayor</div>
+    <div id="rg-enviados"></div>
   </div>
 </section>
 
@@ -9043,6 +9091,7 @@ async function renderCursanteHome(){
   // Aviso para activar notificaciones (solo si todavía no las activó).
   try{ mostrarBannerPushCursante(); }catch(e){}
   try{ mostrarAvisosCursante(); }catch(e){}
+  try{ mostrarRadiogramaBannerCursante(); }catch(e){}  // v2.9.90: acceso al ejercicio (Radiogramas)
 }
 
 function renderCursanteSancionesInline(sanciones, containerId, limit){
@@ -13361,6 +13410,284 @@ async function goDocsProfesoresCT(){
   if(!esCT()){ goAulaProfesores(); return; }  // no-CT: cae a lectura
   await cargarMateriasAula(true);              // asegura la materia-contenedor en caché
   goAulaDocsGestion(AULA_MATERIA_PROFESORES);
+}
+
+/* ===== v2.9.90: RADIOGRAMAS (juego de guerra VENCER O MORIR) — vista del cursante ===== */
+let RG_MIS = null;   // { grupo, cargo, soy_comandante, comandante:{nombre,grado}, destinos:[] }
+let RG_ROWS = {};    // cache codigo -> fila del radiograma (para regenerar el Word)
+const RG_CODENAME = {1:'TERRAN', 2:'PROTOS'};
+const RG_SISTEMAS = ['MANDO Y CONTROL C2','DIRECCIÓN Y SINCRONIZACIÓN','INTELIGENCIA','MANIOBRA','APOYO DE FUEGOS','MOVILIDAD, CONTRAMOVILIDAD E INGENIEROS','SOSTENIMIENTO','PROTECCIÓN'];
+function _rgEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function _rgCod(b){ return RG_CODENAME[b] || ('BANDO '+b); }
+function _rgRest(code){ return String(code||'').replace(/^B\d-/,''); }
+function _rgUnitLabel(code,b){ const r=_rgRest(code); if(r==='CTO')return 'CTO.'; if(r==='CFFTT')return 'FF.TT.OO. "'+_rgCod(b)+'"'; if(r.indexOf('CE-')===0)return 'CE.-'+r.slice(3); return r||'—'; }
+function _rgMembrete(code,b){ const r=_rgRest(code); if(!r) return ['COMANDO DEL TEATRO DE OPERACIONES','DIRECCIÓN DEL EJERCICIO']; const L=['COMANDO DEL TEATRO DE OPERACIONES']; if(r!=='CTO') L.push('FUERZAS TERRESTRES DEL TEATRO DE OPERACIONES'); if(r.indexOf('CE-')===0) L.push('CUERPO DE EJÉRCITO '+r.slice(3)); L.push(_rgCod(b)); return L; }
+function _rgJoinUnits(codes,b){ const l=codes.map(c=>_rgUnitLabel(c,b)); if(l.length<=1) return l.join(''); return l.slice(0,-1).join(', ')+' Y '+l[l.length-1]; }
+function _rgDtgNow(){ const d=new Date(),p=n=>String(n).padStart(2,'0'); return p(d.getDate())+p(d.getHours())+p(d.getMinutes())+'-'+_MESES_ABR[d.getMonth()]+'-'+String(d.getFullYear()).slice(-2); }
+function _rgHora(ts){ if(!ts) return ''; try{ return new Date(ts).toLocaleString('es-BO',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } }
+function _rgGrp(code){ return _rgEsc(String(code||'—').replace(/^B\d-/,'')); }
+async function _rgInvoke(accion, extra){
+  const tok = getTokenSesion(); if(!tok) return {ok:false,error:'sin sesión'};
+  try{
+    const { data, error } = await sb.functions.invoke('radiogramas-ops', { body: Object.assign({accion, token:tok}, extra||{}) });
+    if(error) return {ok:false, error:(error.message||'error')};
+    return data || {ok:false,error:'sin respuesta'};
+  }catch(e){ return {ok:false, error:String((e&&e.message)||e)}; }
+}
+
+// Banner en el home del cursante (solo si participa del ejercicio). No marca "entregado".
+async function mostrarRadiogramaBannerCursante(){
+  const cont = document.getElementById('cur-radiograma-banner');
+  if(!cont || !currentUser) return;
+  cont.innerHTML = '';
+  const r = await _rgInvoke('mis_grupos');
+  if(!r.ok || !r.grupo){ RG_MIS=null; return; }   // no participa -> nada
+  RG_MIS = { grupo:r.grupo, cargo:r.cargo||'', soy_comandante:!!r.soy_comandante, comandante:r.comandante||null, destinos:r.destinos||[] };
+  cont.innerHTML = `
+    <button class="rg-home-banner" onclick="goRadiogramas()">
+      <span class="rg-hb-ic">📻</span>
+      <span class="rg-hb-body">
+        <span class="rg-hb-tit">Radiogramas · VENCER O MORIR</span>
+        <span class="rg-hb-sub">${_rgEsc(r.grupo.nombre)} · Bando ${_rgEsc(r.grupo.bando)}</span>
+      </span>
+      <span class="rg-hb-go">Abrir ›</span>
+    </button>`;
+}
+
+async function goRadiogramas(){
+  showScreen('screen-radiogramas');
+  const sub = document.getElementById('rg-screen-sub');
+  if(RG_MIS && RG_MIS.grupo && sub) sub.textContent = RG_MIS.grupo.nombre + ' · Bando ' + RG_MIS.grupo.bando;
+  await rgCargarBandeja();
+}
+
+async function rgCargarBandeja(){
+  const recCont = document.getElementById('rg-recibidos');
+  const envCont = document.getElementById('rg-enviados');
+  if(recCont) recCont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const r = await _rgInvoke('bandeja');
+  if(!r.ok){
+    if(recCont) recCont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">No se pudo cargar (¿el ejercicio aún no está activo?).</div>';
+    if(envCont) envCont.innerHTML = '';
+    return;
+  }
+  const rec = (r.recibidos||[]).filter(a => a.radiogramas && !a.radiogramas.anulado);
+  rec.forEach(a => { if(a.radiogramas && a.radiogramas.codigo) RG_ROWS[a.radiogramas.codigo] = a.radiogramas; });
+  if(recCont) recCont.innerHTML = rec.length ? rec.map(_rgCardRecibido).join('')
+    : '<div class="efm-no-data" style="color:var(--text-muted)">No tenés radiogramas recibidos.</div>';
+  const env = (r.enviados||[]);
+  env.forEach(e => { if(e.codigo) RG_ROWS[e.codigo] = e; });
+  if(envCont) envCont.innerHTML = env.length ? env.map(_rgCardEnviado).join('')
+    : '<div class="efm-no-data" style="color:var(--text-muted)">Tu Estado Mayor no transmitió radiogramas todavía.</div>';
+}
+
+function _rgPrioBadge(p){
+  if(p==='flash') return '<span class="rg-badge rg-flash">FLASH</span>';
+  if(p==='urgente') return '<span class="rg-badge rg-urg">URGENTE</span>';
+  return '<span class="rg-badge rg-rut">RUTINA</span>';
+}
+function _rgCardRecibido(a){
+  const rg = a.radiogramas || {};
+  const acusado = !!a.acusado_en;
+  const origen = rg.origen_tipo==='direccion' ? 'Dirección del Ejercicio' : _rgGrp(rg.origen_grupo_id);
+  return `
+    <div class="rg-card ${acusado?'':'rg-unread'}">
+      <div class="rg-card-top">
+        <span class="rg-code">${_rgEsc(rg.codigo||'')}</span>
+        ${_rgPrioBadge(rg.prioridad)}
+        ${acusado ? '<span class="rg-badge rg-ok" style="margin-left:auto">✓ acusado '+_rgEsc(_rgHora(a.acusado_en))+'</span>' : '<span class="rg-dot"></span>'}
+      </div>
+      <div class="rg-route">de: ${origen} → para tu EM</div>
+      <div class="rg-asunto">${_rgEsc(rg.asunto||'')}</div>
+      ${rg.cuerpo ? '<div class="rg-cuerpo">'+_rgEsc(rg.cuerpo)+'</div>' : ''}
+      <div class="rg-meta">${rg.dtg?('DTG '+_rgEsc(rg.dtg)+' · '):''}enviado ${_rgEsc(_rgHora(rg.enviado_en))}</div>
+      ${acusado ? '' : '<button class="rg-acusar" onclick="rgAcusar('+a.radiograma_id+', this)">✍ ACUSAR RECIBO</button>'}
+      <button class="rg-doc" onclick="_rgDescargar('${_rgEsc(rg.codigo)}','RECIBIDO')">📄 Descargar Word (RECIBIDO)</button>
+    </div>`;
+}
+function _rgCardEnviado(e){
+  return `
+    <div class="rg-card rg-sent">
+      <div class="rg-card-top"><span class="rg-code">${_rgEsc(e.codigo||'')}</span>${_rgPrioBadge(e.prioridad)}</div>
+      <div class="rg-asunto">${_rgEsc(e.asunto||'')}</div>
+      <div class="rg-meta">${e.dtg?('DTG '+_rgEsc(e.dtg)+' · '):''}enviado ${_rgEsc(_rgHora(e.enviado_en))}</div>
+      <button class="rg-doc" onclick="_rgDescargar('${_rgEsc(e.codigo)}','EXPEDIDO')">📄 Descargar Word (EXPEDIDO)</button>
+    </div>`;
+}
+
+async function rgAcusar(id, btn){
+  if(btn){ btn.disabled=true; btn.textContent='…'; }
+  const r = await _rgInvoke('acusar', { radiograma_id:id, firma:(currentUser&&currentUser.nombre_completo)||null });
+  if(!r.ok){ alert('No se pudo acusar el recibo: '+(r.error||'')); if(btn){ btn.disabled=false; btn.textContent='✍ ACUSAR RECIBO'; } return; }
+  await rgCargarBandeja();
+}
+
+// FORMULARIO OFICIAL "Generar radiograma" (prefijado pero editable)
+function rgTransmitir(){
+  if(!RG_MIS || !RG_MIS.grupo){ alert('No estás registrado en un Estado Mayor del ejercicio.'); return; }
+  if(!RG_MIS.destinos || !RG_MIS.destinos.length){ alert('Tu Estado Mayor no tiene destinos habilitados por la cadena de mando.'); return; }
+  const g = RG_MIS.grupo;
+  const cmd = RG_MIS.comandante || {};
+  const old = document.getElementById('rg-modal'); if(old) old.remove();
+  const ov = document.createElement('div'); ov.id='rg-modal'; ov.className='avm-overlay';
+  const chks = RG_MIS.destinos.map(d=>`<label class="rg-chk"><input type="checkbox" value="${_rgEsc(d.id)}" onchange="_rgSyncAl()"> ${_rgEsc(_rgUnitLabel(d.id,g.bando))} <span style="color:var(--text-muted)">(${_rgEsc(d.nombre)})</span></label>`).join('');
+  const sisOpts = RG_SISTEMAS.map(s=>`<option value="${_rgEsc(s)}">${_rgEsc(s)}</option>`).join('');
+  const esCmd = !!RG_MIS.soy_comandante;
+  const accion = esCmd
+    ? `<button class="btn-primary" onclick="rgEnviar(this)">📤 Firmar y transmitir</button>`
+    : `<div class="rg-nota-cmd">Solo el comandante de la unidad${cmd.nombre?(' ('+_rgEsc(cmd.nombre)+')'):''} puede firmar y transmitir. Podés redactar el borrador y pasárselo.</div>`;
+  ov.innerHTML = `
+    <div class="avm-box" onclick="event.stopPropagation()" style="max-height:88vh;overflow:auto">
+      <h3>📻 Generar radiograma</h3>
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">${_rgEsc(_rgMembrete(g.id,g.bando).join(' · '))}</div>
+      <div class="field" style="margin-bottom:8px"><label>DEL (remitente)</label><input type="text" id="rg-del" value="${_rgEsc(_rgUnitLabel(g.id,g.bando))}" autocomplete="off"></div>
+      <div class="field" style="margin-bottom:6px"><label>A — destino(s) por la cadena de mando</label></div>
+      <div id="rg-dest-box" style="border:1px solid var(--border,#2a3a52);border-radius:10px;padding:8px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px">${chks}</div>
+      <div class="field" style="margin-bottom:8px"><label>AL / A LOS (texto del documento)</label><input type="text" id="rg-al" placeholder="se completa al elegir destino" autocomplete="off"></div>
+      <div class="field" style="margin-bottom:8px"><label>Sistema</label><select id="rg-sistema">${sisOpts}</select></div>
+      <div class="field" style="margin-bottom:8px"><label>Lugar</label><input type="text" id="rg-lugar" value="Asunción" autocomplete="off"></div>
+      <div class="field" style="margin-bottom:8px"><label>DTG</label><input type="text" id="rg-dtg" value="${_rgEsc(_rgDtgNow())}" autocomplete="off"></div>
+      <div class="field" style="margin-bottom:8px"><label>Prioridad</label><select id="rg-prio"><option value="rutina">Rutina</option><option value="urgente">Urgente</option><option value="flash">Flash</option></select></div>
+      <div class="field" style="margin-bottom:8px"><label>Asunto (para la bandeja)</label><input type="text" id="rg-asunto" autocomplete="off"></div>
+      <div class="field" style="margin-bottom:8px"><label>Cuerpo del radiograma</label><textarea id="rg-cuerpo" rows="6" placeholder="Texto de la orden. Separá párrafos con una línea en blanco."></textarea></div>
+      <div class="field" style="margin-bottom:4px"><label>Firma — nombre</label><input type="text" id="rg-firma-n" value="${_rgEsc(cmd.nombre||'')}" autocomplete="off"></div>
+      <div class="field" style="margin-bottom:10px"><label>Firma — grado</label><input type="text" id="rg-firma-g" value="${_rgEsc(cmd.grado||'')}" autocomplete="off"></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        ${accion}
+        <button class="btn-secondary" onclick="document.getElementById('rg-modal').remove()">Cancelar</button>
+      </div>
+    </div>`;
+  ov.onclick = ()=> ov.remove();
+  document.body.appendChild(ov);
+}
+function _rgSyncAl(){
+  const ids = [...document.querySelectorAll('#rg-dest-box input:checked')].map(c=>c.value);
+  const al = document.getElementById('rg-al');
+  if(al) al.value = _rgJoinUnits(ids, RG_MIS.grupo.bando);
+}
+async function rgEnviar(btn){
+  const destinos = [...document.querySelectorAll('#rg-dest-box input:checked')].map(c=>c.value);
+  if(!destinos.length){ alert('Elegí al menos un destino.'); return; }
+  const v = id => (document.getElementById(id)||{}).value || '';
+  const asunto = v('rg-asunto').trim();
+  if(!asunto){ alert('Poné un asunto (es lo que se ve en la bandeja).'); return; }
+  const payload = {
+    destinos,
+    asunto,
+    prioridad: v('rg-prio'),
+    dtg: v('rg-dtg').trim(),
+    sistema: v('rg-sistema').trim(),
+    lugar: v('rg-lugar').trim(),
+    del_label: v('rg-del').trim(),
+    al_label: v('rg-al').trim(),
+    cuerpo: v('rg-cuerpo').trim(),
+    firma_nombre: v('rg-firma-n').trim(),
+    firma_grado: v('rg-firma-g').trim()
+  };
+  if(btn){ btn.disabled=true; btn.textContent='Transmitiendo…'; }
+  const r = await _rgInvoke('transmitir', payload);
+  if(!r.ok){ alert('No se pudo transmitir: '+(r.error||'')); if(btn){ btn.disabled=false; btn.textContent='📤 Firmar y transmitir'; } return; }
+  const m = document.getElementById('rg-modal'); if(m) m.remove();
+  // genera y descarga el Word EXPEDIDO
+  const doc = {
+    tipo:'EXPEDIDO', codigo:r.codigo, bando:RG_MIS.grupo.bando,
+    membrete:_rgMembrete(RG_MIS.grupo.id, RG_MIS.grupo.bando),
+    lugar:payload.lugar, dtg:payload.dtg, del_label:payload.del_label, al_label:payload.al_label,
+    sistema:payload.sistema, numero_unidad:r.numero_unidad, enviado_en:new Date().toISOString(),
+    cuerpo:payload.cuerpo, firma_nombre:payload.firma_nombre, firma_grado:payload.firma_grado
+  };
+  _descargarRadiogramaDocx(doc, 'RADIOGRAMA_EXPEDIDO_'+(r.codigo||''));
+  alert('Radiograma '+(r.codigo||'')+' (N° '+String(r.numero_unidad||'').padStart(2,'0')+') transmitido a '+(r.destinatarios||0)+' destinatario(s). Se descargó el Word EXPEDIDO.');
+  await rgCargarBandeja();
+}
+
+// descarga el Word de una fila cacheada (RECIBIDO o EXPEDIDO)
+function _rgDescargar(codigo, tipo){
+  const row = RG_ROWS[codigo];
+  if(!row){ alert('No se encontró el radiograma.'); return; }
+  _descargarRadiogramaDocx(_rgDocDeRow(row, tipo), 'RADIOGRAMA_'+tipo+'_'+codigo);
+}
+function _rgDocDeRow(row, tipo){
+  const b = row.bando;
+  return {
+    tipo, codigo:row.codigo, bando:b,
+    membrete:_rgMembrete(row.origen_grupo_id, b),
+    lugar:row.lugar||'', dtg:row.dtg||'',
+    del_label: row.del_label || (row.origen_tipo==='direccion' ? 'DIRECCIÓN DEL EJERCICIO' : _rgUnitLabel(row.origen_grupo_id,b)),
+    al_label: row.al_label||'',
+    sistema:row.sistema||'', numero_unidad:row.numero_unidad, enviado_en:row.enviado_en,
+    cuerpo:row.cuerpo||'', firma_nombre:row.firma_nombre||'', firma_grado:row.firma_grado||''
+  };
+}
+
+// ── Generador del .docx del radiograma (reusa _zipStore/_runs/_xmlEsc/_ARIAL del informe) ──
+function _rgPar(text, o){ o=o||{};
+  const jc = o.center?'center':(o.justify?'both':'left');
+  const sz = o.sz||24, b=o.bold?'<w:b/>':'', u=o.under?'<w:u w:val="single"/>':'';
+  const ind = (o.indLeft||o.indRight) ? `<w:ind${o.indLeft?` w:left="${o.indLeft}"`:''}${o.indRight?` w:right="${o.indRight}"`:''}/>` : '';
+  return `<w:p><w:pPr><w:jc w:val="${jc}"/>${ind}<w:spacing w:before="${o.before||0}" w:after="${o.after!=null?o.after:0}" w:line="${o.line||240}" w:lineRule="auto"/></w:pPr>`
+    + `<w:r><w:rPr>${_ARIAL}${b}${u}<w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/></w:rPr><w:t xml:space="preserve">${_xmlEsc(text)}</w:t></w:r></w:p>`;
+}
+function _rgKV(label, val){
+  return `<w:p><w:pPr><w:spacing w:after="0" w:line="240"/></w:pPr>`
+    + `<w:r><w:rPr>${_ARIAL}<w:b/><w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">${_xmlEsc(label)} : </w:t></w:r>`
+    + `<w:r><w:rPr>${_ARIAL}<w:sz w:val="24"/></w:rPr><w:t xml:space="preserve">${_xmlEsc(val)}</w:t></w:r></w:p>`;
+}
+function _docxRadiogramaParts(d){
+  const body = [];
+  (d.membrete||[]).forEach(m => body.push(_rgPar(m, {center:true, bold:true, sz:20, indRight:3168})));
+  body.push(_rgPar('RADIOGRAMA '+(d.tipo||'EXPEDIDO'), {center:true, bold:true, under:true, sz:32, before:240, after:120}));
+  body.push(_rgPar((d.lugar||'') + ((d.lugar&&d.dtg)?', ':'') + (d.dtg||''), {indLeft:6096, after:160}));
+  const alPref = /[,]|\bY\b/.test(d.al_label||'') ? 'A LOS' : 'AL';
+  if(d.del_label) body.push(_rgKV('DEL', d.del_label));
+  if(d.al_label) body.push(_rgKV(alPref, d.al_label));
+  const num = d.numero_unidad ? String(d.numero_unidad).padStart(2,'0') : '';
+  const yy = String(new Date(d.enviado_en||Date.now()).getFullYear()).slice(-2);
+  if(d.sistema || num) body.push(_rgPar((d.sistema||'') + (num?('. N° '+num+'/'+yy+'.-'):''), {bold:true, before:160, after:200}));
+  (Array.isArray(d.cuerpo)?d.cuerpo:String(d.cuerpo||'').split(/\n\s*\n/)).map(s=>String(s).trim()).filter(Boolean)
+    .forEach(p => body.push(_rgPar(p, {justify:true, after:160})));
+  body.push(_rgPar('ATTE.', {before:240, after:240}));
+  body.push(_rgPar(d.firma_nombre||'', {center:true, after:0}));
+  body.push(_rgPar(d.firma_grado||'', {center:true, bold:true, after:240}));
+  body.push(_rgPar('Autentificación:', {after:0}));
+  body.push(_rgPar('Of. Com. ...........', {after:0}));
+  if(d.codigo) body.push(_rgPar('               '+d.codigo, {after:160}));
+  body.push(_rgPar('Distribución:', {after:0}));
+  if(d.del_label) body.push(_rgPar('Original : '+d.del_label, {after:0}));
+  if(d.al_label) body.push(_rgPar('Copias : '+d.al_label, {after:0}));
+
+  const sectPr = `<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1701" w:header="720" w:footer="454" w:gutter="0"/></w:sectPr>`;
+  const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${body.join('')}${sectPr}</w:body></w:document>`;
+  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr>${_ARIAL}<w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:rPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style></w:styles>`;
+  const settingsXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"/>`;
+  const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/></Types>`;
+  const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`;
+  const docRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/></Relationships>`;
+  return [
+    { name:'[Content_Types].xml', str: contentTypes },
+    { name:'_rels/.rels', str: rels },
+    { name:'word/document.xml', str: documentXml },
+    { name:'word/_rels/document.xml.rels', str: docRels },
+    { name:'word/styles.xml', str: stylesXml },
+    { name:'word/settings.xml', str: settingsXml }
+  ];
+}
+function _descargarRadiogramaDocx(d, nombre){
+  try{
+    const blob = _zipStore(_docxRadiogramaParts(d));
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = (nombre||'RADIOGRAMA').replace(/[^\w\-]+/g,'_') + '.docx';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(()=>URL.revokeObjectURL(url), 4000);
+    return true;
+  }catch(e){ alert('No se pudo generar el Word: ' + (e.message||e)); return false; }
 }
 async function renderPdfConTexto(url, containerId){
   const container = document.getElementById(containerId);
