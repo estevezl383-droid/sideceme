@@ -3872,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.88 · Revisión + blindaje: cierre limpio si el token venció (no falla a mitad)</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.89 · Planillas: GRADO APELLIDOS NOMBRES (lista oficial) + orden alfabético</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -11755,7 +11755,7 @@ function autoridadSancionTxt(s){
 }
 function cursanteSancionTxt(s){
   const cur = discData.cursantes.find(c => c.id === s.cursante_id);
-  if(cur) return (nombreConGrado(cur) || '').toUpperCase();
+  if(cur) return gradoApellidosNombres(cur);   // v2.9.89: GRADO APELLIDOS NOMBRES
   return String(s.cursante_nombre || '—').toUpperCase();
 }
 
@@ -11926,13 +11926,278 @@ function htmlFirmasReporte(){
   `;
 }
 
+/* ===== v2.9.89: nombres "GRADO APELLIDOS NOMBRES" + orden alfabético por apellido ===== */
+const _PART_APELLIDO = new Set(['de','del','la','las','los','y','da','dos','di','van','von','san','santa','santos','dela']);
+// v2.9.89: nombre oficial REORDENADO "APELLIDOS NOMBRES" por id de cursante.
+// Fuente: Word RR.NN. (2do ciclo, por CI) + xlsx "APELLIDOS Y NOMBRES 1ER CICLO". 223/225.
+// Los que no estén (cursantes nuevos) caen a la heurística partirNombre().
+const NOMBRE_REORDENADO = {
+  "C001":"ZABALA VILLEGAS ALAN MARCELO",
+  "C002":"SOLIZ CATARI ARMIN",
+  "C003":"CORDOVA PATTZY ARTURO",
+  "C004":"ARCE VELASQUEZ FABIO ESTEBAN",
+  "C005":"LIMACHI AGUILAR CAROLA ROXANA",
+  "C006":"BAHAMONDE CENTENO CÉSAR AUGUSTO",
+  "C007":"FLORES PAZ SOCRATES",
+  "C008":"GIRON HEREDIA CISCAR EFRAIN",
+  "C009":"PARDO MEJIA DAVID JUNIOR",
+  "C010":"GONZALES GUTIERREZ JUAN DE DIOS",
+  "C011":"CUETO RAMALLO DIETMAR DAVID",
+  "C012":"SOLIZ CACERES EDSON DANIEL",
+  "C013":"HURTADO VILLCA PERCY",
+  "C014":"BALDERRAMA AYALA ERIK FERNANDO",
+  "C015":"LUQUE SURCO ERICK HENRY",
+  "C016":"GONZALES LA FUENTE WALTER CRHISTIAN",
+  "C017":"CHOQUE CALLISAYA GILDER DIEGO",
+  "C019":"SANTA MARIA CASTRO IVERT CRISTIAN",
+  "C020":"GONZALES ACHA JHONNY WILDER",
+  "C021":"CALAVI SORIA JORGE LUIS",
+  "C022":"COPA FLORES JOSE LUIS",
+  "C023":"RICALDI NUÑEZ JUAN CARLOS",
+  "C024":"RIOS MARTINEZ JUAN GABRIEL",
+  "C025":"AGUILAR TABORGA JUAN ISRAEL",
+  "C026":"CHUGAR AYALA CESAR FERNANDO",
+  "C027":"VILA BANEGAS LISBETH VANESSA",
+  "C028":"LOPEZ LUIS ALBERTO",
+  "C029":"CEPCEL MENDOZA MELBA VALERIA",
+  "C030":"ALTAMIRANO LLAMPA NINOSKA DEL ROSARIO",
+  "C031":"SALCES LEANOS PABLO CESAR",
+  "C032":"CALLISAYA AYALA RUBEN",
+  "C033":"PEREZ MEDRANO RAUL",
+  "C034":"LOZA ALONZO REYNA NORKA",
+  "C035":"AYALA RIVAMONTAN RICHARD",
+  "C036":"CHOQUE MAMANI RODOLFO",
+  "C037":"LOZA QUIROGA EDSON WILDER",
+  "C038":"TORRICO PEREDO BETO",
+  "C039":"VALENZUELA ARENAS YLEKIN SNORRI",
+  "C040":"AVENDAÑO OROS WENDY SOFIA",
+  "C041":"CUIZA PACHECO YAMIL VLADIMIR",
+  "C042":"ZUMAETA URCARIEGUI DIANA",
+  "C043":"GUARAYO ROQUE ARIEL",
+  "C044":"LUJAN TICONA FREDDY EDOARD",
+  "C045":"PALACIOS ALCOBA BERMAN",
+  "C046":"COCARICO JAUREGUI CARLOS ALFONSO",
+  "C047":"GUZMAN POMA JESUS",
+  "C048":"CALCINA AÑEZ CLARIBEL",
+  "C049":"TOCOCARI FIORILO DANIEL ALEJANDRO",
+  "C050":"ORTIZ CORDERO DANIEL ANDRES",
+  "C051":"GARCIA AYALA DANNY",
+  "C052":"GONZALES CHOQUE DARWIN DANIEL",
+  "C053":"FLORES MARQUEZ ELMER ADOLFO",
+  "C054":"TERRAZAS MOLLO ERIK JHONATAN",
+  "C055":"URUÑO CHOQUE MARCO ANTONIO",
+  "C056":"LIMACHI QUISPE KATIAN SHIRLEY",
+  "C057":"MALDONADO GALO",
+  "C058":"QUISPE CONDORI GILMAR",
+  "C059":"CANAVIRI MOLLO JESUS ZENON",
+  "C060":"GUZMAN JIMENEZ JHONATAN RAUL",
+  "C061":"TORRICO CUEVAS JOHONATAN",
+  "C062":"PALLY MONTAÑO JORGE LUIS",
+  "C063":"SANCHEZ OLIVERA JORGE",
+  "C064":"MENECES JALDIN JOSE ALBERTO",
+  "C065":"QUIROZ BARBOZA JOSE EDILBERTO",
+  "C066":"SALCEDO SULLK JOSEPH",
+  "C067":"POZO VALDIVIA JOSE ANTONIO",
+  "C068":"AVENDAÑO LARA ALVARO MARTIN",
+  "C069":"CHOQUE ALFARO JUSTINO FRANZ",
+  "C070":"LEON VACA ARIEL LODIS",
+  "C071":"BLANCO FERNANDEZ LISETH CARMEN",
+  "C072":"CHINCHE GUZMAN LUIS DANIEL",
+  "C073":"TORREZ RAMOS LUIS FERNANDO",
+  "C074":"LIRA ORTIZ JUAN CARLOS",
+  "C075":"LUIZAGA CLAURE NELSON",
+  "C076":"GALINDO BALDERRAMA PAULA ALEJANDRA",
+  "C077":"ROCABADO MONTENEGRO PEDRO FERNANDO",
+  "C078":"ROCABADO TORRICO ROSIO NATALY",
+  "C079":"CESPEDEZ ROCHA RUBEN DARIO",
+  "C080":"ALCÓN CAHUANA RUBEN ARIEL",
+  "C081":"ESPADA SOLIZ TATIANA",
+  "C082":"LOPEZ CONDORI WILLIAMS EDGAR",
+  "C083":"PALMA FRIAS FERNANDO RICARDO",
+  "C084":"REVOLLO SOLIZ YURY ALEJANDRA",
+  "C085":"CAZAS MARTINEZ ADHEMAR",
+  "C086":"MANU SALGUERO ALLYSON",
+  "C087":"VEIZAGA BALTA AMILCAR CHRISTIAN",
+  "C088":"LIMA MOLINA ANGHELO FRANZ",
+  "C089":"ESPINOZA CARDENAS BORIS REYNALDO",
+  "C090":"VASQUEZ BALDERRAMA CAMILO",
+  "C091":"HERRERA BALDERRAMA ROCIO KATERINE",
+  "C092":"LOZANO ARCE DAVID ALEJANDRO",
+  "C093":"MONTAÑO PINTO DUVEIZA ANTONIETA",
+  "C094":"TADEO HUAYLLA ERIK LUIS",
+  "C095":"MURILLO LOPEZ EVER RODO",
+  "C096":"VILLCA MAYTA FRANZ EDWAR",
+  "C097":"MEDINA TORRICO FREDDY FRANCISCO",
+  "C098":"VELA MERCADO HARRY RODRIGO",
+  "C099":"BARRIENTOS FERNANDEZ ILSE",
+  "C100":"CHOQUEHUANCA QUISPE JAIME JOSE",
+  "C101":"MORALES POMA JAVIER",
+  "C102":"FLORES RAMIREZ JHOSEF ALVARO",
+  "C103":"GARCIA SALVATIERRA JORGE ARMANDO",
+  "C104":"BARRIENTOS RICO JOSE ANTONIO",
+  "C105":"QUISPE ATAHUACHI JUAN HELJAR",
+  "C106":"VILLA NUÑEZ JUAN PABLO",
+  "C107":"GARCIA GAMBOA LORGIO",
+  "C108":"FUENTES NINA CARLOS ALBERTO",
+  "C109":"OCHOA PACHECO LUIS FERNANDO",
+  "C110":"CHAVEZ QUISPE LUIS GONZALO",
+  "C111":"HUAÑAPACO ALCON MARIO",
+  "C112":"MARISCAL HIDALGO MIJAEL YAMIL",
+  "C113":"RUIZ SUXO OSMAR ALFONZO",
+  "C114":"PEÑALOZA AGUILA PABLO CESAR",
+  "C115":"AGUILAR TERAN RAMIRO MAURICIO",
+  "C116":"COSSIO COSSIO LUIS ALEJANDRO",
+  "C117":"HUAYNOCA COACOLLO ROGER RICARDO",
+  "C118":"SANDOVAL ROJAS RONALD MAURICIO",
+  "C119":"ROMANI JACOBE SAMUEL",
+  "C120":"BELMONTE SANCHEZ SAUL",
+  "C121":"DURAN RUEDA SAUL",
+  "C122":"ZURITA LUJAN TEDDY GUSTAVO",
+  "C123":"ARACAYO PAMPA VICTOR",
+  "C124":"AZAEDA HERRERA WALTER MICHIAEL",
+  "C125":"BARRON CAPIONA YANKA AMMI",
+  "C126":"BRAVO CALLE BORIS ALEJANDRO",
+  "C127":"CAMACHO ORELLANA EIGNER OSCAR",
+  "C128":"GIRONDA PORREZ OSCAR REYNALDO",
+  "C129":"CARVAJAL SALINAS ALAN SVEN",
+  "C130":"CALDERON CARTAGENA ALDO MAURICIO",
+  "C131":"CHAVARRIA VILLEGAS ALEJANDRO WILDE",
+  "C132":"ABUNA ALARCON ALVARO JOSE",
+  "C133":"PEREIRA AREVALO BRAYAN ALBERTO",
+  "C134":"ROMERO SANDOVAL CARLOS ALBERTO",
+  "C135":"CARVAJAL MALDONADO CARLOS ANDRES",
+  "C136":"ALTAMIRANO CAVA CHRISTIAN EDUARDO",
+  "C137":"PECHO QUIROZ DANTON BERENIZ",
+  "C138":"VILLARROEL HERBAS DENNIS",
+  "C139":"PARRADO CLAROS DENNYS JORGE",
+  "C140":"MACIAS BALDERRAMA DIEGO RONALD",
+  "C141":"ESPINOZA FERNANDEZ ELOY JORGE",
+  "C142":"VALERO LAURA FRANKLIN IVAN",
+  "C143":"MENDIETA MONTERO GABRIEL",
+  "C144":"QUISBERT TICONA JUAN PABLO",
+  "C145":"VARGAS BALDERRAMA JANDERY",
+  "C146":"ROJAS CATACORA JHON HENRY",
+  "C147":"CESPEDES ROCHA JORGE ARMANDO",
+  "C148":"CRUZ YAIBONA JOSE LUIS MARCELO",
+  "C149":"SALAZAR SUAREZ GUIDO GROVER",
+  "C150":"TERAN CASTRO JUAN PABLO",
+  "C151":"COVARRUBIAS GARCIA LUPE",
+  "C152":"CAREAGA TELLEZ MAIKOL FERNANDO",
+  "C153":"QUIROGA JORDAN MANUEL JAIME",
+  "C154":"BARRIENTOS LLANOS MARIA LUISA",
+  "C155":"AGUILAR TABORGA CIRO FAUSTINO",
+  "C156":"SORIA URIONA RODNEY JENNER",
+  "C157":"PALACIOS MOLINA ROGER TOMAS",
+  "C158":"LEONARDINI URIONA RUBEN ORLANDO",
+  "C159":"PORTUGUEZ JILAMITA SHIRLEY",
+  "C160":"CONTRERAS SANCHEZ WILLAMS TONIO",
+  "C161":"FLORES CABRERA ALEJANDRO",
+  "C162":"CARDOZO QUIROGA ROMMEL",
+  "C163":"ESPINOZA VACA SERGIO RUBENS",
+  "C164":"FLORES BENAVIDES CRISTIAN",
+  "C165":"GARECA RODRIGUEZ DANIEL ENRIQUE",
+  "C166":"ARUMBARI RUIZ ELIAS MAX",
+  "C167":"AYALA ZURITA FRANZ",
+  "C168":"ARANCIBIA TAPIA GEHAIN OSMAR",
+  "C169":"GOMEZ CAMPOS ALEXANDER",
+  "C170":"MENDIZABAL CHURA HENRY",
+  "C171":"VASQUEZ OJOPI JEAN CARLO",
+  "C172":"SALAZAR VARGAS JOHN WILMAR",
+  "C173":"CORTEZ GUTIERREZ JOSE ANTONIO",
+  "C174":"MERUBIA PAREDES JOSÉ ANTONIO",
+  "C175":"CASTRO SALAZAR JULIO CESAR",
+  "C176":"ROCHA LUNA LIN NAIR",
+  "C177":"OVALLE QUISBERT LUISA KRUPSKAYA",
+  "C178":"CORDERO ZAPATA MARCO ANTONIO",
+  "C179":"LOPEZ ARANDA LUIS ALBERTO",
+  "C180":"USMAYO APAZA MARLON EFRAIN",
+  "C181":"MERCADO CARRASCO MARCO ANTONIO",
+  "C182":"GUEVARA REVOLLO PAOLA VALERIA",
+  "C183":"CHOQUE AZARI RODOLFO",
+  "C184":"VIDAURRE VASQUEZ ROMANETT",
+  "C185":"ROSALES SARAVIA SERGIO ORLANDO",
+  "C186":"FERNANDEZ BUSTAMANTE SAMUEL ERICK",
+  "C187":"SEJAS VELASCO PABLO ANTONIO",
+  "C188":"VARGAS GUTIERREZ HAROLD HENRY",
+  "C189":"CAHUAYA VINO VLADIMIR EDWIN",
+  "C190":"PRUDENCIO RAMALLO WILLY ANDREY",
+  "C191":"FERNANDEZ VILLA YAMIL WILFREDO",
+  "C192":"DAZA CALVIMONTE ALBERTO RODRIGO",
+  "C193":"ARRAZOLA ADRIAZOLA CARLOS ANTONIO",
+  "C194":"BAREA CUBA ARMANDO",
+  "C195":"HERRERA AVALOS RICHARD WILLIAM",
+  "C196":"CAMACHO PINTO DEMELY ENRIQUE",
+  "C197":"AGUILERA TORREZ FERNANDO",
+  "C198":"FERNANDEZ ZEBALLOS FRANZ FREDDY",
+  "C199":"SANTA CRUZ SANDOVAL GUERY MARCELO",
+  "C200":"MARCONI QUINO HADY WALKER",
+  "C201":"ANGULO ADUVIRI ALVARO JOSE",
+  "C202":"RAMIREZ SANCHEZ IVER ADHEMAR",
+  "C203":"TABOADA JOVE JAIME ALBERTO",
+  "C204":"BARRA YUCRA JILMA ELVIRA",
+  "C205":"CURCUY ESPINAR JORGE OSCAR",
+  "C206":"RICALDE TORREZ JUAN PABLO",
+  "C207":"SAAVEDRA DELGADO JULIO ALBERTO",
+  "C208":"SANCHEZ SILLO KARLA CARMEN",
+  "C209":"BARRAL LOPEZ LILIANA SANDRA",
+  "C210":"CHOQUE APAZA LUIS FERNANDO",
+  "C211":"BAUTISTA TORREZ IVAN ALEJANDRO",
+  "C212":"VALDIVIA ROWE MARCELO GABRIEL",
+  "C213":"DAZA RAFAEL MARIO FREDERICK",
+  "C214":"GONZALES BARRERA MIGUEL ANTONIO",
+  "C215":"TORRICO YAÑEZ RAUL EDUARDO",
+  "C216":"VARGAS COLOSETTI RENZO GUSTAVO",
+  "C217":"ZEBALLOS PACHECO RUBEN FERNANDO",
+  "C218":"CLAROS MUSTAFA RODRIGO SAID",
+  "C219":"BALBOA QUISPE RONALD RAUL",
+  "C220":"CALLE SILVA LUIS MAURO",
+  "C221":"LUIZAGA GUTIERREZ VICTOR EDWIN",
+  "C222":"ROJAS LOZA WENDDY ROMANET",
+  "C223":"CALDERON FERNANDEZ WILMER",
+  "C224":"GONZALES MOLLINEDO WILSON GONZALO",
+};
+// Separa "Nombres Apellidos" → {apellidos, nombres} respetando partículas (Santa Maria, de Dios, la Fuente).
+function partirNombre(full){
+  const t = String(full||'').trim().split(/\s+/).filter(Boolean);
+  if(t.length<=1) return {apellidos:(t[0]||''), nombres:''};
+  if(t.length===2) return {apellidos:t[1], nombres:t[0]};
+  const unidad = end => { let toks=[t[end]], i=end-1; while(i>=0 && _PART_APELLIDO.has(t[i].toLowerCase())){ toks.unshift(t[i]); i--; } return {toks, i}; };
+  const m = unidad(t.length-1);
+  if(m.i<0) return {apellidos:t.slice(1).join(' '), nombres:t[0]};
+  const p = unidad(m.i);
+  const nombres = t.slice(0, p.i+1);
+  if(!nombres.length) return {apellidos:t[t.length-1], nombres:t.slice(0,-1).join(' ')};
+  return {apellidos:p.toks.concat(m.toks).join(' '), nombres:nombres.join(' ')};
+}
+// Nombre reordenado "APELLIDOS NOMBRES": mapa oficial si existe, si no la heurística.
+function _nombreReord(c){
+  if(c && NOMBRE_REORDENADO[c.id]) return NOMBRE_REORDENADO[c.id];
+  const an = partirNombre(c && (c.nombre_completo||c.nombre) || '');
+  return (an.apellidos + ' ' + an.nombres).trim();
+}
+// "GRADO ARMA APELLIDOS NOMBRES" (mayúsculas), respetando la doctrina de grado/arma de nombreConGrado.
+function gradoApellidosNombres(c){
+  if(!c) return '—';
+  return (nombreConGrado(Object.assign({}, c, {nombre_completo: _nombreReord(c)})) || '').toUpperCase();
+}
+// Clave de orden alfabético por apellido (sin tildes, mayúsculas).
+function claveApellido(c){
+  return _nombreReord(c).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+}
+// Comparador de sanciones por apellido del cursante y, a igualdad, por fecha.
+function _cmpSancionApellido(a, b){
+  const ca = discData.cursantes.find(c => c.id === a.cursante_id);
+  const cb = discData.cursantes.find(c => c.id === b.cursante_id);
+  const ka = ca ? claveApellido(ca) : String(a.cursante_nombre||'').toUpperCase();
+  const kb = cb ? claveApellido(cb) : String(b.cursante_nombre||'').toUpperCase();
+  const cmp = ka.localeCompare(kb, 'es');
+  if(cmp !== 0) return cmp;
+  return (fechaSancion(a) || new Date(0)) - (fechaSancion(b) || new Date(0));
+}
+
 /* ===== Cuerpo del Reporte 1: Resumen mensual de deméritos ===== */
 function htmlCuerpoResumenMensual(ciclo, mes, year){
-  const sancs = filtrarSancionesReporte(ciclo, mes, year).sort((a,b) => {
-    const fa = fechaSancion(a) || new Date(0);
-    const fb = fechaSancion(b) || new Date(0);
-    return fa - fb;
-  });
+  const sancs = filtrarSancionesReporte(ciclo, mes, year).sort(_cmpSancionApellido);  // v2.9.89: orden alfabético por apellido
   const cicloDisplay = ciclo === 'todos' ? 'TODOS LOS CICLOS' : formatCicloMayuscula(ciclo);
   const periodoTit = mes === 'acumulado'
     ? `ACUMULADO DE LA GESTIÓN ${year}`
@@ -11972,7 +12237,7 @@ function htmlCuerpoResumenMensual(ciclo, mes, year){
       <thead>
         <tr>
           <th style="width:4%">N°</th>
-          <th style="width:24%">GRADO, NOMBRES Y APELLIDOS</th>
+          <th style="width:24%">GRADO, APELLIDOS Y NOMBRES</th>
           <th style="width:9%">FECHA</th>
           <th style="width:10%">TIPO DE FALTA</th>
           <th style="width:18%">NUMERAL</th>
@@ -11992,7 +12257,7 @@ function htmlCuerpoPlanilla(ciclo){
   const cursantes = discData.cursantes
     .filter(c => c.activo !== false)
     .filter(c => ciclo === 'todos' || c.ciclo === ciclo)
-    .sort((a,b) => (a.nombre_completo || '').localeCompare(b.nombre_completo || '', 'es'));
+    .sort((a,b) => claveApellido(a).localeCompare(claveApellido(b), 'es'));  // v2.9.89
 
   const cicloDisplay = ciclo === 'todos' ? 'TODOS LOS CICLOS' : formatCicloMayuscula(ciclo);
   const hoy   = new Date();
@@ -12009,9 +12274,7 @@ function htmlCuerpoPlanilla(ciclo){
       const factor = perd * 0.58;
       const nota   = 100 - factor;
       const atrib  = atributoCalificacion(nota);
-      const nom    = (c.nombre_completo || '—').toUpperCase();
-      // Grado + arma + nombre
-      const linea  = ((c.grado||'') + ' ' + (c.arma||'') + ' ' + nom).trim().toUpperCase();
+      const linea  = gradoApellidosNombres(c);   // v2.9.89: GRADO APELLIDOS NOMBRES
       return `<tr>
         <td class="num">${i+1}</td>
         <td class="left">${escapeHtml(linea)}</td>
@@ -12032,7 +12295,7 @@ function htmlCuerpoPlanilla(ciclo){
       <thead>
         <tr>
           <th style="width:5%">N°</th>
-          <th style="width:50%">GRADO, NOMBRES Y APELLIDOS</th>
+          <th style="width:50%">GRADO, APELLIDOS Y NOMBRES</th>
           <th style="width:12%">PUNTAJE PERDIDO</th>
           <th style="width:11%">FACTOR (×0.58)</th>
           <th style="width:11%">NOTA FINAL</th>
@@ -12117,11 +12380,7 @@ async function exportarExcelResumenMensual(ciclo, mes, year, filename){
     alert('La librería de Excel no cargó. Verificá tu conexión a internet.');
     return false;
   }
-  const sancs = filtrarSancionesReporte(ciclo, mes, year).sort((a,b) => {
-    const fa = fechaSancion(a) || new Date(0);
-    const fb = fechaSancion(b) || new Date(0);
-    return fa - fb;
-  });
+  const sancs = filtrarSancionesReporte(ciclo, mes, year).sort(_cmpSancionApellido);  // v2.9.89: orden alfabético por apellido
   const cicloDisplay = ciclo === 'todos' ? 'TODOS LOS CICLOS' : formatCicloMayuscula(ciclo);
   const periodoTit = mes === 'acumulado'
     ? `ACUMULADO DE LA GESTIÓN ${year}`
@@ -12135,7 +12394,7 @@ async function exportarExcelResumenMensual(ciclo, mes, year, filename){
     [],
     ['RESUMEN DE DEMÉRITOS — ' + periodoTit + ' — ' + cicloDisplay],
     [],
-    ['N°','GRADO, NOMBRES Y APELLIDOS','FECHA','TIPO DE FALTA','NUMERAL','PUNT. DEM.','AUTORIDAD QUE IMPONE LA SANCIÓN','OBSERVACIONES']
+    ['N°','GRADO, APELLIDOS Y NOMBRES','FECHA','TIPO DE FALTA','NUMERAL','PUNT. DEM.','AUTORIDAD QUE IMPONE LA SANCIÓN','OBSERVACIONES']
   ];
   sancs.forEach((s,i) => {
     const cat = String(s.falta_categoria || '—').toUpperCase();
@@ -12190,7 +12449,7 @@ function exportarExcelPlanilla(ciclo, filename){
   const cursantes = discData.cursantes
     .filter(c => c.activo !== false)
     .filter(c => ciclo === 'todos' || c.ciclo === ciclo)
-    .sort((a,b) => (a.nombre_completo || '').localeCompare(b.nombre_completo || '', 'es'));
+    .sort((a,b) => claveApellido(a).localeCompare(claveApellido(b), 'es'));  // v2.9.89
   const cicloDisplay = ciclo === 'todos' ? 'TODOS LOS CICLOS' : formatCicloMayuscula(ciclo);
   const hoy = new Date();
   const fechaTxt = `${hoy.getDate()} ${MESES_ESPANOL[hoy.getMonth()]} DE ${hoy.getFullYear()}`;
@@ -12203,13 +12462,13 @@ function exportarExcelPlanilla(ciclo, filename){
     ['PLANILLA DE CALIFICACIONES ACUMULATIVA DEL ÁREA DE DISCIPLINA — ' + cicloDisplay + ' — AL ' + fechaTxt],
     ['Atributos:  E=Excelente (100)  ·  MB=Muy Bueno (≥90)  ·  B=Bueno (≥80)  ·  R=Regular (≥60)  ·  D=Deficiente (<60)'],
     [],
-    ['N°','GRADO, NOMBRES Y APELLIDOS','PUNTAJE PERDIDO','FACTOR (×0.58)','NOTA FINAL','ATRIBUTO']
+    ['N°','GRADO, APELLIDOS Y NOMBRES','PUNTAJE PERDIDO','FACTOR (×0.58)','NOTA FINAL','ATRIBUTO']
   ];
   cursantes.forEach((c,i) => {
     const perd   = Number(discData.byCursanteLost[c.id] || 0);
     const factor = perd * 0.58;
     const nota   = 100 - factor;
-    const linea  = ((c.grado||'') + ' ' + (c.arma||'') + ' ' + (c.nombre_completo||'—')).trim().toUpperCase();
+    const linea  = gradoApellidosNombres(c);   // v2.9.89: GRADO APELLIDOS NOMBRES
     aoa.push([i+1, linea, perd, Number(factor.toFixed(4)), Number(nota.toFixed(4)), atributoCalificacion(nota)]);
   });
   if(!cursantes.length){
