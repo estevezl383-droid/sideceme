@@ -3872,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.87 · Reset de contraseña (profes y cursantes): vuelven a entrar con su CI</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.88 · Revisión + blindaje: cierre limpio si el token venció (no falla a mitad)</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6069,6 +6069,13 @@ function getTokenSesion(){ return sessionStorage.getItem('sideceme_token') || nu
 async function _latidoSesion(){
   const tok = getTokenSesion(); if(!tok || !currentUser) return;
   const s = getSession(); if(!s) return;
+  // SEGURIDAD (v2.9.88): si el token YA venció localmente (caso: el EF nuevo aún no está
+  // deployado y la sesión sigue en 8h mientras el idle es 24h), cerramos sesión LIMPIO y
+  // pedimos reloguear, en vez de dejar que falle una acción a mitad ("sesión expirada").
+  if(typeof tokenSesionExpirado === 'function' && tokenSesionExpirado()){
+    try{ alert('🔒 Tu sesión expiró. Por seguridad, volvé a iniciar sesión.'); }catch(e){}
+    logout(); return;
+  }
   const ef = (s.tipo === 'cursante') ? 'cursantes-ops' : 'profesores-ops';
   try{
     const { data } = await sb.functions.invoke(ef, { body:{ accion:'ultimo_login', token:tok } });
