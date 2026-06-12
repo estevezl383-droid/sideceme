@@ -3872,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.93 · Radiogramas Fase 3: panel Dirección (tablero + publicar + seguimiento + export)</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.94 · Aula Virtual → Ejercicios Militares → EM → Radiogramas + badge de no leídos</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4590,9 +4590,6 @@ input::placeholder, textarea::placeholder {
         <button class="btn-logout" onclick="logout()">Salir</button>
       </div>
 
-      <!-- v2.9.90: acceso destacado al ejercicio (Radiogramas) — solo para participantes -->
-      <div id="cur-radiograma-banner" style="margin:0 0 8px"></div>
-
       <!-- Aviso para activar notificaciones (desaparece solo al activar) -->
       <div id="cur-avisos" style="margin:0 0 6px"></div>
       <div id="cur-banner-push" style="margin:0 0 6px"></div>
@@ -4652,10 +4649,11 @@ input::placeholder, textarea::placeholder {
         <span class="mega-icon">📨</span>
         <span>Mis solicitudes enviadas</span>
       </button>
-      <!-- v2.9.72: acceso Aula Virtual (materias) -->
-      <button class="btn-mega" onclick="goAulaCursante()" style="background:linear-gradient(180deg,#5a3a8a,#8c5acb);margin:0 0 10px 0;color:#fff">
+      <!-- v2.9.94: Aula Virtual = hub (Materias + Ejercicios Militares) con badge de radiogramas -->
+      <button class="btn-mega" onclick="goAulaHub()" style="background:linear-gradient(180deg,#5a3a8a,#8c5acb);margin:0 0 10px 0;color:#fff;position:relative">
         <span class="mega-icon">📚</span>
         <span>Aula Virtual</span>
+        <span id="aula-badge" style="display:none;position:absolute;top:8px;right:12px;background:#e24b4a;color:#fff;font-size:12px;font-weight:700;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;padding:0 6px"></span>
       </button>
 
       <!-- =================== SECCIÓN DISCIPLINA (default visible) =================== -->
@@ -5641,9 +5639,62 @@ input::placeholder, textarea::placeholder {
 .rg-chk input{width:16px;height:16px}
 .rg-nota-cmd{font-size:12px;color:#ffd5da;background:#5a2230;border:1px solid #7a2230;border-radius:9px;padding:8px 10px;flex:1}
 </style>
-<section id="screen-radiogramas" class="screen">
+<!-- v2.9.94: Aula Virtual = hub -->
+<section id="screen-aula-hub" class="screen">
   <div class="app-header">
     <button class="back-btn" onclick="showScreen('screen-cursante-home')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">📚 Aula Virtual</div><div class="header-sub">Materias y ejercicios</div></div>
+  </div>
+  <div class="menu-container">
+    <button class="btn-mega" onclick="goAulaCursante()" style="background:linear-gradient(180deg,#5a3a8a,#8c5acb);color:#fff;margin:0 0 12px;min-height:70px">
+      <span class="mega-icon" style="font-size:30px">📚</span>
+      <span>Materias</span>
+    </button>
+    <button id="aula-hub-ejercicio" class="btn-mega" onclick="goEjercicioEM()" style="background:linear-gradient(135deg,#7a1f1a,#c0392b 70%,#e67e22);color:#fff;margin:0;min-height:70px;display:none;position:relative;border:1px solid rgba(230,126,34,.5)">
+      <span class="mega-icon" style="font-size:30px">⚔️</span>
+      <span>Ejercicios Militares · VENCER O MORIR</span>
+      <span id="ejercicio-badge" style="display:none;position:absolute;top:10px;right:14px;background:#fff;color:#c0392b;font-size:12px;font-weight:700;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;padding:0 6px"></span>
+    </button>
+  </div>
+</section>
+
+<!-- v2.9.94: Ejercicios Militares → Estado Mayor del cursante -->
+<section id="screen-ejercicio-em" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('screen-aula-hub')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">⚔️ Ejercicios Militares</div><div class="header-sub" id="ejercicio-em-sub">—</div></div>
+  </div>
+  <div class="menu-container">
+    <div class="alert-banner red" style="margin-bottom:12px;background:linear-gradient(180deg,rgba(192,57,43,.18),rgba(192,57,43,.05));border-color:#c0392b"><span class="alert-emoji">🎖️</span><span class="alert-text"><b>VENCER O MORIR.</b> Tu Estado Mayor: <span id="ejercicio-em-nombre">—</span>.</span></div>
+    <button class="btn-mega" onclick="goRadiogramas()" style="background:linear-gradient(180deg,#3a5a8a,#4a90d9);color:#fff;margin:0 0 12px;min-height:64px;position:relative">
+      <span class="mega-icon" style="font-size:26px">📻</span>
+      <span>Radiogramas</span>
+      <span id="radiog-badge" style="display:none;position:absolute;top:8px;right:12px;background:#e24b4a;color:#fff;font-size:12px;font-weight:700;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;padding:0 6px"></span>
+    </button>
+    <button class="btn-mega" onclick="goRgDocumentos()" style="background:linear-gradient(180deg,#9a7b1f,#d4af37);color:#0a1628;margin:0;min-height:64px">
+      <span class="mega-icon" style="font-size:26px">📄</span>
+      <span>Documentos recibidos</span>
+    </button>
+  </div>
+</section>
+
+<!-- v2.9.94: Documentos recibidos del ejercicio (PDF) -->
+<section id="screen-rg-documentos" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('screen-ejercicio-em')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">📄 Documentos recibidos</div><div class="header-sub">Ejercicio VENCER O MORIR</div></div>
+  </div>
+  <div class="menu-container">
+    <div id="rg-docs-lista"><div class="efm-no-data" style="color:var(--text-muted)">Todavía no hay documentos. La carga y envío de PDF se habilita en el próximo paso.</div></div>
+  </div>
+</section>
+
+<section id="screen-radiogramas" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('screen-ejercicio-em')">←</button>
     <div class="header-crest"><svg><use href="#crest"/></svg></div>
     <div class="header-text"><div class="header-title">📻 Radiogramas</div><div class="header-sub" id="rg-screen-sub">Ejercicio VENCER O MORIR</div></div>
   </div>
@@ -13487,24 +13538,36 @@ async function _rgInvoke(accion, extra){
   }catch(e){ return {ok:false, error:String((e&&e.message)||e)}; }
 }
 
-// Banner en el home del cursante (solo si participa del ejercicio). No marca "entregado".
-async function mostrarRadiogramaBannerCursante(){
-  const cont = document.getElementById('cur-radiograma-banner');
-  if(!cont || !currentUser) return;
-  cont.innerHTML = '';
+// v2.9.94: carga la membresía del cursante + conteo de no leídos (badge). No marca "entregado".
+let RG_NOLEIDOS = 0;
+async function cargarRadiogramaCursante(){
+  if(!currentUser) return;
   const r = await _rgInvoke('mis_grupos');
-  if(!r.ok || !r.grupo){ RG_MIS=null; return; }   // no participa -> nada
+  if(!r.ok || !r.grupo){ RG_MIS=null; RG_NOLEIDOS=0; _rgActualizarBadges(); return; }   // no participa
   RG_MIS = { grupo:r.grupo, cargo:r.cargo||'', soy_comandante:!!r.soy_comandante, comandante:r.comandante||null, destinos:r.destinos||[] };
-  cont.innerHTML = `
-    <button class="rg-home-banner" onclick="goRadiogramas()">
-      <span class="rg-hb-ic">📻</span>
-      <span class="rg-hb-body">
-        <span class="rg-hb-tit">Radiogramas · VENCER O MORIR</span>
-        <span class="rg-hb-sub">${_rgEsc(r.grupo.nombre)} · Bando ${_rgEsc(r.grupo.bando)}</span>
-      </span>
-      <span class="rg-hb-go">Abrir ›</span>
-    </button>`;
+  RG_NOLEIDOS = r.no_leidos||0;
+  _rgActualizarBadges();
 }
+// compat: el hook viejo sigue funcionando
+async function mostrarRadiogramaBannerCursante(){ return cargarRadiogramaCursante(); }
+function _rgSetBadge(id,n){ const el=document.getElementById(id); if(!el) return; if(n>0){ el.textContent=n>99?'99+':n; el.style.display=''; } else { el.style.display='none'; } }
+function _rgActualizarBadges(){
+  const part = !!(RG_MIS && RG_MIS.grupo);
+  _rgSetBadge('aula-badge', part?RG_NOLEIDOS:0);
+  _rgSetBadge('ejercicio-badge', part?RG_NOLEIDOS:0);
+  _rgSetBadge('radiog-badge', part?RG_NOLEIDOS:0);
+  const ej=document.getElementById('aula-hub-ejercicio'); if(ej) ej.style.display = part?'':'none';
+}
+function goAulaHub(){ showScreen('screen-aula-hub'); _rgActualizarBadges(); }
+function goEjercicioEM(){
+  if(!RG_MIS || !RG_MIS.grupo){ alert('No estás registrado en un Estado Mayor del ejercicio.'); return; }
+  showScreen('screen-ejercicio-em');
+  const t = RG_MIS.grupo.nombre + ' · Bando ' + RG_MIS.grupo.bando;
+  const sub=document.getElementById('ejercicio-em-sub'); if(sub) sub.textContent=t;
+  const nm=document.getElementById('ejercicio-em-nombre'); if(nm) nm.textContent=t;
+  _rgActualizarBadges();
+}
+function goRgDocumentos(){ showScreen('screen-rg-documentos'); }
 
 async function goRadiogramas(){
   showScreen('screen-radiogramas');
@@ -13531,6 +13594,8 @@ async function rgCargarBandeja(){
   env.forEach(e => { if(e.codigo) RG_ROWS[e.codigo] = e; });
   if(envCont) envCont.innerHTML = env.length ? env.map(_rgCardEnviado).join('')
     : '<div class="efm-no-data" style="color:var(--text-muted)">Tu Estado Mayor no transmitió radiogramas todavía.</div>';
+  RG_NOLEIDOS = rec.filter(a => !a.acusado_en).length;  // v2.9.94: refresca el badge de no leídos
+  _rgActualizarBadges();
 }
 
 function _rgPrioBadge(p){
