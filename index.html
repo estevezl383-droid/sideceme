@@ -3872,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.96 · Primer ingreso: muestra el motivo real del error (sesión master/expirada)</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.97 · UI ejercicio: tiles 3D + Aula Virtual destacada + alarma de radiogramas</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4303,9 +4303,9 @@ input::placeholder, textarea::placeholder {
       <span>Documentos del personal docente</span>
     </button>
 
-    <button class="btn-mega rgd-access" onclick="goRgDireccion()" style="background:linear-gradient(180deg,#3a5a8a,#4a90d9);margin-top:8px;color:#fff;display:none">
-      <span class="mega-icon">📻</span>
-      <span>Radiogramas — Dirección del Ejercicio</span>
+    <button class="btn-mega rgd-access" onclick="goRgDireccion()" style="background:linear-gradient(135deg,#7a1f1a,#c0392b 70%,#e67e22);margin-top:8px;color:#fff;display:none">
+      <span class="mega-icon">⚔️</span>
+      <span>Ejercicio VENCER O MORIR — Dirección (radiogramas · documentos)</span>
     </button>
 
     <button class="btn-mega" onclick="activarNotificacionesStaff()" style="background:linear-gradient(180deg,#b7791f,#7a5012);margin-top:8px">
@@ -4590,6 +4590,8 @@ input::placeholder, textarea::placeholder {
         <button class="btn-logout" onclick="logout()">Salir</button>
       </div>
 
+      <!-- v2.9.97: alarma del ejercicio (persistente hasta activar notificaciones) -->
+      <div id="cur-rg-alarma" style="margin:0 0 6px"></div>
       <!-- Aviso para activar notificaciones (desaparece solo al activar) -->
       <div id="cur-avisos" style="margin:0 0 6px"></div>
       <div id="cur-banner-push" style="margin:0 0 6px"></div>
@@ -4632,6 +4634,13 @@ input::placeholder, textarea::placeholder {
           <div class="ca-value" id="cur-area-merito-val">—</div>
           <div class="ca-sub" id="cur-area-merito-sub">Posición gral.</div>
         </button>
+        <!-- v2.9.97: Aula Virtual al nivel de las 4 áreas (tarjeta grande, badge de radiogramas) -->
+        <button class="cur-area-card" onclick="goAulaHub()" style="grid-column:1 / -1;position:relative;background:linear-gradient(180deg,#2b2150,#161030);border-color:#8c5acb;box-shadow:inset 0 1px 0 rgba(180,140,255,.35), 0 3px 10px rgba(0,0,0,.35)">
+          <div class="ca-icon" style="font-size:34px">📚⚔️</div>
+          <div class="ca-title" style="font-size:14px;color:#cdb8f4">Aula Virtual</div>
+          <div class="ca-sub" style="font-size:11px;color:#9d8bc9">Materias · Ejercicios Militares · Documentos</div>
+          <span id="aula-badge" class="hub-badge" style="display:none"></span>
+        </button>
       </div>
 
       <!-- v2.9.2: botón acceso Horario Semanal -->
@@ -4649,12 +4658,7 @@ input::placeholder, textarea::placeholder {
         <span class="mega-icon">📨</span>
         <span>Mis solicitudes enviadas</span>
       </button>
-      <!-- v2.9.94: Aula Virtual = hub (Materias + Ejercicios Militares) con badge de radiogramas -->
-      <button class="btn-mega" onclick="goAulaHub()" style="background:linear-gradient(180deg,#5a3a8a,#8c5acb);margin:0 0 10px 0;color:#fff;position:relative">
-        <span class="mega-icon">📚</span>
-        <span>Aula Virtual</span>
-        <span id="aula-badge" style="display:none;position:absolute;top:8px;right:12px;background:#e24b4a;color:#fff;font-size:12px;font-weight:700;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;padding:0 6px"></span>
-      </button>
+
 
       <!-- =================== SECCIÓN DISCIPLINA (default visible) =================== -->
       <div class="cur-section" id="cur-section-disciplina">
@@ -4830,9 +4834,14 @@ input::placeholder, textarea::placeholder {
       <div class="stat-card danger" onclick="goDiscConsejo()"><div class="stat-num" id="stat-consejo">—</div><div class="stat-label">En Riesgo</div></div>
     </div>
 
-    <button class="btn-mega" onclick="goProfNuevaSancion()" style="margin:8px 0 16px 0">
+    <button class="btn-mega" onclick="goProfNuevaSancion()" style="margin:8px 0 10px 0">
       <span class="mega-icon">📝</span>
       <span>Registrar nueva sanción</span>
+    </button>
+    <!-- v2.9.97: acceso GRANDE de la Dirección del Ejercicio -->
+    <button class="btn-mega rgd-access" onclick="goRgDireccion()" style="background:linear-gradient(135deg,#7a1f1a,#c0392b 70%,#e67e22);color:#fff;margin:0 0 16px 0;display:none">
+      <span class="mega-icon">⚔️</span>
+      <span>Ejercicio VENCER O MORIR — Dirección (radiogramas · documentos)</span>
     </button>
 
     <div id="alert-consejo" class="alert-banner red" style="display:none"><div class="alert-emoji">🚨</div><div class="alert-text"><div class="alert-title" id="alert-consejo-title">— en riesgo</div><div class="alert-desc">Acumularon 25+ pts perdidos.</div></div></div>
@@ -4851,7 +4860,6 @@ input::placeholder, textarea::placeholder {
       <button id="qa-btn-bloqueo-materias" class="quick-btn" onclick="goBloqueoMaterias()" style="background:linear-gradient(180deg,rgba(180,140,255,.15),rgba(180,140,255,.05));border-color:#b48cff;display:none"><span class="qa-icon">🔒</span><span class="qa-text"><strong>Bloquear materias / módulos</strong> (ocultar a alumnos)</span></button>
       <button id="qa-btn-aula-gestion" class="quick-btn" onclick="goAulaGestion()" style="background:linear-gradient(180deg,rgba(140,90,203,.18),rgba(140,90,203,.05));border-color:#8c5acb;display:none"><span class="qa-icon">📚</span><span class="qa-text"><strong>Aula Virtual</strong> (abrir / cerrar materias)</span></button>
       <button id="qa-btn-avisos" class="quick-btn" onclick="goAvisos()" style="background:linear-gradient(180deg,rgba(70,150,110,.2),rgba(70,150,110,.05));border-color:#46966e;display:none"><span class="qa-icon">📢</span><span class="qa-text"><strong>Avisos a cursantes</strong> (publicar / desactivar cartel in-app)</span></button>
-      <button class="quick-btn rgd-access" onclick="goRgDireccion()" style="background:linear-gradient(180deg,rgba(74,144,217,.2),rgba(74,144,217,.05));border-color:#4a90d9;display:none"><span class="qa-icon">📻</span><span class="qa-text"><strong>Radiogramas — Dirección del Ejercicio</strong> (tablero / publicar / seguimiento)</span></button>
       <button class="quick-btn" onclick="goDocsProfesoresCT()" style="background:linear-gradient(180deg,rgba(140,90,203,.18),rgba(140,90,203,.05));border-color:#8c5acb"><span class="qa-icon">👨‍🏫</span><span class="qa-text"><strong>Documentos del personal docente</strong> (subir / ver — solo profesores)</span></button>
       <button class="quick-btn success" data-sac-hide="1" onclick="goRespaldo()"><span class="qa-icon">💾</span><span class="qa-text">Descargar respaldo ahora (JSON + .XLSX)</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goInstalar()"><span class="qa-icon">📲</span><span class="qa-text">Instalar app / Compartir QR</span></button>
@@ -5638,6 +5646,24 @@ input::placeholder, textarea::placeholder {
 .rg-chk{display:flex;align-items:center;gap:8px;font-size:13px;color:#e7edf6;cursor:pointer}
 .rg-chk input{width:16px;height:16px}
 .rg-nota-cmd{font-size:12px;color:#ffd5da;background:#5a2230;border:1px solid #7a2230;border-radius:9px;padding:8px 10px;flex:1}
+.hub-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:4px 0}
+@media(max-width:560px){.hub-grid{grid-template-columns:1fr}}
+.hub-tile{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;min-height:170px;padding:18px 12px;border-radius:18px;cursor:pointer;font-family:inherit;color:#e7eefb;overflow:hidden;border:1px solid rgba(120,180,255,.3);background:linear-gradient(160deg,#1b2c4a 0%,#0d1626 55%,#13233d 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.14), inset 0 -12px 26px rgba(0,0,0,.5), 0 10px 22px rgba(0,0,0,.45);transition:all .18s ease}
+.hub-tile:after{content:'';position:absolute;inset:0;border-radius:18px;background:radial-gradient(140px 70px at 50% 0%,rgba(120,180,255,.16),transparent 70%);pointer-events:none}
+.hub-tile:hover{transform:translateY(-3px) scale(1.01);border-color:rgba(150,200,255,.6);box-shadow:inset 0 1px 0 rgba(255,255,255,.18), inset 0 -12px 26px rgba(0,0,0,.5), 0 14px 30px rgba(0,0,0,.55)}
+.hub-tile:active{transform:translateY(0) scale(.99)}
+.hub-tile .ht-icon{font-size:52px;line-height:1;filter:drop-shadow(0 5px 10px rgba(0,0,0,.55))}
+.hub-tile .ht-title{font-family:var(--font-display);font-weight:800;font-size:16px;letter-spacing:1.5px;text-transform:uppercase;color:#f4e9c8;text-shadow:0 2px 6px rgba(0,0,0,.6)}
+.hub-tile .ht-sub{font-size:11.5px;color:#9fb6da;text-align:center;line-height:1.45;max-width:280px}
+.hub-tile.gold{border-color:rgba(212,175,55,.45);background:linear-gradient(160deg,#33270e 0%,#181104 55%,#262007 100%)}
+.hub-tile.gold:after{background:radial-gradient(140px 70px at 50% 0%,rgba(244,213,116,.18),transparent 70%)}
+.hub-tile.gold .ht-sub{color:#cdb77a}
+.hub-tile.red{border-color:rgba(225,90,60,.5);background:linear-gradient(160deg,#3d1510 0%,#1b0805 55%,#2c110a 100%)}
+.hub-tile.red:after{background:radial-gradient(140px 70px at 50% 0%,rgba(255,120,90,.18),transparent 70%)}
+.hub-tile.red .ht-sub{color:#e0a394}
+.hub-tile.blue{border-color:rgba(90,160,240,.5)}
+.hub-badge{position:absolute;top:10px;right:12px;background:#e24b4a;color:#fff;font-size:12px;font-weight:800;min-width:24px;height:24px;line-height:24px;text-align:center;border-radius:12px;padding:0 7px;box-shadow:0 2px 8px rgba(0,0,0,.5);animation:rgpulse 1.6s infinite}
+@keyframes rgpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
 </style>
 <!-- v2.9.94: Aula Virtual = hub -->
 <section id="screen-aula-hub" class="screen">
@@ -5647,15 +5673,19 @@ input::placeholder, textarea::placeholder {
     <div class="header-text"><div class="header-title">📚 Aula Virtual</div><div class="header-sub">Materias y ejercicios</div></div>
   </div>
   <div class="menu-container">
-    <button class="btn-mega" onclick="goAulaCursante()" style="background:linear-gradient(180deg,#5a3a8a,#8c5acb);color:#fff;margin:0 0 12px;min-height:70px">
-      <span class="mega-icon" style="font-size:30px">📚</span>
-      <span>Materias</span>
-    </button>
-    <button id="aula-hub-ejercicio" class="btn-mega" onclick="goEjercicioEM()" style="background:linear-gradient(135deg,#7a1f1a,#c0392b 70%,#e67e22);color:#fff;margin:0;min-height:70px;display:none;position:relative;border:1px solid rgba(230,126,34,.5)">
-      <span class="mega-icon" style="font-size:30px">⚔️</span>
-      <span>Ejercicios Militares · VENCER O MORIR</span>
-      <span id="ejercicio-badge" style="display:none;position:absolute;top:10px;right:14px;background:#fff;color:#c0392b;font-size:12px;font-weight:700;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;padding:0 6px"></span>
-    </button>
+    <div class="hub-grid">
+      <button class="hub-tile gold" onclick="goAulaCursante()">
+        <span class="ht-icon">📚</span>
+        <span class="ht-title">Materias</span>
+        <span class="ht-sub">Documentos y textos de estudio por materia</span>
+      </button>
+      <button id="aula-hub-ejercicio" class="hub-tile red" onclick="goEjercicioEM()" style="display:none">
+        <span class="ht-icon">⚔️</span>
+        <span class="ht-title">Ejercicios Militares</span>
+        <span class="ht-sub">VENCER O MORIR · tu Estado Mayor · radiogramas y documentos</span>
+        <span id="ejercicio-badge" class="hub-badge" style="display:none"></span>
+      </button>
+    </div>
   </div>
 </section>
 
@@ -5668,15 +5698,19 @@ input::placeholder, textarea::placeholder {
   </div>
   <div class="menu-container">
     <div class="alert-banner red" style="margin-bottom:12px;background:linear-gradient(180deg,rgba(192,57,43,.18),rgba(192,57,43,.05));border-color:#c0392b"><span class="alert-emoji">🎖️</span><span class="alert-text"><b>VENCER O MORIR.</b> Tu Estado Mayor: <span id="ejercicio-em-nombre">—</span>.</span></div>
-    <button class="btn-mega" onclick="goRadiogramas()" style="background:linear-gradient(180deg,#3a5a8a,#4a90d9);color:#fff;margin:0 0 12px;min-height:64px;position:relative">
-      <span class="mega-icon" style="font-size:26px">📻</span>
-      <span>Radiogramas</span>
-      <span id="radiog-badge" style="display:none;position:absolute;top:8px;right:12px;background:#e24b4a;color:#fff;font-size:12px;font-weight:700;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;padding:0 6px"></span>
-    </button>
-    <button class="btn-mega" onclick="goRgDocumentos()" style="background:linear-gradient(180deg,#9a7b1f,#d4af37);color:#0a1628;margin:0;min-height:64px">
-      <span class="mega-icon" style="font-size:26px">📄</span>
-      <span>Documentos recibidos</span>
-    </button>
+    <div class="hub-grid">
+      <button class="hub-tile blue" onclick="goRadiogramas()">
+        <span class="ht-icon">📻</span>
+        <span class="ht-title">Radiogramas</span>
+        <span class="ht-sub">📥 Recibidos · 📤 Expedidos — acusá recibo y transmití órdenes</span>
+        <span id="radiog-badge" class="hub-badge" style="display:none"></span>
+      </button>
+      <button class="hub-tile gold" onclick="goRgDocumentos()">
+        <span class="ht-icon">📄</span>
+        <span class="ht-title">Documentos</span>
+        <span class="ht-sub">📥 Recibidos · 📤 Enviados — entregas por fase a la Dirección</span>
+      </button>
+    </div>
   </div>
 </section>
 
@@ -5685,13 +5719,13 @@ input::placeholder, textarea::placeholder {
   <div class="app-header">
     <button class="back-btn" onclick="showScreen('screen-ejercicio-em')">←</button>
     <div class="header-crest"><svg><use href="#crest"/></svg></div>
-    <div class="header-text"><div class="header-title">📄 Documentos recibidos</div><div class="header-sub">Ejercicio VENCER O MORIR</div></div>
+    <div class="header-text"><div class="header-title">📄 Documentos</div><div class="header-sub">Recibidos y enviados · VENCER O MORIR</div></div>
   </div>
   <div class="menu-container">
     <button class="btn-mega" onclick="rgDocSubir()" style="background:linear-gradient(180deg,#9a7b1f,#d4af37);color:#0a1628;margin:0 0 12px"><span class="mega-icon">📤</span><span>Subir documento (por fase)</span></button>
-    <div class="section-label">📥 Recibidos</div>
+    <div class="section-label" id="rg-docs-lbl-rec">📥 Documentos recibidos</div>
     <div id="rg-docs-recibidos"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
-    <div class="section-label" style="margin-top:14px">📨 Subidos por mi Estado Mayor</div>
+    <div class="section-label" id="rg-docs-lbl-env" style="margin-top:14px">📤 Enviados por mi Estado Mayor</div>
     <div id="rg-docs-enviados"></div>
   </div>
 </section>
@@ -5709,6 +5743,7 @@ input::placeholder, textarea::placeholder {
       <button class="rgd-chip" data-b="1" onclick="rgdDocsSetBando('1')">TERRAN</button>
       <button class="rgd-chip" data-b="2" onclick="rgdDocsSetBando('2')">PROTOS</button>
     </div>
+    <div id="rgdd-resumen"></div>
     <div id="rgdd-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
   </div>
 </section>
@@ -5723,7 +5758,7 @@ input::placeholder, textarea::placeholder {
     <button class="btn-mega" onclick="rgTransmitir()" style="background:linear-gradient(180deg,#3a5a8a,#4a90d9);margin:0 0 12px;color:#fff"><span class="mega-icon">📤</span><span>Generar radiograma</span></button>
     <div class="section-label">📥 Recibidos</div>
     <div id="rg-recibidos"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
-    <div class="section-label" style="margin-top:14px">📨 Enviados por mi Estado Mayor</div>
+    <div class="section-label" style="margin-top:14px">📤 Expedidos por mi Estado Mayor</div>
     <div id="rg-enviados"></div>
   </div>
 </section>
@@ -5898,9 +5933,9 @@ input::placeholder, textarea::placeholder {
       <span class="mega-icon">👥</span>
       <span>Mis sancionados (seguimiento de los que yo sancioné)</span>
     </button>
-    <button class="btn-mega rgd-access" onclick="goRgDireccion()" style="background:linear-gradient(180deg,#3a5a8a,#4a90d9);margin:0 0 14px 0;color:#fff;display:none">
-      <span class="mega-icon">📻</span>
-      <span>Radiogramas — Dirección del Ejercicio</span>
+    <button class="btn-mega rgd-access" onclick="goRgDireccion()" style="background:linear-gradient(135deg,#7a1f1a,#c0392b 70%,#e67e22);margin:0 0 14px 0;color:#fff;display:none">
+      <span class="mega-icon">⚔️</span>
+      <span>Ejercicio VENCER O MORIR — Dirección (radiogramas · documentos)</span>
     </button>
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-num" id="jc-stat-cursantes">—</div><div class="stat-label">Cursantes</div></div>
@@ -13574,6 +13609,72 @@ async function cargarRadiogramaCursante(){
   RG_MIS = { grupo:r.grupo, cargo:r.cargo||'', soy_comandante:!!r.soy_comandante, comandante:r.comandante||null, destinos:r.destinos||[] };
   RG_NOLEIDOS = r.no_leidos||0;
   _rgActualizarBadges();
+  _rgChequearNuevos(RG_NOLEIDOS);     // v2.9.97: alarma si llegó algo nuevo
+  _rgIniciarPoll();                   // v2.9.97: vigilancia cada 2 min mientras la app está abierta
+  try{ _rgBannerAlarma(); }catch(e){} // v2.9.97: banner persistente "activá la alarma"
+}
+
+/* ===== v2.9.97: ALARMA de radiogramas (sonido + notificación + banner persistente) ===== */
+let _rgPollTimer = null;
+function _rgSeenKey(){ return 'sideceme_rg_count_' + ((currentUser&&currentUser.id)||'x'); }
+function _rgChequearNuevos(n){
+  let prev=0; try{ prev=parseInt(localStorage.getItem(_rgSeenKey())||'0',10)||0; }catch(e){}
+  if(n>prev){ _rgSonarAlarma(); _rgNotificar(n-prev); }
+  try{ localStorage.setItem(_rgSeenKey(), String(n)); }catch(e){}
+}
+function _rgSonarAlarma(){
+  try{ if(navigator.vibrate) navigator.vibrate([220,90,220,90,420]); }catch(e){}
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const t0=ctx.currentTime;
+    [[880,0],[660,.22],[880,.44],[660,.66],[990,.9]].forEach(pair=>{
+      const o=ctx.createOscillator(), g=ctx.createGain();
+      o.type='square'; o.frequency.value=pair[0];
+      g.gain.setValueAtTime(.0001,t0+pair[1]);
+      g.gain.exponentialRampToValueAtTime(.18,t0+pair[1]+.02);
+      g.gain.exponentialRampToValueAtTime(.0001,t0+pair[1]+.2);
+      o.connect(g); g.connect(ctx.destination); o.start(t0+pair[1]); o.stop(t0+pair[1]+.22);
+    });
+  }catch(e){}
+}
+function _rgNotificar(nuevos){
+  try{
+    if('Notification' in window && Notification.permission==='granted')
+      new Notification('📻 RADIOGRAMA NUEVO — VENCER O MORIR', { body:'Tu Estado Mayor recibió '+nuevos+' radiograma(s). Entrá a ACUSAR RECIBO.', tag:'rg-nuevo' });
+  }catch(e){}
+}
+function _rgIniciarPoll(){
+  if(_rgPollTimer) return;
+  _rgPollTimer = setInterval(async ()=>{
+    try{
+      const ses=getSession();
+      if(!currentUser || !ses || ses.tipo!=='cursante' || !RG_MIS || !RG_MIS.grupo) return;
+      const r=await _rgInvoke('mis_grupos');
+      if(r.ok && r.grupo){ RG_NOLEIDOS=r.no_leidos||0; _rgActualizarBadges(); _rgChequearNuevos(RG_NOLEIDOS); }
+    }catch(e){}
+  }, 120000);
+}
+async function _rgBannerAlarma(){
+  const cont=document.getElementById('cur-rg-alarma');
+  if(!cont) return;
+  cont.innerHTML='';
+  if(!RG_MIS || !RG_MIS.grupo) return;                     // solo participantes
+  if(!('Notification' in window) || !('serviceWorker' in navigator)) return;
+  // timeout de seguridad: si el service worker no responde en 3s, seguimos sin colgarnos
+  let sus=false; try{ sus=await Promise.race([estaSubscritoPush(), new Promise(r=>setTimeout(()=>r(false),3000))]); }catch(e){}
+  if(sus && Notification.permission==='granted') return;   // ya activó → no molestar
+  const denegado = Notification.permission==='denied';
+  cont.innerHTML = `
+    <div class="banner-push" style="border-color:#c0392b;background:linear-gradient(180deg,rgba(192,57,43,.28),rgba(122,31,26,.12))" onclick="${denegado?'':'bannerPushActivarCursante().then(()=>_rgBannerAlarma())'}">
+      <div class="banner-push-icon" style="animation:rgpulse 1.6s infinite">📻</div>
+      <div class="banner-push-text">
+        <strong>ALARMA DE RADIOGRAMAS DESACTIVADA</strong>
+        ${denegado
+          ? 'Las notificaciones están bloqueadas: habilitalas en los permisos del sitio y recargá la app.'
+          : 'Activá las notificaciones para que SUENE LA ALARMA cuando llegue un radiograma u orden a tu Estado Mayor.'}
+      </div>
+      ${denegado ? '' : `<button class="banner-push-btn" onclick="event.stopPropagation();bannerPushActivarCursante().then(()=>_rgBannerAlarma())">🔔 ACTIVAR</button>`}
+    </div>`;
 }
 // compat: el hook viejo sigue funcionando
 async function mostrarRadiogramaBannerCursante(){ return cargarRadiogramaCursante(); }
@@ -13619,8 +13720,10 @@ async function goRgDocumentos(){
       + '</div>';
   };
   const rec=r.recibidos||[], env=r.enviados||[];
-  if(rc) rc.innerHTML = rec.length ? rec.map(d=>card(d,true)).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">No recibiste documentos todavía.</div>';
-  if(en) en.innerHTML = env.length ? env.map(d=>card(d,false)).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">Tu Estado Mayor no subió documentos todavía.</div>';
+  const lr=document.getElementById('rg-docs-lbl-rec'); if(lr) lr.textContent='📥 Documentos recibidos ('+rec.length+')';
+  const le=document.getElementById('rg-docs-lbl-env'); if(le) le.textContent='📤 Enviados por mi Estado Mayor ('+env.length+')';
+  if(rc) rc.innerHTML = rec.length ? rec.map(d=>card(d,true)).join('') : '<div class="rg-card" style="text-align:center;color:var(--text-muted);padding:20px">📭 No recibiste documentos todavía.</div>';
+  if(en) en.innerHTML = env.length ? env.map(d=>card(d,false)).join('') : '<div class="rg-card" style="text-align:center;color:var(--text-muted);padding:20px">📭 Tu Estado Mayor no subió documentos todavía.<br><span style="font-size:12px">Usá «Subir documento (por fase)» para entregar tu trabajo a la Dirección o enviarlo a otro EM.</span></div>';
 }
 async function rgDocVer(id, btn){
   if(btn){ btn.disabled=true; btn.textContent='⏳ Generando enlace…'; }
@@ -13683,7 +13786,10 @@ async function rgdDocsCargar(){
   const r=await _rgInvoke('docs_listar', RGDD_BANDO?{bando:parseInt(RGDD_BANDO,10)}:{});
   if(!r.ok){ if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No autorizado.</div>'; return; }
   const docs=r.documentos||[];
-  if(!docs.length){ if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">Sin documentos todavía.</div>'; return; }
+  const res=document.getElementById('rgdd-resumen');
+  if(!docs.length){ if(res) res.innerHTML=''; if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">Sin documentos todavía.</div>'; return; }
+  if(res){ const mov={}; docs.forEach(d=>{ const k=(d.origen_grupo_id? (_rgGrp(d.origen_grupo_id)+' · '+_rgCod(d.bando)) : 'Dirección'); mov[k]=(mov[k]||0)+1; });
+    res.innerHTML='<div class="section-label">📊 Movimiento por Estado Mayor</div><div class="rgd-metrics" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr));margin-bottom:10px">'+Object.keys(mov).map(k=>'<div class="rgd-mc"><div class="v">'+mov[k]+'</div><div class="k">'+_rgEsc(k)+'</div></div>').join('')+'</div>'; }
   // agrupar por fase
   const porFase={};
   docs.forEach(d=>{ const f=d.fase||'SIN FASE'; (porFase[f]=porFase[f]||[]).push(d); });
