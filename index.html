@@ -3872,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.99 · Sesión persistente · PDF · acuse por Of.Com. · detalle de flujo · anular solo C&T</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.100 · Matriz de flujo + docs por plana mayor + Dirección sube docs + Multimedia (enlaces)</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5664,6 +5664,14 @@ input::placeholder, textarea::placeholder {
 .hub-tile.blue{border-color:rgba(90,160,240,.5)}
 .hub-badge{position:absolute;top:10px;right:12px;background:#e24b4a;color:#fff;font-size:12px;font-weight:800;min-width:24px;height:24px;line-height:24px;text-align:center;border-radius:12px;padding:0 7px;box-shadow:0 2px 8px rgba(0,0,0,.5);animation:rgpulse 1.6s infinite}
 @keyframes rgpulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+.rgd-mtx-wrap{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:6px}
+.rgd-mtx-tit{font-size:12px;font-weight:700;color:#f4d574;margin:6px 0 4px;letter-spacing:1px}
+.rgd-mtx{border-collapse:collapse;background:rgba(255,255,255,.02);border:1px solid var(--border,#2a3a52)}
+.rgd-mtx th,.rgd-mtx td{border:1px solid rgba(120,150,190,.18);padding:5px 10px;font-size:12px;text-align:center}
+.rgd-mtx th{color:#9fb3cc;font-weight:600;background:rgba(74,144,217,.08)}
+.rgd-mtx td{color:#5f6f86}
+.rgd-mtx td.on{color:#7fe3b0;font-weight:800;background:rgba(29,158,117,.14)}
+.rgd-mtx td.self{color:#3a4660}
 </style>
 <!-- v2.9.94: Aula Virtual = hub -->
 <section id="screen-aula-hub" class="screen">
@@ -5710,6 +5718,11 @@ input::placeholder, textarea::placeholder {
         <span class="ht-title">Documentos</span>
         <span class="ht-sub">📥 Recibidos · 📤 Enviados — entregas por fase a la Dirección</span>
       </button>
+      <button class="hub-tile" onclick="goRgMedia()">
+        <span class="ht-icon">🎞</span>
+        <span class="ht-title">Multimedia</span>
+        <span class="ht-sub">Videos y fotos del ejercicio</span>
+      </button>
     </div>
   </div>
 </section>
@@ -5738,6 +5751,7 @@ input::placeholder, textarea::placeholder {
     <div class="header-text"><div class="header-title">📄 Documentos del ejercicio</div><div class="header-sub">Entregas por fase · Dirección</div></div>
   </div>
   <div class="menu-container">
+    <button class="btn-mega" onclick="rgdDocSubir()" style="background:linear-gradient(180deg,#9a7b1f,#d4af37);color:#0a1628;margin:0 0 10px"><span class="mega-icon">📤</span><span>Subir documento a las unidades (PDF/Word)</span></button>
     <div class="rgd-filtros" id="rgdd-filtros">
       <button class="rgd-chip active" data-b="" onclick="rgdDocsSetBando('')">Todos</button>
       <button class="rgd-chip" data-b="1" onclick="rgdDocsSetBando('1')">TERRAN</button>
@@ -5745,6 +5759,38 @@ input::placeholder, textarea::placeholder {
     </div>
     <div id="rgdd-resumen"></div>
     <div id="rgdd-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+  </div>
+</section>
+
+<!-- v2.9.100: Multimedia del ejercicio (cursante: solo ver/abrir enlaces) -->
+<section id="screen-rg-media" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('screen-ejercicio-em')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">🎞 Multimedia</div><div class="header-sub">Videos y fotos del ejercicio</div></div>
+  </div>
+  <div class="menu-container">
+    <div id="rg-media-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+  </div>
+</section>
+
+<!-- v2.9.100: Multimedia — publicar (Dirección) -->
+<section id="screen-rgd-media" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('screen-rg-direccion')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">🎞 Multimedia del ejercicio</div><div class="header-sub">Publicar enlaces (Drive / YouTube) · Dirección</div></div>
+  </div>
+  <div class="menu-container">
+    <div class="alert-banner blue" style="margin-bottom:12px"><span class="alert-emoji">💡</span><span class="alert-text"><b>Publicá ENLACES, no archivos.</b> Subí los videos/fotos a Google Drive (acceso: "cualquiera con el enlace") y pegá el link acá. No consume memoria de la app.</span></div>
+    <div class="field" style="margin-bottom:8px"><label>Título</label><input type="text" id="rgdm-titulo" placeholder="Ej: Fotos — Fase II sala TERRAN" autocomplete="off"></div>
+    <div class="field" style="margin-bottom:8px"><label>Enlace (URL)</label><input type="text" id="rgdm-url" placeholder="https://drive.google.com/…" autocomplete="off"></div>
+    <div class="field" style="margin-bottom:8px"><label>Tipo</label><select id="rgdm-tipo"><option value="video">🎬 Video</option><option value="fotos">📸 Fotos</option><option value="enlace">🔗 Enlace</option></select></div>
+    <div class="field" style="margin-bottom:8px"><label>Fase (opcional)</label><select id="rgdm-fase"><option value="">— sin fase —</option><option>FASE I</option><option>FASE II</option><option>FASE III</option><option>FASE IV</option><option>FASE V</option><option>FASE VI</option></select></div>
+    <div class="field" style="margin-bottom:10px"><label>Visible para</label><select id="rgdm-bando"><option value="">Ambas fuerzas</option><option value="1">Solo TERRAN</option><option value="2">Solo PROTOS</option></select></div>
+    <button class="btn-primary" onclick="rgdMediaPublicar(this)" style="margin-bottom:14px">📣 Publicar enlace</button>
+    <div class="section-label">Publicados</div>
+    <div id="rgdd-media-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
   </div>
 </section>
 
@@ -5795,11 +5841,13 @@ input::placeholder, textarea::placeholder {
       <button class="rgd-chip" data-b="2" onclick="rgdSetBando('2')">PROTOS</button>
     </div>
     <div class="rgd-metrics" id="rgd-metrics"></div>
+    <div id="rgd-matriz"></div>
     <div style="display:flex;gap:8px;margin:12px 0">
       <button class="btn-mega" style="margin:0;background:linear-gradient(180deg,#3a5a8a,#4a90d9);color:#fff;flex:1" onclick="rgdTransmitir()"><span class="mega-icon">📤</span><span>Publicar / transmitir</span></button>
       <button class="btn-mega" style="margin:0;flex:1" onclick="rgdExportar()"><span class="mega-icon">📑</span><span>Exportar libro (CSV)</span></button>
     </div>
-    <button class="btn-mega" onclick="goRgdDocs()" style="background:linear-gradient(180deg,#9a7b1f,#d4af37);color:#0a1628;margin:0 0 12px"><span class="mega-icon">📄</span><span>Documentos del ejercicio (entregas por fase)</span></button>
+    <button class="btn-mega" onclick="goRgdDocs()" style="background:linear-gradient(180deg,#9a7b1f,#d4af37);color:#0a1628;margin:0 0 8px"><span class="mega-icon">📄</span><span>Documentos del ejercicio (por plana mayor)</span></button>
+    <button class="btn-mega" onclick="goRgdMedia()" style="background:linear-gradient(180deg,#3a5a8a,#4a90d9);color:#fff;margin:0 0 12px"><span class="mega-icon">🎞</span><span>Multimedia (publicar videos y fotos por enlace)</span></button>
     <div class="section-label">Radiogramas (más recientes primero)</div>
     <div id="rgd-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
   </div>
@@ -13806,23 +13854,23 @@ async function rgdDocsCargar(){
   if(!docs.length){ if(res) res.innerHTML=''; if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">Sin documentos todavía.</div>'; return; }
   if(res){ const mov={}; docs.forEach(d=>{ const k=(d.origen_grupo_id? (_rgGrp(d.origen_grupo_id)+' · '+_rgCod(d.bando)) : 'Dirección'); mov[k]=(mov[k]||0)+1; });
     res.innerHTML='<div class="section-label">📊 Movimiento por Estado Mayor</div><div class="rgd-metrics" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr));margin-bottom:10px">'+Object.keys(mov).map(k=>'<div class="rgd-mc"><div class="v">'+mov[k]+'</div><div class="k">'+_rgEsc(k)+'</div></div>').join('')+'</div>'; }
-  // agrupar por fase
-  const porFase={};
-  docs.forEach(d=>{ const f=d.fase||'SIN FASE'; (porFase[f]=porFase[f]||[]).push(d); });
-  const fases=Object.keys(porFase).sort();
-  if(cont) cont.innerHTML = fases.map(f=>{
-    const items=porFase[f].map(d=>{
+  // v2.9.100: agrupar por PLANA MAYOR (la Direccion recibe organizado por EM que entrega)
+  const porEM={};
+  docs.forEach(d=>{ const k=(d.origen_grupo_id? (_rgGrp(d.origen_grupo_id)+' · '+_rgCod(d.bando)) : '📋 Dirección del Ejercicio'); (porEM[k]=porEM[k]||[]).push(d); });
+  const ems=Object.keys(porEM).sort();
+  if(cont) cont.innerHTML = ems.map(em=>{
+    const items=porEM[em].map(d=>{
       const fz = d.bando===1?'<span class="rgd-bchip rgd-b1">TERRAN</span>':'<span class="rgd-bchip rgd-b2">PROTOS</span>';
       const ruta = (d.origen_grupo_id?_rgGrp(d.origen_grupo_id):'Dirección') + (d.tipo_destino==='direccion' ? ' → Dirección (entrega)' : (' → '+_rgGrp(d.destino_grupo_id)));
       return '<div class="rgd-row">'
-        + '<div class="rgd-row-top"><span style="font-size:16px">'+_rgDocIcono(d.nombre_archivo)+'</span> '+fz+'<span class="rg-meta" style="margin-left:auto">'+_rgEsc(_rgHora(d.creado_en))+'</span></div>'
+        + '<div class="rgd-row-top"><span style="font-size:16px">'+_rgDocIcono(d.nombre_archivo)+'</span> '+fz+' '+(d.fase?('<span class="rg-badge rg-rut">'+_rgEsc(d.fase)+'</span>'):'')+'<span class="rg-meta" style="margin-left:auto">'+_rgEsc(_rgHora(d.creado_en))+'</span></div>'
         + '<div class="rg-asunto" style="font-size:13px">'+_rgEsc(d.titulo||d.nombre_archivo||'Documento')+'</div>'
         + '<div class="rg-route">'+_rgEsc(ruta)+(d.subido_por_nombre?(' · '+_rgEsc(d.subido_por_nombre)):'')+(d.size_bytes?(' · '+_rgDocKb(d.size_bytes)):'')+'</div>'
         + '<div class="rgd-actions"><button class="rgd-btn" onclick="rgDocVer('+d.id+', this)">📄 Ver / descargar</button>'
         + '<button class="rgd-btn danger" onclick="rgdDocEliminar('+d.id+')">🗑 Eliminar</button></div>'
         + '</div>';
     }).join('');
-    return '<div class="section-label" style="margin-top:12px">📂 '+_rgEsc(f)+' ('+porFase[f].length+')</div>'+items;
+    return '<div class="section-label" style="margin-top:12px">🪖 '+_rgEsc(em)+' ('+porEM[em].length+')</div>'+items;
   }).join('');
 }
 async function rgdDocEliminar(id){
@@ -13830,6 +13878,109 @@ async function rgdDocEliminar(id){
   const r=await _rgInvoke('doc_eliminar',{doc_id:id});
   if(!r.ok){ alert('No se pudo eliminar: '+(r.error||'')); return; }
   rgdDocsCargar();
+}
+/* ----- v2.9.100: la Direccion sube documentos a una o varias unidades ----- */
+function rgdDocSubir(){
+  _rgInvoke('grupos').then(r=>{
+    if(!r.ok){ alert('No se pudieron cargar las unidades: '+(r.error||'')); return; }
+    RGD_GRUPOS=r.grupos||[];
+    const old=document.getElementById('rg-modal'); if(old) old.remove();
+    const ov=document.createElement('div'); ov.id='rg-modal'; ov.className='avm-overlay';
+    const faseOpts=RG_FASES.map(f=>'<option>'+f+'</option>').join('');
+    ov.innerHTML=`
+      <div class="avm-box" onclick="event.stopPropagation()" style="max-height:88vh;overflow:auto">
+        <h3>📤 Subir documento a las unidades</h3>
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">La Dirección envía un PDF/Word a una o varias planas mayores.</div>
+        <div class="field" style="margin-bottom:8px"><label>Fuerza</label><select id="rgddoc-bando" onchange="_rgdDocDestinos()"><option value="1">TERRAN</option><option value="2">PROTOS</option></select></div>
+        <div class="field" style="margin-bottom:6px"><label>Destino(s)</label></div>
+        <div id="rgddoc-dest-box" style="border:1px solid var(--border,#2a3a52);border-radius:10px;padding:8px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px"></div>
+        <div class="field" style="margin-bottom:8px"><label>Fase</label><select id="rgddoc-fase">${faseOpts}</select></div>
+        <div class="field" style="margin-bottom:8px"><label>Título</label><input type="text" id="rgddoc-titulo" autocomplete="off"></div>
+        <div class="field" style="margin-bottom:10px"><label>Archivo (PDF o Word)</label><input type="file" id="rgddoc-file" accept=".pdf,.doc,.docx"></div>
+        <div style="display:flex;gap:8px"><button class="btn-primary" onclick="rgdDocEnviar(this)">📤 Subir y enviar</button><button class="btn-secondary" onclick="document.getElementById('rg-modal').remove()">Cancelar</button></div>
+      </div>`;
+    ov.onclick=()=>ov.remove(); document.body.appendChild(ov);
+    _rgdDocDestinos();
+  });
+}
+function _rgdDocDestinos(){
+  const b=parseInt(document.getElementById('rgddoc-bando').value,10);
+  const box=document.getElementById('rgddoc-dest-box');
+  box.innerHTML=(RGD_GRUPOS||[]).filter(g=>g.bando===b).map(g=>`<label class="rg-chk"><input type="checkbox" value="${_rgEsc(g.id)}"> ${_rgEsc(_rgUnitLabel(g.id,b))} <span style="color:var(--text-muted)">(${_rgEsc(g.nombre)})</span></label>`).join('');
+}
+async function rgdDocEnviar(btn){
+  const inp=document.getElementById('rgddoc-file');
+  const file=inp&&inp.files&&inp.files[0];
+  if(!file){ alert('Elegí un archivo PDF o Word.'); return; }
+  if(!/\.(pdf|doc|docx)$/i.test(file.name)){ alert('Solo PDF o Word (.pdf, .doc, .docx).'); return; }
+  if(file.size>25*1024*1024){ alert('El archivo supera 25 MB.'); return; }
+  const dest=[...document.querySelectorAll('#rgddoc-dest-box input:checked')].map(c=>c.value);
+  if(!dest.length){ alert('Elegí al menos una unidad.'); return; }
+  const fase=document.getElementById('rgddoc-fase').value;
+  const titulo=(document.getElementById('rgddoc-titulo').value||'').trim();
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Subiendo…'; }
+  try{
+    const up=await _rgInvoke('doc_upload_url',{filename:file.name});
+    if(!up.ok) throw new Error(up.error||'no se pudo pedir la URL de subida');
+    const u=await sb.storage.from(RG_DOCS_BUCKET).uploadToSignedUrl(up.path,up.token,file);
+    if(u.error) throw new Error(u.error.message||'falló la subida');
+    const reg=await _rgInvoke('doc_registrar',{storage_path:up.path,nombre_archivo:file.name,mime:file.type,size_bytes:file.size,fase,titulo,tipo_destino:'grupo',destino_grupo_ids:dest});
+    if(!reg.ok) throw new Error(reg.error||'no se pudo registrar');
+    const m=document.getElementById('rg-modal'); if(m) m.remove();
+    alert('Documento enviado a '+(reg.destinatarios||dest.length)+' unidad(es) ✓');
+    rgdDocsCargar();
+  }catch(e){ alert('No se pudo subir: '+(e.message||e)); if(btn){ btn.disabled=false; btn.textContent='📤 Subir y enviar'; } }
+}
+
+/* ===== v2.9.100: MULTIMEDIA del ejercicio (enlaces a videos/fotos) ===== */
+function _rgMediaIc(t){ return t==='video'?'🎬':(t==='fotos'?'📸':'🔗'); }
+function _rgMediaCard(m, admin){
+  return '<div class="rg-card">'
+    +'<div class="rg-card-top"><span style="font-size:18px">'+_rgMediaIc(m.tipo)+'</span>'
+    +(m.fase?('<span class="rg-badge rg-rut">'+_rgEsc(m.fase)+'</span>'):'')
+    +(m.bando?('<span class="rgd-bchip '+(m.bando===1?'rgd-b1">TERRAN':'rgd-b2">PROTOS')+'</span>'):'')
+    +'<span class="rg-meta" style="margin-left:auto">'+_rgEsc(_rgHora(m.creado_en))+'</span></div>'
+    +'<div class="rg-asunto" style="font-size:13px">'+_rgEsc(m.titulo)+'</div>'
+    +(m.creado_por_nombre?('<div class="rg-route">publicó: '+_rgEsc(m.creado_por_nombre)+'</div>'):'')
+    +'<button class="rg-doc" onclick="window.open(\''+_rgEsc(m.url)+'\',\'_blank\')">▶ Abrir</button>'
+    +(admin?('<button class="rg-doc" style="border-color:#7a2230;color:#ffc9c9;background:rgba(122,34,48,.12)" onclick="rgdMediaEliminar('+m.id+')">🗑 Quitar</button>'):'')
+    +'</div>';
+}
+async function goRgMedia(){
+  showScreen('screen-rg-media');
+  const cont=document.getElementById('rg-media-lista');
+  if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const r=await _rgInvoke('media_listar');
+  if(!r.ok){ if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No se pudo cargar.</div>'; return; }
+  const items=r.items||[];
+  if(cont) cont.innerHTML = items.length ? items.map(m=>_rgMediaCard(m,false)).join('') : '<div class="rg-card" style="text-align:center;color:var(--text-muted);padding:20px">🎞 Aún no hay material publicado.</div>';
+}
+async function goRgdMedia(){ showScreen('screen-rgd-media'); rgdMediaCargar(); }
+async function rgdMediaCargar(){
+  const cont=document.getElementById('rgdd-media-lista');
+  if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const r=await _rgInvoke('media_listar');
+  if(!r.ok){ if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No se pudo cargar.</div>'; return; }
+  const items=r.items||[];
+  if(cont) cont.innerHTML = items.length ? items.map(m=>_rgMediaCard(m,true)).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">Sin enlaces publicados todavía.</div>';
+}
+async function rgdMediaPublicar(btn){
+  const t=(document.getElementById('rgdm-titulo').value||'').trim();
+  const u=(document.getElementById('rgdm-url').value||'').trim();
+  if(!t||!u){ alert('Poné el título y el enlace.'); return; }
+  const bv=document.getElementById('rgdm-bando').value;
+  if(btn) btn.disabled=true;
+  const r=await _rgInvoke('media_publicar',{ titulo:t, url:u, tipo:document.getElementById('rgdm-tipo').value, fase:document.getElementById('rgdm-fase').value, bando: bv?parseInt(bv,10):null });
+  if(btn) btn.disabled=false;
+  if(!r.ok){ alert('No se pudo publicar: '+(r.error||'')); return; }
+  document.getElementById('rgdm-titulo').value=''; document.getElementById('rgdm-url').value='';
+  rgdMediaCargar();
+}
+async function rgdMediaEliminar(id){
+  if(!confirm('¿Quitar este enlace de la galería?')) return;
+  const r=await _rgInvoke('media_eliminar',{id:id});
+  if(!r.ok){ alert('No se pudo quitar: '+(r.error||'')); return; }
+  rgdMediaCargar();
 }
 
 async function goRadiogramas(){
@@ -14211,6 +14362,32 @@ async function rgdCargarTablero(){
     '<div class="rgd-mc"><div class="v" style="color:#ff9b9b">'+(dest-acus)+'</div><div class="k">sin acusar</div></div>'+
     '<div class="rgd-mc"><div class="v">'+lag+'</div><div class="k">lag prom.</div></div>';
   if(cont) cont.innerHTML = rows.length ? rows.map(_rgdRow).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">Sin radiogramas todavía.</div>';
+  try{ _rgdPintarMatriz(rows); }catch(e){}
+}
+// v2.9.100: matriz de flujo de comunicaciones (radiogramas DE → A, por fuerza)
+function _rgdPintarMatriz(rows){
+  const cont=document.getElementById('rgd-matriz'); if(!cont) return;
+  const UN=['CTO','CFFTT','CE-I','CE-II','CE-III'];
+  const SH={'CTO':'CTO','CFFTT':'FF.TT.','CE-I':'CE-I','CE-II':'CE-II','CE-III':'CE-III'};
+  function tabla(b){
+    const cnt={};
+    rows.filter(x=>x.bando===b && !x.anulado).forEach(x=>{
+      const o = x.origen_tipo==='direccion' ? 'DIR' : _rgRest(x.origen_grupo_id);
+      (x.destinos||[]).forEach(d=>{ const k=o+'>'+_rgRest(d); cnt[k]=(cnt[k]||0)+1; });
+    });
+    const filas=['DIR'].concat(UN);
+    let h='<div><div class="rgd-mtx-tit">'+_rgEsc(_rgCod(b))+'</div><table class="rgd-mtx"><tr><th>DE \\ A</th>'+UN.map(u=>'<th>'+SH[u]+'</th>').join('')+'</tr>';
+    filas.forEach(f=>{
+      h+='<tr><th>'+(f==='DIR'?'Dir.':SH[f])+'</th>'+UN.map(u=>{
+        if(f===u) return '<td class="self">—</td>';
+        const n=cnt[f+'>'+u]||0;
+        return '<td class="'+(n?'on':'')+'">'+(n||'·')+'</td>';
+      }).join('')+'</tr>';
+    });
+    return h+'</table></div>';
+  }
+  const bandos = RGD_BANDO ? [parseInt(RGD_BANDO,10)] : [1,2];
+  cont.innerHTML = '<div class="section-label" style="margin-top:10px">📊 Matriz de flujo de comunicaciones (radiogramas DE → A)</div><div class="rgd-mtx-wrap">'+bandos.map(tabla).join('')+'</div>';
 }
 function _rgdRow(x){
   const a=x.acuse||{total:0,acusados:0};
