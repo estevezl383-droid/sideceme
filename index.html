@@ -3872,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.94 · Aula Virtual → Ejercicios Militares → EM → Radiogramas + badge de no leídos</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.95 · Documentos del ejercicio por fase (PDF/Word) + TERRAN/PROTOS en toda la UI</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5688,7 +5688,28 @@ input::placeholder, textarea::placeholder {
     <div class="header-text"><div class="header-title">📄 Documentos recibidos</div><div class="header-sub">Ejercicio VENCER O MORIR</div></div>
   </div>
   <div class="menu-container">
-    <div id="rg-docs-lista"><div class="efm-no-data" style="color:var(--text-muted)">Todavía no hay documentos. La carga y envío de PDF se habilita en el próximo paso.</div></div>
+    <button class="btn-mega" onclick="rgDocSubir()" style="background:linear-gradient(180deg,#9a7b1f,#d4af37);color:#0a1628;margin:0 0 12px"><span class="mega-icon">📤</span><span>Subir documento (por fase)</span></button>
+    <div class="section-label">📥 Recibidos</div>
+    <div id="rg-docs-recibidos"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+    <div class="section-label" style="margin-top:14px">📨 Subidos por mi Estado Mayor</div>
+    <div id="rg-docs-enviados"></div>
+  </div>
+</section>
+
+<!-- v2.9.95: Dirección — documentos del ejercicio por fase -->
+<section id="screen-rgd-docs" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('screen-rg-direccion')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">📄 Documentos del ejercicio</div><div class="header-sub">Entregas por fase · Dirección</div></div>
+  </div>
+  <div class="menu-container">
+    <div class="rgd-filtros" id="rgdd-filtros">
+      <button class="rgd-chip active" data-b="" onclick="rgdDocsSetBando('')">Todos</button>
+      <button class="rgd-chip" data-b="1" onclick="rgdDocsSetBando('1')">TERRAN</button>
+      <button class="rgd-chip" data-b="2" onclick="rgdDocsSetBando('2')">PROTOS</button>
+    </div>
+    <div id="rgdd-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
   </div>
 </section>
 
@@ -5735,14 +5756,15 @@ input::placeholder, textarea::placeholder {
   <div class="menu-container">
     <div class="rgd-filtros" id="rgd-filtros">
       <button class="rgd-chip active" data-b="" onclick="rgdSetBando('')">Todos</button>
-      <button class="rgd-chip" data-b="1" onclick="rgdSetBando('1')">Bando 1 · TERRAN</button>
-      <button class="rgd-chip" data-b="2" onclick="rgdSetBando('2')">Bando 2 · PROTOS</button>
+      <button class="rgd-chip" data-b="1" onclick="rgdSetBando('1')">TERRAN</button>
+      <button class="rgd-chip" data-b="2" onclick="rgdSetBando('2')">PROTOS</button>
     </div>
     <div class="rgd-metrics" id="rgd-metrics"></div>
     <div style="display:flex;gap:8px;margin:12px 0">
       <button class="btn-mega" style="margin:0;background:linear-gradient(180deg,#3a5a8a,#4a90d9);color:#fff;flex:1" onclick="rgdTransmitir()"><span class="mega-icon">📤</span><span>Publicar / transmitir</span></button>
       <button class="btn-mega" style="margin:0;flex:1" onclick="rgdExportar()"><span class="mega-icon">📑</span><span>Exportar libro (CSV)</span></button>
     </div>
+    <button class="btn-mega" onclick="goRgdDocs()" style="background:linear-gradient(180deg,#9a7b1f,#d4af37);color:#0a1628;margin:0 0 12px"><span class="mega-icon">📄</span><span>Documentos del ejercicio (entregas por fase)</span></button>
     <div class="section-label">Radiogramas (más recientes primero)</div>
     <div id="rgd-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
   </div>
@@ -13562,17 +13584,131 @@ function goAulaHub(){ showScreen('screen-aula-hub'); _rgActualizarBadges(); }
 function goEjercicioEM(){
   if(!RG_MIS || !RG_MIS.grupo){ alert('No estás registrado en un Estado Mayor del ejercicio.'); return; }
   showScreen('screen-ejercicio-em');
-  const t = RG_MIS.grupo.nombre + ' · Bando ' + RG_MIS.grupo.bando;
+  const t = RG_MIS.grupo.nombre + ' · ' + _rgCod(RG_MIS.grupo.bando);
   const sub=document.getElementById('ejercicio-em-sub'); if(sub) sub.textContent=t;
   const nm=document.getElementById('ejercicio-em-nombre'); if(nm) nm.textContent=t;
   _rgActualizarBadges();
 }
-function goRgDocumentos(){ showScreen('screen-rg-documentos'); }
+/* ===== v2.9.95: DOCUMENTOS del ejercicio (PDF/Word por fase) ===== */
+const RG_FASES=['FASE I','FASE II','FASE III','FASE IV','FASE V','FASE VI'];
+const RG_DOCS_BUCKET='documentos-academicos';
+function _rgDocKb(b){ if(b==null) return ''; const kb=b/1024; return kb<1024 ? (Math.round(kb)+' KB') : ((kb/1024).toFixed(1)+' MB'); }
+function _rgDocIcono(n){ return /\.pdf$/i.test(n||'') ? '📕' : '📘'; }
+async function goRgDocumentos(){
+  showScreen('screen-rg-documentos');
+  const rc=document.getElementById('rg-docs-recibidos'), en=document.getElementById('rg-docs-enviados');
+  if(rc) rc.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const r=await _rgInvoke('docs_listar');
+  if(!r.ok){ if(rc) rc.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No se pudieron cargar los documentos.</div>'; if(en) en.innerHTML=''; return; }
+  const card=(d,recv)=>{
+    const quien = recv
+      ? ('de: '+(d.origen_grupo_id?_rgGrp(d.origen_grupo_id):'Dirección del Ejercicio'))
+      : (d.tipo_destino==='direccion' ? 'entrega → Dirección del Ejercicio' : ('→ '+_rgGrp(d.destino_grupo_id)));
+    return '<div class="rg-card">'
+      + '<div class="rg-card-top"><span style="font-size:18px">'+_rgDocIcono(d.nombre_archivo)+'</span>'
+      + (d.fase?('<span class="rg-badge rg-rut">'+_rgEsc(d.fase)+'</span>'):'')
+      + '<span class="rg-meta" style="margin-left:auto">'+_rgEsc(_rgHora(d.creado_en))+'</span></div>'
+      + '<div class="rg-asunto" style="font-size:13px">'+_rgEsc(d.titulo||d.nombre_archivo||'Documento')+'</div>'
+      + '<div class="rg-route">'+_rgEsc(quien)+(d.subido_por_nombre?(' · subió: '+_rgEsc(d.subido_por_nombre)):'')+(d.size_bytes?(' · '+_rgDocKb(d.size_bytes)):'')+'</div>'
+      + '<button class="rg-doc" onclick="rgDocVer('+d.id+', this)">📄 Ver / descargar</button>'
+      + '</div>';
+  };
+  const rec=r.recibidos||[], env=r.enviados||[];
+  if(rc) rc.innerHTML = rec.length ? rec.map(d=>card(d,true)).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">No recibiste documentos todavía.</div>';
+  if(en) en.innerHTML = env.length ? env.map(d=>card(d,false)).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">Tu Estado Mayor no subió documentos todavía.</div>';
+}
+async function rgDocVer(id, btn){
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Generando enlace…'; }
+  const r=await _rgInvoke('doc_ver',{doc_id:id});
+  if(btn){ btn.disabled=false; btn.textContent='📄 Ver / descargar'; }
+  if(!r.ok || !r.url){ alert('No se pudo abrir: '+(r.error||'')); return; }
+  window.open(r.url,'_blank');
+}
+function rgDocSubir(){
+  if(!RG_MIS || !RG_MIS.grupo){ alert('No estás registrado en un Estado Mayor del ejercicio.'); return; }
+  const old=document.getElementById('rg-modal'); if(old) old.remove();
+  const ov=document.createElement('div'); ov.id='rg-modal'; ov.className='avm-overlay';
+  const faseOpts=RG_FASES.map(f=>'<option>'+f+'</option>').join('');
+  const destOpts='<option value="">📋 Dirección del Ejercicio (entrega de mi trabajo)</option>'
+    + (RG_MIS.destinos||[]).map(d=>'<option value="'+_rgEsc(d.id)+'">📨 '+_rgEsc(_rgUnitLabel(d.id,RG_MIS.grupo.bando))+' ('+_rgEsc(d.nombre)+')</option>').join('');
+  ov.innerHTML=`
+    <div class="avm-box" onclick="event.stopPropagation()" style="max-height:88vh;overflow:auto">
+      <h3>📤 Subir documento</h3>
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">Desde ${_rgEsc(RG_MIS.grupo.nombre)} · PDF o Word. La Dirección del Ejercicio ve todos los documentos.</div>
+      <div class="field" style="margin-bottom:8px"><label>Fase del ejercicio</label><select id="rgdoc-fase">${faseOpts}</select></div>
+      <div class="field" style="margin-bottom:8px"><label>Destino</label><select id="rgdoc-dest">${destOpts}</select></div>
+      <div class="field" style="margin-bottom:8px"><label>Título del documento</label><input type="text" id="rgdoc-titulo" placeholder="Ej: Orden preparatoria — ofensiva" autocomplete="off"></div>
+      <div class="field" style="margin-bottom:10px"><label>Archivo (PDF o Word)</label><input type="file" id="rgdoc-file" accept=".pdf,.doc,.docx"></div>
+      <div style="display:flex;gap:8px"><button class="btn-primary" onclick="rgDocEnviar(this)">📤 Subir y enviar</button><button class="btn-secondary" onclick="document.getElementById('rg-modal').remove()">Cancelar</button></div>
+    </div>`;
+  ov.onclick=()=>ov.remove(); document.body.appendChild(ov);
+}
+async function rgDocEnviar(btn){
+  const inp=document.getElementById('rgdoc-file');
+  const file=inp && inp.files && inp.files[0];
+  if(!file){ alert('Elegí un archivo PDF o Word.'); return; }
+  if(!/\.(pdf|doc|docx)$/i.test(file.name)){ alert('Solo PDF o Word (.pdf, .doc, .docx).'); return; }
+  if(file.size > 25*1024*1024){ alert('El archivo supera 25 MB.'); return; }
+  const fase=document.getElementById('rgdoc-fase').value;
+  const destino=document.getElementById('rgdoc-dest').value;
+  const titulo=(document.getElementById('rgdoc-titulo').value||'').trim();
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Subiendo…'; }
+  try{
+    const up=await _rgInvoke('doc_upload_url',{filename:file.name});
+    if(!up.ok) throw new Error(up.error||'no se pudo pedir la URL de subida');
+    const u=await sb.storage.from(RG_DOCS_BUCKET).uploadToSignedUrl(up.path, up.token, file);
+    if(u.error) throw new Error(u.error.message||'falló la subida del archivo');
+    const reg=await _rgInvoke('doc_registrar',{ storage_path:up.path, nombre_archivo:file.name, mime:file.type, size_bytes:file.size, fase, titulo, tipo_destino: destino?'grupo':'direccion', destino_grupo_id: destino||null });
+    if(!reg.ok) throw new Error(reg.error||'no se pudo registrar el documento');
+    const m=document.getElementById('rg-modal'); if(m) m.remove();
+    alert('Documento subido ✓ ('+fase+(destino?' → '+destino.replace(/^B\d-/,''):' → Dirección del Ejercicio')+')');
+    goRgDocumentos();
+  }catch(e){
+    alert('No se pudo subir: '+(e.message||e));
+    if(btn){ btn.disabled=false; btn.textContent='📤 Subir y enviar'; }
+  }
+}
+/* ----- Dirección: documentos de todos los EM, filtrables ----- */
+let RGDD_BANDO='';
+function rgdDocsSetBando(b){ RGDD_BANDO=b; document.querySelectorAll('#rgdd-filtros .rgd-chip').forEach(c=>c.classList.toggle('active',(c.getAttribute('data-b')||'')===b)); rgdDocsCargar(); }
+async function goRgdDocs(){ showScreen('screen-rgd-docs'); await rgdDocsCargar(); }
+async function rgdDocsCargar(){
+  const cont=document.getElementById('rgdd-lista');
+  if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const r=await _rgInvoke('docs_listar', RGDD_BANDO?{bando:parseInt(RGDD_BANDO,10)}:{});
+  if(!r.ok){ if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No autorizado.</div>'; return; }
+  const docs=r.documentos||[];
+  if(!docs.length){ if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">Sin documentos todavía.</div>'; return; }
+  // agrupar por fase
+  const porFase={};
+  docs.forEach(d=>{ const f=d.fase||'SIN FASE'; (porFase[f]=porFase[f]||[]).push(d); });
+  const fases=Object.keys(porFase).sort();
+  if(cont) cont.innerHTML = fases.map(f=>{
+    const items=porFase[f].map(d=>{
+      const fz = d.bando===1?'<span class="rgd-bchip rgd-b1">TERRAN</span>':'<span class="rgd-bchip rgd-b2">PROTOS</span>';
+      const ruta = (d.origen_grupo_id?_rgGrp(d.origen_grupo_id):'Dirección') + (d.tipo_destino==='direccion' ? ' → Dirección (entrega)' : (' → '+_rgGrp(d.destino_grupo_id)));
+      return '<div class="rgd-row">'
+        + '<div class="rgd-row-top"><span style="font-size:16px">'+_rgDocIcono(d.nombre_archivo)+'</span> '+fz+'<span class="rg-meta" style="margin-left:auto">'+_rgEsc(_rgHora(d.creado_en))+'</span></div>'
+        + '<div class="rg-asunto" style="font-size:13px">'+_rgEsc(d.titulo||d.nombre_archivo||'Documento')+'</div>'
+        + '<div class="rg-route">'+_rgEsc(ruta)+(d.subido_por_nombre?(' · '+_rgEsc(d.subido_por_nombre)):'')+(d.size_bytes?(' · '+_rgDocKb(d.size_bytes)):'')+'</div>'
+        + '<div class="rgd-actions"><button class="rgd-btn" onclick="rgDocVer('+d.id+', this)">📄 Ver / descargar</button>'
+        + '<button class="rgd-btn danger" onclick="rgdDocEliminar('+d.id+')">🗑 Eliminar</button></div>'
+        + '</div>';
+    }).join('');
+    return '<div class="section-label" style="margin-top:12px">📂 '+_rgEsc(f)+' ('+porFase[f].length+')</div>'+items;
+  }).join('');
+}
+async function rgdDocEliminar(id){
+  if(!confirm('¿Eliminar este documento? Se borra el archivo y deja de verse.')) return;
+  const r=await _rgInvoke('doc_eliminar',{doc_id:id});
+  if(!r.ok){ alert('No se pudo eliminar: '+(r.error||'')); return; }
+  rgdDocsCargar();
+}
 
 async function goRadiogramas(){
   showScreen('screen-radiogramas');
   const sub = document.getElementById('rg-screen-sub');
-  if(RG_MIS && RG_MIS.grupo && sub) sub.textContent = RG_MIS.grupo.nombre + ' · Bando ' + RG_MIS.grupo.bando;
+  if(RG_MIS && RG_MIS.grupo && sub) sub.textContent = RG_MIS.grupo.nombre + ' · ' + _rgCod(RG_MIS.grupo.bando);
   await rgCargarBandeja();
 }
 
@@ -13862,7 +13998,7 @@ async function rgdCargarTablero(){
 function _rgdRow(x){
   const a=x.acuse||{total:0,acusados:0};
   const origen = x.origen_tipo==='direccion' ? 'Dirección' : _rgGrp(x.origen_grupo_id);
-  const bchip = x.bando===1 ? '<span class="rgd-bchip rgd-b1">B1 TERRAN</span>' : '<span class="rgd-bchip rgd-b2">B2 PROTOS</span>';
+  const bchip = x.bando===1 ? '<span class="rgd-bchip rgd-b1">TERRAN</span>' : '<span class="rgd-bchip rgd-b2">PROTOS</span>';
   const num = x.numero_unidad ? ('N° '+String(x.numero_unidad).padStart(2,'0')) : '';
   const anul = x.anulado ? '<span class="rg-badge rg-urg" style="margin-left:6px">ANULADO</span>' : '';
   const completo = a.total && a.acusados===a.total;
@@ -13911,8 +14047,8 @@ function _rgdAbrirModal(){
   ov.innerHTML = `
     <div class="avm-box" onclick="event.stopPropagation()" style="max-height:88vh;overflow:auto">
       <h3>📻 Publicar radiograma (Dirección)</h3>
-      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">La Dirección puede transmitir a cualquier unidad de un bando.</div>
-      <div class="field" style="margin-bottom:8px"><label>Bando</label><select id="rgd-bando" onchange="_rgdBandoDestinos()"><option value="1">Bando 1 · TERRAN</option><option value="2">Bando 2 · PROTOS</option></select></div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">La Dirección puede transmitir a cualquier unidad de una fuerza.</div>
+      <div class="field" style="margin-bottom:8px"><label>Fuerza</label><select id="rgd-bando" onchange="_rgdBandoDestinos()"><option value="1">TERRAN</option><option value="2">PROTOS</option></select></div>
       <div class="field" style="margin-bottom:6px"><label>Destino(s)</label></div>
       <div id="rgd-dest-box" style="border:1px solid var(--border,#2a3a52);border-radius:10px;padding:8px;margin-bottom:6px;display:flex;flex-direction:column;gap:6px"></div>
       <label class="rg-chk" style="margin-bottom:8px"><input type="checkbox" id="rgd-cascada"> incluir subordinados (cascada)</label>
