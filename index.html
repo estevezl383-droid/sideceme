@@ -3872,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.98 · Of. de Comunicaciones habilitado para transmitir + etiqueta Nombre del comandante</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.99 · Sesión persistente · PDF · acuse por Of.Com. · detalle de flujo · anular solo C&T</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6262,7 +6262,19 @@ function showError(id,msg){
   const el = document.getElementById(id); if(!el) return;
   el.textContent=msg; el.classList.add('visible');
 }
-function saveSession(u,t,r){ sessionStorage.setItem('sideceme_session', JSON.stringify({user:u,tipo:t,role:r})); try{ localStorage.setItem('sideceme_last_tipo', t); }catch(e){} }
+function saveSession(u,t,r){
+  sessionStorage.setItem('sideceme_session', JSON.stringify({user:u,tipo:t,role:r}));
+  try{ localStorage.setItem('sideceme_last_tipo', t); }catch(e){}
+  // v2.9.99: los CURSANTES no pierden la sesión al cerrar la app/navegador (persistida en localStorage)
+  try{
+    if(t==='cursante'){
+      localStorage.setItem('sideceme_session_p', JSON.stringify({user:u,tipo:t,role:r}));
+      const tk=sessionStorage.getItem('sideceme_token'), ex=sessionStorage.getItem('sideceme_token_expira');
+      if(tk) localStorage.setItem('sideceme_token_p', tk);
+      if(ex) localStorage.setItem('sideceme_token_expira_p', ex);
+    }
+  }catch(e){}
+}
 function getSession(){ const r=sessionStorage.getItem('sideceme_session'); return r?JSON.parse(r):null; }
 // v2.9.8: token de sesión emitido por Edge Function auth-login (v2.9.86: 24h deslizante)
 function guardarTokenSesion(token, expiraEn){
@@ -6287,7 +6299,7 @@ async function _latidoSesion(){
   const ef = (s.tipo === 'cursante') ? 'cursantes-ops' : 'profesores-ops';
   try{
     const { data } = await sb.functions.invoke(ef, { body:{ accion:'ultimo_login', token:tok } });
-    if(data && data.expira_en) sessionStorage.setItem('sideceme_token_expira', data.expira_en);
+    if(data && data.expira_en){ sessionStorage.setItem('sideceme_token_expira', data.expira_en); try{ if(s.tipo==='cursante') localStorage.setItem('sideceme_token_expira_p', data.expira_en); }catch(e){} }
   }catch(e){ /* sin red: no pasa nada, se reintenta en el próximo latido */ }
 }
 try{
@@ -6308,6 +6320,8 @@ function logout(){
   // v2.9.8: limpiar token de sesión emitido por Edge Function
   sessionStorage.removeItem('sideceme_token');
   sessionStorage.removeItem('sideceme_token_expira');
+  // v2.9.99: limpiar también la sesión persistida del cursante
+  try{ localStorage.removeItem('sideceme_session_p'); localStorage.removeItem('sideceme_token_p'); localStorage.removeItem('sideceme_token_expira_p'); }catch(e){}
   // v2.9.60: limpiar caché de discData (otro usuario podría loguearse en este equipo)
   try{ localStorage.removeItem(_DISC_CACHE_KEY); }catch(e){}
   currentUser=null; activeRole=null; selectedCargo=null;
@@ -13643,16 +13657,18 @@ function _rgNotificar(nuevos){
       new Notification('📻 RADIOGRAMA NUEVO — VENCER O MORIR', { body:'Tu Estado Mayor recibió '+nuevos+' radiograma(s). Entrá a ACUSAR RECIBO.', tag:'rg-nuevo' });
   }catch(e){}
 }
+async function _rgRefrescarAhora(){
+  try{
+    const ses=getSession();
+    if(!currentUser || !ses || ses.tipo!=='cursante' || !RG_MIS || !RG_MIS.grupo) return;
+    const r=await _rgInvoke('mis_grupos');
+    if(r.ok && r.grupo){ RG_NOLEIDOS=r.no_leidos||0; _rgActualizarBadges(); _rgChequearNuevos(RG_NOLEIDOS); }
+  }catch(e){}
+}
 function _rgIniciarPoll(){
   if(_rgPollTimer) return;
-  _rgPollTimer = setInterval(async ()=>{
-    try{
-      const ses=getSession();
-      if(!currentUser || !ses || ses.tipo!=='cursante' || !RG_MIS || !RG_MIS.grupo) return;
-      const r=await _rgInvoke('mis_grupos');
-      if(r.ok && r.grupo){ RG_NOLEIDOS=r.no_leidos||0; _rgActualizarBadges(); _rgChequearNuevos(RG_NOLEIDOS); }
-    }catch(e){}
-  }, 120000);
+  _rgPollTimer = setInterval(_rgRefrescarAhora, 60000);  // v2.9.99: cada 60s con la app abierta
+  try{ document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState==='visible') _rgRefrescarAhora(); }); }catch(e){}
 }
 async function _rgBannerAlarma(){
   const cont=document.getElementById('cur-rg-alarma');
@@ -13865,8 +13881,8 @@ function _rgCardRecibido(a){
       <div class="rg-asunto">${_rgEsc(rg.asunto||'')}</div>
       ${rg.cuerpo ? '<div class="rg-cuerpo">'+_rgEsc(rg.cuerpo)+'</div>' : ''}
       <div class="rg-meta">${rg.dtg?('DTG '+_rgEsc(rg.dtg)+' · '):''}enviado ${_rgEsc(_rgHora(rg.enviado_en))}</div>
-      ${acusado ? '' : '<button class="rg-acusar" onclick="rgAcusar('+a.radiograma_id+', this)">✍ ACUSAR RECIBO</button>'}
-      <button class="rg-doc" onclick="_rgDescargar('${_rgEsc(rg.codigo)}','RECIBIDO')">📄 Descargar Word (RECIBIDO)</button>
+      ${acusado ? '' : ((RG_MIS&&RG_MIS.puede_transmitir) ? '<button class="rg-acusar" onclick="rgAcusar('+a.radiograma_id+', this)">✍ ACUSAR RECIBO (a nombre de tu unidad)</button>' : '<div class="rg-meta" style="margin-top:6px;color:#f4d574">⏳ Pendiente — el acuse lo realiza el Of. de Comunicaciones (o el Cmte.) de tu EM.</div>')}
+      <button class="rg-doc" onclick="_rgDescargar('${_rgEsc(rg.codigo)}','RECIBIDO')">📄 Descargar PDF (RECIBIDO)</button>
     </div>`;
 }
 function _rgCardEnviado(e){
@@ -13875,7 +13891,7 @@ function _rgCardEnviado(e){
       <div class="rg-card-top"><span class="rg-code">${_rgEsc(e.codigo||'')}</span>${_rgPrioBadge(e.prioridad)}</div>
       <div class="rg-asunto">${_rgEsc(e.asunto||'')}</div>
       <div class="rg-meta">${e.dtg?('DTG '+_rgEsc(e.dtg)+' · '):''}enviado ${_rgEsc(_rgHora(e.enviado_en))}</div>
-      <button class="rg-doc" onclick="_rgDescargar('${_rgEsc(e.codigo)}','EXPEDIDO')">📄 Descargar Word (EXPEDIDO)</button>
+      <button class="rg-doc" onclick="_rgDescargar('${_rgEsc(e.codigo)}','EXPEDIDO')">📄 Descargar PDF (EXPEDIDO)</button>
     </div>`;
 }
 
@@ -13960,8 +13976,8 @@ async function rgEnviar(btn){
     sistema:payload.sistema, numero_unidad:r.numero_unidad, enviado_en:new Date().toISOString(),
     cuerpo:payload.cuerpo, firma_nombre:payload.firma_nombre, firma_grado:payload.firma_grado
   };
-  _descargarRadiogramaDocx(doc, 'RADIOGRAMA_EXPEDIDO_'+(r.codigo||''));
-  alert('Radiograma '+(r.codigo||'')+' (N° '+String(r.numero_unidad||'').padStart(2,'0')+') transmitido a '+(r.destinatarios||0)+' destinatario(s). Se descargó el Word EXPEDIDO.');
+  _descargarRadiogramaPdf(doc, 'RADIOGRAMA_EXPEDIDO_'+(r.codigo||''));
+  alert('Radiograma '+(r.codigo||'')+' (N° '+String(r.numero_unidad||'').padStart(2,'0')+') transmitido a '+(r.destinatarios||0)+' destinatario(s). Se descargó el PDF EXPEDIDO.');
   await rgCargarBandeja();
 }
 
@@ -13969,7 +13985,7 @@ async function rgEnviar(btn){
 function _rgDescargar(codigo, tipo){
   const row = RG_ROWS[codigo];
   if(!row){ alert('No se encontró el radiograma.'); return; }
-  _descargarRadiogramaDocx(_rgDocDeRow(row, tipo), 'RADIOGRAMA_'+tipo+'_'+codigo);
+  _descargarRadiogramaPdf(_rgDocDeRow(row, tipo), 'RADIOGRAMA_'+tipo+'_'+codigo);
 }
 function _rgDocDeRow(row, tipo){
   const b = row.bando;
@@ -14054,6 +14070,96 @@ function _descargarRadiogramaDocx(d, nombre){
   }catch(e){ alert('No se pudo generar el Word: ' + (e.message||e)); return false; }
 }
 
+/* ===== v2.9.99: RADIOGRAMA en PDF (no editable) — reemplaza la descarga Word ===== */
+let _jspdfPromise=null;
+function _rgJsPDF(){
+  if(window.jspdf && window.jspdf.jsPDF) return Promise.resolve(window.jspdf.jsPDF);
+  if(_jspdfPromise) return _jspdfPromise;
+  _jspdfPromise=new Promise(function(res,rej){
+    var sc=document.createElement('script');
+    sc.src='https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+    sc.onload=function(){ (window.jspdf&&window.jspdf.jsPDF)?res(window.jspdf.jsPDF):rej(new Error('jsPDF no cargó')); };
+    sc.onerror=function(){ _jspdfPromise=null; rej(new Error('Sin conexión para cargar el generador de PDF. Reintentá.')); };
+    document.head.appendChild(sc);
+  });
+  return _jspdfPromise;
+}
+async function _rgPdfDoc(d){
+  const JsPDF=await _rgJsPDF();
+  const doc=new JsPDF({unit:'pt',format:'letter'});
+  const W=doc.internal.pageSize.getWidth(), H=doc.internal.pageSize.getHeight();
+  const ML=85, MR=57, ANCHO=W-ML-MR; let y=60;
+  function salto(n){ if(y+n>H-60){ doc.addPage(); y=60; } }
+  doc.setFont('helvetica','bold'); doc.setFontSize(10);
+  const cxm=ML+(ANCHO-158)/2;   // membrete centrado cargado a la izquierda (como el Word)
+  (d.membrete||[]).forEach(m=>{ doc.text(String(m),cxm,y,{align:'center'}); y+=12.5; });
+  y+=22; doc.setFontSize(16);
+  const tit='RADIOGRAMA '+(d.tipo||'EXPEDIDO');
+  doc.text(tit,W/2,y,{align:'center'});
+  const tw=doc.getTextWidth(tit); doc.setLineWidth(1.1); doc.line(W/2-tw/2,y+3,W/2+tw/2,y+3);
+  y+=26; doc.setFont('helvetica','normal'); doc.setFontSize(12);
+  const lf=(d.lugar||'')+((d.lugar&&d.dtg)?', ':'')+(d.dtg||'');
+  if(lf){ doc.text(lf,W-MR,y,{align:'right'}); y+=20; }
+  const alPref=/[,]|\sY\s/.test(' '+(d.al_label||'')+' ')?'A LOS':'AL';
+  function kv(lab,val){ doc.setFont('helvetica','bold'); const t=lab+' : '; doc.text(t,ML,y); const wl=doc.getTextWidth(t); doc.setFont('helvetica','normal'); doc.text(String(val),ML+wl,y); y+=15; }
+  if(d.del_label) kv('DEL',d.del_label);
+  if(d.al_label) kv(alPref,d.al_label);
+  const num=d.numero_unidad?String(d.numero_unidad).padStart(2,'0'):'';
+  const yy=String(new Date(d.enviado_en||Date.now()).getFullYear()).slice(-2);
+  if(d.sistema||num){ y+=8; doc.setFont('helvetica','bold'); doc.text((d.sistema||'')+(num?('. N° '+num+'/'+yy+'.-'):''),ML,y); y+=20; }
+  doc.setFont('helvetica','normal');
+  const pars=(Array.isArray(d.cuerpo)?d.cuerpo:String(d.cuerpo||'').split(/\n\s*\n/)).map(x=>String(x).trim()).filter(Boolean);
+  pars.forEach(pr=>{ const lines=doc.splitTextToSize(pr,ANCHO); salto(lines.length*14+10); doc.text(pr,ML,y,{maxWidth:ANCHO,align:'justify'}); y+=lines.length*14+10; });
+  salto(110); y+=10; doc.text('ATTE.',ML,y); y+=42;
+  doc.text(String(d.firma_nombre||''),W/2,y,{align:'center'}); y+=15;
+  doc.setFont('helvetica','bold'); doc.text(String(d.firma_grado||''),W/2,y,{align:'center'}); y+=28;
+  doc.setFont('helvetica','normal'); salto(90);
+  doc.text('Autentificación:',ML,y); y+=14;
+  doc.text('Of. Com. ...........',ML,y); y+=14;
+  if(d.codigo){ doc.text('               '+d.codigo,ML,y); y+=18; }
+  doc.text('Distribución:',ML,y); y+=14;
+  if(d.del_label){ doc.text('Original : '+d.del_label,ML,y); y+=14; }
+  if(d.al_label){ doc.text('Copias : '+d.al_label,ML,y); }
+  return doc;
+}
+async function _descargarRadiogramaPdf(d,nombre){
+  try{
+    const doc=await _rgPdfDoc(d);
+    doc.save((nombre||'RADIOGRAMA').replace(/[^\w\-]+/g,'_')+'.pdf');
+    return true;
+  }catch(e){ alert('No se pudo generar el PDF: '+(e.message||e)); return false; }
+}
+
+/* ===== v2.9.99: detalle del flujo de comunicaciones de un radiograma (Dirección) ===== */
+async function rgdDetalle(codigo){
+  const row=RGD_ROWS[codigo]; if(!row) return;
+  const r=await _rgInvoke('detalle',{radiograma_id:row.id});
+  if(!r.ok){ alert('No se pudo cargar el detalle: '+(r.error||'')); return; }
+  const env=new Date(row.enviado_en).getTime();
+  const por={}; (r.acuses||[]).forEach(a=>{ const k=a.grupo_id||'?'; (por[k]=por[k]||[]).push(a); });
+  const bloques=Object.keys(por).sort().map(g=>{
+    const list=por[g];
+    const entregados=list.filter(a=>a.entregado_en);
+    const ac=list.find(a=>a.acusado_en);
+    const primEnt=entregados.length?new Date(Math.min.apply(null,entregados.map(a=>new Date(a.entregado_en).getTime()))):null;
+    const lag=ac?Math.round((new Date(ac.acusado_en).getTime()-env)/1000):null;
+    return '<div class="rg-card" style="margin-bottom:8px">'
+      +'<div class="rg-card-top"><b style="color:#f4d574">'+_rgEsc(_rgGrp(g))+' · '+_rgEsc(_rgCod(row.bando))+'</b>'
+      +(ac?'<span class="rg-badge rg-ok" style="margin-left:auto">✓ ACUSADO</span>':'<span class="rg-badge rg-urg" style="margin-left:auto">SIN ACUSAR</span>')+'</div>'
+      +'<div class="rg-meta">📤 enviado '+_rgEsc(_rgHora(row.enviado_en))+' · 📡 llegó a la unidad: '+(primEnt?_rgEsc(_rgHora(primEnt)):'aún no abrieron la bandeja')+' · entregado a '+entregados.length+'/'+list.length+' integrantes</div>'
+      +(ac?'<div class="rg-meta" style="color:#7fe3b0">✍ acusado '+_rgEsc(_rgHora(ac.acusado_en))+' por '+_rgEsc(ac.firma||((ac.cursantes&&ac.cursantes.nombre_completo)||'—'))+(lag!=null?(' · lag '+_rgdDur(lag)):'')+'</div>':'')
+      +'</div>';
+  }).join('');
+  const old=document.getElementById('rg-modal'); if(old) old.remove();
+  const ov=document.createElement('div'); ov.id='rg-modal'; ov.className='avm-overlay';
+  ov.innerHTML='<div class="avm-box" onclick="event.stopPropagation()" style="max-height:88vh;overflow:auto"><h3>📋 '+_rgEsc(codigo)+' — flujo de comunicaciones</h3>'
+    +'<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">'+_rgEsc(row.asunto||'')+' · '+_rgEsc(row.del_label||'Dirección')+' → '+_rgEsc(row.al_label||'')+'</div>'
+    +bloques
+    +'<button class="btn-secondary" onclick="document.getElementById(\'rg-modal\').remove()" style="margin-top:6px">Cerrar</button></div>';
+  ov.onclick=function(){ ov.remove(); };
+  document.body.appendChild(ov);
+}
+
 /* ===== v2.9.93: FASE 3 — Panel de la Dirección del Ejercicio (tablero + publicar) ===== */
 let RGD_BANDO = '';      // ''=todos, '1', '2'
 let RGD_ROWS = {};       // codigo -> fila (tablero)
@@ -14118,10 +14224,10 @@ function _rgdRow(x){
     + '<div class="rg-route" style="margin-top:4px">'+_rgEsc(num)+' · de '+_rgEsc(origen)+' → '+_rgEsc(x.al_label||_rgGrp(x.origen_grupo_id))+'</div>'
     + '<div class="rg-asunto" style="font-size:13px">'+_rgEsc(x.asunto||x.sistema||'')+'</div>'
     + '<div class="rgd-acuse"><b style="color:'+(completo?'#7fe3b0':'#f4d574')+'">'+a.acusados+'/'+a.total+' acusaron</b>'+(a.lag_prom_seg!=null?(' · lag '+_rgdDur(a.lag_prom_seg)):'')+'</div>'
-    + '<div class="rgd-actions"><button class="rgd-btn" onclick="_rgdDescargar(\''+_rgEsc(x.codigo)+'\')">📄 Word</button>'+(x.anulado?'':'<button class="rgd-btn danger" onclick="rgdAnular('+x.id+')">🚫 Anular</button>')+'</div>'
+    + '<div class="rgd-actions"><button class="rgd-btn" onclick="rgdDetalle(\''+_rgEsc(x.codigo)+'\')">📋 Detalle</button><button class="rgd-btn" onclick="_rgdDescargar(\''+_rgEsc(x.codigo)+'\')">📄 PDF</button>'+((x.anulado || !(typeof esCT==='function'&&esCT()))?'':'<button class="rgd-btn danger" onclick="rgdAnular('+x.id+')">🚫 Anular</button>')+'</div>'
     + '</div>';
 }
-function _rgdDescargar(codigo){ const row=RGD_ROWS[codigo]; if(!row) return; _descargarRadiogramaDocx(_rgDocDeRow(row,'EXPEDIDO'),'RADIOGRAMA_'+codigo); }
+function _rgdDescargar(codigo){ const row=RGD_ROWS[codigo]; if(!row) return; _descargarRadiogramaPdf(_rgDocDeRow(row,'EXPEDIDO'),'RADIOGRAMA_'+codigo); }
 async function rgdAnular(id){
   if(!confirm('¿Anular este radiograma? Dejará de verse para los destinatarios.')) return;
   const r=await _rgInvoke('anular',{radiograma_id:id});
@@ -14202,7 +14308,7 @@ async function rgdEnviar(btn){
   if(!r.ok){ alert('No se pudo transmitir: '+(r.error||'')); if(btn){ btn.disabled=false; btn.textContent='📤 Publicar / transmitir'; } return; }
   const m=document.getElementById('rg-modal'); if(m) m.remove();
   const doc={ tipo:'EXPEDIDO', codigo:r.codigo, bando:b, membrete:_rgMembrete(null,b), lugar:payload.lugar, dtg:payload.dtg, del_label:payload.del_label, al_label:payload.al_label, sistema:payload.sistema, numero_unidad:r.numero_unidad, enviado_en:new Date().toISOString(), cuerpo:payload.cuerpo, firma_nombre:payload.firma_nombre, firma_grado:payload.firma_grado };
-  _descargarRadiogramaDocx(doc,'RADIOGRAMA_EXPEDIDO_'+(r.codigo||''));
+  _descargarRadiogramaPdf(doc,'RADIOGRAMA_EXPEDIDO_'+(r.codigo||''));
   alert('Radiograma '+(r.codigo||'')+' transmitido a '+(r.destinatarios||0)+' destinatario(s).');
   rgdCargarTablero();
 }
@@ -18449,7 +18555,23 @@ setTimeout(()=>{ if(currentUser) iniciarNotificaciones(); }, 3000);
     return;
   }
   // PRIORIDAD 2: Restaurar sesión guardada
-  const s=getSession();
+  let s=getSession();
+  // v2.9.99: si se cerró la app (sessionStorage vacío), restaurar la sesión persistida del CURSANTE
+  if(!s){
+    try{
+      const pp=localStorage.getItem('sideceme_session_p');
+      const tk=localStorage.getItem('sideceme_token_p');
+      const ex=localStorage.getItem('sideceme_token_expira_p');
+      if(pp && tk && (!ex || new Date(ex).getTime() > Date.now())){
+        sessionStorage.setItem('sideceme_session', pp);
+        sessionStorage.setItem('sideceme_token', tk);
+        if(ex) sessionStorage.setItem('sideceme_token_expira', ex);
+        s=getSession();
+      } else if(pp){
+        localStorage.removeItem('sideceme_session_p'); localStorage.removeItem('sideceme_token_p'); localStorage.removeItem('sideceme_token_expira_p');
+      }
+    }catch(e){}
+  }
   if(!s) return;
   currentUser=s.user;
   iniciarIdleTimer();  // Arrancar contador de inactividad al restaurar sesión
