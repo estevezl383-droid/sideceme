@@ -3872,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.97 · UI ejercicio: tiles 3D + Aula Virtual destacada + alarma de radiogramas</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.98 · Of. de Comunicaciones habilitado para transmitir + etiqueta Nombre del comandante</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -13606,7 +13606,7 @@ async function cargarRadiogramaCursante(){
   if(!currentUser) return;
   const r = await _rgInvoke('mis_grupos');
   if(!r.ok || !r.grupo){ RG_MIS=null; RG_NOLEIDOS=0; _rgActualizarBadges(); return; }   // no participa
-  RG_MIS = { grupo:r.grupo, cargo:r.cargo||'', soy_comandante:!!r.soy_comandante, comandante:r.comandante||null, destinos:r.destinos||[] };
+  RG_MIS = { grupo:r.grupo, cargo:r.cargo||'', soy_comandante:!!r.soy_comandante, puede_transmitir:(r.puede_transmitir!==undefined ? !!r.puede_transmitir : !!r.soy_comandante), comandante:r.comandante||null, destinos:r.destinos||[] };
   RG_NOLEIDOS = r.no_leidos||0;
   _rgActualizarBadges();
   _rgChequearNuevos(RG_NOLEIDOS);     // v2.9.97: alarma si llegó algo nuevo
@@ -13896,10 +13896,10 @@ function rgTransmitir(){
   const ov = document.createElement('div'); ov.id='rg-modal'; ov.className='avm-overlay';
   const chks = RG_MIS.destinos.map(d=>`<label class="rg-chk"><input type="checkbox" value="${_rgEsc(d.id)}" onchange="_rgSyncAl()"> ${_rgEsc(_rgUnitLabel(d.id,g.bando))} <span style="color:var(--text-muted)">(${_rgEsc(d.nombre)})</span></label>`).join('');
   const sisOpts = RG_SISTEMAS.map(s=>`<option value="${_rgEsc(s)}">${_rgEsc(s)}</option>`).join('');
-  const esCmd = !!RG_MIS.soy_comandante;
+  const esCmd = (RG_MIS.puede_transmitir!==undefined) ? !!RG_MIS.puede_transmitir : !!RG_MIS.soy_comandante;
   const accion = esCmd
-    ? `<button class="btn-primary" onclick="rgEnviar(this)">📤 Firmar y transmitir</button>`
-    : `<div class="rg-nota-cmd">Solo el comandante de la unidad${cmd.nombre?(' ('+_rgEsc(cmd.nombre)+')'):''} puede firmar y transmitir. Podés redactar el borrador y pasárselo.</div>`;
+    ? `<button class="btn-primary" onclick="rgEnviar(this)">📤 Transmitir</button>`
+    : `<div class="rg-nota-cmd">Solo el comandante o el oficial de comunicaciones de la unidad puede transmitir. Podés redactar el borrador y pasárselo.</div>`;
   ov.innerHTML = `
     <div class="avm-box" onclick="event.stopPropagation()" style="max-height:88vh;overflow:auto">
       <h3>📻 Generar radiograma</h3>
@@ -13914,8 +13914,8 @@ function rgTransmitir(){
       <div class="field" style="margin-bottom:8px"><label>Prioridad</label><select id="rg-prio"><option value="rutina">Rutina</option><option value="urgente">Urgente</option><option value="flash">Flash</option></select></div>
       <div class="field" style="margin-bottom:8px"><label>Asunto (para la bandeja)</label><input type="text" id="rg-asunto" autocomplete="off"></div>
       <div class="field" style="margin-bottom:8px"><label>Cuerpo del radiograma</label><textarea id="rg-cuerpo" rows="6" placeholder="Texto de la orden. Separá párrafos con una línea en blanco."></textarea></div>
-      <div class="field" style="margin-bottom:4px"><label>Firma — nombre</label><input type="text" id="rg-firma-n" value="${_rgEsc(cmd.nombre||'')}" autocomplete="off"></div>
-      <div class="field" style="margin-bottom:10px"><label>Firma — grado</label><input type="text" id="rg-firma-g" value="${_rgEsc(cmd.grado||'')}" autocomplete="off"></div>
+      <div class="field" style="margin-bottom:4px"><label>Nombre del comandante</label><input type="text" id="rg-firma-n" value="${_rgEsc(cmd.nombre||'')}" autocomplete="off"></div>
+      <div class="field" style="margin-bottom:10px"><label>Grado del comandante</label><input type="text" id="rg-firma-g" value="${_rgEsc(cmd.grado||'')}" autocomplete="off"></div>
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         ${accion}
         <button class="btn-secondary" onclick="document.getElementById('rg-modal').remove()">Cancelar</button>
