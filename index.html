@@ -3872,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.95 · Documentos del ejercicio por fase (PDF/Word) + TERRAN/PROTOS en toda la UI</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.96 · Primer ingreso: muestra el motivo real del error (sesión master/expirada)</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7010,7 +7010,12 @@ async function confirmarPrimerIngreso(){
       body: { token: _tok, password: p1, firma_dataurl: firmaDataUrl }
     });
     if(_piErr || !_piData?.ok){
-      throw new Error(_piData?.error || _piErr?.message || 'Error al guardar contraseña');
+      // v2.9.96: mostrar el motivo REAL que devolvió la EF (no el genérico "non-2xx")
+      let _msg = _piData?.error || '';
+      if(!_msg && _piErr && _piErr.context){
+        try{ const _ej = await _piErr.context.json(); _msg = _ej?.error || ''; }catch(e){}
+      }
+      throw new Error(_msg || _piErr?.message || 'Error al guardar contraseña');
     }
     // Si el EF devuelve nuevo token (sesión renovada), guardarlo
     if(_piData.token) guardarTokenSesion(_piData.token, _piData.expira_en);
