@@ -3872,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.101 · Documentos Institucionales (publica C&T/Cmte/Jefe Estudios → ciclos/profesores/mando)</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.102 · Radiogramas reorg: ediciones (1er/2do ciclo), 8 CEO + 12 Divisiones, ejercicio viejo CERRADO (registro)</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5875,14 +5875,19 @@ input::placeholder, textarea::placeholder {
     <div class="header-text"><div class="header-title">📻 Dirección del Ejercicio</div><div class="header-sub">Tablero de radiogramas · VENCER O MORIR</div></div>
   </div>
   <div class="menu-container">
+    <div class="field" style="margin-bottom:8px">
+      <label>Ejercicio (edición)</label>
+      <select id="rgd-edicion" onchange="rgdSetEdicion(this.value)"></select>
+    </div>
+    <div id="rgd-cerrado-aviso" style="display:none;background:#3a2a2a;border:1px solid #a05252;color:#f4d574;border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:13px">🔒 Ejercicio <b>CERRADO</b> — registro de solo lectura. No se puede transmitir, acusar ni anular.</div>
     <div class="rgd-filtros" id="rgd-filtros">
       <button class="rgd-chip active" data-b="" onclick="rgdSetBando('')">Todos</button>
-      <button class="rgd-chip" data-b="1" onclick="rgdSetBando('1')">TERRAN</button>
-      <button class="rgd-chip" data-b="2" onclick="rgdSetBando('2')">PROTOS</button>
+      <button class="rgd-chip" id="rgd-chip-b1" data-b="1" onclick="rgdSetBando('1')">TERRAN</button>
+      <button class="rgd-chip" id="rgd-chip-b2" data-b="2" onclick="rgdSetBando('2')">PROTOS</button>
     </div>
     <div class="rgd-metrics" id="rgd-metrics"></div>
     <div id="rgd-matriz"></div>
-    <div style="display:flex;gap:8px;margin:12px 0">
+    <div style="display:flex;gap:8px;margin:12px 0" id="rgd-acciones">
       <button class="btn-mega" style="margin:0;background:linear-gradient(180deg,#3a5a8a,#4a90d9);color:#fff;flex:1" onclick="rgdTransmitir()"><span class="mega-icon">📤</span><span>Publicar / transmitir</span></button>
       <button class="btn-mega" style="margin:0;flex:1" onclick="rgdExportar()"><span class="mega-icon">📑</span><span>Exportar libro (CSV)</span></button>
     </div>
@@ -13799,17 +13804,33 @@ function _diMarcarVisto(items){
 /* ===== v2.9.90: RADIOGRAMAS (juego de guerra VENCER O MORIR) — vista del cursante ===== */
 let RG_MIS = null;   // { grupo, cargo, soy_comandante, comandante:{nombre,grado}, destinos:[] }
 let RG_ROWS = {};    // cache codigo -> fila del radiograma (para regenerar el Word)
-const RG_CODENAME = {1:'TERRAN', 2:'PROTOS'};
+const RG_CODENAME = {1:'TERRAN', 2:'PROTOS'};   // ejercicio viejo (2do ciclo anterior)
+const RG_NOMBRES = {};                           // code -> nombre legible (poblado por mis_grupos / grupos)
+function _rgRecordNombres(arr){ (arr||[]).forEach(g=>{ if(g&&g.id&&g.nombre) RG_NOMBRES[g.id]=g.nombre; }); }
 const RG_SISTEMAS = ['MANDO Y CONTROL C2','DIRECCIÓN Y SINCRONIZACIÓN','INTELIGENCIA','MANIOBRA','APOYO DE FUEGOS','MOVILIDAD, CONTRAMOVILIDAD E INGENIEROS','SOSTENIMIENTO','PROTECCIÓN'];
 function _rgEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function _rgEsNueva(code){ return /^[12]C-/.test(String(code||'')); }   // ediciones nuevas (1C- 1er ciclo, 2C- 2do ciclo)
 function _rgCod(b){ return RG_CODENAME[b] || ('BANDO '+b); }
-function _rgRest(code){ return String(code||'').replace(/^B\d-/,''); }
-function _rgUnitLabel(code,b){ const r=_rgRest(code); if(r==='CTO')return 'CTO.'; if(r==='CFFTT')return 'FF.TT.OO. "'+_rgCod(b)+'"'; if(r.indexOf('CE-')===0)return 'CE.-'+r.slice(3); return r||'—'; }
-function _rgMembrete(code,b){ const r=_rgRest(code); if(!r) return ['COMANDO DEL TEATRO DE OPERACIONES','DIRECCIÓN DEL EJERCICIO']; const L=['COMANDO DEL TEATRO DE OPERACIONES']; if(r!=='CTO') L.push('FUERZAS TERRESTRES DEL TEATRO DE OPERACIONES'); if(r.indexOf('CE-')===0) L.push('CUERPO DE EJÉRCITO '+r.slice(3)); L.push(_rgCod(b)); return L; }
+// codename de bando segun edicion: 1er ciclo=AZUL/ROJO; 2do ciclo=sin codename; viejo=TERRAN/PROTOS
+function _rgCodFor(code,b){ const c=String(code||''); if(/^1C-/.test(c)) return b===1?'AZUL':(b===2?'ROJO':''); if(/^2C-/.test(c)) return ''; return _rgCod(b); }
+function _rgRest(code){ return String(code||'').replace(/^(B\d|[12]C)-/,''); }
+function _rgUnitLabel(code,b){
+  if(_rgEsNueva(code)) return RG_NOMBRES[code] || _rgRest(code) || '—';   // CEO-01 ANDINO / AZUL DIV-1 (CE-I) / Dirección del Ejercicio
+  const r=_rgRest(code); if(r==='CTO')return 'CTO.'; if(r==='CFFTT')return 'FF.TT.OO. "'+_rgCod(b)+'"'; if(r.indexOf('CE-')===0)return 'CE.-'+r.slice(3); return r||'—';
+}
+function _rgMembrete(code,b){
+  if(_rgEsNueva(code)){
+    const nom=(RG_NOMBRES[code]||_rgRest(code)||'').toUpperCase();
+    if(/-DIR$/.test(String(code))) return ['DIRECCIÓN DEL EJERCICIO'];
+    if(/^2C-/.test(String(code))) return ['COMANDOS ESTRATÉGICOS OPERACIONALES', nom];
+    return ['EJÉRCITO DE BOLIVIA — 1ER CICLO', nom];   // 1er ciclo: divisiones
+  }
+  const r=_rgRest(code); if(!r) return ['COMANDO DEL TEATRO DE OPERACIONES','DIRECCIÓN DEL EJERCICIO']; const L=['COMANDO DEL TEATRO DE OPERACIONES']; if(r!=='CTO') L.push('FUERZAS TERRESTRES DEL TEATRO DE OPERACIONES'); if(r.indexOf('CE-')===0) L.push('CUERPO DE EJÉRCITO '+r.slice(3)); L.push(_rgCod(b)); return L;
+}
 function _rgJoinUnits(codes,b){ const l=codes.map(c=>_rgUnitLabel(c,b)); if(l.length<=1) return l.join(''); return l.slice(0,-1).join(', ')+' Y '+l[l.length-1]; }
 function _rgDtgNow(){ const d=new Date(),p=n=>String(n).padStart(2,'0'); return p(d.getDate())+p(d.getHours())+p(d.getMinutes())+'-'+_MESES_ABR[d.getMonth()]+'-'+String(d.getFullYear()).slice(-2); }
 function _rgHora(ts){ if(!ts) return ''; try{ return new Date(ts).toLocaleString('es-BO',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } }
-function _rgGrp(code){ return _rgEsc(String(code||'—').replace(/^B\d-/,'')); }
+function _rgGrp(code){ if(_rgEsNueva(code)) return _rgEsc(RG_NOMBRES[code]||_rgRest(code)); return _rgEsc(String(code||'—').replace(/^B\d-/,'')); }
 async function _rgInvoke(accion, extra){
   const tok = getTokenSesion(); if(!tok) return {ok:false,error:'sin sesión'};
   try{
@@ -13825,6 +13846,7 @@ async function cargarRadiogramaCursante(){
   if(!currentUser) return;
   const r = await _rgInvoke('mis_grupos');
   if(!r.ok || !r.grupo){ RG_MIS=null; RG_NOLEIDOS=0; _rgActualizarBadges(); return; }   // no participa
+  _rgRecordNombres([r.grupo]); _rgRecordNombres(r.destinos);   // nombres legibles de unidades (etiquetas)
   RG_MIS = { grupo:r.grupo, cargo:r.cargo||'', soy_comandante:!!r.soy_comandante, puede_transmitir:(r.puede_transmitir!==undefined ? !!r.puede_transmitir : !!r.soy_comandante), comandante:r.comandante||null, destinos:r.destinos||[] };
   RG_NOLEIDOS = r.no_leidos||0;
   _rgActualizarBadges();
@@ -13911,7 +13933,7 @@ function goAulaHub(){ showScreen('screen-aula-hub'); _rgActualizarBadges(); }
 function goEjercicioEM(){
   if(!RG_MIS || !RG_MIS.grupo){ alert('No estás registrado en un Estado Mayor del ejercicio.'); return; }
   showScreen('screen-ejercicio-em');
-  const t = RG_MIS.grupo.nombre + ' · ' + _rgCod(RG_MIS.grupo.bando);
+  const _cod=_rgCodFor(RG_MIS.grupo.id,RG_MIS.grupo.bando); const t = RG_MIS.grupo.nombre + (_cod?(' · '+_cod):'');
   const sub=document.getElementById('ejercicio-em-sub'); if(sub) sub.textContent=t;
   const nm=document.getElementById('ejercicio-em-nombre'); if(nm) nm.textContent=t;
   _rgActualizarBadges();
@@ -14004,7 +14026,7 @@ async function goRgdDocs(){ showScreen('screen-rgd-docs'); await rgdDocsCargar()
 async function rgdDocsCargar(){
   const cont=document.getElementById('rgdd-lista');
   if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
-  const r=await _rgInvoke('docs_listar', RGDD_BANDO?{bando:parseInt(RGDD_BANDO,10)}:{});
+  const r=await _rgInvoke('docs_listar', Object.assign({ejercicio_id:RGD_EJ}, RGDD_BANDO?{bando:parseInt(RGDD_BANDO,10)}:{}));
   if(!r.ok){ if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No autorizado.</div>'; return; }
   const docs=r.documentos||[];
   const res=document.getElementById('rgdd-resumen');
@@ -14038,7 +14060,7 @@ async function rgdDocEliminar(id){
 }
 /* ----- v2.9.100: la Direccion sube documentos a una o varias unidades ----- */
 function rgdDocSubir(){
-  _rgInvoke('grupos').then(r=>{
+  _rgInvoke('grupos',{ejercicio_id:RGD_EJ}).then(r=>{
     if(!r.ok){ alert('No se pudieron cargar las unidades: '+(r.error||'')); return; }
     RGD_GRUPOS=r.grupos||[];
     const old=document.getElementById('rg-modal'); if(old) old.remove();
@@ -14048,7 +14070,7 @@ function rgdDocSubir(){
       <div class="avm-box" onclick="event.stopPropagation()" style="max-height:88vh;overflow:auto">
         <h3>📤 Subir documento a las unidades</h3>
         <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">La Dirección envía un PDF/Word a una o varias planas mayores.</div>
-        <div class="field" style="margin-bottom:8px"><label>Fuerza</label><select id="rgddoc-bando" onchange="_rgdDocDestinos()"><option value="1">TERRAN</option><option value="2">PROTOS</option></select></div>
+        <div class="field" style="margin-bottom:8px${(/^2C-2026$/.test(RGD_EJ))?';display:none':''}"><label>Fuerza</label><select id="rgddoc-bando" onchange="_rgdDocDestinos()">${_rgdFuerzaOpts()}</select></div>
         <div class="field" style="margin-bottom:6px"><label>Destino(s)</label></div>
         <div id="rgddoc-dest-box" style="border:1px solid var(--border,#2a3a52);border-radius:10px;padding:8px;margin-bottom:8px;display:flex;flex-direction:column;gap:6px"></div>
         <div class="field" style="margin-bottom:8px"><label>Fase</label><select id="rgddoc-fase">${faseOpts}</select></div>
@@ -14063,7 +14085,7 @@ function rgdDocSubir(){
 function _rgdDocDestinos(){
   const b=parseInt(document.getElementById('rgddoc-bando').value,10);
   const box=document.getElementById('rgddoc-dest-box');
-  box.innerHTML=(RGD_GRUPOS||[]).filter(g=>g.bando===b).map(g=>`<label class="rg-chk"><input type="checkbox" value="${_rgEsc(g.id)}"> ${_rgEsc(_rgUnitLabel(g.id,b))} <span style="color:var(--text-muted)">(${_rgEsc(g.nombre)})</span></label>`).join('');
+  box.innerHTML=(RGD_GRUPOS||[]).filter(g=>g.bando===b && g.nivel!=='DIRECCION').map(g=>`<label class="rg-chk"><input type="checkbox" value="${_rgEsc(g.id)}"> ${_rgEsc(_rgUnitLabel(g.id,b))} <span style="color:var(--text-muted)">(${_rgEsc(g.nombre)})</span></label>`).join('');
 }
 async function rgdDocEnviar(btn){
   const inp=document.getElementById('rgddoc-file');
@@ -14107,7 +14129,7 @@ async function goRgMedia(){
   showScreen('screen-rg-media');
   const cont=document.getElementById('rg-media-lista');
   if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
-  const r=await _rgInvoke('media_listar');
+  const r=await _rgInvoke('media_listar',{ejercicio_id:RGD_EJ});
   if(!r.ok){ if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No se pudo cargar.</div>'; return; }
   const items=r.items||[];
   if(cont) cont.innerHTML = items.length ? items.map(m=>_rgMediaCard(m,false)).join('') : '<div class="rg-card" style="text-align:center;color:var(--text-muted);padding:20px">🎞 Aún no hay material publicado.</div>';
@@ -14116,7 +14138,7 @@ async function goRgdMedia(){ showScreen('screen-rgd-media'); rgdMediaCargar(); }
 async function rgdMediaCargar(){
   const cont=document.getElementById('rgdd-media-lista');
   if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
-  const r=await _rgInvoke('media_listar');
+  const r=await _rgInvoke('media_listar',{ejercicio_id:RGD_EJ});
   if(!r.ok){ if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No se pudo cargar.</div>'; return; }
   const items=r.items||[];
   if(cont) cont.innerHTML = items.length ? items.map(m=>_rgMediaCard(m,true)).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">Sin enlaces publicados todavía.</div>';
@@ -14127,7 +14149,7 @@ async function rgdMediaPublicar(btn){
   if(!t||!u){ alert('Poné el título y el enlace.'); return; }
   const bv=document.getElementById('rgdm-bando').value;
   if(btn) btn.disabled=true;
-  const r=await _rgInvoke('media_publicar',{ titulo:t, url:u, tipo:document.getElementById('rgdm-tipo').value, fase:document.getElementById('rgdm-fase').value, bando: bv?parseInt(bv,10):null });
+  const r=await _rgInvoke('media_publicar',{ titulo:t, url:u, tipo:document.getElementById('rgdm-tipo').value, fase:document.getElementById('rgdm-fase').value, bando: bv?parseInt(bv,10):null, ejercicio_id:RGD_EJ });
   if(btn) btn.disabled=false;
   if(!r.ok){ alert('No se pudo publicar: '+(r.error||'')); return; }
   document.getElementById('rgdm-titulo').value=''; document.getElementById('rgdm-url').value='';
@@ -14143,7 +14165,7 @@ async function rgdMediaEliminar(id){
 async function goRadiogramas(){
   showScreen('screen-radiogramas');
   const sub = document.getElementById('rg-screen-sub');
-  if(RG_MIS && RG_MIS.grupo && sub) sub.textContent = RG_MIS.grupo.nombre + ' · ' + _rgCod(RG_MIS.grupo.bando);
+  if(RG_MIS && RG_MIS.grupo && sub){ const _c=_rgCodFor(RG_MIS.grupo.id,RG_MIS.grupo.bando); sub.textContent = RG_MIS.grupo.nombre + (_c?(' · '+_c):''); }
   await rgCargarBandeja();
 }
 
@@ -14471,7 +14493,10 @@ async function rgdDetalle(codigo){
 /* ===== v2.9.93: FASE 3 — Panel de la Dirección del Ejercicio (tablero + publicar) ===== */
 let RGD_BANDO = '';      // ''=todos, '1', '2'
 let RGD_ROWS = {};       // codigo -> fila (tablero)
-let RGD_GRUPOS = null;   // cache de todas las unidades
+let RGD_GRUPOS = null;   // cache de unidades de la edicion seleccionada
+let RGD_EJ = '';         // ejercicio_id seleccionado (edicion)
+let RGD_EDS = [];        // lista de ediciones [{id,nombre,ciclo,estado}]
+let RGD_CERRADO = false; // edicion seleccionada en estado 'cerrado' (solo lectura)
 let rgdBack = 'screen-disc-panel';
 
 // ¿el usuario logueado es Dirección del Ejercicio? (mismo criterio que ejercicio_direccion)
@@ -14490,7 +14515,41 @@ function rgdVolver(){ showScreen(rgdBack || 'screen-disc-panel'); }
 async function goRgDireccion(){
   rgdBack = (document.querySelector('.screen.active')||{}).id || 'screen-disc-panel';
   showScreen('screen-rg-direccion');
+  await rgdCargarEdiciones();
   await rgdCargarTablero();
+}
+async function rgdCargarEdiciones(){
+  const sel=document.getElementById('rgd-edicion'); if(!sel) return;
+  const r=await _rgInvoke('ejercicios');
+  RGD_EDS = (r.ok && r.ejercicios) ? r.ejercicios : [];
+  if(!RGD_EDS.length){ sel.innerHTML='<option value="">(sin ediciones)</option>'; return; }
+  sel.innerHTML = RGD_EDS.map(e=>'<option value="'+_rgEsc(e.id)+'">'+(e.estado==='cerrado'?'🔒 ':'')+_rgEsc(e.nombre)+'</option>').join('');
+  // por defecto: la primera edicion ACTIVA (si no hay, la primera)
+  const def = (RGD_EDS.find(e=>e.estado==='activo') || RGD_EDS[0]);
+  RGD_EJ = def.id; sel.value = RGD_EJ;
+  _rgdAplicarEdicion(def);
+}
+function _rgdAplicarEdicion(ed){
+  RGD_CERRADO = !!(ed && ed.estado==='cerrado');
+  const prefijo = RGD_EJ.slice(0,3);   // '1C-' | '2C-'
+  // chips de bando segun edicion
+  const b1=document.getElementById('rgd-chip-b1'), b2=document.getElementById('rgd-chip-b2');
+  const es1C = /^1C-/.test(RGD_EJ), es2C = /^2C-2026$/.test(RGD_EJ);
+  if(b1&&b2){
+    if(es1C){ b1.textContent='AZUL'; b2.textContent='ROJO'; b1.style.display=''; b2.style.display=''; }
+    else if(es2C){ b1.style.display='none'; b2.style.display='none'; }   // 2do ciclo nuevo: dominio unico
+    else { b1.textContent='TERRAN'; b2.textContent='PROTOS'; b1.style.display=''; b2.style.display=''; }
+  }
+  // congelado: oculta acciones de escritura
+  const acc=document.getElementById('rgd-acciones'); if(acc) acc.style.display = RGD_CERRADO ? 'none' : 'flex';
+  const av=document.getElementById('rgd-cerrado-aviso'); if(av) av.style.display = RGD_CERRADO ? 'block' : 'none';
+  RGD_BANDO=''; RGD_GRUPOS=null;
+  document.querySelectorAll('#rgd-filtros .rgd-chip').forEach(c => c.classList.toggle('active', (c.getAttribute('data-b')||'')===''));
+}
+function rgdSetEdicion(ej){
+  RGD_EJ = ej;
+  _rgdAplicarEdicion(RGD_EDS.find(e=>e.id===ej));
+  rgdCargarTablero();
 }
 function rgdSetBando(b){
   RGD_BANDO = b;
@@ -14507,7 +14566,8 @@ function _rgdDur(seg){
 async function rgdCargarTablero(){
   const cont=document.getElementById('rgd-lista'), met=document.getElementById('rgd-metrics');
   if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
-  const r=await _rgInvoke('tablero', RGD_BANDO?{bando:parseInt(RGD_BANDO,10)}:{});
+  const _arg={ejercicio_id:RGD_EJ}; if(RGD_BANDO) _arg.bando=parseInt(RGD_BANDO,10);
+  const r=await _rgInvoke('tablero', _arg);
   if(!r.ok){ if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No autorizado o ejercicio inactivo.</div>'; if(met) met.innerHTML=''; return; }
   const rows=r.radiogramas||[]; RGD_ROWS={}; rows.forEach(x=>{ if(x.codigo) RGD_ROWS[x.codigo]=x; });
   let tot=rows.length, dest=0, acus=0, lagSum=0, lagN=0;
@@ -14521,21 +14581,35 @@ async function rgdCargarTablero(){
   if(cont) cont.innerHTML = rows.length ? rows.map(_rgdRow).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">Sin radiogramas todavía.</div>';
   try{ _rgdPintarMatriz(rows); }catch(e){}
 }
-// v2.9.100: matriz de flujo de comunicaciones (radiogramas DE → A, por fuerza)
+// v2.9.100/FASE6: matriz de flujo (radiogramas DE → A). Unidades dinamicas segun la edicion.
+function _rgEsDir(code){ return /-?DIR$/.test(String(code||'')); }
+function _rgShort(rest){ return String(rest||'').replace(/^(AZUL|ROJO)-/,'').replace(/ \(.*\)$/,''); }
+// codename de bando para la edicion seleccionada en la Direccion
+function _rgdCodName(b){ if(/^1C-/.test(RGD_EJ)) return b===1?'AZUL':(b===2?'ROJO':''); if(RGD_EJ.indexOf('OLD')>=0) return b===1?'TERRAN':(b===2?'PROTOS':''); return ''; }
+function _rgdBandoChip(b){ const n=_rgdCodName(b); return n?('<span class="rgd-bchip '+(b===1?'rgd-b1':'rgd-b2')+'">'+_rgEsc(n)+'</span>'):''; }
 function _rgdPintarMatriz(rows){
   const cont=document.getElementById('rgd-matriz'); if(!cont) return;
-  const UN=['CTO','CFFTT','CE-I','CE-II','CE-III'];
-  const SH={'CTO':'CTO','CFFTT':'FF.TT.','CE-I':'CE-I','CE-II':'CE-II','CE-III':'CE-III'};
+  function unidades(b){
+    const set=new Set();
+    rows.filter(x=>x.bando===b && !x.anulado).forEach(x=>{
+      if(x.origen_tipo!=='direccion' && x.origen_grupo_id && !_rgEsDir(x.origen_grupo_id)) set.add(_rgRest(x.origen_grupo_id));
+      (x.destinos||[]).forEach(d=>{ if(!_rgEsDir(d)) set.add(_rgRest(d)); });
+    });
+    return [...set].sort();
+  }
   function tabla(b){
+    const UN=unidades(b); if(!UN.length) return '';
     const cnt={};
     rows.filter(x=>x.bando===b && !x.anulado).forEach(x=>{
       const o = x.origen_tipo==='direccion' ? 'DIR' : _rgRest(x.origen_grupo_id);
-      (x.destinos||[]).forEach(d=>{ const k=o+'>'+_rgRest(d); cnt[k]=(cnt[k]||0)+1; });
+      (x.destinos||[]).forEach(d=>{ const k=o+'>'+(_rgEsDir(d)?'DIR':_rgRest(d)); cnt[k]=(cnt[k]||0)+1; });
     });
+    const cod=_rgdCodName(b);
     const filas=['DIR'].concat(UN);
-    let h='<div><div class="rgd-mtx-tit">'+_rgEsc(_rgCod(b))+'</div><table class="rgd-mtx"><tr><th>DE \\ A</th>'+UN.map(u=>'<th>'+SH[u]+'</th>').join('')+'</tr>';
+    const cols=UN.concat(['DIR']);
+    let h='<div>'+(cod?('<div class="rgd-mtx-tit">'+_rgEsc(cod)+'</div>'):'')+'<table class="rgd-mtx"><tr><th>DE \\ A</th>'+cols.map(u=>'<th>'+_rgEsc(u==='DIR'?'Dir.':_rgShort(u))+'</th>').join('')+'</tr>';
     filas.forEach(f=>{
-      h+='<tr><th>'+(f==='DIR'?'Dir.':SH[f])+'</th>'+UN.map(u=>{
+      h+='<tr><th>'+_rgEsc(f==='DIR'?'Dir.':_rgShort(f))+'</th>'+cols.map(u=>{
         if(f===u) return '<td class="self">—</td>';
         const n=cnt[f+'>'+u]||0;
         return '<td class="'+(n?'on':'')+'">'+(n||'·')+'</td>';
@@ -14543,13 +14617,15 @@ function _rgdPintarMatriz(rows){
     });
     return h+'</table></div>';
   }
-  const bandos = RGD_BANDO ? [parseInt(RGD_BANDO,10)] : [1,2];
-  cont.innerHTML = '<div class="section-label" style="margin-top:10px">📊 Matriz de flujo de comunicaciones (radiogramas DE → A)</div><div class="rgd-mtx-wrap">'+bandos.map(tabla).join('')+'</div>';
+  const es2C = /^2C-2026$/.test(RGD_EJ);
+  const bandos = es2C ? [1] : (RGD_BANDO ? [parseInt(RGD_BANDO,10)] : [1,2]);
+  const tablas = bandos.map(tabla).filter(Boolean).join('');
+  cont.innerHTML = tablas ? ('<div class="section-label" style="margin-top:10px">📊 Matriz de flujo de comunicaciones (radiogramas DE → A)</div><div class="rgd-mtx-wrap">'+tablas+'</div>') : '';
 }
 function _rgdRow(x){
   const a=x.acuse||{total:0,acusados:0};
   const origen = x.origen_tipo==='direccion' ? 'Dirección' : _rgGrp(x.origen_grupo_id);
-  const bchip = x.bando===1 ? '<span class="rgd-bchip rgd-b1">TERRAN</span>' : '<span class="rgd-bchip rgd-b2">PROTOS</span>';
+  const bchip = _rgdBandoChip(x.bando);
   const num = x.numero_unidad ? ('N° '+String(x.numero_unidad).padStart(2,'0')) : '';
   const anul = x.anulado ? '<span class="rg-badge rg-urg" style="margin-left:6px">ANULADO</span>' : '';
   const completo = a.total && a.acusados===a.total;
@@ -14558,7 +14634,7 @@ function _rgdRow(x){
     + '<div class="rg-route" style="margin-top:4px">'+_rgEsc(num)+' · de '+_rgEsc(origen)+' → '+_rgEsc(x.al_label||_rgGrp(x.origen_grupo_id))+'</div>'
     + '<div class="rg-asunto" style="font-size:13px">'+_rgEsc(x.asunto||x.sistema||'')+'</div>'
     + '<div class="rgd-acuse"><b style="color:'+(completo?'#7fe3b0':'#f4d574')+'">'+a.acusados+'/'+a.total+' acusaron</b>'+(a.lag_prom_seg!=null?(' · lag '+_rgdDur(a.lag_prom_seg)):'')+'</div>'
-    + '<div class="rgd-actions"><button class="rgd-btn" onclick="rgdDetalle(\''+_rgEsc(x.codigo)+'\')">📋 Detalle</button><button class="rgd-btn" onclick="_rgdDescargar(\''+_rgEsc(x.codigo)+'\')">📄 PDF</button>'+((x.anulado || !(typeof esCT==='function'&&esCT()))?'':'<button class="rgd-btn danger" onclick="rgdAnular('+x.id+')">🚫 Anular</button>')+'</div>'
+    + '<div class="rgd-actions"><button class="rgd-btn" onclick="rgdDetalle(\''+_rgEsc(x.codigo)+'\')">📋 Detalle</button><button class="rgd-btn" onclick="_rgdDescargar(\''+_rgEsc(x.codigo)+'\')">📄 PDF</button>'+((x.anulado || RGD_CERRADO || !(typeof esCT==='function'&&esCT()))?'':'<button class="rgd-btn danger" onclick="rgdAnular('+x.id+')">🚫 Anular</button>')+'</div>'
     + '</div>';
 }
 function _rgdDescargar(codigo){ const row=RGD_ROWS[codigo]; if(!row) return; _descargarRadiogramaPdf(_rgDocDeRow(row,'EXPEDIDO'),'RADIOGRAMA_'+codigo); }
@@ -14582,9 +14658,16 @@ function rgdExportar(){
   a.download='LIBRO_RADIOGRAMAS'+(RGD_BANDO?('_B'+RGD_BANDO):'')+'.csv';
   document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(()=>URL.revokeObjectURL(url),4000);
 }
+// opciones de "Fuerza" del modal de la Direccion segun la edicion
+function _rgdFuerzaOpts(){
+  if(/^1C-/.test(RGD_EJ)) return '<option value="1">AZUL</option><option value="2">ROJO</option>';
+  if(/^2C-2026$/.test(RGD_EJ)) return '<option value="1">Comandos Estratégicos Operacionales</option>';
+  return '<option value="1">TERRAN</option><option value="2">PROTOS</option>';
+}
 // Dirección: publicar/transmitir a cualquier unidad
 function rgdTransmitir(){
-  _rgInvoke('grupos').then(r=>{
+  if(RGD_CERRADO){ alert('Este ejercicio está CERRADO (registro de solo lectura).'); return; }
+  _rgInvoke('grupos',{ejercicio_id:RGD_EJ}).then(r=>{
     if(!r.ok){ alert('No se pudieron cargar las unidades: '+(r.error||'')); return; }
     RGD_GRUPOS=r.grupos||[]; _rgdAbrirModal();
   });
@@ -14599,7 +14682,7 @@ function _rgdAbrirModal(){
     <div class="avm-box" onclick="event.stopPropagation()" style="max-height:88vh;overflow:auto">
       <h3>📻 Publicar radiograma (Dirección)</h3>
       <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">La Dirección puede transmitir a cualquier unidad de una fuerza.</div>
-      <div class="field" style="margin-bottom:8px"><label>Fuerza</label><select id="rgd-bando" onchange="_rgdBandoDestinos()"><option value="1">TERRAN</option><option value="2">PROTOS</option></select></div>
+      <div class="field" style="margin-bottom:8px${(/^2C-2026$/.test(RGD_EJ))?';display:none':''}"><label>Fuerza</label><select id="rgd-bando" onchange="_rgdBandoDestinos()">${_rgdFuerzaOpts()}</select></div>
       <div class="field" style="margin-bottom:6px"><label>Destino(s)</label></div>
       <div id="rgd-dest-box" style="border:1px solid var(--border,#2a3a52);border-radius:10px;padding:8px;margin-bottom:6px;display:flex;flex-direction:column;gap:6px"></div>
       <label class="rg-chk" style="margin-bottom:8px"><input type="checkbox" id="rgd-cascada"> incluir subordinados (cascada)</label>
@@ -14621,7 +14704,7 @@ function _rgdAbrirModal(){
 function _rgdBandoDestinos(){
   const b=parseInt(document.getElementById('rgd-bando').value,10);
   const box=document.getElementById('rgd-dest-box');
-  const gs=(RGD_GRUPOS||[]).filter(g=>g.bando===b);
+  const gs=(RGD_GRUPOS||[]).filter(g=>g.bando===b && g.nivel!=='DIRECCION');
   box.innerHTML = gs.map(g=>`<label class="rg-chk"><input type="checkbox" value="${_rgEsc(g.id)}" onchange="_rgdSyncAl()"> ${_rgEsc(_rgUnitLabel(g.id,b))} <span style="color:var(--text-muted)">(${_rgEsc(g.nombre)})</span></label>`).join('');
   _rgdSyncAl();
 }
