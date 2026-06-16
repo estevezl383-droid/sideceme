@@ -3872,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.100 · Matriz de flujo + docs por plana mayor + Dirección sube docs + Multimedia (enlaces)</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.101 · Documentos Institucionales (publica C&T/Cmte/Jefe Estudios → ciclos/profesores/mando)</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4658,6 +4658,12 @@ input::placeholder, textarea::placeholder {
         <span class="mega-icon">📨</span>
         <span>Mis solicitudes enviadas</span>
       </button>
+      <!-- v2.9.101: Documentos Institucionales -->
+      <button class="btn-mega" onclick="goDocsInst('screen-cursante-home')" style="background:linear-gradient(180deg,#6b4ba8,#8c5acb);margin:0 0 10px 0;color:#fff;position:relative">
+        <span class="mega-icon">📁</span>
+        <span>Documentos Institucionales</span>
+        <span id="docsinst-badge" class="hub-badge" style="display:none"></span>
+      </button>
 
 
       <!-- =================== SECCIÓN DISCIPLINA (default visible) =================== -->
@@ -4861,6 +4867,7 @@ input::placeholder, textarea::placeholder {
       <button id="qa-btn-aula-gestion" class="quick-btn" onclick="goAulaGestion()" style="background:linear-gradient(180deg,rgba(140,90,203,.18),rgba(140,90,203,.05));border-color:#8c5acb;display:none"><span class="qa-icon">📚</span><span class="qa-text"><strong>Aula Virtual</strong> (abrir / cerrar materias)</span></button>
       <button id="qa-btn-avisos" class="quick-btn" onclick="goAvisos()" style="background:linear-gradient(180deg,rgba(70,150,110,.2),rgba(70,150,110,.05));border-color:#46966e;display:none"><span class="qa-icon">📢</span><span class="qa-text"><strong>Avisos a cursantes</strong> (publicar / desactivar cartel in-app)</span></button>
       <button class="quick-btn" onclick="goDocsProfesoresCT()" style="background:linear-gradient(180deg,rgba(140,90,203,.18),rgba(140,90,203,.05));border-color:#8c5acb"><span class="qa-icon">👨‍🏫</span><span class="qa-text"><strong>Documentos del personal docente</strong> (subir / ver — solo profesores)</span></button>
+      <button class="quick-btn" onclick="goDocsInst('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(140,90,203,.22),rgba(107,75,168,.06));border-color:#8c5acb"><span class="qa-icon">📁</span><span class="qa-text"><strong>Documentos Institucionales</strong> (publicar / recibir — por ciclo, profesores, mando)</span></button>
       <button class="quick-btn success" data-sac-hide="1" onclick="goRespaldo()"><span class="qa-icon">💾</span><span class="qa-text">Descargar respaldo ahora (JSON + .XLSX)</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goInstalar()"><span class="qa-icon">📲</span><span class="qa-text">Instalar app / Compartir QR</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goAnulaciones()"><span class="qa-icon">📋</span><span class="qa-text">Solicitudes de reconsideración / anulación</span><span id="badge-solicitudes" style="display:none;margin-left:auto;background:#c84a4a;color:#fff;font-size:12px;font-weight:700;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;padding:0 6px">0</span></button>
@@ -5791,6 +5798,39 @@ input::placeholder, textarea::placeholder {
     <button class="btn-primary" onclick="rgdMediaPublicar(this)" style="margin-bottom:14px">📣 Publicar enlace</button>
     <div class="section-label">Publicados</div>
     <div id="rgdd-media-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+  </div>
+</section>
+
+<!-- v2.9.101: DOCUMENTOS INSTITUCIONALES -->
+<section id="screen-docs-inst" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen(_DI_BACK||'screen-cursante-home')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">📁 Documentos Institucionales</div><div class="header-sub" id="docsinst-sub">Material oficial</div></div>
+  </div>
+  <div class="menu-container">
+    <div id="docsinst-publicar" style="display:none">
+      <div class="section-label">📤 Publicar un documento</div>
+      <div class="field" style="margin-bottom:8px"><label>Título</label><input type="text" id="di-titulo" placeholder="Ej: Directiva N° 03 - Examen final" autocomplete="off"></div>
+      <div class="field" style="margin-bottom:8px"><label>Descripción (opcional)</label><textarea id="di-desc" rows="2" placeholder="Breve detalle del documento" style="resize:vertical"></textarea></div>
+      <div class="field" style="margin-bottom:8px"><label>Archivo (PDF o Word)</label><input type="file" id="di-file" accept=".pdf,.doc,.docx"></div>
+      <div class="field" style="margin-bottom:6px"><label>¿Para quién? (uno o varios)</label></div>
+      <div id="di-destinos" style="display:flex;flex-direction:column;gap:7px;border:1px solid var(--border,#2a3a52);border-radius:10px;padding:10px;margin-bottom:10px">
+        <label class="rg-chk"><input type="checkbox" value="1er_ciclo"> 🎓 1er Ciclo</label>
+        <label class="rg-chk"><input type="checkbox" value="2do_ciclo"> 🎓 2do Ciclo</label>
+        <label class="rg-chk"><input type="checkbox" value="profesores"> 👨‍🏫 Profesores</label>
+        <label class="rg-chk"><input type="checkbox" value="comandante"> 🎖️ Comandante</label>
+        <label class="rg-chk"><input type="checkbox" value="jefe_estudios"> 📚 Jefe de Estudios</label>
+        <label class="rg-chk"><input type="checkbox" value="otros"> 🗂️ Otros (personal)</label>
+      </div>
+      <div id="di-progreso" style="font-size:12px;color:var(--text-muted);min-height:16px;margin-bottom:6px"></div>
+      <button class="btn-primary" id="di-btn-publicar" onclick="docsInstPublicar(this)" style="margin-bottom:16px">📣 Publicar documento</button>
+      <div class="section-label">🗂️ Publicados</div>
+      <div id="docsinst-admin-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+    </div>
+    <div id="docsinst-inbox" style="display:none">
+      <div id="docsinst-inbox-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+    </div>
   </div>
 </section>
 
@@ -9097,6 +9137,7 @@ function calcularPosicionCiclo(){
 
 async function renderCursanteHome(){
   if(!currentUser) return;
+  try{ cargarDocsInstBadge(); }catch(e){}
   // v2.9.60: precarga libs pesadas en background tras el login (no bloqueante)
   try{ _warmupLibs(); }catch(e){}
   // === DEFENSA DE SEGURIDAD ===
@@ -13637,6 +13678,122 @@ async function goDocsProfesoresCT(){
   if(!esCT()){ goAulaProfesores(); return; }  // no-CT: cae a lectura
   await cargarMateriasAula(true);              // asegura la materia-contenedor en caché
   goAulaDocsGestion(AULA_MATERIA_PROFESORES);
+}
+
+/* ===== v2.9.101: DOCUMENTOS INSTITUCIONALES ===== */
+let _DI_BACK='screen-cursante-home';
+const DI_PUBLICAN=['ciencia_tecnologia','comandante','estudios'];
+const DI_DEST_LABEL={'1er_ciclo':'1er Ciclo','2do_ciclo':'2do Ciclo','profesores':'Profesores','comandante':'Comandante','jefe_estudios':'Jefe de Estudios','otros':'Otros'};
+function _diPuedePublicar(){ const ses=getSession(); return !!(ses && ses.tipo==='docente' && DI_PUBLICAN.includes(activeRole)); }
+function _diDocIcono(nombre,mime){ const n=(nombre||'').toLowerCase(); if(/\.pdf$/.test(n)||/pdf/.test(mime||'')) return '📕'; if(/\.docx?$/.test(n)||/word|msword|officedocument/.test(mime||'')) return '📘'; return '📄'; }
+function _diKb(b){ if(b==null) return ''; const kb=b/1024; return kb<1024?(Math.round(kb)+' KB'):((kb/1024).toFixed(1)+' MB'); }
+async function _diInvoke(accion, extra){
+  const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
+  if(!tok) return {ok:false,error:'sin sesión'};
+  try{
+    const { data, error } = await sb.functions.invoke('docs-institucionales',{ body:Object.assign({accion, token:tok}, extra||{}) });
+    if(error) return {ok:false,error:(error.message||'error')};
+    return data||{ok:false,error:'sin respuesta'};
+  }catch(e){ return {ok:false,error:String((e&&e.message)||e)}; }
+}
+async function goDocsInst(fromScreen){
+  _DI_BACK = fromScreen || 'screen-cursante-home';
+  showScreen('screen-docs-inst');
+  const pub=_diPuedePublicar();
+  document.getElementById('docsinst-publicar').style.display = pub?'':'none';
+  document.getElementById('docsinst-inbox').style.display = pub?'none':'';
+  document.getElementById('docsinst-sub').textContent = pub?'Publicar y gestionar':'Material oficial para vos';
+  if(pub) await docsInstCargarAdmin(); else await docsInstCargarInbox();
+}
+function _diCard(d, admin){
+  const dest=(d.destinos||[]).map(x=>'<span class="rg-badge rg-rut" style="margin-right:4px">'+_rgEsc(DI_DEST_LABEL[x]||x)+'</span>').join('');
+  return '<div class="rg-card">'
+    +'<div class="rg-card-top"><span style="font-size:20px">'+_diDocIcono(d.nombre_archivo,d.mime)+'</span>'
+    +'<span class="rg-meta" style="margin-left:auto">'+_rgEsc(_rgHora(d.creado_en))+'</span></div>'
+    +'<div class="rg-asunto" style="font-size:14px">'+_rgEsc(d.titulo||'Documento')+'</div>'
+    +(d.descripcion?('<div class="rg-route" style="margin:2px 0 4px">'+_rgEsc(d.descripcion)+'</div>'):'')
+    +'<div style="margin:4px 0">'+dest+'</div>'
+    +'<div class="rg-meta">'+(d.publicado_por_nombre?('publicó: '+_rgEsc(d.publicado_por_nombre)):'')+(d.size_bytes?(' · '+_diKb(d.size_bytes)):'')+'</div>'
+    +'<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'
+    +'<button class="rg-doc" onclick="docsInstVer('+d.id+', this)">⬇ Ver / descargar</button>'
+    +(admin?('<button class="rg-doc" style="border-color:#7a2230;color:#ffc9c9;background:rgba(122,34,48,.12)" onclick="docsInstEliminar('+d.id+')">🗑 Eliminar</button>'):'')
+    +'</div></div>';
+}
+async function docsInstCargarInbox(){
+  const cont=document.getElementById('docsinst-inbox-lista');
+  if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const r=await _diInvoke('listar');
+  if(!r.ok){ if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No se pudo cargar.</div>'; return; }
+  const items=r.documentos||[];
+  _diMarcarVisto(items);
+  if(cont) cont.innerHTML = items.length ? items.map(d=>_diCard(d,false)).join('') : '<div class="rg-card" style="text-align:center;color:var(--text-muted);padding:22px">📭 No hay documentos para vos por ahora.</div>';
+}
+async function docsInstCargarAdmin(){
+  const cont=document.getElementById('docsinst-admin-lista');
+  if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const r=await _diInvoke('listar_admin');
+  if(!r.ok){ if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No se pudo cargar.</div>'; return; }
+  const items=r.documentos||[];
+  if(cont) cont.innerHTML = items.length ? items.map(d=>_diCard(d,true)).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">Aún no publicaste documentos.</div>';
+}
+async function docsInstPublicar(btn){
+  const titulo=(document.getElementById('di-titulo').value||'').trim();
+  const desc=(document.getElementById('di-desc').value||'').trim();
+  const inp=document.getElementById('di-file');
+  const file=inp&&inp.files&&inp.files[0];
+  const destinos=[...document.querySelectorAll('#di-destinos input:checked')].map(c=>c.value);
+  const prog=document.getElementById('di-progreso');
+  if(!titulo){ alert('Poné un título.'); return; }
+  if(!file){ alert('Elegí un archivo PDF o Word.'); return; }
+  if(!/\.(pdf|doc|docx)$/i.test(file.name)){ alert('Solo PDF o Word (.pdf, .doc, .docx).'); return; }
+  if(file.size>25*1024*1024){ alert('El archivo supera 25 MB.'); return; }
+  if(!destinos.length){ alert('Elegí al menos un destino.'); return; }
+  if(btn){ btn.disabled=true; }
+  try{
+    prog.textContent='① Pidiendo permiso de subida…';
+    const up=await _diInvoke('upload_url',{filename:file.name});
+    if(!up.ok) throw new Error(up.error||'no se obtuvo URL de subida');
+    prog.textContent='② Subiendo archivo…';
+    const u=await sb.storage.from('documentos-academicos').uploadToSignedUrl(up.path, up.token, file);
+    if(u.error) throw new Error(u.error.message||'falló la subida');
+    prog.textContent='③ Publicando…';
+    const reg=await _diInvoke('publicar',{ titulo, descripcion:desc, destinos, storage_path:up.path, nombre_archivo:file.name, mime:file.type, size_bytes:file.size });
+    if(!reg.ok) throw new Error(reg.error||'no se pudo publicar');
+    prog.textContent='✅ Publicado a '+(reg.destinatarios||destinos.length)+' destino(s).';
+    document.getElementById('di-titulo').value=''; document.getElementById('di-desc').value=''; inp.value='';
+    document.querySelectorAll('#di-destinos input:checked').forEach(c=>c.checked=false);
+    await docsInstCargarAdmin();
+  }catch(e){ prog.textContent='⚠️ '+(e.message||e); alert('No se pudo publicar: '+(e.message||e)); }
+  finally{ if(btn) btn.disabled=false; }
+}
+async function docsInstVer(id, btn){
+  if(btn){ btn.disabled=true; var t=btn.textContent; btn.textContent='⏳ Abriendo…'; }
+  const r=await _diInvoke('ver',{doc_id:id});
+  if(btn){ btn.disabled=false; btn.textContent=t; }
+  if(!r.ok||!r.url){ alert('No se pudo abrir: '+(r.error||'')); return; }
+  try{ window.open(r.url,'_blank'); }catch(e){ location.href=r.url; }
+}
+async function docsInstEliminar(id){
+  if(!confirm('¿Eliminar este documento? Deja de verse para los destinatarios.')) return;
+  const r=await _diInvoke('eliminar',{doc_id:id});
+  if(!r.ok){ alert('No se pudo eliminar: '+(r.error||'')); return; }
+  await docsInstCargarAdmin();
+}
+async function cargarDocsInstBadge(){
+  try{
+    const ses=getSession(); if(!ses||ses.tipo!=='cursante') return;
+    const r=await _diInvoke('listar'); if(!r.ok) return;
+    const items=r.documentos||[];
+    const seen=_diSeenMax();
+    const nuevos=items.filter(d=>Number(d.id)>seen).length;
+    _rgSetBadge('docsinst-badge', nuevos);
+  }catch(e){}
+}
+function _diSeenKey(){ return 'sideceme_docsinst_seen_'+((currentUser&&currentUser.id)||'x'); }
+function _diSeenMax(){ try{ return parseInt(localStorage.getItem(_diSeenKey())||'0',10)||0; }catch(e){ return 0; } }
+function _diMarcarVisto(items){
+  try{ const mx=items.reduce((a,d)=>Math.max(a,Number(d.id)||0),0); if(mx) localStorage.setItem(_diSeenKey(),String(mx)); }catch(e){}
+  _rgSetBadge('docsinst-badge',0);
 }
 
 /* ===== v2.9.90: RADIOGRAMAS (juego de guerra VENCER O MORIR) — vista del cursante ===== */
