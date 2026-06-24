@@ -3872,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.102 · Radiogramas reorg: ediciones (1er/2do ciclo), 8 CEO + 12 Divisiones, ejercicio viejo CERRADO (registro)</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.103 · Reporte 3: Planilla por paralelo (Word/PDF/Excel) con DESDE/HASTA/FIRMA, una por paralelo en orden alfabético</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5391,6 +5391,21 @@ input::placeholder, textarea::placeholder {
         <button class="rc-btn rc-btn-word"  onclick="descargarPlanilla('word')">📝 Word</button>
         <button class="rc-btn rc-btn-pdf"   onclick="descargarPlanilla('pdf')">📄 PDF</button>
         <button class="rc-btn rc-btn-excel" onclick="descargarPlanilla('excel')">📊 Excel</button>
+      </div>
+    </div>
+
+    <!-- Reporte 3: Planilla por PARALELO (formato DESDE/HASTA/FIRMA) — v2.9.102 -->
+    <div class="reporte-card">
+      <div class="rc-title">🎖️ 3. Planilla por paralelo (con firma)</div>
+      <div class="rc-desc">Una planilla por cada paralelo (A, B, C…), en orden alfabético. Columnas: N°, grado y nombre, DESDE, HASTA, puntaje perdido, nota final y FIRMA. Elegí "Todos los paralelos" para generar las 3 de un ciclo (o las 6) en un solo archivo, cada una en su hoja/página.</div>
+      <div class="rc-filters">
+        <select id="rep-parPlan-ciclo"></select>
+        <select id="rep-parPlan-paralelo"></select>
+      </div>
+      <div class="rc-buttons">
+        <button class="rc-btn rc-btn-word"  onclick="descargarPlanillaParalelo('word')">📝 Word</button>
+        <button class="rc-btn rc-btn-pdf"   onclick="descargarPlanillaParalelo('pdf')">📄 PDF</button>
+        <button class="rc-btn rc-btn-excel" onclick="descargarPlanillaParalelo('excel')">📊 Excel</button>
       </div>
     </div>
 
@@ -12010,6 +12025,20 @@ function poblarSelectsReportes(){
   if(selCicloM && ciclos.length) selCicloM.value = ciclos[0];
   if(selCicloP && ciclos.length) selCicloP.value = ciclos[0];
 
+  // v2.9.102: selects del Reporte 3 (planilla por paralelo)
+  const selCicloPP = document.getElementById('rep-parPlan-ciclo');
+  if(selCicloPP){
+    selCicloPP.innerHTML = cicloOpts;
+    if(ciclos.length) selCicloPP.value = ciclos[0];
+  }
+  const selParaPP = document.getElementById('rep-parPlan-paralelo');
+  if(selParaPP){
+    const paralelos = [...new Set(discData.cursantes.map(c => c.paralelo).filter(Boolean))]
+      .sort((a,b) => String(a).localeCompare(String(b), 'es'));
+    selParaPP.innerHTML = '<option value="todos">Todos los paralelos</option>'
+      + paralelos.map(p => `<option value="${escapeAttr(p)}">Paralelo "${escapeHtml(p)}"</option>`).join('');
+  }
+
   // Meses: "A LA FECHA" arriba + 12 meses
   const mesActual = new Date().getMonth();
   const mesOpts = '<option value="acumulado">A la fecha (acumulado del año)</option>'
@@ -12888,6 +12917,180 @@ async function descargarPlanilla(formato){
   } catch(e){
     console.error('Error generando planilla:', e);
     alert('Hubo un error generando la planilla: '+(e.message||e));
+  }
+}
+
+/* ===== v2.9.102: PLANILLA POR PARALELO (DESDE/HASTA/FIRMA) ===== */
+// Agrupa cursantes activos en (ciclo, paralelo), ordenados alfabéticamente por apellido,
+// y devuelve los grupos ordenados (1er ciclo antes que 2do, y paralelos A,B,C…).
+function _gruposPlanillaParalelo(cicloSel, paraSel){
+  const cur = discData.cursantes
+    .filter(c => c.activo !== false)
+    .filter(c => cicloSel === 'todos' || c.ciclo === cicloSel)
+    .filter(c => paraSel === 'todos' || (c.paralelo || '') === paraSel);
+  const map = new Map();
+  cur.forEach(c => {
+    const key = (c.ciclo || '—') + '||' + (c.paralelo || '');
+    if(!map.has(key)) map.set(key, { ciclo: c.ciclo || '', paralelo: c.paralelo || '', items: [] });
+    map.get(key).items.push(c);
+  });
+  const groups = [...map.values()];
+  groups.forEach(g => g.items.sort((a,b) => claveApellido(a).localeCompare(claveApellido(b), 'es')));
+  const rankCiclo = c => {
+    const u = String(c || '').toUpperCase();
+    if(/1|PRIMER/.test(u)) return 1;
+    if(/2|SEGUNDO/.test(u)) return 2;
+    return 9;
+  };
+  groups.sort((a,b) => {
+    const na = rankCiclo(a.ciclo), nb = rankCiclo(b.ciclo);
+    if(na !== nb) return na - nb;
+    return String(a.paralelo).localeCompare(String(b.paralelo), 'es');
+  });
+  return groups;
+}
+
+function htmlCuerpoPlanillaParalelo(cicloSel, paraSel){
+  const groups = _gruposPlanillaParalelo(cicloSel, paraSel);
+  const hoy   = new Date();
+  const dia   = hoy.getDate();
+  const mesH  = MESES_ESPANOL[hoy.getMonth()];
+  const yearH = hoy.getFullYear();
+  const desde = `01-${MESES_CORTO[0]}-${String(yearH).slice(-2)}`;  // 01-ENE-AA (inicio de gestión)
+  const hasta = fechaCortaReporte(hoy);                            // DD-MMM-AA (al día de hoy)
+
+  if(!groups.length){
+    return `${htmlEncabezadoReporte('portrait')}
+      <h1 class="titulo-rep">PLANILLA DE CALIFICACIONES ACUMULATIVA DEL ÁREA DE DISCIPLINA DE LOS OO.SUP.CC.</h1>
+      <p class="empty-row" style="text-align:center;font-style:italic;padding:30pt 0">Sin cursantes para el filtro seleccionado.</p>`;
+  }
+
+  return groups.map((g, gi) => {
+    const cicloDisp = formatCicloMayuscula(g.ciclo);
+    const paraDisp  = g.paralelo ? `, PARALELO "${escapeHtml(g.paralelo)}"` : '';
+    const filas = g.items.map((c,i) => {
+      const perd = Number(discData.byCursanteLost[c.id] || 0);
+      const nota = 100 - perd * 0.58;
+      return `<tr>
+        <td class="num">${i+1}</td>
+        <td class="left">${escapeHtml(gradoApellidosNombres(c))}</td>
+        <td class="num">${desde}</td>
+        <td class="num">${hasta}</td>
+        <td class="num">${perd}</td>
+        <td class="num">${nota.toFixed(4)}</td>
+        <td class="ctr"></td>
+      </tr>`;
+    }).join('');
+    const pageBreak = gi > 0 ? ' style="page-break-before:always"' : '';
+    return `<div${pageBreak}>
+      ${htmlEncabezadoReporte('portrait')}
+      <h1 class="titulo-rep">PLANILLA DE CALIFICACIONES ACUMULATIVA DEL ÁREA DE DISCIPLINA DE LOS OO.SUP.CC.</h1>
+      <h2 class="subtitulo-rep">${escapeHtml(cicloDisp)}${paraDisp} — ${dia} ${mesH} DE ${yearH}</h2>
+      <table class="main-table">
+        <thead>
+          <tr>
+            <th style="width:5%">N°</th>
+            <th style="width:40%">GRADO, APELLIDOS Y NOMBRES</th>
+            <th style="width:11%">DESDE</th>
+            <th style="width:11%">HASTA</th>
+            <th style="width:11%">PUNTAJE PERDIDO</th>
+            <th style="width:11%">NOTA FINAL</th>
+            <th style="width:11%">FIRMA</th>
+          </tr>
+        </thead>
+        <tbody>${filas}</tbody>
+      </table>
+      ${htmlFirmasReporte()}
+    </div>`;
+  }).join('');
+}
+
+function exportarExcelPlanillaParalelo(cicloSel, paraSel, filename){
+  if(typeof XLSX === 'undefined'){ alert('La librería de Excel no cargó.'); return false; }
+  const groups = _gruposPlanillaParalelo(cicloSel, paraSel);
+  if(!groups.length){ alert('Sin cursantes para el filtro seleccionado.'); return false; }
+  const hoy     = new Date();
+  const desde   = `01-${MESES_CORTO[0]}-${String(hoy.getFullYear()).slice(-2)}`;
+  const hasta   = fechaCortaReporte(hoy);
+  const fechaTxt = `${hoy.getDate()} ${MESES_ESPANOL[hoy.getMonth()]} DE ${hoy.getFullYear()}`;
+
+  const wb = XLSX.utils.book_new();
+  const usados = new Set();
+  groups.forEach(g => {
+    const cicloDisp = formatCicloMayuscula(g.ciclo);
+    const paraDisp  = g.paralelo ? `, PARALELO "${g.paralelo}"` : '';
+    const aoa = [
+      ['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES'],
+      ['ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO "MCAL. ANDRÉS DE SANTA CRUZ" — BOLIVIA'],
+      ['Sistema Informático de Disciplina  ·  Fecha Emisión: ' + hoy.toLocaleDateString('es-BO')],
+      [],
+      ['PLANILLA DE CALIFICACIONES ACUMULATIVA — ' + cicloDisp + paraDisp + ' — ' + fechaTxt],
+      [],
+      ['N°','GRADO, APELLIDOS Y NOMBRES','DESDE','HASTA','PUNTAJE PERDIDO','NOTA FINAL','FIRMA']
+    ];
+    g.items.forEach((c,i) => {
+      const perd = Number(discData.byCursanteLost[c.id] || 0);
+      const nota = 100 - perd * 0.58;
+      aoa.push([i+1, gradoApellidosNombres(c), desde, hasta, perd, Number(nota.toFixed(4)), '']);
+    });
+    // Firmas (3 filas según modelo)
+    aoa.push([]); aoa.push([]);
+    aoa.push(['', FIRMA_JEFE_DISCIPLINA.nombre, '', '', FIRMA_JEFE_SAC.nombre, '', '']);
+    aoa.push(['', FIRMA_JEFE_DISCIPLINA.cargo,  '', '', FIRMA_JEFE_SAC.cargo,  '', '']);
+    aoa.push([]); aoa.push([]);
+    aoa.push(['', '', FIRMA_JEFE_ESTUDIOS.nombre, '', '', '', '']);
+    aoa.push(['', '', FIRMA_JEFE_ESTUDIOS.cargo,  '', '', '', '']);
+    aoa.push([]); aoa.push([]);
+    aoa.push(['', '', FIRMA_COMANDANTE.nombre, '', '', '', '']);
+    aoa.push(['', '', FIRMA_COMANDANTE.cargo,  '', '', '', '']);
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{wch:5},{wch:46},{wch:12},{wch:12},{wch:16},{wch:12},{wch:18}];
+    ws['!merges'] = [
+      {s:{r:0,c:0},e:{r:0,c:6}},
+      {s:{r:1,c:0},e:{r:1,c:6}},
+      {s:{r:2,c:0},e:{r:2,c:6}},
+      {s:{r:4,c:0},e:{r:4,c:6}}
+    ];
+    // Nombre de hoja: único y ≤31 chars, sin caracteres prohibidos
+    const cicloAbrev = cicloDisp.replace('PRIMER CICLO','1er').replace('SEGUNDO CICLO','2do');
+    let nm = (cicloAbrev + ' ' + (g.paralelo || '-')).replace(/[\\\/\?\*\[\]:]/g,'').slice(0,28);
+    let base = nm, k = 2;
+    while(usados.has(nm)){ nm = (base + ' ' + k).slice(0,31); k++; }
+    usados.add(nm);
+    XLSX.utils.book_append_sheet(wb, ws, nm);
+  });
+  XLSX.writeFile(wb, filename + '.xlsx');
+  return true;
+}
+
+async function descargarPlanillaParalelo(formato){
+  if(!discData.loaded){
+    try{ await loadDiscData(); } catch(e){ alert('No se pudieron cargar los datos: '+(e.message||e)); return; }
+  }
+  const selC = document.getElementById('rep-parPlan-ciclo');
+  const selP = document.getElementById('rep-parPlan-paralelo');
+  if(!selC || !selP){ alert('No se encontraron los filtros de la planilla por paralelo.'); return; }
+  const ciclo = selC.value;
+  const para  = selP.value;
+  const cFile = ciclo === 'todos' ? 'todos' : String(ciclo).replace(/\s+/g,'').replace(/"/g,'');
+  const pFile = para === 'todos' ? 'todosParalelos' : ('Paralelo' + String(para).replace(/[^a-zA-Z0-9]/g,''));
+  const today = new Date().toISOString().slice(0,10);
+  const filename = `PlanillaParalelo_${cFile}_${pFile}_${today}`;
+
+  try{
+    if(formato === 'word'){
+      exportarComoWord(htmlCuerpoPlanillaParalelo(ciclo, para), filename, 'portrait');
+    } else if(formato === 'pdf'){
+      exportarComoPDF(htmlCuerpoPlanillaParalelo(ciclo, para), filename, 'portrait');
+    } else if(formato === 'excel'){
+      exportarExcelPlanillaParalelo(ciclo, para, filename);
+    } else {
+      alert('Formato desconocido: '+formato);
+    }
+  } catch(e){
+    console.error('Error generando planilla por paralelo:', e);
+    alert('Hubo un error generando la planilla por paralelo: '+(e.message||e));
   }
 }
 
