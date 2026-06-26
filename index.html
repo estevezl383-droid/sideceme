@@ -3872,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.106 · Cierre de semestre MOVIDO al panel principal (no en Reportes); clic en alumno = detalle completo + imprimir su reporte de disciplina (Word/PDF)</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.107 · Alumno: vista por semestre (1ER–4TO), semestral grande + anual chico; cada pestaña = sus tarjetas Disciplina/EFM/Notas/Mérito + sanciones + descarga</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4599,14 +4599,21 @@ input::placeholder, textarea::placeholder {
       <!-- Aviso de pendientes (sanción sin firmar) -->
       <div id="cur-pendientes-banner" style="margin:0 0 4px"></div>
 
-      <!-- Círculo grande con nota disciplinaria -->
+      <!-- Círculo grande con nota disciplinaria (SEMESTRAL del semestre en curso) -->
       <div class="nota-circle-wrap">
         <div class="nota-circle" id="cur-nota-circle">
           <div class="nc-num" id="cur-nota-num">—</div>
           <div class="nc-sub">sobre 100</div>
         </div>
         <div class="nota-status" id="cur-nota-status">—</div>
+        <div id="cur-sem-titulo" style="text-align:center;font-size:12px;color:#8a6f17;font-weight:700;letter-spacing:.5px;margin-top:2px"></div>
+        <!-- anual CHICO, siempre visible -->
+        <div id="cur-anual-mini" style="text-align:center;font-size:12px;color:#7a5a10;margin-top:6px"></div>
       </div>
+
+      <!-- v2.9.107: PESTAÑAS POR SEMESTRE -->
+      <div id="cur-sem-tabs" style="display:flex;gap:6px;margin:14px 0 10px 0"></div>
+      <div id="cur-sem-panel"></div>
 
       <!-- 4 CUADROS NAVEGABLES: DISCIPLINA / EFM / NOTAS ACADÉMICAS / ORDEN DE MÉRITO -->
       <div class="cur-areas-grid">
@@ -9212,10 +9219,100 @@ function calcularPosicionCiclo(){
   return { miPts, N, puesto, mejorQuePct, impecables, pctImpecables };
 }
 
+/* ===== v2.9.107: VISTA POR SEMESTRE (alumno) ===== */
+let _CUR_SEM_DATA = null, CUR_SEM_SEL = null;
+function _absSemDe(ciclo, semestre){ return (/2|segund/i.test(String(ciclo||''))?2:0) + (Number(semestre)||0); }
+function _ordWord(n){ return ({1:'1ER',2:'2DO',3:'3ER',4:'4TO',5:'5TO',6:'6TO'}[Number(n)]||(n+'°')); }
+function _absDeLabel(label){ const k=String(label||'').trim().slice(0,3).toUpperCase(); return ({'1ER':1,'2DO':2,'3ER':3,'4TO':4}[k])||0; }
+
+async function renderSemestresCursante(){
+  const tabsEl = document.getElementById('cur-sem-tabs'); if(!tabsEl || !currentUser) return;
+  const gestion = new Date().getFullYear();
+  const base = /2|segund/i.test(String(currentUser.ciclo||'')) ? 2 : 0;
+  let mr=null, acad=[], efm=[];
+  try{ const r=await _csInvoke('mi_resumen'); if(r&&r.ok) mr=r; }catch(e){}
+  try{ acad=(await cargarNotasAcademicas())||[]; }catch(e){}
+  try{ const {data}=await sb.from('evaluaciones_fisicas').select('*').eq('cursante_id',currentUser.id); efm=data||[]; }catch(e){}
+  const cierres = (mr&&mr.cierres)||[];
+  const cierresGestion = cierres.filter(c=>Number(c.gestion)===gestion);
+  const active = base + (cierresGestion.length + 1);
+  const porSem = {}; for(let n=1;n<=4;n++) porSem[n]={status:'sin', disc:null, efm:null, notas:null, om:null};
+  // Disciplina CERRADA (snapshot)
+  cierres.forEach(c=>{ const a=_absDeLabel(c.semestre_label); if(porSem[a]){ porSem[a].disc={nota:c.nota_semestre, perdido:c.perdido_semestre, sanciones:c.sanciones||[], label:c.semestre_label, fecha:c.fecha_cierre, cerrado:true}; porSem[a].status='cerrado'; } });
+  // Disciplina ACTIVA (en curso)
+  if(porSem[active]){ const sv=(mr&&mr.semestre_vigente)||{}; porSem[active].disc={nota:(sv.nota_semestre!=null?sv.nota_semestre:100), perdido:(sv.perdido_semestre||0), sanciones:(sv.sanciones||[]), label:_ordWord(active)+' SEMESTRE '+gestion, cerrado:false}; porSem[active].status='activo'; }
+  // EFM por semestre absoluto
+  efm.forEach(e=>{ const a=_absSemDe(e.ciclo,e.semestre); if(porSem[a]){ const isCal=String(e.tipo_evaluacion||'').toUpperCase()==='CALIFICA'; const prev=porSem[a].efm; if(!prev || (isCal&&!prev._cal)) porSem[a].efm={nota:e.nota_final, tipo:e.tipo_evaluacion, _cal:isCal}; if(porSem[a].status==='sin') porSem[a].status='datos'; } });
+  // Notas + Orden de mérito por semestre absoluto
+  acad.forEach(n0=>{ const a=_absSemDe(n0.ciclo,n0.semestre); if(porSem[a]){ if(n0.promedio_general!=null && porSem[a].notas==null) porSem[a].notas=Number(n0.promedio_general); if(n0.om_general!=null && porSem[a].om==null) porSem[a].om=n0.om_general; if(porSem[a].status==='sin') porSem[a].status='datos'; } });
+  _CUR_SEM_DATA = { gestion, base, active, porSem };
+  // Título del semestre en curso (bajo el círculo) + anual chico
+  const titEl=document.getElementById('cur-sem-titulo'); if(titEl) titEl.textContent = _ordWord(active)+' SEMESTRE '+gestion+' · EN CURSO';
+  const miniEl=document.getElementById('cur-anual-mini');
+  if(miniEl){ const sv=(mr&&mr.semestre_vigente)||{}; const pa=sv.perdido_anual||0; const na=(sv.nota_anual!=null?Number(sv.nota_anual).toFixed(2):'100'); miniEl.innerHTML=`📅 <strong>Anual ${gestion}: −${pa} pts</strong> · nota ${na} <span style="opacity:.7">(acumulado del año · sin valor académico)</span>`; }
+  if(!CUR_SEM_SEL || !porSem[CUR_SEM_SEL] || porSem[CUR_SEM_SEL].status==='sin') CUR_SEM_SEL = active;
+  _renderSemTabs(); _renderSemPanel();
+}
+function _renderSemTabs(){
+  const el=document.getElementById('cur-sem-tabs'); if(!el||!_CUR_SEM_DATA) return;
+  el.innerHTML=[1,2,3,4].map(n=>{
+    const d=_CUR_SEM_DATA.porSem[n]; const isActive=(n===_CUR_SEM_DATA.active); const has=(d.status!=='sin'); const sel=(CUR_SEM_SEL===n);
+    const bg=isActive?'linear-gradient(180deg,#b3601a,#d4af37)':(sel?'rgba(212,175,55,.30)':'rgba(0,0,0,.16)');
+    const col=isActive?'#1a1205':'#5c4a1a';
+    const bd=(sel||isActive)?'#9a7b1f':'rgba(154,123,31,.3)';
+    const sub=isActive?'EN CURSO':(d.status==='cerrado'?'cerrado':(has?'ver':'sin datos'));
+    return `<button onclick="seleccionarSemestreCursante(${n})" style="flex:1;border:2px solid ${bd};border-radius:10px;padding:7px 3px;background:${bg};color:${col};font-weight:800;font-size:12px;opacity:${has?'1':'.5'};cursor:pointer;line-height:1.25">${_ordWord(n)}<br><span style="font-size:8.5px;font-weight:600;letter-spacing:.3px">${sub}</span></button>`;
+  }).join('');
+}
+function seleccionarSemestreCursante(n){ CUR_SEM_SEL=Number(n); _renderSemTabs(); _renderSemPanel(); }
+function _renderSemPanel(){
+  const cont=document.getElementById('cur-sem-panel'); if(!cont||!_CUR_SEM_DATA) return;
+  const n=CUR_SEM_SEL, d=_CUR_SEM_DATA.porSem[n];
+  const discNota=d.disc?Number(d.disc.nota).toFixed(2):'—';
+  const discPts=d.disc?('−'+d.disc.perdido):'—';
+  const efm=(d.efm&&d.efm.nota!=null)?Number(d.efm.nota).toFixed(1):'—';
+  const notas=(d.notas!=null)?Number(d.notas).toFixed(2):'—';
+  const om=(d.om!=null)?('#'+d.om):'—';
+  const titulo=_ordWord(n)+' SEMESTRE '+_CUR_SEM_DATA.gestion+(n===_CUR_SEM_DATA.active?' · EN CURSO':(d.disc&&d.disc.cerrado?' · CERRADO':''));
+  const cards=`<div class="cur-areas-grid">
+    <div class="cur-area-card"><div class="ca-icon">⭐</div><div class="ca-title">Disciplina</div><div class="ca-value">${discNota}</div><div class="ca-sub">${discPts} pts</div></div>
+    <div class="cur-area-card"><div class="ca-icon">🏃</div><div class="ca-title">EFM</div><div class="ca-value">${efm}</div><div class="ca-sub">${d.efm?escapeHtml(d.efm.tipo||'—'):'—'}</div></div>
+    <div class="cur-area-card"><div class="ca-icon">📚</div><div class="ca-title">Notas</div><div class="ca-value">${notas}</div><div class="ca-sub">Promedio</div></div>
+    <div class="cur-area-card"><div class="ca-icon">🏆</div><div class="ca-title">Orden de Mérito</div><div class="ca-value">${om}</div><div class="ca-sub">Posición</div></div>
+  </div>`;
+  let det='';
+  if(d.disc){
+    const sancs=(d.disc.sanciones||[]).slice().sort((a,b)=> new Date(a.fecha||0)-new Date(b.fecha||0));
+    const filas=sancs.map((s,i)=>{ const fs=s.fecha?fechaCortaReporte(new Date(s.fecha)):'—'; const falta=[s.categoria,s.articulo].filter(Boolean).join(' · '); return `<div class="list-item"><div class="li-id">${i+1}</div><div class="li-name">${escapeHtml(falta||'Sanción')}${s.descripcion?('<br><span style="font-size:11px;opacity:.85">'+escapeHtml(s.descripcion)+'</span>'):''}<br><span class="li-ci">${escapeHtml(fs)} · −${s.puntos||0} pts${s.autoridad?(' · sancionó: '+escapeHtml(s.autoridad)):''}</span></div></div>`; }).join('');
+    det=`<div style="margin-top:14px"><div class="mss-title" style="color:#5c4a1a;margin-bottom:6px">📋 Mis sanciones · ${escapeHtml(_ordWord(n))} semestre</div>${sancs.length?filas:'<div class="list-empty">Sin sanciones en este semestre. ✅</div>'}`;
+    det+=`<div style="display:flex;gap:8px;margin-top:10px"><button class="rc-btn rc-btn-word" style="flex:1" onclick="descargarMiDetalleSem(${n},'word')">📝 Descargar detalle (Word)</button><button class="rc-btn rc-btn-pdf" style="flex:1" onclick="descargarMiDetalleSem(${n},'pdf')">📄 PDF</button></div></div>`;
+  } else {
+    det='<div class="list-empty" style="margin-top:14px">Sin registro de disciplina de este semestre.</div>';
+  }
+  cont.innerHTML=`<div style="font-size:13px;font-weight:800;color:#5c4a1a;margin:2px 0 8px">${escapeHtml(titulo)}</div>`+cards+det;
+}
+function descargarMiDetalleSem(n, formato){
+  if(!_CUR_SEM_DATA) return;
+  const d=_CUR_SEM_DATA.porSem[n]; if(!d||!d.disc){ alert('Sin datos de ese semestre.'); return; }
+  const sancs=(d.disc.sanciones||[]).slice().sort((a,b)=> new Date(a.fecha||0)-new Date(b.fecha||0));
+  const label=d.disc.label||(_ordWord(n)+' SEMESTRE '+_CUR_SEM_DATA.gestion);
+  const filas=sancs.map((s,i)=>{ const fs=s.fecha?fechaCortaReporte(new Date(s.fecha)):'—'; const falta=[s.categoria,s.articulo,s.numeral].filter(Boolean).join(' · '); const obs=[s.observaciones,s.observaciones_cursante].filter(Boolean).join(' / '); return `<tr><td class="num">${i+1}</td><td class="num">${escapeHtml(fs)}</td><td class="left">${escapeHtml(falta||'—')}${s.descripcion?(' — '+escapeHtml(s.descripcion)):''}${obs?('<br><i>'+escapeHtml(obs)+'</i>'):''}</td><td class="num">−${s.puntos||0}</td><td class="left">${escapeHtml(s.autoridad||'—')}</td></tr>`; }).join('') || '<tr class="empty-row"><td colspan="5">Sin sanciones en este semestre.</td></tr>';
+  const nombre=nombreConGrado(currentUser)||(currentUser.nombre_completo||'');
+  const cuerpo=`${htmlEncabezadoReporte('portrait')}
+    <h1 class="titulo-rep">DETALLE DE SANCIONES — ${escapeHtml(label)}</h1>
+    <h2 class="subtitulo-rep">${escapeHtml(nombre.toUpperCase())}</h2>
+    <p class="atributos">Nota de disciplina: <strong>${Number(d.disc.nota).toFixed(2)}</strong> · Puntaje perdido: ${d.disc.perdido}</p>
+    <table class="main-table"><thead><tr><th style="width:6%">N°</th><th style="width:12%">FECHA</th><th style="width:50%">FALTA</th><th style="width:10%">PUNTOS</th><th style="width:22%">SANCIONÓ</th></tr></thead><tbody>${filas}</tbody></table>`;
+  const fname=`MiDetalle_${label.replace(/\s+/g,'_')}_${currentUser.id||''}`;
+  if(formato==='pdf') exportarComoPDF(cuerpo,fname,'portrait'); else exportarComoWord(cuerpo,fname,'portrait');
+}
+
 async function renderCursanteHome(){
   if(!currentUser) return;
   try{ cargarDocsInstBadge(); }catch(e){}
-  try{ cargarMisCierres(); }catch(e){}   // v2.9.104: tarjeta de semestre cerrado (best-effort)
+  try{ renderSemestresCursante(); }catch(e){}   // v2.9.107: vista por semestre
+  // Ocultar las 4 tarjetas viejas (ahora la info va por semestre) y la tarjeta anual grande (reemplazada por el chip chico)
+  ['cur-area-disciplina','cur-area-efm','cur-area-academicas','cur-area-merito','cur-anual-card','cur-cierres-wrap','cur-section-disciplina'].forEach(id=>{ const e=document.getElementById(id); if(e) e.style.display='none'; });
   // v2.9.60: precarga libs pesadas en background tras el login (no bloqueante)
   try{ _warmupLibs(); }catch(e){}
   // === DEFENSA DE SEGURIDAD ===
