@@ -3872,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.107 · Alumno: vista por semestre (1ER–4TO), semestral grande + anual chico; cada pestaña = sus tarjetas Disciplina/EFM/Notas/Mérito + sanciones + descarga</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.108 · Alumno por semestre: pestañas más vistosas + tarjetas CLICABLES (Disciplina/EFM/Notas/Mérito abren su detalle completo filtrado por semestre)</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -9220,7 +9220,7 @@ function calcularPosicionCiclo(){
 }
 
 /* ===== v2.9.107: VISTA POR SEMESTRE (alumno) ===== */
-let _CUR_SEM_DATA = null, CUR_SEM_SEL = null;
+let _CUR_SEM_DATA = null, CUR_SEM_SEL = null, _CUR_SEM_RAW = {efm:[],acad:[]}, CUR_SEM_AREA = 'disciplina';
 function _absSemDe(ciclo, semestre){ return (/2|segund/i.test(String(ciclo||''))?2:0) + (Number(semestre)||0); }
 function _ordWord(n){ return ({1:'1ER',2:'2DO',3:'3ER',4:'4TO',5:'5TO',6:'6TO'}[Number(n)]||(n+'°')); }
 function _absDeLabel(label){ const k=String(label||'').trim().slice(0,3).toUpperCase(); return ({'1ER':1,'2DO':2,'3ER':3,'4TO':4}[k])||0; }
@@ -9246,6 +9246,7 @@ async function renderSemestresCursante(){
   // Notas + Orden de mérito por semestre absoluto
   acad.forEach(n0=>{ const a=_absSemDe(n0.ciclo,n0.semestre); if(porSem[a]){ if(n0.promedio_general!=null && porSem[a].notas==null) porSem[a].notas=Number(n0.promedio_general); if(n0.om_general!=null && porSem[a].om==null) porSem[a].om=n0.om_general; if(porSem[a].status==='sin') porSem[a].status='datos'; } });
   _CUR_SEM_DATA = { gestion, base, active, porSem };
+  _CUR_SEM_RAW = { efm: efm||[], acad: acad||[] };   // datos crudos para abrir el detalle por semestre
   // Título del semestre en curso (bajo el círculo) + anual chico
   const titEl=document.getElementById('cur-sem-titulo'); if(titEl) titEl.textContent = _ordWord(active)+' SEMESTRE '+gestion+' · EN CURSO';
   const miniEl=document.getElementById('cur-anual-mini');
@@ -9257,39 +9258,64 @@ function _renderSemTabs(){
   const el=document.getElementById('cur-sem-tabs'); if(!el||!_CUR_SEM_DATA) return;
   el.innerHTML=[1,2,3,4].map(n=>{
     const d=_CUR_SEM_DATA.porSem[n]; const isActive=(n===_CUR_SEM_DATA.active); const has=(d.status!=='sin'); const sel=(CUR_SEM_SEL===n);
-    const bg=isActive?'linear-gradient(180deg,#b3601a,#d4af37)':(sel?'rgba(212,175,55,.30)':'rgba(0,0,0,.16)');
-    const col=isActive?'#1a1205':'#5c4a1a';
-    const bd=(sel||isActive)?'#9a7b1f':'rgba(154,123,31,.3)';
-    const sub=isActive?'EN CURSO':(d.status==='cerrado'?'cerrado':(has?'ver':'sin datos'));
-    return `<button onclick="seleccionarSemestreCursante(${n})" style="flex:1;border:2px solid ${bd};border-radius:10px;padding:7px 3px;background:${bg};color:${col};font-weight:800;font-size:12px;opacity:${has?'1':'.5'};cursor:pointer;line-height:1.25">${_ordWord(n)}<br><span style="font-size:8.5px;font-weight:600;letter-spacing:.3px">${sub}</span></button>`;
+    let bg, col, bd, sh;
+    if(sel){            // SELECCIONADA: dorado brillante con glow
+      bg='linear-gradient(180deg,#f0c040,#c8901e)'; col='#1a1205'; bd='#fff3c4'; sh='0 0 0 2px rgba(255,225,120,.5), 0 4px 12px rgba(212,175,55,.5)';
+    } else if(isActive){ // EN CURSO (no seleccionada): dorado sólido
+      bg='linear-gradient(180deg,#b3601a,#d4af37)'; col='#1a1205'; bd='#9a7b1f'; sh='0 2px 6px rgba(0,0,0,.3)';
+    } else if(has){      // con datos: navy con borde dorado, texto dorado (vistoso)
+      bg='linear-gradient(180deg,#2a3654,#1c2740)'; col='#e8c878'; bd='#9a7b1f'; sh='0 2px 6px rgba(0,0,0,.3)';
+    } else {             // sin datos: apagada
+      bg='rgba(40,50,70,.5)'; col='#7c869c'; bd='rgba(154,123,31,.25)'; sh='none';
+    }
+    const sub=isActive?'EN CURSO':(d.status==='cerrado'?'CERRADO':(has?'VER':'sin datos'));
+    return `<button onclick="seleccionarSemestreCursante(${n})" style="flex:1;border:2px solid ${bd};border-radius:12px;padding:11px 4px;background:${bg};color:${col};font-weight:800;font-size:15px;cursor:pointer;line-height:1.2;box-shadow:${sh};transform:${sel?'translateY(-1px)':'none'};transition:all .12s">${_ordWord(n)}<br><span style="font-size:9.5px;font-weight:700;letter-spacing:.5px;opacity:.9">${sub}</span></button>`;
   }).join('');
 }
-function seleccionarSemestreCursante(n){ CUR_SEM_SEL=Number(n); _renderSemTabs(); _renderSemPanel(); }
+function seleccionarSemestreCursante(n){ CUR_SEM_SEL=Number(n); CUR_SEM_AREA='disciplina'; _renderSemTabs(); _renderSemPanel(); }
 function _renderSemPanel(){
   const cont=document.getElementById('cur-sem-panel'); if(!cont||!_CUR_SEM_DATA) return;
   const n=CUR_SEM_SEL, d=_CUR_SEM_DATA.porSem[n];
   const discNota=d.disc?Number(d.disc.nota).toFixed(2):'—';
-  const discPts=d.disc?('−'+d.disc.perdido):'—';
+  const discPts=d.disc?('−'+d.disc.perdido+' pts'):'—';
   const efm=(d.efm&&d.efm.nota!=null)?Number(d.efm.nota).toFixed(1):'—';
   const notas=(d.notas!=null)?Number(d.notas).toFixed(2):'—';
   const om=(d.om!=null)?('#'+d.om):'—';
   const titulo=_ordWord(n)+' SEMESTRE '+_CUR_SEM_DATA.gestion+(n===_CUR_SEM_DATA.active?' · EN CURSO':(d.disc&&d.disc.cerrado?' · CERRADO':''));
+  const card=(area,icon,tit,val,sub)=>{ const act=(CUR_SEM_AREA===area)?'active':''; return `<button class="cur-area-card ${act}" onclick="verAreaSemestre('${area}',${n})" style="cursor:pointer"><div class="ca-icon">${icon}</div><div class="ca-title">${tit}</div><div class="ca-value">${val}</div><div class="ca-sub">${sub}</div></button>`; };
   const cards=`<div class="cur-areas-grid">
-    <div class="cur-area-card"><div class="ca-icon">⭐</div><div class="ca-title">Disciplina</div><div class="ca-value">${discNota}</div><div class="ca-sub">${discPts} pts</div></div>
-    <div class="cur-area-card"><div class="ca-icon">🏃</div><div class="ca-title">EFM</div><div class="ca-value">${efm}</div><div class="ca-sub">${d.efm?escapeHtml(d.efm.tipo||'—'):'—'}</div></div>
-    <div class="cur-area-card"><div class="ca-icon">📚</div><div class="ca-title">Notas</div><div class="ca-value">${notas}</div><div class="ca-sub">Promedio</div></div>
-    <div class="cur-area-card"><div class="ca-icon">🏆</div><div class="ca-title">Orden de Mérito</div><div class="ca-value">${om}</div><div class="ca-sub">Posición</div></div>
+    ${card('disciplina','⭐','Disciplina',discNota,discPts)}
+    ${card('efm','🏃','EFM',efm,d.efm?escapeHtml(d.efm.tipo||'Ver'):'Ver')}
+    ${card('academicas','📚','Notas',notas,'Ver notas')}
+    ${card('merito','🏆','Orden de Mérito',om,'Ver posición')}
   </div>`;
-  let det='';
-  if(d.disc){
+  cont.innerHTML=`<div style="font-size:13px;font-weight:800;color:#5c4a1a;margin:2px 0 8px">${escapeHtml(titulo)}</div>`+cards+'<div id="cur-sem-detalle"></div>';
+  verAreaSemestre(CUR_SEM_AREA, n);
+}
+// Abre el detalle completo de un área para el semestre seleccionado (reusa las vistas de siempre, filtradas)
+function verAreaSemestre(area, n){
+  CUR_SEM_AREA=area; n=Number(n);
+  // resaltar la tarjeta activa
+  document.querySelectorAll('#cur-sem-panel .cur-area-card').forEach(c=>{ c.classList.toggle('active', c.getAttribute('onclick').indexOf("'"+area+"'")>=0); });
+  const cont=document.getElementById('cur-sem-detalle'); if(!cont||!_CUR_SEM_DATA) return;
+  const d=_CUR_SEM_DATA.porSem[n];
+  if(area==='disciplina'){
+    if(!d.disc){ cont.innerHTML='<div class="list-empty" style="margin-top:14px">Sin registro de disciplina de este semestre.</div>'; return; }
     const sancs=(d.disc.sanciones||[]).slice().sort((a,b)=> new Date(a.fecha||0)-new Date(b.fecha||0));
     const filas=sancs.map((s,i)=>{ const fs=s.fecha?fechaCortaReporte(new Date(s.fecha)):'—'; const falta=[s.categoria,s.articulo].filter(Boolean).join(' · '); return `<div class="list-item"><div class="li-id">${i+1}</div><div class="li-name">${escapeHtml(falta||'Sanción')}${s.descripcion?('<br><span style="font-size:11px;opacity:.85">'+escapeHtml(s.descripcion)+'</span>'):''}<br><span class="li-ci">${escapeHtml(fs)} · −${s.puntos||0} pts${s.autoridad?(' · sancionó: '+escapeHtml(s.autoridad)):''}</span></div></div>`; }).join('');
-    det=`<div style="margin-top:14px"><div class="mss-title" style="color:#5c4a1a;margin-bottom:6px">📋 Mis sanciones · ${escapeHtml(_ordWord(n))} semestre</div>${sancs.length?filas:'<div class="list-empty">Sin sanciones en este semestre. ✅</div>'}`;
-    det+=`<div style="display:flex;gap:8px;margin-top:10px"><button class="rc-btn rc-btn-word" style="flex:1" onclick="descargarMiDetalleSem(${n},'word')">📝 Descargar detalle (Word)</button><button class="rc-btn rc-btn-pdf" style="flex:1" onclick="descargarMiDetalleSem(${n},'pdf')">📄 PDF</button></div></div>`;
-  } else {
-    det='<div class="list-empty" style="margin-top:14px">Sin registro de disciplina de este semestre.</div>';
+    cont.innerHTML=`<div style="margin-top:14px"><div class="mss-title" style="color:#5c4a1a;margin-bottom:6px">📋 Mis sanciones · ${escapeHtml(_ordWord(n))} semestre</div>${sancs.length?filas:'<div class="list-empty">Sin sanciones en este semestre. ✅</div>'}<div style="display:flex;gap:8px;margin-top:10px"><button class="rc-btn rc-btn-word" style="flex:1" onclick="descargarMiDetalleSem(${n},'word')">📝 Descargar detalle (Word)</button><button class="rc-btn rc-btn-pdf" style="flex:1" onclick="descargarMiDetalleSem(${n},'pdf')">📄 PDF</button></div></div>`;
+  } else if(area==='efm'){
+    const rows=(_CUR_SEM_RAW.efm||[]).filter(e=> _absSemDe(e.ciclo,e.semestre)===n && e.nota_final!=null && e.nota_final!=='');
+    cont.innerHTML = '<div style="margin-top:14px">'+(rows.length ? rows.map(ev=>htmlTarjetaEvaluacionFisica(ev,false)).join('') : '<div class="efm-no-data">🏃 Sin notas EFM cargadas para este semestre.</div>')+'</div>';
+  } else if(area==='academicas'){
+    const rows=(_CUR_SEM_RAW.acad||[]).filter(a=> _absSemDe(a.ciclo,a.semestre)===n);
+    const grupos=agruparNotasPorPeriodo(rows);
+    cont.innerHTML = '<div style="margin-top:14px">'+(grupos.length ? grupos.map(g=>htmlTarjetaAcademica(g)).join('') : '<div class="efm-no-data">📚 Sin notas académicas cargadas para este semestre.</div>')+'</div>';
+  } else if(area==='merito'){
+    const rows=(_CUR_SEM_RAW.acad||[]).filter(a=> _absSemDe(a.ciclo,a.semestre)===n);
+    const grupos=agruparNotasPorPeriodo(rows);
+    cont.innerHTML = '<div style="margin-top:14px">'+(grupos.length ? grupos.map(g=>htmlTarjetaMerito(g)).join('') : '<div class="efm-no-data">🏆 Sin datos de mérito para este semestre.</div>')+'</div>';
   }
-  cont.innerHTML=`<div style="font-size:13px;font-weight:800;color:#5c4a1a;margin:2px 0 8px">${escapeHtml(titulo)}</div>`+cards+det;
 }
 function descargarMiDetalleSem(n, formato){
   if(!_CUR_SEM_DATA) return;
