@@ -3872,7 +3872,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.103 · Reporte 3: Planilla por paralelo (Word/PDF/Excel) con DESDE/HASTA/FIRMA, una por paralelo en orden alfabético</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.104 · Cierre de semestre: botón C&T (snapshot inmutable), nota semestral reinicia a 100, anual sigue; alumno ve nota cerrada y descarga su detalle</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4705,6 +4705,9 @@ input::placeholder, textarea::placeholder {
           <div class="cac-msg" id="cur-anual-msg">Margen amplio. Mantén la disciplina.</div>
         </div>
 
+        <!-- v2.9.104: Semestre(s) CERRADO(s) — nota oficial congelada + descarga -->
+        <div id="cur-cierres-wrap"></div>
+
         <!-- Banner estado -->
         <div class="cur-estado-banner" id="cur-estado-banner">
           <div class="ceb-title" id="cur-estado-title">— Sin sanciones</div>
@@ -5362,6 +5365,20 @@ input::placeholder, textarea::placeholder {
   <div class="app-header"><button class="back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Reportes</div><div class="header-sub">Documentos oficiales y estadísticas</div></div></div>
   <div class="disc-container">
 
+    <!-- v2.9.104: CIERRE DE SEMESTRE (solo C&T) -->
+    <div id="cierre-sem-block" style="display:none;margin-bottom:18px">
+      <div class="rc-section-label">🔒 Cierre de semestre</div>
+      <div class="reporte-card" style="border-color:#9a7b1f;background:linear-gradient(180deg,rgba(212,175,55,.12),rgba(212,175,55,.03))">
+        <div class="rc-title">🎖️ Cerrar el semestre actual</div>
+        <div class="rc-desc">Congela la nota de disciplina de <strong>todos</strong> los cursantes al día de hoy (1er ciclo → su semestre; 2do ciclo → +2). A partir del cierre, el puntaje <strong>semestral</strong> académico arranca de 100; el <strong>anual</strong> sigue acumulando. El detalle queda guardado y solo vos (C&T) podés modificarlo.</div>
+        <div id="cierre-sem-estado" style="font-size:12.5px;color:var(--text-muted);margin:6px 0 10px">Cargando estado…</div>
+        <div class="rc-buttons">
+          <button class="rc-btn" style="background:linear-gradient(180deg,#b3601a,#d4af37);color:#0a1628;font-weight:700" onclick="cierreSemestrePreview(this)">🔒 Cerrar semestre…</button>
+          <button class="rc-btn rc-btn-word" onclick="goCierreSemestre()">📚 Ver semestres cerrados</button>
+        </div>
+      </div>
+    </div>
+
     <div class="rc-section-label">📄 Documentos oficiales</div>
 
     <!-- Reporte 1: Resumen mensual de deméritos -->
@@ -5813,6 +5830,26 @@ input::placeholder, textarea::placeholder {
     <button class="btn-primary" onclick="rgdMediaPublicar(this)" style="margin-bottom:14px">📣 Publicar enlace</button>
     <div class="section-label">Publicados</div>
     <div id="rgdd-media-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+  </div>
+</section>
+
+<!-- v2.9.104: CIERRE DE SEMESTRE — vista C&T -->
+<section id="screen-cierre-semestre" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goDiscReportes()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">🔒 Semestres cerrados</div><div class="header-sub">Disciplina — notas congeladas</div></div>
+  </div>
+  <div class="disc-container">
+    <div id="cierre-lista"><div class="list-empty">⏳ Cargando…</div></div>
+    <div id="cierre-detalle" style="display:none">
+      <button class="btn-secondary" style="margin-bottom:12px" onclick="cierreVolverLista()">← Volver a la lista</button>
+      <div class="rc-filters" style="margin-bottom:10px">
+        <select id="cierre-det-ciclo" onchange="renderCierreDetalle()"></select>
+        <select id="cierre-det-paralelo" onchange="renderCierreDetalle()"></select>
+      </div>
+      <div id="cierre-detalle-cont"></div>
+    </div>
   </div>
 </section>
 
@@ -6951,6 +6988,7 @@ function requierePrimerIngreso(usuario, intentoUsado){
 async function loadCursanteData(force=false){
   if(discData.loaded && !force) return;
   if(!currentUser) return;
+  await cargarCierreVigente();  // v2.9.104: fija el boundary del semestre antes de calcular puntajes
   try{
     const [sanRes, regRes] = await Promise.all([
       sb.from('v_sanciones').select('*').eq('cursante_id', currentUser.id),
@@ -9008,11 +9046,28 @@ function semestreDe(fecha){
 }
 function semestreActual(){ return semestreDe(new Date()); }
 function etiquetaSemestre(sem){ return sem ? (sem.year + '-' + sem.half) : ''; }
-// ¿La sanción cae en el semestre actual? (las sin fecha se cuentan, para no perderlas)
+// v2.9.104: último cierre de semestre (boundary). Si existe, el "semestre vigente"
+// arranca DESPUÉS de la fecha de cierre (no por calendario). Se carga del backend.
+let ULTIMO_CIERRE = null; // { id, gestion, orden, fecha_cierre, ... } o null
+function boundarySemestre(){
+  return (ULTIMO_CIERRE && ULTIMO_CIERRE.fecha_cierre) ? new Date(ULTIMO_CIERRE.fecha_cierre) : null;
+}
+async function cargarCierreVigente(){
+  try{
+    const tok = getTokenSesion(); if(!tok) return;
+    const { data, error } = await sb.functions.invoke('cierre-semestre', { body:{ accion:'vigente', token:tok } });
+    if(error || !data || !data.ok) return;       // si el EF no está / falla: se mantiene el comportamiento por calendario
+    ULTIMO_CIERRE = data.ultimo || null;
+    window._CIERRES_META = data.cierres || [];
+  }catch(e){ /* silencioso: fallback a calendario */ }
+}
+// ¿La sanción cae en el semestre VIGENTE? (las sin fecha se cuentan, para no perderlas)
 function sancionEnSemestreActual(s){
   const f = fechaSancion(s);
   if(!f) return true;
-  const a = semestreDe(f), b = semestreActual();
+  const corte = boundarySemestre();
+  if(corte) return f > corte;                     // semestre vigente = posterior al último cierre
+  const a = semestreDe(f), b = semestreActual();  // sin cierres: comportamiento por calendario
   return a.year === b.year && a.half === b.half;
 }
 
@@ -9158,6 +9213,7 @@ function calcularPosicionCiclo(){
 async function renderCursanteHome(){
   if(!currentUser) return;
   try{ cargarDocsInstBadge(); }catch(e){}
+  try{ cargarMisCierres(); }catch(e){}   // v2.9.104: tarjeta de semestre cerrado (best-effort)
   // v2.9.60: precarga libs pesadas en background tras el login (no bloqueante)
   try{ _warmupLibs(); }catch(e){}
   // === DEFENSA DE SEGURIDAD ===
@@ -9192,7 +9248,9 @@ async function renderCursanteHome(){
     .filter(s => !s.anulada);
   const cantSanciones = todasSanciones.length;
   // v2.9.9: deméritos VIGENTES (las pendientes de firma NO se suman hasta que firme)
-  const puntosPerdidos = todasSanciones.reduce((acc,s) => acc + (sancionCuentaParaPuntaje(s) ? (Number(s.puntos_aplicados)||0) : 0), 0);
+  // v2.9.104: la NOTA es SEMESTRAL (solo cuenta lo posterior al último cierre). Tras el
+  // cierre arranca de 100; el acumulado ANUAL se muestra aparte (tarjeta "Pérdida anual").
+  const puntosPerdidos = todasSanciones.reduce((acc,s) => acc + ((sancionCuentaParaPuntaje(s) && sancionEnSemestreActual(s)) ? (Number(s.puntos_aplicados)||0) : 0), 0);
   // v2.9.9: puntaje "pendiente" — pasará a contar cuando firme las digitales en rojo
   const puntosPendientes = todasSanciones.reduce((acc,s) => acc + ((!sancionCuentaParaPuntaje(s) && s.es_prueba!==true) ? (Number(s.puntos_aplicados)||0) : 0), 0);
   const nota = calcularNotaDisciplinaria(puntosPerdidos);
@@ -10073,6 +10131,7 @@ async function _refrescarDiscDataBG(){
 }
 async function _fetchDiscDataReal(silent){
   try{
+    await cargarCierreVigente();  // v2.9.104: boundary del semestre antes de recomputar puntajes
     const [curRes,sanRes,profRes,regRes] = await Promise.all([
       sb.from('v_cursantes').select('*').order('id'),
       sb.from('v_sanciones').select('*'),
@@ -11840,6 +11899,13 @@ function renderReportes(){
   // Poblar dropdowns de los reportes oficiales (si los selects existen)
   try{ poblarSelectsReportes(); }catch(e){ console.warn('poblarSelectsReportes:', e); }
 
+  // v2.9.104: bloque de cierre de semestre — SOLO C&T
+  const cierreBlock = document.getElementById('cierre-sem-block');
+  if(cierreBlock){
+    if(esCT()){ cierreBlock.style.display=''; try{ cierreSemActualizarEstado(); }catch(e){} }
+    else cierreBlock.style.display='none';
+  }
+
   const c={LEVE:0,GRAVE:0,'GRAVÍSIMA':0,VIRTUAL:0};
   discData.sanciones.filter(s=>!s.anulada).forEach(s=>{if(c[s.falta_categoria]!==undefined) c[s.falta_categoria]++;});
   document.getElementById('rep-leve').textContent=c.LEVE;
@@ -13092,6 +13158,225 @@ async function descargarPlanillaParalelo(formato){
     console.error('Error generando planilla por paralelo:', e);
     alert('Hubo un error generando la planilla por paralelo: '+(e.message||e));
   }
+}
+
+/* ==================== v2.9.104: CIERRE DE SEMESTRE ==================== */
+async function _csInvoke(accion, extra){
+  const tok = getTokenSesion();
+  if(!tok) return { ok:false, error:'sin sesión' };
+  try{
+    const { data, error } = await sb.functions.invoke('cierre-semestre', { body:Object.assign({ accion, token:tok }, extra||{}) });
+    if(error) return { ok:false, error:(error.message||'error') };
+    return data || { ok:false, error:'sin respuesta' };
+  }catch(e){ return { ok:false, error:String((e&&e.message)||e) }; }
+}
+function _csNombre(e){
+  try{ const n = gradoApellidosNombres(e); if(n && n!=='—') return n; }catch(_){}
+  return `${e.grado||''} ${e.arma||''} ${e.nombre_completo||''}`.replace(/\s+/g,' ').trim().toUpperCase() || '—';
+}
+
+// Estado del bloque C&T en la pantalla de Reportes
+async function cierreSemActualizarEstado(){
+  const el = document.getElementById('cierre-sem-estado'); if(!el) return;
+  el.textContent = 'Cargando estado…';
+  const r = await _csInvoke('vigente');
+  if(!r.ok){ el.innerHTML = '⚠️ No se pudo leer el estado (¿falta desplegar la función <code>cierre-semestre</code>?).'; return; }
+  const year = new Date().getFullYear();
+  const delAno = (r.cierres||[]).filter(c => Number(c.gestion)===year);
+  if(r.ultimo){
+    const f = new Date(r.ultimo.fecha_cierre).toLocaleDateString('es-BO');
+    el.innerHTML = `✅ Último cierre: <strong>${delAno.length}°</strong> de ${year} (el ${f}, ${r.ultimo.total_cursantes||0} cursantes). El próximo será el <strong>${delAno.length+1}°</strong> cierre del año.`;
+  } else {
+    el.innerHTML = `Aún no hay cierres en ${year}. Este sería el <strong>1er</strong> cierre (1er ciclo → 1er semestre, 2do ciclo → 3er semestre).`;
+  }
+}
+
+// Paso 1: previsualizar (dry_run) y confirmar
+async function cierreSemestrePreview(btn){
+  if(!esCT()){ alert('Solo C&T puede cerrar el semestre.'); return; }
+  if(btn) btn.disabled = true;
+  try{
+    const r = await _csInvoke('cerrar', { dry_run:true });
+    if(!r.ok){ alert('No se pudo previsualizar el cierre: '+(r.error||'')); return; }
+    const ciclos = Object.entries(r.por_ciclo||{}).map(([k,v]) => `   • ${k}: ${v.n} cursantes (${v.con_perdida} con deméritos)`).join('\n');
+    const muestra = (r.muestra||[]).slice(0,5).map(m => `   ${m.semestre} — ${m.nombre}: ${m.nota} (−${m.perdido})`).join('\n');
+    const msg = `🔒 VAS A CERRAR EL SEMESTRE (cierre N° ${r.orden} de ${r.gestion}).\n\n`
+      + `Se congelará la nota de ${r.total_cursantes} cursantes al día de hoy:\n${ciclos}\n\n`
+      + `Muestra:\n${muestra}\n\n`
+      + `⚠️ Verificá que estos números coincidan con tu planilla actual.\n`
+      + `Después del cierre, el puntaje SEMESTRAL arranca de 100 (el anual sigue).\n\n`
+      + `¿Confirmás el cierre? (Podés anularlo después, solo vos.)`;
+    if(!confirm(msg)) return;
+    await cierreSemestreConfirmar();
+  } finally { if(btn) btn.disabled = false; }
+}
+async function cierreSemestreConfirmar(){
+  const r = await _csInvoke('cerrar', {});
+  if(!r.ok){ alert('No se pudo cerrar el semestre: '+(r.error||'')); return; }
+  ULTIMO_CIERRE = null;                 // forzar recarga del boundary
+  await cargarCierreVigente();
+  alert(`✅ Semestre cerrado (N° ${r.orden} de ${r.gestion}). ${r.total_cursantes} cursantes congelados.`);
+  try{ await loadDiscData(true); }catch(e){}
+  try{ cierreSemActualizarEstado(); }catch(e){}
+  goCierreSemestre();
+}
+
+// Pantalla C&T: lista de cierres
+async function goCierreSemestre(){
+  if(!esCT()){ alert('Solo C&T puede ver esta sección.'); return; }
+  showScreen('screen-cierre-semestre');
+  document.getElementById('cierre-detalle').style.display = 'none';
+  document.getElementById('cierre-lista').style.display = '';
+  await cargarCierres();
+}
+async function cargarCierres(){
+  const cont = document.getElementById('cierre-lista');
+  cont.innerHTML = '<div class="list-empty">⏳ Cargando…</div>';
+  const r = await _csInvoke('vigente');
+  if(!r.ok){ cont.innerHTML = '<div class="list-empty">No se pudo cargar. ¿Está desplegada la función <code>cierre-semestre</code>?</div>'; return; }
+  const lista = r.cierres || [];
+  if(!lista.length){ cont.innerHTML = '<div class="list-empty">Todavía no hay semestres cerrados. Cerrá uno desde Reportes → Cierre de semestre.</div>'; return; }
+  cont.innerHTML = lista.map(c => {
+    const f = new Date(c.fecha_cierre).toLocaleDateString('es-BO');
+    return `<div class="list-item" style="cursor:pointer">
+      <div class="li-id">${c.orden}°</div>
+      <div class="li-name" onclick="verDetalleCierre(${c.id})">Cierre ${c.orden}° de ${c.gestion}<br><span class="li-ci">${f} · ${c.total_cursantes||0} cursantes · por ${escapeHtml(c.cerrado_por_nombre||'—')}</span></div>
+      <div class="li-actions">
+        <button onclick="verDetalleCierre(${c.id})">Ver</button>
+        <button class="danger" onclick="anularCierre(${c.id})">Anular</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+let _CIERRE_DET = null;
+async function verDetalleCierre(id){
+  const r = await _csInvoke('detalle', { cierre_id:id });
+  if(!r.ok || !r.cierre){ alert('No se pudo abrir el detalle: '+(r.error||'')); return; }
+  _CIERRE_DET = r.cierre;
+  const snap = Array.isArray(_CIERRE_DET.snapshot) ? _CIERRE_DET.snapshot : [];
+  const ciclos = [...new Set(snap.map(e => e.ciclo).filter(Boolean))].sort();
+  const paras  = [...new Set(snap.map(e => e.paralelo).filter(Boolean))].sort();
+  document.getElementById('cierre-det-ciclo').innerHTML = '<option value="todos">Todos los ciclos</option>' + ciclos.map(c=>`<option value="${escapeAttr(c)}">${escapeHtml(c)}</option>`).join('');
+  document.getElementById('cierre-det-paralelo').innerHTML = '<option value="todos">Todos los paralelos</option>' + paras.map(p=>`<option value="${escapeAttr(p)}">Paralelo "${escapeHtml(p)}"</option>`).join('');
+  document.getElementById('cierre-lista').style.display = 'none';
+  document.getElementById('cierre-detalle').style.display = '';
+  renderCierreDetalle();
+}
+function renderCierreDetalle(){
+  if(!_CIERRE_DET) return;
+  const cont = document.getElementById('cierre-detalle-cont');
+  const cSel = document.getElementById('cierre-det-ciclo').value;
+  const pSel = document.getElementById('cierre-det-paralelo').value;
+  let snap = (Array.isArray(_CIERRE_DET.snapshot) ? _CIERRE_DET.snapshot : [])
+    .filter(e => cSel==='todos' || e.ciclo===cSel)
+    .filter(e => pSel==='todos' || (e.paralelo||'')===pSel)
+    .sort((a,b)=> claveApellido(a).localeCompare(claveApellido(b),'es'));
+  const f = new Date(_CIERRE_DET.fecha_cierre).toLocaleDateString('es-BO');
+  let h = `<div class="rc-desc" style="margin-bottom:8px">Cierre ${_CIERRE_DET.orden}° de ${_CIERRE_DET.gestion} · ${f} · ${snap.length} cursante(s)</div>`;
+  h += '<table style="width:100%;border-collapse:collapse;font-size:12.5px"><thead><tr style="background:rgba(212,175,55,.15)">'
+    + '<th style="padding:6px;text-align:left">Grado, Apellidos y Nombres</th><th style="padding:6px">Semestre</th><th style="padding:6px">Perd.</th><th style="padding:6px">Nota</th></tr></thead><tbody>';
+  if(!snap.length) h += '<tr><td colspan="4" style="padding:14px;text-align:center;color:var(--text-muted)">Sin cursantes para este filtro.</td></tr>';
+  snap.forEach(e => {
+    h += `<tr style="border-bottom:1px solid var(--border,#2a3a52)"><td style="padding:6px">${escapeHtml(_csNombre(e))}</td>`
+      + `<td style="padding:6px;text-align:center">${escapeHtml((e.semestre_label||'').replace(' '+_CIERRE_DET.gestion,''))}</td>`
+      + `<td style="padding:6px;text-align:center">−${e.perdido_semestre}</td>`
+      + `<td style="padding:6px;text-align:center"><strong>${Number(e.nota_semestre).toFixed(2)}</strong></td></tr>`;
+  });
+  h += '</tbody></table>';
+  h += `<div class="rc-buttons" style="margin-top:12px"><button class="rc-btn rc-btn-word" onclick="descargarCierreDoc('word')">📝 Word</button><button class="rc-btn rc-btn-pdf" onclick="descargarCierreDoc('pdf')">📄 PDF</button></div>`;
+  cont.innerHTML = h;
+}
+function cierreVolverLista(){
+  document.getElementById('cierre-detalle').style.display = 'none';
+  document.getElementById('cierre-lista').style.display = '';
+}
+async function anularCierre(id){
+  if(!esCT()){ alert('Solo C&T puede anular un cierre.'); return; }
+  if(!confirm('¿Anular este cierre? La nota semestral volverá a calcularse en vivo (el detalle congelado deja de usarse). Esto solo lo podés hacer vos.')) return;
+  const r = await _csInvoke('anular', { cierre_id:id });
+  if(!r.ok){ alert('No se pudo anular: '+(r.error||'')); return; }
+  ULTIMO_CIERRE = null; await cargarCierreVigente();
+  try{ await loadDiscData(true); }catch(e){}
+  await cargarCierres();
+}
+
+// Documento del cierre (C&T): reusa el formato oficial por paralelo del snapshot filtrado
+function descargarCierreDoc(formato){
+  if(!_CIERRE_DET) return;
+  const cSel = document.getElementById('cierre-det-ciclo').value;
+  const pSel = document.getElementById('cierre-det-paralelo').value;
+  let snap = (Array.isArray(_CIERRE_DET.snapshot) ? _CIERRE_DET.snapshot : [])
+    .filter(e => cSel==='todos' || e.ciclo===cSel)
+    .filter(e => pSel==='todos' || (e.paralelo||'')===pSel)
+    .sort((a,b)=> claveApellido(a).localeCompare(claveApellido(b),'es'));
+  const f = new Date(_CIERRE_DET.fecha_cierre);
+  const fTxt = `${f.getDate()} ${MESES_ESPANOL[f.getMonth()]} DE ${f.getFullYear()}`;
+  const filas = snap.map((e,i)=>`<tr>
+    <td class="num">${i+1}</td>
+    <td class="left">${escapeHtml(_csNombre(e))}</td>
+    <td class="num">${e.perdido_semestre}</td>
+    <td class="num">${Number(e.nota_semestre).toFixed(4)}</td>
+    <td class="ctr"></td></tr>`).join('') || '<tr class="empty-row"><td colspan="5">Sin cursantes.</td></tr>';
+  const titSem = snap.length ? (snap[0].semestre_label||'') : `CIERRE ${_CIERRE_DET.orden}° ${_CIERRE_DET.gestion}`;
+  const cuerpo = `${htmlEncabezadoReporte('portrait')}
+    <h1 class="titulo-rep">PLANILLA DE CALIFICACIONES DE DISCIPLINA — ${escapeHtml(titSem)}</h1>
+    <h2 class="subtitulo-rep">CERRADO AL ${fTxt}</h2>
+    <table class="main-table"><thead><tr>
+      <th style="width:6%">N°</th><th style="width:55%">GRADO, APELLIDOS Y NOMBRES</th>
+      <th style="width:13%">PUNTAJE PERDIDO</th><th style="width:13%">NOTA FINAL</th><th style="width:13%">FIRMA</th>
+    </tr></thead><tbody>${filas}</tbody></table>
+    ${htmlFirmasReporte()}`;
+  const fname = `Cierre_${titSem.replace(/\s+/g,'_')}_${f.toISOString().slice(0,10)}`;
+  if(formato==='pdf') exportarComoPDF(cuerpo, fname, 'portrait'); else exportarComoWord(cuerpo, fname, 'portrait');
+}
+
+/* ===== CURSANTE: tarjeta de semestre cerrado + descarga de su detalle ===== */
+let _MIS_CIERRES = null;
+async function cargarMisCierres(){
+  const wrap = document.getElementById('cur-cierres-wrap'); if(!wrap) return;
+  const r = await _csInvoke('mi_resumen');
+  if(!r.ok){ wrap.innerHTML = ''; return; }
+  _MIS_CIERRES = r;
+  const cierres = r.cierres || [];
+  if(!cierres.length){ wrap.innerHTML = ''; return; }
+  // mostramos el más reciente como tarjeta destacada
+  const c = cierres[0];
+  const nivel = c.nota_semestre >= 90 ? 'ok' : (c.nota_semestre >= 71 ? 'warn' : 'baja');
+  wrap.innerHTML = `<div class="cur-anual-card ${nivel}" style="margin-top:12px">
+    <div class="cac-header"><div class="cac-title">🔒 ${escapeHtml(c.semestre_label||'Semestre cerrado')}</div><div class="cac-articulo">Nota cerrada</div></div>
+    <div class="cac-body">
+      <div class="cac-col"><div class="cac-num">${Number(c.nota_semestre).toFixed(2)}</div><div class="cac-lbl">Nota de disciplina (oficial)</div></div>
+      <div class="cac-divider"></div>
+      <div class="cac-col"><div class="cac-num">−${c.perdido_semestre}</div><div class="cac-lbl">Pts perdidos en el semestre</div></div>
+    </div>
+    <div class="cac-msg">Esta nota quedó <strong>congelada</strong> al cierre. Tu puntaje semestral nuevo arranca de 100. (El puntaje anual, sin valor académico, lo ves en la tarjeta de arriba.)</div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="rc-btn rc-btn-word" style="flex:1;min-width:120px" onclick="descargarMiDetalle('word')">📝 Mi detalle (Word)</button>
+      <button class="rc-btn rc-btn-pdf" style="flex:1;min-width:120px" onclick="descargarMiDetalle('pdf')">📄 Mi detalle (PDF)</button>
+    </div>
+  </div>`;
+}
+function descargarMiDetalle(formato){
+  if(!_MIS_CIERRES || !(_MIS_CIERRES.cierres||[]).length){ alert('Aún no hay un semestre cerrado para descargar.'); return; }
+  const c = _MIS_CIERRES.cierres[0];
+  const sancs = c.sanciones || [];
+  const f = new Date(c.fecha_cierre);
+  const fTxt = `${f.getDate()} ${MESES_ESPANOL[f.getMonth()]} DE ${f.getFullYear()}`;
+  const filas = sancs.map((s,i)=>{
+    const fs = s.fecha ? fechaCortaReporte(new Date(s.fecha)) : '—';
+    return `<tr><td class="num">${i+1}</td><td class="num">${fs}</td><td class="left">${escapeHtml((s.categoria||'—')+(s.descripcion?(' · '+s.descripcion):''))}</td><td class="num">−${s.puntos||0}</td><td class="left">${escapeHtml(s.autoridad||'—')}</td></tr>`;
+  }).join('') || '<tr class="empty-row"><td colspan="5">Sin sanciones en este semestre. ¡Excelente!</td></tr>';
+  const nombre = nombreConGrado(currentUser) || (currentUser.nombre_completo||'');
+  const cycloPar = [currentUser.ciclo, currentUser.paralelo?('"'+currentUser.paralelo+'"'):''].filter(Boolean).join(' ');
+  const cuerpo = `${htmlEncabezadoReporte('portrait')}
+    <h1 class="titulo-rep">DETALLE DE SANCIONES — ${escapeHtml(c.semestre_label||'')}</h1>
+    <h2 class="subtitulo-rep">${escapeHtml(nombre.toUpperCase())}${cycloPar?(' · '+escapeHtml(cycloPar)):''}<br>CERRADO AL ${fTxt}</h2>
+    <p class="atributos">Nota final de disciplina del semestre: <strong>${Number(c.nota_semestre).toFixed(2)}</strong> · Puntaje perdido: ${c.perdido_semestre}</p>
+    <table class="main-table"><thead><tr>
+      <th style="width:6%">N°</th><th style="width:12%">FECHA</th><th style="width:52%">FALTA</th><th style="width:12%">PUNTOS</th><th style="width:18%">AUTORIDAD</th>
+    </tr></thead><tbody>${filas}</tbody></table>`;
+  const fname = `MiDetalle_${(c.semestre_label||'semestre').replace(/\s+/g,'_')}_${(currentUser.id||'')}`;
+  if(formato==='pdf') exportarComoPDF(cuerpo, fname, 'portrait'); else exportarComoWord(cuerpo, fname, 'portrait');
 }
 
 function renderAlertas(){
