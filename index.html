@@ -3881,7 +3881,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.109 · Alumno: círculo anual con contraste + verde más vivo. C&T: unificado en "VER SEMESTRES CERRADOS" (1ER SEMESTRE 2026), detalle por alumno/falta + descarga Word/PDF/Excel</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.110 · C&T: "Cerrar semestre" pasa a acceso rápido (bloque solo muestra VER SEMESTRES CERRADOS); botón del ejercicio renombrado a EJERCICIOS (registro: Vencer o Morir + futuros)</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4875,25 +4875,17 @@ input::placeholder, textarea::placeholder {
       <span class="mega-icon">📝</span>
       <span>Registrar nueva sanción</span>
     </button>
-    <!-- v2.9.97: acceso GRANDE de la Dirección del Ejercicio -->
-    <button class="btn-mega rgd-access" onclick="goRgDireccion()" style="background:linear-gradient(135deg,#7a1f1a,#c0392b 70%,#e67e22);color:#fff;margin:0 0 16px 0;display:none">
+    <!-- v2.9.110: acceso GRANDE a EJERCICIOS (registro) -->
+    <button class="btn-mega rgd-access" onclick="goEjercicios()" style="background:linear-gradient(135deg,#7a1f1a,#c0392b 70%,#e67e22);color:#fff;margin:0 0 16px 0;display:none">
       <span class="mega-icon">⚔️</span>
-      <span>Ejercicio VENCER O MORIR — Dirección (radiogramas · documentos)</span>
+      <span>EJERCICIOS</span>
     </button>
 
-    <!-- v2.9.106: CIERRE DE SEMESTRE (solo C&T) — en el panel principal -->
+    <!-- v2.9.110: SEMESTRES CERRADOS (solo C&T). El "Cerrar semestre" es un acceso rápido. -->
     <div id="cierre-sem-block" style="display:none;margin:0 0 16px 0">
-      <div class="section-label">🔒 Cierre de semestre · gestión <span id="cierre-sem-gestion"></span></div>
-      <!-- Botón grande "VER SEMESTRES CERRADOS" (se llena en cierreSemActualizarEstado) -->
+      <div class="section-label">📚 Semestres cerrados · gestión <span id="cierre-sem-gestion"></span></div>
       <div id="cierre-sem-accesos"></div>
-      <div class="reporte-card" style="border-color:#9a7b1f;background:linear-gradient(180deg,rgba(212,175,55,.12),rgba(212,175,55,.03))">
-        <div class="rc-title">🎖️ Cerrar el semestre actual</div>
-        <div class="rc-desc">Congela la nota de disciplina de <strong>todos</strong> los cursantes al día de hoy (1er ciclo → su semestre; 2do ciclo → +2). A partir del cierre, el puntaje <strong>semestral</strong> académico arranca de 100; el <strong>anual</strong> sigue acumulando. El detalle queda guardado y solo vos (C&T) podés modificarlo.</div>
-        <div id="cierre-sem-estado" style="font-size:12.5px;color:var(--text-muted);margin:6px 0 10px">Cargando estado…</div>
-        <div class="rc-buttons">
-          <button class="rc-btn" style="background:linear-gradient(180deg,#b3601a,#d4af37);color:#0a1628;font-weight:700" onclick="cierreSemestrePreview(this)">🔒 Cerrar semestre…</button>
-        </div>
-      </div>
+      <div id="cierre-sem-estado" style="display:none"></div>
     </div>
 
     <div id="alert-consejo" class="alert-banner red" style="display:none"><div class="alert-emoji">🚨</div><div class="alert-text"><div class="alert-title" id="alert-consejo-title">— en riesgo</div><div class="alert-desc">Acumularon 25+ pts perdidos.</div></div></div>
@@ -4917,6 +4909,7 @@ input::placeholder, textarea::placeholder {
       <button class="quick-btn success" data-sac-hide="1" onclick="goRespaldo()"><span class="qa-icon">💾</span><span class="qa-text">Descargar respaldo ahora (JSON + .XLSX)</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goInstalar()"><span class="qa-icon">📲</span><span class="qa-text">Instalar app / Compartir QR</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goAnulaciones()"><span class="qa-icon">📋</span><span class="qa-text">Solicitudes de reconsideración / anulación</span><span id="badge-solicitudes" style="display:none;margin-left:auto;background:#c84a4a;color:#fff;font-size:12px;font-weight:700;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;padding:0 6px">0</span></button>
+      <button id="qa-btn-cerrar-sem" class="quick-btn" data-sac-hide="1" onclick="cierreSemestrePreview(this)" style="display:none"><span class="qa-icon">🔒</span><span class="qa-text"><strong>Cerrar semestre actual</strong> (congelar notas de todos)</span></button>
       <button class="quick-btn warning" data-sac-hide="1" onclick="goReiniciar()"><span class="qa-icon">📥</span><span class="qa-text">Cierre de semestre (respaldo)</span></button>
       <button id="qa-btn-pwd-otro" class="quick-btn" onclick="goGestionarProfesores()"><span class="qa-icon">🔑</span><span class="qa-text">Cambiar contraseña / CI de cursante o profesor</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="qa('cambiar_mi_pwd')"><span class="qa-icon">🔐</span><span class="qa-text">Cambiar mi usuario y contraseña</span></button>
@@ -5949,6 +5942,23 @@ input::placeholder, textarea::placeholder {
 .rgd-btn{flex:1;padding:7px;border:1px solid var(--border,#2a3a52);border-radius:8px;background:rgba(255,255,255,.03);color:#cfe0f5;font-size:12px;cursor:pointer}
 .rgd-btn.danger{border-color:#7a2230;color:#ffc9c9}
 </style>
+<!-- v2.9.110: EJERCICIOS (registro) — lista de ejercicios militares -->
+<section id="screen-ejercicios" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('screen-disc-panel')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">⚔️ Ejercicios</div><div class="header-sub">Registro de ejercicios militares</div></div>
+  </div>
+  <div class="disc-container">
+    <div class="rc-desc" style="margin-bottom:12px">Registro de ejercicios militares. Tocá uno para entrar a su Dirección (radiogramas y documentos). Los próximos ejercicios se irán guardando aquí.</div>
+    <button class="btn-mega" onclick="goRgDireccion()" style="background:linear-gradient(135deg,#7a1f1a,#c0392b 70%,#e67e22);color:#fff;margin:0 0 10px 0;text-align:left">
+      <span class="mega-icon">⚔️</span>
+      <span>Ejercicio VENCER O MORIR<br><span style="font-size:12px;font-weight:600;opacity:.85">Dirección · radiogramas · documentos</span></span>
+    </button>
+    <div class="list-empty">Los próximos ejercicios aparecerán aquí cuando se creen.</div>
+  </div>
+</section>
+
 <section id="screen-rg-direccion" class="screen">
   <div class="app-header">
     <button class="back-btn" onclick="rgdVolver()">←</button>
@@ -10524,7 +10534,7 @@ function renderDiscPanel(){
 
   // Visibilidad de botones según rol
   const soloCT = esCT();
-  const btnsCT = ['qa-btn-gest-cursantes','qa-btn-gest-profesores','qa-btn-diagnostico','qa-btn-pwd-otro','qa-btn-bloqueo-materias','qa-btn-aula-gestion','qa-btn-avisos'];
+  const btnsCT = ['qa-btn-gest-cursantes','qa-btn-gest-profesores','qa-btn-diagnostico','qa-btn-pwd-otro','qa-btn-bloqueo-materias','qa-btn-aula-gestion','qa-btn-avisos','qa-btn-cerrar-sem'];
   btnsCT.forEach(id => {
     const el = document.getElementById(id);
     if(el) el.style.display = soloCT ? '' : 'none';
@@ -13335,26 +13345,19 @@ async function cierreSemActualizarEstado(){
   const el = document.getElementById('cierre-sem-estado');
   const acc = document.getElementById('cierre-sem-accesos');
   if(el) el.textContent = 'Cargando estado…';
+  const block = document.getElementById('cierre-sem-block');
   const r = await _csInvoke('vigente');
-  if(!r.ok){ if(el) el.innerHTML = '⚠️ No se pudo leer el estado (¿falta desplegar la función <code>cierre-semestre</code>?).'; if(acc) acc.innerHTML=''; return; }
+  if(!r.ok){ if(block) block.style.display='none'; return; }
   const year = new Date().getFullYear();
   const gEl = document.getElementById('cierre-sem-gestion'); if(gEl) gEl.textContent = year;
   const lista = r.cierres || [];
-  const delAno = lista.filter(c => Number(c.gestion)===year);
-  // Un solo botón GRANDE: "VER SEMESTRES CERRADOS" (lo más visible). Adentro está la lista.
+  // El bloque "Semestres cerrados" solo se muestra si HAY cierres. (Cerrar semestre = acceso rápido.)
+  if(block) block.style.display = lista.length ? '' : 'none';
   if(acc){
-    acc.innerHTML = lista.length ? `<button class="btn-mega" onclick="goCierreSemestre()" style="background:linear-gradient(180deg,#9a7b1f,#d4af37);margin:0 0 10px 0;color:#0a1628;text-align:left">
+    acc.innerHTML = lista.length ? `<button class="btn-mega" onclick="goCierreSemestre()" style="background:linear-gradient(180deg,#9a7b1f,#d4af37);margin:0 0 6px 0;color:#0a1628;text-align:left">
         <span class="mega-icon">📚</span>
         <span>VER SEMESTRES CERRADOS<br><span style="font-size:12px;font-weight:600;opacity:.85">${lista.length} cerrado(s) · entrá, elegí un semestre y mirá cada alumno · descargá Word/Excel</span></span>
       </button>` : '';
-  }
-  if(el){
-    if(r.ultimo){
-      const f = new Date(r.ultimo.fecha_cierre).toLocaleDateString('es-BO');
-      el.innerHTML = `✅ Último cierre: <strong>${delAno.length}°</strong> de ${year} (el ${f}, ${r.ultimo.total_cursantes||0} cursantes). El próximo será el <strong>${delAno.length+1}°</strong> cierre del año.`;
-    } else {
-      el.innerHTML = `Aún no hay cierres en ${year}. Este sería el <strong>1er</strong> cierre (1er ciclo → 1er semestre, 2do ciclo → 3er semestre).`;
-    }
   }
 }
 
@@ -15281,6 +15284,8 @@ function _rgdToggleAccesos(){
   document.querySelectorAll('.rgd-access').forEach(b => { b.style.display = v ? '' : 'none'; });
 }
 function rgdVolver(){ showScreen(rgdBack || 'screen-disc-panel'); }
+// v2.9.110: pantalla "Ejercicios" (registro). Adentro: Vencer o Morir (y futuros).
+function goEjercicios(){ showScreen('screen-ejercicios'); }
 async function goRgDireccion(){
   rgdBack = (document.querySelector('.screen.active')||{}).id || 'screen-disc-panel';
   showScreen('screen-rg-direccion');
