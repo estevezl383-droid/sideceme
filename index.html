@@ -1045,6 +1045,7 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .firma-display img{max-width:100%;height:80px;object-fit:contain}
 
 #leaflet-map-prof, #det-leaflet-map{height:240px;border-radius:var(--radius-sm);margin-bottom:8px}
+.wg-mini{background:var(--bg-input,#0f1620);color:var(--text,#e8edf5);border:1px solid var(--border,#2a3a52);border-radius:6px;padding:4px 6px;font-size:12px}
 .gps-coords-prof{
   font-family:monospace;font-size:11px;color:#5c4a1a;
   background:rgba(0,0,0,.04);padding:8px 12px;border-radius:var(--radius-sm);
@@ -3881,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.110 · C&T: "Cerrar semestre" pasa a acceso rápido (bloque solo muestra VER SEMESTRES CERRADOS); botón del ejercicio renombrado a EJERCICIOS (registro: Vencer o Morir + futuros)</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.112 · JUEGO DE GUERRA (PMTD): wargame por turnos con niebla de guerra y combate determinista. Árbitro crea partida + bandos (claves) + unidades; los Estados Mayores entran con su clave, envían órdenes (mover/atacar) y el árbitro resuelve cada turno. Mapa Leaflet. + EJERCICIOS TÁCTICOS (v2.9.111)</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4692,6 +4693,17 @@ input::placeholder, textarea::placeholder {
         <span>Documentos Institucionales</span>
         <span id="docsinst-badge" class="hub-badge" style="display:none"></span>
       </button>
+      <!-- Ejercicios Tácticos (calcos KMZ/KML para Google Earth) -->
+      <button class="btn-mega" onclick="goEjTac('screen-cursante-home')" style="background:linear-gradient(180deg,#2c6b4b,#3a8c5a);margin:0 0 10px 0;color:#fff;position:relative">
+        <span class="mega-icon">🗺️</span>
+        <span>Ejercicios Tácticos</span>
+        <span id="ejtac-badge" class="hub-badge" style="display:none"></span>
+      </button>
+      <!-- Juego de Guerra (unirse como Estado Mayor con clave) -->
+      <button class="btn-mega" onclick="goWargame('screen-cursante-home')" style="background:linear-gradient(180deg,#8a6d24,#caa14a);margin:0 0 10px 0;color:#1a1407;position:relative">
+        <span class="mega-icon">🎲</span>
+        <span>Juego de Guerra</span>
+      </button>
 
 
       <!-- =================== SECCIÓN DISCIPLINA (default visible) =================== -->
@@ -4906,6 +4918,8 @@ input::placeholder, textarea::placeholder {
       <button id="qa-btn-avisos" class="quick-btn" onclick="goAvisos()" style="background:linear-gradient(180deg,rgba(70,150,110,.2),rgba(70,150,110,.05));border-color:#46966e;display:none"><span class="qa-icon">📢</span><span class="qa-text"><strong>Avisos a cursantes</strong> (publicar / desactivar cartel in-app)</span></button>
       <button class="quick-btn" onclick="goDocsProfesoresCT()" style="background:linear-gradient(180deg,rgba(140,90,203,.18),rgba(140,90,203,.05));border-color:#8c5acb"><span class="qa-icon">👨‍🏫</span><span class="qa-text"><strong>Documentos del personal docente</strong> (subir / ver — solo profesores)</span></button>
       <button class="quick-btn" onclick="goDocsInst('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(140,90,203,.22),rgba(107,75,168,.06));border-color:#8c5acb"><span class="qa-icon">📁</span><span class="qa-text"><strong>Documentos Institucionales</strong> (publicar / recibir — por ciclo, profesores, mando)</span></button>
+      <button class="quick-btn" onclick="goEjTac('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(58,140,90,.22),rgba(44,107,75,.06));border-color:#3a8c5a"><span class="qa-icon">🗺️</span><span class="qa-text"><strong>Ejercicios Tácticos</strong> (publicar / recibir calcos KMZ para Google Earth)</span></button>
+      <button class="quick-btn" onclick="goWargame('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(202,161,74,.2),rgba(160,120,40,.05));border-color:#caa14a"><span class="qa-icon">🎲</span><span class="qa-text"><strong>Juego de Guerra</strong> (wargame por turnos: árbitro y Estados Mayores)</span></button>
       <button class="quick-btn success" data-sac-hide="1" onclick="goRespaldo()"><span class="qa-icon">💾</span><span class="qa-text">Descargar respaldo ahora (JSON + .XLSX)</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goInstalar()"><span class="qa-icon">📲</span><span class="qa-text">Instalar app / Compartir QR</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goAnulaciones()"><span class="qa-icon">📋</span><span class="qa-text">Solicitudes de reconsideración / anulación</span><span id="badge-solicitudes" style="display:none;margin-left:auto;background:#c84a4a;color:#fff;font-size:12px;font-weight:700;min-width:22px;height:22px;line-height:22px;text-align:center;border-radius:11px;padding:0 6px">0</span></button>
@@ -5904,6 +5918,106 @@ input::placeholder, textarea::placeholder {
     </div>
     <div id="docsinst-inbox" style="display:none">
       <div id="docsinst-inbox-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="screen-ejercicios-tacticos" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen(_ET_BACK||'screen-cursante-home')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">🗺️ Ejercicios Tácticos</div><div class="header-sub" id="ejtac-sub">Ejercicios para Google Earth</div></div>
+  </div>
+  <div class="menu-container">
+    <div id="ejtac-publicar" style="display:none">
+      <div class="section-label">📤 Publicar un ejercicio</div>
+      <div class="field" style="margin-bottom:8px"><label>Título</label><input type="text" id="et-titulo" placeholder="Ej: Ejercicio VENCER O MORIR - COA enemigo" autocomplete="off"></div>
+      <div class="field" style="margin-bottom:8px"><label>Área de operaciones (opcional)</label><input type="text" id="et-area" placeholder="Ej: Tarija - Bermejo" autocomplete="off"></div>
+      <div class="field" style="margin-bottom:8px"><label>Descripción / objetivo (opcional)</label><textarea id="et-desc" rows="2" placeholder="Situación, misión o instrucciones del ejercicio" style="resize:vertical"></textarea></div>
+      <div class="field" style="margin-bottom:8px"><label>Archivo (KMZ o KML de Google Earth)</label><input type="file" id="et-file" accept=".kmz,.kml"></div>
+      <div class="field" style="margin-bottom:6px"><label>¿Para quién? (uno o varios)</label></div>
+      <div id="et-destinos" style="display:flex;flex-direction:column;gap:7px;border:1px solid var(--border,#2a3a52);border-radius:10px;padding:10px;margin-bottom:10px">
+        <label class="rg-chk"><input type="checkbox" value="1er_ciclo"> 🎓 1er Ciclo</label>
+        <label class="rg-chk"><input type="checkbox" value="2do_ciclo"> 🎓 2do Ciclo</label>
+        <label class="rg-chk"><input type="checkbox" value="profesores"> 👨‍🏫 Profesores</label>
+        <label class="rg-chk"><input type="checkbox" value="comandante"> 🎖️ Comandante</label>
+        <label class="rg-chk"><input type="checkbox" value="jefe_estudios"> 📚 Jefe de Estudios</label>
+        <label class="rg-chk"><input type="checkbox" value="otros"> 🗂️ Otros (personal)</label>
+      </div>
+      <div id="et-progreso" style="font-size:12px;color:var(--text-muted);min-height:16px;margin-bottom:6px"></div>
+      <button class="btn-primary" id="et-btn-publicar" onclick="ejTacPublicar(this)" style="margin-bottom:16px">📣 Publicar ejercicio</button>
+      <div class="section-label">🗂️ Publicados</div>
+      <div id="ejtac-admin-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+    </div>
+    <div id="ejtac-inbox" style="display:none">
+      <div class="rg-card" style="background:rgba(140,90,203,.06);border-color:#6b4ba8;margin-bottom:10px">
+        <div class="rg-meta" style="color:var(--text-muted)">🌍 Descargá el archivo y abrilo con <strong>Google Earth Pro</strong> (escritorio) para ver el calco en 3D.</div>
+      </div>
+      <div id="ejtac-inbox-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+    </div>
+  </div>
+</section>
+
+<section id="screen-wargame" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="wgVolver()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">🎲 Juego de Guerra</div><div class="header-sub" id="wg-sub">PMTD · turnos</div></div>
+  </div>
+  <div class="menu-container">
+    <!-- LOBBY: crear (árbitro) o unirse (Estado Mayor) -->
+    <div id="wg-lobby">
+      <div id="wg-arbitro-crear" style="display:none">
+        <div class="section-label">🎖️ Crear partida (árbitro)</div>
+        <div class="field" style="margin-bottom:8px"><label>Nombre de la partida</label><input type="text" id="wg-nom" placeholder="Ej: VENCER O MORIR - Juego 1" autocomplete="off"></div>
+        <div class="field" style="margin-bottom:8px"><label>Duración de cada turno (horas de operación)</label><input type="number" id="wg-dur" value="2" min="1" max="24" step="1"></div>
+        <button class="btn-primary" onclick="wgCrearPartida(this)" style="margin-bottom:14px">➕ Crear partida</button>
+        <div class="section-label">🗂️ Mis partidas</div>
+        <div id="wg-mis-partidas"><div class="efm-no-data" style="color:var(--text-muted)">⏳…</div></div>
+      </div>
+      <div style="margin-top:10px">
+        <div class="section-label">🔑 Unirse a una partida (Estado Mayor)</div>
+        <div class="field" style="margin-bottom:8px"><label>N° de partida</label><input type="number" id="wg-join-id" placeholder="ej: 3"></div>
+        <div class="field" style="margin-bottom:8px"><label>Clave de tu bando</label><input type="text" id="wg-join-clave" placeholder="código que te dio el árbitro" autocomplete="off"></div>
+        <button class="btn-primary" onclick="wgUnirse(this)">▶️ Entrar</button>
+      </div>
+    </div>
+
+    <!-- JUEGO: mapa + controles -->
+    <div id="wg-game" style="display:none">
+      <div id="wg-bar" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;font-size:13px">
+        <span id="wg-turno-chip" style="background:#1c2230;border:1px solid #3a8c5a;border-radius:7px;padding:4px 10px;font-weight:700">Turno —</span>
+        <span id="wg-rol-chip" style="border-radius:7px;padding:4px 10px;font-weight:700"></span>
+        <button class="rg-doc" onclick="wgEstado()">🔄 Actualizar</button>
+        <button class="rg-doc" id="wg-btn-enviar" onclick="wgEnviarOrdenes(this)" style="display:none">📨 Enviar órdenes (<span id="wg-nord">0</span>)</button>
+        <button class="rg-doc" id="wg-btn-resolver" onclick="wgResolver(this)" style="display:none;border-color:#3a8c5a;color:#bdf5d6">⚔️ Resolver turno</button>
+        <button class="rg-doc" id="wg-btn-config" onclick="wgConfigToggle()" style="display:none">⚙️ Configurar</button>
+      </div>
+      <!-- Panel de configuración del árbitro (oculto por defecto) -->
+      <div id="wg-config" style="display:none;border:1px solid var(--border,#2a3a52);border-radius:10px;padding:10px;margin-bottom:8px;font-size:12.5px">
+        <div class="section-label">Bandos (cada uno = un Estado Mayor)</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <button class="rg-doc" onclick="wgAgregarBando('rojo')">🔴 Crear/ver bando ROJO</button>
+          <button class="rg-doc" onclick="wgAgregarBando('azul')">🔵 Crear/ver bando AZUL</button>
+        </div>
+        <div id="wg-bandos-claves" style="font-size:12px;color:var(--text-muted);margin-bottom:8px"></div>
+        <div class="section-label">Colocar unidad (luego clic en el mapa)</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+          <select id="wg-u-bando" class="wg-mini"><option value="rojo">🔴 Rojo</option><option value="azul">🔵 Azul</option></select>
+          <input id="wg-u-desig" class="wg-mini" placeholder="Designación" style="width:120px">
+          <select id="wg-u-escalon" class="wg-mini"><option value="compania">Compañía</option><option value="batallon" selected>Batallón</option><option value="regimiento">Regimiento</option><option value="brigada">Brigada</option><option value="division">División</option></select>
+          <select id="wg-u-medio" class="wg-mini"><option value="motor">Motor</option><option value="oruga">Oruga</option><option value="pie">A pie</option></select>
+          <input id="wg-u-poder" class="wg-mini" type="number" value="12" min="1" style="width:70px" title="Poder de combate">
+        </div>
+        <label style="font-size:12px"><input type="checkbox" id="wg-modo-colocar" onchange="wgModoColocar()"> ✋ Modo colocar (clic en el mapa pone la unidad)</label>
+        <div style="margin-top:8px"><button class="btn-primary" onclick="wgIniciar(this)">🚀 Iniciar partida (turno 1)</button></div>
+      </div>
+      <div id="wg-map" style="height:380px;border-radius:10px;border:1px solid var(--border,#2a3a52);margin-bottom:8px"></div>
+      <div id="wg-ayuda" style="font-size:11.5px;color:var(--text-muted);margin-bottom:8px"></div>
+      <div class="section-label">Unidades</div>
+      <div id="wg-unidades" style="font-size:12.5px;margin-bottom:10px"></div>
+      <div class="section-label">📜 Bitácora</div>
+      <div id="wg-bitacora" style="font-size:12px;color:var(--text-muted)"></div>
     </div>
   </div>
 </section>
@@ -9374,6 +9488,7 @@ function descargarMiDetalleSem(n, formato){
 async function renderCursanteHome(){
   if(!currentUser) return;
   try{ cargarDocsInstBadge(); }catch(e){}
+  try{ cargarEjTacBadge(); }catch(e){}
   try{ renderSemestresCursante(); }catch(e){}   // v2.9.107: vista por semestre
   // Ocultar las 4 tarjetas viejas (ahora la info va por semestre) y la tarjeta anual grande (reemplazada por el chip chico)
   ['cur-area-disciplina','cur-area-efm','cur-area-academicas','cur-area-merito','cur-anual-card','cur-cierres-wrap','cur-section-disciplina'].forEach(id=>{ const e=document.getElementById(id); if(e) e.style.display='none'; });
@@ -14571,6 +14686,333 @@ function _diSeenMax(){ try{ return parseInt(localStorage.getItem(_diSeenKey())||
 function _diMarcarVisto(items){
   try{ const mx=items.reduce((a,d)=>Math.max(a,Number(d.id)||0),0); if(mx) localStorage.setItem(_diSeenKey(),String(mx)); }catch(e){}
   _rgSetBadge('docsinst-badge',0);
+}
+
+/* ===== EJERCICIOS TÁCTICOS (calcos KMZ/KML para Google Earth) ===== */
+/* Mismo patrón que Documentos Institucionales, pero con archivos KMZ/KML del
+   Generador de Calcos y un campo extra de "Área de operaciones". */
+let _ET_BACK='screen-cursante-home';
+const ET_PUBLICAN=['ciencia_tecnologia','comandante','estudios'];
+const ET_DEST_LABEL=DI_DEST_LABEL;
+function _etPuedePublicar(){ const ses=getSession(); return !!(ses && ses.tipo==='docente' && ET_PUBLICAN.includes(activeRole)); }
+function _etKb(b){ if(b==null) return ''; const kb=b/1024; return kb<1024?(Math.round(kb)+' KB'):((kb/1024).toFixed(1)+' MB'); }
+async function _etInvoke(accion, extra){
+  const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
+  if(!tok) return {ok:false,error:'sin sesión'};
+  try{
+    const { data, error } = await sb.functions.invoke('ejercicios-tacticos',{ body:Object.assign({accion, token:tok}, extra||{}) });
+    if(error) return {ok:false,error:(error.message||'error')};
+    return data||{ok:false,error:'sin respuesta'};
+  }catch(e){ return {ok:false,error:String((e&&e.message)||e)}; }
+}
+async function goEjTac(fromScreen){
+  _ET_BACK = fromScreen || 'screen-cursante-home';
+  showScreen('screen-ejercicios-tacticos');
+  const pub=_etPuedePublicar();
+  document.getElementById('ejtac-publicar').style.display = pub?'':'none';
+  document.getElementById('ejtac-inbox').style.display = pub?'none':'';
+  document.getElementById('ejtac-sub').textContent = pub?'Publicar y gestionar':'Ejercicios para vos';
+  if(pub) await ejTacCargarAdmin(); else await ejTacCargarInbox();
+}
+function _etCard(e, admin){
+  const dest=(e.destinos||[]).map(x=>'<span class="rg-badge rg-rut" style="margin-right:4px">'+_rgEsc(ET_DEST_LABEL[x]||x)+'</span>').join('');
+  return '<div class="rg-card">'
+    +'<div class="rg-card-top"><span style="font-size:20px">🗺️</span>'
+    +'<span class="rg-meta" style="margin-left:auto">'+_rgEsc(_rgHora(e.creado_en))+'</span></div>'
+    +'<div class="rg-asunto" style="font-size:14px">'+_rgEsc(e.titulo||'Ejercicio')+'</div>'
+    +(e.area?('<div class="rg-route" style="margin:2px 0 0">📍 '+_rgEsc(e.area)+'</div>'):'')
+    +(e.descripcion?('<div class="rg-route" style="margin:2px 0 4px">'+_rgEsc(e.descripcion)+'</div>'):'')
+    +'<div style="margin:4px 0">'+dest+'</div>'
+    +'<div class="rg-meta">'+(e.publicado_por_nombre?('publicó: '+_rgEsc(e.publicado_por_nombre)):'')+(e.size_bytes?(' · '+_etKb(e.size_bytes)):'')+'</div>'
+    +'<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">'
+    +'<button class="rg-doc" onclick="ejTacVer('+e.id+', this)">⬇ Descargar (Google Earth)</button>'
+    +(admin?('<button class="rg-doc" style="border-color:#7a2230;color:#ffc9c9;background:rgba(122,34,48,.12)" onclick="ejTacEliminar('+e.id+')">🗑 Eliminar</button>'):'')
+    +'</div></div>';
+}
+async function ejTacCargarInbox(){
+  const cont=document.getElementById('ejtac-inbox-lista');
+  if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const r=await _etInvoke('listar');
+  if(!r.ok){ if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No se pudo cargar.</div>'; return; }
+  const items=r.ejercicios||[];
+  _etMarcarVisto(items);
+  if(cont) cont.innerHTML = items.length ? items.map(e=>_etCard(e,false)).join('') : '<div class="rg-card" style="text-align:center;color:var(--text-muted);padding:22px">📭 No hay ejercicios para vos por ahora.</div>';
+}
+async function ejTacCargarAdmin(){
+  const cont=document.getElementById('ejtac-admin-lista');
+  if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const r=await _etInvoke('listar_admin');
+  if(!r.ok){ if(cont) cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No se pudo cargar.</div>'; return; }
+  const items=r.ejercicios||[];
+  if(cont) cont.innerHTML = items.length ? items.map(e=>_etCard(e,true)).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">Aún no publicaste ejercicios.</div>';
+}
+async function ejTacPublicar(btn){
+  const titulo=(document.getElementById('et-titulo').value||'').trim();
+  const area=(document.getElementById('et-area').value||'').trim();
+  const desc=(document.getElementById('et-desc').value||'').trim();
+  const inp=document.getElementById('et-file');
+  const file=inp&&inp.files&&inp.files[0];
+  const destinos=[...document.querySelectorAll('#et-destinos input:checked')].map(c=>c.value);
+  const prog=document.getElementById('et-progreso');
+  if(!titulo){ alert('Poné un título.'); return; }
+  if(!file){ alert('Elegí un archivo KMZ o KML.'); return; }
+  if(!/\.(kmz|kml)$/i.test(file.name)){ alert('Solo KMZ o KML (.kmz, .kml).'); return; }
+  if(file.size>50*1024*1024){ alert('El archivo supera 50 MB.'); return; }
+  if(!destinos.length){ alert('Elegí al menos un destino.'); return; }
+  if(btn){ btn.disabled=true; }
+  try{
+    prog.textContent='① Pidiendo permiso de subida…';
+    const up=await _etInvoke('upload_url',{filename:file.name});
+    if(!up.ok) throw new Error(up.error||'no se obtuvo URL de subida');
+    prog.textContent='② Subiendo archivo…';
+    const u=await sb.storage.from('documentos-academicos').uploadToSignedUrl(up.path, up.token, file);
+    if(u.error) throw new Error(u.error.message||'falló la subida');
+    prog.textContent='③ Publicando…';
+    const reg=await _etInvoke('publicar',{ titulo, area, descripcion:desc, destinos, storage_path:up.path, nombre_archivo:file.name, mime:file.type, size_bytes:file.size });
+    if(!reg.ok) throw new Error(reg.error||'no se pudo publicar');
+    prog.textContent='✅ Publicado a '+(reg.destinatarios||destinos.length)+' destino(s).';
+    document.getElementById('et-titulo').value=''; document.getElementById('et-area').value=''; document.getElementById('et-desc').value=''; inp.value='';
+    document.querySelectorAll('#et-destinos input:checked').forEach(c=>c.checked=false);
+    await ejTacCargarAdmin();
+  }catch(e){ prog.textContent='⚠️ '+(e.message||e); alert('No se pudo publicar: '+(e.message||e)); }
+  finally{ if(btn) btn.disabled=false; }
+}
+async function ejTacVer(id, btn){
+  if(btn){ btn.disabled=true; var t=btn.textContent; btn.textContent='⏳ Abriendo…'; }
+  const r=await _etInvoke('ver',{ej_id:id});
+  if(btn){ btn.disabled=false; btn.textContent=t; }
+  if(!r.ok||!r.url){ alert('No se pudo abrir: '+(r.error||'')); return; }
+  try{ window.open(r.url,'_blank'); }catch(e){ location.href=r.url; }
+}
+async function ejTacEliminar(id){
+  if(!confirm('¿Eliminar este ejercicio? Deja de verse para los destinatarios.')) return;
+  const r=await _etInvoke('eliminar',{ej_id:id});
+  if(!r.ok){ alert('No se pudo eliminar: '+(r.error||'')); return; }
+  await ejTacCargarAdmin();
+}
+async function cargarEjTacBadge(){
+  try{
+    const ses=getSession(); if(!ses||ses.tipo!=='cursante') return;
+    const r=await _etInvoke('listar'); if(!r.ok) return;
+    const items=r.ejercicios||[];
+    const seen=_etSeenMax();
+    const nuevos=items.filter(e=>Number(e.id)>seen).length;
+    _rgSetBadge('ejtac-badge', nuevos);
+  }catch(e){}
+}
+function _etSeenKey(){ return 'sideceme_ejtac_seen_'+((currentUser&&currentUser.id)||'x'); }
+function _etSeenMax(){ try{ return parseInt(localStorage.getItem(_etSeenKey())||'0',10)||0; }catch(e){ return 0; } }
+function _etMarcarVisto(items){
+  try{ const mx=items.reduce((a,e)=>Math.max(a,Number(e.id)||0),0); if(mx) localStorage.setItem(_etSeenKey(),String(mx)); }catch(e){}
+  _rgSetBadge('ejtac-badge',0);
+}
+
+/* ===== JUEGO DE GUERRA (PMTD) — wargame por turnos, niebla de guerra ===== */
+const WG = { partidaId:null, clave:'', soy:null, estado:null, ordenes:{}, sel:null, map:null, capa:null, modoColocar:false, volverA:'screen-disc-panel' };
+const WG_COL = { rojo:'#e23b3b', azul:'#1f6dff' };
+async function _wgInvoke(accion, extra){
+  const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
+  if(!tok) return {ok:false,error:'sin sesión'};
+  try{
+    const { data, error } = await sb.functions.invoke('wargame-ops',{ body:Object.assign({accion, token:tok}, extra||{}) });
+    if(error) return {ok:false,error:(error.message||'error')};
+    return data||{ok:false,error:'sin respuesta'};
+  }catch(e){ return {ok:false,error:String((e&&e.message)||e)}; }
+}
+function _wgEsInstructor(){ const ses=getSession(); return !!(ses && ses.tipo==='docente'); }
+function goWargame(fromScreen){
+  WG.volverA = fromScreen || 'screen-disc-panel';
+  showScreen('screen-wargame');
+  document.getElementById('wg-lobby').style.display='';
+  document.getElementById('wg-game').style.display='none';
+  document.getElementById('wg-arbitro-crear').style.display = _wgEsInstructor()?'':'none';
+  if(_wgEsInstructor()) wgCargarMisPartidas();
+}
+function wgVolver(){
+  if(WG.map){ try{ WG.map.remove(); }catch(e){} WG.map=null; }
+  WG.partidaId=null; WG.estado=null; WG.ordenes={}; WG.sel=null;
+  showScreen(WG.volverA||'screen-disc-panel');
+}
+async function wgCargarMisPartidas(){
+  const cont=document.getElementById('wg-mis-partidas');
+  const r=await _wgInvoke('listar_partidas');
+  if(!r.ok){ cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No se pudo cargar.</div>'; return; }
+  const ps=r.partidas||[];
+  cont.innerHTML = ps.length ? ps.map(p=>
+    `<div class="rg-card" style="display:flex;justify-content:space-between;align-items:center;gap:8px">`
+    +`<div><b>${_rgEsc(p.nombre)}</b><div class="rg-meta">#${p.id} · ${_rgEsc(p.estado)} · turno ${p.turno_actual}</div></div>`
+    +`<button class="rg-doc" onclick="wgAbrir(${p.id},'')">Abrir como árbitro</button></div>`
+  ).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">Aún no creaste partidas.</div>';
+}
+async function wgCrearPartida(btn){
+  const nombre=(document.getElementById('wg-nom').value||'').trim();
+  const dur=Number(document.getElementById('wg-dur').value)||2;
+  if(!nombre){ alert('Poné un nombre.'); return; }
+  if(btn) btn.disabled=true;
+  const r=await _wgInvoke('crear_partida',{ nombre, duracion_turno_horas:dur });
+  if(btn) btn.disabled=false;
+  if(!r.ok){ alert('No se pudo crear: '+r.error); return; }
+  document.getElementById('wg-nom').value='';
+  await wgAbrir(r.id,'');
+}
+function wgUnirse(btn){
+  const id=Number(document.getElementById('wg-join-id').value);
+  const clave=(document.getElementById('wg-join-clave').value||'').trim();
+  if(!id||!clave){ alert('Completá el N° de partida y la clave.'); return; }
+  wgAbrir(id, clave);
+}
+async function wgAbrir(partidaId, clave){
+  WG.partidaId=partidaId; WG.clave=clave||''; WG.ordenes={}; WG.sel=null;
+  document.getElementById('wg-lobby').style.display='none';
+  document.getElementById('wg-game').style.display='';
+  await ensureLeaflet();
+  if(!WG.map){
+    WG.map = L.map('wg-map').setView([-17,-65], 7);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'OSM'}).addTo(WG.map);
+    WG.capa = L.layerGroup().addTo(WG.map);
+    WG.map.on('click', _wgMapClick);
+  }
+  setTimeout(()=>{ try{ WG.map.invalidateSize(); }catch(e){} }, 120);
+  await wgEstado();
+}
+async function wgEstado(){
+  if(!WG.partidaId) return;
+  const r=await _wgInvoke('estado',{ partida_id:WG.partidaId, clave_acceso:WG.clave });
+  if(!r.ok){ alert('No se pudo cargar el estado: '+r.error); return; }
+  WG.estado=r; WG.soy=r.soy;
+  const esArb = r.soy==='arbitro';
+  const p=r.partida||{};
+  document.getElementById('wg-turno-chip').textContent = 'Turno '+(p.turno_actual||'—')+' · '+(p.estado||'');
+  const rol=document.getElementById('wg-rol-chip');
+  rol.textContent = esArb?'🎖️ ÁRBITRO':(r.soy==='rojo'?'🔴 EM ROJO':'🔵 EM AZUL');
+  rol.style.background = esArb?'#3a2c0c':(WG_COL[r.soy]+'22'); rol.style.border='1px solid '+(esArb?'#caa14a':WG_COL[r.soy]); rol.style.color = esArb?'#f4d574':WG_COL[r.soy];
+  document.getElementById('wg-btn-config').style.display = esArb?'':'none';
+  document.getElementById('wg-btn-resolver').style.display = (esArb && p.estado==='en_curso')?'':'none';
+  document.getElementById('wg-btn-enviar').style.display = (p.estado==='en_curso')?'':'none';
+  // precargar mis órdenes ya enviadas
+  WG.ordenes={};
+  for(const o of (r.ordenes||[])) WG.ordenes[o.unidad_id]={ tipo:o.tipo, destino_lat:o.destino_lat, destino_lng:o.destino_lng, objetivo_id:o.objetivo_id };
+  _wgActualizarContadorOrdenes();
+  document.getElementById('wg-ayuda').innerHTML = p.estado!=='en_curso'
+    ? (esArb?'Configurá los bandos y unidades, luego <b>Iniciar partida</b>.':'Esperá a que el árbitro inicie la partida.')
+    : 'Tocá una unidad TUYA para seleccionarla; luego clic en el mapa = <b>mover</b>, o clic en un enemigo = <b>atacar</b>. Después <b>Enviar órdenes</b>.';
+  _wgRender();
+  wgHistorial();
+}
+function _wgRender(){
+  if(!WG.map||!WG.capa) return;
+  WG.capa.clearLayers();
+  const e=WG.estado; if(!e) return;
+  // terreno
+  const tcol={restringido:'#ffd400',severo:'#e2521b',clave:'#8e44ad'};
+  for(const t of (e.terreno||[])){
+    try{ L.geoJSON(t.geojson,{style:{color:tcol[t.tipo]||'#888',weight:1,fillOpacity:0.12}}).addTo(WG.capa); }catch(_e){}
+  }
+  // órdenes (líneas)
+  const uById={}; for(const u of (e.unidades||[])) uById[u.id]=u;
+  for(const [uid,o] of Object.entries(WG.ordenes)){
+    const u=uById[uid]; if(!u) continue;
+    if(o.tipo==='mover' && o.destino_lat!=null){
+      L.polyline([[u.lat,u.lng],[o.destino_lat,o.destino_lng]],{color:'#2ecc71',weight:2,dashArray:'6 6'}).addTo(WG.capa);
+    }else if(o.tipo==='atacar' && o.objetivo_id && uById[o.objetivo_id]){
+      const t=uById[o.objetivo_id];
+      L.polyline([[u.lat,u.lng],[t.lat,t.lng]],{color:'#e23b3b',weight:2.5}).addTo(WG.capa);
+    }
+  }
+  // unidades
+  for(const u of (e.unidades||[])){
+    const mio = (WG.soy==='arbitro') || (u.bando===WG.soy);
+    const col = WG_COL[u.bando]||'#888';
+    const sel = String(WG.sel)===String(u.id);
+    const m = L.circleMarker([u.lat,u.lng],{
+      radius: sel?11:8, color: sel?'#fff':col, weight: sel?3:2,
+      fillColor: col, fillOpacity: mio?0.9:0.35,
+    }).addTo(WG.capa);
+    const pct = u.poder_max? Math.round(100*u.poder_actual/u.poder_max):100;
+    m.bindTooltip(`${_rgEsc(u.designacion||u.bando)} · ${pct}%${u.estado!=='activa'?' ('+u.estado+')':''}`,{direction:'top'});
+    m.on('click', (ev)=>{ L.DomEvent.stopPropagation(ev); _wgUnidadClick(u); });
+  }
+  // lista lateral
+  const cont=document.getElementById('wg-unidades');
+  const mias=(e.unidades||[]).filter(u=> WG.soy==='arbitro'||u.bando===WG.soy);
+  const enem=(e.unidades||[]).filter(u=> WG.soy!=='arbitro'&&u.bando!==WG.soy);
+  const fila=(u,en)=>{ const pct=u.poder_max?Math.round(100*u.poder_actual/u.poder_max):100; const o=WG.ordenes[u.id];
+    return `<div class="rg-card" style="padding:6px 8px;${String(WG.sel)===String(u.id)?'outline:2px solid #fff;':''}cursor:${en?'default':'pointer'}" ${en?'':`onclick="_wgSelById(${u.id})"`}>`
+    +`<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${WG_COL[u.bando]};margin-right:6px"></span>`
+    +`<b>${_rgEsc(u.designacion||u.bando)}</b> · ${pct}% ${u.estado!=='activa'?'<span style="color:#e08a2c">('+u.estado+')</span>':''}`
+    +(o?` <span style="color:#2ecc71">· orden: ${o.tipo}</span>`:'')+`</div>`; };
+  cont.innerHTML = `<div style="margin-bottom:4px">Tuyas (${mias.length}):</div>`+mias.map(u=>fila(u,false)).join('')
+    + (enem.length?`<div style="margin:6px 0 4px">Enemigas detectadas (${enem.length}):</div>`+enem.map(u=>fila(u,true)).join('')
+       : (WG.soy!=='arbitro'?'<div class="rg-meta" style="margin-top:6px">🌫️ Sin contacto enemigo (niebla de guerra).</div>':''));
+}
+function _wgSelById(id){ const u=(WG.estado.unidades||[]).find(x=>String(x.id)===String(id)); if(u) _wgUnidadClick(u); }
+function _wgUnidadClick(u){
+  const mio = (WG.soy==='arbitro')||(u.bando===WG.soy);
+  if(mio){ WG.sel = (String(WG.sel)===String(u.id))?null:u.id; _wgRender(); return; }
+  // clic en enemigo con una unidad mía seleccionada → orden de atacar
+  if(WG.sel){ WG.ordenes[WG.sel]={ tipo:'atacar', objetivo_id:u.id }; _wgActualizarContadorOrdenes(); _wgRender(); }
+}
+function _wgMapClick(ev){
+  if(WG.modoColocar && WG.soy==='arbitro'){ _wgColocarEn(ev.latlng); return; }
+  if(WG.sel){ WG.ordenes[WG.sel]={ tipo:'mover', destino_lat:ev.latlng.lat, destino_lng:ev.latlng.lng }; _wgActualizarContadorOrdenes(); _wgRender(); }
+}
+function _wgActualizarContadorOrdenes(){ const n=Object.keys(WG.ordenes).length; const el=document.getElementById('wg-nord'); if(el) el.textContent=n; }
+async function wgEnviarOrdenes(btn){
+  const ids=Object.keys(WG.ordenes); if(!ids.length){ alert('No hay órdenes para enviar.'); return; }
+  if(btn) btn.disabled=true;
+  let okc=0;
+  for(const uid of ids){
+    const o=WG.ordenes[uid];
+    const r=await _wgInvoke('enviar_orden',{ partida_id:WG.partidaId, clave_acceso:WG.clave, orden:Object.assign({unidad_id:Number(uid)},o) });
+    if(r.ok) okc++; else console.warn('orden',uid,r.error);
+  }
+  if(btn) btn.disabled=false;
+  alert(`Órdenes enviadas: ${okc}/${ids.length}.`);
+  await wgEstado();
+}
+async function wgResolver(btn){
+  if(!confirm('¿Resolver el turno? Se moverán las unidades y se resolverán los combates.')) return;
+  if(btn) btn.disabled=true;
+  const r=await _wgInvoke('resolver_turno',{ partida_id:WG.partidaId });
+  if(btn) btn.disabled=false;
+  if(!r.ok){ alert('No se pudo resolver: '+r.error); return; }
+  alert(`Turno ${r.turno_resuelto} resuelto: ${r.combates} combate(s). Ahora turno ${r.turno_nuevo}.`);
+  WG.ordenes={}; await wgEstado();
+}
+async function wgHistorial(){
+  const r=await _wgInvoke('historial',{ partida_id:WG.partidaId, clave_acceso:WG.clave });
+  const cont=document.getElementById('wg-bitacora');
+  if(!r.ok){ cont.innerHTML=''; return; }
+  const ev=r.eventos||[];
+  cont.innerHTML = ev.length? ev.map(e=>`<div style="padding:2px 0">T${e.turno} · ${e.tipo==='combate'?'⚔️':e.tipo==='movimiento'?'🚶':'•'} ${_rgEsc(e.descripcion||'')}</div>`).join('')
+    : '<div class="rg-meta">Sin eventos todavía.</div>';
+}
+// ---- árbitro: configuración ----
+function wgConfigToggle(){ const c=document.getElementById('wg-config'); c.style.display = c.style.display==='none'?'':'none'; }
+async function wgAgregarBando(bando){
+  const nombre=prompt(`Nombre del Estado Mayor ${bando.toUpperCase()} (opcional):`)||'';
+  const r=await _wgInvoke('agregar_bando',{ partida_id:WG.partidaId, bando, nombre });
+  if(!r.ok){ alert('No se pudo: '+r.error); return; }
+  const div=document.getElementById('wg-bandos-claves');
+  div.innerHTML += `<div>${bando==='rojo'?'🔴':'🔵'} ${bando.toUpperCase()} → clave: <b style="color:#f4d574">${_rgEsc(r.clave_acceso)}</b> (dásela a ese EM)</div>`;
+}
+function wgModoColocar(){ WG.modoColocar=document.getElementById('wg-modo-colocar').checked; document.getElementById('wg-ayuda').innerHTML = WG.modoColocar?'✋ <b>Modo colocar ON</b>: clic en el mapa para poner la unidad configurada.':''; }
+async function _wgColocarEn(latlng){
+  const u={ bando:document.getElementById('wg-u-bando').value, designacion:document.getElementById('wg-u-desig').value||'',
+    escalon:document.getElementById('wg-u-escalon').value, medio:document.getElementById('wg-u-medio').value,
+    poder_max:Number(document.getElementById('wg-u-poder').value)||12, lat:latlng.lat, lng:latlng.lng };
+  const r=await _wgInvoke('agregar_unidad',{ partida_id:WG.partidaId, unidad:u });
+  if(!r.ok){ alert('No se pudo colocar: '+r.error); return; }
+  await wgEstado();
+}
+async function wgIniciar(btn){
+  if(!confirm('¿Iniciar la partida? Empieza el turno 1 y los EM podrán enviar órdenes.')) return;
+  if(btn) btn.disabled=true;
+  const r=await _wgInvoke('iniciar',{ partida_id:WG.partidaId });
+  if(btn) btn.disabled=false;
+  if(!r.ok){ alert('No se pudo iniciar: '+r.error); return; }
+  document.getElementById('wg-config').style.display='none';
+  await wgEstado();
 }
 
 /* ===== v2.9.90: RADIOGRAMAS (juego de guerra VENCER O MORIR) — vista del cursante ===== */
