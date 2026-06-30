@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.113 · FIX URGENTE reincidencias: al abrir nuevo semestre se reinician (cuentan solo dentro del semestre vigente). + vista alumno por semestre, cierre de semestre, EJERCICIOS, círculo anual. (incluye Juego de Guerra y Ejercicios Tácticos)</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.114 · FIX alumno: sus sanciones del semestre en curso SIEMPRE visibles (incluida la pendiente) con estado/color y clic para firmar; botón rosado "ENLACE A TU SANCIÓN". + fix reincidencias.</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -9444,6 +9444,22 @@ function _renderSemPanel(){
   cont.innerHTML=`<div style="font-size:13px;font-weight:800;color:#5c4a1a;margin:2px 0 8px">${escapeHtml(titulo)}</div>`+cards+'<div id="cur-sem-detalle"></div>';
   verAreaSemestre(CUR_SEM_AREA, n);
 }
+// v2.9.114: fila de sanción EN VIVO del alumno (con estado/color y clic para abrir y firmar).
+function _curSancFilaLive(s, i){
+  const analogica = esSancionAnalogica(s);
+  const firmada = !analogica && (s.confirmacion_estado==='firmada' || s.confirmacion_estado==='aceptada' || !!s.firma_cursante);
+  let color, badge;
+  if(firmada || analogica){ color='#4caf72'; badge='<span style="color:#7fe6a4;font-weight:800">✅ FIRMADA</span>'; }
+  else { color='#e0584a'; badge='<span style="color:#ff8c7c;font-weight:800">⏳ PENDIENTE DE FIRMA — tocá para firmar</span>'; }
+  const f = fechaSancion(s);
+  const fs = f ? fechaCortaReporte(f) : '—';
+  const falta = [s.falta_categoria, s.falta_articulo?('Art. '+s.falta_articulo):''].filter(Boolean).join(' · ');
+  const pts = Number(s.puntos_aplicados)||0;
+  return `<div class="list-item" style="cursor:pointer;border-left:4px solid ${color}" onclick="verSancionDetalle('${escapeAttr(String(s.id))}')">
+    <div class="li-id">${i+1}</div>
+    <div class="li-name">${badge}<br>${escapeHtml(falta||'Sanción')}${s.falta_descripcion?('<br><span style="font-size:11px;opacity:.85">'+escapeHtml(s.falta_descripcion)+'</span>'):''}<br><span class="li-ci">${escapeHtml(fs)} · −${pts} pts${s.profesor_nombre?(' · sancionó: '+escapeHtml(s.profesor_nombre)):''}</span></div>
+  </div>`;
+}
 // Abre el detalle completo de un área para el semestre seleccionado (reusa las vistas de siempre, filtradas)
 function verAreaSemestre(area, n){
   CUR_SEM_AREA=area; n=Number(n);
@@ -9452,10 +9468,24 @@ function verAreaSemestre(area, n){
   const cont=document.getElementById('cur-sem-detalle'); if(!cont||!_CUR_SEM_DATA) return;
   const d=_CUR_SEM_DATA.porSem[n];
   if(area==='disciplina'){
-    if(!d.disc){ cont.innerHTML='<div class="list-empty" style="margin-top:14px">Sin registro de disciplina de este semestre.</div>'; return; }
-    const sancs=(d.disc.sanciones||[]).slice().sort((a,b)=> new Date(a.fecha||0)-new Date(b.fecha||0));
-    const filas=sancs.map((s,i)=>{ const fs=s.fecha?fechaCortaReporte(new Date(s.fecha)):'—'; const falta=[s.categoria,s.articulo].filter(Boolean).join(' · '); return `<div class="list-item"><div class="li-id">${i+1}</div><div class="li-name">${escapeHtml(falta||'Sanción')}${s.descripcion?('<br><span style="font-size:11px;opacity:.85">'+escapeHtml(s.descripcion)+'</span>'):''}<br><span class="li-ci">${escapeHtml(fs)} · −${s.puntos||0} pts${s.autoridad?(' · sancionó: '+escapeHtml(s.autoridad)):''}</span></div></div>`; }).join('');
-    cont.innerHTML=`<div style="margin-top:14px"><div class="mss-title" style="color:#5c4a1a;margin-bottom:6px">📋 Mis sanciones · ${escapeHtml(_ordWord(n))} semestre</div>${sancs.length?filas:'<div class="list-empty">Sin sanciones en este semestre. ✅</div>'}<div style="display:flex;gap:8px;margin-top:10px"><button class="rc-btn rc-btn-word" style="flex:1" onclick="descargarMiDetalleSem(${n},'word')">📝 Descargar detalle (Word)</button><button class="rc-btn rc-btn-pdf" style="flex:1" onclick="descargarMiDetalleSem(${n},'pdf')">📄 PDF</button></div></div>`;
+    let filas='', total=0;
+    if(n===_CUR_SEM_DATA.active){
+      // SEMESTRE EN CURSO: TODAS las sanciones reales del semestre vigente (incluidas las PENDIENTES),
+      // desde los datos en vivo. Con estado/color y clic para abrir y firmar (la constancia del alumno).
+      const vivas=(discData.byCursanteSanc[currentUser.id]||[])
+        .filter(s=> !s.anulada && s.es_prueba!==true && sancionEnSemestreActual(s))
+        .sort((a,b)=> new Date(fechaSancion(a)||0)-new Date(fechaSancion(b)||0));
+      total=vivas.length;
+      filas=vivas.map((s,i)=> _curSancFilaLive(s,i)).join('');
+    } else if(d.disc){
+      // SEMESTRE CERRADO: desde el snapshot congelado (todas firmadas).
+      const sancs=(d.disc.sanciones||[]).slice().sort((a,b)=> new Date(a.fecha||0)-new Date(b.fecha||0));
+      total=sancs.length;
+      filas=sancs.map((s,i)=>{ const fs=s.fecha?fechaCortaReporte(new Date(s.fecha)):'—'; const falta=[s.categoria,s.articulo].filter(Boolean).join(' · '); return `<div class="list-item" style="border-left:4px solid #4caf72"><div class="li-id">${i+1}</div><div class="li-name">✅ ${escapeHtml(falta||'Sanción')}${s.descripcion?('<br><span style="font-size:11px;opacity:.85">'+escapeHtml(s.descripcion)+'</span>'):''}<br><span class="li-ci">${escapeHtml(fs)} · −${s.puntos||0} pts${s.autoridad?(' · sancionó: '+escapeHtml(s.autoridad)):''}</span></div></div>`; }).join('');
+    } else {
+      cont.innerHTML='<div class="list-empty" style="margin-top:14px">Sin registro de disciplina de este semestre.</div>'; return;
+    }
+    cont.innerHTML=`<div style="margin-top:14px"><div class="mss-title" style="color:#5c4a1a;margin-bottom:6px">📋 Mis sanciones · ${escapeHtml(_ordWord(n))} semestre</div>${total?filas:'<div class="list-empty">Sin sanciones en este semestre. ✅</div>'}<div style="display:flex;gap:8px;margin-top:10px"><button class="rc-btn rc-btn-word" style="flex:1" onclick="descargarMiDetalleSem(${n},'word')">📝 Descargar detalle (Word)</button><button class="rc-btn rc-btn-pdf" style="flex:1" onclick="descargarMiDetalleSem(${n},'pdf')">📄 PDF</button></div></div>`;
   } else if(area==='efm'){
     const rows=(_CUR_SEM_RAW.efm||[]).filter(e=> _absSemDe(e.ciclo,e.semestre)===n && e.nota_final!=null && e.nota_final!=='');
     cont.innerHTML = '<div style="margin-top:14px">'+(rows.length ? rows.map(ev=>htmlTarjetaEvaluacionFisica(ev,false)).join('') : '<div class="efm-no-data">🏃 Sin notas EFM cargadas para este semestre.</div>')+'</div>';
@@ -9543,8 +9573,13 @@ async function renderCursanteHome(){
   // 🔔 Aviso de pendientes: sanción sin firmar (desaparece solo cuando firma)
   const _banPend = document.getElementById('cur-pendientes-banner');
   if(_banPend){
+    // v2.9.114: enlace DIRECTO a la sanción pendiente (rosado, bien visible) — sin QR
+    const _primeraPend = todasSanciones.find(s => !esSancionAnalogica(s) && !s.firma_cursante && s.confirmacion_estado!=='firmada' && s.confirmacion_estado!=='aceptada' && s.es_prueba!==true);
+    const _btnEnlace = _primeraPend
+      ? `<button onclick="verSancionDetalle('${escapeAttr(String(_primeraPend.id))}')" style="display:block;width:100%;margin-top:10px;padding:13px;border:2px solid #ff8fce;border-radius:12px;background:linear-gradient(180deg,#ff4fb0,#d61f86);color:#fff;font-weight:800;font-size:15px;letter-spacing:.5px;cursor:pointer;box-shadow:0 0 18px rgba(255,79,176,.5);text-shadow:0 1px 2px rgba(0,0,0,.3)">🔗 ENLACE A TU SANCIÓN — TOCÁ PARA FIRMAR</button>`
+      : '';
     _banPend.innerHTML = cantDigitalesPendientes > 0
-      ? `<div class="alert-banner" style="background:linear-gradient(90deg,#c0271f,#8f1610);border-left:5px solid #ffd2cd;color:#fff;box-shadow:0 0 16px rgba(192,39,31,.55)"><span class="alert-emoji">🚨</span><span class="alert-text"><b style="color:#fff">Tienes ${cantDigitalesPendientes} sanción${cantDigitalesPendientes>1?'es':''} sin firmar.</b><br><span style="font-size:13px;color:#ffe4e1">Hasta que la firmes queda pendiente. Abre "Planilla de Disciplina" para revisarla y firmar.</span></span></div>`
+      ? `<div class="alert-banner" style="background:linear-gradient(90deg,#c0271f,#8f1610);border-left:5px solid #ffd2cd;color:#fff;box-shadow:0 0 16px rgba(192,39,31,.55)"><span class="alert-emoji">🚨</span><span class="alert-text"><b style="color:#fff">Tienes ${cantDigitalesPendientes} sanción${cantDigitalesPendientes>1?'es':''} sin firmar.</b><br><span style="font-size:13px;color:#ffe4e1">Tocá el botón rosado para abrir tu sanción y firmarla.</span></span></div>${_btnEnlace}`
       : '';
   }
   // 🔴 Número rojo en el ícono = sanciones sin firmar (se borra solo al firmar)
