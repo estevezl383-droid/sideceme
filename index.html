@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.112 · JUEGO DE GUERRA (PMTD): wargame por turnos con niebla de guerra y combate determinista. Árbitro crea partida + bandos (claves) + unidades; los Estados Mayores entran con su clave, envían órdenes (mover/atacar) y el árbitro resuelve cada turno. Mapa Leaflet. + EJERCICIOS TÁCTICOS (v2.9.111)</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.113 · FIX URGENTE reincidencias: al abrir nuevo semestre se reinician (cuentan solo dentro del semestre vigente). + vista alumno por semestre, cierre de semestre, EJERCICIOS, círculo anual. (incluye Juego de Guerra y Ejercicios Tácticos)</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -17909,10 +17909,13 @@ function filterFaltas(){
   }).join('');
 }
 
-function seleccionarFaltaSancion(faltaId){
+async function seleccionarFaltaSancion(faltaId){
   const r = discData.reglamentos.find(x => x.id===faltaId);
   if(!r){ alert('Falta no encontrada'); return; }
   nuevaSancion.falta = r;
+  // v2.9.111: asegurar el boundary del semestre (último cierre) ANTES de contar reincidencias,
+  // por si discData vino de caché y ULTIMO_CIERRE aún no estaba cargado.
+  if(!ULTIMO_CIERRE){ try{ await cargarCierreVigente(); }catch(e){} }
   calcularReincidencia();
   renderPrevia();
   showScreen('screen-prof-previa');
@@ -17928,9 +17931,13 @@ function calcularReincidencia(){
   const r = nuevaSancion.falta;
   if(!c || !r){ return; }
 
-  // Buscar sanciones previas REALES (no de prueba ni anuladas) con la MISMA falta_id
+  // Buscar sanciones previas REALES (no de prueba ni anuladas) con la MISMA falta_id.
+  // v2.9.111: la reincidencia se cuenta SOLO dentro del semestre VIGENTE. Al cerrar un
+  // semestre, las reincidencias se reinician: una falta repetida en el nuevo semestre
+  // vuelve a ser "primera vez" (no arrastra las del semestre cerrado).
   const previas = discData.sanciones.filter(s =>
     s.cursante_id === c.id && s.falta_id === r.id && !s.anulada && !s.es_prueba
+    && sancionEnSemestreActual(s)
   );
   const num = previas.length;  // 0 = primera, 1 = primera reincidencia, etc.
   const ptsBase = getReglPts(r) || 0;
