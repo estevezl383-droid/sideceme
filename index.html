@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.114 · FIX alumno: sus sanciones del semestre en curso SIEMPRE visibles (incluida la pendiente) con estado/color y clic para firmar; botón rosado "ENLACE A TU SANCIÓN". + fix reincidencias.</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.115 · Alumno: la notificación ROJA "sanción sin firmar" es el enlace (abre el detalle); botón ROJO "ENLACE A TU SANCIÓN — TOCÁ PARA FIRMAR" en el detalle Y en cada fila pendiente de su lista de Disciplina → va DIRECTO a firmar (CI + contraseña + acuse). Fuera el rosado.</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -9455,9 +9455,14 @@ function _curSancFilaLive(s, i){
   const fs = f ? fechaCortaReporte(f) : '—';
   const falta = [s.falta_categoria, s.falta_articulo?('Art. '+s.falta_articulo):''].filter(Boolean).join(' · ');
   const pts = Number(s.puntos_aplicados)||0;
+  // v2.9.115: si está PENDIENTE, botón ROJO directo a firmar dentro de la misma fila.
+  const esPropia = currentUser && String(currentUser.id) === String(s.cursante_id);
+  const btnFirmar = (!firmada && !analogica && esPropia)
+    ? `<button onclick="event.stopPropagation();irAFirmarMiSancion('${escapeAttr(String(s.id))}')" style="display:block;width:100%;margin-top:10px;padding:12px;border:2px solid #ff5a4d;border-radius:10px;background:linear-gradient(135deg,#e01f1f,#7a0d0d);color:#fff;font-weight:800;font-size:14px;letter-spacing:.3px;cursor:pointer;box-shadow:0 0 16px rgba(224,31,31,.55);animation:sancPulse 1.5s ease-in-out infinite;text-shadow:0 1px 2px rgba(0,0,0,.3)">🔴 ENLACE A TU SANCIÓN — TOCÁ PARA FIRMAR</button>`
+    : '';
   return `<div class="list-item" style="cursor:pointer;border-left:4px solid ${color}" onclick="verSancionDetalle('${escapeAttr(String(s.id))}')">
     <div class="li-id">${i+1}</div>
-    <div class="li-name">${badge}<br>${escapeHtml(falta||'Sanción')}${s.falta_descripcion?('<br><span style="font-size:11px;opacity:.85">'+escapeHtml(s.falta_descripcion)+'</span>'):''}<br><span class="li-ci">${escapeHtml(fs)} · −${pts} pts${s.profesor_nombre?(' · sancionó: '+escapeHtml(s.profesor_nombre)):''}</span></div>
+    <div class="li-name">${badge}<br>${escapeHtml(falta||'Sanción')}${s.falta_descripcion?('<br><span style="font-size:11px;opacity:.85">'+escapeHtml(s.falta_descripcion)+'</span>'):''}<br><span class="li-ci">${escapeHtml(fs)} · −${pts} pts${s.profesor_nombre?(' · sancionó: '+escapeHtml(s.profesor_nombre)):''}</span>${btnFirmar}</div>
   </div>`;
 }
 // Abre el detalle completo de un área para el semestre seleccionado (reusa las vistas de siempre, filtradas)
@@ -9573,13 +9578,17 @@ async function renderCursanteHome(){
   // 🔔 Aviso de pendientes: sanción sin firmar (desaparece solo cuando firma)
   const _banPend = document.getElementById('cur-pendientes-banner');
   if(_banPend){
-    // v2.9.114: enlace DIRECTO a la sanción pendiente (rosado, bien visible) — sin QR
+    // v2.9.115: la notificación ROJA es EL enlace — al tocarla abre el detalle de la sanción.
     const _primeraPend = todasSanciones.find(s => !esSancionAnalogica(s) && !s.firma_cursante && s.confirmacion_estado!=='firmada' && s.confirmacion_estado!=='aceptada' && s.es_prueba!==true);
-    const _btnEnlace = _primeraPend
-      ? `<button onclick="verSancionDetalle('${escapeAttr(String(_primeraPend.id))}')" style="display:block;width:100%;margin-top:10px;padding:13px;border:2px solid #ff8fce;border-radius:12px;background:linear-gradient(180deg,#ff4fb0,#d61f86);color:#fff;font-weight:800;font-size:15px;letter-spacing:.5px;cursor:pointer;box-shadow:0 0 18px rgba(255,79,176,.5);text-shadow:0 1px 2px rgba(0,0,0,.3)">🔗 ENLACE A TU SANCIÓN — TOCÁ PARA FIRMAR</button>`
-      : '';
-    _banPend.innerHTML = cantDigitalesPendientes > 0
-      ? `<div class="alert-banner" style="background:linear-gradient(90deg,#c0271f,#8f1610);border-left:5px solid #ffd2cd;color:#fff;box-shadow:0 0 16px rgba(192,39,31,.55)"><span class="alert-emoji">🚨</span><span class="alert-text"><b style="color:#fff">Tienes ${cantDigitalesPendientes} sanción${cantDigitalesPendientes>1?'es':''} sin firmar.</b><br><span style="font-size:13px;color:#ffe4e1">Tocá el botón rosado para abrir tu sanción y firmarla.</span></span></div>${_btnEnlace}`
+    _banPend.innerHTML = (cantDigitalesPendientes > 0 && _primeraPend)
+      ? `<div onclick="verSancionDetalle('${escapeAttr(String(_primeraPend.id))}')" role="button" style="cursor:pointer;margin:0 0 4px;padding:16px 18px;border:2px solid #ff5a4d;border-radius:14px;background:linear-gradient(135deg,#e01f1f,#7a0d0d);color:#fff;box-shadow:0 0 22px rgba(224,31,31,.6);animation:sancPulse 1.5s ease-in-out infinite;display:flex;align-items:center;gap:12px">
+          <span style="font-size:30px;line-height:1;flex-shrink:0">🚨</span>
+          <span style="flex:1;min-width:0">
+            <b style="display:block;font-size:16px;letter-spacing:.3px">Tienes ${cantDigitalesPendientes} sanción${cantDigitalesPendientes>1?'es':''} sin firmar</b>
+            <span style="font-size:13px;color:#ffe0dd">Tocá aquí para ver tu sanción y firmarla →</span>
+          </span>
+          <span style="font-size:26px;flex-shrink:0;opacity:.9">›</span>
+        </div>`
       : '';
   }
   // 🔴 Número rojo en el ícono = sanciones sin firmar (se borra solo al firmar)
@@ -11046,6 +11055,10 @@ function verSancionDetalle(sancionId){
     html += `<div class="sd-banner firmada"><div class="sd-banner-title">✅ Sanción firmada</div><div class="sd-banner-sub">Registrada digitalmente</div></div>`;
   } else if(cls.tipo==='pendiente'){
     html += `<div class="sd-banner pendiente"><div class="sd-banner-title">⏳ Pendiente de firma</div><div class="sd-banner-sub">Esperando que el cursante firme</div></div>`;
+    // v2.9.115: si es EL PROPIO cursante viendo su sanción → botón ROJO directo a firmar (CI + contraseña + acuse)
+    if(currentUser && String(currentUser.id) === String(s.cursante_id)){
+      html += `<button onclick="irAFirmarMiSancion('${escapeAttr(String(s.id))}')" style="display:block;width:100%;margin:4px 0 14px;padding:16px;border:2px solid #ff5a4d;border-radius:14px;background:linear-gradient(135deg,#e01f1f,#7a0d0d);color:#fff;font-weight:800;font-size:16px;letter-spacing:.4px;cursor:pointer;box-shadow:0 0 22px rgba(224,31,31,.6);animation:sancPulse 1.5s ease-in-out infinite;text-shadow:0 1px 2px rgba(0,0,0,.3)">🔴 ENLACE A TU SANCIÓN — TOCÁ PARA FIRMAR</button>`;
+    }
     // QR + Enlace de firma para Jefe de Disciplina y C&T
     if(activeRole === 'disciplina' || esCT()){
       let tokenQR = hf.token_qr;
@@ -19499,6 +19512,20 @@ let firmaState = {
   sigCtx: null,
   sigHasContent: false
 };
+
+// v2.9.115: el propio cursante (ya dentro de la app) va DIRECTO a firmar su sanción,
+// sin QR: reutiliza el flujo público de firma (login CI+contraseña → acuse → firma).
+function irAFirmarMiSancion(sancionId){
+  const s = (discData.sanciones||[]).find(x=>String(x.id)===String(sancionId))
+         || ((discData.byCursanteSanc && currentUser && discData.byCursanteSanc[currentUser.id])||[]).find(x=>String(x.id)===String(sancionId));
+  if(!s){ alert('No se encontró la sanción.'); return; }
+  firmaState.sancionId = String(s.id);
+  firmaState.sancion = s;
+  firmaState.tokenQR = (s.huella_forense && s.huella_forense.token_qr) || firmaState.tokenQR || '';
+  // Prefill del CI del propio cursante (igual valida contraseña server-side)
+  cargarPantallaLoginFirma();
+  try{ const _ci=document.getElementById('firma-input-ci'); if(_ci && (currentUser.ci||s.cursante_ci)) _ci.value = currentUser.ci || s.cursante_ci; }catch(_){}
+}
 
 function detectarFlujoFirmaEnURL(){
   const params = new URLSearchParams(window.location.search);
