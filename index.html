@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.115 · Alumno: la notificación ROJA "sanción sin firmar" es el enlace (abre el detalle); botón ROJO "ENLACE A TU SANCIÓN — TOCÁ PARA FIRMAR" en el detalle Y en cada fila pendiente de su lista de Disciplina → va DIRECTO a firmar (CI + contraseña + acuse). Fuera el rosado.</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.116 · AULA VIRTUAL (Fase 3a): módulo Carpeta de Clases para profesores. Botón en panel docente → elegir UC del catálogo (malla) → crear carpeta → editar datos generales + profesores → enviar a revisión / Vo.Bo. Jefe SAC. Secciones (desagregación/tareas/cronograma/informe) y los 7 Word: próxima actualización.</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4311,6 +4311,11 @@ input::placeholder, textarea::placeholder {
     <button class="btn-mega" onclick="goAulaProfesores()" style="background:linear-gradient(180deg,#5a3a8a,#8c5acb);margin-top:8px;color:#fff">
       <span class="mega-icon">📚</span>
       <span>Documentos del personal docente</span>
+    </button>
+
+    <button class="btn-mega" onclick="goAulaVirtual()" style="background:linear-gradient(180deg,#1f6f5c,#0e4a3c);margin-top:8px;color:#fff">
+      <span class="mega-icon">🎓</span>
+      <span>Aula Virtual — Carpeta de Clases</span>
     </button>
 
     <button class="btn-mega rgd-access" onclick="goRgDireccion()" style="background:linear-gradient(135deg,#7a1f1a,#c0392b 70%,#e67e22);margin-top:8px;color:#fff;display:none">
@@ -5955,6 +5960,62 @@ input::placeholder, textarea::placeholder {
       </div>
       <div id="ejtac-inbox-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
     </div>
+  </div>
+</section>
+
+<!-- ===================== AULA VIRTUAL — CARPETA DE CLASES ===================== -->
+<section id="screen-aula-virtual" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('screen-prof-panel')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">🎓 Aula Virtual</div><div class="header-sub">Carpeta de Clases</div></div>
+  </div>
+  <div class="menu-container">
+    <button class="btn-primary" onclick="avNuevaCarpeta()" style="margin-bottom:12px">➕ Nueva carpeta de clases</button>
+    <div id="av-nueva" style="display:none;border:1px solid var(--border,#2a3a52);border-radius:12px;padding:12px;margin-bottom:14px;background:rgba(31,111,92,.07)">
+      <div class="section-label" style="margin-top:0">➕ Nueva carpeta</div>
+      <div class="field" style="margin-bottom:8px"><label>Gestión</label><input type="number" id="av-nc-gestion" value="2026"></div>
+      <div class="field" style="margin-bottom:8px"><label>Unidad de Competencia (materia)</label><select id="av-nc-uc"><option value="">⏳ Cargando…</option></select></div>
+      <div id="av-nc-msg" style="font-size:12px;color:var(--text-muted);min-height:16px;margin-bottom:6px"></div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-primary" onclick="avCrear(this)" style="flex:1">Crear carpeta</button>
+        <button class="btn-secondary" onclick="document.getElementById('av-nueva').style.display='none'">Cancelar</button>
+      </div>
+    </div>
+    <div class="section-label">🗂️ Mis carpetas</div>
+    <div id="av-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+  </div>
+</section>
+
+<section id="screen-av-carpeta" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goAulaVirtual()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title" id="avc-title">Carpeta</div><div class="header-sub" id="avc-sub">—</div></div>
+  </div>
+  <div class="menu-container">
+    <div id="avc-estado" style="margin-bottom:12px"></div>
+
+    <div class="section-label">📋 Datos generales</div>
+    <div class="field" style="margin-bottom:8px"><label>Competencia General de la U.C.</label><textarea id="avc-comp" rows="3" style="resize:vertical"></textarea></div>
+    <div class="field" style="margin-bottom:8px"><label>Justificación</label><textarea id="avc-just" rows="3" style="resize:vertical"></textarea></div>
+    <div style="display:flex;gap:8px">
+      <div class="field" style="margin-bottom:8px;flex:1"><label>Desde</label><input type="date" id="avc-desde"></div>
+      <div class="field" style="margin-bottom:8px;flex:1"><label>Hasta</label><input type="date" id="avc-hasta"></div>
+      <div class="field" style="margin-bottom:8px;width:92px"><label>Horas</label><input type="number" id="avc-horas"></div>
+    </div>
+
+    <div class="section-label">👨‍🏫 Profesores (hasta 3)</div>
+    <div id="avc-docentes"></div>
+    <button class="btn-secondary" onclick="avAddDocente()" style="margin-bottom:12px">➕ Agregar profesor</button>
+
+    <button class="btn-primary" onclick="avGuardarDatos(this)" style="margin-bottom:16px">💾 Guardar datos generales</button>
+
+    <div class="section-label">🧩 Secciones de la carpeta</div>
+    <div id="av-secciones" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
+
+    <div class="section-label">✅ Estado y revisión</div>
+    <div id="avc-flow" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px"></div>
   </div>
 </section>
 
@@ -14856,6 +14917,169 @@ function _etMarcarVisto(items){
 }
 
 /* ===== JUEGO DE GUERRA (PMTD) — wargame por turnos, niebla de guerra ===== */
+// ===================== AULA VIRTUAL — CARPETA DE CLASES =====================
+const AV = { cid:null, catalogo:null, docentes:[], data:null };
+async function _avInvoke(accion, extra){
+  const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
+  if(!tok) return {ok:false,error:'sin sesión'};
+  try{
+    const { data, error } = await sb.functions.invoke('aula-virtual-ops',{ body:Object.assign({accion, token:tok}, extra||{}) });
+    if(error) return {ok:false,error:(error.message||'error')};
+    return data||{ok:false,error:'sin respuesta'};
+  }catch(e){ return {ok:false,error:String((e&&e.message)||e)}; }
+}
+function _avEsAdminAcad(){ return ['ciencia_tecnologia','jefe_estudios','jefe_sac','comandante'].includes(activeRole); }
+function _avPuedeAprobar(){ return ['jefe_sac','jefe_estudios'].includes(activeRole); }
+function _avEstadoBadge(e){
+  const m={borrador:['📝 Borrador','#7a5012','#f0c040'],en_revision:['🔎 En revisión','#1f4e7a','#8fc4ff'],aprobada:['✅ Aprobada','#1f6f5c','#7fe6a4']};
+  const x=m[e]||m.borrador;
+  return '<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;background:'+x[1]+';color:'+x[2]+'">'+x[0]+'</span>';
+}
+async function goAulaVirtual(){
+  showScreen('screen-aula-virtual');
+  document.getElementById('av-nueva').style.display='none';
+  await avCargarMisCarpetas();
+}
+async function avCargarMisCarpetas(){
+  const cont=document.getElementById('av-lista');
+  cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const accion=_avEsAdminAcad()?'todas_carpetas':'mis_carpetas';
+  const r=await _avInvoke(accion);
+  if(!r.ok){ cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No se pudo cargar: '+_rgEsc(r.error||'')+'</div>'; return; }
+  const items=r.carpetas||[];
+  cont.innerHTML = items.length ? items.map(_avCard).join('')
+    : '<div class="rg-card" style="text-align:center;color:var(--text-muted);padding:22px">📭 Todavía no tenés carpetas. Creá una con el botón de arriba.</div>';
+}
+function _avCard(c){
+  const m=c.av_materias||{};
+  const nom=m.nombre_uc||c.materia_codigo;
+  return '<div class="rg-card" style="cursor:pointer" onclick="avAbrirCarpeta(\''+c.id+'\')">'
+    +'<div class="rg-card-top"><span style="font-size:20px">📁</span>'
+    +'<span style="margin-left:auto">'+_avEstadoBadge(c.estado)+'</span></div>'
+    +'<div class="rg-asunto" style="font-size:14px">'+_rgEsc(nom)+'</div>'
+    +'<div class="rg-route" style="margin:2px 0 0">'+_rgEsc(c.materia_codigo)+' · Gestión '+_rgEsc(String(c.gestion))+'</div>'
+    +(m.modulo?('<div class="rg-meta">'+_rgEsc(m.modulo)+'</div>'):'')
+    +'</div>';
+}
+async function avNuevaCarpeta(){
+  const box=document.getElementById('av-nueva');
+  box.style.display = (box.style.display==='none')?'':'none';
+  if(box.style.display==='none') return;
+  const sel=document.getElementById('av-nc-uc');
+  if(!AV.catalogo){
+    const r=await _avInvoke('catalogo');
+    if(!r.ok){ document.getElementById('av-nc-msg').textContent='No se pudo cargar el catálogo: '+(r.error||''); return; }
+    AV.catalogo=r.materias||[];
+  }
+  const ordSem=s=>({1:'1er sem',2:'2do sem',3:'3er sem',4:'4to sem'}[s]||('sem '+s));
+  let html='<option value="">— Elegí la materia —</option>';
+  let curSem=null;
+  AV.catalogo.forEach(u=>{
+    const key=u.ciclo+'-'+u.semestre;
+    if(key!==curSem){ if(curSem!==null) html+='</optgroup>'; html+='<optgroup label="'+u.ciclo+'er ciclo · '+ordSem(u.semestre)+'">'; curSem=key; }
+    html+='<option value="'+_rgEsc(u.codigo_uc)+'">'+_rgEsc(u.nombre_uc)+' ('+_rgEsc(u.codigo_uc)+')</option>';
+  });
+  if(curSem!==null) html+='</optgroup>';
+  sel.innerHTML=html;
+}
+async function avCrear(btn){
+  const uc=document.getElementById('av-nc-uc').value;
+  const gestion=parseInt(document.getElementById('av-nc-gestion').value)||new Date().getFullYear();
+  const msg=document.getElementById('av-nc-msg');
+  if(!uc){ msg.textContent='Elegí una materia.'; return; }
+  btn.disabled=true; btn.textContent='Creando…';
+  const r=await _avInvoke('crear_carpeta',{materia_codigo:uc, gestion});
+  btn.disabled=false; btn.textContent='Crear carpeta';
+  if(!r.ok){ msg.textContent='⚠️ '+(r.error||'No se pudo crear'); return; }
+  document.getElementById('av-nueva').style.display='none';
+  await avAbrirCarpeta(r.id);
+}
+async function avAbrirCarpeta(id){
+  AV.cid=id;
+  const r=await _avInvoke('ver_carpeta',{carpeta_id:id});
+  if(!r.ok){ alert('No se pudo abrir: '+(r.error||'')); return; }
+  AV.data=r;
+  const m=r.materia||{}, c=r.carpeta||{};
+  showScreen('screen-av-carpeta');
+  document.getElementById('avc-title').textContent=m.nombre_uc||c.materia_codigo||'Carpeta';
+  document.getElementById('avc-sub').textContent=(c.materia_codigo||'')+' · Gestión '+(c.gestion||'');
+  document.getElementById('avc-estado').innerHTML=_avEstadoBadge(c.estado)
+    +(c.revisor_nombre?(' <span style="font-size:11px;color:var(--text-muted)">· revisó: '+_rgEsc(c.revisor_nombre)+'</span>'):'');
+  document.getElementById('avc-comp').value=c.competencia_general_uc||'';
+  document.getElementById('avc-just').value=c.justificacion||'';
+  document.getElementById('avc-desde').value=c.fecha_desde||'';
+  document.getElementById('avc-hasta').value=c.fecha_hasta||'';
+  document.getElementById('avc-horas').value=(c.carga_horaria_real!=null?c.carga_horaria_real:(m.horas_academicas||''));
+  AV.docentes=(r.docentes||[]).map(d=>({profesor_id:d.profesor_id,profesor_nombre:d.profesor_nombre,profesor_grado:d.profesor_grado,es_responsable:d.es_responsable}));
+  if(!AV.docentes.length){ const ses=getSession(); AV.docentes=[{profesor_id:(currentUser&&currentUser.id)||null,profesor_nombre:(currentUser&&currentUser.nombre_completo)||'',profesor_grado:'',es_responsable:true}]; }
+  _avRenderDocentes();
+  _avRenderSecciones(r);
+  _avRenderFlow(c);
+}
+function _avRenderDocentes(){
+  const cont=document.getElementById('avc-docentes');
+  cont.innerHTML=AV.docentes.map((d,i)=>
+    '<div style="display:flex;gap:6px;margin-bottom:6px;align-items:center">'
+    +'<input type="text" value="'+_rgEsc(d.profesor_nombre||'')+'" placeholder="Grado y nombre del profesor" oninput="AV.docentes['+i+'].profesor_nombre=this.value" style="flex:1">'
+    +'<button class="btn-secondary" onclick="AV.docentes.splice('+i+',1);_avRenderDocentes()" style="padding:6px 10px">🗑</button>'
+    +'</div>').join('');
+}
+function avAddDocente(){ if(AV.docentes.length>=3){ alert('Máximo 3 profesores.'); return; } AV.docentes.push({profesor_nombre:'',profesor_grado:'',es_responsable:false}); _avRenderDocentes(); }
+function _avRenderSecciones(r){
+  const cont=document.getElementById('av-secciones');
+  const n=a=>((a&&a.length)||0);
+  const row=(icon,txt,cnt,fn)=>'<button class="quick-btn" '+(fn?('onclick="'+fn+'"'):'disabled style="opacity:.6"')+'>'
+    +'<span class="qa-icon">'+icon+'</span><span class="qa-text"><strong>'+txt+'</strong>'
+    +(cnt!=null?(' <span style="color:var(--text-muted)">· '+cnt+'</span>'):'')+'</span></button>';
+  cont.innerHTML=
+     row('🧩','Desagregación (elementos de competencia)',n(r.elementos),'')
+    +row('📝','Cuadro de tareas',n(r.tareas),'')
+    +row('📅','Cuadro de distribución del tiempo',n(r.cronograma),'')
+    +row('🎯','Evaluaciones',n(r.evaluaciones),'')
+    +row('📄','Informe de clases',r.informe?1:0,'')
+    +'<div style="font-size:11px;color:var(--text-muted);margin-top:2px">🔜 Estas secciones y la generación de los 7 Word llegan en la próxima actualización.</div>';
+}
+function _avRenderFlow(c){
+  const cont=document.getElementById('avc-flow');
+  let h='';
+  if(c.estado!=='aprobada') h+='<button class="btn-primary" onclick="avFlujo(\'enviar_revision\',this)">📤 Enviar a revisión</button>';
+  if(_avPuedeAprobar() && c.estado==='en_revision') h+='<button class="btn-primary" style="background:linear-gradient(180deg,#1f6f5c,#0e4a3c)" onclick="avFlujo(\'aprobar\',this)">✅ Aprobar (Vo.Bo.)</button>';
+  if(_avPuedeAprobar() && c.estado!=='borrador') h+='<button class="btn-secondary" onclick="avFlujo(\'devolver\',this)">↩ Devolver a borrador</button>';
+  h+='<button class="btn-secondary" style="border-color:#7a2230;color:#ffc9c9" onclick="avEliminar()">🗑 Eliminar carpeta</button>';
+  cont.innerHTML=h;
+}
+async function avGuardarDatos(btn){
+  if(!AV.cid) return;
+  btn.disabled=true; btn.textContent='Guardando…';
+  const datos={carpeta_id:AV.cid,
+    competencia_general_uc:document.getElementById('avc-comp').value,
+    justificacion:document.getElementById('avc-just').value,
+    fecha_desde:document.getElementById('avc-desde').value||null,
+    fecha_hasta:document.getElementById('avc-hasta').value||null,
+    carga_horaria_real:document.getElementById('avc-horas').value||null};
+  const r1=await _avInvoke('guardar_datos',datos);
+  const docentes=AV.docentes.filter(d=>(d.profesor_nombre||'').trim());
+  const r2=await _avInvoke('guardar_docentes',{carpeta_id:AV.cid,docentes});
+  btn.disabled=false; btn.textContent='💾 Guardar datos generales';
+  if(!r1.ok||!r2.ok){ alert('⚠️ '+((r1.ok?'':r1.error)||(r2.ok?'':r2.error)||'error')); return; }
+  btn.textContent='✅ Guardado'; setTimeout(()=>{btn.textContent='💾 Guardar datos generales';},1500);
+}
+async function avFlujo(accion,btn){
+  if(!AV.cid) return;
+  if(accion==='aprobar' && !confirm('¿Dar Vo.Bo. y aprobar esta carpeta?')) return;
+  btn.disabled=true;
+  const r=await _avInvoke(accion,{carpeta_id:AV.cid});
+  btn.disabled=false;
+  if(!r.ok){ alert('⚠️ '+(r.error||'')); return; }
+  await avAbrirCarpeta(AV.cid);
+}
+async function avEliminar(){
+  if(!AV.cid || !confirm('¿Eliminar esta carpeta y todo su contenido? No se puede deshacer.')) return;
+  const r=await _avInvoke('eliminar_carpeta',{carpeta_id:AV.cid});
+  if(!r.ok){ alert('⚠️ '+(r.error||'')); return; }
+  await goAulaVirtual();
+}
+
 const WG = { partidaId:null, clave:'', soy:null, estado:null, ordenes:{}, sel:null, map:null, capa:null, modoColocar:false, volverA:'screen-disc-panel' };
 const WG_COL = { rojo:'#e23b3b', azul:'#1f6dff' };
 async function _wgInvoke(accion, extra){
