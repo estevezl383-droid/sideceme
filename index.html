@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.122 · EXTRACCIÓN AUTOMÁTICA del memorándum (sin IA, pdf.js local): al subirlo detecta fechas de impartición (Desde/Hasta), Formativa, Sumativa, horas, y propone entrega de trabajos = sumativo − 2 días. TODO editable, nada se guarda solo. Botón 🪄 Extraer datos para repetir. "Compartir con el curso" ahora arranca APAGADO (nada visible al alumno hasta que el profesor lo active). Correr AULA_VIRTUAL_consolidar.sql + redeploy EF aula-virtual-ops.</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.123 · CONTENIDO MÍNIMO también se extrae solo (Word leído en el navegador, sin IA): competencia de la U.C., elementos de competencia (→ Desagregación inicial con temas como saberes CONOCER), práctica/teoría, bibliografía. El botón del memorándum ahora GUARDA TODO en un clic (fechas + horas + evaluaciones). Fix: guardar datos ya no borra la bibliografía. Correr AULA_VIRTUAL_consolidar.sql + redeploy EF aula-virtual-ops.</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6007,6 +6007,7 @@ input::placeholder, textarea::placeholder {
       <div id="avc-base-contenido_minimo"></div>
       <div id="avc-base-prog" style="font-size:12px;color:var(--text-muted);min-height:16px;margin-top:6px"></div>
       <div id="avc-memo-detect" style="margin-top:8px"></div>
+      <div id="avc-cm-detect" style="margin-top:8px"></div>
     </div>
 
     <div class="section-label">📋 Datos generales</div>
@@ -6495,8 +6496,10 @@ const _LIBS = {
   leaflet: {key:'leaflet', js:'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js', css:'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', test:()=>typeof L!=='undefined'},
   pdfjs:   {key:'pdfjs',   js:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', test:()=>typeof pdfjsLib!=='undefined'},
   qrcode:  {key:'qrcode',  js:'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js', test:()=>typeof QRCode!=='undefined'},
-  bcrypt:  {key:'bcrypt',  js:'https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js', test:()=>(typeof dcodeIO!=='undefined' && dcodeIO.bcrypt) || typeof bcrypt!=='undefined'}
+  bcrypt:  {key:'bcrypt',  js:'https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js', test:()=>(typeof dcodeIO!=='undefined' && dcodeIO.bcrypt) || typeof bcrypt!=='undefined'},
+  jszip:   {key:'jszip',   js:'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', test:()=>typeof JSZip!=='undefined'}
 };
+function ensureJSZip()   { return _loadLib(_LIBS.jszip); }
 function ensureXLSX()    { return _loadLib(_LIBS.xlsx); }
 function ensureLeaflet() { return _loadLib(_LIBS.leaflet); }
 function ensurePdfJs()   { return _loadLib(_LIBS.pdfjs); }
@@ -15049,6 +15052,8 @@ async function avAbrirCarpeta(id){
   AV.data=r;
   const m=r.materia||{}, c=r.carpeta||{};
   showScreen('screen-av-carpeta');
+  const _md=document.getElementById('avc-memo-detect'); if(_md) _md.innerHTML='';
+  const _cd=document.getElementById('avc-cm-detect'); if(_cd) _cd.innerHTML='';
   document.getElementById('avc-title').textContent=m.nombre_uc||c.materia_codigo||'Carpeta';
   document.getElementById('avc-sub').textContent=(c.materia_codigo||'')+' · Gestión '+(c.gestion||'');
   document.getElementById('avc-estado').innerHTML=_avEstadoBadge(c.estado)
@@ -15106,7 +15111,8 @@ async function avGuardarDatos(btn){
     justificacion:document.getElementById('avc-just').value,
     fecha_desde:document.getElementById('avc-desde').value||null,
     fecha_hasta:document.getElementById('avc-hasta').value||null,
-    carga_horaria_real:document.getElementById('avc-horas').value||null};
+    carga_horaria_real:document.getElementById('avc-horas').value||null,
+    bibliografia:(AV.data&&AV.data.carpeta&&Array.isArray(AV.data.carpeta.bibliografia))?AV.data.carpeta.bibliografia:[]};
   const r1=await _avInvoke('guardar_datos',datos);
   const docentes=AV.docentes.filter(d=>(d.profesor_nombre||'').trim());
   const r2=await _avInvoke('guardar_docentes',{carpeta_id:AV.cid,docentes});
@@ -15197,6 +15203,7 @@ function _avBaseRender(items){
       +'<span style="flex:1;color:var(--text-secondary)">'+_rgEsc(a.nombre||'')+'</span>'
       +'<button class="rg-doc" onclick="avAdjVer(\''+a.id+'\',this)">👁 Abrir</button>'
       +(tipo==='memorandum'?'<button class="rg-doc" onclick="avMemoReextraer(\''+a.id+'\',this)">🪄 Extraer datos</button>':'')
+      +(tipo==='contenido_minimo'?'<button class="rg-doc" onclick="avCMReextraer(\''+a.id+'\',this)">🪄 Extraer datos</button>':'')
       +'<button class="rg-doc" style="border-color:#7a2230;color:#ffc9c9" onclick="avAdjEliminar(\''+a.id+'\')">🗑</button></div>').join('');
     html+='<div style="display:flex;gap:8px;align-items:center"><input type="file" id="avc-base-file-'+tipo+'" accept=".pdf,.doc,.docx,application/pdf" style="flex:1;font-size:12px">'
       +'<button class="btn-secondary" style="padding:6px 12px;white-space:nowrap" onclick="avBaseSubir(\''+tipo+'\',this)">⬆ Subir</button></div>';
@@ -15225,6 +15232,7 @@ async function avBaseSubir(tipo,btn){
     inp.value='';
     await _avAdjListar();
     if(tipo==='memorandum'&&/pdf/i.test((file.type||'')+(file.name||''))){ try{ await avMemoExtraer(await file.arrayBuffer()); }catch(_e){} }
+    if(tipo==='contenido_minimo'&&/docx|word/i.test((file.type||'')+(file.name||''))){ try{ await avCMExtraer(await file.arrayBuffer()); }catch(_e){} }
   }catch(e){ prog.textContent='⚠️ '+(e.message||e); }
   finally{ btn.disabled=false; }
 }
@@ -15293,7 +15301,7 @@ function _avMemoAplicar(r){
     +'<div class="field" style="flex:1;min-width:130px"><label>Entrega de trabajos</label><input type="date" id="avc-ev-trabajos" value="'+(r.trabajos||'')+'"></div>'
     +'</div>'
     +'<div class="rg-meta" style="margin-bottom:8px">La entrega de trabajos se propone 2 días antes del sumativo — editala si hace falta.</div>'
-    +'<button class="btn-secondary" onclick="avMemoGuardarEvals(this)">💾 Guardar evaluaciones en la carpeta</button>'
+    +'<button class="btn-secondary" onclick="avMemoGuardarEvals(this)">💾 Guardar TODO lo detectado (fechas + evaluaciones)</button>'
     +'<div id="avc-ev-prog" class="rg-meta" style="min-height:14px;margin-top:4px"></div></div>';
 }
 async function avMemoGuardarEvals(btn){
@@ -15306,10 +15314,126 @@ async function avMemoGuardarEvals(btn){
   if(s) evs.push({tipo:'sumativa',fecha:s,descripcion:'Evaluación Sumativa'+(t?(' · Entrega de trabajos: '+t):'')});
   if(!evs.length){ alert('Poné al menos una fecha.'); return; }
   btn.disabled=true;
+  // 1) evaluaciones  2) datos generales (Desde/Hasta/Horas ya rellenados) — un solo clic guarda todo
   const r=await _avInvoke('guardar_evaluaciones',{carpeta_id:AV.cid,evaluaciones:evs});
+  const r2=await _avInvoke('guardar_datos',{carpeta_id:AV.cid,
+    competencia_general_uc:document.getElementById('avc-comp').value,
+    justificacion:document.getElementById('avc-just').value,
+    fecha_desde:document.getElementById('avc-desde').value||null,
+    fecha_hasta:document.getElementById('avc-hasta').value||null,
+    carga_horaria_real:document.getElementById('avc-horas').value||null,
+    bibliografia:(AV.data&&AV.data.carpeta&&Array.isArray(AV.data.carpeta.bibliografia))?AV.data.carpeta.bibliografia:[]});
   btn.disabled=false;
   const prog=document.getElementById('avc-ev-prog');
-  if(prog) prog.textContent = r.ok?'✅ Evaluaciones guardadas en la carpeta':'⚠️ '+(r.error||'no se pudo');
+  if(prog) prog.textContent = (r.ok&&r2.ok)?'✅ Todo guardado en la carpeta (fechas, horas y evaluaciones)':'⚠️ '+((r.ok?'':r.error)||(r2.ok?'':r2.error)||'no se pudo');
+}
+// v2.9.123: EXTRACCIÓN del CONTENIDO MÍNIMO (docx leído con JSZip local, SIN IA) — todo editable
+async function _avDocxTexto(buf){
+  await ensureJSZip();
+  const zip=await JSZip.loadAsync(buf);
+  const f=zip.file('word/document.xml'); if(!f) throw new Error('No parece un .docx válido');
+  let xml=await f.async('string');
+  xml=xml.replace(/<\/w:p>/g,'\n').replace(/<[^>]+>/g,'')
+    .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"')
+    .replace(/&#(\d+);/g,function(_m,n){ return String.fromCharCode(Number(n)); });
+  return xml.split('\n').map(s=>s.replace(/\s+/g,' ').trim()).filter(Boolean);
+}
+function _avCMParse(L){
+  const U=L.map(s=>s.toUpperCase());
+  const out={elementos:[],biblio:[]};
+  // Competencia de la UC = el texto que sigue a la ÚLTIMA "COMPETENCIA GENERAL..."
+  const compIdx=[]; U.forEach((s,i)=>{ if(s.indexOf('COMPETENCIA GENERAL')===0) compIdx.push(i); });
+  if(compIdx.length){ const i=compIdx[compIdx.length-1]; out.competencia_uc=L[i+1]||''; }
+  // Elementos de competencia: nombre (línea siguiente) + redacción (hasta el próximo elemento / carga horaria)
+  for(let i=0;i<L.length;i++){
+    const m=U[i].match(/^ELEMENTO DE COMPETENCIA\s*(?:N[ºO°.]*\s*)?(\d+)/);
+    if(m){
+      const nombre=(L[i+1]||'').replace(/\.\s*$/,'');
+      let comp=''; let j=i+2;
+      while(j<L.length && !/^ELEMENTO DE COMPETENCIA|^CARGA HORARIA/.test(U[j])){ comp+=(comp?' ':'')+L[j]; j++; }
+      out.elementos.push({orden:Number(m[1]),nombre:nombre,competencia:comp,saber_conocer:[],saber_hacer:[],saber_ser:[]});
+    }
+  }
+  // U.A. + contenido analítico → saberes CONOCER del elemento correspondiente
+  const uaIdx=[]; U.forEach((s,i)=>{ const m=s.match(/^U\.?\s*A\.?\s*(?:N[ºO°.]*\s*)?(\d+)/); if(m) uaIdx.push({n:Number(m[1]),i:i}); });
+  const fin=U.findIndex(s=>s.indexOf('BIBLIOGRAF')===0);
+  uaIdx.forEach((ua,k)=>{
+    const start=ua.i+2; // i+1 = nombre de la U.A.
+    const end=(k+1<uaIdx.length)?uaIdx[k+1].i:(fin>=0?fin:L.length);
+    const items=L.slice(start,end).filter(s=>s.length>3&&!/^CONTENIDO/i.test(s));
+    const el=out.elementos.find(e=>e.orden===ua.n);
+    if(el&&items.length) el.saber_conocer=items;
+  });
+  // Práctica / Teoría / Total
+  const iPr=U.findIndex(s=>/^PR[ÁA]CTICA/.test(s));
+  if(iPr>=0){
+    const nums=[]; for(let j=iPr;j<Math.min(iPr+10,L.length);j++){ const n=L[j].match(/^(\d{1,3})$/); if(n) nums.push(Number(n[1])); }
+    if(nums.length>=3){ out.practica=nums[0]; out.teoria=nums[1]; out.horas=nums[2]; }
+  }
+  // Bibliografía: una referencia por párrafo (la numeración "1. 2. 3." de Word es automática, no está en el texto)
+  if(fin>=0){
+    out.biblio=L.slice(fin+1).map(s=>s.replace(/^\d+[.)-]\s*/,'').replace(/\.\s*$/,'').trim())
+      .filter(s=>s.length>3&&!/^(FACULTAD|ESCUELA|PROFESOR)/i.test(s)).slice(0,15);
+  }
+  return out;
+}
+async function avCMExtraer(buf){
+  const prog=document.getElementById('avc-base-prog');
+  try{
+    if(prog) prog.textContent='🪄 Leyendo el contenido mínimo…';
+    const r=_avCMParse(await _avDocxTexto(buf));
+    _avCMAplicar(r);
+    if(prog) prog.textContent='';
+  }catch(e){ if(prog) prog.textContent='⚠️ No pude leer el Word: '+(e.message||e); }
+}
+async function avCMReextraer(id,btn){
+  if(btn) btn.disabled=true;
+  try{
+    const r=await _avInvoke('ver_recurso',{adjunto_id:id});
+    if(!r.ok||!r.url) throw new Error(r.error||'no se pudo abrir el contenido mínimo');
+    const resp=await fetch(r.url);
+    await avCMExtraer(await resp.arrayBuffer());
+  }catch(e){ alert('⚠️ '+(e.message||e)); }
+  finally{ if(btn) btn.disabled=false; }
+}
+function _avCMAplicar(r){
+  const box=document.getElementById('avc-cm-detect'); if(!box) return;
+  if(!r||(!r.competencia_uc&&!r.elementos.length)){ box.innerHTML='<div class="rg-meta">🪄 No detecté la estructura del contenido mínimo — cargá los datos a mano.</div>'; return; }
+  AV._cm=r;
+  const comp=document.getElementById('avc-comp');
+  if(comp&&!comp.value.trim()&&r.competencia_uc){ comp.value=r.competencia_uc; }
+  let html='<div style="border:1px solid rgba(140,90,203,.45);border-radius:10px;padding:10px;background:rgba(140,90,203,.07)">'
+    +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--text-primary)">🪄 Datos detectados del Contenido Mínimo <span style="font-weight:400;font-size:11px;color:var(--text-muted)">(revisá — todo queda editable en la carpeta)</span></div>';
+  if(r.competencia_uc) html+='<div class="rg-meta" style="margin-bottom:6px">✏️ Competencia general de la U.C. → puesta en Datos generales (editala ahí).</div>';
+  if(r.elementos.length){
+    html+='<div style="font-size:12px;font-weight:700;margin-bottom:4px">Elementos de competencia ('+r.elementos.length+'):</div>';
+    html+=r.elementos.map(e=>'<div class="rg-card" style="margin-bottom:6px;padding:8px 10px"><div style="font-weight:700;font-size:13px">'+e.orden+'. '+_rgEsc(e.nombre)+'</div>'
+      +'<div style="font-size:11px;color:var(--text-secondary);margin-top:2px">'+_rgEsc((e.competencia||'').slice(0,180))+((e.competencia||'').length>180?'…':'')+'</div>'
+      +(e.saber_conocer.length?('<div style="font-size:11px;color:#9be6b4;margin-top:3px">📚 '+e.saber_conocer.length+' temas del contenido analítico → saberes CONOCER</div>'):'')
+      +'</div>').join('');
+  }
+  if(r.practica!=null) html+='<div class="rg-meta" style="margin-bottom:4px">⏱ Práctica: '+r.practica+' h · Teoría: '+r.teoria+' h · Total: '+r.horas+' h</div>';
+  if(r.biblio.length) html+='<div class="rg-meta" style="margin-bottom:6px">📖 Bibliografía: '+r.biblio.length+' referencias detectadas</div>';
+  html+='<button class="btn-secondary" onclick="avCMGuardar(this)">💾 Guardar en la carpeta (Desagregación inicial + bibliografía)</button>'
+    +'<div id="avc-cm-prog" class="rg-meta" style="min-height:14px;margin-top:4px"></div></div>';
+  box.innerHTML=html;
+}
+async function avCMGuardar(btn){
+  if(!AV.cid||!AV._cm) return;
+  const r=AV._cm;
+  btn.disabled=true;
+  const r1=r.elementos.length?await _avInvoke('guardar_elementos',{carpeta_id:AV.cid,elementos:r.elementos}):{ok:true};
+  if(AV.data&&AV.data.carpeta) AV.data.carpeta.bibliografia=r.biblio||[];
+  const r2=await _avInvoke('guardar_datos',{carpeta_id:AV.cid,
+    competencia_general_uc:document.getElementById('avc-comp').value,
+    justificacion:document.getElementById('avc-just').value,
+    fecha_desde:document.getElementById('avc-desde').value||null,
+    fecha_hasta:document.getElementById('avc-hasta').value||null,
+    carga_horaria_real:document.getElementById('avc-horas').value||null,
+    bibliografia:r.biblio||[]});
+  btn.disabled=false;
+  const prog=document.getElementById('avc-cm-prog');
+  if(prog) prog.textContent=(r1.ok&&r2.ok)?'✅ Guardado: '+r.elementos.length+' elementos (Desagregación) + competencia + bibliografía':'⚠️ '+((r1.ok?'':r1.error)||(r2.ok?'':r2.error)||'no se pudo');
 }
 function _avAdjCard(a){
   const comp=!!a.compartido, desc=(a.permitir_descarga!==false), enlace=!!a.enlace_url;
