@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.118 · AULA VIRTUAL (Fase 3b-1) COMPARTIR CON EL CURSO: el profesor sube/comparte Hoja de Orientación, Texto, Ayudas (PPT/PDF) y videos (enlaces) a su ciclo, con interruptor "permitir descargar SÍ/NO". El alumno los ve en "📚 Materiales de Clase" (panel alumno). Requiere correr AULA_VIRTUAL_compartir.sql + redeploy aula-virtual-ops.</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.119 · AULA VIRTUAL: diagnóstico — ahora "crear carpeta" muestra el ERROR REAL (antes decía sólo "non-2xx" genérico). Sirve para saber por qué falla. (Pendiente: ordenar/consolidar módulos que se pisan con "Documentos del personal docente".)</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -14960,7 +14960,11 @@ async function _avInvoke(accion, extra){
   if(!tok) return {ok:false,error:'sin sesión'};
   try{
     const { data, error } = await sb.functions.invoke('aula-virtual-ops',{ body:Object.assign({accion, token:tok}, extra||{}) });
-    if(error) return {ok:false,error:(error.message||'error')};
+    if(error){
+      let msg=error.message||'error';
+      try{ if(error.context && typeof error.context.json==='function'){ const b=await error.context.json(); if(b&&b.error) msg=b.error; } }catch(_){}
+      return {ok:false,error:msg};
+    }
     return data||{ok:false,error:'sin respuesta'};
   }catch(e){ return {ok:false,error:String((e&&e.message)||e)}; }
 }
