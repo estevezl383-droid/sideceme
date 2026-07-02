@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.116 · AULA VIRTUAL (Fase 3a): módulo Carpeta de Clases para profesores. Botón en panel docente → elegir UC del catálogo (malla) → crear carpeta → editar datos generales + profesores → enviar a revisión / Vo.Bo. Jefe SAC. Secciones (desagregación/tareas/cronograma/informe) y los 7 Word: próxima actualización.</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.118 · AULA VIRTUAL (Fase 3b-1) COMPARTIR CON EL CURSO: el profesor sube/comparte Hoja de Orientación, Texto, Ayudas (PPT/PDF) y videos (enlaces) a su ciclo, con interruptor "permitir descargar SÍ/NO". El alumno los ve en "📚 Materiales de Clase" (panel alumno). Requiere correr AULA_VIRTUAL_compartir.sql + redeploy aula-virtual-ops.</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4313,7 +4313,7 @@ input::placeholder, textarea::placeholder {
       <span>Documentos del personal docente</span>
     </button>
 
-    <button class="btn-mega" onclick="goAulaVirtual()" style="background:linear-gradient(180deg,#1f6f5c,#0e4a3c);margin-top:8px;color:#fff">
+    <button class="btn-mega" onclick="goAulaVirtual('screen-prof-panel')" style="background:linear-gradient(180deg,#1f6f5c,#0e4a3c);margin-top:8px;color:#fff">
       <span class="mega-icon">🎓</span>
       <span>Aula Virtual — Carpeta de Clases</span>
     </button>
@@ -4698,6 +4698,11 @@ input::placeholder, textarea::placeholder {
         <span>Documentos Institucionales</span>
         <span id="docsinst-badge" class="hub-badge" style="display:none"></span>
       </button>
+      <!-- Aula Virtual: materiales de clase compartidos por el profesor -->
+      <button class="btn-mega" onclick="goAvAlumno()" style="background:linear-gradient(180deg,#1f6f5c,#0e4a3c);margin:0 0 10px 0;color:#fff;position:relative">
+        <span class="mega-icon">📚</span>
+        <span>Materiales de Clase</span>
+      </button>
       <!-- Ejercicios Tácticos (calcos KMZ/KML para Google Earth) -->
       <button class="btn-mega" onclick="goEjTac('screen-cursante-home')" style="background:linear-gradient(180deg,#2c6b4b,#3a8c5a);margin:0 0 10px 0;color:#fff;position:relative">
         <span class="mega-icon">🗺️</span>
@@ -4920,6 +4925,7 @@ input::placeholder, textarea::placeholder {
       <button id="qa-btn-diagnostico" class="quick-btn" onclick="goDiagnostico()"><span class="qa-icon">🔧</span><span class="qa-text">Diagnóstico y forzar sincronización</span></button>
       <button id="qa-btn-bloqueo-materias" class="quick-btn" onclick="goBloqueoMaterias()" style="background:linear-gradient(180deg,rgba(180,140,255,.15),rgba(180,140,255,.05));border-color:#b48cff;display:none"><span class="qa-icon">🔒</span><span class="qa-text"><strong>Bloquear materias / módulos</strong> (ocultar a alumnos)</span></button>
       <button id="qa-btn-aula-gestion" class="quick-btn" onclick="goAulaGestion()" style="background:linear-gradient(180deg,rgba(140,90,203,.18),rgba(140,90,203,.05));border-color:#8c5acb;display:none"><span class="qa-icon">📚</span><span class="qa-text"><strong>Aula Virtual</strong> (abrir / cerrar materias)</span></button>
+      <button id="qa-btn-carpeta-clases" class="quick-btn" onclick="goAulaVirtual('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(31,111,92,.22),rgba(14,74,60,.06));border-color:#1f6f5c;display:none"><span class="qa-icon">🎓</span><span class="qa-text"><strong>Carpeta de Clases</strong> (elaborar la documentación de una materia — 7 documentos)</span></button>
       <button id="qa-btn-avisos" class="quick-btn" onclick="goAvisos()" style="background:linear-gradient(180deg,rgba(70,150,110,.2),rgba(70,150,110,.05));border-color:#46966e;display:none"><span class="qa-icon">📢</span><span class="qa-text"><strong>Avisos a cursantes</strong> (publicar / desactivar cartel in-app)</span></button>
       <button class="quick-btn" onclick="goDocsProfesoresCT()" style="background:linear-gradient(180deg,rgba(140,90,203,.18),rgba(140,90,203,.05));border-color:#8c5acb"><span class="qa-icon">👨‍🏫</span><span class="qa-text"><strong>Documentos del personal docente</strong> (subir / ver — solo profesores)</span></button>
       <button class="quick-btn" onclick="goDocsInst('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(140,90,203,.22),rgba(107,75,168,.06));border-color:#8c5acb"><span class="qa-icon">📁</span><span class="qa-text"><strong>Documentos Institucionales</strong> (publicar / recibir — por ciclo, profesores, mando)</span></button>
@@ -5966,7 +5972,7 @@ input::placeholder, textarea::placeholder {
 <!-- ===================== AULA VIRTUAL — CARPETA DE CLASES ===================== -->
 <section id="screen-aula-virtual" class="screen">
   <div class="app-header">
-    <button class="back-btn" onclick="showScreen('screen-prof-panel')">←</button>
+    <button class="back-btn" onclick="showScreen(AV.back||'screen-prof-panel')">←</button>
     <div class="header-crest"><svg><use href="#crest"/></svg></div>
     <div class="header-text"><div class="header-title">🎓 Aula Virtual</div><div class="header-sub">Carpeta de Clases</div></div>
   </div>
@@ -6011,11 +6017,41 @@ input::placeholder, textarea::placeholder {
 
     <button class="btn-primary" onclick="avGuardarDatos(this)" style="margin-bottom:16px">💾 Guardar datos generales</button>
 
+    <div class="section-label">🅱️ Aula — Compartir con el curso</div>
+    <div style="border:1px solid var(--border,#2a3a52);border-radius:12px;padding:12px;margin-bottom:10px;background:rgba(31,111,92,.05)">
+      <div class="field" style="margin-bottom:8px"><label>Tipo</label>
+        <select id="avc-adj-tipo" onchange="_avAdjTipoUI()">
+          <option value="hoja_orientacion">📋 Hoja de Orientación</option>
+          <option value="texto_referencia">📘 Texto de Referencia</option>
+          <option value="ayudas">📎 Ayudas (PowerPoint / PDF)</option>
+          <option value="video">🎬 Video / enlace</option>
+        </select></div>
+      <div class="field" style="margin-bottom:8px"><label>Nombre / título</label><input type="text" id="avc-adj-nombre" placeholder="Ej: Hoja de Orientación de la U.C." autocomplete="off"></div>
+      <div class="field" id="avc-adj-file-wrap" style="margin-bottom:8px"><label>Archivo (Word / PDF / PPT)</label><input type="file" id="avc-adj-file"></div>
+      <div class="field" id="avc-adj-link-wrap" style="margin-bottom:8px;display:none"><label>Enlace (YouTube, Drive…)</label><input type="text" id="avc-adj-link" placeholder="https://…" autocomplete="off"></div>
+      <label class="rg-chk" style="display:block;margin-bottom:6px"><input type="checkbox" id="avc-adj-compartir" checked> Compartir con el curso ya</label>
+      <label class="rg-chk" style="display:block;margin-bottom:8px"><input type="checkbox" id="avc-adj-descarga" checked> Permitir descargar</label>
+      <div id="avc-adj-prog" style="font-size:12px;color:var(--text-muted);min-height:16px;margin-bottom:6px"></div>
+      <button class="btn-primary" onclick="avAdjSubir(this)">⬆ Subir / Agregar</button>
+    </div>
+    <div id="avc-aula-lista" style="margin-bottom:14px"></div>
+
     <div class="section-label">🧩 Secciones de la carpeta</div>
     <div id="av-secciones" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
 
     <div class="section-label">✅ Estado y revisión</div>
     <div id="avc-flow" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px"></div>
+  </div>
+</section>
+
+<section id="screen-av-alumno" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('screen-cursante-home')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">📚 Materiales de Clase</div><div class="header-sub">Hojas de orientación, textos, ayudas y videos</div></div>
+  </div>
+  <div class="menu-container">
+    <div id="av-alumno-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
   </div>
 </section>
 
@@ -10754,7 +10790,7 @@ function renderDiscPanel(){
 
   // Visibilidad de botones según rol
   const soloCT = esCT();
-  const btnsCT = ['qa-btn-gest-cursantes','qa-btn-gest-profesores','qa-btn-diagnostico','qa-btn-pwd-otro','qa-btn-bloqueo-materias','qa-btn-aula-gestion','qa-btn-avisos','qa-btn-cerrar-sem'];
+  const btnsCT = ['qa-btn-gest-cursantes','qa-btn-gest-profesores','qa-btn-diagnostico','qa-btn-pwd-otro','qa-btn-bloqueo-materias','qa-btn-aula-gestion','qa-btn-carpeta-clases','qa-btn-avisos','qa-btn-cerrar-sem'];
   btnsCT.forEach(id => {
     const el = document.getElementById(id);
     if(el) el.style.display = soloCT ? '' : 'none';
@@ -14918,7 +14954,7 @@ function _etMarcarVisto(items){
 
 /* ===== JUEGO DE GUERRA (PMTD) — wargame por turnos, niebla de guerra ===== */
 // ===================== AULA VIRTUAL — CARPETA DE CLASES =====================
-const AV = { cid:null, catalogo:null, docentes:[], data:null };
+const AV = { cid:null, catalogo:null, docentes:[], data:null, back:'screen-prof-panel' };
 async function _avInvoke(accion, extra){
   const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
   if(!tok) return {ok:false,error:'sin sesión'};
@@ -14935,7 +14971,8 @@ function _avEstadoBadge(e){
   const x=m[e]||m.borrador;
   return '<span style="display:inline-block;padding:3px 10px;border-radius:20px;font-size:12px;font-weight:700;background:'+x[1]+';color:'+x[2]+'">'+x[0]+'</span>';
 }
-async function goAulaVirtual(){
+async function goAulaVirtual(from){
+  if(from) AV.back=from; else if(typeof esCT==='function' && esCT()) AV.back='screen-disc-panel';
   showScreen('screen-aula-virtual');
   document.getElementById('av-nueva').style.display='none';
   await avCargarMisCarpetas();
@@ -15015,6 +15052,8 @@ async function avAbrirCarpeta(id){
   _avRenderDocentes();
   _avRenderSecciones(r);
   _avRenderFlow(c);
+  if(typeof _avAdjTipoUI==='function') _avAdjTipoUI();
+  _avAdjListar();
 }
 function _avRenderDocentes(){
   const cont=document.getElementById('avc-docentes');
@@ -15078,6 +15117,114 @@ async function avEliminar(){
   const r=await _avInvoke('eliminar_carpeta',{carpeta_id:AV.cid});
   if(!r.ok){ alert('⚠️ '+(r.error||'')); return; }
   await goAulaVirtual();
+}
+
+// --- Aula Virtual · Compartir con el curso (adjuntos) ---
+const _AV_TIPO_LBL={hoja_orientacion:'📋 Hoja de Orientación',texto_referencia:'📘 Texto',ayudas:'📎 Ayudas',video:'🎬 Video',memorandum:'📄 Memo',contenido_minimo:'📄 Contenido Mínimo',otro:'📄 Recurso'};
+function _avAdjTipoUI(){
+  const t=document.getElementById('avc-adj-tipo').value;
+  const fw=document.getElementById('avc-adj-file-wrap'), lw=document.getElementById('avc-adj-link-wrap');
+  if(fw) fw.style.display=(t==='video')?'none':'';
+  if(lw) lw.style.display=(t==='video')?'':'none';
+}
+async function avAdjSubir(btn){
+  if(!AV.cid) return;
+  const tipo=document.getElementById('avc-adj-tipo').value;
+  const nombre=(document.getElementById('avc-adj-nombre').value||'').trim();
+  const compartir=document.getElementById('avc-adj-compartir').checked;
+  const permitir=document.getElementById('avc-adj-descarga').checked;
+  const prog=document.getElementById('avc-adj-prog');
+  if(!nombre){ alert('Poné un nombre.'); return; }
+  btn.disabled=true;
+  try{
+    if(tipo==='video'){
+      const link=(document.getElementById('avc-adj-link').value||'').trim();
+      if(!/^https?:\/\//i.test(link)) throw new Error('Poné un enlace válido (https…)');
+      prog.textContent='Guardando enlace…';
+      const r=await _avInvoke('subir_adjunto',{carpeta_id:AV.cid,tipo,nombre,enlace_url:link,compartir,permitir_descarga:permitir});
+      if(!r.ok) throw new Error(r.error||'no se pudo');
+    }else{
+      const inp=document.getElementById('avc-adj-file');
+      const file=inp&&inp.files&&inp.files[0];
+      if(!file) throw new Error('Elegí un archivo');
+      if(file.size>50*1024*1024) throw new Error('El archivo supera 50 MB');
+      prog.textContent='① Pidiendo permiso de subida…';
+      const up=await _avInvoke('av_upload_url',{carpeta_id:AV.cid,filename:file.name});
+      if(!up.ok) throw new Error(up.error||'sin URL de subida');
+      prog.textContent='② Subiendo archivo…';
+      const u=await sb.storage.from('documentos-academicos').uploadToSignedUrl(up.path,up.token,file);
+      if(u.error) throw new Error(u.error.message||'falló la subida');
+      prog.textContent='③ Registrando…';
+      const r=await _avInvoke('subir_adjunto',{carpeta_id:AV.cid,tipo,nombre,storage_path:up.path,mime:file.type,compartir,permitir_descarga:permitir});
+      if(!r.ok) throw new Error(r.error||'no se pudo');
+      inp.value='';
+    }
+    prog.textContent='✅ Listo';
+    document.getElementById('avc-adj-nombre').value='';
+    const lk=document.getElementById('avc-adj-link'); if(lk) lk.value='';
+    await _avAdjListar();
+  }catch(e){ prog.textContent='⚠️ '+(e.message||e); }
+  finally{ btn.disabled=false; }
+}
+async function _avAdjListar(){
+  const cont=document.getElementById('avc-aula-lista'); if(!cont||!AV.cid) return;
+  const r=await _avInvoke('listar_adjuntos',{carpeta_id:AV.cid});
+  if(!r.ok){ cont.innerHTML=''; return; }
+  const items=r.adjuntos||[];
+  cont.innerHTML = items.length ? items.map(_avAdjCard).join('') : '<div class="rg-meta" style="color:var(--text-muted)">Aún no compartiste materiales.</div>';
+}
+function _avAdjCard(a){
+  const comp=!!a.compartido, desc=(a.permitir_descarga!==false), enlace=!!a.enlace_url;
+  return '<div class="rg-card" style="margin-bottom:8px">'
+    +'<div class="rg-asunto" style="font-size:14px">'+(_AV_TIPO_LBL[a.tipo]||'📄')+' '+_rgEsc(a.nombre||'')+'</div>'
+    +(enlace?('<div class="rg-route" style="margin:2px 0">🔗 '+_rgEsc(a.enlace_url)+'</div>'):'')
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'
+    +'<button class="rg-doc" onclick="avAdjVer(\''+a.id+'\',this)">👁 Abrir</button>'
+    +'<button class="rg-doc" style="'+(comp?'border-color:#3a8c5a;color:#9be6b4':'')+'" onclick="avAdjToggle(\''+a.id+'\',\'compartido\','+(!comp)+')">'+(comp?'✅ Compartido':'⬜ Compartir')+'</button>'
+    +(enlace?'':'<button class="rg-doc" onclick="avAdjToggle(\''+a.id+'\',\'permitir_descarga\','+(!desc)+')">'+(desc?'⬇ Descarga: SÍ':'🔒 Descarga: NO')+'</button>')
+    +'<button class="rg-doc" style="border-color:#7a2230;color:#ffc9c9" onclick="avAdjEliminar(\''+a.id+'\')">🗑</button>'
+    +'</div></div>';
+}
+async function avAdjToggle(id,campo,val){
+  const extra={adjunto_id:id}; extra[campo]=val;
+  const r=await _avInvoke('toggle_adjunto',extra);
+  if(!r.ok){ alert('⚠️ '+(r.error||'')); return; }
+  await _avAdjListar();
+}
+async function avAdjEliminar(id){
+  if(!confirm('¿Eliminar este material?')) return;
+  const r=await _avInvoke('eliminar_adjunto',{adjunto_id:id});
+  if(!r.ok){ alert('⚠️ '+(r.error||'')); return; }
+  await _avAdjListar();
+}
+async function avAdjVer(id,btn){
+  if(btn) btn.disabled=true;
+  const r=await _avInvoke('ver_recurso',{adjunto_id:id});
+  if(btn) btn.disabled=false;
+  if(!r.ok||!r.url){ alert(r.error||'No se pudo abrir'); return; }
+  try{ window.open(r.url,'_blank'); }catch(e){ location.href=r.url; }
+}
+async function goAvAlumno(){
+  showScreen('screen-av-alumno');
+  const cont=document.getElementById('av-alumno-lista');
+  cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const r=await _avInvoke('recursos_alumno');
+  if(!r.ok){ cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No se pudo cargar: '+_rgEsc(r.error||'')+'</div>'; return; }
+  const items=r.recursos||[];
+  cont.innerHTML = items.length ? items.map(_avRecCard).join('') : '<div class="rg-card" style="text-align:center;color:var(--text-muted);padding:22px">📭 Todavía no hay materiales compartidos para tu ciclo.</div>';
+}
+function _avRecCard(r){
+  const mat=(r.av_carpetas&&r.av_carpetas.av_materias&&r.av_carpetas.av_materias.nombre_uc)||'';
+  const enlace=!!r.enlace_url, bajar=(r.permitir_descarga!==false);
+  let btn;
+  if(enlace) btn='<button class="rg-doc" onclick="avAdjVer(\''+r.id+'\',this)">🔗 Abrir enlace</button>';
+  else if(bajar) btn='<button class="rg-doc" onclick="avAdjVer(\''+r.id+'\',this)">⬇ Abrir / Descargar</button>';
+  else btn='<button class="rg-doc" disabled style="opacity:.6">🔒 Solo consulta en clase</button>';
+  return '<div class="rg-card" style="margin-bottom:8px">'
+    +'<div class="rg-asunto" style="font-size:14px">'+(_AV_TIPO_LBL[r.tipo]||'📄')+' '+_rgEsc(r.nombre||'')+'</div>'
+    +(mat?('<div class="rg-route" style="margin:2px 0">'+_rgEsc(mat)+'</div>'):'')
+    +'<div class="rg-meta">'+(r.subido_por_nombre?('por '+_rgEsc(r.subido_por_nombre)):'')+'</div>'
+    +'<div style="margin-top:8px">'+btn+'</div></div>';
 }
 
 const WG = { partidaId:null, clave:'', soy:null, estado:null, ordenes:{}, sel:null, map:null, capa:null, modoColocar:false, volverA:'screen-disc-panel' };
