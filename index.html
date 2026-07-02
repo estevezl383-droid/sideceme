@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.121 · PUNTO DE PARTIDA: en la Carpeta de Clases ahora se suben los 2 DOCUMENTOS BASE (memorándum de designación + contenido mínimo) al tope del editor. + v2.9.120 consolidación (un solo lugar para compartir; alumno entra por Aula Virtual → Materiales de Clase; PDFs sin descarga se leen en el visor). Correr AULA_VIRTUAL_consolidar.sql + redeploy EF aula-virtual-ops.</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.122 · EXTRACCIÓN AUTOMÁTICA del memorándum (sin IA, pdf.js local): al subirlo detecta fechas de impartición (Desde/Hasta), Formativa, Sumativa, horas, y propone entrega de trabajos = sumativo − 2 días. TODO editable, nada se guarda solo. Botón 🪄 Extraer datos para repetir. "Compartir con el curso" ahora arranca APAGADO (nada visible al alumno hasta que el profesor lo active). Correr AULA_VIRTUAL_consolidar.sql + redeploy EF aula-virtual-ops.</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6006,6 +6006,7 @@ input::placeholder, textarea::placeholder {
       <div id="avc-base-memorandum" style="margin-bottom:12px"></div>
       <div id="avc-base-contenido_minimo"></div>
       <div id="avc-base-prog" style="font-size:12px;color:var(--text-muted);min-height:16px;margin-top:6px"></div>
+      <div id="avc-memo-detect" style="margin-top:8px"></div>
     </div>
 
     <div class="section-label">📋 Datos generales</div>
@@ -6035,7 +6036,7 @@ input::placeholder, textarea::placeholder {
       <div class="field" style="margin-bottom:8px"><label>Nombre / título</label><input type="text" id="avc-adj-nombre" placeholder="Ej: Hoja de Orientación de la U.C." autocomplete="off"></div>
       <div class="field" id="avc-adj-file-wrap" style="margin-bottom:8px"><label>Archivo (Word / PDF / PPT)</label><input type="file" id="avc-adj-file"></div>
       <div class="field" id="avc-adj-link-wrap" style="margin-bottom:8px;display:none"><label>Enlace (YouTube, Drive…)</label><input type="text" id="avc-adj-link" placeholder="https://…" autocomplete="off"></div>
-      <label class="rg-chk" style="display:block;margin-bottom:6px"><input type="checkbox" id="avc-adj-compartir" checked> Compartir con el curso ya</label>
+      <label class="rg-chk" style="display:block;margin-bottom:6px"><input type="checkbox" id="avc-adj-compartir"> Compartir con el curso ya <span style="font-size:11px;color:var(--text-muted)">(apagado: el alumno NO lo ve hasta que lo actives)</span></label>
       <label class="rg-chk" style="display:block;margin-bottom:8px"><input type="checkbox" id="avc-adj-descarga" checked> Permitir descargar</label>
       <div id="avc-adj-prog" style="font-size:12px;color:var(--text-muted);min-height:16px;margin-bottom:6px"></div>
       <button class="btn-primary" onclick="avAdjSubir(this)">⬆ Subir / Agregar</button>
@@ -15195,6 +15196,7 @@ function _avBaseRender(items){
     html+=subidos.map(a=>'<div style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:5px">'
       +'<span style="flex:1;color:var(--text-secondary)">'+_rgEsc(a.nombre||'')+'</span>'
       +'<button class="rg-doc" onclick="avAdjVer(\''+a.id+'\',this)">👁 Abrir</button>'
+      +(tipo==='memorandum'?'<button class="rg-doc" onclick="avMemoReextraer(\''+a.id+'\',this)">🪄 Extraer datos</button>':'')
       +'<button class="rg-doc" style="border-color:#7a2230;color:#ffc9c9" onclick="avAdjEliminar(\''+a.id+'\')">🗑</button></div>').join('');
     html+='<div style="display:flex;gap:8px;align-items:center"><input type="file" id="avc-base-file-'+tipo+'" accept=".pdf,.doc,.docx,application/pdf" style="flex:1;font-size:12px">'
       +'<button class="btn-secondary" style="padding:6px 12px;white-space:nowrap" onclick="avBaseSubir(\''+tipo+'\',this)">⬆ Subir</button></div>';
@@ -15222,8 +15224,92 @@ async function avBaseSubir(tipo,btn){
     prog.textContent='✅ Listo';
     inp.value='';
     await _avAdjListar();
+    if(tipo==='memorandum'&&/pdf/i.test((file.type||'')+(file.name||''))){ try{ await avMemoExtraer(await file.arrayBuffer()); }catch(_e){} }
   }catch(e){ prog.textContent='⚠️ '+(e.message||e); }
   finally{ btn.disabled=false; }
+}
+// v2.9.122: EXTRACCIÓN AUTOMÁTICA del memorándum (pdf.js local, SIN IA) — todo editable
+const _AV_MESES={ENE:'01',FEB:'02',MAR:'03',ABR:'04',MAY:'05',JUN:'06',JUL:'07',AGO:'08',SEP:'09',SET:'09',OCT:'10',NOV:'11',DIC:'12'};
+async function _avPdfTexto(buf){
+  await ensurePdfJs();
+  const doc=await pdfjsLib.getDocument({data:buf}).promise;
+  let t='';
+  for(let p=1;p<=doc.numPages;p++){
+    const pg=await doc.getPage(p);
+    const tc=await pg.getTextContent();
+    t+=' '+tc.items.map(i=>i.str).join(' ');
+  }
+  return t.toUpperCase();
+}
+function _avMemoParse(txt){
+  // fechas militares: ddHHMM-MES-aa (ej. 210800-JUN-26)
+  const dts=[]; const re=/(\d{2})(\d{2})(\d{2})\s*-\s*([A-ZÁÉÍÓÚÑ]{3,4})\s*-\s*(\d{2})/g; let m;
+  while((m=re.exec(txt))){
+    const mes=_AV_MESES[m[4].slice(0,3)]; if(!mes) continue;
+    dts.push({iso:'20'+m[5]+'-'+mes+'-'+m[1], idx:m.index});
+  }
+  const out={};
+  const iImp=txt.indexOf('IMPARTICI');
+  if(iImp>=0){ const d=dts.filter(x=>x.idx>iImp).slice(0,2); if(d.length===2){ out.desde=d[0].iso; out.hasta=d[1].iso; } }
+  const iEv=txt.indexOf('EVALUACION');
+  if(iEv>=0){ const d=dts.filter(x=>x.idx>iEv).slice(0,2); if(d[0]) out.formativa=d[0].iso; if(d[1]) out.sumativa=d[1].iso; }
+  const h=txt.match(/(\d{1,3})\s*HORAS/); if(h) out.horas=Number(h[1]);
+  if(out.formativa&&out.sumativa&&out.formativa>out.sumativa){ const x=out.formativa; out.formativa=out.sumativa; out.sumativa=x; }
+  if(out.sumativa){ const t=new Date(out.sumativa+'T12:00:00'); t.setDate(t.getDate()-2); out.trabajos=t.toISOString().slice(0,10); }
+  return out;
+}
+async function avMemoExtraer(buf){
+  const prog=document.getElementById('avc-base-prog');
+  try{
+    if(prog) prog.textContent='🪄 Leyendo el memorándum…';
+    const r=_avMemoParse(await _avPdfTexto(buf));
+    _avMemoAplicar(r);
+    if(prog) prog.textContent='';
+  }catch(e){ if(prog) prog.textContent='⚠️ No pude leer el PDF: '+(e.message||e); }
+}
+async function avMemoReextraer(id,btn){
+  if(btn) btn.disabled=true;
+  try{
+    const r=await _avInvoke('ver_recurso',{adjunto_id:id});
+    if(!r.ok||!r.url) throw new Error(r.error||'no se pudo abrir el memorándum');
+    const resp=await fetch(r.url);
+    await avMemoExtraer(await resp.arrayBuffer());
+  }catch(e){ alert('⚠️ '+(e.message||e)); }
+  finally{ if(btn) btn.disabled=false; }
+}
+function _avMemoAplicar(r){
+  const box=document.getElementById('avc-memo-detect'); if(!box) return;
+  if(!r||!Object.keys(r).length){ box.innerHTML='<div class="rg-meta">🪄 No detecté fechas en el memorándum — completá los campos a mano.</div>'; return; }
+  const llenado=[];
+  if(r.desde){ const el=document.getElementById('avc-desde'); if(el){ el.value=r.desde; llenado.push('Desde'); } }
+  if(r.hasta){ const el=document.getElementById('avc-hasta'); if(el){ el.value=r.hasta; llenado.push('Hasta'); } }
+  if(r.horas){ const el=document.getElementById('avc-horas'); if(el&&!el.value){ el.value=r.horas; llenado.push('Horas'); } }
+  box.innerHTML='<div style="border:1px solid rgba(127,227,176,.4);border-radius:10px;padding:10px;background:rgba(29,158,117,.07)">'
+    +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--text-primary)">🪄 Datos detectados del memorándum <span style="font-weight:400;font-size:11px;color:var(--text-muted)">(revisá y corregí lo que haga falta — nada se guarda solo)</span></div>'
+    +(llenado.length?'<div class="rg-meta" style="margin-bottom:6px">✏️ Rellené '+llenado.join(', ')+' en Datos generales — revisalos y tocá 💾 Guardar datos generales.</div>':'')
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">'
+    +'<div class="field" style="flex:1;min-width:130px"><label>Ev. Formativa</label><input type="date" id="avc-ev-formativa" value="'+(r.formativa||'')+'"></div>'
+    +'<div class="field" style="flex:1;min-width:130px"><label>Ev. Sumativa</label><input type="date" id="avc-ev-sumativa" value="'+(r.sumativa||'')+'"></div>'
+    +'<div class="field" style="flex:1;min-width:130px"><label>Entrega de trabajos</label><input type="date" id="avc-ev-trabajos" value="'+(r.trabajos||'')+'"></div>'
+    +'</div>'
+    +'<div class="rg-meta" style="margin-bottom:8px">La entrega de trabajos se propone 2 días antes del sumativo — editala si hace falta.</div>'
+    +'<button class="btn-secondary" onclick="avMemoGuardarEvals(this)">💾 Guardar evaluaciones en la carpeta</button>'
+    +'<div id="avc-ev-prog" class="rg-meta" style="min-height:14px;margin-top:4px"></div></div>';
+}
+async function avMemoGuardarEvals(btn){
+  if(!AV.cid) return;
+  const f=(document.getElementById('avc-ev-formativa')||{}).value;
+  const s=(document.getElementById('avc-ev-sumativa')||{}).value;
+  const t=(document.getElementById('avc-ev-trabajos')||{}).value;
+  const evs=[];
+  if(f) evs.push({tipo:'formativa',fecha:f,descripcion:'Evaluación Formativa'});
+  if(s) evs.push({tipo:'sumativa',fecha:s,descripcion:'Evaluación Sumativa'+(t?(' · Entrega de trabajos: '+t):'')});
+  if(!evs.length){ alert('Poné al menos una fecha.'); return; }
+  btn.disabled=true;
+  const r=await _avInvoke('guardar_evaluaciones',{carpeta_id:AV.cid,evaluaciones:evs});
+  btn.disabled=false;
+  const prog=document.getElementById('avc-ev-prog');
+  if(prog) prog.textContent = r.ok?'✅ Evaluaciones guardadas en la carpeta':'⚠️ '+(r.error||'no se pudo');
 }
 function _avAdjCard(a){
   const comp=!!a.compartido, desc=(a.permitir_descarga!==false), enlace=!!a.enlace_url;
