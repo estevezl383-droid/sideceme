@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.123 · CONTENIDO MÍNIMO también se extrae solo (Word leído en el navegador, sin IA): competencia de la U.C., elementos de competencia (→ Desagregación inicial con temas como saberes CONOCER), práctica/teoría, bibliografía. El botón del memorándum ahora GUARDA TODO en un clic (fechas + horas + evaluaciones). Fix: guardar datos ya no borra la bibliografía. Correr AULA_VIRTUAL_consolidar.sql + redeploy EF aula-virtual-ops.</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.124 · FIX fechas de impartición: ahora se leen del patrón "DEL … AL …" del memorándum (antes podía confundirlas con las de los exámenes). Horas del memo mandan sobre el catálogo. 🪄 Borrador automático de JUSTIFICACIÓN. NUEVO: sección CUADRO DE DISTRIBUCIÓN DEL TIEMPO activa — borrador automático con tus fechas (hoja de orientación día 1, clases semanales por U.A., formativa, entrega de trabajos, sumativa) + editor + guardar. Correr AULA_VIRTUAL_consolidar.sql + redeploy EF aula-virtual-ops.</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6013,6 +6013,7 @@ input::placeholder, textarea::placeholder {
     <div class="section-label">📋 Datos generales</div>
     <div class="field" style="margin-bottom:8px"><label>Competencia General de la U.C.</label><textarea id="avc-comp" rows="3" style="resize:vertical"></textarea></div>
     <div class="field" style="margin-bottom:8px"><label>Justificación</label><textarea id="avc-just" rows="3" style="resize:vertical"></textarea></div>
+    <button class="btn-secondary" style="margin-bottom:10px;padding:6px 12px;font-size:12px" onclick="avJustGenerar()">🪄 Generar borrador de justificación</button>
     <div style="display:flex;gap:8px">
       <div class="field" style="margin-bottom:8px;flex:1"><label>Desde</label><input type="date" id="avc-desde"></div>
       <div class="field" style="margin-bottom:8px;flex:1"><label>Hasta</label><input type="date" id="avc-hasta"></div>
@@ -6046,6 +6047,7 @@ input::placeholder, textarea::placeholder {
 
     <div class="section-label">🧩 Secciones de la carpeta</div>
     <div id="av-secciones" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
+    <div id="avc-crono" style="margin-bottom:12px"></div>
 
     <div class="section-label">✅ Estado y revisión</div>
     <div id="avc-flow" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px"></div>
@@ -15089,10 +15091,10 @@ function _avRenderSecciones(r){
   cont.innerHTML=
      row('🧩','Desagregación (elementos de competencia)',n(r.elementos),'')
     +row('📝','Cuadro de tareas',n(r.tareas),'')
-    +row('📅','Cuadro de distribución del tiempo',n(r.cronograma),'')
+    +row('📅','Cuadro de distribución del tiempo',n(r.cronograma),'avCronoAbrir()')
     +row('🎯','Evaluaciones',n(r.evaluaciones),'')
     +row('📄','Informe de clases',r.informe?1:0,'')
-    +'<div style="font-size:11px;color:var(--text-muted);margin-top:2px">🔜 Estas secciones y la generación de los 7 Word llegan en la próxima actualización.</div>';
+    +'<div style="font-size:11px;color:var(--text-muted);margin-top:2px">🔜 Las demás secciones y la generación de los 7 Word llegan en las próximas actualizaciones.</div>';
 }
 function _avRenderFlow(c){
   const cont=document.getElementById('avc-flow');
@@ -15257,8 +15259,16 @@ function _avMemoParse(txt){
     dts.push({iso:'20'+m[5]+'-'+mes+'-'+m[1], idx:m.index});
   }
   const out={};
-  const iImp=txt.indexOf('IMPARTICI');
-  if(iImp>=0){ const d=dts.filter(x=>x.idx>iImp).slice(0,2); if(d.length===2){ out.desde=d[0].iso; out.hasta=d[1].iso; } }
+  // Impartición: patrón "DEL <fecha> AL <fecha>" (robusto — no depende del orden en que el PDF entrega las celdas)
+  const RE_DT='(\\d{2})(\\d{2})(\\d{2})\\s*-\\s*([A-ZÁÉÍÓÚÑ]{3,4})\\s*-\\s*(\\d{2})';
+  const _iso=function(dd,mes,aa){ const mm=_AV_MESES[mes.slice(0,3)]; return mm?('20'+aa+'-'+mm+'-'+dd):null; };
+  const mDA=txt.match(new RegExp('DEL[\\s\\S]{0,12}?'+RE_DT+'[\\s\\S]{0,12}?AL[\\s\\S]{0,12}?'+RE_DT));
+  if(mDA){ out.desde=_iso(mDA[1],mDA[4],mDA[5]); out.hasta=_iso(mDA[6],mDA[9],mDA[10]); }
+  if(!out.desde||!out.hasta){
+    const iImp=txt.indexOf('IMPARTICI');
+    if(iImp>=0){ const d=dts.filter(x=>x.idx>iImp).slice(0,2); if(d.length===2){ out.desde=d[0].iso; out.hasta=d[1].iso; } }
+  }
+  if(out.desde&&out.hasta&&out.desde>out.hasta){ const x=out.desde; out.desde=out.hasta; out.hasta=x; }
   const iEv=txt.indexOf('EVALUACION');
   if(iEv>=0){ const d=dts.filter(x=>x.idx>iEv).slice(0,2); if(d[0]) out.formativa=d[0].iso; if(d[1]) out.sumativa=d[1].iso; }
   const h=txt.match(/(\d{1,3})\s*HORAS/); if(h) out.horas=Number(h[1]);
@@ -15291,7 +15301,7 @@ function _avMemoAplicar(r){
   const llenado=[];
   if(r.desde){ const el=document.getElementById('avc-desde'); if(el){ el.value=r.desde; llenado.push('Desde'); } }
   if(r.hasta){ const el=document.getElementById('avc-hasta'); if(el){ el.value=r.hasta; llenado.push('Hasta'); } }
-  if(r.horas){ const el=document.getElementById('avc-horas'); if(el&&!el.value){ el.value=r.horas; llenado.push('Horas'); } }
+  if(r.horas){ const el=document.getElementById('avc-horas'); if(el){ el.value=r.horas; llenado.push('Horas ('+r.horas+' h — el memorándum manda sobre el catálogo)'); } }
   box.innerHTML='<div style="border:1px solid rgba(127,227,176,.4);border-radius:10px;padding:10px;background:rgba(29,158,117,.07)">'
     +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--text-primary)">🪄 Datos detectados del memorándum <span style="font-weight:400;font-size:11px;color:var(--text-muted)">(revisá y corregí lo que haga falta — nada se guarda solo)</span></div>'
     +(llenado.length?'<div class="rg-meta" style="margin-bottom:6px">✏️ Rellené '+llenado.join(', ')+' en Datos generales — revisalos y tocá 💾 Guardar datos generales.</div>':'')
@@ -15434,6 +15444,100 @@ async function avCMGuardar(btn){
   btn.disabled=false;
   const prog=document.getElementById('avc-cm-prog');
   if(prog) prog.textContent=(r1.ok&&r2.ok)?'✅ Guardado: '+r.elementos.length+' elementos (Desagregación) + competencia + bibliografía':'⚠️ '+((r1.ok?'':r1.error)||(r2.ok?'':r2.error)||'no se pudo');
+}
+// v2.9.124: JUSTIFICACIÓN — borrador automático desde los datos ya cargados (plantilla, sin IA)
+function avJustGenerar(){
+  const ta=document.getElementById('avc-just'); if(!ta) return;
+  if(ta.value.trim()&&!confirm('Ya hay una justificación escrita. ¿La reemplazo por el borrador automático?')) return;
+  const m=(AV.data&&AV.data.materia)||{}, c=(AV.data&&AV.data.carpeta)||{};
+  const desde=document.getElementById('avc-desde').value, hasta=document.getElementById('avc-hasta').value;
+  const horas=document.getElementById('avc-horas').value;
+  const els=(AV.data&&AV.data.elementos&&AV.data.elementos.length)?AV.data.elementos:((AV._cm&&AV._cm.elementos)||[]);
+  const caps=els.map(e=>(e.nombre||'').toLowerCase()).filter(Boolean).join(', ');
+  const fmt=function(f){ if(!f) return ''; const p=f.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; };
+  ta.value='La Unidad de Competencia "'+(m.nombre_uc||'')+'"'+((m.codigo_uc||c.materia_codigo)?(' ('+(m.codigo_uc||c.materia_codigo)+')'):'')
+    +(m.modulo?(', del Módulo '+m.modulo):'')
+    +', se desarrolla en cumplimiento al Diseño Curricular y Plan de Estudios de la ECEME'
+    +(desde&&hasta?(', del '+fmt(desde)+' al '+fmt(hasta)):'')
+    +(horas?(', con una carga horaria de '+horas+' horas académicas'):'')+'. '
+    +'Su estudio se justifica porque proporciona al Oficial de Estado Mayor los conocimientos teórico-doctrinarios'
+    +(caps?(' sobre '+caps):'')
+    +', fundamentados en los reglamentos vigentes de las FF.AA. y del Ejército de Bolivia, desarrollando capacidades de análisis, planificación y asesoramiento que contribuyen al perfil profesional del egresado y al cumplimiento de las misiones fundamentales establecidas por la Constitución Política del Estado. Recordá revisar y ajustar este borrador antes de enviarlo a revisión.';
+}
+// v2.9.124: CUADRO DE DISTRIBUCIÓN DEL TIEMPO — borrador automático + editor (guarda en av_cronograma)
+const _AV_DIAS=['DOMINGO','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO'];
+function _avD(f){ return new Date(f+'T12:00:00'); }
+function _avIsoD(d){ return d.toISOString().slice(0,10); }
+function avCronoAbrir(){
+  AV._crono=((AV.data&&AV.data.cronograma)||[]).map(c=>({fecha:(c.fecha||'').slice(0,10),periodo:c.periodo||1,actividad:c.actividad||'',actor:c.actor||'profesor'}));
+  _avCronoRender();
+  const el=document.getElementById('avc-crono'); if(el&&el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function _avCronoRender(){
+  const box=document.getElementById('avc-crono'); if(!box) return;
+  const rows=AV._crono||[];
+  let html='<div style="border:1px solid rgba(74,144,217,.45);border-radius:10px;padding:10px;background:rgba(74,144,217,.06)">'
+    +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--text-primary)">📅 Cuadro de distribución del tiempo <span style="font-weight:400;font-size:11px;color:var(--text-muted)">(borrador editable · períodos 1º-6º · turno mañana)</span></div>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'
+    +'<button class="btn-secondary" style="padding:6px 10px;font-size:12px" onclick="avCronoBorrador()">🪄 Generar borrador con mis fechas</button>'
+    +'<button class="btn-secondary" style="padding:6px 10px;font-size:12px" onclick="avCronoAdd()">➕ Agregar fila</button>'
+    +'</div>';
+  if(!rows.length) html+='<div class="rg-meta" style="margin-bottom:6px">Sin filas todavía. Tocá 🪄 para armar el borrador con las fechas del memorándum ya guardadas, o agregá filas a mano.</div>';
+  html+=rows.map(function(r,i){ return '<div style="display:flex;gap:6px;align-items:center;margin-bottom:5px;flex-wrap:wrap">'
+    +'<input type="date" value="'+r.fecha+'" onchange="AV._crono['+i+'].fecha=this.value" style="width:135px">'
+    +'<input type="number" min="1" max="6" value="'+r.periodo+'" onchange="AV._crono['+i+'].periodo=Number(this.value)" style="width:52px" title="Período (1º a 6º)">'
+    +'<input type="text" value="'+_rgEsc(r.actividad||'').replace(/"/g,'&quot;')+'" onchange="AV._crono['+i+'].actividad=this.value" style="flex:1;min-width:180px" placeholder="Actividad">'
+    +'<button class="rg-doc" style="border-color:#7a2230;color:#ffc9c9" onclick="avCronoDel('+i+')">🗑</button>'
+    +'</div>'; }).join('');
+  html+='<button class="btn-primary" style="margin-top:8px" onclick="avCronoGuardar(this)">💾 Guardar cuadro de distribución</button>'
+    +'<div id="avc-crono-prog" class="rg-meta" style="min-height:14px;margin-top:4px"></div></div>';
+  box.innerHTML=html;
+}
+function avCronoAdd(){ (AV._crono=AV._crono||[]).push({fecha:'',periodo:1,actividad:'',actor:'profesor'}); _avCronoRender(); }
+function avCronoDel(i){ AV._crono.splice(i,1); _avCronoRender(); }
+function avCronoBorrador(){
+  const desde=document.getElementById('avc-desde').value;
+  const horas=Number(document.getElementById('avc-horas').value)||30;
+  const evs=(AV.data&&AV.data.evaluaciones)||[];
+  const evF=evs.find(e=>e.tipo==='formativa'), evS=evs.find(e=>e.tipo==='sumativa');
+  if(!desde){ alert('Primero cargá la fecha "Desde" (extraela del memorándum y guardá).'); return; }
+  if(AV._crono&&AV._crono.length&&!confirm('Ya hay filas cargadas. ¿Reemplazo todo por el borrador automático?')) return;
+  const rows=[];
+  // Día 1: entrega de hoja de orientación en el 6º período (como en los modelos de la ECEME)
+  rows.push({fecha:desde,periodo:6,actividad:'ENTREGA DE LA HOJA DE ORIENTACIÓN Y TEXTO DE REFERENCIA',actor:'profesor'});
+  // Días de clase: arrancan al día siguiente y siguen 1 vez por semana (~5 períodos por día de clase)
+  const els=(AV.data&&AV.data.elementos&&AV.data.elementos.length)?AV.data.elementos:((AV._cm&&AV._cm.elementos)||[]);
+  const nDias=Math.max(2,Math.ceil(horas/5));
+  const fS=(evS&&evS.fecha)?evS.fecha.slice(0,10):null;
+  let d=_avD(desde); d.setDate(d.getDate()+1);
+  for(let k=0;k<nDias;k++){
+    const f=_avIsoD(d);
+    if(fS&&f>=fS) break;
+    const idx=Math.min(k,Math.max(els.length-1,0));
+    const nom=els.length?(els[idx].nombre||''):'';
+    const nUA=els.length?(idx+1):(k+1);
+    const acc=(k===0)
+      ?('PRESENTACIÓN DE LA U.C. · EVALUACIÓN DIAGNÓSTICA · EXPOSICIÓN DEL DOCENTE — DESARROLLO DE LA U.A. Nº 1'+(nom?(' "'+nom.toUpperCase()+'"'):''))
+      :(((els.length&&k<els.length)?'DESARROLLO':'CONTINÚA EL DESARROLLO')+' DE LA U.A. Nº '+nUA+(nom?(' "'+nom.toUpperCase()+'"'):''));
+    rows.push({fecha:f,periodo:1,actividad:acc,actor:'profesor'});
+    d.setDate(d.getDate()+7);
+  }
+  if(evF&&evF.fecha) rows.push({fecha:evF.fecha.slice(0,10),periodo:1,actividad:'EVALUACIÓN FORMATIVA',actor:'alumno'});
+  if(evS&&evS.descripcion){ const mt=String(evS.descripcion).match(/(\d{4}-\d{2}-\d{2})/); if(mt) rows.push({fecha:mt[1],periodo:1,actividad:'ENTREGA DE TRABAJOS (2 DÍAS ANTES DEL SUMATIVO)',actor:'alumno'}); }
+  if(evS&&evS.fecha) rows.push({fecha:evS.fecha.slice(0,10),periodo:1,actividad:'EVALUACIÓN SUMATIVA',actor:'alumno'});
+  rows.sort(function(a,b){ return (a.fecha+String(a.periodo)).localeCompare(b.fecha+String(b.periodo)); });
+  AV._crono=rows;
+  _avCronoRender();
+}
+async function avCronoGuardar(btn){
+  if(!AV.cid) return;
+  const rows=(AV._crono||[]).filter(r=>r.fecha&&(r.actividad||'').trim()).map(r=>({fecha:r.fecha,dia_semana:_AV_DIAS[_avD(r.fecha).getDay()],periodo:r.periodo||1,turno:'manana',actividad:r.actividad,actor:r.actor||'profesor'}));
+  btn.disabled=true;
+  const r=await _avInvoke('guardar_cronograma',{carpeta_id:AV.cid,cronograma:rows});
+  btn.disabled=false;
+  const prog=document.getElementById('avc-crono-prog');
+  if(prog) prog.textContent=r.ok?('✅ Guardado ('+rows.length+' filas) — esto alimenta el Word del Cuadro de Distribución'):'⚠️ '+(r.error||'no se pudo');
+  if(r.ok&&AV.data){ AV.data.cronograma=rows; _avRenderSecciones(AV.data); }
 }
 function _avAdjCard(a){
   const comp=!!a.compartido, desc=(a.permitir_descarga!==false), enlace=!!a.enlace_url;
