@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.120 · CONSOLIDACIÓN: un solo lugar para compartir material con el alumno = Carpeta de Clases. El alumno entra por Aula Virtual → Materiales de Clase. Se retiró "Aula Virtual (abrir/cerrar materias)" de C&T. PDFs "sin descarga" ahora se LEEN en el visor de la app. Correr AULA_VIRTUAL_consolidar.sql + redeploy EF aula-virtual-ops.</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.121 · PUNTO DE PARTIDA: en la Carpeta de Clases ahora se suben los 2 DOCUMENTOS BASE (memorándum de designación + contenido mínimo) al tope del editor. + v2.9.120 consolidación (un solo lugar para compartir; alumno entra por Aula Virtual → Materiales de Clase; PDFs sin descarga se leen en el visor). Correr AULA_VIRTUAL_consolidar.sql + redeploy EF aula-virtual-ops.</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5998,6 +5998,15 @@ input::placeholder, textarea::placeholder {
   </div>
   <div class="menu-container">
     <div id="avc-estado" style="margin-bottom:12px"></div>
+
+    <!-- v2.9.121: PUNTO DE PARTIDA — los 2 documentos base de la materia -->
+    <div class="section-label">🚀 Punto de partida — Documentos base</div>
+    <div style="border:1px solid rgba(212,175,55,.35);border-radius:12px;padding:12px;margin-bottom:14px;background:rgba(212,175,55,.05)">
+      <div class="rg-meta" style="margin-bottom:10px">Subí el <b>memorándum de designación</b> y el <b>contenido mínimo</b>: de ahí salen las fechas, la carga horaria, los pares académicos y los elementos de competencia de toda la carpeta. Quedan guardados acá (NO se comparten con el curso).</div>
+      <div id="avc-base-memorandum" style="margin-bottom:12px"></div>
+      <div id="avc-base-contenido_minimo"></div>
+      <div id="avc-base-prog" style="font-size:12px;color:var(--text-muted);min-height:16px;margin-top:6px"></div>
+    </div>
 
     <div class="section-label">📋 Datos generales</div>
     <div class="field" style="margin-bottom:8px"><label>Competencia General de la U.C.</label><textarea id="avc-comp" rows="3" style="resize:vertical"></textarea></div>
@@ -15170,9 +15179,51 @@ async function avAdjSubir(btn){
 async function _avAdjListar(){
   const cont=document.getElementById('avc-aula-lista'); if(!cont||!AV.cid) return;
   const r=await _avInvoke('listar_adjuntos',{carpeta_id:AV.cid});
-  if(!r.ok){ cont.innerHTML=''; return; }
+  if(!r.ok){ cont.innerHTML=''; _avBaseRender([]); return; }
   const items=r.adjuntos||[];
-  cont.innerHTML = items.length ? items.map(_avAdjCard).join('') : '<div class="rg-meta" style="color:var(--text-muted)">Aún no compartiste materiales.</div>';
+  _avBaseRender(items);
+  const compartibles=items.filter(a=>a.tipo!=='memorandum'&&a.tipo!=='contenido_minimo');
+  cont.innerHTML = compartibles.length ? compartibles.map(_avAdjCard).join('') : '<div class="rg-meta" style="color:var(--text-muted)">Aún no compartiste materiales.</div>';
+}
+// v2.9.121: PUNTO DE PARTIDA — memorándum + contenido mínimo (no se comparten con el curso)
+const _AV_BASE_DEFS={memorandum:'📄 Memorándum de designación',contenido_minimo:'📄 Contenido Mínimo'};
+function _avBaseRender(items){
+  Object.keys(_AV_BASE_DEFS).forEach(tipo=>{
+    const cont=document.getElementById('avc-base-'+tipo); if(!cont) return;
+    const subidos=(items||[]).filter(a=>a.tipo===tipo);
+    let html='<div style="font-weight:700;font-size:13px;margin-bottom:5px;color:var(--text-primary)">'+_AV_BASE_DEFS[tipo]+(subidos.length?' <span style="color:#7fe3b0">✅</span>':' <span style="color:var(--text-muted);font-weight:400;font-size:11px">— falta subir</span>')+'</div>';
+    html+=subidos.map(a=>'<div style="display:flex;align-items:center;gap:8px;font-size:13px;margin-bottom:5px">'
+      +'<span style="flex:1;color:var(--text-secondary)">'+_rgEsc(a.nombre||'')+'</span>'
+      +'<button class="rg-doc" onclick="avAdjVer(\''+a.id+'\',this)">👁 Abrir</button>'
+      +'<button class="rg-doc" style="border-color:#7a2230;color:#ffc9c9" onclick="avAdjEliminar(\''+a.id+'\')">🗑</button></div>').join('');
+    html+='<div style="display:flex;gap:8px;align-items:center"><input type="file" id="avc-base-file-'+tipo+'" accept=".pdf,.doc,.docx,application/pdf" style="flex:1;font-size:12px">'
+      +'<button class="btn-secondary" style="padding:6px 12px;white-space:nowrap" onclick="avBaseSubir(\''+tipo+'\',this)">⬆ Subir</button></div>';
+    cont.innerHTML=html;
+  });
+}
+async function avBaseSubir(tipo,btn){
+  if(!AV.cid) return;
+  const inp=document.getElementById('avc-base-file-'+tipo);
+  const file=inp&&inp.files&&inp.files[0];
+  const prog=document.getElementById('avc-base-prog');
+  if(!file){ alert('Elegí el archivo primero (PDF o Word).'); return; }
+  if(file.size>50*1024*1024){ alert('El archivo supera 50 MB'); return; }
+  btn.disabled=true;
+  try{
+    prog.textContent='① Pidiendo permiso de subida…';
+    const up=await _avInvoke('av_upload_url',{carpeta_id:AV.cid,filename:file.name});
+    if(!up.ok) throw new Error(up.error||'sin URL de subida');
+    prog.textContent='② Subiendo archivo…';
+    const u=await sb.storage.from('documentos-academicos').uploadToSignedUrl(up.path,up.token,file);
+    if(u.error) throw new Error(u.error.message||'falló la subida');
+    prog.textContent='③ Registrando…';
+    const r=await _avInvoke('subir_adjunto',{carpeta_id:AV.cid,tipo,nombre:file.name,storage_path:up.path,mime:file.type,compartir:false,permitir_descarga:true});
+    if(!r.ok) throw new Error(r.error||'no se pudo');
+    prog.textContent='✅ Listo';
+    inp.value='';
+    await _avAdjListar();
+  }catch(e){ prog.textContent='⚠️ '+(e.message||e); }
+  finally{ btn.disabled=false; }
 }
 function _avAdjCard(a){
   const comp=!!a.compartido, desc=(a.permitir_descarga!==false), enlace=!!a.enlace_url;
