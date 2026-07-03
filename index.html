@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.124 · FIX fechas de impartición: ahora se leen del patrón "DEL … AL …" del memorándum (antes podía confundirlas con las de los exámenes). Horas del memo mandan sobre el catálogo. 🪄 Borrador automático de JUSTIFICACIÓN. NUEVO: sección CUADRO DE DISTRIBUCIÓN DEL TIEMPO activa — borrador automático con tus fechas (hoja de orientación día 1, clases semanales por U.A., formativa, entrega de trabajos, sumativa) + editor + guardar. Correr AULA_VIRTUAL_consolidar.sql + redeploy EF aula-virtual-ops.</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.125 · FIX DEFINITIVO fechas de impartición (probado con el texto EXACTO que lee la app: las celdas del PDF vienen entrelazadas → ahora ancla en "FECHAS DE IMPARTICIÓN" y toma la más temprana entre DEL…AL y la primera tras AL = 21-JUN → 27-SEP ✓). NUEVO: 📘 Asistente de Texto de Referencia (índice desde tu Desagregación + extensión por horas + prompt completo para copiar). El nombre del material se completa solo al elegir archivo. + v2.9.124: justificación automática y Cuadro de Distribución del Tiempo. Correr AULA_VIRTUAL_consolidar.sql + redeploy EF aula-virtual-ops.</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6036,7 +6036,7 @@ input::placeholder, textarea::placeholder {
           <option value="video">🎬 Video / enlace</option>
         </select></div>
       <div class="field" style="margin-bottom:8px"><label>Nombre / título</label><input type="text" id="avc-adj-nombre" placeholder="Ej: Hoja de Orientación de la U.C." autocomplete="off"></div>
-      <div class="field" id="avc-adj-file-wrap" style="margin-bottom:8px"><label>Archivo (Word / PDF / PPT)</label><input type="file" id="avc-adj-file"></div>
+      <div class="field" id="avc-adj-file-wrap" style="margin-bottom:8px"><label>Archivo (Word / PDF / PPT)</label><input type="file" id="avc-adj-file" onchange="_avAdjNombreAuto(this)"></div>
       <div class="field" id="avc-adj-link-wrap" style="margin-bottom:8px;display:none"><label>Enlace (YouTube, Drive…)</label><input type="text" id="avc-adj-link" placeholder="https://…" autocomplete="off"></div>
       <label class="rg-chk" style="display:block;margin-bottom:6px"><input type="checkbox" id="avc-adj-compartir"> Compartir con el curso ya <span style="font-size:11px;color:var(--text-muted)">(apagado: el alumno NO lo ve hasta que lo actives)</span></label>
       <label class="rg-chk" style="display:block;margin-bottom:8px"><input type="checkbox" id="avc-adj-descarga" checked> Permitir descargar</label>
@@ -6048,6 +6048,7 @@ input::placeholder, textarea::placeholder {
     <div class="section-label">🧩 Secciones de la carpeta</div>
     <div id="av-secciones" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
     <div id="avc-crono" style="margin-bottom:12px"></div>
+    <div id="avc-texto" style="margin-bottom:12px"></div>
 
     <div class="section-label">✅ Estado y revisión</div>
     <div id="avc-flow" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px"></div>
@@ -15093,6 +15094,7 @@ function _avRenderSecciones(r){
     +row('📝','Cuadro de tareas',n(r.tareas),'')
     +row('📅','Cuadro de distribución del tiempo',n(r.cronograma),'avCronoAbrir()')
     +row('🎯','Evaluaciones',n(r.evaluaciones),'')
+    +row('📘','Asistente de Texto de Referencia (índice + prompt)',null,'avTextoAbrir()')
     +row('📄','Informe de clases',r.informe?1:0,'')
     +'<div style="font-size:11px;color:var(--text-muted);margin-top:2px">🔜 Las demás secciones y la generación de los 7 Word llegan en las próximas actualizaciones.</div>';
 }
@@ -15256,23 +15258,37 @@ function _avMemoParse(txt){
   const dts=[]; const re=/(\d{2})(\d{2})(\d{2})\s*-\s*([A-ZÁÉÍÓÚÑ]{3,4})\s*-\s*(\d{2})/g; let m;
   while((m=re.exec(txt))){
     const mes=_AV_MESES[m[4].slice(0,3)]; if(!mes) continue;
-    dts.push({iso:'20'+m[5]+'-'+mes+'-'+m[1], idx:m.index});
+    dts.push({iso:'20'+m[5]+'-'+mes+'-'+m[1], idx:m.index, fin:m.index+m[0].length});
   }
   const out={};
-  // Impartición: patrón "DEL <fecha> AL <fecha>" (robusto — no depende del orden en que el PDF entrega las celdas)
-  const RE_DT='(\\d{2})(\\d{2})(\\d{2})\\s*-\\s*([A-ZÁÉÍÓÚÑ]{3,4})\\s*-\\s*(\\d{2})';
-  const _iso=function(dd,mes,aa){ const mm=_AV_MESES[mes.slice(0,3)]; return mm?('20'+aa+'-'+mm+'-'+dd):null; };
-  const mDA=txt.match(new RegExp('DEL[\\s\\S]{0,12}?'+RE_DT+'[\\s\\S]{0,12}?AL[\\s\\S]{0,12}?'+RE_DT));
-  if(mDA){ out.desde=_iso(mDA[1],mDA[4],mDA[5]); out.hasta=_iso(mDA[6],mDA[9],mDA[10]); }
-  if(!out.desde||!out.hasta){
-    const iImp=txt.indexOf('IMPARTICI');
-    if(iImp>=0){ const d=dts.filter(x=>x.idx>iImp).slice(0,2); if(d.length===2){ out.desde=d[0].iso; out.hasta=d[1].iso; } }
-  }
-  if(out.desde&&out.hasta&&out.desde>out.hasta){ const x=out.desde; out.desde=out.hasta; out.hasta=x; }
+  // 1º evaluaciones: las 2 primeras fechas después de "EVALUACION" (verificado en el orden real de pdf.js)
   const iEv=txt.indexOf('EVALUACION');
   if(iEv>=0){ const d=dts.filter(x=>x.idx>iEv).slice(0,2); if(d[0]) out.formativa=d[0].iso; if(d[1]) out.sumativa=d[1].iso; }
-  const h=txt.match(/(\d{1,3})\s*HORAS/); if(h) out.horas=Number(h[1]);
   if(out.formativa&&out.sumativa&&out.formativa>out.sumativa){ const x=out.formativa; out.formativa=out.sumativa; out.sumativa=x; }
+  // 2º impartición: par DEL…AL con fechas adentro y una después, ANCLADO al título "IMPARTICI".
+  // pdf.js entrega las celdas de la tabla ENTRELAZADAS → desde = la fecha MÁS TEMPRANA entre DEL y AL
+  // (excluyendo las de los exámenes) y hasta = la primera fecha después del AL. Probado en ambos órdenes.
+  const iImp=txt.indexOf('IMPARTICI');
+  const dels=[]; let dm; const delRe=/\bDEL\b/g; while((dm=delRe.exec(txt))) dels.push(dm.index);
+  const als=[]; const alRe=/\bAL\b/g; while((dm=alRe.exec(txt))) als.push(dm.index);
+  let mejor=null;
+  for(const iD of dels){
+    const iA=als.find(a=>a>iD && a-iD<500); if(iA==null) continue;
+    const entre=dts.filter(x=>x.idx>iD && (x.fin||x.idx)<iA);
+    const despues=dts.find(x=>x.idx>iA && x.idx-iA<150);
+    if(!entre.length||!despues) continue;
+    const score=(iImp>=0)?Math.abs(iD-iImp):iD;
+    if(!mejor||score<mejor.score) mejor={score:score,entre:entre,despues:despues};
+  }
+  if(mejor){
+    const evs=[out.formativa,out.sumativa].filter(Boolean);
+    const cand=mejor.entre.filter(x=>evs.indexOf(x.iso)<0);
+    const pool=cand.length?cand:mejor.entre;
+    out.desde=pool.map(x=>x.iso).sort()[0];
+    out.hasta=mejor.despues.iso;
+  }
+  if(out.desde&&out.hasta&&out.desde>out.hasta){ const x=out.desde; out.desde=out.hasta; out.hasta=x; }
+  const h=txt.match(/(\d{1,3})\s*HORAS/); if(h) out.horas=Number(h[1]);
   if(out.sumativa){ const t=new Date(out.sumativa+'T12:00:00'); t.setDate(t.getDate()-2); out.trabajos=t.toISOString().slice(0,10); }
   return out;
 }
@@ -15492,6 +15508,60 @@ function _avCronoRender(){
   html+='<button class="btn-primary" style="margin-top:8px" onclick="avCronoGuardar(this)">💾 Guardar cuadro de distribución</button>'
     +'<div id="avc-crono-prog" class="rg-meta" style="min-height:14px;margin-top:4px"></div></div>';
   box.innerHTML=html;
+}
+// v2.9.125: al elegir archivo, el nombre/título se completa solo con el nombre del archivo (editable)
+function _avAdjNombreAuto(inp){
+  try{
+    const n=document.getElementById('avc-adj-nombre');
+    if(n&&!n.value.trim()&&inp.files&&inp.files[0]) n.value=inp.files[0].name.replace(/\.[^.]+$/,'');
+  }catch(e){}
+}
+// v2.9.125: ASISTENTE DE TEXTO DE REFERENCIA — índice + extensión + prompt listo para copiar (sin IA en la app)
+function avTextoAbrir(){
+  const box=document.getElementById('avc-texto'); if(!box) return;
+  const m=(AV.data&&AV.data.materia)||{}, c=(AV.data&&AV.data.carpeta)||{};
+  const els=(AV.data&&AV.data.elementos&&AV.data.elementos.length)?AV.data.elementos:((AV._cm&&AV._cm.elementos)||[]);
+  if(!els.length){ box.innerHTML='<div class="rg-meta" style="margin:8px 0">📘 Para armar el índice y el prompt del Texto, primero subí el CONTENIDO MÍNIMO, tocá 🪄 y guardá los elementos (Desagregación).</div>'; return; }
+  const horas=Number(document.getElementById('avc-horas').value)||Number(m.horas_academicas)||30;
+  const pags=Math.min(50,Math.max(15,Math.round(horas*0.83)));
+  const biblio=(c.bibliografia&&c.bibliografia.length)?c.bibliografia:((AV._cm&&AV._cm.biblio)||[]);
+  let indice='CARÁTULA\nÍNDICE\nINTRODUCCIÓN\n';
+  els.forEach(function(e,i){
+    indice+='CAPÍTULO '+(i+1)+': '+String(e.nombre||'').toUpperCase()+'\n';
+    (e.saber_conocer||[]).forEach(function(s,j){ indice+='   '+(i+1)+'.'+(j+1)+' '+s+'\n'; });
+  });
+  indice+='CONCLUSIONES\nBIBLIOGRAFÍA';
+  const comp=document.getElementById('avc-comp').value||c.competencia_general_uc||'';
+  const prompt='Actuá como redactor de doctrina militar de la Escuela de Comando y Estado Mayor del Ejército de Bolivia (ECEME).\n\n'
+    +'Redactá el TEXTO DE REFERENCIA de la Unidad de Competencia "'+(m.nombre_uc||'')+'" ('+(m.codigo_uc||c.materia_codigo||'')+')'+(m.modulo?(', del Módulo '+m.modulo):'')+'.\n\n'
+    +'EXTENSIÓN: aproximadamente '+pags+' páginas (carga horaria: '+horas+' horas académicas).\n\n'
+    +'COMPETENCIA GENERAL DE LA U.C. (el texto debe desarrollarla por completo):\n'+comp+'\n\n'
+    +'CONTENIDO MÍNIMO OBLIGATORIO (todo debe quedar cubierto):\n'
+    +els.map(function(e,i){ return '- Elemento de competencia '+(i+1)+': '+(e.nombre||'')+'. '+(e.competencia||'')+((e.saber_conocer&&e.saber_conocer.length)?('\n  Temas: '+e.saber_conocer.join('; ')):''); }).join('\n')+'\n\n'
+    +'ÍNDICE A SEGUIR (respetalo tal cual):\n'+indice+'\n\n'
+    +'FUENTES A CONSULTAR Y CITAR:\n'
+    +(biblio.length?('- Bibliografía del contenido mínimo: '+biblio.join(' · ')+'\n'):'')
+    +'- Reglamentos (RC) y manuales vigentes de las FF.AA. y del Ejército de Bolivia aplicables a la materia.\n'
+    +'- Doctrina de Estado Mayor y publicaciones militares bolivianas relacionadas.\n\n'
+    +'ESTILO: doctrinario militar boliviano, redacción en tercera persona, títulos y subtítulos numerados, definiciones precisas, ejemplos aplicados al ámbito militar boliviano, citas de reglamentos donde corresponda. Cerrá cada capítulo con una síntesis breve. NO inventes reglamentos: si no conocés la cita exacta, poné "(completar cita)".\n\n'
+    +'ENTREGA: documento listo para pasar a Word, con CARÁTULA, ÍNDICE, INTRODUCCIÓN, los capítulos, CONCLUSIONES y BIBLIOGRAFÍA.';
+  box.innerHTML='<div style="border:1px solid rgba(212,175,55,.4);border-radius:10px;padding:10px;background:rgba(212,175,55,.05)">'
+    +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--text-primary)">📘 Asistente de Texto de Referencia</div>'
+    +'<div class="rg-meta" style="margin-bottom:6px">Extensión objetivo: <b>'+pags+' páginas</b> ('+horas+' h × 0,83 · piso 15, tope 50). Copiá el prompt, generá el texto con tu IA, revisalo, y subilo terminado (Word/PDF) para compartirlo en Materiales de Clase.</div>'
+    +'<div style="font-size:12px;font-weight:700;margin-bottom:4px">Índice propuesto (sale de tu Desagregación):</div>'
+    +'<pre style="font-size:11px;color:var(--text-secondary);white-space:pre-wrap;background:rgba(0,0,0,.25);padding:8px;border-radius:8px;max-height:180px;overflow:auto">'+_rgEsc(indice)+'</pre>'
+    +'<div style="font-size:12px;font-weight:700;margin-bottom:4px">Prompt listo para copiar:</div>'
+    +'<textarea id="avc-texto-prompt" readonly rows="7" style="width:100%;font-size:11px;resize:vertical">'+_rgEsc(prompt)+'</textarea>'
+    +'<button class="btn-secondary" style="margin-top:6px" onclick="avTextoCopiar(this)">📋 Copiar prompt</button>'
+    +'</div>';
+  if(box.scrollIntoView) box.scrollIntoView({behavior:'smooth',block:'start'});
+}
+async function avTextoCopiar(btn){
+  const ta=document.getElementById('avc-texto-prompt'); if(!ta) return;
+  try{ await navigator.clipboard.writeText(ta.value); }
+  catch(e){ try{ ta.select(); document.execCommand('copy'); }catch(_e){} }
+  btn.textContent='✅ Copiado';
+  setTimeout(function(){ btn.textContent='📋 Copiar prompt'; },1500);
 }
 function avCronoAdd(){ (AV._crono=AV._crono||[]).push({fecha:'',periodo:1,actividad:'',actor:'profesor'}); _avCronoRender(); }
 function avCronoDel(i){ AV._crono.splice(i,1); _avCronoRender(); }
