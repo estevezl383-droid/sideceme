@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.131 · FIX "Insertar sugerencias modernas" en la Desagregación: antes insertaba bien pero no avisaba ni mostraba dónde — ahora aparece un aviso claro arriba del cuadro y te lleva directo (con scroll automático) al campo Estrategia de enseñanza del elemento afectado, resaltado en verde unos segundos. También avisa si marcaste una sugerencia que ya estaba insertada, o si tocaste Insertar sin marcar ninguna casilla. + v2.9.130 instrumentaciones oficiales completas (AFA/PAV/PNI/FODA).</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.132 · DESAGREGACIÓN: NADA queda en blanco NUNCA — los campos vacíos se rellenan SOLOS al abrir la sección y también antes de imprimir o descargar. NUEVO: ⬇ DESCARGAR EN WORD (.doc, apaisado) con el FORMATO OFICIAL: todo Arial, membrete Arial 10 negrilla a la IZQUIERDA con BOLIVIA subrayado, título Arial 16 negrilla, pie de página automático "1 - N" Arial 12 negrilla. La impresión ya NO muestra la fecha ni "about:blank" del navegador. + v2.9.131 aviso y resaltado al insertar sugerencias ★.</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -15538,6 +15538,7 @@ async function avDesagAbrir(){
   if(!AV._des.length&&AV._cm&&AV._cm.elementos&&AV._cm.elementos.length){
     AV._des=AV._cm.elementos.map(function(e){ return {nombre:e.nombre||'',competencia:e.competencia||'',saber_conocer:(e.saber_conocer||[]).slice(),saber_hacer:[],saber_ser:[],criterio_desempeno:'',evidencias:[],estrategia_ensenanza:[]}; });
   }
+  _avDesagRellenar();
   _avDesagRender();
   const el=document.getElementById('avc-desag'); if(el&&el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'start'});
   // v2.9.128: si sigue vacío, leer SOLO el Contenido Mínimo ya subido y precargar los elementos
@@ -15559,7 +15560,7 @@ async function avDesagAbrir(){
       }
     }catch(_e){}
     const au=document.getElementById('avc-desag-auto'); if(au) au.remove();
-    if(AV._des.length) _avDesagRender();
+    if(AV._des.length){ _avDesagRellenar(); _avDesagRender(); }
   }
 }
 function _avDesagTA(i,campo,lista,rotulo,ph,elId){
@@ -15597,15 +15598,17 @@ function _avDesagRender(){
     +'</div>'; }).join('');
   html+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">'
     +'<button class="btn-primary" onclick="avDesagGuardar(this)">💾 Guardar Desagregación</button>'
-    +'<button class="btn-secondary" onclick="avDesagImprimir()">🖨️ Matriz oficial (imprimir / PDF)</button>'
+    +'<button class="btn-secondary" onclick="avDesagWord()">⬇ Descargar WORD (.doc)</button>'
+    +'<button class="btn-secondary" onclick="avDesagImprimir()">🖨️ Imprimir</button>'
     +'</div>'
     +'<div id="avc-desag-prog" class="rg-meta" style="min-height:14px;margin-top:4px"></div></div>';
   box.innerHTML=html;
 }
 function avDesagAdd(){ (AV._des=AV._des||[]).push({nombre:'',competencia:'',saber_conocer:[],saber_hacer:[],saber_ser:[],criterio_desempeno:'',evidencias:[],estrategia_ensenanza:[]}); _avDesagRender(); }
 function avDesagDel(i){ if(!confirm('¿Quitar el elemento Nº '+(i+1)+'?')) return; AV._des.splice(i,1); _avDesagRender(); }
-// Sugerencias del motor pedagógico (PPT Competencias 2026 + modelos reales): solo completa lo VACÍO
-function avDesagSugerir(){
+// Sugerencias del motor pedagógico (PPT Competencias 2026 + modelos reales): solo completa lo VACÍO.
+// v2.9.132: se ejecuta SOLO al abrir la Desagregación y antes de imprimir/Word — NADA queda en blanco jamás.
+function _avDesagRellenar(){
   (AV._des||[]).forEach(function(e,i){
     const nom=(e.nombre||'la materia').toLowerCase();
     // NUNCA dejar el saber CONOCER vacío (si el contenido mínimo no trajo temas para este elemento)
@@ -15619,8 +15622,8 @@ function avDesagSugerir(){
     }
     if(!e.estrategia_ensenanza.length) e.estrategia_ensenanza=['Exposición del docente + seminario en grupos pequeños','Estudio de caso (operaciones militares históricas)','Ejercicio de toma de decisiones (TDG) / aprendizaje basado en problemas','Debate dirigido en aula','Trabajo dirigido / aplicación práctica','After Action Review (AAR) al cierre'];
   });
-  _avDesagRender();
 }
+function avDesagSugerir(){ _avDesagRellenar(); _avDesagRender(); }
 // v2.9.128: MÉTODOS MODERNOS por elemento — sugerencias marcables; se insertan SOLO las elegidas, señaladas con ★
 function avDesagPedagogia(){
   const box=document.getElementById('avc-desag-pedag'); if(!box) return;
@@ -15671,10 +15674,13 @@ function avDesagPedagInsertar(){
     });
   },60);
 }
-// v2.9.128: MATRIZ OFICIAL del Cuadro de Desagregación — vista de impresión (membrete + tabla + firmas)
-function avDesagImprimir(){
+// v2.9.132: MATRIZ OFICIAL — un solo generador para IMPRIMIR y para WORD (.doc).
+// Formato oficial ECEME: TODO Arial; membrete Arial 10 negrilla a la IZQUIERDA con BOLIVIA subrayado;
+// título Arial 16 negrilla; pie de página "1 - N" Arial 12 negrilla centrado (en el Word);
+// impresión sin fecha/about:blank del navegador (truco @page margin:0 + padding del body).
+function _avDesagDocHTML(paraWord){
+  _avDesagRellenar(); // garantía final: NADA en blanco, tampoco en el papel
   const des=AV._des||[];
-  if(!des.length){ alert('No hay elementos cargados.'); return; }
   const m=(AV.data&&AV.data.materia)||{};
   const comp=document.getElementById('avc-comp').value||'';
   const ul=function(a){ return (a&&a.length)?('<ul>'+a.map(function(x){ return '<li>'+_rgEsc(x)+'</li>'; }).join('')+'</ul>'):'&nbsp;'; };
@@ -15690,26 +15696,53 @@ function avDesagImprimir(){
       +'</table>';
   });
   const firmas=(AV.docentes||[]).filter(function(d){ return (d.profesor_nombre||'').trim(); });
-  const fhtml=firmas.length?('<div class="firmas">'+firmas.map(function(d){ return '<div class="firma">'+_rgEsc(((d.profesor_grado||'')+' '+d.profesor_nombre).trim())+'<br><b>PROFESOR</b></div>'; }).join('')+'</div>'):'';
+  const fhtml=firmas.length?('<table class="firmas"><tr>'+firmas.map(function(d){ return '<td class="firma">'+_rgEsc(((d.profesor_grado||'')+' '+d.profesor_nombre).trim())+'<br><b>PROFESOR</b></td>'; }).join('')+'</tr></table>'):'';
+  const css='body,p,td,th,li,div{font-family:Arial,Helvetica,sans-serif;color:#000}'
+    +'body{font-size:10pt}'
+    +'.memb{text-align:left;font-weight:bold;font-size:10pt;line-height:1.35}'
+    +'.tit0{text-align:center;font-weight:bold;font-size:16pt;margin:12pt 0}'
+    +'table.mx{width:100%;border-collapse:collapse;margin-bottom:14pt;page-break-inside:avoid}'
+    +'.mx th,.mx td{border:1px solid #000;padding:3pt 4pt;vertical-align:top;font-size:9pt}'
+    +'.mx th{text-align:center;background:#eee} .tit{font-size:11pt} .just{text-align:justify}'
+    +'ul{margin:2pt 0 2pt 14pt;padding:0} li{margin-bottom:1pt}'
+    +'table.firmas{width:100%;margin-top:55pt;border-collapse:collapse}'
+    +'.firma{text-align:center;font-size:10pt;border-top:1px solid #000;padding-top:3pt;width:'+Math.floor(100/Math.max(firmas.length,1))+'%}';
+  const cuerpo='<div class="memb">FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES<br>ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJ&Eacute;RCITO<br>&ldquo;MCAL. ANDR&Eacute;S DE SANTA CRUZ&rdquo;<br><u>BOLIVIA</u></div>'
+    +'<div class="tit0">CUADRO DE DESAGREGACI&Oacute;N</div>'+body+fhtml;
+  if(paraWord){
+    return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Cuadro de Desagregaci&oacute;n</title>'
+      +'<'+'!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml><![endif]--'+'>'
+      +'<style>@page Seccion1{size:11in 8.5in;mso-page-orientation:landscape;margin:1.5cm 1.5cm 1.8cm 1.5cm;mso-footer:f1;}'
+      +'div.Seccion1{page:Seccion1}'
+      +'p.pie{text-align:center;font-family:Arial;font-size:12pt;font-weight:bold;margin:0}'
+      +css+'</style></head><body>'
+      +'<div class="Seccion1">'+cuerpo
+      +'<div style="mso-element:footer" id="f1"><p class="pie"><span style="mso-field-code:\' PAGE \'"></span> - <span style="mso-field-code:\' NUMPAGES \'"></span></p></div>'
+      +'</div></body></html>';
+  }
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><title></title><style>'
+    +'@page{size:letter landscape;margin:0} body{padding:1.2cm} '+css
+    +'</style></head><body>'+cuerpo
+    +'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},400);};</scr'+'ipt>'
+    +'</body></html>';
+}
+function avDesagImprimir(){
+  if(!(AV._des||[]).length){ alert('No hay elementos cargados.'); return; }
   const w=window.open('','_blank');
   if(!w){ alert('El navegador bloqueó la ventana de impresión. Permitila e intentá de nuevo.'); return; }
-  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cuadro de Desagregación</title><style>'
-    +'@page{size:letter landscape;margin:1.5cm} body{font-family:Arial,Helvetica,sans-serif;color:#000;font-size:10px}'
-    +'.memb{text-align:center;font-weight:bold;font-size:10px;line-height:1.35}'
-    +'.tit0{text-align:center;font-weight:bold;font-size:14px;margin:10px 0}'
-    +'table.mx{width:100%;border-collapse:collapse;margin-bottom:16px;page-break-inside:avoid}'
-    +'.mx th,.mx td{border:1px solid #000;padding:4px;vertical-align:top;font-size:9.5px}'
-    +'.mx th{text-align:center;background:#eee} .tit{font-size:11px} .just{text-align:justify}'
-    +'ul{margin:2px 0 2px 14px;padding:0} li{margin-bottom:1px}'
-    +'.firmas{display:flex;justify-content:space-around;margin-top:70px;flex-wrap:wrap}'
-    +'.firma{text-align:center;font-size:10px;border-top:1px solid #000;padding-top:3px;min-width:220px;margin:25px 10px 0}'
-    +'</style></head><body>'
-    +'<div class="memb">FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES<br>ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO<br>&ldquo;MCAL. ANDR&Eacute;S DE SANTA CRUZ&rdquo;<br>BOLIVIA</div>'
-    +'<div class="tit0">CUADRO DE DESAGREGACI&Oacute;N</div>'
-    +body+fhtml
-    +'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},400);};</scr'+'ipt>'
-    +'</body></html>');
+  w.document.write(_avDesagDocHTML(false));
   w.document.close();
+}
+// v2.9.132: descarga directa en WORD (.doc) con orientación apaisada y pie "1 - N" automático
+function avDesagWord(){
+  if(!(AV._des||[]).length){ alert('No hay elementos cargados.'); return; }
+  const html=_avDesagDocHTML(true);
+  const blob=new Blob(['﻿',html],{type:'application/msword'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='CUADRO DE DESAGREGACION.doc';
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },800);
 }
 async function avDesagGuardar(btn){
   if(!AV.cid) return;
