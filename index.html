@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.125 · FIX DEFINITIVO fechas de impartición (probado con el texto EXACTO que lee la app: las celdas del PDF vienen entrelazadas → ahora ancla en "FECHAS DE IMPARTICIÓN" y toma la más temprana entre DEL…AL y la primera tras AL = 21-JUN → 27-SEP ✓). NUEVO: 📘 Asistente de Texto de Referencia (índice desde tu Desagregación + extensión por horas + prompt completo para copiar). El nombre del material se completa solo al elegir archivo. + v2.9.124: justificación automática y Cuadro de Distribución del Tiempo. Correr AULA_VIRTUAL_consolidar.sql + redeploy EF aula-virtual-ops.</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.127 · PEDAGOGÍA MILITAR investigada (CGSC EE.UU. / Baltic Defence College): botón 🎓 Métodos modernos en la Desagregación (aprendizaje experiencial, método del caso, TDG, juego de guerra, aula invertida, AAR) y estrategias sugeridas actualizadas. 📘 Asistente de Texto: 🌐 fuentes modernas con enlaces (Military Review Hispanoamericana EN ESPAÑOL, ArmyPubs, Doctrina Conjunta EE.UU., OTAN/NDC, IEEE España, RAND) también dentro del prompt. 📅 Cuadro de Distribución: descuenta formativa 2 h + sumativa 3 h de las horas totales y muestra el cálculo (+ lectura del texto como aula invertida). + v2.9.126 Desagregación completa. Correr AULA_VIRTUAL_consolidar.sql + redeploy EF aula-virtual-ops.</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6047,6 +6047,7 @@ input::placeholder, textarea::placeholder {
 
     <div class="section-label">🧩 Secciones de la carpeta</div>
     <div id="av-secciones" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
+    <div id="avc-desag" style="margin-bottom:12px"></div>
     <div id="avc-crono" style="margin-bottom:12px"></div>
     <div id="avc-texto" style="margin-bottom:12px"></div>
 
@@ -15090,7 +15091,7 @@ function _avRenderSecciones(r){
     +'<span class="qa-icon">'+icon+'</span><span class="qa-text"><strong>'+txt+'</strong>'
     +(cnt!=null?(' <span style="color:var(--text-muted)">· '+cnt+'</span>'):'')+'</span></button>';
   cont.innerHTML=
-     row('🧩','Desagregación (elementos de competencia)',n(r.elementos),'')
+     row('🧩','Desagregación (elementos de competencia)',n(r.elementos),'avDesagAbrir()')
     +row('📝','Cuadro de tareas',n(r.tareas),'')
     +row('📅','Cuadro de distribución del tiempo',n(r.cronograma),'avCronoAbrir()')
     +row('🎯','Evaluaciones',n(r.evaluaciones),'')
@@ -15493,8 +15494,10 @@ function _avCronoRender(){
   const box=document.getElementById('avc-crono'); if(!box) return;
   const rows=AV._crono||[];
   let html='<div style="border:1px solid rgba(74,144,217,.45);border-radius:10px;padding:10px;background:rgba(74,144,217,.06)">'
-    +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--text-primary)">📅 Cuadro de distribución del tiempo <span style="font-weight:400;font-size:11px;color:var(--text-muted)">(borrador editable · períodos 1º-6º · turno mañana)</span></div>'
-    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'
+    +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--text-primary)">📅 Cuadro de distribución del tiempo <span style="font-weight:400;font-size:11px;color:var(--text-muted)">(borrador editable · períodos 1º-6º · turno mañana)</span></div>';
+  const hTot=Number((document.getElementById('avc-horas')||{}).value)||0;
+  if(hTot) html+='<div class="rg-meta" style="margin-bottom:6px">⏱ '+hTot+' h totales = <b>'+Math.max(0,hTot-5)+' h de clases</b> + 2 h ev. formativa + 3 h ev. sumativa → ~'+Math.max(2,Math.ceil(Math.max(5,hTot-5)/5))+' días de clase (5 períodos/día). El texto (~'+Math.min(50,Math.max(15,Math.round(hTot*0.83)))+' pág.) se reparte como lectura previa a cada clase (aula invertida).</div>';
+  html+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'
     +'<button class="btn-secondary" style="padding:6px 10px;font-size:12px" onclick="avCronoBorrador()">🪄 Generar borrador con mis fechas</button>'
     +'<button class="btn-secondary" style="padding:6px 10px;font-size:12px" onclick="avCronoAdd()">➕ Agregar fila</button>'
     +'</div>';
@@ -15515,6 +15518,94 @@ function _avAdjNombreAuto(inp){
     const n=document.getElementById('avc-adj-nombre');
     if(n&&!n.value.trim()&&inp.files&&inp.files[0]) n.value=inp.files[0].name.replace(/\.[^.]+$/,'');
   }catch(e){}
+}
+// v2.9.126: CUADRO DE DESAGREGACIÓN — editor completo (estructura oficial del modelo ECEME)
+function _avLineas(s){ return String(s||'').split('\n').map(function(x){ return x.replace(/^[-•*]\s*/,'').trim(); }).filter(Boolean); }
+function avDesagAbrir(){
+  AV._des=((AV.data&&AV.data.elementos)||[]).map(function(e){ return {
+    nombre:e.nombre||'',competencia:e.competencia||'',
+    saber_conocer:(e.saber_conocer||[]).slice(),saber_hacer:(e.saber_hacer||[]).slice(),saber_ser:(e.saber_ser||[]).slice(),
+    criterio_desempeno:e.criterio_desempeno||'',evidencias:(e.evidencias||[]).slice(),estrategia_ensenanza:(e.estrategia_ensenanza||[]).slice()}; });
+  if(!AV._des.length&&AV._cm&&AV._cm.elementos&&AV._cm.elementos.length){
+    AV._des=AV._cm.elementos.map(function(e){ return {nombre:e.nombre||'',competencia:e.competencia||'',saber_conocer:(e.saber_conocer||[]).slice(),saber_hacer:[],saber_ser:[],criterio_desempeno:'',evidencias:[],estrategia_ensenanza:[]}; });
+  }
+  _avDesagRender();
+  const el=document.getElementById('avc-desag'); if(el&&el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function _avDesagTA(i,campo,lista,rotulo,ph){
+  const val=lista?(AV._des[i][campo]||[]).join('\n'):(AV._des[i][campo]||'');
+  const oc=lista?('AV._des['+i+'].'+campo+'=_avLineas(this.value)'):('AV._des['+i+'].'+campo+'=this.value');
+  return '<div class="field" style="margin-bottom:6px"><label>'+rotulo+(lista?' <span style="font-weight:400;font-size:10px;color:var(--text-muted)">(uno por línea)</span>':'')+'</label>'
+    +'<textarea rows="3" style="resize:vertical;font-size:12px" placeholder="'+(ph||'')+'" onchange="'+oc+'">'+_rgEsc(val)+'</textarea></div>';
+}
+function _avDesagRender(){
+  const box=document.getElementById('avc-desag'); if(!box) return;
+  const des=AV._des||[];
+  let html='<div style="border:1px solid rgba(126,200,80,.45);border-radius:10px;padding:10px;background:rgba(126,200,80,.05)">'
+    +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--text-primary)">🧩 Cuadro de Desagregación <span style="font-weight:400;font-size:11px;color:var(--text-muted)">(estructura oficial: saberes CONOCER/HACER/SER + criterios + evidencias + estrategia)</span></div>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'
+    +'<button class="btn-secondary" style="padding:6px 10px;font-size:12px" onclick="avDesagSugerir()">🪄 Completar sugerencias (motor pedagógico)</button>'
+    +'<button class="btn-secondary" style="padding:6px 10px;font-size:12px" onclick="avDesagPedagogia()">🎓 Métodos modernos (referencia)</button>'
+    +'<button class="btn-secondary" style="padding:6px 10px;font-size:12px" onclick="avDesagAdd()">➕ Agregar elemento</button>'
+    +'</div><div id="avc-desag-pedag"></div>';
+  if(!des.length) html+='<div class="rg-meta" style="margin-bottom:6px">Sin elementos. Subí el CONTENIDO MÍNIMO y tocá 🪄 Extraer datos (los elementos llegan solos), o agregalos a mano.</div>';
+  html+=des.map(function(e,i){ return '<div class="rg-card" style="margin-bottom:10px;padding:10px">'
+    +'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><b style="font-size:13px">ELEMENTO DE COMPETENCIA Nº '+(i+1)+'</b><span style="flex:1"></span><button class="rg-doc" style="border-color:#7a2230;color:#ffc9c9" onclick="avDesagDel('+i+')">🗑</button></div>'
+    +'<div class="field" style="margin-bottom:6px"><label>Nombre</label><input type="text" value="'+_rgEsc(e.nombre).replace(/"/g,'&quot;')+'" onchange="AV._des['+i+'].nombre=this.value"></div>'
+    +_avDesagTA(i,'competencia',false,'Competencia del elemento (VERBO + OBJETO + COMPLEMENTO + CONDICIÓN)','Ej: Analizar los conceptos teórico-doctrinarios, para determinar…, demostrando responsabilidad…')
+    +_avDesagTA(i,'saber_conocer',true,'SABER — Conceptual','Temas teóricos (del contenido analítico)')
+    +_avDesagTA(i,'saber_hacer',true,'HACER — Procedimental','Ej: Elaborar mapas conceptuales')
+    +_avDesagTA(i,'saber_ser',true,'SER — Actitudinal','Ej: Proceder con iniciativa y responsabilidad…')
+    +_avDesagTA(i,'criterio_desempeno',false,'Criterio de desempeño (QUÉ se evalúa)','Ej: Que los Oficiales Cursantes sean capaces de…')
+    +_avDesagTA(i,'evidencias',true,'Evidencias y procedimientos de evaluación (CÓMO se evalúa)','Ej: DE PRODUCTO: mapa conceptual')
+    +_avDesagTA(i,'estrategia_ensenanza',true,'Estrategia de enseñanza','Ej: Lluvia de ideas en aula')
+    +'</div>'; }).join('');
+  html+='<button class="btn-primary" style="margin-top:4px" onclick="avDesagGuardar(this)">💾 Guardar Desagregación</button>'
+    +'<div id="avc-desag-prog" class="rg-meta" style="min-height:14px;margin-top:4px"></div></div>';
+  box.innerHTML=html;
+}
+function avDesagAdd(){ (AV._des=AV._des||[]).push({nombre:'',competencia:'',saber_conocer:[],saber_hacer:[],saber_ser:[],criterio_desempeno:'',evidencias:[],estrategia_ensenanza:[]}); _avDesagRender(); }
+function avDesagDel(i){ if(!confirm('¿Quitar el elemento Nº '+(i+1)+'?')) return; AV._des.splice(i,1); _avDesagRender(); }
+// Sugerencias del motor pedagógico (PPT Competencias 2026 + modelos reales): solo completa lo VACÍO
+function avDesagSugerir(){
+  (AV._des||[]).forEach(function(e,i){
+    const nom=(e.nombre||'la materia').toLowerCase();
+    if(!e.saber_hacer.length) e.saber_hacer=['Elaborar mapas conceptuales de los temas','Realizar análisis y comparaciones aplicadas al ámbito militar','Producir valoraciones y juicios de valor','Exponer y defender los trabajos individuales'];
+    if(!e.saber_ser.length) e.saber_ser=['Proceder con iniciativa, creatividad y responsabilidad en la aplicación del conocimiento doctrinario de '+nom+', para la solución de problemas de índole militar.'];
+    if(!e.criterio_desempeno) e.criterio_desempeno='Que los Oficiales Cursantes sean capaces de aplicar los conocimientos de '+nom+' y proponer soluciones factibles y aceptables en el nivel táctico superior y estratégico operativo.';
+    if(!e.evidencias.length){
+      e.evidencias=['CONCEPTUAL: formulación de preguntas y participación en clases','DE PRODUCTO: presentación y defensa de los trabajos individuales','Lista de verificación'];
+      if(i===AV._des.length-1) e.evidencias.push('Evaluación (Sumativa)'); else if(i>0) e.evidencias.push('Evaluación (Formativa)');
+    }
+    if(!e.estrategia_ensenanza.length) e.estrategia_ensenanza=['Exposición del docente + seminario en grupos pequeños','Estudio de caso (operaciones militares históricas)','Ejercicio de toma de decisiones (TDG) / aprendizaje basado en problemas','Debate dirigido en aula','Trabajo dirigido / aplicación práctica','After Action Review (AAR) al cierre'];
+  });
+  _avDesagRender();
+}
+// v2.9.127: referencia de PEDAGOGÍA MILITAR (investigada de escuelas de comando modernas — CGSC EE.UU., Báltica)
+function avDesagPedagogia(){
+  const box=document.getElementById('avc-desag-pedag'); if(!box) return;
+  if(box.innerHTML){ box.innerHTML=''; return; }
+  box.innerHTML='<div style="border:1px solid rgba(212,175,55,.35);border-radius:8px;padding:10px;margin-bottom:8px;background:rgba(0,0,0,.25);font-size:12px;color:var(--text-secondary)">'
+    +'<b style="color:var(--text-primary)">🎓 Métodos de las escuelas de comando y estado mayor modernas</b> <span style="font-size:10px;color:var(--text-muted)">(CGSC EE.UU., Baltic Defence College — educación de adultos)</span><br><br>'
+    +'• <b>Aprendizaje experiencial</b> (ciclo: experiencia → reflexión → concepto → aplicación): base del CGSC. Menos cátedra, más práctica.<br>'
+    +'• <b>Método del caso</b>: analizar operaciones históricas o situaciones reales → ideal para los saberes SABER + HACER (análisis).<br>'
+    +'• <b>Seminario en grupos pequeños</b> con enseñanza en equipo (los 3 profesores) → discusión doctrinaria.<br>'
+    +'• <b>Ejercicios de toma de decisiones (TDG)</b> y <b>aprendizaje basado en problemas</b>: situación táctica + tiempo limitado + defensa de la decisión → HACER + SER.<br>'
+    +'• <b>Juego de guerra / simulación educativa</b>: aplicación integrada de lo aprendido (la app ya tiene el módulo Juego de Guerra 🎲).<br>'
+    +'• <b>Aula invertida</b>: el cursante lee el TEXTO antes; el aula se usa para práctica y debate → aprovecha mejor las horas presenciales.<br>'
+    +'• <b>After Action Review (AAR)</b>: cierre de cada ejercicio con lecciones aprendidas → evalúa el SER y consolida.<br><br>'
+    +'<span style="color:var(--text-muted)">Usalos en "Estrategia de enseñanza" de cada elemento: teoría → caso → ejercicio → AAR.</span></div>';
+}
+async function avDesagGuardar(btn){
+  if(!AV.cid) return;
+  const els=(AV._des||[]).filter(function(e){ return (e.nombre||'').trim(); }).map(function(e,i){ e.orden=i+1; return e; });
+  if(!els.length){ alert('Cargá al menos un elemento con nombre.'); return; }
+  btn.disabled=true;
+  const r=await _avInvoke('guardar_elementos',{carpeta_id:AV.cid,elementos:els});
+  btn.disabled=false;
+  const prog=document.getElementById('avc-desag-prog');
+  if(prog) prog.textContent=r.ok?('✅ Desagregación guardada ('+els.length+' elementos) — alimenta el Texto, las Tareas y los Word'):'⚠️ '+(r.error||'no se pudo');
+  if(r.ok&&AV.data){ AV.data.elementos=els; _avRenderSecciones(AV.data); }
 }
 // v2.9.125: ASISTENTE DE TEXTO DE REFERENCIA — índice + extensión + prompt listo para copiar (sin IA en la app)
 function avTextoAbrir(){
@@ -15537,17 +15628,26 @@ function avTextoAbrir(){
     +'EXTENSIÓN: aproximadamente '+pags+' páginas (carga horaria: '+horas+' horas académicas).\n\n'
     +'COMPETENCIA GENERAL DE LA U.C. (el texto debe desarrollarla por completo):\n'+comp+'\n\n'
     +'CONTENIDO MÍNIMO OBLIGATORIO (todo debe quedar cubierto):\n'
-    +els.map(function(e,i){ return '- Elemento de competencia '+(i+1)+': '+(e.nombre||'')+'. '+(e.competencia||'')+((e.saber_conocer&&e.saber_conocer.length)?('\n  Temas: '+e.saber_conocer.join('; ')):''); }).join('\n')+'\n\n'
+    +els.map(function(e,i){ return '- Elemento de competencia '+(i+1)+': '+(e.nombre||'')+'. '+(e.competencia||'')+((e.saber_conocer&&e.saber_conocer.length)?('\n  Temas (SABER): '+e.saber_conocer.join('; ')):'')+((e.saber_hacer&&e.saber_hacer.length)?('\n  Aplicaciones prácticas (HACER, el texto debe orientarlas): '+e.saber_hacer.join('; ')):''); }).join('\n')+'\n\n'
     +'ÍNDICE A SEGUIR (respetalo tal cual):\n'+indice+'\n\n'
     +'FUENTES A CONSULTAR Y CITAR:\n'
     +(biblio.length?('- Bibliografía del contenido mínimo: '+biblio.join(' · ')+'\n'):'')
     +'- Reglamentos (RC) y manuales vigentes de las FF.AA. y del Ejército de Bolivia aplicables a la materia.\n'
-    +'- Doctrina de Estado Mayor y publicaciones militares bolivianas relacionadas.\n\n'
+    +'- Doctrina de Estado Mayor y publicaciones militares bolivianas relacionadas.\n'
+    +'- PARA ACTUALIZAR CONOCIMIENTOS (fuentes modernas, citarlas como referencias complementarias): Military Review Edición Hispanoamericana (armyupress.army.mil/Journals/Edicion-Hispanoamericana), doctrina conjunta de EE.UU. (jcs.mil/Doctrine), publicaciones doctrinarias del Ejército de EE.UU. (armypubs.army.mil), OTAN (nato.int) y NATO Defense College (ndc.nato.int), Instituto Español de Estudios Estratégicos (ieee.es), RAND (rand.org). Contrastá siempre lo moderno con la doctrina boliviana vigente.\n\n'
     +'ESTILO: doctrinario militar boliviano, redacción en tercera persona, títulos y subtítulos numerados, definiciones precisas, ejemplos aplicados al ámbito militar boliviano, citas de reglamentos donde corresponda. Cerrá cada capítulo con una síntesis breve. NO inventes reglamentos: si no conocés la cita exacta, poné "(completar cita)".\n\n'
     +'ENTREGA: documento listo para pasar a Word, con CARÁTULA, ÍNDICE, INTRODUCCIÓN, los capítulos, CONCLUSIONES y BIBLIOGRAFÍA.';
   box.innerHTML='<div style="border:1px solid rgba(212,175,55,.4);border-radius:10px;padding:10px;background:rgba(212,175,55,.05)">'
     +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--text-primary)">📘 Asistente de Texto de Referencia</div>'
     +'<div class="rg-meta" style="margin-bottom:6px">Extensión objetivo: <b>'+pags+' páginas</b> ('+horas+' h × 0,83 · piso 15, tope 50). Copiá el prompt, generá el texto con tu IA, revisalo, y subilo terminado (Word/PDF) para compartirlo en Materiales de Clase.</div>'
+    +'<div style="font-size:12px;font-weight:700;margin-bottom:4px">🌐 Fuentes modernas para actualizar conocimientos (tocá para abrir):</div>'
+    +'<div style="font-size:11px;margin-bottom:8px;line-height:1.8">'
+    +'<a href="https://www.armyupress.army.mil/Journals/Edicion-Hispanoamericana/" target="_blank" rel="noopener" style="color:#8fc0f0">📖 Military Review — Edición Hispanoamericana (EN ESPAÑOL)</a><br>'
+    +'<a href="https://armypubs.army.mil/" target="_blank" rel="noopener" style="color:#8fc0f0">📚 Army Publishing Directorate — FM / ADP / ATP (EE.UU.)</a><br>'
+    +'<a href="https://www.jcs.mil/Doctrine/" target="_blank" rel="noopener" style="color:#8fc0f0">📕 Doctrina Conjunta de EE.UU. (Joint Publications)</a><br>'
+    +'<a href="https://www.nato.int/" target="_blank" rel="noopener" style="color:#8fc0f0">🌍 OTAN — temas y publicaciones</a> · <a href="https://www.ndc.nato.int/" target="_blank" rel="noopener" style="color:#8fc0f0">NATO Defense College</a><br>'
+    +'<a href="https://www.ieee.es/" target="_blank" rel="noopener" style="color:#8fc0f0">🇪🇸 Instituto Español de Estudios Estratégicos (EN ESPAÑOL)</a> · <a href="https://www.rand.org/" target="_blank" rel="noopener" style="color:#8fc0f0">RAND</a>'
+    +'</div>'
     +'<div style="font-size:12px;font-weight:700;margin-bottom:4px">Índice propuesto (sale de tu Desagregación):</div>'
     +'<pre style="font-size:11px;color:var(--text-secondary);white-space:pre-wrap;background:rgba(0,0,0,.25);padding:8px;border-radius:8px;max-height:180px;overflow:auto">'+_rgEsc(indice)+'</pre>'
     +'<div style="font-size:12px;font-weight:700;margin-bottom:4px">Prompt listo para copiar:</div>'
@@ -15577,7 +15677,9 @@ function avCronoBorrador(){
   rows.push({fecha:desde,periodo:6,actividad:'ENTREGA DE LA HOJA DE ORIENTACIÓN Y TEXTO DE REFERENCIA',actor:'profesor'});
   // Días de clase: arrancan al día siguiente y siguen 1 vez por semana (~5 períodos por día de clase)
   const els=(AV.data&&AV.data.elementos&&AV.data.elementos.length)?AV.data.elementos:((AV._cm&&AV._cm.elementos)||[]);
-  const nDias=Math.max(2,Math.ceil(horas/5));
+  // De las horas totales se descuentan los exámenes: formativa = 2 h, sumativa = 3 h
+  const horasClase=Math.max(5,horas-5);
+  const nDias=Math.max(2,Math.ceil(horasClase/5));
   const fS=(evS&&evS.fecha)?evS.fecha.slice(0,10):null;
   let d=_avD(desde); d.setDate(d.getDate()+1);
   for(let k=0;k<nDias;k++){
@@ -15592,9 +15694,9 @@ function avCronoBorrador(){
     rows.push({fecha:f,periodo:1,actividad:acc,actor:'profesor'});
     d.setDate(d.getDate()+7);
   }
-  if(evF&&evF.fecha) rows.push({fecha:evF.fecha.slice(0,10),periodo:1,actividad:'EVALUACIÓN FORMATIVA',actor:'alumno'});
+  if(evF&&evF.fecha) rows.push({fecha:evF.fecha.slice(0,10),periodo:1,actividad:'EVALUACIÓN FORMATIVA (2 HORAS — 1º Y 2º PERÍODO)',actor:'alumno'});
   if(evS&&evS.descripcion){ const mt=String(evS.descripcion).match(/(\d{4}-\d{2}-\d{2})/); if(mt) rows.push({fecha:mt[1],periodo:1,actividad:'ENTREGA DE TRABAJOS (2 DÍAS ANTES DEL SUMATIVO)',actor:'alumno'}); }
-  if(evS&&evS.fecha) rows.push({fecha:evS.fecha.slice(0,10),periodo:1,actividad:'EVALUACIÓN SUMATIVA',actor:'alumno'});
+  if(evS&&evS.fecha) rows.push({fecha:evS.fecha.slice(0,10),periodo:1,actividad:'EVALUACIÓN SUMATIVA (3 HORAS — 1º AL 3º PERÍODO)',actor:'alumno'});
   rows.sort(function(a,b){ return (a.fecha+String(a.periodo)).localeCompare(b.fecha+String(b.periodo)); });
   AV._crono=rows;
   _avCronoRender();
