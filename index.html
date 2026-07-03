@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.128 · DESAGREGACIÓN redonda: al abrirla se PRECARGA sola leyendo el Contenido Mínimo ya subido (elementos listos y editables); 🎓 Métodos modernos ahora sugiere POR ELEMENTO con casillas — insertás solo las que quieras y entran marcadas con ★; 🖨️ MATRIZ OFICIAL lista para imprimir/PDF (membrete + tabla CONOCER/HACER/SER + criterio + evidencia + estrategia + firmas de los profesores). El bloque "Compartir con el curso" pasó AL FINAL del editor (primero se elabora todo, después se comparte). + v2.9.127 fuentes modernas y horas de exámenes. Correr AULA_VIRTUAL_consolidar.sql + redeploy EF aula-virtual-ops.</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.130 · INSTRUMENTACIONES COMPLETAS según el texto OFICIAL ECEME 2021: Análisis, Comparación, Relación, Clasificación, Diseño, Aplicación (estudio de caso), Valoración con sus 4 criterios (AFA = Aceptabilidad/Factibilidad/Aptitud — equivale al FAS de JP 5-0 OTAN/EE.UU.; PAV = Pertinencia/Aplicabilidad/Valor Futuro; PNI; FODA interno/externo), Juicio de valor/crítico, Investigación y Mapa conceptual — cada una con CUÁNDO usarla (botón 📖 en el Cuadro de Tareas) y sugerencia automática según el tema. + v2.9.129: Cuadro de Tareas, campo 💡 Iniciativas (correr AULA_VIRTUAL_iniciativas.sql + redeploy EF), CONOCER nunca vacío.</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6014,6 +6014,7 @@ input::placeholder, textarea::placeholder {
     <div class="field" style="margin-bottom:8px"><label>Competencia General de la U.C.</label><textarea id="avc-comp" rows="3" style="resize:vertical"></textarea></div>
     <div class="field" style="margin-bottom:8px"><label>Justificación</label><textarea id="avc-just" rows="3" style="resize:vertical"></textarea></div>
     <button class="btn-secondary" style="margin-bottom:10px;padding:6px 12px;font-size:12px" onclick="avJustGenerar()">🪄 Generar borrador de justificación</button>
+    <div class="field" style="margin-bottom:8px"><label>💡 Ideas e iniciativas del profesor <span style="font-weight:400;font-size:10px;color:var(--text-muted)">(campo LIBRE — enfoques propios, innovación, tecnología; acá nada te limita)</span></label><textarea id="avc-inic" rows="4" style="resize:vertical" placeholder="Ej: Modelo híbrido — la jerarquía como columna vertebral (orden y disciplina) y la agilidad tipo Mission Command como sistema nervioso; ejercicio comparado: resolver un problema con el método tradicional vs. células de trabajo descentralizadas…"></textarea></div>
     <div style="display:flex;gap:8px">
       <div class="field" style="margin-bottom:8px;flex:1"><label>Desde</label><input type="date" id="avc-desde"></div>
       <div class="field" style="margin-bottom:8px;flex:1"><label>Hasta</label><input type="date" id="avc-hasta"></div>
@@ -6031,6 +6032,7 @@ input::placeholder, textarea::placeholder {
     <div class="section-label">🧩 Secciones de la carpeta</div>
     <div id="av-secciones" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
     <div id="avc-desag" style="margin-bottom:12px"></div>
+    <div id="avc-tareas" style="margin-bottom:12px"></div>
     <div id="avc-crono" style="margin-bottom:12px"></div>
     <div id="avc-texto" style="margin-bottom:12px"></div>
 
@@ -6042,6 +6044,7 @@ input::placeholder, textarea::placeholder {
           <option value="texto_referencia">📘 Texto de Referencia</option>
           <option value="ayudas">📎 Ayudas (PowerPoint / PDF)</option>
           <option value="video">🎬 Video / enlace</option>
+          <option value="otro">📄 Otro documento / recurso</option>
         </select></div>
       <div class="field" style="margin-bottom:8px"><label>Nombre / título</label><input type="text" id="avc-adj-nombre" placeholder="Ej: Hoja de Orientación de la U.C." autocomplete="off"></div>
       <div class="field" id="avc-adj-file-wrap" style="margin-bottom:8px"><label>Archivo (Word / PDF / PPT)</label><input type="file" id="avc-adj-file" onchange="_avAdjNombreAuto(this)"></div>
@@ -15066,6 +15069,7 @@ async function avAbrirCarpeta(id){
     +(c.revisor_nombre?(' <span style="font-size:11px;color:var(--text-muted)">· revisó: '+_rgEsc(c.revisor_nombre)+'</span>'):'');
   document.getElementById('avc-comp').value=c.competencia_general_uc||'';
   document.getElementById('avc-just').value=c.justificacion||'';
+  const _ini=document.getElementById('avc-inic'); if(_ini) _ini.value=c.iniciativas||'';
   document.getElementById('avc-desde').value=c.fecha_desde||'';
   document.getElementById('avc-hasta').value=c.fecha_hasta||'';
   document.getElementById('avc-horas').value=(c.carga_horaria_real!=null?c.carga_horaria_real:(m.horas_academicas||''));
@@ -15094,7 +15098,7 @@ function _avRenderSecciones(r){
     +(cnt!=null?(' <span style="color:var(--text-muted)">· '+cnt+'</span>'):'')+'</span></button>';
   cont.innerHTML=
      row('🧩','Desagregación (elementos de competencia)',n(r.elementos),'avDesagAbrir()')
-    +row('📝','Cuadro de tareas',n(r.tareas),'')
+    +row('📝','Cuadro de tareas',n(r.tareas),'avTareasAbrir()')
     +row('📅','Cuadro de distribución del tiempo',n(r.cronograma),'avCronoAbrir()')
     +row('🎯','Evaluaciones',n(r.evaluaciones),'')
     +row('📘','Asistente de Texto de Referencia (índice + prompt)',null,'avTextoAbrir()')
@@ -15116,6 +15120,7 @@ async function avGuardarDatos(btn){
   const datos={carpeta_id:AV.cid,
     competencia_general_uc:document.getElementById('avc-comp').value,
     justificacion:document.getElementById('avc-just').value,
+    iniciativas:(document.getElementById('avc-inic')||{}).value||null,
     fecha_desde:document.getElementById('avc-desde').value||null,
     fecha_hasta:document.getElementById('avc-hasta').value||null,
     carga_horaria_real:document.getElementById('avc-horas').value||null,
@@ -15348,6 +15353,7 @@ async function avMemoGuardarEvals(btn){
   const r2=await _avInvoke('guardar_datos',{carpeta_id:AV.cid,
     competencia_general_uc:document.getElementById('avc-comp').value,
     justificacion:document.getElementById('avc-just').value,
+    iniciativas:(document.getElementById('avc-inic')||{}).value||null,
     fecha_desde:document.getElementById('avc-desde').value||null,
     fecha_hasta:document.getElementById('avc-hasta').value||null,
     carga_horaria_real:document.getElementById('avc-horas').value||null,
@@ -15456,6 +15462,7 @@ async function avCMGuardar(btn){
   const r2=await _avInvoke('guardar_datos',{carpeta_id:AV.cid,
     competencia_general_uc:document.getElementById('avc-comp').value,
     justificacion:document.getElementById('avc-just').value,
+    iniciativas:(document.getElementById('avc-inic')||{}).value||null,
     fecha_desde:document.getElementById('avc-desde').value||null,
     fecha_hasta:document.getElementById('avc-hasta').value||null,
     carga_horaria_real:document.getElementById('avc-horas').value||null,
@@ -15596,6 +15603,8 @@ function avDesagDel(i){ if(!confirm('¿Quitar el elemento Nº '+(i+1)+'?')) retu
 function avDesagSugerir(){
   (AV._des||[]).forEach(function(e,i){
     const nom=(e.nombre||'la materia').toLowerCase();
+    // NUNCA dejar el saber CONOCER vacío (si el contenido mínimo no trajo temas para este elemento)
+    if(!e.saber_conocer.length) e.saber_conocer=['Conceptos y definiciones de '+nom,'Fundamentos teórico-doctrinarios de '+nom,'Características, principios y componentes de '+nom,'Aplicación de '+nom+' en la organización militar boliviana'];
     if(!e.saber_hacer.length) e.saber_hacer=['Elaborar mapas conceptuales de los temas','Realizar análisis y comparaciones aplicadas al ámbito militar','Producir valoraciones y juicios de valor','Exponer y defender los trabajos individuales'];
     if(!e.saber_ser.length) e.saber_ser=['Proceder con iniciativa, creatividad y responsabilidad en la aplicación del conocimiento doctrinario de '+nom+', para la solución de problemas de índole militar.'];
     if(!e.criterio_desempeno) e.criterio_desempeno='Que los Oficiales Cursantes sean capaces de aplicar los conocimientos de '+nom+' y proponer soluciones factibles y aceptables en el nivel táctico superior y estratégico operativo.';
@@ -15692,6 +15701,104 @@ async function avDesagGuardar(btn){
   const prog=document.getElementById('avc-desag-prog');
   if(prog) prog.textContent=r.ok?('✅ Desagregación guardada ('+els.length+' elementos) — alimenta el Texto, las Tareas y los Word'):'⚠️ '+(r.error||'no se pudo');
   if(r.ok&&AV.data){ AV.data.elementos=els; _avRenderSecciones(AV.data); }
+}
+// v2.9.129: CUADRO DE TAREAS — una tarea por saber, con INSTRUMENTACIONES (texto ECEME + PNI de Bono + FODA)
+const _AV_INSTRUM=[
+  // Catálogo OFICIAL del "Texto de Instrumentaciones y Dinámica de Grupos" ECEME 2021 (+ referencias modernas)
+  {n:'Análisis',u:'Descomponer un hecho o tema en sus partes, interpretarlo y concluir. Proceso oficial: conocimiento del hecho → descomposición → interpretación → conclusión.'},
+  {n:'Comparación',u:'Determinar DIFERENCIAS y SIMILITUDES de dos conceptos, teorías, factores, principios o características aparentemente contrarios o similares.'},
+  {n:'Relación',u:'Determinar VÍNCULO, dependencia e interrelación entre dos teorías, conceptos, factores u operaciones, a través de sus rasgos característicos.'},
+  {n:'Clasificación',u:'Determinar JERARQUÍA, orden y organización de principios, leyes, categorías, funciones, ante un requerimiento o situación problémica.'},
+  {n:'Diseño',u:'DISEÑAR maniobras, operaciones, estructuras o sistemas en función a una situación o realidad concreta.'},
+  {n:'Aplicación (estudio de caso)',u:'APLICAR el material teórico a una situación o realidad concreta para obtener un efecto deseado. Ideal como tarea integradora al cierre del elemento.'},
+  {n:'Valoración — AFA',u:'Evaluar con: Aceptabilidad (consecuencias en costo-beneficio), Factibilidad (medios disponibles y ambiente geográfico — relación de medios) y Aptitud (efecto deseado: naturaleza, integridad, oportunidad). Ideal para juzgar CURSOS DE ACCIÓN o propuestas — equivale a los criterios FAS del planeamiento de EE.UU./OTAN (JP 5-0).'},
+  {n:'Valoración — PAV',u:'Evaluar con: Pertinencia (vigencia, si corresponde, si es concerniente, observancia, equivalencia), Aplicabilidad (en función a tiempo, espacio, características, estructura, naturaleza) y Valor Futuro. Ideal para juzgar DOCTRINA o reglamentos frente a la realidad actual.'},
+  {n:'Valoración — PNI',u:'Positivo (beneficioso), Negativo (perjudicial), Interesante (lo que cuestiona la idea). Evaluación RÁPIDA y sin sesgo de una idea, decisión o hecho (Edward de Bono). Ideal antes de un debate.'},
+  {n:'Valoración — FODA',u:'Fortalezas y Debilidades (criterio INTERNO: puede modificarse) + Oportunidades y Amenazas (criterio EXTERNO: solo se incrementa o reduce). DIAGNÓSTICO de una organización o situación — ideal en organización y planeamiento.'},
+  {n:'Juicio de valor / juicio crítico',u:'Juicio de VALOR: conclusión fundamentada de la valoración, mirando al FUTURO (prioriza su aplicación). Juicio CRÍTICO: coyuntural, valora un hecho pasado, doctrina o condiciones del PRESENTE.'},
+  {n:'Investigación',u:'Buscar, seleccionar y sistematizar información nueva sobre un problema; puede derivar en experimentación.'},
+  {n:'Mapa conceptual',u:'Formato de presentación para ORGANIZAR y jerarquizar conceptos nuevos (producto típico del saber CONOCER en los modelos ECEME).'}
+];
+function _avInstrPara(tema){
+  const s=(tema||'').toLowerCase();
+  if(/concept|definici|generalidad|fundament|teor/.test(s)) return 'Mapa conceptual';
+  if(/relaci|v[íi]ncul|interrelaci|factor/.test(s)) return 'Relación';
+  if(/proceso|m[ée]todo|procedimiento|t[ée]cnica|instrumento/.test(s)) return 'Análisis';
+  if(/clasific|jerarqu|nivel|categor/.test(s)) return 'Clasificación';
+  if(/modelo|tipo/.test(s)) return 'Comparación';
+  if(/dise[ñn]|sistema|maniobra/.test(s)) return 'Diseño';
+  if(/doctrina|reglamento|vigencia|norma/.test(s)) return 'Valoración — PAV';
+  if(/curso de acci|propuesta|decisi|soluci/.test(s)) return 'Valoración — AFA';
+  if(/objetivo|perspectiva|cambio|estrategia|t[áa]ctica/.test(s)) return 'Valoración — PNI';
+  if(/cultura|clima|organizaci|estructura|desarrollo/.test(s)) return 'Valoración — FODA';
+  if(/aplicaci|pr[áa]ctic/.test(s)) return 'Aplicación (estudio de caso)';
+  return 'Análisis';
+}
+function avTareasAbrir(){
+  AV._tar=((AV.data&&AV.data.tareas)||[]).map(function(t){ return {saber:t.saber||'conocer',lugar:t.lugar||'domicilio',modalidad:t.modalidad||'individual',descripcion:t.descripcion||''}; });
+  _avTareasRender();
+  const el=document.getElementById('avc-tareas'); if(el&&el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function _avTareasRender(){
+  const box=document.getElementById('avc-tareas'); if(!box) return;
+  const rows=AV._tar||[];
+  const sel=function(i,campo,ops,val){ return '<select onchange="AV._tar['+i+'].'+campo+'=this.value" style="font-size:11px">'+ops.map(function(o){ return '<option value="'+o[0]+'"'+(val===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join('')+'</select>'; };
+  let html='<div style="border:1px solid rgba(212,140,80,.45);border-radius:10px;padding:10px;background:rgba(212,140,80,.06)">'
+    +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--text-primary)">📝 Cuadro de Planificación de Tareas <span style="font-weight:400;font-size:11px;color:var(--text-muted)">(una tarea por saber · la instrumentación adecuada para cada tema)</span></div>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'
+    +'<button class="btn-secondary" style="padding:6px 10px;font-size:12px" onclick="avTareasBorrador()">🪄 Generar borrador (una tarea por saber)</button>'
+    +'<button class="btn-secondary" style="padding:6px 10px;font-size:12px" onclick="avTareasInstr()">📖 Instrumentaciones: cuándo usar cada una</button>'
+    +'<button class="btn-secondary" style="padding:6px 10px;font-size:12px" onclick="avTareasAdd()">➕ Agregar tarea</button>'
+    +'</div><div id="avc-tareas-instr"></div>';
+  if(!rows.length) html+='<div class="rg-meta" style="margin-bottom:6px">Sin tareas. Tocá 🪄 para generar una por cada tema de la Desagregación (con la instrumentación sugerida), o agregá a mano.</div>';
+  html+=rows.map(function(t,i){ return '<div class="rg-card" style="margin-bottom:8px;padding:8px 10px">'
+    +'<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:5px"><b style="font-size:12px">TAREA Nº '+(i+1)+'</b>'
+    +sel(i,'saber',[['conocer','SABER (conceptual)'],['hacer','HACER (procedimental)'],['ser','SER (actitudinal)']],t.saber)
+    +sel(i,'lugar',[['domicilio','🏠 Domicilio'],['aulas','🏫 Aulas']],t.lugar)
+    +sel(i,'modalidad',[['individual','👤 Individual'],['grupal','👥 Grupal']],t.modalidad)
+    +'<span style="flex:1"></span><button class="rg-doc" style="border-color:#7a2230;color:#ffc9c9" onclick="avTareasDel('+i+')">🗑</button></div>'
+    +'<textarea rows="2" style="width:100%;resize:vertical;font-size:12px" onchange="AV._tar['+i+'].descripcion=this.value" placeholder="Instrumentación + tema + consigna">'+_rgEsc(t.descripcion||'')+'</textarea>'
+    +'</div>'; }).join('');
+  html+='<button class="btn-primary" style="margin-top:4px" onclick="avTareasGuardar(this)">💾 Guardar Cuadro de Tareas</button>'
+    +'<div id="avc-tareas-prog" class="rg-meta" style="min-height:14px;margin-top:4px"></div></div>';
+  box.innerHTML=html;
+}
+function avTareasInstr(){
+  const box=document.getElementById('avc-tareas-instr'); if(!box) return;
+  if(box.innerHTML){ box.innerHTML=''; return; }
+  box.innerHTML='<div style="border:1px solid rgba(212,175,55,.35);border-radius:8px;padding:10px;margin-bottom:8px;background:rgba(0,0,0,.25);font-size:11px;color:var(--text-secondary)">'
+    +'<b style="color:var(--text-primary)">📖 ¿Qué instrumentación conviene para cada tarea?</b> <span style="font-size:10px;color:var(--text-muted)">(del Texto de Instrumentaciones ECEME + técnicas didácticas verificadas)</span><br><br>'
+    +_AV_INSTRUM.map(function(x){ return '• <b>'+x.n+'</b>: '+x.u; }).join('<br>')
+    +'</div>';
+}
+function avTareasBorrador(){
+  const els=(AV._des&&AV._des.length)?AV._des:((AV.data&&AV.data.elementos)||[]);
+  if(!els.length){ alert('Primero abrí la Desagregación (los temas del saber CONOCER son la base de las tareas).'); return; }
+  if(AV._tar&&AV._tar.length&&!confirm('Ya hay tareas cargadas. ¿Reemplazo todo por el borrador?')) return;
+  const rows=[];
+  els.forEach(function(e,k){
+    (e.saber_conocer||[]).forEach(function(tema){
+      const inst=_avInstrPara(tema);
+      rows.push({saber:'conocer',lugar:'domicilio',modalidad:'individual',descripcion:inst+' — Tema: '+tema+' (Elemento '+(k+1)+'). Elaborar en domicilio y presentar para su defensa en aula.'});
+    });
+    // una tarea integradora HACER por elemento (instrumentación oficial Nº 7: Aplicación)
+    rows.push({saber:'hacer',lugar:'aulas',modalidad:'grupal',descripcion:'Aplicación (estudio de caso) — Aplicar '+(e.nombre||('el elemento '+(k+1)))+' a una situación o realidad militar concreta para obtener el efecto deseado, y defender la solución en aula (Elemento '+(k+1)+').'});
+  });
+  AV._tar=rows;
+  _avTareasRender();
+}
+function avTareasAdd(){ (AV._tar=AV._tar||[]).push({saber:'conocer',lugar:'domicilio',modalidad:'individual',descripcion:''}); _avTareasRender(); }
+function avTareasDel(i){ AV._tar.splice(i,1); _avTareasRender(); }
+async function avTareasGuardar(btn){
+  if(!AV.cid) return;
+  const rows=(AV._tar||[]).filter(function(t){ return (t.descripcion||'').trim(); }).map(function(t,i){ return {numero:i+1,saber:t.saber,lugar:t.lugar,modalidad:t.modalidad,descripcion:t.descripcion}; });
+  if(!rows.length){ alert('Cargá al menos una tarea con descripción.'); return; }
+  btn.disabled=true;
+  const r=await _avInvoke('guardar_tareas',{carpeta_id:AV.cid,tareas:rows});
+  btn.disabled=false;
+  const prog=document.getElementById('avc-tareas-prog');
+  if(prog) prog.textContent=r.ok?('✅ Guardadas '+rows.length+' tareas — alimentan la Hoja de Orientación y el Word del Cuadro'):'⚠️ '+(r.error||'no se pudo');
+  if(r.ok&&AV.data){ AV.data.tareas=rows; _avRenderSecciones(AV.data); }
 }
 // v2.9.125: ASISTENTE DE TEXTO DE REFERENCIA — índice + extensión + prompt listo para copiar (sin IA en la app)
 function avTextoAbrir(){
