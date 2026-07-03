@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.130 · INSTRUMENTACIONES COMPLETAS según el texto OFICIAL ECEME 2021: Análisis, Comparación, Relación, Clasificación, Diseño, Aplicación (estudio de caso), Valoración con sus 4 criterios (AFA = Aceptabilidad/Factibilidad/Aptitud — equivale al FAS de JP 5-0 OTAN/EE.UU.; PAV = Pertinencia/Aplicabilidad/Valor Futuro; PNI; FODA interno/externo), Juicio de valor/crítico, Investigación y Mapa conceptual — cada una con CUÁNDO usarla (botón 📖 en el Cuadro de Tareas) y sugerencia automática según el tema. + v2.9.129: Cuadro de Tareas, campo 💡 Iniciativas (correr AULA_VIRTUAL_iniciativas.sql + redeploy EF), CONOCER nunca vacío.</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.131 · FIX "Insertar sugerencias modernas" en la Desagregación: antes insertaba bien pero no avisaba ni mostraba dónde — ahora aparece un aviso claro arriba del cuadro y te lleva directo (con scroll automático) al campo Estrategia de enseñanza del elemento afectado, resaltado en verde unos segundos. También avisa si marcaste una sugerencia que ya estaba insertada, o si tocaste Insertar sin marcar ninguna casilla. + v2.9.130 instrumentaciones oficiales completas (AFA/PAV/PNI/FODA).</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -15562,17 +15562,22 @@ async function avDesagAbrir(){
     if(AV._des.length) _avDesagRender();
   }
 }
-function _avDesagTA(i,campo,lista,rotulo,ph){
+function _avDesagTA(i,campo,lista,rotulo,ph,elId){
   const val=lista?(AV._des[i][campo]||[]).join('\n'):(AV._des[i][campo]||'');
   const oc=lista?('AV._des['+i+'].'+campo+'=_avLineas(this.value)'):('AV._des['+i+'].'+campo+'=this.value');
+  const idAttr=elId?(' id="'+elId+'"'):'';
   return '<div class="field" style="margin-bottom:6px"><label>'+rotulo+(lista?' <span style="font-weight:400;font-size:10px;color:var(--text-muted)">(uno por línea)</span>':'')+'</label>'
-    +'<textarea rows="3" style="resize:vertical;font-size:12px" placeholder="'+(ph||'')+'" onchange="'+oc+'">'+_rgEsc(val)+'</textarea></div>';
+    +'<textarea'+idAttr+' rows="3" style="resize:vertical;font-size:12px" placeholder="'+(ph||'')+'" onchange="'+oc+'">'+_rgEsc(val)+'</textarea></div>';
 }
 function _avDesagRender(){
   const box=document.getElementById('avc-desag'); if(!box) return;
   const des=AV._des||[];
-  let html='<div style="border:1px solid rgba(126,200,80,.45);border-radius:10px;padding:10px;background:rgba(126,200,80,.05)">'
-    +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--text-primary)">🧩 Cuadro de Desagregación <span style="font-weight:400;font-size:11px;color:var(--text-muted)">(estructura oficial: saberes CONOCER/HACER/SER + criterios + evidencias + estrategia)</span></div>'
+  let html='<div id="avc-desag-anchor"></div><div style="border:1px solid rgba(126,200,80,.45);border-radius:10px;padding:10px;background:rgba(126,200,80,.05)">';
+  if(AV._desagMsg){
+    html+='<div class="rg-meta" style="margin-bottom:10px;padding:9px 12px;border:1px solid rgba(127,227,176,.5);border-radius:8px;background:rgba(29,158,117,.14);color:#eafff0;font-weight:600;font-size:12px">'+_rgEsc(AV._desagMsg)+'</div>';
+    AV._desagMsg=null;
+  }
+  html+='<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--text-primary)">🧩 Cuadro de Desagregación <span style="font-weight:400;font-size:11px;color:var(--text-muted)">(estructura oficial: saberes CONOCER/HACER/SER + criterios + evidencias + estrategia)</span></div>'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">'
     +'<button class="btn-secondary" style="padding:6px 10px;font-size:12px" onclick="avDesagSugerir()">🪄 Completar sugerencias (motor pedagógico)</button>'
     +'<button class="btn-secondary" style="padding:6px 10px;font-size:12px" onclick="avDesagPedagogia()">🎓 Métodos modernos (referencia)</button>'
@@ -15588,7 +15593,7 @@ function _avDesagRender(){
     +_avDesagTA(i,'saber_ser',true,'SER — Actitudinal','Ej: Proceder con iniciativa y responsabilidad…')
     +_avDesagTA(i,'criterio_desempeno',false,'Criterio de desempeño (QUÉ se evalúa)','Ej: Que los Oficiales Cursantes sean capaces de…')
     +_avDesagTA(i,'evidencias',true,'Evidencias y procedimientos de evaluación (CÓMO se evalúa)','Ej: DE PRODUCTO: mapa conceptual')
-    +_avDesagTA(i,'estrategia_ensenanza',true,'Estrategia de enseñanza','Ej: Lluvia de ideas en aula')
+    +_avDesagTA(i,'estrategia_ensenanza',true,'Estrategia de enseñanza','Ej: Lluvia de ideas en aula','avc-des-estr-'+i)
     +'</div>'; }).join('');
   html+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">'
     +'<button class="btn-primary" onclick="avDesagGuardar(this)">💾 Guardar Desagregación</button>'
@@ -15641,15 +15646,30 @@ function avDesagPedagogia(){
   box.innerHTML=html;
 }
 function avDesagPedagInsertar(){
-  let n=0;
-  document.querySelectorAll('#avc-desag-pedag input[type=checkbox]').forEach(function(ch){
-    if(!ch.checked) return;
+  const chks=document.querySelectorAll('#avc-desag-pedag input[type=checkbox]');
+  const marcadas=Array.prototype.filter.call(chks,function(ch){ return ch.checked; });
+  if(!marcadas.length){ alert('Primero marcá con la casilla ✓ al menos una sugerencia — recién ahí tocá "Insertar".'); return; }
+  let n=0; const afectados=[];
+  marcadas.forEach(function(ch){
     const i=Number(ch.getAttribute('data-el')); const s='★ '+ch.getAttribute('data-sug');
-    if(AV._des[i]&&AV._des[i].estrategia_ensenanza.indexOf(s)<0){ AV._des[i].estrategia_ensenanza.push(s); n++; }
+    if(AV._des[i]&&AV._des[i].estrategia_ensenanza.indexOf(s)<0){ AV._des[i].estrategia_ensenanza.push(s); n++; if(afectados.indexOf(i)<0) afectados.push(i); }
   });
+  const nombres=afectados.map(function(i){ return 'Nº '+(i+1); }).join(', ');
+  AV._desagMsg=n?('✨ Listo: se insertaron '+n+' sugerencia(s) con ★ en la ESTRATEGIA DE ENSEÑANZA del elemento '+nombres+' (resaltado abajo). No te olvidés de tocar 💾 Guardar Desagregación.')
+    :'Esas sugerencias ya estaban insertadas antes — no hay nada nuevo que agregar.';
   _avDesagRender();
-  const prog=document.getElementById('avc-desag-prog');
-  if(prog) prog.textContent=n?('✨ '+n+' sugerencia(s) moderna(s) insertada(s) con ★ — revisá la Estrategia y tocá 💾 Guardar'):'No marcaste ninguna sugerencia.';
+  setTimeout(function(){
+    const primero=document.getElementById('avc-des-estr-'+(afectados[0]!=null?afectados[0]:-1));
+    if(primero&&primero.scrollIntoView) primero.scrollIntoView({behavior:'smooth',block:'center'});
+    else { const anchor=document.getElementById('avc-desag-anchor'); if(anchor&&anchor.scrollIntoView) anchor.scrollIntoView({behavior:'smooth',block:'start'}); }
+    afectados.forEach(function(i){
+      const ta=document.getElementById('avc-des-estr-'+i);
+      if(!ta) return;
+      ta.style.transition='background-color .5s';
+      ta.style.backgroundColor='rgba(127,227,176,.4)';
+      setTimeout(function(){ ta.style.backgroundColor=''; },2500);
+    });
+  },60);
 }
 // v2.9.128: MATRIZ OFICIAL del Cuadro de Desagregación — vista de impresión (membrete + tabla + firmas)
 function avDesagImprimir(){
