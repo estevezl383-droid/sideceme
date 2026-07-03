@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.127 · PEDAGOGÍA MILITAR investigada (CGSC EE.UU. / Baltic Defence College): botón 🎓 Métodos modernos en la Desagregación (aprendizaje experiencial, método del caso, TDG, juego de guerra, aula invertida, AAR) y estrategias sugeridas actualizadas. 📘 Asistente de Texto: 🌐 fuentes modernas con enlaces (Military Review Hispanoamericana EN ESPAÑOL, ArmyPubs, Doctrina Conjunta EE.UU., OTAN/NDC, IEEE España, RAND) también dentro del prompt. 📅 Cuadro de Distribución: descuenta formativa 2 h + sumativa 3 h de las horas totales y muestra el cálculo (+ lectura del texto como aula invertida). + v2.9.126 Desagregación completa. Correr AULA_VIRTUAL_consolidar.sql + redeploy EF aula-virtual-ops.</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.128 · DESAGREGACIÓN redonda: al abrirla se PRECARGA sola leyendo el Contenido Mínimo ya subido (elementos listos y editables); 🎓 Métodos modernos ahora sugiere POR ELEMENTO con casillas — insertás solo las que quieras y entran marcadas con ★; 🖨️ MATRIZ OFICIAL lista para imprimir/PDF (membrete + tabla CONOCER/HACER/SER + criterio + evidencia + estrategia + firmas de los profesores). El bloque "Compartir con el curso" pasó AL FINAL del editor (primero se elabora todo, después se comparte). + v2.9.127 fuentes modernas y horas de exámenes. Correr AULA_VIRTUAL_consolidar.sql + redeploy EF aula-virtual-ops.</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6026,6 +6026,14 @@ input::placeholder, textarea::placeholder {
 
     <button class="btn-primary" onclick="avGuardarDatos(this)" style="margin-bottom:16px">💾 Guardar datos generales</button>
 
+
+
+    <div class="section-label">🧩 Secciones de la carpeta</div>
+    <div id="av-secciones" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
+    <div id="avc-desag" style="margin-bottom:12px"></div>
+    <div id="avc-crono" style="margin-bottom:12px"></div>
+    <div id="avc-texto" style="margin-bottom:12px"></div>
+
     <div class="section-label">📚 Materiales de Clase — compartir con el curso</div>
     <div style="border:1px solid var(--border,#2a3a52);border-radius:12px;padding:12px;margin-bottom:10px;background:rgba(31,111,92,.05)">
       <div class="field" style="margin-bottom:8px"><label>Tipo</label>
@@ -6044,12 +6052,6 @@ input::placeholder, textarea::placeholder {
       <button class="btn-primary" onclick="avAdjSubir(this)">⬆ Subir / Agregar</button>
     </div>
     <div id="avc-aula-lista" style="margin-bottom:14px"></div>
-
-    <div class="section-label">🧩 Secciones de la carpeta</div>
-    <div id="av-secciones" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
-    <div id="avc-desag" style="margin-bottom:12px"></div>
-    <div id="avc-crono" style="margin-bottom:12px"></div>
-    <div id="avc-texto" style="margin-bottom:12px"></div>
 
     <div class="section-label">✅ Estado y revisión</div>
     <div id="avc-flow" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px"></div>
@@ -15521,7 +15523,7 @@ function _avAdjNombreAuto(inp){
 }
 // v2.9.126: CUADRO DE DESAGREGACIÓN — editor completo (estructura oficial del modelo ECEME)
 function _avLineas(s){ return String(s||'').split('\n').map(function(x){ return x.replace(/^[-•*]\s*/,'').trim(); }).filter(Boolean); }
-function avDesagAbrir(){
+async function avDesagAbrir(){
   AV._des=((AV.data&&AV.data.elementos)||[]).map(function(e){ return {
     nombre:e.nombre||'',competencia:e.competencia||'',
     saber_conocer:(e.saber_conocer||[]).slice(),saber_hacer:(e.saber_hacer||[]).slice(),saber_ser:(e.saber_ser||[]).slice(),
@@ -15531,6 +15533,27 @@ function avDesagAbrir(){
   }
   _avDesagRender();
   const el=document.getElementById('avc-desag'); if(el&&el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'start'});
+  // v2.9.128: si sigue vacío, leer SOLO el Contenido Mínimo ya subido y precargar los elementos
+  if(!AV._des.length&&AV.cid){
+    try{
+      const la=await _avInvoke('listar_adjuntos',{carpeta_id:AV.cid});
+      const cm=la.ok?(la.adjuntos||[]).find(function(a){ return a.tipo==='contenido_minimo'&&a.storage_path; }):null;
+      if(cm){
+        if(el) el.insertAdjacentHTML('afterbegin','<div class="rg-meta" id="avc-desag-auto">⏳ Leyendo el Contenido Mínimo subido para precargar los elementos…</div>');
+        const vr=await _avInvoke('ver_recurso',{adjunto_id:cm.id});
+        if(vr.ok&&vr.url){
+          const buf=await (await fetch(vr.url)).arrayBuffer();
+          const r=_avCMParse(await _avDocxTexto(buf));
+          if(r&&r.elementos&&r.elementos.length){
+            AV._cm=r;
+            AV._des=r.elementos.map(function(e){ return {nombre:e.nombre||'',competencia:e.competencia||'',saber_conocer:(e.saber_conocer||[]).slice(),saber_hacer:[],saber_ser:[],criterio_desempeno:'',evidencias:[],estrategia_ensenanza:[]}; });
+          }
+        }
+      }
+    }catch(_e){}
+    const au=document.getElementById('avc-desag-auto'); if(au) au.remove();
+    if(AV._des.length) _avDesagRender();
+  }
 }
 function _avDesagTA(i,campo,lista,rotulo,ph){
   const val=lista?(AV._des[i][campo]||[]).join('\n'):(AV._des[i][campo]||'');
@@ -15560,7 +15583,10 @@ function _avDesagRender(){
     +_avDesagTA(i,'evidencias',true,'Evidencias y procedimientos de evaluación (CÓMO se evalúa)','Ej: DE PRODUCTO: mapa conceptual')
     +_avDesagTA(i,'estrategia_ensenanza',true,'Estrategia de enseñanza','Ej: Lluvia de ideas en aula')
     +'</div>'; }).join('');
-  html+='<button class="btn-primary" style="margin-top:4px" onclick="avDesagGuardar(this)">💾 Guardar Desagregación</button>'
+  html+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">'
+    +'<button class="btn-primary" onclick="avDesagGuardar(this)">💾 Guardar Desagregación</button>'
+    +'<button class="btn-secondary" onclick="avDesagImprimir()">🖨️ Matriz oficial (imprimir / PDF)</button>'
+    +'</div>'
     +'<div id="avc-desag-prog" class="rg-meta" style="min-height:14px;margin-top:4px"></div></div>';
   box.innerHTML=html;
 }
@@ -15581,20 +15607,80 @@ function avDesagSugerir(){
   });
   _avDesagRender();
 }
-// v2.9.127: referencia de PEDAGOGÍA MILITAR (investigada de escuelas de comando modernas — CGSC EE.UU., Báltica)
+// v2.9.128: MÉTODOS MODERNOS por elemento — sugerencias marcables; se insertan SOLO las elegidas, señaladas con ★
 function avDesagPedagogia(){
   const box=document.getElementById('avc-desag-pedag'); if(!box) return;
   if(box.innerHTML){ box.innerHTML=''; return; }
-  box.innerHTML='<div style="border:1px solid rgba(212,175,55,.35);border-radius:8px;padding:10px;margin-bottom:8px;background:rgba(0,0,0,.25);font-size:12px;color:var(--text-secondary)">'
-    +'<b style="color:var(--text-primary)">🎓 Métodos de las escuelas de comando y estado mayor modernas</b> <span style="font-size:10px;color:var(--text-muted)">(CGSC EE.UU., Baltic Defence College — educación de adultos)</span><br><br>'
-    +'• <b>Aprendizaje experiencial</b> (ciclo: experiencia → reflexión → concepto → aplicación): base del CGSC. Menos cátedra, más práctica.<br>'
-    +'• <b>Método del caso</b>: analizar operaciones históricas o situaciones reales → ideal para los saberes SABER + HACER (análisis).<br>'
-    +'• <b>Seminario en grupos pequeños</b> con enseñanza en equipo (los 3 profesores) → discusión doctrinaria.<br>'
-    +'• <b>Ejercicios de toma de decisiones (TDG)</b> y <b>aprendizaje basado en problemas</b>: situación táctica + tiempo limitado + defensa de la decisión → HACER + SER.<br>'
-    +'• <b>Juego de guerra / simulación educativa</b>: aplicación integrada de lo aprendido (la app ya tiene el módulo Juego de Guerra 🎲).<br>'
-    +'• <b>Aula invertida</b>: el cursante lee el TEXTO antes; el aula se usa para práctica y debate → aprovecha mejor las horas presenciales.<br>'
-    +'• <b>After Action Review (AAR)</b>: cierre de cada ejercicio con lecciones aprendidas → evalúa el SER y consolida.<br><br>'
-    +'<span style="color:var(--text-muted)">Usalos en "Estrategia de enseñanza" de cada elemento: teoría → caso → ejercicio → AAR.</span></div>';
+  const des=AV._des||[];
+  if(!des.length){ box.innerHTML='<div class="rg-meta" style="margin-bottom:8px">Primero cargá los elementos (se precargan solos del Contenido Mínimo subido).</div>'; return; }
+  let html='<div style="border:1px solid rgba(212,175,55,.35);border-radius:8px;padding:10px;margin-bottom:8px;background:rgba(0,0,0,.25);font-size:12px;color:var(--text-secondary)">'
+    +'<b style="color:var(--text-primary)">🎓 Sugerencias MODERNAS por elemento de competencia</b> <span style="font-size:10px;color:var(--text-muted)">(de las escuelas de comando: CGSC EE.UU. / Báltica — marcá las que quieras usar y tocá Insertar; entran a la Estrategia señaladas con ★ para distinguirlas)</span><br><br>';
+  des.forEach(function(e,i){
+    const nom=e.nombre||('Elemento '+(i+1));
+    const sug=[
+      'Estudio de caso: análisis de una operación militar real aplicada a '+nom.toLowerCase(),
+      'Ejercicio de toma de decisiones (TDG) sobre '+nom.toLowerCase()+', con tiempo limitado y defensa de la decisión',
+      'Aula invertida: lectura previa del capítulo de '+nom.toLowerCase()+' del Texto; el aula se usa para práctica y debate',
+      'Juego de guerra / simulación educativa aplicando '+nom.toLowerCase(),
+      'After Action Review (AAR) al cierre del ejercicio: lecciones aprendidas en grupo'
+    ];
+    html+='<div style="margin-bottom:10px"><b style="font-size:12px;color:#f4d574">Nº '+(i+1)+' — '+_rgEsc(nom)+'</b>'
+      +sug.map(function(s,j){ return '<label class="rg-chk" style="display:block;font-size:11px;margin:3px 0 3px 8px"><input type="checkbox" data-el="'+i+'" data-sug="'+_rgEsc(s).replace(/"/g,'&quot;')+'"> '+_rgEsc(s)+'</label>'; }).join('')
+      +'</div>';
+  });
+  html+='<button class="btn-secondary" style="padding:6px 10px;font-size:12px" onclick="avDesagPedagInsertar()">➕ Insertar las marcadas en la Estrategia (con ★)</button></div>';
+  box.innerHTML=html;
+}
+function avDesagPedagInsertar(){
+  let n=0;
+  document.querySelectorAll('#avc-desag-pedag input[type=checkbox]').forEach(function(ch){
+    if(!ch.checked) return;
+    const i=Number(ch.getAttribute('data-el')); const s='★ '+ch.getAttribute('data-sug');
+    if(AV._des[i]&&AV._des[i].estrategia_ensenanza.indexOf(s)<0){ AV._des[i].estrategia_ensenanza.push(s); n++; }
+  });
+  _avDesagRender();
+  const prog=document.getElementById('avc-desag-prog');
+  if(prog) prog.textContent=n?('✨ '+n+' sugerencia(s) moderna(s) insertada(s) con ★ — revisá la Estrategia y tocá 💾 Guardar'):'No marcaste ninguna sugerencia.';
+}
+// v2.9.128: MATRIZ OFICIAL del Cuadro de Desagregación — vista de impresión (membrete + tabla + firmas)
+function avDesagImprimir(){
+  const des=AV._des||[];
+  if(!des.length){ alert('No hay elementos cargados.'); return; }
+  const m=(AV.data&&AV.data.materia)||{};
+  const comp=document.getElementById('avc-comp').value||'';
+  const ul=function(a){ return (a&&a.length)?('<ul>'+a.map(function(x){ return '<li>'+_rgEsc(x)+'</li>'; }).join('')+'</ul>'):'&nbsp;'; };
+  let body='';
+  des.forEach(function(e,i){
+    body+='<table class="mx">'
+      +'<tr><th colspan="6" class="tit">COMPETENCIA GENERAL DE LA U.C. '+_rgEsc(String(m.nombre_uc||'').toUpperCase())+'</th></tr>'
+      +'<tr><td colspan="6" class="just">'+_rgEsc(comp)+'</td></tr>'
+      +'<tr><th rowspan="2" style="width:17%">ELEMENTO DE COMPETENCIA<br>Nº '+(i+1)+'</th><th colspan="3">SABERES</th><th rowspan="2" style="width:15%">CRITERIO DE DESEMPEÑO<br>(QUÉ SE EVALÚA)</th><th rowspan="2" style="width:16%">EVIDENCIA DE DESEMPEÑO<br>(CÓMO SE EVALÚA)</th></tr>'
+      +'<tr><th style="width:17%">CONOCER</th><th style="width:17%">HACER</th><th style="width:17%">SER</th></tr>'
+      +'<tr><td class="just">'+_rgEsc(e.competencia||'')+'</td><td>'+ul(e.saber_conocer)+'</td><td>'+ul(e.saber_hacer)+'</td><td>'+ul(e.saber_ser)+'</td><td class="just">'+_rgEsc(e.criterio_desempeno||'')+'</td><td>'+ul(e.evidencias)+'</td></tr>'
+      +'<tr><td colspan="6"><b>ESTRATEGIA DE ENSEÑANZA:</b> '+ul(e.estrategia_ensenanza)+'</td></tr>'
+      +'</table>';
+  });
+  const firmas=(AV.docentes||[]).filter(function(d){ return (d.profesor_nombre||'').trim(); });
+  const fhtml=firmas.length?('<div class="firmas">'+firmas.map(function(d){ return '<div class="firma">'+_rgEsc(((d.profesor_grado||'')+' '+d.profesor_nombre).trim())+'<br><b>PROFESOR</b></div>'; }).join('')+'</div>'):'';
+  const w=window.open('','_blank');
+  if(!w){ alert('El navegador bloqueó la ventana de impresión. Permitila e intentá de nuevo.'); return; }
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Cuadro de Desagregación</title><style>'
+    +'@page{size:letter landscape;margin:1.5cm} body{font-family:Arial,Helvetica,sans-serif;color:#000;font-size:10px}'
+    +'.memb{text-align:center;font-weight:bold;font-size:10px;line-height:1.35}'
+    +'.tit0{text-align:center;font-weight:bold;font-size:14px;margin:10px 0}'
+    +'table.mx{width:100%;border-collapse:collapse;margin-bottom:16px;page-break-inside:avoid}'
+    +'.mx th,.mx td{border:1px solid #000;padding:4px;vertical-align:top;font-size:9.5px}'
+    +'.mx th{text-align:center;background:#eee} .tit{font-size:11px} .just{text-align:justify}'
+    +'ul{margin:2px 0 2px 14px;padding:0} li{margin-bottom:1px}'
+    +'.firmas{display:flex;justify-content:space-around;margin-top:70px;flex-wrap:wrap}'
+    +'.firma{text-align:center;font-size:10px;border-top:1px solid #000;padding-top:3px;min-width:220px;margin:25px 10px 0}'
+    +'</style></head><body>'
+    +'<div class="memb">FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES<br>ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO<br>&ldquo;MCAL. ANDR&Eacute;S DE SANTA CRUZ&rdquo;<br>BOLIVIA</div>'
+    +'<div class="tit0">CUADRO DE DESAGREGACI&Oacute;N</div>'
+    +body+fhtml
+    +'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},400);};</scr'+'ipt>'
+    +'</body></html>');
+  w.document.close();
 }
 async function avDesagGuardar(btn){
   if(!AV.cid) return;
