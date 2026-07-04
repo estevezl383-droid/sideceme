@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.143</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.144</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -16040,7 +16040,7 @@ function avTextoAbrir(){
     +'<div id="avc-tf-prog" class="rg-meta" style="min-height:14px;margin-bottom:4px"></div>'
     +'<textarea id="avc-texto-final" rows="8" style="width:100%;resize:vertical;font-size:11px" placeholder="Pegá aquí el texto completo generado por la IA (o cargá un documento con el botón de arriba)…\nEntiende: CAPÍTULO 1: Título · 1.1 Tema · TÍTULOS EN MAYÚSCULAS · INTRODUCCIÓN / CONCLUSIONES / GLOSARIO / BIBLIOGRAFÍA · listas con - · **negrilla** · tablas | a | b |" oninput="AV._textoFinal=this.value">'+_rgEsc(AV._textoFinal||'')+'</textarea>'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">'
-    +'<button class="btn-primary" onclick="avTextoFinalWord()">⬇ WORD oficial (carátula + índice + texto)</button>'
+    +'<button class="btn-primary" onclick="avTextoFinalWord()">⬇ WORD oficial (.docx: carátula + índice + texto)</button>'
     +'<button class="btn-secondary" onclick="avTextoFinalPDF()">🖨️ Imprimir / PDF</button>'
     +'</div>'
     +'<div class="rg-meta" style="margin-top:4px">El WORD es la versión oficial: Word numera el pie al imprimir. Para el PDF con numeración de pie, abrí el Word y usá "Guardar como PDF". Las páginas del índice son estimadas — verificalas en Word y corregí ahí si alguna corre.</div>'
@@ -16368,17 +16368,217 @@ async function avTextoFinalCargar(inp){
   }catch(e){ if(prog) prog.textContent='⚠️ '+(e&&e.message||e); }
   inp.value='';
 }
-function avTextoFinalWord(){
-  if(!(AV._textoFinal||'').trim()){ alert('Pegá primero el texto generado por la IA en el recuadro.'); return; }
-  const html=_avTextoFinalHTML('word');
-  if(!html){ alert('No pude interpretar el texto pegado.'); return; }
-  const m=(AV.data&&AV.data.materia)||{};
-  const blob=new Blob([_avMhtmlDoc(html)],{type:'application/msword'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='TEXTO '+String(m.nombre_uc||'DE LA MATERIA').toUpperCase()+'.doc';
-  document.body.appendChild(a); a.click();
-  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },800);
+// ===== v2.9.144: DOCUMENTO OFICIAL como .docx NATIVO (OOXML real, no HTML) =====
+// Word de Microsoft rinde esto EXACTO: carátula con MARCO de página (w:pgBorders, hoja completa),
+// membrete Arial 10 cargado a la IZQUIERDA (BOLIVIA subrayado), índice con líder de puntos (tab dot)
+// y números a la derecha, texto con títulos Arial 16, subtítulos I.-/A.- (romano/letra reinicia por
+// capítulo, bold+subrayado, sangría 1cm por nivel) y PÁRRAFOS alineados bajo el texto del subtítulo,
+// cada capítulo en HOJA NUEVA, y numeración que ARRANCA EN LA INTRODUCCIÓN (3 secciones de Word).
+function _xE(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]; }); }
+const _AR='<w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial"/>';
+// runs con **negrilla** y *itálica* embebidas
+function _dxRuns(text, base){
+  base=base||{};
+  const parts=[]; let s=String(text||'');
+  const re=/(\*\*([^*]+)\*\*|\*([^*]+)\*|`([^`]+)`)/g; let last=0,m;
+  while((m=re.exec(s))){
+    if(m.index>last) parts.push([s.slice(last,m.index),{}]);
+    if(m[2]!=null) parts.push([m[2],{b:true}]);
+    else if(m[3]!=null) parts.push([m[3],{i:true}]);
+    else parts.push([m[4],{}]);
+    last=re.lastIndex;
+  }
+  if(last<s.length) parts.push([s.slice(last),{}]);
+  if(!parts.length) parts.push([s,{}]);
+  return parts.map(function(p){
+    const o=Object.assign({},base,p[1]);
+    let rpr='<w:rPr>'+_AR+(o.b?'<w:b/><w:bCs/>':'')+(o.i?'<w:i/><w:iCs/>':'')+(o.u?'<w:u w:val="single"/>':'')
+      +'<w:sz w:val="'+(o.sz||24)+'"/><w:szCs w:val="'+(o.sz||24)+'"/></w:rPr>';
+    return '<w:r>'+rpr+'<w:t xml:space="preserve">'+_xE(o.caps?String(p[0]).toUpperCase():p[0])+'</w:t></w:r>';
+  }).join('');
+}
+function _dxP(runsXml, o){
+  o=o||{};
+  let pPr='<w:pPr>';
+  if(o.pStyleSect) pPr+=o.pStyleSect;   // sectPr para cerrar sección (va primero)
+  if(o.keepNext) pPr+='<w:keepNext/>';
+  if(o.pageBreak) pPr+='<w:pageBreakBefore/>';
+  if(o.pBdr) pPr+='<w:pBdr><w:bottom w:val="double" w:sz="6" w:space="1" w:color="000000"/></w:pBdr>';
+  if(o.tabRight) pPr+='<w:tabs><w:tab w:val="right" w:leader="dot" w:pos="'+o.tabRight+'"/></w:tabs>';
+  if(o.ind!=null||o.hang!=null||o.right!=null) pPr+='<w:ind'+(o.ind!=null?' w:left="'+o.ind+'"':'')+(o.right!=null?' w:right="'+o.right+'"':'')+(o.hang!=null?' w:hanging="'+o.hang+'"':'')+'/>';
+  pPr+='<w:spacing'+(o.before!=null?' w:before="'+o.before+'"':'')+' w:after="'+(o.after!=null?o.after:0)+'"'+(o.line?' w:line="'+o.line+'" w:lineRule="auto"':'')+'/>';
+  pPr+='<w:jc w:val="'+(o.jc||'left')+'"/></w:pPr>';
+  return '<w:p>'+pPr+(runsXml||'')+'</w:p>';
+}
+function _dxSect(o){
+  o=o||{};
+  let s='<w:sectPr>';
+  if(o.footer) s+='<w:footerReference w:type="default" r:id="rIdFooter"/>';
+  s+='<w:pgSz w:w="12240" w:h="15840"/>';
+  s+='<w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1701" w:header="708" w:footer="708" w:gutter="0"/>';
+  if(o.borders) s+='<w:pgBorders w:offsetFrom="page"><w:top w:val="single" w:sz="14" w:space="24" w:color="000000"/><w:left w:val="single" w:sz="14" w:space="24" w:color="000000"/><w:bottom w:val="single" w:sz="14" w:space="24" w:color="000000"/><w:right w:val="single" w:sz="14" w:space="24" w:color="000000"/></w:pgBorders>';
+  if(o.start!=null) s+='<w:pgNumType w:start="'+o.start+'"/>';
+  s+='<w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr>';
+  return s;
+}
+const _TAB='<w:r><w:rPr>'+_AR+'</w:rPr><w:tab/></w:r>';
+function _dxMembrete(){
+  const L=[['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES',0],['ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO',0],['“MCAL. ANDRÉS DE SANTA CRUZ”',0],['BOLIVIA',1]];
+  return L.map(function(l){ return _dxP(_dxRuns(l[0],{b:true,sz:20,u:!!l[1]}),{jc:'left',after:0}); }).join('');
+}
+function _dxImgEscudo(){
+  const cx=2520000, cy=1734000; // ~7cm x 4.82cm (escudo 404x278)
+  return '<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:after="0"/></w:pPr><w:r><w:rPr>'+_AR+'</w:rPr><w:drawing>'
+    +'<wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="'+cx+'" cy="'+cy+'"/><wp:docPr id="1" name="escudo"/>'
+    +'<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+    +'<pic:pic><pic:nvPicPr><pic:cNvPr id="1" name="escudo"/><pic:cNvPicPr/></pic:nvPicPr>'
+    +'<pic:blipFill><a:blip r:embed="rIdImg"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>'
+    +'<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'+cx+'" cy="'+cy+'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>'
+    +'</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>';
+}
+function _dxDline(){ return _dxP('',{ind:1701,right:1701,pBdr:true,before:80,after:80}); }
+function _dxVacio(n){ let o=''; for(let i=0;i<(n||1);i++) o+=_dxP('',{after:0}); return o; }
+async function _avTextoFinalDocx(){
+  await ensureJSZip();
+  const m=(AV.data&&AV.data.materia)||{}, c=(AV.data&&AV.data.carpeta)||{};
+  const B=_avTextoFinalParse(AV._textoFinal||'');
+  if(!B.length) return null;
+  if(B[0].t!=='cap') B.unshift({t:'cap',n:'',x:String(m.nombre_uc||'TEXTO DE REFERENCIA').toUpperCase()});
+  const titulo=String(m.nombre_uc||'').toUpperCase()||'TEXTO DE REFERENCIA';
+  const codigo=m.codigo_uc||c.materia_codigo||'';
+  const gestion=c.gestion||(new Date()).getFullYear();
+  const CM=567, TABPOS=9405, NN=function(p){ return (p<10?'0':'')+p; };
+  // ── PASE 1: marcadores I.-/A.- por capítulo + estimación de páginas ──
+  const items=[]; let page=1, used=0, first=true, roman=0, letter=0;
+  const CH=_AV_CHARS_PAG;
+  B.forEach(function(b){
+    if(b.t==='cap'){ if(!first){ page++; used=0; } first=false; roman=0; used+=(b.n?260:200); items.push({t:'cap',n:b.n,x:b.x,page:page}); }
+    else if(b.t==='h2'){ roman++; letter=0; used+=70; items.push({t:'h2',mark:_avRoman(roman)+'.-',x:_avStripNum(b.x),page:page}); }
+    else if(b.t==='h3'){ letter++; used+=60; items.push({t:'h3',mark:(_AV_LET[(letter-1)%26]||'A')+'.-',x:_avStripNum(b.x),page:page}); }
+    else if(b.t==='tabla'){ items.push(Object.assign({page:page},b)); used+=b.filas.length*130; }
+    else { items.push(Object.assign({page:page},b)); used+=((b.x||'').length+40); }
+    while(used>=CH){ page++; used-=CH; }
+  });
+  const TT=page;
+  // ── SECCIÓN 1: CARÁTULA (marco de página) ──
+  let sec1=_dxMembrete()+_dxVacio(2)+_dxImgEscudo()+_dxVacio(1)
+    +_dxP(_dxRuns('“SER ANTES QUE PARECER”',{b:true,i:true,sz:26}),{jc:'center',after:0})+_dxVacio(3)
+    +_dxDline()
+    +_dxP(_dxRuns(titulo,{b:true,sz:48}),{jc:'center',before:120,after:120,line:288})
+    +(codigo?_dxP(_dxRuns('('+codigo+')',{b:true,sz:36}),{jc:'center',after:120}):'')
+    +_dxDline()+_dxVacio(3)
+    +_dxP(_dxRuns(String(gestion),{b:true,sz:40}),{jc:'center'});
+  sec1+=_dxP('',{pStyleSect:_dxSect({borders:true})});   // cierra sección 1 con marco
+  // ── SECCIÓN 2: ÍNDICE ──
+  let sec2=_dxMembrete()+_dxVacio(1)+_dxP(_dxRuns('ÍNDICE',{b:true,sz:28}),{jc:'center',after:200});
+  items.forEach(function(e){
+    if(e.t==='cap'){
+      if(e.n){ sec2+=_dxP(_dxRuns('CAPÍTULO '+e.n,{b:true,sz:24}),{jc:'center',before:160,after:0,keepNext:true})
+        +_dxP(_dxRuns(e.x,{b:true,sz:24}),{jc:'center',after:120,keepNext:true}); }
+      else { sec2+=_dxP(_dxRuns(e.x,{b:true,sz:24})+_TAB+_dxRuns(NN(e.page)+' – '+NN(TT),{sz:24}),{jc:'left',tabRight:TABPOS,after:60}); }
+    } else if(e.t==='h2'){ sec2+=_dxP(_dxRuns(e.mark+'  ',{b:true,sz:24})+_dxRuns(e.x,{b:true,sz:24})+_TAB+_dxRuns(NN(e.page)+' – '+NN(TT),{sz:24}),{jc:'left',tabRight:TABPOS,ind:0,after:40}); }
+    else if(e.t==='h3'){ sec2+=_dxP(_dxRuns(e.mark+'  ',{b:true,sz:24})+_dxRuns(e.x,{sz:24})+_TAB+_dxRuns(NN(e.page)+' – '+NN(TT),{sz:24}),{jc:'left',tabRight:TABPOS,ind:Math.round(CM*1.2),after:40}); }
+  });
+  sec2+=_dxP('',{pStyleSect:_dxSect({})});   // cierra sección 2 (sin marco, sin pie)
+  // ── SECCIÓN 3: TEXTO (numeración desde 1, pie "1 - N") ──
+  let sec3='', indent=0, firstCap=true;
+  items.forEach(function(b){
+    if(b.t==='cap'){
+      indent=0;
+      if(b.n){
+        sec3+=_dxP(_dxRuns('CAPÍTULO '+b.n,{b:true,sz:32}),{jc:'center',after:60,pageBreak:!firstCap,keepNext:true})
+          +_dxP(_dxRuns(b.x,{b:true,sz:32}),{jc:'center',after:200,keepNext:true});
+      } else {
+        sec3+=_dxP(_dxRuns(b.x,{b:true,sz:32}),{jc:'center',after:200,pageBreak:!firstCap,keepNext:true});
+      }
+      firstCap=false;
+    }
+    else if(b.t==='h2'){ indent=CM; sec3+=_dxP(_dxRuns(b.mark,{b:true,sz:24})+_TAB+_dxRuns(String(b.x).toUpperCase(),{b:true,u:true,sz:24}),{ind:CM,hang:CM,jc:'left',before:160,after:120,keepNext:true}); }
+    else if(b.t==='h3'){ indent=2*CM; sec3+=_dxP(_dxRuns(b.mark,{b:true,sz:24})+_TAB+_dxRuns(b.x,{b:true,u:true,sz:24}),{ind:2*CM,hang:CM,jc:'left',before:120,after:100,keepNext:true}); }
+    else if(b.t==='li'){ sec3+=_dxP(_dxRuns((b.num?b.num+') ':'– ')+b.x,{sz:24}),{ind:indent+Math.round(CM*0.6),hang:Math.round(CM*0.6),jc:'both',after:60}); }
+    else if(b.t==='cita'){ sec3+=_dxP(_dxRuns(b.x,{i:true,sz:24}),{ind:indent+Math.round(CM*0.6),jc:'both',after:120}); }
+    else if(b.t==='tabla'){ sec3+=_dxTabla(b, indent); }
+    else { sec3+=_dxP(_dxRuns(b.x,{sz:24}),{ind:indent,jc:'both',after:120,line:276}); }
+  });
+  const bodyXml='<w:body>'+sec1+sec2+sec3+_dxSect({footer:true,start:1})+'</w:body>';
+  // ── ensamblar el .docx (ZIP OOXML) ──
+  const NS='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+    +'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" '
+    +'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
+    +'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+    +'xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"';
+  const documentXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:document '+NS+'>'+bodyXml+'</w:document>';
+  const stylesXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+    +'<w:docDefaults><w:rPrDefault><w:rPr>'+_AR+'<w:sz w:val="24"/><w:szCs w:val="24"/><w:lang w:val="es-BO"/></w:rPr></w:rPrDefault>'
+    +'<w:pPrDefault><w:pPr><w:spacing w:after="120"/></w:pPr></w:pPrDefault></w:docDefaults>'
+    +'<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style></w:styles>';
+  const _f='<w:rPr>'+_AR+'<w:b/><w:bCs/><w:sz w:val="24"/></w:rPr>';
+  const footerXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+    +'<w:p><w:pPr><w:jc w:val="center"/></w:pPr>'
+    +'<w:r>'+_f+'<w:fldChar w:fldCharType="begin"/></w:r><w:r>'+_f+'<w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r>'+_f+'<w:fldChar w:fldCharType="end"/></w:r>'
+    +'<w:r>'+_f+'<w:t xml:space="preserve"> - </w:t></w:r>'
+    +'<w:r>'+_f+'<w:fldChar w:fldCharType="begin"/></w:r><w:r>'+_f+'<w:instrText xml:space="preserve"> SECTIONPAGES </w:instrText></w:r><w:r>'+_f+'<w:fldChar w:fldCharType="end"/></w:r>'
+    +'</w:p></w:ftr>';
+  const ctypes='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+    +'<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+    +'<Default Extension="xml" ContentType="application/xml"/>'
+    +'<Default Extension="jpeg" ContentType="image/jpeg"/>'
+    +'<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+    +'<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>'
+    +'<Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>';
+  const relsRoot='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    +'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>';
+  const relsDoc='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    +'<Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+    +'<Relationship Id="rIdFooter" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>'
+    +'<Relationship Id="rIdImg" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/image1.jpeg"/></Relationships>';
+  const zip=new JSZip();
+  zip.file('[Content_Types].xml',ctypes);
+  zip.folder('_rels').file('.rels',relsRoot);
+  const w=zip.folder('word');
+  w.file('document.xml',documentXml);
+  w.file('styles.xml',stylesXml);
+  w.file('footer1.xml',footerXml);
+  w.folder('_rels').file('document.xml.rels',relsDoc);
+  w.folder('media').file('image1.jpeg',_AV_ESCUDO_JPG,{base64:true});
+  return await zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+}
+// Tabla OOXML simple (encabezado sombreado si b.sep)
+function _dxTabla(b, indent){
+  const ncol=Math.max.apply(null,b.filas.map(function(f){ return f.length; }))||1;
+  const wcol=Math.round((9405-(indent||0))/ncol);
+  let t='<w:tbl><w:tblPr><w:tblStyle w:val="Normal"/><w:tblW w:w="'+(9405-(indent||0))+'" w:type="dxa"/>'
+    +(indent?'<w:tblInd w:w="'+indent+'" w:type="dxa"/>':'')
+    +'<w:tblBorders><w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/><w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/><w:insideH w:val="single" w:sz="4"/><w:insideV w:val="single" w:sz="4"/></w:tblBorders></w:tblPr>'
+    +'<w:tblGrid>'+new Array(ncol+1).join('<w:gridCol w:w="'+wcol+'"/>')+'</w:tblGrid>';
+  b.filas.forEach(function(f,fi){
+    const head=(b.sep&&fi===0);
+    t+='<w:tr>';
+    for(let ci=0;ci<ncol;ci++){
+      const cel=f[ci]||'';
+      t+='<w:tc><w:tcPr><w:tcW w:w="'+wcol+'" w:type="dxa"/>'+(head?'<w:shd w:val="clear" w:fill="D9D9D9"/>':'')+'<w:vAlign w:val="center"/></w:tcPr>'
+        +_dxP(_dxRuns(cel,{sz:21,b:head}),{jc:head?'center':'left',after:0})+'</w:tc>';
+    }
+    t+='</w:tr>';
+  });
+  t+='</w:tbl>'+_dxP('',{after:60});
+  return t;
+}
+async function avTextoFinalWord(){
+  if(!(AV._textoFinal||'').trim()){ alert('Pegá primero el texto generado por la IA (o cargá un documento) en el recuadro.'); return; }
+  const prog=document.getElementById('avc-tf-prog');
+  if(prog) prog.textContent='⏳ Armando el documento oficial (.docx)…';
+  try{
+    const blob=await _avTextoFinalDocx();
+    if(!blob){ if(prog) prog.textContent='⚠️ No pude interpretar el texto.'; return; }
+    const m=(AV.data&&AV.data.materia)||{};
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='TEXTO '+String(m.nombre_uc||'DE LA MATERIA').toUpperCase()+'.docx';
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1200);
+    if(prog) prog.textContent='✅ Documento .docx generado. Abrilo en Word; si querés, actualizá el índice (References → Update Table) para los números de página exactos.';
+  }catch(e){ if(prog) prog.textContent='⚠️ '+(e&&e.message||e); }
 }
 function avTextoFinalPDF(){
   if(!(AV._textoFinal||'').trim()){ alert('Pegá primero el texto generado por la IA en el recuadro.'); return; }
