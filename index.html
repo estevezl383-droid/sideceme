@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.138</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.139</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -15165,10 +15165,12 @@ function _avRenderSecciones(r){
      row('🧩','Desagregación (elementos de competencia)',n(r.elementos),'avDesagAbrir()')
     +row('📝','Cuadro de tareas',n(r.tareas),'avTareasAbrir()')
     +row('📅','Cuadro de distribución del tiempo',n(r.cronograma),'avCronoAbrir()')
+    +row('📖','Plan de Clases — ⬇ descargar WORD (.doc)',null,'avPlanClasesWord()')
+    +row('🧭','Hoja de Orientación — ⬇ descargar WORD (.doc)',null,'avHojaOrientWord()')
     +row('🎯','Evaluaciones',n(r.evaluaciones),'')
     +row('📘','Asistente de Texto de Referencia (índice + prompt)',null,'avTextoAbrir()')
     +row('📄','Informe de clases',r.informe?1:0,'')
-    +'<div style="font-size:11px;color:var(--text-muted);margin-top:2px">🔜 Las demás secciones y la generación de los 7 Word llegan en las próximas actualizaciones.</div>';
+    +'<div style="font-size:11px;color:var(--text-muted);margin-top:2px">🔜 Las demás secciones y la generación de los Word restantes llegan en las próximas actualizaciones.</div>';
 }
 function _avRenderFlow(c){
   const cont=document.getElementById('avc-flow');
@@ -16035,6 +16037,257 @@ async function avCronoGuardar(btn){
   const prog=document.getElementById('avc-crono-prog');
   if(prog) prog.textContent=r.ok?('✅ Guardado ('+rows.length+' filas) — esto alimenta el Word del Cuadro de Distribución'):'⚠️ '+(r.error||'no se pudo');
   if(r.ok&&AV.data){ AV.data.cronograma=rows; _avRenderSecciones(AV.data); }
+}
+// ============ v2.9.139: PLAN DE CLASES (C) + HOJA DE ORIENTACIÓN (D) en Word ============
+// Se generan SOLOS con lo ya guardado (datos generales + desagregación + cronograma + tareas +
+// evaluaciones + bibliografía + docentes), siguiendo los modelos oficiales MIC 2026.
+// La Hoja de Orientación = Plan de Clases SIN la sección METODOLOGÍA, CON la sección
+// "ASPECTOS PARA LA EVALUACIÓN FORMATIVA" y el aviso final de entrega. Formato: Arial 12,
+// membrete izquierda + SECCIÓN ACADÉMICA, título 16, jerarquía I.- A. 1. a. 1), pie "1 - N".
+const _AV_MES_AB=['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+const _AV_MES_FULL=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+const _AV_DIAS_CAP=['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+function _avFmil(fecha,hhmm){ const d=_avD(fecha); return String(d.getDate()).padStart(2,'0')+(hhmm||'')+'-'+_AV_MES_AB[d.getMonth()]+'-'+String(d.getFullYear()).slice(2); }
+function _avDiaCap(fecha){ return _AV_DIAS_CAP[_avD(fecha).getDay()]; }
+function _avPlanHojaData(){
+  const c=(AV.data&&AV.data.carpeta)||{}, m=(AV.data&&AV.data.materia)||{};
+  const g=function(id){ const el=document.getElementById(id); return el?el.value:''; };
+  const els=(AV._des&&AV._des.length)?AV._des:((AV.data&&AV.data.elementos)||[]);
+  const tareas=((AV._tar&&AV._tar.length)?AV._tar:((AV.data&&AV.data.tareas)||[])).map(function(t){ return {saber:t.saber||'conocer',lugar:t.lugar||'domicilio',modalidad:t.modalidad||'individual',descripcion:t.descripcion||''}; }).filter(function(t){ return t.descripcion.trim(); });
+  const crono=(((AV._crono&&AV._crono.length)?AV._crono:((AV.data&&AV.data.cronograma)||[]))).map(function(x){ return {fecha:(x.fecha||'').slice(0,10),periodo:x.periodo||1,actividad:x.actividad||''}; }).filter(function(x){ return x.fecha&&x.actividad.trim(); });
+  return {c:c,m:m,
+    comp:g('avc-comp')||c.competencia_general_uc||'',
+    just:g('avc-just')||c.justificacion||'',
+    desde:g('avc-desde')||(c.fecha_desde||'').slice(0,10),
+    hasta:g('avc-hasta')||(c.fecha_hasta||'').slice(0,10),
+    horas:g('avc-horas')||c.carga_horaria_real||m.horas_academicas||'',
+    els:els,tareas:tareas,crono:crono,
+    evs:(AV.data&&AV.data.evaluaciones)||[],
+    biblio:(c.bibliografia&&c.bibliografia.length)?c.bibliografia:((AV._cm&&AV._cm.biblio)||[])};
+}
+// Agrupa el cronograma por fecha y clasifica cada día (entrega / clase / formativa / trabajos / sumativa)
+function _avPlanDias(d){
+  const por={};
+  d.crono.forEach(function(r){ (por[r.fecha]=por[r.fecha]||[]).push(r); });
+  return Object.keys(por).sort().map(function(f){
+    const acts=por[f].sort(function(a,b){ return a.periodo-b.periodo; }).map(function(r){ return r.actividad; });
+    const txt=acts.join(' · ').toUpperCase();
+    let tipo='clase';
+    if(txt.indexOf('HOJA DE ORIENTACI')>=0) tipo='entrega';
+    else if(txt.indexOf('SUMATIVA')>=0&&txt.indexOf('ENTREGA DE TRABAJOS')<0) tipo='sumativa';
+    else if(txt.indexOf('FORMATIVA')>=0) tipo='formativa';
+    else if(txt.indexOf('ENTREGA DE TRABAJOS')>=0) tipo='trabajos';
+    return {fecha:f,tipo:tipo,acts:acts};
+  });
+}
+function _avPlanHojaDocHTML(tipo,d){
+  const esPlan=(tipo==='plan');
+  const titulo=esPlan?'PLAN DE CLASES':'HOJA DE ORIENTACIÓN';
+  const E=_rgEsc;
+  const ROM=['I','II','III','IV','V','VI','VII','VIII','IX','X','XI'];
+  const LET='ABCDEFGHIJKLMNOPQRSTUVWXYZ', LMIN='abcdefghijklmnopqrstuvwxyz';
+  const P=[];
+  let sec=0;
+  const S1=function(t){ P.push('<p class="l1">'+ROM[sec++]+'.-&nbsp;&nbsp;'+E(t)+'</p>'); };
+  const S2=function(i,t,plain){ P.push('<p class="l2'+(plain?'':' b')+'">'+LET[i%26]+'.&nbsp;&nbsp;'+E(t)+'</p>'); };
+  const S3=function(n,t,plain){ P.push('<p class="l3'+(plain?'':' b')+'">'+n+'.&nbsp;&nbsp;'+E(t)+'</p>'); };
+  const S4=function(i,t,plain){ P.push('<p class="l4'+(plain?'':' b')+'">'+LMIN[i%26]+'.&nbsp;&nbsp;'+E(t)+'</p>'); };
+  const S5=function(n,t){ P.push('<p class="l5">'+n+')&nbsp;&nbsp;'+E(t)+'</p>'); };
+  const TX=function(t,ind){ String(t||'').split('\n').map(function(x){ return x.trim(); }).filter(Boolean).forEach(function(x){ P.push('<p class="tx'+(ind||2)+'">'+E(x)+'</p>'); }); };
+  const evF=d.evs.find(function(e){ return e.tipo==='formativa'; });
+  const evS=d.evs.find(function(e){ return e.tipo==='sumativa'; });
+  const profRows=(AV.docentes||[]).filter(function(x){ return (x.profesor_nombre||'').trim(); });
+  // ── I. DATOS GENERALES ──
+  S1('DATOS GENERALES.');
+  const fechaImp=(d.desde?_avFmil(d.desde,'0800'):'—')+' al '+(d.hasta?_avFmil(d.hasta,'1300'):'—')+'.';
+  let dg='<table class="dg">';
+  dg+='<tr><td class="dgl">Módulo</td><td class="dgc">:</td><td>'+E((d.m.modulo||d.m.nombre_uc||'')+(d.m.codigo_modulo?(' ('+d.m.codigo_modulo+')'):''))+'</td></tr>';
+  dg+='<tr><td class="dgl">Unidad de Competencia</td><td class="dgc">:</td><td>'+E((d.m.nombre_uc||'')+((d.m.codigo_uc||d.c.materia_codigo)?(' ('+(d.m.codigo_uc||d.c.materia_codigo)+')'):''))+'</td></tr>';
+  dg+='<tr><td class="dgl">Carga Horaria</td><td class="dgc">:</td><td>'+E(String(d.horas||'—'))+' Horas.</td></tr>';
+  dg+='<tr><td class="dgl">Fecha de impartición</td><td class="dgc">:</td><td>'+E(fechaImp)+'</td></tr>';
+  if(profRows.length) profRows.forEach(function(p,i){ dg+='<tr><td class="dgl">'+(i===0?'Profesores':'')+'</td><td class="dgc">:</td><td>'+E(((p.profesor_grado||'')+' '+p.profesor_nombre).trim())+'</td></tr>'; });
+  else dg+='<tr><td class="dgl">Profesores</td><td class="dgc">:</td><td>—</td></tr>';
+  dg+='</table>'; P.push(dg);
+  // ── II. JUSTIFICACIÓN ──
+  S1('JUSTIFICACIÓN.'); TX(d.just||'—',2);
+  // ── III. COMPETENCIA GENERAL ──
+  S1('COMPETENCIA GENERAL DE LA U. C.'); TX(d.comp||'—',2);
+  // ── IV. CONTENIDO MÍNIMO ──
+  S1('CONTENIDO MÍNIMO.');
+  d.els.forEach(function(e,i){ P.push('<p class="l2">'+(i+1)+'.&nbsp;&nbsp;'+E(e.nombre||'')+'</p>'); });
+  // ── V. ELEMENTOS DE COMPETENCIA ──
+  S1('ELEMENTOS DE COMPETENCIA DE LA UNIDAD DE COMPETENCIA.');
+  d.els.forEach(function(e,i){ S2(i,'ELEMENTO DE COMPETENCIA Nº '+(i+1)+'.'); TX(e.competencia||e.nombre||'',2); });
+  // ── VI. DESCRIPCIÓN DE LAS ACTIVIDADES Y TAREAS ──
+  S1('DESCRIPCIÓN DE LAS ACTIVIDADES Y TAREAS.');
+  const dias=_avPlanDias(d);
+  const tDom=d.tareas.filter(function(t){ return t.lugar!=='aulas'; });
+  const tAula=d.tareas.filter(function(t){ return t.lugar==='aulas'; });
+  const asig=[];
+  dias.forEach(function(x,i){
+    const nx=dias[i+1];
+    if((x.tipo==='entrega'||x.tipo==='clase'||x.tipo==='formativa')&&nx&&nx.tipo!=='formativa'&&nx.tipo!=='sumativa'&&nx.tipo!=='trabajos') asig.push(i);
+  });
+  const chunk=asig.length?Math.ceil(tDom.length/asig.length):0;
+  const chunkDe=function(i){ const k=asig.indexOf(i); return (k<0||!chunk)?[]:tDom.slice(k*chunk,(k+1)*chunk); };
+  const diasClase=dias.map(function(x,i){ return x.tipo==='clase'?i:-1; }).filter(function(i){ return i>=0; });
+  const aulaDe=function(i){ const k=diasClase.indexOf(i); if(k<0||!tAula.length||!diasClase.length) return []; const c2=Math.ceil(tAula.length/diasClase.length); return tAula.slice(k*c2,(k+1)*c2); };
+  let nT=0;
+  dias.forEach(function(x,i){
+    const nx=dias[i+1];
+    S2(i,'Día '+_avDiaCap(x.fecha)+' '+_avFmil(x.fecha,(x.tipo==='entrega'?'1230':'0800'))+'.');
+    S3(1,'Actividades del Profesor.');
+    let pr=[];
+    if(x.tipo==='entrega') pr=['Entrega la hoja de orientación.','Supervisa la entrega de los textos de consulta.','Orienta sobre el desarrollo de las tareas.'];
+    else if(x.tipo==='sumativa') pr=['Aclara dudas antes del desarrollo de la Evaluación Sumativa.'];
+    else if(x.tipo==='trabajos') pr=['Recoge los trabajos asignados.','Orienta sobre la Evaluación Sumativa.'];
+    else{
+      if(x.tipo==='formativa') pr.push('Aclara dudas antes del desarrollo de la Evaluación Formativa.');
+      x.acts.filter(function(a){ return !(/FORMATIVA/i.test(a)); }).forEach(function(a){
+        String(a).split(/\s*[·—]\s*/).forEach(function(s){ s=s.trim(); if(s) pr.push(s+(/[.!?]$/.test(s)?'':'.')); });
+      });
+      pr.push('Recoge las tareas asignadas.');
+      pr.push('Conduce los razonamientos hacia los objetivos buscados.');
+      pr.push('Retroalimentación parcial.');
+    }
+    pr.forEach(function(t,k){ S4(k,t,true); });
+    S3(2,'Actividades del Oficial Superior Cursante.');
+    S4(0,'En aulas.');
+    let au=[];
+    if(x.tipo==='entrega') au=['Recoge la hoja de orientación.','Recoge el texto de referencia.','Solicita aclaraciones sobre las tareas a realizar.'];
+    else if(x.tipo==='sumativa') au=['Desarrollo de la Evaluación Sumativa.'];
+    else if(x.tipo==='trabajos') au=['Entrega de los trabajos asignados.'];
+    else{
+      if(x.tipo==='formativa') au.push('Desarrollo de la Evaluación Formativa.');
+      au.push('Atiende, participa y solicita aclaraciones sobre las dudas que puedan surgir de los aspectos expuestos.');
+      au.push('Emite juicios de valor, juicios críticos y/o conclusiones a requerimiento del profesor.');
+      au.push('Presentación y exposición de las tareas.');
+      aulaDe(i).forEach(function(t){ au.push(t.descripcion+(t.modalidad==='grupal'?' (trabajo grupal en aula).':'')); });
+    }
+    au.forEach(function(t,k){ S5(k+1,t); });
+    if(nx){
+      S4(1,'A domicilio, para el día '+_avDiaCap(nx.fecha)+' '+_avFmil(nx.fecha,'')+'.');
+      if(nx.tipo==='formativa') S5(1,'Estudia la U.C. para la Evaluación Formativa.');
+      else if(nx.tipo==='sumativa') S5(1,'Estudia la U.C. para la EVALUACIÓN SUMATIVA.');
+      else if(nx.tipo==='trabajos') S5(1,'Concluye la elaboración de los trabajos asignados para su entrega.');
+      else{
+        const ts=chunkDe(i);
+        let k0=1;
+        if(x.tipo==='entrega'){ S5(k0++,'Lee el texto de referencia sobre los temas de la primera Unidad de Aprendizaje.'); }
+        if(ts.length){
+          if(x.tipo!=='entrega') P.push('<p class="tx4">En forma individual, empleando las instrumentaciones, realice las siguientes tareas en base a los criterios que usted considere pertinentes:</p>');
+          ts.forEach(function(t){ nT++; S5(k0++,'Tarea Nº '+nT+': '+t.descripcion); });
+        } else if(x.tipo!=='entrega'){
+          S5(1,'Lee el texto de referencia sobre los temas de la siguiente clase y continúa los trabajos asignados.');
+        }
+      }
+    }
+  });
+  // ── VII. METODOLOGÍA (solo Plan de Clases) ──
+  if(esPlan){
+    S1('METODOLOGÍA.');
+    S2(0,'Métodos.');
+    S3(1,'Deductivo.');
+    TX('Se emplea este método porque el profesor de la Unidad de Competencia presenta conceptos, principios y/o definiciones referidas a '+(d.m.nombre_uc||'la materia')+', de los cuales se extraen conclusiones y aplicaciones particulares.',3);
+    S3(2,'Inductivo.');
+    TX('Emplea el profesor este método cuando se analizan casos y aplicaciones particulares que permiten, de manera secuencial, llegar a los conceptos y principios generales de la Unidad de Competencia.',3);
+    S2(1,'Técnicas.');
+    ['Técnica expositiva.','Trabajo por equipo.','Discusión dirigida.'].forEach(function(t,k){ S3(k+1,t,true); });
+    S2(2,'Procedimientos.');
+    ['1er. Paso: Presentación de la U.C.','2do. Paso: Motivación.','3er. Paso: Exposición de la U.C. por parte de los profesores.','4to. Paso: Trabajo dirigido.','5to. Paso: Exposición y socialización de las tareas.','6to. Paso: Retroalimentación.'].forEach(function(t){ TX(t,3); });
+  }
+  // ── EVALUACIONES ──
+  S1('EVALUACIONES.');
+  S2(0,'Formativa.');
+  TX(evF&&evF.fecha?('Se desarrolla el '+_avFmil(evF.fecha.slice(0,10),'0800')+', a cargo de la Sección Evaluaciones.'):'A cargo de la Sección Evaluaciones (fecha por confirmar).',2);
+  S2(1,'Sumativa.');
+  TX(evS&&evS.fecha?('Se desarrolla el '+_avFmil(evS.fecha.slice(0,10),'0800')+', a cargo de la Sección Evaluaciones.'):'A cargo de la Sección Evaluaciones (fecha por confirmar).',2);
+  // ── REFERENCIAS BIBLIOGRÁFICAS ──
+  S1('REFERENCIAS BIBLIOGRÁFICAS.');
+  S2(0,'Básica.');
+  const refs=(d.biblio&&d.biblio.length)?d.biblio:['Texto de referencia de la U.C. (ECEME, gestión '+(d.c.gestion||'')+').'];
+  refs.forEach(function(b,k){ S3(k+1,(typeof b==='string')?b:(b.titulo||b.nombre||String(b)),true); });
+  // ── ASPECTOS PARA LA EVALUACIÓN FORMATIVA + aviso (solo Hoja de Orientación) ──
+  if(!esPlan){
+    S1('ASPECTOS A SER CONSIDERADOS PARA LA EVALUACIÓN FORMATIVA.');
+    let idxs=[];
+    const fF=(evF&&evF.fecha)?evF.fecha.slice(0,10):null;
+    if(fF) d.crono.forEach(function(r){ if(r.fecha<fF){ const mt=r.actividad.match(/U\.?\s?A\.?\s*N[ºo°]?\s*(\d+)/i); if(mt) idxs.push(Number(mt[1])); } });
+    idxs=idxs.filter(function(v,i2,a){ return a.indexOf(v)===i2; });
+    const lista=idxs.length?idxs.map(function(n){ return d.els[n-1]; }).filter(Boolean):d.els;
+    lista.forEach(function(e,k){ P.push('<p class="l2">'+(k+1)+'.&nbsp;&nbsp;'+E(e.nombre||'')+'</p>'); });
+    const fEnt=(dias[0]&&dias[0].tipo==='entrega')?dias[0].fecha:d.desde;
+    P.push('<p class="avisoF">LA PRESENTE HOJA DE ORIENTACIÓN SERÁ ENTREGADA A LOS SS.OO.CC.'+(d.m.ciclo?(' DEL '+E(String(d.m.ciclo).toUpperCase())):'')+' EL '+(fEnt?_avFmil(fEnt,'1230'):'—')+'.</p>');
+  }
+  // ── Lugar y fecha ──
+  const hoy=new Date();
+  P.push('<p class="lugarF">Cochabamba, '+_AV_MES_FULL[hoy.getMonth()]+' '+hoy.getDate()+' de '+hoy.getFullYear()+'.</p>');
+  // ── Firmas (solo Plan de Clases; la Hoja termina con el aviso, como el modelo) ──
+  if(esPlan){
+    const cel=function(p){ return E(((p.profesor_grado||'')+' '+p.profesor_nombre).trim())+'<br><b>PROFESOR</b>'; };
+    let fh='<div class="firmasWrap">';
+    if(profRows.length){
+      fh+='<table class="firmas">';
+      for(let k=0;k<profRows.length;k+=2){
+        const par=profRows.slice(k,k+2);
+        fh+=(par.length===2)?('<tr><td class="firma">'+cel(par[0])+'</td><td class="firma">'+cel(par[1])+'</td></tr>'):('<tr><td class="firma" colspan="2">'+cel(par[0])+'</td></tr>');
+      }
+      fh+='</table>';
+    }
+    fh+='<p class="firmaSolo">'+E(FIRMA_JEFE_SAC.nombre)+'<br><b>'+E(FIRMA_JEFE_SAC.cargo)+'</b></p>';
+    fh+='<p class="firmaSolo">'+E(FIRMA_JEFE_ESTUDIOS.nombre)+'<br><b>'+E(FIRMA_JEFE_ESTUDIOS.cargo)+'</b></p>';
+    fh+='</div>';
+    P.push(fh);
+  }
+  const css='body,p,td,th,div{font-family:Arial,Helvetica,sans-serif;color:#000}'
+    +'body{font-size:12pt}'
+    +'p{margin:0 0 6pt;text-align:justify;line-height:1.25}'
+    +'.memb{text-align:left;font-weight:bold;font-size:10pt;line-height:1.35;margin:0}'
+    +'.membR{text-align:right;font-weight:bold;font-size:10pt;vertical-align:top}'
+    +'.tit0{text-align:center;font-weight:bold;font-size:16pt;margin:14pt 0 12pt}'
+    +'.l1{margin:10pt 0 6pt 22pt;text-indent:-22pt;font-weight:bold;text-align:left}'
+    +'.l2{margin:0 0 5pt 47pt;text-indent:-25pt}'
+    +'.l3{margin:0 0 5pt 72pt;text-indent:-25pt}'
+    +'.l4{margin:0 0 5pt 97pt;text-indent:-25pt}'
+    +'.l5{margin:0 0 5pt 122pt;text-indent:-25pt}'
+    +'.b{font-weight:bold}'
+    +'.tx2{margin:0 0 6pt 47pt}.tx3{margin:0 0 6pt 72pt}.tx4{margin:0 0 6pt 97pt}'
+    +'table.dg{border-collapse:collapse;margin:2pt 0 8pt 22pt}'
+    +'.dg td{border:none;padding:1pt 4pt;vertical-align:top;font-size:12pt;text-align:left}'
+    +'.dgl{font-weight:bold;width:175pt}.dgc{font-weight:bold;width:12pt}'
+    +'.avisoF{font-weight:bold;margin-top:12pt;text-align:justify}'
+    +'.lugarF{text-align:left;margin:14pt 0 0}'
+    +'.firmasWrap{page-break-inside:avoid;margin-top:8pt}'
+    +'table.firmas{width:100%;border-collapse:collapse;margin-top:26pt}'
+    +'.firma{text-align:center;font-size:12pt;padding-top:40pt;width:50%;border:none}'
+    +'.firmaSolo{text-align:center;margin:46pt 0 0}';
+  const memb='<table style="width:100%;border-collapse:collapse"><tr>'
+    +'<td style="border:none;width:65%;padding:0"><p class="memb">FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES<br>ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJ&Eacute;RCITO<br>&ldquo;MCAL. ANDR&Eacute;S DE SANTA CRUZ&rdquo;<br><u>BOLIVIA</u></p></td>'
+    +'<td style="border:none;width:35%;padding:0" class="membR">SECCI&Oacute;N ACAD&Eacute;MICA</td>'
+    +'</tr></table>';
+  return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>'+E(titulo)+'</title>'
+    +'<'+'!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml><![endif]--'+'>'
+    +'<style>@page SeccionPC{size:8.5in 11.0in;margin:2cm 2cm 2cm 3cm;mso-footer:f1;}'
+    +'div.SeccionPC{page:SeccionPC}'
+    +'p.pie{text-align:center;font-family:Arial;font-size:12pt;font-weight:bold;margin:0}'
+    +css+'</style></head><body>'
+    +'<div class="SeccionPC">'+memb+'<div class="tit0">'+E(titulo)+'</div>'+P.join('')
+    +'<div style="mso-element:footer" id="f1"><p class="pie"><span style="mso-field-code:\' PAGE \'"></span> - <span style="mso-field-code:\' NUMPAGES \'"></span></p></div>'
+    +'</div></body></html>';
+}
+function avPlanClasesWord(){ _avPlanHojaWord('plan'); }
+function avHojaOrientWord(){ _avPlanHojaWord('hoja'); }
+function _avPlanHojaWord(tipo){
+  const d=_avPlanHojaData();
+  if(!d.crono.length){ alert('Primero armá y guardá el 📅 Cuadro de Distribución del Tiempo — de ahí salen los días de clase del documento.'); return; }
+  if(!d.els.length){ alert('Primero cargá la 🧩 Desagregación (elementos de competencia) — es el contenido mínimo y los elementos del documento.'); return; }
+  const html=_avPlanHojaDocHTML(tipo,d);
+  const blob=new Blob(['﻿',html],{type:'application/msword'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=(tipo==='plan'?'PLAN DE CLASES':'HOJA DE ORIENTACION')+'.doc';
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },800);
 }
 function _avAdjCard(a){
   const comp=!!a.compartido, desc=(a.permitir_descarga!==false), enlace=!!a.enlace_url;
