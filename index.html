@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.142</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.143</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -16106,6 +16106,12 @@ function _avTextoFinalParse(raw){
     if((m=/^(\d+\.\d+)\.?\s+(.+)$/.exec(l))){ flushP(); B.push({t:'h2',x:m[1]+' '+m[2]}); continue; }
     if((m=/^\*\*(.{3,90})\*\*\.?$/.exec(l))){ flushP(); B.push({t:'h2',x:m[1]}); continue; }
     if(l.length<=75&&l===l.toUpperCase()&&/[A-ZÁÉÍÓÚÑ].*[A-ZÁÉÍÓÚÑ].*[A-ZÁÉÍÓÚÑ]/.test(l)&&!/^[-•*>|]/.test(l)){ flushP(); B.push({t:'h2',x:l}); continue; }
+    // v2.9.143: subtítulo Título-Caso (nivel A.-) SIN marcador: línea corta seguida de un párrafo largo
+    if(l.length<=65 && !/^[-•*>|#\d]/.test(l) && /^[A-ZÁÉÍÓÚÑ]/.test(l) && l!==l.toUpperCase()
+       && !/[,;:]$/.test(l) && !/\.\s+\S/.test(l) && l.split(/\s+/).length<=9){
+      let nxt=''; for(let j=i+1;j<lines.length;j++){ const s=lines[j].trim(); if(s){ nxt=s; break; } }
+      if(nxt.length>=70 && !/^[-•*>|#]/.test(nxt)){ flushP(); B.push({t:'h3',x:l.replace(/\.$/,'')}); continue; }
+    }
     if((m=/^\s*[-•*]\s+(.+)$/.exec(cru))){ flushP(); B.push({t:'li',x:m[1],niv:(/^\s{2,}|^\t/.test(cru)?2:1)}); continue; }
     if((m=/^\s*(\d+)[.)]\s+(.+)$/.exec(cru))){ flushP(); B.push({t:'li',x:m[2],niv:1,num:m[1]}); continue; }
     if((m=/^>\s?(.*)$/.exec(l))){ flushP(); if(m[1]) B.push({t:'cita',x:m[1]}); continue; }
@@ -16114,70 +16120,90 @@ function _avTextoFinalParse(raw){
   flushP(); flushT();
   return B;
 }
+// v2.9.143: documento OFICIAL fiel al modelo — carátula con MARCO (formato cerrado) + índice jerárquico
+// I.-/A.- + texto con membrete cargado a la IZQUIERDA (Arial 10, BOLIVIA subrayado), títulos Arial 16,
+// subtítulos romanos/letras (bold+subrayado), cada capítulo en HOJA NUEVA, párrafos con espacio.
+// Estilos tomados del skill informe-sugerencia-eceme (márgenes 2/2/2/3, membrete ind-right 3264 twips).
+const _AV_LET='ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+function _avStripNum(s){ return String(s||'').replace(/^\s*(\d+(\.\d+)*\.?|[A-Za-z]\.-|[IVXLCDM]{1,6}\.-)\s+/,'').trim(); }
 function _avTextoFinalHTML(modo){
   const m=(AV.data&&AV.data.materia)||{}, c=(AV.data&&AV.data.carpeta)||{};
   const B=_avTextoFinalParse(AV._textoFinal||'');
   if(!B.length) return null;
-  // si el texto no arranca con un capítulo/sección, le ponemos una portada de sección con la materia
   if(B[0].t!=='cap') B.unshift({t:'cap',n:'',x:String(m.nombre_uc||'TEXTO DE REFERENCIA').toUpperCase()});
   const titulo=String(m.nombre_uc||'').toUpperCase()||'TEXTO DE REFERENCIA';
   const codigo=m.codigo_uc||c.materia_codigo||'';
   const gestion=c.gestion||(new Date()).getFullYear();
   const escudoSrc=(modo==='word')?'file:///C:/sideceme/escudo.jpg':('data:image/jpeg;base64,'+_AV_ESCUDO_JPG);
-  // ── estimación de páginas del TEXTO (para el índice) ──
-  const CH=_AV_CHARS_PAG, NN=function(p){ return (p<10?'0':'')+p; };
-  let page=1, used=0, alguna=false; const idx=[];
-  B.forEach(function(b){
-    if(b.t==='cap'){ if(alguna){ page++; used=0; } alguna=true; used+=500; idx.push({tipo:'cap',n:b.n,x:b.x,pag:page}); }
-    else{
-      let n=0;
-      if(b.t==='h2'||b.t==='h3'){ n=60; idx.push({tipo:b.t,x:b.x,pag:page}); }
-      else if(b.t==='tabla') n=b.filas.length*120;
-      else n=(b.x||'').length+40;
-      used+=n; while(used>=CH){ page++; used-=CH; }
-    }
-  });
-  const TT=page;
-  const membrete='<p class="mb">FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES</p>'
-    +'<p class="mb">ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJ&Eacute;RCITO</p>'
-    +'<p class="mb">&ldquo;MCAL. ANDR&Eacute;S DE SANTA CRUZ&rdquo;</p>'
-    +'<p class="mb"><u>BOLIVIA</u></p>';
-  // ── 1) CARÁTULA (sin numeración) ──
-  const caratula=membrete
-    +'<p class="sp">&nbsp;</p><p class="sp">&nbsp;</p>'
-    +'<p style="text-align:center;margin:0"><img src="'+escudoSrc+'" width="300" alt="ECEME"></p>'
-    +'<p class="sp">&nbsp;</p>'
-    +'<p style="text-align:center;font-weight:bold;font-size:13pt;margin:0">&ldquo;SER ANTES QUE PARECER&rdquo;</p>'
-    +'<p class="sp">&nbsp;</p><p class="sp">&nbsp;</p><p class="sp">&nbsp;</p>'
-    +'<p style="text-align:center;font-weight:bold;font-size:26pt;margin:0;line-height:1.25">'+_rgEsc(titulo)+'</p>'
-    +(codigo?('<p class="sp">&nbsp;</p><p style="text-align:center;font-weight:bold;font-size:16pt;margin:0">('+_rgEsc(codigo)+')</p>'):'')
-    +'<p class="sp">&nbsp;</p><p class="sp">&nbsp;</p><p class="sp">&nbsp;</p><p class="sp">&nbsp;</p>'
-    +'<p style="text-align:center;font-weight:bold;font-size:18pt;margin:0">'+gestion+'</p>';
-  // ── 2) ÍNDICE (sin numeración; páginas "NN – TT" estimadas) ──
-  let indice=membrete+'<p class="sp">&nbsp;</p><p style="text-align:center;font-weight:bold;font-size:14pt;margin:0 0 10pt">&Iacute;NDICE</p>';
-  const fila=function(txt,pag,ind,bold){ return '<tr><td style="border:none;padding:1pt 2pt 1pt '+(ind*18)+'pt;font-size:12pt'+(bold?';font-weight:bold':'')+'">'+_avInline(txt)+'</td><td style="border:none;border-bottom:1pt dotted #000;width:100%"></td><td style="border:none;padding:1pt 0 1pt 6pt;font-size:12pt;white-space:nowrap">'+NN(pag)+' &ndash; '+NN(TT)+'</td></tr>'; };
-  let tOpen=false;
-  const tAbre=function(){ if(!tOpen){ indice+='<table style="width:100%;border-collapse:collapse">'; tOpen=true; } };
-  const tCierra=function(){ if(tOpen){ indice+='</table>'; tOpen=false; } };
-  idx.forEach(function(e){
-    if(e.tipo==='cap'){
-      if(e.n){ tCierra(); indice+='<p style="text-align:center;font-weight:bold;font-size:12pt;margin:12pt 0 2pt">CAP&Iacute;TULO '+e.n+'</p><p style="text-align:center;font-weight:bold;font-size:12pt;margin:0 0 6pt">'+_avInline(e.x)+'</p>'; }
-      else{ tAbre(); indice+=fila(e.x,e.pag,0,true); }
-    } else tAbre(), indice+=fila(e.x,e.pag,e.tipo==='h3'?2:1,false);
-  });
-  tCierra();
-  // ── 3) TEXTO (numerado "1 - N") ──
-  let texto=''; let primero=true;
+  const NN=function(p){ return (p<10?'0':'')+p; };
+  // ── PASE 1: asignar marcadores (I.-/A.- por capítulo) y estimar página de inicio de cada bloque ──
+  const CH=_AV_CHARS_PAG;
+  const items=[]; let page=1, used=0, first=true, roman=0, letter=0;
   B.forEach(function(b){
     if(b.t==='cap'){
+      if(!first){ page++; used=0; }         // cada capítulo/sección empieza en HOJA NUEVA
+      first=false; roman=0;
+      used+=(b.n?260:200);
+      items.push({t:'cap',n:b.n,x:b.x,page:page});
+    } else if(b.t==='h2'){
+      roman++; letter=0; used+=70;
+      items.push({t:'h2',mark:_avRoman(roman)+'.-',x:_avStripNum(b.x),page:page});
+    } else if(b.t==='h3'){
+      letter++; used+=60;
+      items.push({t:'h3',mark:(_AV_LET[(letter-1)%26]||'A')+'.-',x:_avStripNum(b.x),page:page});
+    } else if(b.t==='tabla'){ items.push(Object.assign({page:page},b)); used+=b.filas.length*130; }
+      else { items.push(Object.assign({page:page},b)); used+=((b.x||'').length+40); }
+    while(used>=CH){ page++; used-=CH; }
+  });
+  const TT=page;
+  // ── MEMBRETE cargado a la IZQUIERDA (centrado dentro de un bloque con margen derecho, como el skill) ──
+  const membrete='<div class="memb">'
+    +'<p class="mb">FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES</p>'
+    +'<p class="mb">ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJ&Eacute;RCITO</p>'
+    +'<p class="mb">&ldquo;MCAL. ANDR&Eacute;S DE SANTA CRUZ&rdquo;</p>'
+    +'<p class="mb"><u>BOLIVIA</u></p></div>';
+  const sp=function(n){ return new Array(n+1).join('<p class="sp">&nbsp;</p>'); };
+  const dline='<table class="dline"><tr><td></td></tr></table>'; // línea DOBLE (formato cerrado)
+  // ── 1) CARÁTULA (cubierta): dentro de un MARCO, sin numeración ──
+  const portada=membrete+sp(2)
+    +'<p class="ctr"><img src="'+escudoSrc+'" width="270" alt="ECEME"></p>'+sp(1)
+    +'<p class="lema">&ldquo;SER ANTES QUE PARECER&rdquo;</p>'+sp(3)
+    +dline
+    +'<p class="cartit">'+_rgEsc(titulo)+'</p>'
+    +(codigo?'<p class="carcod">('+_rgEsc(codigo)+')</p>':'')
+    +dline+sp(3)
+    +'<p class="caranio">'+gestion+'</p>';
+  const caratula='<table class="frame"><tr><td>'+portada+'</td></tr></table>';
+  // ── 2) ÍNDICE (sin numeración; jerarquía I.-/A.-; páginas "NN – TT" estimadas) ──
+  let indice=membrete+sp(1)+'<p class="idxh">&Iacute;NDICE</p>';
+  let tOpen=false;
+  const tAbre=function(){ if(!tOpen){ indice+='<table class="idx">'; tOpen=true; } };
+  const tCierra=function(){ if(tOpen){ indice+='</table>'; tOpen=false; } };
+  const filaIdx=function(mark,txt,pag,padpt,bold){
+    return '<tr><td class="im" style="padding-left:'+padpt+'pt'+(bold?';font-weight:bold':'')+'">'
+      +(mark?('<b>'+mark+'</b> '):'')+_avInline(txt)+'</td>'
+      +'<td class="idot"></td>'
+      +'<td class="ip">'+NN(pag)+' &ndash; '+NN(TT)+'</td></tr>'; };
+  items.forEach(function(e){
+    if(e.t==='cap'){
+      if(e.n){ tCierra(); indice+='<p class="idxcap">CAP&Iacute;TULO '+e.n+'</p><p class="idxcapt">'+_avInline(e.x)+'</p>'; }
+      else { tAbre(); indice+=filaIdx('',e.x,e.page,0,true); }
+    } else if(e.t==='h2'){ tAbre(); indice+=filaIdx(e.mark,e.x,e.page,16,true); }
+      else if(e.t==='h3'){ tAbre(); indice+=filaIdx(e.mark,e.x,e.page,40,false); }
+  });
+  tCierra();
+  // ── 3) TEXTO (numerado "1 - N"): membrete izq + título Arial 16 + I.-/A.- + párrafos con espacio ──
+  let texto=''; let primero=true;
+  items.forEach(function(b){
+    if(b.t==='cap'){
       texto+=(primero?'':'<br clear="all" style="page-break-before:always;mso-break-type:page-break">')
-        +membrete+'<p class="sp">&nbsp;</p>'
-        +(b.n?('<p style="text-align:center;font-weight:bold;font-size:14pt;margin:0 0 6pt">CAP&Iacute;TULO '+b.n+'</p>'):'')
-        +(b.x?('<p style="text-align:center;font-weight:bold;font-size:13pt;margin:0 0 12pt">'+_avInline(b.x)+'</p>'):'');
+        +membrete+sp(1)
+        +(b.n?'<p class="txcap">CAP&Iacute;TULO '+b.n+'</p>':'')
+        +'<p class="txtit">'+_avInline(b.x)+'</p>';
       primero=false;
     }
-    else if(b.t==='h2') texto+='<p class="th2">'+_avInline(b.x)+'</p>';
-    else if(b.t==='h3') texto+='<p class="th3">'+_avInline(b.x)+'</p>';
+    else if(b.t==='h2') texto+='<p class="th2"><b>'+b.mark+'</b>&nbsp;&nbsp;<b><u>'+_avInline(String(b.x).toUpperCase())+'</u></b></p>';
+    else if(b.t==='h3') texto+='<p class="th3"><b>'+b.mark+'</b>&nbsp;&nbsp;<b><u>'+_avInline(b.x)+'</u></b></p>';
     else if(b.t==='li') texto+='<p class="'+(b.niv===2?'tli2':'tli')+'">'+(b.num?(b.num+') '):'- ')+_avInline(b.x)+'</p>';
     else if(b.t==='cita') texto+='<p class="tct">'+_avInline(b.x)+'</p>';
     else if(b.t==='tabla'){
@@ -16192,36 +16218,64 @@ function _avTextoFinalHTML(modo){
   });
   const css='body,p,td,th,div{font-family:Arial,Helvetica,sans-serif;color:#000}'
     +'body{font-size:12pt}'
-    +'p{margin:0 0 6pt;text-align:justify;line-height:1.2}'
-    +'p.mb{text-align:center;font-weight:bold;font-size:10pt;margin:0;line-height:1.35}'
-    +'p.sp{margin:0;font-size:12pt}'
-    +'p.tp{text-align:justify}'
-    +'p.th2{font-weight:bold;text-align:left;margin:10pt 0 5pt}'
-    +'p.th3{font-weight:bold;font-style:italic;text-align:left;margin:8pt 0 4pt}'
-    +'p.tli{margin:0 0 3pt 22pt;text-indent:-12pt;text-align:justify}'
-    +'p.tli2{margin:0 0 3pt 40pt;text-indent:-12pt;text-align:justify}'
-    +'p.tct{margin:4pt 0 6pt 30pt;font-style:italic;text-align:justify}'
+    +'p{margin:0 0 8pt;text-align:justify;line-height:1.3}'
+    +'.memb{margin-right:2.4cm}'                                   /* cargado a la IZQUIERDA (sin partir líneas) */
+    +'p.mb{text-align:center;font-weight:bold;font-size:10pt;margin:0;line-height:1.3;white-space:nowrap}'
+    +'p.sp{margin:0;font-size:12pt;text-align:center}'
+    +'p.ctr{text-align:center;margin:0}'
+    +'p.lema{text-align:center;font-weight:bold;font-style:italic;font-size:13pt;margin:0}'
+    +'p.cartit{text-align:center;font-weight:bold;font-size:24pt;margin:6pt 0;line-height:1.25}'
+    +'p.carcod{text-align:center;font-weight:bold;font-size:18pt;margin:4pt 0}'
+    +'p.caranio{text-align:center;font-weight:bold;font-size:20pt;margin:0}'
+    /* MARCO de la carátula (formato cerrado) */
+    +'table.frame{width:100%;height:23.5cm;border:1.25pt solid #000;border-collapse:collapse;mso-height-rule:atLeast}'
+    +'table.frame>tbody>tr>td{border:1.25pt solid #000;vertical-align:top;padding:0.7cm 0.8cm}'
+    /* línea DOBLE (dos rayas) */
+    +'table.dline{width:62%;margin:8pt auto;border-collapse:collapse}'
+    +'table.dline td{border-top:3px double #000;font-size:1pt;line-height:1pt;padding:0}'
+    /* ÍNDICE */
+    +'p.idxh{text-align:center;font-weight:bold;font-size:14pt;margin:6pt 0 12pt}'
+    +'p.idxcap{text-align:center;font-weight:bold;font-size:12pt;margin:12pt 0 2pt}'
+    +'p.idxcapt{text-align:center;font-weight:bold;font-size:12pt;margin:0 0 8pt}'
+    +'table.idx{width:100%;border-collapse:collapse}'
+    +'table.idx td{border:none;font-size:12pt;padding:2pt 0;vertical-align:bottom}'
+    +'.idx .im{text-align:left;white-space:nowrap;padding-right:6pt}'
+    +'.idx .idot{border-bottom:1pt dotted #000;width:100%}'
+    +'.idx .ip{white-space:nowrap;padding-left:8pt;text-align:right}'
+    /* TÍTULOS del texto (Arial 16) */
+    +'p.txcap{text-align:center;font-weight:bold;font-size:16pt;margin:0 0 6pt}'
+    +'p.txtit{text-align:center;font-weight:bold;font-size:16pt;margin:0 0 14pt}'
+    /* subtítulos I.- / A.- con sangría francesa */
+    +'p.th2{text-align:left;margin:12pt 0 6pt 1cm;text-indent:-1cm}'
+    +'p.th3{text-align:left;margin:8pt 0 5pt 2cm;text-indent:-1cm}'
+    +'p.tp{text-align:justify;text-indent:0}'
+    +'p.tli{margin:0 0 4pt 1.6cm;text-indent:-0.5cm;text-align:justify}'
+    +'p.tli2{margin:0 0 4pt 2.4cm;text-indent:-0.5cm;text-align:justify}'
+    +'p.tct{margin:4pt 0 8pt 1.5cm;font-style:italic;text-align:justify}'
     +'table.ttb{width:100%;border-collapse:collapse;margin:6pt 0 10pt;page-break-inside:avoid}'
     +'.ttb th,.ttb td{border:1pt solid #000;padding:3pt 5pt;font-size:10.5pt;vertical-align:top;text-align:left}'
     +'.ttb th{background:#D9D9D9;text-align:center;font-weight:bold}'
     +'p.pie{text-align:center;font-family:Arial;font-size:12pt;font-weight:bold;margin:0}';
   if(modo==='word'){
+    // 3 secciones (portada / índice / texto). El salto de sección se fuerza con el <br page-break> que
+    // Word interpreta como corte de sección al cambiar el div.page. Solo la sección TEXTO lleva pie "1 - N".
+    const brk='<br clear="all" style="page-break-before:always">';
     return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>'+_rgEsc(titulo)+'</title>'
       +'<'+'!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml><![endif]--'+'>'
       +'<style>'
-      +'@page SecCA{size:8.5in 11.0in;margin:2cm 2cm 2cm 3cm;}div.SecCA{page:SecCA}'
+      +'@page SecCA{size:8.5in 11.0in;margin:2cm 2cm 2cm 3cm;mso-header-margin:1cm;mso-footer-margin:1cm;}div.SecCA{page:SecCA}'
       +'@page SecIN{size:8.5in 11.0in;margin:2cm 2cm 2cm 3cm;}div.SecIN{page:SecIN}'
       +'@page SecTX{size:8.5in 11.0in;margin:2cm 2cm 2cm 3cm;mso-footer:ftx;mso-page-numbering-start:1;}div.SecTX{page:SecTX}'
       +css+'</style></head><body>'
       +'<div class="SecCA">'+caratula+'</div>'
-      +'<div class="SecIN">'+indice+'</div>'
-      +'<div class="SecTX">'+texto
+      +brk+'<div class="SecIN">'+indice+'</div>'
+      +brk+'<div class="SecTX">'+texto
       +'<div style="mso-element:footer" id="ftx"><p class="pie"><span style="mso-field-code:\' PAGE \'"></span> - <span style="mso-field-code:\' SECTIONPAGES \'"></span></p></div>'
       +'</div></body></html>';
   }
   // modo impresión/PDF del navegador (el pie oficial "1 - N" lo pone Word; acá va sin pie)
   return '<!DOCTYPE html><html><head><meta charset="utf-8"><title></title><style>'
-    +'@page{size:letter;margin:0} body{padding:2cm 2cm 2cm 3cm} '+css
+    +'@page{size:letter;margin:2cm 2cm 2cm 3cm} '+css
     +'</style></head><body>'
     +caratula+'<div style="page-break-before:always">'+indice+'</div><div style="page-break-before:always">'+texto+'</div>'
     +'<scr'+'ipt>window.onload=function(){setTimeout(function(){window.print();},400);};</scr'+'ipt>'
