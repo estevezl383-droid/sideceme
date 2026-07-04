@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.132 · DESAGREGACIÓN: NADA queda en blanco NUNCA — los campos vacíos se rellenan SOLOS al abrir la sección y también antes de imprimir o descargar. NUEVO: ⬇ DESCARGAR EN WORD (.doc, apaisado) con el FORMATO OFICIAL: todo Arial, membrete Arial 10 negrilla a la IZQUIERDA con BOLIVIA subrayado, título Arial 16 negrilla, pie de página automático "1 - N" Arial 12 negrilla. La impresión ya NO muestra la fecha ni "about:blank" del navegador. + v2.9.131 aviso y resaltado al insertar sugerencias ★.</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.133 · FORMATO FINO del Cuadro de Desagregación: listas con GUION "-" (sangría francesa, texto justificado, pegado a la izquierda — ya no viñetas centradas), letra de la matriz Arial 10, la FIRMA nunca queda sola en una hoja (viaja pegada al último cuadro), y con varios profesores las firmas van de a 2 por fila (la impar, centrada abajo). + v2.9.132: nada en blanco automático, descarga WORD (.doc) apaisado con membrete oficial y pie "1 - N".</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -15683,32 +15683,46 @@ function _avDesagDocHTML(paraWord){
   const des=AV._des||[];
   const m=(AV.data&&AV.data.materia)||{};
   const comp=document.getElementById('avc-comp').value||'';
-  const ul=function(a){ return (a&&a.length)?('<ul>'+a.map(function(x){ return '<li>'+_rgEsc(x)+'</li>'; }).join('')+'</ul>'):'&nbsp;'; };
-  let body='';
+  // guiones "-" con sangría francesa, texto JUSTIFICADO, pegado a la izquierda (formato oficial, no viñetas centradas)
+  const ul=function(a){ return (a&&a.length)?a.map(function(x){ return '<p class="gi">- '+_rgEsc(x)+'</p>'; }).join(''):'&nbsp;'; };
+  const tablas=[];
   des.forEach(function(e,i){
-    body+='<table class="mx">'
+    tablas.push('<table class="mx">'
       +'<tr><th colspan="6" class="tit">COMPETENCIA GENERAL DE LA U.C. '+_rgEsc(String(m.nombre_uc||'').toUpperCase())+'</th></tr>'
       +'<tr><td colspan="6" class="just">'+_rgEsc(comp)+'</td></tr>'
       +'<tr><th rowspan="2" style="width:17%">ELEMENTO DE COMPETENCIA<br>Nº '+(i+1)+'</th><th colspan="3">SABERES</th><th rowspan="2" style="width:15%">CRITERIO DE DESEMPEÑO<br>(QUÉ SE EVALÚA)</th><th rowspan="2" style="width:16%">EVIDENCIA DE DESEMPEÑO<br>(CÓMO SE EVALÚA)</th></tr>'
       +'<tr><th style="width:17%">CONOCER</th><th style="width:17%">HACER</th><th style="width:17%">SER</th></tr>'
       +'<tr><td class="just">'+_rgEsc(e.competencia||'')+'</td><td>'+ul(e.saber_conocer)+'</td><td>'+ul(e.saber_hacer)+'</td><td>'+ul(e.saber_ser)+'</td><td class="just">'+_rgEsc(e.criterio_desempeno||'')+'</td><td>'+ul(e.evidencias)+'</td></tr>'
       +'<tr><td colspan="6"><b>ESTRATEGIA DE ENSEÑANZA:</b> '+ul(e.estrategia_ensenanza)+'</td></tr>'
-      +'</table>';
+      +'</table>');
   });
+  const body=tablas.slice(0,-1).join('');
+  const ultima=tablas.length?tablas[tablas.length-1]:'';
+  // Firmas: de a 2 por fila; si queda una impar va sola centrada abajo (como el modelo con 3 profesores)
   const firmas=(AV.docentes||[]).filter(function(d){ return (d.profesor_nombre||'').trim(); });
-  const fhtml=firmas.length?('<table class="firmas"><tr>'+firmas.map(function(d){ return '<td class="firma">'+_rgEsc(((d.profesor_grado||'')+' '+d.profesor_nombre).trim())+'<br><b>PROFESOR</b></td>'; }).join('')+'</tr></table>'):'';
+  const fcel=function(d,cs){ return '<td class="firma"'+(cs?' colspan="2"':'')+'>'+_rgEsc(((d.profesor_grado||'')+' '+d.profesor_nombre).trim())+'<br><b>PROFESOR</b></td>'; };
+  let fhtml='';
+  if(firmas.length){
+    fhtml='<table class="firmas">';
+    for(let k=0;k<firmas.length;k+=2){
+      const par=firmas.slice(k,k+2);
+      fhtml+=(par.length===2)?('<tr>'+fcel(par[0])+fcel(par[1])+'</tr>'):('<tr>'+fcel(par[0],true)+'</tr>');
+    }
+    fhtml+='</table>';
+  }
   const css='body,p,td,th,li,div{font-family:Arial,Helvetica,sans-serif;color:#000}'
     +'body{font-size:10pt}'
     +'.memb{text-align:left;font-weight:bold;font-size:10pt;line-height:1.35}'
     +'.tit0{text-align:center;font-weight:bold;font-size:16pt;margin:12pt 0}'
     +'table.mx{width:100%;border-collapse:collapse;margin-bottom:14pt;page-break-inside:avoid}'
-    +'.mx th,.mx td{border:1px solid #000;padding:3pt 4pt;vertical-align:top;font-size:9pt}'
+    +'.mx th,.mx td{border:1px solid #000;padding:3pt 4pt;vertical-align:top;font-size:10pt}'
     +'.mx th{text-align:center;background:#eee} .tit{font-size:11pt} .just{text-align:justify}'
-    +'ul{margin:2pt 0 2pt 14pt;padding:0} li{margin-bottom:1pt}'
-    +'table.firmas{width:100%;margin-top:55pt;border-collapse:collapse}'
-    +'.firma{text-align:center;font-size:10pt;border-top:1px solid #000;padding-top:3pt;width:'+Math.floor(100/Math.max(firmas.length,1))+'%}';
+    +'.gi{margin:0 0 2pt 10pt;text-indent:-10pt;text-align:justify}'
+    +'table.firmas{width:100%;margin-top:30pt;border-collapse:collapse}'
+    +'.firma{text-align:center;font-size:10pt;padding-top:45pt;width:50%}';
   const cuerpo='<div class="memb">FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES<br>ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJ&Eacute;RCITO<br>&ldquo;MCAL. ANDR&Eacute;S DE SANTA CRUZ&rdquo;<br><u>BOLIVIA</u></div>'
-    +'<div class="tit0">CUADRO DE DESAGREGACI&Oacute;N</div>'+body+fhtml;
+    +'<div class="tit0">CUADRO DE DESAGREGACI&Oacute;N</div>'+body
+    +'<div style="page-break-inside:avoid">'+ultima+fhtml+'</div>'; // la firma viaja SIEMPRE pegada al último cuadro, nunca sola en una hoja
   if(paraWord){
     return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Cuadro de Desagregaci&oacute;n</title>'
       +'<'+'!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml><![endif]--'+'>'
