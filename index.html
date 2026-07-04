@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.141</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.142</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -16032,8 +16032,13 @@ function avTextoAbrir(){
     // v2.9.141: ARMAR EL TEXTO FINAL — pegar lo que devolvió la IA y descargar el documento oficial
     +'<div style="border-top:1px dashed rgba(212,175,55,.45);margin-top:14px;padding-top:10px">'
     +'<div style="font-weight:700;font-size:13px;margin-bottom:4px;color:var(--text-primary)">📄 Armar el TEXTO FINAL (documento oficial)</div>'
-    +'<div class="rg-meta" style="margin-bottom:6px">Pegá acá el texto que te devolvió la IA (tal cual, con sus capítulos — entiende markdown y texto plano). La app arma UN solo documento: <b>carátula con el escudo oficial</b> (sin numerar) + <b>índice</b> (páginas estimadas) + <b>texto</b> con membrete por capítulo y pie <b>"1 - N"</b>. Carta, márgenes 2/2/2/3.</div>'
-    +'<textarea id="avc-texto-final" rows="8" style="width:100%;resize:vertical;font-size:11px" placeholder="Pegá aquí el texto completo generado por la IA…\nEntiende: CAPÍTULO 1: Título · 1.1 Tema · TÍTULOS EN MAYÚSCULAS · INTRODUCCIÓN / CONCLUSIONES / GLOSARIO / BIBLIOGRAFÍA · listas con - · **negrilla** · tablas | a | b |" oninput="AV._textoFinal=this.value">'+_rgEsc(AV._textoFinal||'')+'</textarea>'
+    +'<div class="rg-meta" style="margin-bottom:6px">Pegá el texto que te devolvió la IA <b>o cargá un documento</b> (PDF, Word .docx o PowerPoint .pptx) y la app lo procesa. Arma UN solo documento: <b>carátula con el escudo oficial</b> (sin numerar) + <b>índice</b> (páginas estimadas) + <b>texto</b> con membrete por capítulo y pie <b>"1 - N"</b>. Carta, márgenes 2/2/2/3.</div>'
+    +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">'
+    +'<label class="btn-secondary" style="cursor:pointer;margin:0">📎 Cargar documento (PDF · Word · PowerPoint)<input type="file" accept=".pdf,.docx,.pptx,.txt,.md" style="display:none" onchange="avTextoFinalCargar(this)"></label>'
+    +'<span class="rg-meta" style="margin:0">o pegá el texto abajo ↓</span>'
+    +'</div>'
+    +'<div id="avc-tf-prog" class="rg-meta" style="min-height:14px;margin-bottom:4px"></div>'
+    +'<textarea id="avc-texto-final" rows="8" style="width:100%;resize:vertical;font-size:11px" placeholder="Pegá aquí el texto completo generado por la IA (o cargá un documento con el botón de arriba)…\nEntiende: CAPÍTULO 1: Título · 1.1 Tema · TÍTULOS EN MAYÚSCULAS · INTRODUCCIÓN / CONCLUSIONES / GLOSARIO / BIBLIOGRAFÍA · listas con - · **negrilla** · tablas | a | b |" oninput="AV._textoFinal=this.value">'+_rgEsc(AV._textoFinal||'')+'</textarea>'
     +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">'
     +'<button class="btn-primary" onclick="avTextoFinalWord()">⬇ WORD oficial (carátula + índice + texto)</button>'
     +'<button class="btn-secondary" onclick="avTextoFinalPDF()">🖨️ Imprimir / PDF</button>'
@@ -16231,6 +16236,83 @@ function _avMhtmlDoc(html){
     +'--'+BO+'\r\nContent-Type: image/jpeg\r\nContent-Transfer-Encoding: base64\r\nContent-Location: file:///C:/sideceme/escudo.jpg\r\n\r\n'
     +_AV_ESCUDO_JPG.replace(/(.{76})/g,'$1\r\n')+'\r\n'
     +'--'+BO+'--';
+}
+// v2.9.142: CARGAR DOCUMENTO (PDF / Word .docx / PowerPoint .pptx / txt·md) → texto para armar el documento oficial.
+// Reusa los motores locales (pdf.js, JSZip) — la app sigue SIN IA, solo extrae el texto ya escrito.
+async function _avPdfTextoRaw(buf){
+  await ensurePdfJs();
+  const doc=await pdfjsLib.getDocument({data:buf}).promise;
+  const chunks=[];
+  for(let p=1;p<=doc.numPages;p++){
+    const pg=await doc.getPage(p);
+    const tc=await pg.getTextContent();
+    const lines=[]; // {y,h,parts:[{x,s}]}
+    tc.items.forEach(function(it){
+      if(it.str==null) return;
+      const tr=it.transform||[1,0,0,1,0,0];
+      const x=tr[4], y=tr[5], h=it.height||Math.abs(tr[3])||10;
+      let ln=null;
+      for(let k=0;k<lines.length;k++){ if(Math.abs(lines[k].y-y)<=Math.max(2,h*0.4)){ ln=lines[k]; break; } }
+      if(!ln){ ln={y:y,h:h,parts:[]}; lines.push(ln); }
+      ln.parts.push({x:x,s:it.str});
+    });
+    lines.sort(function(a,b){ return b.y-a.y; });
+    const hs=lines.map(function(l){ return l.h; }).filter(Boolean).sort(function(a,b){ return a-b; });
+    const medH=hs.length?hs[Math.floor(hs.length/2)]:10;
+    let prevY=null;
+    lines.forEach(function(l){
+      const txt=l.parts.sort(function(a,b){ return a.x-b.x; }).map(function(p){ return p.s; }).join('').replace(/[ \t]+/g,' ').trim();
+      if(prevY!==null && (prevY-l.y)>medH*1.9) chunks.push('');
+      chunks.push(txt);
+      prevY=l.y;
+    });
+    chunks.push('');
+  }
+  return chunks.join('\n').replace(/\n{3,}/g,'\n\n').trim();
+}
+async function _avPptxTexto(buf){
+  await ensureJSZip();
+  const zip=await JSZip.loadAsync(buf);
+  const _dec=function(s){ return String(s).replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&#(\d+);/g,function(_m,n){ return String.fromCharCode(Number(n)); }); };
+  const names=Object.keys(zip.files).filter(function(n){ return /^ppt\/slides\/slide\d+\.xml$/.test(n); })
+    .sort(function(a,b){ return Number(a.match(/(\d+)/)[1])-Number(b.match(/(\d+)/)[1]); });
+  if(!names.length) throw new Error('No parece un .pptx válido');
+  const out=[];
+  for(let i=0;i<names.length;i++){
+    const xml=await zip.file(names[i]).async('string');
+    const paras=xml.split(/<a:p[ >]/).slice(1);
+    paras.forEach(function(p){
+      let m, texts=[]; const re=/<a:t>([\s\S]*?)<\/a:t>/g;
+      while((m=re.exec(p))){ texts.push(m[1]); }
+      const line=_dec(texts.join('')).replace(/\s+/g,' ').trim();
+      if(line) out.push(line);
+    });
+    out.push(''); // separador de diapositiva
+  }
+  return out.join('\n').replace(/\n{3,}/g,'\n\n').trim();
+}
+async function _avExtraerTextoArchivo(file){
+  const name=(file.name||'').toLowerCase();
+  const buf=await file.arrayBuffer();
+  if(/\.pdf$/.test(name))  return await _avPdfTextoRaw(buf);
+  if(/\.docx$/.test(name)) return (await _avDocxTexto(buf)).join('\n');
+  if(/\.pptx$/.test(name)) return await _avPptxTexto(buf);
+  if(/\.(txt|md)$/.test(name)) return new TextDecoder('utf-8').decode(buf);
+  if(/\.(doc|ppt)$/.test(name)) throw new Error('El formato viejo .'+name.split('.').pop()+' no se puede leer en el navegador. Guardalo como .docx / .pptx o exportá a PDF y volvé a subirlo.');
+  throw new Error('Formato no soportado. Usá PDF, Word (.docx) o PowerPoint (.pptx).');
+}
+async function avTextoFinalCargar(inp){
+  const file=inp&&inp.files&&inp.files[0]; if(!file) return;
+  const prog=document.getElementById('avc-tf-prog');
+  if(prog) prog.textContent='⏳ Leyendo "'+file.name+'"…';
+  try{
+    const txt=await _avExtraerTextoArchivo(file);
+    if(!txt||!txt.trim()){ if(prog) prog.textContent='⚠️ No se pudo extraer texto de "'+file.name+'". Si es un PDF escaneado (imágenes), no tiene texto seleccionable.'; inp.value=''; return; }
+    AV._textoFinal=txt;
+    const ta=document.getElementById('avc-texto-final'); if(ta) ta.value=txt;
+    if(prog) prog.textContent='✅ Cargado "'+file.name+'" ('+txt.length.toLocaleString('es-BO')+' caracteres). Revisá el texto abajo y descargá el WORD oficial.';
+  }catch(e){ if(prog) prog.textContent='⚠️ '+(e&&e.message||e); }
+  inp.value='';
 }
 function avTextoFinalWord(){
   if(!(AV._textoFinal||'').trim()){ alert('Pegá primero el texto generado por la IA en el recuadro.'); return; }
