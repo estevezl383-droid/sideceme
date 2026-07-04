@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.139</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.140</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6032,9 +6032,9 @@ input::placeholder, textarea::placeholder {
     <div class="section-label">🧩 Secciones de la carpeta</div>
     <div id="av-secciones" style="display:flex;flex-direction:column;gap:8px;margin-bottom:8px"></div>
     <div id="avc-desag" style="margin-bottom:12px"></div>
+    <div id="avc-texto" style="margin-bottom:12px"></div><!-- v2.9.140: el Texto va DEBAJO de la Desagregación y ARRIBA de las Tareas (orden pedido por Sergio) -->
     <div id="avc-tareas" style="margin-bottom:12px"></div>
     <div id="avc-crono" style="margin-bottom:12px"></div>
-    <div id="avc-texto" style="margin-bottom:12px"></div>
 
     <div class="section-label">📚 Materiales de Clase — compartir con el curso</div>
     <div style="border:1px solid var(--border,#2a3a52);border-radius:12px;padding:12px;margin-bottom:10px;background:rgba(31,111,92,.05)">
@@ -15163,12 +15163,12 @@ function _avRenderSecciones(r){
     +(cnt!=null?(' <span style="color:var(--text-muted)">· '+cnt+'</span>'):'')+'</span></button>';
   cont.innerHTML=
      row('🧩','Desagregación (elementos de competencia)',n(r.elementos),'avDesagAbrir()')
+    +row('📘','Texto de la materia — SUPER PROMPT (índice + práctica + actualidad)',null,'avTextoAbrir()')
     +row('📝','Cuadro de tareas',n(r.tareas),'avTareasAbrir()')
     +row('📅','Cuadro de distribución del tiempo',n(r.cronograma),'avCronoAbrir()')
     +row('📖','Plan de Clases — ⬇ descargar WORD (.doc)',null,'avPlanClasesWord()')
     +row('🧭','Hoja de Orientación — ⬇ descargar WORD (.doc)',null,'avHojaOrientWord()')
     +row('🎯','Evaluaciones',n(r.evaluaciones),'')
-    +row('📘','Asistente de Texto de Referencia (índice + prompt)',null,'avTextoAbrir()')
     +row('📄','Informe de clases',r.informe?1:0,'')
     +'<div style="font-size:11px;color:var(--text-muted);margin-top:2px">🔜 Las demás secciones y la generación de los Word restantes llegan en las próximas actualizaciones.</div>';
 }
@@ -15935,53 +15935,102 @@ async function avTareasGuardar(btn){
   if(r.ok&&AV.data){ AV.data.tareas=rows; _avRenderSecciones(AV.data); }
 }
 // v2.9.125: ASISTENTE DE TEXTO DE REFERENCIA — índice + extensión + prompt listo para copiar (sin IA en la app)
+// v2.9.140: SUPER PROMPT — índice con parte práctica + actualidad e innovación por capítulo, ideas del
+// profesor integradas (editable acá mismo), fechas del memorándum, bibliografía + reglamentos, y reglas
+// didácticas (aula invertida, casos, ejercicios resueltos). La app sigue SIN IA: el prompt se lleva a cualquiera.
 function avTextoAbrir(){
   const box=document.getElementById('avc-texto'); if(!box) return;
   const m=(AV.data&&AV.data.materia)||{}, c=(AV.data&&AV.data.carpeta)||{};
-  const els=(AV.data&&AV.data.elementos&&AV.data.elementos.length)?AV.data.elementos:((AV._cm&&AV._cm.elementos)||[]);
+  const els=(AV._des&&AV._des.length)?AV._des:((AV.data&&AV.data.elementos&&AV.data.elementos.length)?AV.data.elementos:((AV._cm&&AV._cm.elementos)||[]));
   if(!els.length){ box.innerHTML='<div class="rg-meta" style="margin:8px 0">📘 Para armar el índice y el prompt del Texto, primero subí el CONTENIDO MÍNIMO, tocá 🪄 y guardá los elementos (Desagregación).</div>'; return; }
-  const horas=Number(document.getElementById('avc-horas').value)||Number(m.horas_academicas)||30;
+  const gv=function(id){ const el=document.getElementById(id); return el?el.value:''; };
+  const horas=Number(gv('avc-horas'))||Number(m.horas_academicas)||30;
   const pags=Math.min(50,Math.max(15,Math.round(horas*0.83)));
   const biblio=(c.bibliografia&&c.bibliografia.length)?c.bibliografia:((AV._cm&&AV._cm.biblio)||[]);
+  // ideas: prioridad al textarea del asistente (si ya está abierto), después al campo 💡 de Datos Generales
+  const ideasPrev=document.getElementById('avc-texto-ideas');
+  const ideas=(ideasPrev?ideasPrev.value:(gv('avc-inic')||c.iniciativas||'')).trim();
+  const comp=gv('avc-comp')||c.competencia_general_uc||'';
+  const desde=gv('avc-desde')||(c.fecha_desde||'').slice(0,10);
+  const hasta=gv('avc-hasta')||(c.fecha_hasta||'').slice(0,10);
+  const evs=(AV.data&&AV.data.evaluaciones)||[];
+  const evF=evs.find(function(e){ return e.tipo==='formativa'; }), evS=evs.find(function(e){ return e.tipo==='sumativa'; });
+  const fmt=function(f){ try{ return _avFmil(f,''); }catch(e){ return f; } };
+  // ── ÍNDICE: capítulos desde la Desagregación + parte práctica + actualidad, glosario y biblio ──
   let indice='CARÁTULA\nÍNDICE\nINTRODUCCIÓN\n';
   els.forEach(function(e,i){
-    indice+='CAPÍTULO '+(i+1)+': '+String(e.nombre||'').toUpperCase()+'\n';
-    (e.saber_conocer||[]).forEach(function(s,j){ indice+='   '+(i+1)+'.'+(j+1)+' '+s+'\n'; });
+    const n=i+1;
+    indice+='CAPÍTULO '+n+': '+String(e.nombre||'').toUpperCase()+'\n';
+    let j=0;
+    (e.saber_conocer||[]).forEach(function(s){ j++; indice+='   '+n+'.'+j+' '+s+'\n'; });
+    j++; indice+='   '+n+'.'+j+' APLICACIÓN PRÁCTICA: caso de estudio y ejercicios resueltos\n';
+    j++; indice+='   '+n+'.'+j+' ACTUALIDAD E INNOVACIÓN: qué cambió y hacia dónde va el tema\n';
   });
-  indice+='CONCLUSIONES\nBIBLIOGRAFÍA';
-  const comp=document.getElementById('avc-comp').value||c.competencia_general_uc||'';
-  const prompt='Actuá como redactor de doctrina militar de la Escuela de Comando y Estado Mayor del Ejército de Bolivia (ECEME).\n\n'
-    +'Redactá el TEXTO DE REFERENCIA de la Unidad de Competencia "'+(m.nombre_uc||'')+'" ('+(m.codigo_uc||c.materia_codigo||'')+')'+(m.modulo?(', del Módulo '+m.modulo):'')+'.\n\n'
-    +'EXTENSIÓN: aproximadamente '+pags+' páginas (carga horaria: '+horas+' horas académicas).\n\n'
-    +'COMPETENCIA GENERAL DE LA U.C. (el texto debe desarrollarla por completo):\n'+comp+'\n\n'
-    +'CONTENIDO MÍNIMO OBLIGATORIO (todo debe quedar cubierto):\n'
-    +els.map(function(e,i){ return '- Elemento de competencia '+(i+1)+': '+(e.nombre||'')+'. '+(e.competencia||'')+((e.saber_conocer&&e.saber_conocer.length)?('\n  Temas (SABER): '+e.saber_conocer.join('; ')):'')+((e.saber_hacer&&e.saber_hacer.length)?('\n  Aplicaciones prácticas (HACER, el texto debe orientarlas): '+e.saber_hacer.join('; ')):''); }).join('\n')+'\n\n'
-    +'ÍNDICE A SEGUIR (respetalo tal cual):\n'+indice+'\n\n'
-    +'FUENTES A CONSULTAR Y CITAR:\n'
-    +(biblio.length?('- Bibliografía del contenido mínimo: '+biblio.join(' · ')+'\n'):'')
-    +'- Reglamentos (RC) y manuales vigentes de las FF.AA. y del Ejército de Bolivia aplicables a la materia.\n'
+  indice+='CONCLUSIONES\nGLOSARIO DE TÉRMINOS\nBIBLIOGRAFÍA Y REFERENCIAS';
+  // ── SUPER PROMPT ──
+  const sep=function(n,t){ return '══ '+n+'. '+t+' ══\n'; };
+  const prompt='Actuá como un equipo de dos expertos que trabajan juntos: (1) un REDACTOR DE DOCTRINA MILITAR de la Escuela de Comando y Estado Mayor del Ejército de Bolivia (ECEME) y (2) un PEDAGOGO especialista en educación militar por competencias y aula invertida. Tu misión: redactar el TEXTO DE REFERENCIA completo de la Unidad de Competencia "'+(m.nombre_uc||'')+'" ('+(m.codigo_uc||c.materia_codigo||'')+')'+(m.modulo?(', del Módulo '+m.modulo):'')+', para Oficiales Superiores Cursantes (SS.OO.CC.) del curso de Estado Mayor.\n\n'
+    +sep(1,'MARCO DE LA MATERIA (del memorándum de designación — el texto debe calzar con esto)')
+    +'- Carga horaria: '+horas+' horas académicas → extensión objetivo: ~'+pags+' páginas.\n'
+    +(desde?('- Impartición: del '+fmt(desde)+(hasta?(' al '+fmt(hasta)):'')+'.\n'):'')
+    +((evF&&evF.fecha)?('- Evaluación FORMATIVA: '+fmt(evF.fecha.slice(0,10))+' — hasta ahí el texto debe haber cubierto los primeros capítulos.\n'):'')
+    +((evS&&evS.fecha)?('- Evaluación SUMATIVA: '+fmt(evS.fecha.slice(0,10))+' — el texto completo se estudia para esta evaluación.\n'):'')
+    +'- El texto es la LECTURA PREVIA de cada clase (aula invertida): cada capítulo debe poder leerse y trabajarse en una semana.\n\n'
+    +sep(2,'COMPETENCIA GENERAL DE LA U.C. (el texto debe desarrollarla POR COMPLETO)')
+    +comp+'\n\n'
+    +sep(3,'CONTENIDO MÍNIMO OBLIGATORIO (nada de esto puede faltar — es el contenido crítico)')
+    +els.map(function(e,i){ return '- Elemento de competencia '+(i+1)+': '+(e.nombre||'')+'. '+(e.competencia||'')
+      +((e.saber_conocer&&e.saber_conocer.length)?('\n  · Temas CONOCER (teoría): '+e.saber_conocer.join('; ')):'')
+      +((e.saber_hacer&&e.saber_hacer.length)?('\n  · HACER (el texto debe enseñar a hacerlos): '+e.saber_hacer.join('; ')):'')
+      +((e.saber_ser&&e.saber_ser.length)?('\n  · SER (valores a promover en la redacción): '+e.saber_ser.join('; ')):''); }).join('\n')+'\n\n'
+    +sep(4,'ÍNDICE OBLIGATORIO (respetalo tal cual — no agregues ni quites capítulos)')
+    +indice+'\n\n'
+    +sep(5,'PARTE PRÁCTICA Y DIDÁCTICA (OBLIGATORIA en cada capítulo — el texto NO puede ser solo teoría)')
+    +'En CADA capítulo incluí:\n'
+    +'- Mínimo un EJEMPLO RESUELTO paso a paso, aplicado al ámbito militar boliviano.\n'
+    +'- Un CASO DE ESTUDIO breve (contexto boliviano o regional) con 3-4 preguntas guía para el debate en aula.\n'
+    +'- 2 o 3 EJERCICIOS DE APLICACIÓN para que el cursante resuelva (con solución comentada al final del capítulo).\n'
+    +'- CUADROS COMPARATIVOS, esquemas u organizadores gráficos (describilos en texto para que el profesor los arme).\n'
+    +'- Redacción DIDÁCTICA: párrafos cortos, definiciones destacadas, ejemplos antes de abstracciones, síntesis final de capítulo ("Lo esencial en 5 puntos").\n'
+    +'- 3 PREGUNTAS DE REFLEXIÓN al cierre, pensadas para discusión dirigida.\n\n'
+    +sep(6,'ACTUALIDAD E INNOVACIÓN (para mantener el tema VIGENTE)')
+    +'- Cada capítulo cierra con la sección "ACTUALIDAD E INNOVACIÓN": los avances de los ÚLTIMOS 5 AÑOS sobre el tema — nuevas teorías, tecnologías emergentes, lecciones de conflictos recientes y tendencias internacionales.\n'
+    +'- Si tenés capacidad de navegación/búsqueda, BUSCÁ lo más actual antes de redactar esa sección y citá la fuente con fecha; si no, indicá claramente "(verificar novedades a la fecha)" donde corresponda.\n'
+    +'- Contrastá SIEMPRE lo moderno con la doctrina boliviana vigente: qué se mantiene, qué está cambiando en el mundo y qué debería observar o adoptar el Ejército de Bolivia.\n'
+    +'- Proponé al final de cada una de estas secciones UNA idea concreta de innovación aplicable en la ECEME (didáctica o doctrinaria).\n\n'
+    +(ideas?(sep(7,'IDEAS E INICIATIVAS DEL PROFESOR (integrarlas en el texto donde mejor encajen — son prioridad)')+ideas+'\n\n'):'')
+    +sep(ideas?8:7,'FUENTES A CONSULTAR Y CITAR')
+    +(biblio.length?('- Bibliografía base del contenido mínimo (citala): '+biblio.map(function(b){ return (typeof b==='string')?b:(b.titulo||b.nombre||String(b)); }).join(' · ')+'\n'):'')
+    +'- Reglamentos (RC) y manuales vigentes de las FF.AA. y del Ejército de Bolivia aplicables a la materia — NO inventes citas: si no conocés el dato exacto, dejá "(completar cita del reglamento)".\n'
     +'- Doctrina de Estado Mayor y publicaciones militares bolivianas relacionadas.\n'
-    +'- PARA ACTUALIZAR CONOCIMIENTOS (fuentes modernas, citarlas como referencias complementarias): Military Review Edición Hispanoamericana (armyupress.army.mil/Journals/Edicion-Hispanoamericana), doctrina conjunta de EE.UU. (jcs.mil/Doctrine), publicaciones doctrinarias del Ejército de EE.UU. (armypubs.army.mil), OTAN (nato.int) y NATO Defense College (ndc.nato.int), Instituto Español de Estudios Estratégicos (ieee.es), RAND (rand.org). Contrastá siempre lo moderno con la doctrina boliviana vigente.\n\n'
-    +'ESTILO: doctrinario militar boliviano, redacción en tercera persona, títulos y subtítulos numerados, definiciones precisas, ejemplos aplicados al ámbito militar boliviano, citas de reglamentos donde corresponda. Cerrá cada capítulo con una síntesis breve. NO inventes reglamentos: si no conocés la cita exacta, poné "(completar cita)".\n\n'
-    +'ENTREGA: documento listo para pasar a Word, con CARÁTULA, ÍNDICE, INTRODUCCIÓN, los capítulos, CONCLUSIONES y BIBLIOGRAFÍA.';
+    +'- FUENTES MODERNAS para la sección de actualidad (citarlas como referencias complementarias): Military Review Edición Hispanoamericana (armyupress.army.mil/Journals/Edicion-Hispanoamericana), doctrina conjunta de EE.UU. (jcs.mil/Doctrine), publicaciones del Ejército de EE.UU. (armypubs.army.mil), Modern War Institute de West Point (mwi.westpoint.edu), OTAN (nato.int) y NATO Defense College (ndc.nato.int), Instituto Español de Estudios Estratégicos (ieee.es), RAND (rand.org) y Google Académico (scholar.google.com).\n\n'
+    +sep(ideas?9:8,'ESTILO Y ENTREGA')
+    +'- Estilo doctrinario militar boliviano: tercera persona, títulos y subtítulos numerados, definiciones precisas, terminología militar correcta.\n'
+    +'- Tono didáctico sin perder rigor: el cursante debe poder estudiarlo SOLO en su domicilio.\n'
+    +'- Entregá el documento COMPLETO y listo para pasar a Word: CARÁTULA, ÍNDICE, INTRODUCCIÓN, todos los capítulos con su parte práctica y su sección de actualidad, CONCLUSIONES, GLOSARIO y BIBLIOGRAFÍA.\n'
+    +'- Si el largo no entra en una sola respuesta, entregá capítulo por capítulo y esperá mi "continuar".';
   box.innerHTML='<div style="border:1px solid rgba(212,175,55,.4);border-radius:10px;padding:10px;background:rgba(212,175,55,.05)">'
-    +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--text-primary)">📘 Asistente de Texto de Referencia</div>'
-    +'<div class="rg-meta" style="margin-bottom:6px">Extensión objetivo: <b>'+pags+' páginas</b> ('+horas+' h × 0,83 · piso 15, tope 50). Copiá el prompt, generá el texto con tu IA, revisalo, y subilo terminado (Word/PDF) para compartirlo en Materiales de Clase.</div>'
+    +'<div style="font-weight:700;font-size:13px;margin-bottom:6px;color:var(--text-primary)">📘 Asistente de Texto de Referencia — SUPER PROMPT</div>'
+    +'<div class="rg-meta" style="margin-bottom:6px">Extensión objetivo: <b>'+pags+' páginas</b> ('+horas+' h × 0,83 · piso 15, tope 50). Alineado al contenido mínimo, al memorándum y a tu Desagregación. Copiá el prompt, generá el texto con la IA que prefieras, revisalo y subilo (Word/PDF) para compartirlo en Materiales de Clase.</div>'
+    +'<div class="field" style="margin-bottom:8px"><label>💡 Nuevas ideas, innovación o descubrimientos a integrar en el texto <span style="font-weight:400;font-size:10px;color:var(--text-muted)">(editá acá y tocá 🔁 — se precarga de tus Iniciativas)</span></label>'
+    +'<textarea id="avc-texto-ideas" rows="3" style="resize:vertical;font-size:12px" placeholder="Ej: integrar el modelo híbrido jerárquico-ágil (Mission Command); comparar la organización tradicional con células descentralizadas; lecciones de conflictos recientes…">'+_rgEsc(ideas)+'</textarea></div>'
+    +'<button class="btn-secondary" style="margin-bottom:8px" onclick="avTextoAbrir()">🔁 Actualizar prompt con mis ideas</button>'
     +'<div style="font-size:12px;font-weight:700;margin-bottom:4px">🌐 Fuentes modernas para actualizar conocimientos (tocá para abrir):</div>'
     +'<div style="font-size:11px;margin-bottom:8px;line-height:1.8">'
     +'<a href="https://www.armyupress.army.mil/Journals/Edicion-Hispanoamericana/" target="_blank" rel="noopener" style="color:#8fc0f0">📖 Military Review — Edición Hispanoamericana (EN ESPAÑOL)</a><br>'
     +'<a href="https://armypubs.army.mil/" target="_blank" rel="noopener" style="color:#8fc0f0">📚 Army Publishing Directorate — FM / ADP / ATP (EE.UU.)</a><br>'
     +'<a href="https://www.jcs.mil/Doctrine/" target="_blank" rel="noopener" style="color:#8fc0f0">📕 Doctrina Conjunta de EE.UU. (Joint Publications)</a><br>'
+    +'<a href="https://mwi.westpoint.edu/" target="_blank" rel="noopener" style="color:#8fc0f0">🎖️ Modern War Institute — West Point (lo más actual)</a><br>'
     +'<a href="https://www.nato.int/" target="_blank" rel="noopener" style="color:#8fc0f0">🌍 OTAN — temas y publicaciones</a> · <a href="https://www.ndc.nato.int/" target="_blank" rel="noopener" style="color:#8fc0f0">NATO Defense College</a><br>'
-    +'<a href="https://www.ieee.es/" target="_blank" rel="noopener" style="color:#8fc0f0">🇪🇸 Instituto Español de Estudios Estratégicos (EN ESPAÑOL)</a> · <a href="https://www.rand.org/" target="_blank" rel="noopener" style="color:#8fc0f0">RAND</a>'
+    +'<a href="https://www.ieee.es/" target="_blank" rel="noopener" style="color:#8fc0f0">🇪🇸 Instituto Español de Estudios Estratégicos (EN ESPAÑOL)</a> · <a href="https://www.rand.org/" target="_blank" rel="noopener" style="color:#8fc0f0">RAND</a> · <a href="https://scholar.google.com/" target="_blank" rel="noopener" style="color:#8fc0f0">Google Académico</a>'
     +'</div>'
-    +'<div style="font-size:12px;font-weight:700;margin-bottom:4px">Índice propuesto (sale de tu Desagregación):</div>'
+    +'<div style="font-size:12px;font-weight:700;margin-bottom:4px">Índice propuesto (sale de tu Desagregación · cada capítulo cierra con práctica + actualidad):</div>'
     +'<pre style="font-size:11px;color:var(--text-secondary);white-space:pre-wrap;background:rgba(0,0,0,.25);padding:8px;border-radius:8px;max-height:180px;overflow:auto">'+_rgEsc(indice)+'</pre>'
-    +'<div style="font-size:12px;font-weight:700;margin-bottom:4px">Prompt listo para copiar:</div>'
-    +'<textarea id="avc-texto-prompt" readonly rows="7" style="width:100%;font-size:11px;resize:vertical">'+_rgEsc(prompt)+'</textarea>'
+    +'<div style="font-size:12px;font-weight:700;margin-bottom:4px">SUPER PROMPT listo para copiar (índice + práctica + actualidad + tus ideas + fuentes):</div>'
+    +'<textarea id="avc-texto-prompt" readonly rows="9" style="width:100%;font-size:11px;resize:vertical">'+_rgEsc(prompt)+'</textarea>'
     +'<button class="btn-secondary" style="margin-top:6px" onclick="avTextoCopiar(this)">📋 Copiar prompt</button>'
     +'</div>';
-  if(box.scrollIntoView) box.scrollIntoView({behavior:'smooth',block:'start'});
+  if(box.scrollIntoView&&!ideasPrev) box.scrollIntoView({behavior:'smooth',block:'start'});
 }
 async function avTextoCopiar(btn){
   const ta=document.getElementById('avc-texto-prompt'); if(!ta) return;
