@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.134</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.135</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -12507,9 +12507,11 @@ const MESES_CORTO   = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OC
 
 // Firmas para los pies de los reportes oficiales (4 firmas total, en 3 filas según modelo)
 const FIRMA_JEFE_DISCIPLINA = {
-  nombre: 'Tcnl. DEM. Sergio Hernan Morales Millan',
+  nombre: 'Tcnl. DEM. Sergio H. Morales Millan',
   cargo:  'JEFE DE LA SUB-SECCIÓN DISCIPLINA DE LA ECEME.'
 };
+// v2.9.135: referencia de autoría al pie del bloque de firmas (alineada a la izquierda).
+const REFERENCIA_REPORTE = 'AAE/adp.-';
 const FIRMA_JEFE_SAC = {
   nombre: 'Cnl. DAEN. Pedro Rene Wolff Baldiviezo',
   cargo:  'JEFE DE LA SAC DE LA ECEME'
@@ -12742,7 +12744,8 @@ function cssReporte(orientacion){
     }
 
     /* === FIRMAS: Arial 12, con espacio para firmar, ordenadas === */
-    .firmas-wrap { margin-top:20pt; }
+    /* v2.9.135: el bloque de firmas no se parte entre hojas (nunca queda colgando). */
+    .firmas-wrap { margin-top:20pt; page-break-inside:avoid; }
     table.firma-row { width:100%; border-collapse:collapse; margin:0; }
     table.firma-row td {
       text-align:center; font-size:12pt; vertical-align:top;
@@ -12794,8 +12797,9 @@ function htmlEncabezadoReporte(orientacion){
 function htmlFirmasReporte(){
   // Firmas Arial 12, con espacio físico para firmar (líneas en blanco) sobre cada nombre.
   // Disposición: fila 1 = Disciplina | SAC (2 columnas) · fila 2 = Estudios · fila 3 = Comandante.
-  // Sin page-break-inside:avoid en el bloque completo (para que NO salte a una hoja solo de firmas);
-  // cada fila no se parte internamente. Así las firmas quedan junto a la matriz.
+  // v2.9.135: TODO el bloque va en page-break-inside:avoid (+ mso-break) para que las firmas
+  // NUNCA queden colgando/partidas entre hojas: viajan juntas a la página donde entren completas.
+  // Al pie, la referencia de autoría (AAE/adp.-) alineada a la IZQUIERDA.
   const stN = 'text-align:center;font-family:Arial,sans-serif;font-size:12pt;margin:0;font-weight:normal';
   const stC = 'text-align:center;font-family:Arial,sans-serif;font-size:12pt;margin:0;font-weight:bold';
   // espacio para firmar = N líneas en blanco
@@ -12816,13 +12820,14 @@ function htmlFirmasReporte(){
           <p align="center" style="${stC}">${escapeHtml(a.cargo)}</p></td>
      </tr></table>`;
   return `
-    <div class="firmas-wrap" style="margin-top:16pt">
-      ${gap(3)}
+    <div class="firmas-wrap" style="margin-top:16pt;page-break-inside:avoid;mso-break-inside:avoid">
+      ${gap(2)}
       ${bloque1cols(FIRMA_JEFE_DISCIPLINA, FIRMA_JEFE_SAC)}
       ${gap(3)}
       ${bloque1col(FIRMA_JEFE_ESTUDIOS)}
       ${gap(3)}
       ${bloque1col(FIRMA_COMANDANTE)}
+      <p style="text-align:left;font-family:Arial,sans-serif;font-size:11pt;font-weight:bold;margin:14pt 0 0">${escapeHtml(REFERENCIA_REPORTE)}</p>
     </div>
   `;
 }
@@ -13206,7 +13211,7 @@ function htmlCuerpoPlanilla(ciclo){
           <th style="width:10%">FACTOR (×0.58)</th>
           <th style="width:10%">NOTA FINAL</th>
           <th style="width:9%">ATRIBUTO</th>
-          <th style="width:13%">PUNTAJE ACUMULADO (PUNTAJE PERDIDO EN TODO EL AÑO)</th>
+          <th style="width:13%">PUNTAJE ACUMULADO ANUAL</th>
         </tr>
       </thead>
       <tbody>${filas}</tbody>
@@ -13370,7 +13375,7 @@ function exportarExcelPlanilla(ciclo, filename){
     ['PLANILLA DE CALIFICACIONES DEL ÁREA DE DISCIPLINA — ' + cicloDisplay + (semLabel ? ', ' + semLabel : '') + ' — AL ' + fechaTxt],
     ['Atributos:  E=Excelente (100)  ·  MB=Muy Bueno (≥90)  ·  B=Bueno (≥80)  ·  R=Regular (≥60)  ·  D=Deficiente (<60)'],
     [],
-    ['N°','GRADO, APELLIDOS Y NOMBRES','PUNTAJE PERDIDO DEL SEMESTRE','FACTOR (×0.58)','NOTA FINAL','ATRIBUTO','PUNTAJE ACUMULADO (PUNTAJE PERDIDO EN TODO EL AÑO)']
+    ['N°','GRADO, APELLIDOS Y NOMBRES','PUNTAJE PERDIDO DEL SEMESTRE','FACTOR (×0.58)','NOTA FINAL','ATRIBUTO','PUNTAJE ACUMULADO ANUAL']
   ];
   cursantes.forEach((c,i) => {
     const perd   = Number(discData.byCursanteLost[c.id] || 0);   // v2.9.134: pérdida DEL SEMESTRE vigente
@@ -13396,6 +13401,8 @@ function exportarExcelPlanilla(ciclo, filename){
   aoa.push([]);
   aoa.push(['','',FIRMA_COMANDANTE.nombre,'','','','']);
   aoa.push(['','',FIRMA_COMANDANTE.cargo,'','','','']);
+  aoa.push([]);
+  aoa.push([REFERENCIA_REPORTE]);   // v2.9.135: referencia de autoría, alineada a la izquierda
 
   const wb = XLSX.utils.book_new();
   const ws = XLSX.utils.aoa_to_sheet(aoa);
