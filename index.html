@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.146</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.147</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -15584,7 +15584,10 @@ function _avCronoRender(){
     +'<input type="text" value="'+_rgEsc(r.actividad||'').replace(/"/g,'&quot;')+'" onchange="AV._crono['+i+'].actividad=this.value" style="flex:1;min-width:180px" placeholder="Actividad">'
     +'<button class="rg-doc" style="border-color:#7a2230;color:#ffc9c9" onclick="avCronoDel('+i+')">🗑</button>'
     +'</div>'; }).join('');
-  html+='<button class="btn-primary" style="margin-top:8px" onclick="avCronoGuardar(this)">💾 Guardar cuadro de distribución</button>'
+  html+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">'
+    +'<button class="btn-primary" onclick="avCronoGuardar(this)">💾 Guardar cuadro de distribución</button>'
+    +'<button class="btn-secondary" onclick="avCronoWord()">⬇ Descargar WORD (.docx)</button>'
+    +'</div>'
     +'<div id="avc-crono-prog" class="rg-meta" style="min-height:14px;margin-top:4px"></div></div>';
   box.innerHTML=html;
 }
@@ -16080,11 +16083,13 @@ function _avTextoFinalParse(raw){
     }
   }
   let tabla=null, parr=[];
+  let inGloss=false, glossBuf=null;   // v2.9.147: parser consciente del GLOSARIO (cada término = párrafo aparte)
   const flushP=function(){ if(parr.length){ B.push({t:'p',x:parr.join(' ')}); parr=[]; } };
   const flushT=function(){ if(tabla&&tabla.filas.length){ B.push(tabla); } tabla=null; };
+  const flushG=function(){ if(glossBuf!=null){ B.push({t:'p',x:glossBuf,gloss:true}); glossBuf=null; } };
   for(let i=ini;i<lines.length;i++){
     const cru=lines[i], l=cru.trim();
-    if(!l){ flushP(); flushT(); continue; }
+    if(!l){ flushP(); flushT(); flushG(); continue; }
     if(/^\|.*\|$/.test(l)){
       flushP();
       if(/^[:\-\s|]+$/.test(l)){ if(tabla) tabla.sep=true; continue; }
@@ -16095,13 +16100,22 @@ function _avTextoFinalParse(raw){
     flushT();
     let m;
     if((m=esCap(l))){
-      flushP();
+      flushP(); flushG(); inGloss=false;
       let tit=(m[2]||'').trim().replace(/^#{1,6}\s*/,'');
       if(!tit){ for(let j=i+1;j<lines.length;j++){ if(lines[j].trim()){ tit=lines[j].trim().replace(/^#{1,6}\s*/,'').replace(/^\**|\**$/g,''); i=j; break; } } }
       B.push({t:'cap',n:/^\d+$/.test(m[1])?_avRoman(m[1]):m[1].toUpperCase(),x:tit.replace(/\.+$/,'')});
       continue;
     }
-    if((m=esTop(l))){ flushP(); B.push({t:'cap',n:'',x:m[1].toUpperCase().replace(/\s+/g,' ')}); continue; }
+    if((m=esTop(l))){ flushP(); flushG(); inGloss=/GLOSARIO/i.test(m[1]); B.push({t:'cap',n:'',x:m[1].toUpperCase().replace(/\s+/g,' ')}); continue; }
+    // v2.9.147: dentro del GLOSARIO cada línea "**Término.**" abre una entrada nueva (párrafo aparte);
+    // las líneas siguientes se anexan como su definición — nunca se tratan como subtítulo ni se fusionan.
+    if(inGloss){
+      flushP();
+      if(/^\*\*/.test(l)){ flushG(); glossBuf=l; }
+      else if(glossBuf!=null){ glossBuf+=' '+l; }
+      else glossBuf=l;
+      continue;
+    }
     if((m=/^#{3,4}\s+(.+)$/.exec(l))){ flushP(); B.push({t:'h3',x:m[1].replace(/\**/g,'')}); continue; }
     if((m=/^#{1,2}\s+(.+)$/.exec(l))){ flushP(); B.push({t:'h2',x:m[1].replace(/\**/g,'')}); continue; }
     if((m=/^(\d+\.\d+\.\d+)\.?\s+(.+)$/.exec(l))){ flushP(); B.push({t:'h3',x:m[1]+' '+m[2]}); continue; }
@@ -16119,7 +16133,7 @@ function _avTextoFinalParse(raw){
     if((m=/^>\s?(.*)$/.exec(l))){ flushP(); if(m[1]) B.push({t:'cita',x:m[1]}); continue; }
     parr.push(l);
   }
-  flushP(); flushT();
+  flushP(); flushT(); flushG();
   // v2.9.146: LIMPIEZA — quita acotaciones meta del prompt y los guiones largos (texto FINAL para el alumno)
   B.forEach(function(bb){
     if(bb.x!=null) bb.x=_avLimpiar(bb.x);
@@ -16683,6 +16697,129 @@ async function avCronoGuardar(btn){
   const prog=document.getElementById('avc-crono-prog');
   if(prog) prog.textContent=r.ok?('✅ Guardado ('+rows.length+' filas) — esto alimenta el Word del Cuadro de Distribución'):'⚠️ '+(r.error||'no se pudo');
   if(r.ok&&AV.data){ AV.data.cronograma=rows; _avRenderSecciones(AV.data); }
+}
+// ====== v2.9.147: CUADRO DE DISTRIBUCIÓN DEL TIEMPO (F) — .docx NATIVO (grilla semanal LUN-VIE × 1º-6º) ======
+function _avMondayIso(f){ const d=_avD(f); const wd=d.getDay(); d.setDate(d.getDate()-(wd===0?6:wd-1)); return _avIsoD(d); }
+function _avAddDaysIso(iso,n){ const d=_avD(iso); d.setDate(d.getDate()+n); return _avIsoD(d); }
+function _dxTd(w, parasXml, opt){ opt=opt||{};
+  return '<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/>'+(opt.shd?'<w:shd w:val="clear" w:fill="D9D9D9"/>':'')
+    +(opt.noBorder?'<w:tcBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/></w:tcBorders>':'')
+    +'<w:vAlign w:val="'+(opt.vAlign||'center')+'"/></w:tcPr>'+(parasXml||_dxP('',{after:0}))+'</w:tc>'; }
+async function _avCronoDocx(){
+  await ensureJSZip();
+  const rows=(((AV._crono&&AV._crono.length)?AV._crono:((AV.data&&AV.data.cronograma)||[]))||[])
+    .map(function(x){ return {fecha:(x.fecha||'').slice(0,10),periodo:Number(x.periodo)||1,actividad:(x.actividad||'').trim(),actor:x.actor||'profesor'}; })
+    .filter(function(x){ return x.fecha && x.actividad; });
+  if(!rows.length) return null;
+  // agrupar por semana (lunes) y por período×día (col 0=LUN … 4=VIE)
+  const weeksMap={};
+  rows.forEach(function(r){
+    let d=_avD(r.fecha), wd=d.getDay();
+    if(wd===6){ d.setDate(d.getDate()-1); }        // Sáb → Vie (turno mañana LUN-VIE, sin perder la actividad)
+    else if(wd===0){ d.setDate(d.getDate()+1); }   // Dom → Lun
+    const iso=_avIsoD(d), col=d.getDay()-1, per=Math.min(6,Math.max(1,r.periodo));
+    const mon=_avMondayIso(iso), k=per+'-'+col;
+    (weeksMap[mon]=weeksMap[mon]||{});
+    (weeksMap[mon][k]=weeksMap[mon][k]||[]).push(r.actividad);
+  });
+  const weeks=Object.keys(weeksMap).sort();
+  if(!weeks.length) return null;
+  const USABLE=9405, PERW=760, NCOL=5, DAYW=Math.round((USABLE-PERW)/NCOL);
+  const esBold=function(t){ return /EVALUACI[ÓO]N|ENTREGA|SUMATIV|FORMATIV|A DISP|DIAGN[ÓO]STIC/i.test(t); };
+  const cellParas=function(acts){
+    if(!acts||!acts.length) return _dxP('',{after:0});
+    return acts.map(function(a){ return _dxP(_dxRuns(a,{sz:16,b:esBold(a)}),{jc:'left',after:0,line:216}); }).join('');
+  };
+  let tablesXml='';
+  weeks.forEach(function(mon){
+    const grid=weeksMap[mon];
+    let t='<w:tbl><w:tblPr><w:tblW w:w="'+(PERW+DAYW*NCOL)+'" w:type="dxa"/><w:jc w:val="center"/>'
+      +'<w:tblBorders><w:top w:val="single" w:sz="6"/><w:left w:val="single" w:sz="6"/><w:bottom w:val="single" w:sz="6"/><w:right w:val="single" w:sz="6"/><w:insideH w:val="single" w:sz="6"/><w:insideV w:val="single" w:sz="6"/></w:tblBorders></w:tblPr>'
+      +'<w:tblGrid><w:gridCol w:w="'+PERW+'"/>'+new Array(NCOL+1).join('<w:gridCol w:w="'+DAYW+'"/>')+'</w:tblGrid>';
+    // cabecera (se repite en cada página)
+    t+='<w:tr><w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>';
+    t+=_dxTd(PERW,_dxP(_dxRuns('DÍA',{b:true,sz:16}),{jc:'center',after:0})+_dxP(_dxRuns('PER.',{b:true,sz:16}),{jc:'center',after:0}),{shd:true});
+    for(let c=0;c<NCOL;c++){
+      const iso=_avAddDaysIso(mon,c);
+      t+=_dxTd(DAYW,_dxP(_dxRuns(_AV_DIAS[_avD(iso).getDay()],{b:true,sz:16}),{jc:'center',after:0})+_dxP(_dxRuns(_avFmil(iso,''),{b:true,sz:16}),{jc:'center',after:0}),{shd:true});
+    }
+    t+='</w:tr>';
+    for(let p=1;p<=6;p++){
+      t+='<w:tr><w:trPr><w:cantSplit/></w:trPr>';
+      t+=_dxTd(PERW,_dxP(_dxRuns(p+'º',{b:true,sz:18}),{jc:'center',after:0}));
+      for(let c=0;c<NCOL;c++) t+=_dxTd(DAYW,cellParas(grid[p+'-'+c]),{vAlign:'top'});
+      t+='</w:tr>';
+    }
+    t+='</w:tbl>'+_dxP('',{after:140});
+    tablesXml+=t;
+  });
+  // firma (profesores, sin bordes, en pares)
+  const profs=(AV.docentes||[]).filter(function(x){ return (x.profesor_nombre||'').trim(); });
+  let firmaXml='';
+  if(profs.length){
+    const cw=Math.round(USABLE/2);
+    const celda=function(p){ return _dxTd(cw, p
+      ? (_dxP(_dxRuns(((p.profesor_grado||'')+' '+p.profesor_nombre).trim(),{sz:20}),{jc:'center',after:0})+_dxP(_dxRuns('PROFESOR',{b:true,sz:20}),{jc:'center',after:0}))
+      : _dxP('',{after:0}), {noBorder:true}); };
+    firmaXml=_dxVacio(3)+'<w:tbl><w:tblPr><w:tblW w:w="'+USABLE+'" w:type="dxa"/><w:jc w:val="center"/>'
+      +'<w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr>'
+      +'<w:tblGrid><w:gridCol w:w="'+cw+'"/><w:gridCol w:w="'+cw+'"/></w:tblGrid>';
+    for(let i=0;i<profs.length;i+=2){ firmaXml+='<w:tr>'+celda(profs[i])+celda(profs[i+1]||null)+'</w:tr>'; if(i+2<profs.length) firmaXml+='<w:tr>'+_dxTd(cw,_dxVacio(2),{noBorder:true})+_dxTd(cw,_dxVacio(2),{noBorder:true})+'</w:tr>'; }
+    firmaXml+='</w:tbl>';
+  }
+  const bodyInner=_dxMembrete()+_dxVacio(1)
+    +_dxP(_dxRuns('CUADRO DE DISTRIBUCIÓN DEL TIEMPO',{b:true,sz:28}),{jc:'center',before:120,after:220})
+    +tablesXml+firmaXml
+    +_dxP('',{pStyleSect:_dxSect({footer:true,start:1})});
+  const bodyXml='<w:body>'+bodyInner+'</w:body>';
+  const NS='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+    +'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
+  const documentXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:document '+NS+'>'+bodyXml+'</w:document>';
+  const stylesXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+    +'<w:docDefaults><w:rPrDefault><w:rPr>'+_AR+'<w:sz w:val="24"/><w:szCs w:val="24"/><w:lang w:val="es-BO"/></w:rPr></w:rPrDefault>'
+    +'<w:pPrDefault><w:pPr><w:spacing w:after="0"/></w:pPr></w:pPrDefault></w:docDefaults>'
+    +'<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style></w:styles>';
+  const _f='<w:rPr>'+_AR+'<w:b/><w:bCs/><w:sz w:val="24"/></w:rPr>';
+  const footerXml='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+    +'<w:p><w:pPr><w:jc w:val="center"/></w:pPr>'
+    +'<w:r>'+_f+'<w:fldChar w:fldCharType="begin"/></w:r><w:r>'+_f+'<w:instrText xml:space="preserve"> PAGE </w:instrText></w:r><w:r>'+_f+'<w:fldChar w:fldCharType="end"/></w:r>'
+    +'<w:r>'+_f+'<w:t xml:space="preserve"> - </w:t></w:r>'
+    +'<w:r>'+_f+'<w:fldChar w:fldCharType="begin"/></w:r><w:r>'+_f+'<w:instrText xml:space="preserve"> NUMPAGES </w:instrText></w:r><w:r>'+_f+'<w:fldChar w:fldCharType="end"/></w:r>'
+    +'</w:p></w:ftr>';
+  const ctypes='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+    +'<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+    +'<Default Extension="xml" ContentType="application/xml"/>'
+    +'<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+    +'<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>'
+    +'<Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>';
+  const relsRoot='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    +'<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>';
+  const relsDoc='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    +'<Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+    +'<Relationship Id="rIdFooter" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/></Relationships>';
+  const zip=new JSZip();
+  zip.file('[Content_Types].xml',ctypes);
+  zip.folder('_rels').file('.rels',relsRoot);
+  const w=zip.folder('word');
+  w.file('document.xml',documentXml);
+  w.file('styles.xml',stylesXml);
+  w.file('footer1.xml',footerXml);
+  w.folder('_rels').file('document.xml.rels',relsDoc);
+  return await zip.generateAsync({type:'blob',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+}
+async function avCronoWord(){
+  const prog=document.getElementById('avc-crono-prog');
+  if(prog) prog.textContent='⏳ Armando el Cuadro de Distribución del Tiempo (.docx)…';
+  try{
+    const blob=await _avCronoDocx();
+    if(!blob){ if(prog) prog.textContent='⚠️ Cargá o generá primero las filas del cuadro (🪄 Generar borrador).'; return; }
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='CUADRO DE DISTRIBUCIÓN DEL TIEMPO.docx';
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1200);
+    if(prog) prog.textContent='✅ Cuadro de Distribución del Tiempo (.docx) generado.';
+  }catch(e){ if(prog) prog.textContent='⚠️ '+(e&&e.message||e); }
 }
 // ============ v2.9.139: PLAN DE CLASES (C) + HOJA DE ORIENTACIÓN (D) en Word ============
 // Se generan SOLOS con lo ya guardado (datos generales + desagregación + cronograma + tareas +
