@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.147</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.148</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -16711,66 +16711,115 @@ async function _avCronoDocx(){
     .map(function(x){ return {fecha:(x.fecha||'').slice(0,10),periodo:Number(x.periodo)||1,actividad:(x.actividad||'').trim(),actor:x.actor||'profesor'}; })
     .filter(function(x){ return x.fecha && x.actividad; });
   if(!rows.length) return null;
-  // agrupar por semana (lunes) y por período×día (col 0=LUN … 4=VIE)
+  // agrupar por semana (lunes ISO) y por DÍA (col 0=LUN … 5=SÁB); el período lo decide el layout
   const weeksMap={};
   rows.forEach(function(r){
-    let d=_avD(r.fecha), wd=d.getDay();
-    if(wd===6){ d.setDate(d.getDate()-1); }        // Sáb → Vie (turno mañana LUN-VIE, sin perder la actividad)
-    else if(wd===0){ d.setDate(d.getDate()+1); }   // Dom → Lun
-    const iso=_avIsoD(d), col=d.getDay()-1, per=Math.min(6,Math.max(1,r.periodo));
-    const mon=_avMondayIso(iso), k=per+'-'+col;
+    let d=_avD(r.fecha);
+    if(d.getDay()===0){ d.setDate(d.getDate()+1); }   // Dom → Lun (turno mañana LUN-SÁB)
+    const iso=_avIsoD(d), wd=_avD(iso).getDay();
+    if(wd<1||wd>6) return;
+    const col=wd-1, mon=_avMondayIso(iso);
     (weeksMap[mon]=weeksMap[mon]||{});
-    (weeksMap[mon][k]=weeksMap[mon][k]||[]).push(r.actividad);
+    (weeksMap[mon][col]=weeksMap[mon][col]||[]).push(r.actividad);
   });
   const weeks=Object.keys(weeksMap).sort();
   if(!weeks.length) return null;
-  const USABLE=9405, PERW=760, NCOL=5, DAYW=Math.round((USABLE-PERW)/NCOL);
-  const esBold=function(t){ return /EVALUACI[ÓO]N|ENTREGA|SUMATIV|FORMATIV|A DISP|DIAGN[ÓO]STIC/i.test(t); };
-  const cellParas=function(acts){
-    if(!acts||!acts.length) return _dxP('',{after:0});
-    return acts.map(function(a){ return _dxP(_dxRuns(a,{sz:16,b:esBold(a)}),{jc:'left',after:0,line:216}); }).join('');
+  // ── colores (fill OOXML) según el modelo oficial + regla de Sergio (sumativa ROJO, formativa NARANJA) ──
+  const C_YEL='FFFF00', C_BLUE='BDD7EE', C_RED='FF0000', C_ORA='F4B183', C_RETRO='F8CBAD';
+  const _tipo=function(t){
+    if(/SUMATIV/i.test(t)) return 'sumativa';
+    if(/FORMATIV/i.test(t)) return 'formativa';
+    if(/ENTREGA\s+DE\s+TRABAJOS/i.test(t)) return 'trabajos';
+    if(/ENTREGA|HOJA\s+DE\s+ORIENTACI/i.test(t)) return 'entrega';
+    return 'clase';
   };
+  // cajas de un día (cada caja ocupa un rango de períodos p1..p2, con color); retroalimentación auto
+  const _boxesDia=function(acts){
+    const boxes=[]; let hayClase=false, hayForm=false;
+    (acts||[]).forEach(function(a){
+      const tp=_tipo(a), A=String(a).toUpperCase();
+      if(tp==='entrega') boxes.push({p1:6,p2:6,text:A,fill:C_YEL});
+      else if(tp==='trabajos') boxes.push({p1:6,p2:6,text:A,fill:C_YEL});
+      else if(tp==='sumativa') boxes.push({p1:1,p2:3,text:'EVALUACIÓN SUMATIVA',fill:C_RED});
+      else if(tp==='formativa'){ boxes.push({p1:1,p2:3,text:'EVALUACIÓN FORMATIVA',fill:C_ORA}); hayForm=true; }
+      else { boxes.push({p1:1,p2:5,text:A,fill:C_BLUE}); hayClase=true; }
+    });
+    if(hayClase) boxes.push({p1:6,p2:6,text:'RETRO ALIMENTACIÓN PARCIAL',fill:C_RETRO});
+    if(hayForm)  boxes.push({p1:4,p2:4,text:'RETRO ALIMENTACIÓN PARCIAL',fill:C_RETRO});
+    return boxes;
+  };
+  // descriptor por período (1..6) de una columna-día: null=vacío, o {mode:'restart'|'cont',text,fill}
+  const _colDesc=function(acts){
+    const cells=[null,null,null,null,null,null,null];
+    _boxesDia(acts).forEach(function(b){
+      const p1=Math.max(1,b.p1), p2=Math.min(6,b.p2);
+      for(let p=p1;p<=p2;p++) if(cells[p]) return;   // no pisar una caja ya puesta
+      for(let p=p1;p<=p2;p++) cells[p]={fill:b.fill,mode:(p===p1?'restart':'cont'),text:(p===p1?b.text:'')};
+    });
+    return cells;
+  };
+  const USABLE=13572, PERW=1300, NCOL=6, DAYW=Math.round((USABLE-PERW)/NCOL);
+  const _boxCell=function(w,desc){
+    if(!desc) return '<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>'+_dxP('',{after:0})+'</w:tc>';
+    const vm=(desc.mode==='restart')?'<w:vMerge w:val="restart"/>':'<w:vMerge/>';
+    const inner=(desc.mode==='restart')?_dxP(_dxRuns(desc.text,{b:true,sz:16}),{jc:'center',after:0,line:216}):_dxP('',{after:0});
+    return '<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/>'+vm+'<w:shd w:val="clear" w:fill="'+desc.fill+'"/><w:vAlign w:val="center"/></w:tcPr>'+inner+'</w:tc>';
+  };
+  const _diag='<w:tcBorders><w:tl2br w:val="single" w:sz="6" w:color="000000"/></w:tcBorders>';
   let tablesXml='';
   weeks.forEach(function(mon){
-    const grid=weeksMap[mon];
+    const cols=[]; for(let c=0;c<NCOL;c++) cols.push(_colDesc(weeksMap[mon][c]||[]));
     let t='<w:tbl><w:tblPr><w:tblW w:w="'+(PERW+DAYW*NCOL)+'" w:type="dxa"/><w:jc w:val="center"/>'
-      +'<w:tblBorders><w:top w:val="single" w:sz="6"/><w:left w:val="single" w:sz="6"/><w:bottom w:val="single" w:sz="6"/><w:right w:val="single" w:sz="6"/><w:insideH w:val="single" w:sz="6"/><w:insideV w:val="single" w:sz="6"/></w:tblBorders></w:tblPr>'
+      +'<w:tblBorders><w:top w:val="single" w:sz="8"/><w:left w:val="single" w:sz="8"/><w:bottom w:val="single" w:sz="8"/><w:right w:val="single" w:sz="8"/><w:insideH w:val="single" w:sz="6"/><w:insideV w:val="single" w:sz="6"/></w:tblBorders></w:tblPr>'
       +'<w:tblGrid><w:gridCol w:w="'+PERW+'"/>'+new Array(NCOL+1).join('<w:gridCol w:w="'+DAYW+'"/>')+'</w:tblGrid>';
-    // cabecera (se repite en cada página)
+    // ── cabecera fila 1: esquina diagonal PERIODO/FECHA (vMerge restart) + nombres de día ──
     t+='<w:tr><w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>';
-    t+=_dxTd(PERW,_dxP(_dxRuns('DÍA',{b:true,sz:16}),{jc:'center',after:0})+_dxP(_dxRuns('PER.',{b:true,sz:16}),{jc:'center',after:0}),{shd:true});
-    for(let c=0;c<NCOL;c++){
-      const iso=_avAddDaysIso(mon,c);
-      t+=_dxTd(DAYW,_dxP(_dxRuns(_AV_DIAS[_avD(iso).getDay()],{b:true,sz:16}),{jc:'center',after:0})+_dxP(_dxRuns(_avFmil(iso,''),{b:true,sz:16}),{jc:'center',after:0}),{shd:true});
-    }
+    t+='<w:tc><w:tcPr><w:tcW w:w="'+PERW+'" w:type="dxa"/><w:vMerge w:val="restart"/>'+_diag+'<w:vAlign w:val="center"/></w:tcPr>'
+      +_dxP(_dxRuns('PERIODO',{b:true,sz:16}),{jc:'right',after:0})+_dxP(_dxRuns('FECHA',{b:true,sz:16}),{jc:'left',after:0})+'</w:tc>';
+    for(let c=0;c<NCOL;c++) t+=_dxTd(DAYW,_dxP(_dxRuns(_AV_DIAS[_avD(_avAddDaysIso(mon,c)).getDay()],{b:true,sz:18}),{jc:'center',after:0}));
     t+='</w:tr>';
+    // ── cabecera fila 2: esquina (vMerge cont) + fechas ──
+    t+='<w:tr><w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>';
+    t+='<w:tc><w:tcPr><w:tcW w:w="'+PERW+'" w:type="dxa"/><w:vMerge/>'+_diag+'</w:tcPr>'+_dxP('',{after:0})+'</w:tc>';
+    for(let c=0;c<NCOL;c++) t+=_dxTd(DAYW,_dxP(_dxRuns(_avFmil(_avAddDaysIso(mon,c),''),{b:true,sz:18}),{jc:'center',after:0}));
+    t+='</w:tr>';
+    // ── filas de períodos 1º..6º ──
     for(let p=1;p<=6;p++){
       t+='<w:tr><w:trPr><w:cantSplit/></w:trPr>';
-      t+=_dxTd(PERW,_dxP(_dxRuns(p+'º',{b:true,sz:18}),{jc:'center',after:0}));
-      for(let c=0;c<NCOL;c++) t+=_dxTd(DAYW,cellParas(grid[p+'-'+c]),{vAlign:'top'});
+      t+=_dxTd(PERW,_dxP(_dxRuns(p+'º',{b:true,sz:20}),{jc:'center',after:0}));
+      for(let c=0;c<NCOL;c++) t+=_boxCell(DAYW,cols[c][p]);
       t+='</w:tr>';
     }
-    t+='</w:tbl>'+_dxP('',{after:140});
+    t+='</w:tbl>'+_dxP('',{after:160});
     tablesXml+=t;
   });
-  // firma (profesores, sin bordes, en pares)
+  // firma (profesores, sin bordes, en fila horizontal)
   const profs=(AV.docentes||[]).filter(function(x){ return (x.profesor_nombre||'').trim(); });
   let firmaXml='';
   if(profs.length){
-    const cw=Math.round(USABLE/2);
-    const celda=function(p){ return _dxTd(cw, p
-      ? (_dxP(_dxRuns(((p.profesor_grado||'')+' '+p.profesor_nombre).trim(),{sz:20}),{jc:'center',after:0})+_dxP(_dxRuns('PROFESOR',{b:true,sz:20}),{jc:'center',after:0}))
-      : _dxP('',{after:0}), {noBorder:true}); };
-    firmaXml=_dxVacio(3)+'<w:tbl><w:tblPr><w:tblW w:w="'+USABLE+'" w:type="dxa"/><w:jc w:val="center"/>'
+    const cw=Math.floor(USABLE/Math.max(1,profs.length));
+    const celda=function(p){ return _dxTd(cw,
+      _dxP(_dxRuns(((p.profesor_grado||'')+' '+p.profesor_nombre).trim(),{sz:20}),{jc:'center',after:0})+_dxP(_dxRuns('PROFESOR',{b:true,sz:20}),{jc:'center',after:0}),
+      {noBorder:true}); };
+    firmaXml=_dxVacio(3)+'<w:tbl><w:tblPr><w:tblW w:w="'+(cw*profs.length)+'" w:type="dxa"/><w:jc w:val="center"/>'
       +'<w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr>'
-      +'<w:tblGrid><w:gridCol w:w="'+cw+'"/><w:gridCol w:w="'+cw+'"/></w:tblGrid>';
-    for(let i=0;i<profs.length;i+=2){ firmaXml+='<w:tr>'+celda(profs[i])+celda(profs[i+1]||null)+'</w:tr>'; if(i+2<profs.length) firmaXml+='<w:tr>'+_dxTd(cw,_dxVacio(2),{noBorder:true})+_dxTd(cw,_dxVacio(2),{noBorder:true})+'</w:tr>'; }
-    firmaXml+='</w:tbl>';
+      +'<w:tblGrid>'+new Array(profs.length+1).join('<w:gridCol w:w="'+cw+'"/>')+'</w:tblGrid><w:tr>'
+      +profs.map(celda).join('')+'</w:tr></w:tbl>';
   }
+  // título con nombre de materia + código + turno (MAÑANA), como el modelo
+  const m2=(AV.data&&AV.data.materia)||{}, c2=(AV.data&&AV.data.carpeta)||{};
+  const matNom=String(m2.nombre_uc||'').toUpperCase().trim();
+  const matCod=(m2.codigo_uc||c2.materia_codigo||'').trim();
+  const tit1='CUADRO DE DISTRIBUCIÓN DEL TIEMPO'+(matNom?(' '+matNom):'')+(matCod?(' ('+matCod+')'):'');
+  const sectF='<w:sectPr><w:footerReference w:type="default" r:id="rIdFooter"/>'
+    +'<w:pgSz w:w="15840" w:h="12240" w:orient="landscape"/>'
+    +'<w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="708" w:footer="708" w:gutter="0"/>'
+    +'<w:pgNumType w:start="1"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr>';
   const bodyInner=_dxMembrete()+_dxVacio(1)
-    +_dxP(_dxRuns('CUADRO DE DISTRIBUCIÓN DEL TIEMPO',{b:true,sz:28}),{jc:'center',before:120,after:220})
+    +_dxP(_dxRuns(tit1,{b:true,sz:28}),{jc:'center',before:120,after:60})
+    +_dxP(_dxRuns('(MAÑANA)',{b:true,sz:26}),{jc:'center',after:220})
     +tablesXml+firmaXml
-    +_dxP('',{pStyleSect:_dxSect({footer:true,start:1})});
+    +_dxP('',{pStyleSect:sectF});
   const bodyXml='<w:body>'+bodyInner+'</w:body>';
   const NS='xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
     +'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
