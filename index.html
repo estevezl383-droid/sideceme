@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.145</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.146</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -16007,6 +16007,8 @@ function avTextoAbrir(){
     +sep(ideas?9:8,'ESTILO Y ENTREGA')
     +'- Estilo doctrinario militar boliviano: tercera persona, títulos y subtítulos numerados, definiciones precisas, terminología militar correcta.\n'
     +'- Tono didáctico sin perder rigor: el cursante debe poder estudiarlo SOLO en su domicilio.\n'
+    +'- Es un TEXTO FINAL para el alumno: NO incluyas acotaciones ni instrucciones entre paréntesis del tipo "(Verificar…)", "(Contrastar…)", "(completar cita)", "(Fundamentar en…)", "(Sección elaborada con información…)", "(para armar en pizarra)". Si citás una fuente, escribila directamente; si no la tenés exacta, omitila. NO uses guiones largos "—" para incisos: usá comas o paréntesis.\n'
+    +'- Cada subtítulo termina en punto (.). El glosario: cada término en una línea, en negrilla, seguido de su definición.\n'
     +'- Entregá el documento COMPLETO y listo para pasar a Word: CARÁTULA, ÍNDICE, INTRODUCCIÓN, todos los capítulos con su parte práctica y su sección de actualidad, CONCLUSIONES, GLOSARIO y BIBLIOGRAFÍA.\n'
     +'- Si el largo no entra en una sola respuesta, entregá capítulo por capítulo y esperá mi "continuar".';
   box.innerHTML='<div style="border:1px solid rgba(212,175,55,.4);border-radius:10px;padding:10px;background:rgba(212,175,55,.05)">'
@@ -16118,7 +16120,22 @@ function _avTextoFinalParse(raw){
     parr.push(l);
   }
   flushP(); flushT();
-  // v2.9.145: subtítulo HUÉRFANO (seguido de otro título de igual o mayor nivel, sin cuerpo) → párrafo
+  // v2.9.146: LIMPIEZA — quita acotaciones meta del prompt y los guiones largos (texto FINAL para el alumno)
+  B.forEach(function(bb){
+    if(bb.x!=null) bb.x=_avLimpiar(bb.x);
+    if(bb.t==='tabla'&&bb.filas) bb.filas=bb.filas.map(function(f){ return f.map(_avLimpiar); });
+  });
+  // separar entradas de glosario/definiciones pegadas en un mismo párrafo ("**Término.** def **Otro.** def")
+  let B2=[];
+  B.forEach(function(bb){
+    if(bb.t==='p' && (String(bb.x).match(/\*\*/g)||[]).length>=4){
+      const parts=String(bb.x).split(/(?<=[.:])\s+(?=\*\*[^*]+\*\*)/);
+      if(parts.length>1){ parts.forEach(function(p){ if(p.trim()) B2.push({t:'p',x:p.trim()}); }); return; }
+    }
+    B2.push(bb);
+  });
+  B.length=0; B2.forEach(function(x){ B.push(x); });
+  // subtítulo HUÉRFANO (seguido de otro título de igual o mayor nivel, sin cuerpo) → párrafo
   for(let k=0;k<B.length;k++){
     const bb=B[k], nx=B[k+1];
     if(bb.t==='h2' && (!nx||nx.t==='h2'||nx.t==='cap')) B[k]={t:'p',x:bb.x};
@@ -16127,6 +16144,16 @@ function _avTextoFinalParse(raw){
   // los subtítulos terminan SIEMPRE en punto (nunca vacíos ni sin puntuación)
   B.forEach(function(bb){ if(bb.t==='h2'||bb.t==='h3'){ bb.x=String(bb.x||'').trim(); if(bb.x&&!/[.:!?]$/.test(bb.x)) bb.x+='.'; } });
   return B;
+}
+// v2.9.146: limpia el texto FINAL — saca acotaciones del prompt (Verificar/Contrastar/completar cita/…) y guiones "—"
+function _avLimpiar(s){
+  s=String(s==null?'':s);
+  s=s.replace(/\s*\((?:[^()]*?(?:verificar|contrastar con|completar (?:cita|dato|la cita|los datos|citas)|fundamentar en|novedades a la fecha|referencias complementarias|informaci[óo]n disponible hasta|para armar en pizarra|arme en pizarra|para que el profesor)[^()]*)\)/gi,'');
+  s=s.replace(/\s*—\s*/g,', ');
+  s=s.replace(/\(\s*,\s*/g,'(').replace(/\s*,\s*\)/g,')')
+     .replace(/,\s*,+/g,',').replace(/\s+,/g,',').replace(/,(\s*[.;:])/g,'$1')
+     .replace(/\s{2,}/g,' ').trim();
+  return s;
 }
 // v2.9.143: documento OFICIAL fiel al modelo — carátula con MARCO (formato cerrado) + índice jerárquico
 // I.-/A.- + texto con membrete cargado a la IZQUIERDA (Arial 10, BOLIVIA subrayado), títulos Arial 16,
@@ -16430,10 +16457,10 @@ function _dxSect(o){
   return s;
 }
 const _TAB='<w:r><w:rPr>'+_AR+'</w:rPr><w:tab/></w:r>';
-function _dxMembrete(){
-  // CENTRADO pero cargado a la IZQUIERDA (sangría derecha 3cm, como el modelo oficial)
+function _dxMembrete(pb){
+  // CENTRADO pero cargado a la IZQUIERDA (sangría derecha 3264 twips = medida oficial del skill)
   const L=[['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES',0],['ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO',0],['“MCAL. ANDRÉS DE SANTA CRUZ”',0],['BOLIVIA',1]];
-  return L.map(function(l){ return _dxP(_dxRuns(l[0],{b:true,sz:20,u:!!l[1]}),{jc:'center',right:1701,after:0}); }).join('');
+  return L.map(function(l,i){ return _dxP(_dxRuns(l[0],{b:true,sz:20,u:!!l[1]}),{jc:'center',right:3264,after:0,pageBreak:(pb&&i===0)}); }).join('');
 }
 function _dxImgEscudo(){
   const cx=2520000, cy=1734000; // ~7cm x 4.82cm (escudo 404x278)
@@ -16466,7 +16493,7 @@ async function _avTextoFinalDocx(){
     return Math.ceil((String(b.x||'').length||1)/CPL)+1;   // +1 = espacio entre párrafos
   };
   B.forEach(function(b){
-    if(b.t==='cap'){ if(!first){ page++; lin=0; } first=false; roman=0; lin+=(b.n?6:4); items.push({t:'cap',n:b.n,x:b.x,page:page}); }
+    if(b.t==='cap'){ if(!first){ page++; lin=0; } first=false; roman=0; letter=0; lin+=(b.n?6:4); items.push({t:'cap',n:b.n,x:b.x,page:page}); }
     else if(b.t==='h2'){ roman++; letter=0; lin+=nlin(b); items.push({t:'h2',mark:_avRoman(roman)+'.-',x:_avStripNum(b.x),page:page}); }
     else if(b.t==='h3'){ letter++; lin+=nlin(b); items.push({t:'h3',mark:(_AV_LET[(letter-1)%26]||'A')+'.-',x:_avStripNum(b.x),page:page}); }
     else { items.push(Object.assign({page:page},b)); lin+=nlin(b); }
@@ -16488,9 +16515,9 @@ async function _avTextoFinalDocx(){
     if(e.t==='cap'){
       if(e.n){ sec2+=_dxP(_dxRuns('CAPÍTULO '+e.n,{b:true,sz:24}),{jc:'center',before:160,after:0,keepNext:true})
         +_dxP(_dxRuns(e.x,{b:true,sz:24}),{jc:'center',after:120,keepNext:true}); }
-      else { sec2+=_dxP(_dxRuns(e.x,{b:true,sz:24})+_TAB+_dxRuns(NN(e.page)+' – '+NN(TT),{sz:24}),{jc:'left',tabRight:TABPOS,after:60}); }
-    } else if(e.t==='h2'){ sec2+=_dxP(_dxRuns(e.mark,{b:true,sz:24})+_TAB+_dxRuns(e.x,{b:true,sz:24})+_TAB+_dxRuns(NN(e.page)+' – '+NN(TT),{sz:24}),{jc:'left',ind:CM,hang:CM,tabLeft:CM,tabRight:TABPOS,after:40}); }
-    else if(e.t==='h3'){ sec2+=_dxP(_dxRuns(e.mark,{b:true,sz:24})+_TAB+_dxRuns(e.x,{sz:24})+_TAB+_dxRuns(NN(e.page)+' – '+NN(TT),{sz:24}),{jc:'left',ind:2*CM,hang:CM,tabLeft:2*CM,tabRight:TABPOS,after:40}); }
+      else { sec2+=_dxP(_dxRuns(e.x,{b:true,sz:24})+_TAB+_dxRuns(NN(e.page)+' – '+NN(TT),{sz:24}),{jc:'left',right:1050,tabRight:TABPOS,after:60}); }
+    } else if(e.t==='h2'){ sec2+=_dxP(_dxRuns(e.mark,{b:true,sz:24})+_TAB+_dxRuns(e.x,{b:true,sz:24})+_TAB+_dxRuns(NN(e.page)+' – '+NN(TT),{sz:24}),{jc:'left',ind:CM,hang:CM,right:1050,tabLeft:CM,tabRight:TABPOS,after:40}); }
+    else if(e.t==='h3'){ sec2+=_dxP(_dxRuns(e.mark,{b:true,sz:24})+_TAB+_dxRuns(e.x,{sz:24})+_TAB+_dxRuns(NN(e.page)+' – '+NN(TT),{sz:24}),{jc:'left',ind:2*CM,hang:CM,right:1050,tabLeft:2*CM,tabRight:TABPOS,after:40}); }
   });
   sec2+=_dxP('',{pStyleSect:_dxSect({})});   // cierra sección 2 (sin marco, sin pie)
   // ── SECCIÓN 3: TEXTO (numeración desde 1, pie "1 - N") ──
@@ -16498,11 +16525,12 @@ async function _avTextoFinalDocx(){
   items.forEach(function(b){
     if(b.t==='cap'){
       indent=0;
+      sec3+=_dxMembrete(!firstCap)+_dxP('',{after:0});   // membrete al tope de cada capítulo (salto de página salvo el 1º)
       if(b.n){
-        sec3+=_dxP(_dxRuns('CAPÍTULO '+b.n,{b:true,sz:32}),{jc:'center',after:60,pageBreak:!firstCap,keepNext:true})
+        sec3+=_dxP(_dxRuns('CAPÍTULO '+b.n,{b:true,sz:32}),{jc:'center',after:60,keepNext:true})
           +_dxP(_dxRuns(b.x,{b:true,sz:32}),{jc:'center',after:200,keepNext:true});
       } else {
-        sec3+=_dxP(_dxRuns(b.x,{b:true,sz:32}),{jc:'center',after:200,pageBreak:!firstCap,keepNext:true});
+        sec3+=_dxP(_dxRuns(b.x,{b:true,sz:32}),{jc:'center',before:120,after:200,keepNext:true});
       }
       firstCap=false;
     }
