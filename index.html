@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.144</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.145</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -16094,8 +16094,8 @@ function _avTextoFinalParse(raw){
     let m;
     if((m=esCap(l))){
       flushP();
-      let tit=(m[2]||'').trim();
-      if(!tit){ for(let j=i+1;j<lines.length;j++){ if(lines[j].trim()){ tit=lines[j].trim().replace(/^\**|\**$/g,''); i=j; break; } } }
+      let tit=(m[2]||'').trim().replace(/^#{1,6}\s*/,'');
+      if(!tit){ for(let j=i+1;j<lines.length;j++){ if(lines[j].trim()){ tit=lines[j].trim().replace(/^#{1,6}\s*/,'').replace(/^\**|\**$/g,''); i=j; break; } } }
       B.push({t:'cap',n:/^\d+$/.test(m[1])?_avRoman(m[1]):m[1].toUpperCase(),x:tit.replace(/\.+$/,'')});
       continue;
     }
@@ -16118,6 +16118,14 @@ function _avTextoFinalParse(raw){
     parr.push(l);
   }
   flushP(); flushT();
+  // v2.9.145: subtítulo HUÉRFANO (seguido de otro título de igual o mayor nivel, sin cuerpo) → párrafo
+  for(let k=0;k<B.length;k++){
+    const bb=B[k], nx=B[k+1];
+    if(bb.t==='h2' && (!nx||nx.t==='h2'||nx.t==='cap')) B[k]={t:'p',x:bb.x};
+    else if(bb.t==='h3' && (!nx||nx.t==='h2'||nx.t==='h3'||nx.t==='cap')) B[k]={t:'p',x:bb.x};
+  }
+  // los subtítulos terminan SIEMPRE en punto (nunca vacíos ni sin puntuación)
+  B.forEach(function(bb){ if(bb.t==='h2'||bb.t==='h3'){ bb.x=String(bb.x||'').trim(); if(bb.x&&!/[.:!?]$/.test(bb.x)) bb.x+='.'; } });
   return B;
 }
 // v2.9.143: documento OFICIAL fiel al modelo — carátula con MARCO (formato cerrado) + índice jerárquico
@@ -16404,7 +16412,7 @@ function _dxP(runsXml, o){
   if(o.keepNext) pPr+='<w:keepNext/>';
   if(o.pageBreak) pPr+='<w:pageBreakBefore/>';
   if(o.pBdr) pPr+='<w:pBdr><w:bottom w:val="double" w:sz="6" w:space="1" w:color="000000"/></w:pBdr>';
-  if(o.tabRight) pPr+='<w:tabs><w:tab w:val="right" w:leader="dot" w:pos="'+o.tabRight+'"/></w:tabs>';
+  if(o.tabLeft||o.tabRight) pPr+='<w:tabs>'+(o.tabLeft?'<w:tab w:val="left" w:pos="'+o.tabLeft+'"/>':'')+(o.tabRight?'<w:tab w:val="right" w:leader="dot" w:pos="'+o.tabRight+'"/>':'')+'</w:tabs>';
   if(o.ind!=null||o.hang!=null||o.right!=null) pPr+='<w:ind'+(o.ind!=null?' w:left="'+o.ind+'"':'')+(o.right!=null?' w:right="'+o.right+'"':'')+(o.hang!=null?' w:hanging="'+o.hang+'"':'')+'/>';
   pPr+='<w:spacing'+(o.before!=null?' w:before="'+o.before+'"':'')+' w:after="'+(o.after!=null?o.after:0)+'"'+(o.line?' w:line="'+o.line+'" w:lineRule="auto"':'')+'/>';
   pPr+='<w:jc w:val="'+(o.jc||'left')+'"/></w:pPr>';
@@ -16416,15 +16424,16 @@ function _dxSect(o){
   if(o.footer) s+='<w:footerReference w:type="default" r:id="rIdFooter"/>';
   s+='<w:pgSz w:w="12240" w:h="15840"/>';
   s+='<w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1701" w:header="708" w:footer="708" w:gutter="0"/>';
-  if(o.borders) s+='<w:pgBorders w:offsetFrom="page"><w:top w:val="single" w:sz="14" w:space="24" w:color="000000"/><w:left w:val="single" w:sz="14" w:space="24" w:color="000000"/><w:bottom w:val="single" w:sz="14" w:space="24" w:color="000000"/><w:right w:val="single" w:sz="14" w:space="24" w:color="000000"/></w:pgBorders>';
+  if(o.borders) s+='<w:pgBorders w:offsetFrom="text"><w:top w:val="single" w:sz="14" w:space="18" w:color="000000"/><w:left w:val="single" w:sz="14" w:space="18" w:color="000000"/><w:bottom w:val="single" w:sz="14" w:space="18" w:color="000000"/><w:right w:val="single" w:sz="14" w:space="18" w:color="000000"/></w:pgBorders>';
   if(o.start!=null) s+='<w:pgNumType w:start="'+o.start+'"/>';
   s+='<w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr>';
   return s;
 }
 const _TAB='<w:r><w:rPr>'+_AR+'</w:rPr><w:tab/></w:r>';
 function _dxMembrete(){
+  // CENTRADO pero cargado a la IZQUIERDA (sangría derecha 3cm, como el modelo oficial)
   const L=[['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES',0],['ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO',0],['“MCAL. ANDRÉS DE SANTA CRUZ”',0],['BOLIVIA',1]];
-  return L.map(function(l){ return _dxP(_dxRuns(l[0],{b:true,sz:20,u:!!l[1]}),{jc:'left',after:0}); }).join('');
+  return L.map(function(l){ return _dxP(_dxRuns(l[0],{b:true,sz:20,u:!!l[1]}),{jc:'center',right:1701,after:0}); }).join('');
 }
 function _dxImgEscudo(){
   const cx=2520000, cy=1734000; // ~7cm x 4.82cm (escudo 404x278)
@@ -16436,7 +16445,7 @@ function _dxImgEscudo(){
     +'<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'+cx+'" cy="'+cy+'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>'
     +'</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>';
 }
-function _dxDline(){ return _dxP('',{ind:1701,right:1701,pBdr:true,before:80,after:80}); }
+function _dxDline(){ return _dxP('',{pBdr:true,before:80,after:80}); }  // línea DOBLE de extremo a extremo
 function _dxVacio(n){ let o=''; for(let i=0;i<(n||1);i++) o+=_dxP('',{after:0}); return o; }
 async function _avTextoFinalDocx(){
   await ensureJSZip();
@@ -16448,16 +16457,20 @@ async function _avTextoFinalDocx(){
   const codigo=m.codigo_uc||c.materia_codigo||'';
   const gestion=c.gestion||(new Date()).getFullYear();
   const CM=567, TABPOS=9405, NN=function(p){ return (p<10?'0':'')+p; };
-  // ── PASE 1: marcadores I.-/A.- por capítulo + estimación de páginas ──
-  const items=[]; let page=1, used=0, first=true, roman=0, letter=0;
-  const CH=_AV_CHARS_PAG;
+  // ── PASE 1: marcadores I.-/A.- por capítulo + estimación de páginas (por LÍNEAS, más realista) ──
+  const items=[]; let page=1, lin=0, first=true, roman=0, letter=0;
+  const LPP=47, CPL=95;   // ~40 líneas por hoja, ~88 caracteres por línea (Arial 12, carta 2/2/2/3)
+  const nlin=function(b){
+    if(b.t==='h2'||b.t==='h3') return 2;
+    if(b.t==='tabla') return b.filas.length*2+1;
+    return Math.ceil((String(b.x||'').length||1)/CPL)+1;   // +1 = espacio entre párrafos
+  };
   B.forEach(function(b){
-    if(b.t==='cap'){ if(!first){ page++; used=0; } first=false; roman=0; used+=(b.n?260:200); items.push({t:'cap',n:b.n,x:b.x,page:page}); }
-    else if(b.t==='h2'){ roman++; letter=0; used+=70; items.push({t:'h2',mark:_avRoman(roman)+'.-',x:_avStripNum(b.x),page:page}); }
-    else if(b.t==='h3'){ letter++; used+=60; items.push({t:'h3',mark:(_AV_LET[(letter-1)%26]||'A')+'.-',x:_avStripNum(b.x),page:page}); }
-    else if(b.t==='tabla'){ items.push(Object.assign({page:page},b)); used+=b.filas.length*130; }
-    else { items.push(Object.assign({page:page},b)); used+=((b.x||'').length+40); }
-    while(used>=CH){ page++; used-=CH; }
+    if(b.t==='cap'){ if(!first){ page++; lin=0; } first=false; roman=0; lin+=(b.n?6:4); items.push({t:'cap',n:b.n,x:b.x,page:page}); }
+    else if(b.t==='h2'){ roman++; letter=0; lin+=nlin(b); items.push({t:'h2',mark:_avRoman(roman)+'.-',x:_avStripNum(b.x),page:page}); }
+    else if(b.t==='h3'){ letter++; lin+=nlin(b); items.push({t:'h3',mark:(_AV_LET[(letter-1)%26]||'A')+'.-',x:_avStripNum(b.x),page:page}); }
+    else { items.push(Object.assign({page:page},b)); lin+=nlin(b); }
+    while(lin>=LPP){ page++; lin-=LPP; }
   });
   const TT=page;
   // ── SECCIÓN 1: CARÁTULA (marco de página) ──
@@ -16476,8 +16489,8 @@ async function _avTextoFinalDocx(){
       if(e.n){ sec2+=_dxP(_dxRuns('CAPÍTULO '+e.n,{b:true,sz:24}),{jc:'center',before:160,after:0,keepNext:true})
         +_dxP(_dxRuns(e.x,{b:true,sz:24}),{jc:'center',after:120,keepNext:true}); }
       else { sec2+=_dxP(_dxRuns(e.x,{b:true,sz:24})+_TAB+_dxRuns(NN(e.page)+' – '+NN(TT),{sz:24}),{jc:'left',tabRight:TABPOS,after:60}); }
-    } else if(e.t==='h2'){ sec2+=_dxP(_dxRuns(e.mark+'  ',{b:true,sz:24})+_dxRuns(e.x,{b:true,sz:24})+_TAB+_dxRuns(NN(e.page)+' – '+NN(TT),{sz:24}),{jc:'left',tabRight:TABPOS,ind:0,after:40}); }
-    else if(e.t==='h3'){ sec2+=_dxP(_dxRuns(e.mark+'  ',{b:true,sz:24})+_dxRuns(e.x,{sz:24})+_TAB+_dxRuns(NN(e.page)+' – '+NN(TT),{sz:24}),{jc:'left',tabRight:TABPOS,ind:Math.round(CM*1.2),after:40}); }
+    } else if(e.t==='h2'){ sec2+=_dxP(_dxRuns(e.mark,{b:true,sz:24})+_TAB+_dxRuns(e.x,{b:true,sz:24})+_TAB+_dxRuns(NN(e.page)+' – '+NN(TT),{sz:24}),{jc:'left',ind:CM,hang:CM,tabLeft:CM,tabRight:TABPOS,after:40}); }
+    else if(e.t==='h3'){ sec2+=_dxP(_dxRuns(e.mark,{b:true,sz:24})+_TAB+_dxRuns(e.x,{sz:24})+_TAB+_dxRuns(NN(e.page)+' – '+NN(TT),{sz:24}),{jc:'left',ind:2*CM,hang:CM,tabLeft:2*CM,tabRight:TABPOS,after:40}); }
   });
   sec2+=_dxP('',{pStyleSect:_dxSect({})});   // cierra sección 2 (sin marco, sin pie)
   // ── SECCIÓN 3: TEXTO (numeración desde 1, pie "1 - N") ──
@@ -16493,12 +16506,12 @@ async function _avTextoFinalDocx(){
       }
       firstCap=false;
     }
-    else if(b.t==='h2'){ indent=CM; sec3+=_dxP(_dxRuns(b.mark,{b:true,sz:24})+_TAB+_dxRuns(String(b.x).toUpperCase(),{b:true,u:true,sz:24}),{ind:CM,hang:CM,jc:'left',before:160,after:120,keepNext:true}); }
-    else if(b.t==='h3'){ indent=2*CM; sec3+=_dxP(_dxRuns(b.mark,{b:true,sz:24})+_TAB+_dxRuns(b.x,{b:true,u:true,sz:24}),{ind:2*CM,hang:CM,jc:'left',before:120,after:100,keepNext:true}); }
-    else if(b.t==='li'){ sec3+=_dxP(_dxRuns((b.num?b.num+') ':'– ')+b.x,{sz:24}),{ind:indent+Math.round(CM*0.6),hang:Math.round(CM*0.6),jc:'both',after:60}); }
-    else if(b.t==='cita'){ sec3+=_dxP(_dxRuns(b.x,{i:true,sz:24}),{ind:indent+Math.round(CM*0.6),jc:'both',after:120}); }
+    else if(b.t==='h2'){ indent=CM; sec3+=_dxP(_dxRuns(b.mark,{b:true,sz:24})+_TAB+_dxRuns(String(b.x).toUpperCase(),{b:true,u:true,sz:24}),{ind:CM,hang:CM,jc:'left',before:220,after:140,keepNext:true}); }
+    else if(b.t==='h3'){ indent=2*CM; sec3+=_dxP(_dxRuns(b.mark,{b:true,sz:24})+_TAB+_dxRuns(b.x,{b:true,u:true,sz:24}),{ind:2*CM,hang:CM,jc:'left',before:180,after:120,keepNext:true}); }
+    else if(b.t==='li'){ sec3+=_dxP(_dxRuns((b.num?b.num+') ':'– ')+b.x,{sz:24}),{ind:indent+Math.round(CM*0.6),hang:Math.round(CM*0.6),jc:'both',after:80}); }
+    else if(b.t==='cita'){ sec3+=_dxP(_dxRuns(b.x,{i:true,sz:24}),{ind:indent+Math.round(CM*0.6),jc:'both',before:60,after:140}); }
     else if(b.t==='tabla'){ sec3+=_dxTabla(b, indent); }
-    else { sec3+=_dxP(_dxRuns(b.x,{sz:24}),{ind:indent,jc:'both',after:120,line:276}); }
+    else { sec3+=_dxP(_dxRuns(b.x,{sz:24}),{ind:indent,jc:'both',before:40,after:160,line:276}); }
   });
   const bodyXml='<w:body>'+sec1+sec2+sec3+_dxSect({footer:true,start:1})+'</w:body>';
   // ── ensamblar el .docx (ZIP OOXML) ──
