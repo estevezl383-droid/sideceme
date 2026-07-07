@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.149</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.151</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -16071,6 +16071,26 @@ function _avInline(s){
 }
 // Parser del texto pegado: entiende markdown (#, ##, **, -, tablas |) Y texto plano
 // (CAPÍTULO N, 1.1 Tema, TÍTULOS EN MAYÚSCULAS, INTRODUCCIÓN/CONCLUSIONES/GLOSARIO/BIBLIOGRAFÍA).
+// v2.9.150: separa un GLOSARIO en texto PLANO corrido ("Término. definición. Otro término. definición.")
+// en entradas individuales, poniendo el término en negrilla. El término es una frase CORTA (≤5 palabras,
+// sin contar paréntesis) al inicio de oración; la definición es lo que sigue hasta el próximo término.
+function _avGlosSplit(txt){
+  txt=String(txt||'').replace(/\s+/g,' ').trim();
+  const chunks=txt.split(/(?<=\.)\s+(?=[A-ZÁÉÍÓÚÑ¿"“(])/);
+  const entries=[]; let cur=null;
+  chunks.forEach(function(ch){
+    ch=ch.trim(); if(!ch) return;
+    const core=ch.replace(/\([^)]*\)/g,'').replace(/[.:;,]+$/,'').trim();
+    const nw=core?core.split(/\s+/).length:99;
+    const esTermino=/^[A-ZÁÉÍÓÚÑ]/.test(ch) && nw>=1 && nw<=5;
+    if(esTermino && cur){ entries.push(cur); cur=null; }
+    if(esTermino){ cur={term:ch.replace(/[.]+$/,'').trim(), def:''}; }
+    else if(cur){ cur.def+=(cur.def?' ':'')+ch; }
+    else { cur={term:'', def:ch}; }
+  });
+  if(cur) entries.push(cur);
+  return entries.map(function(e){ return e.term?('**'+e.term+'.** '+e.def):e.def; });
+}
 function _avTextoFinalParse(raw){
   const lines=String(raw||'').replace(/\r\n?/g,'\n').replace(/^```.*$/gm,'').split('\n');
   const B=[];
@@ -16090,7 +16110,14 @@ function _avTextoFinalParse(raw){
   let inGloss=false, glossBuf=null;   // v2.9.147: parser consciente del GLOSARIO (cada término = párrafo aparte)
   const flushP=function(){ if(parr.length){ B.push({t:'p',x:parr.join(' ')}); parr=[]; } };
   const flushT=function(){ if(tabla&&tabla.filas.length){ B.push(tabla); } tabla=null; };
-  const flushG=function(){ if(glossBuf!=null){ B.push({t:'p',x:glossBuf,gloss:true}); glossBuf=null; } };
+  const flushG=function(){
+    if(glossBuf==null) return;
+    const buf=glossBuf; glossBuf=null;
+    if(/\*\*/.test(buf)){ B.push({t:'p',x:buf,gloss:true}); return; }   // ya viene con negrilla
+    const ents=_avGlosSplit(buf);                                        // texto plano corrido → separar términos
+    if(ents.length<=1){ B.push({t:'p',x:buf,gloss:true}); return; }
+    ents.forEach(function(e){ B.push({t:'p',x:e,gloss:true}); });
+  };
   for(let i=ini;i<lines.length;i++){
     const cru=lines[i], l=cru.trim();
     if(!l){ flushP(); flushT(); flushG(); continue; }
@@ -16678,38 +16705,20 @@ async function avTextoCopiar(btn){
 }
 function avCronoAdd(){ (AV._crono=AV._crono||[]).push({fecha:'',periodo:1,actividad:'',actor:'profesor'}); _avCronoRender(); }
 function avCronoDel(i){ AV._crono.splice(i,1); _avCronoRender(); }
+// v2.9.151: el borrador es un ANÁLISIS del Texto — reparte los capítulos/temas reales en los períodos,
+// entrega la hoja 1 día hábil antes del inicio, termina 1 día antes del sumativo, formativa sobre lo cubierto,
+// prácticas donde el texto lo pide y 3 períodos de revisión tras la entrega de trabajos. Solo LUN-VIE.
 function avCronoBorrador(){
-  const desde=document.getElementById('avc-desde').value;
-  const horas=Number(document.getElementById('avc-horas').value)||30;
   const evs=(AV.data&&AV.data.evaluaciones)||[];
-  const evF=evs.find(e=>e.tipo==='formativa'), evS=evs.find(e=>e.tipo==='sumativa');
-  if(!desde){ alert('Primero cargá la fecha "Desde" (extraela del memorándum y guardá).'); return; }
-  if(AV._crono&&AV._crono.length&&!confirm('Ya hay filas cargadas. ¿Reemplazo todo por el borrador automático?')) return;
-  const rows=[];
-  // Día 1: entrega de hoja de orientación en el 6º período (como en los modelos de la ECEME)
-  rows.push({fecha:desde,periodo:6,actividad:'ENTREGA DE LA HOJA DE ORIENTACIÓN Y TEXTO DE REFERENCIA',actor:'profesor'});
-  // Días de clase: arrancan al día siguiente y siguen 1 vez por semana (~5 períodos por día de clase)
-  const els=(AV.data&&AV.data.elementos&&AV.data.elementos.length)?AV.data.elementos:((AV._cm&&AV._cm.elementos)||[]);
-  // De las horas totales se descuentan los exámenes: formativa = 2 h, sumativa = 3 h
-  const horasClase=Math.max(5,horas-5);
-  const nDias=Math.max(2,Math.ceil(horasClase/5));
-  const fS=(evS&&evS.fecha)?evS.fecha.slice(0,10):null;
-  let d=_avD(desde); d.setDate(d.getDate()+1);
-  for(let k=0;k<nDias;k++){
-    const f=_avIsoD(d);
-    if(fS&&f>=fS) break;
-    const idx=Math.min(k,Math.max(els.length-1,0));
-    const nom=els.length?(els[idx].nombre||''):'';
-    const nUA=els.length?(idx+1):(k+1);
-    const acc=(k===0)
-      ?('PRESENTACIÓN DE LA U.C. · EVALUACIÓN DIAGNÓSTICA · EXPOSICIÓN DEL DOCENTE — DESARROLLO DE LA U.A. Nº 1'+(nom?(' "'+nom.toUpperCase()+'"'):''))
-      :(((els.length&&k<els.length)?'DESARROLLO':'CONTINÚA EL DESARROLLO')+' DE LA U.A. Nº '+nUA+(nom?(' "'+nom.toUpperCase()+'"'):''));
-    rows.push({fecha:f,periodo:1,actividad:acc,actor:'profesor'});
-    d.setDate(d.getDate()+7);
-  }
-  if(evF&&evF.fecha) rows.push({fecha:evF.fecha.slice(0,10),periodo:1,actividad:'EVALUACIÓN FORMATIVA (2 HORAS — 1º Y 2º PERÍODO)',actor:'alumno'});
-  if(evS&&evS.descripcion){ const mt=String(evS.descripcion).match(/(\d{4}-\d{2}-\d{2})/); if(mt) rows.push({fecha:mt[1],periodo:1,actividad:'ENTREGA DE TRABAJOS (2 DÍAS ANTES DEL SUMATIVO)',actor:'alumno'}); }
-  if(evS&&evS.fecha) rows.push({fecha:evS.fecha.slice(0,10),periodo:1,actividad:'EVALUACIÓN SUMATIVA (3 HORAS — 1º AL 3º PERÍODO)',actor:'alumno'});
+  const evF0=evs.find(function(e){return e.tipo==='formativa';}), evS0=evs.find(function(e){return e.tipo==='sumativa';});
+  const evF=(evF0&&evF0.fecha)?evF0.fecha.slice(0,10):null;
+  const evS=(evS0&&evS0.fecha)?evS0.fecha.slice(0,10):null;
+  if(!evS){ alert('Para armar la distribución necesito la fecha de la EVALUACIÓN SUMATIVA (se extrae del memorándum). Cargá el memo y guardá.'); return; }
+  if(AV._crono&&AV._crono.length&&!confirm('Ya hay filas cargadas. ¿Reemplazo todo por la distribución automática (análisis del texto)?')) return;
+  const caps=_avCronoTemas();
+  if(!caps.length){ alert('No pude leer capítulos ni del Texto ni de la Desagregación. Cargá el Texto de Referencia (H) o completá la Desagregación y volvé a intentar.'); return; }
+  const rows=_avCronoPlan(caps, evF, evS);
+  if(!rows||!rows.length){ alert('No se pudo generar la distribución.'); return; }
   rows.sort(function(a,b){ return (a.fecha+String(a.periodo)).localeCompare(b.fecha+String(b.periodo)); });
   AV._crono=rows;
   _avCronoRender();
@@ -16728,122 +16737,130 @@ async function avCronoGuardar(btn){
 function _avMondayIso(f){ const d=_avD(f); const wd=d.getDay(); d.setDate(d.getDate()-(wd===0?6:wd-1)); return _avIsoD(d); }
 function _avAddDaysIso(iso,n){ const d=_avD(iso); d.setDate(d.getDate()+n); return _avIsoD(d); }
 function _dxTd(w, parasXml, opt){ opt=opt||{};
-  return '<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/>'+(opt.shd?'<w:shd w:val="clear" w:fill="D9D9D9"/>':'')
+  return '<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/>'+(opt.vm||'')+(opt.fill?'<w:shd w:val="clear" w:fill="'+opt.fill+'"/>':'')+(opt.shd?'<w:shd w:val="clear" w:fill="D9D9D9"/>':'')
     +(opt.noBorder?'<w:tcBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/></w:tcBorders>':'')
+    +(opt.diag?'<w:tcBorders><w:tl2br w:val="single" w:sz="6"/></w:tcBorders>':'')
     +'<w:vAlign w:val="'+(opt.vAlign||'center')+'"/></w:tcPr>'+(parasXml||_dxP('',{after:0}))+'</w:tc>'; }
+// ── días hábiles (LUN-VIE; no se consideran sábado ni domingo) ──
+function _avHab(iso){ const w=_avD(iso).getDay(); return w>=1&&w<=5; }
+function _avPrevHab(iso){ let d=_avD(iso); do{ d.setDate(d.getDate()-1); }while(d.getDay()===0||d.getDay()===6); return _avIsoD(d); }
+function _avNextHab(iso){ let d=_avD(iso); do{ d.setDate(d.getDate()+1); }while(d.getDay()===0||d.getDay()===6); return _avIsoD(d); }
+// ── v2.9.151: capítulos + temas REALES del Texto (o de la Desagregación si no hay texto) ──
+const _AV_ROM=/^(I|II|III|IV|V|VI|VII|VIII|IX|X|XI|XII)$/;
+function _avCap1(s){ s=String(s||'').toLowerCase().trim(); return s.charAt(0).toUpperCase()+s.slice(1); }
+function _avCronoTemas(){
+  const raw=AV._textoFinal||''; let caps=[]; const lines=String(raw).replace(/\r/g,'').split('\n'); let cur=null;
+  for(let i=0;i<lines.length;i++){
+    const l=lines[i].trim();
+    const mc=/^\**\s*CAP[ÍI]TULO\s+([IVXLC]+|\d+)\s*\**\s*$/i.exec(l);
+    if(mc){ let nom=''; for(let j=i+1;j<lines.length;j++){ const s=lines[j].trim().replace(/\**/g,''); if(s){ nom=s; break; } } cur={nombre:nom,temas:[],practica:false}; caps.push(cur); continue; }
+    if(!cur) continue;
+    const clean=l.replace(/\*\*/g,' ').replace(/\s+/g,' ').trim();
+    const ms=/^([IVXLC]+)\.-\s+(.+)$/.exec(clean);
+    if(ms&&_AV_ROM.test(ms[1])){ let t=ms[2].replace(/[.:]+$/,'').trim();
+      if(/APLICACI[ÓO]N PR[ÁA]CTICA/i.test(t)){ cur.practica=true; continue; }
+      if(/ACTUALIDAD E INNOVACI/i.test(t)) continue;
+      if(t&&t.length<=70&&!cur.temas.some(function(x){return x.toUpperCase()===t.toUpperCase();})) cur.temas.push(_avCap1(t));
+    }
+  }
+  const seen={}; caps=caps.filter(function(c){return c.temas.length>0;}).filter(function(c){ const k=c.nombre.toUpperCase(); if(seen[k])return false; seen[k]=1; return true; });
+  if(!caps.length){ const els=(AV._des&&AV._des.length)?AV._des:((AV.data&&AV.data.elementos)||[]); els.forEach(function(e){ caps.push({nombre:String(e.nombre||'').toUpperCase(),temas:(e.saber_conocer||[]).slice(0,8).map(_avCap1),practica:true}); }); }
+  return caps;
+}
+// ── MOTOR: arma el cronograma como ANÁLISIS del texto (entrega hoja 1 día antes, distribuye capítulos,
+//    termina 1 día antes del sumativo, formativa sobre lo cubierto, prácticas, y revisión tras trabajos) ──
+function _avCronoPlan(caps, evF, evS){
+  if(!evS) return null;
+  const rows=[]; const add=function(f,p,a){ rows.push({fecha:f,periodo:p,actividad:a,actor:/EVALUACI|ENTREGA DE TRABAJOS/i.test(a)?'alumno':'profesor'}); };
+  const nCap=caps.length||3;
+  const classEnd=_avPrevHab(evS);
+  let days=[], d=classEnd, content=0, guard=0;
+  while(content<nCap && guard++<80){ days.unshift(d); if(d!==evF) content++; d=_avPrevHab(d); }
+  const firstDay=days[0], entrega=_avPrevHab(firstDay);
+  add(entrega,6,'ENTREGA DE LA HOJA DE ORIENTACIÓN Y TEXTO DE REFERENCIA');
+  let ci=0, primer=true;
+  days.forEach(function(f){
+    if(evF && f===evF){ add(f,1,'EVALUACIÓN FORMATIVA'); add(f,2,'EVALUACIÓN FORMATIVA'); add(f,3,'EVALUACIÓN FORMATIVA'); add(f,4,'RETRO ALIMENTACIÓN PARCIAL'); return; }
+    const c=caps[ci]||{nombre:'',temas:[],practica:false}, uaN=ci+1; let nextP;
+    if(primer){ add(f,1,'PRESENTACIÓN DE LA U.C. · EVALUACIÓN DIAGNÓSTICA'); add(f,2,'EXPOSICIÓN DEL DOCENTE — DESARROLLO DE LA U.A. Nº '+uaN+' «'+c.nombre+'»'); nextP=3; primer=false; }
+    else { add(f,1,'EXPOSICIÓN DEL DOCENTE — DESARROLLO DE LA U.A. Nº '+uaN+' «'+c.nombre+'»'); nextP=2; }
+    const ultimo=c.practica?4:5, nP=Math.max(1,ultimo-nextP+1), temas=c.temas.slice(), per=Math.max(1,Math.ceil(temas.length/nP));
+    for(let k=0;k<nP;k++){ const g=temas.slice(k*per,(k+1)*per); if(g.length) add(f,nextP+k,'DESARROLLO SEGÚN EL TEXTO: '+g.join('; ')+'.'); }
+    if(c.practica) add(f,5,'PRÁCTICAS — APLICACIÓN PRÁCTICA (caso de estudio y ejercicios del capítulo)');
+    add(f,6,'RETRO ALIMENTACIÓN PARCIAL');
+    ci++;
+  });
+  add(classEnd,6,'ENTREGA DE TRABAJOS');
+  add(evS,1,'EVALUACIÓN SUMATIVA'); add(evS,2,'EVALUACIÓN SUMATIVA'); add(evS,3,'EVALUACIÓN SUMATIVA');
+  add(evS,4,'REVISIÓN DE LOS TRABAJOS'); add(evS,5,'REVISIÓN DE LOS TRABAJOS'); add(evS,6,'REVISIÓN DE LOS TRABAJOS');
+  return rows;
+}
+function _avColorAct(t){
+  if(/ENTREGA DE (LA HOJA|TEXTOS|TRABAJOS)|HOJA DE ORIENTACI/i.test(t)) return 'FFFF00';
+  if(/SUMATIV/i.test(t)) return 'FF0000';
+  if(/FORMATIV/i.test(t)) return 'F4B183';
+  if(/RETRO/i.test(t)) return 'F8CBAD';
+  if(/PR[ÁA]CTICA/i.test(t)) return 'C6E0B4';
+  if(/REVISI[ÓO]N/i.test(t)) return 'D9D9D9';
+  return 'BDD7EE';
+}
 async function _avCronoDocx(){
   await ensureJSZip();
   const rows=(((AV._crono&&AV._crono.length)?AV._crono:((AV.data&&AV.data.cronograma)||[]))||[])
-    .map(function(x){ return {fecha:(x.fecha||'').slice(0,10),periodo:Number(x.periodo)||1,actividad:(x.actividad||'').trim(),actor:x.actor||'profesor'}; })
+    .map(function(x){ return {fecha:(x.fecha||'').slice(0,10),periodo:Number(x.periodo)||1,actividad:(x.actividad||'').trim()}; })
     .filter(function(x){ return x.fecha && x.actividad; });
   if(!rows.length) return null;
-  // agrupar por semana (lunes ISO) y por DÍA (col 0=LUN … 5=SÁB); el período lo decide el layout
-  const weeksMap={};
-  rows.forEach(function(r){
-    let d=_avD(r.fecha);
-    if(d.getDay()===0){ d.setDate(d.getDate()+1); }   // Dom → Lun (turno mañana LUN-SÁB)
-    const iso=_avIsoD(d), wd=_avD(iso).getDay();
-    if(wd<1||wd>6) return;
-    const col=wd-1, mon=_avMondayIso(iso);
-    (weeksMap[mon]=weeksMap[mon]||{});
-    (weeksMap[mon][col]=weeksMap[mon][col]||[]).push(r.actividad);
-  });
-  const weeks=Object.keys(weeksMap).sort();
-  if(!weeks.length) return null;
-  // ── colores (fill OOXML) según el modelo oficial + regla de Sergio (sumativa ROJO, formativa NARANJA) ──
-  const C_YEL='FFFF00', C_BLUE='BDD7EE', C_RED='FF0000', C_ORA='F4B183', C_RETRO='F8CBAD';
-  const _tipo=function(t){
-    if(/SUMATIV/i.test(t)) return 'sumativa';
-    if(/FORMATIV/i.test(t)) return 'formativa';
-    if(/ENTREGA\s+DE\s+TRABAJOS/i.test(t)) return 'trabajos';
-    if(/ENTREGA|HOJA\s+DE\s+ORIENTACI/i.test(t)) return 'entrega';
-    return 'clase';
-  };
-  // cajas de un día (cada caja ocupa un rango de períodos p1..p2, con color); retroalimentación auto
-  const _boxesDia=function(acts){
-    const boxes=[]; let hayClase=false, hayForm=false;
-    (acts||[]).forEach(function(a){
-      const tp=_tipo(a), A=String(a).toUpperCase();
-      if(tp==='entrega') boxes.push({p1:6,p2:6,text:A,fill:C_YEL});
-      else if(tp==='trabajos') boxes.push({p1:6,p2:6,text:A,fill:C_YEL});
-      else if(tp==='sumativa') boxes.push({p1:1,p2:3,text:'EVALUACIÓN SUMATIVA',fill:C_RED});
-      else if(tp==='formativa'){ boxes.push({p1:1,p2:3,text:'EVALUACIÓN FORMATIVA',fill:C_ORA}); hayForm=true; }
-      else { boxes.push({p1:1,p2:5,text:A,fill:C_BLUE}); hayClase=true; }
-    });
-    if(hayClase) boxes.push({p1:6,p2:6,text:'RETRO ALIMENTACIÓN PARCIAL',fill:C_RETRO});
-    if(hayForm)  boxes.push({p1:4,p2:4,text:'RETRO ALIMENTACIÓN PARCIAL',fill:C_RETRO});
-    return boxes;
-  };
-  // descriptor por período (1..6) de una columna-día: null=vacío, o {mode:'restart'|'cont',text,fill}
-  const _colDesc=function(acts){
-    const cells=[null,null,null,null,null,null,null];
-    _boxesDia(acts).forEach(function(b){
-      const p1=Math.max(1,b.p1), p2=Math.min(6,b.p2);
-      for(let p=p1;p<=p2;p++) if(cells[p]) return;   // no pisar una caja ya puesta
-      for(let p=p1;p<=p2;p++) cells[p]={fill:b.fill,mode:(p===p1?'restart':'cont'),text:(p===p1?b.text:'')};
-    });
-    return cells;
-  };
-  const USABLE=13572, PERW=1300, NCOL=6, DAYW=Math.round((USABLE-PERW)/NCOL);
-  const _boxCell=function(w,desc){
-    if(!desc) return '<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>'+_dxP('',{after:0})+'</w:tc>';
-    const vm=(desc.mode==='restart')?'<w:vMerge w:val="restart"/>':'<w:vMerge/>';
-    const inner=(desc.mode==='restart')?_dxP(_dxRuns(desc.text,{b:true,sz:16}),{jc:'center',after:0,line:216}):_dxP('',{after:0});
-    return '<w:tc><w:tcPr><w:tcW w:w="'+w+'" w:type="dxa"/>'+vm+'<w:shd w:val="clear" w:fill="'+desc.fill+'"/><w:vAlign w:val="center"/></w:tcPr>'+inner+'</w:tc>';
-  };
-  const _diag='<w:tcBorders><w:tl2br w:val="single" w:sz="6" w:color="000000"/></w:tcBorders>';
+  const weeks={};
+  rows.forEach(function(r){ let f=r.fecha; if(_avD(f).getDay()===0) f=_avNextHab(f); if(_avD(f).getDay()===6) f=_avPrevHab(f); if(!_avHab(f)) return;
+    const mon=_avMondayIso(f), col=_avD(f).getDay()-1, per=Math.min(6,Math.max(1,r.periodo));
+    weeks[mon]=weeks[mon]||{}; weeks[mon][col]=weeks[mon][col]||{}; weeks[mon][col][per]=r.actividad; });
+  const wk=Object.keys(weeks).sort(); if(!wk.length) return null;
+  const USABLE=13572, PERW=1150, NCOL=5, DAYW=Math.round((USABLE-PERW)/NCOL);
+  // membrete cargado a la IZQUIERDA (hoja horizontal)
+  const memb=[['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES',0],['ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO',0],['“MCAL. ANDRÉS DE SANTA CRUZ”',0],['BOLIVIA',1]]
+    .map(function(l){ return _dxP(_dxRuns(l[0],{b:true,sz:20,u:!!l[1]}),{jc:'left',after:0}); }).join('');
   let tablesXml='';
-  weeks.forEach(function(mon){
-    const cols=[]; for(let c=0;c<NCOL;c++) cols.push(_colDesc(weeksMap[mon][c]||[]));
+  wk.forEach(function(mon){
+    const W=weeks[mon];
     let t='<w:tbl><w:tblPr><w:tblW w:w="'+(PERW+DAYW*NCOL)+'" w:type="dxa"/><w:jc w:val="center"/>'
       +'<w:tblBorders><w:top w:val="single" w:sz="8"/><w:left w:val="single" w:sz="8"/><w:bottom w:val="single" w:sz="8"/><w:right w:val="single" w:sz="8"/><w:insideH w:val="single" w:sz="6"/><w:insideV w:val="single" w:sz="6"/></w:tblBorders></w:tblPr>'
       +'<w:tblGrid><w:gridCol w:w="'+PERW+'"/>'+new Array(NCOL+1).join('<w:gridCol w:w="'+DAYW+'"/>')+'</w:tblGrid>';
-    // ── cabecera fila 1: esquina diagonal PERIODO/FECHA (vMerge restart) + nombres de día ──
-    t+='<w:tr><w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>';
-    t+='<w:tc><w:tcPr><w:tcW w:w="'+PERW+'" w:type="dxa"/><w:vMerge w:val="restart"/>'+_diag+'<w:vAlign w:val="center"/></w:tcPr>'
-      +_dxP(_dxRuns('PERIODO',{b:true,sz:16}),{jc:'right',after:0})+_dxP(_dxRuns('FECHA',{b:true,sz:16}),{jc:'left',after:0})+'</w:tc>';
+    t+='<w:tr><w:trPr><w:tblHeader/></w:trPr>'+_dxTd(PERW,_dxP(_dxRuns('PERIODO',{b:true,sz:16}),{jc:'right',after:0}),{vm:'<w:vMerge w:val="restart"/>',diag:true});
     for(let c=0;c<NCOL;c++) t+=_dxTd(DAYW,_dxP(_dxRuns(_AV_DIAS[_avD(_avAddDaysIso(mon,c)).getDay()],{b:true,sz:18}),{jc:'center',after:0}));
     t+='</w:tr>';
-    // ── cabecera fila 2: esquina (vMerge cont) + fechas ──
-    t+='<w:tr><w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>';
-    t+='<w:tc><w:tcPr><w:tcW w:w="'+PERW+'" w:type="dxa"/><w:vMerge/>'+_diag+'</w:tcPr>'+_dxP('',{after:0})+'</w:tc>';
-    for(let c=0;c<NCOL;c++) t+=_dxTd(DAYW,_dxP(_dxRuns(_avFmil(_avAddDaysIso(mon,c),''),{b:true,sz:18}),{jc:'center',after:0}));
+    t+='<w:tr><w:trPr><w:tblHeader/></w:trPr>'+_dxTd(PERW,_dxP(_dxRuns('FECHA',{b:true,sz:16}),{jc:'left',after:0}),{vm:'<w:vMerge/>',diag:true});
+    for(let c=0;c<NCOL;c++) t+=_dxTd(DAYW,_dxP(_dxRuns(_avFmil(_avAddDaysIso(mon,c),''),{b:true,sz:16}),{jc:'center',after:0}));
     t+='</w:tr>';
-    // ── filas de períodos 1º..6º ──
     for(let p=1;p<=6;p++){
-      t+='<w:tr><w:trPr><w:cantSplit/></w:trPr>';
-      t+=_dxTd(PERW,_dxP(_dxRuns(p+'º',{b:true,sz:20}),{jc:'center',after:0}));
-      for(let c=0;c<NCOL;c++) t+=_boxCell(DAYW,cols[c][p]);
+      t+='<w:tr>'+_dxTd(PERW,_dxP(_dxRuns(p+'º',{b:true,sz:20}),{jc:'center',after:0}));
+      for(let c=0;c<NCOL;c++){
+        const cur=(W[c]||{})[p]||'';
+        if(!cur){ t+=_dxTd(DAYW,_dxP('',{after:0})); continue; }
+        const prev=(W[c]||{})[p-1]||'';
+        if(prev===cur) t+=_dxTd(DAYW,_dxP('',{after:0}),{vm:'<w:vMerge/>',fill:_avColorAct(cur)});
+        else t+=_dxTd(DAYW,_dxP(_dxRuns(cur,{b:true,sz:15}),{jc:'left',after:0,line:210}),{vm:'<w:vMerge w:val="restart"/>',fill:_avColorAct(cur)});
+      }
       t+='</w:tr>';
     }
-    t+='</w:tbl>'+_dxP('',{after:160});
+    t+='</w:tbl>'+_dxP('',{after:140});
     tablesXml+=t;
   });
-  // firma (profesores, sin bordes, en fila horizontal)
   const profs=(AV.docentes||[]).filter(function(x){ return (x.profesor_nombre||'').trim(); });
   let firmaXml='';
-  if(profs.length){
-    const cw=Math.floor(USABLE/Math.max(1,profs.length));
-    const celda=function(p){ return _dxTd(cw,
-      _dxP(_dxRuns(((p.profesor_grado||'')+' '+p.profesor_nombre).trim(),{sz:20}),{jc:'center',after:0})+_dxP(_dxRuns('PROFESOR',{b:true,sz:20}),{jc:'center',after:0}),
-      {noBorder:true}); };
-    firmaXml=_dxVacio(3)+'<w:tbl><w:tblPr><w:tblW w:w="'+(cw*profs.length)+'" w:type="dxa"/><w:jc w:val="center"/>'
-      +'<w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr>'
-      +'<w:tblGrid>'+new Array(profs.length+1).join('<w:gridCol w:w="'+cw+'"/>')+'</w:tblGrid><w:tr>'
-      +profs.map(celda).join('')+'</w:tr></w:tbl>';
+  if(profs.length){ const cw=Math.floor(USABLE/profs.length);
+    firmaXml=_dxVacio(2)+'<w:tbl><w:tblPr><w:tblW w:w="'+(cw*profs.length)+'" w:type="dxa"/><w:jc w:val="center"/><w:tblBorders><w:top w:val="nil"/><w:left w:val="nil"/><w:bottom w:val="nil"/><w:right w:val="nil"/><w:insideH w:val="nil"/><w:insideV w:val="nil"/></w:tblBorders></w:tblPr><w:tblGrid>'+new Array(profs.length+1).join('<w:gridCol w:w="'+cw+'"/>')+'</w:tblGrid><w:tr>'
+      +profs.map(function(p){ return _dxTd(cw,_dxP(_dxRuns(((p.profesor_grado||'')+' '+p.profesor_nombre).trim(),{sz:20}),{jc:'center',after:0})+_dxP(_dxRuns('PROFESOR',{b:true,sz:20}),{jc:'center',after:0}),{noBorder:true}); }).join('')+'</w:tr></w:tbl>';
   }
-  // título con nombre de materia + código + turno (MAÑANA), como el modelo
   const m2=(AV.data&&AV.data.materia)||{}, c2=(AV.data&&AV.data.carpeta)||{};
-  const matNom=String(m2.nombre_uc||'').toUpperCase().trim();
-  const matCod=(m2.codigo_uc||c2.materia_codigo||'').trim();
-  const tit1='CUADRO DE DISTRIBUCIÓN DEL TIEMPO'+(matNom?(' '+matNom):'')+(matCod?(' ('+matCod+')'):'');
+  const nom=String(m2.nombre_uc||'').toUpperCase().trim(), cod=(m2.codigo_uc||c2.materia_codigo||'').trim();
+  const tit1='CUADRO DE DISTRIBUCIÓN DEL TIEMPO'+(nom?' '+nom:'')+(cod?' ('+cod+')':'');
   const sectF='<w:sectPr><w:footerReference w:type="default" r:id="rIdFooter"/>'
     +'<w:pgSz w:w="15840" w:h="12240" w:orient="landscape"/>'
     +'<w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="708" w:footer="708" w:gutter="0"/>'
     +'<w:pgNumType w:start="1"/><w:cols w:space="708"/><w:docGrid w:linePitch="360"/></w:sectPr>';
-  const bodyInner=_dxMembrete()+_dxVacio(1)
+  const bodyInner=memb+_dxP('',{after:0})
     +_dxP(_dxRuns(tit1,{b:true,sz:28}),{jc:'center',before:120,after:60})
-    +_dxP(_dxRuns('(MAÑANA)',{b:true,sz:26}),{jc:'center',after:220})
+    +_dxP(_dxRuns('(MAÑANA)',{b:true,sz:26}),{jc:'center',after:200})
     +tablesXml+firmaXml
     +_dxP('',{pStyleSect:sectF});
   const bodyXml='<w:body>'+bodyInner+'</w:body>';
