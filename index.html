@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.153</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.154</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -15562,7 +15562,15 @@ function avJustGenerar(){
 const _AV_DIAS=['DOMINGO','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO'];
 function _avD(f){ return new Date(f+'T12:00:00'); }
 function _avIsoD(d){ return d.toISOString().slice(0,10); }
+// v2.9.154: ACORDEÓN — al abrir una sección se OCULTAN las demás (pedido de Sergio: menos confusión).
+// Se ocultan con display:none (no se borra nada: lo tipeado y el estado de cada sección se conservan).
+function _avSoloSeccion(id){
+  ['avc-desag','avc-texto','avc-tareas','avc-crono'].forEach(function(x){
+    const el=document.getElementById(x); if(el) el.style.display=(x===id)?'':'none';
+  });
+}
 function avCronoAbrir(){
+  _avSoloSeccion('avc-crono');
   AV._crono=((AV.data&&AV.data.cronograma)||[]).map(c=>({fecha:(c.fecha||'').slice(0,10),periodo:c.periodo||1,actividad:c.actividad||'',actor:c.actor||'profesor'}));
   _avCronoRender();
   const el=document.getElementById('avc-crono'); if(el&&el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'start'});
@@ -15602,6 +15610,7 @@ function _avAdjNombreAuto(inp){
 // v2.9.126: CUADRO DE DESAGREGACIÓN — editor completo (estructura oficial del modelo ECEME)
 function _avLineas(s){ return String(s||'').split('\n').map(function(x){ return x.replace(/^[-•*]\s*/,'').trim(); }).filter(Boolean); }
 async function avDesagAbrir(){
+  _avSoloSeccion('avc-desag');
   AV._des=((AV.data&&AV.data.elementos)||[]).map(function(e){ return {
     nombre:e.nombre||'',competencia:e.competencia||'',
     saber_conocer:(e.saber_conocer||[]).slice(),saber_hacer:(e.saber_hacer||[]).slice(),saber_ser:(e.saber_ser||[]).slice(),
@@ -15799,7 +15808,7 @@ function _avDesagDocHTML(paraWord){
   }
   const css='body,p,td,th,li,div{font-family:Arial,Helvetica,sans-serif;color:#000}'
     +'body{font-size:10pt}'
-    +'.memb{text-align:left;font-weight:bold;font-size:10pt;line-height:1.35}'
+    +'.memb{text-align:center;margin:0 13cm 0 0;font-weight:bold;font-size:10pt;line-height:1.35}' /* centrado pero cargado a la IZQUIERDA (landscape) */
     +'.tit0{text-align:center;font-weight:bold;font-size:16pt;margin:12pt 0}'
     +'table.mx{width:100%;border-collapse:collapse;margin-bottom:14pt;page-break-inside:avoid}'
     +'.mx th,.mx td{border:1px solid #000;padding:3pt 4pt;vertical-align:top;font-size:10pt}'
@@ -15889,6 +15898,7 @@ function _avInstrPara(tema){
   return 'Análisis';
 }
 function avTareasAbrir(){
+  _avSoloSeccion('avc-tareas');
   AV._tar=((AV.data&&AV.data.tareas)||[]).map(function(t){ return {saber:t.saber||'conocer',lugar:t.lugar||'domicilio',modalidad:t.modalidad||'individual',descripcion:t.descripcion||''}; });
   _avTareasRender();
   const el=document.getElementById('avc-tareas'); if(el&&el.scrollIntoView) el.scrollIntoView({behavior:'smooth',block:'start'});
@@ -15903,6 +15913,7 @@ function _avTareasRender(){
     +'<button class="btn-secondary" style="padding:6px 10px;font-size:12px" onclick="avTareasBorrador()">🪄 Sugerir 3 tareas de análisis profundo (elegís 2)</button>'
     +'<button class="btn-secondary" style="padding:6px 10px;font-size:12px" onclick="avTareasInstr()">📖 Instrumentaciones: cuándo usar cada una</button>'
     +'<button class="btn-secondary" style="padding:6px 10px;font-size:12px" onclick="avTareasAdd()">➕ Agregar tarea</button>'
+    +'<button class="btn-secondary" style="padding:6px 10px;font-size:12px" onclick="avTareasPreview()">👁 Vista previa + ⬇ Word del Cuadro</button>'
     +'</div><div id="avc-tareas-instr"></div>';
   if(!rows.length) html+='<div class="rg-meta" style="margin-bottom:6px">Sin tareas. Tocá 🪄 para recibir 3 candidatas sesudas (Análisis · Valoración PNI/PAV/AFA/FODA · Relación+Aplicación) armadas con los temas reales de la Desagregación — quedate con las 2 mejores.</div>';
   html+=rows.map(function(t,i){ return '<div class="rg-card" style="margin-bottom:8px;padding:8px 10px">'
@@ -15963,11 +15974,91 @@ async function avTareasGuardar(btn){
   if(prog) prog.textContent=r.ok?('✅ Guardadas '+rows.length+' tareas — alimentan la Hoja de Orientación y el Word del Cuadro'):'⚠️ '+(r.error||'no se pudo');
   if(r.ok&&AV.data){ AV.data.tareas=rows; _avRenderSecciones(AV.data); }
 }
+// v2.9.154: WORD del CUADRO DE PLANIFICACIÓN DE TAREAS — réplica del modelo oficial MIC 2026
+// (membrete centrado cargado a la izq + título 16 + tabla Nº|ELEMENTO|TAREAS|REQUISITOS + firmas de profesores).
+function _avTareasDocHTML(){
+  const E=_rgEsc;
+  const els=(AV._des&&AV._des.length)?AV._des:((AV.data&&AV.data.elementos)||[]);
+  const tareas=((AV._tar&&AV._tar.length)?AV._tar:((AV.data&&AV.data.tareas)||[])).filter(function(t){ return (t.descripcion||'').trim(); });
+  const gestion=(AV.data&&AV.data.carpeta&&AV.data.carpeta.gestion)||new Date().getFullYear();
+  // ¿Qué tareas corresponden a cada elemento? Se lee "(Elemento k)" o "(Elementos i al j)" de la descripción;
+  // si no dice nada, la tarea aplica a TODOS los elementos.
+  const tareasDe=function(k){
+    return tareas.filter(function(t){
+      const s=t.descripcion;
+      const uno=s.match(/\(Elemento\s+(\d+)\)/i);
+      if(uno) return Number(uno[1])===k+1;
+      const rango=s.match(/\(Elementos\s+(\d+)\s+al\s+(\d+)\)/i);
+      if(rango) return (k+1)>=Number(rango[1])&&(k+1)<=Number(rango[2]);
+      return true;
+    });
+  };
+  let filas='';
+  els.forEach(function(e,k){
+    const ts=tareasDe(k);
+    const celTareas=ts.length?ts.map(function(t,j){ return '<p class="tc">'+(j+1)+'. '+E(t.descripcion)+'</p>'; }).join(''):'<p class="tc">&mdash;</p>';
+    filas+='<tr><th class="cn">N&ordm;</th><th>ELEMENTO DE COMPETENCIA N&ordm; '+(k+1)+'</th><th>TAREAS</th><th class="cr">REQUISITOS TE&Oacute;RICOS</th></tr>'
+      +'<tr><td class="cn"><b>'+(k+1)+'</b></td><td class="ce">'+E(e.competencia||e.nombre||'')+'</td><td>'+celTareas+'</td><td class="cr"><b>Texto de referencia<br>ECEME. '+E(String(gestion))+'</b></td></tr>';
+  });
+  const profRows=(AV.docentes||[]).filter(function(x){ return (x.profesor_nombre||'').trim(); });
+  const fcel=function(p){ return '<td class="firma">'+E(((p.profesor_grado||'')+' '+p.profesor_nombre).trim())+'<br><b>PROFESOR</b></td>'; };
+  let fh='';
+  if(profRows.length){
+    fh='<table class="firmas">';
+    for(let k=0;k<profRows.length;k+=2){
+      const par=profRows.slice(k,k+2);
+      fh+=(par.length===2)?('<tr>'+fcel(par[0])+fcel(par[1])+'</tr>'):('<tr>'+fcel(par[0])+'<td class="firma"></td></tr>');
+    }
+    fh+='</table>';
+  }
+  const css='body,p,td,th,div{font-family:Arial,Helvetica,sans-serif;color:#000}'
+    +'body{font-size:11pt}'
+    +'p{margin:0;text-align:justify;line-height:1.2}'
+    +'.memb{text-align:center;font-weight:bold;font-size:10pt;line-height:1.35;margin:0}'
+    +'.tit0{text-align:center;font-weight:bold;font-size:16pt;margin:12pt 0}'
+    +'table.tx{width:100%;border-collapse:collapse}'
+    +'.tx th,.tx td{border:1px solid #000;padding:4pt 5pt;vertical-align:top;font-size:11pt}'
+    +'.tx th{text-align:center;font-weight:bold}'
+    +'.cn{width:5%;text-align:center}.ce{width:32%;text-align:justify}.cr{width:15%;text-align:center}'
+    +'.tc{margin:0 0 4pt;text-align:justify}'
+    +'table.firmas{width:100%;border-collapse:collapse;margin-top:26pt;page-break-inside:avoid}'
+    +'.firma{text-align:center;font-size:11pt;padding-top:42pt;width:50%;border:none}';
+  const memb='<table style="width:100%;border-collapse:collapse"><tr>'
+    +'<td style="border:none;width:65%;padding:0"><p class="memb">FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES<br>ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJ&Eacute;RCITO<br>&ldquo;MCAL. ANDR&Eacute;S DE SANTA CRUZ&rdquo;<br><u>BOLIVIA</u></p></td>'
+    +'<td style="border:none;width:35%;padding:0"></td></tr></table>';
+  return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>CUADRO DE PLANIFICACI&Oacute;N DE TAREAS</title>'
+    +'<'+'!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View></w:WordDocument></xml><![endif]--'+'>'
+    +'<style>@page SeccionCT{size:8.5in 11.0in;margin:2cm 2cm 2cm 3cm;mso-footer:f1;}'
+    +'div.SeccionCT{page:SeccionCT}'
+    +'p.pie{text-align:center;font-family:Arial;font-size:12pt;font-weight:bold;margin:0}'
+    +css+'</style></head><body>'
+    +'<div class="SeccionCT">'+memb+'<div class="tit0">CUADRO DE PLANIFICACI&Oacute;N DE TAREAS</div><table class="tx">'+filas+'</table>'+fh
+    +'<div style="mso-element:footer" id="f1"><p class="pie"><span style="mso-field-code:\' PAGE \'"></span> - <span style="mso-field-code:\' NUMPAGES \'"></span></p></div>'
+    +'</div></body></html>';
+}
+function _avTareasDocCheck(){
+  const els=(AV._des&&AV._des.length)?AV._des:((AV.data&&AV.data.elementos)||[]);
+  const tareas=((AV._tar&&AV._tar.length)?AV._tar:((AV.data&&AV.data.tareas)||[])).filter(function(t){ return (t.descripcion||'').trim(); });
+  if(!els.length){ alert('Primero cargá la 🧩 Desagregación — de ahí salen los elementos del Cuadro.'); return false; }
+  if(!tareas.length){ alert('Primero cargá al menos una tarea (tocá 🪄 para las 3 sugeridas).'); return false; }
+  return true;
+}
+function avTareasPreview(){ if(!_avTareasDocCheck()) return; _avPreviewDoc(_avTareasDocHTML(),'CUADRO DE PLANIFICACIÓN DE TAREAS','avTareasWord()'); }
+function avTareasWord(){
+  if(!_avTareasDocCheck()) return;
+  const blob=new Blob(['﻿',_avTareasDocHTML()],{type:'application/msword'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='CUADRO DE PLANIFICACION DE TAREAS.doc';
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },800);
+}
 // v2.9.125: ASISTENTE DE TEXTO DE REFERENCIA — índice + extensión + prompt listo para copiar (sin IA en la app)
 // v2.9.140: SUPER PROMPT — índice con parte práctica + actualidad e innovación por capítulo, ideas del
 // profesor integradas (editable acá mismo), fechas del memorándum, bibliografía + reglamentos, y reglas
 // didácticas (aula invertida, casos, ejercicios resueltos). La app sigue SIN IA: el prompt se lleva a cualquiera.
 function avTextoAbrir(){
+  _avSoloSeccion('avc-texto');
   const box=document.getElementById('avc-texto'); if(!box) return;
   const m=(AV.data&&AV.data.materia)||{}, c=(AV.data&&AV.data.carpeta)||{};
   const els=(AV._des&&AV._des.length)?AV._des:((AV.data&&AV.data.elementos&&AV.data.elementos.length)?AV.data.elementos:((AV._cm&&AV._cm.elementos)||[]));
@@ -16966,10 +17057,19 @@ function _avPlanHojaData(){
     evs:(AV.data&&AV.data.evaluaciones)||[],
     biblio:(c.bibliografia&&c.bibliografia.length)?c.bibliografia:((AV._cm&&AV._cm.biblio)||[])};
 }
-// Agrupa el cronograma por fecha y clasifica cada día (entrega / clase / formativa / trabajos / sumativa)
+// REGLA DE SERGIO: las actividades son SOLO de lunes a viernes — sábado y domingo NO se toman
+// en cuenta para nada. Si el cronograma trae un sábado se corre al VIERNES anterior; domingo → lunes.
+function _avPlanFechaHabil(f){
+  const p=String(f).slice(0,10).split('-').map(Number);
+  const d=new Date(p[0],p[1]-1,p[2]);
+  if(d.getDay()===6) d.setDate(d.getDate()-1);
+  else if(d.getDay()===0) d.setDate(d.getDate()+1);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+// Agrupa el cronograma por fecha HÁBIL y clasifica cada día (entrega / clase / formativa / trabajos / sumativa)
 function _avPlanDias(d){
   const por={};
-  d.crono.forEach(function(r){ (por[r.fecha]=por[r.fecha]||[]).push(r); });
+  d.crono.forEach(function(r){ const f=_avPlanFechaHabil(r.fecha); (por[f]=por[f]||[]).push(r); });
   return Object.keys(por).sort().map(function(f){
     const acts=por[f].sort(function(a,b){ return a.periodo-b.periodo; }).map(function(r){ return r.actividad; });
     const txt=acts.join(' · ').toUpperCase();
@@ -16994,7 +17094,8 @@ function _avPlanHojaDocHTML(tipo,d){
   // Nivel A.: negrilla + subrayado, SOLO la inicial en mayúscula (los "plain" van sin negrilla/subrayado).
   const S2=function(i,t,plain){ const tt=String(t).replace(/\.\s*$/,''); P.push('<p class="l2'+(plain?'':' b')+'">'+LET[i%26]+'.&nbsp;&nbsp;'+(plain?E(t):('<u>'+E(tt)+'</u>.'))+'</p>'); };
   const S3=function(n,t,plain){ P.push('<p class="l3'+(plain?'':' b')+'">'+n+'.&nbsp;&nbsp;'+E(t)+'</p>'); };
-  const S4=function(i,t,plain){ P.push('<p class="l4'+(plain?'':' b')+'">'+LMIN[i%26]+'.&nbsp;&nbsp;'+E(t)+'</p>'); };
+  // Nivel a.: SIEMPRE sin negrilla (así está en el modelo oficial corregido por Sergio).
+  const S4=function(i,t){ P.push('<p class="l4">'+LMIN[i%26]+'.&nbsp;&nbsp;'+E(t)+'</p>'); };
   const S5=function(n,t){ P.push('<p class="l5">'+n+')&nbsp;&nbsp;'+E(t)+'</p>'); };
   const TX=function(t,ind){ String(t||'').split('\n').map(function(x){ return x.trim(); }).filter(Boolean).forEach(function(x){ P.push('<p class="tx'+(ind||2)+'">'+E(x)+'</p>'); }); };
   const evF=d.evs.find(function(e){ return e.tipo==='formativa'; });
@@ -17011,10 +17112,10 @@ function _avPlanHojaDocHTML(tipo,d){
   if(profRows.length) profRows.forEach(function(p,i){ dg+='<tr><td class="dgl">'+(i===0?'Profesores':'')+'</td><td class="dgc">:</td><td>'+E(((p.profesor_grado||'')+' '+p.profesor_nombre).trim())+'</td></tr>'; });
   else dg+='<tr><td class="dgl">Profesores</td><td class="dgc">:</td><td>—</td></tr>';
   dg+='</table>'; P.push(dg);
-  // ── II. JUSTIFICACIÓN ──
-  S1('JUSTIFICACIÓN.'); TX(d.just||'—',2);
+  // ── II. JUSTIFICACIÓN ── (texto directamente bajo I.- va a 1cm, como el modelo oficial)
+  S1('JUSTIFICACIÓN.'); TX(d.just||'—',1);
   // ── III. COMPETENCIA GENERAL ──
-  S1('COMPETENCIA GENERAL DE LA U. C.'); TX(d.comp||'—',2);
+  S1('COMPETENCIA GENERAL DE LA U. C.'); TX(d.comp||'—',1);
   // ── IV. CONTENIDO MÍNIMO ──
   S1('CONTENIDO MÍNIMO.');
   d.els.forEach(function(e,i){ P.push('<p class="l2">'+(i+1)+'.&nbsp;&nbsp;'+E(e.nombre||'')+'</p>'); });
@@ -17157,7 +17258,7 @@ function _avPlanHojaDocHTML(tipo,d){
     +'.l4{margin:0 0 5pt 4cm;text-indent:-1cm}'
     +'.l5{margin:0 0 5pt 5cm;text-indent:-1cm}'
     +'.b{font-weight:bold}'
-    +'.tx2{margin:0 0 6pt 2cm}.tx3{margin:0 0 6pt 3cm}.tx4{margin:0 0 6pt 4cm}'
+    +'.tx1{margin:0 0 6pt 1cm}.tx2{margin:0 0 6pt 2cm}.tx3{margin:0 0 6pt 3cm}.tx4{margin:0 0 6pt 4cm}'
     +'table.dg{border-collapse:collapse;margin:2pt 0 8pt 1cm}'
     +'.dg td{border:none;padding:1pt 4pt;vertical-align:top;font-size:12pt;text-align:left}'
     +'.dgl{font-weight:bold;width:175pt}.dgc{font-weight:bold;width:12pt}'
