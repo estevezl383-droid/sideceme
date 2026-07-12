@@ -14947,7 +14947,11 @@ async function _qzInvoke(accion, extra){
   const tok = (typeof getTokenSesion==='function') ? getTokenSesion() : null;
   if(!tok) throw new Error('Sesión no válida — volvé a entrar');
   const {data,error} = await sb.functions.invoke('quiz-ops', {body: Object.assign({accion, token: tok}, extra||{})});
-  if(error) throw new Error(error.message||'Error de conexión');
+  if(error){
+    let msg = error.message||'Error de conexión';
+    try{ if(error.context && typeof error.context.json==='function'){ const b=await error.context.json(); if(b&&b.error) msg=b.error; } }catch(_e){}
+    throw new Error(msg);
+  }
   if(!data || data.ok===false) throw new Error((data&&data.error)||'Error desconocido');
   return data;
 }
