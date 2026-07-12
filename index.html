@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.156</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.157</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5777,6 +5777,20 @@ input::placeholder, textarea::placeholder {
 .qz-cajas input{width:30px;height:36px;text-align:center;font-size:17px;font-weight:800;border:1.5px solid #d4af37;border-radius:6px;background:rgba(212,175,55,.08);color:inherit;text-transform:uppercase}
 .qz-caja-fija{width:20px;height:36px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;opacity:.7}
 .qz-pista{border:none;background:rgba(212,175,55,.2);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:14px}
+/* tipos interactivos (reordenar / relacionar / categorizar / arrastrar) */
+.qz-ord-row{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.05);border:1px solid #2a3a52;border-radius:10px;padding:9px 10px;margin-bottom:7px}
+.qz-ord-num{font-weight:900;color:#f4d574;min-width:22px;text-align:center}
+.qz-ord-txt{flex:1;font-size:14px;font-weight:600}
+.qz-ord-btn{border:1px solid #2a3a52;background:rgba(255,255,255,.08);color:#cfe0f5;border-radius:8px;width:34px;height:34px;font-size:16px;cursor:pointer}
+.qz-ord-btn:disabled{opacity:.25}
+.qz-rel-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.qz-rel-izq{flex:1;min-width:120px;background:rgba(74,144,217,.15);border:1px solid #4a90d9;border-radius:10px;padding:9px 10px;font-size:14px;font-weight:700}
+.qz-rel-sel{flex:1;min-width:140px;border:1px solid #d4af37;background:#1a2436;color:#fff;border-radius:8px;padding:9px 10px;font-size:14px;font-weight:600}
+.qz-banco{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0;padding:10px;border:1px dashed #d4af37;border-radius:10px;min-height:44px}
+.qz-chip-banco{border:none;background:linear-gradient(180deg,#2d70d9,#1d4e9d);color:#fff;font-weight:800;font-size:14px;border-radius:18px;padding:8px 14px;cursor:pointer}
+.qz-chip-banco:disabled{opacity:.28;cursor:default}
+.qz-hueco{display:inline-block;min-width:90px;border:none;border-bottom:2px solid #d4af37;background:rgba(212,175,55,.1);border-radius:8px 8px 0 0;padding:6px 12px;margin:0 3px;font-size:14px;font-weight:800;color:#f4d574;cursor:pointer;text-align:center;vertical-align:middle}
+.qz-hueco.lleno{background:rgba(45,157,92,.25);border-bottom-color:#2d9d5c;color:#fff}
 .qz-alu-card{background:linear-gradient(180deg,#1d2839,#141c2b);border:1px solid #2a3a52;border-radius:14px;padding:14px;color:#e8e3d4;margin-top:8px}
 #screen-quiz-alumno .qz-item{background:linear-gradient(180deg,#1d2839,#141c2b);border-color:#2a3a52}
 .qz-alu-feed{text-align:center;padding:26px 14px;border-radius:14px;margin-top:10px;color:#e8e3d4}
@@ -5801,6 +5815,63 @@ input::placeholder, textarea::placeholder {
 .qz-ed-card .field{margin-bottom:8px}
 .qz-opt-row{display:flex;gap:8px;align-items:center;margin-bottom:6px}
 .qz-opt-row input[type=text]{flex:1}
+
+/* ============ SKIN "ARENA" — neobrutalismo lúdico (solo pantalla del alumno) ============
+   Fondo crema, tarjetas blancas con borde negro grueso y sombra dura que se hunde al tocar,
+   colores saturados, tipografía pesada. Elegido por Sergio para diferenciarse de SIDECEME. */
+#screen-quiz-alumno.qz-arena{background:#F4EDDE}
+.qz-arena .cursante-container{padding-bottom:40px}
+#screen-quiz-alumno.qz-arena .app-header{background:#F4EDDE !important;border-bottom:3px solid #111 !important;box-shadow:none !important}
+#screen-quiz-alumno.qz-arena .app-header::before, #screen-quiz-alumno.qz-arena .app-header::after{display:none !important}
+#screen-quiz-alumno.qz-arena .header-title{color:#111 !important;text-shadow:none !important}
+#screen-quiz-alumno.qz-arena .header-sub{color:#555 !important;text-shadow:none !important}
+#screen-quiz-alumno.qz-arena .back-btn{background:#fff !important;border:2.5px solid #111 !important;border-radius:12px !important;color:#111 !important;box-shadow:3px 3px 0 #111 !important;transition:transform .12s cubic-bezier(.2,.8,.2,1),box-shadow .12s cubic-bezier(.2,.8,.2,1)}
+#screen-quiz-alumno.qz-arena .back-btn:active{transform:translate(3px,3px);box-shadow:0 0 0 #111 !important}
+#screen-quiz-alumno.qz-arena .header-crest{filter:grayscale(1) contrast(2)}
+.qz-arena .qz-alu-card{background:#fff;border:3px solid #111;border-radius:16px;box-shadow:7px 7px 0 #111;color:#111}
+.qz-arena .qz-alu-card [style*="9fb3cc"]{color:#666 !important}
+.qz-arena .qz-alu-opt{border:3px solid #111;border-radius:14px;box-shadow:5px 5px 0 #111;color:#fff;text-shadow:0 1px 0 rgba(0,0,0,.35);transition:transform .12s cubic-bezier(.2,.8,.2,1),box-shadow .12s cubic-bezier(.2,.8,.2,1),filter .12s}
+.qz-arena .qz-alu-opt:active{transform:translate(4px,4px);box-shadow:0 0 0 #111}
+.qz-arena .qz-alu-opt:hover{filter:brightness(1.07)}
+.qz-arena .qz-alu-opt.sel{outline:none;box-shadow:0 0 0 #111;transform:translate(4px,4px);filter:saturate(1.3)}
+.qz-arena .qz-c0{background:#3B82F6}.qz-arena .qz-c1{background:#FF6B6B}.qz-arena .qz-c2{background:#F59F00}.qz-arena .qz-c3{background:#2F9E44}.qz-arena .qz-c4{background:#0CA678}.qz-arena .qz-c5{background:#E8590C}
+.qz-arena .qz-btn{border:3px solid #111;border-radius:14px;box-shadow:5px 5px 0 #111;color:#fff;transition:transform .12s cubic-bezier(.2,.8,.2,1),box-shadow .12s cubic-bezier(.2,.8,.2,1)}
+.qz-arena .qz-btn:active{transform:translate(4px,4px);box-shadow:0 0 0 #111}
+.qz-arena .qz-btn.gold{background:#FFD43B;color:#111;text-shadow:none}
+.qz-arena .qz-timerbar{background:#fff;border:2.5px solid #111;height:18px;border-radius:10px}
+.qz-arena .qz-timer-num{color:#111 !important;font-weight:900}
+.qz-arena .qz-plantilla{color:#111;font-weight:600}
+.qz-arena .qz-blank-inp{background:#fff;border:2.5px solid #111;border-radius:10px;color:#111;box-shadow:3px 3px 0 #111}
+.qz-arena .qz-blank-sel{background:#fff;border:2.5px solid #111;border-radius:10px;color:#111;box-shadow:3px 3px 0 #111;font-weight:700}
+.qz-arena .qz-cajas input{background:#fff;border:2.5px solid #111;border-radius:8px;color:#111;box-shadow:2px 2px 0 #111}
+.qz-arena .qz-caja-fija{color:#111;opacity:1}
+.qz-arena .qz-pista{background:#FFD43B;border:2px solid #111;box-shadow:2px 2px 0 #111}
+.qz-arena textarea{background:#fff;border:2.5px solid #111 !important;border-radius:12px;color:#111;box-shadow:3px 3px 0 #111;font-weight:600}
+.qz-arena .qz-ord-row{background:#fff;border:2.5px solid #111;border-radius:12px;box-shadow:4px 4px 0 #111;color:#111}
+.qz-arena .qz-ord-num{color:#111;background:#FFD43B;border:2px solid #111;border-radius:8px;padding:2px 6px}
+.qz-arena .qz-ord-btn{background:#fff;border:2px solid #111;color:#111;box-shadow:2px 2px 0 #111;transition:transform .1s,box-shadow .1s}
+.qz-arena .qz-ord-btn:active{transform:translate(2px,2px);box-shadow:0 0 0 #111}
+.qz-arena .qz-rel-izq{background:#A5D8FF;border:2.5px solid #111;border-radius:12px;color:#111;box-shadow:3px 3px 0 #111}
+.qz-arena .qz-rel-sel{background:#fff;border:2.5px solid #111;border-radius:12px;color:#111;box-shadow:3px 3px 0 #111}
+.qz-arena .qz-banco{border:2.5px dashed #111;background:rgba(255,255,255,.6);border-radius:14px}
+.qz-arena .qz-chip-banco{background:#fff;border:2.5px solid #111;color:#111;box-shadow:3px 3px 0 #111;transition:transform .12s cubic-bezier(.2,.8,.2,1),box-shadow .12s}
+.qz-arena .qz-chip-banco:active{transform:translate(3px,3px);box-shadow:0 0 0 #111}
+.qz-arena .qz-chip-banco:disabled{opacity:.25;box-shadow:0 0 0 #111}
+.qz-arena .qz-hueco{background:#fff;border:2.5px dashed #111;border-radius:10px;color:#888;box-shadow:none}
+.qz-arena .qz-hueco.lleno{background:#69DB7C;border-style:solid;color:#111;box-shadow:3px 3px 0 #111}
+.qz-arena .qz-alu-feed{border-width:3px;border-radius:16px;color:#111;animation:qzPop .3s cubic-bezier(.2,.8,.2,1)}
+.qz-arena .qz-alu-feed.ok{background:#69DB7C;border:3px solid #111;box-shadow:7px 7px 0 #111}
+.qz-arena .qz-alu-feed.mal{background:#FFA8A8;border:3px solid #111;box-shadow:7px 7px 0 #111}
+.qz-arena .qz-alu-feed.neutro{background:#A5D8FF;border:3px solid #111;box-shadow:7px 7px 0 #111}
+.qz-arena .qz-alu-feed .qz-sub{color:#333}
+.qz-arena .qz-alu-pts{color:#111;font-size:26px}
+.qz-arena .qz-sol{color:#0b5c26 !important;font-weight:800}
+.qz-arena .qz-item{background:#fff;border:2.5px solid #111;border-radius:12px;box-shadow:4px 4px 0 #111}
+.qz-arena .qz-item [style*="text-primary"]{color:#111 !important}
+.qz-arena .section-label{color:#111}
+.qz-arena .alert-banner{background:#fff;border:2.5px solid #111;border-radius:12px;box-shadow:4px 4px 0 #111}
+.qz-arena .alert-banner .alert-text, .qz-arena .alert-banner b{color:#111}
+.qz-arena .efm-no-data{color:#555 !important}
 </style>
 
 <!-- PROFESOR: gestión de cuestionarios -->
@@ -5820,8 +5891,8 @@ input::placeholder, textarea::placeholder {
   <div class="qz-board" id="qz-board"></div>
 </section>
 
-<!-- ALUMNO: jugar en vivo / práctica libre -->
-<section id="screen-quiz-alumno" class="screen cursante-screen">
+<!-- ALUMNO: jugar en vivo / práctica libre — skin ARENA (neobrutalismo lúdico, elegido por Sergio) -->
+<section id="screen-quiz-alumno" class="screen cursante-screen qz-arena">
   <div class="app-header cursante-app-header"><button class="back-btn" onclick="qzAluSalir()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title" id="qz-alu-tit">Práctica</div><div class="header-sub" id="qz-alu-sub">—</div></div></div>
   <div class="cursante-container" id="qz-alu-body"></div>
 </section>
@@ -14939,7 +15010,11 @@ const QZ_TIPOS = {
   multiple: {ic:'🔘', lbl:'Opción múltiple'},
   multi:    {ic:'☑️', lbl:'Selección múltiple'},
   vf:       {ic:'⚖️', lbl:'Verdadero / Falso'},
-  completar:{ic:'✍️', lbl:'Completamiento (huecos)'},
+  completar:{ic:'✍️', lbl:'Completamiento (huecos — escribir / cajas / desplegable)'},
+  arrastrar:{ic:'👆', lbl:'Arrastrar y soltar (banco de opciones a los huecos)'},
+  reordenar:{ic:'🔀', lbl:'Reordenar (poner en el orden correcto)'},
+  relacionar:{ic:'🔗', lbl:'Relacionar (unir parejas)'},
+  categorizar:{ic:'🗂️', lbl:'Categorizar (clasificar en grupos)'},
   abierta:  {ic:'💬', lbl:'Respuesta abierta (muro de ideas)'},
   encuesta: {ic:'📊', lbl:'Encuesta (sin correcta)'},
   nube:     {ic:'☁️', lbl:'Nube de palabras'}
@@ -14962,6 +15037,10 @@ async function _qzInvoke(accion, extra){
 function _qzShuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 function _qzPregResumen(p){
   const extra = p.tipo==='completar' ? ((p.blanks||[]).length+' hueco(s)') :
+    p.tipo==='arrastrar' ? ((p.correctas||[]).length+' hueco(s) + banco') :
+    p.tipo==='reordenar' ? ((p.items||[]).length+' ítems') :
+    p.tipo==='relacionar' ? ((p.pares||[]).length+' parejas') :
+    p.tipo==='categorizar' ? ((p.items||[]).length+' ítems en '+(p.categorias||[]).length+' categorías') :
     (p.opciones ? (p.opciones.length+' opciones') : ((p.max||240)+' caract. máx'));
   return `<span class="qz-ptag">${QZ_TIPOS[p.tipo].ic} ${QZ_TIPOS[p.tipo].lbl}</span> ${escapeHtml(String(p.texto||'').slice(0,90))} <span style="color:var(--text-muted);font-size:11px">· ${extra} · ⏱${p.tiempo||30}s</span>`;
 }
@@ -15019,6 +15098,7 @@ function _qzProfRender(){
       <div class="qz-item-meta">${n} pregunta(s)${mat?' · 📘 '+escapeHtml(mat):''} · 👥 ${escapeHtml(_qzAudLabel(c)||'Todos')}${c.creado_por_nombre?' · '+escapeHtml(c.creado_por_nombre):''}</div>
       <div class="qz-item-btns">
         <button class="qz-mini play" onclick="qzEnVivo('${c.id}')">▶️ EN VIVO</button>
+        <button class="qz-mini" onclick="qzPreview('${c.id}')">👁 Probar</button>
         <button class="qz-mini" onclick="qzEditar('${c.id}')">✏️ Editar</button>
         <button class="qz-mini" onclick="qzResultadosPractica('${c.id}')">📊 Resultados</button>
         <button class="qz-mini warn" onclick="qzEliminar('${c.id}')">🗑</button>
@@ -15108,7 +15188,10 @@ function _qzEdRender(){
     <select id="qz-ed-nuevo-tipo" style="flex:1;min-width:220px">${Object.keys(QZ_TIPOS).map(t=>`<option value="${t}">${QZ_TIPOS[t].ic} ${QZ_TIPOS[t].lbl}</option>`).join('')}</select>
     <button class="qz-mini" style="font-size:14px" onclick="qzEdPregNueva()">➕ Agregar pregunta</button>
   </div>
-  <button class="qz-btn gold" style="width:100%;margin-top:6px" onclick="qzEdGuardar()">💾 Guardar cuestionario</button>`;
+  <div style="display:flex;gap:8px;margin-top:6px">
+    <button class="qz-btn" style="flex:1" onclick="qzEdPreview()">👁 Vista previa (como alumno)</button>
+    <button class="qz-btn gold" style="flex:1" onclick="qzEdGuardar()">💾 Guardar cuestionario</button>
+  </div>`;
   document.getElementById('qz-ed-body').innerHTML = html;
   const anchor=document.getElementById('qz-ed-form-anchor');
   if(anchor && _qzEdP){ anchor.outerHTML = _qzEdPregFormHtml(_qzEdP); }
@@ -15129,6 +15212,10 @@ function qzEdPregNueva(){
   if(tipo==='multiple'||tipo==='multi'||tipo==='encuesta'){ _qzEdP.opciones=['','','','']; _qzEdP.correctas=[]; }
   if(tipo==='vf'){ _qzEdP.opciones=['VERDADERO','FALSO']; _qzEdP.correctas=[0]; }
   if(tipo==='completar'){ _qzEdP.plantilla=''; _qzEdP.blanks=[]; }
+  if(tipo==='arrastrar'){ _qzEdP.plantilla=''; _qzEdP.correctas=[]; _qzEdP.banco=[]; _qzEdP.tiempo=60; }
+  if(tipo==='reordenar'){ _qzEdP.items=[]; _qzEdP.tiempo=60; }
+  if(tipo==='relacionar'){ _qzEdP.pares=[]; _qzEdP.tiempo=60; }
+  if(tipo==='categorizar'){ _qzEdP.categorias=[]; _qzEdP.items=[]; _qzEdP.tiempo=90; }
   if(tipo==='abierta') _qzEdP.max=240;
   if(tipo==='nube') _qzEdP.max=40;
   _qzEdIdx=-2; _qzEdRender();
@@ -15174,6 +15261,30 @@ function _qzEdPregFormHtml(p){
   }
   if(t==='abierta'||t==='nube'){
     html+=`<div class="field"><label>Máximo de caracteres</label><select id="qz-f-max">${[30,40,80,120,240,500,1000].map(n=>`<option ${((p.max||240)===n?'selected':'')}>${n}</option>`).join('')}</select></div>`;
+  }
+  if(t==='arrastrar'){
+    html+=`<div class="field"><label>Texto con huecos — escribí ___ (3 guiones bajos) donde va cada hueco</label>
+      <textarea id="qz-f-plantilla" rows="3" placeholder="Ej: El ___ cuestiona el estado actual y el ___ estabiliza lo nuevo.">${escapeHtml(p.plantilla||'')}</textarea></div>
+    <div class="field"><label>Respuesta correcta de CADA hueco, en orden (una por línea)</label>
+      <textarea id="qz-f-arr-cor" rows="3" placeholder="descongelamiento&#10;recongelamiento">${escapeHtml((p.correctas||[]).join('\n'))}</textarea></div>
+    <div class="field"><label>Distractores extra del banco (separados por coma — opcional)</label>
+      <input type="text" id="qz-f-arr-dis" value="${escapeHtml((p.banco||[]).join(', '))}" placeholder="cambio, evaluación, sanción"></div>
+    <div style="font-size:12px;color:var(--text-muted)">El alumno ve un BANCO con todas las opciones mezcladas y las va tocando para llenar los huecos.</div>`;
+  }
+  if(t==='reordenar'){
+    html+=`<div class="field"><label>Ítems EN EL ORDEN CORRECTO (uno por línea — el alumno los recibe mezclados)</label>
+      <textarea id="qz-f-items" rows="5" placeholder="descongelamiento&#10;cambio&#10;recongelamiento">${escapeHtml((p.items||[]).join('\n'))}</textarea></div>`;
+  }
+  if(t==='relacionar'){
+    html+=`<div class="field"><label>Parejas: izquierda | derecha (una por línea, separadas con la barra |)</label>
+      <textarea id="qz-f-pares" rows="5" placeholder="Lewin | 3 etapas del cambio&#10;Wald | sesgo de supervivencia&#10;Klein | premortem">${escapeHtml((p.pares||[]).map(x=>x.izq+' | '+x.der).join('\n'))}</textarea></div>
+    <div style="font-size:12px;color:var(--text-muted)">El alumno ve la izquierda fija y elige la pareja de la derecha (mezclada).</div>`;
+  }
+  if(t==='categorizar'){
+    html+=`<div class="field"><label>Categorías (separadas por coma)</label>
+      <input type="text" id="qz-f-cats" value="${escapeHtml((p.categorias||[]).join(', '))}" placeholder="Cambio incremental, Cambio radical"></div>
+    <div class="field"><label>Ítems: texto | categoría (uno por línea — la categoría escrita igual que arriba)</label>
+      <textarea id="qz-f-catitems" rows="6" placeholder="Actualizar el parte diario | Cambio incremental&#10;Planificación por capacidades | Cambio radical">${escapeHtml((p.items||[]).map(x=>x.texto+' | '+((p.categorias||[])[x.cat]||'')).join('\n'))}</textarea></div>`;
   }
   html+=`<div style="display:flex;gap:8px;margin-top:12px"><button class="qz-btn" onclick="qzEdPregOk()">✔ Listo</button><button class="qz-mini" onclick="qzEdPregCancel()">Cancelar</button></div></div>`;
   return html;
@@ -15243,6 +15354,49 @@ function qzEdPregOk(){
     p.flex={tildes:document.getElementById('qz-f-tildes').checked, mayus:document.getElementById('qz-f-mayus').checked};
   }
   if(p.tipo==='abierta'||p.tipo==='nube') p.max=Number(document.getElementById('qz-f-max').value)||240;
+  if(p.tipo==='arrastrar'){
+    p.plantilla=(document.getElementById('qz-f-plantilla').value||'');
+    const n=(p.plantilla.match(/_{3,}/g)||[]).length;
+    if(!n){ alert('La plantilla necesita al menos un hueco ___'); return; }
+    p.correctas=(document.getElementById('qz-f-arr-cor').value||'').split('\n').map(s=>s.trim()).filter(Boolean);
+    if(p.correctas.length!==n){ alert('Hay '+n+' hueco(s) pero '+p.correctas.length+' respuesta(s) correcta(s) — deben coincidir, una por línea'); return; }
+    p.banco=(document.getElementById('qz-f-arr-dis').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+  }
+  if(p.tipo==='reordenar'){
+    p.items=(document.getElementById('qz-f-items').value||'').split('\n').map(s=>s.trim()).filter(Boolean);
+    if(p.items.length<2){ alert('Cargá al menos 2 ítems (uno por línea)'); return; }
+    if(new Set(p.items).size!==p.items.length){ alert('Los ítems no pueden repetirse'); return; }
+  }
+  if(p.tipo==='relacionar'){
+    const lineas=(document.getElementById('qz-f-pares').value||'').split('\n').map(s=>s.trim()).filter(Boolean);
+    p.pares=[];
+    for(const ln of lineas){
+      const ix=ln.indexOf('|');
+      if(ix<1||ix>=ln.length-1){ alert('Cada línea debe ser: izquierda | derecha  →  revisá: "'+ln+'"'); return; }
+      p.pares.push({izq:ln.slice(0,ix).trim(), der:ln.slice(ix+1).trim()});
+    }
+    if(p.pares.length<2){ alert('Cargá al menos 2 parejas'); return; }
+    const ders=p.pares.map(x=>x.der);
+    if(new Set(ders).size!==ders.length){ alert('Las respuestas de la derecha no pueden repetirse'); return; }
+  }
+  if(p.tipo==='categorizar'){
+    p.categorias=(document.getElementById('qz-f-cats').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+    if(p.categorias.length<2){ alert('Cargá al menos 2 categorías'); return; }
+    const lineas=(document.getElementById('qz-f-catitems').value||'').split('\n').map(s=>s.trim()).filter(Boolean);
+    p.items=[];
+    const catNorm=p.categorias.map(c=>c.toLowerCase());
+    for(const ln of lineas){
+      const ix=ln.lastIndexOf('|');
+      if(ix<1){ alert('Cada línea debe ser: ítem | categoría  →  revisá: "'+ln+'"'); return; }
+      const texto=ln.slice(0,ix).trim(), catTxt=ln.slice(ix+1).trim().toLowerCase();
+      const cat=catNorm.indexOf(catTxt);
+      if(cat<0){ alert('La categoría "'+ln.slice(ix+1).trim()+'" no está en la lista de categorías'); return; }
+      p.items.push({texto, cat});
+    }
+    if(p.items.length<2){ alert('Cargá al menos 2 ítems'); return; }
+    const ts=p.items.map(x=>x.texto);
+    if(new Set(ts).size!==ts.length){ alert('Los ítems no pueden repetirse'); return; }
+  }
   if(_qzEdIdx>=0) _qzEd.preguntas[_qzEdIdx]=p; else _qzEd.preguntas.push(p);
   _qzEdIdx=-1; _qzEdP=null; _qzEdRender();
 }
@@ -15357,6 +15511,33 @@ function _qzMuroHtml(rows){
   if(!rows.length) return '<div style="text-align:center;color:#9ec3ef;font-size:18px;padding:34px">💬 Esperando ideas…</div>';
   return `<div class="qz-muro">${rows.map(r=>`<div class="qz-muro-card">${escapeHtml(String(r.respuesta||''))}<span class="qn">${escapeHtml(r.nombre||'')}</span></div>`).join('')}</div>`;
 }
+// solución en líneas legibles (para proyectar) — el profesor tiene el cuestionario completo
+function _qzSolLineas(p){
+  if(p.tipo==='reordenar') return (p.items||[]).map((it,i)=>(i+1)+') '+it);
+  if(p.tipo==='relacionar') return (p.pares||[]).map(x=>x.izq+'  →  '+x.der);
+  if(p.tipo==='categorizar') return (p.categorias||[]).map((c,ci)=>c+':  '+(p.items||[]).filter(x=>Number(x.cat)===ci).map(x=>x.texto).join(' · '));
+  if(p.tipo==='arrastrar') return (p.correctas||[]).map((c,i)=>(QZ_NUMS[i]||(i+1))+' '+c);
+  return [];
+}
+function _qzGenResHtml(p, rows){
+  const ok=rows.filter(r=>r.correcta===true).length;
+  return `<div class="qz-contador">✔ ${ok} de ${rows.length} lo resolvieron TODO correcto</div>
+  <div class="qz-bars">${_qzSolLineas(p).map(l=>`<div style="font-size:clamp(15px,2vw,20px);line-height:1.7;color:#7be67b;font-weight:700">${escapeHtml(l)}</div>`).join('')}</div>`;
+}
+// elementos proyectables SIN revelar la respuesta (orden alfabético = estable entre re-renders)
+function _qzElemsPregHtml(p){
+  let elems=[];
+  if(p.tipo==='reordenar') elems=(p.items||[]).slice().sort();
+  if(p.tipo==='categorizar') elems=(p.items||[]).map(x=>x.texto).sort();
+  if(p.tipo==='relacionar'){
+    const iz=(p.pares||[]).map(x=>x.izq), de=(p.pares||[]).map(x=>x.der).sort();
+    return `<div class="qz-b-opts" style="grid-template-columns:1fr 1fr;max-width:860px">
+      <div>${iz.map(x=>`<div class="qz-b-opt qz-c0" style="margin-bottom:8px;font-size:clamp(14px,1.8vw,19px)">${escapeHtml(x)}</div>`).join('')}</div>
+      <div>${de.map(x=>`<div class="qz-b-opt qz-c3" style="margin-bottom:8px;font-size:clamp(14px,1.8vw,19px)">${escapeHtml(x)}</div>`).join('')}</div></div>`;
+  }
+  if(!elems.length) return '';
+  return `<div class="qz-lobby-nombres" style="margin-top:4px">${elems.map(x=>`<span class="qz-chip" style="font-size:clamp(14px,1.9vw,19px)">${escapeHtml(x)}</span>`).join('')}</div>`;
+}
 function _qzCompletarResHtml(p, rows){
   const ok=rows.filter(r=>r.correcta===true).length;
   let html=`<div class="qz-contador">✔ ${ok} de ${rows.length} respondieron TODO correcto</div>
@@ -15404,8 +15585,10 @@ function _qzBoardRender(){
     body=`<div style="text-align:center;color:#9ec3ef;font-weight:800">Pregunta ${idx+1} de ${pregs.length} · ${QZ_TIPOS[p.tipo].ic} ${QZ_TIPOS[p.tipo].lbl}</div>
     <div class="qz-b-preg">${escapeHtml(p.texto)}</div>
     <div class="qz-timerwrap"><div class="qz-timerbar"><div id="qz-tbar" style="width:100%"></div></div><div class="qz-timer-num" id="qz-tnum">·</div></div>`;
-    if(p.tipo==='completar'){
+    if(p.tipo==='completar'||p.tipo==='arrastrar'){
       body+=`<div style="text-align:center;font-size:clamp(16px,2.2vw,24px);line-height:2;max-width:900px;margin:0 auto">${escapeHtml(p.plantilla||'').replace(/_{3,}/g,'<span style="color:#f4d574;font-weight:900"> ____ </span>')}</div>`;
+    } else if(['reordenar','relacionar','categorizar'].includes(p.tipo)){
+      body+=_qzElemsPregHtml(p);
     } else if(p.opciones && !enVivoAbierto){
       body+=`<div class="qz-b-opts">${p.opciones.map((o,i)=>`<div class="qz-b-opt qz-c${i%6}"><span class="ic">${String.fromCharCode(65+i)}</span>${escapeHtml(o)}</div>`).join('')}</div>`;
     }
@@ -15424,6 +15607,7 @@ function _qzBoardRender(){
     body+= p.tipo==='nube' ? _qzCloudHtml(respIdx.map(r=>r.respuesta)) :
            p.tipo==='abierta' ? _qzMuroHtml(respIdx) :
            p.tipo==='completar' ? _qzCompletarResHtml(p, respIdx) :
+           ['reordenar','relacionar','categorizar','arrastrar'].includes(p.tipo) ? _qzGenResHtml(p, respIdx) :
            _qzBarsHtml(p, respIdx, p.tipo!=='encuesta');
     const esUltima = idx>=pregs.length-1;
     body+=`<div class="qz-b-foot">${esUltima
@@ -15494,8 +15678,10 @@ async function _qzUnirseConPin(pin){
   }catch(e){ alert('⚠️ '+e.message); }
 }
 function qzAluSalir(){
-  clearInterval(_qzAPoll); clearInterval(_qzTimerInt); _qzA=null; _qzP=null;
-  showScreen('screen-aula-cursante');
+  clearInterval(_qzAPoll); clearInterval(_qzTimerInt);
+  const back=(_qzP && _qzP.preview) ? (_qzP.back||'screen-quiz-prof') : 'screen-aula-cursante';
+  _qzA=null; _qzP=null;
+  showScreen(back);
 }
 async function _qzAluTick(){
   const act=document.querySelector('.screen.active');
@@ -15513,12 +15699,12 @@ async function _qzAluTick(){
 }
 function _qzFeedHtml(r, p){
   if(r.correcta===true) return `<div class="qz-alu-feed ok"><div class="giga">🎯</div><div style="font-size:20px;font-weight:900;margin-top:6px">¡CORRECTO!</div><div class="qz-alu-pts">+${r.puntos} pts</div><div class="qz-sub">Total: ${_qzA?_qzA.total:r.puntos} pts — esperá la pantalla…</div></div>`;
-  if(r.correcta===false) return `<div class="qz-alu-feed mal"><div class="giga">✖</div><div style="font-size:19px;font-weight:900;margin-top:6px">Esta no era…</div>${r.solTxt?`<div style="font-size:14px;margin-top:8px;color:#7be67b">${escapeHtml(r.solTxt)}</div>`:''}${r.puntos?`<div class="qz-alu-pts">+${r.puntos} pts (parcial)</div>`:''}<div class="qz-sub">Mirá la pantalla 👀</div></div>`;
+  if(r.correcta===false) return `<div class="qz-alu-feed mal"><div class="giga">✖</div><div style="font-size:19px;font-weight:900;margin-top:6px">Esta no era…</div>${r.solTxt?`<div class="qz-sol" style="font-size:14px;margin-top:8px;color:#7be67b">${escapeHtml(r.solTxt)}</div>`:''}${r.puntos?`<div class="qz-alu-pts">+${r.puntos} pts (parcial)</div>`:''}<div class="qz-sub">Mirá la pantalla 👀</div></div>`;
   return `<div class="qz-alu-feed neutro"><div class="giga">📨</div><div style="font-size:18px;font-weight:900;margin-top:6px">¡Enviado!</div><div class="qz-sub">Tu aporte ya está en la pantalla 👀</div></div>`;
 }
 function _qzSolTexto(p, sol){
   if(!sol) return '';
-  if(p.tipo==='completar') return 'Respuesta correcta: '+(Array.isArray(sol)?sol.join(' · '):'');
+  if(Array.isArray(sol)) return 'Respuesta correcta: '+sol.join(' · ');
   const ops=(sol.opciones&&sol.opciones.length?sol.opciones:p.opciones)||[];
   return 'Correcta: '+((sol.correctas||[]).map(i=>ops[i]).filter(Boolean).join(' · '));
 }
@@ -15549,7 +15735,81 @@ function _qzAluRender(){
     <div id="qz-alu-aviso" style="font-size:12px;color:#9fb3cc;margin-top:8px"></div></div>`;
   _qzTimerStart(ses.pregunta_abierta_en, p.tiempo);
 }
+// ---- estado y widgets de los tipos interactivos ----
+let _qzOrdActual=[], _qzArrHuecos=[], _qzArrBancoUso=[];
+function _qzOrdHtml(prefix){
+  return `<div id="${prefix}-ord">`+_qzOrdActual.map((it,i)=>
+    `<div class="qz-ord-row"><span class="qz-ord-num">${i+1}</span><span class="qz-ord-txt">${escapeHtml(it)}</span>
+     <button class="qz-ord-btn" onclick="_qzOrdMover(${i},-1,'${prefix}')" ${i===0?'disabled':''}>↑</button>
+     <button class="qz-ord-btn" onclick="_qzOrdMover(${i},1,'${prefix}')" ${i===_qzOrdActual.length-1?'disabled':''}>↓</button></div>`).join('')+`</div>`;
+}
+function _qzOrdMover(i,d,prefix){
+  const j=i+d; if(j<0||j>=_qzOrdActual.length) return;
+  [_qzOrdActual[i],_qzOrdActual[j]]=[_qzOrdActual[j],_qzOrdActual[i]];
+  const cont=document.getElementById(prefix+'-ord'); if(cont) cont.outerHTML=_qzOrdHtml(prefix);
+}
+function _qzArrHtml(p, prefix){
+  const parts=String(p.plantilla||'').split(/_{3,}/);
+  let html='<div class="qz-plantilla" style="line-height:2.6">';
+  parts.forEach((seg,i)=>{
+    html+=escapeHtml(seg);
+    if(i<parts.length-1){
+      const v=_qzArrHuecos[i];
+      html+=`<button class="qz-hueco ${v?'lleno':''}" onclick="_qzArrVaciar(${i},'${prefix}')">${v?escapeHtml(v):(QZ_NUMS[i]||(i+1))+' …'}</button>`;
+    }
+  });
+  html+='</div><div style="font-size:12px;color:#9fb3cc;margin:4px 0 2px">Tocá una opción del banco para llenar el próximo hueco (tocá un hueco lleno para vaciarlo):</div><div class="qz-banco">';
+  (p.banco||[]).forEach((op,bi)=>{
+    html+=`<button class="qz-chip-banco" id="${prefix}-bk${bi}" onclick="_qzArrPoner(${bi},'${prefix}')" ${_qzArrBancoUso[bi]?'disabled':''}>${escapeHtml(op)}</button>`;
+  });
+  return html+'</div>';
+}
+function _qzArrRefresh(prefix){
+  const zona=document.getElementById(prefix+'-arrzona');
+  if(zona && _qzCurP) zona.innerHTML=_qzArrHtml(_qzCurP,prefix);
+}
+function _qzArrPoner(bi, prefix){
+  if(!_qzCurP || _qzArrBancoUso[bi]) return;
+  const hueco=_qzArrHuecos.findIndex(x=>!x);
+  if(hueco<0) return;
+  _qzArrHuecos[hueco]=(_qzCurP.banco||[])[bi];
+  _qzArrBancoUso[bi]=true;
+  _qzArrRefresh(prefix);
+}
+function _qzArrVaciar(i, prefix){
+  const v=_qzArrHuecos[i]; if(!v||!_qzCurP) return;
+  _qzArrHuecos[i]=null;
+  const bi=(_qzCurP.banco||[]).findIndex((op,k)=>op===v&&_qzArrBancoUso[k]);
+  if(bi>=0) _qzArrBancoUso[bi]=false;
+  _qzArrRefresh(prefix);
+}
+
 function _qzAluZonaHtml(p, prefix){
+  if(p.tipo==='reordenar'){
+    _qzOrdActual=(p.items||[]).slice();
+    return `<div style="font-size:12px;color:#9fb3cc;margin-bottom:6px">Usá las flechas para poner los ítems en el orden correcto:</div>`+
+      _qzOrdHtml(prefix)+
+      `<button class="qz-btn gold" style="width:100%;margin-top:10px" onclick="qzAluEnviar('${prefix}')">📨 Enviar orden</button>`;
+  }
+  if(p.tipo==='relacionar'){
+    return (p.izq||[]).map((iz,i)=>{
+      const ops=(p.der||[]);
+      return `<div class="qz-rel-row"><span class="qz-rel-izq">${escapeHtml(iz)}</span><select class="qz-rel-sel" id="${prefix}-rel${i}"><option value="">elegí su pareja…</option>${ops.map(o=>`<option>${escapeHtml(o)}</option>`).join('')}</select></div>`;
+    }).join('')+
+      `<button class="qz-btn gold" style="width:100%;margin-top:10px" onclick="qzAluEnviar('${prefix}')">📨 Enviar parejas</button>`;
+  }
+  if(p.tipo==='categorizar'){
+    return (p.items||[]).map((it,i)=>
+      `<div class="qz-rel-row"><span class="qz-rel-izq" style="background:rgba(212,175,55,.12);border-color:#d4af37">${escapeHtml(it)}</span><select class="qz-rel-sel" id="${prefix}-cat${i}"><option value="">categoría…</option>${(p.categorias||[]).map((c,ci)=>`<option value="${ci}">${escapeHtml(c)}</option>`).join('')}</select></div>`).join('')+
+      `<button class="qz-btn gold" style="width:100%;margin-top:10px" onclick="qzAluEnviar('${prefix}')">📨 Enviar clasificación</button>`;
+  }
+  if(p.tipo==='arrastrar'){
+    const n=(String(p.plantilla||'').match(/_{3,}/g)||[]).length;
+    _qzArrHuecos=new Array(n).fill(null);
+    _qzArrBancoUso=new Array((p.banco||[]).length).fill(false);
+    return `<div id="${prefix}-arrzona">${_qzArrHtml(p,prefix)}</div>`+
+      `<button class="qz-btn gold" style="width:100%;margin-top:10px" onclick="qzAluEnviar('${prefix}')">📨 Enviar respuestas</button>`;
+  }
   if(p.tipo==='multiple'||p.tipo==='vf'||p.tipo==='encuesta'){
     return (p.opciones||[]).map((o,i)=>`<button class="qz-alu-opt qz-c${i%6}" onclick="qzAluElegir(${i})"><b>${String.fromCharCode(65+i)}</b> ${escapeHtml(o)}</button>`).join('');
   }
@@ -15609,6 +15869,23 @@ function qzAluEnviar(prefix){
   let r=null;
   if(p.tipo==='multi'){ r=[..._qzAluSelSet]; if(!r.length){ alert('Elegí al menos una opción'); return; } }
   else if(p.tipo==='completar'){ r=_qzCompletarVals(p,prefix); if(r.every(v=>!String(v).trim())){ alert('Completá al menos un hueco'); return; } }
+  else if(p.tipo==='reordenar'){ r=_qzOrdActual.slice(); }
+  else if(p.tipo==='relacionar'){
+    r=(p.izq||[]).map((_,i)=>{ const s=document.getElementById(prefix+'-rel'+i); return s? s.value:''; });
+    if(r.some(v=>!v)){ alert('Elegí la pareja de todos los elementos'); return; }
+  }
+  else if(p.tipo==='categorizar'){
+    r=[];
+    for(let i=0;i<(p.items||[]).length;i++){
+      const s=document.getElementById(prefix+'-cat'+i);
+      if(!s||s.value===''){ alert('Clasificá todos los ítems'); return; }
+      r.push([p.items[i], Number(s.value)]);
+    }
+  }
+  else if(p.tipo==='arrastrar'){
+    if(_qzArrHuecos.some(v=>!v)){ alert('Llená todos los huecos con opciones del banco'); return; }
+    r=_qzArrHuecos.slice();
+  }
   else { const t=document.getElementById(prefix+'-txt'); r=(t? t.value:'').trim(); if(!r){ alert('Escribí tu respuesta'); return; } }
   _qzAluEnviarRespuesta(r);
 }
@@ -15639,6 +15916,74 @@ async function _qzAluFin(){
   }catch(e){}
   cont.innerHTML=`<div class="qz-alu-feed ok" style="margin-top:20px"><div class="giga">🏁</div><div style="font-size:19px;font-weight:900;margin-top:8px">¡Terminó el juego!</div><div class="qz-alu-pts">${_qzA.total} pts</div>${pos}<div class="qz-sub">Mirá el podio en la pantalla 🏆</div></div>
   <button class="qz-btn" style="width:100%;margin-top:14px" onclick="qzAluSalir()">Volver al Aula Virtual</button>`;
+}
+
+// ---------- VISTA PREVIA del profesor (v2.9.157): corre el flujo del alumno 100% LOCAL ----------
+// (ports de strip()/calificar() de la EF — nada se guarda ni se envía)
+function _qzStripLocal(p){
+  const q={tipo:p.tipo,texto:p.texto,tiempo:p.tiempo||30};
+  if(p.opciones) q.opciones=p.opciones;
+  if(p.plantilla) q.plantilla=p.plantilla;
+  if(p.max) q.max=p.max;
+  if(p.flex) q.flex=p.flex;
+  if(p.tipo==='completar') q.blanks=(p.blanks||[]).map(b=>{
+    const out={modo:b.modo||'texto'};
+    if(b.pista) out.pista=b.pista;
+    if(out.modo==='lista') out.lista=b.lista||[];
+    if(out.modo==='cajas'){ const prim=String((b.acepta||[''])[0]||''); out.mascara=[...prim].map(ch=>/[\p{L}\p{N}]/u.test(ch)?null:ch); }
+    return out;
+  });
+  if(p.tipo==='reordenar') q.items=_qzShuffle((p.items||[]).map(String));
+  if(p.tipo==='relacionar'){ q.izq=(p.pares||[]).map(x=>String(x.izq)); q.der=_qzShuffle((p.pares||[]).map(x=>String(x.der))); }
+  if(p.tipo==='categorizar'){ q.categorias=p.categorias||[]; q.items=_qzShuffle((p.items||[]).map(x=>String(x.texto))); }
+  if(p.tipo==='arrastrar') q.banco=_qzShuffle([...new Set((p.correctas||[]).concat(p.banco||[]).map(String))]);
+  return q;
+}
+function _qzNormLocal(s,flex){
+  let v=String(s??'').trim().replace(/\s+/g,' ');
+  if(!flex||flex.mayus!==false) v=v.toLowerCase();
+  if(!flex||flex.tildes!==false) v=v.normalize('NFD').replace(/[̀-ͯ]/g,'');
+  return v;
+}
+function _qzCalificarLocal(p,r){
+  if(!p||QZ_NO_CALIFICA.includes(p.tipo)) return {correcta:null,puntos:0};
+  let frac=0;
+  if(p.tipo==='multiple'||p.tipo==='vf') frac=(p.correctas||[]).map(Number).includes(Number(r))?1:0;
+  else if(p.tipo==='multi'){ const sel=(Array.isArray(r)?r:[]).map(Number); const cor=new Set((p.correctas||[]).map(Number)); const n=cor.size||1; let hit=0,bad=0; sel.forEach(i=>cor.has(i)?hit++:bad++); frac=Math.max(0,(hit-bad)/n); }
+  else if(p.tipo==='completar'){ const vals=Array.isArray(r)?r:[]; const bl=p.blanks||[]; let okc=0; bl.forEach((b,i)=>{ const v=_qzNormLocal(vals[i],p.flex); if((b.acepta||[]).some(a=>_qzNormLocal(a,p.flex)===v)) okc++; }); frac=bl.length?okc/bl.length:0; }
+  else if(p.tipo==='reordenar'){ const vals=Array.isArray(r)?r.map(String):[]; const items=(p.items||[]).map(String); let okc=0; items.forEach((it,i)=>{ if(vals[i]===it) okc++; }); frac=items.length?okc/items.length:0; }
+  else if(p.tipo==='relacionar'){ const vals=Array.isArray(r)?r.map(String):[]; const pares=p.pares||[]; let okc=0; pares.forEach((pr,i)=>{ if(vals[i]===String(pr.der)) okc++; }); frac=pares.length?okc/pares.length:0; }
+  else if(p.tipo==='categorizar'){ const vals=Array.isArray(r)?r:[]; const items=p.items||[]; let okc=0; const vistos=new Set(); vals.forEach(v=>{ const t=String(v&&v[0]); if(vistos.has(t))return; vistos.add(t); const it=items.find(x=>String(x.texto)===t); if(it&&Number(v[1])===Number(it.cat)) okc++; }); frac=items.length?okc/items.length:0; }
+  else if(p.tipo==='arrastrar'){ const vals=Array.isArray(r)?r.map(String):[]; const cor=(p.correctas||[]).map(String); let okc=0; cor.forEach((c,i)=>{ if(vals[i]===c) okc++; }); frac=cor.length?okc/cor.length:0; }
+  return {correcta:frac>=0.999, puntos:Math.round(1000*frac)};
+}
+function _qzSolLocal(p){
+  if(QZ_NO_CALIFICA.includes(p.tipo)) return null;
+  if(p.tipo==='completar') return (p.blanks||[]).map(b=>(b.acepta||[''])[0]);
+  if(['reordenar','relacionar','categorizar','arrastrar'].includes(p.tipo)) return _qzSolLineas(p);
+  return {correctas:p.correctas||[], opciones:p.opciones||[]};
+}
+function _qzPreviewRun(c){
+  const pregs=c.preguntas||[];
+  if(!pregs.length){ alert('Este cuestionario no tiene preguntas todavía'); return; }
+  _qzPrevUltimo={titulo:c.titulo, preguntas:pregs};
+  _qzA=null; clearInterval(_qzAPoll);
+  let backScr=(document.querySelector('.screen.active')||{}).id||'screen-quiz-prof';
+  if(backScr==='screen-quiz-alumno') backScr=(_qzP&&_qzP.back)||'screen-quiz-prof'; // "probar de nuevo" conserva el origen
+  _qzP={id:null, preview:true, back:backScr,
+        titulo:c.titulo||'Vista previa', pregsFull:pregs, pregs:pregs.map(_qzStripLocal), i:0, resp:[], t0:Date.now()};
+  document.getElementById('qz-alu-tit').textContent='👁 VISTA PREVIA';
+  document.getElementById('qz-alu-sub').textContent='Así lo ve el alumno — no se guarda nada';
+  showScreen('screen-quiz-alumno');
+  _qzPracticaRender();
+}
+let _qzPrevUltimo=null;
+function qzPreview(id){ const c=_qzLista.find(x=>x.id===id); if(c) _qzPreviewRun(c); }
+function _qzPreviewOtraVez(){ if(_qzPrevUltimo) _qzPreviewRun(_qzPrevUltimo); }
+function qzEdPreview(){
+  if(_qzEdP){ alert('Primero cerrá la pregunta que estás editando (✔ Listo o Cancelar)'); return; }
+  _qzEdLeerCabecera();
+  _qzPreviewRun({titulo:_qzEd.titulo||'Vista previa', preguntas:_qzEd.preguntas});
 }
 
 // ---------- ALUMNO: práctica libre (a su ritmo) ----------
@@ -15698,23 +16043,36 @@ async function _qzPracticaEnviar(){
   const cont=document.getElementById('qz-alu-body');
   cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">📨 Calificando…</div>';
   try{
-    const d=await _qzInvoke('practica_enviar',{cuestionario_id:_qzP.id, respuestas:_qzP.resp});
+    let d;
+    if(_qzP.preview){
+      // VISTA PREVIA: califica 100% local con las preguntas completas — no toca el servidor
+      const detalle=_qzP.pregsFull.map((p,i)=>{
+        const r=_qzP.resp.find(x=>Number(x.idx)===i);
+        const cal=_qzCalificarLocal(p, r?r.respuesta:null);
+        return {idx:i, correcta:cal.correcta, puntos:cal.puntos, solucion:_qzSolLocal(p), respuesta:r?r.respuesta:null};
+      });
+      d={detalle, total:detalle.reduce((a,x)=>a+x.puntos,0)};
+    } else {
+      d=await _qzInvoke('practica_enviar',{cuestionario_id:_qzP.id, respuestas:_qzP.resp});
+    }
     const det=d.detalle||[];
     const nCal=det.filter(x=>x.correcta!==null).length;
     const ok=det.filter(x=>x.correcta===true).length;
-    cont.innerHTML=`<div class="qz-alu-feed ${ok>=nCal*0.6?'ok':'neutro'}" style="margin-top:8px"><div class="giga">${ok>=nCal*0.8?'🏆':ok>=nCal*0.5?'💪':'📖'}</div>
+    const esPrev=!!_qzP.preview;
+    cont.innerHTML=(esPrev?'<div class="alert-banner blue" style="margin-bottom:10px"><span class="alert-emoji">👁</span><span class="alert-text"><b>VISTA PREVIA</b> — así ve el alumno su resultado. No se guardó nada.</span></div>':'')+
+      `<div class="qz-alu-feed ${ok>=nCal*0.6?'ok':'neutro'}" style="margin-top:8px"><div class="giga">${ok>=nCal*0.8?'🏆':ok>=nCal*0.5?'💪':'📖'}</div>
       <div style="font-size:20px;font-weight:900;margin-top:6px">${ok} / ${nCal} correctas</div>
       <div class="qz-alu-pts">${d.total} pts</div></div>
       <div class="section-label" style="margin-top:14px">Revisión</div>`+
       det.map((x,i)=>{
         const p=_qzP.pregs[i];
         const icon=x.correcta===true?'✅':x.correcta===false?'❌':'💬';
-        const sol=x.correcta===false? `<div style="font-size:12px;color:#7be67b;margin-top:3px">${escapeHtml(_qzSolTexto(p,x.solucion))}</div>`:'';
+        const sol=x.correcta===false? `<div class="qz-sol" style="font-size:12px;color:#7be67b;margin-top:3px">${escapeHtml(_qzSolTexto(p,x.solucion))}</div>`:'';
         return `<div class="qz-item"><div style="font-size:13px;color:var(--text-primary)">${icon} <b>${i+1}.</b> ${escapeHtml(p.texto)}</div>${sol}</div>`;
       }).join('')+
       `<div style="display:flex;gap:8px;margin-top:12px">
-        <button class="qz-btn gold" style="flex:1" onclick="qzPracticaIniciar('${_qzP.id}')">🔁 Intentar de nuevo</button>
-        <button class="qz-btn ghost" style="flex:1;border:1px solid var(--border,#2a3a52);color:var(--text-primary)" onclick="qzAluSalir()">Volver</button>
+        <button class="qz-btn gold" style="flex:1" onclick="${esPrev?'_qzPreviewOtraVez()':`qzPracticaIniciar('${_qzP.id}')`}">🔁 ${esPrev?'Probar de nuevo':'Intentar de nuevo'}</button>
+        <button class="qz-btn" style="flex:1;background:linear-gradient(180deg,#2a3a52,#1d2839)" onclick="qzAluSalir()">${esPrev?'Volver (profesor)':'Volver'}</button>
       </div>`;
   }catch(e){ cont.innerHTML='<div class="efm-no-data">⚠️ '+escapeHtml(e.message)+'</div>'; }
 }
