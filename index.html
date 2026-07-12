@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.157</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.158</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5792,7 +5792,6 @@ input::placeholder, textarea::placeholder {
 .qz-hueco{display:inline-block;min-width:90px;border:none;border-bottom:2px solid #d4af37;background:rgba(212,175,55,.1);border-radius:8px 8px 0 0;padding:6px 12px;margin:0 3px;font-size:14px;font-weight:800;color:#f4d574;cursor:pointer;text-align:center;vertical-align:middle}
 .qz-hueco.lleno{background:rgba(45,157,92,.25);border-bottom-color:#2d9d5c;color:#fff}
 .qz-alu-card{background:linear-gradient(180deg,#1d2839,#141c2b);border:1px solid #2a3a52;border-radius:14px;padding:14px;color:#e8e3d4;margin-top:8px}
-#screen-quiz-alumno .qz-item{background:linear-gradient(180deg,#1d2839,#141c2b);border-color:#2a3a52}
 .qz-alu-feed{text-align:center;padding:26px 14px;border-radius:14px;margin-top:10px;color:#e8e3d4}
 .qz-alu-feed.ok{background:linear-gradient(180deg,#12351f,#0d2717);border:1px solid #2d9d5c}
 .qz-alu-feed.mal{background:linear-gradient(180deg,#3a1512,#2a100e);border:1px solid #d94f4f}
@@ -5816,62 +5815,81 @@ input::placeholder, textarea::placeholder {
 .qz-opt-row{display:flex;gap:8px;align-items:center;margin-bottom:6px}
 .qz-opt-row input[type=text]{flex:1}
 
-/* ============ SKIN "ARENA" — neobrutalismo lúdico (solo pantalla del alumno) ============
-   Fondo crema, tarjetas blancas con borde negro grueso y sombra dura que se hunde al tocar,
-   colores saturados, tipografía pesada. Elegido por Sergio para diferenciarse de SIDECEME. */
-#screen-quiz-alumno.qz-arena{background:#F4EDDE}
-.qz-arena .cursante-container{padding-bottom:40px}
-#screen-quiz-alumno.qz-arena .app-header{background:#F4EDDE !important;border-bottom:3px solid #111 !important;box-shadow:none !important}
+/* ============ SKIN "AULA" — flat premium claro (solo pantalla del alumno) ============
+   Rediseño v2.9.158 pedido por Sergio: contraste WCAG, grilla 8px, contenido centrado
+   (sin espacios muertos en escritorio), paleta vibrante pero profesional, micro-
+   interacciones suaves. La clase hook sigue siendo .qz-arena (solo cambió el estilo). */
+#screen-quiz-alumno.qz-arena{background:#EEF1F6}
+#screen-quiz-alumno.qz-arena .app-header{background:#fff !important;border-bottom:1px solid #E2E8F0 !important;box-shadow:0 1px 2px rgba(15,23,42,.05) !important}
 #screen-quiz-alumno.qz-arena .app-header::before, #screen-quiz-alumno.qz-arena .app-header::after{display:none !important}
-#screen-quiz-alumno.qz-arena .header-title{color:#111 !important;text-shadow:none !important}
-#screen-quiz-alumno.qz-arena .header-sub{color:#555 !important;text-shadow:none !important}
-#screen-quiz-alumno.qz-arena .back-btn{background:#fff !important;border:2.5px solid #111 !important;border-radius:12px !important;color:#111 !important;box-shadow:3px 3px 0 #111 !important;transition:transform .12s cubic-bezier(.2,.8,.2,1),box-shadow .12s cubic-bezier(.2,.8,.2,1)}
-#screen-quiz-alumno.qz-arena .back-btn:active{transform:translate(3px,3px);box-shadow:0 0 0 #111 !important}
-#screen-quiz-alumno.qz-arena .header-crest{filter:grayscale(1) contrast(2)}
-.qz-arena .qz-alu-card{background:#fff;border:3px solid #111;border-radius:16px;box-shadow:7px 7px 0 #111;color:#111}
-.qz-arena .qz-alu-card [style*="9fb3cc"]{color:#666 !important}
-.qz-arena .qz-alu-opt{border:3px solid #111;border-radius:14px;box-shadow:5px 5px 0 #111;color:#fff;text-shadow:0 1px 0 rgba(0,0,0,.35);transition:transform .12s cubic-bezier(.2,.8,.2,1),box-shadow .12s cubic-bezier(.2,.8,.2,1),filter .12s}
-.qz-arena .qz-alu-opt:active{transform:translate(4px,4px);box-shadow:0 0 0 #111}
-.qz-arena .qz-alu-opt:hover{filter:brightness(1.07)}
-.qz-arena .qz-alu-opt.sel{outline:none;box-shadow:0 0 0 #111;transform:translate(4px,4px);filter:saturate(1.3)}
-.qz-arena .qz-c0{background:#3B82F6}.qz-arena .qz-c1{background:#FF6B6B}.qz-arena .qz-c2{background:#F59F00}.qz-arena .qz-c3{background:#2F9E44}.qz-arena .qz-c4{background:#0CA678}.qz-arena .qz-c5{background:#E8590C}
-.qz-arena .qz-btn{border:3px solid #111;border-radius:14px;box-shadow:5px 5px 0 #111;color:#fff;transition:transform .12s cubic-bezier(.2,.8,.2,1),box-shadow .12s cubic-bezier(.2,.8,.2,1)}
-.qz-arena .qz-btn:active{transform:translate(4px,4px);box-shadow:0 0 0 #111}
-.qz-arena .qz-btn.gold{background:#FFD43B;color:#111;text-shadow:none}
-.qz-arena .qz-timerbar{background:#fff;border:2.5px solid #111;height:18px;border-radius:10px}
-.qz-arena .qz-timer-num{color:#111 !important;font-weight:900}
-.qz-arena .qz-plantilla{color:#111;font-weight:600}
-.qz-arena .qz-blank-inp{background:#fff;border:2.5px solid #111;border-radius:10px;color:#111;box-shadow:3px 3px 0 #111}
-.qz-arena .qz-blank-sel{background:#fff;border:2.5px solid #111;border-radius:10px;color:#111;box-shadow:3px 3px 0 #111;font-weight:700}
-.qz-arena .qz-cajas input{background:#fff;border:2.5px solid #111;border-radius:8px;color:#111;box-shadow:2px 2px 0 #111}
-.qz-arena .qz-caja-fija{color:#111;opacity:1}
-.qz-arena .qz-pista{background:#FFD43B;border:2px solid #111;box-shadow:2px 2px 0 #111}
-.qz-arena textarea{background:#fff;border:2.5px solid #111 !important;border-radius:12px;color:#111;box-shadow:3px 3px 0 #111;font-weight:600}
-.qz-arena .qz-ord-row{background:#fff;border:2.5px solid #111;border-radius:12px;box-shadow:4px 4px 0 #111;color:#111}
-.qz-arena .qz-ord-num{color:#111;background:#FFD43B;border:2px solid #111;border-radius:8px;padding:2px 6px}
-.qz-arena .qz-ord-btn{background:#fff;border:2px solid #111;color:#111;box-shadow:2px 2px 0 #111;transition:transform .1s,box-shadow .1s}
-.qz-arena .qz-ord-btn:active{transform:translate(2px,2px);box-shadow:0 0 0 #111}
-.qz-arena .qz-rel-izq{background:#A5D8FF;border:2.5px solid #111;border-radius:12px;color:#111;box-shadow:3px 3px 0 #111}
-.qz-arena .qz-rel-sel{background:#fff;border:2.5px solid #111;border-radius:12px;color:#111;box-shadow:3px 3px 0 #111}
-.qz-arena .qz-banco{border:2.5px dashed #111;background:rgba(255,255,255,.6);border-radius:14px}
-.qz-arena .qz-chip-banco{background:#fff;border:2.5px solid #111;color:#111;box-shadow:3px 3px 0 #111;transition:transform .12s cubic-bezier(.2,.8,.2,1),box-shadow .12s}
-.qz-arena .qz-chip-banco:active{transform:translate(3px,3px);box-shadow:0 0 0 #111}
-.qz-arena .qz-chip-banco:disabled{opacity:.25;box-shadow:0 0 0 #111}
-.qz-arena .qz-hueco{background:#fff;border:2.5px dashed #111;border-radius:10px;color:#888;box-shadow:none}
-.qz-arena .qz-hueco.lleno{background:#69DB7C;border-style:solid;color:#111;box-shadow:3px 3px 0 #111}
-.qz-arena .qz-alu-feed{border-width:3px;border-radius:16px;color:#111;animation:qzPop .3s cubic-bezier(.2,.8,.2,1)}
-.qz-arena .qz-alu-feed.ok{background:#69DB7C;border:3px solid #111;box-shadow:7px 7px 0 #111}
-.qz-arena .qz-alu-feed.mal{background:#FFA8A8;border:3px solid #111;box-shadow:7px 7px 0 #111}
-.qz-arena .qz-alu-feed.neutro{background:#A5D8FF;border:3px solid #111;box-shadow:7px 7px 0 #111}
-.qz-arena .qz-alu-feed .qz-sub{color:#333}
-.qz-arena .qz-alu-pts{color:#111;font-size:26px}
-.qz-arena .qz-sol{color:#0b5c26 !important;font-weight:800}
-.qz-arena .qz-item{background:#fff;border:2.5px solid #111;border-radius:12px;box-shadow:4px 4px 0 #111}
-.qz-arena .qz-item [style*="text-primary"]{color:#111 !important}
-.qz-arena .section-label{color:#111}
-.qz-arena .alert-banner{background:#fff;border:2.5px solid #111;border-radius:12px;box-shadow:4px 4px 0 #111}
-.qz-arena .alert-banner .alert-text, .qz-arena .alert-banner b{color:#111}
-.qz-arena .efm-no-data{color:#555 !important}
+#screen-quiz-alumno.qz-arena .header-title{color:#0F172A !important;text-shadow:none !important}
+#screen-quiz-alumno.qz-arena .header-sub{color:#64748B !important;text-shadow:none !important}
+#screen-quiz-alumno.qz-arena .back-btn{background:#fff !important;border:1.5px solid #CBD5E1 !important;border-radius:10px !important;color:#0F172A !important;box-shadow:0 1px 2px rgba(15,23,42,.06) !important;transition:background .15s,transform .15s cubic-bezier(.2,.8,.2,1)}
+#screen-quiz-alumno.qz-arena .back-btn:active{transform:scale(.94)}
+#screen-quiz-alumno.qz-arena .header-crest{filter:grayscale(1) opacity(.75)}
+/* layout centrado: nada de pantalla vacía */
+.qz-arena #qz-alu-body{display:flex;flex-direction:column;min-height:calc(100vh - 130px)}
+.qz-wrap{margin:auto;width:100%;max-width:640px;padding:8px 0 32px}
+.qz-wrap.qz-wide{max-width:960px}
+.qz-progress{height:8px;background:#E2E8F0;border-radius:99px;overflow:hidden;margin:4px 0 6px}
+.qz-progress>div{height:100%;background:linear-gradient(90deg,#2563EB,#0EA5E9);border-radius:99px;transition:width .45s cubic-bezier(.2,.8,.2,1)}
+.qz-meta{font-size:12px;font-weight:800;color:#64748B;letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px}
+.qz-arena .qz-alu-card{background:#fff;border:1px solid #E2E8F0;border-radius:16px;box-shadow:0 1px 2px rgba(15,23,42,.05),0 10px 30px rgba(15,23,42,.07);color:#0F172A;padding:24px;margin-top:0}
+.qz-arena .qz-alu-card [style*="9fb3cc"]{color:#64748B !important}
+.qz-arena .qz-alu-opt{border:none;border-radius:12px;min-height:56px;box-shadow:0 1px 2px rgba(15,23,42,.15);color:#fff;font-size:16px;transition:transform .16s cubic-bezier(.2,.8,.2,1),box-shadow .16s,filter .16s}
+.qz-arena .qz-alu-opt:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(15,23,42,.18)}
+.qz-arena .qz-alu-opt:active{transform:scale(.98)}
+.qz-arena .qz-alu-opt.sel{outline:3px solid #0F172A;outline-offset:2px;box-shadow:0 6px 16px rgba(15,23,42,.2)}
+.qz-arena .qz-alu-opt b{background:rgba(255,255,255,.25);border-radius:8px;min-width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center}
+.qz-arena .qz-c0{background:#3B82F6}.qz-arena .qz-c1{background:#F43F5E}.qz-arena .qz-c2{background:#F59E0B}.qz-arena .qz-c3{background:#22C55E}.qz-arena .qz-c4{background:#14B8A6}.qz-arena .qz-c5{background:#F97316}
+.qz-arena .qz-btn{border:none;border-radius:12px;min-height:50px;box-shadow:0 1px 2px rgba(15,23,42,.15);transition:transform .16s cubic-bezier(.2,.8,.2,1),box-shadow .16s,filter .16s}
+.qz-arena .qz-btn:hover{transform:translateY(-1px);filter:brightness(1.05)}
+.qz-arena .qz-btn:active{transform:scale(.98)}
+.qz-arena .qz-btn.gold{background:#2563EB;color:#fff;text-shadow:none}
+.qz-arena .qz-timerwrap{margin:0 0 12px}
+.qz-arena .qz-timerbar{background:#E2E8F0;border:none;height:10px;border-radius:99px}
+.qz-arena .qz-timer-num{color:#0F172A !important;font-weight:900;font-size:22px}
+.qz-arena .qz-plantilla{color:#0F172A;font-weight:500;font-size:16px}
+.qz-arena .qz-blank-inp{background:#F8FAFC;border:1.5px solid #CBD5E1;border-bottom:2.5px solid #2563EB;border-radius:10px;color:#0F172A;box-shadow:none}
+.qz-arena .qz-blank-inp:focus{outline:none;border-color:#2563EB;background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+.qz-arena .qz-blank-sel{background:#F8FAFC;border:1.5px solid #CBD5E1;border-radius:10px;color:#0F172A;box-shadow:none;font-weight:600}
+.qz-arena .qz-cajas input{background:#F8FAFC;border:1.5px solid #CBD5E1;border-radius:8px;color:#0F172A;box-shadow:none}
+.qz-arena .qz-cajas input:focus{outline:none;border-color:#2563EB;background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+.qz-arena .qz-caja-fija{color:#0F172A;opacity:1}
+.qz-arena .qz-pista{background:#FEF3C7;border:1px solid #F59E0B;border-radius:8px}
+.qz-arena textarea{background:#F8FAFC;border:1.5px solid #CBD5E1 !important;border-radius:12px;color:#0F172A;box-shadow:none;font-weight:500;padding:12px}
+.qz-arena textarea:focus{outline:none;border-color:#2563EB !important;background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.15)}
+.qz-arena .qz-ord-row{background:#F8FAFC;border:1.5px solid #E2E8F0;border-radius:12px;box-shadow:0 1px 2px rgba(15,23,42,.04);color:#0F172A;transition:box-shadow .15s,border-color .15s}
+.qz-arena .qz-ord-row:hover{border-color:#93C5FD}
+.qz-arena .qz-ord-num{color:#1D4ED8;background:#DBEAFE;border:none;border-radius:8px;padding:3px 8px}
+.qz-arena .qz-ord-btn{background:#fff;border:1.5px solid #CBD5E1;color:#0F172A;box-shadow:0 1px 2px rgba(15,23,42,.06);border-radius:9px;transition:transform .12s,background .12s}
+.qz-arena .qz-ord-btn:hover{background:#EFF6FF;border-color:#93C5FD}
+.qz-arena .qz-ord-btn:active{transform:scale(.9)}
+.qz-arena .qz-rel-izq{background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:12px;color:#1E3A8A;box-shadow:none}
+.qz-arena .qz-rel-sel{background:#F8FAFC;border:1.5px solid #CBD5E1;border-radius:12px;color:#0F172A;box-shadow:none;min-height:46px}
+.qz-arena .qz-banco{border:1.5px dashed #94A3B8;background:#F8FAFC;border-radius:14px}
+.qz-arena .qz-chip-banco{background:#fff;border:1.5px solid #CBD5E1;color:#0F172A;box-shadow:0 1px 2px rgba(15,23,42,.07);min-height:44px;transition:transform .15s cubic-bezier(.2,.8,.2,1),box-shadow .15s,border-color .15s}
+.qz-arena .qz-chip-banco:hover{border-color:#2563EB;transform:translateY(-1px)}
+.qz-arena .qz-chip-banco:active{transform:scale(.95)}
+.qz-arena .qz-chip-banco:disabled{opacity:.3;transform:none}
+.qz-arena .qz-hueco{background:#F8FAFC;border:1.5px dashed #94A3B8;border-radius:10px;color:#94A3B8;box-shadow:none;min-height:40px;transition:background .15s,border-color .15s}
+.qz-arena .qz-hueco.lleno{background:#DCFCE7;border:1.5px solid #22C55E;color:#14532D}
+.qz-arena .qz-alu-feed{border-radius:16px;animation:qzPop .3s cubic-bezier(.2,.8,.2,1)}
+.qz-arena .qz-alu-feed.ok{background:#ECFDF5;border:1.5px solid #A7F3D0;color:#065F46}
+.qz-arena .qz-alu-feed.mal{background:#FEF2F2;border:1.5px solid #FECACA;color:#991B1B}
+.qz-arena .qz-alu-feed.neutro{background:#EFF6FF;border:1.5px solid #BFDBFE;color:#1E40AF}
+.qz-arena .qz-alu-feed .qz-sub{color:#475569}
+.qz-arena .qz-alu-pts{color:inherit;font-size:26px}
+.qz-arena .qz-sol{color:#047857 !important;font-weight:700}
+.qz-arena .qz-item{background:#fff;border:1px solid #E2E8F0;border-radius:12px;box-shadow:0 1px 2px rgba(15,23,42,.05);margin-bottom:0}
+.qz-arena .qz-item [style*="text-primary"]{color:#0F172A !important}
+.qz-arena .section-label{color:#334155}
+.qz-arena .alert-banner{background:#fff;border:1px solid #BFDBFE;border-radius:12px;box-shadow:0 1px 2px rgba(15,23,42,.05)}
+.qz-arena .alert-banner .alert-text, .qz-arena .alert-banner b{color:#0F172A}
+.qz-arena .efm-no-data{color:#64748B !important}
+.qz-rev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px}
+.qz-proj-panel{background:#0F172A;border-radius:14px;padding:14px;margin-top:10px;color:#fff}
+.qz-fb-next{width:100%;margin-top:14px}
 </style>
 
 <!-- PROFESOR: gestión de cuestionarios -->
@@ -15148,10 +15166,10 @@ async function qzResultadosPractica(id){
 
 // ---------- PROFESOR: editor ----------
 let _qzEd=null, _qzEdIdx=-1, _qzEdP=null;
-function qzNuevo(){ _qzEd={id:null,titulo:'',descripcion:'',materia_aula_id:_qzMatFiltro||'',estado:'borrador',aud_ciclo:'',aud_paralelo:'',preguntas:[]}; _qzEdIdx=-1; _qzEdP=null; showScreen('screen-quiz-editor'); _qzEdRender(); }
+function qzNuevo(){ _qzEd={id:null,titulo:'',descripcion:'',materia_aula_id:_qzMatFiltro||'',estado:'borrador',aud_ciclo:'',aud_paralelo:'',feedback:'final',preguntas:[]}; _qzEdIdx=-1; _qzEdP=null; showScreen('screen-quiz-editor'); _qzEdRender(); }
 function qzEditar(id){
   const c=_qzLista.find(x=>x.id===id); if(!c) return;
-  _qzEd={id:c.id,titulo:c.titulo,descripcion:c.descripcion||'',materia_aula_id:c.materia_aula_id||'',estado:c.estado,aud_ciclo:c.aud_ciclo||'',aud_paralelo:c.aud_paralelo||'',preguntas:JSON.parse(JSON.stringify(c.preguntas||[]))};
+  _qzEd={id:c.id,titulo:c.titulo,descripcion:c.descripcion||'',materia_aula_id:c.materia_aula_id||'',estado:c.estado,aud_ciclo:c.aud_ciclo||'',aud_paralelo:c.aud_paralelo||'',feedback:c.feedback||'final',preguntas:JSON.parse(JSON.stringify(c.preguntas||[]))};
   _qzEdIdx=-1; _qzEdP=null; showScreen('screen-quiz-editor'); _qzEdRender();
 }
 function qzEditorVolver(){ if(_qzEd && !confirm('¿Salir del editor? Lo no guardado se pierde.')) return; goQuizProf(); }
@@ -15174,6 +15192,23 @@ function _qzEdRender(){
     <option value="" ${!_qzEd.aud_paralelo?'selected':''}>Todos los paralelos</option>
     ${['A','B','C'].map(p=>`<option value="${p}" ${_qzEd.aud_paralelo===p?'selected':''}>Solo paralelo "${p}"</option>`).join('')}
   </select></div>
+  <div class="field"><label>✅ Respuestas en la práctica libre</label><select id="qz-ed-fb">
+    <option value="final" ${_qzEd.feedback!=='inmediato'?'selected':''}>Al FINAL (rinde todo y recién ve la corrección)</option>
+    <option value="inmediato" ${_qzEd.feedback==='inmediato'?'selected':''}>AL INSTANTE (verde ✔ / rojo ✘ tras cada pregunta)</option>
+  </select></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 8px">
+    <button class="qz-mini" style="font-size:14px" onclick="qzEdImportToggle()">🤖 Importar preguntas desde tu IA (masivo)</button>
+  </div>
+  <div id="qz-ed-import" style="display:none" class="qz-ed-card">
+    <div style="font-weight:800;margin-bottom:6px;color:var(--text-primary)">🤖 Generá TODO el cuestionario con tu IA — sin cargar pregunta por pregunta</div>
+    <div style="font-size:13px;color:var(--text-secondary);line-height:1.5;margin-bottom:10px">
+      <b>1.</b> Tocá <b>Copiar prompt</b>. <b>2.</b> Pegalo en ChatGPT / Claude / Gemini junto con tu texto fuente y decile cuántas preguntas de cada tipo querés. <b>3.</b> Copiá la respuesta de la IA, pegala abajo y tocá <b>Generar</b>.
+    </div>
+    <button class="qz-mini" onclick="qzEdCopiarPrompt()">📋 Copiar prompt para tu IA</button>
+    <div class="field" style="margin-top:10px"><label>Pegá acá la respuesta de tu IA</label><textarea id="qz-ed-import-txt" rows="7" placeholder="[MULTIPLE] ¿Pregunta...?&#10;* opción correcta&#10;- opción incorrecta&#10;..."></textarea></div>
+    <button class="qz-btn gold" onclick="qzEdImportar()">⚡ Generar preguntas</button>
+    <div id="qz-ed-import-msg" style="font-size:12px;color:var(--text-muted);margin-top:6px"></div>
+  </div>
   <div class="section-label">Preguntas (${_qzEd.preguntas.length})</div>`;
   html += _qzEd.preguntas.map((p,i)=> i===_qzEdIdx ? `<div id="qz-ed-form-anchor"></div>` :
     `<div class="qz-item"><div style="font-size:14px;color:var(--text-primary)"><b>${i+1}.</b> ${_qzPregResumen(p)}</div>
@@ -15204,6 +15239,8 @@ function _qzEdLeerCabecera(){
   const ac=document.getElementById('qz-ed-aud-ciclo'), ap=document.getElementById('qz-ed-aud-par');
   _qzEd.aud_ciclo=(ac&&ac.value)||'';
   _qzEd.aud_paralelo=(ap&&ap.value)||'';
+  const fb=document.getElementById('qz-ed-fb');
+  _qzEd.feedback=(fb&&fb.value)||'final';
 }
 function qzEdPregNueva(){
   _qzEdLeerCabecera();
@@ -15250,9 +15287,12 @@ function _qzEdPregFormHtml(p){
     html+=`<div class="field"><label>Respuesta correcta</label><select id="qz-f-vf"><option value="0" ${(p.correctas||[0])[0]===0?'selected':''}>VERDADERO</option><option value="1" ${(p.correctas||[0])[0]===1?'selected':''}>FALSO</option></select></div>`;
   }
   if(t==='completar'){
-    html+=`<div class="field"><label>Texto con huecos — escribí ___ (3 guiones bajos) donde va cada hueco</label>
-      <textarea id="qz-f-plantilla" rows="3" placeholder="Ej: Las etapas de Lewin son ___ , cambio y ___ .">${escapeHtml(p.plantilla||'')}</textarea></div>
-    <button class="qz-mini" onclick="qzEdDetectarHuecos()">🔍 Detectar huecos</button>
+    html+=`<div class="field"><label>Escribí (o pegá) el texto COMPLETO — después pintá una palabra y convertila en hueco</label>
+      <textarea id="qz-f-plantilla" rows="3" placeholder="Ej: Las etapas de Lewin son descongelamiento, cambio y recongelamiento.">${escapeHtml(p.plantilla||'')}</textarea></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:4px">
+      <button class="qz-mini" style="border-color:#d4af37;color:#f4d574" onclick="qzEdSelHueco('completar')">✂️ Convertir la palabra SELECCIONADA en hueco</button>
+      <button class="qz-mini" onclick="qzEdDetectarHuecos()">🔍 Detectar huecos ___ escritos a mano</button>
+    </div>
     <div id="qz-f-bl" style="margin-top:8px">${(p.blanks||[]).map((b,i)=>_qzEdBlankRow(b,i)).join('')}</div>
     <div style="display:flex;gap:16px;margin-top:8px;font-size:13px;color:var(--text-secondary)">
       <label><input type="checkbox" id="qz-f-tildes" ${!p.flex||p.flex.tildes!==false?'checked':''}> Ignorar tildes</label>
@@ -15263,8 +15303,9 @@ function _qzEdPregFormHtml(p){
     html+=`<div class="field"><label>Máximo de caracteres</label><select id="qz-f-max">${[30,40,80,120,240,500,1000].map(n=>`<option ${((p.max||240)===n?'selected':'')}>${n}</option>`).join('')}</select></div>`;
   }
   if(t==='arrastrar'){
-    html+=`<div class="field"><label>Texto con huecos — escribí ___ (3 guiones bajos) donde va cada hueco</label>
-      <textarea id="qz-f-plantilla" rows="3" placeholder="Ej: El ___ cuestiona el estado actual y el ___ estabiliza lo nuevo.">${escapeHtml(p.plantilla||'')}</textarea></div>
+    html+=`<div class="field"><label>Escribí (o pegá) el texto COMPLETO — después pintá una palabra y convertila en hueco</label>
+      <textarea id="qz-f-plantilla" rows="3" placeholder="Ej: El descongelamiento cuestiona el estado actual y el recongelamiento estabiliza lo nuevo.">${escapeHtml(p.plantilla||'')}</textarea></div>
+    <button class="qz-mini" style="border-color:#d4af37;color:#f4d574;margin-bottom:6px" onclick="qzEdSelHueco('arrastrar')">✂️ Convertir la palabra SELECCIONADA en hueco</button>
     <div class="field"><label>Respuesta correcta de CADA hueco, en orden (una por línea)</label>
       <textarea id="qz-f-arr-cor" rows="3" placeholder="descongelamiento&#10;recongelamiento">${escapeHtml((p.correctas||[]).join('\n'))}</textarea></div>
     <div class="field"><label>Distractores extra del banco (separados por coma — opcional)</label>
@@ -15316,6 +15357,27 @@ function _qzEdLeerBlanks(){
     if(pista) b.pista=pista;
     return b;
   });
+}
+// v2.9.158: pintás una palabra en el texto → se vuelve hueco ___ y su respuesta queda cargada sola
+function qzEdSelHueco(tipo){
+  const ta=document.getElementById('qz-f-plantilla'); if(!ta) return;
+  const s=ta.selectionStart, e=ta.selectionEnd;
+  let sel=(ta.value.substring(s,e)||'').trim();
+  if(!sel){ alert('Primero PINTÁ (seleccioná) la palabra o frase dentro del texto, después tocá este botón'); return; }
+  if(/_{3,}/.test(sel)){ alert('Eso ya es un hueco'); return; }
+  const antes=(ta.value.substring(0,s).match(/_{3,}/g)||[]).length; // posición del hueco nuevo
+  ta.value = ta.value.substring(0,s) + '___' + ta.value.substring(e);
+  if(tipo==='completar'){
+    const actuales=_qzEdLeerBlanks();
+    actuales.splice(antes,0,{acepta:[sel],modo:'texto'});
+    _qzEdP.plantilla=ta.value; _qzEdP.blanks=actuales;
+    document.getElementById('qz-f-bl').innerHTML=actuales.map((b,i)=>_qzEdBlankRow(b,i)).join('');
+  } else { // arrastrar: la palabra pasa a la lista de respuestas correctas, en orden
+    const corTa=document.getElementById('qz-f-arr-cor');
+    const cor=(corTa.value||'').split('\n').map(x=>x.trim()).filter(Boolean);
+    cor.splice(antes,0,sel);
+    corTa.value=cor.join('\n');
+  }
 }
 function qzEdDetectarHuecos(){
   const pl=(document.getElementById('qz-f-plantilla').value||'');
@@ -15407,9 +15469,158 @@ async function qzEdGuardar(){
   try{
     await _qzInvoke('guardar',{id:_qzEd.id||undefined, titulo:_qzEd.titulo, descripcion:_qzEd.descripcion,
       materia_aula_id:_qzEd.materia_aula_id||null, estado:_qzEd.estado,
-      aud_ciclo:_qzEd.aud_ciclo||null, aud_paralelo:_qzEd.aud_paralelo||null, preguntas:_qzEd.preguntas});
+      aud_ciclo:_qzEd.aud_ciclo||null, aud_paralelo:_qzEd.aud_paralelo||null,
+      feedback:_qzEd.feedback||'final', preguntas:_qzEd.preguntas});
     _qzEd=null; alert('✅ Cuestionario guardado'); goQuizProf();
   }catch(e){ alert('⚠️ '+e.message); }
+}
+
+// ---------- v2.9.158: IMPORTADOR MASIVO (pegás la respuesta de tu IA → preguntas listas) ----------
+function qzEdImportToggle(){ const d=document.getElementById('qz-ed-import'); if(d) d.style.display=d.style.display==='none'?'block':'none'; }
+const QZ_PROMPT_IA = `Sos un generador de cuestionarios. A partir del TEXTO FUENTE que te voy a pegar, generá las preguntas que te pida (cantidad y tipos). Respondé SOLO con las preguntas en este formato EXACTO, sin explicaciones ni numeración extra:
+
+[MULTIPLE] ¿Enunciado de la pregunta?
+* opción correcta
+- opción incorrecta
+- opción incorrecta
+- opción incorrecta
+
+[MULTI] Enunciado (varias correctas)
+* correcta 1
+* correcta 2
+- incorrecta
+
+[VF] Afirmación verdadera o falsa. => V
+(usá => V o => F según corresponda)
+
+[COMPLETAR] Consigna breve
+TEXTO: La ___ es la primera etapa y el ___ es la última.
+1: respuesta hueco 1, alternativa aceptada, otra alternativa
+2: respuesta hueco 2
+
+[ARRASTRAR] Consigna breve
+TEXTO: El ___ cuestiona el estado actual y el ___ lo estabiliza.
+1: respuesta hueco 1
+2: respuesta hueco 2
+DISTRACTORES: opción falsa, otra falsa
+
+[REORDENAR] Consigna (poner en orden)
+1. primer elemento en el orden CORRECTO
+2. segundo elemento
+3. tercer elemento
+
+[RELACIONAR] Consigna (unir parejas)
+concepto izquierda | su pareja derecha
+otro concepto | su pareja
+
+[CATEGORIZAR] Consigna (clasificar)
+CATEGORIAS: Categoría A, Categoría B
+ítem uno | Categoría A
+ítem dos | Categoría B
+
+[ABIERTA] Consigna de respuesta abierta / reflexión
+
+[NUBE] Consigna para responder en UNA palabra
+
+[ENCUESTA] Pregunta de opinión (sin correcta)
+- opción
+- opción
+
+REGLAS: enunciados claros y en español; en COMPLETAR/ARRASTRAR usá ___ (3 guiones bajos) por hueco y una línea "N:" por cada hueco en orden; las alternativas aceptadas van separadas por coma; no repitas ítems; máximo 6 opciones por pregunta.
+
+AHORA: [PEGÁ ACÁ TU TEXTO FUENTE Y DECILE CUÁNTAS PREGUNTAS DE CADA TIPO QUERÉS, ej: "generá 5 MULTIPLE, 3 COMPLETAR y 2 VF del capítulo 1"]`;
+async function qzEdCopiarPrompt(){
+  try{ await navigator.clipboard.writeText(QZ_PROMPT_IA); alert('📋 Prompt copiado — pegalo en ChatGPT / Claude / Gemini junto con tu texto'); }
+  catch(e){ prompt('Copiá el prompt:', QZ_PROMPT_IA); }
+}
+function _qzParseImport(txt){
+  const pregs=[], errores=[];
+  const bloques=String(txt||'').replace(/\r/g,'').split(/\n(?=\s*\[)/).map(b=>b.trim()).filter(Boolean);
+  for(const bloque of bloques){
+    const m=bloque.match(/^\[(MULTIPLE|MULTI|VF|COMPLETAR|ARRASTRAR|REORDENAR|RELACIONAR|CATEGORIZAR|ABIERTA|NUBE|ENCUESTA)\]\s*([\s\S]*)$/i);
+    if(!m) continue;
+    const tipo=m[1].toLowerCase();
+    const lineas=m[2].split('\n').map(s=>s.trim()).filter(Boolean);
+    if(!lineas.length){ errores.push('['+m[1]+'] sin enunciado'); continue; }
+    try{
+      if(tipo==='vf'){
+        const mm=lineas[0].match(/^(.*?)\s*=>\s*([VF])\s*$/i) || (lineas[1]||'').match(/^\s*=>\s*([VF])\s*$/i);
+        let texto, corr;
+        if(lineas[0].match(/=>\s*[VF]\s*$/i)){ const p2=lineas[0].match(/^(.*?)\s*=>\s*([VF])\s*$/i); texto=p2[1]; corr=p2[2].toUpperCase(); }
+        else { texto=lineas[0]; const p3=lineas.slice(1).join(' ').match(/=>\s*([VF])/i); corr=p3?p3[1].toUpperCase():'V'; }
+        pregs.push({tipo:'vf', texto:texto.trim(), tiempo:20, opciones:['VERDADERO','FALSO'], correctas:[corr==='F'?1:0]});
+      } else if(tipo==='multiple'||tipo==='multi'||tipo==='encuesta'){
+        const texto=lineas[0]; const opciones=[], correctas=[];
+        lineas.slice(1).forEach(ln=>{
+          const om=ln.match(/^([*-])\s*(.+)$/); if(!om) return;
+          if(om[1]==='*') correctas.push(opciones.length);
+          opciones.push(om[2].trim());
+        });
+        if(opciones.length<2) throw new Error('faltan opciones');
+        const p={tipo, texto, tiempo:30, opciones};
+        if(tipo!=='encuesta'){
+          if(!correctas.length) throw new Error('sin correcta (*)');
+          p.correctas = tipo==='multiple' ? correctas.slice(0,1) : correctas;
+        }
+        pregs.push(p);
+      } else if(tipo==='completar'||tipo==='arrastrar'){
+        const texto=lineas[0];
+        const tl=lineas.find(l=>/^TEXTO\s*:/i.test(l));
+        if(!tl) throw new Error('falta línea TEXTO:');
+        const plantilla=tl.replace(/^TEXTO\s*:/i,'').trim();
+        const n=(plantilla.match(/_{3,}/g)||[]).length;
+        if(!n) throw new Error('la plantilla no tiene huecos ___');
+        const resp=[];
+        lineas.forEach(l=>{ const rm=l.match(/^(\d+)\s*:\s*(.+)$/); if(rm) resp[Number(rm[1])-1]=rm[2].split(',').map(s=>s.trim()).filter(Boolean); });
+        if(resp.filter(Boolean).length!==n) throw new Error('hay '+n+' huecos pero '+resp.filter(Boolean).length+' respuestas');
+        if(tipo==='completar'){
+          pregs.push({tipo:'completar', texto, tiempo:60, plantilla, flex:{tildes:true,mayus:true},
+            blanks:resp.map(a=>({acepta:a, modo:'texto'}))});
+        } else {
+          const dl=lineas.find(l=>/^DISTRACTORES\s*:/i.test(l));
+          pregs.push({tipo:'arrastrar', texto, tiempo:60, plantilla,
+            correctas:resp.map(a=>a[0]),
+            banco: dl? dl.replace(/^DISTRACTORES\s*:/i,'').split(',').map(s=>s.trim()).filter(Boolean) : []});
+        }
+      } else if(tipo==='reordenar'){
+        const texto=lineas[0];
+        const items=lineas.slice(1).map(l=>{ const im=l.match(/^\d+[.)]\s*(.+)$/); return im?im[1].trim():null; }).filter(Boolean);
+        if(items.length<2) throw new Error('faltan ítems numerados');
+        pregs.push({tipo:'reordenar', texto, tiempo:60, items});
+      } else if(tipo==='relacionar'){
+        const texto=lineas[0]; const pares=[];
+        lineas.slice(1).forEach(l=>{ const ix=l.indexOf('|'); if(ix>0&&ix<l.length-1) pares.push({izq:l.slice(0,ix).trim(), der:l.slice(ix+1).trim()}); });
+        if(pares.length<2) throw new Error('faltan parejas "izq | der"');
+        pregs.push({tipo:'relacionar', texto, tiempo:60, pares});
+      } else if(tipo==='categorizar'){
+        const texto=lineas[0];
+        const cl=lineas.find(l=>/^CATEGORIAS\s*:/i.test(l));
+        if(!cl) throw new Error('falta línea CATEGORIAS:');
+        const categorias=cl.replace(/^CATEGORIAS\s*:/i,'').split(',').map(s=>s.trim()).filter(Boolean);
+        const catNorm=categorias.map(c=>c.toLowerCase());
+        const items=[];
+        lineas.forEach(l=>{ if(/^CATEGORIAS\s*:/i.test(l)||l===lineas[0]) return;
+          const ix=l.lastIndexOf('|'); if(ix<1) return;
+          const cat=catNorm.indexOf(l.slice(ix+1).trim().toLowerCase());
+          if(cat>=0) items.push({texto:l.slice(0,ix).trim(), cat}); });
+        if(categorias.length<2||items.length<2) throw new Error('faltan categorías o ítems');
+        pregs.push({tipo:'categorizar', texto, tiempo:90, categorias, items});
+      } else if(tipo==='abierta'||tipo==='nube'){
+        pregs.push({tipo, texto:lineas.join(' '), tiempo:tipo==='nube'?60:120, max:tipo==='nube'?40:240});
+      }
+    }catch(e){ errores.push('['+m[1]+'] "'+lineas[0].slice(0,40)+'…": '+e.message); }
+  }
+  return {pregs, errores};
+}
+function qzEdImportar(){
+  const txt=document.getElementById('qz-ed-import-txt').value||'';
+  const msg=document.getElementById('qz-ed-import-msg');
+  const {pregs,errores}=_qzParseImport(txt);
+  if(!pregs.length){ if(msg) msg.innerHTML='<span style="color:#ff9f93">No encontré preguntas — asegurate de pegar la respuesta con los encabezados [MULTIPLE], [VF], etc.</span>'; return; }
+  _qzEdLeerCabecera();
+  _qzEd.preguntas.push(...pregs);
+  _qzEdRender();
+  alert('⚡ '+pregs.length+' pregunta(s) importadas'+(errores.length? ('\n\n⚠️ '+errores.length+' con problemas (no se importaron):\n'+errores.join('\n')):'')+'\n\nRevisalas con 👁 Vista previa antes de guardar.');
 }
 
 // ---------- PROFESOR: PROYECTOR (en vivo) ----------
@@ -15714,25 +15925,28 @@ function _qzAluRender(){
   const ses=_qzA.ses, idx=ses.pregunta_idx, p=_qzA.pregs[idx];
   clearInterval(_qzTimerInt);
   if(ses.estado==='lobby'){
-    cont.innerHTML=`<div class="qz-alu-feed neutro" style="margin-top:20px"><div class="giga">🎉</div><div style="font-size:19px;font-weight:900;margin-top:8px">¡Ya estás adentro!</div><div class="qz-sub">${escapeHtml(_qzA.titulo||'')}<br>Tu nombre ya aparece en la pantalla. Esperá que el profesor comience…</div></div>`;
+    cont.innerHTML=`<div class="qz-wrap"><div class="qz-alu-feed neutro"><div class="giga">🎉</div><div style="font-size:19px;font-weight:900;margin-top:8px">¡Ya estás adentro!</div><div class="qz-sub">${escapeHtml(_qzA.titulo||'')}<br>Tu nombre ya aparece en la pantalla. Esperá que el profesor comience…</div></div></div>`;
     return;
   }
   if(ses.estado==='fin'){ _qzAluFin(); return; }
   if(!p){ cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">Esperando…</div>'; return; }
   const ya=_qzA.resp[idx];
   if(ses.estado==='resultados'){
-    cont.innerHTML=`<div class="qz-alu-card"><div style="font-weight:800;font-size:15px;margin-bottom:4px">${escapeHtml(p.texto)}</div>`+
-      (ya? _qzFeedHtml(ya,p) : '<div class="qz-alu-feed neutro"><div class="giga">⏱</div><div style="font-size:16px;font-weight:800;margin-top:6px">No llegaste a responder esta</div><div class="qz-sub">Mirá los resultados en la pantalla 👀</div></div>')+'</div>';
+    cont.innerHTML=`<div class="qz-wrap"><div class="qz-alu-card"><div style="font-weight:800;font-size:16px;margin-bottom:4px">${escapeHtml(p.texto)}</div>`+
+      (ya? _qzFeedHtml(ya,p) : '<div class="qz-alu-feed neutro"><div class="giga">⏱</div><div style="font-size:16px;font-weight:800;margin-top:6px">No llegaste a responder esta</div><div class="qz-sub">Mirá los resultados en la pantalla 👀</div></div>')+'</div></div>';
     return;
   }
   // estado 'pregunta'
-  if(ya){ cont.innerHTML=`<div class="qz-alu-card"><div style="font-weight:800;font-size:15px;margin-bottom:4px">${escapeHtml(p.texto)}</div>`+_qzFeedHtml(ya,p)+'</div>'; return; }
+  if(ya){ cont.innerHTML=`<div class="qz-wrap"><div class="qz-alu-card"><div style="font-weight:800;font-size:16px;margin-bottom:4px">${escapeHtml(p.texto)}</div>`+_qzFeedHtml(ya,p)+'</div></div>'; return; }
   _qzCurP=p; _qzAluSelSet=new Set(); _qzAluT0=ses.pregunta_abierta_en? new Date(ses.pregunta_abierta_en).getTime() : Date.now();
-  cont.innerHTML=`<div class="qz-alu-card">
-    <div class="qz-timerwrap" style="margin:0 0 8px"><div class="qz-timerbar"><div id="qz-tbar" style="width:100%"></div></div><div class="qz-timer-num" id="qz-tnum">·</div></div>
-    <div style="font-weight:800;font-size:16px;margin:6px 0 14px">${QZ_TIPOS[p.tipo].ic} ${escapeHtml(p.texto)}</div>
+  cont.innerHTML=`<div class="qz-wrap">
+    <div class="qz-progress"><div style="width:${Math.round((idx)/(_qzA.pregs.length||1)*100)}%"></div></div>
+    <div class="qz-meta">Pregunta ${idx+1} de ${_qzA.pregs.length} · EN VIVO</div>
+    <div class="qz-alu-card">
+    <div class="qz-timerwrap"><div class="qz-timerbar"><div id="qz-tbar" style="width:100%"></div></div><div class="qz-timer-num" id="qz-tnum">·</div></div>
+    <div style="font-weight:800;font-size:18px;margin:6px 0 16px;line-height:1.4">${QZ_TIPOS[p.tipo].ic} ${escapeHtml(p.texto)}</div>
     <div id="qz-alu-zona">${_qzAluZonaHtml(p,'qzv')}</div>
-    <div id="qz-alu-aviso" style="font-size:12px;color:#9fb3cc;margin-top:8px"></div></div>`;
+    <div id="qz-alu-aviso" style="font-size:12px;color:#9fb3cc;margin-top:8px"></div></div></div>`;
   _qzTimerStart(ses.pregunta_abierta_en, p.tiempo);
 }
 // ---- estado y widgets de los tipos interactivos ----
@@ -15914,8 +16128,8 @@ async function _qzAluFin(){
     const yo=st.findIndex(s=> s.nombre===(currentUser&&currentUser.nombre_completo));
     if(yo>=0) pos=`<div style="font-size:17px;font-weight:900;margin-top:8px">${yo===0?'🥇':yo===1?'🥈':yo===2?'🥉':'🎖️'} Puesto ${yo+1} de ${st.length}</div>`;
   }catch(e){}
-  cont.innerHTML=`<div class="qz-alu-feed ok" style="margin-top:20px"><div class="giga">🏁</div><div style="font-size:19px;font-weight:900;margin-top:8px">¡Terminó el juego!</div><div class="qz-alu-pts">${_qzA.total} pts</div>${pos}<div class="qz-sub">Mirá el podio en la pantalla 🏆</div></div>
-  <button class="qz-btn" style="width:100%;margin-top:14px" onclick="qzAluSalir()">Volver al Aula Virtual</button>`;
+  cont.innerHTML=`<div class="qz-wrap"><div class="qz-alu-feed ok"><div class="giga">🏁</div><div style="font-size:19px;font-weight:900;margin-top:8px">¡Terminó el juego!</div><div class="qz-alu-pts">${_qzA.total} pts</div>${pos}<div class="qz-sub">Mirá el podio en la pantalla 🏆</div></div>
+  <button class="qz-btn gold" style="width:100%;margin-top:14px" onclick="qzAluSalir()">Volver al Aula Virtual</button></div>`;
 }
 
 // ---------- VISTA PREVIA del profesor (v2.9.157): corre el flujo del alumno 100% LOCAL ----------
@@ -15970,7 +16184,7 @@ function _qzPreviewRun(c){
   _qzA=null; clearInterval(_qzAPoll);
   let backScr=(document.querySelector('.screen.active')||{}).id||'screen-quiz-prof';
   if(backScr==='screen-quiz-alumno') backScr=(_qzP&&_qzP.back)||'screen-quiz-prof'; // "probar de nuevo" conserva el origen
-  _qzP={id:null, preview:true, back:backScr,
+  _qzP={id:null, preview:true, back:backScr, fb:(c.feedback==='inmediato'),
         titulo:c.titulo||'Vista previa', pregsFull:pregs, pregs:pregs.map(_qzStripLocal), i:0, resp:[], t0:Date.now()};
   document.getElementById('qz-alu-tit').textContent='👁 VISTA PREVIA';
   document.getElementById('qz-alu-sub').textContent='Así lo ve el alumno — no se guarda nada';
@@ -16015,7 +16229,7 @@ async function _qzRenderSeccionMateria(materiaId){
 async function qzPracticaIniciar(id){
   try{
     const d=await _qzInvoke('practica_ver',{cuestionario_id:id});
-    _qzP={id:d.id, titulo:d.titulo, pregs:d.preguntas||[], i:0, resp:[], t0:Date.now()};
+    _qzP={id:d.id, titulo:d.titulo, pregs:d.preguntas||[], i:0, resp:[], t0:Date.now(), fb:(d.feedback==='inmediato')};
     _qzA=null; clearInterval(_qzAPoll);
     document.getElementById('qz-alu-tit').textContent='🎯 '+d.titulo;
     document.getElementById('qz-alu-sub').textContent='Práctica a tu ritmo';
@@ -16030,15 +16244,54 @@ function _qzPracticaRender(){
   if(_qzP.i>=_qzP.pregs.length){ _qzPracticaEnviar(); return; }
   const p=_qzP.pregs[_qzP.i];
   _qzCurP=p; _qzAluSelSet=new Set(); _qzP.t0=Date.now();
-  cont.innerHTML=`<div class="qz-alu-card">
-    <div style="font-size:12px;color:#9fb3cc;margin-bottom:6px">Pregunta ${_qzP.i+1} de ${_qzP.pregs.length}</div>
-    <div style="font-weight:800;font-size:16px;margin:4px 0 14px">${QZ_TIPOS[p.tipo].ic} ${escapeHtml(p.texto)}</div>
-    <div id="qz-alu-zona">${_qzAluZonaHtml(p,'qzp')}</div></div>`;
+  cont.innerHTML=`<div class="qz-wrap">
+    <div class="qz-progress"><div style="width:${Math.round(_qzP.i/_qzP.pregs.length*100)}%"></div></div>
+    <div class="qz-meta">Pregunta ${_qzP.i+1} de ${_qzP.pregs.length}${_qzP.preview?' · 👁 vista previa':''}</div>
+    <div class="qz-alu-card">
+    <div style="font-weight:800;font-size:18px;margin:0 0 16px;line-height:1.4">${QZ_TIPOS[p.tipo].ic} ${escapeHtml(p.texto)}</div>
+    <div id="qz-alu-zona">${_qzAluZonaHtml(p,'qzp')}</div></div></div>`;
 }
 function _qzPracticaGuardarLocal(r){
   _qzP.resp.push({idx:_qzP.i, respuesta:r, ms:Date.now()-_qzP.t0});
+  if(_qzP.fb){ _qzPracticaMostrarFb(r); return; } // respuesta inmediata verde/rojo
   _qzP.i++; _qzPracticaRender();
 }
+// v2.9.158: FEEDBACK INMEDIATO — muestra ✔ verde / ✘ rojo apenas responde (si el profesor lo activó)
+async function _qzPracticaMostrarFb(r){
+  const i=_qzP.i, p=_qzP.pregs[i];
+  const cont=document.getElementById('qz-alu-body');
+  let out=null;
+  try{
+    if(_qzP.preview){
+      const pf=_qzP.pregsFull[i]; const cal=_qzCalificarLocal(pf,r);
+      out={correcta:cal.correcta, puntos:cal.puntos, solucion:_qzSolLocal(pf)};
+    } else {
+      out=await _qzInvoke('practica_feedback',{cuestionario_id:_qzP.id, idx:i, respuesta:r});
+    }
+  }catch(e){ out=null; }
+  if(!out){ _qzP.i++; _qzPracticaRender(); return; } // si falla, sigue sin feedback
+  const esUltima=(i>=_qzP.pregs.length-1);
+  let fb;
+  if(out.correcta===true) fb=`<div class="qz-alu-feed ok"><div class="giga">✅</div><div style="font-size:20px;font-weight:900;margin-top:6px">¡CORRECTO!</div><div class="qz-alu-pts">+${out.puntos} pts</div></div>`;
+  else if(out.correcta===false) fb=`<div class="qz-alu-feed mal"><div class="giga">❌</div><div style="font-size:19px;font-weight:900;margin-top:6px">Incorrecto</div>${out.puntos?`<div class="qz-alu-pts">+${out.puntos} pts (parcial)</div>`:''}<div class="qz-sol" style="font-size:14px;margin-top:8px">${escapeHtml(_qzSolTexto(p,out.solucion))}</div></div>`;
+  else {
+    let viz='';
+    if(['nube','abierta','encuesta'].includes(p.tipo)){
+      viz=`<div class="qz-proj-panel">`+
+        (p.tipo==='nube' ? _qzCloudHtml([r]) :
+         p.tipo==='abierta' ? _qzMuroHtml([{respuesta:r, nombre:'Tu aporte'}]) :
+         _qzBarsHtml(p,[{respuesta:r}],false))+
+        `<div style="font-size:11px;color:#94A3B8;text-align:center;margin-top:6px">👆 Así se proyecta en la clase EN VIVO</div></div>`;
+    }
+    fb=`<div class="qz-alu-feed neutro"><div class="giga">📨</div><div style="font-size:18px;font-weight:900;margin-top:6px">¡Recibido!</div></div>`+viz;
+  }
+  cont.innerHTML=`<div class="qz-wrap">
+    <div class="qz-progress"><div style="width:${Math.round((i+1)/_qzP.pregs.length*100)}%"></div></div>
+    <div class="qz-meta">Pregunta ${i+1} de ${_qzP.pregs.length}${_qzP.preview?' · 👁 vista previa':''}</div>
+    <div class="qz-alu-card"><div style="font-weight:800;font-size:16px;margin-bottom:10px">${escapeHtml(p.texto)}</div>${fb}
+    <button class="qz-btn gold qz-fb-next" onclick="_qzPracticaSeguir()">${esUltima?'🏁 Ver mi resultado final':'Siguiente ➜'}</button></div></div>`;
+}
+function _qzPracticaSeguir(){ _qzP.i++; _qzPracticaRender(); }
 async function _qzPracticaEnviar(){
   const cont=document.getElementById('qz-alu-body');
   cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">📨 Calificando…</div>';
@@ -16059,21 +16312,33 @@ async function _qzPracticaEnviar(){
     const nCal=det.filter(x=>x.correcta!==null).length;
     const ok=det.filter(x=>x.correcta===true).length;
     const esPrev=!!_qzP.preview;
-    cont.innerHTML=(esPrev?'<div class="alert-banner blue" style="margin-bottom:10px"><span class="alert-emoji">👁</span><span class="alert-text"><b>VISTA PREVIA</b> — así ve el alumno su resultado. No se guardó nada.</span></div>':'')+
-      `<div class="qz-alu-feed ${ok>=nCal*0.6?'ok':'neutro'}" style="margin-top:8px"><div class="giga">${ok>=nCal*0.8?'🏆':ok>=nCal*0.5?'💪':'📖'}</div>
-      <div style="font-size:20px;font-weight:900;margin-top:6px">${ok} / ${nCal} correctas</div>
+    cont.innerHTML=`<div class="qz-wrap qz-wide">`+
+      (esPrev?'<div class="alert-banner blue" style="margin-bottom:10px"><span class="alert-emoji">👁</span><span class="alert-text"><b>VISTA PREVIA</b> — así ve el alumno su resultado. No se guardó nada.</span></div>':'')+
+      `<div class="qz-alu-feed ${ok>=nCal*0.6?'ok':'neutro'}" style="margin-top:0"><div class="giga">${ok>=nCal*0.8?'🏆':ok>=nCal*0.5?'💪':'📖'}</div>
+      <div style="font-size:22px;font-weight:900;margin-top:6px">${ok} / ${nCal} correctas</div>
       <div class="qz-alu-pts">${d.total} pts</div></div>
-      <div class="section-label" style="margin-top:14px">Revisión</div>`+
+      <div class="section-label" style="margin-top:16px">Revisión</div>
+      <div class="qz-rev-grid">`+
       det.map((x,i)=>{
         const p=_qzP.pregs[i];
         const icon=x.correcta===true?'✅':x.correcta===false?'❌':'💬';
-        const sol=x.correcta===false? `<div class="qz-sol" style="font-size:12px;color:#7be67b;margin-top:3px">${escapeHtml(_qzSolTexto(p,x.solucion))}</div>`:'';
-        return `<div class="qz-item"><div style="font-size:13px;color:var(--text-primary)">${icon} <b>${i+1}.</b> ${escapeHtml(p.texto)}</div>${sol}</div>`;
+        const borde=x.correcta===true?'#22C55E':x.correcta===false?'#EF4444':'#3B82F6';
+        const sol=x.correcta===false? `<div class="qz-sol" style="font-size:12px;color:#7be67b;margin-top:5px">${escapeHtml(_qzSolTexto(p,x.solucion))}</div>`:'';
+        // los tipos proyectables muestran cómo se vería EN LA PANTALLA de la clase
+        let viz='';
+        if(['nube','abierta','encuesta'].includes(p.tipo) && x.respuesta!=null && x.respuesta!==''){
+          viz=`<div class="qz-proj-panel">`+
+            (p.tipo==='nube' ? _qzCloudHtml([x.respuesta]) :
+             p.tipo==='abierta' ? _qzMuroHtml([{respuesta:x.respuesta, nombre:'Tu aporte'}]) :
+             _qzBarsHtml(p,[{respuesta:x.respuesta}],false))+
+            `<div style="font-size:11px;color:#94A3B8;text-align:center;margin-top:6px">👆 Así se proyecta en la clase EN VIVO</div></div>`;
+        }
+        return `<div class="qz-item" style="border-left:4px solid ${borde}"><div style="font-size:13px;color:var(--text-primary)">${icon} <b>${i+1}.</b> ${escapeHtml(p.texto)}</div>${sol}${viz}</div>`;
       }).join('')+
-      `<div style="display:flex;gap:8px;margin-top:12px">
+      `</div><div style="display:flex;gap:8px;margin-top:16px">
         <button class="qz-btn gold" style="flex:1" onclick="${esPrev?'_qzPreviewOtraVez()':`qzPracticaIniciar('${_qzP.id}')`}">🔁 ${esPrev?'Probar de nuevo':'Intentar de nuevo'}</button>
-        <button class="qz-btn" style="flex:1;background:linear-gradient(180deg,#2a3a52,#1d2839)" onclick="qzAluSalir()">${esPrev?'Volver (profesor)':'Volver'}</button>
-      </div>`;
+        <button class="qz-btn" style="flex:1;background:#475569" onclick="qzAluSalir()">${esPrev?'Volver (profesor)':'Volver'}</button>
+      </div></div>`;
   }catch(e){ cont.innerHTML='<div class="efm-no-data">⚠️ '+escapeHtml(e.message)+'</div>'; }
 }
 
