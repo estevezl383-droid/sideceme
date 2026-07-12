@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.155</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.156</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5729,6 +5729,10 @@ input::placeholder, textarea::placeholder {
 .qz-btn.big{font-size:20px;padding:16px 34px;border-radius:14px}
 .qz-btn:disabled{opacity:.4;cursor:default}
 .qz-pin-giga{font-size:clamp(60px,14vw,150px);font-weight:900;letter-spacing:.14em;color:#f4d574;text-align:center;text-shadow:0 6px 40px rgba(212,175,55,.45);font-family:monospace;line-height:1.05}
+.qz-qr-card{background:#fff;border-radius:14px;padding:12px 12px 8px;text-align:center;box-shadow:0 6px 30px rgba(0,0,0,.5)}
+.qz-qr-card img{display:block;border-radius:6px;min-width:180px;min-height:180px;background:#eee}
+.qz-qr-txt{font-size:12px;font-weight:800;color:#1a2436;margin-top:6px;line-height:1.3}
+.qz-link-pill{display:inline-block;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25);border-radius:20px;padding:6px 14px;font-size:13px;color:#cfe0f5;cursor:pointer;word-break:break-all}
 .qz-lobby-nombres{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:14px}
 .qz-chip{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:5px 14px;font-size:14px;font-weight:700;animation:qzPop .3s ease}
 .qz-chip.ok{background:rgba(45,157,92,.35);border-color:#2d9d5c}
@@ -15012,7 +15016,7 @@ function _qzProfRender(){
     const mat=_qzMateriaNombre(c.materia_aula_id);
     return `<div class="qz-item">
       <div class="qz-item-tit">${escapeHtml(c.titulo)} <span class="qz-tag ${c.estado==='publicado'?'pub':'bor'}">${c.estado==='publicado'?'PUBLICADO':'BORRADOR'}</span></div>
-      <div class="qz-item-meta">${n} pregunta(s)${mat?' · 📘 '+escapeHtml(mat):''}${c.creado_por_nombre?' · '+escapeHtml(c.creado_por_nombre):''}</div>
+      <div class="qz-item-meta">${n} pregunta(s)${mat?' · 📘 '+escapeHtml(mat):''} · 👥 ${escapeHtml(_qzAudLabel(c)||'Todos')}${c.creado_por_nombre?' · '+escapeHtml(c.creado_por_nombre):''}</div>
       <div class="qz-item-btns">
         <button class="qz-mini play" onclick="qzEnVivo('${c.id}')">▶️ EN VIVO</button>
         <button class="qz-mini" onclick="qzEditar('${c.id}')">✏️ Editar</button>
@@ -15064,10 +15068,10 @@ async function qzResultadosPractica(id){
 
 // ---------- PROFESOR: editor ----------
 let _qzEd=null, _qzEdIdx=-1, _qzEdP=null;
-function qzNuevo(){ _qzEd={id:null,titulo:'',descripcion:'',materia_aula_id:_qzMatFiltro||'',estado:'borrador',preguntas:[]}; _qzEdIdx=-1; _qzEdP=null; showScreen('screen-quiz-editor'); _qzEdRender(); }
+function qzNuevo(){ _qzEd={id:null,titulo:'',descripcion:'',materia_aula_id:_qzMatFiltro||'',estado:'borrador',aud_ciclo:'',aud_paralelo:'',preguntas:[]}; _qzEdIdx=-1; _qzEdP=null; showScreen('screen-quiz-editor'); _qzEdRender(); }
 function qzEditar(id){
   const c=_qzLista.find(x=>x.id===id); if(!c) return;
-  _qzEd={id:c.id,titulo:c.titulo,descripcion:c.descripcion||'',materia_aula_id:c.materia_aula_id||'',estado:c.estado,preguntas:JSON.parse(JSON.stringify(c.preguntas||[]))};
+  _qzEd={id:c.id,titulo:c.titulo,descripcion:c.descripcion||'',materia_aula_id:c.materia_aula_id||'',estado:c.estado,aud_ciclo:c.aud_ciclo||'',aud_paralelo:c.aud_paralelo||'',preguntas:JSON.parse(JSON.stringify(c.preguntas||[]))};
   _qzEdIdx=-1; _qzEdP=null; showScreen('screen-quiz-editor'); _qzEdRender();
 }
 function qzEditorVolver(){ if(_qzEd && !confirm('¿Salir del editor? Lo no guardado se pierde.')) return; goQuizProf(); }
@@ -15080,6 +15084,15 @@ function _qzEdRender(){
   <div class="field"><label>Estado</label><select id="qz-ed-estado">
     <option value="borrador" ${_qzEd.estado!=='publicado'?'selected':''}>Borrador (solo EN VIVO por PIN)</option>
     <option value="publicado" ${_qzEd.estado==='publicado'?'selected':''}>Publicado (los alumnos lo practican solos)</option>
+  </select></div>
+  <div class="field"><label>👥 Quién puede jugar / ver esta práctica — Ciclo</label><select id="qz-ed-aud-ciclo">
+    <option value="" ${!_qzEd.aud_ciclo?'selected':''}>Todos los ciclos</option>
+    <option value="1ER CICLO" ${_qzEd.aud_ciclo==='1ER CICLO'?'selected':''}>Solo 1ER CICLO</option>
+    <option value="2DO CICLO" ${_qzEd.aud_ciclo==='2DO CICLO'?'selected':''}>Solo 2DO CICLO</option>
+  </select></div>
+  <div class="field"><label>👥 Paralelo</label><select id="qz-ed-aud-par">
+    <option value="" ${!_qzEd.aud_paralelo?'selected':''}>Todos los paralelos</option>
+    ${['A','B','C'].map(p=>`<option value="${p}" ${_qzEd.aud_paralelo===p?'selected':''}>Solo paralelo "${p}"</option>`).join('')}
   </select></div>
   <div class="section-label">Preguntas (${_qzEd.preguntas.length})</div>`;
   html += _qzEd.preguntas.map((p,i)=> i===_qzEdIdx ? `<div id="qz-ed-form-anchor"></div>` :
@@ -15105,6 +15118,9 @@ function _qzEdLeerCabecera(){
   _qzEd.descripcion=(document.getElementById('qz-ed-desc').value||'').trim();
   _qzEd.materia_aula_id=document.getElementById('qz-ed-mat').value||'';
   _qzEd.estado=document.getElementById('qz-ed-estado').value;
+  const ac=document.getElementById('qz-ed-aud-ciclo'), ap=document.getElementById('qz-ed-aud-par');
+  _qzEd.aud_ciclo=(ac&&ac.value)||'';
+  _qzEd.aud_paralelo=(ap&&ap.value)||'';
 }
 function qzEdPregNueva(){
   _qzEdLeerCabecera();
@@ -15236,7 +15252,8 @@ async function qzEdGuardar(){
   if(!_qzEd.preguntas.length){ alert('Agregá al menos una pregunta'); return; }
   try{
     await _qzInvoke('guardar',{id:_qzEd.id||undefined, titulo:_qzEd.titulo, descripcion:_qzEd.descripcion,
-      materia_aula_id:_qzEd.materia_aula_id||null, estado:_qzEd.estado, preguntas:_qzEd.preguntas});
+      materia_aula_id:_qzEd.materia_aula_id||null, estado:_qzEd.estado,
+      aud_ciclo:_qzEd.aud_ciclo||null, aud_paralelo:_qzEd.aud_paralelo||null, preguntas:_qzEd.preguntas});
     _qzEd=null; alert('✅ Cuestionario guardado'); goQuizProf();
   }catch(e){ alert('⚠️ '+e.message); }
 }
@@ -15369,8 +15386,15 @@ function _qzBoardRender(){
       `<div class="qz-b-foot"><button class="qz-btn" onclick="qzBoardTabla()">← Volver al juego</button></div>`;
   }
   else if(ses.estado==='lobby'){
-    body=`<div style="text-align:center;margin-top:8px;font-size:clamp(16px,2.4vw,24px);color:#9ec3ef">Entrá en <b style="color:#fff">SIDECEME → Aula Virtual → 🎯 juego EN VIVO</b> con este PIN:</div>
-    <div class="qz-pin-giga">${escapeHtml(ses.pin)}</div>
+    const link=_qzLinkJuego(ses.pin);
+    const aud=_qzAudLabel(c);
+    body=`<div style="text-align:center;margin-top:4px;font-size:clamp(15px,2.2vw,22px);color:#9ec3ef">Entrá en <b style="color:#fff">SIDECEME → Aula Virtual → 🎯 juego EN VIVO</b> con este PIN, o escaneá el QR:</div>
+    ${aud?`<div style="text-align:center;margin-top:4px;font-size:clamp(13px,1.8vw,17px);color:#f4d574;font-weight:800">👥 ${escapeHtml(aud)}</div>`:''}
+    <div style="display:flex;align-items:center;justify-content:center;gap:clamp(20px,5vw,70px);flex-wrap:wrap;margin-top:4px">
+      <div class="qz-pin-giga" style="font-size:clamp(52px,11vw,130px)">${escapeHtml(ses.pin)}</div>
+      <div class="qz-qr-card"><img src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=${encodeURIComponent(link)}" alt="QR del juego" width="200" height="200"><div class="qz-qr-txt">📱 Escaneá y entrá directo<br>(te pide tu CI y contraseña)</div></div>
+    </div>
+    <div style="text-align:center;margin-top:8px"><span class="qz-link-pill" onclick="_qzCopiarLink('${escapeHtml(link)}')" title="Tocar para copiar">🔗 ${escapeHtml(link)} <b style="color:#f4d574">· copiar</b></span></div>
     <div class="qz-contador">👥 ${_qzB.parts.length} conectado(s)</div>
     <div class="qz-lobby-nombres">${_qzB.parts.map(x=>`<span class="qz-chip">${escapeHtml(x.nombre||'—')}</span>`).join('')}</div>
     <div class="qz-b-foot"><button class="qz-btn gold big" onclick="qzBoardComenzar()" ${_qzB.parts.length?'':'disabled'}>▶️ COMENZAR (${pregs.length} pregunta${pregs.length!==1?'s':''})</button></div>`;
@@ -15432,14 +15456,33 @@ function _qzTimerStart(abiertaEn, tiempo){
   _qzTimerInt=setInterval(tick,250); tick();
 }
 
+// v2.9.156: enlace directo al juego + QR (el alumno escanea, pone su CI y contraseña y entra solo)
+function _qzLinkJuego(pin){
+  return location.origin + location.pathname + '?pin=' + pin;
+}
+function _qzAudLabel(c){
+  if(!c) return '';
+  if(c.aud_ciclo && c.aud_paralelo) return 'Solo '+c.aud_ciclo+' — Paralelo "'+c.aud_paralelo+'"';
+  if(c.aud_ciclo) return 'Solo '+c.aud_ciclo+' (todos los paralelos)';
+  if(c.aud_paralelo) return 'Solo paralelo "'+c.aud_paralelo+'"';
+  return '';
+}
+async function _qzCopiarLink(link){
+  try{ await navigator.clipboard.writeText(link); alert('🔗 Enlace copiado — pegalo en el grupo de WhatsApp del curso'); }
+  catch(e){ prompt('Copiá el enlace:', link); }
+}
+
 // ---------- ALUMNO: juego EN VIVO ----------
 let _qzA=null, _qzAPoll=null, _qzCurP=null, _qzAluSelSet=new Set(), _qzAluT0=0;
 async function qzAluPedirPin(){
   const pin=prompt('🎯 PIN del juego (6 dígitos, está proyectado en la pantalla):');
   if(pin==null) return;
   if(!/^\d{6}$/.test(pin.trim())){ alert('El PIN son 6 dígitos'); return; }
+  _qzUnirseConPin(pin.trim());
+}
+async function _qzUnirseConPin(pin){
   try{
-    const d=await _qzInvoke('unirse',{pin:pin.trim()});
+    const d=await _qzInvoke('unirse',{pin});
     _qzA={ses:d.sesion, pregs:d.preguntas||[], titulo:d.titulo, total:0, resp:{}};
     (d.mias||[]).forEach(m=>{ _qzA.resp[m.pregunta_idx]={correcta:m.correcta, puntos:m.puntos, enviada:true}; _qzA.total+=m.puntos||0; });
     document.getElementById('qz-alu-tit').textContent='🎯 '+(d.titulo||'Juego en vivo');
@@ -15675,6 +15718,33 @@ async function _qzPracticaEnviar(){
       </div>`;
   }catch(e){ cont.innerHTML='<div class="efm-no-data">⚠️ '+escapeHtml(e.message)+'</div>'; }
 }
+
+// v2.9.156: DEEP LINK — si la app se abre con ?pin=XXXXXX (del QR o del enlace),
+// se muestra un cartel y, apenas el cursante inicia sesión, entra SOLO al juego.
+let _qzPinPendiente=null, _qzPinWatch=null;
+(function _qzDetectarPinURL(){
+  try{
+    let pin = new URLSearchParams(location.search).get('pin');
+    if(!pin){ const m=(location.hash||'').match(/pin=(\d{6})/); pin=m?m[1]:null; }
+    if(!pin || !/^\d{6}$/.test(pin)) return;
+    _qzPinPendiente=pin;
+    try{ history.replaceState(null,'',location.pathname); }catch(_e){}
+    const b=document.createElement('div');
+    b.id='qz-pin-aviso';
+    b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:linear-gradient(90deg,#6a1fb0,#b02da0);color:#fff;font-weight:800;font-size:13px;text-align:center;padding:9px 12px;box-shadow:0 2px 12px rgba(0,0,0,.4)';
+    b.textContent='🎯 Juego EN VIVO (PIN '+pin+') — ingresá con tu CI y contraseña y entrás directo';
+    document.body.appendChild(b);
+    _qzPinWatch=setInterval(()=>{
+      if(!_qzPinPendiente){ clearInterval(_qzPinWatch); return; }
+      const s=(typeof getSession==='function')?getSession():null;
+      if(!s || !currentUser) return;
+      const av=document.getElementById('qz-pin-aviso'); if(av) av.remove();
+      const pinNow=_qzPinPendiente; _qzPinPendiente=null; clearInterval(_qzPinWatch);
+      if(s.tipo==='cursante') _qzUnirseConPin(pinNow);
+      // docente: no se une (el juego lo dirige desde Práctica Interactiva)
+    },1000);
+  }catch(e){}
+})();
 
 /* ===== v2.9.101: DOCUMENTOS INSTITUCIONALES ===== */
 let _DI_BACK='screen-cursante-home';
