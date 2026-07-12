@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.154</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.155</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4316,6 +4316,11 @@ input::placeholder, textarea::placeholder {
     <button class="btn-mega" onclick="goAulaVirtual('screen-prof-panel')" style="background:linear-gradient(180deg,#1f6f5c,#0e4a3c);margin-top:8px;color:#fff">
       <span class="mega-icon">🎓</span>
       <span>Carpeta de Clases — documentación y material de tu materia</span>
+    </button>
+
+    <button class="btn-mega" onclick="goQuizProf('screen-prof-panel')" style="background:linear-gradient(135deg,#6a1fb0,#b02da0 70%,#d9642d);margin-top:8px;color:#fff">
+      <span class="mega-icon">🎯</span>
+      <span>Práctica Interactiva — quiz en vivo, muro de ideas y nube de palabras (estilo Wayground)</span>
     </button>
 
     <button class="btn-mega rgd-access" onclick="goRgDireccion()" style="background:linear-gradient(135deg,#7a1f1a,#c0392b 70%,#e67e22);margin-top:8px;color:#fff;display:none">
@@ -4922,6 +4927,7 @@ input::placeholder, textarea::placeholder {
       <button id="qa-btn-bloqueo-materias" class="quick-btn" onclick="goBloqueoMaterias()" style="background:linear-gradient(180deg,rgba(180,140,255,.15),rgba(180,140,255,.05));border-color:#b48cff;display:none"><span class="qa-icon">🔒</span><span class="qa-text"><strong>Bloquear materias / módulos</strong> (ocultar a alumnos)</span></button>
       <!-- v2.9.120: retirado "Aula Virtual (abrir/cerrar materias)" — consolidado en Carpeta de Clases; los PDFs viejos se migraron a Materiales de Clase -->
       <button id="qa-btn-carpeta-clases" class="quick-btn" onclick="goAulaVirtual('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(31,111,92,.22),rgba(14,74,60,.06));border-color:#1f6f5c;display:none"><span class="qa-icon">🎓</span><span class="qa-text"><strong>Carpeta de Clases</strong> (documentación de la materia + compartir material con el curso)</span></button>
+      <button id="qa-btn-quiz" class="quick-btn" onclick="goQuizProf('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(140,45,176,.22),rgba(106,31,176,.06));border-color:#8c2db0"><span class="qa-icon">🎯</span><span class="qa-text"><strong>Práctica Interactiva</strong> (quiz en vivo estilo Wayground · muro de ideas · nube de palabras)</span></button>
       <button id="qa-btn-avisos" class="quick-btn" onclick="goAvisos()" style="background:linear-gradient(180deg,rgba(70,150,110,.2),rgba(70,150,110,.05));border-color:#46966e;display:none"><span class="qa-icon">📢</span><span class="qa-text"><strong>Avisos a cursantes</strong> (publicar / desactivar cartel in-app)</span></button>
       <button class="quick-btn" onclick="goDocsProfesoresCT()" style="background:linear-gradient(180deg,rgba(140,90,203,.18),rgba(140,90,203,.05));border-color:#8c5acb"><span class="qa-icon">👨‍🏫</span><span class="qa-text"><strong>Documentos del personal docente</strong> (subir / ver — solo profesores)</span></button>
       <button class="quick-btn" onclick="goDocsInst('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(140,90,203,.22),rgba(107,75,168,.06));border-color:#8c5acb"><span class="qa-icon">📁</span><span class="qa-text"><strong>Documentos Institucionales</strong> (publicar / recibir — por ciclo, profesores, mando)</span></button>
@@ -5621,6 +5627,11 @@ input::placeholder, textarea::placeholder {
   <div class="app-header cursante-app-header"><button class="back-btn" onclick="showScreen('screen-cursante-home')">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Aula Virtual</div><div class="header-sub" id="aula-cur-sub">Mis materias</div></div></div>
   <div class="cursante-container">
     <div class="alert-banner blue" style="margin-bottom:12px"><span class="alert-emoji">📚</span><span class="alert-text"><b>Tus materias.</b><br><span style="font-size:13px">Acá vas a encontrar la hoja de orientación, los textos de estudio y la entrega de tareas de cada materia.</span></span></div>
+    <button class="rg-home-banner" onclick="qzAluPedirPin()" style="margin-bottom:14px">
+      <span class="rg-hb-ic">🎯</span>
+      <span class="rg-hb-body"><span class="rg-hb-tit">¿El profesor lanzó un juego EN VIVO?</span><span class="rg-hb-sub">Ingresá con el PIN de 6 dígitos que está proyectado en la pantalla</span></span>
+      <span class="rg-hb-go">Entrar ›</span>
+    </button>
     <div class="section-label">Materias en curso</div>
     <div id="aula-cur-lista" style="margin-bottom:18px"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
     <div class="section-label">Materias cerradas (archivo)</div>
@@ -5637,6 +5648,8 @@ input::placeholder, textarea::placeholder {
     <div id="aula-mat-orientacion" style="margin-bottom:16px"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
     <div class="section-label">📖 Textos / lecturas</div>
     <div id="aula-mat-textos" style="margin-bottom:16px"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+    <div class="section-label">🎯 Práctica interactiva</div>
+    <div id="aula-mat-quiz" style="margin-bottom:16px"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
     <div class="section-label">📤 Mis tareas</div>
     <div class="efm-no-data" style="color:var(--text-muted)">Disponible en la próxima fase.</div>
   </div>
@@ -5697,6 +5710,116 @@ input::placeholder, textarea::placeholder {
     <div class="alert-banner blue" style="margin-bottom:12px"><span class="alert-emoji">👨‍🏫</span><span class="alert-text"><b>Documentos del personal docente.</b> Material para profesores (los alumnos no lo ven).</span></div>
     <div id="aula-prof-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
   </div>
+</section>
+
+<!-- ===== v2.9.155: PRÁCTICA INTERACTIVA (quiz estilo Wayground/Quizizz + muro/nube estilo Mentimeter) ===== -->
+<style>
+/* --- colores de opciones (estilo Quizizz) --- */
+.qz-c0{background:#2d70d9}.qz-c1{background:#d94f4f}.qz-c2{background:#d9a52d}.qz-c3{background:#2d9d5c}.qz-c4{background:#8c5acb}.qz-c5{background:#d9642d}
+/* --- pantalla del PROYECTOR --- */
+#screen-quiz-proyector{background:radial-gradient(1100px 620px at 50% -120px,#17294a,#070d18);color:#fff}
+.qz-board{min-height:100vh;display:flex;flex-direction:column;padding:16px 20px 24px;max-width:1200px;margin:0 auto}
+.qz-b-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.qz-b-tit{flex:1;min-width:200px;font-weight:800;font-size:17px;color:#f4d574}
+.qz-b-pinmini{font-weight:900;font-size:16px;letter-spacing:3px;color:#0a1628;background:#f4d574;border-radius:8px;padding:3px 10px}
+.qz-btn{border:none;border-radius:10px;padding:11px 20px;font-weight:800;font-size:15px;cursor:pointer;color:#fff;background:linear-gradient(180deg,#2d70d9,#1d4e9d)}
+.qz-btn.gold{background:linear-gradient(180deg,#d4af37,#9a7b1f);color:#0a1628}
+.qz-btn.red{background:linear-gradient(180deg,#c0392b,#7a1f1a)}
+.qz-btn.ghost{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.25)}
+.qz-btn.big{font-size:20px;padding:16px 34px;border-radius:14px}
+.qz-btn:disabled{opacity:.4;cursor:default}
+.qz-pin-giga{font-size:clamp(60px,14vw,150px);font-weight:900;letter-spacing:.14em;color:#f4d574;text-align:center;text-shadow:0 6px 40px rgba(212,175,55,.45);font-family:monospace;line-height:1.05}
+.qz-lobby-nombres{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:14px}
+.qz-chip{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:20px;padding:5px 14px;font-size:14px;font-weight:700;animation:qzPop .3s ease}
+.qz-chip.ok{background:rgba(45,157,92,.35);border-color:#2d9d5c}
+@keyframes qzPop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+.qz-b-preg{font-size:clamp(22px,3.4vw,38px);font-weight:800;text-align:center;margin:14px auto 18px;max-width:1000px;line-height:1.25}
+.qz-b-opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;max-width:1000px;margin:0 auto;width:100%}
+.qz-b-opt{border-radius:12px;padding:16px 18px;font-size:clamp(16px,2vw,22px);font-weight:700;color:#fff;display:flex;align-items:center;gap:10px}
+.qz-b-opt .ic{font-size:22px}
+.qz-timerwrap{max-width:1000px;margin:12px auto 4px;width:100%;display:flex;align-items:center;gap:12px}
+.qz-timerbar{flex:1;height:14px;border-radius:8px;background:rgba(255,255,255,.12);overflow:hidden}
+.qz-timerbar>div{height:100%;border-radius:8px;background:linear-gradient(90deg,#2d9d5c,#d9a52d,#d94f4f);transition:width .25s linear}
+.qz-timer-num{font-weight:900;font-size:26px;min-width:56px;text-align:center;font-family:monospace}
+.qz-contador{font-size:clamp(18px,2.4vw,26px);font-weight:800;text-align:center;margin-top:10px;color:#9ec3ef}
+.qz-bars{max-width:900px;margin:10px auto;width:100%;display:flex;flex-direction:column;gap:10px}
+.qz-barrow{display:flex;align-items:center;gap:10px}
+.qz-barlabel{flex:0 0 42%;font-size:clamp(13px,1.7vw,18px);font-weight:700;text-align:right}
+.qz-bartrack{flex:1;background:rgba(255,255,255,.08);border-radius:8px;height:34px;position:relative;overflow:hidden}
+.qz-barfill{height:100%;border-radius:8px;display:flex;align-items:center;justify-content:flex-end;padding-right:10px;font-weight:900;font-size:16px;min-width:34px;transition:width .5s ease}
+.qz-barrow.correcta .qz-barlabel{color:#7be67b}
+.qz-barrow.correcta .qz-bartrack{outline:2px solid #2d9d5c}
+.qz-muro{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;max-width:1100px;margin:12px auto;width:100%}
+.qz-muro-card{background:rgba(255,255,255,.95);color:#1a2436;border-radius:10px;padding:12px 14px;font-size:15px;line-height:1.35;box-shadow:0 3px 14px rgba(0,0,0,.4);animation:qzPop .35s ease}
+.qz-muro-card .qn{display:block;margin-top:8px;font-size:11px;font-weight:800;color:#5a6b85;text-transform:uppercase}
+.qz-cloud{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:center;max-width:1000px;margin:18px auto;min-height:120px}
+.qz-cloud span{font-weight:800;line-height:1;animation:qzPop .4s ease}
+.qz-podio{display:flex;align-items:flex-end;justify-content:center;gap:14px;margin:26px auto 12px}
+.qz-pod{display:flex;flex-direction:column;align-items:center;gap:8px}
+.qz-pod .caja{width:min(26vw,190px);border-radius:12px 12px 0 0;background:linear-gradient(180deg,#d4af37,#9a7b1f);display:flex;align-items:center;justify-content:center;font-size:44px;font-weight:900;color:#0a1628}
+.qz-pod .nom{font-weight:800;font-size:15px;text-align:center;max-width:190px}
+.qz-pod .pts{color:#f4d574;font-weight:900}
+.qz-tabla{max-width:760px;margin:10px auto;width:100%;border-collapse:collapse;font-size:15px}
+.qz-tabla td,.qz-tabla th{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.12);text-align:left}
+.qz-tabla td:last-child,.qz-tabla th:last-child{text-align:right;font-weight:800}
+.qz-b-foot{margin-top:auto;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;padding-top:16px}
+/* --- alumno --- */
+.qz-alu-opt{width:100%;border:none;border-radius:12px;padding:16px;margin-bottom:10px;font-size:16px;font-weight:700;color:#fff;text-align:left;cursor:pointer;display:flex;gap:10px;align-items:center}
+.qz-alu-opt.sel{outline:3px solid #fff;box-shadow:0 0 0 5px rgba(255,255,255,.3)}
+.qz-plantilla{font-size:16px;line-height:2.3;color:var(--text-primary,#eee)}
+.qz-blank-inp{border:none;border-bottom:2px solid #d4af37;background:rgba(212,175,55,.1);border-radius:6px 6px 0 0;padding:6px 10px;font-size:15px;font-weight:700;color:inherit;width:150px;margin:0 3px}
+.qz-blank-sel{border:1px solid #d4af37;background:#1a2436;color:#fff;border-radius:8px;padding:6px 10px;font-size:14px;font-weight:700;margin:0 3px}
+.qz-cajas{display:inline-flex;gap:3px;margin:0 4px;vertical-align:middle;flex-wrap:wrap}
+.qz-cajas input{width:30px;height:36px;text-align:center;font-size:17px;font-weight:800;border:1.5px solid #d4af37;border-radius:6px;background:rgba(212,175,55,.08);color:inherit;text-transform:uppercase}
+.qz-caja-fija{width:20px;height:36px;display:inline-flex;align-items:center;justify-content:center;font-weight:800;opacity:.7}
+.qz-pista{border:none;background:rgba(212,175,55,.2);border-radius:8px;padding:4px 8px;cursor:pointer;font-size:14px}
+.qz-alu-card{background:linear-gradient(180deg,#1d2839,#141c2b);border:1px solid #2a3a52;border-radius:14px;padding:14px;color:#e8e3d4;margin-top:8px}
+#screen-quiz-alumno .qz-item{background:linear-gradient(180deg,#1d2839,#141c2b);border-color:#2a3a52}
+.qz-alu-feed{text-align:center;padding:26px 14px;border-radius:14px;margin-top:10px;color:#e8e3d4}
+.qz-alu-feed.ok{background:linear-gradient(180deg,#12351f,#0d2717);border:1px solid #2d9d5c}
+.qz-alu-feed.mal{background:linear-gradient(180deg,#3a1512,#2a100e);border:1px solid #d94f4f}
+.qz-alu-feed.neutro{background:linear-gradient(180deg,#14243f,#0e1a2e);border:1px solid #4a90d9}
+.qz-alu-feed .qz-sub{font-size:13px;color:#9fb3cc;margin-top:8px}
+.qz-alu-feed .giga{font-size:52px;line-height:1}
+.qz-alu-pts{font-size:22px;font-weight:900;color:#f4d574;margin-top:6px}
+/* --- editor / gestión --- */
+.qz-item{border:1px solid var(--border,#2a3a52);border-radius:12px;padding:12px 14px;margin-bottom:10px;background:rgba(255,255,255,.02)}
+.qz-item-tit{font-weight:800;font-size:15px;color:var(--text-primary,#eee)}
+.qz-item-meta{font-size:12px;color:var(--text-muted,#8a9ab5);margin-top:2px}
+.qz-item-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.qz-mini{border:1px solid #2a3a52;background:rgba(255,255,255,.05);color:#cfe0f5;border-radius:8px;padding:6px 11px;font-size:13px;font-weight:700;cursor:pointer}
+.qz-mini.play{background:linear-gradient(180deg,#2d9d5c,#1b6e3e);border-color:#2d9d5c;color:#fff}
+.qz-mini.warn{border-color:#c0392b;color:#ff9f93}
+.qz-tag{display:inline-block;font-size:10px;font-weight:800;border-radius:8px;padding:2px 8px;margin-left:6px;vertical-align:middle}
+.qz-tag.pub{background:#2d9d5c;color:#fff}.qz-tag.bor{background:#5a6b85;color:#fff}
+.qz-ptag{font-size:10px;font-weight:800;border-radius:6px;padding:2px 7px;background:#2a3a52;color:#bcd;margin-right:6px}
+.qz-ed-card{border:1px dashed #d4af37;border-radius:12px;padding:12px;margin:10px 0;background:rgba(212,175,55,.05)}
+.qz-ed-card .field{margin-bottom:8px}
+.qz-opt-row{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+.qz-opt-row input[type=text]{flex:1}
+</style>
+
+<!-- PROFESOR: gestión de cuestionarios -->
+<section id="screen-quiz-prof" class="screen">
+  <div class="app-header"><button class="back-btn" onclick="qzProfVolver()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">🎯 Práctica Interactiva</div><div class="header-sub">Quiz en vivo · muro de ideas · nube de palabras</div></div></div>
+  <div class="menu-container" id="qz-prof-body"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+</section>
+
+<!-- PROFESOR: editor de cuestionario -->
+<section id="screen-quiz-editor" class="screen">
+  <div class="app-header"><button class="back-btn" onclick="qzEditorVolver()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">✏️ Cuestionario</div><div class="header-sub" id="qz-ed-sub">Editor de preguntas</div></div></div>
+  <div class="menu-container" id="qz-ed-body"></div>
+</section>
+
+<!-- PROFESOR: PROYECTOR (juego en vivo) -->
+<section id="screen-quiz-proyector" class="screen">
+  <div class="qz-board" id="qz-board"></div>
+</section>
+
+<!-- ALUMNO: jugar en vivo / práctica libre -->
+<section id="screen-quiz-alumno" class="screen cursante-screen">
+  <div class="app-header cursante-app-header"><button class="back-btn" onclick="qzAluSalir()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title" id="qz-alu-tit">Práctica</div><div class="header-sub" id="qz-alu-sub">—</div></div></div>
+  <div class="cursante-container" id="qz-alu-body"></div>
 </section>
 
 <!-- v2.9.90: RADIOGRAMAS (juego de guerra VENCER O MORIR) — vista del cursante -->
@@ -14705,6 +14828,7 @@ function goAulaMateriaCursante(id){
     : '';
   showScreen('screen-aula-materia');
   cargarYrenderDocsMateria(m.id);
+  _qzRenderSeccionMateria(m.id); // v2.9.155: prácticas interactivas de la materia
 }
 
 // ---------- FASE 1: documentos + visor PDF ----------
@@ -14799,6 +14923,753 @@ async function goDocsProfesoresCT(){
   if(!esCT()){ goAulaProfesores(); return; }  // no-CT: cae a lectura
   await cargarMateriasAula(true);              // asegura la materia-contenedor en caché
   goAulaDocsGestion(AULA_MATERIA_PROFESORES);
+}
+
+/* ===== v2.9.155: PRÁCTICA INTERACTIVA (quiz estilo Wayground/Quizizz + muro/nube estilo Mentimeter) =====
+   Profesor: crea cuestionarios (opción múltiple, selección múltiple, V/F, COMPLETAMIENTO con
+   alternativas/pista/cajas/lista, abierta, encuesta, nube) → los publica como práctica libre
+   o los dirige EN VIVO con PIN proyectando resultados en tiempo real (polling 2s a vistas REST).
+   Alumno: entra por PIN (en vivo) o rinde la práctica a su ritmo (autocalificada por la EF). */
+
+const QZ_TIPOS = {
+  multiple: {ic:'🔘', lbl:'Opción múltiple'},
+  multi:    {ic:'☑️', lbl:'Selección múltiple'},
+  vf:       {ic:'⚖️', lbl:'Verdadero / Falso'},
+  completar:{ic:'✍️', lbl:'Completamiento (huecos)'},
+  abierta:  {ic:'💬', lbl:'Respuesta abierta (muro de ideas)'},
+  encuesta: {ic:'📊', lbl:'Encuesta (sin correcta)'},
+  nube:     {ic:'☁️', lbl:'Nube de palabras'}
+};
+const QZ_NO_CALIFICA = ['abierta','encuesta','nube'];
+const QZ_NUMS = '①②③④⑤⑥⑦⑧⑨⑩';
+
+async function _qzInvoke(accion, extra){
+  const tok = (typeof getTokenSesion==='function') ? getTokenSesion() : null;
+  if(!tok) throw new Error('Sesión no válida — volvé a entrar');
+  const {data,error} = await sb.functions.invoke('quiz-ops', {body: Object.assign({accion, token: tok}, extra||{})});
+  if(error) throw new Error(error.message||'Error de conexión');
+  if(!data || data.ok===false) throw new Error((data&&data.error)||'Error desconocido');
+  return data;
+}
+function _qzShuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function _qzPregResumen(p){
+  const extra = p.tipo==='completar' ? ((p.blanks||[]).length+' hueco(s)') :
+    (p.opciones ? (p.opciones.length+' opciones') : ((p.max||240)+' caract. máx'));
+  return `<span class="qz-ptag">${QZ_TIPOS[p.tipo].ic} ${QZ_TIPOS[p.tipo].lbl}</span> ${escapeHtml(String(p.texto||'').slice(0,90))} <span style="color:var(--text-muted);font-size:11px">· ${extra} · ⏱${p.tiempo||30}s</span>`;
+}
+
+// ---------- PROFESOR: gestión ----------
+let _qzBack='screen-prof-panel', _qzLista=[], _qzSesAb=[], _qzMatFiltro='';
+async function goQuizProf(from){
+  if(from) _qzBack = from;
+  showScreen('screen-quiz-prof');
+  const cont = document.getElementById('qz-prof-body');
+  cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  try{
+    await cargarMateriasAula();
+    const d = await _qzInvoke('listar', {});
+    _qzLista = d.cuestionarios||[]; _qzSesAb = d.sesiones_abiertas||[];
+    _qzProfRender();
+  }catch(e){
+    cont.innerHTML = `<div class="alert-banner" style="border-color:#c0392b"><span class="alert-emoji">⚠️</span><span class="alert-text"><b>No se pudo cargar.</b><br><span style="font-size:12px">${escapeHtml(e.message)}. Si es la primera vez: falta correr QUIZ_setup.sql y deployar la Edge Function quiz-ops.</span></span></div>`;
+  }
+}
+function qzProfVolver(){ showScreen(_qzBack||'screen-prof-panel'); }
+function _qzMateriaNombre(id){ const m=(aulaMateriasCache||[]).find(x=>x.id===id); return m? m.nombre : ''; }
+function _qzProfRender(){
+  const cont = document.getElementById('qz-prof-body');
+  const mats = (aulaMateriasCache||[]).filter(m=> m.id!==AULA_MATERIA_PROFESORES);
+  const lista = _qzMatFiltro ? _qzLista.filter(c=> c.materia_aula_id===_qzMatFiltro) : _qzLista;
+  let html = `<div class="alert-banner blue" style="margin-bottom:12px"><span class="alert-emoji">🎯</span><span class="alert-text"><b>Tu Wayground dentro de SIDECEME.</b><br><span style="font-size:12px">▶️ <b>EN VIVO</b>: proyectás la pantalla, los alumnos entran con un PIN y ves sus respuestas al instante (barras, muro de ideas, nube de palabras, podio). 📚 <b>Publicado</b>: los alumnos lo practican solos desde su materia, autocalificado.</span></span></div>`;
+  if(_qzSesAb.length){
+    html += _qzSesAb.map(s=>{
+      const c=_qzLista.find(x=>x.id===s.cuestionario_id);
+      return `<button class="rg-home-banner" style="margin-bottom:10px" onclick="qzRetomarSesion('${s.id}')"><span class="rg-hb-ic">🔴</span><span class="rg-hb-body"><span class="rg-hb-tit">Sesión EN VIVO abierta — PIN ${escapeHtml(s.pin)}</span><span class="rg-hb-sub">${escapeHtml(c?c.titulo:'Cuestionario')}</span></span><span class="rg-hb-go">Retomar ›</span></button>`;
+    }).join('');
+  }
+  html += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+    <button class="qz-btn gold" onclick="qzNuevo()">➕ Nuevo cuestionario</button>
+    <button class="qz-btn" onclick="qzRapidaToggle()">⚡ Pregunta rápida al curso</button>
+  </div>
+  <div id="qz-rapida" style="display:none" class="qz-ed-card">
+    <div style="font-weight:800;margin-bottom:8px">⚡ Lanzar UNA pregunta ya mismo (para proyectar)</div>
+    <div class="field"><label>Consigna para el curso</label><textarea id="qz-rap-texto" rows="2" placeholder="Ej: En una palabra, ¿qué es liderazgo?"></textarea></div>
+    <div class="field"><label>Tipo</label><select id="qz-rap-tipo"><option value="nube">☁️ Nube de palabras</option><option value="abierta">💬 Muro de ideas (respuestas abiertas)</option><option value="encuesta">📊 Encuesta (opciones)</option></select></div>
+    <div class="field"><label>Opciones (solo encuesta — una por línea)</label><textarea id="qz-rap-ops" rows="3" placeholder="Opción A&#10;Opción B"></textarea></div>
+    <button class="qz-btn gold" onclick="qzRapidaLanzar()">🚀 Lanzar EN VIVO</button>
+  </div>
+  <div class="field" style="margin-bottom:10px"><label>Filtrar por materia</label><select id="qz-mat-filtro" onchange="_qzMatFiltro=this.value;_qzProfRender()">
+    <option value="">Todas las materias</option>
+    ${mats.map(m=>`<option value="${m.id}" ${_qzMatFiltro===m.id?'selected':''}>${escapeHtml(m.nombre)} (${escapeHtml(m.ciclo||'')})</option>`).join('')}
+  </select></div>
+  <div class="section-label">Cuestionarios (${lista.length})</div>`;
+  html += lista.length ? lista.map(c=>{
+    const n=(c.preguntas||[]).length;
+    const mat=_qzMateriaNombre(c.materia_aula_id);
+    return `<div class="qz-item">
+      <div class="qz-item-tit">${escapeHtml(c.titulo)} <span class="qz-tag ${c.estado==='publicado'?'pub':'bor'}">${c.estado==='publicado'?'PUBLICADO':'BORRADOR'}</span></div>
+      <div class="qz-item-meta">${n} pregunta(s)${mat?' · 📘 '+escapeHtml(mat):''}${c.creado_por_nombre?' · '+escapeHtml(c.creado_por_nombre):''}</div>
+      <div class="qz-item-btns">
+        <button class="qz-mini play" onclick="qzEnVivo('${c.id}')">▶️ EN VIVO</button>
+        <button class="qz-mini" onclick="qzEditar('${c.id}')">✏️ Editar</button>
+        <button class="qz-mini" onclick="qzResultadosPractica('${c.id}')">📊 Resultados</button>
+        <button class="qz-mini warn" onclick="qzEliminar('${c.id}')">🗑</button>
+      </div>
+    </div>`;
+  }).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">Todavía no hay cuestionarios. Creá el primero con ➕.</div>';
+  cont.innerHTML = html;
+}
+function qzRapidaToggle(){ const d=document.getElementById('qz-rapida'); d.style.display = d.style.display==='none'?'block':'none'; }
+async function qzRapidaLanzar(){
+  const texto=(document.getElementById('qz-rap-texto').value||'').trim();
+  const tipo=document.getElementById('qz-rap-tipo').value;
+  if(!texto){ alert('Escribí la consigna'); return; }
+  const p={tipo, texto, tiempo: tipo==='encuesta'?45:120, max: tipo==='nube'?40:240};
+  if(tipo==='encuesta'){
+    p.opciones=(document.getElementById('qz-rap-ops').value||'').split('\n').map(s=>s.trim()).filter(Boolean);
+    if(p.opciones.length<2){ alert('La encuesta necesita al menos 2 opciones'); return; }
+  }
+  try{
+    const g = await _qzInvoke('guardar', {titulo:('⚡ '+texto).slice(0,120), estado:'borrador', preguntas:[p], materia_aula_id:_qzMatFiltro||null});
+    await qzEnVivo(g.id);
+  }catch(e){ alert('⚠️ '+e.message); }
+}
+async function qzEliminar(id){
+  const c=_qzLista.find(x=>x.id===id); if(!c) return;
+  if(!confirm('¿Borrar "'+c.titulo+'"? Se pierden también sus resultados.')) return;
+  try{ await _qzInvoke('eliminar',{id}); goQuizProf(); }catch(e){ alert('⚠️ '+e.message); }
+}
+async function qzResultadosPractica(id){
+  const c=_qzLista.find(x=>x.id===id); if(!c) return;
+  const cont=document.getElementById('qz-prof-body');
+  cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando resultados…</div>';
+  try{
+    const d=await _qzInvoke('resultados',{cuestionario_id:id});
+    const rows=d.respuestas||[];
+    const por={};
+    rows.forEach(r=>{ const s=por[r.cursante_id]||(por[r.cursante_id]={nombre:r.nombre||'—',ok:0,n:0,pts:0,fecha:r.creado_en});
+      s.n++; if(r.correcta===true) s.ok++; s.pts+=r.puntos||0; if(r.creado_en>s.fecha) s.fecha=r.creado_en; });
+    const arr=Object.values(por).sort((a,b)=>b.pts-a.pts);
+    const nCal=(c.preguntas||[]).filter(p=>!QZ_NO_CALIFICA.includes(p.tipo)).length;
+    cont.innerHTML = `<button class="qz-mini" onclick="_qzProfRender()" style="margin-bottom:12px">← Volver a la lista</button>
+      <div class="section-label">📊 ${escapeHtml(c.titulo)} — práctica libre (${arr.length} alumno(s))</div>`+
+      (arr.length? `<table class="qz-tabla" style="color:var(--text-primary)"><tr><th>#</th><th>Alumno</th><th>Aciertos</th><th>Puntos</th></tr>${arr.map((s,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(s.nombre)}</td><td>${s.ok}/${nCal}</td><td>${s.pts}</td></tr>`).join('')}</table>`
+        : '<div class="efm-no-data" style="color:var(--text-muted)">Nadie rindió esta práctica todavía.</div>');
+  }catch(e){ cont.innerHTML='<div class="efm-no-data">⚠️ '+escapeHtml(e.message)+'</div>'; }
+}
+
+// ---------- PROFESOR: editor ----------
+let _qzEd=null, _qzEdIdx=-1, _qzEdP=null;
+function qzNuevo(){ _qzEd={id:null,titulo:'',descripcion:'',materia_aula_id:_qzMatFiltro||'',estado:'borrador',preguntas:[]}; _qzEdIdx=-1; _qzEdP=null; showScreen('screen-quiz-editor'); _qzEdRender(); }
+function qzEditar(id){
+  const c=_qzLista.find(x=>x.id===id); if(!c) return;
+  _qzEd={id:c.id,titulo:c.titulo,descripcion:c.descripcion||'',materia_aula_id:c.materia_aula_id||'',estado:c.estado,preguntas:JSON.parse(JSON.stringify(c.preguntas||[]))};
+  _qzEdIdx=-1; _qzEdP=null; showScreen('screen-quiz-editor'); _qzEdRender();
+}
+function qzEditorVolver(){ if(_qzEd && !confirm('¿Salir del editor? Lo no guardado se pierde.')) return; goQuizProf(); }
+function _qzEdRender(){
+  const mats=(aulaMateriasCache||[]).filter(m=> m.id!==AULA_MATERIA_PROFESORES);
+  const sub=document.getElementById('qz-ed-sub'); if(sub) sub.textContent=_qzEd.id?'Editando':'Nuevo cuestionario';
+  let html = `<div class="field"><label>Título</label><input type="text" id="qz-ed-titulo" value="${escapeHtml(_qzEd.titulo)}" placeholder="Ej: Cap. 2 — La organización adecuada"></div>
+  <div class="field"><label>Descripción (opcional, la ve el alumno)</label><input type="text" id="qz-ed-desc" value="${escapeHtml(_qzEd.descripcion)}"></div>
+  <div class="field"><label>Materia</label><select id="qz-ed-mat"><option value="">(sin materia — solo EN VIVO por PIN)</option>${mats.map(m=>`<option value="${m.id}" ${_qzEd.materia_aula_id===m.id?'selected':''}>${escapeHtml(m.nombre)} (${escapeHtml(m.ciclo||'')})</option>`).join('')}</select></div>
+  <div class="field"><label>Estado</label><select id="qz-ed-estado">
+    <option value="borrador" ${_qzEd.estado!=='publicado'?'selected':''}>Borrador (solo EN VIVO por PIN)</option>
+    <option value="publicado" ${_qzEd.estado==='publicado'?'selected':''}>Publicado (los alumnos lo practican solos)</option>
+  </select></div>
+  <div class="section-label">Preguntas (${_qzEd.preguntas.length})</div>`;
+  html += _qzEd.preguntas.map((p,i)=> i===_qzEdIdx ? `<div id="qz-ed-form-anchor"></div>` :
+    `<div class="qz-item"><div style="font-size:14px;color:var(--text-primary)"><b>${i+1}.</b> ${_qzPregResumen(p)}</div>
+     <div class="qz-item-btns">
+       <button class="qz-mini" onclick="qzEdPregEditar(${i})">✏️</button>
+       <button class="qz-mini" onclick="qzEdPregMover(${i},-1)">↑</button>
+       <button class="qz-mini" onclick="qzEdPregMover(${i},1)">↓</button>
+       <button class="qz-mini warn" onclick="qzEdPregBorrar(${i})">🗑</button>
+     </div></div>`).join('');
+  if(_qzEdIdx===-2) html += `<div id="qz-ed-form-anchor"></div>`;
+  html += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0">
+    <select id="qz-ed-nuevo-tipo" style="flex:1;min-width:220px">${Object.keys(QZ_TIPOS).map(t=>`<option value="${t}">${QZ_TIPOS[t].ic} ${QZ_TIPOS[t].lbl}</option>`).join('')}</select>
+    <button class="qz-mini" style="font-size:14px" onclick="qzEdPregNueva()">➕ Agregar pregunta</button>
+  </div>
+  <button class="qz-btn gold" style="width:100%;margin-top:6px" onclick="qzEdGuardar()">💾 Guardar cuestionario</button>`;
+  document.getElementById('qz-ed-body').innerHTML = html;
+  const anchor=document.getElementById('qz-ed-form-anchor');
+  if(anchor && _qzEdP){ anchor.outerHTML = _qzEdPregFormHtml(_qzEdP); }
+}
+function _qzEdLeerCabecera(){
+  _qzEd.titulo=(document.getElementById('qz-ed-titulo').value||'').trim();
+  _qzEd.descripcion=(document.getElementById('qz-ed-desc').value||'').trim();
+  _qzEd.materia_aula_id=document.getElementById('qz-ed-mat').value||'';
+  _qzEd.estado=document.getElementById('qz-ed-estado').value;
+}
+function qzEdPregNueva(){
+  _qzEdLeerCabecera();
+  const tipo=document.getElementById('qz-ed-nuevo-tipo').value;
+  _qzEdP={tipo, texto:'', tiempo: QZ_NO_CALIFICA.includes(tipo)?60:30, flex:{tildes:true,mayus:true}};
+  if(tipo==='multiple'||tipo==='multi'||tipo==='encuesta'){ _qzEdP.opciones=['','','','']; _qzEdP.correctas=[]; }
+  if(tipo==='vf'){ _qzEdP.opciones=['VERDADERO','FALSO']; _qzEdP.correctas=[0]; }
+  if(tipo==='completar'){ _qzEdP.plantilla=''; _qzEdP.blanks=[]; }
+  if(tipo==='abierta') _qzEdP.max=240;
+  if(tipo==='nube') _qzEdP.max=40;
+  _qzEdIdx=-2; _qzEdRender();
+  const f=document.getElementById('qz-f-texto'); if(f) f.focus();
+}
+function qzEdPregEditar(i){ _qzEdLeerCabecera(); _qzEdP=JSON.parse(JSON.stringify(_qzEd.preguntas[i])); _qzEdIdx=i; _qzEdRender(); }
+function qzEdPregBorrar(i){ _qzEdLeerCabecera(); _qzEd.preguntas.splice(i,1); if(_qzEdIdx===i){_qzEdIdx=-1;_qzEdP=null;} _qzEdRender(); }
+function qzEdPregMover(i,d){ _qzEdLeerCabecera(); const j=i+d; if(j<0||j>=_qzEd.preguntas.length) return; const a=_qzEd.preguntas; [a[i],a[j]]=[a[j],a[i]]; _qzEdRender(); }
+function qzEdPregCancel(){ _qzEdIdx=-1; _qzEdP=null; _qzEdRender(); }
+function _qzEdOptRow(tipo,val,i,corr){
+  const marca = tipo==='encuesta' ? '' :
+    `<input type="${tipo==='multi'?'checkbox':'radio'}" name="qz-f-corr" data-i="${i}" ${corr?'checked':''} title="Correcta">`;
+  return `<div class="qz-opt-row">${marca}<input type="text" class="qz-f-op" value="${escapeHtml(val||'')}" placeholder="Opción ${i+1}"></div>`;
+}
+function qzEdAddOpcion(){
+  const cont=document.getElementById('qz-f-ops'); if(!cont) return;
+  const n=cont.querySelectorAll('.qz-f-op').length; if(n>=6) return;
+  const div=document.createElement('div'); div.innerHTML=_qzEdOptRow(_qzEdP.tipo,'',n,false);
+  cont.appendChild(div.firstChild);
+}
+function _qzEdPregFormHtml(p){
+  const t=p.tipo;
+  let html=`<div class="qz-ed-card"><div style="font-weight:800;margin-bottom:8px;color:var(--text-primary)">${QZ_TIPOS[t].ic} ${QZ_TIPOS[t].lbl}</div>
+  <div class="field"><label>Enunciado / consigna</label><textarea id="qz-f-texto" rows="2">${escapeHtml(p.texto||'')}</textarea></div>
+  <div class="field"><label>Tiempo por pregunta (segundos)</label><select id="qz-f-tiempo">${[10,20,30,45,60,90,120,180,300].map(s=>`<option ${((p.tiempo||30)===s?'selected':'')}>${s}</option>`).join('')}</select></div>`;
+  if(t==='multiple'||t==='multi'||t==='encuesta'){
+    html+=`<label style="font-size:12px;color:var(--text-muted)">Opciones${t!=='encuesta'?' — marcá la'+(t==='multi'?'s':'')+' correcta'+(t==='multi'?'s':''):''}</label>
+    <div id="qz-f-ops">${(p.opciones||['','','','']).map((o,i)=>_qzEdOptRow(t,o,i,(p.correctas||[]).includes(i))).join('')}</div>
+    <button class="qz-mini" onclick="qzEdAddOpcion()">➕ opción</button>`;
+  }
+  if(t==='vf'){
+    html+=`<div class="field"><label>Respuesta correcta</label><select id="qz-f-vf"><option value="0" ${(p.correctas||[0])[0]===0?'selected':''}>VERDADERO</option><option value="1" ${(p.correctas||[0])[0]===1?'selected':''}>FALSO</option></select></div>`;
+  }
+  if(t==='completar'){
+    html+=`<div class="field"><label>Texto con huecos — escribí ___ (3 guiones bajos) donde va cada hueco</label>
+      <textarea id="qz-f-plantilla" rows="3" placeholder="Ej: Las etapas de Lewin son ___ , cambio y ___ .">${escapeHtml(p.plantilla||'')}</textarea></div>
+    <button class="qz-mini" onclick="qzEdDetectarHuecos()">🔍 Detectar huecos</button>
+    <div id="qz-f-bl" style="margin-top:8px">${(p.blanks||[]).map((b,i)=>_qzEdBlankRow(b,i)).join('')}</div>
+    <div style="display:flex;gap:16px;margin-top:8px;font-size:13px;color:var(--text-secondary)">
+      <label><input type="checkbox" id="qz-f-tildes" ${!p.flex||p.flex.tildes!==false?'checked':''}> Ignorar tildes</label>
+      <label><input type="checkbox" id="qz-f-mayus" ${!p.flex||p.flex.mayus!==false?'checked':''}> Ignorar mayúsculas</label>
+    </div>`;
+  }
+  if(t==='abierta'||t==='nube'){
+    html+=`<div class="field"><label>Máximo de caracteres</label><select id="qz-f-max">${[30,40,80,120,240,500,1000].map(n=>`<option ${((p.max||240)===n?'selected':'')}>${n}</option>`).join('')}</select></div>`;
+  }
+  html+=`<div style="display:flex;gap:8px;margin-top:12px"><button class="qz-btn" onclick="qzEdPregOk()">✔ Listo</button><button class="qz-mini" onclick="qzEdPregCancel()">Cancelar</button></div></div>`;
+  return html;
+}
+function _qzEdBlankRow(b,i){
+  const modo=b.modo||'texto';
+  return `<div class="qz-ed-card" style="border-style:solid;padding:10px" data-blank="${i}">
+    <div style="font-weight:800;font-size:13px;margin-bottom:6px">Hueco ${QZ_NUMS[i]||i+1}</div>
+    <div class="field"><label>Respuestas aceptadas (alternativas separadas por coma — la 1ª es la principal)</label>
+      <input type="text" class="qz-f-b-acepta" value="${escapeHtml((b.acepta||[]).join(', '))}" placeholder="descongelamiento, descongelar, unfreezing"></div>
+    <div class="field"><label>Cómo responde el alumno</label>
+      <select class="qz-f-b-modo" onchange="this.closest('[data-blank]').querySelector('.qz-f-b-lista-wrap').style.display=this.value==='lista'?'block':'none'">
+        <option value="texto" ${modo==='texto'?'selected':''}>⌨️ Escribe libre (un campo)</option>
+        <option value="cajas" ${modo==='cajas'?'selected':''}>🔡 Cajas por letra (estilo Wayground)</option>
+        <option value="lista" ${modo==='lista'?'selected':''}>▾ Lista desplegable (con distractores)</option>
+      </select></div>
+    <div class="field qz-f-b-lista-wrap" style="display:${modo==='lista'?'block':'none'}"><label>Opciones de la lista (incluí la correcta + distractores, separadas por coma)</label>
+      <input type="text" class="qz-f-b-lista" value="${escapeHtml((b.lista||[]).join(', '))}" placeholder="planificación, evaluación, ejecución"></div>
+    <div class="field"><label>Pista 💡 (opcional)</label><input type="text" class="qz-f-b-pista" value="${escapeHtml(b.pista||'')}"></div>
+  </div>`;
+}
+function _qzEdLeerBlanks(){
+  return Array.from(document.querySelectorAll('#qz-f-bl [data-blank]')).map(row=>{
+    const b={acepta:(row.querySelector('.qz-f-b-acepta').value||'').split(',').map(s=>s.trim()).filter(Boolean),
+             modo:row.querySelector('.qz-f-b-modo').value};
+    const lista=(row.querySelector('.qz-f-b-lista').value||'').split(',').map(s=>s.trim()).filter(Boolean);
+    if(b.modo==='lista') b.lista=lista;
+    const pista=(row.querySelector('.qz-f-b-pista').value||'').trim();
+    if(pista) b.pista=pista;
+    return b;
+  });
+}
+function qzEdDetectarHuecos(){
+  const pl=(document.getElementById('qz-f-plantilla').value||'');
+  const n=(pl.match(/_{3,}/g)||[]).length;
+  const actuales=_qzEdLeerBlanks();
+  while(actuales.length<n) actuales.push({acepta:[],modo:'texto'});
+  actuales.length=n;
+  _qzEdP.plantilla=pl; _qzEdP.blanks=actuales;
+  document.getElementById('qz-f-bl').innerHTML = actuales.map((b,i)=>_qzEdBlankRow(b,i)).join('') || '<div class="efm-no-data" style="color:var(--text-muted)">No encontré huecos ___ en el texto.</div>';
+}
+function qzEdPregOk(){
+  const p=_qzEdP; if(!p) return;
+  p.texto=(document.getElementById('qz-f-texto').value||'').trim();
+  if(!p.texto){ alert('Falta el enunciado'); return; }
+  p.tiempo=Number(document.getElementById('qz-f-tiempo').value)||30;
+  if(p.tipo==='multiple'||p.tipo==='multi'||p.tipo==='encuesta'){
+    const ops=Array.from(document.querySelectorAll('.qz-f-op')).map(x=>x.value.trim());
+    const corr=[]; document.querySelectorAll('[name=qz-f-corr]').forEach(x=>{ if(x.checked) corr.push(Number(x.dataset.i)); });
+    p.opciones=[]; const remap=[];
+    ops.forEach((o,i)=>{ if(o){ remap[i]=p.opciones.length; p.opciones.push(o); } });
+    p.correctas=corr.map(i=>remap[i]).filter(x=>x!=null);
+    if(p.opciones.length<2){ alert('Cargá al menos 2 opciones'); return; }
+    if(p.tipo!=='encuesta' && !p.correctas.length){ alert('Marcá la respuesta correcta'); return; }
+    if(p.tipo==='multiple') p.correctas=p.correctas.slice(0,1);
+    if(p.tipo==='encuesta') delete p.correctas;
+  }
+  if(p.tipo==='vf'){ p.opciones=['VERDADERO','FALSO']; p.correctas=[Number(document.getElementById('qz-f-vf').value)]; }
+  if(p.tipo==='completar'){
+    p.plantilla=(document.getElementById('qz-f-plantilla').value||'');
+    const n=(p.plantilla.match(/_{3,}/g)||[]).length;
+    if(!n){ alert('La plantilla necesita al menos un hueco ___'); return; }
+    p.blanks=_qzEdLeerBlanks();
+    if(p.blanks.length!==n){ alert('Tocá "🔍 Detectar huecos" para sincronizar los huecos'); return; }
+    if(p.blanks.some(b=>!b.acepta.length)){ alert('Cada hueco necesita al menos una respuesta aceptada'); return; }
+    if(p.blanks.some(b=>b.modo==='lista' && (b.lista||[]).length<2)){ alert('Las listas desplegables necesitan al menos 2 opciones'); return; }
+    p.flex={tildes:document.getElementById('qz-f-tildes').checked, mayus:document.getElementById('qz-f-mayus').checked};
+  }
+  if(p.tipo==='abierta'||p.tipo==='nube') p.max=Number(document.getElementById('qz-f-max').value)||240;
+  if(_qzEdIdx>=0) _qzEd.preguntas[_qzEdIdx]=p; else _qzEd.preguntas.push(p);
+  _qzEdIdx=-1; _qzEdP=null; _qzEdRender();
+}
+async function qzEdGuardar(){
+  _qzEdLeerCabecera();
+  if(!_qzEd.titulo){ alert('Falta el título'); return; }
+  if(!_qzEd.preguntas.length){ alert('Agregá al menos una pregunta'); return; }
+  try{
+    await _qzInvoke('guardar',{id:_qzEd.id||undefined, titulo:_qzEd.titulo, descripcion:_qzEd.descripcion,
+      materia_aula_id:_qzEd.materia_aula_id||null, estado:_qzEd.estado, preguntas:_qzEd.preguntas});
+    _qzEd=null; alert('✅ Cuestionario guardado'); goQuizProf();
+  }catch(e){ alert('⚠️ '+e.message); }
+}
+
+// ---------- PROFESOR: PROYECTOR (en vivo) ----------
+let _qzB=null, _qzBPoll=null, _qzBSig='', _qzBShowTabla=false, _qzTimerInt=null;
+async function qzEnVivo(cuestId){
+  try{
+    const d=await _qzInvoke('abrir_sesion',{cuestionario_id:cuestId});
+    _qzBoardArrancar(d.sesion, d.cuestionario);
+  }catch(e){ alert('⚠️ '+e.message); }
+}
+async function qzRetomarSesion(sesId){
+  const s=_qzSesAb.find(x=>x.id===sesId); if(!s) return;
+  const c=_qzLista.find(x=>x.id===s.cuestionario_id);
+  if(!c){ alert('No encontré el cuestionario de esa sesión'); return; }
+  _qzBoardArrancar(s, c);
+}
+function _qzBoardArrancar(sesion, cuest){
+  _qzB={ses:sesion, cuest:cuest, parts:[], resp:[]};
+  _qzBSig=''; _qzBShowTabla=false;
+  showScreen('screen-quiz-proyector');
+  _qzBoardRender();
+  clearInterval(_qzBPoll);
+  _qzBPoll=setInterval(_qzBoardTick, 2000);
+  _qzBoardTick();
+}
+async function _qzBoardTick(){
+  const act=document.querySelector('.screen.active');
+  if(!act || act.id!=='screen-quiz-proyector'){ clearInterval(_qzBPoll); return; }
+  if(!_qzB) return;
+  try{
+    const [pr, rr] = await Promise.all([
+      sb.from('v_quiz_participantes').select('nombre,unido_en').eq('sesion_id',_qzB.ses.id).order('unido_en'),
+      sb.from('v_quiz_respuestas').select('pregunta_idx,nombre,respuesta,correcta,puntos,ms,creado_en').eq('sesion_id',_qzB.ses.id).limit(4000)
+    ]);
+    if(!pr.error && pr.data) _qzB.parts=pr.data;
+    if(!rr.error && rr.data) _qzB.resp=rr.data;
+    const sig=_qzB.ses.estado+'|'+_qzB.ses.pregunta_idx+'|'+_qzB.parts.length+'|'+_qzB.resp.length+'|'+_qzBShowTabla;
+    if(sig!==_qzBSig){ _qzBSig=sig; _qzBoardRender(); }
+  }catch(e){ /* red intermitente: el próximo tick reintenta */ }
+}
+async function _qzBoardControl(op, idx){
+  try{
+    const d=await _qzInvoke('control',{sesion_id:_qzB.ses.id, op, idx});
+    if(d.sesion) _qzB.ses=d.sesion;
+    _qzBSig=''; _qzBShowTabla=false; _qzBoardRender();
+  }catch(e){ alert('⚠️ '+e.message); }
+}
+function qzBoardComenzar(){ _qzBoardControl('lanzar',0); }
+function qzBoardResultados(){ _qzBoardControl('resultados'); }
+function qzBoardSiguiente(){ _qzBoardControl('lanzar', _qzB.ses.pregunta_idx+1); }
+function qzBoardPodio(){ _qzBoardControl('fin'); }
+function qzBoardTabla(){ _qzBShowTabla=!_qzBShowTabla; _qzBSig=''; _qzBoardRender(); }
+function qzBoardSalir(){
+  if(_qzB && _qzB.ses.estado!=='fin' && !confirm('La sesión sigue abierta (podés retomarla después). ¿Salir del proyector?')) return;
+  clearInterval(_qzBPoll); clearInterval(_qzTimerInt); _qzB=null;
+  goQuizProf();
+}
+function _qzStandings(resp){
+  const por={};
+  (resp||[]).forEach(r=>{ const s=por[r.nombre]||(por[r.nombre]={nombre:r.nombre||'—',pts:0,ok:0,n:0});
+    s.pts+=r.puntos||0; s.n++; if(r.correcta===true) s.ok++; });
+  const arr=Object.values(por);
+  const hayPts=arr.some(s=>s.pts>0);
+  return arr.sort((a,b)=> hayPts ? (b.pts-a.pts||b.ok-a.ok) : (b.n-a.n));
+}
+function _qzTablaHtml(st){
+  return `<table class="qz-tabla"><tr><th>#</th><th>Alumno</th><th>✔</th><th>Puntos</th></tr>${st.map((s,i)=>`<tr><td>${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</td><td>${escapeHtml(s.nombre)}</td><td>${s.ok}</td><td>${s.pts}</td></tr>`).join('')}</table>`;
+}
+function _qzBarsHtml(p, rows, revelar){
+  const counts=(p.opciones||[]).map(()=>0);
+  rows.forEach(r=>{
+    const v=r.respuesta;
+    if(Array.isArray(v)) v.forEach(i=>{ if(counts[i]!=null) counts[i]++; });
+    else if(counts[Number(v)]!=null) counts[Number(v)]++;
+  });
+  const max=Math.max(1,...counts);
+  return `<div class="qz-bars">${(p.opciones||[]).map((o,i)=>{
+    const corr=revelar && (p.correctas||[]).includes(i);
+    return `<div class="qz-barrow ${corr?'correcta':''}"><div class="qz-barlabel">${corr?'✔ ':''}${escapeHtml(o)}</div><div class="qz-bartrack"><div class="qz-barfill qz-c${i%6}" style="width:${Math.round(counts[i]/max*100)}%">${counts[i]||''}</div></div></div>`;
+  }).join('')}</div>`;
+}
+function _qzCloudHtml(textos){
+  const freq={};
+  (textos||[]).forEach(t=> String(t||'').split(/[,;\n]+/).forEach(w=>{
+    w=w.trim().replace(/^[«"']+|[»"'.!?]+$/g,''); if(!w) return;
+    const k=w.toLowerCase(); (freq[k]=freq[k]||{n:0,w:w}).n++;
+  }));
+  const arr=Object.values(freq).sort((a,b)=>b.n-a.n).slice(0,60);
+  if(!arr.length) return '<div style="text-align:center;color:#9ec3ef;font-size:18px;padding:34px">☁️ Esperando palabras…</div>';
+  const max=arr[0].n;
+  const cols=['#f4d574','#9ec3ef','#7be67b','#ff9f93','#e0a4ff','#8cc7ff','#ffd08a'];
+  return '<div class="qz-cloud">'+arr.map((x,i)=>{
+    const size=Math.round(17+(x.n/max)*46);
+    const rot=(i%5===1)?-5:((i%7===3)?4:0);
+    return `<span style="font-size:${size}px;color:${cols[i%cols.length]};transform:rotate(${rot}deg)">${escapeHtml(x.w)}${x.n>1?`<sup style="font-size:11px;opacity:.7"> ${x.n}</sup>`:''}</span>`;
+  }).join('')+'</div>';
+}
+function _qzMuroHtml(rows){
+  if(!rows.length) return '<div style="text-align:center;color:#9ec3ef;font-size:18px;padding:34px">💬 Esperando ideas…</div>';
+  return `<div class="qz-muro">${rows.map(r=>`<div class="qz-muro-card">${escapeHtml(String(r.respuesta||''))}<span class="qn">${escapeHtml(r.nombre||'')}</span></div>`).join('')}</div>`;
+}
+function _qzCompletarResHtml(p, rows){
+  const ok=rows.filter(r=>r.correcta===true).length;
+  let html=`<div class="qz-contador">✔ ${ok} de ${rows.length} respondieron TODO correcto</div>
+  <div class="qz-bars">${(p.blanks||[]).map((b,i)=>{
+    const dadas={};
+    rows.forEach(r=>{ const v=Array.isArray(r.respuesta)?String(r.respuesta[i]||'').trim():''; if(v) dadas[v.toLowerCase()]=(dadas[v.toLowerCase()]||0)+1; });
+    const top=Object.entries(dadas).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([w,n])=>`${escapeHtml(w)} (${n})`).join(' · ');
+    return `<div style="font-size:16px;line-height:1.6"><b style="color:#7be67b">${QZ_NUMS[i]||i+1} ${escapeHtml((b.acepta||[''])[0])}</b>${top?`<span style="color:#9ec3ef;font-size:14px"> — respondieron: ${top}</span>`:''}</div>`;
+  }).join('')}</div>`;
+  return html;
+}
+function _qzBoardRender(){
+  if(!_qzB) return;
+  const cont=document.getElementById('qz-board');
+  const ses=_qzB.ses, c=_qzB.cuest, pregs=c.preguntas||[];
+  const idx=ses.pregunta_idx, p=pregs[idx];
+  const top=`<div class="qz-b-top">
+    <button class="qz-btn ghost" onclick="qzBoardSalir()">← Salir</button>
+    <div class="qz-b-tit">${escapeHtml(c.titulo)}</div>
+    <div class="qz-b-pinmini">PIN ${escapeHtml(ses.pin)}</div>
+    <button class="qz-btn ghost" onclick="qzBoardTabla()">🏅 Posiciones</button>
+  </div>`;
+  let body='';
+  const respAll=_qzB.resp, respIdx=respAll.filter(r=>r.pregunta_idx===idx);
+  if(_qzBShowTabla){
+    body=`<div class="qz-b-preg">🏅 Tabla de posiciones</div>`+_qzTablaHtml(_qzStandings(respAll).slice(0,20))+
+      `<div class="qz-b-foot"><button class="qz-btn" onclick="qzBoardTabla()">← Volver al juego</button></div>`;
+  }
+  else if(ses.estado==='lobby'){
+    body=`<div style="text-align:center;margin-top:8px;font-size:clamp(16px,2.4vw,24px);color:#9ec3ef">Entrá en <b style="color:#fff">SIDECEME → Aula Virtual → 🎯 juego EN VIVO</b> con este PIN:</div>
+    <div class="qz-pin-giga">${escapeHtml(ses.pin)}</div>
+    <div class="qz-contador">👥 ${_qzB.parts.length} conectado(s)</div>
+    <div class="qz-lobby-nombres">${_qzB.parts.map(x=>`<span class="qz-chip">${escapeHtml(x.nombre||'—')}</span>`).join('')}</div>
+    <div class="qz-b-foot"><button class="qz-btn gold big" onclick="qzBoardComenzar()" ${_qzB.parts.length?'':'disabled'}>▶️ COMENZAR (${pregs.length} pregunta${pregs.length!==1?'s':''})</button></div>`;
+  }
+  else if(ses.estado==='pregunta' && p){
+    const enVivoAbierto=QZ_NO_CALIFICA.includes(p.tipo);
+    body=`<div style="text-align:center;color:#9ec3ef;font-weight:800">Pregunta ${idx+1} de ${pregs.length} · ${QZ_TIPOS[p.tipo].ic} ${QZ_TIPOS[p.tipo].lbl}</div>
+    <div class="qz-b-preg">${escapeHtml(p.texto)}</div>
+    <div class="qz-timerwrap"><div class="qz-timerbar"><div id="qz-tbar" style="width:100%"></div></div><div class="qz-timer-num" id="qz-tnum">·</div></div>`;
+    if(p.tipo==='completar'){
+      body+=`<div style="text-align:center;font-size:clamp(16px,2.2vw,24px);line-height:2;max-width:900px;margin:0 auto">${escapeHtml(p.plantilla||'').replace(/_{3,}/g,'<span style="color:#f4d574;font-weight:900"> ____ </span>')}</div>`;
+    } else if(p.opciones && !enVivoAbierto){
+      body+=`<div class="qz-b-opts">${p.opciones.map((o,i)=>`<div class="qz-b-opt qz-c${i%6}"><span class="ic">${String.fromCharCode(65+i)}</span>${escapeHtml(o)}</div>`).join('')}</div>`;
+    }
+    if(enVivoAbierto){
+      body+= p.tipo==='nube' ? _qzCloudHtml(respIdx.map(r=>r.respuesta)) :
+             p.tipo==='abierta' ? _qzMuroHtml(respIdx) :
+             _qzBarsHtml(p, respIdx, false);
+    }
+    body+=`<div class="qz-contador">✋ ${respIdx.length} / ${_qzB.parts.length} respondieron</div>
+    <div class="qz-b-foot"><button class="qz-btn" onclick="qzBoardResultados()">📊 Cerrar pregunta y ver resultados</button></div>`;
+    setTimeout(()=>_qzTimerStart(ses.pregunta_abierta_en, p.tiempo),0);
+  }
+  else if(ses.estado==='resultados' && p){
+    body=`<div style="text-align:center;color:#9ec3ef;font-weight:800">Resultados — pregunta ${idx+1} de ${pregs.length}</div>
+    <div class="qz-b-preg">${escapeHtml(p.texto)}</div>`;
+    body+= p.tipo==='nube' ? _qzCloudHtml(respIdx.map(r=>r.respuesta)) :
+           p.tipo==='abierta' ? _qzMuroHtml(respIdx) :
+           p.tipo==='completar' ? _qzCompletarResHtml(p, respIdx) :
+           _qzBarsHtml(p, respIdx, p.tipo!=='encuesta');
+    const esUltima = idx>=pregs.length-1;
+    body+=`<div class="qz-b-foot">${esUltima
+      ? '<button class="qz-btn gold big" onclick="qzBoardPodio()">🏆 PODIO FINAL</button>'
+      : '<button class="qz-btn gold big" onclick="qzBoardSiguiente()">▶️ Siguiente pregunta</button><button class="qz-btn red" onclick="qzBoardPodio()">🏁 Terminar acá</button>'}</div>`;
+  }
+  else if(ses.estado==='fin'){
+    const st=_qzStandings(respAll);
+    const orden=[st[1],st[0],st[2]].filter(Boolean);
+    const alturas=[110,150,84], medallas=['🥈','🥇','🥉'];
+    body=`<div class="qz-b-preg" style="margin-bottom:4px">🏆 ${escapeHtml(c.titulo)}</div>
+    <div class="qz-podio">${orden.map((s,k)=>`<div class="qz-pod"><div class="nom">${medallas[k]} ${escapeHtml(s.nombre)}</div><div class="pts">${s.pts} pts</div><div class="caja" style="height:${alturas[k]}px">${st.indexOf(s)+1}</div></div>`).join('')}</div>
+    ${st.length? _qzTablaHtml(st) : '<div class="qz-contador">Sin participantes</div>'}
+    <div class="qz-b-foot"><button class="qz-btn" onclick="qzBoardSalir()">✔ Cerrar proyector</button></div>`;
+  }
+  cont.innerHTML = top + body;
+}
+function _qzTimerStart(abiertaEn, tiempo){
+  clearInterval(_qzTimerInt);
+  const t0=abiertaEn? new Date(abiertaEn).getTime() : Date.now();
+  const dur=Math.max(5,(tiempo||30))*1000;
+  const tick=()=>{
+    const bar=document.getElementById('qz-tbar'), num=document.getElementById('qz-tnum');
+    if(!bar||!num){ clearInterval(_qzTimerInt); return; }
+    const rest=Math.max(0, dur-(Date.now()-t0));
+    bar.style.width=(rest/dur*100)+'%';
+    num.textContent=Math.ceil(rest/1000);
+    if(rest<=0) clearInterval(_qzTimerInt);
+  };
+  _qzTimerInt=setInterval(tick,250); tick();
+}
+
+// ---------- ALUMNO: juego EN VIVO ----------
+let _qzA=null, _qzAPoll=null, _qzCurP=null, _qzAluSelSet=new Set(), _qzAluT0=0;
+async function qzAluPedirPin(){
+  const pin=prompt('🎯 PIN del juego (6 dígitos, está proyectado en la pantalla):');
+  if(pin==null) return;
+  if(!/^\d{6}$/.test(pin.trim())){ alert('El PIN son 6 dígitos'); return; }
+  try{
+    const d=await _qzInvoke('unirse',{pin:pin.trim()});
+    _qzA={ses:d.sesion, pregs:d.preguntas||[], titulo:d.titulo, total:0, resp:{}};
+    (d.mias||[]).forEach(m=>{ _qzA.resp[m.pregunta_idx]={correcta:m.correcta, puntos:m.puntos, enviada:true}; _qzA.total+=m.puntos||0; });
+    document.getElementById('qz-alu-tit').textContent='🎯 '+(d.titulo||'Juego en vivo');
+    document.getElementById('qz-alu-sub').textContent='EN VIVO';
+    showScreen('screen-quiz-alumno');
+    _qzAluRender();
+    clearInterval(_qzAPoll);
+    _qzAPoll=setInterval(_qzAluTick,2000);
+  }catch(e){ alert('⚠️ '+e.message); }
+}
+function qzAluSalir(){
+  clearInterval(_qzAPoll); clearInterval(_qzTimerInt); _qzA=null; _qzP=null;
+  showScreen('screen-aula-cursante');
+}
+async function _qzAluTick(){
+  const act=document.querySelector('.screen.active');
+  if(!act || act.id!=='screen-quiz-alumno'){ clearInterval(_qzAPoll); return; }
+  if(!_qzA) return;
+  try{
+    const {data,error}=await sb.from('v_quiz_sesiones').select('estado,pregunta_idx,pregunta_abierta_en').eq('id',_qzA.ses.id).limit(1);
+    if(error||!data||!data.length) return;
+    const s=data[0];
+    if(s.estado!==_qzA.ses.estado || s.pregunta_idx!==_qzA.ses.pregunta_idx){
+      _qzA.ses.estado=s.estado; _qzA.ses.pregunta_idx=s.pregunta_idx; _qzA.ses.pregunta_abierta_en=s.pregunta_abierta_en;
+      _qzAluRender();
+    }
+  }catch(e){}
+}
+function _qzFeedHtml(r, p){
+  if(r.correcta===true) return `<div class="qz-alu-feed ok"><div class="giga">🎯</div><div style="font-size:20px;font-weight:900;margin-top:6px">¡CORRECTO!</div><div class="qz-alu-pts">+${r.puntos} pts</div><div class="qz-sub">Total: ${_qzA?_qzA.total:r.puntos} pts — esperá la pantalla…</div></div>`;
+  if(r.correcta===false) return `<div class="qz-alu-feed mal"><div class="giga">✖</div><div style="font-size:19px;font-weight:900;margin-top:6px">Esta no era…</div>${r.solTxt?`<div style="font-size:14px;margin-top:8px;color:#7be67b">${escapeHtml(r.solTxt)}</div>`:''}${r.puntos?`<div class="qz-alu-pts">+${r.puntos} pts (parcial)</div>`:''}<div class="qz-sub">Mirá la pantalla 👀</div></div>`;
+  return `<div class="qz-alu-feed neutro"><div class="giga">📨</div><div style="font-size:18px;font-weight:900;margin-top:6px">¡Enviado!</div><div class="qz-sub">Tu aporte ya está en la pantalla 👀</div></div>`;
+}
+function _qzSolTexto(p, sol){
+  if(!sol) return '';
+  if(p.tipo==='completar') return 'Respuesta correcta: '+(Array.isArray(sol)?sol.join(' · '):'');
+  const ops=(sol.opciones&&sol.opciones.length?sol.opciones:p.opciones)||[];
+  return 'Correcta: '+((sol.correctas||[]).map(i=>ops[i]).filter(Boolean).join(' · '));
+}
+function _qzAluRender(){
+  if(!_qzA) return;
+  const cont=document.getElementById('qz-alu-body');
+  const ses=_qzA.ses, idx=ses.pregunta_idx, p=_qzA.pregs[idx];
+  clearInterval(_qzTimerInt);
+  if(ses.estado==='lobby'){
+    cont.innerHTML=`<div class="qz-alu-feed neutro" style="margin-top:20px"><div class="giga">🎉</div><div style="font-size:19px;font-weight:900;margin-top:8px">¡Ya estás adentro!</div><div class="qz-sub">${escapeHtml(_qzA.titulo||'')}<br>Tu nombre ya aparece en la pantalla. Esperá que el profesor comience…</div></div>`;
+    return;
+  }
+  if(ses.estado==='fin'){ _qzAluFin(); return; }
+  if(!p){ cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">Esperando…</div>'; return; }
+  const ya=_qzA.resp[idx];
+  if(ses.estado==='resultados'){
+    cont.innerHTML=`<div class="qz-alu-card"><div style="font-weight:800;font-size:15px;margin-bottom:4px">${escapeHtml(p.texto)}</div>`+
+      (ya? _qzFeedHtml(ya,p) : '<div class="qz-alu-feed neutro"><div class="giga">⏱</div><div style="font-size:16px;font-weight:800;margin-top:6px">No llegaste a responder esta</div><div class="qz-sub">Mirá los resultados en la pantalla 👀</div></div>')+'</div>';
+    return;
+  }
+  // estado 'pregunta'
+  if(ya){ cont.innerHTML=`<div class="qz-alu-card"><div style="font-weight:800;font-size:15px;margin-bottom:4px">${escapeHtml(p.texto)}</div>`+_qzFeedHtml(ya,p)+'</div>'; return; }
+  _qzCurP=p; _qzAluSelSet=new Set(); _qzAluT0=ses.pregunta_abierta_en? new Date(ses.pregunta_abierta_en).getTime() : Date.now();
+  cont.innerHTML=`<div class="qz-alu-card">
+    <div class="qz-timerwrap" style="margin:0 0 8px"><div class="qz-timerbar"><div id="qz-tbar" style="width:100%"></div></div><div class="qz-timer-num" id="qz-tnum">·</div></div>
+    <div style="font-weight:800;font-size:16px;margin:6px 0 14px">${QZ_TIPOS[p.tipo].ic} ${escapeHtml(p.texto)}</div>
+    <div id="qz-alu-zona">${_qzAluZonaHtml(p,'qzv')}</div>
+    <div id="qz-alu-aviso" style="font-size:12px;color:#9fb3cc;margin-top:8px"></div></div>`;
+  _qzTimerStart(ses.pregunta_abierta_en, p.tiempo);
+}
+function _qzAluZonaHtml(p, prefix){
+  if(p.tipo==='multiple'||p.tipo==='vf'||p.tipo==='encuesta'){
+    return (p.opciones||[]).map((o,i)=>`<button class="qz-alu-opt qz-c${i%6}" onclick="qzAluElegir(${i})"><b>${String.fromCharCode(65+i)}</b> ${escapeHtml(o)}</button>`).join('');
+  }
+  if(p.tipo==='multi'){
+    return (p.opciones||[]).map((o,i)=>`<button class="qz-alu-opt qz-c${i%6}" id="${prefix}-mo${i}" onclick="qzAluToggle(${i},'${prefix}')"><b>${String.fromCharCode(65+i)}</b> ${escapeHtml(o)}</button>`).join('')+
+      `<button class="qz-btn gold" style="width:100%;margin-top:6px" onclick="qzAluEnviar('${prefix}')">📨 Enviar selección</button>`;
+  }
+  if(p.tipo==='completar'){
+    return _qzCompletarHtml(p,prefix)+`<button class="qz-btn gold" style="width:100%;margin-top:14px" onclick="qzAluEnviar('${prefix}')">📨 Enviar respuestas</button>`;
+  }
+  const max=p.max||240;
+  return `<textarea id="${prefix}-txt" rows="${max>80?4:2}" maxlength="${max}" style="width:100%" placeholder="${p.tipo==='nube'?'Una o dos palabras (podés separar con coma)':'Escribí tu idea…'}"></textarea>
+    <div style="font-size:11px;color:var(--text-muted);text-align:right">máx. ${max} caracteres</div>
+    <button class="qz-btn gold" style="width:100%;margin-top:8px" onclick="qzAluEnviar('${prefix}')">📨 Enviar</button>`;
+}
+function _qzCompletarHtml(p, prefix){
+  const parts=String(p.plantilla||'').split(/_{3,}/);
+  let html='<div class="qz-plantilla">';
+  parts.forEach((seg,i)=>{
+    html+=escapeHtml(seg);
+    if(i<parts.length-1){
+      const b=(p.blanks||[])[i]||{modo:'texto'};
+      const num=QZ_NUMS[i]||('('+(i+1)+')');
+      if(b.modo==='lista'){
+        const ops=_qzShuffle((b.lista||[]).slice());
+        html+=`<select class="qz-blank-sel" id="${prefix}-b${i}"><option value="">${num} elegí…</option>${ops.map(o=>`<option>${escapeHtml(o)}</option>`).join('')}</select>`;
+      } else if(b.modo==='cajas' && b.mascara){
+        html+=`<span class="qz-cajas" id="${prefix}-b${i}">${b.mascara.map(ch=> ch==null?'<input maxlength="1" autocomplete="off" oninput="_qzCajaNext(this)">':`<span class="qz-caja-fija">${escapeHtml(ch)}</span>`).join('')}</span>`;
+      } else {
+        html+=`<input class="qz-blank-inp" id="${prefix}-b${i}" placeholder="${num}" autocomplete="off">`;
+      }
+      if(b.pista) html+=`<button class="qz-pista" onclick="_qzPista(${i})" title="Pista">💡</button>`;
+    }
+  });
+  return html+'</div>';
+}
+function _qzPista(i){ const b=_qzCurP&&_qzCurP.blanks&&_qzCurP.blanks[i]; if(b&&b.pista) alert('💡 Pista: '+b.pista); }
+function _qzCajaNext(el){ if(el.value){ let n=el.nextElementSibling; while(n && n.tagName!=='INPUT') n=n.nextElementSibling; if(n) n.focus(); } }
+function _qzCompletarVals(p, prefix){
+  return (p.blanks||[]).map((b,i)=>{
+    if(b.modo==='cajas'){
+      const contB=document.getElementById(prefix+'-b'+i); if(!contB) return '';
+      let out=''; contB.querySelectorAll('input,.qz-caja-fija').forEach(el=>{ out+= el.tagName==='INPUT' ? (el.value||'') : el.textContent; });
+      return out;
+    }
+    const el=document.getElementById(prefix+'-b'+i); return el? el.value : '';
+  });
+}
+function qzAluToggle(i, prefix){
+  const el=document.getElementById(prefix+'-mo'+i); if(!el) return;
+  if(_qzAluSelSet.has(i)){ _qzAluSelSet.delete(i); el.classList.remove('sel'); }
+  else { _qzAluSelSet.add(i); el.classList.add('sel'); }
+}
+function qzAluElegir(i){ _qzAluEnviarRespuesta(i); }
+function qzAluEnviar(prefix){
+  const p=_qzCurP; if(!p) return;
+  let r=null;
+  if(p.tipo==='multi'){ r=[..._qzAluSelSet]; if(!r.length){ alert('Elegí al menos una opción'); return; } }
+  else if(p.tipo==='completar'){ r=_qzCompletarVals(p,prefix); if(r.every(v=>!String(v).trim())){ alert('Completá al menos un hueco'); return; } }
+  else { const t=document.getElementById(prefix+'-txt'); r=(t? t.value:'').trim(); if(!r){ alert('Escribí tu respuesta'); return; } }
+  _qzAluEnviarRespuesta(r);
+}
+async function _qzAluEnviarRespuesta(r){
+  if(!_qzA || !_qzCurP) { if(_qzP){ _qzPracticaGuardarLocal(r); } return; }
+  const idx=_qzA.ses.pregunta_idx, p=_qzCurP;
+  const ms=Date.now()-_qzAluT0;
+  const zona=document.getElementById('qz-alu-zona'); if(zona) zona.style.opacity='.4';
+  try{
+    const d=await _qzInvoke('responder',{sesion_id:_qzA.ses.id, pregunta_idx:idx, respuesta:r, ms});
+    const fb={correcta:d.correcta, puntos:d.puntos||0, enviada:true, solTxt:_qzSolTexto(p,d.solucion)};
+    _qzA.resp[idx]=fb; _qzA.total+=fb.puntos;
+    _qzAluRender();
+  }catch(e){
+    if(zona) zona.style.opacity='1';
+    alert('⚠️ '+e.message);
+    if(/ya respondiste|cerró/i.test(e.message)){ _qzA.resp[idx]=_qzA.resp[idx]||{correcta:null,puntos:0,enviada:true}; _qzAluRender(); }
+  }
+}
+async function _qzAluFin(){
+  const cont=document.getElementById('qz-alu-body');
+  let pos='';
+  try{
+    const {data}=await sb.from('v_quiz_respuestas').select('nombre,puntos,correcta').eq('sesion_id',_qzA.ses.id).limit(4000);
+    const st=_qzStandings(data||[]);
+    const yo=st.findIndex(s=> s.nombre===(currentUser&&currentUser.nombre_completo));
+    if(yo>=0) pos=`<div style="font-size:17px;font-weight:900;margin-top:8px">${yo===0?'🥇':yo===1?'🥈':yo===2?'🥉':'🎖️'} Puesto ${yo+1} de ${st.length}</div>`;
+  }catch(e){}
+  cont.innerHTML=`<div class="qz-alu-feed ok" style="margin-top:20px"><div class="giga">🏁</div><div style="font-size:19px;font-weight:900;margin-top:8px">¡Terminó el juego!</div><div class="qz-alu-pts">${_qzA.total} pts</div>${pos}<div class="qz-sub">Mirá el podio en la pantalla 🏆</div></div>
+  <button class="qz-btn" style="width:100%;margin-top:14px" onclick="qzAluSalir()">Volver al Aula Virtual</button>`;
+}
+
+// ---------- ALUMNO: práctica libre (a su ritmo) ----------
+let _qzP=null;
+async function _qzRenderSeccionMateria(materiaId){
+  const cont=document.getElementById('aula-mat-quiz'); if(!cont) return;
+  const ses=(typeof getSession==='function')?getSession():null;
+  if(!ses || ses.tipo!=='cursante'){ cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">—</div>'; return; }
+  cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  let html=`<button class="list-item" style="display:flex;align-items:center;gap:10px;padding:11px 12px;width:100%;text-align:left" onclick="qzAluPedirPin()">
+    <div style="font-size:20px">🎮</div><div style="flex:1"><div style="font-weight:700;color:var(--text-primary);font-size:14px">Juego EN VIVO (con PIN)</div><div style="font-size:11px;color:var(--text-muted)">Cuando el profesor proyecta un juego en clase</div></div><div style="font-size:13px;color:var(--gold-light)">Entrar ›</div></button>`;
+  try{
+    const d=await _qzInvoke('practica_listar',{materia_aula_id:materiaId});
+    const lista=d.cuestionarios||[], previos=d.previos||{};
+    html+= lista.length ? lista.map(c=>{
+      const pv=previos[c.id];
+      const nCal=c.n_preguntas;
+      return `<button class="list-item" style="display:flex;align-items:center;gap:10px;padding:11px 12px;width:100%;text-align:left" onclick="qzPracticaIniciar('${c.id}')">
+        <div style="font-size:20px">🎯</div>
+        <div style="flex:1"><div style="font-weight:700;color:var(--text-primary);font-size:14px">${escapeHtml(c.titulo)}</div>
+        <div style="font-size:11px;color:var(--text-muted)">${nCal} pregunta(s)${pv?` · tu último intento: ${pv.puntos} pts`:' · todavía no la hiciste'}</div></div>
+        <div style="font-size:13px;color:var(--gold-light)">${pv?'Reintentar ›':'Practicar ›'}</div></button>`;
+    }).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">El profesor aún no publicó prácticas para esta materia.</div>';
+  }catch(e){
+    html+='<div class="efm-no-data" style="color:var(--text-muted)">Prácticas no disponibles por el momento.</div>';
+  }
+  cont.innerHTML=html;
+}
+async function qzPracticaIniciar(id){
+  try{
+    const d=await _qzInvoke('practica_ver',{cuestionario_id:id});
+    _qzP={id:d.id, titulo:d.titulo, pregs:d.preguntas||[], i:0, resp:[], t0:Date.now()};
+    _qzA=null; clearInterval(_qzAPoll);
+    document.getElementById('qz-alu-tit').textContent='🎯 '+d.titulo;
+    document.getElementById('qz-alu-sub').textContent='Práctica a tu ritmo';
+    showScreen('screen-quiz-alumno');
+    _qzPracticaRender();
+  }catch(e){ alert('⚠️ '+e.message); }
+}
+function _qzPracticaRender(){
+  const cont=document.getElementById('qz-alu-body');
+  clearInterval(_qzTimerInt);
+  if(!_qzP) return;
+  if(_qzP.i>=_qzP.pregs.length){ _qzPracticaEnviar(); return; }
+  const p=_qzP.pregs[_qzP.i];
+  _qzCurP=p; _qzAluSelSet=new Set(); _qzP.t0=Date.now();
+  cont.innerHTML=`<div class="qz-alu-card">
+    <div style="font-size:12px;color:#9fb3cc;margin-bottom:6px">Pregunta ${_qzP.i+1} de ${_qzP.pregs.length}</div>
+    <div style="font-weight:800;font-size:16px;margin:4px 0 14px">${QZ_TIPOS[p.tipo].ic} ${escapeHtml(p.texto)}</div>
+    <div id="qz-alu-zona">${_qzAluZonaHtml(p,'qzp')}</div></div>`;
+}
+function _qzPracticaGuardarLocal(r){
+  _qzP.resp.push({idx:_qzP.i, respuesta:r, ms:Date.now()-_qzP.t0});
+  _qzP.i++; _qzPracticaRender();
+}
+async function _qzPracticaEnviar(){
+  const cont=document.getElementById('qz-alu-body');
+  cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">📨 Calificando…</div>';
+  try{
+    const d=await _qzInvoke('practica_enviar',{cuestionario_id:_qzP.id, respuestas:_qzP.resp});
+    const det=d.detalle||[];
+    const nCal=det.filter(x=>x.correcta!==null).length;
+    const ok=det.filter(x=>x.correcta===true).length;
+    cont.innerHTML=`<div class="qz-alu-feed ${ok>=nCal*0.6?'ok':'neutro'}" style="margin-top:8px"><div class="giga">${ok>=nCal*0.8?'🏆':ok>=nCal*0.5?'💪':'📖'}</div>
+      <div style="font-size:20px;font-weight:900;margin-top:6px">${ok} / ${nCal} correctas</div>
+      <div class="qz-alu-pts">${d.total} pts</div></div>
+      <div class="section-label" style="margin-top:14px">Revisión</div>`+
+      det.map((x,i)=>{
+        const p=_qzP.pregs[i];
+        const icon=x.correcta===true?'✅':x.correcta===false?'❌':'💬';
+        const sol=x.correcta===false? `<div style="font-size:12px;color:#7be67b;margin-top:3px">${escapeHtml(_qzSolTexto(p,x.solucion))}</div>`:'';
+        return `<div class="qz-item"><div style="font-size:13px;color:var(--text-primary)">${icon} <b>${i+1}.</b> ${escapeHtml(p.texto)}</div>${sol}</div>`;
+      }).join('')+
+      `<div style="display:flex;gap:8px;margin-top:12px">
+        <button class="qz-btn gold" style="flex:1" onclick="qzPracticaIniciar('${_qzP.id}')">🔁 Intentar de nuevo</button>
+        <button class="qz-btn ghost" style="flex:1;border:1px solid var(--border,#2a3a52);color:var(--text-primary)" onclick="qzAluSalir()">Volver</button>
+      </div>`;
+  }catch(e){ cont.innerHTML='<div class="efm-no-data">⚠️ '+escapeHtml(e.message)+'</div>'; }
 }
 
 /* ===== v2.9.101: DOCUMENTOS INSTITUCIONALES ===== */
