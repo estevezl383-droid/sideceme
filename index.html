@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.158</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.159</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5815,80 +5815,104 @@ input::placeholder, textarea::placeholder {
 .qz-opt-row{display:flex;gap:8px;align-items:center;margin-bottom:6px}
 .qz-opt-row input[type=text]{flex:1}
 
-/* ============ SKIN "AULA" — flat premium claro (solo pantalla del alumno) ============
-   Rediseño v2.9.158 pedido por Sergio: contraste WCAG, grilla 8px, contenido centrado
-   (sin espacios muertos en escritorio), paleta vibrante pero profesional, micro-
-   interacciones suaves. La clase hook sigue siendo .qz-arena (solo cambió el estilo). */
-#screen-quiz-alumno.qz-arena{background:#EEF1F6}
-#screen-quiz-alumno.qz-arena .app-header{background:#fff !important;border-bottom:1px solid #E2E8F0 !important;box-shadow:0 1px 2px rgba(15,23,42,.05) !important}
+/* ============ SKIN "NEÓN DIGITAL" — v2.9.159 (solo pantalla del alumno) ============
+   Pedido de Sergio: fondo oscuro DIGITAL con grilla, letras fosforescentes con glow,
+   look sistemático/tecnológico muy llamativo. Escritorio ancho, sin espacios muertos.
+   La clase hook sigue siendo .qz-arena (solo cambió el estilo). */
+#screen-quiz-alumno.qz-arena{
+  background:#060A14;
+  background-image:
+    radial-gradient(900px 500px at 50% -150px, rgba(34,211,238,.10), transparent 60%),
+    linear-gradient(rgba(34,211,238,.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34,211,238,.045) 1px, transparent 1px);
+  background-size:100% 100%, 34px 34px, 34px 34px;
+}
+#screen-quiz-alumno.qz-arena .app-header{background:rgba(6,12,24,.95) !important;border-bottom:1px solid rgba(34,211,238,.5) !important;box-shadow:0 4px 24px rgba(34,211,238,.15) !important}
 #screen-quiz-alumno.qz-arena .app-header::before, #screen-quiz-alumno.qz-arena .app-header::after{display:none !important}
-#screen-quiz-alumno.qz-arena .header-title{color:#0F172A !important;text-shadow:none !important}
-#screen-quiz-alumno.qz-arena .header-sub{color:#64748B !important;text-shadow:none !important}
-#screen-quiz-alumno.qz-arena .back-btn{background:#fff !important;border:1.5px solid #CBD5E1 !important;border-radius:10px !important;color:#0F172A !important;box-shadow:0 1px 2px rgba(15,23,42,.06) !important;transition:background .15s,transform .15s cubic-bezier(.2,.8,.2,1)}
-#screen-quiz-alumno.qz-arena .back-btn:active{transform:scale(.94)}
-#screen-quiz-alumno.qz-arena .header-crest{filter:grayscale(1) opacity(.75)}
-/* layout centrado: nada de pantalla vacía */
+#screen-quiz-alumno.qz-arena .header-title{color:#22D3EE !important;text-shadow:0 0 12px rgba(34,211,238,.8) !important;font-family:ui-monospace,'SF Mono',Menlo,monospace;letter-spacing:1px}
+#screen-quiz-alumno.qz-arena .header-sub{color:#5EEAD4 !important;text-shadow:0 0 8px rgba(94,234,212,.5) !important}
+#screen-quiz-alumno.qz-arena .back-btn{background:rgba(34,211,238,.08) !important;border:1.5px solid rgba(34,211,238,.6) !important;border-radius:10px !important;color:#22D3EE !important;box-shadow:0 0 12px rgba(34,211,238,.25) !important;transition:box-shadow .2s,transform .15s}
+#screen-quiz-alumno.qz-arena .back-btn:active{transform:scale(.92)}
+#screen-quiz-alumno.qz-arena .header-crest{filter:hue-rotate(160deg) saturate(2) brightness(1.2)}
+/* layout: centrado vertical, ANCHO en escritorio */
 .qz-arena #qz-alu-body{display:flex;flex-direction:column;min-height:calc(100vh - 130px)}
-.qz-wrap{margin:auto;width:100%;max-width:640px;padding:8px 0 32px}
-.qz-wrap.qz-wide{max-width:960px}
-.qz-progress{height:8px;background:#E2E8F0;border-radius:99px;overflow:hidden;margin:4px 0 6px}
-.qz-progress>div{height:100%;background:linear-gradient(90deg,#2563EB,#0EA5E9);border-radius:99px;transition:width .45s cubic-bezier(.2,.8,.2,1)}
-.qz-meta{font-size:12px;font-weight:800;color:#64748B;letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px}
-.qz-arena .qz-alu-card{background:#fff;border:1px solid #E2E8F0;border-radius:16px;box-shadow:0 1px 2px rgba(15,23,42,.05),0 10px 30px rgba(15,23,42,.07);color:#0F172A;padding:24px;margin-top:0}
-.qz-arena .qz-alu-card [style*="9fb3cc"]{color:#64748B !important}
-.qz-arena .qz-alu-opt{border:none;border-radius:12px;min-height:56px;box-shadow:0 1px 2px rgba(15,23,42,.15);color:#fff;font-size:16px;transition:transform .16s cubic-bezier(.2,.8,.2,1),box-shadow .16s,filter .16s}
-.qz-arena .qz-alu-opt:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(15,23,42,.18)}
+.qz-wrap{margin:auto;width:100%;max-width:940px;padding:8px 0 32px}
+.qz-wrap.qz-wide{max-width:1100px}
+.qz-progress{height:8px;background:#101A30;border:1px solid rgba(34,211,238,.3);border-radius:99px;overflow:hidden;margin:4px 0 6px}
+.qz-progress>div{height:100%;background:linear-gradient(90deg,#22D3EE,#4ADE80);border-radius:99px;box-shadow:0 0 14px rgba(34,211,238,.9);transition:width .45s cubic-bezier(.2,.8,.2,1)}
+.qz-meta{font-size:12px;font-weight:800;color:#22D3EE;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;font-family:ui-monospace,'SF Mono',Menlo,monospace;text-shadow:0 0 10px rgba(34,211,238,.6)}
+.qz-arena .qz-alu-card{background:linear-gradient(180deg,rgba(14,23,42,.96),rgba(9,15,30,.98));border:1px solid rgba(34,211,238,.35);border-radius:18px;box-shadow:0 0 0 1px rgba(34,211,238,.08),0 0 40px rgba(34,211,238,.10),inset 0 1px 0 rgba(255,255,255,.05);color:#E6F1FF;padding:clamp(18px,3vw,32px);margin-top:0}
+.qz-arena .qz-alu-card [style*="9fb3cc"]{color:#7DD3FC !important}
+/* opciones: grilla 2 columnas en escritorio, tiles oscuros con borde NEÓN por color */
+.qz-opts-grid{display:grid;grid-template-columns:1fr;gap:12px}
+@media(min-width:720px){ .qz-opts-grid{grid-template-columns:1fr 1fr} }
+.qz-arena .qz-alu-opt{background:#0B1428;border-radius:14px;min-height:64px;font-size:clamp(15px,1.6vw,18px);margin-bottom:0;transition:transform .16s cubic-bezier(.2,.8,.2,1),box-shadow .2s,background .2s}
+.qz-arena .qz-alu-opt:hover{transform:translateY(-2px)}
 .qz-arena .qz-alu-opt:active{transform:scale(.98)}
-.qz-arena .qz-alu-opt.sel{outline:3px solid #0F172A;outline-offset:2px;box-shadow:0 6px 16px rgba(15,23,42,.2)}
-.qz-arena .qz-alu-opt b{background:rgba(255,255,255,.25);border-radius:8px;min-width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center}
-.qz-arena .qz-c0{background:#3B82F6}.qz-arena .qz-c1{background:#F43F5E}.qz-arena .qz-c2{background:#F59E0B}.qz-arena .qz-c3{background:#22C55E}.qz-arena .qz-c4{background:#14B8A6}.qz-arena .qz-c5{background:#F97316}
-.qz-arena .qz-btn{border:none;border-radius:12px;min-height:50px;box-shadow:0 1px 2px rgba(15,23,42,.15);transition:transform .16s cubic-bezier(.2,.8,.2,1),box-shadow .16s,filter .16s}
-.qz-arena .qz-btn:hover{transform:translateY(-1px);filter:brightness(1.05)}
+.qz-arena .qz-alu-opt.sel{outline:2px solid #fff;outline-offset:2px}
+.qz-arena .qz-alu-opt b{border-radius:8px;min-width:32px;height:32px;display:inline-flex;align-items:center;justify-content:center;font-family:ui-monospace,Menlo,monospace}
+.qz-arena .qz-c0{background:rgba(34,211,238,.10);border:1.5px solid #22D3EE;color:#22D3EE;box-shadow:0 0 16px rgba(34,211,238,.25);text-shadow:0 0 8px rgba(34,211,238,.6)}
+.qz-arena .qz-c0 b{background:rgba(34,211,238,.2)}
+.qz-arena .qz-c1{background:rgba(244,114,182,.10);border:1.5px solid #F472B6;color:#F472B6;box-shadow:0 0 16px rgba(244,114,182,.25);text-shadow:0 0 8px rgba(244,114,182,.6)}
+.qz-arena .qz-c1 b{background:rgba(244,114,182,.2)}
+.qz-arena .qz-c2{background:rgba(251,191,36,.10);border:1.5px solid #FBBF24;color:#FBBF24;box-shadow:0 0 16px rgba(251,191,36,.25);text-shadow:0 0 8px rgba(251,191,36,.6)}
+.qz-arena .qz-c2 b{background:rgba(251,191,36,.2)}
+.qz-arena .qz-c3{background:rgba(74,222,128,.10);border:1.5px solid #4ADE80;color:#4ADE80;box-shadow:0 0 16px rgba(74,222,128,.25);text-shadow:0 0 8px rgba(74,222,128,.6)}
+.qz-arena .qz-c3 b{background:rgba(74,222,128,.2)}
+.qz-arena .qz-c4{background:rgba(167,139,250,.10);border:1.5px solid #A78BFA;color:#A78BFA;box-shadow:0 0 16px rgba(167,139,250,.25);text-shadow:0 0 8px rgba(167,139,250,.6)}
+.qz-arena .qz-c4 b{background:rgba(167,139,250,.2)}
+.qz-arena .qz-c5{background:rgba(251,146,60,.10);border:1.5px solid #FB923C;color:#FB923C;box-shadow:0 0 16px rgba(251,146,60,.25);text-shadow:0 0 8px rgba(251,146,60,.6)}
+.qz-arena .qz-c5 b{background:rgba(251,146,60,.2)}
+.qz-arena .qz-alu-opt:hover.qz-c0{background:rgba(34,211,238,.22)}.qz-arena .qz-alu-opt:hover.qz-c1{background:rgba(244,114,182,.22)}.qz-arena .qz-alu-opt:hover.qz-c2{background:rgba(251,191,36,.22)}.qz-arena .qz-alu-opt:hover.qz-c3{background:rgba(74,222,128,.22)}.qz-arena .qz-alu-opt:hover.qz-c4{background:rgba(167,139,250,.22)}.qz-arena .qz-alu-opt:hover.qz-c5{background:rgba(251,146,60,.22)}
+.qz-arena .qz-btn{border:none;border-radius:12px;min-height:52px;transition:transform .16s cubic-bezier(.2,.8,.2,1),box-shadow .2s,filter .2s}
+.qz-arena .qz-btn:hover{transform:translateY(-1px);filter:brightness(1.15)}
 .qz-arena .qz-btn:active{transform:scale(.98)}
-.qz-arena .qz-btn.gold{background:#2563EB;color:#fff;text-shadow:none}
-.qz-arena .qz-timerwrap{margin:0 0 12px}
-.qz-arena .qz-timerbar{background:#E2E8F0;border:none;height:10px;border-radius:99px}
-.qz-arena .qz-timer-num{color:#0F172A !important;font-weight:900;font-size:22px}
-.qz-arena .qz-plantilla{color:#0F172A;font-weight:500;font-size:16px}
-.qz-arena .qz-blank-inp{background:#F8FAFC;border:1.5px solid #CBD5E1;border-bottom:2.5px solid #2563EB;border-radius:10px;color:#0F172A;box-shadow:none}
-.qz-arena .qz-blank-inp:focus{outline:none;border-color:#2563EB;background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.15)}
-.qz-arena .qz-blank-sel{background:#F8FAFC;border:1.5px solid #CBD5E1;border-radius:10px;color:#0F172A;box-shadow:none;font-weight:600}
-.qz-arena .qz-cajas input{background:#F8FAFC;border:1.5px solid #CBD5E1;border-radius:8px;color:#0F172A;box-shadow:none}
-.qz-arena .qz-cajas input:focus{outline:none;border-color:#2563EB;background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.15)}
-.qz-arena .qz-caja-fija{color:#0F172A;opacity:1}
-.qz-arena .qz-pista{background:#FEF3C7;border:1px solid #F59E0B;border-radius:8px}
-.qz-arena textarea{background:#F8FAFC;border:1.5px solid #CBD5E1 !important;border-radius:12px;color:#0F172A;box-shadow:none;font-weight:500;padding:12px}
-.qz-arena textarea:focus{outline:none;border-color:#2563EB !important;background:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.15)}
-.qz-arena .qz-ord-row{background:#F8FAFC;border:1.5px solid #E2E8F0;border-radius:12px;box-shadow:0 1px 2px rgba(15,23,42,.04);color:#0F172A;transition:box-shadow .15s,border-color .15s}
-.qz-arena .qz-ord-row:hover{border-color:#93C5FD}
-.qz-arena .qz-ord-num{color:#1D4ED8;background:#DBEAFE;border:none;border-radius:8px;padding:3px 8px}
-.qz-arena .qz-ord-btn{background:#fff;border:1.5px solid #CBD5E1;color:#0F172A;box-shadow:0 1px 2px rgba(15,23,42,.06);border-radius:9px;transition:transform .12s,background .12s}
-.qz-arena .qz-ord-btn:hover{background:#EFF6FF;border-color:#93C5FD}
+.qz-arena .qz-btn.gold{background:linear-gradient(90deg,#0891B2,#22D3EE);color:#04121C;font-weight:900;text-shadow:none;box-shadow:0 0 22px rgba(34,211,238,.5)}
+.qz-arena .qz-timerwrap{margin:0 0 14px}
+.qz-arena .qz-timerbar{background:#101A30;border:1px solid rgba(34,211,238,.3);height:10px;border-radius:99px}
+.qz-arena .qz-timerbar>div{box-shadow:0 0 12px rgba(74,222,128,.7)}
+.qz-arena .qz-timer-num{color:#4ADE80 !important;font-weight:900;font-size:24px;font-family:ui-monospace,Menlo,monospace;text-shadow:0 0 12px rgba(74,222,128,.8)}
+.qz-arena .qz-plantilla{color:#E6F1FF;font-weight:500;font-size:clamp(15px,1.7vw,18px)}
+.qz-arena .qz-blank-inp{background:#0B1428;border:1.5px solid rgba(34,211,238,.5);border-radius:10px;color:#22D3EE;box-shadow:none;font-weight:700}
+.qz-arena .qz-blank-inp:focus{outline:none;border-color:#22D3EE;box-shadow:0 0 14px rgba(34,211,238,.5)}
+.qz-arena .qz-blank-sel{background:#0B1428;border:1.5px solid rgba(34,211,238,.5);border-radius:10px;color:#22D3EE;box-shadow:none;font-weight:700}
+.qz-arena .qz-cajas input{background:#0B1428;border:1.5px solid rgba(34,211,238,.5);border-radius:8px;color:#22D3EE;box-shadow:none;text-shadow:0 0 8px rgba(34,211,238,.6)}
+.qz-arena .qz-cajas input:focus{outline:none;border-color:#22D3EE;box-shadow:0 0 14px rgba(34,211,238,.5)}
+.qz-arena .qz-caja-fija{color:#7DD3FC;opacity:1}
+.qz-arena .qz-pista{background:rgba(251,191,36,.15);border:1px solid #FBBF24;border-radius:8px;box-shadow:0 0 10px rgba(251,191,36,.3)}
+.qz-arena textarea{background:#0B1428;border:1.5px solid rgba(34,211,238,.5) !important;border-radius:12px;color:#E6F1FF;box-shadow:none;font-weight:500;padding:12px}
+.qz-arena textarea:focus{outline:none;border-color:#22D3EE !important;box-shadow:0 0 14px rgba(34,211,238,.4)}
+.qz-arena .qz-ord-row{background:#0B1428;border:1.5px solid rgba(34,211,238,.35);border-radius:12px;color:#E6F1FF;transition:border-color .15s,box-shadow .15s}
+.qz-arena .qz-ord-row:hover{border-color:#22D3EE;box-shadow:0 0 12px rgba(34,211,238,.25)}
+.qz-arena .qz-ord-num{color:#04121C;background:#22D3EE;border:none;border-radius:8px;padding:3px 8px;box-shadow:0 0 10px rgba(34,211,238,.6);font-family:ui-monospace,Menlo,monospace}
+.qz-arena .qz-ord-btn{background:#0B1428;border:1.5px solid rgba(34,211,238,.5);color:#22D3EE;border-radius:9px;transition:transform .12s,box-shadow .15s}
+.qz-arena .qz-ord-btn:hover{box-shadow:0 0 12px rgba(34,211,238,.4)}
 .qz-arena .qz-ord-btn:active{transform:scale(.9)}
-.qz-arena .qz-rel-izq{background:#EFF6FF;border:1.5px solid #BFDBFE;border-radius:12px;color:#1E3A8A;box-shadow:none}
-.qz-arena .qz-rel-sel{background:#F8FAFC;border:1.5px solid #CBD5E1;border-radius:12px;color:#0F172A;box-shadow:none;min-height:46px}
-.qz-arena .qz-banco{border:1.5px dashed #94A3B8;background:#F8FAFC;border-radius:14px}
-.qz-arena .qz-chip-banco{background:#fff;border:1.5px solid #CBD5E1;color:#0F172A;box-shadow:0 1px 2px rgba(15,23,42,.07);min-height:44px;transition:transform .15s cubic-bezier(.2,.8,.2,1),box-shadow .15s,border-color .15s}
-.qz-arena .qz-chip-banco:hover{border-color:#2563EB;transform:translateY(-1px)}
+.qz-arena .qz-rel-izq{background:rgba(34,211,238,.10);border:1.5px solid rgba(34,211,238,.6);border-radius:12px;color:#22D3EE;box-shadow:none;text-shadow:0 0 8px rgba(34,211,238,.5)}
+.qz-arena .qz-rel-sel{background:#0B1428;border:1.5px solid rgba(34,211,238,.5);border-radius:12px;color:#E6F1FF;box-shadow:none;min-height:46px}
+.qz-arena .qz-banco{border:1.5px dashed rgba(34,211,238,.5);background:rgba(34,211,238,.04);border-radius:14px}
+.qz-arena .qz-chip-banco{background:#0B1428;border:1.5px solid #22D3EE;color:#22D3EE;box-shadow:0 0 12px rgba(34,211,238,.25);min-height:44px;text-shadow:0 0 8px rgba(34,211,238,.5);transition:transform .15s cubic-bezier(.2,.8,.2,1),box-shadow .2s}
+.qz-arena .qz-chip-banco:hover{transform:translateY(-1px);box-shadow:0 0 18px rgba(34,211,238,.5)}
 .qz-arena .qz-chip-banco:active{transform:scale(.95)}
-.qz-arena .qz-chip-banco:disabled{opacity:.3;transform:none}
-.qz-arena .qz-hueco{background:#F8FAFC;border:1.5px dashed #94A3B8;border-radius:10px;color:#94A3B8;box-shadow:none;min-height:40px;transition:background .15s,border-color .15s}
-.qz-arena .qz-hueco.lleno{background:#DCFCE7;border:1.5px solid #22C55E;color:#14532D}
+.qz-arena .qz-chip-banco:disabled{opacity:.22;box-shadow:none;transform:none}
+.qz-arena .qz-hueco{background:#0B1428;border:1.5px dashed rgba(34,211,238,.5);border-radius:10px;color:#4A6285;box-shadow:none;min-height:40px;transition:all .15s}
+.qz-arena .qz-hueco.lleno{background:rgba(74,222,128,.12);border:1.5px solid #4ADE80;color:#4ADE80;text-shadow:0 0 8px rgba(74,222,128,.6);box-shadow:0 0 12px rgba(74,222,128,.3)}
 .qz-arena .qz-alu-feed{border-radius:16px;animation:qzPop .3s cubic-bezier(.2,.8,.2,1)}
-.qz-arena .qz-alu-feed.ok{background:#ECFDF5;border:1.5px solid #A7F3D0;color:#065F46}
-.qz-arena .qz-alu-feed.mal{background:#FEF2F2;border:1.5px solid #FECACA;color:#991B1B}
-.qz-arena .qz-alu-feed.neutro{background:#EFF6FF;border:1.5px solid #BFDBFE;color:#1E40AF}
-.qz-arena .qz-alu-feed .qz-sub{color:#475569}
-.qz-arena .qz-alu-pts{color:inherit;font-size:26px}
-.qz-arena .qz-sol{color:#047857 !important;font-weight:700}
-.qz-arena .qz-item{background:#fff;border:1px solid #E2E8F0;border-radius:12px;box-shadow:0 1px 2px rgba(15,23,42,.05);margin-bottom:0}
-.qz-arena .qz-item [style*="text-primary"]{color:#0F172A !important}
-.qz-arena .section-label{color:#334155}
-.qz-arena .alert-banner{background:#fff;border:1px solid #BFDBFE;border-radius:12px;box-shadow:0 1px 2px rgba(15,23,42,.05)}
-.qz-arena .alert-banner .alert-text, .qz-arena .alert-banner b{color:#0F172A}
-.qz-arena .efm-no-data{color:#64748B !important}
-.qz-rev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px}
-.qz-proj-panel{background:#0F172A;border-radius:14px;padding:14px;margin-top:10px;color:#fff}
+.qz-arena .qz-alu-feed.ok{background:rgba(74,222,128,.08);border:1.5px solid #4ADE80;color:#4ADE80;box-shadow:0 0 30px rgba(74,222,128,.25);text-shadow:0 0 10px rgba(74,222,128,.5)}
+.qz-arena .qz-alu-feed.mal{background:rgba(251,113,133,.08);border:1.5px solid #FB7185;color:#FB7185;box-shadow:0 0 30px rgba(251,113,133,.25);text-shadow:0 0 10px rgba(251,113,133,.5)}
+.qz-arena .qz-alu-feed.neutro{background:rgba(34,211,238,.08);border:1.5px solid #22D3EE;color:#22D3EE;box-shadow:0 0 30px rgba(34,211,238,.25);text-shadow:0 0 10px rgba(34,211,238,.5)}
+.qz-arena .qz-alu-feed .qz-sub{color:#94C6E8;text-shadow:none}
+.qz-arena .qz-alu-pts{color:inherit;font-size:30px;font-family:ui-monospace,Menlo,monospace}
+.qz-arena .qz-sol{color:#4ADE80 !important;font-weight:700;text-shadow:0 0 8px rgba(74,222,128,.5)}
+.qz-arena .qz-item{background:linear-gradient(180deg,rgba(14,23,42,.96),rgba(9,15,30,.98));border:1px solid rgba(34,211,238,.25);border-radius:12px;box-shadow:0 0 16px rgba(34,211,238,.06);margin-bottom:0}
+.qz-arena .qz-item [style*="text-primary"]{color:#E6F1FF !important}
+.qz-arena .section-label{color:#22D3EE;text-shadow:0 0 10px rgba(34,211,238,.5);font-family:ui-monospace,Menlo,monospace;letter-spacing:2px}
+.qz-arena .alert-banner{background:rgba(14,23,42,.95);border:1px solid rgba(34,211,238,.4);border-radius:12px;box-shadow:0 0 20px rgba(34,211,238,.12)}
+.qz-arena .alert-banner .alert-text{color:#E6F1FF}
+.qz-arena .alert-banner b{color:#22D3EE}
+.qz-arena .efm-no-data{color:#7DD3FC !important}
+.qz-rev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+.qz-proj-panel{background:#04070F;border:1px solid rgba(34,211,238,.3);border-radius:14px;padding:14px;margin-top:10px;color:#fff}
 .qz-fb-next{width:100%;margin-top:14px}
 </style>
 
@@ -15166,7 +15190,7 @@ async function qzResultadosPractica(id){
 
 // ---------- PROFESOR: editor ----------
 let _qzEd=null, _qzEdIdx=-1, _qzEdP=null;
-function qzNuevo(){ _qzEd={id:null,titulo:'',descripcion:'',materia_aula_id:_qzMatFiltro||'',estado:'borrador',aud_ciclo:'',aud_paralelo:'',feedback:'final',preguntas:[]}; _qzEdIdx=-1; _qzEdP=null; showScreen('screen-quiz-editor'); _qzEdRender(); }
+function qzNuevo(){ _qzEd={id:null,titulo:'',descripcion:'',materia_aula_id:_qzMatFiltro||'',estado:'borrador',aud_ciclo:'',aud_paralelo:'',feedback:'inmediato',preguntas:[]}; _qzEdIdx=-1; _qzEdP=null; showScreen('screen-quiz-editor'); _qzEdRender(); }
 function qzEditar(id){
   const c=_qzLista.find(x=>x.id===id); if(!c) return;
   _qzEd={id:c.id,titulo:c.titulo,descripcion:c.descripcion||'',materia_aula_id:c.materia_aula_id||'',estado:c.estado,aud_ciclo:c.aud_ciclo||'',aud_paralelo:c.aud_paralelo||'',feedback:c.feedback||'final',preguntas:JSON.parse(JSON.stringify(c.preguntas||[]))};
@@ -15193,8 +15217,8 @@ function _qzEdRender(){
     ${['A','B','C'].map(p=>`<option value="${p}" ${_qzEd.aud_paralelo===p?'selected':''}>Solo paralelo "${p}"</option>`).join('')}
   </select></div>
   <div class="field"><label>✅ Respuestas en la práctica libre</label><select id="qz-ed-fb">
-    <option value="final" ${_qzEd.feedback!=='inmediato'?'selected':''}>Al FINAL (rinde todo y recién ve la corrección)</option>
-    <option value="inmediato" ${_qzEd.feedback==='inmediato'?'selected':''}>AL INSTANTE (verde ✔ / rojo ✘ tras cada pregunta)</option>
+    <option value="inmediato" ${_qzEd.feedback!=='final'?'selected':''}>AL INSTANTE (verde ✔ / rojo ✘ tras cada pregunta — como Wayground)</option>
+    <option value="final" ${_qzEd.feedback==='final'?'selected':''}>Al FINAL (rinde todo y recién ve la corrección)</option>
   </select></div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 8px">
     <button class="qz-mini" style="font-size:14px" onclick="qzEdImportToggle()">🤖 Importar preguntas desde tu IA (masivo)</button>
@@ -15301,6 +15325,7 @@ function _qzEdPregFormHtml(p){
   }
   if(t==='abierta'||t==='nube'){
     html+=`<div class="field"><label>Máximo de caracteres</label><select id="qz-f-max">${[30,40,80,120,240,500,1000].map(n=>`<option ${((p.max||240)===n?'selected':'')}>${n}</option>`).join('')}</select></div>`;
+    if(t==='abierta') html+=`<label style="font-size:13px;color:var(--text-secondary);display:block;margin-bottom:6px"><input type="checkbox" id="qz-f-anon" ${p.anon?'checked':''}> 🙈 Muro ANÓNIMO (no mostrar el nombre de quien escribió — podés cambiarlo en vivo desde el proyector)</label>`;
   }
   if(t==='arrastrar'){
     html+=`<div class="field"><label>Escribí (o pegá) el texto COMPLETO — después pintá una palabra y convertila en hueco</label>
@@ -15415,7 +15440,10 @@ function qzEdPregOk(){
     if(p.blanks.some(b=>b.modo==='lista' && (b.lista||[]).length<2)){ alert('Las listas desplegables necesitan al menos 2 opciones'); return; }
     p.flex={tildes:document.getElementById('qz-f-tildes').checked, mayus:document.getElementById('qz-f-mayus').checked};
   }
-  if(p.tipo==='abierta'||p.tipo==='nube') p.max=Number(document.getElementById('qz-f-max').value)||240;
+  if(p.tipo==='abierta'||p.tipo==='nube'){
+    p.max=Number(document.getElementById('qz-f-max').value)||240;
+    if(p.tipo==='abierta'){ const an=document.getElementById('qz-f-anon'); p.anon=!!(an&&an.checked); }
+  }
   if(p.tipo==='arrastrar'){
     p.plantilla=(document.getElementById('qz-f-plantilla').value||'');
     const n=(p.plantilla.match(/_{3,}/g)||[]).length;
@@ -15477,7 +15505,16 @@ async function qzEdGuardar(){
 
 // ---------- v2.9.158: IMPORTADOR MASIVO (pegás la respuesta de tu IA → preguntas listas) ----------
 function qzEdImportToggle(){ const d=document.getElementById('qz-ed-import'); if(d) d.style.display=d.style.display==='none'?'block':'none'; }
-const QZ_PROMPT_IA = `Sos un generador de cuestionarios. A partir del TEXTO FUENTE que te voy a pegar, generá las preguntas que te pida (cantidad y tipos). Respondé SOLO con las preguntas en este formato EXACTO, sin explicaciones ni numeración extra:
+const QZ_PROMPT_IA = `Actuá como generador de cuestionarios para una plataforma educativa. Vas a crear preguntas a partir del DOCUMENTO ADJUNTO o del TEXTO FUENTE que te pego al final.
+
+⚠️ REGLAS ESTRICTAS DE SALIDA (si no las cumplís, tu respuesta NO sirve):
+1. Tu respuesta debe contener ÚNICAMENTE los bloques de preguntas, en TEXTO PLANO, listos para copiar y pegar en la plataforma.
+2. PROHIBIDO usar markdown: nada de **negritas**, ni #títulos, ni viñetas •, ni tablas.
+3. PROHIBIDO escribir introducciones, explicaciones, comentarios, la palabra "Pregunta:", numeración de preguntas (1., 2.) o texto de cierre.
+4. La PRIMERA línea de tu respuesta debe empezar directamente con [ (el encabezado del primer bloque).
+5. Cada bloque empieza con su encabezado entre corchetes y sigue EXACTAMENTE el formato de los ejemplos.
+
+FORMATO EXACTO de cada tipo (copiá la estructura tal cual):
 
 [MULTIPLE] ¿Enunciado de la pregunta?
 * opción correcta
@@ -15526,22 +15563,31 @@ CATEGORIAS: Categoría A, Categoría B
 - opción
 - opción
 
-REGLAS: enunciados claros y en español; en COMPLETAR/ARRASTRAR usá ___ (3 guiones bajos) por hueco y una línea "N:" por cada hueco en orden; las alternativas aceptadas van separadas por coma; no repitas ítems; máximo 6 opciones por pregunta.
+REGLAS DE CONTENIDO: enunciados claros y en español; en COMPLETAR/ARRASTRAR usá ___ (exactamente 3 guiones bajos) por hueco y una línea "N:" por cada hueco en orden; las alternativas aceptadas van separadas por coma; no repitas ítems; máximo 6 opciones por pregunta; las opciones correctas llevan * al inicio y las incorrectas - al inicio.
 
-AHORA: [PEGÁ ACÁ TU TEXTO FUENTE Y DECILE CUÁNTAS PREGUNTAS DE CADA TIPO QUERÉS, ej: "generá 5 MULTIPLE, 3 COMPLETAR y 2 VF del capítulo 1"]`;
+CANTIDAD Y TIPOS QUE QUIERO: [escribí acá, ej: "5 MULTIPLE, 3 COMPLETAR, 2 VF y 1 CATEGORIZAR"]
+
+TEXTO FUENTE: [pegá acá tu texto — o escribí "usar el documento adjunto" si adjuntaste un archivo]`;
 async function qzEdCopiarPrompt(){
   try{ await navigator.clipboard.writeText(QZ_PROMPT_IA); alert('📋 Prompt copiado — pegalo en ChatGPT / Claude / Gemini junto con tu texto'); }
   catch(e){ prompt('Copiá el prompt:', QZ_PROMPT_IA); }
 }
 function _qzParseImport(txt){
   const pregs=[], errores=[];
-  const bloques=String(txt||'').replace(/\r/g,'').split(/\n(?=\s*\[)/).map(b=>b.trim()).filter(Boolean);
+  // limpieza tolerante: la IA a veces mete markdown aunque se le prohíba
+  let limpio=String(txt||'').replace(/\r/g,'')
+    .replace(/\*\*/g,'')                      // **negritas** fuera (no toca los ___ )
+    .replace(/^[ \t]*[•▪·]\s*/gm,'- ')        // viñetas raras → guion
+    .replace(/^[ \t]*#{1,4}\s*/gm,'')         // #títulos fuera
+    .replace(/^[ \t]*(pregunta\s*\d*\s*[:.\-]\s*)/gim,''); // "Pregunta 3:" fuera
+  const bloques=limpio.split(/\n(?=\s*\[)/).map(b=>b.trim()).filter(Boolean);
   for(const bloque of bloques){
     const m=bloque.match(/^\[(MULTIPLE|MULTI|VF|COMPLETAR|ARRASTRAR|REORDENAR|RELACIONAR|CATEGORIZAR|ABIERTA|NUBE|ENCUESTA)\]\s*([\s\S]*)$/i);
     if(!m) continue;
     const tipo=m[1].toLowerCase();
     const lineas=m[2].split('\n').map(s=>s.trim()).filter(Boolean);
     if(!lineas.length){ errores.push('['+m[1]+'] sin enunciado'); continue; }
+    lineas[0]=lineas[0].replace(/^(pregunta\s*\d*\s*[:.\-]\s*)/i,'').trim()||lineas[0]; // "Pregunta 3:" pegado al encabezado
     try{
       if(tipo==='vf'){
         const mm=lineas[0].match(/^(.*?)\s*=>\s*([VF])\s*$/i) || (lineas[1]||'').match(/^\s*=>\s*([VF])\s*$/i);
@@ -15552,9 +15598,15 @@ function _qzParseImport(txt){
       } else if(tipo==='multiple'||tipo==='multi'||tipo==='encuesta'){
         const texto=lineas[0]; const opciones=[], correctas=[];
         lineas.slice(1).forEach(ln=>{
-          const om=ln.match(/^([*-])\s*(.+)$/); if(!om) return;
-          if(om[1]==='*') correctas.push(opciones.length);
-          opciones.push(om[2].trim());
+          let corr=false, cuerpo=null;
+          let om=ln.match(/^([*✔✅])\s*(.+)$/);
+          if(om){ corr=true; cuerpo=om[2]; }
+          else { om=ln.match(/^-\s*(.+)$/) || ln.match(/^[a-fA-F][).]\s+(.+)$/); if(om) cuerpo=om[1]; }
+          if(cuerpo==null) return;
+          cuerpo=cuerpo.replace(/^[a-fA-F][).]\s+/,'').trim(); // "* a) texto" → "texto"
+          if(!cuerpo) return;
+          if(corr) correctas.push(opciones.length);
+          opciones.push(cuerpo);
         });
         if(opciones.length<2) throw new Error('faltan opciones');
         const p={tipo, texto, tiempo:30, opciones};
@@ -15665,8 +15717,17 @@ async function _qzBoardControl(op, idx){
   try{
     const d=await _qzInvoke('control',{sesion_id:_qzB.ses.id, op, idx});
     if(d.sesion) _qzB.ses=d.sesion;
+    if(op==='lanzar') _qzBAnon=null; // cada pregunta arranca con su propia configuración de anonimato
     _qzBSig=''; _qzBShowTabla=false; _qzBoardRender();
   }catch(e){ alert('⚠️ '+e.message); }
+}
+// v2.9.159: muro anónimo — el profesor puede mostrar/ocultar nombres EN VIVO desde el proyector
+let _qzBAnon=null; // null = usar lo configurado en la pregunta (p.anon)
+function _qzBAnonNow(p){ return _qzBAnon==null ? !!(p&&p.anon) : _qzBAnon; }
+function qzBoardToggleAnon(){
+  const p=(_qzB&&_qzB.cuest.preguntas||[])[_qzB.ses.pregunta_idx];
+  _qzBAnon=!_qzBAnonNow(p);
+  _qzBSig=''; _qzBoardRender();
 }
 function qzBoardComenzar(){ _qzBoardControl('lanzar',0); }
 function qzBoardResultados(){ _qzBoardControl('resultados'); }
@@ -15718,9 +15779,9 @@ function _qzCloudHtml(textos){
     return `<span style="font-size:${size}px;color:${cols[i%cols.length]};transform:rotate(${rot}deg)">${escapeHtml(x.w)}${x.n>1?`<sup style="font-size:11px;opacity:.7"> ${x.n}</sup>`:''}</span>`;
   }).join('')+'</div>';
 }
-function _qzMuroHtml(rows){
+function _qzMuroHtml(rows, anon){
   if(!rows.length) return '<div style="text-align:center;color:#9ec3ef;font-size:18px;padding:34px">💬 Esperando ideas…</div>';
-  return `<div class="qz-muro">${rows.map(r=>`<div class="qz-muro-card">${escapeHtml(String(r.respuesta||''))}<span class="qn">${escapeHtml(r.nombre||'')}</span></div>`).join('')}</div>`;
+  return `<div class="qz-muro">${rows.map(r=>`<div class="qz-muro-card">${escapeHtml(String(r.respuesta||''))}${anon?'':`<span class="qn">${escapeHtml(r.nombre||'')}</span>`}</div>`).join('')}</div>`;
 }
 // solución en líneas legibles (para proyectar) — el profesor tiene el cuestionario completo
 function _qzSolLineas(p){
@@ -15805,23 +15866,23 @@ function _qzBoardRender(){
     }
     if(enVivoAbierto){
       body+= p.tipo==='nube' ? _qzCloudHtml(respIdx.map(r=>r.respuesta)) :
-             p.tipo==='abierta' ? _qzMuroHtml(respIdx) :
+             p.tipo==='abierta' ? _qzMuroHtml(respIdx, _qzBAnonNow(p)) :
              _qzBarsHtml(p, respIdx, false);
     }
     body+=`<div class="qz-contador">✋ ${respIdx.length} / ${_qzB.parts.length} respondieron</div>
-    <div class="qz-b-foot"><button class="qz-btn" onclick="qzBoardResultados()">📊 Cerrar pregunta y ver resultados</button></div>`;
+    <div class="qz-b-foot">${p.tipo==='abierta'?`<button class="qz-btn ghost" onclick="qzBoardToggleAnon()">${_qzBAnonNow(p)?'🪪 Mostrar nombres':'🙈 Ocultar nombres'}</button>`:''}<button class="qz-btn" onclick="qzBoardResultados()">📊 Cerrar pregunta y ver resultados</button></div>`;
     setTimeout(()=>_qzTimerStart(ses.pregunta_abierta_en, p.tiempo),0);
   }
   else if(ses.estado==='resultados' && p){
     body=`<div style="text-align:center;color:#9ec3ef;font-weight:800">Resultados — pregunta ${idx+1} de ${pregs.length}</div>
     <div class="qz-b-preg">${escapeHtml(p.texto)}</div>`;
     body+= p.tipo==='nube' ? _qzCloudHtml(respIdx.map(r=>r.respuesta)) :
-           p.tipo==='abierta' ? _qzMuroHtml(respIdx) :
+           p.tipo==='abierta' ? _qzMuroHtml(respIdx, _qzBAnonNow(p)) :
            p.tipo==='completar' ? _qzCompletarResHtml(p, respIdx) :
            ['reordenar','relacionar','categorizar','arrastrar'].includes(p.tipo) ? _qzGenResHtml(p, respIdx) :
            _qzBarsHtml(p, respIdx, p.tipo!=='encuesta');
     const esUltima = idx>=pregs.length-1;
-    body+=`<div class="qz-b-foot">${esUltima
+    body+=`<div class="qz-b-foot">${p.tipo==='abierta'?`<button class="qz-btn ghost" onclick="qzBoardToggleAnon()">${_qzBAnonNow(p)?'🪪 Mostrar nombres':'🙈 Ocultar nombres'}</button>`:''}${esUltima
       ? '<button class="qz-btn gold big" onclick="qzBoardPodio()">🏆 PODIO FINAL</button>'
       : '<button class="qz-btn gold big" onclick="qzBoardSiguiente()">▶️ Siguiente pregunta</button><button class="qz-btn red" onclick="qzBoardPodio()">🏁 Terminar acá</button>'}</div>`;
   }
@@ -16025,11 +16086,11 @@ function _qzAluZonaHtml(p, prefix){
       `<button class="qz-btn gold" style="width:100%;margin-top:10px" onclick="qzAluEnviar('${prefix}')">📨 Enviar respuestas</button>`;
   }
   if(p.tipo==='multiple'||p.tipo==='vf'||p.tipo==='encuesta'){
-    return (p.opciones||[]).map((o,i)=>`<button class="qz-alu-opt qz-c${i%6}" onclick="qzAluElegir(${i})"><b>${String.fromCharCode(65+i)}</b> ${escapeHtml(o)}</button>`).join('');
+    return `<div class="qz-opts-grid">`+(p.opciones||[]).map((o,i)=>`<button class="qz-alu-opt qz-c${i%6}" onclick="qzAluElegir(${i})"><b>${String.fromCharCode(65+i)}</b> ${escapeHtml(o)}</button>`).join('')+`</div>`;
   }
   if(p.tipo==='multi'){
-    return (p.opciones||[]).map((o,i)=>`<button class="qz-alu-opt qz-c${i%6}" id="${prefix}-mo${i}" onclick="qzAluToggle(${i},'${prefix}')"><b>${String.fromCharCode(65+i)}</b> ${escapeHtml(o)}</button>`).join('')+
-      `<button class="qz-btn gold" style="width:100%;margin-top:6px" onclick="qzAluEnviar('${prefix}')">📨 Enviar selección</button>`;
+    return `<div class="qz-opts-grid">`+(p.opciones||[]).map((o,i)=>`<button class="qz-alu-opt qz-c${i%6}" id="${prefix}-mo${i}" onclick="qzAluToggle(${i},'${prefix}')"><b>${String.fromCharCode(65+i)}</b> ${escapeHtml(o)}</button>`).join('')+`</div>`+
+      `<button class="qz-btn gold" style="width:100%;margin-top:12px" onclick="qzAluEnviar('${prefix}')">📨 Enviar selección</button>`;
   }
   if(p.tipo==='completar'){
     return _qzCompletarHtml(p,prefix)+`<button class="qz-btn gold" style="width:100%;margin-top:14px" onclick="qzAluEnviar('${prefix}')">📨 Enviar respuestas</button>`;
@@ -16184,7 +16245,7 @@ function _qzPreviewRun(c){
   _qzA=null; clearInterval(_qzAPoll);
   let backScr=(document.querySelector('.screen.active')||{}).id||'screen-quiz-prof';
   if(backScr==='screen-quiz-alumno') backScr=(_qzP&&_qzP.back)||'screen-quiz-prof'; // "probar de nuevo" conserva el origen
-  _qzP={id:null, preview:true, back:backScr, fb:(c.feedback==='inmediato'),
+  _qzP={id:null, preview:true, back:backScr, fb:(c.feedback!=='final'),
         titulo:c.titulo||'Vista previa', pregsFull:pregs, pregs:pregs.map(_qzStripLocal), i:0, resp:[], t0:Date.now()};
   document.getElementById('qz-alu-tit').textContent='👁 VISTA PREVIA';
   document.getElementById('qz-alu-sub').textContent='Así lo ve el alumno — no se guarda nada';
@@ -16229,7 +16290,7 @@ async function _qzRenderSeccionMateria(materiaId){
 async function qzPracticaIniciar(id){
   try{
     const d=await _qzInvoke('practica_ver',{cuestionario_id:id});
-    _qzP={id:d.id, titulo:d.titulo, pregs:d.preguntas||[], i:0, resp:[], t0:Date.now(), fb:(d.feedback==='inmediato')};
+    _qzP={id:d.id, titulo:d.titulo, pregs:d.preguntas||[], i:0, resp:[], t0:Date.now(), fb:(d.feedback!=='final')};
     _qzA=null; clearInterval(_qzAPoll);
     document.getElementById('qz-alu-tit').textContent='🎯 '+d.titulo;
     document.getElementById('qz-alu-sub').textContent='Práctica a tu ritmo';
@@ -16346,27 +16407,42 @@ async function _qzPracticaEnviar(){
 // se muestra un cartel y, apenas el cursante inicia sesión, entra SOLO al juego.
 let _qzPinPendiente=null, _qzPinWatch=null;
 (function _qzDetectarPinURL(){
+  // 1) detectar el pin (independiente del DOM)
+  let pin=null;
   try{
-    let pin = new URLSearchParams(location.search).get('pin');
+    pin = new URLSearchParams(location.search).get('pin');
     if(!pin){ const m=(location.hash||'').match(/pin=(\d{6})/); pin=m?m[1]:null; }
-    if(!pin || !/^\d{6}$/.test(pin)) return;
-    _qzPinPendiente=pin;
-    try{ history.replaceState(null,'',location.pathname); }catch(_e){}
-    const b=document.createElement('div');
-    b.id='qz-pin-aviso';
-    b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:linear-gradient(90deg,#6a1fb0,#b02da0);color:#fff;font-weight:800;font-size:13px;text-align:center;padding:9px 12px;box-shadow:0 2px 12px rgba(0,0,0,.4)';
-    b.textContent='🎯 Juego EN VIVO (PIN '+pin+') — ingresá con tu CI y contraseña y entrás directo';
-    document.body.appendChild(b);
-    _qzPinWatch=setInterval(()=>{
+  }catch(e){}
+  if(!pin || !/^\d{6}$/.test(pin)) return;
+  _qzPinPendiente=pin;
+  try{ history.replaceState(null,'',location.pathname); }catch(e){}
+  try{ sessionStorage.setItem('qz_pin_pendiente', pin); }catch(e){}
+  // 2) cartel (si el body aún no existe, esperar al DOM — antes esto tiraba error y mataba todo)
+  const ponerCartel=()=>{
+    try{
+      if(document.getElementById('qz-pin-aviso') || !document.body) return;
+      const b=document.createElement('div');
+      b.id='qz-pin-aviso';
+      b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:linear-gradient(90deg,#0891B2,#22D3EE);color:#04121C;font-weight:800;font-size:13px;text-align:center;padding:9px 12px;box-shadow:0 2px 14px rgba(34,211,238,.5)';
+      b.textContent='🎯 Juego EN VIVO (PIN '+pin+') — ingresá con tu CI y contraseña y entrás directo';
+      document.body.appendChild(b);
+    }catch(e){}
+  };
+  if(document.body) ponerCartel();
+  else document.addEventListener('DOMContentLoaded', ponerCartel);
+  // 3) vigilante: apenas hay sesión de cursante → entra SOLO al juego (arranca SIEMPRE)
+  _qzPinWatch=setInterval(()=>{
+    try{
       if(!_qzPinPendiente){ clearInterval(_qzPinWatch); return; }
       const s=(typeof getSession==='function')?getSession():null;
       if(!s || !currentUser) return;
       const av=document.getElementById('qz-pin-aviso'); if(av) av.remove();
       const pinNow=_qzPinPendiente; _qzPinPendiente=null; clearInterval(_qzPinWatch);
+      try{ sessionStorage.removeItem('qz_pin_pendiente'); }catch(e){}
       if(s.tipo==='cursante') _qzUnirseConPin(pinNow);
       // docente: no se une (el juego lo dirige desde Práctica Interactiva)
-    },1000);
-  }catch(e){}
+    }catch(e){}
+  },800);
 })();
 
 /* ===== v2.9.101: DOCUMENTOS INSTITUCIONALES ===== */
