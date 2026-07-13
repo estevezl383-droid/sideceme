@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.161</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.162</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -15799,10 +15799,11 @@ CANTIDADES QUE NECESITO (aproximadas — NO fuerces una pregunta si el contenido
 - 3 preguntas [CATEGORIZAR]
 
 ⚠️ FORMATO DE TU RESPUESTA (OBLIGATORIO — si no lo cumplís, tu respuesta no sirve):
-1. NO construyas un cuestionario interactivo ni una app ni una tabla: yo solo necesito TEXTO para copiar y pegar en mi plataforma.
-2. Devolvé TODO adentro de UN SOLO bloque de código (abrilo con tres acentos graves \`\`\` y cerralo igual), así lo copio con un solo clic.
-3. Adentro del bloque: SOLO los bloques de preguntas en texto plano. PROHIBIDO: negritas **, #títulos, viñetas •, tablas, numeración de preguntas (1., 2.), la palabra "Pregunta:", introducciones o comentarios.
+1. QUIERO LA RESPUESTA EN FORMATO MARKDOWN PARA COPIAR Y PEGAR: un único bloque de código de texto plano (\`\`\`), como si fuera el contenido de un archivo .md, con el botón de copiar.
+2. PROHIBIDO usar tu función de cuestionario interactivo, quiz, canvas, vista de tarjetas, apps o tablas. NADA visual: yo solo necesito el TEXTO para pegarlo en mi plataforma.
+3. Adentro del bloque: SOLO los bloques de preguntas en texto plano. PROHIBIDO: negritas **, #títulos, viñetas •, numeración de preguntas (1., 2.), la palabra "Pregunta:", introducciones o comentarios.
 4. La primera línea adentro del bloque empieza directamente con [ (el encabezado de la primera pregunta).
+5. Incluí TODAS las preguntas pedidas (son alrededor de 32 en total) — no las recortes.
 
 FORMATO EXACTO de cada tipo (respetá la estructura tal cual):
 
@@ -15855,7 +15856,7 @@ CATEGORIAS: Categoría A, Categoría B
 
 REGLAS DE CONTENIDO: enunciados claros y en español; en COMPLETAR/ARRASTRAR usá ___ (exactamente 3 guiones bajos) por hueco y una línea "N:" por cada hueco en orden (1: respuesta, alternativa aceptada); las alternativas aceptadas van separadas por coma; no repitas ítems; máximo 6 opciones por pregunta; las opciones correctas llevan * al inicio y las incorrectas - al inicio.
 
-Este prompt ya está completo: usá el documento adjunto (o el texto pegado debajo) y generá las preguntas AHORA, en el formato indicado, todo dentro de un solo bloque de código.`;
+Este prompt ya está completo: usá el documento adjunto (o el texto pegado debajo) y generá las preguntas AHORA — recordá: EN MARKDOWN PARA COPIAR Y PEGAR, un solo bloque de código de texto plano, sin cuestionario interactivo.`;
 async function qzEdCopiarPrompt(){
   try{ await navigator.clipboard.writeText(QZ_PROMPT_IA); alert('📋 Prompt copiado — pegalo en ChatGPT / Claude / Gemini junto con tu texto'); }
   catch(e){ prompt('Copiá el prompt:', QZ_PROMPT_IA); }
