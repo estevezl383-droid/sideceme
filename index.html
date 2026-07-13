@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.166</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.167</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -15402,21 +15402,31 @@ function _qzItemsDePreg(p,r){
 // Firma: nombre Arial 12 normal + cargo negrilla mayúsculas abajo.
 // INDIVIDUAL = firma del alumno · GENERAL = firma del profesor de la materia.
 function _qzRepMembrete(){
+  // proporciones EXACTAS del membrete oficial de la app (72% / 2% / 26%) → 4 líneas sin partirse en Word
   return `
   <table class="header-table" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;margin-bottom:6pt">
     <tr>
-      <td width="64%" align="center" valign="middle" style="border:none;padding:4pt 6pt;text-align:center;vertical-align:middle;width:64%">
+      <td width="72%" align="center" valign="middle" style="border:none;padding:4pt 6pt;text-align:center;vertical-align:middle;width:72%">
         <p align="center" style="text-align:center;font-weight:bold;font-size:10pt;margin:0;font-family:Arial,sans-serif;line-height:1.35;white-space:nowrap">FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES</p>
         <p align="center" style="text-align:center;font-weight:bold;font-size:10pt;margin:0;font-family:Arial,sans-serif;line-height:1.35;white-space:nowrap">ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO</p>
         <p align="center" style="text-align:center;font-weight:bold;font-size:10pt;margin:0;font-family:Arial,sans-serif;line-height:1.35;white-space:nowrap">"MARISCAL ANDRÉS DE SANTA CRUZ"</p>
         <p align="center" style="text-align:center;font-weight:bold;font-size:10pt;margin:0;font-family:Arial,sans-serif;line-height:1.35;text-decoration:underline"><u>BOLIVIA</u></p>
       </td>
-      <td width="36%" align="center" valign="middle" style="border:none;padding:4pt 6pt;text-align:center;vertical-align:middle;width:36%">
-        <p align="center" style="text-align:center;font-weight:bold;font-size:10pt;margin:0;font-family:Arial,sans-serif">SECCIÓN ACADÉMICA</p>
+      <td width="2%" style="border:none;width:2%">&nbsp;</td>
+      <td width="26%" align="center" valign="middle" style="border:none;padding:4pt 4pt;text-align:center;vertical-align:middle;width:26%">
+        <p align="center" style="text-align:center;font-weight:bold;font-size:10pt;margin:0;font-family:Arial,sans-serif;white-space:nowrap">SECCIÓN ACADÉMICA</p>
       </td>
     </tr>
   </table>
   <p style="border:0;border-top:2.4pt double #000;margin:0 0 14pt;font-size:1pt;line-height:1pt">&nbsp;</p>`;
+}
+// QR de verificación (al final del reporte, antes de la firma) + espacio para firmar
+function _qzRepQR(datos){
+  const txt=encodeURIComponent(datos);
+  return `<div style="text-align:center;margin-top:20pt;page-break-inside:avoid">
+    <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&margin=4&data=${txt}" width="120" height="120" alt="QR verificación" style="display:inline-block">
+    <p align="center" style="text-align:center;font-size:8pt;color:#555;margin:2pt 0 0;font-family:Arial,sans-serif">Código de verificación del resultado</p>
+  </div>`;
 }
 function _qzRepFirma(nombre, cargo){
   return `<div style="margin-top:56pt;text-align:center;page-break-inside:avoid">
@@ -15459,6 +15469,7 @@ function _qzRepCuerpo(cid){
       const col=r&&r.correcta===true?'#0a7a30':r&&r.correcta===false?'#b00020':'#000';
       return `<tr><td style="${_QZ_TD}">${idx+1}</td><td style="${_QZ_TD}">${escapeHtml(p.texto)}</td><td style="${_QZ_TD};color:${col};font-weight:bold">${res}</td><td style="${_QZ_TD}">${it.max?it.won+'/'+it.max:'—'}</td><td style="${_QZ_TD}">${escapeHtml(_qzRespTexto(p,r))}</td></tr>`;
     }).join('')+`</table>`+
+    _qzRepQR('ECEME · RECURSO INTERACTIVO\nAlumno: '+a.nombre+'\n'+_qzRep.c.titulo+'\nNota: '+(a.nota!=null?a.nota+'%':'—')+' · '+a.ok+'/'+R.nCal+' · '+a.pts+' pts\nFuente: '+fSrc+' · '+fFecha)+
     _qzRepFirma(a.nombre, 'Oficial Superior Cursante');
     return {cuerpo:h, nombre:'INDIVIDUAL_'+(a.nombre||'alumno').replace(/[^a-zA-Z0-9]+/g,'_')};
   }
@@ -15474,6 +15485,7 @@ function _qzRepCuerpo(cid){
   `</table><h2 style="${H2}">Por pregunta</h2>
   <table style="${_QZ_TDAT}"><tr><th style="${_QZ_TH}">N°</th><th style="${_QZ_TH}">Pregunta</th><th style="${_QZ_TH}">Respondieron</th><th style="${_QZ_TH}">% acierto</th></tr>`+
   R.porPreg.map(q=>`<tr><td style="${_QZ_TD}">${q.idx+1}</td><td style="${_QZ_TD}">${escapeHtml(q.texto)}</td><td style="${_QZ_TD}">${q.resp}</td><td style="${_QZ_TD}">${q.pct!=null?q.pct+'%':'participación'}</td></tr>`).join('')+`</table>`+
+  _qzRepQR('ECEME · RECURSO INTERACTIVO\nRegistro de notas: '+_qzRep.c.titulo+'\n'+R.alumnos.length+' alumnos · promedio '+(R.promedio!=null?R.promedio+'%':'—')+'\nFuente: '+fSrc+' · '+fFecha)+
   _qzRepFirma(_qzProfesorFirmante(), 'Profesor de la materia');
   return {cuerpo:h, nombre:'NOTAS_'+_qzRepFuenteNombre()};
 }
@@ -16736,6 +16748,26 @@ function qzEdPreview(){
 }
 
 // ---------- v2.9.161: MIS EVALUACIONES (alumno) ----------
+let _qzMisEvs=[];
+// v2.9.167: el alumno descarga SU PROPIO reporte (con QR de verificación)
+async function qzMiReporte(i, fmt){
+  const ev=_qzMisEvs[i]; if(!ev) return;
+  try{
+    const d=await _qzInvoke('mi_reporte',{ sesion_id:ev.sesion_id||undefined, cuestionario_id:ev.cuestionario_id });
+    const cid=(currentUser&&currentUser.id)||'yo';
+    const resp=(d.respuestas||[]).map(r=>Object.assign({},r,{cursante_id:cid}));
+    // arma un _qzRep con SOLO este alumno y reutiliza el generador oficial
+    _qzRep={
+      c:{ id:d.cuestionario.id, titulo:d.cuestionario.titulo, preguntas:d.cuestionario.preguntas, materia_aula_id:null, creado_por_nombre:null },
+      sesiones: d.sesion? [d.sesion] : [],
+      practica: ev.sesion_id? [] : resp,
+      vivas: ev.sesion_id? resp : [],
+      participantes: ev.sesion_id? [{sesion_id:ev.sesion_id, cursante_id:cid, nombre:d.nombre}] : [],
+      fuente: ev.sesion_id || 'practica'
+    };
+    if(fmt==='pdf') qzRepPDF(cid); else qzRepWord(cid);
+  }catch(e){ alert('⚠️ '+e.message); }
+}
 async function qzMisEvaluaciones(){
   _qzA=null; _qzP=null; clearInterval(_qzAPoll); clearInterval(_qzTimerInt);
   document.getElementById('qz-alu-tit').textContent='📊 Mis evaluaciones';
@@ -16746,9 +16778,10 @@ async function qzMisEvaluaciones(){
   try{
     const d=await _qzInvoke('mis_evaluaciones',{});
     const evs=d.evaluaciones||[];
+    _qzMisEvs=evs;
     cont.innerHTML=`<div class="qz-wrap qz-wide">
       <div class="qz-meta">MIS EVALUACIONES · ${evs.length} registro(s)</div>`+
-      (evs.length? `<div class="qz-rev-grid">`+evs.map(e=>{
+      (evs.length? `<div class="qz-rev-grid">`+evs.map((e,i)=>{
         const f=new Date(e.fecha);
         const cls=e.nota==null?'qz-rev-neu':(e.nota>=60?'qz-rev-ok':'qz-rev-mal');
         return `<div class="qz-item ${cls}">
@@ -16756,6 +16789,10 @@ async function qzMisEvaluaciones(){
           <div style="font-size:13px;color:var(--text-primary);margin-top:4px">${escapeHtml(e.titulo)}</div>
           <div style="font-size:20px;font-weight:900;margin-top:8px;color:${e.nota==null?'#22D3EE':(e.nota>=60?'#4ADE80':'#FB7185')}">${e.nota!=null? ('NOTA: '+e.nota+'%') : 'PARTICIPACIÓN'}</div>
           <div style="font-size:12px;color:#94C6E8;margin-top:4px">✔ ${e.ok}/${e.nCal} correctas · ${e.pts} pts · participación ${e.part}%</div>
+          <div style="display:flex;gap:6px;margin-top:10px;flex-wrap:wrap">
+            <button class="qz-mini" onclick="qzMiReporte(${i},'word')">📄 Mi reporte (Word)</button>
+            <button class="qz-mini" onclick="qzMiReporte(${i},'pdf')">🖨️ PDF</button>
+          </div>
         </div>`;
       }).join('')+`</div>` : '<div class="efm-no-data">Todavía no participaste de ningún juego ni práctica.</div>')+
       `<button class="qz-btn gold" style="width:100%;margin-top:16px" onclick="qzAluSalir()">← Volver al Aula Virtual</button></div>`;
