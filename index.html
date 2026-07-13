@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.164</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.165</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -15339,12 +15339,19 @@ function _qzRepRender(){
         <td>${a.pts}</td><td>${a.part}%</td>
         <td><button class="qz-mini" onclick="qzRepIndividual('${escapeHtml(a.cid)}')">👤 Ver</button></td></tr>`).join('')+`</table>`
     : '<div class="efm-no-data" style="color:var(--text-muted)">Sin respuestas en esta fuente todavía.</div>';
-  html+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+  html+=`<div class="section-label" style="margin-top:16px">📋 Registro GENERAL (firma del profesor)</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
     <button class="qz-btn gold" onclick="qzRepCSVGeneral()">⬇️ Excel/CSV</button>
     <button class="qz-btn" onclick="qzRepWord()">📄 Word</button>
     <button class="qz-btn" style="background:#7a2230" onclick="qzRepPDF()">🖨️ PDF / Imprimir</button>
     <button class="qz-btn" style="background:#475569" onclick="qzRepCSVporPregunta()">⬇️ CSV por pregunta</button>
-  </div>`;
+  </div>
+  <div class="section-label" style="margin-top:14px">👤 Registros INDIVIDUALES (firma de cada alumno)</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    <button class="qz-btn" style="background:linear-gradient(90deg,#0891B2,#22D3EE);color:#04121C" onclick="qzRepWordTodosIndividuales()">📄 Todos en un Word (uno por hoja, listos para firmar)</button>
+    <button class="qz-btn" style="background:#7a2230" onclick="qzRepPDFTodosIndividuales()">🖨️ Todos en PDF</button>
+  </div>
+  <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Cada alumno también tiene su reporte individual con el botón 👤 de su fila.</div>`;
   cont.innerHTML=html;
 }
 function _qzRespTexto(p,r){
@@ -15389,48 +15396,119 @@ function _qzItemsDePreg(p,r){
   if(r.correcta===false) return {won:Math.round(Math.min(1,(r.puntos||0)/1000)*max),max};
   return {won:0,max};
 }
-// ---- REPORTES EN WORD Y PDF (v2.9.161) ----
+// ---- REPORTES EN WORD Y PDF (v2.9.165: membrete oficial ECEME + firmas) ----
+// Membrete Arial 10, "BOLIVIA" negrita+subrayado; hoja carta; márgenes 2/2/2 y 3 izq;
+// numeración de página; firma abajo (INDIVIDUAL=alumno, GENERAL=profesor de la materia).
+function _qzRepMembrete(){
+  return `<table class="mbr"><tr>
+    <td style="width:63%;text-align:center;vertical-align:middle">FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES<br>ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO<br>“MCAL. ANDRÉS DE SANTA CRUZ”<br><b><u>BOLIVIA</u></b></td>
+    <td style="width:37%;text-align:center;vertical-align:middle;font-weight:bold">SECCIÓN ACADÉMICA</td>
+  </tr></table>`;
+}
+function _qzRepFirma(nombre, cargo){
+  return `<div class="firma"><div class="firma-linea">_______________________________________</div>
+    <div class="firma-nom">${escapeHtml(nombre||'')}</div>
+    <div class="firma-cargo">${escapeHtml(cargo||'')}</div></div>`;
+}
+function _qzProfesorFirmante(){
+  // profesor de la materia (si la hay), o el docente que genera el reporte
+  const m=(aulaMateriasCache||[]).find(x=>x.id===_qzRep.c.materia_aula_id);
+  const profesMat=m? _qzProfesNombres(m):[];
+  if(profesMat.length) return profesMat[0];
+  if(_qzRep.c.creado_por_nombre) return _qzRep.c.creado_por_nombre;
+  return (currentUser && currentUser.nombre_completo) || 'Profesor de la materia';
+}
 function _qzRepDocHTML(cid){
   const R=_qzRepCalc();
   const fSrc=_qzRep.fuente==='practica'?'Práctica libre':_qzRepFuenteLabel(_qzRep.sesiones.find(s=>s.id===_qzRep.fuente)||{pin:'—',creado_en:new Date().toISOString()});
-  const hoy=new Date();
-  const css='body{font-family:Arial,sans-serif;font-size:11pt;color:#111}h1{font-size:15pt;margin:0 0 2pt}h2{font-size:12pt;margin:14pt 0 6pt;border-bottom:1.5pt solid #333;padding-bottom:2pt}table{border-collapse:collapse;width:100%;font-size:10pt}th,td{border:1pt solid #555;padding:4pt 6pt;text-align:left}th{background:#e8e8e8}.ok{color:#0a7a30;font-weight:bold}.mal{color:#b00020;font-weight:bold}.meta{color:#444;font-size:10pt;margin:0 0 4pt}';
-  let h=`<h1>REGISTRO DE NOTAS — RECURSO INTERACTIVO</h1>
-  <p class="meta"><b>${escapeHtml(_qzRep.c.titulo)}</b></p>
-  <p class="meta">Fuente: ${escapeHtml(fSrc)} · Generado: ${hoy.getDate()}/${hoy.getMonth()+1}/${hoy.getFullYear()}</p>`;
+  const hoy=new Date(); const fFecha=hoy.getDate()+'/'+(hoy.getMonth()+1)+'/'+hoy.getFullYear();
+  const css=`@page{size:letter;margin:2cm 2cm 2cm 3cm}
+body{font-family:Arial,sans-serif;font-size:11pt;color:#111}
+.mbr{width:100%;border-collapse:collapse;font-size:10pt;margin-bottom:6pt}
+.mbr td{border:1pt solid #000;padding:5pt 7pt}
+.dobleraya{border:0;border-top:2.4pt double #000;margin:2pt 0 12pt}
+h1{font-size:15pt;text-align:center;margin:10pt 0 2pt}
+h2{font-size:12pt;margin:14pt 0 6pt;border-bottom:1.5pt solid #333;padding-bottom:2pt}
+table.dat{border-collapse:collapse;width:100%;font-size:10pt}
+table.dat th,table.dat td{border:1pt solid #555;padding:4pt 6pt;text-align:left}
+table.dat th{background:#e8e8e8}
+.ok{color:#0a7a30;font-weight:bold}.mal{color:#b00020;font-weight:bold}
+.meta{color:#444;font-size:10pt;margin:0 0 4pt;text-align:center}
+.firma{margin-top:52pt;text-align:center;page-break-inside:avoid}
+.firma-linea{font-family:Arial;letter-spacing:1px}
+.firma-nom{font-weight:bold;margin-top:2pt}
+.firma-cargo{font-size:10pt}`;
+  const footer=`<div style="mso-element:footer" id="ftr"><p style="text-align:center;font-size:9pt;color:#555">Página <span style="mso-field-code:PAGE"></span> de <span style="mso-field-code:NUMPAGES"></span></p></div>`;
+  let h=_qzRepMembrete()+`<hr class="dobleraya">`;
   if(cid){
     const a=R.alumnos.find(x=>x.cid===cid); if(!a) return '';
-    h+=`<h2>REPORTE INDIVIDUAL — ${escapeHtml(a.nombre)}</h2>
-    <table><tr><th>Nota</th><th>Correctas</th><th>Ítems</th><th>Puntos</th><th>Participación</th></tr>
+    h+=`<h1>REPORTE INDIVIDUAL DE NOTAS — RECURSO INTERACTIVO</h1>
+    <p class="meta"><b>${escapeHtml(_qzRep.c.titulo)}</b></p>
+    <p class="meta">Alumno: <b>${escapeHtml(a.nombre)}</b> · Fuente: ${escapeHtml(fSrc)} · Generado: ${fFecha}</p>
+    <table class="dat"><tr><th>Nota</th><th>Correctas</th><th>Ítems</th><th>Puntos</th><th>Participación</th></tr>
     <tr><td class="${(a.nota||0)>=60?'ok':'mal'}">${a.nota!=null?a.nota+'%':'—'}</td><td>${a.ok}/${R.nCal}</td><td>${a.items}/${R.itemsMax}</td><td>${a.pts}</td><td>${a.part}%</td></tr></table>
     <h2>Detalle por pregunta</h2>
-    <table><tr><th>N°</th><th>Pregunta</th><th>Resultado</th><th>Ítems</th><th>Su respuesta</th></tr>`+
+    <table class="dat"><tr><th>N°</th><th>Pregunta</th><th>Resultado</th><th>Ítems</th><th>Su respuesta</th></tr>`+
     R.pregs.map((p,idx)=>{ const r=a.resp[idx]; const it=_qzItemsDePreg(p,r);
       const res=!r?'NO RESPONDIÓ':r.correcta===true?'CORRECTA':r.correcta===false?'INCORRECTA':'PARTICIPÓ';
       return `<tr><td>${idx+1}</td><td>${escapeHtml(p.texto)}</td><td class="${r&&r.correcta===true?'ok':r&&r.correcta===false?'mal':''}">${res}</td><td>${it.max?it.won+'/'+it.max:'—'}</td><td>${escapeHtml(_qzRespTexto(p,r))}</td></tr>`;
-    }).join('')+`</table>`;
+    }).join('')+`</table>`+
+    // INDIVIDUAL → firma del ALUMNO
+    _qzRepFirma(a.nombre, 'Oficial Superior Cursante')+footer;
     return {html:h, css, nombre:'INDIVIDUAL_'+(a.nombre||'alumno').replace(/[^a-zA-Z0-9]+/g,'_')};
   }
-  h+=`<h2>Resumen</h2>
-  <table><tr><th>Alumnos</th><th>Nota promedio</th><th>Pregunta más fallada</th></tr>
+  h+=`<h1>REGISTRO DE NOTAS — RECURSO INTERACTIVO</h1>
+  <p class="meta"><b>${escapeHtml(_qzRep.c.titulo)}</b></p>
+  <p class="meta">Fuente: ${escapeHtml(fSrc)} · Generado: ${fFecha}</p>
+  <h2>Resumen</h2>
+  <table class="dat"><tr><th>Alumnos</th><th>Nota promedio</th><th>Pregunta más fallada</th></tr>
   <tr><td>${R.alumnos.length}</td><td>${R.promedio!=null?R.promedio+'%':'—'}</td><td>${R.masFallada?('P'+(R.masFallada.idx+1)+' ('+R.masFallada.pct+'% de acierto): '+escapeHtml(String(R.masFallada.texto).slice(0,100))):'—'}</td></tr></table>
   <h2>Notas por alumno</h2>
-  <table><tr><th>#</th><th>Alumno</th><th>Correctas</th><th>Nota</th><th>Ítems</th><th>Puntos</th><th>Particip.</th></tr>`+
+  <table class="dat"><tr><th>#</th><th>Alumno</th><th>Correctas</th><th>Nota</th><th>Ítems</th><th>Puntos</th><th>Particip.</th></tr>`+
   R.alumnos.map((a,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(a.nombre)}</td><td>${a.ok}/${R.nCal}</td><td class="${(a.nota||0)>=60?'ok':'mal'}">${a.nota!=null?a.nota+'%':'—'}</td><td>${a.items}/${R.itemsMax}</td><td>${a.pts}</td><td>${a.part}%</td></tr>`).join('')+
   `</table><h2>Por pregunta</h2>
-  <table><tr><th>N°</th><th>Pregunta</th><th>Respondieron</th><th>% acierto</th></tr>`+
-  R.porPreg.map(q=>`<tr><td>${q.idx+1}</td><td>${escapeHtml(q.texto)}</td><td>${q.resp}</td><td>${q.pct!=null?q.pct+'%':'participación'}</td></tr>`).join('')+`</table>`;
+  <table class="dat"><tr><th>N°</th><th>Pregunta</th><th>Respondieron</th><th>% acierto</th></tr>`+
+  R.porPreg.map(q=>`<tr><td>${q.idx+1}</td><td>${escapeHtml(q.texto)}</td><td>${q.resp}</td><td>${q.pct!=null?q.pct+'%':'participación'}</td></tr>`).join('')+`</table>`+
+  // GENERAL → firma del PROFESOR de la materia
+  _qzRepFirma(_qzProfesorFirmante(), 'Profesor de la materia')+footer;
   return {html:h, css, nombre:'NOTAS_'+_qzRepFuenteNombre()};
 }
 function qzRepWord(cid){
   const d=_qzRepDocHTML(cid||null); if(!d) return;
-  const doc=`<html xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>${d.css}</style></head><body>${d.html}</body></html>`;
+  const doc=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>${d.css}</style></head><body>${d.html}</body></html>`;
   const a=document.createElement('a');
   a.href=URL.createObjectURL(new Blob(['﻿'+doc],{type:'application/msword'}));
   a.download=d.nombre+'.doc'; document.body.appendChild(a); a.click(); a.remove();
 }
 function qzRepPDF(cid){
   const d=_qzRepDocHTML(cid||null); if(!d) return;
+  const w=window.open('','_blank');
+  if(!w){ alert('Permití las ventanas emergentes para imprimir'); return; }
+  w.document.write(`<html><head><meta charset="utf-8"><title>${d.nombre}</title><style>${d.css}</style></head><body>${d.html}<script>window.onload=()=>window.print();<\/script></body></html>`);
+  w.document.close();
+}
+// v2.9.165: TODOS los reportes individuales en un solo documento (uno por hoja, para firmar)
+function _qzRepTodosIndividualesHTML(){
+  const R=_qzRepCalc();
+  if(!R.alumnos.length){ alert('No hay alumnos en esta fuente todavía.'); return null; }
+  let css='', cuerpos=[];
+  R.alumnos.forEach((a,i)=>{
+    const d=_qzRepDocHTML(a.cid);
+    if(!d) return;
+    if(!css) css=d.css;
+    cuerpos.push((i>0?'<div style="page-break-before:always"></div>':'')+d.html);
+  });
+  return {css, html:cuerpos.join('\n'), nombre:'INDIVIDUALES_'+_qzRepFuenteNombre()};
+}
+function qzRepWordTodosIndividuales(){
+  const d=_qzRepTodosIndividualesHTML(); if(!d) return;
+  const doc=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>${d.css}</style></head><body>${d.html}</body></html>`;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['﻿'+doc],{type:'application/msword'}));
+  a.download=d.nombre+'.doc'; document.body.appendChild(a); a.click(); a.remove();
+}
+function qzRepPDFTodosIndividuales(){
+  const d=_qzRepTodosIndividualesHTML(); if(!d) return;
   const w=window.open('','_blank');
   if(!w){ alert('Permití las ventanas emergentes para imprimir'); return; }
   w.document.write(`<html><head><meta charset="utf-8"><title>${d.nombre}</title><style>${d.css}</style></head><body>${d.html}<script>window.onload=()=>window.print();<\/script></body></html>`);
@@ -16052,6 +16130,10 @@ function qzBoardToggleAnon(){
   _qzBSig=''; _qzBoardRender();
 }
 function qzBoardComenzar(){ _qzBoardControl('lanzar',0); }
+function qzBoardCarrera(){ // v2.9.165: arranca el examen a ritmo libre + acelera el polling del leaderboard
+  _qzBoardControl('carrera');
+  clearInterval(_qzBPoll); _qzBPoll=setInterval(_qzBoardTick, 1500);
+}
 function qzBoardResultados(){ _qzBoardControl('resultados'); }
 function qzBoardSiguiente(){ _qzBoardControl('lanzar', _qzB.ses.pregunta_idx+1); }
 function qzBoardPodio(){ _qzBoardControl('fin'); }
@@ -16183,7 +16265,27 @@ function _qzBoardRender(){
     <div style="text-align:center;margin-top:8px"><span class="qz-link-pill" onclick="_qzCopiarLink('${escapeHtml(link)}')" title="Tocar para copiar">🔗 ${escapeHtml(link)} <b style="color:#f4d574">· copiar</b></span></div>
     <div class="qz-contador">👥 ${_qzB.parts.length} conectado(s)</div>
     <div class="qz-lobby-nombres">${_qzB.parts.map(x=>`<span class="qz-chip">${escapeHtml(x.nombre||'—')}</span>`).join('')}</div>
-    <div class="qz-b-foot"><button class="qz-btn gold big" onclick="qzBoardComenzar()" ${_qzB.parts.length?'':'disabled'}>▶️ COMENZAR (${pregs.length} pregunta${pregs.length!==1?'s':''})</button></div>`;
+    <div class="qz-b-foot" style="flex-direction:column;gap:8px">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+        <button class="qz-btn gold big" onclick="qzBoardComenzar()" ${_qzB.parts.length?'':'disabled'}>▶️ COMPETENCIA GUIADA<br><span style="font-size:12px;font-weight:600;opacity:.85">todos responden la misma pregunta</span></button>
+        <button class="qz-btn big" style="background:linear-gradient(90deg,#7a1fb0,#b02da0)" onclick="qzBoardCarrera()" ${_qzB.parts.length?'':'disabled'}>🏁 CARRERA LIBRE<br><span style="font-size:12px;font-weight:600;opacity:.85">cada uno a su ritmo · leaderboard en vivo</span></button>
+      </div>
+      <div style="font-size:12px;color:#9ec3ef">${pregs.length} pregunta${pregs.length!==1?'s':''}</div>
+    </div>`;
+  }
+  else if(ses.estado==='carrera'){
+    // v2.9.165: EXAMEN A RITMO LIBRE — leaderboard en vivo + progreso de cada alumno
+    const stC=_qzStandings(respAll);
+    const total=pregs.filter(pp=>!QZ_NO_CALIFICA.includes(pp.tipo)).length || pregs.length;
+    const porAlu={};
+    respAll.forEach(r=>{ porAlu[r.nombre]=(porAlu[r.nombre]||0)+1; });
+    const terminaron=Object.values(porAlu).filter(n=>n>=pregs.length).length;
+    body=`<div style="text-align:center;color:#9ec3ef;font-weight:800;font-size:clamp(15px,2vw,20px)">🏁 EXAMEN EN CARRERA · PIN ${escapeHtml(ses.pin)}</div>
+    <div class="qz-contador">✅ ${terminaron} terminaron · 👥 ${_qzB.parts.length} jugando · ${respAll.length} respuestas</div>`+
+    (_qzRaceHtml(stC,'🏁 POSICIONES EN VIVO') || '<div style="text-align:center;color:#9ec3ef;font-size:18px;padding:34px">Esperando las primeras respuestas…</div>')+
+    `<div class="qz-b-foot"><button class="qz-btn red" onclick="qzBoardPodio()">🏆 Terminar y ver podio</button></div>`;
+    cont.innerHTML = top + body;
+    return;
   }
   else if(ses.estado==='pregunta' && p){
     const enVivoAbierto=QZ_NO_CALIFICA.includes(p.tipo);
@@ -16280,7 +16382,9 @@ async function _qzUnirseConPin(pin){
     document.getElementById('qz-alu-tit').textContent='🎯 '+(d.titulo||'Juego en vivo');
     document.getElementById('qz-alu-sub').textContent='EN VIVO';
     showScreen('screen-quiz-alumno');
-    _qzAluRender();
+    if(_qzA.ses.estado==='carrera'){ // se unió con la carrera ya empezada
+      _qzA.carrera=true; _qzA.cIdx=0; while(_qzA.resp[_qzA.cIdx]) _qzA.cIdx++; _qzCarreraRender();
+    } else { _qzAluRender(); }
     clearInterval(_qzAPoll);
     _qzAPoll=setInterval(_qzAluTick,2000);
   }catch(e){ alert('⚠️ '+e.message); }
@@ -16299,11 +16403,41 @@ async function _qzAluTick(){
     const {data,error}=await sb.from('v_quiz_sesiones').select('estado,pregunta_idx,pregunta_abierta_en').eq('id',_qzA.ses.id).limit(1);
     if(error||!data||!data.length) return;
     const s=data[0];
+    // v2.9.165: modo carrera — arranca el runner a ritmo libre una sola vez
+    if(s.estado==='carrera'){
+      if(!_qzA.carrera){
+        _qzA.carrera=true; _qzA.ses.estado='carrera';
+        _qzA.cIdx=0; while(_qzA.resp[_qzA.cIdx]) _qzA.cIdx++; // reanuda si recargó
+        _qzCarreraRender();
+      }
+      return; // en carrera el alumno se maneja solo; el tick solo vigila el fin
+    }
+    if(_qzA.carrera && s.estado==='fin'){ _qzA.ses.estado='fin'; _qzAluFin(); return; }
     if(s.estado!==_qzA.ses.estado || s.pregunta_idx!==_qzA.ses.pregunta_idx){
       _qzA.ses.estado=s.estado; _qzA.ses.pregunta_idx=s.pregunta_idx; _qzA.ses.pregunta_abierta_en=s.pregunta_abierta_en;
       _qzAluRender();
     }
   }catch(e){}
+}
+// v2.9.165: EXAMEN A RITMO LIBRE (alumno) — pregunta → responde → resultado 1.5s → siguiente
+function _qzCarreraRender(){
+  if(!_qzA) return;
+  const cont=document.getElementById('qz-alu-body');
+  clearInterval(_qzTimerInt);
+  // saltar preguntas ya respondidas
+  while(_qzA.cIdx<_qzA.pregs.length && _qzA.resp[_qzA.cIdx]) _qzA.cIdx++;
+  const i=_qzA.cIdx, p=_qzA.pregs[i];
+  if(i>=_qzA.pregs.length){
+    cont.innerHTML=`<div class="qz-wrap"><div class="qz-alu-feed ok"><div class="giga">🏁</div><div style="font-size:19px;font-weight:900;margin-top:8px">¡Terminaste el examen!</div><div class="qz-alu-pts">${_qzA.total} pts</div><div class="qz-sub">Mirá la carrera en la pantalla 🏆<br>El profesor cierra cuando todos terminen.</div></div></div>`;
+    return;
+  }
+  _qzCurP=p; _qzAluSelSet=new Set(); _qzAluT0=Date.now();
+  cont.innerHTML=`<div class="qz-wrap">
+    <div class="qz-progress"><div style="width:${Math.round(i/_qzA.pregs.length*100)}%"></div></div>
+    <div class="qz-meta">Pregunta ${i+1} de ${_qzA.pregs.length} · 🏁 CARRERA</div>
+    <div class="qz-alu-card">
+    <div style="font-weight:800;font-size:18px;margin:2px 0 16px;line-height:1.4">${QZ_TIPOS[p.tipo].ic} ${escapeHtml(p.texto)}</div>
+    <div id="qz-alu-zona">${_qzAluZonaHtml(p,'qzc')}</div></div></div>`;
 }
 function _qzFeedHtml(r, p){
   if(r.correcta===true) return `<div class="qz-alu-feed ok"><div class="giga">🎯</div><div style="font-size:20px;font-weight:900;margin-top:6px">¡CORRECTO!</div><div class="qz-alu-pts">+${r.puntos} pts</div><div class="qz-sub">Total: ${_qzA?_qzA.total:r.puntos} pts — esperá la pantalla…</div></div>`;
@@ -16505,18 +16639,30 @@ function qzAluEnviar(prefix){
 }
 async function _qzAluEnviarRespuesta(r){
   if(!_qzA || !_qzCurP) { if(_qzP){ _qzPracticaGuardarLocal(r); } return; }
-  const idx=_qzA.ses.pregunta_idx, p=_qzCurP;
+  const carrera=!!_qzA.carrera;
+  const idx=carrera? _qzA.cIdx : _qzA.ses.pregunta_idx, p=_qzCurP;
   const ms=Date.now()-_qzAluT0;
   const zona=document.getElementById('qz-alu-zona'); if(zona) zona.style.opacity='.4';
   try{
     const d=await _qzInvoke('responder',{sesion_id:_qzA.ses.id, pregunta_idx:idx, respuesta:r, ms});
     const fb={correcta:d.correcta, puntos:d.puntos||0, enviada:true, solTxt:_qzSolTexto(p,d.solucion)};
     _qzA.resp[idx]=fb; _qzA.total+=fb.puntos;
+    if(carrera){
+      // muestra el resultado ~1.5s y pasa SOLO a la siguiente pregunta
+      const cont=document.getElementById('qz-alu-body');
+      cont.innerHTML=`<div class="qz-wrap"><div class="qz-alu-card"><div style="font-weight:800;font-size:15px;margin-bottom:6px">${escapeHtml(p.texto)}</div>${_qzFeedHtml(fb,p)}</div></div>`;
+      setTimeout(()=>{ if(_qzA&&_qzA.carrera){ _qzA.cIdx++; _qzCarreraRender(); } }, 1500);
+      return;
+    }
     _qzAluRender();
   }catch(e){
     if(zona) zona.style.opacity='1';
+    if(/ya respondiste|cerró/i.test(e.message)){
+      _qzA.resp[idx]=_qzA.resp[idx]||{correcta:null,puntos:0,enviada:true};
+      if(carrera){ _qzA.cIdx++; _qzCarreraRender(); } else { _qzAluRender(); }
+      return;
+    }
     alert('⚠️ '+e.message);
-    if(/ya respondiste|cerró/i.test(e.message)){ _qzA.resp[idx]=_qzA.resp[idx]||{correcta:null,puntos:0,enviada:true}; _qzAluRender(); }
   }
 }
 async function _qzAluFin(){
