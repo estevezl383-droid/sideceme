@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.159</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.160</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5914,6 +5914,27 @@ input::placeholder, textarea::placeholder {
 .qz-rev-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
 .qz-proj-panel{background:#04070F;border:1px solid rgba(34,211,238,.3);border-radius:14px;padding:14px;margin-top:10px;color:#fff}
 .qz-fb-next{width:100%;margin-top:14px}
+/* v2.9.160: retoques "CONSOLA DE DATOS AVANZADA" — trazas de latón, engranajes, pulso de luz */
+@keyframes qzPulseOk{0%,100%{box-shadow:0 0 14px rgba(74,222,128,.25)}50%{box-shadow:0 0 30px rgba(74,222,128,.55)}}
+@keyframes qzPulseMal{0%,100%{box-shadow:0 0 14px rgba(251,113,133,.25)}50%{box-shadow:0 0 30px rgba(251,113,133,.55)}}
+@keyframes qzPulseCyan{0%,100%{box-shadow:0 0 0 1px rgba(34,211,238,.08),0 0 34px rgba(34,211,238,.08)}50%{box-shadow:0 0 0 1px rgba(34,211,238,.14),0 0 52px rgba(34,211,238,.18)}}
+.qz-arena .qz-alu-card{position:relative;animation:qzPulseCyan 3.4s ease-in-out infinite}
+.qz-arena .qz-alu-card::before{content:'';position:absolute;top:-1px;left:-1px;width:36px;height:36px;border-top:2px solid #D4AF37;border-left:2px solid #D4AF37;border-radius:18px 0 0 0;opacity:.85;pointer-events:none}
+.qz-arena .qz-alu-card::after{content:'';position:absolute;bottom:-1px;right:-1px;width:36px;height:36px;border-bottom:2px solid #D4AF37;border-right:2px solid #D4AF37;border-radius:0 0 18px 0;opacity:.85;pointer-events:none}
+.qz-arena .qz-meta{border-bottom:1px solid rgba(212,175,55,.4);padding-bottom:6px}
+.qz-arena .qz-alu-feed.ok{animation:qzPop .3s cubic-bezier(.2,.8,.2,1),qzPulseOk 2.6s ease-in-out infinite}
+.qz-arena .qz-alu-feed.mal{animation:qzPop .3s cubic-bezier(.2,.8,.2,1),qzPulseMal 2.6s ease-in-out infinite}
+.qz-arena .qz-alu-pts{font-size:clamp(34px,6vw,52px);display:inline-block;padding:0 20px 6px;border-bottom:2px solid rgba(212,175,55,.55)}
+.qz-arena .qz-item{position:relative}
+.qz-arena .qz-item.qz-rev-ok{border:1.5px solid #4ADE80 !important;animation:qzPulseOk 3s ease-in-out infinite}
+.qz-arena .qz-item.qz-rev-mal{border:1.5px solid #FB7185 !important;animation:qzPulseMal 3s ease-in-out infinite}
+.qz-arena .qz-item.qz-rev-neu{border:1.5px solid rgba(34,211,238,.7) !important;box-shadow:0 0 16px rgba(34,211,238,.2) !important}
+.qz-arena .qz-item[class*="qz-rev-"]::after{content:'⚙';position:absolute;top:7px;right:10px;color:#D4AF37;opacity:.6;font-size:14px;pointer-events:none}
+/* V/F como BLOQUES DE LUZ completa (azul = verdadero, rojo coral = falso) */
+.qz-arena .qz-vfv{background:linear-gradient(180deg,#2563EB,#1E40AF);border:1.5px solid #60A5FA;color:#fff;box-shadow:0 0 26px rgba(59,130,246,.55);text-shadow:0 0 10px rgba(255,255,255,.5);justify-content:center;font-size:clamp(18px,2vw,22px);font-weight:900;letter-spacing:2px}
+.qz-arena .qz-vff{background:linear-gradient(180deg,#E11D48,#9F1239);border:1.5px solid #FB7185;color:#fff;box-shadow:0 0 26px rgba(244,63,94,.5);text-shadow:0 0 10px rgba(255,255,255,.5);justify-content:center;font-size:clamp(18px,2vw,22px);font-weight:900;letter-spacing:2px}
+.qz-arena .qz-vfv:hover{box-shadow:0 0 40px rgba(59,130,246,.8)}
+.qz-arena .qz-vff:hover{box-shadow:0 0 40px rgba(244,63,94,.75)}
 </style>
 
 <!-- PROFESOR: gestión de cuestionarios -->
@@ -15142,7 +15163,7 @@ function _qzProfRender(){
         <button class="qz-mini play" onclick="qzEnVivo('${c.id}')">▶️ EN VIVO</button>
         <button class="qz-mini" onclick="qzPreview('${c.id}')">👁 Probar</button>
         <button class="qz-mini" onclick="qzEditar('${c.id}')">✏️ Editar</button>
-        <button class="qz-mini" onclick="qzResultadosPractica('${c.id}')">📊 Resultados</button>
+        <button class="qz-mini" onclick="qzResultadosPractica('${c.id}')">📊 Registro de notas</button>
         <button class="qz-mini warn" onclick="qzEliminar('${c.id}')">🗑</button>
       </div>
     </div>`;
@@ -15169,23 +15190,169 @@ async function qzEliminar(id){
   if(!confirm('¿Borrar "'+c.titulo+'"? Se pierden también sus resultados.')) return;
   try{ await _qzInvoke('eliminar',{id}); goQuizProf(); }catch(e){ alert('⚠️ '+e.message); }
 }
+// ============ v2.9.160: REGISTRO DE NOTAS (estilo Wayground) ============
+// Nota por alumno, % por pregunta (la más fallada), participación, reporte
+// general CSV + reporte individual. Fuentes: práctica libre o cada sesión EN VIVO.
+let _qzRep=null;
 async function qzResultadosPractica(id){
-  const c=_qzLista.find(x=>x.id===id); if(!c) return;
   const cont=document.getElementById('qz-prof-body');
-  cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando resultados…</div>';
+  cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando registro de notas…</div>';
   try{
-    const d=await _qzInvoke('resultados',{cuestionario_id:id});
-    const rows=d.respuestas||[];
-    const por={};
-    rows.forEach(r=>{ const s=por[r.cursante_id]||(por[r.cursante_id]={nombre:r.nombre||'—',ok:0,n:0,pts:0,fecha:r.creado_en});
-      s.n++; if(r.correcta===true) s.ok++; s.pts+=r.puntos||0; if(r.creado_en>s.fecha) s.fecha=r.creado_en; });
-    const arr=Object.values(por).sort((a,b)=>b.pts-a.pts);
-    const nCal=(c.preguntas||[]).filter(p=>!QZ_NO_CALIFICA.includes(p.tipo)).length;
-    cont.innerHTML = `<button class="qz-mini" onclick="_qzProfRender()" style="margin-bottom:12px">← Volver a la lista</button>
-      <div class="section-label">📊 ${escapeHtml(c.titulo)} — práctica libre (${arr.length} alumno(s))</div>`+
-      (arr.length? `<table class="qz-tabla" style="color:var(--text-primary)"><tr><th>#</th><th>Alumno</th><th>Aciertos</th><th>Puntos</th></tr>${arr.map((s,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(s.nombre)}</td><td>${s.ok}/${nCal}</td><td>${s.pts}</td></tr>`).join('')}</table>`
-        : '<div class="efm-no-data" style="color:var(--text-muted)">Nadie rindió esta práctica todavía.</div>');
-  }catch(e){ cont.innerHTML='<div class="efm-no-data">⚠️ '+escapeHtml(e.message)+'</div>'; }
+    const d=await _qzInvoke('reporte',{cuestionario_id:id});
+    _qzRep={c:d.cuestionario, sesiones:d.sesiones||[], practica:d.practica||[], vivas:d.vivas||[], participantes:d.participantes||[], fuente:'practica'};
+    if(!_qzRep.practica.length && _qzRep.sesiones.length) _qzRep.fuente=_qzRep.sesiones[0].id;
+    _qzRepRender();
+  }catch(e){ cont.innerHTML='<div class="efm-no-data">⚠️ '+escapeHtml(e.message)+' — ¿re-deployaste la Edge Function quiz-ops?</div>'; }
+}
+function _qzRepRows(){
+  return _qzRep.fuente==='practica' ? _qzRep.practica : _qzRep.vivas.filter(r=>r.sesion_id===_qzRep.fuente);
+}
+function _qzRepCalc(){
+  const pregs=_qzRep.c.preguntas||[], rows=_qzRepRows();
+  const nCal=pregs.filter(p=>!QZ_NO_CALIFICA.includes(p.tipo)).length;
+  const alu={};
+  // en una sesión EN VIVO, los que se conectaron y NO respondieron también cuentan (participación 0)
+  if(_qzRep.fuente!=='practica') _qzRep.participantes.filter(p=>p.sesion_id===_qzRep.fuente)
+    .forEach(p=>{ alu[p.cursante_id]={cid:p.cursante_id,nombre:p.nombre||'—',ok:0,resp:{},pts:0,respondidas:0}; });
+  rows.forEach(r=>{
+    const a=alu[r.cursante_id]||(alu[r.cursante_id]={cid:r.cursante_id,nombre:r.nombre||'—',ok:0,resp:{},pts:0,respondidas:0});
+    a.resp[r.pregunta_idx]=r;
+    a.respondidas++; a.pts+=r.puntos||0;
+    if(r.correcta===true) a.ok++;
+  });
+  const alumnos=Object.values(alu).map(a=>({...a,
+    nota: nCal? Math.round(a.ok/nCal*1000)/10 : null,
+    part: pregs.length? Math.round(a.respondidas/pregs.length*100) : 0
+  })).sort((x,y)=> (y.nota??-1)-(x.nota??-1) || y.pts-x.pts || y.part-x.part);
+  const porPreg=pregs.map((p,idx)=>{
+    let ok=0,mal=0,resp=0;
+    rows.forEach(r=>{ if(r.pregunta_idx!==idx) return; resp++;
+      if(r.correcta===true) ok++; else if(r.correcta===false) mal++; });
+    const grad=!QZ_NO_CALIFICA.includes(p.tipo);
+    return {idx,tipo:p.tipo,texto:p.texto,ok,mal,resp,grad,
+      pct: grad&&(ok+mal)? Math.round(ok/(ok+mal)*100) : null};
+  });
+  const falladas=porPreg.filter(q=>q.grad&&q.pct!=null);
+  const masFallada=falladas.length? falladas.reduce((a,b)=> b.pct<a.pct? b:a) : null;
+  const promedio=alumnos.length&&nCal? Math.round(alumnos.reduce((s,a)=>s+(a.nota||0),0)/alumnos.length*10)/10 : null;
+  return {pregs,alumnos,porPreg,nCal,masFallada,promedio};
+}
+function _qzRepFuenteLabel(s){
+  const f=new Date(s.creado_en);
+  return `🔴 EN VIVO · PIN ${s.pin} · ${f.getDate()}/${f.getMonth()+1} ${String(f.getHours()).padStart(2,'0')}:${String(f.getMinutes()).padStart(2,'0')}${s.estado!=='fin'?' (abierta)':''}`;
+}
+function qzRepFuente(v){ _qzRep.fuente=v; _qzRepRender(); }
+function _qzRepStat(num,lbl,color){ return `<div style="flex:1;min-width:130px;background:rgba(255,255,255,.03);border:1px solid ${color||'#2a3a52'};border-radius:12px;padding:12px;text-align:center"><div style="font-size:24px;font-weight:900;color:${color||'var(--text-primary)'}">${num}</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px">${lbl}</div></div>`; }
+function _qzRepRender(){
+  const cont=document.getElementById('qz-prof-body');
+  const R=_qzRepCalc();
+  const hayFuentes=[['practica','📚 Práctica libre ('+new Set(_qzRep.practica.map(r=>r.cursante_id)).size+' alumnos)']]
+    .concat(_qzRep.sesiones.map(s=>[s.id,_qzRepFuenteLabel(s)]));
+  let html=`<button class="qz-mini" onclick="_qzProfRender()" style="margin-bottom:10px">← Volver a la lista</button>
+  <div class="section-label">📊 REGISTRO DE NOTAS — ${escapeHtml(_qzRep.c.titulo)}</div>
+  <div class="field" style="margin:8px 0 12px"><label>Fuente</label><select onchange="qzRepFuente(this.value)">
+    ${hayFuentes.map(([v,l])=>`<option value="${v}" ${_qzRep.fuente===v?'selected':''}>${escapeHtml(l)}</option>`).join('')}
+  </select></div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+    ${_qzRepStat(R.alumnos.length,'ALUMNOS','#4a90d9')}
+    ${_qzRepStat(R.promedio!=null? R.promedio+'%':'—','NOTA PROMEDIO', R.promedio==null?null:(R.promedio>=60?'#2d9d5c':'#c0392b'))}
+    ${_qzRepStat(R.alumnos.length? Math.round(R.alumnos.reduce((s,a)=>s+a.part,0)/R.alumnos.length)+'%':'—','PARTICIPACIÓN','#d4af37')}
+    ${_qzRepStat(R.masFallada? ('P'+(R.masFallada.idx+1)+' · '+R.masFallada.pct+'%'):'—','MÁS FALLADA (acierto)','#c0392b')}
+  </div>`;
+  if(R.masFallada) html+=`<div class="alert-banner" style="border-color:#c0392b;margin-bottom:12px"><span class="alert-emoji">⚠️</span><span class="alert-text"><b>Pregunta más fallada:</b> "${escapeHtml(String(R.masFallada.texto).slice(0,120))}" — solo el ${R.masFallada.pct}% la acertó. Vale la pena repasarla en clase.</span></div>`;
+  html+=`<div class="section-label">Por pregunta</div>`+
+    R.porPreg.map(q=>{
+      const barra=q.grad&&q.pct!=null
+        ? `<div style="flex:1;background:rgba(255,255,255,.07);border-radius:6px;height:18px;overflow:hidden"><div style="width:${q.pct}%;height:100%;background:${q.pct>=60?'#2d9d5c':q.pct>=40?'#d9a52d':'#c0392b'};border-radius:6px;min-width:4px"></div></div><b style="min-width:44px;text-align:right">${q.pct}%</b>`
+        : `<span style="color:var(--text-muted);font-size:12px">💬 ${q.resp} participacion(es)</span>`;
+      return `<div class="qz-item" style="display:flex;align-items:center;gap:10px;padding:9px 12px">
+        <span class="qz-ptag">${q.idx+1}</span>
+        <div style="flex:2;font-size:13px;color:var(--text-primary);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(q.texto)}">${QZ_TIPOS[q.tipo]?QZ_TIPOS[q.tipo].ic:''} ${escapeHtml(q.texto)}</div>
+        ${barra}</div>`;
+    }).join('')+
+  `<div class="section-label" style="margin-top:14px">Notas por alumno (${R.alumnos.length})</div>`;
+  html+= R.alumnos.length
+    ? `<table class="qz-tabla" style="color:var(--text-primary);max-width:100%"><tr><th>#</th><th>Alumno</th><th>✓</th><th>Nota</th><th>Pts</th><th>Partic.</th><th></th></tr>`+
+      R.alumnos.map((a,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(a.nombre)}</td><td>${a.ok}/${R.nCal}</td>
+        <td style="font-weight:900;color:${a.nota==null?'inherit':(a.nota>=60?'#7be67b':'#ff9f93')}">${a.nota!=null? a.nota+'%':'—'}</td>
+        <td>${a.pts}</td><td>${a.part}%</td>
+        <td><button class="qz-mini" onclick="qzRepIndividual('${escapeHtml(a.cid)}')">👤 Ver</button></td></tr>`).join('')+`</table>`
+    : '<div class="efm-no-data" style="color:var(--text-muted)">Sin respuestas en esta fuente todavía.</div>';
+  html+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+    <button class="qz-btn gold" onclick="qzRepCSVGeneral()">⬇️ Reporte de NOTAS (Excel/CSV)</button>
+    <button class="qz-btn" onclick="qzRepCSVporPregunta()">⬇️ Reporte por PREGUNTA (Excel/CSV)</button>
+  </div>`;
+  cont.innerHTML=html;
+}
+function _qzRespTexto(p,r){
+  const v=r&&r.respuesta;
+  if(v==null||v==='') return '(sin respuesta)';
+  if(Array.isArray(v)) return v.map(x=>Array.isArray(x)? (x[0]+' → cat.'+(Number(x[1])+1)) : String(x)).join(' | ');
+  if(typeof v==='number' && p && p.tipo!=='abierta') return '(opción '+(v+1)+')';
+  return String(v);
+}
+function qzRepIndividual(cid){
+  const R=_qzRepCalc();
+  const a=R.alumnos.find(x=>x.cid===cid); if(!a) return;
+  const cont=document.getElementById('qz-prof-body');
+  cont.innerHTML=`<button class="qz-mini" onclick="_qzRepRender()" style="margin-bottom:10px">← Volver al registro</button>
+  <div class="section-label">👤 REPORTE INDIVIDUAL — ${escapeHtml(a.nombre)}</div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px">
+    ${_qzRepStat(a.nota!=null? a.nota+'%':'—','NOTA', a.nota==null?null:(a.nota>=60?'#2d9d5c':'#c0392b'))}
+    ${_qzRepStat(a.ok+'/'+R.nCal,'CORRECTAS','#4a90d9')}
+    ${_qzRepStat(a.pts,'PUNTOS','#d4af37')}
+    ${_qzRepStat(a.part+'%','PARTICIPACIÓN','#8c5acb')}
+  </div>`+
+  R.pregs.map((p,idx)=>{
+    const r=a.resp[idx];
+    const icon=!r?'∅':r.correcta===true?'✅':r.correcta===false?'❌':'💬';
+    return `<div class="qz-item"><div style="font-size:13px;color:var(--text-primary)">${icon} <b>${idx+1}.</b> ${escapeHtml(p.texto)}</div>
+      <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Respuesta: ${escapeHtml(_qzRespTexto(p,r))}${r&&r.puntos?` · +${r.puntos} pts`:''}${!r?' — NO respondió':''}</div></div>`;
+  }).join('')+
+  `<button class="qz-btn gold" style="margin-top:12px" onclick="qzRepCSVIndividual('${escapeHtml(cid)}')">⬇️ Descargar reporte individual (Excel/CSV)</button>`;
+}
+function _qzCSV(nombre, filas){
+  const esc=v=>{ v=String(v==null?'':v); return /[";\n]/.test(v)? '"'+v.replace(/"/g,'""')+'"' : v; };
+  const txt='﻿'+filas.map(f=>f.map(esc).join(';')).join('\r\n'); // BOM para que Excel abra bien las tildes
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([txt],{type:'text/csv;charset=utf-8'}));
+  a.download=nombre; document.body.appendChild(a); a.click(); a.remove();
+}
+function _qzRepFuenteNombre(){
+  if(_qzRep.fuente==='practica') return 'practica';
+  const s=_qzRep.sesiones.find(x=>x.id===_qzRep.fuente);
+  return s? ('envivo_pin'+s.pin) : 'sesion';
+}
+function qzRepCSVGeneral(){
+  const R=_qzRepCalc();
+  const filas=[['REGISTRO DE NOTAS','',escapeHtml(_qzRep.c.titulo)],[],
+    ['#','Alumno','Código','Correctas','Total calificables','Nota (%)','Puntos','Participación (%)'].concat(R.pregs.map((p,i)=>'P'+(i+1)))];
+  R.alumnos.forEach((a,i)=>{
+    filas.push([i+1,a.nombre,a.cid,a.ok,R.nCal,a.nota!=null?a.nota:'—',a.pts,a.part]
+      .concat(R.pregs.map((p,idx)=>{ const r=a.resp[idx]; return !r?'∅':r.correcta===true?'✓':r.correcta===false?'✗':'💬'; })));
+  });
+  filas.push([]);
+  filas.push(['Leyenda:','✓ correcta','✗ incorrecta','💬 participación (sin nota)','∅ no respondió']);
+  _qzCSV('NOTAS_'+_qzRepFuenteNombre()+'.csv', filas);
+}
+function qzRepCSVporPregunta(){
+  const R=_qzRepCalc();
+  const filas=[['REPORTE POR PREGUNTA','',_qzRep.c.titulo],[],
+    ['N°','Tipo','Pregunta','Respondieron','Correctas','Incorrectas','% de acierto']];
+  R.porPreg.forEach(q=> filas.push([q.idx+1,q.tipo,q.texto,q.resp,q.grad?q.ok:'—',q.grad?q.mal:'—',q.pct!=null?q.pct:'—']));
+  _qzCSV('POR_PREGUNTA_'+_qzRepFuenteNombre()+'.csv', filas);
+}
+function qzRepCSVIndividual(cid){
+  const R=_qzRepCalc();
+  const a=R.alumnos.find(x=>x.cid===cid); if(!a) return;
+  const filas=[['REPORTE INDIVIDUAL',a.nombre,a.cid],[_qzRep.c.titulo],[],
+    ['Nota (%)',a.nota!=null?a.nota:'—'],['Correctas',a.ok+' de '+R.nCal],['Puntos',a.pts],['Participación (%)',a.part],[],
+    ['N°','Pregunta','Resultado','Su respuesta','Puntos']];
+  R.pregs.forEach((p,idx)=>{
+    const r=a.resp[idx];
+    filas.push([idx+1,p.texto, !r?'NO RESPONDIÓ':r.correcta===true?'CORRECTA':r.correcta===false?'INCORRECTA':'PARTICIPÓ', _qzRespTexto(p,r), r?(r.puntos||0):0]);
+  });
+  _qzCSV('INDIVIDUAL_'+(a.nombre||'alumno').replace(/[^a-zA-Z0-9]+/g,'_')+'.csv', filas);
 }
 
 // ---------- PROFESOR: editor ----------
@@ -16085,7 +16252,10 @@ function _qzAluZonaHtml(p, prefix){
     return `<div id="${prefix}-arrzona">${_qzArrHtml(p,prefix)}</div>`+
       `<button class="qz-btn gold" style="width:100%;margin-top:10px" onclick="qzAluEnviar('${prefix}')">📨 Enviar respuestas</button>`;
   }
-  if(p.tipo==='multiple'||p.tipo==='vf'||p.tipo==='encuesta'){
+  if(p.tipo==='vf'){
+    return `<div class="qz-opts-grid">`+(p.opciones||['VERDADERO','FALSO']).map((o,i)=>`<button class="qz-alu-opt ${i===0?'qz-vfv':'qz-vff'}" onclick="qzAluElegir(${i})">${i===0?'✔':'✘'}&nbsp; ${escapeHtml(o)}</button>`).join('')+`</div>`;
+  }
+  if(p.tipo==='multiple'||p.tipo==='encuesta'){
     return `<div class="qz-opts-grid">`+(p.opciones||[]).map((o,i)=>`<button class="qz-alu-opt qz-c${i%6}" onclick="qzAluElegir(${i})"><b>${String.fromCharCode(65+i)}</b> ${escapeHtml(o)}</button>`).join('')+`</div>`;
   }
   if(p.tipo==='multi'){
@@ -16383,7 +16553,7 @@ async function _qzPracticaEnviar(){
       det.map((x,i)=>{
         const p=_qzP.pregs[i];
         const icon=x.correcta===true?'✅':x.correcta===false?'❌':'💬';
-        const borde=x.correcta===true?'#22C55E':x.correcta===false?'#EF4444':'#3B82F6';
+        const revCls=x.correcta===true?'qz-rev-ok':x.correcta===false?'qz-rev-mal':'qz-rev-neu';
         const sol=x.correcta===false? `<div class="qz-sol" style="font-size:12px;color:#7be67b;margin-top:5px">${escapeHtml(_qzSolTexto(p,x.solucion))}</div>`:'';
         // los tipos proyectables muestran cómo se vería EN LA PANTALLA de la clase
         let viz='';
@@ -16394,7 +16564,7 @@ async function _qzPracticaEnviar(){
              _qzBarsHtml(p,[{respuesta:x.respuesta}],false))+
             `<div style="font-size:11px;color:#94A3B8;text-align:center;margin-top:6px">👆 Así se proyecta en la clase EN VIVO</div></div>`;
         }
-        return `<div class="qz-item" style="border-left:4px solid ${borde}"><div style="font-size:13px;color:var(--text-primary)">${icon} <b>${i+1}.</b> ${escapeHtml(p.texto)}</div>${sol}${viz}</div>`;
+        return `<div class="qz-item ${revCls}"><div style="font-size:13px;color:var(--text-primary)">${icon} <b>${i+1}.</b> ${escapeHtml(p.texto)}</div>${sol}${viz}</div>`;
       }).join('')+
       `</div><div style="display:flex;gap:8px;margin-top:16px">
         <button class="qz-btn gold" style="flex:1" onclick="${esPrev?'_qzPreviewOtraVez()':`qzPracticaIniciar('${_qzP.id}')`}">🔁 ${esPrev?'Probar de nuevo':'Intentar de nuevo'}</button>
