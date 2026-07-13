@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.160</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.161</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4320,7 +4320,7 @@ input::placeholder, textarea::placeholder {
 
     <button class="btn-mega" onclick="goQuizProf('screen-prof-panel')" style="background:linear-gradient(135deg,#6a1fb0,#b02da0 70%,#d9642d);margin-top:8px;color:#fff">
       <span class="mega-icon">🎯</span>
-      <span>Práctica Interactiva — quiz en vivo, muro de ideas y nube de palabras (estilo Wayground)</span>
+      <span>Recurso Interactivo para el avance de materias — quiz en vivo, muro de ideas y nube de palabras</span>
     </button>
 
     <button class="btn-mega rgd-access" onclick="goRgDireccion()" style="background:linear-gradient(135deg,#7a1f1a,#c0392b 70%,#e67e22);margin-top:8px;color:#fff;display:none">
@@ -4927,7 +4927,7 @@ input::placeholder, textarea::placeholder {
       <button id="qa-btn-bloqueo-materias" class="quick-btn" onclick="goBloqueoMaterias()" style="background:linear-gradient(180deg,rgba(180,140,255,.15),rgba(180,140,255,.05));border-color:#b48cff;display:none"><span class="qa-icon">🔒</span><span class="qa-text"><strong>Bloquear materias / módulos</strong> (ocultar a alumnos)</span></button>
       <!-- v2.9.120: retirado "Aula Virtual (abrir/cerrar materias)" — consolidado en Carpeta de Clases; los PDFs viejos se migraron a Materiales de Clase -->
       <button id="qa-btn-carpeta-clases" class="quick-btn" onclick="goAulaVirtual('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(31,111,92,.22),rgba(14,74,60,.06));border-color:#1f6f5c;display:none"><span class="qa-icon">🎓</span><span class="qa-text"><strong>Carpeta de Clases</strong> (documentación de la materia + compartir material con el curso)</span></button>
-      <button id="qa-btn-quiz" class="quick-btn" onclick="goQuizProf('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(140,45,176,.22),rgba(106,31,176,.06));border-color:#8c2db0"><span class="qa-icon">🎯</span><span class="qa-text"><strong>Práctica Interactiva</strong> (quiz en vivo estilo Wayground · muro de ideas · nube de palabras)</span></button>
+      <button id="qa-btn-quiz" class="quick-btn" onclick="goQuizProf('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(140,45,176,.22),rgba(106,31,176,.06));border-color:#8c2db0"><span class="qa-icon">🎯</span><span class="qa-text"><strong>Recurso Interactivo</strong> (quiz en vivo · muro de ideas · nube de palabras — para el avance de materias)</span></button>
       <button id="qa-btn-avisos" class="quick-btn" onclick="goAvisos()" style="background:linear-gradient(180deg,rgba(70,150,110,.2),rgba(70,150,110,.05));border-color:#46966e;display:none"><span class="qa-icon">📢</span><span class="qa-text"><strong>Avisos a cursantes</strong> (publicar / desactivar cartel in-app)</span></button>
       <button class="quick-btn" onclick="goDocsProfesoresCT()" style="background:linear-gradient(180deg,rgba(140,90,203,.18),rgba(140,90,203,.05));border-color:#8c5acb"><span class="qa-icon">👨‍🏫</span><span class="qa-text"><strong>Documentos del personal docente</strong> (subir / ver — solo profesores)</span></button>
       <button class="quick-btn" onclick="goDocsInst('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(140,90,203,.22),rgba(107,75,168,.06));border-color:#8c5acb"><span class="qa-icon">📁</span><span class="qa-text"><strong>Documentos Institucionales</strong> (publicar / recibir — por ciclo, profesores, mando)</span></button>
@@ -5627,10 +5627,15 @@ input::placeholder, textarea::placeholder {
   <div class="app-header cursante-app-header"><button class="back-btn" onclick="showScreen('screen-cursante-home')">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Aula Virtual</div><div class="header-sub" id="aula-cur-sub">Mis materias</div></div></div>
   <div class="cursante-container">
     <div class="alert-banner blue" style="margin-bottom:12px"><span class="alert-emoji">📚</span><span class="alert-text"><b>Tus materias.</b><br><span style="font-size:13px">Acá vas a encontrar la hoja de orientación, los textos de estudio y la entrega de tareas de cada materia.</span></span></div>
-    <button class="rg-home-banner" onclick="qzAluPedirPin()" style="margin-bottom:14px">
+    <button class="rg-home-banner" onclick="qzAluPedirPin()" style="margin-bottom:10px">
       <span class="rg-hb-ic">🎯</span>
       <span class="rg-hb-body"><span class="rg-hb-tit">¿El profesor lanzó un juego EN VIVO?</span><span class="rg-hb-sub">Ingresá con el PIN de 6 dígitos que está proyectado en la pantalla</span></span>
       <span class="rg-hb-go">Entrar ›</span>
+    </button>
+    <button class="rg-home-banner" onclick="qzMisEvaluaciones()" style="margin-bottom:14px">
+      <span class="rg-hb-ic">📊</span>
+      <span class="rg-hb-body"><span class="rg-hb-tit">Mis evaluaciones del Recurso Interactivo</span><span class="rg-hb-sub">Tus notas y participaciones en juegos EN VIVO y prácticas</span></span>
+      <span class="rg-hb-go">Ver ›</span>
     </button>
     <div class="section-label">Materias en curso</div>
     <div id="aula-cur-lista" style="margin-bottom:18px"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
@@ -5648,7 +5653,7 @@ input::placeholder, textarea::placeholder {
     <div id="aula-mat-orientacion" style="margin-bottom:16px"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
     <div class="section-label">📖 Textos / lecturas</div>
     <div id="aula-mat-textos" style="margin-bottom:16px"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
-    <div class="section-label">🎯 Práctica interactiva</div>
+    <div class="section-label">🎯 Recurso Interactivo</div>
     <div id="aula-mat-quiz" style="margin-bottom:16px"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
     <div class="section-label">📤 Mis tareas</div>
     <div class="efm-no-data" style="color:var(--text-muted)">Disponible en la próxima fase.</div>
@@ -5758,6 +5763,17 @@ input::placeholder, textarea::placeholder {
 .qz-muro-card .qn{display:block;margin-top:8px;font-size:11px;font-weight:800;color:#5a6b85;text-transform:uppercase}
 .qz-cloud{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:center;max-width:1000px;margin:18px auto;min-height:120px}
 .qz-cloud span{font-weight:800;line-height:1;animation:qzPop .4s ease}
+/* CARRERA DE POSICIONES en vivo (v2.9.161) — barras que avanzan y se reordenan */
+.qz-race{max-width:900px;margin:14px auto 4px;width:100%;display:flex;flex-direction:column;gap:7px}
+.qz-race-row{display:flex;align-items:center;gap:10px;animation:qzPop .4s ease}
+.qz-race-pos{font-size:20px;min-width:34px;text-align:center;font-weight:900}
+.qz-race-track{flex:1;background:rgba(255,255,255,.06);border-radius:10px;height:34px;overflow:hidden;border:1px solid rgba(212,175,55,.25)}
+.qz-race-fill{height:100%;border-radius:10px;background:linear-gradient(90deg,#1d4e9d,#2d70d9 60%,#4a90d9);display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 10px;min-width:64px;transition:width .9s cubic-bezier(.2,.8,.2,1);white-space:nowrap}
+.qz-race-row:nth-child(1) .qz-race-fill{background:linear-gradient(90deg,#9a7b1f,#d4af37 60%,#f4d574);color:#0a1628;box-shadow:0 0 18px rgba(212,175,55,.5)}
+.qz-race-row:nth-child(2) .qz-race-fill{background:linear-gradient(90deg,#6b7683,#9aa7b5 60%,#c8d3de);color:#0a1628}
+.qz-race-row:nth-child(3) .qz-race-fill{background:linear-gradient(90deg,#7a4a1f,#b06f2d 60%,#d99a52);color:#0a1628}
+.qz-race-nom{font-size:13px;font-weight:800;overflow:hidden;text-overflow:ellipsis}
+.qz-race-fill b{font-family:ui-monospace,Menlo,monospace;font-size:14px}
 .qz-podio{display:flex;align-items:flex-end;justify-content:center;gap:14px;margin:26px auto 12px}
 .qz-pod{display:flex;flex-direction:column;align-items:center;gap:8px}
 .qz-pod .caja{width:min(26vw,190px);border-radius:12px 12px 0 0;background:linear-gradient(180deg,#d4af37,#9a7b1f);display:flex;align-items:center;justify-content:center;font-size:44px;font-weight:900;color:#0a1628}
@@ -5939,7 +5955,7 @@ input::placeholder, textarea::placeholder {
 
 <!-- PROFESOR: gestión de cuestionarios -->
 <section id="screen-quiz-prof" class="screen">
-  <div class="app-header"><button class="back-btn" onclick="qzProfVolver()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">🎯 Práctica Interactiva</div><div class="header-sub">Quiz en vivo · muro de ideas · nube de palabras</div></div></div>
+  <div class="app-header"><button class="back-btn" onclick="qzProfVolver()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">🎯 Recurso Interactivo</div><div class="header-sub">Quiz en vivo · muro de ideas · nube de palabras · biblioteca</div></div></div>
   <div class="menu-container" id="qz-prof-body"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
 </section>
 
@@ -15130,11 +15146,18 @@ function _qzProfRender(){
   const cont = document.getElementById('qz-prof-body');
   const mats = (aulaMateriasCache||[]).filter(m=> m.id!==AULA_MATERIA_PROFESORES);
   const lista = _qzMatFiltro ? _qzLista.filter(c=> c.materia_aula_id===_qzMatFiltro) : _qzLista;
-  let html = `<div class="alert-banner blue" style="margin-bottom:12px"><span class="alert-emoji">🎯</span><span class="alert-text"><b>Tu Wayground dentro de SIDECEME.</b><br><span style="font-size:12px">▶️ <b>EN VIVO</b>: proyectás la pantalla, los alumnos entran con un PIN y ves sus respuestas al instante (barras, muro de ideas, nube de palabras, podio). 📚 <b>Publicado</b>: los alumnos lo practican solos desde su materia, autocalificado.</span></span></div>`;
+  let html = `<div class="alert-banner blue" style="margin-bottom:12px"><span class="alert-emoji">🎯</span><span class="alert-text"><b>Tu Recurso Interactivo para clases.</b><br><span style="font-size:12px">▶️ <b>EN VIVO</b>: proyectás la pantalla, los alumnos entran con un PIN o QR y ves sus respuestas al instante (barras, muro de ideas, nube de palabras, carrera de posiciones). 📚 <b>Publicado</b>: los alumnos lo practican solos desde su materia, autocalificado.</span></span></div>`;
   if(_qzSesAb.length){
     html += _qzSesAb.map(s=>{
       const c=_qzLista.find(x=>x.id===s.cuestionario_id);
-      return `<button class="rg-home-banner" style="margin-bottom:10px" onclick="qzRetomarSesion('${s.id}')"><span class="rg-hb-ic">🔴</span><span class="rg-hb-body"><span class="rg-hb-tit">Sesión EN VIVO abierta — PIN ${escapeHtml(s.pin)}</span><span class="rg-hb-sub">${escapeHtml(c?c.titulo:'Cuestionario')}</span></span><span class="rg-hb-go">Retomar ›</span></button>`;
+      return `<div class="qz-item" style="border-color:#c0392b">
+        <div class="qz-item-tit">🔴 Sesión EN VIVO abierta — PIN ${escapeHtml(s.pin)}</div>
+        <div class="qz-item-meta">${escapeHtml(c?c.titulo:'Cuestionario')}</div>
+        <div class="qz-item-btns">
+          <button class="qz-mini play" onclick="qzRetomarSesion('${s.id}')">▶️ Retomar (proyector)</button>
+          <button class="qz-mini" onclick="qzSesionCerrar('${s.id}')">🏁 Cerrar y archivar en el registro</button>
+          <button class="qz-mini warn" onclick="qzSesionEliminar('${s.id}')">🗑 Eliminar (borra sus respuestas)</button>
+        </div></div>`;
     }).join('');
   }
   html += `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
@@ -15152,8 +15175,8 @@ function _qzProfRender(){
     <option value="">Todas las materias</option>
     ${mats.map(m=>`<option value="${m.id}" ${_qzMatFiltro===m.id?'selected':''}>${escapeHtml(m.nombre)} (${escapeHtml(m.ciclo||'')})</option>`).join('')}
   </select></div>
-  <div class="section-label">Cuestionarios (${lista.length})</div>`;
-  html += lista.length ? lista.map(c=>{
+  <div class="section-label">📚 Biblioteca de recursos (${lista.length}) — por unidad de competencia</div>`;
+  const _qzCard=c=>{
     const n=(c.preguntas||[]).length;
     const mat=_qzMateriaNombre(c.materia_aula_id);
     return `<div class="qz-item">
@@ -15167,7 +15190,17 @@ function _qzProfRender(){
         <button class="qz-mini warn" onclick="qzEliminar('${c.id}')">🗑</button>
       </div>
     </div>`;
-  }).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">Todavía no hay cuestionarios. Creá el primero con ➕.</div>';
+  };
+  if(lista.length){
+    // BIBLIOTECA: agrupar por unidad de competencia (sin unidad al final)
+    const grupos={};
+    lista.forEach(c=>{ const u=(c.unidad||'').trim()||'~sin'; (grupos[u]=grupos[u]||[]).push(c); });
+    const claves=Object.keys(grupos).sort((a,b)=> a==='~sin'?1 : b==='~sin'?-1 : a.localeCompare(b));
+    claves.forEach(u=>{
+      html+=`<div style="font-size:12px;font-weight:800;color:var(--gold-light,#f4d574);letter-spacing:1px;margin:12px 0 6px">📚 ${u==='~sin'?'SIN UNIDAD ASIGNADA':escapeHtml(u).toUpperCase()} (${grupos[u].length})</div>`;
+      html+=grupos[u].map(_qzCard).join('');
+    });
+  } else html+='<div class="efm-no-data" style="color:var(--text-muted)">Todavía no hay recursos. Creá el primero con ➕.</div>';
   cont.innerHTML = html;
 }
 function qzRapidaToggle(){ const d=document.getElementById('qz-rapida'); d.style.display = d.style.display==='none'?'block':'none'; }
@@ -15220,8 +15253,19 @@ function _qzRepCalc(){
     a.respondidas++; a.pts+=r.puntos||0;
     if(r.correcta===true) a.ok++;
   });
+  // puntaje NUMÉRICO por ítems: cada pregunta vale sus ítems (completar de 3 huecos = 3 puntos)
+  const itemsDe=(p)=> p.items||1;
+  const itemsMax=pregs.reduce((s,p)=> s + (QZ_NO_CALIFICA.includes(p.tipo)?0:itemsDe(p)), 0);
+  const itemsGanados=(a)=> pregs.reduce((s,p,idx)=>{
+    if(QZ_NO_CALIFICA.includes(p.tipo)) return s;
+    const r=a.resp[idx]; if(!r) return s;
+    if(r.correcta===true) return s+itemsDe(p);
+    if(r.correcta===false) return s+Math.round(Math.min(1,(r.puntos||0)/1000)*itemsDe(p));
+    return s;
+  },0);
   const alumnos=Object.values(alu).map(a=>({...a,
     nota: nCal? Math.round(a.ok/nCal*1000)/10 : null,
+    items: itemsGanados(a),
     part: pregs.length? Math.round(a.respondidas/pregs.length*100) : 0
   })).sort((x,y)=> (y.nota??-1)-(x.nota??-1) || y.pts-x.pts || y.part-x.part);
   const porPreg=pregs.map((p,idx)=>{
@@ -15235,7 +15279,7 @@ function _qzRepCalc(){
   const falladas=porPreg.filter(q=>q.grad&&q.pct!=null);
   const masFallada=falladas.length? falladas.reduce((a,b)=> b.pct<a.pct? b:a) : null;
   const promedio=alumnos.length&&nCal? Math.round(alumnos.reduce((s,a)=>s+(a.nota||0),0)/alumnos.length*10)/10 : null;
-  return {pregs,alumnos,porPreg,nCal,masFallada,promedio};
+  return {pregs,alumnos,porPreg,nCal,masFallada,promedio,itemsMax};
 }
 function _qzRepFuenteLabel(s){
   const f=new Date(s.creado_en);
@@ -15272,15 +15316,18 @@ function _qzRepRender(){
     }).join('')+
   `<div class="section-label" style="margin-top:14px">Notas por alumno (${R.alumnos.length})</div>`;
   html+= R.alumnos.length
-    ? `<table class="qz-tabla" style="color:var(--text-primary);max-width:100%"><tr><th>#</th><th>Alumno</th><th>✓</th><th>Nota</th><th>Pts</th><th>Partic.</th><th></th></tr>`+
+    ? `<table class="qz-tabla" style="color:var(--text-primary);max-width:100%"><tr><th>#</th><th>Alumno</th><th>✓</th><th>Nota</th><th>Ítems</th><th>Pts</th><th>Partic.</th><th></th></tr>`+
       R.alumnos.map((a,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(a.nombre)}</td><td>${a.ok}/${R.nCal}</td>
         <td style="font-weight:900;color:${a.nota==null?'inherit':(a.nota>=60?'#7be67b':'#ff9f93')}">${a.nota!=null? a.nota+'%':'—'}</td>
+        <td style="font-weight:800">${a.items}/${R.itemsMax}</td>
         <td>${a.pts}</td><td>${a.part}%</td>
         <td><button class="qz-mini" onclick="qzRepIndividual('${escapeHtml(a.cid)}')">👤 Ver</button></td></tr>`).join('')+`</table>`
     : '<div class="efm-no-data" style="color:var(--text-muted)">Sin respuestas en esta fuente todavía.</div>';
   html+=`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
-    <button class="qz-btn gold" onclick="qzRepCSVGeneral()">⬇️ Reporte de NOTAS (Excel/CSV)</button>
-    <button class="qz-btn" onclick="qzRepCSVporPregunta()">⬇️ Reporte por PREGUNTA (Excel/CSV)</button>
+    <button class="qz-btn gold" onclick="qzRepCSVGeneral()">⬇️ Excel/CSV</button>
+    <button class="qz-btn" onclick="qzRepWord()">📄 Word</button>
+    <button class="qz-btn" style="background:#7a2230" onclick="qzRepPDF()">🖨️ PDF / Imprimir</button>
+    <button class="qz-btn" style="background:#475569" onclick="qzRepCSVporPregunta()">⬇️ CSV por pregunta</button>
   </div>`;
   cont.innerHTML=html;
 }
@@ -15300,16 +15347,78 @@ function qzRepIndividual(cid){
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 14px">
     ${_qzRepStat(a.nota!=null? a.nota+'%':'—','NOTA', a.nota==null?null:(a.nota>=60?'#2d9d5c':'#c0392b'))}
     ${_qzRepStat(a.ok+'/'+R.nCal,'CORRECTAS','#4a90d9')}
+    ${_qzRepStat(a.items+'/'+R.itemsMax,'ÍTEMS','#2d9d5c')}
     ${_qzRepStat(a.pts,'PUNTOS','#d4af37')}
     ${_qzRepStat(a.part+'%','PARTICIPACIÓN','#8c5acb')}
   </div>`+
   R.pregs.map((p,idx)=>{
     const r=a.resp[idx];
     const icon=!r?'∅':r.correcta===true?'✅':r.correcta===false?'❌':'💬';
-    return `<div class="qz-item"><div style="font-size:13px;color:var(--text-primary)">${icon} <b>${idx+1}.</b> ${escapeHtml(p.texto)}</div>
+    const it=_qzItemsDePreg(p,r);
+    return `<div class="qz-item"><div style="font-size:13px;color:var(--text-primary)">${icon} <b>${idx+1}.</b> ${escapeHtml(p.texto)} ${it.max>0?`<span class="qz-ptag" style="background:${it.won>=it.max?'#1b6e3e':it.won>0?'#7a5012':'#7a2230'};color:#fff">${it.won}/${it.max} ítem${it.max!==1?'s':''}</span>`:''}</div>
       <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Respuesta: ${escapeHtml(_qzRespTexto(p,r))}${r&&r.puntos?` · +${r.puntos} pts`:''}${!r?' — NO respondió':''}</div></div>`;
   }).join('')+
-  `<button class="qz-btn gold" style="margin-top:12px" onclick="qzRepCSVIndividual('${escapeHtml(cid)}')">⬇️ Descargar reporte individual (Excel/CSV)</button>`;
+  `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+    <button class="qz-btn gold" onclick="qzRepCSVIndividual('${escapeHtml(cid)}')">⬇️ Excel/CSV</button>
+    <button class="qz-btn" onclick="qzRepWord('${escapeHtml(cid)}')">📄 Word</button>
+    <button class="qz-btn" style="background:#7a2230" onclick="qzRepPDF('${escapeHtml(cid)}')">🖨️ PDF / Imprimir</button>
+  </div>`;
+}
+// ítems ganados/posibles de UNA pregunta para UNA respuesta (para el detalle numérico)
+function _qzItemsDePreg(p,r){
+  if(QZ_NO_CALIFICA.includes(p.tipo)) return {won:0,max:0};
+  const max=p.items||1;
+  if(!r) return {won:0,max};
+  if(r.correcta===true) return {won:max,max};
+  if(r.correcta===false) return {won:Math.round(Math.min(1,(r.puntos||0)/1000)*max),max};
+  return {won:0,max};
+}
+// ---- REPORTES EN WORD Y PDF (v2.9.161) ----
+function _qzRepDocHTML(cid){
+  const R=_qzRepCalc();
+  const fSrc=_qzRep.fuente==='practica'?'Práctica libre':_qzRepFuenteLabel(_qzRep.sesiones.find(s=>s.id===_qzRep.fuente)||{pin:'—',creado_en:new Date().toISOString()});
+  const hoy=new Date();
+  const css='body{font-family:Arial,sans-serif;font-size:11pt;color:#111}h1{font-size:15pt;margin:0 0 2pt}h2{font-size:12pt;margin:14pt 0 6pt;border-bottom:1.5pt solid #333;padding-bottom:2pt}table{border-collapse:collapse;width:100%;font-size:10pt}th,td{border:1pt solid #555;padding:4pt 6pt;text-align:left}th{background:#e8e8e8}.ok{color:#0a7a30;font-weight:bold}.mal{color:#b00020;font-weight:bold}.meta{color:#444;font-size:10pt;margin:0 0 4pt}';
+  let h=`<h1>REGISTRO DE NOTAS — RECURSO INTERACTIVO</h1>
+  <p class="meta"><b>${escapeHtml(_qzRep.c.titulo)}</b></p>
+  <p class="meta">Fuente: ${escapeHtml(fSrc)} · Generado: ${hoy.getDate()}/${hoy.getMonth()+1}/${hoy.getFullYear()}</p>`;
+  if(cid){
+    const a=R.alumnos.find(x=>x.cid===cid); if(!a) return '';
+    h+=`<h2>REPORTE INDIVIDUAL — ${escapeHtml(a.nombre)}</h2>
+    <table><tr><th>Nota</th><th>Correctas</th><th>Ítems</th><th>Puntos</th><th>Participación</th></tr>
+    <tr><td class="${(a.nota||0)>=60?'ok':'mal'}">${a.nota!=null?a.nota+'%':'—'}</td><td>${a.ok}/${R.nCal}</td><td>${a.items}/${R.itemsMax}</td><td>${a.pts}</td><td>${a.part}%</td></tr></table>
+    <h2>Detalle por pregunta</h2>
+    <table><tr><th>N°</th><th>Pregunta</th><th>Resultado</th><th>Ítems</th><th>Su respuesta</th></tr>`+
+    R.pregs.map((p,idx)=>{ const r=a.resp[idx]; const it=_qzItemsDePreg(p,r);
+      const res=!r?'NO RESPONDIÓ':r.correcta===true?'CORRECTA':r.correcta===false?'INCORRECTA':'PARTICIPÓ';
+      return `<tr><td>${idx+1}</td><td>${escapeHtml(p.texto)}</td><td class="${r&&r.correcta===true?'ok':r&&r.correcta===false?'mal':''}">${res}</td><td>${it.max?it.won+'/'+it.max:'—'}</td><td>${escapeHtml(_qzRespTexto(p,r))}</td></tr>`;
+    }).join('')+`</table>`;
+    return {html:h, css, nombre:'INDIVIDUAL_'+(a.nombre||'alumno').replace(/[^a-zA-Z0-9]+/g,'_')};
+  }
+  h+=`<h2>Resumen</h2>
+  <table><tr><th>Alumnos</th><th>Nota promedio</th><th>Pregunta más fallada</th></tr>
+  <tr><td>${R.alumnos.length}</td><td>${R.promedio!=null?R.promedio+'%':'—'}</td><td>${R.masFallada?('P'+(R.masFallada.idx+1)+' ('+R.masFallada.pct+'% de acierto): '+escapeHtml(String(R.masFallada.texto).slice(0,100))):'—'}</td></tr></table>
+  <h2>Notas por alumno</h2>
+  <table><tr><th>#</th><th>Alumno</th><th>Correctas</th><th>Nota</th><th>Ítems</th><th>Puntos</th><th>Particip.</th></tr>`+
+  R.alumnos.map((a,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(a.nombre)}</td><td>${a.ok}/${R.nCal}</td><td class="${(a.nota||0)>=60?'ok':'mal'}">${a.nota!=null?a.nota+'%':'—'}</td><td>${a.items}/${R.itemsMax}</td><td>${a.pts}</td><td>${a.part}%</td></tr>`).join('')+
+  `</table><h2>Por pregunta</h2>
+  <table><tr><th>N°</th><th>Pregunta</th><th>Respondieron</th><th>% acierto</th></tr>`+
+  R.porPreg.map(q=>`<tr><td>${q.idx+1}</td><td>${escapeHtml(q.texto)}</td><td>${q.resp}</td><td>${q.pct!=null?q.pct+'%':'participación'}</td></tr>`).join('')+`</table>`;
+  return {html:h, css, nombre:'NOTAS_'+_qzRepFuenteNombre()};
+}
+function qzRepWord(cid){
+  const d=_qzRepDocHTML(cid||null); if(!d) return;
+  const doc=`<html xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>${d.css}</style></head><body>${d.html}</body></html>`;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['﻿'+doc],{type:'application/msword'}));
+  a.download=d.nombre+'.doc'; document.body.appendChild(a); a.click(); a.remove();
+}
+function qzRepPDF(cid){
+  const d=_qzRepDocHTML(cid||null); if(!d) return;
+  const w=window.open('','_blank');
+  if(!w){ alert('Permití las ventanas emergentes para imprimir'); return; }
+  w.document.write(`<html><head><meta charset="utf-8"><title>${d.nombre}</title><style>${d.css}</style></head><body>${d.html}<script>window.onload=()=>window.print();<\/script></body></html>`);
+  w.document.close();
 }
 function _qzCSV(nombre, filas){
   const esc=v=>{ v=String(v==null?'':v); return /[";\n]/.test(v)? '"'+v.replace(/"/g,'""')+'"' : v; };
@@ -15326,10 +15435,10 @@ function _qzRepFuenteNombre(){
 function qzRepCSVGeneral(){
   const R=_qzRepCalc();
   const filas=[['REGISTRO DE NOTAS','',escapeHtml(_qzRep.c.titulo)],[],
-    ['#','Alumno','Código','Correctas','Total calificables','Nota (%)','Puntos','Participación (%)'].concat(R.pregs.map((p,i)=>'P'+(i+1)))];
+    ['#','Alumno','Código','Correctas','Total calificables','Nota (%)','Ítems','Ítems posibles','Puntos','Participación (%)'].concat(R.pregs.map((p,i)=>'P'+(i+1)))];
   R.alumnos.forEach((a,i)=>{
-    filas.push([i+1,a.nombre,a.cid,a.ok,R.nCal,a.nota!=null?a.nota:'—',a.pts,a.part]
-      .concat(R.pregs.map((p,idx)=>{ const r=a.resp[idx]; return !r?'∅':r.correcta===true?'✓':r.correcta===false?'✗':'💬'; })));
+    filas.push([i+1,a.nombre,a.cid,a.ok,R.nCal,a.nota!=null?a.nota:'—',a.items,R.itemsMax,a.pts,a.part]
+      .concat(R.pregs.map((p,idx)=>{ const r=a.resp[idx]; const it=_qzItemsDePreg(p,r); return !r?'∅':(it.max? it.won+'/'+it.max : (r.correcta==null?'💬':'')); })));
   });
   filas.push([]);
   filas.push(['Leyenda:','✓ correcta','✗ incorrecta','💬 participación (sin nota)','∅ no respondió']);
@@ -15346,21 +15455,21 @@ function qzRepCSVIndividual(cid){
   const R=_qzRepCalc();
   const a=R.alumnos.find(x=>x.cid===cid); if(!a) return;
   const filas=[['REPORTE INDIVIDUAL',a.nombre,a.cid],[_qzRep.c.titulo],[],
-    ['Nota (%)',a.nota!=null?a.nota:'—'],['Correctas',a.ok+' de '+R.nCal],['Puntos',a.pts],['Participación (%)',a.part],[],
-    ['N°','Pregunta','Resultado','Su respuesta','Puntos']];
+    ['Nota (%)',a.nota!=null?a.nota:'—'],['Correctas',a.ok+' de '+R.nCal],['Ítems',a.items+' de '+R.itemsMax],['Puntos',a.pts],['Participación (%)',a.part],[],
+    ['N°','Pregunta','Resultado','Ítems','Su respuesta','Puntos']];
   R.pregs.forEach((p,idx)=>{
-    const r=a.resp[idx];
-    filas.push([idx+1,p.texto, !r?'NO RESPONDIÓ':r.correcta===true?'CORRECTA':r.correcta===false?'INCORRECTA':'PARTICIPÓ', _qzRespTexto(p,r), r?(r.puntos||0):0]);
+    const r=a.resp[idx]; const it=_qzItemsDePreg(p,r);
+    filas.push([idx+1,p.texto, !r?'NO RESPONDIÓ':r.correcta===true?'CORRECTA':r.correcta===false?'INCORRECTA':'PARTICIPÓ', it.max? it.won+'/'+it.max:'—', _qzRespTexto(p,r), r?(r.puntos||0):0]);
   });
   _qzCSV('INDIVIDUAL_'+(a.nombre||'alumno').replace(/[^a-zA-Z0-9]+/g,'_')+'.csv', filas);
 }
 
 // ---------- PROFESOR: editor ----------
 let _qzEd=null, _qzEdIdx=-1, _qzEdP=null;
-function qzNuevo(){ _qzEd={id:null,titulo:'',descripcion:'',materia_aula_id:_qzMatFiltro||'',estado:'borrador',aud_ciclo:'',aud_paralelo:'',feedback:'inmediato',preguntas:[]}; _qzEdIdx=-1; _qzEdP=null; showScreen('screen-quiz-editor'); _qzEdRender(); }
+function qzNuevo(){ _qzEd={id:null,titulo:'',descripcion:'',materia_aula_id:_qzMatFiltro||'',estado:'borrador',aud_ciclo:'',aud_paralelo:'',feedback:'inmediato',unidad:'',preguntas:[]}; _qzEdIdx=-1; _qzEdP=null; showScreen('screen-quiz-editor'); _qzEdRender(); }
 function qzEditar(id){
   const c=_qzLista.find(x=>x.id===id); if(!c) return;
-  _qzEd={id:c.id,titulo:c.titulo,descripcion:c.descripcion||'',materia_aula_id:c.materia_aula_id||'',estado:c.estado,aud_ciclo:c.aud_ciclo||'',aud_paralelo:c.aud_paralelo||'',feedback:c.feedback||'final',preguntas:JSON.parse(JSON.stringify(c.preguntas||[]))};
+  _qzEd={id:c.id,titulo:c.titulo,descripcion:c.descripcion||'',materia_aula_id:c.materia_aula_id||'',estado:c.estado,aud_ciclo:c.aud_ciclo||'',aud_paralelo:c.aud_paralelo||'',feedback:c.feedback||'final',unidad:c.unidad||'',preguntas:JSON.parse(JSON.stringify(c.preguntas||[]))};
   _qzEdIdx=-1; _qzEdP=null; showScreen('screen-quiz-editor'); _qzEdRender();
 }
 function qzEditorVolver(){ if(_qzEd && !confirm('¿Salir del editor? Lo no guardado se pierde.')) return; goQuizProf(); }
@@ -15370,6 +15479,9 @@ function _qzEdRender(){
   let html = `<div class="field"><label>Título</label><input type="text" id="qz-ed-titulo" value="${escapeHtml(_qzEd.titulo)}" placeholder="Ej: Cap. 2 — La organización adecuada"></div>
   <div class="field"><label>Descripción (opcional, la ve el alumno)</label><input type="text" id="qz-ed-desc" value="${escapeHtml(_qzEd.descripcion)}"></div>
   <div class="field"><label>Materia</label><select id="qz-ed-mat"><option value="">(sin materia — solo EN VIVO por PIN)</option>${mats.map(m=>`<option value="${m.id}" ${_qzEd.materia_aula_id===m.id?'selected':''}>${escapeHtml(m.nombre)} (${escapeHtml(m.ciclo||'')})</option>`).join('')}</select></div>
+  <div class="field"><label>📚 Unidad de competencia (biblioteca — los recursos se agrupan por esta unidad)</label>
+    <input type="text" id="qz-ed-unidad" list="qz-unidades" value="${escapeHtml(_qzEd.unidad||'')}" placeholder="Ej: UC1 — El cambio organizacional" autocomplete="off">
+    <datalist id="qz-unidades">${[...new Set(_qzLista.map(c=>c.unidad).filter(Boolean))].map(u=>`<option value="${escapeHtml(u)}">`).join('')}</datalist></div>
   <div class="field"><label>Estado</label><select id="qz-ed-estado">
     <option value="borrador" ${_qzEd.estado!=='publicado'?'selected':''}>Borrador (solo EN VIVO por PIN)</option>
     <option value="publicado" ${_qzEd.estado==='publicado'?'selected':''}>Publicado (los alumnos lo practican solos)</option>
@@ -15384,7 +15496,7 @@ function _qzEdRender(){
     ${['A','B','C'].map(p=>`<option value="${p}" ${_qzEd.aud_paralelo===p?'selected':''}>Solo paralelo "${p}"</option>`).join('')}
   </select></div>
   <div class="field"><label>✅ Respuestas en la práctica libre</label><select id="qz-ed-fb">
-    <option value="inmediato" ${_qzEd.feedback!=='final'?'selected':''}>AL INSTANTE (verde ✔ / rojo ✘ tras cada pregunta — como Wayground)</option>
+    <option value="inmediato" ${_qzEd.feedback!=='final'?'selected':''}>AL INSTANTE (verde ✔ / rojo ✘ tras cada pregunta)</option>
     <option value="final" ${_qzEd.feedback==='final'?'selected':''}>Al FINAL (rinde todo y recién ve la corrección)</option>
   </select></div>
   <div style="display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 8px">
@@ -15432,6 +15544,8 @@ function _qzEdLeerCabecera(){
   _qzEd.aud_paralelo=(ap&&ap.value)||'';
   const fb=document.getElementById('qz-ed-fb');
   _qzEd.feedback=(fb&&fb.value)||'final';
+  const un=document.getElementById('qz-ed-unidad');
+  _qzEd.unidad=(un&&un.value.trim())||'';
 }
 function qzEdPregNueva(){
   _qzEdLeerCabecera();
@@ -15531,7 +15645,7 @@ function _qzEdBlankRow(b,i){
     <div class="field"><label>Cómo responde el alumno</label>
       <select class="qz-f-b-modo" onchange="this.closest('[data-blank]').querySelector('.qz-f-b-lista-wrap').style.display=this.value==='lista'?'block':'none'">
         <option value="texto" ${modo==='texto'?'selected':''}>⌨️ Escribe libre (un campo)</option>
-        <option value="cajas" ${modo==='cajas'?'selected':''}>🔡 Cajas por letra (estilo Wayground)</option>
+        <option value="cajas" ${modo==='cajas'?'selected':''}>🔡 Cajas por letra</option>
         <option value="lista" ${modo==='lista'?'selected':''}>▾ Lista desplegable (con distractores)</option>
       </select></div>
     <div class="field qz-f-b-lista-wrap" style="display:${modo==='lista'?'block':'none'}"><label>Opciones de la lista (incluí la correcta + distractores, separadas por coma)</label>
@@ -15665,23 +15779,32 @@ async function qzEdGuardar(){
     await _qzInvoke('guardar',{id:_qzEd.id||undefined, titulo:_qzEd.titulo, descripcion:_qzEd.descripcion,
       materia_aula_id:_qzEd.materia_aula_id||null, estado:_qzEd.estado,
       aud_ciclo:_qzEd.aud_ciclo||null, aud_paralelo:_qzEd.aud_paralelo||null,
-      feedback:_qzEd.feedback||'final', preguntas:_qzEd.preguntas});
+      feedback:_qzEd.feedback||'final', unidad:_qzEd.unidad||null, preguntas:_qzEd.preguntas});
     _qzEd=null; alert('✅ Cuestionario guardado'); goQuizProf();
   }catch(e){ alert('⚠️ '+e.message); }
 }
 
 // ---------- v2.9.158: IMPORTADOR MASIVO (pegás la respuesta de tu IA → preguntas listas) ----------
 function qzEdImportToggle(){ const d=document.getElementById('qz-ed-import'); if(d) d.style.display=d.style.display==='none'?'block':'none'; }
-const QZ_PROMPT_IA = `Actuá como generador de cuestionarios para una plataforma educativa. Vas a crear preguntas a partir del DOCUMENTO ADJUNTO o del TEXTO FUENTE que te pego al final.
+const QZ_PROMPT_IA = `Actuá como generador de cuestionarios para una plataforma educativa militar. Generá las preguntas a partir del DOCUMENTO que adjunté a este mensaje (si no adjunté ninguno, del texto que pegue a continuación de este prompt).
 
-⚠️ REGLAS ESTRICTAS DE SALIDA (si no las cumplís, tu respuesta NO sirve):
-1. Tu respuesta debe contener ÚNICAMENTE los bloques de preguntas, en TEXTO PLANO, listos para copiar y pegar en la plataforma.
-2. PROHIBIDO usar markdown: nada de **negritas**, ni #títulos, ni viñetas •, ni tablas.
-3. PROHIBIDO escribir introducciones, explicaciones, comentarios, la palabra "Pregunta:", numeración de preguntas (1., 2.) o texto de cierre.
-4. La PRIMERA línea de tu respuesta debe empezar directamente con [ (el encabezado del primer bloque).
-5. Cada bloque empieza con su encabezado entre corchetes y sigue EXACTAMENTE el formato de los ejemplos.
+CANTIDADES QUE NECESITO (aproximadas — NO fuerces una pregunta si el contenido no da para ese tipo; en ese caso hacé menos, pero apuntá a esto):
+- 2 preguntas [MULTIPLE] (selección SIMPLE: una sola opción correcta)
+- 4 preguntas [MULTI] (selección MÚLTIPLE: varias opciones correctas)
+- 3 preguntas [VF] (verdadero o falso)
+- 5 preguntas [COMPLETAR] — cada una con ENTRE 7 Y 10 huecos ___ (mínimo 6), eligiendo como huecos las palabras MÁS IMPORTANTES y conceptualmente sesudas del contenido (no artículos ni palabras triviales)
+- 5 preguntas [ARRASTRAR] — igual: ENTRE 7 Y 10 huecos ___ (mínimo 6) con los términos más importantes, más 3-4 distractores
+- 5 preguntas [REORDENAR]
+- 5 preguntas [RELACIONAR]
+- 3 preguntas [CATEGORIZAR]
 
-FORMATO EXACTO de cada tipo (copiá la estructura tal cual):
+⚠️ FORMATO DE TU RESPUESTA (OBLIGATORIO — si no lo cumplís, tu respuesta no sirve):
+1. NO construyas un cuestionario interactivo ni una app ni una tabla: yo solo necesito TEXTO para copiar y pegar en mi plataforma.
+2. Devolvé TODO adentro de UN SOLO bloque de código (abrilo con tres acentos graves \`\`\` y cerralo igual), así lo copio con un solo clic.
+3. Adentro del bloque: SOLO los bloques de preguntas en texto plano. PROHIBIDO: negritas **, #títulos, viñetas •, tablas, numeración de preguntas (1., 2.), la palabra "Pregunta:", introducciones o comentarios.
+4. La primera línea adentro del bloque empieza directamente con [ (el encabezado de la primera pregunta).
+
+FORMATO EXACTO de cada tipo (respetá la estructura tal cual):
 
 [MULTIPLE] ¿Enunciado de la pregunta?
 * opción correcta
@@ -15730,11 +15853,9 @@ CATEGORIAS: Categoría A, Categoría B
 - opción
 - opción
 
-REGLAS DE CONTENIDO: enunciados claros y en español; en COMPLETAR/ARRASTRAR usá ___ (exactamente 3 guiones bajos) por hueco y una línea "N:" por cada hueco en orden; las alternativas aceptadas van separadas por coma; no repitas ítems; máximo 6 opciones por pregunta; las opciones correctas llevan * al inicio y las incorrectas - al inicio.
+REGLAS DE CONTENIDO: enunciados claros y en español; en COMPLETAR/ARRASTRAR usá ___ (exactamente 3 guiones bajos) por hueco y una línea "N:" por cada hueco en orden (1: respuesta, alternativa aceptada); las alternativas aceptadas van separadas por coma; no repitas ítems; máximo 6 opciones por pregunta; las opciones correctas llevan * al inicio y las incorrectas - al inicio.
 
-CANTIDAD Y TIPOS QUE QUIERO: [escribí acá, ej: "5 MULTIPLE, 3 COMPLETAR, 2 VF y 1 CATEGORIZAR"]
-
-TEXTO FUENTE: [pegá acá tu texto — o escribí "usar el documento adjunto" si adjuntaste un archivo]`;
+Este prompt ya está completo: usá el documento adjunto (o el texto pegado debajo) y generá las preguntas AHORA, en el formato indicado, todo dentro de un solo bloque de código.`;
 async function qzEdCopiarPrompt(){
   try{ await navigator.clipboard.writeText(QZ_PROMPT_IA); alert('📋 Prompt copiado — pegalo en ChatGPT / Claude / Gemini junto con tu texto'); }
   catch(e){ prompt('Copiá el prompt:', QZ_PROMPT_IA); }
@@ -15743,6 +15864,7 @@ function _qzParseImport(txt){
   const pregs=[], errores=[];
   // limpieza tolerante: la IA a veces mete markdown aunque se le prohíba
   let limpio=String(txt||'').replace(/\r/g,'')
+    .replace(/^[ \t]*[`~]{3,}[a-zA-Z]*[ \t]*$/gm,'') // cercos de bloque de código (``` ) fuera
     .replace(/\*\*/g,'')                      // **negritas** fuera (no toca los ___ )
     .replace(/^[ \t]*[•▪·]\s*/gm,'- ')        // viñetas raras → guion
     .replace(/^[ \t]*#{1,4}\s*/gm,'')         // #títulos fuera
@@ -15850,6 +15972,17 @@ async function qzEnVivo(cuestId){
     _qzBoardArrancar(d.sesion, d.cuestionario);
   }catch(e){ alert('⚠️ '+e.message); }
 }
+// v2.9.161: cerrar (archiva para el Registro de Notas) o eliminar una sesión EN VIVO
+async function qzSesionCerrar(sesId){
+  if(!confirm('¿Cerrar esta sesión EN VIVO?\n\nSe archiva: sus respuestas quedan guardadas en el 📊 Registro de Notas.')) return;
+  try{ await _qzInvoke('control',{sesion_id:sesId, op:'fin'}); goQuizProf(); }
+  catch(e){ alert('⚠️ '+e.message); }
+}
+async function qzSesionEliminar(sesId){
+  if(!confirm('⚠️ ¿ELIMINAR esta sesión?\n\nSe borran TAMBIÉN sus respuestas y participantes — desaparece del Registro de Notas. Esto no se puede deshacer.')) return;
+  try{ await _qzInvoke('sesion_eliminar',{sesion_id:sesId}); goQuizProf(); }
+  catch(e){ alert('⚠️ '+e.message); }
+}
 async function qzRetomarSesion(sesId){
   const s=_qzSesAb.find(x=>x.id===sesId); if(!s) return;
   const c=_qzLista.find(x=>x.id===s.cuestionario_id);
@@ -15913,6 +16046,16 @@ function _qzStandings(resp){
   const arr=Object.values(por);
   const hayPts=arr.some(s=>s.pts>0);
   return arr.sort((a,b)=> hayPts ? (b.pts-a.pts||b.ok-a.ok) : (b.n-a.n));
+}
+// CARRERA DE POSICIONES: barras proporcionales al puntaje, se reordenan tras cada pregunta
+function _qzRaceHtml(st, titulo){
+  const top=st.slice(0,10);
+  if(!top.length || !top.some(s=>s.pts>0)) return '';
+  const max=Math.max(1,...top.map(s=>s.pts));
+  return `<div style="text-align:center;font-weight:900;color:#f4d574;font-size:clamp(15px,2vw,20px);letter-spacing:2px;margin-top:14px">${titulo||'🏁 CARRERA DE POSICIONES'}</div>
+  <div class="qz-race">`+top.map((s,i)=>`
+    <div class="qz-race-row"><span class="qz-race-pos">${i===0?'🥇':i===1?'🥈':i===2?'🥉':(i+1)}</span>
+    <div class="qz-race-track"><div class="qz-race-fill" style="width:${Math.max(9,Math.round(s.pts/max*100))}%"><span class="qz-race-nom">${escapeHtml(s.nombre)}</span><b>${s.pts}</b></div></div></div>`).join('')+`</div>`;
 }
 function _qzTablaHtml(st){
   return `<table class="qz-tabla"><tr><th>#</th><th>Alumno</th><th>✔</th><th>Puntos</th></tr>${st.map((s,i)=>`<tr><td>${i===0?'🥇':i===1?'🥈':i===2?'🥉':i+1}</td><td>${escapeHtml(s.nombre)}</td><td>${s.ok}</td><td>${s.pts}</td></tr>`).join('')}</table>`;
@@ -16002,7 +16145,8 @@ function _qzBoardRender(){
   let body='';
   const respAll=_qzB.resp, respIdx=respAll.filter(r=>r.pregunta_idx===idx);
   if(_qzBShowTabla){
-    body=`<div class="qz-b-preg">🏅 Tabla de posiciones</div>`+_qzTablaHtml(_qzStandings(respAll).slice(0,20))+
+    const stT=_qzStandings(respAll);
+    body=_qzRaceHtml(stT,'🏁 CARRERA DE POSICIONES')+_qzTablaHtml(stT.slice(0,20))+
       `<div class="qz-b-foot"><button class="qz-btn" onclick="qzBoardTabla()">← Volver al juego</button></div>`;
   }
   else if(ses.estado==='lobby'){
@@ -16048,6 +16192,8 @@ function _qzBoardRender(){
            p.tipo==='completar' ? _qzCompletarResHtml(p, respIdx) :
            ['reordenar','relacionar','categorizar','arrastrar'].includes(p.tipo) ? _qzGenResHtml(p, respIdx) :
            _qzBarsHtml(p, respIdx, p.tipo!=='encuesta');
+    // CARRERA DE POSICIONES: tras cada pregunta todos ven quién va 1°, 2°, 3°…
+    if(!QZ_NO_CALIFICA.includes(p.tipo)) body+=_qzRaceHtml(_qzStandings(respAll));
     const esUltima = idx>=pregs.length-1;
     body+=`<div class="qz-b-foot">${p.tipo==='abierta'?`<button class="qz-btn ghost" onclick="qzBoardToggleAnon()">${_qzBAnonNow(p)?'🪪 Mostrar nombres':'🙈 Ocultar nombres'}</button>`:''}${esUltima
       ? '<button class="qz-btn gold big" onclick="qzBoardPodio()">🏆 PODIO FINAL</button>'
@@ -16431,6 +16577,33 @@ function qzEdPreview(){
   _qzPreviewRun({titulo:_qzEd.titulo||'Vista previa', preguntas:_qzEd.preguntas});
 }
 
+// ---------- v2.9.161: MIS EVALUACIONES (alumno) ----------
+async function qzMisEvaluaciones(){
+  _qzA=null; _qzP=null; clearInterval(_qzAPoll); clearInterval(_qzTimerInt);
+  document.getElementById('qz-alu-tit').textContent='📊 Mis evaluaciones';
+  document.getElementById('qz-alu-sub').textContent='Recurso Interactivo';
+  showScreen('screen-quiz-alumno');
+  const cont=document.getElementById('qz-alu-body');
+  cont.innerHTML='<div class="qz-wrap"><div class="efm-no-data">⏳ Cargando tus evaluaciones…</div></div>';
+  try{
+    const d=await _qzInvoke('mis_evaluaciones',{});
+    const evs=d.evaluaciones||[];
+    cont.innerHTML=`<div class="qz-wrap qz-wide">
+      <div class="qz-meta">MIS EVALUACIONES · ${evs.length} registro(s)</div>`+
+      (evs.length? `<div class="qz-rev-grid">`+evs.map(e=>{
+        const f=new Date(e.fecha);
+        const cls=e.nota==null?'qz-rev-neu':(e.nota>=60?'qz-rev-ok':'qz-rev-mal');
+        return `<div class="qz-item ${cls}">
+          <div style="font-size:13px;color:var(--text-primary);font-weight:800">${e.tipo==='vivo'?'🔴 EN VIVO'+(e.pin?' · PIN '+escapeHtml(String(e.pin)):''):'📚 Práctica'} · ${f.getDate()}/${f.getMonth()+1}/${f.getFullYear()}</div>
+          <div style="font-size:13px;color:var(--text-primary);margin-top:4px">${escapeHtml(e.titulo)}</div>
+          <div style="font-size:20px;font-weight:900;margin-top:8px;color:${e.nota==null?'#22D3EE':(e.nota>=60?'#4ADE80':'#FB7185')}">${e.nota!=null? ('NOTA: '+e.nota+'%') : 'PARTICIPACIÓN'}</div>
+          <div style="font-size:12px;color:#94C6E8;margin-top:4px">✔ ${e.ok}/${e.nCal} correctas · ${e.pts} pts · participación ${e.part}%</div>
+        </div>`;
+      }).join('')+`</div>` : '<div class="efm-no-data">Todavía no participaste de ningún juego ni práctica.</div>')+
+      `<button class="qz-btn gold" style="width:100%;margin-top:16px" onclick="qzAluSalir()">← Volver al Aula Virtual</button></div>`;
+  }catch(e){ cont.innerHTML='<div class="qz-wrap"><div class="efm-no-data">⚠️ '+escapeHtml(e.message)+'</div></div>'; }
+}
+
 // ---------- ALUMNO: práctica libre (a su ritmo) ----------
 let _qzP=null;
 async function _qzRenderSeccionMateria(materiaId){
@@ -16576,6 +16749,53 @@ async function _qzPracticaEnviar(){
 // v2.9.156: DEEP LINK — si la app se abre con ?pin=XXXXXX (del QR o del enlace),
 // se muestra un cartel y, apenas el cursante inicia sesión, entra SOLO al juego.
 let _qzPinPendiente=null, _qzPinWatch=null;
+// v2.9.161: LOGIN NEÓN — pantalla de ingreso propia del Recurso Interactivo (estilo digital)
+function _qzNeonLoginShow(pin){
+  try{
+    if(document.getElementById('qz-neon-login') || !document.body) return;
+    const s=(typeof getSession==='function')?getSession():null;
+    if(s && currentUser) return; // ya está logueado: el vigilante lo mete solo
+    const d=document.createElement('div');
+    d.id='qz-neon-login';
+    d.style.cssText='position:fixed;inset:0;z-index:99998;display:flex;align-items:center;justify-content:center;padding:18px;background:#060A14;background-image:radial-gradient(700px 400px at 50% -100px,rgba(34,211,238,.12),transparent 60%),linear-gradient(rgba(34,211,238,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(34,211,238,.05) 1px,transparent 1px);background-size:100% 100%,34px 34px,34px 34px';
+    d.innerHTML=`<div style="width:100%;max-width:420px;background:linear-gradient(180deg,rgba(14,23,42,.97),rgba(9,15,30,.99));border:1px solid rgba(34,211,238,.45);border-radius:18px;box-shadow:0 0 50px rgba(34,211,238,.18);padding:26px;position:relative">
+      <div style="position:absolute;top:-1px;left:-1px;width:34px;height:34px;border-top:2px solid #D4AF37;border-left:2px solid #D4AF37;border-radius:18px 0 0 0"></div>
+      <div style="position:absolute;bottom:-1px;right:-1px;width:34px;height:34px;border-bottom:2px solid #D4AF37;border-right:2px solid #D4AF37;border-radius:0 0 18px 0"></div>
+      <div style="text-align:center;font-family:ui-monospace,Menlo,monospace;color:#22D3EE;font-weight:900;font-size:20px;letter-spacing:2px;text-shadow:0 0 14px rgba(34,211,238,.8)">🎯 RECURSO INTERACTIVO</div>
+      <div style="text-align:center;color:#5EEAD4;font-size:13px;margin:6px 0 18px">Juego EN VIVO · PIN <b style="font-family:ui-monospace,Menlo,monospace">${pin}</b><br>Ingresá y entrás DIRECTO al juego</div>
+      <div style="font-size:11px;font-weight:800;color:#22D3EE;letter-spacing:1.5px;margin-bottom:5px">CARNET DE IDENTIDAD</div>
+      <input id="qzl-ci" type="text" inputmode="numeric" autocomplete="username" placeholder="Número de CI" style="width:100%;background:#0B1428;border:1.5px solid rgba(34,211,238,.5);border-radius:10px;color:#E6F1FF;font-size:16px;font-weight:700;padding:13px 14px;margin-bottom:14px;box-sizing:border-box">
+      <div style="font-size:11px;font-weight:800;color:#22D3EE;letter-spacing:1.5px;margin-bottom:5px">CONTRASEÑA</div>
+      <input id="qzl-pwd" type="password" autocomplete="current-password" placeholder="••••••" style="width:100%;background:#0B1428;border:1.5px solid rgba(34,211,238,.5);border-radius:10px;color:#E6F1FF;font-size:16px;font-weight:700;padding:13px 14px;margin-bottom:6px;box-sizing:border-box">
+      <div id="qzl-err" style="color:#FB7185;font-size:12px;font-weight:700;min-height:16px;margin-bottom:8px"></div>
+      <button id="qzl-btn" onclick="qzNeonLogin()" style="width:100%;border:none;border-radius:12px;min-height:52px;background:linear-gradient(90deg,#0891B2,#22D3EE);color:#04121C;font-weight:900;font-size:16px;letter-spacing:1px;box-shadow:0 0 24px rgba(34,211,238,.55);cursor:pointer">▶ ENTRAR AL JUEGO</button>
+      <div style="text-align:center;margin-top:14px"><a href="#" onclick="document.getElementById('qz-neon-login').remove();return false" style="color:#7DD3FC;font-size:12px">usar el ingreso normal de SIDECEME</a></div>
+    </div>`;
+    document.body.appendChild(d);
+    const pw=document.getElementById('qzl-pwd'); if(pw) pw.addEventListener('keydown',e=>{ if(e.key==='Enter') qzNeonLogin(); });
+  }catch(e){}
+}
+async function qzNeonLogin(){
+  const ci=(document.getElementById('qzl-ci')||{}).value||'', pwd=(document.getElementById('qzl-pwd')||{}).value||'';
+  const err=document.getElementById('qzl-err'), btn=document.getElementById('qzl-btn');
+  if(!ci.trim()||!pwd){ if(err) err.textContent='Ingresá tu CI y contraseña'; return; }
+  if(btn){ btn.disabled=true; btn.textContent='⏳ VERIFICANDO…'; }
+  try{
+    // proxy al login real de la app (mismos inputs, misma Edge Function)
+    const ciEl=document.getElementById('cursante-ci'), pwEl=document.getElementById('cursante-pwd');
+    if(ciEl) ciEl.value=ci.trim();
+    if(pwEl) pwEl.value=pwd;
+    await loginCursante();
+  }catch(e){}
+  setTimeout(()=>{
+    const s=(typeof getSession==='function')?getSession():null;
+    if(!s || !currentUser){
+      const msg=(document.getElementById('err-cursante')||{}).textContent||'';
+      if(err) err.textContent=msg.trim()||'No se pudo ingresar — revisá tu CI y contraseña';
+      if(btn){ btn.disabled=false; btn.textContent='▶ ENTRAR AL JUEGO'; }
+    }
+  },1500);
+}
 (function _qzDetectarPinURL(){
   // 1) detectar el pin (independiente del DOM)
   let pin=null;
@@ -16587,32 +16807,49 @@ let _qzPinPendiente=null, _qzPinWatch=null;
   _qzPinPendiente=pin;
   try{ history.replaceState(null,'',location.pathname); }catch(e){}
   try{ sessionStorage.setItem('qz_pin_pendiente', pin); }catch(e){}
-  // 2) cartel (si el body aún no existe, esperar al DOM — antes esto tiraba error y mataba todo)
-  const ponerCartel=()=>{
+  // 2) cartel + login neón (diferidos al DOM si hace falta)
+  const ponerUI=()=>{
     try{
-      if(document.getElementById('qz-pin-aviso') || !document.body) return;
-      const b=document.createElement('div');
-      b.id='qz-pin-aviso';
-      b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:linear-gradient(90deg,#0891B2,#22D3EE);color:#04121C;font-weight:800;font-size:13px;text-align:center;padding:9px 12px;box-shadow:0 2px 14px rgba(34,211,238,.5)';
-      b.textContent='🎯 Juego EN VIVO (PIN '+pin+') — ingresá con tu CI y contraseña y entrás directo';
-      document.body.appendChild(b);
+      if(!document.getElementById('qz-pin-aviso') && document.body){
+        const b=document.createElement('div');
+        b.id='qz-pin-aviso';
+        b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:linear-gradient(90deg,#0891B2,#22D3EE);color:#04121C;font-weight:800;font-size:13px;text-align:center;padding:9px 12px;box-shadow:0 2px 14px rgba(34,211,238,.5)';
+        b.textContent='🎯 Juego EN VIVO (PIN '+pin+') — ingresá con tu CI y contraseña y entrás directo';
+        document.body.appendChild(b);
+      }
+      // login neón solo si todavía no hay sesión (espera 1.2s a que la app restaure una sesión guardada)
+      setTimeout(()=>_qzNeonLoginShow(pin), 1200);
     }catch(e){}
   };
-  if(document.body) ponerCartel();
-  else document.addEventListener('DOMContentLoaded', ponerCartel);
-  // 3) vigilante: apenas hay sesión de cursante → entra SOLO al juego (arranca SIEMPRE)
+  if(document.body) ponerUI();
+  else document.addEventListener('DOMContentLoaded', ponerUI);
+  // 3) vigilante: espera a que el cursante esté YA en su home (así el login no pisa el juego después)
   _qzPinWatch=setInterval(()=>{
     try{
       if(!_qzPinPendiente){ clearInterval(_qzPinWatch); return; }
       const s=(typeof getSession==='function')?getSession():null;
       if(!s || !currentUser) return;
+      if(s.tipo!=='cursante'){ // docente: limpiar la UI del pin y listo
+        const av1=document.getElementById('qz-pin-aviso'); if(av1) av1.remove();
+        const nl1=document.getElementById('qz-neon-login'); if(nl1) nl1.remove();
+        _qzPinPendiente=null; clearInterval(_qzPinWatch); return;
+      }
+      const act=(document.querySelector('.screen.active')||{}).id;
+      if(act!=='screen-cursante-home') return; // ESPERAR a que termine la navegación del login
       const av=document.getElementById('qz-pin-aviso'); if(av) av.remove();
+      const nl=document.getElementById('qz-neon-login'); if(nl) nl.remove();
       const pinNow=_qzPinPendiente; _qzPinPendiente=null; clearInterval(_qzPinWatch);
       try{ sessionStorage.removeItem('qz_pin_pendiente'); }catch(e){}
-      if(s.tipo==='cursante') _qzUnirseConPin(pinNow);
-      // docente: no se une (el juego lo dirige desde Práctica Interactiva)
+      _qzUnirseConPin(pinNow);
+      // re-aseguro 8s: si algo de la app navega tarde y saca al alumno del juego, lo devuelve
+      let t0=Date.now();
+      const guard=setInterval(()=>{
+        if(Date.now()-t0>8000 || !_qzA){ clearInterval(guard); return; }
+        const a2=(document.querySelector('.screen.active')||{}).id;
+        if(a2!=='screen-quiz-alumno') showScreen('screen-quiz-alumno');
+      },500);
     }catch(e){}
-  },800);
+  },600);
 })();
 
 /* ===== v2.9.101: DOCUMENTOS INSTITUCIONALES ===== */
