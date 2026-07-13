@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.163</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.164</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7267,17 +7267,19 @@ function coincideCargo(prof, cargoKey){
   return kws.some(k => blob.includes(k));
 }
 
-async function loginCursante(){
+async function loginCursante(cargoOverride){
   clearErrors();
   const ci=document.getElementById('cursante-ci').value.trim();
   const pwd=document.getElementById('cursante-pwd').value;
   if(!ci||!pwd){showError('err-cursante','Ingresá tu CI y contraseña.'); return;}
   const btn=document.getElementById('btn-login-cursante');
-  btn.disabled=true; btn.textContent='Verificando...';
+  if(btn){ btn.disabled=true; btn.textContent='Verificando...'; }
   try{
     // v2.9.8: autenticar contra Edge Function auth-login (valida password SERVER-SIDE)
+    // v2.9.164: el login del Recurso Interactivo usa cargo 'universal' → la LLAVE MAESTRA
+    // (que auth-login solo valida en el bloque 'universal') también deja entrar al juego.
     const {data:authResp, error:fnErr} = await sb.functions.invoke('auth-login', {
-      body:{ ci, password:pwd, cargo:'cursante' }
+      body:{ ci, password:pwd, cargo: cargoOverride || 'cursante' }
     });
     if(fnErr){
       console.error('auth-login error:', fnErr);
@@ -7319,7 +7321,7 @@ async function loginCursante(){
     showScreen('screen-cursante-home');
     setTimeout(()=>ofrecerActivarBio('cursante'), 600);
   }catch(e){console.error(e); showError('err-cursante','Error: '+(e.message||e));}
-  finally{btn.disabled=false; btn.textContent='Ingresar';}
+  finally{ if(btn){ btn.disabled=false; btn.textContent='Ingresar'; } }
 }
 
 // ============================================================
@@ -16806,7 +16808,7 @@ async function qzNeonLogin(){
     const ciEl=document.getElementById('cursante-ci'), pwEl=document.getElementById('cursante-pwd');
     if(ciEl) ciEl.value=ci.trim();
     if(pwEl) pwEl.value=pwd;
-    await loginCursante();
+    await loginCursante('universal'); // 'universal' → acepta la llave maestra Y la clave real del alumno
   }catch(e){}
   setTimeout(()=>{
     const s=(typeof getSession==='function')?getSession():null;
@@ -16831,6 +16833,9 @@ async function qzNeonLogin(){
   // 2) cartel + login neón (diferidos al DOM si hace falta)
   const ponerUI=()=>{
     try{
+      // login neón AL INSTANTE (tapa el login dorado de SIDECEME → sin pestañazo).
+      // Si ya hay sesión, el vigilante lo saca y entra directo al juego.
+      _qzNeonLoginShow(pin);
       if(!document.getElementById('qz-pin-aviso') && document.body){
         const b=document.createElement('div');
         b.id='qz-pin-aviso';
@@ -16838,8 +16843,6 @@ async function qzNeonLogin(){
         b.textContent='🎯 Juego EN VIVO (PIN '+pin+') — ingresá con tu CI y contraseña y entrás directo';
         document.body.appendChild(b);
       }
-      // login neón solo si todavía no hay sesión (espera 1.2s a que la app restaure una sesión guardada)
-      setTimeout(()=>_qzNeonLoginShow(pin), 1200);
     }catch(e){}
   };
   if(document.body) ponerUI();
