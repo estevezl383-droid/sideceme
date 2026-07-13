@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.165</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.166</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -15396,123 +15396,112 @@ function _qzItemsDePreg(p,r){
   if(r.correcta===false) return {won:Math.round(Math.min(1,(r.puntos||0)/1000)*max),max};
   return {won:0,max};
 }
-// ---- REPORTES EN WORD Y PDF (v2.9.165: membrete oficial ECEME + firmas) ----
-// Membrete Arial 10, "BOLIVIA" negrita+subrayado; hoja carta; márgenes 2/2/2 y 3 izq;
-// numeración de página; firma abajo (INDIVIDUAL=alumno, GENERAL=profesor de la materia).
+// ---- REPORTES EN WORD Y PDF (v2.9.166: formato oficial ECEME reutilizando exportarComoWord) ----
+// Membrete oficial con SECCIÓN ACADÉMICA (Arial 10 negrilla, BOLIVIA subrayado), hoja Carta,
+// márgenes 2/2/2/3, línea doble, pie "1 - N" — TODO heredado de cssReporte/exportarComoWord.
+// Firma: nombre Arial 12 normal + cargo negrilla mayúsculas abajo.
+// INDIVIDUAL = firma del alumno · GENERAL = firma del profesor de la materia.
 function _qzRepMembrete(){
-  return `<table class="mbr"><tr>
-    <td style="width:63%;text-align:center;vertical-align:middle">FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES<br>ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO<br>“MCAL. ANDRÉS DE SANTA CRUZ”<br><b><u>BOLIVIA</u></b></td>
-    <td style="width:37%;text-align:center;vertical-align:middle;font-weight:bold">SECCIÓN ACADÉMICA</td>
-  </tr></table>`;
+  return `
+  <table class="header-table" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;margin-bottom:6pt">
+    <tr>
+      <td width="64%" align="center" valign="middle" style="border:none;padding:4pt 6pt;text-align:center;vertical-align:middle;width:64%">
+        <p align="center" style="text-align:center;font-weight:bold;font-size:10pt;margin:0;font-family:Arial,sans-serif;line-height:1.35;white-space:nowrap">FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES</p>
+        <p align="center" style="text-align:center;font-weight:bold;font-size:10pt;margin:0;font-family:Arial,sans-serif;line-height:1.35;white-space:nowrap">ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO</p>
+        <p align="center" style="text-align:center;font-weight:bold;font-size:10pt;margin:0;font-family:Arial,sans-serif;line-height:1.35;white-space:nowrap">"MARISCAL ANDRÉS DE SANTA CRUZ"</p>
+        <p align="center" style="text-align:center;font-weight:bold;font-size:10pt;margin:0;font-family:Arial,sans-serif;line-height:1.35;text-decoration:underline"><u>BOLIVIA</u></p>
+      </td>
+      <td width="36%" align="center" valign="middle" style="border:none;padding:4pt 6pt;text-align:center;vertical-align:middle;width:36%">
+        <p align="center" style="text-align:center;font-weight:bold;font-size:10pt;margin:0;font-family:Arial,sans-serif">SECCIÓN ACADÉMICA</p>
+      </td>
+    </tr>
+  </table>
+  <p style="border:0;border-top:2.4pt double #000;margin:0 0 14pt;font-size:1pt;line-height:1pt">&nbsp;</p>`;
 }
 function _qzRepFirma(nombre, cargo){
-  return `<div class="firma"><div class="firma-linea">_______________________________________</div>
-    <div class="firma-nom">${escapeHtml(nombre||'')}</div>
-    <div class="firma-cargo">${escapeHtml(cargo||'')}</div></div>`;
+  return `<div style="margin-top:56pt;text-align:center;page-break-inside:avoid">
+    <p align="center" style="text-align:center;font-size:12pt;font-family:Arial,sans-serif;margin:0">${escapeHtml(nombre||'')}</p>
+    <p align="center" style="text-align:center;font-size:11pt;font-weight:bold;font-family:Arial,sans-serif;margin:0;text-transform:uppercase">${escapeHtml(cargo||'')}</p>
+  </div>`;
 }
 function _qzProfesorFirmante(){
-  // profesor de la materia (si la hay), o el docente que genera el reporte
   const m=(aulaMateriasCache||[]).find(x=>x.id===_qzRep.c.materia_aula_id);
-  const profesMat=m? _qzProfesNombres(m):[];
+  const profesMat=m? _aulaProfesNombres(m):[];
   if(profesMat.length) return profesMat[0];
   if(_qzRep.c.creado_por_nombre) return _qzRep.c.creado_por_nombre;
   return (currentUser && currentUser.nombre_completo) || 'Profesor de la materia';
 }
-function _qzRepDocHTML(cid){
+// estilos de las tablas de datos (inline, para no depender de cssReporte)
+const _QZ_TDAT='border-collapse:collapse;width:100%;font-size:10pt;font-family:Arial,sans-serif;margin-bottom:4pt';
+const _QZ_TH='border:0.75pt solid #555;padding:4pt 6pt;text-align:left;background:#e8e8e8;font-weight:bold';
+const _QZ_TD='border:0.75pt solid #555;padding:4pt 6pt;text-align:left';
+function _qzCelNota(nota){ const c= nota==null?'#000':(nota>=60?'#0a7a30':'#b00020'); return `style="${_QZ_TD};color:${c};font-weight:bold"`; }
+// cuerpo del reporte (sin <html>/<head>: eso lo pone exportarComoWord con el formato oficial)
+function _qzRepCuerpo(cid){
   const R=_qzRepCalc();
   const fSrc=_qzRep.fuente==='practica'?'Práctica libre':_qzRepFuenteLabel(_qzRep.sesiones.find(s=>s.id===_qzRep.fuente)||{pin:'—',creado_en:new Date().toISOString()});
   const hoy=new Date(); const fFecha=hoy.getDate()+'/'+(hoy.getMonth()+1)+'/'+hoy.getFullYear();
-  const css=`@page{size:letter;margin:2cm 2cm 2cm 3cm}
-body{font-family:Arial,sans-serif;font-size:11pt;color:#111}
-.mbr{width:100%;border-collapse:collapse;font-size:10pt;margin-bottom:6pt}
-.mbr td{border:1pt solid #000;padding:5pt 7pt}
-.dobleraya{border:0;border-top:2.4pt double #000;margin:2pt 0 12pt}
-h1{font-size:15pt;text-align:center;margin:10pt 0 2pt}
-h2{font-size:12pt;margin:14pt 0 6pt;border-bottom:1.5pt solid #333;padding-bottom:2pt}
-table.dat{border-collapse:collapse;width:100%;font-size:10pt}
-table.dat th,table.dat td{border:1pt solid #555;padding:4pt 6pt;text-align:left}
-table.dat th{background:#e8e8e8}
-.ok{color:#0a7a30;font-weight:bold}.mal{color:#b00020;font-weight:bold}
-.meta{color:#444;font-size:10pt;margin:0 0 4pt;text-align:center}
-.firma{margin-top:52pt;text-align:center;page-break-inside:avoid}
-.firma-linea{font-family:Arial;letter-spacing:1px}
-.firma-nom{font-weight:bold;margin-top:2pt}
-.firma-cargo{font-size:10pt}`;
-  const footer=`<div style="mso-element:footer" id="ftr"><p style="text-align:center;font-size:9pt;color:#555">Página <span style="mso-field-code:PAGE"></span> de <span style="mso-field-code:NUMPAGES"></span></p></div>`;
-  let h=_qzRepMembrete()+`<hr class="dobleraya">`;
+  const H1='text-align:center;font-size:14pt;font-weight:bold;margin:10pt 0 2pt;font-family:Arial,sans-serif';
+  const H2='font-size:12pt;font-weight:bold;margin:14pt 0 5pt;font-family:Arial,sans-serif;border-bottom:1pt solid #333;padding-bottom:2pt';
+  const META='text-align:center;font-size:10pt;margin:0 0 3pt;font-family:Arial,sans-serif;color:#333';
+  let h=_qzRepMembrete();
   if(cid){
-    const a=R.alumnos.find(x=>x.cid===cid); if(!a) return '';
-    h+=`<h1>REPORTE INDIVIDUAL DE NOTAS — RECURSO INTERACTIVO</h1>
-    <p class="meta"><b>${escapeHtml(_qzRep.c.titulo)}</b></p>
-    <p class="meta">Alumno: <b>${escapeHtml(a.nombre)}</b> · Fuente: ${escapeHtml(fSrc)} · Generado: ${fFecha}</p>
-    <table class="dat"><tr><th>Nota</th><th>Correctas</th><th>Ítems</th><th>Puntos</th><th>Participación</th></tr>
-    <tr><td class="${(a.nota||0)>=60?'ok':'mal'}">${a.nota!=null?a.nota+'%':'—'}</td><td>${a.ok}/${R.nCal}</td><td>${a.items}/${R.itemsMax}</td><td>${a.pts}</td><td>${a.part}%</td></tr></table>
-    <h2>Detalle por pregunta</h2>
-    <table class="dat"><tr><th>N°</th><th>Pregunta</th><th>Resultado</th><th>Ítems</th><th>Su respuesta</th></tr>`+
+    const a=R.alumnos.find(x=>x.cid===cid); if(!a) return null;
+    h+=`<h1 style="${H1}">REPORTE INDIVIDUAL DE NOTAS — RECURSO INTERACTIVO</h1>
+    <p style="${META}"><b>${escapeHtml(_qzRep.c.titulo)}</b></p>
+    <p style="${META}">Alumno: <b>${escapeHtml(a.nombre)}</b> · Fuente: ${escapeHtml(fSrc)} · Generado: ${fFecha}</p>
+    <table style="${_QZ_TDAT}"><tr><th style="${_QZ_TH}">Nota</th><th style="${_QZ_TH}">Correctas</th><th style="${_QZ_TH}">Ítems</th><th style="${_QZ_TH}">Puntos</th><th style="${_QZ_TH}">Participación</th></tr>
+    <tr><td ${_qzCelNota(a.nota)}>${a.nota!=null?a.nota+'%':'—'}</td><td style="${_QZ_TD}">${a.ok}/${R.nCal}</td><td style="${_QZ_TD}">${a.items}/${R.itemsMax}</td><td style="${_QZ_TD}">${a.pts}</td><td style="${_QZ_TD}">${a.part}%</td></tr></table>
+    <h2 style="${H2}">Detalle por pregunta</h2>
+    <table style="${_QZ_TDAT}"><tr><th style="${_QZ_TH}">N°</th><th style="${_QZ_TH}">Pregunta</th><th style="${_QZ_TH}">Resultado</th><th style="${_QZ_TH}">Ítems</th><th style="${_QZ_TH}">Su respuesta</th></tr>`+
     R.pregs.map((p,idx)=>{ const r=a.resp[idx]; const it=_qzItemsDePreg(p,r);
       const res=!r?'NO RESPONDIÓ':r.correcta===true?'CORRECTA':r.correcta===false?'INCORRECTA':'PARTICIPÓ';
-      return `<tr><td>${idx+1}</td><td>${escapeHtml(p.texto)}</td><td class="${r&&r.correcta===true?'ok':r&&r.correcta===false?'mal':''}">${res}</td><td>${it.max?it.won+'/'+it.max:'—'}</td><td>${escapeHtml(_qzRespTexto(p,r))}</td></tr>`;
+      const col=r&&r.correcta===true?'#0a7a30':r&&r.correcta===false?'#b00020':'#000';
+      return `<tr><td style="${_QZ_TD}">${idx+1}</td><td style="${_QZ_TD}">${escapeHtml(p.texto)}</td><td style="${_QZ_TD};color:${col};font-weight:bold">${res}</td><td style="${_QZ_TD}">${it.max?it.won+'/'+it.max:'—'}</td><td style="${_QZ_TD}">${escapeHtml(_qzRespTexto(p,r))}</td></tr>`;
     }).join('')+`</table>`+
-    // INDIVIDUAL → firma del ALUMNO
-    _qzRepFirma(a.nombre, 'Oficial Superior Cursante')+footer;
-    return {html:h, css, nombre:'INDIVIDUAL_'+(a.nombre||'alumno').replace(/[^a-zA-Z0-9]+/g,'_')};
+    _qzRepFirma(a.nombre, 'Oficial Superior Cursante');
+    return {cuerpo:h, nombre:'INDIVIDUAL_'+(a.nombre||'alumno').replace(/[^a-zA-Z0-9]+/g,'_')};
   }
-  h+=`<h1>REGISTRO DE NOTAS — RECURSO INTERACTIVO</h1>
-  <p class="meta"><b>${escapeHtml(_qzRep.c.titulo)}</b></p>
-  <p class="meta">Fuente: ${escapeHtml(fSrc)} · Generado: ${fFecha}</p>
-  <h2>Resumen</h2>
-  <table class="dat"><tr><th>Alumnos</th><th>Nota promedio</th><th>Pregunta más fallada</th></tr>
-  <tr><td>${R.alumnos.length}</td><td>${R.promedio!=null?R.promedio+'%':'—'}</td><td>${R.masFallada?('P'+(R.masFallada.idx+1)+' ('+R.masFallada.pct+'% de acierto): '+escapeHtml(String(R.masFallada.texto).slice(0,100))):'—'}</td></tr></table>
-  <h2>Notas por alumno</h2>
-  <table class="dat"><tr><th>#</th><th>Alumno</th><th>Correctas</th><th>Nota</th><th>Ítems</th><th>Puntos</th><th>Particip.</th></tr>`+
-  R.alumnos.map((a,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(a.nombre)}</td><td>${a.ok}/${R.nCal}</td><td class="${(a.nota||0)>=60?'ok':'mal'}">${a.nota!=null?a.nota+'%':'—'}</td><td>${a.items}/${R.itemsMax}</td><td>${a.pts}</td><td>${a.part}%</td></tr>`).join('')+
-  `</table><h2>Por pregunta</h2>
-  <table class="dat"><tr><th>N°</th><th>Pregunta</th><th>Respondieron</th><th>% acierto</th></tr>`+
-  R.porPreg.map(q=>`<tr><td>${q.idx+1}</td><td>${escapeHtml(q.texto)}</td><td>${q.resp}</td><td>${q.pct!=null?q.pct+'%':'participación'}</td></tr>`).join('')+`</table>`+
-  // GENERAL → firma del PROFESOR de la materia
-  _qzRepFirma(_qzProfesorFirmante(), 'Profesor de la materia')+footer;
-  return {html:h, css, nombre:'NOTAS_'+_qzRepFuenteNombre()};
+  h+=`<h1 style="${H1}">REGISTRO DE NOTAS — RECURSO INTERACTIVO</h1>
+  <p style="${META}"><b>${escapeHtml(_qzRep.c.titulo)}</b></p>
+  <p style="${META}">Fuente: ${escapeHtml(fSrc)} · Generado: ${fFecha}</p>
+  <h2 style="${H2}">Resumen</h2>
+  <table style="${_QZ_TDAT}"><tr><th style="${_QZ_TH}">Alumnos</th><th style="${_QZ_TH}">Nota promedio</th><th style="${_QZ_TH}">Pregunta más fallada</th></tr>
+  <tr><td style="${_QZ_TD}">${R.alumnos.length}</td><td style="${_QZ_TD}">${R.promedio!=null?R.promedio+'%':'—'}</td><td style="${_QZ_TD}">${R.masFallada?('P'+(R.masFallada.idx+1)+' ('+R.masFallada.pct+'%): '+escapeHtml(String(R.masFallada.texto).slice(0,90))):'—'}</td></tr></table>
+  <h2 style="${H2}">Notas por alumno</h2>
+  <table style="${_QZ_TDAT}"><tr><th style="${_QZ_TH}">#</th><th style="${_QZ_TH}">Alumno</th><th style="${_QZ_TH}">Correctas</th><th style="${_QZ_TH}">Nota</th><th style="${_QZ_TH}">Ítems</th><th style="${_QZ_TH}">Puntos</th><th style="${_QZ_TH}">Particip.</th></tr>`+
+  R.alumnos.map((a,i)=>`<tr><td style="${_QZ_TD}">${i+1}</td><td style="${_QZ_TD}">${escapeHtml(a.nombre)}</td><td style="${_QZ_TD}">${a.ok}/${R.nCal}</td><td ${_qzCelNota(a.nota)}>${a.nota!=null?a.nota+'%':'—'}</td><td style="${_QZ_TD}">${a.items}/${R.itemsMax}</td><td style="${_QZ_TD}">${a.pts}</td><td style="${_QZ_TD}">${a.part}%</td></tr>`).join('')+
+  `</table><h2 style="${H2}">Por pregunta</h2>
+  <table style="${_QZ_TDAT}"><tr><th style="${_QZ_TH}">N°</th><th style="${_QZ_TH}">Pregunta</th><th style="${_QZ_TH}">Respondieron</th><th style="${_QZ_TH}">% acierto</th></tr>`+
+  R.porPreg.map(q=>`<tr><td style="${_QZ_TD}">${q.idx+1}</td><td style="${_QZ_TD}">${escapeHtml(q.texto)}</td><td style="${_QZ_TD}">${q.resp}</td><td style="${_QZ_TD}">${q.pct!=null?q.pct+'%':'participación'}</td></tr>`).join('')+`</table>`+
+  _qzRepFirma(_qzProfesorFirmante(), 'Profesor de la materia');
+  return {cuerpo:h, nombre:'NOTAS_'+_qzRepFuenteNombre()};
 }
 function qzRepWord(cid){
-  const d=_qzRepDocHTML(cid||null); if(!d) return;
-  const doc=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>${d.css}</style></head><body>${d.html}</body></html>`;
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob(['﻿'+doc],{type:'application/msword'}));
-  a.download=d.nombre+'.doc'; document.body.appendChild(a); a.click(); a.remove();
+  const d=_qzRepCuerpo(cid||null); if(!d) return;
+  exportarComoWord(d.cuerpo, d.nombre, 'portrait');
 }
 function qzRepPDF(cid){
-  const d=_qzRepDocHTML(cid||null); if(!d) return;
-  const w=window.open('','_blank');
-  if(!w){ alert('Permití las ventanas emergentes para imprimir'); return; }
-  w.document.write(`<html><head><meta charset="utf-8"><title>${d.nombre}</title><style>${d.css}</style></head><body>${d.html}<script>window.onload=()=>window.print();<\/script></body></html>`);
-  w.document.close();
+  const d=_qzRepCuerpo(cid||null); if(!d) return;
+  exportarComoPDF(d.cuerpo, d.nombre, 'portrait');
 }
-// v2.9.165: TODOS los reportes individuales en un solo documento (uno por hoja, para firmar)
-function _qzRepTodosIndividualesHTML(){
+// TODOS los reportes individuales en un solo documento (uno por hoja, para firmar)
+function _qzRepCuerpoTodosIndividuales(){
   const R=_qzRepCalc();
   if(!R.alumnos.length){ alert('No hay alumnos en esta fuente todavía.'); return null; }
-  let css='', cuerpos=[];
-  R.alumnos.forEach((a,i)=>{
-    const d=_qzRepDocHTML(a.cid);
-    if(!d) return;
-    if(!css) css=d.css;
-    cuerpos.push((i>0?'<div style="page-break-before:always"></div>':'')+d.html);
+  const cuerpos=R.alumnos.map((a,i)=>{
+    const d=_qzRepCuerpo(a.cid);
+    return d? ((i>0?'<br clear="all" style="mso-special-character:line-break;page-break-before:always">':'')+d.cuerpo) : '';
   });
-  return {css, html:cuerpos.join('\n'), nombre:'INDIVIDUALES_'+_qzRepFuenteNombre()};
+  return {cuerpo:cuerpos.join('\n'), nombre:'INDIVIDUALES_'+_qzRepFuenteNombre()};
 }
 function qzRepWordTodosIndividuales(){
-  const d=_qzRepTodosIndividualesHTML(); if(!d) return;
-  const doc=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word"><head><meta charset="utf-8"><style>${d.css}</style></head><body>${d.html}</body></html>`;
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(new Blob(['﻿'+doc],{type:'application/msword'}));
-  a.download=d.nombre+'.doc'; document.body.appendChild(a); a.click(); a.remove();
+  const d=_qzRepCuerpoTodosIndividuales(); if(!d) return;
+  exportarComoWord(d.cuerpo, d.nombre, 'portrait');
 }
 function qzRepPDFTodosIndividuales(){
-  const d=_qzRepTodosIndividualesHTML(); if(!d) return;
-  const w=window.open('','_blank');
-  if(!w){ alert('Permití las ventanas emergentes para imprimir'); return; }
-  w.document.write(`<html><head><meta charset="utf-8"><title>${d.nombre}</title><style>${d.css}</style></head><body>${d.html}<script>window.onload=()=>window.print();<\/script></body></html>`);
-  w.document.close();
+  const d=_qzRepCuerpoTodosIndividuales(); if(!d) return;
+  exportarComoPDF(d.cuerpo, d.nombre, 'portrait');
 }
 function _qzCSV(nombre, filas){
   const esc=v=>{ v=String(v==null?'':v); return /[";\n]/.test(v)? '"'+v.replace(/"/g,'""')+'"' : v; };
