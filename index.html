@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.162</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.163</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6505,6 +6505,7 @@ input::placeholder, textarea::placeholder {
     <div class="field" style="margin-bottom:10px"><label>Gestión</label><select id="aula-gestion"></select></div>
     <div class="field" style="margin-bottom:10px"><label>Semestre</label><select id="aula-semestre"><option value="1">1er Semestre</option><option value="2">2do Semestre</option></select></div>
     <div class="field" style="margin-bottom:10px"><label>Estado</label><select id="aula-estado"><option value="abierta">Abierta (visible para alumnos)</option><option value="proxima">Próxima (aún no visible)</option><option value="cerrada">Cerrada (archivo)</option></select></div>
+    <div class="field" style="margin-bottom:10px"><label>🎖️ Mención (solo 2DO CICLO — la materia y toda su carpeta de clase se comparten solo a esa mención)</label><select id="aula-mencion"><option value="">Todas las menciones</option><option value="Estrategia">Solo Estrategia</option><option value="Inteligencia">Solo Inteligencia</option><option value="Logística">Solo Logística</option><option value="Recursos Humanos">Solo Recursos Humanos</option></select></div>
     <div class="field" style="margin-bottom:6px"><label>Profesores de la materia (suele tener 3)</label></div>
     <div id="aula-profes-box" style="max-height:180px;overflow:auto;border:1px solid var(--border,#2a3a52);border-radius:10px;padding:8px;margin-bottom:12px;background:rgba(255,255,255,.02)"><div class="efm-no-data" style="color:var(--text-muted)">Cargando profesores…</div></div>
     <button class="btn-primary" id="aula-btn-guardar" onclick="aulaGuardarMateria()" style="margin-bottom:8px">➕ Abrir materia</button>
@@ -7280,7 +7281,11 @@ async function loginCursante(){
     });
     if(fnErr){
       console.error('auth-login error:', fnErr);
-      showError('err-cursante','Error de conexión: '+(fnErr.message||fnErr));
+      // v2.9.163: auth-login devuelve 401 con {error:"..."} cuando la clave es inválida.
+      // functions.invoke pone eso en fnErr — leemos el mensaje REAL en vez del técnico.
+      let msg='No se pudo verificar. Revisá tu conexión.';
+      try{ if(fnErr.context && typeof fnErr.context.json==='function'){ const b=await fnErr.context.json(); if(b&&b.error) msg=b.error; } }catch(_e){}
+      showError('err-cursante', msg);
       return;
     }
     if(!authResp || !authResp.ok){
@@ -14951,7 +14956,14 @@ async function goAulaCursante(){
   const arch = document.getElementById('aula-cur-archivo');
   cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
   const all = await cargarMateriasAula(true);
-  const mias = all.filter(m=> m.ciclo===ciclo);
+  // asegura la mención del cursante (auth-login puede no traerla) — lookup 1 vez desde v_cursantes
+  if(currentUser && currentUser.ciclo==='2DO CICLO' && currentUser.mencion===undefined){
+    try{ const {data}=await sb.from('v_cursantes').select('mencion').eq('id',currentUser.id).limit(1);
+      currentUser.mencion=(data&&data[0]&&data[0].mencion)||null; }catch(e){ currentUser.mencion=null; }
+  }
+  const miMencion = (currentUser && currentUser.mencion) || null;
+  // v2.9.163: materia con mención asignada → solo la ve el cursante de esa mención (2do ciclo)
+  const mias = all.filter(m=> m.ciclo===ciclo && (!m.mencion || (miMencion && m.mencion.trim().toLowerCase()===String(miMencion).trim().toLowerCase())));
   const abiertas = mias.filter(m=> m.estado==='abierta');
   const cerradas = mias.filter(m=> m.estado==='cerrada');
   cont.innerHTML = abiertas.length ? abiertas.map(m=> _aulaCardCursante(m)).join('')
@@ -15099,6 +15111,8 @@ const QZ_TIPOS = {
   nube:     {ic:'☁️', lbl:'Nube de palabras'}
 };
 const QZ_NO_CALIFICA = ['abierta','encuesta','nube'];
+// v2.9.163: menciones de 2DO CICLO (reorganización temporal por especialidades)
+const QZ_MENCIONES = ['Estrategia','Inteligencia','Logística','Recursos Humanos'];
 const QZ_NUMS = '①②③④⑤⑥⑦⑧⑨⑩';
 
 async function _qzInvoke(accion, extra){
@@ -15466,10 +15480,10 @@ function qzRepCSVIndividual(cid){
 
 // ---------- PROFESOR: editor ----------
 let _qzEd=null, _qzEdIdx=-1, _qzEdP=null;
-function qzNuevo(){ _qzEd={id:null,titulo:'',descripcion:'',materia_aula_id:_qzMatFiltro||'',estado:'borrador',aud_ciclo:'',aud_paralelo:'',feedback:'inmediato',unidad:'',preguntas:[]}; _qzEdIdx=-1; _qzEdP=null; showScreen('screen-quiz-editor'); _qzEdRender(); }
+function qzNuevo(){ _qzEd={id:null,titulo:'',descripcion:'',materia_aula_id:_qzMatFiltro||'',estado:'borrador',aud_ciclo:'',aud_paralelo:'',aud_mencion:'',feedback:'inmediato',unidad:'',preguntas:[]}; _qzEdIdx=-1; _qzEdP=null; showScreen('screen-quiz-editor'); _qzEdRender(); }
 function qzEditar(id){
   const c=_qzLista.find(x=>x.id===id); if(!c) return;
-  _qzEd={id:c.id,titulo:c.titulo,descripcion:c.descripcion||'',materia_aula_id:c.materia_aula_id||'',estado:c.estado,aud_ciclo:c.aud_ciclo||'',aud_paralelo:c.aud_paralelo||'',feedback:c.feedback||'final',unidad:c.unidad||'',preguntas:JSON.parse(JSON.stringify(c.preguntas||[]))};
+  _qzEd={id:c.id,titulo:c.titulo,descripcion:c.descripcion||'',materia_aula_id:c.materia_aula_id||'',estado:c.estado,aud_ciclo:c.aud_ciclo||'',aud_paralelo:c.aud_paralelo||'',aud_mencion:c.aud_mencion||'',feedback:c.feedback||'final',unidad:c.unidad||'',preguntas:JSON.parse(JSON.stringify(c.preguntas||[]))};
   _qzEdIdx=-1; _qzEdP=null; showScreen('screen-quiz-editor'); _qzEdRender();
 }
 function qzEditorVolver(){ if(_qzEd && !confirm('¿Salir del editor? Lo no guardado se pierde.')) return; goQuizProf(); }
@@ -15494,6 +15508,10 @@ function _qzEdRender(){
   <div class="field"><label>👥 Paralelo</label><select id="qz-ed-aud-par">
     <option value="" ${!_qzEd.aud_paralelo?'selected':''}>Todos los paralelos</option>
     ${['A','B','C'].map(p=>`<option value="${p}" ${_qzEd.aud_paralelo===p?'selected':''}>Solo paralelo "${p}"</option>`).join('')}
+  </select></div>
+  <div class="field"><label>🎖️ Mención (solo 2DO CICLO — reorganización por menciones)</label><select id="qz-ed-aud-men">
+    <option value="" ${!_qzEd.aud_mencion?'selected':''}>Todas las menciones</option>
+    ${QZ_MENCIONES.map(m=>`<option value="${m}" ${_qzEd.aud_mencion===m?'selected':''}>Solo ${m}</option>`).join('')}
   </select></div>
   <div class="field"><label>✅ Respuestas en la práctica libre</label><select id="qz-ed-fb">
     <option value="inmediato" ${_qzEd.feedback!=='final'?'selected':''}>AL INSTANTE (verde ✔ / rojo ✘ tras cada pregunta)</option>
@@ -15539,9 +15557,10 @@ function _qzEdLeerCabecera(){
   _qzEd.descripcion=(document.getElementById('qz-ed-desc').value||'').trim();
   _qzEd.materia_aula_id=document.getElementById('qz-ed-mat').value||'';
   _qzEd.estado=document.getElementById('qz-ed-estado').value;
-  const ac=document.getElementById('qz-ed-aud-ciclo'), ap=document.getElementById('qz-ed-aud-par');
+  const ac=document.getElementById('qz-ed-aud-ciclo'), ap=document.getElementById('qz-ed-aud-par'), am=document.getElementById('qz-ed-aud-men');
   _qzEd.aud_ciclo=(ac&&ac.value)||'';
   _qzEd.aud_paralelo=(ap&&ap.value)||'';
+  _qzEd.aud_mencion=(am&&am.value)||'';
   const fb=document.getElementById('qz-ed-fb');
   _qzEd.feedback=(fb&&fb.value)||'final';
   const un=document.getElementById('qz-ed-unidad');
@@ -15778,7 +15797,7 @@ async function qzEdGuardar(){
   try{
     await _qzInvoke('guardar',{id:_qzEd.id||undefined, titulo:_qzEd.titulo, descripcion:_qzEd.descripcion,
       materia_aula_id:_qzEd.materia_aula_id||null, estado:_qzEd.estado,
-      aud_ciclo:_qzEd.aud_ciclo||null, aud_paralelo:_qzEd.aud_paralelo||null,
+      aud_ciclo:_qzEd.aud_ciclo||null, aud_paralelo:_qzEd.aud_paralelo||null, aud_mencion:_qzEd.aud_mencion||null,
       feedback:_qzEd.feedback||'final', unidad:_qzEd.unidad||null, preguntas:_qzEd.preguntas});
     _qzEd=null; alert('✅ Cuestionario guardado'); goQuizProf();
   }catch(e){ alert('⚠️ '+e.message); }
@@ -16232,10 +16251,11 @@ function _qzLinkJuego(pin){
 }
 function _qzAudLabel(c){
   if(!c) return '';
-  if(c.aud_ciclo && c.aud_paralelo) return 'Solo '+c.aud_ciclo+' — Paralelo "'+c.aud_paralelo+'"';
-  if(c.aud_ciclo) return 'Solo '+c.aud_ciclo+' (todos los paralelos)';
-  if(c.aud_paralelo) return 'Solo paralelo "'+c.aud_paralelo+'"';
-  return '';
+  const p=[];
+  if(c.aud_ciclo) p.push(c.aud_ciclo);
+  if(c.aud_paralelo) p.push('Paralelo "'+c.aud_paralelo+'"');
+  if(c.aud_mencion) p.push('Mención '+c.aud_mencion);
+  return p.length? ('Solo '+p.join(' · ')) : '';
 }
 async function _qzCopiarLink(link){
   try{ await navigator.clipboard.writeText(link); alert('🔗 Enlace copiado — pegalo en el grupo de WhatsApp del curso'); }
@@ -20792,6 +20812,7 @@ async function aulaGuardarMateria(){
     gestion: Number(document.getElementById('aula-gestion').value),
     semestre: Number(document.getElementById('aula-semestre').value),
     estado: document.getElementById('aula-estado').value,
+    mencion: (document.getElementById('aula-mencion')||{}).value || null,
     profesores: _aulaProfesSeleccionados(),
   };
   if(!payload.token){ alert('Sesión no válida. Volvé a entrar.'); return; }
@@ -20819,6 +20840,7 @@ function aulaEditarMateria(id){
   gSel.value = String(m.gestion);
   document.getElementById('aula-semestre').innerHTML = aulaOpcionesSemestre(m.ciclo||'1ER CICLO', m.semestre||1);
   document.getElementById('aula-estado').value = m.estado||'abierta';
+  const menSel=document.getElementById('aula-mencion'); if(menSel) menSel.value = m.mencion||'';
   aulaRenderProfesoresBox(((m.materia_aula_profesores)||[]).map(p=>p.profesor_id));
   document.getElementById('aula-btn-guardar').textContent = '💾 Guardar cambios';
   document.getElementById('aula-btn-cancelar').style.display = '';
@@ -20831,6 +20853,7 @@ function aulaCancelarEdicion(){
   const ti=document.getElementById('aula-form-titulo'); if(ti) ti.textContent='➕ Abrir nueva materia';
   const bg=document.getElementById('aula-btn-guardar'); if(bg) bg.textContent='➕ Abrir materia';
   const bc=document.getElementById('aula-btn-cancelar'); if(bc) bc.style.display='none';
+  const men=document.getElementById('aula-mencion'); if(men) men.value='';
   aulaRenderProfesoresBox([]);
 }
 async function aulaCambiarEstado(id, estado){
@@ -20887,7 +20910,7 @@ function _aulaGestRow(m){
   return `<div class="list-item" style="padding:10px 12px;margin-bottom:6px">
     <div style="display:flex;align-items:center;gap:8px">
       <div style="flex:1">
-        <div style="font-weight:700;color:var(--text-primary);font-size:14px">${escapeHtml(m.nombre)}</div>
+        <div style="font-weight:700;color:var(--text-primary);font-size:14px">${escapeHtml(m.nombre)}${m.mencion?` <span style="font-size:10px;font-weight:800;color:#f4d574;background:rgba(212,175,55,.15);padding:2px 7px;border-radius:8px">🎖️ ${escapeHtml(m.mencion)}</span>`:''}</div>
         <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${escapeHtml(profes.join(' · ')||'Sin profesores')}</div>
       </div>
       <span style="font-size:11px;font-weight:700;color:${est.color};background:${est.bg};padding:3px 9px;border-radius:10px">${est.txt}</span>
