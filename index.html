@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.167</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.168</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6262,8 +6262,36 @@ input::placeholder, textarea::placeholder {
         <button class="btn-secondary" onclick="document.getElementById('av-nueva').style.display='none'">Cancelar</button>
       </div>
     </div>
+    <button class="btn-secondary" onclick="repoAbrirArbol()" style="margin-bottom:12px;border-color:#8a6d1f">📚 Repositorio de Carpetas de Clases</button>
     <div class="section-label">🗂️ Mis carpetas</div>
     <div id="av-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+  </div>
+</section>
+
+<section id="screen-av-repo" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goAulaVirtual()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">📚 Repositorio</div><div class="header-sub">Carpetas de Clases por materia</div></div>
+  </div>
+  <div class="menu-container">
+    <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:10px;flex-wrap:wrap">
+      <div class="field" style="margin:0;flex:1;min-width:180px"><label>Buscar materia</label><input type="text" id="repo-buscar" placeholder="nombre o código…" oninput="repoRenderArbol()"></div>
+      <div class="field" style="margin:0;width:110px"><label>Gestión</label><input type="number" id="repo-gestion" value="2026" onchange="REPO.gestion=parseInt(this.value)||new Date().getFullYear()"></div>
+    </div>
+    <div id="repo-mi-materia"></div>
+    <div id="repo-arbol"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando malla…</div></div>
+  </div>
+</section>
+
+<section id="screen-av-repo-materia" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="repoAbrirArbol()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title" id="repo-m-title">Materia</div><div class="header-sub" id="repo-m-sub">—</div></div>
+  </div>
+  <div class="menu-container">
+    <div id="repo-m-cont"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
   </div>
 </section>
 
@@ -17298,6 +17326,181 @@ async function _avInvoke(accion, extra){
     }
     return data||{ok:false,error:'sin respuesta'};
   }catch(e){ return {ok:false,error:String((e&&e.message)||e)}; }
+}
+// ============================================================
+// REPOSITORIO DE CARPETAS DE CLASES — subir los documentos finales corregidos,
+// archivados por materia y gestión (subida directa). Backend: acciones repo_*.
+// ============================================================
+const REPO = { arbol:null, gestion:new Date().getFullYear(), materia:null, cid:null, adjuntos:[], gestiones:[] };
+const REPO_SLOTS = [
+  {tipo:'doc_texto',            n:'0001 · Texto de la materia'},
+  {tipo:'doc_distribucion',     n:'0002 · Cuadro de Distribución del Tiempo'},
+  {tipo:'doc_plan_clases',      n:'0003 · Plan de Clases'},
+  {tipo:'doc_hoja_orientacion', n:'0004 · Hoja de Orientación'},
+  {tipo:'doc_desagregacion',    n:'0005 · Cuadro de Desagregación'},
+  {tipo:'doc_tareas',           n:'0006 · Cuadro de Planificación de Tareas'},
+];
+function _repoAccept(tipo){
+  return tipo==='presentacion' ? '.ppt,.pptx,.pdf'
+       : tipo==='recurso_interactivo' ? '.html,.htm,.zip,.pdf'
+       : '.doc,.docx,.pdf';
+}
+async function repoAbrirArbol(){
+  showScreen('screen-av-repo');
+  document.getElementById('repo-gestion').value = REPO.gestion;
+  if(!REPO.arbol){
+    if(!AV.catalogo){
+      const r=await _avInvoke('catalogo');
+      if(!r.ok){ document.getElementById('repo-arbol').innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No se pudo cargar la malla: '+_rgEsc(r.error||'')+'</div>'; return; }
+      AV.catalogo=r.materias||[];
+    }
+    REPO.arbol=AV.catalogo;
+  }
+  repoRenderMiMateria();
+  repoRenderArbol();
+}
+function repoRenderMiMateria(){
+  const cont=document.getElementById('repo-mi-materia'); if(!cont) return;
+  let saved=null; try{ saved=JSON.parse(localStorage.getItem('repo_mi_materia')||'null'); }catch(_){}
+  if(!saved || !saved.codigo){ cont.innerHTML=''; return; }
+  cont.innerHTML='<button class="btn-secondary" onclick="repoAbrirMateria(\''+_rgEsc(saved.codigo)+'\')" style="width:100%;margin-bottom:10px;text-align:left;border-color:#8a6d1f">⭐ Mi materia: <strong>'+_rgEsc(saved.nombre||saved.codigo)+'</strong> <span style="color:var(--text-muted)">('+_rgEsc(saved.codigo)+')</span></button>';
+}
+function repoRenderArbol(){
+  const cont=document.getElementById('repo-arbol'); if(!cont) return;
+  const q=(document.getElementById('repo-buscar').value||'').trim().toLowerCase();
+  const items=(REPO.arbol||[]).filter(m=> !q || (m.nombre_uc||'').toLowerCase().includes(q) || (m.codigo_uc||'').toLowerCase().includes(q));
+  if(!items.length){ cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">Sin materias que coincidan.</div>'; return; }
+  const ejes={};
+  items.forEach(m=>{
+    const eje=m.eje_curricular||'—', mod=m.modulo||'—';
+    ejes[eje]=ejes[eje]||{}; ejes[eje][mod]=ejes[eje][mod]||[]; ejes[eje][mod].push(m);
+  });
+  const semTxt=s=>({1:'1er sem',2:'2do sem',3:'3er sem',4:'4to sem'}[s]||('sem '+s));
+  const open=!!q, bd='1px solid var(--border,#2a3a52)';
+  let h='';
+  Object.keys(ejes).forEach(eje=>{
+    h+='<details'+(open?' open':'')+' style="margin-bottom:8px;border:'+bd+';border-radius:10px;overflow:hidden">'
+      +'<summary style="cursor:pointer;padding:11px 12px;font-weight:700;background:rgba(138,109,31,.10)">🏛️ '+_rgEsc(eje)+'</summary>'
+      +'<div style="padding:6px 8px 8px">';
+    Object.keys(ejes[eje]).forEach(mod=>{
+      h+='<details'+(open?' open':'')+' style="margin:6px 0;border:'+bd+';border-radius:8px">'
+        +'<summary style="cursor:pointer;padding:8px 10px;font-weight:600;font-size:13px">📦 '+_rgEsc(mod)+'</summary>'
+        +'<div style="padding:4px 8px 8px">';
+      ejes[eje][mod].forEach(m=>{
+        h+='<button class="quick-btn" onclick="repoAbrirMateria(\''+_rgEsc(m.codigo_uc)+'\')" style="margin:4px 0">'
+          +'<span class="qa-icon">📁</span><span class="qa-text"><strong>'+_rgEsc(m.nombre_uc)+'</strong>'
+          +' <span style="color:var(--text-muted)">· '+_rgEsc(m.codigo_uc)+' · '+_rgEsc(String(m.ciclo))+'er ciclo '+semTxt(m.semestre)+'</span></span></button>';
+      });
+      h+='</div></details>';
+    });
+    h+='</div></details>';
+  });
+  cont.innerHTML=h;
+}
+function repoAbrirMateria(codigo){
+  const m=(REPO.arbol||[]).find(x=>x.codigo_uc===codigo);
+  if(!m){ alert('Materia no encontrada en la malla.'); return; }
+  REPO.materia=m;
+  try{ localStorage.setItem('repo_mi_materia', JSON.stringify({codigo:m.codigo_uc, nombre:m.nombre_uc})); }catch(_){}
+  repoCargarMateria();
+}
+async function repoCargarMateria(){
+  const m=REPO.materia; if(!m) return;
+  showScreen('screen-av-repo-materia');
+  document.getElementById('repo-m-title').textContent=m.nombre_uc||m.codigo_uc;
+  document.getElementById('repo-m-sub').textContent=(m.codigo_uc||'')+' · Gestión '+REPO.gestion;
+  const cont=document.getElementById('repo-m-cont');
+  cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const r=await _avInvoke('repo_ver',{materia_codigo:m.codigo_uc, gestion:REPO.gestion});
+  if(!r.ok){ cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No se pudo cargar: '+_rgEsc(r.error||'')+'</div>'; return; }
+  REPO.cid=r.carpeta_id; REPO.adjuntos=r.adjuntos||[]; REPO.gestiones=r.gestiones||[];
+  repoRenderMateria();
+}
+function repoRenderMateria(){
+  const cont=document.getElementById('repo-m-cont'); if(!cont) return;
+  const byTipo={};
+  (REPO.adjuntos||[]).forEach(a=>{ (byTipo[a.tipo]=byTipo[a.tipo]||[]).push(a); });
+  const gs=[...new Set([...(REPO.gestiones||[]), REPO.gestion])].sort((a,b)=>b-a);
+  const g='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center"><span style="color:var(--text-muted);font-size:12px">Gestión:</span>'
+    + gs.map(y=>'<button class="'+(y===REPO.gestion?'btn-primary':'btn-secondary')+'" style="padding:4px 12px" onclick="REPO.gestion='+y+';document.getElementById(\'repo-gestion\').value='+y+';repoCargarMateria()">'+y+'</button>').join('')
+    + '</div>';
+  const slots=REPO_SLOTS.map(s=>{
+    const a=(byTipo[s.tipo]||[])[0];
+    const inner = a
+      ? '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px">'
+        +'<span style="flex:1;min-width:120px;font-size:12px;color:var(--text-muted)">📄 '+_rgEsc(a.nombre)+(a.subido_por_nombre?(' · '+_rgEsc(a.subido_por_nombre)):'')+'</span>'
+        +'<button class="rg-doc" onclick="repoDescargar(\''+a.id+'\',this)">⬇</button>'
+        +'<button class="rg-doc" onclick="repoPick(\''+s.tipo+'\')">🔁 Reemplazar</button>'
+        +'<button class="rg-doc" style="border-color:#7a2230;color:#ffc9c9;background:rgba(122,34,48,.12)" onclick="repoEliminar(\''+a.id+'\')">🗑</button>'
+        +'</div>'
+      : '<div style="margin-top:6px"><button class="btn-secondary" style="padding:6px 14px" onclick="repoPick(\''+s.tipo+'\')">⬆ Subir</button></div>';
+    return '<div class="rg-card"><div class="rg-asunto" style="font-size:13px">'+_rgEsc(s.n)+'</div>'+inner+'</div>';
+  }).join('');
+  const zona=(tipo,titulo,icon,conEnlace)=>{
+    const list=(byTipo[tipo]||[]);
+    const li = list.length ? list.map(a=>'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:5px 0;border-top:1px solid var(--border,#2a3a52)">'
+        +'<span style="flex:1;min-width:120px;font-size:12px">'+(a.enlace_url?'🔗':'📄')+' '+_rgEsc(a.nombre)+'</span>'
+        +'<button class="rg-doc" onclick="repoDescargar(\''+a.id+'\',this)">⬇ Abrir</button>'
+        +'<button class="rg-doc" style="border-color:#7a2230;color:#ffc9c9;background:rgba(122,34,48,.12)" onclick="repoEliminar(\''+a.id+'\')">🗑</button>'
+        +'</div>').join('') : '<div style="font-size:12px;color:var(--text-muted);padding:5px 0">Sin archivos aún.</div>';
+    return '<div class="rg-card"><div class="rg-asunto" style="font-size:13px">'+icon+' '+_rgEsc(titulo)+'</div>'+li
+      +'<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn-secondary" style="padding:6px 14px" onclick="repoPick(\''+tipo+'\')">⬆ Agregar archivo</button>'
+      +(conEnlace?'<button class="btn-secondary" style="padding:6px 14px" onclick="repoEnlace()">🔗 Agregar enlace</button>':'')+'</div></div>';
+  };
+  cont.innerHTML = g
+    + '<div id="repo-prog" style="font-size:12px;color:var(--text-muted);min-height:16px;margin-bottom:6px"></div>'
+    + '<div class="section-label" style="margin-top:0">📑 Documentos de la carpeta</div>' + slots
+    + '<div class="section-label">🖥️ Presentaciones y recursos</div>'
+    + zona('presentacion','0007 · Presentaciones','📊',false)
+    + zona('recurso_interactivo','Recursos Interactivos','🎮',true)
+    + '<input type="file" id="repo-file" style="display:none">';
+}
+function repoPick(tipo){
+  const inp=document.getElementById('repo-file'); if(!inp) return;
+  inp.value=''; inp.accept=_repoAccept(tipo);
+  inp.onchange=()=>{ const f=inp.files&&inp.files[0]; if(f) repoSubir(tipo, f); };
+  inp.click();
+}
+async function repoSubir(tipo, file){
+  const m=REPO.materia; if(!m) return;
+  if(file.size>25*1024*1024){ alert('El archivo supera 25 MB.'); return; }
+  const prog=document.getElementById('repo-prog');
+  const set=t=>{ if(prog) prog.textContent=t; };
+  try{
+    set('① Pidiendo permiso de subida…');
+    const up=await _avInvoke('repo_upload_url',{materia_codigo:m.codigo_uc, gestion:REPO.gestion, tipo, filename:file.name});
+    if(!up.ok) throw new Error(up.error||'no se obtuvo URL de subida');
+    set('② Subiendo archivo…');
+    const u=await sb.storage.from('documentos-academicos').uploadToSignedUrl(up.path, up.token, file);
+    if(u.error) throw new Error(u.error.message||'falló la subida');
+    set('③ Registrando…');
+    const reg=await _avInvoke('repo_registrar',{materia_codigo:m.codigo_uc, gestion:REPO.gestion, tipo, storage_path:up.path, nombre:file.name, mime:file.type});
+    if(!reg.ok) throw new Error(reg.error||'no se pudo registrar');
+    set('✅ Guardado.');
+    await repoCargarMateria();
+  }catch(e){ set('⚠️ '+(e.message||e)); alert('No se pudo subir: '+(e.message||e)); }
+}
+async function repoEnlace(){
+  const url=prompt('Pegá el enlace del recurso interactivo (https://…):',''); if(!url) return;
+  if(!/^https?:\/\//i.test(url)){ alert('El enlace debe empezar con http:// o https://'); return; }
+  const nombre=prompt('Nombre del recurso:', url) || url;
+  const m=REPO.materia;
+  const reg=await _avInvoke('repo_registrar',{materia_codigo:m.codigo_uc, gestion:REPO.gestion, tipo:'recurso_interactivo', enlace_url:url, nombre});
+  if(!reg.ok){ alert('No se pudo guardar: '+(reg.error||'')); return; }
+  await repoCargarMateria();
+}
+async function repoDescargar(id, btn){
+  let t=''; if(btn){ btn.disabled=true; t=btn.textContent; btn.textContent='⏳'; }
+  const r=await _avInvoke('repo_abrir',{adjunto_id:id});
+  if(btn){ btn.disabled=false; btn.textContent=t; }
+  if(!r.ok||!r.url){ alert('No se pudo abrir: '+(r.error||'')); return; }
+  window.open(r.url,'_blank');
+}
+async function repoEliminar(id){
+  if(!confirm('¿Eliminar este documento del repositorio?')) return;
+  const r=await _avInvoke('repo_eliminar',{adjunto_id:id});
+  if(!r.ok){ alert('No se pudo eliminar: '+(r.error||'')); return; }
+  await repoCargarMateria();
 }
 function _avEsAdminAcad(){ return ['ciencia_tecnologia','jefe_estudios','jefe_sac','comandante'].includes(activeRole); }
 function _avPuedeAprobar(){ return ['jefe_sac','jefe_estudios'].includes(activeRole); }
