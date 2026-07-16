@@ -3882,7 +3882,7 @@ input::placeholder, textarea::placeholder {
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.168</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(212,175,55,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.169</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6294,6 +6294,40 @@ input::placeholder, textarea::placeholder {
     <div id="repo-m-cont"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
   </div>
 </section>
+
+<section id="screen-av-repo-asignar" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="repoAbrirArbol()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">👥 Asignar profesores</div><div class="header-sub">Materia por profesor</div></div>
+  </div>
+  <div class="menu-container">
+    <div id="repo-asig-cont"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+  </div>
+</section>
+
+<!-- Modal: vista previa fiel del documento -->
+<div id="repo-preview-ov" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:16px">
+  <div style="background:#e9e9ec;width:min(920px,96vw);height:92vh;border-radius:12px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)">
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:#1a2436;color:#f4d574">
+      <strong id="repo-preview-title" style="flex:1;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Vista previa</strong>
+      <button id="repo-preview-dl" class="rg-doc" style="width:auto;flex:0 0 auto;padding:6px 12px;margin:0">⬇ Descargar</button>
+      <button class="rg-doc" style="width:auto;flex:0 0 auto;padding:6px 12px;margin:0" onclick="repoPreviewCerrar()">✕ Cerrar</button>
+    </div>
+    <div id="repo-preview-body" style="flex:1;overflow:auto;background:#f5f5f7"></div>
+  </div>
+</div>
+
+<!-- Modal: elegir un quiz de la app para adjuntar -->
+<div id="repo-quiz-ov" style="display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.6);align-items:center;justify-content:center;padding:16px">
+  <div style="background:var(--bg,#0d1524);border:1px solid var(--border,#2a3a52);width:min(560px,96vw);max-height:86vh;border-radius:12px;display:flex;flex-direction:column;overflow:hidden">
+    <div style="display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border,#2a3a52)">
+      <strong style="flex:1;font-size:14px">🎮 Elegí un quiz para adjuntar</strong>
+      <button class="rg-doc" style="width:auto;flex:0 0 auto;padding:6px 12px;margin:0" onclick="repoQuizCerrar()">✕</button>
+    </div>
+    <div id="repo-quiz-list" style="overflow:auto;padding:10px 12px"></div>
+  </div>
+</div>
 
 <section id="screen-av-carpeta" class="screen">
   <div class="app-header">
@@ -15231,6 +15265,7 @@ function _qzProfRender(){
         <button class="qz-mini" onclick="qzPreview('${c.id}')">👁 Probar</button>
         <button class="qz-mini" onclick="qzEditar('${c.id}')">✏️ Editar</button>
         <button class="qz-mini" onclick="qzResultadosPractica('${c.id}')">📊 Registro de notas</button>
+        <button class="qz-mini" onclick="qzAdjuntarCarpeta('${c.id}')">📎 A mi carpeta</button>
         <button class="qz-mini warn" onclick="qzEliminar('${c.id}')">🗑</button>
       </div>
     </div>`;
@@ -15266,6 +15301,24 @@ async function qzEliminar(id){
   const c=_qzLista.find(x=>x.id===id); if(!c) return;
   if(!confirm('¿Borrar "'+c.titulo+'"? Se pierden también sus resultados.')) return;
   try{ await _qzInvoke('eliminar',{id}); goQuizProf(); }catch(e){ alert('⚠️ '+e.message); }
+}
+// Adjuntar este quiz como Recurso Interactivo en la Carpeta de Clases del profesor.
+async function qzAdjuntarCarpeta(id){
+  const c=_qzLista.find(x=>x.id===id); const titulo=c?c.titulo:'Quiz';
+  const r=await _avInvoke('repo_mis_materias');
+  if(!r.ok){ alert('No se pudo: '+(r.error||'')); return; }
+  if(r.es_admin){ alert('Sos administrador: adjuntá el quiz desde el Repositorio, abriendo la materia.'); return; }
+  const mm=r.materias||[];
+  if(!mm.length){ alert('No tenés una materia asignada. Pedí al Jefe de la SAC que te asigne tu materia.'); return; }
+  let mat=mm[0];
+  if(mm.length>1){
+    const pick=prompt('¿A qué materia lo adjunto?\n'+mm.map((m,i)=>(i+1)+') '+m.nombre_uc).join('\n')+'\n\nEscribí el número:','1');
+    const idx=parseInt(pick)-1; if(isNaN(idx)||idx<0||idx>=mm.length) return; mat=mm[idx];
+  }
+  const gestion=new Date().getFullYear();
+  const reg=await _avInvoke('repo_registrar',{materia_codigo:mat.codigo_uc, gestion, tipo:'recurso_interactivo', enlace_url:'app:quiz:'+id, nombre:titulo});
+  if(!reg.ok){ alert('No se pudo adjuntar: '+(reg.error||'')); return; }
+  alert('✅ Adjuntado a la Carpeta de Clases de '+mat.nombre_uc+' (gestión '+gestion+').');
 }
 // ============ v2.9.160: REGISTRO DE NOTAS (estilo Wayground) ============
 // Nota por alumno, % por pregunta (la más fallada), participación, reporte
@@ -17331,7 +17384,7 @@ async function _avInvoke(accion, extra){
 // REPOSITORIO DE CARPETAS DE CLASES — subir los documentos finales corregidos,
 // archivados por materia y gestión (subida directa). Backend: acciones repo_*.
 // ============================================================
-const REPO = { arbol:null, gestion:new Date().getFullYear(), materia:null, cid:null, adjuntos:[], gestiones:[] };
+const REPO = { arbol:null, gestion:new Date().getFullYear(), materia:null, cid:null, adjuntos:[], gestiones:[], editable:true, esAdmin:false, estado:{}, misMaterias:null };
 const REPO_SLOTS = [
   {tipo:'doc_texto',            n:'0001 · Texto de la materia'},
   {tipo:'doc_distribucion',     n:'0002 · Cuadro de Distribución del Tiempo'},
@@ -17348,6 +17401,9 @@ function _repoAccept(tipo){
 async function repoAbrirArbol(){
   showScreen('screen-av-repo');
   document.getElementById('repo-gestion').value = REPO.gestion;
+  REPO.esAdmin = _avEsAdminAcad();
+  // El buscador del árbol solo lo usa el admin; el profesor ve directo su materia.
+  const bf=document.getElementById('repo-buscar'); if(bf&&bf.closest('.field')) bf.closest('.field').style.display = REPO.esAdmin?'':'none';
   if(!REPO.arbol){
     if(!AV.catalogo){
       const r=await _avInvoke('catalogo');
@@ -17357,13 +17413,36 @@ async function repoAbrirArbol(){
     REPO.arbol=AV.catalogo;
   }
   repoRenderMiMateria();
-  repoRenderArbol();
+  if(REPO.esAdmin){
+    const est=await _avInvoke('repo_estado_arbol',{gestion:REPO.gestion});
+    REPO.estado = (est.ok? est.estado : {})||{};
+    repoRenderArbol();
+  }else{
+    document.getElementById('repo-arbol').innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando tu materia…</div>';
+    const r=await _avInvoke('repo_mis_materias');
+    REPO.misMaterias = (r.ok? r.materias : [])||[];
+    repoRenderMisMaterias();
+  }
+}
+// Profesor: solo sus materias asignadas (si es una, entra directo).
+function repoRenderMisMaterias(){
+  const cont=document.getElementById('repo-arbol'); if(!cont) return;
+  const mm=REPO.misMaterias||[];
+  if(!mm.length){ cont.innerHTML='<div class="rg-card" style="text-align:center;padding:22px;color:var(--text-muted)">📭 Todavía no tenés una materia asignada.<br>Pedí al <strong>Jefe de la SAC</strong> o a la <strong>Sección Tecnología</strong> que te asigne tu materia.</div>'; return; }
+  if(mm.length===1){ REPO.materia=mm[0]; repoCargarMateria(); return; }
+  cont.innerHTML='<div class="section-label" style="margin-top:0">📚 Tus materias</div>'+mm.map(m=>
+    '<button class="quick-btn" onclick="repoAbrirMateria(\''+_rgEsc(m.codigo_uc)+'\')" style="margin:4px 0"><span class="qa-icon">📁</span><span class="qa-text"><strong>'+_rgEsc(m.nombre_uc)+'</strong> <span style="color:var(--text-muted)">· '+_rgEsc(m.codigo_uc)+'</span></span></button>').join('');
 }
 function repoRenderMiMateria(){
   const cont=document.getElementById('repo-mi-materia'); if(!cont) return;
-  let saved=null; try{ saved=JSON.parse(localStorage.getItem('repo_mi_materia')||'null'); }catch(_){}
-  if(!saved || !saved.codigo){ cont.innerHTML=''; return; }
-  cont.innerHTML='<button class="btn-secondary" onclick="repoAbrirMateria(\''+_rgEsc(saved.codigo)+'\')" style="width:100%;margin-bottom:10px;text-align:left;border-color:#8a6d1f">⭐ Mi materia: <strong>'+_rgEsc(saved.nombre||saved.codigo)+'</strong> <span style="color:var(--text-muted)">('+_rgEsc(saved.codigo)+')</span></button>';
+  cont.innerHTML = REPO.esAdmin
+    ? '<button class="btn-secondary" onclick="repoAsignarAbrir()" style="width:100%;margin-bottom:10px;border-color:#8a6d1f">👥 Asignar profesores a materias</button>'
+    : '';
+}
+function _repoBadge(codigo){
+  const n=(REPO.estado||{})[codigo]||0, tot=6;
+  const c = n>=tot ? ['#1f6f5c','#7fe6a4','✅'] : n>0 ? ['#7a5012','#f0c040','🟡'] : ['#33415a','#9fb0c8','⚪'];
+  return '<span style="display:inline-block;padding:1px 8px;border-radius:12px;font-size:11px;font-weight:700;background:'+c[0]+';color:'+c[1]+';white-space:nowrap">'+c[2]+' '+n+'/'+tot+'</span>';
 }
 function repoRenderArbol(){
   const cont=document.getElementById('repo-arbol'); if(!cont) return;
@@ -17389,7 +17468,8 @@ function repoRenderArbol(){
       ejes[eje][mod].forEach(m=>{
         h+='<button class="quick-btn" onclick="repoAbrirMateria(\''+_rgEsc(m.codigo_uc)+'\')" style="margin:4px 0">'
           +'<span class="qa-icon">📁</span><span class="qa-text"><strong>'+_rgEsc(m.nombre_uc)+'</strong>'
-          +' <span style="color:var(--text-muted)">· '+_rgEsc(m.codigo_uc)+' · '+_rgEsc(String(m.ciclo))+'er ciclo '+semTxt(m.semestre)+'</span></span></button>';
+          +' <span style="color:var(--text-muted)">· '+_rgEsc(m.codigo_uc)+' · '+_rgEsc(String(m.ciclo))+'er ciclo '+semTxt(m.semestre)+'</span></span>'
+          +'<span style="margin-left:auto;padding-left:8px">'+_repoBadge(m.codigo_uc)+'</span></button>';
       });
       h+='</div></details>';
     });
@@ -17414,46 +17494,74 @@ async function repoCargarMateria(){
   const r=await _avInvoke('repo_ver',{materia_codigo:m.codigo_uc, gestion:REPO.gestion});
   if(!r.ok){ cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No se pudo cargar: '+_rgEsc(r.error||'')+'</div>'; return; }
   REPO.cid=r.carpeta_id; REPO.adjuntos=r.adjuntos||[]; REPO.gestiones=r.gestiones||[];
+  REPO.editable = r.editable!==false;
   repoRenderMateria();
 }
 function repoRenderMateria(){
   const cont=document.getElementById('repo-m-cont'); if(!cont) return;
+  const ed=REPO.editable!==false;             // gestión editable (actual) o solo-lectura (pasada)
+  const DB='width:auto;flex:0 0 auto;padding:6px 12px;margin:0';   // botón inline compacto
   const byTipo={};
   (REPO.adjuntos||[]).forEach(a=>{ (byTipo[a.tipo]=byTipo[a.tipo]||[]).push(a); });
   const gs=[...new Set([...(REPO.gestiones||[]), REPO.gestion])].sort((a,b)=>b-a);
   const g='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center"><span style="color:var(--text-muted);font-size:12px">Gestión:</span>'
     + gs.map(y=>'<button class="'+(y===REPO.gestion?'btn-primary':'btn-secondary')+'" style="padding:4px 12px" onclick="REPO.gestion='+y+';document.getElementById(\'repo-gestion\').value='+y+';repoCargarMateria()">'+y+'</button>').join('')
     + '</div>';
+  const lock = ed ? '' : '<div class="alert-banner" style="border-color:#8a6d1f;margin-bottom:10px"><span class="alert-emoji">🔒</span><span class="alert-text"><b>Gestión '+REPO.gestion+' — archivo histórico (solo lectura).</b><br><span style="font-size:12px">Podés ver y descargar, pero no modificar. La edición está disponible en la gestión '+new Date().getFullYear()+'.</span></span></div>';
+  // botón "copiar del año anterior" cuando la gestión actual está editable y vacía
+  const copiar = (ed && !(REPO.adjuntos||[]).length)
+    ? '<div class="rg-card" style="text-align:center;padding:14px;margin-bottom:10px"><div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Esta gestión está vacía. Podés arrancar copiando los documentos de la gestión anterior y luego actualizarlos.</div><button class="btn-secondary" style="border-color:#1f6f5c" onclick="repoCopiarAnterior(this)">📥 Copiar del año anterior ('+(REPO.gestion-1)+')</button></div>'
+    : '';
   const slots=REPO_SLOTS.map(s=>{
     const a=(byTipo[s.tipo]||[])[0];
-    const inner = a
-      ? '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px">'
-        +'<span style="flex:1;min-width:120px;font-size:12px;color:var(--text-muted)">📄 '+_rgEsc(a.nombre)+(a.subido_por_nombre?(' · '+_rgEsc(a.subido_por_nombre)):'')+'</span>'
-        +'<button class="rg-doc" onclick="repoDescargar(\''+a.id+'\',this)">⬇</button>'
-        +'<button class="rg-doc" onclick="repoPick(\''+s.tipo+'\')">🔁 Reemplazar</button>'
-        +'<button class="rg-doc" style="border-color:#7a2230;color:#ffc9c9;background:rgba(122,34,48,.12)" onclick="repoEliminar(\''+a.id+'\')">🗑</button>'
-        +'</div>'
-      : '<div style="margin-top:6px"><button class="btn-secondary" style="padding:6px 14px" onclick="repoPick(\''+s.tipo+'\')">⬆ Subir</button></div>';
-    return '<div class="rg-card"><div class="rg-asunto" style="font-size:13px">'+_rgEsc(s.n)+'</div>'+inner+'</div>';
+    let inner;
+    if(a){
+      inner='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px">'
+        +'<span style="flex:1;min-width:130px;font-size:12px;color:var(--text-muted)">📄 '+_rgEsc(a.nombre)+(a.subido_por_nombre?(' · '+_rgEsc(a.subido_por_nombre)):'')+'</span>'
+        +'<button class="rg-doc" style="'+DB+'" onclick="repoPreview(\''+a.id+'\')">👁 Vista previa</button>'
+        +'<button class="rg-doc" style="'+DB+'" onclick="repoDescargar(\''+a.id+'\',this)">⬇ Descargar</button>'
+        +(ed?'<button class="rg-doc" style="'+DB+'" onclick="repoPick(\''+s.tipo+'\')">🔁 Reemplazar</button>':'')
+        +(ed?'<button class="rg-doc" style="'+DB+';border-color:#7a2230;color:#ffc9c9;background:rgba(122,34,48,.12)" onclick="repoEliminar(\''+a.id+'\')">🗑</button>':'')
+        +'</div>';
+    }else{
+      inner = ed
+        ? '<div style="margin-top:6px"><button class="btn-secondary" style="padding:6px 14px" onclick="repoPick(\''+s.tipo+'\')">⬆ Subir</button></div>'
+        : '<div style="margin-top:6px;font-size:12px;color:var(--text-muted)">— Sin documento —</div>';
+    }
+    const ok=!!a;
+    return '<div class="rg-card"><div class="rg-asunto" style="font-size:13px">'+(ok?'✅ ':'⚪ ')+_rgEsc(s.n)+'</div>'+inner+'</div>';
   }).join('');
-  const zona=(tipo,titulo,icon,conEnlace)=>{
+  const zona=(tipo,titulo,icon,conEnlace,conQuiz)=>{
     const list=(byTipo[tipo]||[]);
-    const li = list.length ? list.map(a=>'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:5px 0;border-top:1px solid var(--border,#2a3a52)">'
-        +'<span style="flex:1;min-width:120px;font-size:12px">'+(a.enlace_url?'🔗':'📄')+' '+_rgEsc(a.nombre)+'</span>'
-        +'<button class="rg-doc" onclick="repoDescargar(\''+a.id+'\',this)">⬇ Abrir</button>'
-        +'<button class="rg-doc" style="border-color:#7a2230;color:#ffc9c9;background:rgba(122,34,48,.12)" onclick="repoEliminar(\''+a.id+'\')">🗑</button>'
-        +'</div>').join('') : '<div style="font-size:12px;color:var(--text-muted);padding:5px 0">Sin archivos aún.</div>';
-    return '<div class="rg-card"><div class="rg-asunto" style="font-size:13px">'+icon+' '+_rgEsc(titulo)+'</div>'+li
-      +'<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn-secondary" style="padding:6px 14px" onclick="repoPick(\''+tipo+'\')">⬆ Agregar archivo</button>'
-      +(conEnlace?'<button class="btn-secondary" style="padding:6px 14px" onclick="repoEnlace()">🔗 Agregar enlace</button>':'')+'</div></div>';
+    const li = list.length ? list.map(a=>{
+      const esQuiz = (a.enlace_url||'').indexOf('app:quiz:')===0;
+      return '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:5px 0;border-top:1px solid var(--border,#2a3a52)">'
+        +'<span style="flex:1;min-width:130px;font-size:12px">'+(esQuiz?'🎮':a.enlace_url?'🔗':'📄')+' '+_rgEsc(a.nombre)+'</span>'
+        +'<button class="rg-doc" style="'+DB+'" onclick="repoDescargar(\''+a.id+'\',this)">'+(esQuiz?'▶ Abrir':a.enlace_url?'🔗 Abrir':'⬇ Descargar')+'</button>'
+        +(ed?'<button class="rg-doc" style="'+DB+';border-color:#7a2230;color:#ffc9c9;background:rgba(122,34,48,.12)" onclick="repoEliminar(\''+a.id+'\')">🗑</button>':'')
+        +'</div>';
+    }).join('') : '<div style="font-size:12px;color:var(--text-muted);padding:5px 0">Sin archivos aún.</div>';
+    const acciones = ed ? ('<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">'
+      +'<button class="btn-secondary" style="padding:6px 14px" onclick="repoPick(\''+tipo+'\')">⬆ Agregar archivo</button>'
+      +(conQuiz?'<button class="btn-secondary" style="padding:6px 14px;border-color:#6a1fb0" onclick="repoQuizPick()">➕ Elegir de mis quizzes</button>':'')
+      +(conEnlace?'<button class="btn-secondary" style="padding:6px 14px" onclick="repoEnlace()">🔗 Agregar enlace</button>':'')+'</div>') : '';
+    return '<div class="rg-card"><div class="rg-asunto" style="font-size:13px">'+icon+' '+_rgEsc(titulo)+'</div>'+li+acciones+'</div>';
   };
-  cont.innerHTML = g
+  cont.innerHTML = g + lock + copiar
     + '<div id="repo-prog" style="font-size:12px;color:var(--text-muted);min-height:16px;margin-bottom:6px"></div>'
     + '<div class="section-label" style="margin-top:0">📑 Documentos de la carpeta</div>' + slots
     + '<div class="section-label">🖥️ Presentaciones y recursos</div>'
-    + zona('presentacion','0007 · Presentaciones','📊',false)
-    + zona('recurso_interactivo','Recursos Interactivos','🎮',true)
+    + zona('presentacion','0007 · Presentaciones','📊',false,false)
+    + zona('recurso_interactivo','Recursos Interactivos','🎮',true,true)
     + '<input type="file" id="repo-file" style="display:none">';
+}
+async function repoCopiarAnterior(btn){
+  const m=REPO.materia; if(!m) return;
+  if(!confirm('¿Copiar todos los documentos de la gestión '+(REPO.gestion-1)+' a la gestión '+REPO.gestion+'? Después podés actualizarlos sin afectar el año anterior.')) return;
+  if(btn){ btn.disabled=true; btn.textContent='📥 Copiando…'; }
+  const r=await _avInvoke('repo_copiar_anterior',{materia_codigo:m.codigo_uc, gestion:REPO.gestion});
+  if(!r.ok){ if(btn){ btn.disabled=false; btn.textContent='📥 Copiar del año anterior ('+(REPO.gestion-1)+')'; } alert('No se pudo copiar: '+(r.error||'')); return; }
+  await repoCargarMateria();
 }
 function repoPick(tipo){
   const inp=document.getElementById('repo-file'); if(!inp) return;
@@ -17494,6 +17602,12 @@ async function repoDescargar(id, btn){
   const r=await _avInvoke('repo_abrir',{adjunto_id:id});
   if(btn){ btn.disabled=false; btn.textContent=t; }
   if(!r.ok||!r.url){ alert('No se pudo abrir: '+(r.error||'')); return; }
+  // Recurso interactivo de la app (quiz): abrir dentro de SIDECEME, no como URL.
+  if(String(r.url).indexOf('app:quiz:')===0){
+    const qid=String(r.url).slice('app:quiz:'.length);
+    if(typeof qzPreview==='function'){ qzPreview(qid); } else { alert('No se pudo abrir el recurso interactivo.'); }
+    return;
+  }
   window.open(r.url,'_blank');
 }
 async function repoEliminar(id){
@@ -17501,6 +17615,130 @@ async function repoEliminar(id){
   const r=await _avInvoke('repo_eliminar',{adjunto_id:id});
   if(!r.ok){ alert('No se pudo eliminar: '+(r.error||'')); return; }
   await repoCargarMateria();
+}
+// ---- Vista previa fiel del documento (docx-preview, corre dentro de la app) ----
+// Carga LOCAL primero (jszip.min.js / docx-preview.min.js junto al index.html,
+// mismo origen — sin depender de CDNs externos) y cae al CDN solo si faltan.
+function _repoScript(local, cdn){
+  return new Promise((res,rej)=>{
+    const s=document.createElement('script');
+    s.src=local;
+    s.onload=()=>res();
+    s.onerror=()=>{
+      const c=document.createElement('script');
+      c.src=cdn; c.onload=()=>res(); c.onerror=()=>rej(new Error('no se pudo cargar el visor'));
+      document.head.appendChild(c);
+    };
+    document.head.appendChild(s);
+  });
+}
+let _repoDocxLib=null;
+function _repoLoadDocx(){
+  if(window.docx&&window.docx.renderAsync) return Promise.resolve(window.docx);
+  if(_repoDocxLib) return _repoDocxLib;
+  _repoDocxLib=(async()=>{
+    // docx-preview necesita JSZip cargado ANTES
+    if(typeof JSZip==='undefined')
+      await _repoScript('jszip.min.js','https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+    await _repoScript('docx-preview.min.js','https://cdn.jsdelivr.net/npm/docx-preview@0.3.5/dist/docx-preview.min.js');
+    if(!(window.docx&&window.docx.renderAsync)) throw new Error('el visor no se inicializó');
+    return window.docx;
+  })();
+  _repoDocxLib.catch(()=>{ _repoDocxLib=null; });   // permitir reintento si falló
+  return _repoDocxLib;
+}
+async function repoPreview(id){
+  const a=(REPO.adjuntos||[]).find(x=>String(x.id)===String(id)); if(!a) return;
+  const nombre=(a.nombre||'').toLowerCase();
+  const ov=document.getElementById('repo-preview-ov'), body=document.getElementById('repo-preview-body');
+  document.getElementById('repo-preview-title').textContent=a.nombre||'Vista previa';
+  document.getElementById('repo-preview-dl').onclick=()=>repoDescargar(id);
+  body.innerHTML='<div style="text-align:center;color:#555;padding:30px">⏳ Cargando vista previa…</div>';
+  ov.style.display='flex';
+  const r=await _avInvoke('repo_abrir',{adjunto_id:id});
+  if(!r.ok||!r.url){ body.innerHTML='<div style="text-align:center;color:#a00;padding:30px">No se pudo abrir: '+_rgEsc(r.error||'')+'</div>'; return; }
+  try{
+    if(/\.(docx)$/.test(nombre)){
+      const lib=await _repoLoadDocx();
+      const blob=await (await fetch(r.url)).blob();
+      body.innerHTML='';
+      await lib.renderAsync(blob, body, null, {className:'docx', inWrapper:true, ignoreWidth:false});
+    }else if(/\.(pdf)$/.test(nombre)){
+      body.innerHTML='<iframe src="'+r.url+'" style="width:100%;height:100%;border:0;background:#fff"></iframe>';
+    }else{
+      body.innerHTML='<div style="text-align:center;color:#555;padding:30px">La vista previa fiel está disponible para Word (.docx) y PDF.<br>Para <b>'+_rgEsc(a.nombre)+'</b> usá el botón <b>Descargar</b>.</div>';
+    }
+  }catch(e){ body.innerHTML='<div style="text-align:center;color:#a00;padding:30px">No se pudo previsualizar ('+_rgEsc(String(e.message||e))+').<br>Probá con <b>Descargar</b>.</div>'; }
+}
+function repoPreviewCerrar(){ const ov=document.getElementById('repo-preview-ov'); if(ov) ov.style.display='none'; const b=document.getElementById('repo-preview-body'); if(b) b.innerHTML=''; }
+// ---- Adjuntar un quiz de la app (Práctica Interactiva) como recurso interactivo ----
+async function repoQuizPick(){
+  if(!REPO.materia) return;
+  const box=document.getElementById('repo-quiz-ov'), list=document.getElementById('repo-quiz-list');
+  list.innerHTML='<div style="color:var(--text-muted);padding:16px;text-align:center">⏳ Cargando tus quizzes…</div>';
+  box.style.display='flex';
+  let d; try{ d=await _qzInvoke('listar',{}); }catch(e){ list.innerHTML='<div style="color:#c0392b;padding:16px">No se pudo cargar: '+_rgEsc(e.message||String(e))+'</div>'; return; }
+  REPO._quizzes=(d&&d.cuestionarios)||[];
+  if(!REPO._quizzes.length){ list.innerHTML='<div style="color:var(--text-muted);padding:16px;text-align:center">No tenés quizzes todavía. Creá uno en <b>Práctica Interactiva</b>.</div>'; return; }
+  list.innerHTML=REPO._quizzes.map(c=>'<button class="quick-btn" style="margin:4px 0" onclick="repoQuizAdjuntar(\''+_rgEsc(c.id)+'\')"><span class="qa-icon">🎮</span><span class="qa-text"><strong>'+_rgEsc(c.titulo||'Quiz')+'</strong> <span style="color:var(--text-muted)">· '+((c.preguntas||[]).length)+' pregunta(s)'+(c.estado==='publicado'?' · publicado':'')+'</span></span></button>').join('');
+}
+function repoQuizCerrar(){ const b=document.getElementById('repo-quiz-ov'); if(b) b.style.display='none'; }
+async function repoQuizAdjuntar(qid){
+  const m=REPO.materia; if(!m) return;
+  const c=(REPO._quizzes||[]).find(x=>String(x.id)===String(qid));
+  const titulo=(c&&c.titulo)||'Quiz';
+  const r=await _avInvoke('repo_registrar',{materia_codigo:m.codigo_uc, gestion:REPO.gestion, tipo:'recurso_interactivo', enlace_url:'app:quiz:'+qid, nombre:titulo});
+  repoQuizCerrar();
+  if(!r.ok){ alert('No se pudo adjuntar: '+(r.error||'')); return; }
+  await repoCargarMateria();
+}
+// ---- Asignación profesor→materia (solo Jefe SAC / Tecnología) ----
+const RASIG={profesores:[], asignaciones:[], profSel:''};
+async function repoAsignarAbrir(){
+  showScreen('screen-av-repo-asignar');
+  const cont=document.getElementById('repo-asig-cont');
+  cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const [p,a]=await Promise.all([_avInvoke('repo_profesores'), _avInvoke('repo_asignaciones')]);
+  if(!p.ok){ cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No se pudo cargar: '+_rgEsc(p.error||'')+'</div>'; return; }
+  RASIG.profesores=p.profesores||[]; RASIG.asignaciones=(a.ok?a.asignaciones:[])||[];
+  if(!REPO.arbol){ if(!AV.catalogo){ const r=await _avInvoke('catalogo'); AV.catalogo=(r.ok?r.materias:[])||[]; } REPO.arbol=AV.catalogo; }
+  repoAsignarRender();
+}
+function repoAsignarRender(){
+  const cont=document.getElementById('repo-asig-cont');
+  const opts='<option value="">— Elegí un profesor —</option>'+RASIG.profesores.map(p=>'<option value="'+_rgEsc(p.id)+'"'+(p.id===RASIG.profSel?' selected':'')+'>'+_rgEsc((p.grado?p.grado+' ':'')+(p.nombre_completo||''))+'</option>').join('');
+  let html='<div class="field"><label>Profesor</label><select id="repo-asig-prof" onchange="RASIG.profSel=this.value;repoAsignarRender()">'+opts+'</select></div>';
+  if(RASIG.profSel){
+    const mias=RASIG.asignaciones.filter(x=>x.profesor_id===RASIG.profSel);
+    html+='<div class="section-label">Materias asignadas ('+mias.length+')</div>';
+    html+= mias.length ? mias.map(x=>'<div class="rg-card" style="display:flex;align-items:center;gap:8px;padding:10px"><span style="flex:1;font-size:13px">📁 '+_rgEsc((x.av_materias&&x.av_materias.nombre_uc)||x.materia_codigo)+' <span style="color:var(--text-muted)">· '+_rgEsc(x.materia_codigo)+'</span></span><button class="rg-doc" style="width:auto;flex:0 0 auto;padding:6px 12px;margin:0;border-color:#7a2230;color:#ffc9c9;background:rgba(122,34,48,.12)" onclick="repoDesasignar(\''+_rgEsc(x.materia_codigo)+'\')">🗑 Quitar</button></div>').join('')
+      : '<div style="font-size:12px;color:var(--text-muted);padding:6px 0">Sin materias asignadas.</div>';
+    html+='<div class="section-label">➕ Agregar materia</div>';
+    html+='<div class="field" style="margin-bottom:6px"><input type="text" id="repo-asig-buscar" placeholder="Buscar materia por nombre o código…" oninput="repoAsignarLista()"></div><div id="repo-asig-lista"></div>';
+  }
+  cont.innerHTML=html;
+  if(RASIG.profSel) repoAsignarLista();
+}
+function repoAsignarLista(){
+  const cont=document.getElementById('repo-asig-lista'); if(!cont) return;
+  const q=(document.getElementById('repo-asig-buscar').value||'').trim().toLowerCase();
+  const asignadas=new Set(RASIG.asignaciones.filter(x=>x.profesor_id===RASIG.profSel).map(x=>x.materia_codigo));
+  const items=(REPO.arbol||[]).filter(m=> !asignadas.has(m.codigo_uc) && (!q || (m.nombre_uc||'').toLowerCase().includes(q) || (m.codigo_uc||'').toLowerCase().includes(q))).slice(0,40);
+  cont.innerHTML = items.length ? items.map(m=>'<button class="quick-btn" style="margin:3px 0" onclick="repoAsignar(\''+_rgEsc(m.codigo_uc)+'\')"><span class="qa-icon">➕</span><span class="qa-text"><strong>'+_rgEsc(m.nombre_uc)+'</strong> <span style="color:var(--text-muted)">· '+_rgEsc(m.codigo_uc)+'</span></span></button>').join('')
+    : '<div style="font-size:12px;color:var(--text-muted)">Escribí para buscar una materia.</div>';
+}
+async function repoAsignar(codigo){
+  const r=await _avInvoke('repo_asignar',{profesor_id:RASIG.profSel, materia_codigo:codigo});
+  if(!r.ok){ alert('No se pudo asignar: '+(r.error||'')); return; }
+  const a=await _avInvoke('repo_asignaciones'); RASIG.asignaciones=(a.ok?a.asignaciones:[])||[];
+  repoAsignarRender();
+}
+async function repoDesasignar(codigo){
+  if(!confirm('¿Quitar esta materia al profesor?')) return;
+  const r=await _avInvoke('repo_desasignar',{profesor_id:RASIG.profSel, materia_codigo:codigo});
+  if(!r.ok){ alert('No se pudo quitar: '+(r.error||'')); return; }
+  const a=await _avInvoke('repo_asignaciones'); RASIG.asignaciones=(a.ok?a.asignaciones:[])||[];
+  repoAsignarRender();
 }
 function _avEsAdminAcad(){ return ['ciencia_tecnologia','jefe_estudios','jefe_sac','comandante'].includes(activeRole); }
 function _avPuedeAprobar(){ return ['jefe_sac','jefe_estudios'].includes(activeRole); }
