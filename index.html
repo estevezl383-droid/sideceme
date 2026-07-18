@@ -22738,11 +22738,32 @@ async function devolverAlJefeDisciplina(solId){
 }
 
 // ── GENERAR INFORME (abre ventana de impresión) ─────────────────────────────
-function generarInformeAnulacion(solId){
+async function generarInformeAnulacion(solId){
   const allSols=window.__solicitudesCache||[];
   const s=allSols.find(x=>String(x.id)===String(solId));
   if(!s){alert('No se encontró la solicitud. Intentá recargar la pantalla.');return;}
   const san=discData.sanciones.find(x=>String(x.id)===String(s.sancion_id));
+  // v2.9.170: HISTORIAL COMPROBABLE — quién solicitó (nombre completo + su texto), y cada
+  // cambio de la auditoría con nombres, puntos antes/después y justificación.
+  const _fm=function(x){ try{ return x?new Date(x).toLocaleDateString('es-BO'):'—'; }catch(_){ return '—'; } };
+  const _solNombre=s.profesor_nombre||s.solicitante_nombre||s.cursante_nombre||'(solicitante no registrado)';
+  const _solTexto=s.motivo||s.detalle_profesor||s.comentario_disciplina||s.detalle_cursante||s.comentario||'';
+  let histHtml='';
+  try{
+    const {data:_aud}=await sb.from('sanciones_audit').select('*').eq('sancion_id',String(s.sancion_id)).order('creado_en',{ascending:true});
+    const _vis=(_aud||[]).filter(a=>a.registro_generado!==false||(typeof _rolEsCT==='function'&&_rolEsCT()));
+    if(_vis.length){
+      histHtml='<p><strong>HISTORIAL DE LA SANCIÓN (auditoría del sistema):</strong></p>'+_vis.map(function(a){
+        const acc={editar:'MODIFICADA',anular:'ANULADA',reactivar:'REACTIVADA',crear_manual:'CREADA MANUALMENTE'}[a.accion]||String(a.accion||'').toUpperCase();
+        let l='En fecha <strong>'+_fm(a.creado_en)+'</strong>, la sanción fue <strong>'+acc+'</strong> por <strong>'+escapeHtml(a.realizado_por_nombre||'—')+'</strong>';
+        if(a.puntos_antes!=null&&a.puntos_despues!=null&&a.puntos_antes!==a.puntos_despues) l+=', pasando de <strong>'+a.puntos_antes+'</strong> a <strong>'+a.puntos_despues+'</strong> punto(s)';
+        if(a.solicitante_nombre) l+=', A SOLICITUD de <strong>'+escapeHtml(a.solicitante_nombre)+'</strong>'+(a.solicitud_motivo?(', quien expuso: "<em>'+escapeHtml(a.solicitud_motivo)+'</em>"'):'');
+        if(a.razon) l+='. Justificación registrada: "<em>'+escapeHtml(a.razon)+'</em>"';
+        if(a.decision_final) l+='. Decisión: '+escapeHtml(a.decision_final);
+        return '<p style="margin-left:14px">— '+l+'.</p>';
+      }).join('');
+    }
+  }catch(_){ }
   const info=_solInfo(s);
   const pCmdte=discData.profesores.find(p=>p.rol==='comandante');
   const nCmdte=pCmdte?nombreConGrado(pCmdte):'Cnl. DAEN. Jhonni Pardo Pardo';
@@ -22779,9 +22800,10 @@ p{text-align:justify;margin:8px 0}
 <br><p>Señor Coronel:</p>
 <p>En cumplimiento a Normas y Procedimientos establecidos en el Reglamento de Disciplina de la ECEME, elevo a conocimiento de su Autoridad el presente informe sobre el objeto de referencia, de acuerdo al siguiente detalle:</p>
 <p>Que, en fecha <strong>${fechaSancion}</strong>, el/la <strong>${escapeHtml(cursante)}</strong> fue sancionado/a de acuerdo al Art. <strong>${escapeHtml(String(articulo))}</strong> del Reglamento de Disciplina — descripción: "<em>${escapeHtml(descripcion)}</em>" — con la pérdida de <strong>${puntos} punto(s)</strong> disciplinario(s), registrada bajo el Folio N° <strong>${escapeHtml(folio)}</strong>.</p>
-<p>Que, el/la referido/a elevó la siguiente solicitud de reconsideración: <em>"${desarrollo}"</em></p>
+<p>Que, en fecha <strong>${_fm(s.fecha_creacion)}</strong>, <strong>${escapeHtml(_solNombre)}</strong> presentó por el sistema la solicitud de ${escapeHtml(s.tipo_solicitud||'reconsideración')} sobre la referida papeleta, exponiendo textualmente: <em>"${_solTexto?escapeHtml(_solTexto):desarrollo}"</em></p>
 ${s.comentario_comandante?`<p>Resolución registrada en el sistema: <em>"${escapeHtml(s.comentario_comandante)}"</em></p>`:''}
-<p>Habiendo analizado los antecedentes del caso y los descargos presentados, esta Sección de Ciencia y Tecnología eleva la presente a su Autoridad para los fines consiguientes.</p>
+${histHtml}
+<p>Todo lo señalado consta en la auditoría inmutable del sistema SIDECEME (autor, fecha, hora, motivo y puntos antes/después de cada acción) y puede ser verificado en cualquier momento. Habiendo analizado los antecedentes del caso y los descargos presentados, esta Sección eleva la presente a su Autoridad para los fines consiguientes.</p>
 <p>Es cuanto tengo a bien informar a su Autoridad, para los fines del caso.</p>
 <div class="firma"><div class="linea"><strong>${escapeHtml(nDisc)}</strong><br>JEFE SECC. CIENCIA Y TECNOLOGÍA — ECEME</div></div>
 <script>setTimeout(function(){window.print();},400);<\/script></body></html>`;
