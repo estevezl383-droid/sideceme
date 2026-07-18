@@ -4918,6 +4918,7 @@ input::placeholder, textarea::placeholder {
       <button id="qa-btn-gest-cursantes" class="quick-btn" onclick="goGestionarCursantes()"><span class="qa-icon">👥</span><span class="qa-text">Gestionar cursantes (agregar / editar / dar de baja)</span></button>
       <button id="qa-btn-gest-profesores" class="quick-btn" onclick="goGestionarProfesores()"><span class="qa-icon">👨‍🏫</span><span class="qa-text" id="qa-profs-text">Gestionar profesores (—)</span></button>
       <button class="quick-btn" id="qa-gest-sanciones" onclick="goGestionSanciones()" style="background:linear-gradient(180deg,rgba(76,163,107,.15),rgba(76,163,107,.05));border-color:#4ca36b"><span class="qa-icon">⚖️</span><span class="qa-text"><strong>Gestionar sanciones</strong> (editar / corregir / anular / crear manual)</span></button>
+      <button class="quick-btn" id="qa-seccion-cargos" onclick="seccionCargosAbrir()" style="background:linear-gradient(180deg,rgba(90,120,180,.15),rgba(90,120,180,.05));border-color:#5a78b4"><span class="qa-icon">🔁</span><span class="qa-text"><strong>Cargos de la Sección</strong> (titulares + informes de entrega/recepción)</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goHorarios()" style="background:linear-gradient(180deg,rgba(70,130,200,.15),rgba(70,130,200,.05));border-color:#4a90d9"><span class="qa-icon">📅</span><span class="qa-text"><strong>Horario semanal</strong> (ver / subir nuevo)</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goPlanillas()" style="background:linear-gradient(180deg,rgba(212,175,55,.15),rgba(212,175,55,.05));border-color:#d4af37"><span class="qa-icon">📋</span><span class="qa-text"><strong>Planilla de disciplina</strong> (ver / subir nueva)</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goAuditoria()"><span class="qa-icon">🔍</span><span class="qa-text">Auditoría de sanciones por cursante</span></button>
@@ -5130,7 +5131,8 @@ input::placeholder, textarea::placeholder {
     </div>
     <div class="field"><label>Artículo / Falta ID</label><input type="text" id="es-falta-id" placeholder="ej. LEVE_1_a"></div>
     <div class="field"><label>Descripción de la falta</label><textarea id="es-descripcion" rows="3" style="width:100%;background:var(--bg-deep);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:6px;padding:10px;font-family:inherit;font-size:14px"></textarea></div>
-    <div class="field"><label>Puntos aplicados (deméritos)</label><input type="number" id="es-puntos" min="0" max="100" step="1"></div>
+    <div class="field"><label>Puntos aplicados (deméritos)</label><input type="number" id="es-puntos" min="0" max="100" step="1">
+      <div style="font-size:11px;color:var(--text-muted);margin-top:3px">📖 Rangos del Reglamento: <b>Leve 1–3</b> · <b>Grave 4–7</b> · <b>Muy Grave 8–12</b>. El guardado se bloquea fuera de rango.</div></div>
     <div class="field"><label>Observaciones</label><textarea id="es-observaciones" rows="2" style="width:100%;background:var(--bg-deep);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:6px;padding:10px;font-family:inherit;font-size:14px"></textarea></div>
 
     <div style="background:rgba(212,175,55,.06);border:2px solid var(--gold);border-radius:10px;padding:14px;margin-top:14px">
@@ -9281,7 +9283,12 @@ async function guardarEdicionSancion(){
   const original = discData.sanciones.find(x => String(x.id) === String(editandoSancionId));
   if(!original){ showError('err-editar','Sanción ya no existe en memoria. Sincronizá.'); return; }
   const razon = document.getElementById('es-razon').value.trim();
-  if(!razon || razon.length < 5){ showError('err-editar','La razón de la corrección es obligatoria (mínimo 5 caracteres).'); return; }
+  if(!razon || razon.length < 20){ showError('err-editar','La justificación del cambio es obligatoria (mínimo 20 caracteres).'); return; }
+  // CAMBIO 3: validar rango de puntos según tipo de falta (Reglamento ECEME)
+  const _cat=(document.getElementById('es-categoria').value||'').toUpperCase().replace(/[^A-Z]/g,'');
+  const _pts=Math.abs(Number(document.getElementById('es-puntos').value)||0);
+  const _rg={LEVE:[1,3],GRAVE:[4,7],MUYGRAVE:[8,12]}[_cat];
+  if(_rg && (_pts<_rg[0]||_pts>_rg[1])){ showError('err-editar','Puntos fuera de rango: una falta '+_cat+' admite de '+_rg[0]+' a '+_rg[1]+' puntos según el Reglamento.'); return; }
 
   const nuevos = {
     folio: document.getElementById('es-folio').value.trim() || null,
@@ -9311,8 +9318,9 @@ async function guardarEdicionSancion(){
   btn.disabled = true; btn.textContent = 'Guardando...';
   try{
     const _tok = getTokenSesion();
+    const _reg = _rolEsCT() ? confirm('Sos C&T actuando DIRECTAMENTE.\n\n¿Registrar esta modificación en el HISTORIAL OFICIAL?\n\nAceptar = con registro oficial · Cancelar = sin registro (queda solo en auditoría interna)') : true;
     const { data: r, error: efErr } = await sb.functions.invoke('sanciones-ops', {
-      body: { accion:'editar', token:_tok, sancion_id:editandoSancionId, cambios:cambios, previo:previo, razon:razon, usuario_nombre:currentUser.nombre_completo }
+      body: { accion:'editar', token:_tok, sancion_id:editandoSancionId, cambios:cambios, previo:previo, razon:razon, usuario_nombre:currentUser.nombre_completo, registrar:_reg }
     });
     if(efErr){
       let detalle = efErr.message || 'Error en sanciones-ops';
@@ -9321,10 +9329,11 @@ async function guardarEdicionSancion(){
     }
     if(!r || !r.ok) throw new Error(r?.error || 'Error en sanciones-ops');
     // El EF ya guardó la edición + auditoría. Reflejamos en memoria local.
-    Object.assign(original, cambios);
+    Object.assign(original, cambios, {estado:(original.anulada?'ANULADA':'MODIFICADA')});
     // v2.9.79 FIX: recalcular los índices de puntaje (byCursanteLost/Sanc) para que
     // las tarjetas (deméritos, nota, "en riesgo") reflejen el puntaje NUEVO y no el viejo.
     _reconstruirIndicesDisc();
+    _invalidarCacheDisc();   // v2.9.170: que el próximo login no reviva el puntaje viejo desde caché
     if(typeof _marcarSancionEditada==='function') _marcarSancionEditada(editandoSancionId);
     alert('✓ Sanción actualizada correctamente.');
     const id = editandoSancionId;
@@ -9357,8 +9366,9 @@ async function anularSancionDirecto(sancionId){
   try{
     const ahora = new Date().toISOString();
     const _tok = getTokenSesion();
+    const _reg = _rolEsCT() ? confirm('Sos C&T actuando DIRECTAMENTE.\n\n¿Registrar esta anulación en el HISTORIAL OFICIAL?\n\nAceptar = con registro oficial · Cancelar = sin registro (queda solo en auditoría interna)') : true;
     const { data: r, error: efErr } = await sb.functions.invoke('sanciones-ops', {
-      body: { accion:'anular', token:_tok, sancion_id:sancionId, razon:razon.trim(), usuario_nombre:currentUser.nombre_completo }
+      body: { accion:'anular', token:_tok, sancion_id:sancionId, razon:razon.trim(), usuario_nombre:currentUser.nombre_completo, registrar:_reg }
     });
     if(efErr){
       let detalle = efErr.message || 'Error en sanciones-ops';
@@ -9374,13 +9384,116 @@ async function anularSancionDirecto(sancionId){
       anulada_por_nombre: currentUser.nombre_completo,
       anulada_en: ahora
     });
+    s.estado='ANULADA';
     _reconstruirIndicesDisc();   // v2.9.79: recalcular puntaje (los pts anulados salen del cómputo)
-    alert('✓ Sanción anulada correctamente.');
+    _invalidarCacheDisc();       // v2.9.170: el puntaje corregido no puede ser pisado por la caché
+    alert('✓ Sanción anulada correctamente. El puntaje del cursante ya fue corregido.');
     verSancionDetalle(sancionId);
   }catch(e){
     console.error('Error anulando:', e);
     alert('❌ Error: ' + (e.message||JSON.stringify(e)));
   }
+}
+
+// ============ v2.9.170: DISCIPLINA TRANSPARENTE (entrega de la Sección) ============
+function _rolEsCT(){ return String((currentUser&&currentUser.rol)||'').toLowerCase()==='ciencia_tecnologia'; }
+function _invalidarCacheDisc(){ try{ localStorage.removeItem(_DISC_CACHE_KEY); }catch(_){ } }
+// Desglose transparente del puntaje de un cursante: cada sanción con su estado y el total vigente
+function desgloseCursanteHTML(cid){
+  const ss=(discData.sanciones||[]).filter(function(s){ return String(s.cursante_id)===String(cid) && s.es_prueba!==true; });
+  if(!ss.length) return '';
+  let tot=0;
+  const items=ss.map(function(s,i){
+    const anu=(s.anulada===true), est=anu?'ANULADA':((s.estado==='MODIFICADA')?'MODIFICADA':'VIGENTE');
+    const pts=Number(s.puntos_aplicados)||0; if(!anu) tot+=pts;
+    const col=anu?'#e88a8a':(est==='MODIFICADA'?'#e8c46a':'#7ac899');
+    return '<div style="font-size:12px;padding:3px 0;border-bottom:1px dotted var(--border-subtle)">Sanción '+(i+1)+(s.folio?(' (Folio '+escapeHtml(String(s.folio))+')'):'')+': −'+pts+' pts <b style="color:'+col+'">['+est+']</b>'+(anu?' <span style="color:var(--text-muted)">(no cuenta)</span>':'')+'</div>';
+  }).join('');
+  return '<div class="sd-block" style="margin-top:10px"><div class="sd-block-title">🧮 Desglose transparente del puntaje</div>'+items
+    +'<div style="font-size:13px;margin-top:6px;font-weight:700;color:var(--gold-light)">TOTAL VIGENTE: −'+tot+' puntos</div></div>';
+}
+// ---- Registro de cargos de la Sección (quién y desde cuándo) + informes de entrega/recepción ----
+async function seccionCargosAbrir(){
+  const prev=document.getElementById('sc-cargos-ov'); if(prev) prev.remove();
+  const ov=document.createElement('div'); ov.id='sc-cargos-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99998;display:flex;flex-direction:column;padding:12px;overflow:auto';
+  ov.innerHTML='<div style="max-width:760px;margin:0 auto;width:100%;background:#141418;border-radius:10px;padding:16px 18px">'
+    +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b style="color:#f4d574;font-size:15px;flex:1">🔁 Cargos de la Sección Disciplina</b>'
+    +'<button class="btn-secondary" style="padding:6px 12px" onclick="document.getElementById(\'sc-cargos-ov\').remove()">✖ Cerrar</button></div>'
+    +'<div id="sc-cargos-list" style="margin:10px 0;font-size:13px;color:#ddd">⏳ Cargando registro…</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +'<button class="btn-primary" style="padding:8px 12px" onclick="seccionCargoRegistrar()">➕ Registrar cambio de titular</button>'
+    +'<button class="btn-secondary" style="padding:8px 12px" onclick="seccionCargoInforme(\'saliente\')">📄 Informe de ENTREGA (saliente)</button>'
+    +'<button class="btn-secondary" style="padding:8px 12px" onclick="seccionCargoInforme(\'entrante\')">📄 Informe de RECEPCIÓN (entrante)</button>'
+    +'</div><div style="font-size:11px;color:#b8b090;margin-top:8px">El registro guarda quién estuvo a cargo y desde cuándo. Próximamente: inventarios de la sección.</div></div>';
+  document.body.appendChild(ov);
+  await seccionCargosPintar();
+}
+async function seccionCargosPintar(){
+  const el=document.getElementById('sc-cargos-list'); if(!el) return;
+  try{
+    const {data,error}=await sb.from('seccion_cargos').select('*').eq('seccion','DISCIPLINA').order('desde',{ascending:false});
+    if(error) throw error;
+    window._scCargos=data||[];
+    el.innerHTML=(data&&data.length)?data.map(function(c){
+      return '<div style="padding:6px 0;border-bottom:1px dotted #444">'+(c.estado==='ACTUAL'?'⭐ ':'')+'<b>'+escapeHtml(((c.titular_grado||'')+' '+c.titular_nombre).trim())+'</b> — desde '+(c.desde||'—')+(c.hasta?(' hasta '+c.hasta):' (en funciones)')+(c.observaciones?(' · '+escapeHtml(c.observaciones)):'')+'</div>';
+    }).join(''):'<div style="color:#b8b090">Sin registros aún. Registrá al titular actual con ➕ (correr antes el SQL DISCIPLINA_TRANSPARENCIA.sql).</div>';
+  }catch(e){ el.innerHTML='<div style="color:#e88a8a">⚠️ '+escapeHtml(String(e.message||e))+' — ¿corriste DISCIPLINA_TRANSPARENCIA.sql?</div>'; }
+}
+async function seccionCargoRegistrar(){
+  const grado=prompt('Grado del NUEVO titular (ej: Tcnl. DEM.):'); if(grado===null) return;
+  const nombre=prompt('Nombre completo del NUEVO titular:'); if(!nombre||!nombre.trim()) return;
+  const desde=prompt('Se hace cargo DESDE (AAAA-MM-DD):', new Date().toISOString().slice(0,10)); if(!desde) return;
+  const obs=prompt('Observaciones (opcional):')||'';
+  try{
+    const act=(window._scCargos||[]).find(function(c){ return c.estado==='ACTUAL'; });
+    if(act) await sb.from('seccion_cargos').update({hasta:desde,estado:'CONCLUIDO'}).eq('id',act.id);
+    const {error}=await sb.from('seccion_cargos').insert([{seccion:'DISCIPLINA',titular_grado:grado.trim(),titular_nombre:nombre.trim(),desde:desde,estado:'ACTUAL',observaciones:obs.trim()||null,creado_por:(currentUser&&currentUser.nombre_completo)||null}]);
+    if(error) throw error;
+    alert('✓ Cambio de titular registrado.'); await seccionCargosPintar();
+  }catch(e){ alert('❌ '+(e.message||e)); }
+}
+function _seccionStats(){
+  const ss=(discData.sanciones||[]).filter(function(s){ return s.es_prueba!==true; });
+  const anu=ss.filter(function(s){ return s.anulada===true; }).length;
+  const mod=ss.filter(function(s){ return s.anulada!==true&&s.estado==='MODIFICADA'; }).length;
+  const vig=ss.length-anu; let pts=0; const curs={};
+  ss.forEach(function(s){ if(s.anulada!==true){ pts+=Number(s.puntos_aplicados)||0; curs[s.cursante_id]=1; } });
+  return {total:ss.length,vig:vig,anu:anu,mod:mod,pts:pts,curs:Object.keys(curs).length};
+}
+async function seccionCargoInforme(tipo){
+  const cs=window._scCargos||[]; const act=cs.find(function(c){ return c.estado==='ACTUAL'; });
+  const ant=cs.find(function(c){ return c.estado!=='ACTUAL'; });
+  const st=_seccionStats(); const hoy=new Date(); const esSal=(tipo==='saliente');
+  const nom=function(c){ return c?((c.titular_grado||'')+' '+c.titular_nombre).trim():'—'; };
+  const quien=esSal?(ant||act):(act);
+  const otro=esSal?act:ant;
+  const cont={ titulo:'INFORME',
+    instrucciones_administrativas:[
+      {etiqueta:'SECCIÓN', valor:'Disciplina — SIDECEME.'},
+      {etiqueta:(esSal?'TITULAR SALIENTE':'TITULAR ENTRANTE'), valor:nom(quien)},
+      {etiqueta:(esSal?'TITULAR ENTRANTE':'TITULAR SALIENTE'), valor:nom(otro)},
+      {etiqueta:'PERÍODO', valor:(quien?((quien.desde||'—')+' al '+(quien.hasta||hoy.toISOString().slice(0,10))):'—')},
+      {etiqueta:'GESTIÓN', valor:String(hoy.getFullYear())}
+    ],
+    secciones:[
+      {titulo:(esSal?'OBJETO DE LA ENTREGA.':'OBJETO DE LA RECEPCIÓN.'),
+       cuerpo:(esSal?'Formalizar la entrega de la Sección Disciplina y del módulo SIDECEME, dejando constancia del estado íntegro, auditable y transparente de los registros disciplinarios a la fecha.':'Formalizar la recepción de la Sección Disciplina y del módulo SIDECEME, dejando constancia del estado en que se reciben los registros disciplinarios a la fecha.')},
+      {titulo:'ESTADO DE LOS REGISTROS DISCIPLINARIOS.', con_letras:true, cuerpo:[
+        'Sanciones registradas en la plataforma: '+st.total+' (ninguna fue borrada físicamente; el historial es indestructible).',
+        'Sanciones VIGENTES: '+st.vig+' · ANULADAS: '+st.anu+' · MODIFICADAS: '+st.mod+'.',
+        'Cursantes con sanciones vigentes: '+st.curs+' · Total de puntos de demérito vigentes: '+st.pts+'.',
+        'Toda creación, modificación o anulación queda asentada en la auditoría inmutable (sanciones_audit) con usuario, fecha, motivo y puntos antes/después.',
+        'El puntaje de cada cursante se recalcula automáticamente al crear, modificar o anular una sanción.']},
+      {titulo:'RECOMENDACIONES.', con_letras:true, cuerpo:[
+        'Verificar periódicamente la auditoría de sanciones y el desglose transparente de puntaje por cursante.',
+        'Registrar todo cambio de titular de la Sección en el módulo Cargos de la Sección.',
+        'Incorporar próximamente el inventario físico de la Sección a la plataforma.']}
+    ],
+    lugar_fecha:'Cochabamba, '+_AV_MES_FULL[hoy.getMonth()]+' '+hoy.getDate()+' de '+hoy.getFullYear()+'.',
+    firmas:[ {nombre:nom(esSal?(ant||act):act)||'—', cargo:(esSal?'JEFE SALIENTE':'JEFE ENTRANTE')},
+             {nombre:nom(esSal?act:ant)||'—', cargo:(esSal?'JEFE ENTRANTE':'JEFE SALIENTE')} ] };
+  _avDocxPreview(_avInformeClasesBlob(cont),'INFORME DE '+(esSal?'ENTREGA':'RECEPCIÓN')+' — SECCIÓN DISCIPLINA','INFORME '+(esSal?'ENTREGA':'RECEPCION')+' SECCION DISCIPLINA.docx',{conSeccion:false});
 }
 
 /* ------- REACTIVAR SANCIÓN ANULADA ------- */
@@ -9598,9 +9711,15 @@ async function verHistorialEdicionesSancion(sancionId){
       cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">📋 Esta sanción no tiene cambios registrados en auditoría.</div>';
       return;
     }
+    // v2.9.170 CAMBIO 4: el HISTORIAL OFICIAL oculta las acciones directas de C&T sin registro
+    // (registro_generado=false). C&T sí las ve, marcadas. La auditoría en BD conserva TODO.
+    if(!_rolEsCT()) data = data.filter(a => a.registro_generado !== false);
+    if(!data.length){ cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">📋 Esta sanción no tiene cambios registrados en el historial oficial.</div>'; return; }
     cont.innerHTML = data.map(a => {
       const fecha = new Date(a.creado_en).toLocaleString('es-BO');
-      const accionLabel = {editar:'✏️ EDITADA', anular:'🚫 ANULADA', reactivar:'↩️ REACTIVADA', crear_manual:'➕ CREADA MANUAL'}[a.accion] || a.accion;
+      const accionLabel = ({editar:'✏️ EDITADA', anular:'🚫 ANULADA', reactivar:'↩️ REACTIVADA', crear_manual:'➕ CREADA MANUAL'}[a.accion] || a.accion)
+        + (a.registro_generado===false?' <span style="font-size:10px;color:#e8c46a">🔇 sin registro oficial (solo C&T)</span>':'')
+        + (a.solicitante_nombre?(' <span style="font-size:10px;color:#8fb8e8">📨 a solicitud de '+escapeHtml(a.solicitante_nombre)+'</span>'):'');
       const cambiosHtml = Object.keys(a.campos_despues||{}).map(k => {
         const antes = (a.campos_antes||{})[k];
         const despues = (a.campos_despues||{})[k];
@@ -11697,6 +11816,7 @@ function verSancionDetalle(sancionId){
       }
       <button class="btn-secondary" onclick="verHistorialEdicionesSancion('${s.id}')">📜 Ver historial de cambios</button>
       <button class="btn-secondary" style="background:linear-gradient(135deg,#2a4a6a,#1a3050);border-color:#3a6a9a;color:#cfe0f0" onclick="generarInformeAccionSancion('${anuladaActual?'anular':'auditoria'}','${s.id}','')">📄 Generar Informe de esta sanción</button>
+      ${desgloseCursanteHTML(s.cursante_id)}
     </div>`;
   }
 
