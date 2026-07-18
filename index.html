@@ -18925,6 +18925,10 @@ function _avTextoFinalParse(raw){
   for(let i=ini;i<lines.length;i++){
     const cru=lines[i], l=cru.trim();
     if(!l){ flushP(); flushT(); flushG(); continue; }
+    // basura de citas del chat de IA (líneas sueltas "DOCX", "DOCX+ 2", "DOCX + 1")
+    if(/^DOCX\s*(\+\s*\d+)?\.?$/i.test(l)){ continue; }
+    // relleno conversacional de la IA (patrones muy específicos que jamás son texto académico)
+    if(/^(a continuaci[óo]n,?\s*(te|le)\s|aqu[íi] tienes\b|comprendo\s+(perfectamente|la correcci|tu)\b|muy\s?bien,?\s*(ahora|aqu[íi])\b|perfecto,?\s*(ahora|aqu[íi]|te)\b|con gusto\b|entendido[,.]|espero que (esto|te)\b)/i.test(l)){ continue; }
     if(/^\|.*\|$/.test(l)){
       flushP();
       if(/^[:\-\s|]+$/.test(l)){ if(tabla) tabla.sep=true; continue; }
@@ -18955,6 +18959,10 @@ function _avTextoFinalParse(raw){
     if((m=/^#{1,2}\s+(.+)$/.exec(l))){ flushP(); B.push({t:'h2',x:m[1].replace(/\**/g,'')}); continue; }
     if((m=/^(\d+\.\d+\.\d+)\.?\s+(.+)$/.exec(l))){ flushP(); B.push({t:'h3',x:m[1]+' '+m[2]}); continue; }
     if((m=/^(\d+\.\d+)\.?\s+(.+)$/.exec(l))){ flushP(); B.push({t:'h2',x:m[1]+' '+m[2]}); continue; }
+    // Marcadores militares ECEME: "I. / I.- / II.- Título" (romano) = SECCIÓN (h2); el renderer le pone I.- II.- y lo pasa a MAYÚSCULAS
+    if((m=/^\**\s*([IVXLCDM]{1,6})\s*[.\-–]{1,2}\s+(\S.*?)\**\s*$/.exec(l))){ flushP(); B.push({t:'h2',x:m[2].replace(/\**/g,'').trim()}); continue; }
+    // "A. / A.- Título" (una letra NO romana) = SUBSECCIÓN (h3)
+    if((m=/^\**\s*([ABEFGHJKNPQRSTUWYZ])\s*[.\-–]{1,2}\s+(\S.*?)\**\s*$/.exec(l))){ flushP(); B.push({t:'h3',x:m[2].replace(/\**/g,'').trim()}); continue; }
     if((m=/^\*\*(.{3,90})\*\*\.?$/.exec(l))){ flushP(); B.push({t:'h2',x:m[1]}); continue; }
     if(l.length<=75&&l===l.toUpperCase()&&/[A-ZÁÉÍÓÚÑ].*[A-ZÁÉÍÓÚÑ].*[A-ZÁÉÍÓÚÑ]/.test(l)&&!/^[-•*>|]/.test(l)){ flushP(); B.push({t:'h2',x:l}); continue; }
     // v2.9.143: subtítulo Título-Caso (nivel A.-) SIN marcador: línea corta seguida de un párrafo largo
@@ -19892,26 +19900,29 @@ async function _ecPreviewHTML(blob,titulo,conSeccion){
   });
   return out;
 }
-async function _avDocxPreview(blobPromise,titulo,dlFn,opts){
+async function _avDocxPreview(blobPromise,titulo,filename,opts){
   opts=opts||{};
   const prev=document.getElementById('av-prev-ov'); if(prev) prev.remove();
   const ov=document.createElement('div'); ov.id='av-prev-ov';
   ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.78);z-index:99999;display:flex;flex-direction:column;padding:10px';
   ov.innerHTML='<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">'
     +'<b style="color:#f4d574;font-size:13px;flex:1;min-width:150px">👁 Vista previa — '+_rgEsc(titulo)+' <span style="font-weight:400;font-size:10px;color:#b8b090">(es el .docx real que descargás)</span></b>'
-    +(dlFn?('<button class="btn-primary" id="av-prev-dl" style="padding:8px 14px">⬇ Descargar WORD (.docx)</button>'):'')
+    +(filename?('<button class="btn-primary" id="av-prev-dl" style="padding:8px 14px" disabled title="Generando…">⏳ Preparando…</button>'):'')
     +'<button class="btn-secondary" style="padding:8px 14px" onclick="document.getElementById(\'av-prev-ov\').remove()">✖ Cerrar</button></div>'
     +'<iframe id="av-prev-if" style="flex:1;border:0;border-radius:8px;background:#fff"></iframe>';
   document.body.appendChild(ov);
-  if(dlFn){ const b=document.getElementById('av-prev-dl'); if(b) b.onclick=dlFn; }
   try{
     const blob=await blobPromise;
     const html=await _ecPreviewHTML(blob,titulo,!!opts.conSeccion);
     const css='body{font-family:Arial,Helvetica,sans-serif;font-size:12pt;color:#000;background:#fff;max-width:19cm;margin:0 auto;padding:24px 28px;line-height:1.25}p{margin:0 0 6pt;text-align:justify}u{text-decoration:underline}';
     const ifr=document.getElementById('av-prev-if'); if(ifr) ifr.srcdoc='<html><head><meta charset="utf-8"><style>'+css+'</style></head><body>'+html+'</body></html>';
-  }catch(e){ const ifr=document.getElementById('av-prev-if'); if(ifr) ifr.srcdoc='<div style="text-align:center;color:#a00;padding:30px">No se pudo previsualizar ('+_rgEsc(String(e&&e.message||e))+').<br>Probá con <b>Descargar</b>.</div>'; }
+    // El botón descarga el .docx YA generado (clic directo = gesto del usuario → funciona en todos los navegadores)
+    if(filename){ const b=document.getElementById('av-prev-dl'); if(b){ b.disabled=false; b.removeAttribute('title'); b.textContent='⬇ Descargar WORD (.docx)'; b.onclick=function(){ _avSaveBlob(blob,filename); }; } }
+  }catch(e){ const ifr=document.getElementById('av-prev-if'); if(ifr) ifr.srcdoc='<div style="text-align:center;color:#a00;padding:30px">No se pudo generar el documento ('+_rgEsc(String(e&&e.message||e))+').</div>';
+    const b=document.getElementById('av-prev-dl'); if(b){ b.textContent='⚠️ Error al generar'; } }
 }
-function _avDlBlob(blobPromise,nombre){ Promise.resolve(blobPromise).then(function(blob){ const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=nombre; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); a.remove(); },1200); }); }
+function _avSaveBlob(blob,nombre){ const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=nombre; document.body.appendChild(a); a.click(); setTimeout(function(){ URL.revokeObjectURL(url); a.remove(); },1500); }
+function _avDlBlob(blobPromise,nombre){ Promise.resolve(blobPromise).then(function(blob){ _avSaveBlob(blob,nombre); }).catch(function(e){ alert('No se pudo generar el documento: '+(e&&e.message||e)); }); }
 
 // ============================================================================
 // PLAN DE CLASES (.docx sobre plantilla real) — reusa la lógica de contenido del app
@@ -20183,7 +20194,7 @@ function _avInformeRellenar(){
   const set=function(id,v){ const el=document.getElementById(id); if(el) el.value=v; };
   set('avinf-obs',dr.observaciones); set('avinf-carga',dr.cargaHoraria); set('avinf-prog',dr.programa); set('avinf-res',dr.resultados); set('avinf-rec',dr.recomendaciones.join('\n'));
 }
-function avInformePreview(){ const d=_avPlanHojaData(); if(!_avPlanHojaCheck(d)) return; _avDocxPreview(_avInformeClasesBlob(_avInformeCont(d,_avInformeNarr())),'INFORME DE CLASES','avInformeWord()',{conSeccion:false}); }
+function avInformePreview(){ const d=_avPlanHojaData(); if(!_avPlanHojaCheck(d)) return; _avDocxPreview(_avInformeClasesBlob(_avInformeCont(d,_avInformeNarr())),'INFORME DE CLASES','INFORME DE CLASES.docx',{conSeccion:false}); }
 function avInformeWord(){ const d=_avPlanHojaData(); if(!_avPlanHojaCheck(d)) return; _avDlBlob(_avInformeClasesBlob(_avInformeCont(d,_avInformeNarr())),'INFORME DE CLASES.docx'); }
 function avInformeAbrir(){
   const d=_avPlanHojaData(); if(!_avPlanHojaCheck(d)) return;
@@ -20485,8 +20496,8 @@ function _avPreviewDoc(html,titulo,dlFn){
   // padding tipo hoja para que la vista respire como la página de Word
   document.getElementById('av-prev-if').srcdoc=html.replace('<body>','<body style="padding:24px 28px;max-width:19cm;margin:0 auto;background:#fff">');
 }
-function avPlanPreview(){ const d=_avPlanHojaData(); if(!_avPlanHojaCheck(d)) return; _avDocxPreview(_avPlanClasesBlob(d),'PLAN DE CLASES','avPlanClasesWord()',{conSeccion:true}); }
-function avHojaPreview(){ const d=_avPlanHojaData(); if(!_avPlanHojaCheck(d)) return; _avDocxPreview(_avHojaOrientBlob(d),'HOJA DE ORIENTACIÓN','avHojaOrientWord()',{conSeccion:true}); }
+function avPlanPreview(){ const d=_avPlanHojaData(); if(!_avPlanHojaCheck(d)) return; _avDocxPreview(_avPlanClasesBlob(d),'PLAN DE CLASES','PLAN DE CLASES.docx',{conSeccion:true}); }
+function avHojaPreview(){ const d=_avPlanHojaData(); if(!_avPlanHojaCheck(d)) return; _avDocxPreview(_avHojaOrientBlob(d),'HOJA DE ORIENTACIÓN','HOJA DE ORIENTACION.docx',{conSeccion:true}); }
 function _avPlanHojaWord(tipo){
   const d=_avPlanHojaData();
   if(!_avPlanHojaCheck(d)) return;
