@@ -3678,7 +3678,24 @@ input::placeholder, textarea::placeholder {
 .lg-alt{margin-top:14px;text-align:center;font-size:11px;color:#5d7189}
 .lg-alt a{color:#9fcdf2;text-decoration:underline;cursor:pointer}
 #screen-home .error-msg{border-radius:0}
-@media (prefers-reduced-motion:reduce){.lg-r1,.lg-r2,.lg-r3{animation:none !important}}
+/* v2.9.174: los anillos y el fondo del login SIEMPRE animan (pedido de Sergio) */
+#screen-home .lg-field input{
+  color:#f2f9ff !important; font-size:16px !important; font-weight:600;
+  text-shadow:0 0 8px rgba(150,220,255,.9),0 0 20px rgba(90,180,255,.5);
+  caret-color:#9cf3ff;
+}
+/* autorrelleno iOS/Chrome: NUNCA amarillo — fondo oscuro + texto hielo luminoso */
+#screen-home .lg-field input:-webkit-autofill,
+#screen-home .lg-field input:-webkit-autofill:hover,
+#screen-home .lg-field input:-webkit-autofill:focus,
+#screen-home .lg-field input:-webkit-autofill:active{
+  -webkit-box-shadow:0 0 0 1000px #081120 inset !important;
+  box-shadow:0 0 0 1000px #081120 inset !important;
+  -webkit-text-fill-color:#f2f9ff !important;
+  border:1px solid rgba(140,210,255,.5) !important;
+  caret-color:#9cf3ff !important;
+  transition:background-color 99999s ease-out 0s;
+}
 
 /* ════════════════════════════════════════════════════════════════════
    v2.9.173: TEMA "ORBITAL" — toda la interfaz al estilo del login nuevo
@@ -3822,7 +3839,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.173</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.174</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -26258,7 +26275,9 @@ setTimeout(()=>{ if(currentUser) iniciarNotificaciones(); }, 3000);
 // Estrellas + pistas de circuito con pulsos de luz. Los loops se pausan solos
 // cuando screen-home no está activa (no gastan batería dentro de la app).
 (function(){
-  var reduced=false; try{ reduced=matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(_){}
+  // v2.9.174: reduced SIEMPRE false — Sergio pidió que los puntos luminosos nunca
+  // dejen de moverse (con "Reducir movimiento" de iOS activado quedaban estáticos).
+  var reduced=false;
   var scr=document.getElementById('screen-home');
   var sv=document.getElementById('lg-stars'), cc=document.getElementById('lg-circ');
   if(!scr||!sv||!cc) return;
