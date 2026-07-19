@@ -3839,7 +3839,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.176</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.177</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5599,7 +5599,24 @@ body{
     <div id="aula-cur-lista" style="margin-bottom:18px"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
     <div class="section-label">Materias cerradas (archivo)</div>
     <div id="aula-cur-archivo"><div class="efm-no-data" style="color:var(--text-muted)">—</div></div>
+    <!-- v2.9.177: Carpeta de Clases compartida por los profesores -->
+    <div class="section-label" style="margin-top:18px">📚 Carpeta de Clases de tus materias</div>
+    <div id="aula-cur-carpeta"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
   </div>
+</section>
+
+<!-- v2.9.177: LECTOR INTERACTIVO (Texto de la materia) — resaltar + notas -->
+<section id="screen-av-lector" class="screen">
+  <div class="aula-visor-toolbar">
+    <button class="back-btn" onclick="showScreen('screen-aula-cursante')">←</button>
+    <div style="flex:1;min-width:0"><div id="avl-titulo" style="font-weight:700;font-size:14px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Documento</div></div>
+    <button id="avl-hl-btn" class="avt-btn" onclick="avlToggleHl()" title="Resaltar lo seleccionado (o activá el modo y seleccioná con el mouse)">🖍️ Resaltar</button>
+    <button class="avt-btn" onclick="avlNota()" title="Agregar una nota a lo seleccionado">📝 Nota</button>
+    <button class="avt-btn" onclick="avlLimpiar()" title="Borrar todos tus resaltados y notas de este documento">🧽 Limpiar</button>
+    <button id="avl-dl-btn" class="avt-btn" style="display:none" onclick="avlDescargar()">⬇ Descargar</button>
+  </div>
+  <div style="padding:6px 12px;font-size:11px;color:#8fbce8;background:rgba(6,14,26,.8)">Seleccioná texto (con el mouse o el dedo) y tocá 🖍️ para resaltar o 📝 para dejar una nota. Tocá un resaltado para ver/editar su nota. Tus marcas se guardan en este dispositivo.</div>
+  <div id="avl-cont" style="padding:14px;background:#e8eaee;min-height:70vh;overflow:auto"></div>
 </section>
 
 <!-- AULA: detalle de una materia (cursante) — Fase 0: secciones stub -->
@@ -15330,7 +15347,143 @@ async function goAulaCursante(){
     : '<div class="efm-no-data" style="color:var(--text-muted)">Todavía no hay materias abiertas para tu ciclo.</div>';
   arch.innerHTML = cerradas.length ? cerradas.map(m=> _aulaCardCursante(m,true)).join('')
     : '<div class="efm-no-data" style="color:var(--text-muted)">—</div>';
+  avAlumnoCarpetaCargar();   // v2.9.177: Carpeta de Clases compartida (fire-and-forget)
 }
+// ── v2.9.177: el ALUMNO ve los documentos de la Carpeta de Clases que su profesor compartió ──
+async function avAlumnoCarpetaCargar(){
+  const cont=document.getElementById('aula-cur-carpeta'); if(!cont) return;
+  const r=await _avInvoke('repo_alumno_lista',{});
+  if(!r.ok){ cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">'+_rgEsc(r.error||'No disponible todavía')+'</div>'; return; }
+  const mats=r.materias||[];
+  if(!mats.length){ cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">📭 Tus profesores aún no compartieron documentos de sus carpetas.</div>'; return; }
+  const NOM={doc_texto:'📘 Texto de la materia',doc_distribucion:'📅 Distribución del Tiempo',doc_plan_clases:'📄 Plan de Clases',doc_hoja_orientacion:'📄 Hoja de Orientación',doc_desagregacion:'🗂️ Cuadro de Desagregación',doc_tareas:'📝 Cuadro de Tareas',presentacion:'📊 Presentación',recurso_interactivo:'🎮 Recurso'};
+  cont.innerHTML=mats.map(function(m){
+    return '<div class="rg-card" style="margin-bottom:10px;padding:12px"><div style="font-weight:700;color:var(--text-primary);font-size:14px;margin-bottom:6px">📘 '+_rgEsc(m.nombre)+'</div>'
+      +m.docs.map(function(d){
+        return '<button class="list-item" style="display:flex;align-items:center;gap:8px;padding:9px 10px;width:100%;text-align:left" onclick="avAlumnoAbrirDoc(\''+d.id+'\',\''+_rgEsc((d.nombre||'Documento').replace(/'/g,''))+'\')">'
+          +'<div style="flex:1;font-size:13px;color:var(--text-primary)">'+(NOM[d.tipo]||'📄 Documento')+'</div>'
+          +'<div style="font-size:11px;color:'+(d.permitir_descarga?'#8fd3a8':'#8fbce8')+'">'+(d.permitir_descarga?'⬇ descargable':'👁 leer en la app')+'</div></button>';
+      }).join('')+'</div>';
+  }).join('');
+}
+async function avAlumnoAbrirDoc(adjId, titulo){
+  const r=await _avInvoke('repo_alumno_abrir',{adjunto_id:adjId});
+  if(!r.ok){ alert('❌ '+(r.error||'No se pudo abrir')); return; }
+  if(r.tipo==='enlace'){ window.open(r.url,'_blank'); return; }
+  avlAbrir(r.url, titulo, adjId, r.permitir_descarga===true);
+}
+// ── v2.9.177: LECTOR INTERACTIVO — renderiza el .docx/.pdf y permite RESALTAR
+// (selección con mouse o dedo) y dejar NOTAS 📝. Las marcas se guardan por
+// documento+usuario en localStorage (este dispositivo) y se re-aplican al abrir.
+const AVL={url:null,adjId:null,hlOn:false,marks:[]};
+function _avlKey(){ return 'avl_'+AVL.adjId+'_'+((currentUser&&currentUser.id)||'x'); }
+async function avlAbrir(url,titulo,adjId,permitirDescarga){
+  AVL.url=url; AVL.adjId=adjId; AVL.hlOn=false; AVL.marks=[];
+  try{ AVL.marks=JSON.parse(localStorage.getItem(_avlKey())||'[]'); }catch(_){ AVL.marks=[]; }
+  showScreen('screen-av-lector');
+  document.getElementById('avl-titulo').textContent=titulo||'Documento';
+  document.getElementById('avl-dl-btn').style.display=permitirDescarga?'':'none';
+  const b=document.getElementById('avl-hl-btn'); if(b) b.classList.remove('on');
+  const cont=document.getElementById('avl-cont');
+  cont.innerHTML='<div style="text-align:center;color:#555;padding:36px"><div style="font-size:26px">⏳</div><div style="margin-top:8px">Cargando documento…</div></div>';
+  try{
+    const nombre=String(titulo||'').toLowerCase();
+    const resp=await fetch(url); const blob=await resp.blob();
+    const esPdf=/pdf/.test(blob.type)||/\.pdf$/.test(nombre);
+    if(esPdf){ cont.innerHTML=''; cont.style.background='#1a1f2b'; await renderPdfConTexto(url,'avl-cont'); }
+    else{
+      cont.style.background='#e8eaee';
+      const lib=await _repoLoadDocx();
+      cont.innerHTML='';
+      await lib.renderAsync(blob, cont, null, {className:'docx', inWrapper:true, ignoreWidth:false});
+      _avlReaplicar();
+    }
+  }catch(e){ cont.innerHTML='<div style="text-align:center;color:#a00;padding:30px">No se pudo abrir: '+_rgEsc(String(e&&e.message||e))+'</div>'; }
+}
+function avlDescargar(){ if(!AVL.url) return; const a=document.createElement('a'); a.href=AVL.url; a.download=document.getElementById('avl-titulo').textContent||'documento'; document.body.appendChild(a); a.click(); a.remove(); }
+function avlToggleHl(){
+  // Si hay texto seleccionado, resalta directo; si no, prende/apaga el modo (mouse: soltar = resaltar)
+  const sel=window.getSelection();
+  if(sel && !sel.isCollapsed && String(sel).trim()){ _avlMarcarSeleccion(null); return; }
+  AVL.hlOn=!AVL.hlOn;
+  const b=document.getElementById('avl-hl-btn'); if(b) b.classList.toggle('on',AVL.hlOn);
+}
+function avlNota(){
+  const sel=window.getSelection();
+  if(!sel || sel.isCollapsed || !String(sel).trim()){ alert('Primero seleccioná el texto donde va la nota.'); return; }
+  const nota=prompt('📝 Tu nota para:\n«'+String(sel).slice(0,120)+'»');
+  if(nota===null) return;
+  _avlMarcarSeleccion(nota.trim()||null);
+}
+function avlLimpiar(){
+  if(!confirm('¿Borrar TODOS tus resaltados y notas de este documento?')) return;
+  AVL.marks=[]; try{ localStorage.removeItem(_avlKey()); }catch(_){ }
+  document.querySelectorAll('#avl-cont mark.avl-hl').forEach(function(mk){ const p=mk.parentNode; while(mk.firstChild) p.insertBefore(mk.firstChild,mk); p.removeChild(mk); p.normalize(); });
+}
+function _avlNodes(){ const w=document.createTreeWalker(document.getElementById('avl-cont'),NodeFilter.SHOW_TEXT,null); const out=[]; let n; while(n=w.nextNode()) out.push(n); return out; }
+function _avlAbsDe(node,off){ const ns=_avlNodes(); let abs=0; for(const x of ns){ if(x===node) return abs+off; abs+=x.textContent.length; } return -1; }
+function _avlMarcarSeleccion(nota){
+  const sel=window.getSelection(); if(!sel||sel.isCollapsed||!sel.rangeCount) return;
+  const r=sel.getRangeAt(0);
+  const sN=(r.startContainer.nodeType===3)?r.startContainer:null, eN=(r.endContainer.nodeType===3)?r.endContainer:null;
+  if(!sN||!eN){ alert('Seleccioná solo texto (sin imágenes/tablas de borde).'); return; }
+  const a=_avlAbsDe(sN,r.startOffset), b=_avlAbsDe(eN,r.endOffset);
+  if(a<0||b<=a) return;
+  const full=_avlNodes().map(function(n){ return n.textContent; }).join('');
+  const s=full.slice(a,b);
+  let occ=0, i=full.indexOf(s); while(i>=0&&i<a){ occ++; i=full.indexOf(s,i+1); }
+  AVL.marks.push({s:s,occ:occ,n:nota||null});
+  try{ localStorage.setItem(_avlKey(),JSON.stringify(AVL.marks)); }catch(_){ }
+  _avlWrapAbs(a,b,nota||null,AVL.marks.length-1);
+  sel.removeAllRanges();
+}
+function _avlWrapAbs(a,b,nota,idx){
+  let abs=0;
+  for(const node of _avlNodes()){
+    const len=node.textContent.length, ini=abs, fin=abs+len; abs=fin;
+    if(fin<=a) continue; if(ini>=b) break;
+    if(node.parentNode&&node.parentNode.classList&&node.parentNode.classList.contains('avl-hl')) continue;
+    const from=Math.max(0,a-ini), to=Math.min(len,b-ini);
+    if(to<=from) continue;
+    let target=node;
+    if(from>0) target=target.splitText(from);
+    if(to-from<target.textContent.length) target.splitText(to-from);
+    const mk=document.createElement('mark');
+    mk.className='avl-hl'; mk.dataset.k=String(idx);
+    mk.style.cssText='background:rgba(255,235,120,.85);padding:0 1px;border-radius:2px;cursor:pointer'+(nota?';border-bottom:2px solid #d98a3a':'');
+    mk.onclick=function(ev){ ev.stopPropagation(); _avlVerNota(this); };
+    target.parentNode.insertBefore(mk,target); mk.appendChild(target);
+  }
+  if(nota){ const last=document.querySelector('#avl-cont mark.avl-hl[data-k="'+idx+'"]:last-of-type'); if(last) last.insertAdjacentHTML('beforeend','<sup style="font-size:10px">📝</sup>'); }
+}
+function _avlVerNota(mk){
+  const idx=Number(mk.dataset.k); const m=AVL.marks[idx]; if(!m) return;
+  const nueva=prompt((m.n?('📝 Nota:\n'+m.n+'\n\n'):'')+'Editá la nota (vacío + Aceptar = quitar el resaltado):', m.n||'');
+  if(nueva===null) return;
+  if(nueva.trim()===''){
+    AVL.marks[idx]=null;
+    document.querySelectorAll('#avl-cont mark.avl-hl[data-k="'+idx+'"]').forEach(function(x){ const p=x.parentNode; while(x.firstChild){ if(x.firstChild.nodeType===1&&x.firstChild.tagName==='SUP'){ x.removeChild(x.firstChild); continue; } p.insertBefore(x.firstChild,x); } p.removeChild(x); p.normalize(); });
+  } else { AVL.marks[idx].n=nueva.trim(); }
+  try{ localStorage.setItem(_avlKey(),JSON.stringify(AVL.marks)); }catch(_){ }
+}
+function _avlReaplicar(){
+  const full=_avlNodes().map(function(n){ return n.textContent; }).join('');
+  (AVL.marks||[]).forEach(function(m,idx){
+    if(!m||!m.s) return;
+    let i=-1, c=-1;
+    do{ i=full.indexOf(m.s,i+1); c++; }while(i>=0&&c<m.occ);
+    if(i<0) return;
+    _avlWrapAbs(i,i+m.s.length,m.n||null,idx);
+  });
+}
+// mouse: con el modo 🖍️ activo, soltar la selección = resaltar (en tablet se usa el botón)
+document.addEventListener('mouseup',function(ev){
+  if(!AVL.hlOn) return;
+  const scr=document.getElementById('screen-av-lector');
+  if(!scr||!scr.classList.contains('active')) return;
+  if(ev.target&&ev.target.closest&&ev.target.closest('.aula-visor-toolbar')) return;
+  setTimeout(function(){ _avlMarcarSeleccion(null); },10);
+});
 function _aulaCardCursante(m, archivo){
   const profes = _aulaProfesNombres(m);
   return `<button class="list-item" style="display:flex;align-items:center;gap:10px;padding:12px;width:100%;text-align:left;${archivo?'opacity:.7':''}" onclick="goAulaMateriaCursante('${m.id}')">
@@ -17816,9 +17969,11 @@ function repoRenderMateria(){
         +'<span style="flex:1;min-width:130px;font-size:12px;color:var(--text-muted)">📄 '+_rgEsc(a.nombre)+(a.subido_por_nombre?(' · '+_rgEsc(a.subido_por_nombre)):'')+'</span>'
         +'<button class="rg-doc" style="'+DB+'" onclick="repoPreview(\''+a.id+'\')">👁 Vista previa</button>'
         +'<button class="rg-doc" style="'+DB+'" onclick="repoDescargar(\''+a.id+'\',this)">⬇ Descargar</button>'
+        +(ed?'<button class="rg-doc" style="'+DB+';border-color:#2e6e9e;color:#bfe6ff" onclick="repoCompartirUI(\''+a.id+'\')">👥 Compartir</button>':'')
         +(ed?'<button class="rg-doc" style="'+DB+'" onclick="repoPick(\''+s.tipo+'\')">🔁 Reemplazar</button>':'')
         +(ed?'<button class="rg-doc" style="'+DB+';border-color:#7a2230;color:#ffc9c9;background:rgba(122,34,48,.12)" onclick="repoEliminar(\''+a.id+'\')">🗑</button>':'')
-        +'</div>';
+        +'</div>'
+        +_repoShareChip(a);
     }else{
       inner = ed
         ? '<div style="margin-top:6px"><button class="btn-secondary" style="padding:6px 14px" onclick="repoPick(\''+s.tipo+'\')">⬆ Subir</button></div>'
@@ -17864,6 +18019,59 @@ function repoPick(tipo){
   inp.value=''; inp.accept=_repoAccept(tipo);
   inp.onchange=()=>{ const f=inp.files&&inp.files[0]; if(f) repoSubir(tipo, f); };
   inp.click();
+}
+// ── v2.9.177: COMPARTIR documentos de la Carpeta consolidada con ALUMNOS ──
+const MENCIONES_2DO=['Estrategia','Inteligencia','Logística','Recursos Humanos'];
+function _repoShareChip(a){
+  if(a.compartido!==true) return '<div style="font-size:11px;color:var(--text-muted);margin-top:4px">🔒 No compartido con alumnos</div>';
+  const aud=a.audiencia||{}; const ps=(aud.paralelos||[]), ms=(aud.menciones||[]);
+  const quien=[ps.length?('paralelos '+ps.join(', ')):'', ms.length?('mención '+ms.join(', ')):''].filter(Boolean).join(' · ')||'todo el ciclo';
+  return '<div style="font-size:11px;color:#8fd3a8;margin-top:4px">👥 Compartido con '+_rgEsc(quien)+' · '+(a.permitir_descarga===true?'pueden descargar':'solo lectura en la app')+'</div>';
+}
+async function repoCompartirUI(adjId){
+  const a=(REPO.adjuntos||[]).find(function(x){ return String(x.id)===String(adjId); }); if(!a) return;
+  const m=REPO.materia||{}; const esCiclo2=Number(m.ciclo)===2;
+  // paralelos reales del ciclo de la materia (desde v_cursantes, 1 query liviana)
+  let paralelos=[];
+  try{
+    const cicloTxt=esCiclo2?'2DO CICLO':'1ER CICLO';
+    const {data}=await sb.from('v_cursantes').select('paralelo').eq('ciclo',cicloTxt).eq('activo',true);
+    paralelos=[...new Set((data||[]).map(function(x){ return x.paralelo; }).filter(Boolean))].sort();
+  }catch(_){ }
+  const aud=a.audiencia||{}; const selP=aud.paralelos||[], selM=aud.menciones||[];
+  const prev=document.getElementById('repo-share-ov'); if(prev) prev.remove();
+  const ov=document.createElement('div'); ov.id='repo-share-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto';
+  ov.innerHTML='<div style="max-width:460px;width:100%;background:#0c1420;border:1px solid rgba(140,210,255,.3);border-radius:12px;padding:16px 18px">'
+    +'<b style="color:#bfe6ff;font-size:14px">👥 Compartir con alumnos</b>'
+    +'<div style="font-size:12px;color:var(--text-muted);margin:4px 0 10px">'+_rgEsc(a.nombre||'Documento')+'</div>'
+    +'<label class="rg-chk" style="display:block;margin-bottom:8px"><input type="checkbox" id="rs-comp" '+(a.compartido===true?'checked':'')+'> <b>Compartir</b> (los alumnos lo ven en su Aula Virtual)</label>'
+    +'<label class="rg-chk" style="display:block;margin-bottom:10px"><input type="checkbox" id="rs-desc" '+(a.permitir_descarga===true?'checked':'')+'> Permitir <b>descargar</b> <span style="font-size:11px;color:var(--text-muted)">(apagado = solo lectura en la app, ej. el Texto)</span></label>'
+    +'<div style="font-size:12px;color:#8fbce8;margin-bottom:4px">PARALELOS <span style="color:var(--text-muted)">(ninguno marcado = todos)</span></div>'
+    +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">'
+    +(paralelos.length?paralelos.map(function(p){ return '<label class="rg-chk"><input type="checkbox" class="rs-par" value="'+_rgEsc(p)+'" '+(selP.indexOf(p)>=0?'checked':'')+'> '+_rgEsc(p)+'</label>'; }).join(''):'<span style="font-size:12px;color:var(--text-muted)">— sin paralelos registrados —</span>')
+    +'</div>'
+    +(esCiclo2?('<div style="font-size:12px;color:#8fbce8;margin-bottom:4px">MENCIONES <span style="color:var(--text-muted)">(ninguna marcada = todas · ojo: mención ≠ paralelo)</span></div>'
+      +'<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">'
+      +MENCIONES_2DO.map(function(x){ return '<label class="rg-chk"><input type="checkbox" class="rs-men" value="'+_rgEsc(x)+'" '+(selM.indexOf(x)>=0?'checked':'')+'> '+_rgEsc(x)+'</label>'; }).join('')
+      +'</div>'):'')
+    +'<div id="rs-msg" style="font-size:12px;color:var(--gold-light);min-height:16px;margin-bottom:6px"></div>'
+    +'<div style="display:flex;gap:8px"><button class="btn-primary" style="flex:1;padding:10px" onclick="repoCompartirGuardar(\''+adjId+'\')">💾 Guardar</button>'
+    +'<button class="btn-secondary" style="padding:10px 14px" onclick="document.getElementById(\'repo-share-ov\').remove()">✖ Cerrar</button></div></div>';
+  document.body.appendChild(ov);
+}
+async function repoCompartirGuardar(adjId){
+  const msg=document.getElementById('rs-msg'); if(msg) msg.textContent='⏳ Guardando…';
+  const comp=document.getElementById('rs-comp').checked;
+  const desc=document.getElementById('rs-desc').checked;
+  const ps=[...document.querySelectorAll('.rs-par:checked')].map(function(x){ return x.value; });
+  const ms=[...document.querySelectorAll('.rs-men:checked')].map(function(x){ return x.value; });
+  const r=await _avInvoke('repo_compartir',{adjunto_id:adjId, compartido:comp, permitir_descarga:desc, paralelos:ps, menciones:ms});
+  if(!r.ok){ if(msg) msg.textContent='❌ '+(r.error||'No se pudo guardar'); return; }
+  const a=(REPO.adjuntos||[]).find(function(x){ return String(x.id)===String(adjId); });
+  if(a){ a.compartido=comp; a.permitir_descarga=desc; a.audiencia={paralelos:ps,menciones:ms}; }
+  const ov=document.getElementById('repo-share-ov'); if(ov) ov.remove();
+  repoRenderMateria();
 }
 // ── v2.9.175: PUENTE — subir un documento generado a la Carpeta de Clases consolidada ──
 // Reusa el flujo del repositorio (repo_upload_url → uploadToSignedUrl → repo_registrar).
