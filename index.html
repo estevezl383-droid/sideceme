@@ -3839,7 +3839,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.174</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.176</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6353,6 +6353,22 @@ body{
     </div>
     <div id="avc-aula-lista" style="margin-bottom:14px"></div>
 
+    <!-- v2.9.175: PUENTE GENERADOR → CARPETA DE CLASES CONSOLIDADA -->
+    <div class="section-label">☁️ Carpeta de Clases consolidada</div>
+    <div class="rg-card" style="margin-bottom:14px;padding:14px">
+      <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:10px">Subí cada documento que generaste a la <strong>Carpeta de Clases</strong> de esta materia (ciclo · semestre · gestión). Cada casillero guarda una versión: si volvés a subir, reemplaza la anterior.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button class="btn-secondary" style="padding:9px 8px;font-size:12px" onclick="avSubirPlan()">📄 Plan de Clases</button>
+        <button class="btn-secondary" style="padding:9px 8px;font-size:12px" onclick="avSubirHoja()">📄 Hoja de Orientación</button>
+        <button class="btn-secondary" style="padding:9px 8px;font-size:12px" onclick="avSubirTexto()">📘 Texto de la materia</button>
+        <button class="btn-secondary" style="padding:9px 8px;font-size:12px" onclick="avSubirDistrib()">📅 Distribución del Tiempo</button>
+        <button class="btn-secondary" style="padding:9px 8px;font-size:12px" onclick="avSubirDesag()">🗂️ Cuadro de Desagregación</button>
+        <button class="btn-secondary" style="padding:9px 8px;font-size:12px" onclick="avSubirTareas()">📝 Cuadro de Tareas</button>
+      </div>
+      <div id="av-subir-estado" style="font-size:12px;color:var(--gold-light);min-height:18px;margin-top:10px"></div>
+      <button class="btn-primary" style="margin-top:8px" onclick="avVerCarpetaConsolidada()">📁 Ver Carpeta de Clases consolidada de esta materia</button>
+    </div>
+
     <div class="section-label">✅ Estado y revisión</div>
     <div id="avc-flow" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px"></div>
   </div>
@@ -6709,12 +6725,17 @@ const CARGOS = {
 };
 
 // ─── Helpers de rol ─────────────────────────────────────────────────────────
-function esCT(){ return activeRole === 'ciencia_tecnologia'; }
+// v2.9.176: AUXILIAR — entra al panel de la función pero con acceso LIMITADO. Por
+// defecto (aún sin matriz fina de Sergio) NO puede: acciones de C&T (admin), ni
+// gestionar sanciones (anular/editar/crear manual), ni cambio de funciones. SÍ puede
+// la tarea de rutina (registrar sanción, ver, cargar). La matriz se afina después.
+function esAuxiliar(){ return !!(currentUser && currentUser.es_auxiliar===true); }
+function esCT(){ return activeRole === 'ciencia_tecnologia' && !esAuxiliar(); }
 function esJefeSAC(){ return activeRole === 'jefe_sac'; }
 // Panel disciplina: todos los que usan screen-disc-panel (incluye jefe_sac para vista integral)
 function esAdminPanel(){ return ['disciplina','comandante','estudios','ciencia_tecnologia','jefe_sac'].includes(activeRole); }
-// Puede gestionar sanciones (anular/editar/reactivar) — jefe_sac NO
-function esGestSanc(){ return ['disciplina','estudios','ciencia_tecnologia'].includes(activeRole); }
+// Puede gestionar sanciones (anular/editar/reactivar) — jefe_sac NO, auxiliar NO
+function esGestSanc(){ return !esAuxiliar() && ['disciplina','estudios','ciencia_tecnologia'].includes(activeRole); }
 // ─────────────────────────────────────────────────────────────────────────────
 
 const UMBRAL_CONSEJO = 25;
@@ -9459,8 +9480,11 @@ async function funcionesPintar(){
       .sort(function(a,b){ return String(a.nombre_completo).localeCompare(String(b.nombre_completo)); });
     window._fnHist=hr.data||[];
     el.innerHTML=FUNCIONES_SISTEMA.map(function(f){
-      const tits=window._fnProfes.filter(function(p){ return String(p.rol||'').toLowerCase()===f.rol; });
+      const enFuncion=window._fnProfes.filter(function(p){ return String(p.rol||'').toLowerCase()===f.rol; });
+      const tits=enFuncion.filter(function(p){ return p.es_auxiliar!==true; });
+      const auxs=enFuncion.filter(function(p){ return p.es_auxiliar===true; });
       const titTxt=tits.length?tits.map(function(p){ return '<b style="color:#7ac899">'+escapeHtml(((p.grado||'')+' '+p.nombre_completo).trim())+'</b>'; }).join(' · '):'<b style="color:#e88a8a">VACANTE</b>';
+      const auxTxt=auxs.length?auxs.map(function(p){ return '<span style="color:#8fbce8">'+escapeHtml(((p.grado||'')+' '+p.nombre_completo).trim())+'</span> <button class="btn-secondary" style="padding:1px 7px;font-size:11px" onclick="funcionAuxQuitar(\''+escapeHtml(String(p.id))+'\',\''+escapeHtml((p.nombre_completo||'').replace(/'/g,"")) +'\')">quitar</button>'; }).join(' · '):'<span style="color:#8a8a7a">ninguno</span>';
       const hist=window._fnHist.filter(function(c){ return c.seccion===f.sec; });
       const histHtml=hist.length?hist.map(function(c){
         return '<div style="padding:2px 0;font-size:11.5px;color:#b8b8b8">'+(c.estado==='ACTUAL'?'⭐ ':'')+escapeHtml(((c.titular_grado||'')+' '+c.titular_nombre).trim())+' — desde '+(c.desde||'—')+(c.hasta?(' hasta '+c.hasta):' (en funciones)')+(c.observaciones?(' · '+escapeHtml(c.observaciones)):'')+(c.creado_por?(' · <span style="color:#8a8a7a">registró: '+escapeHtml(c.creado_por)+'</span>'):'')+'</div>';
@@ -9469,7 +9493,15 @@ async function funcionesPintar(){
         +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
         +'<span style="font-size:18px">'+f.icono+'</span><b style="color:#f4d574;flex:1">'+escapeHtml(f.nombre)+'</b>'
         +'<button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="funcionFormToggle(\''+f.rol+'\')">🔄 Cambiar titular</button></div>'
-        +'<div style="margin:6px 0 4px">Titular actual: '+titTxt+'</div>'
+        +'<div style="margin:6px 0 2px">Titular actual: '+titTxt+'</div>'
+        +'<div style="margin:2px 0 4px;font-size:12.5px">🤝 Auxiliar(es): '+auxTxt+' <button class="btn-secondary" style="padding:1px 8px;font-size:11px;margin-left:4px" onclick="funcionAuxToggle(\''+f.rol+'\')">➕ asignar</button></div>'
+        +'<div id="fn-aux-form-'+f.rol+'" style="display:none;margin:4px 0 8px;padding:9px;background:#141c28;border:1px solid #2a3a52;border-radius:6px">'
+        +'<div style="font-size:11.5px;color:#8fbce8;margin-bottom:5px">El auxiliar entra al MISMO panel de la función con acceso LIMITADO (no puede anular/modificar ni las acciones de mando).</div>'
+        +'<select id="fn-aux-'+f.rol+'" style="width:100%;padding:6px;background:#0f0f13;color:#ddd;border:1px solid #444;border-radius:5px">'
+        +window._fnProfes.filter(function(p){ return p.es_auxiliar!==true && String(p.rol||'').toLowerCase()!==f.rol; }).map(function(p){ return '<option value="'+escapeHtml(String(p.id))+'">'+escapeHtml(((p.grado||'')+' '+p.nombre_completo).trim())+(p.rol&&p.rol!=='profesor'?(' — actual: '+escapeHtml(p.rol)):'')+'</option>'; }).join('')
+        +'</select>'
+        +'<button class="btn-primary" style="padding:6px 12px;margin-top:7px" onclick="funcionAuxAsignar(\''+f.rol+'\')">✓ Asignar como auxiliar</button>'
+        +'</div>'
         +'<details style="margin:4px 0"><summary style="cursor:pointer;font-size:11.5px;color:#b8b090">📜 Historial de la función ('+hist.length+')</summary>'+histHtml+'</details>'
         +'<div id="fn-form-'+f.rol+'" style="display:none;margin-top:8px;padding:10px;background:#1c1c22;border-radius:6px">'
         +'<div style="font-size:12px;margin-bottom:4px">NUEVO titular:</div>'
@@ -9493,6 +9525,36 @@ async function funcionesPintar(){
 function funcionFormToggle(rol){
   const f=document.getElementById('fn-form-'+rol); if(!f) return;
   f.style.display=(f.style.display==='none')?'':'none';
+}
+function funcionAuxToggle(rol){
+  const f=document.getElementById('fn-aux-form-'+rol); if(!f) return;
+  f.style.display=(f.style.display==='none')?'':'none';
+}
+async function funcionAuxAsignar(rol){
+  const f=FUNCIONES_SISTEMA.find(function(x){ return x.rol===rol; }); if(!f) return;
+  const sel=document.getElementById('fn-aux-'+rol); const auxId=sel&&sel.value;
+  if(!auxId){ alert('Elegí un profesor.'); return; }
+  const p=(window._fnProfes||[]).find(function(x){ return String(x.id)===String(auxId); });
+  const nom=p?((p.grado||'')+' '+p.nombre_completo).trim():'—';
+  if(!confirm('Asignar a '+nom+' como AUXILIAR de '+f.nombre+'.\n\nEntrará al panel de la función con acceso limitado (no podrá anular/modificar sanciones ni las acciones de mando). Deberá volver a iniciar sesión.\n\n¿Confirmar?')) return;
+  try{
+    const {data,error}=await sb.functions.invoke('profesores-ops',{body:{accion:'asignar_auxiliar', token:getTokenSesion(), funcion_rol:rol, auxiliar_id:auxId}});
+    if(error) throw new Error(error.message||'Error de conexión');
+    if(!data||!data.ok) throw new Error((data&&data.error)||'No se pudo asignar');
+    (discData.profesores||[]).forEach(function(x){ if(String(x.id)===String(auxId)){ x.rol=rol; x.es_auxiliar=true; } });
+    alert('✓ '+nom+' es ahora auxiliar de '+f.nombre+'.');
+    await funcionesPintar();
+  }catch(e){ alert('❌ '+(e.message||e)); }
+}
+async function funcionAuxQuitar(auxId, nombre){
+  if(!confirm('Quitar a '+(nombre||'este profesor')+' como auxiliar. Vuelve a ser Profesor común y deberá reiniciar sesión. ¿Confirmar?')) return;
+  try{
+    const {data,error}=await sb.functions.invoke('profesores-ops',{body:{accion:'quitar_auxiliar', token:getTokenSesion(), auxiliar_id:auxId}});
+    if(error) throw new Error(error.message||'Error de conexión');
+    if(!data||!data.ok) throw new Error((data&&data.error)||'No se pudo quitar');
+    (discData.profesores||[]).forEach(function(x){ if(String(x.id)===String(auxId)){ x.rol='profesor'; x.es_auxiliar=false; } });
+    await funcionesPintar();
+  }catch(e){ alert('❌ '+(e.message||e)); }
 }
 async function funcionCambiarEjec(rol){
   const f=FUNCIONES_SISTEMA.find(function(x){ return x.rol===rol; }); if(!f) return;
@@ -11312,8 +11374,18 @@ function renderDiscPanel(){
   const name=currentUser.nombre_completo||'Docente';
   const initials=name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
   document.getElementById('disc-name').textContent=name;
-  document.getElementById('disc-rank').textContent=[currentUser.grado||'',currentUser.arma||''].filter(Boolean).join(' · ')||'Jefe de Sección';
+  document.getElementById('disc-rank').textContent=(esAuxiliar()?'AUXILIAR · ':'')+([currentUser.grado||'',currentUser.arma||''].filter(Boolean).join(' · ')||'Jefe de Sección');
   document.getElementById('disc-initials').textContent=initials||'—';
+  // v2.9.176: aviso de MODO AUXILIAR (acceso limitado)
+  (function(){
+    var strip=document.querySelector('#screen-disc-panel .user-strip'); if(!strip) return;
+    var b=document.getElementById('aux-banner');
+    if(esAuxiliar()){
+      if(!b){ b=document.createElement('div'); b.id='aux-banner'; b.style.cssText='margin-bottom:16px;padding:10px 14px;border-radius:10px;background:rgba(80,160,255,.12);border:1px solid rgba(140,210,255,.4);color:#bfe6ff;font-size:13px'; strip.parentNode.insertBefore(b, strip.nextSibling); }
+      b.innerHTML='🤝 <b>Modo auxiliar</b> — acceso limitado: podés registrar y ver, pero no anular/modificar sanciones ni las acciones de mando.';
+      b.style.display='';
+    } else if(b){ b.style.display='none'; }
+  })();
 
   // 🔔 Aviso de pendientes de firma (profesor: las suyas; Jefe Disc/CT: total)
   // 🔴 v2.9.58: puntito rojo de SANCIONES NUEVAS sin ver (para roles monitor)
@@ -17792,6 +17864,57 @@ function repoPick(tipo){
   inp.value=''; inp.accept=_repoAccept(tipo);
   inp.onchange=()=>{ const f=inp.files&&inp.files[0]; if(f) repoSubir(tipo, f); };
   inp.click();
+}
+// ── v2.9.175: PUENTE — subir un documento generado a la Carpeta de Clases consolidada ──
+// Reusa el flujo del repositorio (repo_upload_url → uploadToSignedUrl → repo_registrar).
+// El casillero es único por materia+gestión: re-subir REEMPLAZA la versión anterior.
+async function _avSubirACarpeta(blobPromise, tipo, filename){
+  const car=(AV.data&&AV.data.carpeta)||{}, mat=(AV.data&&AV.data.materia)||{};
+  const codigo=car.materia_codigo||mat.codigo_uc;
+  const gestion=car.gestion||(new Date().getFullYear());
+  const box=document.getElementById('av-subir-estado');
+  const set=function(t){ if(box) box.textContent=t; };
+  if(!codigo){ set('❌ Primero abrí la carpeta de una materia.'); return; }
+  try{
+    set('① Generando el documento…');
+    const blob=await Promise.resolve(blobPromise);
+    const file=new File([blob], filename, {type:(blob&&blob.type)||'application/octet-stream'});
+    set('② Pidiendo espacio en el servidor…');
+    const up=await _avInvoke('repo_upload_url',{materia_codigo:codigo, gestion, tipo, filename});
+    if(!up.ok) throw new Error(up.error||'no se obtuvo URL de subida');
+    set('③ Subiendo el archivo…');
+    const u=await sb.storage.from('documentos-academicos').uploadToSignedUrl(up.path, up.token, file);
+    if(u.error) throw new Error(u.error.message||'falló la subida');
+    set('④ Registrando en la carpeta…');
+    const reg=await _avInvoke('repo_registrar',{materia_codigo:codigo, gestion, tipo, storage_path:up.path, nombre:filename, mime:file.type});
+    if(!reg.ok) throw new Error(reg.error||'no se pudo registrar');
+    set('✅ Subido a la Carpeta de '+(mat.nombre_uc||codigo)+' · gestión '+gestion+'. Reemplazó la versión anterior de ese casillero.');
+  }catch(e){ set('❌ '+((e&&e.message)||e)); }
+}
+function avSubirPlan(){ const d=_avPlanHojaData(); if(!_avPlanHojaCheck(d)) return; _avSubirACarpeta(_avPlanClasesBlob(d),'doc_plan_clases','PLAN DE CLASES.docx'); }
+function avSubirHoja(){ const d=_avPlanHojaData(); if(!_avPlanHojaCheck(d)) return; _avSubirACarpeta(_avHojaOrientBlob(d),'doc_hoja_orientacion','HOJA DE ORIENTACION.docx'); }
+function avSubirTexto(){
+  const car=(AV.data&&AV.data.carpeta)||{};
+  if(!AV._textoFinal && !car.texto_final){ document.getElementById('av-subir-estado').textContent='❌ Primero generá o guardá el Texto de la materia (sección Texto).'; return; }
+  _avSubirACarpeta(_avTextoFinalDocx(),'doc_texto','TEXTO DE LA MATERIA.docx');
+}
+function avSubirDistrib(){ _avSubirACarpeta(_avCronoDocx(),'doc_distribucion','DISTRIBUCION DEL TIEMPO.docx'); }
+function avSubirTareas(){ if(!_avTareasDocCheck()) return; _avSubirACarpeta(Promise.resolve(new Blob(['﻿',_avTareasDocHTML()],{type:'application/msword'})),'doc_tareas','CUADRO DE TAREAS.doc'); }
+function avSubirDesag(){ _avSubirACarpeta(Promise.resolve(new Blob(['﻿',_avDesagDocHTML(true)],{type:'application/msword'})),'doc_desagregacion','CUADRO DE DESAGREGACION.doc'); }
+async function avVerCarpetaConsolidada(){
+  const car=(AV.data&&AV.data.carpeta)||{}, mat=(AV.data&&AV.data.materia)||{};
+  const codigo=car.materia_codigo||mat.codigo_uc;
+  const gestion=car.gestion||(new Date().getFullYear());
+  if(!codigo){ alert('Primero abrí la carpeta de una materia.'); return; }
+  REPO.gestion=gestion;
+  if(!REPO.arbol){
+    if(!AV.catalogo){ const r=await _avInvoke('catalogo'); if(!r.ok){ alert('No se pudo cargar la malla: '+(r.error||'')); return; } AV.catalogo=r.materias||[]; }
+    REPO.arbol=AV.catalogo;
+  }
+  showScreen('screen-av-repo');
+  const gsel=document.getElementById('repo-gestion'); if(gsel) gsel.value=REPO.gestion;
+  REPO.esAdmin=(typeof _avEsAdminAcad==='function')?_avEsAdminAcad():false;
+  repoAbrirMateria(codigo);
 }
 async function repoSubir(tipo, file){
   const m=REPO.materia; if(!m) return;
