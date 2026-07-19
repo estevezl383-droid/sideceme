@@ -3839,7 +3839,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.177</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.178</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -17843,8 +17843,8 @@ const REPO_SLOTS = [
   {tipo:'doc_tareas',           n:'0006 · Cuadro de Planificación de Tareas'},
 ];
 function _repoAccept(tipo){
-  return tipo==='presentacion' ? '.ppt,.pptx,.pdf'
-       : tipo==='recurso_interactivo' ? '.html,.htm,.zip,.pdf'
+  return tipo==='presentacion' ? '.ppt,.pptx,.pdf,.doc,.docx'
+       : tipo==='recurso_interactivo' ? '.html,.htm,.zip,.pdf,.doc,.docx,.ppt,.pptx'
        : '.doc,.docx,.pdf';
 }
 async function repoAbrirArbol(){
@@ -17969,11 +17969,11 @@ function repoRenderMateria(){
         +'<span style="flex:1;min-width:130px;font-size:12px;color:var(--text-muted)">📄 '+_rgEsc(a.nombre)+(a.subido_por_nombre?(' · '+_rgEsc(a.subido_por_nombre)):'')+'</span>'
         +'<button class="rg-doc" style="'+DB+'" onclick="repoPreview(\''+a.id+'\')">👁 Vista previa</button>'
         +'<button class="rg-doc" style="'+DB+'" onclick="repoDescargar(\''+a.id+'\',this)">⬇ Descargar</button>'
-        +(ed?'<button class="rg-doc" style="'+DB+';border-color:#2e6e9e;color:#bfe6ff" onclick="repoCompartirUI(\''+a.id+'\')">👥 Compartir</button>':'')
+        +((ed&&(s.tipo==='doc_texto'||s.tipo==='doc_hoja_orientacion'))?'<button class="rg-doc" style="'+DB+';border-color:#2e6e9e;color:#bfe6ff" onclick="repoCompartirUI(\''+a.id+'\')">👥 Compartir</button>':'')
         +(ed?'<button class="rg-doc" style="'+DB+'" onclick="repoPick(\''+s.tipo+'\')">🔁 Reemplazar</button>':'')
         +(ed?'<button class="rg-doc" style="'+DB+';border-color:#7a2230;color:#ffc9c9;background:rgba(122,34,48,.12)" onclick="repoEliminar(\''+a.id+'\')">🗑</button>':'')
         +'</div>'
-        +_repoShareChip(a);
+        +((s.tipo==='doc_texto'||s.tipo==='doc_hoja_orientacion')?_repoShareChip(a):'');
     }else{
       inner = ed
         ? '<div style="margin-top:6px"><button class="btn-secondary" style="padding:6px 14px" onclick="repoPick(\''+s.tipo+'\')">⬆ Subir</button></div>'
@@ -17989,20 +17989,23 @@ function repoRenderMateria(){
       return '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:5px 0;border-top:1px solid var(--border,#2a3a52)">'
         +'<span style="flex:1;min-width:130px;font-size:12px">'+(esQuiz?'🎮':a.enlace_url?'🔗':'📄')+' '+_rgEsc(a.nombre)+'</span>'
         +'<button class="rg-doc" style="'+DB+'" onclick="repoDescargar(\''+a.id+'\',this)">'+(esQuiz?'▶ Abrir':a.enlace_url?'🔗 Abrir':'⬇ Descargar')+'</button>'
+        +((esQuiz&&ed)?'<button class="rg-doc" style="'+DB+';border-color:#b03636;color:#ffd0d0" onclick="repoQuizVivo(\''+a.id+'\')">🔴 EN VIVO</button>':'')
+        +(ed?'<button class="rg-doc" style="'+DB+';border-color:#2e6e9e;color:#bfe6ff" onclick="repoCompartirUI(\''+a.id+'\')">👥</button>':'')
         +(ed?'<button class="rg-doc" style="'+DB+';border-color:#7a2230;color:#ffc9c9;background:rgba(122,34,48,.12)" onclick="repoEliminar(\''+a.id+'\')">🗑</button>':'')
-        +'</div>';
+        +'</div>'
+        +_repoShareChip(a);
     }).join('') : '<div style="font-size:12px;color:var(--text-muted);padding:5px 0">Sin archivos aún.</div>';
     const acciones = ed ? ('<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">'
       +'<button class="btn-secondary" style="padding:6px 14px" onclick="repoPick(\''+tipo+'\')">⬆ Agregar archivo</button>'
       +(conQuiz?'<button class="btn-secondary" style="padding:6px 14px;border-color:#6a1fb0" onclick="repoQuizPick()">➕ Elegir de mis quizzes</button>':'')
-      +(conEnlace?'<button class="btn-secondary" style="padding:6px 14px" onclick="repoEnlace()">🔗 Agregar enlace</button>':'')+'</div>') : '';
+      +(conEnlace?'<button class="btn-secondary" style="padding:6px 14px" onclick="repoEnlace(\''+tipo+'\')">🔗 Agregar enlace (video, Drive…)</button>':'')+'</div>') : '';
     return '<div class="rg-card"><div class="rg-asunto" style="font-size:13px">'+icon+' '+_rgEsc(titulo)+'</div>'+li+acciones+'</div>';
   };
   cont.innerHTML = g + lock + copiar
     + '<div id="repo-prog" style="font-size:12px;color:var(--text-muted);min-height:16px;margin-bottom:6px"></div>'
     + '<div class="section-label" style="margin-top:0">📑 Documentos de la carpeta</div>' + slots
     + '<div class="section-label">🖥️ Presentaciones y recursos</div>'
-    + zona('presentacion','0007 · Presentaciones','📊',false,false)
+    + zona('presentacion','0007 · Presentaciones','📊',true,false)
     + zona('recurso_interactivo','Recursos Interactivos','🎮',true,true)
     + '<input type="file" id="repo-file" style="display:none">';
 }
@@ -18143,14 +18146,21 @@ async function repoSubir(tipo, file){
     await repoCargarMateria();
   }catch(e){ set('⚠️ '+(e.message||e)); alert('No se pudo subir: '+(e.message||e)); }
 }
-async function repoEnlace(){
-  const url=prompt('Pegá el enlace del recurso interactivo (https://…):',''); if(!url) return;
+async function repoEnlace(tipo){
+  const url=prompt('Pegá el enlace (video de YouTube, Drive, recurso web… https://…):',''); if(!url) return;
   if(!/^https?:\/\//i.test(url)){ alert('El enlace debe empezar con http:// o https://'); return; }
   const nombre=prompt('Nombre del recurso:', url) || url;
   const m=REPO.materia;
-  const reg=await _avInvoke('repo_registrar',{materia_codigo:m.codigo_uc, gestion:REPO.gestion, tipo:'recurso_interactivo', enlace_url:url, nombre});
+  const reg=await _avInvoke('repo_registrar',{materia_codigo:m.codigo_uc, gestion:REPO.gestion, tipo:tipo||'recurso_interactivo', enlace_url:url, nombre});
   if(!reg.ok){ alert('No se pudo guardar: '+(reg.error||'')); return; }
   await repoCargarMateria();
+}
+// v2.9.178: el PROFESOR lanza EN VIVO un quiz adjuntado a su carpeta (PIN + proyector)
+function repoQuizVivo(adjId){
+  const a=(REPO.adjuntos||[]).find(function(x){ return String(x.id)===String(adjId); }); if(!a) return;
+  const qid=String(a.enlace_url||'').replace('app:quiz:','');
+  if(!qid){ alert('Este recurso no es un quiz.'); return; }
+  if(typeof qzEnVivo==='function') qzEnVivo(qid); else alert('El módulo de Recursos Interactivos no está cargado.');
 }
 async function repoDescargar(id, btn){
   let t=''; if(btn){ btn.disabled=true; t=btn.textContent; btn.textContent='⏳'; }
@@ -18295,7 +18305,7 @@ async function repoDesasignar(codigo){
   const a=await _avInvoke('repo_asignaciones'); RASIG.asignaciones=(a.ok?a.asignaciones:[])||[];
   repoAsignarRender();
 }
-function _avEsAdminAcad(){ return ['ciencia_tecnologia','jefe_estudios','jefe_sac','comandante'].includes(activeRole); }
+function _avEsAdminAcad(){ return ['ciencia_tecnologia','jefe_estudios','jefe_sac','comandante','jefe_planificacion'].includes(activeRole); }
 function _avPuedeAprobar(){ return ['jefe_sac','jefe_estudios'].includes(activeRole); }
 function _avEstadoBadge(e){
   const m={borrador:['📝 Borrador','#7a5012','#f0c040'],en_revision:['🔎 En revisión','#1f4e7a','#8fc4ff'],aprobada:['✅ Aprobada','#1f6f5c','#7fe6a4']};
