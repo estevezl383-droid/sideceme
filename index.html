@@ -3694,11 +3694,16 @@ input::placeholder, textarea::placeholder {
 /* v2.9.181: tarjetas crema del HOME del cursante → orbital oscuro (letras luminosas legibles) */
 .cursante-screen .cur-stat-card, .cursante-screen .ca-card, .cursante-screen .cac-body,
 .cursante-screen .ef-stat-card, .cursante-screen .efm-cur-card, .cursante-screen .cur-anual-card,
-.cursante-screen .user-strip-cursante{
+.cursante-screen .user-strip-cursante,
+.cursante-screen .cur-area-card{
   background:rgba(10,22,38,.78) !important;
   border:1px solid rgba(140,210,255,.22) !important;
   box-shadow:0 8px 24px rgba(0,0,0,.45) !important;
 }
+.cursante-screen .cur-area-card .ca-title{color:#dff0ff !important;text-shadow:0 0 12px rgba(140,210,255,.45) !important}
+.cursante-screen .cur-area-card .ca-value{color:#f2f9ff !important;text-shadow:0 0 10px rgba(140,210,255,.6) !important}
+.cursante-screen .cur-area-card .ca-sub{color:#9fb2c8 !important}
+.cursante-screen .cur-area-card.active{border-color:rgba(160,215,255,.7) !important;box-shadow:0 0 22px rgba(120,190,255,.25),0 8px 24px rgba(0,0,0,.45) !important}
 .cursante-screen .user-strip-cursante .user-name{color:#dff0ff !important}
 .cursante-screen .user-strip-cursante .user-rank{color:#9fb2c8 !important}
 .cursante-screen .user-strip-cursante .btn-logout{color:#bfe6ff !important;border-color:rgba(140,210,255,.35) !important;background:rgba(10,22,38,.6) !important}
@@ -3865,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.181</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.182</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
