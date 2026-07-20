@@ -3677,6 +3677,20 @@ input::placeholder, textarea::placeholder {
 .lg-motto{font-size:11px;letter-spacing:.14em;color:#7d8ea3;text-transform:uppercase;text-align:center;margin-top:18px}
 .lg-alt{margin-top:14px;text-align:center;font-size:11px;color:#5d7189}
 .lg-alt a{color:#9fcdf2;text-decoration:underline;cursor:pointer}
+/* v2.9.180: el área del CURSANTE deja el crema-dorado y pasa al tema ORBITAL */
+.cursante-screen{
+  background:radial-gradient(900px 600px at 50% -10%,#0a1626 0%,transparent 60%),
+             radial-gradient(ellipse at 50% 0%,#0b1626 0%,#081120 55%,#030711 100%) !important;
+  color:#eaf3fc !important;
+}
+/* tarjeta dorada del hub del aula y banners crema → azul orbital */
+.hub-tile.gold{background:linear-gradient(180deg,#16283f,#0b1626) !important;border:1px solid rgba(140,210,255,.35) !important;box-shadow:0 0 24px rgba(90,180,255,.12),0 8px 24px rgba(0,0,0,.45) !important}
+.hub-tile.gold .ht-title{color:#dff0ff !important;text-shadow:0 0 12px rgba(140,210,255,.45) !important}
+.hub-tile.gold .ht-sub{color:#9fb2c8 !important}
+.rg-hb{background:rgba(10,22,38,.8) !important;border:1px solid rgba(140,210,255,.3) !important}
+.rg-hb .rg-hb-tit{color:#dff0ff !important}
+.rg-hb .rg-hb-sub{color:#9fb2c8 !important}
+.rg-hb .rg-hb-go{color:#7fc4ff !important}
 #screen-home .error-msg{border-radius:0}
 /* v2.9.174: los anillos y el fondo del login SIEMPRE animan (pedido de Sergio) */
 #screen-home .lg-field input{
@@ -3839,7 +3853,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.179</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.180</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5611,7 +5625,11 @@ body{
     <button class="back-btn" onclick="showScreen('screen-aula-cursante')">←</button>
     <div style="flex:1;min-width:0"><div id="avl-titulo" style="font-weight:700;font-size:14px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Documento</div></div>
     <button id="avl-hl-btn" class="avt-btn" onclick="avlToggleHl()" title="Resaltar lo seleccionado (o activá el modo y seleccioná con el mouse)">🖍️ Resaltar</button>
+    <button class="avt-btn avl-sw" data-c="255,235,120" style="background:rgba(255,235,120,.95);width:22px;height:22px;min-width:22px;padding:0;border-radius:50%;outline:2px solid #fff" onclick="avlColor(this)" title="Amarillo"></button>
+    <button class="avt-btn avl-sw" data-c="140,235,160" style="background:rgba(140,235,160,.95);width:22px;height:22px;min-width:22px;padding:0;border-radius:50%" onclick="avlColor(this)" title="Verde"></button>
+    <button class="avt-btn avl-sw" data-c="150,205,255" style="background:rgba(150,205,255,.95);width:22px;height:22px;min-width:22px;padding:0;border-radius:50%" onclick="avlColor(this)" title="Celeste"></button>
     <button class="avt-btn" onclick="avlNota()" title="Agregar una nota a lo seleccionado">📝 Nota</button>
+    <button class="avt-btn" onclick="avlNotasPanel()" title="Lista de tus resaltados y notas — tocá uno para ir">📋 Mis notas</button>
     <button class="avt-btn" onclick="avlLimpiar()" title="Borrar todos tus resaltados y notas de este documento">🧽 Limpiar</button>
     <button id="avl-dl-btn" class="avt-btn" style="display:none" onclick="avlDescargar()">⬇ Descargar</button>
   </div>
@@ -15416,6 +15434,33 @@ function avlToggleHl(){
   AVL.hlOn=!AVL.hlOn;
   const b=document.getElementById('avl-hl-btn'); if(b) b.classList.toggle('on',AVL.hlOn);
 }
+// v2.9.180: colores de resaltado (amarillo / verde / celeste)
+function avlColor(el){
+  AVL.color=el.dataset.c||'255,235,120';
+  document.querySelectorAll('#screen-av-lector .avl-sw').forEach(function(s){ s.style.outline=(s===el)?'2px solid #fff':''; });
+  if(!AVL.hlOn) avlToggleHl();
+}
+// v2.9.180: panel lateral con TODOS los resaltados/notas — tocar uno = saltar ahí
+function avlNotasPanel(){
+  var p=document.getElementById('avl-notas-panel');
+  if(p){ p.remove(); return; }
+  p=document.createElement('div'); p.id='avl-notas-panel';
+  p.style.cssText='position:fixed;left:0;top:0;bottom:0;width:min(78vw,310px);z-index:99997;background:rgba(6,14,26,.97);border-right:1px solid rgba(140,210,255,.35);padding:14px;overflow:auto;color:#eaf3fc;backdrop-filter:blur(8px)';
+  var items=(AVL.marks||[]).map(function(m,i){
+    if(!m||!m.s) return '';
+    return '<div onclick="avlIrA('+i+')" style="cursor:pointer;padding:9px 10px;border:1px solid rgba(140,210,255,.22);border-radius:8px;margin-bottom:8px;background:rgba(10,22,38,.6)">'
+      +'<div style="font-size:12px;color:#bfe6ff">'+(m.n?'📝 ':'🖍️ ')+'«'+_rgEsc((m.s||'').slice(0,70))+((m.s||'').length>70?'…':'')+'»</div>'
+      +(m.n?('<div style="font-size:11.5px;color:#9fb2c8;margin-top:4px">➜ '+_rgEsc(m.n)+'</div>'):'')+'</div>';
+  }).join('');
+  p.innerHTML='<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><b style="flex:1;color:#bfe6ff;font-size:13px">📋 Mis resaltados y notas</b><button class="avt-btn" onclick="document.getElementById(\'avl-notas-panel\').remove()">✕</button></div>'
+    +(items||'<div style="color:#5d7189;font-size:12px">Todavía no marcaste nada. Seleccioná texto y tocá 🖍️ o 📝.</div>');
+  document.body.appendChild(p);
+}
+function avlIrA(i){
+  var mk=document.querySelector('#avl-cont mark.avl-hl[data-k="'+i+'"]');
+  if(mk){ mk.scrollIntoView({block:'center',behavior:'smooth'}); mk.style.outline='3px solid #39c4e8'; setTimeout(function(){ mk.style.outline=''; },1800); }
+  var p=document.getElementById('avl-notas-panel'); if(p) p.remove();
+}
 function avlNota(){
   const sel=window.getSelection();
   if(!sel || sel.isCollapsed || !String(sel).trim()){ alert('Primero seleccioná el texto donde va la nota.'); return; }
@@ -15440,12 +15485,12 @@ function _avlMarcarSeleccion(nota){
   const full=_avlNodes().map(function(n){ return n.textContent; }).join('');
   const s=full.slice(a,b);
   let occ=0, i=full.indexOf(s); while(i>=0&&i<a){ occ++; i=full.indexOf(s,i+1); }
-  AVL.marks.push({s:s,occ:occ,n:nota||null});
+  AVL.marks.push({s:s,occ:occ,n:nota||null,c:AVL.color||'255,235,120'});
   try{ localStorage.setItem(_avlKey(),JSON.stringify(AVL.marks)); }catch(_){ }
-  _avlWrapAbs(a,b,nota||null,AVL.marks.length-1);
+  _avlWrapAbs(a,b,nota||null,AVL.marks.length-1,AVL.color);
   sel.removeAllRanges();
 }
-function _avlWrapAbs(a,b,nota,idx){
+function _avlWrapAbs(a,b,nota,idx,color){
   let abs=0;
   for(const node of _avlNodes()){
     const len=node.textContent.length, ini=abs, fin=abs+len; abs=fin;
@@ -15458,7 +15503,7 @@ function _avlWrapAbs(a,b,nota,idx){
     if(to-from<target.textContent.length) target.splitText(to-from);
     const mk=document.createElement('mark');
     mk.className='avl-hl'; mk.dataset.k=String(idx);
-    mk.style.cssText='background:rgba(255,235,120,.85);padding:0 1px;border-radius:2px;cursor:pointer'+(nota?';border-bottom:2px solid #d98a3a':'');
+    mk.style.cssText='background:rgba('+(color||'255,235,120')+',.85);padding:0 1px;border-radius:2px;cursor:pointer'+(nota?';border-bottom:2px solid #d98a3a':'');
     mk.onclick=function(ev){ ev.stopPropagation(); _avlVerNota(this); };
     target.parentNode.insertBefore(mk,target); mk.appendChild(target);
   }
@@ -15481,7 +15526,7 @@ function _avlReaplicar(){
     let i=-1, c=-1;
     do{ i=full.indexOf(m.s,i+1); c++; }while(i>=0&&c<m.occ);
     if(i<0) return;
-    _avlWrapAbs(i,i+m.s.length,m.n||null,idx);
+    _avlWrapAbs(i,i+m.s.length,m.n||null,idx,m.c||'255,235,120');
   });
 }
 // mouse: con el modo 🖍️ activo, soltar la selección = resaltar (en tablet se usa el botón)
@@ -18034,10 +18079,10 @@ function repoPick(tipo){
 // ── v2.9.177: COMPARTIR documentos de la Carpeta consolidada con ALUMNOS ──
 const MENCIONES_2DO=['Estrategia','Inteligencia','Logística','Recursos Humanos'];
 function _repoShareChip(a){
-  if(a.compartido!==true) return '<div style="font-size:11px;color:var(--text-muted);margin-top:4px">🔒 No compartido con alumnos</div>';
+  if(a.compartido!==true) return '<div style="display:inline-block;font-size:11px;color:#8a8fa3;background:rgba(120,130,150,.14);border:1px solid rgba(120,130,150,.3);padding:3px 10px;border-radius:99px;margin-top:6px">🔒 NO compartido con alumnos</div>';
   const aud=a.audiencia||{}; const ps=(aud.paralelos||[]), ms=(aud.menciones||[]);
   const quien=[ps.length?('paralelos '+ps.join(', ')):'', ms.length?('mención '+ms.join(', ')):''].filter(Boolean).join(' · ')||'todo el ciclo';
-  return '<div style="font-size:11px;color:#8fd3a8;margin-top:4px">👥 Compartido con '+_rgEsc(quien)+' · '+(a.permitir_descarga===true?'pueden descargar':'solo lectura en la app')+'</div>';
+  return '<div style="display:inline-block;font-size:11.5px;font-weight:700;color:#0a2a14;background:linear-gradient(180deg,#a8e8b8,#7ac899);padding:3px 12px;border-radius:99px;margin-top:6px">👥 COMPARTIDO · '+_rgEsc(quien)+' · '+(a.permitir_descarga===true?'⬇ pueden descargar':'👁 solo lectura en la app')+'</div>';
 }
 async function repoCompartirUI(adjId){
   const a=(REPO.adjuntos||[]).find(function(x){ return String(x.id)===String(adjId); }); if(!a) return;
@@ -21146,8 +21191,15 @@ async function goAvAlumno(){
     const k=(it.av_carpetas&&it.av_carpetas.av_materias&&it.av_carpetas.av_materias.nombre_uc)||it.materia_nombre||'Otros materiales';
     (grupos[k]=grupos[k]||[]).push(it);
   });
-  cont.innerHTML=Object.keys(grupos).sort().map(function(k){
-    return '<div class="section-label" style="margin-top:14px">📘 '+_rgEsc(k)+'</div>'+grupos[k].map(_avRecCard).join('');
+  // v2.9.180: UNA tarjeta por materia (se abre al tocar) — no amontonar documentos
+  const ks=Object.keys(grupos).sort();
+  cont.innerHTML=ks.map(function(k){
+    const docs=grupos[k];
+    return '<details class="rg-card" style="margin-bottom:10px;padding:0;overflow:hidden"'+(ks.length===1?' open':'')+'>'
+      +'<summary style="cursor:pointer;list-style:none;display:flex;align-items:center;gap:10px;padding:14px 16px">'
+      +'<span style="font-size:22px">📘</span><span style="flex:1;font-weight:700;color:var(--text-primary);font-size:15px">'+_rgEsc(k)+'</span>'
+      +'<span style="font-size:11px;color:#8fbce8;white-space:nowrap">'+docs.length+' doc'+(docs.length!==1?'s':'')+' ›</span></summary>'
+      +'<div style="padding:0 12px 12px">'+docs.map(_avRecCard).join('')+'</div></details>';
   }).join('');
 }
 function _avRecCard(r){
