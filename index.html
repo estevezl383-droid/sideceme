@@ -3839,7 +3839,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.178</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.179</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -15366,6 +15366,14 @@ async function avAlumnoCarpetaCargar(){
       }).join('')+'</div>';
   }).join('');
 }
+// v2.9.179: el alumno abre un quiz adjuntado a la Carpeta de Clases (práctica libre)
+function avAlumnoQuizAbrir(adjId){
+  const it=(AV.recursos||[]).find(function(x){ return String(x.id)===String(adjId); });
+  const qid=String((it&&it.enlace_url)||'').replace('app:quiz:','');
+  if(!qid){ alert('Este recurso no es un juego.'); return; }
+  if(typeof qzPreview==='function') qzPreview(qid);
+  else alert('El módulo de Recursos Interactivos no está cargado.');
+}
 async function avAlumnoAbrirDoc(adjId, titulo){
   const r=await _avInvoke('repo_alumno_abrir',{adjunto_id:adjId});
   if(!r.ok){ alert('❌ '+(r.error||'No se pudo abrir')); return; }
@@ -21105,7 +21113,10 @@ async function avAdjVer(id,btn){
   if(!r.ok||!r.url){ alert(r.error||'No se pudo abrir'); return; }
   if(r.tipo==='solo_lectura'){
     const it=(AV.recursos||[]).find(x=>x.id===id);
-    avVisorSoloLectura(r.url,(it&&it.nombre)||'Documento');
+    const nom=(it&&it.nombre)||'Documento';
+    // v2.9.179: PDF → visor clásico; Word/otros → lector interactivo (antes quedaba muerto)
+    if(/pdf/i.test((it&&it.mime)||'')||/\.pdf$/i.test(nom)) avVisorSoloLectura(r.url,nom);
+    else avlAbrir(r.url,nom,id,false);
     return;
   }
   try{ window.open(r.url,'_blank'); }catch(e){ location.href=r.url; }
@@ -21128,17 +21139,32 @@ async function goAvAlumno(){
   if(!r.ok){ cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No se pudo cargar: '+_rgEsc(r.error||'')+'</div>'; return; }
   const items=r.recursos||[];
   AV.recursos=items;
-  cont.innerHTML = items.length ? items.map(_avRecCard).join('') : '<div class="rg-card" style="text-align:center;color:var(--text-muted);padding:22px">📭 Todavía no hay materiales compartidos para tu ciclo.</div>';
+  if(!items.length){ cont.innerHTML='<div class="rg-card" style="text-align:center;color:var(--text-muted);padding:22px">📭 Todavía no hay materiales compartidos para tu ciclo.</div>'; return; }
+  // v2.9.179: agrupado POR MATERIA (carpetas), como pidió Sergio
+  const grupos={};
+  items.forEach(function(it){
+    const k=(it.av_carpetas&&it.av_carpetas.av_materias&&it.av_carpetas.av_materias.nombre_uc)||it.materia_nombre||'Otros materiales';
+    (grupos[k]=grupos[k]||[]).push(it);
+  });
+  cont.innerHTML=Object.keys(grupos).sort().map(function(k){
+    return '<div class="section-label" style="margin-top:14px">📘 '+_rgEsc(k)+'</div>'+grupos[k].map(_avRecCard).join('');
+  }).join('');
 }
 function _avRecCard(r){
   const mat=(r.av_carpetas&&r.av_carpetas.av_materias&&r.av_carpetas.av_materias.nombre_uc)||r.materia_nombre||'';
   const enlace=!!r.enlace_url, bajar=(r.permitir_descarga!==false);
   const esPdf=/pdf/i.test(r.mime||'')||/\.pdf$/i.test(r.nombre||'');
+  const esQuiz=(r.enlace_url||'').indexOf('app:quiz:')===0;
   let btn;
-  if(enlace) btn='<button class="rg-doc" onclick="avAdjVer(\''+r.id+'\',this)">🔗 Abrir enlace</button>';
+  if(r.es_repositorio===true){
+    // v2.9.179: documentos de la Carpeta de Clases → lector interactivo (resaltar+notas)
+    if(esQuiz) btn='<button class="rg-doc" onclick="avAlumnoQuizAbrir(\''+r.id+'\')">🎮 Abrir juego / práctica</button>';
+    else if(enlace) btn='<button class="rg-doc" onclick="avAlumnoAbrirDoc(\''+r.id+'\',\''+_rgEsc((r.nombre||'Documento').replace(/'/g,''))+'\')">🔗 Abrir enlace</button>';
+    else btn='<button class="rg-doc" onclick="avAlumnoAbrirDoc(\''+r.id+'\',\''+_rgEsc((r.nombre||'Documento').replace(/'/g,''))+'\')">'+(bajar?'⬇ Leer / Descargar':'👁 Leer y anotar en la app')+'</button>';
+  }
+  else if(enlace) btn='<button class="rg-doc" onclick="avAdjVer(\''+r.id+'\',this)">🔗 Abrir enlace</button>';
   else if(bajar) btn='<button class="rg-doc" onclick="avAdjVer(\''+r.id+'\',this)">⬇ Abrir / Descargar</button>';
-  else if(esPdf) btn='<button class="rg-doc" onclick="avAdjVer(\''+r.id+'\',this)">👁 Leer en la app (sin descarga)</button>';
-  else btn='<button class="rg-doc" disabled style="opacity:.6">🔒 Solo consulta en clase</button>';
+  else btn='<button class="rg-doc" onclick="avAdjVer(\''+r.id+'\',this)">👁 Leer en la app (sin descarga)</button>';
   return '<div class="rg-card" style="margin-bottom:8px">'
     +'<div class="rg-asunto" style="font-size:14px">'+(_AV_TIPO_LBL[r.tipo]||'📄')+' '+_rgEsc(r.nombre||'')+'</div>'
     +(mat?('<div class="rg-route" style="margin:2px 0">'+_rgEsc(mat)+'</div>'):'')
