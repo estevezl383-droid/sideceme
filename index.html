@@ -3691,6 +3691,18 @@ input::placeholder, textarea::placeholder {
 .rg-hb .rg-hb-tit{color:#dff0ff !important}
 .rg-hb .rg-hb-sub{color:#9fb2c8 !important}
 .rg-hb .rg-hb-go{color:#7fc4ff !important}
+/* v2.9.181: tarjetas crema del HOME del cursante → orbital oscuro (letras luminosas legibles) */
+.cursante-screen .cur-stat-card, .cursante-screen .ca-card, .cursante-screen .cac-body,
+.cursante-screen .ef-stat-card, .cursante-screen .efm-cur-card, .cursante-screen .cur-anual-card,
+.cursante-screen .user-strip-cursante{
+  background:rgba(10,22,38,.78) !important;
+  border:1px solid rgba(140,210,255,.22) !important;
+  box-shadow:0 8px 24px rgba(0,0,0,.45) !important;
+}
+.cursante-screen .user-strip-cursante .user-name{color:#dff0ff !important}
+.cursante-screen .user-strip-cursante .user-rank{color:#9fb2c8 !important}
+.cursante-screen .user-strip-cursante .btn-logout{color:#bfe6ff !important;border-color:rgba(140,210,255,.35) !important;background:rgba(10,22,38,.6) !important}
+.cursante-screen .cur-anual-card *{color:#eaf3fc !important}
 #screen-home .error-msg{border-radius:0}
 /* v2.9.174: los anillos y el fondo del login SIEMPRE animan (pedido de Sergio) */
 #screen-home .lg-field input{
@@ -3853,7 +3865,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.180</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.181</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5622,7 +5634,7 @@ body{
 <!-- v2.9.177: LECTOR INTERACTIVO (Texto de la materia) — resaltar + notas -->
 <section id="screen-av-lector" class="screen">
   <div class="aula-visor-toolbar">
-    <button class="back-btn" onclick="showScreen('screen-aula-cursante')">←</button>
+    <button class="back-btn" onclick="showScreen('screen-av-alumno')">←</button>
     <div style="flex:1;min-width:0"><div id="avl-titulo" style="font-weight:700;font-size:14px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Documento</div></div>
     <button id="avl-hl-btn" class="avt-btn" onclick="avlToggleHl()" title="Resaltar lo seleccionado (o activá el modo y seleccioná con el mouse)">🖍️ Resaltar</button>
     <button class="avt-btn avl-sw" data-c="255,235,120" style="background:rgba(255,235,120,.95);width:22px;height:22px;min-width:22px;padding:0;border-radius:50%;outline:2px solid #fff" onclick="avlColor(this)" title="Amarillo"></button>
@@ -15421,7 +15433,9 @@ async function avlAbrir(url,titulo,adjId,permitirDescarga){
       cont.style.background='#e8eaee';
       const lib=await _repoLoadDocx();
       cont.innerHTML='';
-      await lib.renderAsync(blob, cont, null, {className:'docx', inWrapper:true, ignoreWidth:false});
+      // v2.9.181: SIN encabezados/pies de sección (docx-preview los pintaba EN MEDIO del
+      // texto = membretes repetidos y todo "desconfigurado") + paginación real.
+      await lib.renderAsync(blob, cont, null, {className:'docx', inWrapper:true, ignoreWidth:false, breakPages:true, renderHeaders:false, renderFooters:false, ignoreLastRenderedPageBreak:false});
       _avlReaplicar();
     }
   }catch(e){ cont.innerHTML='<div style="text-align:center;color:#a00;padding:30px">No se pudo abrir: '+_rgEsc(String(e&&e.message||e))+'</div>'; }
