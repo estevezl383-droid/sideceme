@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.182</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.183</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4411,6 +4411,58 @@ body{
   </div>
 </section>
 
+<!-- Paso intermedio: TIPO de sanción (solo gestores: Jefe Disciplina / Estudios / C&T) -->
+<section id="screen-prof-tipo-sancion" class="screen">
+  <div class="app-header-gold">
+    <button class="back-btn" onclick="goProfBuscarCursante()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Nueva Sanción</div><div class="header-sub">Tipo de sanción</div></div>
+  </div>
+  <div class="menu-container">
+    <div id="tipo-sancion-cursante" class="info-banner-glass" style="margin-bottom:14px"></div>
+    <div class="section-big-title">¿Qué tipo de sanción vas a registrar?</div>
+    <button class="btn-papeleta primary" onclick="elegirTipoReglamento()" style="text-align:left;padding:18px">
+      <div style="font-size:16px;font-weight:800">📖 Falta del Reglamento</div>
+      <div style="font-size:12px;opacity:.85;margin-top:4px;font-weight:400">Seleccioná la falta del RA-ECEME-01-05. El puntaje lo define el reglamento.</div>
+    </button>
+    <button class="btn-papeleta" onclick="iniciarSancionConsejo()" style="text-align:left;padding:18px;margin-top:12px;border:2px solid #b58900">
+      <div style="font-size:16px;font-weight:800">⚖️ Sanción de Consejo Disciplinario</div>
+      <div style="font-size:12px;opacity:.85;margin-top:4px;font-weight:400">Puntaje directo por resolución del Consejo + documentos de respaldo. La firma la alumna/o.</div>
+    </button>
+  </div>
+</section>
+
+<!-- Sanción de Consejo Disciplinario: puntaje directo + documentos -->
+<section id="screen-prof-consejo" class="screen">
+  <div class="app-header-gold">
+    <button class="back-btn" onclick="goProfTipoSancion()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Sanción de Consejo</div><div class="header-sub">Resolución del Consejo Disciplinario</div></div>
+  </div>
+  <div class="menu-container">
+    <div id="consejo-cursante" class="papeleta-block"></div>
+    <div class="papeleta-block">
+      <div class="pb-title">⚖️ Datos de la resolución</div>
+      <label class="pb-lbl" style="display:block;margin:8px 0 3px;font-weight:700">Puntaje a perder (pts)</label>
+      <input id="consejo-puntaje" type="number" min="1" max="100" value="20" class="pb-obs-textarea" style="width:100%;min-height:0;height:46px">
+      <label class="pb-lbl" style="display:block;margin:14px 0 3px;font-weight:700">Fundamento / Artículo</label>
+      <input id="consejo-articulo" type="text" value="10, num. 3, Cap. II — RA-ECEME-01-05" class="pb-obs-textarea" style="width:100%;min-height:0;height:46px">
+      <label class="pb-lbl" style="display:block;margin:14px 0 3px;font-weight:700">Fecha de la resolución</label>
+      <input id="consejo-fecha" type="date" class="pb-obs-textarea" style="width:100%;min-height:0;height:46px">
+      <label class="pb-lbl" style="display:block;margin:14px 0 3px;font-weight:700">Motivo / Descripción</label>
+      <textarea id="consejo-desc" rows="4" maxlength="1000" class="pb-obs-textarea" style="width:100%" placeholder="Resumen de la resolución del Consejo…">Sancionada por Resolución del Consejo Académico y Disciplinario, en aplicación del Art. 10, num. 3, Cap. II del Reglamento de Disciplina de la ECEME (RA-ECEME-01-05).</textarea>
+    </div>
+    <div class="papeleta-block">
+      <div class="pb-title">📎 Documentos de respaldo</div>
+      <div class="pb-hint">Adjuntá la Resolución del Consejo y la Orden del Día (PDF o Word, máx. 25 MB c/u). Podés seleccionar varios. Los verán la alumna, el Jefe de Disciplina, el Jefe de Curso, el Jefe de Estudios y el Comandante.</div>
+      <input id="consejo-files" type="file" accept=".pdf,.doc,.docx" multiple style="margin-top:10px;width:100%">
+      <div id="consejo-files-msg" style="font-size:12px;color:#5c4a1a;margin-top:6px"></div>
+    </div>
+    <div id="consejo-progreso" style="font-size:13px;color:#2d7a4a;margin:6px 0;text-align:center;min-height:18px"></div>
+    <button class="btn-papeleta primary" id="btn-consejo-continuar" onclick="goProfConsejoAFirma(this)">✍️ Continuar a firma</button>
+  </div>
+</section>
+
 <!-- Paso 3: Vista previa -->
 <section id="screen-prof-previa" class="screen">
   <div class="app-header-gold">
@@ -4435,7 +4487,7 @@ body{
 <!-- Paso 4: Firma digital del profesor -->
 <section id="screen-prof-firma" class="screen">
   <div class="app-header-gold">
-    <button class="back-btn" onclick="goProfPrevia()">←</button>
+    <button class="back-btn" onclick="volverDesdeFirma()">←</button>
     <div class="header-crest"><svg><use href="#crest"/></svg></div>
     <div class="header-text"><div class="header-title">Nueva Sanción</div><div class="header-sub">Paso 4 de 4: Firma del profesor</div></div>
   </div>
@@ -4460,7 +4512,7 @@ body{
     </div>
 
     <button class="btn-papeleta primary" id="btn-confirmar-sancion" onclick="confirmarYFirmarSancion()">✓ Confirmar y firmar</button>
-    <button class="btn-papeleta" onclick="goProfPrevia()">← Volver</button>
+    <button class="btn-papeleta" onclick="volverDesdeFirma()">← Volver</button>
   </div>
 </section>
 
@@ -11963,6 +12015,9 @@ function verSancionDetalle(sancionId){
     <div class="sd-row"><span class="lbl">Puntaje final</span><span class="vl big">−${s.puntos_aplicados||0} PTS</span></div>
     ${s.observaciones?`<div class="sd-row"><span class="lbl">Observaciones</span><span class="vl" style="font-style:italic">${s.observaciones}</span></div>`:''}
   </div>`;
+
+  // Documentos adjuntos (sanción de Consejo Disciplinario)
+  html += htmlDocsAdjuntosSancion(s, 'dark');
 
   // Bloque 3b: OBSERVACIÓN DEL CURSANTE (si escribió descargo al firmar)
   if(s.observaciones_cursante){
@@ -23460,6 +23515,9 @@ function verAuditoria(cid){
 let nuevaSancion = {
   cursante: null,
   falta: null,
+  tipoRegistro: 'reglamento',          // 'reglamento' | 'consejo'
+  consejo: null,                       // { puntaje, articulo, fecha, descripcion }
+  documentosConsejo: [],               // [{nombre, storage_path, mime, size}]
   filtros: { ciclo:'todos', paralelo:'todos', q:'' },
   filtroFalta: { pts:'todas', q:'' },
   reincidencia: { num:0, requiereMemo:false, requiereConsejo:false, puntosBase:0, puntosFinal:0 },
@@ -23783,6 +23841,9 @@ function verDetalleSancion(sancionId){
     <div class="pb-row"><span class="pb-lbl">Puntaje final</span><span class="pb-val" style="color:#a83a3a;font-family:var(--font-display);font-weight:700;font-size:18px">−${s.puntos_aplicados||0} PTS</span></div>
   </div>`;
 
+  // Documentos adjuntos (sanción de Consejo Disciplinario)
+  html += htmlDocsAdjuntosSancion(s, 'cream');
+
   // Reincidencia
   if(typeof s.reincidencia_num === 'number' && s.reincidencia_num > 0){
     html += `<div class="papeleta-block">
@@ -24093,6 +24154,7 @@ function goProfNuevaSancion(){
   // Reset state
   nuevaSancion = {
     cursante: null, falta: null,
+    tipoRegistro: 'reglamento', consejo: null, documentosConsejo: [],
     filtros: { ciclo:'todos', paralelo:'todos', q:'' },
     filtroFalta: { pts:'todas', q:'' },
     reincidencia: { num:0, requiereMemo:false, requiereConsejo:false, puntosBase:0, puntosFinal:0 },
@@ -24262,7 +24324,181 @@ function seleccionarCursanteSancion(cursId){
   const cur = discData.cursantes.find(c => c.id===cursId);
   if(!cur){ alert('Cursante no encontrado'); return; }
   nuevaSancion.cursante = cur;
+  // Gestores (Jefe Disciplina / Estudios / C&T) eligen el TIPO de sanción.
+  // El resto del plantel va directo a la falta del reglamento (flujo intacto).
+  if(typeof esGestSanc==='function' && esGestSanc()){
+    goProfTipoSancion();
+  } else {
+    nuevaSancion.tipoRegistro = 'reglamento';
+    goProfElegirFalta();
+  }
+}
+
+/* ==================== PASO TIPO + SANCIÓN DE CONSEJO DISCIPLINARIO ==================== */
+function goProfTipoSancion(){
+  if(!nuevaSancion.cursante){ goProfBuscarCursante(); return; }
+  const c = nuevaSancion.cursante;
+  const cycloPar = [c.ciclo, c.paralelo].filter(Boolean).join(' "') + (c.paralelo?'"':'');
+  const el = document.getElementById('tipo-sancion-cursante');
+  if(el) el.innerHTML = `<div class="ibg-title">🎖️ ${escapeHtml(nombreConGrado(c))}</div><div>CI ${escapeHtml(c.ci||'—')}${cycloPar?' · '+escapeHtml(cycloPar):''}</div>`;
+  showScreen('screen-prof-tipo-sancion');
+}
+
+function elegirTipoReglamento(){
+  nuevaSancion.tipoRegistro = 'reglamento';
   goProfElegirFalta();
+}
+
+function iniciarSancionConsejo(){
+  if(typeof esGestSanc==='function' && !esGestSanc()){
+    alert('Solo el Jefe de Disciplina, Jefe de Estudios o C&T pueden registrar sanciones de Consejo.');
+    return;
+  }
+  nuevaSancion.tipoRegistro = 'consejo';
+  nuevaSancion.documentosConsejo = [];
+  nuevaSancion.consejo = null;
+  const c = nuevaSancion.cursante;
+  const cont = document.getElementById('consejo-cursante');
+  if(cont) cont.innerHTML = `<div class="pb-title">🎖️ Cursante</div>
+    <div class="pb-row"><span class="pb-lbl">Nombre</span><span class="pb-val">${escapeHtml(nombreConGrado(c))}</span></div>
+    <div class="pb-row"><span class="pb-lbl">CI</span><span class="pb-val">${escapeHtml(c.ci||'—')}</span></div>`;
+  const f = document.getElementById('consejo-fecha'); if(f && !f.value) f.value = new Date().toISOString().slice(0,10);
+  const fm = document.getElementById('consejo-files-msg'); if(fm) fm.textContent='';
+  const pr = document.getElementById('consejo-progreso'); if(pr) pr.textContent='';
+  const cf = document.getElementById('consejo-files'); if(cf) cf.value='';
+  showScreen('screen-prof-consejo');
+}
+
+// Helper genérico para invocar el EF sancion-docs con la sesión del gestor.
+async function _sdInvoke(accion, extra){
+  const tok = (typeof getTokenSesion==='function') ? getTokenSesion() : null;
+  if(!tok) return { ok:false, error:'sin sesión' };
+  try{
+    const { data, error } = await sb.functions.invoke('sancion-docs', { body: Object.assign({ accion, token: tok }, extra||{}) });
+    if(error) return { ok:false, error:(error.message||'error') };
+    return data || { ok:false, error:'sin respuesta' };
+  }catch(e){ return { ok:false, error:String((e&&e.message)||e) }; }
+}
+
+// Valida el formulario de Consejo, SUBE los documentos y va a la firma del profesor.
+async function goProfConsejoAFirma(btn){
+  const puntaje = Number(document.getElementById('consejo-puntaje').value);
+  const articulo = (document.getElementById('consejo-articulo').value||'').trim();
+  const fecha = document.getElementById('consejo-fecha').value;
+  const desc = (document.getElementById('consejo-desc').value||'').trim();
+  const files = Array.from((document.getElementById('consejo-files').files)||[]);
+
+  if(!puntaje || puntaje < 1){ alert('Ingresá un puntaje válido (mínimo 1).'); return; }
+  if(!desc){ alert('Ingresá el motivo / descripción de la resolución.'); return; }
+  for(const f of files){
+    if(!/\.(pdf|doc|docx)$/i.test(f.name)){ alert('Solo PDF o Word (.pdf, .doc, .docx): '+f.name); return; }
+    if(f.size > 25*1024*1024){ alert('El archivo supera 25 MB: '+f.name); return; }
+  }
+
+  const prog = document.getElementById('consejo-progreso');
+  if(btn){ btn.disabled = true; btn.textContent = '⏳ Subiendo…'; }
+  try{
+    const subidos = [];
+    for(let i=0;i<files.length;i++){
+      const f = files[i];
+      if(prog) prog.textContent = `Subiendo ${i+1}/${files.length}: ${f.name}…`;
+      const up = await _sdInvoke('upload_url', { filename: f.name });
+      if(!up.ok) throw new Error(up.error || 'no se obtuvo URL de subida');
+      const u = await sb.storage.from('documentos-academicos').uploadToSignedUrl(up.path, up.token, f);
+      if(u.error) throw new Error(u.error.message || ('falló la subida de '+f.name));
+      subidos.push({ nombre: f.name, storage_path: up.path, mime: f.type || 'application/octet-stream', size: f.size });
+    }
+    nuevaSancion.documentosConsejo = subidos;
+    nuevaSancion.consejo = {
+      puntaje,
+      articulo: articulo || '10, num. 3, Cap. II — RA-ECEME-01-05',
+      fecha: fecha || null,
+      descripcion: desc
+    };
+    if(prog) prog.textContent = subidos.length ? ('✅ '+subidos.length+' documento(s) listo(s).') : '';
+    goProfFirma();
+  }catch(e){
+    if(prog) prog.textContent = '⚠️ '+(e.message||e);
+    alert('No se pudieron subir los documentos: '+(e.message||e));
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = '✍️ Continuar a firma'; }
+  }
+}
+
+function volverDesdeFirma(){
+  if(nuevaSancion.tipoRegistro === 'consejo') showScreen('screen-prof-consejo');
+  else goProfPrevia();
+}
+
+/* ==================== VER DOCUMENTOS ADJUNTOS DE UNA SANCIÓN ==================== */
+// Lee huella_forense.documentos_consejo (sanciones de Consejo Disciplinario).
+function _docsConsejoDeSancion(s){
+  const hf = (typeof parseHF==='function') ? parseHF(s.huella_forense) : (s.huella_forense||{});
+  const docs = hf && hf.documentos_consejo;
+  if(!Array.isArray(docs)) return [];
+  return docs.filter(d => d && d.storage_path);
+}
+
+// Devuelve el bloque HTML "📎 Documentos adjuntos" o '' si no hay.
+// variant: 'cream' (vistas del cursante / firma) | 'dark' (panel disciplina).
+function htmlDocsAdjuntosSancion(s, variant){
+  const docs = _docsConsejoDeSancion(s);
+  if(!docs.length) return '';
+  const cream = variant === 'cream';
+  const wrap = cream ? 'papeleta-block' : 'sd-block';
+  const titleCls = cream ? 'pb-title' : 'sd-block-title';
+  const cText = cream ? '#1a0e02' : 'var(--text-primary)';
+  const cSub  = cream ? '#5c4a1a' : 'var(--text-secondary)';
+  const cBorde= cream ? 'rgba(26,14,2,.18)' : 'rgba(212,175,55,.25)';
+  const cBg   = cream ? '#fff' : 'rgba(70,130,200,.06)';
+  const rows = docs.map((d,i) => {
+    const nombre = escapeHtml(d.nombre || ('Documento '+(i+1)));
+    const kb = d.size ? ' · '+Math.max(1,Math.round(d.size/1024))+' KB' : '';
+    const btnStyle = cream
+      ? 'border:1px solid #2d7a4a;background:linear-gradient(180deg,#4ca36b,#2d7a4a);color:#fff'
+      : 'border:1px solid rgba(76,163,107,.5);background:rgba(76,163,107,.15);color:#7ac899';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:9px 10px;margin-top:6px;border:1px solid ${cBorde};border-radius:8px;background:${cBg}">
+      <span style="font-size:18px">📄</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:600;color:${cText};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nombre}</div>
+        <div style="font-size:11px;color:${cSub}">${escapeHtml(d.mime||'archivo')}${kb}</div>
+      </div>
+      <button onclick="verDocSancion('${escapeAttr(String(s.id))}','${escapeAttr(d.storage_path)}',this)" style="padding:7px 12px;border-radius:8px;${btnStyle};font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">⬇ Ver</button>
+    </div>`;
+  }).join('');
+  return `<div class="${wrap}">
+    <div class="${titleCls}">📎 Documentos adjuntos <span style="opacity:.7;font-weight:400">(${docs.length})</span></div>
+    <div style="font-size:12px;color:${cSub};margin-bottom:2px">Documentos de respaldo de la Resolución del Consejo Disciplinario.</div>
+    ${rows}
+  </div>`;
+}
+
+// Elige el token correcto: en la pantalla de firma de la alumna se usa su firma_token.
+function _tokDocSancion(){
+  const act = (document.querySelector('.screen.active')||{}).id;
+  if(act === 'screen-firma-detalle' && typeof firmaState !== 'undefined' && firmaState && firmaState.firmaToken){
+    return firmaState.firmaToken;
+  }
+  return (typeof getTokenSesion==='function') ? getTokenSesion() : null;
+}
+
+async function verDocSancion(sancionId, storagePath, btn){
+  const tok = _tokDocSancion();
+  if(!tok){ alert('Sesión no válida. Volvé a entrar.'); return; }
+  let orig = null;
+  if(btn){ orig = btn.textContent; btn.disabled = true; btn.textContent = '⏳'; }
+  try{
+    const { data, error } = await sb.functions.invoke('sancion-docs', {
+      body: { accion:'signed_url', token:tok, sancion_id:sancionId, storage_path:storagePath }
+    });
+    if(error) throw new Error(error.message || 'error del servidor');
+    if(!data || !data.ok || !data.url) throw new Error((data && data.error) || 'no se pudo abrir el documento');
+    try{ window.open(data.url, '_blank'); }catch(e){ location.href = data.url; }
+  }catch(e){
+    alert('No se pudo abrir el documento: '+(e.message||e));
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = orig; }
+  }
 }
 
 function goProfElegirFalta(){
@@ -24382,6 +24618,7 @@ async function seleccionarFaltaSancion(faltaId){
   const r = discData.reglamentos.find(x => x.id===faltaId);
   if(!r){ alert('Falta no encontrada'); return; }
   nuevaSancion.falta = r;
+  nuevaSancion.tipoRegistro = 'reglamento';
   // v2.9.111: asegurar el boundary del semestre (último cierre) ANTES de contar reincidencias,
   // por si discData vino de caché y ULTIMO_CIERRE aún no estaba cargado.
   if(!ULTIMO_CIERRE){ try{ await cargarCierreVigente(); }catch(e){} }
@@ -24687,7 +24924,8 @@ async function confirmarYFirmarSancion(){
   // antes de guardar. Si la consulta falla (offline), NO bloqueamos: no perder la sanción.
   try{
     const _c = nuevaSancion.cursante, _r = nuevaSancion.falta;
-    if(_c && _r && currentUser){
+    // Las sanciones de Consejo no tienen falta del reglamento → sin chequeo de duplicado por falta_id.
+    if(nuevaSancion.tipoRegistro !== 'consejo' && _c && _r && currentUser){
       const _desde = new Date(Date.now() - 6*60*60*1000).toISOString(); // últimas 6 h
       const _dupRes = await sb.from('v_sanciones')
         .select('folio,confirmacion_estado,creado_en')
@@ -24746,10 +24984,16 @@ async function confirmarYFirmarSancion(){
     //    (IP, dispositivo, timestamp) basta para no-repudio.
 
     // 4. Construir objeto a guardar
+    const esConsejo = nuevaSancion.tipoRegistro === 'consejo';
+    const cj = nuevaSancion.consejo || {};
     const c = nuevaSancion.cursante;
-    const r = nuevaSancion.falta;
+    const r = nuevaSancion.falta;               // null en sanción de Consejo
     const reinc = nuevaSancion.reincidencia;
     const now = new Date();
+
+    // Puntaje: en Consejo lo fija el gestor directo; en reglamento lo da la reincidencia.
+    const puntosBaseVal  = esConsejo ? (Number(cj.puntaje)||0) : reinc.puntosBase;
+    const puntosFinalVal = esConsejo ? (Number(cj.puntaje)||0) : reinc.puntosFinal;
 
     const huellaForense = {
       ip: nuevaSancion.forense.ip || null,
@@ -24760,12 +25004,17 @@ async function confirmarYFirmarSancion(){
       gps: nuevaSancion.forense.gps,
       token_qr: tokenQR,
       modo_prueba: MODO_PRUEBA,
-      reincidencia_num: reinc.num,
-      puntos_base: reinc.puntosBase,
-      puntos_final: reinc.puntosFinal,
-      requiere_memorandum: reinc.requiereMemo,
-      requiere_consejo: reinc.requiereConsejo
+      reincidencia_num: esConsejo ? 0 : reinc.num,
+      puntos_base: puntosBaseVal,
+      puntos_final: puntosFinalVal,
+      requiere_memorandum: esConsejo ? false : reinc.requiereMemo,
+      requiere_consejo: esConsejo ? true : reinc.requiereConsejo
     };
+    if(esConsejo){
+      huellaForense.tipo_registro = 'consejo_disciplinario';
+      huellaForense.fecha_resolucion = cj.fecha || null;
+      huellaForense.documentos_consejo = Array.isArray(nuevaSancion.documentosConsejo) ? nuevaSancion.documentosConsejo : [];
+    }
 
     const sancion = {
       id: `S_${nuevaSancion.folio.replace(/-/g,'_')}_${tokenQR.slice(0,8)}`,
@@ -24773,19 +25022,19 @@ async function confirmarYFirmarSancion(){
       cursante_id: c.id,
       cursante_nombre: c.nombre_completo,
       cursante_ci: c.ci,
-      falta_id: r.id,
-      falta_descripcion: getReglDesc(r),
-      falta_articulo: String(getReglArt(r)),
-      falta_categoria: normalizarCategoria(r),
+      falta_id: esConsejo ? ('consejo_'+nuevaSancion.folio.replace(/-/g,'_')) : r.id,
+      falta_descripcion: esConsejo ? (cj.descripcion || 'Sanción de Consejo Disciplinario') : getReglDesc(r),
+      falta_articulo: esConsejo ? (cj.articulo || '—') : String(getReglArt(r)),
+      falta_categoria: esConsejo ? 'CONSEJO DISCIPLINARIO' : normalizarCategoria(r),
       profesor_id: currentUser.id,
       profesor_nombre: currentUser.nombre_completo,
       profesor_grado: currentUser.grado || null,
-      puntos_base: reinc.puntosBase,
-      puntos_aplicados: reinc.puntosFinal,
-      es_reincidencia: reinc.num > 0,
-      reincidencia_num: reinc.num,
-      requiere_memorandum: reinc.requiereMemo,
-      requiere_consejo: reinc.requiereConsejo,
+      puntos_base: puntosBaseVal,
+      puntos_aplicados: puntosFinalVal,
+      es_reincidencia: esConsejo ? false : (reinc.num > 0),
+      reincidencia_num: esConsejo ? 0 : reinc.num,
+      requiere_memorandum: esConsejo ? false : reinc.requiereMemo,
+      requiere_consejo: esConsejo ? true : reinc.requiereConsejo,
       tipo: 'digital',
       confirmacion_estado: 'pendiente',  // pendiente hasta que firme el cursante
       es_prueba: MODO_PRUEBA,
@@ -24837,7 +25086,7 @@ async function confirmarYFirmarSancion(){
       if(!discData.byCursanteSanc[c.id]) discData.byCursanteSanc[c.id] = [];
       if(!discData.byCursanteSanc[c.id].some(x=>x && x.id===_nid)) discData.byCursanteSanc[c.id].push(data[0]);
       if(!MODO_PRUEBA){
-        discData.byCursanteLost[c.id] = (discData.byCursanteLost[c.id]||0) + reinc.puntosFinal;
+        discData.byCursanteLost[c.id] = (discData.byCursanteLost[c.id]||0) + puntosFinalVal;
       }
     }
 
@@ -26129,6 +26378,9 @@ function mostrarDetalleSancionParaFirma(){
     <div class="pb-row"><span class="pb-lbl">Puntaje base</span><span class="pb-val">${s.puntos_base||0} pts</span></div>
     <div class="pb-row"><span class="pb-lbl">Puntaje final</span><span class="pb-val" style="color:#a83a3a;font-family:var(--font-display);font-weight:700;font-size:18px">−${s.puntos_aplicados||0} PTS</span></div>
   </div>`;
+
+  // Documentos adjuntos (sanción de Consejo Disciplinario) — la alumna los ve antes de firmar
+  html += htmlDocsAdjuntosSancion(s, 'cream');
 
   // Registrada por
   html += `<div class="papeleta-block">
