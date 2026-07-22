@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.184</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.185</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5088,8 +5088,12 @@ body{
     <div class="field"><label>Saludo</label><input type="text" id="inf-saludo"></div>
     <div class="field"><label>Cuerpo — un párrafo por bloque (separá los párrafos con una línea en blanco). Para negrilla usá **texto**.</label><textarea id="inf-cuerpo" rows="14"></textarea></div>
     <div class="field"><label>Cierre</label><textarea id="inf-cierre" rows="2"></textarea></div>
+    <div id="inf-alumno-wrap" style="display:none">
+      <div class="field"><label>Firma del cursante (acuse) — nombre</label><input type="text" id="inf-firma-alumno"></div>
+      <div class="field"><label>Firma del cursante — lugar y fecha</label><input type="text" id="inf-firma-alumno-sub"></div>
+    </div>
     <div class="field"><label>Firma — nombre</label><input type="text" id="inf-firma-nombre"></div>
-    <div class="field"><label>Firma — grado</label><input type="text" id="inf-firma-grado"></div>
+    <div class="field"><label>Firma — grado / cargo</label><input type="text" id="inf-firma-grado"></div>
     <input type="hidden" id="inf-archivo-base">
     <button class="btn-primary" onclick="confirmarGenerarInforme()">📄 Generar y descargar Word</button>
     <button class="btn-secondary" onclick="volverDeGenerarInforme()">Cancelar</button>
@@ -9550,16 +9554,29 @@ async function seccionCargoRegistrar(){
 // ---- CAMBIO DE FUNCIONES (v2.9.171): C&T asigna profesores a las funciones del sistema ----
 // Cada cambio queda REGISTRADO en seccion_cargos (quién, desde, hasta, quién lo registró).
 // El cambio real de rol lo hace la EF profesores-ops (acción cambiar_funcion) — no el anon.
+// v2.9.185: jefe_curso se divide en DOS funciones (1er y 2do ciclo). Ambas usan el rol
+// 'jefe_curso' pero fijan el CICLO en profesores.especialidad (de ahí sale el panel JC).
+// 'key' = identificador único de la tarjeta (los ids del DOM ya no chocan entre las dos).
 const FUNCIONES_SISTEMA=[
-  {rol:'sub_ef',             sec:'ENTRENAMIENTO_FISICO', nombre:'Sub. Sec. Entrenamiento Físico', icono:'🏃'},
-  {rol:'jefe_disciplina',    sec:'DISCIPLINA',           nombre:'Sub. Sec. Disciplina',           icono:'⭐'},
-  {rol:'evaluaciones',       sec:'EVALUACIONES',         nombre:'Sub. Sec. Evaluaciones',         icono:'📝'},
-  {rol:'jefe_estudios',      sec:'JEFE_ESTUDIOS',        nombre:'Jefe de Estudios',               icono:'📚'},
-  {rol:'comandante',         sec:'COMANDANTE',           nombre:'Comandante',                     icono:'🎖️'},
-  {rol:'ciencia_tecnologia', sec:'CIENCIA_TECNOLOGIA',   nombre:'Sec. Ciencia y Tecnología',      icono:'💻'},
-  {rol:'jefe_curso',         sec:'JEFE_CURSO',           nombre:'Jefe de Curso',                  icono:'🎓'},
-  {rol:'jefe_sac',           sec:'JEFE_SAC',             nombre:'Jefe de la SAC',                 icono:'📊'}
+  {key:'sub_ef',             rol:'sub_ef',             sec:'ENTRENAMIENTO_FISICO', nombre:'Sub. Sec. Entrenamiento Físico', icono:'🏃'},
+  {key:'jefe_disciplina',    rol:'jefe_disciplina',    sec:'DISCIPLINA',           nombre:'Sub. Sec. Disciplina',           icono:'⭐'},
+  {key:'evaluaciones',       rol:'evaluaciones',       sec:'EVALUACIONES',         nombre:'Sub. Sec. Evaluaciones',         icono:'📝'},
+  {key:'jefe_estudios',      rol:'jefe_estudios',      sec:'JEFE_ESTUDIOS',        nombre:'Jefe de Estudios',               icono:'📚'},
+  {key:'comandante',         rol:'comandante',         sec:'COMANDANTE',           nombre:'Comandante',                     icono:'🎖️'},
+  {key:'ciencia_tecnologia', rol:'ciencia_tecnologia', sec:'CIENCIA_TECNOLOGIA',   nombre:'Sec. Ciencia y Tecnología',      icono:'💻'},
+  {key:'jefe_curso_1er',     rol:'jefe_curso', ciclo:'1ER CICLO', sec:'JEFE_CURSO_1ER', nombre:'Jefe de Curso — 1er Ciclo', icono:'🎓'},
+  {key:'jefe_curso_2do',     rol:'jefe_curso', ciclo:'2DO CICLO', sec:'JEFE_CURSO_2DO', nombre:'Jefe de Curso — 2do Ciclo', icono:'🎓'},
+  {key:'jefe_sac',           rol:'jefe_sac',           sec:'JEFE_SAC',             nombre:'Jefe de la SAC',                 icono:'📊'}
 ];
+function _fnByKey(k){ return FUNCIONES_SISTEMA.find(function(x){ return x.key===k; }); }
+// Normaliza la especialidad de un jefe de curso al ciclo canónico ('1ER CICLO'/'2DO CICLO').
+// Devuelve null si no se reconoce (ej. 'DEM' → el panel del jefe quedaría en 0).
+function _fnCicloDe(esp){
+  const e=String(esp||'').toUpperCase();
+  if(/1/.test(e)) return '1ER CICLO';
+  if(/2/.test(e)) return '2DO CICLO';
+  return null;
+}
 async function funcionesAbrir(){
   const prev=document.getElementById('fn-ov'); if(prev) prev.remove();
   const ov=document.createElement('div'); ov.id='fn-ov';
@@ -9576,7 +9593,9 @@ async function funcionesPintar(){
   const el=document.getElementById('fn-list'); if(!el) return;
   try{
     const [pr,hr]=await Promise.all([
-      sb.from('v_profesores').select('id,grado,nombre_completo,rol,activo'),
+      // v2.9.185: se agregan es_auxiliar (sin esto los auxiliares NUNCA se mostraban)
+      // y especialidad (ciclo de los jefes de curso).
+      sb.from('v_profesores').select('id,grado,nombre_completo,rol,activo,es_auxiliar,especialidad'),
       sb.from('seccion_cargos').select('*').order('desde',{ascending:false})
     ]);
     if(pr.error) throw pr.error;
@@ -9584,68 +9603,89 @@ async function funcionesPintar(){
       .sort(function(a,b){ return String(a.nombre_completo).localeCompare(String(b.nombre_completo)); });
     window._fnHist=hr.data||[];
     el.innerHTML=FUNCIONES_SISTEMA.map(function(f){
-      const enFuncion=window._fnProfes.filter(function(p){ return String(p.rol||'').toLowerCase()===f.rol; });
+      let enFuncion=window._fnProfes.filter(function(p){ return String(p.rol||'').toLowerCase()===f.rol; });
+      // Tarjetas de jefe de curso: solo los del ciclo de ESTA tarjeta. Los que tienen el
+      // rol pero un ciclo no reconocible (ej. especialidad 'DEM') se avisan aparte.
+      let sinCiclo=[];
+      if(f.ciclo){
+        sinCiclo=enFuncion.filter(function(p){ return !_fnCicloDe(p.especialidad); });
+        enFuncion=enFuncion.filter(function(p){ return _fnCicloDe(p.especialidad)===f.ciclo; });
+      }
       const tits=enFuncion.filter(function(p){ return p.es_auxiliar!==true; });
       const auxs=enFuncion.filter(function(p){ return p.es_auxiliar===true; });
       const titTxt=tits.length?tits.map(function(p){ return '<b style="color:#7ac899">'+escapeHtml(((p.grado||'')+' '+p.nombre_completo).trim())+'</b>'; }).join(' · '):'<b style="color:#e88a8a">VACANTE</b>';
       const auxTxt=auxs.length?auxs.map(function(p){ return '<span style="color:#8fbce8">'+escapeHtml(((p.grado||'')+' '+p.nombre_completo).trim())+'</span> <button class="btn-secondary" style="padding:1px 7px;font-size:11px" onclick="funcionAuxQuitar(\''+escapeHtml(String(p.id))+'\',\''+escapeHtml((p.nombre_completo||'').replace(/'/g,"")) +'\')">quitar</button>'; }).join(' · '):'<span style="color:#8a8a7a">ninguno</span>';
-      const hist=window._fnHist.filter(function(c){ return c.seccion===f.sec; });
+      const sinCicloTxt=sinCiclo.length?('<div style="margin:4px 0;padding:6px 8px;background:rgba(230,170,60,.1);border:1px solid rgba(230,170,60,.35);border-radius:6px;font-size:11.5px;color:#f0d28a">⚠️ Con rol Jefe de Curso pero SIN ciclo asignado: '+sinCiclo.map(function(p){ return escapeHtml(((p.grado||'')+' '+p.nombre_completo).trim()); }).join(' · ')+'. Asignalo como nuevo titular en la tarjeta de su ciclo para corregirlo.</div>'):'';
+      // Historial: cada ciclo tiene su sección, pero los registros viejos (JEFE_CURSO) se muestran en ambas.
+      const hist=window._fnHist.filter(function(c){ return c.seccion===f.sec || (f.rol==='jefe_curso' && c.seccion==='JEFE_CURSO'); });
       const histHtml=hist.length?hist.map(function(c){
         return '<div style="padding:2px 0;font-size:11.5px;color:#b8b8b8">'+(c.estado==='ACTUAL'?'⭐ ':'')+escapeHtml(((c.titular_grado||'')+' '+c.titular_nombre).trim())+' — desde '+(c.desde||'—')+(c.hasta?(' hasta '+c.hasta):' (en funciones)')+(c.observaciones?(' · '+escapeHtml(c.observaciones)):'')+(c.creado_por?(' · <span style="color:#8a8a7a">registró: '+escapeHtml(c.creado_por)+'</span>'):'')+'</div>';
       }).join(''):'<div style="font-size:11.5px;color:#8a8a7a">Sin historial registrado aún.</div>';
+      // Saliente elegible: titulares de esta tarjeta + (en jefe de curso) los que quedaron sin ciclo.
+      const salList=tits.concat(sinCiclo.filter(function(p){ return p.es_auxiliar!==true; }));
       return '<div style="border:1px solid #33333c;border-radius:8px;padding:10px 12px;margin-bottom:10px">'
         +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
         +'<span style="font-size:18px">'+f.icono+'</span><b style="color:#f4d574;flex:1">'+escapeHtml(f.nombre)+'</b>'
-        +'<button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="funcionFormToggle(\''+f.rol+'\')">🔄 Cambiar titular</button></div>'
+        +'<button class="btn-secondary" style="padding:4px 10px;font-size:12px" onclick="funcionFormToggle(\''+f.key+'\')">🔄 Cambiar titular</button></div>'
         +'<div style="margin:6px 0 2px">Titular actual: '+titTxt+'</div>'
-        +'<div style="margin:2px 0 4px;font-size:12.5px">🤝 Auxiliar(es): '+auxTxt+' <button class="btn-secondary" style="padding:1px 8px;font-size:11px;margin-left:4px" onclick="funcionAuxToggle(\''+f.rol+'\')">➕ asignar</button></div>'
-        +'<div id="fn-aux-form-'+f.rol+'" style="display:none;margin:4px 0 8px;padding:9px;background:#141c28;border:1px solid #2a3a52;border-radius:6px">'
+        +sinCicloTxt
+        +'<div style="margin:2px 0 4px;font-size:12.5px">🤝 Auxiliar(es): '+auxTxt+' <button class="btn-secondary" style="padding:1px 8px;font-size:11px;margin-left:4px" onclick="funcionAuxToggle(\''+f.key+'\')">➕ asignar</button></div>'
+        +'<div id="fn-aux-form-'+f.key+'" style="display:none;margin:4px 0 8px;padding:9px;background:#141c28;border:1px solid #2a3a52;border-radius:6px">'
         +'<div style="font-size:11.5px;color:#8fbce8;margin-bottom:5px">El auxiliar entra al MISMO panel de la función con acceso LIMITADO (no puede anular/modificar ni las acciones de mando).</div>'
-        +'<select id="fn-aux-'+f.rol+'" style="width:100%;padding:6px;background:#0f0f13;color:#ddd;border:1px solid #444;border-radius:5px">'
-        +window._fnProfes.filter(function(p){ return p.es_auxiliar!==true && String(p.rol||'').toLowerCase()!==f.rol; }).map(function(p){ return '<option value="'+escapeHtml(String(p.id))+'">'+escapeHtml(((p.grado||'')+' '+p.nombre_completo).trim())+(p.rol&&p.rol!=='profesor'?(' — actual: '+escapeHtml(p.rol)):'')+'</option>'; }).join('')
+        +'<select id="fn-aux-'+f.key+'" style="width:100%;padding:6px;background:#0f0f13;color:#ddd;border:1px solid #444;border-radius:5px">'
+        // v2.9.185: el TITULAR actual SÍ aparece (marcado) — sirve para pasarlo a auxiliar
+        // cuando entra un titular nuevo (ej. Arandia deja la jefatura y queda de auxiliar).
+        +window._fnProfes.filter(function(p){ return p.es_auxiliar!==true; }).map(function(p){ const esTit=String(p.rol||'').toLowerCase()===f.rol&&(!f.ciclo||_fnCicloDe(p.especialidad)===f.ciclo); return '<option value="'+escapeHtml(String(p.id))+'">'+escapeHtml(((p.grado||'')+' '+p.nombre_completo).trim())+(esTit?' — ⭐ TITULAR actual de esta función':(p.rol&&p.rol!=='profesor'?(' — actual: '+escapeHtml(p.rol)):''))+'</option>'; }).join('')
         +'</select>'
-        +'<button class="btn-primary" style="padding:6px 12px;margin-top:7px" onclick="funcionAuxAsignar(\''+f.rol+'\')">✓ Asignar como auxiliar</button>'
+        +'<button class="btn-primary" style="padding:6px 12px;margin-top:7px" onclick="funcionAuxAsignar(\''+f.key+'\')">✓ Asignar como auxiliar</button>'
         +'</div>'
         +'<details style="margin:4px 0"><summary style="cursor:pointer;font-size:11.5px;color:#b8b090">📜 Historial de la función ('+hist.length+')</summary>'+histHtml+'</details>'
-        +'<div id="fn-form-'+f.rol+'" style="display:none;margin-top:8px;padding:10px;background:#1c1c22;border-radius:6px">'
+        +'<div id="fn-form-'+f.key+'" style="display:none;margin-top:8px;padding:10px;background:#1c1c22;border-radius:6px">'
+        +(f.ciclo?('<div style="font-size:11.5px;color:#9bcfa9;margin-bottom:5px">📚 Al confirmar, el nuevo titular queda a cargo del <b>'+escapeHtml(f.ciclo)+'</b> (su panel mostrará los cursantes de ese ciclo).</div>'):'')
         +'<div style="font-size:12px;margin-bottom:4px">NUEVO titular:</div>'
-        +'<select id="fn-nuevo-'+f.rol+'" style="width:100%;padding:6px;background:#0f0f13;color:#ddd;border:1px solid #444;border-radius:5px">'
+        +'<select id="fn-nuevo-'+f.key+'" style="width:100%;padding:6px;background:#0f0f13;color:#ddd;border:1px solid #444;border-radius:5px">'
         +window._fnProfes.map(function(p){ return '<option value="'+escapeHtml(String(p.id))+'">'+escapeHtml(((p.grado||'')+' '+p.nombre_completo).trim())+(p.rol&&p.rol!=='profesor'?(' — actual: '+escapeHtml(p.rol)):'')+'</option>'; }).join('')
         +'</select>'
         +'<div style="font-size:12px;margin:6px 0 4px">SALIENTE (deja la función y vuelve a Profesor):</div>'
-        +'<select id="fn-sal-'+f.rol+'" style="width:100%;padding:6px;background:#0f0f13;color:#ddd;border:1px solid #444;border-radius:5px">'
+        +'<select id="fn-sal-'+f.key+'" style="width:100%;padding:6px;background:#0f0f13;color:#ddd;border:1px solid #444;border-radius:5px">'
         +'<option value="">— Sin saliente (función vacante / se agrega titular) —</option>'
-        +tits.map(function(p){ return '<option value="'+escapeHtml(String(p.id))+'" selected>'+escapeHtml(((p.grado||'')+' '+p.nombre_completo).trim())+'</option>'; }).join('')
+        +salList.map(function(p){ return '<option value="'+escapeHtml(String(p.id))+'" selected>'+escapeHtml(((p.grado||'')+' '+p.nombre_completo).trim())+'</option>'; }).join('')
         +'</select>'
         +'<div style="font-size:12px;margin:6px 0 4px">Se hace cargo DESDE:</div>'
-        +'<input type="date" id="fn-desde-'+f.rol+'" value="'+new Date().toISOString().slice(0,10)+'" style="width:100%;padding:6px;background:#0f0f13;color:#ddd;border:1px solid #444;border-radius:5px">'
+        +'<input type="date" id="fn-desde-'+f.key+'" value="'+new Date().toISOString().slice(0,10)+'" style="width:100%;padding:6px;background:#0f0f13;color:#ddd;border:1px solid #444;border-radius:5px">'
         +'<div style="font-size:12px;margin:6px 0 4px">Observaciones / motivo (ej. reorganización):</div>'
-        +'<input type="text" id="fn-obs-'+f.rol+'" placeholder="opcional" style="width:100%;padding:6px;background:#0f0f13;color:#ddd;border:1px solid #444;border-radius:5px">'
-        +'<button class="btn-primary" style="padding:7px 14px;margin-top:8px" onclick="funcionCambiarEjec(\''+f.rol+'\')">✓ Confirmar cambio</button>'
+        +'<input type="text" id="fn-obs-'+f.key+'" placeholder="opcional" style="width:100%;padding:6px;background:#0f0f13;color:#ddd;border:1px solid #444;border-radius:5px">'
+        +'<button class="btn-primary" style="padding:7px 14px;margin-top:8px" onclick="funcionCambiarEjec(\''+f.key+'\')">✓ Confirmar cambio</button>'
         +'</div></div>';
     }).join('');
   }catch(e){ el.innerHTML='<div style="color:#e88a8a">⚠️ '+escapeHtml(String(e.message||e))+'</div>'; }
 }
-function funcionFormToggle(rol){
-  const f=document.getElementById('fn-form-'+rol); if(!f) return;
+function funcionFormToggle(key){
+  const f=document.getElementById('fn-form-'+key); if(!f) return;
   f.style.display=(f.style.display==='none')?'':'none';
 }
-function funcionAuxToggle(rol){
-  const f=document.getElementById('fn-aux-form-'+rol); if(!f) return;
+function funcionAuxToggle(key){
+  const f=document.getElementById('fn-aux-form-'+key); if(!f) return;
   f.style.display=(f.style.display==='none')?'':'none';
 }
-async function funcionAuxAsignar(rol){
-  const f=FUNCIONES_SISTEMA.find(function(x){ return x.rol===rol; }); if(!f) return;
-  const sel=document.getElementById('fn-aux-'+rol); const auxId=sel&&sel.value;
+async function funcionAuxAsignar(key){
+  const f=_fnByKey(key); if(!f) return;
+  const rol=f.rol;
+  const sel=document.getElementById('fn-aux-'+key); const auxId=sel&&sel.value;
   if(!auxId){ alert('Elegí un profesor.'); return; }
   const p=(window._fnProfes||[]).find(function(x){ return String(x.id)===String(auxId); });
   const nom=p?((p.grado||'')+' '+p.nombre_completo).trim():'—';
-  if(!confirm('Asignar a '+nom+' como AUXILIAR de '+f.nombre+'.\n\nEntrará al panel de la función con acceso limitado (no podrá anular/modificar sanciones ni las acciones de mando). Deberá volver a iniciar sesión.\n\n¿Confirmar?')) return;
+  // v2.9.185: si el elegido es el TITULAR actual de esta misma función, avisar que pasa a auxiliar.
+  const eraTitular=p&&String(p.rol||'').toLowerCase()===rol&&p.es_auxiliar!==true&&(!f.ciclo||_fnCicloDe(p.especialidad)===f.ciclo);
+  const msgTit=eraTitular?'\n\n⚠️ OJO: es el TITULAR actual de esta función. Al asignarlo como auxiliar DEJA de ser titular (la función queda vacante hasta que asignes un titular nuevo con "Cambiar titular").':'';
+  if(!confirm('Asignar a '+nom+' como AUXILIAR de '+f.nombre+'.\n\nEntrará al panel de la función con acceso limitado (no podrá anular/modificar sanciones ni las acciones de mando). Deberá volver a iniciar sesión.'+msgTit+'\n\n¿Confirmar?')) return;
   try{
-    const {data,error}=await sb.functions.invoke('profesores-ops',{body:{accion:'asignar_auxiliar', token:getTokenSesion(), funcion_rol:rol, auxiliar_id:auxId}});
+    const body={accion:'asignar_auxiliar', token:getTokenSesion(), funcion_rol:rol, auxiliar_id:auxId};
+    if(f.ciclo) body.especialidad=f.ciclo;
+    const {data,error}=await sb.functions.invoke('profesores-ops',{body:body});
     if(error) throw new Error(error.message||'Error de conexión');
     if(!data||!data.ok) throw new Error((data&&data.error)||'No se pudo asignar');
-    (discData.profesores||[]).forEach(function(x){ if(String(x.id)===String(auxId)){ x.rol=rol; x.es_auxiliar=true; } });
+    (discData.profesores||[]).forEach(function(x){ if(String(x.id)===String(auxId)){ x.rol=rol; x.es_auxiliar=true; if(f.ciclo) x.especialidad=f.ciclo; } });
     alert('✓ '+nom+' es ahora auxiliar de '+f.nombre+'.');
     await funcionesPintar();
   }catch(e){ alert('❌ '+(e.message||e)); }
@@ -9660,33 +9700,38 @@ async function funcionAuxQuitar(auxId, nombre){
     await funcionesPintar();
   }catch(e){ alert('❌ '+(e.message||e)); }
 }
-async function funcionCambiarEjec(rol){
-  const f=FUNCIONES_SISTEMA.find(function(x){ return x.rol===rol; }); if(!f) return;
-  const nuevoId=document.getElementById('fn-nuevo-'+rol).value;
-  const salId=document.getElementById('fn-sal-'+rol).value||null;
-  const desde=document.getElementById('fn-desde-'+rol).value;
-  const obs=document.getElementById('fn-obs-'+rol).value.trim();
+async function funcionCambiarEjec(key){
+  const f=_fnByKey(key); if(!f) return;
+  const rol=f.rol;
+  const nuevoId=document.getElementById('fn-nuevo-'+key).value;
+  const salId=document.getElementById('fn-sal-'+key).value||null;
+  const desde=document.getElementById('fn-desde-'+key).value;
+  const obs=document.getElementById('fn-obs-'+key).value.trim();
   if(!nuevoId||!desde){ alert('Elegí al nuevo titular y la fecha.'); return; }
   if(salId===nuevoId){ alert('El entrante y el saliente son la misma persona.'); return; }
   const nuevo=(window._fnProfes||[]).find(function(p){ return String(p.id)===String(nuevoId); });
   const sal=(window._fnProfes||[]).find(function(p){ return String(p.id)===String(salId); });
   const nom=function(p){ return p?((p.grado||'')+' '+p.nombre_completo).trim():'—'; };
   if(rol==='ciencia_tecnologia' && !confirm('⚠️ Vas a transferir la ADMINISTRACIÓN DEL SISTEMA (C&T) a '+nom(nuevo)+'. Si vos dejás de ser C&T perdés el acceso a este panel. ¿Continuar?')) return;
-  if(!confirm('Asignar '+f.nombre+' a:\n\n  ENTRA: '+nom(nuevo)+'\n  SALE: '+(sal?nom(sal)+' (vuelve a Profesor)':'— (sin saliente)')+'\n  Desde: '+desde+'\n\nQuedará registrado en el historial y ambos deberán volver a iniciar sesión. ¿Confirmar?')) return;
+  if(!confirm('Asignar '+f.nombre+' a:\n\n  ENTRA: '+nom(nuevo)+(f.ciclo?('\n  A CARGO DEL: '+f.ciclo):'')+'\n  SALE: '+(sal?nom(sal)+' (vuelve a Profesor)':'— (sin saliente)')+'\n  Desde: '+desde+'\n\nQuedará registrado en el historial y ambos deberán volver a iniciar sesión. ¿Confirmar?')) return;
   try{
-    const {data,error}=await sb.functions.invoke('profesores-ops',{body:{
+    const body={
       accion:'cambiar_funcion', token:getTokenSesion(),
       funcion_rol:rol, seccion:f.sec, nuevo_id:nuevoId, saliente_id:salId,
       desde:desde, observaciones:obs||null
-    }});
+    };
+    // v2.9.185: para jefe de curso se manda el CICLO (queda en profesores.especialidad,
+    // que es de donde el panel Jefe de Curso saca sus cursantes).
+    if(f.ciclo) body.especialidad=f.ciclo;
+    const {data,error}=await sb.functions.invoke('profesores-ops',{body:body});
     if(error) throw new Error(error.message||'Error de conexión');
     if(!data||!data.ok) throw new Error((data&&data.error)||'No se pudo cambiar la función');
     // Reflejar el cambio en los datos locales sin recargar todo
     (discData.profesores||[]).forEach(function(p){
-      if(String(p.id)===String(nuevoId)) p.rol=rol;
+      if(String(p.id)===String(nuevoId)){ p.rol=rol; if(f.ciclo) p.especialidad=f.ciclo; }
       else if(salId&&String(p.id)===String(salId)&&String(p.rol||'').toLowerCase()===rol) p.rol='profesor';
     });
-    alert('✓ Cambio de función registrado.\n\n'+nom(nuevo)+' es el nuevo titular de '+f.nombre+' desde '+desde+'.\nEl cambio queda en el historial. El entrante y el saliente deben volver a iniciar sesión.');
+    alert('✓ Cambio de función registrado.\n\n'+nom(nuevo)+' es el nuevo titular de '+f.nombre+' desde '+desde+'.'+(f.ciclo?('\nSu panel mostrará los cursantes del '+f.ciclo+'.'):'')+'\nEl cambio queda en el historial. El entrante y el saliente deben volver a iniciar sesión.');
     await funcionesPintar();
   }catch(e){ alert('❌ '+(e.message||e)); }
 }
@@ -12853,7 +12898,14 @@ function _docxInformeParts(d){
   (d.cuerpo||[]).forEach(p => body.push(_pNumerado(p)));
   body.push(_pSimple(d.cierre||'Es cuanto tengo a bien informar a su Autoridad, para los fines consiguientes.', {firstline:1560, justify:true, after:400}));
   body.push(_pSimple('', {after:0}));
-  body.push(`<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="240" w:after="0"/></w:pPr>${_runs(d.firma_nombre||'',24)}</w:p>`);
+  // v2.9.185: FIRMA DEL CURSANTE (acuse) — bloque centrado ANTES de la firma del jefe,
+  // igual al modelo: nombre normal + "CBBA. DD-MMM-AA" en negrilla, y espacio grande
+  // entre ambos bloques para las rúbricas.
+  if(d.firma_alumno_nombre){
+    body.push(`<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="960" w:after="0"/></w:pPr>${_runs(d.firma_alumno_nombre,24)}</w:p>`);
+    body.push(`<w:p><w:pPr><w:jc w:val="center"/></w:pPr>${_runs(d.firma_alumno_sub||'',24,true)}</w:p>`);
+  }
+  body.push(`<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="${d.firma_alumno_nombre?2400:240}" w:after="0"/></w:pPr>${_runs(d.firma_nombre||'',24)}</w:p>`);
   body.push(`<w:p><w:pPr><w:jc w:val="center"/></w:pPr>${_runs(d.firma_grado||'',24,true)}</w:p>`);
 
   const sectPr = `<w:sectPr><w:footerReference w:type="default" r:id="rId10"/><w:pgSz w:w="12240" w:h="15840"/>`
@@ -12936,6 +12988,14 @@ function abrirGenerarInforme(borrador, backFn){
   document.getElementById('inf-cierre').value     = borrador.cierre || 'Es cuanto tengo a bien informar a su Autoridad, para los fines consiguientes.';
   document.getElementById('inf-firma-nombre').value = borrador.firma_nombre || f.nombre || '';
   document.getElementById('inf-firma-grado').value  = borrador.firma_grado  || f.grado  || '';
+  // v2.9.185: firma del cursante (acuse) — solo aparece cuando el borrador la trae
+  // (informe individual de situación del cursante).
+  const _aw = document.getElementById('inf-alumno-wrap');
+  if(_aw){
+    _aw.style.display = borrador.firma_alumno_nombre ? '' : 'none';
+    document.getElementById('inf-firma-alumno').value     = borrador.firma_alumno_nombre || '';
+    document.getElementById('inf-firma-alumno-sub').value = borrador.firma_alumno_sub || '';
+  }
   document.getElementById('inf-archivo-base').value = borrador._archivo || 'INFORME';
   showScreen('screen-generar-informe');
 }
@@ -12959,7 +13019,9 @@ function confirmarGenerarInforme(){
     cuerpo,
     cierre:              document.getElementById('inf-cierre').value.trim(),
     firma_nombre:        document.getElementById('inf-firma-nombre').value.trim(),
-    firma_grado:         document.getElementById('inf-firma-grado').value.trim()
+    firma_grado:         document.getElementById('inf-firma-grado').value.trim(),
+    firma_alumno_nombre: (document.getElementById('inf-firma-alumno')||{value:''}).value.trim(),
+    firma_alumno_sub:    (document.getElementById('inf-firma-alumno-sub')||{value:''}).value.trim()
   };
   const base = (document.getElementById('inf-archivo-base').value || 'INFORME').replace(/[^\w\-]+/g,'_').slice(0,60);
   _descargarInformeDocx(d, base);
@@ -12999,9 +13061,16 @@ function generarInformeCursante(cursanteId){
   }catch(e){}
   cuerpo.push(`Lo informado se pone en conocimiento de su Autoridad para los fines que considere convenientes, garantizando el debido seguimiento de la situación disciplinaria del Oficial Superior Cursante.`);
 
+  // v2.9.185: el informe individual lo FIRMA EL CURSANTE (acuse, como el modelo oficial)
+  // y debajo el JEFE DE DISCIPLINA ACTUAL (dinámico según el Cambio de Funciones).
+  const _fjd = _firmaRolReporte('jefe_disciplina');
   abrirGenerarInforme({
     objeto: `Informar a su Autoridad respecto a la situación disciplinaria actual del Oficial Superior Cursante ${grado}${cur.nombre_completo||''}, del ${cyp}, en el marco del Reglamento de Disciplina de la ECEME RA-ECEME-01-05.`,
     cuerpo,
+    firma_nombre: _fjd.nombre,
+    firma_grado:  'JEFE DE DISCIPLINA DE LA ECEME.',
+    firma_alumno_nombre: nombreConGrado(cur),
+    firma_alumno_sub: 'CBBA. ' + _fechaMil(),
     _archivo: 'INFORME_'+(cur.nombre_completo||cur.id).replace(/\s+/g,'_')
   }, () => verFichaCursante(cursanteId));
 }
@@ -13254,25 +13323,33 @@ function verDetalleStat(tipo){
 const MESES_ESPANOL = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
 const MESES_CORTO   = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
 
-// Firmas para los pies de los reportes oficiales (4 firmas total, en 3 filas según modelo)
-const FIRMA_JEFE_DISCIPLINA = {
-  nombre: 'Tcnl. DEM. Sergio H. Morales Millan',
-  cargo:  'JEFE DE LA SUB-SECCIÓN DISCIPLINA DE LA ECEME.'
+// Firmas para los pies de los reportes oficiales (4 firmas total, en 3 filas según modelo).
+// v2.9.185: DINÁMICAS — cada firma sale del TITULAR ACTUAL de la función según el
+// Cambio de Funciones (discData.profesores: rol + es_auxiliar=false). Los nombres de
+// abajo quedan solo como RESPALDO si la función está vacante o los datos no cargaron.
+// Se exponen con getters en window para no tocar los ~20 lugares que ya las usan.
+const _FIRMAS_DEF_REPORTE = {
+  jefe_disciplina: { nombre: 'Tcnl. DEM. Sergio H. Morales Millan',           cargo: 'JEFE DE LA SUB-SECCIÓN DISCIPLINA DE LA ECEME.' },
+  jefe_sac:        { nombre: 'Cnl. DAEN. Pedro Rene Wolff Baldiviezo',        cargo: 'JEFE DE LA SAC DE LA ECEME' },
+  jefe_estudios:   { nombre: 'Cnl. DAEN. William Gustavo Baptista Rocabado',  cargo: 'JEFE DE ESTUDIOS DE LA ECEME.' },
+  comandante:      { nombre: 'Cnl. DAEN. José Jhonny Pardo Pardo',            cargo: 'COMANDANTE DE LA ECEME.' }
 };
+function _firmaRolReporte(rol){
+  const def = _FIRMAS_DEF_REPORTE[rol] || { nombre:'—', cargo:'—' };
+  try{
+    const p = (discData.profesores||[]).find(function(x){
+      return String(x.rol||'').toLowerCase()===rol && x.es_auxiliar!==true && x.activo!==false && x.nombre_completo;
+    });
+    if(p) return { nombre: ((p.grado?p.grado+' ':'')+p.nombre_completo).trim(), cargo: def.cargo };
+  }catch(_){}
+  return def;
+}
+Object.defineProperty(window,'FIRMA_JEFE_DISCIPLINA',{configurable:true,get:function(){return _firmaRolReporte('jefe_disciplina');}});
+Object.defineProperty(window,'FIRMA_JEFE_SAC',      {configurable:true,get:function(){return _firmaRolReporte('jefe_sac');}});
+Object.defineProperty(window,'FIRMA_JEFE_ESTUDIOS', {configurable:true,get:function(){return _firmaRolReporte('jefe_estudios');}});
+Object.defineProperty(window,'FIRMA_COMANDANTE',    {configurable:true,get:function(){return _firmaRolReporte('comandante');}});
 // v2.9.135: referencia de autoría al pie del bloque de firmas (alineada a la izquierda).
 const REFERENCIA_REPORTE = 'AAE/adp.-';
-const FIRMA_JEFE_SAC = {
-  nombre: 'Cnl. DAEN. Pedro Rene Wolff Baldiviezo',
-  cargo:  'JEFE DE LA SAC DE LA ECEME'
-};
-const FIRMA_JEFE_ESTUDIOS = {
-  nombre: 'Cnl. DAEN. William Gustavo Baptista Rocabado',
-  cargo:  'JEFE DE ESTUDIOS DE LA ECEME.'
-};
-const FIRMA_COMANDANTE = {
-  nombre: 'Cnl. DAEN. José Jhonny Pardo Pardo',
-  cargo:  'COMANDANTE DE LA ECEME.'
-};
 
 function formatCicloDisplay(ciclo){
   if(!ciclo) return ciclo;
@@ -25876,7 +25953,17 @@ document.addEventListener('keydown',(e)=>{
 // ════════════════════════════════════════════════════════════════════════════
 let jcParaleloActivo = null;
 
-function getJCCiclo(){ return (currentUser && currentUser.especialidad) || ''; }
+// v2.9.185: el ciclo del Jefe de Curso vive en profesores.especialidad ('1ER CICLO'/'2DO CICLO',
+// lo fija el Cambio de Funciones). Se normaliza contra los ciclos REALES del padrón para
+// que el match con cursantes.ciclo nunca falle por formato.
+function getJCCiclo(){
+  const esp = (currentUser && currentUser.especialidad) || '';
+  if(!esp) return '';
+  const n = /1/.test(esp) ? '1' : (/2/.test(esp) ? '2' : null);
+  if(!n) return esp;  // especialidad sin número (legacy) → comportamiento anterior
+  const real = (discData.cursantes||[]).map(c=>c.ciclo).find(c => c && c.indexOf(n)>=0);
+  return real || esp;
+}
 
 function jcCursantes(paralelo){
   const ciclo = getJCCiclo();
