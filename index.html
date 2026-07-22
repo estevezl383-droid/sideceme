@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.183</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.184</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -25367,13 +25367,15 @@ function urlFirmaCursante(sancionId, tokenQR){
 
 function mostrarFichaFinal(sancion, tokenQR){
   const c = nuevaSancion.cursante;
-  const r = nuevaSancion.falta;
+  const r = nuevaSancion.falta;               // null en sanción de Consejo
+  const esConsejo = nuevaSancion.tipoRegistro === 'consejo' || !r;
   const reinc = nuevaSancion.reincidencia;
   const gps = nuevaSancion.forense.gps;
   const fullName = nombreConGrado(c);
-  const desc = getReglDesc(r) || '—';
-  const art = getReglArt(r);
-  const cat = normalizarCategoria(r);
+  // En Consejo no hay falta del reglamento → usar los datos de la propia sanción.
+  const desc = esConsejo ? (sancion.falta_descripcion || '—') : (getReglDesc(r) || '—');
+  const art  = esConsejo ? (sancion.falta_articulo   || '—') : getReglArt(r);
+  const cat  = esConsejo ? (sancion.falta_categoria  || '—') : normalizarCategoria(r);
   const cycloPar = [c.ciclo, c.paralelo].filter(Boolean).join(' "') + (c.paralelo?'"':'');
   const fechaTxt = new Date(sancion.fecha_creacion).toLocaleString('es-BO');
 
@@ -25416,8 +25418,8 @@ function mostrarFichaFinal(sancion, tokenQR){
     <div class="pb-falta-desc">${escapeHtml(desc)}</div>
     <div class="pb-row"><span class="pb-lbl">Artículo</span><span class="pb-val">Art. ${escapeHtml(art)}</span></div>
     <div class="pb-row"><span class="pb-lbl">Categoría</span><span class="pb-val">${escapeHtml(cat)}</span></div>
-    <div class="pb-row"><span class="pb-lbl">Puntaje base</span><span class="pb-val">${reinc.puntosBase} pts</span></div>
-    <div class="pb-row"><span class="pb-lbl">Puntaje final</span><span class="pb-val" style="color:#a83a3a;font-family:var(--font-display);font-weight:700;font-size:18px">−${reinc.puntosFinal} PTS</span></div>
+    <div class="pb-row"><span class="pb-lbl">Puntaje base</span><span class="pb-val">${sancion.puntos_base!=null?sancion.puntos_base:reinc.puntosBase} pts</span></div>
+    <div class="pb-row"><span class="pb-lbl">Puntaje final</span><span class="pb-val" style="color:#a83a3a;font-family:var(--font-display);font-weight:700;font-size:18px">−${sancion.puntos_aplicados!=null?sancion.puntos_aplicados:reinc.puntosFinal} PTS</span></div>
   </div>`;
 
   // Registrada por
