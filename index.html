@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.185</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.186</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -10064,7 +10064,20 @@ function semestreDe(fecha){
   if(!fecha) return null;
   return { year: fecha.getFullYear(), half: (fecha.getMonth() <= 5) ? 1 : 2 };
 }
-function semestreActual(){ return semestreDe(new Date()); }
+// v2.9.186: RELOJ CONFIABLE — si el dispositivo tiene la fecha atrasada (ej. un teléfono
+// en junio cuando ya es julio), el semestre y la reincidencia saldrían mal. Se usa como
+// piso la fecha más reciente del SERVIDOR (creado_en de las sanciones, estampado por la BD).
+function _ahoraFiable(){
+  let t = Date.now();
+  try{
+    for(const s of (discData.sanciones||[])){
+      const c = s.creado_en ? new Date(s.creado_en).getTime() : 0;
+      if(c && c > t) t = c;
+    }
+  }catch(_){}
+  return new Date(t);
+}
+function semestreActual(){ return semestreDe(_ahoraFiable()); }
 function etiquetaSemestre(sem){ return sem ? (sem.year + '-' + sem.half) : ''; }
 // v2.9.104: último cierre de semestre (boundary). Si existe, el "semestre vigente"
 // arranca DESPUÉS de la fecha de cierre (no por calendario). Se carga del backend.
@@ -24967,7 +24980,9 @@ function pedirGPSSiHaceFalta(){
 
 function generarFolio(){
   // Formato: 2026-05-NNNN
-  const now = new Date();
+  // v2.9.186: usa el reloj confiable (piso = fecha más reciente del servidor) para que
+  // un dispositivo con fecha atrasada no genere folios de un mes viejo.
+  const now = (typeof _ahoraFiable==='function') ? _ahoraFiable() : new Date();
   const yyyy = now.getFullYear();
   const mm = String(now.getMonth()+1).padStart(2,'0');
   // Tomar el siguiente número correlativo del mes
@@ -25417,18 +25432,60 @@ function limpiarBackups(){
 async function reintentarBackups(){
   const lista = obtenerBackups();
   if(!lista.length){ alert('No hay sanciones pendientes de reintentar.'); return; }
-  let ok = 0, fail = 0;
+  let ok = 0, fail = 0, yaEstaban = 0, omitidas = 0;
   const restantes = [];
   for(const item of lista){
     if(!item.sancion || !item.sancion.cursante_id){ continue; }
-    const res = await insertarSancionSegura(item.sancion);
+    const s = item.sancion;
+    // ===== v2.9.186: ANTI-DUPLICADO CONTRA EL SERVIDOR (sin límite de tiempo) =====
+    // Caso real (folio 2026-06-1096, 30-jun): la sanción SÍ se había guardado (y hasta
+    // la firmó el cursante), pero el teléfono la conservó en el respaldo local y al
+    // tocar REINTENTAR semanas después se insertó un DUPLICADO con el folio y la
+    // reincidencia calculados en junio. Ahora, antes de insertar, se verifica por
+    // FOLIO y por (cursante + falta + fecha de firma del profesor) si ya existe.
+    try{
+      let existe = null;
+      if(s.folio){
+        const q1 = await sb.from('v_sanciones').select('id,folio').eq('folio', s.folio).eq('cursante_id', s.cursante_id).limit(1);
+        if(q1 && !q1.error && q1.data && q1.data.length) existe = q1.data[0];
+      }
+      if(!existe && s.falta_id && (s.firmada_prof_en || s.fecha_creacion)){
+        const f0 = new Date(s.firmada_prof_en || s.fecha_creacion);
+        if(!isNaN(f0.getTime())){
+          const q2 = await sb.from('v_sanciones').select('id,folio')
+            .eq('cursante_id', s.cursante_id).eq('falta_id', s.falta_id)
+            .gte('firmada_prof_en', new Date(f0.getTime()-10*60*1000).toISOString())
+            .lte('firmada_prof_en', new Date(f0.getTime()+10*60*1000).toISOString())
+            .limit(1);
+          if(q2 && !q2.error && q2.data && q2.data.length) existe = q2.data[0];
+        }
+      }
+      if(existe){ yaEstaban++; continue; }  // ya está en el servidor → respaldo descartado, NO se duplica
+    }catch(_){ /* verificación falló (offline): seguimos con el flujo normal */ }
+    // ===== v2.9.186: RESPALDO VIEJO (más de 48 h) =====
+    // Su reincidencia y semestre se calcularon en OTRO momento. No se reinserta a ciegas.
+    const edadHoras = item.ts ? (Date.now() - new Date(item.ts).getTime())/36e5 : 0;
+    if(edadHoras > 48){
+      const fTxt = item.ts ? new Date(item.ts).toLocaleString('es-BO') : '—';
+      const seguir = confirm('⚠️ RESPALDO ANTIGUO (del '+fTxt+')\n\n'
+        +(s.cursante_nombre||'—')+' — '+(s.falta_descripcion||'—')+' (−'+(s.puntos_aplicados||0)+' pts, folio '+(s.folio||'—')+')\n\n'
+        +'Esta sanción se registró hace más de 48 horas: su reincidencia y su semestre corresponden a ESE momento, no al actual.\n\n'
+        +'Si la falta sigue pendiente de registro, lo correcto es CANCELAR y registrarla DE NUEVO como sanción nueva.\n\n'
+        +'¿Insertar el respaldo viejo de todos modos?');
+      if(!seguir){ omitidas++; restantes.push(item); continue; }
+    }
+    const res = await insertarSancionSegura(s);
     if(!res.error){ ok++; }
     else{ fail++; restantes.push(item); }
   }
-  // Guardar solo los que siguen fallando
+  // Guardar solo los que siguen fallando u omitidos
   try{ localStorage.setItem(BACKUP_KEY, JSON.stringify(restantes)); }catch(_){}
-  alert(`Reintento completado:\n  ✅ ${ok} guardadas con éxito\n  ❌ ${fail} siguen fallando`);
-  if(ok > 0){
+  let msg = 'Reintento completado:\n  ✅ '+ok+' guardadas con éxito';
+  if(yaEstaban) msg += '\n  ☑️ '+yaEstaban+' YA estaban guardadas en el servidor (respaldo descartado, no se duplicó)';
+  if(omitidas)  msg += '\n  ⏸️ '+omitidas+' omitidas (respaldo antiguo — registrá la falta de nuevo si corresponde)';
+  if(fail)      msg += '\n  ❌ '+fail+' siguen fallando';
+  alert(msg);
+  if(ok > 0 || yaEstaban > 0){
     await loadDiscData();
     renderProfPanel();
   }
