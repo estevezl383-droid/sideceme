@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.186</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.187</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -15930,6 +15930,7 @@ function _qzProfRender(){
         <button class="qz-mini play" onclick="qzEnVivo('${c.id}')">▶️ EN VIVO</button>
         <button class="qz-mini" onclick="qzPreview('${c.id}')">👁 Probar</button>
         <button class="qz-mini" onclick="qzEditar('${c.id}')">✏️ Editar</button>
+        <button class="qz-mini" style="border-color:#22D3EE;color:#22D3EE" onclick="qzLinkPracticaModal('${c.id}', '${c.estado}', '${escapeAttr(c.titulo)}')">🔗 Práctica libre (enlace)</button>
         <button class="qz-mini" onclick="qzResultadosPractica('${c.id}')">📊 Registro de notas</button>
         <button class="qz-mini" onclick="qzAdjuntarCarpeta('${c.id}')">📎 A mi carpeta</button>
         <button class="qz-mini warn" onclick="qzEliminar('${c.id}')">🗑</button>
@@ -15995,7 +15996,7 @@ async function qzResultadosPractica(id){
   cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando registro de notas…</div>';
   try{
     const d=await _qzInvoke('reporte',{cuestionario_id:id});
-    _qzRep={c:d.cuestionario, sesiones:d.sesiones||[], practica:d.practica||[], vivas:d.vivas||[], participantes:d.participantes||[], fuente:'practica'};
+    _qzRep={c:d.cuestionario, sesiones:d.sesiones||[], practica:d.practica||[], vivas:d.vivas||[], participantes:d.participantes||[], intentos:d.practica_intentos||[], fuente:'practica'};
     if(!_qzRep.practica.length && _qzRep.sesiones.length) _qzRep.fuente=_qzRep.sesiones[0].id;
     _qzRepRender();
   }catch(e){ cont.innerHTML='<div class="efm-no-data">⚠️ '+escapeHtml(e.message)+' — ¿re-deployaste la Edge Function quiz-ops?</div>'; }
@@ -16026,9 +16027,15 @@ function _qzRepCalc(){
     if(r.correcta===false) return s+Math.round(Math.min(1,(r.puntos||0)/1000)*itemsDe(p));
     return s;
   },0);
+  // v2.9.187: cuántas VECES practicó cada alumno (solo en la fuente "práctica libre")
+  const vecesDe={};
+  if(_qzRep.fuente==='practica'){
+    (_qzRep.intentos||[]).forEach(it=>{ vecesDe[it.cursante_id]=(vecesDe[it.cursante_id]||0)+1; });
+  }
   const alumnos=Object.values(alu).map(a=>({...a,
     nota: nCal? Math.round(a.ok/nCal*1000)/10 : null,
     items: itemsGanados(a),
+    veces: vecesDe[a.cid]||0,
     part: pregs.length? Math.round(a.respondidas/pregs.length*100) : 0
   })).sort((x,y)=> (y.nota??-1)-(x.nota??-1) || y.pts-x.pts || y.part-x.part);
   const porPreg=pregs.map((p,idx)=>{
@@ -16053,7 +16060,8 @@ function _qzRepStat(num,lbl,color){ return `<div style="flex:1;min-width:130px;b
 function _qzRepRender(){
   const cont=document.getElementById('qz-prof-body');
   const R=_qzRepCalc();
-  const hayFuentes=[['practica','📚 Práctica libre ('+new Set(_qzRep.practica.map(r=>r.cursante_id)).size+' alumnos)']]
+  const _nIntentos=(_qzRep.intentos||[]).length;
+  const hayFuentes=[['practica','📚 Práctica libre ('+new Set(_qzRep.practica.map(r=>r.cursante_id)).size+' alumnos'+(_nIntentos?(' · '+_nIntentos+' prácticas'):'')+')']]
     .concat(_qzRep.sesiones.map(s=>[s.id,_qzRepFuenteLabel(s)]));
   let html=`<button class="qz-mini" onclick="_qzProfRender()" style="margin-bottom:10px">← Volver a la lista</button>
   <div class="section-label">📊 REGISTRO DE NOTAS — ${escapeHtml(_qzRep.c.titulo)}</div>
@@ -16078,13 +16086,15 @@ function _qzRepRender(){
         ${barra}</div>`;
     }).join('')+
   `<div class="section-label" style="margin-top:14px">Notas por alumno (${R.alumnos.length})</div>`;
+  const esPrac = _qzRep.fuente==='practica';
   html+= R.alumnos.length
-    ? `<table class="qz-tabla" style="color:var(--text-primary);max-width:100%"><tr><th>#</th><th>Alumno</th><th>✓</th><th>Nota</th><th>Ítems</th><th>Pts</th><th>Partic.</th><th></th></tr>`+
-      R.alumnos.map((a,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(a.nombre)}</td><td>${a.ok}/${R.nCal}</td>
+    ? `<table class="qz-tabla" style="color:var(--text-primary);max-width:100%"><tr><th>#</th><th>Alumno</th>${esPrac?'<th>Veces</th>':''}<th>✓</th><th>Nota</th><th>Ítems</th><th>Pts</th><th>Partic.</th><th></th></tr>`+
+      R.alumnos.map((a,i)=>`<tr><td>${i+1}</td><td>${escapeHtml(a.nombre)}</td>${esPrac?`<td style="font-weight:800;color:#22D3EE">${a.veces||0}</td>`:''}<td>${a.ok}/${R.nCal}</td>
         <td style="font-weight:900;color:${a.nota==null?'inherit':(a.nota>=60?'#7be67b':'#ff9f93')}">${a.nota!=null? a.nota+'%':'—'}</td>
         <td style="font-weight:800">${a.items}/${R.itemsMax}</td>
         <td>${a.pts}</td><td>${a.part}%</td>
         <td><button class="qz-mini" onclick="qzRepIndividual('${escapeHtml(a.cid)}')">👤 Ver</button></td></tr>`).join('')+`</table>`
+      +(esPrac?`<div style="font-size:11.5px;color:var(--text-muted);margin-top:6px">🔵 <b>Veces</b> = cuántas veces practicó cada alumno con el enlace de práctica libre. La nota mostrada es la de su <b>último</b> intento.</div>`:'')
     : '<div class="efm-no-data" style="color:var(--text-muted)">Sin respuestas en esta fuente todavía.</div>';
   html+=`<div class="section-label" style="margin-top:16px">📋 Registro GENERAL (firma del profesor)</div>
   <div style="display:flex;gap:8px;flex-wrap:wrap">
@@ -17101,6 +17111,64 @@ function _qzTimerStart(abiertaEn, tiempo){
 function _qzLinkJuego(pin){
   return location.origin + location.pathname + '?pin=' + pin;
 }
+// v2.9.187: enlace de PRÁCTICA LIBRE — abierto siempre, sin PIN. El alumno entra cuando
+// quiera, pone su CI+contraseña y practica el cuestionario a su ritmo (autocalificado).
+function _qzLinkPractica(id){
+  return location.origin + location.pathname + '?practica=' + encodeURIComponent(id);
+}
+function qzLinkPracticaModal(id, estado, titulo){
+  const prev=document.getElementById('qz-lp-ov'); if(prev) prev.remove();
+  const link=_qzLinkPractica(id);
+  const publicado = (estado==='publicado');
+  const ov=document.createElement('div'); ov.id='qz-lp-ov';
+  ov.style.cssText='position:fixed;inset:0;z-index:99998;background:rgba(4,10,20,.92);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto';
+  ov.innerHTML=`<div style="width:100%;max-width:440px;background:linear-gradient(180deg,#0e172a,#091020);border:1px solid rgba(34,211,238,.45);border-radius:18px;box-shadow:0 0 50px rgba(34,211,238,.18);padding:22px;box-sizing:border-box">
+    <div style="display:flex;align-items:center;gap:8px"><b style="flex:1;color:#22D3EE;font-size:16px;letter-spacing:.5px">🔗 Práctica libre — enlace abierto</b>
+      <button class="qz-mini" onclick="document.getElementById('qz-lp-ov').remove()">✖</button></div>
+    <div style="font-size:12.5px;color:#9ec3ef;margin:6px 0 14px">${escapeHtml(titulo||'')}<br>Los alumnos entran <b>cuando quieran</b> con este enlace, ponen su CI y contraseña y practican solos. Cada práctica queda registrada (podés ver cuántas veces practicó cada uno en <b>📊 Registro de notas</b>).</div>
+    <div id="qz-lp-warn"></div>
+    <div style="display:flex;justify-content:center;margin:10px 0"><img id="qz-lp-qr" src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=${encodeURIComponent(link)}" width="200" height="200" style="background:#fff;border-radius:12px;padding:6px" alt="QR práctica"></div>
+    <div style="background:#0B1428;border:1px solid rgba(34,211,238,.35);border-radius:10px;padding:10px;font-size:12px;color:#cfe8ff;word-break:break-all;margin-bottom:10px">${escapeHtml(link)}</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="qz-btn gold" style="flex:1;min-width:130px" onclick="_qzCopiarLink('${escapeAttr(link)}')">📋 Copiar enlace</button>
+      <button class="qz-btn" style="flex:1;min-width:130px" onclick="_qzCompartirLink('${escapeAttr(link)}','${escapeAttr(titulo||'Práctica')}')">📤 Compartir</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener('click', e=>{ if(e.target===ov) ov.remove(); });
+  _qzLpRenderWarn(id, publicado);
+}
+function _qzLpRenderWarn(id, publicado){
+  const w=document.getElementById('qz-lp-warn'); if(!w) return;
+  if(publicado){
+    w.innerHTML='<div style="background:rgba(45,157,92,.12);border:1px solid #2d9d5c;border-radius:10px;padding:9px 11px;font-size:12.5px;color:#7be67b;margin-bottom:4px">✅ PUBLICADO — el enlace ya funciona. Envialo o pegalo donde quieras.</div>';
+  } else {
+    w.innerHTML='<div style="background:rgba(217,165,45,.12);border:1px solid #d9a52d;border-radius:10px;padding:9px 11px;font-size:12.5px;color:#f0d28a;margin-bottom:4px">⚠️ Este cuestionario está en <b>BORRADOR</b>. El enlace de práctica NO funcionará hasta publicarlo.'
+      +' <button class="qz-mini" style="border-color:#2d9d5c;color:#7be67b;margin-top:6px" onclick="qzPublicarRapido(\''+id+'\', this)">✅ Publicar ahora</button></div>';
+  }
+}
+async function qzPublicarRapido(id, btn){
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Publicando…'; }
+  try{
+    const d=await _qzInvoke('publicar',{id, estado:'publicado'});
+    if(!d || d.ok===false) throw new Error((d&&d.error)||'No se pudo publicar');
+    // reflejar en memoria local para que la lista y el modal se actualicen
+    try{ (_qzLista||[]).forEach(function(c){ if(String(c.id)===String(id)) c.estado='publicado'; }); }catch(_){}
+    _qzLpRenderWarn(id, true);
+    if(typeof _qzProfRender==='function') _qzProfRender();
+  }catch(e){
+    if(btn){ btn.disabled=false; btn.textContent='✅ Publicar ahora'; }
+    alert('No se pudo publicar automáticamente: '+(e.message||e)+'\n\nPodés hacerlo a mano: Editar → Estado: "Publicado".\n(Si el error menciona la Edge Function, falta re-deployar quiz-ops.)');
+  }
+}
+async function _qzCompartirLink(link, titulo){
+  const texto='🎯 Práctica: '+(titulo||'')+'\nEntrá cuando quieras con tu CI y contraseña:\n'+link;
+  try{
+    if(navigator.share){ await navigator.share({title:'Práctica ECEME', text:texto}); return; }
+  }catch(e){ if(e && e.name==='AbortError') return; }
+  try{ await navigator.clipboard.writeText(texto); alert('🔗 Enlace y mensaje copiados — pegalo en el grupo del curso'); }
+  catch(e){ prompt('Copiá el mensaje:', texto); }
+}
 function _qzAudLabel(c){
   if(!c) return '';
   const p=[];
@@ -17704,13 +17772,13 @@ function _qzNeonLoginShow(pin){
       <div style="position:absolute;top:-1px;left:-1px;width:34px;height:34px;border-top:2px solid #D4AF37;border-left:2px solid #D4AF37;border-radius:18px 0 0 0"></div>
       <div style="position:absolute;bottom:-1px;right:-1px;width:34px;height:34px;border-bottom:2px solid #D4AF37;border-right:2px solid #D4AF37;border-radius:0 0 18px 0"></div>
       <div style="text-align:center;font-family:ui-monospace,Menlo,monospace;color:#22D3EE;font-weight:900;font-size:20px;letter-spacing:2px;text-shadow:0 0 14px rgba(34,211,238,.8)">🎯 RECURSO INTERACTIVO</div>
-      <div style="text-align:center;color:#5EEAD4;font-size:13px;margin:6px 0 18px">Juego EN VIVO · PIN <b style="font-family:ui-monospace,Menlo,monospace">${pin}</b><br>Ingresá y entrás DIRECTO al juego</div>
+      <div style="text-align:center;color:#5EEAD4;font-size:13px;margin:6px 0 18px">${pin==='practica'?'Práctica libre · a tu ritmo<br>Ingresá y entrás DIRECTO a practicar':'Juego EN VIVO · PIN <b style="font-family:ui-monospace,Menlo,monospace">'+pin+'</b><br>Ingresá y entrás DIRECTO al juego'}</div>
       <div style="font-size:11px;font-weight:800;color:#22D3EE;letter-spacing:1.5px;margin-bottom:5px">CARNET DE IDENTIDAD</div>
       <input id="qzl-ci" type="text" inputmode="numeric" autocomplete="username" placeholder="Número de CI" style="width:100%;background:#0B1428;border:1.5px solid rgba(34,211,238,.5);border-radius:10px;color:#E6F1FF;font-size:16px;font-weight:700;padding:13px 14px;margin-bottom:14px;box-sizing:border-box">
       <div style="font-size:11px;font-weight:800;color:#22D3EE;letter-spacing:1.5px;margin-bottom:5px">CONTRASEÑA</div>
       <input id="qzl-pwd" type="password" autocomplete="current-password" placeholder="••••••" style="width:100%;background:#0B1428;border:1.5px solid rgba(34,211,238,.5);border-radius:10px;color:#E6F1FF;font-size:16px;font-weight:700;padding:13px 14px;margin-bottom:6px;box-sizing:border-box">
       <div id="qzl-err" style="color:#FB7185;font-size:12px;font-weight:700;min-height:16px;margin-bottom:8px"></div>
-      <button id="qzl-btn" onclick="qzNeonLogin()" style="width:100%;border:none;border-radius:12px;min-height:52px;background:linear-gradient(90deg,#0891B2,#22D3EE);color:#04121C;font-weight:900;font-size:16px;letter-spacing:1px;box-shadow:0 0 24px rgba(34,211,238,.55);cursor:pointer">▶ ENTRAR AL JUEGO</button>
+      <button id="qzl-btn" onclick="qzNeonLogin()" style="width:100%;border:none;border-radius:12px;min-height:52px;background:linear-gradient(90deg,#0891B2,#22D3EE);color:#04121C;font-weight:900;font-size:16px;letter-spacing:1px;box-shadow:0 0 24px rgba(34,211,238,.55);cursor:pointer">${pin==='practica'?'▶ ENTRAR A PRACTICAR':'▶ ENTRAR AL JUEGO'}</button>
       <div style="text-align:center;margin-top:14px"><a href="#" onclick="document.getElementById('qz-neon-login').remove();return false" style="color:#7DD3FC;font-size:12px">usar el ingreso normal de SIDECEME</a></div>
     </div>`;
     document.body.appendChild(d);
@@ -17791,6 +17859,51 @@ async function qzNeonLogin(){
         const a2=(document.querySelector('.screen.active')||{}).id;
         if(a2!=='screen-quiz-alumno') showScreen('screen-quiz-alumno');
       },500);
+    }catch(e){}
+  },600);
+})();
+
+// v2.9.187: DEEP LINK de PRÁCTICA LIBRE — ?practica=<cuestionario_id>. El alumno abre el
+// enlace cuando quiere, inicia sesión y entra DIRECTO a practicar (a su ritmo, sin PIN).
+let _qzPracPendiente=null, _qzPracWatch=null;
+(function _qzDetectarPracticaURL(){
+  let pid=null;
+  try{ pid=new URLSearchParams(location.search).get('practica'); }catch(e){}
+  if(!pid) return;
+  _qzPracPendiente=pid;
+  try{ history.replaceState(null,'',location.pathname); }catch(e){}
+  try{ sessionStorage.setItem('qz_prac_pendiente', pid); }catch(e){}
+  const ponerUI=()=>{
+    try{
+      _qzNeonLoginShow('practica');   // login neón (variante práctica)
+      if(!document.getElementById('qz-pin-aviso') && document.body){
+        const b=document.createElement('div');
+        b.id='qz-pin-aviso';
+        b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:99999;background:linear-gradient(90deg,#0891B2,#22D3EE);color:#04121C;font-weight:800;font-size:13px;text-align:center;padding:9px 12px;box-shadow:0 2px 14px rgba(34,211,238,.5)';
+        b.textContent='🎯 Práctica libre — ingresá con tu CI y contraseña y entrás directo a practicar';
+        document.body.appendChild(b);
+      }
+    }catch(e){}
+  };
+  if(document.body) ponerUI();
+  else document.addEventListener('DOMContentLoaded', ponerUI);
+  _qzPracWatch=setInterval(()=>{
+    try{
+      if(!_qzPracPendiente){ clearInterval(_qzPracWatch); return; }
+      const s=(typeof getSession==='function')?getSession():null;
+      if(!s || !currentUser) return;
+      if(s.tipo!=='cursante'){ // docente que abrió el enlace: limpiar UI y listo
+        const av1=document.getElementById('qz-pin-aviso'); if(av1) av1.remove();
+        const nl1=document.getElementById('qz-neon-login'); if(nl1) nl1.remove();
+        _qzPracPendiente=null; clearInterval(_qzPracWatch); return;
+      }
+      const act=(document.querySelector('.screen.active')||{}).id;
+      if(act!=='screen-cursante-home') return;  // esperar a que termine el login
+      const av=document.getElementById('qz-pin-aviso'); if(av) av.remove();
+      const nl=document.getElementById('qz-neon-login'); if(nl) nl.remove();
+      const pidNow=_qzPracPendiente; _qzPracPendiente=null; clearInterval(_qzPracWatch);
+      try{ sessionStorage.removeItem('qz_prac_pendiente'); }catch(e){}
+      if(typeof qzPracticaIniciar==='function') qzPracticaIniciar(pidNow);
     }catch(e){}
   },600);
 })();
