@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.187</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.188</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7690,6 +7690,16 @@ function requierePrimerIngreso(usuario, intentoUsado){
   return true;
 }
 
+// === v2.9.188 PERF: las LISTAS ya no traen las firmas (imágenes base64) ===
+// firma_profesor + firma_cursante eran el 99,3% del peso: v_sanciones select('*') pesaba
+// 15,5 MB y tardaba ~25 s en responder; con estas columnas pesa ~175 KB y tarda ~0,5 s.
+// La lógica NO cambia: todos los chequeos de "firmada" ya se resuelven con confirmacion_estado
+// (verificado contra la base: 192 sanciones con firma_cursante = 192 con estado firmada/aceptada,
+//  y 0 discrepancias en ambos sentidos). Las imágenes se piden por id recién al abrir el detalle
+// (_cargarFirmasDetalle) y en el flujo de firma, que ya consulta por id con select('*').
+// OJO: si algún día se agrega una columna a la vista v_sanciones, hay que sumarla acá.
+const SANC_COLS_LITE = 'id,folio,cursante_id,cursante_nombre,cursante_ci,profesor_id,profesor_nombre,profesor_grado,profesor_ci,falta_id,falta_articulo,falta_categoria,falta_descripcion,puntos_base,puntos_aplicados,es_reincidencia,reincidencia_num,requiere_memorandum,requiere_consejo,tipo,semestre,anulada,anulada_razon,anulada_por,anulada_por_nombre,anulada_en,reactivada_razon,reactivada_por,reactivada_en,es_prueba,es_carga_manual,carga_manual_razon,observaciones,observaciones_cursante,confirmacion_estado,firmada_prof_en,firmada_curs_en,creado_en,huella_forense';
+
 // ⚡ Carga LIVIANA para alumnos: solo SUS sanciones + reglamentos (no toda la base de ~900 filas)
 async function loadCursanteData(force=false){
   if(discData.loaded && !force) return;
@@ -7697,7 +7707,7 @@ async function loadCursanteData(force=false){
   await cargarCierreVigente();  // v2.9.104: fija el boundary del semestre antes de calcular puntajes
   try{
     const [sanRes, regRes] = await Promise.all([
-      sb.from('v_sanciones').select('*').eq('cursante_id', currentUser.id),
+      sb.from('v_sanciones').select(SANC_COLS_LITE).eq('cursante_id', currentUser.id),
       sb.from('reglamentos').select('*')
     ]);
     if(sanRes.error) console.error('sanciones (cursante):', sanRes.error);
@@ -7737,8 +7747,8 @@ async function _loadProfesorRapido(){
   try{
     const uid = currentUser && currentUser.id;
     const sanQuery = uid
-      ? sb.from('v_sanciones').select('*').eq('profesor_id', uid)
-      : sb.from('v_sanciones').select('*').limit(0);
+      ? sb.from('v_sanciones').select(SANC_COLS_LITE).eq('profesor_id', uid)
+      : sb.from('v_sanciones').select(SANC_COLS_LITE).limit(0);
     const [curRes, sanRes, regRes] = await Promise.all([
       sb.from('v_cursantes').select('*').order('id'),
       sanQuery,
@@ -11365,7 +11375,7 @@ async function _fetchDiscDataReal(silent){
     await cargarCierreVigente();  // v2.9.104: boundary del semestre antes de recomputar puntajes
     const [curRes,sanRes,profRes,regRes] = await Promise.all([
       sb.from('v_cursantes').select('*').order('id'),
-      sb.from('v_sanciones').select('*'),
+      sb.from('v_sanciones').select(SANC_COLS_LITE),
       sb.from('v_profesores').select('*').order('id'),
       sb.from('reglamentos').select('*')
     ]);
@@ -23951,6 +23961,40 @@ async function refrescarMisSanciones(){
 }
 
 /* ==================== DETALLE DE SANCIÓN (al hacer clic) ==================== */
+// v2.9.188: las firmas (imágenes base64) ya no vienen en las listas → se piden por id
+// al abrir el detalle. Si la consulta falla, el detalle igual se ve completo (sin las imágenes).
+async function _cargarFirmasDetalle(s){
+  const cont = document.getElementById('det-firmas');
+  if(!cont || !s || !s.id) return;
+  try{
+    if(s.firma_profesor===undefined && s.firma_cursante===undefined){
+      const { data, error } = await sb.from('v_sanciones')
+        .select('id,firma_profesor,firma_cursante').eq('id', s.id).limit(1);
+      if(error || !data || !data.length) return;
+      s.firma_profesor = data[0].firma_profesor;
+      s.firma_cursante = data[0].firma_cursante;
+    }
+    let h = '';
+    if(s.firma_profesor){
+      h += `<div class="papeleta-block">
+        <div class="pb-title">✍️ Firma del profesor</div>
+        <div class="firma-display"><img src="${s.firma_profesor}" alt="Firma del profesor"></div>
+      </div>`;
+    }
+    if(s.firma_cursante){
+      const fechaCurs = s.firmada_curs_en ? new Date(s.firmada_curs_en).toLocaleString('es-BO') : '';
+      h += `<div class="papeleta-block">
+        <div class="pb-title">✍️ Firma del cursante</div>
+        <div class="firma-display"><img src="${s.firma_cursante}" alt="Firma del cursante"></div>
+        ${fechaCurs?`<div style="text-align:center;font-size:11px;color:#5c4a1a;margin-top:6px;font-family:monospace">Firmada: ${fechaCurs}</div>`:''}
+      </div>`;
+    }
+    // Solo pintamos si seguimos en el MISMO detalle (el usuario pudo navegar mientras cargaba)
+    const c2 = document.getElementById('det-firmas');
+    if(c2) c2.innerHTML = h;
+  }catch(e){ console.warn('_cargarFirmasDetalle', e); }
+}
+
 function verDetalleSancion(sancionId){
   const s = discData.sanciones.find(x => x.id === sancionId);
   if(!s){ alert('Sanción no encontrada en memoria. Refrescá y volvé a intentar.'); return; }
@@ -24078,23 +24122,9 @@ function verDetalleSancion(sancionId){
     <div class="pb-row"><span class="pb-lbl">Fecha y hora</span><span class="pb-val">${fechaProf}</span></div>
   </div>`;
 
-  // Firma del profesor
-  if(s.firma_profesor){
-    html += `<div class="papeleta-block">
-      <div class="pb-title">✍️ Firma del profesor</div>
-      <div class="firma-display"><img src="${s.firma_profesor}" alt="Firma del profesor"></div>
-    </div>`;
-  }
-
-  // Firma del cursante (si firmó)
-  if(s.firma_cursante){
-    const fechaCurs = s.firmada_curs_en ? new Date(s.firmada_curs_en).toLocaleString('es-BO') : '';
-    html += `<div class="papeleta-block">
-      <div class="pb-title">✍️ Firma del cursante</div>
-      <div class="firma-display"><img src="${s.firma_cursante}" alt="Firma del cursante"></div>
-      ${fechaCurs?`<div style="text-align:center;font-size:11px;color:#5c4a1a;margin-top:6px;font-family:monospace">Firmada: ${fechaCurs}</div>`:''}
-    </div>`;
-  }
+  // Firmas (v2.9.188): las imágenes base64 ya no viajan en las listas.
+  // Se piden por id al abrir el detalle y se inyectan acá (ver _cargarFirmasDetalle).
+  html += `<div id="det-firmas"></div>`;
 
   // Observaciones del cursante
   if(s.observaciones_cursante){
@@ -24179,6 +24209,7 @@ function verDetalleSancion(sancionId){
   html += `<button class="btn-papeleta" onclick="goAnyPanel()">← Volver al panel</button>`;
 
   document.getElementById('det-content').innerHTML = html;
+  _cargarFirmasDetalle(s);   // v2.9.188: trae las imágenes de firma de ESTA sanción
   showScreen('screen-prof-detalle-sancion');
 
   // Inicializar mapa y QR después del render
