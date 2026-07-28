@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.189</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.190</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4292,6 +4292,11 @@ body{
       <span>Horario Semanal</span>
     </button>
 
+    <button class="btn-mega" onclick="goCargasNotas()" style="background:linear-gradient(180deg,#8a6db5,#5a4080);margin-bottom:8px">
+      <span class="mega-icon">🗂️</span>
+      <span>Cargas de notas (quién y cuándo)</span>
+    </button>
+
     <div class="ef-filtros">
       <input type="text" id="eval-filtro-nombre" placeholder="🔎 Buscar nombre o CI..." oninput="filtrarCursantesEval()">
       <select id="eval-filtro-ciclo" onchange="filtrarCursantesEval()"><option value="">Todos ciclos</option></select>
@@ -4305,12 +4310,40 @@ body{
 <!-- =============== v2.9.189: DETALLE ACADÉMICO DE UN CURSANTE =============== -->
 <section id="screen-eval-cursante" class="screen">
   <div class="app-header">
-    <button class="back-btn" onclick="goEvalPanel()">←</button>
+    <button class="back-btn" onclick="volverDeNotasCursante()">←</button>
     <div class="header-crest"><svg><use href="#crest"/></svg></div>
     <div class="header-text"><div class="header-title">Notas Académicas</div><div class="header-sub" id="eval-det-sub">Detalle del cursante</div></div>
   </div>
   <div class="menu-container">
     <div id="eval-det-content"></div>
+  </div>
+</section>
+
+<!-- =============== v2.9.190: REGISTRO DE CARGAS DE NOTAS =============== -->
+<!-- Quién cargó notas, cuándo, de qué materias y a cuántos alumnos.        -->
+<!-- Lee cargado_por + creado_en de notas_academicas → funciona IGUAL si la -->
+<!-- carga se hizo por SQL Editor o desde la app. Ve el Sub. Sec.           -->
+<!-- Evaluaciones y C&T.                                                    -->
+<section id="screen-cargas-notas" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goAnyPanel()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Cargas de Notas</div><div class="header-sub" id="cn-sub">Registro de quién cargó y cuándo</div></div>
+  </div>
+  <div class="menu-container">
+    <div class="alert-banner blue"><div class="alert-emoji">🗂️</div><div class="alert-text"><div class="alert-desc">Cada tanda de notas cargada a la base, con su responsable, fecha, período y alcance. Tocá una tanda para ver las materias y los alumnos afectados.</div></div></div>
+    <div id="cn-lista"></div>
+  </div>
+</section>
+
+<section id="screen-carga-detalle" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goCargasNotas()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Detalle de la carga</div><div class="header-sub" id="cd-sub">—</div></div>
+  </div>
+  <div class="menu-container">
+    <div id="cd-content"></div>
   </div>
 </section>
 
@@ -5039,6 +5072,7 @@ body{
       <!-- v2.9.120: retirado "Aula Virtual (abrir/cerrar materias)" — consolidado en Carpeta de Clases; los PDFs viejos se migraron a Materiales de Clase -->
       <button id="qa-btn-carpeta-clases" class="quick-btn" onclick="goAulaVirtual('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(31,111,92,.22),rgba(14,74,60,.06));border-color:#1f6f5c;display:none"><span class="qa-icon">🎓</span><span class="qa-text"><strong>Carpeta de Clases</strong> (documentación de la materia + compartir material con el curso)</span></button>
       <button id="qa-btn-quiz" class="quick-btn" onclick="goQuizProf('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(140,45,176,.22),rgba(106,31,176,.06));border-color:#8c2db0"><span class="qa-icon">🎯</span><span class="qa-text"><strong>Recurso Interactivo</strong> (quiz en vivo · muro de ideas · nube de palabras — para el avance de materias)</span></button>
+      <button id="qa-btn-cargas-notas" class="quick-btn" onclick="goCargasNotas()" style="background:linear-gradient(180deg,rgba(138,109,181,.2),rgba(138,109,181,.05));border-color:#8a6db5;display:none"><span class="qa-icon">🗂️</span><span class="qa-text"><strong>Cargas de notas</strong> (quién cargó, cuándo y qué)</span></button>
       <button id="qa-btn-avisos" class="quick-btn" onclick="goAvisos()" style="background:linear-gradient(180deg,rgba(70,150,110,.2),rgba(70,150,110,.05));border-color:#46966e;display:none"><span class="qa-icon">📢</span><span class="qa-text"><strong>Avisos a cursantes</strong> (publicar / desactivar cartel in-app)</span></button>
       <button class="quick-btn" onclick="goDocsProfesoresCT()" style="background:linear-gradient(180deg,rgba(140,90,203,.18),rgba(140,90,203,.05));border-color:#8c5acb"><span class="qa-icon">👨‍🏫</span><span class="qa-text"><strong>Documentos del personal docente</strong> (subir / ver — solo profesores)</span></button>
       <button class="quick-btn" onclick="goDocsInst('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(140,90,203,.22),rgba(107,75,168,.06));border-color:#8c5acb"><span class="qa-icon">📁</span><span class="qa-text"><strong>Documentos Institucionales</strong> (publicar / recibir — por ciclo, profesores, mando)</span></button>
@@ -8063,6 +8097,8 @@ async function verEvalCursante(cursanteId){
   const cont = document.getElementById('eval-det-content');
   if(!cont) return;
   document.getElementById('eval-det-sub').textContent = cur ? nombreConGrado(cur) : cursanteId;
+  const _act = document.querySelector('.screen.active');
+  _notasVolverA = _act ? _act.id : 'screen-eval-panel';   // v2.9.190: recordar de dónde vino
   cont.innerHTML = '<div class="efm-no-data">Cargando notas…</div>';
   showScreen('screen-eval-cursante');
 
@@ -8133,6 +8169,179 @@ async function verEvalCursante(cursanteId){
   });
 
   cont.innerHTML = html;
+}
+
+// ============================================================
+// v2.9.190 — REGISTRO DE CARGAS DE NOTAS
+// Sergio (C&T) y el Sub. Sec. Evaluaciones necesitan VER quién cargó notas,
+// cuándo, de qué período y a cuántos alumnos — y desde ahí ir a las notas de
+// cada alumno de esa tanda.
+// Se arma leyendo `cargado_por` + `creado_en` de notas_academicas, que ya se
+// guardan en cada fila. Por eso funciona IGUAL si la carga se hizo por SQL
+// Editor (como viene haciendo Sergio) o desde la app el día que exista el
+// cargador: no depende del método de carga.
+// ============================================================
+const cargasData = { tandas: [], filas: [], loaded: false };
+
+// notas_academicas tiene 5.554 filas y PostgREST corta en 1.000 → paginamos.
+// Solo columnas livianas: las 6 páginas juntas pesan ~74 KB.
+async function _cargasTraerTodo(){
+  const cols = 'cursante_id,cargado_por,creado_en,gestion,semestre,ciclo,materia,nota_final,atributo,om_materia';
+  let out = [], desde = 0;
+  for(let i=0; i<25; i++){
+    const { data, error } = await sb.from('notas_academicas')
+      .select(cols).order('creado_en',{ascending:false}).range(desde, desde+999);
+    if(error || !data) break;
+    out = out.concat(data);
+    if(data.length < 1000) break;
+    desde += 1000;
+  }
+  return out;
+}
+
+// Una "tanda" = mismo responsable + mismo día + mismo período/ciclo.
+async function loadCargasNotas(force){
+  if(cargasData.loaded && !force) return;
+  const filas = await _cargasTraerTodo();
+  const mapa = {};
+  filas.forEach(function(n){
+    const dia = String(n.creado_en || '').slice(0,10);
+    const k = [n.cargado_por||'(sin responsable)', dia, n.gestion, n.semestre, n.ciclo||''].join('|');
+    if(!mapa[k]){
+      mapa[k] = {
+        clave: k,
+        por: n.cargado_por || '(sin responsable)',
+        dia: dia,
+        cuando: n.creado_en,
+        gestion: n.gestion, semestre: n.semestre, ciclo: n.ciclo || '',
+        filas: [], alumnos: new Set(), materias: new Set()
+      };
+    }
+    const t = mapa[k];
+    t.filas.push(n);
+    if(n.cursante_id) t.alumnos.add(n.cursante_id);
+    if(n.materia) t.materias.add(n.materia);
+    if(n.creado_en > t.cuando) t.cuando = n.creado_en;   // la hora más reciente de la tanda
+  });
+  cargasData.filas = filas;
+  cargasData.tandas = Object.keys(mapa).map(function(k){ return mapa[k]; })
+    .sort(function(a,b){ return String(b.cuando||'').localeCompare(String(a.cuando||'')); });
+  cargasData.loaded = true;
+}
+
+async function goCargasNotas(){
+  showScreen('screen-cargas-notas');
+  const cont = document.getElementById('cn-lista');
+  if(cont && !cargasData.loaded) cont.innerHTML = '<div class="efm-no-data">Cargando registro…</div>';
+  await loadCargasNotas();
+  renderCargasNotas();
+}
+
+function renderCargasNotas(){
+  const cont = document.getElementById('cn-lista');
+  if(!cont) return;
+  const sub = document.getElementById('cn-sub');
+  if(sub) sub.textContent = cargasData.tandas.length + ' carga(s) registrada(s)';
+  if(!cargasData.tandas.length){
+    cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">Todavía no hay notas cargadas.</div>';
+    return;
+  }
+  cont.innerHTML = cargasData.tandas.map(function(t, i){
+    const f = t.cuando ? new Date(t.cuando).toLocaleString('es-BO') : t.dia;
+    const per = etiquetaSemAcad(t.ciclo, t.semestre) + ' · ' + t.gestion + (t.ciclo ? (' · ' + t.ciclo) : '');
+    return '<div class="ef-cursante-row" onclick="verCargaDetalle(' + i + ')" style="align-items:flex-start">'
+      + '<div>'
+      + '<div class="ef-cur-nombre">🗂️ ' + escapeHtml(per) + '</div>'
+      + '<div class="ef-cur-meta">Cargado por <strong>' + escapeHtml(t.por) + '</strong></div>'
+      + '<div class="ef-cur-meta">' + escapeHtml(f) + '</div>'
+      + '<div class="ef-cur-meta">' + t.alumnos.size + ' alumnos · ' + t.materias.size + ' materias · ' + t.filas.length + ' notas</div>'
+      + '</div>'
+      + '<div class="ef-cur-nota B" style="font-size:16px">' + t.filas.length + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function verCargaDetalle(idx){
+  const t = cargasData.tandas[idx];
+  const cont = document.getElementById('cd-content');
+  if(!t || !cont) return;
+  document.getElementById('cd-sub').textContent = t.por + ' · ' + (t.cuando ? new Date(t.cuando).toLocaleDateString('es-BO') : t.dia);
+
+  // Notas por materia dentro de la tanda
+  const porMateria = {};
+  t.filas.forEach(function(n){
+    if(!porMateria[n.materia]) porMateria[n.materia] = [];
+    porMateria[n.materia].push(n);
+  });
+  // Alumnos de la tanda, con su promedio EN ESTA CARGA
+  const porAlumno = {};
+  t.filas.forEach(function(n){
+    if(!porAlumno[n.cursante_id]) porAlumno[n.cursante_id] = [];
+    porAlumno[n.cursante_id].push(n);
+  });
+
+  const f = t.cuando ? new Date(t.cuando).toLocaleString('es-BO') : t.dia;
+  let html = '<div class="sd-block">'
+    + '<div class="sd-block-title">🗂️ ' + escapeHtml(etiquetaSemAcad(t.ciclo, t.semestre) + ' · ' + t.gestion + (t.ciclo ? (' · ' + t.ciclo) : '')) + '</div>'
+    + '<div class="sd-row"><span class="lbl">Cargado por</span><span class="vl">' + escapeHtml(t.por) + '</span></div>'
+    + '<div class="sd-row"><span class="lbl">Fecha y hora</span><span class="vl">' + escapeHtml(f) + '</span></div>'
+    + '<div class="sd-row"><span class="lbl">Alumnos</span><span class="vl">' + t.alumnos.size + '</span></div>'
+    + '<div class="sd-row"><span class="lbl">Materias</span><span class="vl">' + t.materias.size + '</span></div>'
+    + '<div class="sd-row"><span class="lbl">Notas cargadas</span><span class="vl">' + t.filas.length + '</span></div>'
+    + '</div>';
+
+  // Materias de esta carga
+  html += '<div class="sd-block"><div class="sd-block-title">📘 Materias de esta carga</div>';
+  html += Object.keys(porMateria).sort().map(function(m){
+    const arr = porMateria[m];
+    const vals = arr.map(function(n){ return Number(n.nota_final); }).filter(function(v){ return !isNaN(v) && v>0; });
+    const prom = vals.length ? (vals.reduce(function(a,b){return a+b;},0)/vals.length) : null;
+    const cls = prom != null ? atributoCalificacion(prom) : 'sin';
+    return '<div class="ef-cursante-row" style="cursor:default">'
+      + '<div><div class="ef-cur-nombre">' + escapeHtml(m||'—') + '</div>'
+      + '<div class="ef-cur-meta">' + arr.length + ' alumnos</div></div>'
+      + '<div class="ef-cur-nota ' + cls + '">' + (prom != null ? prom.toFixed(2) : '—') + '</div>'
+      + '</div>';
+  }).join('');
+  html += '</div>';
+
+  // Alumnos de esta carga → tocar abre TODAS sus notas
+  html += '<div class="sd-block"><div class="sd-block-title">👥 Alumnos de esta carga</div>'
+    + '<div style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px">Tocá un alumno para ver todas sus notas académicas.</div>';
+  const ids = Object.keys(porAlumno).sort(function(a,b){
+    const ca = (discData.cursantes||[]).find(function(c){ return String(c.id)===String(a); });
+    const cb = (discData.cursantes||[]).find(function(c){ return String(c.id)===String(b); });
+    return ((ca&&ca.nombre_completo)||a).localeCompare((cb&&cb.nombre_completo)||b);
+  });
+  html += ids.map(function(id){
+    const cur = (discData.cursantes||[]).find(function(c){ return String(c.id)===String(id); });
+    const arr = porAlumno[id];
+    const vals = arr.map(function(n){ return Number(n.nota_final); }).filter(function(v){ return !isNaN(v) && v>0; });
+    const prom = vals.length ? (vals.reduce(function(a,b){return a+b;},0)/vals.length) : null;
+    const cls = prom != null ? atributoCalificacion(prom) : 'sin';
+    const nom = cur ? nombreConGrado(cur) : id;
+    const meta = (cur ? [cur.ciclo, cur.paralelo ? '"'+cur.paralelo+'"' : ''].filter(Boolean).join(' · ') + ' · ' : '') + arr.length + ' materias en esta carga';
+    return '<div class="ef-cursante-row" onclick="verEvalCursante(\'' + escapeAttr(String(id)) + '\')">'
+      + '<div><div class="ef-cur-nombre">' + escapeHtml(nom) + '</div>'
+      + '<div class="ef-cur-meta">' + escapeHtml(meta) + '</div></div>'
+      + '<div class="ef-cur-nota ' + cls + '">' + (prom != null ? prom.toFixed(2) : '—') + '</div>'
+      + '</div>';
+  }).join('');
+  html += '</div>';
+
+  cont.innerHTML = html;
+  showScreen('screen-carga-detalle');
+}
+
+// La ficha de notas de un alumno se abre desde 3 lados (panel de Evaluaciones,
+// detalle de una carga, o el registro): el botón ← tiene que volver al que la abrió.
+let _notasVolverA = 'screen-eval-panel';
+function volverDeNotasCursante(){
+  if(_notasVolverA === 'screen-carga-detalle' || _notasVolverA === 'screen-cargas-notas'){
+    showScreen(_notasVolverA);
+  } else {
+    goAnyPanel();
+  }
 }
 
 function renderGenericoPanel(role){
@@ -11941,7 +12150,7 @@ function renderDiscPanel(){
 
   // Visibilidad de botones según rol
   const soloCT = esCT();
-  const btnsCT = ['qa-btn-gest-cursantes','qa-btn-gest-profesores','qa-btn-diagnostico','qa-btn-pwd-otro','qa-btn-bloqueo-materias','qa-btn-carpeta-clases','qa-btn-avisos','qa-btn-cerrar-sem','qa-btn-funciones'];
+  const btnsCT = ['qa-btn-gest-cursantes','qa-btn-gest-profesores','qa-btn-diagnostico','qa-btn-pwd-otro','qa-btn-bloqueo-materias','qa-btn-carpeta-clases','qa-btn-avisos','qa-btn-cerrar-sem','qa-btn-funciones','qa-btn-cargas-notas'];
   btnsCT.forEach(id => {
     const el = document.getElementById(id);
     if(el) el.style.display = soloCT ? '' : 'none';
