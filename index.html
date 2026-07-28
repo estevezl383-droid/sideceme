@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.188</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.189</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4240,6 +4240,77 @@ body{
   </div>
   <div class="menu-container">
     <div id="ef-det-content"></div>
+  </div>
+</section>
+
+<!-- =============== v2.9.189: PANEL SUB. SEC. EVALUACIONES =============== -->
+<!-- Espejo del panel de Entrenamiento Físico: donde el de EF ve notas EFM,   -->
+<!-- éste ve NOTAS ACADÉMICAS. Reusa las mismas clases CSS (.ef-*), no        -->
+<!-- agrega estilos nuevos.                                                   -->
+<section id="screen-eval-panel" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="logout()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Sub. Sec. Evaluaciones</div><div class="header-sub" id="eval-header-sub">Notas académicas</div></div>
+  </div>
+  <div class="menu-container">
+    <div class="user-strip">
+      <div class="user-avatar" id="eval-initials">—</div>
+      <div class="user-info"><div class="user-name" id="eval-name">—</div><div class="user-rank" id="eval-rank">—</div></div>
+      <button class="btn-logout" onclick="logout()">Salir</button>
+    </div>
+
+    <div id="banner-push-eval"></div>
+
+    <div class="ef-panel-stats">
+      <div class="ef-stat-card">
+        <div class="ef-stat-num" id="eval-stat-total">0</div>
+        <div class="ef-stat-lbl">Cursantes</div>
+      </div>
+      <div class="ef-stat-card">
+        <div class="ef-stat-num" id="eval-stat-connotas">0</div>
+        <div class="ef-stat-lbl">Con notas</div>
+      </div>
+      <div class="ef-stat-card">
+        <div class="ef-stat-num" id="eval-stat-promedio">—</div>
+        <div class="ef-stat-lbl">Promedio</div>
+      </div>
+    </div>
+
+    <button class="btn-mega" onclick="goProfNuevaSancion()" style="margin-bottom:8px">
+      <span class="mega-icon">📝</span>
+      <span>Registrar nueva sanción</span>
+    </button>
+
+    <button class="btn-mega" onclick="goMisSancionados()" style="background:linear-gradient(180deg,#2d6a4f,#1b4332);margin-bottom:8px">
+      <span class="mega-icon">👥</span>
+      <span>Mis sancionados</span>
+    </button>
+
+    <button class="btn-mega" onclick="goHorarios()" style="background:linear-gradient(180deg,#4a90d9,#2d5a8a);margin-bottom:8px">
+      <span class="mega-icon">📅</span>
+      <span>Horario Semanal</span>
+    </button>
+
+    <div class="ef-filtros">
+      <input type="text" id="eval-filtro-nombre" placeholder="🔎 Buscar nombre o CI..." oninput="filtrarCursantesEval()">
+      <select id="eval-filtro-ciclo" onchange="filtrarCursantesEval()"><option value="">Todos ciclos</option></select>
+      <select id="eval-filtro-paralelo" onchange="filtrarCursantesEval()"><option value="">Todos paralelos</option></select>
+    </div>
+
+    <div id="eval-cursantes-list"></div>
+  </div>
+</section>
+
+<!-- =============== v2.9.189: DETALLE ACADÉMICO DE UN CURSANTE =============== -->
+<section id="screen-eval-cursante" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goEvalPanel()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Notas Académicas</div><div class="header-sub" id="eval-det-sub">Detalle del cursante</div></div>
+  </div>
+  <div class="menu-container">
+    <div id="eval-det-content"></div>
   </div>
 </section>
 
@@ -7807,6 +7878,16 @@ async function enterRole(role){
     await loadEvaluacionesFisicas();
     renderEfPanel();
     showScreen('screen-ef-panel');
+  } else if(role==='evaluaciones'){
+    // v2.9.189: Sub. Sec. Evaluaciones → panel propio con notas académicas.
+    // Antes caía al else y veía "Panel en construcción".
+    if(!discData.loaded){
+      await _loadProfesorRapido();
+      loadDiscData(true).catch(()=>{});
+    }
+    await loadNotasAcademicas();
+    renderEvalPanel();
+    showScreen('screen-eval-panel');
   } else {
     renderGenericoPanel(role);
     showScreen('screen-panel-generico');
@@ -7815,6 +7896,243 @@ async function enterRole(role){
   try{ iniciarNotificaciones(); }catch(e){}
   // v2.9.60: precarga libs pesadas en background tras el login (no bloqueante)
   try{ _warmupLibs(); }catch(e){}
+}
+
+// ============================================================
+// v2.9.189 — PANEL SUB. SEC. EVALUACIONES  (Tcnl. Diaz Andia, P008)
+// Antes el rol 'evaluaciones' caía al else de enterRole → "Panel en construcción".
+// Este panel es el ESPEJO del de Entrenamiento Físico: mismas clases CSS,
+// mismos botones de disciplina (registrar sanción / mis sancionados / horario),
+// y donde el de EF muestra la nota EFM, éste muestra el PROMEDIO ACADÉMICO.
+// El auxiliar de la sección (es_auxiliar) entra al mismo panel; la app ya
+// restringe por su cuenta las acciones de mando vía esAuxiliar().
+// ============================================================
+const evalData = { byCursante:{}, gestion:null, semestre:null, loaded:false };
+
+// PostgREST corta en 1000 filas por consulta y hoy notas_academicas tiene 5.554
+// → hay que paginar. Sin esto la lista mostraría solo una parte del curso.
+async function _evalTraerPagina(gestion, semestre){
+  const cols = 'cursante_id,gestion,semestre,ciclo,materia,nota_final,atributo,om_materia';
+  let out = [], desde = 0;
+  for(let i=0; i<25; i++){                       // tope de seguridad: 25.000 filas
+    const { data, error } = await sb.from('notas_academicas')
+      .select(cols).eq('gestion', gestion).eq('semestre', semestre)
+      .order('cursante_id').range(desde, desde+999);
+    if(error || !data) break;
+    out = out.concat(data);
+    if(data.length < 1000) break;
+    desde += 1000;
+  }
+  return out;
+}
+
+// Carga el ÚLTIMO período cargado (gestión + semestre más recientes).
+async function loadNotasAcademicas(force){
+  if(evalData.loaded && !force) return;
+  try{
+    const { data: ult } = await sb.from('notas_academicas')
+      .select('gestion,semestre').order('gestion',{ascending:false})
+      .order('semestre',{ascending:false}).limit(1);
+    if(!ult || !ult.length){ evalData.loaded = true; return; }
+    const g = ult[0].gestion, s = ult[0].semestre;
+    const filas = await _evalTraerPagina(g, s);
+    const by = {};
+    filas.forEach(function(n){
+      if(!by[n.cursante_id]) by[n.cursante_id] = [];
+      by[n.cursante_id].push(n);
+    });
+    evalData.byCursante = by;
+    evalData.gestion = g;
+    evalData.semestre = s;
+    evalData.loaded = true;
+  }catch(e){ console.warn('loadNotasAcademicas', e); }
+}
+
+// Promedio de las materias con nota de un cursante en el período cargado.
+function _evalPromedio(cursanteId){
+  const ns = evalData.byCursante[cursanteId] || [];
+  const vals = ns.map(function(n){ return Number(n.nota_final); })
+                 .filter(function(v){ return !isNaN(v) && v > 0; });
+  if(!vals.length) return null;
+  return vals.reduce(function(a,b){ return a+b; }, 0) / vals.length;
+}
+
+function renderEvalPanel(){
+  if(!currentUser) return;
+  const s = getSession();
+  if(s && s.tipo !== 'docente'){
+    console.error('[SEGURIDAD] Acceso denegado a panel Evaluaciones: tipo =', s.tipo);
+    logout(); return;
+  }
+  const name = currentUser.nombre_completo || 'Sub. Sec. Evaluaciones';
+  const initials = name.split(' ').filter(Boolean).slice(0,2).map(function(w){ return w[0]; }).join('').toUpperCase();
+  document.getElementById('eval-name').textContent = nombreConGrado(currentUser);
+  document.getElementById('eval-rank').textContent = esAuxiliar()
+    ? 'Sub. Sec. Evaluaciones — Auxiliar'
+    : 'Sub. Sec. Evaluaciones';
+  document.getElementById('eval-initials').textContent = initials || '—';
+
+  const subEl = document.getElementById('eval-header-sub');
+  if(subEl){
+    // El período abarca los dos ciclos, así que se muestra el semestre CRUDO
+    // (1 ó 2 dentro de la gestión), no la etiqueta 1ER..4TO que depende del ciclo.
+    subEl.textContent = evalData.gestion
+      ? ('Notas académicas · gestión ' + evalData.gestion + ' · semestre ' + evalData.semestre)
+      : 'Notas académicas';
+  }
+
+  const total = (discData.cursantes||[]).filter(function(c){ return c.activo !== false; }).length;
+  const conNotas = Object.keys(evalData.byCursante||{}).length;
+  const proms = Object.keys(evalData.byCursante||{})
+    .map(_evalPromedio).filter(function(p){ return p != null; });
+  const promedio = proms.length
+    ? (proms.reduce(function(a,b){ return a+b; },0) / proms.length).toFixed(1)
+    : '—';
+  document.getElementById('eval-stat-total').textContent = total;
+  document.getElementById('eval-stat-connotas').textContent = conNotas;
+  document.getElementById('eval-stat-promedio').textContent = promedio;
+
+  const ciclos = [...new Set((discData.cursantes||[]).map(function(c){ return c.ciclo; }).filter(Boolean))].sort();
+  const paralelos = [...new Set((discData.cursantes||[]).map(function(c){ return c.paralelo; }).filter(Boolean))].sort();
+  const selCiclo = document.getElementById('eval-filtro-ciclo');
+  const selPara = document.getElementById('eval-filtro-paralelo');
+  if(selCiclo && selCiclo.options.length <= 1){
+    ciclos.forEach(function(c){ const o=document.createElement('option'); o.value=c; o.textContent=c; selCiclo.appendChild(o); });
+  }
+  if(selPara && selPara.options.length <= 1){
+    paralelos.forEach(function(p){ const o=document.createElement('option'); o.value=p; o.textContent=p; selPara.appendChild(o); });
+  }
+
+  filtrarCursantesEval();
+}
+
+function filtrarCursantesEval(){
+  const elN = document.getElementById('eval-filtro-nombre');
+  const elC = document.getElementById('eval-filtro-ciclo');
+  const elP = document.getElementById('eval-filtro-paralelo');
+  const nombreFiltro = ((elN && elN.value) || '').trim().toLowerCase();
+  const cicloFiltro = (elC && elC.value) || '';
+  const paraFiltro = (elP && elP.value) || '';
+  const cursantes = (discData.cursantes||[]).filter(function(c){
+    if(c.activo === false) return false;
+    if(cicloFiltro && c.ciclo !== cicloFiltro) return false;
+    if(paraFiltro && c.paralelo !== paraFiltro) return false;
+    if(nombreFiltro){
+      const blob = ((c.nombre_completo||'') + ' ' + (c.ci||'')).toLowerCase();
+      if(!blob.includes(nombreFiltro)) return false;
+    }
+    return true;
+  });
+  drawCursantesEval(cursantes);
+}
+
+function drawCursantesEval(arr){
+  const cont = document.getElementById('eval-cursantes-list');
+  if(!cont) return;
+  if(!arr.length){
+    cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">No hay cursantes que coincidan con los filtros.</div>';
+    return;
+  }
+  arr.sort(function(a,b){ return (a.nombre_completo||'').localeCompare(b.nombre_completo||''); });
+  cont.innerHTML = arr.map(function(c){
+    const prom = _evalPromedio(c.id);
+    const claseNota = prom != null ? atributoCalificacion(prom) : 'sin';
+    const notaTxt = prom != null ? prom.toFixed(2) : 'Sin notas';
+    const nMat = (evalData.byCursante[c.id]||[]).length;
+    const meta = [c.ciclo, c.paralelo ? '"'+c.paralelo+'"' : '', 'CI '+(c.ci||'—'), nMat ? (nMat+' materias') : '']
+                 .filter(Boolean).join(' · ');
+    return '<div class="ef-cursante-row" onclick="verEvalCursante(\'' + escapeAttr(String(c.id)) + '\')">'
+      + '<div>'
+      + '<div class="ef-cur-nombre">' + escapeHtml(nombreConGrado(c)) + '</div>'
+      + '<div class="ef-cur-meta">' + escapeHtml(meta) + '</div>'
+      + '</div>'
+      + '<div class="ef-cur-nota ' + claseNota + '">' + notaTxt + '</div>'
+      + '</div>';
+  }).join('');
+}
+
+function goEvalPanel(){
+  renderEvalPanel();
+  showScreen('screen-eval-panel');
+  mostrarBannerPushSiNecesario('banner-push-eval');
+}
+
+// Detalle académico: TODAS las gestiones/semestres del cursante, no solo el último.
+async function verEvalCursante(cursanteId){
+  const cur = (discData.cursantes||[]).find(function(c){ return String(c.id) === String(cursanteId); });
+  const cont = document.getElementById('eval-det-content');
+  if(!cont) return;
+  document.getElementById('eval-det-sub').textContent = cur ? nombreConGrado(cur) : cursanteId;
+  cont.innerHTML = '<div class="efm-no-data">Cargando notas…</div>';
+  showScreen('screen-eval-cursante');
+
+  let notas = [];
+  try{
+    const { data } = await sb.from('notas_academicas').select('*')
+      .eq('cursante_id', cursanteId)
+      .order('gestion',{ascending:false}).order('semestre',{ascending:false})
+      .order('materia',{ascending:true});
+    notas = data || [];
+    // Respeta los bloqueos de materias que pone C&T (igual que la ficha del admin).
+    if(!esCT()){
+      try{
+        const blocks = await cargarMateriasBloqueadas();
+        if(blocks && blocks.length) notas = notas.filter(function(n){ return !_esMateriaBloqueada(n, blocks); });
+      }catch(e){}
+    }
+  }catch(e){ console.warn('verEvalCursante', e); }
+
+  if(!notas.length){
+    cont.innerHTML = '<div class="sd-block"><div class="efm-no-data">Este cursante no tiene notas académicas cargadas.</div></div>';
+    return;
+  }
+
+  // Agrupar por gestión + semestre
+  const grupos = {};
+  notas.forEach(function(n){
+    const k = n.gestion + '|' + n.semestre;
+    if(!grupos[k]) grupos[k] = [];
+    grupos[k].push(n);
+  });
+
+  let html = '';
+  Object.keys(grupos).sort().reverse().forEach(function(k){
+    const filas = grupos[k];
+    const g = filas[0].gestion, sem = filas[0].semestre, ciclo = filas[0].ciclo || '';
+    const vals = filas.map(function(n){ return Number(n.nota_final); })
+                      .filter(function(v){ return !isNaN(v) && v > 0; });
+    const prom = vals.length ? (vals.reduce(function(a,b){ return a+b; },0)/vals.length) : null;
+    const om = filas.map(function(n){ return n.om_general; }).find(function(v){ return v != null; });
+
+    html += '<div class="sd-block">'
+      + '<div class="sd-block-title">📚 ' + escapeHtml(etiquetaSemAcad(ciclo, sem)) + ' · ' + g + (ciclo ? (' · ' + escapeHtml(ciclo)) : '') + '</div>'
+      + '<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">'
+      + '<div class="ef-stat-card" style="flex:1;min-width:90px"><div class="ef-stat-num">' + (prom != null ? prom.toFixed(2) : '—') + '</div><div class="ef-stat-lbl">Promedio</div></div>'
+      + '<div class="ef-stat-card" style="flex:1;min-width:90px"><div class="ef-stat-num">' + filas.length + '</div><div class="ef-stat-lbl">Materias</div></div>'
+      + (om != null ? '<div class="ef-stat-card" style="flex:1;min-width:90px"><div class="ef-stat-num">' + om + '</div><div class="ef-stat-lbl">O.M. general</div></div>' : '')
+      + '</div>'
+      + '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">'
+      + '<thead><tr style="color:var(--gold-light);text-align:left">'
+      + '<th style="padding:6px 4px;border-bottom:1px solid var(--border-subtle)">Materia</th>'
+      + '<th style="padding:6px 4px;border-bottom:1px solid var(--border-subtle);text-align:right;white-space:nowrap">Nota</th>'
+      + '<th style="padding:6px 4px;border-bottom:1px solid var(--border-subtle);text-align:center">Atrib.</th>'
+      + '<th style="padding:6px 4px;border-bottom:1px solid var(--border-subtle);text-align:right;white-space:nowrap">O.M.</th>'
+      + '</tr></thead><tbody>';
+
+    filas.forEach(function(n){
+      const nf = Number(n.nota_final);
+      const cls = (!isNaN(nf) && nf > 0) ? atributoCalificacion(nf) : 'sin';
+      html += '<tr>'
+        + '<td style="padding:6px 4px;border-bottom:1px solid var(--border-subtle)">' + escapeHtml(n.materia||'—') + '</td>'
+        + '<td style="padding:6px 4px;border-bottom:1px solid var(--border-subtle);text-align:right" class="ef-cur-nota ' + cls + '">' + (!isNaN(nf) && nf > 0 ? nf.toFixed(2) : '—') + '</td>'
+        + '<td style="padding:6px 4px;border-bottom:1px solid var(--border-subtle);text-align:center">' + escapeHtml(n.atributo||'—') + '</td>'
+        + '<td style="padding:6px 4px;border-bottom:1px solid var(--border-subtle);text-align:right">' + (n.om_materia != null ? n.om_materia : '—') + '</td>'
+        + '</tr>';
+    });
+    html += '</tbody></table></div></div>';
+  });
+
+  cont.innerHTML = html;
 }
 
 function renderGenericoPanel(role){
@@ -24373,6 +24691,8 @@ function goAnyPanel(){
     goJCPanel();
   } else if(activeRole === 'ef'){
     goEfPanel();
+  } else if(activeRole === 'evaluaciones'){
+    goEvalPanel();
   } else if(activeRole === 'profesor'){
     goProfPanel();
   } else if(esAdminPanel()){
