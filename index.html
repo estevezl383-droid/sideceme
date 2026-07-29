@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.190</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.191</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6598,6 +6598,61 @@ body{
   </div>
 </section>
 
+<!-- v2.9.191: JUEGO DE GUERRA A PANTALLA COMPLETA (HUD tipo juego).
+     Mientras se juega, el mapa ocupa TODA la pantalla y los controles flotan
+     encima. Se activa poniendo la clase .wg-full en la sección (wgAbrir) y se
+     quita al volver al lobby (wgVolver). El lobby queda como estaba. -->
+<style>
+#screen-wargame.wg-full{position:fixed;inset:0;z-index:6000;background:#0a0e13;display:flex;flex-direction:column;overflow:hidden}
+/* Mientras se juega, la página de atrás no debe scrollear: si no, su barra de
+   desplazamiento le come ancho al mapa y queda una franja muerta a la derecha. */
+body.wg-jugando{overflow:hidden}
+#screen-wargame.wg-full .app-header{position:absolute;top:0;left:0;right:0;z-index:20;
+  background:linear-gradient(180deg,rgba(10,14,19,.92),rgba(10,14,19,0));padding:6px 10px;pointer-events:none}
+#screen-wargame.wg-full .app-header .back-btn,
+#screen-wargame.wg-full .app-header .header-text{pointer-events:auto}
+#screen-wargame.wg-full .app-header .header-crest{display:none}
+#screen-wargame.wg-full .app-header .header-title{font-size:15px}
+#screen-wargame.wg-full .app-header .header-sub{font-size:10px}
+#screen-wargame.wg-full .menu-container{flex:1;max-width:none;width:100%;margin:0;padding:0;height:100%;position:relative}
+#screen-wargame.wg-full #wg-game{position:absolute;inset:0;margin:0}
+#screen-wargame.wg-full #wg-map{position:absolute;inset:0;height:100%!important;width:100%;
+  border:0;border-radius:0;margin:0}
+/* Barra de acciones: flota abajo al centro, como en un juego. */
+#screen-wargame.wg-full #wg-bar{position:absolute;left:50%;transform:translateX(-50%);bottom:10px;z-index:15;
+  margin:0;justify-content:center;background:rgba(10,14,19,.86);border:1px solid rgba(58,140,90,.5);
+  border-radius:12px;padding:7px 10px;box-shadow:0 4px 18px rgba(0,0,0,.5);
+  /* sin width:max-content el ancho disponible sería solo la mitad derecha
+     (efecto de posicionar con left:50%) y los botones se apilarían */
+  width:max-content;max-width:96vw}
+/* Los botones del panel normal son de ancho completo: en la barra flotante
+   tienen que ser compactos, si no se apilan uno debajo del otro. */
+#screen-wargame.wg-full #wg-bar .rg-doc{width:auto;min-width:0;margin:0;padding:6px 12px;
+  font-size:13px;line-height:1.2;white-space:nowrap}
+/* Panel del árbitro: flota arriba a la izquierda. */
+#screen-wargame.wg-full #wg-config{position:absolute;top:52px;left:10px;z-index:16;width:min(340px,92vw);
+  max-height:calc(100vh - 130px);overflow:auto;margin:0;background:rgba(10,14,19,.94);
+  box-shadow:0 4px 18px rgba(0,0,0,.5)}
+/* Panel lateral: unidades + bitácora, plegable. */
+#screen-wargame.wg-full #wg-side{position:absolute;top:52px;right:10px;bottom:70px;z-index:15;
+  width:min(320px,92vw);overflow:auto;background:rgba(10,14,19,.88);
+  border:1px solid rgba(42,58,82,.9);border-radius:12px;padding:10px;
+  box-shadow:0 4px 18px rgba(0,0,0,.5)}
+#screen-wargame.wg-full #wg-side.oculto{display:none}
+#screen-wargame.wg-full #wg-panel-btn{position:absolute;top:52px;right:10px;z-index:17;display:block;
+  width:auto;min-width:0;padding:6px 10px;font-size:15px;line-height:1;
+  background:rgba(10,14,19,.9);box-shadow:0 2px 10px rgba(0,0,0,.5)}
+#screen-wargame:not(.wg-full) #wg-panel-btn{display:none}
+#screen-wargame.wg-full #wg-side:not(.oculto) ~ #wg-panel-btn{right:calc(min(320px,92vw) + 18px)}
+#screen-wargame.wg-full #wg-ayuda{margin:0 0 8px}
+@media(max-width:700px){
+  /* En pantalla angosta la barra ocupa varias filas: el panel debe quedar
+     bien por encima para no taparla. */
+  #screen-wargame.wg-full #wg-side{width:92vw;left:4vw;right:4vw;top:auto;bottom:140px;max-height:38vh}
+  #screen-wargame.wg-full #wg-panel-btn{right:10px}
+  #screen-wargame.wg-full #wg-side:not(.oculto) ~ #wg-panel-btn{right:10px}
+}
+</style>
 <section id="screen-wargame" class="screen">
   <div class="app-header">
     <button class="back-btn" onclick="wgVolver()">←</button>
@@ -6629,6 +6684,7 @@ body{
         <span id="wg-turno-chip" style="background:#1c2230;border:1px solid #3a8c5a;border-radius:7px;padding:4px 10px;font-weight:700">Turno —</span>
         <span id="wg-rol-chip" style="border-radius:7px;padding:4px 10px;font-weight:700"></span>
         <button class="rg-doc" onclick="wgEstado()">🔄 Actualizar</button>
+        <button class="rg-doc" id="wg-btn-obs" onclick="wgObsToggle(this)" title="Mostrar u ocultar hasta dónde observan tus unidades (alcance de la niebla de guerra)">👁️ Alcance</button>
         <button class="rg-doc" id="wg-btn-enviar" onclick="wgEnviarOrdenes(this)" style="display:none">📨 Enviar órdenes (<span id="wg-nord">0</span>)</button>
         <button class="rg-doc" id="wg-btn-resolver" onclick="wgResolver(this)" style="display:none;border-color:#3a8c5a;color:#bdf5d6">⚔️ Resolver turno</button>
         <button class="rg-doc" id="wg-btn-config" onclick="wgConfigToggle()" style="display:none">⚙️ Configurar</button>
@@ -6653,11 +6709,15 @@ body{
         <div style="margin-top:8px"><button class="btn-primary" onclick="wgIniciar(this)">🚀 Iniciar partida (turno 1)</button></div>
       </div>
       <div id="wg-map" style="height:380px;border-radius:10px;border:1px solid var(--border,#2a3a52);margin-bottom:8px"></div>
-      <div id="wg-ayuda" style="font-size:11.5px;color:var(--text-muted);margin-bottom:8px"></div>
-      <div class="section-label">Unidades</div>
-      <div id="wg-unidades" style="font-size:12.5px;margin-bottom:10px"></div>
-      <div class="section-label">📜 Bitácora</div>
-      <div id="wg-bitacora" style="font-size:12px;color:var(--text-muted)"></div>
+      <!-- v2.9.191: unidades + bitácora agrupadas para poder flotarlas y plegarlas -->
+      <div id="wg-side">
+        <div id="wg-ayuda" style="font-size:11.5px;color:var(--text-muted);margin-bottom:8px"></div>
+        <div class="section-label">Unidades</div>
+        <div id="wg-unidades" style="font-size:12.5px;margin-bottom:10px"></div>
+        <div class="section-label">📜 Bitácora</div>
+        <div id="wg-bitacora" style="font-size:12px;color:var(--text-muted)"></div>
+      </div>
+      <button class="rg-doc" id="wg-panel-btn" onclick="wgPanelToggle()" title="Mostrar u ocultar el panel de unidades y bitácora">📋</button>
     </div>
   </div>
 </section>
@@ -22053,12 +22113,16 @@ function _wgEsInstructor(){ const ses=getSession(); return !!(ses && ses.tipo===
 function goWargame(fromScreen){
   WG.volverA = fromScreen || 'screen-disc-panel';
   showScreen('screen-wargame');
+  document.getElementById('screen-wargame').classList.remove('wg-full'); // v2.9.191: el lobby va normal
+  document.body.classList.remove('wg-jugando');
   document.getElementById('wg-lobby').style.display='';
   document.getElementById('wg-game').style.display='none';
   document.getElementById('wg-arbitro-crear').style.display = _wgEsInstructor()?'':'none';
   if(_wgEsInstructor()) wgCargarMisPartidas();
 }
 function wgVolver(){
+  document.getElementById('screen-wargame').classList.remove('wg-full'); // v2.9.191
+  document.body.classList.remove('wg-jugando');
   if(WG.map){ try{ WG.map.remove(); }catch(e){} WG.map=null; }
   WG.partidaId=null; WG.estado=null; WG.ordenes={}; WG.sel=null;
   showScreen(WG.volverA||'screen-disc-panel');
@@ -22102,8 +22166,25 @@ async function wgAbrir(partidaId, clave){
     WG.capa = L.layerGroup().addTo(WG.map);
     WG.map.on('click', _wgMapClick);
   }
+  // v2.9.191: al entrar al juego, PANTALLA COMPLETA (el mapa ocupa todo y los
+  // controles flotan encima). El lobby sigue con el diseño normal.
+  document.getElementById('screen-wargame').classList.add('wg-full');
+  document.body.classList.add('wg-jugando');
   setTimeout(()=>{ try{ WG.map.invalidateSize(); }catch(e){} }, 120);
+  setTimeout(()=>{ try{ WG.map.invalidateSize(); }catch(e){} }, 450);
   await wgEstado();
+}
+// v2.9.191: mostrar/ocultar los círculos de alcance de observación.
+function wgObsToggle(btn){
+  WG.verObs = (WG.verObs===false);
+  if(btn) btn.style.opacity = WG.verObs===false ? .5 : 1;
+  _wgRender();
+}
+// v2.9.191: plegar/desplegar el panel de unidades y bitácora (más mapa a la vista).
+function wgPanelToggle(){
+  const s=document.getElementById('wg-side'); if(!s) return;
+  s.classList.toggle('oculto');
+  setTimeout(()=>{ try{ WG.map && WG.map.invalidateSize(); }catch(e){} }, 60);
 }
 async function wgEstado(){
   if(!WG.partidaId) return;
@@ -22129,6 +22210,37 @@ async function wgEstado(){
   _wgRender();
   wgHistorial();
 }
+// v2.9.191: helpers del alcance de observación — MISMA lógica que wargame-engine.js
+// (punto-en-polígono propio; severo manda sobre restringido).
+function _wgPtEnAnillo(pt,ring){
+  let dentro=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];
+    if(((yi>pt[1])!==(yj>pt[1])) && (pt[0] < (xj-xi)*(pt[1]-yi)/((yj-yi)||1e-12)+xi)) dentro=!dentro;
+  }
+  return dentro;
+}
+function _wgPtEnGeom(pt,geom){
+  if(!geom) return false;
+  const polys = geom.type==='MultiPolygon'?geom.coordinates : geom.type==='Polygon'?[geom.coordinates] : [];
+  for(const p of polys){ if(p[0] && _wgPtEnAnillo(pt,p[0])) return true; }
+  return false;
+}
+function _wgClaseTerreno(pt,terreno){
+  let restr=false;
+  for(const t of (terreno||[])){
+    if(t.tipo==='severo' && _wgPtEnGeom(pt,t.geojson)) return 'severo';
+    if(t.tipo==='restringido' && _wgPtEnGeom(pt,t.geojson)) restr=true;
+  }
+  return restr?'restringido':'libre';
+}
+function _wgAlcanceObs(u,terreno){
+  const OBS={libre:1.0,restringido:0.5,severo:0.3};
+  const pt=[u.lng,u.lat];
+  let r=(Number(u.obs_km)||4)*(OBS[_wgClaseTerreno(pt,terreno)]??1);
+  if((terreno||[]).some(t=>t.tipo==='clave'&&_wgPtEnGeom(pt,t.geojson))) r*=1.5;
+  return r;
+}
 function _wgRender(){
   if(!WG.map||!WG.capa) return;
   WG.capa.clearLayers();
@@ -22149,6 +22261,20 @@ function _wgRender(){
       L.polyline([[u.lat,u.lng],[t.lat,t.lng]],{color:'#e23b3b',weight:2.5}).addTo(WG.capa);
     }
   }
+  // v2.9.191: ALCANCE DE OBSERVACIÓN de las unidades propias (hasta dónde
+  // levantan la niebla). Replica exactamente el cálculo del motor: el obs_km
+  // base se ajusta por el terreno donde ESTÁ la unidad (libre ×1, restringido
+  // ×0.5, severo ×0.3) y el terreno clave lo multiplica ×1.5 (observatorio).
+  if(WG.verObs!==false){
+    for(const u of (e.unidades||[])){
+      if(!(WG.soy==='arbitro' || u.bando===WG.soy)) continue;
+      if(u.estado==='fuera_combate') continue;
+      const km=_wgAlcanceObs(u,e.terreno||[]);
+      if(!(km>0)) continue;
+      L.circle([u.lat,u.lng],{radius:km*1000,color:WG_COL[u.bando]||'#888',weight:1,
+        opacity:.45,fillColor:WG_COL[u.bando]||'#888',fillOpacity:.05,dashArray:'4 5',interactive:false}).addTo(WG.capa);
+    }
+  }
   // unidades
   for(const u of (e.unidades||[])){
     const mio = (WG.soy==='arbitro') || (u.bando===WG.soy);
@@ -22159,7 +22285,8 @@ function _wgRender(){
       fillColor: col, fillOpacity: mio?0.9:0.35,
     }).addTo(WG.capa);
     const pct = u.poder_max? Math.round(100*u.poder_actual/u.poder_max):100;
-    m.bindTooltip(`${_rgEsc(u.designacion||u.bando)} · ${pct}%${u.estado!=='activa'?' ('+u.estado+')':''}`,{direction:'top'});
+    const obsTxt = mio ? ` · 👁️ ${_wgAlcanceObs(u,e.terreno||[]).toFixed(1)} km` : ''; // v2.9.191
+    m.bindTooltip(`${_rgEsc(u.designacion||u.bando)} · ${pct}%${u.estado!=='activa'?' ('+u.estado+')':''}${obsTxt}`,{direction:'top'});
     m.on('click', (ev)=>{ L.DomEvent.stopPropagation(ev); _wgUnidadClick(u); });
   }
   // lista lateral
