@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.195</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.196</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6618,8 +6618,12 @@ body.wg-jugando{overflow:hidden}
   margin:0!important;padding:0!important;height:100%;position:static}
 #screen-wargame.wg-full #wg-game{position:fixed!important;inset:0!important;
   width:auto!important;height:auto!important;max-width:none!important;margin:0!important;padding:0!important;z-index:6001}
+/* `z-index:0` es CLAVE, no es decorativo: sin él, #wg-map no crea contexto de
+   apilamiento y las capas internas de Leaflet (tiles 200, overlay 400, marcadores
+   600, popups 700, controles 800) compiten con el HUD (19-24) y lo TAPAN de forma
+   intermitente al hacer zoom. Con z-index:0 todo Leaflet queda encerrado debajo. */
 #screen-wargame.wg-full #wg-map{position:absolute;inset:0;height:100%!important;width:100%!important;
-  border:0;border-radius:0;margin:0;max-width:none!important}
+  border:0;border-radius:0;margin:0;max-width:none!important;z-index:0}
 /* Zoom propio: el de Leaflet estorba en un HUD. */
 #screen-wargame.wg-full .leaflet-control-zoom,
 #screen-wargame.wg-full .leaflet-control-attribution{display:none}
@@ -6642,21 +6646,25 @@ body.wg-jugando{overflow:hidden}
 #screen-wargame.wg-full .wg-pill:active{transform:scale(.97)}
 #screen-wargame.wg-full .wg-fuerte{background:rgba(28,92,58,.82);border-color:rgba(120,230,170,.55);color:#d8ffe9}
 
-/* --- Colocación --- */
-#screen-wargame.wg-full #wg-tl{position:absolute;top:8px;left:8px;z-index:20;display:flex;gap:6px;align-items:center;flex-wrap:wrap;max-width:calc(100vw - 110px)}
-#screen-wargame.wg-full #wg-rail{position:absolute;top:56px;left:8px;z-index:20;display:flex;flex-direction:column;gap:8px}
-#screen-wargame.wg-full #wg-zoom{position:absolute;top:56px;right:8px;z-index:20;display:flex;flex-direction:column;gap:8px}
-#screen-wargame.wg-full #wg-acc{position:absolute;right:8px;bottom:22px;z-index:20;display:flex;flex-direction:column;gap:8px;align-items:flex-end;transition:right .22s ease}
+/* --- Colocación ---
+   Los z-index del HUD van por ENCIMA de 800, que es el máximo que usa Leaflet
+   (control-container). Así el HUD nunca puede quedar tapado por una capa del
+   mapa, pase lo que pase con el zoom. */
+#screen-wargame.wg-full #wg-tl{position:absolute;top:8px;left:8px;z-index:1020;display:flex;gap:6px;align-items:center;flex-wrap:wrap;max-width:calc(100vw - 110px)}
+#screen-wargame.wg-full #wg-rail{position:absolute;top:56px;left:8px;z-index:1020;display:flex;flex-direction:column;gap:8px}
+#screen-wargame.wg-full #wg-zoom{position:absolute;top:56px;right:8px;z-index:1020;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+#screen-wargame.wg-full #wg-zoom-chip{font-size:11px;padding:4px 9px}
+#screen-wargame.wg-full #wg-acc{position:absolute;right:8px;bottom:22px;z-index:1020;display:flex;flex-direction:column;gap:8px;align-items:flex-end;transition:right .22s ease}
 /* Con la hoja abierta, las acciones y el zoom se corren para no quedar tapados. */
 #screen-wargame.wg-full #wg-game.hoja-abierta #wg-acc,
 #screen-wargame.wg-full #wg-game.hoja-abierta #wg-zoom{right:calc(min(340px,88vw) + 16px)}
 #screen-wargame.wg-full #wg-zoom{transition:right .22s ease}
-#screen-wargame.wg-full #wg-ayuda{position:absolute;left:8px;bottom:12px;z-index:19;max-width:min(340px,58vw);
+#screen-wargame.wg-full #wg-ayuda{position:absolute;left:8px;bottom:12px;z-index:1015;max-width:min(340px,58vw);
   font-size:11.5px;line-height:1.45;color:#b8c6d4;background:rgba(12,18,26,.55);border:1px solid rgba(255,255,255,.12);
   border-radius:12px;padding:8px 11px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 
 /* --- Hoja deslizante (unidades / bitácora / configurar) --- */
-#screen-wargame.wg-full #wg-hoja{position:absolute;top:0;right:0;bottom:0;z-index:24;
+#screen-wargame.wg-full #wg-hoja{position:absolute;top:0;right:0;bottom:0;z-index:1040;
   width:min(340px,88vw);transform:translateX(105%);transition:transform .22s ease;
   background:rgba(10,15,21,.93);border-left:1px solid rgba(255,255,255,.14);
   backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
@@ -6737,6 +6745,7 @@ body.wg-jugando{overflow:hidden}
       <div id="wg-zoom">
         <button class="wg-rd" onclick="wgZoom(1)" title="Acercar">＋</button>
         <button class="wg-rd" onclick="wgZoom(-1)" title="Alejar">−</button>
+        <span id="wg-zoom-chip" class="wg-chip" title="Nivel de zoom y ancho real del terreno que estás viendo">—</span>
       </div>
 
       <!-- Acciones principales, abajo a la derecha -->
@@ -22317,13 +22326,14 @@ async function wgAbrir(partidaId, clave){
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'OSM'}).addTo(WG.map);
     WG.capa = L.layerGroup().addTo(WG.map);
     WG.map.on('click', _wgMapClick);
+    WG.map.on('zoomend moveend', wgActualizarZoomChip);  // v2.9.196
   }
   // v2.9.191: al entrar al juego, PANTALLA COMPLETA (el mapa ocupa todo y los
   // controles flotan encima). El lobby sigue con el diseño normal.
   document.getElementById('screen-wargame').classList.add('wg-full');
   document.body.classList.add('wg-jugando');
   setTimeout(()=>{ try{ WG.map.invalidateSize(); }catch(e){} }, 120);
-  setTimeout(()=>{ try{ WG.map.invalidateSize(); }catch(e){} }, 450);
+  setTimeout(()=>{ try{ WG.map.invalidateSize(); wgActualizarZoomChip(); }catch(e){} }, 450);
   await wgEstado();
 }
 // v2.9.191: mostrar/ocultar los círculos de alcance de observación.
@@ -22348,7 +22358,34 @@ function wgHoja(cual){
   const t=document.getElementById('wg-hoja-tit'); if(t) t.textContent = WG.hoja?WG_HOJAS[WG.hoja]:'';
 }
 // v2.9.192: zoom propio del HUD (el control de Leaflet queda oculto).
-function wgZoom(d){ try{ WG.map && WG.map.setZoom(WG.map.getZoom()+d); }catch(e){} }
+function wgZoom(d){ try{ WG.map && WG.map.setZoom(WG.map.getZoom()+d); wgActualizarZoomChip(); }catch(e){} }
+// v2.9.196: REFERENCIA DE ZOOM. No basta el nivel (Z8 no le dice nada a nadie):
+// se muestra el ANCHO REAL de terreno que entra en pantalla, que es lo que
+// permite saber si estás mirando una zona de operaciones o medio continente.
+function _wgFmtKm(km){
+  if(km >= 1000) return Math.round(km/100)/10 + ' mil km';
+  if(km >= 10)   return Math.round(km) + ' km';
+  if(km >= 1)    return Math.round(km*10)/10 + ' km';
+  return Math.round(km*1000) + ' m';
+}
+function wgActualizarZoomChip(){
+  const el = document.getElementById('wg-zoom-chip');
+  if(!el || !WG.map) return;
+  try{
+    // NO usar getBounds(): al alejarse, la vista da la vuelta al mundo, los
+    // límites se envuelven y la distancia sale por el camino corto → daba
+    // valores absurdos (Z6 "más ancho" que Z3). Se calcula por resolución:
+    // metros por píxel en el paralelo del centro × ancho del contenedor.
+    const z = WG.map.getZoom();
+    const lat = WG.map.getCenter().lat;
+    const mPorPx = 156543.03392804097 * Math.cos(lat * Math.PI / 180) / Math.pow(2, z);
+    const anchoKm = mPorPx * WG.map.getSize().x / 1000;
+    // Muy alejado el mundo se repite y el ancho supera la vuelta a la Tierra:
+    // decirlo en palabras es más claro que un número enorme.
+    const vueltaKm = 40075 * Math.cos(lat * Math.PI / 180);
+    el.textContent = 'Z' + z + ' · ' + (anchoKm >= vueltaKm ? '🌍 todo el mundo' : _wgFmtKm(anchoKm));
+  }catch(e){}
+}
 // Compatibilidad: el botón viejo de configurar abría/cerraba su caja.
 function wgPanelToggle(){ wgHoja(WG.hoja==='unidades'?null:'unidades'); }
 async function wgEstado(){
