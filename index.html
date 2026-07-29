@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.191</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.192</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6598,59 +6598,83 @@ body{
   </div>
 </section>
 
-<!-- v2.9.191: JUEGO DE GUERRA A PANTALLA COMPLETA (HUD tipo juego).
-     Mientras se juega, el mapa ocupa TODA la pantalla y los controles flotan
-     encima. Se activa poniendo la clase .wg-full en la sección (wgAbrir) y se
-     quita al volver al lobby (wgVolver). El lobby queda como estaba. -->
+<!-- v2.9.192: JUEGO DE GUERRA — HUD tipo juego (Roblox/RTS).
+     El mapa ES la pantalla. Todo lo demás flota encima: chico, redondo y
+     semitransparente. Los paneles no viven en pantalla: se llaman desde el
+     riel y se cierran. Se activa con la clase .wg-full (la pone wgAbrir). -->
 <style>
-#screen-wargame.wg-full{position:fixed;inset:0;z-index:6000;background:#0a0e13;display:flex;flex-direction:column;overflow:hidden}
-/* Mientras se juega, la página de atrás no debe scrollear: si no, su barra de
-   desplazamiento le come ancho al mapa y queda una franja muerta a la derecha. */
+#screen-wargame.wg-full{position:fixed;inset:0;z-index:6000;background:#0a0e13;overflow:hidden}
 body.wg-jugando{overflow:hidden}
-#screen-wargame.wg-full .app-header{position:absolute;top:0;left:0;right:0;z-index:20;
-  background:linear-gradient(180deg,rgba(10,14,19,.92),rgba(10,14,19,0));padding:6px 10px;pointer-events:none}
-#screen-wargame.wg-full .app-header .back-btn,
-#screen-wargame.wg-full .app-header .header-text{pointer-events:auto}
-#screen-wargame.wg-full .app-header .header-crest{display:none}
-#screen-wargame.wg-full .app-header .header-title{font-size:15px}
-#screen-wargame.wg-full .app-header .header-sub{font-size:10px}
-#screen-wargame.wg-full .menu-container{flex:1;max-width:none;width:100%;margin:0;padding:0;height:100%;position:relative}
+/* El encabezado se reduce a un botón de volver flotante. */
+#screen-wargame.wg-full .app-header{position:absolute;top:8px;left:8px;right:auto;z-index:22;
+  background:none;padding:0;border:0;box-shadow:none;display:block;width:auto;min-height:0}
+#screen-wargame.wg-full .app-header .header-crest,
+#screen-wargame.wg-full .app-header .header-text{display:none}
+#screen-wargame.wg-full .app-header .back-btn{width:38px;height:38px;border-radius:50%;
+  background:rgba(12,18,26,.55);border:1px solid rgba(255,255,255,.18);color:#dbe7f2;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font-size:17px;line-height:1;padding:0}
+#screen-wargame.wg-full .menu-container{max-width:none;width:100%;margin:0;padding:0;height:100%;position:relative}
 #screen-wargame.wg-full #wg-game{position:absolute;inset:0;margin:0}
-#screen-wargame.wg-full #wg-map{position:absolute;inset:0;height:100%!important;width:100%;
-  border:0;border-radius:0;margin:0}
-/* Barra de acciones: flota abajo al centro, como en un juego. */
-#screen-wargame.wg-full #wg-bar{position:absolute;left:50%;transform:translateX(-50%);bottom:10px;z-index:15;
-  margin:0;justify-content:center;background:rgba(10,14,19,.86);border:1px solid rgba(58,140,90,.5);
-  border-radius:12px;padding:7px 10px;box-shadow:0 4px 18px rgba(0,0,0,.5);
-  /* sin width:max-content el ancho disponible sería solo la mitad derecha
-     (efecto de posicionar con left:50%) y los botones se apilarían */
-  width:max-content;max-width:96vw}
-/* Los botones del panel normal son de ancho completo: en la barra flotante
-   tienen que ser compactos, si no se apilan uno debajo del otro. */
-#screen-wargame.wg-full #wg-bar .rg-doc{width:auto;min-width:0;margin:0;padding:6px 12px;
-  font-size:13px;line-height:1.2;white-space:nowrap}
-/* Panel del árbitro: flota arriba a la izquierda. */
-#screen-wargame.wg-full #wg-config{position:absolute;top:52px;left:10px;z-index:16;width:min(340px,92vw);
-  max-height:calc(100vh - 130px);overflow:auto;margin:0;background:rgba(10,14,19,.94);
-  box-shadow:0 4px 18px rgba(0,0,0,.5)}
-/* Panel lateral: unidades + bitácora, plegable. */
-#screen-wargame.wg-full #wg-side{position:absolute;top:52px;right:10px;bottom:70px;z-index:15;
-  width:min(320px,92vw);overflow:auto;background:rgba(10,14,19,.88);
-  border:1px solid rgba(42,58,82,.9);border-radius:12px;padding:10px;
-  box-shadow:0 4px 18px rgba(0,0,0,.5)}
-#screen-wargame.wg-full #wg-side.oculto{display:none}
-#screen-wargame.wg-full #wg-panel-btn{position:absolute;top:52px;right:10px;z-index:17;display:block;
-  width:auto;min-width:0;padding:6px 10px;font-size:15px;line-height:1;
-  background:rgba(10,14,19,.9);box-shadow:0 2px 10px rgba(0,0,0,.5)}
-#screen-wargame:not(.wg-full) #wg-panel-btn{display:none}
-#screen-wargame.wg-full #wg-side:not(.oculto) ~ #wg-panel-btn{right:calc(min(320px,92vw) + 18px)}
-#screen-wargame.wg-full #wg-ayuda{margin:0 0 8px}
+#screen-wargame.wg-full #wg-map{position:absolute;inset:0;height:100%;width:100%;border:0;border-radius:0;margin:0}
+/* Zoom propio: el de Leaflet estorba en un HUD. */
+#screen-wargame.wg-full .leaflet-control-zoom,
+#screen-wargame.wg-full .leaflet-control-attribution{display:none}
+
+/* --- Piezas del HUD --- */
+#screen-wargame.wg-full .wg-rd{width:38px;height:38px;min-width:0;border-radius:50%;padding:0;margin:0;
+  display:flex;align-items:center;justify-content:center;font-size:16px;line-height:1;cursor:pointer;
+  background:rgba(12,18,26,.55);border:1px solid rgba(255,255,255,.18);color:#dbe7f2;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);transition:background .15s,transform .1s}
+#screen-wargame.wg-full .wg-rd:hover{background:rgba(30,44,60,.8)}
+#screen-wargame.wg-full .wg-rd:active{transform:scale(.93)}
+#screen-wargame.wg-full .wg-rd-sm{width:28px;height:28px;font-size:13px}
+#screen-wargame.wg-full .wg-chip{background:rgba(12,18,26,.55);border:1px solid rgba(255,255,255,.18);
+  border-radius:999px;padding:5px 12px;font-weight:700;font-size:12px;color:#dbe7f2;white-space:nowrap;
+  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+#screen-wargame.wg-full .wg-pill{border-radius:999px;padding:10px 18px;font-size:14px;font-weight:700;
+  width:auto;min-width:0;margin:0;white-space:nowrap;cursor:pointer;color:#dbe7f2;
+  background:rgba(12,18,26,.72);border:1px solid rgba(255,255,255,.22);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);box-shadow:0 3px 14px rgba(0,0,0,.45)}
+#screen-wargame.wg-full .wg-pill:active{transform:scale(.97)}
+#screen-wargame.wg-full .wg-fuerte{background:rgba(28,92,58,.82);border-color:rgba(120,230,170,.55);color:#d8ffe9}
+
+/* --- Colocación --- */
+#screen-wargame.wg-full #wg-tl{position:absolute;top:12px;left:56px;z-index:20;display:flex;gap:6px;flex-wrap:wrap;max-width:calc(100vw - 120px)}
+#screen-wargame.wg-full #wg-rail{position:absolute;top:56px;left:8px;z-index:20;display:flex;flex-direction:column;gap:8px}
+#screen-wargame.wg-full #wg-zoom{position:absolute;top:56px;right:8px;z-index:20;display:flex;flex-direction:column;gap:8px}
+#screen-wargame.wg-full #wg-acc{position:absolute;right:8px;bottom:22px;z-index:20;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+#screen-wargame.wg-full #wg-ayuda{position:absolute;left:8px;bottom:12px;z-index:19;max-width:min(340px,58vw);
+  font-size:11.5px;line-height:1.45;color:#b8c6d4;background:rgba(12,18,26,.55);border:1px solid rgba(255,255,255,.12);
+  border-radius:12px;padding:8px 11px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+
+/* --- Hoja deslizante (unidades / bitácora / configurar) --- */
+#screen-wargame.wg-full #wg-hoja{position:absolute;top:0;right:0;bottom:0;z-index:24;
+  width:min(340px,88vw);transform:translateX(105%);transition:transform .22s ease;
+  background:rgba(10,15,21,.93);border-left:1px solid rgba(255,255,255,.14);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  box-shadow:-8px 0 26px rgba(0,0,0,.5);display:flex;flex-direction:column;border-radius:16px 0 0 16px}
+#screen-wargame.wg-full #wg-hoja.abierta{transform:translateX(0)}
+#screen-wargame.wg-full #wg-hoja-cab{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:12px 12px 8px;font-weight:700;font-size:13px;color:#dbe7f2;letter-spacing:.5px}
+#screen-wargame.wg-full #wg-hoja-cuerpo{flex:1;overflow:auto;padding:0 12px 14px;font-size:12.5px}
+#screen-wargame.wg-full .wg-h{display:none}
+#screen-wargame.wg-full .wg-h.activa{display:block}
+#screen-wargame.wg-full #wg-config{display:block!important;border:0;padding:0;margin:0;background:none}
+/* Fuera del modo juego la hoja no aplica (lobby normal). */
+#screen-wargame:not(.wg-full) #wg-hoja{position:static;transform:none;width:auto;background:none;border:0;box-shadow:none}
+#screen-wargame:not(.wg-full) #wg-tl,
+#screen-wargame:not(.wg-full) #wg-rail,
+#screen-wargame:not(.wg-full) #wg-zoom,
+#screen-wargame:not(.wg-full) #wg-acc{display:none}
+
 @media(max-width:700px){
-  /* En pantalla angosta la barra ocupa varias filas: el panel debe quedar
-     bien por encima para no taparla. */
-  #screen-wargame.wg-full #wg-side{width:92vw;left:4vw;right:4vw;top:auto;bottom:140px;max-height:38vh}
-  #screen-wargame.wg-full #wg-panel-btn{right:10px}
-  #screen-wargame.wg-full #wg-side:not(.oculto) ~ #wg-panel-btn{right:10px}
+  #screen-wargame.wg-full #wg-hoja{width:100vw;border-radius:16px 16px 0 0;top:auto;height:56vh;
+    transform:translateY(105%);border-left:0;border-top:1px solid rgba(255,255,255,.14)}
+  #screen-wargame.wg-full #wg-hoja.abierta{transform:translateY(0)}
+  /* En pantalla angosta el aviso va ARRIBA de los botones de acción,
+     si no se pisan entre sí. */
+  #screen-wargame.wg-full #wg-ayuda{max-width:88vw;font-size:11px;bottom:112px}
+  #screen-wargame.wg-full #wg-acc{bottom:14px}
 }
 </style>
 <section id="screen-wargame" class="screen">
@@ -6680,18 +6704,47 @@ body.wg-jugando{overflow:hidden}
 
     <!-- JUEGO: mapa + controles -->
     <div id="wg-game" style="display:none">
-      <div id="wg-bar" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:8px;font-size:13px">
-        <span id="wg-turno-chip" style="background:#1c2230;border:1px solid #3a8c5a;border-radius:7px;padding:4px 10px;font-weight:700">Turno —</span>
-        <span id="wg-rol-chip" style="border-radius:7px;padding:4px 10px;font-weight:700"></span>
-        <button class="rg-doc" onclick="wgEstado()">🔄 Actualizar</button>
-        <button class="rg-doc" id="wg-btn-obs" onclick="wgObsToggle(this)" title="Mostrar u ocultar hasta dónde observan tus unidades (alcance de la niebla de guerra)">👁️ Alcance</button>
-        <button class="rg-doc" id="wg-btn-enviar" onclick="wgEnviarOrdenes(this)" style="display:none">📨 Enviar órdenes (<span id="wg-nord">0</span>)</button>
-        <button class="rg-doc" id="wg-btn-resolver" onclick="wgResolver(this)" style="display:none;border-color:#3a8c5a;color:#bdf5d6">⚔️ Resolver turno</button>
-        <button class="rg-doc" id="wg-btn-config" onclick="wgConfigToggle()" style="display:none">⚙️ Configurar</button>
+      <div id="wg-map"></div>
+
+      <!-- v2.9.192 — HUD tipo juego: el mapa es la pantalla; todo lo demás
+           flota encima, chico y semitransparente, y se llama cuando hace falta. -->
+      <div id="wg-tl">
+        <span id="wg-turno-chip" class="wg-chip">Turno —</span>
+        <span id="wg-rol-chip" class="wg-chip"></span>
       </div>
-      <!-- Panel de configuración del árbitro (oculto por defecto) -->
-      <div id="wg-config" style="display:none;border:1px solid var(--border,#2a3a52);border-radius:10px;padding:10px;margin-bottom:8px;font-size:12.5px">
-        <div class="section-label">Bandos (cada uno = un Estado Mayor)</div>
+
+      <!-- Riel de herramientas: botones redondos, como en los juegos -->
+      <div id="wg-rail">
+        <button class="wg-rd" onclick="wgEstado()" title="Actualizar">🔄</button>
+        <button class="wg-rd" id="wg-btn-obs" onclick="wgObsToggle(this)" title="Alcance de observación (niebla de guerra)">👁️</button>
+        <button class="wg-rd" onclick="wgHoja('unidades')" title="Unidades">🪖</button>
+        <button class="wg-rd" onclick="wgHoja('bitacora')" title="Bitácora">📜</button>
+        <button class="wg-rd" id="wg-btn-config" onclick="wgHoja('config')" title="Configurar" style="display:none">⚙️</button>
+      </div>
+
+      <!-- Zoom propio (el de Leaflet queda oculto para no duplicar) -->
+      <div id="wg-zoom">
+        <button class="wg-rd" onclick="wgZoom(1)" title="Acercar">＋</button>
+        <button class="wg-rd" onclick="wgZoom(-1)" title="Alejar">−</button>
+      </div>
+
+      <!-- Acciones principales, abajo a la derecha -->
+      <div id="wg-acc">
+        <button class="wg-pill" id="wg-btn-enviar" onclick="wgEnviarOrdenes(this)" style="display:none">📨 Enviar órdenes (<span id="wg-nord">0</span>)</button>
+        <button class="wg-pill wg-fuerte" id="wg-btn-resolver" onclick="wgResolver(this)" style="display:none">⚔️ Resolver turno</button>
+      </div>
+
+      <!-- Aviso de contexto, abajo a la izquierda -->
+      <div id="wg-ayuda"></div>
+
+      <!-- Hoja deslizante: cerrada por defecto, se abre desde el riel -->
+      <div id="wg-hoja">
+        <div id="wg-hoja-cab"><span id="wg-hoja-tit"></span><button class="wg-rd wg-rd-sm" onclick="wgHoja(null)" title="Cerrar">✕</button></div>
+        <div id="wg-hoja-cuerpo">
+          <div class="wg-h" id="wg-h-unidades"><div id="wg-unidades"></div></div>
+          <div class="wg-h" id="wg-h-bitacora"><div id="wg-bitacora"></div></div>
+          <div class="wg-h" id="wg-h-config"><div id="wg-config">
+<div class="section-label">Bandos (cada uno = un Estado Mayor)</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
           <button class="rg-doc" onclick="wgAgregarBando('rojo')">🔴 Crear/ver bando ROJO</button>
           <button class="rg-doc" onclick="wgAgregarBando('azul')">🔵 Crear/ver bando AZUL</button>
@@ -6707,17 +6760,9 @@ body.wg-jugando{overflow:hidden}
         </div>
         <label style="font-size:12px"><input type="checkbox" id="wg-modo-colocar" onchange="wgModoColocar()"> ✋ Modo colocar (clic en el mapa pone la unidad)</label>
         <div style="margin-top:8px"><button class="btn-primary" onclick="wgIniciar(this)">🚀 Iniciar partida (turno 1)</button></div>
+          </div></div>
+        </div>
       </div>
-      <div id="wg-map" style="height:380px;border-radius:10px;border:1px solid var(--border,#2a3a52);margin-bottom:8px"></div>
-      <!-- v2.9.191: unidades + bitácora agrupadas para poder flotarlas y plegarlas -->
-      <div id="wg-side">
-        <div id="wg-ayuda" style="font-size:11.5px;color:var(--text-muted);margin-bottom:8px"></div>
-        <div class="section-label">Unidades</div>
-        <div id="wg-unidades" style="font-size:12.5px;margin-bottom:10px"></div>
-        <div class="section-label">📜 Bitácora</div>
-        <div id="wg-bitacora" style="font-size:12px;color:var(--text-muted)"></div>
-      </div>
-      <button class="rg-doc" id="wg-panel-btn" onclick="wgPanelToggle()" title="Mostrar u ocultar el panel de unidades y bitácora">📋</button>
     </div>
   </div>
 </section>
@@ -22123,6 +22168,7 @@ function goWargame(fromScreen){
 function wgVolver(){
   document.getElementById('screen-wargame').classList.remove('wg-full'); // v2.9.191
   document.body.classList.remove('wg-jugando');
+  wgHoja(null);
   if(WG.map){ try{ WG.map.remove(); }catch(e){} WG.map=null; }
   WG.partidaId=null; WG.estado=null; WG.ordenes={}; WG.sel=null;
   showScreen(WG.volverA||'screen-disc-panel');
@@ -22180,12 +22226,24 @@ function wgObsToggle(btn){
   if(btn) btn.style.opacity = WG.verObs===false ? .5 : 1;
   _wgRender();
 }
-// v2.9.191: plegar/desplegar el panel de unidades y bitácora (más mapa a la vista).
-function wgPanelToggle(){
-  const s=document.getElementById('wg-side'); if(!s) return;
-  s.classList.toggle('oculto');
-  setTimeout(()=>{ try{ WG.map && WG.map.invalidateSize(); }catch(e){} }, 60);
+// v2.9.192: HOJA DESLIZANTE. Los paneles no viven en pantalla: se llaman desde
+// el riel y se cierran. wgHoja(null) cierra; wgHoja(mismo) alterna.
+const WG_HOJAS={unidades:'🪖 UNIDADES', bitacora:'📜 BITÁCORA', config:'⚙️ CONFIGURAR'};
+function wgHoja(cual){
+  const h=document.getElementById('wg-hoja'); if(!h) return;
+  if(cual && WG.hoja===cual) cual=null;           // tocar el mismo botón cierra
+  WG.hoja = cual || null;
+  for(const k of Object.keys(WG_HOJAS)){
+    const el=document.getElementById('wg-h-'+k);
+    if(el) el.classList.toggle('activa', k===WG.hoja);
+  }
+  h.classList.toggle('abierta', !!WG.hoja);
+  const t=document.getElementById('wg-hoja-tit'); if(t) t.textContent = WG.hoja?WG_HOJAS[WG.hoja]:'';
 }
+// v2.9.192: zoom propio del HUD (el control de Leaflet queda oculto).
+function wgZoom(d){ try{ WG.map && WG.map.setZoom(WG.map.getZoom()+d); }catch(e){} }
+// Compatibilidad: el botón viejo de configurar abría/cerraba su caja.
+function wgPanelToggle(){ wgHoja(WG.hoja==='unidades'?null:'unidades'); }
 async function wgEstado(){
   if(!WG.partidaId) return;
   const r=await _wgInvoke('estado',{ partida_id:WG.partidaId, clave_acceso:WG.clave });
@@ -22345,7 +22403,7 @@ async function wgHistorial(){
     : '<div class="rg-meta">Sin eventos todavía.</div>';
 }
 // ---- árbitro: configuración ----
-function wgConfigToggle(){ const c=document.getElementById('wg-config'); c.style.display = c.style.display==='none'?'':'none'; }
+function wgConfigToggle(){ wgHoja('config'); } // v2.9.192: ahora es una hoja deslizante
 async function wgAgregarBando(bando){
   const nombre=prompt(`Nombre del Estado Mayor ${bando.toUpperCase()} (opcional):`)||'';
   const r=await _wgInvoke('agregar_bando',{ partida_id:WG.partidaId, bando, nombre });
