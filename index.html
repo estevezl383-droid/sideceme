@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.196</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.197</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -12287,14 +12287,8 @@ function renderDiscPanel(){
     if(el) el.style.display = soloCT ? '' : 'none';
   });
   try{ avOpcionesDocente('screen-disc-panel'); }catch(e){}  // v2.9.195
-  // v2.9.194: la Carpeta de Clases también para quien tenga materia asignada
-  // (aunque entre con un cargo distinto de C&T).
-  if(!soloCT){
-    avTieneMateria().then(t => {
-      const b = document.getElementById('qa-btn-carpeta-clases');
-      if(b && t) b.style.display = '';
-    }).catch(()=>{});
-  }
+  // v2.9.197: la Carpeta de Clases va para TODOS (todos dan clases), no solo C&T.
+  { const b = document.getElementById('qa-btn-carpeta-clases'); if(b) b.style.display = ''; }
   // v2.9.106: bloque CIERRE DE SEMESTRE en el panel principal — SOLO C&T
   const cierreBlock = document.getElementById('cierre-sem-block');
   if(cierreBlock){
@@ -18886,8 +18880,10 @@ async function avTieneMateria(){
 // Se llama al asignar/quitar materias para que el botón se refresque sin re-login.
 function avResetMateriaCache(){ _avMateriaCache = null; }
 // Inserta el botón arriba del panel indicado (una sola vez).
+// v2.9.197: SIN condición. Todos los que tienen función también dan clases, así
+// que la Carpeta de Clases va para todos. El backend ya no bloquea: auto-asigna
+// la materia en el primer uso (aula-virtual-ops, materiaAsignada).
 async function avBotonCarpeta(screenId){
-  if(!(await avTieneMateria())) return;
   // Los paneles no usan todos el mismo contenedor: disciplina y jefe de curso
   // van con .disc-container, el resto con .menu-container.
   const cont = document.querySelector('#'+screenId+' .menu-container')
