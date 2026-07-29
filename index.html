@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.193</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.195</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -8108,6 +8108,8 @@ function _evalPromedio(cursanteId){
 }
 
 function renderEvalPanel(){
+  try{ avBotonCarpeta('screen-eval-panel'); }catch(e){}  // v2.9.194
+  try{ avOpcionesDocente('screen-eval-panel'); }catch(e){}  // v2.9.195
   if(!currentUser) return;
   const s = getSession();
   if(s && s.tipo !== 'docente'){
@@ -8461,6 +8463,8 @@ function volverDeNotasCursante(){
 }
 
 function renderGenericoPanel(role){
+  try{ avBotonCarpeta('screen-panel-generico'); }catch(e){}  // v2.9.194
+  try{ avOpcionesDocente('screen-panel-generico'); }catch(e){}  // v2.9.195
   const c=CARGOS[role];
   document.getElementById('generico-title').textContent=c.nombre;
   const name=currentUser.nombre_completo||'Docente';
@@ -9089,6 +9093,8 @@ function goEfPanel(){
 }
 
 function renderEfPanel(){
+  try{ avBotonCarpeta('screen-ef-panel'); }catch(e){}  // v2.9.194
+  try{ avOpcionesDocente('screen-ef-panel'); }catch(e){}  // v2.9.195
   if(!currentUser) return;
   // Defensa
   const s = getSession();
@@ -12271,6 +12277,15 @@ function renderDiscPanel(){
     const el = document.getElementById(id);
     if(el) el.style.display = soloCT ? '' : 'none';
   });
+  try{ avOpcionesDocente('screen-disc-panel'); }catch(e){}  // v2.9.195
+  // v2.9.194: la Carpeta de Clases también para quien tenga materia asignada
+  // (aunque entre con un cargo distinto de C&T).
+  if(!soloCT){
+    avTieneMateria().then(t => {
+      const b = document.getElementById('qa-btn-carpeta-clases');
+      if(b && t) b.style.display = '';
+    }).catch(()=>{});
+  }
   // v2.9.106: bloque CIERRE DE SEMESTRE en el panel principal — SOLO C&T
   const cierreBlock = document.getElementById('cierre-sem-block');
   if(cierreBlock){
@@ -18799,6 +18814,84 @@ function _etMarcarVisto(items){
 /* ===== JUEGO DE GUERRA (PMTD) — wargame por turnos, niebla de guerra ===== */
 // ===================== AULA VIRTUAL — CARPETA DE CLASES =====================
 const AV = { cid:null, catalogo:null, docentes:[], data:null, back:'screen-prof-panel' };
+// ============================================================
+// v2.9.194 — CARPETA DE CLASES PARA TODO PROFESOR CON MATERIA ASIGNADA
+// El backend ya tiene el candado por materia (av_profesor_materia, v2.9.178):
+// solo el profesor ASIGNADO puede crear la carpeta de esa UC. Lo que faltaba
+// era la PUERTA: el botón vivía únicamente en el panel de profesor y en el de
+// C&T, así que un profesor que entra con otro cargo (Jefe de Curso, Disciplina,
+// Ent. Físico, Evaluaciones, Estudios…) nunca lo veía, aunque tuviera materia.
+// Ahora el botón aparece en cualquier panel en cuanto la materia está asignada.
+// ============================================================
+// ------------------------------------------------------------
+// v2.9.195 — OPCIONES DE PROFESOR EN TODOS LOS PANELES
+// Todos los que tienen una función (Jefe de Curso, Disciplina, Comandante,
+// Jefe de Estudios, Ent. Físico, Evaluaciones…) TAMBIÉN dan clases. Antes sus
+// opciones de docente vivían solo en el panel de profesor, así que al entrar
+// con su cargo las perdían. Ahora se inyectan en el panel que sea, y solo las
+// que ese panel todavía no tenga (no se duplica nada).
+// La Carpeta de Clases va aparte: depende de tener materia asignada.
+// ------------------------------------------------------------
+const OPC_DOCENTE = [
+  { fn:'goHorarios',       icon:'📅', label:'Horario Semanal',
+    bg:'linear-gradient(180deg,#4a90d9,#2d5a8a)', arg:false },
+  { fn:'goAulaProfesores', icon:'📚', label:'Documentos del personal docente',
+    bg:'linear-gradient(180deg,#5a3a8a,#8c5acb)', arg:false },
+  { fn:'goQuizProf',       icon:'🎯', label:'Recurso Interactivo para el avance de materias — quiz en vivo, muro de ideas y nube de palabras',
+    bg:'linear-gradient(135deg,#6a1fb0,#b02da0 70%,#d9642d)', arg:true },
+];
+function avOpcionesDocente(screenId){
+  const sc = document.getElementById(screenId); if(!sc) return;
+  const cont = sc.querySelector('.menu-container') || sc.querySelector('.disc-container');
+  if(!cont) return;
+  // Anclar el bloque después del último botón de docente que ya exista, para
+  // que queden agrupados y no caigan debajo del feed de actividad.
+  const yaHay = [...sc.querySelectorAll('[onclick]')].filter(el =>
+    /goHorarios\(|goAulaProfesores\(|goQuizProf\(|goProfNuevaSancion\(|goAulaVirtual\(/.test(el.getAttribute('onclick')||''));
+  let ancla = yaHay.length ? yaHay[yaHay.length-1] : null;
+  if(ancla && ancla.parentElement !== cont) ancla = null;
+  for(const o of OPC_DOCENTE){
+    // Ya la tiene si está en el HTML (atributo onclick) o si la inyectamos antes
+    // (marca data-opc: los botones inyectados NO llevan atributo onclick).
+    if(sc.querySelector('[onclick*="'+o.fn+'("]') || sc.querySelector('[data-opc="'+o.fn+'"]')) continue;
+    const b = document.createElement('button');
+    b.className = 'btn-mega av-opc-docente';
+    b.dataset.opc = o.fn;
+    b.style.cssText = 'background:'+o.bg+';margin:8px 0 0;color:#fff';
+    b.onclick = o.arg ? (() => window[o.fn](screenId)) : (() => window[o.fn]());
+    b.innerHTML = '<span class="mega-icon">'+o.icon+'</span><span>'+o.label+'</span>';
+    if(ancla){ ancla.insertAdjacentElement('afterend', b); ancla = b; }
+    else cont.appendChild(b);
+  }
+}
+
+let _avMateriaCache = null;   // null = sin consultar todavía
+async function avTieneMateria(){
+  if(_avMateriaCache !== null) return _avMateriaCache;
+  try{
+    const r = await _avInvoke('repo_mis_materias');
+    _avMateriaCache = !!(r && r.ok && (r.es_admin || (r.materias||[]).length > 0));
+  }catch(e){ _avMateriaCache = false; }
+  return _avMateriaCache;
+}
+// Se llama al asignar/quitar materias para que el botón se refresque sin re-login.
+function avResetMateriaCache(){ _avMateriaCache = null; }
+// Inserta el botón arriba del panel indicado (una sola vez).
+async function avBotonCarpeta(screenId){
+  if(!(await avTieneMateria())) return;
+  // Los paneles no usan todos el mismo contenedor: disciplina y jefe de curso
+  // van con .disc-container, el resto con .menu-container.
+  const cont = document.querySelector('#'+screenId+' .menu-container')
+            || document.querySelector('#'+screenId+' .disc-container');
+  if(!cont || cont.querySelector('.av-btn-carpeta')) return;
+  const b = document.createElement('button');
+  b.className = 'btn-mega av-btn-carpeta';
+  b.style.cssText = 'background:linear-gradient(180deg,#1f6f5c,#0e4a3c);margin:0 0 10px;color:#fff';
+  b.onclick = () => goAulaVirtual(screenId);
+  b.innerHTML = '<span class="mega-icon">🎓</span><span>Carpeta de Clases — documentación y material de tu materia</span>';
+  cont.insertBefore(b, cont.firstElementChild);
+}
+
 async function _avInvoke(accion, extra){
   const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
   if(!tok) return {ok:false,error:'sin sesión'};
@@ -19278,6 +19371,7 @@ function repoAsignarLista(){
 async function repoAsignar(codigo){
   const r=await _avInvoke('repo_asignar',{profesor_id:RASIG.profSel, materia_codigo:codigo});
   if(!r.ok){ alert('No se pudo asignar: '+(r.error||'')); return; }
+  try{ avResetMateriaCache(); }catch(e){}  // v2.9.194: que el botón se refresque
   const a=await _avInvoke('repo_asignaciones'); RASIG.asignaciones=(a.ok?a.asignaciones:[])||[];
   repoAsignarRender();
 }
@@ -19285,6 +19379,7 @@ async function repoDesasignar(codigo){
   if(!confirm('¿Quitar esta materia al profesor?')) return;
   const r=await _avInvoke('repo_desasignar',{profesor_id:RASIG.profSel, materia_codigo:codigo});
   if(!r.ok){ alert('No se pudo quitar: '+(r.error||'')); return; }
+  try{ avResetMateriaCache(); }catch(e){}  // v2.9.194: que el botón se refresque
   const a=await _avInvoke('repo_asignaciones'); RASIG.asignaciones=(a.ok?a.asignaciones:[])||[];
   repoAsignarRender();
 }
@@ -26925,6 +27020,8 @@ function jcTop10Profesores(paralelo){
 }
 
 function renderJCPanel(){
+  try{ avBotonCarpeta('screen-jc-panel'); }catch(e){}  // v2.9.194
+  try{ avOpcionesDocente('screen-jc-panel'); }catch(e){}  // v2.9.195
   if(!currentUser) return;
   const name = currentUser.nombre_completo || '—';
   const initials = name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
