@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.197</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.200</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -19448,10 +19448,13 @@ async function avCrear(btn){
   const gestion=parseInt(document.getElementById('av-nc-gestion').value)||new Date().getFullYear();
   const msg=document.getElementById('av-nc-msg');
   if(!uc){ msg.textContent='Elegí una materia.'; return; }
-  btn.disabled=true; btn.textContent='Creando…';
+  btn.disabled=true; btn.textContent='Abriendo…';
   const r=await _avInvoke('crear_carpeta',{materia_codigo:uc, gestion});
   btn.disabled=false; btn.textContent='Crear carpeta';
   if(!r.ok){ msg.textContent='⚠️ '+(r.error||'No se pudo crear'); return; }
+  // v2.9.200: si la carpeta de esa materia ya existía, el backend te suma como
+  // docente y la devuelve — se abre para llenarla, no es un error.
+  msg.textContent = r.ya_existia ? '📂 Esta materia ya tenía carpeta: te sumamos como docente y la estamos abriendo.' : '';
   document.getElementById('av-nueva').style.display='none';
   await avAbrirCarpeta(r.id);
 }
@@ -22261,7 +22264,13 @@ async function _wgInvoke(accion, extra){
   if(!tok) return {ok:false,error:'sin sesión'};
   try{
     const { data, error } = await sb.functions.invoke('wargame-ops',{ body:Object.assign({accion, token:tok}, extra||{}) });
-    if(error) return {ok:false,error:(error.message||'error')};
+    if(error){
+      // v2.9.198: sin esto el navegador solo muestra "Edge Function returned a
+      // non-2xx status code" y se pierde el motivo REAL que manda la función.
+      let msg=error.message||'error';
+      try{ if(error.context && typeof error.context.json==='function'){ const b=await error.context.json(); if(b&&b.error) msg=b.error; } }catch(_){}
+      return {ok:false,error:msg};
+    }
     return data||{ok:false,error:'sin respuesta'};
   }catch(e){ return {ok:false,error:String((e&&e.message)||e)}; }
 }
