@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.192</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.193</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6606,16 +6606,20 @@ body{
 #screen-wargame.wg-full{position:fixed;inset:0;z-index:6000;background:#0a0e13;overflow:hidden}
 body.wg-jugando{overflow:hidden}
 /* El encabezado se reduce a un botón de volver flotante. */
-#screen-wargame.wg-full .app-header{position:absolute;top:8px;left:8px;right:auto;z-index:22;
-  background:none;padding:0;border:0;box-shadow:none;display:block;width:auto;min-height:0}
-#screen-wargame.wg-full .app-header .header-crest,
-#screen-wargame.wg-full .app-header .header-text{display:none}
-#screen-wargame.wg-full .app-header .back-btn{width:38px;height:38px;border-radius:50%;
-  background:rgba(12,18,26,.55);border:1px solid rgba(255,255,255,.18);color:#dbe7f2;
-  backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);font-size:17px;line-height:1;padding:0}
-#screen-wargame.wg-full .menu-container{max-width:none;width:100%;margin:0;padding:0;height:100%;position:relative}
-#screen-wargame.wg-full #wg-game{position:absolute;inset:0;margin:0}
-#screen-wargame.wg-full #wg-map{position:absolute;inset:0;height:100%;width:100%;border:0;border-radius:0;margin:0}
+/* El encabezado de la app es `position:sticky !important` y ocupa una franja
+   de ancho completo: en modo juego no sirve. Se oculta y el botón de volver
+   se pone dentro del propio HUD (#wg-tl). */
+#screen-wargame.wg-full .app-header{display:none!important}
+/* El contenedor de la app tiene `max-width:1160px !important` a partir de
+   1024px de ancho: ninguna especificidad lo vence. Por eso el juego NO pelea
+   con el contenedor: se sale de él. #wg-game pasa a position:fixed y queda
+   anclado al viewport, así el mapa y el HUD ocupan la pantalla de verdad. */
+#screen-wargame.wg-full .menu-container{max-width:none!important;width:100%!important;
+  margin:0!important;padding:0!important;height:100%;position:static}
+#screen-wargame.wg-full #wg-game{position:fixed!important;inset:0!important;
+  width:auto!important;height:auto!important;max-width:none!important;margin:0!important;padding:0!important;z-index:6001}
+#screen-wargame.wg-full #wg-map{position:absolute;inset:0;height:100%!important;width:100%!important;
+  border:0;border-radius:0;margin:0;max-width:none!important}
 /* Zoom propio: el de Leaflet estorba en un HUD. */
 #screen-wargame.wg-full .leaflet-control-zoom,
 #screen-wargame.wg-full .leaflet-control-attribution{display:none}
@@ -6639,10 +6643,14 @@ body.wg-jugando{overflow:hidden}
 #screen-wargame.wg-full .wg-fuerte{background:rgba(28,92,58,.82);border-color:rgba(120,230,170,.55);color:#d8ffe9}
 
 /* --- Colocación --- */
-#screen-wargame.wg-full #wg-tl{position:absolute;top:12px;left:56px;z-index:20;display:flex;gap:6px;flex-wrap:wrap;max-width:calc(100vw - 120px)}
+#screen-wargame.wg-full #wg-tl{position:absolute;top:8px;left:8px;z-index:20;display:flex;gap:6px;align-items:center;flex-wrap:wrap;max-width:calc(100vw - 110px)}
 #screen-wargame.wg-full #wg-rail{position:absolute;top:56px;left:8px;z-index:20;display:flex;flex-direction:column;gap:8px}
 #screen-wargame.wg-full #wg-zoom{position:absolute;top:56px;right:8px;z-index:20;display:flex;flex-direction:column;gap:8px}
-#screen-wargame.wg-full #wg-acc{position:absolute;right:8px;bottom:22px;z-index:20;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
+#screen-wargame.wg-full #wg-acc{position:absolute;right:8px;bottom:22px;z-index:20;display:flex;flex-direction:column;gap:8px;align-items:flex-end;transition:right .22s ease}
+/* Con la hoja abierta, las acciones y el zoom se corren para no quedar tapados. */
+#screen-wargame.wg-full #wg-game.hoja-abierta #wg-acc,
+#screen-wargame.wg-full #wg-game.hoja-abierta #wg-zoom{right:calc(min(340px,88vw) + 16px)}
+#screen-wargame.wg-full #wg-zoom{transition:right .22s ease}
 #screen-wargame.wg-full #wg-ayuda{position:absolute;left:8px;bottom:12px;z-index:19;max-width:min(340px,58vw);
   font-size:11.5px;line-height:1.45;color:#b8c6d4;background:rgba(12,18,26,.55);border:1px solid rgba(255,255,255,.12);
   border-radius:12px;padding:8px 11px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
@@ -6675,6 +6683,8 @@ body.wg-jugando{overflow:hidden}
      si no se pisan entre sí. */
   #screen-wargame.wg-full #wg-ayuda{max-width:88vw;font-size:11px;bottom:112px}
   #screen-wargame.wg-full #wg-acc{bottom:14px}
+  #screen-wargame.wg-full #wg-game.hoja-abierta #wg-acc,
+  #screen-wargame.wg-full #wg-game.hoja-abierta #wg-zoom{right:8px}
 }
 </style>
 <section id="screen-wargame" class="screen">
@@ -6709,6 +6719,7 @@ body.wg-jugando{overflow:hidden}
       <!-- v2.9.192 — HUD tipo juego: el mapa es la pantalla; todo lo demás
            flota encima, chico y semitransparente, y se llama cuando hace falta. -->
       <div id="wg-tl">
+        <button class="wg-rd" onclick="wgVolver()" title="Salir del juego">←</button>
         <span id="wg-turno-chip" class="wg-chip">Turno —</span>
         <span id="wg-rol-chip" class="wg-chip"></span>
       </div>
@@ -22238,6 +22249,7 @@ function wgHoja(cual){
     if(el) el.classList.toggle('activa', k===WG.hoja);
   }
   h.classList.toggle('abierta', !!WG.hoja);
+  document.getElementById('wg-game').classList.toggle('hoja-abierta', !!WG.hoja);
   const t=document.getElementById('wg-hoja-tit'); if(t) t.textContent = WG.hoja?WG_HOJAS[WG.hoja]:'';
 }
 // v2.9.192: zoom propio del HUD (el control de Leaflet queda oculto).
