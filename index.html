@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.201</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.202</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6654,6 +6654,25 @@ body.wg-jugando{overflow:hidden}
 #screen-wargame.wg-full #wg-rail{position:absolute;top:56px;left:8px;z-index:1020;display:flex;flex-direction:column;gap:8px}
 #screen-wargame.wg-full #wg-zoom{position:absolute;top:56px;right:8px;z-index:1020;display:flex;flex-direction:column;gap:8px;align-items:flex-end}
 #screen-wargame.wg-full #wg-zoom-chip{font-size:11px;padding:4px 9px}
+/* v2.9.202 — Vista 3D: tapa TODO el juego mientras está abierta. Va por encima
+   del HUD (1020) pero el mapa 2D sigue montado abajo, así que al cerrar vuelve
+   sin recargar nada. */
+#wg-3d{position:absolute;inset:0;z-index:1400;background:#0a0e13}
+#wg-3d-map{position:absolute;inset:0}
+#wg-3d-cargando{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#cfe6ff;font-size:14px;
+  background:rgba(10,14,19,.85);padding:10px 16px;border-radius:10px;border:1px solid rgba(140,210,255,.25)}
+#wg-3d-tl{position:absolute;top:8px;left:8px;z-index:5;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+#wg-3d-panel{position:absolute;bottom:14px;left:8px;z-index:5;display:flex;flex-direction:column;gap:7px;
+  background:rgba(10,14,19,.72);backdrop-filter:blur(6px);border:1px solid rgba(140,210,255,.2);
+  border-radius:12px;padding:9px 11px;font-size:11px;color:#cfe6ff;max-width:min(290px,86vw)}
+#wg-3d-panel label{display:flex;align-items:center;gap:6px;white-space:nowrap}
+#wg-3d-panel input[type=range]{flex:1;min-width:96px;accent-color:#4aa3e0}
+#wg-3d-panel .wg-3d-caps{display:flex;gap:10px;flex-wrap:wrap}
+#wg-3d-panel .rg-doc{padding:3px 8px;font-size:11px}
+#wg-3d-error{position:absolute;top:52px;left:8px;right:8px;z-index:6;color:#ffb4a8;font-size:12px;
+  background:rgba(60,12,12,.85);border:1px solid #a33;border-radius:8px;padding:7px 10px;display:none}
+/* El 3D lleva sus propios controles: los de MapLibre sobran. */
+#wg-3d .maplibregl-ctrl-attrib{font-size:9px;opacity:.55}
 #screen-wargame.wg-full #wg-acc{position:absolute;right:8px;bottom:22px;z-index:1020;display:flex;flex-direction:column;gap:8px;align-items:flex-end;transition:right .22s ease}
 /* Con la hoja abierta, las acciones y el zoom se corren para no quedar tapados. */
 #screen-wargame.wg-full #wg-game.hoja-abierta #wg-acc,
@@ -6736,6 +6755,8 @@ body.wg-jugando{overflow:hidden}
       <div id="wg-rail">
         <button class="wg-rd" onclick="wgEstado()" title="Actualizar">🔄</button>
         <button class="wg-rd" id="wg-btn-obs" onclick="wgObsToggle(this)" title="Alcance de observación (niebla de guerra)">👁️</button>
+        <button class="wg-rd" id="wg-btn-carta" onclick="wgCartaToggle(this)" title="Carta de fondo: ríos, curvas de nivel, caminos y poblados">🗺️</button>
+        <button class="wg-rd" id="wg-btn-3d" onclick="wgVista3D()" title="Vista 3D del terreno (relieve real)">⛰️</button>
         <button class="wg-rd" onclick="wgHoja('unidades')" title="Unidades">🪖</button>
         <button class="wg-rd" onclick="wgHoja('bitacora')" title="Bitácora">📜</button>
         <button class="wg-rd" id="wg-btn-config" onclick="wgHoja('config')" title="Configurar" style="display:none">⚙️</button>
@@ -6756,6 +6777,34 @@ body.wg-jugando{overflow:hidden}
 
       <!-- Aviso de contexto, abajo a la izquierda -->
       <div id="wg-ayuda"></div>
+
+      <!-- v2.9.202 — VISTA 3D del terreno. Tapa el mapa 2D mientras está abierta.
+           Es una vista para APRECIAR el terreno (relieve real bajo el calco);
+           las órdenes se siguen dando en el 2D. -->
+      <div id="wg-3d" style="display:none">
+        <div id="wg-3d-map"></div>
+        <div id="wg-3d-cargando">⛰️ Levantando el relieve…</div>
+        <div id="wg-3d-tl">
+          <button class="wg-rd" onclick="wgCerrar3D()" title="Volver al mapa">←</button>
+          <span class="wg-chip">⛰️ Vista 3D</span>
+          <span class="wg-chip" id="wg-3d-cota">—</span>
+        </div>
+        <div id="wg-3d-panel">
+          <label>Relieve <b id="wg-3d-exag-val">1.6×</b>
+            <input type="range" id="wg-3d-exag" min="1" max="4" step="0.2" value="1.6" oninput="wg3dExag(this.value)">
+          </label>
+          <div class="wg-3d-caps">
+            <label><input type="checkbox" id="wg-3d-ver-cmoc" checked onchange="wg3dCapas()"> CMOC</label>
+            <label><input type="checkbox" id="wg-3d-ver-carta" checked onchange="wg3dCapas()"> Carta</label>
+            <label><input type="checkbox" id="wg-3d-ver-unid" checked onchange="wg3dCapas()"> Unidades</label>
+          </div>
+          <div class="wg-3d-caps">
+            <button class="rg-doc" onclick="wg3dBase('sat')">🛰️ Satélite</button>
+            <button class="rg-doc" onclick="wg3dBase('osm')">🗺️ Mapa</button>
+          </div>
+        </div>
+        <div id="wg-3d-error"></div>
+      </div>
 
       <!-- Hoja deslizante: cerrada por defecto, se abre desde el riel -->
       <div id="wg-hoja">
@@ -7186,8 +7235,14 @@ const _LIBS = {
   pdfjs:   {key:'pdfjs',   js:'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js', test:()=>typeof pdfjsLib!=='undefined'},
   qrcode:  {key:'qrcode',  js:'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js', test:()=>typeof QRCode!=='undefined'},
   bcrypt:  {key:'bcrypt',  js:'https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js', test:()=>(typeof dcodeIO!=='undefined' && dcodeIO.bcrypt) || typeof bcrypt!=='undefined'},
-  jszip:   {key:'jszip',   js:'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', test:()=>typeof JSZip!=='undefined'}
+  jszip:   {key:'jszip',   js:'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', test:()=>typeof JSZip!=='undefined'},
+  // v2.9.202 — Vista 3D del Juego de Guerra. OJO: **v5**. La v6 NO funciona
+  // (ni siquiera carga un estilo mínimo); ya se comprobó en el Generador de
+  // Calcos. Pesa ~900 KB, así que NO va en el warmup: se baja recién cuando el
+  // árbitro toca ⛰️.
+  maplibre:{key:'maplibre',js:'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js', css:'https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css', test:()=>typeof maplibregl!=='undefined'}
 };
+function ensureMapLibre(){ return _loadLib(_LIBS.maplibre); }
 function ensureJSZip()   { return _loadLib(_LIBS.jszip); }
 function ensureXLSX()    { return _loadLib(_LIBS.xlsx); }
 function ensureLeaflet() { return _loadLib(_LIBS.leaflet); }
@@ -22277,7 +22332,8 @@ function _avRecCard(r){
 }
 
 const WG = { partidaId:null, clave:'', soy:null, estado:null, ordenes:{}, sel:null, map:null, capa:null, modoColocar:false, volverA:'screen-disc-panel',
-  terreno:null, capaTerreno:null, capaTerrenoFirma:null };
+  terreno:null, capaTerreno:null, capaTerrenoFirma:null,
+  map3d:null, marc3d:[], exag3d:1.6, base3d:'sat', verCarta:true };
 const WG_COL = { rojo:'#e23b3b', azul:'#1f6dff' };
 async function _wgInvoke(accion, extra){
   const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
@@ -22312,6 +22368,11 @@ function wgVolver(){
   if(WG.map){ try{ WG.map.remove(); }catch(e){} WG.map=null; }
   WG.partidaId=null; WG.estado=null; WG.ordenes={}; WG.sel=null;
   WG.terreno=null; WG.capaTerreno=null; WG.capaTerrenoFirma=null; // v2.9.201
+  // v2.9.202: el mapa 3D se desmonta con el juego (si no, queda apuntando a
+  // unidades y terreno de la partida anterior).
+  if(WG.map3d){ try{ WG.map3d.remove(); }catch(e){} }
+  WG.map3d=null; WG.marc3d=[];
+  const _c3=document.getElementById('wg-3d'); if(_c3) _c3.style.display='none';
   showScreen(WG.volverA||'screen-disc-panel');
 }
 async function wgCargarMisPartidas(){
@@ -22506,16 +22567,239 @@ function _wgRenderTerreno(){
   WG.capaTerreno = L.layerGroup().addTo(WG.map);
   WG.capaTerrenoFirma = firma;
   if(!terr.length) return;
+  // CMOC (lo que pesa en el combate) — colores fuertes, se ven siempre.
   const estilo={
     restringido:{color:'#ffd400',weight:1,fillOpacity:0.10,fillColor:'#ffd400'},
     severo:{color:'#e2521b',weight:1,fillOpacity:0.16,fillColor:'#e2521b'},
     clave:{color:'#cc00ff',weight:2,fillOpacity:0.14,fillColor:'#cc00ff'},
+    // Carta de fondo del Generador — colores de carta, discretos.
+    hidro:{color:'#4aa3e0',weight:1.4,fillOpacity:0.35,fillColor:'#2f6ea8'},
+    elevacion:{color:'#b08a54',weight:0.9,fillOpacity:0},
+    via:{color:'#e6d9bd',weight:1.3,fillOpacity:0},
+    poblado:{color:'#d8d8d8',weight:1,fillOpacity:0.25,fillColor:'#9aa0a6'},
+    vegetacion:{color:'#4f8f45',weight:1,fillOpacity:0.22,fillColor:'#4f8f45'},
+    jurisdiccion:{color:'#b06de0',weight:1.2,fillOpacity:0,dashArray:'5 4'},
   };
+  // Los puntos (cimas, volcanes, poblados, hitos) van como circulitos chicos.
+  const punto={ elevacion:{r:3,color:'#b08a54'}, poblado:{r:3.5,color:'#e8e8e8'}, jurisdiccion:{r:3,color:'#b06de0'} };
+  const esVisual=(tp)=>['hidro','elevacion','via','poblado','vegetacion','jurisdiccion'].includes(tp);
   // El terreno es telón de fondo: no debe robar los clics del mapa ni de las fichas.
   for(const t of terr){
-    try{ L.geoJSON(t.geojson,{style:Object.assign({interactive:false},estilo[t.tipo]||{color:'#888',weight:1,fillOpacity:0.10})}).addTo(WG.capaTerreno); }catch(_e){}
+    if(esVisual(t.tipo) && WG.verCarta===false) continue; // 🗺️ apagada
+    const est=Object.assign({interactive:false},estilo[t.tipo]||{color:'#888',weight:1,fillOpacity:0.10});
+    try{
+      L.geoJSON(t.geojson,{ style:est, interactive:false,
+        pointToLayer:(f,ll)=>{ const p=punto[t.tipo]||{r:3,color:'#aaa'};
+          return L.circleMarker(ll,{radius:p.r,color:p.color,weight:1,fillColor:p.color,fillOpacity:.65,interactive:false}); },
+      }).addTo(WG.capaTerreno);
+    }catch(_e){}
   }
   try{ WG.capaTerreno.bringToBack&&WG.capaTerreno.bringToBack(); }catch(_e){}
+}
+// ============================================================
+// v2.9.202 — VISTA 3D del terreno (⛰️).
+// MapLibre GL **v5** sobre el modelo de elevación Terrarium (el mismo que usa
+// el Generador de Calcos para las curvas de nivel). Drapea encima el CMOC, la
+// carta de fondo y las fichas con su símbolo militar.
+// Es una vista para APRECIAR el terreno: las órdenes se siguen dando en el 2D,
+// así que acá no hay clics que cambien la partida.
+// ============================================================
+const WG3D_DEM='https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png';
+const WG3D_BASES={
+  sat:{tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],atrib:'Tiles © Esri',maxzoom:19},
+  osm:{tiles:['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'],atrib:'© OpenStreetMap',maxzoom:19},
+};
+// Mismos colores que el mapa 2D, para que el terreno se lea igual en las dos vistas.
+const WG3D_EST={
+  restringido:{col:'#ffd400',fill:0.20,w:1.2}, severo:{col:'#e2521b',fill:0.30,w:1.2},
+  clave:{col:'#cc00ff',fill:0.22,w:2.4},
+  hidro:{col:'#4aa3e0',fill:0.45,w:1.7}, elevacion:{col:'#b08a54',fill:0,w:1.0},
+  via:{col:'#e6d9bd',fill:0,w:1.6}, poblado:{col:'#d8d8d8',fill:0.30,w:1.0},
+  vegetacion:{col:'#4f8f45',fill:0.28,w:1.0}, jurisdiccion:{col:'#b06de0',fill:0,w:1.3},
+};
+const WG3D_DOCT=['restringido','severo','clave'];
+const WG3D_VACIO={type:'FeatureCollection',features:[]};
+// Arma UNA colección con todo el terreno; el estilo sale de las propiedades,
+// así MapLibre pinta cada cosa con su color sin necesitar una capa por tipo.
+function _wg3dTerrenoFC(){
+  const feats=[];
+  for(const t of (WG.terreno||[])){
+    const e=WG3D_EST[t.tipo]; if(!e||!t.geojson) continue;
+    feats.push({type:'Feature',geometry:t.geojson,properties:{
+      _col:e.col,_fill:e.fill,_w:e.w,_doct:WG3D_DOCT.includes(t.tipo)?1:0}});
+  }
+  return {type:'FeatureCollection',features:feats};
+}
+function _wg3dOrdenesFC(){
+  const feats=[], uById={};
+  for(const u of ((WG.estado&&WG.estado.unidades)||[])) uById[u.id]=u;
+  for(const uid in WG.ordenes){
+    const o=WG.ordenes[uid], u=uById[uid]; if(!u) continue;
+    if(o.tipo==='mover'&&o.destino_lat!=null)
+      feats.push({type:'Feature',geometry:{type:'LineString',coordinates:[[u.lng,u.lat],[o.destino_lng,o.destino_lat]]},properties:{_col:'#2ecc71'}});
+    else if(o.tipo==='atacar'&&uById[o.objetivo_id]){
+      const t=uById[o.objetivo_id];
+      feats.push({type:'Feature',geometry:{type:'LineString',coordinates:[[u.lng,u.lat],[t.lng,t.lat]]},properties:{_col:'#e23b3b'}});
+    }
+  }
+  return {type:'FeatureCollection',features:feats};
+}
+function _wg3dError(msg){
+  const el=document.getElementById('wg-3d-error');
+  if(!el) return;
+  if(!msg){ el.style.display='none'; return; }
+  el.textContent=msg; el.style.display='block';
+}
+async function wgVista3D(){
+  const cap=document.getElementById('wg-3d');
+  if(!cap) return;
+  cap.style.display='';
+  _wg3dError('');
+  document.getElementById('wg-3d-cargando').style.display='';
+  try{ await ensureMapLibre(); }
+  catch(e){
+    document.getElementById('wg-3d-cargando').style.display='none';
+    _wg3dError('No se pudo bajar la librería del 3D. La vista 3D necesita internet.');
+    return;
+  }
+  if(WG.map3d){ // ya estaba montado: sólo refrescar los datos
+    document.getElementById('wg-3d-cargando').style.display='none';
+    try{ WG.map3d.resize(); }catch(_e){}
+    _wg3dDatos();
+    return;
+  }
+  const base=WG3D_BASES[WG.base3d||'sat'];
+  let map;
+  try{
+    map=new maplibregl.Map({
+      container:'wg-3d-map',
+      style:{version:8,
+        sources:{
+          base:{type:'raster',tiles:base.tiles,tileSize:256,maxzoom:base.maxzoom,attribution:base.atrib},
+          dem:{type:'raster-dem',tiles:[WG3D_DEM],tileSize:256,encoding:'terrarium',maxzoom:14,attribution:'Elevación: Terrarium / AWS (SRTM)'},
+        },
+        layers:[
+          {id:'fondo',type:'background',paint:{'background-color':'#0a0e13'}},
+          {id:'base',type:'raster',source:'base'},
+          {id:'sombreado',type:'hillshade',source:'dem',paint:{'hillshade-exaggeration':0.35,'hillshade-shadow-color':'#0a0e13'}},
+        ]},
+      center:[-64.5,-16.5], zoom:6, pitch:62, maxPitch:85, maxZoom:19,
+      attributionControl:{compact:true},
+    });
+  }catch(e){
+    document.getElementById('wg-3d-cargando').style.display='none';
+    _wg3dError('No se pudo iniciar la vista 3D: '+((e&&e.message)||e));
+    return;
+  }
+  WG.map3d=map; WG.marc3d=[];
+  map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
+  map.addControl(new maplibregl.ScaleControl({maxWidth:140,unit:'metric'}),'bottom-right');
+  map.on('error',(e)=>{
+    // Los 404 sueltos de teselas no merecen un cartel: el relieve se ve igual.
+    if(e&&e.error&&e.error.status===404) return;
+    if(e&&e.error&&e.error.message) _wg3dError(e.error.message);
+  });
+  map.on('mousemove',(e)=>{
+    const el=document.getElementById('wg-3d-cota'); if(!el) return;
+    let h=null; try{ h=map.queryTerrainElevation(e.lngLat); }catch(_e){}
+    el.textContent = h==null?'—':('⛰️ '+Math.round(h)+' m');
+  });
+  map.on('load',()=>{
+    document.getElementById('wg-3d-cargando').style.display='none';
+    map.setTerrain({source:'dem',exaggeration:Number(WG.exag3d||1.6)});
+    try{ map.setSky({'sky-color':'#0d1d2e','horizon-color':'#5b7897','fog-color':'#0a0e13',
+      'sky-horizon-blend':0.6,'horizon-fog-blend':0.5,'fog-ground-blend':0.2}); }
+    catch(_e){ /* el cielo es cosmético */ }
+    map.addSource('wg-terr',{type:'geojson',data:WG3D_VACIO});
+    map.addSource('wg-ord',{type:'geojson',data:WG3D_VACIO});
+    map.addLayer({id:'wg-terr-relleno',type:'fill',source:'wg-terr',
+      filter:['==',['geometry-type'],'Polygon'],
+      paint:{'fill-color':['get','_col'],'fill-opacity':['get','_fill']}});
+    map.addLayer({id:'wg-terr-linea',type:'line',source:'wg-terr',
+      filter:['!=',['geometry-type'],'Point'],
+      layout:{'line-cap':'round','line-join':'round'},
+      paint:{'line-color':['get','_col'],'line-width':['get','_w'],'line-opacity':0.95}});
+    map.addLayer({id:'wg-terr-punto',type:'circle',source:'wg-terr',
+      filter:['==',['geometry-type'],'Point'],
+      paint:{'circle-radius':3.5,'circle-color':['get','_col'],'circle-stroke-width':1,'circle-stroke-color':'#00000066'}});
+    map.addLayer({id:'wg-ord-linea',type:'line',source:'wg-ord',
+      layout:{'line-cap':'round'},
+      paint:{'line-color':['get','_col'],'line-width':2.4,'line-dasharray':[2,1.5]}});
+    _wg3dDatos();
+    _wg3dEncuadrar();
+  });
+}
+// Vuelca en el mapa 3D el terreno, las órdenes y las fichas del estado actual.
+function _wg3dDatos(){
+  const map=WG.map3d; if(!map||!map.getSource) return;
+  try{
+    const s1=map.getSource('wg-terr'); if(s1) s1.setData(_wg3dTerrenoFC());
+    const s2=map.getSource('wg-ord'); if(s2) s2.setData(_wg3dOrdenesFC());
+  }catch(_e){}
+  // Fichas: el MISMO PNG del símbolo militar que usa el mapa 2D.
+  for(const m of (WG.marc3d||[])){ try{ m.remove(); }catch(_e){} }
+  WG.marc3d=[];
+  const verU=document.getElementById('wg-3d-ver-unid');
+  if(verU && !verU.checked) return;
+  for(const u of ((WG.estado&&WG.estado.unidades)||[])){
+    const sim=_wgSimboloUnidad(u,false), F=0.55;
+    const img=document.createElement('img');
+    img.src=sim.url; img.style.width=(sim.w*F)+'px'; img.style.height=(sim.h*F)+'px';
+    img.style.pointerEvents='none';
+    try{
+      const mk=new maplibregl.Marker({element:img, anchor:'center',
+        offset:[(sim.w/2-sim.ax)*F, (sim.h/2-sim.ay)*F]}).setLngLat([u.lng,u.lat]).addTo(map);
+      WG.marc3d.push(mk);
+    }catch(_e){}
+  }
+}
+function _wg3dEncuadrar(){
+  const map=WG.map3d; if(!map) return;
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(const t of (WG.terreno||[])){ const c=t._caja; if(!c) continue;
+    x0=Math.min(x0,c[0]); y0=Math.min(y0,c[1]); x1=Math.max(x1,c[2]); y1=Math.max(y1,c[3]); }
+  for(const u of ((WG.estado&&WG.estado.unidades)||[])){
+    x0=Math.min(x0,u.lng); y0=Math.min(y0,u.lat); x1=Math.max(x1,u.lng); y1=Math.max(y1,u.lat); }
+  if(x0===Infinity) return;
+  try{ map.fitBounds([[x0,y0],[x1,y1]],{padding:70,pitch:62,duration:900}); }catch(_e){}
+}
+function wg3dExag(v){
+  WG.exag3d=Number(v)||1.6;
+  const et=document.getElementById('wg-3d-exag-val'); if(et) et.textContent=WG.exag3d.toFixed(1)+'×';
+  if(WG.map3d){ try{ WG.map3d.setTerrain(WG.exag3d>1?{source:'dem',exaggeration:WG.exag3d}:{source:'dem',exaggeration:1}); }catch(_e){} }
+}
+function wg3dCapas(){
+  const map=WG.map3d; if(!map||!map.setFilter) return;
+  const verC=document.getElementById('wg-3d-ver-cmoc').checked;
+  const verA=document.getElementById('wg-3d-ver-carta').checked;
+  // _doct = 1 en el CMOC, 0 en la carta de fondo: un filtro sirve para las 3 capas.
+  const cond = verC&&verA ? ['literal',true] : (!verC&&!verA ? ['literal',false] : ['==',['get','_doct'],verC?1:0]);
+  for(const [capa,geom] of [['wg-terr-relleno','Polygon'],['wg-terr-linea',null],['wg-terr-punto','Point']]){
+    const base = capa==='wg-terr-linea' ? ['!=',['geometry-type'],'Point'] : ['==',['geometry-type'],geom];
+    try{ map.setFilter(capa,['all',base,cond]); }catch(_e){}
+  }
+  _wg3dDatos();
+}
+function wg3dBase(cual){
+  WG.base3d=cual;
+  const map=WG.map3d; if(!map) return;
+  const b=WG3D_BASES[cual]||WG3D_BASES.sat;
+  try{
+    const src=map.getSource('base');
+    if(src&&src.setTiles) src.setTiles(b.tiles);
+  }catch(_e){}
+}
+function wgCerrar3D(){
+  const cap=document.getElementById('wg-3d');
+  if(cap) cap.style.display='none';
+  // El mapa 3D queda montado: volver a abrirlo es instantáneo y no rebaja teselas.
+}
+// 🗺️ Mostrar u ocultar la carta de fondo (deja el CMOC siempre visible).
+function wgCartaToggle(btn){
+  WG.verCarta = WG.verCarta===false;
+  if(btn) btn.style.opacity = WG.verCarta===false?0.45:1;
+  WG.capaTerrenoFirma=null; // forzar el redibujo
+  _wgRenderTerreno();
 }
 // ============================================================
 // v2.9.201 — PUENTE Generador de Calcos → Juego de Guerra.
@@ -22551,13 +22835,31 @@ function _wgEscenarioDesde(d){
       poder_max: Number(u.poder_max)||WG_PODER[escalon]||12,
       obs_km: Number(u.obs_km)||WG_OBS[escalon]||4 });
   }
-  // Terreno: o viene ya como [{tipo,geojson}] (export compacto), o se saca del CMOC.
+  // Terreno DOCTRINAL (el único que usa el motor): sólo polígonos del CMOC.
   const meter=(tipo,geom)=>{ if(geom&&(geom.type==='Polygon'||geom.type==='MultiPolygon')) terreno.push({tipo,geojson:geom}); };
   if(Array.isArray(d&&d.terreno)) for(const t of d.terreno) meter(t.tipo,t.geojson||t.geometry);
   const cmoc=(d&&d.cmoc)||null;
   if(cmoc) for(const tipo of ['restringido','severo','clave'])
     for(const f of (cmoc[tipo]||[])) meter(tipo, f&&(f.geometry||f));
-  return { unidades, terreno, nombre:(d&&d.nombre)||'' };
+  // CAPAS VISUALES = la carta de fondo que el Generador ya recortó al área:
+  // hidrografía, curvas de nivel y cimas, caminos, poblados, vegetación y
+  // jurisdicciones. Viven en `resultados.<capa>.fc` (FeatureCollection).
+  // El motor NO las mira; sirven para que el árbitro y los Estados Mayores lean
+  // el terreno de verdad: dónde hay agua, por dónde se rueda, cómo sube el relieve.
+  const CAPAS={hidrografico:'hidro', elevaciones:'elevacion', comunicaciones:'via',
+    poblaciones:'poblado', vegetacion:'vegetacion', jurisdicciones:'jurisdiccion'};
+  const res=(d&&d.resultados)||null;
+  let visuales=0;
+  if(res) for(const clave in CAPAS){
+    const fc=(res[clave]&&res[clave].fc)||res[clave];
+    for(const f of ((fc&&fc.features)||[])){
+      const g=f&&f.geometry;
+      if(!g||!g.type) continue;
+      terreno.push({ tipo:CAPAS[clave], geojson:g });
+      visuales++;
+    }
+  }
+  return { unidades, terreno, visuales, nombre:(d&&d.nombre)||'' };
 }
 async function wgImportarEscenario(inp){
   const f=inp&&inp.files&&inp.files[0]; if(!f) return;
@@ -22573,8 +22875,12 @@ async function wgImportarEscenario(inp){
   if(!esc.unidades.length && !esc.terreno.length){
     poner('❌ No encontré ni unidades ni terreno (CMOC) en ese archivo. ¿Es el ejercicio.json del Generador?'); return;
   }
-  const resumen=`${esc.unidades.length} unidad(es) y ${esc.terreno.length} polígono(s) de terreno`;
-  if(!confirm(`Se va a REEMPLAZAR el escenario de esta partida por el del archivo:\n\n${esc.nombre||f.name}\n${resumen}\n\nSe borran las unidades y el terreno que tenga ahora la partida. ¿Seguimos?`)){
+  const nCmoc=esc.terreno.length-(esc.visuales||0);
+  const enCurso = !!(WG.estado&&WG.estado.partida&&WG.estado.partida.estado==='en_curso');
+  const resumen=`• ${esc.unidades.length} unidad(es)\n• ${nCmoc} polígono(s) de CMOC (terreno restringido / severo / clave)\n• ${esc.visuales||0} elemento(s) de carta (ríos, curvas de nivel, caminos, poblados)`;
+  if(!confirm(`Se va a REEMPLAZAR el escenario de esta partida por el del archivo:\n\n${esc.nombre||f.name}\n\n${resumen}\n\nSe borran las unidades y el terreno que tenga ahora la partida.`
+    +(enCurso?`\n\n⚠️ La partida está EN CURSO: reemplazar el escenario es empezar de nuevo, así que vuelve a PLANIFICACIÓN (turno 0) y se borran las órdenes, la bitácora y las detecciones.`:'')
+    +`\n\n¿Seguimos?`)){
     poner('Importación cancelada.'); return;
   }
   // Se manda por TANDAS: 1,3 MB de terreno no entran en un solo pedido.
@@ -22600,7 +22906,8 @@ async function wgImportarEscenario(inp){
     if(!r.ok){ poner(`❌ Falló en la tanda ${i+1}: ${_rgEsc(r.error)}`+(i>0?'<br>El escenario quedó a medio cargar: volvé a importar.':'')); return; }
     totU=r.total_unidades||totU; totT=r.total_terreno||totT;
   }
-  poner(`✅ Escenario cargado: <b>${totU}</b> unidades y <b>${totT}</b> polígonos de terreno.`);
+  poner(`✅ Escenario cargado: <b>${totU}</b> unidades · <b>${nCmoc}</b> de CMOC · <b>${esc.visuales||0}</b> de carta (${totT} en total).`
+    +`<br>Si la partida estaba en curso, quedó en <b>planificación</b>: acomodá lo que haga falta y tocá <b>Iniciar partida</b>.`);
   WG.terreno=null; WG.capaTerrenoFirma=null; // forzar recarga y redibujo del CMOC
   await wgEstado();
   _wgEncuadrar();
