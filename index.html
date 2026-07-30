@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.206</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.207</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6781,6 +6781,7 @@ body.wg-jugando{overflow:hidden}
       <!-- Acciones principales, abajo a la derecha -->
       <div id="wg-acc">
         <button class="wg-pill" id="wg-btn-enviar" onclick="wgEnviarOrdenes(this)" style="display:none">📨 Enviar órdenes (<span id="wg-nord">0</span>)</button>
+        <button class="wg-pill wg-fuerte" id="wg-btn-iniciar" onclick="wgIniciar(this)" style="display:none">🚀 Iniciar partida</button>
         <button class="wg-pill wg-fuerte" id="wg-btn-resolver" onclick="wgResolver(this)" style="display:none">⚔️ Resolver turno</button>
       </div>
 
@@ -22488,13 +22489,18 @@ async function wgEstado(){
   document.getElementById('wg-btn-config').style.display = esArb?'':'none';
   document.getElementById('wg-btn-resolver').style.display = (esArb && p.estado==='en_curso')?'':'none';
   document.getElementById('wg-btn-enviar').style.display = (p.estado==='en_curso')?'':'none';
+  // v2.9.207: mientras la partida NO empezó, las órdenes están bloqueadas. El
+  // botón de arrancar tiene que estar A LA VISTA, no enterrado en ⚙️ Configurar:
+  // Sergio no podía mover nada y el clic no le decía por qué.
+  document.getElementById('wg-btn-iniciar').style.display = (esArb && p.estado==='planificacion')?'':'none';
   // precargar mis órdenes ya enviadas
   WG.ordenes={};
   for(const o of (r.ordenes||[])) WG.ordenes[o.unidad_id]={ tipo:o.tipo, destino_lat:o.destino_lat, destino_lng:o.destino_lng, objetivo_id:o.objetivo_id };
   _wgActualizarContadorOrdenes();
   document.getElementById('wg-ayuda').innerHTML = p.estado!=='en_curso'
-    ? (esArb?'Configurá los bandos y unidades, luego <b>Iniciar partida</b>.':'Esperá a que el árbitro inicie la partida.')
-    : 'Tocá una unidad TUYA para seleccionarla; luego clic en el mapa = <b>mover</b>, o clic en un enemigo = <b>atacar</b>. Después <b>Enviar órdenes</b>.';
+    ? (esArb?'⏸️ La partida <b>todavía no empezó</b> — por eso las fichas no se mueven.<br>Tocá <b>🚀 Iniciar partida</b> (abajo a la derecha) y ahí sí podés dar órdenes.'
+           :'Esperá a que el árbitro inicie la partida.')
+    : 'Tocá una unidad para seleccionarla; luego clic en el mapa = <b>mover</b>, o clic en un enemigo = <b>atacar</b>. Después <b>Enviar órdenes</b>.';
   _wgRender();
   wgHistorial();
 }
@@ -22619,8 +22625,8 @@ function _wgRenderTerreno(){
     clave:{color:'#cc00ff',weight:2,fillOpacity:0.14,fillColor:'#cc00ff'},
     // Carta de fondo del Generador — colores de carta, discretos.
     hidro:{color:'#4aa3e0',weight:1.4,fillOpacity:0.35,fillColor:'#2f6ea8'},
-    elevacion:{color:'#b08a54',weight:0.9,fillOpacity:0},
-    via:{color:'#e6d9bd',weight:1.3,fillOpacity:0},
+    elevacion:{color:'#e0b34a',weight:1.1,fillOpacity:0}, // curvas en ámbar: guían sin tapar
+    via:{color:'#ff9a2e',weight:2.2,fillOpacity:0},   // naranja camino: contrasta sobre satélite y sobre relieve gris
     poblado:{color:'#d8d8d8',weight:1,fillOpacity:0.25,fillColor:'#9aa0a6'},
     vegetacion:{color:'#4f8f45',weight:1,fillOpacity:0.22,fillColor:'#4f8f45'},
     jurisdiccion:{color:'#b06de0',weight:1.2,fillOpacity:0,dashArray:'5 4'},
@@ -22628,7 +22634,7 @@ function _wgRenderTerreno(){
     defensivo:{color:'#00d3a7',weight:2,fillOpacity:0.12,fillColor:'#00d3a7'},
   };
   // Los puntos (cimas, volcanes, poblados, hitos) van como circulitos chicos.
-  const punto={ elevacion:{r:3,color:'#b08a54'}, poblado:{r:3.5,color:'#e8e8e8'}, jurisdiccion:{r:3,color:'#b06de0'} };
+  const punto={ elevacion:{r:3.4,color:'#e0b34a'}, poblado:{r:3.8,color:'#ffffff'}, jurisdiccion:{r:3,color:'#b06de0'} };
   // v2.9.206 — RENDIMIENTO. Antes se creaba UNA capa `L.geoJSON` por polígono:
   // con el terreno real del Generador eso son 250-600 capas SVG, y por eso
   // importar o vaciar «tardaba un montón». Ahora se agrupan por tipo (máximo 11
@@ -22672,8 +22678,8 @@ const WG3D_BASES={
 const WG3D_EST={
   restringido:{col:'#ffd400',fill:0.20,w:1.2}, severo:{col:'#e2521b',fill:0.30,w:1.2},
   clave:{col:'#cc00ff',fill:0.22,w:2.4},
-  hidro:{col:'#4aa3e0',fill:0.45,w:1.7}, elevacion:{col:'#b08a54',fill:0,w:1.0},
-  via:{col:'#e6d9bd',fill:0,w:1.6}, poblado:{col:'#d8d8d8',fill:0.30,w:1.0},
+  hidro:{col:'#4aa3e0',fill:0.45,w:1.7}, elevacion:{col:'#e0b34a',fill:0,w:1.3},
+  via:{col:'#ff9a2e',fill:0,w:2.4}, poblado:{col:'#ffffff',fill:0.30,w:1.2},
   vegetacion:{col:'#4f8f45',fill:0.28,w:1.0}, jurisdiccion:{col:'#b06de0',fill:0,w:1.3},
   ae:{col:'#ff3b3b',fill:0.20,w:2.4}, defensivo:{col:'#00d3a7',fill:0.14,w:2.0},
 };
@@ -22770,7 +22776,7 @@ async function wgVista3D(){
   map.on('click',(e)=>{
     if(WG.replayando) return;
     if(!WG.sel) return;
-    if(!(WG.estado&&WG.estado.partida&&WG.estado.partida.estado==='en_curso')) return;
+    if(!_wgPuedeOrdenar()) return;   // v2.9.207: avisa en vez de no hacer nada
     WG.ordenes[WG.sel]={tipo:'mover',destino_lat:e.lngLat.lat,destino_lng:e.lngLat.lng};
     _wgActualizarContadorOrdenes(); _wgRender(); _wg3dDatos();
   });
@@ -22938,10 +22944,10 @@ const WG_CALCOS=[
   {id:'clave',       nom:'Terreno clave', col:'#cc00ff', grupo:'CMOC'},
   {id:'ae',          nom:'Área de empeño', col:'#ff3b3b', grupo:'CMOC'},
   {id:'defensivo',   nom:'Terreno defendible', col:'#00d3a7', grupo:'CMOC'},
-  {id:'elevacion',   nom:'Elevaciones (curvas y cimas)', col:'#b08a54', grupo:'Carta'},
+  {id:'elevacion',   nom:'Elevaciones (curvas y cimas)', col:'#e0b34a', grupo:'Carta'},
   {id:'hidro',       nom:'Hidrografía (ríos, lagos)', col:'#4aa3e0', grupo:'Carta'},
-  {id:'via',         nom:'Comunicaciones (caminos)', col:'#e6d9bd', grupo:'Carta'},
-  {id:'poblado',     nom:'Poblaciones', col:'#d8d8d8', grupo:'Carta'},
+  {id:'via',         nom:'Comunicaciones (caminos)', col:'#ff9a2e', grupo:'Carta'},
+  {id:'poblado',     nom:'Poblaciones', col:'#ffffff', grupo:'Carta'},
   {id:'vegetacion',  nom:'Vegetación', col:'#4f8f45', grupo:'Carta'},
   {id:'jurisdiccion',nom:'Jurisdicciones militares', col:'#b06de0', grupo:'Carta'},
 ];
@@ -23278,29 +23284,54 @@ function _wgSimboloUnidad(u,sel){
   let anchoTexto=0;
   if(desig){ const med=document.createElement('canvas').getContext('2d'); med.font=FUENTE; anchoTexto=med.measureText(desig).width; }
   const labelH=desig?17:0, barraH=8;
-  const W=Math.ceil(Math.max(fw+padX*2, anchoTexto+8)), H=padTop+fh+labelH+barraH;
+  // v2.9.207: la ficha seleccionada lleva RETÍCULA (punto de mira) por fuera del
+  // marco, así que el lienzo necesita aire alrededor. Antes el halo se recortaba
+  // contra el borde y por eso «no se notaba nada».
+  const RET = sel?16:0;
+  const W=Math.ceil(Math.max(fw+padX*2, anchoTexto+8))+RET*2, H=padTop+fh+labelH+barraH+RET;
   const dpr=(window.devicePixelRatio||1)*2;
   const cv=document.createElement('canvas');
   cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
   const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr); ctx.lineJoin='round';
   // Fuera de combate = todo el símbolo apagado.
   ctx.globalAlpha = u.estado==='fuera_combate'?0.42:1;
-  const fx=(W-fw)/2, fy=padTop, cx=W/2, my=fy+fh/2;
+  const fx=(W-fw)/2, fy=padTop+RET, cx=W/2, my=fy+fh/2;
   ctx.save();
   // v2.9.205: la ficha SELECCIONADA se enciende en amarillo, como en los juegos:
   // halo difuso por fuera + relleno cálido. Se lee de un golpe de vista, que era
   // el problema del rayado blanco anterior.
-  ctx.fillStyle = sel?'rgba(255,212,0,0.28)':'rgba(255,255,255,0.10)';
+  ctx.fillStyle = sel?'rgba(255,225,26,0.18)':'rgba(255,255,255,0.10)';
   ctx.strokeStyle=color; ctx.lineWidth=7;
   const marco=()=>{ if(rojo){ const hw=fw/2+padX-2, hh=fh/2; ctx.beginPath();
       ctx.moveTo(cx,my-hh); ctx.lineTo(cx+hw,my); ctx.lineTo(cx,my+hh); ctx.lineTo(cx-hw,my); ctx.closePath();
     } else { ctx.beginPath(); ctx.rect(fx,fy,fw,fh); } };
-  if(sel){ // resplandor: tres pasadas cada vez más anchas y transparentes
+  if(sel){
+    // RETÍCULA DE PUNTERÍA — amarillo encendido, MÁS GRANDE que la ficha, con
+    // esquinas en escuadra: se lee de un vistazo en cualquier fondo.
     ctx.save();
-    ctx.shadowColor='#ffd400'; ctx.strokeStyle='#ffd400';
-    for(const [w,a2,b2] of [[13,0.35,26],[9,0.55,16],[5,0.95,8]]){
-      ctx.lineWidth=w; ctx.globalAlpha=a2; ctx.shadowBlur=b2; marco(); ctx.stroke();
+    const AM='#ffe11a';
+    const rx=fx-RET+3, ry=fy-RET+3, rw=fw+(RET-3)*2, rh=fh+(RET-3)*2;
+    const br=Math.min(rw,rh)*0.30; // largo de cada escuadra
+    const esquinas=()=>{
+      ctx.beginPath();
+      ctx.moveTo(rx,ry+br); ctx.lineTo(rx,ry); ctx.lineTo(rx+br,ry);
+      ctx.moveTo(rx+rw-br,ry); ctx.lineTo(rx+rw,ry); ctx.lineTo(rx+rw,ry+br);
+      ctx.moveTo(rx+rw,ry+rh-br); ctx.lineTo(rx+rw,ry+rh); ctx.lineTo(rx+rw-br,ry+rh);
+      ctx.moveTo(rx+br,ry+rh); ctx.lineTo(rx,ry+rh); ctx.lineTo(rx,ry+rh-br);
+    };
+    ctx.lineCap='round';
+    // resplandor exterior + trazo nítido encima
+    ctx.shadowColor=AM; ctx.strokeStyle=AM;
+    for(const [w,al,bl] of [[9,0.30,22],[6,0.60,12],[3.2,1,5]]){
+      ctx.lineWidth=w; ctx.globalAlpha=al; ctx.shadowBlur=bl; esquinas(); ctx.stroke();
     }
+    // pequeñas marcas de mira a media altura de cada lado
+    ctx.globalAlpha=0.95; ctx.lineWidth=2.4; ctx.shadowBlur=8;
+    ctx.beginPath();
+    ctx.moveTo(rx-4,ry+rh/2); ctx.lineTo(rx+4,ry+rh/2);
+    ctx.moveTo(rx+rw-4,ry+rh/2); ctx.lineTo(rx+rw+4,ry+rh/2);
+    ctx.moveTo(rx+rw/2,ry-4); ctx.lineTo(rx+rw/2,ry+4);
+    ctx.stroke();
     ctx.restore();
   }
   marco(); ctx.fill();
@@ -23444,7 +23475,25 @@ function _wgUnidadClick(u){
 }
 function _wgMapClick(ev){
   if(WG.modoColocar && WG.soy==='arbitro'){ _wgColocarEn(ev.latlng); return; }
-  if(WG.sel){ WG.ordenes[WG.sel]={ tipo:'mover', destino_lat:ev.latlng.lat, destino_lng:ev.latlng.lng }; _wgActualizarContadorOrdenes(); _wgRender(); }
+  if(!WG.sel) return;
+  if(!_wgPuedeOrdenar()) return;   // v2.9.207: avisa en vez de no hacer nada
+  WG.ordenes[WG.sel]={ tipo:'mover', destino_lat:ev.latlng.lat, destino_lng:ev.latlng.lng };
+  _wgActualizarContadorOrdenes(); _wgRender();
+}
+// ¿Se pueden dar órdenes ahora? Si no, lo DICE (el silencio hacía creer que
+// los controles estaban rotos).
+function _wgPuedeOrdenar(){
+  const p=(WG.estado&&WG.estado.partida)||{};
+  if(p.estado==='en_curso') return true;
+  const el=document.getElementById('wg-ayuda');
+  if(el){
+    el.innerHTML = (WG.soy==='arbitro')
+      ? '⏸️ <b>La partida no empezó.</b> Tocá <b>🚀 Iniciar partida</b> para poder mover las fichas.'
+      : '⏸️ El árbitro todavía no inició la partida.';
+    el.style.outline='2px solid #e8c33a';
+    setTimeout(()=>{ try{ el.style.outline=''; }catch(_e){} },2200);
+  }
+  return false;
 }
 function _wgActualizarContadorOrdenes(){ const n=Object.keys(WG.ordenes).length; const el=document.getElementById('wg-nord'); if(el) el.textContent=n; }
 async function wgEnviarOrdenes(btn){
