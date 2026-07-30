@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.200</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.201</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6764,6 +6764,24 @@ body.wg-jugando{overflow:hidden}
           <div class="wg-h" id="wg-h-unidades"><div id="wg-unidades"></div></div>
           <div class="wg-h" id="wg-h-bitacora"><div id="wg-bitacora"></div></div>
           <div class="wg-h" id="wg-h-config"><div id="wg-config">
+<!-- v2.9.201 — PUENTE con el Generador de Calcos: trae el terreno del CMOC
+     (restringido / severo / clave) y las unidades ya colocadas. Sin terreno
+     cargado todos los bonos defensivos valen 1 y el combate sale parejo. -->
+<div class="section-label">🌄 Traer escenario del Generador de Calcos</div>
+<div style="font-size:11px;color:var(--text-muted);line-height:1.45;margin-bottom:6px">
+  Elegí el <b>ejercicio.json</b> de la carpeta del ejercicio<br>
+  (<code style="font-size:10px">Documentos › GeneradorCalcos-Ejercicios › &lt;nombre&gt;</code>).<br>
+  Trae el <b>CMOC</b> (terreno restringido, severo y clave) y las unidades:
+  las <b>propias</b> entran como <span style="color:#1f6dff">🔵 AZUL</span> y las
+  <b>enemigas</b> como <span style="color:#e23b3b">🔴 ROJO</span>.
+</div>
+<input type="file" id="wg-imp-file" accept=".json,application/json" style="display:none" onchange="wgImportarEscenario(this)">
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+  <button class="rg-doc" onclick="document.getElementById('wg-imp-file').click()">📂 Elegir ejercicio.json</button>
+  <button class="rg-doc" onclick="wgVaciarEscenario(this)">🧹 Vaciar escenario</button>
+</div>
+<div id="wg-imp-estado" style="font-size:11px;color:var(--text-muted);margin-bottom:10px"></div>
+
 <div class="section-label">Bandos (cada uno = un Estado Mayor)</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
           <button class="rg-doc" onclick="wgAgregarBando('rojo')">🔴 Crear/ver bando ROJO</button>
@@ -6774,7 +6792,8 @@ body.wg-jugando{overflow:hidden}
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
           <select id="wg-u-bando" class="wg-mini"><option value="rojo">🔴 Rojo</option><option value="azul">🔵 Azul</option></select>
           <input id="wg-u-desig" class="wg-mini" placeholder="Designación" style="width:120px">
-          <select id="wg-u-escalon" class="wg-mini"><option value="compania">Compañía</option><option value="batallon" selected>Batallón</option><option value="regimiento">Regimiento</option><option value="brigada">Brigada</option><option value="division">División</option></select>
+          <select id="wg-u-escalon" class="wg-mini"><option value="seccion">Sección</option><option value="compania">Compañía</option><option value="batallon" selected>Batallón</option><option value="regimiento">Regimiento</option><option value="brigada">Brigada</option><option value="division">División</option><option value="cuerpo">Cuerpo de Ejército</option></select>
+          <select id="wg-u-arma" class="wg-mini" title="Arma o servicio (define el símbolo militar)"><option value="infanteria" selected>Infantería</option><option value="caballeria">Caballería</option><option value="blindada">Blindada</option><option value="artilleria">Artillería</option><option value="ingenieria">Ingeniería</option><option value="comunicaciones">Comunicaciones</option><option value="aerotransportada">Aerotransportada</option><option value="aviacion">Aviación del Ejército</option><option value="sanidad">Sanidad</option><option value="intendencia">Intendencia</option><option value="transporte">Transporte</option><option value="antitanque">Antitanque</option><option value="morteros">Morteros</option><option value="policiamilitar">Policía Militar</option></select>
           <select id="wg-u-medio" class="wg-mini"><option value="motor">Motor</option><option value="oruga">Oruga</option><option value="pie">A pie</option></select>
           <input id="wg-u-poder" class="wg-mini" type="number" value="12" min="1" style="width:70px" title="Poder de combate">
         </div>
@@ -22257,7 +22276,8 @@ function _avRecCard(r){
     +'<div style="margin-top:8px">'+btn+'</div></div>';
 }
 
-const WG = { partidaId:null, clave:'', soy:null, estado:null, ordenes:{}, sel:null, map:null, capa:null, modoColocar:false, volverA:'screen-disc-panel' };
+const WG = { partidaId:null, clave:'', soy:null, estado:null, ordenes:{}, sel:null, map:null, capa:null, modoColocar:false, volverA:'screen-disc-panel',
+  terreno:null, capaTerreno:null, capaTerrenoFirma:null };
 const WG_COL = { rojo:'#e23b3b', azul:'#1f6dff' };
 async function _wgInvoke(accion, extra){
   const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
@@ -22291,6 +22311,7 @@ function wgVolver(){
   wgHoja(null);
   if(WG.map){ try{ WG.map.remove(); }catch(e){} WG.map=null; }
   WG.partidaId=null; WG.estado=null; WG.ordenes={}; WG.sel=null;
+  WG.terreno=null; WG.capaTerreno=null; WG.capaTerrenoFirma=null; // v2.9.201
   showScreen(WG.volverA||'screen-disc-panel');
 }
 async function wgCargarMisPartidas(){
@@ -22395,8 +22416,11 @@ function wgActualizarZoomChip(){
 function wgPanelToggle(){ wgHoja(WG.hoja==='unidades'?null:'unidades'); }
 async function wgEstado(){
   if(!WG.partidaId) return;
-  const r=await _wgInvoke('estado',{ partida_id:WG.partidaId, clave_acceso:WG.clave });
+  // v2.9.201: el terreno importado del Generador pesa MB; se pide UNA vez y se
+  // guarda en WG.terreno. En los refrescos la EF lo omite (terreno:null).
+  const r=await _wgInvoke('estado',{ partida_id:WG.partidaId, clave_acceso:WG.clave, incluir_terreno: !WG.terreno });
   if(!r.ok){ alert('No se pudo cargar el estado: '+r.error); return; }
+  if(Array.isArray(r.terreno)) WG.terreno=_wgPrepTerreno(r.terreno);
   WG.estado=r; WG.soy=r.soy;
   const esArb = r.soy==='arbitro';
   const p=r.partida||{};
@@ -22433,9 +22457,32 @@ function _wgPtEnGeom(pt,geom){
   for(const p of polys){ if(p[0] && _wgPtEnAnillo(pt,p[0])) return true; }
   return false;
 }
+// v2.9.201: caja (bounding box) por polígono — MISMO prefiltro que el motor.
+// Con el terreno importado del Generador (cientos de polígonos) sin esto cada
+// dibujo del mapa recorría decenas de miles de vértices.
+function _wgCajaDeGeom(geom){
+  if(!geom) return null;
+  const anillos = geom.type==='Polygon'?[geom.coordinates[0]]
+    : geom.type==='MultiPolygon'?geom.coordinates.map(p=>p[0]) : null;
+  if(!anillos) return null;
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(const a of anillos) for(const p of (a||[])){
+    if(p[0]<x0)x0=p[0]; if(p[0]>x1)x1=p[0];
+    if(p[1]<y0)y0=p[1]; if(p[1]>y1)y1=p[1];
+  }
+  return x0===Infinity?null:[x0,y0,x1,y1];
+}
+function _wgPrepTerreno(terreno){
+  return (terreno||[]).map(t=> (t&&t._caja)?t:Object.assign({},t,{_caja:_wgCajaDeGeom(t&&t.geojson)}));
+}
+function _wgFueraDeCaja(pt,t){
+  const c=t._caja;
+  return !!c && (pt[0]<c[0]||pt[0]>c[2]||pt[1]<c[1]||pt[1]>c[3]);
+}
 function _wgClaseTerreno(pt,terreno){
   let restr=false;
   for(const t of (terreno||[])){
+    if(_wgFueraDeCaja(pt,t)) continue;
     if(t.tipo==='severo' && _wgPtEnGeom(pt,t.geojson)) return 'severo';
     if(t.tipo==='restringido' && _wgPtEnGeom(pt,t.geojson)) restr=true;
   }
@@ -22445,18 +22492,272 @@ function _wgAlcanceObs(u,terreno){
   const OBS={libre:1.0,restringido:0.5,severo:0.3};
   const pt=[u.lng,u.lat];
   let r=(Number(u.obs_km)||4)*(OBS[_wgClaseTerreno(pt,terreno)]??1);
-  if((terreno||[]).some(t=>t.tipo==='clave'&&_wgPtEnGeom(pt,t.geojson))) r*=1.5;
+  if((terreno||[]).some(t=>t.tipo==='clave'&&!_wgFueraDeCaja(pt,t)&&_wgPtEnGeom(pt,t.geojson))) r*=1.5;
   return r;
 }
+// Dibuja el CMOC (terreno restringido / severo / clave) en su propia capa,
+// una sola vez. Sólo se rehace cuando el terreno cambió de verdad.
+function _wgRenderTerreno(){
+  if(!WG.map) return;
+  const terr = WG.terreno||[];
+  const firma = terr.length+'|'+(WG.partidaId||'');
+  if(WG.capaTerrenoFirma===firma && WG.capaTerreno) return;
+  if(WG.capaTerreno){ try{ WG.map.removeLayer(WG.capaTerreno); }catch(_e){} }
+  WG.capaTerreno = L.layerGroup().addTo(WG.map);
+  WG.capaTerrenoFirma = firma;
+  if(!terr.length) return;
+  const estilo={
+    restringido:{color:'#ffd400',weight:1,fillOpacity:0.10,fillColor:'#ffd400'},
+    severo:{color:'#e2521b',weight:1,fillOpacity:0.16,fillColor:'#e2521b'},
+    clave:{color:'#cc00ff',weight:2,fillOpacity:0.14,fillColor:'#cc00ff'},
+  };
+  // El terreno es telón de fondo: no debe robar los clics del mapa ni de las fichas.
+  for(const t of terr){
+    try{ L.geoJSON(t.geojson,{style:Object.assign({interactive:false},estilo[t.tipo]||{color:'#888',weight:1,fillOpacity:0.10})}).addTo(WG.capaTerreno); }catch(_e){}
+  }
+  try{ WG.capaTerreno.bringToBack&&WG.capaTerreno.bringToBack(); }catch(_e){}
+}
+// ============================================================
+// v2.9.201 — PUENTE Generador de Calcos → Juego de Guerra.
+// El árbitro elige el `ejercicio.json` que la app de calcos guarda en
+// Documentos/GeneradorCalcos-Ejercicios/<nombre>/. De ahí salen:
+//   · el TERRENO del CMOC (restringido / severo / clave) → wg_terreno
+//   · las UNIDADES ya colocadas, con su escalón y su arma → wg_unidades
+// Con el terreno cargado el combate deja de ser parejo: el defensor metido en
+// terreno restringido multiplica ×1.3, en severo ×1.6, y el terreno clave suma
+// otro +0.2 — igual que manda el motor.
+// ============================================================
+// Poder de combate y observación por escalón (el árbitro los puede cambiar
+// después unidad por unidad; esto es sólo el punto de partida razonable).
+const WG_PODER={equipo:0.5,escuadra:1,seccion:2,compania:4,batallon:12,regimiento:20,brigada:40,division:80,cuerpo:150,ejercito:300};
+const WG_OBS={equipo:2,escuadra:2,seccion:3,compania:4,batallon:6,regimiento:8,brigada:10,division:14,cuerpo:20,ejercito:25};
+// Medio de transporte según el arma (define qué terreno puede cruzar).
+function _wgMedioPorArma(arma){
+  if(arma==='blindada') return 'oruga';
+  if(arma==='infanteria'||arma==='aerotransportada') return 'pie';
+  return 'motor';
+}
+function _wgPeso(n){ return n>=1048576?(n/1048576).toFixed(1)+' MB':Math.round(n/1024)+' KB'; }
+// Traduce el archivo del Generador (o un export compacto) al escenario del juego.
+function _wgEscenarioDesde(d){
+  const unidades=[], terreno=[];
+  for(const u of (d&&d.unidades)||[]){
+    if(u==null||u.lat==null||u.lng==null) continue;
+    // En el Generador el bando es 'propias' | 'enemigo'; acá es 'azul' | 'rojo'.
+    const bando = (u.bando==='enemigo'||u.bando==='rojo')?'rojo':'azul';
+    const escalon = WG_PODER[u.escalon]!=null?u.escalon:'batallon';
+    unidades.push({ bando, designacion:u.designacion||null, escalon, arma:u.arma||null,
+      medio: u.medio||_wgMedioPorArma(u.arma), lat:Number(u.lat), lng:Number(u.lng),
+      poder_max: Number(u.poder_max)||WG_PODER[escalon]||12,
+      obs_km: Number(u.obs_km)||WG_OBS[escalon]||4 });
+  }
+  // Terreno: o viene ya como [{tipo,geojson}] (export compacto), o se saca del CMOC.
+  const meter=(tipo,geom)=>{ if(geom&&(geom.type==='Polygon'||geom.type==='MultiPolygon')) terreno.push({tipo,geojson:geom}); };
+  if(Array.isArray(d&&d.terreno)) for(const t of d.terreno) meter(t.tipo,t.geojson||t.geometry);
+  const cmoc=(d&&d.cmoc)||null;
+  if(cmoc) for(const tipo of ['restringido','severo','clave'])
+    for(const f of (cmoc[tipo]||[])) meter(tipo, f&&(f.geometry||f));
+  return { unidades, terreno, nombre:(d&&d.nombre)||'' };
+}
+async function wgImportarEscenario(inp){
+  const f=inp&&inp.files&&inp.files[0]; if(!f) return;
+  inp.value=''; // permite volver a elegir el MISMO archivo
+  const est=document.getElementById('wg-imp-estado');
+  const poner=(t)=>{ if(est) est.innerHTML=t; };
+  if(WG.soy!=='arbitro'){ poner('❌ Sólo el árbitro importa el escenario.'); return; }
+  poner('⏳ Leyendo <b>'+_rgEsc(f.name)+'</b> ('+_wgPeso(f.size)+')…');
+  let d;
+  try{ d=JSON.parse(await f.text()); }
+  catch(e){ poner('❌ Ese archivo no es un JSON válido. Buscá el <b>ejercicio.json</b> dentro de la carpeta del ejercicio.'); return; }
+  const esc=_wgEscenarioDesde(d);
+  if(!esc.unidades.length && !esc.terreno.length){
+    poner('❌ No encontré ni unidades ni terreno (CMOC) en ese archivo. ¿Es el ejercicio.json del Generador?'); return;
+  }
+  const resumen=`${esc.unidades.length} unidad(es) y ${esc.terreno.length} polígono(s) de terreno`;
+  if(!confirm(`Se va a REEMPLAZAR el escenario de esta partida por el del archivo:\n\n${esc.nombre||f.name}\n${resumen}\n\nSe borran las unidades y el terreno que tenga ahora la partida. ¿Seguimos?`)){
+    poner('Importación cancelada.'); return;
+  }
+  // Se manda por TANDAS: 1,3 MB de terreno no entran en un solo pedido.
+  const TOPE=600000; // caracteres de JSON por tanda
+  const tandas=[]; let actual=[], peso=0;
+  for(const t of esc.terreno){
+    const n=JSON.stringify(t).length;
+    if(actual.length && peso+n>TOPE){ tandas.push(actual); actual=[]; peso=0; }
+    actual.push(t); peso+=n;
+  }
+  if(actual.length) tandas.push(actual);
+  if(!tandas.length) tandas.push([]); // sólo unidades
+
+  let totU=0, totT=0;
+  for(let i=0;i<tandas.length;i++){
+    poner(`⏳ Enviando tanda ${i+1} de ${tandas.length}… (${totT} polígonos ya cargados)`);
+    const r=await _wgInvoke('importar_escenario',{
+      partida_id:WG.partidaId,
+      limpiar: i===0,                          // la primera tanda borra lo anterior
+      unidades: i===0?esc.unidades:[],         // las unidades van todas en la primera
+      terreno: tandas[i],
+    });
+    if(!r.ok){ poner(`❌ Falló en la tanda ${i+1}: ${_rgEsc(r.error)}`+(i>0?'<br>El escenario quedó a medio cargar: volvé a importar.':'')); return; }
+    totU=r.total_unidades||totU; totT=r.total_terreno||totT;
+  }
+  poner(`✅ Escenario cargado: <b>${totU}</b> unidades y <b>${totT}</b> polígonos de terreno.`);
+  WG.terreno=null; WG.capaTerrenoFirma=null; // forzar recarga y redibujo del CMOC
+  await wgEstado();
+  _wgEncuadrar();
+}
+async function wgVaciarEscenario(btn){
+  if(WG.soy!=='arbitro') return;
+  if(!confirm('Se borran TODAS las unidades y TODO el terreno de esta partida. ¿Seguro?')) return;
+  if(btn) btn.disabled=true;
+  const r=await _wgInvoke('importar_escenario',{ partida_id:WG.partidaId, limpiar:true, unidades:[], terreno:[] });
+  if(btn) btn.disabled=false;
+  const est=document.getElementById('wg-imp-estado');
+  if(!r.ok){ if(est) est.innerHTML='❌ '+_rgEsc(r.error); return; }
+  if(est) est.innerHTML='🧹 Escenario vaciado.';
+  WG.terreno=null; WG.capaTerrenoFirma=null; WG.sel=null; WG.ordenes={};
+  await wgEstado();
+}
+// Encuadra el mapa sobre todo lo que hay en juego (unidades + terreno).
+function _wgEncuadrar(){
+  if(!WG.map) return;
+  try{
+    const pts=[];
+    for(const u of ((WG.estado&&WG.estado.unidades)||[])) pts.push([u.lat,u.lng]);
+    for(const t of (WG.terreno||[])){ const c=t._caja; if(c) pts.push([c[1],c[0]],[c[3],c[2]]); }
+    if(pts.length) WG.map.fitBounds(L.latLngBounds(pts).pad(0.1));
+  }catch(_e){}
+}
+
+// ============================================================
+// v2.9.201 — SIMBOLOGÍA MILITAR REGLAMENTARIA en las fichas.
+// Port a JS vanilla de simboloUnidad.js del Generador de Calcos (allá es
+// React+canvas). Reglamento EAA-15-07 / RC-02-15:
+//   · Marco: bando AZUL = rectángulo · bando ROJO = rombo.
+//   · Magnitud del escalón ARRIBA-centro (puntos / barras / aspas).
+//   · Arma o servicio al centro del marco (recortado para que no se salga).
+// Devuelve un PNG (dataURL) + el ancla, para usarlo como ícono de Leaflet.
+// ============================================================
+const WG_ESCALONES={
+  equipo:{marca:'Ø'}, escuadra:{tipo:'punto',n:1}, seccion:{tipo:'punto',n:3},
+  compania:{tipo:'barra',n:1}, batallon:{tipo:'barra',n:2}, regimiento:{tipo:'barra',n:3},
+  brigada:{tipo:'aspa',n:1}, division:{tipo:'aspa',n:2}, cuerpo:{tipo:'aspa',n:3}, ejercito:{tipo:'aspa',n:4},
+};
+const WG_ABREV={intendencia:'Int',transporte:'Tte',mantenimiento:'Mant',veterinaria:'Vet',
+  policiamilitar:'PM',antitanque:'AT',morteros:'Mort',ametralladoras:'Amtr',lanzacohetes:'LC'};
+const _wgSimCache={};
+function _wgDibEscalon(ctx,esc,cx,topY,color){
+  ctx.save(); ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=4.5;
+  if(esc.marca==='Ø'){
+    ctx.beginPath(); ctx.arc(cx,topY+5,5,0,Math.PI*2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx-4,topY+9); ctx.lineTo(cx+4,topY+1); ctx.stroke();
+    ctx.restore(); return;
+  }
+  const n=esc.n||1;
+  if(esc.tipo==='punto'){
+    const sep=7,x0=cx-((n-1)*sep)/2;
+    for(let i=0;i<n;i++){ ctx.beginPath(); ctx.arc(x0+i*sep,topY+5,2.6,0,Math.PI*2); ctx.fill(); }
+  }else if(esc.tipo==='barra'){
+    const sep=7,x0=cx-((n-1)*sep)/2;
+    for(let i=0;i<n;i++){ const x=x0+i*sep; ctx.beginPath(); ctx.moveTo(x,topY); ctx.lineTo(x,topY+11); ctx.stroke(); }
+  }else if(esc.tipo==='aspa'){
+    const w=9,sep=11,x0=cx-((n-1)*sep)/2;
+    for(let i=0;i<n;i++){ const x=x0+i*sep; ctx.beginPath();
+      ctx.moveTo(x-w/2,topY); ctx.lineTo(x+w/2,topY+11);
+      ctx.moveTo(x+w/2,topY); ctx.lineTo(x-w/2,topY+11); ctx.stroke(); }
+  }
+  ctx.restore();
+}
+function _wgDibArma(ctx,arma,x,y,w,h,color){
+  ctx.save(); ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=5;
+  const cx=x+w/2, cy=y+h/2;
+  switch(arma){
+    case 'infanteria': ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x+w,y+h); ctx.moveTo(x+w,y); ctx.lineTo(x,y+h); ctx.stroke(); break;
+    case 'caballeria': ctx.beginPath(); ctx.moveTo(x,y+h); ctx.lineTo(x+w,y); ctx.stroke(); break;
+    case 'artilleria': ctx.beginPath(); ctx.arc(cx,cy,Math.min(w,h)*0.18,0,Math.PI*2); ctx.fill(); break;
+    case 'ingenieria': { const aw=w*0.52,ah=h*0.42; ctx.beginPath();
+      ctx.moveTo(cx-aw/2,cy+ah/2); ctx.lineTo(cx-aw/2,cy-ah/2); ctx.lineTo(cx+aw/2,cy-ah/2); ctx.lineTo(cx+aw/2,cy+ah/2);
+      ctx.moveTo(cx,cy-ah/2); ctx.lineTo(cx,cy+ah/2); ctx.stroke(); break; }
+    case 'comunicaciones': ctx.beginPath();
+      ctx.moveTo(cx-w*0.18,y+h*0.2); ctx.lineTo(cx+w*0.05,cy); ctx.lineTo(cx-w*0.05,cy); ctx.lineTo(cx+w*0.18,y+h*0.8); ctx.stroke(); break;
+    case 'blindada': ctx.beginPath(); ctx.ellipse(cx,cy,w*0.3,h*0.26,0,0,Math.PI*2); ctx.stroke(); break;
+    case 'aerotransportada': { const r=w*0.18; ctx.beginPath();
+      ctx.arc(cx-r,cy,r,Math.PI,0); ctx.arc(cx+r,cy,r,Math.PI,0); ctx.stroke(); break; }
+    case 'aviacion': { const r=Math.min(w,h)*0.32; ctx.beginPath();
+      ctx.moveTo(cx-r,cy-r*0.5); ctx.lineTo(cx+r,cy+r*0.5); ctx.moveTo(cx-r,cy+r*0.5); ctx.lineTo(cx+r,cy-r*0.5); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx,cy,2.2,0,Math.PI*2); ctx.fill(); break; }
+    case 'sanidad': { const r=Math.min(w,h)*0.26; ctx.beginPath();
+      ctx.moveTo(cx,cy-r); ctx.lineTo(cx,cy+r); ctx.moveTo(cx-r,cy); ctx.lineTo(cx+r,cy); ctx.stroke(); break; }
+    default:
+      if(WG_ABREV[arma]){ ctx.font='bold 13px Arial, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText(WG_ABREV[arma],cx,cy+1); }
+  }
+  ctx.restore();
+}
+// u = fila de wg_unidades · sel = si está seleccionada
+function _wgSimboloUnidad(u,sel){
+  const pct = u.poder_max? Math.max(0,Math.min(100,Math.round(100*u.poder_actual/u.poder_max))):100;
+  const clave=[u.bando,u.escalon,u.arma,u.designacion||'',pct,u.estado,sel?1:0].join('|');
+  if(_wgSimCache[clave]) return _wgSimCache[clave];
+  const esc=WG_ESCALONES[u.escalon]||WG_ESCALONES.batallon;
+  const rojo = u.bando==='rojo';
+  const color = WG_COL[u.bando]||'#888';
+  const desig=(u.designacion||'').trim();
+  const fw=64, fh=rojo?52:40, padTop=18, padX=rojo?6:4;
+  const FUENTE='bold 11px Arial, sans-serif';
+  // El rótulo va DEBAJO del marco y puede ser más ancho que él: se mide para
+  // que no se corte y para que el marco quede igual centrado.
+  let anchoTexto=0;
+  if(desig){ const med=document.createElement('canvas').getContext('2d'); med.font=FUENTE; anchoTexto=med.measureText(desig).width; }
+  const labelH=desig?17:0, barraH=8;
+  const W=Math.ceil(Math.max(fw+padX*2, anchoTexto+8)), H=padTop+fh+labelH+barraH;
+  const dpr=(window.devicePixelRatio||1)*2;
+  const cv=document.createElement('canvas');
+  cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+  const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr); ctx.lineJoin='round';
+  // Fuera de combate = todo el símbolo apagado.
+  ctx.globalAlpha = u.estado==='fuera_combate'?0.42:1;
+  const fx=(W-fw)/2, fy=padTop, cx=W/2, my=fy+fh/2;
+  ctx.save();
+  ctx.fillStyle = sel?'rgba(255,255,255,0.30)':'rgba(255,255,255,0.10)';
+  ctx.strokeStyle=color; ctx.lineWidth=7;
+  const marco=()=>{ if(rojo){ const hw=fw/2+padX-2, hh=fh/2; ctx.beginPath();
+      ctx.moveTo(cx,my-hh); ctx.lineTo(cx+hw,my); ctx.lineTo(cx,my+hh); ctx.lineTo(cx-hw,my); ctx.closePath();
+    } else { ctx.beginPath(); ctx.rect(fx,fy,fw,fh); } };
+  marco(); ctx.fill();
+  if(u.estado==='fuera_combate') ctx.setLineDash([8,5]); // ya no combate
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.save(); marco(); ctx.clip(); _wgDibArma(ctx,u.arma,fx,fy,fw,fh,color); ctx.restore();
+  ctx.restore();
+  _wgDibEscalon(ctx,esc,cx,2,color);
+  // Rótulo: 5 px por debajo del marco (el trazo del marco es de 7 px y antes
+  // el texto le quedaba encima).
+  if(desig){ ctx.save(); ctx.fillStyle=color; ctx.font=FUENTE;
+    ctx.textAlign='center'; ctx.textBaseline='top';
+    ctx.strokeStyle='rgba(0,0,0,.55)'; ctx.lineWidth=3; ctx.strokeText(desig,cx,fy+fh+5); // contorno: legible sobre cualquier mapa
+    ctx.fillText(desig,cx,fy+fh+5); ctx.restore(); }
+  // Barra de poder de combate: de un vistazo se ve cuánto le queda.
+  const by=fy+fh+labelH+3, bw=fw*0.8, bx=cx-bw/2;
+  ctx.save(); ctx.globalAlpha=1;
+  ctx.fillStyle='rgba(0,0,0,.45)'; ctx.fillRect(bx,by,bw,4);
+  ctx.fillStyle = pct>60?'#2ecc71':(pct>20?'#e08a2c':'#e23b3b');
+  ctx.fillRect(bx,by,bw*pct/100,4);
+  ctx.restore();
+  // Halo blanco de selección.
+  if(sel){ ctx.save(); ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.setLineDash([4,3]);
+    ctx.strokeRect(1,1,W-2,H-2); ctx.restore(); }
+  const r={ url:cv.toDataURL('image/png'), w:W, h:H, ax:cx, ay:padTop+fh/2 };
+  _wgSimCache[clave]=r;
+  return r;
+}
+
 function _wgRender(){
   if(!WG.map||!WG.capa) return;
   WG.capa.clearLayers();
   const e=WG.estado; if(!e) return;
-  // terreno
-  const tcol={restringido:'#ffd400',severo:'#e2521b',clave:'#8e44ad'};
-  for(const t of (e.terreno||[])){
-    try{ L.geoJSON(t.geojson,{style:{color:tcol[t.tipo]||'#888',weight:1,fillOpacity:0.12}}).addTo(WG.capa); }catch(_e){}
-  }
+  // El TERRENO vive en su propia capa (v2.9.201): un escenario importado del
+  // Generador trae cientos de polígonos y redibujarlos en cada refresco
+  // trababa el mapa. Se arma una sola vez y sólo se rehace si cambió.
+  _wgRenderTerreno();
   // órdenes (líneas)
   const uById={}; for(const u of (e.unidades||[])) uById[u.id]=u;
   for(const [uid,o] of Object.entries(WG.ordenes)){
@@ -22476,23 +22777,24 @@ function _wgRender(){
     for(const u of (e.unidades||[])){
       if(!(WG.soy==='arbitro' || u.bando===WG.soy)) continue;
       if(u.estado==='fuera_combate') continue;
-      const km=_wgAlcanceObs(u,e.terreno||[]);
+      const km=_wgAlcanceObs(u,WG.terreno||[]);
       if(!(km>0)) continue;
       L.circle([u.lat,u.lng],{radius:km*1000,color:WG_COL[u.bando]||'#888',weight:1,
         opacity:.45,fillColor:WG_COL[u.bando]||'#888',fillOpacity:.05,dashArray:'4 5',interactive:false}).addTo(WG.capa);
     }
   }
-  // unidades
+  // unidades — v2.9.201: SÍMBOLO MILITAR reglamentario en vez del circulito.
   for(const u of (e.unidades||[])){
     const mio = (WG.soy==='arbitro') || (u.bando===WG.soy);
-    const col = WG_COL[u.bando]||'#888';
     const sel = String(WG.sel)===String(u.id);
-    const m = L.circleMarker([u.lat,u.lng],{
-      radius: sel?11:8, color: sel?'#fff':col, weight: sel?3:2,
-      fillColor: col, fillOpacity: mio?0.9:0.35,
+    const sim = _wgSimboloUnidad(u,sel);
+    const F = 0.62; // las fichas a tamaño completo tapaban el mapa
+    const m = L.marker([u.lat,u.lng],{
+      icon: L.icon({ iconUrl:sim.url, iconSize:[sim.w*F,sim.h*F], iconAnchor:[sim.ax*F,sim.ay*F] }),
+      opacity: mio?1:0.75, riseOnHover:true, zIndexOffset: sel?1000:0,
     }).addTo(WG.capa);
     const pct = u.poder_max? Math.round(100*u.poder_actual/u.poder_max):100;
-    const obsTxt = mio ? ` · 👁️ ${_wgAlcanceObs(u,e.terreno||[]).toFixed(1)} km` : ''; // v2.9.191
+    const obsTxt = mio ? ` · 👁️ ${_wgAlcanceObs(u,WG.terreno||[]).toFixed(1)} km` : ''; // v2.9.191
     m.bindTooltip(`${_rgEsc(u.designacion||u.bando)} · ${pct}%${u.estado!=='activa'?' ('+u.estado+')':''}${obsTxt}`,{direction:'top'});
     m.on('click', (ev)=>{ L.DomEvent.stopPropagation(ev); _wgUnidadClick(u); });
   }
@@ -22564,6 +22866,7 @@ function wgModoColocar(){ WG.modoColocar=document.getElementById('wg-modo-coloca
 async function _wgColocarEn(latlng){
   const u={ bando:document.getElementById('wg-u-bando').value, designacion:document.getElementById('wg-u-desig').value||'',
     escalon:document.getElementById('wg-u-escalon').value, medio:document.getElementById('wg-u-medio').value,
+    arma:document.getElementById('wg-u-arma').value, // v2.9.201: define el símbolo militar
     poder_max:Number(document.getElementById('wg-u-poder').value)||12, lat:latlng.lat, lng:latlng.lng };
   const r=await _wgInvoke('agregar_unidad',{ partida_id:WG.partidaId, unidad:u });
   if(!r.ok){ alert('No se pudo colocar: '+r.error); return; }
