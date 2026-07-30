@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.204</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.205</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6665,6 +6665,16 @@ body.wg-jugando{overflow:hidden}
 #wg-3d-cargando{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#cfe6ff;font-size:14px;
   background:rgba(10,14,19,.85);padding:10px 16px;border-radius:10px;border:1px solid rgba(140,210,255,.25)}
 #wg-3d-tl{display:none} /* v2.9.204: el HUD principal ya trae los chips */
+.wg-tip-orden{background:rgba(10,16,22,.88)!important;border:1px solid rgba(140,210,255,.35)!important;
+  color:#dff0ff!important;font-size:11px!important;font-weight:600;padding:2px 7px!important;border-radius:8px!important;
+  box-shadow:0 2px 10px rgba(0,0,0,.5)!important}
+.wg-tip-orden::before{display:none!important}
+/* v2.9.205: la unidad que NO pudo moverse TIEMBLA — se entiende sin leer nada. */
+@keyframes wgTemblor{
+  0%,100%{transform:translate(0,0)} 15%{transform:translate(-4px,1px)} 30%{transform:translate(4px,-1px)}
+  45%{transform:translate(-3px,-1px)} 60%{transform:translate(3px,1px)} 80%{transform:translate(-2px,0)}
+}
+.wg-temblando{animation:wgTemblor .5s ease-in-out 3}
 #wg-3d-error{position:absolute;top:52px;left:8px;right:8px;z-index:6;color:#ffb4a8;font-size:12px;
   background:rgba(60,12,12,.85);border:1px solid #a33;border-radius:8px;padding:7px 10px;display:none}
 /* El 3D lleva sus propios controles: los de MapLibre sobran. */
@@ -22535,6 +22545,54 @@ function _wgClaseTerreno(pt,terreno){
   }
   return restr?'restringido':'libre';
 }
+// ============================================================
+// v2.9.205 — PREVISIÓN DEL MOVIMIENTO (la orden se entiende ANTES de resolver).
+// Réplica exacta de `moverUnidad` del motor, corriendo en el navegador: al dar
+// la orden ya se ve HASTA DÓNDE va a llegar la unidad este turno y si el
+// terreno la va a frenar. Antes había que resolver el turno para enterarse.
+// Mismos números que el servidor porque es el mismo algoritmo.
+// ============================================================
+const WG_VEL={motor:{libre:40,restringido:null,severo:null},
+              oruga:{libre:28,restringido:9,severo:null},
+              pie:{libre:5,restringido:3.5,severo:2}};
+function _wgHav(a,b){
+  const R=6371, rad=(d)=>d*Math.PI/180;
+  const dLat=rad(b[1]-a[1]), dLng=rad(b[0]-a[0]), la1=rad(a[1]), la2=rad(b[1]);
+  const h=Math.sin(dLat/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.min(1,Math.sqrt(h)));
+}
+function _wgPreverMovimiento(u,destino,horas){
+  const vel=WG_VEL[u.medio]||WG_VEL.pie;
+  const terreno=WG.terreno||[];
+  let pos=[u.lng,u.lat];
+  const totalDest=_wgHav(pos,destino);
+  if(totalDest<1e-4) return {lng:pos[0],lat:pos[1],detenida:false,motivo:'ya está ahí',avanzadoKm:0,totalKm:0,llego:true,horasUsadas:0,ruta:[pos]};
+  let presupuesto=horas, avanzado=0, detenida=false, motivo='', guardia=0;
+  const ruta=[[pos[0],pos[1]]];
+  while(true){
+    const restante=_wgHav(pos,destino);
+    if(restante<=1e-6) break;
+    if(++guardia>4000) { motivo='corte'; break; } // la previsión no necesita más
+    const frac=Math.min(0.5,restante)/restante;
+    const sig=[pos[0]+(destino[0]-pos[0])*frac, pos[1]+(destino[1]-pos[1])*frac];
+    const clase=_wgClaseTerreno(sig,terreno);
+    const v=vel[clase];
+    if(v==null){ detenida=true; motivo='terreno '+clase+' infranqueable para '+(u.medio||'pie'); break; }
+    const pasoReal=_wgHav(pos,sig), tPaso=pasoReal/v;
+    if(tPaso>presupuesto+1e-9){
+      const km=presupuesto*v, f2=pasoReal>0?km/pasoReal:0;
+      pos=[pos[0]+(sig[0]-pos[0])*f2, pos[1]+(sig[1]-pos[1])*f2];
+      avanzado+=km; presupuesto=0; motivo='no alcanza el tiempo del turno';
+      ruta.push([pos[0],pos[1]]); break;
+    }
+    presupuesto-=tPaso; pos=sig; avanzado+=pasoReal; ruta.push([pos[0],pos[1]]);
+    if(presupuesto<=1e-9){ motivo='no alcanza el tiempo del turno'; break; }
+  }
+  return {lng:pos[0],lat:pos[1],detenida,motivo,avanzadoKm:avanzado,totalKm:totalDest,
+    llego:!detenida && _wgHav(pos,destino)<=1e-3, horasUsadas:Math.max(0,horas-presupuesto), ruta};
+}
+function _wgHoras(h){ const t=Math.max(0,Math.round((h||0)*60)), hh=Math.floor(t/60), mm=t%60;
+  return hh?(hh+' h '+mm+' min'):(mm+' min'); }
 function _wgAlcanceObs(u,terreno){
   const OBS={libre:1.0,restringido:0.5,severo:0.3};
   const pt=[u.lng,u.lat];
@@ -23037,7 +23095,20 @@ async function wgImportarEscenario(inp){
     if(!r.ok){ poner(`❌ Falló en la tanda ${i+1}: ${_rgEsc(r.error)}`+(i>0?'<br>El escenario quedó a medio cargar: volvé a importar.':'')); return; }
     totU=r.total_unidades||totU; totT=r.total_terreno||totT;
   }
-  poner(`✅ Escenario cargado: <b>${totU}</b> unidades · <b>${nCmoc}</b> de CMOC · <b>${esc.visuales||0}</b> de carta (${totT} en total).`
+  // v2.9.205: si se mandaron capas de carta y el servidor no las guardó, es que
+  // la Edge Function `wargame-ops` está DESACTUALIZADA (la vieja sólo acepta
+  // restringido/severo/clave y descarta el resto sin chistar). Antes esto se
+  // veía como «los calcos no aparecen» y había que adivinar por qué.
+  const cartaGuardada = Math.max(0, totT - nCmoc);
+  if((esc.visuales||0) > 0 && cartaGuardada === 0){
+    poner(`⚠️ <b>Se cargó el CMOC pero NO los calcos.</b><br>`
+      +`Se enviaron ${esc.visuales} elementos de carta (caminos, hidrografía, elevaciones…) y el servidor guardó <b>0</b>.<br>`
+      +`Eso significa que la Edge Function <code>wargame-ops</code> todavía es la versión vieja: descarta todo lo que no sea CMOC.<br>`
+      +`<b>Solución:</b> desplegá <code>wargame-ops</code> en Supabase y volvé a importar este mismo archivo.`);
+    WG.terreno=null; WG.capaTerrenoFirma=null; await wgEstado(); _wgEncuadrar();
+    return;
+  }
+  poner(`✅ Escenario cargado: <b>${totU}</b> unidades · <b>${nCmoc}</b> de CMOC · <b>${cartaGuardada}</b> de carta (${totT} en total).`
     +`<br>Si la partida estaba en curso, quedó en <b>planificación</b>: acomodá lo que haga falta y tocá <b>Iniciar partida</b>.`);
   WG.terreno=null; WG.capaTerrenoFirma=null; // forzar recarga y redibujo del CMOC
   await wgEstado();
@@ -23156,11 +23227,22 @@ function _wgSimboloUnidad(u,sel){
   ctx.globalAlpha = u.estado==='fuera_combate'?0.42:1;
   const fx=(W-fw)/2, fy=padTop, cx=W/2, my=fy+fh/2;
   ctx.save();
-  ctx.fillStyle = sel?'rgba(255,255,255,0.30)':'rgba(255,255,255,0.10)';
+  // v2.9.205: la ficha SELECCIONADA se enciende en amarillo, como en los juegos:
+  // halo difuso por fuera + relleno cálido. Se lee de un golpe de vista, que era
+  // el problema del rayado blanco anterior.
+  ctx.fillStyle = sel?'rgba(255,212,0,0.28)':'rgba(255,255,255,0.10)';
   ctx.strokeStyle=color; ctx.lineWidth=7;
   const marco=()=>{ if(rojo){ const hw=fw/2+padX-2, hh=fh/2; ctx.beginPath();
       ctx.moveTo(cx,my-hh); ctx.lineTo(cx+hw,my); ctx.lineTo(cx,my+hh); ctx.lineTo(cx-hw,my); ctx.closePath();
     } else { ctx.beginPath(); ctx.rect(fx,fy,fw,fh); } };
+  if(sel){ // resplandor: tres pasadas cada vez más anchas y transparentes
+    ctx.save();
+    ctx.shadowColor='#ffd400'; ctx.strokeStyle='#ffd400';
+    for(const [w,a2,b2] of [[13,0.35,26],[9,0.55,16],[5,0.95,8]]){
+      ctx.lineWidth=w; ctx.globalAlpha=a2; ctx.shadowBlur=b2; marco(); ctx.stroke();
+    }
+    ctx.restore();
+  }
   marco(); ctx.fill();
   if(u.estado==='fuera_combate') ctx.setLineDash([8,5]); // ya no combate
   ctx.stroke(); ctx.setLineDash([]);
@@ -23180,9 +23262,7 @@ function _wgSimboloUnidad(u,sel){
   ctx.fillStyle = pct>60?'#2ecc71':(pct>20?'#e08a2c':'#e23b3b');
   ctx.fillRect(bx,by,bw*pct/100,4);
   ctx.restore();
-  // Halo blanco de selección.
-  if(sel){ ctx.save(); ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.setLineDash([4,3]);
-    ctx.strokeRect(1,1,W-2,H-2); ctx.restore(); }
+
   const r={ url:cv.toDataURL('image/png'), w:W, h:H, ax:cx, ay:padTop+fh/2 };
   _wgSimCache[clave]=r;
   return r;
@@ -23198,13 +23278,51 @@ function _wgRender(){
   _wgRenderTerreno();
   // órdenes (líneas)
   const uById={}; for(const u of (e.unidades||[])) uById[u.id]=u;
+  const horasTurno = Number(((e.partida||{}).duracion_turno_horas))||2;
   for(const [uid,o] of Object.entries(WG.ordenes)){
     const u=uById[uid]; if(!u) continue;
     if(o.tipo==='mover' && o.destino_lat!=null){
-      L.polyline([[u.lat,u.lng],[o.destino_lat,o.destino_lng]],{color:'#2ecc71',weight:2,dashArray:'6 6'}).addTo(WG.capa);
+      // v2.9.205: la línea se parte en dos. VERDE MACIZO = lo que va a recorrer
+      // de verdad este turno · GRIS PUNTEADO = lo que le va a quedar pendiente.
+      // Así la orden se entiende antes de resolver, no después.
+      const pv=_wgPreverMovimiento(u,[o.destino_lng,o.destino_lat],horasTurno);
+      L.polyline(pv.ruta.map(c=>[c[1],c[0]]),
+        {color:pv.detenida?'#e08a2c':'#2ecc71',weight:4,opacity:.95}).addTo(WG.capa);
+      if(!pv.llego){
+        L.polyline([[pv.lat,pv.lng],[o.destino_lat,o.destino_lng]],
+          {color:'#9aa7b4',weight:2,dashArray:'4 7',opacity:.75}).addTo(WG.capa);
+        L.circleMarker([o.destino_lat,o.destino_lng],
+          {radius:4,color:'#9aa7b4',weight:1,fillColor:'#0b1118',fillOpacity:.7,interactive:false}).addTo(WG.capa);
+      }
+      // Banderín en el punto al que SÍ llega, con el motivo si no alcanza.
+      const txt = pv.detenida
+        ? `🛑 ${pv.avanzadoKm.toFixed(1)} km · ${pv.motivo}`
+        : (pv.llego ? `✅ llega (${pv.avanzadoKm.toFixed(1)} km · ${_wgHoras(pv.horasUsadas)})`
+                    : `⏱️ ${pv.avanzadoKm.toFixed(1)} de ${pv.totalKm.toFixed(1)} km — no alcanza el turno`);
+      L.circleMarker([pv.lat,pv.lng],{radius:6,color:'#fff',weight:2,
+        fillColor:pv.detenida?'#e08a2c':(pv.llego?'#2ecc71':'#e8c33a'),fillOpacity:1,interactive:false})
+        .addTo(WG.capa).bindTooltip(txt,{permanent:true,direction:'right',className:'wg-tip-orden'});
     }else if(o.tipo==='atacar' && o.objetivo_id && uById[o.objetivo_id]){
       const t=uById[o.objetivo_id];
-      L.polyline([[u.lat,u.lng],[t.lat,t.lng]],{color:'#e23b3b',weight:2.5}).addTo(WG.capa);
+      // v2.9.205: el combate sólo ocurre dentro del rango (3 km). Ordenar un
+      // ataque a 60 km no hacía NADA y no se avisaba: la orden se perdía en
+      // silencio. Ahora la línea se pone gris y el cartel lo dice.
+      const d=_wgHav([u.lng,u.lat],[t.lng,t.lat]);
+      const RANGO=3, alcanza = d<=RANGO;
+      L.polyline([[u.lat,u.lng],[t.lat,t.lng]],
+        {color:alcanza?'#e23b3b':'#9aa7b4',weight:alcanza?3:2,dashArray:alcanza?null:'4 7'}).addTo(WG.capa);
+      // Relación de fuerzas con el terreno del defensor, como la calcula el motor.
+      const bono=(()=>{const c=_wgClaseTerreno([t.lng,t.lat],WG.terreno||[]);
+        let b=c==='severo'?1.6:c==='restringido'?1.3:1;
+        if((WG.terreno||[]).some(x=>x.tipo==='clave'&&!_wgFueraDeCaja([t.lng,t.lat],x)&&_wgPtEnGeom([t.lng,t.lat],x.geojson))) b+=0.2;
+        return b;})();
+      const rel=(Number(u.poder_actual)||0)/Math.max(0.01,(Number(t.poder_actual)||0)*bono);
+      const txtRel = rel>=3?'decisivo':rel>=1.5?'avanza':rel>=1?'indeciso':rel>=1/1.5?'te resisten':'te rechazan';
+      L.circleMarker([t.lat,t.lng],{radius:9,color:alcanza?'#e23b3b':'#9aa7b4',weight:2,fill:false,interactive:false})
+        .addTo(WG.capa).bindTooltip(
+          alcanza ? `⚔️ atacar · ${d.toFixed(1)} km · relación ${rel.toFixed(1)}:1 → ${txtRel}`
+                  : `🚫 FUERA DE ALCANCE · está a ${d.toFixed(1)} km y el combate es hasta ${RANGO} km. Acercala primero.`,
+          {permanent:true,direction:'right',className:'wg-tip-orden'});
     }
   }
   // v2.9.191: ALCANCE DE OBSERVACIÓN de las unidades propias (hasta dónde
@@ -23231,6 +23349,7 @@ function _wgRender(){
       icon: L.icon({ iconUrl:sim.url, iconSize:[sim.w*F,sim.h*F], iconAnchor:[sim.ax*F,sim.ay*F] }),
       opacity: mio?1:0.75, riseOnHover:true, zIndexOffset: sel?1000:0,
     }).addTo(WG.capa);
+    m.__uid=u.id; // v2.9.205: para poder hacerla temblar
     const pct = u.poder_max? Math.round(100*u.poder_actual/u.poder_max):100;
     const obsTxt = mio ? ` · 👁️ ${_wgAlcanceObs(u,WG.terreno||[]).toFixed(1)} km` : ''; // v2.9.191
     m.bindTooltip(`${_rgEsc(u.designacion||u.bando)} · ${pct}%${u.estado!=='activa'?' ('+u.estado+')':''}${obsTxt}`,{direction:'top'});
@@ -23284,9 +23403,10 @@ async function wgResolver(btn){
   // v2.9.203: primero se VE el movimiento y después se actualiza el tablero.
   // Las trazas vienen en la respuesta (no se guardan en la base).
   const trazas=r.trazas||[];
+  WG.ultimoTurno=r.turno_resuelto;   // v2.9.205: para destacarlo en la bitácora
   await wgEstado();
   if(trazas.length) await wgReplay(trazas);
-  else alert(`Turno ${r.turno_resuelto} resuelto: ${r.combates} combate(s). Ahora turno ${r.turno_nuevo}.`);
+  else { WG.ultimoTurno=r.turno_resuelto; await wgHistorial(); wgHoja('bitacora'); }
 }
 
 // ============================================================
@@ -23343,15 +23463,15 @@ async function wgReplay(trazas, segundos=6){
         // Sólo levanta polvo mientras se está moviendo de verdad.
         if(nuevaBocanada && f<1 && p.t.km>0){
           humo.push({lng:pos[0], lat:pos[1], t0:ahora,
-            m:L.circleMarker([pos[1],pos[0]],{radius:4,color:'#cbb89a',weight:0,
-              fillColor:'#cbb89a',fillOpacity:.5,interactive:false}).addTo(capa)});
+            m:L.circleMarker([pos[1],pos[0]],{radius:6,color:'#cbb89a',weight:0,
+              fillColor:'#cbb89a',fillOpacity:.55,interactive:false}).addTo(capa)});
         }
       }
       // Envejecer la polvareda: crece y se apaga en ~1,3 s.
       for(let k=humo.length-1;k>=0;k--){
         const h=humo[k], edad=(ahora-h.t0)/1300;
         if(edad>=1){ try{ capa.removeLayer(h.m); }catch(_e){} humo.splice(k,1); continue; }
-        try{ h.m.setRadius(4+edad*9); h.m.setStyle({fillOpacity:0.5*(1-edad)}); }catch(_e){}
+        try{ h.m.setRadius(6+edad*13.5); h.m.setStyle({fillOpacity:0.55*(1-edad)}); }catch(_e){}
       }
       if(cartel) cartel.innerHTML='▶️ <b>Replay del turno</b> · hora H+'+horaSim.toFixed(1)+' de '+maxH.toFixed(1)+' h';
       if(_wgEn3D()) _wg3dReplayPaso(piezas,horaSim,humo,ahora);
@@ -23367,10 +23487,32 @@ async function wgReplay(trazas, segundos=6){
   if(WG.map3d) _wg3dDatos(); // devolver las fichas a su posición final
   if(cartel) cartel.innerHTML=antes;
   WG.replayando=false;
-  const resumen=trazas.map(t=>'· '+(t.designacion||'Unidad')+': '+t.km.toFixed(1)+' km en '+
-    (t.horas>=1?(Math.floor(t.horas)+' h '+Math.round((t.horas%1)*60)+' min'):(Math.round(t.horas*60)+' min'))+
-    (t.detenida?' (DETENIDA)':(t.llego?' — llegó':' — no alcanzó a llegar'))).join('\n');
-  alert('Turno resuelto.\n\nDesplazamientos:\n'+resumen+'\n\nMirá la 📜 bitácora: ahí figuran los avisos (área de empeño, a la vista del enemigo, contacto con fuerza superior).');
+  // v2.9.205: las que NO pudieron moverse TIEMBLAN. Es el acuse de recibo de
+  // «la orden llegó, pero el terreno no la dejó pasar».
+  for(const t of trazas){
+    if(!t.detenida) continue;
+    _wgTemblar(t.id);
+  }
+  // v2.9.205: en vez de un cartel que hay que cerrar, se ABRE la bitácora con
+  // lo del turno destacado arriba. El juego cuenta lo que pasó, no lo interrumpe.
+  await wgHistorial();
+  wgHoja('bitacora');
+}
+// Hace temblar la ficha de una unidad, en la vista que esté activa.
+function _wgTemblar(id){
+  // 2D: el marcador de Leaflet expone su elemento en `_icon`.
+  try{
+    WG.capa && WG.capa.eachLayer && WG.capa.eachLayer((l)=>{
+      if(l.__uid===id && l._icon){ l._icon.classList.add('wg-temblando');
+        setTimeout(()=>{ try{ l._icon.classList.remove('wg-temblando'); }catch(_e){} },1600); }
+    });
+  }catch(_e){}
+  // 3D: el elemento del marcador es la propia imagen del símbolo.
+  try{
+    const mk=(WG.marc3d||[]).find(m=>m.__uid===id);
+    const el=mk&&mk.getElement&&mk.getElement();
+    if(el){ el.classList.add('wg-temblando'); setTimeout(()=>{ try{ el.classList.remove('wg-temblando'); }catch(_e){} },1600); }
+  }catch(_e){}
 }
 // El mismo replay, dibujado sobre el relieve 3D si está abierto.
 function _wg3dReplayPaso(piezas, horaSim, humo, ahora){
@@ -23392,7 +23534,7 @@ function _wg3dReplayPaso(piezas, horaSim, humo, ahora){
   for(const h of (humo||[])){
     const edad=Math.min(1,(ahora-h.t0)/1300);
     puf.push({type:'Feature',geometry:{type:'Point',coordinates:[h.lng,h.lat]},
-      properties:{_r:5+edad*14,_op:0.55*(1-edad)}});
+      properties:{_r:7.5+edad*21,_op:0.6*(1-edad)}});
   }
   try{ map.getSource('wg-humo').setData({type:'FeatureCollection',features:puf}); }catch(_e){}
 }
@@ -23401,7 +23543,24 @@ async function wgHistorial(){
   const cont=document.getElementById('wg-bitacora');
   if(!r.ok){ cont.innerHTML=''; return; }
   const ev=r.eventos||[];
-  cont.innerHTML = ev.length? ev.map(e=>`<div style="padding:2px 0">T${e.turno} · ${e.tipo==='combate'?'⚔️':e.tipo==='movimiento'?'🚶':'•'} ${_rgEsc(e.descripcion||'')}</div>`).join('')
+  // v2.9.205: lo del ÚLTIMO turno resuelto va DESTACADO y arriba de todo, con
+  // los avisos importantes resaltados. Antes era una lista plana en la que no
+  // se distinguía lo que acababa de pasar de lo de hace cinco turnos.
+  const ultimo = WG.ultimoTurno!=null ? WG.ultimoTurno : (ev.length?Math.max(...ev.map(x=>x.turno)):null);
+  const icono=(t)=> t==='combate'?'⚔️' : t==='movimiento'?'🚶' : '•';
+  const resaltar=(txt)=> _rgEsc(txt)
+    .replace(/(área de empeño)/gi,'<b style="color:#ff6b6b">$1</b>')
+    .replace(/(A LA VISTA[^·]*)/g,'<b style="color:#ffd400">$1</b>')
+    .replace(/(en contacto[^·]*)/gi,'<b style="color:#ff9f43">$1</b>')
+    .replace(/(DETENIDA)/g,'<b style="color:#e08a2c">$1</b>')
+    .replace(/(LLEGÓ)/g,'<b style="color:#2ecc71">$1</b>');
+  const fila=(e,nuevo)=>`<div style="padding:5px 8px;margin-bottom:4px;border-radius:8px;line-height:1.45;`
+    +(nuevo?`background:rgba(74,163,224,.13);border-left:3px solid #4aa3e0`:`border-left:3px solid transparent`)+`">`
+    +`<span class="rg-meta" style="font-size:10px">T${e.turno}</span> ${icono(e.tipo)} ${resaltar(e.descripcion||'')}</div>`;
+  const nuevos=ev.filter(e=>e.turno===ultimo), viejos=ev.filter(e=>e.turno!==ultimo);
+  cont.innerHTML = ev.length
+    ? (nuevos.length?`<div class="section-label" style="margin:0 0 6px">🆕 Turno ${ultimo}</div>`+nuevos.map(e=>fila(e,true)).join(''):'')
+      +(viejos.length?`<div class="section-label" style="margin:10px 0 6px">Turnos anteriores</div>`+viejos.map(e=>fila(e,false)).join(''):'')
     : '<div class="rg-meta">Sin eventos todavía.</div>';
 }
 // ---- árbitro: configuración ----
