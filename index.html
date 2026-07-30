@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.202</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.203</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6788,6 +6788,7 @@ body.wg-jugando{overflow:hidden}
           <button class="wg-rd" onclick="wgCerrar3D()" title="Volver al mapa">←</button>
           <span class="wg-chip">⛰️ Vista 3D</span>
           <span class="wg-chip" id="wg-3d-cota">—</span>
+          <span class="wg-chip" style="font-size:10px">⌘ + arrastrar = girar · N = norte · clic = orden</span>
         </div>
         <div id="wg-3d-panel">
           <label>Relieve <b id="wg-3d-exag-val">1.6×</b>
@@ -22579,6 +22580,8 @@ function _wgRenderTerreno(){
     poblado:{color:'#d8d8d8',weight:1,fillOpacity:0.25,fillColor:'#9aa0a6'},
     vegetacion:{color:'#4f8f45',weight:1,fillOpacity:0.22,fillColor:'#4f8f45'},
     jurisdiccion:{color:'#b06de0',weight:1.2,fillOpacity:0,dashArray:'5 4'},
+    ae:{color:'#ff3b3b',weight:2,fillOpacity:0.18,fillColor:'#ff3b3b',dashArray:'6 4'},
+    defensivo:{color:'#00d3a7',weight:2,fillOpacity:0.12,fillColor:'#00d3a7'},
   };
   // Los puntos (cimas, volcanes, poblados, hitos) van como circulitos chicos.
   const punto={ elevacion:{r:3,color:'#b08a54'}, poblado:{r:3.5,color:'#e8e8e8'}, jurisdiccion:{r:3,color:'#b06de0'} };
@@ -22616,8 +22619,9 @@ const WG3D_EST={
   hidro:{col:'#4aa3e0',fill:0.45,w:1.7}, elevacion:{col:'#b08a54',fill:0,w:1.0},
   via:{col:'#e6d9bd',fill:0,w:1.6}, poblado:{col:'#d8d8d8',fill:0.30,w:1.0},
   vegetacion:{col:'#4f8f45',fill:0.28,w:1.0}, jurisdiccion:{col:'#b06de0',fill:0,w:1.3},
+  ae:{col:'#ff3b3b',fill:0.20,w:2.4}, defensivo:{col:'#00d3a7',fill:0.14,w:2.0},
 };
-const WG3D_DOCT=['restringido','severo','clave'];
+const WG3D_DOCT=['restringido','severo','clave','ae','defensivo'];
 const WG3D_VACIO={type:'FeatureCollection',features:[]};
 // Arma UNA colección con todo el terreno; el estilo sale de las propiedades,
 // así MapLibre pinta cada cosa con su color sin necesitar una capa por tipo.
@@ -22704,6 +22708,16 @@ async function wgVista3D(){
     let h=null; try{ h=map.queryTerrainElevation(e.lngLat); }catch(_e){}
     el.textContent = h==null?'—':('⛰️ '+Math.round(h)+' m');
   });
+  _wg3dControlesGoogleEarth(map);
+  // ÓRDENES EN 3D: clic en el terreno = mover la unidad seleccionada. (El clic
+  // sobre una ficha lo maneja el propio marcador, más abajo en _wg3dDatos.)
+  map.on('click',(e)=>{
+    if(WG.replayando) return;
+    if(!WG.sel) return;
+    if(!(WG.estado&&WG.estado.partida&&WG.estado.partida.estado==='en_curso')) return;
+    WG.ordenes[WG.sel]={tipo:'mover',destino_lat:e.lngLat.lat,destino_lng:e.lngLat.lng};
+    _wgActualizarContadorOrdenes(); _wgRender(); _wg3dDatos();
+  });
   map.on('load',()=>{
     document.getElementById('wg-3d-cargando').style.display='none';
     map.setTerrain({source:'dem',exaggeration:Number(WG.exag3d||1.6)});
@@ -22725,8 +22739,47 @@ async function wgVista3D(){
     map.addLayer({id:'wg-ord-linea',type:'line',source:'wg-ord',
       layout:{'line-cap':'round'},
       paint:{'line-color':['get','_col'],'line-width':2.4,'line-dasharray':[2,1.5]}});
+    // Rastro del REPLAY: se dibuja sobre el relieve mientras corre la animación.
+    map.addSource('wg-replay',{type:'geojson',data:WG3D_VACIO});
+    map.addLayer({id:'wg-replay-linea',type:'line',source:'wg-replay',
+      layout:{'line-cap':'round','line-join':'round'},
+      paint:{'line-color':['get','_col'],'line-width':4,'line-opacity':0.95}});
     _wg3dDatos();
     _wg3dEncuadrar();
+  });
+}
+// ============================================================
+// v2.9.203 — NAVEGACIÓN TIPO GOOGLE EARTH en la vista 3D.
+// MapLibre de fábrica gira con el botón derecho o con Ctrl. Sergio navega como
+// en Google Earth Pro: **⌘ (Command) + arrastrar** para girar y bascular.
+// Se implementa a mano porque MapLibre sólo mira `ctrlKey`, no `metaKey`.
+// ============================================================
+function _wg3dControlesGoogleEarth(map){
+  const lienzo=map.getCanvas();
+  let girando=false, x0=0, y0=0, brg0=0, pit0=0;
+  const esGiro=(ev)=> ev.metaKey||ev.ctrlKey||ev.shiftKey||ev.button===2||ev.button===1;
+  lienzo.addEventListener('mousedown',(ev)=>{
+    if(!esGiro(ev)) return;
+    girando=true; x0=ev.clientX; y0=ev.clientY;
+    brg0=map.getBearing(); pit0=map.getPitch();
+    lienzo.style.cursor='move';
+    ev.preventDefault(); ev.stopPropagation();
+  },true);
+  window.addEventListener('mousemove',(ev)=>{
+    if(!girando) return;
+    // Horizontal = rumbo (spin) · Vertical = inclinación, igual que Google Earth.
+    map.setBearing(brg0-(ev.clientX-x0)*0.35);
+    map.setPitch(Math.max(0,Math.min(85, pit0+(ev.clientY-y0)*0.30)));
+    ev.preventDefault();
+  },true);
+  window.addEventListener('mouseup',()=>{ if(girando){ girando=false; lienzo.style.cursor=''; } },true);
+  // El menú contextual estorba al girar con el botón derecho.
+  lienzo.addEventListener('contextmenu',(ev)=>ev.preventDefault());
+  // Teclas: N devuelve el norte, R aplana la vista (como el "reset" de GE).
+  lienzo.setAttribute('tabindex','0');
+  lienzo.addEventListener('keydown',(ev)=>{
+    if(ev.key==='n'||ev.key==='N') map.easeTo({bearing:0,duration:500});
+    if(ev.key==='r'||ev.key==='R') map.easeTo({bearing:0,pitch:0,duration:600});
   });
 }
 // Vuelca en el mapa 3D el terreno, las órdenes y las fichas del estado actual.
@@ -22742,10 +22795,20 @@ function _wg3dDatos(){
   const verU=document.getElementById('wg-3d-ver-unid');
   if(verU && !verU.checked) return;
   for(const u of ((WG.estado&&WG.estado.unidades)||[])){
-    const sim=_wgSimboloUnidad(u,false), F=0.55;
+    const sel=String(WG.sel)===String(u.id);
+    const sim=_wgSimboloUnidad(u,sel), F=0.55;
     const img=document.createElement('img');
     img.src=sim.url; img.style.width=(sim.w*F)+'px'; img.style.height=(sim.h*F)+'px';
-    img.style.pointerEvents='none';
+    // v2.9.203: las fichas del 3D SÍ reciben clic (seleccionar / atacar), igual
+    // que en el 2D. El clic sobre el terreno lo toma el `map.on('click')`.
+    img.style.cursor='pointer';
+    img.title=(u.designacion||u.bando)+' · '+(u.poder_max?Math.round(100*u.poder_actual/u.poder_max):100)+'%';
+    img.addEventListener('click',(ev)=>{
+      ev.stopPropagation();
+      if(WG.replayando) return;
+      _wgUnidadClick(u);
+      _wg3dDatos();
+    });
     try{
       const mk=new maplibregl.Marker({element:img, anchor:'center',
         offset:[(sim.w/2-sim.ax)*F, (sim.h/2-sim.ay)*F]}).setLngLat([u.lng,u.lat]).addTo(map);
@@ -22839,7 +22902,11 @@ function _wgEscenarioDesde(d){
   const meter=(tipo,geom)=>{ if(geom&&(geom.type==='Polygon'||geom.type==='MultiPolygon')) terreno.push({tipo,geojson:geom}); };
   if(Array.isArray(d&&d.terreno)) for(const t of d.terreno) meter(t.tipo,t.geojson||t.geometry);
   const cmoc=(d&&d.cmoc)||null;
-  if(cmoc) for(const tipo of ['restringido','severo','clave'])
+  // `ae` = área de empeño y `defensivo` = terreno defendible. NO cambian la
+  // movilidad; el motor los usa sólo para AVISAR en la bitácora cuando una
+  // unidad termina el turno adentro (la pregunta de Sergio: ¿una orden mal
+  // dada me metió en un área de empeño?).
+  if(cmoc) for(const tipo of ['restringido','severo','clave','ae','defensivo'])
     for(const f of (cmoc[tipo]||[])) meter(tipo, f&&(f.geometry||f));
   // CAPAS VISUALES = la carta de fondo que el Generador ya recortó al área:
   // hidrografía, curvas de nivel y cimas, caminos, poblados, vegetación y
@@ -23149,8 +23216,88 @@ async function wgResolver(btn){
   const r=await _wgInvoke('resolver_turno',{ partida_id:WG.partidaId });
   if(btn) btn.disabled=false;
   if(!r.ok){ alert('No se pudo resolver: '+r.error); return; }
-  alert(`Turno ${r.turno_resuelto} resuelto: ${r.combates} combate(s). Ahora turno ${r.turno_nuevo}.`);
-  WG.ordenes={}; await wgEstado();
+  WG.ordenes={};
+  // v2.9.203: primero se VE el movimiento y después se actualiza el tablero.
+  // Las trazas vienen en la respuesta (no se guardan en la base).
+  const trazas=r.trazas||[];
+  await wgEstado();
+  if(trazas.length) await wgReplay(trazas);
+  else alert(`Turno ${r.turno_resuelto} resuelto: ${r.combates} combate(s). Ahora turno ${r.turno_nuevo}.`);
+}
+
+// ============================================================
+// v2.9.203 — REPLAY DEL TURNO. Reproduce el desplazamiento de cada unidad
+// sobre su ruta real, respetando los TIEMPOS relativos: la que tardó el doble
+// tarda el doble en la animación. Así se ve quién llegó antes, quién quedó a
+// mitad de camino y por dónde pasó — que es lo que permite al otro bando
+// decidir si alcanzó a detectarlo.
+// ============================================================
+function _wgInterp(ruta, f){
+  if(!ruta||!ruta.length) return null;
+  if(ruta.length===1) return ruta[0];
+  const x=Math.max(0,Math.min(1,f))*(ruta.length-1);
+  const i=Math.floor(x), t=x-i;
+  if(i>=ruta.length-1) return ruta[ruta.length-1];
+  const a=ruta[i], b=ruta[i+1];
+  return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t];
+}
+async function wgReplay(trazas, segundos=6){
+  if(!WG.map||!trazas||!trazas.length) return;
+  WG.replayando=true;
+  const capa=L.layerGroup().addTo(WG.map);
+  const maxH=Math.max(...trazas.map(t=>t.horas||0),0.0001);
+  const cartel=document.getElementById('wg-ayuda');
+  const antes=cartel?cartel.innerHTML:'';
+  // Rastro recorrido + ficha que avanza, por unidad.
+  const piezas=trazas.map(t=>{
+    const col=WG_COL[t.bando]||'#888';
+    const rastro=L.polyline([],{color:col,weight:3,opacity:.85}).addTo(capa);
+    const punto=L.circleMarker([t.ruta[0][1],t.ruta[0][0]],
+      {radius:7,color:'#fff',weight:2,fillColor:col,fillOpacity:1}).addTo(capa);
+    return {t,rastro,punto,col};
+  });
+  const t0=performance.now();
+  await new Promise(fin=>{
+    function paso(ahora){
+      const avance=Math.min(1,(ahora-t0)/(segundos*1000)); // 0→1 en todo el turno
+      const horaSim=avance*maxH;
+      for(const p of piezas){
+        // Cada unidad avanza según SU tiempo: si usó la mitad del turno,
+        // termina su recorrido a la mitad de la animación.
+        const f=(p.t.horas>0)?Math.min(1,horaSim/p.t.horas):1;
+        const pos=_wgInterp(p.t.ruta,f); if(!pos) continue;
+        p.punto.setLatLng([pos[1],pos[0]]);
+        const hasta=Math.max(1,Math.ceil(f*(p.t.ruta.length-1))+1);
+        p.rastro.setLatLngs(p.t.ruta.slice(0,hasta).map(c=>[c[1],c[0]]));
+      }
+      if(cartel) cartel.innerHTML='▶️ <b>Replay del turno</b> · hora H+'+horaSim.toFixed(1)+' de '+maxH.toFixed(1)+' h';
+      if(WG.map3d && document.getElementById('wg-3d').style.display!=='none') _wg3dReplayPaso(piezas,horaSim);
+      if(avance<1) requestAnimationFrame(paso); else fin();
+    }
+    requestAnimationFrame(paso);
+  });
+  // Deja el rastro un momento para poder leerlo, y limpia.
+  await new Promise(r=>setTimeout(r,1400));
+  try{ WG.map.removeLayer(capa); }catch(_e){}
+  if(WG.map3d) try{ WG.map3d.getSource('wg-replay').setData({type:'FeatureCollection',features:[]}); }catch(_e){}
+  if(cartel) cartel.innerHTML=antes;
+  WG.replayando=false;
+  const resumen=trazas.map(t=>'· '+(t.designacion||'Unidad')+': '+t.km.toFixed(1)+' km en '+
+    (t.horas>=1?(Math.floor(t.horas)+' h '+Math.round((t.horas%1)*60)+' min'):(Math.round(t.horas*60)+' min'))+
+    (t.detenida?' (DETENIDA)':(t.llego?' — llegó':' — no alcanzó a llegar'))).join('\n');
+  alert('Turno resuelto.\n\nDesplazamientos:\n'+resumen+'\n\nMirá la 📜 bitácora: ahí figuran los avisos (área de empeño, a la vista del enemigo, contacto con fuerza superior).');
+}
+// El mismo replay, dibujado sobre el relieve 3D si está abierto.
+function _wg3dReplayPaso(piezas, horaSim){
+  const map=WG.map3d; if(!map||!map.getSource) return;
+  const feats=[];
+  for(const p of piezas){
+    const f=(p.t.horas>0)?Math.min(1,horaSim/p.t.horas):1;
+    const hasta=Math.max(2,Math.ceil(f*(p.t.ruta.length-1))+1);
+    if(hasta<2) continue;
+    feats.push({type:'Feature',geometry:{type:'LineString',coordinates:p.t.ruta.slice(0,hasta)},properties:{_col:p.col}});
+  }
+  try{ map.getSource('wg-replay').setData({type:'FeatureCollection',features:feats}); }catch(_e){}
 }
 async function wgHistorial(){
   const r=await _wgInvoke('historial',{ partida_id:WG.partidaId, clave_acceso:WG.clave });
