@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.205</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.206</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -22629,15 +22629,27 @@ function _wgRenderTerreno(){
   };
   // Los puntos (cimas, volcanes, poblados, hitos) van como circulitos chicos.
   const punto={ elevacion:{r:3,color:'#b08a54'}, poblado:{r:3.5,color:'#e8e8e8'}, jurisdiccion:{r:3,color:'#b06de0'} };
-  const esVisual=(tp)=>['hidro','elevacion','via','poblado','vegetacion','jurisdiccion'].includes(tp);
-  // El terreno es telón de fondo: no debe robar los clics del mapa ni de las fichas.
+  // v2.9.206 — RENDIMIENTO. Antes se creaba UNA capa `L.geoJSON` por polígono:
+  // con el terreno real del Generador eso son 250-600 capas SVG, y por eso
+  // importar o vaciar «tardaba un montón». Ahora se agrupan por tipo (máximo 11
+  // capas) y se dibujan sobre un ÚNICO lienzo `canvas`, que Leaflet pinta de una
+  // pasada en vez de crear miles de nodos en el DOM.
+  if(!WG.lienzo) WG.lienzo=L.canvas({padding:0.3});
+  const porTipo={};
   for(const t of terr){
     if(!_wgCalcoVisible(t.tipo)) continue; // 🗺️ este calco está apagado
-    const est=Object.assign({interactive:false},estilo[t.tipo]||{color:'#888',weight:1,fillOpacity:0.10});
+    (porTipo[t.tipo]||(porTipo[t.tipo]=[])).push({type:'Feature',geometry:t.geojson,properties:{}});
+  }
+  // El terreno es telón de fondo: no debe robar los clics del mapa ni de las fichas.
+  for(const tipo in porTipo){
+    const est=Object.assign({interactive:false,renderer:WG.lienzo},
+      estilo[tipo]||{color:'#888',weight:1,fillOpacity:0.10});
     try{
-      L.geoJSON(t.geojson,{ style:est, interactive:false,
-        pointToLayer:(f,ll)=>{ const p=punto[t.tipo]||{r:3,color:'#aaa'};
-          return L.circleMarker(ll,{radius:p.r,color:p.color,weight:1,fillColor:p.color,fillOpacity:.65,interactive:false}); },
+      L.geoJSON({type:'FeatureCollection',features:porTipo[tipo]},{
+        style:est, interactive:false, renderer:WG.lienzo,
+        pointToLayer:(f,ll)=>{ const p=punto[tipo]||{r:3,color:'#aaa'};
+          return L.circleMarker(ll,{radius:p.r,color:p.color,weight:1,fillColor:p.color,
+            fillOpacity:.65,interactive:false,renderer:WG.lienzo}); },
       }).addTo(WG.capaTerreno);
     }catch(_e){}
   }
@@ -23007,10 +23019,48 @@ function _wgMedioPorArma(arma){
   return 'motor';
 }
 function _wgPeso(n){ return n>=1048576?(n/1048576).toFixed(1)+' MB':Math.round(n/1024)+' KB'; }
+// Lista las fases del COA guardadas en el ejercicio, para poder elegir cuál jugar.
+function _wgFasesCOA(d){
+  const fc=(d&&d.fasesCOA)||null; if(!fc) return [];
+  const out=[];
+  for(const bando of ['propio','enemigo']){
+    const arr=fc[bando]||[];
+    arr.forEach((f,i)=>{
+      const n=(f&&f.unidades||[]).length;
+      if(n) out.push({bando, idx:i, n, nombre:`COA ${bando==='propio'?'PROPIO':'ENEMIGO'} · Fase ${i+1}`, unidades:f.unidades});
+    });
+  }
+  return out;
+}
+// Muestra los cursos de acción disponibles y espera la elección del árbitro.
+function _wgPreguntarFase(fases, poner){
+  return new Promise((resolve)=>{
+    const filas=fases.map((f,i)=>
+      `<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-bottom:4px" data-fase="${i}">`
+      +`${f.nombre} — ${f.n} unidad(es)</button>`).join('');
+    poner(`<b>¿Qué curso de acción querés jugar?</b><br>`
+      +`<span class="rg-meta">El ejercicio tiene ${fases.length} fase(s) guardadas. Cada una tiene las unidades en la posición de ESA fase.</span>`
+      +`<div style="margin-top:8px">`
+      +`<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-bottom:4px" data-fase="viva">📍 Estado actual del ejercicio (como quedó abierto)</button>`
+      +filas
+      +`<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-top:6px" data-fase="no">✖️ Cancelar</button></div>`);
+    const cont=document.getElementById('wg-imp-estado');
+    cont.querySelectorAll('button[data-fase]').forEach(b=>{
+      b.onclick=()=>{
+        const v=b.getAttribute('data-fase');
+        if(v==='no') return resolve(undefined);
+        resolve(v==='viva'?null:fases[Number(v)]);
+      };
+    });
+  });
+}
 // Traduce el archivo del Generador (o un export compacto) al escenario del juego.
-function _wgEscenarioDesde(d){
+function _wgEscenarioDesde(d, fase){
   const unidades=[], terreno=[];
-  for(const u of (d&&d.unidades)||[]){
+  // Si se eligió una fase del COA, las unidades salen de ESA fase; si no, del
+  // estado vivo del ejercicio (que es la fase que quedó abierta al guardar).
+  const fuente = (fase && fase.unidades) ? fase.unidades : ((d&&d.unidades)||[]);
+  for(const u of fuente){
     if(u==null||u.lat==null||u.lng==null) continue;
     // En el Generador el bando es 'propias' | 'enemigo'; acá es 'azul' | 'rojo'.
     const bando = (u.bando==='enemigo'||u.bando==='rojo')?'rojo':'azul';
@@ -23048,7 +23098,7 @@ function _wgEscenarioDesde(d){
       visuales++;
     }
   }
-  return { unidades, terreno, visuales, nombre:(d&&d.nombre)||'' };
+  return { unidades, terreno, visuales, nombre:(d&&d.nombre)||'', fase:(fase?fase.nombre:null) };
 }
 async function wgImportarEscenario(inp){
   const f=inp&&inp.files&&inp.files[0]; if(!f) return;
@@ -23060,14 +23110,24 @@ async function wgImportarEscenario(inp){
   let d;
   try{ d=JSON.parse(await f.text()); }
   catch(e){ poner('❌ Ese archivo no es un JSON válido. Buscá el <b>ejercicio.json</b> dentro de la carpeta del ejercicio.'); return; }
-  const esc=_wgEscenarioDesde(d);
+  // v2.9.206 — ELEGIR EL CURSO DE ACCIÓN. El Generador guarda cada fase del COA
+  // con las unidades en su posición de esa fase, y además el «estado vivo», que
+  // es la fase que quedó abierta. El importador tomaba ese estado vivo, así que
+  // SIEMPRE traía la última fase. Ahora se elige cuál se quiere jugar.
+  const fases=_wgFasesCOA(d);
+  let faseElegida=null;
+  if(fases.length){
+    faseElegida = await _wgPreguntarFase(fases, poner);
+    if(faseElegida===undefined){ poner('Importación cancelada.'); return; }
+  }
+  const esc=_wgEscenarioDesde(d, faseElegida);
   if(!esc.unidades.length && !esc.terreno.length){
     poner('❌ No encontré ni unidades ni terreno (CMOC) en ese archivo. ¿Es el ejercicio.json del Generador?'); return;
   }
   const nCmoc=esc.terreno.length-(esc.visuales||0);
   const enCurso = !!(WG.estado&&WG.estado.partida&&WG.estado.partida.estado==='en_curso');
   const resumen=`• ${esc.unidades.length} unidad(es)\n• ${nCmoc} polígono(s) de CMOC (terreno restringido / severo / clave)\n• ${esc.visuales||0} elemento(s) de carta (ríos, curvas de nivel, caminos, poblados)`;
-  if(!confirm(`Se va a REEMPLAZAR el escenario de esta partida por el del archivo:\n\n${esc.nombre||f.name}\n\n${resumen}\n\nSe borran las unidades y el terreno que tenga ahora la partida.`
+  if(!confirm(`Se va a REEMPLAZAR el escenario de esta partida por el del archivo:\n\n${esc.nombre||f.name}${esc.fase?('\n'+esc.fase):''}\n\n${resumen}\n\nSe borran las unidades y el terreno que tenga ahora la partida.`
     +(enCurso?`\n\n⚠️ La partida está EN CURSO: reemplazar el escenario es empezar de nuevo, así que vuelve a PLANIFICACIÓN (turno 0) y se borran las órdenes, la bitácora y las detecciones.`:'')
     +`\n\n¿Seguimos?`)){
     poner('Importación cancelada.'); return;
@@ -23367,6 +23427,13 @@ function _wgRender(){
   cont.innerHTML = `<div style="margin-bottom:4px">Tuyas (${mias.length}):</div>`+mias.map(u=>fila(u,false)).join('')
     + (enem.length?`<div style="margin:6px 0 4px">Enemigas detectadas (${enem.length}):</div>`+enem.map(u=>fila(u,true)).join('')
        : (WG.soy!=='arbitro'?'<div class="rg-meta" style="margin-top:6px">🌫️ Sin contacto enemigo (niebla de guerra).</div>':''));
+  // ⚠️ v2.9.206 — EL BUG QUE HACÍA PARECER QUE NADA FUNCIONABA.
+  // El 3D se dibuja con SUS PROPIAS fuentes de datos. `wgEstado()` sólo
+  // repintaba el mapa 2D, que en modo 3D está TAPADO ABAJO: importar, vaciar y
+  // 🔄 actualizaban algo invisible y el usuario seguía viendo el terreno viejo.
+  // Ahora todo repintado del 2D arrastra al 3D, así que hay UNA sola verdad.
+  if(WG.map3d){ _wg3dDatos(); _wg3dCapas(); }
+  if(WG.hoja==='capas') wgPanelCapas(); // conteos siempre al día
 }
 function _wgSelById(id){ const u=(WG.estado.unidades||[]).find(x=>String(x.id)===String(id)); if(u) _wgUnidadClick(u); }
 function _wgUnidadClick(u){
