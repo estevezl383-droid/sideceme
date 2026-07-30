@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.207</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.208</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -22575,6 +22575,10 @@ function _wgPreverMovimiento(u,destino,horas){
   if(totalDest<1e-4) return {lng:pos[0],lat:pos[1],detenida:false,motivo:'ya está ahí',avanzadoKm:0,totalKm:0,llego:true,horasUsadas:0,ruta:[pos]};
   let presupuesto=horas, avanzado=0, detenida=false, motivo='', guardia=0;
   const ruta=[[pos[0],pos[1]]];
+  // v2.9.208: si arranca metida en terreno que su medio no cruza, SALE a paso de
+  // hombre (misma regla que el motor: nadie queda atrapado para siempre).
+  const atrapada = vel[_wgClaseTerreno(pos,terreno)]==null;
+  let saliendo = atrapada;
   while(true){
     const restante=_wgHav(pos,destino);
     if(restante<=1e-6) break;
@@ -22582,7 +22586,9 @@ function _wgPreverMovimiento(u,destino,horas){
     const frac=Math.min(0.5,restante)/restante;
     const sig=[pos[0]+(destino[0]-pos[0])*frac, pos[1]+(destino[1]-pos[1])*frac];
     const clase=_wgClaseTerreno(sig,terreno);
-    const v=vel[clase];
+    let v=vel[clase];
+    if(v==null && saliendo) v=(WG_VEL.pie[clase]||2)*0.5;
+    else if(v!=null) saliendo=false;
     if(v==null){ detenida=true; motivo='terreno '+clase+' infranqueable para '+(u.medio||'pie'); break; }
     const pasoReal=_wgHav(pos,sig), tPaso=pasoReal/v;
     if(tPaso>presupuesto+1e-9){
@@ -22592,6 +22598,7 @@ function _wgPreverMovimiento(u,destino,horas){
       ruta.push([pos[0],pos[1]]); break;
     }
     presupuesto-=tPaso; pos=sig; avanzado+=pasoReal; ruta.push([pos[0],pos[1]]);
+    if(atrapada && !motivo) motivo='sale a paso de hombre del terreno que no cruza';
     if(presupuesto<=1e-9){ motivo='no alcanza el tiempo del turno'; break; }
   }
   return {lng:pos[0],lat:pos[1],detenida,motivo,avanzadoKm:avanzado,totalKm:totalDest,
@@ -22742,7 +22749,7 @@ async function wgVista3D(){
       style:{version:8,
         sources:{
           base:{type:'raster',tiles:base.tiles,tileSize:256,maxzoom:base.maxzoom,attribution:base.atrib},
-          dem:{type:'raster-dem',tiles:[WG3D_DEM],tileSize:256,encoding:'terrarium',maxzoom:14,attribution:'Elevación: Terrarium / AWS (SRTM)'},
+          dem:{type:'raster-dem',tiles:[WG3D_DEM],tileSize:256,encoding:'terrarium',maxzoom:15,attribution:'Elevación: Terrarium / AWS (SRTM)'},
         },
         layers:[
           {id:'fondo',type:'background',paint:{'background-color':'#0a0e13'}},
@@ -22804,6 +22811,18 @@ async function wgVista3D(){
     // Rastro del REPLAY: se dibuja sobre el relieve mientras corre la animación.
     map.addSource('wg-replay',{type:'geojson',data:WG3D_VACIO});
     map.addSource('wg-humo',{type:'geojson',data:WG3D_VACIO});
+    // v2.9.208 — Selección APOYADA EN EL SUELO. `circle-pitch-alignment:'map'`
+    // acuesta el círculo sobre el terreno, así que con la cámara inclinada se ve
+    // como una elipse pegada al piso — el efecto de los RTS, no un recuadro de
+    // frente. Va DEBAJO de las fichas para que parezca que la unidad lo pisa.
+    map.addSource('wg-sel',{type:'geojson',data:WG3D_VACIO});
+    map.addLayer({id:'wg-sel-halo',type:'circle',source:'wg-sel',
+      paint:{'circle-radius':30,'circle-color':'#ffe11a','circle-opacity':0.16,
+        'circle-blur':0.9,'circle-pitch-alignment':'map'}});
+    map.addLayer({id:'wg-sel-anillo',type:'circle',source:'wg-sel',
+      paint:{'circle-radius':24,'circle-color':'#ffe11a','circle-opacity':0.10,
+        'circle-stroke-width':3,'circle-stroke-color':'#ffe11a','circle-stroke-opacity':0.95,
+        'circle-pitch-alignment':'map'}});
     map.addLayer({id:'wg-humo-pt',type:'circle',source:'wg-humo',
       paint:{'circle-radius':['get','_r'],'circle-color':'#cbb89a',
         'circle-opacity':['get','_op'],'circle-blur':0.7}});
@@ -22859,9 +22878,15 @@ function _wg3dDatos(){
   for(const m of (WG.marc3d||[])){ try{ m.remove(); }catch(_e){} }
   WG.marc3d=[];
   if(WG.verUnidades===false) return; // 🗺️ fichas apagadas
+  // El anillo de selección va en el SUELO, no en el ícono.
+  const selPt=[];
   for(const u of ((WG.estado&&WG.estado.unidades)||[])){
-    const sel=String(WG.sel)===String(u.id);
-    const sim=_wgSimboloUnidad(u,sel), F=0.55;
+    if(String(WG.sel)===String(u.id))
+      selPt.push({type:'Feature',geometry:{type:'Point',coordinates:[u.lng,u.lat]},properties:{}});
+  }
+  try{ map.getSource('wg-sel').setData({type:'FeatureCollection',features:selPt}); }catch(_e){}
+  for(const u of ((WG.estado&&WG.estado.unidades)||[])){
+    const sim=_wgSimboloUnidad(u,false), F=0.55; // sin retícula: la marca está en el piso
     const img=document.createElement('img');
     img.src=sim.url; img.style.width=(sim.w*F)+'px'; img.style.height=(sim.h*F)+'px';
     // v2.9.203: las fichas del 3D SÍ reciben clic (seleccionar / atacar), igual
