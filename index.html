@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.218</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.219</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -22553,7 +22553,8 @@ async function wgEstado(){
   document.getElementById('wg-ayuda').innerHTML = p.estado!=='en_curso'
     ? (esArb?'⏸️ La partida <b>todavía no empezó</b> — por eso las fichas no se mueven.<br>Tocá <b>🚀 Iniciar partida</b> (abajo a la derecha) y ahí sí podés dar órdenes.'
            :'Esperá a que el árbitro inicie la partida.')
-    : ('Tocá una unidad; clic en el mapa = <b>mover</b> · <b>Shift+clic</b> = agregar punto de paso para rodear · clic en un enemigo = <b>atacar</b>.<br>'
+    : ('Tocá una unidad. <b>Sin arma elegida:</b> clic en el mapa = <b>mover</b> · <b>Shift+clic</b> = agregar punto de paso para rodear obstáculos.<br>'
+       + '<b>Con un arma elegida en 🎯 ARMAMENTO:</b> clic en el mapa = <b>pedir fuego ahí</b> · clic en un enemigo = <b>empeñarlo</b>. Tocá el arma otra vez para volver a mover.<br>'
        + (esArb ? 'Después <b>▶️ Jugar turno</b>.' : 'Cuando termines, <b>✔️ Órdenes listas</b>.'));
   _wgRender();
   wgHistorial();
@@ -22805,6 +22806,13 @@ async function wgVista3D(){
     return;
   }
   WG.map3d=map; WG.marc3d=[];
+  // v2.9.219 — ÉSTA ERA LA CAUSA REAL DE QUE SHIFT+CLIC NO AGREGARA PUNTOS DE
+  // PASO. MapLibre trae `boxZoom` prendido de fábrica y ese handler se queda con
+  // Shift+mousedown para hacer zoom por recuadro: llama a preventDefault() y el
+  // `click` con shiftKey NUNCA se emite. No importaba cuántas veces arreglara mi
+  // código: el evento no llegaba. Con boxZoom apagado, Shift queda libre para la
+  // ruta por tramos, que es para lo que lo queremos.
+  try{ map.boxZoom.disable(); }catch(_e){}
   map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'top-right');
   map.addControl(new maplibregl.ScaleControl({maxWidth:140,unit:'metric'}),'bottom-right');
   map.on('error',(e)=>{
@@ -23191,18 +23199,18 @@ function _wgIconoArma(id, px){
 // respecto de lo que después hace el motor.
 // ============================================================
 const WG_ARMAS={
-  fusil:        {id:'fusil',        nom:'Fusilería',           icono:'fusil',        alcance:0.6,  contra:'personal'},
-  ametralladora:{id:'ametralladora',nom:'Ametralladora',       icono:'ametralladora',alcance:1.0,  contra:'personal'},
-  pesada:       {id:'pesada',       nom:'Ametralladora .50',   icono:'pesada',       alcance:2.0,  contra:'personal y vehículo liviano'},
-  mortero60:    {id:'mortero60',    nom:'Mortero 60 mm',       icono:'mortero',      alcance:2.0,  contra:'personal', indirecto:true},
-  mortero81:    {id:'mortero81',    nom:'Mortero 81 mm',       icono:'mortero',      alcance:5.5,  contra:'personal', indirecto:true},
-  mortero120:   {id:'mortero120',   nom:'Mortero 120 mm',      icono:'mortero',      alcance:8.0,  contra:'personal y posiciones', indirecto:true},
-  srAT:         {id:'srAT',         nom:'S/R 106 mm (AT)',     icono:'antitanque',   alcance:1.1,  contra:'blindados'},
-  misilAT:      {id:'misilAT',      nom:'Misil antitanque',    icono:'antitanque',   alcance:3.5,  contra:'blindados'},
-  canon:        {id:'canon',        nom:'Cañón de tanque',     icono:'canon',        alcance:2.5,  contra:'blindados y posiciones'},
-  obus105:      {id:'obus105',      nom:'Obús 105 mm',         icono:'obus',         alcance:11.0, contra:'áreas', indirecto:true},
-  obus155:      {id:'obus155',      nom:'Obús 155 mm',         icono:'obus',         alcance:24.0, contra:'áreas', indirecto:true},
-  zapa:         {id:'zapa',         nom:'Medios de zapa',      icono:'zapa',         alcance:0,    contra:'terreno: brechas y obstáculos', ingenieria:true},
+  fusil:        {id:'fusil',        nom:'Fusilería',           icono:'fusil',        alcance:0.6,  radio:0.05, pot:0.1,  contra:'personal'},
+  ametralladora:{id:'ametralladora',nom:'Ametralladora',       icono:'ametralladora',alcance:1.0,  radio:0.1, pot:0.14,  contra:'personal'},
+  pesada:       {id:'pesada',       nom:'Ametralladora .50',   icono:'pesada',       alcance:2.0,  radio:0.12, pot:0.18,  contra:'personal y vehículo liviano'},
+  mortero60:    {id:'mortero60',    nom:'Mortero 60 mm',       icono:'mortero',      alcance:2.0,  radio:0.15, pot:0.18,  contra:'personal', indirecto:true},
+  mortero81:    {id:'mortero81',    nom:'Mortero 81 mm',       icono:'mortero',      alcance:5.5,  radio:0.2, pot:0.25,  contra:'personal', indirecto:true},
+  mortero120:   {id:'mortero120',   nom:'Mortero 120 mm',      icono:'mortero',      alcance:8.0,  radio:0.3, pot:0.35,  contra:'personal y posiciones', indirecto:true},
+  srAT:         {id:'srAT',         nom:'S/R 106 mm (AT)',     icono:'antitanque',   alcance:1.1,  radio:0.05, pot:0.2,  contra:'blindados'},
+  misilAT:      {id:'misilAT',      nom:'Misil antitanque',    icono:'antitanque',   alcance:3.5,  radio:0.06, pot:0.3,  contra:'blindados'},
+  canon:        {id:'canon',        nom:'Cañón de tanque',     icono:'canon',        alcance:2.5,  radio:0.1, pot:0.25,  contra:'blindados y posiciones'},
+  obus105:      {id:'obus105',      nom:'Obús 105 mm',         icono:'obus',         alcance:11.0,  radio:0.35, pot:0.4, contra:'áreas', indirecto:true},
+  obus155:      {id:'obus155',      nom:'Obús 155 mm',         icono:'obus',         alcance:24.0,  radio:0.5, pot:0.55, contra:'áreas', indirecto:true},
+  zapa:         {id:'zapa',         nom:'Medios de zapa',      icono:'zapa',         alcance:0,  radio:0, pot:0,    contra:'terreno: brechas y obstáculos', ingenieria:true},
 };
 // Qué tiene cada arma. El escalón agrega o quita sistemas.
 const WG_DOTACION={
@@ -23776,16 +23784,46 @@ function _wgDibujo(){
       D.push(_wgD.txt(t.lng,t.lat, alcanza
         ? `⚔️ ${arma?arma.nom:'combate'} · ${d.toFixed(1)} km · relación ${rel.toFixed(1)}:1 → ${txtRel}`
         : `🔥 TIRO CORTO · ${arma?arma.nom:'el sistema'} bate ${alcance.toFixed(1)} km y está a ${d.toFixed(1)} km. Dispara igual: gasta munición y delata su posición.`));
+    }else if(o.tipo==='fuego' && o.destino_lat!=null){
+      // v2.9.219 — CONCENTRACIÓN DE FUEGO sobre un punto del terreno.
+      const arma=_wgArmaDeFuego(u,o.arma);
+      const d=_wgHav([u.lng,u.lat],[o.destino_lng,o.destino_lat]);
+      const alcance=arma?arma.alcance:0, alcanza=d<=alcance;
+      const col=alcanza?'#ff4d1a':'#e08a2c';
+      D.push(_wgD.lin([[u.lng,u.lat],[o.destino_lng,o.destino_lat]],col,2.5,alcanza?null:'4 7'));
+      // La ZONA BATIDA: el radio de efecto real del sistema, a escala del mapa.
+      if(arma && arma.radio>0) D.push(_wgD.cir(o.destino_lng,o.destino_lat,arma.radio,col,2,null,.28));
+      D.push(_wgD.pt(o.destino_lng,o.destino_lat,5,col,2,col));
+      // A quién le va a caer encima — propios incluidos, que es el riesgo real.
+      let dentro=0, propios=0;
+      for(const x of (e.unidades||[])){
+        if(x.estado==='fuera_combate' || !arma || !(arma.radio>0)) continue;
+        if(_wgHav([x.lng,x.lat],[o.destino_lng,o.destino_lat])<=arma.radio){
+          dentro++; if(x.bando===u.bando) propios++;
+        }
+      }
+      D.push(_wgD.txt(o.destino_lng,o.destino_lat, alcanza
+        ? `💥 ${arma.nom} · ${d.toFixed(1)} km · zona ${Math.round(arma.radio*1000)} m`
+          + (dentro?` · ${dentro} en la zona`:' · zona VACÍA')
+          + (propios?` · ⚠️ ${propios} PROPIA(S)`:'')
+        : `🔥 TIRO CORTO · ${arma?arma.nom:'el sistema'} bate ${alcance.toFixed(1)} km y el punto está a ${d.toFixed(1)} km. Dispara igual: gasta munición y delata su posición.`));
     }
   }
-  // ALCANCE DE OBSERVACIÓN de las unidades propias (hasta dónde levantan niebla).
+  // ALCANCE DE OBSERVACIÓN (hasta dónde levantan la niebla).
+  // v2.9.219 — CADA CÍRCULO DICE QUÉ ES Y CUÁNTO MIDE. Antes salían varios
+  // círculos iguales sin rótulo y no se sabía cuál era cuál ni de cuántos km.
+  // Con una unidad seleccionada se muestra SÓLO la de ella, rotulada; sin
+  // selección, se ven todos como información de ambiente, sin cartel.
   if(WG.verObs!==false){
+    const soloSel = WG.sel!=null && uById[WG.sel];
     for(const u of (e.unidades||[])){
       if(!(WG.soy==='arbitro' || u.bando===WG.soy)) continue;
       if(u.estado==='fuera_combate') continue;
+      if(soloSel && String(u.id)!==String(WG.sel)) continue;
       const km=_wgAlcanceObs(u,WG.terreno||[]);
       if(!(km>0)) continue;
       D.push(_wgD.cir(u.lng,u.lat,km,WG_COL[u.bando]||'#888',1,'4 5',.05));
+      if(soloSel) D.push(_wgD.txt(u.lng,u.lat,`👁️ observa ${km.toFixed(1)} km`));
     }
   }
   // ALCANCE del sistema de armas elegido, sobre la unidad seleccionada.
@@ -23794,7 +23832,7 @@ function _wgDibujo(){
     const uSel=uById[WG.sel], arma=WG_ARMAS[WG.armaSel];
     if(uSel && arma && arma.alcance>0){
       D.push(_wgD.cir(uSel.lng,uSel.lat,arma.alcance,'#00e5ff',2.5,'8 6',.07));
-      D.push(_wgD.txt(uSel.lng,uSel.lat, arma.nom+' · '+arma.alcance+' km'));
+      D.push(_wgD.txt(uSel.lng,uSel.lat,`🎯 ${arma.nom} · alcance ${arma.alcance} km — clic en el mapa = pedir fuego ahí`));
       for(const b of _wgBatidosPor(uSel,arma)) D.push(_wgD.pt(b.e.lng,b.e.lat,13,'#ff3b3b',2.5,null));
     }
   }
@@ -23935,11 +23973,22 @@ function _wgMapClick(ev){
   if(WG.modoColocar && WG.soy==='arbitro'){ _wgColocarEn(ev.latlng); return; }
   if(!WG.sel) return;
   if(!_wgPuedeOrdenar()) return;
-  // v2.9.216 — RUTA POR TRAMOS. Con SHIFT se van agregando puntos de paso, así
-  // se rodea el terreno restringido en vez de mandar a la unidad de frente
-  // contra el obstáculo. Sin shift, se empieza una ruta nueva.
-  if(!WG.rutas) WG.rutas={};
   const p=[ev.latlng.lng, ev.latlng.lat];
+  // v2.9.219 — CON UN SISTEMA DE ARMAS ELEGIDO, EL CLIC PIDE FUEGO AHÍ.
+  // Es como se pide el fuego de verdad: se marca DÓNDE se quiere la
+  // concentración, no a qué ficha. Para volver a mover, se deselecciona el
+  // sistema en el panel (tocándolo de nuevo).
+  if(WG.armaSel){
+    if(WG.rutas) delete WG.rutas[WG.sel];
+    WG.ordenes[WG.sel]={ tipo:'fuego', destino_lng:p[0], destino_lat:p[1], arma:WG.armaSel };
+    _wgActualizarContadorOrdenes(); _wgRender();
+    if(WG.map3d) _wg3dDatos();
+    return;
+  }
+  // RUTA POR TRAMOS. Con SHIFT se van agregando puntos de paso, así se rodea el
+  // terreno restringido en vez de mandar a la unidad de frente contra el
+  // obstáculo. Sin shift, se empieza una ruta nueva.
+  if(!WG.rutas) WG.rutas={};
   if(ev.originalEvent && ev.originalEvent.shiftKey && WG.rutas[WG.sel] && WG.rutas[WG.sel].length){
     WG.rutas[WG.sel].push(p);
   } else {
@@ -23992,8 +24041,10 @@ async function wgEnviarOrdenes(btn){
     if(r.ok) okc++; else console.warn('orden',uid,r.error);
   }
   if(btn) btn.disabled=false;
-  _wgAviso(okc===ids.length?`📨 ${okc} orden(es) enviada(s). Cuando estén todas, <b>Resolver turno</b>.`
-                            :`⚠️ Se enviaron ${okc} de ${ids.length}. Revisá las que fallaron.`);
+  _wgAviso(okc===ids.length
+    ? (WG.soy==='arbitro' ? `📨 ${okc} orden(es) registrada(s).`
+                          : `✔️ ${okc} orden(es) enviada(s). Ahora espera al otro bando.`)
+    : `⚠️ Se enviaron ${okc} de ${ids.length}. Revisá las que fallaron.`);
   await wgEstado();
 }
 async function wgResolver(btn){
