@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.216</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.217</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -23152,6 +23152,13 @@ function _wgIconoArma(id, px){
 // `alcance` en km (EFECTIVO, no máximo). `indirecto:true` = tiro indirecto:
 // no necesita ver el blanco, pero sí que ALGUNA unidad amiga lo observe.
 // ⚠️ CIFRAS DE REFERENCIA — Sergio las tiene que validar contra el reglamento.
+//
+// ⚠️ v2.9.217 — ESTE CATÁLOGO ESTÁ DUPLICADO EN EL MOTOR (`wargame-engine.js` y
+// el bloque embebido en `wargame-ops.ts`), porque desde esta versión el alcance
+// NO es más una ayuda visual: el servidor resuelve el fuego deliberado con él.
+// Si cambiás un alcance o una dotación acá, cambialo en los TRES lados y corré
+// `node wargame-ops.verificar.mjs`; si no, el círculo que ve el alumno miente
+// respecto de lo que después hace el motor.
 // ============================================================
 const WG_ARMAS={
   fusil:        {id:'fusil',        nom:'Fusilería',           icono:'fusil',        alcance:0.6,  contra:'personal'},
@@ -23204,6 +23211,29 @@ function wgElegirArma(id){
   WG.armaSel = (WG.armaSel===id)?null:id;   // volver a tocarlo lo deselecciona
   _wgRender();
 }
+// v2.9.217 — LA ORDEN FUERA DE ALCANCE YA NO SE BLOQUEA.
+// Regla de Sergio: la unidad dispara igual, gasta munición y delata su posición,
+// como en la vida real. Bloquear la orden le sacaba al alumno la posibilidad de
+// equivocarse — y entonces la bitácora no tenía nada que enseñarle. El aviso
+// pasa de «no te dejo» a «mirá lo que estás por hacer».
+function _wgAvisarAlcance(tirador, blanco, armaId){
+  if(!tirador||!blanco) return;
+  const d=_wgHav([tirador.lng,tirador.lat],[blanco.lng,blanco.lat]);
+  const arma=armaId?WG_ARMAS[armaId]:null;
+  if(arma && arma.alcance>0){
+    if(d>arma.alcance)
+      _wgAviso(`⚠️ <b>${arma.nom}</b> no llega: el blanco está a ${d.toFixed(1)} km y bate hasta ${arma.alcance} km.`
+        +`<br>Si mantenés la orden <b>dispara igual</b>: munición gastada y posición delatada.`,5200);
+    return;
+  }
+  // Sin sistema elegido, el motor empeña con el de MAYOR alcance de la dotación.
+  const dispo=_wgArmamento(tirador).filter(a=>!a.ingenieria&&a.alcance>0);
+  const mejor=dispo.length?dispo[dispo.length-1]:null;
+  if(mejor && d>mejor.alcance)
+    _wgAviso(`⚠️ Ningún sistema de <b>${_rgEsc(tirador.designacion||'la unidad')}</b> llega a ${d.toFixed(1)} km`
+      +` (el mayor es <b>${mejor.nom}</b>, ${mejor.alcance} km).`
+      +`<br>Va a disparar igual: munición gastada y posición delatada.`,5200);
+}
 // Dibuja el panel dentro de la hoja 🪖 UNIDADES, arriba de la lista.
 function _wgPanelArmasHTML(){
   const u=_wgUnidadPorId(WG.sel);
@@ -23232,7 +23262,9 @@ function _wgPanelArmasHTML(){
     ? `<div class="rg-meta" style="font-size:11px;margin:2px 0 10px;line-height:1.45">`
       +`🎯 <b style="color:#00e5ff">${elegida.nom}</b> — el círculo <b style="color:#00e5ff">celeste</b> del mapa es su alcance (el aro amarillo es la unidad seleccionada).`
       +(elegida.indirecto?'<br>Tiro indirecto: no necesita ver el blanco, pero sí que alguna unidad amiga lo observe.':'')
-      +`<br>Tocá un enemigo para empeñarlo.</div>`
+      +`<br>Tocá un enemigo para empeñarlo.`
+      // v2.9.217: ya no es sólo planeamiento — el motor resuelve con ESTE alcance.
+      +`<br><b style="color:#ff9f43">Si el blanco está fuera del círculo, dispara igual:</b> los tiros caen cortos, gasta munición y delata su posición.</div>`
     : `<div class="rg-meta" style="font-size:11px;margin:2px 0 10px">Elegí un sistema para ver su alcance en el mapa.</div>`;
   return `<div class="section-label" style="margin:0 0 6px">🎯 ARMAMENTO · ${_rgEsc(u.designacion||'unidad')}</div>`
     +filas+pie;
@@ -23785,14 +23817,7 @@ function _wgUnidadClick(u){
   const selU=_wgUnidadPorId(WG.sel);
   if(selU && String(selU.id)!==String(u.id) && selU.bando!==u.bando){
     if(!_wgPuedeOrdenar()) return;
-    const arma=WG.armaSel?WG_ARMAS[WG.armaSel]:null;
-    if(arma && arma.alcance>0){
-      const d=_wgHav([selU.lng,selU.lat],[u.lng,u.lat]);
-      if(d>arma.alcance){
-        _wgAviso(`🚫 <b>${arma.nom}</b> no llega: el blanco está a ${d.toFixed(1)} km y su alcance es ${arma.alcance} km.`,3600);
-        return;
-      }
-    }
+    _wgAvisarAlcance(selU,u,WG.armaSel);   // v2.9.217: avisa, pero deja ordenar
     WG.ordenes[selU.id]={ tipo:'atacar', objetivo_id:u.id, arma:WG.armaSel||null };
     _wgActualizarContadorOrdenes(); _wgRender();
     if(WG.map3d) _wg3dDatos();
@@ -23805,15 +23830,8 @@ function _wgUnidadClick(u){
   // clic en enemigo con una unidad mía seleccionada → orden de atacar
   if(WG.sel){
     if(!_wgPuedeOrdenar()) return;
-    // v2.9.214: si hay un sistema elegido, se comprueba SU alcance (no el genérico).
-    const mio=_wgUnidadPorId(WG.sel), arma=WG.armaSel?WG_ARMAS[WG.armaSel]:null;
-    if(mio && arma && arma.alcance>0){
-      const d=_wgHav([mio.lng,mio.lat],[u.lng,u.lat]);
-      if(d>arma.alcance){
-        _wgAviso(`🚫 <b>${arma.nom}</b> no llega: el blanco está a ${d.toFixed(1)} km y su alcance es ${arma.alcance} km.`,3600);
-        return;
-      }
-    }
+    // v2.9.217: se avisa SU alcance (no el genérico), pero la orden se manda igual.
+    _wgAvisarAlcance(_wgUnidadPorId(WG.sel),u,WG.armaSel);
     WG.ordenes[WG.sel]={ tipo:'atacar', objetivo_id:u.id, arma:WG.armaSel||null };
     _wgActualizarContadorOrdenes(); _wgRender();
   }
@@ -24164,12 +24182,17 @@ async function wgHistorial(){
   // los avisos importantes resaltados. Antes era una lista plana en la que no
   // se distinguía lo que acababa de pasar de lo de hace cinco turnos.
   const ultimo = WG.ultimoTurno!=null ? WG.ultimoTurno : (ev.length?Math.max(...ev.map(x=>x.turno)):null);
-  const icono=(t)=> t==='combate'?'⚔️' : t==='movimiento'?'🚶' : '•';
+  // v2.9.217: el fuego que cae corto y el fuego que te localiza son eventos
+  // nuevos — sin esto caían al bullet genérico «•» y se perdían en la lista.
+  const icono=(t)=> t==='combate'?'⚔️' : t==='movimiento'?'🚶'
+    : t==='fuego_perdido'?'🔥' : t==='fuego_detectado'?'👂' : '•';
   const resaltar=(txt)=> _rgEsc(txt)
     .replace(/(área de empeño)/gi,'<b style="color:#ff6b6b">$1</b>')
     .replace(/(A LA VISTA[^·]*)/g,'<b style="color:#ffd400">$1</b>')
     .replace(/(en contacto[^·]*)/gi,'<b style="color:#ff9f43">$1</b>')
     .replace(/(DETENIDA)/g,'<b style="color:#e08a2c">$1</b>')
+    .replace(/(FUERA DE ALCANCE)/g,'<b style="color:#ff6b6b">$1</b>')
+    .replace(/(DELATÓ SU POSICIÓN|LOCALIZADO)/g,'<b style="color:#ffd400">$1</b>')
     .replace(/(LLEGÓ)/g,'<b style="color:#2ecc71">$1</b>');
   const fila=(e,nuevo)=>`<div style="padding:5px 8px;margin-bottom:4px;border-radius:8px;line-height:1.45;`
     +(nuevo?`background:rgba(74,163,224,.13);border-left:3px solid #4aa3e0`:`border-left:3px solid transparent`)+`">`
