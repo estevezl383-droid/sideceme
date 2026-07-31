@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.217</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.218</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6798,7 +6798,7 @@ body.wg-jugando{overflow:hidden}
 
       <!-- Acciones principales, abajo a la derecha -->
       <div id="wg-acc">
-        <button class="wg-pill" id="wg-btn-enviar" onclick="wgEnviarOrdenes(this)" style="display:none">📨 Sólo enviar (<span id="wg-nord">0</span>)</button>
+        <button class="wg-pill wg-fuerte" id="wg-btn-enviar" onclick="wgEnviarOrdenes(this)" style="display:none">✔️ Órdenes listas (<span id="wg-nord">0</span>)</button>
         <button class="wg-pill wg-fuerte" id="wg-btn-iniciar" onclick="wgIniciar(this)" style="display:none">🚀 Iniciar partida</button>
         <button class="wg-pill wg-fuerte" id="wg-btn-jugar" onclick="wgJugar(this)" style="display:none">▶️ Jugar turno</button>
         <button class="wg-pill wg-fuerte" id="wg-btn-resolver" onclick="wgResolver(this)" style="display:none">⚔️ Resolver turno</button>
@@ -22530,23 +22530,31 @@ async function wgEstado(){
   rol.textContent = esArb?'🎖️ ÁRBITRO':(r.soy==='rojo'?'🔴 EM ROJO':'🔵 EM AZUL');
   rol.style.background = esArb?'#3a2c0c':(WG_COL[r.soy]+'22'); rol.style.border='1px solid '+(esArb?'#caa14a':WG_COL[r.soy]); rol.style.color = esArb?'#f4d574':WG_COL[r.soy];
   document.getElementById('wg-btn-config').style.display = esArb?'':'none';
-  document.getElementById('wg-btn-resolver').style.display = (esArb && p.estado==='en_curso')?'':'none';
-  document.getElementById('wg-btn-enviar').style.display = (p.estado==='en_curso')?'':'none';
+  // v2.9.218 — UN SOLO BOTÓN, SEGÚN EL ROL. Tres botones para una acción era
+  // burocracia pura: si el Estado Mayor ya decidió, la orden ES la decisión.
+  //   • ÁRBITRO → «▶️ Jugar turno»: manda y resuelve de una. Sirve para probar
+  //     solo, que es como se usa hoy.
+  //   • EM (alumno) → «✔️ Órdenes listas»: NO necesita que el árbitro le apruebe
+  //     cada ficha. Lo único que no puede pasar es que el turno se resuelva con
+  //     las órdenes de un bando solo, porque los dos planean a la vez y a ciegas.
+  const enJuego = p.estado==='en_curso';
+  document.getElementById('wg-btn-resolver').style.display = 'none';
+  document.getElementById('wg-btn-enviar').style.display = (enJuego && !esArb)?'':'none';
   // v2.9.207: mientras la partida NO empezó, las órdenes están bloqueadas. El
   // botón de arrancar tiene que estar A LA VISTA, no enterrado en ⚙️ Configurar:
   // Sergio no podía mover nada y el clic no le decía por qué.
   document.getElementById('wg-btn-iniciar').style.display = (esArb && p.estado==='planificacion')?'':'none';
-  // v2.9.216: el árbitro juega con UN botón. «Sólo enviar» y «Resolver» quedan
-  // para el caso raro de querer separar los dos pasos.
-  document.getElementById('wg-btn-jugar').style.display = (esArb && p.estado==='en_curso')?'':'none';
-  // precargar mis órdenes ya enviadas
+  document.getElementById('wg-btn-jugar').style.display = (esArb && enJuego)?'':'none';
+  // precargar mis órdenes ya enviadas — v2.9.218: también el ARMA elegida, si no
+  // la vista previa calcula el alcance con otro sistema que el que se mandó.
   WG.ordenes={};
-  for(const o of (r.ordenes||[])) WG.ordenes[o.unidad_id]={ tipo:o.tipo, destino_lat:o.destino_lat, destino_lng:o.destino_lng, objetivo_id:o.objetivo_id };
+  for(const o of (r.ordenes||[])) WG.ordenes[o.unidad_id]={ tipo:o.tipo, destino_lat:o.destino_lat, destino_lng:o.destino_lng, objetivo_id:o.objetivo_id, arma:o.arma||null };
   _wgActualizarContadorOrdenes();
   document.getElementById('wg-ayuda').innerHTML = p.estado!=='en_curso'
     ? (esArb?'⏸️ La partida <b>todavía no empezó</b> — por eso las fichas no se mueven.<br>Tocá <b>🚀 Iniciar partida</b> (abajo a la derecha) y ahí sí podés dar órdenes.'
            :'Esperá a que el árbitro inicie la partida.')
-    : 'Tocá una unidad para seleccionarla; luego clic en el mapa = <b>mover</b>, o clic en un enemigo = <b>atacar</b>. Después <b>Enviar órdenes</b>.';
+    : ('Tocá una unidad; clic en el mapa = <b>mover</b> · <b>Shift+clic</b> = agregar punto de paso para rodear · clic en un enemigo = <b>atacar</b>.<br>'
+       + (esArb ? 'Después <b>▶️ Jugar turno</b>.' : 'Cuando termines, <b>✔️ Órdenes listas</b>.'));
   _wgRender();
   wgHistorial();
 }
@@ -22749,20 +22757,6 @@ function _wg3dTerrenoFC(){
   }
   return {type:'FeatureCollection',features:feats};
 }
-function _wg3dOrdenesFC(){
-  const feats=[], uById={};
-  for(const u of ((WG.estado&&WG.estado.unidades)||[])) uById[u.id]=u;
-  for(const uid in WG.ordenes){
-    const o=WG.ordenes[uid], u=uById[uid]; if(!u) continue;
-    if(o.tipo==='mover'&&o.destino_lat!=null)
-      feats.push({type:'Feature',geometry:{type:'LineString',coordinates:[[u.lng,u.lat],[o.destino_lng,o.destino_lat]]},properties:{_col:'#2ecc71'}});
-    else if(o.tipo==='atacar'&&uById[o.objetivo_id]){
-      const t=uById[o.objetivo_id];
-      feats.push({type:'Feature',geometry:{type:'LineString',coordinates:[[u.lng,u.lat],[t.lng,t.lat]]},properties:{_col:'#e23b3b'}});
-    }
-  }
-  return {type:'FeatureCollection',features:feats};
-}
 function _wg3dError(msg){
   const el=document.getElementById('wg-3d-error');
   if(!el) return;
@@ -22826,12 +22820,15 @@ async function wgVista3D(){
   _wg3dControlesGoogleEarth(map);
   // ÓRDENES EN 3D: clic en el terreno = mover la unidad seleccionada. (El clic
   // sobre una ficha lo maneja el propio marcador, más abajo en _wg3dDatos.)
+  // v2.9.218 — EL 3D DELEGA EN EL MISMO HANDLER QUE EL 2D.
+  // Acá había una copia que escribía `WG.ordenes[...]` a mano y NUNCA tocaba
+  // `WG.rutas`: por eso la ruta por tramos no existía en 3D ni con Shift
+  // arreglado — cada clic pisaba la orden con un único destino recto. Dos
+  // caminos distintos para la misma acción es exactamente lo que veníamos
+  // pagando; ahora hay uno solo y lo que se arregle vale para las dos vistas.
   map.on('click',(e)=>{
     if(WG.replayando) return;
-    if(!WG.sel) return;
-    if(!_wgPuedeOrdenar()) return;   // v2.9.207: avisa en vez de no hacer nada
-    WG.ordenes[WG.sel]={tipo:'mover',destino_lat:e.lngLat.lat,destino_lng:e.lngLat.lng};
-    _wgActualizarContadorOrdenes(); _wgRender(); _wg3dDatos();
+    _wgMapClick({ latlng:{lat:e.lngLat.lat, lng:e.lngLat.lng}, originalEvent:e.originalEvent });
   });
   map.on('load',()=>{
     document.getElementById('wg-3d-cargando').style.display='none';
@@ -22840,7 +22837,6 @@ async function wgVista3D(){
       'sky-horizon-blend':0.6,'horizon-fog-blend':0.5,'fog-ground-blend':0.2}); }
     catch(_e){ /* el cielo es cosmético */ }
     map.addSource('wg-terr',{type:'geojson',data:WG3D_VACIO});
-    map.addSource('wg-ord',{type:'geojson',data:WG3D_VACIO});
     map.addLayer({id:'wg-terr-relleno',type:'fill',source:'wg-terr',
       filter:['==',['geometry-type'],'Polygon'],
       paint:{'fill-color':['get','_col'],'fill-opacity':['get','_fill']}});
@@ -22851,9 +22847,35 @@ async function wgVista3D(){
     map.addLayer({id:'wg-terr-punto',type:'circle',source:'wg-terr',
       filter:['==',['geometry-type'],'Point'],
       paint:{'circle-radius':3.5,'circle-color':['get','_col'],'circle-stroke-width':1,'circle-stroke-color':'#00000066'}});
-    map.addLayer({id:'wg-ord-linea',type:'line',source:'wg-ord',
-      layout:{'line-cap':'round'},
-      paint:{'line-color':['get','_col'],'line-width':2.4,'line-dasharray':[2,1.5]}});
+    // v2.9.218 — LA LISTA ÚNICA DE DIBUJO EN 3D. Acá es donde antes NO existía
+    // nada: el círculo de alcance del arma, los círculos de observación, los
+    // tramos de ruta y los banderines se dibujaban sólo en Leaflet, o sea en el
+    // mapa que en 3D queda tapado abajo. Por eso «el círculo no aparece».
+    // Las tres capas leen la MISMA fuente, filtrando por `_tipo`.
+    map.addSource('wg-dib',{type:'geojson',data:WG3D_VACIO});
+    map.addLayer({id:'wg-dib-linea',type:'line',source:'wg-dib',
+      filter:['==',['get','_tipo'],'lin'],
+      layout:{'line-cap':'round','line-join':'round'},
+      paint:{'line-color':['get','_col'],'line-width':['get','_w'],
+        'line-opacity':['get','_op'],
+        // El punteado no se puede interpolar por dato, así que va por capa:
+        // ésta dibuja las líneas macizas y la de abajo las punteadas.
+        'line-dasharray':[1,0]}});
+    map.addLayer({id:'wg-dib-linea-pt',type:'line',source:'wg-dib',
+      filter:['all',['==',['get','_tipo'],'lin'],['==',['get','_gui'],1]],
+      layout:{'line-cap':'round','line-join':'round'},
+      paint:{'line-color':['get','_col'],'line-width':['get','_w'],
+        'line-opacity':['get','_op'],'line-dasharray':[2,2]}});
+    map.addLayer({id:'wg-dib-punto',type:'circle',source:'wg-dib',
+      filter:['==',['get','_tipo'],'pt'],
+      paint:{'circle-radius':['get','_r'],'circle-color':['get','_fill'],
+        'circle-stroke-width':['get','_w'],'circle-stroke-color':['get','_col'],
+        'circle-pitch-alignment':'map'}});
+    map.addLayer({id:'wg-dib-txt',type:'symbol',source:'wg-dib',
+      filter:['==',['get','_tipo'],'txt'],
+      layout:{'text-field':['get','_txt'],'text-size':12,'text-offset':[0,-1.4],
+        'text-anchor':'bottom','text-allow-overlap':false,'text-padding':4},
+      paint:{'text-color':'#eaf2fb','text-halo-color':'#0b1118','text-halo-width':1.8}});
     // Rastro del REPLAY: se dibuja sobre el relieve mientras corre la animación.
     map.addSource('wg-replay',{type:'geojson',data:WG3D_VACIO});
     map.addSource('wg-humo',{type:'geojson',data:WG3D_VACIO});
@@ -22892,7 +22914,13 @@ async function wgVista3D(){
 function _wg3dControlesGoogleEarth(map){
   const lienzo=map.getCanvas();
   let girando=false, x0=0, y0=0, brg0=0, pit0=0;
-  const esGiro=(ev)=> ev.metaKey||ev.ctrlKey||ev.shiftKey||ev.button===2||ev.button===1;
+  // v2.9.218 — SHIFT YA NO GIRA LA CÁMARA. Estaba en las dos cosas a la vez:
+  // giraba la vista Y era la tecla para agregar puntos de paso a una ruta. Como
+  // este handler captura el mousedown y corta la propagación, en 3D el Shift+clic
+  // NUNCA llegaba a `_wgMapClick`: la ruta por tramos (v2.9.216) jamás funcionó
+  // para quien juega en 3D — la línea verde siempre salía en una sola dirección.
+  // Para girar quedan ⌘, Ctrl y el botón derecho, que es como navega Google Earth.
+  const esGiro=(ev)=> ev.metaKey||ev.ctrlKey||ev.button===2||ev.button===1;
   lienzo.addEventListener('mousedown',(ev)=>{
     if(!esGiro(ev)) return;
     girando=true; x0=ev.clientX; y0=ev.clientY;
@@ -22922,7 +22950,9 @@ function _wg3dDatos(){
   const map=WG.map3d; if(!map||!map.getSource) return;
   try{
     const s1=map.getSource('wg-terr'); if(s1) s1.setData(_wg3dTerrenoFC());
-    const s2=map.getSource('wg-ord'); if(s2) s2.setData(_wg3dOrdenesFC());
+    // v2.9.218: la MISMA lista que pinta el 2D. Si mañana se agrega una figura
+    // nueva a `_wgDibujo()`, aparece acá sola — ése era el punto del cambio.
+    const s2=map.getSource('wg-dib'); if(s2) s2.setData(_wg3dOverlayFC(_wgDibujo()));
   }catch(_e){}
   // Fichas: el MISMO PNG del símbolo militar que usa el mapa 2D.
   for(const m of (WG.marc3d||[])){ try{ m.remove(); }catch(_e){} }
@@ -23665,6 +23695,157 @@ function _wgSimboloUnidad(u,sel){
   return r;
 }
 
+// ============================================================
+// v2.9.218 — UNA SOLA LISTA DE DIBUJO PARA LAS DOS SUPERFICIES.
+// Hasta acá cada función dibujaba DIRECTO sobre Leaflet (`L.circle(...).addTo`),
+// así que todo lo nuevo nacía andando en 2D y AUSENTE en 3D. Ya pasó tres veces:
+// el refresco (v2.9.206), el círculo de alcance del arma y los tramos de ruta.
+// Como el 3D es la vista que se usa de verdad, el bug se notaba siempre.
+// Ahora `_wgDibujo()` NO dibuja: declara QUÉ hay que mostrar, y cada superficie
+// lo pinta con lo suyo. Una función nueva se agrega en un solo lugar y aparece
+// en las dos vistas — no hay forma de olvidarse del 3D.
+// ============================================================
+const _wgD = {
+  // Línea: pts = [[lng,lat],...] (en ese orden, como GeoJSON).
+  lin:(pts,col,w,gui,op)=>({k:'lin',pts,col,w:w||2,gui:gui||null,op:op==null?0.95:op}),
+  // Círculo con radio GEOGRÁFICO en km (crece y achica con el zoom).
+  cir:(lng,lat,km,col,w,gui,fop)=>({k:'cir',lng,lat,km,col,w:w==null?2:w,gui:gui||null,fop:fop||0}),
+  // Punto con radio en PÍXELES (no depende del zoom).
+  pt:(lng,lat,r,col,w,fill)=>({k:'pt',lng,lat,r:r||5,col,w:w==null?2:w,fill:fill===undefined?'#0b1118':fill}),
+  // Cartel pegado a un punto.
+  txt:(lng,lat,txt)=>({k:'txt',lng,lat,txt}),
+};
+// Gemelo en el navegador de `armaDeFuego` del motor: con qué sistema empeña.
+// Tiene que dar EXACTAMENTE lo mismo que el servidor, si no la vista previa
+// miente sobre lo que va a pasar al resolver.
+function _wgArmaDeFuego(u, id){
+  const dispo=_wgArmamento(u).filter(a=>!a.ingenieria && a.alcance>0);
+  if(!dispo.length) return null;
+  return (id && dispo.find(a=>a.id===id)) || dispo[dispo.length-1];
+}
+function _wgDibujo(){
+  const D=[], e=WG.estado; if(!e) return D;
+  const uById={}; for(const u of (e.unidades||[])) uById[u.id]=u;
+  const horasTurno = Number(((e.partida||{}).duracion_turno_horas))||2;
+  for(const [uid,o] of Object.entries(WG.ordenes)){
+    const u=uById[uid]; if(!u) continue;
+    if(o.tipo==='mover' && o.destino_lat!=null){
+      // VERDE MACIZO = lo que recorre de verdad este turno · GRIS PUNTEADO = lo
+      // que le queda pendiente. La orden se entiende ANTES de resolver.
+      const pv=_wgPreverMovimiento(u,[o.destino_lng,o.destino_lat],horasTurno);
+      D.push(_wgD.lin(pv.ruta, pv.detenida?'#e08a2c':'#2ecc71', 4));
+      if(!pv.llego){
+        D.push(_wgD.lin([[pv.lng,pv.lat],[o.destino_lng,o.destino_lat]],'#9aa7b4',2,'4 7',.75));
+        D.push(_wgD.pt(o.destino_lng,o.destino_lat,4,'#9aa7b4',1));
+      }
+      // Los tramos que quedan por delante, en celeste punteado. v2.9.218: esto
+      // antes NO se veía en 3D, así que la ruta por tramos parecía no existir.
+      const rutaPend=(WG.rutas&&WG.rutas[uid])||[];
+      if(rutaPend.length>1){
+        D.push(_wgD.lin(rutaPend,'#00e5ff',2,'3 6',.85));
+        rutaPend.slice(1).forEach((c2,i)=>{
+          D.push(_wgD.pt(c2[0],c2[1],5,'#00e5ff',2));
+          D.push(_wgD.txt(c2[0],c2[1],'punto '+(i+2)));
+        });
+      }
+      D.push(_wgD.pt(pv.lng,pv.lat,6,'#ffffff',2,
+        pv.detenida?'#e08a2c':(pv.llego?'#2ecc71':'#e8c33a')));
+      D.push(_wgD.txt(pv.lng,pv.lat, pv.detenida
+        ? `🛑 ${pv.avanzadoKm.toFixed(1)} km · ${pv.motivo}`
+        : (pv.llego ? `✅ llega (${pv.avanzadoKm.toFixed(1)} km · ${_wgHoras(pv.horasUsadas)})`
+                    : `⏱️ ${pv.avanzadoKm.toFixed(1)} de ${pv.totalKm.toFixed(1)} km — no alcanza el turno`)));
+    }else if(o.tipo==='atacar' && o.objetivo_id && uById[o.objetivo_id]){
+      const t=uById[o.objetivo_id];
+      const d=_wgHav([u.lng,u.lat],[t.lng,t.lat]);
+      // v2.9.218 — SE ACABÓ EL «3 km» FIJO. Acá decía RANGO=3 y el cartel
+      // afirmaba «el combate es hasta 3 km», que desde v2.9.217 es MENTIRA: el
+      // servidor resuelve con el alcance del sistema elegido.
+      const arma=_wgArmaDeFuego(u,o.arma);
+      const alcance=arma?arma.alcance:3, alcanza=d<=alcance;
+      D.push(_wgD.lin([[u.lng,u.lat],[t.lng,t.lat]], alcanza?'#e23b3b':'#e08a2c',
+        alcanza?3:2, alcanza?null:'4 7'));
+      const bono=(()=>{const c=_wgClaseTerreno([t.lng,t.lat],WG.terreno||[]);
+        let b=c==='severo'?1.6:c==='restringido'?1.3:1;
+        if((WG.terreno||[]).some(x=>x.tipo==='clave'&&!_wgFueraDeCaja([t.lng,t.lat],x)&&_wgPtEnGeom([t.lng,t.lat],x.geojson))) b+=0.2;
+        return b;})();
+      const rel=(Number(u.poder_actual)||0)/Math.max(0.01,(Number(t.poder_actual)||0)*bono);
+      const txtRel = rel>=3?'decisivo':rel>=1.5?'avanza':rel>=1?'indeciso':rel>=1/1.5?'te resisten':'te rechazan';
+      D.push(_wgD.pt(t.lng,t.lat,9,alcanza?'#e23b3b':'#e08a2c',2,null));
+      // Regla de Sergio: fuera de alcance DISPARA IGUAL. El cartel ya no dice
+      // «no hace nada» — dice lo que de verdad le va a costar.
+      D.push(_wgD.txt(t.lng,t.lat, alcanza
+        ? `⚔️ ${arma?arma.nom:'combate'} · ${d.toFixed(1)} km · relación ${rel.toFixed(1)}:1 → ${txtRel}`
+        : `🔥 TIRO CORTO · ${arma?arma.nom:'el sistema'} bate ${alcance.toFixed(1)} km y está a ${d.toFixed(1)} km. Dispara igual: gasta munición y delata su posición.`));
+    }
+  }
+  // ALCANCE DE OBSERVACIÓN de las unidades propias (hasta dónde levantan niebla).
+  if(WG.verObs!==false){
+    for(const u of (e.unidades||[])){
+      if(!(WG.soy==='arbitro' || u.bando===WG.soy)) continue;
+      if(u.estado==='fuera_combate') continue;
+      const km=_wgAlcanceObs(u,WG.terreno||[]);
+      if(!(km>0)) continue;
+      D.push(_wgD.cir(u.lng,u.lat,km,WG_COL[u.bando]||'#888',1,'4 5',.05));
+    }
+  }
+  // ALCANCE del sistema de armas elegido, sobre la unidad seleccionada.
+  // v2.9.218: éste es EL círculo que «no aparecía» — se dibujaba sólo en Leaflet.
+  if(WG.armaSel && WG.sel!=null){
+    const uSel=uById[WG.sel], arma=WG_ARMAS[WG.armaSel];
+    if(uSel && arma && arma.alcance>0){
+      D.push(_wgD.cir(uSel.lng,uSel.lat,arma.alcance,'#00e5ff',2.5,'8 6',.07));
+      D.push(_wgD.txt(uSel.lng,uSel.lat, arma.nom+' · '+arma.alcance+' km'));
+      for(const b of _wgBatidosPor(uSel,arma)) D.push(_wgD.pt(b.e.lng,b.e.lat,13,'#ff3b3b',2.5,null));
+    }
+  }
+  return D;
+}
+// Anillo geodésico: el 3D no sabe de radios en km, necesita el polígono.
+function _wgAnilloKm(lng,lat,km,n){
+  const pts=[], R=6371, dLat=(km/R)*(180/Math.PI);
+  const dLng=dLat/Math.max(1e-6,Math.cos(lat*Math.PI/180));
+  for(let i=0;i<=(n||64);i++){
+    const a=2*Math.PI*i/(n||64);
+    pts.push([lng+dLng*Math.cos(a), lat+dLat*Math.sin(a)]);
+  }
+  return pts;
+}
+// --- superficie 2D (Leaflet) ---
+function _wgPintar2D(D){
+  for(const s of D){
+    if(s.k==='lin'){
+      L.polyline(s.pts.map(c=>[c[1],c[0]]),{color:s.col,weight:s.w,
+        dashArray:s.gui,opacity:s.op,interactive:false}).addTo(WG.capa);
+    }else if(s.k==='cir'){
+      L.circle([s.lat,s.lng],{radius:s.km*1000,color:s.col,weight:s.w,opacity:.9,
+        fillColor:s.col,fillOpacity:s.fop,dashArray:s.gui,interactive:false}).addTo(WG.capa);
+    }else if(s.k==='pt'){
+      L.circleMarker([s.lat,s.lng],{radius:s.r,color:s.col,weight:s.w,
+        fill:s.fill!=null,fillColor:s.fill||undefined,fillOpacity:s.fill?1:0,
+        interactive:false}).addTo(WG.capa);
+    }else if(s.k==='txt'){
+      L.circleMarker([s.lat,s.lng],{radius:0.1,opacity:0,fillOpacity:0,interactive:false})
+        .addTo(WG.capa).bindTooltip(s.txt,{permanent:true,direction:'right',className:'wg-tip-orden'});
+    }
+  }
+}
+// --- superficie 3D (MapLibre): la MISMA lista, en GeoJSON ---
+function _wg3dOverlayFC(D){
+  const feats=[];
+  for(const s of (D||[])){
+    if(s.k==='lin') feats.push({type:'Feature',geometry:{type:'LineString',coordinates:s.pts},
+      properties:{_tipo:'lin',_col:s.col,_w:s.w,_op:s.op,_gui:s.gui?1:0}});
+    else if(s.k==='cir') feats.push({type:'Feature',
+      geometry:{type:'LineString',coordinates:_wgAnilloKm(s.lng,s.lat,s.km)},
+      properties:{_tipo:'lin',_col:s.col,_w:s.w,_op:.9,_gui:s.gui?1:0}});
+    else if(s.k==='pt') feats.push({type:'Feature',geometry:{type:'Point',coordinates:[s.lng,s.lat]},
+      properties:{_tipo:'pt',_col:s.col,_w:s.w,_r:s.r,_fill:s.fill||'#00000000'}});
+    else if(s.k==='txt') feats.push({type:'Feature',geometry:{type:'Point',coordinates:[s.lng,s.lat]},
+      properties:{_tipo:'txt',_txt:s.txt}});
+  }
+  return {type:'FeatureCollection',features:feats};
+}
+
 function _wgRender(){
   if(!WG.map||!WG.capa) return;
   WG.capa.clearLayers();
@@ -23673,97 +23854,11 @@ function _wgRender(){
   // Generador trae cientos de polígonos y redibujarlos en cada refresco
   // trababa el mapa. Se arma una sola vez y sólo se rehace si cambió.
   _wgRenderTerreno();
-  // órdenes (líneas)
   const uById={}; for(const u of (e.unidades||[])) uById[u.id]=u;
-  const horasTurno = Number(((e.partida||{}).duracion_turno_horas))||2;
-  for(const [uid,o] of Object.entries(WG.ordenes)){
-    const u=uById[uid]; if(!u) continue;
-    if(o.tipo==='mover' && o.destino_lat!=null){
-      // v2.9.205: la línea se parte en dos. VERDE MACIZO = lo que va a recorrer
-      // de verdad este turno · GRIS PUNTEADO = lo que le va a quedar pendiente.
-      // Así la orden se entiende antes de resolver, no después.
-      const pv=_wgPreverMovimiento(u,[o.destino_lng,o.destino_lat],horasTurno);
-      L.polyline(pv.ruta.map(c=>[c[1],c[0]]),
-        {color:pv.detenida?'#e08a2c':'#2ecc71',weight:4,opacity:.95}).addTo(WG.capa);
-      if(!pv.llego){
-        L.polyline([[pv.lat,pv.lng],[o.destino_lat,o.destino_lng]],
-          {color:'#9aa7b4',weight:2,dashArray:'4 7',opacity:.75}).addTo(WG.capa);
-        L.circleMarker([o.destino_lat,o.destino_lng],
-          {radius:4,color:'#9aa7b4',weight:1,fillColor:'#0b1118',fillOpacity:.7,interactive:false}).addTo(WG.capa);
-      }
-      // v2.9.216: los tramos que quedan por delante, en celeste punteado.
-      const rutaPend=(WG.rutas&&WG.rutas[uid])||[];
-      if(rutaPend.length>1){
-        L.polyline(rutaPend.map(c2=>[c2[1],c2[0]]),
-          {color:'#00e5ff',weight:2,dashArray:'3 6',opacity:.8,interactive:false}).addTo(WG.capa);
-        rutaPend.slice(1).forEach((c2,i)=>{
-          L.circleMarker([c2[1],c2[0]],{radius:5,color:'#00e5ff',weight:2,fillColor:'#0b1118',
-            fillOpacity:.9,interactive:false}).addTo(WG.capa)
-            .bindTooltip('punto '+(i+2),{permanent:false,direction:'top'});
-        });
-      }
-      // Banderín en el punto al que SÍ llega, con el motivo si no alcanza.
-      const txt = pv.detenida
-        ? `🛑 ${pv.avanzadoKm.toFixed(1)} km · ${pv.motivo}`
-        : (pv.llego ? `✅ llega (${pv.avanzadoKm.toFixed(1)} km · ${_wgHoras(pv.horasUsadas)})`
-                    : `⏱️ ${pv.avanzadoKm.toFixed(1)} de ${pv.totalKm.toFixed(1)} km — no alcanza el turno`);
-      L.circleMarker([pv.lat,pv.lng],{radius:6,color:'#fff',weight:2,
-        fillColor:pv.detenida?'#e08a2c':(pv.llego?'#2ecc71':'#e8c33a'),fillOpacity:1,interactive:false})
-        .addTo(WG.capa).bindTooltip(txt,{permanent:true,direction:'right',className:'wg-tip-orden'});
-    }else if(o.tipo==='atacar' && o.objetivo_id && uById[o.objetivo_id]){
-      const t=uById[o.objetivo_id];
-      // v2.9.205: el combate sólo ocurre dentro del rango (3 km). Ordenar un
-      // ataque a 60 km no hacía NADA y no se avisaba: la orden se perdía en
-      // silencio. Ahora la línea se pone gris y el cartel lo dice.
-      const d=_wgHav([u.lng,u.lat],[t.lng,t.lat]);
-      const RANGO=3, alcanza = d<=RANGO;
-      L.polyline([[u.lat,u.lng],[t.lat,t.lng]],
-        {color:alcanza?'#e23b3b':'#9aa7b4',weight:alcanza?3:2,dashArray:alcanza?null:'4 7'}).addTo(WG.capa);
-      // Relación de fuerzas con el terreno del defensor, como la calcula el motor.
-      const bono=(()=>{const c=_wgClaseTerreno([t.lng,t.lat],WG.terreno||[]);
-        let b=c==='severo'?1.6:c==='restringido'?1.3:1;
-        if((WG.terreno||[]).some(x=>x.tipo==='clave'&&!_wgFueraDeCaja([t.lng,t.lat],x)&&_wgPtEnGeom([t.lng,t.lat],x.geojson))) b+=0.2;
-        return b;})();
-      const rel=(Number(u.poder_actual)||0)/Math.max(0.01,(Number(t.poder_actual)||0)*bono);
-      const txtRel = rel>=3?'decisivo':rel>=1.5?'avanza':rel>=1?'indeciso':rel>=1/1.5?'te resisten':'te rechazan';
-      L.circleMarker([t.lat,t.lng],{radius:9,color:alcanza?'#e23b3b':'#9aa7b4',weight:2,fill:false,interactive:false})
-        .addTo(WG.capa).bindTooltip(
-          alcanza ? `⚔️ atacar · ${d.toFixed(1)} km · relación ${rel.toFixed(1)}:1 → ${txtRel}`
-                  : `🚫 FUERA DE ALCANCE · está a ${d.toFixed(1)} km y el combate es hasta ${RANGO} km. Acercala primero.`,
-          {permanent:true,direction:'right',className:'wg-tip-orden'});
-    }
-  }
-  // v2.9.191: ALCANCE DE OBSERVACIÓN de las unidades propias (hasta dónde
-  // levantan la niebla). Replica exactamente el cálculo del motor: el obs_km
-  // base se ajusta por el terreno donde ESTÁ la unidad (libre ×1, restringido
-  // ×0.5, severo ×0.3) y el terreno clave lo multiplica ×1.5 (observatorio).
-  if(WG.verObs!==false){
-    for(const u of (e.unidades||[])){
-      if(!(WG.soy==='arbitro' || u.bando===WG.soy)) continue;
-      if(u.estado==='fuera_combate') continue;
-      const km=_wgAlcanceObs(u,WG.terreno||[]);
-      if(!(km>0)) continue;
-      L.circle([u.lat,u.lng],{radius:km*1000,color:WG_COL[u.bando]||'#888',weight:1,
-        opacity:.45,fillColor:WG_COL[u.bando]||'#888',fillOpacity:.05,dashArray:'4 5',interactive:false}).addTo(WG.capa);
-    }
-  }
-  // v2.9.214: ALCANCE del sistema de armas elegido, sobre la unidad seleccionada.
-  if(WG.armaSel && WG.sel!=null){
-    const uSel=uById[WG.sel], arma=WG_ARMAS[WG.armaSel];
-    if(uSel && arma && arma.alcance>0){
-      // v2.9.216: CIAN para el alcance del arma. El AMARILLO queda reservado a la
-      // unidad seleccionada; mezclarlos confundía las dos cosas.
-      L.circle([uSel.lat,uSel.lng],{radius:arma.alcance*1000,color:'#00e5ff',weight:2.5,
-        opacity:.95,fillColor:'#00e5ff',fillOpacity:.07,dashArray:'8 6',interactive:false})
-        .addTo(WG.capa).bindTooltip(arma.nom+' · '+arma.alcance+' km',
-          {permanent:true,direction:'top',className:'wg-tip-orden'});
-      // Los enemigos batidos quedan marcados con un aro rojo.
-      for(const b of _wgBatidosPor(uSel,arma)){
-        L.circleMarker([b.e.lat,b.e.lng],{radius:13,color:'#ff3b3b',weight:2.5,fill:false,
-          interactive:false}).addTo(WG.capa);
-      }
-    }
-  }
+  // v2.9.218: TODO el dibujo de órdenes, alcances y rutas sale de la lista
+  // única, la misma que consume el 3D. Antes esto eran ~90 líneas de `L.algo(...)`
+  // acá adentro, invisibles para MapLibre.
+  _wgPintar2D(_wgDibujo());
   // unidades — v2.9.201: SÍMBOLO MILITAR reglamentario en vez del circulito.
   for(const u of ((WG.verUnidades===false)?[]:(e.unidades||[]))){
     const mio = (WG.soy==='arbitro') || (u.bando===WG.soy);
