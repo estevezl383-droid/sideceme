@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.222</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.223</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6848,6 +6848,7 @@ body.wg-jugando{overflow:hidden}
         <button class="wg-rd" id="wg-btn-carta" onclick="wgHoja('capas')" title="Calcos: elegir qué se ve (CMOC, caminos, elevaciones, agua…) y ajustes del 3D">🗺️</button>
         <button class="wg-rd" id="wg-btn-3d" onclick="wgAlternar3D(this)" title="Alternar mapa plano / relieve 3D">⛰️</button>
         <button class="wg-rd" onclick="wgHoja('unidades')" title="Unidades">🪖</button>
+        <button class="wg-rd" onclick="wgHoja('matriz')" title="Matriz de sincronización: qué exige cada tarea y a qué hora arranca cada unidad">📋</button>
         <button class="wg-rd" onclick="wgHoja('bitacora')" title="Bitácora">📜</button>
         <button class="wg-rd" id="wg-btn-config" onclick="wgHoja('config')" title="Configurar" style="display:none">⚙️</button>
       </div>
@@ -6891,6 +6892,7 @@ body.wg-jugando{overflow:hidden}
           <div class="wg-h" id="wg-h-unidades"><div id="wg-unidades"></div></div>
           <div class="wg-h" id="wg-h-bitacora"><div id="wg-bitacora"></div></div>
           <div class="wg-h" id="wg-h-capas"><div id="wg-capas"></div></div>
+          <div class="wg-h" id="wg-h-matriz"><div id="wg-matriz"></div></div>
           <div class="wg-h" id="wg-h-config"><div id="wg-config">
 <!-- v2.9.201 — PUENTE con el Generador de Calcos: trae el terreno del CMOC
      (restringido / severo / clave) y las unidades ya colocadas. Sin terreno
@@ -22532,7 +22534,7 @@ function wgObsToggle(arg){
 }
 // v2.9.192: HOJA DESLIZANTE. Los paneles no viven en pantalla: se llaman desde
 // el riel y se cierran. wgHoja(null) cierra; wgHoja(mismo) alterna.
-const WG_HOJAS={unidades:'🪖 UNIDADES', bitacora:'📜 BITÁCORA', capas:'🗺️ CALCOS Y VISTA', config:'⚙️ CONFIGURAR'};
+const WG_HOJAS={unidades:'🪖 UNIDADES', matriz:'📋 SINCRONIZACIÓN', bitacora:'📜 BITÁCORA', capas:'🗺️ CALCOS Y VISTA', config:'⚙️ CONFIGURAR'};
 function wgHoja(cual){
   const h=document.getElementById('wg-hoja'); if(!h) return;
   if(cual && WG.hoja===cual) cual=null;           // tocar el mismo botón cierra
@@ -22545,6 +22547,12 @@ function wgHoja(cual){
   document.getElementById('wg-game').classList.toggle('hoja-abierta', !!WG.hoja);
   const t=document.getElementById('wg-hoja-tit'); if(t) t.textContent = WG.hoja?WG_HOJAS[WG.hoja]:'';
   if(WG.hoja==='capas') wgPanelCapas(); // v2.9.204: conteos y casillas al día
+  if(WG.hoja==='matriz') wgPanelMatriz(); // v2.9.223
+}
+// v2.9.223: la matriz se rearma con lo que haya trazado en ese momento.
+function wgPanelMatriz(){
+  const el=document.getElementById('wg-matriz');
+  if(el) el.innerHTML=_wgMatrizHTML();
 }
 // v2.9.192: zoom propio del HUD (el control de Leaflet queda oculto).
 function _wgEn3D(){ const c=document.getElementById('wg-3d'); return !!(WG.map3d && c && c.style.display!=='none'); }
@@ -22614,7 +22622,8 @@ async function wgEstado(){
   // precargar mis órdenes ya enviadas — v2.9.218: también el ARMA elegida, si no
   // la vista previa calcula el alcance con otro sistema que el que se mandó.
   WG.ordenes={};
-  for(const o of (r.ordenes||[])) WG.ordenes[o.unidad_id]={ tipo:o.tipo, destino_lat:o.destino_lat, destino_lng:o.destino_lng, objetivo_id:o.objetivo_id, arma:o.arma||null };
+  for(const o of (r.ordenes||[])) WG.ordenes[o.unidad_id]={ tipo:o.tipo, destino_lat:o.destino_lat, destino_lng:o.destino_lng,
+    objetivo_id:o.objetivo_id, arma:o.arma||null, ruta:o.ruta||null, inicio:o.inicio||0 }; // v2.9.223
   _wgActualizarContadorOrdenes();
   document.getElementById('wg-ayuda').innerHTML = p.estado!=='en_curso'
     ? (esArb?'⏸️ La partida <b>todavía no empezó</b> — por eso las fichas no se mueven.<br>Tocá <b>🚀 Iniciar partida</b> (abajo a la derecha) y ahí sí podés dar órdenes.'
@@ -23001,21 +23010,27 @@ function _wgAnimarDisparos(impactos){
   // Se arma la lista de PROYECTILES: cada empeño tira su serie, escalonada en
   // el tiempo. Cada tiro cae con algo de dispersión, como en el terreno real.
   const tiros=[];
+  // v2.9.223 — FUEGO CRUZADO CON SENTIDO. El tiro de RESPUESTA sale un poco
+  // después del que lo provocó: así se lee como un intercambio (uno abre fuego,
+  // el otro contesta) y no como dos cosas sueltas que pasan a la vez.
+  const RETARDO_RESPUESTA=700;
   for(const im of base){
     const n=Math.max(1, WG_SALVA[im.arma]||4);
     const hueco=(WG_RAFAGA_MS-WG_VUELO_MS)/Math.max(1,n-1);
+    const demora=im.respuesta?RETARDO_RESPUESTA:0;
     for(let i=0;i<n;i++){
       // Dispersión determinista (sin azar: el motor es determinista y las
       // repeticiones tienen que verse iguales).
       const ang=(i*2.399), disp=(i%3)*7+4;
-      tiros.push({ im, salida:i*hueco,
+      tiros.push({ im, salida:demora+i*hueco,
         dx:Math.cos(ang)*disp, dy:Math.sin(ang)*disp, ultimo:(i===n-1), reventado:false });
     }
   }
+  const finTiros=tiros.reduce((m,t)=>Math.max(m,t.salida+WG_VUELO_MS),0);
   return new Promise((listo)=>{
     for(const t of tiros){ t.el=_wgProyectilEl(); t.el.style.display='none'; capa.appendChild(t.el); }
     const t0=performance.now();
-    const total=WG_RAFAGA_MS+120;
+    const total=finTiros+120;   // v2.9.223: alcanza para la respuesta demorada
     const paso=(ahora)=>{
       const dt=ahora-t0;
       for(const t of tiros){
@@ -24301,6 +24316,7 @@ function _wgRender(){
   }
   if(WG.map3d){ _wg3dDatos(); _wg3dCapas(); }
   if(WG.hoja==='capas') wgPanelCapas(); // conteos siempre al día
+  if(WG.hoja==='matriz') wgPanelMatriz(); // v2.9.223: se rearma con cada orden nueva
 }
 function _wgSelById(id){ const u=(WG.estado.unidades||[]).find(x=>String(x.id)===String(id)); if(u) _wgUnidadClick(u); }
 function _wgUnidadClick(u){
@@ -24365,11 +24381,119 @@ function _wgMapClick(ev){
 // v2.9.220 — LA ORDEN LLEVA LA RUTA ENTERA. Antes mandaba sólo `r[0]`: por eso
 // la unidad avanzaba de punto en punto, un turno por tramo, aunque le sobrara
 // tiempo. Ahora el destino es el ÚLTIMO punto y van todos los de paso.
+// ============================================================
+// v2.9.223 — MATRIZ DE SINCRONIZACIÓN.
+// Se arma SOLA con lo que trazaste, sin pedir nada. Para cada unidad calcula
+// —con el mismo motor que resuelve el turno— cuánto tarda de verdad su tarea,
+// y de ahí salen las OPCIONES POSIBLES de arranque: no se le puede pedir a un
+// batallón a pie que cruce 90 km en dos horas, y la matriz lo dice antes de
+// jugar el turno, no después.
+// ============================================================
+function _wgMatrizFilas(){
+  const e=WG.estado; if(!e) return [];
+  const horas=Number(((e.partida||{}).duracion_turno_horas))||2;
+  const uById={}; for(const u of (e.unidades||[])) uById[u.id]=u;
+  const filas=[];
+  for(const [uid,o] of Object.entries(WG.ordenes||{})){
+    const u=uById[uid]; if(!u) continue;
+    const inicio=Math.max(0,Math.min(horas,Number(o.inicio)||0));
+    const disp=horas-inicio;                       // horas que le quedan al turno
+    const f={ id:uid, u, o, inicio, horas, disp, nom:_rgEsc(u.designacion||('unidad '+uid)) };
+    if(o.tipo==='mover'){
+      const ruta=(Array.isArray(o.ruta)&&o.ruta.length)?o.ruta:[[o.destino_lng,o.destino_lat]];
+      f.tarea='Desplazarse'+(ruta.length>1?` (${ruta.length} puntos)`:'');
+      // Con TODO el turno: cuánto tarda la tarea completa. Ése es el mínimo real.
+      const completo=_wgPreverRuta(u,ruta,horas*40);   // margen amplio: mide la tarea
+      f.km=completo.avanzadoKm; f.necesita=completo.horasUsadas;
+      f.imposible=completo.detenida; f.motivo=completo.motivo;
+      // Con las horas que realmente le quedan según su hora de arranque.
+      const real=_wgPreverRuta(u,ruta,disp);
+      f.llega=real.llego; f.avanza=real.avanzadoKm;
+      // Última hora de arranque con la que TODAVÍA termina dentro del turno.
+      f.ultimoArranque = f.imposible?null:Math.max(0,horas-f.necesita);
+      f.vel = f.necesita>0 ? (f.km/f.necesita) : 0;
+    }else if(o.tipo==='fuego'||o.tipo==='atacar'){
+      const arma=_wgArmaDeFuego(u,o.arma);
+      const blanco = o.tipo==='fuego' ? [o.destino_lng,o.destino_lat]
+        : (uById[o.objetivo_id]?[uById[o.objetivo_id].lng,uById[o.objetivo_id].lat]:null);
+      f.tarea = o.tipo==='fuego' ? 'Batir zona' : ('Empeñar a '+_rgEsc((uById[o.objetivo_id]||{}).designacion||'?'));
+      f.arma=arma;
+      f.d = blanco?_wgHav([u.lng,u.lat],blanco):0;
+      f.alcanza = !!arma && f.d<=arma.alcance;
+      f.necesita=0; f.ultimoArranque=horas; f.km=0;
+    }
+    filas.push(f);
+  }
+  return filas;
+}
+function wgMatrizInicio(uid,v){
+  const o=WG.ordenes[uid]; if(!o) return;
+  o.inicio=Math.max(0,Number(v)||0);
+  _wgRender();
+}
+function _wgMatrizHTML(){
+  const filas=_wgMatrizFilas();
+  if(!filas.length) return `<div class="rg-meta">Todavía no trazaste ninguna acción.<br>`
+    +`Tocá una unidad y dale una orden; la matriz se arma sola con lo que planifiques.</div>`;
+  const horas=filas[0].horas;
+  const opciones=(f)=>{
+    // Las horas de arranque POSIBLES: sólo las que dejan terminar la tarea.
+    const tope = f.ultimoArranque==null ? -1 : f.ultimoArranque;
+    const out=[];
+    for(let h=0;h<=horas;h+=0.5){
+      const ok = h<=tope+1e-9;
+      out.push(`<option value="${h}" ${Math.abs(h-f.inicio)<1e-6?'selected':''} ${ok?'':'disabled'}>`
+        +`H+${h.toFixed(1)}${ok?'':' — no llega'}</option>`);
+    }
+    return out.join('');
+  };
+  const cuerpo=filas.map(f=>{
+    let detalle, estado;
+    if(f.o.tipo==='mover'){
+      if(f.imposible){
+        detalle=`${f.km.toFixed(1)} km · <b style="color:#e08a2c">el terreno la frena</b>`;
+        estado=`<span style="color:#e08a2c">🛑 ${_rgEsc(f.motivo||'no puede pasar')}</span>`;
+      }else{
+        detalle=`${f.km.toFixed(1)} km · necesita <b>${_wgHoras(f.necesita)}</b> · ${f.vel.toFixed(0)} km/h`;
+        estado = f.llega
+          ? `<span style="color:#2ecc71">✅ termina dentro del turno</span>`
+          : `<span style="color:#e8c33a">⏱️ avanza ${f.avanza.toFixed(1)} km y sigue el turno que viene</span>`;
+      }
+    }else{
+      detalle = f.arma ? `${f.arma.nom} · alcance ${f.arma.alcance} km · blanco a ${f.d.toFixed(1)} km` : 'sin sistema que bata';
+      estado = f.alcanza
+        ? `<span style="color:#2ecc71">✅ el blanco está dentro del alcance</span>`
+        : `<span style="color:#ff6b6b">🔥 fuera de alcance — dispara igual y se delata</span>`;
+    }
+    return `<tr style="border-top:1px solid rgba(140,210,255,.14)">`
+      +`<td style="padding:7px 6px;vertical-align:top"><b>${f.nom}</b>`
+      +`<br><span class="rg-meta" style="font-size:10.5px">${f.tarea}</span></td>`
+      +`<td style="padding:7px 6px;vertical-align:top;font-size:11px">${detalle}<br>${estado}</td>`
+      +`<td style="padding:7px 6px;vertical-align:top">`
+      +`<select onchange="wgMatrizInicio('${f.id}',this.value)" `
+      +`style="background:rgba(0,0,0,.35);color:#eaf2fb;border:1px solid rgba(140,210,255,.3);`
+      +`border-radius:7px;padding:4px 6px;font-size:11px">${opciones(f)}</select></td></tr>`;
+  }).join('');
+  return `<div class="section-label" style="margin:0 0 6px">📋 MATRIZ DE SINCRONIZACIÓN</div>`
+    +`<div class="rg-meta" style="font-size:11px;margin-bottom:8px;line-height:1.45">`
+    +`Turno de <b>${horas} h</b>. Elegí a qué hora arranca cada unidad para coordinarlas — `
+    +`por ejemplo, la caballería a <b>H+0</b> y la artillería batiendo a <b>H+1</b>.<br>`
+    +`Las horas que <b>no dejan terminar la tarea</b> aparecen deshabilitadas: la matriz no te deja `
+    +`pedir lo imposible.</div>`
+    +`<table style="width:100%;border-collapse:collapse;font-size:12px">`
+    +`<tr style="text-align:left;font-size:10.5px;letter-spacing:.5px;opacity:.7">`
+    +`<th style="padding:4px 6px">UNIDAD Y TAREA</th><th style="padding:4px 6px">LO QUE EXIGE</th>`
+    +`<th style="padding:4px 6px">ARRANCA</th></tr>${cuerpo}</table>`;
+}
 function _wgOrdenDesdeRuta(id){
   const r=(WG.rutas&&WG.rutas[id])||[];
   if(!r.length){ delete WG.ordenes[id]; return; }
   const fin=r[r.length-1];
+  // v2.9.223: se conserva la hora de arranque elegida en la matriz — si no, al
+  // agregar un punto de paso se perdía la sincronización que ya habías puesto.
+  const inicio=(WG.ordenes[id]||{}).inicio;
   WG.ordenes[id]={ tipo:'mover', destino_lng:fin[0], destino_lat:fin[1], ruta:r.map(p=>[p[0],p[1]]) };
+  if(inicio) WG.ordenes[id].inicio=inicio;
 }
 // Al resolver, si la unidad alcanzó el punto de paso, se pasa al siguiente.
 // v2.9.220 — se recortan los puntos QUE EL MOTOR DIJO que consumió (viene en la
@@ -24432,20 +24556,28 @@ async function wgResolver(btn){
   WG.ordenes={};
   // v2.9.203: primero se VE el movimiento y después se actualiza el tablero.
   // Las trazas vienen en la respuesta (no se guardan en la base).
-  const trazas=r.trazas||[];
+  const trazas=r.trazas||[], impactos=r.impactos||[];
   WG.ultimoTurno=r.turno_resuelto;   // v2.9.205: para destacarlo en la bitácora
-  // v2.9.220: se enciende el terreno donde cayeron los fuegos de ESTE turno y
-  // se apagan las llamas de hace más de 3 turnos (la mancha negra queda).
   _wgApagarViejos(r.turno_resuelto);
-  await wgEstado();
-  if(trazas.length) await wgReplay(trazas);
-  // v2.9.221 — PRIMERO SE MUEVEN, DESPUÉS SE TIRAN. Los proyectiles salen
-  // cuando las unidades ya están donde quedaron, si no se ven saliendo de
-  // posiciones viejas. Recién al impactar se enciende el terreno.
-  await _wgAnimarDisparos(r.impactos||[]);
-  _wgEncender(r.impactos||[], r.turno_resuelto);
+  // ============================================================
+  // v2.9.223 — PRIMERO SE VE LA ACCIÓN, DESPUÉS SE ACTUALIZA EL TABLERO.
+  // Antes se llamaba a `wgEstado()` ANTES de animar: las unidades destruidas se
+  // desvanecían y RECIÉN DESPUÉS salían los tiros que las habían destruido. Se
+  // veía el efecto antes que la causa.
+  // Y el movimiento y el fuego CORREN A LA VEZ, porque en un turno pasan a la
+  // vez: la artillería bate mientras la caballería se desplaza.
+  // ============================================================
+  WG.replayando=true;
+  try{
+    await Promise.all([
+      trazas.length ? wgReplay(trazas) : Promise.resolve(),
+      _wgAnimarDisparos(impactos),
+    ]);
+  } finally { WG.replayando=false; }
+  _wgEncender(impactos, r.turno_resuelto);
+  await wgEstado();   // recién ahora se desvanecen los que quedaron fuera de combate
   _wgRender(); if(WG.map3d) _wg3dDatos();
-  if(!trazas.length){ WG.ultimoTurno=r.turno_resuelto; await wgHistorial(); wgHoja('bitacora'); }
+  if(!trazas.length){ await wgHistorial(); wgHoja('bitacora'); }
   return trazas; // v2.9.220: para recortar los puntos de paso ya consumidos
 }
 
@@ -24621,7 +24753,10 @@ async function _wgFuegoDelTurno(){
   const t0=performance.now(), DURA=2600;
   for(const f of focos){
     // Bocadillo del resultado, pegado al lugar del combate.
-    const corto=(f.descripcion||'').replace(/\s*\(terreno[^)]*\)/,'').replace('Relación','⚔️');
+    // v2.9.223: la descripción del combate ahora cuenta TODO (quién, con qué,
+    // si hubo respuesta y cómo quedó cada uno). En el bocadillo del mapa no
+    // entra: se muestra sólo la primera frase y el resto queda en la bitácora.
+    const corto=(f.descripcion||'').split(/\.\s/)[0].replace(/\s*\(terreno[^)]*\)/,'');
     try{
       if(capa && L.divIcon){
         L.marker([f.lat,f.lng],{interactive:false,zIndexOffset:2100,
