@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.215</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.216</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6798,8 +6798,9 @@ body.wg-jugando{overflow:hidden}
 
       <!-- Acciones principales, abajo a la derecha -->
       <div id="wg-acc">
-        <button class="wg-pill" id="wg-btn-enviar" onclick="wgEnviarOrdenes(this)" style="display:none">📨 Enviar órdenes (<span id="wg-nord">0</span>)</button>
+        <button class="wg-pill" id="wg-btn-enviar" onclick="wgEnviarOrdenes(this)" style="display:none">📨 Sólo enviar (<span id="wg-nord">0</span>)</button>
         <button class="wg-pill wg-fuerte" id="wg-btn-iniciar" onclick="wgIniciar(this)" style="display:none">🚀 Iniciar partida</button>
+        <button class="wg-pill wg-fuerte" id="wg-btn-jugar" onclick="wgJugar(this)" style="display:none">▶️ Jugar turno</button>
         <button class="wg-pill wg-fuerte" id="wg-btn-resolver" onclick="wgResolver(this)" style="display:none">⚔️ Resolver turno</button>
       </div>
 
@@ -22535,6 +22536,9 @@ async function wgEstado(){
   // botón de arrancar tiene que estar A LA VISTA, no enterrado en ⚙️ Configurar:
   // Sergio no podía mover nada y el clic no le decía por qué.
   document.getElementById('wg-btn-iniciar').style.display = (esArb && p.estado==='planificacion')?'':'none';
+  // v2.9.216: el árbitro juega con UN botón. «Sólo enviar» y «Resolver» quedan
+  // para el caso raro de querer separar los dos pasos.
+  document.getElementById('wg-btn-jugar').style.display = (esArb && p.estado==='en_curso')?'':'none';
   // precargar mis órdenes ya enviadas
   WG.ordenes={};
   for(const o of (r.ordenes||[])) WG.ordenes[o.unidad_id]={ tipo:o.tipo, destino_lat:o.destino_lat, destino_lng:o.destino_lng, objetivo_id:o.objetivo_id };
@@ -23226,7 +23230,7 @@ function _wgPanelArmasHTML(){
   const elegida=sel?WG_ARMAS[sel]:null;
   const pie = elegida
     ? `<div class="rg-meta" style="font-size:11px;margin:2px 0 10px;line-height:1.45">`
-      +`🎯 <b style="color:#ffe11a">${elegida.nom}</b> seleccionada — el círculo amarillo del mapa es su alcance.`
+      +`🎯 <b style="color:#00e5ff">${elegida.nom}</b> — el círculo <b style="color:#00e5ff">celeste</b> del mapa es su alcance (el aro amarillo es la unidad seleccionada).`
       +(elegida.indirecto?'<br>Tiro indirecto: no necesita ver el blanco, pero sí que alguna unidad amiga lo observe.':'')
       +`<br>Tocá un enemigo para empeñarlo.</div>`
     : `<div class="rg-meta" style="font-size:11px;margin:2px 0 10px">Elegí un sistema para ver su alcance en el mapa.</div>`;
@@ -23655,6 +23659,17 @@ function _wgRender(){
         L.circleMarker([o.destino_lat,o.destino_lng],
           {radius:4,color:'#9aa7b4',weight:1,fillColor:'#0b1118',fillOpacity:.7,interactive:false}).addTo(WG.capa);
       }
+      // v2.9.216: los tramos que quedan por delante, en celeste punteado.
+      const rutaPend=(WG.rutas&&WG.rutas[uid])||[];
+      if(rutaPend.length>1){
+        L.polyline(rutaPend.map(c2=>[c2[1],c2[0]]),
+          {color:'#00e5ff',weight:2,dashArray:'3 6',opacity:.8,interactive:false}).addTo(WG.capa);
+        rutaPend.slice(1).forEach((c2,i)=>{
+          L.circleMarker([c2[1],c2[0]],{radius:5,color:'#00e5ff',weight:2,fillColor:'#0b1118',
+            fillOpacity:.9,interactive:false}).addTo(WG.capa)
+            .bindTooltip('punto '+(i+2),{permanent:false,direction:'top'});
+        });
+      }
       // Banderín en el punto al que SÍ llega, con el motivo si no alcanza.
       const txt = pv.detenida
         ? `🛑 ${pv.avanzadoKm.toFixed(1)} km · ${pv.motivo}`
@@ -23704,8 +23719,12 @@ function _wgRender(){
   if(WG.armaSel && WG.sel!=null){
     const uSel=uById[WG.sel], arma=WG_ARMAS[WG.armaSel];
     if(uSel && arma && arma.alcance>0){
-      L.circle([uSel.lat,uSel.lng],{radius:arma.alcance*1000,color:'#ffe11a',weight:2,
-        opacity:.9,fillColor:'#ffe11a',fillOpacity:.06,dashArray:'6 5',interactive:false}).addTo(WG.capa);
+      // v2.9.216: CIAN para el alcance del arma. El AMARILLO queda reservado a la
+      // unidad seleccionada; mezclarlos confundía las dos cosas.
+      L.circle([uSel.lat,uSel.lng],{radius:arma.alcance*1000,color:'#00e5ff',weight:2.5,
+        opacity:.95,fillColor:'#00e5ff',fillOpacity:.07,dashArray:'8 6',interactive:false})
+        .addTo(WG.capa).bindTooltip(arma.nom+' · '+arma.alcance+' km',
+          {permanent:true,direction:'top',className:'wg-tip-orden'});
       // Los enemigos batidos quedan marcados con un aro rojo.
       for(const b of _wgBatidosPor(uSel,arma)){
         L.circleMarker([b.e.lat,b.e.lng],{radius:13,color:'#ff3b3b',weight:2.5,fill:false,
@@ -23802,9 +23821,37 @@ function _wgUnidadClick(u){
 function _wgMapClick(ev){
   if(WG.modoColocar && WG.soy==='arbitro'){ _wgColocarEn(ev.latlng); return; }
   if(!WG.sel) return;
-  if(!_wgPuedeOrdenar()) return;   // v2.9.207: avisa en vez de no hacer nada
-  WG.ordenes[WG.sel]={ tipo:'mover', destino_lat:ev.latlng.lat, destino_lng:ev.latlng.lng };
+  if(!_wgPuedeOrdenar()) return;
+  // v2.9.216 — RUTA POR TRAMOS. Con SHIFT se van agregando puntos de paso, así
+  // se rodea el terreno restringido en vez de mandar a la unidad de frente
+  // contra el obstáculo. Sin shift, se empieza una ruta nueva.
+  if(!WG.rutas) WG.rutas={};
+  const p=[ev.latlng.lng, ev.latlng.lat];
+  if(ev.originalEvent && ev.originalEvent.shiftKey && WG.rutas[WG.sel] && WG.rutas[WG.sel].length){
+    WG.rutas[WG.sel].push(p);
+  } else {
+    WG.rutas[WG.sel]=[p];
+  }
+  _wgOrdenDesdeRuta(WG.sel);
   _wgActualizarContadorOrdenes(); _wgRender();
+  if(WG.map3d) _wg3dDatos();
+}
+// La orden de ESTE turno es el PRIMER tramo pendiente de la ruta. Los demás
+// quedan guardados y se van consumiendo turno a turno.
+function _wgOrdenDesdeRuta(id){
+  const r=(WG.rutas&&WG.rutas[id])||[];
+  if(!r.length){ delete WG.ordenes[id]; return; }
+  WG.ordenes[id]={ tipo:'mover', destino_lng:r[0][0], destino_lat:r[0][1] };
+}
+// Al resolver, si la unidad alcanzó el punto de paso, se pasa al siguiente.
+function _wgAvanzarRutas(){
+  if(!WG.rutas) return;
+  for(const id in WG.rutas){
+    const u=_wgUnidadPorId(id), r=WG.rutas[id];
+    if(!u || !r || !r.length){ delete WG.rutas[id]; continue; }
+    if(_wgHav([u.lng,u.lat], r[0]) < 0.35) r.shift();   // llegó al punto de paso
+    if(!r.length) delete WG.rutas[id]; else _wgOrdenDesdeRuta(id);
+  }
 }
 // ¿Se pueden dar órdenes ahora? Si no, lo DICE (el silencio hacía creer que
 // los controles estaban rotos).
@@ -23854,6 +23901,15 @@ async function wgResolver(btn){
   else { WG.ultimoTurno=r.turno_resuelto; await wgHistorial(); wgHoja('bitacora'); }
 }
 
+// v2.9.216 — UN SOLO PASO: manda las órdenes y resuelve el turno.
+async function wgJugar(btn){
+  if(WG.replayando) return;
+  const n=Object.keys(WG.ordenes).length;
+  if(n){ await wgEnviarOrdenes(null); }
+  await wgResolver(btn);
+  _wgAvanzarRutas();          // consume el punto de paso alcanzado
+  _wgActualizarContadorOrdenes(); _wgRender();
+}
 // ============================================================
 // v2.9.203 — REPLAY DEL TURNO. Reproduce el desplazamiento de cada unidad
 // sobre su ruta real, respetando los TIEMPOS relativos: la que tardó el doble
