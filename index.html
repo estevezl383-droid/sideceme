@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.219</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.220</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6687,6 +6687,46 @@ body.wg-jugando{overflow:hidden}
   45%{transform:translate(-3px,-1px)} 60%{transform:translate(3px,1px)} 80%{transform:translate(-2px,0)}
 }
 .wg-temblando{animation:wgTemblor .5s ease-in-out 3}
+/* ============================================================
+   v2.9.220 — INCENDIO VIVO donde cayeron los fuegos.
+   Todo con CSS puro (nada de imágenes: la app va en un solo archivo y sin red
+   externa). Tres lenguas de fuego de distinto tamaño, cada una con su ritmo y
+   su desfase, más un resplandor que late y humo que sube. Al ser marcadores del
+   mapa, quedan clavados al terreno y andan igual en 2D y en 3D.
+   ============================================================ */
+@keyframes wgLlama{
+  0%  {transform:translate(-50%,0) scaleY(1)    scaleX(1)   rotate(-2deg); opacity:.95}
+  25% {transform:translate(-50%,-3px) scaleY(1.3) scaleX(.82) rotate(3deg); opacity:1}
+  50% {transform:translate(-50%,-1px) scaleY(1.1) scaleX(1.06) rotate(-3deg); opacity:.92}
+  75% {transform:translate(-50%,-4px) scaleY(1.35) scaleX(.88) rotate(2deg); opacity:1}
+  100%{transform:translate(-50%,0) scaleY(1)    scaleX(1)   rotate(-2deg); opacity:.95}
+}
+@keyframes wgBrasa{
+  0%,100%{opacity:.30; transform:translate(-50%,-50%) scale(1)}
+  50%    {opacity:.60; transform:translate(-50%,-50%) scale(1.22)}
+}
+@keyframes wgHumo{
+  0%  {opacity:0;   transform:translate(-50%,0) scale(.5)}
+  20% {opacity:.42}
+  100%{opacity:0;   transform:translate(-50%,-46px) scale(2.3)}
+}
+.wg-fuego{position:relative;pointer-events:none;will-change:transform}
+/* Resplandor en el piso: el halo naranja que tiñe el terreno alrededor. */
+.wg-fuego .brasa{position:absolute;left:50%;top:50%;border-radius:50%;
+  background:radial-gradient(circle,rgba(255,150,40,.85) 0%,rgba(255,90,10,.45) 45%,rgba(255,60,0,0) 72%);
+  filter:blur(2px);animation:wgBrasa 1.6s ease-in-out infinite}
+/* Lenguas de fuego: gota invertida, amarilla en la base y roja en la punta. */
+.wg-fuego .llama{position:absolute;left:50%;bottom:0;transform-origin:50% 100%;
+  border-radius:50% 50% 50% 50%/60% 60% 40% 40%;
+  background:linear-gradient(to top,#fff3a0 0%,#ffd21e 18%,#ff9505 46%,#ff3d00 76%,rgba(255,40,0,.15) 100%);
+  filter:blur(.6px) drop-shadow(0 0 6px rgba(255,120,0,.9));
+  animation:wgLlama .55s ease-in-out infinite}
+.wg-fuego .llama.b{animation-duration:.75s;animation-delay:-.2s;opacity:.85}
+.wg-fuego .llama.c{animation-duration:.42s;animation-delay:-.37s;opacity:.7}
+.wg-fuego .humo{position:absolute;left:50%;bottom:60%;border-radius:50%;
+  background:radial-gradient(circle,rgba(70,66,62,.75) 0%,rgba(50,47,44,.35) 60%,rgba(40,38,36,0) 78%);
+  filter:blur(3px);animation:wgHumo 2.8s ease-out infinite}
+.wg-fuego .humo.b{animation-duration:3.6s;animation-delay:-1.4s}
 #screen-wargame.wg-full #wg-armas{position:absolute;left:56px;top:56px;z-index:1030;width:288px;max-width:76vw;
   max-height:calc(100vh - 170px);overflow:auto;background:rgba(10,16,22,.90);backdrop-filter:blur(8px);
   border:1px solid rgba(140,210,255,.28);border-radius:14px;padding:11px 12px;
@@ -22659,6 +22699,35 @@ function _wgPreverMovimiento(u,destino,horas){
   return {lng:pos[0],lat:pos[1],detenida,motivo,avanzadoKm:avanzado,totalKm:totalDest,
     llego:!detenida && _wgHav(pos,destino)<=1e-3, horasUsadas:Math.max(0,horas-presupuesto), ruta};
 }
+// v2.9.220 — GEMELO DE `moverPorRuta` DEL MOTOR. La unidad encadena los tramos:
+// llega a un punto de paso y con las horas que le quedan sigue al siguiente, en
+// el MISMO turno. Antes la previsión mostraba sólo el primer tramo, que además
+// era lo único que se ordenaba: por eso avanzaba de hito en hito.
+function _wgPreverRuta(u,ruta,horas){
+  const pts=(ruta||[]).filter(p=>Array.isArray(p)&&p.length>=2);
+  if(!pts.length) return _wgPreverMovimiento(u,[u.lng,u.lat],horas);
+  let pos={lng:u.lng,lat:u.lat,medio:u.medio};
+  let restante=horas, avanzado=0, consumidos=0;
+  let rutaTot=[[u.lng,u.lat]];
+  let detenida=false, motivo='', llego=false;
+  let totalKm=0;
+  for(let i=0;i<pts.length;i++) totalKm+=_wgHav(i?pts[i-1]:[u.lng,u.lat], pts[i]);
+  for(let i=0;i<pts.length;i++){
+    if(restante<=1e-9){ motivo='no alcanza el tiempo del turno'; break; }
+    const r=_wgPreverMovimiento(pos,pts[i],restante);
+    pos={...pos,lng:r.lng,lat:r.lat};
+    if(r.ruta&&r.ruta.length>1) rutaTot=rutaTot.concat(r.ruta.slice(1));
+    avanzado+=r.avanzadoKm;
+    restante=Math.max(0,restante-r.horasUsadas);
+    motivo=r.motivo;
+    if(r.detenida){ detenida=true; break; }
+    if(!r.llego){ motivo='no alcanza el tiempo del turno'; break; }
+    consumidos=i+1;
+    llego=(i===pts.length-1);
+  }
+  return {lng:pos.lng,lat:pos.lat,detenida,motivo,avanzadoKm:avanzado,totalKm,
+    ruta:rutaTot,horasUsadas:Math.max(0,horas-restante),llego,consumidos};
+}
 function _wgHoras(h){ const t=Math.max(0,Math.round((h||0)*60)), hh=Math.floor(t/60), mm=t%60;
   return hh?(hh+' h '+mm+' min'):(mm+' min'); }
 function _wgAlcanceObs(u,terreno){
@@ -22755,6 +22824,55 @@ function _wg3dTerrenoFC(){
     const e=WG3D_EST[t.tipo]; if(!e||!t.geojson) continue;
     feats.push({type:'Feature',geometry:t.geojson,properties:{
       _col:e.col,_fill:e.fill,_w:e.w,_tipo:t.tipo,_doct:WG3D_DOCT.includes(t.tipo)?1:0}});
+  }
+  return {type:'FeatureCollection',features:feats};
+}
+// ============================================================
+// v2.9.220 — INCENDIO Y TERRENO QUEMADO.
+// Donde cae una concentración queda ARDIENDO (llamas animadas) y el terreno se
+// va manchando de negro, y la mancha NO se apaga: es el registro de por dónde
+// pasó el fuego en toda la partida. Los puntos de impacto vienen en la respuesta
+// de `resolver_turno` (campo `impactos`), igual que las trazas del replay — sin
+// tabla nueva ni SQL.
+// ============================================================
+const WG_FUEGO_TURNOS = 3;   // cuántos turnos sigue ardiendo un impacto
+function _wgFuegoHTML(px){
+  const w=Math.max(8,px*0.55);
+  return `<div class="wg-fuego" style="width:${px}px;height:${px}px">`
+    +`<div class="brasa" style="width:${(px*1.9).toFixed(0)}px;height:${(px*1.1).toFixed(0)}px"></div>`
+    +`<div class="humo"   style="width:${(px*.70).toFixed(0)}px;height:${(px*.70).toFixed(0)}px"></div>`
+    +`<div class="humo b" style="width:${(px*.55).toFixed(0)}px;height:${(px*.55).toFixed(0)}px"></div>`
+    +`<div class="llama"   style="width:${w.toFixed(0)}px;height:${px}px"></div>`
+    +`<div class="llama b" style="width:${(w*.68).toFixed(0)}px;height:${(px*.72).toFixed(0)}px;margin-left:${(w*.30).toFixed(0)}px"></div>`
+    +`<div class="llama c" style="width:${(w*.50).toFixed(0)}px;height:${(px*.50).toFixed(0)}px;margin-left:${(-w*.32).toFixed(0)}px"></div>`
+    +`</div>`;
+}
+// Enciende los impactos de un turno y ennegrece el terreno.
+function _wgEncender(impactos, turno){
+  if(!impactos || !impactos.length) return;
+  WG.incendios=WG.incendios||[]; WG.quemado=WG.quemado||[];
+  for(const im of impactos){
+    if(!Number.isFinite(im.lng)||!Number.isFinite(im.lat)) continue;
+    const radio=Number(im.radio)||0.2;
+    WG.incendios.push({lng:im.lng, lat:im.lat, radio, turno:turno||0, nom:im.nom||''});
+    WG.quemado.push({lng:im.lng, lat:im.lat, radio});
+  }
+  // Techo por si una partida larga acumula cientos de cráteres.
+  if(WG.quemado.length>500) WG.quemado.splice(0, WG.quemado.length-500);
+  _wgApagarViejos(turno);
+}
+// Las llamas se apagan con los turnos; la mancha negra NO.
+function _wgApagarViejos(turnoActual){
+  if(!WG.incendios) return;
+  const t=Number(turnoActual)||0;
+  WG.incendios=WG.incendios.filter(f=> (t - (f.turno||0)) < WG_FUEGO_TURNOS );
+}
+function _wgQuemadoFC(){
+  const feats=[];
+  for(const q of (WG.quemado||[])){
+    // Un poco más ancha que la zona batida: el fuego lame los bordes.
+    feats.push({type:'Feature',properties:{},
+      geometry:{type:'Polygon',coordinates:[_wgAnilloKm(q.lng,q.lat,(q.radio||0.2)*1.25,28)]}});
   }
   return {type:'FeatureCollection',features:feats};
 }
@@ -22855,6 +22973,13 @@ async function wgVista3D(){
     map.addLayer({id:'wg-terr-punto',type:'circle',source:'wg-terr',
       filter:['==',['geometry-type'],'Point'],
       paint:{'circle-radius':3.5,'circle-color':['get','_col'],'circle-stroke-width':1,'circle-stroke-color':'#00000066'}});
+    // v2.9.220 — TERRENO QUEMADO. Va PRIMERO para que quede por debajo del
+    // calco y de las fichas: es una mancha en el suelo, no un símbolo.
+    map.addSource('wg-quema',{type:'geojson',data:WG3D_VACIO});
+    map.addLayer({id:'wg-quema-relleno',type:'fill',source:'wg-quema',
+      paint:{'fill-color':'#150f0b','fill-opacity':0.62}});
+    map.addLayer({id:'wg-quema-borde',type:'line',source:'wg-quema',
+      paint:{'line-color':'#3a2a1c','line-width':1.2,'line-opacity':0.55,'line-blur':1.5}});
     // v2.9.218 — LA LISTA ÚNICA DE DIBUJO EN 3D. Acá es donde antes NO existía
     // nada: el círculo de alcance del arma, los círculos de observación, los
     // tramos de ruta y los banderines se dibujaban sólo en Leaflet, o sea en el
@@ -22961,6 +23086,7 @@ function _wg3dDatos(){
     // v2.9.218: la MISMA lista que pinta el 2D. Si mañana se agrega una figura
     // nueva a `_wgDibujo()`, aparece acá sola — ése era el punto del cambio.
     const s2=map.getSource('wg-dib'); if(s2) s2.setData(_wg3dOverlayFC(_wgDibujo()));
+    const s3=map.getSource('wg-quema'); if(s3) s3.setData(_wgQuemadoFC()); // v2.9.220
   }catch(_e){}
   // Fichas: el MISMO PNG del símbolo militar que usa el mapa 2D.
   for(const m of (WG.marc3d||[])){ try{ m.remove(); }catch(_e){} }
@@ -22996,6 +23122,18 @@ function _wg3dDatos(){
       const mk=new maplibregl.Marker({element:img, anchor:'center',
         offset:[(sim.w/2-sim.ax)*F, (sim.h/2-sim.ay)*F]}).setLngLat([u.lng,u.lat]).addTo(map);
       mk.__uid=u.id; // para poder moverlo durante el replay
+      WG.marc3d.push(mk);
+    }catch(_e){}
+  }
+  // v2.9.220 — LAS LLAMAS. Van al final para quedar por encima de las fichas.
+  // `anchor:'bottom'` apoya el fuego en el suelo; sin eso flota sobre el cerro.
+  for(const f of (WG.incendios||[])){
+    const el=document.createElement('div');
+    el.style.pointerEvents='none';
+    el.innerHTML=_wgFuegoHTML(36);
+    try{
+      const mk=new maplibregl.Marker({element:el, anchor:'bottom'})
+        .setLngLat([f.lng,f.lat]).addTo(map);
       WG.marc3d.push(mk);
     }catch(_e){}
   }
@@ -23296,14 +23434,21 @@ function _wgPanelArmasHTML(){
       +`<span style="font-size:10.5px;text-align:right">${marca}</span></div>`;
   }).join('');
   const elegida=sel?WG_ARMAS[sel]:null;
+  // v2.9.220 — BOTÓN EXPLÍCITO PARA SOLTAR EL ARMA. Tocar de nuevo el sistema ya
+  // lo deseleccionaba, pero no había NADA que lo dijera: si lo elegías por error
+  // quedabas en modo fuego sin forma visible de volver a mover.
   const pie = elegida
-    ? `<div class="rg-meta" style="font-size:11px;margin:2px 0 10px;line-height:1.45">`
-      +`🎯 <b style="color:#00e5ff">${elegida.nom}</b> — el círculo <b style="color:#00e5ff">celeste</b> del mapa es su alcance (el aro amarillo es la unidad seleccionada).`
+    ? `<div onclick="wgElegirArma(null)" style="display:flex;align-items:center;justify-content:center;gap:7px;`
+      +`padding:8px;margin:2px 0 8px;border-radius:9px;cursor:pointer;font-size:12px;font-weight:700;`
+      +`background:rgba(46,204,113,.16);border:1px solid #2ecc71;color:#8ef0b4">`
+      +`✋ SOLTAR EL ARMA · volver a MOVER</div>`
+      +`<div class="rg-meta" style="font-size:11px;margin:2px 0 10px;line-height:1.45">`
+      +`🎯 <b style="color:#00e5ff">${elegida.nom}</b> — el círculo <b style="color:#00e5ff">celeste</b> es su alcance.`
+      +`<br><b style="color:#ff4d1a">Clic en el mapa = pedir fuego ahí</b> · clic en un enemigo = empeñarlo.`
       +(elegida.indirecto?'<br>Tiro indirecto: no necesita ver el blanco, pero sí que alguna unidad amiga lo observe.':'')
-      +`<br>Tocá un enemigo para empeñarlo.`
       // v2.9.217: ya no es sólo planeamiento — el motor resuelve con ESTE alcance.
-      +`<br><b style="color:#ff9f43">Si el blanco está fuera del círculo, dispara igual:</b> los tiros caen cortos, gasta munición y delata su posición.</div>`
-    : `<div class="rg-meta" style="font-size:11px;margin:2px 0 10px">Elegí un sistema para ver su alcance en el mapa.</div>`;
+      +`<br><b style="color:#ff9f43">Fuera del círculo dispara igual:</b> los tiros caen cortos, gasta munición y delata su posición.</div>`
+    : `<div class="rg-meta" style="font-size:11px;margin:2px 0 10px">Elegí un sistema para ver su alcance y <b>pedir fuego</b> con un clic en el mapa.</div>`;
   return `<div class="section-label" style="margin:0 0 6px">🎯 ARMAMENTO · ${_rgEsc(u.designacion||'unidad')}</div>`
     +filas+pie;
 }
@@ -23740,7 +23885,8 @@ function _wgDibujo(){
     if(o.tipo==='mover' && o.destino_lat!=null){
       // VERDE MACIZO = lo que recorre de verdad este turno · GRIS PUNTEADO = lo
       // que le queda pendiente. La orden se entiende ANTES de resolver.
-      const pv=_wgPreverMovimiento(u,[o.destino_lng,o.destino_lat],horasTurno);
+      // v2.9.220: la previsión recorre TODA la ruta, no sólo el primer tramo.
+      const pv=_wgPreverRuta(u, (Array.isArray(o.ruta)&&o.ruta.length)?o.ruta:[[o.destino_lng,o.destino_lat]], horasTurno);
       D.push(_wgD.lin(pv.ruta, pv.detenida?'#e08a2c':'#2ecc71', 4));
       if(!pv.llego){
         D.push(_wgD.lin([[pv.lng,pv.lat],[o.destino_lng,o.destino_lat]],'#9aa7b4',2,'4 7',.75));
@@ -23896,6 +24042,14 @@ function _wgRender(){
   // v2.9.218: TODO el dibujo de órdenes, alcances y rutas sale de la lista
   // única, la misma que consume el 3D. Antes esto eran ~90 líneas de `L.algo(...)`
   // acá adentro, invisibles para MapLibre.
+  // v2.9.220 — QUEMADO E INCENDIO. No van en `_wgDibujo()` a propósito: la
+  // mancha tiene que quedar DEBAJO de todo (es suelo) y las llamas ENCIMA de
+  // todo (arden delante de las fichas). La lista única no maneja capas, así que
+  // estos dos se pintan explícitamente en cada superficie, en su orden.
+  for(const q of (WG.quemado||[])){
+    L.circle([q.lat,q.lng],{radius:(q.radio||0.2)*1250,color:'#3a2a1c',weight:1,opacity:.5,
+      fillColor:'#150f0b',fillOpacity:.62,interactive:false}).addTo(WG.capa);
+  }
   _wgPintar2D(_wgDibujo());
   // unidades — v2.9.201: SÍMBOLO MILITAR reglamentario en vez del circulito.
   for(const u of ((WG.verUnidades===false)?[]:(e.unidades||[]))){
@@ -23912,6 +24066,12 @@ function _wgRender(){
     const obsTxt = mio ? ` · 👁️ ${_wgAlcanceObs(u,WG.terreno||[]).toFixed(1)} km` : ''; // v2.9.191
     m.bindTooltip(`${_rgEsc(u.designacion||u.bando)} · ${pct}%${u.estado!=='activa'?' ('+u.estado+')':''}${obsTxt}`,{direction:'top'});
     m.on('click', (ev)=>{ L.DomEvent.stopPropagation(ev); _wgUnidadClick(u); });
+  }
+  // v2.9.220: las llamas, encima de las fichas (el mismo HTML que en 3D).
+  for(const f of (WG.incendios||[])){
+    L.marker([f.lat,f.lng],{interactive:false,zIndexOffset:2000,
+      icon:L.divIcon({className:'',html:_wgFuegoHTML(34),iconSize:[34,34],iconAnchor:[17,34]})
+    }).addTo(WG.capa);
   }
   // lista lateral
   const cont=document.getElementById('wg-unidades');
@@ -24000,18 +24160,30 @@ function _wgMapClick(ev){
 }
 // La orden de ESTE turno es el PRIMER tramo pendiente de la ruta. Los demás
 // quedan guardados y se van consumiendo turno a turno.
+// v2.9.220 — LA ORDEN LLEVA LA RUTA ENTERA. Antes mandaba sólo `r[0]`: por eso
+// la unidad avanzaba de punto en punto, un turno por tramo, aunque le sobrara
+// tiempo. Ahora el destino es el ÚLTIMO punto y van todos los de paso.
 function _wgOrdenDesdeRuta(id){
   const r=(WG.rutas&&WG.rutas[id])||[];
   if(!r.length){ delete WG.ordenes[id]; return; }
-  WG.ordenes[id]={ tipo:'mover', destino_lng:r[0][0], destino_lat:r[0][1] };
+  const fin=r[r.length-1];
+  WG.ordenes[id]={ tipo:'mover', destino_lng:fin[0], destino_lat:fin[1], ruta:r.map(p=>[p[0],p[1]]) };
 }
 // Al resolver, si la unidad alcanzó el punto de paso, se pasa al siguiente.
-function _wgAvanzarRutas(){
+// v2.9.220 — se recortan los puntos QUE EL MOTOR DIJO que consumió (viene en la
+// traza), en vez de adivinarlo por distancia. Como ahora puede consumir varios
+// en un turno, el criterio viejo de «¿llegó al primero?» se quedaba corto.
+function _wgAvanzarRutas(trazas){
   if(!WG.rutas) return;
+  const porId={}; for(const t of (trazas||[])) porId[t.id]=t;
   for(const id in WG.rutas){
     const u=_wgUnidadPorId(id), r=WG.rutas[id];
     if(!u || !r || !r.length){ delete WG.rutas[id]; continue; }
-    if(_wgHav([u.lng,u.lat], r[0]) < 0.35) r.shift();   // llegó al punto de paso
+    const t=porId[id];
+    let n = t && Number.isFinite(t.consumidos) ? t.consumidos : 0;
+    // Respaldo por si la traza no vino (Edge Function vieja): el criterio de antes.
+    if(!t && _wgHav([u.lng,u.lat], r[0]) < 0.35) n=1;
+    if(n>0) r.splice(0,n);
     if(!r.length) delete WG.rutas[id]; else _wgOrdenDesdeRuta(id);
   }
 }
@@ -24060,9 +24232,14 @@ async function wgResolver(btn){
   // Las trazas vienen en la respuesta (no se guardan en la base).
   const trazas=r.trazas||[];
   WG.ultimoTurno=r.turno_resuelto;   // v2.9.205: para destacarlo en la bitácora
+  // v2.9.220: se enciende el terreno donde cayeron los fuegos de ESTE turno y
+  // se apagan las llamas de hace más de 3 turnos (la mancha negra queda).
+  _wgApagarViejos(r.turno_resuelto);
+  _wgEncender(r.impactos||[], r.turno_resuelto);
   await wgEstado();
   if(trazas.length) await wgReplay(trazas);
   else { WG.ultimoTurno=r.turno_resuelto; await wgHistorial(); wgHoja('bitacora'); }
+  return trazas; // v2.9.220: para recortar los puntos de paso ya consumidos
 }
 
 // v2.9.216 — UN SOLO PASO: manda las órdenes y resuelve el turno.
@@ -24070,8 +24247,8 @@ async function wgJugar(btn){
   if(WG.replayando) return;
   const n=Object.keys(WG.ordenes).length;
   if(n){ await wgEnviarOrdenes(null); }
-  await wgResolver(btn);
-  _wgAvanzarRutas();          // consume el punto de paso alcanzado
+  const trazas=await wgResolver(btn);
+  _wgAvanzarRutas(trazas);    // recorta los puntos de paso que el motor consumió
   _wgActualizarContadorOrdenes(); _wgRender();
 }
 // ============================================================
