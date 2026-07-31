@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.208</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.209</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6665,6 +6665,18 @@ body.wg-jugando{overflow:hidden}
 #wg-3d-cargando{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#cfe6ff;font-size:14px;
   background:rgba(10,14,19,.85);padding:10px 16px;border-radius:10px;border:1px solid rgba(140,210,255,.25)}
 #wg-3d-tl{display:none} /* v2.9.204: el HUD principal ya trae los chips */
+.wg-globo-wrap{background:none!important;border:0!important;width:auto!important;height:auto!important}
+.wg-globo{position:relative;transform:translate(-50%,-100%);display:inline-block;white-space:nowrap;
+  background:linear-gradient(180deg,#20303f,#16222d);color:#eaf4ff;font-size:12px;font-weight:600;
+  padding:7px 11px;border-radius:12px;border:1px solid rgba(140,210,255,.45);
+  box-shadow:0 6px 18px rgba(0,0,0,.55);animation:wgGloboEntra .28s cubic-bezier(.2,1.5,.4,1)}
+.wg-globo-fuego{background:linear-gradient(180deg,#4a2410,#331708);border-color:rgba(255,150,60,.6);color:#ffdcb0}
+.wg-globo-fuego i{background:#331708;border-color:rgba(255,150,60,.6)}
+.wg-globo i{position:absolute;left:50%;bottom:-7px;width:12px;height:12px;margin-left:-6px;
+  background:#16222d;border-right:1px solid rgba(140,210,255,.45);border-bottom:1px solid rgba(140,210,255,.45);
+  transform:rotate(45deg)}
+@keyframes wgGloboEntra{from{opacity:0;transform:translate(-50%,-80%) scale(.85)}
+  to{opacity:1;transform:translate(-50%,-100%) scale(1)}}
 .wg-tip-orden{background:rgba(10,16,22,.88)!important;border:1px solid rgba(140,210,255,.35)!important;
   color:#dff0ff!important;font-size:11px!important;font-weight:600;padding:2px 7px!important;border-radius:8px!important;
   box-shadow:0 2px 10px rgba(0,0,0,.5)!important}
@@ -22820,11 +22832,15 @@ async function wgVista3D(){
       paint:{'circle-radius':30,'circle-color':'#ffe11a','circle-opacity':0.16,
         'circle-blur':0.9,'circle-pitch-alignment':'map'}});
     map.addLayer({id:'wg-sel-anillo',type:'circle',source:'wg-sel',
-      paint:{'circle-radius':24,'circle-color':'#ffe11a','circle-opacity':0.10,
-        'circle-stroke-width':3,'circle-stroke-color':'#ffe11a','circle-stroke-opacity':0.95,
+      paint:{'circle-radius':['case',['==',['get','_sel'],1],24,19],
+        'circle-color':'#ffe11a','circle-opacity':0.10,
+        'circle-stroke-width':['case',['==',['get','_sel'],1],3,2],
+        'circle-stroke-color':'#ffe11a',
+        'circle-stroke-opacity':['case',['==',['get','_sel'],1],0.95,0.6],
         'circle-pitch-alignment':'map'}});
     map.addLayer({id:'wg-humo-pt',type:'circle',source:'wg-humo',
-      paint:{'circle-radius':['get','_r'],'circle-color':'#cbb89a',
+      paint:{'circle-radius':['get','_r'],
+        'circle-color':['coalesce',['get','_col'],'#cbb89a'],
         'circle-opacity':['get','_op'],'circle-blur':0.7}});
     map.addLayer({id:'wg-replay-linea',type:'line',source:'wg-replay',
       layout:{'line-cap':'round','line-join':'round'},
@@ -22879,10 +22895,15 @@ function _wg3dDatos(){
   WG.marc3d=[];
   if(WG.verUnidades===false) return; // 🗺️ fichas apagadas
   // El anillo de selección va en el SUELO, no en el ícono.
+  // v2.9.209: lleva anillo la SELECCIONADA y además toda unidad CON ORDEN de
+  // movimiento — así se ve de un vistazo quién se va a mover este turno.
   const selPt=[];
   for(const u of ((WG.estado&&WG.estado.unidades)||[])){
-    if(String(WG.sel)===String(u.id))
-      selPt.push({type:'Feature',geometry:{type:'Point',coordinates:[u.lng,u.lat]},properties:{}});
+    const esSel=String(WG.sel)===String(u.id);
+    const tieneOrden=!!WG.ordenes[u.id];
+    if(esSel||tieneOrden)
+      selPt.push({type:'Feature',geometry:{type:'Point',coordinates:[u.lng,u.lat]},
+        properties:{_sel:esSel?1:0}});
   }
   try{ map.getSource('wg-sel').setData({type:'FeatureCollection',features:selPt}); }catch(_e){}
   for(const u of ((WG.estado&&WG.estado.unidades)||[])){
@@ -23531,7 +23552,8 @@ async function wgEnviarOrdenes(btn){
     if(r.ok) okc++; else console.warn('orden',uid,r.error);
   }
   if(btn) btn.disabled=false;
-  alert(`Órdenes enviadas: ${okc}/${ids.length}.`);
+  _wgAviso(okc===ids.length?`📨 ${okc} orden(es) enviada(s). Cuando estén todas, <b>Resolver turno</b>.`
+                            :`⚠️ Se enviaron ${okc} de ${ids.length}. Revisá las que fallaron.`);
   await wgEstado();
 }
 async function wgResolver(btn){
@@ -23603,16 +23625,22 @@ async function wgReplay(trazas, segundos=6){
         p.rastro.setLatLngs(p.t.ruta.slice(0,hasta).map(c=>[c[1],c[0]]));
         // Sólo levanta polvo mientras se está moviendo de verdad.
         if(nuevaBocanada && f<1 && p.t.km>0){
-          humo.push({lng:pos[0], lat:pos[1], t0:ahora,
-            m:L.circleMarker([pos[1],pos[0]],{radius:6,color:'#cbb89a',weight:0,
-              fillColor:'#cbb89a',fillOpacity:.55,interactive:false}).addTo(capa)});
+          // v2.9.209: el doble de grande y DOS bocanadas por tramo (una a la
+          // altura de la unidad y otra apenas atrás), para que la columna deje
+          // una estela de polvo de verdad y no un puntito.
+          for(const atras of [0, 1]){
+            const q=_wgInterp(p.t.ruta, Math.max(0, f - atras*0.012)) || pos;
+            humo.push({lng:q[0], lat:q[1], t0:ahora - atras*140,
+              m:L.circleMarker([q[1],q[0]],{radius:12-atras*3,color:'#cbb89a',weight:0,
+                fillColor:'#cbb89a',fillOpacity:.55,interactive:false}).addTo(capa)});
+          }
         }
       }
       // Envejecer la polvareda: crece y se apaga en ~1,3 s.
       for(let k=humo.length-1;k>=0;k--){
         const h=humo[k], edad=(ahora-h.t0)/1300;
         if(edad>=1){ try{ capa.removeLayer(h.m); }catch(_e){} humo.splice(k,1); continue; }
-        try{ h.m.setRadius(6+edad*13.5); h.m.setStyle({fillOpacity:0.55*(1-edad)}); }catch(_e){}
+        try{ h.m.setRadius(12+edad*27); h.m.setStyle({fillOpacity:0.55*(1-edad)}); }catch(_e){}
       }
       if(cartel) cartel.innerHTML='▶️ <b>Replay del turno</b> · hora H+'+horaSim.toFixed(1)+' de '+maxH.toFixed(1)+' h';
       if(_wgEn3D()) _wg3dReplayPaso(piezas,horaSim,humo,ahora);
@@ -23634,10 +23662,120 @@ async function wgReplay(trazas, segundos=6){
     if(!t.detenida) continue;
     _wgTemblar(t.id);
   }
+  // v2.9.209: y CADA unidad cuenta lo suyo en un bocadillo sobre su ficha.
+  for(const t of trazas) _wgBurbuja(t.id, _wgResumenTraza(t), 7000);
+  // 💥 Y donde hubo combate, se ve el fuego.
+  await _wgFuegoDelTurno();
   // v2.9.205: en vez de un cartel que hay que cerrar, se ABRE la bitácora con
   // lo del turno destacado arriba. El juego cuenta lo que pasó, no lo interrumpe.
   await wgHistorial();
   wgHoja('bitacora');
+}
+// ============================================================
+// v2.9.209 — BURBUJAS SOBRE LA UNIDAD (como los bocadillos de historieta).
+// Lo que le pasó a cada unidad sale de LA UNIDAD, no sólo de la bitácora: se
+// entiende sin leer un listado ni cruzar nombres.
+// ============================================================
+function _wgAviso(html, ms){
+  const el=document.getElementById('wg-ayuda'); if(!el) return;
+  el.innerHTML=html;
+  el.style.outline='2px solid #4aa3e0';
+  clearTimeout(WG.__avisoT);
+  WG.__avisoT=setTimeout(()=>{ try{ el.style.outline=''; }catch(_e){} }, ms||2600);
+}
+// Resumen CORTO para el bocadillo (la bitácora guarda el detalle largo).
+function _wgResumenTraza(t){
+  const km=(t.km||0).toFixed(1);
+  if(t.detenida) return `🛑 Frenado a los ${km} km`;
+  if(t.llego)    return `✅ En el objetivo · ${km} km`;
+  return `⏱️ ${km} km — no alcancé`;
+}
+function _wgBurbuja(id, texto, ms){
+  const u=((WG.estado&&WG.estado.unidades)||[]).find(x=>String(x.id)===String(id));
+  if(!u) return;
+  const html='<div class="wg-globo">'+texto+'<i></i></div>';
+  const vivos=[];
+  // 2D
+  try{
+    if(WG.map && WG.capa && typeof L!=='undefined' && L.divIcon){
+      const m=L.marker([u.lat,u.lng],{interactive:false,zIndexOffset:2000,
+        icon:L.divIcon({className:'wg-globo-wrap',html,iconSize:null,iconAnchor:[0,58]})}).addTo(WG.capa);
+      vivos.push(()=>{ try{ WG.capa.removeLayer(m); }catch(_e){} });
+    }
+  }catch(_e){}
+  // 3D
+  try{
+    if(WG.map3d && typeof maplibregl!=='undefined'){
+      const d=document.createElement('div'); d.className='wg-globo-wrap'; d.innerHTML=html;
+      d.style.pointerEvents='none';
+      const mk=new maplibregl.Marker({element:d,anchor:'bottom',offset:[0,-26]})
+        .setLngLat([u.lng,u.lat]).addTo(WG.map3d);
+      vivos.push(()=>{ try{ mk.remove(); }catch(_e){} });
+    }
+  }catch(_e){}
+  setTimeout(()=>{ for(const f of vivos) f(); }, ms||6000);
+}
+// ============================================================
+// v2.9.209 — FUEGO. Donde el motor resolvió un combate, se ve el tiroteo.
+// El motor ya hace combate automático por PROXIMIDAD (unidades enemigas que
+// terminan el turno a menos de 3 km se empeñan solas, sin orden de atacar).
+// Lo que faltaba era mostrarlo: hasta ahora sólo figuraba como texto.
+// ============================================================
+async function _wgFuegoDelTurno(){
+  const r=await _wgInvoke('historial',{ partida_id:WG.partidaId, clave_acceso:WG.clave });
+  if(!r.ok) return;
+  const t=WG.ultimoTurno;
+  const focos=(r.eventos||[]).filter(e=>e.tipo==='combate' && e.turno===t && e.lat!=null);
+  if(!focos.length) return;
+  const capa=(WG.map&&typeof L!=='undefined')?L.layerGroup().addTo(WG.map):null;
+  const marcas3d=[];
+  const t0=performance.now(), DURA=2600;
+  for(const f of focos){
+    // Bocadillo del resultado, pegado al lugar del combate.
+    const corto=(f.descripcion||'').replace(/\s*\(terreno[^)]*\)/,'').replace('Relación','⚔️');
+    try{
+      if(capa && L.divIcon){
+        L.marker([f.lat,f.lng],{interactive:false,zIndexOffset:2100,
+          icon:L.divIcon({className:'wg-globo-wrap',html:'<div class="wg-globo wg-globo-fuego">'+_rgEsc(corto)+'<i></i></div>',
+            iconSize:null,iconAnchor:[0,58]})}).addTo(capa);
+      }
+      if(WG.map3d && typeof maplibregl!=='undefined'){
+        const d=document.createElement('div'); d.className='wg-globo-wrap'; d.style.pointerEvents='none';
+        d.innerHTML='<div class="wg-globo wg-globo-fuego">'+_rgEsc(corto)+'<i></i></div>';
+        const mk=new maplibregl.Marker({element:d,anchor:'bottom',offset:[0,-26]}).setLngLat([f.lng,f.lat]).addTo(WG.map3d);
+        marcas3d.push(mk);
+      }
+    }catch(_e){}
+  }
+  // Fogonazos: destellos que laten sobre cada foco de combate.
+  const flashes=focos.map(f=>{
+    try{ return capa?L.circleMarker([f.lat,f.lng],{radius:10,color:'#ffd166',weight:2,
+      fillColor:'#ff7b00',fillOpacity:.75,interactive:false}).addTo(capa):null; }catch(_e){ return null; }
+  });
+  const src3d=(()=>{ try{ return WG.map3d?WG.map3d.getSource('wg-humo'):null; }catch(_e){ return null; } })();
+  await new Promise(fin=>{
+    function paso(ahora){
+      const k=(ahora-t0)/DURA;
+      if(k>=1) return fin();
+      // Latido rápido: 6 fogonazos por segundo.
+      const pulso=Math.abs(Math.sin(k*Math.PI*12));
+      for(const fl of flashes){ if(!fl) continue;
+        try{ fl.setRadius(7+pulso*11); fl.setStyle({fillOpacity:0.25+pulso*0.6,opacity:0.4+pulso*0.6}); }catch(_e){}
+      }
+      if(src3d){
+        try{ src3d.setData({type:'FeatureCollection',features:focos.map(f=>({
+          type:'Feature',geometry:{type:'Point',coordinates:[f.lng,f.lat]},
+          properties:{_r:18+pulso*30,_op:0.25+pulso*0.5,_col:'#ff7b00'}}))}); }catch(_e){}
+      }
+      requestAnimationFrame(paso);
+    }
+    requestAnimationFrame(paso);
+  });
+  setTimeout(()=>{
+    try{ if(capa) WG.map.removeLayer(capa); }catch(_e){}
+    for(const m of marcas3d){ try{ m.remove(); }catch(_e){} }
+    if(src3d) try{ src3d.setData({type:'FeatureCollection',features:[]}); }catch(_e){}
+  }, 4200);
 }
 // Hace temblar la ficha de una unidad, en la vista que esté activa.
 function _wgTemblar(id){
@@ -23675,7 +23813,7 @@ function _wg3dReplayPaso(piezas, horaSim, humo, ahora){
   for(const h of (humo||[])){
     const edad=Math.min(1,(ahora-h.t0)/1300);
     puf.push({type:'Feature',geometry:{type:'Point',coordinates:[h.lng,h.lat]},
-      properties:{_r:7.5+edad*21,_op:0.6*(1-edad)}});
+      properties:{_r:15+edad*42,_op:0.6*(1-edad)}});
   }
   try{ map.getSource('wg-humo').setData({type:'FeatureCollection',features:puf}); }catch(_e){}
 }
