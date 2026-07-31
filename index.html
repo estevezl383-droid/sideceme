@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.214</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.215</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6687,6 +6687,12 @@ body.wg-jugando{overflow:hidden}
   45%{transform:translate(-3px,-1px)} 60%{transform:translate(3px,1px)} 80%{transform:translate(-2px,0)}
 }
 .wg-temblando{animation:wgTemblor .5s ease-in-out 3}
+#screen-wargame.wg-full #wg-armas{position:absolute;left:56px;top:56px;z-index:1030;width:288px;max-width:76vw;
+  max-height:calc(100vh - 170px);overflow:auto;background:rgba(10,16,22,.90);backdrop-filter:blur(8px);
+  border:1px solid rgba(140,210,255,.28);border-radius:14px;padding:11px 12px;
+  box-shadow:0 10px 34px rgba(0,0,0,.55)}
+#screen-wargame:not(.wg-full) #wg-armas{position:static;width:auto;margin:8px 0;background:rgba(255,255,255,.04);
+  border:1px solid var(--border-subtle);border-radius:12px;padding:10px}
 #wg-3d-error{position:absolute;top:52px;left:8px;right:8px;z-index:6;color:#ffb4a8;font-size:12px;
   background:rgba(60,12,12,.85);border:1px solid #a33;border-radius:8px;padding:7px 10px;display:none}
 /* El 3D lleva sus propios controles: los de MapLibre sobran. */
@@ -6796,6 +6802,11 @@ body.wg-jugando{overflow:hidden}
         <button class="wg-pill wg-fuerte" id="wg-btn-iniciar" onclick="wgIniciar(this)" style="display:none">🚀 Iniciar partida</button>
         <button class="wg-pill wg-fuerte" id="wg-btn-resolver" onclick="wgResolver(this)" style="display:none">⚔️ Resolver turno</button>
       </div>
+
+      <!-- v2.9.215: ARMAMENTO flotante. Antes vivía dentro de la hoja 🪖 UNIDADES
+           y si tenías abierta la bitácora NUNCA lo veías. Ahora aparece solo al
+           seleccionar una unidad, sobre el mapa. -->
+      <div id="wg-armas" style="display:none"></div>
 
       <!-- Aviso de contexto, abajo a la izquierda -->
       <div id="wg-ayuda"></div>
@@ -23727,8 +23738,7 @@ function _wgRender(){
     +`<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${WG_COL[u.bando]};margin-right:6px"></span>`
     +`<b>${_rgEsc(u.designacion||u.bando)}</b> · ${pct}% ${u.estado!=='activa'?'<span style="color:#e08a2c">('+u.estado+')</span>':''}`
     +(o?` <span style="color:#2ecc71">· orden: ${o.tipo}</span>`:'')+`</div>`; };
-  cont.innerHTML = _wgPanelArmasHTML()
-    + `<div style="margin-bottom:4px">Tuyas (${mias.length}):</div>`+mias.map(u=>fila(u,false)).join('')
+  cont.innerHTML = `<div style="margin-bottom:4px">Tuyas (${mias.length}):</div>`+mias.map(u=>fila(u,false)).join('')
     + (enem.length?`<div style="margin:6px 0 4px">Enemigas detectadas (${enem.length}):</div>`+enem.map(u=>fila(u,true)).join('')
        : (WG.soy!=='arbitro'?'<div class="rg-meta" style="margin-top:6px">🌫️ Sin contacto enemigo (niebla de guerra).</div>':''));
   // ⚠️ v2.9.206 — EL BUG QUE HACÍA PARECER QUE NADA FUNCIONABA.
@@ -23736,6 +23746,13 @@ function _wgRender(){
   // repintaba el mapa 2D, que en modo 3D está TAPADO ABAJO: importar, vaciar y
   // 🔄 actualizaban algo invisible y el usuario seguía viendo el terreno viejo.
   // Ahora todo repintado del 2D arrastra al 3D, así que hay UNA sola verdad.
+  // v2.9.215: el panel de armamento se muestra SOLO cuando hay unidad seleccionada.
+  const pa=document.getElementById('wg-armas');
+  if(pa){
+    const uSel=_wgUnidadPorId(WG.sel);
+    if(uSel && _wgArmamento(uSel).length){ pa.innerHTML=_wgPanelArmasHTML(); pa.style.display=''; }
+    else { pa.style.display='none'; pa.innerHTML=''; }
+  }
   if(WG.map3d){ _wg3dDatos(); _wg3dCapas(); }
   if(WG.hoja==='capas') wgPanelCapas(); // conteos siempre al día
 }
