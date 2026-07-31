@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.220</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.221</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6727,6 +6727,29 @@ body.wg-jugando{overflow:hidden}
   background:radial-gradient(circle,rgba(70,66,62,.75) 0%,rgba(50,47,44,.35) 60%,rgba(40,38,36,0) 78%);
   filter:blur(3px);animation:wgHumo 2.8s ease-out infinite}
 .wg-fuego .humo.b{animation-duration:3.6s;animation-delay:-1.4s}
+/* ============================================================
+   v2.9.221 — EL PROYECTIL QUE VUELA Y EL ESTALLIDO.
+   El punto luminoso viaja del tirador al blanco. La ALTURA la pone el JS:
+   parábola si el tiro es indirecto (artillería, morteros), recta si es tenso
+   (fusilería, cañón, AT). Al llegar, fogonazo y queda ardiendo.
+   ============================================================ */
+.wg-proy{position:absolute;left:0;top:0;pointer-events:none;will-change:transform}
+.wg-proy .bala{position:absolute;left:50%;top:50%;width:9px;height:9px;margin:-4.5px 0 0 -4.5px;
+  border-radius:50%;background:radial-gradient(circle,#fffbe6 0%,#ffd21e 40%,#ff7a00 70%,rgba(255,80,0,0) 100%);
+  box-shadow:0 0 10px 3px rgba(255,170,40,.9), 0 0 22px 8px rgba(255,90,0,.45)}
+/* Estela: se estira hacia atrás según la dirección de vuelo (la gira el JS). */
+.wg-proy .estela{position:absolute;left:50%;top:50%;height:3px;margin-top:-1.5px;
+  transform-origin:0 50%;border-radius:2px;
+  background:linear-gradient(to left,rgba(255,190,60,.85),rgba(255,120,0,0))}
+@keyframes wgEstallido{
+  0%  {opacity:1; transform:translate(-50%,-50%) scale(.25)}
+  35% {opacity:1; transform:translate(-50%,-50%) scale(1.15)}
+  100%{opacity:0; transform:translate(-50%,-50%) scale(2.1)}
+}
+.wg-boom{position:absolute;left:50%;top:50%;width:90px;height:90px;pointer-events:none;
+  border-radius:50%;animation:wgEstallido .55s ease-out forwards;
+  background:radial-gradient(circle,#fffdf0 0%,#ffe259 18%,#ff9d05 42%,#ff3c00 62%,rgba(120,30,0,.35) 80%,rgba(0,0,0,0) 100%);
+  filter:blur(1px)}
 #screen-wargame.wg-full #wg-armas{position:absolute;left:56px;top:56px;z-index:1030;width:288px;max-width:76vw;
   max-height:calc(100vh - 170px);overflow:auto;background:rgba(10,16,22,.90);backdrop-filter:blur(8px);
   border:1px solid rgba(140,210,255,.28);border-radius:14px;padding:11px 12px;
@@ -22621,7 +22644,10 @@ function _wgPtEnGeom(pt,geom){
 function _wgCajaDeGeom(geom){
   if(!geom) return null;
   const anillos = geom.type==='Polygon'?[geom.coordinates[0]]
-    : geom.type==='MultiPolygon'?geom.coordinates.map(p=>p[0]) : null;
+    : geom.type==='MultiPolygon'?geom.coordinates.map(p=>p[0])
+    // v2.9.221: los CAMINOS son líneas y ahora entran al cálculo de movilidad.
+    : geom.type==='LineString'?[geom.coordinates]
+    : geom.type==='MultiLineString'?geom.coordinates : null;
   if(!anillos) return null;
   let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
   for(const a of anillos) for(const p of (a||[])){
@@ -22637,7 +22663,43 @@ function _wgFueraDeCaja(pt,t){
   const c=t._caja;
   return !!c && (pt[0]<c[0]||pt[0]>c[2]||pt[1]<c[1]||pt[1]>c[3]);
 }
+// v2.9.221 — GEMELO EXACTO del `claseTerreno` del motor, con caminos. Si esto
+// no coincide, la vista previa promete un avance que el servidor no hace.
+const WG_CAMINO_KM=0.15;
+function _wgDistPtSeg(p,a,b){
+  const kx=111.32*Math.cos(p[1]*Math.PI/180), ky=110.57;
+  const px=(p[0]-a[0])*kx, py=(p[1]-a[1])*ky;
+  const bx=(b[0]-a[0])*kx, by=(b[1]-a[1])*ky;
+  const L=bx*bx+by*by;
+  let t=L>0?(px*bx+py*by)/L:0; t=t<0?0:(t>1?1:t);
+  const dx=px-bx*t, dy=py-by*t;
+  return Math.sqrt(dx*dx+dy*dy);
+}
+function _wgLineasDe(g){
+  if(!g) return [];
+  if(g.type==='LineString') return [g.coordinates];
+  if(g.type==='MultiLineString') return g.coordinates;
+  return [];
+}
+function _wgFueraDeCajaCon(pt,t,holguraKm){
+  const c=t._caja; if(!c) return false;
+  const dLat=holguraKm/110.57, dLng=dLat/Math.max(1e-6,Math.cos(pt[1]*Math.PI/180));
+  return pt[0]<c[0]-dLng||pt[0]>c[2]+dLng||pt[1]<c[1]-dLat||pt[1]>c[3]+dLat;
+}
+function _wgEnCamino(pt,terreno){
+  for(const t of (terreno||[])){
+    if(t.tipo!=='via') continue;
+    if(_wgFueraDeCajaCon(pt,t,WG_CAMINO_KM)) continue;
+    for(const linea of _wgLineasDe(t.geojson)){
+      for(let i=1;i<linea.length;i++){
+        if(_wgDistPtSeg(pt,linea[i-1],linea[i])<=WG_CAMINO_KM) return true;
+      }
+    }
+  }
+  return false;
+}
 function _wgClaseTerreno(pt,terreno){
+  if(_wgEnCamino(pt,terreno)) return 'camino';
   let restr=false;
   for(const t of (terreno||[])){
     if(_wgFueraDeCaja(pt,t)) continue;
@@ -22653,9 +22715,11 @@ function _wgClaseTerreno(pt,terreno){
 // terreno la va a frenar. Antes había que resolver el turno para enterarse.
 // Mismos números que el servidor porque es el mismo algoritmo.
 // ============================================================
-const WG_VEL={motor:{libre:40,restringido:null,severo:null},
-              oruga:{libre:28,restringido:9,severo:null},
-              pie:{libre:5,restringido:3.5,severo:2}};
+// v2.9.221 — MISMAS VELOCIDADES QUE EL MOTOR, con la clase `camino`: por la
+// carretera se pasa aunque el sector sea restringido o severo.
+const WG_VEL={motor:{camino:50,libre:40,restringido:null,severo:null},
+              oruga:{camino:32,libre:28,restringido:9,severo:null},
+              pie:{camino:6,libre:5,restringido:3.5,severo:2}};
 function _wgHav(a,b){
   const R=6371, rad=(d)=>d*Math.PI/180;
   const dLat=rad(b[1]-a[1]), dLng=rad(b[0]-a[0]), la1=rad(a[1]), la2=rad(b[1]);
@@ -22731,7 +22795,7 @@ function _wgPreverRuta(u,ruta,horas){
 function _wgHoras(h){ const t=Math.max(0,Math.round((h||0)*60)), hh=Math.floor(t/60), mm=t%60;
   return hh?(hh+' h '+mm+' min'):(mm+' min'); }
 function _wgAlcanceObs(u,terreno){
-  const OBS={libre:1.0,restringido:0.5,severo:0.3};
+  const OBS={camino:1.0,libre:1.0,restringido:0.5,severo:0.3}; // v2.9.221
   const pt=[u.lng,u.lat];
   let r=(Number(u.obs_km)||4)*(OBS[_wgClaseTerreno(pt,terreno)]??1);
   if((terreno||[]).some(t=>t.tipo==='clave'&&!_wgFueraDeCaja(pt,t)&&_wgPtEnGeom(pt,t.geojson))) r*=1.5;
@@ -22875,6 +22939,98 @@ function _wgQuemadoFC(){
       geometry:{type:'Polygon',coordinates:[_wgAnilloKm(q.lng,q.lat,(q.radio||0.2)*1.25,28)]}});
   }
   return {type:'FeatureCollection',features:feats};
+}
+// ============================================================
+// v2.9.221 — LOS DISPAROS SE VEN VOLAR.
+// Un punto luminoso sale del tirador y viaja hasta el blanco. La forma del
+// vuelo la decide el ARMA, no el capricho: `indirecto` (obuses y morteros)
+// describe una PARÁBOLA; el tiro tenso (fusilería, cañón, antitanque) va
+// DERECHO. Al impactar hay fogonazo y el terreno queda ardiendo.
+//
+// La altura de la parábola se hace en PÍXELES DE PANTALLA, no en coordenadas:
+// el proyectil avanza linealmente sobre el mapa y se lo levanta con un
+// `translateY`. Así el arco se ve bien con la cámara inclinada del 3D, que es
+// donde se juega — y funciona igual en el 2D sin escribirlo dos veces.
+// ============================================================
+const WG_VUELO_MS = 950;   // lo que tarda un proyectil de punta a punta
+function _wgProyectilEl(){
+  const el=document.createElement('div');
+  el.className='wg-proy'; el.style.pointerEvents='none';
+  el.innerHTML='<div class="estela"></div><div class="bala"></div>';
+  return el;
+}
+// Convierte lng/lat a píxeles de pantalla en la superficie que esté activa.
+function _wgAPixel(lngLat){
+  if(WG.map3d){ const p=WG.map3d.project(lngLat); return [p.x,p.y]; }
+  if(WG.map){ const p=WG.map.latLngToContainerPoint([lngLat[1],lngLat[0]]); return [p.x,p.y]; }
+  return null;
+}
+function _wgCapaEfectos(){
+  const id = WG.map3d ? 'wg-3d-map' : 'wg-map';
+  const host = document.getElementById(id);
+  if(!host) return null;
+  let capa = host.querySelector('.wg-efectos');
+  if(!capa){
+    capa=document.createElement('div');
+    capa.className='wg-efectos';
+    capa.style.cssText='position:absolute;inset:0;pointer-events:none;z-index:950;overflow:hidden';
+    host.appendChild(capa);
+  }
+  return capa;
+}
+/**
+ * Anima TODOS los disparos del turno a la vez y resuelve cuando terminaron.
+ * `impactos` viene en la respuesta de `resolver_turno`.
+ */
+function _wgAnimarDisparos(impactos){
+  const tiros=(impactos||[]).filter(im=>Array.isArray(im.desde)
+    && Number.isFinite(im.lng) && Number.isFinite(im.lat));
+  if(!tiros.length) return Promise.resolve();
+  const capa=_wgCapaEfectos();
+  if(!capa) return Promise.resolve();
+  return new Promise((listo)=>{
+    const els=tiros.map(()=>{ const e=_wgProyectilEl(); capa.appendChild(e); return e; });
+    const t0=performance.now();
+    const paso=(ahora)=>{
+      const k=Math.min(1,(ahora-t0)/WG_VUELO_MS);
+      for(let i=0;i<tiros.length;i++){
+        const im=tiros[i], el=els[i];
+        const a=_wgAPixel(im.desde), b=_wgAPixel([im.lng,im.lat]);
+        if(!a||!b){ el.style.display='none'; continue; }
+        el.style.display='';
+        // Avance lineal sobre el mapa…
+        const x=a[0]+(b[0]-a[0])*k, y=a[1]+(b[1]-a[1])*k;
+        // …y la ALTURA según el tipo de tiro. El arco crece con la distancia,
+        // con un techo para que no se vaya de pantalla en tiros muy largos.
+        let alto=0;
+        if(im.indirecto){
+          const dpx=Math.hypot(b[0]-a[0], b[1]-a[1]);
+          const techo=Math.min(230, Math.max(45, dpx*0.32));
+          alto = 4*techo*k*(1-k);           // parábola: 0 en los extremos
+        }
+        el.style.transform=`translate(${x}px,${y-alto}px)`;
+        // La estela apunta hacia atrás, siguiendo la dirección real del vuelo.
+        const est=el.firstChild;
+        const ang=Math.atan2(b[1]-a[1], b[0]-a[0])*180/Math.PI;
+        est.style.width=Math.min(34, 12+k*26)+'px';
+        est.style.transform=`rotate(${ang+180}deg)`;
+      }
+      if(k<1){ requestAnimationFrame(paso); return; }
+      // IMPACTO: fogonazo en cada blanco y se sacan los proyectiles.
+      for(let i=0;i<tiros.length;i++){
+        els[i].remove();
+        const b=_wgAPixel([tiros[i].lng,tiros[i].lat]);
+        if(!b) continue;
+        const boom=document.createElement('div');
+        boom.className='wg-boom';
+        boom.style.left=b[0]+'px'; boom.style.top=b[1]+'px';
+        capa.appendChild(boom);
+        setTimeout(()=>boom.remove(),600);
+      }
+      setTimeout(listo,560);
+    };
+    requestAnimationFrame(paso);
+  });
 }
 function _wg3dError(msg){
   const el=document.getElementById('wg-3d-error');
@@ -24235,10 +24391,15 @@ async function wgResolver(btn){
   // v2.9.220: se enciende el terreno donde cayeron los fuegos de ESTE turno y
   // se apagan las llamas de hace más de 3 turnos (la mancha negra queda).
   _wgApagarViejos(r.turno_resuelto);
-  _wgEncender(r.impactos||[], r.turno_resuelto);
   await wgEstado();
   if(trazas.length) await wgReplay(trazas);
-  else { WG.ultimoTurno=r.turno_resuelto; await wgHistorial(); wgHoja('bitacora'); }
+  // v2.9.221 — PRIMERO SE MUEVEN, DESPUÉS SE TIRAN. Los proyectiles salen
+  // cuando las unidades ya están donde quedaron, si no se ven saliendo de
+  // posiciones viejas. Recién al impactar se enciende el terreno.
+  await _wgAnimarDisparos(r.impactos||[]);
+  _wgEncender(r.impactos||[], r.turno_resuelto);
+  _wgRender(); if(WG.map3d) _wg3dDatos();
+  if(!trazas.length){ WG.ultimoTurno=r.turno_resuelto; await wgHistorial(); wgHoja('bitacora'); }
   return trazas; // v2.9.220: para recortar los puntos de paso ya consumidos
 }
 
