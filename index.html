@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.221</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.222</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -22522,10 +22522,13 @@ async function wgAbrir(partidaId, clave){
   await wgEstado();
 }
 // v2.9.191: mostrar/ocultar los círculos de alcance de observación.
-function wgObsToggle(btn){
-  WG.verObs = (WG.verObs===false);
-  if(btn) btn.style.opacity = WG.verObs===false ? .5 : 1;
+// v2.9.222: acepta un booleano (la casilla de CALCOS Y VISTA) o un botón, que
+// alterna. Y arrastra el 3D, si no se apagaban sólo en el mapa de abajo.
+function wgObsToggle(arg){
+  if(typeof arg==='boolean') WG.verObs = arg;
+  else { WG.verObs = (WG.verObs===false); if(arg&&arg.style) arg.style.opacity = WG.verObs===false ? .5 : 1; }
   _wgRender();
+  if(WG.map3d) _wg3dDatos();
 }
 // v2.9.192: HOJA DESLIZANTE. Los paneles no viven en pantalla: se llaman desde
 // el riel y se cierran. wgHoja(null) cierra; wgHoja(mismo) alterna.
@@ -22952,7 +22955,14 @@ function _wgQuemadoFC(){
 // `translateY`. Así el arco se ve bien con la cámara inclinada del 3D, que es
 // donde se juega — y funciona igual en el 2D sin escribirlo dos veces.
 // ============================================================
-const WG_VUELO_MS = 950;   // lo que tarda un proyectil de punta a punta
+// v2.9.222 — RÁFAGA, no un tiro suelto. Una unidad de este escalón no tira un
+// proyectil: bate la zona con una serie. Se lanzan varios con retardo entre sí,
+// así el empeño dura ~4 s y se ve como fuego sostenido.
+const WG_VUELO_MS = 1100;   // lo que tarda UN proyectil de punta a punta
+const WG_RAFAGA_MS = 4000;  // cuánto dura el fuego sobre un mismo blanco
+// Cuántos proyectiles según el sistema: el obús tira serie, el misil AT uno solo.
+const WG_SALVA = { fusil:7, ametralladora:9, pesada:8, mortero60:5, mortero81:6,
+  mortero120:5, srAT:2, misilAT:1, canon:3, obus105:6, obus155:5 };
 function _wgProyectilEl(){
   const el=document.createElement('div');
   el.className='wg-proy'; el.style.pointerEvents='none';
@@ -22983,51 +22993,70 @@ function _wgCapaEfectos(){
  * `impactos` viene en la respuesta de `resolver_turno`.
  */
 function _wgAnimarDisparos(impactos){
-  const tiros=(impactos||[]).filter(im=>Array.isArray(im.desde)
+  const base=(impactos||[]).filter(im=>Array.isArray(im.desde)
     && Number.isFinite(im.lng) && Number.isFinite(im.lat));
-  if(!tiros.length) return Promise.resolve();
+  if(!base.length) return Promise.resolve();
   const capa=_wgCapaEfectos();
   if(!capa) return Promise.resolve();
+  // Se arma la lista de PROYECTILES: cada empeño tira su serie, escalonada en
+  // el tiempo. Cada tiro cae con algo de dispersión, como en el terreno real.
+  const tiros=[];
+  for(const im of base){
+    const n=Math.max(1, WG_SALVA[im.arma]||4);
+    const hueco=(WG_RAFAGA_MS-WG_VUELO_MS)/Math.max(1,n-1);
+    for(let i=0;i<n;i++){
+      // Dispersión determinista (sin azar: el motor es determinista y las
+      // repeticiones tienen que verse iguales).
+      const ang=(i*2.399), disp=(i%3)*7+4;
+      tiros.push({ im, salida:i*hueco,
+        dx:Math.cos(ang)*disp, dy:Math.sin(ang)*disp, ultimo:(i===n-1), reventado:false });
+    }
+  }
   return new Promise((listo)=>{
-    const els=tiros.map(()=>{ const e=_wgProyectilEl(); capa.appendChild(e); return e; });
+    for(const t of tiros){ t.el=_wgProyectilEl(); t.el.style.display='none'; capa.appendChild(t.el); }
     const t0=performance.now();
+    const total=WG_RAFAGA_MS+120;
     const paso=(ahora)=>{
-      const k=Math.min(1,(ahora-t0)/WG_VUELO_MS);
-      for(let i=0;i<tiros.length;i++){
-        const im=tiros[i], el=els[i];
-        const a=_wgAPixel(im.desde), b=_wgAPixel([im.lng,im.lat]);
-        if(!a||!b){ el.style.display='none'; continue; }
-        el.style.display='';
-        // Avance lineal sobre el mapa…
-        const x=a[0]+(b[0]-a[0])*k, y=a[1]+(b[1]-a[1])*k;
-        // …y la ALTURA según el tipo de tiro. El arco crece con la distancia,
-        // con un techo para que no se vaya de pantalla en tiros muy largos.
-        let alto=0;
-        if(im.indirecto){
-          const dpx=Math.hypot(b[0]-a[0], b[1]-a[1]);
-          const techo=Math.min(230, Math.max(45, dpx*0.32));
-          alto = 4*techo*k*(1-k);           // parábola: 0 en los extremos
+      const dt=ahora-t0;
+      for(const t of tiros){
+        if(t.reventado) continue;
+        const k=(dt-t.salida)/WG_VUELO_MS;
+        if(k<0){ continue; }                    // todavía no salió
+        const a=_wgAPixel(t.im.desde), b=_wgAPixel([t.im.lng,t.im.lat]);
+        if(!a||!b){ t.el.style.display='none'; continue; }
+        if(k>=1){
+          // IMPACTO de ESTE proyectil: fogonazo y afuera.
+          t.reventado=true; t.el.remove();
+          const boom=document.createElement('div');
+          boom.className='wg-boom';
+          boom.style.left=(b[0]+t.dx)+'px'; boom.style.top=(b[1]+t.dy)+'px';
+          // El último de la serie revienta más grande: cierra el empeño.
+          const esc=t.ultimo?1:0.55;
+          boom.style.width=(90*esc)+'px'; boom.style.height=(90*esc)+'px';
+          capa.appendChild(boom);
+          setTimeout(()=>boom.remove(),600);
+          continue;
         }
-        el.style.transform=`translate(${x}px,${y-alto}px)`;
-        // La estela apunta hacia atrás, siguiendo la dirección real del vuelo.
-        const est=el.firstChild;
-        const ang=Math.atan2(b[1]-a[1], b[0]-a[0])*180/Math.PI;
+        t.el.style.display='';
+        const bx=b[0]+t.dx, by=b[1]+t.dy;
+        const x=a[0]+(bx-a[0])*k, y=a[1]+(by-a[1])*k;
+        // La ALTURA según el tipo de tiro: parábola para el indirecto, recta
+        // para el tenso. El arco crece con la distancia, con techo.
+        let alto=0;
+        if(t.im.indirecto){
+          const dpx=Math.hypot(bx-a[0], by-a[1]);
+          const techo=Math.min(230, Math.max(45, dpx*0.32));
+          alto = 4*techo*k*(1-k);
+        }
+        t.el.style.transform=`translate(${x}px,${y-alto}px)`;
+        const est=t.el.firstChild;
+        const ang=Math.atan2(by-a[1], bx-a[0])*180/Math.PI;
         est.style.width=Math.min(34, 12+k*26)+'px';
         est.style.transform=`rotate(${ang+180}deg)`;
       }
-      if(k<1){ requestAnimationFrame(paso); return; }
-      // IMPACTO: fogonazo en cada blanco y se sacan los proyectiles.
-      for(let i=0;i<tiros.length;i++){
-        els[i].remove();
-        const b=_wgAPixel([tiros[i].lng,tiros[i].lat]);
-        if(!b) continue;
-        const boom=document.createElement('div');
-        boom.className='wg-boom';
-        boom.style.left=b[0]+'px'; boom.style.top=b[1]+'px';
-        capa.appendChild(boom);
-        setTimeout(()=>boom.remove(),600);
-      }
-      setTimeout(listo,560);
+      if(dt<total){ requestAnimationFrame(paso); return; }
+      for(const t of tiros){ if(!t.reventado) t.el.remove(); }
+      setTimeout(listo,300);
     };
     requestAnimationFrame(paso);
   });
@@ -23275,7 +23304,18 @@ function _wg3dDatos(){
       _wg3dDatos();
     });
     try{
-      const mk=new maplibregl.Marker({element:img, anchor:'center',
+      // v2.9.222 — LA FICHA VA EN UNA CUNA. MapLibre posiciona el elemento del
+      // marcador con su propio `transform`; si le escribimos encima para hacer
+      // el cabeceo de la marcha, se rompe la ubicación. Por eso la imagen va
+      // dentro de un envoltorio: MapLibre mueve el de afuera y el vaivén se
+      // aplica al de adentro.
+      const cuna=document.createElement('div');
+      cuna.style.cssText='will-change:transform;line-height:0';
+      cuna.appendChild(img);
+      const env=document.createElement('div');
+      env.style.lineHeight='0';
+      env.appendChild(cuna);
+      const mk=new maplibregl.Marker({element:env, anchor:'center',
         offset:[(sim.w/2-sim.ax)*F, (sim.h/2-sim.ay)*F]}).setLngLat([u.lng,u.lat]).addTo(map);
       mk.__uid=u.id; // para poder moverlo durante el replay
       WG.marc3d.push(mk);
@@ -23406,7 +23446,13 @@ function wgPanelCapas(){
     +`<label style="display:flex;align-items:center;gap:8px;padding:4px 2px">`
     +`<input type="checkbox" ${WG.verUnidades!==false?'checked':''} onchange="wgUnidadesToggle(this.checked)">`
     +`<span style="flex:1">Unidades en el mapa</span></label>`
-    +`<div class="rg-meta" style="font-size:11px">Apagalas para apreciar el terreno limpio. Con las fichas ocultas no se pueden dar órdenes.</div>`
+    // v2.9.222 — APAGAR LOS CÍRCULOS DE OBSERVACIÓN. Son las circunferencias
+    // finas alrededor de cada ficha: útiles para entender la niebla, pero con
+    // varias unidades tapan el terreno. Ahora se apagan desde acá.
+    +`<label style="display:flex;align-items:center;gap:8px;padding:4px 2px">`
+    +`<input type="checkbox" ${WG.verObs!==false?'checked':''} onchange="wgObsToggle(this.checked)">`
+    +`<span style="flex:1">Círculos de observación 👁️</span></label>`
+    +`<div class="rg-meta" style="font-size:11px">Apagá las fichas para apreciar el terreno limpio (con las fichas ocultas no se pueden dar órdenes). Apagá los círculos si te tapan la vista.</div>`
     +`<div class="section-label" style="margin-top:12px">⛰️ Vista 3D</div>`
     +(hay3d
       ? `<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px">Relieve <b id="wg-3d-exag-val">${(WG.exag3d||1.6).toFixed(1)}×</b>`
@@ -24428,7 +24474,9 @@ function _wgInterp(ruta, f){
   const a=ruta[i], b=ruta[i+1];
   return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t];
 }
-async function wgReplay(trazas, segundos=6){
+// v2.9.222 — MARCHA MODERADA. A 6 s el desplazamiento parecía un deslizamiento
+// de fichas; a 14 s se lee como una marcha y da tiempo a mirar por dónde va.
+async function wgReplay(trazas, segundos=14){
   if(!WG.map||!trazas||!trazas.length) return;
   WG.replayando=true;
   const capa=L.layerGroup().addTo(WG.map);
@@ -24438,7 +24486,10 @@ async function wgReplay(trazas, segundos=6){
   // Rastro recorrido + ficha que avanza, por unidad.
   const piezas=trazas.map(t=>{
     const col=WG_COL[t.bando]||'#888';
-    const rastro=L.polyline([],{color:col,weight:3,opacity:.85}).addTo(capa);
+    // v2.9.222: SIN RASTRO. La línea azul que quedaba detrás de la unidad
+    // ensuciaba la vista y no aportaba nada — la marcha ya se lee por la
+    // polvareda. Se deja la polilínea creada pero vacía para no tocar el resto.
+    const rastro=L.polyline([],{color:col,weight:0,opacity:0}).addTo(capa);
     const punto=L.circleMarker([t.ruta[0][1],t.ruta[0][0]],
       {radius:7,color:'#fff',weight:2,fillColor:col,fillOpacity:1}).addTo(capa);
     return {t,rastro,punto,col};
@@ -24461,8 +24512,6 @@ async function wgReplay(trazas, segundos=6){
         const f=(p.t.horas>0)?Math.min(1,horaSim/p.t.horas):1;
         const pos=_wgInterp(p.t.ruta,f); if(!pos) continue;
         p.punto.setLatLng([pos[1],pos[0]]);
-        const hasta=Math.max(1,Math.ceil(f*(p.t.ruta.length-1))+1);
-        p.rastro.setLatLngs(p.t.ruta.slice(0,hasta).map(c=>[c[1],c[0]]));
         // Sólo levanta polvo mientras se está moviendo de verdad.
         if(nuevaBocanada && f<1 && p.t.km>0){
           // v2.9.209: el doble de grande y DOS bocanadas por tramo (una a la
@@ -24636,18 +24685,30 @@ function _wgTemblar(id){
 // El mismo replay, dibujado sobre el relieve 3D si está abierto.
 function _wg3dReplayPaso(piezas, horaSim, humo, ahora){
   const map=WG.map3d; if(!map||!map.getSource) return;
-  const feats=[];
   for(const p of piezas){
     const f=(p.t.horas>0)?Math.min(1,horaSim/p.t.horas):1;
-    const hasta=Math.max(2,Math.ceil(f*(p.t.ruta.length-1))+1);
-    if(hasta<2) continue;
-    feats.push({type:'Feature',geometry:{type:'LineString',coordinates:p.t.ruta.slice(0,hasta)},properties:{_col:p.col}});
     // La ficha va viajando sobre el relieve mientras dura el replay.
     const pos=_wgInterp(p.t.ruta,f);
     const mk=WG.marc3d&&WG.marc3d.find(m=>m.__uid===p.t.id);
-    if(mk&&pos){ try{ mk.setLngLat(pos); }catch(_e){} }
+    if(mk&&pos){
+      try{ mk.setLngLat(pos); }catch(_e){}
+      // v2.9.222 — QUE SE VEA ANDANDO, no deslizándose. Un cabeceo corto
+      // mientras avanza da la sensación de vehículo pisando terreno; al llegar,
+      // la ficha se queda quieta. El vaivén va en el envoltorio, NO en el
+      // elemento del marcador: ése lo posiciona MapLibre y pisarlo lo rompe.
+      try{
+        const cuna=mk.getElement()&&mk.getElement().firstChild;
+        if(cuna&&cuna.style){
+          const anda=f<1&&p.t.km>0;
+          const b=anda?Math.sin(ahora/110+(p.t.id?String(p.t.id).length:0))*1.8:0;
+          const inc=anda?Math.sin(ahora/150)*1.1:0;
+          cuna.style.transform=`translateY(${b.toFixed(2)}px) rotate(${inc.toFixed(2)}deg)`;
+        }
+      }catch(_e){}
+    }
   }
-  try{ map.getSource('wg-replay').setData({type:'FeatureCollection',features:feats}); }catch(_e){}
+  // v2.9.222: se fue el rastro azul detrás de la unidad — ensuciaba la vista.
+  try{ map.getSource('wg-replay').setData({type:'FeatureCollection',features:[]}); }catch(_e){}
   // 💨 la misma polvareda del 2D, drapeada sobre el terreno.
   const puf=[];
   for(const h of (humo||[])){
