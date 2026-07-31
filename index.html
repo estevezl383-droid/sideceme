@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.210</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.214</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -23090,6 +23090,197 @@ function _wgMedioPorArma(arma){
   return 'motor';
 }
 function _wgPeso(n){ return n>=1048576?(n/1048576).toFixed(1)+' MB':Math.round(n/1024)+' KB'; }
+
+// ============================================================
+// v2.9.212 — NOMENCLATURA MILITAR (la del Ejército, no la mía).
+// Regla que dio Sergio:
+//   · Batallón   → letra del arma + número ROMANO      → BI-III · BC-II · BA-I
+//   · Regimiento → letra del arma + número ARÁBIGO     → RI-3 · RC-3 · RA-1
+//   · Brigada    → Brig- + ROMANO                      → Brig-III
+//   · División   → DIV- + ARÁBIGO                      → DIV-5
+//   · Ingeniería y Comunicaciones van en forma larga    → BAT.ING.-I · BAT. COM. - I
+// Las unidades que trae el Generador NO tienen designación, así que se numeran
+// correlativamente por bando + arma + escalón al importarlas.
+// ============================================================
+// ============================================================
+// v2.9.213 — ICONOS DE ARMAMENTO (SVG propios, NO emojis).
+// Los emojis de armas se ven como juguetes (🔫 es una pistola de agua en casi
+// todos los sistemas). Acá van siluetas dibujadas a mano, monocromas, que se
+// leen bien a 26 px y heredan el color del texto.
+// ============================================================
+const WG_ICONO_ARMA = {
+  // Fusil: culata, receptor, cargador curvo, guardamanos y alza.
+  fusil:`<path d="M2 14.6l3.1-1.1.6 1.7 2.2-.8-.5-1.5 8.9-3.2.6 1.6 1.5-.5-.6-1.6 2.6-1 .5 1.4 1.4-.5-1.1-3-3 1.1-.5-1.3-1.5.5.5 1.3-8.9 3.2-.6-1.6-2.2.8.5 1.5-3.1 1.1z"/><path d="M8.4 15.2l1.6 4.3 1.9-.7-1.6-4.3z"/><rect x="15.6" y="6.1" width="1.5" height="2.2" rx=".3"/>`,
+  // Ametralladora liviana: receptor grueso, bípode y cinta.
+  ametralladora:`<path d="M1.8 12.9l3.4-1 .5 1.7 2-.6-.4-1.5 9.4-2.8.7 2.2 3.3-1-.9-3-3.3 1 .3 1-9.4 2.8-.5-1.6-2 .6.5 1.6-3.4 1z"/><path d="M7.6 14.1l-2.2 5.6 1.7.7 2.2-5.6z"/><path d="M9.4 14.1l2.2 5.6 1.7-.7-2.2-5.6z"/><rect x="12.4" y="4.6" width="4.6" height="1.6" rx=".4"/>`,
+  // Ametralladora pesada .50: receptor largo sobre trípode.
+  pesada:`<path d="M1.4 11.6l4-1 .5 1.8 2.3-.6-.5-1.7 11-2.8.8 2.6 3.3-.9-1-3.6-3.3.9.3 1-11 2.8-.5-1.8-2.3.6.5 1.7-4 1z"/><path d="M11 13.2L7.4 20.4l1.8.9 3.6-7.2z"/><path d="M12.6 13.2l3.6 7.2 1.8-.9-3.6-7.2z"/><path d="M11.4 13.4h2.4v6.6h-2.4z"/>`,
+  // Mortero: tubo inclinado, placa base y bípode.
+  mortero:`<path d="M6.4 20.1l9.9-13.6 2.6 1.9-9.9 13.6z" /><rect x="14.6" y="3.2" width="4.4" height="3.2" rx=".6" transform="rotate(36 16.8 4.8)"/><path d="M3.2 21.4h9.4v1.9H3.2z"/><path d="M12.1 10.9l-6.7 8.6 1.4 1.1 6.7-8.6z" opacity=".55"/>`,
+  // Antitanque: tubo de lanzamiento con contramasa y trípode.
+  antitanque:`<path d="M1.9 10.3h17.4v3.4H1.9z" rx="1"/><path d="M19.3 9.4l3 2.6-3 2.6z"/><path d="M1.9 9.4L.2 12l1.7 2.6z" opacity=".6"/><path d="M8.8 13.7l-3 6.8 1.7.8 3-6.8z"/><path d="M11.4 13.7l3 6.8 1.7-.8-3-6.8z"/><rect x="9.6" y="6.4" width="1.6" height="3" rx=".3"/>`,
+  // Obús / artillería: tubo largo, freno de boca, cuna, rueda y colas.
+  obus:`<path d="M4.8 11.4l14.9-4.9.8 2.5-14.9 4.9z"/><path d="M19.4 5.9l3.4-1.1.9 2.7-3.4 1.1z"/><circle cx="6.4" cy="16.6" r="3.4"/><path d="M5.4 15.1L1 20.6l1.5 1.2 4.4-5.5z"/><path d="M7.4 15.1l4.4 5.5 1.5-1.2-4.4-5.5z"/><rect x="3.4" y="11.6" width="4.6" height="3.4" rx=".6"/>`,
+  // Cañón de tanque: torre con tubo y oruga.
+  canon:`<path d="M2.6 12.9h11.6v3.6H2.6z" rx="1"/><path d="M13.6 13.6h8.8v1.9h-8.8z"/><path d="M5.4 9.6h6.6l1.4 3.3H4z"/><rect x="1.4" y="17.2" width="14.4" height="3.6" rx="1.8"/><circle cx="4.4" cy="19" r="1.1" fill="#000" opacity=".35"/><circle cx="8.6" cy="19" r="1.1" fill="#000" opacity=".35"/><circle cx="12.8" cy="19" r="1.1" fill="#000" opacity=".35"/>`,
+  // Ingeniería: pala y pico cruzados (obstáculos y brechas).
+  zapa:`<path d="M4 19.6l9.4-9.4 1.4 1.4-9.4 9.4z"/><path d="M12.6 6.2c2-2 5.2-2.2 6.9-.5s1.5 4.9-.5 6.9l-1.6-1.6c1.1-1.1 1.3-2.6.5-3.4s-2.3-.6-3.4.5z"/><path d="M2.4 18l3.2 3.2-1.5 1.5-3.2-3.2z"/><path d="M15.4 9l3.2 3.2" stroke="currentColor" stroke-width="1.6" fill="none"/>`,
+};
+function _wgIconoArma(id, px){
+  const p=WG_ICONO_ARMA[id]||WG_ICONO_ARMA.fusil;
+  return `<svg viewBox="0 0 24 24" width="${px||26}" height="${px||26}" fill="currentColor" `
+    +`style="vertical-align:middle;flex:0 0 auto">${p}</svg>`;
+}
+
+// ============================================================
+// v2.9.213 — CATÁLOGO DE ARMAMENTO por arma y escalón.
+// `alcance` en km (EFECTIVO, no máximo). `indirecto:true` = tiro indirecto:
+// no necesita ver el blanco, pero sí que ALGUNA unidad amiga lo observe.
+// ⚠️ CIFRAS DE REFERENCIA — Sergio las tiene que validar contra el reglamento.
+// ============================================================
+const WG_ARMAS={
+  fusil:        {id:'fusil',        nom:'Fusilería',           icono:'fusil',        alcance:0.6,  contra:'personal'},
+  ametralladora:{id:'ametralladora',nom:'Ametralladora',       icono:'ametralladora',alcance:1.0,  contra:'personal'},
+  pesada:       {id:'pesada',       nom:'Ametralladora .50',   icono:'pesada',       alcance:2.0,  contra:'personal y vehículo liviano'},
+  mortero60:    {id:'mortero60',    nom:'Mortero 60 mm',       icono:'mortero',      alcance:2.0,  contra:'personal', indirecto:true},
+  mortero81:    {id:'mortero81',    nom:'Mortero 81 mm',       icono:'mortero',      alcance:5.5,  contra:'personal', indirecto:true},
+  mortero120:   {id:'mortero120',   nom:'Mortero 120 mm',      icono:'mortero',      alcance:8.0,  contra:'personal y posiciones', indirecto:true},
+  srAT:         {id:'srAT',         nom:'S/R 106 mm (AT)',     icono:'antitanque',   alcance:1.1,  contra:'blindados'},
+  misilAT:      {id:'misilAT',      nom:'Misil antitanque',    icono:'antitanque',   alcance:3.5,  contra:'blindados'},
+  canon:        {id:'canon',        nom:'Cañón de tanque',     icono:'canon',        alcance:2.5,  contra:'blindados y posiciones'},
+  obus105:      {id:'obus105',      nom:'Obús 105 mm',         icono:'obus',         alcance:11.0, contra:'áreas', indirecto:true},
+  obus155:      {id:'obus155',      nom:'Obús 155 mm',         icono:'obus',         alcance:24.0, contra:'áreas', indirecto:true},
+  zapa:         {id:'zapa',         nom:'Medios de zapa',      icono:'zapa',         alcance:0,    contra:'terreno: brechas y obstáculos', ingenieria:true},
+};
+// Qué tiene cada arma. El escalón agrega o quita sistemas.
+const WG_DOTACION={
+  infanteria:   {base:['fusil','ametralladora'], compania:['pesada','mortero60'],
+                 batallon:['pesada','mortero81','srAT'], regimiento:['pesada','mortero81','srAT'],
+                 brigada:['pesada','mortero120','misilAT']},
+  caballeria:   {base:['ametralladora','pesada'], compania:['canon'], batallon:['canon','misilAT'],
+                 regimiento:['canon','misilAT'], brigada:['canon','misilAT']},
+  blindada:     {base:['canon','pesada'], batallon:['canon','pesada','misilAT']},
+  artilleria:   {base:['fusil'], compania:['obus105'], batallon:['obus105'],
+                 regimiento:['obus105','obus155'], brigada:['obus155']},
+  morteros:     {base:['fusil','mortero81'], batallon:['mortero120']},
+  antitanque:   {base:['fusil','srAT'], batallon:['misilAT']},
+  ametralladoras:{base:['ametralladora','pesada']},
+  ingenieria:   {base:['fusil','zapa']},
+  comunicaciones:{base:['fusil']},
+  aerotransportada:{base:['fusil','ametralladora'], batallon:['pesada','mortero60','misilAT']},
+};
+// ============================================================
+// v2.9.214 — PANEL DE SISTEMAS DE ARMAS.
+// Al seleccionar una unidad se ven SUS sistemas; al elegir uno, el mapa marca
+// hasta dónde llega y qué enemigos quedan batidos. Es una ayuda de PLANEAMIENTO:
+// la resolución del combate la sigue haciendo el motor en el servidor.
+// ============================================================
+function _wgUnidadPorId(id){
+  return ((WG.estado&&WG.estado.unidades)||[]).find(x=>String(x.id)===String(id))||null;
+}
+// Enemigos batidos por un sistema desde la posición de la unidad.
+function _wgBatidosPor(u, arma){
+  if(!u||!arma||!arma.alcance) return [];
+  const enemigos=((WG.estado&&WG.estado.unidades)||[]).filter(e=>e.bando!==u.bando && e.estado!=='fuera_combate');
+  return enemigos.map(e=>({e, d:_wgHav([u.lng,u.lat],[e.lng,e.lat])}))
+    .filter(x=>x.d<=arma.alcance).sort((a,b)=>a.d-b.d);
+}
+function wgElegirArma(id){
+  WG.armaSel = (WG.armaSel===id)?null:id;   // volver a tocarlo lo deselecciona
+  _wgRender();
+}
+// Dibuja el panel dentro de la hoja 🪖 UNIDADES, arriba de la lista.
+function _wgPanelArmasHTML(){
+  const u=_wgUnidadPorId(WG.sel);
+  if(!u) return '<div class="rg-meta" style="margin-bottom:8px">Tocá una unidad para ver su armamento.</div>';
+  const armas=_wgArmamento(u);
+  if(!armas.length) return '';
+  const sel=WG.armaSel;
+  const filas=armas.map(a=>{
+    const bat=_wgBatidosPor(u,a);
+    const activa=sel===a.id;
+    const detalle = a.ingenieria ? a.contra
+      : (a.alcance? (a.alcance.toFixed(1).replace('.0','')+' km · '+a.contra) : a.contra);
+    const marca = a.ingenieria ? ''
+      : (bat.length? `<span style="color:#ff6b6b;font-weight:700">${bat.length} en alcance</span>`
+                   : `<span class="rg-meta">sin blancos</span>`);
+    return `<div onclick="wgElegirArma('${a.id}')" style="display:flex;align-items:center;gap:9px;`
+      +`padding:7px 9px;margin-bottom:5px;border-radius:9px;cursor:pointer;`
+      +(activa?`background:rgba(255,225,26,.14);border:1px solid #ffe11a`:`background:rgba(255,255,255,.04);border:1px solid transparent`)+`">`
+      +`<span style="color:${activa?'#ffe11a':'#bcd6ee'}">${_wgIconoArma(a.icono,26)}</span>`
+      +`<span style="flex:1;line-height:1.3"><b style="font-size:12px">${a.nom}</b>`
+      +`<br><span class="rg-meta" style="font-size:10.5px">${detalle}${a.indirecto?' · <b style="color:#8fd3ff">tiro indirecto</b>':''}</span></span>`
+      +`<span style="font-size:10.5px;text-align:right">${marca}</span></div>`;
+  }).join('');
+  const elegida=sel?WG_ARMAS[sel]:null;
+  const pie = elegida
+    ? `<div class="rg-meta" style="font-size:11px;margin:2px 0 10px;line-height:1.45">`
+      +`🎯 <b style="color:#ffe11a">${elegida.nom}</b> seleccionada — el círculo amarillo del mapa es su alcance.`
+      +(elegida.indirecto?'<br>Tiro indirecto: no necesita ver el blanco, pero sí que alguna unidad amiga lo observe.':'')
+      +`<br>Tocá un enemigo para empeñarlo.</div>`
+    : `<div class="rg-meta" style="font-size:11px;margin:2px 0 10px">Elegí un sistema para ver su alcance en el mapa.</div>`;
+  return `<div class="section-label" style="margin:0 0 6px">🎯 ARMAMENTO · ${_rgEsc(u.designacion||'unidad')}</div>`
+    +filas+pie;
+}
+// Sistemas de armas de una unidad, ordenados de menor a mayor alcance.
+function _wgArmamento(u){
+  if(!u) return [];
+  const d=WG_DOTACION[u.arma]||WG_DOTACION.infanteria;
+  const ids=[...(d.base||[])];
+  // El escalón suma lo suyo, y los mayores heredan lo del batallón.
+  const orden=['seccion','compania','batallon','regimiento','brigada','division','cuerpo'];
+  const hasta=orden.indexOf(u.escalon);
+  for(let i=0;i<=hasta && i<orden.length;i++){
+    for(const x of (d[orden[i]]||[])) if(!ids.includes(x)) ids.push(x);
+  }
+  // División y cuerpo no traen dotación propia: heredan la de brigada.
+  if(['division','cuerpo','ejercito'].includes(u.escalon))
+    for(const x of (d.brigada||d.regimiento||[])) if(!ids.includes(x)) ids.push(x);
+  return ids.map(id=>WG_ARMAS[id]).filter(Boolean).sort((a,b)=>a.alcance-b.alcance);
+}
+
+const WG_ROMANO=['','I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+function _wgRomano(n){ return WG_ROMANO[n] || String(n); }
+// Letra del arma para la forma corta (las que no tienen van en forma larga).
+const WG_LETRA_ARMA={ infanteria:'I', caballeria:'C', artilleria:'A', blindada:'BL',
+  aerotransportada:'AT', antitanque:'AT', morteros:'M' };
+// Forma larga para las armas/servicios que se escriben desarrollados.
+const WG_ARMA_LARGA={ ingenieria:'ING.', comunicaciones:'COM.', sanidad:'SAN.',
+  intendencia:'INT.', transporte:'TTE.', mantenimiento:'MANT.', policiamilitar:'PM' };
+function _wgDesignacionMilitar(arma, escalon, n){
+  const largo=WG_ARMA_LARGA[arma];
+  if(escalon==='brigada')  return 'Brig-'+_wgRomano(n);
+  if(escalon==='division')  return 'DIV-'+n;
+  if(escalon==='cuerpo')    return 'CE-'+n;
+  if(escalon==='ejercito')  return 'EJ-'+n;
+  if(escalon==='batallon'){
+    if(largo) return 'BAT.'+largo+'-'+_wgRomano(n);
+    const l=WG_LETRA_ARMA[arma]; return l ? 'B'+l+'-'+_wgRomano(n) : 'BAT-'+_wgRomano(n);
+  }
+  if(escalon==='regimiento'){
+    if(largo) return 'RGTO.'+largo+'-'+n;
+    const l=WG_LETRA_ARMA[arma]; return l ? 'R'+l+'-'+n : 'RGTO-'+n;
+  }
+  if(escalon==='compania'){
+    if(largo) return 'CÍA.'+largo+'-'+_wgRomano(n);
+    const l=WG_LETRA_ARMA[arma]; return l ? 'C'+l+'-'+_wgRomano(n) : 'CÍA-'+_wgRomano(n);
+  }
+  if(escalon==='seccion'){
+    const l=WG_LETRA_ARMA[arma]; return (l?'S'+l:'SECC')+'-'+n;
+  }
+  return (WG_LETRA_ARMA[arma]||'U')+'-'+n;
+}
+// Numera correlativamente las unidades sin designación, por bando+arma+escalón.
+function _wgNumerarUnidades(unidades){
+  const cuenta={};
+  for(const u of unidades){
+    if((u.designacion||'').trim()) continue;   // respeta la que ya venga puesta
+    const k=u.bando+'|'+u.arma+'|'+u.escalon;
+    cuenta[k]=(cuenta[k]||0)+1;
+    u.designacion=_wgDesignacionMilitar(u.arma, u.escalon, cuenta[k]);
+  }
+  return unidades;
+}
 // Lista las fases del COA guardadas en el ejercicio, para poder elegir cuál jugar.
 function _wgFasesCOA(d){
   const fc=(d&&d.fasesCOA)||null; if(!fc) return [];
@@ -23169,6 +23360,9 @@ function _wgEscenarioDesde(d, fase){
       visuales++;
     }
   }
+  // v2.9.212: las unidades del Generador vienen sin designación → se les pone la
+  // nomenclatura militar antes de mandarlas (BI-III, RC-3, Brig-III, DIV-5…).
+  _wgNumerarUnidades(unidades);
   return { unidades, terreno, visuales, nombre:(d&&d.nombre)||'', fase:(fase?fase.nombre:null) };
 }
 async function wgImportarEscenario(inp){
@@ -23495,6 +23689,19 @@ function _wgRender(){
         opacity:.45,fillColor:WG_COL[u.bando]||'#888',fillOpacity:.05,dashArray:'4 5',interactive:false}).addTo(WG.capa);
     }
   }
+  // v2.9.214: ALCANCE del sistema de armas elegido, sobre la unidad seleccionada.
+  if(WG.armaSel && WG.sel!=null){
+    const uSel=uById[WG.sel], arma=WG_ARMAS[WG.armaSel];
+    if(uSel && arma && arma.alcance>0){
+      L.circle([uSel.lat,uSel.lng],{radius:arma.alcance*1000,color:'#ffe11a',weight:2,
+        opacity:.9,fillColor:'#ffe11a',fillOpacity:.06,dashArray:'6 5',interactive:false}).addTo(WG.capa);
+      // Los enemigos batidos quedan marcados con un aro rojo.
+      for(const b of _wgBatidosPor(uSel,arma)){
+        L.circleMarker([b.e.lat,b.e.lng],{radius:13,color:'#ff3b3b',weight:2.5,fill:false,
+          interactive:false}).addTo(WG.capa);
+      }
+    }
+  }
   // unidades — v2.9.201: SÍMBOLO MILITAR reglamentario en vez del circulito.
   for(const u of ((WG.verUnidades===false)?[]:(e.unidades||[]))){
     const mio = (WG.soy==='arbitro') || (u.bando===WG.soy);
@@ -23520,7 +23727,8 @@ function _wgRender(){
     +`<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${WG_COL[u.bando]};margin-right:6px"></span>`
     +`<b>${_rgEsc(u.designacion||u.bando)}</b> · ${pct}% ${u.estado!=='activa'?'<span style="color:#e08a2c">('+u.estado+')</span>':''}`
     +(o?` <span style="color:#2ecc71">· orden: ${o.tipo}</span>`:'')+`</div>`; };
-  cont.innerHTML = `<div style="margin-bottom:4px">Tuyas (${mias.length}):</div>`+mias.map(u=>fila(u,false)).join('')
+  cont.innerHTML = _wgPanelArmasHTML()
+    + `<div style="margin-bottom:4px">Tuyas (${mias.length}):</div>`+mias.map(u=>fila(u,false)).join('')
     + (enem.length?`<div style="margin:6px 0 4px">Enemigas detectadas (${enem.length}):</div>`+enem.map(u=>fila(u,true)).join('')
        : (WG.soy!=='arbitro'?'<div class="rg-meta" style="margin-top:6px">🌫️ Sin contacto enemigo (niebla de guerra).</div>':''));
   // ⚠️ v2.9.206 — EL BUG QUE HACÍA PARECER QUE NADA FUNCIONABA.
@@ -23533,10 +23741,46 @@ function _wgRender(){
 }
 function _wgSelById(id){ const u=(WG.estado.unidades||[]).find(x=>String(x.id)===String(id)); if(u) _wgUnidadClick(u); }
 function _wgUnidadClick(u){
+  // v2.9.214 — EL ÁRBITRO TAMBIÉN ATACA. Antes `mio` era true para TODAS las
+  // unidades cuando sos árbitro, así que tocar un enemigo lo seleccionaba en
+  // lugar de empeñarlo: el árbitro no podía ordenar un solo ataque.
+  // Regla nueva: si ya hay una unidad seleccionada y la que tocás es de OTRO
+  // bando, es un BLANCO — sin importar el rol.
+  const selU=_wgUnidadPorId(WG.sel);
+  if(selU && String(selU.id)!==String(u.id) && selU.bando!==u.bando){
+    if(!_wgPuedeOrdenar()) return;
+    const arma=WG.armaSel?WG_ARMAS[WG.armaSel]:null;
+    if(arma && arma.alcance>0){
+      const d=_wgHav([selU.lng,selU.lat],[u.lng,u.lat]);
+      if(d>arma.alcance){
+        _wgAviso(`🚫 <b>${arma.nom}</b> no llega: el blanco está a ${d.toFixed(1)} km y su alcance es ${arma.alcance} km.`,3600);
+        return;
+      }
+    }
+    WG.ordenes[selU.id]={ tipo:'atacar', objetivo_id:u.id, arma:WG.armaSel||null };
+    _wgActualizarContadorOrdenes(); _wgRender();
+    if(WG.map3d) _wg3dDatos();
+    return;
+  }
   const mio = (WG.soy==='arbitro')||(u.bando===WG.soy);
-  if(mio){ WG.sel = (String(WG.sel)===String(u.id))?null:u.id; _wgRender(); return; }
+  if(mio){ const antes=WG.sel; WG.sel=(String(WG.sel)===String(u.id))?null:u.id;
+    if(String(antes)!==String(WG.sel)) WG.armaSel=null; // v2.9.214
+    _wgRender(); return; }
   // clic en enemigo con una unidad mía seleccionada → orden de atacar
-  if(WG.sel){ WG.ordenes[WG.sel]={ tipo:'atacar', objetivo_id:u.id }; _wgActualizarContadorOrdenes(); _wgRender(); }
+  if(WG.sel){
+    if(!_wgPuedeOrdenar()) return;
+    // v2.9.214: si hay un sistema elegido, se comprueba SU alcance (no el genérico).
+    const mio=_wgUnidadPorId(WG.sel), arma=WG.armaSel?WG_ARMAS[WG.armaSel]:null;
+    if(mio && arma && arma.alcance>0){
+      const d=_wgHav([mio.lng,mio.lat],[u.lng,u.lat]);
+      if(d>arma.alcance){
+        _wgAviso(`🚫 <b>${arma.nom}</b> no llega: el blanco está a ${d.toFixed(1)} km y su alcance es ${arma.alcance} km.`,3600);
+        return;
+      }
+    }
+    WG.ordenes[WG.sel]={ tipo:'atacar', objetivo_id:u.id, arma:WG.armaSel||null };
+    _wgActualizarContadorOrdenes(); _wgRender();
+  }
 }
 function _wgMapClick(ev){
   if(WG.modoColocar && WG.soy==='arbitro'){ _wgColocarEn(ev.latlng); return; }
@@ -23576,7 +23820,9 @@ async function wgEnviarOrdenes(btn){
   await wgEstado();
 }
 async function wgResolver(btn){
-  if(!confirm('¿Resolver el turno? Se moverán las unidades y se resolverán los combates.')) return;
+  // v2.9.211: fuera el confirm del navegador. Resolver el turno es la acción
+  // NORMAL del juego, no algo peligroso: preguntarlo cada vez sólo estorbaba.
+  if(WG.replayando) return;
   if(btn) btn.disabled=true;
   const r=await _wgInvoke('resolver_turno',{ partida_id:WG.partidaId });
   if(btn) btn.disabled=false;
