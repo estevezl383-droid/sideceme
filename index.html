@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.228</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.229</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6883,9 +6883,16 @@ body.wg-jugando{overflow:hidden}
         <button class="wg-rd" id="wg-btn-cam" onclick="wgCamaraCiclo(this)" title="Cámara: Libre — tocá para cambiar de encuadre (panorámica, táctica, cerca)">🖐️</button>
         <button class="wg-rd" onclick="wgHoja('unidades')" title="Unidades">🪖</button>
         <button class="wg-rd" onclick="wgHoja('matriz')" title="Matriz de sincronización: qué exige cada tarea y a qué hora arranca cada unidad">📋</button>
+        <button class="wg-rd" onclick="wgHoja('personal')" title="Personal: efectivos y bajas por unidad">👤</button>
+        <button class="wg-rd" onclick="wgHoja('logistica')" title="Logística: combustible, munición, raciones y agua">📦</button>
         <button class="wg-rd" onclick="wgHoja('bitacora')" title="Bitácora">📜</button>
         <button class="wg-rd" id="wg-btn-config" onclick="wgHoja('config')" title="Configurar" style="display:none">⚙️</button>
       </div>
+
+      <!-- v2.9.229 — BARRA DE CÁMARAS. Abajo, con todos los encuadres a la
+           vista para poder rotar entre ellos sin adivinar cuál viene. -->
+      <div id="wg-camaras" style="position:absolute;left:56px;bottom:14px;z-index:1035;
+        display:flex;gap:7px;flex-wrap:wrap;max-width:calc(100% - 320px)"></div>
 
       <!-- Zoom propio (el de Leaflet queda oculto para no duplicar) -->
       <div id="wg-zoom">
@@ -6927,6 +6934,8 @@ body.wg-jugando{overflow:hidden}
           <div class="wg-h" id="wg-h-bitacora"><div id="wg-bitacora"></div></div>
           <div class="wg-h" id="wg-h-capas"><div id="wg-capas"></div></div>
           <div class="wg-h" id="wg-h-matriz"><div id="wg-matriz"></div></div>
+          <div class="wg-h" id="wg-h-personal"><div id="wg-personal"></div></div>
+          <div class="wg-h" id="wg-h-logistica"><div id="wg-logistica"></div></div>
           <div class="wg-h" id="wg-h-config"><div id="wg-config">
 <!-- v2.9.201 — PUENTE con el Generador de Calcos: trae el terreno del CMOC
      (restringido / severo / clave) y las unidades ya colocadas. Sin terreno
@@ -22568,7 +22577,8 @@ function wgObsToggle(arg){
 }
 // v2.9.192: HOJA DESLIZANTE. Los paneles no viven en pantalla: se llaman desde
 // el riel y se cierran. wgHoja(null) cierra; wgHoja(mismo) alterna.
-const WG_HOJAS={unidades:'🪖 UNIDADES', matriz:'📋 SINCRONIZACIÓN', bitacora:'📜 BITÁCORA', capas:'🗺️ CALCOS Y VISTA', config:'⚙️ CONFIGURAR'};
+const WG_HOJAS={unidades:'🪖 UNIDADES', personal:'👤 PERSONAL', logistica:'📦 LOGÍSTICA',
+  matriz:'📋 SINCRONIZACIÓN', bitacora:'📜 BITÁCORA', capas:'🗺️ CALCOS Y VISTA', config:'⚙️ CONFIGURAR'};
 function wgHoja(cual){
   const h=document.getElementById('wg-hoja'); if(!h) return;
   if(cual && WG.hoja===cual) cual=null;           // tocar el mismo botón cierra
@@ -22582,6 +22592,109 @@ function wgHoja(cual){
   const t=document.getElementById('wg-hoja-tit'); if(t) t.textContent = WG.hoja?WG_HOJAS[WG.hoja]:'';
   if(WG.hoja==='capas') wgPanelCapas(); // v2.9.204: conteos y casillas al día
   if(WG.hoja==='matriz') wgPanelMatriz(); // v2.9.223
+  if(WG.hoja==='personal') wgPanelPersonal();   // v2.9.229
+  if(WG.hoja==='logistica') wgPanelLogistica(); // v2.9.229
+}
+// ============================================================
+// v2.9.229 — PERSONAL Y LOGÍSTICA, CADA UNO EN SU HOJA.
+// Estaban desparramados: el combustible en el panel de armamento, las bajas
+// sólo deducibles del porcentaje de poder, y munición/raciones/agua en ningún
+// lado. Un Estado Mayor mira PERSONAL y mira LOGÍSTICA — son dos preguntas
+// distintas y merecen dos tableros distintos.
+//
+// De dónde sale cada dato:
+//   · Personal  → del poder de combate (poder_max vs poder_actual). Lo que el
+//     motor ya lleva; la «baja» es la pérdida de poder.
+//   · Combustible → `combustible_km`, que el motor acumula al moverse.
+//   · Munición, raciones y agua → TODAVÍA NO LAS MODELA EL MOTOR. Se muestran
+//     marcadas como pendientes en vez de inventar un número: un dato falso en
+//     un tablero de logística es peor que un dato ausente.
+// ============================================================
+function _wgMisUnidades(){
+  const e=WG.estado; if(!e) return [];
+  return (e.unidades||[]).filter(u=> WG.soy==='arbitro' || u.bando===WG.soy);
+}
+function _wgBarra(pct,col){
+  return `<span style="flex:1;height:6px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden;display:block">`
+    +`<span style="display:block;height:100%;width:${Math.max(0,Math.min(100,pct))}%;background:${col}"></span></span>`;
+}
+function wgPanelPersonal(){
+  const el=document.getElementById('wg-personal'); if(!el) return;
+  const uds=_wgMisUnidades();
+  if(!uds.length){ el.innerHTML='<div class="rg-meta">Sin unidades en el tablero.</div>'; return; }
+  let totMax=0, totAct=0, fuera=0, desg=0;
+  const filas=uds.map(u=>{
+    const max=Number(u.poder_max)||0, act=Math.max(0,Number(u.poder_actual)||0);
+    totMax+=max; totAct+=act;
+    if(u.estado==='fuera_combate') fuera++;
+    else if(u.estado==='desgastada') desg++;
+    const pct=max?Math.round(100*act/max):100;
+    const baja=Math.max(0,max-act);
+    const col=pct>60?'#2ecc71':(pct>20?'#e08a2c':'#e23b3b');
+    const eti=u.estado==='fuera_combate'?'<b style="color:#ff6b6b">FUERA DE COMBATE</b>'
+      :(u.estado==='desgastada'?'<b style="color:#ffb15c">DESGASTADA</b>':'<span style="color:#8ef0b4">en condiciones</span>');
+    return `<div class="rg-card" style="padding:7px 9px;margin-bottom:5px">`
+      +`<div style="display:flex;align-items:center;gap:7px">`
+      +`<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${WG_COL[u.bando]}"></span>`
+      +`<b style="flex:1">${_rgEsc(u.designacion||u.bando)}</b>`
+      +`<span style="font-size:11px">${pct} %</span></div>`
+      +`<div style="display:flex;align-items:center;gap:7px;margin-top:5px">${_wgBarra(pct,col)}</div>`
+      +`<div class="rg-meta" style="font-size:10.5px;margin-top:4px">`
+      +`efectivo ${act.toFixed(0)} de ${max.toFixed(0)} · <b style="color:#ff8f8f">bajas ${baja.toFixed(0)}</b> · ${eti}</div></div>`;
+  }).join('');
+  const pctTot=totMax?Math.round(100*totAct/totMax):100;
+  el.innerHTML=`<div class="section-label" style="margin:0 0 8px">👤 SITUACIÓN DE PERSONAL</div>`
+    +`<div class="rg-card" style="padding:9px 10px;margin-bottom:9px">`
+    +`<div style="display:flex;align-items:center;gap:8px"><b style="flex:1">Poder de combate del conjunto</b>`
+    +`<b style="color:${pctTot>60?'#8ef0b4':(pctTot>20?'#ffb15c':'#ff6b6b')}">${pctTot} %</b></div>`
+    +`<div style="display:flex;margin-top:6px">${_wgBarra(pctTot,pctTot>60?'#2ecc71':(pctTot>20?'#e08a2c':'#e23b3b'))}</div>`
+    +`<div class="rg-meta" style="font-size:11px;margin-top:6px">`
+    +`${uds.length} unidades · <b style="color:#ff8f8f">${(totMax-totAct).toFixed(0)} bajas</b> · `
+    +`${fuera} fuera de combate · ${desg} desgastadas</div></div>`
+    +filas;
+}
+function wgPanelLogistica(){
+  const el=document.getElementById('wg-logistica'); if(!el) return;
+  const uds=_wgMisUnidades();
+  if(!uds.length){ el.innerHTML='<div class="rg-meta">Sin unidades en el tablero.</div>'; return; }
+  const conTanque=uds.filter(u=>_wgCombustible(u));
+  let gastado=0, capacidad=0;
+  for(const u of conTanque){ const c=_wgCombustible(u); gastado+=c.usado; capacidad+=c.tanque; }
+  const pctFlota=capacidad?Math.round(100*(capacidad-gastado)/capacidad):100;
+  const filas=uds.map(u=>{
+    const c=_wgCombustible(u);
+    const cuerpo = c
+      ? `<div style="display:flex;align-items:center;gap:7px;margin-top:5px">`
+        +_wgBarra(100-c.pct, c.pct>=80?'#e23b3b':(c.pct>=60?'#e08a2c':'#2ecc71'))
+        +`<span style="font-size:10.5px;white-space:nowrap">${c.resta.toFixed(0)} km</span></div>`
+        +`<div class="rg-meta" style="font-size:10.5px;margin-top:3px">`
+        +`⛽ gastó ${c.usado.toFixed(0)} de ${c.tanque} km (${c.pct} %)`
+        +(c.pct>=100?' · <b style="color:#ff6b6b">⛔ SIN COMBUSTIBLE</b>'
+          :(c.pct>=80?' · <b style="color:#ffb15c">⚠️ menos de un quinto</b>':''))+`</div>`
+      : `<div class="rg-meta" style="font-size:10.5px;margin-top:4px">🥾 Unidad a pie — no consume combustible.</div>`;
+    return `<div class="rg-card" style="padding:7px 9px;margin-bottom:5px">`
+      +`<div style="display:flex;align-items:center;gap:7px">`
+      +`<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${WG_COL[u.bando]}"></span>`
+      +`<b style="flex:1">${_rgEsc(u.designacion||u.bando)}</b>`
+      +`<span class="rg-meta" style="font-size:10px">${_rgEsc(u.medio||'')}</span></div>`
+      +cuerpo+`</div>`;
+  }).join('');
+  el.innerHTML=`<div class="section-label" style="margin:0 0 8px">📦 LOGÍSTICA</div>`
+    +`<div class="rg-card" style="padding:9px 10px;margin-bottom:9px">`
+    +`<div style="display:flex;align-items:center;gap:8px"><b style="flex:1">⛽ Combustible del conjunto</b>`
+    +`<b style="color:${pctFlota>40?'#8ef0b4':(pctFlota>20?'#ffb15c':'#ff6b6b')}">${pctFlota} %</b></div>`
+    +`<div style="display:flex;margin-top:6px">${_wgBarra(pctFlota,pctFlota>40?'#2ecc71':(pctFlota>20?'#e08a2c':'#e23b3b'))}</div>`
+    +`<div class="rg-meta" style="font-size:11px;margin-top:6px">`
+    +`${conTanque.length} unidades con motor · gastados ${gastado.toFixed(0)} de ${capacidad.toFixed(0)} km de autonomía</div></div>`
+    +filas
+    // Honestidad con el dato: lo que el motor todavía no lleva, se dice.
+    +`<div class="rg-card" style="padding:9px 10px;margin-top:9px;border:1px dashed rgba(140,210,255,.3)">`
+    +`<b style="font-size:12px">🔧 Todavía sin modelar</b>`
+    +`<div class="rg-meta" style="font-size:11px;margin-top:5px;line-height:1.5">`
+    +`<b>Munición</b>, <b>raciones</b> y <b>agua</b> no las lleva el motor todavía: `
+    +`disparar no descuenta munición y el tiempo no consume víveres. `
+    +`Prefiero dejarlo dicho antes que mostrarte un número inventado en un tablero de logística.<br>`
+    +`Munición es el siguiente paso natural — la maquinaria del fuego ya cuenta cada tiro.</div></div>`;
 }
 // v2.9.223: la matriz se rearma con lo que haya trazado en ese momento.
 function wgPanelMatriz(){
@@ -23207,6 +23320,7 @@ async function wgVista3D(){
     el.textContent = h==null?'—':('⛰️ '+Math.round(h)+' m');
   });
   _wg3dControlesGoogleEarth(map);
+  _wgCamaraManos(map);   // v2.9.229: la órbita se aparta mientras arrastrás
   // ÓRDENES EN 3D: clic en el terreno = mover la unidad seleccionada. (El clic
   // sobre una ficha lo maneja el propio marcador, más abajo en _wg3dDatos.)
   // v2.9.218 — EL 3D DELEGA EN EL MISMO HANDLER QUE EL 2D.
@@ -23403,15 +23517,32 @@ function _wg3dDatos(){
   // v2.9.227 — RÓTULOS EN GLOBO. Van como marcadores del DOM, no como capa de
   // texto: así llevan el mismo bocadillo translúcido que el 2D, con su rabito
   // apuntando al punto que describen.
-  for(const s of (WG._dib||[])){
-    if(s.k!=='txt') continue;
+  // v2.9.229 — LOS LETREROS YA NO SE PISAN. Antes cada rótulo se plantaba en su
+  // punto sin mirar a los demás: con varias unidades cerca quedaban unos encima
+  // de otros y no se leía ninguno. Ahora se proyectan a pantalla, se ordenan de
+  // arriba hacia abajo y el que choca con uno ya colocado SUBE hasta despejarse.
+  // Si aun así no entra, no se dibuja: mejor un dato menos que un amontonamiento.
+  const ALTO=30, ANCHO=210, TOPE=6;   // alto/ancho estimados del globo
+  const puestos=[];
+  const rotulos=(WG._dib||[]).filter(s=>s.k==='txt').map(s=>{
+    let p=null; try{ p=map.project([s.lng,s.lat]); }catch(_e){}
+    return { s, x:p?p.x:0, y:p?p.y:0, ok:!!p };
+  }).filter(r=>r.ok).sort((a,b)=>a.y-b.y);
+  for(const r of rotulos){
+    let dy=-10, intentos=0;
+    while(intentos<TOPE && puestos.some(q=>
+      Math.abs(q.x-r.x)<ANCHO && Math.abs(q.y-(r.y+dy))<ALTO)){
+      dy-=ALTO+4; intentos++;
+    }
+    if(intentos>=TOPE) continue;          // no hay hueco: se omite
+    puestos.push({ x:r.x, y:r.y+dy });
     const el=document.createElement('div');
     el.style.pointerEvents='none';
     el.innerHTML='<div class="wg-globo-mapa"></div>';
-    el.firstChild.textContent=s.txt;
+    el.firstChild.textContent=r.s.txt;
     try{
-      const mk=new maplibregl.Marker({element:el, anchor:'bottom', offset:[0,-10]})
-        .setLngLat([s.lng,s.lat]).addTo(map);
+      const mk=new maplibregl.Marker({element:el, anchor:'bottom', offset:[0,dy]})
+        .setLngLat([r.s.lng,r.s.lat]).addTo(map);
       WG.marc3d.push(mk);
     }catch(_e){}
   }
@@ -24476,15 +24607,80 @@ function _wgCamaraA(u, modo, suave, girar){
     }catch(_e){}
   }
 }
-// Botón del riel: va rotando entre los cuatro modos.
-function wgCamaraCiclo(btn){
-  WG.camara = ((Number(WG.camara)||0)+1) % WG_CAMARAS.length;
+// ============================================================
+// v2.9.229 — LA CÁMARA NO SE DETIENE (spider-cam).
+// El encuadre llevaba a la cámara al lugar y ahí se quedaba quieta. Ahora,
+// mientras haya un modo activo, la cámara ORBITA despacio alrededor de lo que
+// está mirando, describiendo una espiral suave: el rumbo gira de a poco y la
+// altura respira. Es lo que hace que se vea como una transmisión y no como una
+// captura de pantalla.
+// Se detiene sola mientras el usuario arrastra, para no pelearle el control.
+// ============================================================
+function _wgCamaraOrbita(){
+  cancelAnimationFrame(WG._orbita||0);
+  if(!WG.camara) return;
+  let ultimo=performance.now();
+  const paso=(ahora)=>{
+    WG._orbita=requestAnimationFrame(paso);
+    if(!WG.camara || !_wgEn3D() || WG._camManual) return;
+    const dt=Math.min(120, ahora-ultimo); ultimo=ahora;
+    const map=WG.map3d; if(!map) return;
+    try{
+      // Giro lento y constante: una vuelta completa en ~3 minutos.
+      const giro=(dt/1000)*2.0;
+      // La «respiración» de la espiral: la inclinación sube y baja apenas, así
+      // el movimiento no es un carrusel plano sino una órbita.
+      const t=ahora/9000;
+      const pitchBase = WG.camara===3?72 : (WG.camara===2?66:60);
+      map.setBearing(map.getBearing()+giro);
+      map.setPitch(Math.max(0,Math.min(85, pitchBase + Math.sin(t)*5)));
+    }catch(_e){}
+  };
+  WG._orbita=requestAnimationFrame(paso);
+}
+// Mientras el usuario arrastra, la órbita se aparta.
+function _wgCamaraManos(map){
+  const lienzo=map.getCanvas();
+  const parar=()=>{ WG._camManual=true; clearTimeout(WG._camT);
+    WG._camT=setTimeout(()=>{ WG._camManual=false; }, 2500); };
+  lienzo.addEventListener('mousedown',parar,true);
+  lienzo.addEventListener('wheel',parar,true);
+  lienzo.addEventListener('touchstart',parar,true);
+}
+// Barra inferior: todos los encuadres a la vista, se elige tocando.
+function _wgBarraCamarasHTML(){
+  return WG_CAMARAS.map(c=>{
+    const act=(Number(WG.camara)||0)===c.id;
+    return `<button onclick="wgCamara(${c.id})" title="${_rgEsc(c.desc)}" `
+      +`style="display:flex;align-items:center;gap:6px;padding:6px 11px;border-radius:9px;cursor:pointer;`
+      +`font-size:11.5px;font-weight:700;white-space:nowrap;`
+      +(act?`background:rgba(46,204,113,.20);border:1px solid #2ecc71;color:#8ef0b4`
+           :`background:rgba(10,16,22,.72);border:1px solid rgba(140,210,255,.25);color:#cfe2f5`)+`">`
+      +`<span style="font-size:13px">${c.icono}</span>${c.nom}</button>`;
+  }).join('');
+}
+function wgPanelCamaras(){
+  const el=document.getElementById('wg-camaras');
+  if(el) el.innerHTML=_wgBarraCamarasHTML();
+}
+// Elegir un encuadre concreto (desde la barra).
+function wgCamara(id){
+  WG.camara=Number(id)||0;
+  wgPanelCamaras();
   const c=WG_CAMARAS[WG.camara];
-  if(btn){ btn.textContent=c.icono; btn.title='Cámara: '+c.nom+' — '+c.desc; }
-  _wgAviso(`${c.icono} <b>Cámara ${c.nom}</b> — ${c.desc}`
-    + (WG.camara&&WG.sel==null?'<br>Tocá una unidad para que la siga.':''), 3200);
+  const b=document.getElementById('wg-btn-cam');
+  if(b){ b.textContent=c.icono; b.title='Cámara: '+c.nom+' — '+c.desc; }
   const u=_wgUnidadPorId(WG.sel);
   if(u && WG.camara) _wgCamaraA(u, WG.camara, true);
+  _wgCamaraOrbita();
+  if(!WG.camara){ cancelAnimationFrame(WG._orbita||0); }
+}
+// Botón del riel: va rotando entre los cuatro modos.
+function wgCamaraCiclo(btn){
+  wgCamara(((Number(WG.camara)||0)+1) % WG_CAMARAS.length);
+  const c=WG_CAMARAS[WG.camara];
+  _wgAviso(`${c.icono} <b>Cámara ${c.nom}</b> — ${c.desc}`
+    + (WG.camara&&WG.sel==null?'<br>Tocá una unidad para que la siga.':''), 3200);
 }
 // v2.9.227 — RETÍCULA DE PUNTERÍA. Antes salía una línea del tirador al blanco
 // que cruzaba media carta y ensuciaba la vista. Lo que importa no es el trazo
@@ -24623,6 +24819,9 @@ function _wgRender(){
   if(WG.map3d){ _wg3dDatos(); _wg3dCapas(); }
   if(WG.hoja==='capas') wgPanelCapas(); // conteos siempre al día
   if(WG.hoja==='matriz') wgPanelMatriz(); // v2.9.223: se rearma con cada orden nueva
+  if(WG.hoja==='personal') wgPanelPersonal();
+  if(WG.hoja==='logistica') wgPanelLogistica();
+  wgPanelCamaras();
 }
 function _wgSelById(id){ const u=(WG.estado.unidades||[]).find(x=>String(x.id)===String(id)); if(u) _wgUnidadClick(u); }
 function _wgUnidadClick(u){
@@ -24945,7 +25144,8 @@ function _wgInterp(ruta, f){
 }
 // v2.9.222 — MARCHA MODERADA. A 6 s el desplazamiento parecía un deslizamiento
 // de fichas; a 14 s se lee como una marcha y da tiempo a mirar por dónde va.
-async function wgReplay(trazas, segundos=14){
+// v2.9.229: de 14 a 22 s. Sergio: «ralentizar el movimiento de las unidades».
+async function wgReplay(trazas, segundos=22){
   if(!WG.map||!trazas||!trazas.length) return;
   WG.replayando=true;
   const capa=L.layerGroup().addTo(WG.map);
