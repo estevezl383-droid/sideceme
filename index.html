@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.230</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.231</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6727,6 +6727,30 @@ body.wg-jugando{overflow:hidden}
   background:radial-gradient(circle,rgba(70,66,62,.75) 0%,rgba(50,47,44,.35) 60%,rgba(40,38,36,0) 78%);
   filter:blur(3px);animation:wgHumo 2.8s ease-out infinite}
 .wg-fuego .humo.b{animation-duration:3.6s;animation-delay:-1.4s}
+/* ============================================================
+   v2.9.231 — LA FICHA SE PARA SOBRE EL TERRENO.
+   El símbolo reglamentario NO se toca: el RC-02-114 manda que la unidad se
+   represente con su marco, su magnitud de escalón y su arma, y cambiarlo por un
+   modelito de camión sería bonito y doctrinalmente falso.
+   Lo que se agrega es la PRESENCIA: un mástil que la clava al piso, una sombra
+   proyectada y una peana que se apoya en el relieve. Así deja de flotar como
+   una calcomanía y se lee como algo puesto sobre el terreno.
+   ============================================================ */
+.wg-ficha3d{position:relative;line-height:0;will-change:transform}
+/* Mástil: la une con el punto exacto del terreno donde está. */
+.wg-ficha3d .mastil{position:absolute;left:50%;top:100%;width:2px;height:14px;
+  margin-left:-1px;background:linear-gradient(to bottom,rgba(255,255,255,.55),rgba(255,255,255,0));
+  pointer-events:none}
+/* Peana: elipse en el suelo, achatada como si se la mirara en perspectiva. */
+.wg-ficha3d .peana{position:absolute;left:50%;top:calc(100% + 12px);
+  width:26px;height:9px;margin-left:-13px;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(0,0,0,.55) 0%,rgba(0,0,0,.28) 55%,rgba(0,0,0,0) 78%);
+  pointer-events:none}
+.wg-ficha3d img{filter:drop-shadow(2px 5px 4px rgba(0,0,0,.55))}
+/* La unidad rota tiembla apenas y se inclina: se ve castigada sin leer nada. */
+@keyframes wgLadeo{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(-6deg)}}
+.wg-ficha3d.tocada img{animation:wgLadeo 2.6s ease-in-out infinite;opacity:.92}
+.wg-ficha3d.fuera img{transform:rotate(-14deg);opacity:.55;filter:grayscale(.6) drop-shadow(2px 5px 4px rgba(0,0,0,.6))}
 /* ============================================================
    v2.9.227 — CARTELES COMO BOCADILLO TRANSPARENTE.
    Los rótulos del mapa eran texto suelto con contorno: se mezclaban con el
@@ -23312,12 +23336,25 @@ async function wgVista3D(){
       style:{version:8,
         sources:{
           base:{type:'raster',tiles:base.tiles,tileSize:256,maxzoom:base.maxzoom,attribution:base.atrib},
+          // v2.9.231: el DEM llega hasta z15; dejarlo declarado así permite el
+          // sobre-zoom y el relieve sigue leyéndose de cerca en vez de aplanarse.
           dem:{type:'raster-dem',tiles:[WG3D_DEM],tileSize:256,encoding:'terrarium',maxzoom:15,attribution:'Elevación: Terrarium / AWS (SRTM)'},
         },
         layers:[
           {id:'fondo',type:'background',paint:{'background-color':'#0a0e13'}},
           {id:'base',type:'raster',source:'base'},
-          {id:'sombreado',type:'hillshade',source:'dem',paint:{'hillshade-exaggeration':0.35,'hillshade-shadow-color':'#0a0e13'}},
+          // v2.9.231 — RELIEVE MÁS LEÍBLE. Lo que hace que Google Earth «se vea
+          // mejor» no es la foto satelital (la de Esri es de la misma familia):
+          // es el MODELADO del relieve. Sombreado más marcado, con luz rasante
+          // desde el noroeste como en las cartas, para que se lean las quebradas
+          // y los filos donde combaten las unidades.
+          {id:'sombreado',type:'hillshade',source:'dem',paint:{
+            'hillshade-exaggeration':0.62,
+            'hillshade-shadow-color':'#0a121c',
+            'hillshade-highlight-color':'#fff4e0',
+            'hillshade-accent-color':'#2b3a4a',
+            'hillshade-illumination-direction':315,
+            'hillshade-illumination-anchor':'map'}},
         ]},
       center:[-64.5,-16.5], zoom:6, pitch:62, maxPitch:85, maxZoom:19,
       attributionControl:{compact:true},
@@ -23363,9 +23400,12 @@ async function wgVista3D(){
   });
   map.on('load',()=>{
     document.getElementById('wg-3d-cargando').style.display='none';
-    map.setTerrain({source:'dem',exaggeration:Number(WG.exag3d||1.6)});
-    try{ map.setSky({'sky-color':'#0d1d2e','horizon-color':'#5b7897','fog-color':'#0a0e13',
-      'sky-horizon-blend':0.6,'horizon-fog-blend':0.5,'fog-ground-blend':0.2}); }
+    map.setTerrain({source:'dem',exaggeration:Number(WG.exag3d||2.0)});
+    // v2.9.231: neblina de distancia. Da PROFUNDIDAD — los cerros lejanos se
+    // desvanecen y el sector donde está la acción se separa del fondo.
+    try{ map.setSky({'sky-color':'#0b2036','horizon-color':'#7fa3c4','fog-color':'#0a1119',
+      'sky-horizon-blend':0.72,'horizon-fog-blend':0.62,'fog-ground-blend':0.06,
+      'atmosphere-blend':0.55}); }
     catch(_e){ /* el cielo es cosmético */ }
     map.addSource('wg-terr',{type:'geojson',data:WG3D_VACIO});
     map.addLayer({id:'wg-terr-relleno',type:'fill',source:'wg-terr',
@@ -23419,6 +23459,17 @@ async function wgVista3D(){
     // acuesta el círculo sobre el terreno, así que con la cámara inclinada se ve
     // como una elipse pegada al piso — el efecto de los RTS, no un recuadro de
     // frente. Va DEBAJO de las fichas para que parezca que la unidad lo pisa.
+    // v2.9.231 — HUELLA EN EL SUELO. `circle-pitch-alignment:'map'` acuesta el
+    // disco sobre el relieve: con la cámara inclinada se ve como una elipse
+    // pegada al piso, y la ficha deja de parecer una calcomanía flotando. El
+    // tamaño va por escalón, así que también dice cuánto ocupa esa unidad.
+    map.addSource('wg-piso',{type:'geojson',data:WG3D_VACIO});
+    map.addLayer({id:'wg-piso-disco',type:'circle',source:'wg-piso',
+      paint:{'circle-radius':['get','_r'],
+        'circle-color':['get','_col'],'circle-opacity':0.16,
+        'circle-stroke-width':1.4,'circle-stroke-color':['get','_col'],
+        'circle-stroke-opacity':0.55,'circle-blur':0.25,
+        'circle-pitch-alignment':'map'}});
     map.addSource('wg-sel',{type:'geojson',data:WG3D_VACIO});
     map.addLayer({id:'wg-sel-halo',type:'circle',source:'wg-sel',
       paint:{'circle-radius':30,'circle-color':'#ffe11a','circle-opacity':0.16,
@@ -23493,6 +23544,8 @@ function _wg3dDatos(){
     const D=_wgDibujo(); WG._dib=D;
     const s2=map.getSource('wg-dib'); if(s2) s2.setData(_wg3dOverlayFC(D));
     const s3=map.getSource('wg-quema'); if(s3) s3.setData(_wgQuemadoFC()); // v2.9.220
+    // v2.9.231: la huella de cada unidad, apoyada en el terreno.
+    try{ map.getSource('wg-piso').setData(_wgPisoFC()); }catch(_e){}
   }catch(_e){}
   // Fichas: el MISMO PNG del símbolo militar que usa el mapa 2D.
   for(const m of (WG.marc3d||[])){ try{ m.remove(); }catch(_e){} }
@@ -23511,7 +23564,9 @@ function _wg3dDatos(){
   }
   try{ map.getSource('wg-sel').setData({type:'FeatureCollection',features:selPt}); }catch(_e){}
   for(const u of ((WG.estado&&WG.estado.unidades)||[])){
-    const sim=_wgSimboloUnidad(u,false), F=0.55; // sin retícula: la marca está en el piso
+    // v2.9.231 — LA FICHA TIENE PORTE SEGÚN SU ESCALÓN. Una división no puede
+    // verse igual que una sección: el tamaño es información, no decoración.
+    const sim=_wgSimboloUnidad(u,false), F=0.55*_wgPorte(u);
     const img=document.createElement('img');
     img.src=sim.url; img.style.width=(sim.w*F)+'px'; img.style.height=(sim.h*F)+'px';
     // v2.9.203: las fichas del 3D SÍ reciben clic (seleccionar / atacar), igual
@@ -23531,8 +23586,14 @@ function _wg3dDatos(){
       // dentro de un envoltorio: MapLibre mueve el de afuera y el vaivén se
       // aplica al de adentro.
       const cuna=document.createElement('div');
-      cuna.style.cssText='will-change:transform;line-height:0';
+      // v2.9.231: la cuna es la que lleva el mástil, la peana y el estado.
+      cuna.className='wg-ficha3d'
+        + (u.estado==='fuera_combate'?' fuera':(u.estado==='desgastada'?' tocada':''));
+      cuna.style.cssText='will-change:transform';
       cuna.appendChild(img);
+      const mastil=document.createElement('div'); mastil.className='mastil';
+      const peana=document.createElement('div'); peana.className='peana';
+      cuna.appendChild(mastil); cuna.appendChild(peana);
       const env=document.createElement('div');
       env.style.lineHeight='0';
       env.appendChild(cuna);
@@ -23709,8 +23770,8 @@ function wgPanelCapas(){
     +`<div class="rg-meta" style="font-size:11px">Apagá las fichas para apreciar el terreno limpio (con las fichas ocultas no se pueden dar órdenes). Apagá los círculos si te tapan la vista.</div>`
     +`<div class="section-label" style="margin-top:12px">⛰️ Vista 3D</div>`
     +(hay3d
-      ? `<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px">Relieve <b id="wg-3d-exag-val">${(WG.exag3d||1.6).toFixed(1)}×</b>`
-        +`<input type="range" id="wg-3d-exag" min="1" max="4" step="0.2" value="${WG.exag3d||1.6}" oninput="wg3dExag(this.value)" style="flex:1"></label>`
+      ? `<label style="display:flex;align-items:center;gap:8px;margin-bottom:6px">Relieve <b id="wg-3d-exag-val">${(WG.exag3d||2.0).toFixed(1)}×</b>`
+        +`<input type="range" id="wg-3d-exag" min="1" max="4" step="0.2" value="${WG.exag3d||2.0}" oninput="wg3dExag(this.value)" style="flex:1"></label>`
         +`<div style="display:flex;gap:8px;flex-wrap:wrap"><button class="rg-doc" onclick="wg3dBase('sat')">🛰️ Satélite</button>`
         +`<button class="rg-doc" onclick="wg3dBase('osm')">🗺️ Mapa</button></div>`
         +`<div class="rg-meta" style="margin-top:8px;line-height:1.5">⌘ + arrastrar = girar e inclinar<br>N = norte · R = aplanar<br>Clic en el terreno = orden de movimiento</div>`
@@ -24575,6 +24636,10 @@ const WG_CAMARAS = [
   { id:1, nom:'Panorámica', icono:'🏔️', desc:'La unidad y lo que la rodea: se ve el dispositivo.' },
   { id:2, nom:'Táctica',    icono:'⚔️', desc:'La unidad y su contacto más cercano, los dos en cuadro.' },
   { id:3, nom:'Cerca',      icono:'🎯', desc:'Sólo la unidad, pegado y girando despacio.' },
+  // v2.9.231 — EL ENCUADRE QUE PEDÍA SERGIO: ver DOS, TRES O MÁS unidades
+  // combatiendo. Busca los contactos de verdad (unidades enemigas dentro del
+  // rango de combate) y mete a todas en cuadro.
+  { id:4, nom:'Combate',    icono:'⚔️', desc:'Todas las unidades que están en contacto, juntas en cuadro.' },
 ];
 // Caja que encierra un puñado de puntos, con un margen en grados.
 function _wgCaja(pts, margen){
@@ -24590,6 +24655,18 @@ function _wgCaja(pts, margen){
 function _wgEncuadre(u, modo){
   const uds=((WG.estado&&WG.estado.unidades)||[]).filter(x=>x.estado!=='fuera_combate');
   const yo=[u.lng,u.lat];
+  if(modo===4){
+    // Todo par enemigo a menos del rango de combate está «en contacto».
+    const RANGO=3, enCombate=new Set(), pts=[];
+    for(let i=0;i<uds.length;i++) for(let j=i+1;j<uds.length;j++){
+      if(uds[i].bando===uds[j].bando) continue;
+      if(_wgHav([uds[i].lng,uds[i].lat],[uds[j].lng,uds[j].lat])>RANGO) continue;
+      enCombate.add(uds[i]); enCombate.add(uds[j]);
+    }
+    for(const x of enCombate) pts.push([x.lng,x.lat]);
+    // Si no hay nadie trenzado, no se inventa un encuadre: cae en panorámica.
+    if(pts.length>=2) return { pts, pitch:64, combate:pts.length };
+  }
   if(modo===3) return { pts:[yo], zoom:13.4, pitch:74 };
   if(modo===2){
     // El contacto más cercano: primero un enemigo, y si no hay, quien sea.
@@ -24666,7 +24743,7 @@ function _wgCamaraOrbita(){
       // La «respiración» de la espiral: la inclinación sube y baja apenas, así
       // el movimiento no es un carrusel plano sino una órbita.
       const t=ahora/9000;
-      const pitchBase = WG.camara===3?72 : (WG.camara===2?66:60);
+      const pitchBase = WG.camara===3?72 : (WG.camara===2?66 : (WG.camara===4?64:60));
       map.setBearing(map.getBearing()+giro);
       map.setPitch(Math.max(0,Math.min(85, pitchBase + Math.sin(t)*5)));
     }catch(_e){}
@@ -24717,6 +24794,26 @@ function wgCamaraCiclo(btn){
   _wgAviso(`${c.icono} <b>Cámara ${c.nom}</b> — ${c.desc}`
     + (WG.camara&&WG.sel==null?'<br>Tocá una unidad para que la siga.':''), 3200);
 }
+// v2.9.231: huella de cada unidad en el suelo. Las que están fuera de combate
+// la llevan apagada — siguen en el tablero pero ya no ocupan terreno de verdad.
+function _wgPisoFC(){
+  const feats=[];
+  if(WG.verUnidades===false) return {type:'FeatureCollection',features:feats};
+  for(const u of ((WG.estado&&WG.estado.unidades)||[])){
+    if(!Number.isFinite(u.lng)||!Number.isFinite(u.lat)) continue;
+    feats.push({type:'Feature',geometry:{type:'Point',coordinates:[u.lng,u.lat]},
+      properties:{ _col: u.estado==='fuera_combate' ? '#7c8894' : (WG_COL[u.bando]||'#888'),
+        _r: 13*_wgPorte(u) }});
+  }
+  return {type:'FeatureCollection',features:feats};
+}
+// v2.9.231 — PORTE DE LA FICHA SEGÚN EL ESCALÓN. El RC-02-114 ya distingue la
+// magnitud con los signos de arriba del marco (● Sección, I Compañía, II
+// Batallón, III Regimiento, XX División); acá se refuerza con el TAMAÑO, que es
+// lo que se lee de un vistazo en una carta llena de fichas.
+const WG_PORTE={ equipo:0.72, escuadra:0.78, seccion:0.86, compania:0.94,
+  batallon:1.0, regimiento:1.10, brigada:1.22, division:1.34, cuerpo:1.46, ejercito:1.58 };
+function _wgPorte(u){ return WG_PORTE[u&&u.escalon] || 1.0; }
 // ============================================================
 // v2.9.230 — MUNICIÓN A LA VISTA. Mismas cifras y mismo costo que el motor:
 // si esto no coincide, el panel promete fuego que el servidor no va a tirar.
