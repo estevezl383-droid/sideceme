@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.225</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.226</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -22830,6 +22830,9 @@ function _wgRenderTerreno(){
     restringido:{color:'#ffd400',weight:1,fillOpacity:0.10,fillColor:'#ffd400'},
     severo:{color:'#e2521b',weight:1,fillOpacity:0.16,fillColor:'#e2521b'},
     clave:{color:'#cc00ff',weight:2,fillOpacity:0.14,fillColor:'#cc00ff'},
+    // v2.9.226: faja INTERDICTADA por la artillería. Violeta y punteada: no es
+    // terreno del CMOC, es fuego que niega el paso — y vence sola.
+    interdiccion:{color:'#c060ff',weight:2,fillOpacity:0.20,fillColor:'#c060ff',dashArray:'8 5'},
     // Carta de fondo del Generador — colores de carta, discretos.
     hidro:{color:'#4aa3e0',weight:1.4,fillOpacity:0.35,fillColor:'#2f6ea8'},
     elevacion:{color:'#e0b34a',weight:1.1,fillOpacity:0}, // curvas en ámbar: guían sin tapar
@@ -22884,7 +22887,7 @@ const WG3D_BASES={
 // Mismos colores que el mapa 2D, para que el terreno se lea igual en las dos vistas.
 const WG3D_EST={
   restringido:{col:'#ffd400',fill:0.20,w:1.2}, severo:{col:'#e2521b',fill:0.30,w:1.2},
-  clave:{col:'#cc00ff',fill:0.22,w:2.4},
+  clave:{col:'#cc00ff',fill:0.22,w:2.4}, interdiccion:{col:'#c060ff',fill:0.26,w:2.4},
   hidro:{col:'#4aa3e0',fill:0.45,w:1.7}, elevacion:{col:'#e0b34a',fill:0,w:1.3},
   via:{col:'#ff9a2e',fill:0,w:2.4}, poblado:{col:'#ffffff',fill:0.30,w:1.2},
   vegetacion:{col:'#4f8f45',fill:0.28,w:1.0}, jurisdiccion:{col:'#b06de0',fill:0,w:1.3},
@@ -23426,6 +23429,7 @@ const WG_CALCOS=[
   {id:'clave',       nom:'Terreno clave', col:'#cc00ff', grupo:'CMOC'},
   {id:'ae',          nom:'Área de empeño', col:'#ff3b3b', grupo:'CMOC'},
   {id:'defensivo',   nom:'Terreno defendible', col:'#00d3a7', grupo:'CMOC'},
+  {id:'interdiccion',nom:'⛔ Zonas interdictadas', col:'#c060ff', grupo:'CMOC'},
   {id:'elevacion',   nom:'Elevaciones (curvas y cimas)', col:'#e0b34a', grupo:'Carta'},
   {id:'hidro',       nom:'Hidrografía (ríos, lagos)', col:'#4aa3e0', grupo:'Carta'},
   {id:'via',         nom:'Comunicaciones (caminos)', col:'#ff9a2e', grupo:'Carta'},
@@ -23615,6 +23619,39 @@ function _wgBatidosPor(u, arma){
   return enemigos.map(e=>({e, d:_wgHav([u.lng,u.lat],[e.lng,e.lat])}))
     .filter(x=>x.d<=arma.alcance).sort((a,b)=>a.d-b.d);
 }
+// ============================================================
+// v2.9.226 — MISIONES DE ARTILLERÍA.
+// El fuego no es una sola cosa. DESTRUIR es lo que había; INTERDICTAR no busca
+// destruir a nadie, busca negar el uso de un camino o un paso; NEUTRALIZAR
+// calla una posición sin romperla, para poder asaltarla. Sólo se ofrecen a los
+// sistemas de tiro indirecto: un fusil no interdicta un camino.
+// ============================================================
+const WG_MISIONES = {
+  destruccion:  {nom:'Destrucción',   ico:'💥', col:'#ff4d1a',
+    desc:'Batir a la fuerza que ocupa la zona. Daño inmediato a quien esté adentro.'},
+  interdiccion: {nom:'Interdicción',  ico:'⛔', col:'#c060ff',
+    desc:'Negar el uso de un camino, un vado o un paso. La faja queda batida varios turnos: el que la cruce lo paga — los propios TAMBIÉN.'},
+  neutralizacion:{nom:'Neutralización',ico:'🌀', col:'#00e5ff',
+    desc:'Suprimir sin destruir: la fuerza batida combate a media máquina el turno siguiente. Sirve para callar una posición antes de asaltarla.'},
+};
+function wgElegirMision(id){
+  WG.misionSel = (WG.misionSel===id)?'destruccion':id;
+  _wgRender();
+}
+function _wgPanelMisionHTML(arma){
+  if(!arma || !arma.indirecto) return '';   // sólo tiro indirecto tiene misiones
+  const sel = WG.misionSel || 'destruccion';
+  const filas = Object.entries(WG_MISIONES).map(([id,m])=>{
+    const activa = sel===id;
+    return `<div onclick="wgElegirMision('${id}')" style="display:flex;align-items:flex-start;gap:8px;`
+      +`padding:7px 9px;margin-bottom:5px;border-radius:9px;cursor:pointer;`
+      +(activa?`background:${m.col}22;border:1px solid ${m.col}`:`background:rgba(255,255,255,.04);border:1px solid transparent`)+`">`
+      +`<span style="font-size:15px;line-height:1.1">${m.ico}</span>`
+      +`<span style="flex:1;line-height:1.35"><b style="font-size:12px;color:${activa?m.col:'#dce9f7'}">${m.nom}</b>`
+      +`<br><span class="rg-meta" style="font-size:10.5px">${m.desc}</span></span></div>`;
+  }).join('');
+  return `<div class="section-label" style="margin:10px 0 6px">🎖️ MISIÓN DE FUEGO</div>`+filas;
+}
 // v2.9.225: arma el modo «romper contacto». El siguiente clic en el mapa marca
 // hacia dónde se retira. Elegir replegarse suelta el arma: no se hacen las dos.
 function wgReplegar(){
@@ -23701,7 +23738,7 @@ function _wgPanelArmasHTML(){
     +`Se retira <b>sin empeñar</b>. Si tenía un enemigo encima, aguanta el fuego de la persecución `
     +`y no devuelve golpes: desenganchar cuesta, pero salva a la unidad.</div>`;
   return `<div class="section-label" style="margin:0 0 6px">🎯 ARMAMENTO · ${_rgEsc(u.designacion||'unidad')}</div>`
-    +filas+pie+rep;
+    +filas+pie+_wgPanelMisionHTML(elegida)+rep;
 }
 // Sistemas de armas de una unidad, ordenados de menor a mayor alcance.
 function _wgArmamento(u){
@@ -24190,23 +24227,33 @@ function _wgDibujo(){
       const arma=_wgArmaDeFuego(u,o.arma);
       const d=_wgHav([u.lng,u.lat],[o.destino_lng,o.destino_lat]);
       const alcance=arma?arma.alcance:0, alcanza=d<=alcance;
-      const col=alcanza?'#ff4d1a':'#e08a2c';
+      // v2.9.226: cada misión tiene su color y su tamaño de zona. La
+      // interdicción bate una FAJA de 2,5 km, no un punto: si se dibujara con
+      // el radio del estallido, el alumno pediría el fuego sin entender qué
+      // superficie está negando ni a quién se lleva puesto.
+      const mis=(o.mision&&WG_MISIONES[o.mision])?o.mision:'destruccion';
+      const col=alcanza?(WG_MISIONES[mis]?WG_MISIONES[mis].col:'#ff4d1a'):'#e08a2c';
+      const radioZona = mis==='interdiccion' ? 2.5 : (arma?arma.radio:0);
       D.push(_wgD.lin([[u.lng,u.lat],[o.destino_lng,o.destino_lat]],col,2.5,alcanza?null:'4 7'));
       // La ZONA BATIDA: el radio de efecto real del sistema, a escala del mapa.
-      if(arma && arma.radio>0) D.push(_wgD.cir(o.destino_lng,o.destino_lat,arma.radio,col,2,null,.28));
+      if(radioZona>0) D.push(_wgD.cir(o.destino_lng,o.destino_lat,radioZona,col,2,
+        mis==='interdiccion'?'8 5':null,.24));
       D.push(_wgD.pt(o.destino_lng,o.destino_lat,5,col,2,col));
       // A quién le va a caer encima — propios incluidos, que es el riesgo real.
       let dentro=0, propios=0;
       for(const x of (e.unidades||[])){
-        if(x.estado==='fuera_combate' || !arma || !(arma.radio>0)) continue;
-        if(_wgHav([x.lng,x.lat],[o.destino_lng,o.destino_lat])<=arma.radio){
+        if(x.estado==='fuera_combate' || !(radioZona>0)) continue;
+        if(_wgHav([x.lng,x.lat],[o.destino_lng,o.destino_lat])<=radioZona){
           dentro++; if(x.bando===u.bando) propios++;
         }
       }
+      const M=WG_MISIONES[mis]||WG_MISIONES.destruccion;
       D.push(_wgD.txt(o.destino_lng,o.destino_lat, alcanza
-        ? `💥 ${arma.nom} · ${d.toFixed(1)} km · zona ${Math.round(arma.radio*1000)} m`
-          + (dentro?` · ${dentro} en la zona`:' · zona VACÍA')
-          + (propios?` · ⚠️ ${propios} PROPIA(S)`:'')
+        ? `${M.ico} ${M.nom} · ${arma.nom} · ${d.toFixed(1)} km · zona ${radioZona>=1?radioZona+' km':Math.round(radioZona*1000)+' m'}`
+          + (mis==='interdiccion'
+              ? ` · faja NEGADA varios turnos${propios?` · ⚠️ ${propios} PROPIA(S) adentro`:''}`
+              : (dentro?` · ${dentro} en la zona`:' · zona VACÍA')
+                + (propios?` · ⚠️ ${propios} PROPIA(S)`:''))
         : `🔥 TIRO CORTO · ${arma?arma.nom:'el sistema'} bate ${alcance.toFixed(1)} km y el punto está a ${d.toFixed(1)} km. Dispara igual: gasta munición y delata su posición.`));
     }
   }
@@ -24408,7 +24455,11 @@ function _wgMapClick(ev){
   // sistema en el panel (tocándolo de nuevo).
   if(WG.armaSel){
     if(WG.rutas) delete WG.rutas[WG.sel];
-    WG.ordenes[WG.sel]={ tipo:'fuego', destino_lng:p[0], destino_lat:p[1], arma:WG.armaSel };
+    // v2.9.226: la misión sólo tiene sentido con tiro indirecto; para el tiro
+    // tenso el motor resuelve destrucción y listo.
+    const _a=WG_ARMAS[WG.armaSel];
+    WG.ordenes[WG.sel]={ tipo:'fuego', destino_lng:p[0], destino_lat:p[1], arma:WG.armaSel,
+      mision:(_a&&_a.indirecto)?(WG.misionSel||'destruccion'):'destruccion' };
     _wgActualizarContadorOrdenes(); _wgRender();
     if(WG.map3d) _wg3dDatos();
     return;
