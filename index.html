@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.226</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.227</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6727,6 +6727,39 @@ body.wg-jugando{overflow:hidden}
   background:radial-gradient(circle,rgba(70,66,62,.75) 0%,rgba(50,47,44,.35) 60%,rgba(40,38,36,0) 78%);
   filter:blur(3px);animation:wgHumo 2.8s ease-out infinite}
 .wg-fuego .humo.b{animation-duration:3.6s;animation-delay:-1.4s}
+/* ============================================================
+   v2.9.227 — CARTELES COMO BOCADILLO TRANSPARENTE.
+   Los rótulos del mapa eran texto suelto con contorno: se mezclaban con el
+   calco y costaba leerlos. Ahora van en un globo con su rabito apuntando al
+   punto, translúcido para no tapar el terreno que está describiendo.
+   ============================================================ */
+.wg-globo-mapa{
+  position:relative; display:inline-block; max-width:230px;
+  padding:6px 10px; border-radius:11px;
+  background:rgba(12,20,28,.55); backdrop-filter:blur(6px);
+  border:1px solid rgba(160,215,255,.32);
+  color:#eaf2fb; font-size:11.5px; line-height:1.35; font-weight:600;
+  text-align:center; white-space:normal; pointer-events:none;
+  box-shadow:0 6px 18px rgba(0,0,0,.35);
+  text-shadow:0 1px 3px rgba(0,0,0,.85);
+}
+/* El rabito: mismo relleno y borde que el globo, girado 45°. */
+.wg-globo-mapa::after{
+  content:''; position:absolute; left:50%; bottom:-6px;
+  width:11px; height:11px; margin-left:-5.5px;
+  background:rgba(12,20,28,.55);
+  border-right:1px solid rgba(160,215,255,.32);
+  border-bottom:1px solid rgba(160,215,255,.32);
+  transform:rotate(45deg); backdrop-filter:blur(6px);
+}
+/* El mismo globo para los rótulos del 2D (tooltip de Leaflet). */
+.leaflet-tooltip.wg-tip-orden{
+  background:rgba(12,20,28,.55)!important; backdrop-filter:blur(6px);
+  border:1px solid rgba(160,215,255,.32)!important; border-radius:11px!important;
+  color:#eaf2fb!important; font-size:11.5px!important; font-weight:600;
+  padding:6px 10px!important; box-shadow:0 6px 18px rgba(0,0,0,.35)!important;
+  text-shadow:0 1px 3px rgba(0,0,0,.85); max-width:230px; white-space:normal;
+}
 /* ============================================================
    v2.9.221 — EL PROYECTIL QUE VUELA Y EL ESTALLIDO.
    El punto luminoso viaja del tirador al blanco. La ALTURA la pone el JS:
@@ -23222,11 +23255,9 @@ async function wgVista3D(){
       paint:{'circle-radius':['get','_r'],'circle-color':['get','_fill'],
         'circle-stroke-width':['get','_w'],'circle-stroke-color':['get','_col'],
         'circle-pitch-alignment':'map'}});
-    map.addLayer({id:'wg-dib-txt',type:'symbol',source:'wg-dib',
-      filter:['==',['get','_tipo'],'txt'],
-      layout:{'text-field':['get','_txt'],'text-size':12,'text-offset':[0,-1.4],
-        'text-anchor':'bottom','text-allow-overlap':false,'text-padding':4},
-      paint:{'text-color':'#eaf2fb','text-halo-color':'#0b1118','text-halo-width':1.8}});
+    // v2.9.227: los rótulos YA NO son una capa `symbol`. Una capa de texto de
+    // MapLibre no puede tener globo ni rabito; se dibujan como marcadores del
+    // DOM (`_wg3dRotulos`), que además se ven igual que los del 2D.
     // Rastro del REPLAY: se dibuja sobre el relieve mientras corre la animación.
     map.addSource('wg-replay',{type:'geojson',data:WG3D_VACIO});
     map.addSource('wg-humo',{type:'geojson',data:WG3D_VACIO});
@@ -23303,7 +23334,10 @@ function _wg3dDatos(){
     const s1=map.getSource('wg-terr'); if(s1) s1.setData(_wg3dTerrenoFC());
     // v2.9.218: la MISMA lista que pinta el 2D. Si mañana se agrega una figura
     // nueva a `_wgDibujo()`, aparece acá sola — ése era el punto del cambio.
-    const s2=map.getSource('wg-dib'); if(s2) s2.setData(_wg3dOverlayFC(_wgDibujo()));
+    // v2.9.227: se guarda la lista para que los RÓTULOS puedan salir como
+    // marcadores en globo, más abajo en esta misma función.
+    const D=_wgDibujo(); WG._dib=D;
+    const s2=map.getSource('wg-dib'); if(s2) s2.setData(_wg3dOverlayFC(D));
     const s3=map.getSource('wg-quema'); if(s3) s3.setData(_wgQuemadoFC()); // v2.9.220
   }catch(_e){}
   // Fichas: el MISMO PNG del símbolo militar que usa el mapa 2D.
@@ -23351,6 +23385,21 @@ function _wg3dDatos(){
       const mk=new maplibregl.Marker({element:env, anchor:'center',
         offset:[(sim.w/2-sim.ax)*F, (sim.h/2-sim.ay)*F]}).setLngLat([u.lng,u.lat]).addTo(map);
       mk.__uid=u.id; // para poder moverlo durante el replay
+      WG.marc3d.push(mk);
+    }catch(_e){}
+  }
+  // v2.9.227 — RÓTULOS EN GLOBO. Van como marcadores del DOM, no como capa de
+  // texto: así llevan el mismo bocadillo translúcido que el 2D, con su rabito
+  // apuntando al punto que describen.
+  for(const s of (WG._dib||[])){
+    if(s.k!=='txt') continue;
+    const el=document.createElement('div');
+    el.style.pointerEvents='none';
+    el.innerHTML='<div class="wg-globo-mapa"></div>';
+    el.firstChild.textContent=s.txt;
+    try{
+      const mk=new maplibregl.Marker({element:el, anchor:'bottom', offset:[0,-10]})
+        .setLngLat([s.lng,s.lat]).addTo(map);
       WG.marc3d.push(mk);
     }catch(_e){}
   }
@@ -23737,8 +23786,16 @@ function _wgPanelArmasHTML(){
     +`<div class="rg-meta" style="font-size:10.5px;line-height:1.4;margin-bottom:6px">`
     +`Se retira <b>sin empeñar</b>. Si tenía un enemigo encima, aguanta el fuego de la persecución `
     +`y no devuelve golpes: desenganchar cuesta, pero salva a la unidad.</div>`;
+  // v2.9.227: el estado de COMBUSTIBLE de la unidad seleccionada, arriba de todo.
+  const c=_wgCombustible(u);
+  const comb = c ? `<div class="rg-meta" style="font-size:11px;margin:0 0 8px;line-height:1.45">`
+      +`⛽ <b style="color:${c.pct>=80?'#ff6b6b':(c.pct>=60?'#ffb15c':'#8ef0b4')}">`
+      +`${c.resta.toFixed(0)} km de autonomía</b> — gastó ${c.usado.toFixed(0)} de ${c.tanque} km (${c.pct} %)`
+      +(c.pct>=100?'<br><b style="color:#ff6b6b">⛔ Sin reabastecer no se mueve más.</b>'
+        :(c.pct>=80?'<br><b style="color:#ffb15c">⚠️ Menos de un quinto de tanque.</b>':''))
+      +`</div>` : '';
   return `<div class="section-label" style="margin:0 0 6px">🎯 ARMAMENTO · ${_rgEsc(u.designacion||'unidad')}</div>`
-    +filas+pie+_wgPanelMisionHTML(elegida)+rep;
+    +comb+filas+pie+_wgPanelMisionHTML(elegida)+rep;
 }
 // Sistemas de armas de una unidad, ordenados de menor a mayor alcance.
 function _wgArmamento(u){
@@ -24208,15 +24265,16 @@ function _wgDibujo(){
       // servidor resuelve con el alcance del sistema elegido.
       const arma=_wgArmaDeFuego(u,o.arma);
       const alcance=arma?arma.alcance:3, alcanza=d<=alcance;
-      D.push(_wgD.lin([[u.lng,u.lat],[t.lng,t.lat]], alcanza?'#e23b3b':'#e08a2c',
-        alcanza?3:2, alcanza?null:'4 7'));
+      // v2.9.227: sin línea de tiro — sólo la mira sobre el blanco.
+      _wgMira(D, t.lng, t.lat, (arma&&arma.radio)?Math.max(arma.radio,0.25):0.25,
+        alcanza?'#e23b3b':'#e08a2c');
       const bono=(()=>{const c=_wgClaseTerreno([t.lng,t.lat],WG.terreno||[]);
         let b=c==='severo'?1.6:c==='restringido'?1.3:1;
         if((WG.terreno||[]).some(x=>x.tipo==='clave'&&!_wgFueraDeCaja([t.lng,t.lat],x)&&_wgPtEnGeom([t.lng,t.lat],x.geojson))) b+=0.2;
         return b;})();
       const rel=(Number(u.poder_actual)||0)/Math.max(0.01,(Number(t.poder_actual)||0)*bono);
       const txtRel = rel>=3?'decisivo':rel>=1.5?'avanza':rel>=1?'indeciso':rel>=1/1.5?'te resisten':'te rechazan';
-      D.push(_wgD.pt(t.lng,t.lat,9,alcanza?'#e23b3b':'#e08a2c',2,null));
+
       // Regla de Sergio: fuera de alcance DISPARA IGUAL. El cartel ya no dice
       // «no hace nada» — dice lo que de verdad le va a costar.
       D.push(_wgD.txt(t.lng,t.lat, alcanza
@@ -24234,11 +24292,11 @@ function _wgDibujo(){
       const mis=(o.mision&&WG_MISIONES[o.mision])?o.mision:'destruccion';
       const col=alcanza?(WG_MISIONES[mis]?WG_MISIONES[mis].col:'#ff4d1a'):'#e08a2c';
       const radioZona = mis==='interdiccion' ? 2.5 : (arma?arma.radio:0);
-      D.push(_wgD.lin([[u.lng,u.lat],[o.destino_lng,o.destino_lat]],col,2.5,alcanza?null:'4 7'));
-      // La ZONA BATIDA: el radio de efecto real del sistema, a escala del mapa.
+      // v2.9.227: sin línea de tiro. La ZONA BATIDA es el radio de efecto real
+      // del sistema (o la faja, si es interdicción) y encima va la mira.
       if(radioZona>0) D.push(_wgD.cir(o.destino_lng,o.destino_lat,radioZona,col,2,
         mis==='interdiccion'?'8 5':null,.24));
-      D.push(_wgD.pt(o.destino_lng,o.destino_lat,5,col,2,col));
+      _wgMira(D, o.destino_lng, o.destino_lat, radioZona||0.25, col);
       // A quién le va a caer encima — propios incluidos, que es el riesgo real.
       let dentro=0, propios=0;
       for(const x of (e.unidades||[])){
@@ -24285,6 +24343,53 @@ function _wgDibujo(){
     }
   }
   return D;
+}
+// ============================================================
+// v2.9.227 — COMBUSTIBLE A LA VISTA.
+// Mismas cifras que el motor (`AUTONOMIA_KM` y `CONSUMO_TERRENO`): la autonomía
+// es en km de terreno FÁCIL, y el barro y la roca se comen el tanque más rápido.
+// El de a pie no gasta combustible, así que no se le lleva la cuenta.
+// ⚠️ CIFRAS DE REFERENCIA — a validar contra las tablas del reglamento.
+// ============================================================
+const WG_AUTONOMIA={ motor:600, oruga:450, pie:0 };
+function _wgCombustible(u){
+  const tanque=WG_AUTONOMIA[u&&u.medio]||0;
+  if(!tanque) return null;
+  const usado=Math.max(0,Number(u.combustible_km)||0);
+  const pct=Math.min(100,Math.round(100*usado/tanque));
+  return { tanque, usado, pct, resta:Math.max(0,tanque-usado) };
+}
+function _wgBarraCombustible(u){
+  const c=_wgCombustible(u);
+  if(!c) return '';   // la tropa a pie no tiene tanque que mostrar
+  // Verde mientras sobra, ámbar cuando hay que prever el reabastecimiento,
+  // rojo cuando ya es un problema de comando.
+  const col = c.pct>=80?'#e23b3b':(c.pct>=60?'#e08a2c':'#2ecc71');
+  const aviso = c.pct>=100 ? ' ⛔ SIN COMBUSTIBLE'
+    : (c.pct>=80 ? ' ⚠️' : '');
+  return `<div style="margin-top:5px;display:flex;align-items:center;gap:6px">`
+    +`<span style="font-size:10px;opacity:.75">⛽</span>`
+    +`<span style="flex:1;height:5px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden;display:block">`
+    +`<span style="display:block;height:100%;width:${c.pct}%;background:${col}"></span></span>`
+    +`<span class="rg-meta" style="font-size:10px;white-space:nowrap">`
+    +`${c.resta.toFixed(0)} km${aviso}</span></div>`;
+}
+// v2.9.227 — RETÍCULA DE PUNTERÍA. Antes salía una línea del tirador al blanco
+// que cruzaba media carta y ensuciaba la vista. Lo que importa no es el trazo
+// del tiro: es DÓNDE se está apuntando. Se dibuja una mira — anillo con cuatro
+// escuadras hacia afuera — y nada más.
+function _wgMira(D,lng,lat,km,col){
+  const r=Math.max(km,0.08);           // que se vea aunque el arma sea de mano
+  D.push(_wgD.cir(lng,lat,r,col,2.2,null,.10));
+  D.push(_wgD.cir(lng,lat,r*0.45,col,1.4,null,0));
+  // Cuatro marcas de puntería, en cruz, apenas por fuera del anillo.
+  const dLat=(r/6371)*(180/Math.PI);
+  const dLng=dLat/Math.max(1e-6,Math.cos(lat*Math.PI/180));
+  const brazo=0.55;
+  D.push(_wgD.lin([[lng,lat+dLat*(1-brazo)],[lng,lat+dLat*(1+brazo)]],col,2.2));
+  D.push(_wgD.lin([[lng,lat-dLat*(1-brazo)],[lng,lat-dLat*(1+brazo)]],col,2.2));
+  D.push(_wgD.lin([[lng+dLng*(1-brazo),lat],[lng+dLng*(1+brazo),lat]],col,2.2));
+  D.push(_wgD.lin([[lng-dLng*(1-brazo),lat],[lng-dLng*(1+brazo),lat]],col,2.2));
 }
 // Anillo geodésico: el 3D no sabe de radios en km, necesita el polígono.
 function _wgAnilloKm(lng,lat,km,n){
@@ -24383,7 +24488,11 @@ function _wgRender(){
     return `<div class="rg-card" style="padding:6px 8px;${String(WG.sel)===String(u.id)?'outline:2px solid #fff;':''}cursor:${en?'default':'pointer'}" ${en?'':`onclick="_wgSelById(${u.id})"`}>`
     +`<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${WG_COL[u.bando]};margin-right:6px"></span>`
     +`<b>${_rgEsc(u.designacion||u.bando)}</b> · ${pct}% ${u.estado!=='activa'?'<span style="color:#e08a2c">('+u.estado+')</span>':''}`
-    +(o?` <span style="color:#2ecc71">· orden: ${o.tipo}</span>`:'')+`</div>`; };
+    +(o?` <span style="color:#2ecc71">· orden: ${o.tipo}</span>`:'')
+    // v2.9.227: el COMBUSTIBLE a la vista. Se venía calculando y guardando bien,
+    // pero sólo aparecía de refilón en una línea de la bitácora y se perdía.
+    // La logística no se planifica con un dato que hay que ir a buscar.
+    +(en?'':_wgBarraCombustible(u))+`</div>`; };
   cont.innerHTML = `<div style="margin-bottom:4px">Tuyas (${mias.length}):</div>`+mias.map(u=>fila(u,false)).join('')
     + (enem.length?`<div style="margin:6px 0 4px">Enemigas detectadas (${enem.length}):</div>`+enem.map(u=>fila(u,true)).join('')
        : (WG.soy!=='arbitro'?'<div class="rg-meta" style="margin-top:6px">🌫️ Sin contacto enemigo (niebla de guerra).</div>':''));
