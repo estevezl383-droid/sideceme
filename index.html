@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.229</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.230</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -22661,6 +22661,26 @@ function wgPanelLogistica(){
   let gastado=0, capacidad=0;
   for(const u of conTanque){ const c=_wgCombustible(u); gastado+=c.usado; capacidad+=c.tanque; }
   const pctFlota=capacidad?Math.round(100*(capacidad-gastado)/capacidad):100;
+  // v2.9.230: totales de munición del conjunto y detalle por unidad.
+  let hayUF=0, topeUF=0, secos=0;
+  const filasMun=uds.map(u=>{
+    const m=_wgMunicionUnidad(u);
+    if(!m) return '';
+    hayUF+=m.hay; topeUF+=m.tope; secos+=m.secos;
+    const col=m.pct>40?'#2ecc71':(m.pct>15?'#e08a2c':'#e23b3b');
+    const sistemas=m.det.map(d=>
+      `<span style="white-space:nowrap;font-size:10.5px;`
+      +(d.q<=0?'color:#ff6b6b;font-weight:700':'opacity:.85')+`">`
+      +`${_rgEsc(d.arma.nom)} ${d.q<=0?'🚫':d.q+'/'+d.t}</span>`).join(' · ');
+    return `<div class="rg-card" style="padding:7px 9px;margin-bottom:5px">`
+      +`<div style="display:flex;align-items:center;gap:7px">`
+      +`<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${WG_COL[u.bando]}"></span>`
+      +`<b style="flex:1">${_rgEsc(u.designacion||u.bando)}</b>`
+      +`<span style="font-size:11px">${m.pct} %</span></div>`
+      +`<div style="display:flex;margin-top:5px">${_wgBarra(m.pct,col)}</div>`
+      +`<div class="rg-meta" style="margin-top:4px;line-height:1.5">${sistemas}</div></div>`;
+  }).join('');
+  const pctMun = topeUF?Math.round(100*hayUF/topeUF):100;
   const filas=uds.map(u=>{
     const c=_wgCombustible(u);
     const cuerpo = c
@@ -22687,14 +22707,22 @@ function wgPanelLogistica(){
     +`<div class="rg-meta" style="font-size:11px;margin-top:6px">`
     +`${conTanque.length} unidades con motor · gastados ${gastado.toFixed(0)} de ${capacidad.toFixed(0)} km de autonomía</div></div>`
     +filas
+    // v2.9.230 — MUNICIÓN, ahora sí con datos reales del motor.
+    +`<div class="section-label" style="margin:14px 0 8px">🎯 MUNICIÓN</div>`
+    +`<div class="rg-card" style="padding:9px 10px;margin-bottom:9px">`
+    +`<div style="display:flex;align-items:center;gap:8px"><b style="flex:1">Dotación del conjunto</b>`
+    +`<b style="color:${pctMun>40?'#8ef0b4':(pctMun>15?'#ffb15c':'#ff6b6b')}">${pctMun} %</b></div>`
+    +`<div style="display:flex;margin-top:6px">${_wgBarra(pctMun,pctMun>40?'#2ecc71':(pctMun>15?'#e08a2c':'#e23b3b'))}</div>`
+    +`<div class="rg-meta" style="font-size:11px;margin-top:6px">`
+    +`${hayUF.toFixed(1)} de ${topeUF.toFixed(0)} unidades de fuego`
+    +(secos?` · <b style="color:#ff6b6b">${secos} sistema(s) SIN MUNICIÓN</b>`:'')+`</div></div>`
+    +filasMun
     // Honestidad con el dato: lo que el motor todavía no lleva, se dice.
     +`<div class="rg-card" style="padding:9px 10px;margin-top:9px;border:1px dashed rgba(140,210,255,.3)">`
     +`<b style="font-size:12px">🔧 Todavía sin modelar</b>`
     +`<div class="rg-meta" style="font-size:11px;margin-top:5px;line-height:1.5">`
-    +`<b>Munición</b>, <b>raciones</b> y <b>agua</b> no las lleva el motor todavía: `
-    +`disparar no descuenta munición y el tiempo no consume víveres. `
-    +`Prefiero dejarlo dicho antes que mostrarte un número inventado en un tablero de logística.<br>`
-    +`Munición es el siguiente paso natural — la maquinaria del fuego ya cuenta cada tiro.</div></div>`;
+    +`<b>Raciones</b> y <b>agua</b> no las lleva el motor: el tiempo no consume víveres todavía. `
+    +`Prefiero dejarlo dicho antes que mostrarte un número inventado en un tablero de logística.</div></div>`;
 }
 // v2.9.223: la matriz se rearma con lo que haya trazado en ese momento.
 function wgPanelMatriz(){
@@ -23765,18 +23793,18 @@ function _wgIconoArma(id, px){
 // respecto de lo que después hace el motor.
 // ============================================================
 const WG_ARMAS={
-  fusil:        {id:'fusil',        nom:'Fusilería',           icono:'fusil',        alcance:0.6,  radio:0.05, pot:0.1,  contra:'personal'},
-  ametralladora:{id:'ametralladora',nom:'Ametralladora',       icono:'ametralladora',alcance:1.0,  radio:0.1, pot:0.14,  contra:'personal'},
-  pesada:       {id:'pesada',       nom:'Ametralladora .50',   icono:'pesada',       alcance:2.0,  radio:0.12, pot:0.18,  contra:'personal y vehículo liviano'},
-  mortero60:    {id:'mortero60',    nom:'Mortero 60 mm',       icono:'mortero',      alcance:2.0,  radio:0.15, pot:0.18,  contra:'personal', indirecto:true},
-  mortero81:    {id:'mortero81',    nom:'Mortero 81 mm',       icono:'mortero',      alcance:5.5,  radio:0.2, pot:0.25,  contra:'personal', indirecto:true},
-  mortero120:   {id:'mortero120',   nom:'Mortero 120 mm',      icono:'mortero',      alcance:8.0,  radio:0.3, pot:0.35,  contra:'personal y posiciones', indirecto:true},
-  srAT:         {id:'srAT',         nom:'S/R 106 mm (AT)',     icono:'antitanque',   alcance:1.1,  radio:0.05, pot:0.2,  contra:'blindados'},
-  misilAT:      {id:'misilAT',      nom:'Misil antitanque',    icono:'antitanque',   alcance:3.5,  radio:0.06, pot:0.3,  contra:'blindados'},
-  canon:        {id:'canon',        nom:'Cañón de tanque',     icono:'canon',        alcance:2.5,  radio:0.1, pot:0.25,  contra:'blindados y posiciones'},
-  obus105:      {id:'obus105',      nom:'Obús 105 mm',         icono:'obus',         alcance:11.0,  radio:0.35, pot:0.4, contra:'áreas', indirecto:true},
-  obus155:      {id:'obus155',      nom:'Obús 155 mm',         icono:'obus',         alcance:24.0,  radio:0.5, pot:0.55, contra:'áreas', indirecto:true},
-  zapa:         {id:'zapa',         nom:'Medios de zapa',      icono:'zapa',         alcance:0,  radio:0, pot:0,    contra:'terreno: brechas y obstáculos', ingenieria:true},
+  fusil:        {id:'fusil',        nom:'Fusilería',           icono:'fusil',        alcance:0.6,  radio:0.05, pot:0.1, uf:8,  contra:'personal'},
+  ametralladora:{id:'ametralladora',nom:'Ametralladora',       icono:'ametralladora',alcance:1.0,  radio:0.1, pot:0.14, uf:7,  contra:'personal'},
+  pesada:       {id:'pesada',       nom:'Ametralladora .50',   icono:'pesada',       alcance:2.0,  radio:0.12, pot:0.18, uf:6,  contra:'personal y vehículo liviano'},
+  mortero60:    {id:'mortero60',    nom:'Mortero 60 mm',       icono:'mortero',      alcance:2.0,  radio:0.15, pot:0.18, uf:6,  contra:'personal', indirecto:true},
+  mortero81:    {id:'mortero81',    nom:'Mortero 81 mm',       icono:'mortero',      alcance:5.5,  radio:0.2, pot:0.25, uf:5,  contra:'personal', indirecto:true},
+  mortero120:   {id:'mortero120',   nom:'Mortero 120 mm',      icono:'mortero',      alcance:8.0,  radio:0.3, pot:0.35, uf:4,  contra:'personal y posiciones', indirecto:true},
+  srAT:         {id:'srAT',         nom:'S/R 106 mm (AT)',     icono:'antitanque',   alcance:1.1,  radio:0.05, pot:0.2, uf:4,  contra:'blindados'},
+  misilAT:      {id:'misilAT',      nom:'Misil antitanque',    icono:'antitanque',   alcance:3.5,  radio:0.06, pot:0.3, uf:3,  contra:'blindados'},
+  canon:        {id:'canon',        nom:'Cañón de tanque',     icono:'canon',        alcance:2.5,  radio:0.1, pot:0.25, uf:5,  contra:'blindados y posiciones'},
+  obus105:      {id:'obus105',      nom:'Obús 105 mm',         icono:'obus',         alcance:11.0,  radio:0.35, pot:0.4, uf:5, contra:'áreas', indirecto:true},
+  obus155:      {id:'obus155',      nom:'Obús 155 mm',         icono:'obus',         alcance:24.0,  radio:0.5, pot:0.55, uf:4, contra:'áreas', indirecto:true},
+  zapa:         {id:'zapa',         nom:'Medios de zapa',      icono:'zapa',         alcance:0,  radio:0, pot:0, uf:0,    contra:'terreno: brechas y obstáculos', ingenieria:true},
 };
 // Qué tiene cada arma. El escalón agrega o quita sistemas.
 const WG_DOTACION={
@@ -23890,11 +23918,18 @@ function _wgPanelArmasHTML(){
   const filas=armas.map(a=>{
     const bat=_wgBatidosPor(u,a);
     const activa=sel===a.id;
-    const detalle = a.ingenieria ? a.contra
-      : (a.alcance? (a.alcance.toFixed(1).replace('.0','')+' km · '+a.contra) : a.contra);
+    // v2.9.230: cuánta munición le queda a ESE sistema. Es el dato que decide
+    // si la orden se puede dar, así que va junto al alcance.
+    const mun = a.ingenieria ? null : _wgMunicion(u,a.id);
+    const munTxt = mun==null ? ''
+      : (mun<=0 ? ` · <b style="color:#ff6b6b">SIN MUNICIÓN</b>`
+                : ` · <b style="color:${mun<=1?'#ffb15c':'#8ef0b4'}">${mun} UF</b>`);
+    const detalle = (a.ingenieria ? a.contra
+      : (a.alcance? (a.alcance.toFixed(1).replace('.0','')+' km · '+a.contra) : a.contra)) + munTxt;
     const marca = a.ingenieria ? ''
-      : (bat.length? `<span style="color:#ff6b6b;font-weight:700">${bat.length} en alcance</span>`
-                   : `<span class="rg-meta">sin blancos</span>`);
+      : (mun<=0 ? `<span style="color:#ff6b6b;font-weight:700">🚫 seco</span>`
+        : (bat.length? `<span style="color:#ff6b6b;font-weight:700">${bat.length} en alcance</span>`
+                     : `<span class="rg-meta">sin blancos</span>`));
     return `<div onclick="wgElegirArma('${a.id}')" style="display:flex;align-items:center;gap:9px;`
       +`padding:7px 9px;margin-bottom:5px;border-radius:9px;cursor:pointer;`
       +(activa?`background:rgba(255,225,26,.14);border:1px solid #ffe11a`:`background:rgba(255,255,255,.04);border:1px solid transparent`)+`">`
@@ -24681,6 +24716,30 @@ function wgCamaraCiclo(btn){
   const c=WG_CAMARAS[WG.camara];
   _wgAviso(`${c.icono} <b>Cámara ${c.nom}</b> — ${c.desc}`
     + (WG.camara&&WG.sel==null?'<br>Tocá una unidad para que la siga.':''), 3200);
+}
+// ============================================================
+// v2.9.230 — MUNICIÓN A LA VISTA. Mismas cifras y mismo costo que el motor:
+// si esto no coincide, el panel promete fuego que el servidor no va a tirar.
+// ============================================================
+const WG_COSTO_UF={destruccion:1, interdiccion:2, neutralizacion:1, empeno:1, encuentro:0.5};
+function _wgMunicion(u, armaId){
+  const arma=WG_ARMAS[armaId]; if(!arma) return 0;
+  const m=u&&u.municion;
+  if(m && Object.prototype.hasOwnProperty.call(m,armaId)) return Math.max(0,Number(m[armaId])||0);
+  return Number(arma.uf)||0;
+}
+// Estado de munición del conjunto de sistemas de una unidad, para el tablero.
+function _wgMunicionUnidad(u){
+  const armas=_wgArmamento(u).filter(a=>!a.ingenieria && a.alcance>0);
+  if(!armas.length) return null;
+  let hay=0, tope=0;
+  const det=armas.map(a=>{
+    const q=_wgMunicion(u,a.id), t=Number(a.uf)||0;
+    hay+=q; tope+=t;
+    return { arma:a, q, t, pct: t?Math.round(100*q/t):0 };
+  });
+  return { det, hay, tope, pct: tope?Math.round(100*hay/tope):0,
+    secos: det.filter(d=>d.q<=0).length };
 }
 // v2.9.227 — RETÍCULA DE PUNTERÍA. Antes salía una línea del tirador al blanco
 // que cruzaba media carta y ensuciaba la vista. Lo que importa no es el trazo
