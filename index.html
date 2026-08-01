@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.227</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.228</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6880,6 +6880,7 @@ body.wg-jugando{overflow:hidden}
         <button class="wg-rd" id="wg-btn-obs" onclick="wgObsToggle(this)" title="Alcance de observación (niebla de guerra)">👁️</button>
         <button class="wg-rd" id="wg-btn-carta" onclick="wgHoja('capas')" title="Calcos: elegir qué se ve (CMOC, caminos, elevaciones, agua…) y ajustes del 3D">🗺️</button>
         <button class="wg-rd" id="wg-btn-3d" onclick="wgAlternar3D(this)" title="Alternar mapa plano / relieve 3D">⛰️</button>
+        <button class="wg-rd" id="wg-btn-cam" onclick="wgCamaraCiclo(this)" title="Cámara: Libre — tocá para cambiar de encuadre (panorámica, táctica, cerca)">🖐️</button>
         <button class="wg-rd" onclick="wgHoja('unidades')" title="Unidades">🪖</button>
         <button class="wg-rd" onclick="wgHoja('matriz')" title="Matriz de sincronización: qué exige cada tarea y a qué hora arranca cada unidad">📋</button>
         <button class="wg-rd" onclick="wgHoja('bitacora')" title="Bitácora">📜</button>
@@ -23072,6 +23073,17 @@ function _wgAnimarDisparos(impactos){
     }
   }
   const finTiros=tiros.reduce((m,t)=>Math.max(m,t.salida+WG_VUELO_MS),0);
+  // v2.9.228 — LA CÁMARA VA AL EMPEÑO. Si el turno fue sólo fuego (nadie se
+  // movió), el replay de marcha no corre y la cámara se quedaba mirando a otro
+  // lado mientras pasaba lo único que había para ver.
+  if(WG.camara && WG.map3d && _wgEn3D()){
+    const im=base[0];
+    try{
+      const caja=_wgCaja([im.desde,[im.lng,im.lat]], 0.02);
+      if(caja) WG.map3d.fitBounds(caja, { padding:{top:100,bottom:130,left:90,right:90},
+        pitch:68, duration:2200, maxZoom:13.4, essential:true });
+    }catch(_e){}
+  }
   return new Promise((listo)=>{
     for(const t of tiros){ t.el=_wgProyectilEl(); t.el.style.display='none'; capa.appendChild(t.el); }
     const t0=performance.now();
@@ -24245,10 +24257,10 @@ function _wgDibujo(){
       const rutaPend=(WG.rutas&&WG.rutas[uid])||[];
       if(rutaPend.length>1){
         D.push(_wgD.lin(rutaPend,'#00e5ff',2,'3 6',.85));
-        rutaPend.slice(1).forEach((c2,i)=>{
-          D.push(_wgD.pt(c2[0],c2[1],5,'#00e5ff',2));
-          D.push(_wgD.txt(c2[0],c2[1],'punto '+(i+2)));
-        });
+        // v2.9.228: los puntos de paso se marcan con su bolita y nada más. Los
+        // carteles «punto 2 · punto 3» tapaban el terreno y no decían nada que
+        // no se viera solo: el orden ya lo da la línea que los une.
+        rutaPend.slice(1).forEach((c2)=>{ D.push(_wgD.pt(c2[0],c2[1],5,'#00e5ff',2)); });
       }
       D.push(_wgD.pt(pv.lng,pv.lat,6,'#ffffff',2,
         pv.detenida?'#e08a2c':(pv.llego?'#2ecc71':'#e8c33a')));
@@ -24329,7 +24341,15 @@ function _wgDibujo(){
       const km=_wgAlcanceObs(u,WG.terreno||[]);
       if(!(km>0)) continue;
       D.push(_wgD.cir(u.lng,u.lat,km,WG_COL[u.bando]||'#888',1,'4 5',.05));
-      if(soloSel) D.push(_wgD.txt(u.lng,u.lat,`👁️ observa ${km.toFixed(1)} km`));
+      if(soloSel){
+        // v2.9.228 — EL COMBUSTIBLE VIAJA CON LA UNIDAD. Estaba en el panel
+        // lateral, que es donde NO se está mirando cuando se planifica sobre la
+        // carta. Ahora el dato va pegado a la ficha, junto a su observación.
+        const c=_wgCombustible(u);
+        const comb = c ? ` · ⛽ ${c.resta.toFixed(0)} km`
+          + (c.pct>=100?' ⛔ SIN COMBUSTIBLE':(c.pct>=80?' ⚠️':'')) : '';
+        D.push(_wgD.txt(u.lng,u.lat,`👁️ observa ${km.toFixed(1)} km${comb}`));
+      }
     }
   }
   // ALCANCE del sistema de armas elegido, sobre la unidad seleccionada.
@@ -24373,6 +24393,98 @@ function _wgBarraCombustible(u){
     +`<span style="display:block;height:100%;width:${c.pct}%;background:${col}"></span></span>`
     +`<span class="rg-meta" style="font-size:10px;white-space:nowrap">`
     +`${c.resta.toFixed(0)} km${aviso}</span></div>`;
+}
+// ============================================================
+// v2.9.228 — CÁMARA DE CINE, POR UNIDAD.
+// Tres encuadres, del más abierto al más cerrado, y la cámara se mueve SOLA y
+// LENTO mientras la unidad marcha o tira — como un camarógrafo que acompaña la
+// acción, no como un salto brusco de un lado a otro.
+//   1 PANORÁMICA · la unidad y lo que la rodea (se ve el dispositivo entero)
+//   2 TÁCTICA    · la unidad y su contacto más cercano, los dos en cuadro
+//   3 CERCA      · sólo la unidad, pegado, girando despacio a su alrededor
+//   0 LIBRE      · la cámara no se mete (por defecto)
+// ============================================================
+const WG_CAMARAS = [
+  { id:0, nom:'Libre',      icono:'🖐️', desc:'La cámara no se mueve sola.' },
+  { id:1, nom:'Panorámica', icono:'🏔️', desc:'La unidad y lo que la rodea: se ve el dispositivo.' },
+  { id:2, nom:'Táctica',    icono:'⚔️', desc:'La unidad y su contacto más cercano, los dos en cuadro.' },
+  { id:3, nom:'Cerca',      icono:'🎯', desc:'Sólo la unidad, pegado y girando despacio.' },
+];
+// Caja que encierra un puñado de puntos, con un margen en grados.
+function _wgCaja(pts, margen){
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(const p of pts){ if(!p) continue;
+    x0=Math.min(x0,p[0]); x1=Math.max(x1,p[0]);
+    y0=Math.min(y0,p[1]); y1=Math.max(y1,p[1]); }
+  if(x0===Infinity) return null;
+  const m=margen||0.01;
+  return [[x0-m,y0-m],[x1+m,y1+m]];
+}
+// Qué tiene que entrar en cuadro según el modo.
+function _wgEncuadre(u, modo){
+  const uds=((WG.estado&&WG.estado.unidades)||[]).filter(x=>x.estado!=='fuera_combate');
+  const yo=[u.lng,u.lat];
+  if(modo===3) return { pts:[yo], zoom:13.4, pitch:74 };
+  if(modo===2){
+    // El contacto más cercano: primero un enemigo, y si no hay, quien sea.
+    const otros=uds.filter(x=>String(x.id)!==String(u.id));
+    const ene=otros.filter(x=>x.bando!==u.bando);
+    const cand=(ene.length?ene:otros)
+      .map(x=>({x,d:_wgHav(yo,[x.lng,x.lat])})).sort((a,b)=>a.d-b.d)[0];
+    if(!cand) return { pts:[yo], zoom:12.6, pitch:70 };
+    return { pts:[yo,[cand.x.lng,cand.x.lat]], pitch:68 };
+  }
+  // Panorámica: la unidad y las cuatro más cercanas, para leer el dispositivo.
+  const cerca=uds.map(x=>({p:[x.lng,x.lat],d:_wgHav(yo,[x.lng,x.lat])}))
+    .sort((a,b)=>a.d-b.d).slice(0,5).map(o=>o.p);
+  return { pts:cerca.length?cerca:[yo], pitch:62 };
+}
+/**
+ * Lleva la cámara al encuadre. `suave` = movimiento largo de cine; si no, un
+ * ajuste corto (el que se usa cuadro a cuadro durante el replay).
+ * `girar` hace derivar el rumbo despacio: es lo que le da el aire de travelling
+ * en vez de una foto fija.
+ */
+function _wgCamaraA(u, modo, suave, girar){
+  if(!u || !modo) return;
+  const enc=_wgEncuadre(u,modo);
+  const dur = suave?2600:1100;
+  const map=WG.map3d;
+  if(_wgEn3D() && map){
+    const bearing = girar!=null ? girar : map.getBearing();
+    try{
+      if(enc.zoom!=null){
+        map.easeTo({ center:enc.pts[0], zoom:enc.zoom, pitch:enc.pitch,
+          bearing, duration:dur, essential:true });
+      }else{
+        const caja=_wgCaja(enc.pts, modo===2?0.012:0.03);
+        if(!caja) return;
+        map.fitBounds(caja, { padding:{top:90,bottom:120,left:80,right:80},
+          pitch:enc.pitch, bearing, duration:dur, maxZoom:13.2, essential:true });
+      }
+    }catch(_e){}
+    return;
+  }
+  // En 2D no hay cámara que inclinar: se encuadra y listo.
+  if(WG.map){
+    try{
+      if(enc.zoom!=null) WG.map.setView([u.lat,u.lng], Math.min(15,enc.zoom+1), {animate:true});
+      else{
+        const caja=_wgCaja(enc.pts, modo===2?0.012:0.03);
+        if(caja) WG.map.fitBounds([[caja[0][1],caja[0][0]],[caja[1][1],caja[1][0]]],{padding:[60,60]});
+      }
+    }catch(_e){}
+  }
+}
+// Botón del riel: va rotando entre los cuatro modos.
+function wgCamaraCiclo(btn){
+  WG.camara = ((Number(WG.camara)||0)+1) % WG_CAMARAS.length;
+  const c=WG_CAMARAS[WG.camara];
+  if(btn){ btn.textContent=c.icono; btn.title='Cámara: '+c.nom+' — '+c.desc; }
+  _wgAviso(`${c.icono} <b>Cámara ${c.nom}</b> — ${c.desc}`
+    + (WG.camara&&WG.sel==null?'<br>Tocá una unidad para que la siga.':''), 3200);
+  const u=_wgUnidadPorId(WG.sel);
+  if(u && WG.camara) _wgCamaraA(u, WG.camara, true);
 }
 // v2.9.227 — RETÍCULA DE PUNTERÍA. Antes salía una línea del tirador al blanco
 // que cruzaba media carta y ensuciaba la vista. Lo que importa no es el trazo
@@ -24531,7 +24643,11 @@ function _wgUnidadClick(u){
   const mio = (WG.soy==='arbitro')||(u.bando===WG.soy);
   if(mio){ const antes=WG.sel; WG.sel=(String(WG.sel)===String(u.id))?null:u.id;
     if(String(antes)!==String(WG.sel)) WG.armaSel=null; // v2.9.214
-    _wgRender(); return; }
+    _wgRender();
+    // v2.9.228: si la cámara está en modo seguimiento, encuadra la unidad recién
+    // elegida con un movimiento largo — no un salto.
+    if(WG.camara && WG.sel!=null) _wgCamaraA(u, WG.camara, true);
+    return; }
   // clic en enemigo con una unidad mía seleccionada → orden de atacar
   if(WG.sel){
     if(!_wgPuedeOrdenar()) return;
@@ -24852,6 +24968,10 @@ async function wgReplay(trazas, segundos=14){
   // SENTIDO de la marcha aunque la ficha vaya despacio.
   const humo=[];
   let ultimoHumo=0;
+  // v2.9.228: la cámara acompaña la acción. `giroCam` deriva despacio para que
+  // sea un travelling y no una foto fija; se refresca cada ~900 ms, no cuadro a
+  // cuadro, porque encadenar `easeTo` en cada frame se ve tembloroso.
+  let ultimoCam=0, giroCam=(WG.map3d?WG.map3d.getBearing():0);
   const t0=performance.now();
   await new Promise(fin=>{
     function paso(ahora){
@@ -24883,6 +25003,23 @@ async function wgReplay(trazas, segundos=14){
         const h=humo[k], edad=(ahora-h.t0)/1300;
         if(edad>=1){ try{ capa.removeLayer(h.m); }catch(_e){} humo.splice(k,1); continue; }
         try{ h.m.setRadius(12+edad*27); h.m.setStyle({fillOpacity:0.55*(1-edad)}); }catch(_e){}
+      }
+      // v2.9.228 — LA CÁMARA SIGUE A LA UNIDAD. Prioriza la seleccionada; si no
+      // hay ninguna, acompaña a la que más camino está haciendo, que es donde
+      // está pasando algo.
+      if(WG.camara && (ahora-ultimoCam)>900){
+        ultimoCam=ahora;
+        const p = piezas.find(x=>String(x.t.id)===String(WG.sel))
+          || piezas.slice().sort((a,b)=>(b.t.km||0)-(a.t.km||0))[0];
+        if(p){
+          const f=(p.t.horas>0)?Math.min(1,horaSim/p.t.horas):1;
+          const pos=_wgInterp(p.t.ruta,f);
+          if(pos){
+            _wgCamaraA({ id:p.t.id, bando:p.t.bando, lng:pos[0], lat:pos[1],
+              estado:'activa' }, WG.camara, false, giroCam);
+            giroCam += 2.2;   // deriva lenta: travelling, no foto fija
+          }
+        }
       }
       if(cartel) cartel.innerHTML='▶️ <b>Replay del turno</b> · hora H+'+horaSim.toFixed(1)+' de '+maxH.toFixed(1)+' h';
       if(_wgEn3D()) _wg3dReplayPaso(piezas,horaSim,humo,ahora);
@@ -24928,9 +25065,14 @@ function _wgAviso(html, ms){
 // Resumen CORTO para el bocadillo (la bitácora guarda el detalle largo).
 function _wgResumenTraza(t){
   const km=(t.km||0).toFixed(1);
-  if(t.detenida) return `🛑 Frenado a los ${km} km`;
-  if(t.llego)    return `✅ En el objetivo · ${km} km`;
-  return `⏱️ ${km} km — no alcancé`;
+  // v2.9.228: la unidad que se desplazó CUENTA SU COMBUSTIBLE ahí mismo, sobre
+  // el mapa. Es el momento en que el dato sirve: acaba de gastarlo.
+  const u=_wgUnidadPorId(t.id), c=u?_wgCombustible(u):null;
+  const comb = c ? ` · ⛽ quedan ${c.resta.toFixed(0)} km`
+    + (c.pct>=100?' ⛔ SIN COMBUSTIBLE':(c.pct>=80?' ⚠️ poco tanque':'')) : '';
+  if(t.detenida) return `🛑 Frenado a los ${km} km${comb}`;
+  if(t.llego)    return `✅ En el objetivo · ${km} km${comb}`;
+  return `⏱️ ${km} km — no alcancé${comb}`;
 }
 function _wgBurbuja(id, texto, ms){
   const u=((WG.estado&&WG.estado.unidades)||[]).find(x=>String(x.id)===String(id));
