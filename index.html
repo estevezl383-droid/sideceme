@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.223</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.224</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -22968,10 +22968,13 @@ function _wgQuemadoFC(){
 // proyectil: bate la zona con una serie. Se lanzan varios con retardo entre sí,
 // así el empeño dura ~4 s y se ve como fuego sostenido.
 const WG_VUELO_MS = 1100;   // lo que tarda UN proyectil de punta a punta
-const WG_RAFAGA_MS = 4000;  // cuánto dura el fuego sobre un mismo blanco
-// Cuántos proyectiles según el sistema: el obús tira serie, el misil AT uno solo.
-const WG_SALVA = { fusil:7, ametralladora:9, pesada:8, mortero60:5, mortero81:6,
-  mortero120:5, srAT:2, misilAT:1, canon:3, obus105:6, obus155:5 };
+// v2.9.224 — EL EMPEÑO DURA MÁS Y ES MÁS NUTRIDO. Un intercambio de fuego no se
+// resuelve en cuatro segundos: es el momento del turno que hay que poder mirar.
+const WG_RAFAGA_MS = 7000;
+// Cuántos proyectiles según el sistema. El obús tira serie sostenida, el misil
+// antitanque uno solo — no se inventa cadencia donde no la hay.
+const WG_SALVA = { fusil:14, ametralladora:18, pesada:15, mortero60:9, mortero81:11,
+  mortero120:9, srAT:3, misilAT:2, canon:6, obus105:11, obus155:9 };
 function _wgProyectilEl(){
   const el=document.createElement('div');
   el.className='wg-proy'; el.style.pointerEvents='none';
@@ -24412,6 +24415,10 @@ function _wgMatrizFilas(){
       // Última hora de arranque con la que TODAVÍA termina dentro del turno.
       f.ultimoArranque = f.imposible?null:Math.max(0,horas-f.necesita);
       f.vel = f.necesita>0 ? (f.km/f.necesita) : 0;
+      // v2.9.224 — HORA DE LLEGADA. Es el dato con el que se sincroniza de
+      // verdad: se mira cuándo llega cada una y de ahí se reajustan las horas
+      // de arranque para que caigan juntas sobre el objetivo.
+      f.llegada = f.imposible?null:(inicio+f.necesita);
     }else if(o.tipo==='fuego'||o.tipo==='atacar'){
       const arma=_wgArmaDeFuego(u,o.arma);
       const blanco = o.tipo==='fuego' ? [o.destino_lng,o.destino_lat]
@@ -24436,14 +24443,20 @@ function _wgMatrizHTML(){
   if(!filas.length) return `<div class="rg-meta">Todavía no trazaste ninguna acción.<br>`
     +`Tocá una unidad y dale una orden; la matriz se arma sola con lo que planifiques.</div>`;
   const horas=filas[0].horas;
+  // v2.9.224 — PASOS DE 15 MINUTOS. Con medias horas no se podía sincronizar
+  // nada fino en turnos cortos: había tres opciones y listo. El paso se adapta
+  // al turno para no terminar con una lista de cien renglones.
+  const paso = horas<=1 ? 0.25 : (horas<=3 ? 0.25 : (horas<=8 ? 0.5 : 1));
+  const hTexto=(h)=>{ const m=Math.round(h*60); return 'H+'+Math.floor(m/60)+':'+String(m%60).padStart(2,'0'); };
   const opciones=(f)=>{
     // Las horas de arranque POSIBLES: sólo las que dejan terminar la tarea.
     const tope = f.ultimoArranque==null ? -1 : f.ultimoArranque;
     const out=[];
-    for(let h=0;h<=horas;h+=0.5){
+    for(let h=0;h<=horas+1e-9;h+=paso){
       const ok = h<=tope+1e-9;
+      const llega = f.necesita>0 ? ` · llega ${hTexto(h+f.necesita)}` : '';
       out.push(`<option value="${h}" ${Math.abs(h-f.inicio)<1e-6?'selected':''} ${ok?'':'disabled'}>`
-        +`H+${h.toFixed(1)}${ok?'':' — no llega'}</option>`);
+        +`${hTexto(h)}${ok?llega:' — no llega'}</option>`);
     }
     return out.join('');
   };
@@ -24456,7 +24469,7 @@ function _wgMatrizHTML(){
       }else{
         detalle=`${f.km.toFixed(1)} km · necesita <b>${_wgHoras(f.necesita)}</b> · ${f.vel.toFixed(0)} km/h`;
         estado = f.llega
-          ? `<span style="color:#2ecc71">✅ termina dentro del turno</span>`
+          ? `<span style="color:#2ecc71">✅ llega a <b>${hTexto(f.llegada)}</b></span>`
           : `<span style="color:#e8c33a">⏱️ avanza ${f.avanza.toFixed(1)} km y sigue el turno que viene</span>`;
       }
     }else{
