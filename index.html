@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.224</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.225</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -22982,13 +22982,19 @@ function _wgProyectilEl(){
   return el;
 }
 // Convierte lng/lat a píxeles de pantalla en la superficie que esté activa.
+// v2.9.225 — ÉSTA ERA LA CAUSA DE QUE «A VECES NO SALIERAN LOS FUEGOS».
+// Las dos funciones preguntaban si EXISTE el mapa 3D (`WG.map3d`), no si está
+// A LA VISTA. Como el objeto queda creado para siempre en cuanto se abre el 3D
+// una vez, al volver al 2D los proyectiles se dibujaban dentro del contenedor
+// 3D OCULTO y las coordenadas se calculaban contra un mapa que nadie veía: el
+// empeño ocurría, la bitácora lo contaba, y en pantalla no pasaba nada.
 function _wgAPixel(lngLat){
-  if(WG.map3d){ const p=WG.map3d.project(lngLat); return [p.x,p.y]; }
+  if(_wgEn3D()){ const p=WG.map3d.project(lngLat); return [p.x,p.y]; }
   if(WG.map){ const p=WG.map.latLngToContainerPoint([lngLat[1],lngLat[0]]); return [p.x,p.y]; }
   return null;
 }
 function _wgCapaEfectos(){
-  const id = WG.map3d ? 'wg-3d-map' : 'wg-map';
+  const id = _wgEn3D() ? 'wg-3d-map' : 'wg-map';
   const host = document.getElementById(id);
   if(!host) return null;
   let capa = host.querySelector('.wg-efectos');
@@ -23041,7 +23047,13 @@ function _wgAnimarDisparos(impactos){
         const k=(dt-t.salida)/WG_VUELO_MS;
         if(k<0){ continue; }                    // todavía no salió
         const a=_wgAPixel(t.im.desde), b=_wgAPixel([t.im.lng,t.im.lat]);
-        if(!a||!b){ t.el.style.display='none'; continue; }
+        // v2.9.225: con la cámara inclinada, un punto que queda DETRÁS del
+        // observador se proyecta a coordenadas absurdas y el proyectil salía
+        // disparado a la nada. Si pasa, ese tiro no se dibuja (el combate se
+        // resolvió igual: esto es sólo lo que se ve).
+        const cuerdo=(p)=> p && Number.isFinite(p[0]) && Number.isFinite(p[1])
+          && Math.abs(p[0])<20000 && Math.abs(p[1])<20000;
+        if(!cuerdo(a)||!cuerdo(b)){ t.el.style.display='none'; continue; }
         if(k>=1){
           // IMPACTO de ESTE proyectil: fogonazo y afuera.
           t.reventado=true; t.el.remove();
@@ -23603,7 +23615,16 @@ function _wgBatidosPor(u, arma){
   return enemigos.map(e=>({e, d:_wgHav([u.lng,u.lat],[e.lng,e.lat])}))
     .filter(x=>x.d<=arma.alcance).sort((a,b)=>a.d-b.d);
 }
+// v2.9.225: arma el modo «romper contacto». El siguiente clic en el mapa marca
+// hacia dónde se retira. Elegir replegarse suelta el arma: no se hacen las dos.
+function wgReplegar(){
+  if(!WG.sel) return;
+  WG.modoReplegar=!WG.modoReplegar;
+  if(WG.modoReplegar) WG.armaSel=null;
+  _wgRender();
+}
 function wgElegirArma(id){
+  if(id) WG.modoReplegar=false;   // v2.9.225: elegir arma cancela el repliegue
   WG.armaSel = (WG.armaSel===id)?null:id;   // volver a tocarlo lo deselecciona
   _wgRender();
 }
@@ -23669,8 +23690,18 @@ function _wgPanelArmasHTML(){
       // v2.9.217: ya no es sólo planeamiento — el motor resuelve con ESTE alcance.
       +`<br><b style="color:#ff9f43">Fuera del círculo dispara igual:</b> los tiros caen cortos, gasta munición y delata su posición.</div>`
     : `<div class="rg-meta" style="font-size:11px;margin:2px 0 10px">Elegí un sistema para ver su alcance y <b>pedir fuego</b> con un clic en el mapa.</div>`;
+  // v2.9.225 — ROMPER CONTACTO. Sin esto el choque por proximidad era
+  // obligatorio y las unidades se molían turno a turno sin salida.
+  const rep = `<div onclick="wgReplegar()" style="display:flex;align-items:center;justify-content:center;gap:7px;`
+    +`padding:8px;margin:8px 0 2px;border-radius:9px;cursor:pointer;font-size:12px;font-weight:700;`
+    +(WG.modoReplegar?`background:rgba(224,138,44,.28);border:1px solid #e08a2c;color:#ffd9a8`
+                     :`background:rgba(224,138,44,.12);border:1px solid rgba(224,138,44,.5);color:#e8b27a`)+`">`
+    +(WG.modoReplegar?'↩️ TOCÁ EL MAPA: hacia dónde se repliega':'↩️ ROMPER CONTACTO · replegarse')+`</div>`
+    +`<div class="rg-meta" style="font-size:10.5px;line-height:1.4;margin-bottom:6px">`
+    +`Se retira <b>sin empeñar</b>. Si tenía un enemigo encima, aguanta el fuego de la persecución `
+    +`y no devuelve golpes: desenganchar cuesta, pero salva a la unidad.</div>`;
   return `<div class="section-label" style="margin:0 0 6px">🎯 ARMAMENTO · ${_rgEsc(u.designacion||'unidad')}</div>`
-    +filas+pie;
+    +filas+pie+rep;
 }
 // Sistemas de armas de una unidad, ordenados de menor a mayor alcance.
 function _wgArmamento(u){
@@ -24102,12 +24133,15 @@ function _wgDibujo(){
   const horasTurno = Number(((e.partida||{}).duracion_turno_horas))||2;
   for(const [uid,o] of Object.entries(WG.ordenes)){
     const u=uById[uid]; if(!u) continue;
-    if(o.tipo==='mover' && o.destino_lat!=null){
+    if((o.tipo==='mover'||o.tipo==='replegar') && o.destino_lat!=null){
+      // v2.9.225: el repliegue se dibuja en ÁMBAR, para que se distinga de un
+      // avance de un vistazo — no es lo mismo avanzar que romper contacto.
+      const esRepliegue = o.tipo==='replegar';
       // VERDE MACIZO = lo que recorre de verdad este turno · GRIS PUNTEADO = lo
       // que le queda pendiente. La orden se entiende ANTES de resolver.
       // v2.9.220: la previsión recorre TODA la ruta, no sólo el primer tramo.
       const pv=_wgPreverRuta(u, (Array.isArray(o.ruta)&&o.ruta.length)?o.ruta:[[o.destino_lng,o.destino_lat]], horasTurno);
-      D.push(_wgD.lin(pv.ruta, pv.detenida?'#e08a2c':'#2ecc71', 4));
+      D.push(_wgD.lin(pv.ruta, pv.detenida?'#e08a2c':(esRepliegue?'#ffb454':'#2ecc71'), 4));
       if(!pv.llego){
         D.push(_wgD.lin([[pv.lng,pv.lat],[o.destino_lng,o.destino_lat]],'#9aa7b4',2,'4 7',.75));
         D.push(_wgD.pt(o.destino_lng,o.destino_lat,4,'#9aa7b4',1));
@@ -24124,10 +24158,11 @@ function _wgDibujo(){
       }
       D.push(_wgD.pt(pv.lng,pv.lat,6,'#ffffff',2,
         pv.detenida?'#e08a2c':(pv.llego?'#2ecc71':'#e8c33a')));
+      const marca = esRepliegue ? '↩️ REPLIEGUE · ' : '';
       D.push(_wgD.txt(pv.lng,pv.lat, pv.detenida
-        ? `🛑 ${pv.avanzadoKm.toFixed(1)} km · ${pv.motivo}`
-        : (pv.llego ? `✅ llega (${pv.avanzadoKm.toFixed(1)} km · ${_wgHoras(pv.horasUsadas)})`
-                    : `⏱️ ${pv.avanzadoKm.toFixed(1)} de ${pv.totalKm.toFixed(1)} km — no alcanza el turno`)));
+        ? `${marca}🛑 ${pv.avanzadoKm.toFixed(1)} km · ${pv.motivo}`
+        : (pv.llego ? `${marca}✅ llega (${pv.avanzadoKm.toFixed(1)} km · ${_wgHoras(pv.horasUsadas)})`
+                    : `${marca}⏱️ ${pv.avanzadoKm.toFixed(1)} de ${pv.totalKm.toFixed(1)} km — no alcanza el turno`)));
     }else if(o.tipo==='atacar' && o.objetivo_id && uById[o.objetivo_id]){
       const t=uById[o.objetivo_id];
       const d=_wgHav([u.lng,u.lat],[t.lng,t.lat]);
@@ -24355,6 +24390,18 @@ function _wgMapClick(ev){
   if(!WG.sel) return;
   if(!_wgPuedeOrdenar()) return;
   const p=[ev.latlng.lng, ev.latlng.lat];
+  // v2.9.225 — REPLEGARSE: el clic marca hacia dónde romper contacto. La unidad
+  // se retira sin empeñar; si tenía un enemigo encima al empezar el turno,
+  // aguanta el fuego de la persecución pero no devuelve golpes.
+  if(WG.modoReplegar){
+    if(WG.rutas) delete WG.rutas[WG.sel];
+    WG.ordenes[WG.sel]={ tipo:'replegar', destino_lng:p[0], destino_lat:p[1] };
+    WG.modoReplegar=false;
+    _wgAviso('↩️ Orden de <b>romper contacto</b> dada. Desenganchar cuesta, pero salva a la unidad.',4200);
+    _wgActualizarContadorOrdenes(); _wgRender();
+    if(WG.map3d) _wg3dDatos();
+    return;
+  }
   // v2.9.219 — CON UN SISTEMA DE ARMAS ELEGIDO, EL CLIC PIDE FUEGO AHÍ.
   // Es como se pide el fuego de verdad: se marca DÓNDE se quiere la
   // concentración, no a qué ficha. Para volver a mover, se deselecciona el
@@ -24402,9 +24449,10 @@ function _wgMatrizFilas(){
     const inicio=Math.max(0,Math.min(horas,Number(o.inicio)||0));
     const disp=horas-inicio;                       // horas que le quedan al turno
     const f={ id:uid, u, o, inicio, horas, disp, nom:_rgEsc(u.designacion||('unidad '+uid)) };
-    if(o.tipo==='mover'){
+    if(o.tipo==='mover'||o.tipo==='replegar'){
       const ruta=(Array.isArray(o.ruta)&&o.ruta.length)?o.ruta:[[o.destino_lng,o.destino_lat]];
-      f.tarea='Desplazarse'+(ruta.length>1?` (${ruta.length} puntos)`:'');
+      f.tarea=(o.tipo==='replegar'?'↩️ Romper contacto':'Desplazarse')
+        +(ruta.length>1?` (${ruta.length} puntos)`:'');
       // Con TODO el turno: cuánto tarda la tarea completa. Ése es el mínimo real.
       const completo=_wgPreverRuta(u,ruta,horas*40);   // margen amplio: mide la tarea
       f.km=completo.avanzadoKm; f.necesita=completo.horasUsadas;
@@ -24462,7 +24510,7 @@ function _wgMatrizHTML(){
   };
   const cuerpo=filas.map(f=>{
     let detalle, estado;
-    if(f.o.tipo==='mover'){
+    if(f.o.tipo==='mover'||f.o.tipo==='replegar'){
       if(f.imposible){
         detalle=`${f.km.toFixed(1)} km · <b style="color:#e08a2c">el terreno la frena</b>`;
         estado=`<span style="color:#e08a2c">🛑 ${_rgEsc(f.motivo||'no puede pasar')}</span>`;
