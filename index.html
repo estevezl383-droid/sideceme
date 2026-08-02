@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.232</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.233</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6904,6 +6904,7 @@ body.wg-jugando{overflow:hidden}
         <button class="wg-rd" id="wg-btn-obs" onclick="wgObsToggle(this)" title="Alcance de observación (niebla de guerra)">👁️</button>
         <button class="wg-rd" id="wg-btn-carta" onclick="wgHoja('capas')" title="Calcos: elegir qué se ve (CMOC, caminos, elevaciones, agua…) y ajustes del 3D">🗺️</button>
         <button class="wg-rd" id="wg-btn-3d" onclick="wgAlternar3D(this)" title="Alternar mapa plano / relieve 3D">⛰️</button>
+        <button class="wg-rd" id="wg-btn-vivo" onclick="wgVivo(this)" style="opacity:.5" title="En vivo apagado: hay que actualizar a mano">📡</button>
         <button class="wg-rd" id="wg-btn-cam" onclick="wgCamaraCiclo(this)" title="Cámara: Libre — tocá para cambiar de encuadre (panorámica, táctica, cerca)">🖐️</button>
         <button class="wg-rd" onclick="wgHoja('unidades')" title="Unidades">🪖</button>
         <button class="wg-rd" onclick="wgHoja('matriz')" title="Matriz de sincronización: qué exige cada tarea y a qué hora arranca cada unidad">📋</button>
@@ -6912,6 +6913,10 @@ body.wg-jugando{overflow:hidden}
         <button class="wg-rd" onclick="wgHoja('bitacora')" title="Bitácora">📜</button>
         <button class="wg-rd" id="wg-btn-config" onclick="wgHoja('config')" title="Configurar" style="display:none">⚙️</button>
       </div>
+
+      <!-- v2.9.233 — LAS TRES VISTAS DEL ÁRBITRO. Sólo aparece para él. -->
+      <div id="wg-vistas" style="position:absolute;left:56px;top:56px;z-index:1034;
+        display:flex;gap:7px;flex-wrap:wrap;max-width:calc(100% - 340px)"></div>
 
       <!-- v2.9.229 — BARRA DE CÁMARAS. Abajo, con todos los encuadres a la
            vista para poder rotar entre ellos sin adivinar cuál viene. -->
@@ -22748,6 +22753,94 @@ function wgPanelLogistica(){
     +`<b>Raciones</b> y <b>agua</b> no las lleva el motor: el tiempo no consume víveres todavía. `
     +`Prefiero dejarlo dicho antes que mostrarte un número inventado en un tablero de logística.</div></div>`;
 }
+// ============================================================
+// ============================================================
+// v2.9.233 — REFRESCO EN VIVO.
+// Para que los dos Estados Mayores jueguen a la vez en máquinas distintas hace
+// falta que el tablero se actualice solo: si hay que apretar 🔄, uno siempre
+// está mirando una foto vieja.
+// Se hace por SONDEO y no por notificaciones porque la Edge Function corre con
+// clave de bando y JWT apagado — montar Realtime encima pediría rehacer los
+// permisos. El sondeo es honesto y funciona.
+// Se calla solo cuando estorbaría: durante el replay, con una hoja abierta, o
+// mientras hay órdenes sin enviar (no se le pisa el planeamiento a nadie).
+// ============================================================
+const WG_VIVO_MS = 7000;
+function _wgVivoLatiendo(){
+  clearTimeout(WG._vivo);
+  if(!WG.vivo) return;
+  WG._vivo=setTimeout(async()=>{
+    try{
+      const p=(WG.estado&&WG.estado.partida)||{};
+      const ocupado = WG.replayando || WG.modoColocar || WG.modoReplegar
+        || Object.keys(WG.ordenes||{}).length>0;
+      if(p.estado==='en_curso' && !ocupado && !document.hidden){
+        await wgEstado(true);   // silencioso: es un sondeo, no una acción del usuario
+      }
+    }catch(_e){}
+    _wgVivoLatiendo();
+  }, WG_VIVO_MS);
+}
+function wgVivo(btn){
+  WG.vivo=!WG.vivo;
+  if(btn){ btn.style.opacity=WG.vivo?1:.5; btn.title=WG.vivo
+    ? 'En vivo: el tablero se actualiza solo cada 7 s' : 'En vivo apagado: hay que actualizar a mano'; }
+  _wgAviso(WG.vivo
+    ? '📡 <b>En vivo encendido.</b> El tablero se actualiza solo cada 7 s — se pausa mientras planificás o corre el replay.'
+    : '📡 En vivo apagado. Actualizá con 🔄.', 3600);
+  _wgVivoLatiendo();
+}
+// v2.9.233 — LAS TRES VISTAS DEL ÁRBITRO.
+// El árbitro ve TODO, y eso está bien: es quien juzga. Pero para juzgar bien
+// necesita poder preguntarse «¿qué estaba viendo el azul cuando decidió eso?».
+// Estas tres vistas se lo dan: el panorama completo, o el tablero tal como lo
+// tenía cada Estado Mayor, con su niebla puesta.
+// No cambia nada del juego — es una lente sobre los mismos datos.
+// ============================================================
+const WG_VISTAS=[
+  { id:'todo', nom:'Panorama', icono:'👁️', desc:'Todo el tablero, sin niebla. La vista del árbitro.' },
+  { id:'azul', nom:'Ojos del AZUL', icono:'🔵', desc:'El tablero como lo ve el Estado Mayor azul, con su niebla.' },
+  { id:'rojo', nom:'Ojos del ROJO', icono:'🔴', desc:'El tablero como lo ve el Estado Mayor rojo, con su niebla.' },
+];
+// Qué unidades se muestran según la lente elegida.
+function _wgUnidadesVisibles(){
+  const e=WG.estado; if(!e) return [];
+  const todas=e.unidades||[];
+  const v=WG.vistaArb||'todo';
+  if(WG.soy!=='arbitro' || v==='todo') return todas;
+  const det=(e.detecciones&&e.detecciones[v])||[];
+  const vistas=new Set(det.map(String));
+  // Ese bando ve lo suyo + lo que detectó. Nada más.
+  return todas.filter(u=> u.bando===v || vistas.has(String(u.id)));
+}
+function _wgBarraVistasHTML(){
+  if(WG.soy!=='arbitro') return '';
+  const v=WG.vistaArb||'todo';
+  return WG_VISTAS.map(x=>{
+    const act=v===x.id;
+    const n=(()=>{ const g=WG.vistaArb; WG.vistaArb=x.id;
+      const k=_wgUnidadesVisibles().length; WG.vistaArb=g; return k; })();
+    return `<button onclick="wgVistaArbitro('${x.id}')" title="${_rgEsc(x.desc)}" `
+      +`style="display:flex;align-items:center;gap:6px;padding:6px 11px;border-radius:9px;cursor:pointer;`
+      +`font-size:11.5px;font-weight:700;white-space:nowrap;`
+      +(act?`background:rgba(232,195,58,.20);border:1px solid #e8c33a;color:#ffe9a8`
+           :`background:rgba(10,16,22,.72);border:1px solid rgba(140,210,255,.25);color:#cfe2f5`)+`">`
+      +`<span style="font-size:13px">${x.icono}</span>${x.nom}`
+      +`<span style="opacity:.65;font-weight:600">${n}</span></button>`;
+  }).join('');
+}
+function wgPanelVistas(){
+  const el=document.getElementById('wg-vistas');
+  if(el) el.innerHTML=_wgBarraVistasHTML();
+}
+function wgVistaArbitro(id){
+  WG.vistaArb=id;
+  wgPanelVistas();
+  const x=WG_VISTAS.find(y=>y.id===id);
+  _wgAviso(`${x.icono} <b>${x.nom}</b> — ${x.desc}`
+    + (id==='todo'?'':'<br>Las unidades que ese bando NO detectó quedan fuera del tablero.'), 3800);
+  _wgRender(); if(WG.map3d) _wg3dDatos();
+}
 // v2.9.232 — APUNTAR EL DRON. No es una orden de turno: es una decisión de
 // vigilancia que vale desde ya. Por eso se manda al servidor al instante y no
 // espera a «Jugar turno».
@@ -22822,12 +22915,17 @@ function wgActualizarZoomChip(){
 }
 // Compatibilidad: el botón viejo de configurar abría/cerraba su caja.
 function wgPanelToggle(){ wgHoja(WG.hoja==='unidades'?null:'unidades'); }
-async function wgEstado(){
+// v2.9.233: `silencioso` lo usa el refresco en vivo. Sin esto, un tropiezo de
+// red durante el sondeo dispararía un `alert()` cada 7 segundos.
+async function wgEstado(silencioso){
   if(!WG.partidaId) return;
   // v2.9.201: el terreno importado del Generador pesa MB; se pide UNA vez y se
   // guarda en WG.terreno. En los refrescos la EF lo omite (terreno:null).
   const r=await _wgInvoke('estado',{ partida_id:WG.partidaId, clave_acceso:WG.clave, incluir_terreno: !WG.terreno });
-  if(!r.ok){ alert('No se pudo cargar el estado: '+r.error); return; }
+  if(!r.ok){
+    if(silencioso){ console.warn('estado (en vivo):', r.error); return; }
+    alert('No se pudo cargar el estado: '+r.error); return;
+  }
   if(Array.isArray(r.terreno)) WG.terreno=_wgPrepTerreno(r.terreno);
   WG.estado=r; WG.soy=r.soy;
   const esArb = r.soy==='arbitro';
@@ -23597,7 +23695,7 @@ function _wg3dDatos(){
         properties:{_sel:esSel?1:0}});
   }
   try{ map.getSource('wg-sel').setData({type:'FeatureCollection',features:selPt}); }catch(_e){}
-  for(const u of ((WG.estado&&WG.estado.unidades)||[])){
+  for(const u of _wgUnidadesVisibles()){
     // v2.9.231 — LA FICHA TIENE PORTE SEGÚN SU ESCALÓN. Una división no puede
     // verse igual que una sección: el tamaño es información, no decoración.
     const sim=_wgSimboloUnidad(u,false), F=0.55*_wgPorte(u);
@@ -24496,7 +24594,10 @@ function _wgArmaDeFuego(u, id){
 }
 function _wgDibujo(){
   const D=[], e=WG.estado; if(!e) return D;
+  // v2.9.233: `uById` mira TODAS (para resolver blancos de órdenes ya dadas),
+  // pero lo que se DIBUJA sale de la lente activa.
   const uById={}; for(const u of (e.unidades||[])) uById[u.id]=u;
+  const visibles=_wgUnidadesVisibles();
   const horasTurno = Number(((e.partida||{}).duracion_turno_horas))||2;
   for(const [uid,o] of Object.entries(WG.ordenes)){
     const u=uById[uid]; if(!u) continue;
@@ -24595,7 +24696,7 @@ function _wgDibujo(){
   // selección, se ven todos como información de ambiente, sin cartel.
   if(WG.verObs!==false){
     const soloSel = WG.sel!=null && uById[WG.sel];
-    for(const u of (e.unidades||[])){
+    for(const u of visibles){
       if(!(WG.soy==='arbitro' || u.bando===WG.soy)) continue;
       if(u.estado==='fuera_combate') continue;
       if(soloSel && String(u.id)!==String(WG.sel)) continue;
@@ -24617,7 +24718,7 @@ function _wgDibujo(){
   // se conoce) y sólo con el dron desplegado. Es la información que decide
   // hacia dónde se está mirando y, sobre todo, hacia dónde NO.
   if(WG.verObs!==false){
-    for(const u of (e.unidades||[])){
+    for(const u of visibles){
       if(!(WG.soy==='arbitro' || u.bando===WG.soy)) continue;
       const pts=_wgConoDron(u); if(!pts) continue;
       const soloSel2 = WG.sel!=null && uById[WG.sel];
@@ -24827,6 +24928,7 @@ function wgPanelCamaras(){
 function wgCamara(id){
   WG.camara=Number(id)||0;
   wgPanelCamaras();
+  wgPanelVistas();
   const c=WG_CAMARAS[WG.camara];
   const b=document.getElementById('wg-btn-cam');
   if(b){ b.textContent=c.icono; b.title='Cámara: '+c.nom+' — '+c.desc; }
@@ -24847,7 +24949,7 @@ function wgCamaraCiclo(btn){
 function _wgPisoFC(){
   const feats=[];
   if(WG.verUnidades===false) return {type:'FeatureCollection',features:feats};
-  for(const u of ((WG.estado&&WG.estado.unidades)||[])){
+  for(const u of _wgUnidadesVisibles()){
     if(!Number.isFinite(u.lng)||!Number.isFinite(u.lat)) continue;
     feats.push({type:'Feature',geometry:{type:'Point',coordinates:[u.lng,u.lat]},
       properties:{ _col: u.estado==='fuera_combate' ? '#7c8894' : (WG_COL[u.bando]||'#888'),
@@ -25001,7 +25103,8 @@ function _wgRender(){
   }
   _wgPintar2D(_wgDibujo());
   // unidades — v2.9.201: SÍMBOLO MILITAR reglamentario en vez del circulito.
-  for(const u of ((WG.verUnidades===false)?[]:(e.unidades||[]))){
+  // v2.9.233: con la lente del árbitro puesta, sólo se dibuja lo que ESE bando ve.
+  for(const u of ((WG.verUnidades===false)?[]:_wgUnidadesVisibles())){
     const mio = (WG.soy==='arbitro') || (u.bando===WG.soy);
     const sel = String(WG.sel)===String(u.id);
     const sim = _wgSimboloUnidad(u,sel);
