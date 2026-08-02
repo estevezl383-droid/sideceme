@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.239</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.240</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6733,17 +6733,17 @@ body.wg-jugando{overflow:hidden}
    alcance. No es un adorno: al verlo girar se entiende que es un medio que
    está ARRIBA y que cubre un sector, no un símbolo pegado a la ficha.
    ============================================================ */
-/* v2.9.239 — EL DRON VUELA, NO GIRA COMO AGUJA DE RELOJ.
+/* v2.9.240 — EL DRON VUELA, NO GIRA COMO AGUJA DE RELOJ.
    El brazo rotando se veía exactamente como la manecilla de un reloj. Ahora el
    aparato ES un marcador propio que RECORRE el círculo sobre el mapa: cambia de
    posición geográfica, se inclina en los virajes y va a su altura, con la
    sombra en el suelo por debajo. Eso se lee como un avión dando vueltas. */
-/* v2.9.239 — VUELA NIVELADO Y A SU ALTURA.
+/* v2.9.240 — VUELA NIVELADO Y A SU ALTURA.
    La caja del marcador mide CERO: es sólo el punto donde está el aparato en el
    aire. De ahí cuelga el hilo hasta el suelo y abajo va la sombra — los dos con
    la altura de vuelo REAL convertida a pantalla. Por eso, al acercarte, el
    aparato se despega más del terreno en vez de quedar pegado a la pantalla. */
-/* v2.9.239 — CADA DRON CON EL COLOR DE SU BANDO. El aparato azul y el rojo
+/* v2.9.240 — CADA DRON CON EL COLOR DE SU BANDO. El aparato azul y el rojo
    tienen que distinguirse de un vistazo: halo del color, hilo del color y
    matrícula debajo. `--dcol` la pone el marcador al crearse. */
 .wg-dron{position:relative;width:0;height:0;pointer-events:auto;cursor:pointer;--dcol:#9b7bff}
@@ -6843,7 +6843,7 @@ body.wg-jugando{overflow:hidden}
   border-radius:50%;animation:wgEstallido .55s ease-out forwards;
   background:radial-gradient(circle,#fffdf0 0%,#ffe259 18%,#ff9d05 42%,#ff3c00 62%,rgba(120,30,0,.35) 80%,rgba(0,0,0,0) 100%);
   filter:blur(1px)}
-/* v2.9.239 — COLUMNA DE ARRIBA A LA IZQUIERDA. Vistas del árbitro, franja de
+/* v2.9.240 — COLUMNA DE ARRIBA A LA IZQUIERDA. Vistas del árbitro, franja de
    consola y panel de ARMAMENTO, apilados. Ninguno vuelve a taparle el título al
    otro, y si la suma no entra en la pantalla, la columna hace scroll. */
 #screen-wargame.wg-full #wg-arriba-izq{position:absolute;left:56px;top:52px;z-index:1034;
@@ -6869,7 +6869,7 @@ body.wg-jugando{overflow:hidden}
 #screen-wargame.wg-full #wg-game.hoja-abierta #wg-acc,
 #screen-wargame.wg-full #wg-game.hoja-abierta #wg-zoom{right:calc(min(340px,88vw) + 16px)}
 #screen-wargame.wg-full #wg-zoom{transition:right .22s ease}
-/* v2.9.239 — EL CARTEL DE AYUDA YA NO SE COME LA ESQUINA.
+/* v2.9.240 — EL CARTEL DE AYUDA YA NO SE COME LA ESQUINA.
    Estaba clavado abajo a la izquierda, encima de la barra de cámaras: las dos
    cosas se pisaban y no se leía ninguna. Ahora vive DENTRO del panel de ayuda
    (botón ❓) y sólo aparece si lo pedís. */
@@ -6879,7 +6879,7 @@ body.wg-jugando{overflow:hidden}
   border-radius:12px;padding:8px 11px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 #screen-wargame.wg-full #wg-ayuda.mostrar{display:block}
 /* ============================================================
-   v2.9.239 — LA COLUMNA DE ABAJO A LA IZQUIERDA.
+   v2.9.240 — LA COLUMNA DE ABAJO A LA IZQUIERDA.
    Estación de dron, barra de unidades y barra de cámaras apiladas en un solo
    flujo: no hay forma de que se superpongan porque ya no compiten por el mismo
    `bottom`. Y si la suma no entra, la columna misma hace scroll.
@@ -6891,7 +6891,7 @@ body.wg-jugando{overflow:hidden}
 #screen-wargame.wg-full #wg-abajo-izq > *{pointer-events:auto}
 #screen-wargame.wg-full #wg-game.hoja-abierta #wg-abajo-izq{max-width:calc(100% - min(340px,88vw) - 70px)}
 /* ============================================================
-   v2.9.239 — BARRA DE UNIDADES: LAS QUE TENGO, ABAJO, A LA MANO.
+   v2.9.240 — BARRA DE UNIDADES: LAS QUE TENGO, ABAJO, A LA MANO.
    Seleccionar una unidad en el mapa era una lotería. Acá están todas las mías
    en fila; la que estoy maniobrando queda con MARCO AMARILLO GRUESO, igual que
    en el dibujo. De árbitro salen las dos filas, azul y roja.
@@ -6990,7 +6990,7 @@ body.wg-jugando{overflow:hidden}
         <button class="wg-rd" id="wg-btn-3d" onclick="wgAlternar3D(this)" title="Alternar mapa plano / relieve 3D">⛰️</button>
         <button class="wg-rd" id="wg-btn-vivo" onclick="wgVivo(this)" style="opacity:.5" title="En vivo apagado: hay que actualizar a mano">📡</button>
         <button class="wg-rd" id="wg-btn-cam" onclick="wgCamaraCiclo(this)" title="Cámara: Libre — tocá para cambiar de encuadre (panorámica, táctica, cerca)">🖐️</button>
-        <!-- v2.9.239 — los dos automatismos de cámara, apagados por defecto:
+        <!-- v2.9.240 — los dos automatismos de cámara, apagados por defecto:
              encenderlos es una decisión tuya, no algo que te pase. -->
         <button class="wg-rd" id="wg-btn-seguir" onclick="wgSeguir(this)" style="opacity:.5" title="Seguir a la unidad elegida: apagado">🎯</button>
         <button class="wg-rd" id="wg-btn-cine" onclick="wgCine(this)" style="opacity:.5" title="Cámara de cine apagada (la vista no orbita sola)">🎥</button>
@@ -7003,7 +7003,7 @@ body.wg-jugando{overflow:hidden}
         <button class="wg-rd" id="wg-btn-config" onclick="wgHoja('config')" title="Configurar" style="display:none">⚙️</button>
       </div>
 
-      <!-- v2.9.239 — COLUMNA DE ARRIBA A LA IZQUIERDA, APILADA.
+      <!-- v2.9.240 — COLUMNA DE ARRIBA A LA IZQUIERDA, APILADA.
            Las vistas del árbitro (top:56), la franja de consola (top:100) y el
            panel de ARMAMENTO (top:56) estaban los tres en la misma coordenada:
            por eso el cartel «ESTÁS EN LA CONSOLA DEL AZUL» tapaba el título
@@ -7027,14 +7027,14 @@ body.wg-jugando{overflow:hidden}
         background:rgba(10,16,22,.82);backdrop-filter:blur(7px);padding:8px 9px;border-radius:12px;
         border:1px solid rgba(140,210,255,.24);display:none"></div>
 
-      <!-- v2.9.239 — VISOR DEL DRON. Cuando la cámara se mete en el aparato, el
+      <!-- v2.9.240 — VISOR DEL DRON. Cuando la cámara se mete en el aparato, el
            cuadro pasa a ser lo que ve SU cámara: marco verde, escuadras, retícula
            y telemetría. Es lo que separa «mirar el tablero» de «mirar por el
            aparato». No captura el ratón: sólo enmarca. -->
       <div id="wg-hud-dron" style="position:absolute;inset:0;z-index:1030;
         display:none;pointer-events:none"></div>
 
-      <!-- v2.9.239 — COLUMNA DE ABAJO A LA IZQUIERDA, APILADA.
+      <!-- v2.9.240 — COLUMNA DE ABAJO A LA IZQUIERDA, APILADA.
            Antes la estación de drones (bottom:62px), la barra de cámaras
            (bottom:14px) y el cartel de ayuda (bottom:12px) estaban los tres
            clavados en la misma esquina con alturas fijas: al crecer cualquiera,
@@ -22970,7 +22970,7 @@ function _wgUnidadesVisibles(){
     if(u.bando===ojo.bando) return true;                   // lo propio se sabe dónde está
     return _wgEnConoDron(ojo,[u.lng,u.lat]);               // del enemigo, sólo lo batido por el cono
   });
-  // v2.9.239 — EL DRON VE MÁS QUE EL BANDO, QUE PARA ESO ESTÁ. Antes esto sólo
+  // v2.9.240 — EL DRON VE MÁS QUE EL BANDO, QUE PARA ESO ESTÁ. Antes esto sólo
   // RECORTABA la lista del bando: mirar por el aparato nunca podía descubrir
   // nada nuevo, que es justo lo contrario de para qué se manda un dron. Ahora lo
   // que caiga dentro de su cono aparece AUNQUE el resto del bando no lo haya
@@ -23136,7 +23136,7 @@ function _wgEjeAproximacion(bando){
 function wgVistaArbitro(id){
   WG.vistaArb=id;
   wgPanelVistas();
-  // v2.9.239: al cambiar de lente cambian las unidades y los drones que se ven.
+  // v2.9.240: al cambiar de lente cambian las unidades y los drones que se ven.
   wgBarraUnidades&&wgBarraUnidades();
   wgPanelDrones&&wgPanelDrones();
   const x=WG_VISTAS.find(y=>y.id===id);
@@ -23244,7 +23244,7 @@ async function wgApuntarDron(uid, rumbo){
 // Si el dron mira al norte, lo del sur no está — igual que en la realidad.
 // ============================================================
 // ============================================================
-// v2.9.239 — LOS DRONES VUELAN DE VERDAD.
+// v2.9.240 — LOS DRONES VUELAN DE VERDAD.
 // Un solo lazo mueve TODOS los aparatos por su órbita: cambia su posición
 // geográfica, los inclina en el viraje y ajusta la sombra. Y si estás en la
 // vista de uno, la cámara VIAJA CON ÉL — es lo que se ve desde el aparato
@@ -23280,7 +23280,7 @@ function _wgVolarDrones(){
       const lng=v.u.lng + dLng*Math.sin(fase);
       const lat=v.u.lat + dLat*Math.cos(fase);
       try{ v.mk.setLngLat([lng,lat]); }catch(_e){}
-      // v2.9.239 — LA ALTURA ES ALTURA, NO UN OFFSET FIJO. Se convierten los
+      // v2.9.240 — LA ALTURA ES ALTURA, NO UN OFFSET FIJO. Se convierten los
       // metros de vuelo a píxeles con la escala de este cuadro: así el aparato
       // se mantiene ARRIBA del terreno pase lo que pase con el zoom o el ángulo,
       // en vez de quedar clavado sobre la pantalla.
@@ -23296,7 +23296,7 @@ function _wgVolarDrones(){
           som.style.width=w+'px'; som.style.height=Math.round(w*0.38)+'px';
           som.style.marginLeft=(-w/2)+'px'; som.style.top=alto+'px'; }
       }
-      // v2.9.239 — SE MANTIENE NIVELADO. Rotarlo 360° en pantalla ERA la
+      // v2.9.240 — SE MANTIENE NIVELADO. Rotarlo 360° en pantalla ERA la
       // manecilla del reloj: nada vuela girando sobre su propio eje visual. Un
       // aparato en órbita se ve NIVELADO respecto del piso; lo único que cambia
       // es su POSICIÓN y una inclinación corta hacia adentro del viraje.
@@ -23329,9 +23329,9 @@ function _wgVolarDrones(){
 // Inclinación de la cámara puesta en el dron: se mira hacia abajo y adelante,
 // que es como se ve desde un aparato en merodeo. Más echada que esto y la vista
 // se come el horizonte en vez del terreno.
-const WG_DRON_PITCH=58;
+const WG_DRON_PITCH=54;
 // ============================================================
-// v2.9.239 — EL VISOR DEL DRON.
+// v2.9.240 — EL VISOR DEL DRON.
 // Estar en la cámara del aparato tiene que NOTARSE. Marco verde con las cuatro
 // escuadras, retícula al centro y la telemetría que cualquier estación de
 // control muestra: quién lo lleva, a qué altura, con qué rumbo, cuánto alcanza
@@ -23382,7 +23382,7 @@ function wgVistaDron(uid){
   const d=_wgDronDe(u);
   if(!d){ _wgAviso('🛩️ Esa unidad no tiene el dron desplegado.',3000); return; }
   WG.dronVista = (String(WG.dronVista)===String(uid)) ? null : String(uid);
-  WG.dronCamLibre=false;   // v2.9.239: al entrar, la cámara vuelve a seguir al aparato
+  WG.dronCamLibre=false;   // v2.9.240: al entrar, la cámara vuelve a seguir al aparato
   if(WG.dronVista==null){
     // Se devuelve la cámara: panorámica y órbita otra vez.
     if(!WG.camara){ WG.camara=1; wgPanelCamaras(); }
@@ -23390,7 +23390,7 @@ function wgVistaDron(uid){
     _wgCamaraOrbita();
     _wgAviso('🛩️ Vista del dron <b>cerrada</b>. Volvés al tablero.',3000);
   }else{
-    // v2.9.239 — TE METÉS EN LA CÁMARA DEL DRON. La cámara se pone a su altura
+    // v2.9.240 — TE METÉS EN LA CÁMARA DEL DRON. La cámara se pone a su altura
     // mirando su sector, y el lazo de vuelo la lleva con el aparato mientras da
     // la vuelta. El zoom sale del ALCANCE: un dron que ve 36 km tiene que
     // mostrar 36 km de terreno, no un primer plano.
@@ -23412,7 +23412,7 @@ function wgVistaDron(uid){
   wgPanelDrones();
 }
 // ============================================================
-// v2.9.239 — ESTACIÓN DE CONTROL DEL CW 40.
+// v2.9.240 — ESTACIÓN DE CONTROL DEL CW 40.
 // Un solo tablero, siempre visible, con el aparato de cada bando que me
 // corresponde ver: AZUL ve el suyo, ROJO ve el suyo, el ÁRBITRO ve los dos Y
 // los maneja a los dos. Desde acá se despega, se apunta, se entra a su cámara
@@ -23475,11 +23475,11 @@ function _wgTarjetaDronHTML(bando){
         Tocá un rumbo para hacerlo despegar.</div>`:'')}
   </div>`;
 }
-// v2.9.239 — EN LA FICHA DE LA UNIDAD SÓLO SE INFORMA. El dron ya no es «de
+// v2.9.240 — EN LA FICHA DE LA UNIDAD SÓLO SE INFORMA. El dron ya no es «de
 // cada unidad»: es el CW 40 DEL BANDO y se maneja desde la estación de control.
 // Antes, cada unidad mostraba «Sin desplegar» y parecía que todas tenían uno.
 // ============================================================
-// v2.9.239 — BARRA DE UNIDADES ABAJO.
+// v2.9.240 — BARRA DE UNIDADES ABAJO.
 // «Se me hace un despunte cuando quiero seleccionar la unidad y darle tareas.»
 // Acá están todas las mías en fila, con su designación y su estado, y la que
 // estoy maniobrando queda con el marco amarillo grueso — el mismo resaltado
@@ -23541,7 +23541,7 @@ function wgElegirUnidad(uid){
   // Sólo te mueve la vista si vos encendiste 🎯 Seguir.
   if(WG.seguir && WG.sel!=null) _wgCamaraA(u, WG.camara||1, true);
 }
-// v2.9.239 — SEGUIR: la cámara persigue a la unidad que elijas. Apagado por
+// v2.9.240 — SEGUIR: la cámara persigue a la unidad que elijas. Apagado por
 // defecto, porque encenderlo siempre era lo que te arrancaba el mapa de las
 // manos cada vez que tocabas una ficha.
 function wgSeguir(btn){
@@ -23553,7 +23553,7 @@ function wgSeguir(btn){
     ? '🎯 <b>Seguir encendido</b> — al elegir una unidad, la cámara va hacia ella.'
     : '🎯 Seguir apagado — elegir una unidad ya no te mueve la vista.', 3000);
 }
-// v2.9.239 — LA AYUDA, EN UN BOTÓN. El cartel fijo abajo a la izquierda se
+// v2.9.240 — LA AYUDA, EN UN BOTÓN. El cartel fijo abajo a la izquierda se
 // pisaba con la barra de cámaras; ahora se abre sólo si lo pedís.
 function wgAyudaToggle(btn){
   const el=document.getElementById('wg-ayuda'); if(!el) return;
@@ -23586,7 +23586,7 @@ function wgPanelMatriz(){
 // v2.9.192: zoom propio del HUD (el control de Leaflet queda oculto).
 function _wgEn3D(){ const c=document.getElementById('wg-3d'); return !!(WG.map3d && c && c.style.display!=='none'); }
 function wgZoom(d){ try{
-  // v2.9.239: el zoom mueve el DESTINO. Antes hacía `easeTo` y la órbita se lo
+  // v2.9.240: el zoom mueve el DESTINO. Antes hacía `easeTo` y la órbita se lo
   // cancelaba en el frame siguiente — por eso «no funcionaba».
   if(_wgEn3D()&&WG.camObj){ _wgCamZoomUsuario(d); return; }
   WG.map && WG.map.setZoom(WG.map.getZoom()+d); wgActualizarZoomChip();
@@ -23671,12 +23671,12 @@ async function wgEstado(silencioso){
     : ('Tocá una unidad. <b>Sin arma elegida:</b> clic en el mapa = <b>mover</b> · <b>Shift+clic</b> = agregar punto de paso para rodear obstáculos.<br>'
        + '<b>Con un arma elegida en 🎯 ARMAMENTO:</b> clic en el mapa = <b>pedir fuego ahí</b> · clic en un enemigo = <b>empeñarlo</b>. Tocá el arma otra vez para volver a mover.<br>'
        + (esArb ? 'Después <b>▶️ Jugar turno</b>.' : 'Cuando termines, <b>✔️ Órdenes listas</b>.'));
-  // v2.9.239: si la partida NO empezó, ese aviso se muestra sí o sí — es la
+  // v2.9.240: si la partida NO empezó, ese aviso se muestra sí o sí — es la
   // razón por la que las fichas no se mueven y no puede quedar escondido.
   document.getElementById('wg-ayuda').classList.toggle('mostrar',
     p.estado!=='en_curso' || !!WG.ayudaFija);
   _wgRender();
-  // v2.9.239: la barra de unidades y la estación del CW 40 se rearman con el
+  // v2.9.240: la barra de unidades y la estación del CW 40 se rearman con el
   // estado fresco — si no, la barra queda mostrando bajas que ya no existen.
   wgBarraUnidades();
   wgPanelDrones();
@@ -24233,7 +24233,7 @@ async function wgVista3D(){
     let h=null; try{ h=map.queryTerrainElevation(e.lngLat); }catch(_e){}
     el.textContent = h==null?'—':('⛰️ '+Math.round(h)+' m');
   });
-  _wgCamIniciar(map);          // v2.9.239: una sola mano en la cámara
+  _wgCamIniciar(map);          // v2.9.240: una sola mano en la cámara
   _wg3dControlesGoogleEarth(map);
   _wgCamaraManos(map);   // v2.9.229: la órbita se aparta mientras arrastrás
   // ÓRDENES EN 3D: clic en el terreno = mover la unidad seleccionada. (El clic
@@ -24251,7 +24251,7 @@ async function wgVista3D(){
   map.on('load',()=>{
     document.getElementById('wg-3d-cargando').style.display='none';
     map.setTerrain({source:'dem',exaggeration:Number(WG.exag3d||2.0)});
-    // v2.9.239 — CIELO DE DÍA, NO DE NOCHE.
+    // v2.9.240 — CIELO DE DÍA, NO DE NOCHE.
     // El cielo estaba pintado color noche (#0b2036) con niebla casi negra
     // (#0a1119). Mirando de frente no se notaba, pero al inclinar la cámara la
     // vista pasa POR ENCIMA DEL HORIZONTE y esa mitad de arriba se iba a negro:
@@ -24372,12 +24372,23 @@ function _wg3dControlesGoogleEarth(map){
   },true);
   window.addEventListener('mousemove',(ev)=>{
     if(!girando) return;
-    // Horizontal = rumbo (spin) · Vertical = inclinación, igual que Google Earth.
-    _wgCamIr({ rumbo: brg0-(ev.clientX-x0)*0.35,
-      pitch: Math.max(0,Math.min(85, pit0+(ev.clientY-y0)*0.30)) });
+    // v2.9.240 — GIRA EL MAPA, NO PIDE UN VIAJE.
+    // Acá estaba el desastre: llamaba a `_wgCamIr`, que ENCIENDE el lazo
+    // automático. Entonces vos girabas con ⌘ y al mismo tiempo el lazo tiraba
+    // la cámara hacia un destino que vos estabas moviendo — dos manos en el
+    // volante, 60 veces por segundo. Ahora se escribe el mapa DERECHO, una sola
+    // vez por movimiento, con el lazo apagado.
+    WG.camAuto=false;
+    const pitch=Math.max(0, Math.min(_wgTechoPitch(map.getZoom()),
+      pit0+(ev.clientY-y0)*0.30));
+    try{ map.jumpTo({ bearing: brg0-(ev.clientX-x0)*0.35, pitch }); }catch(_e){}
+    if(WG.dronVista!=null) WG.dronCamLibre=true;
     ev.preventDefault();
   },true);
-  window.addEventListener('mouseup',()=>{ if(girando){ girando=false; lienzo.style.cursor=''; } },true);
+  window.addEventListener('mouseup',()=>{ if(girando){ girando=false; lienzo.style.cursor='';
+    // v2.9.240: al soltar, el destino queda donde el usuario dejó la cámara.
+    try{ _wgCamSync(map); }catch(_e){}
+  } },true);
   // El menú contextual estorba al girar con el botón derecho.
   lienzo.addEventListener('contextmenu',(ev)=>ev.preventDefault());
   // Teclas: N devuelve el norte, R aplana la vista (como el "reset" de GE).
@@ -24498,18 +24509,18 @@ function _wg3dDatos(){
     const d=_wgDronDe(u); if(!d) continue;
     const lenteV=_wgBandoLente();
     if(lenteV ? u.bando!==lenteV : !(WG.soy==='arbitro'||u.bando===WG.soy)) continue;
-    // v2.9.239 — EL DRON RECORRE UN CÍRCULO DE VERDAD SOBRE EL TERRENO.
+    // v2.9.240 — EL DRON RECORRE UN CÍRCULO DE VERDAD SOBRE EL TERRENO.
     // Antes era un brazo rotando: la manecilla de un reloj. Ahora el aparato es
     // un marcador propio cuya POSICIÓN GEOGRÁFICA se va moviendo por la órbita,
     // se inclina en los virajes y cuelga de un hilo hasta su sombra en el suelo.
     // El radio de la órbita sale de su alcance; la altura, de su escalón.
-    // v2.9.239 — EL APARATO DESDE EL QUE ESTÁS MIRANDO NO SE DIBUJA. Ninguna
+    // v2.9.240 — EL APARATO DESDE EL QUE ESTÁS MIRANDO NO SE DIBUJA. Ninguna
     // cámara se ve a sí misma: si estás en su visor, el dron no está en cuadro.
     if(String(WG.dronVista)===String(u.id)) continue;
     const orbKm = Math.max(1.0, Math.min(3.2, d.km*0.10));
     const el=document.createElement('div');
     el.className='wg-dron'+(String(WG.dronVista)===String(u.id)?' activo':'');
-    // v2.9.239 — el aparato lleva el color de SU bando. Azul no ve el rojo y
+    // v2.9.240 — el aparato lleva el color de SU bando. Azul no ve el rojo y
     // rojo no ve el azul (el filtro de arriba); el árbitro ve los dos y por eso
     // necesita distinguirlos de un vistazo.
     el.style.setProperty('--dcol', WG_COL[u.bando]||'#9b7bff');
@@ -24550,10 +24561,10 @@ function _wg3dEncuadrar(){
   for(const u of ((WG.estado&&WG.estado.unidades)||[])){
     x0=Math.min(x0,u.lng); y0=Math.min(y0,u.lat); x1=Math.max(x1,u.lng); y1=Math.max(y1,u.lat); }
   if(x0===Infinity) return;
-  // v2.9.239: también por el destino, para no cortar el lazo.
-  if(WG.camObj) _wgCamIr({ centro:[(x0+x1)/2,(y0+y1)/2], pitch:62,
+  // v2.9.240: también por el destino, para no cortar el lazo.
+  if(WG.camObj) _wgCamIr({ centro:[(x0+x1)/2,(y0+y1)/2], pitch:52,
     zoom:_wgZoomDeCaja(map,[[x0,y0],[x1,y1]],13) });
-  else { try{ map.fitBounds([[x0,y0],[x1,y1]],{padding:70,pitch:62,duration:900}); }catch(_e){} }
+  else { try{ map.fitBounds([[x0,y0],[x1,y1]],{padding:70,pitch:52,duration:900}); }catch(_e){} }
 }
 function wg3dExag(v){
   WG.exag3d=Number(v)||1.6;
@@ -25620,7 +25631,7 @@ function _wgCamaraA(u, modo, suave, girar){
   const map=WG.map3d;
   if(_wgEn3D() && map){
     const bearing = girar!=null ? girar : map.getBearing();
-    // v2.9.239: se mueve el DESTINO, no el mapa. El lazo hace el resto sin cortes.
+    // v2.9.240: se mueve el DESTINO, no el mapa. El lazo hace el resto sin cortes.
     if(enc.zoom!=null){
       _wgCamIr({ centro:enc.pts[0], zoom:enc.zoom, pitch:enc.pitch, rumbo:bearing });
     }else{
@@ -25653,7 +25664,7 @@ function _wgCamaraA(u, modo, suave, girar){
 // Se detiene sola mientras el usuario arrastra, para no pelearle el control.
 // ============================================================
 // ============================================================
-// v2.9.239 — UNA SOLA MANO EN LA CÁMARA.
+// v2.9.240 — UNA SOLA MANO EN LA CÁMARA.
 // El zoom no andaba y la imagen daba chispazos por la MISMA razón: había
 // cuatro cosas peleándose por el control — `easeTo` de los encuadres,
 // `fitBounds`, el `setBearing/setPitch` de la órbita cuadro a cuadro, y el
@@ -25667,7 +25678,7 @@ function _wgCamaraA(u, modo, suave, girar){
 // ============================================================
 const WG_SUAVE = { centro:0.055, zoom:0.075, pitch:0.06, rumbo:0.06 };
 // ============================================================
-// v2.9.239 — POR QUÉ LA PANTALLA SE IBA A NEGRO Y EL ZOOM NO OBEDECÍA.
+// v2.9.240 — POR QUÉ LA PANTALLA SE IBA A NEGRO Y EL ZOOM NO OBEDECÍA.
 // Dos cosas del terreno, las dos del mismo lado:
 //   1. MapLibre, con relieve puesto, RECALCULA el zoom en cada cuadro para que
 //      la cámara no se meta dentro del cerro. Con la cámara muy echada eso
@@ -25678,7 +25689,13 @@ const WG_SUAVE = { centro:0.055, zoom:0.075, pitch:0.06, rumbo:0.06 };
 //      Por eso la inclinación tiene TECHO, y el techo se cierra a medida que te
 //      acercás. Lejos podés echarte casi al horizonte; encima de la unidad, no.
 // ============================================================
-function _wgTechoPitch(z){ return z>=14 ? 62 : (z>=12.5 ? 70 : 76); }
+// v2.9.240 — EL TECHO DE INCLINACIÓN, EN UN SOLO LUGAR.
+// Éste es el número que hace que las fichas «se levanten al aire»: pasado el
+// tope, las unidades lejanas quedan del otro lado del horizonte y MapLibre las
+// dibuja arriba, contra el cielo. 60° es el máximo que MapLibre trae probado
+// con relieve puesto — no subirlo por más que un encuadre se vea más lindo.
+const WG_PITCH_TOPE=60;
+function _wgTechoPitch(z){ return Math.min(WG_PITCH_TOPE, z>=14 ? 54 : (z>=12.5 ? 58 : 60)); }
 // Inclinación propia de cada encuadre (un solo lugar donde está escrita).
 // Inclinación de cada encuadre. 0° = mirando a plomo desde arriba; 85° = casi
 // a ras del suelo. La tabla estaba aplanada (Táctica 62 y Cerca 70: sólo 8° de
@@ -25688,10 +25705,13 @@ function _wgTechoPitch(z){ return z>=14 ? 62 : (z>=12.5 ? 70 : 76); }
 //   Táctica en escorzo (se leen las distancias entre unidades),
 //   Cerca casi a ras (se lee el relieve que tiene delante la unidad),
 //   Combate intermedio (entran los dos contendientes y el terreno del choque).
-const WG_PITCH={ 0:40, 1:34, 2:64, 3:78, 4:54 };
+// v2.9.240 — TODAS LAS INCLINACIONES DENTRO DEL TECHO (60°). Antes Cerca
+// pedía 78° y Táctica 64°: por encima del tope, las unidades lejanas se van
+// del otro lado del horizonte y aparecen flotando en el cielo.
+const WG_PITCH={ 0:38, 1:30, 2:48, 3:58, 4:44 };
 function _wgPitchModo(m){ const p=WG_PITCH[Number(m)||0]; return p!=null?p:38; }
 // ============================================================
-// v2.9.239 — LA MANO MANDA SIEMPRE.
+// v2.9.240 — LA MANO MANDA SIEMPRE.
 //
 // POR QUÉ LA MANITO NO AGARRABA EL TERRENO: el lazo de cámara hacía
 // `map.jumpTo(...)` en CADA CUADRO hacia un destino fijo. Mientras arrastrabas,
@@ -25729,14 +25749,26 @@ function _wgCamSoltar(){
   wgPanelDrones&&wgPanelDrones();
 }
 function _wgCamIniciar(map){
-  // v2.9.239 — TODOS LOS GESTOS NATIVOS ENCENDIDOS. Arrastrar, rueda, girar y
-  // pellizcar los maneja MapLibre. Nosotros no le peleamos nada.
+  // v2.9.240 — UN SOLO GIRADOR, NO TRES.
+  // En v2.9.240 encendí `dragRotate` nativo SIN darme cuenta de que este juego
+  // ya tenía su propio rotador estilo Google Earth (`_wg3dControlesGoogleEarth`,
+  // ⌘ / Ctrl / botón derecho). Con ⌘+arrastrar quedaban TRES cosas escribiendo
+  // la cámara en el mismo cuadro: el rotador nativo, el rotador propio (que
+  // además pedía un VIAJE con `_wgCamIr`) y el lazo suavizador persiguiendo ese
+  // viaje. Eso es el chispeo, los fogonazos blancos y el andar cuadro a cuadro.
+  // ARRASTRAR y RUEDA: nativos (eso es lo que devolvió la mano).
   try{ map.dragPan.enable(); }catch(_e){}
   try{ map.scrollZoom.enable(); }catch(_e){}
-  try{ map.dragRotate.enable(); }catch(_e){}
-  try{ map.touchZoomRotate.enable(); }catch(_e){}
-  try{ map.keyboard.enable(); }catch(_e){}
-  // v2.9.239 — NO se apaga el clamp al suelo. Apagarlo era lo que enterraba la
+  // GIRAR e INCLINAR: SÓLO el rotador propio. El nativo queda apagado.
+  try{ map.dragRotate.disable(); }catch(_e){}
+  try{ map.touchZoomRotate.disableRotation(); }catch(_e){}
+  try{ map.keyboard.disable(); }catch(_e){}
+  // v2.9.240 — TECHO DURO DE INCLINACIÓN. Pasado ese ángulo, las unidades
+  // lejanas caen del otro lado del horizonte y MapLibre las proyecta ARRIBA:
+  // eso es «las fichas se levantan al aire». 60° es el régimen que MapLibre
+  // trae probado con relieve; más echado que eso, el terreno no aguanta.
+  try{ map.setMaxPitch(WG_PITCH_TOPE); }catch(_e){}
+  // v2.9.240 — NO se apaga el clamp al suelo. Apagarlo era lo que enterraba la
   // cámara y pintaba la pantalla de negro (ver el comentario de arriba).
   _wgCamSync(map);
   WG.camAuto=false;
@@ -25758,7 +25790,7 @@ function _wgCamLazo(map){
   const paso=(ahora)=>{
     WG._camRAF=requestAnimationFrame(paso);
     const o=WG.camObj; if(!o||!map) return;
-    // v2.9.239 — SIN VIAJE EN CURSO, EL LAZO NO TOCA EL MAPA. Ésta es la línea
+    // v2.9.240 — SIN VIAJE EN CURSO, EL LAZO NO TOCA EL MAPA. Ésta es la línea
     // que devuelve la mano al usuario: fuera de un viaje, el mapa es suyo.
     if(!WG.camAuto) return;
     try{
@@ -25784,7 +25816,7 @@ function _wgCamLazo(map){
       if(o.zoom > zAntes+0.02 && map.getZoom() <= zAntes+0.002){
         o.pitch=Math.max(0, o.pitch-1.5);
       }
-      // v2.9.239 — LLEGÓ: SE SUELTA. Un viaje termina; no se queda tironeando
+      // v2.9.240 — LLEGÓ: SE SUELTA. Un viaje termina; no se queda tironeando
       // el mapa para siempre. Salvo la vista del dron, que sigue al aparato.
       if(WG.dronVista==null){
         const cN=map.getCenter();
@@ -25800,7 +25832,7 @@ function _wgCamLazo(map){
   WG._camRAF=requestAnimationFrame(paso);
 }
 // Mover el DESTINO. Todo lo demás del juego usa esto y nunca toca el mapa.
-// v2.9.239 — EL ZOOM DEL USUARIO ES SUYO Y NO SE LO PISA NADIE.
+// v2.9.240 — EL ZOOM DEL USUARIO ES SUYO Y NO SE LO PISA NADIE.
 // El zoom sólo andaba en «Libre» porque en los demás modos el encuadre fijaba
 // un zoom base y cualquier recálculo (elegir unidad, replay, cambio de modo) lo
 // volvía a poner, borrando lo que vos habías acercado.
@@ -25817,15 +25849,15 @@ function _wgCamIr(destino){
     WG.camZoomBase=Math.max(2,Math.min(19,destino.zoom));
     WG.camObj.zoom=_wgCamZoomTotal();
   }
-  if(destino.pitch!=null) WG.camObj.pitch=Math.max(0,Math.min(85,destino.pitch));
+  if(destino.pitch!=null) WG.camObj.pitch=Math.max(0,Math.min(WG_PITCH_TOPE,destino.pitch));
   if(destino.rumbo!=null) WG.camObj.rumbo=destino.rumbo;
-  // v2.9.239 — PEDIR UN ENCUADRE ARRANCA UN VIAJE. El lazo lo lleva hasta ahí
+  // v2.9.240 — PEDIR UN ENCUADRE ARRANCA UN VIAJE. El lazo lo lleva hasta ahí
   // y se apaga solo. Si el usuario toca el mapa antes, el viaje se cancela: la
   // mano siempre gana.
   WG.camAuto=true;
   return true;
 }
-// v2.9.239 — LOS BOTONES ＋/－ ACERCAN EL MAPA DE VERDAD. Antes movían un
+// v2.9.240 — LOS BOTONES ＋/－ ACERCAN EL MAPA DE VERDAD. Antes movían un
 // «destino» que el lazo tenía que ir a buscar; ahora, fuera de un viaje, el
 // zoom es del mapa y punto (igual que la rueda, que es nativa de MapLibre).
 function _wgCamZoomUsuario(d){
@@ -25850,7 +25882,7 @@ function _wgZoomDeCaja(map,caja,tope){
   }catch(_e){}
   return tope!=null?tope:12;
 }
-// v2.9.239 — LA CÁMARA DE CINE ES UN BOTÓN, NO EL MODO NORMAL.
+// v2.9.240 — LA CÁMARA DE CINE ES UN BOTÓN, NO EL MODO NORMAL.
 // La órbita permanente era la otra mano peleando el mapa: aunque el lazo se
 // soltara, ella volvía a mover el destino cuadro a cuadro. Ahora sólo corre si
 // vos la encendés (🎥), y cualquier arrastre la apaga.
@@ -25881,7 +25913,7 @@ function _wgCamaraOrbita(){
       // sientan como dos ejércitos distintos mirando el mismo terreno.
       const lente=(WG.soy==='arbitro')?(WG.vistaArb||'todo'):WG.soy;
       const eje=(lente==='azul'||lente==='rojo')?_wgEjeAproximacion(lente):null;
-      // v2.9.239: la órbita YA NO toca el mapa — sólo corre el destino. Así deja
+      // v2.9.240: la órbita YA NO toca el mapa — sólo corre el destino. Así deja
       // de cancelar el zoom y la imagen no se corta.
       const pB = _wgPitchModo(WG.camara);
       const respira = pB + Math.sin(ahora/9000)*5;
@@ -25937,7 +25969,7 @@ function wgCamara(id){
   const c=WG_CAMARAS[WG.camara];
   const b=document.getElementById('wg-btn-cam');
   if(b){ b.textContent=c.icono; b.title='Cámara: '+c.nom+' — '+c.desc; }
-  // v2.9.239 — EL ENCUADRE ES UN VIAJE DE IDA. Te lleva una vez y te suelta:
+  // v2.9.240 — EL ENCUADRE ES UN VIAJE DE IDA. Te lleva una vez y te suelta:
   // desde ahí el mapa vuelve a ser tuyo (arrastrar, rueda, girar). Y si no
   // tenés ninguna unidad elegida, encuadra sobre la primera tuya en vez de no
   // hacer nada — que era lo que parecía «el botón no sirve».
@@ -25972,7 +26004,7 @@ function _wgPisoFC(){
 // observación propia es un círculo; el dron ve mucho más lejos pero sólo hacia
 // donde lo apuntás — mirar al norte es aceptar no ver el sur.
 // ============================================================
-// v2.9.239 — EL DRON TIENE ALTURA DE VUELO (`alt`, en metros sobre el suelo) y
+// v2.9.240 — EL DRON TIENE ALTURA DE VUELO (`alt`, en metros sobre el suelo) y
 // una VELOCIDAD DE MERODEO. Antes colgaba de un desplazamiento en PÍXELES: por
 // eso quedaba pegado a la pantalla y no se movía como algo que vuela. Ahora la
 // altura es metros de verdad, se convierte a pantalla cuadro a cuadro, y por eso
@@ -25983,7 +26015,7 @@ const WG_DRON={ seccion:{km:6,apertura:50,alt:400}, compania:{km:10,apertura:55,
   brigada:{km:28,apertura:65,alt:2400}, division:{km:36,apertura:70,alt:3200},
   cuerpo:{km:45,apertura:70,alt:4200}, ejercito:{km:55,apertura:75,alt:5000} };
 // ============================================================
-// v2.9.239 — EL DRON «CW 40», UNO POR BANDO.
+// v2.9.240 — EL DRON «CW 40», UNO POR BANDO.
 //
 // Datos tomados de la exposición del Comando de Aviación del Ejército
 // (EXPO CAVE DRONES, 18-jul-25), que es el aparato que el Ejército analiza
@@ -26245,7 +26277,7 @@ function _wgUnidadClick(u){
   if(mio){ const antes=WG.sel; WG.sel=(String(WG.sel)===String(u.id))?null:u.id;
     if(String(antes)!==String(WG.sel)) WG.armaSel=null; // v2.9.214
     _wgRender();
-    // v2.9.239 — ELEGIR UNA UNIDAD YA NO TE MUEVE LA VISTA. Antes cada clic
+    // v2.9.240 — ELEGIR UNA UNIDAD YA NO TE MUEVE LA VISTA. Antes cada clic
     // reencuadraba y te arrancaba el terreno de las manos justo cuando estabas
     // dando la orden. Ahora sólo sigue a la unidad si vos encendiste 🎯 Seguir.
     if(WG.seguir && WG.camara && WG.sel!=null) _wgCamaraA(u, WG.camara, true);
@@ -26476,7 +26508,7 @@ function _wgPuedeOrdenar(){
     el.innerHTML = (WG.soy==='arbitro')
       ? '⏸️ <b>La partida no empezó.</b> Tocá <b>🚀 Iniciar partida</b> para poder mover las fichas.'
       : '⏸️ El árbitro todavía no inició la partida.';
-    el.classList.add('mostrar');   // v2.9.239: este aviso NO se puede perder
+    el.classList.add('mostrar');   // v2.9.240: este aviso NO se puede perder
     el.style.outline='2px solid #e8c33a';
     setTimeout(()=>{ try{ el.style.outline=''; }catch(_e){} },2200);
   }
@@ -26570,7 +26602,7 @@ async function wgReplay(trazas, segundos=22){
   const maxH=Math.max(...trazas.map(t=>t.horas||0),0.0001);
   const cartel=document.getElementById('wg-ayuda');
   const antes=cartel?cartel.innerHTML:'';
-  // v2.9.239: el marcador del replay tiene que verse aunque la ayuda esté cerrada.
+  // v2.9.240: el marcador del replay tiene que verse aunque la ayuda esté cerrada.
   if(cartel) cartel.classList.add('mostrar');
   // Rastro recorrido + ficha que avanza, por unidad.
   const piezas=trazas.map(t=>{
@@ -26675,7 +26707,7 @@ async function wgReplay(trazas, segundos=22){
 // Lo que le pasó a cada unidad sale de LA UNIDAD, no sólo de la bitácora: se
 // entiende sin leer un listado ni cruzar nombres.
 // ============================================================
-// v2.9.239 — EL AVISO SE ABRE SOLO Y SE CIERRA SOLO.
+// v2.9.240 — EL AVISO SE ABRE SOLO Y SE CIERRA SOLO.
 // El cartel de ayuda ya no está clavado en la esquina pisando la barra de
 // cámaras: vive en la pila de abajo a la izquierda y aparece cuando hay algo
 // que decir. Si vos lo dejaste fijo con ❓, no se cierra.
