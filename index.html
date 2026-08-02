@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.234</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.236</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6728,6 +6728,21 @@ body.wg-jugando{overflow:hidden}
   filter:blur(3px);animation:wgHumo 2.8s ease-out infinite}
 .wg-fuego .humo.b{animation-duration:3.6s;animation-delay:-1.4s}
 /* ============================================================
+   v2.9.235 — EL DRON SE VE VOLANDO.
+   Da vueltas de verdad sobre la unidad, en un círculo proporcional a su
+   alcance. No es un adorno: al verlo girar se entiende que es un medio que
+   está ARRIBA y que cubre un sector, no un símbolo pegado a la ficha.
+   ============================================================ */
+@keyframes wgDronGira{ from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
+@keyframes wgDronSube{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
+.wg-dron{position:relative;pointer-events:none;will-change:transform}
+.wg-dron .orbita{position:absolute;left:50%;top:50%;border-radius:50%;
+  border:1px dashed rgba(155,123,255,.45);transform:translate(-50%,-50%)}
+.wg-dron .brazo{position:absolute;left:50%;top:50%;transform-origin:0 0;
+  animation:wgDronGira 9s linear infinite}
+.wg-dron .pajaro{position:absolute;font-size:15px;line-height:1;
+  filter:drop-shadow(0 3px 4px rgba(0,0,0,.6));animation:wgDronSube 2.2s ease-in-out infinite}
+/* ============================================================
    v2.9.231 — LA FICHA SE PARA SOBRE EL TERRENO.
    El símbolo reglamentario NO se toca: el RC-02-114 manda que la unidad se
    represente con su marco, su magnitud de escalón y su arma, y cambiarlo por un
@@ -6922,6 +6937,17 @@ body.wg-jugando{overflow:hidden}
       <div id="wg-pantallas" style="position:absolute;right:14px;top:56px;z-index:1034;
         background:rgba(10,16,22,.82);backdrop-filter:blur(7px);padding:8px 9px;border-radius:12px;
         border:1px solid rgba(140,210,255,.24);display:none"></div>
+
+      <!-- v2.9.236 — FRANJA DE CONSOLA AJENA. -->
+      <div id="wg-consola" style="position:absolute;left:56px;top:100px;z-index:1036;
+        display:none;align-items:center;gap:9px;padding:6px 12px;border-radius:10px;
+        background:rgba(10,16,22,.88);backdrop-filter:blur(7px);border:1px solid #888;
+        font-size:11.5px;color:#eaf2fb;max-width:calc(100% - 340px)"></div>
+
+      <!-- v2.9.235 — TABLERO DE DRONES EN VUELO. Tocar uno abre su vista. -->
+      <div id="wg-drones" style="position:absolute;left:56px;bottom:62px;z-index:1035;
+        background:rgba(10,16,22,.82);backdrop-filter:blur(7px);padding:7px 9px;border-radius:11px;
+        border:1px solid rgba(140,210,255,.24);display:none;max-width:calc(100% - 340px)"></div>
 
       <!-- v2.9.229 — BARRA DE CÁMARAS. Abajo, con todos los encuadres a la
            vista para poder rotar entre ellos sin adivinar cuál viene. -->
@@ -22646,6 +22672,10 @@ function wgHoja(cual){
 // ============================================================
 function _wgMisUnidades(){
   const e=WG.estado; if(!e) return [];
+  // v2.9.236: dentro de la consola de un bando, personal y logística muestran
+  // LO DE ESE BANDO. Si no, el árbitro «entraba» pero seguía viendo los dos.
+  const lente=_wgBandoLente();
+  if(lente) return (e.unidades||[]).filter(u=> u.bando===lente);
   return (e.unidades||[]).filter(u=> WG.soy==='arbitro' || u.bando===WG.soy);
 }
 function _wgBarra(pct,col){
@@ -22807,8 +22837,25 @@ const WG_VISTAS=[
   { id:'azul', nom:'Ojos del AZUL', icono:'🔵', desc:'El tablero como lo ve el Estado Mayor azul, con su niebla.' },
   { id:'rojo', nom:'Ojos del ROJO', icono:'🔴', desc:'El tablero como lo ve el Estado Mayor rojo, con su niebla.' },
 ];
+// ============================================================
+// v2.9.236 — ENTRAR A LA CONSOLA DE UN BANDO.
+// No alcanzaba con filtrar la niebla: el árbitro quiere METERSE en el puesto de
+// mando del rojo o del azul y ver exactamente lo que ese Estado Mayor tiene
+// delante — su cámara, sus unidades, sus drones, su logística. Con eso puede
+// corregir sabiendo qué información tenía de verdad quien decidió.
+// `_wgBandoLente()` es la respuesta a «¿desde qué puesto estoy mirando?».
+// Devuelve null cuando se mira desde afuera (panorama del árbitro).
+// ============================================================
+function _wgBandoLente(){
+  if(WG.soy==='arbitro'){
+    const v=WG.vistaArb||'todo';
+    return (v==='azul'||v==='rojo') ? v : null;
+  }
+  return WG.soy;   // un EM siempre está en su propia consola
+}
 // Qué unidades se muestran según la lente elegida.
-function _wgUnidadesVisibles(){
+// Lo que se ve con la LENTE DE BANDO puesta (sin contar la vista del dron).
+function _wgVisiblesPorBando(){
   const e=WG.estado; if(!e) return [];
   const todas=e.unidades||[];
   const v=WG.vistaArb||'todo';
@@ -22817,6 +22864,34 @@ function _wgUnidadesVisibles(){
   const vistas=new Set(det.map(String));
   // Ese bando ve lo suyo + lo que detectó. Nada más.
   return todas.filter(u=> u.bando===v || vistas.has(String(u.id)));
+}
+function _wgUnidadesVisibles(){
+  const base=_wgVisiblesPorBando();
+  // v2.9.235 — VISTA DEL DRON: mientras está puesta, sólo se ve lo que ESE
+  // medio alcanza. Es la diferencia entre «mirar el tablero» y «mirar por un
+  // aparato»: el dron no ve lo que tiene a la espalda, y eso tiene que notarse.
+  if(WG.dronVista==null) return base;
+  const ojo=(WG.estado&&(WG.estado.unidades||[]).find(x=>String(x.id)===String(WG.dronVista)));
+  const d=ojo?_wgDronDe(ojo):null;
+  if(!ojo||!d) return base;
+  return base.filter(u=>{
+    if(String(u.id)===String(ojo.id)) return true;         // el propio portador
+    if(u.bando===ojo.bando) return true;                   // lo propio se sabe dónde está
+    return _wgEnConoDron(ojo,[u.lng,u.lat]);               // del enemigo, sólo lo batido por el cono
+  });
+}
+// Gemelo del `enConoDron` del motor, para que la pantalla muestre EXACTAMENTE
+// lo que el servidor considera detectado.
+function _wgEnConoDron(u,pt){
+  const d=_wgDronDe(u); if(!d) return false;
+  const dist=_wgHav([u.lng,u.lat],pt);
+  if(dist>d.km) return false;
+  const y=Math.sin((pt[0]-u.lng)*Math.PI/180)*Math.cos(pt[1]*Math.PI/180);
+  const x=Math.cos(u.lat*Math.PI/180)*Math.sin(pt[1]*Math.PI/180)
+    - Math.sin(u.lat*Math.PI/180)*Math.cos(pt[1]*Math.PI/180)*Math.cos((pt[0]-u.lng)*Math.PI/180);
+  const rumbo=((Math.atan2(y,x)*180/Math.PI)+360)%360;
+  const dif=Math.abs(((rumbo-d.rumbo)%360+360)%360);
+  return (dif>180?360-dif:dif) <= d.apertura/2;
 }
 function _wgBarraVistasHTML(){
   if(WG.soy!=='arbitro') return '';
@@ -22888,6 +22963,25 @@ function _wgMiniTablero(cv, vista){
 function wgPanelVistas(){
   const el=document.getElementById('wg-vistas');
   if(el) el.innerHTML=_wgBarraVistasHTML();
+  // v2.9.236: franja que recuerda que estás DENTRO de una consola ajena. Sin
+  // esto es fácil olvidarse y creer que el tablero está incompleto.
+  const fr=document.getElementById('wg-consola');
+  if(fr){
+    const lente=_wgBandoLente();
+    if(WG.soy==='arbitro' && lente){
+      const col=WG_COL[lente]||'#888';
+      const eje=_wgEjeAproximacion(lente);
+      fr.style.display='';
+      fr.style.borderColor=col;
+      fr.innerHTML=`<span style="width:9px;height:9px;border-radius:50%;background:${col};display:inline-block"></span>`
+        +`<b>ESTÁS EN LA CONSOLA DEL ${lente.toUpperCase()}</b>`
+        +`<span class="rg-meta" style="font-size:10.5px">`
+        +`ves lo que ve ese Estado Mayor${eje?` · cámara en su eje (${Math.round(eje.rumbo)}°)`:''}</span>`
+        +`<button onclick="wgVistaArbitro('todo')" style="margin-left:auto;padding:3px 9px;border-radius:7px;
+          cursor:pointer;font-size:10.5px;font-weight:700;background:rgba(255,255,255,.08);
+          border:1px solid rgba(255,255,255,.25);color:#eaf2fb">✕ Salir al panorama</button>`;
+    }else{ fr.style.display='none'; fr.innerHTML=''; }
+  }
   const cont=document.getElementById('wg-pantallas');
   if(!cont) return;
   if(WG.soy!=='arbitro'){ cont.style.display='none'; cont.innerHTML=''; return; }
@@ -22908,12 +23002,62 @@ function wgPanelVistas(){
     if(cv) _wgMiniTablero(cv, v.id);
   }
 }
+// ============================================================
+// v2.9.235 — CADA BANDO MIRA DESDE SU EJE DE APROXIMACIÓN.
+// Lo del dibujo: el rojo y el azul NO ven el mismo tablero desde arriba. Cada
+// uno lo mira desde SU lado, hacia el enemigo — son dos cámaras distintas,
+// puestas donde está cada fuerza. Y no pueden quedar perpendiculares: oscilan
+// a izquierda y derecha alrededor de su eje, como un observador que barre el
+// frente sin darle la espalda.
+// El eje se calcula solo: del centro de masa del bando hacia el del enemigo.
+// ============================================================
+const WG_OSCILA = 22;   // grados que barre a cada lado del eje
+function _wgCentroBando(bando){
+  const uds=((WG.estado&&WG.estado.unidades)||[])
+    .filter(u=>u.bando===bando && u.estado!=='fuera_combate'
+      && Number.isFinite(u.lng) && Number.isFinite(u.lat));
+  if(!uds.length) return null;
+  let x=0,y=0; for(const u of uds){ x+=u.lng; y+=u.lat; }
+  return [x/uds.length, y/uds.length];
+}
+// Rumbo desde el que ese bando ENCARA el combate: de los suyos hacia el enemigo.
+function _wgEjeAproximacion(bando){
+  const mio=_wgCentroBando(bando);
+  const suyo=_wgCentroBando(bando==='azul'?'rojo':'azul');
+  if(!mio||!suyo) return null;
+  const y=Math.sin((suyo[0]-mio[0])*Math.PI/180)*Math.cos(suyo[1]*Math.PI/180);
+  const x=Math.cos(mio[1]*Math.PI/180)*Math.sin(suyo[1]*Math.PI/180)
+    - Math.sin(mio[1]*Math.PI/180)*Math.cos(suyo[1]*Math.PI/180)*Math.cos((suyo[0]-mio[0])*Math.PI/180);
+  return { rumbo:((Math.atan2(y,x)*180/Math.PI)+360)%360, desde:mio, hacia:suyo };
+}
 function wgVistaArbitro(id){
   WG.vistaArb=id;
   wgPanelVistas();
   const x=WG_VISTAS.find(y=>y.id===id);
+  // v2.9.236 — ENTRAR A LA CONSOLA ES TOMAR SU CÁMARA.
+  // Al meterse en el puesto de mando de un bando, la cámara se planta en SU eje
+  // de aproximación y empieza a barrer. Si el árbitro estaba en «Libre», se le
+  // enciende la panorámica: entrar a una consola sin cámara no muestra nada.
+  const eje=(id==='azul'||id==='rojo')?_wgEjeAproximacion(id):null;
+  if(eje){
+    if(!WG.camara){ WG.camara=1; wgPanelCamaras();
+      const b=document.getElementById('wg-btn-cam');
+      if(b){ b.textContent=WG_CAMARAS[1].icono; b.title='Cámara: '+WG_CAMARAS[1].nom; } }
+    if(WG.map3d && _wgEn3D()){
+      try{
+        const pB = WG.camara===3?80 : (WG.camara===2?74 : (WG.camara===4?66:38));
+        WG.map3d.easeTo({ bearing:eje.rumbo, pitch:pB, duration:2600, essential:true });
+      }catch(_e){}
+    }
+    _wgCamaraOrbita();
+  }
+  // Salir de una consola cierra la vista de dron que hubiera abierta: era de
+  // ese bando, no del árbitro.
+  if(!eje) WG.dronVista=null;
   _wgAviso(`${x.icono} <b>${x.nom}</b> — ${x.desc}`
-    + (id==='todo'?'':'<br>Las unidades que ese bando NO detectó quedan fuera del tablero.'), 3800);
+    + (id==='todo'?''
+      : (eje?`<br>Cámara puesta en su <b>eje de aproximación</b> (rumbo ${Math.round(eje.rumbo)}°): mira hacia el enemigo y barre el frente.`
+           :'<br>Las unidades que ese bando NO detectó quedan fuera del tablero.')), 4200);
   _wgRender(); if(WG.map3d) _wg3dDatos();
 }
 // ============================================================
@@ -22987,6 +23131,64 @@ async function wgApuntarDron(uid, rumbo){
     ? '🛩️ Dron <b>replegado</b>: esa unidad vuelve a ver sólo con lo suyo.'
     : `🛩️ Dron apuntado al <b>${Math.round(rumbo)}°</b>. Lo que quede fuera del cono no se ve.`, 3600);
   await wgEstado();
+}
+// ============================================================
+// v2.9.235 — VER POR EL DRON.
+// La cámara se para EN el dron y mira hacia donde apunta el cono. No es un
+// efecto: es lo que ese medio de reconocimiento realmente alcanza a ver, y por
+// eso mientras dura sólo se muestran las unidades que caen dentro de su cono.
+// Si el dron mira al norte, lo del sur no está — igual que en la realidad.
+// ============================================================
+function wgVistaDron(uid){
+  const u=_wgUnidadPorId(uid); if(!u) return;
+  const d=_wgDronDe(u);
+  if(!d){ _wgAviso('🛩️ Esa unidad no tiene el dron desplegado.',3000); return; }
+  WG.dronVista = (String(WG.dronVista)===String(uid)) ? null : String(uid);
+  if(WG.dronVista==null){
+    _wgAviso('🛩️ Vista del dron <b>cerrada</b>. Volvés al tablero.',3000);
+  }else{
+    // La cámara se planta en el dron: alto, mirando hacia su sector.
+    if(WG.map3d && _wgEn3D()){
+      try{
+        // Se sitúa un poco POR DETRÁS del dron para que se vea su sector por
+        // delante, no la nuca del aparato.
+        const atras=(d.rumbo+180)*Math.PI/180;
+        const dLat=(2.2/6371)*(180/Math.PI);
+        const dLng=dLat/Math.max(1e-6,Math.cos(u.lat*Math.PI/180));
+        WG.map3d.easeTo({
+          center:[u.lng+dLng*Math.sin(atras), u.lat+dLat*Math.cos(atras)],
+          bearing:d.rumbo, pitch:76, zoom:12.2, duration:2600, essential:true });
+      }catch(_e){}
+    }
+    _wgAviso(`🛩️ <b>Vista del dron de ${_rgEsc(u.designacion||u.bando)}</b> — `
+      +`${d.km} km al ${Math.round(d.rumbo)}°, apertura ${d.apertura}°.<br>`
+      +`Sólo se ve <b>lo que el dron alcanza</b>: lo que quede fuera del cono no está.`, 5200);
+  }
+  _wgRender(); if(WG.map3d) _wg3dDatos();
+  wgPanelDrones();
+}
+// Tablero de drones: los que están volando, para saltar a la vista de cada uno.
+function wgPanelDrones(){
+  const el=document.getElementById('wg-drones'); if(!el) return;
+  // v2.9.236: dentro de una consola, sólo los drones DE ESE BANDO.
+  const lente=_wgBandoLente();
+  const míos=_wgVisiblesPorBando().filter(u=>
+    (lente ? u.bando===lente : (WG.soy==='arbitro'||u.bando===WG.soy)) && _wgDronDe(u));
+  if(!míos.length){ el.style.display='none'; el.innerHTML=''; return; }
+  el.style.display='';
+  el.innerHTML=`<div class="rg-meta" style="font-size:10px;letter-spacing:.5px;opacity:.7;margin-bottom:4px">`
+    +`🛩️ DRONES EN VUELO — tocá uno para ver por él</div>`
+    +`<div style="display:flex;gap:6px;flex-wrap:wrap">`
+    +míos.map(u=>{
+      const d=_wgDronDe(u), act=String(WG.dronVista)===String(u.id);
+      return `<button onclick="wgVistaDron(${u.id})" title="Ver por el dron de ${_rgEsc(u.designacion||u.bando)}"
+        style="display:flex;align-items:center;gap:6px;padding:5px 9px;border-radius:9px;cursor:pointer;
+        font-size:11px;font-weight:700;white-space:nowrap;`
+        +(act?`background:rgba(155,123,255,.28);border:1px solid #9b7bff;color:#d9ccff`
+             :`background:rgba(10,16,22,.72);border:1px solid rgba(140,210,255,.25);color:#cfe2f5`)+`">`
+        +`<span style="font-size:13px">🛩️</span>${_rgEsc(u.designacion||u.bando)}`
+        +`<span style="opacity:.7;font-weight:600">${d.km}km ${Math.round(d.rumbo)}°</span></button>`;
+    }).join('')+`</div>`;
 }
 function _wgPanelDronHTML(u){
   const d=_wgDronDe(u);
@@ -23898,6 +24100,27 @@ function _wg3dDatos(){
     try{
       const mk=new maplibregl.Marker({element:el, anchor:'bottom', offset:[0,dy]})
         .setLngLat([r.s.lng,r.s.lat]).addTo(map);
+      WG.marc3d.push(mk);
+    }catch(_e){}
+  }
+  // v2.9.235 — LOS DRONES, VOLANDO. Un círculo punteado del tamaño que le
+  // corresponde por escalón, y el aparato dando vueltas encima. Tocarlo abre
+  // la VISTA DEL DRON: lo que ese medio alcanza a ver desde donde está.
+  for(const u of _wgUnidadesVisibles()){
+    const d=_wgDronDe(u); if(!d) continue;
+    const lenteV=_wgBandoLente();
+    if(lenteV ? u.bando!==lenteV : !(WG.soy==='arbitro'||u.bando===WG.soy)) continue;
+    const R=Math.round(26+(d.km/55)*34);   // radio en pantalla, según su alcance
+    const el=document.createElement('div');
+    el.className='wg-dron';
+    el.style.cssText='width:0;height:0;pointer-events:auto;cursor:pointer';
+    el.title=`Dron de ${u.designacion||u.bando} · ${d.km} km · rumbo ${Math.round(d.rumbo)}°\nTocar para ver por el dron`;
+    el.innerHTML=`<div class="orbita" style="width:${R*2}px;height:${Math.round(R*0.7)*2}px"></div>`
+      +`<div class="brazo"><div class="pajaro" style="left:${R}px;top:-8px">🛩️</div></div>`;
+    el.addEventListener('click',(ev)=>{ ev.stopPropagation(); wgVistaDron(u.id); });
+    try{
+      const mk=new maplibregl.Marker({element:el, anchor:'center', offset:[0,-38]})
+        .setLngLat([u.lng,u.lat]).addTo(map);
       WG.marc3d.push(mk);
     }catch(_e){}
   }
@@ -24830,8 +25053,9 @@ function _wgDibujo(){
   // selección, se ven todos como información de ambiente, sin cartel.
   if(WG.verObs!==false){
     const soloSel = WG.sel!=null && uById[WG.sel];
+    const lenteO=_wgBandoLente();
     for(const u of visibles){
-      if(!(WG.soy==='arbitro' || u.bando===WG.soy)) continue;
+      if(lenteO ? u.bando!==lenteO : !(WG.soy==='arbitro'||u.bando===WG.soy)) continue;
       if(u.estado==='fuera_combate') continue;
       if(soloSel && String(u.id)!==String(WG.sel)) continue;
       const km=_wgAlcanceObs(u,WG.terreno||[]);
@@ -24853,7 +25077,8 @@ function _wgDibujo(){
   // hacia dónde se está mirando y, sobre todo, hacia dónde NO.
   if(WG.verObs!==false){
     for(const u of visibles){
-      if(!(WG.soy==='arbitro' || u.bando===WG.soy)) continue;
+      const lenteD=_wgBandoLente();
+      if(lenteD ? u.bando!==lenteD : !(WG.soy==='arbitro'||u.bando===WG.soy)) continue;
       const pts=_wgConoDron(u); if(!pts) continue;
       const soloSel2 = WG.sel!=null && uById[WG.sel];
       if(soloSel2 && String(u.id)!==String(WG.sel)) continue;
@@ -24953,22 +25178,26 @@ function _wgEncuadre(u, modo){
   }
   // Cada modo tiene su propio tope de acercamiento: sin esto, `fitBounds` los
   // dejaba a todos en el mismo zoom y no se notaba la diferencia.
-  if(modo===3) return { pts:[yo], zoom:14.6, pitch:74 };
+  // v2.9.235 — CADA MODO CON SU INCLINACIÓN. Antes iban de 52° a 74° y la
+  // diferencia no se notaba. Ahora la panorámica es casi CENITAL (se lee el
+  // dispositivo como en una carta) y cada modo más cerrado se va ECHANDO, hasta
+  // quedar casi a ras del suelo: ahí es donde se ven los relieves de verdad.
+  if(modo===3) return { pts:[yo], zoom:14.6, pitch:80 };
   if(modo===2){
     // El contacto más cercano: primero un enemigo, y si no hay, quien sea.
     const otros=uds.filter(x=>String(x.id)!==String(u.id));
     const ene=otros.filter(x=>x.bando!==u.bando);
     const cand=(ene.length?ene:otros)
       .map(x=>({x,d:_wgHav(yo,[x.lng,x.lat])})).sort((a,b)=>a.d-b.d)[0];
-    if(!cand) return { pts:[yo], zoom:13.4, pitch:70 };
-    return { pts:[yo,[cand.x.lng,cand.x.lat]], pitch:68, maxZoom:14.0 };
+    if(!cand) return { pts:[yo], zoom:13.4, pitch:74 };
+    return { pts:[yo,[cand.x.lng,cand.x.lat]], pitch:74, maxZoom:14.0 };
   }
   // v2.9.234 — PANORÁMICA = TODO EL DISPOSITIVO. Antes tomaba sólo las cuatro
   // unidades más cercanas, así que terminaba a la misma distancia que la táctica
   // y los tres encuadres se veían igual. Lo que distingue a estos modos ES LA
   // DISTANCIA: la panorámica tiene que alejarse hasta que entren TODAS.
   const todas=uds.map(x=>[x.lng,x.lat]);
-  return { pts:todas.length?todas:[yo], pitch:52, maxZoom:11.5 };
+  return { pts:todas.length?todas:[yo], pitch:38, maxZoom:11.5 };
 }
 /**
  * Lleva la cámara al encuadre. `suave` = movimiento largo de cine; si no, un
@@ -25027,12 +25256,27 @@ function _wgCamaraOrbita(){
     const dt=Math.min(120, ahora-ultimo); ultimo=ahora;
     const map=WG.map3d; if(!map) return;
     try{
-      // Giro lento y constante: una vuelta completa en ~3 minutos.
+      // v2.9.235 — CON UNA VISTA DE BANDO PUESTA, LA CÁMARA NO DA VUELTAS:
+      // BARRE. Un observador del bando azul no se pone detrás del rojo para
+      // mirar; se queda en su eje de aproximación y barre el frente a izquierda
+      // y derecha. Eso es lo del dibujo, y es lo que hace que las dos vistas se
+      // sientan como dos ejércitos distintos mirando el mismo terreno.
+      const lente=(WG.soy==='arbitro')?(WG.vistaArb||'todo'):WG.soy;
+      const eje=(lente==='azul'||lente==='rojo')?_wgEjeAproximacion(lente):null;
+      if(eje){
+        const t2=ahora/11000;
+        map.setBearing(eje.rumbo + Math.sin(t2)*WG_OSCILA);
+        const pB = WG.camara===3?80 : (WG.camara===2?74 : (WG.camara===4?66:38));
+        map.setPitch(Math.max(0,Math.min(85, pB + Math.sin(ahora/9000)*5)));
+        return;
+      }
+      // Sin lente de bando: giro lento y constante, una vuelta en ~3 minutos.
       const giro=(dt/1000)*2.0;
       // La «respiración» de la espiral: la inclinación sube y baja apenas, así
       // el movimiento no es un carrusel plano sino una órbita.
       const t=ahora/9000;
-      const pitchBase = WG.camara===3?72 : (WG.camara===2?66 : (WG.camara===4?64:60));
+      // v2.9.235: la órbita mantiene la inclinación PROPIA de cada modo.
+      const pitchBase = WG.camara===3?80 : (WG.camara===2?74 : (WG.camara===4?66:38));
       map.setBearing(map.getBearing()+giro);
       map.setPitch(Math.max(0,Math.min(85, pitchBase + Math.sin(t)*5)));
     }catch(_e){}
@@ -25044,8 +25288,11 @@ function _wgCamaraManos(map){
   const lienzo=map.getCanvas();
   const parar=()=>{ WG._camManual=true; clearTimeout(WG._camT);
     WG._camT=setTimeout(()=>{ WG._camManual=false; }, 2500); };
+  // v2.9.235 — EL ZOOM YA NO DETIENE LA CÁMARA. Estaba en la lista de gestos
+  // que la pausaban, así que acercarse la dejaba clavada 2,5 s: parecía que se
+  // rompía. Acercar o alejar NO es tomar el control del encuadre — sólo lo es
+  // arrastrar. Con la rueda, la órbita sigue girando.
   lienzo.addEventListener('mousedown',parar,true);
-  lienzo.addEventListener('wheel',parar,true);
   lienzo.addEventListener('touchstart',parar,true);
 }
 // Barra inferior: todos los encuadres a la vista, se elige tocando.
@@ -25069,6 +25316,7 @@ function wgCamara(id){
   WG.camara=Number(id)||0;
   wgPanelCamaras();
   wgPanelVistas();
+  wgPanelDrones();
   const c=WG_CAMARAS[WG.camara];
   const b=document.getElementById('wg-btn-cam');
   if(b){ b.textContent=c.icono; b.title='Cámara: '+c.nom+' — '+c.desc; }
