@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.231</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.232</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -22748,6 +22748,40 @@ function wgPanelLogistica(){
     +`<b>Raciones</b> y <b>agua</b> no las lleva el motor: el tiempo no consume víveres todavía. `
     +`Prefiero dejarlo dicho antes que mostrarte un número inventado en un tablero de logística.</div></div>`;
 }
+// v2.9.232 — APUNTAR EL DRON. No es una orden de turno: es una decisión de
+// vigilancia que vale desde ya. Por eso se manda al servidor al instante y no
+// espera a «Jugar turno».
+const WG_RUMBOS=[['N',0],['NE',45],['E',90],['SE',135],['S',180],['SO',225],['O',270],['NO',315]];
+async function wgApuntarDron(uid, rumbo){
+  const r=await _wgInvoke('apuntar_dron',{ partida_id:WG.partidaId, clave_acceso:WG.clave,
+    unidad_id:Number(uid), rumbo });
+  if(!r.ok){ _wgAviso('⚠️ No se pudo apuntar el dron: '+_rgEsc(r.error||''),4000); return; }
+  _wgAviso(rumbo==null
+    ? '🛩️ Dron <b>replegado</b>: esa unidad vuelve a ver sólo con lo suyo.'
+    : `🛩️ Dron apuntado al <b>${Math.round(rumbo)}°</b>. Lo que quede fuera del cono no se ve.`, 3600);
+  await wgEstado();
+}
+function _wgPanelDronHTML(u){
+  const d=_wgDronDe(u);
+  const cfg=WG_DRON[u.escalon]||WG_DRON.batallon;
+  const botones=WG_RUMBOS.map(([nom,g])=>{
+    const act=d && Math.abs(d.rumbo-g)<1;
+    return `<button onclick="wgApuntarDron(${u.id},${g})" title="Apuntar el dron al ${nom} (${g}°)" `
+      +`style="padding:4px 0;border-radius:7px;cursor:pointer;font-size:10.5px;font-weight:700;`
+      +(act?`background:rgba(155,123,255,.28);border:1px solid #9b7bff;color:#d9ccff`
+           :`background:rgba(255,255,255,.05);border:1px solid transparent;color:#bcd6ee`)+`">${nom}</button>`;
+  }).join('');
+  return `<div class="section-label" style="margin:12px 0 6px">🛩️ DRON DE VIGILANCIA</div>`
+    +`<div class="rg-meta" style="font-size:11px;margin-bottom:6px;line-height:1.45">`
+    +(d ? `Desplegado al <b style="color:#d9ccff">${Math.round(d.rumbo)}°</b> · alcance <b>${d.km} km</b> · apertura ${d.apertura}°.`
+        : `Sin desplegar — esta unidad sólo ve con su observación propia.`)
+    +`<br>Ve <b>${cfg.km} km</b> hacia donde lo apuntes, pero <b style="color:#ffb15c">lo que quede fuera del cono no se ve</b>.</div>`
+    +`<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px">${botones}</div>`
+    +(d?`<div onclick="wgApuntarDron(${u.id},null)" style="margin-top:6px;padding:6px;border-radius:8px;`
+      +`cursor:pointer;text-align:center;font-size:11px;font-weight:700;`
+      +`background:rgba(255,255,255,.05);border:1px solid rgba(140,210,255,.25);color:#bcd6ee">`
+      +`✋ Replegar el dron</div>`:'');
+}
 // v2.9.223: la matriz se rearma con lo que haya trazado en ese momento.
 function wgPanelMatriz(){
   const el=document.getElementById('wg-matriz');
@@ -24034,7 +24068,7 @@ function _wgPanelArmasHTML(){
         :(c.pct>=80?'<br><b style="color:#ffb15c">⚠️ Menos de un quinto de tanque.</b>':''))
       +`</div>` : '';
   return `<div class="section-label" style="margin:0 0 6px">🎯 ARMAMENTO · ${_rgEsc(u.designacion||'unidad')}</div>`
-    +comb+filas+pie+_wgPanelMisionHTML(elegida)+rep;
+    +comb+filas+pie+_wgPanelMisionHTML(elegida)+rep+_wgPanelDronHTML(u);
 }
 // Sistemas de armas de una unidad, ordenados de menor a mayor alcance.
 function _wgArmamento(u){
@@ -24579,6 +24613,20 @@ function _wgDibujo(){
       }
     }
   }
+  // v2.9.232 — CONO DEL DRON. Sólo de las unidades propias (el del enemigo no
+  // se conoce) y sólo con el dron desplegado. Es la información que decide
+  // hacia dónde se está mirando y, sobre todo, hacia dónde NO.
+  if(WG.verObs!==false){
+    for(const u of (e.unidades||[])){
+      if(!(WG.soy==='arbitro' || u.bando===WG.soy)) continue;
+      const pts=_wgConoDron(u); if(!pts) continue;
+      const soloSel2 = WG.sel!=null && uById[WG.sel];
+      if(soloSel2 && String(u.id)!==String(WG.sel)) continue;
+      D.push(_wgD.lin(pts,'#9b7bff',1.8,'6 4',.85));
+      const d=_wgDronDe(u);
+      if(soloSel2) D.push(_wgD.txt(u.lng,u.lat,`🛩️ dron ${d.km} km · rumbo ${Math.round(d.rumbo)}°`));
+    }
+  }
   // ALCANCE del sistema de armas elegido, sobre la unidad seleccionada.
   // v2.9.218: éste es EL círculo que «no aparecía» — se dibujaba sólo en Leaflet.
   if(WG.armaSel && WG.sel!=null){
@@ -24806,6 +24854,36 @@ function _wgPisoFC(){
         _r: 13*_wgPorte(u) }});
   }
   return {type:'FeatureCollection',features:feats};
+}
+// ============================================================
+// v2.9.232 — DRON: CONO DE VIGILANCIA. Mismas cifras que el motor. La
+// observación propia es un círculo; el dron ve mucho más lejos pero sólo hacia
+// donde lo apuntás — mirar al norte es aceptar no ver el sur.
+// ============================================================
+const WG_DRON={ seccion:{km:6,apertura:50}, compania:{km:10,apertura:55},
+  batallon:{km:16,apertura:60}, regimiento:{km:20,apertura:60},
+  brigada:{km:28,apertura:65}, division:{km:36,apertura:70},
+  cuerpo:{km:45,apertura:70}, ejercito:{km:55,apertura:75} };
+function _wgDronDe(u){
+  if(!u || u.dron_rumbo==null) return null;
+  if(u.estado==='fuera_combate') return null;
+  const cfg=WG_DRON[u.escalon]||WG_DRON.batallon;
+  return { rumbo:((Number(u.dron_rumbo)||0)%360+360)%360, km:cfg.km, apertura:cfg.apertura };
+}
+// Polígono del cono: vértice en la unidad y arco al alcance del dron.
+function _wgConoDron(u){
+  const d=_wgDronDe(u); if(!d) return null;
+  const pts=[[u.lng,u.lat]];
+  const dLat=(d.km/6371)*(180/Math.PI);
+  const dLng=dLat/Math.max(1e-6,Math.cos(u.lat*Math.PI/180));
+  const a0=d.rumbo-d.apertura/2, a1=d.rumbo+d.apertura/2;
+  for(let i=0;i<=24;i++){
+    const a=(a0+(a1-a0)*i/24)*Math.PI/180;
+    // rumbo 0 = norte, 90 = este → x usa sen, y usa cos.
+    pts.push([u.lng+dLng*Math.sin(a), u.lat+dLat*Math.cos(a)]);
+  }
+  pts.push([u.lng,u.lat]);
+  return pts;
 }
 // v2.9.231 — PORTE DE LA FICHA SEGÚN EL ESCALÓN. El RC-02-114 ya distingue la
 // magnitud con los signos de arriba del marco (● Sección, I Compañía, II
