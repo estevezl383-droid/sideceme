@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.236</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.237</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6733,15 +6733,20 @@ body.wg-jugando{overflow:hidden}
    alcance. No es un adorno: al verlo girar se entiende que es un medio que
    está ARRIBA y que cubre un sector, no un símbolo pegado a la ficha.
    ============================================================ */
-@keyframes wgDronGira{ from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-@keyframes wgDronSube{ 0%,100%{transform:translateY(0)} 50%{transform:translateY(-3px)} }
-.wg-dron{position:relative;pointer-events:none;will-change:transform}
-.wg-dron .orbita{position:absolute;left:50%;top:50%;border-radius:50%;
-  border:1px dashed rgba(155,123,255,.45);transform:translate(-50%,-50%)}
-.wg-dron .brazo{position:absolute;left:50%;top:50%;transform-origin:0 0;
-  animation:wgDronGira 9s linear infinite}
-.wg-dron .pajaro{position:absolute;font-size:15px;line-height:1;
-  filter:drop-shadow(0 3px 4px rgba(0,0,0,.6));animation:wgDronSube 2.2s ease-in-out infinite}
+/* v2.9.237 — EL DRON VUELA, NO GIRA COMO AGUJA DE RELOJ.
+   El brazo rotando se veía exactamente como la manecilla de un reloj. Ahora el
+   aparato ES un marcador propio que RECORRE el círculo sobre el mapa: cambia de
+   posición geográfica, se inclina en los virajes y va a su altura, con la
+   sombra en el suelo por debajo. Eso se lee como un avión dando vueltas. */
+.wg-dron{position:relative;pointer-events:auto;cursor:pointer;will-change:transform}
+.wg-dron .cuerpo{font-size:17px;line-height:1;display:block;
+  filter:drop-shadow(0 4px 5px rgba(0,0,0,.65));transition:transform .12s linear}
+/* El hilo hasta el suelo: se ve a qué ALTURA está volando. */
+.wg-dron .hilo{position:absolute;left:50%;top:100%;width:1px;margin-left:-.5px;
+  background:linear-gradient(to bottom,rgba(155,123,255,.55),rgba(155,123,255,0))}
+.wg-dron .sombra{position:absolute;left:50%;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(0,0,0,.45) 0%,rgba(0,0,0,0) 72%)}
+.wg-dron-anillo{pointer-events:none}
 /* ============================================================
    v2.9.231 — LA FICHA SE PARA SOBRE EL TERRENO.
    El símbolo reglamentario NO se toca: el RC-02-114 manda que la unidad se
@@ -23044,10 +23049,8 @@ function wgVistaArbitro(id){
       const b=document.getElementById('wg-btn-cam');
       if(b){ b.textContent=WG_CAMARAS[1].icono; b.title='Cámara: '+WG_CAMARAS[1].nom; } }
     if(WG.map3d && _wgEn3D()){
-      try{
-        const pB = WG.camara===3?80 : (WG.camara===2?74 : (WG.camara===4?66:38));
-        WG.map3d.easeTo({ bearing:eje.rumbo, pitch:pB, duration:2600, essential:true });
-      }catch(_e){}
+      const pB = WG.camara===3?80 : (WG.camara===2?74 : (WG.camara===4?66:38));
+      _wgCamIr({ rumbo:eje.rumbo, pitch:pB });
     }
     _wgCamaraOrbita();
   }
@@ -23139,26 +23142,73 @@ async function wgApuntarDron(uid, rumbo){
 // eso mientras dura sólo se muestran las unidades que caen dentro de su cono.
 // Si el dron mira al norte, lo del sur no está — igual que en la realidad.
 // ============================================================
+// ============================================================
+// v2.9.237 — LOS DRONES VUELAN DE VERDAD.
+// Un solo lazo mueve TODOS los aparatos por su órbita: cambia su posición
+// geográfica, los inclina en el viraje y ajusta la sombra. Y si estás en la
+// vista de uno, la cámara VIAJA CON ÉL — es lo que se ve desde el aparato
+// mientras da la vuelta, no una foto fija cerca suyo.
+// ============================================================
+function _wgVolarDrones(){
+  cancelAnimationFrame(WG._vueloRAF||0);
+  const paso=(ahora)=>{
+    WG._vueloRAF=requestAnimationFrame(paso);
+    const lista=WG.dronesVuelo||[]; if(!lista.length) return;
+    for(const v of lista){
+      const d=_wgDronDe(v.u); if(!d) continue;
+      // Una vuelta cada ~26 s. El desfase por unidad evita que vayan en fila.
+      const fase=(ahora/26000 + (String(v.u.id).length*0.37)) * Math.PI*2;
+      const dLat=(v.orbKm/6371)*(180/Math.PI);
+      const dLng=dLat/Math.max(1e-6,Math.cos(v.u.lat*Math.PI/180));
+      const lng=v.u.lng + dLng*Math.sin(fase);
+      const lat=v.u.lat + dLat*Math.cos(fase);
+      try{ v.mk.setLngLat([lng,lat]); }catch(_e){}
+      // Rumbo instantáneo del vuelo = tangente al círculo. Se inclina hacia
+      // adentro del viraje, como cualquier aeronave en giro.
+      const cuerpo=v.el.querySelector('.cuerpo');
+      if(cuerpo){
+        const rumboVuelo=(fase*180/Math.PI + 90) % 360;
+        cuerpo.style.transform=`rotate(${rumboVuelo.toFixed(0)}deg) skewX(-14deg)`;
+      }
+      v._pos=[lng,lat];
+    }
+    // La cámara del dron viaja CON el aparato.
+    if(WG.dronVista!=null && WG.camObj){
+      const v=lista.find(x=>String(x.u.id)===String(WG.dronVista));
+      const d=v?_wgDronDe(v.u):null;
+      if(v&&d&&v._pos){
+        // Se mira HACIA DELANTE del sector: el centro va adelante del aparato.
+        const adel=(d.rumbo)*Math.PI/180;
+        const dLat=((d.km*0.45)/6371)*(180/Math.PI);
+        const dLng=dLat/Math.max(1e-6,Math.cos(v._pos[1]*Math.PI/180));
+        _wgCamIr({ centro:[v._pos[0]+dLng*Math.sin(adel), v._pos[1]+dLat*Math.cos(adel)],
+          rumbo:d.rumbo, pitch:72 });
+      }
+    }
+  };
+  WG._vueloRAF=requestAnimationFrame(paso);
+}
 function wgVistaDron(uid){
   const u=_wgUnidadPorId(uid); if(!u) return;
   const d=_wgDronDe(u);
   if(!d){ _wgAviso('🛩️ Esa unidad no tiene el dron desplegado.',3000); return; }
   WG.dronVista = (String(WG.dronVista)===String(uid)) ? null : String(uid);
   if(WG.dronVista==null){
+    // Se devuelve la cámara: panorámica y órbita otra vez.
+    if(!WG.camara){ WG.camara=1; wgPanelCamaras(); }
+    _wgCamaraOrbita();
     _wgAviso('🛩️ Vista del dron <b>cerrada</b>. Volvés al tablero.',3000);
   }else{
-    // La cámara se planta en el dron: alto, mirando hacia su sector.
+    // v2.9.237 — TE METÉS EN LA CÁMARA DEL DRON. La cámara se pone a su altura
+    // mirando su sector, y el lazo de vuelo la lleva con el aparato mientras da
+    // la vuelta. El zoom sale del ALCANCE: un dron que ve 36 km tiene que
+    // mostrar 36 km de terreno, no un primer plano.
+    // La órbita del árbitro se apaga: acá manda el dron.
+    WG.camara=0; wgPanelCamaras();
+    cancelAnimationFrame(WG._orbita||0);
     if(WG.map3d && _wgEn3D()){
-      try{
-        // Se sitúa un poco POR DETRÁS del dron para que se vea su sector por
-        // delante, no la nuca del aparato.
-        const atras=(d.rumbo+180)*Math.PI/180;
-        const dLat=(2.2/6371)*(180/Math.PI);
-        const dLng=dLat/Math.max(1e-6,Math.cos(u.lat*Math.PI/180));
-        WG.map3d.easeTo({
-          center:[u.lng+dLng*Math.sin(atras), u.lat+dLat*Math.cos(atras)],
-          bearing:d.rumbo, pitch:76, zoom:12.2, duration:2600, essential:true });
-      }catch(_e){}
+      const z = Math.max(9.5, Math.min(13.5, 15.4 - Math.log2(Math.max(1,d.km))*1.05));
+      _wgCamIr({ centro:[u.lng,u.lat], rumbo:d.rumbo, pitch:72, zoom:z });
     }
     _wgAviso(`🛩️ <b>Vista del dron de ${_rgEsc(u.designacion||u.bando)}</b> — `
       +`${d.km} km al ${Math.round(d.rumbo)}°, apertura ${d.apertura}°.<br>`
@@ -23219,7 +23269,9 @@ function wgPanelMatriz(){
 // v2.9.192: zoom propio del HUD (el control de Leaflet queda oculto).
 function _wgEn3D(){ const c=document.getElementById('wg-3d'); return !!(WG.map3d && c && c.style.display!=='none'); }
 function wgZoom(d){ try{
-  if(_wgEn3D()){ WG.map3d.easeTo({zoom:WG.map3d.getZoom()+d,duration:250}); return; } // v2.9.204
+  // v2.9.237: el zoom mueve el DESTINO. Antes hacía `easeTo` y la órbita se lo
+  // cancelaba en el frame siguiente — por eso «no funcionaba».
+  if(_wgEn3D()&&WG.camObj){ _wgCamIr({zoom:WG.camObj.zoom+d}); return; }
   WG.map && WG.map.setZoom(WG.map.getZoom()+d); wgActualizarZoomChip();
 }catch(e){} }
 // v2.9.196: REFERENCIA DE ZOOM. No basta el nivel (Z8 no le dice nada a nadie):
@@ -23713,8 +23765,8 @@ function _wgAnimarDisparos(impactos){
     const im=base[0];
     try{
       const caja=_wgCaja([im.desde,[im.lng,im.lat]], 0.02);
-      if(caja) WG.map3d.fitBounds(caja, { padding:{top:100,bottom:130,left:90,right:90},
-        pitch:68, duration:2200, maxZoom:13.4, essential:true });
+      if(caja) _wgCamIr({ centro:[(caja[0][0]+caja[1][0])/2,(caja[0][1]+caja[1][1])/2],
+        pitch:68, zoom:_wgZoomDeCaja(WG.map3d,caja,13.4) });
     }catch(_e){}
   }
   return new Promise((listo)=>{
@@ -23852,6 +23904,7 @@ async function wgVista3D(){
     let h=null; try{ h=map.queryTerrainElevation(e.lngLat); }catch(_e){}
     el.textContent = h==null?'—':('⛰️ '+Math.round(h)+' m');
   });
+  _wgCamIniciar(map);          // v2.9.237: una sola mano en la cámara
   _wg3dControlesGoogleEarth(map);
   _wgCamaraManos(map);   // v2.9.229: la órbita se aparta mientras arrastrás
   // ÓRDENES EN 3D: clic en el terreno = mover la unidad seleccionada. (El clic
@@ -23986,8 +24039,8 @@ function _wg3dControlesGoogleEarth(map){
   window.addEventListener('mousemove',(ev)=>{
     if(!girando) return;
     // Horizontal = rumbo (spin) · Vertical = inclinación, igual que Google Earth.
-    map.setBearing(brg0-(ev.clientX-x0)*0.35);
-    map.setPitch(Math.max(0,Math.min(85, pit0+(ev.clientY-y0)*0.30)));
+    _wgCamIr({ rumbo: brg0-(ev.clientX-x0)*0.35,
+      pitch: Math.max(0,Math.min(85, pit0+(ev.clientY-y0)*0.30)) });
     ev.preventDefault();
   },true);
   window.addEventListener('mouseup',()=>{ if(girando){ girando=false; lienzo.style.cursor=''; } },true);
@@ -23996,8 +24049,8 @@ function _wg3dControlesGoogleEarth(map){
   // Teclas: N devuelve el norte, R aplana la vista (como el "reset" de GE).
   lienzo.setAttribute('tabindex','0');
   lienzo.addEventListener('keydown',(ev)=>{
-    if(ev.key==='n'||ev.key==='N') map.easeTo({bearing:0,duration:500});
-    if(ev.key==='r'||ev.key==='R') map.easeTo({bearing:0,pitch:0,duration:600});
+    if(ev.key==='n'||ev.key==='N') _wgCamIr({rumbo:0});
+    if(ev.key==='r'||ev.key==='R') _wgCamIr({rumbo:0,pitch:0});
   });
 }
 // Vuelca en el mapa 3D el terreno, las órdenes y las fichas del estado actual.
@@ -24106,24 +24159,32 @@ function _wg3dDatos(){
   // v2.9.235 — LOS DRONES, VOLANDO. Un círculo punteado del tamaño que le
   // corresponde por escalón, y el aparato dando vueltas encima. Tocarlo abre
   // la VISTA DEL DRON: lo que ese medio alcanza a ver desde donde está.
+  WG.dronesVuelo=[];
   for(const u of _wgUnidadesVisibles()){
     const d=_wgDronDe(u); if(!d) continue;
     const lenteV=_wgBandoLente();
     if(lenteV ? u.bando!==lenteV : !(WG.soy==='arbitro'||u.bando===WG.soy)) continue;
-    const R=Math.round(26+(d.km/55)*34);   // radio en pantalla, según su alcance
+    // v2.9.237 — EL DRON RECORRE UN CÍRCULO DE VERDAD SOBRE EL TERRENO.
+    // Antes era un brazo rotando: la manecilla de un reloj. Ahora el aparato es
+    // un marcador propio cuya POSICIÓN GEOGRÁFICA se va moviendo por la órbita,
+    // se inclina en los virajes y cuelga de un hilo hasta su sombra en el suelo.
+    // El radio de la órbita sale de su alcance; la altura, de su escalón.
+    const orbKm = Math.max(0.8, d.km*0.16);
     const el=document.createElement('div');
     el.className='wg-dron';
-    el.style.cssText='width:0;height:0;pointer-events:auto;cursor:pointer';
     el.title=`Dron de ${u.designacion||u.bando} · ${d.km} km · rumbo ${Math.round(d.rumbo)}°\nTocar para ver por el dron`;
-    el.innerHTML=`<div class="orbita" style="width:${R*2}px;height:${Math.round(R*0.7)*2}px"></div>`
-      +`<div class="brazo"><div class="pajaro" style="left:${R}px;top:-8px">🛩️</div></div>`;
+    el.innerHTML=`<span class="cuerpo">🛩️</span>`;
     el.addEventListener('click',(ev)=>{ ev.stopPropagation(); wgVistaDron(u.id); });
+    // El anillo de la órbita, acostado en el suelo, va por la lista de dibujo.
     try{
-      const mk=new maplibregl.Marker({element:el, anchor:'center', offset:[0,-38]})
+      const alturaPx = Math.round(30 + (WG_PORTE[u.escalon]||1)*16);
+      const mk=new maplibregl.Marker({element:el, anchor:'center', offset:[0,-alturaPx]})
         .setLngLat([u.lng,u.lat]).addTo(map);
       WG.marc3d.push(mk);
+      WG.dronesVuelo.push({ mk, el, u, orbKm, alturaPx });
     }catch(_e){}
   }
+  _wgVolarDrones();
   // v2.9.220 — LAS LLAMAS. Van al final para quedar por encima de las fichas.
   // `anchor:'bottom'` apoya el fuego en el suelo; sin eso flota sobre el cerro.
   for(const f of (WG.incendios||[])){
@@ -24145,7 +24206,10 @@ function _wg3dEncuadrar(){
   for(const u of ((WG.estado&&WG.estado.unidades)||[])){
     x0=Math.min(x0,u.lng); y0=Math.min(y0,u.lat); x1=Math.max(x1,u.lng); y1=Math.max(y1,u.lat); }
   if(x0===Infinity) return;
-  try{ map.fitBounds([[x0,y0],[x1,y1]],{padding:70,pitch:62,duration:900}); }catch(_e){}
+  // v2.9.237: también por el destino, para no cortar el lazo.
+  if(WG.camObj) _wgCamIr({ centro:[(x0+x1)/2,(y0+y1)/2], pitch:62,
+    zoom:_wgZoomDeCaja(map,[[x0,y0],[x1,y1]],13) });
+  else { try{ map.fitBounds([[x0,y0],[x1,y1]],{padding:70,pitch:62,duration:900}); }catch(_e){} }
 }
 function wg3dExag(v){
   WG.exag3d=Number(v)||1.6;
@@ -25212,18 +25276,16 @@ function _wgCamaraA(u, modo, suave, girar){
   const map=WG.map3d;
   if(_wgEn3D() && map){
     const bearing = girar!=null ? girar : map.getBearing();
-    try{
-      if(enc.zoom!=null){
-        map.easeTo({ center:enc.pts[0], zoom:enc.zoom, pitch:enc.pitch,
-          bearing, duration:dur, essential:true });
-      }else{
-        const caja=_wgCaja(enc.pts, modo===2?0.012:(modo===1?0.06:0.02));
-        if(!caja) return;
-        map.fitBounds(caja, { padding:{top:90,bottom:120,left:80,right:80},
-          pitch:enc.pitch, bearing, duration:dur,
-          maxZoom:(enc.maxZoom!=null?enc.maxZoom:13.2), essential:true });
-      }
-    }catch(_e){}
+    // v2.9.237: se mueve el DESTINO, no el mapa. El lazo hace el resto sin cortes.
+    if(enc.zoom!=null){
+      _wgCamIr({ centro:enc.pts[0], zoom:enc.zoom, pitch:enc.pitch, rumbo:bearing });
+    }else{
+      const caja=_wgCaja(enc.pts, modo===2?0.012:(modo===1?0.06:0.02));
+      if(!caja) return;
+      const cx=(caja[0][0]+caja[1][0])/2, cy=(caja[0][1]+caja[1][1])/2;
+      _wgCamIr({ centro:[cx,cy], pitch:enc.pitch, rumbo:bearing,
+        zoom:_wgZoomDeCaja(map,caja,enc.maxZoom!=null?enc.maxZoom:13.2) });
+    }
     return;
   }
   // En 2D no hay cámara que inclinar: se encuadra y listo.
@@ -25246,6 +25308,74 @@ function _wgCamaraA(u, modo, suave, girar){
 // captura de pantalla.
 // Se detiene sola mientras el usuario arrastra, para no pelearle el control.
 // ============================================================
+// ============================================================
+// v2.9.237 — UNA SOLA MANO EN LA CÁMARA.
+// El zoom no andaba y la imagen daba chispazos por la MISMA razón: había
+// cuatro cosas peleándose por el control — `easeTo` de los encuadres,
+// `fitBounds`, el `setBearing/setPitch` de la órbita cuadro a cuadro, y el
+// zoom propio de MapLibre. Cada `setBearing` CANCELA la animación de zoom que
+// estaba corriendo: por eso acercarse no hacía nada.
+//
+// Ahora hay UN destino (`WG.camObj`) y UN lazo que lleva la cámara hacia él
+// suavizando cada valor. Nadie más toca el mapa: los encuadres, el zoom, el
+// arrastre y la órbita sólo MUEVEN EL DESTINO. Resultado: no hay cortes, la
+// imagen nunca se pierde y el zoom funciona siempre.
+// ============================================================
+const WG_SUAVE = { centro:0.055, zoom:0.075, pitch:0.06, rumbo:0.06 };
+function _wgCamIniciar(map){
+  // El zoom propio de MapLibre queda fuera: lo maneja el destino, si no
+  // vuelve la pelea de siempre.
+  try{ map.scrollZoom.disable(); }catch(_e){}
+  WG.camObj = { centro:map.getCenter().toArray(), zoom:map.getZoom(),
+    pitch:map.getPitch(), rumbo:map.getBearing() };
+  const lienzo=map.getCanvas();
+  lienzo.addEventListener('wheel',(ev)=>{
+    ev.preventDefault();
+    const paso = Math.max(-1.2, Math.min(1.2, -ev.deltaY/240));
+    WG.camObj.zoom = Math.max(2, Math.min(19, WG.camObj.zoom + paso));
+  }, { passive:false });
+  _wgCamLazo(map);
+}
+function _wgCamLazo(map){
+  cancelAnimationFrame(WG._camRAF||0);
+  const acercar=(a,b,k)=> a + (b-a)*k;
+  const paso=(ahora)=>{
+    WG._camRAF=requestAnimationFrame(paso);
+    const o=WG.camObj; if(!o||!map) return;
+    try{
+      // El rumbo se interpola por el camino corto, si no gira al revés al
+      // cruzar el norte.
+      const act=map.getBearing();
+      let dif=((o.rumbo-act)%360+540)%360-180;
+      const c=map.getCenter();
+      map.jumpTo({
+        center:[acercar(c.lng,o.centro[0],WG_SUAVE.centro), acercar(c.lat,o.centro[1],WG_SUAVE.centro)],
+        zoom: acercar(map.getZoom(), o.zoom, WG_SUAVE.zoom),
+        pitch: acercar(map.getPitch(), o.pitch, WG_SUAVE.pitch),
+        bearing: act + dif*WG_SUAVE.rumbo,
+      });
+    }catch(_e){}
+  };
+  WG._camRAF=requestAnimationFrame(paso);
+}
+// Mover el DESTINO. Todo lo demás del juego usa esto y nunca toca el mapa.
+function _wgCamIr(destino){
+  if(!WG.camObj) return false;
+  if(destino.centro) WG.camObj.centro=destino.centro;
+  if(destino.zoom!=null) WG.camObj.zoom=Math.max(2,Math.min(19,destino.zoom));
+  if(destino.pitch!=null) WG.camObj.pitch=Math.max(0,Math.min(85,destino.pitch));
+  if(destino.rumbo!=null) WG.camObj.rumbo=destino.rumbo;
+  return true;
+}
+// Zoom que necesita una caja para entrar en pantalla (equivale a `fitBounds`,
+// pero devolviendo el número en vez de animar por su cuenta).
+function _wgZoomDeCaja(map,caja,tope){
+  try{
+    const cam=map.cameraForBounds(caja,{padding:{top:90,bottom:120,left:80,right:80}});
+    if(cam&&Number.isFinite(cam.zoom)) return Math.min(tope!=null?tope:19, cam.zoom);
+  }catch(_e){}
+  return tope!=null?tope:12;
+}
 function _wgCamaraOrbita(){
   cancelAnimationFrame(WG._orbita||0);
   if(!WG.camara) return;
@@ -25263,22 +25393,17 @@ function _wgCamaraOrbita(){
       // sientan como dos ejércitos distintos mirando el mismo terreno.
       const lente=(WG.soy==='arbitro')?(WG.vistaArb||'todo'):WG.soy;
       const eje=(lente==='azul'||lente==='rojo')?_wgEjeAproximacion(lente):null;
+      // v2.9.237: la órbita YA NO toca el mapa — sólo corre el destino. Así deja
+      // de cancelar el zoom y la imagen no se corta.
+      const pB = WG.camara===3?80 : (WG.camara===2?74 : (WG.camara===4?66:38));
+      const respira = pB + Math.sin(ahora/9000)*5;
       if(eje){
-        const t2=ahora/11000;
-        map.setBearing(eje.rumbo + Math.sin(t2)*WG_OSCILA);
-        const pB = WG.camara===3?80 : (WG.camara===2?74 : (WG.camara===4?66:38));
-        map.setPitch(Math.max(0,Math.min(85, pB + Math.sin(ahora/9000)*5)));
+        // Barrido a izquierda y derecha del eje de aproximación de ese bando.
+        _wgCamIr({ rumbo: eje.rumbo + Math.sin(ahora/11000)*WG_OSCILA, pitch: respira });
         return;
       }
       // Sin lente de bando: giro lento y constante, una vuelta en ~3 minutos.
-      const giro=(dt/1000)*2.0;
-      // La «respiración» de la espiral: la inclinación sube y baja apenas, así
-      // el movimiento no es un carrusel plano sino una órbita.
-      const t=ahora/9000;
-      // v2.9.235: la órbita mantiene la inclinación PROPIA de cada modo.
-      const pitchBase = WG.camara===3?80 : (WG.camara===2?74 : (WG.camara===4?66:38));
-      map.setBearing(map.getBearing()+giro);
-      map.setPitch(Math.max(0,Math.min(85, pitchBase + Math.sin(t)*5)));
+      _wgCamIr({ rumbo: WG.camObj.rumbo + (dt/1000)*2.0, pitch: respira });
     }catch(_e){}
   };
   WG._orbita=requestAnimationFrame(paso);
