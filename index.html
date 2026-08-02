@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.233</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.234</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6917,6 +6917,11 @@ body.wg-jugando{overflow:hidden}
       <!-- v2.9.233 — LAS TRES VISTAS DEL ÁRBITRO. Sólo aparece para él. -->
       <div id="wg-vistas" style="position:absolute;left:56px;top:56px;z-index:1034;
         display:flex;gap:7px;flex-wrap:wrap;max-width:calc(100% - 340px)"></div>
+
+      <!-- v2.9.234 — LAS OTRAS DOS PANTALLAS, en chico. Tocar una la pone en grande. -->
+      <div id="wg-pantallas" style="position:absolute;right:14px;top:56px;z-index:1034;
+        background:rgba(10,16,22,.82);backdrop-filter:blur(7px);padding:8px 9px;border-radius:12px;
+        border:1px solid rgba(140,210,255,.24);display:none"></div>
 
       <!-- v2.9.229 — BARRA DE CÁMARAS. Abajo, con todos los encuadres a la
            vista para poder rotar entre ellos sin adivinar cuál viene. -->
@@ -22829,9 +22834,79 @@ function _wgBarraVistasHTML(){
       +`<span style="opacity:.65;font-weight:600">${n}</span></button>`;
   }).join('');
 }
+// ============================================================
+// v2.9.234 — LAS TRES PANTALLAS, JUNTAS.
+// Lo que pediste no era un selector: era VER las tres a la vez y elegir cuál va
+// en grande. La grande es el mapa 3D de verdad; las otras dos son tableros
+// esquemáticos que muestran, de un vistazo, qué tiene cada Estado Mayor en su
+// pantalla. Tocás una y pasa a ser la grande.
+// Son esquemas y no tres mapas 3D a propósito: tres instancias de MapLibre con
+// relieve y calcos matarían el rendimiento y no aportarían nada — para comparar
+// dispositivos alcanza con ver dónde está cada ficha.
+// ============================================================
+function _wgMiniTablero(cv, vista){
+  const ctx=cv.getContext('2d'); if(!ctx) return;
+  const W=cv.width, H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle='rgba(8,14,20,.92)'; ctx.fillRect(0,0,W,H);
+  const e=WG.estado; if(!e) return;
+  const todas=(e.unidades||[]);
+  if(!todas.length) return;
+  // La caja se calcula con TODAS las unidades para que los tres tableros usen
+  // la misma escala: si cada uno se ajustara a lo suyo, no se podrían comparar.
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(const u of todas){
+    if(!Number.isFinite(u.lng)||!Number.isFinite(u.lat)) continue;
+    x0=Math.min(x0,u.lng); x1=Math.max(x1,u.lng);
+    y0=Math.min(y0,u.lat); y1=Math.max(y1,u.lat);
+  }
+  if(x0===Infinity) return;
+  const mx=(x1-x0)*0.18+0.01, my=(y1-y0)*0.18+0.01;
+  x0-=mx; x1+=mx; y0-=my; y1+=my;
+  const px=(lng)=> ((lng-x0)/(x1-x0))*(W-14)+7;
+  const py=(lat)=> H-7-((lat-y0)/(y1-y0))*(H-14);
+  // Qué ve ESTA vista.
+  const g=WG.vistaArb; WG.vistaArb=vista;
+  const ven=_wgUnidadesVisibles(); WG.vistaArb=g;
+  const vistos=new Set(ven.map(u=>String(u.id)));
+  for(const u of todas){
+    if(!Number.isFinite(u.lng)||!Number.isFinite(u.lat)) continue;
+    const x=px(u.lng), y=py(u.lat), lo=vistos.has(String(u.id));
+    const r=(WG_PORTE[u.escalon]||1)*3.4;
+    if(!lo){
+      // Lo que ese bando NO ve se marca apenas, como hueco de información.
+      ctx.beginPath(); ctx.arc(x,y,r,0,7); ctx.strokeStyle='rgba(255,255,255,.14)';
+      ctx.lineWidth=1; ctx.setLineDash([2,2]); ctx.stroke(); ctx.setLineDash([]);
+      continue;
+    }
+    ctx.beginPath(); ctx.arc(x,y,r,0,7);
+    ctx.fillStyle=(u.estado==='fuera_combate')?'#6b7580':(WG_COL[u.bando]||'#888');
+    ctx.fill();
+    ctx.lineWidth=1.2; ctx.strokeStyle='rgba(0,0,0,.55)'; ctx.stroke();
+  }
+}
 function wgPanelVistas(){
   const el=document.getElementById('wg-vistas');
   if(el) el.innerHTML=_wgBarraVistasHTML();
+  const cont=document.getElementById('wg-pantallas');
+  if(!cont) return;
+  if(WG.soy!=='arbitro'){ cont.style.display='none'; cont.innerHTML=''; return; }
+  const act=WG.vistaArb||'todo';
+  // Las dos que NO están en grande se muestran como tablero chico.
+  const otras=WG_VISTAS.filter(v=>v.id!==act);
+  cont.style.display='';
+  cont.innerHTML=`<div class="rg-meta" style="font-size:10px;letter-spacing:.5px;opacity:.7;margin-bottom:4px">`
+    +`EN GRANDE: ${WG_VISTAS.find(v=>v.id===act).icono} ${WG_VISTAS.find(v=>v.id===act).nom.toUpperCase()}</div>`
+    +otras.map(v=>`<div onclick="wgVistaArbitro('${v.id}')" title="Tocá para ver ${_rgEsc(v.nom)} en grande"
+        style="cursor:pointer;margin-bottom:6px">
+        <div style="font-size:10.5px;font-weight:700;color:#cfe2f5;margin-bottom:2px">${v.icono} ${v.nom}</div>
+        <canvas id="wg-mini-${v.id}" width="190" height="112"
+          style="width:190px;height:112px;border-radius:9px;border:1px solid rgba(140,210,255,.28);display:block"></canvas>
+      </div>`).join('');
+  for(const v of otras){
+    const cv=document.getElementById('wg-mini-'+v.id);
+    if(cv) _wgMiniTablero(cv, v.id);
+  }
 }
 function wgVistaArbitro(id){
   WG.vistaArb=id;
@@ -22840,6 +22915,65 @@ function wgVistaArbitro(id){
   _wgAviso(`${x.icono} <b>${x.nom}</b> — ${x.desc}`
     + (id==='todo'?'':'<br>Las unidades que ese bando NO detectó quedan fuera del tablero.'), 3800);
   _wgRender(); if(WG.map3d) _wg3dDatos();
+}
+// ============================================================
+// v2.9.234 — OBRAS DE INGENIERÍA. Mismas tablas que el motor.
+// La zapa no dispara: aplica TIEMPO al terreno. Cambia por dónde se pasa y
+// dónde se aguanta, y por eso hay que pedirla con anticipación.
+// ============================================================
+const WG_OBRAS={
+  brecha:{ id:'brecha', nom:'Abrir brecha', icono:'🛠️',
+    desc:'Abre paso por donde no se podía. Queda transitable — y la usan LOS DOS bandos.',
+    turnos:{camino:1,libre:1,restringido:2,severo:4} },
+  defensiva:{ id:'defensiva', nom:'Posición defensiva', icono:'🛡️',
+    desc:'Cava y fortifica: quien la ocupe pelea protegido.',
+    turnos:{camino:3,libre:3,restringido:2,severo:2} },
+  obstaculo:{ id:'obstaculo', nom:'Obstáculo', icono:'⛓️',
+    desc:'Crea un impedimento donde no lo había: frena al que quiera pasar por ahí.',
+    turnos:{camino:3,libre:3,restringido:2,severo:2} },
+};
+const WG_RINDE_ZAPA={ seccion:0.55, compania:0.8, batallon:1, regimiento:1.2,
+  brigada:1.5, division:1.8, cuerpo:2.2, ejercito:2.5 };
+function _wgPuedeZapar(u){ return _wgArmamento(u).some(a=>a.ingenieria); }
+function _wgTurnosDeObra(u,obraId,pt){
+  const o=WG_OBRAS[obraId]; if(!o) return 0;
+  const clase=_wgClaseTerreno(pt, WG.terreno||[]);
+  const base=o.turnos[clase]!=null?o.turnos[clase]:2;
+  return Math.max(1, Math.round(base/(WG_RINDE_ZAPA[u&&u.escalon]||1)));
+}
+// Elegir obra arma el modo «tocá el mapa dónde»; el clic la ordena.
+function wgElegirObra(id){
+  WG.obraSel = (WG.obraSel===id)?null:id;
+  if(WG.obraSel){ WG.armaSel=null; WG.modoReplegar=false; }
+  _wgRender();
+}
+function _wgPanelObrasHTML(u){
+  if(!_wgPuedeZapar(u)) return '';
+  const t=u.trabajo;
+  const enCurso = t ? `<div class="rg-card" style="padding:8px 9px;margin-bottom:7px;
+      background:rgba(232,195,58,.12);border:1px solid rgba(232,195,58,.45)">
+      <b style="font-size:11.5px;color:#ffe9a8">${WG_OBRAS[t.obra]?WG_OBRAS[t.obra].icono+' '+WG_OBRAS[t.obra].nom:'Obra'} en curso</b>
+      <div class="rg-meta" style="font-size:10.5px;margin-top:3px">
+      Faltan <b>${t.restan}</b> de ${t.total} turnos. Si movés la unidad, se pierde el trabajo.</div></div>` : '';
+  const filas=Object.values(WG_OBRAS).map(o=>{
+    const act=WG.obraSel===o.id;
+    const turnos=_wgTurnosDeObra(u,o.id,[u.lng,u.lat]);
+    return `<div onclick="wgElegirObra('${o.id}')" style="padding:7px 9px;margin-bottom:5px;
+      border-radius:9px;cursor:pointer;`
+      +(act?`background:rgba(155,123,255,.18);border:1px solid #9b7bff`
+           :`background:rgba(255,255,255,.04);border:1px solid transparent`)+`">`
+      +`<div style="display:flex;align-items:center;gap:7px">`
+      +`<span style="font-size:14px">${o.icono}</span>`
+      +`<b style="flex:1;font-size:12px">${o.nom}</b>`
+      +`<span style="font-size:10.5px;color:#ffd9a8;white-space:nowrap">${turnos} turno${turnos>1?'s':''}</span></div>`
+      +`<div class="rg-meta" style="font-size:10.5px;margin-top:3px;line-height:1.4">${o.desc}</div></div>`;
+  }).join('');
+  return `<div class="section-label" style="margin:12px 0 6px">🚧 OBRAS DE INGENIERÍA</div>`
+    +enCurso
+    +`<div class="rg-meta" style="font-size:11px;margin-bottom:6px;line-height:1.45">`
+    +`El tiempo sale del <b>terreno donde se hace</b> y del escalón de la unidad.`
+    +(WG.obraSel?`<br><b style="color:#d9ccff">TOCÁ EL MAPA</b> donde querés la obra (hay que estar a menos de 1 km).`:'')
+    +`</div>`+filas;
 }
 // v2.9.232 — APUNTAR EL DRON. No es una orden de turno: es una decisión de
 // vigilancia que vale desde ya. Por eso se manda al servidor al instante y no
@@ -24166,7 +24300,7 @@ function _wgPanelArmasHTML(){
         :(c.pct>=80?'<br><b style="color:#ffb15c">⚠️ Menos de un quinto de tanque.</b>':''))
       +`</div>` : '';
   return `<div class="section-label" style="margin:0 0 6px">🎯 ARMAMENTO · ${_rgEsc(u.designacion||'unidad')}</div>`
-    +comb+filas+pie+_wgPanelMisionHTML(elegida)+rep+_wgPanelDronHTML(u);
+    +comb+filas+pie+_wgPanelMisionHTML(elegida)+rep+_wgPanelObrasHTML(u)+_wgPanelDronHTML(u);
 }
 // Sistemas de armas de una unidad, ordenados de menor a mayor alcance.
 function _wgArmamento(u){
@@ -24814,22 +24948,27 @@ function _wgEncuadre(u, modo){
     }
     for(const x of enCombate) pts.push([x.lng,x.lat]);
     // Si no hay nadie trenzado, no se inventa un encuadre: cae en panorámica.
-    if(pts.length>=2) return { pts, pitch:64, combate:pts.length };
+    // Combate: pegado a los que están trenzados, pero sin perder a ninguno.
+    if(pts.length>=2) return { pts, pitch:66, maxZoom:14.2, combate:pts.length };
   }
-  if(modo===3) return { pts:[yo], zoom:13.4, pitch:74 };
+  // Cada modo tiene su propio tope de acercamiento: sin esto, `fitBounds` los
+  // dejaba a todos en el mismo zoom y no se notaba la diferencia.
+  if(modo===3) return { pts:[yo], zoom:14.6, pitch:74 };
   if(modo===2){
     // El contacto más cercano: primero un enemigo, y si no hay, quien sea.
     const otros=uds.filter(x=>String(x.id)!==String(u.id));
     const ene=otros.filter(x=>x.bando!==u.bando);
     const cand=(ene.length?ene:otros)
       .map(x=>({x,d:_wgHav(yo,[x.lng,x.lat])})).sort((a,b)=>a.d-b.d)[0];
-    if(!cand) return { pts:[yo], zoom:12.6, pitch:70 };
-    return { pts:[yo,[cand.x.lng,cand.x.lat]], pitch:68 };
+    if(!cand) return { pts:[yo], zoom:13.4, pitch:70 };
+    return { pts:[yo,[cand.x.lng,cand.x.lat]], pitch:68, maxZoom:14.0 };
   }
-  // Panorámica: la unidad y las cuatro más cercanas, para leer el dispositivo.
-  const cerca=uds.map(x=>({p:[x.lng,x.lat],d:_wgHav(yo,[x.lng,x.lat])}))
-    .sort((a,b)=>a.d-b.d).slice(0,5).map(o=>o.p);
-  return { pts:cerca.length?cerca:[yo], pitch:62 };
+  // v2.9.234 — PANORÁMICA = TODO EL DISPOSITIVO. Antes tomaba sólo las cuatro
+  // unidades más cercanas, así que terminaba a la misma distancia que la táctica
+  // y los tres encuadres se veían igual. Lo que distingue a estos modos ES LA
+  // DISTANCIA: la panorámica tiene que alejarse hasta que entren TODAS.
+  const todas=uds.map(x=>[x.lng,x.lat]);
+  return { pts:todas.length?todas:[yo], pitch:52, maxZoom:11.5 };
 }
 /**
  * Lleva la cámara al encuadre. `suave` = movimiento largo de cine; si no, un
@@ -24849,10 +24988,11 @@ function _wgCamaraA(u, modo, suave, girar){
         map.easeTo({ center:enc.pts[0], zoom:enc.zoom, pitch:enc.pitch,
           bearing, duration:dur, essential:true });
       }else{
-        const caja=_wgCaja(enc.pts, modo===2?0.012:0.03);
+        const caja=_wgCaja(enc.pts, modo===2?0.012:(modo===1?0.06:0.02));
         if(!caja) return;
         map.fitBounds(caja, { padding:{top:90,bottom:120,left:80,right:80},
-          pitch:enc.pitch, bearing, duration:dur, maxZoom:13.2, essential:true });
+          pitch:enc.pitch, bearing, duration:dur,
+          maxZoom:(enc.maxZoom!=null?enc.maxZoom:13.2), essential:true });
       }
     }catch(_e){}
     return;
@@ -25201,6 +25341,19 @@ function _wgMapClick(ev){
   // v2.9.225 — REPLEGARSE: el clic marca hacia dónde romper contacto. La unidad
   // se retira sin empeñar; si tenía un enemigo encima al empezar el turno,
   // aguanta el fuego de la persecución pero no devuelve golpes.
+  // v2.9.234: con una obra elegida, el clic marca DÓNDE trabajar.
+  if(WG.obraSel){
+    if(WG.rutas) delete WG.rutas[WG.sel];
+    WG.ordenes[WG.sel]={ tipo:'zapa', obra:WG.obraSel, destino_lng:p[0], destino_lat:p[1] };
+    const u=_wgUnidadPorId(WG.sel);
+    const n=u?_wgTurnosDeObra(u,WG.obraSel,p):0;
+    _wgAviso(`${WG_OBRAS[WG.obraSel].icono} <b>${WG_OBRAS[WG.obraSel].nom}</b> ordenada — `
+      +`<b>${n} turno${n>1?'s':''}</b> de trabajo. La unidad tiene que quedarse en el lugar.`, 4600);
+    WG.obraSel=null;
+    _wgActualizarContadorOrdenes(); _wgRender();
+    if(WG.map3d) _wg3dDatos();
+    return;
+  }
   if(WG.modoReplegar){
     if(WG.rutas) delete WG.rutas[WG.sel];
     WG.ordenes[WG.sel]={ tipo:'replegar', destino_lng:p[0], destino_lat:p[1] };
