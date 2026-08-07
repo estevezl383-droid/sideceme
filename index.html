@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.267</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.269</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6999,14 +6999,17 @@ body.wg-jugando{overflow:hidden}
         <button class="wg-rd" id="wg-btn-cam" onclick="wgCamaraCiclo(this)" title="Cámara: Libre — tocá para cambiar de encuadre (panorámica, táctica, cerca)">🖐️</button>
         <!-- v2.9.261 — los dos automatismos de cámara, apagados por defecto:
              encenderlos es una decisión tuya, no algo que te pase. -->
-        <button class="wg-rd" id="wg-btn-seguir" onclick="wgSeguir(this)" style="opacity:.5" title="Seguir a la unidad elegida: apagado">🎯</button>
+        <!-- v2.9.269: seguir la marcha arranca ENCENDIDO (pedido de Sergio). -->
+        <button class="wg-rd" id="wg-btn-seguir" onclick="wgSeguir(this)" title="Seguir a la unidad en marcha: ENCENDIDO">🎯</button>
         <button class="wg-rd" id="wg-btn-conos" onclick="wgConosToggle(this)" style="opacity:.5" title="Cono del dron sobre el terreno: apagado (los campos de vista están en los tableros de la derecha)">🛩️</button>
         <button class="wg-rd" id="wg-btn-alivio" onclick="wgAlivioToggle(this)" style="opacity:.5" title="Alivio apagado — el calco se ve siempre. Encendelo sólo si un escenario muy pesado va a tirones.">⚡</button>
         <button class="wg-rd" id="wg-btn-medir" onclick="wgMedidor(this)" style="opacity:.5" title="Medidor: cuántos ms cuesta un cuadro en esta máquina">⏱️</button>
         <!-- v2.9.263 — el giro también arranca APAGADO. Medido en la máquina de
              Sergio: girando, el mapa repinta a 3/s (peor cuadro 275 ms); quieto,
              a 30-67/s. El destello era eso. Se enciende sólo si lo pedís. -->
-        <button class="wg-rd" id="wg-btn-cine" onclick="wgCine(this)" style="opacity:.5" title="Vista congelada (recomendado) — tocá si querés que gire sola. Girar el relieve baja el repintado de ~60 a ~3 imágenes/s.">🎥</button>
+        <!-- v2.9.269: la órbita lenta ES la vista panorámica, así que nace encendida.
+             Se detiene sola si tocás el zoom o arrastrás el mapa. -->
+        <button class="wg-rd" id="wg-btn-cine" onclick="wgCine(this)" title="La vista gira sola (órbita del dron) — tocá para congelarla">🎥</button>
         <button class="wg-rd" id="wg-btn-ayuda" onclick="wgAyudaToggle(this)" style="opacity:.5" title="Cómo se juega: mover, atacar, rutas">❓</button>
         <button class="wg-rd" onclick="wgHoja('unidades')" title="Unidades">🪖</button>
         <button class="wg-rd" onclick="wgHoja('matriz')" title="Matriz de sincronización: qué exige cada tarea y a qué hora arranca cada unidad">📋</button>
@@ -23786,14 +23789,22 @@ function wgElegirUnidad(uid){
 // v2.9.261 — SEGUIR: la cámara persigue a la unidad que elijas. Apagado por
 // defecto, porque encenderlo siempre era lo que te arrancaba el mapa de las
 // manos cada vez que tocabas una ficha.
+// v2.9.269 — «SEGUIR A LA UNIDAD EN MARCHA». Pedido de Sergio: «cuando hay
+// movimiento, automáticamente la cámara puede seguir a la unidad que se está
+// moviendo; debe haber esa opción». Ya existía este botón para otra cosa
+// (encuadrar la unidad que elegís), así que ahora hace las dos y arranca
+// ENCENDIDO — que es el comportamiento que él quiere por defecto.
+function _wgSeguirOn(){ return WG.seguir!==false; }
 function wgSeguir(btn){
-  WG.seguir=!WG.seguir;
-  if(btn){ btn.style.opacity=WG.seguir?1:.5;
-    btn.title=WG.seguir?'Seguir a la unidad elegida: ENCENDIDO':'Seguir a la unidad elegida: apagado'; }
-  if(WG.seguir && WG.sel!=null){ const u=_wgUnidadPorId(WG.sel); if(u) _wgCamaraA(u, WG.camara||1, true); }
-  _wgAviso(WG.seguir
-    ? '🎯 <b>Seguir encendido</b> — al elegir una unidad, la cámara va hacia ella.'
-    : '🎯 Seguir apagado — elegir una unidad ya no te mueve la vista.', 3000);
+  WG.seguir=!_wgSeguirOn();
+  const on=_wgSeguirOn();
+  if(btn){ btn.style.opacity=on?1:.5;
+    btn.title=on?'Seguir a la unidad en marcha: ENCENDIDO'
+                :'Seguir a la unidad en marcha: apagado'; }
+  if(on && WG.sel!=null){ const u=_wgUnidadPorId(WG.sel); if(u) _wgCamaraA(u, WG.camara||1, true); }
+  _wgAviso(on
+    ? '🎯 <b>Seguir encendido</b> — durante las marchas la cámara acompaña a la unidad que se mueve.'
+    : '🎯 Seguir apagado — la vista se queda donde está mientras las unidades marchan.', 3200);
 }
 // v2.9.261 — LA AYUDA, EN UN BOTÓN. El cartel fijo abajo a la izquierda se
 // pisaba con la barra de cámaras; ahora se abre sólo si lo pedís.
@@ -24592,20 +24603,41 @@ function _wgAnimarDisparos(impactos){
       }
       if(Number.isFinite(o)){
         const cx=(o+e)/2, cy=(s+n)/2;
-        // Si la caja es de un solo punto, `cameraForBounds` no sirve: se deja
-        // el zoom que ya traías y sólo se centra.
+        // ========================================================
+        // v2.9.268 — LA BUENA TOMA. Encuadrar a todos no alcanza: hay que
+        // MIRAR BIEN el empeño. Tres cosas hacen la diferencia:
+        //
+        // 1) EL EJE. Se promedia la dirección tirador→blanco de todos los
+        //    empeños y la cámara se pone PERPENDICULAR a ese eje. Así el
+        //    intercambio cruza la pantalla de lado a lado y se ven las DOS
+        //    partes; de frente al eje, una unidad te tapa a la otra.
+        // 2) LA ALTURA DE OJO. 58° de inclinación: se lee el relieve entre
+        //    los que pelean (que es lo que decide el combate) sin irse a un
+        //    plano cenital de mapa.
+        // 3) LA DISTANCIA. El zoom sale de la caja del combate, no del que
+        //    traías: si venías de Panorámica no se queda lejísimos, y si
+        //    venías muy encima no deja a nadie fuera de cuadro.
+        //
+        // Y va con CORTE, no con viaje: se planta la toma de una y se traba.
+        // Sin interpolación no hay 2 segundos de teselas entrando y saliendo.
+        // ========================================================
+        let sx=0, sy=0;
+        for(const im of base){
+          const dx=im.lng-im.desde[0], dy=im.lat-im.desde[1];
+          const a=Math.atan2(dx,dy); sx+=Math.sin(a); sy+=Math.cos(a);
+        }
+        // Eje medio de los empeños; +90° para mirarlo de costado.
+        const eje=(sx||sy) ? (Math.atan2(sx,sy)*180/Math.PI) : map.getBearing();
+        const rumbo=(eje+90+360)%360;
         const z = (e-o>1e-6 || n-s>1e-6)
-          ? _wgZoomDeCaja(map, [[o,s],[e,n]], Math.min(15, map.getZoom()+1))
+          ? _wgZoomDeCaja(map, [[o,s],[e,n]], 15)
           : null;
-        WG.camQuieta=false;                 // el viaje sí puede escribir
-        _wgCamIr(z!=null ? {centro:[cx,cy], zoom:z} : {centro:[cx,cy]});
-        // Se le da al viaje su tiempo y RECIÉN AHÍ se traba la cámara: a partir
-        // de ese momento la toma es fija y la pelea se ve sin que nada se mueva.
-        // v2.9.267 — `if(WG._accion)` NO es decorativo: si la balacera dura
-        // menos de 1,2 s, `liberar()` ya soltó la traba y este temporizador la
-        // volvería a poner… sin nadie que la saque después. La cámara quedaría
-        // congelada PARA SIEMPRE. Sólo se traba si la acción sigue en curso.
-        setTimeout(()=>{ if(WG._accion){ WG.camQuieta=true; WG.camAuto=false; } }, 1200);
+        WG.camQuieta=false;                       // el corte sí puede escribir
+        _wgCamIr({ centro:[cx,cy], pitch:58, rumbo, corte:true,
+                   ...(z!=null?{zoom:z}:{}) });
+        // Corte = ya está puesta. Se traba en el acto, sin temporizador que
+        // pueda dejarla congelada si la balacera dura menos de lo previsto.
+        WG.camQuieta=true; WG.camAuto=false;
       }else{
         WG.camQuieta=true;
       }
@@ -24615,8 +24647,18 @@ function _wgAnimarDisparos(impactos){
     for(const t of tiros){ t.el=_wgProyectilEl(); t.el.style.display='none'; capa.appendChild(t.el); }
     const t0=performance.now();
     const total=finTiros+120;   // v2.9.223: alcanza para la respuesta demorada
-    // v2.9.267: al terminar la balacera se suelta la toma fija.
-    const liberar=()=>{ WG._accion=false; WG.camQuieta=false; };
+    // ========================================================
+    // v2.9.269 — TERMINADO EL COMBATE, LA CÁMARA VUELVE A GIRAR.
+    // Sergio: «una vez termine el combate nuevamente empieza la rotación de la
+    // cámara, como observando los resultados de la batalla o el intercambio de
+    // fuego». Se suelta la toma fija y se relanza la órbita desde donde quedó
+    // la cámara: sin corte, sin re-encuadre, sin teselas nuevas — simplemente
+    // el mismo plano que empieza a girar despacio sobre lo que acaba de pasar.
+    // ========================================================
+    const liberar=()=>{
+      WG._accion=false; WG.camQuieta=false;
+      if(Number(WG.camara)===1 && _wgCineOn()) _wgCamaraOrbita();
+    };
     const paso=(ahora)=>{
       const dt=ahora-t0;
       for(const t of tiros){
@@ -26205,18 +26247,37 @@ function _wgBarraCombustible(u){
 //   3 CERCA      · sólo la unidad, pegado, girando despacio a su alrededor
 //   0 LIBRE      · la cámara no se mete (por defecto)
 // ============================================================
+// ============================================================
+// v2.9.269 — SE ACABARON LOS CUATRO ENCUADRES. Decisión de Sergio, y es la
+// que ordena todo el asunto de la cámara:
+//
+//   «ya no hay vista de cerca, táctica ni panorámica. En realidad lo que
+//    pasaría a ser la vista panorámica es la del dron… se mueve como la ruta
+//    que tiene el dron alrededor del área de operación, de forma muy lenta.»
+//
+// Táctica, Cerca y Combate eran tres distancias distintas SOBRE UNA UNIDAD, y
+// cada cambio entre ellas era un re-encuadre — o sea, teselas nuevas y un
+// tirón. Eran, ellas solas, la mitad de los saltos de los que se venía
+// quejando. Y encima ninguna hacía falta: la cámara ya sabe qué mirar sola.
+//
+// La cámara ahora tiene TRES estados y ninguno se elige a mano salvo el primero:
+//   · REPOSO   → la órbita del dron sobre el área de operaciones, muy lenta.
+//   · MARCHA   → sigue a la unidad que se está moviendo (opción 🎯).
+//   · COMBATE  → corta al mejor ángulo del intercambio y se queda QUIETA.
+//     Al terminar, vuelve sola al reposo «a mirar cómo quedó todo».
+//
+// Los modos 2, 3 y 4 no se borran (media docena de funciones los referencian
+// por número, y borrarlos por índice sería pisar el modo Dron): quedan
+// OCULTOS de la barra. `_wgEncuadre` los sigue sabiendo resolver.
+// ============================================================
 const WG_CAMARAS = [
-  { id:0, nom:'Libre',      icono:'🖐️', desc:'La cámara no se mueve sola.' },
-  { id:1, nom:'Panorámica', icono:'🏔️', desc:'La unidad y lo que la rodea: se ve el dispositivo.' },
-  { id:2, nom:'Táctica',    icono:'⚔️', desc:'La unidad y su contacto más cercano, los dos en cuadro.' },
-  { id:3, nom:'Cerca',      icono:'🎯', desc:'Sólo la unidad, pegado y girando despacio.' },
-  // v2.9.231 — EL ENCUADRE QUE PEDÍA SERGIO: ver DOS, TRES O MÁS unidades
-  // combatiendo. Busca los contactos de verdad (unidades enemigas dentro del
-  // rango de combate) y mete a todas en cuadro.
-  { id:4, nom:'Combate',    icono:'⚔️', desc:'Todas las unidades que están en contacto, juntas en cuadro.' },
-  // v2.9.261 — EL QUINTO ENCUADRE: los ojos del CW 40. No encuadra una unidad:
-  // te sube al aparato y ves su sector mientras vuela.
-  { id:5, nom:'Dron',       icono:'🛩️', desc:'Lo que ve el CW 40 desde el aire, mientras vuela su sector.' },
+  { id:0, nom:'Libre',      icono:'🖐️', desc:'La cámara es tuya: no se mueve sola.' },
+  { id:1, nom:'Panorámica', icono:'🛩️', desc:'La órbita del CW 40 sobre el área de operaciones, muy lenta. Sigue las marchas y corta al combate sola. Si tocás el zoom o arrastrás, se queda quieta.' },
+  { id:2, nom:'Táctica',    icono:'⚔️', desc:'', oculta:true },
+  { id:3, nom:'Cerca',      icono:'🎯', desc:'', oculta:true },
+  { id:4, nom:'Combate',    icono:'⚔️', desc:'', oculta:true },
+  // El visor del aparato: no encuadra el área, te sube al CW 40.
+  { id:5, nom:'Dron',       icono:'📡', desc:'Meterse en el visor del CW 40 y ver su sector mientras vuela.' },
 ];
 // Caja que encierra un puñado de puntos, con un margen en grados.
 function _wgCaja(pts, margen){
@@ -26460,6 +26521,32 @@ function _wgCamIniciar(map){
   // viaje. Eso es el chispeo, los fogonazos blancos y el andar cuadro a cuadro.
   // ARRASTRAR y RUEDA: nativos (eso es lo que devolvió la mano).
   try{ map.dragPan.enable(); }catch(_e){}
+  // ============================================================
+  // v2.9.269 — SI TOCÁS EL ZOOM O ARRASTRÁS, LA ÓRBITA SE DETIENE.
+  // Pedido de Sergio: «eso sí, se puede hacer zoom o alejar, y cuando se hace
+  // esto la cámara ya deja de rotar o moverse».
+  //
+  // OJO con la trampa que ya me costó una versión (la 253): MapLibre emite
+  // `zoomstart`/`dragstart` TAMBIÉN cuando el movimiento lo hacemos nosotros
+  // (la propia órbita, un corte de encuadre, el seguimiento). Enganchar acá sin
+  // filtrar haría que la cámara se apagara a sí misma en bucle.
+  // `e.originalEvent` sólo existe cuando el gesto salió de la MANO del usuario:
+  // ése es el único filtro que distingue de verdad.
+  // ============================================================
+  const manoDelUsuario=(e)=>{
+    if(!e || !e.originalEvent) return;      // ← lo movimos nosotros: no cuenta
+    if(!_wgCineOn()) return;                // ya estaba quieta
+    WG.cine=false;
+    WG.camAuto=false;                       // y se abandona cualquier viaje
+    cancelAnimationFrame(WG._orbita||0);
+    const b=document.getElementById('wg-btn-cine');
+    if(b){ b.style.opacity=.5; b.title='Vista congelada — tocá para que vuelva a girar'; }
+    _wgAviso('🖐️ <b>Vista quieta</b> — tomaste el zoom, así que la órbita se detuvo. '
+      +'Tocá <b>🛩️ Panorámica</b> abajo (o 🎥 en el riel) para que vuelva a girar.', 4200);
+  };
+  for(const ev of ['zoomstart','dragstart','rotatestart','pitchstart']){
+    try{ map.on(ev, manoDelUsuario); }catch(_e){}
+  }
   try{ map.scrollZoom.enable(); }catch(_e){}
   // GIRAR e INCLINAR: SÓLO el rotador propio. El nativo queda apagado.
   try{ map.dragRotate.disable(); }catch(_e){}
@@ -26818,7 +26905,12 @@ function _wgZoomDeCaja(map,caja,tope){
 // Así que el giro pasa a ser lo que de verdad es: un lujo que se enciende a
 // propósito con 🎥, no el estado normal del juego.
 // ============================================================
-function _wgCineOn(){ return WG.cine===true; }   // v2.9.263: undefined = APAGADA
+// v2.9.269 — LA ÓRBITA VUELVE A ARRANCAR ENCENDIDA, y esta vez con motivo.
+// En la 263 la apagué porque girando el mapa repintaba a 3/s. Esa causa era la
+// caché de 1500 teselas, arreglada en la 264: girando ahora repinta a 38/s
+// (medido por Sergio). Y la órbita lenta ES la vista panorámica que él pidió,
+// así que no puede nacer apagada. Se detiene sola si tocás zoom o arrastrás.
+function _wgCineOn(){ return WG.cine!==false; }
 function wgCine(btn){
   WG.cine = !_wgCineOn();
   if(btn){ btn.style.opacity=_wgCineOn()?1:.5;
@@ -26828,12 +26920,11 @@ function wgCine(btn){
   else { cancelAnimationFrame(WG._orbita||0); WG.camAuto=false; }
   // v2.9.263 — al encenderlo se dice EL PRECIO, medido, en vez de dejar que lo
   // descubra destellando.
+  // v2.9.269 — el aviso ya no amenaza con los 3 imágenes/s: eso era la caché de
+  // 1500 teselas (v2.9.264). Girando, ahora el mapa repinta a 38/s.
   _wgAviso(_wgCineOn()
-    ? '🎥 <b>La vista gira sola.</b> ⚠️ Ojo: rotar el relieve es lo más caro del mapa — '
-      +'medido en esta máquina, el repintado cae de ~60 a ~3 imágenes por segundo. '
-      +'Si empieza a destellar o las fichas saltan, <b>apagalo con 🎥</b> (o probá ⚡ para bajar el calco mientras gira).'
-    : '🎥 <b>Vista congelada</b> — la cámara no se mueve sola. Arrastrá el mapa con la mano para mirar. '
-      +'Así el mapa repinta a fondo y no destella.', 6000);
+    ? '🎥 <b>La vista vuelve a girar</b> — la órbita lenta del CW 40 sobre el área de operaciones.'
+    : '🎥 <b>Vista quieta</b> — la cámara no se mueve sola. Tocá <b>🛩️ Panorámica</b> abajo para que vuelva a girar.', 3600);
 }
 // ============================================================
 // v2.9.261 — EL LAZO DE LA ÓRBITA YA NO PUEDE QUEDAR MUERTO.
@@ -26955,7 +27046,7 @@ function _wgCamaraOrbita(){
 function _wgCamaraManos(map){ /* v2.9.261: sin enganches. Ver comentario arriba. */ }
 // Barra inferior: todos los encuadres a la vista, se elige tocando.
 function _wgBarraCamarasHTML(){
-  return WG_CAMARAS.map(c=>{
+  return WG_CAMARAS.filter(c=>!c.oculta).map(c=>{   // v2.9.269
     const act=(Number(WG.camara)||0)===c.id;
     return `<button onclick="wgCamara(${c.id})" title="${_rgEsc(c.desc)}" `
       +`style="display:flex;align-items:center;gap:6px;padding:6px 11px;border-radius:9px;cursor:pointer;`
@@ -26976,6 +27067,15 @@ function wgCamara(id){
   // ningún reencuadre posterior te lo pisa.
   if(Number(id)!==Number(WG.camara)) WG.camZoomUser=0;
   WG.camara=Number(id)||0;
+  // v2.9.269 — ELEGIR PANORÁMICA ES PEDIR QUE VUELVA A GIRAR. Es la única
+  // forma de reanudar después de que la mano del usuario detuvo la órbita
+  // (ver `manoDelUsuario`): si no, quedaba quieta para siempre y el botón no
+  // parecía hacer nada.
+  if(Number(WG.camara)===1){
+    WG.cine=true; WG.camZoomUser=0;
+    const bc=document.getElementById('wg-btn-cine');
+    if(bc){ bc.style.opacity=1; bc.title='La vista gira sola — tocá para congelarla'; }
+  }
   wgPanelCamaras();
   wgPanelVistas();
   wgPanelDrones();
@@ -27014,7 +27114,11 @@ function wgCamara(id){
 }
 // Botón del riel: va rotando entre los cuatro modos.
 function wgCamaraCiclo(btn){
-  wgCamara(((Number(WG.camara)||0)+1) % WG_CAMARAS.length);
+  // v2.9.269: el botón cicla sólo por los encuadres VISIBLES (Libre · Panorámica
+  // · Dron). Con `% WG_CAMARAS.length` caía en los ocultos y parecía trabarse.
+  const vis=WG_CAMARAS.filter(c=>!c.oculta).map(c=>c.id);
+  const i=vis.indexOf(Number(WG.camara)||0);
+  wgCamara(vis[(i<0?0:(i+1)%vis.length)]);
   const c=WG_CAMARAS[WG.camara];
   _wgAviso(`${c.icono} <b>Cámara ${c.nom}</b> — ${c.desc}`
     + (WG.camara&&WG.sel==null?'<br>Tocá una unidad para que la siga.':''), 3200);
@@ -27844,7 +27948,8 @@ async function wgReplay(trazas, segundos=22){
       // sin animación que cancelar y sin tocar zoom ni inclinación (que es lo
       // que obligaba a recalcular el relieve y traía teselas nuevas).
       // ============================================================
-      if(WG.camara){
+      // v2.9.269: seguir la marcha es una OPCIÓN (🎯), encendida por defecto.
+      if(WG.camara && _wgSeguirOn()){
         const p = piezas.find(x=>String(x.t.id)===String(WG.sel))
           || piezas.slice().sort((a,b)=>(b.t.km||0)-(a.t.km||0))[0];
         if(p){
