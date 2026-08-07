@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.264</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.265</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -27685,6 +27685,7 @@ async function wgReplay(trazas, segundos=22){
   // SENTIDO de la marcha aunque la ficha vaya despacio.
   const humo=[];
   let ultimoHumo=0;
+  let ultPaso=0;      // v2.9.265: freno del lazo a 30 pasos/s
   // v2.9.228: la cámara acompaña la acción. `giroCam` deriva despacio para que
   // sea un travelling y no una foto fija; se refresca cada ~900 ms, no cuadro a
   // cuadro, porque encadenar `easeTo` en cada frame se ve tembloroso.
@@ -27693,6 +27694,28 @@ async function wgReplay(trazas, segundos=22){
   await new Promise(fin=>{
     function paso(ahora){
       const avance=Math.min(1,(ahora-t0)/(segundos*1000)); // 0→1 en todo el turno
+      // ============================================================
+      // v2.9.265 — ESTO ES «SE TRABA JUSTO CUANDO SE MUEVE UNA UNIDAD».
+      // Medición de Sergio durante una marcha, ya con la caché arreglada:
+      //     página 110/s · MAPA repinta 5/s
+      // La página vuela y el mapa se arrastra: el hilo está ocupado con OTRA
+      // COSA. Esa otra cosa es este mismo lazo, y hacía dos trabajos inútiles:
+      //
+      //   1) Movía las fichas y la polvareda del MAPA 2D de Leaflet — que no
+      //      está en pantalla cuando mirás el 3D. Cada bocanada de polvo es un
+      //      `circleMarker` de Leaflet, y a cada cuadro se le reescribían radio
+      //      y estilo: son escrituras al SVG del navegador. Con ~30 bocanadas
+      //      vivas a 110 cuadros/s eso son más de 3.000 escrituras por segundo
+      //      a un mapa INVISIBLE. MapLibre se quedaba sin turno.
+      //   2) Corría a la velocidad de `requestAnimationFrame` (110/s) cuando la
+      //      animación se ve idéntica a 30/s — y el mapa sólo llegaba a 5.
+      //
+      // Ahora: 30 pasos por segundo, y el trabajo de Leaflet se hace SÓLO si el
+      // 2D es lo que estás mirando.
+      // ============================================================
+      if(ahora-ultPaso<33 && avance<1){ requestAnimationFrame(paso); return; }
+      ultPaso=ahora;
+      const en3D=_wgEn3D();          // si es true, Leaflet no se toca
       const horaSim=avance*maxH;
       const nuevaBocanada = (ahora-ultimoHumo)>90; // una cada ~90 ms
       if(nuevaBocanada) ultimoHumo=ahora;
@@ -27701,7 +27724,7 @@ async function wgReplay(trazas, segundos=22){
         // termina su recorrido a la mitad de la animación.
         const f=(p.t.horas>0)?Math.min(1,horaSim/p.t.horas):1;
         const pos=_wgInterp(p.t.ruta,f); if(!pos) continue;
-        p.punto.setLatLng([pos[1],pos[0]]);
+        if(!en3D) p.punto.setLatLng([pos[1],pos[0]]);   // v2.9.265
         // Sólo levanta polvo mientras se está moviendo de verdad.
         if(nuevaBocanada && f<1 && p.t.km>0){
           // v2.9.209: el doble de grande y DOS bocanadas por tramo (una a la
@@ -27709,8 +27732,11 @@ async function wgReplay(trazas, segundos=22){
           // una estela de polvo de verdad y no un puntito.
           for(const atras of [0, 1]){
             const q=_wgInterp(p.t.ruta, Math.max(0, f - atras*0.012)) || pos;
+            // v2.9.265: la bocanada SIEMPRE entra en `humo` (de ahí la lee el
+            // 3D en `_wg3dReplayPaso`), pero el círculo de Leaflet sólo se crea
+            // si el 2D es lo que se está mirando.
             humo.push({lng:q[0], lat:q[1], t0:ahora - atras*140,
-              m:L.circleMarker([q[1],q[0]],{radius:12-atras*3,color:'#cbb89a',weight:0,
+              m: en3D ? null : L.circleMarker([q[1],q[0]],{radius:12-atras*3,color:'#cbb89a',weight:0,
                 fillColor:'#cbb89a',fillOpacity:.55,interactive:false}).addTo(capa)});
           }
         }
@@ -27718,8 +27744,12 @@ async function wgReplay(trazas, segundos=22){
       // Envejecer la polvareda: crece y se apaga en ~1,3 s.
       for(let k=humo.length-1;k>=0;k--){
         const h=humo[k], edad=(ahora-h.t0)/1300;
-        if(edad>=1){ try{ capa.removeLayer(h.m); }catch(_e){} humo.splice(k,1); continue; }
-        try{ h.m.setRadius(12+edad*27); h.m.setStyle({fillOpacity:0.55*(1-edad)}); }catch(_e){}
+        if(edad>=1){ if(h.m) try{ capa.removeLayer(h.m); }catch(_e){} humo.splice(k,1); continue; }
+        // v2.9.265 — ACÁ ESTABA EL GRUESO DEL COSTO: `setRadius` + `setStyle`
+        // por cada bocanada y por cada cuadro, o sea escrituras al SVG del
+        // navegador para un mapa que no está en pantalla. Sin círculo de
+        // Leaflet (`h.m` nulo), no hay nada que reescribir.
+        if(h.m) try{ h.m.setRadius(12+edad*27); h.m.setStyle({fillOpacity:0.55*(1-edad)}); }catch(_e){}
       }
       // v2.9.228 — LA CÁMARA SIGUE A LA UNIDAD. Prioriza la seleccionada; si no
       // hay ninguna, acompaña a la que más camino está haciendo, que es donde
