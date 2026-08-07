@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.262</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.263</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7003,7 +7003,10 @@ body.wg-jugando{overflow:hidden}
         <button class="wg-rd" id="wg-btn-conos" onclick="wgConosToggle(this)" style="opacity:.5" title="Cono del dron sobre el terreno: apagado (los campos de vista están en los tableros de la derecha)">🛩️</button>
         <button class="wg-rd" id="wg-btn-alivio" onclick="wgAlivioToggle(this)" style="opacity:.5" title="Alivio apagado — el calco se ve siempre. Encendelo sólo si un escenario muy pesado va a tirones.">⚡</button>
         <button class="wg-rd" id="wg-btn-medir" onclick="wgMedidor(this)" style="opacity:.5" title="Medidor: cuántos ms cuesta un cuadro en esta máquina">⏱️</button>
-        <button class="wg-rd" id="wg-btn-cine" onclick="wgCine(this)" title="La vista gira sola en los encuadres — tocá para congelarla">🎥</button>
+        <!-- v2.9.263 — el giro también arranca APAGADO. Medido en la máquina de
+             Sergio: girando, el mapa repinta a 3/s (peor cuadro 275 ms); quieto,
+             a 30-67/s. El destello era eso. Se enciende sólo si lo pedís. -->
+        <button class="wg-rd" id="wg-btn-cine" onclick="wgCine(this)" style="opacity:.5" title="Vista congelada (recomendado) — tocá si querés que gire sola. Girar el relieve baja el repintado de ~60 a ~3 imágenes/s.">🎥</button>
         <button class="wg-rd" id="wg-btn-ayuda" onclick="wgAyudaToggle(this)" style="opacity:.5" title="Cómo se juega: mover, atacar, rutas">❓</button>
         <button class="wg-rd" onclick="wgHoja('unidades')" title="Unidades">🪖</button>
         <button class="wg-rd" onclick="wgHoja('matriz')" title="Matriz de sincronización: qué exige cada tarea y a qué hora arranca cada unidad">📋</button>
@@ -23832,7 +23835,15 @@ function _wgDetalle(map, completo){
   // alguna vez toca un escenario mucho más pesado.
   // ============================================================
   if(WG.alivio!==true) completo=true;           // apagado salvo que lo pidas
-  if(_wgCineOn() && WG.camara) completo=true;   // con el cine, jamás
+  // v2.9.263 — SE QUITA LA EXENCIÓN «con el cine, jamás».
+  // Existía porque el medidor roto decía que el mapa repintaba a 60-120/s
+  // girando; las mediciones reales dicen 3/s. O sea que girar es JUSTO el caso
+  // para el que se construyó el alivio, y la exención lo dejaba inútil ahí.
+  // El riesgo conocido (v2.9.249: «con el cine la cámara se mueve siempre, así
+  // que el calco no volvía nunca») ya no aplica solo: ahora el giro arranca
+  // APAGADO, así que al soltarlo el temporizador de 260 ms sí llega a disparar
+  // y el calco vuelve entero. Y si dejás las dos cosas encendidas a la vez, el
+  // aviso de 🎥 te dice que ése es el trato.
   if(WG._detalleAct===completo) return;         // ya está como toca
   WG._detalleAct=completo;
   for(const id of WG_CAPAS_PESADAS){
@@ -23898,6 +23909,23 @@ function wgMedidor(btn){
   if(map0 && !WG._medEnganchado){
     WG._medEnganchado=1;
     try{ map0.on('render', ()=>{ WG._nRender++; }); }catch(_e){}
+    // ============================================================
+    // v2.9.263 — «cámara escribe 0/s» ERA UNA MENTIRA DEL MEDIDOR.
+    // `WG._nCam` se declaraba y se dividía, pero NADIE LO SUMABA NUNCA: no
+    // existía un solo `WG._nCam++` en todo el archivo. O sea que esa línea
+    // marcaba 0 SIEMPRE, girara la cámara o no. Con eso, la regla de lectura
+    // «30-30-0 → la cámara no se mueve: bug de lógica» daba falso positivo en
+    // todas las lecturas.
+    // En vez de sembrar contadores por todo el código (y olvidarse de uno,
+    // que es como nació este defecto), se envuelven de una vez los métodos que
+    // mueven la cámara: así cuenta TODAS las escrituras, las haga quien las haga.
+    // ============================================================
+    for(const m of ['jumpTo','easeTo','flyTo','setBearing','setPitch','setZoom','setCenter']){
+      try{
+        const orig=map0[m]; if(typeof orig!=='function') continue;
+        map0[m]=function(){ WG._nCam++; return orig.apply(this,arguments); };
+      }catch(_e){}
+    }
   }
   // ============================================================
   // v2.9.262 — EL MEDIDOR ESTABA ROTO Y ADEMÁS FRENABA EL JUEGO.
@@ -26674,21 +26702,48 @@ function _wgZoomDeCaja(map,caja,tope){
 // «Libre», y se aparta sola mientras vos manejás el mapa (`WG._camManual`).
 // El botón 🎥 sirve para apagarla si molesta, no para tener que encenderla.
 // ============================================================
-function _wgCineOn(){ return WG.cine!==false; }   // undefined = encendida
-// v2.9.261 — SE ELIMINÓ `_wgCamPesado()`. Apagaba el giro «solo» cuando creía
-// que el escenario era pesado, y era código muerto que sólo podía volver a
-// morder: ya se comprobó (medidor) que el mapa repinta a 60-120/s sin problema.
-// El giro se apaga ÚNICAMENTE si vos tocás 🎥.
+// ============================================================
+// v2.9.263 — EL GIRO ARRANCA APAGADO. Ésta es la decisión que sale de las
+// mediciones de Sergio, y conviene dejarla escrita porque contradice a la 261.
+//
+// Sus cuatro lecturas, misma máquina, mismo escenario (10 fichas · 17 capas ·
+// calco de 259 elementos · relieve puesto):
+//
+//   giro: DETENIDO — encuadre viajando   → página 30/s · MAPA repinta 30/s · peor  59 ms
+//   giro: DETENIDO — encuadre viajando   → página 67/s · MAPA repinta 67/s · peor  33 ms
+//   giro: DETENIDO — acción en curso     → página 40/s · MAPA repinta 40/s · peor  50 ms
+//   giro: GIRANDO                        → página 76/s · MAPA repinta  3/s · peor 275 ms
+//
+// Con el giro quieto, el mapa repinta EXACTAMENTE tan rápido como la página:
+// no hay cuello de botella en ningún lado. Con el giro andando, el mismo
+// escenario cae a 3 imágenes por segundo y un cuadro llega a tardar 275 ms.
+// Eso es el «destella / parpadea / saltan las unidades»: no estás viendo un
+// error de dibujo, estás viendo TRES IMÁGENES POR SEGUNDO.
+//
+// El motivo es MapLibre con relieve: cambiar el RUMBO obliga a recalcular la
+// cobertura de teselas del terreno entero. Es caro por diseño y no hay línea
+// de código que lo abarate — en la 261 ya se pagó ese peaje creyendo, por un
+// medidor roto, que «el mapa repinta a 60-120/s sin problema». No era cierto.
+//
+// Así que el giro pasa a ser lo que de verdad es: un lujo que se enciende a
+// propósito con 🎥, no el estado normal del juego.
+// ============================================================
+function _wgCineOn(){ return WG.cine===true; }   // v2.9.263: undefined = APAGADA
 function wgCine(btn){
   WG.cine = !_wgCineOn();
   if(btn){ btn.style.opacity=_wgCineOn()?1:.5;
-    btn.title=_wgCineOn()?'La vista gira sola en los encuadres — tocá para congelarla'
-                         :'Vista congelada — tocá para que vuelva a girar'; }
+    btn.title=_wgCineOn()?'La vista gira sola — cuesta imágenes por segundo; tocá para congelarla'
+                         :'Vista congelada (recomendado) — tocá si querés que gire sola'; }
   if(_wgCineOn()) _wgCamaraOrbita();
   else { cancelAnimationFrame(WG._orbita||0); WG.camAuto=false; }
+  // v2.9.263 — al encenderlo se dice EL PRECIO, medido, en vez de dejar que lo
+  // descubra destellando.
   _wgAviso(_wgCineOn()
-    ? '🎥 <b>La vista gira sola</b> otra vez. Arrastrá el mapa cuando quieras y la cámara se aparta.'
-    : '🎥 <b>Vista congelada</b> — la cámara no se mueve sola.', 3000);
+    ? '🎥 <b>La vista gira sola.</b> ⚠️ Ojo: rotar el relieve es lo más caro del mapa — '
+      +'medido en esta máquina, el repintado cae de ~60 a ~3 imágenes por segundo. '
+      +'Si empieza a destellar o las fichas saltan, <b>apagalo con 🎥</b> (o probá ⚡ para bajar el calco mientras gira).'
+    : '🎥 <b>Vista congelada</b> — la cámara no se mueve sola. Arrastrá el mapa con la mano para mirar. '
+      +'Así el mapa repinta a fondo y no destella.', 6000);
 }
 // ============================================================
 // v2.9.261 — EL LAZO DE LA ÓRBITA YA NO PUEDE QUEDAR MUERTO.
@@ -26836,9 +26891,13 @@ function wgCamara(id){
   wgPanelDrones();
   // v2.9.261 — si el giro está apagado, se dice. Antes elegías un encuadre,
   // la vista quedaba quieta y no había forma de saber que el 🎥 estaba en off.
-  if(WG.camara && !_wgCineOn()){
-    _wgAviso('🎥 El <b>giro está apagado</b> — la vista va a quedarse quieta. '
-      +'Tocá <b>🎥</b> en el riel para que vuelva a moverse.', 4500);
+  // v2.9.263 — este aviso se da UNA VEZ. Desde que el giro arranca apagado, si
+  // no, saltaría en cada cambio de encuadre y sería un martilleo.
+  if(WG.camara && !_wgCineOn() && !WG._avisoCine){
+    WG._avisoCine=1;
+    _wgAviso('🎥 El <b>giro está apagado</b> (así el mapa repinta a fondo y no destella). '
+      +'La vista se queda quieta y la movés vos con la mano. '
+      +'Tocá <b>🎥</b> en el riel si querés que gire sola.', 5000);
   }
   const c=WG_CAMARAS[WG.camara];
   const b=document.getElementById('wg-btn-cam');
