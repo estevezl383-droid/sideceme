@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.263</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.264</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -23817,8 +23817,15 @@ function wgSeguir(btn){
 // trae 258 elementos con miles de vértices y en 3D cada línea se redibuja
 // entera en cada cuadro. Mientras la cámara se mueve se apagan; al frenar
 // vuelven. Las fichas de las unidades NO se tocan nunca: siempre se ven.
+// v2.9.264 — ENTRA `sombreado` A LA LISTA DE LO CARO.
+// Es una capa `hillshade` sobre la MISMA fuente de elevación que ya alimenta al
+// relieve 3D (`setTerrain`): el DEM se procesa DOS VECES, una para la malla del
+// terreno y otra para el sombreado. Con la cámara moviéndose eso se recalcula
+// sin parar. No se saca por defecto porque es lo que hace legibles las
+// quebradas, pero ahora el ⚡ puede bajarla como a cualquier otra capa cara.
 const WG_CAPAS_PESADAS=['wg-terr-relleno','wg-terr-punto','wg-quema-relleno',
-  'wg-dib-punto','wg-piso-disco','wg-terr-linea','wg-dib-linea','wg-dib-linea-pt'];
+  'wg-dib-punto','wg-piso-disco','wg-terr-linea','wg-dib-linea','wg-dib-linea-pt',
+  'sombreado'];
 function _wgDetalle(map, completo){
   if(!map||!map.getLayer) return;
   // ============================================================
@@ -24669,7 +24676,23 @@ async function wgVista3D(){
       // saltan. Con una caché grande el relieve de la zona de juego se queda
       // dentro y la altura nunca vuelve a 0.
       // ============================================================
-      maxTileCacheSize: 1500,
+      // ============================================================
+      // v2.9.264 — 1500 TESELAS EN MEMORIA ERA EL TIRO POR LA CULATA.
+      // Sergio apagó las fichas y el mapa SIGUIÓ trabándose «cuadro por
+      // cuadro». O sea que el problema no son los marcadores… y entonces
+      // esta caché gigante, puesta acá arriba justamente para que las fichas
+      // no saltaran, quedó como puro costo sin ningún beneficio.
+      //
+      // 1500 teselas de satélite (256 px) MÁS las de elevación son cientos de
+      // megas de texturas vivas. Su peor cuadro medido fue de 275 ms: eso no
+      // es «dibujar cuesta un poco más», eso es una PAUSA — recolección de
+      // basura y subida/expulsión de texturas. Un render pesado da 30-40 ms
+      // parejos, no 275 aislados. Los 3 repintados/s con la página a 76/s son
+      // el mismo síntoma: el hilo está trabado, no ocupado.
+      //
+      // Se vuelve al criterio de la librería (calculado según la pantalla).
+      // ============================================================
+      // maxTileCacheSize: 1500,   ← v2.9.261, retirado
       style:{version:8,
         sources:{
           base:{type:'raster',tiles:base.tiles,tileSize:256,maxzoom:base.maxzoom,attribution:base.atrib},
