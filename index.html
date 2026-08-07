@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.265</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.266</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -27754,17 +27754,46 @@ async function wgReplay(trazas, segundos=22){
       // v2.9.228 — LA CÁMARA SIGUE A LA UNIDAD. Prioriza la seleccionada; si no
       // hay ninguna, acompaña a la que más camino está haciendo, que es donde
       // está pasando algo.
-      if(WG.camara && (ahora-ultimoCam)>900){
-        ultimoCam=ahora;
+      // ============================================================
+      // v2.9.266 — ESTO ES «SE TRABA CUADRO POR CUADRO», VISTO CON LOS OJOS.
+      //
+      // Se capturaron cuadros consecutivos de la pantalla durante una marcha:
+      //   cuadro 1 y 2 → imagen IDÉNTICA (`giro: DETENIDO — encuadre viajando`)
+      //   cuadro 3     → la vista SALTA de golpe a otro encuadre y otro zoom
+      //   cuadro 4,5,6 → imagen IDÉNTICA otra vez (`acción en curso — imagen fija`)
+      //
+      // La cámara no se movía: se congelaba, pegaba un salto y se volvía a
+      // congelar. Eso es, literalmente, «cuadro por cuadro» — y el salto trae
+      // teselas nuevas de golpe, que es el destello. Ningún contador lo podía
+      // mostrar, porque el mapa repintaba a 42/s… LA MISMA IMAGEN.
+      //
+      // La causa: este bloque llamaba a `_wgCamaraA` cada 900 ms, y ese viaje
+      // dura 1100 ms. O sea que CADA LLAMADA CANCELABA LA ANTERIOR ANTES DE
+      // TERMINAR. El encuadre nunca llegaba a destino: sólo daba el tirón del
+      // arranque, se frenaba, y 900 ms después otro tirón desde otro lado.
+      //
+      // Ahora: el encuadre se arma UNA sola vez al empezar, y a partir de ahí
+      // la cámara SIGUE a la unidad moviendo sólo el centro, cuadro a cuadro,
+      // sin animación que cancelar y sin tocar zoom ni inclinación (que es lo
+      // que obligaba a recalcular el relieve y traía teselas nuevas).
+      // ============================================================
+      if(WG.camara){
         const p = piezas.find(x=>String(x.t.id)===String(WG.sel))
           || piezas.slice().sort((a,b)=>(b.t.km||0)-(a.t.km||0))[0];
         if(p){
           const f=(p.t.horas>0)?Math.min(1,horaSim/p.t.horas):1;
           const pos=_wgInterp(p.t.ruta,f);
           if(pos){
-            _wgCamaraA({ id:p.t.id, bando:p.t.bando, lng:pos[0], lat:pos[1],
-              estado:'activa' }, WG.camara, false, giroCam);
-            giroCam += 2.2;   // deriva lenta: travelling, no foto fija
+            if(!ultimoCam){
+              ultimoCam=ahora;      // el ÚNICO viaje de encuadre, al arrancar
+              _wgCamaraA({ id:p.t.id, bando:p.t.bando, lng:pos[0], lat:pos[1],
+                estado:'activa' }, WG.camara, false, giroCam);
+            }else if(ahora-ultimoCam>1200 && WG.map3d){
+              // Terminado ese viaje, se sigue a la unidad SIN animación: a 30
+              // pasos/s el desplazamiento por paso es mínimo y se lee como un
+              // travelling parejo, no como saltos.
+              try{ WG.map3d.jumpTo({center:[pos[0],pos[1]]}); }catch(_e){}
+            }
           }
         }
       }
