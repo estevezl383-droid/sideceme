@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.270</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.272</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -23399,6 +23399,101 @@ function _wgPanelObrasHTML(u){
 // vigilancia que vale desde ya. Por eso se manda al servidor al instante y no
 // espera a «Jugar turno».
 const WG_RUMBOS=[['N',0],['NE',45],['E',90],['SE',135],['S',180],['SO',225],['O',270],['NO',315]];
+// ============================================================
+// v2.9.271 — EL PAD CONTINUO. Arrastrás, la aguja te sigue en vivo y el rumbo
+// se ORDENA al soltar (una sola llamada al servidor, no una por cuadro).
+// ============================================================
+function _wgJoyPos(ev, pad){
+  const r=pad.getBoundingClientRect();
+  const dx=ev.clientX-(r.left+r.width/2), dy=ev.clientY-(r.top+r.height/2);
+  if(Math.hypot(dx,dy)<6) return null;              // centro muerto: sin rumbo
+  return ((Math.atan2(dy,dx)*180/Math.PI)+90+360)%360;
+}
+function _wgJoyPinta(bando, rumbo){
+  const k=document.getElementById('joyk-'+bando), t=document.getElementById('joyr-'+bando);
+  const rad=(rumbo-90)*Math.PI/180, R=30;
+  if(k) k.style.transform=`translate(${(Math.cos(rad)*R).toFixed(1)}px,${(Math.sin(rad)*R).toFixed(1)}px)`;
+  if(t) t.textContent=String(Math.round(rumbo)).padStart(3,'0')+'°';
+}
+function _wgJoyIni(ev, bando, uid){
+  const pad=document.getElementById('joy-'+bando); if(!pad) return;
+  ev.preventDefault();
+  WG.dronRumboLocal=WG.dronRumboLocal||{};
+  try{ pad.setPointerCapture(ev.pointerId); }catch(_e){}
+  pad.style.cursor='grabbing';
+  const mover=(e)=>{
+    const r=_wgJoyPos(e,pad); if(r==null) return;
+    WG.dronRumboLocal[bando]=r; _wgJoyPinta(bando,r);
+  };
+  const soltar=(e)=>{
+    pad.removeEventListener('pointermove',mover);
+    pad.removeEventListener('pointerup',soltar);
+    pad.removeEventListener('pointercancel',soltar);
+    pad.style.cursor='grab';
+    const r=WG.dronRumboLocal[bando];
+    if(r!=null){
+      // Fijar el rumbo = pasar a MANUAL: si quedara en automático, el hipódromo
+      // se lo lleva de vuelta a los dos segundos y parecería que no obedece.
+      WG.dronManual=WG.dronManual||{}; WG.dronManual[bando]=true;
+      wgApuntarDron(uid, Math.round(r));
+    }
+  };
+  pad.addEventListener('pointermove',mover);
+  pad.addEventListener('pointerup',soltar);
+  pad.addEventListener('pointercancel',soltar);
+  mover(ev);
+}
+// ============================================================
+// v2.9.271 — TORRETA: AUMENTO Y BANDA. Es la cámara del aparato, no la del
+// juego: por eso el aumento se aplica SOBRE el encuadre del dron y se anota en
+// la telemetría, como en cualquier estación de control real.
+// ============================================================
+const WG_DRON_ZOOMS=[1,2,4,6,8];
+function wgDronZoom(bando, paso){
+  WG.dronZoom=WG.dronZoom||{};
+  const act=WG.dronZoom[bando]||1;
+  let i=WG_DRON_ZOOMS.indexOf(act); if(i<0) i=0;
+  i=Math.max(0,Math.min(WG_DRON_ZOOMS.length-1,i+paso));
+  WG.dronZoom[bando]=WG_DRON_ZOOMS[i];
+  wgPanelDrones();
+  _wgDronSensorAplicar(bando);
+  _wgAviso(`🔭 <b>Torreta ${WG_DRON_ZOOMS[i]}×</b> — `
+    +(WG_DRON_ZOOMS[i]>=6
+      ? 'campo muy cerrado: se distingue el detalle, pero se pierde la vista de conjunto.'
+      : 'campo abierto: se lee el dispositivo completo.'), 2800);
+}
+function wgDronTermica(bando){
+  WG.dronTerm=WG.dronTerm||{};
+  WG.dronTerm[bando]=!WG.dronTerm[bando];
+  wgPanelDrones();
+  _wgDronSensorAplicar(bando);
+  _wgAviso(WG.dronTerm[bando]
+    ? `🌡️ <b>Banda infrarroja</b> — a ${WG_DRON_ALT_REF} m la torreta distingue <b>vehículos y fuentes de calor</b>, `
+      +'no personas. Sirve para hallar posiciones y motores, no para contar tropa.'
+    : '🌡️ Vuelve a la banda visible (electro-óptica).', 4200);
+}
+// Altura de referencia de la que se habla en los carteles del sensor.
+const WG_DRON_ALT_REF=3000;
+// Aplica aumento y banda AL MAPA, sólo si lo que estás mirando es ese dron.
+function _wgDronSensorAplicar(bando){
+  const cont=document.getElementById('wg-3d-map'); if(!cont) return;
+  const mio=_wgBandoLente() || (WG.soy==='arbitro'?'azul':WG.soy);
+  const activo = _wgEn3D() && (Number(WG.camara)===1 || WG.dronVista!=null) && mio===bando;
+  // BANDA IR: la imagen satelital pasada a térmica. No es un adorno — es la
+  // única forma de mostrar «otro sensor» sobre una carta que no tiene datos IR.
+  cont.style.filter = (activo && (WG.dronTerm||{})[bando])
+    ? 'grayscale(1) contrast(1.45) brightness(.82) sepia(1) hue-rotate(150deg) saturate(3.2)'
+    : '';
+  // AUMENTO: se traduce a zoom del mapa (cada duplicación del aumento es +1 de
+  // zoom, que es exactamente cómo funcionan las dos escalas).
+  if(activo && WG.map3d){
+    const z=(WG.dronZoom||{})[bando]||1;
+    const base=(WG._dronZoomBase!=null)?WG._dronZoomBase:(WG._dronZoomBase=WG.map3d.getZoom());
+    const obj=Math.max(2,Math.min(19, base + Math.log2(z)));
+    WG.camQuieta=false;
+    _wgCamIr({ zoom:obj, unaToma:true, ms:700 });   // fluido, en una toma
+  }
+}
 async function wgApuntarDron(uid, rumbo){
   const r=await _wgInvoke('apuntar_dron',{ partida_id:WG.partidaId, clave_acceso:WG.clave,
     unidad_id:Number(uid), rumbo });
@@ -23406,6 +23501,10 @@ async function wgApuntarDron(uid, rumbo){
   _wgAviso(rumbo==null
     ? '🛩️ Dron <b>replegado</b>: esa unidad vuelve a ver sólo con lo suyo.'
     : `🛩️ Dron apuntado al <b>${Math.round(rumbo)}°</b>. Lo que quede fuera del cono no se ve.`, 3600);
+  // v2.9.271: el servidor ya tiene el rumbo bueno, así que se suelta el valor
+  // provisorio del pad. Si no, la aguja seguiría clavada donde la dejaste
+  // aunque el aparato ya estuviera virando a otra cosa.
+  try{ const bb=(_wgUnidadPorId(uid)||{}).bando; if(bb && WG.dronRumboLocal) delete WG.dronRumboLocal[bb]; }catch(_e){}
   await wgEstado();
 }
 // ============================================================
@@ -23612,9 +23711,13 @@ function _wgHudDron(u, d, pos, modo){
   const tel=document.getElementById('wg-hud-tel');
   if(tel){
     const p=pos||[u.lng,u.lat];
+    // v2.9.271: la telemetría también dice cómo está la TORRETA — aumento y
+    // banda. En una estación real eso va en pantalla, no escondido en un menú.
+    const zS=(WG.dronZoom||{})[u.bando]||1;
+    const irS=(WG.dronTerm||{})[u.bando]?'  IR':'';
     tel.textContent=`${(u.designacion||u.bando).toUpperCase()}  ALT ${d.alt} m  `
       +`RBO ${String(Math.round(d.rumbo)).padStart(3,'0')}°  ALC ${d.km} km  `
-      +`${d.kmh||WG_DRON_KMH} km/h  ${p[1].toFixed(4)}, ${p[0].toFixed(4)}`;
+      +`${d.kmh||WG_DRON_KMH} km/h  ${zS.toFixed(1)}×${irS}  ${p[1].toFixed(4)}, ${p[0].toFixed(4)}`;
   }
 }
 // ============================================================
@@ -23714,15 +23817,69 @@ function _wgTarjetaDronHTML(bando){
   const col=WG_COL[bando]||'#9b7bff';
   const puedo=(WG.soy==='arbitro')||(WG.soy===bando);   // el árbitro maneja los dos
   const act=d && String(WG.dronVista)===String(u.id);
-  const rosa=WG_RUMBOS.map(([nom,g])=>{
-    const on=d && Math.abs(d.rumbo-g)<1;
-    return `<button ${puedo?`onclick="wgApuntarDron(${u.id},${g})"`:'disabled'} `
-      +`title="Apuntar el ${WG_CW40.nom} de ${bando} al ${nom} (${g}°)" `
-      +`style="padding:3px 0;border-radius:6px;font-size:9.5px;font-weight:800;`
-      +(puedo?'cursor:pointer;':'opacity:.35;cursor:not-allowed;')
-      +(on?`background:${col};border:1px solid ${col};color:#0a1016`
-         :`background:rgba(255,255,255,.06);border:1px solid transparent;color:#cfe2f5`)+`">${nom}</button>`;
-  }).join('');
+  // ============================================================
+  // v2.9.271 — CONTROLES DEL DRON, ESTILO CONSOLA. Pedido viejo de Sergio
+  // («un joystick tipo Roblox») y ahora explícito: «los controles del dron
+  // deben ser estilo Roblox, donde la cámara del dron puede hacer zoom y esas
+  // cosas: mover su cámara en cierta dirección, hacer zoom, cambiar a visión
+  // térmica si es aplicable a esta distancia, pero todo en la realidad».
+  //
+  // La rosa de 8 botones era el problema: 8 rumbos fijos y un viaje al servidor
+  // por cada toque. Ahora es un PAD CONTINUO — arrastrás y el aparato vira a
+  // cualquier rumbo, con la aguja siguiéndote en vivo.
+  //
+  // Decisión importante: mientras arrastrás NO se le habla al servidor (serían
+  // decenas de llamadas por segundo). El rumbo se pinta local y se MANDA UNA
+  // VEZ al soltar. Se arrastra libre, se ordena al final — como una orden real:
+  // el operador busca el rumbo y recién entonces lo fija.
+  //
+  // Realismo del sensor: el CW 40 lleva torreta electro-óptica / infrarroja.
+  // A 3.000 m de altura y 24 km de alcance, un zoom de 1× a 8× y la banda IR
+  // son lo que corresponde — el IR a esa altura distingue vehículos y fuentes
+  // de calor, no personas. Eso es lo que dice el cartel cuando lo encendés.
+  // ============================================================
+  const rumboAct = d ? (((WG.dronRumboLocal||{})[bando] != null)
+    ? WG.dronRumboLocal[bando] : d.rumbo) : 0;
+  const zoomS = (WG.dronZoom||{})[bando] || 1;
+  const term  = !!(WG.dronTerm||{})[bando];
+  const rad=(rumboAct-90)*Math.PI/180, R=30;
+  const rosa = !d ? '' : `
+    <div style="display:flex;gap:8px;align-items:center;margin-bottom:5px">
+      <div id="joy-${bando}" ${puedo?`onpointerdown="_wgJoyIni(event,'${bando}',${u.id})"`:''}
+        style="position:relative;width:78px;height:78px;flex:0 0 78px;border-radius:50%;
+        background:radial-gradient(circle at 50% 50%,rgba(255,255,255,.09),rgba(0,0,0,.35));
+        border:1px solid ${col}66;touch-action:none;${puedo?'cursor:grab':'opacity:.45'}">
+        <div style="position:absolute;left:50%;top:6px;transform:translateX(-50%);font-size:7.5px;opacity:.55">N</div>
+        <div style="position:absolute;left:50%;top:50%;width:2px;height:2px;margin:-1px 0 0 -1px;
+          background:${col};border-radius:50%"></div>
+        <div id="joyk-${bando}" style="position:absolute;left:50%;top:50%;width:17px;height:17px;
+          margin:-8.5px 0 0 -8.5px;border-radius:50%;background:${col};
+          box-shadow:0 0 8px ${col}aa;transform:translate(${(Math.cos(rad)*R).toFixed(1)}px,${(Math.sin(rad)*R).toFixed(1)}px)"></div>
+      </div>
+      <div style="flex:1;min-width:0">
+        <div class="rg-meta" style="font-size:9px;opacity:.65;letter-spacing:.5px">RUMBO</div>
+        <div id="joyr-${bando}" style="font-family:ui-monospace,Menlo,monospace;font-size:15px;
+          font-weight:800;color:${col};line-height:1.1">${String(Math.round(rumboAct)).padStart(3,'0')}°</div>
+        <div class="rg-meta" style="font-size:8.5px;opacity:.55;line-height:1.25;margin-top:2px">
+          ${puedo?'Arrastrá el punto. Al soltar, se fija.':'Sólo lo maneja su bando.'}</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:4px;align-items:center;margin-bottom:5px">
+      <span class="rg-meta" style="font-size:8.5px;opacity:.65">SENSOR</span>
+      <button ${puedo?`onclick="wgDronZoom('${bando}',-1)"`:'disabled'} title="Abrir el campo (menos aumento)"
+        style="width:22px;padding:3px 0;border-radius:6px;cursor:pointer;font-weight:900;font-size:11px;
+        background:rgba(255,255,255,.06);border:1px solid rgba(140,210,255,.25);color:#cfe2f5">−</button>
+      <span style="font-family:ui-monospace,Menlo,monospace;font-size:10.5px;font-weight:800;color:${col};min-width:30px;text-align:center">${zoomS.toFixed(1)}×</span>
+      <button ${puedo?`onclick="wgDronZoom('${bando}',1)"`:'disabled'} title="Cerrar el campo (más aumento)"
+        style="width:22px;padding:3px 0;border-radius:6px;cursor:pointer;font-weight:900;font-size:11px;
+        background:rgba(255,255,255,.06);border:1px solid rgba(140,210,255,.25);color:#cfe2f5">+</button>
+      <button ${puedo?`onclick="wgDronTermica('${bando}')"`:'disabled'}
+        title="Banda infrarroja de la torreta. A ${WG_CW40 && WG_CW40.altBase?WG_CW40.altBase:3000} m distingue vehículos y fuentes de calor, no personas."
+        style="flex:1;padding:3px 0;border-radius:6px;cursor:pointer;font-size:9px;font-weight:800;`
+        +(term?`background:#c9a227;border:1px solid #c9a227;color:#1a1400`
+              :`background:rgba(255,255,255,.06);border:1px solid rgba(140,210,255,.25);color:#cfe2f5`)+`">
+        ${term?'🌡️ IR ON':'🌡️ IR'}</button>
+    </div>`;
   return `<div style="min-width:186px;padding:7px 8px;border-radius:10px;
       background:rgba(10,16,22,.6);border:1px solid ${col}55">
     <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:${col};margin-bottom:3px">
@@ -23733,7 +23890,7 @@ function _wgTarjetaDronHTML(bando){
       ${d ? `Observa <b>${d.km} km</b> al <b>${Math.round(d.rumbo)}°</b> · ${d.alt} m · ${d.kmh||WG_DRON_KMH} km/h`
           : `Listo en ${_rgEsc(u.designacion||'el puesto de mando')} — despegue vertical, no necesita pista.`}
       <br>Enlace ${WG_CW40.enlaceKm} km · autonomía ${WG_CW40.autonomiaH} h</div>
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px">${rosa}</div>
+    ${rosa}
     ${d&&puedo?`<div style="display:flex;gap:4px;margin-top:5px;align-items:center">
       <span class="rg-meta" style="font-size:9px;opacity:.7">VUELO</span>
       <button onclick="wgDronAuto('${bando}',true)" title="Vuelve a su hipódromo automático"
@@ -24671,11 +24828,14 @@ function _wgAnimarDisparos(impactos){
         const z = (e-o>1e-6 || n-s>1e-6)
           ? _wgZoomDeCaja(map, [[o,s],[e,n]], 15)
           : null;
-        WG.camQuieta=false;                       // el corte sí puede escribir
-        _wgCamIr({ centro:[cx,cy], pitch:58, rumbo, corte:true,
+        // v2.9.271 — UNA SOLA TOMA: la cámara ENTRA al combate haciendo el
+        // zoom de corrido, sin corte. Y con `sinTraba` el propio viaje no pone
+        // su cerrojo: se lo ponemos nosotros justo después, para que quede
+        // trabada TODA la balacera y no sólo hasta que termine el movimiento.
+        // La suelta `liberar()`, y ahí vuelve a girar la panorámica.
+        WG.camQuieta=false;
+        _wgCamIr({ centro:[cx,cy], pitch:58, rumbo, unaToma:true, sinTraba:true, ms:900,
                    ...(z!=null?{zoom:z}:{}) });
-        // Corte = ya está puesta. Se traba en el acto, sin temporizador que
-        // pueda dejarla congelada si la balacera dura menos de lo previsto.
         WG.camQuieta=true; WG.camAuto=false;
       }else{
         WG.camQuieta=true;
@@ -26400,14 +26560,16 @@ function _wgCamaraA(u, modo, suave, girar){
     // v2.9.267 — `suave` = venís de CAMBIAR DE ENCUADRE (Panorámica→Cerca…).
     // Eso ahora se resuelve con un CORTE seco en vez de 2,6 s de viaje. El
     // seguimiento del replay (`suave` falso) sigue siendo un viaje corto.
-    const corte = suave===true;
+    // v2.9.271: cambiar de encuadre es UNA TOMA fluida y sin interrupciones,
+    // no un corte (267) ni un viaje que otros puedan pisar (266).
+    const unaToma = suave===true;
     if(enc.zoom!=null){
-      _wgCamIr({ centro:enc.pts[0], zoom:enc.zoom, pitch:enc.pitch, rumbo:bearing, corte });
+      _wgCamIr({ centro:enc.pts[0], zoom:enc.zoom, pitch:enc.pitch, rumbo:bearing, unaToma });
     }else{
       const caja=_wgCaja(enc.pts, modo===2?0.012:(modo===1?0.06:0.02));
       if(!caja) return;
       const cx=(caja[0][0]+caja[1][0])/2, cy=(caja[0][1]+caja[1][1])/2;
-      _wgCamIr({ centro:[cx,cy], pitch:enc.pitch, rumbo:bearing, corte,
+      _wgCamIr({ centro:[cx,cy], pitch:enc.pitch, rumbo:bearing, unaToma,
         zoom:_wgZoomDeCaja(map,caja,enc.maxZoom!=null?enc.maxZoom:13.2) });
     }
     return;
@@ -26878,21 +27040,58 @@ function _wgCamIr(destino){
   WG.camAuto=true;
   WG._camIni=0;          // v2.9.261: reloj del viaje (tope de 2,5 s)
   // ============================================================
-  // v2.9.267 — CAMBIAR DE ENCUADRE ES UN CORTE, NO UN VIAJE.
-  // Sergio: «en el cambio de cámara panorámica a cercana todo se va al carajo».
-  // Era un viaje de 2,6 SEGUNDOS interpolando centro, zoom E INCLINACIÓN a la
-  // vez. Con relieve puesto, cada cuadro de esa interpolación obliga a MapLibre
-  // a recalcular la cobertura de teselas del terreno entero: 2,6 segundos de
-  // teselas entrando y saliendo sin parar. Eso es el desastre.
-  // Un corte seco carga teselas UNA vez y listo. Es lo que hace el cine cuando
-  // cambia de plano: no viaja, corta. Y no hay nada que se pueda trabar.
+  // v2.9.271 — SE ACABA EL CORTE: ES UNA SOLA TOMA, FLUIDA.
+  // Sergio, y esta vez sin ambigüedad: «te lo dije, en una sola toma que se
+  // haga zoom; cuando hay un movimiento la cámara del dron va en fluido
+  // haciendo el zoom y se va a la panorámica, pero fluido, como si todo fuera
+  // en una sola toma».
+  //
+  // El corte seco de la 267 fue mi error de lectura. Él nunca pidió cortes —
+  // pidió que no TIRONEE. Y la fluidez nunca fue el problema: el problema era
+  // que los viajes se pisaban unos a otros (uno de 1100 ms relanzado cada
+  // 900 ms, ver v2.9.266). Un solo `easeTo` que nadie interrumpe es fluido Y no
+  // tironea, porque MapLibre lo interpola internamente en una sola animación.
+  //
+  // La clave es la TRABA, no la brusquedad: se cierra la puerta mientras dura
+  // el movimiento, así ningún otro pedido puede cancelarlo a mitad de camino.
   // ============================================================
-  if(destino.corte && WG.map3d){
-    try{
-      WG.map3d.jumpTo({ center:WG.camObj.centro, zoom:WG.camObj.zoom,
-        pitch:WG.camObj.pitch, bearing:WG.camObj.rumbo });
-    }catch(_e){}
-    WG.camAuto=false;    // no queda viaje que perseguir
+  if(destino.unaToma && WG.map3d){
+    const map=WG.map3d;
+    // ========================================================
+    // v2.9.271 — Y ACÁ ESTABA LA PANTALLA NEGRA.
+    // `jumpTo`/`easeTo` con un `center` indefinido o un `zoom` NaN dejan la
+    // cámara en un estado imposible y MapLibre pinta el vacío: negro absoluto,
+    // sin error en consola. Podía pasar con la toma de combate cuando la caja
+    // salía degenerada (`cameraForBounds` devuelve NaN si los puntos coinciden)
+    // o cuando `WG.camObj` todavía no tenía centro.
+    // Regla: NINGÚN valor sin validar llega a la cámara. Lo que no sea un
+    // número finito se reemplaza por lo que el mapa ya tiene puesto — que por
+    // definición es un estado válido.
+    // ========================================================
+    const num=(v,x)=>Number.isFinite(v)?v:x;
+    const c=WG.camObj.centro;
+    const centro=(Array.isArray(c)&&Number.isFinite(c[0])&&Number.isFinite(c[1]))
+      ? c : map.getCenter().toArray();
+    const dest={
+      center: centro,
+      zoom:   Math.max(2, Math.min(19, num(WG.camObj.zoom, map.getZoom()))),
+      pitch:  Math.max(0, Math.min(WG_PITCH_TOPE, num(WG.camObj.pitch, map.getPitch()))),
+      bearing:num(WG.camObj.rumbo, map.getBearing()),
+      duration: Math.max(300, Math.min(2200, destino.ms||1100)),
+      essential:true,
+    };
+    try{ map.easeTo(dest); }catch(_e){ WG.camAuto=false; return true; }
+    // Nadie más escribe la cámara mientras dura la toma: eso es lo que la hace
+    // fluida. Se suelta sola al terminar (y también por reloj, por si el evento
+    // no llega — sin esa red, un `moveend` perdido dejaba la cámara trabada).
+    WG.camAuto=false;
+    if(!destino.sinTraba){
+      WG.camQuieta=true;
+      const soltar=()=>{ WG.camQuieta=false; clearTimeout(WG._tomaT); };
+      map.once('moveend', soltar);
+      clearTimeout(WG._tomaT);
+      WG._tomaT=setTimeout(soltar, dest.duration+400);
+    }
   }
   return true;
 }
@@ -28039,6 +28238,28 @@ async function wgReplay(trazas, segundos=22){
   if(WG.map3d) _wg3dDatos(); // devolver las fichas a su posición final
   if(cartel){ cartel.innerHTML=antes; if(!WG.ayudaFija) cartel.classList.remove('mostrar'); }
   WG.replayando=false;
+  // ============================================================
+  // v2.9.271 — Y VUELVE A LA PANORÁMICA, FLUIDO, EN LA MISMA TOMA.
+  // Sergio: «la cámara del dron va en fluido haciendo el zoom y se va a la
+  // panorámica, pero fluido, como si todo fuera en una sola toma».
+  // Terminada la marcha, la cámara se abre sola de vuelta al área de
+  // operaciones con un solo `easeTo` largo — el mismo plano alejándose, no un
+  // salto. Después la órbita la toma desde donde quedó y sigue girando.
+  // ============================================================
+  if(Number(WG.camara)===1 && _wgEn3D() && !WG._accion){
+    const uRef=_wgUnidadPorId(WG.sel)
+      || _wgUnidadesVisibles().find(x=>WG.soy==='arbitro'||x.bando===WG.soy);
+    if(uRef){
+      const enc=_wgEncuadre(uRef,1);
+      const caja=_wgCaja(enc.pts,0.06);
+      if(caja){
+        const cx=(caja[0][0]+caja[1][0])/2, cy=(caja[0][1]+caja[1][1])/2;
+        WG.camQuieta=false;
+        _wgCamIr({ centro:[cx,cy], pitch:enc.pitch, ms:1800, unaToma:true,
+          zoom:_wgZoomDeCaja(WG.map3d,caja,enc.maxZoom!=null?enc.maxZoom:11.5) });
+      }
+    }
+  }
   // v2.9.205: las que NO pudieron moverse TIEMBLAN. Es el acuse de recibo de
   // «la orden llegó, pero el terreno no la dejó pasar».
   for(const t of trazas){
