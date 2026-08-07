@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.269</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.270</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -23572,12 +23572,17 @@ const WG_DRON_PITCH=74;   // = WG_PITCH_TOPE · la vista más echada del juego
 // y a qué velocidad merodea. Mientras está puesto, el aparato NO se dibuja: no
 // se ve a sí mismo, igual que ninguna cámara se filma a sí misma.
 // ============================================================
-function _wgHudDron(u, d, pos){
+// v2.9.270 — `modo` distingue el visor (te metiste en el aparato) de la
+// PANORÁMICA (la consola del bando). Cambia el pie y poco más: la telemetría y
+// la retícula son las mismas, porque en los dos casos estás mirando por el CW 40.
+function _wgHudDron(u, d, pos, modo){
   const el=document.getElementById('wg-hud-dron'); if(!el) return;
   if(!u || !d){ el.style.display='none'; el.innerHTML=''; WG._hudId=null; return; }
   const col=(u.bando==='rojo')?'#ff6b6b':'#7fe3a0';
-  if(WG._hudId!==String(u.id)){
-    WG._hudId=String(u.id);
+  const pano = modo==='panoramica';
+  const clave=String(u.id)+'|'+(pano?'p':'v');
+  if(WG._hudId!==clave){
+    WG._hudId=clave;
     el.style.display='';
     const esq=(a,b,ra)=>`<div style="position:absolute;${a};width:34px;height:34px;`
       +`border:2px solid ${col};${ra};opacity:.85"></div>`;
@@ -23601,7 +23606,8 @@ function _wgHudDron(u, d, pos){
       <div style="position:absolute;left:50%;bottom:16px;transform:translateX(-50%);
         font-family:ui-monospace,Menlo,monospace;font-size:10px;letter-spacing:1.6px;
         color:${col};opacity:.8;text-shadow:0 1px 4px #000">
-        ● REC · VISTA DEL DRON · TOCÁ EL DRON OTRA VEZ PARA SALIR</div>`;
+        ${pano ? '● REC · CW 40 · ÓRBITA SOBRE EL ÁREA DE OPERACIONES'
+               : '● REC · VISTA DEL DRON · TOCÁ EL DRON OTRA VEZ PARA SALIR'}</div>`;
   }
   const tel=document.getElementById('wg-hud-tel');
   if(tel){
@@ -23610,6 +23616,39 @@ function _wgHudDron(u, d, pos){
       +`RBO ${String(Math.round(d.rumbo)).padStart(3,'0')}°  ALC ${d.km} km  `
       +`${d.kmh||WG_DRON_KMH} km/h  ${p[1].toFixed(4)}, ${p[0].toFixed(4)}`;
   }
+}
+// ============================================================
+// v2.9.270 — EL INSTRUMENTAL DEL DRON SOBRE LA PANORÁMICA.
+// Sergio: «esa vista panorámica debería tener los detalles de como si se
+// estuviera viendo del dron: esas letritas en la parte superior y esa cruz
+// verde». Es lo mismo que ya dibujaba el visor, así que se reusa entero.
+//
+// De qué dron: del de TU bando. El árbitro no tiene bando propio, así que toma
+// el de la lente que tenga puesta y, sin lente, el azul — coherente con que el
+// árbitro ve los dos drones y los bandos sólo el suyo.
+//
+// Se refresca como mucho 4 veces por segundo. Si se llamara por cuadro serían
+// escrituras al DOM a 60/s por encima del mapa, que es exactamente la clase de
+// cosa que venía trabando todo.
+// ============================================================
+function _wgHudPanoramica(forzar){
+  // v2.9.270 — el apagado NO puede depender de `_hudPanoOn`: si el instrumental
+  // lo había encendido el VISOR y salís a Libre, esa bandera está en cero y el
+  // HUD se quedaba pegado en pantalla. La única condición válida es de quién es
+  // la pantalla: si estás metido en el visor, manda el visor; si no, apagar.
+  if(!_wgEn3D() || Number(WG.camara)!==1){
+    if(WG.dronVista==null){ WG._hudPanoOn=0; _wgHudDron(null); }
+    return;
+  }
+  if(WG.dronVista!=null) return;   // estás dentro del aparato: no se pisa
+  const ahora=performance.now();
+  if(!forzar && WG._hudPanoT && ahora-WG._hudPanoT<250) return;
+  WG._hudPanoT=ahora;
+  const bando=_wgBandoLente() || (WG.soy==='arbitro' ? 'azul' : WG.soy);
+  const info=bando?_wgPosDron(bando):null;
+  if(!info){ if(WG._hudPanoOn){ WG._hudPanoOn=0; _wgHudDron(null); } return; }
+  WG._hudPanoOn=1;
+  _wgHudDron(info.u, info.d, info.pos, 'panoramica');
 }
 function wgVistaDron(uid){
   const u=_wgUnidadPorId(uid); if(!u) return;
@@ -26272,12 +26311,19 @@ function _wgBarraCombustible(u){
 // ============================================================
 const WG_CAMARAS = [
   { id:0, nom:'Libre',      icono:'🖐️', desc:'La cámara es tuya: no se mueve sola.' },
-  { id:1, nom:'Panorámica', icono:'🛩️', desc:'La órbita del CW 40 sobre el área de operaciones, muy lenta. Sigue las marchas y corta al combate sola. Si tocás el zoom o arrastrás, se queda quieta.' },
+  // v2.9.270 — LA ÚNICA VISTA. Sergio: «que sólo quede la vista panorámica
+  // dron, ya no haya la opción de solamente dron; con eso los bandos pueden
+  // planificar sus operaciones, mover o disparar: esa será la consola de su
+  // vista». Así que la panorámica ES el dron y lleva SU instrumental —
+  // telemetría arriba y retícula al centro. El modo 5 («meterse en el visor»)
+  // deja de ser una opción aparte: era la misma cosa contada dos veces.
+  { id:1, nom:'Panorámica · Dron', icono:'🛩️', desc:'La consola del CW 40: su órbita lenta sobre el área de operaciones, con telemetría y retícula. Sigue las marchas y corta al combate sola. Si tocás el zoom o arrastrás, se queda quieta.' },
   { id:2, nom:'Táctica',    icono:'⚔️', desc:'', oculta:true },
   { id:3, nom:'Cerca',      icono:'🎯', desc:'', oculta:true },
   { id:4, nom:'Combate',    icono:'⚔️', desc:'', oculta:true },
-  // El visor del aparato: no encuadra el área, te sube al CW 40.
-  { id:5, nom:'Dron',       icono:'📡', desc:'Meterse en el visor del CW 40 y ver su sector mientras vuela.' },
+  // v2.9.270: absorbido por la Panorámica. Se deja definido porque
+  // `wgVistaDron` y el botón «Ver desde el dron» de la estación lo usan.
+  { id:5, nom:'Dron',       icono:'📡', desc:'', oculta:true },
 ];
 // Caja que encierra un puñado de puntos, con un margen en grados.
 function _wgCaja(pts, margen){
@@ -26458,7 +26504,13 @@ function _wgPitchLente(base){
 // Referencia: la inclinación de la captura que aprobó Sergio «y un poquito
 // más». Panorámica ya no es cenital: se echa lo suficiente para ver el relieve
 // contra el cielo, y cada encuadre más cerrado se echa más todavía.
-const WG_PITCH={ 0:48, 1:56, 2:64, 3:71, 4:60 };
+// v2.9.270 — LA PANORÁMICA AHORA MIRA DESDE EL DRON, así que su inclinación
+// tiene que ser la de un aparato a 3.000 m observando el área: 66°, con el
+// horizonte a la vista. Con los 56° de antes salía casi una planta de carta —
+// correcto cuando era «la panorámica de la unidad», falso ahora que es el CW 40.
+// (Sergio: «en la vista 3D hay que corregir los valores para que sea la vista
+// panorámica».) El tope sigue siendo 74 y el techo por zoom sigue mandando.
+const WG_PITCH={ 0:48, 1:66, 2:64, 3:71, 4:60 };
 function _wgPitchModo(m){
   const p=WG_PITCH[Number(m)||0];
   return _wgPitchLente(p!=null?p:48);
@@ -27011,6 +27063,7 @@ function _wgCamaraOrbita(){
       // Ahora sólo se escribe cuando cambió de verdad (más de 0,4°).
       // ============================================================
       _wgMoviendo();                       // v2.9.261: baja el detalle mientras gira
+      _wgHudPanoramica();                  // v2.9.270: telemetría del CW 40 (4/s)
       const pObj=Math.min(respira,techo);
       const pAct=map.getPitch();
       if(Math.abs(pObj-pAct)>0.4) map.jumpTo({ bearing:rumbo, pitch:pObj });
@@ -27075,6 +27128,9 @@ function wgCamara(id){
     WG.cine=true; WG.camZoomUser=0;
     const bc=document.getElementById('wg-btn-cine');
     if(bc){ bc.style.opacity=1; bc.title='La vista gira sola — tocá para congelarla'; }
+    setTimeout(()=>_wgHudPanoramica(true),0);   // v2.9.270: el HUD, ya
+  }else if(Number(WG.camara)!==5){
+    WG._hudPanoOn=0; _wgHudDron(null);          // fuera de panorámica, sin HUD
   }
   wgPanelCamaras();
   wgPanelVistas();
