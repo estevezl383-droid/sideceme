@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.261</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.262</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7044,11 +7044,26 @@ body.wg-jugando{overflow:hidden}
       <div id="wg-hud-dron" style="position:absolute;inset:0;z-index:1030;
         display:none;pointer-events:none"></div>
 
-      <!-- v2.9.261 — MEDIDOR de rendimiento. Se enciende con ⏱️. -->
-      <div id="wg-medidor" style="position:absolute;right:14px;bottom:120px;z-index:1039;
-        display:none;font-family:ui-monospace,Menlo,monospace;font-size:11px;line-height:1.5;
-        color:#8ef0b4;background:rgba(6,12,18,.92);border:1px solid #2ecc71;
-        border-radius:9px;padding:7px 10px;pointer-events:none;white-space:nowrap"></div>
+      <!-- v2.9.262 — COLUMNA DE ABAJO A LA DERECHA, APILADA: la cinta de
+           rótulos arriba y el medidor debajo. Antes el medidor estaba clavado
+           solo con `bottom:120px`; al sumar la cinta se habrían pisado, que es
+           el mismo error que ya se cometió en la esquina de la izquierda. -->
+      <div id="wg-der-abajo" style="position:absolute;right:14px;bottom:112px;z-index:1039;
+        display:flex;flex-direction:column;align-items:flex-end;gap:8px;
+        pointer-events:none;max-width:min(360px,42vw)">
+
+        <!-- v2.9.262 — CINTA DE RÓTULOS: lo que antes flotaba sobre el terreno. -->
+        <div id="wg-cinta-rot" style="display:none;font-size:11.5px;line-height:1.35;
+          color:#e8eef5;background:rgba(6,12,18,.9);border:1px solid rgba(255,255,255,.16);
+          border-radius:9px;padding:8px 11px;max-height:34vh;overflow:auto;
+          text-align:left;backdrop-filter:blur(3px)"></div>
+
+        <!-- v2.9.261 — MEDIDOR de rendimiento. Se enciende con ⏱️. -->
+        <div id="wg-medidor" style="display:none;
+          font-family:ui-monospace,Menlo,monospace;font-size:11px;line-height:1.5;
+          color:#8ef0b4;background:rgba(6,12,18,.92);border:1px solid #2ecc71;
+          border-radius:9px;padding:7px 10px;white-space:nowrap"></div>
+      </div>
 
       <!-- v2.9.261 — COLUMNA DE ABAJO A LA IZQUIERDA, APILADA.
            Antes la estación de drones (bottom:62px), la barra de cámaras
@@ -23846,6 +23861,25 @@ function wgAlivioToggle(btn){
 // v2.9.261 — MEDIDOR. Para dejar de adivinar por capturas: dice cuánto cuesta
 // de VERDAD un cuadro en esta máquina y con este escenario.
 // ============================================================
+// ============================================================
+// v2.9.262 — CINTA DE RÓTULOS. Lo que antes flotaba sobre la maqueta ahora se
+// lee acá: HTML fijo, pegado al borde, que no se proyecta ni se recalcula con
+// la cámara. Sólo se reescribe cuando CAMBIA el texto — si se reescribiera por
+// cuadro sería otra fuente de parpadeo.
+// ============================================================
+function _wgCintaRotulos(lista){
+  const el=document.getElementById('wg-cinta-rot'); if(!el) return;
+  const txts=(lista||[]).map(s=>s.txt);
+  const firma=txts.join('|');
+  if(firma===WG._cintaFirma) return;
+  WG._cintaFirma=firma;
+  if(!txts.length){ el.style.display='none'; el.innerHTML=''; return; }
+  el.style.display='';
+  el.innerHTML='<div style="opacity:.55;font-size:9px;letter-spacing:.1em;margin-bottom:5px">'
+      +'📋 ESTE TURNO — '+txts.length+'</div>'
+    +txts.map(t=>'<div style="margin:3px 0;padding-left:7px;border-left:2px solid rgba(255,255,255,.22)">'
+      +_rgEsc(t)+'</div>').join('');
+}
 function wgMedidor(btn){
   WG.medir=!WG.medir;
   if(btn) btn.style.opacity=WG.medir?1:.5;
@@ -23865,26 +23899,52 @@ function wgMedidor(btn){
     WG._medEnganchado=1;
     try{ map0.on('render', ()=>{ WG._nRender++; }); }catch(_e){}
   }
-  let ult=performance.now(), acum=[], peor=0, t0med=performance.now();
+  // ============================================================
+  // v2.9.262 — EL MEDIDOR ESTABA ROTO Y ADEMÁS FRENABA EL JUEGO.
+  // Sergio: «los números varían demasiado y muy rápido, no se pueden captar»,
+  // y en su captura el medidor decía «MAPA repinta 0.0/s» con la imagen viva.
+  // Las dos cosas eran EL MISMO defecto:
+  //
+  //   `acum.push(dt); if(acum.length>60) acum.shift();`
+  //   `if(acum.length%20) return;`
+  //
+  // `acum` se topa en 60 y AHÍ SE QUEDA. Como 60 % 20 === 0, a partir del
+  // primer segundo la condición ya no frena NADA: el medidor se recalculaba
+  // y se reescribía 60 VECES POR SEGUNDO. De ahí salían los dos síntomas:
+  //   · la ventana de medición pasaba a ser de ~16 ms, así que `_nRender`
+  //     casi siempre valía 0 → «MAPA repinta 0.0/s» AUNQUE EL MAPA ESTUVIERA
+  //     PINTANDO PERFECTO. El dato con el que se venía diagnosticando era
+  //     basura.
+  //   · `map.getStyle()` serializa el estilo ENTERO (17 capas + las 259 del
+  //     calco) — 60 veces por segundo. El medidor era, él solo, una de las
+  //     causas del tirón que decía estar midiendo.
+  //
+  // Ahora la ventana es de UN SEGUNDO de reloj, medida con el reloj y no con
+  // el largo de un arreglo, y todo lo caro se lee una vez por ventana.
+  // ============================================================
+  const VENTANA=1000;                    // ms de cada lectura
+  let ult=performance.now(), t0med=ult;
+  let nCuadros=0, sumaDt=0, peor=0;
   const paso=(ahora)=>{
     WG._medRAF=requestAnimationFrame(paso);
     const dt=ahora-ult; ult=ahora;
-    acum.push(dt); if(acum.length>60) acum.shift();
-    if(dt>peor) peor=dt;
-    if(acum.length%20) return;
-    const med=acum.reduce((a,b)=>a+b,0)/acum.length;
+    nCuadros++; sumaDt+=dt; if(dt>peor) peor=dt;
+    const seg=(ahora-t0med)/1000;
+    if(seg<VENTANA/1000) return;         // ← el reloj manda, no el arreglo
+    const med=sumaDt/Math.max(1,nCuadros);
     const map=WG.map3d;
-    let capas=0, fuentes=0;
-    try{ const st=map.getStyle(); capas=(st.layers||[]).length; fuentes=Object.keys(st.sources||{}).length; }catch(_e){}
-    const seg=Math.max(0.001,(ahora-t0med)/1000);
+    let capas=0;
+    try{ capas=(map.getStyle().layers||[]).length; }catch(_e){}   // 1 vez/seg
     const rMapa=WG._nRender/seg, rCam=WG._nCam/seg;
-    WG._nRender=0; WG._nCam=0; t0med=ahora;
+    WG._nRender=0; WG._nCam=0; t0med=ahora; nCuadros=0; sumaDt=0;
     // El número que importa: si el MAPA repinta mucho menos que la página, el
     // problema es el dibujo del terreno, no la cámara.
     const alarma = rMapa<10 ? 'color:#ff6b6b' : 'color:#8ef0b4';
-    el.innerHTML=`⏱️ página <b>${(1000/med).toFixed(1)}/s</b> (${med.toFixed(0)} ms · peor ${peor.toFixed(0)})<br>`
-      +`<span style="${alarma}">🗺️ MAPA repinta <b>${rMapa.toFixed(1)}/s</b></span>`
-      +` · 🎥 cámara escribe ${rCam.toFixed(1)}/s<br>`
+    // v2.9.262 — CIFRAS ENTERAS. Con un decimal el último dígito bailaba solo
+    // y daba la sensación de «medidor loco». A 1 lectura/s y en enteros, se lee.
+    el.innerHTML=`⏱️ página <b>${Math.round(1000/med)}/s</b> (${Math.round(med)} ms · peor ${Math.round(peor)})<br>`
+      +`<span style="${alarma}">🗺️ MAPA repinta <b>${Math.round(rMapa)}/s</b></span>`
+      +` · 🎥 cámara escribe ${Math.round(rCam)}/s<br>`
       +`fichas ${(WG.marc3d||[]).length} · capas ${capas} · calco ${(WG.terreno||[]).length}`
       +` · detalle ${WG._detalleAct===false?'BAJO':'completo'}<br>`
       +`🎬 giro: ${WG._orbMotivo ? '<span style="color:#ffb15c">DETENIDO — '+WG._orbMotivo+'</span>' : '<b style="color:#8ef0b4">girando</b>'}`;
@@ -24923,7 +24983,26 @@ function _wg3dDatos(){
   // v2.9.261 — LOS LETREROS NO TAPAN LA ACCIÓN. Sergio: «los letreros o
   // movimiento no deben tapar las acciones». Mientras hay fuego o marcha, los
   // globos de texto se callan: lo que hay que mirar es el terreno y las fichas.
-  const rotulos=(WG._accion||WG.replayando) ? [] : (WG._dib||[]).filter(s=>s.k==='txt').map(s=>{
+  // ============================================================
+  // v2.9.262 — LOS LETREROS DEJAN DE BAILAR SOBRE EL TERRENO.
+  // Sergio: «los letreros son demasiados, se mueven de lugar».
+  // Tenía razón y la causa es de diseño, no de velocidad: el desplazamiento
+  // `dy` que evita que se pisen se calcula UNA VEZ, con las coordenadas de
+  // pantalla del momento en que se arman. Pero la cámara gira SIEMPRE
+  // (WG_ORBITA_GRADOS), así que un segundo después esa proyección ya no vale:
+  // el globo queda flotando lejos de su punto y encima del vecino. Recalcularlo
+  // por cuadro sería rehacer los marcadores del DOM 60 veces por segundo — que
+  // es exactamente lo que producía el destello (ver v2.9.261).
+  // Solución: sobre el terreno queda SÓLO el rótulo de la unidad seleccionada
+  // (la que estás comandando ahora). Todo lo demás se lee en la CINTA de la
+  // derecha, que es HTML fijo: no se proyecta, no se pisa y no se mueve nunca.
+  // ============================================================
+  const _todosRot=(WG._dib||[]).filter(s=>s.k==='txt');
+  _wgCintaRotulos(_todosRot);
+  const _selRot = WG.sel==null ? null : String(WG.sel);
+  const rotulos=(WG._accion||WG.replayando) ? [] : _todosRot
+    .filter(s=> s.uid==null || (_selRot && s.uid===_selRot))
+    .map(s=>{
     let p=null; try{ p=map.project([s.lng,s.lat]); }catch(_e){}
     return { s, x:p?p.x:0, y:p?p.y:0, ok:!!p };
   }).filter(r=>r.ok).sort((a,b)=>a.y-b.y);
@@ -25824,7 +25903,10 @@ const _wgD = {
   // Punto con radio en PÍXELES (no depende del zoom).
   pt:(lng,lat,r,col,w,fill)=>({k:'pt',lng,lat,r:r||5,col,w:w==null?2:w,fill:fill===undefined?'#0b1118':fill}),
   // Cartel pegado a un punto.
-  txt:(lng,lat,txt)=>({k:'txt',lng,lat,txt}),
+  // v2.9.262 — `uid` = de quién es el rótulo. Sirve para que sobre el TERRENO
+  // sólo salga el de la unidad que estás comandando; el resto se lee en la
+  // cinta fija de la derecha, que no se mueve con la cámara.
+  txt:(lng,lat,txt,uid)=>({k:'txt',lng,lat,txt,uid:uid==null?null:String(uid)}),
 };
 // Gemelo en el navegador de `armaDeFuego` del motor: con qué sistema empeña.
 // Tiene que dar EXACTAMENTE lo mismo que el servidor, si no la vista previa
@@ -25872,7 +25954,7 @@ function _wgDibujo(){
       D.push(_wgD.txt(pv.lng,pv.lat, pv.detenida
         ? `${marca}🛑 ${pv.avanzadoKm.toFixed(1)} km · ${pv.motivo}`
         : (pv.llego ? `${marca}✅ llega (${pv.avanzadoKm.toFixed(1)} km · ${_wgHoras(pv.horasUsadas)})`
-                    : `${marca}⏱️ ${pv.avanzadoKm.toFixed(1)} de ${pv.totalKm.toFixed(1)} km — no alcanza el turno`)));
+                    : `${marca}⏱️ ${pv.avanzadoKm.toFixed(1)} de ${pv.totalKm.toFixed(1)} km — no alcanza el turno`), uid));
     }else if(o.tipo==='atacar' && o.objetivo_id && uById[o.objetivo_id]){
       const t=uById[o.objetivo_id];
       const d=_wgHav([u.lng,u.lat],[t.lng,t.lat]);
@@ -25895,7 +25977,7 @@ function _wgDibujo(){
       // «no hace nada» — dice lo que de verdad le va a costar.
       D.push(_wgD.txt(t.lng,t.lat, alcanza
         ? `⚔️ ${arma?arma.nom:'combate'} · ${d.toFixed(1)} km · relación ${rel.toFixed(1)}:1 → ${txtRel}`
-        : `🔥 TIRO CORTO · ${arma?arma.nom:'el sistema'} bate ${alcance.toFixed(1)} km y está a ${d.toFixed(1)} km. Dispara igual: gasta munición y delata su posición.`));
+        : `🔥 TIRO CORTO · ${arma?arma.nom:'el sistema'} bate ${alcance.toFixed(1)} km y está a ${d.toFixed(1)} km. Dispara igual: gasta munición y delata su posición.`, uid));
     }else if(o.tipo==='fuego' && o.destino_lat!=null){
       // v2.9.219 — CONCENTRACIÓN DE FUEGO sobre un punto del terreno.
       const arma=_wgArmaDeFuego(u,o.arma);
@@ -25928,7 +26010,7 @@ function _wgDibujo(){
               ? ` · faja NEGADA varios turnos${propios?` · ⚠️ ${propios} PROPIA(S) adentro`:''}`
               : (dentro?` · ${dentro} en la zona`:' · zona VACÍA')
                 + (propios?` · ⚠️ ${propios} PROPIA(S)`:''))
-        : `🔥 TIRO CORTO · ${arma?arma.nom:'el sistema'} bate ${alcance.toFixed(1)} km y el punto está a ${d.toFixed(1)} km. Dispara igual: gasta munición y delata su posición.`));
+        : `🔥 TIRO CORTO · ${arma?arma.nom:'el sistema'} bate ${alcance.toFixed(1)} km y el punto está a ${d.toFixed(1)} km. Dispara igual: gasta munición y delata su posición.`, uid));
     }
   }
   // ALCANCE DE OBSERVACIÓN (hasta dónde levantan la niebla).
