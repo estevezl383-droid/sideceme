@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.266</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.267</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -24560,22 +24560,63 @@ function _wgAnimarDisparos(impactos){
   // lado mientras pasaba lo único que había para ver.
   // v2.9.261 — NO se cambia zoom ni inclinación: sólo se centra, y sólo si el
   // empeño quedó FUERA de la pantalla. Si ya lo estás viendo, no se toca nada.
+  // ============================================================
+  // v2.9.267 — CÁMARA INTELIGENTE DEL COMBATE. Es la idea de Sergio, textual:
+  // «llevá la cámara aunque sea estática a donde se pueda ver a las que se
+  // están disparando». Y es la solución correcta, no un parche.
+  //
+  // Lo que había: se centraba sobre el PRIMER empeño, y sólo si quedaba fuera
+  // de pantalla, con `_wgCamIr` — que arranca un VIAJE que el lazo suavizador
+  // persigue cuadro a cuadro… encima de la animación de proyectiles que ya
+  // estaba corriendo. Con cuatro unidades disparando, cada empeño pedía lo
+  // suyo y la cámara terminaba tironeada entre varios destinos. Eso es «cuando
+  // las unidades disparan se va todo a la mierda».
+  //
+  // Ahora: se arma la CAJA que contiene a TODOS los que tiran y a TODOS los
+  // blancos, se calcula UNA sola posición de cámara que los meta a todos en
+  // pantalla, se hace UN viaje, y desde que arranca la balacera la cámara
+  // queda BLOQUEADA (`WG.camQuieta`): nadie más la escribe hasta que termina.
+  // Sin viajes encadenados no hay tirones, y sin cambios de encuadre no entran
+  // teselas nuevas — que es de donde salía el parpadeo.
+  // ============================================================
   if(WG.camara && WG.map3d && _wgEn3D()){
-    const im=base[0];
     try{
-      const cx=(im.desde[0]+im.lng)/2, cy=(im.desde[1]+im.lat)/2;
-      const pt=WG.map3d.project([cx,cy]);
-      const cv=WG.map3d.getCanvas();
-      const fuera = !pt || !Number.isFinite(pt.x)
-        || pt.x<60 || pt.y<60 || pt.x>cv.clientWidth-60 || pt.y>cv.clientHeight-60;
-      if(fuera) _wgCamIr({ centro:[cx,cy] });   // sólo el centro, sin saltos
-    }catch(_e){}
+      const map=WG.map3d;
+      // La caja de TODO el combate: cada tirador y cada blanco.
+      let o=Infinity, e=-Infinity, s=Infinity, n=-Infinity;
+      for(const im of base){
+        for(const p of [im.desde,[im.lng,im.lat]]){
+          o=Math.min(o,p[0]); e=Math.max(e,p[0]);
+          s=Math.min(s,p[1]); n=Math.max(n,p[1]);
+        }
+      }
+      if(Number.isFinite(o)){
+        const cx=(o+e)/2, cy=(s+n)/2;
+        // Si la caja es de un solo punto, `cameraForBounds` no sirve: se deja
+        // el zoom que ya traías y sólo se centra.
+        const z = (e-o>1e-6 || n-s>1e-6)
+          ? _wgZoomDeCaja(map, [[o,s],[e,n]], Math.min(15, map.getZoom()+1))
+          : null;
+        WG.camQuieta=false;                 // el viaje sí puede escribir
+        _wgCamIr(z!=null ? {centro:[cx,cy], zoom:z} : {centro:[cx,cy]});
+        // Se le da al viaje su tiempo y RECIÉN AHÍ se traba la cámara: a partir
+        // de ese momento la toma es fija y la pelea se ve sin que nada se mueva.
+        // v2.9.267 — `if(WG._accion)` NO es decorativo: si la balacera dura
+        // menos de 1,2 s, `liberar()` ya soltó la traba y este temporizador la
+        // volvería a poner… sin nadie que la saque después. La cámara quedaría
+        // congelada PARA SIEMPRE. Sólo se traba si la acción sigue en curso.
+        setTimeout(()=>{ if(WG._accion){ WG.camQuieta=true; WG.camAuto=false; } }, 1200);
+      }else{
+        WG.camQuieta=true;
+      }
+    }catch(_e){ WG.camQuieta=true; }
   }
   return new Promise((listo)=>{
     for(const t of tiros){ t.el=_wgProyectilEl(); t.el.style.display='none'; capa.appendChild(t.el); }
     const t0=performance.now();
     const total=finTiros+120;   // v2.9.223: alcanza para la respuesta demorada
-    const liberar=()=>{ WG._accion=false; };
+    // v2.9.267: al terminar la balacera se suelta la toma fija.
+    const liberar=()=>{ WG._accion=false; WG.camQuieta=false; };
     const paso=(ahora)=>{
       const dt=ahora-t0;
       for(const t of tiros){
@@ -26249,13 +26290,17 @@ function _wgCamaraA(u, modo, suave, girar){
   if(_wgEn3D() && map){
     const bearing = girar!=null ? girar : map.getBearing();
     // v2.9.261: se mueve el DESTINO, no el mapa. El lazo hace el resto sin cortes.
+    // v2.9.267 — `suave` = venís de CAMBIAR DE ENCUADRE (Panorámica→Cerca…).
+    // Eso ahora se resuelve con un CORTE seco en vez de 2,6 s de viaje. El
+    // seguimiento del replay (`suave` falso) sigue siendo un viaje corto.
+    const corte = suave===true;
     if(enc.zoom!=null){
-      _wgCamIr({ centro:enc.pts[0], zoom:enc.zoom, pitch:enc.pitch, rumbo:bearing });
+      _wgCamIr({ centro:enc.pts[0], zoom:enc.zoom, pitch:enc.pitch, rumbo:bearing, corte });
     }else{
       const caja=_wgCaja(enc.pts, modo===2?0.012:(modo===1?0.06:0.02));
       if(!caja) return;
       const cx=(caja[0][0]+caja[1][0])/2, cy=(caja[0][1]+caja[1][1])/2;
-      _wgCamIr({ centro:[cx,cy], pitch:enc.pitch, rumbo:bearing,
+      _wgCamIr({ centro:[cx,cy], pitch:enc.pitch, rumbo:bearing, corte,
         zoom:_wgZoomDeCaja(map,caja,enc.maxZoom!=null?enc.maxZoom:13.2) });
     }
     return;
@@ -26675,6 +26720,11 @@ function _wgCamZoomTotal(){
   return Math.max(2, Math.min(19, (WG.camZoomBase!=null?WG.camZoomBase:12) + (WG.camZoomUser||0)));
 }
 function _wgCamIr(destino){
+  // v2.9.267 — TOMA DE COMBATE TRABADA. Mientras dura una balacera la cámara
+  // no la escribe NADIE: ni un encuadre nuevo, ni el seguimiento, ni el fuego.
+  // Ésta es la única puerta por la que se pide mover la cámara, así que
+  // trabarla acá alcanza para todas.
+  if(WG.camQuieta && !destino.forzar) return false;
   if(!WG.camObj) return false;
   if(destino.centro) WG.camObj.centro=destino.centro;
   if(destino.zoom!=null){
@@ -26688,6 +26738,23 @@ function _wgCamIr(destino){
   // mano siempre gana.
   WG.camAuto=true;
   WG._camIni=0;          // v2.9.261: reloj del viaje (tope de 2,5 s)
+  // ============================================================
+  // v2.9.267 — CAMBIAR DE ENCUADRE ES UN CORTE, NO UN VIAJE.
+  // Sergio: «en el cambio de cámara panorámica a cercana todo se va al carajo».
+  // Era un viaje de 2,6 SEGUNDOS interpolando centro, zoom E INCLINACIÓN a la
+  // vez. Con relieve puesto, cada cuadro de esa interpolación obliga a MapLibre
+  // a recalcular la cobertura de teselas del terreno entero: 2,6 segundos de
+  // teselas entrando y saliendo sin parar. Eso es el desastre.
+  // Un corte seco carga teselas UNA vez y listo. Es lo que hace el cine cuando
+  // cambia de plano: no viaja, corta. Y no hay nada que se pueda trabar.
+  // ============================================================
+  if(destino.corte && WG.map3d){
+    try{
+      WG.map3d.jumpTo({ center:WG.camObj.centro, zoom:WG.camObj.zoom,
+        pitch:WG.camObj.pitch, bearing:WG.camObj.rumbo });
+    }catch(_e){}
+    WG.camAuto=false;    // no queda viaje que perseguir
+  }
   return true;
 }
 // v2.9.261 — LOS BOTONES ＋/－ ACERCAN EL MAPA DE VERDAD. Antes movían un
@@ -27788,7 +27855,7 @@ async function wgReplay(trazas, segundos=22){
               ultimoCam=ahora;      // el ÚNICO viaje de encuadre, al arrancar
               _wgCamaraA({ id:p.t.id, bando:p.t.bando, lng:pos[0], lat:pos[1],
                 estado:'activa' }, WG.camara, false, giroCam);
-            }else if(ahora-ultimoCam>1200 && WG.map3d){
+            }else if(ahora-ultimoCam>1200 && WG.map3d && !WG.camQuieta){
               // Terminado ese viaje, se sigue a la unidad SIN animación: a 30
               // pasos/s el desplazamiento por paso es mínimo y se lee como un
               // travelling parejo, no como saltos.
