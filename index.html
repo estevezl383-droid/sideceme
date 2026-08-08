@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.281</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.282</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -24472,21 +24472,84 @@ function _wgSyncParar(){ clearInterval(WG._sync); WG._sync=null; WG._syncOcupado
 function _wgTurnoActual(){
   return (WG.estado && WG.estado.partida) ? WG.estado.partida.turno_actual : null;
 }
+// ============================================================
+// v2.9.282 — LOS DOS BANDOS VEN EL MISMO COMBATE.
+//
+// Sergio, con las dos pantallas al lado: «estas dos unidades, en el lado de
+// AZUL ya se atacó, ya se están incendiando; en el lado de ROJO apenas están
+// juntas».
+//
+// La 281 sincronizó el TABLERO pero no los HECHOS. Las trazas y los impactos
+// viajaban únicamente dentro de la respuesta de `resolver_turno`, así que sólo
+// los tenía el navegador que apretó «Jugar turno»: el otro bando recibía las
+// posiciones nuevas por el sondeo y ni un disparo, ni una llama, ni el replay.
+// El resultado sin el combate — que es exactamente lo que él vio.
+//
+// Lo que cambia acá son dos cosas:
+//
+//   1) El latido es BARATO. Antes cada sondeo pedía el estado completo
+//      (unidades + órdenes + detecciones) cuatro veces por minuto y por
+//      jugador, sólo para leer un número. Ahora pregunta `pulso`, que devuelve
+//      el turno y nada más. El estado completo se pide RECIÉN cuando cambió.
+//
+//   2) Cuando cambió, se pide el REPLAY de ese turno y se corre la misma
+//      película que vio el que resolvió: movimiento, ráfagas e incendios.
+//
+// El ORDEN importa y es el mismo que en `wgResolver`: primero la acción y
+// DESPUÉS el tablero al día. Al revés se veía el efecto antes que la causa —
+// las unidades destruidas se desvanecían y recién después salían los tiros que
+// las habían destruido (fue el arreglo de la 223, no repetir el error acá).
+// ============================================================
 async function _wgSyncTick(){
   if(!WG.partidaId || WG._syncOcupado) return;
   if(WG.replayando || WG._accion) return;      // no pisar una animación en curso
   WG._syncOcupado=1;
-  const antes=_wgTurnoActual();
   try{
-    await wgEstado(true);                      // silencioso: sin alertas al sondear
-    const ahora=_wgTurnoActual();
-    if(antes!=null && ahora!=null && Number(ahora)!==Number(antes)){
-      WG.ordenes={};                           // las órdenes de ese turno ya se jugaron
-      _wgAviso(`🔄 <b>Se resolvió el turno ${antes}.</b> El tablero ya está al día — `
-        +`mirá la <b>bitácora</b> para ver qué pasó.`, 6000);
+    const antes=_wgTurnoActual();
+    const p=await _wgInvoke('pulso',{ partida_id:WG.partidaId, clave_acceso:WG.clave });
+    if(!p.ok){ console.warn('pulso:', p.error); return; }   // silencioso: es un sondeo
+    const ahora=Number(p.turno_actual);
+    if(antes==null || !Number.isFinite(ahora) || ahora===Number(antes)) return;
+    WG.ordenes={};                             // las órdenes de ese turno ya se jugaron
+    const saltados = ahora - Number(antes);
+    if(saltados===1){
+      _wgAviso(`⚔️ <b>Se resolvió el turno ${antes}.</b> Mirá lo que pasó.`, 4000);
+      await _wgReproducirTurno(Number(antes));
+    }else{
+      // Estuvo desconectado o con la pestaña dormida y se corrieron varios
+      // turnos. Reproducir uno solo contaría media historia y confundiría más
+      // que ayudar: se pone el tablero al día y se le dice que lea la bitácora.
+      await wgEstado(true); _wgRender(); if(WG.map3d) _wg3dDatos();
+      await wgHistorial();
+      _wgAviso(`🔄 <b>Se resolvieron los turnos ${antes} a ${ahora-1}.</b> El tablero ya está `
+        +`al día — mirá la <b>bitácora</b> para ver qué pasó.`, 7000);
     }
   }catch(e){ console.warn('sync:', e); }
-  WG._syncOcupado=0;
+  finally{ WG._syncOcupado=0; }
+}
+// Reproduce en ESTA pantalla el turno que resolvió el otro bando. Es el gemelo
+// de la parte de animación de `wgResolver`, con la diferencia de que las trazas
+// y los impactos no vienen de la respuesta: se piden guardados.
+async function _wgReproducirTurno(turno){
+  const r=await _wgInvoke('replay',{ partida_id:WG.partidaId, clave_acceso:WG.clave, turno });
+  const trazas=(r.ok && r.trazas)||[], impactos=(r.ok && r.impactos)||[];
+  WG.ultimoTurno=turno;                        // para destacarlo en la bitácora
+  _wgApagarViejos(turno);
+  if(trazas.length || impactos.length){
+    WG.replayando=true;
+    try{
+      // Movimiento y fuego A LA VEZ, igual que en el turno real.
+      await Promise.all([
+        trazas.length ? wgReplay(trazas) : Promise.resolve(),
+        _wgAnimarDisparos(impactos),
+      ]);
+    } finally { WG.replayando=false; }
+    _wgEncender(impactos, turno);
+  }
+  await wgEstado(true);   // recién ahora se desvanecen los que quedaron fuera de combate
+  _wgRender(); if(WG.map3d) _wg3dDatos();
+  await wgHistorial();
+  if(!trazas.length && !impactos.length) wgHoja('bitacora');
 }
 async function wgEstado(silencioso){
   if(!WG.partidaId) return;
