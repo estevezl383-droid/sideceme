@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.277</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.278</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -26605,7 +26605,11 @@ const WG_CAMARAS = [
   // vista». Así que la panorámica ES el dron y lleva SU instrumental —
   // telemetría arriba y retícula al centro. El modo 5 («meterse en el visor»)
   // deja de ser una opción aparte: era la misma cosa contada dos veces.
-  { id:1, nom:'Panorámica · Dron', icono:'🛩️', desc:'La consola del CW 40: su órbita lenta sobre el área de operaciones, con telemetría y retícula. Sigue las marchas y corta al combate sola. Si tocás el zoom o arrastrás, se queda quieta.' },
+  // v2.9.278 — «PANORÁMICA SATELITAL», no «dron». Decisión de Sergio y es la
+  // correcta: esta vista NO es lo que ve el aparato, es la carta de situación
+  // del bando vista desde arriba. Llamarla «dron» prometía algo que no da —
+  // desde acá NO se ve al enemigo. Para eso hay que meterse en el visor.
+  { id:1, nom:'Panorámica satelital', icono:'🛰️', desc:'La carta de situación de tu bando vista desde arriba, girando despacio. Acá NO ves al enemigo: para eso tenés que entrar al visor del CW 40.' },
   { id:2, nom:'Táctica',    icono:'⚔️', desc:'', oculta:true },
   { id:3, nom:'Cerca',      icono:'🎯', desc:'', oculta:true },
   { id:4, nom:'Combate',    icono:'⚔️', desc:'', oculta:true },
@@ -27874,8 +27878,14 @@ function _wgRender(){
   const pa=document.getElementById('wg-armas');
   if(pa){
     const uSel=_wgUnidadPorId(WG.sel);
-    if(uSel && _wgArmamento(uSel).length){ pa.innerHTML=_wgPanelArmasHTML(); pa.style.display=''; }
-    else { pa.style.display='none'; pa.innerHTML=''; }
+    // v2.9.278 — DENTRO DEL DRON, EL ARMAMENTO NO VA. Sergio: «cuando está con
+    // la vista del dron, para poder apreciar mejor deberías quitar ese cuadro
+    // de armamento porque no deja apreciar bien la vista». Y tiene razón de
+    // fondo: metido en el visor del CW 40 estás haciendo RECONOCIMIENTO, no
+    // eligiendo con qué disparar. El panel vuelve solo al salir del dron.
+    if(uSel && _wgArmamento(uSel).length && WG.dronVista==null){
+      pa.innerHTML=_wgPanelArmasHTML(); pa.style.display='';
+    } else { pa.style.display='none'; pa.innerHTML=''; }
   }
   if(WG.map3d){ _wg3dDatos(); _wg3dCapas(); }
   if(WG.hoja==='capas') wgPanelCapas(); // conteos siempre al día
