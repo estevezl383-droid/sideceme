@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.282</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.283</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -23522,6 +23522,7 @@ function _wgJoyIni(ev, bando, uid){
   // ============================================================
   const caja=pad.getBoundingClientRect();
   const padFijo={ getBoundingClientRect:()=>caja };
+  WG._joyArrastrando=1;   // v2.9.283: que el instrumental no le pise la aguja
   const mover=(e)=>{
     const r=_wgJoyPos(e,padFijo); if(r==null) return;
     WG.dronRumboLocal[bando]=r; _wgJoyPinta(bando,r);
@@ -23530,12 +23531,17 @@ function _wgJoyIni(ev, bando, uid){
     window.removeEventListener('pointermove',mover);
     window.removeEventListener('pointerup',soltar);
     window.removeEventListener('pointercancel',soltar);
+    WG._joyArrastrando=0;
     try{ pad.style.cursor='grab'; }catch(_e){}
     const r=WG.dronRumboLocal[bando];
     if(r!=null){
       // Fijar el rumbo = pasar a MANUAL: si quedara en automático, el hipódromo
       // se lo lleva de vuelta a los dos segundos y parecería que no obedece.
       WG.dronManual=WG.dronManual||{}; WG.dronManual[bando]=true;
+      // v2.9.283: el pad y el teclado son el MISMO mando. Sin esto, arrastrar la
+      // rosa con el aparato ya piloteado no lo hacía virar: el estado de vuelo
+      // seguía con su proa vieja y la rosa quedaba mintiendo.
+      const pl=_wgPiloto(bando, true); if(pl) pl.proa=r;
       wgApuntarDron(uid, Math.round(r));
     }
   };
@@ -23662,22 +23668,42 @@ function _wgVolarDrones(){
       const pistaLargo = _wgPistaDron(d, v.u, 0).P;
       const kmRecorridos = (ahora/3600000)*kmh*WG_DRON_ACEL
         + (d.fase||0)*pistaLargo + (String(v.u.id).length*3.1);
-      // v2.9.261: en MANUAL se queda quieto sobre el sector que le marcaste,
-      // batiendo su cono; en AUTO recorre el hipódromo.
-      const manual = WG.dronManual && WG.dronManual[v.u.bando];
-      const p = _wgPistaDron(d, v.u, manual?0:kmRecorridos);
-      const lng=p.lng, lat=p.lat;
+      // ============================================================
+      // v2.9.283 — DOS FORMAS DE VOLAR, NO UNA CONGELADA.
+      // Hasta la 282 «manual» era `_wgPistaDron(d, v.u, 0)`: el aparato quedaba
+      // CLAVADO en un punto fijo de la pista. Por eso las flechas no se sentían
+      // — aunque el rumbo cambiara, la posición salía de una fórmula sin
+      // memoria. Ahora en manual hay un estado de vuelo que se integra cuadro a
+      // cuadro, y las teclas actúan sobre él. En AUTO, el hipódromo intacto.
+      // ============================================================
+      const pil = _wgPilotoActivo(v.u.bando);
+      let lng, lat;
+      if(pil){
+        const dt=(v._tAnt!=null) ? (ahora-v._tAnt)/1000 : 0;
+        v._tAnt=ahora;
+        _wgIntegrarVuelo(pil, v.u, d, dt);
+        lng=pil.lng; lat=pil.lat; v._proa=pil.proa;
+      }else{
+        v._tAnt=ahora;
+        const p = _wgPistaDron(d, v.u, kmRecorridos);
+        lng=p.lng; lat=p.lat;
+        // La nariz apunta a donde va: se saca del tramo siguiente de la pista.
+        const sig=_wgPistaDron(d, v.u, kmRecorridos+0.35);
+        const dy=(sig.lat-lat), dx=(sig.lng-lng)*Math.cos(lat*Math.PI/180);
+        v._proa=(Math.atan2(dx,dy)*180/Math.PI+360)%360;
+      }
       try{ v.mk.setLngLat([lng,lat]); }catch(_e){}
-      // La nariz apunta a donde va: se saca del tramo siguiente de la pista.
-      const sig=_wgPistaDron(d, v.u, kmRecorridos+0.35);
-      const dy=(sig.lat-lat), dx=(sig.lng-lng)*Math.cos(lat*Math.PI/180);
-      v._proa=(Math.atan2(dx,dy)*180/Math.PI+360)%360;
       // v2.9.261 — LA ALTURA ES ALTURA, NO UN OFFSET FIJO. Se convierten los
       // metros de vuelo a píxeles con la escala de este cuadro: así el aparato
       // se mantiene ARRIBA del terreno pase lo que pase con el zoom o el ángulo,
       // en vez de quedar clavado sobre la pantalla.
+      // v2.9.283: en manual la altura la fijás vos (Mayús+↑↓), así que el
+      // dibujo tiene que subir y bajar con ella — si no, «cambio la altura y no
+      // pasa nada».
+      if(pil) _wgPanelTel(v.u.bando, pil, d);
+      const altVuelo = pil ? pil.alt : d.alt;
       const alto=Math.round(Math.max(6, Math.min(430,
-        d.alt*exag*_wgPxPorMetro(map,lat)*Math.cos(pitch*Math.PI/180))));
+        altVuelo*exag*_wgPxPorMetro(map,lat)*Math.cos(pitch*Math.PI/180))));
       if(alto!==v._alto){
         v._alto=alto;
         try{ v.mk.setOffset([0,-alto]); }catch(_e){}
@@ -23725,8 +23751,19 @@ function _wgVolarDrones(){
         // Ahora la cámara va montada en el avión de verdad: se escribe su
         // posición y su proa derecho al mapa, un cuadro por cuadro.
         // ============================================================
+        // ============================================================
+        // v2.9.283 — LA TORRETA MIRA DONDE VOS QUERÉS, NO DONDE VA LA PROA.
+        // Ésta es la pieza que Sergio pidió tres veces y que faltaba: lo bueno
+        // de un DJI es que el APARATO y la CÁMARA son dos mandos distintos.
+        // Hasta acá la vista era `bearing = proa`, o sea la cámara atornillada
+        // a la nariz: volabas al norte y no había forma de mirar al este.
+        // Ahora la línea de mira es `proa + pan` y la inclinación sale de
+        // `tilt`, los dos movidos con W A S D sin tocar el vuelo.
+        // ============================================================
+        const pilC=_wgPilotoActivo(v.u.bando);
         const proa=(v._proa!=null?v._proa:d.rumbo);
-        const adel=proa*Math.PI/180;
+        const mira=((proa + (pilC?pilC.pan:0))%360+360)%360;
+        const adel=mira*Math.PI/180;
         const dLat=((d.km*0.35)/6371)*(180/Math.PI);
         const dLng=dLat/Math.max(1e-6,Math.cos(v._pos[1]*Math.PI/180));
         const cen=[v._pos[0]+dLng*Math.sin(adel), v._pos[1]+dLat*Math.cos(adel)];
@@ -23735,14 +23772,17 @@ function _wgVolarDrones(){
           // cuando cambió de verdad. Escribirlo en cada cuadro obliga a
           // recalcular la cobertura del relieve y es lo que trababa el viraje.
           _wgMoviendo();                   // v2.9.261: ídem en la vista del dron
-          const pObj=Math.min(WG_DRON_PITCH, _wgTechoPitch(map.getZoom()));
+          // `tilt` es cuánto se baja la torreta: −16° por debajo del horizonte
+          // equivale al pitch 74 de siempre, así que sin tocarla se ve igual.
+          const pDes=pilC ? (90 + pilC.tilt) : WG_DRON_PITCH;
+          const pObj=Math.min(pDes, _wgTechoPitch(map.getZoom()));
           if(Math.abs(pObj-map.getPitch())>0.4)
-                map.jumpTo({ center:cen, bearing:proa, pitch:pObj });
-          else  map.jumpTo({ center:cen, bearing:proa });
+                map.jumpTo({ center:cen, bearing:mira, pitch:pObj });
+          else  map.jumpTo({ center:cen, bearing:mira });
         }catch(_e){}
         // El destino queda al día: si salís del dron, el próximo encuadre no
         // arranca desde una posición vieja.
-        if(WG.camObj){ WG.camObj.centro=cen; WG.camObj.rumbo=proa; }
+        if(WG.camObj){ WG.camObj.centro=cen; WG.camObj.rumbo=mira; }
         WG._orbitando=1; clearTimeout(WG._orbFinT);
         WG._orbFinT=setTimeout(()=>{ WG._orbitando=0; }, 400);
         _wgHudDron(v.u, d, v._pos);
@@ -23816,9 +23856,20 @@ function _wgHudDron(u, d, pos, modo){
     // banda. En una estación real eso va en pantalla, no escondido en un menú.
     const zS=(WG.dronZoom||{})[u.bando]||1;
     const irS=(WG.dronTerm||{})[u.bando]?'  IR':'';
-    tel.textContent=`${(u.designacion||u.bando).toUpperCase()}  ALT ${d.alt} m  `
-      +`RBO ${String(Math.round(d.rumbo)).padStart(3,'0')}°  ALC ${d.km} km  `
-      +`${d.kmh||WG_DRON_KMH} km/h  ${zS.toFixed(1)}×${irS}  ${p[1].toFixed(4)}, ${p[0].toFixed(4)}`;
+    // v2.9.283 — la telemetría dice lo que VOS estás manejando. Con el aparato
+    // piloteado, el rumbo, la altura y la velocidad son los del vuelo real, no
+    // los de la ficha; y se agrega la línea de mira de la torreta, que es el
+    // dato que no existía cuando la cámara iba pegada a la proa.
+    const pil=_wgPilotoActivo(u.bando);
+    const alt = pil ? Math.round(pil.alt) : d.alt;
+    const kmh = pil ? Math.round(pil.kmh) : (d.kmh||WG_DRON_KMH);
+    const rbo = pil ? pil.proa : d.rumbo;
+    const torr = pil
+      ? `  TORR ${(pil.pan>=0?'+':'')}${Math.round(pil.pan)}°/${Math.round(pil.tilt)}°`
+      : '';
+    tel.textContent=`${(u.designacion||u.bando).toUpperCase()}  ALT ${alt} m  `
+      +`RBO ${String(Math.round(rbo)).padStart(3,'0')}°  ALC ${d.km} km  `
+      +`${kmh} km/h${torr}  ${zS.toFixed(1)}×${irS}  ${p[1].toFixed(4)}, ${p[0].toFixed(4)}`;
   }
 }
 // ============================================================
@@ -23868,36 +23919,238 @@ function _wgHudPanoramica(forzar){
 //     se mandara por cada repetición del teclado serían decenas de llamadas.
 // Sólo actúa con el visor del dron abierto: si no, las flechas son del mapa.
 // ============================================================
-const WG_TECLA_RUMBO={ ArrowUp:0, ArrowRight:90, ArrowDown:180, ArrowLeft:270 };
+// ============================================================
+// v2.9.283 — EL DRON SE VUELA. Reemplaza el rumbo por teclas de la 280.
+//
+// Sergio: «los controles que estoy utilizando en el teclado me deben permitir
+// llevar el dron a donde quiero: si le doy la flecha para adelante debe ir más
+// rápido en esa dirección; si le doy la flecha hacia la derecha debe virar en
+// esa dirección. No está funcionando así».
+//
+// Tenía razón, y eran TRES fallas distintas metidas en una:
+//
+//   1) Las flechas sólo respondían DENTRO del visor (`if(WG.dronVista==null)
+//      return`). Con la estación de control abierta sobre la panorámica —que es
+//      donde él estaba— no hacían absolutamente nada. Ahora el mando lo tiene
+//      la ESTACIÓN: si está en pantalla, las teclas vuelan el aparato.
+//   2) El rumbo era ABSOLUTO: ↑ era *norte* y → era *este*, como la brújula de
+//      un mapa. Él espera «virá a la derecha» y «acelerá», que es como se
+//      maneja un aparato. Ahora → vira a estribor mientras la mantengas
+//      apretada, y ↑ da motor.
+//   3) La cámara iba PEGADA A LA PROA. Volar en una dirección y mirar en otra
+//      es la mitad de para qué sirve un dron: por eso un DJI separa el aparato
+//      de la torreta. Ahora son dos mandos distintos.
+//
+// El aparato deja de estar clavado a una fórmula: en MANUAL tiene posición,
+// proa, velocidad y altura propias, que se integran cuadro a cuadro en el lazo
+// de vuelo. En AUTO sigue con su hipódromo de siempre, intacto.
+//
+// Límite doctrinario que sí se respeta: el enlace del CW 40 son 150 km. Pasado
+// eso el aparato no obedece más — no es un capricho, es el alcance del enlace.
+// ============================================================
+const WG_DRON_VIRAJE = 26;      // °/s de viraje sostenido de un ala fija
+const WG_DRON_VMIN   = 70;      // km/h — por debajo no se sostiene
+const WG_DRON_VMAX   = 130;     // km/h — techo del CW 40 con motor
+const WG_DRON_ALTMIN = 300;
+const WG_DRON_ALTMAX = 5000;
+const WG_DRON_TILT_DEF = -16;   // inclinación de torreta de arranque (= pitch 74)
+// ⚠️ EL HIPÓDROMO Y EL PILOTAJE NO PUEDEN IR A LA MISMA ESCALA DE TIEMPO.
+// `WG_DRON_ACEL` es ×40: sirve para que una vuelta automática se LEA en un
+// minuto en vez de en 48. Pero volando a mano eso son 4.000 km/h de terreno
+// pasando debajo — se cruza el sector entero en segundos y no hay forma de
+// apuntar a nada. En manual se vuela a ×18: el sector se atraviesa en cerca de
+// un minuto, que es lo que permite buscar algo y quedarse mirándolo.
+const WG_DRON_ACEL_MAN = 18;
+const WG_DRON_TASA_MOTOR = 12;  // km/h ganados por segundo con ↑ / ↓
+const WG_DRON_TASA_TILT  = 22;  // °/s de la torreta al inclinarse
+const WG_DRON_TASA_PAN   = 55;  // °/s de la torreta al girar (más viva que el avión)
+const WG_DRON_TASA_ALT   = 200; // m/s de ascenso, en el mismo tiempo acelerado
+// Las teclas apretadas EN ESTE MOMENTO. El efecto no se aplica en el `keydown`
+// sino en el lazo de vuelo: por eso mantener apretado vira de verdad, en vez de
+// dar un saltito por repetición del teclado.
+WG._tecla = {};
+// ¿Quién tiene el mando ahora, y sobre qué aparato?
+// La estación de control ES la consola: si está en pantalla, manda. Dentro del
+// visor manda el aparato en el que estás metido.
+function _wgDronMando(){
+  if(!_wgEn3D()) return null;
+  let bando=null;
+  if(WG.dronVista!=null){
+    const uv=_wgUnidadPorId(WG.dronVista);
+    if(uv) bando=uv.bando;
+  }
+  if(!bando){
+    const est=document.getElementById('wg-drones');
+    if(!est || est.style.display==='none') return null;
+    bando=_wgBandoLente() || (WG.soy==='arbitro' ? 'azul' : WG.soy);
+  }
+  if(!bando) return null;
+  // El árbitro maneja los dos; un EM sólo el suyo.
+  if(WG.soy!=='arbitro' && WG.soy!==bando) return null;
+  const info=_wgDronBando(bando);
+  if(!info) return null;
+  return { bando, u:info.portador, d:info.d };   // `d` en null = está en tierra
+}
+// Estado de vuelo del aparato piloteado. Nace donde el aparato esté AHORA, para
+// que tomar el mando no lo teletransporte.
+function _wgPiloto(bando, crear){
+  WG.dronPiloto=WG.dronPiloto||{};
+  if(WG.dronPiloto[bando] || !crear) return WG.dronPiloto[bando]||null;
+  const dr=_wgPosDron(bando); if(!dr) return null;
+  WG.dronPiloto[bando]={ lng:dr.pos[0], lat:dr.pos[1],
+    proa:(dr.proa!=null?dr.proa:dr.d.rumbo),
+    kmh:(dr.d.kmh||WG_DRON_KMH), alt:dr.d.alt,
+    pan:0, tilt:WG_DRON_TILT_DEF, t:0 };
+  return WG.dronPiloto[bando];
+}
+// Teclas del mando. Vuelo con las FLECHAS, torreta con W A S D, aumento con + −.
+const WG_TECLAS_DRON={ ArrowUp:1, ArrowDown:1, ArrowLeft:1, ArrowRight:1,
+  w:1, a:1, s:1, d:1, W:1, A:1, S:1, D:1, c:1, C:1, i:1, I:1, h:1, H:1,
+  '+':1, '=':1, '-':1, '_':1 };
 function _wgTeclasDron(e){
-  if(WG.dronVista==null) return;                       // sólo dentro del visor
   const t=e.target && e.target.tagName;
-  if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT') return; // no robar el tipeo
-  const base=WG_TECLA_RUMBO[e.key]; if(base==null) return;
+  if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT') return;   // no robar el tipeo
+  if(e.ctrlKey||e.metaKey||e.altKey) return;              // atajos del navegador
+  WG._shift=e.shiftKey;      // Mayús+↑↓ es la ALTURA, no el motor
+  if(!WG_TECLAS_DRON[e.key]) return;
+  const m=_wgDronMando(); if(!m) return;
   e.preventDefault();
-  const u=_wgUnidadPorId(WG.dronVista); if(!u) return;
-  const bando=u.bando;
-  // Con Shift, medio rumbo: las diagonales (NE, SE, SO, NO).
-  const rumbo=(base + (e.shiftKey?45:0) + 360)%360;
-  WG.dronRumboLocal=WG.dronRumboLocal||{}; WG.dronRumboLocal[bando]=rumbo;
-  _wgJoyPinta(bando,rumbo);
-  WG._teclaRumbo={ bando, rumbo, uid:u.id };
+  // EN TIERRA: ↑ es el despegue. El CW 40 es VTOL, no necesita pista — y sin
+  // esto la estación era un callejón sin salida para quien usa el teclado.
+  if(!m.d){
+    if(e.key==='ArrowUp' && !WG._despegando){
+      WG._despegando=1;
+      WG.dronManual=WG.dronManual||{}; WG.dronManual[m.bando]=true;
+      const proa=(WG.map3d?Math.round(WG.map3d.getBearing()):0);
+      Promise.resolve(wgApuntarDron(m.u.id, ((proa%360)+360)%360))
+        .finally(()=>{ WG._despegando=0; });
+      _wgAviso('🛩️ <b>Despegando.</b> ← → viran · ↑ ↓ motor · W A S D mueven la torreta.', 5000);
+    }
+    return;
+  }
+  WG._tecla[e.key]=1;
+  // La primera tecla de VUELO toma el mando: pasa a manual y crea el estado.
+  if(e.key.indexOf('Arrow')===0){
+    WG.dronManual=WG.dronManual||{};
+    if(!WG.dronManual[m.bando]){ WG.dronManual[m.bando]=true; wgPanelDrones(); }
+    _wgPiloto(m.bando, true);
+  }
+  const p=_wgPiloto(m.bando, false);
+  // Acciones de un solo toque (no tiene sentido sostenerlas).
+  if(e.key==='c'||e.key==='C'){ if(p){ p.pan=0; p.tilt=WG_DRON_TILT_DEF;
+    _wgAviso('🎯 <b>Torreta centrada</b> sobre la proa.',2000); } }
+  if(e.key==='i'||e.key==='I') wgDronTermica(m.bando);
+  if(e.key==='h'||e.key==='H') wgDronAuto(m.bando, true);
+  if(e.key==='+'||e.key==='=') wgDronZoomCont(m.bando, +0.35);
+  if(e.key==='-'||e.key==='_') wgDronZoomCont(m.bando, -0.35);
 }
-function _wgTeclasDronSoltar(e){
-  const p=WG._teclaRumbo; if(!p) return;
-  if(WG_TECLA_RUMBO[e.key]==null) return;
-  WG._teclaRumbo=null;
-  WG.dronManual=WG.dronManual||{}; WG.dronManual[p.bando]=true;
-  wgApuntarDron(p.uid, Math.round(p.rumbo));
+function _wgTeclasDronSoltar(e){ WG._shift=e.shiftKey; delete WG._tecla[e.key]; }
+// Instrumentos de la estación, en vivo. NO se redibuja el panel entero: eso es
+// `innerHTML=` sesenta veces por segundo y mata el gesto del pad (trampa nº 7).
+// Se escriben sólo los tres textos que cambian, y a 6 veces por segundo.
+function _wgPanelTel(bando, pil, d){
+  const ahora=performance.now();
+  WG._telT=WG._telT||{};
+  if(WG._telT[bando] && ahora-WG._telT[bando]<160) return;
+  WG._telT[bando]=ahora;
+  const el=document.getElementById('dron-tel-'+bando);
+  if(el) el.textContent=`${Math.round(pil.kmh)} km/h · ${Math.round(pil.alt)} m · `
+    +`torreta ${(pil.pan>=0?'+':'')}${Math.round(pil.pan)}°/${Math.round(pil.tilt)}°`;
+  // La aguja de la rosa sigue al aparato mientras lo volás: si se quedara en el
+  // rumbo que le marcaste con el arrastre, mentiría apenas empezás a virar.
+  if(!WG._joyArrastrando) _wgJoyPinta(bando, pil.proa);
 }
+// El estado de vuelo sólo manda si el aparato está en MANUAL. En AUTO se
+// ignora, y el hipódromo de siempre queda tal cual.
+function _wgPilotoActivo(bando){
+  if(!(WG.dronManual && WG.dronManual[bando])) return null;
+  return (WG.dronPiloto||{})[bando] || null;
+}
+// ============================================================
+// v2.9.283 — LA FÍSICA DEL APARATO (un cuadro).
+// Es deliberadamente simple, pero las tres cosas que se sienten al volar están:
+// el viraje toma tiempo (no se teletransporta el rumbo), el motor tarda en
+// levantar la velocidad, y la torreta se mueve por su lado.
+//
+// Todo se mide en el MISMO tiempo acelerado ×40 que ya usaba el hipódromo
+// (`WG_DRON_ACEL`): a velocidad real una pasada son ~48 minutos y en pantalla
+// el aparato parecería clavado. Por eso el ascenso también va acelerado — son
+// ~5 m/s reales del CW 40 vistos en esa escala.
+// ============================================================
+function _wgIntegrarVuelo(p, u, d, dt){
+  if(!(dt>0)) return;
+  dt=Math.min(dt,0.25);          // pestaña dormida: no debe dar un salto
+  const T=WG._tecla||{};
+  const vir=(T.ArrowRight?1:0)-(T.ArrowLeft?1:0);
+  if(vir) p.proa=((p.proa + vir*WG_DRON_VIRAJE*dt)%360+360)%360;
+  const sub=(T.ArrowUp?1:0)-(T.ArrowDown?1:0);
+  if(sub){
+    if(WG._shift) p.alt=Math.max(WG_DRON_ALTMIN, Math.min(WG_DRON_ALTMAX, p.alt + sub*WG_DRON_TASA_ALT*dt));
+    else          p.kmh=Math.max(WG_DRON_VMIN,   Math.min(WG_DRON_VMAX,   p.kmh + sub*WG_DRON_TASA_MOTOR*dt));
+  }
+  // Torreta: gira y se inclina SOLA, sin tocar el rumbo del aparato. Ésta es la
+  // diferencia concreta con la 282 — se puede volar al norte y mirar al este.
+  const panV =(T.d||T.D?1:0)-(T.a||T.A?1:0);
+  const tilV =(T.w||T.W?1:0)-(T.s||T.S?1:0);
+  if(panV) p.pan =Math.max(-180,Math.min(180, p.pan + panV*WG_DRON_TASA_PAN*dt));
+  if(tilV) p.tilt=Math.max(-85, Math.min(-3,  p.tilt+ tilV*WG_DRON_TASA_TILT*dt));
+  // Avance sobre el terreno.
+  const km=(p.kmh*WG_DRON_ACEL_MAN)*(dt/3600);
+  const rad=p.proa*Math.PI/180;
+  const dLat=((km*Math.cos(rad))/6371)*(180/Math.PI);
+  const dLng=((km*Math.sin(rad))/6371)*(180/Math.PI)/Math.max(1e-6,Math.cos(p.lat*Math.PI/180));
+  p.lat+=dLat; p.lng+=dLng;
+  // ENLACE: 150 km del CW 40 desde el puesto de mando. Pasado eso no obedece —
+  // no es un cerco inventado, es hasta dónde llega el mando y control.
+  if(_wgHav([u.lng,u.lat],[p.lng,p.lat]) > WG_CW40.enlaceKm){
+    p.lat-=dLat; p.lng-=dLng;
+    if(!WG._avisoEnlace || performance.now()-WG._avisoEnlace>8000){
+      WG._avisoEnlace=performance.now();
+      _wgAviso(`📡 <b>Límite del enlace (${WG_CW40.enlaceKm} km).</b> El aparato no se aleja más `
+        +'del puesto de mando: más allá se pierde el mando y control.', 4500);
+    }
+  }
+}
+// Si el navegador pierde el foco con una tecla apretada, se quedaba virando
+// para siempre. Soltar todo al perder el foco es la única forma de evitarlo.
+window.addEventListener('blur', ()=>{ WG._tecla={}; });
 window.addEventListener('keydown', _wgTeclasDron);
 window.addEventListener('keyup', _wgTeclasDronSoltar);
+// ============================================================
+// v2.9.283 — LA RUEDA ES EL AUMENTO DE LA TORRETA, NO EL ZOOM DEL MAPA.
+// Dentro del visor no estás mirando una carta: estás mirando por una cámara.
+// Que la rueda mueva el zoom del mapa ahí rompe la ilusión y además pelea con
+// el aumento del sensor. Fuera del visor la rueda sigue siendo del mapa.
+// ============================================================
+function _wgRuedaDron(e){
+  if(WG.dronVista==null) return;
+  const u=_wgUnidadPorId(WG.dronVista); if(!u) return;
+  e.preventDefault(); e.stopPropagation();
+  wgDronZoomCont(u.bando, (e.deltaY>0?-1:1)*0.18);
+}
+// Aumento CONTINUO (rueda y teclas). Los botones − / + de la estación siguen
+// yendo por la escalera fija de siempre: son dos formas de tocar lo mismo.
+function wgDronZoomCont(bando, delta){
+  WG.dronZoom=WG.dronZoom||{};
+  const z=Math.max(1, Math.min(8, (WG.dronZoom[bando]||1) * Math.pow(2, delta)));
+  WG.dronZoom[bando]=z;
+  _wgDronSensorAplicar(bando);
+  clearTimeout(WG._zoomPanelT);
+  WG._zoomPanelT=setTimeout(()=>wgPanelDrones(), 220);   // el panel no se redibuja por cuadro
+}
 function wgVistaDron(uid){
   const u=_wgUnidadPorId(uid); if(!u) return;
   const d=_wgDronDe(u);
   if(!d){ _wgAviso('🛩️ Esa unidad no tiene el dron desplegado.',3000); return; }
   WG.dronVista = (String(WG.dronVista)===String(uid)) ? null : String(uid);
   WG.dronCamLibre=false;   // v2.9.261: al entrar, la cámara vuelve a seguir al aparato
+  // v2.9.283: la rueda queda enganchada una sola vez. El propio manejador se
+  // desactiva solo fuera del visor, así que enchufarlo acá no le roba la rueda
+  // al mapa en ningún otro momento.
+  if(!WG._ruedaOn){
+    const c=document.getElementById('wg-3d-map');
+    if(c){ c.addEventListener('wheel', _wgRuedaDron, {passive:false, capture:true}); WG._ruedaOn=1; }
+  }
   if(WG.dronVista==null){
     // Se devuelve la cámara: panorámica y órbita otra vez.
     if(!WG.camara){ WG.camara=1; wgPanelCamaras(); }
@@ -24011,8 +24264,8 @@ function _wgTarjetaDronHTML(bando){
           font-weight:800;color:${col};line-height:1.1">${String(Math.round(rumboAct)).padStart(3,'0')}°</div>
         <div class="rg-meta" style="font-size:8.5px;opacity:.55;line-height:1.25;margin-top:2px">
           ${!puedo ? 'Sólo lo maneja su bando.'
-            : (d ? 'Arrastrá el punto. Al soltar, se fija.'
-                 : 'Arrastrá para DESPEGAR en ese rumbo.')}</div>
+            : (d ? 'Arrastrá el punto, o volalo con las flechas del teclado.'
+                 : 'Arrastrá para DESPEGAR en ese rumbo — o apretá ↑.')}</div>
       </div>
     </div>
     <div style="display:flex;gap:4px;align-items:center;margin-bottom:5px">
@@ -24052,7 +24305,16 @@ function _wgTarjetaDronHTML(bando){
         style="flex:1;padding:4px;border-radius:6px;cursor:pointer;font-size:9.5px;font-weight:800;`
         +(WG.dronManual&&WG.dronManual[bando]?`background:${col};border:1px solid ${col};color:#0a1016`
           :`background:rgba(255,255,255,.06);border:1px solid rgba(140,210,255,.25);color:#bcd6ee`)+`">🕹️ MANUAL</button>
-      </div>`:''}
+      </div>
+      <!-- v2.9.283: instrumentos en vivo + el mando de teclado a la vista. Un
+           control que no está escrito en ningún lado no existe: Sergio estuvo
+           apretando flechas que no hacían nada y no tenía cómo saberlo. -->
+      <div id="dron-tel-${bando}" style="font-family:ui-monospace,Menlo,monospace;font-size:9.5px;
+        margin-top:5px;color:${col};opacity:.92;letter-spacing:.3px"></div>
+      <div class="rg-meta" style="font-size:8.5px;line-height:1.45;margin-top:4px;opacity:.72">
+        <b>← →</b> viran · <b>↑ ↓</b> motor · <b>Mayús+↑↓</b> altura<br>
+        <b>W A S D</b> torreta (mira aparte del vuelo) · <b>C</b> centrarla<br>
+        <b>+ −</b> o la rueda: aumento · <b>I</b> infrarrojo · <b>H</b> vuelve a AUTO</div>`:''}
     ${d?`<div style="display:flex;gap:4px;margin-top:5px">
       <button onclick="wgVistaDron(${u.id})" style="flex:1;padding:5px;border-radius:7px;cursor:pointer;
         font-size:10px;font-weight:800;`
@@ -24370,10 +24632,16 @@ function wgAyudaToggle(btn){
 function wgDronAuto(bando, auto){
   WG.dronManual=WG.dronManual||{};
   WG.dronManual[bando]=!auto;
+  // v2.9.283: volver a AUTO SUELTA el mando. Si el estado de vuelo quedara
+  // guardado, el aparato volvería al hipódromo pero al primer toque saltaría a
+  // la posición vieja, que es de donde salen los «se teletransportó».
+  if(auto){ if(WG.dronPiloto) delete WG.dronPiloto[bando]; }
+  else { _wgPiloto(bando, true); }
   wgPanelDrones();
   _wgAviso(auto
     ? '🛩️ <b>Vuelo automático</b> — el CW 40 recorre su hipódromo sobre el sector.'
-    : '🕹️ <b>Vuelo manual</b> — se mantiene batiendo el rumbo que le marques con la rosa.', 3400);
+    : '🕹️ <b>Vuelo manual</b> — lo volás vos: <b>← →</b> viran · <b>↑ ↓</b> motor · '
+      +'<b>Mayús+↑↓</b> altura · <b>W A S D</b> torreta · <b>C</b> centrarla · <b>+ −</b> aumento.', 6000);
 }
 function _wgPanelDronHTML(u){
   if(!u || !u.bando) return '';
