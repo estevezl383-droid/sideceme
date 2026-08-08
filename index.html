@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.287</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.288</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6664,7 +6664,11 @@ body.wg-jugando{overflow:hidden}
 #screen-wargame.wg-full #wg-game.hoja-abierta #wg-orient{right:calc(min(340px,88vw) + 16px)}
 #wg-orient-pie{font-family:ui-monospace,Menlo,monospace;font-size:8px;letter-spacing:.3px;
   color:#a9c4dd;opacity:.85;text-align:center;margin-top:3px;line-height:1.35}
-@media (max-width:1100px){ #screen-wargame.wg-full #wg-orient{display:none !important} }
+/* v2.9.288 — el corte estaba en 1100 px y Sergio juega con DOS ventanas lado a
+   lado (~1000 px cada una): la carta de orientación no le aparecía nunca, que
+   es justo cuando más la necesita para saber dónde dejó el aparato. */
+@media (max-width:1200px){ #screen-wargame.wg-full #wg-orient-cv{width:150px;height:150px} }
+@media (max-width:820px){ #screen-wargame.wg-full #wg-orient{display:none !important} }
 /* v2.9.202 — Vista 3D: tapa TODO el juego mientras está abierta. Va por encima
    del HUD (1020) pero el mapa 2D sigue montado abajo, así que al cerrar vuelve
    sin recargar nada. */
@@ -23162,6 +23166,14 @@ const WG_INT_KM_CONTACTO = 1.5;  // tropa a esta distancia: lo tiene a la vista
 // número que también usa el servidor, y separarlos volvería a dejar la pantalla
 // diciendo una cosa y el motor otra. La altura mueve el DETALLE, no el alcance.
 // ============================================================
+// Rumbo de `a` hacia `b`, en grados desde el norte. (Gemelo del `rumboEntre`
+// del motor; acá hacía falta para decirle al operador hacia dónde volver.)
+function _wgRumboEntre(a, b){
+  const r=(g)=>g*Math.PI/180;
+  const y=Math.sin(r(b[0]-a[0]))*Math.cos(r(b[1]));
+  const x=Math.cos(r(a[1]))*Math.sin(r(b[1]))-Math.sin(r(a[1]))*Math.cos(r(b[1]))*Math.cos(r(b[0]-a[0]));
+  return ((Math.atan2(y,x)*180/Math.PI)+360)%360;
+}
 const WG_INT_ALT_REF=3000;     // altura de referencia del CW 40
 function _wgAltDron(bando, dr){
   const pil=_wgPilotoActivo(bando);
@@ -23391,8 +23403,33 @@ function _wgContactosDelSensor(bando){
 // El panel del G-2 dentro del visor: qué tengo en el sensor y qué subo.
 function _wgContactosHTML(bando){
   const lista=_wgContactosDelSensor(bando);
-  if(!lista.length) return `<div class="rg-meta" style="font-size:8.5px;opacity:.6;margin-top:6px">`
-    +`📡 <b>SIN CONTACTOS</b> — el sensor no tiene nada. Volá sobre el sector a buscar.</div>`;
+  if(!lista.length){
+    // ============================================================
+    // v2.9.288 — «SIN CONTACTOS» TIENE QUE DECIR POR QUÉ.
+    // En las capturas de Sergio los dos aparatos estaban a ~50 km al sur de
+    // todo, en pleno desierto, y el cartel sólo decía «el sensor no tiene
+    // nada». Parecía que el dron estaba roto cuando lo que pasaba es que
+    // estaba mirando donde no había nadie. Ahora dice a qué distancia quedó de
+    // sus propias unidades y hacia dónde volver.
+    // ============================================================
+    const dr=_wgPosDron(bando);
+    const mias=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u.bando===bando
+      && Number.isFinite(u.lng) && u.estado!=='fuera_combate');
+    let extra='';
+    if(dr && mias.length){
+      let mejor=null;
+      for(const u of mias){ const k=_wgHav(dr.pos,[u.lng,u.lat]);
+        if(!mejor||k<mejor.k) mejor={k,u}; }
+      const rb=Math.round(_wgRumboEntre(dr.pos,[mejor.u.lng,mejor.u.lat]));
+      extra = mejor.k>30
+        ? `<br>⚠️ El aparato está a <b>${mejor.k.toFixed(0)} km</b> de tus unidades, `
+          +`rumbo <b>${String(rb).padStart(3,'0')}°</b> para volver. `
+          +`<b>Estás buscando donde no hay nadie.</b>`
+        : `<br>Tu unidad más cercana está a ${mejor.k.toFixed(0)} km, al ${String(rb).padStart(3,'0')}°.`;
+    }
+    return `<div class="rg-meta" style="font-size:8.5px;opacity:.72;margin-top:6px;line-height:1.4">`
+      +`📡 <b>SIN CONTACTOS</b> — el sensor no alcanza nada (bate ${(dr&&dr.d?dr.d.km:24)} km a la redonda).${extra}</div>`;
+  }
   const fila=({u,n})=>{
     const ya=_wgYaSubida(bando,u.id);
     const ic = n>=WG_INT_CONF?'✅' : n>=WG_INT_IDENT?'🟡' : '❓';
@@ -24012,7 +24049,11 @@ function _wgDronSensorAplicar(bando){
     : '';
   // AUMENTO: se traduce a zoom del mapa (cada duplicación del aumento es +1 de
   // zoom, que es exactamente cómo funcionan las dos escalas).
-  if(activo && WG.map3d){
+  // v2.9.288 — DENTRO DEL VISOR NO SE TOCA LA CÁMARA DESDE ACÁ.
+  // El lazo de vuelo la escribe entera cada cuadro (centro, rumbo, pitch Y
+  // zoom). Si además se lanzaba una animación de zoom desde acá, el cuadro
+  // siguiente la pisaba y el aumento «no hacía nada». Un solo escritor.
+  if(activo && WG.map3d && WG.dronVista==null){
     const z=(WG.dronZoom||{})[bando]||1;
     const base=(WG._dronZoomBase!=null)?WG._dronZoomBase:(WG._dronZoomBase=WG.map3d.getZoom());
     const obj=Math.max(2,Math.min(19, base + Math.log2(z)));
@@ -24051,6 +24092,29 @@ async function wgApuntarDron(uid, rumbo){
 // la escala del mercator (ancho del mundo / circunferencia a esa latitud) y de
 // cuánto está inclinada la cámara: mirando de frente, la altura casi no se
 // proyecta; mirando desde arriba, se ve entera.
+// ============================================================
+// v2.9.288 — DE ALTURA DE VUELO A ZOOM DE MAPA.
+// MapLibre coloca la cámara con el zoom; nosotros la queremos colocar con la
+// ALTURA a la que vuela el aparato. La conversión es geometría directa:
+//   · a un zoom `z`, un píxel de pantalla mide  78271,5·cos(lat)/2^z  metros
+//     (teselas de 512 px, que es lo que usa MapLibre),
+//   · la cámara está a `0,5/tan(fov/2)` alturas de pantalla del centro,
+//   · inclinarla la acerca al suelo por el coseno del pitch.
+// Despejando el zoom queda esto. El AUMENTO de la torreta se suma en potencias
+// de dos, que es exactamente lo que es: cada duplicación del aumento es +1 zoom.
+// ============================================================
+function _wgZoomDeAltura(map, lat, altM, pitchGr, aumento){
+  try{
+    const alt=Math.max(80, Number(altM)||3000);
+    const h=map.getCanvas().clientHeight || 700;
+    const fov=(map.transform && map.transform.fov) ? map.transform.fov : 36.87;
+    const dist=0.5/Math.tan(fov*Math.PI/360)*h;          // píxeles cámara→centro
+    const mpp=alt/Math.max(1, dist*Math.cos((pitchGr||0)*Math.PI/180));
+    const z=Math.log2(78271.51696*Math.cos(lat*Math.PI/180)/Math.max(1e-6,mpp))
+           + Math.log2(Math.max(1, Number(aumento)||1));
+    return Math.max(2, Math.min(19, z));
+  }catch(_e){ return map.getZoom(); }
+}
 function _wgPxPorMetro(map, lat){
   try{
     const mundo=512*Math.pow(2, map.getZoom());
@@ -24195,9 +24259,29 @@ function _wgVolarDrones(){
           // equivale al pitch 74 de siempre, así que sin tocarla se ve igual.
           const pDes=pilC ? (90 + pilC.tilt) : WG_DRON_PITCH;
           const pObj=Math.min(pDes, _wgTechoPitch(map.getZoom()));
-          if(Math.abs(pObj-map.getPitch())>0.4)
-                map.jumpTo({ center:cen, bearing:mira, pitch:pObj });
-          else  map.jumpTo({ center:cen, bearing:mira });
+          // ============================================================
+          // v2.9.288 — LA ALTURA Y EL AUMENTO MUEVEN LA CÁMARA DE VERDAD.
+          //
+          // Sergio: «cuando se le baja de altura al dron no cambia nada, la
+          // vista sigue igual… tampoco funciona el zoom».
+          //
+          // Tenía razón en las dos y era el mismo agujero. La cámara de MapLibre
+          // no se coloca por ALTURA sino por ZOOM, y yo nunca conecté una cosa
+          // con la otra: `pil.alt` cambiaba el número del panel y el dibujito
+          // del aparato, y nada más. Y el aumento de la torreta lo aplicaba
+          // `_wgDronSensorAplicar` con una animación de cámara… que este mismo
+          // lazo pisaba en el cuadro siguiente con su `jumpTo`.
+          //
+          // La regla que faltaba: DENTRO DEL VISOR HAY UN SOLO ESCRITOR DE
+          // CÁMARA, este. Así que el zoom se calcula acá —de la altura de vuelo
+          // y del aumento— y se escribe junto con el centro, el rumbo y el
+          // pitch, en la misma llamada. Nadie compite con nadie.
+          // ============================================================
+          const zObj=_wgZoomDeAltura(map, v._pos[1],
+            (pilC?pilC.alt:d.alt), pObj, (WG.dronZoom||{})[v.u.bando]||1);
+          const camara={ center:cen, bearing:mira, zoom:zObj };
+          if(Math.abs(pObj-map.getPitch())>0.4) camara.pitch=pObj;
+          map.jumpTo(camara);
         }catch(_e){}
         // El destino queda al día: si salís del dron, el próximo encuadre no
         // arranca desde una posición vieja.
