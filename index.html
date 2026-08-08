@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.289</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.290</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -23222,7 +23222,10 @@ function _wgEnmascarar(lista, obs){
   if(!obs) return lista;         // el árbitro en «Panorama» ve la verdad, para eso arbitra
   return lista.map(u=>{
     if(u.bando===obs) return u;                       // lo propio se sabe entero
-    const n=_wgNivelInt(obs,u);
+    // v2.9.290: piso en CONTACTO — si el servidor la mandó, algo se sabe. Sin
+    // esto la ficha se dibujaba pero la lista del sensor la ignoraba, o al
+    // revés, y las dos cosas se contradecían en pantalla.
+    const n=Math.max(WG_INT_CONTACTO, _wgNivelInt(obs,u));
     if(n>=WG_INT_CONF){ u._nivel=WG_INT_CONF; return u; }
     const c=Object.assign({},u);
     c._nivel=n;
@@ -23395,8 +23398,12 @@ function _wgContactosDelSensor(bando){
   for(const u of todas){
     if(u.bando===bando || u.estado==='fuera_combate') continue;
     if(!Number.isFinite(u.lng)) continue;
-    const n=_wgNivelInt(bando,u);
-    if(n>=WG_INT_CONTACTO) out.push({ u, n });
+    // v2.9.290: si el servidor mandó esta unidad enemiga es porque el sensor
+    // del bando la tiene — ya lo decidió él. Acá sólo se decide CUÁNTO se sabe
+    // de ella. Antes se exigía además que la cuenta del navegador coincidiera,
+    // y cuando no coincidía la lista salía vacía con el enemigo a 17 km.
+    const n=Math.max(WG_INT_CONTACTO, _wgNivelInt(bando,u));
+    out.push({ u, n });
   }
   return out.sort((a,b)=>b.n-a.n);
 }
@@ -23582,13 +23589,28 @@ function _wgUnidadesVisiblesCrudo(){
   // «Panorama» sigue viéndolo todo, que para eso arbitra.
   const lenteV=_wgBandoLente();
   if(lenteV){
-    // OJO: se parte de TODAS las unidades, no de la lista ya filtrada por el
-    // servidor. Si se filtrara encima de `detecciones`, el dron NUNCA podría
-    // descubrir algo nuevo — que es exactamente para lo que se manda un dron.
-    // Acá manda la regla nueva: lo propio siempre, y del enemigo lo que el
-    // bando alcanza (el cono del CW 40 de lejos, la tropa de cerca).
-    const todasU=((WG.estado&&WG.estado.unidades)||[]);
-    base=todasU.filter(u=> u.bando===lenteV || _wgBandoVeA(lenteV,u));
+    // ============================================================
+    // v2.9.290 — EL SERVIDOR DICE **SI** SE VE; EL CLIENTE, **CUÁNTO** SE SABE.
+    //
+    // Esto era lo del «dron azul que no ve a los rojos». La base lo probó: los
+    // tres batallones rojos estaban a 17, 19 y 19 km del CW 40 azul, o sea
+    // holgadamente dentro de sus 24 km, y el servidor se los estaba mandando.
+    // Pero acá el navegador VOLVÍA A CALCULAR la detección por su cuenta con
+    // `_wgBandoVeA`, usando su propia idea de dónde está el aparato — y cuando
+    // esa idea no coincidía con la del servidor, tiraba a la basura unidades
+    // que el servidor sí había detectado. Dos cuentas para lo mismo, y la que
+    // no manda ganaba.
+    //
+    // Un Estado Mayor recibe del servidor SÓLO lo que su bando alcanza, ya
+    // filtrado (`idsVisiblesEnVivo`). Recalcularlo no agrega nada y sólo puede
+    // restar. Al árbitro sí hay que simulárselo, porque él recibe todo.
+    // ============================================================
+    if(WG.soy==='arbitro'){
+      const todasU=((WG.estado&&WG.estado.unidades)||[]);
+      base=todasU.filter(u=> u.bando===lenteV || _wgBandoVeA(lenteV,u));
+    }else{
+      base=((WG.estado&&WG.estado.unidades)||[]);
+    }
   }
   // v2.9.235 — VISTA DEL DRON: mientras está puesta, sólo se ve lo que ESE
   // medio alcanza. Es la diferencia entre «mirar el tablero» y «mirar por un
@@ -23597,6 +23619,11 @@ function _wgUnidadesVisiblesCrudo(){
   const ojo=(WG.estado&&(WG.estado.unidades||[]).find(x=>String(x.id)===String(WG.dronVista)));
   const d=ojo?_wgDronDe(ojo):null;
   if(!ojo||!d) return base;
+  // v2.9.290 — mismo criterio que arriba: para un Estado Mayor, lo que el
+  // servidor mandó ES lo que su sensor alcanza. Volver a filtrarlo acá con la
+  // cuenta del navegador era lo que dejaba el visor vacío teniendo tres
+  // batallones enemigos a 17 km. El árbitro sí necesita la simulación.
+  if(WG.soy!=='arbitro') return base;
   const vista=base.filter(u=>{
     if(String(u.id)===String(ojo.id)) return true;         // el propio portador
     if(u.bando===ojo.bando) return true;                   // lo propio se sabe dónde está
@@ -24311,8 +24338,27 @@ function _wgVolarDrones(){
           const zObj=_wgZoomDeAltura(map, v._pos[1],
             _wgCotaTerreno(map,{lng:cen[0],lat:cen[1]}) + agl,
             pObj, (WG.dronZoom||{})[v.u.bando]||1);
-          const camara={ center:cen, bearing:mira, zoom:zObj };
+          // ============================================================
+          // v2.9.290 — EL ZOOM SE ESCRIBE SÓLO CUANDO CAMBIA. ESTO ERA LO DE
+          // «LAS UNIDADES FLOTAN EN EL CIELO».
+          //
+          // El pitch ya tenía este mismo guardia desde la 261, y el comentario
+          // de entonces decía exactamente por qué: «escribirlo en cada cuadro
+          // obliga a recalcular la cobertura del relieve». En la 288 metí el
+          // zoom en el `jumpTo` de cada cuadro y le hice justo eso al mapa: con
+          // el relieve recalculándose sin parar, los marcadores de las fichas
+          // no encuentran la cota bajo sus pies y MapLibre los deja a 0 m —
+          // nivel del mar. Y a 0 m, con el suelo del altiplano a 3.700 m y la
+          // cámara baja, la ficha se proyecta POR ENCIMA del horizonte: se ve
+          // flotando en el cielo.
+          //
+          // Con el guardia, en vuelo estable no se reescribe nada y las fichas
+          // se quedan pegadas al terreno; el zoom sólo se mueve cuando de
+          // verdad cambiaste la altura o el aumento, que es cuando corresponde.
+          // ============================================================
+          const camara={ center:cen, bearing:mira };
           if(Math.abs(pObj-map.getPitch())>0.4) camara.pitch=pObj;
+          if(Number.isFinite(zObj) && Math.abs(zObj-map.getZoom())>0.05) camara.zoom=zObj;
           map.jumpTo(camara);
         }catch(_e){}
         // El destino queda al día: si salís del dron, el próximo encuadre no
