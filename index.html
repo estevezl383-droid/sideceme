@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.274</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.275</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -22753,10 +22753,27 @@ async function wgCargarMisPartidas(){
     return;
   }
   const ps=r.partidas||[];
+  // ============================================================
+  // v2.9.275 — LAS INVITACIONES VAN ACÁ, EN EL LOBBY.
+  // En la 274 las puse dentro de la partida, en la hoja de configuración.
+  // Error de ubicación: repartir los enlaces es lo que hacés ANTES de entrar,
+  // mirando la lista de partidas — no una vez adentro. Sergio abrió el lobby,
+  // no vio nada y con razón: los botones estaban a tres clics de distancia.
+  // Ahora cada partida trae sus dos invitaciones a la vista.
+  // ============================================================
   cont.innerHTML = ps.length ? ps.map(p=>
-    `<div class="rg-card" style="display:flex;justify-content:space-between;align-items:center;gap:8px">`
-    +`<div><b>${_rgEsc(p.nombre)}</b><div class="rg-meta">#${p.id} · ${_rgEsc(p.estado)} · turno ${p.turno_actual}</div></div>`
-    +`<button class="rg-doc" onclick="wgAbrir(${p.id},'')">Abrir como árbitro</button></div>`
+    `<div class="rg-card">`
+    +`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">`
+      +`<div><b>${_rgEsc(p.nombre)}</b><div class="rg-meta">#${p.id} · ${_rgEsc(p.estado)} · turno ${p.turno_actual}</div></div>`
+      +`<button class="rg-doc" onclick="wgAbrir(${p.id},'')">Abrir como árbitro</button></div>`
+    +`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;`
+      +`border-top:1px solid rgba(140,210,255,.14)">`
+      +`<span class="rg-meta" style="font-size:10.5px;opacity:.7;align-self:center">INVITAR:</span>`
+      +`<button class="rg-doc" onclick="wgInvitarBando('azul',${p.id})">🔵 Enlace + QR del AZUL</button>`
+      +`<button class="rg-doc" onclick="wgInvitarBando('rojo',${p.id})">🔴 Enlace + QR del ROJO</button>`
+    +`</div>`
+    +`<div id="wg-inv-${p.id}"></div>`
+    +`</div>`
   ).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">Aún no creaste partidas.</div>';
 }
 async function wgCrearPartida(btn){
@@ -28584,12 +28601,18 @@ function _wgURLInvitacion(partidaId, bando, clave){
   const base=location.origin+location.pathname;
   return `${base}?wg=${encodeURIComponent(partidaId)}&b=${encodeURIComponent(bando)}&k=${encodeURIComponent(clave)}`;
 }
-async function wgInvitarBando(bando){
-  const cont=document.getElementById('wg-invitacion');
-  if(cont) cont.innerHTML='<div class="rg-meta">⏳ Generando la invitación…</div>';
-  const r=await _wgInvoke('agregar_bando',{ partida_id:WG.partidaId, bando });
-  if(!r.ok){ if(cont) cont.innerHTML='<div class="rg-meta" style="color:#ff8f8f">No se pudo: '+_rgEsc(r.error||'')+'</div>'; return; }
-  const url=_wgURLInvitacion(WG.partidaId, bando, r.clave_acceso);
+// v2.9.275 — `partidaId` opcional: desde el LOBBY viene el id de esa tarjeta;
+// desde adentro de la partida se usa la abierta. Y el resultado se pinta en el
+// contenedor que corresponda, para que en el lobby cada partida muestre LO SUYO
+// y no se pisen entre tarjetas.
+async function wgInvitarBando(bando, partidaId){
+  const pid = partidaId != null ? Number(partidaId) : WG.partidaId;
+  const cont = document.getElementById('wg-inv-'+pid) || document.getElementById('wg-invitacion');
+  if(!pid){ if(cont) cont.innerHTML='<div class="rg-meta" style="color:#ff8f8f">No sé de qué partida.</div>'; return; }
+  if(cont) cont.innerHTML='<div class="rg-meta" style="margin-top:8px">⏳ Generando la invitación…</div>';
+  const r=await _wgInvoke('agregar_bando',{ partida_id:pid, bando });
+  if(!r.ok){ if(cont) cont.innerHTML='<div class="rg-meta" style="color:#ff8f8f;margin-top:8px">No se pudo: '+_rgEsc(r.error||'')+'</div>'; return; }
+  const url=_wgURLInvitacion(pid, bando, r.clave_acceso);
   const col=bando==='rojo'?'#ff6b6b':'#6bb6ff';
   const ico=bando==='rojo'?'🔴':'🔵';
   if(!cont) return;
@@ -28597,15 +28620,15 @@ async function wgInvitarBando(bando){
     <div style="border:1px solid ${col}66;border-radius:10px;padding:10px;background:rgba(10,16,22,.5)">
       <div style="font-weight:800;color:${col};margin-bottom:6px">${ico} INVITACIÓN · ESTADO MAYOR ${bando.toUpperCase()}</div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">
-        <div id="wg-qr-inv" style="width:180px;flex:0 0 180px"></div>
+        <div id="wg-qr-inv-${pid}" style="width:180px;flex:0 0 180px"></div>
         <div style="flex:1;min-width:220px">
           <div class="rg-meta" style="font-size:10px;opacity:.7;margin-bottom:3px">ENLACE</div>
-          <input id="wg-inv-url" readonly value="${_rgEsc(url)}" onclick="this.select()"
+          <input id="wg-inv-url-${pid}" readonly value="${_rgEsc(url)}" onclick="this.select()"
             style="width:100%;padding:6px 8px;border-radius:7px;font-size:11px;
             background:rgba(0,0,0,.35);border:1px solid ${col}55;color:#eaf2fb">
           <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
-            <button class="rg-doc" onclick="_wgCopiarInv()">📋 Copiar enlace</button>
-            <button class="rg-doc" onclick="wgInvitarBando('${bando}')">🔄 Regenerar</button>
+            <button class="rg-doc" onclick="_wgCopiarInv(${pid})">📋 Copiar enlace</button>
+            <button class="rg-doc" onclick="wgInvitarBando('${bando}',${pid})">🔄 Regenerar</button>
           </div>
           <div class="rg-meta" style="font-size:10.5px;margin-top:7px;line-height:1.45">
             Clave del bando: <b style="color:#f4d574">${_rgEsc(r.clave_acceso)}</b><br>
@@ -28617,10 +28640,10 @@ async function wgInvitarBando(bando){
       </div>
     </div>`;
   // El generador de QR ya existe en la app (se usa para las papeletas).
-  try{ generarQRRobusto(url, 'wg-qr-inv', 180); }catch(_e){}
+  try{ generarQRRobusto(url, 'wg-qr-inv-'+pid, 180); }catch(_e){}
 }
-function _wgCopiarInv(){
-  const i=document.getElementById('wg-inv-url'); if(!i) return;
+function _wgCopiarInv(pid){
+  const i=document.getElementById('wg-inv-url-'+pid); if(!i) return;
   i.select();
   try{ navigator.clipboard.writeText(i.value); }catch(_e){ try{ document.execCommand('copy'); }catch(_e2){} }
   _wgAviso('📋 Enlace copiado. Mandáselo al Estado Mayor de ese bando.', 2600);
