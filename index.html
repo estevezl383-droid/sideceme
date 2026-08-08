@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.284</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.285</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -24211,7 +24211,15 @@ function _wgIntegrarVuelo(p, u, d, dt){
   if(panV) p.pan =Math.max(-180,Math.min(180, p.pan + panV*WG_DRON_TASA_PAN*dt));
   if(tilV) p.tilt=Math.max(-85, Math.min(-3,  p.tilt+ tilV*WG_DRON_TASA_TILT*dt));
   // Avance sobre el terreno.
-  const km=(p.kmh*WG_DRON_ACEL_MAN)*(dt/3600);
+  // v2.9.285 — Sergio: «no sé si cuando se apriete la flecha hacia adelante el
+  // dron pueda ir un poco más rápido, claro, de acuerdo a las características».
+  // El aparato ya subía de 70 a 130 km/h, pero en pantalla se notaba poquísimo
+  // porque el tiempo corría siempre a la misma escala. Ahora la escala ACOMPAÑA
+  // al motor: a fondo el terreno pasa más del doble de rápido que en mínima.
+  // Las cifras del CW 40 no se tocan — lo que cambia es cuánto se comprime el
+  // tiempo, que es una convención de la maqueta, no una capacidad del aparato.
+  const empuje=(p.kmh-WG_DRON_VMIN)/Math.max(1,(WG_DRON_VMAX-WG_DRON_VMIN));
+  const km=(p.kmh*WG_DRON_ACEL_MAN*(0.7+0.9*empuje))*(dt/3600);
   const rad=p.proa*Math.PI/180;
   const dLat=((km*Math.cos(rad))/6371)*(180/Math.PI);
   const dLng=((km*Math.sin(rad))/6371)*(180/Math.PI)/Math.max(1e-6,Math.cos(p.lat*Math.PI/180));
@@ -24360,6 +24368,7 @@ function _wgTarjetaDronHTML(bando){
     ? WG.dronRumboLocal[bando] : (d ? d.rumbo : 0));
   const zoomS = (WG.dronZoom||{})[bando] || 1;
   const term  = !!(WG.dronTerm||{})[bando];
+  const manualB = !!(WG.dronManual&&WG.dronManual[bando]);   // v2.9.285
   const rad=(rumboAct-90)*Math.PI/180, R=30;
   const rosa = `
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:5px">
@@ -24384,22 +24393,30 @@ function _wgTarjetaDronHTML(bando){
                  : 'Arrastrá para DESPEGAR en ese rumbo — o apretá ↑.')}</div>
       </div>
     </div>
-    <div style="display:flex;gap:4px;align-items:center;margin-bottom:5px">
-      <span class="rg-meta" style="font-size:8.5px;opacity:.65">SENSOR</span>
-      <button ${puedo?`onclick="wgDronZoom('${bando}',-1)"`:'disabled'} title="Abrir el campo (menos aumento)"
-        style="width:22px;padding:3px 0;border-radius:6px;cursor:pointer;font-weight:900;font-size:11px;
-        background:rgba(255,255,255,.06);border:1px solid rgba(140,210,255,.25);color:#cfe2f5">−</button>
-      <span style="font-family:ui-monospace,Menlo,monospace;font-size:10.5px;font-weight:800;color:${col};min-width:30px;text-align:center">${zoomS.toFixed(1)}×</span>
-      <button ${puedo?`onclick="wgDronZoom('${bando}',1)"`:'disabled'} title="Cerrar el campo (más aumento)"
-        style="width:22px;padding:3px 0;border-radius:6px;cursor:pointer;font-weight:900;font-size:11px;
-        background:rgba(255,255,255,.06);border:1px solid rgba(140,210,255,.25);color:#cfe2f5">+</button>
+    <!-- v2.9.285 — «hay uno que dice SENSOR, no entiendo su propósito».
+         Tenía razón: decía el nombre de la pieza, no lo que hace. Ahora dice
+         ZOOM, los botones son grandes y debajo está escrito qué te compra cada
+         aumento — que es lo único que importa para decidir si conviene usarlo. -->
+    <div style="display:flex;gap:5px;align-items:center;margin-bottom:5px">
+      <span class="rg-meta" style="font-size:8.5px;opacity:.7;letter-spacing:.4px">🔭 ZOOM</span>
+      <button ${puedo?`onclick="wgDronZoom('${bando}',-1)"`:'disabled'} title="Alejar: campo más abierto, se ve el conjunto"
+        style="width:30px;padding:5px 0;border-radius:7px;cursor:pointer;font-weight:900;font-size:14px;
+        background:rgba(255,255,255,.08);border:1px solid ${col}66;color:#eaf2fb">−</button>
+      <span style="font-family:ui-monospace,Menlo,monospace;font-size:13px;font-weight:900;color:${col};min-width:42px;text-align:center">${zoomS.toFixed(1)}×</span>
+      <button ${puedo?`onclick="wgDronZoom('${bando}',1)"`:'disabled'} title="Acercar: campo más cerrado, se distingue el detalle"
+        style="width:30px;padding:5px 0;border-radius:7px;cursor:pointer;font-weight:900;font-size:14px;
+        background:rgba(255,255,255,.08);border:1px solid ${col}66;color:#eaf2fb">+</button>
       <button ${puedo?`onclick="wgDronTermica('${bando}')"`:'disabled'}
         title="Banda infrarroja de la torreta. A ${WG_CW40 && WG_CW40.altBase?WG_CW40.altBase:3000} m distingue vehículos y fuentes de calor, no personas."
         style="flex:1;padding:3px 0;border-radius:6px;cursor:pointer;font-size:9px;font-weight:800;`
         +(term?`background:#c9a227;border:1px solid #c9a227;color:#1a1400`
               :`background:rgba(255,255,255,.06);border:1px solid rgba(140,210,255,.25);color:#cfe2f5`)+`">
         ${term?'🌡️ IR ON':'🌡️ IR'}</button>
-    </div>`;
+    </div>
+    <!-- Qué te compra el aumento que tenés puesto. Va acá, pegado al control,
+         porque es la única razón para tocarlo. -->
+    ${d?`<div id="dron-sen-${bando}" class="rg-meta" style="font-size:8.5px;line-height:1.4;
+      margin:-2px 0 5px;opacity:.82">${_wgAlcanceSensorHTML(bando,d)}</div>`:''}`;
   return `<div style="min-width:186px;padding:7px 8px;border-radius:10px;
       background:rgba(10,16,22,.6);border:1px solid ${col}55">
     <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:800;color:${col};margin-bottom:3px">
@@ -24412,14 +24429,20 @@ function _wgTarjetaDronHTML(bando){
       <br>Enlace ${WG_CW40.enlaceKm} km · autonomía ${WG_CW40.autonomiaH} h</div>
     ${rosa}
     ${d&&puedo?`<div style="display:flex;gap:4px;margin-top:5px;align-items:center">
-      <span class="rg-meta" style="font-size:9px;opacity:.7">VUELO</span>
-      <button onclick="wgDronAuto('${bando}',true)" title="Vuelve a su hipódromo automático"
-        style="flex:1;padding:4px;border-radius:6px;cursor:pointer;font-size:9.5px;font-weight:800;`
-        +(WG.dronManual&&WG.dronManual[bando]?`background:rgba(255,255,255,.06);border:1px solid rgba(140,210,255,.25);color:#bcd6ee`
-          :`background:${col};border:1px solid ${col};color:#0a1016`)+`">⟳ AUTO</button>
-      <button onclick="wgDronAuto('${bando}',false)" title="Lo mantiene en el rumbo que le marcaste"
-        style="flex:1;padding:4px;border-radius:6px;cursor:pointer;font-size:9.5px;font-weight:800;`
-        +(WG.dronManual&&WG.dronManual[bando]?`background:${col};border:1px solid ${col};color:#0a1016`
+      <span class="rg-meta" style="font-size:9px;opacity:.7">VUELO</span>`
+      // v2.9.285: tres patrones, no dos. El HIPÓDROMO barre en profundidad; la
+      // ÓRBITA vigila un punto sin perderlo de vista; MANUAL lo volás vos.
+      +`<button onclick="wgDronPatron('${bando}','hipodromo')" title="Pasadas largas de ida y vuelta: BARRE el sector en profundidad"
+        style="flex:1;padding:4px 2px;border-radius:6px;cursor:pointer;font-size:9px;font-weight:800;`
+        +(!manualB && _wgPatronDron(bando)!=='circulo'?`background:${col};border:1px solid ${col};color:#0a1016`
+          :`background:rgba(255,255,255,.06);border:1px solid rgba(140,210,255,.25);color:#bcd6ee`)+`">⟳ HIPÓDR.</button>
+      <button onclick="wgDronPatron('${bando}','circulo')" title="Círculo cerrado sobre el punto apuntado: VIGILA algo concreto sin perderlo de vista"
+        style="flex:1;padding:4px 2px;border-radius:6px;cursor:pointer;font-size:9px;font-weight:800;`
+        +(!manualB && _wgPatronDron(bando)==='circulo'?`background:${col};border:1px solid ${col};color:#0a1016`
+          :`background:rgba(255,255,255,.06);border:1px solid rgba(140,210,255,.25);color:#bcd6ee`)+`">⭕ ÓRBITA</button>
+      <button onclick="wgDronAuto('${bando}',false)" title="Lo volás vos con el teclado"
+        style="flex:1;padding:4px 2px;border-radius:6px;cursor:pointer;font-size:9px;font-weight:800;`
+        +(manualB?`background:${col};border:1px solid ${col};color:#0a1016`
           :`background:rgba(255,255,255,.06);border:1px solid rgba(140,210,255,.25);color:#bcd6ee`)+`">🕹️ MANUAL</button>
       </div>
       <!-- v2.9.283: instrumentos en vivo + el mando de teclado a la vista. Un
@@ -24427,12 +24450,12 @@ function _wgTarjetaDronHTML(bando){
            apretando flechas que no hacían nada y no tenía cómo saberlo. -->
       <div id="dron-tel-${bando}" style="font-family:ui-monospace,Menlo,monospace;font-size:9.5px;
         margin-top:5px;color:${col};opacity:.92;letter-spacing:.3px"></div>
-      <div id="dron-sen-${bando}" class="rg-meta" style="font-size:8.5px;line-height:1.4;
-        margin-top:3px;opacity:.8">${_wgAlcanceSensorHTML(bando,d)}</div>
       <div class="rg-meta" style="font-size:8.5px;line-height:1.45;margin-top:4px;opacity:.72">
         <b>← →</b> viran · <b>↑ ↓</b> motor · <b>Mayús+↑↓</b> altura<br>
         <b>W A S D</b> torreta (mira aparte del vuelo) · <b>C</b> centrarla<br>
         <b>+ −</b> o la rueda: aumento · <b>I</b> infrarrojo · <b>H</b> vuelve a AUTO</div>`:''}
+    ${d&&puedo&&!manualB?`<div class="rg-meta" style="font-size:8.5px;line-height:1.4;margin-top:4px;opacity:.7">
+      En automático el aparato vuela solo. Tocá <b>🕹️ MANUAL</b> —o una flecha— para volarlo vos.</div>`:''}
     ${d?`<div style="display:flex;gap:4px;margin-top:5px">
       <button onclick="wgVistaDron(${u.id})" style="flex:1;padding:5px;border-radius:7px;cursor:pointer;
         font-size:10px;font-weight:800;`
@@ -24892,10 +24915,14 @@ async function _wgSyncTick(){
   WG._syncOcupado=1;
   try{
     const antes=_wgTurnoActual();
-    const p=await _wgInvoke('pulso',{ partida_id:WG.partidaId, clave_acceso:WG.clave });
+    const p=await _wgInvoke('pulso', Object.assign(
+      { partida_id:WG.partidaId, clave_acceso:WG.clave }, _wgVueloParaServidor()));
     if(!p.ok){ console.warn('pulso:', p.error); return; }   // silencioso: es un sondeo
     const ahora=Number(p.turno_actual);
-    if(antes==null || !Number.isFinite(ahora) || ahora===Number(antes)) return;
+    if(antes==null || !Number.isFinite(ahora) || ahora===Number(antes)){
+      await _wgNovedadesInt(p.vistos);   // v2.9.285: ¿el CW 40 descubrió algo?
+      return;
+    }
     WG.ordenes={};                             // las órdenes de ese turno ya se jugaron
     const saltados = ahora - Number(antes);
     if(saltados===1){
@@ -24912,6 +24939,47 @@ async function _wgSyncTick(){
     }
   }catch(e){ console.warn('sync:', e); }
   finally{ WG._syncOcupado=0; }
+}
+// ============================================================
+// v2.9.285 — EL LATIDO LLEVA DÓNDE VUELA EL DRON Y TRAE QUÉ SE DESCUBRIÓ.
+//
+// Sergio: «del rojo el dron no identificó ninguna posición de las unidades,
+// pasé varias veces por ahí y no hubo nada».
+//
+// El agujero era de raíz y estaba del lado del servidor: `estado` sólo manda
+// los enemigos anotados en `wg_detecciones`, que el motor escribe UNA VEZ por
+// turno y calculándolo desde el PUESTO DE MANDO. O sea que el navegador nunca
+// llegó a tener esos enemigos en sus datos — y no se puede dibujar lo que no se
+// tiene. Volar el aparato no podía descubrir nada, por mucho que pasara encima.
+//
+// Ahora el aparato se pilotea acá pero su posición viaja colgada del latido de
+// 4 s (mandarla por cuadro sería absurdo), y el servidor devuelve qué alcanza a
+// ver ese bando EN ESTE MOMENTO. Si hay algo nuevo, se pide el estado completo.
+// Descubrir algo tarda como mucho 4 segundos y no hay una llamada de más.
+// ============================================================
+function _wgVueloParaServidor(){
+  const b=(WG.soy==='arbitro') ? _wgBandoLente() : WG.soy;
+  if(!b) return {};
+  const dr=_wgPosDron(b);
+  if(!dr || !dr.pos || !Number.isFinite(dr.pos[0])) return {};
+  const pil=_wgPilotoActivo(b);
+  return { unidad_id:dr.u.id, vuelo:{
+    lng:dr.pos[0], lat:dr.pos[1],
+    alt:(pil?pil.alt:dr.d.alt), proa:(dr.proa!=null?dr.proa:dr.d.rumbo),
+    kmh:(pil?pil.kmh:dr.d.kmh),
+    zoom:(WG.dronZoom||{})[b]||1, ir:!!(WG.dronTerm||{})[b] } };
+}
+async function _wgNovedadesInt(vistos){
+  if(!Array.isArray(vistos)) return;
+  const tengo=new Set(((WG.estado&&WG.estado.unidades)||[]).map(x=>String(x.id)));
+  const nuevos=vistos.filter(id=>!tengo.has(String(id)));
+  if(!nuevos.length) return;
+  await wgEstado(true);
+  _wgRender(); if(WG.map3d) _wg3dDatos();
+  wgBarraUnidades();
+  _wgAviso(`🔍 <b>Nuevo contacto</b> — el <b>${WG_CW40.nom}</b> detectó `
+    +`${nuevos.length===1?'una unidad':nuevos.length+' unidades'} que no tenías en la carta. `
+    +`Acercalo o cerrá la torreta para saber de qué se trata.`, 6000);
 }
 // Reproduce en ESTA pantalla el turno que resolvió el otro bando. Es el gemelo
 // de la parte de animación de `wgResolver`, con la diferencia de que las trazas
@@ -28142,7 +28210,52 @@ const WG_DRON_KMH=WG_CW40.kmh, WG_DRON_ACEL=40;
 //   · los virajes tienen radio `0,25 × alcance`.
 // Devuelve dónde está y hacia dónde apunta la nariz en ese instante.
 // ============================================================
+// ============================================================
+// v2.9.285 — DOS PATRONES DE VUELO AUTOMÁTICO.
+// Sergio: «no sé si podría haber la forma de que se le dé una ruta en círculo
+// para que el dron en automático siga esa ruta».
+//
+// Los dos existen de verdad y sirven para cosas distintas, así que se eligen:
+//   · HIPÓDROMO — pasadas largas de ida y vuelta atravesadas al eje de
+//     observación. Es lo que se hace para BARRER en profundidad un sector.
+//   · ÓRBITA — círculo cerrado sobre un punto. Es lo que se hace para VIGILAR
+//     algo concreto: un paso, un puente, una posición. El sensor no lo pierde
+//     de vista en ningún momento del giro.
+// ============================================================
+function _wgPatronDron(bando){ return (WG.dronPatron||{})[bando] || 'hipodromo'; }
+function wgDronPatron(bando, patron){
+  WG.dronPatron=WG.dronPatron||{};
+  WG.dronPatron[bando]=patron;
+  WG.dronManual=WG.dronManual||{}; WG.dronManual[bando]=false;   // patrón = automático
+  if(WG.dronPiloto) delete WG.dronPiloto[bando];
+  wgPanelDrones();
+  _wgAviso(patron==='circulo'
+    ? '⭕ <b>Órbita</b> — el CW 40 gira en círculo sobre el punto que le marcaste con el rumbo. '
+      +'Sirve para <b>vigilar algo concreto</b>: no lo pierde de vista en ninguna parte del giro.'
+    : '⟳ <b>Hipódromo</b> — pasadas largas de ida y vuelta atravesadas al eje. '
+      +'Sirve para <b>barrer en profundidad</b> todo el sector.', 5200);
+}
 function _wgPistaDron(d, u, t){
+  if(_wgPatronDron(u.bando)==='circulo') return _wgOrbitaDron(d, u, t);
+  return _wgHipodromoDron(d, u, t);
+}
+// Círculo cerrado alrededor del punto vigilado (el centro del sector apuntado).
+function _wgOrbitaDron(d, u, t){
+  const R=Math.max(2.5, d.km*0.55);        // radio de la órbita
+  const P=2*Math.PI*R;                     // perímetro
+  const a=(((t % P) + P) % P)/R;           // ángulo recorrido
+  const along=R*Math.cos(a), across=R*Math.sin(a);
+  const rad=(g)=>g*Math.PI/180;
+  const ux=Math.sin(rad(d.rumbo)),    uy=Math.cos(rad(d.rumbo));
+  const vx=Math.sin(rad(d.rumbo+90)), vy=Math.cos(rad(d.rumbo+90));
+  const stand=d.km*0.75;                   // a qué distancia está el punto vigilado
+  const kmE = ux*stand + ux*along + vx*across;
+  const kmN = uy*stand + uy*along + vy*across;
+  const dLat=(kmN/6371)*(180/Math.PI);
+  const dLng=(kmE/6371)*(180/Math.PI)/Math.max(1e-6,Math.cos(u.lat*Math.PI/180));
+  return { lng:u.lng+dLng, lat:u.lat+dLat, P, L:0, R };
+}
+function _wgHipodromoDron(d, u, t){
   // v2.9.261 — LA PISTA CUBRE EL SECTOR, NO LO BORDEA.
   // Sergio: «quisiera que el dron vuele un poco de acuerdo a las capacidades
   // para poder ver al enemigo». El recto era 0,9× el alcance y el standoff
