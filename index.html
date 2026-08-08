@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.272</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.273</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -23838,12 +23838,22 @@ function _wgTarjetaDronHTML(bando){
   // son lo que corresponde — el IR a esa altura distingue vehículos y fuentes
   // de calor, no personas. Eso es lo que dice el cartel cuando lo encendés.
   // ============================================================
-  const rumboAct = d ? (((WG.dronRumboLocal||{})[bando] != null)
-    ? WG.dronRumboLocal[bando] : d.rumbo) : 0;
+  // ============================================================
+  // v2.9.273 — «NO PUEDO VER LOS CONTROLES DEL DRON, DÓNDE ESTÁN».
+  // Regresión mía de la 272, y de las feas: puse el pad detrás de `!d ? '' :`,
+  // o sea que sólo aparecía con el aparato YA VOLANDO. Pero el CW 40 arranca
+  // EN TIERRA — y el despegue se ordena justamente marcándole un rumbo. Sin
+  // controles en tierra no había forma de hacerlo despegar: se quedaba en el
+  // suelo para siempre y la estación se veía vacía. Es exactamente lo que
+  // muestran sus capturas, con los dos drones «EN TIERRA».
+  // Ahora el pad está SIEMPRE. En tierra, arrastrarlo es la orden de despegue.
+  // ============================================================
+  const rumboAct = (((WG.dronRumboLocal||{})[bando] != null)
+    ? WG.dronRumboLocal[bando] : (d ? d.rumbo : 0));
   const zoomS = (WG.dronZoom||{})[bando] || 1;
   const term  = !!(WG.dronTerm||{})[bando];
   const rad=(rumboAct-90)*Math.PI/180, R=30;
-  const rosa = !d ? '' : `
+  const rosa = `
     <div style="display:flex;gap:8px;align-items:center;margin-bottom:5px">
       <div id="joy-${bando}" ${puedo?`onpointerdown="_wgJoyIni(event,'${bando}',${u.id})"`:''}
         style="position:relative;width:78px;height:78px;flex:0 0 78px;border-radius:50%;
@@ -23861,7 +23871,9 @@ function _wgTarjetaDronHTML(bando){
         <div id="joyr-${bando}" style="font-family:ui-monospace,Menlo,monospace;font-size:15px;
           font-weight:800;color:${col};line-height:1.1">${String(Math.round(rumboAct)).padStart(3,'0')}°</div>
         <div class="rg-meta" style="font-size:8.5px;opacity:.55;line-height:1.25;margin-top:2px">
-          ${puedo?'Arrastrá el punto. Al soltar, se fija.':'Sólo lo maneja su bando.'}</div>
+          ${!puedo ? 'Sólo lo maneja su bando.'
+            : (d ? 'Arrastrá el punto. Al soltar, se fija.'
+                 : 'Arrastrá para DESPEGAR en ese rumbo.')}</div>
       </div>
     </div>
     <div style="display:flex;gap:4px;align-items:center;margin-bottom:5px">
@@ -24822,9 +24834,19 @@ function _wgAnimarDisparos(impactos){
           const dx=im.lng-im.desde[0], dy=im.lat-im.desde[1];
           const a=Math.atan2(dx,dy); sx+=Math.sin(a); sy+=Math.cos(a);
         }
-        // Eje medio de los empeños; +90° para mirarlo de costado.
+        // Eje medio de los empeños; perpendicular para mirarlo de costado.
+        // v2.9.273 — PERO SIN CRUZARSE AL OTRO EXTREMO. Sergio: «cuando vea un
+        // combate no debe ser que gire al otro extremo; recordá que es un dron
+        // grabando DESDE UN LADO». Un eje tiene DOS perpendiculares, y tomar
+        // siempre la de +90° mandaba la cámara a la banda opuesta: media vuelta
+        // por un plano que se conseguía sin moverse. Ahora se elige la de las
+        // dos que quede MÁS CERCA de donde ya está mirando el dron: el mismo
+        // encuadre, con el giro más corto posible.
         const eje=(sx||sy) ? (Math.atan2(sx,sy)*180/Math.PI) : map.getBearing();
-        const rumbo=(eje+90+360)%360;
+        const act=map.getBearing();
+        const dif=(a,b)=>{ let x=((a-b)%360+540)%360-180; return Math.abs(x); };
+        const op1=(eje+90+360)%360, op2=(eje-90+360)%360;
+        const rumbo = dif(op1,act)<=dif(op2,act) ? op1 : op2;
         const z = (e-o>1e-6 || n-s>1e-6)
           ? _wgZoomDeCaja(map, [[o,s],[e,n]], 15)
           : null;
@@ -25340,7 +25362,13 @@ function _wg3dDatos(){
     return { s, x:p?p.x:0, y:p?p.y:0, ok:!!p };
   }).filter(r=>r.ok).sort((a,b)=>a.y-b.y);
   for(const r of rotulos){
-    let dy=-10, intentos=0;
+    // v2.9.273 — EL GLOBO ARRANCA POR ENCIMA DE LA FICHA, NO SOBRE ELLA.
+    // Sergio, otra vez: «los letreros están tapando e interfiriendo a las
+    // unidades». Con `dy=-10` el bocadillo nacía a diez píxeles del punto, o
+    // sea justo encima del símbolo militar, que mide unos 40. Se sube a 52:
+    // el rabito sigue señalando el punto, pero el cuerpo del cartel queda
+    // arriba y la ficha se ve entera.
+    let dy=-52, intentos=0;
     while(intentos<TOPE && puestos.some(q=>
       Math.abs(q.x-r.x)<ANCHO && Math.abs(q.y-(r.y+dy))<ALTO)){
       dy-=ALTO+4; intentos++;
@@ -26400,7 +26428,10 @@ function _wgDibujo(){
     const uSel=uById[WG.sel], arma=WG_ARMAS[WG.armaSel];
     if(uSel && arma && arma.alcance>0){
       D.push(_wgD.cir(uSel.lng,uSel.lat,arma.alcance,'#00e5ff',2.5,'8 6',.07));
-      D.push(_wgD.txt(uSel.lng,uSel.lat,`🎯 ${arma.nom} · alcance ${arma.alcance} km — clic en el mapa = pedir fuego ahí`));
+      // v2.9.273: cartel CORTO sobre el terreno — el de antes era una frase
+      // entera y tapaba la unidad y media carta. La explicación completa vive
+      // en la cinta fija de la derecha, que para eso está.
+      D.push(_wgD.txt(uSel.lng,uSel.lat,`🎯 ${arma.nom} · ${arma.alcance} km`, uSel.id));
       for(const b of _wgBatidosPor(uSel,arma)) D.push(_wgD.pt(b.e.lng,b.e.lat,13,'#ff3b3b',2.5,null));
     }
   }
@@ -26758,7 +26789,15 @@ function _wgCamIniciar(map){
     _wgAviso('🖐️ <b>Vista quieta</b> — tomaste el zoom, así que la órbita se detuvo. '
       +'Tocá <b>🛩️ Panorámica</b> abajo (o 🎥 en el riel) para que vuelva a girar.', 4200);
   };
-  for(const ev of ['zoomstart','dragstart','rotatestart','pitchstart']){
+  // v2.9.273 — EL ZOOM YA NO DETIENE LA ÓRBITA. Sergio corrigió el criterio:
+  // «yo acerco la cámara y lo que está sucediendo es que en ese zoom dejó de
+  // rotar. Lo que quiero es que SÍ continúe el movimiento… porque es un dron
+  // que está en constante movimiento».
+  // Tiene razón y es más coherente: acercar el sensor no es tomar el control
+  // del aparato, es sólo mirar más de cerca — el CW 40 sigue volando su órbita.
+  // Arrastrar, girar o inclinar SÍ la detienen: ahí sí le estás sacando la
+  // cámara de las manos.
+  for(const ev of ['dragstart','rotatestart','pitchstart']){
     try{ map.on(ev, manoDelUsuario); }catch(_e){}
   }
   try{ map.scrollZoom.enable(); }catch(_e){}
