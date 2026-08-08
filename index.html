@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.279</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.280</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -23352,7 +23352,12 @@ const WG_OSCILA = 22;   // grados que barre a cada lado del eje
 // Vuelta completa: ~240 s (4 minutos).
 // v2.9.261 — «un poquitito más lento», para dar tiempo a mover piezas.
 // Vuelta completa: ~5 minutos.
-const WG_ORBITA_GRADOS = 1.2;   // grados por segundo
+// v2.9.280 — MÁS LENTA. Sergio: «necesito que los movimientos de la cámara
+// sean más lentos, especialmente la imagen satelital». A 1,2 °/s la vuelta
+// tardaba 5 min; a 0,45 °/s tarda ~13, que es el ritmo de un aparato en
+// vigilancia y no el de una cámara de presentación. Además, menos grados por
+// cuadro = menos recálculo de teselas del relieve: se ve más parejo.
+const WG_ORBITA_GRADOS = 0.45;   // grados por segundo
 function _wgCentroBando(bando){
   const uds=((WG.estado&&WG.estado.unidades)||[])
     .filter(u=>u.bando===bando && u.estado!=='fuera_combate'
@@ -23847,6 +23852,44 @@ function _wgHudPanoramica(forzar){
   WG._hudPanoOn=1;
   _wgHudDron(info.u, info.d, info.pos, 'panoramica');
 }
+// ============================================================
+// v2.9.280 — LAS FLECHAS DEL TECLADO VUELAN EL DRON.
+// Sergio: «necesito que funcionen las flechas del teclado para poder darle
+// dirección y volar el dron por donde quiera: si le doy a la derecha, el dron
+// va a la derecha».
+//
+// Dos detalles que hacen que se sienta un aparato y no un menú:
+//   · La flecha fija un rumbo ABSOLUTO (→ = 090°, ↑ = 000°), como el rumbo de
+//     un avión, no un giro relativo. Mantener apretado NO acumula: apuntás y
+//     va, que es como se maneja un ala fija en vigilancia.
+//   · Se manda al servidor UNA vez, al SOLTAR la tecla (igual que el pad). Si
+//     se mandara por cada repetición del teclado serían decenas de llamadas.
+// Sólo actúa con el visor del dron abierto: si no, las flechas son del mapa.
+// ============================================================
+const WG_TECLA_RUMBO={ ArrowUp:0, ArrowRight:90, ArrowDown:180, ArrowLeft:270 };
+function _wgTeclasDron(e){
+  if(WG.dronVista==null) return;                       // sólo dentro del visor
+  const t=e.target && e.target.tagName;
+  if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT') return; // no robar el tipeo
+  const base=WG_TECLA_RUMBO[e.key]; if(base==null) return;
+  e.preventDefault();
+  const u=_wgUnidadPorId(WG.dronVista); if(!u) return;
+  const bando=u.bando;
+  // Con Shift, medio rumbo: las diagonales (NE, SE, SO, NO).
+  const rumbo=(base + (e.shiftKey?45:0) + 360)%360;
+  WG.dronRumboLocal=WG.dronRumboLocal||{}; WG.dronRumboLocal[bando]=rumbo;
+  _wgJoyPinta(bando,rumbo);
+  WG._teclaRumbo={ bando, rumbo, uid:u.id };
+}
+function _wgTeclasDronSoltar(e){
+  const p=WG._teclaRumbo; if(!p) return;
+  if(WG_TECLA_RUMBO[e.key]==null) return;
+  WG._teclaRumbo=null;
+  WG.dronManual=WG.dronManual||{}; WG.dronManual[p.bando]=true;
+  wgApuntarDron(p.uid, Math.round(p.rumbo));
+}
+window.addEventListener('keydown', _wgTeclasDron);
+window.addEventListener('keyup', _wgTeclasDronSoltar);
 function wgVistaDron(uid){
   const u=_wgUnidadPorId(uid); if(!u) return;
   const d=_wgDronDe(u);
@@ -28657,7 +28700,11 @@ function _wgURLInvitacion(partidaId, bando, clave){
 // desde adentro de la partida se usa la abierta. Y el resultado se pinta en el
 // contenedor que corresponda, para que en el lobby cada partida muestre LO SUYO
 // y no se pisen entre tarjetas.
-async function wgInvitarBando(bando, partidaId){
+// v2.9.280 — `regenerar` sólo lo manda el botón 🔄. Sin eso, pedir la
+// invitación REUSA la clave que el bando ya tenía: si la rotara, el enlace que
+// ese Estado Mayor está usando dejaría de servir en el acto (fue exactamente
+// lo que dejó al ROJO sin poder mover).
+async function wgInvitarBando(bando, partidaId, regenerar){
   const pid = partidaId != null ? Number(partidaId) : WG.partidaId;
   // ============================================================
   // v2.9.279 — «LOS BOTONES DE INVITAR NO FUNCIONAN» (desde la consola del árbitro).
@@ -28684,7 +28731,7 @@ async function wgInvitarBando(bando, partidaId){
   const otro = cont===enLobby ? enPartida : enLobby;
   if(otro) otro.innerHTML='';
   if(cont) cont.innerHTML='<div class="rg-meta" style="margin-top:8px">⏳ Generando la invitación…</div>';
-  const r=await _wgInvoke('agregar_bando',{ partida_id:pid, bando });
+  const r=await _wgInvoke('agregar_bando',{ partida_id:pid, bando, regenerar:!!regenerar });
   if(!r.ok){ if(cont) cont.innerHTML='<div class="rg-meta" style="color:#ff8f8f;margin-top:8px">No se pudo: '+_rgEsc(r.error||'')+'</div>'; return; }
   const url=_wgURLInvitacion(pid, bando, r.clave_acceso);
   const col=bando==='rojo'?'#ff6b6b':'#6bb6ff';
@@ -28702,7 +28749,8 @@ async function wgInvitarBando(bando, partidaId){
             background:rgba(0,0,0,.35);border:1px solid ${col}55;color:#eaf2fb">
           <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
             <button class="rg-doc" onclick="_wgCopiarInv(${pid})">📋 Copiar enlace</button>
-            <button class="rg-doc" onclick="wgInvitarBando('${bando}',${pid})">🔄 Regenerar</button>
+            <button class="rg-doc" onclick="if(confirm('Se generará una clave NUEVA y el enlace que ya repartiste dejará de servir. ¿Seguro?'))wgInvitarBando('${bando}',${pid},true)"
+              title="Sólo si el enlace se filtró: revoca el anterior">🔄 Regenerar</button>
           </div>
           <div class="rg-meta" style="font-size:10.5px;margin-top:7px;line-height:1.45">
             Clave del bando: <b style="color:#f4d574">${_rgEsc(r.clave_acceso)}</b><br>
