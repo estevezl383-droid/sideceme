@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.280</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.281</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -22731,6 +22731,7 @@ function goWargame(fromScreen){
   if(_wgEsInstructor()) wgCargarMisPartidas();
 }
 function wgVolver(){
+  _wgSyncParar();   // v2.9.281: al salir se corta el sondeo
   document.getElementById('screen-wargame').classList.remove('wg-full'); // v2.9.191
   document.body.classList.remove('wg-jugando');
   wgHoja(null);
@@ -22832,6 +22833,7 @@ async function wgAbrir(partidaId, clave){
   setTimeout(()=>{ try{ WG.map.invalidateSize(); }catch(e){} }, 120);
   setTimeout(()=>{ try{ WG.map.invalidateSize(); wgActualizarZoomChip(); }catch(e){} }, 450);
   await wgEstado();
+  _wgSyncIniciar();   // v2.9.281: desde acá el tablero se mantiene solo al día
 }
 // v2.9.191: mostrar/ocultar los círculos de alcance de observación.
 // v2.9.222: acepta un booleano (la casilla de CALCOS Y VISTA) o un botón, que
@@ -24437,6 +24439,55 @@ function wgActualizarZoomChip(){
 function wgPanelToggle(){ wgHoja(WG.hoja==='unidades'?null:'unidades'); }
 // v2.9.233: `silencioso` lo usa el refresco en vivo. Sin esto, un tropiezo de
 // red durante el sondeo dispararía un `alert()` cada 7 segundos.
+// ============================================================
+// v2.9.281 — SINCRONIZACIÓN. Esto es lo que faltaba desde el principio.
+//
+// Sergio: «parece que cada uno está jugando un escenario diferente… un bando
+// ataca y en la consola del otro la unidad sigue sin novedad. Se supone que es
+// un juego en línea y todo pasa en un mismo escenario».
+//
+// Tenía razón, y sus dos capturas lo prueban solas: una decía «Turno 10» y la
+// otra «Turno 11». Mismo escenario, pero cada navegador con una FOTO VIEJA.
+// El cliente sólo le preguntaba al servidor cuando VOS hacías algo; nadie
+// avisaba a nadie. Y en la 277, al permitir que cualquier bando resuelva el
+// turno, ese hueco se volvió insoportable: uno avanzaba y el otro seguía
+// mirando un tablero de hace cinco minutos.
+//
+// Se resuelve con SONDEO, que es el patrón que este proyecto ya usa para el
+// tablero del quiz (`_qzBoardTick`, cada 2 s). Cada 4 s se pide el estado en
+// silencio; si el turno cambió, se avisa. Cuatro segundos porque el juego es
+// por turnos: no hace falta más, y menos sería castigar al servidor al pedo.
+//
+// Las dos guardas que importan:
+//   · No se sondea durante un replay o una balacera (`replayando` / `_accion`):
+//     pisar la animación con datos nuevos es justo lo que causaba destellos.
+//   · No se encima consigo mismo (`_syncOcupado`): con la red lenta, dos
+//     pedidos en vuelo devolvían estados fuera de orden y el tablero saltaba.
+// ============================================================
+function _wgSyncIniciar(){
+  clearInterval(WG._sync);
+  WG._sync=setInterval(_wgSyncTick, 4000);
+}
+function _wgSyncParar(){ clearInterval(WG._sync); WG._sync=null; WG._syncOcupado=0; }
+function _wgTurnoActual(){
+  return (WG.estado && WG.estado.partida) ? WG.estado.partida.turno_actual : null;
+}
+async function _wgSyncTick(){
+  if(!WG.partidaId || WG._syncOcupado) return;
+  if(WG.replayando || WG._accion) return;      // no pisar una animación en curso
+  WG._syncOcupado=1;
+  const antes=_wgTurnoActual();
+  try{
+    await wgEstado(true);                      // silencioso: sin alertas al sondear
+    const ahora=_wgTurnoActual();
+    if(antes!=null && ahora!=null && Number(ahora)!==Number(antes)){
+      WG.ordenes={};                           // las órdenes de ese turno ya se jugaron
+      _wgAviso(`🔄 <b>Se resolvió el turno ${antes}.</b> El tablero ya está al día — `
+        +`mirá la <b>bitácora</b> para ver qué pasó.`, 6000);
+    }
+  }catch(e){ console.warn('sync:', e); }
+  WG._syncOcupado=0;
+}
 async function wgEstado(silencioso){
   if(!WG.partidaId) return;
   // v2.9.201: el terreno importado del Generador pesa MB; se pide UNA vez y se
