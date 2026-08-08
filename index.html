@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.275</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.276</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7002,6 +7002,8 @@ body.wg-jugando{overflow:hidden}
         <div class="section-label">🔑 Unirse a una partida (Estado Mayor)</div>
         <div class="field" style="margin-bottom:8px"><label>N° de partida</label><input type="number" id="wg-join-id" placeholder="ej: 3"></div>
         <div class="field" style="margin-bottom:8px"><label>Clave de tu bando</label><input type="text" id="wg-join-clave" placeholder="código que te dio el árbitro" autocomplete="off"></div>
+        <!-- v2.9.276 — TU NOMBRE, también acá. Ver comentario en `wgUnirse`. -->
+        <div class="field" style="margin-bottom:8px"><label>Tu nombre (si no tenés cuenta de SIDECEME)</label><input type="text" id="wg-join-nombre" placeholder="Ej: My. Rojas" autocomplete="name"></div>
         <button class="btn-primary" onclick="wgUnirse(this)">▶️ Entrar</button>
       </div>
     </div>
@@ -22689,10 +22691,14 @@ async function _wgInvoke(accion, extra){
   // v2.9.274 — INVITADO POR ENLACE: no tiene cuenta ni token. Se identifica con
   // la clave de su bando (que ya viaja en `extra`) más su nombre. El servidor
   // sólo le deja las acciones de su bando; árbitro no puede ser nunca.
-  if(!tok && WG.invitado){
+  // v2.9.276 — el nombre viaja SIEMPRE que lo tengamos, haya token o no.
+  // Antes sólo lo mandaba `if(!tok)`, así que con un token VENCIDO (que existe,
+  // pero el servidor rechaza) la vía de invitado se quedaba sin nombre y la
+  // partida se caía a mitad de camino. El servidor lo ignora si la sesión sirve.
+  if(WG.invitado){
     extra=Object.assign({invitado_nombre:WG.invitado}, extra||{});
   }else if(!tok){
-    return {ok:false,error:'Tu sesión venció o se cerró. Volvé a entrar a SIDECEME.'};
+    return {ok:false,error:'Tu sesión venció. Volvé a entrar a SIDECEME, o pedile al árbitro el enlace de tu bando.'};
   }
   try{
     // v2.9.210 — TOPE DE ESPERA. Si la llamada nunca vuelve (red caída, túnel a
@@ -22793,6 +22799,18 @@ function wgUnirse(btn){
   const id=Number(document.getElementById('wg-join-id').value);
   const clave=(document.getElementById('wg-join-clave').value||'').trim();
   if(!id||!clave){ alert('Completá el N° de partida y la clave.'); return; }
+  // ============================================================
+  // v2.9.276 — «No se pudo cargar el estado: Necesitás el enlace de tu bando».
+  // Ese cartel salía cuando el token de SIDECEME estaba VENCIDO: el servidor lo
+  // rechazaba, caía a la vía de invitado… y ahí tampoco había nombre, porque
+  // este formulario nunca pidió uno. Resultado: entrabas, dabas órdenes, y al
+  // enviarlas «se enviaron 0 de 2». Peor imposible — perdías el trabajo.
+  // Ahora el nombre se guarda SIEMPRE que lo pongas: si la sesión sirve, no se
+  // usa; y si vence a mitad de partida, la vía de invitado lo levanta y seguís
+  // jugando sin perder nada.
+  // ============================================================
+  const nom=(document.getElementById('wg-join-nombre')||{}).value||'';
+  if(nom.trim().length>=2) WG.invitado=nom.trim();
   wgAbrir(id, clave);
 }
 async function wgAbrir(partidaId, clave){
