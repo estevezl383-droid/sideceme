@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.276</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.277</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -23500,15 +23500,30 @@ function _wgJoyIni(ev, bando, uid){
   WG.dronRumboLocal=WG.dronRumboLocal||{};
   try{ pad.setPointerCapture(ev.pointerId); }catch(_e){}
   pad.style.cursor='grabbing';
+  // ============================================================
+  // v2.9.277 — POR QUÉ EL PAD «NO SERVÍA PARA NADA».
+  // Los escuchadores del arrastre estaban colgados DEL PROPIO PAD. Y el panel
+  // de drones se vuelve a dibujar entero (`wgPanelDrones` → `innerHTML=…`) cada
+  // vez que llega estado nuevo del servidor, que pasa todo el tiempo. En cuanto
+  // eso ocurría, el elemento que estabas arrastrando dejaba de existir: se iban
+  // con él los escuchadores, se perdía la captura del puntero y el gesto moría
+  // a mitad de camino. Desde afuera se ve exactamente como Sergio lo describe:
+  // agarrás el punto, lo movés, y no pasa nada.
+  // Ahora el arrastre vive en `window`, que no se redibuja nunca, y la posición
+  // se mide contra el rectángulo capturado AL EMPEZAR — así el gesto sobrevive
+  // aunque el panel se rehaga debajo.
+  // ============================================================
+  const caja=pad.getBoundingClientRect();
+  const padFijo={ getBoundingClientRect:()=>caja };
   const mover=(e)=>{
-    const r=_wgJoyPos(e,pad); if(r==null) return;
+    const r=_wgJoyPos(e,padFijo); if(r==null) return;
     WG.dronRumboLocal[bando]=r; _wgJoyPinta(bando,r);
   };
   const soltar=(e)=>{
-    pad.removeEventListener('pointermove',mover);
-    pad.removeEventListener('pointerup',soltar);
-    pad.removeEventListener('pointercancel',soltar);
-    pad.style.cursor='grab';
+    window.removeEventListener('pointermove',mover);
+    window.removeEventListener('pointerup',soltar);
+    window.removeEventListener('pointercancel',soltar);
+    try{ pad.style.cursor='grab'; }catch(_e){}
     const r=WG.dronRumboLocal[bando];
     if(r!=null){
       // Fijar el rumbo = pasar a MANUAL: si quedara en automático, el hipódromo
@@ -23517,9 +23532,9 @@ function _wgJoyIni(ev, bando, uid){
       wgApuntarDron(uid, Math.round(r));
     }
   };
-  pad.addEventListener('pointermove',mover);
-  pad.addEventListener('pointerup',soltar);
-  pad.addEventListener('pointercancel',soltar);
+  window.addEventListener('pointermove',mover);
+  window.addEventListener('pointerup',soltar);
+  window.addEventListener('pointercancel',soltar);
   mover(ev);
 }
 // ============================================================
@@ -24411,7 +24426,10 @@ async function wgEstado(silencioso){
   // botón de arrancar tiene que estar A LA VISTA, no enterrado en ⚙️ Configurar:
   // Sergio no podía mover nada y el clic no le decía por qué.
   document.getElementById('wg-btn-iniciar').style.display = (esArb && p.estado==='planificacion')?'':'none';
-  document.getElementById('wg-btn-jugar').style.display = (esArb && enJuego)?'':'none';
+  // v2.9.277 — «▶️ Jugar turno» TAMBIÉN para los bandos. Antes sólo lo veía el
+  // árbitro, así que un Estado Mayor mandaba sus órdenes y no tenía con qué
+  // hacerlas correr: por eso «salen órdenes listas pero no se mueven».
+  document.getElementById('wg-btn-jugar').style.display = enJuego?'':'none';
   // precargar mis órdenes ya enviadas — v2.9.218: también el ARMA elegida, si no
   // la vista previa calcula el alcance con otro sistema que el que se mandó.
   WG.ordenes={};
@@ -28145,9 +28163,15 @@ async function wgResolver(btn){
   // NORMAL del juego, no algo peligroso: preguntarlo cada vez sólo estorbaba.
   if(WG.replayando) return;
   if(btn) btn.disabled=true;
-  const r=await _wgInvoke('resolver_turno',{ partida_id:WG.partidaId });
+  // v2.9.277: viaja el turno que CREO estar jugando. Si el otro bando ya lo
+  // resolvió, el servidor rechaza en vez de correr el turno dos veces.
+  const r=await _wgInvoke('resolver_turno',{ partida_id:WG.partidaId,
+    clave_acceso:WG.clave, turno:(WG.estado&&WG.estado.partida&&WG.estado.partida.turno_actual) });
   if(btn) btn.disabled=false;
-  if(!r.ok){ alert('No se pudo resolver: '+r.error); return; }
+  if(!r.ok){
+    if(/ya lo resolvió/.test(r.error||'')){ _wgAviso('⏭️ '+_rgEsc(r.error),4200); await wgEstado(); return; }
+    alert('No se pudo resolver: '+r.error); return;
+  }
   WG.ordenes={};
   // v2.9.203: primero se VE el movimiento y después se actualiza el tablero.
   // Las trazas vienen en la respuesta (no se guardan en la base).
