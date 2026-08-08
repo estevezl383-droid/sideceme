@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.283</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.284</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -23092,6 +23092,106 @@ function _wgPosDron(bando){
     pos:(v&&v._pos)?v._pos:[info.portador.lng,info.portador.lat],
     proa:(v&&v._proa!=null)?v._proa:info.d.rumbo };
 }
+// ============================================================
+// v2.9.284 — LA ESCALERA DE RECONOCIMIENTO (lo que el dron alcanza a saber).
+//
+// Sergio: «recordá lo que puede ver el dron: puede ver las unidades, tal vez
+// magnitud, pero no saber de qué son, si son de artillería, caballería. La idea
+// del dron es que pueda identificar posiciones y unidades para maniobrar».
+//
+// Hasta acá la detección era BINARIA: o veías la ficha completa —designación,
+// arma, poder de combate— o el enemigo no existía. Con eso no hay trabajo de
+// G-2 posible, porque un G-2 trabaja justamente con lo que todavía NO sabe.
+//
+// El fundamento son los criterios de Johnson (píxeles sobre el blanco): a un
+// sensor le cuesta distinto DETECTAR que hay algo, RECONOCER de qué tamaño es y
+// IDENTIFICAR de qué arma se trata. De ahí salen tres niveles:
+//
+//   1 · CONTACTO     «hay actividad acá»       — marco vacío, magnitud «?»
+//   2 · IDENTIFICADO magnitud y bando          — marco con su escalón, sin arma
+//   3 · CONFIRMADO   arma, designación, poder  — la ficha entera de siempre
+//
+// Y de ahí sale el ciclo que se quiere enseñar: el CW 40 barre ancho y a 1× te
+// dice que hay algo; para saber QUÉ hay tenés que acercarte y cerrar la torreta
+// —que te deja ciego para el resto— o mandar tropa a tomar contacto.
+//
+// El INFRARROJO nunca confirma: delata motores y posiciones ocupadas, no dice
+// de qué arma es la unidad. Es lo mismo que ya avisa el cartel del botón IR.
+// ============================================================
+const WG_INT_NADA=0, WG_INT_CONTACTO=1, WG_INT_IDENT=2, WG_INT_CONF=3;
+const WG_INT_KM_MAGNITUD = 6;    // km por aumento para leer la MAGNITUD
+const WG_INT_ZOOM_CONF   = 4;    // aumento mínimo de torreta para el ARMA
+const WG_INT_KM_ARMA     = 2.5;  // km por aumento para leer el ARMA
+const WG_INT_KM_CONTACTO = 1.5;  // tropa a esta distancia: lo tiene a la vista
+// Cuánto sabe `bando` sobre la unidad `e`, de 0 a 3.
+function _wgNivelInt(bando, e){
+  if(!e || !Number.isFinite(e.lng) || !Number.isFinite(e.lat)) return WG_INT_NADA;
+  let n=WG_INT_NADA;
+  // a) EL DRON. Dentro de su alcance siempre hay contacto; la magnitud y el
+  // arma dependen de cuánto se acercó y de cuánto cerró la torreta.
+  const dr=_wgPosDron(bando);
+  if(dr){
+    const dist=_wgHav(dr.pos,[e.lng,e.lat]);
+    if(dist<=dr.d.km){
+      const z=(WG.dronZoom||{})[bando]||1;
+      const ir=!!(WG.dronTerm||{})[bando];
+      n=Math.max(n, WG_INT_CONTACTO);
+      // El IR lee el despliegue aunque esté lejos: los motores y las posiciones
+      // ocupadas cantan solas. Pero no pasa de ahí.
+      if(ir || dist<=WG_INT_KM_MAGNITUD*z) n=Math.max(n, WG_INT_IDENT);
+      if(!ir && z>=WG_INT_ZOOM_CONF && dist<=WG_INT_KM_ARMA*z) n=WG_INT_CONF;
+    }
+  }
+  // b) LA TROPA. Ve poco, pero lo que ve lo ve bien: a distancia de contacto
+  // reconoce con qué se está peleando.
+  for(const u of ((WG.estado&&WG.estado.unidades)||[])){
+    if(u.bando!==bando || u.estado==='fuera_combate') continue;
+    if(!Number.isFinite(u.lng)) continue;
+    const d2=_wgHav([u.lng,u.lat],[e.lng,e.lat]);
+    if(d2<=WG_INT_KM_CONTACTO) return WG_INT_CONF;      // encima: no hay más que averiguar
+    if(d2<=WG_VISTA_TROPA)     n=Math.max(n, WG_INT_IDENT);
+  }
+  return n;
+}
+// Lo que ese bando le MUESTRA a su pantalla: la ficha real sólo si la confirmó.
+// Se devuelve una COPIA — nunca se toca `WG.estado.unidades`, que es la verdad
+// del servidor y la usan las órdenes.
+function _wgEnmascarar(lista, obs){
+  if(!obs) return lista;         // el árbitro en «Panorama» ve la verdad, para eso arbitra
+  return lista.map(u=>{
+    if(u.bando===obs) return u;                       // lo propio se sabe entero
+    const n=_wgNivelInt(obs,u);
+    if(n>=WG_INT_CONF){ u._nivel=WG_INT_CONF; return u; }
+    const c=Object.assign({},u);
+    c._nivel=n;
+    c.arma=null;                                      // el marco queda sin símbolo de arma
+    if(n>=WG_INT_IDENT){
+      c.designacion=(WG_MAGNITUD[u.escalon]||'FUERZA')+' ?';
+    }else{
+      c.escalon='desconocido';
+      c.designacion='CONTACTO';
+    }
+    return c;
+  });
+}
+// Qué le da el sensor con el aumento y la banda que tiene puestos AHORA.
+function _wgAlcanceSensorHTML(bando, d){
+  const z=(WG.dronZoom||{})[bando]||1;
+  const ir=!!(WG.dronTerm||{})[bando];
+  const alc=(d&&d.km)||WG_CW40.km;
+  const kmMag=ir ? alc : Math.min(alc, WG_INT_KM_MAGNITUD*z);
+  const kmArm=(!ir && z>=WG_INT_ZOOM_CONF) ? Math.min(alc, WG_INT_KM_ARMA*z) : 0;
+  return `contacto <b>${alc} km</b> · magnitud <b>${kmMag.toFixed(0)} km</b> · arma `
+    +(kmArm ? `<b>${kmArm.toFixed(0)} km</b>`
+            : (ir ? '<b>no</b> (el IR no dice de qué arma es)'
+                  : `<b>no</b> (hace falta ${WG_INT_ZOOM_CONF}× o más)`));
+}
+function _wgIntTxt(n){
+  return n>=WG_INT_CONF     ? '✅ CONFIRMADA'
+       : n>=WG_INT_IDENT    ? '🟡 IDENTIFICADA · magnitud y bando, no el arma'
+       : n>=WG_INT_CONTACTO ? '❓ CONTACTO · hay actividad, sin identificar'
+       : '— sin contacto';
+}
 // ¿Ese bando alcanza a ver a esta unidad enemiga?
 function _wgBandoVeA(bando, e){
   if(!e || !Number.isFinite(e.lng) || !Number.isFinite(e.lat)) return false;
@@ -23119,7 +23219,19 @@ function _wgBandoVeA(bando, e){
   }
   return false;
 }
+// v2.9.284 — UN SOLO EMBUDO. Todo lo que se dibuja (mapa 2D, 3D, barra de
+// unidades, globos, tooltips) sale de acá, así que enmascarar en este punto
+// alcanza para que la escalera de reconocimiento valga en TODA la pantalla, sin
+// tocar los diez lugares que pintan una ficha.
 function _wgUnidadesVisibles(){
+  let obs=_wgBandoLente();
+  if(!obs && WG.dronVista!=null){
+    const o=(WG.estado&&(WG.estado.unidades||[]).find(x=>String(x.id)===String(WG.dronVista)));
+    if(o) obs=o.bando;
+  }
+  return _wgEnmascarar(_wgUnidadesVisiblesCrudo(), obs);
+}
+function _wgUnidadesVisiblesCrudo(){
   let base=_wgVisiblesPorBando();
   // v2.9.261: con la lente de un bando puesta, el enemigo se ve SÓLO si ese
   // bando lo alcanza — el dron de lejos, la tropa de cerca. El árbitro en
@@ -24056,6 +24168,10 @@ function _wgPanelTel(bando, pil, d){
   const el=document.getElementById('dron-tel-'+bando);
   if(el) el.textContent=`${Math.round(pil.kmh)} km/h · ${Math.round(pil.alt)} m · `
     +`torreta ${(pil.pan>=0?'+':'')}${Math.round(pil.pan)}°/${Math.round(pil.tilt)}°`;
+  // v2.9.284: qué te da el sensor AHORA MISMO. Sin esto el operador no tiene
+  // cómo saber por qué un contacto no se le identifica.
+  const sen=document.getElementById('dron-sen-'+bando);
+  if(sen) sen.innerHTML=_wgAlcanceSensorHTML(bando, d);
   // La aguja de la rosa sigue al aparato mientras lo volás: si se quedara en el
   // rumbo que le marcaste con el arrastre, mentiría apenas empezás a virar.
   if(!WG._joyArrastrando) _wgJoyPinta(bando, pil.proa);
@@ -24311,6 +24427,8 @@ function _wgTarjetaDronHTML(bando){
            apretando flechas que no hacían nada y no tenía cómo saberlo. -->
       <div id="dron-tel-${bando}" style="font-family:ui-monospace,Menlo,monospace;font-size:9.5px;
         margin-top:5px;color:${col};opacity:.92;letter-spacing:.3px"></div>
+      <div id="dron-sen-${bando}" class="rg-meta" style="font-size:8.5px;line-height:1.4;
+        margin-top:3px;opacity:.8">${_wgAlcanceSensorHTML(bando,d)}</div>
       <div class="rg-meta" style="font-size:8.5px;line-height:1.45;margin-top:4px;opacity:.72">
         <b>← →</b> viran · <b>↑ ↓</b> motor · <b>Mayús+↑↓</b> altura<br>
         <b>W A S D</b> torreta (mira aparte del vuelo) · <b>C</b> centrarla<br>
@@ -26625,7 +26743,14 @@ const WG_ESCALONES={
   equipo:{marca:'Ø'}, escuadra:{tipo:'punto',n:1}, seccion:{tipo:'punto',n:3},
   compania:{tipo:'barra',n:1}, batallon:{tipo:'barra',n:2}, regimiento:{tipo:'barra',n:3},
   brigada:{tipo:'aspa',n:1}, division:{tipo:'aspa',n:2}, cuerpo:{tipo:'aspa',n:3}, ejercito:{tipo:'aspa',n:4},
+  // v2.9.284: magnitud DESCONOCIDA. Un contacto sin identificar no se plotea
+  // como batallón por defecto — eso sería inventar un dato que no se tiene.
+  desconocido:{marca:'?'},
 };
+// Cómo se dice cada magnitud cuando se informa un contacto sin identificar.
+const WG_MAGNITUD={ equipo:'EQUIPO', escuadra:'ESCUADRA', seccion:'SECCIÓN',
+  compania:'COMPAÑÍA', batallon:'BATALLÓN', regimiento:'REGIMIENTO',
+  brigada:'BRIGADA', division:'DIVISIÓN', cuerpo:'CUERPO', ejercito:'EJÉRCITO' };
 const WG_ABREV={intendencia:'Int',transporte:'Tte',mantenimiento:'Mant',veterinaria:'Vet',
   policiamilitar:'PM',antitanque:'AT',morteros:'Mort',ametralladoras:'Amtr',lanzacohetes:'LC'};
 const _wgSimCache={};
@@ -26634,6 +26759,12 @@ function _wgDibEscalon(ctx,esc,cx,topY,color){
   if(esc.marca==='Ø'){
     ctx.beginPath(); ctx.arc(cx,topY+5,5,0,Math.PI*2); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(cx-4,topY+9); ctx.lineTo(cx+4,topY+1); ctx.stroke();
+    ctx.restore(); return;
+  }
+  // v2.9.284: magnitud sin determinar.
+  if(esc.marca==='?'){
+    ctx.font='bold 14px Arial, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='top';
+    ctx.fillText('?',cx,topY-1);
     ctx.restore(); return;
   }
   const n=esc.n||1;
@@ -28269,7 +28400,12 @@ function _wgRender(){
     m.__uid=u.id; // v2.9.205: para poder hacerla temblar
     const pct = u.poder_max? Math.round(100*u.poder_actual/u.poder_max):100;
     const obsTxt = mio ? ` · 👁️ ${_wgAlcanceObs(u,WG.terreno||[]).toFixed(1)} km` : ''; // v2.9.191
-    m.bindTooltip(`${_rgEsc(u.designacion||u.bando)} · ${pct}%${u.estado!=='activa'?' ('+u.estado+')':''}${obsTxt}`,{direction:'top'});
+    // v2.9.284: si no está confirmada, el globo dice CUÁNTO se sabe y cómo se
+    // sabe más — un contacto que no explica qué le falta no enseña nada.
+    m.bindTooltip(u._nivel!=null && u._nivel<WG_INT_CONF
+      ? `${_wgIntTxt(u._nivel)} — ${_rgEsc(u.designacion||'')}`
+      : `${_rgEsc(u.designacion||u.bando)} · ${pct}%${u.estado!=='activa'?' ('+u.estado+')':''}${obsTxt}`,
+      {direction:'top'});
     m.on('click', (ev)=>{ L.DomEvent.stopPropagation(ev); _wgUnidadClick(u); });
   }
   // v2.9.220: las llamas, encima de las fichas (el mismo HTML que en 3D).
@@ -28320,6 +28456,23 @@ function _wgRender(){
   wgPanelCamaras();
 }
 function _wgSelById(id){ const u=(WG.estado.unidades||[]).find(x=>String(x.id)===String(id)); if(u) _wgUnidadClick(u); }
+// ============================================================
+// v2.9.284 — NO SE EMPEÑA LO QUE NO ESTÁ RECONOCIDO.
+// Es la regla que convierte la escalera de reconocimiento en una decisión y no
+// en un adorno: con un CONTACTO sin identificar sabés que hay algo, no qué es,
+// y sobre eso no se manda a una unidad a empeñarse. Lo que sí se puede es batir
+// el ÁREA (clic en el mapa), que es exactamente lo que se hace en la realidad.
+// Así queda forzado el ciclo: detectar → mandar el CW 40 → identificar → empeñar.
+// ============================================================
+function _wgPuedeEmpenar(u){
+  const obs = (WG.soy==='arbitro') ? _wgBandoLente() : WG.soy;
+  if(!obs || u.bando===obs) return true;
+  if(_wgNivelInt(obs,u) >= WG_INT_IDENT) return true;
+  _wgAviso('❓ <b>Contacto sin identificar.</b> Sabés que hay algo ahí, no qué es — y sobre eso '
+    +'no se empeña una unidad.<br>Acercá el <b>CW 40</b> o cerrá la torreta para reconocerlo, '
+    +'o batí el <b>área</b> con un clic en el mapa.', 7000);
+  return false;
+}
 function _wgUnidadClick(u){
   // v2.9.214 — EL ÁRBITRO TAMBIÉN ATACA. Antes `mio` era true para TODAS las
   // unidades cuando sos árbitro, así que tocar un enemigo lo seleccionaba en
@@ -28329,6 +28482,7 @@ function _wgUnidadClick(u){
   const selU=_wgUnidadPorId(WG.sel);
   if(selU && String(selU.id)!==String(u.id) && selU.bando!==u.bando){
     if(!_wgPuedeOrdenar()) return;
+    if(!_wgPuedeEmpenar(u)) return;        // v2.9.284: hay que reconocerlo antes
     _wgAvisarAlcance(selU,u,WG.armaSel);   // v2.9.217: avisa, pero deja ordenar
     WG.ordenes[selU.id]={ tipo:'atacar', objetivo_id:u.id, arma:WG.armaSel||null };
     _wgActualizarContadorOrdenes(); _wgRender();
@@ -28348,6 +28502,7 @@ function _wgUnidadClick(u){
   // clic en enemigo con una unidad mía seleccionada → orden de atacar
   if(WG.sel){
     if(!_wgPuedeOrdenar()) return;
+    if(!_wgPuedeEmpenar(u)) return;        // v2.9.284: hay que reconocerlo antes
     // v2.9.217: se avisa SU alcance (no el genérico), pero la orden se manda igual.
     _wgAvisarAlcance(_wgUnidadPorId(WG.sel),u,WG.armaSel);
     WG.ordenes[WG.sel]={ tipo:'atacar', objetivo_id:u.id, arma:WG.armaSel||null };
