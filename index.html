@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.273</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.274</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6951,6 +6951,36 @@ body.wg-jugando{overflow:hidden}
   #screen-wargame.wg-full #wg-game.hoja-abierta #wg-zoom{right:8px}
 }
 </style>
+<!-- ============================================================
+     v2.9.274 — ENTRADA POR ENLACE (QR). El Estado Mayor de un bando abre su
+     enlace y cae acá: no hay login, no hay CI ni contraseña. Sólo el nombre,
+     que es lo que Sergio pidió mientras construye el ejercicio. Cuando llegue
+     el momento, esta misma pantalla es donde se enchufa el ingreso con CI.
+     ============================================================ -->
+<section id="screen-wg-invitado" class="screen">
+  <div style="max-width:460px;margin:0 auto;padding:40px 20px">
+    <div style="text-align:center;margin-bottom:26px">
+      <div style="font-size:44px;line-height:1">🎲</div>
+      <div style="font-size:22px;font-weight:800;letter-spacing:1px;margin-top:6px">JUEGO DE GUERRA</div>
+      <div id="wg-inv-bando" style="font-size:14px;font-weight:800;margin-top:8px"></div>
+      <div id="wg-inv-partida" class="rg-meta" style="font-size:12px;margin-top:3px"></div>
+    </div>
+    <label class="rg-meta" style="font-size:11px;letter-spacing:1px;display:block;margin-bottom:6px">TU NOMBRE</label>
+    <input id="wg-inv-nombre" placeholder="Ej: My. Rojas" autocomplete="name"
+      onkeydown="if(event.key==='Enter')wgInvitadoEntrar()"
+      style="width:100%;padding:13px 14px;border-radius:10px;font-size:15px;
+      background:rgba(0,0,0,.3);border:1px solid rgba(140,210,255,.3);color:#eaf2fb">
+    <div class="rg-meta" style="font-size:11px;margin-top:8px;line-height:1.5;opacity:.75">
+      Por ahora alcanza con el nombre. Más adelante los cursantes entrarán con su CI y contraseña.
+    </div>
+    <button onclick="wgInvitadoEntrar()" style="width:100%;margin-top:18px;padding:14px;
+      border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;
+      background:linear-gradient(180deg,#dbe9f7,#b9d3ec);border:none;color:#0b1420">
+      ▶️ ENTRAR AL PUESTO DE MANDO</button>
+    <div id="wg-inv-error" style="margin-top:12px;font-size:12px;color:#ff8f8f"></div>
+  </div>
+</section>
+
 <section id="screen-wargame" class="screen">
   <div class="app-header">
     <button class="back-btn" onclick="wgVolver()">←</button>
@@ -7148,7 +7178,14 @@ body.wg-jugando{overflow:hidden}
           <button class="rg-doc" onclick="wgAgregarBando('rojo')">🔴 Crear/ver bando ROJO</button>
           <button class="rg-doc" onclick="wgAgregarBando('azul')">🔵 Crear/ver bando AZUL</button>
         </div>
+        <!-- v2.9.274 — INVITAR A UN BANDO: enlace + QR. Cada Estado Mayor entra
+             por su enlace, sin cuenta, sólo con su nombre. -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <button class="rg-doc" onclick="wgInvitarBando('rojo')">🔗 Invitar al ROJO (enlace + QR)</button>
+          <button class="rg-doc" onclick="wgInvitarBando('azul')">🔗 Invitar al AZUL (enlace + QR)</button>
+        </div>
         <div id="wg-bandos-claves" style="font-size:12px;color:var(--text-muted);margin-bottom:8px"></div>
+        <div id="wg-invitacion" style="margin-bottom:10px"></div>
         <div class="section-label">Colocar unidad (luego clic en el mapa)</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
           <select id="wg-u-bando" class="wg-mini"><option value="rojo">🔴 Rojo</option><option value="azul">🔵 Azul</option></select>
@@ -22649,7 +22686,14 @@ const WG = { partidaId:null, clave:'', soy:null, estado:null, ordenes:{}, sel:nu
 const WG_COL = { rojo:'#e23b3b', azul:'#1f6dff' };
 async function _wgInvoke(accion, extra){
   const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
-  if(!tok) return {ok:false,error:'Tu sesión venció o se cerró. Volvé a entrar a SIDECEME.'};
+  // v2.9.274 — INVITADO POR ENLACE: no tiene cuenta ni token. Se identifica con
+  // la clave de su bando (que ya viaja en `extra`) más su nombre. El servidor
+  // sólo le deja las acciones de su bando; árbitro no puede ser nunca.
+  if(!tok && WG.invitado){
+    extra=Object.assign({invitado_nombre:WG.invitado}, extra||{});
+  }else if(!tok){
+    return {ok:false,error:'Tu sesión venció o se cerró. Volvé a entrar a SIDECEME.'};
+  }
   try{
     // v2.9.210 — TOPE DE ESPERA. Si la llamada nunca vuelve (red caída, túnel a
     // medias, Supabase con problemas), antes la promesa quedaba colgada PARA
@@ -28527,6 +28571,60 @@ async function wgAgregarBando(bando){
   const div=document.getElementById('wg-bandos-claves');
   div.innerHTML += `<div>${bando==='rojo'?'🔴':'🔵'} ${bando.toUpperCase()} → clave: <b style="color:#f4d574">${_rgEsc(r.clave_acceso)}</b> (dásela a ese EM)</div>`;
 }
+// ============================================================
+// v2.9.274 — INVITAR A UN BANDO: ENLACE + QR.
+// `agregar_bando` es un UPSERT y acepta la clave que le mandes, así que el
+// árbitro puede pedir la invitación cuando quiera: si el bando no existía lo
+// crea, y si existía le confirma su clave. No hizo falta ninguna acción nueva
+// en el servidor para esta parte.
+// El enlace lleva partida + bando + clave. Quien lo abre entra directo a ese
+// Estado Mayor poniendo sólo su nombre.
+// ============================================================
+function _wgURLInvitacion(partidaId, bando, clave){
+  const base=location.origin+location.pathname;
+  return `${base}?wg=${encodeURIComponent(partidaId)}&b=${encodeURIComponent(bando)}&k=${encodeURIComponent(clave)}`;
+}
+async function wgInvitarBando(bando){
+  const cont=document.getElementById('wg-invitacion');
+  if(cont) cont.innerHTML='<div class="rg-meta">⏳ Generando la invitación…</div>';
+  const r=await _wgInvoke('agregar_bando',{ partida_id:WG.partidaId, bando });
+  if(!r.ok){ if(cont) cont.innerHTML='<div class="rg-meta" style="color:#ff8f8f">No se pudo: '+_rgEsc(r.error||'')+'</div>'; return; }
+  const url=_wgURLInvitacion(WG.partidaId, bando, r.clave_acceso);
+  const col=bando==='rojo'?'#ff6b6b':'#6bb6ff';
+  const ico=bando==='rojo'?'🔴':'🔵';
+  if(!cont) return;
+  cont.innerHTML=`
+    <div style="border:1px solid ${col}66;border-radius:10px;padding:10px;background:rgba(10,16,22,.5)">
+      <div style="font-weight:800;color:${col};margin-bottom:6px">${ico} INVITACIÓN · ESTADO MAYOR ${bando.toUpperCase()}</div>
+      <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">
+        <div id="wg-qr-inv" style="width:180px;flex:0 0 180px"></div>
+        <div style="flex:1;min-width:220px">
+          <div class="rg-meta" style="font-size:10px;opacity:.7;margin-bottom:3px">ENLACE</div>
+          <input id="wg-inv-url" readonly value="${_rgEsc(url)}" onclick="this.select()"
+            style="width:100%;padding:6px 8px;border-radius:7px;font-size:11px;
+            background:rgba(0,0,0,.35);border:1px solid ${col}55;color:#eaf2fb">
+          <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+            <button class="rg-doc" onclick="_wgCopiarInv()">📋 Copiar enlace</button>
+            <button class="rg-doc" onclick="wgInvitarBando('${bando}')">🔄 Regenerar</button>
+          </div>
+          <div class="rg-meta" style="font-size:10.5px;margin-top:7px;line-height:1.45">
+            Clave del bando: <b style="color:#f4d574">${_rgEsc(r.clave_acceso)}</b><br>
+            Quien abra el enlace (o escanee el QR) entra directo como
+            <b style="color:${col}">${bando.toUpperCase()}</b> poniendo <b>sólo su nombre</b>.
+            No necesita cuenta de SIDECEME.
+          </div>
+        </div>
+      </div>
+    </div>`;
+  // El generador de QR ya existe en la app (se usa para las papeletas).
+  try{ generarQRRobusto(url, 'wg-qr-inv', 180); }catch(_e){}
+}
+function _wgCopiarInv(){
+  const i=document.getElementById('wg-inv-url'); if(!i) return;
+  i.select();
+  try{ navigator.clipboard.writeText(i.value); }catch(_e){ try{ document.execCommand('copy'); }catch(_e2){} }
+  _wgAviso('📋 Enlace copiado. Mandáselo al Estado Mayor de ese bando.', 2600);
+}
 function wgModoColocar(){ WG.modoColocar=document.getElementById('wg-modo-colocar').checked; _wgAviso(WG.modoColocar?'✋ <b>Modo colocar ON</b>: clic en el mapa para poner la unidad configurada.':'✋ Modo colocar apagado.', 3000); }
 async function _wgColocarEn(latlng){
   const u={ bando:document.getElementById('wg-u-bando').value, designacion:document.getElementById('wg-u-desig').value||'',
@@ -33321,6 +33419,39 @@ function irAFirmarMiSancion(sancionId){
   try{ const _ci=document.getElementById('firma-input-ci'); if(_ci && (currentUser.ci||s.cursante_ci)) _ci.value = currentUser.ci || s.cursante_ci; }catch(_){}
 }
 
+// ============================================================
+// v2.9.274 — ¿VIENE DE UN ENLACE DE BANDO? `?wg=<partida>&b=<bando>&k=<clave>`
+// Se resuelve ANTES que la sesión: el que llega por acá no tiene cuenta, y si
+// esto corriera después el bootstrap lo mandaría al login y perdería el enlace.
+// ============================================================
+function detectarInvitacionWargameEnURL(){
+  let p; try{ p=new URLSearchParams(location.search); }catch(_e){ return false; }
+  const id=p.get('wg'), bando=p.get('b'), clave=p.get('k');
+  if(!id || !clave) return false;
+  const b=(bando==='rojo'||bando==='azul')?bando:null;
+  WG._inv={ partida:Number(id), bando:b, clave:String(clave) };
+  const col=b==='rojo'?'#ff6b6b':(b==='azul'?'#6bb6ff':'#cfe2f5');
+  const eb=document.getElementById('wg-inv-bando');
+  if(eb){ eb.style.color=col;
+    eb.textContent = b ? `${b==='rojo'?'🔴':'🔵'} ESTADO MAYOR ${b.toUpperCase()}` : 'ESTADO MAYOR'; }
+  const ep=document.getElementById('wg-inv-partida');
+  if(ep) ep.textContent='Partida N° '+id;
+  showScreen('screen-wg-invitado');
+  setTimeout(()=>{ try{ document.getElementById('wg-inv-nombre').focus(); }catch(_e){} },160);
+  return true;
+}
+async function wgInvitadoEntrar(){
+  const err=document.getElementById('wg-inv-error');
+  const nom=(document.getElementById('wg-inv-nombre').value||'').trim();
+  if(nom.length<2){ if(err) err.textContent='Poné tu nombre para entrar.'; return; }
+  if(err) err.textContent='';
+  const inv=WG._inv||{};
+  WG.invitado=nom;                 // así `_wgInvoke` viaja sin token
+  WG.soy=inv.bando||null;          // la lente del bando, si el enlace la trae
+  try{ sessionStorage.setItem('wg_invitado', nom); }catch(_e){}
+  showScreen('screen-wargame');
+  await wgAbrir(inv.partida, inv.clave);
+}
 function detectarFlujoFirmaEnURL(){
   const params = new URLSearchParams(window.location.search);
   const sancionId = params.get('firma');
@@ -34046,6 +34177,11 @@ setTimeout(()=>{ if(currentUser) iniciarNotificaciones(); }, 3000);
   // PRIORIDAD 0: Si la URL tiene ?verificar=...&c=..., alguien escaneó el QR de un
   // reporte impreso → mostrar la página pública de verificación de autenticidad.
   if(detectarVerificacionEnURL()){
+    return;
+  }
+  // v2.9.274 — PRIORIDAD 0.5: enlace/QR de un bando del Juego de Guerra.
+  // Va antes de restaurar sesión porque el invitado NO tiene cuenta.
+  if(detectarInvitacionWargameEnURL()){
     return;
   }
   // PRIORIDAD 1: Si la URL tiene ?firma=...&t=..., el usuario viene de escanear un QR
