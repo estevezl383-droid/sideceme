@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.278</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.279</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -28659,8 +28659,30 @@ function _wgURLInvitacion(partidaId, bando, clave){
 // y no se pisen entre tarjetas.
 async function wgInvitarBando(bando, partidaId){
   const pid = partidaId != null ? Number(partidaId) : WG.partidaId;
-  const cont = document.getElementById('wg-inv-'+pid) || document.getElementById('wg-invitacion');
+  // ============================================================
+  // v2.9.279 — «LOS BOTONES DE INVITAR NO FUNCIONAN» (desde la consola del árbitro).
+  // Sí funcionaban: pedían la clave al servidor y dibujaban la tarjeta… DENTRO
+  // DEL LOBBY. El lobby se oculta con `display:none` pero NO se borra del DOM,
+  // así que su contenedor `wg-inv-<id>` seguía existiendo y `getElementById` lo
+  // encontraba primero. La invitación se pintaba en una pantalla invisible.
+  // Ahora se elige el contenedor que está DE VERDAD EN PANTALLA: `offsetParent`
+  // vale null en todo lo que está oculto, y ése es el filtro que no miente.
+  // ============================================================
+  // Primero probé con `offsetParent` para adivinar cuál estaba en pantalla, y
+  // la prueba lo tumbó: cuando la pantalla entera está oculta, NINGUNO cuenta
+  // como visible y el respaldo elegía mal igual. Adivinar el layout era el
+  // error. El dato es exacto y ya lo tenemos: los botones DEL LOBBY mandan el
+  // id de la partida; los de la consola del árbitro no mandan nada. Eso dice
+  // sin ambigüedad desde dónde te llamaron.
+  const enLobby=document.getElementById('wg-inv-'+pid);
+  const enPartida=document.getElementById('wg-invitacion');
+  const desdeLobby = partidaId != null;
+  const cont = desdeLobby ? (enLobby||enPartida) : (enPartida||enLobby);
   if(!pid){ if(cont) cont.innerHTML='<div class="rg-meta" style="color:#ff8f8f">No sé de qué partida.</div>'; return; }
+  // Y se vacía el OTRO, para que no queden dos elementos con el mismo id del QR
+  // (`getElementById` devolvería el de la pantalla oculta y el código dibujaría ahí).
+  const otro = cont===enLobby ? enPartida : enLobby;
+  if(otro) otro.innerHTML='';
   if(cont) cont.innerHTML='<div class="rg-meta" style="margin-top:8px">⏳ Generando la invitación…</div>';
   const r=await _wgInvoke('agregar_bando',{ partida_id:pid, bando });
   if(!r.ok){ if(cont) cont.innerHTML='<div class="rg-meta" style="color:#ff8f8f;margin-top:8px">No se pudo: '+_rgEsc(r.error||'')+'</div>'; return; }
