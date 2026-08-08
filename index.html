@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.288</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.289</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -24103,6 +24103,34 @@ async function wgApuntarDron(uid, rumbo){
 // Despejando el zoom queda esto. El AUMENTO de la torreta se suma en potencias
 // de dos, que es exactamente lo que es: cada duplicación del aumento es +1 zoom.
 // ============================================================
+// ============================================================
+// v2.9.289 — LA ALTURA DEL DRON ES SOBRE EL TERRENO, NO SOBRE EL MAR.
+//
+// La 288 dejó la pantalla NEGRA y la culpa fue mía: puse la cámara a la altura
+// de vuelo contada desde el NIVEL DEL MAR, que es como la mide MapLibre. Pero
+// esto se juega en el ALTIPLANO — el suelo ahí está a ~3.700 m. Volar «a
+// 3.000 m» dejaba la cámara SETECIENTOS METROS BAJO TIERRA, y lo único que se
+// veía era la franja de cielo por encima de la cresta.
+//
+// Un dron se mide en altura SOBRE EL TERRENO (AGL), que además es lo correcto
+// doctrinariamente. Así que a la altura de vuelo hay que sumarle la cota del
+// terreno bajo el aparato, y recién eso es la altura de cámara.
+//
+// Dos seguros, porque una pantalla negra no avisa por qué:
+//   · si el relieve todavía no cargó, se usa la última cota buena conocida —
+//     nunca cero, que es justo lo que hunde la cámara;
+//   · piso de 150 m sobre el suelo, para que ni con la cuenta al límite el
+//     ojo termine adentro del cerro.
+// ============================================================
+function _wgCotaTerreno(map, lngLat){
+  try{
+    if(map && typeof map.queryTerrainElevation==='function'){
+      const e=map.queryTerrainElevation(lngLat);
+      if(Number.isFinite(e)){ WG._cotaUlt=e; return e; }
+    }
+  }catch(_e){}
+  return Number.isFinite(WG._cotaUlt) ? WG._cotaUlt : 3600;   // altiplano por defecto
+}
 function _wgZoomDeAltura(map, lat, altM, pitchGr, aumento){
   try{
     const alt=Math.max(80, Number(altM)||3000);
@@ -24277,8 +24305,12 @@ function _wgVolarDrones(){
           // y del aumento— y se escribe junto con el centro, el rumbo y el
           // pitch, en la misma llamada. Nadie compite con nadie.
           // ============================================================
+          // v2.9.289: la altura de vuelo es SOBRE EL TERRENO. A la cámara hay
+          // que darle la cota del suelo + esa altura, o queda bajo tierra.
+          const agl=Math.max(150, (pilC?pilC.alt:d.alt));
           const zObj=_wgZoomDeAltura(map, v._pos[1],
-            (pilC?pilC.alt:d.alt), pObj, (WG.dronZoom||{})[v.u.bando]||1);
+            _wgCotaTerreno(map,{lng:cen[0],lat:cen[1]}) + agl,
+            pObj, (WG.dronZoom||{})[v.u.bando]||1);
           const camara={ center:cen, bearing:mira, zoom:zObj };
           if(Math.abs(pObj-map.getPitch())>0.4) camara.pitch=pObj;
           map.jumpTo(camara);
