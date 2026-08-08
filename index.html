@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.290</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.291</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6676,7 +6676,12 @@ body.wg-jugando{overflow:hidden}
    (Leaflet llega a 800). Así el MISMO HUD — riel, bitácora, enviar órdenes,
    resolver turno — sirve para las dos vistas, sin duplicar nada. */
 #wg-3d{position:absolute;inset:0;z-index:900;background:#0a0e13}
-#wg-3d-map{position:absolute;inset:0}
+/* v2.9.291 — LA FRANJA NEGRA DEL HORIZONTE.
+   Con la cámara muy echada (pitch 74 del visor del dron) la vista pasa MÁS
+   ALLÁ de donde llegan las teselas de relieve. Ahí MapLibre no dibuja nada y
+   se ve el fondo del contenedor: negro. Pintándolo del color de la bruma, ese
+   hueco deja de leerse como una barra negra y pasa a ser distancia. */
+#wg-3d-map{position:absolute;inset:0;background:#cddcea}
 #wg-3d-cargando{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#cfe6ff;font-size:14px;
   background:rgba(10,14,19,.85);padding:10px 16px;border-radius:10px;border:1px solid rgba(140,210,255,.25)}
 #wg-3d-tl{display:none} /* v2.9.204: el HUD principal ya trae los chips */
@@ -23470,7 +23475,11 @@ async function wgSubirContacto(uid){
   const r=await _wgInvoke('reportar_contacto',{ partida_id:WG.partidaId, clave_acceso:WG.clave,
     bando, unidad_id:Number(uid), nivel, lat:u.lat, lng:u.lng });
   if(!r.ok){ _wgAviso('⚠️ No se pudo subir la posición: '+_rgEsc(r.error||''),4000); return; }
+  // v2.9.291: subir o borrar SÍ cambia la lista, así que se invalida la firma
+  // del panel a mano (si no, el guardia anti-destellos lo dejaría igual).
+  WG._panelFirma=null; WG._contFirma=null;
   await wgEstado(true); _wgRender(); if(WG.map3d) _wg3dDatos(); wgBarraUnidades();
+  wgPanelDrones();
   _wgAviso(`📡 <b>Posición subida a la carta.</b> ${_wgIntTxt(nivel)}.<br>`
     +`Queda marcada <b>en tono claro y con el marco de trazos</b>: es un dato del ${WG_CW40.nom}, `
     +`no terreno comprobado — si el enemigo se mueve, la marca <b>se queda donde la viste</b>.`, 7000);
@@ -23481,7 +23490,11 @@ async function wgBorrarContacto(uid){
   const r=await _wgInvoke('borrar_contacto',{ partida_id:WG.partidaId, clave_acceso:WG.clave,
     bando, unidad_id:Number(uid) });
   if(!r.ok){ _wgAviso('⚠️ '+_rgEsc(r.error||''),3500); return; }
+  // v2.9.291: subir o borrar SÍ cambia la lista, así que se invalida la firma
+  // del panel a mano (si no, el guardia anti-destellos lo dejaría igual).
+  WG._panelFirma=null; WG._contFirma=null;
   await wgEstado(true); _wgRender(); if(WG.map3d) _wg3dDatos(); wgBarraUnidades();
+  wgPanelDrones();
   _wgAviso('🗑️ Marca borrada de la carta.',2600);
 }
 // ¿Esta unidad enemiga ya está subida a la carta de ese bando?
@@ -24828,8 +24841,26 @@ function _wgBandosDron(){
 function wgPanelDrones(){
   const el=document.getElementById('wg-drones'); if(!el) return;
   const bandos=_wgBandosDron().filter(b=>_wgDronBando(b));
-  if(!bandos.length){ el.style.display='none'; el.innerHTML=''; return; }
+  if(!bandos.length){ el.style.display='none'; el.innerHTML=''; WG._panelFirma=null; return; }
   el.style.display='';
+  // ============================================================
+  // v2.9.291 — LA ESTACIÓN NO SE REDIBUJA SI NO CAMBIÓ NADA.
+  // `innerHTML=` rehace la tarjeta entera, y esto se llama en cada refresco de
+  // estado (cada 4 s), en cada zoom y en cada toque: de ahí una parte de los
+  // destellos, y también el gesto del pad que se moría a mitad de camino
+  // (trampa nº 7). Los números que sí cambian a cada rato —altura, velocidad,
+  // torreta, contactos— ya los escribe `_wgPanelTel` uno por uno, sin rehacer
+  // nada. Acá sólo se rehace cuando cambia la ESTRUCTURA.
+  // ============================================================
+  const firma=bandos.map(b=>{
+    const i=_wgDronBando(b)||{}; const d=i.d||{};
+    return [b, i.portador&&i.portador.id, !!i.d, Math.round(d.rumbo||0),
+      (WG.dronZoom||{})[b]||1, !!(WG.dronTerm||{})[b],
+      !!(WG.dronManual||{})[b], _wgPatronDron(b),
+      String(WG.dronVista||'')].join('|');
+  }).join('//');
+  if(WG._panelFirma===firma && el.children.length) return;
+  WG._panelFirma=firma;
   el.innerHTML=`<div class="rg-meta" style="font-size:10px;letter-spacing:.6px;opacity:.75;margin-bottom:5px">`
     +`🛩️ ESTACIÓN DE CONTROL · ${WG_CW40.nom}</div>`
     +`<div style="display:flex;gap:9px;flex-wrap:wrap">`
@@ -26333,9 +26364,14 @@ async function wgVista3D(){
     // de ahí las pantallas oscuras y la sensación de que las unidades lejanas
     // «flotaban en el cielo» — estaban bien puestas, pero contra un fondo negro.
     // Con luz de día se ve el horizonte, y una unidad lejos se lee como lejos.
+    // v2.9.291 — MÁS BRUMA EN LA DISTANCIA, para que el terreno se DESVANEZCA
+    // antes de que se acabe la malla. `fog-ground-blend` estaba casi en cero:
+    // la niebla vivía pegada al horizonte y el terreno lejano llegaba nítido
+    // hasta el borde de las teselas cargadas — y justo ahí aparecía el corte
+    // negro. Subiéndola, lo lejano se va en bruma y el corte no existe.
     try{ map.setSky({'sky-color':'#8fb9e0','horizon-color':'#dce9f4','fog-color':'#cddcea',
-      'sky-horizon-blend':0.6,'horizon-fog-blend':0.55,'fog-ground-blend':0.02,
-      'atmosphere-blend':0.35}); }
+      'sky-horizon-blend':0.8,'horizon-fog-blend':0.9,'fog-ground-blend':0.5,
+      'atmosphere-blend':0.55}); }
     catch(_e){ /* el cielo es cosmético */ }
     map.addSource('wg-terr',{type:'geojson',data:WG3D_VACIO});
     map.addLayer({id:'wg-terr-relleno',type:'fill',source:'wg-terr',
