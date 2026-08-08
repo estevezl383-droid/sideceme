@@ -3870,7 +3870,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.286</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.287</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -23151,6 +23151,27 @@ const WG_INT_KM_MAGNITUD = 6;    // km por aumento para leer la MAGNITUD
 const WG_INT_ZOOM_CONF   = 4;    // aumento mínimo de torreta para el ARMA
 const WG_INT_KM_ARMA     = 2.5;  // km por aumento para leer el ARMA
 const WG_INT_KM_CONTACTO = 1.5;  // tropa a esta distancia: lo tiene a la vista
+// ============================================================
+// v2.9.287 — BAJAR EL APARATO DA MÁS DETALLE.
+// Sergio: «esos botones de bajar y subir el dron me permitirán identificar más
+// detalles de las unidades enemigas».
+// Tiene fundamento físico directo: la resolución sobre el terreno es
+// proporcional a la altura de vuelo. A la mitad de altura, el mismo sensor
+// resuelve el doble de detalle, y por eso identifica desde el doble de lejos.
+// El ALCANCE del sensor (24 km) NO cambia con la altura, a propósito: ése es el
+// número que también usa el servidor, y separarlos volvería a dejar la pantalla
+// diciendo una cosa y el motor otra. La altura mueve el DETALLE, no el alcance.
+// ============================================================
+const WG_INT_ALT_REF=3000;     // altura de referencia del CW 40
+function _wgAltDron(bando, dr){
+  const pil=_wgPilotoActivo(bando);
+  if(pil && Number.isFinite(pil.alt)) return pil.alt;
+  return (dr && dr.d && dr.d.alt) || WG_INT_ALT_REF;
+}
+function _wgFactorAltura(bando, dr){
+  const alt=Math.max(WG_DRON_ALTMIN, _wgAltDron(bando, dr));
+  return Math.max(0.55, Math.min(2.4, WG_INT_ALT_REF/alt));
+}
 // Cuánto sabe `bando` sobre la unidad `e`, de 0 a 3.
 function _wgNivelInt(bando, e){
   if(!e || !Number.isFinite(e.lng) || !Number.isFinite(e.lat)) return WG_INT_NADA;
@@ -23163,11 +23184,12 @@ function _wgNivelInt(bando, e){
     if(dist<=dr.d.km){
       const z=(WG.dronZoom||{})[bando]||1;
       const ir=!!(WG.dronTerm||{})[bando];
+      const fa=_wgFactorAltura(bando, dr);
       n=Math.max(n, WG_INT_CONTACTO);
       // El IR lee el despliegue aunque esté lejos: los motores y las posiciones
       // ocupadas cantan solas. Pero no pasa de ahí.
-      if(ir || dist<=WG_INT_KM_MAGNITUD*z) n=Math.max(n, WG_INT_IDENT);
-      if(!ir && z>=WG_INT_ZOOM_CONF && dist<=WG_INT_KM_ARMA*z) n=WG_INT_CONF;
+      if(ir || dist<=WG_INT_KM_MAGNITUD*z*fa) n=Math.max(n, WG_INT_IDENT);
+      if(!ir && z>=WG_INT_ZOOM_CONF && dist<=WG_INT_KM_ARMA*z*fa) n=WG_INT_CONF;
     }
   }
   // b) LA TROPA. Ve poco, pero lo que ve lo ve bien: a distancia de contacto
@@ -23207,12 +23229,17 @@ function _wgAlcanceSensorHTML(bando, d){
   const z=(WG.dronZoom||{})[bando]||1;
   const ir=!!(WG.dronTerm||{})[bando];
   const alc=(d&&d.km)||WG_CW40.km;
-  const kmMag=ir ? alc : Math.min(alc, WG_INT_KM_MAGNITUD*z);
-  const kmArm=(!ir && z>=WG_INT_ZOOM_CONF) ? Math.min(alc, WG_INT_KM_ARMA*z) : 0;
+  const dr=_wgPosDron(bando);
+  const fa=_wgFactorAltura(bando, dr||{d:d});
+  const alt=Math.round(_wgAltDron(bando, dr||{d:d}));
+  const kmMag=ir ? alc : Math.min(alc, WG_INT_KM_MAGNITUD*z*fa);
+  const kmArm=(!ir && z>=WG_INT_ZOOM_CONF) ? Math.min(alc, WG_INT_KM_ARMA*z*fa) : 0;
   return `contacto <b>${alc} km</b> · magnitud <b>${kmMag.toFixed(0)} km</b> · arma `
     +(kmArm ? `<b>${kmArm.toFixed(0)} km</b>`
             : (ir ? '<b>no</b> (el IR no dice de qué arma es)'
-                  : `<b>no</b> (hace falta ${WG_INT_ZOOM_CONF}× o más)`));
+                  : `<b>no</b> (hace falta ${WG_INT_ZOOM_CONF}× o más)`))
+    +`<br>a <b>${alt} m</b>: ${fa>=1.25?'<b>bajo, mucho detalle</b>'
+      : fa<=0.8?'<b>alto, poco detalle</b>' : 'detalle normal'} — bajá el aparato para reconocer desde más lejos.`;
 }
 // ============================================================
 // v2.9.286 — CARTA DE ORIENTACIÓN: LOS DOS CONOS DE VISTA.
@@ -24475,6 +24502,10 @@ function _wgPanelTel(bando, pil, d){
   // La aguja de la rosa sigue al aparato mientras lo volás: si se quedara en el
   // rumbo que le marcaste con el arrastre, mentiría apenas empezás a virar.
   if(pil && !WG._joyArrastrando) _wgJoyPinta(bando, pil.proa);
+  // v2.9.287: el número de la altura, en vivo — es el indicio de que Mayús+↑↓
+  // (o los botones) están haciendo algo.
+  const ea=document.getElementById('dron-alt-'+bando);
+  if(ea) ea.textContent=Math.round(pil?pil.alt:(d&&d.alt)||0)+' m';
 }
 // El estado de vuelo sólo manda si el aparato está en MANUAL. En AUTO se
 // ignora, y el hipódromo de siempre queda tal cual.
@@ -24554,6 +24585,22 @@ function _wgRuedaDron(e){
 }
 // Aumento CONTINUO (rueda y teclas). Los botones − / + de la estación siguen
 // yendo por la escalera fija de siempre: son dos formas de tocar lo mismo.
+// v2.9.287 — subir/bajar el aparato desde la estación. Toma el mando (pasa a
+// manual) porque en automático la altura la fija el patrón de vuelo.
+function wgDronAltura(bando, dm){
+  WG.dronManual=WG.dronManual||{};
+  if(!WG.dronManual[bando]) WG.dronManual[bando]=true;
+  const p=_wgPiloto(bando, true); if(!p) return;
+  p.alt=Math.max(WG_DRON_ALTMIN, Math.min(WG_DRON_ALTMAX, p.alt + dm));
+  const el=document.getElementById('dron-alt-'+bando);
+  if(el) el.textContent=Math.round(p.alt)+' m';
+  const sen=document.getElementById('dron-sen-'+bando);
+  if(sen) sen.innerHTML=_wgAlcanceSensorHTML(bando, (_wgDronBando(bando)||{}).d);
+  WG._contFirma=null;                 // que la lista de contactos se recalcule
+  _wgAviso(dm>0
+    ? `⬆️ <b>${Math.round(p.alt)} m</b> — más altura: se abarca más terreno, pero con <b>menos detalle</b>.`
+    : `⬇️ <b>${Math.round(p.alt)} m</b> — más bajo: <b>más detalle</b>, se reconoce el arma desde más lejos.`, 3200);
+}
 function wgDronZoomCont(bando, delta){
   WG.dronZoom=WG.dronZoom||{};
   const z=Math.max(1, Math.min(8, (WG.dronZoom[bando]||1) * Math.pow(2, delta)));
@@ -24713,6 +24760,26 @@ function _wgTarjetaDronHTML(bando){
               :`background:rgba(255,255,255,.06);border:1px solid rgba(140,210,255,.25);color:#cfe2f5`)+`">
         ${term?'🌡️ IR ON':'🌡️ IR'}</button>
     </div>
+    <!-- ============================================================
+         v2.9.287 — ALTURA CON BOTONES, ADEMÁS DE MAYÚS+↑↓.
+         Sergio dice que Mayús+flechas «no funciona». En banco funciona —
+         disparando las teclas de verdad el aparato sube 400 m en 2 s— así que
+         el fallo está en algo del teclado real que desde acá no puedo
+         reproducir (foco, distribución, atajo del sistema). En vez de mandarlo
+         a probar combinaciones a ciegas, la altura tiene ahora un mando que no
+         puede fallar. El atajo sigue estando para quien lo prefiera.
+         ============================================================ -->
+    ${d&&puedo?`<div style="display:flex;gap:5px;align-items:center;margin-bottom:5px">
+      <span class="rg-meta" style="font-size:8.5px;opacity:.7;letter-spacing:.4px">⇕ ALTURA</span>
+      <button onclick="wgDronAltura('${bando}',-400)" title="Bajar: más detalle, se identifica desde más lejos"
+        style="width:30px;padding:5px 0;border-radius:7px;cursor:pointer;font-weight:900;font-size:13px;
+        background:rgba(255,255,255,.08);border:1px solid ${col}66;color:#eaf2fb">▼</button>
+      <span id="dron-alt-${bando}" style="font-family:ui-monospace,Menlo,monospace;font-size:12px;
+        font-weight:900;color:${col};min-width:58px;text-align:center">${Math.round(_wgAltDron(bando,{d}))} m</span>
+      <button onclick="wgDronAltura('${bando}',400)" title="Subir: se abarca más, pero con menos detalle"
+        style="width:30px;padding:5px 0;border-radius:7px;cursor:pointer;font-weight:900;font-size:13px;
+        background:rgba(255,255,255,.08);border:1px solid ${col}66;color:#eaf2fb">▲</button>
+    </div>`:''}
     <!-- Qué te compra el aumento que tenés puesto. Va acá, pegado al control,
          porque es la única razón para tocarlo. -->
     ${d?`<div id="dron-sen-${bando}" class="rg-meta" style="font-size:8.5px;line-height:1.4;
@@ -24756,9 +24823,18 @@ function _wgTarjetaDronHTML(bando){
         <b>+ −</b> o la rueda: aumento · <b>I</b> infrarrojo · <b>H</b> vuelve a AUTO</div>`:''}
     ${d&&puedo&&!manualB?`<div class="rg-meta" style="font-size:8.5px;line-height:1.4;margin-top:4px;opacity:.7">
       En automático el aparato vuela solo. Tocá <b>🕹️ MANUAL</b> —o una flecha— para volarlo vos.</div>`:''}
-    <!-- v2.9.286: el trabajo del G-2. Sólo dentro del visor, porque es lo que
-         está viendo el operador en este momento. -->
-    ${d&&puedo&&act?`<div id="dron-cont-${bando}" style="border-top:1px solid ${col}33;margin-top:6px;padding-top:2px">
+    <!-- ============================================================
+         v2.9.287 — LOS CONTACTOS VAN EN LA ESTACIÓN, SIEMPRE.
+         En la 286 este panel sólo aparecía DENTRO del visor y fue un error de
+         diseño mío: desde la 283 el mando del aparato es la ESTACIÓN, y Sergio
+         vuela desde la panorámica con la estación abierta. Al esconder al
+         enemigo de la panorámica y dejar el botón de subir sólo en el visor,
+         desde afuera se veía exactamente como él lo describió: «los drones no
+         identifican las posiciones, por lo tanto no puedo subirlas».
+         El sensor está prendido vuele quien vuele y se mire donde se mire: lo
+         que ve, se lista acá y se puede subir de un toque.
+         ============================================================ -->
+    ${d&&puedo?`<div id="dron-cont-${bando}" style="border-top:1px solid ${col}33;margin-top:6px;padding-top:2px">
       ${_wgContactosHTML(bando)}</div>`:''}
     ${d?`<div style="display:flex;gap:4px;margin-top:5px">
       <button onclick="wgVistaDron(${u.id})" style="flex:1;padding:5px;border-radius:7px;cursor:pointer;
