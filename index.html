@@ -3865,12 +3865,68 @@ body{
 }
 .btn-mega:hover{ box-shadow:0 0 30px rgba(160,215,255,.5),0 6px 20px rgba(0,0,0,.5) !important; transform:none !important }
 .btn-mega::before,.btn-mega::after{ display:none !important }
+
+/* ===== v2.9.292: PLANIFICACIÓN SEMANAL — editor de documentos ===== */
+.pl-tabs{ display:flex; gap:5px; overflow-x:auto; padding:8px 0 10px; -webkit-overflow-scrolling:touch }
+.pl-tab{ flex:0 0 auto; background:rgba(255,255,255,.04); color:var(--text-secondary);
+  border:1px solid var(--border-subtle); border-radius:20px; padding:7px 13px;
+  font-size:12px; font-weight:600; font-family:inherit; cursor:pointer; white-space:nowrap }
+.pl-tab:hover{ border-color:var(--gold); color:var(--text-primary) }
+.pl-tab.on{ background:rgba(212,175,55,.16); border-color:var(--gold); color:#f4d574 }
+
+.pl-card{ background:rgba(255,255,255,.03); border:1px solid var(--border-subtle);
+  border-radius:10px; padding:11px 12px; margin-bottom:11px }
+.pl-card-h{ display:flex; align-items:center; gap:8px; font-size:13px; font-weight:700;
+  color:#f4d574; margin-bottom:9px; padding-bottom:7px; border-bottom:1px solid var(--border-subtle) }
+
+.pl-i{ width:100%; box-sizing:border-box; background:var(--bg-deep); color:var(--text-primary);
+  border:1px solid var(--border-subtle); border-radius:5px; padding:5px 7px;
+  font-family:inherit; font-size:12px; resize:vertical }
+.pl-i:focus{ outline:none; border-color:var(--gold) }
+.pl-grid2{ display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:9px }
+.pl-grid2 label,.pl-full{ display:block; font-size:11px; color:var(--text-muted); font-weight:600 }
+.pl-grid2 label .pl-i,.pl-full .pl-i{ margin-top:3px }
+.pl-full{ margin-bottom:9px }
+.pl-row{ display:flex; gap:6px; align-items:flex-start; margin-bottom:6px }
+.pl-row .pl-i{ flex:1 }
+
+.pl-tw{ overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--border-subtle);
+  border-radius:6px; margin-bottom:7px }
+.pl-t{ border-collapse:collapse; width:100%; min-width:820px }
+.pl-t th{ background:rgba(212,175,55,.10); color:#f4d574; font-size:10px; font-weight:700;
+  text-transform:uppercase; letter-spacing:.03em; padding:5px 4px; text-align:left;
+  border-bottom:1px solid var(--border-subtle); white-space:nowrap }
+.pl-t td{ padding:3px 4px; border-bottom:1px solid rgba(255,255,255,.05); vertical-align:top }
+.pl-t tr:last-child td{ border-bottom:0 }
+
+.pl-add{ background:rgba(76,163,107,.14); color:#9be6b4; border:1px solid #3a8c5a;
+  border-radius:6px; padding:5px 11px; font-size:11px; font-weight:600;
+  font-family:inherit; cursor:pointer }
+.pl-add:hover{ background:rgba(76,163,107,.24) }
+.pl-x{ background:rgba(200,74,74,.12); color:#ffc9c9; border:1px solid #7a2230;
+  border-radius:5px; width:26px; height:26px; font-size:12px; cursor:pointer; line-height:1 }
+.pl-b{ padding:6px 12px !important; font-size:12px !important; width:auto !important;
+  flex:0 0 auto !important; letter-spacing:normal !important; text-transform:none !important }
+.pl-hint{ font-size:11px; color:var(--text-muted); line-height:1.5; margin-top:7px }
+.pl-warn{ background:rgba(212,175,55,.10); border:1px solid var(--gold); border-radius:8px;
+  padding:10px 12px; font-size:12px; color:var(--text-secondary); line-height:1.5; margin-bottom:11px }
+.pl-ol{ margin:0; padding-left:20px; font-size:12px; color:var(--text-secondary); line-height:1.7 }
+
+.pl-orient{ display:flex; align-items:center; gap:5px; flex:0 0 auto;
+  font-size:11px; color:var(--text-muted); white-space:nowrap }
+.pl-orient .pl-i{ width:auto; flex:0 0 auto; padding:4px 6px }
+.pl-docbar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  background:rgba(212,175,55,.08); border:1px solid var(--gold); border-radius:9px;
+  padding:9px 11px; margin-bottom:11px; font-size:12px; color:#f4d574 }
+.pl-savebar{ position:sticky; bottom:0; z-index:5; display:flex; align-items:center; gap:9px;
+  flex-wrap:wrap; background:var(--bg-deep); border-top:1px solid var(--border-subtle);
+  padding:9px 0; margin-top:6px }
 </style>
 </head>
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.291</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.292</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5074,6 +5130,7 @@ body{
       <button id="qa-btn-quiz" class="quick-btn" onclick="goQuizProf('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(140,45,176,.22),rgba(106,31,176,.06));border-color:#8c2db0"><span class="qa-icon">🎯</span><span class="qa-text"><strong>Recurso Interactivo</strong> (quiz en vivo · muro de ideas · nube de palabras — para el avance de materias)</span></button>
       <button id="qa-btn-cargas-notas" class="quick-btn" onclick="goCargasNotas()" style="background:linear-gradient(180deg,rgba(138,109,181,.2),rgba(138,109,181,.05));border-color:#8a6db5;display:none"><span class="qa-icon">🗂️</span><span class="qa-text"><strong>Cargas de notas</strong> (quién cargó, cuándo y qué)</span></button>
       <button id="qa-btn-avisos" class="quick-btn" onclick="goAvisos()" style="background:linear-gradient(180deg,rgba(70,150,110,.2),rgba(70,150,110,.05));border-color:#46966e;display:none"><span class="qa-icon">📢</span><span class="qa-text"><strong>Avisos a cursantes</strong> (publicar / desactivar cartel in-app)</span></button>
+      <button id="qa-btn-planificacion" class="quick-btn" onclick="goPlanificacion()" style="background:linear-gradient(180deg,rgba(196,146,52,.20),rgba(150,110,35,.05));border-color:#c49234;display:none"><span class="qa-icon">🗓️</span><span class="qa-text"><strong>Planificación Semanal</strong> (horarios de planta y ciclos, programa de Facultad, notas de servicio)</span></button>
       <button class="quick-btn" onclick="goDocsProfesoresCT()" style="background:linear-gradient(180deg,rgba(140,90,203,.18),rgba(140,90,203,.05));border-color:#8c5acb"><span class="qa-icon">👨‍🏫</span><span class="qa-text"><strong>Documentos del personal docente</strong> (subir / ver — solo profesores)</span></button>
       <button class="quick-btn" onclick="goDocsInst('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(140,90,203,.22),rgba(107,75,168,.06));border-color:#8c5acb"><span class="qa-icon">📁</span><span class="qa-text"><strong>Documentos Institucionales</strong> (publicar / recibir — por ciclo, profesores, mando)</span></button>
       <button class="quick-btn" onclick="goEjTac('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(58,140,90,.22),rgba(44,107,75,.06));border-color:#3a8c5a"><span class="qa-icon">🗺️</span><span class="qa-text"><strong>Ejercicios Tácticos</strong> (publicar / recibir calcos KMZ para Google Earth)</span></button>
@@ -5460,6 +5517,76 @@ body{
   </div>
 </section>
 
+<!-- ============================================================ -->
+<!-- v2.9.292: PLANIFICACIÓN SEMANAL (Sección Planificación)       -->
+<!-- Una semana → 5 documentos oficiales en Word.                  -->
+<!-- ============================================================ -->
+
+<!-- Panel de la Sección Planificación -->
+<section id="screen-planif-panel" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="logout()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Sección Planificación</div><div class="header-sub">Documentación semanal</div></div>
+  </div>
+  <div class="menu-container">
+    <div class="user-strip">
+      <div class="user-avatar" id="plp-initials">—</div>
+      <div class="user-info"><div class="user-name" id="plp-name">—</div><div class="user-rank" id="plp-rank">—</div></div>
+      <button class="btn-logout" onclick="logout()">Salir</button>
+    </div>
+    <button class="btn-mega" onclick="goPlanificacion()">
+      <span class="mega-icon">🗓️</span><span>PLANIFICACIÓN SEMANAL</span>
+    </button>
+    <div style="font-size:11px;color:var(--text-muted);text-align:center;margin-top:4px">
+      Horarios de planta y de los dos ciclos, programa de la Facultad y notas de servicio
+    </div>
+    <button class="btn-secondary" style="width:100%;margin-top:12px" onclick="goHorarios()">📅 Horarios publicados</button>
+  </div>
+</section>
+
+<!-- Lista de semanas planificadas -->
+<section id="screen-planif" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="plVolver()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Planificación Semanal</div><div class="header-sub">Documentos de la semana</div></div>
+  </div>
+  <div class="disc-container">
+    <div style="background:rgba(212,175,55,.08);border:1px solid var(--gold);border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12px;color:var(--text-secondary);line-height:1.5">
+      🗓️ Cada semana genera <b>5 documentos en Word</b>: el horario del personal de planta, los horarios de 1er y 2do ciclo, el programa semanal de la Facultad y las notas de servicio. Todo se edita antes de descargar.
+    </div>
+    <button class="btn-mega" onclick="plNuevaSemana()" style="background:linear-gradient(180deg,#4ca36b,#2d7a4a);box-shadow:0 4px 12px rgba(76,163,107,.35)">
+      <span class="mega-icon">➕</span><span>NUEVA SEMANA</span>
+    </button>
+    <div style="font-size:11px;color:var(--text-muted);text-align:center;margin:4px 0 14px">
+      Podés copiar la semana anterior y corregir solo lo que cambió
+    </div>
+    <div id="pl-lista">Cargando...</div>
+  </div>
+</section>
+
+<!-- Editor de una semana -->
+<section id="screen-planif-sem" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="plCerrarEditor()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text">
+      <div class="header-title" id="pl-sem-titulo">Semana</div>
+      <div class="header-sub" id="pl-sem-sub">—</div>
+    </div>
+  </div>
+  <div class="disc-container">
+    <div class="pl-tabs" id="pl-tabs"></div>
+    <div id="pl-tab-body" oninput="_plOnInput(event)" onchange="_plOnInput(event)"></div>
+    <div class="pl-savebar">
+      <span id="pl-estado" style="font-size:12px;font-weight:600">✅ Guardado</span>
+      <span style="flex:1"></span>
+      <button class="btn-primary pl-b" onclick="plGuardar(false)">💾 Guardar ahora</button>
+    </div>
+  </div>
+</section>
+
 <!-- PLANILLAS DE DISCIPLINA: lista -->
 <section id="screen-planillas" class="screen with-bottom-nav">
   <div class="app-header">
@@ -5721,7 +5848,7 @@ body{
     <div class="field"><label>Nombre completo *</label><input type="text" id="prof-form-nombre"></div>
     <div class="field"><label>CI * <span id="prof-form-ci-hint" style="font-size:10px;color:#8a7a4a;display:none">(no editable — usá el botón para cambiar la contraseña)</span></label><input type="text" id="prof-form-ci" inputmode="numeric"></div>
     <button type="button" class="btn-secondary" id="prof-form-btn-pwd" onclick="cambiarPasswordProfesorDesdeFichaForm()" style="display:none;background:linear-gradient(135deg,#5a4422,#7a5a2a);color:#f0d890;border-color:#a87e3a;margin:-4px 0 14px">🔑 Cambiar contraseña del profesor</button>
-    <div id="prof-form-rol-wrap" style="display:none"><div class="field"><label>Rol en el sistema <span style="font-size:10px;color:#6ab0ff">(solo C&T puede editar)</span></label><select id="prof-form-rol"><option value="profesor">Profesor / Docente</option><option value="jefe_disciplina">Jefe Disciplina</option><option value="jefe_estudios">Jefe de Estudios</option><option value="comandante">Comandante</option><option value="sub_ef">Sub. Sec. EF</option><option value="evaluaciones">Sub. Sec. Evaluaciones</option><option value="ciencia_tecnologia">C&T (Ciencia y Tecnología)</option><option value="jefe_sac">Jefe de la SAC</option></select></div></div>
+    <div id="prof-form-rol-wrap" style="display:none"><div class="field"><label>Rol en el sistema <span style="font-size:10px;color:#6ab0ff">(solo C&T puede editar)</span></label><select id="prof-form-rol"><option value="profesor">Profesor / Docente</option><option value="jefe_disciplina">Jefe Disciplina</option><option value="jefe_estudios">Jefe de Estudios</option><option value="comandante">Comandante</option><option value="sub_ef">Sub. Sec. EF</option><option value="evaluaciones">Sub. Sec. Evaluaciones</option><option value="ciencia_tecnologia">C&T (Ciencia y Tecnología)</option><option value="jefe_sac">Jefe de la SAC</option><option value="jefe_planificacion">Sección Planificación</option></select></div></div>
     <div class="field"><label>Grado militar</label><input type="text" id="prof-form-grado" placeholder="Ej: TCNL, CNL, MAY, CAP"></div>
     <div class="field"><label>Arma</label><input type="text" id="prof-form-arma" placeholder="Ej: Ejército, FAB, Armada"></div>
     <div class="field"><label>Especialidad</label><input type="text" id="prof-form-esp"></div>
@@ -7512,7 +7639,8 @@ const CARGOS = {
   comandante:{nombre:'Comandante',icono:'🎖️'},
   ciencia_tecnologia:{nombre:'Sec. Ciencia y Tecnología',icono:'💻'},
   jefe_curso:{nombre:'Jefe de Curso',icono:'🎓'},
-  jefe_sac:{nombre:'Jefe de la SAC',icono:'📊'}
+  jefe_sac:{nombre:'Jefe de la SAC',icono:'📊'},
+  jefe_planificacion:{nombre:'Sección Planificación',icono:'🗓️'}   // v2.9.292
 };
 
 // ─── Helpers de rol ─────────────────────────────────────────────────────────
@@ -8178,7 +8306,8 @@ const MAPA_ROL_BACKEND_A_CARGO = {
   'evaluaciones':      'evaluaciones',
   'ciencia_tecnologia':'ciencia_tecnologia',
   'jefe_curso':        'jefe_curso',
-  'jefe_sac':          'jefe_sac'
+  'jefe_sac':          'jefe_sac',
+  'jefe_planificacion':'jefe_planificacion'   // v2.9.292
 };
 
 async function loginUniversal(){
@@ -8506,6 +8635,11 @@ async function enterRole(role){
     await loadNotasAcademicas();
     renderEvalPanel();
     showScreen('screen-eval-panel');
+  } else if(role==='jefe_planificacion'){
+    // v2.9.292: Sección Planificación → panel propio (si cayera al else vería
+    // "Panel en construcción", como le pasó a Evaluaciones antes de v2.9.189).
+    renderPlanifPanel();
+    showScreen('screen-planif-panel');
   } else {
     renderGenericoPanel(role);
     showScreen('screen-panel-generico');
@@ -10693,7 +10827,8 @@ const FUNCIONES_SISTEMA=[
   {key:'ciencia_tecnologia', rol:'ciencia_tecnologia', sec:'CIENCIA_TECNOLOGIA',   nombre:'Sec. Ciencia y Tecnología',      icono:'💻'},
   {key:'jefe_curso_1er',     rol:'jefe_curso', ciclo:'1ER CICLO', sec:'JEFE_CURSO_1ER', nombre:'Jefe de Curso — 1er Ciclo', icono:'🎓'},
   {key:'jefe_curso_2do',     rol:'jefe_curso', ciclo:'2DO CICLO', sec:'JEFE_CURSO_2DO', nombre:'Jefe de Curso — 2do Ciclo', icono:'🎓'},
-  {key:'jefe_sac',           rol:'jefe_sac',           sec:'JEFE_SAC',             nombre:'Jefe de la SAC',                 icono:'📊'}
+  {key:'jefe_sac',           rol:'jefe_sac',           sec:'JEFE_SAC',             nombre:'Jefe de la SAC',                 icono:'📊'},
+  {key:'jefe_planificacion', rol:'jefe_planificacion', sec:'PLANIFICACION',        nombre:'Sección Planificación',          icono:'🗓️'}
 ];
 function _fnByKey(k){ return FUNCIONES_SISTEMA.find(function(x){ return x.key===k; }); }
 // Normaliza la especialidad de un jefe de curso al ciclo canónico ('1ER CICLO'/'2DO CICLO').
@@ -12748,6 +12883,9 @@ function renderDiscPanel(){
   try{ avOpcionesDocente('screen-disc-panel'); }catch(e){}  // v2.9.195
   // v2.9.197: la Carpeta de Clases va para TODOS (todos dan clases), no solo C&T.
   { const b = document.getElementById('qa-btn-carpeta-clases'); if(b) b.style.display = ''; }
+  // v2.9.292: Planificación Semanal — mismos roles que autoriza la EF planificacion-ops.
+  { const b = document.getElementById('qa-btn-planificacion');
+    if(b) b.style.display = esRolPlanificacion() ? '' : 'none'; }
   // v2.9.106: bloque CIERRE DE SEMESTRE en el panel principal — SOLO C&T
   const cierreBlock = document.getElementById('cierre-sem-block');
   if(cierreBlock){
@@ -25848,7 +25986,7 @@ function _wgRenderTerreno(){
   };
   // Los puntos (cimas, volcanes, poblados, hitos) van como circulitos chicos.
   const punto={ elevacion:{r:3.4,color:'#e0b34a'}, poblado:{r:3.8,color:'#ffffff'}, jurisdiccion:{r:3,color:'#b06de0'} };
-  // v2.9.206 — RENDIMIENTO. Antes se creaba UNA capa `L.geoJSON` por polígono:
+  // v2.9.292 — RENDIMIENTO. Antes se creaba UNA capa `L.geoJSON` por polígono:
   // con el terreno real del Generador eso son 250-600 capas SVG, y por eso
   // importar o vaciar «tardaba un montón». Ahora se agrupan por tipo (máximo 11
   // capas) y se dibujan sobre un ÚNICO lienzo `canvas`, que Leaflet pinta de una
@@ -27289,7 +27427,7 @@ async function wgImportarEscenario(inp){
   let d;
   try{ d=JSON.parse(await f.text()); }
   catch(e){ poner('❌ Ese archivo no es un JSON válido. Buscá el <b>ejercicio.json</b> dentro de la carpeta del ejercicio.'); return; }
-  // v2.9.206 — ELEGIR EL CURSO DE ACCIÓN. El Generador guarda cada fase del COA
+  // v2.9.292 — ELEGIR EL CURSO DE ACCIÓN. El Generador guarda cada fase del COA
   // con las unidades en su posición de esa fase, y además el «estado vivo», que
   // es la fase que quedó abierta. El importador tomaba ese estado vivo, así que
   // SIEMPRE traía la última fase. Ahora se elige cuál se quiere jugar.
@@ -27564,7 +27702,7 @@ function _wgSimboloUnidad(u,sel){
 // v2.9.218 — UNA SOLA LISTA DE DIBUJO PARA LAS DOS SUPERFICIES.
 // Hasta acá cada función dibujaba DIRECTO sobre Leaflet (`L.circle(...).addTo`),
 // así que todo lo nuevo nacía andando en 2D y AUSENTE en 3D. Ya pasó tres veces:
-// el refresco (v2.9.206), el círculo de alcance del arma y los tramos de ruta.
+// el refresco (v2.9.292), el círculo de alcance del arma y los tramos de ruta.
 // Como el 3D es la vista que se usa de verdad, el bug se notaba siempre.
 // Ahora `_wgDibujo()` NO dibuja: declara QUÉ hay que mostrar, y cada superficie
 // lo pinta con lo suyo. Una función nueva se agrega en un solo lugar y aparece
@@ -29136,7 +29274,7 @@ function _wgRender(){
   cont.innerHTML = `<div style="margin-bottom:4px">Tuyas (${mias.length}):</div>`+mias.map(u=>fila(u,false)).join('')
     + (enem.length?`<div style="margin:6px 0 4px">Enemigas detectadas (${enem.length}):</div>`+enem.map(u=>fila(u,true)).join('')
        : (WG.soy!=='arbitro'?'<div class="rg-meta" style="margin-top:6px">🌫️ Sin contacto enemigo (niebla de guerra).</div>':''));
-  // ⚠️ v2.9.206 — EL BUG QUE HACÍA PARECER QUE NADA FUNCIONABA.
+  // ⚠️ v2.9.292 — EL BUG QUE HACÍA PARECER QUE NADA FUNCIONABA.
   // El 3D se dibuja con SUS PROPIAS fuentes de datos. `wgEstado()` sólo
   // repintaba el mapa 2D, que en modo 3D está TAPADO ABAJO: importar, vaciar y
   // 🔄 actualizaban algo invisible y el usuario seguía viendo el terreno viejo.
@@ -35613,6 +35751,1160 @@ setTimeout(()=>{ if(currentUser) iniciarNotificaciones(); }, 3000);
     showScreen('screen-cursante-home');
   }
 })();
+
+// ============================================================
+// v2.9.292 — PLANIFICACIÓN SEMANAL  (Sección Planificación / SAC)
+// ------------------------------------------------------------
+// Una SEMANA guardada en planif_semanas produce 5 documentos oficiales:
+//   1.- Horario de actividades del PERSONAL DE PLANTA      (bloque .planta)
+//   2.- Horario semanal 1ER. CICLO                          (bloque .c1)
+//   3.- Horario semanal 2DO. CICLO                          (bloque .c2)
+//   4.- Programa semanal académico (FACULTAD)               (bloque .facultad)
+//   5.- Notas de servicio (supervisor + encargados)         (bloque .ns)
+//
+// La nota de servicio NO se escribe a mano: sale de las designaciones que ya
+// se cargaron en el horario de planta, con correlativo automático.
+//
+// Backend: EF planificacion-ops (acciones listar/obtener/crear/guardar/
+// publicar/eliminar). El guardado hace merge POR BLOQUE, así dos personas
+// pueden editar pestañas distintas de la misma semana sin pisarse.
+//
+// Edición: un único listener delegado lee data-p="ruta.al.campo" y escribe
+// en PLANIF.sem.datos. Nada de un handler por input.
+// ============================================================
+const PLANIF = { lista:[], sem:null, tab:'datos', dirty:false, guardando:false, tSave:null, cargando:false, origen:null };
+
+const PLANIF_ROLES = ['jefe_planificacion','jefe_sac','estudios','comandante','ciencia_tecnologia'];
+function esRolPlanificacion(){ return PLANIF_ROLES.includes(activeRole); }
+
+// ---------- utilidades de fecha / texto ----------
+const _PL_MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+const _PL_DIAS  = ['DOMINGO','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO'];
+const _PL_ORD_U = ['','PRIMERA','SEGUNDA','TERCERA','CUARTA','QUINTA','SEXTA','SÉPTIMA','OCTAVA','NOVENA'];
+const _PL_ORD_D = ['','DÉCIMA','VIGÉSIMA','TRIGÉSIMA','CUADRAGÉSIMA','QUINCUAGÉSIMA'];
+
+function _plEsc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+// 28 → "VIGÉSIMA OCTAVA" · 30 → "TRIGÉSIMA" · 11 → "UNDÉCIMA"
+function _plOrdSemana(n){
+  n = parseInt(n,10)||0;
+  if(n<=0) return '';
+  if(n===11) return 'UNDÉCIMA';
+  if(n===12) return 'DUODÉCIMA';
+  if(n<10) return _PL_ORD_U[n];
+  const d = Math.floor(n/10), u = n%10;
+  if(d>5) return String(n)+'ª';
+  return u===0 ? _PL_ORD_D[d] : (_PL_ORD_D[d]+' '+_PL_ORD_U[u]);
+}
+// '2026-08-10' → Date local (sin corrimiento por zona horaria)
+function _plD(iso){ const p=String(iso||'').split('-'); return new Date(+p[0], (+p[1]||1)-1, +p[2]||1); }
+function _plISO(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function _plMasDias(iso,n){ const d=_plD(iso); d.setDate(d.getDate()+n); return _plISO(d); }
+// '2026-08-10' → "10 DE AGOSTO"
+function _plFechaCorta(iso){ const d=_plD(iso); return String(d.getDate()).padStart(2,'0')+' DE '+_PL_MESES[d.getMonth()].toUpperCase(); }
+// '2026-08-05' → "Cochabamba, agosto 05 de 2026"
+function _plLugarFecha(iso){ const d=_plD(iso); return 'Cochabamba, '+_PL_MESES[d.getMonth()]+' '+String(d.getDate()).padStart(2,'0')+' de '+d.getFullYear(); }
+// '2026-07-28' → "julio 28 de 2026"
+function _plFechaNS(iso){ const d=_plD(iso); return _PL_MESES[d.getMonth()]+' '+String(d.getDate()).padStart(2,'0')+' de '+d.getFullYear(); }
+function _plDiaNombre(iso){ return _PL_DIAS[_plD(iso).getDay()]; }
+function _plDiaNum(iso){ return String(_plD(iso).getDate()).padStart(2,'0'); }
+// Semana ISO del año — para sugerir el número de semana de una fecha
+function _plSemanaDelAnio(iso){
+  const d=_plD(iso); const j=new Date(d.getFullYear(),0,1);
+  return Math.ceil((((d-j)/86400000)+j.getDay()+1)/7);
+}
+
+// ---------- lectura/escritura por ruta ----------
+function _plGet(o,path){ return String(path).split('.').reduce(function(a,k){ return (a==null?a:a[k]); }, o); }
+function _plSetPath(o,path,v){
+  const ks=String(path).split('.'); let a=o;
+  for(let i=0;i<ks.length-1;i++){
+    if(a[ks[i]]==null) a[ks[i]] = /^\d+$/.test(ks[i+1]) ? [] : {};
+    a=a[ks[i]];
+  }
+  a[ks[ks.length-1]]=v;
+}
+
+// ============================================================
+// ESQUELETO POR DEFECTO — la rutina que se repite todas las semanas.
+// Cargar una semana nueva desde cero es raro: lo normal es DUPLICAR la
+// anterior. Esto es el respaldo para la primera vez.
+// ============================================================
+function _plFilaPlanta(desde,hasta,act,lugar,asisten,resp,unif){
+  return {desde:desde||'',hasta:hasta||'',act:act||'',lugar:lugar||'',asisten:asisten||'',resp:resp||'',unif:unif||'',span:false};
+}
+function _plSpan(txt){ return {desde:'',hasta:'',act:txt,lugar:'',asisten:'',resp:'',unif:'',span:true}; }
+
+function _plDiaPlantaRutina(primero){
+  const f = [];
+  if(primero) f.push(_plFilaPlanta('07:35','08:00','PARTE AL SR. COMANDANTE ECEME. E IZA DE LA BANDERA','PATIO DE HONOR','TODOS','JEFE DE ESTUDIOS','N° 3-C  CON SABLE'));
+  else        f.push(_plFilaPlanta('07:55','08:00','PARTE AL SR. COMANDANTE ECEME.','PATIO DE HONOR','TODOS','JEFE DE ESTUDIOS','N° 3-C'));
+  f.push(_plFilaPlanta('08:00','09:30','ACTIVIDADES ADMINISTRATIVAS Y ACADÉMICAS','ECEME.','TODOS','JEFES DE SECCIÓN','N° 3-C'));
+  f.push(_plSpan('DESCANSO'));
+  f[f.length-1].desde='09:30'; f[f.length-1].hasta='10:00';
+  f.push(_plFilaPlanta('10:00','13:00','ACTIVIDADES ADMINISTRATIVAS Y ACADÉMICAS','ECEME.','TODOS','JEFES DE SECCIÓN','N° 3-C'));
+  const disp=_plSpan('A DISPOSICIÓN DEL COMANDO'); disp.desde='13:00'; disp.hasta='18:00'; f.push(disp);
+  return f;
+}
+function _plFilaCiclo(desde,hasta,modulo,uc,codigo,lugar,unif,resp){
+  return {desde:desde||'',hasta:hasta||'',modulo:modulo||'',uc:uc||'',codigo:codigo||'',lugar:lugar||'',unif:unif||'',resp:resp||'',span:false};
+}
+function _plSpanCiclo(txt,desde,hasta){
+  return {desde:desde||'',hasta:hasta||'',modulo:'',uc:txt,codigo:'',lugar:'',unif:'',resp:'',span:true};
+}
+// El 1er ciclo y el 2do tienen bloques horarios DISTINTOS (los descansos caen
+// en momentos diferentes) — por eso cada uno tiene su propia rutina.
+function _plDiaCicloRutina(ciclo, primero){
+  const f=[];
+  if(primero){
+    f.push(_plFilaCiclo('07:15','07:30','','REVISIÓN DE UNIFORMES Y DOCUMENTACIÓN PERSONAL','','PATIO DE HONOR','N° 3-C CON SABLE','JEFE DE CURSO'));
+    f[f.length-1].span=true;
+    f.push(_plFilaCiclo('07:30','08:00','','PARTE AL SR. COMANDANTE DE LA ECEME. E IZA DE LA BANDERA','','PATIO DE HONOR','N° 3-C CON SABLE','JEFE DE ESTUDIOS - SEIS'));
+    f[f.length-1].span=true;
+  } else {
+    f.push(_plFilaCiclo('07:55','08:00','','PARTE AL JEFE DE CURSO','','PATIO DE HONOR','N° 3-C','JEFE DE ESTUDIOS'));
+    f[f.length-1].span=true;
+  }
+  if(ciclo==='c1'){
+    f.push(_plFilaCiclo('08:00','10:10','','','','AULAS','N° 3-C',''));
+    f.push(_plSpanCiclo('DESCANSO','10:10','10:30'));
+    f.push(_plFilaCiclo('10:30','11:40','','','','AULAS','N° 3-C',''));
+    f.push(_plSpanCiclo('DESCANSO','11:40','11:50'));
+    f.push(_plFilaCiclo('11:50','13:00','','','','AULAS','N° 3-C',''));
+  } else {
+    f.push(_plFilaCiclo('08:00','09:50','','','','AULAS','N° 3-C',''));
+    f.push(_plSpanCiclo('DESCANSO','09:50','10:10'));
+    f.push(_plFilaCiclo('10:10','11:30','','','','AULAS','N° 3-C',''));
+    f.push(_plSpanCiclo('DESCANSO','11:30','11:40'));
+    f.push(_plFilaCiclo('11:40','13:00','','','','AULAS','N° 3-C',''));
+  }
+  f.push(_plSpanCiclo('A DISPOSICIÓN DEL COMANDO','13:00','18:00'));
+  return f;
+}
+
+const _PL_FAC_MANANA = ['08:00-09:10','09:10-09:50','09:50-10:10','10:10-10:50','10:50-11:30','11:30-11:40','11:40-12:20','12:20-13:00','13:00-14:15'];
+const _PL_FAC_TARDE  = ['15:00-15:40','15:40-16:20','16:20-16:40','16:40-17:20','17:20-18:00'];
+
+function _plFacDefault(){
+  const mk = function(hs,n){ return hs.map(function(h){
+    const esDesc = (h==='09:50-10:10'||h==='11:30-11:40'||h==='16:20-16:40');
+    const celdas = new Array(n).fill('');
+    if(esDesc) celdas[0]='DESCANSO';
+    if(h==='13:00-14:15') celdas[0]='ENTRENAMIENTO FÍSICO MILITAR';
+    return {h:h, desc:esDesc||h==='13:00-14:15', celdas:celdas};
+  }); };
+  return { manana:mk(_PL_FAC_MANANA,7), tarde:mk(_PL_FAC_TARDE,5) };
+}
+
+function _plNuevaDatos(desde){
+  const dias=[];
+  for(let i=0;i<7;i++){
+    const iso=_plMasDias(desde,i);
+    const finde = (i>=5);
+    dias.push({ iso:iso, libre: finde?'A DISPOSICIÓN DEL COMANDO':'', filas: finde?[]:_plDiaPlantaRutina(i===0) });
+  }
+  const diasC = function(ciclo){
+    const out=[];
+    for(let i=0;i<7;i++){
+      const iso=_plMasDias(desde,i); const finde=(i>=5);
+      out.push({ iso:iso, libre: finde?'A DISPOSICIÓN DEL COMANDO':'', filas: finde?[]:_plDiaCicloRutina(ciclo, i===0) });
+    }
+    return out;
+  };
+  return {
+    cab:{
+      firmante:'Cnl. DAEN. José Jhonny Pardo Pardo',
+      cargo:'COMANDANTE DE LA ECEME.',
+      referencia:'WBR/JMA/SMM/oaf.-',
+      seccion:'ACADÉMICA',
+      orient:{planta:'portrait', c1:'portrait', c2:'portrait', fac:'landscape', ns:'portrait'}
+    },
+    planta:{
+      dias:dias,
+      supervisor:'', supervisor_trat:'Señor',
+      encargados:[
+        {ciclo:'1ER. CICLO “A”', nombre:'', trat:'Señor', tarea:'Controlar el desarrollo de Entrenamiento Físico Militar el día Martes desde horas 13:15 pm.'},
+        {ciclo:'1ER. CICLO “B”', nombre:'', trat:'Señor', tarea:'Controlar el desarrollo de Entrenamiento Físico Militar el día Jueves desde horas 13:15 pm.'},
+        {ciclo:'1ER. CICLO “C”', nombre:'', trat:'Señor', tarea:'Controlar el desarrollo de Deportes de los cursantes del Primer Ciclo el día Viernes desde horas 14:50 pm.'},
+        {ciclo:'2DO. CICLO “A”', nombre:'', trat:'Señor', tarea:'Controlar el desarrollo de Entrenamiento Físico Militar el día Martes desde horas 13:15 pm.'},
+        {ciclo:'2DO. CICLO “B”', nombre:'', trat:'Señor', tarea:'Controlar el desarrollo de Entrenamiento Físico Militar el día Jueves desde horas 13:15 pm.'},
+        {ciclo:'2DO. CICLO “C”', nombre:'', trat:'Señor', tarea:'Controlar el desarrollo de Deportes de los cursantes del Segundo Ciclo el día Miércoles desde horas 15:00 pm.'}
+      ],
+      notas:[
+        'CUALQUIER ALTERACIÓN AL PRESENTE HORARIO, SE HARÁ CONOCER A TRAVÉS DE LA ORDEN DEL DÍA.',
+        'SE RECOMIENDA EL CUMPLIMIENTO AL REGLAMENTO RA-01-151 “REGLAMENTO DE UNIFORMES USO DE DISTINTIVOS Y DISTINCIONES”.'
+      ]
+    },
+    c1:{ curso:'1ER. CICLO', periodo:'2DO. SEMESTRE', dias:diasC('c1'),
+         servicio:'', servicio_efm:'',
+         notas:['LAS EVALUACIONES DIAGNÓSTICAS SERÁN PROGRAMADAS DE ACUERDO A LA HOJA DE ORIENTACIÓN.',
+                'CUALQUIER ALTERACIÓN AL PRESENTE HORARIO SE HARÁ CONOCER A TRAVÉS DE LA ORDEN DEL DÍA.'] },
+    c2:{ curso:'2DO. CICLO', periodo:'4TO. SEMESTRE', dias:diasC('c2'),
+         servicio:'', servicio_efm:'',
+         notas:['LAS EVALUACIONES DIAGNÓSTICAS SERÁN PROGRAMADAS DE ACUERDO A LA HOJA DE ORIENTACIÓN.',
+                'CUALQUIER ALTERACIÓN AL PRESENTE HORARIO SE HARÁ CONOCER A TRAVÉS DE LA ORDEN DEL DÍA.'] },
+    facultad:{ c1:_plFacDefault(), c2:_plFacDefault() },
+    ns:{
+      fecha:'',
+      firmante:'Cnl. DAEN. William Gustavo Baptista Rocabado',
+      cargo:'JEFE DE ESTUDIOS DE LA ECEME.',
+      referencia:'JMA/SMM/oaf.-',
+      lema:'EL MAR NOS PERTENECE POR DERECHO,\nRECUPERARLO ES UN DEBER',
+      sup_tareas:[
+        'Exigir el cumplimiento de sus funciones al Jefe de Curso y encargados de disciplina de la semana.',
+        'Realizar el seguimiento Académico, exigiendo el cumplimiento de los planes de clases.',
+        'Informar al Jefe de Estudios cualquier situación académica relevante en su semana de designación.'
+      ],
+      disc_tareas:[
+        'Exigir el cumplimiento del horario por parte de los cursantes.',
+        'Revisión de la documentación personal.',
+        'Uso correcto del uniforme.'
+      ],
+      disc_cierre:'Mantener estrecha coordinación con el Jefe de Curso.'
+    }
+  };
+}
+
+// Al duplicar una semana hay que correr las fechas de cada día 7 días.
+function _plCorrerFechas(datos, nuevoDesde){
+  ['planta','c1','c2'].forEach(function(k){
+    const b=datos[k]; if(!b||!Array.isArray(b.dias)) return;
+    b.dias.forEach(function(d,i){ d.iso=_plMasDias(nuevoDesde,i); });
+  });
+  return datos;
+}
+
+// ============================================================
+// BACKEND
+// ============================================================
+async function _plInvoke(accion, extra){
+  const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
+  if(!tok) return {ok:false,error:'sin sesión'};
+  try{
+    const { data, error } = await sb.functions.invoke('planificacion-ops',{ body:Object.assign({accion, token:tok}, extra||{}) });
+    if(error){
+      let msg=error.message||'error';
+      try{ if(error.context && typeof error.context.json==='function'){ const b=await error.context.json(); if(b&&b.error) msg=b.error; } }catch(_){}
+      return {ok:false,error:msg};
+    }
+    return data||{ok:false,error:'sin respuesta'};
+  }catch(e){ return {ok:false,error:String((e&&e.message)||e)}; }
+}
+
+// ============================================================
+// PANTALLA 1 — LISTA DE SEMANAS
+// ============================================================
+function goPlanificacion(){
+  const act=document.querySelector('.screen.active');
+  if(act && !act.id.startsWith('screen-planif')) PLANIF.origen=act.id;
+  showScreen('screen-planif');
+  plCargarLista();
+}
+function plVolver(){
+  if(PLANIF.origen){ showScreen(PLANIF.origen); PLANIF.origen=null; }
+  else if(esAdminPanel()) showScreen('screen-disc-panel');
+  else showScreen('screen-panel-generico');
+}
+async function plCargarLista(){
+  const c=document.getElementById('pl-lista');
+  if(c) c.innerHTML='<div style="padding:22px;text-align:center;color:var(--text-muted)">⏳ Cargando semanas...</div>';
+  const r=await _plInvoke('listar');
+  if(!r.ok){ if(c) c.innerHTML='<div class="efm-no-data" style="color:#e88a8a">⚠️ '+_plEsc(r.error)+'</div>'; return; }
+  PLANIF.lista=r.semanas||[];
+  plRenderLista();
+}
+function plRenderLista(){
+  const c=document.getElementById('pl-lista'); if(!c) return;
+  if(!PLANIF.lista.length){
+    c.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">📅 Todavía no hay semanas planificadas.<br><br>Tocá <b>NUEVA SEMANA</b> para armar la primera.</div>';
+    return;
+  }
+  c.innerHTML=PLANIF.lista.map(function(s){
+    const pub = s.estado==='publicado';
+    const rango=_plFechaCorta(s.fecha_desde)+' AL '+_plFechaCorta(s.fecha_hasta);
+    return '<div class="rg-card" style="margin-bottom:9px;cursor:pointer" onclick="plAbrir('+s.id+')">'
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+      +'<div class="rg-asunto" style="flex:1;min-width:160px;font-size:15px">SEMANA '+s.semana_num+' · '+_plEsc(_plOrdSemana(s.semana_num))+'</div>'
+      +'<span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;'
+        +(pub?'background:rgba(76,163,107,.18);color:#9be6b4;border:1px solid #3a8c5a'
+             :'background:rgba(212,175,55,.14);color:#f4d574;border:1px solid var(--gold)')+'">'
+      +(pub?'✔ PUBLICADO':'✎ BORRADOR')+'</span></div>'
+      +'<div class="rg-route" style="margin-top:3px">📅 '+_plEsc(rango)+' · '+s.gestion+'</div>'
+      +'<div style="font-size:10px;color:var(--text-muted);margin-top:4px">Última edición: '
+        +_plEsc(s.actualizado_por_nombre||s.creado_por_nombre||'—')
+        +(s.actualizado_en?(' · '+new Date(s.actualizado_en).toLocaleDateString('es-BO')):'')+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+// ---- alta de semana: modal (nada de prompt encadenado) ----
+// Lo normal es DUPLICAR la anterior: la rutina se repite casi igual todas las
+// semanas y solo cambian fechas, U.C. y designaciones.
+function plNuevaSemana(){
+  const ult=PLANIF.lista[0]||null;
+  let desde,num,gestion;
+  if(ult){ desde=_plMasDias(ult.fecha_desde,7); num=(ult.semana_num||0)+1; gestion=ult.gestion; }
+  else{
+    const hoy=new Date(), dow=hoy.getDay();
+    desde=_plISO(new Date(hoy.getFullYear(),hoy.getMonth(),hoy.getDate()-((dow+6)%7)));
+    num=_plSemanaDelAnio(desde); gestion=hoy.getFullYear();
+  }
+  const prev=document.getElementById('pl-nueva-ov'); if(prev) prev.remove();
+  const ov=document.createElement('div'); ov.id='pl-nueva-ov';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:99998;display:flex;align-items:center;justify-content:center;padding:16px';
+  ov.innerHTML='<div style="background:var(--bg-deep);border:1px solid var(--gold);border-radius:12px;padding:16px;max-width:430px;width:100%;max-height:90vh;overflow:auto">'
+    +'<div style="font-size:15px;font-weight:700;color:#f4d574;margin-bottom:12px">🗓️ Nueva semana</div>'
+    +'<div class="pl-grid2">'
+    +'<label>Número de semana<input class="pl-i" id="pl-n-num" type="number" value="'+num+'"></label>'
+    +'<label>Gestión<input class="pl-i" id="pl-n-ges" type="number" value="'+gestion+'"></label>'
+    +'</div>'
+    +'<label class="pl-full" style="margin-top:9px">Lunes en que arranca'
+      +'<input class="pl-i" id="pl-n-desde" type="date" value="'+desde+'"></label>'
+    +'<div id="pl-n-eco" class="pl-hint"></div>'
+    +(ult?('<label class="pl-full" style="margin-top:6px;display:flex;gap:7px;align-items:flex-start;color:var(--text-secondary)">'
+      +'<input type="checkbox" id="pl-n-copiar" checked style="margin-top:2px">'
+      +'<span>Copiar el contenido de la <b>SEMANA '+ult.semana_num+'</b> (recomendado: solo corregís lo que cambió)</span></label>'):'')
+    +'<div id="pl-n-err" style="display:none;color:#e88a8a;font-size:12px;margin-top:8px"></div>'
+    +'<div style="display:flex;gap:8px;margin-top:14px">'
+    +'<button class="btn-secondary pl-b" style="flex:1" onclick="document.getElementById(\'pl-nueva-ov\').remove()">Cancelar</button>'
+    +'<button class="btn-primary pl-b" style="flex:1" id="pl-n-ok" onclick="plNuevaConfirmar('+(ult?ult.id:'null')+')">Crear semana</button>'
+    +'</div></div>';
+  document.body.appendChild(ov);
+  const eco=function(){
+    const n=parseInt(document.getElementById('pl-n-num').value,10)||0;
+    const d=document.getElementById('pl-n-desde').value;
+    const e=document.getElementById('pl-n-eco');
+    if(!d||!n){ e.textContent=''; return; }
+    e.innerHTML='Membrete: <b>SEMANA : '+_plEsc(_plOrdSemana(n))+'</b> · Título: <b>DEL '
+      +_plEsc(_plFechaCorta(d))+' AL '+_plEsc(_plFechaCorta(_plMasDias(d,6)))+'</b>';
+  };
+  document.getElementById('pl-n-num').oninput=eco;
+  document.getElementById('pl-n-desde').onchange=eco;
+  eco();
+}
+async function plNuevaConfirmar(ultId){
+  const errEl=document.getElementById('pl-n-err');
+  const fallar=function(m){ errEl.style.display='block'; errEl.textContent=m; };
+  errEl.style.display='none';
+  const num=parseInt(document.getElementById('pl-n-num').value,10);
+  const gestion=parseInt(document.getElementById('pl-n-ges').value,10);
+  const desde=document.getElementById('pl-n-desde').value;
+  if(!num)     return fallar('Poné el número de semana.');
+  if(!gestion) return fallar('Poné la gestión.');
+  if(!desde)   return fallar('Elegí el lunes en que arranca la semana.');
+  const cop=document.getElementById('pl-n-copiar');
+  const copiar=(cop && cop.checked && ultId) ? ultId : null;
+
+  const btn=document.getElementById('pl-n-ok');
+  btn.disabled=true; btn.textContent='Creando...';
+  const r=await _plInvoke('crear',{
+    gestion:gestion, semana_num:num,
+    fecha_desde:desde, fecha_hasta:_plMasDias(desde,6),
+    lugar_fecha:_plLugarFecha(_plMasDias(desde,-3)),
+    copiar_de:copiar,
+    datos: copiar ? null : _plNuevaDatos(desde)
+  });
+  if(!r.ok){ btn.disabled=false; btn.textContent='Crear semana'; return fallar(r.error); }
+  // Al copiar hay que correr las fechas de cada día al nuevo rango.
+  if(copiar && r.semana){
+    r.semana.datos=_plCorrerFechas(r.semana.datos||{}, desde);
+    await _plInvoke('guardar',{id:r.semana.id, datos:r.semana.datos});
+  }
+  const ov=document.getElementById('pl-nueva-ov'); if(ov) ov.remove();
+  await plCargarLista();
+  if(r.semana) plAbrir(r.semana.id);
+}
+
+// ============================================================
+// PANTALLA 2 — EDITOR DE LA SEMANA
+// ============================================================
+async function plAbrir(id){
+  PLANIF.cargando=true;
+  showScreen('screen-planif-sem');
+  const c=document.getElementById('pl-tab-body');
+  if(c) c.innerHTML='<div style="padding:24px;text-align:center;color:var(--text-muted)">⏳ Abriendo semana...</div>';
+  const r=await _plInvoke('obtener',{id:id});
+  PLANIF.cargando=false;
+  if(!r.ok){ alert('❌ '+r.error); plVolver(); return; }
+  PLANIF.sem=r.semana;
+  if(!PLANIF.sem.datos || !PLANIF.sem.datos.planta){
+    PLANIF.sem.datos=Object.assign(_plNuevaDatos(PLANIF.sem.fecha_desde), PLANIF.sem.datos||{});
+  }
+  PLANIF.dirty=false;
+  PLANIF.tab='datos';
+  plRenderEditor();
+}
+function plCerrarEditor(){
+  if(PLANIF.dirty && !confirm('Hay cambios sin guardar. ¿Salir igual?')) return;
+  PLANIF.sem=null; PLANIF.dirty=false;
+  showScreen('screen-planif'); plCargarLista();
+}
+
+const _PL_TABS=[
+  {k:'datos', ic:'📅', n:'Datos'},
+  {k:'planta',ic:'👔', n:'Planta'},
+  {k:'c1',    ic:'📘', n:'1er Ciclo'},
+  {k:'c2',    ic:'📗', n:'2do Ciclo'},
+  {k:'fac',   ic:'🏛', n:'Facultad'},
+  {k:'ns',    ic:'✉️', n:'Notas de Servicio'}
+];
+function plTab(k){ PLANIF.tab=k; plRenderEditor(); }
+
+function plRenderEditor(){
+  const s=PLANIF.sem; if(!s) return;
+  const h=document.getElementById('pl-sem-titulo');
+  if(h) h.textContent='SEMANA '+s.semana_num+' — '+_plOrdSemana(s.semana_num);
+  const sub=document.getElementById('pl-sem-sub');
+  if(sub) sub.textContent=_plFechaCorta(s.fecha_desde)+' al '+_plFechaCorta(s.fecha_hasta)+' · '+s.gestion;
+
+  const tabs=document.getElementById('pl-tabs');
+  if(tabs) tabs.innerHTML=_PL_TABS.map(function(t){
+    const on=(PLANIF.tab===t.k);
+    return '<button class="pl-tab'+(on?' on':'')+'" onclick="plTab(\''+t.k+'\')">'+t.ic+' '+t.n+'</button>';
+  }).join('');
+
+  const body=document.getElementById('pl-tab-body');
+  if(!body) return;
+  if(PLANIF.tab==='datos')       body.innerHTML=_plUIDatos();
+  else if(PLANIF.tab==='planta') body.innerHTML=_plUIPlanta();
+  else if(PLANIF.tab==='c1')     body.innerHTML=_plUICiclo('c1');
+  else if(PLANIF.tab==='c2')     body.innerHTML=_plUICiclo('c2');
+  else if(PLANIF.tab==='fac')    body.innerHTML=_plUIFacultad();
+  else if(PLANIF.tab==='ns')     body.innerHTML=_plUINotas();
+  plPintarEstado();
+}
+
+// ---- guardado (delegado + autosave con rebote) ----
+function _plBloqueActual(){
+  return {datos:null, planta:'planta', c1:'c1', c2:'c2', fac:'facultad', ns:'ns'}[PLANIF.tab] || null;
+}
+function plMarcarSucio(){
+  PLANIF.dirty=true; plPintarEstado();
+  clearTimeout(PLANIF.tSave);
+  PLANIF.tSave=setTimeout(function(){ plGuardar(true); }, 1400);
+}
+function plPintarEstado(){
+  const el=document.getElementById('pl-estado'); if(!el) return;
+  if(PLANIF.guardando){ el.textContent='⏳ Guardando...'; el.style.color='#f4d574'; }
+  else if(PLANIF.dirty){ el.textContent='● Sin guardar'; el.style.color='#f4d574'; }
+  else { el.textContent='✅ Guardado'; el.style.color='#9be6b4'; }
+}
+async function plGuardar(auto){
+  const s=PLANIF.sem; if(!s) return;
+  clearTimeout(PLANIF.tSave);
+  PLANIF.guardando=true; plPintarEstado();
+  const bloque=_plBloqueActual();
+  const extra={id:s.id};
+  if(bloque){ extra.bloque=bloque; extra.contenido=s.datos[bloque]; }
+  else {
+    // pestaña "Datos": cabecera + bloque cab
+    extra.gestion=s.gestion; extra.semana_num=s.semana_num;
+    extra.fecha_desde=s.fecha_desde; extra.fecha_hasta=s.fecha_hasta;
+    extra.periodo=s.periodo; extra.lugar_fecha=s.lugar_fecha;
+    extra.ns_correlativo=s.ns_correlativo;
+    extra.bloque='cab'; extra.contenido=s.datos.cab;
+  }
+  const r=await _plInvoke('guardar',extra);
+  PLANIF.guardando=false;
+  if(!r.ok){ PLANIF.dirty=true; plPintarEstado(); if(!auto) alert('❌ '+r.error); return; }
+  PLANIF.dirty=false; plPintarEstado();
+  const idx=PLANIF.lista.findIndex(function(x){ return x.id===s.id; });
+  if(idx>=0){ PLANIF.lista[idx].actualizado_en=r.actualizado_en; PLANIF.lista[idx].actualizado_por_nombre=r.por; }
+}
+// Listener delegado: cualquier campo con data-p escribe en PLANIF.sem.datos
+function _plOnInput(ev){
+  const el=ev.target; if(!el||!el.dataset||!el.dataset.p) return;
+  const s=PLANIF.sem; if(!s) return;
+  const val = (el.type==='checkbox') ? el.checked : el.value;
+  if(el.dataset.p.indexOf('@')===0){
+    // '@campo' = columna de cabecera, no del jsonb
+    const campo=el.dataset.p.slice(1);
+    s[campo] = (el.type==='number') ? (parseInt(val,10)||null) : val;
+    // Si se corrige el lunes de arranque hay que recalcular el domingo y correr
+    // las fechas de los días; si no, los tres horarios quedan con las viejas.
+    if(campo==='fecha_desde' && /^\d{4}-\d{2}-\d{2}$/.test(val)){
+      s.fecha_hasta=_plMasDias(val,6);
+      _plCorrerFechas(s.datos, val);
+      plMarcarSucio();
+      plRenderEditor();
+      return;
+    }
+  } else {
+    _plSetPath(s.datos, el.dataset.p, val);
+  }
+  plMarcarSucio();
+}
+
+async function plPublicar(){
+  const s=PLANIF.sem; if(!s) return;
+  const nuevo = s.estado==='publicado' ? 'borrador' : 'publicado';
+  if(!confirm(nuevo==='publicado'
+    ? '¿Marcar la SEMANA '+s.semana_num+' como PUBLICADA?'
+    : '¿Devolver la SEMANA '+s.semana_num+' a BORRADOR?')) return;
+  const r=await _plInvoke('publicar',{id:s.id, estado:nuevo});
+  if(!r.ok){ alert('❌ '+r.error); return; }
+  s.estado=nuevo; plRenderEditor();
+}
+async function plEliminar(){
+  const s=PLANIF.sem; if(!s) return;
+  if(!confirm('¿Eliminar la SEMANA '+s.semana_num+'?\n\nSe da de baja (no se borra de la base).')) return;
+  const r=await _plInvoke('eliminar',{id:s.id});
+  if(!r.ok){ alert('❌ '+r.error); return; }
+  PLANIF.sem=null; PLANIF.dirty=false;
+  showScreen('screen-planif'); plCargarLista();
+}
+
+// ============================================================
+// UI DE EDICIÓN
+// ============================================================
+function _plInp(path,val,ph,extra){
+  return '<input class="pl-i" data-p="'+path+'" value="'+_plEsc(val)+'" placeholder="'+_plEsc(ph||'')+'"'+(extra||'')+'>';
+}
+function _plTa(path,val,ph,rows){
+  return '<textarea class="pl-i" rows="'+(rows||2)+'" data-p="'+path+'" placeholder="'+_plEsc(ph||'')+'">'+_plEsc(val)+'</textarea>';
+}
+// Selector "Señor / Señora": el encabezado de la nota de servicio va en
+// femenino cuando corresponde y eso no se puede deducir del nombre.
+function _plSelTrat(path,val){
+  const v=val||'Señor';
+  return '<select class="pl-i" data-p="'+path+'">'
+    +'<option value="Señor"'+(v==='Señor'?' selected':'')+'>Señor</option>'
+    +'<option value="Señora"'+(v==='Señora'?' selected':'')+'>Señora</option></select>';
+}
+function _plCard(titulo, cuerpo, extraHead){
+  return '<div class="pl-card"><div class="pl-card-h">'+titulo+(extraHead||'')+'</div>'+cuerpo+'</div>';
+}
+function _plBarraDoc(tipo, nombre, orientKey){
+  const o=(PLANIF.sem.datos.cab&&PLANIF.sem.datos.cab.orient)||{};
+  return '<div class="pl-docbar">'
+    +'<b>📄 '+_plEsc(nombre)+'</b>'
+    +'<span style="flex:1"></span>'
+    +'<label class="pl-orient">Hoja'
+    +'<select class="pl-i" data-p="cab.orient.'+orientKey+'">'
+    +'<option value="portrait"'+((o[orientKey]||'portrait')==='portrait'?' selected':'')+'>Vertical</option>'
+    +'<option value="landscape"'+(o[orientKey]==='landscape'?' selected':'')+'>Horizontal</option>'
+    +'</select></label>'
+    +'<button class="btn-secondary pl-b" onclick="plPreview(\''+tipo+'\')">👁 Vista previa</button>'
+    +'<button class="btn-primary pl-b" onclick="plWord(\''+tipo+'\')">⬇ Word</button>'
+    +'</div>';
+}
+
+// ---------- pestaña DATOS ----------
+function _plUIDatos(){
+  const s=PLANIF.sem, c=s.datos.cab||{};
+  let h='';
+  h+=_plCard('📅 Semana',
+     '<div class="pl-grid2">'
+    +'<label>Número de semana'+_plInp('@semana_num',s.semana_num,'30',' type="number"')+'</label>'
+    +'<label>Gestión'+_plInp('@gestion',s.gestion,'2026',' type="number"')+'</label>'
+    +'<label>Desde (lunes)'+_plInp('@fecha_desde',s.fecha_desde,'',' type="date"')+'</label>'
+    +'<label>Hasta (domingo)'+_plInp('@fecha_hasta',s.fecha_hasta,'',' type="date"')+'</label>'
+    +'<label>Periodo'+_plInp('@periodo',s.periodo,'SEGUNDO SEMESTRE')+'</label>'
+    +'<label>Lugar y fecha del pie'+_plInp('@lugar_fecha',s.lugar_fecha,_plLugarFecha(s.fecha_desde))+'</label>'
+    +'</div>'
+    +'<div class="pl-hint">En el membrete va a salir <b>SEMANA : '+_plEsc(_plOrdSemana(s.semana_num))+'</b> y el título '
+      +'<b>DEL '+_plEsc(_plFechaCorta(s.fecha_desde))+' AL '+_plEsc(_plFechaCorta(s.fecha_hasta))+'</b>.</div>');
+
+  h+=_plCard('✍️ Firma y referencia (va al pie de los horarios)',
+     '<div class="pl-grid2">'
+    +'<label>Firmante'+_plInp('cab.firmante',c.firmante,'Cnl. DAEN. ...')+'</label>'
+    +'<label>Cargo'+_plInp('cab.cargo',c.cargo,'COMANDANTE DE LA ECEME.')+'</label>'
+    +'<label>Referencia (iniciales)'+_plInp('cab.referencia',c.referencia,'WBR/JMA/SMM/oaf.-')+'</label>'
+    +'<label>Sección (membrete de planta)'+_plInp('cab.seccion',c.seccion,'ACADÉMICA')+'</label>'
+    +'</div>');
+
+  h+=_plCard('⚙️ Estado',
+     '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +'<button class="btn-secondary pl-b" onclick="plPublicar()">'+(s.estado==='publicado'?'↩ Volver a borrador':'✔ Marcar como publicada')+'</button>'
+    +'<button class="btn-secondary pl-b" style="border-color:#7a2230;color:#ffc9c9" onclick="plEliminar()">🗑 Eliminar semana</button>'
+    +'</div>'
+    +'<div class="pl-hint">Estado actual: <b>'+(s.estado==='publicado'?'PUBLICADO':'BORRADOR')+'</b>. '
+      +'Creada por '+_plEsc(s.creado_por_nombre||'—')+'.</div>');
+  return h;
+}
+
+// ---------- pestaña PLANTA ----------
+function _plUIPlanta(){
+  const p=PLANIF.sem.datos.planta;
+  let h=_plBarraDoc('planta','1.- Horario del personal de planta','planta');
+  h+='<div class="pl-hint">Cada día se edita por filas. Marcá <b>franja</b> cuando la fila ocupa todo el ancho '
+    +'(DESCANSO, A DISPOSICIÓN DEL COMANDO). Si el día entero es feriado o libre, escribilo en <b>Día completo</b> '
+    +'y las filas se ignoran.</div>';
+
+  (p.dias||[]).forEach(function(d,i){
+    const nom=_plDiaNombre(d.iso)+'  '+_plDiaNum(d.iso);
+    let cuerpo='<label class="pl-full">Día completo (dejar vacío para usar las filas)'
+      +_plInp('planta.dias.'+i+'.libre',d.libre,'Ej: FERIADO NACIONAL EN CONMEMORACIÓN AL...')+'</label>';
+    if(!d.libre){
+      cuerpo+='<div class="pl-tw"><table class="pl-t"><tr>'
+        +'<th style="width:62px">Desde</th><th style="width:62px">Hasta</th><th>Actividad</th>'
+        +'<th style="width:110px">Lugar</th><th style="width:80px">Asisten</th>'
+        +'<th style="width:120px">Responsable</th><th style="width:95px">Uniforme</th>'
+        +'<th style="width:58px">Franja</th><th style="width:34px"></th></tr>';
+      (d.filas||[]).forEach(function(f,j){
+        const b='planta.dias.'+i+'.filas.'+j+'.';
+        cuerpo+='<tr>'
+          +'<td>'+_plInp(b+'desde',f.desde,'')+'</td>'
+          +'<td>'+_plInp(b+'hasta',f.hasta,'')+'</td>'
+          +'<td>'+_plInp(b+'act',f.act,'')+'</td>'
+          +'<td>'+(f.span?'':_plInp(b+'lugar',f.lugar,''))+'</td>'
+          +'<td>'+(f.span?'':_plInp(b+'asisten',f.asisten,''))+'</td>'
+          +'<td>'+(f.span?'':_plInp(b+'resp',f.resp,''))+'</td>'
+          +'<td>'+(f.span?'':_plInp(b+'unif',f.unif,''))+'</td>'
+          +'<td style="text-align:center"><input type="checkbox"'+(f.span?' checked':'')+' onchange="plToggleSpan(\'planta\','+i+','+j+',this.checked)"></td>'
+          +'<td><button class="pl-x" onclick="plFilaDel(\'planta\','+i+','+j+')">✕</button></td>'
+          +'</tr>';
+      });
+      cuerpo+='</table></div>'
+        +'<button class="pl-add" onclick="plFilaAdd(\'planta\','+i+')">＋ Agregar fila</button>';
+    }
+    h+=_plCard('📌 '+nom, cuerpo);
+  });
+
+  // designaciones
+  let des='<div class="pl-grid2"><label style="flex:1">Supervisor Académico de la semana'
+    +_plInp('planta.supervisor',p.supervisor,'CNL. DAEN. ROBERTO SERRANO VALERIANO')+'</label>'
+    +'<label style="max-width:120px">Tratamiento'+_plSelTrat('planta.supervisor_trat',p.supervisor_trat)+'</label></div>'
+    +'<div class="pl-tw" style="margin-top:9px"><table class="pl-t"><tr><th style="width:130px">Curso</th>'
+    +'<th>Encargado de disciplina</th><th style="width:92px">Trato</th>'
+    +'<th>Tarea específica (va en su nota de servicio)</th><th style="width:34px"></th></tr>';
+  (p.encargados||[]).forEach(function(e,i){
+    const b='planta.encargados.'+i+'.';
+    des+='<tr><td>'+_plInp(b+'ciclo',e.ciclo,'')+'</td>'
+      +'<td>'+_plInp(b+'nombre',e.nombre,'TCNL. DEM. ...')+'</td>'
+      +'<td>'+_plSelTrat(b+'trat',e.trat)+'</td>'
+      +'<td>'+_plInp(b+'tarea',e.tarea,'')+'</td>'
+      +'<td><button class="pl-x" onclick="plEncDel('+i+')">✕</button></td></tr>';
+  });
+  des+='</table></div><button class="pl-add" onclick="plEncAdd()">＋ Agregar encargado</button>'
+    +'<div class="pl-hint">Estas designaciones son las que generan las <b>notas de servicio</b> de la pestaña ✉️.</div>';
+  h+=_plCard('🎖 Designaciones de la semana', des);
+
+  let nt='';
+  (p.notas||[]).forEach(function(n,i){
+    nt+='<div class="pl-row">'+_plTa('planta.notas.'+i,n,'',2)
+      +'<button class="pl-x" onclick="plNotaDel(\'planta\','+i+')">✕</button></div>';
+  });
+  nt+='<button class="pl-add" onclick="plNotaAdd(\'planta\')">＋ Agregar nota</button>';
+  h+=_plCard('📝 Notas aclaratorias', nt);
+  return h;
+}
+
+// ---------- pestaña 1ER / 2DO CICLO ----------
+function _plUICiclo(k){
+  const b=PLANIF.sem.datos[k];
+  const nom = k==='c1' ? '2.- Horario semanal 1er Ciclo' : '3.- Horario semanal 2do Ciclo';
+  let h=_plBarraDoc(k, nom, k);
+  h+='<div class="pl-grid2">'
+    +'<label>Curso'+_plInp(k+'.curso',b.curso,'1ER. CICLO')+'</label>'
+    +'<label>Periodo'+_plInp(k+'.periodo',b.periodo,'2DO. SEMESTRE')+'</label>'
+    +'</div>';
+
+  (b.dias||[]).forEach(function(d,i){
+    const nomd=_plDiaNombre(d.iso)+'  '+_plDiaNum(d.iso);
+    let cuerpo='<label class="pl-full">Día completo (dejar vacío para usar las filas)'
+      +_plInp(k+'.dias.'+i+'.libre',d.libre,'Ej: FERIADO NACIONAL...')+'</label>';
+    if(!d.libre){
+      cuerpo+='<div class="pl-tw"><table class="pl-t"><tr>'
+        +'<th style="width:60px">Desde</th><th style="width:60px">Hasta</th>'
+        +'<th style="width:130px">Módulo</th><th>Unidad de Competencia</th>'
+        +'<th style="width:110px">Código</th><th style="width:80px">Lugar</th>'
+        +'<th style="width:88px">Uniforme</th><th style="width:150px">Responsable</th>'
+        +'<th style="width:58px">Franja</th><th style="width:34px"></th></tr>';
+      (d.filas||[]).forEach(function(f,j){
+        const p=k+'.dias.'+i+'.filas.'+j+'.';
+        cuerpo+='<tr>'
+          +'<td>'+_plInp(p+'desde',f.desde,'')+'</td>'
+          +'<td>'+_plInp(p+'hasta',f.hasta,'')+'</td>'
+          +'<td>'+(f.span?'':_plInp(p+'modulo',f.modulo,''))+'</td>'
+          +'<td>'+_plTa(p+'uc',f.uc,'',2)+'</td>'
+          +'<td>'+(f.span?'':_plTa(p+'codigo',f.codigo,'',2))+'</td>'
+          +'<td>'+(f.span?'':_plInp(p+'lugar',f.lugar,''))+'</td>'
+          +'<td>'+(f.span?'':_plInp(p+'unif',f.unif,''))+'</td>'
+          +'<td>'+(f.span?'':_plTa(p+'resp',f.resp,'',2))+'</td>'
+          +'<td style="text-align:center"><input type="checkbox"'+(f.span?' checked':'')+' onchange="plToggleSpan(\''+k+'\','+i+','+j+',this.checked)"></td>'
+          +'<td><button class="pl-x" onclick="plFilaDel(\''+k+'\','+i+','+j+')">✕</button></td>'
+          +'</tr>';
+      });
+      cuerpo+='</table></div>'
+        +'<button class="pl-add" onclick="plFilaAdd(\''+k+'\','+i+')">＋ Agregar fila</button>';
+    }
+    h+=_plCard('📌 '+nomd, cuerpo);
+  });
+
+  h+=_plCard('👥 Cursantes de servicio',
+     '<label class="pl-full">Servicio de aulas'+_plTa(k+'.servicio',b.servicio,'MY. ART. ... (uno por línea)',3)+'</label>'
+    +'<label class="pl-full">Servicio de EFM. y Deportes'+_plTa(k+'.servicio_efm',b.servicio_efm,'MY. ART. ... (uno por línea)',3)+'</label>');
+
+  let nt='';
+  (b.notas||[]).forEach(function(n,i){
+    nt+='<div class="pl-row">'+_plTa(k+'.notas.'+i,n,'',2)
+      +'<button class="pl-x" onclick="plNotaDel(\''+k+'\','+i+')">✕</button></div>';
+  });
+  nt+='<button class="pl-add" onclick="plNotaAdd(\''+k+'\')">＋ Agregar nota</button>';
+  h+=_plCard('📝 Notas', nt);
+  return h;
+}
+
+// ---------- pestaña FACULTAD ----------
+function _plUIFacultad(){
+  const f=PLANIF.sem.datos.facultad||{};
+  let h=_plBarraDoc('fac','4.- Programa semanal académico (Facultad)','fac');
+  h+='<div class="pl-hint">Es la grilla resumida que va a la Facultad. El botón <b>Traer del horario</b> la rellena '
+    +'con las Unidades de Competencia que ya cargaste en la pestaña del ciclo — después la corregís a mano.</div>';
+  ['c1','c2'].forEach(function(k){
+    const g=f[k]||_plFacDefault();
+    const dias=['LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO','DOMINGO'];
+    const s=PLANIF.sem;
+    let t='<div class="pl-tw"><table class="pl-t"><tr><th style="width:96px">HORA</th>';
+    for(let i=0;i<7;i++) t+='<th>'+dias[i]+' '+_plDiaNum(_plMasDias(s.fecha_desde,i))+'</th>';
+    t+='</tr>';
+    (g.manana||[]).forEach(function(r,i){
+      t+='<tr><td style="text-align:center;font-weight:700">'+_plEsc(r.h)+'</td>';
+      for(let c=0;c<7;c++) t+='<td>'+_plInp('facultad.'+k+'.manana.'+i+'.celdas.'+c,(r.celdas||[])[c]||'','')+'</td>';
+      t+='</tr>';
+    });
+    t+='<tr><td colspan="8" style="background:rgba(212,175,55,.10);font-weight:700;text-align:center">TARDE</td></tr>';
+    (g.tarde||[]).forEach(function(r,i){
+      t+='<tr><td style="text-align:center;font-weight:700">'+_plEsc(r.h)+'</td>';
+      for(let c=0;c<5;c++) t+='<td>'+_plInp('facultad.'+k+'.tarde.'+i+'.celdas.'+c,(r.celdas||[])[c]||'','')+'</td>';
+      t+='<td colspan="2" style="background:rgba(255,255,255,.03)"></td></tr>';
+    });
+    t+='</table></div>';
+    h+=_plCard((k==='c1'?'📘 1er Ciclo':'📗 2do Ciclo'), t,
+      '<button class="pl-add" style="margin:0 0 0 auto" onclick="plFacTraer(\''+k+'\')">⤵ Traer del horario</button>');
+  });
+  return h;
+}
+
+// Rellena la grilla de Facultad con las U.C. del horario del ciclo:
+// para cada franja de la grilla busca la fila del día que la cubre.
+function plFacTraer(k){
+  const s=PLANIF.sem, ciclo=s.datos[k], fac=s.datos.facultad[k];
+  if(!ciclo||!fac) return;
+  const min=function(hhmm){ const p=String(hhmm||'').split(':'); return (+p[0]||0)*60+(+p[1]||0); };
+  const llenar=function(filas,nCols){
+    filas.forEach(function(r){
+      if(r.desc) return;
+      const ini=min(String(r.h).split('-')[0]), fin=min(String(r.h).split('-')[1]);
+      for(let c=0;c<nCols;c++){
+        const d=(ciclo.dias||[])[c]; if(!d){ continue; }
+        if(d.libre){ r.celdas[c]=d.libre; continue; }
+        let txt='';
+        (d.filas||[]).forEach(function(f){
+          if(f.span) return;
+          const a=min(f.desde), b=min(f.hasta);
+          if(ini<b && fin>a && !txt) txt=(f.uc||'').trim();
+        });
+        r.celdas[c]=txt;
+      }
+    });
+  };
+  llenar(fac.manana||[],7);
+  llenar(fac.tarde||[],5);
+  plMarcarSucio(); plRenderEditor();
+}
+
+// ---------- pestaña NOTAS DE SERVICIO ----------
+function _plUINotas(){
+  const s=PLANIF.sem, n=s.datos.ns||{}, p=s.datos.planta||{};
+  const desig=[].concat(p.supervisor?[{t:'SUPERVISOR ACADÉMICO', q:p.supervisor}]:[],
+                        (p.encargados||[]).filter(function(e){ return e.nombre; })
+                          .map(function(e){ return {t:'ENCARGADO DE DISCIPLINA — '+e.ciclo, q:e.nombre}; }));
+  let h=_plBarraDoc('ns','5.- Notas de servicio','ns');
+  if(!desig.length){
+    h+='<div class="pl-warn">⚠️ Todavía no cargaste el <b>Supervisor Académico</b> ni los <b>Encargados de disciplina</b> '
+      +'en la pestaña 👔 <b>Planta</b>. Las notas de servicio salen de ahí.</div>';
+  }
+  const corr=parseInt(s.ns_correlativo,10)||0;
+  h+=_plCard('🔢 Correlativo y firma',
+     '<div class="pl-grid2">'
+    +'<label>Primer N° de nota'+_plInp('@ns_correlativo',s.ns_correlativo,'226',' type="number"')+'</label>'
+    +'<label>Fecha de las notas'+_plInp('ns.fecha',n.fecha,_plFechaNS(_plMasDias(s.fecha_desde,-6)))+'</label>'
+    +'<label>Firmante'+_plInp('ns.firmante',n.firmante,'Cnl. DAEN. ...')+'</label>'
+    +'<label>Cargo'+_plInp('ns.cargo',n.cargo,'JEFE DE ESTUDIOS DE LA ECEME.')+'</label>'
+    +'<label>Referencia'+_plInp('ns.referencia',n.referencia,'JMA/SMM/oaf.-')+'</label>'
+    +'</div>'
+    +'<label class="pl-full">Lema (2 líneas)'+_plTa('ns.lema',n.lema,'',2)+'</label>'
+    +(corr&&desig.length ? '<div class="pl-hint">Se van a numerar <b>Nº '+corr+'/'+String(s.gestion).slice(-2)
+        +'</b> a <b>Nº '+(corr+desig.length-1)+'/'+String(s.gestion).slice(-2)+'</b> ('+desig.length+' notas).</div>' : ''));
+
+  let ts='';
+  (n.sup_tareas||[]).forEach(function(t,i){
+    ts+='<div class="pl-row">'+_plTa('ns.sup_tareas.'+i,t,'',2)
+      +'<button class="pl-x" onclick="plNSTareaDel(\'sup_tareas\','+i+')">✕</button></div>';
+  });
+  ts+='<button class="pl-add" onclick="plNSTareaAdd(\'sup_tareas\')">＋ Agregar tarea</button>';
+  h+=_plCard('🎖 Tareas del Supervisor Académico', ts);
+
+  let td='';
+  (n.disc_tareas||[]).forEach(function(t,i){
+    td+='<div class="pl-row">'+_plTa('ns.disc_tareas.'+i,t,'',2)
+      +'<button class="pl-x" onclick="plNSTareaDel(\'disc_tareas\','+i+')">✕</button></div>';
+  });
+  td+='<button class="pl-add" onclick="plNSTareaAdd(\'disc_tareas\')">＋ Agregar tarea</button>'
+    +'<label class="pl-full">Tarea de cierre'+_plInp('ns.disc_cierre',n.disc_cierre,'Mantener estrecha coordinación con el Jefe de Curso.')+'</label>'
+    +'<div class="pl-hint">Estas tareas son comunes a todos los encargados. La <b>tarea específica</b> de cada uno '
+      +'(qué día controla EFM o Deportes) se carga en la pestaña 👔 Planta.</div>';
+  h+=_plCard('⭐ Tareas de los Encargados de Disciplina', td);
+
+  if(desig.length){
+    h+=_plCard('📋 Notas que se van a generar',
+      '<ol class="pl-ol">'+desig.map(function(d,i){
+        return '<li><b>Nº '+(corr?(corr+i):'—')+'/'+String(s.gestion).slice(-2)+'</b> · '+_plEsc(d.t)+'<br>'
+          +'<span style="color:var(--text-muted)">'+_plEsc(d.q)+'</span></li>';
+      }).join('')+'</ol>');
+  }
+  return h;
+}
+
+// ---------- acciones de estructura ----------
+function plFilaAdd(k,i){
+  const d=PLANIF.sem.datos[k].dias[i];
+  d.filas=d.filas||[];
+  d.filas.push(k==='planta'?_plFilaPlanta():_plFilaCiclo());
+  plMarcarSucio(); plRenderEditor();
+}
+function plFilaDel(k,i,j){
+  PLANIF.sem.datos[k].dias[i].filas.splice(j,1);
+  plMarcarSucio(); plRenderEditor();
+}
+// "Franja" cambia qué columnas se muestran, así que hay que re-dibujar. Ojo:
+// el valor se escribe ANTES del re-render (si lo dejáramos al listener delegado,
+// el re-render leería el dato viejo y el tilde volvería atrás).
+function plToggleSpan(k,i,j,val){
+  PLANIF.sem.datos[k].dias[i].filas[j].span=!!val;
+  plMarcarSucio(); plRenderEditor();
+}
+function plEncAdd(){
+  const p=PLANIF.sem.datos.planta;
+  p.encargados=p.encargados||[]; p.encargados.push({ciclo:'',nombre:'',tarea:''});
+  plMarcarSucio(); plRenderEditor();
+}
+function plEncDel(i){ PLANIF.sem.datos.planta.encargados.splice(i,1); plMarcarSucio(); plRenderEditor(); }
+function plNotaAdd(k){
+  const b=PLANIF.sem.datos[k]; b.notas=b.notas||[]; b.notas.push('');
+  plMarcarSucio(); plRenderEditor();
+}
+function plNotaDel(k,i){ PLANIF.sem.datos[k].notas.splice(i,1); plMarcarSucio(); plRenderEditor(); }
+function plNSTareaAdd(campo){
+  const n=PLANIF.sem.datos.ns; n[campo]=n[campo]||[]; n[campo].push('');
+  plMarcarSucio(); plRenderEditor();
+}
+function plNSTareaDel(campo,i){ PLANIF.sem.datos.ns[campo].splice(i,1); plMarcarSucio(); plRenderEditor(); }
+
+// ============================================================
+// GENERADORES DE DOCUMENTO
+// Devuelven el CUERPO (sin <html>/<head>): el formato oficial —hoja carta,
+// márgenes 2/2/2/3, Arial, pie "1 - N"— lo pone exportarComoWord/cssReporte,
+// igual que el resto de los reportes de la app.
+// ============================================================
+function _plNl(s){ return _plEsc(s).replace(/\n/g,'<br>'); }
+const _PL_TB='border-collapse:collapse;width:100%;table-layout:fixed';
+const _PL_TD='border:1px solid #000;padding:2px 3px;font-size:8.5pt;vertical-align:middle';
+const _PL_TH=_PL_TD+';font-weight:bold;text-align:center;background:#e8e8e8';
+
+// Membrete institucional de 2 columnas (izquierda = institución, derecha = datos)
+function _plMembrete(lineas, derecha){
+  const izq=lineas.map(function(l){ return '<div style="font-weight:bold;font-size:10pt">'+_plEsc(l)+'</div>'; }).join('');
+  const der=(derecha||[]).map(function(d){
+    return '<div style="font-weight:bold;font-size:10pt">'+_plEsc(d[0])+'&nbsp;&nbsp;:&nbsp;&nbsp;'+_plEsc(d[1])+'</div>';
+  }).join('');
+  return '<table style="border-collapse:collapse;width:100%;margin-bottom:6pt"><tr>'
+    +'<td style="border:0;padding:0;vertical-align:top;text-align:center">'+izq+'</td>'
+    +(der?'<td style="border:0;padding:0;vertical-align:top;width:38%">'+der+'</td>':'')
+    +'</tr></table>';
+}
+function _plFirma(nombre,cargo,referencia,lugarFecha){
+  let h='';
+  if(lugarFecha) h+='<p style="margin:14pt 0 0;text-align:right;font-size:10pt">'+_plEsc(lugarFecha)+'</p>';
+  h+='<div style="margin-top:34pt;text-align:center;page-break-inside:avoid;mso-break-inside:avoid">'
+    +'<div style="font-size:10pt">'+_plEsc(nombre)+'</div>'
+    +'<div style="font-weight:bold;font-size:10pt">'+_plEsc(cargo)+'</div></div>';
+  if(referencia) h+='<p style="margin:22pt 0 0;font-size:9pt">'+_plEsc(referencia)+'</p>';
+  return h;
+}
+function _plTitulo(t){
+  return '<p style="text-align:center;font-weight:bold;font-size:11pt;margin:8pt 0 8pt">'+_plEsc(t)+'</p>';
+}
+function _plRango(){
+  const s=PLANIF.sem;
+  return 'DEL '+_plFechaCorta(s.fecha_desde)+' AL '+_plFechaCorta(s.fecha_hasta);
+}
+
+// ---- 1.- HORARIO DEL PERSONAL DE PLANTA ----
+function _plDocPlanta(){
+  const s=PLANIF.sem, c=s.datos.cab||{}, p=s.datos.planta||{};
+  let h=_plMembrete(
+    ['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES',
+     'ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO',
+     '“MCAL. ANDRÉS DE SANTA CRUZ”'],
+    [['SECCIÓN', c.seccion||'ACADÉMICA'],
+     ['PERIODO', s.periodo||''],
+     ['SEMANA',  _plOrdSemana(s.semana_num)]]);
+  h+=_plTitulo('HORARIO DE ACTIVIDADES PARA EL PERSONAL DE PLANTA DE LA ECEME. '+_plRango());
+
+  h+='<table style="'+_PL_TB+'">'
+    +'<colgroup><col style="width:11%"><col style="width:7%"><col style="width:7%"><col style="width:29%">'
+    +'<col style="width:12%"><col style="width:8%"><col style="width:14%"><col style="width:12%"></colgroup>'
+    +'<tr><th rowspan="2" style="'+_PL_TH+'">FECHA</th><th colspan="2" style="'+_PL_TH+'">HORAS</th>'
+    +'<th rowspan="2" style="'+_PL_TH+'">ACTIVIDADES</th><th rowspan="2" style="'+_PL_TH+'">LUGAR</th>'
+    +'<th rowspan="2" style="'+_PL_TH+'">ASISTEN</th><th rowspan="2" style="'+_PL_TH+'">RESPONSABLE</th>'
+    +'<th rowspan="2" style="'+_PL_TH+'">UNIFORME</th></tr>'
+    +'<tr><th style="'+_PL_TH+'">DESDE</th><th style="'+_PL_TH+'">HASTA</th></tr>';
+
+  (p.dias||[]).forEach(function(d){
+    const nom=_plDiaNombre(d.iso)+'  '+_plDiaNum(d.iso);
+    if(d.libre){
+      h+='<tr><td style="'+_PL_TD+';font-weight:bold">'+_plEsc(nom)+'</td>'
+        +'<td colspan="7" style="'+_PL_TD+'">'+_plNl(d.libre)+'</td></tr>';
+      return;
+    }
+    const filas=(d.filas||[]);
+    if(!filas.length) return;
+    filas.forEach(function(f,j){
+      h+='<tr>';
+      if(j===0) h+='<td rowspan="'+filas.length+'" style="'+_PL_TD+';font-weight:bold;text-align:center">'+_plEsc(nom)+'</td>';
+      h+='<td style="'+_PL_TD+';text-align:center">'+_plEsc(f.desde)+'</td>'
+        +'<td style="'+_PL_TD+';text-align:center">'+_plEsc(f.hasta)+'</td>';
+      if(f.span){
+        h+='<td colspan="5" style="'+_PL_TD+';text-align:center;font-weight:bold">'+_plNl(f.act)+'</td>';
+      } else {
+        h+='<td style="'+_PL_TD+'">'+_plNl(f.act)+'</td>'
+          +'<td style="'+_PL_TD+';text-align:center">'+_plNl(f.lugar)+'</td>'
+          +'<td style="'+_PL_TD+';text-align:center">'+_plNl(f.asisten)+'</td>'
+          +'<td style="'+_PL_TD+';text-align:center">'+_plNl(f.resp)+'</td>'
+          +'<td style="'+_PL_TD+';text-align:center">'+_plNl(f.unif)+'</td>';
+      }
+      h+='</tr>';
+    });
+  });
+
+  if(p.supervisor){
+    h+='<tr><td colspan="3" style="'+_PL_TD+';font-weight:bold">SUPERVISOR ACADÉMICO DE LA SEMANA</td>'
+      +'<td colspan="5" style="'+_PL_TD+';text-align:center;font-weight:bold">'+_plNl(p.supervisor.toUpperCase())+'</td></tr>';
+  }
+  const encs=(p.encargados||[]).filter(function(e){ return e.nombre; });
+  if(encs.length){
+    h+='<tr><td colspan="3" style="'+_PL_TD+';font-weight:bold">ENCARGADOS DE DISCIPLINA</td>'
+      +'<td colspan="5" style="'+_PL_TD+'">'
+      +encs.map(function(e){ return _plEsc(e.ciclo)+'&nbsp;&nbsp;'+_plEsc(String(e.nombre).toUpperCase()); }).join('<br>')
+      +'</td></tr>';
+  }
+  const notas=(p.notas||[]).filter(function(n){ return String(n).trim(); });
+  if(notas.length){
+    h+='<tr><td colspan="8" style="'+_PL_TD+'"><b>NOTAS ACLARATORIAS:</b><br>'
+      +notas.map(function(n){ return '- '+_plNl(n); }).join('<br>')+'</td></tr>';
+  }
+  h+='</table>';
+  h+=_plFirma(c.firmante,c.cargo,c.referencia, s.lugar_fecha||_plLugarFecha(s.fecha_desde));
+  return h;
+}
+
+// ---- 2/3.- HORARIO SEMANAL POR CICLO ----
+function _plDocCiclo(k){
+  const s=PLANIF.sem, c=s.datos.cab||{}, b=s.datos[k]||{};
+  let h='<p style="font-size:10pt;margin:0 0 4pt">COMANDO DE INSTITUTOS MILITARES</p>';
+  h+=_plMembrete(
+    ['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES',
+     'ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO',
+     '“MCAL. ANDRÉS DE SANTA CRUZ”','BOLIVIA'],
+    [['CURSO', b.curso||''],['PERIODO', b.periodo||'']]);
+  h+=_plTitulo('HORARIO SEMANAL '+_plRango());
+
+  h+='<table style="'+_PL_TB+'">'
+    +'<colgroup><col style="width:10%"><col style="width:11%"><col style="width:14%"><col style="width:23%">'
+    +'<col style="width:11%"><col style="width:8%"><col style="width:9%"><col style="width:14%"></colgroup>'
+    +'<tr><th style="'+_PL_TH+'">FECHA</th><th style="'+_PL_TH+'">HORA</th><th style="'+_PL_TH+'">MÓDULO</th>'
+    +'<th style="'+_PL_TH+'">UNIDAD DE COMPETENCIA</th><th style="'+_PL_TH+'">CÓDIGO</th>'
+    +'<th style="'+_PL_TH+'">LUGAR</th><th style="'+_PL_TH+'">UNIFORME</th><th style="'+_PL_TH+'">RESPONSABLE</th></tr>';
+
+  (b.dias||[]).forEach(function(d){
+    const nom=_plDiaNombre(d.iso)+'  '+_plDiaNum(d.iso);
+    if(d.libre){
+      h+='<tr><td style="'+_PL_TD+';font-weight:bold;text-align:center">'+_plEsc(nom)+'</td>'
+        +'<td colspan="7" style="'+_PL_TD+'">'+_plNl(d.libre)+'</td></tr>';
+      return;
+    }
+    const filas=(d.filas||[]);
+    if(!filas.length) return;
+    filas.forEach(function(f,j){
+      h+='<tr>';
+      if(j===0) h+='<td rowspan="'+filas.length+'" style="'+_PL_TD+';font-weight:bold;text-align:center">'+_plEsc(nom)+'</td>';
+      h+='<td style="'+_PL_TD+';text-align:center">'+_plEsc(f.desde)+(f.hasta?(' – '+_plEsc(f.hasta)):'')+'</td>';
+      if(f.span){
+        h+='<td colspan="6" style="'+_PL_TD+';text-align:center;font-weight:bold">'+_plNl(f.uc)+'</td>';
+      } else {
+        h+='<td style="'+_PL_TD+'">'+_plNl(f.modulo)+'</td>'
+          +'<td style="'+_PL_TD+'">'+_plNl(f.uc)+'</td>'
+          +'<td style="'+_PL_TD+';text-align:center">'+_plNl(f.codigo)+'</td>'
+          +'<td style="'+_PL_TD+';text-align:center">'+_plNl(f.lugar)+'</td>'
+          +'<td style="'+_PL_TD+';text-align:center">'+_plNl(f.unif)+'</td>'
+          +'<td style="'+_PL_TD+'">'+_plNl(f.resp)+'</td>';
+      }
+      h+='</tr>';
+    });
+  });
+
+  if(String(b.servicio||'').trim()){
+    h+='<tr><td colspan="2" style="'+_PL_TD+';font-weight:bold">CURSANTES DE SERVICIO DE AULAS</td>'
+      +'<td colspan="6" style="'+_PL_TD+'">'+_plNl(b.servicio)+'</td></tr>';
+  }
+  if(String(b.servicio_efm||'').trim()){
+    h+='<tr><td colspan="2" style="'+_PL_TD+';font-weight:bold">CURSANTES DE SERVICIO DE EFM. Y DEPORTES</td>'
+      +'<td colspan="6" style="'+_PL_TD+'">'+_plNl(b.servicio_efm)+'</td></tr>';
+  }
+  const notas=(b.notas||[]).filter(function(n){ return String(n).trim(); });
+  if(notas.length){
+    h+='<tr><td colspan="8" style="'+_PL_TD+'"><b>NOTA:</b><br>'
+      +notas.map(function(n){ return '- '+_plNl(n); }).join('<br>')+'</td></tr>';
+  }
+  h+='</table>';
+  h+=_plFirma(c.firmante,c.cargo,c.referencia, s.lugar_fecha||_plLugarFecha(s.fecha_desde));
+  return h;
+}
+
+// ---- 4.- PROGRAMA SEMANAL ACADÉMICO (FACULTAD) ----
+function _plDocFacultad(){
+  const s=PLANIF.sem, c=s.datos.cab||{}, f=s.datos.facultad||{};
+  const dias=['LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO','DOMINGO'];
+  let h='<p style="font-size:10pt;margin:0 0 4pt">COMANDO DE INSTITUTOS MILITARES</p>';
+
+  ['c1','c2'].forEach(function(k,idx){
+    const g=f[k]; if(!g) return;
+    const b=s.datos[k]||{};
+    if(idx) h+='<br style="page-break-before:always;mso-special-character:line-break">';
+    h+=_plMembrete(
+      ['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES',
+       'ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO',
+       '“MCAL. ANDRÉS DE SANTA CRUZ”','BOLIVIA'],
+      [['CURSO', b.curso||''],['PERIODO', b.periodo||'']]);
+    h+=_plTitulo('PROGRAMA SEMANAL ACADÉMICO '+_plRango());
+
+    h+='<table style="'+_PL_TB+'"><tr><th style="'+_PL_TH+';width:10%">HORA</th>';
+    for(let i=0;i<7;i++) h+='<th style="'+_PL_TH+'">'+dias[i]+' '+_plDiaNum(_plMasDias(s.fecha_desde,i))+'</th>';
+    h+='</tr>';
+    (g.manana||[]).forEach(function(r){
+      const cel=r.celdas||[];
+      const unico = r.desc && cel[0] && cel.slice(1).every(function(x){ return !String(x||'').trim(); });
+      h+='<tr><td style="'+_PL_TD+';text-align:center;font-weight:bold">'+_plEsc(r.h)+'</td>';
+      if(unico) h+='<td colspan="7" style="'+_PL_TD+';text-align:center;font-weight:bold">'+_plNl(cel[0])+'</td>';
+      else for(let i=0;i<7;i++) h+='<td style="'+_PL_TD+';text-align:center">'+_plNl(cel[i]||'')+'</td>';
+      h+='</tr>';
+    });
+    h+='<tr><td colspan="8" style="'+_PL_TD+';text-align:center;font-weight:bold">TARDE</td></tr>';
+    h+='<tr><td style="'+_PL_TH+'">HORA</td>';
+    for(let i=0;i<5;i++) h+='<td style="'+_PL_TH+'">'+dias[i]+' '+_plDiaNum(_plMasDias(s.fecha_desde,i))+'</td>';
+    h+='<td colspan="2" style="'+_PL_TD+'"></td></tr>';
+    (g.tarde||[]).forEach(function(r){
+      const cel=r.celdas||[];
+      const unico = r.desc && cel[0] && cel.slice(1).every(function(x){ return !String(x||'').trim(); });
+      h+='<tr><td style="'+_PL_TD+';text-align:center;font-weight:bold">'+_plEsc(r.h)+'</td>';
+      if(unico) h+='<td colspan="5" style="'+_PL_TD+';text-align:center;font-weight:bold">'+_plNl(cel[0])+'</td>';
+      else for(let i=0;i<5;i++) h+='<td style="'+_PL_TD+';text-align:center">'+_plNl(cel[i]||'')+'</td>';
+      h+='<td colspan="2" style="'+_PL_TD+'"></td></tr>';
+    });
+    h+='</table>';
+    h+=_plFirma(c.firmante,c.cargo,c.referencia, s.lugar_fecha||_plLugarFecha(s.fecha_desde));
+  });
+  return h;
+}
+
+// ---- 5.- NOTAS DE SERVICIO ----
+// Una nota por designado: el Supervisor Académico y cada Encargado de
+// Disciplina. El correlativo avanza solo desde ns_correlativo.
+function _plDocNS(){
+  const s=PLANIF.sem, n=s.datos.ns||{}, p=s.datos.planta||{};
+  const aa=String(s.gestion).slice(-2);
+  const corr=parseInt(s.ns_correlativo,10)||0;
+  const rango=_plFechaCorta(s.fecha_desde).toLowerCase()+' al '+_plFechaCorta(s.fecha_hasta).toLowerCase()+' del '+s.gestion;
+
+  const lista=[];
+  if(p.supervisor) lista.push({tipo:'sup', quien:p.supervisor, trat:p.supervisor_trat,
+    cargo:'SUPERVISOR ACADÉMICO', detalle:'', tareas:(n.sup_tareas||[])});
+  (p.encargados||[]).filter(function(e){ return e.nombre; }).forEach(function(e){
+    const t=(n.disc_tareas||[]).slice();
+    if(e.tarea) t.push(e.tarea);
+    if(n.disc_cierre) t.push(n.disc_cierre);
+    lista.push({tipo:'disc', quien:e.nombre, trat:e.trat, cargo:'ENCARGADO DE DISCIPLINA',
+      detalle:' del '+e.ciclo, tareas:t});
+  });
+
+  if(!lista.length){
+    return '<p style="font-size:11pt">No hay designaciones cargadas para esta semana. '
+      +'Cargá el Supervisor Académico y los Encargados de Disciplina en la pestaña «Planta».</p>';
+  }
+
+  return lista.map(function(d,i){
+    const condicion = d.tipo==='sup' ? 'en su condición de miembro del Estado Mayor' : 'en su condición de profesor';
+    let h = i ? '<br style="page-break-before:always;mso-special-character:line-break">' : '';
+    h+=_plMembrete(
+      ['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES',
+       'ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO',
+       '“MCAL. ANDRÉS DE SANTA CRUZ”','BOLIVIA']);
+    h+='<p style="font-weight:bold;font-size:10pt;margin:10pt 0 0">SAC. SECC. PLANIF. Nº '+(corr?(corr+i):'___')+'/'+aa+'</p>';
+    h+='<p style="font-size:10pt;margin:10pt 0 0;text-align:right">Cochabamba, '+_plEsc(n.fecha||'')+'</p>';
+    h+='<p style="text-align:center;font-weight:bold;font-size:12pt;margin:16pt 0">NOTA DE SERVICIO</p>';
+    const trat=(d.trat==='Señora')?'Para la Señora':'Para el Señor';
+    h+='<p style="font-size:10pt;margin:0">'+trat+' <b>:</b> '+_plEsc(d.quien)+'</p>';
+    h+='<p style="font-weight:bold;font-size:10pt;margin:2pt 0 0">PROFESOR DE LA ECEME.</p>';
+    h+='<p style="font-size:10pt;margin:8pt 0 0">Presente. -</p>';
+    h+='<p style="font-size:10pt;margin:14pt 0 0;text-align:justify">En cumplimiento a normas establecidas de la '
+      +'Unidad Académica y '+condicion+' al recibo de la presente, es Usted designado como <b>'+_plEsc(d.cargo)+'</b>'
+      +_plEsc(d.detalle)+', para la semana, del '+_plEsc(rango)+', debiendo cumplir las obligaciones que concierne a '
+      +'su designación, con el mayor profesionalismo, y realizar las siguientes tareas:</p>';
+    h+='<div style="margin:12pt 0 0">'
+      +d.tareas.filter(function(t){ return String(t).trim(); }).map(function(t){
+        return '<p style="font-size:10pt;margin:0 0 8pt;text-align:justify">'+_plNl(t)+'</p>';
+      }).join('')+'</div>';
+    h+='<p style="font-size:10pt;margin:14pt 0 0">Con este motivo le saludo a Ud. Atentamente.</p>';
+    if(n.lema){
+      h+='<p style="text-align:center;font-weight:bold;font-style:italic;font-size:10pt;margin:18pt 0 0">“'
+        +_plNl(n.lema)+'”</p>';
+    }
+    h+=_plFirma(n.firmante,n.cargo,n.referencia,'');
+    return h;
+  }).join('');
+}
+
+// ---------- despacho ----------
+const _PL_DOCS={
+  planta:{fn:_plDocPlanta, nombre:'HORARIO PERSONAL DE PLANTA', o:'planta'},
+  c1:    {fn:function(){ return _plDocCiclo('c1'); }, nombre:'HORARIO SEMANAL 1ER CICLO', o:'c1'},
+  c2:    {fn:function(){ return _plDocCiclo('c2'); }, nombre:'HORARIO SEMANAL 2DO CICLO', o:'c2'},
+  fac:   {fn:_plDocFacultad, nombre:'PROGRAMA SEMANAL ACADEMICO', o:'fac'},
+  ns:    {fn:_plDocNS, nombre:'NOTAS DE SERVICIO', o:'ns'}
+};
+function _plOrient(k){
+  const o=(PLANIF.sem.datos.cab&&PLANIF.sem.datos.cab.orient)||{};
+  return o[k]==='landscape' ? 'landscape' : 'portrait';
+}
+function _plNombreArchivo(d){
+  const s=PLANIF.sem;
+  return d.nombre+' SEMANA '+s.semana_num+' ('+_plFechaCorta(s.fecha_desde)+' AL '+_plFechaCorta(s.fecha_hasta)+')';
+}
+function plWord(tipo){
+  const d=_PL_DOCS[tipo]; if(!d||!PLANIF.sem) return;
+  exportarComoWord(d.fn(), _plNombreArchivo(d), _plOrient(d.o));
+}
+function plPreview(tipo){
+  const d=_PL_DOCS[tipo]; if(!d||!PLANIF.sem) return;
+  const html='<html><head><meta charset="utf-8"><style>'+cssReporte(_plOrient(d.o))+'</style></head>'
+    +'<body><div class="Section1">'+d.fn()+'</div></body></html>';
+  _avPreviewDoc(html, d.nombre, 'plWord(\''+tipo+'\')');
+}
+
+// ---------- panel de la Sección Planificación ----------
+function renderPlanifPanel(){
+  const n=(currentUser&&currentUser.nombre_completo)||'Docente';
+  const ini=n.split(' ').filter(Boolean).slice(0,2).map(function(w){ return w[0]; }).join('').toUpperCase();
+  const set=function(id,v){ const e=document.getElementById(id); if(e) e.textContent=v; };
+  set('plp-name',n);
+  set('plp-initials',ini||'—');
+  set('plp-rank',[ (currentUser&&currentUser.grado)||'', (currentUser&&currentUser.arma)||'' ].filter(Boolean).join(' · ')||'Sección Planificación');
+  try{ avBotonCarpeta('screen-planif-panel'); }catch(e){}
+}
+
 </script>
 <script>
 // ============ v2.9.172: fondo animado del LOGIN (Orbital + Circuitos) ============
