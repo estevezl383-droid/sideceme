@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.299</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.301</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -36271,10 +36271,10 @@ function _plAutoServicios(){
       const b=s.datos[k]; if(!b) return;
       const ciclo=(k==='c1')?'1ER CICLO':'2DO CICLO';
       if(!String(b.servicio||'').trim() && k==='c1'){
-        b.servicio=_plServicioDe(cur,'1ER CICLO','AULAS',3).map(_plNomCur).join('\n'); toco=true;
+        b.servicio=_plAulasDe(cur,'1ER CICLO',s.semana_num).map(_plNomCur).join('\n'); toco=true;
       }
       if(!String(b.servicio_efm||'').trim()){
-        b.servicio_efm=_plServicioDe(cur,ciclo,'DEPORTES',3).map(_plNomCur).join('\n'); toco=true;
+        b.servicio_efm=_plEfmDe(cur,ciclo,s.semana_num).map(_plNomCur).join('\n'); toco=true;
       }
       if(k==='c2' && !String(b.encargados_mencion||'').trim() && _plEnMenciones()){
         b.encargados_mencion=_plEncargadosMencion(cur).map(function(e){
@@ -37406,7 +37406,7 @@ const PLANC = { cursantes:null, cargando:false };
 async function _plCargarCursantes(){
   if(PLANC.cursantes) return PLANC.cursantes;
   const { data, error } = await sb.from('v_cursantes')
-    .select('id,nombre_completo,grado,arma,ciclo,paralelo,mencion,servicio,orden_mencion,activo')
+    .select('id,nombre_completo,grado,arma,ciclo,paralelo,mencion,servicio,orden_mencion,orden_paralelo,activo')
     .eq('activo', true);
   if(error || !data) return null;
   PLANC.cursantes = data;
@@ -37450,7 +37450,62 @@ function _plEncargadosMencion(cursantes){
   return out;
 }
 
-// ---- 2) cursantes de servicio: round-robin por historial ----
+// ---- 2a) ENCARGADOS DE EFM. Y DEPORTES: fórmula determinista ----
+// Se recorre la RR.NN. de cada PARALELO de ABAJO hacia ARRIBA avanzando **2 posiciones
+// por semana** (no 1 — ese fue el error que corrió los nombres una semana).
+// ANCLA: la semana 30 (10-16 ago 2026), confirmada por Sergio contra el documento:
+//   1er ciclo A=28 Loza Quiroga · B=32 Lira Ortiz · C=27 Cossio Cossio
+//   2do ciclo A=18 Parrado Claros · B=18 Flores Cabrera · C=19 Curcuy Espinar
+// Verificado además contra la semana 29 firmada: A/B/C bajan exactamente 2 posiciones.
+// En 2do ciclo va por PARALELO aunque estén en período de menciones.
+// Cada semana consume un PAR de posiciones consecutivas por paralelo: uno va a AULAS y
+// el otro a EFM. Por eso el par baja de a 2. `base` = la MENOR del par en la semana 30;
+// `aulas` dice cuál de las dos va a aulas (la menor o la mayor).
+const PL_SERV_ANCLA = {
+  '1ER CICLO': { A:{base:27,aulas:'menor'}, B:{base:31,aulas:'menor'}, C:{base:27,aulas:'mayor'} },
+  '2DO CICLO': { A:{base:18,aulas:null},    B:{base:18,aulas:null},    C:{base:19,aulas:null} }
+};
+const PL_EFM_SEMANA_ANCLA = 30;
+const PL_EFM_PASO = 2;
+
+// Devuelve {aulas, efm} — el par de esa semana para un paralelo.
+function _plParServicio(cursantes, ciclo, par, semana){
+  const cfg=(PL_SERV_ANCLA[ciclo]||{})[par];
+  if(!cfg) return null;
+  const pool=cursantes.filter(function(c){
+    return c.ciclo===ciclo && c.paralelo===par && c.orden_paralelo;
+  }).sort(function(a,b){ return a.orden_paralelo-b.orden_paralelo; });
+  if(!pool.length) return null;
+  const n=pool.length;
+  const corr=((semana||PL_EFM_SEMANA_ANCLA)-PL_EFM_SEMANA_ANCLA)*PL_EFM_PASO;
+  const wrap=function(p){ return ((p-1) % n + n) % n + 1; };
+  const at=function(p){ const q=wrap(p);
+    return pool.find(function(x){ return x.orden_paralelo===q; }) || pool[q-1]; };
+  const menor=at(cfg.base-corr), mayor=at(cfg.base-corr+1);
+  // en 2do ciclo el servicio de aulas no existe (son encargados de curso por mención)
+  if(!cfg.aulas) return { aulas:null, efm:menor };
+  return (cfg.aulas==='menor') ? { aulas:menor, efm:mayor } : { aulas:mayor, efm:menor };
+}
+function _plEfmDe(cursantes, ciclo, semana){
+  const out=[];
+  ['A','B','C'].forEach(function(par){
+    const r=_plParServicio(cursantes, ciclo, par, semana);
+    if(r && r.efm) out.push(r.efm);
+  });
+  return out;
+}
+function _plAulasDe(cursantes, ciclo, semana){
+  const out=[];
+  ['A','B','C'].forEach(function(par){
+    const r=_plParServicio(cursantes, ciclo, par, semana);
+    if(r && r.aulas) out.push(r.aulas);
+  });
+  return out;
+}
+
+// ---- 2b) cursantes de servicio de AULAS: round-robin por historial ----
+// Para aulas NO hay ancla confirmada (la posición del paralelo B choca con la de
+// deportes), así que se mantiene el round-robin y queda editable.
 // Junta quiénes ya salieron en las semanas guardadas (mismo ciclo y categoría)
 // y elige al que hace más tiempo que no entra, uno por paralelo.
 function _plYaSalieron(ciclo, categoria){
@@ -37525,15 +37580,17 @@ async function plGenerarEncargados(k){
 
   // servicio de aulas (1er ciclo 3) y EFM/deportes (3 en ambos)
   if(k==='c1'){
-    const aulas=_plServicioDe(cur,'1ER CICLO','AULAS',3);
+    // v2.9.301: aulas y EFM son el PAR de posiciones consecutivas de esa semana
+    const aulas=_plAulasDe(cur,'1ER CICLO',s.semana_num);
     b.servicio = aulas.map(_plNomCur).join('\n');
-    resumen += '🏫 SERVICIO DE AULAS (uno por paralelo):\n'
-      + aulas.map(function(c){ return '   · '+c.paralelo+' → '+_plNomCur(c); }).join('\n') + '\n\n';
+    resumen += '🏫 SERVICIO DE AULAS (uno por paralelo, RR.NN. de abajo hacia arriba):\n'
+      + aulas.map(function(c){ return '   · '+c.paralelo+' ('+c.orden_paralelo+') → '+_plNomCur(c); }).join('\n') + '\n\n';
   }
-  const efm=_plServicioDe(cur, ciclo, 'DEPORTES', 3);
+  // v2.9.300: fórmula determinista (de abajo hacia arriba, 2 posiciones por semana)
+  const efm=_plEfmDe(cur, ciclo, s.semana_num);
   b.servicio_efm = efm.map(_plNomCur).join('\n');
-  resumen += '🏃 SERVICIO DE EFM. Y DEPORTES (uno por paralelo):\n'
-    + efm.map(function(c){ return '   · '+c.paralelo+' → '+_plNomCur(c); }).join('\n');
+  resumen += '🏃 SERVICIO DE EFM. Y DEPORTES (uno por paralelo, RR.NN. de abajo hacia arriba):\n'
+    + efm.map(function(c){ return '   · '+c.paralelo+' ('+c.orden_paralelo+') → '+_plNomCur(c); }).join('\n');
 
   plMarcarSucio(); plRenderEditor();
   alert('🎖 Rotación calculada\n\n'+resumen
