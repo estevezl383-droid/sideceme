@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.295</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.296</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -36007,6 +36007,13 @@ async function _plInvoke(accion, extra){
     if(error){
       let msg=error.message||'error';
       try{ if(error.context && typeof error.context.json==='function'){ const b=await error.context.json(); if(b&&b.error) msg=b.error; } }catch(_){}
+      // v2.9.296: "No autorizado" casi siempre es la SESIÓN REVOCADA, no falta de permisos:
+      // asignarse una función a uno mismo revocaba el propio token y el navegador seguía
+      // usándolo. Un mensaje claro evita perder tiempo buscando un problema de roles.
+      if(/no autorizado/i.test(msg)){
+        return {ok:false, error:'Tu sesión ya no es válida (se cerró al cambiar funciones).\n\n'
+          +'Cerrá sesión y volvé a entrar.', sesion:true};
+      }
       return {ok:false,error:msg};
     }
     return data||{ok:false,error:'sin respuesta'};
@@ -36031,7 +36038,11 @@ async function plCargarLista(){
   const c=document.getElementById('pl-lista');
   if(c) c.innerHTML='<div style="padding:22px;text-align:center;color:var(--text-muted)">⏳ Cargando semanas...</div>';
   const r=await _plInvoke('listar');
-  if(!r.ok){ if(c) c.innerHTML='<div class="efm-no-data" style="color:#e88a8a">⚠️ '+_plEsc(r.error)+'</div>'; return; }
+  if(!r.ok){
+    if(c) c.innerHTML='<div class="efm-no-data" style="color:#e88a8a;white-space:pre-line">⚠️ '+_plEsc(r.error)+'</div>'
+      +(r.sesion?'<div style="text-align:center;margin-top:12px"><button class="btn-primary pl-b" onclick="logout()">🔑 Cerrar sesión y volver a entrar</button></div>':'');
+    return;
+  }
   PLANIF.lista=r.semanas||[];
   plRenderLista();
 }
@@ -36126,7 +36137,12 @@ async function plNuevaConfirmar(ultId){
     copiar_de:copiar,
     datos: copiar ? null : _plNuevaDatos(desde)
   });
-  if(!r.ok){ btn.disabled=false; btn.textContent='Crear semana'; return fallar(r.error); }
+  if(!r.ok){
+    btn.disabled=false; btn.textContent='Crear semana';
+    errEl.style.whiteSpace='pre-line';
+    if(r.sesion) btn.outerHTML='<button class="btn-primary pl-b" style="flex:1" onclick="logout()">🔑 Cerrar sesión</button>';
+    return fallar(r.error);
+  }
   // Al copiar hay que correr las fechas de cada día al nuevo rango.
   if(copiar && r.semana){
     r.semana.datos=_plCorrerFechas(r.semana.datos||{}, desde);
