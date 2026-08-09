@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.293</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.294</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -10857,7 +10857,8 @@ async function funcionesPintar(){
     const [pr,hr]=await Promise.all([
       // v2.9.185: se agregan es_auxiliar (sin esto los auxiliares NUNCA se mostraban)
       // y especialidad (ciclo de los jefes de curso).
-      sb.from('v_profesores').select('id,grado,nombre_completo,rol,activo,es_auxiliar,especialidad'),
+      // v2.9.294: + roles (doble función) y es_suboficial (auxiliares que no son docentes)
+      sb.from('v_profesores').select('id,grado,nombre_completo,rol,activo,es_auxiliar,especialidad,roles,es_suboficial'),
       sb.from('seccion_cargos').select('*').order('desde',{ascending:false})
     ]);
     if(pr.error) throw pr.error;
@@ -10865,7 +10866,11 @@ async function funcionesPintar(){
       .sort(function(a,b){ return String(a.nombre_completo).localeCompare(String(b.nombre_completo)); });
     window._fnHist=hr.data||[];
     el.innerHTML=FUNCIONES_SISTEMA.map(function(f){
-      let enFuncion=window._fnProfes.filter(function(p){ return String(p.rol||'').toLowerCase()===f.rol; });
+      // v2.9.294: cuenta también a quien tiene esta función como ADICIONAL en roles[]
+      let enFuncion=window._fnProfes.filter(function(p){
+        if(String(p.rol||'').toLowerCase()===f.rol) return true;
+        return (Array.isArray(p.roles)?p.roles:[]).map(function(r){ return String(r).toLowerCase(); }).indexOf(f.rol)>=0;
+      });
       // Tarjetas de jefe de curso: solo los del ciclo de ESTA tarjeta. Los que tienen el
       // rol pero un ciclo no reconocible (ej. especialidad 'DEM') se avisan aparte.
       let sinCiclo=[];
@@ -10875,7 +10880,13 @@ async function funcionesPintar(){
       }
       const tits=enFuncion.filter(function(p){ return p.es_auxiliar!==true; });
       const auxs=enFuncion.filter(function(p){ return p.es_auxiliar===true; });
-      const titTxt=tits.length?tits.map(function(p){ return '<b style="color:#7ac899">'+escapeHtml(((p.grado||'')+' '+p.nombre_completo).trim())+'</b>'; }).join(' · '):'<b style="color:#e88a8a">VACANTE</b>';
+      // v2.9.294: se avisa cuándo la función es ADICIONAL (la persona tiene otra como principal)
+      const _adic=function(p){
+        const extra=(Array.isArray(p.roles)?p.roles:[]).map(function(r){ return String(r).toLowerCase(); });
+        return (String(p.rol||'').toLowerCase()!==f.rol && extra.indexOf(f.rol)>=0)
+          ? ' <span style="font-size:10px;color:#8fbce8;font-weight:400">(función adicional)</span>' : '';
+      };
+      const titTxt=tits.length?tits.map(function(p){ return '<b style="color:#7ac899">'+escapeHtml(((p.grado||'')+' '+p.nombre_completo).trim())+'</b>'+_adic(p); }).join(' · '):'<b style="color:#e88a8a">VACANTE</b>';
       const auxTxt=auxs.length?auxs.map(function(p){ return '<span style="color:#8fbce8">'+escapeHtml(((p.grado||'')+' '+p.nombre_completo).trim())+'</span> <button class="btn-secondary" style="padding:1px 7px;font-size:11px" onclick="funcionAuxQuitar(\''+escapeHtml(String(p.id))+'\',\''+escapeHtml((p.nombre_completo||'').replace(/'/g,"")) +'\')">quitar</button>'; }).join(' · '):'<span style="color:#8a8a7a">ninguno</span>';
       const sinCicloTxt=sinCiclo.length?('<div style="margin:4px 0;padding:6px 8px;background:rgba(230,170,60,.1);border:1px solid rgba(230,170,60,.35);border-radius:6px;font-size:11.5px;color:#f0d28a">⚠️ Con rol Jefe de Curso pero SIN ciclo asignado: '+sinCiclo.map(function(p){ return escapeHtml(((p.grado||'')+' '+p.nombre_completo).trim()); }).join(' · ')+'. Asignalo como nuevo titular en la tarjeta de su ciclo para corregirlo.</div>'):'';
       // Historial: cada ciclo tiene su sección, pero los registros viejos (JEFE_CURSO) se muestran en ambas.
@@ -10897,7 +10908,7 @@ async function funcionesPintar(){
         +'<select id="fn-aux-'+f.key+'" style="width:100%;padding:6px;background:#0f0f13;color:#ddd;border:1px solid #444;border-radius:5px">'
         // v2.9.185: el TITULAR actual SÍ aparece (marcado) — sirve para pasarlo a auxiliar
         // cuando entra un titular nuevo (ej. Arandia deja la jefatura y queda de auxiliar).
-        +window._fnProfes.filter(function(p){ return p.es_auxiliar!==true; }).map(function(p){ const esTit=String(p.rol||'').toLowerCase()===f.rol&&(!f.ciclo||_fnCicloDe(p.especialidad)===f.ciclo); return '<option value="'+escapeHtml(String(p.id))+'">'+escapeHtml(((p.grado||'')+' '+p.nombre_completo).trim())+(esTit?' — ⭐ TITULAR actual de esta función':(p.rol&&p.rol!=='profesor'?(' — actual: '+escapeHtml(p.rol)):''))+'</option>'; }).join('')
+        +window._fnProfes.filter(function(p){ return p.es_auxiliar!==true; }).map(function(p){ const esTit=String(p.rol||'').toLowerCase()===f.rol&&(!f.ciclo||_fnCicloDe(p.especialidad)===f.ciclo); return '<option value="'+escapeHtml(String(p.id))+'">'+escapeHtml(((p.grado||'')+' '+p.nombre_completo).trim())+(p.es_suboficial?' — 🎖 suboficial (solo auxiliar)':'')+(esTit?' — ⭐ TITULAR actual de esta función':(p.rol&&p.rol!=='profesor'?(' — actual: '+escapeHtml(p.rol)):''))+'</option>'; }).join('')
         +'</select>'
         +'<button class="btn-primary" style="padding:6px 12px;margin-top:7px" onclick="funcionAuxAsignar(\''+f.key+'\')">✓ Asignar como auxiliar</button>'
         +'</div>'
@@ -10975,12 +10986,23 @@ async function funcionCambiarEjec(key){
   const sal=(window._fnProfes||[]).find(function(p){ return String(p.id)===String(salId); });
   const nom=function(p){ return p?((p.grado||'')+' '+p.nombre_completo).trim():'—'; };
   if(rol==='ciencia_tecnologia' && !confirm('⚠️ Vas a transferir la ADMINISTRACIÓN DEL SISTEMA (C&T) a '+nom(nuevo)+'. Si vos dejás de ser C&T perdés el acceso a este panel. ¿Continuar?')) return;
-  if(!confirm('Asignar '+f.nombre+' a:\n\n  ENTRA: '+nom(nuevo)+(f.ciclo?('\n  A CARGO DEL: '+f.ciclo):'')+'\n  SALE: '+(sal?nom(sal)+' (vuelve a Profesor)':'— (sin saliente)')+'\n  Desde: '+desde+'\n\nQuedará registrado en el historial y ambos deberán volver a iniciar sesión. ¿Confirmar?')) return;
+  // v2.9.294 DOBLE FUNCIÓN: si el entrante YA tiene otra función, se pregunta si esta
+  // se SUMA o la reemplaza. Antes siempre reemplazaba, y así P030 perdió C&T al tomar
+  // Planificación y se quedó sin permisos para asignar auxiliares.
+  const rolPrevio=String((nuevo&&nuevo.rol)||'profesor');
+  let adicional=false;
+  if(rolPrevio!=='profesor' && rolPrevio!==rol){
+    const lbl=function(r){ const x=FUNCIONES_SISTEMA.find(function(y){return y.rol===r;}); return x?x.nombre:r; };
+    adicional=confirm(nom(nuevo)+' ya es '+lbl(rolPrevio)+'.\n\n'
+      +'Aceptar = SUMA '+f.nombre+' (mantiene '+lbl(rolPrevio)+' como función principal — doble función).\n'
+      +'Cancelar = REEMPLAZA: deja de ser '+lbl(rolPrevio)+'.');
+  }
+  if(!confirm('Asignar '+f.nombre+' a:\n\n  ENTRA: '+nom(nuevo)+(adicional?'  (como función ADICIONAL)':'')+(f.ciclo?('\n  A CARGO DEL: '+f.ciclo):'')+'\n  SALE: '+(sal?nom(sal)+' (vuelve a Profesor)':'— (sin saliente)')+'\n  Desde: '+desde+'\n\nQuedará registrado en el historial y ambos deberán volver a iniciar sesión. ¿Confirmar?')) return;
   try{
     const body={
       accion:'cambiar_funcion', token:getTokenSesion(),
       funcion_rol:rol, seccion:f.sec, nuevo_id:nuevoId, saliente_id:salId,
-      desde:desde, observaciones:obs||null
+      desde:desde, observaciones:obs||null, adicional:adicional
     };
     // v2.9.185: para jefe de curso se manda el CICLO (queda en profesores.especialidad,
     // que es de donde el panel Jefe de Curso saca sus cursantes).
