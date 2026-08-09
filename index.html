@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.298</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.299</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -35952,7 +35952,7 @@ function _plNuevaDatos(desde){
       // v2.9.298: el uniforme cambia por TRAMO de la semana (lunes-miércoles uno,
       // jueves-viernes otro) y deportes lleva el suyo. El lunes se le suma CON SABLE
       // por la iza de la bandera.
-      unif_lmx:'N° 3-C', unif_jv:'N° 3-C', unif_dep:'N° 8', unif_sable:'CON SABLE',
+      unif_lmx:'N° 3-C', unif_jv:'N° 2-C', unif_dep:'N° 8', unif_sable:'CON SABLE',
       orient:{planta:'portrait', c1:'portrait', c2:'portrait', fac:'landscape', ns:'portrait'}
     },
     planta:{
@@ -35982,6 +35982,7 @@ function _plNuevaDatos(desde){
     facultad:{ c1:_plFacDefault(), c2:_plFacDefault() },
     ns:{
       fecha:'',
+      correlativo_base:135,        // v2.9.299: la numeración arranca en 135
       firmante:'Cnl. DAEN. William Gustavo Baptista Rocabado',
       cargo:'JEFE DE ESTUDIOS DE LA ECEME.',
       referencia:'JMA/SMM/oaf.-',
@@ -36200,6 +36201,9 @@ async function plAbrir(id){
   // académico al abrir. Antes había que acordarse de apretar "⚡ Generar" y la semana
   // se veía vacía como si el módulo no hiciera nada.
   _plAutoHorario();
+  _plAutoServicios();
+  // v2.9.299: la numeración de notas de servicio arranca en 135 si está vacía
+  if(!PLANIF.sem.ns_correlativo){ PLANIF.sem.ns_correlativo=135; PLANIF.dirty=true; }
   plRenderEditor();
   // v2.9.297: la relación nominal se trae en segundo plano; cuando llega, los campos de
   // designación pasan de texto libre a desplegable con el que le toca preseleccionado.
@@ -36232,7 +36236,54 @@ function _plAutoHorario(){
   ['c1','c2'].forEach(function(k){
     if(_plCicloVacio(k)){ if(plGenerarDesdeCalendario(k,true)) n++; }
   });
+  // v2.9.299: el uniforme se aplica a TODAS las filas, no solo a las que tienen materia.
+  // Antes el PARTE y los días sin clase se quedaban con el 'N° 3-C' del esqueleto y el
+  // viernes salía 3-C en vez de 2-C.
+  _plUniformesSilencioso();
   return n;
+}
+function _plUniformesSilencioso(){
+  const s=PLANIF.sem; if(!s) return;
+  ['planta','c1','c2'].forEach(function(k){
+    const b=s.datos[k]; if(!b||!b.dias) return;
+    b.dias.forEach(function(d,i){
+      if(i>4) return;
+      (d.filas||[]).forEach(function(f){ if(!f.span) f.unif=_plUnifDia(i,f); });
+    });
+  });
+}
+
+// v2.9.299: los CURSANTES DE SERVICIO también salen solos al abrir la semana.
+// Sergio: "ya sé que hay que darle Rotar, pero por defecto ya deberían aparecer".
+// Solo llena lo que está en blanco; lo ya cargado no se toca.
+function _plAutoServicios(){
+  const s=PLANIF.sem; if(!s) return;
+  const falta=['c1','c2'].some(function(k){
+    const b=s.datos[k]; if(!b) return false;
+    return !String(b.servicio||'').trim() || !String(b.servicio_efm||'').trim()
+        || (k==='c2' && !String(b.encargados_mencion||'').trim());
+  });
+  if(!falta) return;
+  _plCargarCursantes().then(function(cur){
+    if(!cur) return;
+    let toco=false;
+    ['c1','c2'].forEach(function(k){
+      const b=s.datos[k]; if(!b) return;
+      const ciclo=(k==='c1')?'1ER CICLO':'2DO CICLO';
+      if(!String(b.servicio||'').trim() && k==='c1'){
+        b.servicio=_plServicioDe(cur,'1ER CICLO','AULAS',3).map(_plNomCur).join('\n'); toco=true;
+      }
+      if(!String(b.servicio_efm||'').trim()){
+        b.servicio_efm=_plServicioDe(cur,ciclo,'DEPORTES',3).map(_plNomCur).join('\n'); toco=true;
+      }
+      if(k==='c2' && !String(b.encargados_mencion||'').trim() && _plEnMenciones()){
+        b.encargados_mencion=_plEncargadosMencion(cur).map(function(e){
+          return e.mencion.toUpperCase()+': '+_plNomCur(e.cursante); }).join('\n');
+        toco=true;
+      }
+    });
+    if(toco){ plMarcarSucio(); if(PLANIF.sem===s) plRenderEditor(); }
+  });
 }
 
 // v2.9.298: uniforme según el TRAMO de la semana. idx 0-2 = lun-mié, 3-4 = jue-vie.
@@ -36707,7 +36758,16 @@ function _plUINotas(){
   const desig=[].concat(p.supervisor?[{t:'SUPERVISOR ACADÉMICO', q:p.supervisor}]:[],
                         (p.encargados||[]).filter(function(e){ return e.nombre; })
                           .map(function(e){ return {t:'ENCARGADO DE DISCIPLINA — '+e.ciclo, q:e.nombre}; }));
-  let h=_plBarraDoc('ns','5.- Notas de servicio','ns');
+  // v2.9.299: cada nota es su propio documento, así que la barra no usa _plBarraDoc
+  const o=(s.datos.cab&&s.datos.cab.orient)||{};
+  let h='<div class="pl-docbar"><b>✉️ 5.- Notas de servicio</b>'
+    +'<span style="font-size:11px;color:var(--text-muted)">un archivo Word por nota</span>'
+    +'<span style="flex:1"></span>'
+    +'<label class="pl-orient">Hoja<select class="pl-i" data-p="cab.orient.ns">'
+    +'<option value="portrait"'+((o.ns||'portrait')==='portrait'?' selected':'')+'>Vertical</option>'
+    +'<option value="landscape"'+(o.ns==='landscape'?' selected':'')+'>Horizontal</option>'
+    +'</select></label>'
+    +'<button class="btn-primary pl-b" onclick="plNSTodas()">⬇ Descargar las '+desig.length+'</button></div>';
   if(!desig.length){
     h+='<div class="pl-warn">⚠️ Todavía no cargaste el <b>Supervisor Académico</b> ni los <b>Encargados de disciplina</b> '
       +'en la pestaña 👔 <b>Planta</b>. Las notas de servicio salen de ahí.</div>';
@@ -36745,11 +36805,17 @@ function _plUINotas(){
   h+=_plCard('⭐ Tareas de los Encargados de Disciplina', td);
 
   if(desig.length){
-    h+=_plCard('📋 Notas que se van a generar',
-      '<ol class="pl-ol">'+desig.map(function(d,i){
-        return '<li><b>Nº '+(corr?(corr+i):'—')+'/'+String(s.gestion).slice(-2)+'</b> · '+_plEsc(d.t)+'<br>'
-          +'<span style="color:var(--text-muted)">'+_plEsc(d.q)+'</span></li>';
-      }).join('')+'</ol>');
+    h+=_plCard('📋 Las '+desig.length+' notas — cada una es su propio Word',
+      desig.map(function(d,i){
+        return '<div class="pl-row" style="align-items:center;padding:7px 0;'
+          +(i?'border-top:1px solid rgba(255,255,255,.06)':'')+'">'
+          +'<div style="flex:1;min-width:170px">'
+          +'<div style="font-size:12px;font-weight:700;color:#f4d574">Nº '+(corr?(corr+i):'—')
+            +'/'+String(s.gestion).slice(-2)+' · '+_plEsc(d.t)+'</div>'
+          +'<div style="font-size:11px;color:var(--text-muted)">'+_plEsc(d.q)+'</div></div>'
+          +'<button class="btn-secondary pl-b" onclick="plNSPreview('+i+')">👁</button>'
+          +'<button class="btn-primary pl-b" onclick="plNSWord('+i+')">⬇ Word</button></div>';
+      }).join(''));
   }
   return h;
 }
@@ -36800,14 +36866,18 @@ const _PL_TB='border-collapse:collapse;width:100%;table-layout:fixed';
 const _PL_TD='border:1px solid #000;padding:2px 3px;font-size:8.5pt;vertical-align:middle';
 const _PL_TH=_PL_TD+';font-weight:bold;text-align:center;background:#e8e8e8';
 
-// Membrete institucional de 2 columnas (izquierda = institución, derecha = datos)
+// Membrete institucional de 2 columnas (izquierda = institución, derecha = datos).
+// v2.9.299: SIN espaciado ni interlineado — las 4 líneas van pegadas como en el modelo.
+// Con <div> Word les metía el espaciado del párrafo por defecto y quedaba separado.
+const _PL_MB='margin:0;padding:0;line-height:1.0;font-weight:bold;font-size:10pt;'
+  +'mso-line-height-rule:exactly;mso-para-margin:0in';
 function _plMembrete(lineas, derecha){
-  const izq=lineas.map(function(l){ return '<div style="font-weight:bold;font-size:10pt">'+_plEsc(l)+'</div>'; }).join('');
+  const izq=lineas.map(function(l){ return '<p style="'+_PL_MB+';text-align:center">'+_plEsc(l)+'</p>'; }).join('');
   const der=(derecha||[]).map(function(d){
-    return '<div style="font-weight:bold;font-size:10pt">'+_plEsc(d[0])+'&nbsp;&nbsp;:&nbsp;&nbsp;'+_plEsc(d[1])+'</div>';
+    return '<p style="'+_PL_MB+'">'+_plEsc(d[0])+'&nbsp;&nbsp;:&nbsp;&nbsp;'+_plEsc(d[1])+'</p>';
   }).join('');
-  return '<table style="border-collapse:collapse;width:100%;margin-bottom:6pt"><tr>'
-    +'<td style="border:0;padding:0;vertical-align:top;text-align:center">'+izq+'</td>'
+  return '<table style="border-collapse:collapse;width:100%;margin:0 0 8pt"><tr>'
+    +'<td style="border:0;padding:0;vertical-align:top">'+izq+'</td>'
     +(der?'<td style="border:0;padding:0;vertical-align:top;width:38%">'+der+'</td>':'')
     +'</tr></table>';
 }
@@ -36900,8 +36970,7 @@ function _plDocPlanta(){
 // ---- 2/3.- HORARIO SEMANAL POR CICLO ----
 function _plDocCiclo(k){
   const s=PLANIF.sem, c=s.datos.cab||{}, b=s.datos[k]||{};
-  let h='<p style="font-size:10pt;margin:0 0 4pt">COMANDO DE INSTITUTOS MILITARES</p>';
-  h+=_plMembrete(
+  let h=_plMembrete(   // v2.9.299: sin "COMANDO DE INSTITUTOS MILITARES" (pedido de Sergio)
     ['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES',
      'ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO',
      '“MCAL. ANDRÉS DE SANTA CRUZ”','BOLIVIA'],
@@ -36969,7 +37038,7 @@ function _plDocCiclo(k){
 function _plDocFacultad(){
   const s=PLANIF.sem, c=s.datos.cab||{}, f=s.datos.facultad||{};
   const dias=['LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO','DOMINGO'];
-  let h='<p style="font-size:10pt;margin:0 0 4pt">COMANDO DE INSTITUTOS MILITARES</p>';
+  let h='';   // v2.9.299: sin "COMANDO DE INSTITUTOS MILITARES"
 
   ['c1','c2'].forEach(function(k,idx){
     const g=f[k]; if(!g) return;
@@ -37014,58 +37083,115 @@ function _plDocFacultad(){
 // ---- 5.- NOTAS DE SERVICIO ----
 // Una nota por designado: el Supervisor Académico y cada Encargado de
 // Disciplina. El correlativo avanza solo desde ns_correlativo.
-function _plDocNS(){
-  const s=PLANIF.sem, n=s.datos.ns||{}, p=s.datos.planta||{};
-  const aa=String(s.gestion).slice(-2);
-  const corr=parseInt(s.ns_correlativo,10)||0;
-  const rango=_plFechaCorta(s.fecha_desde).toLowerCase()+' al '+_plFechaCorta(s.fecha_hasta).toLowerCase()+' del '+s.gestion;
+// ============================================================
+// v2.9.299 — NOTAS DE SERVICIO: un DOCUMENTO POR DESIGNADO
+// ------------------------------------------------------------
+// Formato tomado del `modelo de la nota de servicio.docx` (leído su XML):
+//   · Membrete  → Arial 10, negrilla, CENTRADO pero cargado a la izquierda
+//                 (en el modelo: w:jc=center + w:ind right=3314 twips ≈ 5,8 cm)
+//   · Nº de nota→ Arial 10, negrilla, a la izquierda
+//   · Fecha     → Arial 12, a la derecha
+//   · Título    → Arial 16, negrilla, centrado
+//   · Cuerpo    → Arial 12, justificado
+// Antes salían las 6 notas en UN archivo con saltos de página; ahora es un .doc
+// por designado, que es como se firman y se entregan.
+// ============================================================
+const _PL_NS_SANGRIA = '5.8cm';                 // el "cargado a la izquierda" del modelo
+const _PL_NS_MB = 'margin:0;padding:0;line-height:1.0;font-weight:bold;font-size:10pt;text-align:center;'
+                + 'margin-right:'+_PL_NS_SANGRIA+';mso-line-height-rule:exactly';
 
+// Lista de designados de la semana (supervisor + encargados con nombre cargado).
+function _plNSLista(){
+  const s=PLANIF.sem; if(!s) return [];
+  const n=s.datos.ns||{}, p=s.datos.planta||{};
   const lista=[];
-  if(p.supervisor) lista.push({tipo:'sup', quien:p.supervisor, trat:p.supervisor_trat,
-    cargo:'SUPERVISOR ACADÉMICO', detalle:'', tareas:(n.sup_tareas||[])});
-  (p.encargados||[]).filter(function(e){ return e.nombre; }).forEach(function(e){
+  if(String(p.supervisor||'').trim()){
+    lista.push({tipo:'sup', quien:p.supervisor, trat:p.supervisor_trat,
+      cargo:'SUPERVISOR ACADÉMICO', detalle:'', tareas:(n.sup_tareas||[])});
+  }
+  (p.encargados||[]).filter(function(e){ return String(e.nombre||'').trim(); }).forEach(function(e){
     const t=(n.disc_tareas||[]).slice();
     if(e.tarea) t.push(e.tarea);
     if(n.disc_cierre) t.push(n.disc_cierre);
     lista.push({tipo:'disc', quien:e.nombre, trat:e.trat, cargo:'ENCARGADO DE DISCIPLINA',
       detalle:' del '+e.ciclo, tareas:t});
   });
+  return lista;
+}
 
-  if(!lista.length){
-    return '<p style="font-size:11pt">No hay designaciones cargadas para esta semana. '
-      +'Cargá el Supervisor Académico y los Encargados de Disciplina en la pestaña «Planta».</p>';
+// Cuerpo de UNA nota (índice i → correlativo y contenido).
+function _plDocNSUna(i){
+  const s=PLANIF.sem, n=s.datos.ns||{};
+  const lista=_plNSLista(); const d=lista[i];
+  if(!d) return '<p>Sin designaciones cargadas.</p>';
+  const aa=String(s.gestion).slice(-2);
+  const corr=parseInt(s.ns_correlativo,10)||0;
+  const rango=_plFechaCorta(s.fecha_desde).toLowerCase()+' al '
+             +_plFechaCorta(s.fecha_hasta).toLowerCase()+' del '+s.gestion;
+  const condicion = d.tipo==='sup' ? 'en su condición de miembro del Estado Mayor'
+                                   : 'en su condición de profesor';
+  const trat=(d.trat==='Señora')?'Para la Señora':'Para el Señor';
+
+  let h='';
+  ['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES',
+   'ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO',
+   '“MCAL. ANDRÉS DE SANTA CRUZ”','BOLIVIA'].forEach(function(l){
+    h+='<p style="'+_PL_NS_MB+'">'+_plEsc(l)+'</p>';
+  });
+  h+='<p style="font-weight:bold;font-size:10pt;margin:16pt 0 0">SAC. SECC. PLANIF. Nº '
+    +(corr?(corr+i):'___')+'/'+aa+'</p>';
+  h+='<p style="font-size:12pt;margin:10pt 0 0;text-align:right">Cochabamba, '+_plEsc(n.fecha||'')+'</p>';
+  h+='<p style="text-align:center;font-weight:bold;font-size:16pt;margin:20pt 0 18pt">NOTA DE SERVICIO</p>';
+  h+='<p style="font-weight:bold;font-size:12pt;margin:0">'+trat+' : '+_plEsc(d.quien)+'</p>';
+  h+='<p style="font-weight:bold;font-size:12pt;margin:2pt 0 0">PROFESOR DE LA ECEME.</p>';
+  h+='<p style="font-size:12pt;margin:10pt 0 0">Presente. -</p>';
+  h+='<p style="font-weight:bold;font-size:12pt;margin:16pt 0 0;text-align:justify">'
+    +'En cumplimiento a normas establecidas de la Unidad Académica y '+condicion+' al recibo de la '
+    +'presente, es Usted designado como '+_plEsc(d.cargo)+_plEsc(d.detalle)+', para la semana, del '
+    +_plEsc(rango)+', debiendo cumplir las obligaciones que concierne a su designación, con el mayor '
+    +'profesionalismo, y realizar las siguientes tareas:</p>';
+  h+='<div style="margin:14pt 0 0">'
+    +d.tareas.filter(function(t){ return String(t).trim(); }).map(function(t){
+      return '<p style="font-size:12pt;margin:0 0 10pt;text-align:justify">'+_plNl(t)+'</p>';
+    }).join('')+'</div>';
+  h+='<p style="font-size:12pt;margin:16pt 0 0">Con este motivo le saludo a Ud. Atentamente.</p>';
+  if(n.lema){
+    h+='<p style="text-align:center;font-weight:bold;font-style:italic;font-size:12pt;margin:20pt 0 0">“'
+      +_plNl(n.lema)+'”</p>';
   }
+  h+='<div style="margin-top:34pt;text-align:center;page-break-inside:avoid">'
+    +'<p style="font-size:12pt;margin:0">'+_plEsc(n.firmante||'')+'</p>'
+    +'<p style="font-weight:bold;font-size:12pt;margin:0">'+_plEsc(n.cargo||'')+'</p></div>';
+  if(n.referencia) h+='<p style="font-size:12pt;margin:22pt 0 0">'+_plEsc(n.referencia)+'</p>';
+  return h;
+}
 
-  return lista.map(function(d,i){
-    const condicion = d.tipo==='sup' ? 'en su condición de miembro del Estado Mayor' : 'en su condición de profesor';
-    let h = i ? '<br style="page-break-before:always;mso-special-character:line-break">' : '';
-    h+=_plMembrete(
-      ['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES',
-       'ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO',
-       '“MCAL. ANDRÉS DE SANTA CRUZ”','BOLIVIA']);
-    h+='<p style="font-weight:bold;font-size:10pt;margin:10pt 0 0">SAC. SECC. PLANIF. Nº '+(corr?(corr+i):'___')+'/'+aa+'</p>';
-    h+='<p style="font-size:10pt;margin:10pt 0 0;text-align:right">Cochabamba, '+_plEsc(n.fecha||'')+'</p>';
-    h+='<p style="text-align:center;font-weight:bold;font-size:12pt;margin:16pt 0">NOTA DE SERVICIO</p>';
-    const trat=(d.trat==='Señora')?'Para la Señora':'Para el Señor';
-    h+='<p style="font-size:10pt;margin:0">'+trat+' <b>:</b> '+_plEsc(d.quien)+'</p>';
-    h+='<p style="font-weight:bold;font-size:10pt;margin:2pt 0 0">PROFESOR DE LA ECEME.</p>';
-    h+='<p style="font-size:10pt;margin:8pt 0 0">Presente. -</p>';
-    h+='<p style="font-size:10pt;margin:14pt 0 0;text-align:justify">En cumplimiento a normas establecidas de la '
-      +'Unidad Académica y '+condicion+' al recibo de la presente, es Usted designado como <b>'+_plEsc(d.cargo)+'</b>'
-      +_plEsc(d.detalle)+', para la semana, del '+_plEsc(rango)+', debiendo cumplir las obligaciones que concierne a '
-      +'su designación, con el mayor profesionalismo, y realizar las siguientes tareas:</p>';
-    h+='<div style="margin:12pt 0 0">'
-      +d.tareas.filter(function(t){ return String(t).trim(); }).map(function(t){
-        return '<p style="font-size:10pt;margin:0 0 8pt;text-align:justify">'+_plNl(t)+'</p>';
-      }).join('')+'</div>';
-    h+='<p style="font-size:10pt;margin:14pt 0 0">Con este motivo le saludo a Ud. Atentamente.</p>';
-    if(n.lema){
-      h+='<p style="text-align:center;font-weight:bold;font-style:italic;font-size:10pt;margin:18pt 0 0">“'
-        +_plNl(n.lema)+'”</p>';
-    }
-    h+=_plFirma(n.firmante,n.cargo,n.referencia,'');
-    return h;
-  }).join('');
+// Nombre de archivo: "NS 135-26 SUPERVISOR ACADEMICO — TCNL. ..."
+function _plNSNombre(i){
+  const s=PLANIF.sem, lista=_plNSLista(), d=lista[i];
+  const corr=parseInt(s.ns_correlativo,10)||0;
+  const num=(corr?(corr+i):'S-N')+'-'+String(s.gestion).slice(-2);
+  const quien=String((d&&d.quien)||'').replace(/[\\/:*?"<>|]/g,'').slice(0,40);
+  const cargo=(d&&d.tipo==='sup')?'SUPERVISOR ACADEMICO':'ENCARGADO DISCIPLINA';
+  return 'NS '+num+' '+cargo+' - '+quien;
+}
+function plNSWord(i){
+  if(!PLANIF.sem) return;
+  exportarComoWord(_plDocNSUna(i), _plNSNombre(i), _plOrient('ns'));
+}
+function plNSPreview(i){
+  if(!PLANIF.sem) return;
+  const html='<html><head><meta charset="utf-8"><style>'+cssReporte(_plOrient('ns'))+'</style></head>'
+    +'<body><div class="Section1">'+_plDocNSUna(i)+'</div></body></html>';
+  _avPreviewDoc(html, _plNSNombre(i), 'plNSWord('+i+')');
+}
+// Descarga las N notas como archivos separados (el navegador las baja una por una).
+function plNSTodas(){
+  const lista=_plNSLista();
+  if(!lista.length){ alert('No hay designaciones cargadas todavía.'); return; }
+  if(!confirm('Se van a descargar '+lista.length+' archivos Word, uno por cada nota de servicio.\n\n'
+    +'Si el navegador pide permiso para descargas múltiples, aceptalo. ¿Seguir?')) return;
+  lista.forEach(function(_,i){ setTimeout(function(){ plNSWord(i); }, i*650); });
 }
 
 // ---------- despacho ----------
@@ -37073,8 +37199,8 @@ const _PL_DOCS={
   planta:{fn:_plDocPlanta, nombre:'HORARIO PERSONAL DE PLANTA', o:'planta'},
   c1:    {fn:function(){ return _plDocCiclo('c1'); }, nombre:'HORARIO SEMANAL 1ER CICLO', o:'c1'},
   c2:    {fn:function(){ return _plDocCiclo('c2'); }, nombre:'HORARIO SEMANAL 2DO CICLO', o:'c2'},
-  fac:   {fn:_plDocFacultad, nombre:'PROGRAMA SEMANAL ACADEMICO', o:'fac'},
-  ns:    {fn:_plDocNS, nombre:'NOTAS DE SERVICIO', o:'ns'}
+  fac:   {fn:_plDocFacultad, nombre:'PROGRAMA SEMANAL ACADEMICO', o:'fac'}
+  // 'ns' NO va acá: v2.9.299 genera UN ARCHIVO POR NOTA (plNSWord / plNSTodas).
 };
 function _plOrient(k){
   const o=(PLANIF.sem.datos.cab&&PLANIF.sem.datos.cab.orient)||{};
