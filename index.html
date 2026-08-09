@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.297</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.298</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -35949,6 +35949,10 @@ function _plNuevaDatos(desde){
       cargo:'COMANDANTE DE LA ECEME.',
       referencia:'WBR/JMA/SMM/oaf.-',
       seccion:'ACADÉMICA',
+      // v2.9.298: el uniforme cambia por TRAMO de la semana (lunes-miércoles uno,
+      // jueves-viernes otro) y deportes lleva el suyo. El lunes se le suma CON SABLE
+      // por la iza de la bandera.
+      unif_lmx:'N° 3-C', unif_jv:'N° 3-C', unif_dep:'N° 8', unif_sable:'CON SABLE',
       orient:{planta:'portrait', c1:'portrait', c2:'portrait', fac:'landscape', ns:'portrait'}
     },
     planta:{
@@ -36192,15 +36196,92 @@ async function plAbrir(id){
   }
   PLANIF.dirty=false;
   PLANIF.tab='datos';
+  // v2.9.298: si el horario del ciclo está en blanco, se llena SOLO desde el calendario
+  // académico al abrir. Antes había que acordarse de apretar "⚡ Generar" y la semana
+  // se veía vacía como si el módulo no hiciera nada.
+  _plAutoHorario();
   plRenderEditor();
   // v2.9.297: la relación nominal se trae en segundo plano; cuando llega, los campos de
   // designación pasan de texto libre a desplegable con el que le toca preseleccionado.
   if(!PLANC.profes){
     sb.from('v_profesores').select('id,grado,nombre_completo,rol,activo,orden_rrnn')
       .eq('activo',true).then(function(r){
-        if(r && r.data && r.data.length){ PLANC.profes=r.data; if(PLANIF.sem) plRenderEditor(); }
+        if(r && r.data && r.data.length){
+          PLANC.profes=r.data;
+          _plAutoDesignar();               // deja escrito al que le toca, sin apretar nada
+          if(PLANIF.sem) plRenderEditor();
+        }
       });
+  } else { _plAutoDesignar(); plRenderEditor(); }
+}
+
+// v2.9.298: ¿el horario de este ciclo está en blanco? (ningún día hábil con U.C. ni feriado)
+function _plCicloVacio(k){
+  const b=PLANIF.sem && PLANIF.sem.datos && PLANIF.sem.datos[k];
+  if(!b || !b.dias) return false;
+  for(let i=0;i<5;i++){
+    const d=b.dias[i]; if(!d) continue;
+    if(String(d.libre||'').trim()) return false;
+    if((d.filas||[]).some(function(f){ return !f.span && String(f.uc||'').trim(); })) return false;
   }
+  return true;
+}
+// Llena solo lo que esté en blanco. Nunca pisa una semana ya trabajada.
+function _plAutoHorario(){
+  let n=0;
+  ['c1','c2'].forEach(function(k){
+    if(_plCicloVacio(k)){ if(plGenerarDesdeCalendario(k,true)) n++; }
+  });
+  return n;
+}
+
+// v2.9.298: uniforme según el TRAMO de la semana. idx 0-2 = lun-mié, 3-4 = jue-vie.
+// El lunes suma el agregado (CON SABLE) solo en la fila del PARTE con iza de bandera.
+function _plUnifDia(idx, fila){
+  const c=(PLANIF.sem&&PLANIF.sem.datos&&PLANIF.sem.datos.cab)||{};
+  if(fila && /DEPORTE|ENTRENAMIENTO F[IÍ]SICO|EFM/i.test(String(fila.act||fila.uc||'')))
+    return c.unif_dep||'N° 8';
+  const base = (idx<=2) ? (c.unif_lmx||'N° 3-C') : (c.unif_jv||'N° 3-C');
+  if(idx===0 && fila && /IZA DE LA BANDERA/i.test(String(fila.act||fila.uc||'')))
+    return (base+'  '+(c.unif_sable||'')).trim();
+  return base;
+}
+function plAplicarUniformes(){
+  const s=PLANIF.sem; if(!s) return; let n=0;
+  ['planta','c1','c2'].forEach(function(k){
+    const b=s.datos[k]; if(!b||!b.dias) return;
+    b.dias.forEach(function(d,i){
+      if(i>4 || d.libre) return;
+      (d.filas||[]).forEach(function(f){
+        if(f.span) return;
+        f.unif=_plUnifDia(i,f); n++;
+      });
+    });
+  });
+  plMarcarSucio(); plRenderEditor();
+  alert('👔 Uniformes aplicados a '+n+' fila(s) de los tres horarios.\n\n'
+    +'Lunes a miércoles: '+(s.datos.cab.unif_lmx||'—')
+    +'\nJueves y viernes: '+(s.datos.cab.unif_jv||'—')
+    +'\nDeportes: '+(s.datos.cab.unif_dep||'—'));
+}
+
+// v2.9.298: escribe en los DATOS al que le toca cuando la designación está vacía.
+// Antes el desplegable lo mostraba preseleccionado pero el dato seguía vacío, así que
+// el Word salía sin supervisor ni encargados. Lo ya cargado NUNCA se pisa.
+function _plAutoDesignar(){
+  const s=PLANIF.sem, pf=PLANC.profes;
+  if(!s || !pf || !pf.length || !s.datos || !s.datos.planta) return false;
+  const p=s.datos.planta; let toco=false;
+  if(!String(p.supervisor||'').trim()){
+    const x=_plSupervisorDe(pf, s.semana_num);
+    if(x){ p.supervisor=_plNomProf(x); toco=true; }
+  }
+  const blo=_plBloqueDisciplina(pf, s.semana_num);
+  (p.encargados||[]).forEach(function(e,i){
+    if(!String(e.nombre||'').trim() && blo[i]){ e.nombre=_plNomProf(blo[i]); toco=true; }
+  });
+  if(toco) plMarcarSucio();
+  return toco;
 }
 function plCerrarEditor(){
   if(PLANIF.dirty && !confirm('Hay cambios sin guardar. ¿Salir igual?')) return;
@@ -36373,6 +36454,17 @@ function _plUIDatos(){
     +'<div class="pl-hint">En el membrete va a salir <b>SEMANA : '+_plEsc(_plOrdSemana(s.semana_num))+'</b> y el título '
       +'<b>DEL '+_plEsc(_plFechaCorta(s.fecha_desde))+' AL '+_plEsc(_plFechaCorta(s.fecha_hasta))+'</b>.</div>');
 
+  h+=_plCard('👔 Uniformes de la semana',
+     '<div class="pl-grid2">'
+    +'<label>Lunes a miércoles'+_plInp('cab.unif_lmx',c.unif_lmx,'N° 3-C')+'</label>'
+    +'<label>Jueves y viernes'+_plInp('cab.unif_jv',c.unif_jv,'N° 2-C')+'</label>'
+    +'<label>Deportes / EFM'+_plInp('cab.unif_dep',c.unif_dep,'N° 8')+'</label>'
+    +'<label>Agregado del lunes'+_plInp('cab.unif_sable',c.unif_sable,'CON SABLE')+'</label>'
+    +'</div>'
+    +'<div class="pl-hint">Al generar el horario, cada día toma el uniforme de su tramo. '
+      +'El lunes le suma el agregado por la iza de la bandera. Igual podés corregir fila por fila.</div>'
+    +'<button class="pl-add" style="margin-top:8px" onclick="plAplicarUniformes()">👔 Aplicar a toda la semana</button>');
+
   h+=_plCard('✍️ Firma y referencia (va al pie de los horarios)',
      '<div class="pl-grid2">'
     +'<label>Firmante'+_plInp('cab.firmante',c.firmante,'Cnl. DAEN. ...')+'</label>'
@@ -36432,8 +36524,9 @@ function _plUIPlanta(){
   // designaciones
   // v2.9.297: desplegables con la lista completa y el que le TOCA preseleccionado.
   const _pf = PLANC.profes || [];
-  const _todos = _pf.slice().sort(function(a,b){ return (a.orden_rrnn||99)-(b.orden_rrnn||99); })
-                    .map(_plNomProf);
+  // el supervisor sale de SU pool (coroneles elegibles), no de toda la planta
+  const _listaSup = _plPoolSupervisor(_pf).map(_plNomProf);
+  const _listaDis = _plPoolDisciplina(_pf).map(_plNomProf);
   const _sugSup = _pf.length ? (function(){ const x=_plSupervisorDe(_pf, PLANIF.sem.semana_num); return x?_plNomProf(x):''; })() : '';
   const _sugBlo = _pf.length ? _plBloqueDisciplina(_pf, PLANIF.sem.semana_num).map(_plNomProf) : [];
 
@@ -36442,7 +36535,7 @@ function _plUIPlanta(){
     +'salteando a los no disponibles. Se propone el que toca y podés cambiarlo desde la lista.</span>'
     +'<button class="btn-primary pl-b" id="pl-disc-btn" onclick="plGenerarDisciplina()">🎖 Rotar designaciones</button></div>'
     +'<div class="pl-grid2"><label style="flex:1">Supervisor Académico de la semana'
-    +(_todos.length ? _plSelPersona('planta.supervisor',p.supervisor,_todos,_sugSup)
+    +(_listaSup.length ? _plSelPersona('planta.supervisor',p.supervisor,_listaSup,_sugSup)
                     : _plInp('planta.supervisor',p.supervisor,'CNL. DAEN. ...'))+'</label>'
     +'<label style="max-width:120px">Tratamiento'+_plSelTrat('planta.supervisor_trat',p.supervisor_trat)+'</label></div>'
     +'<div class="pl-tw" style="margin-top:9px"><table class="pl-t"><tr><th style="width:130px">Curso</th>'
@@ -36451,7 +36544,7 @@ function _plUIPlanta(){
   (p.encargados||[]).forEach(function(e,i){
     const b='planta.encargados.'+i+'.';
     des+='<tr><td>'+_plInp(b+'ciclo',e.ciclo,'')+'</td>'
-      +'<td>'+(_todos.length ? _plSelPersona(b+'nombre',e.nombre,_todos,_sugBlo[i]||'')
+      +'<td>'+(_listaDis.length ? _plSelPersona(b+'nombre',e.nombre,_listaDis,_sugBlo[i]||'')
                              : _plInp(b+'nombre',e.nombre,'TCNL. DEM. ...'))+'</td>'
       +'<td>'+_plSelTrat(b+'trat',e.trat)+'</td>'
       +'<td>'+_plInp(b+'tarea',e.tarea,'')+'</td>'
@@ -37075,9 +37168,9 @@ function _plMateriasEn(iso, cursos){
 
 // ---- el motor ----
 // Devuelve {llenados, feriados, sinDato} y deja el bloque listo para revisar.
-function plGenerarDesdeCalendario(k){
+function plGenerarDesdeCalendario(k, silencioso){
   const s=PLANIF.sem; if(!s) return;
-  if(typeof PLAN_DATOS==='undefined'){ alert('No están cargados los datos del calendario académico.'); return; }
+  if(typeof PLAN_DATOS==='undefined'){ if(!silencioso) alert('No están cargados los datos del calendario académico.'); return; }
   const b=s.datos[k];
   const ciclo = (k==='c1') ? '1ER CICLO' : '2DO CICLO';
   const cursoBase = (k==='c1') ? '1ER. CICLO' : '2DO. CICLO';
@@ -37118,6 +37211,7 @@ function plGenerarDesdeCalendario(k){
       if(f.span) return;                                 // no pisar PARTE/DESCANSO/etc.
       f.modulo=mod; f.uc=uc; f.codigo=cds; f.resp=rsp;
       if(!f.lugar) f.lugar='AULAS';
+      f.unif=_plUnifDia(idx,f);                          // uniforme del tramo
     });
 
     // v2.9.297: EVALUACIÓN. En el ANEXO se marca con una estrellita (imagen flotante);
@@ -37136,7 +37230,9 @@ function plGenerarDesdeCalendario(k){
     res.llenados++;
   });
 
-  plMarcarSucio(); plRenderEditor();
+  plMarcarSucio();
+  if(silencioso) return res;
+  plRenderEditor();
   alert('⚡ Horario generado desde los documentos oficiales\n\n'
     +'• '+res.llenados+' día(s) con clase (U.C. + código + responsables)\n'
     +'• '+res.feriados+' día(s) de feriado / asueto / acto\n'
@@ -37333,7 +37429,10 @@ async function plGenerarEncargados(k){
 // ============================================================
 const PL_DISC_ANCLA = { semana:30, desde_orden:16 };
 const PL_DISC_EXCLUIDOS = ['P008'];        // Díaz Andia: no entra de encargado
-const PL_SUP_ROLES = 7;                    // los Cnl. DAEN. (orden_rrnn 1..7) son el pool de Supervisor
+const PL_SUP_ROLES = 7;                    // los Cnl. DAEN. son orden_rrnn 1..7
+// El Supervisor Académico sale de los Cnl. del Estado Mayor Académico, PERO no entran
+// el Comandante (P001 Pardo) ni el Jefe de Estudios (P002 Baptista).
+const PL_SUP_EXCLUIDOS = ['P001','P002'];
 
 // Profesores disponibles para disciplina, en el orden oficial de la RR.NN.
 function _plPoolDisciplina(profes){
@@ -37344,7 +37443,8 @@ function _plPoolDisciplina(profes){
 }
 function _plPoolSupervisor(profes){
   return profes.filter(function(p){
-    return p.activo!==false && p.orden_rrnn && p.orden_rrnn<=PL_SUP_ROLES;
+    return p.activo!==false && p.orden_rrnn && p.orden_rrnn<=PL_SUP_ROLES
+        && PL_SUP_EXCLUIDOS.indexOf(p.id)<0;
   }).sort(function(a,b){ return a.orden_rrnn-b.orden_rrnn; });
 }
 function _plNomProf(p){
