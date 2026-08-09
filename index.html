@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.294</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.295</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -36462,8 +36462,22 @@ function _plUICiclo(k){
     h+=_plCard('📌 '+nomd, cuerpo);
   });
 
-  h+=_plCard('👥 Cursantes de servicio',
-     '<label class="pl-full">Servicio de aulas'+_plTa(k+'.servicio',b.servicio,'MY. ART. ... (uno por línea)',3)+'</label>'
+  // v2.9.295: encargados de curso + cursantes de servicio, con rotación automática
+  h+=_plCard('👥 Encargados y cursantes de servicio',
+     '<div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:9px">'
+    +'<span style="font-size:11px;color:var(--text-muted);flex:1">'
+      +(k==='c2'
+        ? 'Encargado de curso por mención (se recorre la RR.NN. de cada mención de abajo hacia arriba) + servicio de EFM/Deportes por paralelo.'
+        : 'Servicio de aulas y de EFM/Deportes: uno por paralelo, del pool que le corresponde a cada cursante.')
+    +'</span>'
+    +'<button class="btn-primary pl-b" id="pl-enc-btn-'+k+'" onclick="plGenerarEncargados(\''+k+'\')">🎖 Rotar encargados</button></div>'
+    +(k==='c2'
+      ? ('<label class="pl-full">Encargados de curso (por mención)'
+         +_plTa(k+'.encargados_mencion',b.encargados_mencion,'INTELIGENCIA: MY. ... (uno por línea)',4)+'</label>')
+      : '')
+    +(k==='c1'
+      ? ('<label class="pl-full">Servicio de aulas'+_plTa(k+'.servicio',b.servicio,'MY. ART. ... (uno por línea)',3)+'</label>')
+      : ('<label class="pl-full">Cursantes de servicio de aulas'+_plTa(k+'.servicio',b.servicio,'MY. ART. ... (uno por línea)',3)+'</label>'))
     +'<label class="pl-full">Servicio de EFM. y Deportes'+_plTa(k+'.servicio_efm',b.servicio_efm,'MY. ART. ... (uno por línea)',3)+'</label>');
 
   let nt='';
@@ -36776,6 +36790,11 @@ function _plDocCiclo(k){
     });
   });
 
+  // v2.9.295: encargados de curso (en época de menciones, uno por mención)
+  if(String(b.encargados_mencion||'').trim()){
+    h+='<tr><td colspan="2" style="'+_PL_TD+';font-weight:bold">ENCARGADOS DE CURSO</td>'
+      +'<td colspan="6" style="'+_PL_TD+'">'+_plNl(b.encargados_mencion)+'</td></tr>';
+  }
   if(String(b.servicio||'').trim()){
     h+='<tr><td colspan="2" style="'+_PL_TD+';font-weight:bold">CURSANTES DE SERVICIO DE AULAS</td>'
       +'<td colspan="6" style="'+_PL_TD+'">'+_plNl(b.servicio)+'</td></tr>';
@@ -37048,6 +37067,179 @@ function plGenerarDesdeCalendario(k){
     +'• '+res.feriados+' día(s) de feriado / asueto / acto\n'
     +(res.sinDato?('• '+res.sinDato+' día(s) sin dato en el calendario — revisalos a mano\n'):'')
     +'\nRevisá y corregí lo que haga falta antes de descargar el Word.');
+}
+
+// ============================================================
+// v2.9.295 — ENCARGADOS Y CURSANTES DE SERVICIO (rotación)
+// ------------------------------------------------------------
+// Dos mecanismos distintos, porque los patrones son distintos:
+//
+// 1) ENCARGADO DE CURSO DE MENCIÓN (2do ciclo, solo en período de menciones)
+//    Se recorre la RR.NN. de cada mención DE ABAJO HACIA ARRIBA, uno por semana,
+//    y las 4 menciones avanzan en paralelo. Verificado contra el horario firmado
+//    de la semana 29: los 4 designados estaban en la posición 3 desde abajo
+//    (y RR.HH. tiene 24 integrantes mientras las otras 25 — igual dio 3).
+//    → k = semana − PL_ENC_BASE.  Semana 29 ⇒ k=3, así que la base es 26.
+//    OFFSET por mención: a Covarrubias la saltearon en la semana 28 y cumple en
+//    la 30, así que INTELIGENCIA queda corrida una semana desde ahí en adelante.
+//
+// 2) CURSANTES DE SERVICIO (aulas / EFM-deportes, ambos ciclos)
+//    Uno por PARALELO, del pool que corresponde (cursantes.servicio).
+//    Acá NO hay un orden oficial confiable (en la RR.NN. del 2do ciclo los
+//    títulos de paralelo van después de su tabla), así que en vez de una fórmula
+//    se usa ROUND-ROBIN POR HISTORIAL: se mira quiénes ya salieron en las semanas
+//    guardadas y entra el que hace más tiempo que no entra. Se auto-corrige y no
+//    depende de anclar un índice.
+//
+// Cantidades (confirmadas): 1er ciclo 3 aulas + 3 EFM · 2do ciclo 4 menciones + 3 EFM.
+// ============================================================
+const PL_ENC_BASE = 26;                 // semana 29 ⇒ k = 3
+// Covarrubias (Inteligencia, orden 24) fue salteada en la semana 28 y se la repone en
+// la 30 FUERA de secuencia. No es un corrimiento a partir de la 30: es una excepción
+// puntual, y recién DESDE LA 31 la secuencia de Inteligencia queda corrida una semana
+// (sem 31 → Luizaga Gutiérrez, que era el que tocaba en la 30).
+const PL_ENC_EXCEPCIONES = { '30|Inteligencia': 24 };   // semana|mención → orden_mencion forzado
+const PL_ENC_OFFSET = { 'Inteligencia': -1 };
+const PL_ENC_OFFSET_DESDE = 31;
+const PL_MENCIONES_ORD = ['Estrategia','Inteligencia','Logística','Recursos Humanos'];
+
+const PLANC = { cursantes:null, cargando:false };
+
+async function _plCargarCursantes(){
+  if(PLANC.cursantes) return PLANC.cursantes;
+  const { data, error } = await sb.from('v_cursantes')
+    .select('id,nombre_completo,grado,arma,ciclo,paralelo,mencion,servicio,orden_mencion,activo')
+    .eq('activo', true);
+  if(error || !data) return null;
+  PLANC.cursantes = data;
+  return data;
+}
+function _plNomCur(c){
+  return [(c.grado||''),(c.arma||''),(c.nombre_completo||'')].filter(Boolean).join(' ').toUpperCase();
+}
+// ¿esta semana el 2do ciclo está en período de menciones?
+// Misma señal que usa el generador del horario: materias de mención vigentes.
+function _plEnMenciones(){
+  const s=PLANIF.sem; if(!s || typeof PLAN_DATOS==='undefined') return false;
+  for(let i=0;i<5;i++){
+    const iso=_plMasDias(s.fecha_desde,i);
+    if(_plMateriasEn(iso,_PL_MENCIONES).length) return true;
+  }
+  return false;
+}
+
+// ---- 1) encargados de curso de mención ----
+function _plEncargadosMencion(cursantes){
+  const s=PLANIF.sem, out=[];
+  PL_MENCIONES_ORD.forEach(function(men){
+    const pool=cursantes.filter(function(c){
+      return c.ciclo==='2DO CICLO' && c.mencion===men && c.orden_mencion;
+    }).sort(function(a,b){ return a.orden_mencion-b.orden_mencion; });
+    if(!pool.length) return;
+    // 1) excepción puntual (reposición de alguien que fue salteado)
+    const exc = PL_ENC_EXCEPCIONES[(s.semana_num||0)+'|'+men];
+    if(exc){
+      const f = pool.find(function(c){ return c.orden_mencion===exc; });
+      if(f){ out.push({ mencion:men, cursante:f, excepcion:true }); return; }
+    }
+    // 2) secuencia normal: k = posición contando DESDE ABAJO (cicla al agotar la lista)
+    let k = (s.semana_num||0) - PL_ENC_BASE;
+    if(s.semana_num >= PL_ENC_OFFSET_DESDE && PL_ENC_OFFSET[men]) k += PL_ENC_OFFSET[men];
+    if(k<1) k=1;
+    const idx = pool.length - (((k-1) % pool.length) + 1);
+    out.push({ mencion:men, cursante:pool[idx] });
+  });
+  return out;
+}
+
+// ---- 2) cursantes de servicio: round-robin por historial ----
+// Junta quiénes ya salieron en las semanas guardadas (mismo ciclo y categoría)
+// y elige al que hace más tiempo que no entra, uno por paralelo.
+function _plYaSalieron(ciclo, categoria){
+  const vistos={};   // nombre normalizado -> semana más reciente en que salió
+  (PLANIF.lista||[]).forEach(function(w){
+    const d = (PLANIF.sem && w.id===PLANIF.sem.id) ? PLANIF.sem.datos : null;
+    if(!d) return;
+    const bloque = ciclo==='1ER CICLO' ? d.c1 : d.c2;
+    if(!bloque) return;
+    const txt = String(categoria==='AULAS' ? (bloque.servicio||'') : (bloque.servicio_efm||''));
+    txt.split('\n').forEach(function(l){
+      const t=l.trim().toUpperCase(); if(t) vistos[t]=Math.max(vistos[t]||0, w.semana_num||0);
+    });
+  });
+  return vistos;
+}
+function _plServicioDe(cursantes, ciclo, categoria, cuantos){
+  const paralelos=['A','B','C'];
+  const vistos=_plYaSalieron(ciclo, categoria);
+  const elegidos=[];
+  paralelos.forEach(function(p){
+    const pool=cursantes.filter(function(c){
+      return c.ciclo===ciclo && c.paralelo===p && c.servicio===categoria;
+    }).sort(function(a,b){
+      const va=vistos[_plNomCur(a)]||0, vb=vistos[_plNomCur(b)]||0;
+      if(va!==vb) return va-vb;                       // el que hace más que no sale, primero
+      return String(a.id).localeCompare(String(b.id));
+    });
+    if(pool.length) elegidos.push(pool[0]);
+  });
+  // si la categoría pide más que un paralelo (ej. 4), completa con los siguientes
+  while(elegidos.length < cuantos){
+    const resto=cursantes.filter(function(c){
+      return c.ciclo===ciclo && c.servicio===categoria &&
+             elegidos.indexOf(c)<0;
+    }).sort(function(a,b){
+      const va=vistos[_plNomCur(a)]||0, vb=vistos[_plNomCur(b)]||0;
+      if(va!==vb) return va-vb;
+      return String(a.id).localeCompare(String(b.id));
+    });
+    if(!resto.length) break;
+    elegidos.push(resto[0]);
+  }
+  return elegidos.slice(0, cuantos);
+}
+
+// ---- acción del botón ----
+async function plGenerarEncargados(k){
+  const s=PLANIF.sem; if(!s) return;
+  const btn=document.getElementById('pl-enc-btn-'+k);
+  if(btn){ btn.disabled=true; btn.textContent='Calculando…'; }
+  const cur=await _plCargarCursantes();
+  if(btn){ btn.disabled=false; btn.textContent='🎖 Rotar encargados'; }
+  if(!cur){ alert('No se pudieron leer los cursantes.'); return; }
+
+  const ciclo = (k==='c1') ? '1ER CICLO' : '2DO CICLO';
+  const b=s.datos[k];
+  let resumen='';
+
+  if(k==='c2' && _plEnMenciones()){
+    const enc=_plEncargadosMencion(cur);
+    b.encargados_mencion = enc.map(function(e){
+      return e.mencion.toUpperCase()+': '+_plNomCur(e.cursante);
+    }).join('\n');
+    resumen += '👤 ENCARGADOS DE CURSO (por mención, k='
+      + ((s.semana_num||0)-PL_ENC_BASE) + ' desde abajo):\n'
+      + enc.map(function(e){ return '   · '+e.mencion+' → '+_plNomCur(e.cursante); }).join('\n') + '\n\n';
+  } else if(k==='c2'){
+    resumen += 'ℹ️ Esta semana el 2do ciclo NO está en período de menciones '
+      + '(vuelve a sus 3 paralelos), así que no se calcularon encargados de mención.\n\n';
+  }
+
+  // servicio de aulas (1er ciclo 3) y EFM/deportes (3 en ambos)
+  if(k==='c1'){
+    const aulas=_plServicioDe(cur,'1ER CICLO','AULAS',3);
+    b.servicio = aulas.map(_plNomCur).join('\n');
+    resumen += '🏫 SERVICIO DE AULAS (uno por paralelo):\n'
+      + aulas.map(function(c){ return '   · '+c.paralelo+' → '+_plNomCur(c); }).join('\n') + '\n\n';
+  }
+  const efm=_plServicioDe(cur, ciclo, 'DEPORTES', 3);
+  b.servicio_efm = efm.map(_plNomCur).join('\n');
+  resumen += '🏃 SERVICIO DE EFM. Y DEPORTES (uno por paralelo):\n'
+    + efm.map(function(c){ return '   · '+c.paralelo+' → '+_plNomCur(c); }).join('\n');
+
+  plMarcarSucio(); plRenderEditor();
+  alert('🎖 Rotación calculada\n\n'+resumen
+    +'\n\nRevisá y corregí lo que haga falta: queda todo editable.');
 }
 
 // ---------- panel de la Sección Planificación ----------
