@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.303</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.304</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -11106,12 +11106,34 @@ async function reactivarSancion(sancionId){
   const razon = prompt(`↩️ REACTIVAR SANCIÓN ${s.folio?'#'+s.folio:''}\n\nLos ${s.puntos_aplicados||0} pts volverán al cómputo del cursante.\n\nRazón de la reactivación:`);
   if(razon === null) return;
   if(!razon || razon.trim().length < 5){ alert('Razón mínima 5 caracteres.'); return; }
+  // v2.9.304: la reactivación deja el mismo rastro que la anulación — a solicitud de
+  // quién y con qué justificativo. Si hay una solicitud en el sistema se toma de ahí.
+  let _solR = null;
+  try{
+    const {data:_ss} = await sb.from('solicitudes_anulacion').select('*').eq('sancion_id',String(sancionId)).order('fecha_creacion',{ascending:false}).limit(5);
+    _solR = (_ss||[]).find(x=>String(x.estado||'')==='aprobado') || (_ss||[]).find(x=>_solPendiente(x)) || null;
+  }catch(_){ }
+  let _solNombreR = null, _solFechaR = null, _solMotivoR = null;
+  if(_solR){
+    _solNombreR = _solR.cursante_nombre||_solR.profesor_nombre||_solR.solicitante_nombre||null;
+    _solFechaR  = _solR.fecha_creacion||null;
+    _solMotivoR = _solR.motivo||_solR.detalle_cursante||_solR.detalle_profesor||_solR.comentario_disciplina||null;
+  } else {
+    const q = prompt('¿A SOLICITUD DE QUIÉN se reactiva?\n\nGrado y nombre de quien lo pidió.\nDejá VACÍO si es DE OFICIO (decisión propia).');
+    if(q===null) return;
+    if(q.trim()) _solNombreR = q.trim();
+  }
+  if(!confirm(`¿Confirmás reactivar esta sanción?\n\nA solicitud de: ${_solNombreR||'DE OFICIO (sin solicitud previa)'}\nJustificativo: ${razon.trim()}\n\nLos ${s.puntos_aplicados||0} pts vuelven al cómputo del cursante.`)) return;
   try{
     const ahora = new Date().toISOString();
     const _tok = getTokenSesion();
-    const { data: r, error: efErr } = await sb.functions.invoke('sanciones-ops', {
-      body: { accion:'reactivar', token:_tok, sancion_id:sancionId, razon:razon.trim(), usuario_nombre:currentUser.nombre_completo }
-    });
+    const _bodyR = { accion:'reactivar', token:_tok, sancion_id:sancionId, razon:razon.trim(), usuario_nombre:currentUser.nombre_completo,
+      decision_final:'REACTIVADA por '+currentUser.nombre_completo+': '+razon.trim() };
+    if(_solNombreR){
+      _bodyR.solicitante_nombre=_solNombreR;
+      _bodyR.solicitud_fecha=_solFechaR; _bodyR.solicitud_motivo=_solMotivoR;
+    }
+    const { data: r, error: efErr } = await sb.functions.invoke('sanciones-ops', { body: _bodyR });
     if(efErr){
       let detalle = efErr.message || 'Error en sanciones-ops';
       try{ if(efErr.context && typeof efErr.context.json === 'function'){ const b = await efErr.context.json(); detalle = b.error || JSON.stringify(b); } }catch(_){}
