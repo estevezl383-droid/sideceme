@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.304</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.305</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -36110,6 +36110,92 @@ function _plDiaNum(iso){ return String(_plD(iso).getDate()).padStart(2,'0'); }
 // derivan uno del otro. Antes, si la lista estaba vacía, el modal proponía el lunes
 // de la semana en curso y salía una semana 31 fechada 03-ago.
 const PL_SEM_ANCLA = { num:30, lunes:'2026-08-10' };
+// v2.9.305: ANCLA de la numeración de NOTAS DE SERVICIO. La primera nota de la
+// SEMANA 31 es la Nº 241 (el 135 de antes era un número equivocado). De ahí en
+// adelante cada semana ARRANCA DONDE TERMINÓ LA ANTERIOR: si la 31 usa 241-247,
+// la 32 se propone en 248. Se propone y se puede corregir a mano.
+const PL_NS_ANCLA = { semana:31, num:241 };
+const PL_NS_BASE  = PL_NS_ANCLA.num;
+// Cuántas notas emite una semana: el Supervisor Académico + los encargados de
+// disciplina que tengan nombre cargado.
+function _plNSCuantas(datos){
+  const p=(datos&&datos.planta)||{};
+  return (String(p.supervisor||'').trim()?1:0)
+       + (p.encargados||[]).filter(function(e){ return String(e.nombre||'').trim(); }).length;
+}
+// Estimación por si una semana quedó sin correlativo y no hay anterior a la que
+// mirar: 7 notas por semana (1 supervisor + 6 encargados). El número real se
+// propone en el modal de "Nueva semana" leyendo la semana anterior de verdad.
+function _plNSDeSemana(n){
+  const d=(parseInt(n,10)||PL_NS_ANCLA.semana)-PL_NS_ANCLA.semana;
+  return Math.max(1, PL_NS_ANCLA.num + d*7);
+}
+// v2.9.305: las semanas creadas antes de esta versión se duplicaron con las
+// tareas de EFM/Deportes equivocadas. Se reemplazan SOLO si el texto sigue
+// siendo exactamente uno de los viejos por defecto — lo editado a mano no se toca.
+// v2.9.305: las semanas 30 y 31 se crearon con el esqueleto viejo, que no tenía
+// ni el EFM de la mañana ni los deportes de la tarde. Esta migración es
+// QUIRÚRGICA a propósito: solo toca el día si sigue teniendo la forma por
+// defecto (nada antes de las 07:00 y ninguna fila de EFM/Deportes). Si alguien
+// ya editó ese día a mano, se lo deja como está.
+function _plMigrarEfmDep(){
+  const s=PLANIF.sem; if(!s || !s.datos) return false;
+  let toco=false;
+  const tieneTexto=function(filas,re){
+    return filas.some(function(f){ return re.test(String(f.act||f.uc||'')); });
+  };
+  ['planta','c1','c2'].forEach(function(k){
+    const b=s.datos[k]; if(!b || !Array.isArray(b.dias)) return;
+
+    // --- EFM de la mañana (martes y jueves) ---
+    PL_EFM_DIAS.forEach(function(idx){
+      const d=b.dias[idx];
+      if(!d || d.libre || !Array.isArray(d.filas) || !d.filas.length) return;
+      if(tieneTexto(d.filas,/ENTRENAMIENTO F[IÍ]SICO/i)) return;              // ya lo tiene
+      if(d.filas.some(function(f){ return f.desde && _plMin(f.desde)<420; })) return;  // ya hay algo antes de 07:00
+      // el PARTE de la mañana (todo lo que arranca antes de las 08:00) se
+      // reemplaza por el bloque de EFM, que termina con su propio parte 08:10.
+      const resto=d.filas.filter(function(f){ return !(f.desde && _plMin(f.desde)<480); });
+      const prim=resto.find(function(f){ return f.desde && _plMin(f.desde)===480; });
+      if(prim) prim.desde=PL_EFM_H.parte[1];                                   // arranca 08:15
+      d.filas=(k==='planta'?_plFijasEfmPlanta():_plFijasEfmCiclo()).concat(resto);
+      toco=true;
+    });
+
+    // --- DEPORTES de la tarde ---
+    const di=PL_DEP_DIA[k], dd=b.dias[di];
+    if(dd && !dd.libre && Array.isArray(dd.filas) && dd.filas.length
+       && !tieneTexto(dd.filas,/DEPORTES/i)){
+      const tarde=dd.filas.filter(_plEsTarde);
+      // solo si la tarde sigue siendo el único bloque "a disposición" por defecto
+      const porDefecto = tarde.length===1 && tarde[0].span
+        && /A DISPOSICI[OÓ]N DEL COMANDO/i.test(String(tarde[0].uc||tarde[0].act||''));
+      if(porDefecto){
+        const ciclo=(k==='c1')?'1ER CICLO':'2DO CICLO';
+        const md = (k!=='planta') && _plMananaTarde(_plFechaFuente(dd.iso,k), ciclo);
+        const nuevas=[];
+        if(k==='planta') _plTardePlanta(nuevas, di, false);
+        else             _plTardeCiclo(nuevas, k, di, md);
+        dd.filas=dd.filas.filter(function(f){ return !_plEsTarde(f); }).concat(nuevas);
+        toco=true;
+      }
+    }
+  });
+  return toco;
+}
+
+function _plMigrarTareas(){
+  const p=PLANIF.sem && PLANIF.sem.datos && PLANIF.sem.datos.planta;
+  if(!p || !Array.isArray(p.encargados)) return false;
+  let toco=false;
+  p.encargados.forEach(function(e,i){
+    const t=String(e.tarea||'').trim();
+    if(t && PL_ENC_TAREAS_VIEJAS.indexOf(t)>=0 && PL_ENC_TAREAS[i]){
+      e.tarea=PL_ENC_TAREAS[i].tarea; toco=true;
+    }
+  });
+  return toco;
+}
 function _plFechaDeSemana(n){ return _plMasDias(PL_SEM_ANCLA.lunes, ((n|0)-PL_SEM_ANCLA.num)*7); }
 function _plSemanaDeFecha(iso){
   const dif=Math.round((_plD(iso)-_plD(PL_SEM_ANCLA.lunes))/86400000);
@@ -36142,16 +36228,111 @@ function _plFilaPlanta(desde,hasta,act,lugar,asisten,resp,unif){
 }
 function _plSpan(txt){ return {desde:'',hasta:'',act:txt,lugar:'',asisten:'',resp:'',unif:'',span:true}; }
 
-function _plDiaPlantaRutina(primero){
-  const f = [];
-  if(primero) f.push(_plFilaPlanta('07:35','08:00','PARTE AL SR. COMANDANTE ECEME. E IZA DE LA BANDERA','PATIO DE HONOR','TODOS','JEFE DE ESTUDIOS','N° 3-C  CON SABLE'));
-  else        f.push(_plFilaPlanta('07:55','08:00','PARTE AL SR. COMANDANTE ECEME.','PATIO DE HONOR','TODOS','JEFE DE ESTUDIOS','N° 3-C'));
-  f.push(_plFilaPlanta('08:00','09:30','ACTIVIDADES ADMINISTRATIVAS Y ACADÉMICAS','ECEME.','TODOS','JEFES DE SECCIÓN','N° 3-C'));
+// ============================================================
+// v2.9.305 — EFM, DEPORTES y CLASES DE MAÑANA Y TARDE
+// ------------------------------------------------------------
+// El ENTRENAMIENTO FÍSICO MILITAR es MARTES y JUEVES A PRIMERA HORA — no a las
+// 13:15 como decía el esqueleto viejo, que por eso no aparecía en casi ningún
+// horario. Copiado del horario firmado: parte al Jefe de Estudios 05:50, parte
+// al Comandante 05:55, EFM 06:00-06:50 en las canchas del COE. con uniforme
+// N° 8, y recién 08:10-08:15 el parte de la mañana (las clases arrancan 08:15).
+// Va en los TRES horarios: planta, 1er ciclo y 2do ciclo.
+//
+// DEPORTES es por la TARDE, 15:00-16:30: planta el JUEVES, 1er ciclo el
+// VIERNES, 2do ciclo el JUEVES (antes el esqueleto decía miércoles: estaba mal).
+//
+// Las filas que pone este bloque llevan `fijo:true` para que el motor del
+// calendario NO las pise con la Unidad de Competencia del día.
+// ============================================================
+const PL_EFM_DIAS = [1,3];                       // 0=lunes … EFM martes y jueves
+const PL_DEP_DIA  = { planta:3, c1:4, c2:3 };    // deportes: jueves · viernes · jueves
+const PL_EFM_H    = { p1:['05:50','05:55'], p2:['05:55','06:00'],
+                      efm:['06:00','06:50'], parte:['08:10','08:15'] };
+const PL_DEP_H    = ['15:00','16:30'];
+const PL_LUGAR_EFM= 'CANCHAS COE.';
+const PL_UNIF_EFM = 'N° 8';
+// Bloques de la TARDE cuando el calendario marca "clases mañana y tarde"
+// (la línea negra cruzada del ANEXO).
+const PL_TARDE_H  = { b1:['15:00','16:20'], desc:['16:20','16:40'], b2:['16:40','18:00'] };
+// Tareas específicas de los 6 encargados de disciplina (van a su nota de servicio).
+// Se mantienen acá para poder CORREGIR las semanas viejas que se duplicaron con el
+// texto equivocado — ver _plMigrarTareas().
+const PL_ENC_TAREAS = [
+  {ciclo:'1ER. CICLO “A”', tarea:'Controlar el desarrollo del Entrenamiento Físico Militar el día Martes desde horas 05:50 am.'},
+  {ciclo:'1ER. CICLO “B”', tarea:'Controlar el desarrollo del Entrenamiento Físico Militar el día Jueves desde horas 05:50 am.'},
+  {ciclo:'1ER. CICLO “C”', tarea:'Controlar el desarrollo de Deportes de los cursantes del Primer Ciclo el día Viernes desde horas 15:00 pm.'},
+  {ciclo:'2DO. CICLO “A”', tarea:'Controlar el desarrollo del Entrenamiento Físico Militar el día Martes desde horas 05:50 am.'},
+  {ciclo:'2DO. CICLO “B”', tarea:'Controlar el desarrollo del Entrenamiento Físico Militar el día Jueves desde horas 05:50 am.'},
+  {ciclo:'2DO. CICLO “C”', tarea:'Controlar el desarrollo de Deportes de los cursantes del Segundo Ciclo el día Jueves desde horas 15:00 pm.'}
+];
+// Textos viejos que hay que reemplazar en las semanas ya creadas (y SOLO esos:
+// si el usuario editó la tarea a mano, no se toca).
+const PL_ENC_TAREAS_VIEJAS = [
+  'Controlar el desarrollo de Entrenamiento Físico Militar el día Martes desde horas 13:15 pm.',
+  'Controlar el desarrollo de Entrenamiento Físico Militar el día Jueves desde horas 13:15 pm.',
+  'Controlar el desarrollo de Deportes de los cursantes del Primer Ciclo el día Viernes desde horas 14:50 pm.',
+  'Controlar el desarrollo de Deportes de los cursantes del Segundo Ciclo el día Miércoles desde horas 15:00 pm.'
+];
+function _plEsEfm(idx){ return PL_EFM_DIAS.indexOf(idx)>=0; }
+function _plMin(hhmm){ const p=String(hhmm||'').split(':'); return (+p[0]||0)*60+(+p[1]||0); }
+// Una fila es "de la tarde" si arranca 13:00 o después. El motor reemplaza SOLO
+// esas cuando el día pasa a ser de mañana y tarde o de deportes.
+function _plEsTarde(f){ return _plMin(f&&f.desde) >= 780; }
+
+// Las 4 filas de la mañana de EFM, tal cual el horario firmado.
+function _plFijasEfmPlanta(){
+  const f=[
+    _plFilaPlanta(PL_EFM_H.p1[0],PL_EFM_H.p1[1],'PARTE AL SR. JEFE DE ESTUDIOS',PL_LUGAR_EFM,'TODOS','JEFES DE SECCIÓN',PL_UNIF_EFM),
+    _plFilaPlanta(PL_EFM_H.p2[0],PL_EFM_H.p2[1],'PARTE AL SR. COMANDANTE ECEME.',PL_LUGAR_EFM,'TODOS','JEFE DE ESTUDIOS',PL_UNIF_EFM),
+    _plFilaPlanta(PL_EFM_H.efm[0],PL_EFM_H.efm[1],'ENTRENAMIENTO FÍSICO MILITAR',PL_LUGAR_EFM,'TODOS','JEFES DE SECCIÓN',PL_UNIF_EFM),
+    _plFilaPlanta(PL_EFM_H.parte[0],PL_EFM_H.parte[1],'PARTE AL SR. JEFE DE ESTUDIOS','PATIO DE HONOR','TODOS','JEFES DE SECCIÓN','N° 3-C')
+  ];
+  f.forEach(function(x){ x.fijo=true; });
+  return f;
+}
+function _plFijasEfmCiclo(){
+  const mk=function(h,t,resp,lugar,unif){
+    const r=_plFilaCiclo(h[0],h[1],'',t,'',lugar||PL_LUGAR_EFM,unif||PL_UNIF_EFM,resp);
+    r.fijo=true; return r;
+  };
+  return [
+    mk(PL_EFM_H.p1,'PARTE AL SR. JEFE DE ESTUDIOS','JEFE DE CURSO'),
+    mk(PL_EFM_H.p2,'PARTE AL SR. COMANDANTE ECEME.','JEFE DE ESTUDIOS'),
+    mk(PL_EFM_H.efm,'ENTRENAMIENTO FÍSICO MILITAR','JEFE DE CURSO'),
+    mk(PL_EFM_H.parte,'PARTE AL SR. JEFE DE ESTUDIOS','JEFE DE CURSO','PATIO DE HONOR','N° 3-C')
+  ];
+}
+
+function _plDiaPlantaRutina(idx, md){
+  let f = [];
+  const efm=_plEsEfm(idx);
+  if(efm){
+    f = _plFijasEfmPlanta();
+    f.push(_plFilaPlanta(PL_EFM_H.parte[1],'09:30','ACTIVIDADES ADMINISTRATIVAS Y ACADÉMICAS','ECEME.','TODOS','JEFES DE SECCIÓN','N° 3-C'));
+  } else {
+    if(idx===0) f.push(_plFilaPlanta('07:35','08:00','PARTE AL SR. COMANDANTE ECEME. E IZA DE LA BANDERA','PATIO DE HONOR','TODOS','JEFE DE ESTUDIOS','N° 3-C  CON SABLE'));
+    else        f.push(_plFilaPlanta('07:55','08:00','PARTE AL SR. COMANDANTE ECEME.','PATIO DE HONOR','TODOS','JEFE DE ESTUDIOS','N° 3-C'));
+    f[f.length-1].fijo=true;
+    f.push(_plFilaPlanta('08:00','09:30','ACTIVIDADES ADMINISTRATIVAS Y ACADÉMICAS','ECEME.','TODOS','JEFES DE SECCIÓN','N° 3-C'));
+  }
   f.push(_plSpan('DESCANSO'));
   f[f.length-1].desde='09:30'; f[f.length-1].hasta='10:00';
   f.push(_plFilaPlanta('10:00','13:00','ACTIVIDADES ADMINISTRATIVAS Y ACADÉMICAS','ECEME.','TODOS','JEFES DE SECCIÓN','N° 3-C'));
-  const disp=_plSpan('A DISPOSICIÓN DEL COMANDO'); disp.desde='13:00'; disp.hasta='18:00'; f.push(disp);
+  _plTardePlanta(f, idx, md);
   return f;
+}
+// La tarde de la planta: a disposición del comando, salvo el día de DEPORTES.
+// `md` (clases mañana y tarde) solo aplica a los ciclos — la planta no dicta.
+function _plTardePlanta(f, idx, md){
+  const disp=function(d,h){ const s=_plSpan('A DISPOSICIÓN DEL COMANDO'); s.desde=d; s.hasta=h; return s; };
+  if(idx===PL_DEP_DIA.planta){
+    f.push(disp('13:00',PL_DEP_H[0]));
+    const dep=_plFilaPlanta(PL_DEP_H[0],PL_DEP_H[1],'DEPORTES',PL_LUGAR_EFM,'TODOS','JEFES DE SECCIÓN',PL_UNIF_EFM);
+    dep.fijo=true; f.push(dep);
+    f.push(disp(PL_DEP_H[1],'18:00'));
+  } else {
+    f.push(disp('13:00','18:00'));
+  }
 }
 function _plFilaCiclo(desde,hasta,modulo,uc,codigo,lugar,unif,resp){
   return {desde:desde||'',hasta:hasta||'',modulo:modulo||'',uc:uc||'',codigo:codigo||'',lugar:lugar||'',unif:unif||'',resp:resp||'',span:false};
@@ -36161,9 +36342,13 @@ function _plSpanCiclo(txt,desde,hasta){
 }
 // El 1er ciclo y el 2do tienen bloques horarios DISTINTOS (los descansos caen
 // en momentos diferentes) — por eso cada uno tiene su propia rutina.
-function _plDiaCicloRutina(ciclo, primero){
-  const f=[];
-  if(primero){
+function _plDiaCicloRutina(ciclo, idx, md){
+  let f=[]; const efm=_plEsEfm(idx);
+  if(efm){
+    // Mismo bloque de la imagen del horario firmado, con la columna de
+    // responsable del ciclo. Van como filas FIJAS: el motor no las pisa.
+    f = _plFijasEfmCiclo();
+  } else if(idx===0){
     f.push(_plFilaCiclo('07:15','07:30','','REVISIÓN DE UNIFORMES Y DOCUMENTACIÓN PERSONAL','','PATIO DE HONOR','N° 3-C CON SABLE','JEFE DE CURSO'));
     f[f.length-1].span=true;
     f.push(_plFilaCiclo('07:30','08:00','','PARTE AL SR. COMANDANTE DE LA ECEME. E IZA DE LA BANDERA','','PATIO DE HONOR','N° 3-C CON SABLE','JEFE DE ESTUDIOS - SEIS'));
@@ -36172,21 +36357,45 @@ function _plDiaCicloRutina(ciclo, primero){
     f.push(_plFilaCiclo('07:55','08:00','','PARTE AL JEFE DE CURSO','','PATIO DE HONOR','N° 3-C','JEFE DE ESTUDIOS'));
     f[f.length-1].span=true;
   }
+  // Los días de EFM la mañana arranca 08:15 (después del parte), no 08:00.
+  const ini = efm ? PL_EFM_H.parte[1] : '08:00';
   if(ciclo==='c1'){
-    f.push(_plFilaCiclo('08:00','10:10','','','','AULAS','N° 3-C',''));
+    f.push(_plFilaCiclo(ini,'10:10','','','','AULAS','N° 3-C',''));
     f.push(_plSpanCiclo('DESCANSO','10:10','10:30'));
     f.push(_plFilaCiclo('10:30','11:40','','','','AULAS','N° 3-C',''));
     f.push(_plSpanCiclo('DESCANSO','11:40','11:50'));
     f.push(_plFilaCiclo('11:50','13:00','','','','AULAS','N° 3-C',''));
   } else {
-    f.push(_plFilaCiclo('08:00','09:50','','','','AULAS','N° 3-C',''));
+    f.push(_plFilaCiclo(ini,'09:50','','','','AULAS','N° 3-C',''));
     f.push(_plSpanCiclo('DESCANSO','09:50','10:10'));
     f.push(_plFilaCiclo('10:10','11:30','','','','AULAS','N° 3-C',''));
     f.push(_plSpanCiclo('DESCANSO','11:30','11:40'));
     f.push(_plFilaCiclo('11:40','13:00','','','','AULAS','N° 3-C',''));
   }
-  f.push(_plSpanCiclo('A DISPOSICIÓN DEL COMANDO','13:00','18:00'));
+  _plTardeCiclo(f, ciclo, idx, md);
   return f;
+}
+// La tarde del ciclo. Tres casos, en este orden de prioridad:
+//   1) el calendario marca CLASES MAÑANA Y TARDE (la línea cruzada) → hay clase
+//      a la tarde y manda sobre deportes, porque lo dice el ANEXO oficial;
+//   2) es el día de DEPORTES del ciclo → 15:00-16:30 en las canchas;
+//   3) el resto → a disposición del comando.
+function _plTardeCiclo(f, ciclo, idx, md){
+  if(md){
+    f.push(_plSpanCiclo('A DISPOSICIÓN DEL COMANDO','13:00',PL_TARDE_H.b1[0]));
+    f.push(_plFilaCiclo(PL_TARDE_H.b1[0],PL_TARDE_H.b1[1],'','','','AULAS','N° 3-C',''));
+    f.push(_plSpanCiclo('DESCANSO',PL_TARDE_H.desc[0],PL_TARDE_H.desc[1]));
+    f.push(_plFilaCiclo(PL_TARDE_H.b2[0],PL_TARDE_H.b2[1],'','','','AULAS','N° 3-C',''));
+    return;
+  }
+  if(idx===PL_DEP_DIA[ciclo]){
+    f.push(_plSpanCiclo('A DISPOSICIÓN DEL COMANDO','13:00',PL_DEP_H[0]));
+    const dep=_plFilaCiclo(PL_DEP_H[0],PL_DEP_H[1],'','DEPORTES','',PL_LUGAR_EFM,PL_UNIF_EFM,'JEFE DE CURSO');
+    dep.fijo=true; f.push(dep);
+    f.push(_plSpanCiclo('A DISPOSICIÓN DEL COMANDO',PL_DEP_H[1],'18:00'));
+    return;
+  }
+  f.push(_plSpanCiclo('A DISPOSICIÓN DEL COMANDO','13:00','18:00'));
 }
 
 const _PL_FAC_MANANA = ['08:00-09:10','09:10-09:50','09:50-10:10','10:10-10:50','10:50-11:30','11:30-11:40','11:40-12:20','12:20-13:00','13:00-14:15'];
@@ -36208,13 +36417,14 @@ function _plNuevaDatos(desde){
   for(let i=0;i<7;i++){
     const iso=_plMasDias(desde,i);
     const finde = (i>=5);
-    dias.push({ iso:iso, libre: finde?'A DISPOSICIÓN DEL COMANDO':'', filas: finde?[]:_plDiaPlantaRutina(i===0) });
+    dias.push({ iso:iso, libre: finde?'A DISPOSICIÓN DEL COMANDO':'', filas: finde?[]:_plDiaPlantaRutina(i) });
   }
   const diasC = function(ciclo){
     const out=[];
     for(let i=0;i<7;i++){
       const iso=_plMasDias(desde,i); const finde=(i>=5);
-      out.push({ iso:iso, libre: finde?'A DISPOSICIÓN DEL COMANDO':'', filas: finde?[]:_plDiaCicloRutina(ciclo, i===0) });
+      out.push({ iso:iso, libre: finde?'A DISPOSICIÓN DEL COMANDO':'',
+                 filas: finde?[]:_plDiaCicloRutina(ciclo, i, _plMananaTarde(iso, ciclo)) });
     }
     return out;
   };
@@ -36233,31 +36443,32 @@ function _plNuevaDatos(desde){
     planta:{
       dias:dias,
       supervisor:'', supervisor_trat:'Señor',
-      encargados:[
-        {ciclo:'1ER. CICLO “A”', nombre:'', trat:'Señor', tarea:'Controlar el desarrollo de Entrenamiento Físico Militar el día Martes desde horas 13:15 pm.'},
-        {ciclo:'1ER. CICLO “B”', nombre:'', trat:'Señor', tarea:'Controlar el desarrollo de Entrenamiento Físico Militar el día Jueves desde horas 13:15 pm.'},
-        {ciclo:'1ER. CICLO “C”', nombre:'', trat:'Señor', tarea:'Controlar el desarrollo de Deportes de los cursantes del Primer Ciclo el día Viernes desde horas 14:50 pm.'},
-        {ciclo:'2DO. CICLO “A”', nombre:'', trat:'Señor', tarea:'Controlar el desarrollo de Entrenamiento Físico Militar el día Martes desde horas 13:15 pm.'},
-        {ciclo:'2DO. CICLO “B”', nombre:'', trat:'Señor', tarea:'Controlar el desarrollo de Entrenamiento Físico Militar el día Jueves desde horas 13:15 pm.'},
-        {ciclo:'2DO. CICLO “C”', nombre:'', trat:'Señor', tarea:'Controlar el desarrollo de Deportes de los cursantes del Segundo Ciclo el día Miércoles desde horas 15:00 pm.'}
-      ],
+      // v2.9.305: las tareas decían EFM "desde horas 13:15" y Deportes del 2do
+      // ciclo el MIÉRCOLES. El EFM es a primera hora de la mañana (05:50) los
+      // martes y jueves, y el 2do ciclo tiene deportes el JUEVES.
+      encargados:PL_ENC_TAREAS.map(function(e){ return {ciclo:e.ciclo, nombre:'', trat:'Señor', tarea:e.tarea}; }),
       notas:[
         'CUALQUIER ALTERACIÓN AL PRESENTE HORARIO, SE HARÁ CONOCER A TRAVÉS DE LA ORDEN DEL DÍA.',
         'SE RECOMIENDA EL CUMPLIMIENTO AL REGLAMENTO RA-01-151 “REGLAMENTO DE UNIFORMES USO DE DISTINTIVOS Y DISTINCIONES”.'
       ]
     },
+    // v2.9.305: `ajustes` = CORRIMIENTO DE MATERIAS. Cada entrada es {desde,dias}:
+    // a partir de esa fecha el motor lee del calendario académico lo que cae
+    // `dias` días HÁBILES más adelante (positivo = adelanta las materias) o más
+    // atrás (negativo = las atrasa). Se acumulan, y como viven dentro del bloque
+    // del ciclo se guardan desde su propia pestaña y se arrastran al duplicar.
     c1:{ curso:'1ER. CICLO', periodo:'2DO. SEMESTRE', dias:diasC('c1'),
-         servicio:'', servicio_efm:'',
+         servicio:'', servicio_efm:'', ajustes:[],
          notas:['LAS EVALUACIONES DIAGNÓSTICAS SERÁN PROGRAMADAS DE ACUERDO A LA HOJA DE ORIENTACIÓN.',
                 'CUALQUIER ALTERACIÓN AL PRESENTE HORARIO SE HARÁ CONOCER A TRAVÉS DE LA ORDEN DEL DÍA.'] },
     c2:{ curso:'2DO. CICLO', periodo:'4TO. SEMESTRE', dias:diasC('c2'),
-         servicio:'', servicio_efm:'',
+         servicio:'', servicio_efm:'', ajustes:[],
          notas:['LAS EVALUACIONES DIAGNÓSTICAS SERÁN PROGRAMADAS DE ACUERDO A LA HOJA DE ORIENTACIÓN.',
                 'CUALQUIER ALTERACIÓN AL PRESENTE HORARIO SE HARÁ CONOCER A TRAVÉS DE LA ORDEN DEL DÍA.'] },
     facultad:{ c1:_plFacDefault(), c2:_plFacDefault() },
     ns:{
       fecha:'',
-      correlativo_base:135,        // v2.9.299: la numeración arranca en 135
+      correlativo_base:PL_NS_BASE,
       firmante:'Cnl. DAEN. William Gustavo Baptista Rocabado',
       cargo:'JEFE DE ESTUDIOS DE LA ECEME.',
       referencia:'JMA/SMM/oaf.-',
@@ -36387,6 +36598,9 @@ function plNuevaSemana(){
     +'</div>'
     +'<label class="pl-full" style="margin-top:9px">Lunes en que arranca'
       +'<input class="pl-i" id="pl-n-desde" type="date" value="'+desde+'"></label>'
+    +'<label class="pl-full" style="margin-top:9px">Primera nota de servicio (Nº)'
+      +'<input class="pl-i" id="pl-n-ns" type="number" value="'+_plNSDeSemana(num)+'"></label>'
+    +'<div id="pl-n-ns-eco" class="pl-hint">Se propone el número que sigue al de la semana anterior.</div>'
     +'<div id="pl-n-eco" class="pl-hint"></div>'
     +(ult?('<label class="pl-full" style="margin-top:6px;display:flex;gap:7px;align-items:flex-start;color:var(--text-secondary)">'
       +'<input type="checkbox" id="pl-n-copiar" checked style="margin-top:2px">'
@@ -36416,6 +36630,27 @@ function plNuevaSemana(){
     eco();
   };
   eco();
+
+  // v2.9.305: el número REAL de la primera nota sale de la semana anterior:
+  // su correlativo + cuántas notas emitió (supervisor + encargados con nombre).
+  // La estimación de _plNSDeSemana ya está puesta; esto la corrige cuando llega
+  // el dato. Si el usuario ya tocó el campo, no se le pisa.
+  if(ult){
+    const campo=document.getElementById('pl-n-ns');
+    const propuesto=String(campo.value);
+    _plInvoke('obtener',{id:ult.id}).then(function(r){
+      if(!r || !r.ok || !r.semana) return;
+      if(!campo || String(campo.value)!==propuesto) return;
+      const base=parseInt(r.semana.ns_correlativo,10)||0;
+      const cuantas=_plNSCuantas(r.semana.datos)||7;
+      if(!base) return;
+      campo.value = base + cuantas;
+      const e=document.getElementById('pl-n-ns-eco');
+      if(e) e.innerHTML='La <b>SEMANA '+ult.semana_num+'</b> usó de la Nº <b>'+base
+        +'</b> a la Nº <b>'+(base+cuantas-1)+'</b> ('+cuantas+' notas), así que esta arranca en <b>'
+        +(base+cuantas)+'</b>.';
+    });
+  }
 }
 async function plNuevaConfirmar(ultId){
   const errEl=document.getElementById('pl-n-err');
@@ -36432,10 +36667,13 @@ async function plNuevaConfirmar(ultId){
 
   const btn=document.getElementById('pl-n-ok');
   btn.disabled=true; btn.textContent='Creando...';
+  const nsEl=document.getElementById('pl-n-ns');
+  const ns=nsEl ? (parseInt(nsEl.value,10)||0) : 0;
   const r=await _plInvoke('crear',{
     gestion:gestion, semana_num:num,
     fecha_desde:desde, fecha_hasta:_plMasDias(desde,6),
     lugar_fecha:_plLugarFecha(_plMasDias(desde,-3)),
+    ns_correlativo: ns || _plNSDeSemana(num),
     copiar_de:copiar,
     datos: copiar ? null : _plNuevaDatos(desde)
   });
@@ -36477,8 +36715,14 @@ async function plAbrir(id){
   // se veía vacía como si el módulo no hiciera nada.
   _plAutoHorario();
   _plAutoServicios();
-  // v2.9.299: la numeración de notas de servicio arranca en 135 si está vacía
-  if(!PLANIF.sem.ns_correlativo){ PLANIF.sem.ns_correlativo=135; PLANIF.dirty=true; }
+  // v2.9.305: la numeración de notas de servicio se deriva del ancla (semana 31 = 241)
+  if(!PLANIF.sem.ns_correlativo){ PLANIF.sem.ns_correlativo=_plNSDeSemana(PLANIF.sem.semana_num); PLANIF.dirty=true; }
+  if(_plMigrarTareas()) PLANIF.dirty=true;
+  // v2.9.305: lo que se autocompleta al abrir hay que PERSISTIRLO acá. El guardado
+  // normal manda solo el bloque de la pestaña activa, y al abrir la pestaña activa
+  // es "Datos" (bloque `cab`): sin esto, el EFM y los deportes que acaba de meter
+  // la migración se recalculaban en cada apertura pero nunca quedaban guardados.
+  if(PLANIF.dirty && PLANIF.sem.id) _plGuardarAuto();
   plRenderEditor();
   // v2.9.297: la relación nominal se trae en segundo plano; cuando llega, los campos de
   // designación pasan de texto libre a desplegable con el que le toca preseleccionado.
@@ -36508,6 +36752,10 @@ function _plCicloVacio(k){
 // Llena solo lo que esté en blanco. Nunca pisa una semana ya trabajada.
 function _plAutoHorario(){
   let n=0;
+  // v2.9.305: primero se le mete el EFM/Deportes a lo que ya existía (semanas
+  // duplicadas del esqueleto viejo), y recién después se genera lo que falte:
+  // así el motor ve las filas fijas y no las pisa.
+  if(_plMigrarEfmDep()) PLANIF.dirty=true;
   ['c1','c2'].forEach(function(k){
     if(_plCicloVacio(k)){ if(plGenerarDesdeCalendario(k,true)) n++; }
   });
@@ -36565,6 +36813,10 @@ function _plAutoServicios(){
 // El lunes suma el agregado (CON SABLE) solo en la fila del PARTE con iza de bandera.
 function _plUnifDia(idx, fila){
   const c=(PLANIF.sem&&PLANIF.sem.datos&&PLANIF.sem.datos.cab)||{};
+  // v2.9.305: las filas FIJAS (los dos partes de las 05:50/05:55, el EFM, deportes)
+  // ya vienen con su uniforme puesto y NO siguen el tramo de la semana: si no se
+  // respetara, los partes del EFM salían con N° 3-C en vez de N° 8.
+  if(fila && fila.fijo && String(fila.unif||'').trim()) return fila.unif;
   if(fila && /DEPORTE|ENTRENAMIENTO F[IÍ]SICO|EFM/i.test(String(fila.act||fila.uc||'')))
     return c.unif_dep||'N° 8';
   const base = (idx<=2) ? (c.unif_lmx||'N° 3-C') : (c.unif_jv||'N° 3-C');
@@ -36664,6 +36916,24 @@ function plPintarEstado(){
   else if(PLANIF.dirty){ el.textContent='● Sin guardar'; el.style.color='#f4d574'; }
   else { el.textContent='✅ Guardado'; el.style.color='#9be6b4'; }
 }
+// Guarda los bloques que llena solo el sistema al abrir la semana (horarios de
+// planta y de los dos ciclos) + la cabecera. Va bloque por bloque porque la Edge
+// Function hace el merge así, y eso es justamente lo que permite que dos personas
+// editen pestañas distintas sin pisarse.
+async function _plGuardarAuto(){
+  const s=PLANIF.sem; if(!s || !s.id) return;
+  PLANIF.guardando=true; plPintarEstado();
+  for(const b of ['planta','c1','c2']){
+    if(!s.datos[b]) continue;
+    await _plInvoke('guardar',{id:s.id, bloque:b, contenido:s.datos[b]});
+  }
+  const r=await _plInvoke('guardar',{id:s.id, bloque:'cab', contenido:s.datos.cab,
+                                     ns_correlativo:s.ns_correlativo});
+  PLANIF.guardando=false;
+  if(r && r.ok){ PLANIF.dirty=false; }
+  plPintarEstado();
+}
+
 async function plGuardar(auto){
   const s=PLANIF.sem; if(!s) return;
   clearTimeout(PLANIF.tSave);
@@ -36842,7 +37112,8 @@ function _plUIPlanta(){
           +'</tr>';
       });
       cuerpo+='</table></div>'
-        +'<button class="pl-add" onclick="plFilaAdd(\'planta\','+i+')">＋ Agregar fila</button>';
+        +'<button class="pl-add" onclick="plFilaAdd(\'planta\','+i+')">＋ Agregar fila</button> '
+        +_plSelTemprano('planta',i);
     }
     h+=_plCard('📌 '+nom, cuerpo);
   });
@@ -36908,9 +37179,54 @@ function _plUICiclo(k){
     +'<label>Periodo'+_plInp(k+'.periodo',b.periodo,'2DO. SEMESTRE')+'</label>'
     +'</div>';
 
+  // v2.9.305: CORRER MATERIAS. Cuando un acto corre el calendario, en vez de
+  // corregir día por día se define desde qué fecha y cuántos días hábiles.
+  const aj=_plAjustesDe(k);
+  let ca='<div class="pl-hint" style="margin-bottom:8px">Un acto, un feriado o una conferencia corren el '
+    +'calendario y el ANEXO deja de coincidir. Acá decís <b>desde qué día</b> y <b>cuántos días hábiles</b>: '
+    +'positivo <b>adelanta</b> las materias (trae las de más adelante), negativo las <b>atrasa</b>. '
+    +'Se aplica cada vez que generás, y se arrastra a las semanas que dupliques.</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:9px">'
+    +'<button class="btn-primary pl-b" onclick="plAjusteRapido(\''+k+'\',5)">⏩ Adelantar 1 semana</button>'
+    +'<button class="btn-secondary pl-b" onclick="plAjusteRapido(\''+k+'\',-5)">⏪ Atrasar 1 semana</button>'
+    +'</div>';
+  if(aj.length){
+    ca+='<div class="pl-tw"><table class="pl-t"><tr><th style="width:150px">Desde</th>'
+      +'<th style="width:130px">Días hábiles</th><th>Efecto</th><th style="width:34px"></th></tr>';
+    aj.forEach(function(a,i){
+      const n=parseInt(a.dias,10)||0;
+      ca+='<tr><td>'+_plInp(k+'.ajustes.'+i+'.desde',a.desde,'',' type="date"')+'</td>'
+        +'<td>'+_plInp(k+'.ajustes.'+i+'.dias',a.dias,'5',' type="number"')+'</td>'
+        +'<td style="font-size:11px;color:var(--text-muted)">'
+        +(n>0?('adelanta '+n+' día(s) hábil(es)'):(n<0?('atrasa '+Math.abs(n)+' día(s) hábil(es)'):'sin efecto'))+'</td>'
+        +'<td><button class="pl-x" onclick="plAjusteDel(\''+k+'\','+i+')">✕</button></td></tr>';
+    });
+    ca+='</table></div>';
+  } else {
+    ca+='<div class="pl-hint">Sin corrimientos: el horario sale tal cual el calendario académico.</div>';
+  }
+  ca+='<button class="pl-add" onclick="plAjusteAdd(\''+k+'\')">＋ Agregar corrimiento</button>';
+  h+=_plCard('🔀 Correr materias (adelantar / atrasar)', ca);
+
+  // desplegable de materias para elegir a mano la de un día suelto
+  const _mats=_plMateriasDe(k);
+  const _selMat=function(i){
+    let o='<option value="">🔎 Cambiar la materia de este día…</option>';
+    _mats.forEach(function(m){
+      o+='<option value="C:'+_plEsc(m.codigo||'')+'">'+_plEsc((m.codigo||'—')+' · '+m.nombre)+'</option>';
+    });
+    o+='<optgroup label="Feriados / actos / días libres">';
+    Object.keys(_PL_MARCADORES).forEach(function(c){
+      o+='<option value="M:'+_plEsc(_PL_MARCADORES[c])+'">'+_plEsc(_PL_MARCADORES[c])+'</option>';
+    });
+    o+='</optgroup>';
+    return '<select class="pl-i" style="max-width:420px" onchange="plDiaMateria(\''+k+'\','+i+',this.value); this.value=\'\'">'+o+'</select>';
+  };
+
   (b.dias||[]).forEach(function(d,i){
     const nomd=_plDiaNombre(d.iso)+'  '+_plDiaNum(d.iso);
-    let cuerpo='<label class="pl-full">Día completo (dejar vacío para usar las filas)'
+    let cuerpo=(i<5?('<div style="margin-bottom:8px">'+_selMat(i)+'</div>'):'')
+      +'<label class="pl-full">Día completo (dejar vacío para usar las filas)'
       +_plInp(k+'.dias.'+i+'.libre',d.libre,'Ej: FERIADO NACIONAL...')+'</label>';
     if(!d.libre){
       cuerpo+='<div class="pl-tw"><table class="pl-t"><tr>'
@@ -36935,7 +37251,8 @@ function _plUICiclo(k){
           +'</tr>';
       });
       cuerpo+='</table></div>'
-        +'<button class="pl-add" onclick="plFilaAdd(\''+k+'\','+i+')">＋ Agregar fila</button>';
+        +'<button class="pl-add" onclick="plFilaAdd(\''+k+'\','+i+')">＋ Agregar fila</button> '
+        +_plSelTemprano(k,i);
     }
     h+=_plCard('📌 '+nomd, cuerpo);
   });
@@ -37050,7 +37367,7 @@ function _plUINotas(){
   const corr=parseInt(s.ns_correlativo,10)||0;
   h+=_plCard('🔢 Correlativo y firma',
      '<div class="pl-grid2">'
-    +'<label>Primer N° de nota'+_plInp('@ns_correlativo',s.ns_correlativo,'226',' type="number"')+'</label>'
+    +'<label>Primer N° de nota'+_plInp('@ns_correlativo',s.ns_correlativo,'241',' type="number"')+'</label>'
     +'<label>Fecha de las notas'+_plInp('ns.fecha',n.fecha,_plFechaNS(_plMasDias(s.fecha_desde,-6)))+'</label>'
     +'<label>Firmante'+_plInp('ns.firmante',n.firmante,'Cnl. DAEN. ...')+'</label>'
     +'<label>Cargo'+_plInp('ns.cargo',n.cargo,'JEFE DE ESTUDIOS DE LA ECEME.')+'</label>'
@@ -37500,7 +37817,7 @@ function plPreview(tipo){
 // MATERIAS. calendario: fecha -> ciclo -> codigo/marcador. materias: rango+responsables.
 // evaluaciones: fecha -> ciclo -> true  (la "estrellita" del ANEXO, que es una imagen
 // flotante; se leyeron sus anclas del binario .xls).
-const PLAN_DATOS={"calendario":{"2026-01-12":{"1ER CICLO":"INDUC.","2DO CICLO":"EO-EM-HM-01"},"2026-01-19":{"1ER CICLO":"(TI-MI-DG-01)","2DO CICLO":"EO-EM-HM-01"},"2026-01-26":{"1ER CICLO":"(TI-MI-DG-01)","2DO CICLO":"EO-EM-FG-02"},"2026-02-02":{"1ER CICLO":"TI-MI-MI-2","2DO CICLO":"EO-EM-GD-03"},"2026-02-09":{"1ER CICLO":"TI-MI-MI-2","2DO CICLO":"EO-EM-GM-04"},"2026-02-16":{"1ER CICLO":"CARN.","2DO CICLO":"CARNAVAL"},"2026-02-23":{"1ER CICLO":"TI-PC-CE-01","2DO CICLO":"EO-TE-TM-02"},"2026-03-02":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-TE-TO-03"},"2026-03-09":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-FT-01"},"2026-03-16":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-FT-01"},"2026-03-23":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-UC-02"},"2026-04-30":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-CE-02"},"2026-04-06":{"1ER CICLO":"TI-PC-TC-03","2DO CICLO":"EO-EO-PE-01"},"2026-04-13":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-PE-01"},"2026-04-20":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-PE-01"},"2026-04-27":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-CE-02"},"2026-05-04":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-CE-02"},"2026-05-11":{"1ER CICLO":"TI-PC-PP-05","2DO CICLO":"EO-NA-TN-01"},"2026-05-18":{"1ER CICLO":"TI-PC-OD-06","2DO CICLO":"EO-NA-LC-02"},"2026-05-25":{"1ER CICLO":"TI-PC-OR-07","2DO CICLO":"EO-NA-LN-03"},"2026-06-01":{"1ER CICLO":"DESC. PED.","2DO CICLO":"DESC. PED."},"2026-06-08":{"1ER CICLO":"TI-PC-TP-08","2DO CICLO":"EO-NA-EI-05"},"2026-06-15":{"1ER CICLO":"TI-PC-TP-08","2DO CICLO":"EO-EM-EM-03"},"2026-06-22":{"1ER CICLO":"TI-EM-EM-01","2DO CICLO":"EO-EM-EM-04"},"2026-06-29":{"1ER CICLO":"DESC. PED.","2DO CICLO":"DESC. PED."},"2026-01-13":{"1ER CICLO":"INDUC.","2DO CICLO":"EO-EM-HM-01"},"2026-01-20":{"1ER CICLO":"(TI-MI-DG-01)","2DO CICLO":"EO-EM-FG-02"},"2026-01-27":{"1ER CICLO":"TI-MI-MI-2","2DO CICLO":"EO-EM-FG-02"},"2026-02-03":{"1ER CICLO":"TI-MI-MI-2","2DO CICLO":"EO-EM-GD-03"},"2026-02-10":{"1ER CICLO":"TI-MI-EL-03","2DO CICLO":"EO-EM-GM-04"},"2026-02-17":{"1ER CICLO":"CARN.","2DO CICLO":"CARNAVAL"},"2026-02-24":{"1ER CICLO":"TI-PC-CE-01","2DO CICLO":"EO-TE-TM-02"},"2026-03-03":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-TE-TO-03"},"2026-03-10":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-FT-01"},"2026-03-17":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-UC-02"},"2026-03-24":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-UC-02"},"2026-04-07":{"1ER CICLO":"TI-PC-TC-03","2DO CICLO":"EO-EO-PE-01"},"2026-04-14":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-PE-01"},"2026-04-21":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-PE-01"},"2026-04-28":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-CE-02"},"2026-05-05":{"1ER CICLO":"CONFERENCIA","2DO CICLO":"CONFERENCIA"},"2026-05-12":{"1ER CICLO":"TI-PC-PP-05","2DO CICLO":"EO-NA-TN-01"},"2026-05-19":{"1ER CICLO":"TI-PC-OD-06","2DO CICLO":"EO-NA-LC-02"},"2026-05-26":{"1ER CICLO":"TI-PC-OR-07","2DO CICLO":"EO-NA-LN-03"},"2026-06-02":{"1ER CICLO":"DESC. PED.","2DO CICLO":"DESC. PED."},"2026-06-09":{"1ER CICLO":"TI-PC-TP-08","2DO CICLO":"EO-EM-EM-03"},"2026-06-16":{"1ER CICLO":"CONFERENCIA","2DO CICLO":"CONFERENCIA"},"2026-06-23":{"1ER CICLO":"TI-EM-EM-01","2DO CICLO":"EO-EM-EM-04"},"2026-06-30":{"1ER CICLO":"DESC. PED.","2DO CICLO":"DESC. PED."},"2026-01-14":{"1ER CICLO":"INDUC.","2DO CICLO":"EO-EM-HM-01"},"2026-01-21":{"1ER CICLO":"(TI-MI-DG-01)","2DO CICLO":"EO-EM-FG-02"},"2026-01-28":{"1ER CICLO":"TI-MI-MI-2","2DO CICLO":"EO-EM-GD-03"},"2026-02-04":{"1ER CICLO":"TI-MI-MI-2","2DO CICLO":"EO-EM-GM-04"},"2026-02-11":{"1ER CICLO":"TI-MI-EL-03","2DO CICLO":"EO-TE-TG-01"},"2026-02-18":{"1ER CICLO":"TI-MI-EL-03","2DO CICLO":"EO-TE-TG-01"},"2026-02-25":{"1ER CICLO":"TI-PC-CE-01","2DO CICLO":"EO-TE-TM-02"},"2026-03-04":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-TE-TO-03"},"2026-03-11":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-FT-01"},"2026-03-18":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-UC-02"},"2026-03-25":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"TR-TT-III-03"},"2026-04-01":{"1ER CICLO":"DÍA TRAB.","2DO CICLO":"DÍA TRAB."},"2026-04-08":{"1ER CICLO":"TI-PC-TC-03","2DO CICLO":"EO-EO-PE-01"},"2026-04-15":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-PE-01"},"2026-04-22":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-PE-01"},"2026-04-29":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-CE-02"},"2026-05-06":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-NA-TN-01"},"2026-05-13":{"1ER CICLO":"TI-PC-PP-05","2DO CICLO":"EO-NA-LC-02"},"2026-05-20":{"1ER CICLO":"TI-PC-OD-06","2DO CICLO":"EO-NA-LN-03"},"2026-05-27":{"1ER CICLO":"TI-PC-OR-07","2DO CICLO":"EO-NA-DN-04"},"2026-06-03":{"1ER CICLO":"DESC. PED.","2DO CICLO":"DESC. PED."},"2026-06-10":{"1ER CICLO":"TI-PC-TP-08","2DO CICLO":"EO-EM-EM-03"},"2026-06-17":{"1ER CICLO":"TI-EM-EM-01","2DO CICLO":"EO-EM-EM-04"},"2026-06-24":{"1ER CICLO":"TALLER TESIS","2DO CICLO":"TR-TT-III-03"},"2026-01-15":{"1ER CICLO":"INDUC.","2DO CICLO":"EO-EM-HM-01"},"2026-01-22":{"1ER CICLO":"DÍA EST. PL.","2DO CICLO":"DÍA EST. PL."},"2026-01-29":{"1ER CICLO":"TI-MI-MI-2","2DO CICLO":"EO-EM-GD-03"},"2026-02-05":{"1ER CICLO":"TI-MI-MI-2","2DO CICLO":"EO-EM-GM-04"},"2026-02-12":{"1ER CICLO":"TI-MI-EL-03","2DO CICLO":"EO-TE-TG-01"},"2026-02-19":{"1ER CICLO":"TI-PC-CE-01","2DO CICLO":"EO-TE-TG-01"},"2026-02-26":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-TE-TM-02"},"2026-03-05":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-TE-TO-03"},"2026-03-12":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-FT-01"},"2026-03-19":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-UC-02"},"2026-03-26":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-PE-01"},"2026-04-02":{"1ER CICLO":"TI-PC-TC-03","2DO CICLO":"EO-EO-PE-01"},"2026-04-09":{"1ER CICLO":"TI-PC-TC-03","2DO CICLO":"EO-EO-PE-01"},"2026-04-16":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-PE-01"},"2026-04-23":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-PE-01"},"2026-05-07":{"1ER CICLO":"TI-PC-PP-05","2DO CICLO":"EO-NA-TN-01"},"2026-05-14":{"1ER CICLO":"TI-PC-PP-05","2DO CICLO":"EO-NA-LC-02"},"2026-05-21":{"1ER CICLO":"TI-PC-OD-06","2DO CICLO":"EO-NA-LN-03"},"2026-05-28":{"1ER CICLO":"TI-PC-OR-07","2DO CICLO":"EO-NA-DN-04"},"2026-06-04":{"1ER CICLO":"CORP. CHRIS.","2DO CICLO":"CORP. CRIST"},"2026-06-11":{"1ER CICLO":"TI-PC-TP-08","2DO CICLO":"EO-EM-EM-03"},"2026-06-18":{"1ER CICLO":"TI-EM-EM-01","2DO CICLO":"EO-EM-EM-04"},"2026-06-25":{"1ER CICLO":"TALLER TESIS","2DO CICLO":"TR-TT-III-03"},"2026-01-16":{"1ER CICLO":"INDUC.","2DO CICLO":"EO-EM-HM-01"},"2026-01-23":{"1ER CICLO":"(TI-MI-DG-01)","2DO CICLO":"EO-EM-FG-02"},"2026-01-30":{"1ER CICLO":"TI-MI-MI-2","2DO CICLO":"EO-EM-GD-03"},"2026-02-06":{"1ER CICLO":"TI-MI-MI-2","2DO CICLO":"EO-EM-GM-04"},"2026-02-13":{"1ER CICLO":"TI-MI-EL-03","2DO CICLO":"EO-TE-TG-01"},"2026-02-20":{"1ER CICLO":"TI-PC-CE-01","2DO CICLO":"EO-TE-TM-02"},"2026-02-27":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-TE-TO-03"},"2026-03-06":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-TE-TO-03"},"2026-03-13":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-FT-01"},"2026-03-20":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-UC-02"},"2026-03-27":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-PE-01"},"2026-04-03":{"1ER CICLO":"V. SANTO","2DO CICLO":"V. SANTO"},"2026-04-10":{"1ER CICLO":"TI-PC-TC-03","2DO CICLO":"EO-EO-PE-01"},"2026-04-17":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-PE-01"},"2026-04-24":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-PE-01"},"2026-05-08":{"1ER CICLO":"TI-PC-PP-05","2DO CICLO":"EO-NA-TN-01"},"2026-05-15":{"1ER CICLO":"TI-PC-OD-06","2DO CICLO":"EO-NA-LC-02"},"2026-05-22":{"1ER CICLO":"TI-PC-OD-06","2DO CICLO":"EO-NA-LN-03"},"2026-05-29":{"1ER CICLO":"TI-PC-OR-07","2DO CICLO":"EO-NA-DN-04"},"2026-06-05":{"1ER CICLO":"TI-PC-TP-08","2DO CICLO":"EO-NA-EI-05"},"2026-06-12":{"1ER CICLO":"TI-PC-TP-08","2DO CICLO":"EO-EM-EM-03"},"2026-06-19":{"1ER CICLO":"TI-EM-EM-01","2DO CICLO":"EO-EM-EM-04"},"2026-06-26":{"1ER CICLO":"DISP. CMDO","2DO CICLO":"DISP. CMDO"},"2026-07-29":{"1ER CICLO":"TS-EM-HM-01","2DO CICLO":"EM-ME"},"2026-07-06":{"1ER CICLO":"DESC. PED."},"2026-07-13":{"1ER CICLO":"TS-LM-FC-01","2DO CICLO":"TR-TT-IV-04"},"2026-07-20":{"1ER CICLO":"TS-LM-FC-01","2DO CICLO":"EM-EN-EN-01"},"2026-07-27":{"1ER CICLO":"TS-LM-AC-02","2DO CICLO":"EM-ME"},"2026-08-03":{"1ER CICLO":"TS-EM-HM-01","2DO CICLO":"EM-ME"},"2026-08-10":{"1ER CICLO":"ASU","2DO CICLO":"ASU"},"2026-08-17":{"1ER CICLO":"CONFERENCIA","2DO CICLO":"CONFERENCIA"},"2026-08-24":{"1ER CICLO":"TS-EM-DI-02","2DO CICLO":"EM-ME"},"2026-09-07":{"1ER CICLO":"TS-EM-TD-04","2DO CICLO":"EM-AU-PL-01"},"2026-09-14":{"1ER CICLO":"TS-EM-TD-04","2DO CICLO":"ANIV. CBBA"},"2026-09-21":{"1ER CICLO":"TS-PC-TA-01","2DO CICLO":"EM-AU-EE-02"},"2026-10-28":{"1ER CICLO":"TS-PC-PP-01","2DO CICLO":"TR-DT- PR-01"},"2026-10-05":{"1ER CICLO":"TS-PC-TC-02","2DO CICLO":"EM-AU-SI-03"},"2026-10-12":{"1ER CICLO":"TS-PC-TC-02","2DO CICLO":"EM-AU-EP-04"},"2026-10-19":{"1ER CICLO":"TS-PC-LG-03","2DO CICLO":"EM-AU-EP-01"},"2026-10-26":{"1ER CICLO":"TS-PC-PP-01","2DO CICLO":"TR-DT- PR-01"},"2026-11-02":{"1ER CICLO":"TS-PC-PP-01","2DO CICLO":"TODOS SANTOS"},"2026-11-09":{"1ER CICLO":"D. P. TESIS","2DO CICLO":"EM-AU-AF-03"},"2026-11-16":{"1ER CICLO":"D. P. TESIS","2DO CICLO":"CONFERENCIA"},"2026-11-23":{"1ER CICLO":"TS-EM-EM","2DO CICLO":"EM-AU-EP-002"},"2026-12-30":{"1ER CICLO":"AD. CMDO."},"2026-12-07":{"1ER CICLO":"AD. CMDO."},"2026-07-30":{"1ER CICLO":"TS-EM-HM-01","2DO CICLO":"EM-ME"},"2026-07-07":{"1ER CICLO":"DESC. PED."},"2026-07-14":{"1ER CICLO":"TS-LM-FC-01","2DO CICLO":"EM-EN-EN-01"},"2026-07-21":{"1ER CICLO":"TS-LM-AC-02","2DO CICLO":"EM-ME"},"2026-07-28":{"1ER CICLO":"TS-EM-HM-01","2DO CICLO":"EM-ME"},"2026-08-04":{"1ER CICLO":"TS-EM-HM-01","2DO CICLO":"EM-ME"},"2026-08-11":{"1ER CICLO":"TS-EM-HM-01","2DO CICLO":"EM-ME"},"2026-08-18":{"1ER CICLO":"TS-EM-DI-02","2DO CICLO":"EM-ME"},"2026-08-25":{"1ER CICLO":"TS-EM-GC-03","2DO CICLO":"EM-ME"},"2026-09-01":{"1ER CICLO":"TS-EM-GC-03","2DO CICLO":"EM-ME"},"2026-09-08":{"1ER CICLO":"TS-EM-TD-04","2DO CICLO":"EM-AU-PL-01"},"2026-09-15":{"1ER CICLO":"TS-EM-TD-04","2DO CICLO":"EM-AU-EE-02"},"2026-09-22":{"1ER CICLO":"TS-PC-TA-01","2DO CICLO":"EM-AU-EE-02"},"2026-10-29":{"1ER CICLO":"TS-PC-PP-01","2DO CICLO":"TR-DT- PR-01"},"2026-10-06":{"1ER CICLO":"TS-PC-TC-02","2DO CICLO":"EM-AU-EP-04"},"2026-10-13":{"1ER CICLO":"TS-PC-LG-03","2DO CICLO":"EM-AU-EP-04"},"2026-10-20":{"1ER CICLO":"TS-PC-LG-03","2DO CICLO":"EM-AU-EP-01"},"2026-10-27":{"1ER CICLO":"TS-PC-PP-01","2DO CICLO":"TR-DT- PR-01"},"2026-11-03":{"1ER CICLO":"TS-PC-PP-01","2DO CICLO":"EM-AU-EP-02"},"2026-11-10":{"1ER CICLO":"D. P. TESIS","2DO CICLO":"EM-AU-AF-03"},"2026-11-17":{"1ER CICLO":"TS-EM-EM","2DO CICLO":"EM-AU-EP-002"},"2026-11-24":{"1ER CICLO":"TR-TT-II-002","2DO CICLO":"TR-DT-PU-02"},"2026-12-01":{"1ER CICLO":"AD. CMDO.","2DO CICLO":"AD. CMDO."},"2026-12-08":{"1ER CICLO":"AD. CMDO."},"2026-07-01":{"1ER CICLO":"DESC. PED."},"2026-07-08":{"1ER CICLO":"DESC. PED."},"2026-07-15":{"1ER CICLO":"TS-LM-FC-01","2DO CICLO":"EM-EN-EN-01"},"2026-07-22":{"1ER CICLO":"TS-LM-AC-02","2DO CICLO":"EM-ME"},"2026-08-05":{"1ER CICLO":"TS-EM-HM-01","2DO CICLO":"EM-ME"},"2026-08-12":{"1ER CICLO":"TS-EM-DI-02","2DO CICLO":"EM-ME"},"2026-08-19":{"1ER CICLO":"ANIV. ECEME.","2DO CICLO":"EM-ME"},"2026-08-26":{"1ER CICLO":"TS-EM-GC-03","2DO CICLO":"EM-ME"},"2026-09-02":{"1ER CICLO":"TS-EM-GC-03","2DO CICLO":"EM-ME"},"2026-09-09":{"1ER CICLO":"TS-EM-TD-04","2DO CICLO":"EM-AU-PL-01"},"2026-09-16":{"1ER CICLO":"TS-EM-TD-04","2DO CICLO":"EM-AU-EE-02"},"2026-09-23":{"1ER CICLO":"TS-PC-TA-01","2DO CICLO":"TR-TT-IV-04"},"2026-10-30":{"1ER CICLO":"TS-PC-PP-01","2DO CICLO":"EM-AU-EP-02"},"2026-10-07":{"1ER CICLO":"TS-PC-TC-02","2DO CICLO":"EM-AU-EP-04"},"2026-10-14":{"1ER CICLO":"TS-PC-LG-03","2DO CICLO":"EM-AU-EP-01"},"2026-10-21":{"1ER CICLO":"TS-PC-LG-03","2DO CICLO":"EM-AU-EP-01"},"2026-11-04":{"1ER CICLO":"TS-PC-PP-01","2DO CICLO":"EM-AU-EP-02"},"2026-11-11":{"1ER CICLO":"D. P. TESIS","2DO CICLO":"EM-AU-AF-03"},"2026-11-18":{"1ER CICLO":"TS-EM-EM","2DO CICLO":"EM-AU-EP-002"},"2026-11-25":{"1ER CICLO":"TR-TT-II-002","2DO CICLO":"TR-DT-PU-02"},"2026-12-02":{"1ER CICLO":"AD. CMDO.","2DO CICLO":"AD. CMDO."},"2026-12-09":{"1ER CICLO":"AD. CMDO."},"2026-07-02":{"1ER CICLO":"DESC. PED."},"2026-07-09":{"1ER CICLO":"DESC. PED."},"2026-07-16":{"1ER CICLO":"TS-LM-FC-01","2DO CICLO":"EM-EN-EN-01"},"2026-07-23":{"1ER CICLO":"TS-LM-AC-02","2DO CICLO":"EM-ME"},"2026-08-06":{"1ER CICLO":"F. PAT.","2DO CICLO":"F. PAT."},"2026-08-13":{"1ER CICLO":"TS-EM-DI-02","2DO CICLO":"EM-ME"},"2026-08-20":{"1ER CICLO":"ANIV. ECEME.","2DO CICLO":"ANIV. ECEME."},"2026-08-27":{"1ER CICLO":"TS-EM-GC-03","2DO CICLO":"TR-TT-IV-04"},"2026-09-03":{"1ER CICLO":"TS-EM-GC-03","2DO CICLO":"EM-ME"},"2026-09-10":{"1ER CICLO":"TS-EM-TD-04","2DO CICLO":"EM-AU-PL-01"},"2026-09-17":{"1ER CICLO":"TR-TT-II-002","2DO CICLO":"EM-AU-EE-02"},"2026-09-24":{"1ER CICLO":"TS-PC-TA-01","2DO CICLO":"TR-TT-IV-04"},"2026-10-01":{"1ER CICLO":"TS-PC-TC-02","2DO CICLO":"EM-AU-SI-03"},"2026-10-08":{"1ER CICLO":"TS-PC-TC-02","2DO CICLO":"EM-AU-EP-04"},"2026-10-15":{"1ER CICLO":"TS-PC-LG-03","2DO CICLO":"EM-AU-EP-01"},"2026-10-22":{"1ER CICLO":"TS-PC-LG-03","2DO CICLO":"EM-AU-EP-01"},"2026-11-05":{"1ER CICLO":"TS-PC-PP-01","2DO CICLO":"EM-AU-EP-02"},"2026-11-12":{"1ER CICLO":"D. P. TESIS","2DO CICLO":"EM-AU-AF-03"},"2026-11-19":{"1ER CICLO":"TS-EM-EM","2DO CICLO":"EM-AU-EP-002"},"2026-11-26":{"1ER CICLO":"TR-TT-II-002","2DO CICLO":"TR-DT-PU-02"},"2026-12-03":{"1ER CICLO":"AD. CMDO.","2DO CICLO":"AD. CMDO."},"2026-12-10":{"1ER CICLO":"AD. CMDO."},"2026-07-03":{"1ER CICLO":"DESC. PED."},"2026-07-10":{"1ER CICLO":"DESC. PED."},"2026-07-17":{"1ER CICLO":"TR-TT-II-002","2DO CICLO":"EM-EN-EN-01"},"2026-07-24":{"1ER CICLO":"TS-LM-AC-02","2DO CICLO":"EM-ME"},"2026-07-31":{"1ER CICLO":"TS-EM-HM-01","2DO CICLO":"EM-ME"},"2026-08-07":{"1ER CICLO":"ANIV. FF.AA.","2DO CICLO":"ANIV. FF.AA."},"2026-08-14":{"1ER CICLO":"TS-EM-DI-02","2DO CICLO":"EM-ME"},"2026-08-21":{"1ER CICLO":"ANIV. ECEME.","2DO CICLO":"ANIV. ECEME."},"2026-08-28":{"1ER CICLO":"TS-EM-GC-03","2DO CICLO":"EM-ME"},"2026-09-04":{"1ER CICLO":"TS-EM-TD-04","2DO CICLO":"EM-AU-PL-01"},"2026-09-11":{"1ER CICLO":"TS-EM-TD-04","2DO CICLO":"EM-AU-PL-01"},"2026-09-18":{"1ER CICLO":"TS-PC-TA-01","2DO CICLO":"EM-AU-EE-02"},"2026-09-25":{"1ER CICLO":"TS-PC-TA-01","2DO CICLO":"EM-AU-SI-03"},"2026-10-02":{"1ER CICLO":"TS-PC-TC-02","2DO CICLO":"EM-AU-SI-03"},"2026-10-09":{"1ER CICLO":"TR-TT-II-002","2DO CICLO":"EM-AU-EP-04"},"2026-10-16":{"1ER CICLO":"TS-PC-LG-03","2DO CICLO":"EM-AU-EP-01"},"2026-10-23":{"1ER CICLO":"TS-PC-PP-01","2DO CICLO":"EM-AU-EP-01"},"2026-11-06":{"1ER CICLO":"CONFERENCIA","2DO CICLO":"TR-DT- PR-01"},"2026-11-13":{"1ER CICLO":"ANIV. EJTO.","2DO CICLO":"EM-AU-AF-03"},"2026-11-20":{"1ER CICLO":"TS-EM-EM","2DO CICLO":"EM-AU-EP-002"},"2026-11-27":{"1ER CICLO":"TR-TT-II-002","2DO CICLO":"TR-DT-PU-02"},"2026-12-04":{"1ER CICLO":"AD. CMDO.","2DO CICLO":"EGRE."},"2026-12-11":{"1ER CICLO":"AD. CMDO."}},"materias":[{"curso":"2DO. CICLO","nombre":"HISTORIA MILITAR APLICADA III","codigo":"EO-EM-HM-01","desde":"2026-01-12","hasta":"2026-01-19","horas":36,"resp":["Tcnl. Danilo Héctor Aguirre Clavel","Tcnl. DEM. Roger Jaldin Davila","Tcnl. DEM. Gastón Jarol Avila Rivas"]},{"curso":"1ER. CICLO","nombre":"DINÁMICAS DE GRUPO E INSTRUMENTACIONES","codigo":"TI-MI-DG-01","desde":"2026-01-19","hasta":"2026-01-26","horas":30,"resp":["Cnl. DAEN. Pedro Rene Wolff Baldiviezo","Tcnl. DEM. Daniel Angulo Antezana","My. DEM. Demis Henry Linares Alarcon"]},{"curso":"2DO. CICLO","nombre":"FILOSOFÍA DE LA GUERRA","codigo":"EO-EM-FG-02","desde":"2026-01-20","hasta":"2026-01-27","horas":30,"resp":["Cnl. DAEN Cristian Yamil Tapia Salinas","Cnl. DAEN. Roberto Serrano Valeriano","Tcnl. DEM. Edgar Ariel Diaz Andia"]},{"curso":"1ER. CICLO","nombre":"METODOLOGÍA DE LA INVESTIGACIÓN CIENTÍFICA","codigo":"TI-MI-MI-02","desde":"2026-01-27","hasta":"2026-02-09","horas":60,"resp":["Cnl. DAEN. William G. Baptista Rocabado","Cnl. DAEN. Marco Antonio Toranzo Guzmán","Tcnl. DEM. Pedro Piter Galvez Galvez"]},{"curso":"2DO. CICLO","nombre":"GEOPOLÍTICA Y DEFENSA NACIONAL","codigo":"EO-EM-GD-03","desde":"2026-01-28","hasta":"2026-02-03","horas":30,"resp":["Cnl. DAEN. Johann A. Montecinos Arnéz","Tcnl. DEM. Nielsen A. Fernández Aliaga","Tcnl. DEM. Sergio Hernán Morales Millán"]},{"curso":"2DO. CICLO","nombre":"GEOGRAFÍA MILITAR APLICADA","codigo":"EO-EM-GM-04","desde":"2026-02-04","hasta":"2026-02-10","horas":30,"resp":["Tcnl. DEM. Iván Fuentes Álvarez","My. DEM. Miguel Ángel Zambrana Gómez","My. DEM. José Napoleón Goda Balcazar"]},{"curso":"1ER. CICLO","nombre":"ENSAYOS LITERARIOS","codigo":"TI-MI-EL-03","desde":"2026-02-10","hasta":"2026-02-18","horas":30,"resp":["Tcnl. DEM. Bladimir Soto Farfán","My. DEM. Brian Rolando Fernández Sejas","My. DEM. Jeanette Melissa Salguero Llanos"]},{"curso":"2DO. CICLO","nombre":"TEORÍA DE LA ESTRATEGIA GENERAL","codigo":"EO-TE-EG-01","desde":"2026-02-11","hasta":"2026-02-19","horas":30,"resp":["Cnl. DAEN. Johann A. Montecinos Arnéz","My. DEM. Mario Pablo Soto Sanchez","My. DEM. José Napoleón Goda Balcazar"]},{"curso":"1ER. CICLO","nombre":"EL COMANDANTE Y SU ESTADO MAYOR","codigo":"TI-PC-CE-01","desde":"2026-02-19","hasta":"2026-02-25","horas":30,"resp":["Cnl. DAEN. Christian Yamil Tapia Salinas","Cnl. DAEN. Roberto Serrano Valeriano","My. DEM. Raumi Vanya Sirpa Riveros"]},{"curso":"2DO. CICLO","nombre":"TEORÍA DE LA ESTRATEGIA MILITAR","codigo":"EO-TE-EM-02","desde":"2026-02-20","hasta":"2026-02-26","horas":30,"resp":["Cnl. DAEN. Pedro Rene Wolff Baldiviezo","My. DEM. Charles Michael Ortiz Valencia","Tcnl. DEM. Edgar Ariel Diaz Andia"]},{"curso":"1ER. CICLO","nombre":"SOCB. MANIOBRA","codigo":"","desde":"2026-02-26","hasta":"2026-03-03","horas":20,"resp":["Tcnl. DEM. Nielsen A. Fernández Aliaga","Tcnl. DEM. Roger Jaldin Davila","Tcnl. DEM. Bladimir Soto Farfan"]},{"curso":"2DO. CICLO","nombre":"TEORÍA DE LA ESTRATEGIA OPERATIVA","codigo":"EO-TE-EO-03","desde":"2026-02-27","hasta":"2026-03-06","horas":36,"resp":["Cnl. DAEN. Johann A. Montecinos Arnéz","Tcnl. DEM. Pedro Peter Gálvez Gálvez","Tcnl. EA. Cristian Javier Silva"]},{"curso":"1ER. CICLO","nombre":"SOCB. INTELIGENCIA","codigo":"","desde":"2026-03-03","hasta":"2026-03-06","horas":18,"resp":["Tcnl. DEM. Edgar Ariel Diaz Andia","Tcnl. DEM. Daniel Angulo Antezana","My. DEM. Mario Pablo Soto Sanchez"]},{"curso":"1ER. CICLO","nombre":"SOCB. APOYO DE FUEGOS","codigo":"","desde":"2026-03-06","hasta":"2026-03-11","horas":18,"resp":["Tcnl. DEM. Ivan Fuentes Álvarez","My. DEM. Miguel Ángel Zambrana Gómez","My. DEM. Jeanette Melissa Salguero Llanos"]},{"curso":"2DO. CICLO","nombre":"LAS FUERZAS TERRESTRES DEL TEATRO DE OPERACIONES","codigo":"EO-EO-FT-01","desde":"2026-03-09","hasta":"2026-03-16","horas":36,"resp":["Tcnl. DEM. Sergio Hernán Morales Millan","My. DEM. Charles Michael Ortiz Valencia","My. DEM. Brian Rolando Fernández Sejas"]},{"curso":"1ER. CICLO","nombre":"SOCB. APOYO DE DEFENSA ANTIAEREA","codigo":"","desde":"2026-03-11","hasta":"2026-03-16","horas":18,"resp":["Tcnl. DEM. Ivan Fuentes Álvarez","My. DEM. Roger Fidel Pereira Cortez","My. DEM. Raumi Vanya Sirpa Riveros"]},{"curso":"1ER. CICLO","nombre":"SOCB. MOVILIDAD, CONTRA MOVILIDAD Y SUPERVIVENCA","codigo":"","desde":"2026-03-16","hasta":"2026-03-19","horas":18,"resp":["Cnl. DAEN. Pedro Rene Wolff Baldiviezo","Cnl. DAEN. Roberto Serrano Valeriano","Tcnl. EA. Cristian Javier Silva"]},{"curso":"2DO. CICLO","nombre":"UNIDADES Y COMANDOS LOGÍSTICOS","codigo":"EO-EO-UC-02","desde":"2026-03-17","hasta":"2026-03-24","horas":36,"resp":["Tcnl. DEM. Gaston Jarol Avila Rivas","My. DEM. Demis Henry Linares Alarcon","My. EB. Ricardo Dos Santos Sales"]},{"curso":"1ER. CICLO","nombre":"SOCB. APOYO DE SERVICIOS PARA EL COMBATE","codigo":"","desde":"2026-03-19","hasta":"2026-03-24","horas":18,"resp":["Tcnl. DEM. Roger Jaldin Davila","Tcnl. DEM. Danilo Héctor Aguirre Clavel","My. DEM. Mario Pablo Soto Sanchez"]},{"curso":"1ER. CICLO","nombre":"SOCB.  MANDO Y CONTROL","codigo":"","desde":"2026-03-24","hasta":"2026-03-30","horas":18,"resp":["Tcnl. DEM. Nielsen A. Fernández Aliaga","Tcnl. DEM. Daniel Angulo Antezana","Tcnl. DEM. Harold Sossa Montaño"]},{"curso":"2DO. CICLO","nombre":"PLANEAMIENTO ESTRATÉGICO OPERATIVO","codigo":"EO-EO-PE-01","desde":"2026-03-26","hasta":"2026-04-24","horas":132,"resp":["Cnl. DAEN. Pedro Rene Wolff Baldiviezo","My. DEM. Charles M. Ortiz Valencia","My. DEM. Miguel Ángel Zambrana Gómez","My. DEM. Brian Rolando Fernández Sejas"]},{"curso":"1ER. CICLO","nombre":"TEORÍA Y CONDUCCIÓN DE LAS GG. UU. CC","codigo":"TI-PC-TC-02","desde":"2026-03-31","hasta":"2026-04-10","horas":42,"resp":["Tcnl. DEM. Sergio Hernán Morales Millan","My. DEM. Mario Pablo Soto Sanchez","My. EB. Ricardo Dos Santos Sales"]},{"curso":"1ER. CICLO","nombre":"PROCESO DE PLANEAMIENTO I  G-3 EN EL PMTD","codigo":"","desde":"2026-04-13","hasta":"2026-04-16","horas":26,"resp":["Tcnl. DEM. Roger Jaldin Davila","My. DEM. Jose Napoleon Goda Balcazar","My. DEM. Raumi Vanya Sirpa Riveros"]},{"curso":"1ER. CICLO","nombre":"PROCESO DE PLANEAMIENTO I G-2 EN EL PMTD","codigo":"","desde":"2026-04-16","hasta":"2026-04-23","horas":30,"resp":["Tcnl. DEM. Sergio Hernán Morales Millan","My. DEM. Jeanette Melissa Salguero Llanos My. DEM. Juan Marcelo Torrico Luizaga"]},{"curso":"1ER. CICLO","nombre":"PROCESO DE PLANEAMIENTO I G-1 EN EL PMTD","codigo":"","desde":"2026-04-23","hasta":"2026-04-27","horas":10,"resp":["Tcnl. EA. Cristian Javier Silva","Tcnl. DEM. Harold Sossa Montaño","Tcnl. DEM. Bladimir Soto Farfan"]},{"curso":"1ER. CICLO","nombre":"PROCESO DE PLANEAMIENTO I  G-4 EN EL PMTD","codigo":"","desde":"2026-04-27","hasta":"2026-04-29","horas":10,"resp":["Tcnl. DEM. Nielsen A. Fernández Aliaga","Tcnl. DEM. Gaston Jarol Avila Rivas","My. EB. Ricardo Dos Santos Sales"]},{"curso":"2DO. CICLO","nombre":"CONDUCCIÓN ESTRATÉGICA OPERATIVA","codigo":"EO-EO-CE-02","desde":"2026-04-27","hasta":"2026-05-04","horas":30,"resp":["My. DEM. Brian Rolando Fernández Sejas","My. DEM. Charles Michael Ortiz Valencia","My. DEM. Jose Napoleon Goda Balcazar"]},{"curso":"1ER. CICLO","nombre":"PROCESO DE PLANEAMIENTO I G-5 EN EL PMTD","codigo":"","desde":"2026-04-29","hasta":"2026-05-06","horas":10,"resp":["Tcnl. EA. Cristian Javier Silva","Tcnl. DEM. Vladimir Rojas Calderón","My. DEM. Mario Pablo Soto Sanchez"]},{"curso":"2DO. CICLO","nombre":"TEORÍA DE LAS NUEVAS AMENAZAS Y RIESGOS ( EO-NA-TN-01)","codigo":"","desde":"2026-05-06","hasta":"2026-05-12","horas":30,"resp":["Cnl. DAEN (RA) José Luis Quiroz Orozco","Tcnl. DEM. Edgar Ariel Diaz Andia","Tcnl. DEM. Daniel Angulo Antezana"]},{"curso":"1ER. CICLO","nombre":"OPERACIONES OFENSIVAS","codigo":"TI-PC-OO-05","desde":"2026-05-07","hasta":"2026-05-14","horas":48,"resp":["Cnl. DAEN. William G. Baptista Rocabado","Tcnl. DEM. Vladimir Rojas Calderón","Tcnl. EP. Michael Joseph La Torre Sosaya"]},{"curso":"2DO. CICLO","nombre":"LUCHA CONTRA EL CONTRABANDO","codigo":"EO-NA-LC-02","desde":"2026-05-13","hasta":"2026-05-19","horas":30,"resp":["Cnl. DAEN. José Jhonny Pardo Pardo","Tcnl. DEM. Harold Sossa Montaño","Tcnl. DEM. Roger Jaldin Davila"]},{"curso":"1ER. CICLO","nombre":"OPERACIONES DEFENSIVAS","codigo":"TI-PC-OD-06","desde":"2026-05-15","hasta":"2026-05-22","horas":48,"resp":["Tcnl. DEM. Gaston Jarol Avila Rivas","My. DEM. Roger Fidel Pereira Cortez","My. DEM. Juan Marcelo Torrico Luizaga"]},{"curso":"2DO. CICLO","nombre":"LUCHA CONTRA EL NARCOTRÁFICO","codigo":"EO-NA-LN-03","desde":"2026-05-20","hasta":"2026-05-26","horas":30,"resp":["Tcnl. DEM. Ivan Fuentes Álvarez","Tcnl. DEM. Bladimir Soto Farfan","My. DEM. Miguel Ángel Zambrana Gómez"]},{"curso":"1ER. CICLO","nombre":"OPERACIONES RETROGRADAS","codigo":"TI-PC-OR-07","desde":"2026-05-25","hasta":"2026-06-01","horas":48,"resp":["Tcnl. DEM. Daniel Angulo Antezana","Tcnl. DEM. Gaston Jarol Avila Rivas","My. EB. Ricardo Dos Santos Sales"]},{"curso":"2DO. CICLO","nombre":"DESASTRES NATURALES","codigo":"EO-NA-DN-04","desde":"2026-05-27","hasta":"2026-06-01","horas":24,"resp":["Cnl. DIM. Alain Vasquez Loma","Tcnl. DEM. Harold Sossa Montaño","Cnl. DAEN. Roberto Serrano Valeriano"]},{"curso":"2DO. CICLO","nombre":"EXPLOTACIÓN ILEGAL DE RECURSOS NATURALES","codigo":"EO-NA-EI-05","desde":"2026-06-02","hasta":"2026-06-08","horas":24,"resp":["Cnl. DAEN. Marco Antonio Toranzo Guzmán","Tcnl. DEM. Nielsen A. Fernández Aliaga","Tcnl. DEM. Ivan Fuentes Álvarez"]},{"curso":"1ER. CICLO","nombre":"TÉCNICA Y PREPARACIÓN DE EJERCICIOS","codigo":"TI-PC-TP-08","desde":"2026-06-02","hasta":"2026-06-15","horas":54,"resp":["Cnl. DAEN. Pedro Rene Wolff Baldiviezo","Tcnl. EP. Michael Joseph La Torre Sosaya Tcnl. EA. Cristian Javier Silva","My. DEM. Jose Napoleon Goda Balcazar"]},{"curso":"1ER. CICLO","nombre":"FORMACIÓN DE COMANDANTES","codigo":"TS-LM-FC-01","desde":"2026-07-13","hasta":"2026-07-20","horas":30,"resp":["Tcnl. DEM. Nielsen Fernández Aliaga","Tcnl. DEM. Vladimir Rojas Calderón","Tcnl. DEM. Harold Sossa Montaño"]},{"curso":"2DO. CICLO","nombre":"GENERALIDADES DE LA ESTRATEGIA NACIONAL","codigo":"EM-EN-GE-01","desde":"2026-07-14","hasta":"2026-07-20","horas":30,"resp":["Cnl. DAEN. Pedro Rene Wolff Baldiviezo","Cnl. DAEN. Roberto Serrano Valeriano","Cnl. DAEN. Marco A. Toranzo Guzmán"]},{"curso":"1ER. CICLO","nombre":"ACCIÓN DE MANDO Y LIDERAZGO","codigo":"TS-LM-AM-02","desde":"2026-07-21","hasta":"2026-07-27","horas":30,"resp":["Cnl DAEN. Johann A.Montecinos Arnez Tcnl. DEM. Pedro Peter Gálvez Gálvez","Tcnl. DEM. Daniel Angulo Antezana"]},{"curso":"ESTRATEGIA","nombre":"CONCEPCIÓN DE LA ESTRATEGIA MILITAR","codigo":"EM-ME-CE-01","desde":"2026-07-21","hasta":"2026-07-27","horas":30,"resp":["Cnl. DAEN. Pedro Rene Wolff Baldiviezo"]},{"curso":"INTELIGENCIA","nombre":"ESTUDIOS DE INTELIGENCIA ESTRATÉGICA MILITAR","codigo":"EM-MI-EI-01","desde":"2026-07-21","hasta":"2026-07-27","horas":30,"resp":["Tcnl. DEM. Edgar Ariel Diaz Andia"]},{"curso":"LOGISTICA","nombre":"TEORÍA DE LA LOGÍSTICA EN LA ESTRATEGIA MILITAR","codigo":"EM-ML-TL-01","desde":"2026-07-21","hasta":"2026-07-27","horas":30,"resp":["My. EB. Ricardo Dos Santos  Sales"]},{"curso":"RECURSOS HUMANOS","nombre":"DESARROLLO Y ESTRUCTURA ORGANIZACIONAL","codigo":"EM-MR-EO-01","desde":"2026-07-21","hasta":"2026-07-27","horas":30,"resp":["Tcnl. DEM. Sergio Hernán Morales Millan"]},{"curso":"1ER. CICLO","nombre":"HISTORIA MILITAR APLICADA I","codigo":"TS-EM-HM-01","desde":"2026-07-28","hasta":"2026-08-11","horas":48,"resp":["Cnl DAEN. Johann A.Montecinos Arnez My. DEM. Roger Fidel Pereira Cortez","My. DEM. Jeanette M. Salguero Llanos"]},{"curso":"ESTRATEGIA","nombre":"CONDUCCIÓN DE LA ESTRATEGIA MILITAR","codigo":"EM-ME-CE-02","desde":"2026-07-28","hasta":"2026-08-03","horas":30,"resp":["My. DEM. Brian Rolando Fernández Sejas"]},{"curso":"INTELIGENCIA","nombre":"ANÁLISIS DE LA AMENAZA Y EL PODER MILITAR","codigo":"EM-MI-AA-02","desde":"2026-07-28","hasta":"2026-08-03","horas":30,"resp":["My. DEM. Mario Pablo Soto Sanchez"]},{"curso":"LOGISTICA","nombre":"LA LOGÍSTICA EN EL NIVEL ESTRATÉGICO MILITAR","codigo":"EM-ML-LN-04","desde":"2026-07-28","hasta":"2026-08-03","horas":30,"resp":["Tcnl. DEM. Ivan Fuentes Álvarez"]},{"curso":"RECURSOS HUMANOS","nombre":"DESARROLLO HUMANO (LAS PERSONAS Y LAS ORGANIZACIONES)","codigo":"EM-MR-DH-02","desde":"2026-07-28","hasta":"2026-08-03","horas":30,"resp":["Tcnl. DEM. Bladimir Soto Farfan"]},{"curso":"ESTRATEGIA","nombre":"SEGURIDAD ESTRATÉGICA","codigo":"EM-ME-SE-03","desde":"2026-08-04","hasta":"2026-08-14","horas":36,"resp":["My. DEM. Charles Michael Ortiz Valencia"]},{"curso":"INTELIGENCIA","nombre":"ANÁLISIS Y PREDICCIÓN","codigo":"EM-MI-AP-03","desde":"2026-08-04","hasta":"2026-08-14","horas":36,"resp":["My. DEM. Raumi Vanya Sirpa Riveros"]},{"curso":"LOGISTICA","nombre":"COMANDOS Y ATRIBUCIONES","codigo":"EM-ML-CA-03","desde":"2026-08-04","hasta":"2026-08-14","horas":36,"resp":["Tcnl. DEM. Gaston Jarol Avila Rivas"]},{"curso":"RECURSOS HUMANOS","nombre":"GESTIÓN DE RECURSOS HUMANOS","codigo":"","desde":"2026-08-04","hasta":"2026-08-14","horas":36,"resp":["Tcnl. DEM. Danilo Héctor Aguirre Clavel"]},{"curso":"1ER. CICLO","nombre":"DERECHO INTERNACIONAL DE LOS CONFLICTOS ARMADOS","codigo":"TS-EM-DI-02","desde":"2026-08-12","hasta":"2026-08-24","horas":30,"resp":["Cnl. DAEN. Christian Yamil Tapia Salinas Tcnl. EP. Michael J. La Torre Sosaya","My. DEM. Alvaro Arandia Encinas"]},{"curso":"ESTRATEGIA","nombre":"CONSTITUCIÓN Y EQUIPAMIENTO DEL TEATRO DE OPERACIONES","codigo":"EM-ME-CE-04","desde":"2026-08-18","hasta":"2026-08-26","horas":30,"resp":["My. DEM. Miguel Ángel Zambrana Gómez"]},{"curso":"INTELIGENCIA","nombre":"PROCESO DE PRODUCCIÓN DE INTELIGENCIA ESTRATÉGICA","codigo":"EM-MI-PI-04","desde":"2026-08-18","hasta":"2026-08-26","horas":30,"resp":["My. DEM. Mario Pablo Soto Sanchez"]},{"curso":"LOGISTICA","nombre":"DIVISIÓN TERRITORIAL","codigo":"EM-ML-DT-02","desde":"2026-08-18","hasta":"2026-08-26","horas":30,"resp":["My. EB. Ricardo Dos Santos  Sales"]},{"curso":"RECURSOS HUMANOS","nombre":"RELACIÓN ENTRE LAS PERSONAS Y LAS ORGANIZACIONES","codigo":"","desde":"2026-08-18","hasta":"2026-08-26","horas":30,"resp":["Tcnl. DEM. Sergio Hernán Morales Millan"]},{"curso":"1ER. CICLO","nombre":"GUERRAS DE 4TA GENERACIÓN - TEORÍA Y BASES DE LA GUERRA ASIMÉTRICA – GUERRA SIN RESTRICCIÓN Y GUERRA HIBRIDA","codigo":"TS-EM-GC-03","desde":"2026-08-25","hasta":"2026-09-03","horas":42,"resp":["Cnl. DAEN. William G. Baptista Rocabado Cnl. DAEN. Roberto Serrano Valeriano","My. DEM. Alvaro Arandia Encinas"]},{"curso":"ESTRATEGIA","nombre":"MOVILIZACIÓN, CONCENTRACIÓN Y DESPLIEGUE ESTRATÉGICO","codigo":"EM-ME-MC-05","desde":"2026-08-28","hasta":"2026-09-03","horas":30,"resp":["My. DEM. Brian Rolando Fernández Sejas"]},{"curso":"INTELIGENCIA","nombre":"PROSPECTIVA ESTRATÉGICA","codigo":"EM-MI-PE-05","desde":"2026-08-28","hasta":"2026-09-03","horas":30,"resp":["My. DEM. Raumi Vanya Sirpa Riveros"]},{"curso":"LOGISTICA","nombre":"LA LOGÍSTICA EN APOYO AL EQUIPAMIENTO DEL TEATRO DE OPERACIONES","codigo":"EM-ML-LA-05","desde":"2026-08-28","hasta":"2026-09-03","horas":30,"resp":["Tcnl. DEM. Ivan Fuentes Álvarez"]},{"curso":"RECURSOS HUMANOS","nombre":"PLANIFICACIÓN ESTRATÉGICA DE LOS RR.HH","codigo":"EM-MR-PE-05","desde":"2026-08-28","hasta":"2026-09-03","horas":30,"resp":["Tcnl. DEM. Bladimir Soto Farfan"]},{"curso":"1ER. CICLO","nombre":"DOCTRINA DE PATRIOTAS","codigo":"TS-EM-DP-04","desde":"2026-09-04","hasta":"2026-09-16","horas":60,"resp":["Cnl. DAEN. Pedro Rene Wolff Baldiviezo","My. DEM. Roger Fidel Pereira Cortez","My. DEM. José Napoleón Goda Balcázar"]},{"curso":"2DO. CICLO","nombre":"PROCEDIMIENTOS LEGALES PARA LA ADMINISTRACIÓN DE LAS UNIDADES MILITARES","codigo":"EM-MR-PL-05","desde":"2026-09-04","hasta":"2026-09-11","horas":36,"resp":["Tcnl. DEM. Pedro Peter Gálvez Gálvez Tcnl. DEM. Nielsen A. Fernández Aliaga","Tcnl. DEM. Harold Sossa Montaño"]},{"curso":"2DO. CICLO","nombre":"ESTUDIO DE ESTADO MAYOR","codigo":"EM-AU-EE-01","desde":"2026-09-15","hasta":"2026-09-22","horas":36,"resp":["Cnl. DAEN. William G. Baptista Rocabado","Tcnl. DEM. Roger Jaldin Davila","My. DEM. Demis Henry Linares Alarcon"]},{"curso":"1ER. CICLO","nombre":"TEORÍA DE LAS ARMAS COMBINADAS","codigo":"TS-PC-TA-01","desde":"2026-09-18","hasta":"2026-09-28","horas":42,"resp":["Cnl DAEN. Johann A. Montecinos Arnez","Tcnl. DEM. Nielsen A. Fernández Aliaga","Tcnl. DEM. Daniel Angulo Antezana"]},{"curso":"2DO. CICLO","nombre":"SUMARIOS INFORMATIVOS","codigo":"EM-AU-SI-02","desde":"2026-09-25","hasta":"2026-10-05","horas":36,"resp":["Cnl. DAEN. Jhonny Pardo Pardo","Cnl. DAEN. Christian Yamil Tapia Salinas","My. DEM. Jeanette M. Salguero Llanos"]},{"curso":"1ER. CICLO","nombre":"TEORÍA Y CONDUCCIÓN DE LAS GG. UU. BB","codigo":"TS-PC-TC-02","desde":"2026-09-30","hasta":"2026-10-12","horas":48,"resp":["Cnl. DAEN. Roberto Serrano Valeriano","Cnl. DAEN. Marco A. Toranzo Guzmán","My. DEM. Alvaro Arandia Encinas"]},{"curso":"2DO. CICLO","nombre":"ELABORACIÓN DE PLANES","codigo":"EM-AU-EP-03","desde":"2026-10-06","hasta":"2026-10-13","horas":36,"resp":["My. DEM. José Napoleón Goda Balcázar","My. DEM. Raumi Vanya Sirpa Riveros","My. DEM. Charles Michael Ortiz Valencia"]},{"curso":"1ER. CICLO","nombre":"LA LOGÍSTICA EN LAS GG. UU. BB","codigo":"TS-PC-LG-03","desde":"2026-10-13","hasta":"2026-10-22","horas":48,"resp":["My. DEM. Demis Henry Linares Alarcon","My. DEM. Roger Fidel Pereira Cortez","My. DEM. José Napoleón Goda Balcázar"]},{"curso":"2DO. CICLO","nombre":"FORMULACIÓN Y EVALUACIÓN DE PROYECTOS","codigo":"EM-AU-FE-01","desde":"2026-10-14","hasta":"2026-10-23","horas":48,"resp":["Tcnl. DEM. Danilo Héctor Aguirre Clavel","My. DEM. Mario Pablo Soto Sanchez","My. DEM. Juan Marcelo Torrico Luizaga"]},{"curso":"1ER. CICLO","nombre":"PROCESO DE PLANEAMIENTO II","codigo":"TS-PC-PP-04","desde":"2026-10-23","hasta":"2026-11-05","horas":60,"resp":["Cnl. DAEN. Pedro Rene Wolff Baldiviezo","My. DEM. Juan Marcelo Torrico Luizaga","My. DEM. Brian Rolando Fernández Sejas"]},{"curso":"2DO. CICLO","nombre":"ELABORACIÓN DEL POA","codigo":"EM-AU-EP-02","desde":"2026-10-30","hasta":"2026-11-05","horas":24,"resp":["Tcnl. DEM. Gaston Jarol Avila Rivas","My. DEM. Juan Marcelo Torrico Luizaga","My. DEM. Demis Henry Linares Alarcon"]},{"curso":"2DO. CICLO","nombre":"ADMINISTRACIÓN FINANCIERA DE UNIDADES","codigo":"EM-AU-AF-03","desde":"2026-11-09","hasta":"2026-11-13","horas":30,"resp":["My. DEM. Miguel Ángel Zambrana Gómez","My. DEM. Jeanette M. Salguero Llanos My. DEM. Alvaro Arandia Encinas"]}],"evaluaciones":{"2026-02-12":{"1ER CICLO":true},"2026-03-11":{"1ER CICLO":true,"2DO CICLO":true},"2026-03-16":{"1ER CICLO":true},"2026-03-19":{"1ER CICLO":true,"2DO CICLO":true},"2026-03-03":{"1ER CICLO":true,"2DO CICLO":true},"2026-03-24":{"1ER CICLO":true},"2026-03-27":{"1ER CICLO":true},"2026-04-30":{"1ER CICLO":true,"2DO CICLO":true},"2026-05-04":{"1ER CICLO":true},"2026-04-23":{"1ER CICLO":true},"2026-04-27":{"1ER CICLO":true},"2026-04-29":{"1ER CICLO":true},"2026-05-11":{"1ER CICLO":true},"2026-05-19":{"1ER CICLO":true},"2026-06-02":{"1ER CICLO":true},"2026-05-27":{"1ER CICLO":true},"2026-07-15":{"1ER CICLO":true},"2026-07-23":{"1ER CICLO":true,"2DO CICLO":true},"2026-08-03":{"1ER CICLO":true},"2026-08-14":{"1ER CICLO":true},"2026-08-28":{"1ER CICLO":true},"2026-09-23":{"1ER CICLO":true},"2026-10-19":{"1ER CICLO":true,"2DO CICLO":true},"2026-10-29":{"1ER CICLO":true},"2026-10-05":{"1ER CICLO":true},"2026-09-09":{"1ER CICLO":true},"2026-06-22":{"2DO CICLO":true},"2026-06-11":{"2DO CICLO":true},"2026-01-14":{"2DO CICLO":true},"2026-01-23":{"2DO CICLO":true},"2026-01-30":{"2DO CICLO":true},"2026-02-06":{"2DO CICLO":true},"2026-02-13":{"2DO CICLO":true},"2026-04-06":{"2DO CICLO":true},"2026-04-20":{"2DO CICLO":true},"2026-05-08":{"2DO CICLO":true},"2026-05-15":{"2DO CICLO":true},"2026-05-28":{"2DO CICLO":true},"2026-06-10":{"2DO CICLO":true},"2026-06-23":{"2DO CICLO":true},"2026-06-19":{"2DO CICLO":true},"2026-06-09":{"2DO CICLO":true},"2026-05-22":{"2DO CICLO":true},"2026-06-17":{"2DO CICLO":true},"2026-07-16":{"2DO CICLO":true},"2026-07-30":{"2DO CICLO":true},"2026-08-11":{"2DO CICLO":true},"2026-08-24":{"2DO CICLO":true},"2026-08-25":{"2DO CICLO":true},"2026-09-08":{"2DO CICLO":true},"2026-09-17":{"2DO CICLO":true},"2026-10-08":{"2DO CICLO":true},"2026-11-03":{"2DO CICLO":true}}};
+const PLAN_DATOS={"calendario":{"2026-01-12":{"1ER CICLO":"INDUC.","2DO CICLO":"EO-EM-HM-01"},"2026-01-19":{"1ER CICLO":"(TI-MI-DG-01)","2DO CICLO":"EO-EM-HM-01"},"2026-01-26":{"1ER CICLO":"(TI-MI-DG-01)","2DO CICLO":"EO-EM-FG-02"},"2026-02-02":{"1ER CICLO":"TI-MI-MI-2","2DO CICLO":"EO-EM-GD-03"},"2026-02-09":{"1ER CICLO":"TI-MI-MI-2","2DO CICLO":"EO-EM-GM-04"},"2026-02-16":{"1ER CICLO":"CARN.","2DO CICLO":"CARNAVAL"},"2026-02-23":{"1ER CICLO":"TI-PC-CE-01","2DO CICLO":"EO-TE-TM-02"},"2026-03-02":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-TE-TO-03"},"2026-03-09":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-FT-01"},"2026-03-16":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-FT-01"},"2026-03-23":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-UC-02"},"2026-03-30":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-PE-01"},"2026-04-06":{"1ER CICLO":"TI-PC-TC-03","2DO CICLO":"EO-EO-PE-01"},"2026-04-13":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-PE-01"},"2026-04-20":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-PE-01"},"2026-04-27":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-CE-02"},"2026-05-04":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-CE-02"},"2026-05-11":{"1ER CICLO":"TI-PC-PP-05","2DO CICLO":"EO-NA-TN-01"},"2026-05-18":{"1ER CICLO":"TI-PC-OD-06","2DO CICLO":"EO-NA-LC-02"},"2026-05-25":{"1ER CICLO":"TI-PC-OR-07","2DO CICLO":"EO-NA-LN-03"},"2026-06-01":{"1ER CICLO":"TI-PC-OR-07","2DO CICLO":"EO-NA-DN-04"},"2026-06-08":{"1ER CICLO":"TI-PC-TP-08","2DO CICLO":"EO-NA-EI-05"},"2026-06-15":{"1ER CICLO":"TI-PC-TP-08","2DO CICLO":"EO-EM-EM-03"},"2026-06-22":{"1ER CICLO":"TI-EM-EM-01","2DO CICLO":"EO-EM-EM-04"},"2026-06-29":{"1ER CICLO":"DESC. PED.","2DO CICLO":"DESC. PED."},"2026-01-13":{"1ER CICLO":"INDUC.","2DO CICLO":"EO-EM-HM-01"},"2026-01-20":{"1ER CICLO":"(TI-MI-DG-01)","2DO CICLO":"EO-EM-FG-02"},"2026-01-27":{"1ER CICLO":"TI-MI-MI-2","2DO CICLO":"EO-EM-FG-02"},"2026-02-03":{"1ER CICLO":"TI-MI-MI-2","2DO CICLO":"EO-EM-GD-03"},"2026-02-10":{"1ER CICLO":"TI-MI-EL-03","2DO CICLO":"EO-EM-GM-04"},"2026-02-17":{"1ER CICLO":"CARN.","2DO CICLO":"CARNAVAL"},"2026-02-24":{"1ER CICLO":"TI-PC-CE-01","2DO CICLO":"EO-TE-TM-02"},"2026-03-03":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-TE-TO-03"},"2026-03-10":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-FT-01"},"2026-03-17":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-UC-02"},"2026-03-24":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-UC-02"},"2026-03-31":{"1ER CICLO":"TI-PC-TC-03","2DO CICLO":"EO-EO-PE-01"},"2026-04-07":{"1ER CICLO":"TI-PC-TC-03","2DO CICLO":"EO-EO-PE-01"},"2026-04-14":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-PE-01"},"2026-04-21":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-PE-01"},"2026-04-28":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-CE-02"},"2026-05-05":{"1ER CICLO":"CONFERENCIA","2DO CICLO":"CONFERENCIA"},"2026-05-12":{"1ER CICLO":"TI-PC-PP-05","2DO CICLO":"EO-NA-TN-01"},"2026-05-19":{"1ER CICLO":"TI-PC-OD-06","2DO CICLO":"EO-NA-LC-02"},"2026-05-26":{"1ER CICLO":"TI-PC-OR-07","2DO CICLO":"EO-NA-LN-03"},"2026-06-02":{"1ER CICLO":"TI-PC-TP-08","2DO CICLO":"EO-NA-EI-05"},"2026-06-09":{"1ER CICLO":"TI-PC-TP-08","2DO CICLO":"EO-EM-EM-03"},"2026-06-16":{"1ER CICLO":"CONFERENCIA","2DO CICLO":"CONFERENCIA"},"2026-06-23":{"1ER CICLO":"TI-EM-EM-01","2DO CICLO":"EO-EM-EM-04"},"2026-06-30":{"1ER CICLO":"DESC. PED.","2DO CICLO":"DESC. PED."},"2026-01-14":{"1ER CICLO":"INDUC.","2DO CICLO":"EO-EM-HM-01"},"2026-01-21":{"1ER CICLO":"(TI-MI-DG-01)","2DO CICLO":"EO-EM-FG-02"},"2026-01-28":{"1ER CICLO":"TI-MI-MI-2","2DO CICLO":"EO-EM-GD-03"},"2026-02-04":{"1ER CICLO":"TI-MI-MI-2","2DO CICLO":"EO-EM-GM-04"},"2026-02-11":{"1ER CICLO":"TI-MI-EL-03","2DO CICLO":"EO-TE-TG-01"},"2026-02-18":{"1ER CICLO":"TI-MI-EL-03","2DO CICLO":"EO-TE-TG-01"},"2026-02-25":{"1ER CICLO":"TI-PC-CE-01","2DO CICLO":"EO-TE-TM-02"},"2026-03-04":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-TE-TO-03"},"2026-03-11":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-FT-01"},"2026-03-18":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-UC-02"},"2026-03-25":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"TR-TT-III-03"},"2026-04-01":{"1ER CICLO":"TI-PC-TC-03","2DO CICLO":"EO-EO-PE-01"},"2026-04-08":{"1ER CICLO":"TI-PC-TC-03","2DO CICLO":"EO-EO-PE-01"},"2026-04-15":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-PE-01"},"2026-04-22":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-PE-01"},"2026-04-29":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-CE-02"},"2026-05-06":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-NA-TN-01"},"2026-05-13":{"1ER CICLO":"TI-PC-PP-05","2DO CICLO":"EO-NA-LC-02"},"2026-05-20":{"1ER CICLO":"TI-PC-OD-06","2DO CICLO":"EO-NA-LN-03"},"2026-05-27":{"1ER CICLO":"TI-PC-OR-07","2DO CICLO":"EO-NA-DN-04"},"2026-06-03":{"1ER CICLO":"TI-PC-TP-08","2DO CICLO":"EO-NA-EI-05"},"2026-06-10":{"1ER CICLO":"TI-PC-TP-08","2DO CICLO":"EO-EM-EM-03"},"2026-06-17":{"1ER CICLO":"TI-EM-EM-01","2DO CICLO":"EO-EM-EM-04"},"2026-06-24":{"1ER CICLO":"TALLER TESIS","2DO CICLO":"TR-TT-III-03"},"2026-07-01":{"1ER CICLO":"DESC. PED.","2DO CICLO":"DESC. PED."},"2026-01-15":{"1ER CICLO":"INDUC.","2DO CICLO":"EO-EM-HM-01"},"2026-01-22":{"1ER CICLO":"DÍA EST. PL.","2DO CICLO":"DÍA EST. PL."},"2026-01-29":{"1ER CICLO":"TI-MI-MI-2","2DO CICLO":"EO-EM-GD-03"},"2026-02-05":{"1ER CICLO":"TI-MI-MI-2","2DO CICLO":"EO-EM-GM-04"},"2026-02-12":{"1ER CICLO":"TI-MI-EL-03","2DO CICLO":"EO-TE-TG-01"},"2026-02-19":{"1ER CICLO":"TI-PC-CE-01","2DO CICLO":"EO-TE-TG-01"},"2026-02-26":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-TE-TM-02"},"2026-03-05":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-TE-TO-03"},"2026-03-12":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-FT-01"},"2026-03-19":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-UC-02"},"2026-03-26":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-PE-01"},"2026-04-02":{"1ER CICLO":"TI-PC-TC-03","2DO CICLO":"EO-EO-PE-01"},"2026-04-09":{"1ER CICLO":"TI-PC-TC-03","2DO CICLO":"EO-EO-PE-01"},"2026-04-16":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-PE-01"},"2026-04-23":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-PE-01"},"2026-04-30":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-CE-02"},"2026-05-07":{"1ER CICLO":"TI-PC-PP-05","2DO CICLO":"EO-NA-TN-01"},"2026-05-14":{"1ER CICLO":"TI-PC-PP-05","2DO CICLO":"EO-NA-LC-02"},"2026-05-21":{"1ER CICLO":"TI-PC-OD-06","2DO CICLO":"EO-NA-LN-03"},"2026-05-28":{"1ER CICLO":"TI-PC-OR-07","2DO CICLO":"EO-NA-DN-04"},"2026-06-04":{"1ER CICLO":"CORP. CHRIS.","2DO CICLO":"CORP. CRIST"},"2026-06-11":{"1ER CICLO":"TI-PC-TP-08","2DO CICLO":"EO-EM-EM-03"},"2026-06-18":{"1ER CICLO":"TI-EM-EM-01","2DO CICLO":"EO-EM-EM-04"},"2026-06-25":{"1ER CICLO":"TALLER TESIS","2DO CICLO":"TR-TT-III-03"},"2026-07-02":{"1ER CICLO":"DESC. PED.","2DO CICLO":"DESC. PED."},"2026-01-16":{"1ER CICLO":"INDUC.","2DO CICLO":"EO-EM-HM-01"},"2026-01-23":{"1ER CICLO":"(TI-MI-DG-01)","2DO CICLO":"EO-EM-FG-02"},"2026-01-30":{"1ER CICLO":"TI-MI-MI-2","2DO CICLO":"EO-EM-GD-03"},"2026-02-06":{"1ER CICLO":"TI-MI-MI-2","2DO CICLO":"EO-EM-GM-04"},"2026-02-13":{"1ER CICLO":"TI-MI-EL-03","2DO CICLO":"EO-TE-TG-01"},"2026-02-20":{"1ER CICLO":"TI-PC-CE-01","2DO CICLO":"EO-TE-TM-02"},"2026-02-27":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-TE-TO-03"},"2026-03-06":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-TE-TO-03"},"2026-03-13":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-FT-01"},"2026-03-20":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-UC-02"},"2026-03-27":{"1ER CICLO":"TI-PC-SO-02","2DO CICLO":"EO-EO-PE-01"},"2026-04-03":{"1ER CICLO":"V. SANTO","2DO CICLO":"V. SANTO"},"2026-04-10":{"1ER CICLO":"TI-PC-TC-03","2DO CICLO":"EO-EO-PE-01"},"2026-04-17":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-PE-01"},"2026-04-24":{"1ER CICLO":"TI-PC-PP-04","2DO CICLO":"EO-EO-PE-01"},"2026-05-01":{"1ER CICLO":"DÍA TRAB.","2DO CICLO":"DÍA TRAB."},"2026-05-08":{"1ER CICLO":"TI-PC-PP-05","2DO CICLO":"EO-NA-TN-01"},"2026-05-15":{"1ER CICLO":"TI-PC-OD-06","2DO CICLO":"EO-NA-LC-02"},"2026-05-22":{"1ER CICLO":"TI-PC-OD-06","2DO CICLO":"EO-NA-LN-03"},"2026-05-29":{"1ER CICLO":"TI-PC-OR-07","2DO CICLO":"EO-NA-DN-04"},"2026-06-05":{"1ER CICLO":"TI-PC-TP-08","2DO CICLO":"EO-NA-EI-05"},"2026-06-12":{"1ER CICLO":"TI-PC-TP-08","2DO CICLO":"EO-EM-EM-03"},"2026-06-19":{"1ER CICLO":"TI-EM-EM-01","2DO CICLO":"EO-EM-EM-04"},"2026-06-26":{"1ER CICLO":"DISP. CMDO","2DO CICLO":"DISP. CMDO"},"2026-07-03":{"1ER CICLO":"DESC. PED.","2DO CICLO":"DESC. PED."},"2026-07-06":{"1ER CICLO":"DESC. PED."},"2026-07-13":{"1ER CICLO":"TS-LM-FC-01","2DO CICLO":"TR-TT-IV-04"},"2026-07-20":{"1ER CICLO":"TS-LM-FC-01","2DO CICLO":"EM-EN-EN-01"},"2026-07-27":{"1ER CICLO":"TS-LM-AC-02","2DO CICLO":"EM-ME"},"2026-08-03":{"1ER CICLO":"TS-EM-HM-01","2DO CICLO":"EM-ME"},"2026-08-10":{"1ER CICLO":"ASU","2DO CICLO":"ASU"},"2026-08-17":{"1ER CICLO":"CONFERENCIA","2DO CICLO":"CONFERENCIA"},"2026-08-24":{"1ER CICLO":"TS-EM-DI-02","2DO CICLO":"EM-ME"},"2026-08-31":{"1ER CICLO":"TS-EM-GC-03","2DO CICLO":"EM-ME"},"2026-09-07":{"1ER CICLO":"TS-EM-TD-04","2DO CICLO":"EM-AU-PL-01"},"2026-09-14":{"1ER CICLO":"TS-EM-TD-04","2DO CICLO":"ANIV. CBBA"},"2026-09-21":{"1ER CICLO":"TS-PC-TA-01","2DO CICLO":"EM-AU-EE-02"},"2026-09-28":{"1ER CICLO":"TS-PC-TA-01","2DO CICLO":"EM-AU-SI-03"},"2026-10-05":{"1ER CICLO":"TS-PC-TC-02","2DO CICLO":"EM-AU-SI-03"},"2026-10-12":{"1ER CICLO":"TS-PC-TC-02","2DO CICLO":"EM-AU-EP-04"},"2026-10-19":{"1ER CICLO":"TS-PC-LG-03","2DO CICLO":"EM-AU-EP-01"},"2026-10-26":{"1ER CICLO":"TS-PC-PP-01","2DO CICLO":"TR-DT- PR-01"},"2026-11-02":{"1ER CICLO":"TS-PC-PP-01","2DO CICLO":"TODOS SANTOS"},"2026-11-09":{"1ER CICLO":"D. P. TESIS","2DO CICLO":"EM-AU-AF-03"},"2026-11-16":{"1ER CICLO":"D. P. TESIS","2DO CICLO":"CONFERENCIA"},"2026-11-23":{"1ER CICLO":"TS-EM-EM","2DO CICLO":"EM-AU-EP-002"},"2026-11-30":{"1ER CICLO":"AD. CMDO.","2DO CICLO":"AD. CMDO."},"2026-12-07":{"1ER CICLO":"AD. CMDO."},"2026-07-07":{"1ER CICLO":"DESC. PED."},"2026-07-14":{"1ER CICLO":"TS-LM-FC-01","2DO CICLO":"EM-EN-EN-01"},"2026-07-21":{"1ER CICLO":"TS-LM-AC-02","2DO CICLO":"EM-ME"},"2026-07-28":{"1ER CICLO":"TS-EM-HM-01","2DO CICLO":"EM-ME"},"2026-08-04":{"1ER CICLO":"TS-EM-HM-01","2DO CICLO":"EM-ME"},"2026-08-11":{"1ER CICLO":"TS-EM-HM-01","2DO CICLO":"EM-ME"},"2026-08-18":{"1ER CICLO":"TS-EM-DI-02","2DO CICLO":"EM-ME"},"2026-08-25":{"1ER CICLO":"TS-EM-GC-03","2DO CICLO":"EM-ME"},"2026-09-01":{"1ER CICLO":"TS-EM-GC-03","2DO CICLO":"EM-ME"},"2026-09-08":{"1ER CICLO":"TS-EM-TD-04","2DO CICLO":"EM-AU-PL-01"},"2026-09-15":{"1ER CICLO":"TS-EM-TD-04","2DO CICLO":"EM-AU-EE-02"},"2026-09-22":{"1ER CICLO":"TS-PC-TA-01","2DO CICLO":"EM-AU-EE-02"},"2026-09-29":{"1ER CICLO":"CONFERENCIA","2DO CICLO":"CONFERENCIA"},"2026-10-06":{"1ER CICLO":"TS-PC-TC-02","2DO CICLO":"EM-AU-EP-04"},"2026-10-13":{"1ER CICLO":"TS-PC-LG-03","2DO CICLO":"EM-AU-EP-04"},"2026-10-20":{"1ER CICLO":"TS-PC-LG-03","2DO CICLO":"EM-AU-EP-01"},"2026-10-27":{"1ER CICLO":"TS-PC-PP-01","2DO CICLO":"TR-DT- PR-01"},"2026-11-03":{"1ER CICLO":"TS-PC-PP-01","2DO CICLO":"EM-AU-EP-02"},"2026-11-10":{"1ER CICLO":"D. P. TESIS","2DO CICLO":"EM-AU-AF-03"},"2026-11-17":{"1ER CICLO":"TS-EM-EM","2DO CICLO":"EM-AU-EP-002"},"2026-11-24":{"1ER CICLO":"TR-TT-II-002","2DO CICLO":"TR-DT-PU-02"},"2026-12-01":{"1ER CICLO":"AD. CMDO.","2DO CICLO":"AD. CMDO."},"2026-12-08":{"1ER CICLO":"AD. CMDO."},"2026-07-08":{"1ER CICLO":"DESC. PED."},"2026-07-15":{"1ER CICLO":"TS-LM-FC-01","2DO CICLO":"EM-EN-EN-01"},"2026-07-22":{"1ER CICLO":"TS-LM-AC-02","2DO CICLO":"EM-ME"},"2026-07-29":{"1ER CICLO":"TS-EM-HM-01","2DO CICLO":"EM-ME"},"2026-08-05":{"1ER CICLO":"TS-EM-HM-01","2DO CICLO":"EM-ME"},"2026-08-12":{"1ER CICLO":"TS-EM-DI-02","2DO CICLO":"EM-ME"},"2026-08-19":{"1ER CICLO":"ANIV. ECEME.","2DO CICLO":"EM-ME"},"2026-08-26":{"1ER CICLO":"TS-EM-GC-03","2DO CICLO":"EM-ME"},"2026-09-02":{"1ER CICLO":"TS-EM-GC-03","2DO CICLO":"EM-ME"},"2026-09-09":{"1ER CICLO":"TS-EM-TD-04","2DO CICLO":"EM-AU-PL-01"},"2026-09-16":{"1ER CICLO":"TS-EM-TD-04","2DO CICLO":"EM-AU-EE-02"},"2026-09-23":{"1ER CICLO":"TS-PC-TA-01","2DO CICLO":"TR-TT-IV-04"},"2026-09-30":{"1ER CICLO":"TS-PC-TC-02","2DO CICLO":"EM-AU-SI-03"},"2026-10-07":{"1ER CICLO":"TS-PC-TC-02","2DO CICLO":"EM-AU-EP-04"},"2026-10-14":{"1ER CICLO":"TS-PC-LG-03","2DO CICLO":"EM-AU-EP-01"},"2026-10-21":{"1ER CICLO":"TS-PC-LG-03","2DO CICLO":"EM-AU-EP-01"},"2026-10-28":{"1ER CICLO":"TS-PC-PP-01","2DO CICLO":"TR-DT- PR-01"},"2026-11-04":{"1ER CICLO":"TS-PC-PP-01","2DO CICLO":"EM-AU-EP-02"},"2026-11-11":{"1ER CICLO":"D. P. TESIS","2DO CICLO":"EM-AU-AF-03"},"2026-11-18":{"1ER CICLO":"TS-EM-EM","2DO CICLO":"EM-AU-EP-002"},"2026-11-25":{"1ER CICLO":"TR-TT-II-002","2DO CICLO":"TR-DT-PU-02"},"2026-12-02":{"1ER CICLO":"AD. CMDO.","2DO CICLO":"AD. CMDO."},"2026-12-09":{"1ER CICLO":"AD. CMDO."},"2026-07-09":{"1ER CICLO":"DESC. PED."},"2026-07-16":{"1ER CICLO":"TS-LM-FC-01","2DO CICLO":"EM-EN-EN-01"},"2026-07-23":{"1ER CICLO":"TS-LM-AC-02","2DO CICLO":"EM-ME"},"2026-07-30":{"1ER CICLO":"TS-EM-HM-01","2DO CICLO":"EM-ME"},"2026-08-06":{"1ER CICLO":"F. PAT.","2DO CICLO":"F. PAT."},"2026-08-13":{"1ER CICLO":"TS-EM-DI-02","2DO CICLO":"EM-ME"},"2026-08-20":{"1ER CICLO":"ANIV. ECEME.","2DO CICLO":"ANIV. ECEME."},"2026-08-27":{"1ER CICLO":"TS-EM-GC-03","2DO CICLO":"TR-TT-IV-04"},"2026-09-03":{"1ER CICLO":"TS-EM-GC-03","2DO CICLO":"EM-ME"},"2026-09-10":{"1ER CICLO":"TS-EM-TD-04","2DO CICLO":"EM-AU-PL-01"},"2026-09-17":{"1ER CICLO":"TR-TT-II-002","2DO CICLO":"EM-AU-EE-02"},"2026-09-24":{"1ER CICLO":"TS-PC-TA-01","2DO CICLO":"TR-TT-IV-04"},"2026-10-01":{"1ER CICLO":"TS-PC-TC-02","2DO CICLO":"EM-AU-SI-03"},"2026-10-08":{"1ER CICLO":"TS-PC-TC-02","2DO CICLO":"EM-AU-EP-04"},"2026-10-15":{"1ER CICLO":"TS-PC-LG-03","2DO CICLO":"EM-AU-EP-01"},"2026-10-22":{"1ER CICLO":"TS-PC-LG-03","2DO CICLO":"EM-AU-EP-01"},"2026-10-29":{"1ER CICLO":"TS-PC-PP-01","2DO CICLO":"TR-DT- PR-01"},"2026-11-05":{"1ER CICLO":"TS-PC-PP-01","2DO CICLO":"EM-AU-EP-02"},"2026-11-12":{"1ER CICLO":"D. P. TESIS","2DO CICLO":"EM-AU-AF-03"},"2026-11-19":{"1ER CICLO":"TS-EM-EM","2DO CICLO":"EM-AU-EP-002"},"2026-11-26":{"1ER CICLO":"TR-TT-II-002","2DO CICLO":"TR-DT-PU-02"},"2026-12-03":{"1ER CICLO":"AD. CMDO.","2DO CICLO":"AD. CMDO."},"2026-12-10":{"1ER CICLO":"AD. CMDO."},"2026-07-10":{"1ER CICLO":"DESC. PED."},"2026-07-17":{"1ER CICLO":"TR-TT-II-002","2DO CICLO":"EM-EN-EN-01"},"2026-07-24":{"1ER CICLO":"TS-LM-AC-02","2DO CICLO":"EM-ME"},"2026-07-31":{"1ER CICLO":"TS-EM-HM-01","2DO CICLO":"EM-ME"},"2026-08-07":{"1ER CICLO":"ANIV. FF.AA.","2DO CICLO":"ANIV. FF.AA."},"2026-08-14":{"1ER CICLO":"TS-EM-DI-02","2DO CICLO":"EM-ME"},"2026-08-21":{"1ER CICLO":"ANIV. ECEME.","2DO CICLO":"ANIV. ECEME."},"2026-08-28":{"1ER CICLO":"TS-EM-GC-03","2DO CICLO":"EM-ME"},"2026-09-04":{"1ER CICLO":"TS-EM-TD-04","2DO CICLO":"EM-AU-PL-01"},"2026-09-11":{"1ER CICLO":"TS-EM-TD-04","2DO CICLO":"EM-AU-PL-01"},"2026-09-18":{"1ER CICLO":"TS-PC-TA-01","2DO CICLO":"EM-AU-EE-02"},"2026-09-25":{"1ER CICLO":"TS-PC-TA-01","2DO CICLO":"EM-AU-SI-03"},"2026-10-02":{"1ER CICLO":"TS-PC-TC-02","2DO CICLO":"EM-AU-SI-03"},"2026-10-09":{"1ER CICLO":"TR-TT-II-002","2DO CICLO":"EM-AU-EP-04"},"2026-10-16":{"1ER CICLO":"TS-PC-LG-03","2DO CICLO":"EM-AU-EP-01"},"2026-10-23":{"1ER CICLO":"TS-PC-PP-01","2DO CICLO":"EM-AU-EP-01"},"2026-10-30":{"1ER CICLO":"TS-PC-PP-01","2DO CICLO":"EM-AU-EP-02"},"2026-11-06":{"1ER CICLO":"CONFERENCIA","2DO CICLO":"TR-DT- PR-01"},"2026-11-13":{"1ER CICLO":"ANIV. EJTO.","2DO CICLO":"EM-AU-AF-03"},"2026-11-20":{"1ER CICLO":"TS-EM-EM","2DO CICLO":"EM-AU-EP-002"},"2026-11-27":{"1ER CICLO":"TR-TT-II-002","2DO CICLO":"TR-DT-PU-02"},"2026-12-04":{"1ER CICLO":"AD. CMDO.","2DO CICLO":"EGRE."},"2026-12-11":{"1ER CICLO":"AD. CMDO."}},"materias":[{"curso":"2DO. CICLO","nombre":"HISTORIA MILITAR APLICADA III","codigo":"EO-EM-HM-01","desde":"2026-01-12","hasta":"2026-01-19","horas":36,"resp":["Tcnl. Danilo Héctor Aguirre Clavel","Tcnl. DEM. Roger Jaldin Davila","Tcnl. DEM. Gastón Jarol Avila Rivas"]},{"curso":"1ER. CICLO","nombre":"DINÁMICAS DE GRUPO E INSTRUMENTACIONES","codigo":"TI-MI-DG-01","desde":"2026-01-19","hasta":"2026-01-26","horas":30,"resp":["Cnl. DAEN. Pedro Rene Wolff Baldiviezo","Tcnl. DEM. Daniel Angulo Antezana","My. DEM. Demis Henry Linares Alarcon"]},{"curso":"2DO. CICLO","nombre":"FILOSOFÍA DE LA GUERRA","codigo":"EO-EM-FG-02","desde":"2026-01-20","hasta":"2026-01-27","horas":30,"resp":["Cnl. DAEN Cristian Yamil Tapia Salinas","Cnl. DAEN. Roberto Serrano Valeriano","Tcnl. DEM. Edgar Ariel Diaz Andia"]},{"curso":"1ER. CICLO","nombre":"METODOLOGÍA DE LA INVESTIGACIÓN CIENTÍFICA","codigo":"TI-MI-MI-02","desde":"2026-01-27","hasta":"2026-02-09","horas":60,"resp":["Cnl. DAEN. William G. Baptista Rocabado","Cnl. DAEN. Marco Antonio Toranzo Guzmán","Tcnl. DEM. Pedro Piter Galvez Galvez"]},{"curso":"2DO. CICLO","nombre":"GEOPOLÍTICA Y DEFENSA NACIONAL","codigo":"EO-EM-GD-03","desde":"2026-01-28","hasta":"2026-02-03","horas":30,"resp":["Cnl. DAEN. Johann A. Montecinos Arnéz","Tcnl. DEM. Nielsen A. Fernández Aliaga","Tcnl. DEM. Sergio Hernán Morales Millán"]},{"curso":"2DO. CICLO","nombre":"GEOGRAFÍA MILITAR APLICADA","codigo":"EO-EM-GM-04","desde":"2026-02-04","hasta":"2026-02-10","horas":30,"resp":["Tcnl. DEM. Iván Fuentes Álvarez","My. DEM. Miguel Ángel Zambrana Gómez","My. DEM. José Napoleón Goda Balcazar"]},{"curso":"1ER. CICLO","nombre":"ENSAYOS LITERARIOS","codigo":"TI-MI-EL-03","desde":"2026-02-10","hasta":"2026-02-18","horas":30,"resp":["Tcnl. DEM. Bladimir Soto Farfán","My. DEM. Brian Rolando Fernández Sejas","My. DEM. Jeanette Melissa Salguero Llanos"]},{"curso":"2DO. CICLO","nombre":"TEORÍA DE LA ESTRATEGIA GENERAL","codigo":"EO-TE-EG-01","desde":"2026-02-11","hasta":"2026-02-19","horas":30,"resp":["Cnl. DAEN. Johann A. Montecinos Arnéz","My. DEM. Mario Pablo Soto Sanchez","My. DEM. José Napoleón Goda Balcazar"]},{"curso":"1ER. CICLO","nombre":"EL COMANDANTE Y SU ESTADO MAYOR","codigo":"TI-PC-CE-01","desde":"2026-02-19","hasta":"2026-02-25","horas":30,"resp":["Cnl. DAEN. Christian Yamil Tapia Salinas","Cnl. DAEN. Roberto Serrano Valeriano","My. DEM. Raumi Vanya Sirpa Riveros"]},{"curso":"2DO. CICLO","nombre":"TEORÍA DE LA ESTRATEGIA MILITAR","codigo":"EO-TE-EM-02","desde":"2026-02-20","hasta":"2026-02-26","horas":30,"resp":["Cnl. DAEN. Pedro Rene Wolff Baldiviezo","My. DEM. Charles Michael Ortiz Valencia","Tcnl. DEM. Edgar Ariel Diaz Andia"]},{"curso":"1ER. CICLO","nombre":"SOCB. MANIOBRA","codigo":"","desde":"2026-02-26","hasta":"2026-03-03","horas":20,"resp":["Tcnl. DEM. Nielsen A. Fernández Aliaga","Tcnl. DEM. Roger Jaldin Davila","Tcnl. DEM. Bladimir Soto Farfan"]},{"curso":"2DO. CICLO","nombre":"TEORÍA DE LA ESTRATEGIA OPERATIVA","codigo":"EO-TE-EO-03","desde":"2026-02-27","hasta":"2026-03-06","horas":36,"resp":["Cnl. DAEN. Johann A. Montecinos Arnéz","Tcnl. DEM. Pedro Peter Gálvez Gálvez","Tcnl. EA. Cristian Javier Silva"]},{"curso":"1ER. CICLO","nombre":"SOCB. INTELIGENCIA","codigo":"","desde":"2026-03-03","hasta":"2026-03-06","horas":18,"resp":["Tcnl. DEM. Edgar Ariel Diaz Andia","Tcnl. DEM. Daniel Angulo Antezana","My. DEM. Mario Pablo Soto Sanchez"]},{"curso":"1ER. CICLO","nombre":"SOCB. APOYO DE FUEGOS","codigo":"","desde":"2026-03-06","hasta":"2026-03-11","horas":18,"resp":["Tcnl. DEM. Ivan Fuentes Álvarez","My. DEM. Miguel Ángel Zambrana Gómez","My. DEM. Jeanette Melissa Salguero Llanos"]},{"curso":"2DO. CICLO","nombre":"LAS FUERZAS TERRESTRES DEL TEATRO DE OPERACIONES","codigo":"EO-EO-FT-01","desde":"2026-03-09","hasta":"2026-03-16","horas":36,"resp":["Tcnl. DEM. Sergio Hernán Morales Millan","My. DEM. Charles Michael Ortiz Valencia","My. DEM. Brian Rolando Fernández Sejas"]},{"curso":"1ER. CICLO","nombre":"SOCB. APOYO DE DEFENSA ANTIAEREA","codigo":"","desde":"2026-03-11","hasta":"2026-03-16","horas":18,"resp":["Tcnl. DEM. Ivan Fuentes Álvarez","My. DEM. Roger Fidel Pereira Cortez","My. DEM. Raumi Vanya Sirpa Riveros"]},{"curso":"1ER. CICLO","nombre":"SOCB. MOVILIDAD, CONTRA MOVILIDAD Y SUPERVIVENCA","codigo":"","desde":"2026-03-16","hasta":"2026-03-19","horas":18,"resp":["Cnl. DAEN. Pedro Rene Wolff Baldiviezo","Cnl. DAEN. Roberto Serrano Valeriano","Tcnl. EA. Cristian Javier Silva"]},{"curso":"2DO. CICLO","nombre":"UNIDADES Y COMANDOS LOGÍSTICOS","codigo":"EO-EO-UC-02","desde":"2026-03-17","hasta":"2026-03-24","horas":36,"resp":["Tcnl. DEM. Gaston Jarol Avila Rivas","My. DEM. Demis Henry Linares Alarcon","My. EB. Ricardo Dos Santos Sales"]},{"curso":"1ER. CICLO","nombre":"SOCB. APOYO DE SERVICIOS PARA EL COMBATE","codigo":"","desde":"2026-03-19","hasta":"2026-03-24","horas":18,"resp":["Tcnl. DEM. Roger Jaldin Davila","Tcnl. DEM. Danilo Héctor Aguirre Clavel","My. DEM. Mario Pablo Soto Sanchez"]},{"curso":"1ER. CICLO","nombre":"SOCB.  MANDO Y CONTROL","codigo":"","desde":"2026-03-24","hasta":"2026-03-30","horas":18,"resp":["Tcnl. DEM. Nielsen A. Fernández Aliaga","Tcnl. DEM. Daniel Angulo Antezana","Tcnl. DEM. Harold Sossa Montaño"]},{"curso":"2DO. CICLO","nombre":"PLANEAMIENTO ESTRATÉGICO OPERATIVO","codigo":"EO-EO-PE-01","desde":"2026-03-26","hasta":"2026-04-24","horas":132,"resp":["Cnl. DAEN. Pedro Rene Wolff Baldiviezo","My. DEM. Charles M. Ortiz Valencia","My. DEM. Miguel Ángel Zambrana Gómez","My. DEM. Brian Rolando Fernández Sejas"]},{"curso":"1ER. CICLO","nombre":"TEORÍA Y CONDUCCIÓN DE LAS GG. UU. CC","codigo":"TI-PC-TC-02","desde":"2026-03-31","hasta":"2026-04-10","horas":42,"resp":["Tcnl. DEM. Sergio Hernán Morales Millan","My. DEM. Mario Pablo Soto Sanchez","My. EB. Ricardo Dos Santos Sales"]},{"curso":"1ER. CICLO","nombre":"PROCESO DE PLANEAMIENTO I  G-3 EN EL PMTD","codigo":"","desde":"2026-04-13","hasta":"2026-04-16","horas":26,"resp":["Tcnl. DEM. Roger Jaldin Davila","My. DEM. Jose Napoleon Goda Balcazar","My. DEM. Raumi Vanya Sirpa Riveros"]},{"curso":"1ER. CICLO","nombre":"PROCESO DE PLANEAMIENTO I G-2 EN EL PMTD","codigo":"","desde":"2026-04-16","hasta":"2026-04-23","horas":30,"resp":["Tcnl. DEM. Sergio Hernán Morales Millan","My. DEM. Jeanette Melissa Salguero Llanos My. DEM. Juan Marcelo Torrico Luizaga"]},{"curso":"1ER. CICLO","nombre":"PROCESO DE PLANEAMIENTO I G-1 EN EL PMTD","codigo":"","desde":"2026-04-23","hasta":"2026-04-27","horas":10,"resp":["Tcnl. EA. Cristian Javier Silva","Tcnl. DEM. Harold Sossa Montaño","Tcnl. DEM. Bladimir Soto Farfan"]},{"curso":"1ER. CICLO","nombre":"PROCESO DE PLANEAMIENTO I  G-4 EN EL PMTD","codigo":"","desde":"2026-04-27","hasta":"2026-04-29","horas":10,"resp":["Tcnl. DEM. Nielsen A. Fernández Aliaga","Tcnl. DEM. Gaston Jarol Avila Rivas","My. EB. Ricardo Dos Santos Sales"]},{"curso":"2DO. CICLO","nombre":"CONDUCCIÓN ESTRATÉGICA OPERATIVA","codigo":"EO-EO-CE-02","desde":"2026-04-27","hasta":"2026-05-04","horas":30,"resp":["My. DEM. Brian Rolando Fernández Sejas","My. DEM. Charles Michael Ortiz Valencia","My. DEM. Jose Napoleon Goda Balcazar"]},{"curso":"1ER. CICLO","nombre":"PROCESO DE PLANEAMIENTO I G-5 EN EL PMTD","codigo":"","desde":"2026-04-29","hasta":"2026-05-06","horas":10,"resp":["Tcnl. EA. Cristian Javier Silva","Tcnl. DEM. Vladimir Rojas Calderón","My. DEM. Mario Pablo Soto Sanchez"]},{"curso":"2DO. CICLO","nombre":"TEORÍA DE LAS NUEVAS AMENAZAS Y RIESGOS ( EO-NA-TN-01)","codigo":"","desde":"2026-05-06","hasta":"2026-05-12","horas":30,"resp":["Cnl. DAEN (RA) José Luis Quiroz Orozco","Tcnl. DEM. Edgar Ariel Diaz Andia","Tcnl. DEM. Daniel Angulo Antezana"]},{"curso":"1ER. CICLO","nombre":"OPERACIONES OFENSIVAS","codigo":"TI-PC-OO-05","desde":"2026-05-07","hasta":"2026-05-14","horas":48,"resp":["Cnl. DAEN. William G. Baptista Rocabado","Tcnl. DEM. Vladimir Rojas Calderón","Tcnl. EP. Michael Joseph La Torre Sosaya"]},{"curso":"2DO. CICLO","nombre":"LUCHA CONTRA EL CONTRABANDO","codigo":"EO-NA-LC-02","desde":"2026-05-13","hasta":"2026-05-19","horas":30,"resp":["Cnl. DAEN. José Jhonny Pardo Pardo","Tcnl. DEM. Harold Sossa Montaño","Tcnl. DEM. Roger Jaldin Davila"]},{"curso":"1ER. CICLO","nombre":"OPERACIONES DEFENSIVAS","codigo":"TI-PC-OD-06","desde":"2026-05-15","hasta":"2026-05-22","horas":48,"resp":["Tcnl. DEM. Gaston Jarol Avila Rivas","My. DEM. Roger Fidel Pereira Cortez","My. DEM. Juan Marcelo Torrico Luizaga"]},{"curso":"2DO. CICLO","nombre":"LUCHA CONTRA EL NARCOTRÁFICO","codigo":"EO-NA-LN-03","desde":"2026-05-20","hasta":"2026-05-26","horas":30,"resp":["Tcnl. DEM. Ivan Fuentes Álvarez","Tcnl. DEM. Bladimir Soto Farfan","My. DEM. Miguel Ángel Zambrana Gómez"]},{"curso":"1ER. CICLO","nombre":"OPERACIONES RETROGRADAS","codigo":"TI-PC-OR-07","desde":"2026-05-25","hasta":"2026-06-01","horas":48,"resp":["Tcnl. DEM. Daniel Angulo Antezana","Tcnl. DEM. Gaston Jarol Avila Rivas","My. EB. Ricardo Dos Santos Sales"]},{"curso":"2DO. CICLO","nombre":"DESASTRES NATURALES","codigo":"EO-NA-DN-04","desde":"2026-05-27","hasta":"2026-06-01","horas":24,"resp":["Cnl. DIM. Alain Vasquez Loma","Tcnl. DEM. Harold Sossa Montaño","Cnl. DAEN. Roberto Serrano Valeriano"]},{"curso":"2DO. CICLO","nombre":"EXPLOTACIÓN ILEGAL DE RECURSOS NATURALES","codigo":"EO-NA-EI-05","desde":"2026-06-02","hasta":"2026-06-08","horas":24,"resp":["Cnl. DAEN. Marco Antonio Toranzo Guzmán","Tcnl. DEM. Nielsen A. Fernández Aliaga","Tcnl. DEM. Ivan Fuentes Álvarez"]},{"curso":"1ER. CICLO","nombre":"TÉCNICA Y PREPARACIÓN DE EJERCICIOS","codigo":"TI-PC-TP-08","desde":"2026-06-02","hasta":"2026-06-15","horas":54,"resp":["Cnl. DAEN. Pedro Rene Wolff Baldiviezo","Tcnl. EP. Michael Joseph La Torre Sosaya Tcnl. EA. Cristian Javier Silva","My. DEM. Jose Napoleon Goda Balcazar"]},{"curso":"1ER. CICLO","nombre":"FORMACIÓN DE COMANDANTES","codigo":"TS-LM-FC-01","desde":"2026-07-13","hasta":"2026-07-20","horas":30,"resp":["Tcnl. DEM. Nielsen Fernández Aliaga","Tcnl. DEM. Vladimir Rojas Calderón","Tcnl. DEM. Harold Sossa Montaño"]},{"curso":"2DO. CICLO","nombre":"GENERALIDADES DE LA ESTRATEGIA NACIONAL","codigo":"EM-EN-GE-01","desde":"2026-07-14","hasta":"2026-07-20","horas":30,"resp":["Cnl. DAEN. Pedro Rene Wolff Baldiviezo","Cnl. DAEN. Roberto Serrano Valeriano","Cnl. DAEN. Marco A. Toranzo Guzmán"]},{"curso":"1ER. CICLO","nombre":"ACCIÓN DE MANDO Y LIDERAZGO","codigo":"TS-LM-AM-02","desde":"2026-07-21","hasta":"2026-07-27","horas":30,"resp":["Cnl DAEN. Johann A.Montecinos Arnez Tcnl. DEM. Pedro Peter Gálvez Gálvez","Tcnl. DEM. Daniel Angulo Antezana"]},{"curso":"ESTRATEGIA","nombre":"CONCEPCIÓN DE LA ESTRATEGIA MILITAR","codigo":"EM-ME-CE-01","desde":"2026-07-21","hasta":"2026-07-27","horas":30,"resp":["Cnl. DAEN. Pedro Rene Wolff Baldiviezo"]},{"curso":"INTELIGENCIA","nombre":"ESTUDIOS DE INTELIGENCIA ESTRATÉGICA MILITAR","codigo":"EM-MI-EI-01","desde":"2026-07-21","hasta":"2026-07-27","horas":30,"resp":["Tcnl. DEM. Edgar Ariel Diaz Andia"]},{"curso":"LOGISTICA","nombre":"TEORÍA DE LA LOGÍSTICA EN LA ESTRATEGIA MILITAR","codigo":"EM-ML-TL-01","desde":"2026-07-21","hasta":"2026-07-27","horas":30,"resp":["My. EB. Ricardo Dos Santos  Sales"]},{"curso":"RECURSOS HUMANOS","nombre":"DESARROLLO Y ESTRUCTURA ORGANIZACIONAL","codigo":"EM-MR-EO-01","desde":"2026-07-21","hasta":"2026-07-27","horas":30,"resp":["Tcnl. DEM. Sergio Hernán Morales Millan"]},{"curso":"1ER. CICLO","nombre":"HISTORIA MILITAR APLICADA I","codigo":"TS-EM-HM-01","desde":"2026-07-28","hasta":"2026-08-11","horas":48,"resp":["Cnl DAEN. Johann A.Montecinos Arnez My. DEM. Roger Fidel Pereira Cortez","My. DEM. Jeanette M. Salguero Llanos"]},{"curso":"ESTRATEGIA","nombre":"CONDUCCIÓN DE LA ESTRATEGIA MILITAR","codigo":"EM-ME-CE-02","desde":"2026-07-28","hasta":"2026-08-03","horas":30,"resp":["My. DEM. Brian Rolando Fernández Sejas"]},{"curso":"INTELIGENCIA","nombre":"ANÁLISIS DE LA AMENAZA Y EL PODER MILITAR","codigo":"EM-MI-AA-02","desde":"2026-07-28","hasta":"2026-08-03","horas":30,"resp":["My. DEM. Mario Pablo Soto Sanchez"]},{"curso":"LOGISTICA","nombre":"LA LOGÍSTICA EN EL NIVEL ESTRATÉGICO MILITAR","codigo":"EM-ML-LN-04","desde":"2026-07-28","hasta":"2026-08-03","horas":30,"resp":["Tcnl. DEM. Ivan Fuentes Álvarez"]},{"curso":"RECURSOS HUMANOS","nombre":"DESARROLLO HUMANO (LAS PERSONAS Y LAS ORGANIZACIONES)","codigo":"EM-MR-DH-02","desde":"2026-07-28","hasta":"2026-08-03","horas":30,"resp":["Tcnl. DEM. Bladimir Soto Farfan"]},{"curso":"ESTRATEGIA","nombre":"SEGURIDAD ESTRATÉGICA","codigo":"EM-ME-SE-03","desde":"2026-08-04","hasta":"2026-08-14","horas":36,"resp":["My. DEM. Charles Michael Ortiz Valencia"]},{"curso":"INTELIGENCIA","nombre":"ANÁLISIS Y PREDICCIÓN","codigo":"EM-MI-AP-03","desde":"2026-08-04","hasta":"2026-08-14","horas":36,"resp":["My. DEM. Raumi Vanya Sirpa Riveros"]},{"curso":"LOGISTICA","nombre":"COMANDOS Y ATRIBUCIONES","codigo":"EM-ML-CA-03","desde":"2026-08-04","hasta":"2026-08-14","horas":36,"resp":["Tcnl. DEM. Gaston Jarol Avila Rivas"]},{"curso":"RECURSOS HUMANOS","nombre":"GESTIÓN DE RECURSOS HUMANOS","codigo":"","desde":"2026-08-04","hasta":"2026-08-14","horas":36,"resp":["Tcnl. DEM. Danilo Héctor Aguirre Clavel"]},{"curso":"1ER. CICLO","nombre":"DERECHO INTERNACIONAL DE LOS CONFLICTOS ARMADOS","codigo":"TS-EM-DI-02","desde":"2026-08-12","hasta":"2026-08-24","horas":30,"resp":["Cnl. DAEN. Christian Yamil Tapia Salinas Tcnl. EP. Michael J. La Torre Sosaya","My. DEM. Alvaro Arandia Encinas"]},{"curso":"ESTRATEGIA","nombre":"CONSTITUCIÓN Y EQUIPAMIENTO DEL TEATRO DE OPERACIONES","codigo":"EM-ME-CE-04","desde":"2026-08-18","hasta":"2026-08-26","horas":30,"resp":["My. DEM. Miguel Ángel Zambrana Gómez"]},{"curso":"INTELIGENCIA","nombre":"PROCESO DE PRODUCCIÓN DE INTELIGENCIA ESTRATÉGICA","codigo":"EM-MI-PI-04","desde":"2026-08-18","hasta":"2026-08-26","horas":30,"resp":["My. DEM. Mario Pablo Soto Sanchez"]},{"curso":"LOGISTICA","nombre":"DIVISIÓN TERRITORIAL","codigo":"EM-ML-DT-02","desde":"2026-08-18","hasta":"2026-08-26","horas":30,"resp":["My. EB. Ricardo Dos Santos  Sales"]},{"curso":"RECURSOS HUMANOS","nombre":"RELACIÓN ENTRE LAS PERSONAS Y LAS ORGANIZACIONES","codigo":"","desde":"2026-08-18","hasta":"2026-08-26","horas":30,"resp":["Tcnl. DEM. Sergio Hernán Morales Millan"]},{"curso":"1ER. CICLO","nombre":"GUERRAS DE 4TA GENERACIÓN - TEORÍA Y BASES DE LA GUERRA ASIMÉTRICA – GUERRA SIN RESTRICCIÓN Y GUERRA HIBRIDA","codigo":"TS-EM-GC-03","desde":"2026-08-25","hasta":"2026-09-03","horas":42,"resp":["Cnl. DAEN. William G. Baptista Rocabado Cnl. DAEN. Roberto Serrano Valeriano","My. DEM. Alvaro Arandia Encinas"]},{"curso":"ESTRATEGIA","nombre":"MOVILIZACIÓN, CONCENTRACIÓN Y DESPLIEGUE ESTRATÉGICO","codigo":"EM-ME-MC-05","desde":"2026-08-28","hasta":"2026-09-03","horas":30,"resp":["My. DEM. Brian Rolando Fernández Sejas"]},{"curso":"INTELIGENCIA","nombre":"PROSPECTIVA ESTRATÉGICA","codigo":"EM-MI-PE-05","desde":"2026-08-28","hasta":"2026-09-03","horas":30,"resp":["My. DEM. Raumi Vanya Sirpa Riveros"]},{"curso":"LOGISTICA","nombre":"LA LOGÍSTICA EN APOYO AL EQUIPAMIENTO DEL TEATRO DE OPERACIONES","codigo":"EM-ML-LA-05","desde":"2026-08-28","hasta":"2026-09-03","horas":30,"resp":["Tcnl. DEM. Ivan Fuentes Álvarez"]},{"curso":"RECURSOS HUMANOS","nombre":"PLANIFICACIÓN ESTRATÉGICA DE LOS RR.HH","codigo":"EM-MR-PE-05","desde":"2026-08-28","hasta":"2026-09-03","horas":30,"resp":["Tcnl. DEM. Bladimir Soto Farfan"]},{"curso":"1ER. CICLO","nombre":"DOCTRINA DE PATRIOTAS","codigo":"TS-EM-DP-04","desde":"2026-09-04","hasta":"2026-09-16","horas":60,"resp":["Cnl. DAEN. Pedro Rene Wolff Baldiviezo","My. DEM. Roger Fidel Pereira Cortez","My. DEM. José Napoleón Goda Balcázar"]},{"curso":"2DO. CICLO","nombre":"PROCEDIMIENTOS LEGALES PARA LA ADMINISTRACIÓN DE LAS UNIDADES MILITARES","codigo":"EM-MR-PL-05","desde":"2026-09-04","hasta":"2026-09-11","horas":36,"resp":["Tcnl. DEM. Pedro Peter Gálvez Gálvez Tcnl. DEM. Nielsen A. Fernández Aliaga","Tcnl. DEM. Harold Sossa Montaño"]},{"curso":"2DO. CICLO","nombre":"ESTUDIO DE ESTADO MAYOR","codigo":"EM-AU-EE-01","desde":"2026-09-15","hasta":"2026-09-22","horas":36,"resp":["Cnl. DAEN. William G. Baptista Rocabado","Tcnl. DEM. Roger Jaldin Davila","My. DEM. Demis Henry Linares Alarcon"]},{"curso":"1ER. CICLO","nombre":"TEORÍA DE LAS ARMAS COMBINADAS","codigo":"TS-PC-TA-01","desde":"2026-09-18","hasta":"2026-09-28","horas":42,"resp":["Cnl DAEN. Johann A. Montecinos Arnez","Tcnl. DEM. Nielsen A. Fernández Aliaga","Tcnl. DEM. Daniel Angulo Antezana"]},{"curso":"2DO. CICLO","nombre":"SUMARIOS INFORMATIVOS","codigo":"EM-AU-SI-02","desde":"2026-09-25","hasta":"2026-10-05","horas":36,"resp":["Cnl. DAEN. Jhonny Pardo Pardo","Cnl. DAEN. Christian Yamil Tapia Salinas","My. DEM. Jeanette M. Salguero Llanos"]},{"curso":"1ER. CICLO","nombre":"TEORÍA Y CONDUCCIÓN DE LAS GG. UU. BB","codigo":"TS-PC-TC-02","desde":"2026-09-30","hasta":"2026-10-12","horas":48,"resp":["Cnl. DAEN. Roberto Serrano Valeriano","Cnl. DAEN. Marco A. Toranzo Guzmán","My. DEM. Alvaro Arandia Encinas"]},{"curso":"2DO. CICLO","nombre":"ELABORACIÓN DE PLANES","codigo":"EM-AU-EP-03","desde":"2026-10-06","hasta":"2026-10-13","horas":36,"resp":["My. DEM. José Napoleón Goda Balcázar","My. DEM. Raumi Vanya Sirpa Riveros","My. DEM. Charles Michael Ortiz Valencia"]},{"curso":"1ER. CICLO","nombre":"LA LOGÍSTICA EN LAS GG. UU. BB","codigo":"TS-PC-LG-03","desde":"2026-10-13","hasta":"2026-10-22","horas":48,"resp":["My. DEM. Demis Henry Linares Alarcon","My. DEM. Roger Fidel Pereira Cortez","My. DEM. José Napoleón Goda Balcázar"]},{"curso":"2DO. CICLO","nombre":"FORMULACIÓN Y EVALUACIÓN DE PROYECTOS","codigo":"EM-AU-FE-01","desde":"2026-10-14","hasta":"2026-10-23","horas":48,"resp":["Tcnl. DEM. Danilo Héctor Aguirre Clavel","My. DEM. Mario Pablo Soto Sanchez","My. DEM. Juan Marcelo Torrico Luizaga"]},{"curso":"1ER. CICLO","nombre":"PROCESO DE PLANEAMIENTO II","codigo":"TS-PC-PP-04","desde":"2026-10-23","hasta":"2026-11-05","horas":60,"resp":["Cnl. DAEN. Pedro Rene Wolff Baldiviezo","My. DEM. Juan Marcelo Torrico Luizaga","My. DEM. Brian Rolando Fernández Sejas"]},{"curso":"2DO. CICLO","nombre":"ELABORACIÓN DEL POA","codigo":"EM-AU-EP-02","desde":"2026-10-30","hasta":"2026-11-05","horas":24,"resp":["Tcnl. DEM. Gaston Jarol Avila Rivas","My. DEM. Juan Marcelo Torrico Luizaga","My. DEM. Demis Henry Linares Alarcon"]},{"curso":"2DO. CICLO","nombre":"ADMINISTRACIÓN FINANCIERA DE UNIDADES","codigo":"EM-AU-AF-03","desde":"2026-11-09","hasta":"2026-11-13","horas":30,"resp":["My. DEM. Miguel Ángel Zambrana Gómez","My. DEM. Jeanette M. Salguero Llanos My. DEM. Alvaro Arandia Encinas"]}],"evaluaciones":{"2026-01-26":{"1ER CICLO":"S"},"2026-02-09":{"1ER CICLO":"S"},"2026-03-16":{"1ER CICLO":"F","2DO CICLO":"S"},"2026-03-30":{"1ER CICLO":"S"},"2026-04-06":{"1ER CICLO":"F","2DO CICLO":"F"},"2026-04-27":{"1ER CICLO":"F"},"2026-05-04":{"1ER CICLO":"F","2DO CICLO":"S"},"2026-05-11":{"1ER CICLO":"F"},"2026-06-01":{"1ER CICLO":"S","2DO CICLO":"S"},"2026-06-15":{"1ER CICLO":"S","2DO CICLO":"F"},"2026-03-03":{"1ER CICLO":"F","2DO CICLO":"F"},"2026-03-24":{"1ER CICLO":"F","2DO CICLO":"S"},"2026-05-19":{"1ER CICLO":"F","2DO CICLO":"S"},"2026-06-02":{"1ER CICLO":"F"},"2026-06-09":{"1ER CICLO":"F","2DO CICLO":"F"},"2026-02-18":{"1ER CICLO":"S"},"2026-02-25":{"1ER CICLO":"S"},"2026-03-11":{"1ER CICLO":"F","2DO CICLO":"F"},"2026-04-29":{"1ER CICLO":"F"},"2026-05-06":{"1ER CICLO":"S"},"2026-05-27":{"1ER CICLO":"F"},"2026-02-12":{"1ER CICLO":"F"},"2026-03-19":{"1ER CICLO":"F","2DO CICLO":"F"},"2026-04-23":{"1ER CICLO":"F"},"2026-05-14":{"1ER CICLO":"S"},"2026-03-27":{"1ER CICLO":"F"},"2026-04-10":{"1ER CICLO":"S"},"2026-05-22":{"1ER CICLO":"S","2DO CICLO":"F"},"2026-07-20":{"1ER CICLO":"S","2DO CICLO":"S"},"2026-07-27":{"1ER CICLO":"S","2DO CICLO":"S"},"2026-08-03":{"1ER CICLO":"F","2DO CICLO":"S"},"2026-08-24":{"1ER CICLO":"S","2DO CICLO":"F"},"2026-09-28":{"1ER CICLO":"S"},"2026-10-05":{"1ER CICLO":"F","2DO CICLO":"S"},"2026-10-12":{"1ER CICLO":"S"},"2026-10-19":{"1ER CICLO":"F","2DO CICLO":"F"},"2026-08-11":{"1ER CICLO":"S","2DO CICLO":"F"},"2026-07-15":{"1ER CICLO":"F"},"2026-09-16":{"1ER CICLO":"S"},"2026-09-23":{"1ER CICLO":"F"},"2026-07-23":{"1ER CICLO":"F","2DO CICLO":"F"},"2026-09-03":{"1ER CICLO":"S","2DO CICLO":"S"},"2026-10-22":{"1ER CICLO":"S"},"2026-10-29":{"1ER CICLO":"F"},"2026-11-05":{"1ER CICLO":"S"},"2026-08-14":{"1ER CICLO":"F","2DO CICLO":"S"},"2026-08-28":{"1ER CICLO":"F"},"2026-01-19":{"2DO CICLO":"S"},"2026-04-20":{"2DO CICLO":"F"},"2026-06-08":{"2DO CICLO":"S"},"2026-06-22":{"2DO CICLO":"F"},"2026-01-27":{"2DO CICLO":"S"},"2026-02-03":{"2DO CICLO":"S"},"2026-02-10":{"2DO CICLO":"S"},"2026-05-12":{"2DO CICLO":"S"},"2026-05-26":{"2DO CICLO":"S"},"2026-06-23":{"2DO CICLO":"F"},"2026-01-14":{"2DO CICLO":"F"},"2026-06-10":{"2DO CICLO":"F"},"2026-02-19":{"2DO CICLO":"S"},"2026-02-26":{"2DO CICLO":"S"},"2026-04-30":{"2DO CICLO":"F"},"2026-05-28":{"2DO CICLO":"F"},"2026-06-11":{"2DO CICLO":"F"},"2026-06-18":{"2DO CICLO":"F"},"2026-01-23":{"2DO CICLO":"F"},"2026-01-30":{"2DO CICLO":"F"},"2026-02-06":{"2DO CICLO":"F"},"2026-02-13":{"2DO CICLO":"F"},"2026-03-06":{"2DO CICLO":"S"},"2026-04-24":{"2DO CICLO":"S"},"2026-05-08":{"2DO CICLO":"F"},"2026-05-15":{"2DO CICLO":"F"},"2026-06-05":{"2DO CICLO":"F"},"2026-06-12":{"2DO CICLO":"F"},"2026-06-19":{"2DO CICLO":"F"},"2026-08-25":{"2DO CICLO":"F"},"2026-09-01":{"2DO CICLO":"F"},"2026-09-08":{"2DO CICLO":"F"},"2026-09-22":{"2DO CICLO":"S"},"2026-10-13":{"2DO CICLO":"S"},"2026-11-03":{"2DO CICLO":"F"},"2026-08-19":{"2DO CICLO":"S"},"2026-08-26":{"2DO CICLO":"S"},"2026-09-30":{"2DO CICLO":"F"},"2026-07-16":{"2DO CICLO":"F"},"2026-07-30":{"2DO CICLO":"F"},"2026-09-17":{"2DO CICLO":"F"},"2026-10-08":{"2DO CICLO":"F"},"2026-09-11":{"2DO CICLO":"S"},"2026-10-23":{"2DO CICLO":"S"}},"md":{"2026-03-16":{"1ER CICLO":true},"2026-04-27":{"1ER CICLO":true},"2026-05-11":{"1ER CICLO":true},"2026-06-22":{"1ER CICLO":true},"2026-02-24":{"1ER CICLO":true},"2026-03-03":{"1ER CICLO":true},"2026-03-24":{"1ER CICLO":true},"2026-05-12":{"1ER CICLO":true},"2026-05-19":{"1ER CICLO":true},"2026-06-23":{"1ER CICLO":true},"2026-03-11":{"1ER CICLO":true},"2026-04-29":{"1ER CICLO":true},"2026-05-13":{"1ER CICLO":true},"2026-05-20":{"1ER CICLO":true},"2026-05-27":{"1ER CICLO":true},"2026-06-17":{"1ER CICLO":true},"2026-03-19":{"1ER CICLO":true},"2026-04-09":{"1ER CICLO":true},"2026-04-16":{"1ER CICLO":true},"2026-04-23":{"1ER CICLO":true},"2026-05-21":{"1ER CICLO":true},"2026-05-28":{"1ER CICLO":true},"2026-02-27":{"1ER CICLO":true},"2026-03-06":{"1ER CICLO":true},"2026-03-27":{"1ER CICLO":true},"2026-05-29":{"1ER CICLO":true},"2026-06-19":{"1ER CICLO":true},"2026-11-09":{"1ER CICLO":true},"2026-11-23":{"1ER CICLO":true,"2DO CICLO":true},"2026-11-10":{"1ER CICLO":true},"2026-11-17":{"1ER CICLO":true,"2DO CICLO":true},"2026-11-11":{"1ER CICLO":true},"2026-11-18":{"1ER CICLO":true,"2DO CICLO":true},"2026-11-12":{"1ER CICLO":true},"2026-11-19":{"1ER CICLO":true,"2DO CICLO":true},"2026-11-20":{"1ER CICLO":true,"2DO CICLO":true},"2026-10-19":{"2DO CICLO":true},"2026-10-26":{"2DO CICLO":true},"2026-10-20":{"2DO CICLO":true},"2026-10-27":{"2DO CICLO":true},"2026-11-24":{"2DO CICLO":true},"2026-10-28":{"2DO CICLO":true},"2026-11-25":{"2DO CICLO":true},"2026-10-29":{"2DO CICLO":true},"2026-11-26":{"2DO CICLO":true},"2026-11-27":{"2DO CICLO":true}}};
 
 // ============================================================
 // v2.9.293 — MOTOR: genera el horario del ciclo desde los documentos oficiales
@@ -37554,7 +37871,15 @@ const _PL_MARCADORES = {
 };
 const _PL_MENCIONES = ['ESTRATEGIA','INTELIGENCIA','LOGISTICA','RECURSOS HUMANOS'];
 
-function _plEsCodigo(c){ return /^[A-Z]{2}-[A-Z]{2}(-[A-Z]{2})?(-\d{2})?$/.test(String(c||'').trim()); }
+// ¿el texto de la celda del calendario es un CÓDIGO de U.C. o un marcador?
+// v2.9.305: la regla vieja pedía exactamente 2 dígitos al final y dejaba afuera
+// códigos reales del ANEXO — EM-AU-EP-002, TR-TT-II-002, TR-TT-III-03,
+// TR-DT- PR-01 (con espacio) y (TI-MI-DG-01) (entre paréntesis). Esos días
+// salían marcados como feriado y se perdía la clase entera.
+function _plEsCodigo(c){
+  const t=String(c||'').trim().replace(/[()]/g,'').replace(/-\s+/g,'-');
+  return /^[A-Z]{2}-[A-Z]{2}(-[A-Z0-9]{1,4})*$/.test(t);
+}
 function _plModuloDe(cod){
   const p=String(cod||'').split('-'); if(p.length<2) return '';
   return _PL_MODULOS[p[0]+'-'+p[1]] || '';
@@ -37567,6 +37892,63 @@ function _plMateriasEn(iso, cursos){
   });
 }
 
+// ============================================================
+// v2.9.305 — CORRER MATERIAS (adelantar / atrasar)
+// ------------------------------------------------------------
+// Cuando un acto de aniversario, un feriado o una conferencia empuja el
+// calendario, el ANEXO oficial ya no coincide con la realidad. En vez de
+// corregir día por día se define un AJUSTE: "del 17-ago en adelante, adelantar
+// 5 días hábiles". El motor entonces, para el día D, va a buscar al calendario
+// lo que cae 5 días hábiles MÁS ADELANTE — o sea que las materias se adelantan.
+// Negativo = atrasarlas. Los ajustes se acumulan y viven en datos.cab.ajustes,
+// así que se arrastran solos al duplicar la semana (no hacen falta ni tabla
+// nueva ni cambios en la Edge Function).
+// ============================================================
+function _plCorrerHabiles(iso, n){
+  let d=iso; const paso = n<0 ? -1 : 1; let q=Math.abs(n|0);
+  let tope=0;
+  while(q>0 && tope++<400){
+    d=_plMasDias(d,paso);
+    const w=_plD(d).getDay();
+    if(w>=1 && w<=5) q--;
+  }
+  return d;
+}
+// Los ajustes viven DENTRO del bloque del ciclo (datos.c1 / datos.c2), no en
+// `cab`: el guardado es por bloque y la pestaña del ciclo solo manda el suyo.
+// Si estuvieran en `cab`, editarlos desde esa pestaña no los guardaría nunca.
+function _plAjustesDe(k){
+  const b=(PLANIF.sem && PLANIF.sem.datos && PLANIF.sem.datos[k]) || {};
+  return Array.isArray(b.ajustes) ? b.ajustes : [];
+}
+function _plAjustesArr(k){
+  const b=PLANIF.sem.datos[k];
+  if(!Array.isArray(b.ajustes)) b.ajustes=[];
+  return b.ajustes;
+}
+// Fecha del calendario académico de la que hay que leer el día `iso`.
+function _plFechaFuente(iso, k){
+  let n=0;
+  _plAjustesDe(k).forEach(function(a){
+    if(a && a.desde && iso>=a.desde) n += (parseInt(a.dias,10)||0);
+  });
+  return n ? _plCorrerHabiles(iso, n) : iso;
+}
+// ¿el ANEXO marca este día con la línea cruzada (clases mañana Y tarde)?
+function _plMananaTarde(iso, ciclo){
+  if(typeof PLAN_DATOS==='undefined') return false;
+  const c = (ciclo==='c1'||ciclo==='1ER CICLO') ? '1ER CICLO' : '2DO CICLO';
+  return !!(((PLAN_DATOS.md||{})[iso]||{})[c]);
+}
+// Tipo de evaluación del día: 'S' sumativa (recuadro amarillo del ANEXO),
+// 'F' formativa (la estrellita), o '' si no hay.
+function _plTipoEval(iso, ciclo){
+  if(typeof PLAN_DATOS==='undefined') return '';
+  const v=((PLAN_DATOS.evaluaciones||{})[iso]||{})[ciclo];
+  if(!v) return '';
+  return (v===true) ? 'F' : String(v).toUpperCase().charAt(0);   // true = dato viejo
+}
+
 // ---- el motor ----
 // Devuelve {llenados, feriados, sinDato} y deja el bloque listo para revisar.
 function plGenerarDesdeCalendario(k, silencioso){
@@ -37575,11 +37957,16 @@ function plGenerarDesdeCalendario(k, silencioso){
   const b=s.datos[k];
   const ciclo = (k==='c1') ? '1ER CICLO' : '2DO CICLO';
   const cursoBase = (k==='c1') ? '1ER. CICLO' : '2DO. CICLO';
-  const res={llenados:0, feriados:0, sinDato:0, evaluaciones:0};
+  const res={llenados:0, feriados:0, sinDato:0, formativas:0, sumativas:0,
+             mananaTarde:0, corridos:0};
 
   (b.dias||[]).forEach(function(d,idx){
     if(idx>=5) return;                                  // sáb/dom no son días académicos
-    const cod = ((PLAN_DATOS.calendario||{})[d.iso]||{})[ciclo] || '';
+    // v2.9.305: si hay un corrimiento de materias cargado, el día se lee de OTRA
+    // fecha del calendario académico (adelantada o atrasada en días hábiles).
+    const src = _plFechaFuente(d.iso, k);
+    if(src!==d.iso) res.corridos++;
+    const cod = ((PLAN_DATOS.calendario||{})[src]||{})[ciclo] || '';
     if(!cod){ res.sinDato++; return; }
 
     // 1) marcador → el día entero
@@ -37591,12 +37978,18 @@ function plGenerarDesdeCalendario(k, silencioso){
 
     // 2) clase → cruce por fecha con el Excel de materias
     d.libre='';
-    let mats=_plMateriasEn(d.iso,[cursoBase]);
-    if(k==='c2' && !mats.length) mats=_plMateriasEn(d.iso,_PL_MENCIONES);   // época de menciones
+    // v2.9.305: la TARDE se rearma antes de llenar, porque el ANEXO puede marcar
+    // este día como de clases mañana Y tarde (la línea negra cruzada). Si es así
+    // aparecen dos bloques de clase a la tarde en vez de "a disposición".
+    const md=_plMananaTarde(src, ciclo);
+    _plRearmarTarde(d, k, idx, md);
+    if(md) res.mananaTarde++;
+    let mats=_plMateriasEn(src,[cursoBase]);
+    if(k==='c2' && !mats.length) mats=_plMateriasEn(src,_PL_MENCIONES);   // época de menciones
     if(!mats.length){
       // el calendario dice que hay clase pero la lista de materias no la cubre:
       // se deja al menos el código para que no quede en blanco.
-      (d.filas||[]).forEach(function(f){ if(!f.span && !f.uc){ f.codigo=cod; } });
+      (d.filas||[]).forEach(function(f){ if(!f.span && !f.fijo && !f.uc){ f.codigo=cod; } });
       res.sinDato++;
       return;
     }
@@ -37609,24 +38002,27 @@ function plGenerarDesdeCalendario(k, silencioso){
     const mod = esMencion ? 'MENCIONES' : _plModuloDe(mats[0].codigo||cod);
 
     (d.filas||[]).forEach(function(f){
-      if(f.span) return;                                 // no pisar PARTE/DESCANSO/etc.
+      // No pisar PARTE / DESCANSO / EFM / DEPORTES: son filas fijas del horario.
+      if(f.span || f.fijo) return;
       f.modulo=mod; f.uc=uc; f.codigo=cds; f.resp=rsp;
       if(!f.lugar) f.lugar='AULAS';
       f.unif=_plUnifDia(idx,f);                          // uniforme del tramo
     });
 
-    // v2.9.297: EVALUACIÓN. En el ANEXO se marca con una estrellita (imagen flotante);
-    // sus anclas se leyeron del binario del .xls y quedaron en PLAN_DATOS.evaluaciones.
-    // Comprobado: la del 3-ago/1er ciclo cae donde el horario firmado puso la formativa,
-    // y la del 11-ago/2do ciclo es la de menciones de esta semana.
-    if(((PLAN_DATOS.evaluaciones||{})[d.iso]||{})[ciclo]){
-      const prim=(d.filas||[]).find(function(f){ return !f.span && f.uc; });
+    // v2.9.305: EVALUACIÓN, ahora DISTINGUIENDO EL TIPO. En el ANEXO la formativa
+    // es la estrellita (imagen flotante) y la sumativa es el RECUADRO AMARILLO
+    // (un rectángulo dibujado con línea amarilla). Las dos se leyeron del binario
+    // del .xls y quedaron en PLAN_DATOS.evaluaciones como 'F' y 'S'.
+    const tipoEv=_plTipoEval(src, ciclo);
+    if(tipoEv){
+      const et = (tipoEv==='S') ? 'EVALUACIÓN SUMATIVA' : 'EVALUACIÓN FORMATIVA';
+      const prim=(d.filas||[]).find(function(f){ return !f.span && !f.fijo && f.uc; });
       if(prim){
-        prim.uc = 'EVALUACIÓN\n'+prim.uc;
+        prim.uc = et+'\n'+prim.uc;
         prim.resp = 'SUB SECCIÓN EVALUACIONES';
-        d.evaluacion = true;
+        d.evaluacion = tipoEv;
       }
-      res.evaluaciones++;
+      if(tipoEv==='S') res.sumativas++; else res.formativas++;
     }
     res.llenados++;
   });
@@ -37637,9 +38033,134 @@ function plGenerarDesdeCalendario(k, silencioso){
   alert('⚡ Horario generado desde los documentos oficiales\n\n'
     +'• '+res.llenados+' día(s) con clase (U.C. + código + responsables)\n'
     +'• '+res.feriados+' día(s) de feriado / asueto / acto\n'
-    +(res.evaluaciones?('• '+res.evaluaciones+' EVALUACIÓN(ES) según la estrellita del calendario\n'):'')
+    +(res.formativas?('• '+res.formativas+' evaluación(es) FORMATIVA(S) — la estrellita del calendario\n'):'')
+    +(res.sumativas?('• '+res.sumativas+' evaluación(es) SUMATIVA(S) — el recuadro amarillo del calendario\n'):'')
+    +(res.mananaTarde?('• '+res.mananaTarde+' día(s) con CLASES DE MAÑANA Y TARDE — la línea cruzada\n'):'')
+    +(res.corridos?('• '+res.corridos+' día(s) leídos CORRIDOS por el ajuste de materias\n'):'')
     +(res.sinDato?('• '+res.sinDato+' día(s) sin dato en el calendario — revisalos a mano\n'):'')
     +'\nRevisá y corregí lo que haga falta antes de descargar el Word.');
+}
+
+// ============================================================
+// v2.9.305 — UI: CORRER MATERIAS y ELEGIR LA MATERIA DE UN DÍA
+// ============================================================
+function _plCursosDe(k){
+  return (k==='c1') ? ['1ER. CICLO'] : ['2DO. CICLO'].concat(_PL_MENCIONES);
+}
+// Todas las U.C. del ciclo (no solo las vigentes hoy), para el desplegable.
+function _plMateriasDe(k){
+  if(typeof PLAN_DATOS==='undefined') return [];
+  const cursos=_plCursosDe(k);
+  const vistas={}, out=[];
+  (PLAN_DATOS.materias||[]).forEach(function(m){
+    if(cursos.indexOf(m.curso)<0) return;
+    const key=(m.codigo||'')+'|'+m.nombre;
+    if(vistas[key]) return;
+    vistas[key]=1; out.push(m);
+  });
+  out.sort(function(a,b){ return String(a.desde).localeCompare(String(b.desde)); });
+  return out;
+}
+function plAjusteAdd(k){
+  const s=PLANIF.sem; if(!s) return;
+  _plAjustesArr(k).push({ desde:s.fecha_desde, dias:5 });
+  plMarcarSucio(); plRenderEditor();
+}
+function plAjusteDel(k,i){
+  _plAjustesArr(k).splice(i,1);
+  plMarcarSucio(); plRenderEditor();
+}
+// Atajo: adelantar o atrasar una semana entera (5 días hábiles) desde el lunes
+// de la semana abierta. Es el caso real: el aniversario corrió todo una semana.
+function plAjusteRapido(k, dias){
+  const s=PLANIF.sem; if(!s) return;
+  _plAjustesArr(k).push({ desde:s.fecha_desde, dias:dias });
+  plMarcarSucio();
+  plGenerarDesdeCalendario(k);
+}
+// Pinta UN día con la materia elegida a mano. `val` es 'C:<codigo>' para una
+// U.C. o 'M:<texto>' para un feriado / acto / día libre.
+function plDiaMateria(k,i,val){
+  const s=PLANIF.sem; if(!s || !val) return;
+  const b=s.datos[k], d=b.dias[i]; if(!d) return;
+  if(val.indexOf('M:')===0){
+    d.libre=val.slice(2);
+    plMarcarSucio(); plRenderEditor(); return;
+  }
+  const cod=val.slice(2);
+  const mats=_plMateriasDe(k).filter(function(m){ return (m.codigo||'')===cod; });
+  if(!mats.length) return;
+  d.libre='';
+  const esMencion = _PL_MENCIONES.indexOf(mats[0].curso)>=0;
+  const uc  = mats[0].nombre;
+  const rsp = (mats[0].resp||[]).join('\n');
+  const mod = esMencion ? 'MENCIONES' : _plModuloDe(cod);
+  (d.filas||[]).forEach(function(f){
+    if(f.span || f.fijo) return;
+    f.modulo=mod; f.uc=uc; f.codigo=cod; f.resp=rsp;
+    if(!f.lugar) f.lugar='AULAS';
+    f.unif=_plUnifDia(i,f);
+  });
+  plMarcarSucio(); plRenderEditor();
+}
+
+// ---- filas antes de las 08:00 ----
+// El horario firmado tiene actividades desde las 05:50 los días de EFM. Antes
+// había que tipear las 7 columnas a mano; ahora se eligen de esta lista y la
+// fila se inserta ORDENADA por hora.
+const PL_PRESETS_TEMPRANO = [
+  {d:'05:50',h:'05:55',t:'PARTE AL SR. JEFE DE ESTUDIOS',      l:PL_LUGAR_EFM, r:'JEFES DE SECCIÓN', u:PL_UNIF_EFM},
+  {d:'05:55',h:'06:00',t:'PARTE AL SR. COMANDANTE ECEME.',     l:PL_LUGAR_EFM, r:'JEFE DE ESTUDIOS', u:PL_UNIF_EFM},
+  {d:'06:00',h:'06:50',t:'ENTRENAMIENTO FÍSICO MILITAR',       l:PL_LUGAR_EFM, r:'JEFES DE SECCIÓN', u:PL_UNIF_EFM},
+  {d:'06:50',h:'07:15',t:'ASEO PERSONAL',                      l:'ECEME.',     r:'JEFE DE CURSO',    u:PL_UNIF_EFM},
+  {d:'07:15',h:'07:30',t:'REVISIÓN DE UNIFORMES Y DOCUMENTACIÓN PERSONAL', l:'PATIO DE HONOR', r:'JEFE DE CURSO', u:'N° 3-C'},
+  {d:'07:30',h:'08:00',t:'PARTE AL SR. COMANDANTE DE LA ECEME. E IZA DE LA BANDERA', l:'PATIO DE HONOR', r:'JEFE DE ESTUDIOS', u:'N° 3-C  CON SABLE'},
+  {d:'07:35',h:'08:00',t:'PARTE AL SR. COMANDANTE ECEME. E IZA DE LA BANDERA', l:'PATIO DE HONOR', r:'JEFE DE ESTUDIOS', u:'N° 3-C  CON SABLE'},
+  {d:'07:55',h:'08:00',t:'PARTE AL SR. COMANDANTE ECEME.',     l:'PATIO DE HONOR', r:'JEFE DE ESTUDIOS', u:'N° 3-C'},
+  {d:'07:55',h:'08:00',t:'PARTE AL JEFE DE CURSO',             l:'PATIO DE HONOR', r:'JEFE DE ESTUDIOS', u:'N° 3-C'},
+  {d:'08:10',h:'08:15',t:'PARTE AL SR. JEFE DE ESTUDIOS',      l:'PATIO DE HONOR', r:'JEFES DE SECCIÓN', u:'N° 3-C'}
+];
+function plFilaTemprano(k,i,idx){
+  const p=PL_PRESETS_TEMPRANO[parseInt(idx,10)]; if(!p) return;
+  const d=PLANIF.sem.datos[k].dias[i]; if(!d) return;
+  const f = (k==='planta')
+    ? _plFilaPlanta(p.d,p.h,p.t,p.l,'TODOS',p.r,p.u)
+    : _plFilaCiclo(p.d,p.h,'',p.t,'',p.l,p.u,p.r);
+  f.fijo=true;
+  d.filas=d.filas||[];
+  // insertar ordenado por hora de inicio
+  let pos=d.filas.findIndex(function(x){ return x.desde && _plMin(x.desde) > _plMin(p.d); });
+  if(pos<0) pos=d.filas.length;
+  d.filas.splice(pos,0,f);
+  plMarcarSucio(); plRenderEditor();
+}
+function _plSelTemprano(k,i){
+  let o='<option value="">＋ Antes de las 08:00…</option>';
+  PL_PRESETS_TEMPRANO.forEach(function(p,j){
+    o+='<option value="'+j+'">'+_plEsc(p.d+'-'+p.h+'  '+p.t)+'</option>';
+  });
+  return '<select class="pl-i pl-add" style="max-width:330px;display:inline-block;width:auto"'
+    +' onchange="plFilaTemprano(\''+k+'\','+i+',this.value); this.value=\'\'">'+o+'</select>';
+}
+
+// Rehace SOLO el tramo de la tarde (13:00 en adelante) de un día del ciclo.
+// Devuelve true si algo cambió. Se usa desde el motor: un mismo día puede pasar
+// de "a disposición" a tener clases de tarde (o a deportes) según el ANEXO, y
+// hay que poder ir y volver sin dejar filas huérfanas.
+function _plRearmarTarde(d, k, idx, md){
+  if(!d || !Array.isArray(d.filas)) return false;
+  const manana=d.filas.filter(function(f){ return !_plEsTarde(f); });
+  const nuevas=[];
+  _plTardeCiclo(nuevas, k, idx, md);
+  // Se compara la ESTRUCTURA, no el contenido: las filas de clase salen vacías de
+  // acá y las llena el motor un instante después. Si se comparara la U.C. se
+  // rearmaría en cada pasada y el contador diría cualquier cosa.
+  const forma=function(f){ return [f.desde,f.hasta,f.span?1:0,f.fijo?1:0,f.span?(f.uc||f.act||''):'']; };
+  const antes=JSON.stringify(d.filas.filter(_plEsTarde).map(forma));
+  const ahora=JSON.stringify(nuevas.map(forma));
+  if(antes===ahora) return false;
+  d.filas=manana.concat(nuevas);
+  return true;
 }
 
 // ============================================================
