@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.302</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.303</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -10678,13 +10678,20 @@ async function guardarEdicionSancion(){
       const {data:_ss}=await sb.from('solicitudes_anulacion').select('*').eq('sancion_id',editandoSancionId).order('fecha_creacion',{ascending:false}).limit(5);
       _solE=(_ss||[]).find(x=>String(x.estado||'')==='aprobado')||(_ss||[])[0]||null;
     }catch(_){ }
-    const _bodyE = { accion:'editar', token:_tok, sancion_id:editandoSancionId, cambios:cambios, previo:previo, razon:razon, usuario_nombre:currentUser.nombre_completo, registrar:_reg };
+    const _bodyE = { accion:'editar', token:_tok, sancion_id:editandoSancionId, cambios:cambios, previo:previo, razon:razon, usuario_nombre:currentUser.nombre_completo, registrar:_reg,
+      decision_final:'MODIFICADA por '+currentUser.nombre_completo+': '+razon };
     if(_solE){
       _bodyE.por_solicitud=true;
-      _bodyE.solicitante_nombre=_solE.profesor_nombre||_solE.solicitante_nombre||_solE.cursante_nombre||null;
+      _bodyE.solicitante_nombre=_solE.cursante_nombre||_solE.profesor_nombre||_solE.solicitante_nombre||null;
       _bodyE.solicitud_fecha=_solE.fecha_creacion||null;
-      _bodyE.solicitud_motivo=_solE.motivo||_solE.detalle_profesor||_solE.comentario_disciplina||_solE.detalle_cursante||_solE.comentario||null;
-      _bodyE.decision_final=_solE.comentario_comandante||('MODIFICADA por '+currentUser.nombre_completo+': '+razon);
+      _bodyE.solicitud_motivo=_solE.motivo||_solE.detalle_cursante||_solE.detalle_profesor||_solE.comentario_disciplina||_solE.comentario||null;
+      _bodyE.decision_final=_solE.comentario_comandante||_bodyE.decision_final;
+    } else {
+      // v2.9.303: sin solicitud en el sistema, igual hay que dejar asentado a pedido de
+      // quién se modifica (o que fue de oficio). Vacío = de oficio.
+      const q = prompt('¿A SOLICITUD DE QUIÉN se modifica esta sanción?\n\nGrado y nombre de quien lo pidió.\nDejá VACÍO si es DE OFICIO (decisión propia).');
+      if(q===null) return;                    // canceló — el finally restaura el botón
+      if(q.trim()) _bodyE.solicitante_nombre=q.trim();
     }
     const { data: r, error: efErr } = await sb.functions.invoke('sanciones-ops', { body: _bodyE });
     if(efErr){
@@ -10726,15 +10733,38 @@ async function anularSancionDirecto(sancionId){
     alert('La razón debe tener al menos 5 caracteres.');
     return;
   }
-  const confirmar = confirm(`¿Confirmás anular esta sanción?\n\nLos ${s.puntos_aplicados||0} pts serán removidos del cómputo del cursante. La sanción queda marcada como anulada (no se borra físicamente).`);
+  // v2.9.303: TODA anulación debe decir A SOLICITUD DE QUIÉN. Si hay una solicitud
+  // presentada por el sistema se toma de ahí; si no, se pregunta. Vacío = de oficio.
+  let _solA = null;
+  try{
+    const {data:_ss} = await sb.from('solicitudes_anulacion').select('*').eq('sancion_id',String(sancionId)).order('fecha_creacion',{ascending:false}).limit(5);
+    _solA = (_ss||[]).find(x=>String(x.estado||'')==='aprobado') || (_ss||[]).find(x=>_solPendiente(x)) || null;
+  }catch(_){ }
+  let _solNombreA = null, _solFechaA = null, _solMotivoA = null;
+  if(_solA){
+    _solNombreA = _solA.cursante_nombre||_solA.profesor_nombre||_solA.solicitante_nombre||null;
+    _solFechaA  = _solA.fecha_creacion||null;
+    _solMotivoA = _solA.motivo||_solA.detalle_cursante||_solA.detalle_profesor||_solA.comentario_disciplina||null;
+  } else {
+    const q = prompt('¿A SOLICITUD DE QUIÉN se anula?\n\nEscribí el grado y nombre de quien lo pidió.\nDejá VACÍO si la anulación es DE OFICIO (decisión propia).');
+    if(q===null) return;                       // canceló
+    if(q.trim()) _solNombreA = q.trim();
+  }
+  const confirmar = confirm(`¿Confirmás anular esta sanción?\n\nA solicitud de: ${_solNombreA||'DE OFICIO (sin solicitud previa)'}\nJustificativo: ${razon.trim()}\n\nLos ${s.puntos_aplicados||0} pts serán removidos del cómputo del cursante. La sanción queda marcada como anulada (no se borra físicamente).`);
   if(!confirmar) return;
   try{
     const ahora = new Date().toISOString();
     const _tok = getTokenSesion();
     const _reg = _rolEsCT() ? confirm('Sos C&T actuando DIRECTAMENTE.\n\n¿Registrar esta anulación en el HISTORIAL OFICIAL?\n\nAceptar = con registro oficial · Cancelar = sin registro (queda solo en auditoría interna)') : true;
-    const { data: r, error: efErr } = await sb.functions.invoke('sanciones-ops', {
-      body: { accion:'anular', token:_tok, sancion_id:sancionId, razon:razon.trim(), usuario_nombre:currentUser.nombre_completo, registrar:_reg }
-    });
+    const _bodyA = { accion:'anular', token:_tok, sancion_id:sancionId, razon:razon.trim(), usuario_nombre:currentUser.nombre_completo, registrar:_reg,
+      decision_final:'ANULADA por '+currentUser.nombre_completo+': '+razon.trim() };
+    // Nota: NO se manda `por_solicitud` — en la Edge Function ese flag fuerza el registro
+    // oficial y pisaría la elección de C&T. El solicitante se guarda igual.
+    if(_solNombreA){
+      _bodyA.solicitante_nombre=_solNombreA;
+      _bodyA.solicitud_fecha=_solFechaA; _bodyA.solicitud_motivo=_solMotivoA;
+    }
+    const { data: r, error: efErr } = await sb.functions.invoke('sanciones-ops', { body: _bodyA });
     if(efErr){
       let detalle = efErr.message || 'Error en sanciones-ops';
       try{ if(efErr.context && typeof efErr.context.json === 'function'){ const b = await efErr.context.json(); detalle = b.error || JSON.stringify(b); } }catch(_){}
@@ -13319,6 +13349,11 @@ function verSancionDetalle(sancionId){
     html += `<div class="sd-banner" style="background:linear-gradient(135deg,rgba(155,89,182,.25),rgba(155,89,182,.08));border-left:4px solid #9b59b6"><div class="sd-banner-title" style="color:#c49bdb">🟣 Anulada / Modificada</div><div class="sd-banner-sub" style="color:#a88bc0">Esta sanción ya no está vigente — el puntaje no se descuenta</div></div>`;
   }
 
+  // v2.9.303: RESOLUCIÓN. Toda sanción anulada, modificada o reactivada debe decir acá
+  // mismo QUIÉN la resolvió, A SOLICITUD DE QUIÉN y CON QUÉ JUSTIFICATIVO. Se llena
+  // asíncrono desde sanciones_audit + solicitudes_anulacion (ver _pintarResolucionSancion).
+  html += `<div id="sd-resolucion"></div>`;
+
   // Bloque 1: SOLO si es analógica → mostrar datos del registro analógico
   if(cls.tipo==='analogica'){
     html += `<div class="sd-block">
@@ -13433,6 +13468,9 @@ function verSancionDetalle(sancionId){
   document.getElementById('sd-content').innerHTML = html;
   showScreen('screen-sancion-detalle');
 
+  // v2.9.303: pintar el bloque de RESOLUCIÓN (quién / a solicitud de quién / por qué)
+  _pintarResolucionSancion(s.id, s);
+
   // Inicializar mapa si hay GPS (tras render del DOM)
   if(gps && gps.lat && gps.lng){
     setTimeout(()=>initLeafletMap(Number(gps.lat), Number(gps.lng)), 150);
@@ -13451,6 +13489,143 @@ function verSancionDetalle(sancionId){
       }
     }, 200);
   }
+}
+
+/* ===== v2.9.303: RESOLUCIÓN DE UNA SANCIÓN — fuente única de verdad ==========
+   Un solo recolector alimenta la ventana de detalle Y el informe Word, para que
+   jamás digan cosas distintas. Responde siempre las tres preguntas: QUIÉN resolvió,
+   A SOLICITUD DE QUIÉN y CON QUÉ JUSTIFICATIVO.                                */
+const _ACC_LABEL = {editar:'MODIFICADA', anular:'ANULADA', reactivar:'REACTIVADA', crear_manual:'CREADA MANUALMENTE'};
+const _ACC_ICONO = {editar:'✏️', anular:'🚫', reactivar:'↩️', crear_manual:'➕'};
+
+async function _resolucionSancionDatos(sancionId, s){
+  let aud=[], sols=[];
+  try{
+    const r=await sb.from('sanciones_audit').select('*').eq('sancion_id',String(sancionId)).order('creado_en',{ascending:true});
+    aud=r.data||[];
+  }catch(_){ }
+  try{
+    const r=await sb.from('solicitudes_anulacion').select('*').eq('sancion_id',String(sancionId)).order('fecha_creacion',{ascending:true});
+    sols=r.data||[];
+  }catch(_){ }
+  // El historial OFICIAL oculta las acciones directas de C&T sin registro; C&T sí las ve.
+  const esCT_ = (typeof _rolEsCT==='function') && _rolEsCT();
+  const visibles = aud.filter(a => a.registro_generado!==false || esCT_);
+
+  // Las solicitudes sirven de respaldo cuando la auditoría no guardó el solicitante
+  // (anulaciones hechas antes de que existiera el campo, o desde el formulario viejo).
+  const solTexto = so => so.motivo||so.detalle_profesor||so.detalle_cursante||so.comentario_disciplina||so.comentario||'';
+  const solNombre = so => so.cursante_nombre||so.profesor_nombre||so.solicitante_nombre||so.cursante_id||'—';
+  const solResuelta = sols.filter(so => String(so.estado||'')==='aprobado');
+
+  const acciones = visibles.map(a => {
+    let solicitante = a.solicitante_nombre||null, sFecha = a.solicitud_fecha||null, sMotivo = a.solicitud_motivo||null;
+    if(!solicitante && solResuelta.length){          // respaldo por solicitud aprobada
+      const so = solResuelta[solResuelta.length-1];
+      solicitante = solNombre(so); sFecha = so.fecha_creacion||null; sMotivo = solTexto(so)||null;
+    }
+    return {
+      accion: a.accion,
+      label: _ACC_LABEL[a.accion] || String(a.accion||'').toUpperCase(),
+      icono: _ACC_ICONO[a.accion] || '•',
+      autor: a.realizado_por_nombre || a.realizado_por || '—',
+      fecha: a.creado_en || null,
+      solicitante, solicitudFecha: sFecha, solicitudMotivo: sMotivo,
+      justificacion: a.razon || null,
+      ptsAntes: (a.puntos_antes==null?null:Number(a.puntos_antes)),
+      ptsDespues: (a.puntos_despues==null?null:Number(a.puntos_despues)),
+      decision: a.decision_final || null,
+      sinRegistro: a.registro_generado===false
+    };
+  });
+
+  // RESPALDO: sanciones anuladas/modificadas ANTES de que existiera sanciones_audit.
+  // Los datos viven en la propia fila de la sanción; sin esto la ventana quedaría muda.
+  if(!acciones.length && s){
+    if(s.anulada===true && (s.anulada_por_nombre||s.anulada_razon)){
+      acciones.push({accion:'anular', label:'ANULADA', icono:'🚫', autor:s.anulada_por_nombre||'—',
+        fecha:s.anulada_en||null, solicitante:(solResuelta[0]?solNombre(solResuelta[0]):null),
+        solicitudFecha:(solResuelta[0]?solResuelta[0].fecha_creacion:null),
+        solicitudMotivo:(solResuelta[0]?solTexto(solResuelta[0]):null),
+        justificacion:s.anulada_razon||null, ptsAntes:null, ptsDespues:null, decision:null, sinRegistro:false, respaldo:true});
+    } else if(String(s.estado||'')==='MODIFICADA' && (s.modificada_por||s.modificada_motivo)){
+      acciones.push({accion:'editar', label:'MODIFICADA', icono:'✏️', autor:s.modificada_por||'—',
+        fecha:s.modificada_en||null, solicitante:(solResuelta[0]?solNombre(solResuelta[0]):null),
+        solicitudFecha:(solResuelta[0]?solResuelta[0].fecha_creacion:null),
+        solicitudMotivo:(solResuelta[0]?solTexto(solResuelta[0]):null),
+        justificacion:s.modificada_motivo||null, ptsAntes:null, ptsDespues:null, decision:null, sinRegistro:false, respaldo:true});
+    }
+  }
+
+  // El tipo se guarda sin tilde en la columna; en el papel debe leerse bien escrito.
+  const TIPO_LBL = {reconsideracion:'reconsideración', anulacion:'anulación', modificacion:'modificación', reconsideración:'reconsideración'};
+  const solicitudes = sols.map(so => ({
+    nombre: solNombre(so), fecha: so.fecha_creacion||null, texto: solTexto(so),
+    tipo: TIPO_LBL[String(so.tipo_solicitud||'').toLowerCase()] || so.tipo_solicitud || 'reconsideración',
+    estado: (typeof _solEstado==='function') ? _solEstado(so) : (so.estado||'pendiente'),
+    resolucion: so.comentario_comandante||null,
+    esCursante: (typeof _solInfo==='function') ? _solInfo(so).esCursante : (so.origen==='cursante')
+  }));
+  return { acciones, solicitudes };
+}
+
+async function _pintarResolucionSancion(sancionId, s){
+  const cont = document.getElementById('sd-resolucion');
+  if(!cont) return;
+  let d;
+  try{ d = await _resolucionSancionDatos(sancionId, s); }
+  catch(e){ console.warn('resolución:', e); return; }
+  if(!cont.isConnected) return;                       // el usuario ya navegó a otra pantalla
+  if(!d.acciones.length && !d.solicitudes.length){ cont.innerHTML=''; return; }
+
+  const fmt = x => { try{ return x?new Date(x).toLocaleString('es-BO',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'—'; }catch(_){ return '—'; } };
+  const fmtD = x => { try{ return x?new Date(x).toLocaleDateString('es-BO'):'—'; }catch(_){ return '—'; } };
+  const fila = (lbl,val) => `<div class="sd-row"><span class="lbl">${lbl}</span><span class="vl">${val}</span></div>`;
+
+  let html = '';
+  if(d.acciones.length){
+    html += `<div class="sd-block" style="border-left:3px solid #9b59b6">
+      <div class="sd-block-title">⚖️ Resolución — quién, a pedido de quién y por qué</div>` +
+      d.acciones.map(a => {
+        const pts = (a.ptsAntes!=null&&a.ptsDespues!=null&&a.ptsAntes!==a.ptsDespues)
+          ? fila('Puntaje', `<span style="color:#e88a8a;text-decoration:line-through">−${a.ptsAntes}</span> → <span style="color:#7ac899">−${a.ptsDespues} pts</span>`) : '';
+        const solicitud = a.solicitante
+          ? fila('A solicitud de', `<strong style="color:#8fb8e8">${escapeHtml(String(a.solicitante))}</strong>${a.solicitudFecha?` <span style="font-size:11px;color:var(--text-muted)">(${fmtD(a.solicitudFecha)})</span>`:''}`)
+          : fila('A solicitud de', `<span style="color:var(--text-muted);font-style:italic">De oficio — sin solicitud previa registrada</span>`);
+        const motivoSol = a.solicitudMotivo
+          ? `<div style="margin:6px 0;padding:8px 10px;background:rgba(70,130,200,.10);border-left:3px solid #6a9fd8;border-radius:4px;font-size:12px;line-height:1.5;color:var(--text-secondary)"><strong>Lo que expuso el solicitante:</strong> <em>"${escapeHtml(String(a.solicitudMotivo))}"</em></div>` : '';
+        const just = a.justificacion
+          ? `<div style="margin:6px 0;padding:8px 10px;background:rgba(212,175,55,.10);border-left:3px solid var(--gold);border-radius:4px;font-size:12px;line-height:1.5;color:var(--text-primary)"><strong>Justificativo de la resolución:</strong> <em>"${escapeHtml(String(a.justificacion))}"</em></div>`
+          : `<div style="margin:6px 0;font-size:12px;color:#e8b46a;font-style:italic">⚠️ Sin justificativo registrado.</div>`;
+        const dec = a.decision ? `<div style="margin-top:4px;font-size:11px;color:#a3d4b5;font-style:italic">📋 ${escapeHtml(String(a.decision))}</div>` : '';
+        const flags = (a.sinRegistro?' <span style="font-size:10px;color:#e8c46a">🔇 sin registro oficial (solo C&T)</span>':'')
+                    + (a.respaldo?' <span style="font-size:10px;color:var(--text-muted)">· dato de la papeleta</span>':'');
+        return `<div style="margin-top:10px;padding-top:10px;border-top:1px dotted var(--border-subtle)">
+          <div style="font-size:13px;font-weight:700;color:#c49bdb;margin-bottom:6px">${a.icono} ${a.label}${flags}</div>
+          ${fila('Resuelta por', `<strong>${escapeHtml(String(a.autor))}</strong>`)}
+          ${fila('Fecha y hora', fmt(a.fecha))}
+          ${solicitud}${pts}${motivoSol}${just}${dec}
+        </div>`;
+      }).join('') + `</div>`;
+  }
+
+  if(d.solicitudes.length){
+    html += `<div class="sd-block" style="border-left:3px solid #6a9fd8">
+      <div class="sd-block-title">📨 Solicitudes presentadas sobre esta papeleta (${d.solicitudes.length})</div>` +
+      d.solicitudes.map(so => {
+        const badge = so.estado==='aprobado' ? '<span style="color:#7ac899;font-weight:700">✅ Aprobada</span>'
+                    : so.estado==='rechazado' ? '<span style="color:#e88a8a;font-weight:700">❌ Rechazada</span>'
+                    : '<span style="color:#e8c878;font-weight:700">⏳ Pendiente</span>';
+        return `<div style="margin-top:10px;padding-top:10px;border-top:1px dotted var(--border-subtle)">
+          ${fila('Solicitante', `${so.esCursante?'🎓':'✍️'} <strong>${escapeHtml(String(so.nombre))}</strong>`)}
+          ${fila('Presentada', fmtD(so.fecha))}
+          ${fila('Estado', badge)}
+          ${so.texto?`<div style="margin-top:6px;padding:8px 10px;background:rgba(70,130,200,.10);border-left:3px solid #6a9fd8;border-radius:4px;font-size:12px;line-height:1.5;color:var(--text-secondary)"><em>"${escapeHtml(String(so.texto))}"</em></div>`:''}
+          ${so.resolucion?`<div style="margin-top:6px;font-size:12px;color:#a3d4b5;font-style:italic">📋 Resolución: "${escapeHtml(String(so.resolucion))}"</div>`:''}
+        </div>`;
+      }).join('') + `</div>`;
+  }
+  cont.innerHTML = html;
 }
 
 function parseHF(hf){
@@ -14416,24 +14591,33 @@ async function generarInformeAccionSancion(tipo, sancionId, motivo){
   const _fmF=function(x){ try{ return x?_fechaMil(new Date(x)):'—'; }catch(_){ return '—'; } };
   const _sancionador = s.sancionador_nombre||s.profesor_nombre||s.registrado_por_nombre||s.creado_por_nombre||s.autor_nombre||null;
   cuerpo.push(`HISTORIAL COMPROBABLE DE LA SANCIÓN: La papeleta fue impuesta en fecha ${_fmF(s.fecha_original||s.fecha||s.creado_en)}${_sancionador?(' por '+_sancionador):''}, quedando registrada en el sistema con estado VIGENTE.`);
+  // v2.9.303: el informe se arma con EL MISMO recolector que la ventana de detalle, para
+  // que el papel y la pantalla no puedan contradecirse. Cada acción responde las tres
+  // preguntas: quién resolvió, a solicitud de quién y con qué justificativo.
+  if(s.observaciones_cursante && String(s.observaciones_cursante).trim()){
+    cuerpo.push(`Al momento de firmar la papeleta, el Oficial Superior Cursante dejó constancia de la siguiente observación: "${String(s.observaciones_cursante).trim()}".`);
+  }
   try{
-    const {data:_sols}=await sb.from('solicitudes_anulacion').select('*').eq('sancion_id',s.id).order('fecha_creacion',{ascending:true});
-    (_sols||[]).forEach(function(so){
-      const qn=so.profesor_nombre||so.solicitante_nombre||so.cursante_nombre||'—';
-      const tx=so.motivo||so.detalle_profesor||so.comentario_disciplina||so.detalle_cursante||so.comentario||'';
-      cuerpo.push(`En fecha ${_fmF(so.fecha_creacion)}, **${qn}** presentó por el sistema una solicitud de ${so.tipo_solicitud||'reconsideración'} sobre esta papeleta, exponiendo textualmente: "${tx}".${so.comentario_comandante?(' La solicitud fue resuelta de la siguiente manera: '+so.comentario_comandante+'.'):' La solicitud se encuentra '+(so.estado||'pendiente')+'.'}`);
+    const _res = await _resolucionSancionDatos(s.id, s);
+    _res.solicitudes.forEach(function(so){
+      cuerpo.push(`En fecha ${_fmF(so.fecha)}, **${so.nombre}** presentó por el sistema una solicitud de ${so.tipo} sobre esta papeleta, exponiendo textualmente: "${so.texto}".${so.resolucion?(' La solicitud fue resuelta de la siguiente manera: '+so.resolucion+'.'):(' La solicitud se encuentra '+so.estado+'.')}`);
     });
-  }catch(_){ }
-  try{
-    const {data:_aud}=await sb.from('sanciones_audit').select('*').eq('sancion_id',s.id).order('creado_en',{ascending:true});
-    (_aud||[]).filter(function(a){ return a.registro_generado!==false||_rolEsCT(); }).forEach(function(a){
-      const acc={editar:'modificada',anular:'anulada',reactivar:'reactivada',crear_manual:'creada manualmente'}[a.accion]||a.accion;
-      let linea=`En fecha ${_fmF(a.creado_en)}, la sanción fue **${acc}** por ${a.realizado_por_nombre||'—'}`;
-      if(a.puntos_antes!=null&&a.puntos_despues!=null&&a.puntos_antes!==a.puntos_despues) linea+=`, pasando de ${a.puntos_antes} a ${a.puntos_despues} punto(s)`;
-      if(a.solicitante_nombre) linea+=`, A SOLICITUD de **${a.solicitante_nombre}**${a.solicitud_fecha?(' (solicitud de fecha '+_fmF(a.solicitud_fecha)+')'):''}${a.solicitud_motivo?(', quien expuso: "'+a.solicitud_motivo+'"'):''}`;
-      if(a.razon) linea+=`. Justificación registrada: "${a.razon}"`;
+    _res.acciones.forEach(function(a){
+      const acc={ANULADA:'anulada',MODIFICADA:'modificada',REACTIVADA:'reactivada','CREADA MANUALMENTE':'creada manualmente'}[a.label]||String(a.label||'').toLowerCase();
+      let linea=`En fecha ${_fmF(a.fecha)}, la sanción fue **${acc}** por ${a.autor}`;
+      if(a.ptsAntes!=null&&a.ptsDespues!=null&&a.ptsAntes!==a.ptsDespues) linea+=`, pasando de ${a.ptsAntes} a ${a.ptsDespues} punto(s) de demérito`;
+      if(a.solicitante) linea+=`, A SOLICITUD de **${a.solicitante}**${a.solicitudFecha?(' (solicitud de fecha '+_fmF(a.solicitudFecha)+')'):''}${a.solicitudMotivo?(', quien expuso: "'+a.solicitudMotivo+'"'):''}`;
+      else linea+=`, DE OFICIO, sin que conste solicitud previa de parte`;
+      linea += a.justificacion
+        ? `. Justificativo registrado por la autoridad que resolvió: "${a.justificacion}"`
+        : `. No se registró justificativo para esta acción`;
+      if(a.decision) linea+=`. Decisión final asentada: "${a.decision}"`;
+      if(a.sinRegistro) linea+=`. (Acción directa de la Sub Sección de Ciencia y Tecnología, sin registro en el historial oficial)`;
       cuerpo.push(linea+'.');
     });
+    if(!_res.acciones.length && (s.anulada===true || String(s.estado||'')==='MODIFICADA')){
+      cuerpo.push(`ADVERTENCIA: la papeleta figura como ${(s.anulada===true)?'ANULADA':'MODIFICADA'} pero el sistema no conserva el registro de quién la resolvió ni el justificativo correspondiente, por tratarse de una acción anterior a la auditoría inmutable.`);
+    }
   }catch(_){ }
   const _estAct=(s.anulada===true)?'ANULADA':((s.estado==='MODIFICADA')?'MODIFICADA':'VIGENTE');
   cuerpo.push(`Estado actual de la papeleta: **${_estAct}**${(s.anulada!==true)?(', computando '+(s.puntos_aplicados||0)+' punto(s) de demérito en el puntaje del cursante'):' (no computa en el puntaje del cursante)'}. Todo lo señalado consta en la auditoría inmutable del sistema SIDECEME (fecha, hora, autor y motivo de cada acción) y puede ser verificado en cualquier momento. Se eleva el presente informe para conocimiento y fines consiguientes de su Autoridad.`);
