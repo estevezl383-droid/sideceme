@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.301</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.302</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5264,13 +5264,15 @@ body{
 
 <!-- DISC: SOLICITAR ANULACIÓN -->
 <section id="screen-solicitar-anulacion" class="screen">
-  <div class="app-header"><button class="back-btn" onclick="verSancionDetalle(selectedSancionId)">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Solicitar anulación</div><div class="header-sub">Comentario al Comandante</div></div></div>
+  <div class="app-header"><button class="back-btn" onclick="verSancionDetalle(selectedSancionId)">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Solicitar revisión</div><div class="header-sub">Vía Jefe de Disciplina</div></div></div>
   <div class="form-container"><div class="form-card">
     <div id="anul-sancion-info" style="margin-bottom:18px"></div>
     <div class="error-msg" id="err-anul"></div>
     <div class="field"><label>Comentario / Motivo</label><textarea id="anul-comentario" placeholder="Explicá por qué solicitás la revisión o anulación de esta sanción..."></textarea></div>
-    <div class="field"><label style="display:flex;align-items:center;gap:10px;cursor:pointer"><input type="checkbox" id="anul-enviar" style="width:auto"> <span>Enviar al Comandante para revisión</span></label></div>
-    <button class="btn-primary" id="btn-anul" onclick="enviarAnulacion()">Guardar solicitud</button>
+    <!-- v2.9.302: se retiró la casilla "Enviar al Comandante". Toda solicitud entra por el
+         Jefe de Disciplina, que resuelve o eleva al Comandante / Jefe de Estudios. -->
+    <div class="field"><div style="font-size:12px;line-height:1.5;color:var(--text-muted);background:rgba(212,175,55,.08);border-left:3px solid var(--gold);border-radius:6px;padding:10px 12px">📨 <strong>Conducto regular:</strong> la solicitud se registra a nombre del <strong>Jefe de Disciplina</strong>. Él la resuelve o la eleva al Comandante o al Jefe de Estudios si el caso lo amerita.</div></div>
+    <button class="btn-primary" id="btn-anul" onclick="enviarAnulacion()">📨 Enviar al Jefe de Disciplina</button>
     <button class="btn-secondary" onclick="verSancionDetalle(selectedSancionId)">Cancelar</button>
   </div></div>
 </section>
@@ -7538,9 +7540,10 @@ body.wg-jugando{overflow:hidden}
 
 <!-- DISC: ANULACIONES -->
 <section id="screen-anulaciones" class="screen with-bottom-nav">
-  <div class="app-header"><button class="back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Solicitudes de Anulación</div><div class="header-sub">Comentarios y revisiones</div></div></div>
+  <div class="app-header"><button class="back-btn" onclick="goDiscPanel()">←</button><div class="header-crest"><svg><use href="#crest"/></svg></div><div class="header-text"><div class="header-title">Solicitudes de Reconsideración</div><div class="header-sub">Canal del Jefe de Disciplina</div></div></div>
   <div class="disc-container">
-    <div class="alert-banner blue"><div class="alert-emoji">📋</div><div class="alert-text"><div class="alert-title">Cómo usar esta sección</div><div class="alert-desc">Acá podés ver tus solicitudes de anulación o revisión de sanciones. Podés escribir un comentario y dejarlo o enviarlo al Comandante para que lo revise. El registro completo de sanciones se trabaja en la siguiente iteración.</div></div></div>
+    <!-- v2.9.302: se reescribió el aviso — toda solicitud entra por el Jefe de Disciplina. -->
+    <div class="alert-banner blue"><div class="alert-emoji">📋</div><div class="alert-text"><div class="alert-title">Conducto regular</div><div class="alert-desc">Toda solicitud de reconsideración, anulación o modificación de una sanción —del cursante o del docente— entra primero por el <strong>Jefe de Disciplina</strong>. Él la <strong>aprueba</strong> (anula la sanción), la <strong>modifica</strong>, la <strong>rechaza</strong>, o la <strong>eleva</strong> al Comandante o al Jefe de Estudios cuando el caso lo amerita. Nadie eleva su propia solicitud.</div></div></div>
     <div id="anulaciones-list" class="list-loading">Cargando...</div>
   </div>
 </section>
@@ -7655,6 +7658,9 @@ function esJefeSAC(){ return activeRole === 'jefe_sac'; }
 function esAdminPanel(){ return ['disciplina','comandante','estudios','ciencia_tecnologia','jefe_sac'].includes(activeRole); }
 // Puede gestionar sanciones (anular/editar/reactivar) — jefe_sac NO, auxiliar NO
 function esGestSanc(){ return !esAuxiliar() && ['disciplina','estudios','ciencia_tecnologia'].includes(activeRole); }
+// v2.9.302: el cursante entra SIN cargo (activeRole queda en null) — así lo distinguimos
+// de cualquier docente para no ofrecerle el canal directo al Comandante.
+function esCursanteSesion(){ return !!currentUser && !activeRole; }
 // ─────────────────────────────────────────────────────────────────────────────
 
 const UMBRAL_CONSEJO = 25;
@@ -10438,7 +10444,7 @@ async function enviarReconsideracion(){
     // Anti-duplicado: ¿ya hay una solicitud pendiente de este cursante para esta sanción?
     try{
       const {data:prev} = await sb.from('solicitudes_anulacion').select('id,estado').eq('sancion_id', s.id).eq('cursante_id', currentUser.id).limit(5);
-      if(prev && prev.some(x => (x.estado||'pendiente')==='pendiente')){
+      if(prev && prev.some(x => _solPendiente(x))){
         showErr('Ya tenés una solicitud pendiente para esta sanción.');
         btn.disabled=false; btn.textContent='📨 Enviar solicitud al Jefe de Disciplina'; return;
       }
@@ -10499,7 +10505,7 @@ async function cargarMisSolicitudes(){
     if(!mias.length){ cont.innerHTML = '<div class="ms-empty"><div class="me-icon">📨</div><div>Todavía no enviaste solicitudes de reconsideración.</div></div>'; return; }
     cont.innerHTML = mias.map(s => {
       const info = _solInfo(s);
-      const estado = s.estado || 'pendiente';
+      const estado = _solEstado(s);
       const badge = estado==='aprobado' ? '<span style="color:#3a7050;font-weight:700">✅ Aprobada</span>'
                   : estado==='rechazado' ? '<span style="color:#a83a3a;font-weight:700">❌ Desestimada</span>'
                   : '<span style="color:#a87010;font-weight:700">⏳ Pendiente</span>';
@@ -13395,9 +13401,15 @@ function verSancionDetalle(sancionId){
   }
 
   // Acciones
+  // v2.9.302: CONDUCTO REGULAR — ninguna solicitud va directo al Comandante. El cursante
+  // usa su formulario de reconsideración (firmado) y el docente/gestor la eleva al Jefe
+  // de Disciplina, que es quien la canaliza hacia arriba si corresponde.
+  const _btnSolic = esCursanteSesion()
+    ? `<button class="btn-secondary" onclick="goReconsideracion('${s.id}')">📝 Solicitar reconsideración (Jefe de Disciplina)</button>`
+    : `<button class="btn-secondary" onclick="abrirSolicitudAnulacion('${s.id}')">✉️ Solicitar revisión al Jefe de Disciplina</button>`;
   html += `<div class="sd-actions">
     <button class="btn-primary" onclick="verAuditoriaForense('${s.id}')">🔍 Ver auditoría forense</button>
-    <button class="btn-secondary" onclick="abrirSolicitudAnulacion('${s.id}')">✉️ Solicitar anulación al Cmte.</button>
+    ${_btnSolic}
     <button class="btn-secondary" onclick="volverDeSancionDetalle()">← Volver al listado</button>
   </div>`;
 
@@ -14439,7 +14451,6 @@ function abrirSolicitudAnulacion(sancionId){
   selectedSancionId = sancionId;
   clearErrors();
   document.getElementById('anul-comentario').value='';
-  document.getElementById('anul-enviar').checked = false;
   document.getElementById('anul-sancion-info').innerHTML = `
     <div class="sd-block">
       <div class="sd-row"><span class="lbl">Sanción</span><span class="vl gold">${s.folio?'Folio '+s.folio:s.id}</span></div>
@@ -14455,36 +14466,55 @@ async function enviarAnulacion(){
   clearErrors();
   const coment = document.getElementById('anul-comentario').value.trim();
   if(!coment){ showError('err-anul','Escribí un comentario antes de enviar.'); return; }
-  const enviar = document.getElementById('anul-enviar').checked;
   const s = discData.sanciones.find(x=>String(x.id)===String(selectedSancionId));
   if(!s){ showError('err-anul','Sanción no encontrada.'); return; }
 
   const btn = document.getElementById('btn-anul');
   btn.disabled = true; btn.textContent = 'Guardando...';
   try{
+    // v2.9.302: anti-duplicado (misma sanción, mismo solicitante, aún sin resolver)
+    try{
+      const {data:prev} = await sb.from('solicitudes_anulacion')
+        .select('id,estado,creada_por').eq('sancion_id', String(s.id)).limit(20);
+      if((prev||[]).some(x => String(x.creada_por||'')===String(currentUser?.id||'') && _solPendiente(x))){
+        showError('err-anul','Ya hay una solicitud tuya sin resolver para esta sanción.');
+        btn.disabled=false; btn.textContent='📨 Enviar al Jefe de Disciplina'; return;
+      }
+    }catch(_){}
+    // v2.9.302: SIEMPRE entra pendiente y SIN elevar — la canaliza el Jefe de Disciplina.
+    // Además se marca el ORIGEN real: si quien pide es el propio cursante, no se lo
+    // rotula como profesor (ese era el motivo de las tarjetas "PROFESOR/A" equivocadas).
+    const _esCur = esCursanteSesion() || String(currentUser?.id||'')===String(s.cursante_id||'');
+    const _nom = (currentUser?.grado?currentUser.grado+' ':'')+(currentUser?.nombre_completo||'');
     const payload = {
       sancion_id: String(s.id),
       cursante_id: s.cursante_id,
       comentario_disciplina: coment,
-      estado: enviar ? 'enviado' : 'pendiente',
-      enviado_a_comandante: enviar,
+      estado: 'pendiente',
+      enviado_a_comandante: false,
+      enviado_a_estudios: false,
       creada_por: currentUser?.id || 'desconocido',
+      origen: _esCur ? 'cursante' : 'profesor',
+      tipo_solicitud: 'reconsideracion',
       // v2.9.170: NOMBRE COMPLETO del solicitante + fecha — el registro debe decir QUIÉN pidió qué
-      profesor_nombre: (currentUser?.grado?currentUser.grado+' ':'')+(currentUser?.nombre_completo||''),
       fecha_creacion: new Date().toISOString()
     };
+    if(_esCur){ payload.cursante_nombre = _nom; payload.detalle_cursante = coment; }
+    else { payload.profesor_nombre = _nom; payload.detalle_profesor = coment; }
     let {error} = await sb.from('solicitudes_anulacion').insert(payload);
     if(error && /column/i.test(error.message||'')){
-      delete payload.profesor_nombre; delete payload.fecha_creacion;
+      delete payload.profesor_nombre; delete payload.cursante_nombre; delete payload.detalle_profesor;
+      delete payload.detalle_cursante; delete payload.origen; delete payload.tipo_solicitud;
+      delete payload.enviado_a_estudios; delete payload.fecha_creacion;
       ({error} = await sb.from('solicitudes_anulacion').insert(payload));
     }
     if(error) throw error;
-    alert(enviar ? '✅ Solicitud guardada y enviada al Comandante.' : '✅ Solicitud guardada como pendiente.');
+    alert('✅ Solicitud enviada al Jefe de Disciplina.');
     verSancionDetalle(selectedSancionId);
   }catch(e){
     showError('err-anul','Error: '+(e.message||JSON.stringify(e)));
   }finally{
-    btn.disabled=false; btn.textContent='Guardar solicitud';
+    btn.disabled=false; btn.textContent='📨 Enviar al Jefe de Disciplina';
   }
 }
 
@@ -31861,14 +31891,29 @@ function expandirCicloParalelo(cicloVal, parVal, label){
 /* ==================== ANULACIONES ==================== */
 // Normaliza una solicitud para mostrarla, tolerando el esquema viejo (sin columnas nuevas):
 // detecta si es del cursante por `origen` o por el prefijo [RECONSIDERACIÓN CURSANTE] guardado en comentario_disciplina.
+// v2.9.302: ESTADO NORMALIZADO. El formulario viejo guardaba estado='enviado' al mandar
+// la solicitud directo al Comandante; ese valor no era ni 'pendiente' ni 'aprobado' ni
+// 'rechazado', así que la tarjeta se dibujaba como YA RESUELTA y NADIE (ni Disciplina, ni
+// el Comandante, ni C&T) veía los botones para resolverla. Se mapea a 'pendiente'.
+function _solEstado(s){
+  const e = String((s && s.estado) || 'pendiente').toLowerCase().trim();
+  if(e==='aprobado' || e==='rechazado') return e;
+  return 'pendiente';   // pendiente | enviado | elevado | '' | cualquier otro legado
+}
+function _solPendiente(s){ return _solEstado(s)==='pendiente'; }
 function _solInfo(s){
   const comDisc = s.comentario_disciplina || '';
-  const esCursante = s.origen === 'cursante' || !!s.detalle_cursante || !!s.firma_cursante_solicitud || /RECONSIDERACI[OÓ]N CURSANTE/i.test(comDisc);
+  // v2.9.302: también es del cursante si quien la creó ES el cursante sancionado
+  // (las solicitudes viejas del formulario de anulación quedaban rotuladas como profesor).
+  const creadaPorElCursante = !!s.cursante_id && String(s.creada_por||'')===String(s.cursante_id);
+  const esCursante = s.origen === 'cursante' || !!s.detalle_cursante || !!s.firma_cursante_solicitud || creadaPorElCursante || /RECONSIDERACI[OÓ]N CURSANTE/i.test(comDisc);
   let desarrollo = s.detalle_cursante || '';
   if(!desarrollo && /RECONSIDERACI[OÓ]N CURSANTE/i.test(comDisc)){
     desarrollo = comDisc.replace(/^\s*\[RECONSIDERACI[OÓ]N CURSANTE\]\s*/i, '');
   }
-  if(!desarrollo && !esCursante) desarrollo = s.detalle_profesor || (s.comentario_disciplina || '');
+  // v2.9.302: el texto se busca SIEMPRE, sea del cursante o del docente — antes, al
+  // reclasificar una solicitud vieja como "del cursante", su desarrollo desaparecía.
+  if(!desarrollo) desarrollo = s.detalle_profesor || comDisc || '';
   const nombre = s.cursante_nombre || s.profesor_nombre || s.cursante_id || '—';
   return { esCursante, desarrollo, nombre };
 }
@@ -31881,10 +31926,11 @@ async function actualizarBadgeSolicitudes(){
       .select('id,estado,enviado_a_comandante,enviado_a_estudios').limit(500);
     const all = data||[];
     let pend;
-    if(activeRole==='comandante') pend=all.filter(x=>(x.estado||'pendiente')==='pendiente'&&x.enviado_a_comandante).length;
-    else if(activeRole==='estudios') pend=all.filter(x=>(x.estado||'pendiente')==='pendiente'&&x.enviado_a_estudios).length;
-    else if(activeRole==='disciplina') pend=all.filter(x=>(x.estado||'pendiente')==='pendiente'&&!x.enviado_a_comandante&&!x.enviado_a_estudios).length;
-    else pend=all.filter(x=>(x.estado||'pendiente')==='pendiente').length;
+    // v2.9.302: el Jefe de Disciplina cuenta TODAS las pendientes — también las que ya
+    // fueron elevadas — porque es el conducto por el que deben pasar todas.
+    if(activeRole==='comandante') pend=all.filter(x=>_solPendiente(x)&&x.enviado_a_comandante).length;
+    else if(activeRole==='estudios') pend=all.filter(x=>_solPendiente(x)&&x.enviado_a_estudios).length;
+    else pend=all.filter(x=>_solPendiente(x)).length;
     if(pend>0){badge.textContent=pend;badge.style.display='inline-block';}
     else badge.style.display='none';
   }catch(_){badge.style.display='none';}
@@ -31961,6 +32007,26 @@ async function modificarSolicitud(solId){
     const {error}=await sb.from('solicitudes_anulacion').update({estado:'aprobado',comentario_comandante:'MODIFICAR por '+currentUser.nombre_completo+': '+razon.trim()}).eq('id',solId);
     if(error)throw error;
     alert('✅ Aprobada para modificación. El Jefe de Disciplina aplicará la corrección.');
+    goAnulaciones();
+  }catch(e){alert('Error: '+(e.message||e));}
+}
+
+// ── RETOMAR (el Jefe de Disciplina reencauza una solicitud elevada) ──────────
+// v2.9.302: si una solicitud llegó directo al Comandante o al Jefe de Estudios (formulario
+// viejo, o elevada por error), el Jefe de Disciplina la trae de vuelta a su bandeja para
+// tramitarla por conducto regular. Queda la constancia de quién la reencauzó.
+async function retomarSolicitud(solId){
+  if(activeRole!=='disciplina'&&!esCT()){alert('Solo el Jefe de Disciplina o C&T.');return;}
+  if(!confirm('¿Traer esta solicitud al canal del Jefe de Disciplina?\n\nSaldrá de la bandeja del Comandante / Jefe de Estudios y se tramita por conducto regular.'))return;
+  try{
+    const _sol=(window.__solicitudesCache||[]).find(x=>String(x.id)===String(solId))||{};
+    const prev=_sol.comentario_comandante?(_sol.comentario_comandante+' · '):'';
+    const {error}=await sb.from('solicitudes_anulacion').update({
+      enviado_a_comandante:false, enviado_a_estudios:false, estado:'pendiente',
+      comentario_comandante: prev+'Canalizada por conducto regular ('+currentUser.nombre_completo+', '+new Date().toLocaleDateString('es-BO')+')'
+    }).eq('id',solId);
+    if(error)throw error;
+    alert('✅ Solicitud retomada. Ahora se tramita por el Jefe de Disciplina.');
     goAnulaciones();
   }catch(e){alert('Error: '+(e.message||e));}
 }
@@ -32075,7 +32141,7 @@ async function goAnulaciones(){
     else if(activeRole==='estudios') dataMostrar=data.filter(x=>x.enviado_a_estudios);
     else dataMostrar=data;
 
-    const pendientes=dataMostrar.filter(x=>(x.estado||'pendiente')==='pendiente').length;
+    const pendientes=dataMostrar.filter(x=>_solPendiente(x)).length;
     const labelCtx=esCT()?' · <span style="color:var(--gold-light);font-size:11px">Vista C&amp;T — acceso total</span>':
       activeRole==='comandante'?' (elevadas al Comandante)':activeRole==='estudios'?' (elevadas a Ud.)':'';
 
@@ -32092,7 +32158,7 @@ async function goAnulaciones(){
     c.innerHTML=encabezado+dataMostrar.map(s=>{
       const info=_solInfo(s);
       const quien=info.esCursante?'🎓 Cursante':'✍️ Profesor/a';
-      const estado=s.estado||'pendiente';
+      const estado=_solEstado(s);
       const estadoColor=estado==='aprobado'?'#7ac899':estado==='rechazado'?'#e88a8a':'#e8c878';
       const estadoBadge=`<span style="color:${estadoColor};font-weight:600">${estado==='aprobado'?'✅ Aprobada':estado==='rechazado'?'❌ Rechazada':'⏳ Pendiente'}</span>`;
       const san=discData.sanciones.find(x=>String(x.id)===String(s.sancion_id));
@@ -32103,12 +32169,13 @@ async function goAnulaciones(){
 
       // Definición de botones
       const B=(fn,label,col)=>`<button onclick="${fn}" style="flex:1;min-width:145px;padding:9px 8px;border-radius:8px;border:1px solid ${col.b};background:${col.bg};color:${col.c};cursor:pointer;font-size:12px;font-weight:600;text-align:center">${label}</button>`;
-      const btnAnular=B(`anularDesdeSolicitud('${sid}','${sanId}')`, '✅ Anular sanción',      {b:'rgba(76,163,107,.5)',bg:'rgba(76,163,107,.18)',c:'#9bcfa9'});
+      const btnAnular=B(`anularDesdeSolicitud('${sid}','${sanId}')`, '✅ Aprobar (anular sanción)',{b:'rgba(76,163,107,.5)',bg:'rgba(76,163,107,.18)',c:'#9bcfa9'});
       const btnRechazar=B(`rechazarSolicitud('${sid}')`,             '❌ Rechazar solicitud',  {b:'rgba(200,74,74,.5)', bg:'rgba(200,74,74,.12)', c:'#f0a890'});
       const btnModif=B(`modificarSolicitud('${sid}')`,               '✏️ Modificar sanción',   {b:'rgba(224,168,58,.5)',bg:'rgba(224,168,58,.14)',c:'#f0d28a'});
       const btnElCmdte=B(`elevarSolicitud('${sid}','comandante')`,   `🎖️ Elevar al ${nCmdte}`, {b:'rgba(212,175,55,.4)',bg:'rgba(212,175,55,.1)', c:'var(--gold-light)'});
       const btnElEst=B(`elevarSolicitud('${sid}','estudios')`,       `📚 Elevar al ${nEstudios}`,{b:'rgba(70,130,200,.5)',bg:'rgba(70,130,200,.12)',c:'#a8c8e8'});
       const btnDevolver=B(`devolverAlJefeDisciplina('${sid}')`,      `🔄 Devolver a ${nDisc}`, {b:'rgba(150,120,80,.5)',bg:'rgba(150,120,80,.12)',c:'#d4b880'});
+      const btnRetomar=B(`retomarSolicitud('${sid}')`,               '🔄 Retomar (canalizar por Disciplina)',{b:'rgba(150,120,80,.5)',bg:'rgba(150,120,80,.12)',c:'#d4b880'});
       const btnInforme=B(`generarInformeAnulacion('${sid}')`,        '📄 Generar Informe',     {b:'rgba(100,100,180,.5)',bg:'rgba(100,100,180,.12)',c:'#a8a8e8'});
 
       let acciones='';
@@ -32119,9 +32186,11 @@ async function goAnulaciones(){
       if(pendiente&&(activeRole==='disciplina'||esCT())&&sinElevar){
         // Nivel 1 — revisión primaria (no elevada aún)
         acciones=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">${btnAnular}${btnRechazar}${btnModif}${btnElCmdte}${btnElEst}${btnInforme}</div>`;
-      } else if(pendiente&&esCT()&&!sinElevar){
-        // CT con solicitud ya elevada — igual puede resolver
-        acciones=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">${btnAnular}${btnRechazar}${btnModif}${btnDevolver}${btnInforme}</div>`;
+      } else if(pendiente&&(activeRole==='disciplina'||esCT())&&!sinElevar){
+        // v2.9.302: elevada (o mandada directo al Comandante por el formulario viejo) — el
+        // Jefe de Disciplina IGUAL resuelve: es el conducto obligatorio. Puede además
+        // retomarla para que salga de la bandeja del Comandante / Jefe de Estudios.
+        acciones=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">${btnAnular}${btnRechazar}${btnModif}${btnRetomar}${btnInforme}</div>`;
       } else if(pendiente&&activeRole==='comandante'&&s.enviado_a_comandante){
         // Comandante — Nivel 2
         acciones=`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">${btnAnular}${btnRechazar}${btnModif}${btnDevolver}${btnInforme}</div>`;
