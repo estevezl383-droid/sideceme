@@ -4333,12 +4333,12 @@ body{
       </div>
     </div>
 
-    <button class="btn-mega" onclick="goProfNuevaSancion()" style="margin-bottom:8px">
+    <button id="eval-btn-sancion" class="btn-mega" onclick="goProfNuevaSancion()" style="margin-bottom:8px">
       <span class="mega-icon">📝</span>
       <span>Registrar nueva sanción</span>
     </button>
 
-    <button class="btn-mega" onclick="goMisSancionados()" style="background:linear-gradient(180deg,#2d6a4f,#1b4332);margin-bottom:8px">
+    <button id="eval-btn-missanc" class="btn-mega" onclick="goMisSancionados()" style="background:linear-gradient(180deg,#2d6a4f,#1b4332);margin-bottom:8px">
       <span class="mega-icon">👥</span>
       <span>Mis sancionados</span>
     </button>
@@ -8727,6 +8727,15 @@ function renderEvalPanel(){
   const name = currentUser.nombre_completo || 'Sub. Sec. Evaluaciones';
   const initials = name.split(' ').filter(Boolean).slice(0,2).map(function(w){ return w[0]; }).join('').toUpperCase();
   document.getElementById('eval-name').textContent = nombreConGrado(currentUser);
+  // v2.9.307: los SUBOFICIALES de la seccion solo controlan y cargan notas.
+  // No son personal docente, por lo tanto no imponen sanciones.
+  try{
+    if(currentUser && currentUser.es_suboficial===true){
+      ['eval-btn-sancion','eval-btn-missanc'].forEach(function(id){
+        const el=document.getElementById(id); if(el) el.style.display='none';
+      });
+    }
+  }catch(e){ console.warn('eval suboficial', e); }
   document.getElementById('eval-rank').textContent = esAuxiliar()
     ? 'Sub. Sec. Evaluaciones — Auxiliar'
     : 'Sub. Sec. Evaluaciones';
@@ -38625,6 +38634,22 @@ function renderPlanifPanel(){
   set('plp-initials',ini||'—');
   set('plp-rank',[ (currentUser&&currentUser.grado)||'', (currentUser&&currentUser.arma)||'' ].filter(Boolean).join(' · ')||'Sección Planificación');
   try{ avBotonCarpeta('screen-planif-panel'); }catch(e){}
+  // v2.9.307: DOBLE FUNCION. Quien tiene 'profesor' dentro de roles[] ademas de su
+  // rol principal de seccion, puede pasar a su panel docente para sancionar.
+  // Sin esto el login solo mira la columna 'rol' y nunca ve la segunda funcion.
+  try{
+    const extra=(Array.isArray(currentUser&&currentUser.roles)?currentUser.roles:[])
+                  .map(function(r){ return String(r).toLowerCase(); });
+    const cont=document.querySelector('#screen-planif-panel .menu-container');
+    if(extra.indexOf('profesor')>=0 && cont && !document.getElementById('plp-btn-profesor')){
+      const b=document.createElement('button');
+      b.id='plp-btn-profesor'; b.className='btn-secondary';
+      b.style.cssText='width:100%;margin-top:12px';
+      b.innerHTML='\u{1F468}\u{200D}\u{1F3EB} Ir a mi panel de Profesor (registrar sanciones)';
+      b.onclick=function(){ activeRole='profesor'; selectedCargo='profesor'; enterRole('profesor'); };
+      cont.appendChild(b);
+    }
+  }catch(e){ console.warn('plp doble funcion', e); }
 }
 
 </script>
