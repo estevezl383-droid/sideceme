@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.306</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.308</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -37145,9 +37145,10 @@ function _plUIPlanta(){
   (p.dias||[]).forEach(function(d,i){
     const nom=_plDiaNombre(d.iso)+'  '+_plDiaNum(d.iso);
     let cuerpo='<label class="pl-full">Día completo (dejar vacío para usar las filas)'
-      +_plInp('planta.dias.'+i+'.libre',d.libre,'Ej: FERIADO NACIONAL EN CONMEMORACIÓN AL...')+'</label>';
-    if(!d.libre){
-      cuerpo+='<div class="pl-tw"><table class="pl-t"><tr>'
+      +_plInp('planta.dias.'+i+'.libre',d.libre,'Ej: FERIADO NACIONAL EN CONMEMORACIÓN AL...')+'</label>'
+      +_plAvisoLibre('planta',i,d);
+    {
+      cuerpo+='<div class="pl-tw"'+(d.libre?' style="opacity:.45"':'')+'><table class="pl-t"><tr>'
         +'<th style="width:62px">Desde</th><th style="width:62px">Hasta</th><th>Actividad</th>'
         +'<th style="width:110px">Lugar</th><th style="width:80px">Asisten</th>'
         +'<th style="width:120px">Responsable</th><th style="width:95px">Uniforme</th>'
@@ -37282,9 +37283,10 @@ function _plUICiclo(k){
     const nomd=_plDiaNombre(d.iso)+'  '+_plDiaNum(d.iso);
     let cuerpo=(i<5?('<div style="margin-bottom:8px">'+_selMat(i)+'</div>'):'')
       +'<label class="pl-full">Día completo (dejar vacío para usar las filas)'
-      +_plInp(k+'.dias.'+i+'.libre',d.libre,'Ej: FERIADO NACIONAL...')+'</label>';
-    if(!d.libre){
-      cuerpo+='<div class="pl-tw"><table class="pl-t"><tr>'
+      +_plInp(k+'.dias.'+i+'.libre',d.libre,'Ej: FERIADO NACIONAL...')+'</label>'
+      +_plAvisoLibre(k,i,d);
+    {
+      cuerpo+='<div class="pl-tw"'+(d.libre?' style="opacity:.45"':'')+'><table class="pl-t"><tr>'
         +'<th style="width:60px">Desde</th><th style="width:60px">Hasta</th>'
         +'<th style="width:130px">Módulo</th><th>Unidad de Competencia</th>'
         +'<th style="width:110px">Código</th><th style="width:80px">Lugar</th>'
@@ -37505,6 +37507,39 @@ function _plUINotas(){
       }).join(''));
   }
   return h;
+}
+
+/* v2.9.308: SÁBADO Y DOMINGO CON FILAS.
+   Antes la tabla de filas se dibujaba solo `if(!d.libre)`. Como el esqueleto crea el
+   fin de semana con libre='A DISPOSICIÓN DEL COMANDO', sábado y domingo NUNCA mostraban
+   la tabla y no había forma de cargar una actividad con lugar, uniforme, responsable…
+   Ahora la tabla se dibuja SIEMPRE (cualquier día, incluido el fin de semana) y lo que
+   cambia es sólo el aviso: mientras «Día completo» tenga texto, el Word saca esa única
+   línea a todo el ancho y las filas quedan atenuadas. El botón pasa el texto a una fila
+   de FRANJA — así se conserva la banda larga Y se pueden sumar filas con columnas. */
+function _plAvisoLibre(k,i,d){
+  if(!String(d.libre||'').trim()) return '';
+  return '<div class="pl-warn" style="border-color:#c49234;margin:8px 0">'
+    +'<div style="display:flex;gap:9px;align-items:center;flex-wrap:wrap">'
+    +'<span style="flex:1">Con <b>Día completo</b> escrito, en el documento sale <b>sólo esa línea</b> '
+    +'a todo el ancho y las filas de abajo no salen. Si este día tiene actividades con '
+    +'<b>lugar, uniforme, responsable</b>, pasalo a filas: el texto se convierte en una fila '
+    +'de <b>franja</b> (la banda larga) y podés agregar las que necesites.</span>'
+    +'<button class="btn-primary pl-b" onclick="plUsarFilas(\''+k+'\','+i+')">▦ Pasar a filas</button>'
+    +'</div></div>';
+}
+function plUsarFilas(k,i){
+  const d=PLANIF.sem.datos[k].dias[i];
+  const txt=String(d.libre||'').trim();
+  d.filas=d.filas||[];
+  if(txt){
+    const f = (k==='planta') ? _plFilaPlanta() : _plFilaCiclo();
+    f.span=true; f.desde=''; f.hasta='';
+    if(k==='planta') f.act=txt; else f.uc=txt;
+    d.filas.unshift(f);
+  }
+  d.libre='';
+  plMarcarSucio(); plRenderEditor();
 }
 
 // ---------- acciones de estructura ----------
