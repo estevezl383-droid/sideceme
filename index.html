@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.308</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.309</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -25901,6 +25901,10 @@ async function _wgSyncTick(){
       await _wgNovedadesInt(p.vistos);   // v2.9.285: ¿el CW 40 descubrió algo?
       return;
     }
+    // v2.9.309 — GUARDIA DE IDEMPOTENCIA. Si el turno que está por reproducirse
+    // ya se vio en ESTA pantalla (lo animó wgResolver o un tick anterior), no se
+    // reproduce de nuevo: quien lo anotó ya se encarga de poner el tablero al día.
+    if(Number(antes)===Number(WG._turnoVisto)) return;
     WG.ordenes={};                             // las órdenes de ese turno ya se jugaron
     const saltados = ahora - Number(antes);
     if(saltados===1){
@@ -25910,6 +25914,7 @@ async function _wgSyncTick(){
       // Estuvo desconectado o con la pestaña dormida y se corrieron varios
       // turnos. Reproducir uno solo contaría media historia y confundiría más
       // que ayudar: se pone el tablero al día y se le dice que lea la bitácora.
+      WG._turnoVisto=ahora-1;   // v2.9.309: al día — que nadie re-reproduzca estos turnos
       await wgEstado(true); _wgRender(); if(WG.map3d) _wg3dDatos();
       await wgHistorial();
       _wgAviso(`🔄 <b>Se resolvieron los turnos ${antes} a ${ahora-1}.</b> El tablero ya está `
@@ -25966,6 +25971,7 @@ async function _wgReproducirTurno(turno){
   const r=await _wgInvoke('replay',{ partida_id:WG.partidaId, clave_acceso:WG.clave, turno });
   const trazas=(r.ok && r.trazas)||[], impactos=(r.ok && r.impactos)||[];
   WG.ultimoTurno=turno;                        // para destacarlo en la bitácora
+  WG._turnoVisto=turno;                        // v2.9.309: este turno ya se vio acá
   _wgApagarViejos(turno);
   if(trazas.length || impactos.length){
     WG.replayando=true;
@@ -29871,10 +29877,19 @@ async function wgResolver(btn){
   // NORMAL del juego, no algo peligroso: preguntarlo cada vez sólo estorbaba.
   if(WG.replayando) return;
   if(btn) btn.disabled=true;
-  // v2.9.277: viaja el turno que CREO estar jugando. Si el otro bando ya lo
-  // resolvió, el servidor rechaza en vez de correr el turno dos veces.
-  const r=await _wgInvoke('resolver_turno',{ partida_id:WG.partidaId,
-    clave_acceso:WG.clave, turno:(WG.estado&&WG.estado.partida&&WG.estado.partida.turno_actual) });
+  // v2.9.309 — MOVIMIENTO DUPLICADO, carrera A: mientras esta llamada espera al
+  // servidor, el turno YA avanzó en la base, y si el sondeo de 4 s caía justo
+  // acá veía «turno nuevo» y arrancaba _wgReproducirTurno con LAS MISMAS trazas
+  // que esta respuesta está por animar. La unidad recorría su tramo dos veces.
+  // `_accion` frena al sondeo (trampa 8) durante toda la espera.
+  WG._accion=true;
+  let r;
+  try{
+    // v2.9.277: viaja el turno que CREO estar jugando. Si el otro bando ya lo
+    // resolvió, el servidor rechaza en vez de correr el turno dos veces.
+    r=await _wgInvoke('resolver_turno',{ partida_id:WG.partidaId,
+      clave_acceso:WG.clave, turno:(WG.estado&&WG.estado.partida&&WG.estado.partida.turno_actual) });
+  } finally { WG._accion=false; }
   if(btn) btn.disabled=false;
   if(!r.ok){
     if(/ya lo resolvió/.test(r.error||'')){ _wgAviso('⏭️ '+_rgEsc(r.error),4200); await wgEstado(); return; }
@@ -29885,6 +29900,13 @@ async function wgResolver(btn){
   // Las trazas vienen en la respuesta (no se guardan en la base).
   const trazas=r.trazas||[], impactos=r.impactos||[];
   WG.ultimoTurno=r.turno_resuelto;   // v2.9.205: para destacarlo en la bitácora
+  // v2.9.309 — carrera B: entre que termina la animación y `wgEstado()` refresca
+  // el turno local hay una ventana en la que el sondeo veía el turno local viejo
+  // y volvía a reproducir el turno recién visto. La cuenta única «qué turno ya
+  // vi» se anota ACÁ, apenas el servidor confirma, antes de animar nada; y el
+  // turno local se adelanta ya mismo para que el sondeo no vea datos viejos.
+  WG._turnoVisto=r.turno_resuelto;
+  if(WG.estado&&WG.estado.partida) WG.estado.partida.turno_actual=r.turno_resuelto+1;
   _wgApagarViejos(r.turno_resuelto);
   // ============================================================
   // v2.9.223 — PRIMERO SE VE LA ACCIÓN, DESPUÉS SE ACTUALIZA EL TABLERO.
