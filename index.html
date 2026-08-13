@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.309</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.310</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -25488,9 +25488,13 @@ function wgBarraUnidades(){
         }).join('')
       +`</div>`;
   }).join('');
-  if(!html){ el.style.display='none'; el.innerHTML=''; return; }
+  if(!html){ el.style.display='none'; if(el.children.length) el.innerHTML=''; WG._barFirma=null; return; }
   el.style.display='';
-  el.innerHTML=`<div class="wg-ubar">${html}</div>`;
+  // v2.9.310 — misma guardia por firma. Esta barra es la fila de chips de
+  // unidades: rehacerla entera borraba y recreaba un botón por unidad en cada
+  // refresco, con el chip seleccionado incluido.
+  const hBar=`<div class="wg-ubar">${html}</div>`;
+  if(WG._barFirma!==hBar || !el.children.length){ WG._barFirma=hBar; el.innerHTML=hBar; }
 }
 // Etiqueta corta del escalón, para que el chip no crezca.
 function _wgEscalonCorto(u){
@@ -29078,7 +29082,12 @@ function _wgBarraCamarasHTML(){
 }
 function wgPanelCamaras(){
   const el=document.getElementById('wg-camaras');
-  if(el) el.innerHTML=_wgBarraCamarasHTML();
+  if(!el) return;
+  // v2.9.310 — misma guardia por firma (ver `#wg-unidades`): la barra de
+  // encuadres se rehacía entera en cada refresco con el mismo contenido.
+  const h=_wgBarraCamarasHTML();
+  if(WG._camFirma===h && el.children.length) return;
+  WG._camFirma=h; el.innerHTML=h;
 }
 // Elegir un encuadre concreto (desde la barra).
 function wgCamara(id){
@@ -29544,9 +29553,17 @@ function _wgRender(){
     // pero sólo aparecía de refilón en una línea de la bitácora y se perdía.
     // La logística no se planifica con un dato que hay que ir a buscar.
     +(en?'':_wgBarraCombustible(u))+`</div>`; };
-  cont.innerHTML = `<div style="margin-bottom:4px">Tuyas (${mias.length}):</div>`+mias.map(u=>fila(u,false)).join('')
+  // v2.9.310 — DESTELLOS: no reescribir una lista que quedó igual.
+  // Medido a mano en el juego cargado: 20 refrescos sin un solo cambio de estado
+  // = 20 reescrituras enteras de este panel (2.920 caracteres). Cada `innerHTML=`
+  // destruye y rehace TODAS las tarjetas del DOM, y ese hueco de un cuadro entre
+  // destruir y rehacer es exactamente el titileo. Misma guardia por firma que ya
+  // dejó a `wgPanelDrones()` en cero (v2.9.291): se arma el HTML igual que antes,
+  // pero sólo se toca el DOM si de verdad cambió.
+  const htmlUni = `<div style="margin-bottom:4px">Tuyas (${mias.length}):</div>`+mias.map(u=>fila(u,false)).join('')
     + (enem.length?`<div style="margin:6px 0 4px">Enemigas detectadas (${enem.length}):</div>`+enem.map(u=>fila(u,true)).join('')
        : (WG.soy!=='arbitro'?'<div class="rg-meta" style="margin-top:6px">🌫️ Sin contacto enemigo (niebla de guerra).</div>':''));
+  if(WG._uniFirma!==htmlUni || !cont.children.length){ WG._uniFirma=htmlUni; cont.innerHTML=htmlUni; }
   // ⚠️ v2.9.292 — EL BUG QUE HACÍA PARECER QUE NADA FUNCIONABA.
   // El 3D se dibuja con SUS PROPIAS fuentes de datos. `wgEstado()` sólo
   // repintaba el mapa 2D, que en modo 3D está TAPADO ABAJO: importar, vaciar y
@@ -29562,8 +29579,12 @@ function _wgRender(){
     // fondo: metido en el visor del CW 40 estás haciendo RECONOCIMIENTO, no
     // eligiendo con qué disparar. El panel vuelve solo al salir del dron.
     if(uSel && _wgArmamento(uSel).length && WG.dronVista==null){
-      pa.innerHTML=_wgPanelArmasHTML(); pa.style.display='';
-    } else { pa.style.display='none'; pa.innerHTML=''; }
+      // v2.9.310 — misma guardia: sin esto el panel de armamento se rehacía
+      // entero en cada refresco aunque el arma elegida fuera la misma.
+      const htmlArm=_wgPanelArmasHTML();
+      if(WG._armFirma!==htmlArm || !pa.children.length){ WG._armFirma=htmlArm; pa.innerHTML=htmlArm; }
+      pa.style.display='';
+    } else { pa.style.display='none'; if(pa.children.length){ pa.innerHTML=''; } WG._armFirma=null; }
   }
   if(WG.map3d){ _wg3dDatos(); _wg3dCapas(); }
   if(WG.hoja==='capas') wgPanelCapas(); // conteos siempre al día
