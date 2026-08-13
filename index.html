@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.310</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.311</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -24576,6 +24576,36 @@ function _wgCotaTerreno(map, lngLat){
   }catch(_e){}
   return Number.isFinite(WG._cotaUlt) ? WG._cotaUlt : 3600;   // altiplano por defecto
 }
+// ============================================================
+// v2.9.311 — EL SUELO QUE USA LA CÁMARA DEL DRON VA ALISADO.
+//
+// Sergio: «en la vista desde el dron destella, chispea, las unidades se suben
+// arriba».
+//
+// `_wgCotaTerreno` devuelve la cota EXACTA del punto bajo el aparato. Pasando
+// sobre los cerros del altiplano ese número no para de saltar (3.600 → 3.900 →
+// 3.700 m), y como el zoom de la cámara se calcula a partir de él, el zoom
+// también saltaba en cada cuadro. La guardia de la 290 no alcanzaba a frenarlo
+// porque el suelo cambia siempre. Y cada escritura de zoom obliga a MapLibre a
+// recalcular la cobertura del relieve: ahí se pierde la cota bajo las fichas
+// (quedan a 0 m = nivel del mar, o sea flotando sobre el horizonte) y las
+// teselas entran y salen a medio cargar, que es el chispeo.
+//
+// Un dron de verdad no convulsiona la cámara al cruzar una loma: la referencia
+// del suelo es una media, no el bache puntual. Eso es esto — un filtro suave
+// por bando, que además arranca en la cota real para no dar un salto al
+// despegar.
+// ============================================================
+function _wgCotaSuave(map, bando, lngLat){
+  const real=_wgCotaTerreno(map, lngLat);
+  WG._cotaSuav=WG._cotaSuav||{};
+  const ant=WG._cotaSuav[bando];
+  if(!Number.isFinite(ant)){ WG._cotaSuav[bando]=real; return real; }
+  // ~2 % por cuadro: sigue al terreno en un par de segundos, sin temblar.
+  const s=ant+(real-ant)*0.02;
+  WG._cotaSuav[bando]=s;
+  return s;
+}
 function _wgZoomDeAltura(map, lat, altM, pitchGr, aumento){
   try{
     const alt=Math.max(80, Number(altM)||3000);
@@ -24754,7 +24784,7 @@ function _wgVolarDrones(){
           // que darle la cota del suelo + esa altura, o queda bajo tierra.
           const agl=Math.max(150, (pilC?pilC.alt:d.alt));
           const zObj=_wgZoomDeAltura(map, v._pos[1],
-            _wgCotaTerreno(map,{lng:cen[0],lat:cen[1]}) + agl,
+            _wgCotaSuave(map, v.u.bando, {lng:cen[0],lat:cen[1]}) + agl,
             pObj, (WG.dronZoom||{})[v.u.bando]||1);
           // ============================================================
           // v2.9.290 — EL ZOOM SE ESCRIBE SÓLO CUANDO CAMBIA. ESTO ERA LO DE
@@ -24776,7 +24806,36 @@ function _wgVolarDrones(){
           // ============================================================
           const camara={ center:cen, bearing:mira };
           if(Math.abs(pObj-map.getPitch())>0.4) camara.pitch=pObj;
-          if(Number.isFinite(zObj) && Math.abs(zObj-map.getZoom())>0.05) camara.zoom=zObj;
+          // ============================================================
+          // v2.9.311 — LA GUARDIA DEL ZOOM SE COMPARA CONTRA LO QUE ESCRIBIMOS,
+          // NO CONTRA LO QUE EL MAPA ACEPTÓ.
+          //
+          // Éste era el agujero de fondo de «las fichas se suben». La 290 medía
+          // `zObj` contra `map.getZoom()`, pero cuando el relieve LIMITA el
+          // acercamiento el mapa nunca llega al valor pedido: la diferencia se
+          // queda ahí y la guardia dispara en TODOS los cuadros, para siempre.
+          // O sea que la guardia existía y no guardaba nada. Comparando contra
+          // el último valor que escribimos nosotros, en vuelo estable no se
+          // reescribe una sola vez, y el relieve deja de recalcularse: las
+          // fichas se quedan pegadas al suelo y el chispeo se termina.
+          //
+          // La zona muerta sube de 0,05 a 0,12 (~un 8 % de altura): por debajo
+          // de eso el ojo no distingue el cambio, pero el mapa igual se re-tesela.
+          // ============================================================
+          // LA ORDEN DEL PILOTO SIEMPRE PASA. La zona muerta es para el temblor
+          // del terreno, NUNCA para el mando. Sin esto volvía el defecto de la
+          // 288 («le bajo la altura y no cambia nada»): bajar de 3.000 a 2.500 m
+          // mueve el zoom sólo 0,11 — menos que la zona muerta — así que la
+          // orden se habría perdido. Medido, no supuesto.
+          if(Number.isFinite(zObj)){
+            const mando=agl+'|'+((WG.dronZoom||{})[v.u.bando]||1);
+            const ordenNueva=(v._mandoAnt!==undefined && v._mandoAnt!==mando);
+            v._mandoAnt=mando;
+            const zAnt=v._zEscrito;
+            if(ordenNueva || !Number.isFinite(zAnt) || Math.abs(zObj-zAnt)>0.12){
+              camara.zoom=zObj; v._zEscrito=zObj;
+            }
+          }
           map.jumpTo(camara);
         }catch(_e){}
         // El destino queda al día: si salís del dron, el próximo encuadre no
@@ -26699,6 +26758,15 @@ async function wgVista3D(){
           // v2.9.231: el DEM llega hasta z15; dejarlo declarado así permite el
           // sobre-zoom y el relieve sigue leyéndose de cerca en vez de aplanarse.
           dem:{type:'raster-dem',tiles:[WG3D_DEM],tileSize:256,encoding:'terrarium',maxzoom:15,attribution:'Elevación: Terrarium / AWS (SRTM)'},
+          // v2.9.311 — FUENTE APARTE PARA EL SOMBREADO. Es lo que venía avisando
+          // la consola: «same source for a hillshade layer and for 3D terrain».
+          // Con una sola fuente, el mismo juego de teselas lo pelean la malla del
+          // relieve (que la re-tesela según dónde mira la cámara) y el sombreado
+          // (que la quiere a la resolución de la pantalla). Cada vez que la
+          // cámara del dron se movía, el sombreado se recalculaba con teselas a
+          // medio cargar: eso es el CHISPEO. Son los mismos PNG y el mismo caché
+          // de red — no baja ni un byte de más.
+          'dem-sombra':{type:'raster-dem',tiles:[WG3D_DEM],tileSize:256,encoding:'terrarium',maxzoom:15},
         },
         layers:[
           {id:'fondo',type:'background',paint:{'background-color':'#0a0e13'}},
@@ -26718,7 +26786,7 @@ async function wgVista3D(){
           // es el MODELADO del relieve. Sombreado más marcado, con luz rasante
           // desde el noroeste como en las cartas, para que se lean las quebradas
           // y los filos donde combaten las unidades.
-          {id:'sombreado',type:'hillshade',source:'dem',paint:{
+          {id:'sombreado',type:'hillshade',source:'dem-sombra',paint:{
             'hillshade-exaggeration':0.62,
             'hillshade-shadow-color':'#0a121c',
             'hillshade-highlight-color':'#fff4e0',
@@ -28596,7 +28664,13 @@ function _wgCamIniciar(map){
     // mostró que hay margen (60-120 repintados/s), así que se refrescan también
     // en movimiento; el ritmo lo pone el propio reagendado de abajo.
     // Si el relieve todavía está entrando, la altura que daría sería la mala.
-    let listo=true; try{ listo=map.areTilesLoaded(); }catch(_e){}
+    // v2.9.311 — se pregunta por el RELIEVE, no por «todas las fuentes».
+    // Lo que decide la altura de una ficha es la fuente `dem` y nada más.
+    // `areTilesLoaded()` exige que estén TODAS (satélite, sombreado, calcos):
+    // volando, siempre hay alguna entrando, así que este refresco se saltaba
+    // justo cuando más falta hace y las fichas se quedaban despegadas.
+    let listo=true;
+    try{ listo=(typeof map.isSourceLoaded==='function') ? map.isSourceLoaded('dem') : map.areTilesLoaded(); }catch(_e){}
     if(!listo){ WG._refrescoPend=setTimeout(refrescarFichas, 600); return; }
     let cambio=false;
     for(const mk of (WG.marc3d||[])){
