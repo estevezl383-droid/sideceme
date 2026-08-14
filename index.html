@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.312</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.313</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -23144,10 +23144,12 @@ async function _wgInvoke(accion, extra){
     // medias, Supabase con problemas), antes la promesa quedaba colgada PARA
     // SIEMPRE: la pantalla se quedaba en «⏳…» y parecía que la app no hacía
     // nada. Ahora a los 20 s corta y dice qué pasó.
+    const _t0=Date.now();                       // v2.9.313: para poner el reloj en hora
     const llamada = sb.functions.invoke('wargame-ops',{ body:Object.assign({accion, token:tok}, extra||{}) });
     const tope = new Promise((_,rechaza)=>setTimeout(()=>rechaza(new Error(
       'El servidor no respondió en 20 segundos ('+accion+'). Revisá tu conexión y probá de nuevo.')),20000));
     const { data, error } = await Promise.race([llamada, tope]);
+    if(data && data.ahora_ms) _wgRelojMuestra(_t0, Date.now(), Number(data.ahora_ms));
     if(error){
       // v2.9.198: sin esto el navegador solo muestra "Edge Function returned a
       // non-2xx status code" y se pierde el motivo REAL que manda la función.
@@ -24656,7 +24658,7 @@ function _wgVolarDrones(){
       // contra los milisegundos de vida de esta pestaña (ver `WG_EPOCA`). Los
       // otros sumandos ya eran iguales en las dos ventanas: `fase` viene de la
       // base y el desfase por unidad sale de su id.
-      const kmRecorridos = ((Date.now()-WG_EPOCA)/3600000)*kmh*WG_DRON_ACEL
+      const kmRecorridos = ((_wgAhora()-WG_EPOCA)/3600000)*kmh*WG_DRON_ACEL
         + (d.fase||0)*pistaLargo + (String(v.u.id).length*3.1);
       // ============================================================
       // v2.9.283 — DOS FORMAS DE VOLAR, NO UNA CONGELADA.
@@ -29313,6 +29315,42 @@ const WG_DRON_KMH=WG_CW40.kmh, WG_DRON_ACEL=40;
 // La época es del pasado y FIJA: cambiarla teletransporta los drones.
 // ============================================================
 const WG_EPOCA=1767225600000;   // 2026-01-01T00:00:00Z
+// ============================================================
+// v2.9.313 — TODOS EN HORA CON EL SERVIDOR (varias computadoras).
+//
+// El reloj de pared de la 312 sincroniza dos ventanas de la MISMA máquina,
+// porque comparten el reloj. Pero el ejercicio se juega con cada Estado Mayor
+// en su computadora, y ahí cada una anda con la hora que tiene. Como el vuelo
+// va acelerado ×40, el desfase se amplifica ×40: 2 segundos entre dos laptops
+// son 2,2 km de separación, y el escenario se vuelve a partir.
+//
+// Así que se mide contra el ÚNICO reloj que todos comparten: el del servidor.
+// Viene colgado de cualquier respuesta de la Edge Function (`ahora_ms`), así
+// que no hay una sola llamada de red de más — el latido de 4 s ya iba y venía.
+//
+// El método es el de NTP, sin inventar nada:
+//   · la hora que manda el servidor corresponde a algún punto del viaje de ida
+//     y vuelta; el mejor estimador es la MITAD del viaje;
+//   · de todas las muestras se guarda la del viaje MÁS CORTO, porque es la de
+//     menor incertidumbre — con la red lenta, una respuesta que tardó 3 s no
+//     dice casi nada de la hora;
+//   · la muestra se renueva cada 2 minutos para que no envejezca.
+//
+// Si la Edge Function todavía es la vieja y no manda la hora, `delta` queda en
+// 0 y todo funciona como en la 312: se degrada solo, no se rompe.
+// ============================================================
+function _wgRelojMuestra(t0, t1, servidorMs){
+  if(!Number.isFinite(servidorMs) || !(servidorMs>0)) return;
+  const viaje=t1-t0;
+  if(viaje<0 || viaje>4000) return;             // muestra inservible: se descarta
+  const delta=servidorMs-(t0+t1)/2;             // hora del servidor − hora nuestra
+  const ant=WG._reloj;
+  if(!ant || viaje<ant.viaje || (Date.now()-ant.t)>120000)
+    WG._reloj={ delta, viaje, t:Date.now() };
+}
+// La hora COMPARTIDA. Es la que hay que usar para cualquier cosa que los dos
+// bandos tengan que ver igual; `Date.now()` sólo para cronometrar acá adentro.
+function _wgAhora(){ return Date.now() + ((WG._reloj && WG._reloj.delta) || 0); }
 // ============================================================
 // v2.9.261 — EL CW 40 VUELA UN HIPÓDROMO SOBRE SU SECTOR.
 // Antes daba vueltitas de 2,4 km encima del puesto de mando: no se le veía
