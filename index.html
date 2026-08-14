@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.314</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.315</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -23989,17 +23989,69 @@ function _wgSoloPorElDron(lista, obs){
 // Van con la posición y el grado de identificación DEL MOMENTO EN QUE SE
 // REPORTARON: si el enemigo se movió, la marca se queda donde se lo vio — que
 // es justamente lo que hace que la información envejezca y haya que confirmarla.
+// ============================================================
+// v2.9.315 — LA INFORMACIÓN ENVEJECE (paso 3d).
+//
+// Hasta acá la marca subida envejecía en POSICIÓN —se queda donde se la vio,
+// aunque el enemigo se haya movido— pero no en CERTEZA: un contacto confirmado
+// hace ocho turnos se seguía viendo tan firme como el de recién. Con eso el
+// alumno mira UNA vez y da el dato por bueno para siempre, que es justamente el
+// vicio que un ejercicio tiene que castigar.
+//
+// Regla: se pierde UN NIVEL POR TURNO sin volver a observar.
+//   confirmada (3) → identificada (2) → contacto (1)
+//
+// El piso es CONTACTO, no cero: un informe no se borra solo. Se degrada hasta
+// «sé que había algo ahí» y ahí se queda, esperando que alguien lo confirme o
+// lo descarte. Descartarlo es decisión del G-2 (🗑️ en la marca), no del
+// sistema — un dato viejo sigue siendo un dato, y borrarlo automáticamente le
+// escondería al Estado Mayor que alguna vez vio algo en ese punto.
+//
+// Se calcula ACÁ y no en el servidor a propósito: sale de dos números que el
+// navegador ya tiene (`nivel` y `turno` de la marca, más el turno actual), así
+// que da idéntico en las dos pantallas sin una sola llamada de red, sin tocar
+// la Edge Function y sin SQL. No contradice la regla de «el servidor dice SI se
+// ve»: el servidor sigue decidiendo QUÉ marcas te manda; esto sólo dice CUÁNTO
+// vale hoy lo que ya te mandó.
+// ============================================================
+function _wgIntEnvejecido(nivel, turnoDato){
+  const n=Number(nivel);
+  if(!Number.isFinite(n)) return WG_INT_NADA;
+  const actual=(WG.estado&&WG.estado.partida)?Number(WG.estado.partida.turno_actual):null;
+  const t=Number(turnoDato);
+  if(!Number.isFinite(actual)||!Number.isFinite(t)) return n;   // sin turnos, no se envejece
+  const antig=Math.max(0, actual-t);
+  return Math.max(WG_INT_CONTACTO, n-antig);
+}
+// Turnos transcurridos desde que se tomó el dato (0 = de este turno).
+function _wgIntAntiguedad(turnoDato){
+  const actual=(WG.estado&&WG.estado.partida)?Number(WG.estado.partida.turno_actual):null;
+  const t=Number(turnoDato);
+  if(!Number.isFinite(actual)||!Number.isFinite(t)) return 0;
+  return Math.max(0, actual-t);
+}
 function _wgContactosSubidos(bando){
   const intel=((WG.estado&&WG.estado.inteligencia)||[]).filter(x=>x.bando===bando);
   return intel.map(x=>{
     const d=x.datos||{};
+    // v2.9.315: el nivel que vale HOY, no el del día que se lo vio.
+    const nv=_wgIntEnvejecido(x.nivel, x.turno);
+    const antig=_wgIntAntiguedad(x.turno);
     return { id:x.unidad_id, bando:d.bando||(bando==='azul'?'rojo':'azul'),
       lng:Number(x.lng), lat:Number(x.lat), estado:'activa',
-      escalon: d.escalon || 'desconocido',
-      arma: d.arma || null,
-      designacion: d.designacion || (x.nivel>=2 ? (WG_MAGNITUD[d.escalon]||'FUERZA')+' ?' : 'CONTACTO'),
-      poder_max: d.poder_max || null, poder_actual: d.poder_actual || null,
-      _nivel: x.nivel, _reportado: true, _turno: x.turno };
+      // v2.9.315: al degradarse deja de saberse el arma y la designación — es
+      // información que caducó, no que se olvidó dibujar.
+      escalon: (nv>=WG_INT_IDENT ? (d.escalon||'desconocido') : 'desconocido'),
+      arma: (nv>=WG_INT_CONF ? (d.arma||null) : null),
+      // El rótulo lleva el turno del dato cuando ya no es de este turno: en la
+      // carta se tiene que ver DE CUÁNDO es cada cosa sin pasar el mouse.
+      designacion: ((nv>=WG_INT_CONF && d.designacion) ? d.designacion
+                 : (nv>=WG_INT_IDENT ? (WG_MAGNITUD[d.escalon]||'FUERZA')+' ?' : 'CONTACTO'))
+                 + (antig>0 ? ` ·T${x.turno}` : ''),
+      poder_max: (nv>=WG_INT_CONF ? (d.poder_max||null) : null),
+      poder_actual: (nv>=WG_INT_CONF ? (d.poder_actual||null) : null),
+      _nivel: nv, _nivelOrig: Number(x.nivel), _antig: antig,
+      _reportado: true, _turno: x.turno };
   }).filter(u=>Number.isFinite(u.lng)&&Number.isFinite(u.lat));
 }
 function _wgUnidadesVisiblesCrudo(){
@@ -29701,9 +29753,19 @@ function _wgRender(){
     const obsTxt = mio ? ` · 👁️ ${_wgAlcanceObs(u,WG.terreno||[]).toFixed(1)} km` : ''; // v2.9.191
     // v2.9.284: si no está confirmada, el globo dice CUÁNTO se sabe y cómo se
     // sabe más — un contacto que no explica qué le falta no enseña nada.
+    // v2.9.315 — DE CUÁNDO ES ESTE DATO. En una marca subida a la carta, la
+    // antigüedad es tan importante como el contenido: sobre un dato de hace
+    // cinco turnos no se maniobra, se vuelve a reconocer.
+    let edadTxt='';
+    if(u._reportado){
+      edadTxt = ` · 🕰️ dato del turno ${u._turno}`
+        + (u._antig>0 ? ` (hace ${u._antig} ${u._antig===1?'turno':'turnos'})` : ' — recién');
+      if(u._antig>0 && u._nivelOrig>u._nivel)
+        edadTxt += ` · ⬇️ era «${_wgIntTxt(u._nivelOrig)}», sin confirmar bajó a «${_wgIntTxt(u._nivel)}»`;
+    }
     m.bindTooltip(u._nivel!=null && u._nivel<WG_INT_CONF
-      ? `${_wgIntTxt(u._nivel)} — ${_rgEsc(u.designacion||'')}`
-      : `${_rgEsc(u.designacion||u.bando)} · ${pct}%${u.estado!=='activa'?' ('+u.estado+')':''}${obsTxt}`,
+      ? `${_wgIntTxt(u._nivel)} — ${_rgEsc(u.designacion||'')}${edadTxt}`
+      : `${_rgEsc(u.designacion||u.bando)} · ${pct}%${u.estado!=='activa'?' ('+u.estado+')':''}${obsTxt}${edadTxt}`,
       {direction:'top'});
     m.on('click', (ev)=>{ L.DomEvent.stopPropagation(ev); _wgUnidadClick(u); });
   }
@@ -29785,7 +29847,17 @@ function _wgPuedeEmpenar(u){
   // para nada — no se podía empeñar lo único que se veía.
   const marca=((WG.estado&&WG.estado.inteligencia)||[])
     .find(x=>x.bando===obs && String(x.unidad_id)===String(u.id));
-  if(marca && Number(marca.nivel)>=WG_INT_IDENT) return true;
+  // v2.9.315: vale el nivel de HOY, no el del turno en que se lo vio.
+  if(marca && _wgIntEnvejecido(marca.nivel, marca.turno)>=WG_INT_IDENT) return true;
+  // Si la marca existe pero se degradó, el motivo es OTRO y hay que decirlo:
+  // no es que nunca se supo, es que el dato caducó.
+  if(marca && Number(marca.nivel)>=WG_INT_IDENT){
+    const a=_wgIntAntiguedad(marca.turno);
+    _wgAviso(`🕰️ <b>Información vencida.</b> Ese dato es del <b>turno ${marca.turno}</b> — hace `
+      +`${a} ${a===1?'turno':'turnos'} que no se lo vuelve a observar, así que ya no sirve para `
+      +`empeñar.<br>Volvé a batir el sector con el <b>CW 40</b> para confirmarlo.`, 7000);
+    return false;
+  }
   _wgAviso('❓ <b>Contacto sin identificar.</b> Sabés que hay algo ahí, no qué es — y sobre eso '
     +'no se empeña una unidad.<br>Acercá el <b>CW 40</b> o cerrá la torreta para reconocerlo, '
     +'o batí el <b>área</b> con un clic en el mapa.', 7000);
