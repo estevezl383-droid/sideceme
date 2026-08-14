@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.319</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.320</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -23226,6 +23226,26 @@ function _wgEsG1(){ return _wgRol()==='g1'; }
 //     lo que una maqueta lleva: norte, escala y el recuadro de ubicación.
 // ============================================================
 function _wgEsMaqueta(){ return !!WG.maqueta; }
+// Las tres bases de la proyección. La maqueta arranca en SATÉLITE porque el
+// modelo físico es blanco y la proyección es la que le da el color.
+const WG_MAQ_BASES={
+  sat:   {nom:'🛰️ Satélite', url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'},
+  carta: {nom:'🗺️ Carta',    url:'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'},
+  negro: {nom:'⬛ Negro',     url:null},
+};
+function wgMaquetaBase(id){
+  if(!WG_MAQ_BASES[id] || !WG.map) return;
+  WG.maqBase=id;
+  try{ if(WG._maqTile){ WG.map.removeLayer(WG._maqTile); WG._maqTile=null; } }catch(_e){}
+  const u=WG_MAQ_BASES[id].url;
+  if(u){ WG._maqTile=L.tileLayer(u,{maxZoom:18,attribution:''}); WG._maqTile.addTo(WG.map);
+         try{ WG._maqTile.bringToBack(); }catch(_e){} }
+  document.body.classList.toggle('maq-negro', id==='negro');
+  for(const k of Object.keys(WG_MAQ_BASES)){
+    const b=document.getElementById('maq-base-'+k);
+    if(b){ b.style.opacity = (k===id)?1:.5; b.style.borderColor=(k===id)?'#fff':'#ffffff55'; }
+  }
+}
 function _wgMaquetaMontar(){
   if(WG._maqMontada) return; WG._maqMontada=1;
   document.body.classList.add('wg-maqueta');
@@ -23237,8 +23257,23 @@ function _wgMaquetaMontar(){
     body.wg-maqueta #wg-unidades-barra, body.wg-maqueta #wg-invitacion,
     body.wg-maqueta #wg-zoom, body.wg-maqueta #wg-3d-cota,
     body.wg-maqueta #version-marker, body.wg-maqueta .leaflet-control-container{ display:none !important; }
-    body.wg-maqueta #wg-map{ background:#000 !important; }
-    body.wg-maqueta .leaflet-container{ background:#000 !important; }
+    /* v2.9.320: el negro es UNA OPCIÓN, no el modo. Por defecto la proyección
+       va a colores, que es lo que pinta la maqueta blanca. */
+    body.wg-maqueta.maq-negro #wg-map{ background:#000 !important; }
+    body.wg-maqueta.maq-negro .leaflet-container{ background:#000 !important; }
+    /* v2.9.320 — CONTRASTE DEL HUD SOBRE IMAGEN. Con la proyección a colores el
+       fondo deja de ser negro: los rótulos blancos sobre un salar o una nube se
+       vuelven ilegibles. Cada elemento lleva su propio respaldo oscuro, que
+       además en la maqueta se lee como una cartela. */
+    body.wg-maqueta #maq-hud .cj{ text-shadow:0 1px 4px #000, 0 0 10px #000;
+      background:rgba(6,11,17,.55); padding:7px 9px; border-radius:9px;
+      backdrop-filter:blur(2px); }
+    #maq-capas{ position:absolute; right:18px; top:56px; max-width:250px; pointer-events:auto;
+      background:rgba(8,13,19,.86); border:1px solid #ffffff44; border-radius:8px; padding:7px 9px;
+      display:none; }
+    #maq-capas.abierto{ display:block; }
+    #maq-capas button{ font-size:10px; padding:2px 7px; margin:2px 2px 0 0; border-radius:5px;
+      background:rgba(255,255,255,.08); border:1px solid #ffffff44; color:#fff; cursor:pointer; }
     /* La proyección no se toca con el mouse: el encuadre está calibrado. */
     body.wg-maqueta.maq-trabada #wg-map{ pointer-events:none; }
     /* ⚠️ #wg-game va en z-index 6001: el HUD tiene que ir POR ENCIMA o no se ve
@@ -23281,14 +23316,23 @@ function _wgMaquetaMontar(){
     <div class="cj" style="right:18px;top:16px;display:flex;gap:6px">
       <button onclick="wgMaquetaEncuadrar()" style="font-size:11px;padding:4px 9px;border-radius:6px;
         background:rgba(255,255,255,.10);border:1px solid #ffffff55;color:#fff;cursor:pointer">⛶ Encuadrar</button>
-      <button id="maq-terr" onclick="wgMaquetaTerreno()" style="font-size:11px;padding:4px 9px;border-radius:6px;
-        background:rgba(255,255,255,.10);border:1px solid #ffffff55;color:#fff;cursor:pointer"
-        title="El terreno proyectado sirve para calzar la imagen con el modelo. Una vez calibrado, apagalo.">🗺️ Terreno</button>
+      ${Object.keys(WG_MAQ_BASES).map(k=>
+        `<button id="maq-base-${k}" onclick="wgMaquetaBase('${k}')" style="font-size:11px;padding:4px 9px;`
+        +`border-radius:6px;background:rgba(255,255,255,.10);border:1px solid #ffffff55;color:#fff;cursor:pointer`
+        +`${k==='sat'?'':';opacity:.5'}">${WG_MAQ_BASES[k].nom}</button>`).join('')}
+      <button onclick="document.getElementById('maq-capas').classList.toggle('abierto')"
+        style="font-size:11px;padding:4px 9px;border-radius:6px;background:rgba(255,255,255,.10);
+        border:1px solid #ffffff55;color:#fff;cursor:pointer"
+        title="Encender o apagar los calcos del CMOC y de la carta">📚 Capas</button>
       <button id="maq-lock" onclick="wgMaquetaTrabar()" style="font-size:11px;padding:4px 9px;border-radius:6px;
         background:rgba(255,255,255,.10);border:1px solid #ffffff55;color:#fff;cursor:pointer">🔒 Trabar</button>
-    </div>`;
+    </div>
+    <!-- CALCOS: los mismos del juego (CMOC y Carta), para encenderlos sobre la maqueta -->
+    <div id="maq-capas" class="cj"></div>`;
   document.body.appendChild(hud);
 
+  _wgMaquetaCapas();
+  wgMaquetaBase(WG.maqBase||'sat');
   // Recuadro de ubicación: mapa chico de Bolivia con el área marcada. Es el
   // único lugar donde SÍ va carta — es un localizador, no la proyección.
   setTimeout(()=>{ try{
@@ -23311,6 +23355,31 @@ function _wgMaquetaMontar(){
     if(!((WG.estado&&WG.estado.unidades)||[]).length) return;
     try{ wgMaquetaEncuadrar(); if(WG.map.getZoom()>=3){ WG._maqEncuadrada=1; } }catch(_e){}
   }, 700);
+}
+// Los calcos, agrupados como en el juego: los del CMOC (terreno restringido,
+// clave, áreas de empeño, interdicciones) y los de la carta (elevaciones,
+// hidrografía, comunicaciones, poblaciones, vegetación). Sobre la maqueta blanca
+// son los que le dan la lectura militar al modelo.
+function _wgMaquetaCapas(){
+  const c=document.getElementById('maq-capas'); if(!c) return;
+  const grupos={};
+  for(const k of WG_CALCOS) (grupos[k.grupo]=grupos[k.grupo]||[]).push(k);
+  c.innerHTML=Object.keys(grupos).map(g=>
+    `<div style="font-size:9px;letter-spacing:1.3px;opacity:.75;margin:4px 0 2px">${_rgEsc(g)}</div>`
+    +grupos[g].map(k=>{
+      const on=_wgCalcoVisible(k.id);
+      return `<button id="maq-cal-${k.id}" onclick="wgMaquetaCalco('${k.id}')"`
+        +` style="border-color:${on?k.col:'#ffffff33'};color:${on?k.col:'#8fa6bd'};opacity:${on?1:.55}">`
+        +`${_rgEsc(k.nom)}</button>`;
+    }).join('')).join('')
+    +`<div style="font-size:8.5px;opacity:.6;margin-top:6px;line-height:1.35">`
+    +`Encendé lo que quieras que la proyección le pinte al modelo.</div>`;
+}
+function wgMaquetaCalco(id){
+  const on=!_wgCalcoVisible(id);
+  wgCalcoToggle(id, on);
+  const k=WG_CALCOS.find(x=>x.id===id), b=document.getElementById('maq-cal-'+id);
+  if(k&&b){ b.style.borderColor=on?k.col:'#ffffff33'; b.style.color=on?k.col:'#8fa6bd'; b.style.opacity=on?1:.55; }
 }
 // Encuadra toda el área de operaciones: es lo que se calza con el borde del modelo.
 function wgMaquetaEncuadrar(){
@@ -23570,18 +23639,22 @@ async function wgAbrir(partidaId, clave){
     WG.map = L.map('wg-map',{ zoomControl:!WG.maqueta, attributionControl:!WG.maqueta })
       .setView([-17,-65], 7);
     // ============================================================
-    // v2.9.319 — VISTA DE MAQUETA: SIN CARTA DEBAJO, A PROPÓSITO.
+    // v2.9.320 — LA MAQUETA VA A COLORES. (Corrige la 319, que la hizo negra.)
     //
-    // Se proyecta sobre una maqueta FÍSICA en blanco. El terreno ya está ahí,
-    // en yeso: lo que tiene que salir del proyector es SÓLO el dispositivo, el
-    // movimiento y el fuego. Por eso no se carga la tesela: un mapa proyectado
-    // encima del relieve de la maqueta no coincidiría con nada y ensuciaría todo.
-    // Y el fondo va NEGRO porque un proyector proyecta LUZ: lo negro no ilumina
-    // y deja ver el yeso; lo que se dibuje sale encendido sobre la maqueta.
+    // Sergio: «lo proyectaré sobre una superficie BLANCA, entonces necesito que
+    // proyecte imagen, cerros, ríos, elevaciones… TODO A COLORES; la maqueta es
+    // en blanco y la proyección le da todo el color».
+    //
+    // Yo había entendido lo contrario —fondo negro para no tapar el relieve de
+    // yeso— y es exactamente al revés: la maqueta es BLANCA y neutra JUSTAMENTE
+    // para que el cañón la pinte. El yeso pone el volumen; la proyección pone el
+    // terreno, la vegetación, la hidrografía y el dispositivo encima. Por eso
+    // arranca con la imagen satelital completa, y el negro queda como una opción
+    // más, para cuando se quiera proyectar sólo el dispositivo.
     // ============================================================
-    if(!WG.maqueta){
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'OSM'}).addTo(WG.map);
-    }
+    WG._maqTile = L.tileLayer(WG.maqueta ? WG_MAQ_BASES.sat.url
+                           : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      {maxZoom:18, attribution: WG.maqueta?'':'OSM'}).addTo(WG.map);
     WG.capa = L.layerGroup().addTo(WG.map);
     WG.map.on('click', _wgMapClick);
     WG.map.on('zoomend moveend', wgActualizarZoomChip);  // v2.9.196
@@ -24636,15 +24709,26 @@ const WG_INSTAL={
             desc:'Atención de bajas y evacuación sanitaria.'},
   log_trans:{id:'log_trans',rol:'g4',nom:'Centro de transporte',ico:'🚚',col:'#8fe3c8',
             desc:'Medios de transporte y control de movimiento.'},
-  // ── G-1 · PERSONAL
-  log_rezag:{id:'log_rezag',rol:'g1',nom:'Puesto de reunión de rezagados',ico:'🧭',col:'#ffc98f',
+  // ── G-4 · LOS TRENES. Se MUEVEN: acompañan a la fuerza. (v2.9.320)
+  // Doctrina (ECEM 15-03): «el Tren de Combate marchará con el BI, y el Tren de
+  // Campaña lo hará integrando los Trenes de la División».
+  log_trenc:{id:'log_trenc',rol:'g4',movil:true,nom:'Tren de Combate',ico:'🚛',col:'#ffd47f',
+            desc:'Marcha CON la unidad: lo indispensable para sostener el combate del día.'},
+  log_trenk:{id:'log_trenk',rol:'g4',movil:true,nom:'Tren de Campaña',ico:'🚚',col:'#e8a44a',
+            desc:'Va con los trenes de la División, a retaguardia. Repone al Tren de Combate.'},
+  log_asdi: {id:'log_asdi', rol:'g4',nom:'Área de Servicios (ASDI)',ico:'🏭',col:'#9fd0ff',
+            desc:'Donde se ubican las instalaciones logísticas de la División.'},
+  // ── G-1 · PERSONAL (nombres del ECEM 15-08)
+  log_pdg:  {id:'log_pdg', rol:'g1',nom:'Puesto de Reunión de PP.GG.',ico:'🔒',col:'#bdbdbd',
+            desc:'Custodia de prisioneros de guerra para su evacuación posterior.'},
+  log_rezag:{id:'log_rezag',rol:'g1',nom:'Puesto de Reunión de Extraviados',ico:'🧭',col:'#ffc98f',
             desc:'Recupera al que se desprendió de su unidad y lo devuelve al combate.'},
-  log_reemp:{id:'log_reemp',rol:'g1',nom:'Centro de reemplazos',ico:'🧍',col:'#9fe8a0',
-            desc:'Recibe y distribuye el personal de reposición.'},
-  log_pdg:  {id:'log_pdg', rol:'g1',nom:'Campo de prisioneros',ico:'🔒',col:'#bdbdbd',
-            desc:'Reunión, custodia y evacuación de prisioneros de guerra.'},
-  log_sepul:{id:'log_sepul',rol:'g1',nom:'Puesto de sepultura',ico:'✝️',col:'#c9b8a8',
-            desc:'Recuperación e identificación de los caídos.'},
+  log_reemp:{id:'log_reemp',rol:'g1',movil:true,nom:'Unidad de Reemplazos',ico:'🧍',col:'#9fe8a0',
+            desc:'Recibe y distribuye el personal de reposición. Se desplaza con la fuerza.'},
+  log_sepul:{id:'log_sepul',rol:'g1',nom:'Sepulturas',ico:'✝️',col:'#c9b8a8',
+            desc:'Recuperación, identificación y sepultura de los caídos.'},
+  log_pc:   {id:'log_pc',  rol:'g1',movil:true,nom:'Puesto de Comando',ico:'⛺',col:'#8fd0e8',
+            desc:'Administración interna del PC: su instalación y movimiento es del G-1.'},
 };
 // Los botones de instalar de UNA célula. Compartido por las estaciones.
 function _wgBotonesInstal(rol){
@@ -24697,7 +24781,59 @@ async function _wgInstalarEn(lng, lat){
   }
   _wgAviso(`${I.ico} <b>${_rgEsc(I.nom)}</b> ubicada. Ya la ve todo tu Estado Mayor.`, 4000);
   await wgEstado(true); _wgRender(); if(WG.map3d) _wg3dDatos();
+  if(I.movil) _wgAvisoDistanciaLog(lng, lat);   // v2.9.320: la distancia enseña
   return true;
+}
+// Tocar una instalación propia: moverla (si es móvil) o levantarla.
+function _wgInstalClick(it, I){
+  if(I.movil){
+    const q=prompt(`${I.nom}\n\n1 = MOVERLA (después tocá el punto del mapa)\n`
+      +`2 = levantarla de la carta\n\nEscribí 1 o 2:`, '1');
+    if(q==='1'){ WG.instalMover=it.id; WG.instalSel=null;
+      _wgAviso(`${I.ico} <b>${_rgEsc(I.nom)}</b> — tocá el punto del mapa a donde la desplazás.`, 6000);
+      return; }
+    if(q==='2') wgQuitarInstalacion(it.id);
+    return;
+  }
+  if(confirm(I.nom+': ¿levantarla de la carta?')) wgQuitarInstalacion(it.id);
+}
+async function _wgMoverInstalacionA(lng, lat){
+  const id=WG.instalMover; if(id==null) return false;
+  WG.instalMover=null;
+  const r=await _wgInvoke('mover_instalacion',{ partida_id:WG.partidaId, clave_acceso:WG.clave, id, lng, lat });
+  if(!r.ok){ _wgAviso('No se pudo mover: '+_rgEsc(r.error||'')
+    +'<br><span style="opacity:.8">Si dice «Acción no reconocida», falta desplegar la Edge Function.</span>',7000); return true; }
+  await wgEstado(true); _wgRender(); if(WG.map3d) _wg3dDatos();
+  _wgAvisoDistanciaLog(lng, lat);
+  return true;
+}
+// ============================================================
+// v2.9.320 — LA DISTANCIA PRUDENTE, QUE ES LO QUE SE ENSEÑA.
+//
+// Sergio: «se deberían poder mover fichas considerando la distancia prudente
+// que están las fuerzas, considerando trenes de abastecimiento y trenes de
+// combate».
+//
+// El Tren de Combate marcha CON la unidad —lo indispensable del día— y el Tren
+// de Campaña queda atrás, con los trenes de la División. Un tren pegado al
+// frente se pierde con el primer contrataque; uno demasiado atrás no alcanza a
+// abastecer. El juego no lo prohíbe: lo ADVIERTE, que es como se corrige a un
+// alumno.
+// ============================================================
+function _wgAvisoDistanciaLog(lng, lat){
+  try{
+    const b=(WG.soy==='arbitro')?_wgBandoLente():WG.soy;
+    const mias=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u.bando===b
+      && u.estado!=='fuera_combate' && Number.isFinite(u.lng));
+    if(!mias.length) return;
+    let km=Infinity;
+    for(const u of mias) km=Math.min(km, _wgHav([lng,lat],[u.lng,u.lat]));
+    if(km<2) _wgAviso(`⚠️ <b>A ${km.toFixed(1)} km de la unidad más cercana.</b> Un tren pegado al `
+      +`frente se pierde con el primer contraataque — y su pérdida deja sin sostén a la unidad.`, 7000);
+    else if(km>25) _wgAviso(`⚠️ <b>A ${km.toFixed(1)} km de la unidad más cercana.</b> Desde ahí no `
+      +`alcanza a abastecer en el día: el Tren de Combate marcha CON la unidad.`, 7000);
+    else _wgAviso(`✅ Ubicado a <b>${km.toFixed(1)} km</b> de la unidad más cercana.`, 3500);
+  }catch(_e){}
 }
 async function wgQuitarInstalacion(id){
   const r=await _wgInvoke('quitar_instalacion',{ partida_id:WG.partidaId, clave_acceso:WG.clave, id });
@@ -30513,10 +30649,11 @@ function _wgRender(){
         +`background:rgba(10,16,22,.82);display:flex;align-items:center;justify-content:center;`
         +`font-size:15px;box-shadow:0 1px 6px rgba(0,0,0,.5)">${I.ico}</div>`}) }).addTo(WG.capa);
     mk.bindTooltip(`${I.ico} <b>${_rgEsc(I.nom)}</b><br>${_rgEsc(I.desc)}`,{direction:'top'});
-    // Sólo el G-4 (y el árbitro) las levanta: es su instalación.
-    if(_wgEsG4()||WG.soy==='arbitro')
-      mk.on('click',(e)=>{ L.DomEvent.stopPropagation(e);
-        if(confirm(I.nom+': ¿quitarla de la carta?')) wgQuitarInstalacion(it.id); });
+    // v2.9.320: la toca la célula DUEÑA (el G-1 las suyas, el G-4 las suyas) o
+    // el árbitro. Y si es móvil —un tren, la unidad de reemplazos, el PC— se
+    // puede DESPLAZAR, que es lo que hace en la realidad.
+    if(WG.soy==='arbitro' || _wgRol()===I.rol)
+      mk.on('click',(e)=>{ L.DomEvent.stopPropagation(e); _wgInstalClick(it, I); });
   }
   // v2.9.220: las llamas, encima de las fichas (el mismo HTML que en 3D).
   for(const f of (WG.incendios||[])){
@@ -30570,7 +30707,12 @@ function _wgRender(){
     // fondo: metido en el visor del CW 40 estás haciendo RECONOCIMIENTO, no
     // eligiendo con qué disparar. El panel vuelve solo al salir del dron.
     // v2.9.316: el G-2 no elige con qué disparar — no maniobra.
-    if(uSel && !_wgEsG2() && _wgArmamento(uSel).length && WG.dronVista==null){
+    // v2.9.320 — NINGUNA CÉLULA QUE ASESORA ELIGE CON QUÉ DISPARAR.
+    // Sergio, sobre el panel de fuego en la estación de abastecimiento: «ya está
+    // un poco demás en abastecimiento porque ellos no disparan». Vale igual para
+    // el G-1, el G-4 y el G-5: el armamento es del que maniobra. Antes esto
+    // miraba sólo al G-2 y a los demás se les colaba.
+    if(uSel && _wgRolOrdena() && _wgArmamento(uSel).length && WG.dronVista==null){
       // v2.9.310 — misma guardia: sin esto el panel de armamento se rehacía
       // entero en cada refresco aunque el arma elegida fuera la misma.
       const htmlArm=_wgPanelArmasHTML();
@@ -30678,6 +30820,7 @@ function _wgMapClick(ev){
   // v2.9.317: con una instalación elegida, el clic la UBICA. Va antes del
   // guardia de órdenes a propósito: ubicar una instalación no es maniobrar, así
   // que el G-4 puede hacerlo aunque no pueda dar órdenes.
+  if(WG.instalMover!=null){ _wgMoverInstalacionA(ev.latlng.lng, ev.latlng.lat); return; }
   if(WG.instalSel){ _wgInstalarEn(ev.latlng.lng, ev.latlng.lat); return; }
   if(!WG.sel) return;
   if(!_wgPuedeOrdenar()) return;
