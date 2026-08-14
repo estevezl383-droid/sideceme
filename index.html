@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.316</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.317</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -23178,28 +23178,77 @@ function _wgEsInstructor(){ const ses=getSession(); return !!(ses && ses.tipo===
 // dibujan igual que en el puesto de mando, el ojo se va a ellas y la carta deja
 // de contar lo que tiene que contar.
 // ============================================================
-function _wgEsG2(){ return WG.rol==='g2'; }
-// El enlace de la estación: el mismo del bando más `&rol=g2`. Se comparte con
-// el oficial de inteligencia para que entre desde SU máquina.
-function _wgEnlaceG2(){
+// ============================================================
+// v2.9.317 — LOS PUESTOS DEL ESTADO MAYOR.
+//
+// Cada célula entra por su propio enlace y ve su propia pantalla. Quién ORDENA
+// no es un detalle de interfaz: es la diferencia entre asesorar y mandar.
+// El Comandante decide, el JEM coordina y el G-3 redacta y transmite la
+// maniobra — ésos ordenan. G-1, G-2, G-4 y G-5 asesoran en lo suyo y le ponen
+// al Comandante los elementos de juicio; no maniobran.
+// ============================================================
+const WG_ROLES={
+  cmte:{nom:'Comandante',            ico:'🎖️', ordena:true,  desc:'Decide y ordena.'},
+  jem: {nom:'Jefe de Estado Mayor',  ico:'📋', ordena:true,  desc:'Coordina al Estado Mayor y hace correr el turno.'},
+  g1:  {nom:'G-1 · Personal',        ico:'👥', ordena:false, desc:'Bajas, reemplazos y moral.'},
+  g2:  {nom:'G-2 · Inteligencia',    ico:'🔎', ordena:false, desc:'Vuela el dron y arma el cuadro del enemigo.'},
+  g3:  {nom:'G-3 · Operaciones',     ico:'⚔️', ordena:true,  desc:'Redacta y transmite la maniobra.'},
+  g4:  {nom:'G-4 · Logística',       ico:'📦', ordena:false, desc:'Abastecimiento, transporte, mantenimiento y evacuación.'},
+  g5:  {nom:'G-5 · Asuntos Civiles', ico:'🏛️', ordena:false, desc:'Población, territorio y coordinación civil.'},
+};
+function _wgRol(){ return WG_ROLES[WG.rol] ? WG.rol : null; }
+function _wgRolNom(){ const r=_wgRol(); return r ? WG_ROLES[r].nom : null; }
+function _wgEsG2(){ return _wgRol()==='g2'; }
+function _wgEsG4(){ return _wgRol()==='g4'; }
+// Sin rol (el enlace liso del bando) se ordena, como siempre: es el puesto de
+// mando de toda la vida y no hay que romperle nada a quien ya lo usa así.
+function _wgRolOrdena(){ const r=_wgRol(); return !r || WG_ROLES[r].ordena; }
+// El enlace de un puesto: el mismo del bando más `&rol=<puesto>`. Se le pasa al
+// oficial para que entre desde SU máquina, sin pisar la pantalla del Comandante.
+function _wgEnlaceRol(rol){
   const b=(WG.soy==='arbitro')?_wgBandoLente():WG.soy;
   if(!WG.partidaId || !b || !WG.clave) return null;
   return location.origin+location.pathname
     +'?wg='+encodeURIComponent(WG.partidaId)+'&b='+encodeURIComponent(b)
-    +'&k='+encodeURIComponent(WG.clave)+'&rol=g2';
+    +'&k='+encodeURIComponent(WG.clave)+(WG_ROLES[rol]?'&rol='+rol:'');
 }
-function wgAbrirG2(){
-  const u=_wgEnlaceG2();
+function wgAbrirRol(rol){
+  const u=_wgEnlaceRol(rol);
   if(!u){ _wgAviso('Todavía no hay partida abierta.',3000); return; }
   window.open(u,'_blank');
 }
-function wgCopiarG2(){
-  const u=_wgEnlaceG2(); if(!u) return;
+function wgCopiarRol(rol){
+  const u=_wgEnlaceRol(rol); if(!u) return;
+  const R=WG_ROLES[rol]||{nom:'puesto de mando',ico:'🔗'};
   try{ navigator.clipboard.writeText(u);
-    _wgAviso('🔗 <b>Enlace de la estación G-2 copiado.</b> Pasáselo a tu oficial de '
-      +'inteligencia: entra con ese enlace desde su computadora y trabaja la carta '
-      +'sin tocar tu pantalla.',6000);
-  }catch(_e){ prompt('Enlace de la estación G-2:', u); }
+    _wgAviso(`🔗 <b>Enlace del ${_rgEsc(R.nom)} copiado.</b> Pasáselo a ese oficial: `
+      +`entra con ese enlace desde su computadora y trabaja lo suyo sin tocar tu pantalla.`,6000);
+  }catch(_e){ prompt('Enlace del '+R.nom+':', u); }
+}
+// Qué dice la pantalla de cada puesto al entrar.
+function _wgAyudaRol(rol){
+  const R=WG_ROLES[rol];
+  const cab=`${R.ico} <b>Puesto de ${_rgEsc(R.nom)}.</b> `;
+  if(rol==='g2') return cab
+    +'Volá el <b>CW 40</b> con las flechas y subí a la carta lo que reconozcas: ésa es tu '
+    +'contribución al cuadro de situación.<br>Tus fuerzas van <b>apagadas</b>, de referencia — '
+    +'acá el protagonista es el enemigo.<br>Ojo con lo viejo: un dato pierde un nivel por turno '
+    +'si no lo volvés a batir.';
+  if(rol==='g4') return cab
+    +'Acá se ve el <b>estado logístico</b> de la fuerza: combustible, munición, bajas de material '
+    +'y qué unidad está por quedarse sin poder moverse o sin poder tirar.<br>'
+    +'Con <b>📦 Instalar</b> ubicás tus instalaciones en el terreno — <b>abastecimiento</b>, '
+    +'<b>municionamiento</b>, <b>mantenimiento</b> y <b>puesto de socorro</b> — y quedan a la vista '
+    +'de todo tu Estado Mayor.<br>No das órdenes de maniobra: le decís al Comandante <b>hasta '
+    +'dónde le da</b> la logística.';
+  if(rol==='g3') return cab
+    +'Sos el que redacta y transmite la maniobra: <b>ordenás igual que el Comandante</b>. '
+    +'Tocá una unidad y marcá su destino, o elegí un arma en 🎯 ARMAMENTO para empeñar.';
+  if(rol==='cmte'||rol==='jem') return cab
+    +'Tenés el puesto de mando completo: ordenás y hacés correr el turno. '
+    +'Los demás puestos te ponen los elementos de juicio en la carta.';
+  return cab+_rgEsc(R.desc)
+    +'<br>Desde acá se <b>asesora</b>: la orden la dan el Comandante, el JEM o el G-3.';
 }
 function goWargame(fromScreen){
   WG.volverA = fromScreen || 'screen-disc-panel';
@@ -23262,6 +23311,23 @@ async function wgCargarMisPartidas(){
       +`<button class="rg-doc" onclick="wgInvitarBando('azul',${p.id})">🔵 Enlace + QR del AZUL</button>`
       +`<button class="rg-doc" onclick="wgInvitarBando('rojo',${p.id})">🔴 Enlace + QR del ROJO</button>`
     +`</div>`
+    // ============================================================
+    // v2.9.317 — UN ENLACE POR PUESTO DEL ESTADO MAYOR.
+    // El enlace liso del bando entra al puesto de mando. Estos entran a la
+    // pantalla de cada célula: cada oficial abre el suyo en su máquina y
+    // trabaja lo suyo. Es lo que convierte esto en un ejercicio de Estado
+    // Mayor y no en una persona manejando todo.
+    // ============================================================
+    +['azul','rojo'].map(b=>
+      `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;align-items:center">`
+      +`<span class="rg-meta" style="font-size:10px;opacity:.7;width:100%;margin-bottom:2px">`
+      +`${b==='azul'?'🔵':'🔴'} PUESTOS DEL ${b.toUpperCase()} <span style="opacity:.6">— clic: abrir · Shift+clic: enlace + QR</span></span>`
+      +Object.keys(WG_ROLES).map(k=>
+        `<button class="rg-doc" style="font-size:11px;padding:3px 8px"`
+        +` title="${_rgEsc(WG_ROLES[k].nom)} — ${_rgEsc(WG_ROLES[k].desc)}"`
+        +` onclick="wgPuestoLobby(event,'${b}',${p.id},'${k}')">`
+        +`${WG_ROLES[k].ico} ${_rgEsc(WG_ROLES[k].nom.replace(/ · .*/,''))}</button>`).join('')
+      +`</div>`).join('')
     +`<div id="wg-inv-${p.id}"></div>`
     +`</div>`
   ).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">Aún no creaste partidas.</div>';
@@ -24149,6 +24215,190 @@ function _wgPanelG2HTML(mias){
       +`⚠️ <b>${viejas}</b> ${viejas===1?'marca lleva':'marcas llevan'} 3 turnos o más sin confirmar. `
       +`Sobre eso no se maniobra: volvé a batir el sector.</div>` : '';
   return cabecera+aviso+filas+_wgG2Propias(mias);
+}
+// ============================================================
+// v2.9.317 — EL TABLERO DEL G-4.
+//
+// Sergio: «el G-4 debe tener su propia vista… cuadros que muestren consumo de
+// combustible, munición y todo lo que le corresponde».
+//
+// Todo lo que se muestra acá sale de datos que el motor YA lleva —
+// `combustible_km` (km gastados contra la autonomía del medio), `municion`
+// (unidades de fuego por sistema) y el poder de combate—; no hay un solo número
+// inventado. Lo que agrega el G-4 no es el dato, es la LECTURA: quién se queda
+// sin moverse, quién sin tirar y a quién hay que evacuar.
+//
+// El orden es el de la urgencia, no el alfabético: arriba lo que está por
+// romperse. Un tablero logístico ordenado por nombre no sirve para decidir.
+// ============================================================
+// ⚠️ v2.9.317: la munición se lee con `_wgMunicionUnidad()`, que YA EXISTE más
+// abajo en el archivo y devuelve {det, hay, tope, pct, secos}. Acá había un
+// duplicado con el mismo nombre y otra forma: como las declaraciones de función
+// se pisan, ganaba la de abajo y el panel mostraba «undefined UF». No volver a
+// declararla — se usa la que está.
+function _wgPanelG4HTML(mias){
+  const uds=(mias||[]).slice();
+  if(!uds.length) return `<div class="rg-meta">Sin unidades.</div>`;
+  const inf=uds.map(u=>{
+    const c=_wgCombustible(u);
+    const mu=_wgMunicionUnidad(u);
+    const pod=u.poder_max?Math.round(100*u.poder_actual/u.poder_max):100;
+    // Urgencia: 0 = tranquilo, 3 = ya es un problema de comando.
+    let urg=0;
+    if(c && c.pct>=100) urg=3; else if(c && c.pct>=80) urg=Math.max(urg,2); else if(c && c.pct>=60) urg=Math.max(urg,1);
+    if(mu.pct!=null){ if(mu.pct<=0) urg=3; else if(mu.pct<=25) urg=Math.max(urg,2); else if(mu.pct<=50) urg=Math.max(urg,1); }
+    if(pod<=40) urg=Math.max(urg,2); else if(pod<=70) urg=Math.max(urg,1);
+    if(u.estado==='fuera_combate') urg=3;
+    return {u,c,mu,pod,urg};
+  }).sort((a,b)=>(b.urg-a.urg)||(a.u.designacion||'').localeCompare(b.u.designacion||'','es'));
+
+  // ── CUADROS DE CABECERA: el resumen que el Comandante pregunta primero.
+  const conTanque=inf.filter(x=>x.c);
+  const combMedio = conTanque.length
+    ? Math.round(conTanque.reduce((s,x)=>s+x.c.pct,0)/conTanque.length) : null;
+  const sinComb=conTanque.filter(x=>x.c.pct>=100).length;
+  const conMun=inf.filter(x=>x.mu.pct!=null);
+  const munMedia=conMun.length ? Math.round(conMun.reduce((s,x)=>s+x.mu.pct,0)/conMun.length) : null;
+  const secas=inf.filter(x=>x.mu.secos>0).length;
+  const bajas=inf.filter(x=>x.u.estado==='fuera_combate').length;
+  const dañadas=inf.filter(x=>x.pod<70 && x.u.estado!=='fuera_combate').length;
+  const cuadro=(ico,tit,val,sub,col)=>
+    `<div style="flex:1;min-width:86px;background:rgba(255,255,255,.045);border:1px solid ${col}44;`
+    +`border-radius:9px;padding:6px 7px">`
+    +`<div style="font-size:8px;letter-spacing:.9px;opacity:.7">${ico} ${tit}</div>`
+    +`<div style="font-size:16px;font-weight:800;color:${col};line-height:1.15">${val}</div>`
+    +`<div style="font-size:8px;opacity:.72">${sub}</div></div>`;
+  const cComb = combMedio==null?'#8fa6bd':(combMedio>=80?'#e23b3b':combMedio>=60?'#e08a2c':'#2ecc71');
+  const cMun  = munMedia==null?'#8fa6bd':(munMedia<=25?'#e23b3b':munMedia<=50?'#e08a2c':'#2ecc71');
+  const cabeza=`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px">`
+    +cuadro('⛽','COMBUSTIBLE', combMedio==null?'—':(100-combMedio)+'%',
+            sinComb?`⛔ ${sinComb} sin combustible`:'de autonomía en la fuerza', cComb)
+    +cuadro('🎯','MUNICIÓN', munMedia==null?'—':munMedia+'%',
+            secas?`⛔ ${secas} con sistemas secos`:'de dotación', cMun)
+    +cuadro('🔧','MANTENIMIENTO', String(dañadas),
+            dañadas?'unidades con material dañado':'sin material dañado', dañadas?'#e08a2c':'#2ecc71')
+    +cuadro('🚑','EVACUACIÓN', String(bajas),
+            bajas?'fuera de combate — evacuar':'sin bajas que evacuar', bajas?'#e23b3b':'#2ecc71')
+    +`</div>`;
+
+  // ── RENGLÓN POR UNIDAD, con lo que el G-4 tiene que resolver.
+  const filas=inf.map(({u,c,mu,pod,urg})=>{
+    const col = urg>=3?'#e23b3b' : urg===2?'#e08a2c' : urg===1?'#e8c33a' : '#2ecc71';
+    const barra=(pct,cl)=>`<span style="flex:1;height:4px;border-radius:3px;background:rgba(255,255,255,.12);`
+      +`overflow:hidden;display:block"><span style="display:block;height:100%;width:${Math.max(0,Math.min(100,pct))}%;`
+      +`background:${cl}"></span></span>`;
+    const lComb = c
+      ? `<div style="display:flex;align-items:center;gap:5px;margin-top:3px">`
+        +`<span style="font-size:9px;opacity:.75;width:14px">⛽</span>`
+        +barra(100-c.pct, c.pct>=80?'#e23b3b':c.pct>=60?'#e08a2c':'#2ecc71')
+        +`<span style="font-size:8.5px;opacity:.8;white-space:nowrap">${c.resta} km</span></div>`
+      : `<div style="font-size:8.5px;opacity:.55;margin-top:3px">⛽ a pie — sin tanque</div>`;
+    const lMun = mu.pct!=null
+      ? `<div style="display:flex;align-items:center;gap:5px;margin-top:2px">`
+        +`<span style="font-size:9px;opacity:.75;width:14px">🎯</span>`
+        +barra(mu.pct, mu.pct<=25?'#e23b3b':mu.pct<=50?'#e08a2c':'#2ecc71')
+        +`<span style="font-size:8.5px;opacity:.8;white-space:nowrap">${mu.hay} UF</span></div>` : '';
+    const alertas=[];
+    if(c && c.pct>=100) alertas.push('⛔ no se mueve más');
+    else if(c && c.pct>=80) alertas.push('⚠️ hay que reabastecer');
+    if(mu.secos) alertas.push(`⛔ ${mu.secos} sistema${mu.secos>1?'s':''} sin munición`);
+    if(u.estado==='fuera_combate') alertas.push('🚑 evacuar');
+    else if(pod<70) alertas.push(`🔧 material al ${pod}%`);
+    return `<div class="rg-card" style="padding:5px 7px;margin-bottom:3px;border-left:3px solid ${col};cursor:pointer"`
+      +` onclick="_wgIrUnidad(${u.id})">`
+      +`<div style="display:flex;justify-content:space-between;gap:6px;align-items:baseline">`
+      +`<b style="font-size:10.5px">${_rgEsc(u.designacion||('U'+u.id))}</b>`
+      +`<span style="font-size:8px;opacity:.7">${_rgEsc(u.medio||'')}</span></div>`
+      +lComb+lMun
+      +(alertas.length?`<div style="font-size:8.5px;color:${col};margin-top:3px">${alertas.join(' · ')}</div>`:'')
+      +`</div>`;
+  }).join('');
+  // ── INSTALACIONES: lo que el G-4 pone sobre el terreno.
+  const puestas=_wgInstalaciones();
+  const botones=Object.keys(WG_INSTAL).map(k=>{
+    const I=WG_INSTAL[k], act=(WG.instalSel===k);
+    return `<button class="wg-pill" title="${_rgEsc(I.nom)} — ${_rgEsc(I.desc)}"`
+      +` style="font-size:9px;padding:2px 7px;margin:2px 2px 0 0;`
+      +`${act?`border-color:${I.col};color:${I.col};box-shadow:0 0 0 1px ${I.col}55`:''}"`
+      +` onclick="wgInstalarModo('${k}')">${I.ico} ${_rgEsc(I.nom.replace(/^(Puesto|Punto|Taller|Centro) de /,''))}</button>`;
+  }).join('');
+  const listaPuestas = puestas.length
+    ? `<div style="font-size:8.5px;opacity:.8;margin-top:5px">`
+      +puestas.map(it=>{ const I=WG_INSTAL[it.tipo]; return I
+        ? `<span style="display:inline-block;margin:0 6px 2px 0">${I.ico} ${_rgEsc(I.nom.replace(/^(Puesto|Punto|Taller|Centro) de /,''))}</span>` : '';
+      }).join('')
+      +`<div style="opacity:.65;margin-top:2px">Tocá una en la carta para quitarla.</div></div>`
+    : `<div style="font-size:8.5px;opacity:.6;margin-top:5px">Todavía no ubicaste ninguna. `
+      +`Elegí una y tocá el punto del mapa.</div>`;
+  const instal=`<div style="font-size:9px;letter-spacing:1.2px;opacity:.6;margin:9px 0 3px">`
+    +`📍 INSTALACIONES ${WG.instalSel?'· <span style="color:#e8c33a">tocá el mapa</span>':''}</div>`
+    +botones+listaPuestas;
+
+  return `<div style="font-size:9px;letter-spacing:1.4px;opacity:.75;margin-bottom:5px">`
+    +`📦 SITUACIÓN LOGÍSTICA</div>`+cabeza+instal
+    +`<div style="font-size:9px;letter-spacing:1.2px;opacity:.6;margin:9px 0 4px">`
+    +`POR UNIDAD · lo más urgente arriba</div>`+filas;
+}
+// ============================================================
+// v2.9.317 — LAS INSTALACIONES DE LOGÍSTICA.
+//
+// Las cuatro funciones del G-4 puestas sobre el terreno. Se guardan en
+// `wg_terreno` con tipo `log_*`, que el motor NO interpreta: se dibujan y se
+// comparten con todo el Estado Mayor, pero no alteran movimiento ni combate.
+// Son elementos de la carta logística, no accidentes del terreno.
+// ============================================================
+const WG_INSTAL={
+  log_abas:{id:'log_abas',nom:'Puesto de abastecimiento',ico:'📦',col:'#7fb2ff',
+            desc:'Clase I y III: raciones y combustible.'},
+  log_muni:{id:'log_muni',nom:'Punto de municionamiento',ico:'🎯',col:'#e8c33a',
+            desc:'Clase V: reposición de unidades de fuego.'},
+  log_mant:{id:'log_mant',nom:'Taller de mantenimiento',ico:'🔧',col:'#c9a0ff',
+            desc:'Recuperación y reparación de material.'},
+  log_soco:{id:'log_soco',nom:'Puesto de socorro',ico:'🚑',col:'#ff8f8f',
+            desc:'Atención de bajas y evacuación sanitaria.'},
+  log_trans:{id:'log_trans',nom:'Centro de transporte',ico:'🚚',col:'#8fe3c8',
+            desc:'Medios de transporte y control de movimiento.'},
+};
+function _wgInstalaciones(){
+  const b=(WG.soy==='arbitro')?_wgBandoLente():WG.soy;
+  return ((WG.estado&&WG.estado.instalaciones)||[]).filter(x=>!b||x.bando===b);
+}
+// Entrar en modo colocar: el próximo clic en el mapa ubica la instalación.
+function wgInstalarModo(tipo){
+  if(!WG_INSTAL[tipo]) return;
+  WG.instalSel = (WG.instalSel===tipo) ? null : tipo;
+  const I=WG_INSTAL[tipo];
+  if(WG.instalSel) _wgAviso(`${I.ico} <b>${_rgEsc(I.nom)}</b> — tocá el punto del mapa donde la ubicás. `
+    +`${_rgEsc(I.desc)}<br>Tocá el botón otra vez para cancelar.`, 6000);
+  _wgRender();
+}
+async function _wgInstalarEn(lng, lat){
+  const tipo=WG.instalSel; if(!tipo) return false;
+  const I=WG_INSTAL[tipo];
+  WG.instalSel=null;
+  const r=await _wgInvoke('colocar_instalacion',{ partida_id:WG.partidaId, clave_acceso:WG.clave,
+    tipo, lng, lat });
+  if(!r.ok){
+    // v2.9.317: si la EF todavía es la vieja, la acción no existe y hay que
+    // decirlo con todas las letras en vez de dejar un error mudo.
+    _wgAviso('No se pudo ubicar: '+_rgEsc(r.error||'')
+      +'<br><span style="opacity:.8">Si dice «Acción no reconocida», falta desplegar la Edge Function <b>wargame-ops</b>.</span>', 8000);
+    return true;
+  }
+  _wgAviso(`${I.ico} <b>${_rgEsc(I.nom)}</b> ubicada. Ya la ve todo tu Estado Mayor.`, 4000);
+  await wgEstado(true); _wgRender(); if(WG.map3d) _wg3dDatos();
+  return true;
+}
+async function wgQuitarInstalacion(id){
+  const r=await _wgInvoke('quitar_instalacion',{ partida_id:WG.partidaId, clave_acceso:WG.clave, id });
+  if(!r.ok){ _wgAviso('No se pudo quitar: '+_rgEsc(r.error||''),5000); return; }
+  await wgEstado(true); _wgRender(); if(WG.map3d) _wg3dDatos();
+}
+// Centrar la carta en una unidad propia (el G-4 mira las suyas).
+function _wgIrUnidad(uid){
+  const u=_wgUnidadPorId(uid); if(!u) return false;
+  try{ if(WG.map) WG.map.setView([u.lat,u.lng], Math.max(WG.map.getZoom(),12)); }catch(_e){}
+  return true;
 }
 function _wgG2Propias(mias){
   const n=(mias||[]).length;
@@ -25508,6 +25758,12 @@ function _wgBandosDron(){
 }
 function wgPanelDrones(){
   const el=document.getElementById('wg-drones'); if(!el) return;
+  // v2.9.317 — EL DRON ES DEL G-2. En los puestos que no lo operan (G-1, G-4,
+  // G-5) la estación de control es ruido: les tapa media pantalla con mandos que
+  // no les corresponden. El Comandante, el JEM y el G-3 sí la ven, porque el
+  // medio es de la fuerza y ellos deciden dónde emplearlo.
+  const r=_wgRol();
+  if(r && r!=='g2' && !WG_ROLES[r].ordena){ el.style.display='none'; WG._panelFirma=null; return; }
   const bandos=_wgBandosDron().filter(b=>_wgDronBando(b));
   if(!bandos.length){ el.style.display='none'; el.innerHTML=''; WG._panelFirma=null; return; }
   el.style.display='';
@@ -26272,10 +26528,16 @@ async function wgEstado(silencioso){
   document.getElementById('wg-turno-chip').textContent = 'Turno '+(p.turno_actual||'—')+' · '+(p.estado||'');
   const rol=document.getElementById('wg-rol-chip');
   const g2=_wgEsG2();   // v2.9.316
-  rol.textContent = g2 ? ('🔎 G-2 '+String(r.soy||'').toUpperCase())
+  const miRol=_wgRol(), ordena=_wgRolOrdena();   // v2.9.317
+  rol.textContent = miRol ? (WG_ROLES[miRol].ico+' '+WG_ROLES[miRol].nom.replace(/ · .*/,'')+' '+String(r.soy||'').toUpperCase())
                        : (esArb?'🎖️ ÁRBITRO':(r.soy==='rojo'?'🔴 EM ROJO':'🔵 EM AZUL'));
+  rol.title = miRol ? WG_ROLES[miRol].nom+' — '+WG_ROLES[miRol].desc : '';
+  // v2.9.317 — el puesto abre SU tablero al entrar (una sola vez): si el oficial
+  // tiene que ir a buscarlo en un menú, la mitad no lo encuentra y concluye que
+  // su pantalla es igual a la del Comandante.
+  if(miRol && !WG._hojaAuto){ WG._hojaAuto=1; try{ wgHoja('unidades'); }catch(_e){} }
   rol.style.background = esArb?'#3a2c0c':(WG_COL[r.soy]+'22'); rol.style.border='1px solid '+(esArb?'#caa14a':WG_COL[r.soy]); rol.style.color = esArb?'#f4d574':WG_COL[r.soy];
-  document.getElementById('wg-btn-config').style.display = (esArb && !g2)?'':'none';
+  document.getElementById('wg-btn-config').style.display = (esArb && !miRol)?'':'none';
   // v2.9.218 — UN SOLO BOTÓN, SEGÚN EL ROL. Tres botones para una acción era
   // burocracia pura: si el Estado Mayor ya decidió, la orden ES la decisión.
   //   • ÁRBITRO → «▶️ Jugar turno»: manda y resuelve de una. Sirve para probar
@@ -26286,7 +26548,7 @@ async function wgEstado(silencioso){
   const enJuego = p.estado==='en_curso';
   document.getElementById('wg-btn-resolver').style.display = 'none';
   // v2.9.316: el G-2 no manda órdenes ni hace correr el turno. Informa.
-  document.getElementById('wg-btn-enviar').style.display = (enJuego && !esArb && !g2)?'':'none';
+  document.getElementById('wg-btn-enviar').style.display = (enJuego && !esArb && ordena)?'':'none';
   // v2.9.207: mientras la partida NO empezó, las órdenes están bloqueadas. El
   // botón de arrancar tiene que estar A LA VISTA, no enterrado en ⚙️ Configurar:
   // Sergio no podía mover nada y el clic no le decía por qué.
@@ -26294,7 +26556,7 @@ async function wgEstado(silencioso){
   // v2.9.277 — «▶️ Jugar turno» TAMBIÉN para los bandos. Antes sólo lo veía el
   // árbitro, así que un Estado Mayor mandaba sus órdenes y no tenía con qué
   // hacerlas correr: por eso «salen órdenes listas pero no se mueven».
-  document.getElementById('wg-btn-jugar').style.display = (enJuego && !g2)?'':'none';
+  document.getElementById('wg-btn-jugar').style.display = (enJuego && ordena)?'':'none';
   // precargar mis órdenes ya enviadas — v2.9.218: también el ARMA elegida, si no
   // la vista previa calcula el alcance con otro sistema que el que se mandó.
   WG.ordenes={};
@@ -26304,18 +26566,17 @@ async function wgEstado(silencioso){
   document.getElementById('wg-ayuda').innerHTML = p.estado!=='en_curso'
     ? (esArb?'⏸️ La partida <b>todavía no empezó</b> — por eso las fichas no se mueven.<br>Tocá <b>🚀 Iniciar partida</b> (abajo a la derecha) y ahí sí podés dar órdenes.'
            :'Esperá a que el árbitro inicie la partida.')
-    : g2 ? ('🔎 <b>Estación del G-2.</b> Volá el <b>CW 40</b> con las flechas y subí a la carta lo que reconozcas: '
-       + 'esa es tu contribución al cuadro de situación.<br>Tus fuerzas van <b>apagadas</b>, de referencia — '
-       + 'acá el protagonista es el enemigo.<br>No das órdenes de maniobra: <b>informás</b>. '
-       + 'Y ojo con lo viejo: un dato pierde un nivel por turno si no lo volvés a batir.')
+    : miRol ? _wgAyudaRol(miRol)
     : ('Tocá una unidad. <b>Sin arma elegida:</b> clic en el mapa = <b>mover</b> · <b>Shift+clic</b> = agregar punto de paso para rodear obstáculos.<br>'
        + '<b>Con un arma elegida en 🎯 ARMAMENTO:</b> clic en el mapa = <b>pedir fuego ahí</b> · clic en un enemigo = <b>empeñarlo</b>. Tocá el arma otra vez para volver a mover.<br>'
        + (esArb ? 'Después <b>▶️ Jugar turno</b>.' : 'Cuando termines, <b>✔️ Órdenes listas</b>.')
-       // v2.9.316: desde acá se reparte la estación del G-2.
-       + `<br><button class="wg-pill" style="font-size:9px;padding:2px 8px;margin-top:4px"`
-       + ` onclick="wgAbrirG2()">🔎 Abrir estación G-2</button> `
-       + `<button class="wg-pill" style="font-size:9px;padding:2px 8px"`
-       + ` onclick="wgCopiarG2()">🔗 Copiar su enlace</button>`);
+       // v2.9.317: desde acá se reparten los puestos del Estado Mayor.
+       + `<br><span style="font-size:9px;opacity:.7;letter-spacing:1px">PUESTOS:</span> `
+       + Object.keys(WG_ROLES).map(k=>
+           `<button class="wg-pill" style="font-size:9px;padding:2px 7px;margin:3px 2px 0 0"`
+           +` title="${_rgEsc(WG_ROLES[k].nom)} — ${_rgEsc(WG_ROLES[k].desc)} (clic: abrir · con Shift: copiar enlace)"`
+           +` onclick="event.shiftKey?wgCopiarRol('${k}'):wgAbrirRol('${k}')">`
+           +`${WG_ROLES[k].ico} ${_rgEsc(WG_ROLES[k].nom.replace(/ · .*/,''))}</button>`).join(''));
   // v2.9.261: si la partida NO empezó, ese aviso se muestra sí o sí — es la
   // razón por la que las fichas no se mueven y no puede quedar escondido.
   document.getElementById('wg-ayuda').classList.toggle('mostrar',
@@ -29898,6 +30159,22 @@ function _wgRender(){
       {direction:'top'});
     m.on('click', (ev)=>{ L.DomEvent.stopPropagation(ev); _wgUnidadClick(u); });
   }
+  // v2.9.317 — INSTALACIONES DE LOGÍSTICA. Van bajo las llamas y sobre el
+  // terreno: son elementos de la carta, no accidentes del suelo.
+  for(const it of _wgInstalaciones()){
+    const I=WG_INSTAL[it.tipo]; if(!I) continue;
+    const g=it.geojson||{}; const c=g.coordinates;
+    if(!c || !Number.isFinite(c[0]) || !Number.isFinite(c[1])) continue;
+    const mk=L.marker([c[1],c[0]],{ zIndexOffset:1500, icon:L.divIcon({className:'',iconSize:[30,30],iconAnchor:[15,15],
+      html:`<div style="width:30px;height:30px;border-radius:7px;border:2px solid ${I.col};`
+        +`background:rgba(10,16,22,.82);display:flex;align-items:center;justify-content:center;`
+        +`font-size:15px;box-shadow:0 1px 6px rgba(0,0,0,.5)">${I.ico}</div>`}) }).addTo(WG.capa);
+    mk.bindTooltip(`${I.ico} <b>${_rgEsc(I.nom)}</b><br>${_rgEsc(I.desc)}`,{direction:'top'});
+    // Sólo el G-4 (y el árbitro) las levanta: es su instalación.
+    if(_wgEsG4()||WG.soy==='arbitro')
+      mk.on('click',(e)=>{ L.DomEvent.stopPropagation(e);
+        if(confirm(I.nom+': ¿quitarla de la carta?')) wgQuitarInstalacion(it.id); });
+  }
   // v2.9.220: las llamas, encima de las fichas (el mismo HTML que en 3D).
   for(const f of (WG.incendios||[])){
     L.marker([f.lat,f.lng],{interactive:false,zIndexOffset:2000,
@@ -29927,6 +30204,8 @@ function _wgRender(){
   // v2.9.316: en la estación del G-2 la lista se da vuelta — primero el enemigo.
   const htmlUni = _wgEsG2()
     ? _wgPanelG2HTML(mias)
+    : _wgEsG4()
+    ? _wgPanelG4HTML(mias)
     : `<div style="margin-bottom:4px">Tuyas (${mias.length}):</div>`+mias.map(u=>fila(u,false)).join('')
     + (enem.length?`<div style="margin:6px 0 4px">Enemigas detectadas (${enem.length}):</div>`+enem.map(u=>fila(u,true)).join('')
        : (WG.soy!=='arbitro'?'<div class="rg-meta" style="margin-top:6px">🌫️ Sin contacto enemigo (niebla de guerra).</div>':''));
@@ -30034,6 +30313,10 @@ function _wgUnidadClick(u){
 }
 function _wgMapClick(ev){
   if(WG.modoColocar && WG.soy==='arbitro'){ _wgColocarEn(ev.latlng); return; }
+  // v2.9.317: con una instalación elegida, el clic la UBICA. Va antes del
+  // guardia de órdenes a propósito: ubicar una instalación no es maniobrar, así
+  // que el G-4 puede hacerlo aunque no pueda dar órdenes.
+  if(WG.instalSel){ _wgInstalarEn(ev.latlng.lng, ev.latlng.lat); return; }
   if(!WG.sel) return;
   if(!_wgPuedeOrdenar()) return;
   const p=[ev.latlng.lng, ev.latlng.lat];
@@ -30244,10 +30527,12 @@ function _wgPuedeOrdenar(){
   // v2.9.316 — EL G-2 INFORMA, NO MANIOBRA. Es el portón único por el que pasan
   // los cuatro caminos que crean órdenes (mover, atacar, zapa, replegar), así
   // que alcanza con frenar acá.
-  if(_wgEsG2()){
-    _wgAviso('🔎 <b>Estás en la estación del G-2.</b> Desde acá se <b>informa</b>, no se maniobra: '
-      +'volá el <b>CW 40</b>, reconocé y subí el contacto a la carta.<br>La orden la da el '
-      +'<b>Comandante</b> desde el puesto de mando, sobre lo que vos le pusiste ahí.', 6000);
+  if(!_wgRolOrdena()){
+    const R=WG_ROLES[_wgRol()];
+    _wgAviso(`${R.ico} <b>Estás en el puesto de ${_rgEsc(R.nom)}.</b> Desde acá se <b>asesora</b>, `
+      +`no se maniobra: ${_rgEsc(R.desc)}<br>`
+      +`La orden la dan el <b>Comandante</b>, el <b>JEM</b> o el <b>G-3</b>, `
+      +`sobre los elementos de juicio que vos les pongas.`, 6000);
     return false;
   }
   const p=(WG.estado&&WG.estado.partida)||{};
@@ -30777,9 +31062,23 @@ async function wgAgregarBando(bando){
 // El enlace lleva partida + bando + clave. Quien lo abre entra directo a ese
 // Estado Mayor poniendo sólo su nombre.
 // ============================================================
-function _wgURLInvitacion(partidaId, bando, clave){
+function _wgURLInvitacion(partidaId, bando, clave, rol){
   const base=location.origin+location.pathname;
-  return `${base}?wg=${encodeURIComponent(partidaId)}&b=${encodeURIComponent(bando)}&k=${encodeURIComponent(clave)}`;
+  return `${base}?wg=${encodeURIComponent(partidaId)}&b=${encodeURIComponent(bando)}&k=${encodeURIComponent(clave)}`
+    + (WG_ROLES[rol] ? `&rol=${rol}` : '');   // v2.9.317
+}
+// ============================================================
+// v2.9.317 — ABRIR (o repartir) EL PUESTO DE UNA CÉLULA DESDE EL LOBBY.
+// Clic normal: se abre esa estación en una pestaña nueva — para probarla o para
+// sentar al oficial ahí mismo. Shift+clic: se muestra el enlace con su QR, que
+// es lo que se reparte cuando cada uno entra desde su computadora.
+// ============================================================
+async function wgPuestoLobby(ev, bando, partidaId, rol){
+  if(ev && ev.shiftKey){ wgInvitarBando(bando, partidaId, false, rol); return; }
+  const R=WG_ROLES[rol]||{nom:'puesto de mando'};
+  const r=await _wgInvoke('agregar_bando',{ partida_id:Number(partidaId), bando });
+  if(!r.ok){ alert('No se pudo abrir el puesto: '+(r.error||'')); return; }
+  window.open(_wgURLInvitacion(partidaId, bando, r.clave_acceso, rol), '_blank');
 }
 // v2.9.275 — `partidaId` opcional: desde el LOBBY viene el id de esa tarjeta;
 // desde adentro de la partida se usa la abierta. Y el resultado se pinta en el
@@ -30789,7 +31088,7 @@ function _wgURLInvitacion(partidaId, bando, clave){
 // invitación REUSA la clave que el bando ya tenía: si la rotara, el enlace que
 // ese Estado Mayor está usando dejaría de servir en el acto (fue exactamente
 // lo que dejó al ROJO sin poder mover).
-async function wgInvitarBando(bando, partidaId, regenerar){
+async function wgInvitarBando(bando, partidaId, regenerar, rol){
   const pid = partidaId != null ? Number(partidaId) : WG.partidaId;
   // ============================================================
   // v2.9.279 — «LOS BOTONES DE INVITAR NO FUNCIONAN» (desde la consola del árbitro).
@@ -30818,13 +31117,13 @@ async function wgInvitarBando(bando, partidaId, regenerar){
   if(cont) cont.innerHTML='<div class="rg-meta" style="margin-top:8px">⏳ Generando la invitación…</div>';
   const r=await _wgInvoke('agregar_bando',{ partida_id:pid, bando, regenerar:!!regenerar });
   if(!r.ok){ if(cont) cont.innerHTML='<div class="rg-meta" style="color:#ff8f8f;margin-top:8px">No se pudo: '+_rgEsc(r.error||'')+'</div>'; return; }
-  const url=_wgURLInvitacion(pid, bando, r.clave_acceso);
+  const url=_wgURLInvitacion(pid, bando, r.clave_acceso, rol);   // v2.9.317
   const col=bando==='rojo'?'#ff6b6b':'#6bb6ff';
-  const ico=bando==='rojo'?'🔴':'🔵';
+  const ico=WG_ROLES[rol] ? WG_ROLES[rol].ico : (bando==='rojo'?'🔴':'🔵');
   if(!cont) return;
   cont.innerHTML=`
     <div style="border:1px solid ${col}66;border-radius:10px;padding:10px;background:rgba(10,16,22,.5)">
-      <div style="font-weight:800;color:${col};margin-bottom:6px">${ico} INVITACIÓN · ESTADO MAYOR ${bando.toUpperCase()}</div>
+      <div style="font-weight:800;color:${col};margin-bottom:6px">${ico} INVITACIÓN · ${WG_ROLES[rol]?_rgEsc(WG_ROLES[rol].nom.toUpperCase())+' — ':''}ESTADO MAYOR ${bando.toUpperCase()}</div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-start">
         <div id="wg-qr-inv-${pid}" style="width:180px;flex:0 0 180px"></div>
         <div style="flex:1;min-width:220px">
@@ -35701,12 +36000,14 @@ function detectarInvitacionWargameEnURL(){
   // v2.9.316 — ESTACIÓN DEL G-2. El mismo enlace del bando más `&rol=g2` abre
   // la estación de inteligencia en vez del puesto de mando, para que el oficial
   // entre desde SU máquina sin pisar la pantalla del Comandante.
-  const rol=(p.get('rol')||'').toLowerCase()==='g2' ? 'g2' : null;
+  // v2.9.317: cualquier puesto del Estado Mayor, no sólo el G-2.
+  const rp=(p.get('rol')||'').toLowerCase();
+  const rol=WG_ROLES[rp] ? rp : null;
   WG._inv={ partida:Number(id), bando:b, clave:String(clave), rol };
   const col=b==='rojo'?'#ff6b6b':(b==='azul'?'#6bb6ff':'#cfe2f5');
   const eb=document.getElementById('wg-inv-bando');
   if(eb){ eb.style.color=col;
-    eb.textContent = (rol==='g2' ? '🔎 G-2 · ' : '')
+    eb.textContent = (rol ? `${WG_ROLES[rol].ico} ${WG_ROLES[rol].nom} · ` : '')
       + (b ? `${b==='rojo'?'🔴':'🔵'} ESTADO MAYOR ${b.toUpperCase()}` : 'ESTADO MAYOR'); }
   const ep=document.getElementById('wg-inv-partida');
   if(ep) ep.textContent='Partida N° '+id;
