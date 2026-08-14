@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.313</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.314</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -24764,8 +24764,9 @@ function _wgVolarDrones(){
           // cuando cambió de verdad. Escribirlo en cada cuadro obliga a
           // recalcular la cobertura del relieve y es lo que trababa el viraje.
           _wgMoviendo();                   // v2.9.261: ídem en la vista del dron
-          // `tilt` es cuánto se baja la torreta: −16° por debajo del horizonte
-          // equivale al pitch 74 de siempre, así que sin tocarla se ve igual.
+          // `tilt` es cuánto se baja la torreta: v2.9.314, −24° por debajo del
+          // horizonte equivale al pitch 66 del visor, así que pilotear no
+          // cambia el encuadre (antes −16 = 74 y al pilotear volvía el chispeo).
           const pDes=pilC ? (90 + pilC.tilt) : WG_DRON_PITCH;
           const pObj=Math.min(pDes, _wgTechoPitch(map.getZoom()));
           // ============================================================
@@ -24865,9 +24866,39 @@ function _wgVolarDrones(){
 // crestas, que es la ventaja concreta de tener el medio en el aire.
 // ⚠️ VALOR LITERAL A PROPÓSITO: `WG_PITCH_TOPE` se declara MÁS ABAJO en el
 // archivo, así que referenciarlo acá revienta el script entero (zona muerta
-// temporal de `const`) y se cae toda la app. Si se cambia el tope, cambiar
-// también este número — la prueba `t243.mjs` avisa si se despegan.
-const WG_DRON_PITCH=74;   // = WG_PITCH_TOPE · la vista más echada del juego
+// temporal de `const`) y se cae toda la app.
+// ⚠️ v2.9.314 — YA NO VAN JUNTOS, Y ES A PROPÓSITO: el tope general del juego
+// sigue en 74° (la panorámica se ve bien así, dicho por Sergio), pero el VISOR
+// DEL DRON baja a 66° por lo explicado abajo. NO volver a igualarlos.
+// (La prueba `t243.mjs` que mencionaba este comentario no existe en el
+// proyecto — se buscó en todo el árbol. No hay nada que actualizar.)
+// ============================================================
+// v2.9.314 — EL VISOR MIRA EL TERRENO QUE EL SENSOR PUEDE TRABAJAR.
+//
+// Último pendiente del chispeo. Medido, no supuesto:
+//
+// Con pitch 74° y un campo vertical de 36,87°, el borde superior del cuadro
+// queda a 74+18,4 = **92,4°: por encima del horizonte**. El rayo de esa parte
+// de la pantalla NO TOCA EL SUELO NUNCA. De ahí salían las dos cosas:
+//   · la franja negra del horizonte (que en la 291 se tapó con bruma, o sea que
+//     se tapó el síntoma);
+//   · y el motor obligado a mantener cargados ~7.670 km² de terreno, con las
+//     teselas entrando y saliendo sin descanso — ESO es el chispeo.
+//
+// A 66° el rayo lejano cae a 30,8 km y el terreno a sostener baja a ~500 km²:
+// QUINCE VECES MENOS, y el horizonte sale del cuadro (la franja negra deja de
+// existir por geometría, no por bruma).
+//
+// Y el argumento de fondo no es el rendimiento sino la doctrina: **el sensor
+// del CW 40 alcanza 24 km**. Todo lo que se veía más lejos era paisaje del que
+// el aparato no puede informar nada. A 66° el visor muestra exactamente el
+// terreno sobre el que el sensor puede trabajar, más un margen chico. Un medio
+// de reconocimiento mira el terreno que reconoce, no la línea del cielo.
+//
+// Descartado antes con medición: la VELOCIDAD del vuelo no tenía nada que ver
+// (a ×40 son 0,4 teselas por segundo). No tocar `WG_DRON_ACEL` por esto.
+// ============================================================
+const WG_DRON_PITCH=66;
 // ============================================================
 // v2.9.261 — EL VISOR DEL DRON.
 // Estar en la cámara del aparato tiene que NOTARSE. Marco verde con las cuatro
@@ -25017,7 +25048,10 @@ const WG_DRON_VMIN   = 70;      // km/h — por debajo no se sostiene
 const WG_DRON_VMAX   = 130;     // km/h — techo del CW 40 con motor
 const WG_DRON_ALTMIN = 300;
 const WG_DRON_ALTMAX = 5000;
-const WG_DRON_TILT_DEF = -16;   // inclinación de torreta de arranque (= pitch 74)
+// v2.9.314: −24° para que la torreta arranque en el mismo encuadre que el visor
+// automático (90−24 = pitch 66). Si se dejaba en −16, apenas tocabas una tecla
+// de vuelo el pilotaje devolvía la cámara a 74 y el chispeo volvía con ella.
+const WG_DRON_TILT_DEF = -24;   // inclinación de torreta de arranque (= pitch 66)
 // ⚠️ EL HIPÓDROMO Y EL PILOTAJE NO PUEDEN IR A LA MISMA ESCALA DE TIEMPO.
 // `WG_DRON_ACEL` es ×40: sirve para que una vuelta automática se LEA en un
 // minuto en vez de en 48. Pero volando a mano eso son 4.000 km/h de terreno
