@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.315</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.316</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -23161,6 +23161,46 @@ async function _wgInvoke(accion, extra){
   }catch(e){ return {ok:false,error:String((e&&e.message)||e)}; }
 }
 function _wgEsInstructor(){ const ses=getSession(); return !!(ses && ses.tipo==='docente'); }
+// ============================================================
+// v2.9.316 — LA ESTACIÓN DEL G-2.
+//
+// Sergio: «G-2, pero debe tener una pantalla diferente aparte de la de su
+// puesto de mando, donde solo vea del dron».
+//
+// El G-2 **informa, no maniobra**: desde su estación vuela el CW 40, reconoce y
+// sube contactos a la carta, pero no da órdenes de maniobra ni hace correr el
+// turno — eso es del Comandante y el JEM. Separar las dos cosas es justamente
+// lo que obliga al alumno a trabajar el ciclo de inteligencia en vez de mirar
+// una ficha y atacarla.
+//
+// Y el dispositivo propio va APAGADO, de referencia nomás: en una carta de
+// situación de inteligencia el protagonista es el enemigo. Si las propias se
+// dibujan igual que en el puesto de mando, el ojo se va a ellas y la carta deja
+// de contar lo que tiene que contar.
+// ============================================================
+function _wgEsG2(){ return WG.rol==='g2'; }
+// El enlace de la estación: el mismo del bando más `&rol=g2`. Se comparte con
+// el oficial de inteligencia para que entre desde SU máquina.
+function _wgEnlaceG2(){
+  const b=(WG.soy==='arbitro')?_wgBandoLente():WG.soy;
+  if(!WG.partidaId || !b || !WG.clave) return null;
+  return location.origin+location.pathname
+    +'?wg='+encodeURIComponent(WG.partidaId)+'&b='+encodeURIComponent(b)
+    +'&k='+encodeURIComponent(WG.clave)+'&rol=g2';
+}
+function wgAbrirG2(){
+  const u=_wgEnlaceG2();
+  if(!u){ _wgAviso('Todavía no hay partida abierta.',3000); return; }
+  window.open(u,'_blank');
+}
+function wgCopiarG2(){
+  const u=_wgEnlaceG2(); if(!u) return;
+  try{ navigator.clipboard.writeText(u);
+    _wgAviso('🔗 <b>Enlace de la estación G-2 copiado.</b> Pasáselo a tu oficial de '
+      +'inteligencia: entra con ese enlace desde su computadora y trabaja la carta '
+      +'sin tocar tu pantalla.',6000);
+  }catch(_e){ prompt('Enlace de la estación G-2:', u); }
+}
 function goWargame(fromScreen){
   WG.volverA = fromScreen || 'screen-disc-panel';
   showScreen('screen-wargame');
@@ -24053,6 +24093,78 @@ function _wgContactosSubidos(bando){
       _nivel: nv, _nivelOrig: Number(x.nivel), _antig: antig,
       _reportado: true, _turno: x.turno };
   }).filter(u=>Number.isFinite(u.lng)&&Number.isFinite(u.lat));
+}
+// ============================================================
+// v2.9.316 — EL CUADRO DE SITUACIÓN DEL G-2.
+//
+// En el puesto de mando la lista lateral es «mis unidades y su poder», porque
+// ahí se maniobra. En la estación del G-2 esa lista no sirve: lo que se trabaja
+// acá es lo que se SABE del enemigo y CUÁNTO VALE HOY. Así que la lista se da
+// vuelta — primero el enemigo, ordenado por frescura del dato, y las propias
+// quedan en una línea de referencia.
+//
+// Cada renglón dice las tres cosas que un G-2 necesita para decidir si vuelve a
+// batir un sector: qué es, de cuándo es el dato y cuánto se degradó desde
+// entonces.
+// ============================================================
+function _wgPanelG2HTML(mias){
+  const bando=(WG.soy==='arbitro')?_wgBandoLente():WG.soy;
+  const marcas=bando?_wgContactosSubidos(bando):[];
+  // Lo más viejo primero: es lo que hay que salir a confirmar.
+  marcas.sort((a,b)=>(b._antig-a._antig) || String(a.designacion).localeCompare(String(b.designacion),'es'));
+  const vivos=bando?_wgContactosDelSensor(bando).length:0;
+  const cabecera=`<div style="font-size:9px;letter-spacing:1.4px;opacity:.75;margin-bottom:5px">`
+    +`🔎 CUADRO DE SITUACIÓN · ENEMIGO</div>`;
+  if(!marcas.length){
+    return cabecera
+      +`<div class="rg-meta" style="font-size:9px;line-height:1.5;opacity:.8">`
+      +`La carta está <b>vacía</b>. Lo que el sensor ve en vivo no queda registrado: `
+      +`hay que <b>subirlo</b> para que el Comandante pueda maniobrar sobre eso.`
+      +(vivos?`<br>📡 Tenés <b>${vivos}</b> en el sensor ahora mismo.`:'')+`</div>`
+      +_wgG2Propias(mias);
+  }
+  const filas=marcas.map(u=>{
+    const nv=u._nivel, viejo=u._antig>0;
+    const col = nv>=WG_INT_CONF?'#7fe3a0' : nv>=WG_INT_IDENT?'#e8c33a' : '#c98b8b';
+    const etq = nv>=WG_INT_CONF?'CONFIRMADA' : nv>=WG_INT_IDENT?'IDENTIFICADA' : 'CONTACTO';
+    const edad = u._antig===0 ? `<span style="color:#7fe3a0">de este turno</span>`
+      : `<span style="color:${u._antig>=3?'#ff8f8f':'#e8c33a'}">hace ${u._antig} ${u._antig===1?'turno':'turnos'}</span>`;
+    const bajo = (u._nivelOrig>nv)
+      ? `<div style="font-size:8px;opacity:.75;margin-top:1px">⬇️ era `
+        + `${_wgIntTxt(u._nivelOrig).replace(/^[^ ]+ /,'').split(' · ')[0]}`
+        + ` — sin confirmar, bajó</div>` : '';
+    return `<div class="rg-card" style="padding:5px 7px;margin-bottom:3px;border-left:3px solid ${col};`
+      +`${viejo?'opacity:.82;':''}cursor:pointer" onclick="_wgG2Ir(${u.id})">`
+      +`<div style="display:flex;justify-content:space-between;gap:6px;align-items:baseline">`
+      +`<b style="font-size:10.5px">${_rgEsc(u.designacion||'CONTACTO')}</b>`
+      +`<span style="font-size:8px;color:${col};letter-spacing:.6px">${etq}</span></div>`
+      +`<div style="font-size:8.5px;opacity:.85;margin-top:1px">🕰️ turno ${u._turno} · ${edad}</div>`
+      +bajo
+      +`<button class="wg-pill" style="font-size:8px;padding:1px 6px;margin-top:3px"`
+      +` onclick="event.stopPropagation();wgBorrarContacto(${u.id})">🗑️ descartar</button></div>`;
+  }).join('');
+  const viejas=marcas.filter(m=>m._antig>=3).length;
+  const aviso = viejas
+    ? `<div class="rg-meta" style="font-size:8.5px;margin:4px 0 6px;color:#ffb27a">`
+      +`⚠️ <b>${viejas}</b> ${viejas===1?'marca lleva':'marcas llevan'} 3 turnos o más sin confirmar. `
+      +`Sobre eso no se maniobra: volvé a batir el sector.</div>` : '';
+  return cabecera+aviso+filas+_wgG2Propias(mias);
+}
+function _wgG2Propias(mias){
+  const n=(mias||[]).length;
+  if(!n) return '';
+  return `<div style="font-size:9px;letter-spacing:1.4px;opacity:.55;margin:8px 0 4px">`
+    +`◻️ PROPIAS (referencia)</div>`
+    +`<div class="rg-meta" style="font-size:8.5px;opacity:.6">`
+    +mias.map(u=>_rgEsc(u.designacion||('U'+u.id))).join(' · ')+`</div>`;
+}
+// Centrar la carta en una marca, en 2D y en 3D.
+function _wgG2Ir(uid){
+  const bando=(WG.soy==='arbitro')?_wgBandoLente():WG.soy;
+  const m=_wgContactosSubidos(bando).find(x=>String(x.id)===String(uid));
+  if(!m) return;
+  try{ if(WG.map) WG.map.setView([m.lat,m.lng], Math.max(WG.map.getZoom(),12)); }catch(_e){}
+  try{ if(WG.map3d && _wgEn3D()) _wgCamIr({centro:[m.lng,m.lat], rumbo:WG.map3d.getBearing()}); }catch(_e){}
 }
 function _wgUnidadesVisiblesCrudo(){
   let base=_wgVisiblesPorBando();
@@ -26159,9 +26271,11 @@ async function wgEstado(silencioso){
   const p=r.partida||{};
   document.getElementById('wg-turno-chip').textContent = 'Turno '+(p.turno_actual||'—')+' · '+(p.estado||'');
   const rol=document.getElementById('wg-rol-chip');
-  rol.textContent = esArb?'🎖️ ÁRBITRO':(r.soy==='rojo'?'🔴 EM ROJO':'🔵 EM AZUL');
+  const g2=_wgEsG2();   // v2.9.316
+  rol.textContent = g2 ? ('🔎 G-2 '+String(r.soy||'').toUpperCase())
+                       : (esArb?'🎖️ ÁRBITRO':(r.soy==='rojo'?'🔴 EM ROJO':'🔵 EM AZUL'));
   rol.style.background = esArb?'#3a2c0c':(WG_COL[r.soy]+'22'); rol.style.border='1px solid '+(esArb?'#caa14a':WG_COL[r.soy]); rol.style.color = esArb?'#f4d574':WG_COL[r.soy];
-  document.getElementById('wg-btn-config').style.display = esArb?'':'none';
+  document.getElementById('wg-btn-config').style.display = (esArb && !g2)?'':'none';
   // v2.9.218 — UN SOLO BOTÓN, SEGÚN EL ROL. Tres botones para una acción era
   // burocracia pura: si el Estado Mayor ya decidió, la orden ES la decisión.
   //   • ÁRBITRO → «▶️ Jugar turno»: manda y resuelve de una. Sirve para probar
@@ -26171,7 +26285,8 @@ async function wgEstado(silencioso){
   //     las órdenes de un bando solo, porque los dos planean a la vez y a ciegas.
   const enJuego = p.estado==='en_curso';
   document.getElementById('wg-btn-resolver').style.display = 'none';
-  document.getElementById('wg-btn-enviar').style.display = (enJuego && !esArb)?'':'none';
+  // v2.9.316: el G-2 no manda órdenes ni hace correr el turno. Informa.
+  document.getElementById('wg-btn-enviar').style.display = (enJuego && !esArb && !g2)?'':'none';
   // v2.9.207: mientras la partida NO empezó, las órdenes están bloqueadas. El
   // botón de arrancar tiene que estar A LA VISTA, no enterrado en ⚙️ Configurar:
   // Sergio no podía mover nada y el clic no le decía por qué.
@@ -26179,7 +26294,7 @@ async function wgEstado(silencioso){
   // v2.9.277 — «▶️ Jugar turno» TAMBIÉN para los bandos. Antes sólo lo veía el
   // árbitro, así que un Estado Mayor mandaba sus órdenes y no tenía con qué
   // hacerlas correr: por eso «salen órdenes listas pero no se mueven».
-  document.getElementById('wg-btn-jugar').style.display = enJuego?'':'none';
+  document.getElementById('wg-btn-jugar').style.display = (enJuego && !g2)?'':'none';
   // precargar mis órdenes ya enviadas — v2.9.218: también el ARMA elegida, si no
   // la vista previa calcula el alcance con otro sistema que el que se mandó.
   WG.ordenes={};
@@ -26189,9 +26304,18 @@ async function wgEstado(silencioso){
   document.getElementById('wg-ayuda').innerHTML = p.estado!=='en_curso'
     ? (esArb?'⏸️ La partida <b>todavía no empezó</b> — por eso las fichas no se mueven.<br>Tocá <b>🚀 Iniciar partida</b> (abajo a la derecha) y ahí sí podés dar órdenes.'
            :'Esperá a que el árbitro inicie la partida.')
+    : g2 ? ('🔎 <b>Estación del G-2.</b> Volá el <b>CW 40</b> con las flechas y subí a la carta lo que reconozcas: '
+       + 'esa es tu contribución al cuadro de situación.<br>Tus fuerzas van <b>apagadas</b>, de referencia — '
+       + 'acá el protagonista es el enemigo.<br>No das órdenes de maniobra: <b>informás</b>. '
+       + 'Y ojo con lo viejo: un dato pierde un nivel por turno si no lo volvés a batir.')
     : ('Tocá una unidad. <b>Sin arma elegida:</b> clic en el mapa = <b>mover</b> · <b>Shift+clic</b> = agregar punto de paso para rodear obstáculos.<br>'
        + '<b>Con un arma elegida en 🎯 ARMAMENTO:</b> clic en el mapa = <b>pedir fuego ahí</b> · clic en un enemigo = <b>empeñarlo</b>. Tocá el arma otra vez para volver a mover.<br>'
-       + (esArb ? 'Después <b>▶️ Jugar turno</b>.' : 'Cuando termines, <b>✔️ Órdenes listas</b>.'));
+       + (esArb ? 'Después <b>▶️ Jugar turno</b>.' : 'Cuando termines, <b>✔️ Órdenes listas</b>.')
+       // v2.9.316: desde acá se reparte la estación del G-2.
+       + `<br><button class="wg-pill" style="font-size:9px;padding:2px 8px;margin-top:4px"`
+       + ` onclick="wgAbrirG2()">🔎 Abrir estación G-2</button> `
+       + `<button class="wg-pill" style="font-size:9px;padding:2px 8px"`
+       + ` onclick="wgCopiarG2()">🔗 Copiar su enlace</button>`);
   // v2.9.261: si la partida NO empezó, ese aviso se muestra sí o sí — es la
   // razón por la que las fichas no se mueven y no puede quedar escondido.
   document.getElementById('wg-ayuda').classList.toggle('mostrar',
@@ -29746,7 +29870,12 @@ function _wgRender(){
     const F = 0.46; // v2.9.261: más chicas, para que se lea el terreno
     const m = L.marker([u.lat,u.lng],{
       icon: L.icon({ iconUrl:sim.url, iconSize:[sim.w*F,sim.h*F], iconAnchor:[sim.ax*F,sim.ay*F] }),
-      opacity: mio?1:0.75, riseOnHover:true, zIndexOffset: sel?1000:0,
+      // v2.9.316 — EN LA ESTACIÓN DEL G-2 LAS PROPIAS VAN APAGADAS. Es una carta
+      // de situación de INTELIGENCIA: el protagonista es el enemigo, y las
+      // propias están sólo para ubicarse. Si se dibujan igual de fuertes, el ojo
+      // se va a ellas y la carta deja de contar lo que tiene que contar.
+      opacity: _wgEsG2() ? (mio?0.32:1) : (mio?1:0.75),
+      riseOnHover:true, zIndexOffset: (_wgEsG2()&&!mio) ? 900 : (sel?1000:0),
     }).addTo(WG.capa);
     m.__uid=u.id; // v2.9.205: para poder hacerla temblar
     const pct = u.poder_max? Math.round(100*u.poder_actual/u.poder_max):100;
@@ -29795,7 +29924,10 @@ function _wgRender(){
   // destruir y rehacer es exactamente el titileo. Misma guardia por firma que ya
   // dejó a `wgPanelDrones()` en cero (v2.9.291): se arma el HTML igual que antes,
   // pero sólo se toca el DOM si de verdad cambió.
-  const htmlUni = `<div style="margin-bottom:4px">Tuyas (${mias.length}):</div>`+mias.map(u=>fila(u,false)).join('')
+  // v2.9.316: en la estación del G-2 la lista se da vuelta — primero el enemigo.
+  const htmlUni = _wgEsG2()
+    ? _wgPanelG2HTML(mias)
+    : `<div style="margin-bottom:4px">Tuyas (${mias.length}):</div>`+mias.map(u=>fila(u,false)).join('')
     + (enem.length?`<div style="margin:6px 0 4px">Enemigas detectadas (${enem.length}):</div>`+enem.map(u=>fila(u,true)).join('')
        : (WG.soy!=='arbitro'?'<div class="rg-meta" style="margin-top:6px">🌫️ Sin contacto enemigo (niebla de guerra).</div>':''));
   if(WG._uniFirma!==htmlUni || !cont.children.length){ WG._uniFirma=htmlUni; cont.innerHTML=htmlUni; }
@@ -29813,7 +29945,8 @@ function _wgRender(){
     // de armamento porque no deja apreciar bien la vista». Y tiene razón de
     // fondo: metido en el visor del CW 40 estás haciendo RECONOCIMIENTO, no
     // eligiendo con qué disparar. El panel vuelve solo al salir del dron.
-    if(uSel && _wgArmamento(uSel).length && WG.dronVista==null){
+    // v2.9.316: el G-2 no elige con qué disparar — no maniobra.
+    if(uSel && !_wgEsG2() && _wgArmamento(uSel).length && WG.dronVista==null){
       // v2.9.310 — misma guardia: sin esto el panel de armamento se rehacía
       // entero en cada refresco aunque el arma elegida fuera la misma.
       const htmlArm=_wgPanelArmasHTML();
@@ -30108,6 +30241,15 @@ function _wgAvanzarRutas(trazas){
 // ¿Se pueden dar órdenes ahora? Si no, lo DICE (el silencio hacía creer que
 // los controles estaban rotos).
 function _wgPuedeOrdenar(){
+  // v2.9.316 — EL G-2 INFORMA, NO MANIOBRA. Es el portón único por el que pasan
+  // los cuatro caminos que crean órdenes (mover, atacar, zapa, replegar), así
+  // que alcanza con frenar acá.
+  if(_wgEsG2()){
+    _wgAviso('🔎 <b>Estás en la estación del G-2.</b> Desde acá se <b>informa</b>, no se maniobra: '
+      +'volá el <b>CW 40</b>, reconocé y subí el contacto a la carta.<br>La orden la da el '
+      +'<b>Comandante</b> desde el puesto de mando, sobre lo que vos le pusiste ahí.', 6000);
+    return false;
+  }
   const p=(WG.estado&&WG.estado.partida)||{};
   if(p.estado==='en_curso') return true;
   const el=document.getElementById('wg-ayuda');
@@ -35556,11 +35698,16 @@ function detectarInvitacionWargameEnURL(){
   const id=p.get('wg'), bando=p.get('b'), clave=p.get('k');
   if(!id || !clave) return false;
   const b=(bando==='rojo'||bando==='azul')?bando:null;
-  WG._inv={ partida:Number(id), bando:b, clave:String(clave) };
+  // v2.9.316 — ESTACIÓN DEL G-2. El mismo enlace del bando más `&rol=g2` abre
+  // la estación de inteligencia en vez del puesto de mando, para que el oficial
+  // entre desde SU máquina sin pisar la pantalla del Comandante.
+  const rol=(p.get('rol')||'').toLowerCase()==='g2' ? 'g2' : null;
+  WG._inv={ partida:Number(id), bando:b, clave:String(clave), rol };
   const col=b==='rojo'?'#ff6b6b':(b==='azul'?'#6bb6ff':'#cfe2f5');
   const eb=document.getElementById('wg-inv-bando');
   if(eb){ eb.style.color=col;
-    eb.textContent = b ? `${b==='rojo'?'🔴':'🔵'} ESTADO MAYOR ${b.toUpperCase()}` : 'ESTADO MAYOR'; }
+    eb.textContent = (rol==='g2' ? '🔎 G-2 · ' : '')
+      + (b ? `${b==='rojo'?'🔴':'🔵'} ESTADO MAYOR ${b.toUpperCase()}` : 'ESTADO MAYOR'); }
   const ep=document.getElementById('wg-inv-partida');
   if(ep) ep.textContent='Partida N° '+id;
   showScreen('screen-wg-invitado');
@@ -35575,6 +35722,7 @@ async function wgInvitadoEntrar(){
   const inv=WG._inv||{};
   WG.invitado=nom;                 // así `_wgInvoke` viaja sin token
   WG.soy=inv.bando||null;          // la lente del bando, si el enlace la trae
+  WG.rol=inv.rol||null;            // v2.9.316: 'g2' = estación de inteligencia
   try{ sessionStorage.setItem('wg_invitado', nom); }catch(_e){}
   showScreen('screen-wargame');
   await wgAbrir(inv.partida, inv.clave);
