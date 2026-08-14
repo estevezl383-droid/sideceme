@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.318</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.319</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -23201,6 +23201,185 @@ function _wgRolNom(){ const r=_wgRol(); return r ? WG_ROLES[r].nom : null; }
 function _wgEsG2(){ return _wgRol()==='g2'; }
 function _wgEsG4(){ return _wgRol()==='g4'; }
 function _wgEsG1(){ return _wgRol()==='g1'; }
+// ============================================================
+// v2.9.319 — VISTA DE MAQUETA (proyección sobre modelo físico).
+//
+// Sergio: «desde un cañón se pueda proyectar hacia una maqueta en blanco todos
+// los movimientos, unidades, combates y todo del ejercicio, en vivo… mostrando
+// toda el área de operaciones pero sólo con la información que tiene una
+// maqueta: dónde está el norte, y un recuadrito indicando en qué parte de
+// Bolivia está el área».
+//
+// Las cuatro decisiones que hacen que esto sirva de verdad:
+//
+//  1) NO se dibuja la carta. El terreno ya está en el yeso. Proyectar un mapa
+//     encima del relieve físico no coincide con nada y ensucia la maqueta.
+//  2) FONDO NEGRO. Un cañón proyecta LUZ: el negro no ilumina y deja ver la
+//     maqueta tal cual; lo dibujado sale encendido encima. Al revés (fondo
+//     claro) se lava el modelo entero y no se ve el relieve.
+//  3) ENCUADRE FIJO. Una vez que el operador calza la proyección con el borde
+//     del modelo, la vista NO se puede mover sola: si el encuadre se corre, todo
+//     lo proyectado queda desplazado respecto del terreno físico. Por eso el
+//     mapa va con el arrastre y el zoom TRABADOS, y hay un botón para reencuadrar
+//     a mano cuando se calibra.
+//  4) SIN NADA DE INTERFAZ. Lo único que se proyecta además del dispositivo es
+//     lo que una maqueta lleva: norte, escala y el recuadro de ubicación.
+// ============================================================
+function _wgEsMaqueta(){ return !!WG.maqueta; }
+function _wgMaquetaMontar(){
+  if(WG._maqMontada) return; WG._maqMontada=1;
+  document.body.classList.add('wg-maqueta');
+  const st=document.createElement('style');
+  st.textContent=`
+    body.wg-maqueta #wg-tl, body.wg-maqueta #wg-rail, body.wg-maqueta #wg-hoja,
+    body.wg-maqueta #wg-acc, body.wg-maqueta #wg-drones, body.wg-maqueta #wg-ayuda,
+    body.wg-maqueta #wg-armas, body.wg-maqueta #wg-camaras, body.wg-maqueta #wg-orient,
+    body.wg-maqueta #wg-unidades-barra, body.wg-maqueta #wg-invitacion,
+    body.wg-maqueta #wg-zoom, body.wg-maqueta #wg-3d-cota,
+    body.wg-maqueta #version-marker, body.wg-maqueta .leaflet-control-container{ display:none !important; }
+    body.wg-maqueta #wg-map{ background:#000 !important; }
+    body.wg-maqueta .leaflet-container{ background:#000 !important; }
+    /* La proyección no se toca con el mouse: el encuadre está calibrado. */
+    body.wg-maqueta.maq-trabada #wg-map{ pointer-events:none; }
+    /* ⚠️ #wg-game va en z-index 6001: el HUD tiene que ir POR ENCIMA o no se ve
+       (me pasó: quedaba montado, con tamaño correcto, y detrás de la pantalla). */
+    #maq-hud{ position:fixed; inset:0; pointer-events:none; z-index:6100;
+      font-family:ui-monospace,Menlo,monospace; color:#dbe7f5; }
+    #maq-hud .cj{ position:absolute; pointer-events:auto; }
+  `;
+  document.head.appendChild(st);
+
+  const hud=document.createElement('div'); hud.id='maq-hud';
+  hud.innerHTML=`
+    <!-- NORTE: abajo, como en toda maqueta de instrucción -->
+    <div class="cj" style="left:18px;bottom:18px;text-align:center">
+      <svg width="54" height="66" viewBox="0 0 54 66">
+        <polygon points="27,4 37,42 27,34 17,42" fill="#fff"/>
+        <polygon points="27,4 27,34 17,42" fill="#9fb6cc"/>
+        <text x="27" y="61" fill="#fff" font-size="17" font-weight="700"
+              text-anchor="middle" font-family="ui-monospace,Menlo,monospace">N</text>
+      </svg>
+    </div>
+    <!-- ESCALA -->
+    <div class="cj" style="left:96px;bottom:22px">
+      <div id="maq-esc" style="border:2px solid #fff;border-top:0;height:11px;width:130px"></div>
+      <div id="maq-esc-txt" style="font-size:12px;margin-top:3px;letter-spacing:1px">—</div>
+    </div>
+    <!-- RECUADRO DE UBICACIÓN EN BOLIVIA -->
+    <div class="cj" style="right:18px;bottom:18px;text-align:center">
+      <div style="font-size:10px;letter-spacing:2px;opacity:.85;margin-bottom:3px">UBICACIÓN</div>
+      <div id="maq-loc" style="width:150px;height:150px;border:2px solid #fff;border-radius:4px;
+           overflow:hidden;background:#000"></div>
+      <div id="maq-loc-txt" style="font-size:10px;margin-top:3px;opacity:.85">BOLIVIA</div>
+    </div>
+    <!-- TÍTULO DEL EJERCICIO -->
+    <div class="cj" style="left:18px;top:16px">
+      <div id="maq-tit" style="font-size:15px;letter-spacing:3px;font-weight:700">ÁREA DE OPERACIONES</div>
+      <div id="maq-sub" style="font-size:11px;opacity:.8;letter-spacing:1.5px">—</div>
+    </div>
+    <!-- CALIBRACIÓN: lo único tocable -->
+    <div class="cj" style="right:18px;top:16px;display:flex;gap:6px">
+      <button onclick="wgMaquetaEncuadrar()" style="font-size:11px;padding:4px 9px;border-radius:6px;
+        background:rgba(255,255,255,.10);border:1px solid #ffffff55;color:#fff;cursor:pointer">⛶ Encuadrar</button>
+      <button id="maq-terr" onclick="wgMaquetaTerreno()" style="font-size:11px;padding:4px 9px;border-radius:6px;
+        background:rgba(255,255,255,.10);border:1px solid #ffffff55;color:#fff;cursor:pointer"
+        title="El terreno proyectado sirve para calzar la imagen con el modelo. Una vez calibrado, apagalo.">🗺️ Terreno</button>
+      <button id="maq-lock" onclick="wgMaquetaTrabar()" style="font-size:11px;padding:4px 9px;border-radius:6px;
+        background:rgba(255,255,255,.10);border:1px solid #ffffff55;color:#fff;cursor:pointer">🔒 Trabar</button>
+    </div>`;
+  document.body.appendChild(hud);
+
+  // Recuadro de ubicación: mapa chico de Bolivia con el área marcada. Es el
+  // único lugar donde SÍ va carta — es un localizador, no la proyección.
+  setTimeout(()=>{ try{
+    WG._maqLoc=L.map('maq-loc',{zoomControl:false,attributionControl:false,
+      dragging:false,scrollWheelZoom:false,doubleClickZoom:false,boxZoom:false,keyboard:false,tap:false})
+      .setView([-16.5,-64.5],4);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:8}).addTo(WG._maqLoc);
+    WG._maqLocCapa=L.layerGroup().addTo(WG._maqLoc);
+    WG._maqLoc.invalidateSize();
+  }catch(_e){} }, 300);
+
+  WG.map.on('zoomend moveend', _wgMaquetaEscala);
+  // Reintento hasta que el encuadre salga bien. El repintado del juego sólo
+  // ocurre cuando algo cambia, así que si el primer intento cae antes de que el
+  // contenedor mida, sin esto la proyección se queda mostrando el mundo entero
+  // hasta el próximo turno. Se apaga solo apenas encuadra.
+  clearInterval(WG._maqRetry);
+  WG._maqRetry=setInterval(()=>{
+    if(WG._maqEncuadrada || !WG.maqueta){ clearInterval(WG._maqRetry); WG._maqRetry=null; return; }
+    if(!((WG.estado&&WG.estado.unidades)||[]).length) return;
+    try{ wgMaquetaEncuadrar(); if(WG.map.getZoom()>=3){ WG._maqEncuadrada=1; } }catch(_e){}
+  }, 700);
+}
+// Encuadra toda el área de operaciones: es lo que se calza con el borde del modelo.
+function wgMaquetaEncuadrar(){
+  try{
+    const pts=[];
+    for(const u of ((WG.estado&&WG.estado.unidades)||[]))
+      if(Number.isFinite(u.lat)&&Number.isFinite(u.lng)) pts.push([u.lat,u.lng]);
+    for(const it of _wgInstalaciones()){ const c=(it.geojson||{}).coordinates;
+      if(c&&Number.isFinite(c[1])) pts.push([c[1],c[0]]); }
+    if(pts.length<1) return;
+    document.body.classList.remove('maq-trabada');
+    // ⚠️ EL ENCUADRE SE CALCULA CONTRA EL TAMAÑO DEL LIENZO, así que hay que
+    // asegurarse de que el lienzo YA MIDA. Dos cuidados, los dos costaron una
+    // vuelta cada uno:
+    //   · `invalidateSize()` re-mide: si el contenedor está oculto devuelve CERO
+    //     y entonces `fitBounds` resuelve zoom 0 — el mundo entero. Sólo se
+    //     re-mide cuando de verdad hay algo que medir.
+    //   · y si aun así el lienzo no mide, se sale sin tocar la cámara: dejar el
+    //     encuadre como está es mucho mejor que dejarlo en zoom 0.
+    const cont=WG.map.getContainer();
+    if(cont && cont.clientWidth>50 && cont.clientHeight>50) WG.map.invalidateSize();
+    const tam=WG.map.getSize();
+    if(!tam || tam.x<50 || tam.y<50) return;
+    WG.map.fitBounds(L.latLngBounds(pts).pad(0.28), {animate:false});
+    _wgMaquetaEscala(); _wgMaquetaLoc();
+  }catch(_e){}
+}
+function wgMaquetaTerreno(){
+  WG.maqTerrenoOff=!WG.maqTerrenoOff;
+  const b=document.getElementById('maq-terr');
+  if(b){ b.textContent = WG.maqTerrenoOff?'🗺️ Terreno OFF':'🗺️ Terreno';
+         b.style.opacity = WG.maqTerrenoOff?.55:1; }
+  WG.capaTerrenoFirma=null;   // obliga a rehacer la capa
+  _wgRender();
+}
+function wgMaquetaTrabar(){
+  const t=document.body.classList.toggle('maq-trabada');
+  const b=document.getElementById('maq-lock');
+  if(b) b.textContent = t ? '🔓 Destrabar' : '🔒 Trabar';
+  if(t) _wgAviso && null;   // sin avisos: en la maqueta no se proyectan carteles
+}
+// Barra de escala real, en km, calculada sobre el ancho de pantalla.
+function _wgMaquetaEscala(){
+  if(!WG.maqueta||!WG.map) return;
+  try{
+    const c=WG.map.getCenter(), y=WG.map.getSize().y/2;
+    const p1=WG.map.containerPointToLatLng([0,y]), p2=WG.map.containerPointToLatLng([130,y]);
+    const km=p1.distanceTo(p2)/1000;
+    const bonito=[1,2,5,10,20,25,50,100,200,500].reduce((a,b)=>Math.abs(b-km)<Math.abs(a-km)?b:a,1);
+    const px=Math.round(130*bonito/Math.max(0.001,km));
+    const e=document.getElementById('maq-esc'), t=document.getElementById('maq-esc-txt');
+    if(e) e.style.width=Math.max(40,Math.min(260,px))+'px';
+    if(t) t.textContent=bonito+' km';
+    const s=document.getElementById('maq-sub');
+    if(s&&WG.estado&&WG.estado.partida)
+      s.textContent=`TURNO ${WG.estado.partida.turno_actual} · ${c.lat.toFixed(3)}, ${c.lng.toFixed(3)}`;
+  }catch(_e){}
+}
+// Marca en el recuadro dónde cae el área dentro de Bolivia.
+function _wgMaquetaLoc(){
+  if(!WG._maqLoc||!WG._maqLocCapa) return;
+  try{
+    WG._maqLocCapa.clearLayers();
+    const b=WG.map.getBounds();
+    L.rectangle([[b.getSouth(),b.getWest()],[b.getNorth(),b.getEast()]],
+      {color:'#ff3b3b',weight:2,fillColor:'#ff3b3b',fillOpacity:.35}).addTo(WG._maqLocCapa);
+    WG._maqLoc.invalidateSize();
+  }catch(_e){}
+}
 // Sin rol (el enlace liso del bando) se ordena, como siempre: es el puesto de
 // mando de toda la vida y no hay que romperle nada a quien ya lo usa así.
 function _wgRolOrdena(){ const r=_wgRol(); return !r || WG_ROLES[r].ordena; }
@@ -23335,6 +23514,18 @@ async function wgCargarMisPartidas(){
         +` onclick="wgPuestoLobby(event,'${b}',${p.id},'${k}')">`
         +`${WG_ROLES[k].ico} ${_rgEsc(WG_ROLES[k].nom.replace(/ · .*/,''))}</button>`).join('')
       +`</div>`).join('')
+    // v2.9.319 — PROYECCIÓN SOBRE MAQUETA. Va aparte de los puestos porque no es
+    // un puesto: es la sala. Abierta acá (con la sesión del árbitro) proyecta el
+    // ejercicio COMPLETO — los dos bandos, que es lo que se ve en la maqueta.
+    +`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;`
+      +`border-top:1px solid rgba(140,210,255,.14);align-items:center">`
+      +`<span class="rg-meta" style="font-size:10.5px;opacity:.7;align-self:center">SALA:</span>`
+      +`<button class="rg-doc" title="Proyección para maqueta física: fondo negro, sin carta, `
+      +`sólo dispositivo, movimiento y fuego. Encuadre trabable para calzarlo con el modelo."`
+      +` onclick="wgMaquetaLobby(${p.id})">🗺️ Vista de maqueta (proyector)</button>`
+      +`<button class="rg-doc" title="Copiar el enlace para abrirlo en la máquina del proyector"`
+      +` onclick="wgMaquetaCopiar(${p.id})">🔗 Copiar enlace</button>`
+    +`</div>`
     +`<div id="wg-inv-${p.id}"></div>`
     +`</div>`
   ).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">Aún no creaste partidas.</div>';
@@ -23376,12 +23567,26 @@ async function wgAbrir(partidaId, clave){
   document.getElementById('wg-game').style.display='';
   await ensureLeaflet();
   if(!WG.map){
-    WG.map = L.map('wg-map').setView([-17,-65], 7);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'OSM'}).addTo(WG.map);
+    WG.map = L.map('wg-map',{ zoomControl:!WG.maqueta, attributionControl:!WG.maqueta })
+      .setView([-17,-65], 7);
+    // ============================================================
+    // v2.9.319 — VISTA DE MAQUETA: SIN CARTA DEBAJO, A PROPÓSITO.
+    //
+    // Se proyecta sobre una maqueta FÍSICA en blanco. El terreno ya está ahí,
+    // en yeso: lo que tiene que salir del proyector es SÓLO el dispositivo, el
+    // movimiento y el fuego. Por eso no se carga la tesela: un mapa proyectado
+    // encima del relieve de la maqueta no coincidiría con nada y ensuciaría todo.
+    // Y el fondo va NEGRO porque un proyector proyecta LUZ: lo negro no ilumina
+    // y deja ver el yeso; lo que se dibuje sale encendido sobre la maqueta.
+    // ============================================================
+    if(!WG.maqueta){
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:18,attribution:'OSM'}).addTo(WG.map);
+    }
     WG.capa = L.layerGroup().addTo(WG.map);
     WG.map.on('click', _wgMapClick);
     WG.map.on('zoomend moveend', wgActualizarZoomChip);  // v2.9.196
   }
+  if(WG.maqueta) _wgMaquetaMontar();
   // v2.9.191: al entrar al juego, PANTALLA COMPLETA (el mapa ocupa todo y los
   // controles flotan encima). El lobby sigue con el diseño normal.
   document.getElementById('screen-wargame').classList.add('wg-full');
@@ -26901,7 +27106,17 @@ function _wgRenderTerreno(){
   if(!WG.map) return;
   const terr = WG.terreno||[];
   const apagados=WG_CALCOS.filter(c=>!_wgCalcoVisible(c.id)).map(c=>c.id).join(',');
-  const firma = terr.length+'|'+(WG.partidaId||'')+'|'+apagados;
+  // v2.9.319 — EN LA MAQUETA EL TERRENO SE PUEDE APAGAR. Proyectado sobre el
+  // modelo sirve para CALZAR la imagen con el yeso (los ríos y las curvas son la
+  // referencia para calibrar); una vez calzado, estorba, porque el relieve ya
+  // está ahí en tres dimensiones. Por eso arranca encendido y se apaga cuando el
+  // operador terminó de calibrar.
+  const ocultoMaq = WG.maqueta && WG.maqTerrenoOff;
+  const firma = (ocultoMaq?'OFF|':'')+terr.length+'|'+(WG.partidaId||'')+'|'+apagados;
+  if(ocultoMaq){
+    if(WG.capaTerreno){ try{ WG.map.removeLayer(WG.capaTerreno); }catch(_e){} WG.capaTerreno=null; }
+    WG.capaTerrenoFirma=firma; return;
+  }
   if(WG.capaTerrenoFirma===firma && WG.capaTerreno) return;
   if(WG.capaTerreno){ try{ WG.map.removeLayer(WG.capaTerreno); }catch(_e){} }
   WG.capaTerreno = L.layerGroup().addTo(WG.map);
@@ -30365,6 +30580,23 @@ function _wgRender(){
   }
   if(WG.map3d){ _wg3dDatos(); _wg3dCapas(); }
   if(WG.hoja==='capas') wgPanelCapas(); // conteos siempre al día
+  // v2.9.319 — la maqueta encuadra SOLA la primera vez que ya hay dispositivo
+  // en pantalla. Antes lo intentaba a los 900 ms y a esa altura todavía no había
+  // llegado el estado: encuadraba sobre nada y quedaba en el centro del mundo.
+  if(WG.maqueta){
+    // El encuadre inicial NO se cuelga de un temporizador: se intenta en cada
+    // repintado hasta que sale bien, y recién ahí se da por hecho. Con `setTimeout`
+    // dependía de que el contenedor ya hubiera medido, y en una máquina cargada
+    // —o con la pestaña en segundo plano— el ajuste salía en zoom 0 y la
+    // proyección quedaba mostrando el mundo entero.
+    if(!WG._maqEncuadrada && ((WG.estado&&WG.estado.unidades)||[]).length){
+      try{
+        wgMaquetaEncuadrar();
+        if(WG.map.getZoom()>=3) WG._maqEncuadrada=1;   // salió: no se toca más
+      }catch(_e){}
+    }
+    _wgMaquetaEscala(); _wgMaquetaLoc();
+  }
   if(WG.hoja==='matriz') wgPanelMatriz(); // v2.9.223: se rearma con cada orden nueva
   if(WG.hoja==='personal') wgPanelPersonal();
   if(WG.hoja==='logistica') wgPanelLogistica();
@@ -30654,6 +30886,9 @@ function _wgAvanzarRutas(trazas){
 // ¿Se pueden dar órdenes ahora? Si no, lo DICE (el silencio hacía creer que
 // los controles estaban rotos).
 function _wgPuedeOrdenar(){
+  // v2.9.319: la maqueta es una PROYECCIÓN. Nadie ordena desde la sala, y un
+  // clic accidental sobre el modelo no puede mover una ficha del ejercicio.
+  if(_wgEsMaqueta()) return false;
   // v2.9.316 — EL G-2 INFORMA, NO MANIOBRA. Es el portón único por el que pasan
   // los cuatro caminos que crean órdenes (mover, atacar, zapa, replegar), así
   // que alcanza con frenar acá.
@@ -31203,6 +31438,18 @@ function _wgURLInvitacion(partidaId, bando, clave, rol){
 // sentar al oficial ahí mismo. Shift+clic: se muestra el enlace con su QR, que
 // es lo que se reparte cuando cada uno entra desde su computadora.
 // ============================================================
+function _wgURLMaqueta(pid){
+  return location.origin+location.pathname+'?wg='+encodeURIComponent(pid)+'&maqueta=1';
+}
+function wgMaquetaLobby(pid){ window.open(_wgURLMaqueta(pid),'_blank'); }
+function wgMaquetaCopiar(pid){
+  const u=_wgURLMaqueta(pid);
+  try{ navigator.clipboard.writeText(u);
+    alert('Enlace de la maqueta copiado.\n\nAbrilo en la computadora conectada al proyector, '
+      +'iniciando sesión con TU cuenta (la proyección del ejercicio completo es del árbitro).\n\n'
+      +'Ahí: ⛶ Encuadrar para calzarlo con el modelo y 🔒 Trabar para que no se mueva más.');
+  }catch(_e){ prompt('Enlace de la maqueta:', u); }
+}
 async function wgPuestoLobby(ev, bando, partidaId, rol){
   if(ev && ev.shiftKey){ wgInvitarBando(bando, partidaId, false, rol); return; }
   const R=WG_ROLES[rol]||{nom:'puesto de mando'};
@@ -36125,6 +36372,16 @@ function irAFirmarMiSancion(sancionId){
 function detectarInvitacionWargameEnURL(){
   let p; try{ p=new URLSearchParams(location.search); }catch(_e){ return false; }
   const id=p.get('wg'), bando=p.get('b'), clave=p.get('k');
+  // v2.9.319 — VISTA DE MAQUETA. Es un MODO de presentación, no un puesto: se
+  // monta sobre el acceso que traiga el enlace. Con clave de bando proyecta lo
+  // que ve ese Estado Mayor; abierta por el árbitro (sin clave, con su sesión)
+  // proyecta el ejercicio completo, que es lo que se usa en la sala.
+  WG.maqueta = (p.get('maqueta')==='1');
+  if(id && WG.maqueta && !clave){
+    // Sin clave: sólo sirve si quien abre es el árbitro y tiene sesión.
+    setTimeout(async()=>{ try{ showScreen('screen-wargame'); await wgAbrir(Number(id),''); }catch(_e){} }, 60);
+    return true;
+  }
   if(!id || !clave) return false;
   const b=(bando==='rojo'||bando==='azul')?bando:null;
   // v2.9.316 — ESTACIÓN DEL G-2. El mismo enlace del bando más `&rol=g2` abre
