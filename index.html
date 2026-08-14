@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.317</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.318</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -23200,6 +23200,7 @@ function _wgRol(){ return WG_ROLES[WG.rol] ? WG.rol : null; }
 function _wgRolNom(){ const r=_wgRol(); return r ? WG_ROLES[r].nom : null; }
 function _wgEsG2(){ return _wgRol()==='g2'; }
 function _wgEsG4(){ return _wgRol()==='g4'; }
+function _wgEsG1(){ return _wgRol()==='g1'; }
 // Sin rol (el enlace liso del bando) se ordena, como siempre: es el puesto de
 // mando de toda la vida y no hay que romperle nada a quien ya lo usa así.
 function _wgRolOrdena(){ const r=_wgRol(); return !r || WG_ROLES[r].ordena; }
@@ -23241,6 +23242,12 @@ function _wgAyudaRol(rol){
     +'<b>municionamiento</b>, <b>mantenimiento</b> y <b>puesto de socorro</b> — y quedan a la vista '
     +'de todo tu Estado Mayor.<br>No das órdenes de maniobra: le decís al Comandante <b>hasta '
     +'dónde le da</b> la logística.';
+  if(rol==='g1') return cab
+    +'Acá se ve el <b>estado de personal</b> de la fuerza: efectivos contra el poder inicial, '
+    +'bajas para evacuar y reponer, y qué unidad está <b>suprimida</b> — que a este nivel es la '
+    +'moral golpeada.<br>Con <b>📍 Instalaciones</b> ubicás lo tuyo: <b>reunión de rezagados</b>, '
+    +'<b>centro de reemplazos</b>, <b>campo de prisioneros</b> y <b>puesto de sepultura</b>.<br>'
+    +'No das órdenes de maniobra: le decís al Comandante <b>con qué gente cuenta</b>.';
   if(rol==='g3') return cab
     +'Sos el que redacta y transmite la maniobra: <b>ordenás igual que el Comandante</b>. '
     +'Tocá una unidad y marcá su destino, o elegí un arma en 🎯 ARMAMENTO para empeñar.';
@@ -24231,6 +24238,86 @@ function _wgPanelG2HTML(mias){
 // El orden es el de la urgencia, no el alfabético: arriba lo que está por
 // romperse. Un tablero logístico ordenado por nombre no sirve para decidir.
 // ============================================================
+// ============================================================
+// v2.9.318 — EL TABLERO DEL G-1 (PERSONAL).
+//
+// El motor no lleva un padrón de soldados, así que el G-1 trabaja con lo que sí
+// existe y que es el indicador real de personal en un juego de este nivel: el
+// PODER DE COMBATE de cada unidad contra su poder inicial. La diferencia son
+// las bajas —de personal y de material juntas— y es lo que manda un parte de
+// efectivos. Se dice así en pantalla, sin disfrazarlo de otra cosa: acá no se
+// inventa un dato que el juego no tiene.
+//
+// Lo que agrega el G-1 es la lectura: quién perdió capacidad, quién está
+// suprimido (que a este nivel es la moral golpeada) y a quién hay que reponer
+// antes de que deje de ser empleable.
+// ============================================================
+function _wgPanelG1HTML(mias){
+  const uds=(mias||[]).slice();
+  if(!uds.length) return `<div class="rg-meta">Sin unidades.</div>`;
+  const turno=(WG.estado&&WG.estado.partida)?Number(WG.estado.partida.turno_actual):0;
+  const inf=uds.map(u=>{
+    const max=Number(u.poder_max)||0, act=Math.max(0,Number(u.poder_actual)||0);
+    const pct = max>0 ? Math.round(100*act/max) : 100;
+    const fc = u.estado==='fuera_combate';
+    const supr = Number(u.suprimida_hasta)>=turno;
+    let urg=0;
+    if(fc) urg=3; else if(pct<=40) urg=3; else if(pct<=70) urg=2; else if(pct<90) urg=1;
+    if(supr) urg=Math.max(urg,2);
+    return {u,max,act,pct,fc,supr,urg};
+  }).sort((a,b)=>(b.urg-a.urg)||(a.u.designacion||'').localeCompare(b.u.designacion||'','es'));
+
+  const sMax=inf.reduce((s,x)=>s+x.max,0), sAct=inf.reduce((s,x)=>s+x.act,0);
+  const efect = sMax>0 ? Math.round(100*sAct/sMax) : 100;
+  const fuera=inf.filter(x=>x.fc).length;
+  const supr=inf.filter(x=>x.supr&&!x.fc).length;
+  const reponer=inf.filter(x=>!x.fc&&x.pct<=70).length;
+  const cuadro=(ico,tit,val,sub,col)=>
+    `<div style="flex:1;min-width:86px;background:rgba(255,255,255,.045);border:1px solid ${col}44;`
+    +`border-radius:9px;padding:6px 7px">`
+    +`<div style="font-size:8px;letter-spacing:.9px;opacity:.7">${ico} ${tit}</div>`
+    +`<div style="font-size:16px;font-weight:800;color:${col};line-height:1.15">${val}</div>`
+    +`<div style="font-size:8px;opacity:.72">${sub}</div></div>`;
+  const cEf = efect>=85?'#2ecc71':efect>=65?'#e8c33a':efect>=45?'#e08a2c':'#e23b3b';
+  const cabeza=`<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px">`
+    +cuadro('🧍','EFECTIVOS', efect+'%', 'del poder inicial de la fuerza', cEf)
+    +cuadro('🚑','BAJAS', String(fuera), fuera?'unidades fuera de combate':'sin unidades perdidas', fuera?'#e23b3b':'#2ecc71')
+    +cuadro('😰','MORAL', String(supr), supr?'suprimidas — no rinden':'sin unidades suprimidas', supr?'#e08a2c':'#2ecc71')
+    +cuadro('🧭','REPOSICIÓN', String(reponer), reponer?'necesitan reemplazos':'sin necesidad de reponer', reponer?'#e8c33a':'#2ecc71')
+    +`</div>`;
+
+  const filas=inf.map(({u,max,act,pct,fc,supr,urg})=>{
+    const col = urg>=3?'#e23b3b' : urg===2?'#e08a2c' : urg===1?'#e8c33a' : '#2ecc71';
+    const perdido = max>0 ? Math.max(0, Math.round(max-act)) : 0;
+    const est=[];
+    if(fc) est.push('🚑 fuera de combate — evacuar y reponer');
+    else{
+      if(pct<=40) est.push('⛔ muy desgastada: replegar o reforzar');
+      else if(pct<=70) est.push('⚠️ necesita reemplazos');
+      if(supr) est.push('😰 suprimida — no rinde este turno');
+    }
+    return `<div class="rg-card" style="padding:5px 7px;margin-bottom:3px;border-left:3px solid ${col};cursor:pointer"`
+      +` onclick="_wgIrUnidad(${u.id})">`
+      +`<div style="display:flex;justify-content:space-between;gap:6px;align-items:baseline">`
+      +`<b style="font-size:10.5px">${_rgEsc(u.designacion||('U'+u.id))}</b>`
+      +`<span style="font-size:9px;color:${col};font-weight:700">${pct}%</span></div>`
+      +`<div style="display:flex;align-items:center;gap:5px;margin-top:3px">`
+      +`<span style="font-size:9px;opacity:.75;width:14px">🧍</span>`
+      +`<span style="flex:1;height:4px;border-radius:3px;background:rgba(255,255,255,.12);overflow:hidden;display:block">`
+      +`<span style="display:block;height:100%;width:${pct}%;background:${col}"></span></span>`
+      +`<span style="font-size:8.5px;opacity:.8;white-space:nowrap">−${perdido}</span></div>`
+      +(est.length?`<div style="font-size:8.5px;color:${col};margin-top:3px">${est.join(' · ')}</div>`:'')
+      +`</div>`;
+  }).join('');
+
+  return `<div style="font-size:9px;letter-spacing:1.4px;opacity:.75;margin-bottom:5px">`
+    +`👥 SITUACIÓN DE PERSONAL</div>`+cabeza+_wgBotonesInstal('g1')
+    +`<div style="font-size:9px;letter-spacing:1.2px;opacity:.6;margin:9px 0 4px">`
+    +`POR UNIDAD · lo más urgente arriba</div>`+filas
+    +`<div class="rg-meta" style="font-size:8px;opacity:.6;margin-top:7px;line-height:1.4">`
+    +`El «poder de combate» del juego mezcla personal y material: se usa como parte de `
+    +`efectivos porque es el único indicador que el motor lleva por unidad.</div>`;
+}
 // ⚠️ v2.9.317: la munición se lee con `_wgMunicionUnidad()`, que YA EXISTE más
 // abajo en el archivo y devuelve {det, hay, tope, pct, secos}. Acá había un
 // duplicado con el mismo nombre y otra forma: como las declaraciones de función
@@ -24313,26 +24400,8 @@ function _wgPanelG4HTML(mias){
       +(alertas.length?`<div style="font-size:8.5px;color:${col};margin-top:3px">${alertas.join(' · ')}</div>`:'')
       +`</div>`;
   }).join('');
-  // ── INSTALACIONES: lo que el G-4 pone sobre el terreno.
-  const puestas=_wgInstalaciones();
-  const botones=Object.keys(WG_INSTAL).map(k=>{
-    const I=WG_INSTAL[k], act=(WG.instalSel===k);
-    return `<button class="wg-pill" title="${_rgEsc(I.nom)} — ${_rgEsc(I.desc)}"`
-      +` style="font-size:9px;padding:2px 7px;margin:2px 2px 0 0;`
-      +`${act?`border-color:${I.col};color:${I.col};box-shadow:0 0 0 1px ${I.col}55`:''}"`
-      +` onclick="wgInstalarModo('${k}')">${I.ico} ${_rgEsc(I.nom.replace(/^(Puesto|Punto|Taller|Centro) de /,''))}</button>`;
-  }).join('');
-  const listaPuestas = puestas.length
-    ? `<div style="font-size:8.5px;opacity:.8;margin-top:5px">`
-      +puestas.map(it=>{ const I=WG_INSTAL[it.tipo]; return I
-        ? `<span style="display:inline-block;margin:0 6px 2px 0">${I.ico} ${_rgEsc(I.nom.replace(/^(Puesto|Punto|Taller|Centro) de /,''))}</span>` : '';
-      }).join('')
-      +`<div style="opacity:.65;margin-top:2px">Tocá una en la carta para quitarla.</div></div>`
-    : `<div style="font-size:8.5px;opacity:.6;margin-top:5px">Todavía no ubicaste ninguna. `
-      +`Elegí una y tocá el punto del mapa.</div>`;
-  const instal=`<div style="font-size:9px;letter-spacing:1.2px;opacity:.6;margin:9px 0 3px">`
-    +`📍 INSTALACIONES ${WG.instalSel?'· <span style="color:#e8c33a">tocá el mapa</span>':''}</div>`
-    +botones+listaPuestas;
+  // ── INSTALACIONES del G-4 (los botones son compartidos, ver _wgBotonesInstal).
+  const instal=_wgBotonesInstal('g4');
 
   return `<div style="font-size:9px;letter-spacing:1.4px;opacity:.75;margin-bottom:5px">`
     +`📦 SITUACIÓN LOGÍSTICA</div>`+cabeza+instal
@@ -24347,18 +24416,54 @@ function _wgPanelG4HTML(mias){
 // comparten con todo el Estado Mayor, pero no alteran movimiento ni combate.
 // Son elementos de la carta logística, no accidentes del terreno.
 // ============================================================
+// `rol` dice de qué célula es cada instalación: cada estación ofrece las suyas
+// y no las ajenas. El tipo va con prefijo `log_` porque así lo filtra la Edge
+// Function — el nombre quedó de la logística, pero el mecanismo es común.
 const WG_INSTAL={
-  log_abas:{id:'log_abas',nom:'Puesto de abastecimiento',ico:'📦',col:'#7fb2ff',
+  // ── G-4 · LOGÍSTICA
+  log_abas:{id:'log_abas',rol:'g4',nom:'Puesto de abastecimiento',ico:'📦',col:'#7fb2ff',
             desc:'Clase I y III: raciones y combustible.'},
-  log_muni:{id:'log_muni',nom:'Punto de municionamiento',ico:'🎯',col:'#e8c33a',
+  log_muni:{id:'log_muni',rol:'g4',nom:'Punto de municionamiento',ico:'🎯',col:'#e8c33a',
             desc:'Clase V: reposición de unidades de fuego.'},
-  log_mant:{id:'log_mant',nom:'Taller de mantenimiento',ico:'🔧',col:'#c9a0ff',
+  log_mant:{id:'log_mant',rol:'g4',nom:'Taller de mantenimiento',ico:'🔧',col:'#c9a0ff',
             desc:'Recuperación y reparación de material.'},
-  log_soco:{id:'log_soco',nom:'Puesto de socorro',ico:'🚑',col:'#ff8f8f',
+  log_soco:{id:'log_soco',rol:'g4',nom:'Puesto de socorro',ico:'🚑',col:'#ff8f8f',
             desc:'Atención de bajas y evacuación sanitaria.'},
-  log_trans:{id:'log_trans',nom:'Centro de transporte',ico:'🚚',col:'#8fe3c8',
+  log_trans:{id:'log_trans',rol:'g4',nom:'Centro de transporte',ico:'🚚',col:'#8fe3c8',
             desc:'Medios de transporte y control de movimiento.'},
+  // ── G-1 · PERSONAL
+  log_rezag:{id:'log_rezag',rol:'g1',nom:'Puesto de reunión de rezagados',ico:'🧭',col:'#ffc98f',
+            desc:'Recupera al que se desprendió de su unidad y lo devuelve al combate.'},
+  log_reemp:{id:'log_reemp',rol:'g1',nom:'Centro de reemplazos',ico:'🧍',col:'#9fe8a0',
+            desc:'Recibe y distribuye el personal de reposición.'},
+  log_pdg:  {id:'log_pdg', rol:'g1',nom:'Campo de prisioneros',ico:'🔒',col:'#bdbdbd',
+            desc:'Reunión, custodia y evacuación de prisioneros de guerra.'},
+  log_sepul:{id:'log_sepul',rol:'g1',nom:'Puesto de sepultura',ico:'✝️',col:'#c9b8a8',
+            desc:'Recuperación e identificación de los caídos.'},
 };
+// Los botones de instalar de UNA célula. Compartido por las estaciones.
+function _wgBotonesInstal(rol){
+  const ks=Object.keys(WG_INSTAL).filter(k=>WG_INSTAL[k].rol===rol);
+  const botones=ks.map(k=>{
+    const I=WG_INSTAL[k], act=(WG.instalSel===k);
+    return `<button class="wg-pill" title="${_rgEsc(I.nom)} — ${_rgEsc(I.desc)}"`
+      +` style="font-size:9px;padding:2px 7px;margin:2px 2px 0 0;`
+      +`${act?`border-color:${I.col};color:${I.col};box-shadow:0 0 0 1px ${I.col}55`:''}"`
+      +` onclick="wgInstalarModo('${k}')">${I.ico} ${_rgEsc(I.nom.replace(/^(Puesto|Punto|Taller|Centro|Campo) de (reunión de )?/,''))}</button>`;
+  }).join('');
+  const puestas=_wgInstalaciones().filter(x=>WG_INSTAL[x.tipo]&&WG_INSTAL[x.tipo].rol===rol);
+  const lista = puestas.length
+    ? `<div style="font-size:8.5px;opacity:.8;margin-top:5px">`
+      +puestas.map(it=>{ const I=WG_INSTAL[it.tipo];
+        return `<span style="display:inline-block;margin:0 6px 2px 0">${I.ico} ${_rgEsc(I.nom.replace(/^(Puesto|Punto|Taller|Centro|Campo) de (reunión de )?/,''))}</span>`;
+      }).join('')
+      +`<div style="opacity:.65;margin-top:2px">Tocá una en la carta para quitarla.</div></div>`
+    : `<div style="font-size:8.5px;opacity:.6;margin-top:5px">Todavía no ubicaste ninguna. `
+      +`Elegí una y tocá el punto del mapa.</div>`;
+  return `<div style="font-size:9px;letter-spacing:1.2px;opacity:.6;margin:9px 0 3px">`
+    +`📍 INSTALACIONES ${WG.instalSel?'· <span style="color:#e8c33a">tocá el mapa</span>':''}</div>`
+    +botones+lista;
+}
 function _wgInstalaciones(){
   const b=(WG.soy==='arbitro')?_wgBandoLente():WG.soy;
   return ((WG.estado&&WG.estado.instalaciones)||[]).filter(x=>!b||x.bando===b);
@@ -26529,14 +26634,37 @@ async function wgEstado(silencioso){
   const rol=document.getElementById('wg-rol-chip');
   const g2=_wgEsG2();   // v2.9.316
   const miRol=_wgRol(), ordena=_wgRolOrdena();   // v2.9.317
-  rol.textContent = miRol ? (WG_ROLES[miRol].ico+' '+WG_ROLES[miRol].nom.replace(/ · .*/,'')+' '+String(r.soy||'').toUpperCase())
+  // ============================================================
+  // v2.9.318 — «G-2 ÁRBITRO» NO EXISTE.
+  //
+  // Sergio: «no sé por qué está entrando como G-2 árbitro; el G-2 o es de rojo
+  // o es de azul, nada que ver árbitro, y sólo debe ver lo que le corresponde».
+  // Tiene toda la razón, y el motivo era éste: abriendo el enlace de un puesto
+  // CON LA SESIÓN DE PROFESOR INICIADA, el servidor lo reconoce como árbitro
+  // —que lo es— y le manda los dos bandos. La pantalla quedaba de árbitro con
+  // un rótulo de G-2 encima: los dos drones, las fichas de los dos, todo.
+  //
+  // Un puesto del Estado Mayor es SIEMPRE de un bando. Así que el enlace manda:
+  // si trae `b=azul`, esa estación es del azul aunque quien la abra sea el
+  // árbitro. Se le calza la lente de ese bando, que es la que ya gobierna el
+  // dron, la barra de unidades y la niebla.
+  // ============================================================
+  const bandoPuesto = miRol && WG._inv && WG._inv.bando ? WG._inv.bando : null;
+  if(bandoPuesto && WG.vistaArb!==bandoPuesto) WG.vistaArb=bandoPuesto;
+  const bandoChip = bandoPuesto || (r.soy==='arbitro' ? (WG.vistaArb||'') : r.soy);
+  rol.textContent = miRol ? (WG_ROLES[miRol].ico+' '+WG_ROLES[miRol].nom.replace(/ · .*/,'')+' '+String(bandoChip||'').toUpperCase())
                        : (esArb?'🎖️ ÁRBITRO':(r.soy==='rojo'?'🔴 EM ROJO':'🔵 EM AZUL'));
   rol.title = miRol ? WG_ROLES[miRol].nom+' — '+WG_ROLES[miRol].desc : '';
   // v2.9.317 — el puesto abre SU tablero al entrar (una sola vez): si el oficial
   // tiene que ir a buscarlo en un menú, la mitad no lo encuentra y concluye que
   // su pantalla es igual a la del Comandante.
   if(miRol && !WG._hojaAuto){ WG._hojaAuto=1; try{ wgHoja('unidades'); }catch(_e){} }
-  rol.style.background = esArb?'#3a2c0c':(WG_COL[r.soy]+'22'); rol.style.border='1px solid '+(esArb?'#caa14a':WG_COL[r.soy]); rol.style.color = esArb?'#f4d574':WG_COL[r.soy];
+  // v2.9.318: en un puesto, el color es el DEL BANDO del puesto — aunque lo abra
+  // el árbitro. Antes salía dorado de árbitro y confundía de qué lado estabas.
+  const colChip = bandoPuesto ? WG_COL[bandoPuesto] : (esArb ? null : WG_COL[r.soy]);
+  rol.style.background = colChip ? (colChip+'22') : '#3a2c0c';
+  rol.style.border = '1px solid '+(colChip || '#caa14a');
+  rol.style.color = colChip || '#f4d574';
   document.getElementById('wg-btn-config').style.display = (esArb && !miRol)?'':'none';
   // v2.9.218 — UN SOLO BOTÓN, SEGÚN EL ROL. Tres botones para una acción era
   // burocracia pura: si el Estado Mayor ya decidió, la orden ES la decisión.
@@ -30206,6 +30334,8 @@ function _wgRender(){
     ? _wgPanelG2HTML(mias)
     : _wgEsG4()
     ? _wgPanelG4HTML(mias)
+    : _wgEsG1()
+    ? _wgPanelG1HTML(mias)
     : `<div style="margin-bottom:4px">Tuyas (${mias.length}):</div>`+mias.map(u=>fila(u,false)).join('')
     + (enem.length?`<div style="margin:6px 0 4px">Enemigas detectadas (${enem.length}):</div>`+enem.map(u=>fila(u,true)).join('')
        : (WG.soy!=='arbitro'?'<div class="rg-meta" style="margin-top:6px">🌫️ Sin contacto enemigo (niebla de guerra).</div>':''));
