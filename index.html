@@ -3926,7 +3926,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.311</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.312</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -24652,7 +24652,11 @@ function _wgVolarDrones(){
       // v2.9.261: cada aparato con SU velocidad y SU punto de partida en la pista.
       const kmh = d.kmh || WG_DRON_KMH;
       const pistaLargo = _wgPistaDron(d, v.u, 0).P;
-      const kmRecorridos = (ahora/3600000)*kmh*WG_DRON_ACEL
+      // v2.9.312 — el recorrido se mide contra el RELOJ DE PARED compartido, no
+      // contra los milisegundos de vida de esta pestaña (ver `WG_EPOCA`). Los
+      // otros sumandos ya eran iguales en las dos ventanas: `fase` viene de la
+      // base y el desfase por unidad sale de su id.
+      const kmRecorridos = ((Date.now()-WG_EPOCA)/3600000)*kmh*WG_DRON_ACEL
         + (d.fase||0)*pistaLargo + (String(v.u.id).length*3.1);
       // ============================================================
       // v2.9.283 — DOS FORMAS DE VOLAR, NO UNA CONGELADA.
@@ -29286,6 +29290,29 @@ const WG_CW40={ nom:'CW 40', enlaceKm:150, km:24, apertura:60, alt:3000,
 // una vuelta completa toma ~1 minuto y se LEE el desplazamiento, que es lo que
 // distingue a un ala fija de un multirrotor colgado sobre un punto.
 const WG_DRON_KMH=WG_CW40.kmh, WG_DRON_ACEL=40;
+// ============================================================
+// v2.9.312 — RELOJ COMÚN PARA EL VUELO AUTOMÁTICO.
+//
+// Sergio, con las dos ventanas al lado: «no hay nada de sincronización, están
+// totalmente diferentes, en diferentes tiempos y lugares, no está en el mismo
+// escenario».
+//
+// La posición del dron en su pista sale de una cuenta determinista sobre el
+// tiempo, y el tiempo que se usaba era el de `requestAnimationFrame`: los
+// milisegundos transcurridos DESDE QUE SE ABRIÓ ESA PESTAÑA. Cada ventana
+// arrancaba su reloj en cero al cargar, así que una abierta hace veinte
+// minutos y otra recién abierta calculaban recorridos distintos y ponían el
+// mismo aparato en puntos distintos de la misma pista. No era retraso: eran
+// dos relojes que nunca habían estado en hora.
+//
+// Con una época FIJA y compartida, la cuenta da lo mismo en toda máquina que
+// tenga el reloj en hora: los dos bandos ven el aparato en el mismo lugar en
+// el mismo instante, sin una sola llamada de red de más y sin tocar la base.
+// Es la sincronización más rápida que existe — no hay nada que esperar.
+//
+// La época es del pasado y FIJA: cambiarla teletransporta los drones.
+// ============================================================
+const WG_EPOCA=1767225600000;   // 2026-01-01T00:00:00Z
 // ============================================================
 // v2.9.261 — EL CW 40 VUELA UN HIPÓDROMO SOBRE SU SECTOR.
 // Antes daba vueltitas de 2,4 km encima del puesto de mando: no se le veía
