@@ -4908,6 +4908,15 @@ body{
         <span>Ejercicios Tácticos</span>
         <span id="ejtac-badge" class="hub-badge" style="display:none"></span>
       </button>
+      <!-- Generador de Calcos (planeamiento en el navegador, /calcos).
+           OJO: va en la MISMA pestaña (location.href, no window.open).
+           La sesión del cursante vive en sessionStorage, que existe solo
+           dentro de su pestaña: en una pestaña nueva el Generador no la
+           encontraría y pediría entrar de nuevo. -->
+      <button class="btn-mega" onclick="location.href='calcos/'" style="background:linear-gradient(180deg,#1f5f6b,#2a8095);margin:0 0 10px 0;color:#fff;position:relative">
+        <span class="mega-icon">🧭</span>
+        <span>Generador de Calcos</span>
+      </button>
       <!-- Juego de Guerra (unirse como Estado Mayor con clave) -->
       <button class="btn-mega" onclick="goWargame('screen-cursante-home')" style="background:linear-gradient(180deg,#8a6d24,#caa14a);margin:0 0 10px 0;color:#1a1407;position:relative">
         <span class="mega-icon">🎲</span>
@@ -5134,6 +5143,7 @@ body{
       <button class="quick-btn" onclick="goDocsProfesoresCT()" style="background:linear-gradient(180deg,rgba(140,90,203,.18),rgba(140,90,203,.05));border-color:#8c5acb"><span class="qa-icon">👨‍🏫</span><span class="qa-text"><strong>Documentos del personal docente</strong> (subir / ver — solo profesores)</span></button>
       <button class="quick-btn" onclick="goDocsInst('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(140,90,203,.22),rgba(107,75,168,.06));border-color:#8c5acb"><span class="qa-icon">📁</span><span class="qa-text"><strong>Documentos Institucionales</strong> (publicar / recibir — por ciclo, profesores, mando)</span></button>
       <button class="quick-btn" onclick="goEjTac('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(58,140,90,.22),rgba(44,107,75,.06));border-color:#3a8c5a"><span class="qa-icon">🗺️</span><span class="qa-text"><strong>Ejercicios Tácticos</strong> (publicar / recibir calcos KMZ para Google Earth)</span></button>
+      <button class="quick-btn" onclick="location.href='calcos/'" style="background:linear-gradient(180deg,rgba(42,128,149,.22),rgba(31,95,107,.06));border-color:#2a8095"><span class="qa-icon">🧭</span><span class="qa-text"><strong>Generador de Calcos</strong> (planificar en el navegador, sin instalar nada)</span></button>
       <button class="quick-btn" onclick="goWargame('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(202,161,74,.2),rgba(160,120,40,.05));border-color:#caa14a"><span class="qa-icon">🎲</span><span class="qa-text"><strong>Juego de Guerra</strong> (wargame por turnos: árbitro y Estados Mayores)</span></button>
       <button class="quick-btn success" data-sac-hide="1" onclick="goRespaldo()"><span class="qa-icon">💾</span><span class="qa-text">Descargar respaldo ahora (JSON + .XLSX)</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goInstalar()"><span class="qa-icon">📲</span><span class="qa-text">Instalar app / Compartir QR</span></button>
