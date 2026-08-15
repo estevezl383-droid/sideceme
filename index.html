@@ -5145,6 +5145,7 @@ body{
       <button class="quick-btn" onclick="goEjTac('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(58,140,90,.22),rgba(44,107,75,.06));border-color:#3a8c5a"><span class="qa-icon">🗺️</span><span class="qa-text"><strong>Ejercicios Tácticos</strong> (publicar / recibir calcos KMZ para Google Earth)</span></button>
       <button class="quick-btn" onclick="location.href='calcos/'" style="background:linear-gradient(180deg,rgba(42,128,149,.22),rgba(31,95,107,.06));border-color:#2a8095"><span class="qa-icon">🧭</span><span class="qa-text"><strong>Generador de Calcos</strong> (planificar en el navegador, sin instalar nada)</span></button>
       <button id="qa-btn-calcos-acceso" class="quick-btn" onclick="goCalcosAcceso('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(42,128,149,.14),rgba(31,95,107,.04));border-color:#1f5f6b"><span class="qa-icon">🔑</span><span class="qa-text"><strong>Acceso al Generador</strong> (habilitar por ciclo / paralelo / mención)</span></button>
+      <button id="qa-btn-calcos-prof" class="quick-btn" onclick="goCalcosProf('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(42,128,149,.22),rgba(31,95,107,.06));border-color:#2a8095"><span class="qa-icon">🗂️</span><span class="qa-text"><strong>Planeamientos</strong> (ver y calificar los trabajos de los Estados Mayores)</span></button>
       <button class="quick-btn" onclick="goWargame('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(202,161,74,.2),rgba(160,120,40,.05));border-color:#caa14a"><span class="qa-icon">🎲</span><span class="qa-text"><strong>Juego de Guerra</strong> (wargame por turnos: árbitro y Estados Mayores)</span></button>
       <button class="quick-btn success" data-sac-hide="1" onclick="goRespaldo()"><span class="qa-icon">💾</span><span class="qa-text">Descargar respaldo ahora (JSON + .XLSX)</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goInstalar()"><span class="qa-icon">📲</span><span class="qa-text">Instalar app / Compartir QR</span></button>
@@ -6515,6 +6516,31 @@ body{
     <div id="docsinst-inbox" style="display:none">
       <div id="docsinst-inbox-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
     </div>
+  </div>
+</section>
+
+<!-- FASE 4 — Panel del profesor: ver, comparar y calificar los
+     planeamientos que los Estados Mayores hicieron en el Generador. -->
+<section id="screen-calcos-prof" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen(_CP_BACK||'screen-disc-panel')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">🗂️ Planeamientos</div><div class="header-sub" id="cp-sub">Trabajos de los Estados Mayores</div></div>
+  </div>
+  <div class="menu-container">
+    <div id="cp-filtros" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px"></div>
+    <div id="cp-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+  </div>
+</section>
+
+<section id="screen-calcos-prof-uno" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goCalcosProf(_CP_BACK)">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title" id="cpu-titulo">Planeamiento</div><div class="header-sub" id="cpu-sub"></div></div>
+  </div>
+  <div class="menu-container">
+    <div id="cpu-cuerpo"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
   </div>
 </section>
 
@@ -19589,6 +19615,134 @@ function _diSeenMax(){ try{ return parseInt(localStorage.getItem(_diSeenKey())||
 function _diMarcarVisto(items){
   try{ const mx=items.reduce((a,d)=>Math.max(a,Number(d.id)||0),0); if(mx) localStorage.setItem(_diSeenKey(),String(mx)); }catch(e){}
   _rgSetBadge('docsinst-badge',0);
+}
+
+/* ===== FASE 4 — PANEL DEL PROFESOR: PLANEAMIENTOS =====
+   Lista los trabajos que los Estados Mayores hicieron en el Generador,
+   permite abrirlos, calificarlos y ver su historial. Todo pasa por la
+   Edge Function calco-ops: las tablas no tienen políticas. */
+let _CP_BACK='screen-disc-panel';
+let _CP_EJ='';            // filtro de ejercicio activo
+let _CP_CALCOS=[];
+async function _cpInvoke(accion, extra){
+  const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
+  if(!tok) return {ok:false,error:'sin sesión'};
+  try{
+    const { data, error } = await sb.functions.invoke('calco-ops',{ body:Object.assign({accion, token:tok}, extra||{}) });
+    if(error) return {ok:false,error:(error.message||'error')};
+    return data||{ok:false,error:'sin respuesta'};
+  }catch(e){ return {ok:false,error:String((e&&e.message)||e)}; }
+}
+function _cpEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function _cpFecha(f){ if(!f) return '—'; try{ return new Date(f).toLocaleString('es-BO',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(e){ return '—'; } }
+function _cpBando(b){ return b===1?'🔵 AZUL':(b===2?'🔴 ROJO':(b===0?'⚪ Dirección':'')); }
+function _cpEstado(e){ return e==='calificado'?'✅ Calificado':(e==='entregado'?'📨 Entregado':'✏️ Borrador'); }
+
+async function goCalcosProf(fromScreen){
+  if(fromScreen) _CP_BACK=fromScreen;
+  showScreen('screen-calcos-prof');
+  const cont=document.getElementById('cp-lista');
+  cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const r=await _cpInvoke('listar', _CP_EJ?{ejercicio_id:_CP_EJ}:{});
+  if(!r.ok){ cont.innerHTML='<div class="efm-no-data" style="color:#e08">'+_cpEsc(r.error)+'</div>'; return; }
+  _CP_CALCOS=r.calcos||[];
+
+  /* Filtros por ejercicio, armados con lo que realmente vino. */
+  const ejs=[...new Set(_CP_CALCOS.map(c=>c.ejercicio_id))].sort();
+  const fil=document.getElementById('cp-filtros');
+  fil.innerHTML=['<button class="quick-btn" style="flex:0 0 auto;padding:7px 12px;'+(!_CP_EJ?'border-color:#3a8c5a':'')+'" onclick="_cpFiltrar(\'\')">Todos</button>']
+    .concat(ejs.map(e=>'<button class="quick-btn" style="flex:0 0 auto;padding:7px 12px;'+(_CP_EJ===e?'border-color:#3a8c5a':'')+'" onclick="_cpFiltrar(\''+_cpEsc(e)+'\')">'+_cpEsc(e)+'</button>')).join('');
+
+  const vis=_CP_EJ?_CP_CALCOS.filter(c=>c.ejercicio_id===_CP_EJ):_CP_CALCOS;
+  document.getElementById('cp-sub').textContent=vis.length+' trabajo(s)';
+  if(!vis.length){ cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">Todavía no hay planeamientos guardados.</div>'; return; }
+
+  cont.innerHTML=vis.map(c=>
+    '<button class="quick-btn" style="display:block;text-align:left;width:100%;margin-bottom:6px" onclick="_cpAbrir(\''+c.id+'\')">'+
+    '<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline">'+
+      '<strong>'+_cpEsc(c.grupo_nombre||c.nombre||'(sin nombre)')+'</strong>'+
+      '<span style="font-size:12px;color:var(--text-muted)">'+_cpBando(c.bando)+'</span>'+
+    '</div>'+
+    '<div style="font-size:12px;color:var(--text-muted);margin-top:3px">'+
+      _cpEstado(c.estado)+(c.nota!=null?' · Nota '+c.nota:'')+
+      ' · '+_cpEsc(c.ejercicio_id)+' · actualizado '+_cpFecha(c.actualizado_en)+
+      (c.actualizado_por?' por '+_cpEsc(c.actualizado_por):'')+
+    '</div></button>').join('');
+}
+function _cpFiltrar(ej){ _CP_EJ=ej; goCalcosProf(); }
+
+async function _cpAbrir(id){
+  showScreen('screen-calcos-prof-uno');
+  const cuerpo=document.getElementById('cpu-cuerpo');
+  cuerpo.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const r=await _cpInvoke('abrir',{calco_id:id});
+  if(!r.ok){ cuerpo.innerHTML='<div class="efm-no-data" style="color:#e08">'+_cpEsc(r.error)+'</div>'; return; }
+  const c=r.calco, p=c.payload||{};
+  const meta=_CP_CALCOS.find(x=>x.id===id)||{};
+  document.getElementById('cpu-titulo').textContent=meta.grupo_nombre||c.nombre||'Planeamiento';
+  document.getElementById('cpu-sub').textContent=_cpEsc(c.ejercicio_id)+' · '+_cpBando(meta.bando);
+
+  /* Resumen del planeamiento leído del propio ejercicio.json */
+  const nUnid=(p.unidades||[]).length;
+  const nFases=Array.isArray(p.fasesCOA)?p.fasesCOA.filter(f=>f&&(f.unidades||[]).length).length:0;
+  const calcos=p.calcosKml||[];
+  const filas=[
+    ['Área de interés', p.aoi?'definida':'sin definir'],
+    ['País', p.pais||'—'],
+    ['Unidades colocadas', nUnid],
+    ['Fases del COA con unidades', nFases],
+    ['Calcos generados', calcos.length],
+    ['Última actualización', _cpFecha(c.actualizado_en)+(c.actualizado_por?' por '+_cpEsc(c.actualizado_por):'')],
+    ['Entregado', c.entregado_en?_cpFecha(c.entregado_en):'no'],
+  ];
+
+  cuerpo.innerHTML=
+    '<div class="section-label">📋 Resumen</div>'+
+    '<div style="margin-bottom:14px">'+filas.map(f=>
+      '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.06)">'+
+      '<span style="color:var(--text-muted);font-size:13px">'+f[0]+'</span><span style="font-size:13px"><strong>'+_cpEsc(f[1])+'</strong></span></div>').join('')+'</div>'+
+    (calcos.length?
+      '<div class="section-label">🌍 Calcos para Google Earth</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px">'+
+      calcos.map((k,i)=>'<button class="quick-btn" style="flex:0 0 auto;padding:7px 12px" onclick="_cpBajarKml(\''+id+'\','+i+')">⬇︎ '+_cpEsc(k.nombre||('calco '+(i+1)))+'</button>').join('')+
+      '</div>':'')+
+    '<div class="section-label">✍️ Calificación</div>'+
+    '<div class="field" style="margin-bottom:8px"><label>Nota (0 a 100)</label>'+
+      '<input type="number" id="cpu-nota" min="0" max="100" step="0.01" value="'+(c.nota!=null?c.nota:'')+'"></div>'+
+    '<div class="field" style="margin-bottom:10px"><label>Observaciones</label>'+
+      '<textarea id="cpu-obs" rows="4" style="resize:vertical">'+_cpEsc(c.observaciones||'')+'</textarea></div>'+
+    '<button class="btn-primary" onclick="_cpCalificar(\''+id+'\')">Guardar calificación</button>'+
+    '<div id="cpu-aviso" style="margin-top:8px;font-size:13px"></div>'+
+    '<div class="section-label" style="margin-top:20px">🕘 Historial</div><div id="cpu-hist"><div class="efm-no-data" style="color:var(--text-muted)">⏳</div></div>';
+
+  window._cpPayload=p;
+  const h=await _cpInvoke('historial',{calco_id:id});
+  document.getElementById('cpu-hist').innerHTML = (h.ok && (h.versiones||[]).length)
+    ? h.versiones.map(v=>'<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:12px;color:var(--text-muted);border-bottom:1px solid rgba(255,255,255,.05)">'+
+        '<span>'+_cpFecha(v.creado_en)+' · '+_cpEsc(v.guardado_por||'—')+'</span><span>'+_cpEsc(v.motivo||'')+' · '+Math.round((v.bytes||0)/1024)+' KB</span></div>').join('')
+    : '<div class="efm-no-data" style="color:var(--text-muted)">Sin versiones guardadas todavía.</div>';
+}
+
+/* El KML ya viaja dentro del ejercicio.json: se baja tal cual, sin
+   pedirle nada más al servidor. */
+function _cpBajarKml(id, i){
+  const k=(window._cpPayload&&window._cpPayload.calcosKml||[])[i];
+  if(!k||!k.kml) return;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([k.kml],{type:'application/vnd.google-earth.kml+xml'}));
+  a.download=(k.nombre||'calco').replace(/[^\w\-]+/g,'_')+'.kml';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+}
+
+async function _cpCalificar(id){
+  const notaTxt=document.getElementById('cpu-nota').value.trim();
+  const nota=notaTxt===''?null:Number(notaTxt);
+  if(nota!==null && (!isFinite(nota)||nota<0||nota>100)){ alert('La nota debe estar entre 0 y 100.'); return; }
+  const av=document.getElementById('cpu-aviso');
+  av.textContent='Guardando…'; av.style.color='var(--text-muted)';
+  const r=await _cpInvoke('calificar',{calco_id:id, nota, observaciones:document.getElementById('cpu-obs').value});
+  if(r.ok){ av.textContent='✅ Guardado.'; av.style.color='#3a8c5a'; }
+  else { av.textContent='✗ '+(r.error||'no se pudo guardar'); av.style.color='#e08'; }
 }
 
 /* ===== ACCESO AL GENERADOR DE CALCOS (solo Ciencia y Tecnología) =====
