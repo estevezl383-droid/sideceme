@@ -1755,6 +1755,27 @@ body::after{content:'';position:fixed;inset:0;background-image:repeating-linear-
 .ef-cur-nota.R{color:#e08a3a}
 .ef-cur-nota.D{color:#c84a4a}
 
+/* ============ v2.9.321: CARGA Y CONTROL DE NOTAS ACADÉMICAS ============ */
+.nc-tab{width:100%;border-collapse:collapse;font-size:11px}
+.nc-tab th,.nc-tab td{border:1px solid var(--border-subtle);padding:4px 7px;text-align:left;white-space:nowrap;color:var(--text-secondary)}
+.nc-tab th{background:rgba(140,210,255,.06);color:var(--text-primary);font-weight:600}
+.nc-tab td.hl,.nc-tab th.hl{background:rgba(212,175,55,.12);color:var(--text-primary)}
+.nc-chip{display:inline-block;font-size:10px;letter-spacing:.5px;padding:2px 8px;border-radius:999px;margin:2px 5px 2px 0;border:1px solid;white-space:nowrap}
+.nc-chip.ok{color:#7ddba0;border-color:rgba(125,219,160,.42);background:rgba(125,219,160,.08)}
+.nc-chip.warn{color:#e8c46a;border-color:rgba(232,196,106,.42);background:rgba(232,196,106,.08)}
+.nc-chip.err{color:#e87878;border-color:rgba(232,120,120,.42);background:rgba(232,120,120,.08)}
+.nc-chip.info{color:var(--text-secondary);border-color:var(--border-subtle);background:rgba(140,210,255,.05)}
+.nc-mat-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:11px 13px;margin-bottom:7px;border:1px solid var(--border-subtle);border-radius:10px;background:var(--bg-card);cursor:pointer;transition:border-color .15s}
+.nc-mat-row:hover{border-color:var(--gold)}
+.nc-mat-row.ok{border-left:3px solid #7ddba0}
+.nc-mat-row.warn{border-left:3px solid #e8c46a}
+.nc-mat-row.err{border-left:3px solid #e87878}
+.nc-mat-nom{font-weight:600;color:var(--text-primary);font-size:13.5px}
+.nc-mat-meta{font-size:11px;color:var(--text-muted);margin-top:3px}
+.nc-mat-prom{font-family:var(--font-display);font-size:19px;font-weight:700;color:var(--gold);min-width:52px;text-align:center}
+.nc-lista-mini{font-size:12px;color:var(--text-secondary);line-height:1.7}
+.nc-lista-mini div{padding:3px 0;border-bottom:1px dashed rgba(140,210,255,.08)}
+
 /* ==================== v2.9: PRIMER INGRESO ==================== */
 .primer-card{
   background:var(--bg-card);border:2px solid var(--gold);
@@ -3926,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.320</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.321</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4343,14 +4364,25 @@ body{
       <span>Mis sancionados</span>
     </button>
 
-    <button class="btn-mega" onclick="goHorarios()" style="background:linear-gradient(180deg,#4a90d9,#2d5a8a);margin-bottom:8px">
-      <span class="mega-icon">📅</span>
-      <span>Horario Semanal</span>
+    <!-- v2.9.321: el corazón del puesto — cargar la planilla y después controlarla. -->
+    <button id="eval-btn-cargar" class="btn-mega" onclick="goNotasCarga()" style="background:linear-gradient(180deg,#1f6f5c,#0e4a3c);margin-bottom:8px">
+      <span class="mega-icon">📥</span>
+      <span>Cargar notas por materia (desde el Excel)</span>
+    </button>
+
+    <button id="eval-btn-control" class="btn-mega" onclick="goNotasControl()" style="background:linear-gradient(180deg,#c49234,#8a6420);margin-bottom:8px">
+      <span class="mega-icon">✅</span>
+      <span>Control de carga — verificar materia por materia</span>
     </button>
 
     <button class="btn-mega" onclick="goCargasNotas()" style="background:linear-gradient(180deg,#8a6db5,#5a4080);margin-bottom:8px">
       <span class="mega-icon">🗂️</span>
       <span>Cargas de notas (quién y cuándo)</span>
+    </button>
+
+    <button class="btn-mega" onclick="goHorarios()" style="background:linear-gradient(180deg,#4a90d9,#2d5a8a);margin-bottom:8px">
+      <span class="mega-icon">📅</span>
+      <span>Horario Semanal</span>
     </button>
 
     <div class="ef-filtros">
@@ -4400,6 +4432,96 @@ body{
   </div>
   <div class="menu-container">
     <div id="cd-content"></div>
+  </div>
+</section>
+
+<!-- =============== v2.9.321: CARGAR NOTAS POR MATERIA (desde Excel) ===============
+     El Excel se lee EN EL NAVEGADOR (SheetJS, la misma lógica probada del
+     CARGADOR_UNA_MATERIA). A la Edge Function notas-ops solo viajan las filas ya
+     limpias y validadas. Nadie necesita cuenta de Supabase.
+     ============================================================================= -->
+<section id="screen-notas-carga" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goAnyPanel()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">📥 Cargar Notas</div><div class="header-sub" id="nc-sub">Una materia por vez, desde su planilla</div></div>
+  </div>
+  <div class="menu-container">
+    <div class="alert-banner blue"><div class="alert-emoji">🛡️</div><div class="alert-text"><div class="alert-desc">El Excel se lee <strong>en este dispositivo</strong>. Antes de guardar vas a ver la revisión completa: qué alumno recibe qué nota y qué no se pudo reconocer. <strong>Si algo está mal, no se carga nada.</strong></div></div></div>
+
+    <div class="sd-block">
+      <div class="sd-block-title">1 · Período</div>
+      <div class="ef-filtros" style="margin:0">
+        <select id="nc-gestion" onchange="ncPeriodoInfo()"></select>
+        <select id="nc-ciclo" onchange="ncCicloCambio()"></select>
+        <select id="nc-semestre" onchange="ncPeriodoInfo()"><option value="1">Semestre 1</option><option value="2">Semestre 2</option></select>
+      </div>
+      <div id="nc-periodo-info" style="font-size:12px;color:var(--text-muted);margin-top:10px">⏳ Cargando la nómina…</div>
+    </div>
+
+    <div class="sd-block">
+      <div class="sd-block-title">2 · Planilla de la materia</div>
+      <div class="field" style="margin-bottom:8px"><label>Archivo Excel (.xlsx / .xls)</label><input type="file" id="nc-file" accept=".xlsx,.xls,.xlsm" onchange="ncArchivo(this)"></div>
+      <div id="nc-file-info" style="font-size:12px;color:var(--text-muted);min-height:16px"></div>
+      <div class="field" id="nc-hoja-wrap" style="display:none;margin:12px 0 0"><label>Hoja del libro</label><select id="nc-hoja" onchange="ncAnalizarHoja(this.value)"></select></div>
+    </div>
+
+    <div id="nc-paso3" style="display:none">
+      <div class="sd-block">
+        <div class="sd-block-title">3 · Materia y columnas</div>
+        <div class="field" style="margin-bottom:10px"><label>Nombre de la materia</label><input type="text" id="nc-materia" list="nc-materias-dl" placeholder="Ej: Operaciones Ofensivas" autocomplete="off" oninput="ncDibujarRevision()"><datalist id="nc-materias-dl"></datalist></div>
+        <div class="ef-filtros" style="margin:0 0 12px">
+          <input type="text" id="nc-mod" placeholder="MOD (opcional)" autocomplete="off" style="flex:1;min-width:110px">
+          <input type="text" id="nc-grupo" list="nc-grupos-dl" placeholder="Grupo / Unidad de Competencia (opcional)" autocomplete="off" style="flex:3;min-width:180px"><datalist id="nc-grupos-dl"></datalist>
+        </div>
+        <div class="field" style="margin-bottom:8px"><label>Columna de nombres</label><select id="nc-col-nombre" onchange="ncRevisar()"></select></div>
+        <div class="field" style="margin-bottom:8px"><label>Columna de la nota final</label><select id="nc-col-nota" onchange="ncRevisar()"></select></div>
+        <div class="field" style="margin-bottom:8px"><label>Columna de atributo (opcional)</label><select id="nc-col-atrib" onchange="ncRevisar()"></select></div>
+        <div class="field" style="margin-bottom:12px"><label>Columna N° / orden de mérito (opcional)</label><select id="nc-col-om" onchange="ncRevisar()"></select></div>
+        <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Vista previa de la hoja (las columnas elegidas van resaltadas):</div>
+        <div id="nc-prev-tabla" style="overflow-x:auto"></div>
+      </div>
+
+      <div class="sd-block">
+        <div class="sd-block-title">4 · Revisión antes de guardar</div>
+        <div id="nc-revision"></div>
+      </div>
+
+      <button class="btn-primary" id="nc-btn-subir" onclick="ncSubir(false)">💾 Guardar en el sistema</button>
+      <div id="nc-resultado" style="margin-top:14px"></div>
+    </div>
+  </div>
+</section>
+
+<!-- =============== v2.9.321: CONTROL DE CARGA (solo lectura) ===============
+     Verificación materia por materia de lo que hay en la base. NO permite
+     editar notas: es un tablero de control. Todo el cálculo lo hace la RPC
+     notas_control_carga (un jsonb de pocos KB), no el navegador.
+     ======================================================================= -->
+<section id="screen-notas-control" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goAnyPanel()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">✅ Control de Carga</div><div class="header-sub" id="ncc-sub">Verificación materia por materia</div></div>
+  </div>
+  <div class="menu-container">
+    <div class="ef-filtros" style="margin-top:0">
+      <select id="ncc-periodo" onchange="ncControlCargar(true)" style="flex:2;min-width:170px"></select>
+      <button class="btn-secondary" style="margin:0;width:auto;padding:10px 16px;flex:1;min-width:120px" onclick="ncControlCargar(true)">↻ Actualizar</button>
+    </div>
+    <div id="ncc-resumen"></div>
+    <div id="ncc-cont"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Calculando…</div></div>
+  </div>
+</section>
+
+<section id="screen-notas-control-det" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('screen-notas-control')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Detalle de la materia</div><div class="header-sub" id="nccd-sub">—</div></div>
+  </div>
+  <div class="menu-container">
+    <div id="nccd-cont"></div>
   </div>
 </section>
 
@@ -5138,6 +5260,7 @@ body{
       <button id="qa-btn-carpeta-clases" class="quick-btn" onclick="goAulaVirtual('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(31,111,92,.22),rgba(14,74,60,.06));border-color:#1f6f5c;display:none"><span class="qa-icon">🎓</span><span class="qa-text"><strong>Carpeta de Clases</strong> (documentación de la materia + compartir material con el curso)</span></button>
       <button id="qa-btn-quiz" class="quick-btn" onclick="goQuizProf('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(140,45,176,.22),rgba(106,31,176,.06));border-color:#8c2db0"><span class="qa-icon">🎯</span><span class="qa-text"><strong>Recurso Interactivo</strong> (quiz en vivo · muro de ideas · nube de palabras — para el avance de materias)</span></button>
       <button id="qa-btn-cargas-notas" class="quick-btn" onclick="goCargasNotas()" style="background:linear-gradient(180deg,rgba(138,109,181,.2),rgba(138,109,181,.05));border-color:#8a6db5;display:none"><span class="qa-icon">🗂️</span><span class="qa-text"><strong>Cargas de notas</strong> (quién cargó, cuándo y qué)</span></button>
+      <button id="qa-btn-control-notas" class="quick-btn" onclick="goNotasControl()" style="background:linear-gradient(180deg,rgba(196,146,52,.20),rgba(150,110,35,.05));border-color:#c49234;display:none"><span class="qa-icon">✅</span><span class="qa-text"><strong>Control de carga de notas</strong> (materia por materia: faltantes, atributos, orden de mérito)</span></button>
       <button id="qa-btn-avisos" class="quick-btn" onclick="goAvisos()" style="background:linear-gradient(180deg,rgba(70,150,110,.2),rgba(70,150,110,.05));border-color:#46966e;display:none"><span class="qa-icon">📢</span><span class="qa-text"><strong>Avisos a cursantes</strong> (publicar / desactivar cartel in-app)</span></button>
       <button id="qa-btn-planificacion" class="quick-btn" onclick="goPlanificacion()" style="background:linear-gradient(180deg,rgba(196,146,52,.20),rgba(150,110,35,.05));border-color:#c49234;display:none"><span class="qa-icon">🗓️</span><span class="qa-text"><strong>Planificación Semanal</strong> (horarios de planta y ciclos, programa de Facultad, notas de servicio)</span></button>
       <button class="quick-btn" onclick="goDocsProfesoresCT()" style="background:linear-gradient(180deg,rgba(140,90,203,.18),rgba(140,90,203,.05));border-color:#8c5acb"><span class="qa-icon">👨‍🏫</span><span class="qa-text"><strong>Documentos del personal docente</strong> (subir / ver — solo profesores)</span></button>
@@ -8774,9 +8897,25 @@ function _evalPromedio(cursanteId){
 }
 
 function renderEvalPanel(){
-  try{ avBotonCarpeta('screen-eval-panel'); }catch(e){}  // v2.9.194
-  try{ avOpcionesDocente('screen-eval-panel'); }catch(e){}  // v2.9.195
   if(!currentUser) return;
+  // v2.9.321: el SUBOFICIAL de la sección es el encargado de CARGAR y CONTROLAR
+  // notas; no da clases. Los tres botones de docente (Carpeta de Clases,
+  // Documentos del personal docente y Recurso Interactivo) no le corresponden.
+  // Se REMUEVEN del DOM, no solo se dejan de inyectar: avOpcionesDocente pudo
+  // haberlos puesto antes si en la misma pestaña entró otro cargo.
+  const soloNotas = currentUser.es_suboficial === true;
+  if(soloNotas){
+    try{
+      const sc = document.getElementById('screen-eval-panel');
+      if(sc){
+        sc.querySelectorAll('.av-btn-carpeta,[data-opc="goAulaProfesores"],[data-opc="goQuizProf"]')
+          .forEach(function(el){ el.remove(); });
+      }
+    }catch(e){ console.warn('eval limpiar docente', e); }
+  } else {
+    try{ avBotonCarpeta('screen-eval-panel'); }catch(e){}  // v2.9.194
+    try{ avOpcionesDocente('screen-eval-panel'); }catch(e){}  // v2.9.195
+  }
   const s = getSession();
   if(s && s.tipo !== 'docente'){
     console.error('[SEGURIDAD] Acceso denegado a panel Evaluaciones: tipo =', s.tipo);
@@ -8803,9 +8942,10 @@ function renderEvalPanel(){
   if(subEl){
     // El período abarca los dos ciclos, así que se muestra el semestre CRUDO
     // (1 ó 2 dentro de la gestión), no la etiqueta 1ER..4TO que depende del ciclo.
+    const rotulo = soloNotas ? 'Carga y control de notas' : 'Notas académicas';
     subEl.textContent = evalData.gestion
-      ? ('Notas académicas · gestión ' + evalData.gestion + ' · semestre ' + evalData.semestre)
-      : 'Notas académicas';
+      ? (rotulo + ' · gestión ' + evalData.gestion + ' · semestre ' + evalData.semestre)
+      : rotulo;
   }
 
   const total = (discData.cursantes||[]).filter(function(c){ return c.activo !== false; }).length;
@@ -9135,6 +9275,715 @@ function volverDeNotasCursante(){
   } else {
     goAnyPanel();
   }
+}
+
+/* ============================================================================
+   v2.9.321 — CARGA Y CONTROL DE NOTAS ACADÉMICAS
+   Puesto del Sub. Sec. Evaluaciones (y de C&T).
+
+   Por qué existe: el encargado de cargar notas (Sof. Balderrama, S001) no tiene
+   ni debe tener cuenta de Supabase. Antes su única vía era generar SQL con el
+   cargador local y que alguien lo pegara en el SQL Editor.
+
+   Cómo funciona:
+     1. El Excel se lee ACÁ, en el navegador (SheetJS vía ensureXLSX), con la
+        misma detección de encabezado/columnas y el mismo matcher por tokens que
+        el CARGADOR_UNA_MATERIA ya probado.
+     2. Se muestra la revisión COMPLETA antes de tocar la base.
+     3. Recién entonces las filas limpias van a la Edge Function `notas-ops`,
+        que revalida todo contra el padrón y hace el upsert. anon sigue sin
+        permiso de INSERT.
+
+   Nada de esto corre para el resto de los usuarios: las pantallas están ocultas
+   y las funciones solo se invocan desde los botones del panel de Evaluaciones.
+   ============================================================================ */
+const NC = {
+  cat: null,          // catálogo del servidor (nómina + materias + períodos)
+  porCiclo: {},       // ciclo -> [{id, ci, nombre, tokens}]
+  wb: null, archivo: '', hoja: '',
+  aoa: null, hr: -1, header: [],
+  filas: [], sinMatch: [], faltantes: [], avisos: [],
+  control: null, ctrlPeriodo: null,
+  ocupado: false
+};
+
+// Solo el Sub. Sec. Evaluaciones y C&T. La EF vuelve a verificarlo del lado servidor.
+function _ncPuede(){
+  return activeRole === 'evaluaciones' || activeRole === 'ciencia_tecnologia';
+}
+
+async function _ncInvoke(accion, extra){
+  const tok = (typeof getTokenSesion === 'function') ? getTokenSesion() : null;
+  if(!tok) return { ok:false, error:'Tu sesión no es válida. Volvé a entrar.' };
+  try{
+    const { data, error } = await sb.functions.invoke('notas-ops', {
+      body: Object.assign({ accion:accion, token:tok }, extra || {})
+    });
+    if(error){
+      // Los 4xx de la EF viajan en el cuerpo: hay que leerlo para no perder
+      // ni el mensaje real ni la marca `ya_existe`.
+      let cuerpo = null;
+      try{ if(error.context && typeof error.context.json === 'function') cuerpo = await error.context.json(); }catch(_){}
+      if(cuerpo) return Object.assign({ ok:false, error: cuerpo.error || error.message }, cuerpo);
+      return { ok:false, error: error.message || 'No se pudo contactar al servidor' };
+    }
+    return data || { ok:false, error:'El servidor no respondió' };
+  }catch(e){ return { ok:false, error: String((e && e.message) || e) }; }
+}
+
+/* ---------- texto y matching (portado del CARGADOR_UNA_MATERIA) ---------- */
+function _ncNorm(s){
+  s = String(s == null ? '' : s).toUpperCase().trim();
+  s = s.normalize('NFD').replace(/[̀-ͯ]/g, '');
+  return s.replace(/\s+/g, ' ');
+}
+function _ncTokens(s){
+  return new Set(_ncNorm(s).split(' ').filter(function(t){ return t.length > 1; }));
+}
+function _ncR4(n){
+  return (n == null || isNaN(n)) ? null : Math.round(Number(n) * 10000) / 10000;
+}
+const _NC_MIN = new Set(['DE','DEL','LA','LAS','LOS','EL','Y','E','EN','A','AL','CON','PARA','POR','SU','SUS']);
+const _NC_AC = { FORMACION:'formación', ACCION:'acción', METODOLOGIA:'metodología',
+  INVESTIGACION:'investigación', CIENTIFICA:'científica', TEORIA:'teoría', CONDUCCION:'conducción',
+  TACTICA:'táctica', GENERACION:'generación', LOGISTICA:'logística', TECNICA:'técnica',
+  PREPARACION:'preparación', DINAMICA:'dinámica', DOCUMENTACION:'documentación',
+  EVALUACION:'evaluación', RETROGRADAS:'retrógradas', DESEMPENO:'desempeño' };
+function _ncCap(w, i){
+  const up = w.toUpperCase();
+  if(/^[IVX]+\.?$/.test(up)) return up;
+  if(/\./.test(w) && w.replace(/\./g,'').length <= 3) return up;
+  if(i > 0 && _NC_MIN.has(up)) return w.toLowerCase();
+  const ac = _NC_AC[_ncNorm(w)];
+  if(ac) return ac.charAt(0).toUpperCase() + ac.slice(1);
+  return w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+}
+function _ncBonito(s){
+  return String(s == null ? '' : s).trim().split(/\s+/)
+    .map(function(w,i){ return w.split('-').map(function(p,j){ return _ncCap(p, i+j); }).join('-'); })
+    .join(' ');
+}
+// Acepta 3+ tokens en común, o 2 si es claramente mejor que el segundo candidato.
+function _ncMatch(nombreExcel, ciclo){
+  const lista = NC.porCiclo[_ncNorm(ciclo)] || [];
+  const tk = _ncTokens(nombreExcel);
+  let best = null, bestScore = 0, second = 0;
+  for(let i=0; i<lista.length; i++){
+    const c = lista[i];
+    let common = 0;
+    tk.forEach(function(t){ if(c.tokens.has(t)) common++; });
+    if(common > bestScore){ second = bestScore; bestScore = common; best = c; }
+    else if(common > second){ second = common; }
+  }
+  const ok = bestScore >= 3 || (bestScore >= 2 && bestScore > second);
+  return { c: ok ? best : null, score: bestScore };
+}
+
+/* ---------------------------- catálogo ---------------------------------- */
+async function ncCatalogo(force){
+  if(NC.cat && !force) return NC.cat;
+  const r = await _ncInvoke('catalogo');
+  if(!r.ok) return null;
+  NC.cat = r;
+  NC.porCiclo = {};
+  (r.cursantes || []).forEach(function(c){
+    const k = _ncNorm(c.ciclo);
+    if(!k) return;
+    if(!NC.porCiclo[k]) NC.porCiclo[k] = [];
+    NC.porCiclo[k].push({ id:c.id, ci:c.ci, nombre:c.nombre_completo, grado:c.grado,
+                          arma:c.arma, paralelo:c.paralelo, ciclo:c.ciclo,
+                          tokens:_ncTokens(c.nombre_completo) });
+  });
+  return NC.cat;
+}
+
+/* ======================= PANTALLA: CARGAR NOTAS ========================== */
+async function goNotasCarga(){
+  if(!_ncPuede()){ alert('Tu cargo no habilita la carga de notas.'); return; }
+  showScreen('screen-notas-carga');
+  // Estado limpio en cada entrada: nunca arrastrar un Excel de la vez anterior.
+  NC.wb = null; NC.aoa = null; NC.filas = []; NC.sinMatch = []; NC.archivo = ''; NC.hoja = '';
+  const f = document.getElementById('nc-file'); if(f) f.value = '';
+  document.getElementById('nc-file-info').textContent = '';
+  document.getElementById('nc-hoja-wrap').style.display = 'none';
+  document.getElementById('nc-paso3').style.display = 'none';
+  document.getElementById('nc-resultado').innerHTML = '';
+
+  const info = document.getElementById('nc-periodo-info');
+  const cat = await ncCatalogo();
+  if(!cat){ info.innerHTML = '<span style="color:#e87878">No se pudo cargar la nómina. Revisá tu conexión y volvé a entrar.</span>'; return; }
+
+  // Gestiones: las que ya tienen notas + el año en curso y el siguiente.
+  const hoy = new Date().getFullYear();
+  const gs = new Set([hoy, hoy + 1]);
+  (cat.periodos || []).forEach(function(p){ gs.add(Number(p.gestion)); });
+  const gestiones = [...gs].filter(function(g){ return g >= 2000 && g <= 2100; }).sort(function(a,b){ return b-a; });
+  const ultimo = (cat.periodos || [])[0] || { gestion: hoy, semestre: 1 };
+  const selG = document.getElementById('nc-gestion');
+  selG.innerHTML = gestiones.map(function(g){ return '<option value="'+g+'"'+(g===Number(ultimo.gestion)?' selected':'')+'>Gestión '+g+'</option>'; }).join('');
+  document.getElementById('nc-semestre').value = String(ultimo.semestre || 1);
+
+  const ciclos = Object.keys(NC.porCiclo).sort();
+  const selC = document.getElementById('nc-ciclo');
+  selC.innerHTML = ciclos.map(function(k){
+    const nom = NC.porCiclo[k][0].ciclo;
+    return '<option value="'+escapeAttr(nom)+'">'+escapeHtml(nom)+'</option>';
+  }).join('');
+
+  ncCicloCambio();
+}
+
+function ncCicloCambio(){
+  // El autocompletado de materias/grupos se filtra por el ciclo elegido.
+  const ciclo = document.getElementById('nc-ciclo').value;
+  const mats = (NC.cat && NC.cat.materias || []).filter(function(m){ return _ncNorm(m.ciclo) === _ncNorm(ciclo); });
+  const dlM = document.getElementById('nc-materias-dl');
+  if(dlM) dlM.innerHTML = mats.map(function(m){ return '<option value="'+escapeAttr(m.materia)+'">'; }).join('');
+  const grupos = [...new Set(mats.map(function(m){ return m.grupo; }).filter(Boolean))].sort();
+  const dlG = document.getElementById('nc-grupos-dl');
+  if(dlG) dlG.innerHTML = grupos.map(function(g){ return '<option value="'+escapeAttr(g)+'">'; }).join('');
+  ncPeriodoInfo();
+  ncRevisar();
+}
+
+function ncPeriodoInfo(){
+  const ciclo = document.getElementById('nc-ciclo').value;
+  const n = (NC.porCiclo[_ncNorm(ciclo)] || []).length;
+  const g = document.getElementById('nc-gestion').value;
+  const s = document.getElementById('nc-semestre').value;
+  const el = document.getElementById('nc-periodo-info');
+  if(el) el.innerHTML = '👥 <strong>'+n+' cursantes activos</strong> en '+escapeHtml(ciclo)
+    + ' · destino: gestión '+escapeHtml(g)+', semestre '+escapeHtml(s);
+}
+
+/* ------------------------------ el Excel -------------------------------- */
+// Borra la planilla en memoria y apaga el botón de guardar. Se llama antes de
+// leer un archivo nuevo y cada vez que una hoja resulta ilegible.
+function ncOlvidarPlanilla(){
+  NC.wb = null; NC.aoa = null; NC.hr = -1; NC.header = [];
+  NC.filas = []; NC.sinMatch = []; NC.faltantes = []; NC.avisos = [];
+  NC.hoja = ''; NC.archivo = '';
+  const p3 = document.getElementById('nc-paso3'); if(p3) p3.style.display = 'none';
+  const hw = document.getElementById('nc-hoja-wrap'); if(hw) hw.style.display = 'none';
+  const rv = document.getElementById('nc-revision'); if(rv) rv.innerHTML = '';
+  const pv = document.getElementById('nc-prev-tabla'); if(pv) pv.innerHTML = '';
+  const bt = document.getElementById('nc-btn-subir');
+  if(bt){ bt.disabled = true; bt.style.opacity = '.5'; bt.style.cursor = 'not-allowed'; }
+}
+
+async function ncArchivo(input){
+  const f = input && input.files && input.files[0];
+  const info = document.getElementById('nc-file-info');
+  // Se limpia TODO antes de leer. Si el archivo nuevo falla, no puede quedar en
+  // pantalla la planilla anterior: el usuario creería estar cargando otra cosa.
+  ncOlvidarPlanilla();
+  if(!f){ info.textContent = ''; return; }
+  info.textContent = '⏳ Leyendo el archivo…';
+  try{ await ensureXLSX(); }catch(e){}
+  if(typeof XLSX === 'undefined'){
+    info.innerHTML = '<span style="color:#e87878">No se pudo cargar el lector de Excel. Necesitás conexión la primera vez.</span>';
+    return;
+  }
+  try{
+    const buf = await f.arrayBuffer();
+    NC.wb = XLSX.read(new Uint8Array(buf), { type:'array' });
+  }catch(err){
+    ncOlvidarPlanilla();
+    info.innerHTML = '<span style="color:#e87878">No se pudo abrir el archivo: '+escapeHtml(String(err && err.message || err))+'</span>';
+    return;
+  }
+  // Un libro puede listar hojas y no traer ninguna legible (archivos generados
+  // por herramientas que parten un Excel). Hay que decirlo, no seguir de largo.
+  if(!NC.wb || !NC.wb.SheetNames || !NC.wb.SheetNames.length || !Object.keys(NC.wb.Sheets || {}).length){
+    ncOlvidarPlanilla();
+    info.innerHTML = '<span style="color:#e87878">El archivo <strong>'+escapeHtml(f.name)+'</strong> no tiene ninguna hoja legible. Abrilo en Excel y volvé a guardarlo como .xlsx.</span>';
+    return;
+  }
+  NC.archivo = f.name;
+  info.innerHTML = '✅ <strong>'+escapeHtml(f.name)+'</strong> · '+NC.wb.SheetNames.length+' hoja(s)';
+
+  const selH = document.getElementById('nc-hoja');
+  selH.innerHTML = NC.wb.SheetNames.map(function(s){ return '<option value="'+escapeAttr(s)+'">'+escapeHtml(s)+'</option>'; }).join('');
+  document.getElementById('nc-hoja-wrap').style.display = NC.wb.SheetNames.length > 1 ? '' : 'none';
+
+  // Sugerencia de nombre de materia a partir del archivo ("0011 - MOD16 TPE.xlsx").
+  const campoMat = document.getElementById('nc-materia');
+  if(campoMat && !campoMat.value.trim()){
+    const sug = f.name.replace(/\.[^.]+$/,'').replace(/^\s*\d+\s*-\s*/,'').replace(/MOD\s*\d+/i,'').trim();
+    if(sug) campoMat.value = _ncBonito(sug);
+  }
+  const modAuto = (f.name.match(/MOD\s*\d+/i) || [''])[0].replace(/\s+/g,'').toUpperCase();
+  const campoMod = document.getElementById('nc-mod');
+  if(campoMod && !campoMod.value.trim() && modAuto) campoMod.value = modAuto;
+
+  ncAnalizarHoja(NC.wb.SheetNames[0]);
+  document.getElementById('nc-paso3').style.display = '';
+}
+
+function ncAnalizarHoja(nombreHoja){
+  if(!NC.wb) return;
+  const ws = NC.wb.Sheets[nombreHoja];
+  const rev = document.getElementById('nc-revision');
+  const fallar = function(msg){
+    NC.aoa = null; NC.filas = []; NC.sinMatch = []; NC.faltantes = []; NC.avisos = [];
+    const pv = document.getElementById('nc-prev-tabla'); if(pv) pv.innerHTML = '';
+    if(rev) rev.innerHTML = '<div class="nc-chip err" style="display:block;padding:10px 12px">'+escapeHtml(msg)+'</div>';
+    const bt = document.getElementById('nc-btn-subir');
+    if(bt){ bt.disabled = true; bt.style.opacity = '.5'; bt.style.cursor = 'not-allowed'; }
+  };
+  if(!ws){ NC.hoja = ''; fallar('La hoja "'+nombreHoja+'" no se pudo leer. Elegí otra o volvé a guardar el archivo desde Excel.'); return; }
+  NC.hoja = nombreHoja;
+  const aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:null });
+  if(!aoa || !aoa.length){ fallar('La hoja "'+nombreHoja+'" está vacía.'); return; }
+
+  // Fila de encabezado = la primera (de las 25 de arriba) con APELLIDO o NOMBRE.
+  let hr = -1;
+  for(let i=0; i<Math.min(aoa.length, 25); i++){
+    const row = aoa[i] || [];
+    if(row.some(function(c){ return c && /APELLID|NOMBRE/i.test(String(c)); })){ hr = i; break; }
+  }
+  if(hr < 0) hr = 0;
+  const header = (aoa[hr] || []).map(function(c){ return c == null ? '' : String(c).trim(); });
+  NC.aoa = aoa; NC.hr = hr; NC.header = header;
+
+  let colNom = header.findIndex(function(h){ return /APELLID|NOMBRE/i.test(h); });
+  if(colNom < 0) colNom = header.findIndex(function(h){ return h !== ''; });
+  let colNota = -1;
+  for(let j=header.length-1; j>=0; j--){ if(/^NOTA/i.test(header[j]) && !/%/.test(header[j])){ colNota = j; break; } }
+  if(colNota < 0) colNota = Math.max(header.length - 2, 0);
+  const colAtr = header.findIndex(function(h){ return /ATRIB/i.test(h); });
+  // La columna "N°" de la planilla SINE es el orden de mérito DE LA MATERIA.
+  const colOM = header.findIndex(function(h){
+    const k = _ncNorm(h).replace(/[^A-Z0-9]/g,'');
+    return k==='N' || k==='NO' || k==='NRO' || k==='OM' || k==='ORDEN' || k==='PTO' || k==='PUESTO';
+  });
+
+  const opciones = function(sel, conVacio){
+    const base = conVacio ? '<option value="">(ninguna)</option>' : '';
+    return base + header.map(function(h,j){
+      return '<option value="'+j+'"'+(j===sel?' selected':'')+'>'+(j+1)+') '+escapeHtml(h || '(vacía)')+'</option>';
+    }).join('');
+  };
+  document.getElementById('nc-col-nombre').innerHTML = opciones(colNom, false);
+  document.getElementById('nc-col-nota').innerHTML   = opciones(colNota, false);
+  document.getElementById('nc-col-atrib').innerHTML  = opciones(colAtr, true);
+  document.getElementById('nc-col-om').innerHTML     = opciones(colOM, true);
+
+  ncRevisar();
+}
+
+function _ncCols(){
+  const v = function(id){ const e = document.getElementById(id); return e ? e.value : ''; };
+  return {
+    nom:  Number(v('nc-col-nombre')),
+    nota: Number(v('nc-col-nota')),
+    atr:  v('nc-col-atrib') === '' ? -1 : Number(v('nc-col-atrib')),
+    om:   v('nc-col-om')    === '' ? -1 : Number(v('nc-col-om'))
+  };
+}
+
+// detalle_json compatible con htmlDetalleMateria: bloques Trabajo/Formativa/Sumativa.
+function _ncTipo(h){
+  const H = _ncNorm(h);
+  if(H.includes('TRAB')) return 'Trabajo';
+  if(H.includes('FORMAT') || H.startsWith('FOR')) return 'Formativa';
+  if(H.includes('SUMAT') || H.startsWith('SUM')) return 'Sumativa';
+  if(H.includes('EXAM')) return 'Examen';
+  if(H.includes('PRACT')) return 'Práctica';
+  return 'Otros';
+}
+function _ncDetalle(header, row, comps){
+  const g = {};
+  for(let k=0; k<comps.length; k++){
+    const j = comps[k], h = header[j], v = row[j];
+    if(v == null || v === '') continue;
+    const t = _ncTipo(h);
+    if(!g[t]) g[t] = { items:[], aporte:null };
+    if(/%/.test(h)){
+      // "FOR. 30%" → aporte 30 (el PESO de la evaluación, como en las notas ya
+      // cargadas). La celda de esa columna trae el puntaje ya ponderado, que no
+      // es lo que la ficha del alumno muestra; solo se usa si el encabezado no
+      // dice el porcentaje.
+      const peso = (String(h).match(/(\d+(?:[.,]\d+)?)\s*%/) || [])[1];
+      const n = peso != null ? Number(String(peso).replace(',','.')) : Number(v);
+      if(!isNaN(n)) g[t].aporte = peso != null ? n : ((g[t].aporte || 0) + n);
+    } else {
+      const n = Number(v);
+      // La etiqueta va tal cual está en el Excel ("TRAB.", "FOR.", "SUM."),
+      // igual que las notas cargadas por SQL: si no, el alumno vería una mezcla.
+      g[t].items.push({ n: String(h).replace(/\s+/g,' ').trim(), v: isNaN(n) ? String(v) : _ncR4(n) });
+    }
+  }
+  const orden = ['Trabajo','Práctica','Formativa','Sumativa','Examen','Otros'];
+  const bloques = orden.filter(function(t){ return g[t] && (g[t].items.length || g[t].aporte != null); })
+    .map(function(t){ return { tipo:t, aporte: g[t].aporte != null ? _ncR4(g[t].aporte) : null, items:g[t].items }; });
+  return bloques.length ? { bloques:bloques } : null;
+}
+
+/* ------------------- construir filas + revisión visual ------------------- */
+function ncRevisar(){
+  if(!NC.aoa) return;
+  const c = _ncCols();
+  const ciclo = document.getElementById('nc-ciclo').value;
+  const header = NC.header;
+
+  // Componentes = columnas con encabezado entre la de nombres y la de la nota.
+  const comps = [];
+  for(let j=0; j<header.length; j++){
+    if(j === c.nom || j === c.nota || j === c.atr || j === c.om) continue;
+    if(j <= c.nom) continue;
+    if(c.nota >= 0 && j > c.nota) continue;
+    if(header[j]) comps.push(j);
+  }
+
+  const filas = [], sinMatch = [], avisos = [], usados = {};
+  for(let i=NC.hr+1; i<NC.aoa.length; i++){
+    const row = NC.aoa[i] || [];
+    const nm = row[c.nom];
+    if(!nm || String(nm).trim().split(/\s+/).length < 2) continue;   // no es una fila de alumno
+    const bruto = row[c.nota];
+    if(bruto == null || bruto === '' || isNaN(Number(bruto))){
+      sinMatch.push({ excel:String(nm).trim(), motivo:'sin nota legible' });
+      continue;
+    }
+    const m = _ncMatch(String(nm), ciclo);
+    if(!m.c){ sinMatch.push({ excel:String(nm).trim(), motivo:'no está en la nómina de '+ciclo }); continue; }
+    const nota = Number(bruto);
+    if(nota < 0 || nota > 100) avisos.push(m.c.nombre + ': nota fuera de 0–100 (' + nota + ')');
+    if(usados[m.c.id]){ avisos.push(m.c.nombre + ' aparece dos veces en la planilla'); continue; }
+    usados[m.c.id] = true;
+    filas.push({
+      cursante_id: m.c.id,
+      _nombre: m.c.nombre,
+      _excel: String(nm).trim(),
+      nota_final: _ncR4(nota),
+      atributo: c.atr >= 0 ? String(row[c.atr] == null ? '' : row[c.atr]).trim() : '',
+      om_materia: c.om >= 0 && row[c.om] != null && !isNaN(Number(row[c.om])) ? Math.trunc(Number(row[c.om])) : null,
+      detalle_json: _ncDetalle(header, row, comps)
+    });
+  }
+
+  // Quiénes del ciclo quedarían sin nota en esta materia.
+  const nomina = NC.porCiclo[_ncNorm(ciclo)] || [];
+  NC.faltantes = nomina.filter(function(x){ return !usados[x.id]; });
+  NC.filas = filas; NC.sinMatch = sinMatch; NC.avisos = avisos;
+
+  ncDibujarPreview(c);
+  ncDibujarRevision();
+}
+
+function ncDibujarPreview(c){
+  const cont = document.getElementById('nc-prev-tabla');
+  if(!cont) return;
+  const hl = function(j){ return (j===c.nom||j===c.nota||j===c.atr||j===c.om) ? ' class="hl"' : ''; };
+  let html = '<table class="nc-tab"><tr>' + NC.header.map(function(h,j){
+    return '<th'+hl(j)+'>'+escapeHtml(h || '·')+'</th>';
+  }).join('') + '</tr>';
+  let n = 0;
+  for(let i=NC.hr+1; i<NC.aoa.length && n<5; i++){
+    const row = NC.aoa[i] || [];
+    const nm = row[c.nom];
+    if(!nm || String(nm).trim().split(/\s+/).length < 2) continue;
+    html += '<tr>' + NC.header.map(function(h,j){
+      const v = row[j];
+      return '<td'+hl(j)+'>'+escapeHtml(v == null ? '' : String(v).slice(0,20))+'</td>';
+    }).join('') + '</tr>';
+    n++;
+  }
+  cont.innerHTML = html + '</table>';
+}
+
+function ncDibujarRevision(){
+  const cont = document.getElementById('nc-revision');
+  const btn  = document.getElementById('nc-btn-subir');
+  if(!cont) return;
+  const materia = (document.getElementById('nc-materia').value || '').trim();
+  const ciclo = document.getElementById('nc-ciclo').value;
+  const nomina = (NC.porCiclo[_ncNorm(ciclo)] || []).length;
+
+  let html = '<div style="margin-bottom:10px">'
+    + '<span class="nc-chip '+(NC.filas.length ? 'ok' : 'err')+'">✔ '+NC.filas.length+' notas reconocidas</span>'
+    + '<span class="nc-chip info">nómina del ciclo: '+nomina+'</span>'
+    + (NC.faltantes.length ? '<span class="nc-chip warn">⚠ '+NC.faltantes.length+' sin nota</span>' : '')
+    + (NC.sinMatch.length ? '<span class="nc-chip err">✖ '+NC.sinMatch.length+' filas no reconocidas</span>' : '')
+    + (NC.avisos.length ? '<span class="nc-chip err">✖ '+NC.avisos.length+' observaciones</span>' : '')
+    + '</div>';
+
+  if(!materia){
+    html += '<div class="nc-chip warn" style="display:block;padding:8px 12px">Escribí el nombre de la materia para poder guardar.</div>';
+  }
+
+  if(NC.avisos.length){
+    html += '<div class="sd-row" style="border:none;padding-top:0"><span class="lbl" style="color:#e87878">Errores</span></div>'
+      + '<div class="nc-lista-mini" style="color:#e87878">'
+      + NC.avisos.slice(0,20).map(function(a){ return '<div>✖ '+escapeHtml(a)+'</div>'; }).join('')
+      + '</div>';
+  }
+
+  if(NC.filas.length){
+    html += '<div style="overflow-x:auto;margin-top:10px"><table class="nc-tab">'
+      + '<tr><th>Nombre en el Excel</th><th class="hl">Cursante del sistema</th><th class="hl">Nota</th><th>Atrib.</th><th>N°</th></tr>'
+      + NC.filas.map(function(f){
+          const dif = _ncNorm(f._excel) !== _ncNorm(f._nombre);
+          return '<tr><td>'+escapeHtml(f._excel)+'</td>'
+            + '<td class="hl">'+escapeHtml(f._nombre)+(dif?' <span style="color:#e8c46a">≈</span>':'')+'</td>'
+            + '<td class="hl">'+f.nota_final+'</td>'
+            + '<td>'+escapeHtml(f.atributo || '—')+'</td>'
+            + '<td>'+(f.om_materia == null ? '—' : f.om_materia)+'</td></tr>';
+        }).join('')
+      + '</table></div>'
+      + '<div style="font-size:11px;color:var(--text-muted);margin-top:6px">≈ = el nombre del Excel no es idéntico al del sistema, pero coincide. Revisalo.</div>';
+  }
+
+  if(NC.sinMatch.length){
+    html += '<div class="sd-row" style="border:none;margin-top:12px"><span class="lbl" style="color:#e8c46a">No reconocidos</span></div>'
+      + '<div class="nc-lista-mini">'
+      + NC.sinMatch.map(function(s){ return '<div>⚠ '+escapeHtml(s.excel)+' <span style="color:var(--text-muted)">— '+escapeHtml(s.motivo)+'</span></div>'; }).join('')
+      + '</div>'
+      + '<div style="font-size:11px;color:var(--text-muted);margin-top:6px">Suelen ser bajas del curso o filas de totales. Si es un alumno vigente, revisá cómo está escrito el nombre.</div>';
+  }
+
+  if(NC.faltantes.length){
+    html += '<div class="sd-row" style="border:none;margin-top:12px"><span class="lbl" style="color:#e8c46a">Quedarían sin nota</span></div>'
+      + '<div class="nc-lista-mini">'
+      + NC.faltantes.slice(0,40).map(function(x){ return '<div>· '+escapeHtml(x.nombre)+'</div>'; }).join('')
+      + (NC.faltantes.length > 40 ? '<div>… y '+(NC.faltantes.length-40)+' más</div>' : '')
+      + '</div>';
+  }
+
+  cont.innerHTML = html;
+  if(btn){
+    const listo = NC.filas.length > 0 && !NC.avisos.length && !!materia && !NC.ocupado;
+    btn.disabled = !listo;
+    btn.style.opacity = listo ? '1' : '.5';
+    btn.style.cursor = listo ? 'pointer' : 'not-allowed';
+  }
+}
+
+/* --------------------------- guardar en la base -------------------------- */
+async function ncSubir(reemplazar){
+  if(NC.ocupado) return;
+  const materia = (document.getElementById('nc-materia').value || '').trim();
+  if(!materia){ alert('Escribí el nombre de la materia.'); return; }
+  if(!NC.filas.length){ alert('No hay ninguna nota reconocida para guardar.'); return; }
+  if(NC.avisos.length){ alert('Corregí primero las observaciones marcadas en rojo.'); return; }
+
+  const btn = document.getElementById('nc-btn-subir');
+  const res = document.getElementById('nc-resultado');
+  NC.ocupado = true;
+  if(btn){ btn.disabled = true; btn.style.opacity = '.5'; btn.textContent = '⏳ Guardando ' + NC.filas.length + ' notas…'; }
+  res.innerHTML = '';
+
+  const payload = {
+    gestion:  Number(document.getElementById('nc-gestion').value),
+    semestre: Number(document.getElementById('nc-semestre').value),
+    ciclo:    document.getElementById('nc-ciclo').value,
+    materia:  materia,
+    mod_codigo: (document.getElementById('nc-mod').value || '').trim() || null,
+    grupo:      (document.getElementById('nc-grupo').value || '').trim() || null,
+    archivo: NC.archivo, hoja: NC.hoja,
+    sin_match: NC.sinMatch.length,
+    reemplazar: reemplazar === true,
+    filas: NC.filas.map(function(f){
+      return { cursante_id:f.cursante_id, nota_final:f.nota_final,
+               atributo:f.atributo || null, om_materia:f.om_materia, detalle_json:f.detalle_json };
+    })
+  };
+
+  const r = await _ncInvoke('cargar_materia', payload);
+  NC.ocupado = false;
+  if(btn){ btn.textContent = '💾 Guardar en el sistema'; }
+
+  if(r.ya_existe){
+    ncDibujarRevision();
+    const ok = confirm('La materia "' + materia + '" YA tiene ' + r.filas_previas
+      + ' notas cargadas en este período.\n\nSi continuás, esas notas se REEMPLAZAN por las de este Excel '
+      + '(y se quitan las de los alumnos que ya no figuran en la planilla).\n\n¿Reemplazar?');
+    if(ok) return ncSubir(true);
+    res.innerHTML = '<div class="nc-chip info" style="display:block;padding:10px 12px">No se cargó nada. La materia quedó como estaba.</div>';
+    return;
+  }
+
+  if(!r.ok){
+    let h = '<div class="sd-block" style="border-color:rgba(232,120,120,.4)">'
+      + '<div class="sd-block-title" style="color:#e87878">✖ No se cargó nada</div>'
+      + '<div style="font-size:13px;color:var(--text-primary)">' + escapeHtml(r.error || 'Error desconocido') + '</div>';
+    if(Array.isArray(r.errores) && r.errores.length){
+      h += '<div class="nc-lista-mini" style="margin-top:10px;color:#e87878">'
+        + r.errores.map(function(e){ return '<div>· '+escapeHtml(e)+'</div>'; }).join('') + '</div>';
+    }
+    res.innerHTML = h + '</div>';
+    ncDibujarRevision();
+    return;
+  }
+
+  // Los cachés que muestran notas quedaron viejos: se invalidan, no se recargan
+  // acá (se recargan solos cuando el usuario vuelve al panel).
+  try{ evalData.loaded = false; }catch(e){}
+  try{ cargasData.loaded = false; }catch(e){}
+  NC.control = null;
+
+  res.innerHTML = '<div class="sd-block" style="border-color:rgba(125,219,160,.4)">'
+    + '<div class="sd-block-title" style="color:#7ddba0">✔ Notas cargadas</div>'
+    + '<div class="sd-row"><span class="lbl">Materia</span><span class="vl">'+escapeHtml(r.materia)+'</span></div>'
+    + '<div class="sd-row"><span class="lbl">Período</span><span class="vl">'+escapeHtml(r.ciclo)+' · gestión '+r.gestion+' · semestre '+r.semestre+'</span></div>'
+    + '<div class="sd-row"><span class="lbl">Guardadas</span><span class="vl gold">'+r.guardadas+'</span></div>'
+    + '<div class="sd-row"><span class="lbl">Nuevas</span><span class="vl">'+r.nuevas+'</span></div>'
+    + '<div class="sd-row"><span class="lbl">Actualizadas</span><span class="vl">'+r.actualizadas+'</span></div>'
+    + (r.borradas ? '<div class="sd-row"><span class="lbl">Quitadas</span><span class="vl">'+r.borradas+'</span></div>' : '')
+    + '<div class="sd-row"><span class="lbl">A nombre de</span><span class="vl">'+escapeHtml(r.cargado_por)+'</span></div>'
+    + '<button class="btn-secondary" onclick="goNotasControl()">✅ Ir al control de carga</button>'
+    + '<button class="btn-secondary" onclick="goNotasCarga()">📥 Cargar otra materia</button>'
+    + '</div>';
+  document.getElementById('nc-paso3').style.display = 'none';
+}
+
+/* ====================== PANTALLA: CONTROL DE CARGA ======================= */
+async function goNotasControl(){
+  if(!_ncPuede()){ alert('Tu cargo no habilita el control de notas.'); return; }
+  showScreen('screen-notas-control');
+  document.getElementById('ncc-cont').innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">⏳ Calculando…</div>';
+  document.getElementById('ncc-resumen').innerHTML = '';
+  const cat = await ncCatalogo();
+  const sel = document.getElementById('ncc-periodo');
+  const per = (cat && cat.periodos || []);
+  if(!sel.options.length || sel.dataset.n !== String(per.length)){
+    sel.dataset.n = String(per.length);
+    sel.innerHTML = per.map(function(p){
+      return '<option value="'+p.gestion+'|'+p.semestre+'">Gestión '+p.gestion+' · semestre '+p.semestre+'</option>';
+    }).join('') || '<option value="">Sin períodos cargados</option>';
+  }
+  await ncControlCargar(false);
+}
+
+async function ncControlCargar(force){
+  const sel = document.getElementById('ncc-periodo');
+  const val = sel && sel.value;
+  if(!val){ document.getElementById('ncc-cont').innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">Todavía no hay notas cargadas.</div>'; return; }
+  if(NC.ctrlPeriodo === val && NC.control && !force){ ncDibujarControl(); return; }
+  const p = val.split('|');
+  document.getElementById('ncc-cont').innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">⏳ Calculando…</div>';
+  const r = await _ncInvoke('control', { gestion:Number(p[0]), semestre:Number(p[1]) });
+  if(!r.ok){
+    document.getElementById('ncc-cont').innerHTML = '<div class="efm-no-data" style="color:#e87878">'+escapeHtml(r.error||'No se pudo calcular')+'</div>';
+    return;
+  }
+  NC.control = r.control; NC.ctrlPeriodo = val;
+  ncDibujarControl();
+}
+
+// Semáforo de una materia: rojo = dato imposible, amarillo = falta revisar.
+function _ncEstado(m){
+  if(m.fuera_rango > 0) return 'err';
+  if(m.faltan > 0 || m.sin_atributo > 0 || m.sin_om > 0 || m.om_repetido > 0) return 'warn';
+  return 'ok';
+}
+function _ncChips(m){
+  let h = '';
+  if(m.faltan > 0)       h += '<span class="nc-chip warn">faltan '+m.faltan+'</span>';
+  if(m.fuera_rango > 0)  h += '<span class="nc-chip err">'+m.fuera_rango+' fuera de 0–100</span>';
+  if(m.sin_atributo > 0) h += '<span class="nc-chip warn">'+m.sin_atributo+' sin atributo</span>';
+  if(m.sin_om > 0)       h += '<span class="nc-chip warn">'+m.sin_om+' sin N°</span>';
+  if(m.om_repetido > 0)  h += '<span class="nc-chip warn">'+m.om_repetido+' N° repetido</span>';
+  if(!h) h = '<span class="nc-chip ok">sin observaciones</span>';
+  return h;
+}
+
+function ncDibujarControl(){
+  const cont = document.getElementById('ncc-cont');
+  const res  = document.getElementById('ncc-resumen');
+  const c = NC.control;
+  if(!cont || !c) return;
+  const ciclos = c.ciclos || [];
+  if(!ciclos.length){
+    res.innerHTML = '';
+    cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">No hay notas cargadas en este período.</div>';
+    return;
+  }
+
+  let total = 0, ok = 0, warn = 0, err = 0;
+  ciclos.forEach(function(ci){
+    (ci.materias||[]).forEach(function(m){
+      total++;
+      const e = _ncEstado(m);
+      if(e === 'ok') ok++; else if(e === 'warn') warn++; else err++;
+    });
+  });
+  const sub = document.getElementById('ncc-sub');
+  if(sub) sub.textContent = 'Gestión ' + c.gestion + ' · semestre ' + c.semestre;
+
+  res.innerHTML = '<div class="ef-panel-stats">'
+    + '<div class="ef-stat-card"><div class="ef-stat-num" style="color:#7ddba0">'+ok+'</div><div class="ef-stat-lbl">Conformes</div></div>'
+    + '<div class="ef-stat-card"><div class="ef-stat-num" style="color:#e8c46a">'+warn+'</div><div class="ef-stat-lbl">A revisar</div></div>'
+    + '<div class="ef-stat-card"><div class="ef-stat-num" style="color:'+(err?'#e87878':'var(--text-muted)')+'">'+err+'</div><div class="ef-stat-lbl">Con error</div></div>'
+    + '</div>'
+    + '<div style="font-size:11.5px;color:var(--text-muted);margin:0 0 12px">'+total+' materias cargadas. Tocá una para ver el detalle y quiénes quedaron sin nota. <strong>Esta pantalla es solo de control: no modifica notas.</strong></div>';
+
+  cont.innerHTML = ciclos.map(function(ci, idxC){
+    const mats = ci.materias || [];
+    return '<div class="sd-block">'
+      + '<div class="sd-block-title">🎓 '+escapeHtml(ci.ciclo)+' · '+ci.activos+' cursantes · '+mats.length+' materias</div>'
+      + mats.map(function(m, idxM){
+          const est = _ncEstado(m);
+          const prom = m.promedio == null ? '—' : Number(m.promedio).toFixed(2);
+          return '<div class="nc-mat-row '+est+'" onclick="ncVerMateria('+idxC+','+idxM+')">'
+            + '<div style="min-width:0;flex:1">'
+            + '<div class="nc-mat-nom">'+escapeHtml(m.materia)+(m.mod_codigo ? ' <span style="color:var(--text-muted);font-weight:400">· '+escapeHtml(m.mod_codigo)+'</span>' : '')+'</div>'
+            + '<div class="nc-mat-meta">'+m.alumnos+' de '+ci.activos+' alumnos</div>'
+            + '<div style="margin-top:5px">'+_ncChips(m)+'</div>'
+            + '</div>'
+            + '<div class="nc-mat-prom">'+prom+'</div>'
+            + '</div>';
+        }).join('')
+      + '</div>';
+  }).join('');
+}
+
+async function ncVerMateria(idxC, idxM){
+  const ci = (NC.control && NC.control.ciclos || [])[idxC];
+  const m = ci && (ci.materias || [])[idxM];
+  if(!m) return;
+  const cont = document.getElementById('nccd-cont');
+  document.getElementById('nccd-sub').textContent = m.materia;
+  const fecha = m.ultima_carga ? new Date(m.ultima_carga).toLocaleString('es-BO') : '—';
+
+  cont.innerHTML = '<div class="sd-block">'
+    + '<div class="sd-block-title">📘 '+escapeHtml(m.materia)+'</div>'
+    + '<div class="sd-row"><span class="lbl">Ciclo</span><span class="vl">'+escapeHtml(ci.ciclo)+'</span></div>'
+    + '<div class="sd-row"><span class="lbl">Período</span><span class="vl">Gestión '+NC.control.gestion+' · semestre '+NC.control.semestre+'</span></div>'
+    + (m.mod_codigo ? '<div class="sd-row"><span class="lbl">Módulo</span><span class="vl">'+escapeHtml(m.mod_codigo)+'</span></div>' : '')
+    + (m.grupo ? '<div class="sd-row"><span class="lbl">Grupo / U.C.</span><span class="vl">'+escapeHtml(m.grupo)+'</span></div>' : '')
+    + '<div class="sd-row"><span class="lbl">Alumnos con nota</span><span class="vl gold">'+m.alumnos+' de '+ci.activos+'</span></div>'
+    + '<div class="sd-row"><span class="lbl">Promedio</span><span class="vl">'+(m.promedio==null?'—':Number(m.promedio).toFixed(2))+'</span></div>'
+    + '<div class="sd-row"><span class="lbl">Nota más baja / alta</span><span class="vl">'+(m.nota_min==null?'—':Number(m.nota_min).toFixed(2))+' — '+(m.nota_max==null?'—':Number(m.nota_max).toFixed(2))+'</span></div>'
+    + '<div class="sd-row"><span class="lbl">Última carga</span><span class="vl">'+escapeHtml(fecha)+'</span></div>'
+    + '<div class="sd-row"><span class="lbl">Cargado por</span><span class="vl">'+escapeHtml(m.cargado_por||'—')+'</span></div>'
+    + '</div>'
+    + '<div class="sd-block"><div class="sd-block-title">🔎 Observaciones</div>'
+    + '<div>'+_ncChips(m)+'</div>'
+    + (m.sin_detalle > 0 ? '<div style="font-size:11.5px;color:var(--text-muted);margin-top:8px">'+m.sin_detalle+' notas sin el desglose (trabajos / formativa / sumativa). El alumno ve la nota final igual.</div>' : '')
+    + '</div>'
+    + '<div class="sd-block" id="nccd-faltantes"><div class="sd-block-title">👥 Sin nota en esta materia</div><div class="efm-no-data" style="color:var(--text-muted)">⏳ Consultando…</div></div>';
+
+  showScreen('screen-notas-control-det');
+
+  const r = await _ncInvoke('faltantes', {
+    gestion: NC.control.gestion, semestre: NC.control.semestre,
+    ciclo: ci.ciclo, materia: m.materia
+  });
+  const box = document.getElementById('nccd-faltantes');
+  if(!box) return;
+  if(!r.ok){
+    box.innerHTML = '<div class="sd-block-title">👥 Sin nota en esta materia</div><div class="efm-no-data" style="color:#e87878">'+escapeHtml(r.error||'No se pudo consultar')+'</div>';
+    return;
+  }
+  const lista = r.faltantes || [];
+  box.innerHTML = '<div class="sd-block-title">👥 Sin nota en esta materia · '+lista.length+'</div>'
+    + (lista.length
+        ? '<div class="nc-lista-mini">' + lista.map(function(x){
+            return '<div>· '+escapeHtml(nombreConGrado(x))+' <span style="color:var(--text-muted)">'+escapeHtml([x.paralelo?'"'+x.paralelo+'"':'', 'CI '+(x.ci||'—')].filter(Boolean).join(' · '))+'</span></div>';
+          }).join('') + '</div>'
+        : '<div class="efm-no-data" style="color:#7ddba0">✔ Todos los cursantes activos del ciclo tienen nota.</div>');
 }
 
 function renderGenericoPanel(role){
@@ -13022,7 +13871,7 @@ function renderDiscPanel(){
 
   // Visibilidad de botones según rol
   const soloCT = esCT();
-  const btnsCT = ['qa-btn-gest-cursantes','qa-btn-gest-profesores','qa-btn-diagnostico','qa-btn-pwd-otro','qa-btn-bloqueo-materias','qa-btn-carpeta-clases','qa-btn-avisos','qa-btn-cerrar-sem','qa-btn-funciones','qa-btn-cargas-notas'];
+  const btnsCT = ['qa-btn-gest-cursantes','qa-btn-gest-profesores','qa-btn-diagnostico','qa-btn-pwd-otro','qa-btn-bloqueo-materias','qa-btn-carpeta-clases','qa-btn-avisos','qa-btn-cerrar-sem','qa-btn-funciones','qa-btn-cargas-notas','qa-btn-control-notas'];
   btnsCT.forEach(id => {
     const el = document.getElementById(id);
     if(el) el.style.display = soloCT ? '' : 'none';
