@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.321</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.322</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6758,7 +6758,7 @@ body{
   <div class="menu-container">
     <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:10px;flex-wrap:wrap">
       <div class="field" style="margin:0;flex:1;min-width:180px"><label>Buscar materia</label><input type="text" id="repo-buscar" placeholder="nombre o código…" oninput="repoRenderArbol()"></div>
-      <div class="field" style="margin:0;width:110px"><label>Gestión</label><input type="number" id="repo-gestion" value="2026" onchange="REPO.gestion=parseInt(this.value)||new Date().getFullYear()"></div>
+      <div class="field" style="margin:0;width:130px"><label>Gestión</label><select id="repo-gestion" onchange="REPO.gestion=parseInt(this.value)||new Date().getFullYear();repoAbrirArbol()"></select></div>
     </div>
     <div id="repo-mi-materia"></div>
     <div id="repo-arbol"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando malla…</div></div>
@@ -20887,7 +20887,11 @@ async function _avInvoke(accion, extra){
 // REPOSITORIO DE CARPETAS DE CLASES — subir los documentos finales corregidos,
 // archivados por materia y gestión (subida directa). Backend: acciones repo_*.
 // ============================================================
-const REPO = { arbol:null, gestion:new Date().getFullYear(), materia:null, cid:null, adjuntos:[], gestiones:[], editable:true, esAdmin:false, estado:{}, misMaterias:null };
+const REPO = { arbol:null, gestion:new Date().getFullYear(), materia:null, cid:null,
+  adjuntos:[], gestiones:[], editable:true, esAdmin:false,
+  // v2.9.322 — biblioteca
+  biblio:null, gestionAbierta:true, gestionAbiertaM:true, soyDeLaMateria:false,
+  misCodigos:[], profesMateria:[], busquedaDocs:'' };
 const REPO_SLOTS = [
   {tipo:'doc_texto',            n:'0001 · Texto de la materia'},
   {tipo:'doc_distribucion',     n:'0002 · Cuadro de Distribución del Tiempo'},
@@ -20901,78 +20905,129 @@ function _repoAccept(tipo){
        : tipo==='recurso_interactivo' ? '.html,.htm,.zip,.pdf,.doc,.docx,.ppt,.pptx'
        : '.doc,.docx,.pdf';
 }
+/* v2.9.322 — EL REPOSITORIO ES UNA BIBLIOTECA.
+   Antes el índice se armaba con la malla + un conteo de los 6 casilleros fijos.
+   Eso servía para la gestión en curso, pero dejaba invisible el archivo: en 2025
+   y 2024 casi todo está cargado como 'doc_texto' (1.161 y 1.774 archivos), y la
+   pantalla de materia mostraba UN SOLO documento por casillero.
+   Ahora una sola llamada (repo_biblioteca) trae, por materia: cuántos documentos
+   tiene esa gestión, el desglose por tipo, quién la dictó y quién la tiene
+   asignada. Con eso:
+     · gestiones pasadas → biblioteca de consulta (ver y descargar, nada más);
+     · gestión en curso  → se ve el profesor de cada materia y quién no cargó.  */
 async function repoAbrirArbol(){
   showScreen('screen-av-repo');
-  document.getElementById('repo-gestion').value = REPO.gestion;
   REPO.esAdmin = _avEsAdminAcad();
-  // El buscador del árbol solo lo usa el admin; el profesor ve directo su materia.
-  const bf=document.getElementById('repo-buscar'); if(bf&&bf.closest('.field')) bf.closest('.field').style.display = REPO.esAdmin?'':'none';
-  if(!REPO.arbol){
-    if(!AV.catalogo){
-      const r=await _avInvoke('catalogo');
-      if(!r.ok){ document.getElementById('repo-arbol').innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No se pudo cargar la malla: '+_rgEsc(r.error||'')+'</div>'; return; }
-      AV.catalogo=r.materias||[];
-    }
-    REPO.arbol=AV.catalogo;
+  const bf=document.getElementById('repo-buscar');
+  if(bf&&bf.closest('.field')) bf.closest('.field').style.display='';   // el buscador ahora es de todos
+  const cont=document.getElementById('repo-arbol');
+  cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando el repositorio…</div>';
+  const r=await _avInvoke('repo_biblioteca',{gestion:REPO.gestion});
+  if(!r.ok){ cont.innerHTML='<div class="efm-no-data" style="color:#e87878">No se pudo cargar el repositorio: '+_rgEsc(r.error||'')+'</div>'; return; }
+  REPO.biblio        = r.biblioteca||{materias:[]};
+  REPO.gestionAbierta= r.editable!==false;
+  REPO.esAdmin       = r.es_admin===true;
+  REPO.misCodigos    = r.mis_materias||[];
+  REPO.arbol         = REPO.biblio.materias||[];
+  // Selector de gestiones: las que realmente existen + la del año en curso.
+  const sel=document.getElementById('repo-gestion');
+  if(sel){
+    const hoy=new Date().getFullYear();
+    const gs=[...new Set([...(REPO.biblio.gestiones||[]).map(Number), hoy, REPO.gestion])].sort((a,b)=>b-a);
+    sel.innerHTML=gs.map(y=>'<option value="'+y+'"'+(y===REPO.gestion?' selected':'')+'>'+y+(y<hoy?' · archivo':'')+'</option>').join('');
   }
   repoRenderMiMateria();
-  if(REPO.esAdmin){
-    const est=await _avInvoke('repo_estado_arbol',{gestion:REPO.gestion});
-    REPO.estado = (est.ok? est.estado : {})||{};
-    repoRenderArbol();
-  }else{
-    document.getElementById('repo-arbol').innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando tu materia…</div>';
-    const r=await _avInvoke('repo_mis_materias');
-    REPO.misMaterias = (r.ok? r.materias : [])||[];
-    repoRenderMisMaterias();
-  }
-}
-// Profesor: solo sus materias asignadas (si es una, entra directo).
-function repoRenderMisMaterias(){
-  const cont=document.getElementById('repo-arbol'); if(!cont) return;
-  const mm=REPO.misMaterias||[];
-  if(!mm.length){ cont.innerHTML='<div class="rg-card" style="text-align:center;padding:22px;color:var(--text-muted)">📭 Todavía no tenés una materia asignada.<br>Pedí al <strong>Jefe de la SAC</strong> o a la <strong>Sección Tecnología</strong> que te asigne tu materia.</div>'; return; }
-  if(mm.length===1){ REPO.materia=mm[0]; repoCargarMateria(); return; }
-  cont.innerHTML='<div class="section-label" style="margin-top:0">📚 Tus materias</div>'+mm.map(m=>
-    '<button class="quick-btn" onclick="repoAbrirMateria(\''+_rgEsc(m.codigo_uc)+'\')" style="margin:4px 0"><span class="qa-icon">📁</span><span class="qa-text"><strong>'+_rgEsc(m.nombre_uc)+'</strong> <span style="color:var(--text-muted)">· '+_rgEsc(m.codigo_uc)+'</span></span></button>').join('');
+  repoRenderArbol();
 }
 function repoRenderMiMateria(){
   const cont=document.getElementById('repo-mi-materia'); if(!cont) return;
-  cont.innerHTML = REPO.esAdmin
+  // "Asignar profesores" solo tiene sentido en la gestión en curso: en el archivo
+  // no hay nada que asignar porque ya no se puede modificar.
+  cont.innerHTML = (REPO.esAdmin && REPO.gestionAbierta)
     ? '<button class="btn-secondary" onclick="repoAsignarAbrir()" style="width:100%;margin-bottom:10px;border-color:#8a6d1f">👥 Asignar profesores a materias</button>'
     : '';
 }
-function _repoBadge(codigo){
-  const n=(REPO.estado||{})[codigo]||0, tot=6;
-  const c = n>=tot ? ['#1f6f5c','#7fe6a4','✅'] : n>0 ? ['#7a5012','#f0c040','🟡'] : ['#33415a','#9fb0c8','⚪'];
-  return '<span style="display:inline-block;padding:1px 8px;border-radius:12px;font-size:11px;font-weight:700;background:'+c[0]+';color:'+c[1]+';white-space:nowrap">'+c[2]+' '+n+'/'+tot+'</span>';
+// Profesores de una materia: los que figuran en la carpeta y los asignados.
+function _repoProfes(m){
+  const vistos={}, out=[];
+  (m.docentes||[]).concat(m.asignados||[]).forEach(function(p){
+    const n=(p&&p.nombre||'').trim(); if(!n||vistos[n]) return; vistos[n]=1; out.push(n);
+  });
+  return out;
+}
+function _repoChip(txt, tono){
+  const c = tono==='ok'   ? ['rgba(125,219,160,.10)','rgba(125,219,160,.42)','#7ddba0']
+          : tono==='warn' ? ['rgba(232,196,106,.10)','rgba(232,196,106,.42)','#e8c46a']
+          : tono==='err'  ? ['rgba(232,120,120,.10)','rgba(232,120,120,.42)','#e87878']
+          :                 ['rgba(140,210,255,.06)','var(--border-subtle)','var(--text-secondary)'];
+  return '<span style="display:inline-block;font-size:10.5px;padding:2px 8px;border-radius:999px;margin:2px 5px 0 0;'
+       + 'background:'+c[0]+';border:1px solid '+c[1]+';color:'+c[2]+';white-space:nowrap">'+_rgEsc(txt)+'</span>';
 }
 function repoRenderArbol(){
   const cont=document.getElementById('repo-arbol'); if(!cont) return;
   const q=(document.getElementById('repo-buscar').value||'').trim().toLowerCase();
-  const items=(REPO.arbol||[]).filter(m=> !q || (m.nombre_uc||'').toLowerCase().includes(q) || (m.codigo_uc||'').toLowerCase().includes(q));
-  if(!items.length){ cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">Sin materias que coincidan.</div>'; return; }
+  const soloFaltan=!!(document.getElementById('repo-solo-faltan')||{}).checked;
+  const abierta=REPO.gestionAbierta!==false;
+  let items=(REPO.arbol||[]).filter(m=> !q || (m.nombre_uc||'').toLowerCase().includes(q) || (m.codigo_uc||'').toLowerCase().includes(q));
+  // En el archivo no se listan materias vacías: no hay nada que consultar en ellas.
+  if(!abierta) items=items.filter(m=>(m.n_docs||0)>0);
+  if(abierta && soloFaltan) items=items.filter(m=>(m.n_docs||0)===0);
+
+  const totDocs=(REPO.arbol||[]).reduce((a,m)=>a+(m.n_docs||0),0);
+  const conDocs=(REPO.arbol||[]).filter(m=>(m.n_docs||0)>0).length;
+  const sinProf=(REPO.arbol||[]).filter(m=>!_repoProfes(m).length).length;
+
+  let cab;
+  if(abierta){
+    cab='<div class="rg-card" style="padding:12px;margin-bottom:10px">'
+      +'<div style="font-size:12.5px;color:var(--text-primary)"><strong>Gestión '+REPO.gestion+' — en curso.</strong> '
+      +conDocs+' de '+(REPO.arbol||[]).length+' materias con documentos · '+totDocs+' archivos.</div>'
+      +'<div style="font-size:11.5px;color:var(--text-muted);margin-top:4px">Cada materia muestra a su profesor. Solo el profesor de la materia puede subir o reemplazar sus documentos.</div>'
+      +(sinProf?('<div style="margin-top:6px">'+_repoChip('⚠ '+sinProf+' materias sin profesor asignado','warn')+'</div>'):'')
+      +'<label class="rg-chk" style="display:block;margin-top:8px;font-size:12px"><input type="checkbox" id="repo-solo-faltan" '+(soloFaltan?'checked':'')+' onchange="repoRenderArbol()"> Ver solo las materias que <strong>todavía no cargaron</strong></label>'
+      +'</div>';
+  }else{
+    cab='<div class="alert-banner" style="border-color:#8a6d1f;margin-bottom:10px"><span class="alert-emoji">🔒</span>'
+      +'<span class="alert-text"><b>Gestión '+REPO.gestion+' — archivo histórico.</b><br>'
+      +'<span style="font-size:12px">'+conDocs+' materias · '+totDocs+' documentos. Se pueden ver y descargar; <strong>no se modifican</strong>.</span></span></div>';
+  }
+
+  if(!items.length){
+    cont.innerHTML=cab+'<div class="efm-no-data" style="color:var(--text-muted)">'
+      +(soloFaltan?'✔ Todas las materias tienen al menos un documento cargado.':'Sin materias que coincidan.')+'</div>';
+    return;
+  }
+
   const ejes={};
   items.forEach(m=>{
     const eje=m.eje_curricular||'—', mod=m.modulo||'—';
     ejes[eje]=ejes[eje]||{}; ejes[eje][mod]=ejes[eje][mod]||[]; ejes[eje][mod].push(m);
   });
   const semTxt=s=>({1:'1er sem',2:'2do sem',3:'3er sem',4:'4to sem'}[s]||('sem '+s));
-  const open=!!q, bd='1px solid var(--border,#2a3a52)';
-  let h='';
+  const open=!!q||soloFaltan||!abierta, bd='1px solid var(--border,#2a3a52)';
+  let h=cab;
   Object.keys(ejes).forEach(eje=>{
+    const nEje=Object.keys(ejes[eje]).reduce((a,k)=>a+ejes[eje][k].length,0);
     h+='<details'+(open?' open':'')+' style="margin-bottom:8px;border:'+bd+';border-radius:10px;overflow:hidden">'
-      +'<summary style="cursor:pointer;padding:11px 12px;font-weight:700;background:rgba(138,109,31,.10)">🏛️ '+_rgEsc(eje)+'</summary>'
+      +'<summary style="cursor:pointer;padding:11px 12px;font-weight:700;background:rgba(138,109,31,.10)">🏛️ '+_rgEsc(eje)+' <span style="font-weight:400;color:var(--text-muted);font-size:12px">· '+nEje+' materias</span></summary>'
       +'<div style="padding:6px 8px 8px">';
     Object.keys(ejes[eje]).forEach(mod=>{
       h+='<details'+(open?' open':'')+' style="margin:6px 0;border:'+bd+';border-radius:8px">'
         +'<summary style="cursor:pointer;padding:8px 10px;font-weight:600;font-size:13px">📦 '+_rgEsc(mod)+'</summary>'
         +'<div style="padding:4px 8px 8px">';
       ejes[eje][mod].forEach(m=>{
-        h+='<button class="quick-btn" onclick="repoAbrirMateria(\''+_rgEsc(m.codigo_uc)+'\')" style="margin:4px 0">'
+        const n=m.n_docs||0, profes=_repoProfes(m);
+        let chips = n ? _repoChip('📄 '+n+(n===1?' documento':' documentos'),'ok')
+                      : _repoChip('📭 sin documentos', abierta?'warn':'muted');
+        if(abierta){
+          chips += profes.length ? profes.map(p=>_repoChip('👤 '+p,'muted')).join('')
+                                 : _repoChip('⚠ sin profesor asignado','warn');
+          if(!n && profes.length) chips += _repoChip('✖ no cargó','err');
+        }
+        h+='<button class="quick-btn" onclick="repoAbrirMateria(\''+_rgEsc(m.codigo_uc)+'\')" style="margin:4px 0;align-items:flex-start">'
           +'<span class="qa-icon">📁</span><span class="qa-text"><strong>'+_rgEsc(m.nombre_uc)+'</strong>'
-          +' <span style="color:var(--text-muted)">· '+_rgEsc(m.codigo_uc)+' · '+_rgEsc(String(m.ciclo))+'er ciclo '+semTxt(m.semestre)+'</span></span>'
-          +'<span style="margin-left:auto;padding-left:8px">'+_repoBadge(m.codigo_uc)+'</span></button>';
+          +' <span style="color:var(--text-muted)">· '+_rgEsc(m.codigo_uc)+' · '+(Number(m.ciclo)===2?'2do':'1er')+' ciclo '+semTxt(m.semestre)+'</span>'
+          +'<div style="margin-top:3px">'+chips+'</div></span></button>';
       });
       h+='</div></details>';
     });
@@ -20997,20 +21052,108 @@ async function repoCargarMateria(){
   const r=await _avInvoke('repo_ver',{materia_codigo:m.codigo_uc, gestion:REPO.gestion});
   if(!r.ok){ cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">No se pudo cargar: '+_rgEsc(r.error||'')+'</div>'; return; }
   REPO.cid=r.carpeta_id; REPO.adjuntos=r.adjuntos||[]; REPO.gestiones=r.gestiones||[];
-  REPO.editable = r.editable!==false;
+  // v2.9.322: `editable` ya viene resuelto por el servidor = la gestión admite
+  // cambios Y este usuario es profesor de la materia. Se guardan los dos motivos
+  // por separado para poder explicarle al usuario POR QUÉ no puede editar.
+  REPO.editable       = r.editable!==false;
+  REPO.gestionAbiertaM= r.gestion_abierta!==false;
+  REPO.soyDeLaMateria = r.soy_de_la_materia===true;
+  REPO.profesMateria  = _repoProfes({docentes:(r.docentes||[]).map(function(d){
+                          return {nombre:((d.profesor_grado||'')+' '+(d.profesor_nombre||'')).trim()}; }),
+                          asignados:r.asignados||[]});
+  REPO.busquedaDocs   = '';
   repoRenderMateria();
+}
+
+/* v2.9.322 — MODO BIBLIOTECA de una materia (gestión cerrada).
+   Los 6 casilleros fijos no sirven acá: en 2024/2025 una sola materia puede
+   tener 170 documentos, casi todos con tipo 'doc_texto'. Se listan TODOS,
+   agrupados por tipo y con buscador, para ver y descargar. */
+const _REPO_TIPO_N = {
+  doc_texto:'📘 Texto y documentos de la materia',
+  doc_distribucion:'🗓️ Cuadro de Distribución del Tiempo',
+  doc_plan_clases:'📋 Plan de Clases',
+  doc_hoja_orientacion:'🧭 Hoja de Orientación',
+  doc_desagregacion:'🧩 Cuadro de Desagregación',
+  doc_tareas:'✅ Cuadro de Planificación de Tareas',
+  presentacion:'📊 Presentaciones',
+  recurso_interactivo:'🎮 Recursos Interactivos',
+  hoja_orientacion:'🧭 Hoja de Orientación',
+  contenido_minimo:'📑 Contenidos mínimos',
+  memorandum:'📨 Memorándums',
+  otro:'🗂️ Otros documentos'
+};
+function repoBuscarDocs(v){ REPO.busquedaDocs=v||''; repoRenderBiblioDocs(); }
+function repoRenderBiblioDocs(){
+  const cont=document.getElementById('repo-biblio-docs'); if(!cont) return;
+  const q=(REPO.busquedaDocs||'').trim().toLowerCase();
+  const todos=(REPO.adjuntos||[]).filter(a=> !q || (a.nombre||'').toLowerCase().includes(q));
+  if(!todos.length){
+    cont.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">'
+      +(q?'Ningún documento coincide con «'+_rgEsc(q)+'».':'Esta materia no tiene documentos en esta gestión.')+'</div>';
+    return;
+  }
+  const byTipo={}; todos.forEach(a=>{ (byTipo[a.tipo]=byTipo[a.tipo]||[]).push(a); });
+  const DB='width:auto;flex:0 0 auto;padding:6px 12px;margin:0';
+  const orden=Object.keys(byTipo).sort((a,b)=>byTipo[b].length-byTipo[a].length);
+  cont.innerHTML='<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">'+todos.length+' documento(s)'+(q?' que coinciden':'')+'</div>'
+    + orden.map(function(t){
+        const arr=byTipo[t].slice().sort((x,y)=>(x.nombre||'').localeCompare(y.nombre||''));
+        return '<details open style="margin-bottom:8px;border:1px solid var(--border,#2a3a52);border-radius:10px;overflow:hidden">'
+          +'<summary style="cursor:pointer;padding:10px 12px;font-weight:700;font-size:13px;background:rgba(138,109,31,.08)">'
+          +_rgEsc(_REPO_TIPO_N[t]||t)+' <span style="font-weight:400;color:var(--text-muted)">· '+arr.length+'</span></summary>'
+          +'<div style="padding:4px 10px 10px">'
+          + arr.map(function(a){
+              return '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:6px 0;border-top:1px solid var(--border,#2a3a52)">'
+                +'<span style="flex:1;min-width:150px;font-size:12px">'+(a.enlace_url?'🔗':'📄')+' '+_rgEsc(a.nombre)
+                +(a.subido_por_nombre?('<span style="color:var(--text-muted)"> · '+_rgEsc(a.subido_por_nombre)+'</span>'):'')+'</span>'
+                +(a.enlace_url?'':'<button class="rg-doc" style="'+DB+'" onclick="repoPreview(\''+a.id+'\')">👁 Ver</button>')
+                +'<button class="rg-doc" style="'+DB+'" onclick="repoDescargar(\''+a.id+'\',this)">'+(a.enlace_url?'🔗 Abrir':'⬇ Descargar')+'</button>'
+                +'</div>';
+            }).join('')
+          +'</div></details>';
+      }).join('');
 }
 function repoRenderMateria(){
   const cont=document.getElementById('repo-m-cont'); if(!cont) return;
-  const ed=REPO.editable!==false;             // gestión editable (actual) o solo-lectura (pasada)
+  const ed=REPO.editable!==false;             // ¿puede este usuario modificar acá?
   const DB='width:auto;flex:0 0 auto;padding:6px 12px;margin:0';   // botón inline compacto
   const byTipo={};
   (REPO.adjuntos||[]).forEach(a=>{ (byTipo[a.tipo]=byTipo[a.tipo]||[]).push(a); });
   const gs=[...new Set([...(REPO.gestiones||[]), REPO.gestion])].sort((a,b)=>b-a);
   const g='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center"><span style="color:var(--text-muted);font-size:12px">Gestión:</span>'
-    + gs.map(y=>'<button class="'+(y===REPO.gestion?'btn-primary':'btn-secondary')+'" style="padding:4px 12px" onclick="REPO.gestion='+y+';document.getElementById(\'repo-gestion\').value='+y+';repoCargarMateria()">'+y+'</button>').join('')
+    + gs.map(y=>'<button class="'+(y===REPO.gestion?'btn-primary':'btn-secondary')+'" style="padding:4px 14px;width:auto;margin:0" onclick="REPO.gestion='+y+';repoCargarMateria()">'+y+'</button>').join('')
     + '</div>';
-  const lock = ed ? '' : '<div class="alert-banner" style="border-color:#8a6d1f;margin-bottom:10px"><span class="alert-emoji">🔒</span><span class="alert-text"><b>Gestión '+REPO.gestion+' — archivo histórico (solo lectura).</b><br><span style="font-size:12px">Podés ver y descargar, pero no modificar. La edición está disponible en la gestión '+new Date().getFullYear()+'.</span></span></div>';
+
+  // Quiénes dictan / dictaron la materia. Va siempre arriba: es el dato con el
+  // que se identifica a quien no cargó su carpeta.
+  const profes=(REPO.profesMateria||[]);
+  const fichaProf='<div class="rg-card" style="padding:10px 12px;margin-bottom:10px">'
+    +'<div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-secondary);font-weight:600;margin-bottom:5px">Profesor de la materia</div>'
+    +(profes.length ? profes.map(p=>_repoChip('👤 '+p,'muted')).join('')
+                    : _repoChip('⚠ sin profesor asignado','warn'))
+    +'</div>';
+
+  // ── MODO BIBLIOTECA: gestión cerrada. Se lista TODO, no los 6 casilleros. ──
+  if(REPO.gestionAbiertaM===false){
+    cont.innerHTML = g + fichaProf
+      + '<div class="alert-banner" style="border-color:#8a6d1f;margin-bottom:10px"><span class="alert-emoji">🔒</span>'
+      + '<span class="alert-text"><b>Gestión '+REPO.gestion+' — archivo histórico.</b><br>'
+      + '<span style="font-size:12px">Podés consultarlo y descargarlo. <strong>No se modifica</strong>: esta gestión ya está cerrada.</span></span></div>'
+      + '<div class="field" style="margin-bottom:10px"><label>Buscar dentro de la materia</label>'
+      + '<input type="text" id="repo-doc-buscar" placeholder="nombre del documento…" autocomplete="off" oninput="repoBuscarDocs(this.value)"></div>'
+      + '<div id="repo-biblio-docs"></div>';
+    repoRenderBiblioDocs();
+    return;
+  }
+
+  // ── Gestión en curso pero el usuario NO es profesor de esta materia ──
+  const lock = ed ? '' :
+    '<div class="alert-banner" style="border-color:#8a6d1f;margin-bottom:10px"><span class="alert-emoji">🔒</span>'
+    +'<span class="alert-text"><b>Solo lectura.</b><br><span style="font-size:12px">'
+    +'No figurás como profesor de esta materia, así que podés consultarla y descargarla pero no modificarla. '
+    +'Si te corresponde, pedí al <strong>Jefe de la SAC</strong> o a la <strong>Sección Tecnología</strong> que te agregue.'
+    +'</span></span></div>';
   // botón "copiar del año anterior" cuando la gestión actual está editable y vacía
   const copiar = (ed && !(REPO.adjuntos||[]).length)
     ? '<div class="rg-card" style="text-align:center;padding:14px;margin-bottom:10px"><div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Esta gestión está vacía. Podés arrancar copiando los documentos de la gestión anterior y luego actualizarlos.</div><button class="btn-secondary" style="border-color:#1f6f5c" onclick="repoCopiarAnterior(this)">📥 Copiar del año anterior ('+(REPO.gestion-1)+')</button></div>'
@@ -21055,7 +21198,7 @@ function repoRenderMateria(){
       +(conEnlace?'<button class="btn-secondary" style="padding:6px 14px" onclick="repoEnlace(\''+tipo+'\')">🔗 Agregar enlace (video, Drive…)</button>':'')+'</div>') : '';
     return '<div class="rg-card"><div class="rg-asunto" style="font-size:13px">'+icon+' '+_rgEsc(titulo)+'</div>'+li+acciones+'</div>';
   };
-  cont.innerHTML = g + lock + copiar
+  cont.innerHTML = g + fichaProf + lock + copiar
     + '<div id="repo-prog" style="font-size:12px;color:var(--text-muted);min-height:16px;margin-bottom:6px"></div>'
     + '<div class="section-label" style="margin-top:0">📑 Documentos de la carpeta</div>' + slots
     + '<div class="section-label">🖥️ Presentaciones y recursos</div>'
