@@ -5144,6 +5144,7 @@ body{
       <button class="quick-btn" onclick="goDocsInst('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(140,90,203,.22),rgba(107,75,168,.06));border-color:#8c5acb"><span class="qa-icon">📁</span><span class="qa-text"><strong>Documentos Institucionales</strong> (publicar / recibir — por ciclo, profesores, mando)</span></button>
       <button class="quick-btn" onclick="goEjTac('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(58,140,90,.22),rgba(44,107,75,.06));border-color:#3a8c5a"><span class="qa-icon">🗺️</span><span class="qa-text"><strong>Ejercicios Tácticos</strong> (publicar / recibir calcos KMZ para Google Earth)</span></button>
       <button class="quick-btn" onclick="location.href='calcos/'" style="background:linear-gradient(180deg,rgba(42,128,149,.22),rgba(31,95,107,.06));border-color:#2a8095"><span class="qa-icon">🧭</span><span class="qa-text"><strong>Generador de Calcos</strong> (planificar en el navegador, sin instalar nada)</span></button>
+      <button id="qa-btn-calcos-acceso" class="quick-btn" onclick="goCalcosAcceso('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(42,128,149,.14),rgba(31,95,107,.04));border-color:#1f5f6b"><span class="qa-icon">🔑</span><span class="qa-text"><strong>Acceso al Generador</strong> (habilitar por ciclo / paralelo / mención)</span></button>
       <button class="quick-btn" onclick="goWargame('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(202,161,74,.2),rgba(160,120,40,.05));border-color:#caa14a"><span class="qa-icon">🎲</span><span class="qa-text"><strong>Juego de Guerra</strong> (wargame por turnos: árbitro y Estados Mayores)</span></button>
       <button class="quick-btn success" data-sac-hide="1" onclick="goRespaldo()"><span class="qa-icon">💾</span><span class="qa-text">Descargar respaldo ahora (JSON + .XLSX)</span></button>
       <button class="quick-btn" data-sac-hide="1" onclick="goInstalar()"><span class="qa-icon">📲</span><span class="qa-text">Instalar app / Compartir QR</span></button>
@@ -6513,6 +6514,27 @@ body{
     </div>
     <div id="docsinst-inbox" style="display:none">
       <div id="docsinst-inbox-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- Acceso al Generador de Calcos: C&T habilita por ciclo, paralelo,
+     mención o a todo el cuerpo docente. El botón del Generador sigue
+     visible para todos; al que no está habilitado le sale el aviso. -->
+<section id="screen-calcos-acceso" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen(_CA_BACK||'screen-disc-panel')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">🧭 Acceso al Generador de Calcos</div><div class="header-sub">Quién puede usarlo, por ciclo / paralelo / mención</div></div>
+  </div>
+  <div class="menu-container">
+    <div class="section-label">➕ Habilitar</div>
+    <div id="ca-opciones"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+    <div class="section-label" style="margin-top:18px">✅ Habilitados actualmente</div>
+    <div id="ca-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+    <div style="margin-top:14px;font-size:12px;color:var(--text-muted);line-height:1.5">
+      Ciencia y Tecnología entra siempre, aunque no figure en la lista.<br>
+      El botón del Generador queda visible para todos: a quien no esté habilitado le aparece un aviso explicando que es solo para fines de ejercicios.
     </div>
   </div>
 </section>
@@ -19567,6 +19589,80 @@ function _diSeenMax(){ try{ return parseInt(localStorage.getItem(_diSeenKey())||
 function _diMarcarVisto(items){
   try{ const mx=items.reduce((a,d)=>Math.max(a,Number(d.id)||0),0); if(mx) localStorage.setItem(_diSeenKey(),String(mx)); }catch(e){}
   _rgSetBadge('docsinst-badge',0);
+}
+
+/* ===== ACCESO AL GENERADOR DE CALCOS (solo Ciencia y Tecnología) =====
+   Reglas por ciclo / paralelo / mención / cuerpo docente. Todo pasa por la
+   Edge Function calcos-datos: la tabla calcos_acceso no tiene políticas y el
+   navegador no la puede tocar. */
+let _CA_BACK='screen-disc-panel';
+async function _caInvoke(accion, extra){
+  const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
+  if(!tok) return {ok:false,error:'sin sesión'};
+  try{
+    const { data, error } = await sb.functions.invoke('calcos-datos',{ body:Object.assign({accion, token:tok}, extra||{}) });
+    if(error) return {ok:false,error:(error.message||'error')};
+    return data||{ok:false,error:'sin respuesta'};
+  }catch(e){ return {ok:false,error:String((e&&e.message)||e)}; }
+}
+async function goCalcosAcceso(fromScreen){
+  _CA_BACK = fromScreen || 'screen-disc-panel';
+  showScreen('screen-calcos-acceso');
+  _caPintar();
+}
+function _caEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+async function _caPintar(){
+  const cajaOp=document.getElementById('ca-opciones');
+  const cajaLi=document.getElementById('ca-lista');
+  cajaOp.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const r=await _caInvoke('acceso_listar');
+  if(!r.ok){ cajaOp.innerHTML='<div class="efm-no-data" style="color:#e08">'+_caEsc(r.error)+'</div>'; cajaLi.innerHTML=''; return; }
+
+  const yaEsta=(tipo,valor)=>(r.reglas||[]).some(x=>x.tipo===tipo && (x.valor||'')===(valor||'') && x.activo);
+  let h='';
+  const grupo=(titulo,tipo,valores)=>{
+    if(!valores.length) return '';
+    let s='<div style="margin:10px 0 4px;font-size:12px;color:var(--text-muted)">'+titulo+'</div><div style="display:flex;flex-wrap:wrap;gap:6px">';
+    for(const v of valores){
+      const on=yaEsta(tipo,v);
+      s+='<button class="quick-btn" style="flex:0 0 auto;padding:7px 12px;'+(on?'background:linear-gradient(180deg,rgba(58,140,90,.35),rgba(44,107,75,.12));border-color:#3a8c5a':'')+'" '+
+         'onclick="_caToggle(\''+tipo+'\',\''+_caEsc(v).replace(/'/g,"\\'")+'\','+(on?'false':'true')+')">'+
+         (on?'✓ ':'')+_caEsc(v||'(todos)')+'</button>';
+    }
+    return s+'</div>';
+  };
+  h+=grupo('Ciclos','ciclo',r.opciones.ciclo||[]);
+  h+=grupo('Paralelos','paralelo',r.opciones.paralelo||[]);
+  h+=grupo('Menciones','mencion',r.opciones.mencion||[]);
+  h+=grupo('Cuerpo docente','profesores',['']);
+  h+=grupo('TODA la escuela','todos',['']);
+  cajaOp.innerHTML=h||'<div class="efm-no-data">Sin opciones</div>';
+
+  const act=(r.reglas||[]).filter(x=>x.activo);
+  if(!act.length){ cajaLi.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">Nadie habilitado todavía (además de Ciencia y Tecnología).</div>'; return; }
+  const etiqueta={todos:'TODA la escuela',profesores:'Cuerpo docente',ciclo:'Ciclo',paralelo:'Paralelo',mencion:'Mención',persona:'Persona'};
+  cajaLi.innerHTML=act.map(x=>
+    '<div class="quick-btn" style="display:flex;justify-content:space-between;align-items:center;cursor:default">'+
+    '<span><strong>'+_caEsc(etiqueta[x.tipo]||x.tipo)+'</strong>'+(x.valor?' · '+_caEsc(x.valor):'')+'</span>'+
+    '<button class="btn-mini" style="background:#7a2233;color:#fff;border:0;border-radius:6px;padding:4px 10px;cursor:pointer" onclick="_caQuitar('+x.id+')">Quitar</button>'+
+    '</div>').join('');
+}
+async function _caToggle(tipo, valor, activar){
+  if(!activar){
+    const r=await _caInvoke('acceso_listar');
+    const regla=(r.reglas||[]).find(x=>x.tipo===tipo && (x.valor||'')===(valor||''));
+    if(regla) await _caInvoke('acceso_quitar',{id:regla.id});
+  } else {
+    const res=await _caInvoke('acceso_guardar',{tipo, valor: valor||null, activo:true});
+    if(!res.ok){ alert(res.error||'No se pudo guardar'); }
+  }
+  _caPintar();
+}
+async function _caQuitar(id){
+  if(!confirm('¿Quitar esta habilitación?')) return;
+  const r=await _caInvoke('acceso_quitar',{id});
+  if(!r.ok) alert(r.error||'No se pudo quitar');
+  _caPintar();
 }
 
 /* ===== EJERCICIOS TÁCTICOS (calcos KMZ/KML para Google Earth) ===== */
