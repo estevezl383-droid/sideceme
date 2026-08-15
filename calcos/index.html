@@ -30,14 +30,21 @@
             location.hostname === '127.0.0.1'
           if (enLocal) return
 
-          var t =
-            localStorage.getItem('sideceme_token_p') ||
-            localStorage.getItem('sideceme_token') ||
-            null
-          var expira =
-            localStorage.getItem('sideceme_token_expira_p') ||
-            localStorage.getItem('sideceme_token_expira') ||
-            null
+          // SIDECEME guarda la sesión en DOS lugares según el rol:
+          //   profesores → localStorage 'sideceme_token_p'   (entre pestañas)
+          //   cursantes  → sessionStorage 'sideceme_token'   (SOLO esa pestaña)
+          // Por eso hay que mirar los dos. Y por eso el Generador se abre
+          // en la MISMA pestaña: sessionStorage sobrevive al navegar dentro
+          // del mismo sitio, pero no existe en una pestaña nueva.
+          var lee = function (clave) {
+            try {
+              return sessionStorage.getItem(clave) || localStorage.getItem(clave)
+            } catch (e) {
+              return null
+            }
+          }
+          var t = lee('sideceme_token_p') || lee('sideceme_token') || null
+          var expira = lee('sideceme_token_expira_p') || lee('sideceme_token_expira')
           if (expira && new Date(expira) < new Date()) t = null
           window.SIDECEME_CALCOS = {
             url: 'https://ofsyiylhdrdiqtnbaovo.supabase.co',
