@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+  <name>Área de ejemplo — Porto Velho</name>
+  <Placemark>
+    <name>AOI Porto Velho</name>
+    <Polygon>
+      <outerBoundaryIs>
+        <LinearRing>
+          <coordinates>
+            -64.10,-9.00,0
+            -63.60,-9.00,0
+            -63.60,-8.50,0
+            -64.10,-8.50,0
+            -64.10,-9.00,0
+          </coordinates>
+        </LinearRing>
+      </outerBoundaryIs>
+    </Polygon>
+  </Placemark>
+</Document>
+</kml>
