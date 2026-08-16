@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.322</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.323</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7096,6 +7096,73 @@ body.wg-jugando{overflow:hidden}
 .wg-dron .sombra{position:absolute;border-radius:50%;
   background:radial-gradient(ellipse,rgba(0,0,0,.45) 0%,rgba(0,0,0,0) 72%)}
 .wg-dron-anillo{pointer-events:none}
+/* ============================================================
+   v2.9.323 — LO QUE SE PROYECTA SOBRE LA MAQUETA TIENE QUE ESTAR VIVO.
+   Sergio: «la ficha no se está moviendo, sólo aparece el polvo levantado y
+   después la ficha aparece directamente en la posición»; y «el polvo está muy
+   bien pero la forma en que se mueven está muy seca, tiene que verse bastante
+   realista, un juego de verdad, una inspiración en los juegos de StarCraft».
+   Tres piezas de CSS para eso:
+     1) `.wg-ficha2d` — envoltorio de la ficha del mapa 2D (el que se proyecta
+        sobre la maqueta). ANTES el marcador era un `<img>` pelado: no había
+        dónde colgar el vaivén de la marcha, porque el `transform` del elemento
+        lo escribe Leaflet para posicionarlo y pisarlo lo manda a otro lado del
+        mapa. Con un div adentro, el cabeceo va en el HIJO y Leaflet sigue
+        mandando en el padre. Es la misma solución que en 3D (`.wg-ficha3d`).
+     2) `.wg-polvo` — la polvareda pasa de círculo SVG repintado por JS a un
+        elemento con ANIMACIÓN CSS. Además de verse mucho mejor (la bocanada
+        nace apretada, se abre, se levanta y se disipa con el viento), la anima
+        el compositor del navegador: cero escrituras por cuadro, que es
+        justamente lo que trababa el mapa (ver v2.9.265).
+     3) `.wg-dron2d` — el aparato SOBREVOLANDO la maqueta: la sombra en el
+        suelo, el hilo hasta el aparato y el halo del sensor. En una vista
+        cenital la altura no se ve; se LEE por la sombra separada del avión.
+   ============================================================ */
+.wg-ficha2d{position:relative;width:100%;height:100%;line-height:0;
+  transform-origin:50% 88%;will-change:transform}
+.wg-ficha2d>img{display:block;width:100%;height:100%}
+/* La sombra aparece sólo mientras marcha: da el despegue del suelo sin
+   ensuciar la carta cuando la unidad está detenida. */
+.wg-ficha2d::after{content:'';position:absolute;left:50%;bottom:-3px;width:64%;height:16%;
+  margin-left:-32%;border-radius:50%;opacity:0;transition:opacity .35s linear;
+  background:radial-gradient(ellipse,rgba(0,0,0,.5) 0%,rgba(0,0,0,0) 70%)}
+.wg-ficha2d.marchando::after{opacity:.75}
+.wg-polvo{pointer-events:none}
+.wg-polvo i{position:absolute;left:0;top:0;display:block;border-radius:50%;
+  /* Tierra seca iluminada de un lado: una bocanada plana se ve a cartón. */
+  background:radial-gradient(circle at 38% 34%,
+    rgba(236,224,200,.92) 0%, rgba(206,186,150,.62) 42%,
+    rgba(150,130,100,.28) 68%, rgba(140,120,92,0) 78%);
+  transform:translate(-50%,-50%) scale(.22);
+  animation:wgPolvoAbre var(--dur,1500ms) cubic-bezier(.12,.62,.3,1) forwards;
+  will-change:transform,opacity}
+@keyframes wgPolvoAbre{
+  0%  {transform:translate(-50%,-50%) scale(.22) rotate(0deg);   opacity:0}
+  10% {opacity:var(--op,.8)}
+  55% {opacity:calc(var(--op,.8)*.62)}
+  100%{transform:translate(calc(-50% + var(--dx,5px)), calc(-50% + var(--dy,-7px)))
+       scale(1) rotate(var(--gir,18deg)); opacity:0}
+}
+/* v2.9.323 — DRON SOBREVOLANDO, EN LA MAQUETA (vista cenital).
+   Caja de tamaño cero: todo cuelga del punto donde está el aparato en el aire.
+   La SOMBRA va abajo, en el suelo, y el avión desplazado hacia arriba: esa
+   separación es la que hace leer «está volando» en una vista desde arriba. */
+.wg-dron2d{position:relative;width:0;height:0;--dcol:#9b7bff;pointer-events:auto;cursor:pointer}
+.wg-dron2d .som{position:absolute;left:-11px;top:-4px;width:22px;height:8px;border-radius:50%;
+  background:radial-gradient(ellipse,rgba(0,0,0,.5) 0%,rgba(0,0,0,0) 72%)}
+.wg-dron2d .hilo{position:absolute;left:0;top:0;width:1px;border-left:1px dashed var(--dcol);
+  opacity:.42;transform:translateX(-.5px)}
+.wg-dron2d .av{position:absolute;left:-13px;width:26px;height:26px;margin-top:-13px;
+  color:var(--dcol);filter:drop-shadow(0 0 5px var(--dcol)) drop-shadow(0 2px 3px rgba(0,0,0,.75));
+  transition:transform .12s linear}
+/* El halo del sensor late: se ve que el aparato está TRABAJANDO, no de adorno. */
+.wg-dron2d .halo{position:absolute;left:-21px;width:42px;height:42px;margin-top:-21px;
+  border-radius:50%;border:1px solid var(--dcol);opacity:.3;
+  animation:wgDronLate 2.6s ease-in-out infinite}
+@keyframes wgDronLate{0%,100%{transform:scale(.62);opacity:.34}50%{transform:scale(1);opacity:.06}}
+.wg-dron2d .matri{position:absolute;left:-48px;width:96px;text-align:center;
+  font-size:9.5px;font-weight:800;letter-spacing:.6px;color:var(--dcol);
+  text-shadow:0 1px 3px #000;pointer-events:none;white-space:nowrap}
 /* ============================================================
    v2.9.231 — LA FICHA SE PARA SOBRE EL TERRENO.
    El símbolo reglamentario NO se toca: el RC-02-114 manda que la unidad se
@@ -26738,11 +26805,110 @@ function _wgPxPorMetro(map, lat){
     return mundo/(40075016.686*Math.max(0.05,Math.cos(lat*Math.PI/180)));
   }catch(_e){ return 0.05; }
 }
+// v2.9.261 — AVIÓN DIBUJADO, NO EMOJI (ver el comentario largo en `_wg3dDatos`).
+// v2.9.323: el mismo dibujo lo usan las dos vistas, así que vive en un solo lado.
+function _wgDronSVG(px){
+  return `<svg viewBox="0 0 24 24" width="${px}" height="${px}" aria-hidden="true">`
+    +`<path d="M12 1.6 13.5 8.2 22.4 13.1 22.4 15.2 13.5 12.7 13.1 18.6 16.4 21 16.4 22.4 12 21.2 7.6 22.4 7.6 21 10.9 18.6 10.5 12.7 1.6 15.2 1.6 13.1 10.5 8.2Z" `
+    +`fill="currentColor" stroke="rgba(0,0,0,.55)" stroke-width=".7"/></svg>`;
+}
+// ============================================================
+// v2.9.323 — LOS DRONES, SOBREVOLANDO LA MAQUETA.
+// Pedido de Sergio: «no sé si podrías mostrar en una especie de efecto los
+// drones que estuvieran sobrevolando en la maqueta».
+// Hasta acá el aparato SÓLO existía en la vista 3D (`_wg3dDatos`): la maqueta
+// se proyecta desde el mapa 2D de Leaflet, así que ahí no había ningún dron —
+// volaba, se lo podía pilotear y ver por su cámara, pero sobre el modelo físico
+// no aparecía nada.
+// En una vista cenital la altura no se puede dibujar «hacia arriba», así que se
+// usa la convención de siempre: SOMBRA en el suelo, aparato desplazado, y un
+// hilo entre los dos. Cuanto más alto vuela, más lejos queda de su sombra.
+// Los dos aparatos comparten el cálculo de vuelo con el 3D (`_wgDronCinematica`),
+// así que en las dos vistas están en el MISMO punto de la pista.
+// ============================================================
+function _wgDrones2D(){
+  WG.dronesVuelo2D=[];
+  if(!WG.map || !WG.capa || typeof L==='undefined') return;
+  for(const u of _wgUnidadesVisibles()){
+    const d=_wgDronDe(u); if(!d) continue;
+    // Mismo filtro de bando que en 3D: azul no ve el aparato rojo y viceversa.
+    const lenteV=_wgBandoLente();
+    if(lenteV ? u.bando!==lenteV : !(WG.soy==='arbitro'||u.bando===WG.soy)) continue;
+    const col=WG_COL[u.bando]||'#9b7bff';
+    // Ninguna cámara se ve a sí misma: si estás mirando POR este aparato, vuela
+    // igual (entra en la lista) pero no se dibuja.
+    const soyLaVista = String(WG.dronVista)===String(u.id);
+    const html=`<div class="wg-dron2d" style="--dcol:${col}${soyLaVista?';display:none':''}">`
+      +`<span class="som"></span><span class="hilo"></span>`
+      +`<span class="halo"></span><span class="av">${_wgDronSVG(26)}</span>`
+      +`<span class="matri">${_rgEsc(WG_CW40.nom)} · ${String(u.bando).toUpperCase()}</span></div>`;
+    try{
+      const mk=L.marker([u.lat,u.lng],{ zIndexOffset:3000, riseOnHover:true,
+        icon:L.divIcon({className:'',html,iconSize:[0,0],iconAnchor:[0,0]}) }).addTo(WG.capa);
+      const el=mk.getElement && mk.getElement();
+      if(!el) continue;
+      mk.bindTooltip(`${_rgEsc(WG_CW40.nom)} · bando ${String(u.bando).toUpperCase()}`
+        +` — sale de ${_rgEsc(u.designacion||'el puesto de mando')}<br>`
+        +`Observa ${d.km} km al ${Math.round(d.rumbo)}° · ${d.alt} m · ${d.kmh||WG_DRON_KMH} km/h<br>`
+        +`Tocar para ver por el dron`,{direction:'top'});
+      mk.on('click',(ev)=>{ L.DomEvent.stopPropagation(ev); wgVistaDron(u.id); });
+      WG.dronesVuelo2D.push({ mk, el, u,
+        av:el.querySelector('.av'), som:el.querySelector('.som'),
+        hilo:el.querySelector('.hilo'), halo:el.querySelector('.halo'),
+        matri:el.querySelector('.matri') });
+    }catch(_e){}
+  }
+  if(WG.dronesVuelo2D.length) _wgVolarDrones();
+}
+// ============================================================
+// v2.9.323 — DÓNDE ESTÁ EL APARATO EN ESTE CUADRO, UNA SOLA VEZ.
+// Antes esto vivía suelto dentro del lazo de vuelo, que sólo conocía la lista
+// del 3D. Ahora que el mismo dron se dibuja en DOS vistas, el cálculo tiene que
+// salir de un solo lado: si cada lista lo hiciera por su cuenta, el vuelo
+// manual se integraría DOS VECES por cuadro (`_wgIntegrarVuelo` avanza según el
+// `dt` transcurrido) y el aparato volaría al doble de velocidad en cuanto se
+// abriera la maqueta. Por eso el resultado se cachea por unidad y por cuadro.
+// ============================================================
+function _wgDronCinematica(u, ahora){
+  const d=_wgDronDe(u); if(!d) return null;
+  WG._dronCin=WG._dronCin||{};
+  const ant=WG._dronCin[u.id];
+  if(ant && ant.t===ahora) return ant;      // ya calculado en este mismo cuadro
+  // El tiempo de vuelta sale de la VELOCIDAD, no de un número inventado: el
+  // perímetro de la pista dividido por lo que vuela el aparato.
+  // v2.9.312: contra el RELOJ DE PARED compartido (`WG_EPOCA`), para que las dos
+  // ventanas vean el aparato en el mismo punto.
+  const kmh = d.kmh || WG_DRON_KMH;
+  const pistaLargo = _wgPistaDron(d, u, 0).P;
+  const kmRecorridos = ((_wgAhora()-WG_EPOCA)/3600000)*kmh*WG_DRON_ACEL
+    + (d.fase||0)*pistaLargo + (String(u.id).length*3.1);
+  const pil = _wgPilotoActivo(u.bando);
+  let lng, lat, proa;
+  if(pil){
+    // v2.9.283: en manual hay un estado de vuelo que se integra cuadro a cuadro.
+    const dt = ant ? (ahora-ant.t)/1000 : 0;
+    _wgIntegrarVuelo(pil, u, d, dt);
+    lng=pil.lng; lat=pil.lat; proa=pil.proa;
+  }else{
+    const p=_wgPistaDron(d, u, kmRecorridos);
+    lng=p.lng; lat=p.lat;
+    // La nariz apunta a donde va: se saca del tramo siguiente de la pista.
+    const sig=_wgPistaDron(d, u, kmRecorridos+0.35);
+    const dy=(sig.lat-lat), dx=(sig.lng-lng)*Math.cos(lat*Math.PI/180);
+    proa=(Math.atan2(dx,dy)*180/Math.PI+360)%360;
+  }
+  const proaAnt = ant ? ant.proa : proa;
+  const giro=((proa - proaAnt)%360+540)%360-180;
+  const out={ t:ahora, d, pil, lng, lat, proa, giro, alt:(pil?pil.alt:d.alt) };
+  WG._dronCin[u.id]=out;
+  return out;
+}
 function _wgVolarDrones(){
   cancelAnimationFrame(WG._vueloRAF||0);
   const paso=(ahora)=>{
     WG._vueloRAF=requestAnimationFrame(paso);
-    const lista=WG.dronesVuelo||[]; if(!lista.length) return;
+    const lista=WG.dronesVuelo||[], lista2=WG.dronesVuelo2D||[];
+    if(!lista.length && !lista2.length) return;
     // v2.9.261: el aparato se recoloca 20 veces por segundo, no 60. Cada
     // recolocación consulta la altura del relieve; a 60 Hz es gasto puro y el
     // vuelo se ve exactamente igual.
@@ -26756,46 +26922,14 @@ function _wgVolarDrones(){
     const map=WG.map3d;
     const pitch=map?map.getPitch():0;
     const exag=Number(WG.exag3d)||1.6;
-    for(const v of lista){
-      const d=_wgDronDe(v.u); if(!d) continue;
-      // El tiempo de vuelta sale de la VELOCIDAD, no de un número inventado:
-      // el perímetro de la órbita dividido por lo que vuela el aparato.
-      // v2.9.261 — RECORRE LA PISTA A SU VELOCIDAD. El avance se mide en
-      // KILÓMETROS recorridos, no en «fase de un círculo»: por eso ahora se ve
-      // que se DESPLAZA por los rectos y vira en las puntas.
-      // v2.9.261: cada aparato con SU velocidad y SU punto de partida en la pista.
-      const kmh = d.kmh || WG_DRON_KMH;
-      const pistaLargo = _wgPistaDron(d, v.u, 0).P;
-      // v2.9.312 — el recorrido se mide contra el RELOJ DE PARED compartido, no
-      // contra los milisegundos de vida de esta pestaña (ver `WG_EPOCA`). Los
-      // otros sumandos ya eran iguales en las dos ventanas: `fase` viene de la
-      // base y el desfase por unidad sale de su id.
-      const kmRecorridos = ((_wgAhora()-WG_EPOCA)/3600000)*kmh*WG_DRON_ACEL
-        + (d.fase||0)*pistaLargo + (String(v.u.id).length*3.1);
-      // ============================================================
-      // v2.9.283 — DOS FORMAS DE VOLAR, NO UNA CONGELADA.
-      // Hasta la 282 «manual» era `_wgPistaDron(d, v.u, 0)`: el aparato quedaba
-      // CLAVADO en un punto fijo de la pista. Por eso las flechas no se sentían
-      // — aunque el rumbo cambiara, la posición salía de una fórmula sin
-      // memoria. Ahora en manual hay un estado de vuelo que se integra cuadro a
-      // cuadro, y las teclas actúan sobre él. En AUTO, el hipódromo intacto.
-      // ============================================================
-      const pil = _wgPilotoActivo(v.u.bando);
-      let lng, lat;
-      if(pil){
-        const dt=(v._tAnt!=null) ? (ahora-v._tAnt)/1000 : 0;
-        v._tAnt=ahora;
-        _wgIntegrarVuelo(pil, v.u, d, dt);
-        lng=pil.lng; lat=pil.lat; v._proa=pil.proa;
-      }else{
-        v._tAnt=ahora;
-        const p = _wgPistaDron(d, v.u, kmRecorridos);
-        lng=p.lng; lat=p.lat;
-        // La nariz apunta a donde va: se saca del tramo siguiente de la pista.
-        const sig=_wgPistaDron(d, v.u, kmRecorridos+0.35);
-        const dy=(sig.lat-lat), dx=(sig.lng-lng)*Math.cos(lat*Math.PI/180);
-        v._proa=(Math.atan2(dx,dy)*180/Math.PI+360)%360;
-      }
+    // v2.9.323: si el 3D se cerró, sus marcadores ya no existen aunque la lista
+    // haya quedado colgada. Sin este `if(map)` el lazo escribiría sobre fantasmas.
+    if(map) for(const v of lista){
+      // v2.9.323: el vuelo se calcula UNA vez por cuadro y por unidad, en
+      // `_wgDronCinematica` — ver ahí por qué (lo comparte con la vista 2D).
+      const cin=_wgDronCinematica(v.u, ahora); if(!cin) continue;
+      const d=cin.d, pil=cin.pil, lng=cin.lng, lat=cin.lat;
+      v._proa=cin.proa;
       try{ v.mk.setLngLat([lng,lat]); }catch(_e){}
       // v2.9.261 — LA ALTURA ES ALTURA, NO UN OFFSET FIJO. Se convierten los
       // metros de vuelo a píxeles con la escala de este cuadro: así el aparato
@@ -26839,6 +26973,45 @@ function _wgVolarDrones(){
         cuerpo.style.transform=`skewX(${(alabeo*0.35).toFixed(1)}deg)`;
       }
       v._pos=[lng,lat];
+    }
+    // ============================================================
+    // v2.9.323 — EL MISMO VUELO, DIBUJADO SOBRE LA MAQUETA (2D).
+    // Se salta si el 3D es lo que está en pantalla: el mapa de Leaflet queda
+    // tapado abajo y escribirle en cada cuadro es el gasto puro que ya nos
+    // costó caro en el replay (v2.9.265).
+    // ============================================================
+    if(lista2.length && !_wgEn3D()){
+      for(const v of lista2){
+        const cin=_wgDronCinematica(v.u, ahora); if(!cin) continue;
+        try{ v.mk.setLatLng([cin.lat, cin.lng]); }catch(_e){}
+        // La ALTURA se lee por la distancia entre el aparato y su sombra. No se
+        // saca de la escala del mapa a propósito: a zoom de maqueta 3.000 m
+        // serían 150 px y el aparato terminaría dibujado sobre otro cerro.
+        // Acá la altura es una CONVENCIÓN de lectura, como en cualquier tablero.
+        const alto=Math.round(Math.max(18, Math.min(64, 20 + (cin.alt/1000)*8)));
+        if(alto!==v._alto){
+          v._alto=alto;
+          if(v.av)   v.av.style.top   = (-alto)+'px';
+          if(v.halo) v.halo.style.top = (-alto)+'px';
+          // La matrícula va ARRIBA del aparato: debajo le pasaba por encima al
+          // hilo que lo une con su sombra y se leían las dos cosas mal.
+          if(v.matri)v.matri.style.top= (-alto-26)+'px';
+          if(v.hilo){ v.hilo.style.height=alto+'px'; v.hilo.style.top=(-alto)+'px'; }
+        }
+        // La nariz apunta a donde vuela. En vista cenital la proa SÍ se dibuja
+        // girando el icono (a diferencia del 3D, donde lo acuesta MapLibre):
+        // desde arriba, un avión girado es exactamente lo que se ve.
+        if(v.av){
+          const alabeo=Math.max(-14, Math.min(14, (cin.giro||0)*8));
+          v.av.style.transform=`rotate(${cin.proa.toFixed(1)}deg) skewX(${(alabeo*0.35).toFixed(1)}deg)`;
+        }
+        v._pos=[cin.lng,cin.lat];
+      }
+      // El tablero de telemetría, sólo si no hay 3D que ya lo esté escribiendo.
+      if(!WG.map3d) for(const v of lista2){
+        const cin=WG._dronCin&&WG._dronCin[v.u.id];
+        if(cin) _wgPanelTel(v.u.bando, cin.pil, cin.d);
+      }
     }
     // La cámara del dron viaja CON el aparato: se planta EN el aparato, a su
     // altura, mirando hacia donde apunta el cono.
@@ -29401,10 +29574,7 @@ function _wg3dDatos(){
     // cada sistema lo dibuja distinto: era imposible calibrar la proa, y por eso
     // parecía «despegando al espacio». Este SVG apunta al NORTE exacto, así
     // `rotate(proa)` deja la nariz justo donde vuela.
-    el.innerHTML=`<span class="cuerpo">`
-      +`<svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">`
-      +`<path d="M12 1.6 13.5 8.2 22.4 13.1 22.4 15.2 13.5 12.7 13.1 18.6 16.4 21 16.4 22.4 12 21.2 7.6 22.4 7.6 21 10.9 18.6 10.5 12.7 1.6 15.2 1.6 13.1 10.5 8.2Z" `
-      +`fill="currentColor" stroke="rgba(0,0,0,.55)" stroke-width=".7"/></svg></span>`
+    el.innerHTML=`<span class="cuerpo">${_wgDronSVG(26)}</span>`
       +`<span class="hilo"></span><span class="sombra"></span>`
       +`<span class="matri">${WG_CW40.nom} · ${String(u.bando).toUpperCase()}</span>`;
     el.addEventListener('click',(ev)=>{ ev.stopPropagation(); wgVistaDron(u.id); });
@@ -31860,8 +32030,15 @@ function _wgRender(){
     const sel = String(WG.sel)===String(u.id);
     const sim = _wgSimboloUnidad(u,sel);
     const F = 0.46; // v2.9.261: más chicas, para que se lea el terreno
+    // v2.9.323 — LA FICHA VA ENVUELTA. Era un `L.icon` (un `<img>` pelado) y por
+    // eso el replay no podía hacerla caminar: el `transform` de ese elemento lo
+    // escribe Leaflet para colocarla en el mapa, así que el cabeceo de la marcha
+    // no tenía dónde ir sin romper la posición. Con `divIcon` hay un div adentro
+    // que es todo nuestro — igual que la peana del 3D. El símbolo reglamentario
+    // es EL MISMO: la misma imagen, el mismo tamaño y el mismo anclaje.
     const m = L.marker([u.lat,u.lng],{
-      icon: L.icon({ iconUrl:sim.url, iconSize:[sim.w*F,sim.h*F], iconAnchor:[sim.ax*F,sim.ay*F] }),
+      icon: L.divIcon({ className:'', iconSize:[sim.w*F,sim.h*F], iconAnchor:[sim.ax*F,sim.ay*F],
+        html:`<div class="wg-ficha2d"><img src="${sim.url}" alt="" draggable="false"></div>` }),
       // v2.9.316 — EN LA ESTACIÓN DEL G-2 LAS PROPIAS VAN APAGADAS. Es una carta
       // de situación de INTELIGENCIA: el protagonista es el enemigo, y las
       // propias están sólo para ubicarse. Si se dibujan igual de fuertes, el ojo
@@ -31913,6 +32090,7 @@ function _wgRender(){
       icon:L.divIcon({className:'',html:_wgFuegoHTML(34),iconSize:[34,34],iconAnchor:[17,34]})
     }).addTo(WG.capa);
   }
+  _wgDrones2D();
   // lista lateral
   const cont=document.getElementById('wg-unidades');
   const mias=(e.unidades||[]).filter(u=> WG.soy==='arbitro'||u.bando===WG.soy);
@@ -32408,6 +32586,25 @@ function _wgInterp(ruta, f){
   const a=ruta[i], b=ruta[i+1];
   return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t];
 }
+// ============================================================
+// v2.9.323 — ARRANCA Y FRENA, NO SALE DISPARADA A VELOCIDAD FIJA.
+// Sergio: «la forma en que se mueven está muy seca».
+// El avance era LINEAL puro: la unidad pasaba de quieta a velocidad de crucero
+// en un cuadro, y de crucero a quieta en otro. Eso es exactamente lo que se lee
+// como «seco», y es lo primero que hace cualquier juego decente al revés: una
+// columna arranca pesada y frena antes de ocupar la posición.
+// La mezcla (55 % lineal + 45 % curva en S) es a propósito: con la curva SOLA
+// el tramo del medio se vuelve mucho más rápido que el promedio y se pierde la
+// lectura de «cuánto camino hizo en cuánto tiempo», que es para lo que existe
+// el replay. Los TIEMPOS de salida y llegada de cada unidad no se tocan: la que
+// tardó el doble sigue tardando el doble.
+// ============================================================
+function _wgSuaveMarcha(f){
+  if(!(f>0)) return 0;
+  if(f>=1) return 1;
+  const s=f*f*(3-2*f);            // curva en S: arranque y frenada
+  return f*0.55 + s*0.45;
+}
 // v2.9.222 — MARCHA MODERADA. A 6 s el desplazamiento parecía un deslizamiento
 // de fichas; a 14 s se lee como una marcha y da tiempo a mirar por dónde va.
 // v2.9.229: de 14 a 22 s. Sergio: «ralentizar el movimiento de las unidades».
@@ -32415,6 +32612,30 @@ async function wgReplay(trazas, segundos=22){
   if(!WG.map||!trazas||!trazas.length) return;
   WG.replayando=true;
   const capa=L.layerGroup().addTo(WG.map);
+  // ============================================================
+  // v2.9.323 — ⚠️ EL BUG DE LA MAQUETA: LA FICHA NO SE MOVÍA.
+  // Sergio, mirando la proyección: «la ficha no se está moviendo, sólo aparece
+  // el polvo levantado y después la ficha aparece directamente en la posición».
+  // Y era literal. El replay movía DOS cosas: la polvareda y un `circleMarker`
+  // de 7 px creado acá al vuelo… que no es la ficha. La ficha de verdad —el
+  // símbolo reglamentario del mapa 2D— se quedaba clavada en su posición de
+  // salida todo el replay, y aparecía en destino recién cuando terminaba y
+  // corría `_wgRender()`. O sea: polvo que avanza, símbolo que teletransporta.
+  // En 3D no pasaba porque `_wg3dReplayPaso` SÍ agarra el marcador real por su
+  // `__uid` y lo va moviendo. Nunca se escribió el equivalente para el 2D, que
+  // es justo la vista que se proyecta sobre la maqueta.
+  // Ahora se toma el marcador real de `WG.capa` por `__uid` y se lo lleva por la
+  // ruta, igual que en 3D. El puntito de colores sigue existiendo SÓLO para las
+  // unidades cuya ficha no esté en pantalla (una que el bando no ve, por
+  // ejemplo): si hay ficha, la que viaja es la ficha.
+  // ============================================================
+  const fichas={};                       // uid → marcador real del mapa 2D
+  const _indexar=()=>{
+    for(const k in fichas) delete fichas[k];
+    try{ WG.capa && WG.capa.eachLayer && WG.capa.eachLayer((l)=>{
+      if(l.__uid!=null && l.setLatLng) fichas[String(l.__uid)]=l; }); }catch(_e){}
+  };
+  _indexar();
   const maxH=Math.max(...trazas.map(t=>t.horas||0),0.0001);
   const cartel=document.getElementById('wg-ayuda');
   const antes=cartel?cartel.innerHTML:'';
@@ -32427,9 +32648,15 @@ async function wgReplay(trazas, segundos=22){
     // ensuciaba la vista y no aportaba nada — la marcha ya se lee por la
     // polvareda. Se deja la polilínea creada pero vacía para no tocar el resto.
     const rastro=L.polyline([],{color:col,weight:0,opacity:0}).addTo(capa);
-    const punto=L.circleMarker([t.ruta[0][1],t.ruta[0][0]],
+    // v2.9.323: el puntito sólo se dibuja si NO hay ficha real que mover; con
+    // ficha, dos cosas viajando por la misma ruta es ruido.
+    const hayFicha=!!fichas[String(t.id)];
+    const punto=hayFicha ? null : L.circleMarker([t.ruta[0][1],t.ruta[0][0]],
       {radius:7,color:'#fff',weight:2,fillColor:col,fillOpacity:1}).addTo(capa);
-    return {t,rastro,punto,col};
+    // Desfase por unidad: sin esto todas cabecean EXACTAMENTE igual y se ve una
+    // formación de juguetes, no una columna.
+    const desf=(String(t.id).length*1.7 + (Number(t.id)%7)*0.9);
+    return {t,rastro,punto,col,desf};
   });
   // 💨 POLVAREDA: la columna que avanza levanta tierra detrás. Cada bocanada
   // nace en la posición de la unidad, crece y se desvanece — así se ve el
@@ -32468,39 +32695,111 @@ async function wgReplay(trazas, segundos=22){
       ultPaso=ahora;
       const en3D=_wgEn3D();          // si es true, Leaflet no se toca
       const horaSim=avance*maxH;
-      const nuevaBocanada = (ahora-ultimoHumo)>90; // una cada ~90 ms
+      const nuevaBocanada = (ahora-ultimoHumo)>75; // una tanda cada ~75 ms
       if(nuevaBocanada) ultimoHumo=ahora;
+      // v2.9.323 — LA POLVAREDA SE REPARTE ENTRE LAS QUE MARCHAN.
+      // Cada bocanada es un elemento del navegador. Con una o dos unidades en
+      // movimiento se puede ser generoso (3 por tanda = una columna ancha), pero
+      // si marchan diez a la vez eso serían cientos de elementos vivos y el
+      // mapa se arrastra — que es el problema que se arregló en la v2.9.265 y no
+      // hay que reintroducir por el otro lado. Se mide una sola vez por cuadro.
+      const enMarcha=piezas.reduce((n,p)=>
+        n + (((p.t.horas>0?Math.min(1,horaSim/p.t.horas):1)<1 && p.t.km>0)?1:0), 0);
+      const porTanda = enMarcha<=3 ? 3 : (enMarcha<=6 ? 2 : 1);
       for(const p of piezas){
         // Cada unidad avanza según SU tiempo: si usó la mitad del turno,
         // termina su recorrido a la mitad de la animación.
-        const f=(p.t.horas>0)?Math.min(1,horaSim/p.t.horas):1;
+        const fLin=(p.t.horas>0)?Math.min(1,horaSim/p.t.horas):1;
+        // v2.9.323 — arranque y frenada + un temblor de motor mínimo, para que
+        // el paso no sea de metrónomo. El temblor es ±0,15 % del recorrido: se
+        // siente y no altera dónde está la unidad.
+        const f=Math.max(0,Math.min(1,
+          _wgSuaveMarcha(fLin) + (fLin>0&&fLin<1 ? Math.sin(ahora/240+p.desf)*0.0015 : 0)));
         const pos=_wgInterp(p.t.ruta,f); if(!pos) continue;
-        if(!en3D) p.punto.setLatLng([pos[1],pos[0]]);   // v2.9.265
+        const anda = fLin<1 && p.t.km>0;
+        // Rumbo de marcha: hace falta para tirar el polvo HACIA ATRÁS y para
+        // abrir la columna a lo ancho.
+        const ade=_wgInterp(p.t.ruta, Math.min(1,f+0.02)) || pos;
+        const dy=(ade[1]-pos[1]), dx=(ade[0]-pos[0])*Math.cos(pos[1]*Math.PI/180);
+        const rumbo=(dx||dy)?Math.atan2(dx,dy):0;                 // radianes
+        if(!en3D){
+          // ⬅️ EL ARREGLO: la que viaja es la FICHA de verdad.
+          let fic=fichas[String(p.t.id)];
+          // Si algo repintó el mapa en medio del replay, el marcador que
+          // teníamos quedó huérfano (`_map` nulo) y habría que moverlo al
+          // vacío: se rehace el índice y se sigue con el nuevo.
+          if(fic && !fic._map){ _indexar(); fic=fichas[String(p.t.id)]; }
+          if(fic){
+            try{ fic.setLatLng([pos[1],pos[0]]); }catch(_e){}
+            // El cabeceo de la marcha va en el div de adentro (`.wg-ficha2d`):
+            // el `transform` del marcador es de Leaflet y pisarlo la manda a
+            // otro lado del mapa.
+            const cuna=fic._icon && fic._icon.firstChild;
+            if(cuna && cuna.style){
+              if(anda){
+                const ph=ahora/115 + p.desf;
+                cuna.style.transform=`translateY(${(Math.sin(ph)*1.7).toFixed(2)}px) `
+                  +`rotate(${(Math.sin(ph*0.61)*1.4).toFixed(2)}deg)`;
+                if(!p._marchando){ cuna.classList.add('marchando'); p._marchando=1; }
+              }else if(p._marchando!==0){
+                cuna.style.transform=''; cuna.classList.remove('marchando'); p._marchando=0;
+              }
+            }
+          }else if(p.punto){ p.punto.setLatLng([pos[1],pos[0]]); }   // v2.9.265
+        }
         // Sólo levanta polvo mientras se está moviendo de verdad.
-        if(nuevaBocanada && f<1 && p.t.km>0){
+        if(nuevaBocanada && anda){
           // v2.9.209: el doble de grande y DOS bocanadas por tramo (una a la
           // altura de la unidad y otra apenas atrás), para que la columna deje
           // una estela de polvo de verdad y no un puntito.
-          for(const atras of [0, 1]){
-            const q=_wgInterp(p.t.ruta, Math.max(0, f - atras*0.012)) || pos;
+          // v2.9.323 — TRES bocanadas y ABIERTAS A LO ANCHO. Una fila de puntos
+          // sobre la línea de marcha se ve como una tubería; una columna real
+          // levanta un frente de polvo más ancho que ella, y las bocanadas
+          // salen de las RUEDAS, o sea a los costados y hacia atrás.
+          for(let b=0;b<porTanda;b++){
+            const atras=b*0.9;
+            const q=_wgInterp(p.t.ruta, Math.max(0, f - atras*0.010)) || pos;
+            // Corrimiento lateral: perpendicular al rumbo, alternando lados.
+            const lado=((b%2)?1:-1)*(0.35+Math.random()*0.75)*0.0016;
+            const jx= Math.cos(rumbo)*lado, jy=-Math.sin(rumbo)*lado;
+            const lng=q[0]+jx/Math.max(0.2,Math.cos(q[1]*Math.PI/180)), lat=q[1]+jy;
             // v2.9.265: la bocanada SIEMPRE entra en `humo` (de ahí la lee el
-            // 3D en `_wg3dReplayPaso`), pero el círculo de Leaflet sólo se crea
+            // 3D en `_wg3dReplayPaso`), pero el dibujo de Leaflet sólo se crea
             // si el 2D es lo que se está mirando.
-            humo.push({lng:q[0], lat:q[1], t0:ahora - atras*140,
-              m: en3D ? null : L.circleMarker([q[1],q[0]],{radius:12-atras*3,color:'#cbb89a',weight:0,
-                fillColor:'#cbb89a',fillOpacity:.55,interactive:false}).addTo(capa)});
+            const vida=1500+Math.random()*900;      // no todas se disipan juntas
+            const w=Math.round(20+Math.random()*16-b*2);
+            let m=null;
+            if(!en3D){
+              // v2.9.323 — la bocanada la anima el NAVEGADOR, no este lazo.
+              // Antes era un `circleMarker` al que había que reescribirle radio
+              // y opacidad en cada cuadro (ver v2.9.265: eso era el 75 % del
+              // costo y lo que dejaba al mapa en 5 repintados por segundo).
+              // Ahora nace, se abre, se levanta y se apaga sola por CSS: acá
+              // sólo se la crea y, cuando muere, se la saca.
+              // El polvo se va HACIA ATRÁS de la marcha y un poco al viento.
+              const dxp=Math.round(-Math.sin(rumbo)*13 + (Math.random()*8-4));
+              const dyp=Math.round( Math.cos(rumbo)*13 - 6 + (Math.random()*6-3));
+              try{
+                m=L.marker([lat,lng],{interactive:false,zIndexOffset:-500,
+                  icon:L.divIcon({className:'wg-polvo',iconSize:[0,0],iconAnchor:[0,0],
+                    html:`<i style="width:${w}px;height:${w}px;--dur:${Math.round(vida)}ms;`
+                      +`--dx:${dxp}px;--dy:${dyp}px;--gir:${Math.round(Math.random()*70-35)}deg;`
+                      +`--op:${(0.5+Math.random()*0.35).toFixed(2)}"></i>`})}).addTo(capa);
+              }catch(_e){ m=null; }
+            }
+            humo.push({lng, lat, t0:ahora - b*90, vida, r0:w*0.55, m});
           }
         }
       }
-      // Envejecer la polvareda: crece y se apaga en ~1,3 s.
+      // Envejecer la polvareda. En 2D ya no hay nada que repintar (lo hace el
+      // CSS): sólo se saca lo que murió. En 3D se sigue calculando el radio y la
+      // opacidad porque ahí el humo es una capa de círculos de MapLibre.
       for(let k=humo.length-1;k>=0;k--){
-        const h=humo[k], edad=(ahora-h.t0)/1300;
-        if(edad>=1){ if(h.m) try{ capa.removeLayer(h.m); }catch(_e){} humo.splice(k,1); continue; }
-        // v2.9.265 — ACÁ ESTABA EL GRUESO DEL COSTO: `setRadius` + `setStyle`
-        // por cada bocanada y por cada cuadro, o sea escrituras al SVG del
-        // navegador para un mapa que no está en pantalla. Sin círculo de
-        // Leaflet (`h.m` nulo), no hay nada que reescribir.
-        if(h.m) try{ h.m.setRadius(12+edad*27); h.m.setStyle({fillOpacity:0.55*(1-edad)}); }catch(_e){}
+        const h=humo[k];
+        if((ahora-h.t0)/(h.vida||1500)>=1){
+          if(h.m) try{ capa.removeLayer(h.m); }catch(_e){}
+          humo.splice(k,1);
+        }
       }
       // v2.9.228 — LA CÁMARA SIGUE A LA UNIDAD. Prioriza la seleccionada; si no
       // hay ninguna, acompaña a la que más camino está haciendo, que es donde
@@ -32533,7 +32832,10 @@ async function wgReplay(trazas, segundos=22){
         const p = piezas.find(x=>String(x.t.id)===String(WG.sel))
           || piezas.slice().sort((a,b)=>(b.t.km||0)-(a.t.km||0))[0];
         if(p){
-          const f=(p.t.horas>0)?Math.min(1,horaSim/p.t.horas):1;
+          // v2.9.323: la cámara sigue la posición SUAVIZADA, la misma que la
+          // ficha. Si siguiera la lineal, el encuadre iría medio paso adelantado
+          // en el arranque y medio atrasado en la frenada.
+          const f=_wgSuaveMarcha((p.t.horas>0)?Math.min(1,horaSim/p.t.horas):1);
           const pos=_wgInterp(p.t.ruta,f);
           if(pos){
             if(!ultimoCam){
@@ -32555,6 +32857,14 @@ async function wgReplay(trazas, segundos=22){
     }
     requestAnimationFrame(paso);
   });
+  // v2.9.323: la ficha deja de cabecear apenas termina la marcha. El repintado
+  // que viene después la recrea igual, pero entre una cosa y la otra hay más de
+  // un segundo y no puede quedar temblando en la posición final.
+  for(const p of piezas){
+    const fic=fichas[String(p.t.id)];
+    const cuna=fic && fic._icon && fic._icon.firstChild;
+    if(cuna && cuna.style){ cuna.style.transform=''; cuna.classList.remove('marchando'); }
+  }
   // Deja el rastro un momento para poder leerlo, y limpia.
   await new Promise(r=>setTimeout(r,1400));
   try{ WG.map.removeLayer(capa); }catch(_e){}
@@ -32723,26 +33033,47 @@ async function _wgFuegoDelTurno(){
   }, 4200);
 }
 // Hace temblar la ficha de una unidad, en la vista que esté activa.
+// ============================================================
+// v2.9.323 — ⚠️ EL TEMBLOR MANDABA LA FICHA A LA ESQUINA DEL MAPA.
+// Es primo hermano del bug de la maqueta y estaba a la vista desde la v2.9.205.
+// `wgTemblor` anima `transform`… y `transform` es EXACTAMENTE la propiedad con
+// la que Leaflet (y MapLibre) colocan un marcador en el mapa. Al arrancar la
+// animación, la posición se pierde. Medido en la partida real: la ficha 141
+// pasaba de (−678, 9142) a (−17, −17) —el origen del panel— y volvía a su lugar
+// recién 1,5 s después. Y esto le pasa a TODA unidad que no pudo avanzar, o sea
+// justo cuando el jugador la está mirando para entender por qué no se movió.
+// El arreglo es el mismo de siempre: el efecto va en el DIV DE ADENTRO
+// (`.wg-ficha2d` / `.wg-ficha3d`), que es nuestro; el `transform` del marcador
+// no se toca nunca.
+// ============================================================
 function _wgTemblar(id){
-  // 2D: el marcador de Leaflet expone su elemento en `_icon`.
+  const sacudir=(el)=>{
+    if(!el) return;
+    el.classList.add('wg-temblando');
+    setTimeout(()=>{ try{ el.classList.remove('wg-temblando'); }catch(_e){} },1600);
+  };
+  // 2D: el marcador de Leaflet expone su elemento en `_icon`, y adentro va la
+  // ficha envuelta.
   try{
     WG.capa && WG.capa.eachLayer && WG.capa.eachLayer((l)=>{
-      if(l.__uid===id && l._icon){ l._icon.classList.add('wg-temblando');
-        setTimeout(()=>{ try{ l._icon.classList.remove('wg-temblando'); }catch(_e){} },1600); }
+      if(l.__uid===id && l._icon) sacudir(l._icon.firstChild || l._icon);
     });
   }catch(_e){}
-  // 3D: el elemento del marcador es la propia imagen del símbolo.
+  // 3D: ídem, la peana que se apoya en el relieve.
   try{
     const mk=(WG.marc3d||[]).find(m=>m.__uid===id);
     const el=mk&&mk.getElement&&mk.getElement();
-    if(el){ el.classList.add('wg-temblando'); setTimeout(()=>{ try{ el.classList.remove('wg-temblando'); }catch(_e){} },1600); }
+    if(el) sacudir(el.firstChild || el);
   }catch(_e){}
 }
 // El mismo replay, dibujado sobre el relieve 3D si está abierto.
 function _wg3dReplayPaso(piezas, horaSim, humo, ahora){
   const map=WG.map3d; if(!map||!map.getSource) return;
   for(const p of piezas){
-    const f=(p.t.horas>0)?Math.min(1,horaSim/p.t.horas):1;
+    // v2.9.323: el mismo arranque y la misma frenada que en 2D — las dos vistas
+    // muestran el mismo movimiento.
+    const fLin=(p.t.horas>0)?Math.min(1,horaSim/p.t.horas):1;
+    const f=_wgSuaveMarcha(fLin);
     // La ficha va viajando sobre el relieve mientras dura el replay.
     const pos=_wgInterp(p.t.ruta,f);
     const mk=WG.marc3d&&WG.marc3d.find(m=>m.__uid===p.t.id);
@@ -32766,11 +33097,16 @@ function _wg3dReplayPaso(piezas, horaSim, humo, ahora){
   // v2.9.222: se fue el rastro azul detrás de la unidad — ensuciaba la vista.
   try{ map.getSource('wg-replay').setData({type:'FeatureCollection',features:[]}); }catch(_e){}
   // 💨 la misma polvareda del 2D, drapeada sobre el terreno.
+  // v2.9.323: cada bocanada tiene AHORA su propia vida y su propio tamaño de
+  // arranque (antes eran 1.300 ms y 15 px para todas, y eso es lo que hacía que
+  // el polvo latiera al unísono en vez de disiparse desparejo). Y se apaga con
+  // una curva, no en línea recta: el polvo se va rápido al final.
   const puf=[];
   for(const h of (humo||[])){
-    const edad=Math.min(1,(ahora-h.t0)/1300);
+    const edad=Math.min(1,(ahora-h.t0)/(h.vida||1500));
+    const r0=h.r0||12;
     puf.push({type:'Feature',geometry:{type:'Point',coordinates:[h.lng,h.lat]},
-      properties:{_r:15+edad*42,_op:0.6*(1-edad)}});
+      properties:{_r:r0+edad*(r0*3.2), _op:0.62*Math.pow(1-edad,1.6)}});
   }
   try{ map.getSource('wg-humo').setData({type:'FeatureCollection',features:puf}); }catch(_e){}
 }
