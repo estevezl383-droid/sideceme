@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.323</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.325</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -24600,6 +24600,50 @@ function _wgMaquetaMontar(){
     #maq-hud{ position:fixed; inset:0; pointer-events:none; z-index:6100;
       font-family:ui-monospace,Menlo,monospace; color:#dbe7f5; }
     #maq-hud .cj{ position:absolute; pointer-events:auto; }
+    /* ============================================================
+       v2.9.324 — CUADRO DE SITUACIÓN AL PIE DE LA MAQUETA.
+       Pedido de Sergio: «quisiera que haya un detalle de todas las fichas en la
+       parte inferior de la maqueta donde diga la situación de cada unidad, o sea
+       en qué porcentaje se encuentra».
+       Va ENTRE la rosa de los vientos y el recuadro de ubicación, que ya ocupan
+       las dos esquinas de abajo. Cada bando en su columna y las unidades en
+       fila: sobre una maqueta la lectura es de un vistazo y a varios metros de
+       distancia, así que nada de letra chica ni de listas que haya que recorrer.
+       ============================================================ */
+    #maq-sit{ position:absolute; left:296px; right:186px; bottom:14px;
+      pointer-events:none; display:flex; gap:14px; align-items:flex-end;
+      justify-content:space-between; }
+    /* Cada bando ocupa la mitad y adentro las fichas se acomodan en grilla. Sin
+       el reparto 1 1 0, un bando con rótulos largos se comía todo el ancho y al
+       otro lo dejaba en una columna de una ficha. */
+    #maq-sit .bando{ flex:1 1 0; min-width:0; }
+    #maq-sit .bando:last-child .fils{ justify-content:flex-end; }
+    #maq-sit .bando:last-child .rot{ text-align:right; margin-right:2px; }
+    #maq-sit .rot{ font-size:10px; letter-spacing:2.5px; font-weight:700;
+      margin:0 0 4px 2px; text-shadow:0 1px 4px #000, 0 0 10px #000; }
+    #maq-sit .fils{ display:flex; flex-wrap:wrap; gap:5px; }
+    #maq-sit .u{ display:flex; align-items:center; gap:6px; padding:4px 7px 4px 5px;
+      border-radius:7px; background:rgba(6,11,17,.72); backdrop-filter:blur(2px);
+      border-left:4px solid var(--bcol,#888); min-width:132px; max-width:196px; }
+    /* Fuera de combate: se apaga pero NO se saca. En un cuadro de situación una
+       unidad destruida es información, y sacarla haría creer que nunca existió. */
+    #maq-sit .u.baja{ opacity:.42; filter:grayscale(1); }
+    #maq-sit .u img{ width:24px; height:24px; object-fit:contain; flex:none;
+      filter:drop-shadow(0 1px 2px rgba(0,0,0,.8)); }
+    /* ⚠️ display:block en los tres: son span, y como elementos en línea el
+       nombre, la barra y los chips se pegaban en un solo renglón y se cortaban.
+       (Y ojo: este CSS vive dentro de un template literal de JS — una backtick
+       acá adentro CIERRA la cadena y rompe el archivo entero.) */
+    #maq-sit .u .dat{ flex:1; min-width:0; display:block; }
+    #maq-sit .u .nom{ display:block; font-size:10.5px; font-weight:700; letter-spacing:.4px;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    #maq-sit .u .bar{ display:block; height:5px; border-radius:3px; margin-top:3px;
+      background:rgba(255,255,255,.14); overflow:hidden; }
+    #maq-sit .u .bar i{ display:block; height:100%; }
+    #maq-sit .u .pct{ font-size:12px; font-weight:800; letter-spacing:.5px;
+      min-width:34px; text-align:right; text-shadow:0 1px 3px #000; }
+    #maq-sit .u .chips{ display:block; font-size:9px; opacity:.9; margin-top:2px;
+      white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   `;
   document.head.appendChild(st);
 
@@ -24646,6 +24690,8 @@ function _wgMaquetaMontar(){
       <button id="maq-lock" onclick="wgMaquetaTrabar()" style="font-size:11px;padding:4px 9px;border-radius:6px;
         background:rgba(255,255,255,.10);border:1px solid #ffffff55;color:#fff;cursor:pointer">🔒 Trabar</button>
     </div>
+    <!-- CUADRO DE SITUACIÓN: una ficha por unidad, con su porcentaje -->
+    <div id="maq-sit"></div>
     <!-- CALCOS: los mismos del juego (CMOC y Carta), para encenderlos sobre la maqueta -->
     <div id="maq-capas" class="cj"></div>`;
   document.body.appendChild(hud);
@@ -24767,6 +24813,131 @@ function _wgMaquetaLoc(){
       {color:'#ff3b3b',weight:2,fillColor:'#ff3b3b',fillOpacity:.35}).addTo(WG._maqLocCapa);
     WG._maqLoc.invalidateSize();
   }catch(_e){}
+}
+// ============================================================
+// v2.9.324 — CUADRO DE SITUACIÓN AL PIE DE LA MAQUETA.
+//
+// Sobre el modelo físico se ve DÓNDE está cada unidad, pero no CÓMO está: si la
+// que avanza por el flanco viene entera o le queda un tercio, si esa otra está
+// suprimida o si el batallón que aguanta el paso se está quedando sin munición.
+// Eso es la mitad de la apreciación de situación y no estaba proyectado en
+// ningún lado — el panel lateral que lo dice está oculto en modo maqueta a
+// propósito (la proyección no lleva interfaz).
+//
+// Se muestra lo mismo que el bando tiene derecho a ver (`_wgUnidadesVisibles`),
+// así que en una proyección de bando el enemigo aparece sólo si lo detectó, y
+// con lo poco que se sepa de él. Proyectada por el árbitro, salen los dos.
+// ============================================================
+// ============================================================
+// v2.9.325 — LA ORDEN VIGENTE DE UNA UNIDAD, la haya escrito esta pantalla o no.
+//
+// `WG.ordenes` son las que se están redactando ACÁ, todavía sin enviar. Pero la
+// VISTA DE MAQUETA es otra sesión: nunca escribió una orden, así que ahí ese
+// objeto está siempre vacío y el cuadro de situación no mostraría ninguna tarea.
+// Las órdenes ya enviadas vienen del servidor en `estado.ordenes`.
+// Se prefiere la local porque es la más fresca (el EM puede estar cambiándola);
+// si no hay, vale la que está registrada en el servidor.
+// ============================================================
+function _wgOrdenDe(id){
+  const loc=WG.ordenes && WG.ordenes[id];
+  if(loc) return loc;
+  const srv=((WG.estado&&WG.estado.ordenes)||[]).find(o=>String(o.unidad_id)===String(id));
+  return srv||null;
+}
+function _wgSitPct(u){
+  const max=Number(u.poder_max)||0, act=Number(u.poder_actual)||0;
+  return max? Math.max(0, Math.min(100, Math.round(100*act/max))) : 100;
+}
+// Verde entera · ámbar desgastada · rojo al límite. Es el mismo semáforo que
+// usa cualquier cuadro de situación: no hay que aprenderse nada nuevo.
+function _wgSitColor(pct, baja){
+  if(baja) return '#6d7783';
+  return pct>=70?'#2ecc71' : pct>=40?'#e8c33a' : '#e23b3b';
+}
+function _wgMaquetaSituacion(){
+  const cont=document.getElementById('maq-sit');
+  if(!cont) return;
+  const turno=(WG.estado&&WG.estado.partida&&WG.estado.partida.turno_actual)||0;
+  const vis=(WG.verUnidades===false)?[]:_wgUnidadesVisibles();
+  // v2.9.310 — misma guardia por firma que el resto de los paneles: sin esto se
+  // rehacen todas las tarjetas en cada refresco y el cuadro TITILA sobre la
+  // proyección, que es lo peor que puede pasarle a una maqueta. La firma se arma
+  // con los DATOS (barata) y recién si cambió se paga el dibujo de los símbolos.
+  const firma=vis.map(u=>[u.id,_wgSitPct(u),u.estado,
+    (Number(u.suprimida_hasta)>=turno)?1:0,
+    (_wgOrdenDe(u.id)||{}).tarea||'',   // v2.9.325
+    u.trabajo?(u.trabajo.obra+u.trabajo.restan):'',
+    Math.round((_wgCombustible(u)||{pct:-1}).pct),
+    (_wgMunicionUnidad(u)||{pct:-1}).pct].join('~')).join('|');
+  if(WG._sitFirma===firma && cont.children.length) return;
+  WG._sitFirma=firma;
+  if(!vis.length){ cont.innerHTML=''; return; }
+  // Orden de lectura: primero el bando de la proyección (o el azul si es del
+  // árbitro), y adentro las más golpeadas ARRIBA — que es lo que el comando
+  // tiene que mirar primero.
+  const propio=(WG.soy==='arbitro')?(_wgBandoLente()||'azul'):WG.soy;
+  const bandos=[propio, propio==='azul'?'rojo':'azul'];
+  const tarjeta=(u)=>{
+    const pct=_wgSitPct(u);
+    const baja=(u.estado==='fuera_combate')||pct<=0;
+    const col=_wgSitColor(pct,baja);
+    const sim=_wgSimboloUnidad(u,false);
+    const chips=[];
+    if(baja) chips.push('⛔ fuera de combate');
+    else{
+      // v2.9.325: LA TAREA ENCABEZA. Sobre la maqueta, saber que ese batallón
+      // está FIJANDO explica su comportamiento mejor que cualquier otro dato —
+      // y deja ver de un vistazo si el plan es coherente o si hay tres unidades
+      // haciendo lo mismo. El enemigo no la ve: sale de las órdenes propias.
+      const ordU=_wgOrdenDe(u.id);
+      if(ordU && ordU.tarea && WG_TAREAS[ordU.tarea]) chips.push('📋 '+WG_TAREAS[ordU.tarea].nom);
+      if(Number(u.suprimida_hasta)>=turno) chips.push('🔻 suprimida');
+      // La obra en curso va acá porque es EL dato que explica por qué esa
+      // unidad no se movió ni disparó: está trabajando.
+      if(u.trabajo && WG_OBRAS[u.trabajo.obra])
+        chips.push(`${WG_OBRAS[u.trabajo.obra].icono} obra ${u.trabajo.restan}/${u.trabajo.total}`);
+      const c=_wgCombustible(u);
+      if(c && c.pct>=60) chips.push(c.pct>=100?'⛽ seco':`⛽ ${c.resta.toFixed(0)} km`);
+      const m=_wgMunicionUnidad(u);
+      if(m && m.pct<=40) chips.push(`🎯 ${m.pct}%`);
+    }
+    // De un contacto sin identificar no se sabe el porcentaje: se dice eso, no
+    // se inventa un número. (Misma regla que la escalera de reconocimiento.)
+    // El rótulo va CORTO — `_wgIntTxt` devuelve la frase explicativa completa,
+    // que acá haría una tarjeta de tres renglones y desbalancearía el cuadro.
+    const incierto = u._nivel!=null && u._nivel<WG_INT_CONF;
+    const nom=_rgEsc(incierto
+      ? (u._nivel>=WG_INT_IDENT ? '🟡 IDENTIFICADA' : '❓ CONTACTO')
+      : (u.designacion||u.bando));
+    return `<div class="u${baja?' baja':''}" style="--bcol:${WG_COL[u.bando]||'#888'}">`
+      +`<img src="${sim.url}" alt="">`
+      +`<span class="dat"><span class="nom">${nom}</span>`
+      +(incierto ? `<span class="chips">${u._nivel>=WG_INT_IDENT?'magnitud, no el arma':'sin identificar'}</span>`
+        : `<span class="bar"><i style="width:${pct}%;background:${col}"></i></span>`
+          +(chips.length?`<span class="chips">${chips.join(' · ')}</span>`:''))
+      +`</span>`
+      +(incierto?'':`<span class="pct" style="color:${col}">${pct}%</span>`)+`</div>`;
+  };
+  cont.innerHTML=bandos.map(b=>{
+    const us=vis.filter(u=>u.bando===b)
+      .sort((a,c)=>_wgSitPct(a)-_wgSitPct(c));
+    if(!us.length) return '';
+    // TOTAL DEL BANDO. Con esto el rótulo deja de ser un conteo y pasa a ser la
+    // relación de fuerzas: de un vistazo, desde el otro lado de la sala, se ve
+    // quién está entero y quién viene gastado. Sólo cuenta lo que se sabe de
+    // verdad — un contacto sin identificar no aporta porcentaje ninguno.
+    const ciertas=us.filter(u=>!(u._nivel!=null && u._nivel<WG_INT_CONF));
+    const pmax=ciertas.reduce((s,u)=>s+(Number(u.poder_max)||0),0);
+    const pact=ciertas.reduce((s,u)=>s+(Number(u.poder_actual)||0),0);
+    const tot=pmax?Math.round(100*pact/pmax):null;
+    const bajas=us.filter(u=>u.estado==='fuera_combate').length;
+    return `<div class="bando"><div class="rot" style="color:${WG_COL[b]||'#fff'}">`
+      +`${b==='azul'?'🔵':'🔴'} ${String(b).toUpperCase()} · ${us.length}`
+      +(tot!=null?` · ${tot}%`:'')
+      +(bajas?` · ${bajas} f/c`:'')
+      +(ciertas.length<us.length?` · ${us.length-ciertas.length} s/i`:'')
+      +`</div><div class="fils">${us.map(tarjeta).join('')}</div></div>`;
+  }).join('');
 }
 // Sin rol (el enlace liso del bando) se ordena, como siempre: es el puesto de
 // mando de toda la vida y no hay que romperle nada a quien ya lo usa así.
@@ -26509,25 +26680,72 @@ function wgVistaArbitro(id){
 // La zapa no dispara: aplica TIEMPO al terreno. Cambia por dónde se pasa y
 // dónde se aguanta, y por eso hay que pedirla con anticipación.
 // ============================================================
+// ============================================================
+// v2.9.324 — EL TIEMPO DE LA OBRA SE MIDE EN HORAS DE TRABAJO.
+// Mismo catálogo y mismas cuentas que el motor (`OBRAS` en wargame-ops.ts): si
+// se cambia acá hay que cambiarlo ALLÁ, o la pantalla promete un tiempo y el
+// servidor cobra otro.
+// ⚠️ CIFRAS DE REFERENCIA para una unidad tipo BATALLÓN — validar contra las
+// tablas de la ECEME antes del ejercicio.
+// ============================================================
 const WG_OBRAS={
   brecha:{ id:'brecha', nom:'Abrir brecha', icono:'🛠️',
     desc:'Abre paso por donde no se podía. Queda transitable — y la usan LOS DOS bandos.',
-    turnos:{camino:1,libre:1,restringido:2,severo:4} },
+    horas:{camino:1.5,libre:1.5,restringido:3,severo:6}, soloIng:true,
+    detalle:'Explosivos y maquinaria. Levanta también los obstáculos que encuentre en el paso.' },
   defensiva:{ id:'defensiva', nom:'Posición defensiva', icono:'🛡️',
     desc:'Cava y fortifica: quien la ocupe pelea protegido.',
-    turnos:{camino:3,libre:3,restringido:2,severo:2} },
+    horas:{camino:6,libre:6,restringido:5,severo:5},
+    detalle:'Pozos de tirador, asentamientos de arma y cubiertas. En roca ya hay medio trabajo hecho.' },
   obstaculo:{ id:'obstaculo', nom:'Obstáculo', icono:'⛓️',
     desc:'Crea un impedimento donde no lo había: frena al que quiera pasar por ahí.',
-    turnos:{camino:3,libre:3,restringido:2,severo:2} },
+    horas:{camino:4,libre:4,restringido:3,severo:3},
+    detalle:'Abatís, cráteres, barricadas: lo que haya a mano para negar una avenida.' },
+  alambrada:{ id:'alambrada', nom:'Alambrada de concertina', icono:'〰️',
+    desc:'Retarda y canaliza: no impide el paso, obliga a hacerlo por donde vos querés.',
+    horas:{camino:3,libre:3,restringido:4,severo:5},
+    detalle:'Doble concertina sobre unos 300 m de frente. Es el obstáculo más barato — y el que más rinde si está batido por fuego.' },
+  minado:{ id:'minado', nom:'Campo minado', icono:'💣',
+    desc:'DETIENE al que entra y le cuesta bajas. Sólo se cruza abriendo brecha.',
+    horas:{camino:4,libre:4,restringido:5,severo:6},
+    detalle:'Siembra a mano de minas AP y AT. Tu bando conoce las brechas y pasa; el enemigo se para en seco.' },
+  foso:{ id:'foso', nom:'Foso antitanque', icono:'🕳️',
+    desc:'Corta el paso de todo lo que tenga ruedas u orugas. La infantería a pie lo salva.',
+    horas:{camino:10,libre:10,restringido:13,severo:16}, soloIng:true,
+    detalle:'Excavación con maquinaria pesada: la obra más cara en tiempo y la que más se nota.' },
 };
 const WG_RINDE_ZAPA={ seccion:0.55, compania:0.8, batallon:1, regimiento:1.2,
   brigada:1.5, division:1.8, cuerpo:2.2, ejercito:2.5 };
-function _wgPuedeZapar(u){ return _wgArmamento(u).some(a=>a.ingenieria); }
-function _wgTurnosDeObra(u,obraId,pt){
+// v2.9.324: la infantería también fortifica — con pico y pala, así que rinde
+// casi la mitad. Lo que NO puede es abrir brecha ni excavar un foso.
+const WG_RINDE_ARMA={ ingenieria:1, infanteria:0.55, aerotransportada:0.5 };
+function _wgCapacidadObra(u){
+  if(!u) return null;
+  if(_wgArmamento(u).some(a=>a.ingenieria)) return {rinde:1, ing:true};
+  const r=WG_RINDE_ARMA[u.arma];
+  return r ? {rinde:r, ing:false} : null;
+}
+function _wgPuedeZapar(u){ return !!_wgCapacidadObra(u); }
+function _wgPuedeHacerObra(u,obraId){
+  const cap=_wgCapacidadObra(u); if(!cap) return null;
+  if(WG_OBRAS[obraId] && WG_OBRAS[obraId].soloIng && !cap.ing) return null;
+  return cap;
+}
+function _wgHorasTurno(){
+  const p=WG.estado&&WG.estado.partida;
+  return Math.max(0.25, Number(p&&p.duracion_turno_horas)||2);
+}
+function _wgHorasDeObra(u,obraId,pt){
   const o=WG_OBRAS[obraId]; if(!o) return 0;
   const clase=_wgClaseTerreno(pt, WG.terreno||[]);
-  const base=o.turnos[clase]!=null?o.turnos[clase]:2;
-  return Math.max(1, Math.round(base/(WG_RINDE_ZAPA[u&&u.escalon]||1)));
+  const base=o.horas[clase]!=null?o.horas[clase]:4;
+  const cap=_wgCapacidadObra(u);
+  const rinde=(WG_RINDE_ZAPA[u&&u.escalon]||1)*((cap&&cap.rinde)||1);
+  return base/Math.max(0.1,rinde);
+}
+function _wgTurnosDeObra(u,obraId,pt){
+  const h=_wgHorasDeObra(u,obraId,pt); if(!h) return 0;
+  return Math.max(1, Math.ceil(h/_wgHorasTurno()));
 }
 // Elegir obra arma el modo «tocá el mapa dónde»; el clic la ordena.
 function wgElegirObra(id){
@@ -26543,23 +26761,37 @@ function _wgPanelObrasHTML(u){
       <b style="font-size:11.5px;color:#ffe9a8">${WG_OBRAS[t.obra]?WG_OBRAS[t.obra].icono+' '+WG_OBRAS[t.obra].nom:'Obra'} en curso</b>
       <div class="rg-meta" style="font-size:10.5px;margin-top:3px">
       Faltan <b>${t.restan}</b> de ${t.total} turnos. Si movés la unidad, se pierde el trabajo.</div></div>` : '';
+  const cap=_wgCapacidadObra(u);
   const filas=Object.values(WG_OBRAS).map(o=>{
     const act=WG.obraSel===o.id;
+    // v2.9.324: lo que esta unidad NO puede hacer se muestra igual, apagado y
+    // diciendo por qué. Ocultarlo haría creer que la obra no existe.
+    const puede=!!_wgPuedeHacerObra(u,o.id);
     const turnos=_wgTurnosDeObra(u,o.id,[u.lng,u.lat]);
-    return `<div onclick="wgElegirObra('${o.id}')" style="padding:7px 9px;margin-bottom:5px;
-      border-radius:9px;cursor:pointer;`
+    const horas=_wgHorasDeObra(u,o.id,[u.lng,u.lat]);
+    return `<div ${puede?`onclick="wgElegirObra('${o.id}')"`:''} style="padding:7px 9px;margin-bottom:5px;
+      border-radius:9px;cursor:${puede?'pointer':'not-allowed'};${puede?'':'opacity:.42;'}`
       +(act?`background:rgba(155,123,255,.18);border:1px solid #9b7bff`
            :`background:rgba(255,255,255,.04);border:1px solid transparent`)+`">`
       +`<div style="display:flex;align-items:center;gap:7px">`
       +`<span style="font-size:14px">${o.icono}</span>`
       +`<b style="flex:1;font-size:12px">${o.nom}</b>`
-      +`<span style="font-size:10.5px;color:#ffd9a8;white-space:nowrap">${turnos} turno${turnos>1?'s':''}</span></div>`
-      +`<div class="rg-meta" style="font-size:10.5px;margin-top:3px;line-height:1.4">${o.desc}</div></div>`;
+      +(puede
+        ? `<span style="font-size:10.5px;color:#ffd9a8;white-space:nowrap">`
+          +`${horas.toFixed(1)} h · ${turnos} turno${turnos>1?'s':''}</span>`
+        : `<span style="font-size:10px;color:#e08a2c;white-space:nowrap">🚫 necesita maquinaria</span>`)
+      +`</div>`
+      +`<div class="rg-meta" style="font-size:10.5px;margin-top:3px;line-height:1.4">${o.desc}`
+      +(o.detalle?`<br><span style="opacity:.72">${o.detalle}</span>`:'')+`</div></div>`;
   }).join('');
-  return `<div class="section-label" style="margin:12px 0 6px">🚧 OBRAS DE INGENIERÍA</div>`
+  return `<div class="section-label" style="margin:12px 0 6px">🚧 OBRAS Y OBSTÁCULOS</div>`
     +enCurso
     +`<div class="rg-meta" style="font-size:11px;margin-bottom:6px;line-height:1.45">`
-    +`El tiempo sale del <b>terreno donde se hace</b> y del escalón de la unidad.`
+    +`El costo va en <b>HORAS DE TRABAJO</b>: salen del terreno donde se hace, del escalón `
+    +`y de si la hace ingeniería o tropa a pico y pala. Los turnos se calculan con la `
+    +`duración del turno de esta partida (<b>${_wgHorasTurno()} h</b>).`
+    +(cap&&!cap.ing?`<br>🪖 <b>Esta unidad fortifica a mano</b> — tarda casi el doble que ingeniería, `
+      +`y no abre brechas ni excava fosos.`:'')
     +(WG.obraSel?`<br><b style="color:#d9ccff">TOCÁ EL MAPA</b> donde querés la obra (hay que estar a menos de 1 km).`:'')
     +`</div>`+filas;
 }
@@ -28393,6 +28625,27 @@ async function wgEstado(silencioso){
     alert('No se pudo cargar el estado: '+r.error); return;
   }
   if(Array.isArray(r.terreno)) WG.terreno=_wgPrepTerreno(r.terreno);
+  // ============================================================
+  // v2.9.324 — LAS OBRAS SE PEGAN AL TERRENO EN CADA REFRESCO. (⚠️ ERA UN BUG.)
+  //
+  // El terreno viaja UNA sola vez y se cachea (pesa MB), pero las obras
+  // terminadas y las fajas interdictadas se guardan en la MISMA tabla del
+  // servidor. Resultado: una posición defensiva o un campo minado recién
+  // construido NO APARECÍA EN NINGUNA PANTALLA hasta recargar la página. Se
+  // trabajaban tres turnos y no se veía el resultado.
+  // Ahora la EF las manda aparte y frescas (`obras`), ya filtradas por niebla, y
+  // acá se REEMPLAZAN las de la tanda anterior — reemplazar y no acumular es lo
+  // que hace que una brecha que levantó un obstáculo lo saque del tablero.
+  // ============================================================
+  if(Array.isArray(r.obras)){
+    const base=(WG.terreno||[]).filter(t=>!t._obra);
+    const nuevas=_wgPrepTerreno(r.obras.map(o=>({...o, _obra:true})));
+    WG.terreno=base.concat(nuevas);
+    // La firma del dibujo cuenta features: si cambió la cantidad de obras hay
+    // que repintar la capa de terreno, que si no se queda con la de antes.
+    const f=r.obras.map(o=>o.id).join(',');
+    if(WG._obrasFirma!==f){ WG._obrasFirma=f; WG.capaTerrenoFirma=null; }
+  }
   WG.estado=r; WG.soy=r.soy;
   const esArb = r.soy==='arbitro';
   const p=r.partida||{};
@@ -28558,6 +28811,18 @@ function _wgEnCamino(pt,terreno){
   }
   return false;
 }
+// v2.9.324 — ¿el punto cae en un campo minado que NO es mío? Espejo exacto de
+// `enMinado` del motor (wargame-ops.ts): si se cambia uno hay que cambiar el
+// otro, o la previsión promete un paso que el servidor no da.
+function _wgEnMinado(pt,terreno,bando){
+  for(const t of terreno||[]){
+    if(t.tipo!=='minado') continue;
+    if(bando && t.bando===bando) continue;   // el dueño conoce las brechas
+    if(_wgFueraDeCaja(pt,t)) continue;
+    if(_wgPtEnGeom(pt,t.geojson)) return t;
+  }
+  return null;
+}
 function _wgClaseTerreno(pt,terreno){
   if(_wgEnCamino(pt,terreno)) return 'camino';
   let restr=false;
@@ -28604,6 +28869,13 @@ function _wgPreverMovimiento(u,destino,horas){
     if(++guardia>4000) { motivo='corte'; break; } // la previsión no necesita más
     const frac=Math.min(0.5,restante)/restante;
     const sig=[pos[0]+(destino[0]-pos[0])*frac, pos[1]+(destino[1]-pos[1])*frac];
+    // v2.9.324 — LA PREVISIÓN AVISA DEL CAMPO MINADO ANTES DE MANDAR LA ORDEN.
+    // Misma regla que el motor: detiene, y el dueño pasa. Sólo puede avisar de
+    // los campos que este bando YA conoce — el servidor no manda los otros, así
+    // que esto no filtra nada que no se sepa.
+    if(_wgEnMinado(sig,terreno,u.bando)){
+      detenida=true; motivo='CAMPO MINADO — se detiene ahí y sufre bajas'; break;
+    }
     const clase=_wgClaseTerreno(sig,terreno);
     let v=vel[clase];
     if(v==null && saliendo) v=(WG_VEL.pie[clase]||2)*0.5;
@@ -28630,7 +28902,11 @@ function _wgPreverMovimiento(u,destino,horas){
 function _wgPreverRuta(u,ruta,horas){
   const pts=(ruta||[]).filter(p=>Array.isArray(p)&&p.length>=2);
   if(!pts.length) return _wgPreverMovimiento(u,[u.lng,u.lat],horas);
-  let pos={lng:u.lng,lat:u.lat,medio:u.medio};
+  // v2.9.324: el BANDO va en la posición de trabajo. Sin él, `_wgEnMinado` no
+  // podía saber de quién es el campo y la previsión frenaba a la unidad en su
+  // PROPIO campo minado — al revés de la regla (el que lo sembró conoce las
+  // brechas). El motor no tenía el bug porque allá `pos` se arma con `{...u}`.
+  let pos={lng:u.lng,lat:u.lat,medio:u.medio,bando:u.bando};
   let restante=horas, avanzado=0, consumidos=0;
   let rutaTot=[[u.lng,u.lat]];
   let detenida=false, motivo='', llego=false;
@@ -28700,6 +28976,10 @@ function _wgRenderTerreno(){
     jurisdiccion:{color:'#b06de0',weight:1.2,fillOpacity:0,dashArray:'5 4'},
     ae:{color:'#ff3b3b',weight:2,fillOpacity:0.18,fillColor:'#ff3b3b',dashArray:'6 4'},
     defensivo:{color:'#00d3a7',weight:2,fillOpacity:0.12,fillColor:'#00d3a7'},
+    // v2.9.324 — CAMPO MINADO. Rojo y con trazo grueso punteado: en la carta
+    // militar el obstáculo minado se marca fuerte a propósito, es lo último que
+    // uno quiere confundir con otra cosa. Sobre la maqueta también se ve solo.
+    minado:{color:'#ff2e2e',weight:3,fillOpacity:0.22,fillColor:'#ff2e2e',dashArray:'2 6'},
   };
   // Los puntos (cimas, volcanes, poblados, hitos) van como circulitos chicos.
   const punto={ elevacion:{r:3.4,color:'#e0b34a'}, poblado:{r:3.8,color:'#ffffff'}, jurisdiccion:{r:3,color:'#b06de0'} };
@@ -29672,6 +29952,9 @@ const WG_CALCOS=[
   {id:'ae',          nom:'Área de empeño', col:'#ff3b3b', grupo:'CMOC'},
   {id:'defensivo',   nom:'Terreno defendible', col:'#00d3a7', grupo:'CMOC'},
   {id:'interdiccion',nom:'⛔ Zonas interdictadas', col:'#c060ff', grupo:'CMOC'},
+  // v2.9.324: los campos minados también se encienden y apagan — sobre la
+  // maqueta conviene poder mostrarlos solos cuando se explica el plan de barreras.
+  {id:'minado',      nom:'💣 Campos minados', col:'#ff2e2e', grupo:'CMOC'},
   {id:'elevacion',   nom:'Elevaciones (curvas y cimas)', col:'#e0b34a', grupo:'Carta'},
   {id:'hidro',       nom:'Hidrografía (ríos, lagos)', col:'#4aa3e0', grupo:'Carta'},
   {id:'via',         nom:'Comunicaciones (caminos)', col:'#ff9a2e', grupo:'Carta'},
@@ -29995,7 +30278,109 @@ function _wgPanelArmasHTML(){
         :(c.pct>=80?'<br><b style="color:#ffb15c">⚠️ Menos de un quinto de tanque.</b>':''))
       +`</div>` : '';
   return `<div class="section-label" style="margin:0 0 6px">🎯 ARMAMENTO · ${_rgEsc(u.designacion||'unidad')}</div>`
-    +comb+filas+pie+_wgPanelMisionHTML(elegida)+rep+_wgPanelObrasHTML(u)+_wgPanelDronHTML(u);
+    +comb+_wgPanelTareaHTML(u)+filas+pie+_wgPanelMisionHTML(elegida)+rep+_wgPanelObrasHTML(u)+_wgPanelDronHTML(u);
+}
+// ============================================================
+// v2.9.325 — TAREAS TÁCTICAS: la orden dice QUÉ HACER y PARA QUÉ.
+//
+// Pedido de Sergio. El cursante venía dando órdenes de MECÁNICA («mover»,
+// «atacar»); en la realidad se ordena una TAREA con un PROPÓSITO. FIJAR y
+// ATACAR mueven la misma ficha por el mismo camino, pero el criterio de éxito
+// es opuesto — y al terminar el turno la bitácora lo juzga contra eso.
+//
+// Decisión de diseño: la tarea NO reemplaza el flujo de órdenes que ya existe y
+// que Sergio ya tiene aprendido. Se elige la orden como siempre (mover, atacar,
+// replegar, zapa) y ACÁ se le pone el rótulo doctrinario encima. Así nadie
+// tiene que reaprender la pantalla, y una orden sin tarea sigue funcionando
+// igual que antes — sólo que no se la evalúa.
+//
+// Mismo catálogo que el motor (`TAREAS` en wargame-ops.ts): si se toca uno hay
+// que tocar el otro.
+// ============================================================
+const WG_TAREAS={
+  destruir:{ nom:'DESTRUIR', grupo:'Ofensiva', base:'atacar',
+    proposito:'Dejar al enemigo incapaz de combatir como unidad organizada.' },
+  neutralizar:{ nom:'NEUTRALIZAR', grupo:'Ofensiva', base:'atacar',
+    proposito:'Callar la posición el tiempo necesario para maniobrar.' },
+  fijar:{ nom:'FIJAR', grupo:'Ofensiva', base:'atacar',
+    proposito:'Impedir que el enemigo se retire o refuerce otro punto.' },
+  asaltar:{ nom:'ASALTAR', grupo:'Ofensiva', base:'atacar',
+    proposito:'Tomar la posición enemiga y quedarse en ella.' },
+  desbordar:{ nom:'DESBORDAR', grupo:'Ofensiva', base:'mover',
+    proposito:'Evitar el frente y aparecer en el flanco o la retaguardia.' },
+  perseguir:{ nom:'PERSEGUIR', grupo:'Ofensiva', base:'mover',
+    proposito:'No dejar que el enemigo rompa contacto ni se reorganice.' },
+  reconocer:{ nom:'RECONOCER', grupo:'Reconocimiento', base:'mover',
+    proposito:'Obtener información del enemigo o del terreno, sin empeñarse.' },
+  vigilar:{ nom:'VIGILAR', grupo:'Reconocimiento', base:'defender',
+    proposito:'Observar un sector y alertar temprano, sin empeñarse.' },
+  defender:{ nom:'DEFENDER', grupo:'Defensiva', base:'defender',
+    proposito:'Mantener el terreno y derrotar al que ataque.' },
+  retener:{ nom:'RETENER', grupo:'Defensiva', base:'defender',
+    proposito:'No ceder ESTE terreno, pase lo que pase.' },
+  asegurar:{ nom:'ASEGURAR', grupo:'Defensiva', base:'mover',
+    proposito:'Impedir que el enemigo use u observe ese punto.' },
+  cubrir:{ nom:'CUBRIR', grupo:'Seguridad', base:'defender',
+    proposito:'Proteger a la fuerza principal manteniéndose entre ella y el enemigo.' },
+  bloquear:{ nom:'BLOQUEAR', grupo:'Defensiva', base:'zapa',
+    proposito:'Negar al enemigo una avenida de aproximación.' },
+  retardar:{ nom:'RETARDAR', grupo:'Retrógrada', base:'replegar',
+    proposito:'Ganar tiempo cediendo espacio, sin empeñarse decisivamente.' },
+  romper:{ nom:'ROMPER CONTACTO', grupo:'Retrógrada', base:'replegar',
+    proposito:'Desengancharse del enemigo para recuperar libertad de acción.' },
+};
+// Las tareas que tienen sentido para la orden que ya está dada. Si todavía no
+// hay orden se ofrecen todas: el EM puede querer decidir la tarea PRIMERO.
+function _wgTareasPara(tipoOrden){
+  const ids=Object.keys(WG_TAREAS);
+  if(!tipoOrden) return ids;
+  const propias=ids.filter(k=>WG_TAREAS[k].base===tipoOrden);
+  return propias.length?propias:ids;
+}
+function wgElegirTarea(id, sel){
+  const o=WG.ordenes[id]; if(!o) return;
+  o.tarea = (o.tarea===sel) ? null : sel;      // volver a tocarla la quita
+  if(o.tarea && !o.proposito) o.proposito='';
+  _wgActualizarContadorOrdenes(); _wgRender();
+}
+function wgProposito(id, txt){
+  const o=WG.ordenes[id]; if(!o) return;
+  o.proposito=String(txt||'').slice(0,300);
+  // Sin `_wgRender()` a propósito: rehacer el panel mientras se escribe le roba
+  // el foco al campo y se pierde lo tipeado a la mitad de la frase.
+}
+function _wgPanelTareaHTML(u){
+  if(!u || !_wgRolOrdena()) return '';
+  const o=WG.ordenes[u.id];
+  if(!o) return `<div class="rg-meta" style="font-size:10.5px;margin:0 0 8px;line-height:1.45;`
+    +`padding:7px 9px;border-radius:8px;background:rgba(255,255,255,.04)">`
+    +`📋 <b>Tarea táctica</b> — dale una orden a esta unidad y acá vas a poder decir `
+    +`<b>QUÉ tarea</b> cumple y <b>PARA QUÉ</b>. Al resolver el turno, la bitácora `
+    +`la evalúa contra ese propósito.</div>`;
+  const T=o.tarea?WG_TAREAS[o.tarea]:null;
+  const chips=_wgTareasPara(o.tipo).map(k=>{
+    const t=WG_TAREAS[k], act=o.tarea===k;
+    return `<span onclick="wgElegirTarea(${u.id},'${k}')" title="${_rgEsc(t.proposito)}" `
+      +`style="display:inline-block;padding:3px 8px;margin:0 4px 4px 0;border-radius:99px;`
+      +`font-size:10.5px;font-weight:700;letter-spacing:.3px;cursor:pointer;`
+      +(act?`background:rgba(46,204,113,.22);border:1px solid #2ecc71;color:#b9f5d0`
+           :`background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.16);color:#c8d4e2`)
+      +`">${t.nom}</span>`;
+  }).join('');
+  return `<div style="margin:0 0 9px;padding:8px 9px;border-radius:9px;`
+    +`background:rgba(46,204,113,.07);border:1px solid rgba(46,204,113,.28)">`
+    +`<div class="section-label" style="margin:0 0 5px">📋 TAREA TÁCTICA</div>`
+    +chips
+    +(T?`<div class="rg-meta" style="font-size:10.5px;margin:4px 0 5px;line-height:1.4">`
+        +`<b style="color:#b9f5d0">Propósito doctrinario:</b> ${_rgEsc(T.proposito)}</div>`
+        +`<input value="${_rgEsc(o.proposito||'')}" oninput="wgProposito(${u.id},this.value)" `
+        +`placeholder="…y TU propósito, en tus palabras (opcional)" `
+        +`style="width:100%;box-sizing:border-box;font-size:11px;padding:5px 7px;border-radius:7px;`
+        +`background:rgba(0,0,0,.28);border:1px solid rgba(255,255,255,.16);color:#e6eef8">`
+      :`<div class="rg-meta" style="font-size:10.5px;margin-top:4px;line-height:1.4">`
+        +`Sin tarea la orden se ejecuta igual, pero <b>nadie la evalúa</b>. `
+        +`Elegir una es lo que convierte la orden en doctrina.</div>`)
+    +`</div>`;
 }
 // Sistemas de armas de una unidad, ordenados de menor a mayor alcance.
 function _wgArmamento(u){
@@ -32099,7 +32484,9 @@ function _wgRender(){
     return `<div class="rg-card" style="padding:6px 8px;${String(WG.sel)===String(u.id)?'outline:2px solid #fff;':''}cursor:${en?'default':'pointer'}" ${en?'':`onclick="_wgSelById(${u.id})"`}>`
     +`<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${WG_COL[u.bando]};margin-right:6px"></span>`
     +`<b>${_rgEsc(u.designacion||u.bando)}</b> · ${pct}% ${u.estado!=='activa'?'<span style="color:#e08a2c">('+u.estado+')</span>':''}`
-    +(o?` <span style="color:#2ecc71">· orden: ${o.tipo}</span>`:'')
+    // v2.9.325: si la orden lleva TAREA, se muestra la tarea — que es lo que el
+    // Estado Mayor razona. El tipo de orden es la mecánica, y ya no es la noticia.
+    +(o?` <span style="color:#2ecc71">· ${o.tarea&&WG_TAREAS[o.tarea]?WG_TAREAS[o.tarea].nom:'orden: '+o.tipo}</span>`:'')
     // v2.9.227: el COMBUSTIBLE a la vista. Se venía calculando y guardando bien,
     // pero sólo aparecía de refilón en una línea de la bitácora y se perdía.
     // La logística no se planifica con un dato que hay que ir a buscar.
@@ -32167,7 +32554,7 @@ function _wgRender(){
         if(WG.map.getZoom()>=3) WG._maqEncuadrada=1;   // salió: no se toca más
       }catch(_e){}
     }
-    _wgMaquetaEscala(); _wgMaquetaLoc();
+    _wgMaquetaEscala(); _wgMaquetaLoc(); _wgMaquetaSituacion();
   }
   if(WG.hoja==='matriz') wgPanelMatriz(); // v2.9.223: se rearma con cada orden nueva
   if(WG.hoja==='personal') wgPanelPersonal();
@@ -32264,8 +32651,12 @@ function _wgMapClick(ev){
     WG.ordenes[WG.sel]={ tipo:'zapa', obra:WG.obraSel, destino_lng:p[0], destino_lat:p[1] };
     const u=_wgUnidadPorId(WG.sel);
     const n=u?_wgTurnosDeObra(u,WG.obraSel,p):0;
+    const h=u?_wgHorasDeObra(u,WG.obraSel,p):0;
+    const cp=u?_wgCapacidadObra(u):null;
     _wgAviso(`${WG_OBRAS[WG.obraSel].icono} <b>${WG_OBRAS[WG.obraSel].nom}</b> ordenada — `
-      +`<b>${n} turno${n>1?'s':''}</b> de trabajo. La unidad tiene que quedarse en el lugar.`, 4600);
+      +`<b>${h.toFixed(1)} h de trabajo</b> = <b>${n} turno${n>1?'s':''}</b> `
+      +`(turnos de ${_wgHorasTurno()} h)${cp&&!cp.ing?', a pico y pala':''}. `
+      +`La unidad tiene que quedarse en el lugar.`, 4600);
     WG.obraSel=null;
     _wgActualizarContadorOrdenes(); _wgRender();
     if(WG.map3d) _wg3dDatos();
@@ -32497,10 +32888,16 @@ async function wgEnviarOrdenes(btn){
     if(r.ok) okc++; else console.warn('orden',uid,r.error);
   }
   if(btn) btn.disabled=false;
-  _wgAviso(okc===ids.length
+  // v2.9.325: se avisa cuántas van SIN tarea. No se bloquea el envío —
+  // el juego tiene que seguir funcionando como antes para quien no la use—
+  // pero una orden sin tarea es una orden que nadie va a poder evaluar.
+  const sinTarea=ids.filter(uid=>!(WG.ordenes[uid]&&WG.ordenes[uid].tarea)).length;
+  _wgAviso((okc===ids.length
     ? (WG.soy==='arbitro' ? `📨 ${okc} orden(es) registrada(s).`
                           : `✔️ ${okc} orden(es) enviada(s). Ahora espera al otro bando.`)
-    : `⚠️ Se enviaron ${okc} de ${ids.length}. Revisá las que fallaron.`);
+    : `⚠️ Se enviaron ${okc} de ${ids.length}. Revisá las que fallaron.`)
+    + (sinTarea?`<br>📋 <b>${sinTarea} sin tarea táctica</b> — se ejecutan igual, pero la bitácora no las va a evaluar.`:''),
+    sinTarea?6000:3800);
   await wgEstado();
 }
 async function wgResolver(btn){
@@ -33122,7 +33519,8 @@ async function wgHistorial(){
   // v2.9.217: el fuego que cae corto y el fuego que te localiza son eventos
   // nuevos — sin esto caían al bullet genérico «•» y se perdían en la lista.
   const icono=(t)=> t==='combate'?'⚔️' : t==='movimiento'?'🚶'
-    : t==='fuego_perdido'?'🔥' : t==='fuego_detectado'?'👂' : '•';
+    : t==='fuego_perdido'?'🔥' : t==='fuego_detectado'?'👂'
+    : t==='obra'?'🚧' : t==='tarea'?'📋' : '•';
   const resaltar=(txt)=> _rgEsc(txt)
     .replace(/(área de empeño)/gi,'<b style="color:#ff6b6b">$1</b>')
     .replace(/(A LA VISTA[^·]*)/g,'<b style="color:#ffd400">$1</b>')
@@ -33130,7 +33528,17 @@ async function wgHistorial(){
     .replace(/(DETENIDA)/g,'<b style="color:#e08a2c">$1</b>')
     .replace(/(FUERA DE ALCANCE)/g,'<b style="color:#ff6b6b">$1</b>')
     .replace(/(DELATÓ SU POSICIÓN|LOCALIZADO)/g,'<b style="color:#ffd400">$1</b>')
-    .replace(/(LLEGÓ)/g,'<b style="color:#2ecc71">$1</b>');
+    .replace(/(LLEGÓ)/g,'<b style="color:#2ecc71">$1</b>')
+    // v2.9.325 — EL VEREDICTO DE LA TAREA SE LEE DE UN GOLPE. Es lo que el
+    // cursante va a buscar en la bitácora, así que no puede estar en el mismo
+    // gris que el resto del renglón.
+    .replace(/(TAREA CUMPLIDA)/g,'<b style="color:#2ecc71">$1</b>')
+    .replace(/(CUMPLIDA A MEDIAS)/g,'<b style="color:#e8c33a">$1</b>')
+    .replace(/(TAREA NO CUMPLIDA)/g,'<b style="color:#ff6b6b">$1</b>')
+    .replace(/(SE TE FUE|CAMPO MINADO|ABRIÓ BRECHA)/g,'<b style="color:#ff9f43">$1</b>')
+    // La corrección doctrinal, en su propio renglón y en cursiva: es la parte
+    // que enseña, y pegada al resto se perdía.
+    .replace(/📖 (.+)$/,'<br><i style="color:#9fd0ff;font-size:11px">📖 $1</i>');
   const fila=(e,nuevo)=>`<div style="padding:5px 8px;margin-bottom:4px;border-radius:8px;line-height:1.45;`
     +(nuevo?`background:rgba(74,163,224,.13);border-left:3px solid #4aa3e0`:`border-left:3px solid transparent`)+`">`
     +`<span class="rg-meta" style="font-size:10px">T${e.turno}</span> ${icono(e.tipo)} ${resaltar(e.descripcion||'')}</div>`;
