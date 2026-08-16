@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.325</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.326</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7096,6 +7096,95 @@ body.wg-jugando{overflow:hidden}
 .wg-dron .sombra{position:absolute;border-radius:50%;
   background:radial-gradient(ellipse,rgba(0,0,0,.45) 0%,rgba(0,0,0,0) 72%)}
 .wg-dron-anillo{pointer-events:none}
+/* ============================================================
+   v2.9.326 — LA OBRA SE VE TRABAJANDO.
+   Sergio: «si ellos están trabajando en un minado, obstáculo o lo que sea,
+   deben notarse en la animación… como puntitos o pequeñísimos vehículos
+   haciendo como si estuvieran trabajando ahí hasta que esté su trabajo».
+   Y: «cada trabajo de ingeniería debe tener un tipo de animación diferente».
+
+   Un sitio de obra tiene TRES partes:
+     · el ANILLO DE AVANCE — cuánto falta, se lee sin texto;
+     · la CUADRILLA — dos o tres puntitos que van y vienen por el tajo. Es lo
+       que hace que la maqueta parezca viva: algo que se mueve solo, sin turno;
+     · la FIRMA de la obra — un dibujo distinto por tipo, para reconocer de
+       lejos si eso es un campo minado o una alambrada.
+   Todo con CSS: lo anima el compositor, no el hilo del juego (ver v2.9.265).
+   ============================================================ */
+.wg-obra{pointer-events:none;position:relative}
+.wg-obra .anillo{position:absolute;left:-26px;top:-26px;width:52px;height:52px;border-radius:50%;
+  background:conic-gradient(var(--ocol,#e8c33a) calc(var(--avance,0)*1%), rgba(255,255,255,.10) 0);
+  -webkit-mask:radial-gradient(circle, transparent 60%, #000 61%);
+          mask:radial-gradient(circle, transparent 60%, #000 61%);
+  opacity:.95}
+.wg-obra .disco{position:absolute;left:-19px;top:-19px;width:38px;height:38px;border-radius:50%;
+  background:rgba(8,13,19,.62);border:1px solid var(--ocol,#e8c33a);
+  display:flex;align-items:center;justify-content:center;font-size:15px;
+  animation:wgObraLate 2.2s ease-in-out infinite}
+@keyframes wgObraLate{0%,100%{transform:scale(1)}50%{transform:scale(1.09)}}
+.wg-obra .rot{position:absolute;left:-70px;top:26px;width:140px;text-align:center;
+  font-size:10px;font-weight:800;letter-spacing:.4px;color:#fff;
+  text-shadow:0 1px 4px #000,0 0 9px #000;white-space:nowrap}
+.wg-obra .rot .q{color:var(--ocol,#e8c33a)}
+/* La CUADRILLA: puntitos que recorren el tajo de un lado al otro. Cada uno con
+   su desfase, si no parecen un solo bicho. */
+.wg-obra .obrero{position:absolute;width:5px;height:5px;border-radius:50%;
+  background:var(--ocol,#e8c33a);box-shadow:0 0 5px var(--ocol,#e8c33a),0 1px 2px #000;
+  animation:wgObrero 2.6s ease-in-out infinite}
+.wg-obra .obrero:nth-child(2){animation-duration:3.4s;animation-delay:-.7s}
+.wg-obra .obrero:nth-child(3){animation-duration:2.1s;animation-delay:-1.4s}
+@keyframes wgObrero{
+  0%   {transform:translate(-17px,4px)  scale(1)}
+  25%  {transform:translate(-6px,-7px)  scale(1.25)}
+  50%  {transform:translate(15px,2px)   scale(1)}
+  75%  {transform:translate(2px,9px)    scale(1.25)}
+  100% {transform:translate(-17px,4px)  scale(1)}
+}
+/* --- LA FIRMA DE CADA OBRA (una por tipo, se reconoce de lejos) --- */
+.wg-obra .firma{position:absolute;left:-24px;top:-24px;width:48px;height:48px}
+.wg-obra .firma i{position:absolute;display:block}
+/* CAMPO MINADO: las minas se van sembrando en fila, una tras otra. */
+.wg-obra.o-minado .firma i{width:5px;height:5px;border-radius:50%;background:#ff2e2e;
+  top:21px;opacity:0;animation:wgMina 2.4s linear infinite;box-shadow:0 0 6px #ff2e2e}
+.wg-obra.o-minado .firma i:nth-child(1){left:4px;animation-delay:0s}
+.wg-obra.o-minado .firma i:nth-child(2){left:15px;animation-delay:.3s}
+.wg-obra.o-minado .firma i:nth-child(3){left:26px;animation-delay:.6s}
+.wg-obra.o-minado .firma i:nth-child(4){left:37px;animation-delay:.9s}
+@keyframes wgMina{0%{opacity:0;transform:translateY(-7px) scale(.4)}
+  18%{opacity:1;transform:translateY(0) scale(1)}85%{opacity:1}100%{opacity:0}}
+/* ALAMBRADA: la concertina se dibuja sola de izquierda a derecha. */
+.wg-obra.o-alambrada .firma i{left:2px;top:18px;width:44px;height:12px;border-top:2px dashed #cfe3ff;
+  border-radius:50%;transform-origin:left center;animation:wgAlambre 2.8s ease-in-out infinite}
+.wg-obra.o-alambrada .firma i:nth-child(2){top:25px;animation-delay:-1.4s;opacity:.6}
+@keyframes wgAlambre{0%{clip-path:inset(0 100% 0 0)}55%{clip-path:inset(0 0 0 0)}
+  100%{clip-path:inset(0 0 0 0);opacity:.25}}
+/* POSICIÓN DEFENSIVA: el parapeto crece desde el suelo. */
+.wg-obra.o-defensiva .firma i{left:9px;bottom:12px;width:30px;background:#00d3a7;border-radius:2px 2px 0 0;
+  animation:wgParapeto 2.6s ease-in-out infinite}
+.wg-obra.o-defensiva .firma i:nth-child(2){left:16px;width:16px;animation-delay:-1.3s;opacity:.65}
+@keyframes wgParapeto{0%{height:2px}60%{height:13px}100%{height:2px}}
+/* OBSTÁCULO: se apilan bloques. */
+.wg-obra.o-obstaculo .firma i{width:9px;height:6px;background:#ffd400;border-radius:1px;left:12px;
+  animation:wgBloque 2.4s ease-in-out infinite}
+.wg-obra.o-obstaculo .firma i:nth-child(1){bottom:14px}
+.wg-obra.o-obstaculo .firma i:nth-child(2){bottom:21px;left:22px;animation-delay:-.8s}
+.wg-obra.o-obstaculo .firma i:nth-child(3){bottom:28px;left:17px;animation-delay:-1.6s}
+@keyframes wgBloque{0%{opacity:0;transform:translateY(-9px)}30%{opacity:1;transform:translateY(0)}
+  88%{opacity:1}100%{opacity:0}}
+/* FOSO ANTITANQUE: la excavación se abre y se hace más honda. */
+.wg-obra.o-foso .firma i{left:6px;top:22px;height:7px;background:linear-gradient(#5a4632,#241a12);
+  border-radius:3px;animation:wgFoso 3s ease-in-out infinite}
+@keyframes wgFoso{0%{width:6px;opacity:.5}60%{width:36px;opacity:1}100%{width:6px;opacity:.5}}
+/* BRECHA: fogonazos de la carga que abre el paso. */
+.wg-obra.o-brecha .firma i{left:20px;top:20px;width:8px;height:8px;border-radius:50%;
+  background:#ffd166;box-shadow:0 0 12px #ff7b00;animation:wgFogonazo 1.6s ease-out infinite}
+.wg-obra.o-brecha .firma i:nth-child(2){left:10px;top:26px;animation-delay:-.5s}
+.wg-obra.o-brecha .firma i:nth-child(3){left:30px;top:15px;animation-delay:-1s}
+@keyframes wgFogonazo{0%{transform:scale(.2);opacity:1}70%{transform:scale(2.2);opacity:0}
+  100%{transform:scale(.2);opacity:0}}
+/* El ALCANCE DE TRABAJO (1 km): sin esto no había forma de saber dónde se puede
+   tocar, y el clic caía afuera «sin que pasara nada». */
+.wg-alcance-obra{pointer-events:none}
 /* ============================================================
    v2.9.323 — LO QUE SE PROYECTA SOBRE LA MAQUETA TIENE QUE ESTAR VIVO.
    Sergio: «la ficha no se está moviendo, sólo aparece el polvo levantado y
@@ -24690,6 +24779,15 @@ function _wgMaquetaMontar(){
       <button id="maq-lock" onclick="wgMaquetaTrabar()" style="font-size:11px;padding:4px 9px;border-radius:6px;
         background:rgba(255,255,255,.10);border:1px solid #ffffff55;color:#fff;cursor:pointer">🔒 Trabar</button>
     </div>
+    <!-- v2.9.326 — LATIDO. Si la proyección se congela hay que poder verlo SIN
+         mirar el reloj: el punto parpadea con cada refresco y el número dice
+         hace cuánto llegó el último dato. En verde late, en rojo se quedó. -->
+    <div class="cj" style="left:18px;top:44px;display:flex;align-items:center;gap:6px;
+         font-size:10px;letter-spacing:1.5px;opacity:.9">
+      <span id="maq-late" style="width:8px;height:8px;border-radius:50%;background:#2ecc71;
+        box-shadow:0 0 8px #2ecc71;transition:background .2s,box-shadow .2s"></span>
+      <span id="maq-late-txt">EN VIVO</span>
+    </div>
     <!-- CUADRO DE SITUACIÓN: una ficha por unidad, con su porcentaje -->
     <div id="maq-sit"></div>
     <!-- CALCOS: los mismos del juego (CMOC y Carta), para encenderlos sobre la maqueta -->
@@ -24894,8 +24992,12 @@ function _wgMaquetaSituacion(){
       if(Number(u.suprimida_hasta)>=turno) chips.push('🔻 suprimida');
       // La obra en curso va acá porque es EL dato que explica por qué esa
       // unidad no se movió ni disparó: está trabajando.
-      if(u.trabajo && WG_OBRAS[u.trabajo.obra])
-        chips.push(`${WG_OBRAS[u.trabajo.obra].icono} obra ${u.trabajo.restan}/${u.trabajo.total}`);
+      // v2.9.326: el porcentaje, no «2/3» — ese par se leía como avance cuando
+      // en realidad el primer número son los turnos que FALTAN.
+      if(u.trabajo && WG_OBRAS[u.trabajo.obra]){
+        const tt=Math.max(1,Number(u.trabajo.total)||1), rr=Math.max(0,Number(u.trabajo.restan)||0);
+        chips.push(`${WG_OBRAS[u.trabajo.obra].icono} ${Math.round(100*(tt-rr)/tt)} %`);
+      }
       const c=_wgCombustible(u);
       if(c && c.pct>=60) chips.push(c.pct>=100?'⛽ seco':`⛽ ${c.resta.toFixed(0)} km`);
       const m=_wgMunicionUnidad(u);
@@ -26755,12 +26857,38 @@ function wgElegirObra(id){
 }
 function _wgPanelObrasHTML(u){
   if(!_wgPuedeZapar(u)) return '';
+  // ============================================================
+  // v2.9.326 — AVANCE Y TIEMPO RESTANTE DE LA OBRA EN CURSO.
+  // Pedido de Sergio. Antes decía «faltan 2 de 3 turnos» en letra chica y nada
+  // más: no se veía cuánto se había hecho, ni cuántas HORAS de trabajo faltaban,
+  // que es la unidad en la que ahora se planifica (v2.9.324).
+  // ============================================================
   const t=u.trabajo;
-  const enCurso = t ? `<div class="rg-card" style="padding:8px 9px;margin-bottom:7px;
-      background:rgba(232,195,58,.12);border:1px solid rgba(232,195,58,.45)">
-      <b style="font-size:11.5px;color:#ffe9a8">${WG_OBRAS[t.obra]?WG_OBRAS[t.obra].icono+' '+WG_OBRAS[t.obra].nom:'Obra'} en curso</b>
-      <div class="rg-meta" style="font-size:10.5px;margin-top:3px">
-      Faltan <b>${t.restan}</b> de ${t.total} turnos. Si movés la unidad, se pierde el trabajo.</div></div>` : '';
+  let enCurso='';
+  if(t && WG_OBRAS[t.obra]){
+    const O=WG_OBRAS[t.obra], col=WG_OBRA_COL[t.obra]||'#e8c33a';
+    const tot=Math.max(1,Number(t.total)||1), res=Math.max(0,Number(t.restan)||0);
+    const avance=Math.round(100*(tot-res)/tot);
+    const hFalta=res*_wgHorasTurno();
+    enCurso = `<div class="rg-card" style="padding:8px 9px;margin-bottom:7px;`
+      +`background:rgba(232,195,58,.12);border:1px solid ${col}66">`
+      +`<div style="display:flex;align-items:center;gap:6px">`
+      +`<span style="font-size:15px">${O.icono}</span>`
+      +`<b style="flex:1;font-size:11.5px;color:#ffe9a8">${O.nom} — EN CURSO</b>`
+      +`<b style="font-size:13px;color:${col}">${avance} %</b></div>`
+      +`<div style="height:7px;border-radius:4px;margin:6px 0 4px;background:rgba(255,255,255,.13);overflow:hidden">`
+      +`<div style="height:100%;width:${avance}%;background:${col}"></div></div>`
+      +`<div class="rg-meta" style="font-size:10.5px;line-height:1.45">`
+      +`Faltan <b>${res}</b> de ${tot} turnos ≈ <b>${hFalta.toFixed(1)} h</b> de trabajo.`
+      +`<br>⚠️ Si movés la unidad o la sacan de combate, <b>se pierde todo el avance</b>.</div></div>`
+      // La regla de capacidad, dicha donde se la necesita: una cuadrilla hace
+      // UNA obra por vez. Sergio: «no se les puede dar 8 trabajos al mismo
+      // tiempo, en realidad no podrían; o sea se debe priorizar».
+      +`<div class="rg-meta" style="font-size:10.5px;margin:-3px 0 7px;line-height:1.45;`
+      +`padding:6px 8px;border-radius:7px;background:rgba(224,138,44,.10);border:1px solid rgba(224,138,44,.35)">`
+      +`🪖 <b>Una cuadrilla, una obra.</b> Esta unidad ya está ocupada: si le ordenás otra, `
+      +`<b>abandona ésta</b> y empieza de cero. Para hacer dos cosas a la vez hacen falta dos unidades.</div>`;
+  }
   const cap=_wgCapacidadObra(u);
   const filas=Object.values(WG_OBRAS).map(o=>{
     const act=WG.obraSel===o.id;
@@ -27036,6 +27164,71 @@ function _wgPxPorMetro(map, lat){
     const mundo=512*Math.pow(2, map.getZoom());
     return mundo/(40075016.686*Math.max(0.05,Math.cos(lat*Math.PI/180)));
   }catch(_e){ return 0.05; }
+}
+// ============================================================
+// v2.9.326 — EL TAJO SE VE, Y SE VE TRABAJANDO.
+//
+// Sergio: «si están trabajando en un minado, obstáculo o lo que sea, deben
+// notarse en la animación… puntitos o pequeñísimos vehículos haciendo como si
+// estuvieran trabajando ahí hasta que esté su trabajo. Asimismo debe salir un
+// detalle en la unidad de ingeniería de avance y tiempo restante».
+//
+// El dato ya venía del servidor y no se dibujaba en ningún lado: cada unidad
+// trae `trabajo = {obra, lng, lat, restan, total}`. Con eso alcanza para el
+// anillo de avance, el cartel de lo que falta y la cuadrilla animada.
+//
+// Va también en la maqueta —es el mismo mapa 2D—, y es justamente lo que Sergio
+// pidió para que la proyección «sea algo vivo»: algo que se mueve SOLO, sin
+// esperar a que alguien juegue un turno.
+// ============================================================
+const WG_OBRA_COL={ minado:'#ff2e2e', alambrada:'#cfe3ff', defensiva:'#00d3a7',
+  obstaculo:'#ffd400', foso:'#a98457', brecha:'#ffd166' };
+// Cuántas piezas lleva la firma de cada obra (las `<i>` que anima el CSS).
+const WG_OBRA_PIEZAS={ minado:4, alambrada:2, defensiva:2, obstaculo:3, foso:1, brecha:3 };
+function _wgObras2D(){
+  if(!WG.map || !WG.capa || typeof L==='undefined') return;
+  // ---- 1) los tajos EN CURSO, de las unidades que se ven ----
+  for(const u of ((WG.verUnidades===false)?[]:_wgUnidadesVisibles())){
+    const t=u.trabajo; if(!t || !WG_OBRAS[t.obra]) continue;
+    if(!Number.isFinite(Number(t.lng)) || !Number.isFinite(Number(t.lat))) continue;
+    const O=WG_OBRAS[t.obra], col=WG_OBRA_COL[t.obra]||'#e8c33a';
+    const total=Math.max(1,Number(t.total)||1), restan=Math.max(0,Number(t.restan)||0);
+    // El avance es lo YA HECHO. `restan` es lo que falta DESPUÉS de este turno.
+    const avance=Math.round(100*(total-restan)/total);
+    const piezas='<i></i>'.repeat(WG_OBRA_PIEZAS[t.obra]||2);
+    const html=`<div class="wg-obra o-${t.obra}" style="--ocol:${col};--avance:${avance}">`
+      +`<span class="anillo"></span>`
+      +`<span class="firma">${piezas}</span>`
+      +`<span class="disco">${O.icono}</span>`
+      +`<span class="obrero"></span><span class="obrero"></span><span class="obrero"></span>`
+      +`<span class="rot">${_rgEsc(O.nom.toUpperCase())} · <span class="q">${avance} %</span>`
+      +` · ${restan===1?'falta':'faltan'} ${restan} turno${restan===1?'':'s'}</span></div>`;
+    try{
+      const mk=L.marker([t.lat,t.lng],{ interactive:true, zIndexOffset:1200,
+        icon:L.divIcon({className:'',html,iconSize:[0,0],iconAnchor:[0,0]}) }).addTo(WG.capa);
+      mk.bindTooltip(`${O.icono} <b>${_rgEsc(O.nom)}</b> — ${_rgEsc(u.designacion||u.bando)}<br>`
+        +`Avance ${avance} % · faltan <b>${restan}</b> de ${total} turnos<br>`
+        +`<span style="opacity:.8">${_rgEsc(O.desc)}</span><br>`
+        +`<span style="opacity:.7">Si mueven la unidad o la sacan de combate, se pierde el trabajo.</span>`,
+        {direction:'top'});
+    }catch(_e){}
+  }
+  // ---- 2) EL ALCANCE DE TRABAJO, mientras se está por ordenar una obra ----
+  // ⚠️ ESTO ES «LLEVÉ LA UNIDAD Y NO PASA NADA».
+  // El motor exige estar a menos de 1 km del punto de la obra, y no había NADA
+  // en pantalla que dijera dónde termina ese kilómetro: el clic caía a 1,05 km,
+  // el servidor lo rechazaba con un renglón en la bitácora que nadie mira en el
+  // momento, y desde afuera parecía que el botón no hacía nada.
+  if(WG.obraSel && WG.sel!=null){
+    const u=_wgUnidadPorId(WG.sel);
+    if(u){
+      const col=WG_OBRA_COL[WG.obraSel]||'#9b7bff';
+      try{
+        L.circle([u.lat,u.lng],{radius:1000,color:col,weight:2,dashArray:'7 6',
+          fillColor:col,fillOpacity:.07,interactive:false,className:'wg-alcance-obra'}).addTo(WG.capa);
+      }catch(_e){}
+    }
+  }
 }
 // v2.9.261 — AVIÓN DIBUJADO, NO EMOJI (ver el comentario largo en `_wg3dDatos`).
 // v2.9.323: el mismo dibujo lo usan las dos vistas, así que vive en un solo lado.
@@ -28477,11 +28670,51 @@ function wgPanelToggle(){ wgHoja(WG.hoja==='unidades'?null:'unidades'); }
 //   · No se encima consigo mismo (`_syncOcupado`): con la red lenta, dos
 //     pedidos en vuelo devolvían estados fuera de orden y el tablero saltaba.
 // ============================================================
+// ============================================================
+// v2.9.326 — ⚠️ POR QUÉ LA MAQUETA «NO SE SINCRONIZA».
+//
+// Sergio, otra vez: «la maqueta no se está sincronizando, no se está moviendo».
+// Y no era el código del juego: es que **Chrome estrangula los `setInterval` de
+// las pestañas en segundo plano**. La maqueta se proyecta desde una pestaña que
+// NO es la que él está mirando (tiene tres SIDECEME abiertas en la misma
+// ventana), así que `document.visibilityState` es 'hidden' y el sondeo de 4 s
+// pasa a correr una vez por minuto o menos. Ya lo habíamos medido en la v2.9.310
+// —«1 vez cada 42 s»— pero ahí sólo nos molestó para MEDIR; acá rompe la función.
+//
+// Arreglo: el reloj del sondeo se muda a un WEB WORKER. Los temporizadores de un
+// worker no los estrangula el navegador por visibilidad, así que la proyección
+// sigue latiendo aunque esté detrás de otra pestaña. El worker no hace nada más
+// que avisar la hora: todo el trabajo sigue en el hilo principal.
+//
+// Y dos redes de seguridad: si el worker no se puede crear (navegador viejo,
+// CSP), se cae al `setInterval` de siempre; y al volver a la pestaña se refresca
+// en el acto en vez de esperar al próximo tic.
+// ============================================================
 function _wgSyncIniciar(){
-  clearInterval(WG._sync);
-  WG._sync=setInterval(_wgSyncTick, 4000);
+  _wgSyncParar();
+  const ms=4000;
+  try{
+    const src=`let t=null;onmessage=e=>{clearInterval(t);if(e.data&&e.data.ms)`
+      +`t=setInterval(()=>postMessage(1),e.data.ms);};`;
+    const url=URL.createObjectURL(new Blob([src],{type:'text/javascript'}));
+    WG._syncW=new Worker(url);
+    URL.revokeObjectURL(url);
+    WG._syncW.onmessage=()=>{ _wgSyncTick(); };
+    WG._syncW.postMessage({ms});
+  }catch(_e){
+    WG._syncW=null;
+    WG._sync=setInterval(_wgSyncTick, ms);   // respaldo: el de siempre
+  }
+  // Al volver a mirar la pestaña, ponerse al día YA — no esperar el próximo tic.
+  if(!WG._syncVis){
+    WG._syncVis=()=>{ if(document.visibilityState==='visible') _wgSyncTick(); };
+    document.addEventListener('visibilitychange', WG._syncVis);
+  }
 }
-function _wgSyncParar(){ clearInterval(WG._sync); WG._sync=null; WG._syncOcupado=0; }
+function _wgSyncParar(){
+  clearInterval(WG._sync); WG._sync=null; WG._syncOcupado=0;
+  if(WG._syncW){ try{ WG._syncW.terminate(); }catch(_e){} WG._syncW=null; }
+}
 function _wgTurnoActual(){
   return (WG.estado && WG.estado.partida) ? WG.estado.partida.turno_actual : null;
 }
@@ -28513,15 +28746,28 @@ function _wgTurnoActual(){
 // las unidades destruidas se desvanecían y recién después salían los tiros que
 // las habían destruido (fue el arreglo de la 223, no repetir el error acá).
 // ============================================================
+// v2.9.326: el latido de la maqueta. Se llama en cada sondeo que vuelve bien.
+function _wgLatido(ok){
+  const p=document.getElementById('maq-late'), t=document.getElementById('maq-late-txt');
+  if(!p) return;
+  if(ok) WG._ultLatido=Date.now();
+  const seg=WG._ultLatido?Math.round((Date.now()-WG._ultLatido)/1000):999;
+  const vivo=seg<20;
+  p.style.background=vivo?'#2ecc71':'#ff6b6b';
+  p.style.boxShadow=`0 0 ${ok?14:8}px ${vivo?'#2ecc71':'#ff6b6b'}`;
+  if(t) t.textContent = vivo ? 'EN VIVO' : `SIN DATOS HACE ${seg} s`;
+}
 async function _wgSyncTick(){
   if(!WG.partidaId || WG._syncOcupado) return;
   if(WG.replayando || WG._accion) return;      // no pisar una animación en curso
+  if(WG.maqueta) _wgLatido(false);             // refresca el contador aunque falle
   WG._syncOcupado=1;
   try{
     const antes=_wgTurnoActual();
     const p=await _wgInvoke('pulso', Object.assign(
       { partida_id:WG.partidaId, clave_acceso:WG.clave }, _wgVueloParaServidor()));
     if(!p.ok){ console.warn('pulso:', p.error); return; }   // silencioso: es un sondeo
+    if(WG.maqueta) _wgLatido(true);   // v2.9.326: llegó dato, la proyección late
     const ahora=Number(p.turno_actual);
     if(antes==null || !Number.isFinite(ahora) || ahora===Number(antes)){
       await _wgNovedadesInt(p.vistos);   // v2.9.285: ¿el CW 40 descubrió algo?
@@ -32475,6 +32721,7 @@ function _wgRender(){
       icon:L.divIcon({className:'',html:_wgFuegoHTML(34),iconSize:[34,34],iconAnchor:[17,34]})
     }).addTo(WG.capa);
   }
+  _wgObras2D();
   _wgDrones2D();
   // lista lateral
   const cont=document.getElementById('wg-unidades');
@@ -32647,9 +32894,32 @@ function _wgMapClick(ev){
   // aguanta el fuego de la persecución pero no devuelve golpes.
   // v2.9.234: con una obra elegida, el clic marca DÓNDE trabajar.
   if(WG.obraSel){
+    const uO=_wgUnidadPorId(WG.sel);
+    // ⚠️ v2.9.326 — EL CLIC FUERA DEL KILÓMETRO YA NO SE PIERDE EN SILENCIO.
+    // Ésta era la queja «llevé la unidad donde quiero que construya y no pasa
+    // nada»: la orden se creaba igual, viajaba al servidor, y el motor la
+    // rechazaba con «la obra está a 1.0 km y hay que estar encima» — un renglón
+    // en la bitácora que nadie lee EN EL MOMENTO. Ahora se avisa acá, al tocar,
+    // no se crea la orden, y la obra queda elegida para volver a intentar
+    // dentro del círculo (que desde esta versión se DIBUJA).
+    if(uO){
+      const d=_wgHav([uO.lng,uO.lat],p);
+      if(d>1.0){
+        _wgAviso(`🚧 <b>Fuera del alcance de trabajo.</b> Tocaste a <b>${d.toFixed(2)} km</b> y `
+          +`la cuadrilla tiene que estar <b>encima de la obra</b> (menos de 1 km).<br>`
+          +`Tocá <b>dentro del círculo punteado</b>, o mové primero la unidad hasta ahí.`, 6500);
+        return;   // la obra sigue elegida: se puede reintentar sin volver a elegirla
+      }
+    }
     if(WG.rutas) delete WG.rutas[WG.sel];
-    WG.ordenes[WG.sel]={ tipo:'zapa', obra:WG.obraSel, destino_lng:p[0], destino_lat:p[1] };
-    const u=_wgUnidadPorId(WG.sel);
+    // v2.9.326: los obstáculos ya vienen con su tarea puesta — es siempre
+    // BLOQUEAR y no tiene sentido hacérsela elegir. La brecha y la posición
+    // defensiva NO: la brecha es lo contrario de bloquear, y la defensiva es del
+    // que la ocupa. Ésas las elige el Estado Mayor.
+    const tareaObra = ['minado','alambrada','obstaculo','foso'].includes(WG.obraSel) ? 'bloquear' : null;
+    WG.ordenes[WG.sel]={ tipo:'zapa', obra:WG.obraSel, destino_lng:p[0], destino_lat:p[1],
+      tarea:tareaObra };
+    const u=uO;
     const n=u?_wgTurnosDeObra(u,WG.obraSel,p):0;
     const h=u?_wgHorasDeObra(u,WG.obraSel,p):0;
     const cp=u?_wgCapacidadObra(u):null;
