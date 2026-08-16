@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.326</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.327</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -26791,27 +26791,27 @@ function wgVistaArbitro(id){
 // tablas de la ECEME antes del ejercicio.
 // ============================================================
 const WG_OBRAS={
-  brecha:{ id:'brecha', nom:'Abrir brecha', icono:'🛠️',
+  brecha:{ id:'brecha', mision:'movilidad', nom:'Abrir brecha', icono:'🛠️',
     desc:'Abre paso por donde no se podía. Queda transitable — y la usan LOS DOS bandos.',
     horas:{camino:1.5,libre:1.5,restringido:3,severo:6}, soloIng:true,
     detalle:'Explosivos y maquinaria. Levanta también los obstáculos que encuentre en el paso.' },
-  defensiva:{ id:'defensiva', nom:'Posición defensiva', icono:'🛡️',
+  defensiva:{ id:'defensiva', mision:'proteccion', nom:'Posición defensiva', icono:'🛡️',
     desc:'Cava y fortifica: quien la ocupe pelea protegido.',
     horas:{camino:6,libre:6,restringido:5,severo:5},
     detalle:'Pozos de tirador, asentamientos de arma y cubiertas. En roca ya hay medio trabajo hecho.' },
-  obstaculo:{ id:'obstaculo', nom:'Obstáculo', icono:'⛓️',
+  obstaculo:{ id:'obstaculo', mision:'contramovilidad', nom:'Obstáculo', icono:'⛓️',
     desc:'Crea un impedimento donde no lo había: frena al que quiera pasar por ahí.',
     horas:{camino:4,libre:4,restringido:3,severo:3},
     detalle:'Abatís, cráteres, barricadas: lo que haya a mano para negar una avenida.' },
-  alambrada:{ id:'alambrada', nom:'Alambrada de concertina', icono:'〰️',
+  alambrada:{ id:'alambrada', mision:'contramovilidad', nom:'Alambrada de concertina', icono:'〰️',
     desc:'Retarda y canaliza: no impide el paso, obliga a hacerlo por donde vos querés.',
     horas:{camino:3,libre:3,restringido:4,severo:5},
     detalle:'Doble concertina sobre unos 300 m de frente. Es el obstáculo más barato — y el que más rinde si está batido por fuego.' },
-  minado:{ id:'minado', nom:'Campo minado', icono:'💣',
+  minado:{ id:'minado', mision:'contramovilidad', nom:'Campo minado', icono:'💣',
     desc:'DETIENE al que entra y le cuesta bajas. Sólo se cruza abriendo brecha.',
     horas:{camino:4,libre:4,restringido:5,severo:6},
     detalle:'Siembra a mano de minas AP y AT. Tu bando conoce las brechas y pasa; el enemigo se para en seco.' },
-  foso:{ id:'foso', nom:'Foso antitanque', icono:'🕳️',
+  foso:{ id:'foso', mision:'contramovilidad', nom:'Foso antitanque', icono:'🕳️',
     desc:'Corta el paso de todo lo que tenga ruedas u orugas. La infantería a pie lo salva.',
     horas:{camino:10,libre:10,restringido:13,severo:16}, soloIng:true,
     detalle:'Excavación con maquinaria pesada: la obra más cara en tiempo y la que más se nota.' },
@@ -26890,6 +26890,22 @@ function _wgPanelObrasHTML(u){
       +`<b>abandona ésta</b> y empieza de cero. Para hacer dos cosas a la vez hacen falta dos unidades.</div>`;
   }
   const cap=_wgCapacidadObra(u);
+  // ============================================================
+  // v2.9.327 — AGRUPADAS POR MISIÓN DE INGENIERÍA.
+  // Sergio: «de las tareas de ingeniería es movilidad contra contramovilidad».
+  // Tenía razón en que la lista plana no lo mostraba. Son las tres misiones
+  // clásicas del arma, y verlas separadas cambia cómo se piensa la orden:
+  // MOVILIDAD = que los MÍOS pasen · CONTRAMOVILIDAD = que el OTRO no pase ·
+  // PROTECCIÓN = que los míos aguanten.
+  // ============================================================
+  const MIS={ movilidad:{nom:'MOVILIDAD', ico:'🛣️', col:'#2ecc71',
+                pie:'Que los MÍOS pasen por donde el terreno no deja.'},
+              contramovilidad:{nom:'CONTRAMOVILIDAD', ico:'⛔', col:'#ff6b6b',
+                pie:'Que el OTRO no pase, o pase por donde yo quiero y batido por fuego.'},
+              proteccion:{nom:'PROTECCIÓN', ico:'🛡️', col:'#00d3a7',
+                pie:'Que los míos aguanten en el terreno que ocupan.'} };
+  const claseAqui=_wgClaseTerreno([u.lng,u.lat], WG.terreno||[]);
+  const refuerza=(claseAqui==='restringido'||claseAqui==='severo');
   const filas=Object.values(WG_OBRAS).map(o=>{
     const act=WG.obraSel===o.id;
     // v2.9.324: lo que esta unidad NO puede hacer se muestra igual, apagado y
@@ -26910,7 +26926,23 @@ function _wgPanelObrasHTML(u){
         : `<span style="font-size:10px;color:#e08a2c;white-space:nowrap">🚫 necesita maquinaria</span>`)
       +`</div>`
       +`<div class="rg-meta" style="font-size:10.5px;margin-top:3px;line-height:1.4">${o.desc}`
-      +(o.detalle?`<br><span style="opacity:.72">${o.detalle}</span>`:'')+`</div></div>`;
+      +(o.detalle?`<br><span style="opacity:.72">${o.detalle}</span>`:'')
+      // v2.9.327: en terreno restringido o severo el obstáculo se APOYA en el
+      // accidente natural y sale más rápido — reforzar lo que ya está es media
+      // obra menos. Se dice donde se decide, no en un manual aparte.
+      +(refuerza&&o.mision==='contramovilidad'
+        ?`<br><span style="color:#8ef0b4">🪨 Acá refuerza el obstáculo natural: sale más rápido.</span>`:'')
+      +(refuerza&&o.mision==='movilidad'
+        ?`<br><span style="color:#ffd9a8">⛰️ Acá cuesta más: el terreno es el que hay que vencer.</span>`:'')
+      +`</div></div>`;
+  }).reduce((acc,html,i)=>{ const o=Object.values(WG_OBRAS)[i];
+      (acc[o.mision]||(acc[o.mision]=[])).push(html); return acc; },{});
+  const bloques=Object.keys(MIS).filter(k=>filas[k]&&filas[k].length).map(k=>{
+    const m=MIS[k];
+    return `<div style="margin:9px 0 3px;font-size:10px;letter-spacing:1.6px;font-weight:800;`
+      +`color:${m.col}">${m.ico} ${m.nom}</div>`
+      +`<div class="rg-meta" style="font-size:10px;margin-bottom:5px;opacity:.8">${m.pie}</div>`
+      +filas[k].join('');
   }).join('');
   return `<div class="section-label" style="margin:12px 0 6px">🚧 OBRAS Y OBSTÁCULOS</div>`
     +enCurso
@@ -26920,8 +26952,11 @@ function _wgPanelObrasHTML(u){
     +`duración del turno de esta partida (<b>${_wgHorasTurno()} h</b>).`
     +(cap&&!cap.ing?`<br>🪖 <b>Esta unidad fortifica a mano</b> — tarda casi el doble que ingeniería, `
       +`y no abre brechas ni excava fosos.`:'')
+    +(refuerza?`<br>🪨 <b style="color:#8ef0b4">Estás en terreno ${claseAqui}</b> — acá la contramovilidad `
+      +`rinde más (se refuerza el accidente natural) y la movilidad cuesta más. Es la decisión de fondo `
+      +`del arma: <b>movilidad contra contramovilidad</b>.`:'')
     +(WG.obraSel?`<br><b style="color:#d9ccff">TOCÁ EL MAPA</b> donde querés la obra (hay que estar a menos de 1 km).`:'')
-    +`</div>`+filas;
+    +`</div>`+bloques;
 }
 // v2.9.232 — APUNTAR EL DRON. No es una orden de turno: es una decisión de
 // vigilancia que vale desde ya. Por eso se manda al servidor al instante y no
@@ -27185,30 +27220,37 @@ const WG_OBRA_COL={ minado:'#ff2e2e', alambrada:'#cfe3ff', defensiva:'#00d3a7',
   obstaculo:'#ffd400', foso:'#a98457', brecha:'#ffd166' };
 // Cuántas piezas lleva la firma de cada obra (las `<i>` que anima el CSS).
 const WG_OBRA_PIEZAS={ minado:4, alambrada:2, defensiva:2, obstaculo:3, foso:1, brecha:3 };
-function _wgObras2D(){
-  if(!WG.map || !WG.capa || typeof L==='undefined') return;
-  // ---- 1) los tajos EN CURSO, de las unidades que se ven ----
-  for(const u of ((WG.verUnidades===false)?[]:_wgUnidadesVisibles())){
-    const t=u.trabajo; if(!t || !WG_OBRAS[t.obra]) continue;
-    if(!Number.isFinite(Number(t.lng)) || !Number.isFinite(Number(t.lat))) continue;
-    const O=WG_OBRAS[t.obra], col=WG_OBRA_COL[t.obra]||'#e8c33a';
-    const total=Math.max(1,Number(t.total)||1), restan=Math.max(0,Number(t.restan)||0);
-    // El avance es lo YA HECHO. `restan` es lo que falta DESPUÉS de este turno.
-    const avance=Math.round(100*(total-restan)/total);
-    const piezas='<i></i>'.repeat(WG_OBRA_PIEZAS[t.obra]||2);
-    const html=`<div class="wg-obra o-${t.obra}" style="--ocol:${col};--avance:${avance}">`
+// v2.9.327 — EL DIBUJO DEL TAJO, UNA SOLA VEZ. Lo consumen el 2D (Leaflet) y el
+// 3D (MapLibre). Devuelve null si esa unidad no está trabajando.
+function _wgObraHTML(u){
+  const t=u&&u.trabajo;
+  if(!t || !WG_OBRAS[t.obra]) return null;
+  if(!Number.isFinite(Number(t.lng)) || !Number.isFinite(Number(t.lat))) return null;
+  const O=WG_OBRAS[t.obra], col=WG_OBRA_COL[t.obra]||'#e8c33a';
+  const total=Math.max(1,Number(t.total)||1), restan=Math.max(0,Number(t.restan)||0);
+  // El avance es lo YA HECHO. `restan` es lo que falta DESPUÉS de este turno.
+  const avance=Math.round(100*(total-restan)/total);
+  const piezas='<i></i>'.repeat(WG_OBRA_PIEZAS[t.obra]||2);
+  return { lng:Number(t.lng), lat:Number(t.lat), O, col, avance, total, restan,
+    html:`<div class="wg-obra o-${t.obra}" style="--ocol:${col};--avance:${avance}">`
       +`<span class="anillo"></span>`
       +`<span class="firma">${piezas}</span>`
       +`<span class="disco">${O.icono}</span>`
       +`<span class="obrero"></span><span class="obrero"></span><span class="obrero"></span>`
       +`<span class="rot">${_rgEsc(O.nom.toUpperCase())} · <span class="q">${avance} %</span>`
-      +` · ${restan===1?'falta':'faltan'} ${restan} turno${restan===1?'':'s'}</span></div>`;
+      +` · ${restan===1?'falta':'faltan'} ${restan} turno${restan===1?'':'s'}</span></div>` };
+}
+function _wgObras2D(){
+  if(!WG.map || !WG.capa || typeof L==='undefined') return;
+  // ---- 1) los tajos EN CURSO, de las unidades que se ven ----
+  for(const u of ((WG.verUnidades===false)?[]:_wgUnidadesVisibles())){
+    const h=_wgObraHTML(u); if(!h) continue;
     try{
-      const mk=L.marker([t.lat,t.lng],{ interactive:true, zIndexOffset:1200,
-        icon:L.divIcon({className:'',html,iconSize:[0,0],iconAnchor:[0,0]}) }).addTo(WG.capa);
-      mk.bindTooltip(`${O.icono} <b>${_rgEsc(O.nom)}</b> — ${_rgEsc(u.designacion||u.bando)}<br>`
-        +`Avance ${avance} % · faltan <b>${restan}</b> de ${total} turnos<br>`
-        +`<span style="opacity:.8">${_rgEsc(O.desc)}</span><br>`
+      const mk=L.marker([h.lat,h.lng],{ interactive:true, zIndexOffset:1200,
+        icon:L.divIcon({className:'',html:h.html,iconSize:[0,0],iconAnchor:[0,0]}) }).addTo(WG.capa);
+      mk.bindTooltip(`${h.O.icono} <b>${_rgEsc(h.O.nom)}</b> — ${_rgEsc(u.designacion||u.bando)}<br>`
+        +`Avance ${h.avance} % · faltan <b>${h.restan}</b> de ${h.total} turnos<br>`
+        +`<span style="opacity:.8">${_rgEsc(h.O.desc)}</span><br>`
         +`<span style="opacity:.7">Si mueven la unidad o la sacan de combate, se pierde el trabajo.</span>`,
         {direction:'top'});
     }catch(_e){}
@@ -30119,6 +30161,32 @@ function _wg3dDatos(){
     }catch(_e){}
   }
   _wgVolarDrones();
+  // ============================================================
+  // v2.9.327 — ⚠️ «LA INGENIERÍA NO FUNCIONA, NO HAY ANIMACIÓN».
+  //
+  // Sí funcionaba: el panel mostraba «Campo minado — EN CURSO 50 %» y la
+  // bitácora decía «le faltan 1 de 2 turnos». Lo que no aparecía era el TAJO en
+  // el mapa… porque en la v2.9.326 lo dibujé SÓLO en Leaflet (`_wgObras2D`), y
+  // Sergio juega en 3D: ahí el mapa 2D queda TAPADO ABAJO y no se ve nada.
+  //
+  // Es exactamente el agujero de la v2.9.292 («el 3D se dibuja con SUS PROPIAS
+  // fuentes de datos») y ya me lo comí una vez. Todo lo que se dibuje para el
+  // jugador tiene que existir en LAS DOS superficies.
+  //
+  // Se reutiliza el MISMO HTML y el MISMO CSS que el 2D (`_wgObraHTML`): una
+  // sola definición del dibujo, dos superficies.
+  // ============================================================
+  for(const u of ((WG.verUnidades===false)?[]:_wgUnidadesVisibles())){
+    const h=_wgObraHTML(u); if(!h) continue;
+    const el=document.createElement('div');
+    el.style.pointerEvents='none';
+    el.innerHTML=h.html;
+    try{
+      const mk=new maplibregl.Marker({element:el, anchor:'center'})
+        .setLngLat([h.lng,h.lat]).addTo(map);
+      WG.marc3d.push(mk);
+    }catch(_e){}
+  }
   // v2.9.220 — LAS LLAMAS. Van al final para quedar por encima de las fichas.
   // `anchor:'bottom'` apoya el fuego en el suelo; sin eso flota sobre el cerro.
   for(const f of (WG.incendios||[])){
