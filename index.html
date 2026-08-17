@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.327</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.328</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -21154,22 +21154,30 @@ function repoRenderArbol(){
     return;
   }
 
+  // v2.9.328 — se agrupa por CICLO y, dentro, por SEMESTRE (antes era por eje
+  // curricular y módulo). Así el repositorio se recorre como el curso: 1er ciclo
+  // = 1er y 2do semestre; 2do ciclo = 3er y 4to semestre. El eje y el módulo
+  // siguen visibles en la línea de cada materia, que es donde sirven.
+  const cicloTxt=c=>Number(c)===2?'2DO CICLO':(Number(c)===1?'1ER CICLO':'CICLO NO DEFINIDO');
+  const semTitulo=s=>({1:'1er SEMESTRE',2:'2do SEMESTRE',3:'3er SEMESTRE',4:'4to SEMESTRE'}[s]||'SEMESTRE SIN DEFINIR');
   const ejes={};
   items.forEach(m=>{
-    const eje=m.eje_curricular||'—', mod=m.modulo||'—';
-    ejes[eje]=ejes[eje]||{}; ejes[eje][mod]=ejes[eje][mod]||[]; ejes[eje][mod].push(m);
+    const c=cicloTxt(m.ciclo), s=Number(m.semestre)||0;
+    ejes[c]=ejes[c]||{}; ejes[c][s]=ejes[c][s]||[]; ejes[c][s].push(m);
   });
-  const semTxt=s=>({1:'1er sem',2:'2do sem',3:'3er sem',4:'4to sem'}[s]||('sem '+s));
+  // 1ER CICLO antes que 2DO; y los semestres en orden numérico, no alfabético.
+  const ordenCiclos=Object.keys(ejes).sort((a,b)=>a.localeCompare(b));
   const open=!!q||soloFaltan||!abierta, bd='1px solid var(--border,#2a3a52)';
   let h=cab;
-  Object.keys(ejes).forEach(eje=>{
+  ordenCiclos.forEach(eje=>{
     const nEje=Object.keys(ejes[eje]).reduce((a,k)=>a+ejes[eje][k].length,0);
     h+='<details'+(open?' open':'')+' style="margin-bottom:8px;border:'+bd+';border-radius:10px;overflow:hidden">'
-      +'<summary style="cursor:pointer;padding:11px 12px;font-weight:700;background:rgba(138,109,31,.10)">🏛️ '+_rgEsc(eje)+' <span style="font-weight:400;color:var(--text-muted);font-size:12px">· '+nEje+' materias</span></summary>'
+      +'<summary style="cursor:pointer;padding:11px 12px;font-weight:700;background:rgba(138,109,31,.10)">🎓 '+_rgEsc(eje)+' <span style="font-weight:400;color:var(--text-muted);font-size:12px">· '+nEje+' materias</span></summary>'
       +'<div style="padding:6px 8px 8px">';
-    Object.keys(ejes[eje]).forEach(mod=>{
+    Object.keys(ejes[eje]).map(Number).sort((a,b)=>a-b).forEach(mod=>{
       h+='<details'+(open?' open':'')+' style="margin:6px 0;border:'+bd+';border-radius:8px">'
-        +'<summary style="cursor:pointer;padding:8px 10px;font-weight:600;font-size:13px">📦 '+_rgEsc(mod)+'</summary>'
+        +'<summary style="cursor:pointer;padding:8px 10px;font-weight:600;font-size:13px">📅 '+_rgEsc(semTitulo(mod))
+        +' <span style="font-weight:400;color:var(--text-muted);font-size:12px">· '+ejes[eje][mod].length+'</span></summary>'
         +'<div style="padding:4px 8px 8px">';
       ejes[eje][mod].forEach(m=>{
         const n=m.n_docs||0, profes=_repoProfes(m);
@@ -21182,7 +21190,7 @@ function repoRenderArbol(){
         }
         h+='<button class="quick-btn" onclick="repoAbrirMateria(\''+_rgEsc(m.codigo_uc)+'\')" style="margin:4px 0;align-items:flex-start">'
           +'<span class="qa-icon">📁</span><span class="qa-text"><strong>'+_rgEsc(m.nombre_uc)+'</strong>'
-          +' <span style="color:var(--text-muted)">· '+_rgEsc(m.codigo_uc)+' · '+(Number(m.ciclo)===2?'2do':'1er')+' ciclo '+semTxt(m.semestre)+'</span>'
+          +' <span style="color:var(--text-muted)">· '+_rgEsc(m.codigo_uc)+(m.modulo?(' · '+_rgEsc(m.modulo)):'')+'</span>'
           +'<div style="margin-top:3px">'+chips+'</div></span></button>';
       });
       h+='</div></details>';
