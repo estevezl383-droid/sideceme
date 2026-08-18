@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.328</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.329</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -25155,11 +25155,27 @@ async function wgCargarMisPartidas(){
   // no vio nada y con razón: los botones estaban a tres clics de distancia.
   // Ahora cada partida trae sus dos invitaciones a la vista.
   // ============================================================
-  cont.innerHTML = ps.length ? ps.map(p=>
-    `<div class="rg-card">`
+  // ============================================================
+  // v2.9.329 — LAS PARTIDAS SE PLIEGAN.
+  // Sergio: «cada ejercicio me está ocupando mucha pantalla». Y con razón:
+  // cada tarjeta trae 2 invitaciones + 14 puestos + la sala, así que con cinco
+  // partidas el lobby son varias pantallas de scroll para llegar a la de abajo.
+  // Ahora de entrada se ve UNA LÍNEA por partida —nombre, estado, turno y el
+  // botón de entrar— y el resto se despliega con un clic. Lo que estaba abierto
+  // se recuerda entre recargas, para no volver a abrirlo cada vez.
+  // ============================================================
+  const _abiertas=_wgLobbyAbiertas();
+  cont.innerHTML = ps.length ? ps.map(p=>{
+   const _ab=_abiertas.has(String(p.id));
+   return `<div class="rg-card">`
     +`<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap">`
-      +`<div><b>${_rgEsc(p.nombre)}</b><div class="rg-meta">#${p.id} · ${_rgEsc(p.estado)} · turno ${p.turno_actual}</div></div>`
+      +`<div onclick="wgPlegarPartida(${p.id})" style="cursor:pointer;flex:1;min-width:0" `
+        +`title="Clic para desplegar u ocultar las invitaciones, los puestos y la sala">`
+        +`<b><span id="wg-chev-${p.id}" style="display:inline-block;width:14px;opacity:.75;`
+        +`transition:transform .15s">${_ab?'▾':'▸'}</span> ${_rgEsc(p.nombre)}</b>`
+        +`<div class="rg-meta" style="margin-left:14px">#${p.id} · ${_rgEsc(p.estado)} · turno ${p.turno_actual}</div></div>`
       +`<button class="rg-doc" onclick="wgAbrir(${p.id},'')">Abrir como árbitro</button></div>`
+    +`<div id="wg-cuerpo-${p.id}" style="display:${_ab?'block':'none'}">`
     +`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;padding-top:8px;`
       +`border-top:1px solid rgba(140,210,255,.14)">`
       +`<span class="rg-meta" style="font-size:10.5px;opacity:.7;align-self:center">INVITAR:</span>`
@@ -25195,9 +25211,71 @@ async function wgCargarMisPartidas(){
       +`<button class="rg-doc" title="Copiar el enlace para abrirlo en la máquina del proyector"`
       +` onclick="wgMaquetaCopiar(${p.id})">🔗 Copiar enlace</button>`
     +`</div>`
+    // v2.9.329 — BORRAR LA PARTIDA. Va acá abajo, separada y en rojo, porque no
+    // se deshace: se lleva las unidades, el terreno, las órdenes, la bitácora y
+    // los replays de esa partida. Pedido de Sergio para limpiar las de prueba.
+    +`<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,120,120,.22)">`
+      +`<button class="rg-doc" style="color:#ffb4a8;border-color:rgba(255,120,120,.35)"`
+      +` title="Borra la partida y todo lo suyo. No se puede deshacer."`
+      +` onclick="wgBorrarPartida(${p.id},'${_rgEsc(p.nombre).replace(/'/g,"\\'")}',${p.turno_actual})">`
+      +`🗑️ Borrar esta partida</button>`
+    +`</div>`
     +`<div id="wg-inv-${p.id}"></div>`
     +`</div>`
-  ).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">Aún no creaste partidas.</div>';
+    +`</div>`;
+  }).join('') : '<div class="efm-no-data" style="color:var(--text-muted)">Aún no creaste partidas.</div>';
+}
+// v2.9.329 — qué tarjetas quedaron desplegadas (se recuerda entre recargas).
+function _wgLobbyAbiertas(){
+  try{ return new Set(JSON.parse(localStorage.getItem('wg_lobby_abiertas')||'[]').map(String)); }
+  catch(_e){ return new Set(); }
+}
+function wgPlegarPartida(id){
+  const c=document.getElementById('wg-cuerpo-'+id), ch=document.getElementById('wg-chev-'+id);
+  if(!c) return;
+  const abrir = (c.style.display==='none');
+  c.style.display = abrir ? 'block' : 'none';
+  if(ch) ch.textContent = abrir ? '▾' : '▸';
+  const set=_wgLobbyAbiertas();
+  if(abrir) set.add(String(id)); else set.delete(String(id));
+  try{ localStorage.setItem('wg_lobby_abiertas', JSON.stringify([...set])); }catch(_e){}
+}
+// ============================================================
+// v2.9.329 — BORRAR UNA PARTIDA.
+// Se confirma DOS veces y la segunda pide escribir el nombre: es una acción que
+// no se deshace y que se lleva turnos de trabajo de dos Estados Mayores. El
+// borrado real lo hace el servidor (`wargame-borrar`), que además verifica que
+// quien lo pide sea el árbitro de ESA partida — el navegador no decide eso.
+// ============================================================
+async function wgBorrarPartida(id, nombre, turno){
+  if(!confirm(`¿Borrar la partida «${nombre}» (#${id})?\n\n`
+    +`Se borran TAMBIÉN sus unidades, el terreno importado, las órdenes, la `
+    +`bitácora y los replays.\n\nEsto no se puede deshacer.`)) return;
+  if(Number(turno)>0){
+    const t=prompt(`Esa partida ya lleva ${turno} turno(s) jugados.\n\n`
+      +`Para confirmar, escribí el nombre exacto de la partida:`);
+    if(t===null) return;
+    if(String(t).trim()!==String(nombre).trim()){ alert('El nombre no coincide. No se borró nada.'); return; }
+  }
+  let r;
+  try{ r=await _wgInvokeEF('wargame-borrar',{ partida_id:Number(id) }); }
+  catch(e){ r={ok:false,error:String((e&&e.message)||e)}; }
+  if(!r || !r.ok){ alert('No se pudo borrar la partida.\n\n'+((r&&r.error)||'sin respuesta')); return; }
+  const set=_wgLobbyAbiertas(); set.delete(String(id));
+  try{ localStorage.setItem('wg_lobby_abiertas', JSON.stringify([...set])); }catch(_e){}
+  await wgCargarMisPartidas();
+}
+// Hermano de `_wgInvoke` para las funciones del juego que NO son `wargame-ops`.
+async function _wgInvokeEF(fn, extra){
+  const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
+  if(!tok) return {ok:false,error:'Tu sesión venció. Volvé a entrar a SIDECEME.'};
+  const { data, error } = await sb.functions.invoke(fn,{ body:Object.assign({token:tok}, extra||{}) });
+  if(error){
+    let msg=error.message||String(error);
+    try{ const j=await error.context.json(); if(j&&j.error) msg=j.error; }catch(_e){}
+    return {ok:false,error:msg};
+  }
+  return data||{ok:false,error:'sin respuesta'};
 }
 async function wgCrearPartida(btn){
   const nombre=(document.getElementById('wg-nom').value||'').trim();
@@ -28740,9 +28818,114 @@ function wgPanelToggle(){ wgHoja(WG.hoja==='unidades'?null:'unidades'); }
 // CSP), se cae al `setInterval` de siempre; y al volver a la pestaña se refresca
 // en el acto en vez de esperar al próximo tic.
 // ============================================================
-function _wgSyncIniciar(){
-  _wgSyncParar();
-  const ms=4000;
+// ============================================================
+// v2.9.329 — SINCRONIZACIÓN EN VIVO: SE AVISA, NO SE PREGUNTA.
+//
+// Sergio, con la maqueta proyectada y las dos consolas al lado: «la maqueta
+// tiene demasiada desincronización, está muy atrasada, pero lo mismo sucede
+// en los otros».
+//
+// Y era cierto por construcción. Hasta acá TODO el enterarse era por SONDEO:
+// cada pantalla preguntaba «¿cambió el turno?» cada 4 segundos. O sea que el
+// que resolvía veía la película al instante y los demás entre 0 y 4 segundos
+// después — más lo que tardaba en pedir el replay. En una maqueta proyectada
+// al lado de las consolas ese desfase se ve como si fueran juegos distintos.
+//
+// El sondeo era la herramienta equivocada: preguntar seguido es caro y sigue
+// llegando tarde. Lo correcto es que el que resuelve AVISE. La página ya carga
+// `supabase-js`, así que el canal en vivo (Realtime) estaba disponible desde
+// siempre y no hace falta agregar nada: un canal por partida, `wg-<id>`, al que
+// se asoman el árbitro, los dos bandos, cada puesto del Estado Mayor y la
+// maqueta. El aviso llega en unos 150 ms a TODAS las pantallas a la vez.
+//
+// Y va más lejos: el aviso LLEVA LA PELÍCULA ADENTRO (trazas e impactos) si
+// entra en el mensaje. Así el que escucha no tiene que pedir el replay al
+// servidor antes de animar — arranca en el mismo momento que el que resolvió.
+// Si la película es muy pesada, viaja sólo el número de turno y el replay se
+// pide como siempre; se pierde un viaje, no la sincronización.
+//
+// El sondeo NO se saca: queda de red de seguridad para el que se quedó sin
+// canal (wifi de la sala, navegador viejo, Realtime caído). Pero cambia de
+// ritmo según haga falta: 1,5 s mientras el canal no confirme —así ese que
+// quedó suelto igual se mantiene cerca— y 4 s una vez conectado, que es lo
+// único que tiene que hacer un respaldo.
+//
+// Regla que queda, hermana de la de la v2.9.282 («si algo tiene que verlo el
+// otro bando, va guardado en base»): si algo tiene que verlo el otro bando AL
+// MISMO TIEMPO, además se avisa por el canal.
+// ============================================================
+function _wgCanalIniciar(){
+  _wgCanalParar();
+  if(!WG.partidaId) return;
+  if(typeof sb==='undefined' || !sb || typeof sb.channel!=='function') return;
+  try{
+    WG._canal = sb.channel('wg-'+WG.partidaId, { config:{ broadcast:{ self:false } } })
+      .on('broadcast', { event:'turno' }, (m)=>{ _wgCanalTurno(m && m.payload); })
+      .subscribe((estado)=>{
+        const ok = (estado==='SUBSCRIBED');
+        if(ok===WG._canalOk) return;
+        WG._canalOk = ok;
+        // Con canal, el sondeo es sólo respaldo y puede ir tranquilo. Sin canal,
+        // el sondeo es lo ÚNICO que hay: se aprieta el paso.
+        _wgSyncRitmo(ok ? 4000 : 1500);
+        if(ok && WG.maqueta) _wgLatido(true);
+      });
+  }catch(_e){ WG._canal=null; WG._canalOk=false; }
+}
+function _wgCanalParar(){
+  if(WG._canal){ try{ sb.removeChannel(WG._canal); }catch(_e){} }
+  WG._canal=null; WG._canalOk=false; WG._canalPend=null;
+}
+// Aviso a las demás pantallas. Nunca puede romper el turno de quien lo manda:
+// todo va en try/catch y si el canal no está, el sondeo del otro lo cubre.
+function _wgCanalAvisar(turno, trazas, impactos){
+  if(!WG._canal || !WG._canalOk) return;
+  try{
+    let datos=null;
+    const peli={ trazas:trazas||[], impactos:impactos||[] };
+    // Tope prudente: un mensaje del canal no es para mandar megabytes. Si no
+    // entra, viaja sólo el turno y el que escucha pide el replay.
+    try{ if(JSON.stringify(peli).length<=80000) datos=peli; }catch(_e){}
+    WG._canal.send({ type:'broadcast', event:'turno', payload:{ turno:Number(turno), datos } });
+  }catch(_e){}
+}
+// Llegó el aviso de que se resolvió un turno. Es el mismo camino que hace el
+// sondeo cuando detecta el cambio, con las MISMAS guardas: la de idempotencia
+// (v2.9.309) impide que un turno se reproduzca dos veces si además lo pesca el
+// sondeo, y la de animación en curso evita pisar una película a medias.
+async function _wgCanalTurno(p){
+  if(!p || !WG.partidaId) return;
+  const turno=Number(p.turno);
+  if(!Number.isFinite(turno)) return;
+  if(Number(WG._turnoVisto)===turno) return;      // ya se vio en esta pantalla
+  if(WG.replayando || WG._accion){
+    // Ocupado animando: no se pierde el aviso, se vuelve a intentar enseguida.
+    WG._canalPend=turno;
+    setTimeout(()=>{ if(WG._canalPend===turno){ WG._canalPend=null; _wgCanalTurno(p); } }, 400);
+    return;
+  }
+  WG._canalPend=null;
+  if(WG.maqueta) _wgLatido(true);
+  const antes=_wgTurnoActual();
+  // Si esta pantalla venía muy atrás (varios turnos), no se cuenta media
+  // historia: se pone el tablero al día, igual que hace el sondeo.
+  if(antes!=null && (turno-Number(antes))>0){
+    WG._turnoVisto=turno;
+    await wgEstado(true); _wgRender(); if(WG.map3d) _wg3dDatos();
+    await wgHistorial();
+    return;
+  }
+  WG.ordenes={};
+  _wgAviso(`⚔️ <b>Se resolvió el turno ${turno}.</b> Mirá lo que pasó.`, 4000);
+  await _wgReproducirTurno(turno, p.datos);
+}
+// Sólo el reloj del sondeo. Separado de `_wgSyncIniciar` a propósito: el canal
+// lo llama para cambiar de ritmo, y si llamara al iniciador se desarmaría a sí
+// mismo el canal que lo está llamando.
+function _wgSyncRitmo(ms){
+  clearInterval(WG._sync); WG._sync=null;
+  if(WG._syncW){ try{ WG._syncW.terminate(); }catch(_e){} WG._syncW=null; }
+  WG._syncMs=ms;
   try{
     const src=`let t=null;onmessage=e=>{clearInterval(t);if(e.data&&e.data.ms)`
       +`t=setInterval(()=>postMessage(1),e.data.ms);};`;
@@ -28755,6 +28938,14 @@ function _wgSyncIniciar(){
     WG._syncW=null;
     WG._sync=setInterval(_wgSyncTick, ms);   // respaldo: el de siempre
   }
+}
+function _wgSyncIniciar(){
+  _wgSyncParar();
+  _wgCanalIniciar();
+  // Arranca apretado; el canal lo afloja a 4 s apenas confirma que está.
+  // (Si confirmó antes de llegar acá —red muy rápida— se respeta su ritmo: el
+  // canal sólo avisa cuando CAMBIA de estado y no volvería a corregirlo.)
+  _wgSyncRitmo(WG._canalOk ? 4000 : 1500);
   // Al volver a mirar la pestaña, ponerse al día YA — no esperar el próximo tic.
   if(!WG._syncVis){
     WG._syncVis=()=>{ if(document.visibilityState==='visible') _wgSyncTick(); };
@@ -28764,6 +28955,7 @@ function _wgSyncIniciar(){
 function _wgSyncParar(){
   clearInterval(WG._sync); WG._sync=null; WG._syncOcupado=0;
   if(WG._syncW){ try{ WG._syncW.terminate(); }catch(_e){} WG._syncW=null; }
+  _wgCanalParar();
 }
 function _wgTurnoActual(){
   return (WG.estado && WG.estado.partida) ? WG.estado.partida.turno_actual : null;
@@ -28889,9 +29081,18 @@ async function _wgNovedadesInt(vistos){
 // Reproduce en ESTA pantalla el turno que resolvió el otro bando. Es el gemelo
 // de la parte de animación de `wgResolver`, con la diferencia de que las trazas
 // y los impactos no vienen de la respuesta: se piden guardados.
-async function _wgReproducirTurno(turno){
-  const r=await _wgInvoke('replay',{ partida_id:WG.partidaId, clave_acceso:WG.clave, turno });
-  const trazas=(r.ok && r.trazas)||[], impactos=(r.ok && r.impactos)||[];
+// v2.9.329: `datos` es la película que vino DENTRO del aviso del canal. Si
+// llegó, se anima ya mismo y se ahorra el viaje al servidor — que es lo que
+// hacía que el que escuchaba arrancara medio segundo tarde. Si no llegó (aviso
+// sin película, o vino por sondeo), se pide guardada como siempre.
+async function _wgReproducirTurno(turno, datos){
+  let trazas=[], impactos=[];
+  if(datos && (Array.isArray(datos.trazas) || Array.isArray(datos.impactos))){
+    trazas=datos.trazas||[]; impactos=datos.impactos||[];
+  }else{
+    const r=await _wgInvoke('replay',{ partida_id:WG.partidaId, clave_acceso:WG.clave, turno });
+    trazas=(r.ok && r.trazas)||[]; impactos=(r.ok && r.impactos)||[];
+  }
   WG.ultimoTurno=turno;                        // para destacarlo en la bitácora
   WG._turnoVisto=turno;                        // v2.9.309: este turno ya se vio acá
   _wgApagarViejos(turno);
@@ -33280,6 +33481,10 @@ async function wgResolver(btn){
   // vi» se anota ACÁ, apenas el servidor confirma, antes de animar nada; y el
   // turno local se adelanta ya mismo para que el sondeo no vea datos viejos.
   WG._turnoVisto=r.turno_resuelto;
+  // v2.9.329 — AVISAR PRIMERO, ANIMAR DESPUÉS. Va acá y no al final a propósito:
+  // las demás pantallas necesitan el aviso para arrancar la película EN EL MISMO
+  // MOMENTO que ésta. Si se avisara al terminar, volveríamos al desfase de antes.
+  _wgCanalAvisar(r.turno_resuelto, trazas, impactos);
   if(WG.estado&&WG.estado.partida) WG.estado.partida.turno_actual=r.turno_resuelto+1;
   _wgApagarViejos(r.turno_resuelto);
   // ============================================================
