@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.329</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.330</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -9465,7 +9465,35 @@ const NC = {
 
 // Solo el Sub. Sec. Evaluaciones y C&T. La EF vuelve a verificarlo del lado servidor.
 function _ncPuede(){
-  return activeRole === 'evaluaciones' || activeRole === 'ciencia_tecnologia';
+  if(activeRole === 'evaluaciones' || activeRole === 'ciencia_tecnologia') return true;
+  // v2.9.330 — EVALUADORES DE CICLO. El Tcnl. Soto Farfan y el My. Ortiz entran
+  // como profesores (no pierden nada de lo suyo) pero llevan el control de las
+  // cargas de notas. Se les marca con 'evaluaciones' dentro de roles[]; la
+  // Edge Function notas-ops ya junta rol + roles[] para autorizar.
+  return _ncEsEvaluador();
+}
+// Inserta el botón de Control de carga en el panel indicado (solo evaluadores).
+// Se remueve si el usuario NO lo es: los botones inyectados quedan pegados en el
+// DOM entre sesiones de la misma pestaña (la trampa de avOpcionesDocente).
+function _ncBotonControl(screenId){
+  const sc=document.getElementById(screenId); if(!sc) return;
+  const cont=sc.querySelector('.menu-container')||sc.querySelector('.disc-container');
+  if(!cont) return;
+  const ya=cont.querySelector('.nc-btn-control');
+  if(!_ncEsEvaluador()){ if(ya) ya.remove(); return; }
+  if(ya) return;
+  const b=document.createElement('button');
+  b.className='btn-mega nc-btn-control';
+  b.style.cssText='background:linear-gradient(180deg,#c49234,#8a6420);margin:0 0 8px;color:#fff';
+  b.onclick=function(){ goNotasControl(); };
+  b.innerHTML='<span class="mega-icon">\u2705</span><span>Control de carga de notas \u2014 seguimiento por materia y ciclo</span>';
+  cont.insertBefore(b, cont.firstElementChild);
+}
+function _ncEsEvaluador(){
+  try{
+    const r = currentUser && currentUser.roles;
+    return Array.isArray(r) && r.some(function(x){ return String(x).toLowerCase()==='evaluaciones'; });
+  }catch(e){ return false; }
 }
 
 async function _ncInvoke(accion, extra){
@@ -9539,10 +9567,21 @@ function _ncMatch(nombreExcel, ciclo){
 async function ncCatalogo(force){
   if(NC.cat && !force) return NC.cat;
   const r = await _ncInvoke('catalogo');
-  if(!r.ok) return null;
-  NC.cat = r;
+  // v2.9.330 — RESPALDO DE NÓMINA. Si el catálogo no llega (sesión sin token,
+  // función caída, red), antes el módulo quedaba mudo: el desplegable de ciclo
+  // salía vacío, la nómina en 0 y CUALQUIER planilla daba "no está en la
+  // nómina". Ahora se cae a discData.cursantes, que el panel ya tiene cargado.
+  let lista = (r && r.ok) ? (r.cursantes || []) : [];
+  NC.catFallo = !(r && r.ok) ? (r && r.error || 'no se pudo leer la nómina') : null;
+  if(!lista.length){
+    lista = (typeof discData !== 'undefined' && discData.cursantes || [])
+              .filter(function(c){ return c.activo !== false; });
+    if(lista.length) NC.catFallo = null;
+  }
+  if(!lista.length) return null;
+  NC.cat = (r && r.ok) ? r : { ok:true, cursantes:lista, materias:[], periodos:[] };
   NC.porCiclo = {};
-  (r.cursantes || []).forEach(function(c){
+  lista.forEach(function(c){
     const k = _ncNorm(c.ciclo);
     if(!k) return;
     if(!NC.porCiclo[k]) NC.porCiclo[k] = [];
@@ -9567,7 +9606,16 @@ async function goNotasCarga(){
 
   const info = document.getElementById('nc-periodo-info');
   const cat = await ncCatalogo();
-  if(!cat){ info.innerHTML = '<span style="color:#e87878">No se pudo cargar la nómina. Revisá tu conexión y volvé a entrar.</span>'; return; }
+  if(!cat){
+    // El paso 2 se apaga: cargar un Excel contra una nómina vacía solo produce
+    // "99 filas no reconocidas" y confunde.
+    const f=document.getElementById('nc-file'); if(f){ f.disabled=true; }
+    info.innerHTML = '<span style="color:#e87878"><strong>No se pudo cargar la nómina de cursantes.</strong><br>'
+      + escapeHtml(NC.catFallo || 'Sin respuesta del servidor') + '<br>'
+      + 'Cerrá sesión, volvé a entrar y probá de nuevo. Si sigue igual, avisá a la Sección Tecnología.</span>';
+    return;
+  }
+  const f0=document.getElementById('nc-file'); if(f0){ f0.disabled=false; }
 
   // Gestiones: las que ya tienen notas + el año en curso y el siguiente.
   const hoy = new Date().getFullYear();
@@ -21071,7 +21119,23 @@ function _repoAccept(tipo){
    asignada. Con eso:
      · gestiones pasadas → biblioteca de consulta (ver y descargar, nada más);
      · gestión en curso  → se ve el profesor de cada materia y quién no cargó.  */
+// v2.9.329 — EL REPOSITORIO ES SOLO DEL PERSONAL DOCENTE.
+// Hoy ningun boton de cursante llega aca (su Aula Virtual es goAvAlumno) y la
+// Edge Function ya corta con esProfesor(). Esta guarda es el tercer cerrojo:
+// si algun dia se cablea mal un boton, o queda una pantalla vieja en el DOM,
+// el alumno igual no entra.
+function _repoSoloDocentes(){
+  try{
+    const s=(typeof getSession==='function')?getSession():null;
+    if(s && s.tipo==='cursante'){
+      if(typeof goAnyPanel==='function') goAnyPanel(); else showScreen('screen-cursante-home');
+      return false;
+    }
+  }catch(e){}
+  return true;
+}
 async function repoAbrirArbol(){
+  if(!_repoSoloDocentes()) return;
   showScreen('screen-av-repo');
   REPO.esAdmin = _avEsAdminAcad();
   const bf=document.getElementById('repo-buscar');
@@ -21207,6 +21271,7 @@ function repoAbrirMateria(codigo){
   repoCargarMateria();
 }
 async function repoCargarMateria(){
+  if(!_repoSoloDocentes()) return;
   const m=REPO.materia; if(!m) return;
   showScreen('screen-av-repo-materia');
   document.getElementById('repo-m-title').textContent=m.nombre_uc||m.codigo_uc;
@@ -36320,6 +36385,10 @@ function restaurarModoPrueba(){
 
 function renderProfPanel(){
   if(!currentUser) return;
+  // v2.9.330 — EVALUADOR DE CICLO. Al profesor marcado con 'evaluaciones' en
+  // roles[] se le AGREGA el control de cargas de notas; conserva intacto todo
+  // lo demás de su panel de profesor.
+  try{ _ncBotonControl('screen-prof-panel'); }catch(e){}
   // === DEFENSA DE SEGURIDAD ===
   // Solo registros de la tabla 'profesores' pueden ver este panel.
   // Si alguien con sesión de cursante llega acá, lo expulsamos.
