@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.331</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.332</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7547,10 +7547,11 @@ body.wg-jugando{overflow:hidden}
              Se detiene sola si tocás el zoom o arrastrás el mapa. -->
         <button class="wg-rd" id="wg-btn-cine" onclick="wgCine(this)" title="La vista gira sola (órbita del dron) — tocá para congelarla">🎥</button>
         <button class="wg-rd" id="wg-btn-ayuda" onclick="wgAyudaToggle(this)" style="opacity:.5" title="Cómo se juega: mover, atacar, rutas">❓</button>
-        <button class="wg-rd" onclick="wgHoja('unidades')" title="Unidades">🪖</button>
+        <button class="wg-rd" id="wg-riel-unidades" onclick="wgHoja('unidades')" title="Unidades">🪖</button>
         <button class="wg-rd" onclick="wgHoja('matriz')" title="Matriz de sincronización: qué exige cada tarea y a qué hora arranca cada unidad">📋</button>
-        <button class="wg-rd" onclick="wgHoja('personal')" title="Personal: efectivos y bajas por unidad">👤</button>
-        <button class="wg-rd" onclick="wgHoja('logistica')" title="Logística: combustible, munición, raciones y agua">📦</button>
+        <button class="wg-rd" id="wg-riel-personal" onclick="wgHoja('personal')" title="Personal: efectivos y bajas por unidad">👤</button>
+        <button class="wg-rd" id="wg-riel-logistica" onclick="wgHoja('logistica')" title="Logística: combustible, munición, raciones y agua">📦</button>
+        <button class="wg-rd" id="wg-riel-civil" onclick="wgHoja('civil')" title="Asuntos civiles: poblaciones del sector y áreas restringidas">🏛️</button>
         <button class="wg-rd" onclick="wgHoja('bitacora')" title="Bitácora">📜</button>
         <button class="wg-rd" id="wg-btn-config" onclick="wgHoja('config')" title="Configurar" style="display:none">⚙️</button>
       </div>
@@ -7674,6 +7675,7 @@ body.wg-jugando{overflow:hidden}
           <div class="wg-h" id="wg-h-matriz"><div id="wg-matriz"></div></div>
           <div class="wg-h" id="wg-h-personal"><div id="wg-personal"></div></div>
           <div class="wg-h" id="wg-h-logistica"><div id="wg-logistica"></div></div>
+          <div class="wg-h" id="wg-h-civil"><div id="wg-civil"></div></div>
           <div class="wg-h" id="wg-h-config"><div id="wg-config">
 <!-- v2.9.201 — PUENTE con el Generador de Calcos: trae el terreno del CMOC
      (restringido / severo / clave) y las unidades ya colocadas. Sin terreno
@@ -25457,6 +25459,7 @@ async function wgAbrir(partidaId, clave){
   setTimeout(()=>{ try{ WG.map.invalidateSize(); wgActualizarZoomChip(); }catch(e){} }, 450);
   await wgEstado();
   _wgSyncIniciar();   // v2.9.281: desde acá el tablero se mantiene solo al día
+  wgCivilCargar();    // v2.9.332: el calco de Asuntos Civiles, para toda la plana
   _wgOrientarLazo();  // v2.9.286: la carta de orientación de la esquina
 }
 // v2.9.191: mostrar/ocultar los círculos de alcance de observación.
@@ -25471,7 +25474,12 @@ function wgObsToggle(arg){
 // v2.9.192: HOJA DESLIZANTE. Los paneles no viven en pantalla: se llaman desde
 // el riel y se cierran. wgHoja(null) cierra; wgHoja(mismo) alterna.
 const WG_HOJAS={unidades:'🪖 UNIDADES', personal:'👤 PERSONAL', logistica:'📦 LOGÍSTICA',
+  civil:'🏛️ ASUNTOS CIVILES',
   matriz:'📋 SINCRONIZACIÓN', bitacora:'📜 BITÁCORA', capas:'🗺️ CALCOS Y VISTA', config:'⚙️ CONFIGURAR'};
+// v2.9.332 — qué tablero es el de cada puesto. El que maniobra necesita las
+// unidades; las células de asesoramiento, su propia materia.
+const WG_HOJA_DE_ROL={ cmte:'unidades', jem:'unidades', g3:'unidades', g2:'unidades',
+  g1:'personal', g4:'logistica', g5:'civil' };
 function wgHoja(cual){
   const h=document.getElementById('wg-hoja'); if(!h) return;
   if(cual && WG.hoja===cual) cual=null;           // tocar el mismo botón cierra
@@ -25487,6 +25495,7 @@ function wgHoja(cual){
   if(WG.hoja==='matriz') wgPanelMatriz(); // v2.9.223
   if(WG.hoja==='personal') wgPanelPersonal();   // v2.9.229
   if(WG.hoja==='logistica') wgPanelLogistica(); // v2.9.229
+  if(WG.hoja==='civil') wgPanelCivil();         // v2.9.332
   // v2.9.331 — el registro del Estado Mayor se lee al abrir CONFIGURAR y se
   // refresca solo cada 20 s MIENTRAS la hoja esté abierta. Cerrada no consulta
   // nada: es una lista de asistencia, no un sondeo del juego.
@@ -25557,6 +25566,188 @@ function wgPanelPersonal(){
     +`${uds.length} unidades · <b style="color:#ff8f8f">${(totMax-totAct).toFixed(0)} bajas</b> · `
     +`${fuera} fuera de combate · ${desg} desgastadas</div></div>`
     +filas;
+}
+// ============================================================
+// v2.9.332 — LA CÉLULA DE ASUNTOS CIVILES (G-5).
+//
+// Sergio: «el G-5 puede ver los detalles de las poblaciones que hay en ese
+// sector y pasar y subir información, áreas restringidas por poblaciones».
+//
+// Las poblaciones ya están en el tablero: vienen del Generador de Calcos como
+// terreno tipo 'poblado'. O sea que LEERLAS no cuesta una sola llamada — salen
+// de lo que el navegador ya tiene. Lo que sí va al servidor es lo que el G-5
+// PRODUCE: las áreas restringidas, porque las tiene que ver todo su Estado
+// Mayor (el Comandante que decide y el G-3 que maniobra) y en el acto.
+//
+// Es un calco de UN Estado Mayor: cada bando ve el suyo. El árbitro ve los dos.
+// ============================================================
+function _wgCentroDeGeom(g){
+  if(!g) return null;
+  const pts=[];
+  const plano=(a)=>{ if(typeof a[0]==='number'){ pts.push(a); return; } for(const x of a) plano(x); };
+  try{ plano(g.coordinates); }catch(_e){ return null; }
+  if(!pts.length) return null;
+  let sx=0, sy=0;
+  for(const p of pts){ sx+=p[0]; sy+=p[1]; }
+  return [sx/pts.length, sy/pts.length];
+}
+function _wgKm(a,b){
+  const kx=111.32*Math.cos((a[1]||0)*Math.PI/180), ky=110.57;
+  return Math.sqrt(Math.pow((a[0]-b[0])*kx,2)+Math.pow((a[1]-b[1])*ky,2));
+}
+// Las poblaciones del sector, sacadas del terreno que ya está cargado.
+function _wgPoblaciones(){
+  const out=[];
+  for(const t of (WG.terreno||[])){
+    if(t.tipo!=='poblado') continue;
+    const c=_wgCentroDeGeom(t.geojson); if(!c) continue;
+    out.push({ nom:(t.geojson&&t.geojson.nom)||'', pos:c });
+  }
+  // Se juntan las que caen casi en el mismo punto (un poblado suele venir como
+  // un punto Y una mancha urbana): si no, la lista sale duplicada.
+  const fin=[];
+  for(const p of out){
+    const ya=fin.find(q=>_wgKm(q.pos,p.pos)<0.6);
+    if(ya){ if(!ya.nom && p.nom) ya.nom=p.nom; continue; }
+    fin.push(p);
+  }
+  fin.sort((a,b)=> (a.nom||'zzz').localeCompare(b.nom||'zzz'));
+  return fin;
+}
+async function _wgCivilCall(payload){
+  const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
+  try{
+    const { data, error } = await sb.functions.invoke('wargame-civil',
+      { body:Object.assign({ token:tok||undefined, partida_id:WG.partidaId,
+        clave_acceso:WG.clave||'' , bando:_wgBandoLente()||undefined }, payload||{}) });
+    if(error){
+      let msg=error.message||String(error);
+      try{ const j=await error.context.json(); if(j&&j.error) msg=j.error; }catch(_e){}
+      return {ok:false,error:msg};
+    }
+    return data||{ok:false,error:'sin respuesta'};
+  }catch(e){ return {ok:false,error:String((e&&e.message)||e)}; }
+}
+async function wgCivilCargar(repintar){
+  if(!WG.partidaId) return;
+  const r=await _wgCivilCall({ accion:'listar' });
+  WG.civil = (r.ok && r.areas) ? r.areas : [];
+  _wgRenderCivil();
+  if(repintar && WG.hoja==='civil') wgPanelCivil();
+}
+// Las áreas restringidas se dibujan en la carta de TODO su Estado Mayor: es un
+// dato de maniobra, no un apunte del G-5.
+function _wgRenderCivil(){
+  if(!WG.map || typeof L==='undefined') return;
+  if(WG._capaCivil){ try{ WG.map.removeLayer(WG._capaCivil); }catch(_e){} WG._capaCivil=null; }
+  const areas=WG.civil||[];
+  if(!areas.length) return;
+  WG._capaCivil=L.layerGroup().addTo(WG.map);
+  for(const a of areas){
+    const col=WG_COL[a.bando]||'#f4d574';
+    try{
+      L.circle([a.lat,a.lng],{ radius:Number(a.radio_km)*1000, color:'#ffd166',
+        weight:2, dashArray:'7 5', fillColor:'#ffd166', fillOpacity:0.10 })
+        .bindPopup(`<b>🚫 ÁREA RESTRINGIDA</b><br><b>${_rgEsc(a.nombre)}</b><br>`
+          +`radio ${Number(a.radio_km)} km<br>`
+          +(a.motivo?`<i>${_rgEsc(a.motivo)}</i><br>`:'')
+          +`<span style="opacity:.7">G-5 ${String(a.bando||'').toUpperCase()}`
+          +(a.creado_por?' · '+_rgEsc(a.creado_por):'')+`</span>`)
+        .addTo(WG._capaCivil);
+    }catch(_e){}
+  }
+}
+function wgPanelCivil(){
+  const el=document.getElementById('wg-civil'); if(!el) return;
+  const pobs=_wgPoblaciones();
+  const areas=WG.civil||[];
+  const mias=_wgMisUnidades();
+  const puede = !_wgRol() || _wgRol()==='g5';   // el G-5 declara; los demás miran
+  const dentro=(pos)=>areas.find(a=>_wgKm(pos,[a.lng,a.lat])<=Number(a.radio_km));
+
+  const cab=`<div class="section-label" style="margin:0 0 8px">🏛️ ASUNTOS CIVILES</div>`
+    +`<div class="rg-card" style="padding:9px 10px;margin-bottom:9px">`
+    +`<div style="display:flex;gap:14px;flex-wrap:wrap">`
+    +`<div><b style="font-size:19px">${pobs.length}</b><div class="rg-meta" style="font-size:10px">poblaciones en el sector</div></div>`
+    +`<div><b style="font-size:19px;color:#ffd166">${areas.length}</b><div class="rg-meta" style="font-size:10px">áreas restringidas</div></div>`
+    +`<div><b style="font-size:19px">${pobs.filter(p=>dentro(p.pos)).length}</b><div class="rg-meta" style="font-size:10px">poblaciones protegidas</div></div>`
+    +`</div>`
+    +`<div class="rg-meta" style="font-size:10.5px;margin-top:7px;line-height:1.45">`
+    +(puede
+      ? `Marcá como <b>área restringida</b> las poblaciones que la maniobra no debe batir. `
+        +`Aparecen en la carta de todo tu Estado Mayor.`
+      : `Este calco lo produce el <b>G-5</b>. Acá lo ves para planear con él.`)
+    +`</div></div>`;
+
+  const listaAreas = areas.length
+    ? `<div class="section-label" style="margin:12px 0 6px">🚫 Áreas restringidas vigentes</div>`
+      + areas.map(a=>`<div class="rg-card" style="padding:7px 9px;margin-bottom:5px;border-left:3px solid #ffd166">`
+        +`<div style="display:flex;align-items:center;gap:7px">`
+        +`<b style="flex:1">${_rgEsc(a.nombre)}</b>`
+        +`<span style="font-size:11px;opacity:.8">${Number(a.radio_km)} km</span>`
+        +(puede?`<button class="rg-doc" style="font-size:10.5px;padding:2px 7px" onclick="wgCivilQuitar(${a.id})">Levantar</button>`:'')
+        +`</div>`
+        +(a.motivo?`<div class="rg-meta" style="font-size:10.5px;margin-top:3px">${_rgEsc(a.motivo)}</div>`:'')
+        +`<div class="rg-meta" style="font-size:10px;margin-top:3px;opacity:.65">`
+        +`declarada por ${_rgEsc(a.creado_por||'G-5')}</div></div>`).join('')
+    : '';
+
+  const filas = pobs.length
+    ? pobs.map((p,i)=>{
+        const a=dentro(p.pos);
+        let cerca='';
+        if(mias.length){
+          let mej=null;
+          for(const u of mias){ const d=_wgKm(p.pos,[u.lng,u.lat]); if(!mej||d<mej.d) mej={d,u}; }
+          if(mej) cerca=`a ${mej.d.toFixed(1)} km de ${_rgEsc(mej.u.designacion||mej.u.bando)}`;
+        }
+        const nom=p.nom||`Población ${i+1}`;
+        return `<div class="rg-card" style="padding:7px 9px;margin-bottom:5px`
+          +(a?';border-left:3px solid #ffd166':'')+`">`
+          +`<div style="display:flex;align-items:center;gap:7px">`
+          +`<b style="flex:1">${a?'🚫 ':'🏘️ '}${_rgEsc(nom)}</b>`
+          +(puede&&!a?`<button class="rg-doc" style="font-size:10.5px;padding:2px 7px"`
+            +` onclick="wgCivilDeclarar(${i})">Restringir</button>`:'')
+          +`</div>`
+          +`<div class="rg-meta" style="font-size:10.5px;margin-top:3px">`
+          +`${p.pos[1].toFixed(4)}, ${p.pos[0].toFixed(4)}${cerca?' · '+cerca:''}`
+          +(a?` · <b style="color:#ffd166">dentro de «${_rgEsc(a.nombre)}»</b>`:'')
+          +`</div></div>`;
+      }).join('')
+    : `<div class="rg-meta" style="line-height:1.5">Este escenario no trae la capa de poblaciones. `
+      +`Se importa desde el Generador de Calcos junto con el terreno (calco de POBLACIONES).</div>`;
+
+  el.innerHTML = cab + listaAreas
+    + `<div class="section-label" style="margin:12px 0 6px">🏘️ Poblaciones del sector (${pobs.length})</div>`
+    + filas;
+}
+async function wgCivilDeclarar(i){
+  const p=_wgPoblaciones()[i]; if(!p) return;
+  const nom=prompt('Nombre de la población / localidad:', p.nom||'');
+  if(nom===null) return;
+  if(String(nom).trim().length<2){ alert('Poné un nombre.'); return; }
+  const rad=prompt('Radio del área restringida, en kilómetros:', '2');
+  if(rad===null) return;
+  const r=Number(String(rad).replace(',','.'));
+  if(!isFinite(r)||r<=0||r>50){ alert('El radio tiene que estar entre 0 y 50 km.'); return; }
+  const mot=prompt('Motivo / instrucción para la maniobra (opcional):',
+    'Población civil — prohibido batir. Coordinar paso con G-5.');
+  if(mot===null) return;
+  const res=await _wgCivilCall({ accion:'declarar', nombre:String(nom).trim(),
+    lat:p.pos[1], lng:p.pos[0], radio_km:r, motivo:String(mot).trim(),
+    quien:(WG.invitado||'')+(_wgRol()?' ('+WG_ROLES[_wgRol()].nom+')':'') });
+  if(!res.ok){ alert('No se pudo declarar el área.\n\n'+(res.error||'')); return; }
+  await wgCivilCargar(true);
+  _wgAviso(`🚫 <b>${_rgEsc(String(nom).trim())}</b> quedó como área restringida `
+    +`(${r} km). Ya la ve todo tu Estado Mayor.`, 5000);
+  _wgCanalCivil();
+}
+async function wgCivilQuitar(id){
+  if(!confirm('¿Levantar esta área restringida?')) return;
+  const r=await _wgCivilCall({ accion:'quitar', id:Number(id) });
+  if(!r.ok){ alert('No se pudo levantar.\n\n'+(r.error||'')); return; }
+  await wgCivilCargar(true);
+  _wgCanalCivil();
 }
 function wgPanelLogistica(){
   const el=document.getElementById('wg-logistica'); if(!el) return;
@@ -28033,6 +28224,9 @@ WG._tecla = {};
 // visor manda el aparato en el que estás metido.
 function _wgDronMando(){
   if(!_wgEn3D()) return null;
+  // v2.9.332: el mando es del G-2. En cualquier otro puesto no hay mando ni por
+  // teclado ni por el pad — aunque el aparato se vea en la carta.
+  if(_wgRol() && !_wgEsG2()) return null;
   let bando=null;
   if(WG.dronVista!=null){
     const uv=_wgUnidadPorId(WG.dronVista);
@@ -28301,12 +28495,18 @@ function _wgBandosDron(){
 }
 function wgPanelDrones(){
   const el=document.getElementById('wg-drones'); if(!el) return;
-  // v2.9.317 — EL DRON ES DEL G-2. En los puestos que no lo operan (G-1, G-4,
-  // G-5) la estación de control es ruido: les tapa media pantalla con mandos que
-  // no les corresponden. El Comandante, el JEM y el G-3 sí la ven, porque el
-  // medio es de la fuerza y ellos deciden dónde emplearlo.
+  // ============================================================
+  // v2.9.332 — EL DRON LO VUELA EL G-2. PUNTO.
+  // La 317 se la dejaba también al Comandante, al JEM y al G-3 «porque el medio
+  // es de la fuerza y ellos deciden dónde emplearlo». Sergio corrigió el
+  // criterio, y es el correcto: «el G-3 ni el Comandante ni el Jefe de Estado
+  // Mayor controlan el dron». Ellos DIRIGEN la operación y VEN lo que el aparato
+  // descubre —los contactos aparecen igual en su carta—, pero el mando del
+  // aparato es de un solo oficial. Si tres personas pueden virarlo, no lo vuela
+  // nadie. El árbitro sigue manejando los dos: no tiene puesto, tiene el juego.
+  // ============================================================
   const r=_wgRol();
-  if(r && r!=='g2' && !WG_ROLES[r].ordena){ el.style.display='none'; WG._panelFirma=null; return; }
+  if(r && r!=='g2'){ el.style.display='none'; WG._panelFirma=null; return; }
   const bandos=_wgBandosDron().filter(b=>_wgDronBando(b));
   if(!bandos.length){ el.style.display='none'; el.innerHTML=''; WG._panelFirma=null; return; }
   el.style.display='';
@@ -28980,6 +29180,14 @@ function _wgCanalIniciar(){
   try{
     WG._canal = sb.channel('wg-'+WG.partidaId, { config:{ broadcast:{ self:false } } })
       .on('broadcast', { event:'turno' }, (m)=>{ _wgCanalTurno(m && m.payload); })
+      // v2.9.332: cuando el G-5 declara un área restringida, el resto del Estado
+      // Mayor la ve en su carta EN EL ACTO. Es exactamente para lo que se armó
+      // el canal en la 329: lo que tiene que verse a la vez, se avisa.
+      .on('broadcast', { event:'civil' }, (m)=>{
+        const b=m&&m.payload&&m.payload.bando;
+        if(b && _wgBandoLente() && b!==_wgBandoLente()) return;   // no es de mi bando
+        wgCivilCargar(true);
+      })
       .subscribe((estado)=>{
         const ok = (estado==='SUBSCRIBED');
         if(ok===WG._canalOk) return;
@@ -28990,6 +29198,12 @@ function _wgCanalIniciar(){
         if(ok && WG.maqueta) _wgLatido(true);
       });
   }catch(_e){ WG._canal=null; WG._canalOk=false; }
+}
+// Aviso de que el calco de Asuntos Civiles cambió.
+function _wgCanalCivil(){
+  if(!WG._canal || !WG._canalOk) return;
+  try{ WG._canal.send({ type:'broadcast', event:'civil',
+    payload:{ bando:_wgBandoLente()||WG.soy||null } }); }catch(_e){}
 }
 function _wgCanalParar(){
   if(WG._canal){ try{ sb.removeChannel(WG._canal); }catch(_e){} }
@@ -29293,7 +29507,22 @@ async function wgEstado(silencioso){
   // v2.9.317 — el puesto abre SU tablero al entrar (una sola vez): si el oficial
   // tiene que ir a buscarlo en un menú, la mitad no lo encuentra y concluye que
   // su pantalla es igual a la del Comandante.
-  if(miRol && !WG._hojaAuto){ WG._hojaAuto=1; try{ wgHoja('unidades'); }catch(_e){} }
+  // v2.9.332 — CADA OFICIAL ABRE **SU** TABLERO, no el genérico.
+  // Sergio: «todos tienen la vista panorámica de su grupo, pero tienen la
+  // información que les corresponde». El G-1 entra a bajas, el G-4 a
+  // combustible y munición, el G-5 a poblaciones. Al que maniobra (Comandante,
+  // JEM, G-3) y al G-2 les sirve la lista de unidades.
+  if(miRol && !WG._hojaAuto){
+    WG._hojaAuto=1;
+    try{ wgHoja(WG_HOJA_DE_ROL[miRol] || 'unidades'); }catch(_e){}
+  }
+  // El botón de su hoja queda marcado en el riel, para que sepa cuál es la suya.
+  if(miRol){
+    const bs=WG_HOJA_DE_ROL[miRol];
+    const b=bs && document.getElementById('wg-riel-'+bs);
+    if(b && !b._mio){ b._mio=1; b.style.boxShadow='0 0 0 2px '+(WG_COL[bandoChip]||'#f4d574');
+      b.title='TU TABLERO — '+(b.title||''); }
+  }
   // v2.9.318: en un puesto, el color es el DEL BANDO del puesto — aunque lo abra
   // el árbitro. Antes salía dorado de árbitro y confundía de qué lado estabas.
   const colChip = bandoPuesto ? WG_COL[bandoPuesto] : (esArb ? null : WG_COL[r.soy]);
@@ -31158,7 +31387,13 @@ function _wgEscenarioDesde(d, fase){
     for(const f of ((fc&&fc.features)||[])){
       const g=f&&f.geometry;
       if(!g||!g.type) continue;
-      terreno.push({ tipo:CAPAS[clave], geojson:g });
+      // v2.9.332: se conserva el NOMBRE del elemento cuando el calco lo trae.
+      // Va colgado de la geometría (`nom`): Leaflet y el motor leen `type` y
+      // `coordinates` y todo lo demás lo ignoran, así que no molesta a nadie —
+      // y sin esto el G-5 sólo puede listar poblaciones por coordenada.
+      const pr=(f&&f.properties)||{};
+      const nom=pr['Nombre']||pr['nombre']||pr['name']||pr['Población']||pr['Poblacion']||'';
+      terreno.push({ tipo:CAPAS[clave], geojson: nom?Object.assign({},g,{nom:String(nom)}):g });
       visuales++;
     }
   }
@@ -33182,6 +33417,8 @@ function _wgRender(){
   }
   if(WG.map3d){ _wg3dDatos(); _wg3dCapas(); }
   if(WG.hoja==='capas') wgPanelCapas(); // conteos siempre al día
+  if(WG.hoja==='civil') wgPanelCivil(); // v2.9.332
+  _wgRenderCivil();                     // v2.9.332: las áreas restringidas en la carta
   // v2.9.319 — la maqueta encuadra SOLA la primera vez que ya hay dispositivo
   // en pantalla. Antes lo intentaba a los 900 ms y a esa altura todavía no había
   // llegado el estado: encuadraba sobre nada y quedaba en el centro del mundo.
