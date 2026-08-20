@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.330</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.331</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7459,10 +7459,28 @@ body.wg-jugando{overflow:hidden}
     <div class="rg-meta" style="font-size:11px;margin-top:8px;line-height:1.5;opacity:.75">
       Por ahora alcanza con el nombre. Más adelante los cursantes entrarán con su CI y contraseña.
     </div>
-    <button onclick="wgInvitadoEntrar()" style="width:100%;margin-top:18px;padding:14px;
+    <!-- ============================================================
+         v2.9.331 — UN SOLO ENLACE PARA TODO EL ESTADO MAYOR.
+         Sergio: «hoy fue bastante complicado enviar un enlace a cada alumno.
+         Quisiera enviar un solo enlace donde él se registre y elija, de acuerdo
+         a lo que yo le ordene verbalmente, el miembro del Estado Mayor que le
+         toca; y una vez que todos hayan ingresado, tener el registro.»
+         Así que el enlace del bando ya no entra siempre al puesto de mando:
+         acá se elige. La lista dice qué está libre y quién ocupa lo tomado.
+         ============================================================ -->
+    <div id="wg-inv-puestos-caja" style="margin-top:18px;display:none">
+      <label class="rg-meta" style="font-size:11px;letter-spacing:1px;display:block;margin-bottom:6px">
+        TU PUESTO EN EL ESTADO MAYOR</label>
+      <div id="wg-inv-puestos"></div>
+      <div class="rg-meta" style="font-size:11px;margin-top:8px;line-height:1.5;opacity:.75">
+        Elegí el puesto que te asignó el árbitro. Si el que te toca ya figura
+        ocupado, avisale a él.
+      </div>
+    </div>
+    <button id="wg-inv-entrar" onclick="wgInvitadoEntrar()" style="width:100%;margin-top:18px;padding:14px;
       border-radius:10px;font-size:15px;font-weight:800;cursor:pointer;
       background:linear-gradient(180deg,#dbe9f7,#b9d3ec);border:none;color:#0b1420">
-      ▶️ ENTRAR AL PUESTO DE MANDO</button>
+      ▶️ ENTRAR</button>
     <div id="wg-inv-error" style="margin-top:12px;font-size:12px;color:#ff8f8f"></div>
   </div>
 </section>
@@ -7675,19 +7693,47 @@ body.wg-jugando{overflow:hidden}
 </div>
 <div id="wg-imp-estado" style="font-size:11px;color:var(--text-muted);margin-bottom:10px"></div>
 
-<div class="section-label">Bandos (cada uno = un Estado Mayor)</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-          <button class="rg-doc" onclick="wgAgregarBando('rojo')">🔴 Crear/ver bando ROJO</button>
-          <button class="rg-doc" onclick="wgAgregarBando('azul')">🔵 Crear/ver bando AZUL</button>
+<!-- ============================================================
+     v2.9.331 — CADA ESTADO MAYOR, SU BLOQUE.
+     Antes los cuatro botones iban juntos y la invitación se pintaba en UN solo
+     contenedor puesto al final: apretabas «Invitar al ROJO» y la tarjeta salía
+     debajo del AZUL. Sergio lo reportó tal cual. Ahora cada bando es un bloque
+     cerrado —invitar, sus puestos, su registro— y la tarjeta cae DENTRO del
+     bloque que apretaste. No hay forma de que salga en el lugar equivocado.
+     ============================================================ -->
+<div class="section-label">Estados Mayores (cada bando = un Estado Mayor)</div>
+        <div id="wg-em-rojo" style="border:1px solid rgba(255,107,107,.32);border-radius:10px;
+          padding:10px;margin-bottom:10px;background:rgba(255,107,107,.05)">
+          <div style="font-weight:800;color:#ff6b6b;margin-bottom:7px;font-size:13px">🔴 ESTADO MAYOR ROJO</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:7px">
+            <button class="rg-doc" onclick="wgInvitarBando('rojo')"
+              title="UN enlace para todo el Estado Mayor: cada oficial elige su puesto al entrar">🔗 Invitar al ROJO (enlace + QR)</button>
+            <button class="rg-doc" onclick="wgAgregarBando('rojo')">🔴 Crear/ver bando</button>
+            <button class="rg-doc" onclick="wgPuestosPanel('rojo')" title="Enlaces directos a un puesto puntual">🎖️ Puestos uno por uno</button>
+          </div>
+          <div id="wg-puestos-rojo" style="display:none;margin-bottom:7px"></div>
+          <div id="wg-invitacion-rojo" style="margin-bottom:7px"></div>
+          <div id="wg-registro-rojo"></div>
         </div>
-        <!-- v2.9.274 — INVITAR A UN BANDO: enlace + QR. Cada Estado Mayor entra
-             por su enlace, sin cuenta, sólo con su nombre. -->
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-          <button class="rg-doc" onclick="wgInvitarBando('rojo')">🔗 Invitar al ROJO (enlace + QR)</button>
-          <button class="rg-doc" onclick="wgInvitarBando('azul')">🔗 Invitar al AZUL (enlace + QR)</button>
+        <div id="wg-em-azul" style="border:1px solid rgba(107,182,255,.32);border-radius:10px;
+          padding:10px;margin-bottom:10px;background:rgba(107,182,255,.05)">
+          <div style="font-weight:800;color:#6bb6ff;margin-bottom:7px;font-size:13px">🔵 ESTADO MAYOR AZUL</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:7px">
+            <button class="rg-doc" onclick="wgInvitarBando('azul')"
+              title="UN enlace para todo el Estado Mayor: cada oficial elige su puesto al entrar">🔗 Invitar al AZUL (enlace + QR)</button>
+            <button class="rg-doc" onclick="wgAgregarBando('azul')">🔵 Crear/ver bando</button>
+            <button class="rg-doc" onclick="wgPuestosPanel('azul')" title="Enlaces directos a un puesto puntual">🎖️ Puestos uno por uno</button>
+          </div>
+          <div id="wg-puestos-azul" style="display:none;margin-bottom:7px"></div>
+          <div id="wg-invitacion-azul" style="margin-bottom:7px"></div>
+          <div id="wg-registro-azul"></div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:10px">
+          <button class="rg-doc" onclick="wgRegistroEM(true)">🔄 Actualizar quién está</button>
+          <span id="wg-registro-hora" class="rg-meta" style="font-size:10.5px;opacity:.7"></span>
         </div>
         <div id="wg-bandos-claves" style="font-size:12px;color:var(--text-muted);margin-bottom:8px"></div>
-        <div id="wg-invitacion" style="margin-bottom:10px"></div>
+        <div id="wg-invitacion" style="display:none"></div>
         <div class="section-label">Colocar unidad (luego clic en el mapa)</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
           <select id="wg-u-bando" class="wg-mini"><option value="rojo">🔴 Rojo</option><option value="azul">🔵 Azul</option></select>
@@ -25441,6 +25487,14 @@ function wgHoja(cual){
   if(WG.hoja==='matriz') wgPanelMatriz(); // v2.9.223
   if(WG.hoja==='personal') wgPanelPersonal();   // v2.9.229
   if(WG.hoja==='logistica') wgPanelLogistica(); // v2.9.229
+  // v2.9.331 — el registro del Estado Mayor se lee al abrir CONFIGURAR y se
+  // refresca solo cada 20 s MIENTRAS la hoja esté abierta. Cerrada no consulta
+  // nada: es una lista de asistencia, no un sondeo del juego.
+  clearInterval(WG._regT); WG._regT=null;
+  if(WG.hoja==='config' && WG.soy==='arbitro'){
+    wgRegistroEM();
+    WG._regT=setInterval(()=>{ if(WG.hoja==='config') wgRegistroEM(); else { clearInterval(WG._regT); WG._regT=null; } }, 20000);
+  }
 }
 // ============================================================
 // v2.9.229 — PERSONAL Y LOGÍSTICA, CADA UNO EN SU HOJA.
@@ -34237,15 +34291,20 @@ async function wgInvitarBando(bando, partidaId, regenerar, rol){
   // error. El dato es exacto y ya lo tenemos: los botones DEL LOBBY mandan el
   // id de la partida; los de la consola del árbitro no mandan nada. Eso dice
   // sin ambigüedad desde dónde te llamaron.
+  // v2.9.331: en la consola del árbitro cada bando tiene SU contenedor, dentro
+  // de su propio bloque. Antes había uno solo al final y la tarjeta del ROJO
+  // aparecía debajo del AZUL — que es justo lo que Sergio reportó.
   const enLobby=document.getElementById('wg-inv-'+pid);
-  const enPartida=document.getElementById('wg-invitacion');
+  const enPartida=document.getElementById('wg-invitacion-'+bando)
+                 || document.getElementById('wg-invitacion');
   const desdeLobby = partidaId != null;
   const cont = desdeLobby ? (enLobby||enPartida) : (enPartida||enLobby);
   if(!pid){ if(cont) cont.innerHTML='<div class="rg-meta" style="color:#ff8f8f">No sé de qué partida.</div>'; return; }
-  // Y se vacía el OTRO, para que no queden dos elementos con el mismo id del QR
-  // (`getElementById` devolvería el de la pantalla oculta y el código dibujaría ahí).
-  const otro = cont===enLobby ? enPartida : enLobby;
-  if(otro) otro.innerHTML='';
+  // Se vacían TODOS los demás contenedores de invitación: si quedaran dos, el
+  // id del QR estaría repetido y `getElementById` dibujaría en el equivocado.
+  [enLobby, document.getElementById('wg-invitacion-rojo'),
+   document.getElementById('wg-invitacion-azul'), document.getElementById('wg-invitacion')]
+    .forEach(d=>{ if(d && d!==cont) d.innerHTML=''; });
   if(cont) cont.innerHTML='<div class="rg-meta" style="margin-top:8px">⏳ Generando la invitación…</div>';
   const r=await _wgInvoke('agregar_bando',{ partida_id:pid, bando, regenerar:!!regenerar });
   if(!r.ok){ if(cont) cont.innerHTML='<div class="rg-meta" style="color:#ff8f8f;margin-top:8px">No se pudo: '+_rgEsc(r.error||'')+'</div>'; return; }
@@ -34270,15 +34329,85 @@ async function wgInvitarBando(bando, partidaId, regenerar, rol){
           </div>
           <div class="rg-meta" style="font-size:10.5px;margin-top:7px;line-height:1.45">
             Clave del bando: <b style="color:#f4d574">${_rgEsc(r.clave_acceso)}</b><br>
-            Quien abra el enlace (o escanee el QR) entra directo como
-            <b style="color:${col}">${bando.toUpperCase()}</b> poniendo <b>sólo su nombre</b>.
-            No necesita cuenta de SIDECEME.
+            <b style="color:${col}">Un solo enlace para todo el Estado Mayor.</b>
+            Quien lo abra (o escanee el QR) pone su nombre y <b>elige su puesto</b>
+            —Comandante, Jefe de EM, G-1 a G-5— de una lista que muestra lo que
+            está libre. No necesita cuenta de SIDECEME. Abajo ves quién entró en
+            cada cargo.
           </div>
         </div>
       </div>
     </div>`;
   // El generador de QR ya existe en la app (se usa para las papeletas).
   try{ generarQRRobusto(url, 'wg-qr-inv-'+pid, 180); }catch(_e){}
+}
+// ============================================================
+// v2.9.331 — LOS PUESTOS UNO POR UNO, DENTRO DEL BLOQUE DE SU BANDO.
+// El enlace único ya alcanza para el 99% de los casos, pero a veces hace falta
+// sentar a alguien puntual (o abrir una estación en la máquina de la sala).
+// Son los mismos botones del lobby, plegados para no llenar el panel.
+// ============================================================
+function wgPuestosPanel(bando){
+  const c=document.getElementById('wg-puestos-'+bando);
+  if(!c) return;
+  if(c.style.display!=='none'){ c.style.display='none'; return; }
+  const col = bando==='rojo'?'#ff6b6b':'#6bb6ff';
+  c.innerHTML=`<div class="rg-meta" style="font-size:10px;opacity:.7;margin-bottom:4px">`
+    +`clic: abrir ese puesto acá · Shift+clic: su enlace + QR</div>`
+    +`<div style="display:flex;gap:4px;flex-wrap:wrap">`
+    + Object.keys(WG_ROLES).map(k=>
+        `<button class="rg-doc" style="font-size:11px;padding:3px 8px;border-color:${col}55"`
+        +` title="${_rgEsc(WG_ROLES[k].nom)} — ${_rgEsc(WG_ROLES[k].desc)}"`
+        +` onclick="wgPuestoLobby(event,'${bando}',${WG.partidaId},'${k}')">`
+        +`${WG_ROLES[k].ico} ${_rgEsc(WG_ROLES[k].nom.replace(/ · .*/,''))}</button>`).join('')
+    +`</div>`;
+  c.style.display='';
+}
+// ============================================================
+// v2.9.331 — EL REGISTRO: QUIÉN ESTÁ EN QUÉ CARGO.
+// Sergio: «una vez que todos hayan ingresado, yo tenga el registro de cada
+// miembro». Sale de `wg_puestos`, que se llena sola cuando cada oficial elige
+// su puesto al entrar por el enlace del bando. Verde = se lo vio hace menos de
+// dos minutos; gris = entró pero hace rato que no da señales.
+// ============================================================
+async function wgRegistroEM(avisar){
+  if(!WG.partidaId) return;
+  let r;
+  try{ r=await _wgInvokeEF('wargame-puestos',{ accion:'registro', partida_id:WG.partidaId }); }
+  catch(e){ r={ok:false,error:String((e&&e.message)||e)}; }
+  const hora=document.getElementById('wg-registro-hora');
+  if(!r || !r.ok){
+    if(hora) hora.textContent = r&&r.error ? ('— '+r.error) : '';
+    return;
+  }
+  const ahora=Date.now();
+  for(const bando of ['rojo','azul']){
+    const cont=document.getElementById('wg-registro-'+bando);
+    if(!cont) continue;
+    const col = bando==='rojo'?'#ff6b6b':'#6bb6ff';
+    const mios=(r.puestos||[]).filter(p=>p.bando===bando);
+    const porRol={}; mios.forEach(p=>porRol[p.rol]=p);
+    const filas=Object.keys(WG_ROLES).map(k=>{
+      const p=porRol[k];
+      if(!p) return `<div style="display:flex;gap:8px;padding:3px 0;opacity:.45;font-size:11.5px">`
+        +`<span style="width:150px;flex:0 0 150px">${WG_ROLES[k].ico} ${_rgEsc(WG_ROLES[k].nom)}</span>`
+        +`<span style="font-style:italic">— sin ocupar —</span></div>`;
+      const seg=Math.round((ahora-new Date(p.visto_en).getTime())/1000);
+      const vivo=seg<120;
+      return `<div style="display:flex;gap:8px;padding:3px 0;font-size:11.5px;align-items:center">`
+        +`<span style="width:150px;flex:0 0 150px;opacity:.8">${WG_ROLES[k].ico} ${_rgEsc(WG_ROLES[k].nom)}</span>`
+        +`<span style="width:7px;height:7px;border-radius:50%;flex:0 0 7px;`
+        +`background:${vivo?'#2ecc71':'#7b8794'}"></span>`
+        +`<b style="color:${col}">${_rgEsc(p.nombre)}</b>`
+        +`<span class="rg-meta" style="font-size:10px;opacity:.6">`
+        +`${vivo?'en línea':(seg<3600?('hace '+Math.round(seg/60)+' min'):'desconectado')}</span></div>`;
+    }).join('');
+    cont.innerHTML=`<div class="rg-meta" style="font-size:10px;opacity:.7;letter-spacing:1px;`
+      +`margin:6px 0 3px;border-top:1px solid ${col}33;padding-top:6px">`
+      +`QUIÉN ESTÁ (${mios.length}/7)</div>`+filas;
+  }
+  if(hora) hora.textContent='actualizado '+new Date().toLocaleTimeString('es-BO',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  if(avisar) _wgAviso('🔄 Registro del Estado Mayor actualizado.', 2200);
 }
 function _wgCopiarInv(pid){
   const i=document.getElementById('wg-inv-url-'+pid); if(!i) return;
@@ -39159,7 +39288,78 @@ function detectarInvitacionWargameEnURL(){
   if(ep) ep.textContent='Partida N° '+id;
   showScreen('screen-wg-invitado');
   setTimeout(()=>{ try{ document.getElementById('wg-inv-nombre').focus(); }catch(_e){} },160);
+  // v2.9.331: el enlace del bando ya no entra derecho al puesto de mando —
+  // acá se elige. Si el enlace trae `&rol=` (los directos de antes) viene
+  // preseleccionado y no hay nada que decidir.
+  _wgInvCargarPuestos();
   return true;
+}
+// ============================================================
+// v2.9.331 — QUÉ PUESTOS HAY Y CUÁLES ESTÁN LIBRES.
+// Se pregunta con la clave del bando, sin cuenta: el que llega por el enlace no
+// tiene sesión de SIDECEME. Es la misma puerta que usa para jugar.
+// ============================================================
+async function _wgPuestosCall(payload){
+  const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
+  try{
+    const { data, error } = await sb.functions.invoke('wargame-puestos',
+      { body:Object.assign({ token:tok||undefined }, payload||{}) });
+    if(error){
+      let msg=error.message||String(error);
+      let extra={};
+      try{ const j=await error.context.json(); if(j){ extra=j; if(j.error) msg=j.error; } }catch(_e){}
+      return Object.assign({ok:false,error:msg}, extra);
+    }
+    return data||{ok:false,error:'sin respuesta'};
+  }catch(e){ return {ok:false,error:String((e&&e.message)||e)}; }
+}
+async function _wgInvCargarPuestos(){
+  const caja=document.getElementById('wg-inv-puestos-caja');
+  const cont=document.getElementById('wg-inv-puestos');
+  const inv=WG._inv||{};
+  if(!caja||!cont||!inv.partida) return;
+  caja.style.display='';
+  cont.innerHTML='<div class="rg-meta" style="font-size:12px">⏳ Buscando los puestos…</div>';
+  const r=await _wgPuestosCall({ accion:'libres', partida_id:inv.partida,
+    bando:inv.bando||'', clave_acceso:inv.clave||'' });
+  if(!r.ok){
+    // Que no lo deje afuera: si el registro falla, igual se puede entrar al
+    // puesto de mando como antes. Nunca romper lo que ya funcionaba.
+    cont.innerHTML='<div class="rg-meta" style="font-size:11.5px;color:#f0c98a">'
+      +'No se pudo leer la lista de puestos ('+_rgEsc(r.error||'')+'). '
+      +'Podés entrar igual al puesto de mando.</div>';
+    WG._invSinRegistro=true;
+    return;
+  }
+  if(r.bando) WG._inv.bando=r.bando;
+  const ocupados={}; (r.ocupados||[]).forEach(o=>ocupados[o.rol]=o.nombre);
+  WG._invOcupados=ocupados;
+  const col = WG._inv.bando==='rojo'?'#ff6b6b':'#6bb6ff';
+  cont.innerHTML = Object.keys(WG_ROLES).map(k=>{
+    const q=ocupados[k];
+    const sel = (WG._inv.rol===k);
+    return `<button type="button" id="wg-inv-p-${k}" onclick="wgInvElegirPuesto('${k}')"
+      style="display:block;width:100%;text-align:left;margin-bottom:5px;padding:9px 11px;
+      border-radius:9px;cursor:pointer;font-size:13px;
+      background:${sel?col+'22':'rgba(0,0,0,.28)'};
+      border:1px solid ${sel?col:'rgba(140,210,255,.22)'};color:#eaf2fb">
+      <b>${WG_ROLES[k].ico} ${_rgEsc(WG_ROLES[k].nom)}</b>
+      <div style="font-size:10.5px;opacity:.65;margin-top:1px">${_rgEsc(WG_ROLES[k].desc)}</div>
+      ${q?`<div style="font-size:10.5px;margin-top:3px;color:#f0c98a">⚠️ ocupado por ${_rgEsc(q)}</div>`:''}
+    </button>`;
+  }).join('');
+}
+function wgInvElegirPuesto(rol){
+  if(!WG_ROLES[rol]) return;
+  WG._inv=WG._inv||{}; WG._inv.rol=rol;
+  const col = WG._inv.bando==='rojo'?'#ff6b6b':'#6bb6ff';
+  Object.keys(WG_ROLES).forEach(k=>{
+    const b=document.getElementById('wg-inv-p-'+k); if(!b) return;
+    const sel=(k===rol);
+    b.style.background = sel ? col+'22' : 'rgba(0,0,0,.28)';
+    b.style.borderColor = sel ? col : 'rgba(140,210,255,.22)';
+  });
+  const e=document.getElementById('wg-inv-error'); if(e) e.textContent='';
 }
 async function wgInvitadoEntrar(){
   const err=document.getElementById('wg-inv-error');
@@ -39167,12 +39367,48 @@ async function wgInvitadoEntrar(){
   if(nom.length<2){ if(err) err.textContent='Poné tu nombre para entrar.'; return; }
   if(err) err.textContent='';
   const inv=WG._inv||{};
+  // v2.9.331 — SE RESERVA EL PUESTO ANTES DE ENTRAR. Así el árbitro ve el
+  // registro completo y dos personas no se sientan en el mismo cargo sin darse
+  // cuenta. Si el registro no está disponible se entra igual (no se bloquea el
+  // juego por una función auxiliar).
+  if(!WG._invSinRegistro){
+    if(!inv.rol){ if(err) err.textContent='Elegí tu puesto en el Estado Mayor.'; return; }
+    const btn=document.getElementById('wg-inv-entrar');
+    if(btn){ btn.disabled=true; btn.textContent='⏳ RESERVANDO TU PUESTO…'; }
+    const r=await _wgPuestosCall({ accion:'tomar', partida_id:inv.partida,
+      bando:inv.bando||'', clave_acceso:inv.clave||'', rol:inv.rol, nombre:nom });
+    if(btn){ btn.disabled=false; btn.textContent='▶️ ENTRAR'; }
+    if(!r.ok){
+      if(r.codigo==='ocupado'){
+        if(!confirm(`${WG_ROLES[inv.rol].nom} ya lo tiene ${r.ocupado_por}.\n\n`
+          +`¿Sos vos y estás volviendo a entrar (por ejemplo, se te cerró la pestaña)?\n\n`
+          +`Aceptar = tomo ese puesto igual. Cancelar = elijo otro.`)) return;
+        const f=await _wgPuestosCall({ accion:'tomar', partida_id:inv.partida,
+          bando:inv.bando||'', clave_acceso:inv.clave||'', rol:inv.rol, nombre:nom, forzar:true });
+        if(!f.ok){ if(err) err.textContent=f.error||'No se pudo tomar el puesto.'; return; }
+      }else{
+        if(err) err.textContent=r.error||'No se pudo reservar el puesto.'; return;
+      }
+    }
+  }
   WG.invitado=nom;                 // así `_wgInvoke` viaja sin token
   WG.soy=inv.bando||null;          // la lente del bando, si el enlace la trae
   WG.rol=inv.rol||null;            // v2.9.316: 'g2' = estación de inteligencia
   try{ sessionStorage.setItem('wg_invitado', nom); }catch(_e){}
+  _wgPuestoLatido();               // v2.9.331: «sigo acá», para el registro
   showScreen('screen-wargame');
   await wgAbrir(inv.partida, inv.clave);
+}
+// Latido del puesto: cada minuto avisa que sigue sentado, para que el árbitro
+// distinga al que está en línea del que entró y se fue.
+function _wgPuestoLatido(){
+  clearInterval(WG._puestoT);
+  if(!WG.invitado || !WG.rol) return;
+  const inv=WG._inv||{};
+  const mandar=()=>{ _wgPuestosCall({ accion:'visto', partida_id:inv.partida,
+    bando:inv.bando||'', clave_acceso:inv.clave||'', rol:WG.rol, nombre:WG.invitado }); };
+  mandar();
+  WG._puestoT=setInterval(mandar, 60000);
 }
 function detectarFlujoFirmaEnURL(){
   const params = new URLSearchParams(window.location.search);
