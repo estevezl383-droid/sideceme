@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.336</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.338</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -10218,8 +10218,13 @@ async function ncVerMateria(idxC, idxM){
     + '</div>'
     + '<div class="sd-block" id="nccd-conformidad">'
     + '<div class="sd-block-title">✍️ Conformidad de los alumnos</div>'
-    + '<div style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px">Publicá esta materia para avisarle a cada alumno que revise su nota y firme conformidad (o la objete con una observación). Tienen 24 horas.</div>'
-    + '<button class="btn-mega" style="background:linear-gradient(180deg,#c49234,#8a6420);color:#fff;margin-bottom:10px" onclick="ncPublicarConformidad('+idxC+','+idxM+')">📤 Publicar / avisar a los alumnos</button>'
+    + '<div style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px">Cada alumno recibe el aviso solo, apenas se carga su nota — no hace falta que hagas nada. Tiene <b>48 horas por defecto</b> para firmar conformidad o dar su observación; podés cambiar ese plazo acá.</div>'
+    + '<div style="display:flex;gap:6px;align-items:center;margin-bottom:8px;flex-wrap:wrap">'
+    + '<span style="font-size:11.5px;color:var(--text-secondary)">Plazo (horas):</span>'
+    + '<input type="number" id="nccd-plazo-horas" value="48" min="1" max="720" style="width:70px;padding:5px 8px;border-radius:6px;border:1px solid var(--border-subtle);background:var(--bg-elevated);color:var(--text-primary);font-size:12px">'
+    + '<button class="btn-mega" style="background:linear-gradient(180deg,#c49234,#8a6420);color:#fff;padding:6px 12px;margin:0;flex:none" onclick="ncFijarPlazo('+idxC+','+idxM+')">⏱️ Aplicar a los pendientes</button>'
+    + '</div>'
+    + '<button class="btn-mega" style="background:none;border:1px solid var(--border-subtle);color:var(--text-secondary);margin-bottom:10px" onclick="ncPublicarConformidad('+idxC+','+idxM+')">🔁 Volver a avisar / incluir alumnos nuevos</button>'
     + '<div id="nccd-conf-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Consultando…</div></div>'
     + '</div>'
     + '<div class="sd-block" id="nccd-faltantes"><div class="sd-block-title">👥 Sin nota en esta materia</div><div class="efm-no-data" style="color:var(--text-muted)">⏳ Consultando…</div></div>';
@@ -10264,7 +10269,7 @@ async function ncCargarConformidad(idxC, idxM){
     return;
   }
   if(!r.publicado || !r.lista.length){
-    box.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">Todavía no se publicó esta materia. Los alumnos no ven ningún aviso de conformidad.</div>';
+    box.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">Esta materia no tiene avisos de conformidad todavía (se cargó antes de este sistema, o no tiene alumnos). Usá "Volver a avisar" para generarlos.</div>';
     return;
   }
   const res = r.resumen;
@@ -10287,13 +10292,30 @@ async function ncPublicarConformidad(idxC, idxM){
   const ci = (NC.control && NC.control.ciclos || [])[idxC];
   const m = ci && (ci.materias || [])[idxM];
   if(!m) return;
-  if(!confirm('¿Publicar "'+m.materia+'" y avisar a los '+m.alumnos+' alumnos? Van a tener 24 horas para firmar conformidad o dar su observación.')) return;
+  if(!confirm('¿Volver a avisar "'+m.materia+'" a los '+m.alumnos+' alumnos? Los que ya firmaron u objetaron NO se tocan; esto sirve para alumnos nuevos o si querés reiniciar el plazo de 48h para todos los que siguen sin responder.')) return;
   const r = await _ncInvoke('publicar_confirmaciones', {
     gestion: NC.control.gestion, semestre: NC.control.semestre,
     ciclo: ci.ciclo, materia: m.materia
   });
-  if(!r.ok){ alert(r.error || 'No se pudo publicar'); return; }
-  alert('Publicado. '+r.nuevas+' avisos nuevos, '+r.reabiertas+' replazados, '+r.sin_tocar+' ya habían respondido (no se tocaron).');
+  if(!r.ok){ alert(r.error || 'No se pudo avisar'); return; }
+  alert('Listo. '+r.nuevas+' avisos nuevos, '+r.reabiertas+' reabiertos, '+r.sin_tocar+' ya habían respondido (no se tocaron).');
+  ncCargarConformidad(idxC, idxM);
+}
+
+async function ncFijarPlazo(idxC, idxM){
+  const ci = (NC.control && NC.control.ciclos || [])[idxC];
+  const m = ci && (ci.materias || [])[idxM];
+  if(!m) return;
+  const el = document.getElementById('nccd-plazo-horas');
+  const horas = Number(el && el.value);
+  if(!horas || horas <= 0){ alert('Poné un número de horas válido.'); return; }
+  if(!confirm('¿Poner el plazo de "'+m.materia+'" en '+horas+' horas para los alumnos que todavía no respondieron? Se cuenta desde que cada uno recibió el aviso.')) return;
+  const r = await _ncInvoke('fijar_plazo', {
+    gestion: NC.control.gestion, semestre: NC.control.semestre,
+    ciclo: ci.ciclo, materia: m.materia, horas: horas
+  });
+  if(!r.ok){ alert(r.error || 'No se pudo cambiar el plazo'); return; }
+  alert('Listo. Plazo actualizado a '+horas+'h para '+r.actualizadas+' alumno(s) pendiente(s).');
   ncCargarConformidad(idxC, idxM);
 }
 
@@ -10513,11 +10535,11 @@ function _esMateriaBloqueada(n, blocks){
   );
 }
 
-// Formatea una nota mostrando hasta 4 decimales FIELES al Excel (sin redondear a 2 ni rellenar con ceros).
-// Ej: 97.0851 → "97.0851" · 96 → "96" · 79.042 → "79.042"
+// Formatea una nota SIEMPRE con 4 decimales exactos (norma de la Escuela: nunca
+// menos de 4). Ej: 97.0851 → "97.0851" · 96 → "96.0000" · 79.042 → "79.0420"
 function fmtNota(x){
   if(x==null || x==='' || isNaN(Number(x))) return '—';
-  return String(Number(Number(x).toFixed(4)));
+  return Number(x).toFixed(4);
 }
 
 async function cargarNotasAcademicas(){
@@ -10559,6 +10581,18 @@ async function _ncfInvoke(accion, extra){
   }catch(e){ return { ok:false, error: String((e && e.message) || e) }; }
 }
 
+// Texto humano del plazo restante/vencido para el aviso al alumno.
+function _ncfPlazoTexto(plazoVenceEnISO){
+  if(!plazoVenceEnISO) return 'firmá cuando puedas';
+  const ms = new Date(plazoVenceEnISO).getTime() - Date.now();
+  if(ms <= 0) return 'plazo vencido, firmá igual apenas puedas';
+  const horas = Math.round(ms / 3600000);
+  if(horas < 1) return 'te queda menos de 1 hora para firmar';
+  if(horas === 1) return 'te queda 1 hora para firmar';
+  if(horas < 48) return 'te quedan ' + horas + ' horas para firmar';
+  return 'te quedan ' + Math.round(horas/24) + ' días para firmar';
+}
+
 let notasConfCache = null, notasConfMap = {};
 async function cargarConformidadesCursante(force){
   if(notasConfCache && !force) return notasConfCache;
@@ -10581,21 +10615,36 @@ function abrirFirmaNota(confId){
   ov.onclick = cerrarFirmaNota;
   ov.innerHTML = `<div class="avm-box" onclick="event.stopPropagation()" style="max-height:88vh;overflow:auto">
     <h3 style="margin:0 0 4px">✍️ Conformidad de tu nota</h3>
-    <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px">${escapeHtml(conf.materia)} · ${escapeHtml(etiquetaSemAcad(conf.ciclo, conf.semestre))} · ${conf.gestion}</div>
+    <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:6px">${escapeHtml(conf.materia)} · ${escapeHtml(etiquetaSemAcad(conf.ciclo, conf.semestre))} · ${conf.gestion}</div>
+    <div style="font-size:22px;font-weight:700;color:var(--gold);font-family:var(--font-display);margin-bottom:12px">Nota final: ${fmtNota(conf.nota_final)}</div>
     <div class="papeleta-block">
       <div class="pb-title">Firmá con el dedo o el mouse</div>
       <div class="sig-wrap"><canvas id="sig-canvas-nota" class="sig-canvas"></canvas></div>
       <button type="button" class="btn-clear-sig" onclick="clearSignatureNota()">🧹 Borrar firma</button>
     </div>
-    <textarea id="nota-firma-obs" placeholder="Si no estás de acuerdo, escribí acá por qué (obligatorio para objetar)" style="width:100%;min-height:70px;margin:10px 0;padding:8px;border-radius:8px;border:1px solid var(--border-subtle);background:var(--bg-elevated);color:var(--text-primary);font-size:12.5px;box-sizing:border-box"></textarea>
+    <div style="font-size:11px;color:var(--text-muted);margin:10px 0 4px">Motivo — obligatorio solo si NO estás de acuerdo:</div>
+    <textarea id="nota-firma-obs" oninput="_ncfToggleRechazo()" placeholder="Escribí acá por qué no estás de acuerdo con esta nota" style="width:100%;min-height:70px;margin:0 0 10px;padding:8px;border-radius:8px;border:1px solid var(--border-subtle);background:var(--bg-elevated);color:var(--text-primary);font-size:12.5px;box-sizing:border-box"></textarea>
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn-papeleta primary" style="flex:1" onclick="enviarConformidadNota('confirmar')">✅ Estoy de acuerdo — firmar</button>
-      <button class="btn-papeleta" style="flex:1;background:#a5334a" onclick="enviarConformidadNota('rechazar')">❌ No estoy de acuerdo</button>
+      <button id="nota-firma-btn-rechazar" class="btn-papeleta" style="flex:1;background:#5a3040;opacity:.5;cursor:not-allowed" disabled onclick="enviarConformidadNota('rechazar')">❌ No estoy de acuerdo</button>
     </div>
     <button type="button" style="margin-top:10px;background:none;border:none;color:var(--text-muted);font-size:12px;cursor:pointer" onclick="cerrarFirmaNota()">Cerrar</button>
   </div>`;
   ov.style.display = 'flex';
   setTimeout(initSignatureCanvasNota, 30);
+}
+
+// El botón "No estoy de acuerdo" arranca deshabilitado — recién se habilita
+// cuando el alumno ya escribió el motivo, para que no sea un toque accidental.
+function _ncfToggleRechazo(){
+  const obsEl = document.getElementById('nota-firma-obs');
+  const btn = document.getElementById('nota-firma-btn-rechazar');
+  if(!obsEl || !btn) return;
+  const listo = (obsEl.value || '').trim().length >= 5;
+  btn.disabled = !listo;
+  btn.style.opacity = listo ? '1' : '.5';
+  btn.style.cursor = listo ? 'pointer' : 'not-allowed';
+  btn.style.background = listo ? '#a5334a' : '#5a3040';
 }
 
 function cerrarFirmaNota(){
@@ -10636,7 +10685,12 @@ async function enviarConformidadNota(decision){
   if(!notaFirmaState.sigHasContent){ alert('Firmá en el recuadro antes de continuar.'); return; }
   const obsEl = document.getElementById('nota-firma-obs');
   const obs = ((obsEl && obsEl.value) || '').trim();
-  if(decision === 'rechazar' && !obs){ alert('Si no estás de acuerdo, tenés que explicar por qué.'); return; }
+  if(decision === 'rechazar' && obs.length < 5){ alert('Si no estás de acuerdo, tenés que explicar por qué (el motivo).'); return; }
+  // Paso extra para que no sea un toque accidental: pregunta con lo que se va a enviar.
+  const pregunta = decision === 'confirmar'
+    ? '¿Confirmás que estás de acuerdo con la nota ' + fmtNota(conf.nota_final) + ' de "' + conf.materia + '"? Esto queda registrado con tu firma.'
+    : '¿Confirmás que NO estás de acuerdo con la nota ' + fmtNota(conf.nota_final) + ' de "' + conf.materia + '" por este motivo?\n\n"' + obs + '"\n\nEsto queda registrado con tu firma.';
+  if(!confirm(pregunta)) return;
   const firma = notaFirmaState.sigCanvas.toDataURL('image/png');
   const r = await _ncfInvoke('resolver', { confirmacion_id: conf.id, decision: decision, firma: firma, observacion: obs || null });
   if(!r.ok){ alert(r.error || 'No se pudo guardar'); return; }
@@ -10856,15 +10910,29 @@ function htmlTarjetaAcademica(g){
     const gProm = mats[0].grupo_promedio!=null ? fmtNota(mats[0].grupo_promedio) : '—';
     const grpId = `acadg-${gestion}-${semestre}-${gi}`;
     const matsHtml = mats.map((m, mi)=>{
-      const gc = gradeColorVivido(m.nota_final);
+      let gc = gradeColorVivido(m.nota_final);
       const nota = m.nota_final!=null ? fmtNota(m.nota_final) : '—';
       const mId = `${grpId}-m${mi}`;
       const conf = notasConfMap[gestion+'|'+semestre+'|'+ciclo+'|'+(m.materia||'')];
-      const confHtml = !conf ? '' : conf.estado==='pendiente'
-        ? `<div style="margin:0 0 8px;text-align:right"><button onclick="event.stopPropagation();abrirFirmaNota('${conf.id}')" style="background:linear-gradient(180deg,#e8c46a,#c49234);color:#2a1f0a;border:none;border-radius:8px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer">⏳ Confirmá tu nota (24 h)</button></div>`
-        : conf.estado==='confirmada'
-          ? `<div style="margin:0 0 8px;font-size:11px;color:#7ddba0">✓ Firmaste tu conformidad</div>`
-          : `<div style="margin:0 0 8px;font-size:11px;color:#d98aa0">✗ Objetaste esta nota${conf.observacion_cursante?': "'+escapeHtml(conf.observacion_cursante)+'"':''}</div>`;
+      // El color/estado de reconocimiento manda sobre el color de calidad de la nota:
+      // roja mientras no la firme, guinda si la objetó, verde (calidad real) recién al confirmar.
+      let confHtml = '';
+      if(conf && conf.estado === 'pendiente'){
+        gc = { grad:'linear-gradient(180deg,#ff5b5b,#c52020)', solid:'#ff5b5b' };
+        const plazoTxt = _ncfPlazoTexto(conf.plazo_vence_en);
+        confHtml = `<div style="margin:2px 0 8px;padding:8px 10px;background:rgba(255,91,91,.12);border:1px solid rgba(255,91,91,.4);border-radius:8px">
+          <div style="font-size:11.5px;color:#ff8f8f;font-weight:700;margin-bottom:6px">🔴 Reconocimiento de nota pendiente — ${plazoTxt}</div>
+          <button onclick="event.stopPropagation();abrirFirmaNota('${conf.id}')" style="background:linear-gradient(180deg,#e8c46a,#c49234);color:#2a1f0a;border:none;border-radius:8px;padding:7px 14px;font-size:11.5px;font-weight:700;cursor:pointer;width:100%">✍️ Ver mi nota y firmar</button>
+        </div>`;
+      } else if(conf && conf.estado === 'rechazada'){
+        gc = { grad:'linear-gradient(180deg,#c9527a,#7a2038)', solid:'#c9527a' };
+        confHtml = `<div style="margin:2px 0 8px;padding:8px 10px;background:rgba(165,51,74,.12);border:1px solid rgba(165,51,74,.4);border-radius:8px">
+          <div style="font-size:11.5px;color:#d98aa0;font-weight:700">🟣 Objetaste esta nota</div>
+          ${conf.observacion_cursante ? `<div style="font-size:11.5px;color:var(--text-secondary);margin-top:4px">"${escapeHtml(conf.observacion_cursante)}"</div>` : ''}
+        </div>`;
+      } else if(conf && conf.estado === 'confirmada'){
+        confHtml = `<div style="margin:2px 0 8px;font-size:11px;color:#7ddba0">🟢 Diste tu conformidad — firmada</div>`;
+      }
       return `<div class="acad-mat" id="${mId}">
         <div class="acad-mat-head" onclick="toggleAcad3D('${mId}')">
           <span class="acad-mat-dot" style="color:${gc.solid}"></span>
