@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.335</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.336</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -9157,7 +9157,7 @@ function renderEvalPanel(){
   const proms = Object.keys(evalData.byCursante||{})
     .map(_evalPromedio).filter(function(p){ return p != null; });
   const promedio = proms.length
-    ? (proms.reduce(function(a,b){ return a+b; },0) / proms.length).toFixed(1)
+    ? fmtNota(proms.reduce(function(a,b){ return a+b; },0) / proms.length)
     : '—';
   document.getElementById('eval-stat-total').textContent = total;
   document.getElementById('eval-stat-connotas').textContent = conNotas;
@@ -9208,7 +9208,7 @@ function drawCursantesEval(arr){
   cont.innerHTML = arr.map(function(c){
     const prom = _evalPromedio(c.id);
     const claseNota = prom != null ? atributoCalificacion(prom) : 'sin';
-    const notaTxt = prom != null ? prom.toFixed(2) : 'Sin notas';
+    const notaTxt = prom != null ? fmtNota(prom) : 'Sin notas';
     const nMat = (evalData.byCursante[c.id]||[]).length;
     const meta = [c.ciclo, c.paralelo ? '"'+c.paralelo+'"' : '', 'CI '+(c.ci||'—'), nMat ? (nMat+' materias') : '']
                  .filter(Boolean).join(' · ');
@@ -9280,7 +9280,7 @@ async function verEvalCursante(cursanteId){
     html += '<div class="sd-block">'
       + '<div class="sd-block-title">📚 ' + escapeHtml(etiquetaSemAcad(ciclo, sem)) + ' · ' + g + (ciclo ? (' · ' + escapeHtml(ciclo)) : '') + '</div>'
       + '<div style="display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap">'
-      + '<div class="ef-stat-card" style="flex:1;min-width:90px"><div class="ef-stat-num">' + (prom != null ? prom.toFixed(2) : '—') + '</div><div class="ef-stat-lbl">Promedio</div></div>'
+      + '<div class="ef-stat-card" style="flex:1;min-width:90px"><div class="ef-stat-num">' + fmtNota(prom) + '</div><div class="ef-stat-lbl">Promedio</div></div>'
       + '<div class="ef-stat-card" style="flex:1;min-width:90px"><div class="ef-stat-num">' + filas.length + '</div><div class="ef-stat-lbl">Materias</div></div>'
       + (om != null ? '<div class="ef-stat-card" style="flex:1;min-width:90px"><div class="ef-stat-num">' + om + '</div><div class="ef-stat-lbl">O.M. general</div></div>' : '')
       + '</div>'
@@ -9297,7 +9297,7 @@ async function verEvalCursante(cursanteId){
       const cls = (!isNaN(nf) && nf > 0) ? atributoCalificacion(nf) : 'sin';
       html += '<tr>'
         + '<td style="padding:6px 4px;border-bottom:1px solid var(--border-subtle)">' + escapeHtml(n.materia||'—') + '</td>'
-        + '<td style="padding:6px 4px;border-bottom:1px solid var(--border-subtle);text-align:right" class="ef-cur-nota ' + cls + '">' + (!isNaN(nf) && nf > 0 ? nf.toFixed(2) : '—') + '</td>'
+        + '<td style="padding:6px 4px;border-bottom:1px solid var(--border-subtle);text-align:right" class="ef-cur-nota ' + cls + '">' + (!isNaN(nf) && nf > 0 ? fmtNota(nf) : '—') + '</td>'
         + '<td style="padding:6px 4px;border-bottom:1px solid var(--border-subtle);text-align:center">' + escapeHtml(n.atributo||'—') + '</td>'
         + '<td style="padding:6px 4px;border-bottom:1px solid var(--border-subtle);text-align:right">' + (n.om_materia != null ? n.om_materia : '—') + '</td>'
         + '</tr>';
@@ -9437,7 +9437,7 @@ function verCargaDetalle(idx){
     return '<div class="ef-cursante-row" style="cursor:default">'
       + '<div><div class="ef-cur-nombre">' + escapeHtml(m||'—') + '</div>'
       + '<div class="ef-cur-meta">' + arr.length + ' alumnos</div></div>'
-      + '<div class="ef-cur-nota ' + cls + '">' + (prom != null ? prom.toFixed(2) : '—') + '</div>'
+      + '<div class="ef-cur-nota ' + cls + '">' + fmtNota(prom) + '</div>'
       + '</div>';
   }).join('');
   html += '</div>';
@@ -9461,7 +9461,7 @@ function verCargaDetalle(idx){
     return '<div class="ef-cursante-row" onclick="verEvalCursante(\'' + escapeAttr(String(id)) + '\')">'
       + '<div><div class="ef-cur-nombre">' + escapeHtml(nom) + '</div>'
       + '<div class="ef-cur-meta">' + escapeHtml(meta) + '</div></div>'
-      + '<div class="ef-cur-nota ' + cls + '">' + (prom != null ? prom.toFixed(2) : '—') + '</div>'
+      + '<div class="ef-cur-nota ' + cls + '">' + fmtNota(prom) + '</div>'
       + '</div>';
   }).join('');
   html += '</div>';
@@ -10177,7 +10177,7 @@ function ncDibujarControl(){
       + '<div class="sd-block-title">🎓 '+escapeHtml(ci.ciclo)+' · '+ci.activos+' cursantes · '+mats.length+' materias</div>'
       + mats.map(function(m, idxM){
           const est = _ncEstado(m);
-          const prom = m.promedio == null ? '—' : Number(m.promedio).toFixed(2);
+          const prom = fmtNota(m.promedio);
           return '<div class="nc-mat-row '+est+'" onclick="ncVerMateria('+idxC+','+idxM+')">'
             + '<div style="min-width:0;flex:1">'
             + '<div class="nc-mat-nom">'+escapeHtml(m.materia)+(m.mod_codigo ? ' <span style="color:var(--text-muted);font-weight:400">· '+escapeHtml(m.mod_codigo)+'</span>' : '')+'</div>'
@@ -10195,6 +10195,7 @@ async function ncVerMateria(idxC, idxM){
   const ci = (NC.control && NC.control.ciclos || [])[idxC];
   const m = ci && (ci.materias || [])[idxM];
   if(!m) return;
+  NC.verIdx = { idxC:idxC, idxM:idxM };
   const cont = document.getElementById('nccd-cont');
   document.getElementById('nccd-sub').textContent = m.materia;
   const fecha = m.ultima_carga ? new Date(m.ultima_carga).toLocaleString('es-BO') : '—';
@@ -10206,8 +10207,8 @@ async function ncVerMateria(idxC, idxM){
     + (m.mod_codigo ? '<div class="sd-row"><span class="lbl">Módulo</span><span class="vl">'+escapeHtml(m.mod_codigo)+'</span></div>' : '')
     + (m.grupo ? '<div class="sd-row"><span class="lbl">Grupo / U.C.</span><span class="vl">'+escapeHtml(m.grupo)+'</span></div>' : '')
     + '<div class="sd-row"><span class="lbl">Alumnos con nota</span><span class="vl gold">'+m.alumnos+' de '+ci.activos+'</span></div>'
-    + '<div class="sd-row"><span class="lbl">Promedio</span><span class="vl">'+(m.promedio==null?'—':Number(m.promedio).toFixed(2))+'</span></div>'
-    + '<div class="sd-row"><span class="lbl">Nota más baja / alta</span><span class="vl">'+(m.nota_min==null?'—':Number(m.nota_min).toFixed(2))+' — '+(m.nota_max==null?'—':Number(m.nota_max).toFixed(2))+'</span></div>'
+    + '<div class="sd-row"><span class="lbl">Promedio</span><span class="vl">'+fmtNota(m.promedio)+'</span></div>'
+    + '<div class="sd-row"><span class="lbl">Nota más baja / alta</span><span class="vl">'+fmtNota(m.nota_min)+' — '+fmtNota(m.nota_max)+'</span></div>'
     + '<div class="sd-row"><span class="lbl">Última carga</span><span class="vl">'+escapeHtml(fecha)+'</span></div>'
     + '<div class="sd-row"><span class="lbl">Cargado por</span><span class="vl">'+escapeHtml(m.cargado_por||'—')+'</span></div>'
     + '</div>'
@@ -10215,9 +10216,16 @@ async function ncVerMateria(idxC, idxM){
     + '<div>'+_ncChips(m)+'</div>'
     + (m.sin_detalle > 0 ? '<div style="font-size:11.5px;color:var(--text-muted);margin-top:8px">'+m.sin_detalle+' notas sin el desglose (trabajos / formativa / sumativa). El alumno ve la nota final igual.</div>' : '')
     + '</div>'
+    + '<div class="sd-block" id="nccd-conformidad">'
+    + '<div class="sd-block-title">✍️ Conformidad de los alumnos</div>'
+    + '<div style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px">Publicá esta materia para avisarle a cada alumno que revise su nota y firme conformidad (o la objete con una observación). Tienen 24 horas.</div>'
+    + '<button class="btn-mega" style="background:linear-gradient(180deg,#c49234,#8a6420);color:#fff;margin-bottom:10px" onclick="ncPublicarConformidad('+idxC+','+idxM+')">📤 Publicar / avisar a los alumnos</button>'
+    + '<div id="nccd-conf-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Consultando…</div></div>'
+    + '</div>'
     + '<div class="sd-block" id="nccd-faltantes"><div class="sd-block-title">👥 Sin nota en esta materia</div><div class="efm-no-data" style="color:var(--text-muted)">⏳ Consultando…</div></div>';
 
   showScreen('screen-notas-control-det');
+  ncCargarConformidad(idxC, idxM);
 
   const r = await _ncInvoke('faltantes', {
     gestion: NC.control.gestion, semestre: NC.control.semestre,
@@ -10236,6 +10244,57 @@ async function ncVerMateria(idxC, idxM){
             return '<div>· '+escapeHtml(nombreConGrado(x))+' <span style="color:var(--text-muted)">'+escapeHtml([x.paralelo?'"'+x.paralelo+'"':'', 'CI '+(x.ci||'—')].filter(Boolean).join(' · '))+'</span></div>';
           }).join('') + '</div>'
         : '<div class="efm-no-data" style="color:#7ddba0">✔ Todos los cursantes activos del ciclo tienen nota.</div>');
+}
+
+// ====== Conformidad del alumno (firma digital de su nota) — semáforo del evaluador ======
+const _NC_CONF_COLOR = { confirmada:'#7ddba0', pendiente:'#e87878', rechazada:'#a5334a' };
+const _NC_CONF_LABEL = { confirmada:'Firmó — de acuerdo', pendiente:'No vio / no firmó', rechazada:'No está de acuerdo' };
+
+async function ncCargarConformidad(idxC, idxM){
+  const ci = (NC.control && NC.control.ciclos || [])[idxC];
+  const m = ci && (ci.materias || [])[idxM];
+  const box = document.getElementById('nccd-conf-lista');
+  if(!m || !box) return;
+  const r = await _ncInvoke('estado_confirmaciones', {
+    gestion: NC.control.gestion, semestre: NC.control.semestre,
+    ciclo: ci.ciclo, materia: m.materia
+  });
+  if(!r.ok){
+    box.innerHTML = '<div class="efm-no-data" style="color:#e87878">'+escapeHtml(r.error||'No se pudo consultar')+'</div>';
+    return;
+  }
+  if(!r.publicado || !r.lista.length){
+    box.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">Todavía no se publicó esta materia. Los alumnos no ven ningún aviso de conformidad.</div>';
+    return;
+  }
+  const res = r.resumen;
+  box.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">'
+    + '<span class="nc-chip ok">🟢 '+res.confirmadas+' firmaron</span>'
+    + '<span class="nc-chip warn" style="background:rgba(232,120,120,.15);color:#e87878;border-color:rgba(232,120,120,.35)">🔴 '+res.pendientes+' sin responder</span>'
+    + (res.rechazadas ? '<span class="nc-chip" style="background:rgba(165,51,74,.18);color:#d98aa0;border-color:rgba(165,51,74,.4)">🟣 '+res.rechazadas+' objetaron</span>' : '')
+    + '</div>'
+    + '<div class="nc-lista-mini">' + r.lista.map(function(x){
+        const color = _NC_CONF_COLOR[x.estado] || '#9aa3b8';
+        const lbl = _NC_CONF_LABEL[x.estado] || x.estado;
+        const venc = x.vencido ? ' <span style="color:#e87878">· plazo vencido</span>' : '';
+        const obs = x.observacion_cursante ? '<div style="color:#d98aa0;font-size:11px;margin:2px 0 0 14px">"'+escapeHtml(x.observacion_cursante)+'"</div>' : '';
+        return '<div style="padding:4px 0"><span style="color:'+color+'">●</span> '+escapeHtml(x.nombre_completo)
+          + ' <span style="color:var(--text-muted)">— '+lbl+venc+'</span></div>' + obs;
+      }).join('') + '</div>';
+}
+
+async function ncPublicarConformidad(idxC, idxM){
+  const ci = (NC.control && NC.control.ciclos || [])[idxC];
+  const m = ci && (ci.materias || [])[idxM];
+  if(!m) return;
+  if(!confirm('¿Publicar "'+m.materia+'" y avisar a los '+m.alumnos+' alumnos? Van a tener 24 horas para firmar conformidad o dar su observación.')) return;
+  const r = await _ncInvoke('publicar_confirmaciones', {
+    gestion: NC.control.gestion, semestre: NC.control.semestre,
+    ciclo: ci.ciclo, materia: m.materia
+  });
+  if(!r.ok){ alert(r.error || 'No se pudo publicar'); return; }
+  alert('Publicado. '+r.nuevas+' avisos nuevos, '+r.reabiertas+' replazados, '+r.sin_tocar+' ya habían respondido (no se tocaron).');
+  ncCargarConformidad(idxC, idxM);
 }
 
 function renderGenericoPanel(role){
@@ -10482,12 +10541,117 @@ async function cargarNotasAcademicas(){
   return filtered;
 }
 
+// ====== Conformidad de notas (lado del cursante): ver, firmar u objetar ======
+async function _ncfInvoke(accion, extra){
+  const tok = (typeof getTokenSesion === 'function') ? getTokenSesion() : null;
+  if(!tok) return { ok:false, error:'Tu sesión no es válida. Volvé a entrar.' };
+  try{
+    const { data, error } = await sb.functions.invoke('notas-confirmar', {
+      body: Object.assign({ accion:accion, token:tok }, extra || {})
+    });
+    if(error){
+      let cuerpo = null;
+      try{ if(error.context && typeof error.context.json === 'function') cuerpo = await error.context.json(); }catch(_){}
+      if(cuerpo) return Object.assign({ ok:false, error: cuerpo.error || error.message }, cuerpo);
+      return { ok:false, error: error.message || 'No se pudo contactar al servidor' };
+    }
+    return data || { ok:false, error:'El servidor no respondió' };
+  }catch(e){ return { ok:false, error: String((e && e.message) || e) }; }
+}
+
+let notasConfCache = null, notasConfMap = {};
+async function cargarConformidadesCursante(force){
+  if(notasConfCache && !force) return notasConfCache;
+  const r = await _ncfInvoke('pendientes');
+  if(!r.ok){ notasConfCache = []; notasConfMap = {}; return []; }
+  notasConfCache = r.confirmaciones || [];
+  notasConfMap = {};
+  notasConfCache.forEach(function(c){ notasConfMap[c.gestion+'|'+c.semestre+'|'+c.ciclo+'|'+c.materia] = c; });
+  return notasConfCache;
+}
+
+let notaFirmaState = { conf:null, sigCanvas:null, sigCtx:null, sigHasContent:false };
+
+function abrirFirmaNota(confId){
+  const conf = (notasConfCache||[]).find(function(c){ return String(c.id)===String(confId); });
+  if(!conf) return;
+  notaFirmaState = { conf:conf, sigCanvas:null, sigCtx:null, sigHasContent:false };
+  let ov = document.getElementById('nota-firma-modal');
+  if(!ov){ ov = document.createElement('div'); ov.id='nota-firma-modal'; ov.className='avm-overlay'; document.body.appendChild(ov); }
+  ov.onclick = cerrarFirmaNota;
+  ov.innerHTML = `<div class="avm-box" onclick="event.stopPropagation()" style="max-height:88vh;overflow:auto">
+    <h3 style="margin:0 0 4px">✍️ Conformidad de tu nota</h3>
+    <div style="font-size:12.5px;color:var(--text-muted);margin-bottom:12px">${escapeHtml(conf.materia)} · ${escapeHtml(etiquetaSemAcad(conf.ciclo, conf.semestre))} · ${conf.gestion}</div>
+    <div class="papeleta-block">
+      <div class="pb-title">Firmá con el dedo o el mouse</div>
+      <div class="sig-wrap"><canvas id="sig-canvas-nota" class="sig-canvas"></canvas></div>
+      <button type="button" class="btn-clear-sig" onclick="clearSignatureNota()">🧹 Borrar firma</button>
+    </div>
+    <textarea id="nota-firma-obs" placeholder="Si no estás de acuerdo, escribí acá por qué (obligatorio para objetar)" style="width:100%;min-height:70px;margin:10px 0;padding:8px;border-radius:8px;border:1px solid var(--border-subtle);background:var(--bg-elevated);color:var(--text-primary);font-size:12.5px;box-sizing:border-box"></textarea>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn-papeleta primary" style="flex:1" onclick="enviarConformidadNota('confirmar')">✅ Estoy de acuerdo — firmar</button>
+      <button class="btn-papeleta" style="flex:1;background:#a5334a" onclick="enviarConformidadNota('rechazar')">❌ No estoy de acuerdo</button>
+    </div>
+    <button type="button" style="margin-top:10px;background:none;border:none;color:var(--text-muted);font-size:12px;cursor:pointer" onclick="cerrarFirmaNota()">Cerrar</button>
+  </div>`;
+  ov.style.display = 'flex';
+  setTimeout(initSignatureCanvasNota, 30);
+}
+
+function cerrarFirmaNota(){
+  const ov = document.getElementById('nota-firma-modal');
+  if(ov) ov.style.display = 'none';
+}
+
+function initSignatureCanvasNota(){
+  const canvas = document.getElementById('sig-canvas-nota');
+  if(!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.getBoundingClientRect();
+  canvas.width = rect.width; canvas.height = rect.height;
+  ctx.strokeStyle = '#f4d574'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  notaFirmaState.sigCanvas = canvas; notaFirmaState.sigCtx = ctx; notaFirmaState.sigHasContent = false;
+  let drawing = false;
+  function pos(e){
+    const r = canvas.getBoundingClientRect();
+    const p = e.touches ? e.touches[0] : e;
+    return { x: p.clientX - r.left, y: p.clientY - r.top };
+  }
+  function start(e){ drawing = true; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); e.preventDefault(); }
+  function move(e){ if(!drawing) return; const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); notaFirmaState.sigHasContent = true; e.preventDefault(); }
+  function end(){ drawing = false; }
+  canvas.onmousedown = start; canvas.onmousemove = move; canvas.onmouseup = end; canvas.onmouseleave = end;
+  canvas.ontouchstart = start; canvas.ontouchmove = move; canvas.ontouchend = end;
+}
+
+function clearSignatureNota(){
+  if(!notaFirmaState.sigCtx || !notaFirmaState.sigCanvas) return;
+  notaFirmaState.sigCtx.clearRect(0, 0, notaFirmaState.sigCanvas.width, notaFirmaState.sigCanvas.height);
+  notaFirmaState.sigHasContent = false;
+}
+
+async function enviarConformidadNota(decision){
+  const conf = notaFirmaState.conf;
+  if(!conf) return;
+  if(!notaFirmaState.sigHasContent){ alert('Firmá en el recuadro antes de continuar.'); return; }
+  const obsEl = document.getElementById('nota-firma-obs');
+  const obs = ((obsEl && obsEl.value) || '').trim();
+  if(decision === 'rechazar' && !obs){ alert('Si no estás de acuerdo, tenés que explicar por qué.'); return; }
+  const firma = notaFirmaState.sigCanvas.toDataURL('image/png');
+  const r = await _ncfInvoke('resolver', { confirmacion_id: conf.id, decision: decision, firma: firma, observacion: obs || null });
+  if(!r.ok){ alert(r.error || 'No se pudo guardar'); return; }
+  cerrarFirmaNota();
+  await cargarConformidadesCursante(true);
+  renderCursanteAcademicasSection();
+  alert(decision === 'confirmar' ? '¡Gracias! Quedó registrada tu conformidad.' : 'Quedó registrada tu observación.');
+}
+
 async function renderCursanteAcademicasSection(){
   const cont = document.getElementById('cur-acad-content');
   if(!cont || !currentUser) return;
   cont.innerHTML = '<div class="placeholder-container" style="padding:24px 12px"><div class="placeholder-icon">⏳</div><div class="placeholder-title">Cargando notas...</div></div>';
   try{
-    const data = await cargarNotasAcademicas();
+    const [data] = await Promise.all([cargarNotasAcademicas(), cargarConformidadesCursante()]);
     if(!data.length){
       cont.innerHTML = '<div class="efm-no-data">📚 No tenés notas académicas cargadas todavía.</div>';
       return;
@@ -10695,6 +10859,12 @@ function htmlTarjetaAcademica(g){
       const gc = gradeColorVivido(m.nota_final);
       const nota = m.nota_final!=null ? fmtNota(m.nota_final) : '—';
       const mId = `${grpId}-m${mi}`;
+      const conf = notasConfMap[gestion+'|'+semestre+'|'+ciclo+'|'+(m.materia||'')];
+      const confHtml = !conf ? '' : conf.estado==='pendiente'
+        ? `<div style="margin:0 0 8px;text-align:right"><button onclick="event.stopPropagation();abrirFirmaNota('${conf.id}')" style="background:linear-gradient(180deg,#e8c46a,#c49234);color:#2a1f0a;border:none;border-radius:8px;padding:6px 12px;font-size:11.5px;font-weight:700;cursor:pointer">⏳ Confirmá tu nota (24 h)</button></div>`
+        : conf.estado==='confirmada'
+          ? `<div style="margin:0 0 8px;font-size:11px;color:#7ddba0">✓ Firmaste tu conformidad</div>`
+          : `<div style="margin:0 0 8px;font-size:11px;color:#d98aa0">✗ Objetaste esta nota${conf.observacion_cursante?': "'+escapeHtml(conf.observacion_cursante)+'"':''}</div>`;
       return `<div class="acad-mat" id="${mId}">
         <div class="acad-mat-head" onclick="toggleAcad3D('${mId}')">
           <span class="acad-mat-dot" style="color:${gc.solid}"></span>
@@ -10704,6 +10874,7 @@ function htmlTarjetaAcademica(g){
           </span>
           <span class="acad-mat-arrow">▸</span>
         </div>
+        ${confHtml}
         <div class="acad-mat-body">${htmlDetalleMateria(m)}</div>
       </div>`;
     }).join('');
