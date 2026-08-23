@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.338</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.339</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -10048,9 +10048,23 @@ async function ncSubir(reemplazar){
 
   if(r.ya_existe){
     ncDibujarRevision();
-    const ok = confirm('La materia "' + materia + '" YA tiene ' + r.filas_previas
-      + ' notas cargadas en este período.\n\nSi continuás, esas notas se REEMPLAZAN por las de este Excel '
-      + '(y se quitan las de los alumnos que ya no figuran en la planilla).\n\n¿Reemplazar?');
+    // Caso especial: la materia ya está cargada pero escrita distinto (mayúsculas,
+    // tildes, puntos). Si se dejara pasar quedarían DOS materias gemelas con las
+    // mismas notas, y el alumno las vería repetidas.
+    let msg;
+    if(r.nombre_distinto){
+      msg = '⚠️ MATERIA REPETIDA\n\n'
+        + 'Escribiste:  "' + materia + '"\n'
+        + 'Ya cargada:  "' + r.nombre_distinto + '"  (' + r.filas_previas + ' notas)\n\n'
+        + 'Son la MISMA materia escrita distinto. Si cargás una nueva quedarían DUPLICADAS.\n\n'
+        + '¿Reemplazar las notas de "' + r.nombre_distinto + '" con las de este Excel?\n'
+        + '(Se conserva ese nombre para no dejar la materia dos veces.)';
+    } else {
+      msg = 'La materia "' + materia + '" YA tiene ' + r.filas_previas
+        + ' notas cargadas en este período.\n\nSi continuás, esas notas se REEMPLAZAN por las de este Excel '
+        + '(y se quitan las de los alumnos que ya no figuran en la planilla).\n\n¿Reemplazar?';
+    }
+    const ok = confirm(msg);
     if(ok) return ncSubir(true);
     res.innerHTML = '<div class="nc-chip info" style="display:block;padding:10px 12px">No se cargó nada. La materia quedó como estaba.</div>';
     return;
