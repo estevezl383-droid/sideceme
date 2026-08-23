@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.340</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.341</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4522,6 +4522,60 @@ body{
   </div>
   <div class="menu-container">
     <div id="nccd-cont"></div>
+  </div>
+</section>
+
+<!-- v2.9.341 — Notas de UN alumno en UNA materia (el evaluador toca un nombre del semáforo) -->
+<section id="screen-nota-alumno" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('screen-notas-control-det')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Notas del cursante</div><div class="header-sub" id="nal-sub">—</div></div>
+  </div>
+  <div class="menu-container">
+    <div id="nal-cont"></div>
+  </div>
+</section>
+
+<!-- v2.9.341 — REPORTES DE NOTAS (evaluadores de ciclo) -->
+<section id="screen-notas-reportes" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goAnyPanel()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">📊 Reportes de Notas</div><div class="header-sub" id="nrep-sub">Planillas oficiales por unidad académica</div></div>
+  </div>
+  <div class="menu-container">
+    <div class="rc-section-label">📄 Documentos oficiales</div>
+
+    <!-- Planilla de una unidad académica (materia), por paralelo -->
+    <div class="reporte-card">
+      <div class="rc-title">📋 1. Planilla de calificaciones por unidad académica</div>
+      <div class="rc-desc">Elegí una materia ya cargada. Genera una planilla por paralelo con el desglose de trabajos, formativas y sumativas, la nota final y el reconocimiento de cada cursante.</div>
+      <div class="rc-filters">
+        <select id="nrep-periodo" onchange="nrepCargarMaterias()"></select>
+        <select id="nrep-materia" onchange="nrepPintarInfo()"></select>
+        <select id="nrep-paralelo"><option value="todos">Todos los paralelos</option></select>
+      </div>
+      <div id="nrep-info" style="font-size:11.5px;color:var(--text-muted);margin:0 4px 10px"></div>
+      <div class="rc-buttons">
+        <button class="rc-btn rc-btn-word"  onclick="nrepGenerar('word')">📝 Word</button>
+        <button class="rc-btn rc-btn-pdf"   onclick="nrepGenerar('pdf')">📄 PDF</button>
+        <button class="rc-btn rc-btn-excel" onclick="nrepGenerar('excel')">📊 Excel</button>
+      </div>
+    </div>
+
+    <!-- Boleta individual de un cursante -->
+    <div class="reporte-card">
+      <div class="rc-title">🎖️ 2. Boleta individual de notas</div>
+      <div class="rc-desc">Todas las materias del período de UN cursante, con el desglose de cada nota y su reconocimiento. Para cuando un cursante pide constancia de sus calificaciones.</div>
+      <div class="rc-filters">
+        <select id="nrep-alumno"></select>
+      </div>
+      <div class="rc-buttons" style="grid-template-columns:repeat(2,1fr)">
+        <button class="rc-btn rc-btn-word" onclick="nrepIndividual('word')">📝 Word</button>
+        <button class="rc-btn rc-btn-pdf"  onclick="nrepIndividual('pdf')">📄 PDF</button>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -9528,14 +9582,27 @@ function _ncBotonControl(screenId){
   const cont=sc.querySelector('.menu-container')||sc.querySelector('.disc-container');
   if(!cont) return;
   const ya=cont.querySelector('.nc-btn-control');
-  if(!_ncEsEvaluador()){ if(ya) ya.remove(); return; }
-  if(ya) return;
-  const b=document.createElement('button');
-  b.className='btn-mega nc-btn-control';
-  b.style.cssText='background:linear-gradient(180deg,#c49234,#8a6420);margin:0 0 8px;color:#fff';
-  b.onclick=function(){ goNotasControl(); };
-  b.innerHTML='<span class="mega-icon">\u2705</span><span>Control de carga de notas \u2014 seguimiento por materia y ciclo</span>';
-  cont.insertBefore(b, cont.firstElementChild);
+  const yaRep=cont.querySelector('.nc-btn-reportes');
+  // Los botones inyectados quedan pegados en el DOM entre sesiones de la misma
+  // pesta\u00f1a: si el usuario ya no es evaluador hay que REMOVERLOS, no solo no crearlos.
+  if(!_ncEsEvaluador()){ if(ya) ya.remove(); if(yaRep) yaRep.remove(); return; }
+  if(!ya){
+    const b=document.createElement('button');
+    b.className='btn-mega nc-btn-control';
+    b.style.cssText='background:linear-gradient(180deg,#c49234,#8a6420);margin:0 0 8px;color:#fff';
+    b.onclick=function(){ goNotasControl(); };
+    b.innerHTML='<span class="mega-icon">\u2705</span><span>Control de carga de notas \u2014 seguimiento por materia y ciclo</span>';
+    cont.insertBefore(b, cont.firstElementChild);
+  }
+  if(!yaRep){
+    const r=document.createElement('button');
+    r.className='btn-mega nc-btn-reportes';
+    r.style.cssText='background:linear-gradient(180deg,#2b6d8c,#1a4460);margin:0 0 8px;color:#fff';
+    r.onclick=function(){ goNotasReportes(); };
+    r.innerHTML='<span class="mega-icon">\ud83d\udcca</span><span>Reportes de notas \u2014 planillas por unidad acad\u00e9mica y boletas</span>';
+    const ref=cont.querySelector('.nc-btn-control');
+    cont.insertBefore(r, ref ? ref.nextSibling : cont.firstElementChild);
+  }
 }
 function _ncEsEvaluador(){
   try{
@@ -10292,14 +10359,90 @@ async function ncCargarConformidad(idxC, idxM){
     + '<span class="nc-chip warn" style="background:rgba(232,120,120,.15);color:#e87878;border-color:rgba(232,120,120,.35)">🔴 '+res.pendientes+' sin responder</span>'
     + (res.rechazadas ? '<span class="nc-chip" style="background:rgba(165,51,74,.18);color:#d98aa0;border-color:rgba(165,51,74,.4)">🟣 '+res.rechazadas+' objetaron</span>' : '')
     + '</div>'
+    + '<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">👆 Tocá un nombre para ver el detalle de sus notas.</div>'
     + '<div class="nc-lista-mini">' + r.lista.map(function(x){
         const color = _NC_CONF_COLOR[x.estado] || '#9aa3b8';
         const lbl = _NC_CONF_LABEL[x.estado] || x.estado;
         const venc = x.vencido ? ' <span style="color:#e87878">· plazo vencido</span>' : '';
         const obs = x.observacion_cursante ? '<div style="color:#d98aa0;font-size:11px;margin:2px 0 0 14px">"'+escapeHtml(x.observacion_cursante)+'"</div>' : '';
-        return '<div style="padding:4px 0"><span style="color:'+color+'">●</span> '+escapeHtml(x.nombre_completo)
-          + ' <span style="color:var(--text-muted)">— '+lbl+venc+'</span></div>' + obs;
+        return '<div style="padding:5px 0;cursor:pointer" onclick="verNotaAlumno(\''+escapeAttr(String(x.cursante_id))+'\','+idxC+','+idxM+')">'
+          + '<span style="color:'+color+'">●</span> '+escapeHtml(x.nombre_completo)
+          + ' <span style="color:var(--text-muted)">— '+lbl+venc+'</span>'
+          + ' <span style="color:var(--gold);font-size:11px">›</span></div>' + obs;
       }).join('') + '</div>';
+}
+
+// v2.9.341 — El evaluador toca un nombre del semáforo y ve el desglose completo
+// de ESA materia (trabajos, formativas, sumativas) + su reconocimiento.
+async function verNotaAlumno(cursanteId, idxC, idxM){
+  const ci = (NC.control && NC.control.ciclos || [])[idxC];
+  const m = ci && (ci.materias || [])[idxM];
+  if(!m) return;
+  const cur = (discData.cursantes||[]).find(function(c){ return String(c.id)===String(cursanteId); });
+  const sub = document.getElementById('nal-sub');
+  if(sub) sub.textContent = (cur ? nombreConGrado(cur) : cursanteId) + ' · ' + m.materia;
+  const cont = document.getElementById('nal-cont');
+  cont.innerHTML = '<div class="efm-no-data">Cargando…</div>';
+  showScreen('screen-nota-alumno');
+
+  let fila = null;
+  try{
+    const { data } = await sb.from('notas_academicas').select('*')
+      .eq('cursante_id', cursanteId).eq('gestion', NC.control.gestion)
+      .eq('semestre', NC.control.semestre).eq('ciclo', ci.ciclo)
+      .eq('materia', m.materia).maybeSingle();
+    fila = data;
+  }catch(e){ console.warn('verNotaAlumno', e); }
+
+  if(!fila){
+    cont.innerHTML = '<div class="sd-block"><div class="efm-no-data">Este cursante no tiene nota cargada en esta materia.</div></div>';
+    return;
+  }
+
+  const bloques = _nrepBloques(fila);
+  const desglose = bloques.length
+    ? bloques.map(function(b){
+        const items = (b.items||[]).map(function(it){
+          return '<div class="sd-row"><span class="lbl" style="padding-left:12px">'+escapeHtml(String(it.n||'—'))+'</span>'
+               + '<span class="vl">'+(it.v!=null?fmtNota(it.v):'—')+'</span></div>';
+        }).join('');
+        return '<div style="margin-bottom:8px">'
+          + '<div class="sd-row"><span class="lbl" style="color:var(--gold-light);font-weight:700">'+escapeHtml(String(b.tipo||'—').toUpperCase())+'</span>'
+          + '<span class="vl">'+(b.aporte!=null?('aporta '+b.aporte):'')+'</span></div>'
+          + items + '</div>';
+      }).join('')
+    : '<div class="efm-no-data" style="color:var(--text-muted)">Esta nota se cargó sin desglose (solo la nota final).</div>';
+
+  // Estado de reconocimiento
+  let confHtml = '';
+  try{
+    const rc = await _ncInvoke('estado_confirmaciones', {
+      gestion:NC.control.gestion, semestre:NC.control.semestre, ciclo:ci.ciclo, materia:m.materia });
+    if(rc && rc.ok){
+      const x = (rc.lista||[]).find(function(y){ return String(y.cursante_id)===String(cursanteId); });
+      if(x){
+        const color = _NC_CONF_COLOR[x.estado]||'#9aa3b8';
+        confHtml = '<div class="sd-block"><div class="sd-block-title">✍️ Reconocimiento</div>'
+          + '<div class="sd-row"><span class="lbl">Estado</span><span class="vl" style="color:'+color+'">'+escapeHtml(_NC_CONF_LABEL[x.estado]||x.estado)+'</span></div>'
+          + (x.confirmada_en ? '<div class="sd-row"><span class="lbl">Firmó el</span><span class="vl">'+escapeHtml(new Date(x.confirmada_en).toLocaleString('es-BO'))+'</span></div>' : '')
+          + (x.plazo_vence_en ? '<div class="sd-row"><span class="lbl">Plazo</span><span class="vl">'+escapeHtml(new Date(x.plazo_vence_en).toLocaleString('es-BO'))+(x.vencido?' (vencido)':'')+'</span></div>' : '')
+          + (x.observacion_cursante ? '<div class="sd-row"><span class="lbl">Su observación</span><span class="vl" style="color:#d98aa0">'+escapeHtml(x.observacion_cursante)+'</span></div>' : '')
+          + '</div>';
+      }
+    }
+  }catch(e){}
+
+  cont.innerHTML = '<div class="sd-block">'
+    + '<div class="sd-block-title">📘 '+escapeHtml(m.materia)+'</div>'
+    + (fila.grupo ? '<div class="sd-row"><span class="lbl">Módulo</span><span class="vl">'+escapeHtml(fila.grupo)+'</span></div>' : '')
+    + '<div class="sd-row"><span class="lbl">Período</span><span class="vl">Gestión '+fila.gestion+' · semestre '+fila.semestre+'</span></div>'
+    + '<div class="sd-row"><span class="lbl">Nota final</span><span class="vl gold" style="font-size:17px">'+fmtNota(fila.nota_final)+'</span></div>'
+    + '<div class="sd-row"><span class="lbl">Atributo</span><span class="vl">'+escapeHtml(fila.atributo||'—')+'</span></div>'
+    + '<div class="sd-row"><span class="lbl">Puesto en la materia</span><span class="vl">'+(fila.om_materia!=null?('N° '+fila.om_materia):'—')+'</span></div>'
+    + '</div>'
+    + '<div class="sd-block"><div class="sd-block-title">🧮 Desglose de la nota</div>'+desglose+'</div>'
+    + confHtml
+    + '<button class="btn-mega" style="background:linear-gradient(180deg,#2b4d8c,#1a3060);color:#fff;margin-top:10px" onclick="verEvalCursante(\''+escapeAttr(String(cursanteId))+'\')">📚 Ver TODAS las notas de este cursante</button>';
 }
 
 async function ncPublicarConformidad(idxC, idxM){
@@ -17473,6 +17616,451 @@ async function descargarPlanillaParalelo(formato){
   } catch(e){
     console.error('Error generando planilla por paralelo:', e);
     alert('Hubo un error generando la planilla por paralelo: '+(e.message||e));
+  }
+}
+
+/* ============================================================================
+   v2.9.341 — REPORTES DE NOTAS (evaluadores de ciclo: Ortiz 1er, Soto Farfan 2do)
+   Calca la maquinaria de los reportes de Disciplina (mismo membrete, mismos
+   estilos, mismo bloque de firmas, misma exportación Word/PDF/Excel) pero con
+   las columnas de notas.
+
+   LO QUE CAMBIA respecto de disciplina: las columnas NO son fijas. Una materia
+   puede tener 1 trabajo y 1 formativa, u otra puede tener 2 formativas y 3
+   trabajos. Por eso las columnas se DEDUCEN del `detalle_json` de cada nota
+   (bloques → items) tomando el máximo de items por tipo entre todos los
+   alumnos de esa materia. Con 1 item por tipo el resultado es idéntico al
+   modelo en papel (TRABAJOS · NOTA FORMATIVA · SUMATIVA).
+   ============================================================================ */
+const NREP = { periodos:[], materias:[], filas:[], conf:{}, cursantes:[] };
+const _NREP_ORDEN_TIPO = ['Trabajo','Formativa','Sumativa'];
+// Etiqueta de la columna cuando el tipo trae UN solo ítem (calca el papel).
+const _NREP_ETIQ_UNICA = { 'Trabajo':'TRABAJOS', 'Formativa':'NOTA FORMATIVA', 'Sumativa':'SUMATIVA' };
+
+function _nrepBloques(fila){
+  const d = fila && fila.detalle_json;
+  if(!d) return [];
+  if(Array.isArray(d)) return d;                 // por si alguna carga vieja guardó el array pelado
+  return Array.isArray(d.bloques) ? d.bloques : [];
+}
+
+// Deduce las columnas de una materia mirando TODAS sus filas.
+// Devuelve [{tipo, aporte, idx, etiqueta}] en orden Trabajo → Formativa → Sumativa.
+function _nrepColumnas(filas){
+  const porTipo = {};
+  filas.forEach(function(f){
+    _nrepBloques(f).forEach(function(b){
+      const t = String(b.tipo||'—');
+      if(!porTipo[t]) porTipo[t] = { aporte:b.aporte, nombres:[] };
+      if(porTipo[t].aporte == null) porTipo[t].aporte = b.aporte;
+      (b.items||[]).forEach(function(it, i){
+        if(!porTipo[t].nombres[i]) porTipo[t].nombres[i] = String(it.n || (t+' '+(i+1)));
+      });
+    });
+  });
+  const tipos = Object.keys(porTipo).sort(function(a,b){
+    const ia = _NREP_ORDEN_TIPO.indexOf(a), ib = _NREP_ORDEN_TIPO.indexOf(b);
+    return (ia<0?99:ia) - (ib<0?99:ib);
+  });
+  const cols = [];
+  tipos.forEach(function(t){
+    const info = porTipo[t];
+    const n = Math.max(1, info.nombres.length);
+    for(let i=0;i<n;i++){
+      const etiq = (n === 1)
+        ? (_NREP_ETIQ_UNICA[t] || t.toUpperCase())
+        : (t.toUpperCase() + ' ' + (i+1));
+      cols.push({ tipo:t, aporte:info.aporte, idx:i, etiqueta:etiq });
+    }
+  });
+  return cols;
+}
+
+// Valor de una celda: el ítem `idx` del bloque `tipo` de esa fila.
+function _nrepValor(fila, col){
+  const b = _nrepBloques(fila).find(function(x){ return String(x.tipo) === col.tipo; });
+  if(!b) return null;
+  const it = (b.items||[])[col.idx];
+  return (it && it.v != null) ? it.v : null;
+}
+
+// Estado de reconocimiento, con el mismo vocabulario del modelo en papel.
+const _NREP_OBS = { confirmada:'CONFORMIDAD', rechazada:'NO CONFORMIDAD', pendiente:'SIN RECONOCIMIENTO' };
+function _nrepObs(cursanteId){
+  const c = NREP.conf[String(cursanteId)];
+  if(!c) return '';
+  return _NREP_OBS[c.estado] || '';
+}
+
+// Membrete: igual al de disciplina pero rotulado como Evaluaciones.
+function _nrepEncabezado(){
+  return htmlEncabezadoReporte('portrait')
+    .replace('Sistema Informático de Disciplina', 'Sistema Informático de Evaluaciones');
+}
+
+// Firmas: la primera es la del EVALUADOR del ciclo (según el modelo en papel),
+// el resto se mantiene igual que en los reportes de disciplina.
+function _nrepFirmas(ciclo){
+  const ev = _nrepEvaluadorDe(ciclo);
+  return htmlFirmasReporte()
+    .replace(escapeHtml(FIRMA_JEFE_DISCIPLINA.nombre), escapeHtml(ev.nombre))
+    .replace(escapeHtml(FIRMA_JEFE_DISCIPLINA.cargo),  escapeHtml(ev.cargo));
+}
+function _nrepEvaluadorDe(ciclo){
+  const n = /2|SEGUNDO/i.test(String(ciclo||'')) ? 2 : 1;
+  const p = (discData.profesores||[]).find(function(x){
+    return Number(x.evaluador_ciclo) === n && x.activo !== false;
+  });
+  const cargo = 'JEFE DE LA EVALUACIONES DE ' + (n===1?'1ER':'2DO') + ' CICLO';
+  if(p) return { nombre: ((p.grado?p.grado+' ':'')+p.nombre_completo).trim(), cargo:cargo };
+  return { nombre:'—', cargo:cargo };
+}
+
+/* ---------- cuerpo de la planilla (una hoja por paralelo) ---------- */
+function htmlCuerpoPlanillaNotas(materia, cicloSel, paraSel){
+  const filas = NREP.filas.filter(function(f){ return f.materia === materia; });
+  if(!filas.length){
+    return _nrepEncabezado() + '<p style="text-align:center;font-style:italic;padding:30pt 0">Esa materia no tiene notas cargadas.</p>';
+  }
+  const cols = _nrepColumnas(filas);
+  const modulo = (filas[0] && filas[0].grupo) || '';
+  const hoy = new Date();
+  const fechaTxt = hoy.getDate() + ' ' + MESES_ESPANOL[hoy.getMonth()] + ' DE ' + hoy.getFullYear();
+
+  // Agrupar por ciclo+paralelo usando el padrón (mismo criterio que disciplina).
+  const porId = {};
+  (discData.cursantes||[]).forEach(function(c){ porId[String(c.id)] = c; });
+  const grupos = new Map();
+  filas.forEach(function(f){
+    const c = porId[String(f.cursante_id)];
+    if(!c || c.activo === false) return;
+    if(cicloSel && cicloSel !== 'todos' && c.ciclo !== cicloSel) return;
+    if(paraSel && paraSel !== 'todos' && (c.paralelo||'') !== paraSel) return;
+    const k = (c.ciclo||'—') + '||' + (c.paralelo||'');
+    if(!grupos.has(k)) grupos.set(k, { ciclo:c.ciclo||'', paralelo:c.paralelo||'', items:[] });
+    grupos.get(k).items.push({ cur:c, nota:f });
+  });
+  const gs = [...grupos.values()];
+  if(!gs.length){
+    return _nrepEncabezado() + '<p style="text-align:center;font-style:italic;padding:30pt 0">Sin cursantes para el filtro seleccionado.</p>';
+  }
+  gs.forEach(function(g){ g.items.sort(function(a,b){ return claveApellido(a.cur).localeCompare(claveApellido(b.cur), 'es'); }); });
+  gs.sort(function(a,b){ return String(a.paralelo).localeCompare(String(b.paralelo), 'es'); });
+
+  // Anchos: el nombre se lleva lo que sobra.
+  const anchoCols = Math.min(9, Math.floor(42 / Math.max(1, cols.length)));
+  const anchoNombre = Math.max(22, 84 - cols.length*anchoCols - 5 - 10 - 13);
+
+  return gs.map(function(g, gi){
+    const paraDisp = g.paralelo ? (', PARALELO "' + escapeHtml(g.paralelo) + '"') : '';
+    const th = cols.map(function(c){
+      const ap = (c.aporte!=null) ? ('<br><span style="font-weight:400;font-size:8pt">aporta '+c.aporte+'</span>') : '';
+      return '<th style="width:'+anchoCols+'%">'+escapeHtml(c.etiqueta)+ap+'</th>';
+    }).join('');
+    const trs = g.items.map(function(o, i){
+      const tds = cols.map(function(c){
+        const v = _nrepValor(o.nota, c);
+        return '<td class="num">' + (v==null ? '—' : fmtNota(v)) + '</td>';
+      }).join('');
+      return '<tr>'
+        + '<td class="num">'+(i+1)+'</td>'
+        + '<td class="left">'+escapeHtml(gradoApellidosNombres(o.cur))+'</td>'
+        + tds
+        + '<td class="num">'+(o.nota.nota_final!=null?fmtNota(o.nota.nota_final):'—')+'</td>'
+        + '<td class="ctr" style="font-size:8pt">'+escapeHtml(_nrepObs(o.cur.id))+'</td>'
+        + '</tr>';
+    }).join('');
+    const pageBreak = gi > 0 ? ' style="page-break-before:always"' : '';
+    return '<div'+pageBreak+'>'
+      + _nrepEncabezado()
+      + '<h1 class="titulo-rep">PLANILLA DE CALIFICACIONES DE LA UNIDAD ACADÉMICA '+escapeHtml(String(materia).toUpperCase())+' DE LOS OO.SUP.CC.</h1>'
+      + (modulo ? '<h2 class="subtitulo-rep" style="font-size:10pt">MÓDULO: '+escapeHtml(String(modulo).toUpperCase())+'</h2>' : '')
+      + '<h2 class="subtitulo-rep">'+escapeHtml(formatCicloMayuscula(g.ciclo))+paraDisp+' — '+fechaTxt+'</h2>'
+      + '<table class="main-table"><thead><tr>'
+      +   '<th style="width:5%">N°</th>'
+      +   '<th style="width:'+anchoNombre+'%">GRADO, APELLIDOS Y NOMBRES</th>'
+      +   th
+      +   '<th style="width:10%">NOTA FINAL</th>'
+      +   '<th style="width:13%">OBSERVACIONES</th>'
+      + '</tr></thead><tbody>'+trs+'</tbody></table>'
+      + _nrepFirmas(g.ciclo)
+      + '</div>';
+  }).join('');
+}
+
+/* ---------- Excel de la planilla ---------- */
+function exportarExcelPlanillaNotas(materia, cicloSel, paraSel, filename){
+  if(typeof XLSX === 'undefined'){ alert('La librería de Excel no cargó.'); return false; }
+  const filas = NREP.filas.filter(function(f){ return f.materia === materia; });
+  if(!filas.length){ alert('Esa materia no tiene notas cargadas.'); return false; }
+  const cols = _nrepColumnas(filas);
+  const porId = {};
+  (discData.cursantes||[]).forEach(function(c){ porId[String(c.id)] = c; });
+  const grupos = new Map();
+  filas.forEach(function(f){
+    const c = porId[String(f.cursante_id)];
+    if(!c || c.activo === false) return;
+    if(cicloSel && cicloSel !== 'todos' && c.ciclo !== cicloSel) return;
+    if(paraSel && paraSel !== 'todos' && (c.paralelo||'') !== paraSel) return;
+    const k = (c.ciclo||'—') + '||' + (c.paralelo||'');
+    if(!grupos.has(k)) grupos.set(k, { ciclo:c.ciclo||'', paralelo:c.paralelo||'', items:[] });
+    grupos.get(k).items.push({ cur:c, nota:f });
+  });
+  const gs = [...grupos.values()];
+  if(!gs.length){ alert('Sin cursantes para el filtro seleccionado.'); return false; }
+  gs.forEach(function(g){ g.items.sort(function(a,b){ return claveApellido(a.cur).localeCompare(claveApellido(b.cur),'es'); }); });
+
+  const hoy = new Date();
+  const fechaTxt = hoy.getDate()+' '+MESES_ESPANOL[hoy.getMonth()]+' DE '+hoy.getFullYear();
+  const modulo = (filas[0] && filas[0].grupo) || '';
+  const wb = XLSX.utils.book_new();
+  const usados = new Set();
+
+  gs.forEach(function(g){
+    const ev = _nrepEvaluadorDe(g.ciclo);
+    const aoa = [
+      ['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES'],
+      ['ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO "MCAL. ANDRÉS DE SANTA CRUZ" — BOLIVIA'],
+      ['PLANILLA DE CALIFICACIONES DE LA UNIDAD ACADÉMICA '+String(materia).toUpperCase()+' DE LOS OO.SUP.CC.'],
+    ];
+    if(modulo) aoa.push(['MÓDULO: '+String(modulo).toUpperCase()]);
+    aoa.push([formatCicloMayuscula(g.ciclo)+(g.paralelo?', PARALELO "'+g.paralelo+'"':'')+' — '+fechaTxt]);
+    aoa.push([]);
+    aoa.push(['N°','GRADO, APELLIDOS Y NOMBRES'].concat(cols.map(function(c){ return c.etiqueta; })).concat(['NOTA FINAL','OBSERVACIONES']));
+    g.items.forEach(function(o,i){
+      aoa.push([i+1, gradoApellidosNombres(o.cur)]
+        .concat(cols.map(function(c){ const v=_nrepValor(o.nota,c); return v==null?'':Number(v); }))
+        .concat([o.nota.nota_final!=null?Number(o.nota.nota_final):'', _nrepObs(o.cur.id)]));
+    });
+    aoa.push([]); aoa.push([]);
+    aoa.push(['', ev.nombre, '', '', FIRMA_JEFE_SAC.nombre]);
+    aoa.push(['', ev.cargo,  '', '', FIRMA_JEFE_SAC.cargo]);
+    aoa.push([]);
+    aoa.push(['', FIRMA_JEFE_ESTUDIOS.nombre]);
+    aoa.push(['', FIRMA_JEFE_ESTUDIOS.cargo]);
+    aoa.push([]);
+    aoa.push(['', FIRMA_COMANDANTE.nombre]);
+    aoa.push(['', FIRMA_COMANDANTE.cargo]);
+    aoa.push([REFERENCIA_REPORTE]);
+
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{wch:5},{wch:44}].concat(cols.map(function(){ return {wch:13}; })).concat([{wch:12},{wch:20}]);
+    let base = ('P'+(g.paralelo||'-')+' '+String(materia)).slice(0,31).replace(/[\\\/\?\*\[\]:]/g,'-');
+    let nm = base, k = 2;
+    while(usados.has(nm)){ nm = (base+' '+k).slice(0,31); k++; }
+    usados.add(nm);
+    XLSX.utils.book_append_sheet(wb, ws, nm);
+  });
+  XLSX.writeFile(wb, filename + '.xlsx');
+  return true;
+}
+
+/* ---------- boleta individual ---------- */
+function htmlCuerpoBoletaNotas(cursanteId){
+  const cur = (discData.cursantes||[]).find(function(c){ return String(c.id)===String(cursanteId); });
+  if(!cur) return _nrepEncabezado()+'<p style="text-align:center;padding:30pt 0">Cursante no encontrado.</p>';
+  const mis = NREP.filas.filter(function(f){ return String(f.cursante_id)===String(cursanteId); });
+  const hoy = new Date();
+  const fechaTxt = hoy.getDate()+' '+MESES_ESPANOL[hoy.getMonth()]+' DE '+hoy.getFullYear();
+
+  const bloques = mis.map(function(f){
+    const cols = _nrepColumnas([f]);
+    const th = cols.map(function(c){ return '<th>'+escapeHtml(c.etiqueta)+(c.aporte!=null?('<br><span style="font-weight:400;font-size:8pt">aporta '+c.aporte+'</span>'):'')+'</th>'; }).join('');
+    const td = cols.map(function(c){ const v=_nrepValor(f,c); return '<td class="num">'+(v==null?'—':fmtNota(v))+'</td>'; }).join('');
+    const conf = NREP.conf[String(cursanteId)+'|'+f.materia];
+    const obs = conf ? (_NREP_OBS[conf.estado]||'') : '';
+    return '<tr><td class="left">'+escapeHtml(f.materia)+'</td>'
+      + '<td class="left" style="font-size:8pt">'+escapeHtml(f.grupo||'—')+'</td>'
+      + '<td class="num">'+(f.nota_final!=null?fmtNota(f.nota_final):'—')+'</td>'
+      + '<td class="ctr">'+escapeHtml(f.atributo||'—')+'</td>'
+      + '<td class="num">'+(f.om_materia!=null?f.om_materia:'—')+'</td>'
+      + '<td class="ctr" style="font-size:8pt">'+escapeHtml(obs)+'</td></tr>';
+  }).join('');
+
+  // Desglose materia por materia (cada una con sus propias columnas)
+  const detalle = mis.map(function(f){
+    const cols = _nrepColumnas([f]);
+    if(!cols.length) return '';
+    const th = cols.map(function(c){ return '<th>'+escapeHtml(c.etiqueta)+'</th>'; }).join('');
+    const td = cols.map(function(c){ const v=_nrepValor(f,c); return '<td class="num">'+(v==null?'—':fmtNota(v))+'</td>'; }).join('');
+    return '<p style="font-family:Arial;font-size:10pt;font-weight:bold;margin:10pt 0 3pt">'+escapeHtml(f.materia)+'</p>'
+      + '<table class="main-table"><thead><tr>'+th+'<th>NOTA FINAL</th></tr></thead>'
+      + '<tbody><tr>'+td+'<td class="num">'+(f.nota_final!=null?fmtNota(f.nota_final):'—')+'</td></tr></tbody></table>';
+  }).join('');
+
+  const prom = (function(){
+    const v = mis.map(function(f){ return Number(f.nota_final); }).filter(function(x){ return !isNaN(x); });
+    return v.length ? fmtNota(v.reduce(function(a,b){return a+b;},0)/v.length) : '—';
+  })();
+
+  return _nrepEncabezado()
+    + '<h1 class="titulo-rep">BOLETA DE CALIFICACIONES DEL OO.SUP.CC.</h1>'
+    + '<h2 class="subtitulo-rep">'+escapeHtml(gradoApellidosNombres(cur))+' — '+escapeHtml(formatCicloMayuscula(cur.ciclo||''))+(cur.paralelo?', PARALELO "'+escapeHtml(cur.paralelo)+'"':'')+'</h2>'
+    + '<h2 class="subtitulo-rep" style="font-size:10pt">'+escapeHtml(NREP.periodoTxt||'')+' — '+fechaTxt+'</h2>'
+    + '<table class="main-table"><thead><tr>'
+    +   '<th style="width:30%">UNIDAD ACADÉMICA</th><th style="width:24%">MÓDULO</th>'
+    +   '<th style="width:11%">NOTA FINAL</th><th style="width:9%">ATRIB.</th>'
+    +   '<th style="width:8%">O.M.</th><th style="width:18%">OBSERVACIONES</th>'
+    + '</tr></thead><tbody>'+(bloques||'<tr><td colspan="6" class="ctr">Sin notas en el período.</td></tr>')+'</tbody></table>'
+    + '<p style="font-family:Arial;font-size:11pt;font-weight:bold;margin:10pt 0">PROMEDIO DEL PERÍODO: '+prom+'</p>'
+    + (detalle ? ('<h2 class="subtitulo-rep" style="margin-top:14pt">DESGLOSE POR UNIDAD ACADÉMICA</h2>'+detalle) : '')
+    + _nrepFirmas(cur.ciclo||'');
+}
+
+/* ---------- pantalla ---------- */
+// Ciclo que controla el usuario actual (1=Ortiz, 2=Soto Farfan; null = ve todo).
+// NO se confía solo en `currentUser`: ese objeto lo arma la Edge Function
+// `auth-login` y puede no traer la columna nueva. Si falta, se busca al usuario
+// en discData.profesores, que viene de la vista v_profesores (ya con la columna).
+function _nrepCicloDelEvaluador(){
+  let n = Number(currentUser && currentUser.evaluador_ciclo);
+  if(!n){
+    try{
+      const p = (discData.profesores||[]).find(function(x){ return String(x.id)===String(currentUser.id); });
+      n = Number(p && p.evaluador_ciclo);
+    }catch(e){}
+  }
+  if(n === 1) return '1ER CICLO';
+  if(n === 2) return '2DO CICLO';
+  return null;   // Diaz Andia / C&T: ven todo
+}
+
+async function goNotasReportes(){
+  showScreen('screen-notas-reportes');
+  if(!discData.loaded){ try{ await loadDiscData(); }catch(e){} }
+  const selP = document.getElementById('nrep-periodo');
+  const r = await _ncInvoke('catalogo');
+  const per = (r && r.ok && r.periodos) || [];
+  NREP.periodos = per;
+  selP.innerHTML = per.map(function(p){
+    return '<option value="'+p.gestion+'|'+p.semestre+'">Gestión '+p.gestion+' · semestre '+p.semestre+'</option>';
+  }).join('') || '<option value="">Sin períodos cargados</option>';
+  // Paralelos del ciclo del evaluador
+  const miCiclo = _nrepCicloDelEvaluador();
+  const paras = [...new Set((discData.cursantes||[])
+    .filter(function(c){ return c.activo!==false && (!miCiclo || c.ciclo===miCiclo); })
+    .map(function(c){ return c.paralelo; }).filter(Boolean))].sort();
+  const selPar = document.getElementById('nrep-paralelo');
+  selPar.innerHTML = '<option value="todos">Todos los paralelos</option>'
+    + paras.map(function(p){ return '<option value="'+escapeAttr(p)+'">Paralelo "'+escapeHtml(p)+'"</option>'; }).join('');
+  const sub = document.getElementById('nrep-sub');
+  if(sub) sub.textContent = miCiclo ? ('Planillas oficiales · '+miCiclo) : 'Planillas oficiales por unidad académica';
+  await nrepCargarMaterias();
+}
+
+async function nrepCargarMaterias(){
+  const val = (document.getElementById('nrep-periodo')||{}).value;
+  const selM = document.getElementById('nrep-materia');
+  if(!val){ selM.innerHTML = '<option value="">—</option>'; return; }
+  const p = val.split('|');
+  const gestion = Number(p[0]), semestre = Number(p[1]);
+  NREP.periodoTxt = 'GESTIÓN '+gestion+' · SEMESTRE '+semestre;
+  const miCiclo = _nrepCicloDelEvaluador();
+  selM.innerHTML = '<option value="">⏳ Cargando…</option>';
+
+  // Notas del período (paginado: PostgREST corta en 1.000 filas)
+  let filas = [], desde = 0;
+  try{
+    for(;;){
+      let q = sb.from('notas_academicas').select('*')
+        .eq('gestion', gestion).eq('semestre', semestre);
+      if(miCiclo) q = q.eq('ciclo', miCiclo);
+      const { data, error } = await q.range(desde, desde+999);
+      if(error || !data) break;
+      filas = filas.concat(data);
+      if(data.length < 1000) break;
+      desde += 1000;
+    }
+  }catch(e){ console.warn('nrep notas', e); }
+  NREP.filas = filas;
+
+  // Estado de reconocimiento de cada alumno, por materia
+  NREP.conf = {};
+  const mats = [...new Set(filas.map(function(f){ return f.materia; }))].sort();
+  for(const m of mats){
+    const ciclo = (filas.find(function(f){ return f.materia===m; })||{}).ciclo;
+    const rc = await _ncInvoke('estado_confirmaciones', { gestion:gestion, semestre:semestre, ciclo:ciclo, materia:m });
+    if(rc && rc.ok) (rc.lista||[]).forEach(function(x){
+      NREP.conf[String(x.cursante_id)+'|'+m] = x;
+    });
+  }
+
+  selM.innerHTML = mats.length
+    ? mats.map(function(m){ return '<option value="'+escapeAttr(m)+'">'+escapeHtml(m)+'</option>'; }).join('')
+    : '<option value="">Sin materias cargadas en este período</option>';
+
+  // Alumnos para la boleta individual
+  const selA = document.getElementById('nrep-alumno');
+  const alumnos = (discData.cursantes||[])
+    .filter(function(c){ return c.activo!==false && (!miCiclo || c.ciclo===miCiclo); })
+    .sort(function(a,b){ return claveApellido(a).localeCompare(claveApellido(b),'es'); });
+  NREP.cursantes = alumnos;
+  selA.innerHTML = alumnos.map(function(c){
+    return '<option value="'+escapeAttr(String(c.id))+'">'+escapeHtml(gradoApellidosNombres(c))+'</option>';
+  }).join('') || '<option value="">Sin cursantes</option>';
+
+  nrepPintarInfo();
+}
+
+function nrepPintarInfo(){
+  const box = document.getElementById('nrep-info');
+  const m = (document.getElementById('nrep-materia')||{}).value;
+  if(!box) return;
+  if(!m){ box.textContent = ''; return; }
+  const filas = NREP.filas.filter(function(f){ return f.materia===m; });
+  const cols = _nrepColumnas(filas);
+  const firmaron = filas.filter(function(f){ const c=NREP.conf[String(f.cursante_id)+'|'+m]; return c && c.estado==='confirmada'; }).length;
+  const objetaron = filas.filter(function(f){ const c=NREP.conf[String(f.cursante_id)+'|'+m]; return c && c.estado==='rechazada'; }).length;
+  box.innerHTML = filas.length+' cursantes con nota · columnas: '
+    + cols.map(function(c){ return escapeHtml(c.etiqueta); }).join(' · ')
+    + '<br>🟢 '+firmaron+' con conformidad · 🟣 '+objetaron+' sin conformidad · 🔴 '+(filas.length-firmaron-objetaron)+' sin reconocer';
+}
+
+// El estado de reconocimiento se guarda con clave "cursante|materia"; la planilla
+// de UNA materia necesita buscarlo solo por cursante, así que se re-mapea acá.
+function _nrepConfDeMateria(materia){
+  const out = {};
+  Object.keys(NREP.conf).forEach(function(k){
+    const i = k.indexOf('|');
+    if(k.slice(i+1) === materia) out[k.slice(0,i)] = NREP.conf[k];
+  });
+  return out;
+}
+
+function nrepGenerar(formato){
+  const m = (document.getElementById('nrep-materia')||{}).value;
+  if(!m){ alert('Elegí una materia.'); return; }
+  const para = (document.getElementById('nrep-paralelo')||{}).value || 'todos';
+  const miCiclo = _nrepCicloDelEvaluador() || 'todos';
+  const confTodas = NREP.conf;
+  NREP.conf = _nrepConfDeMateria(m);       // la planilla busca por cursante
+  const mFile = String(m).replace(/[^a-zA-Z0-9]/g,'').slice(0,28);
+  const pFile = para==='todos' ? 'todosParalelos' : ('Paralelo'+String(para).replace(/[^a-zA-Z0-9]/g,''));
+  const filename = 'PlanillaNotas_'+mFile+'_'+pFile+'_'+new Date().toISOString().slice(0,10);
+  try{
+    if(formato==='word')       exportarComoWord(htmlCuerpoPlanillaNotas(m, miCiclo, para), filename, 'portrait');
+    else if(formato==='pdf')   exportarComoPDF(htmlCuerpoPlanillaNotas(m, miCiclo, para), filename, 'portrait');
+    else if(formato==='excel') exportarExcelPlanillaNotas(m, miCiclo, para, filename);
+    else alert('Formato desconocido: '+formato);
+  }catch(e){
+    console.error('planilla de notas', e);
+    alert('Hubo un error generando la planilla: '+(e.message||e));
+  }finally{
+    NREP.conf = confTodas;                 // restaurar el mapa completo
+  }
+}
+
+function nrepIndividual(formato){
+  const id = (document.getElementById('nrep-alumno')||{}).value;
+  if(!id){ alert('Elegí un cursante.'); return; }
+  const cur = (discData.cursantes||[]).find(function(c){ return String(c.id)===String(id); });
+  const filename = 'Boleta_'+String((cur&&cur.nombre_completo)||id).replace(/[^a-zA-Z0-9]/g,'').slice(0,30)+'_'+new Date().toISOString().slice(0,10);
+  try{
+    if(formato==='word')     exportarComoWord(htmlCuerpoBoletaNotas(id), filename, 'portrait');
+    else if(formato==='pdf') exportarComoPDF(htmlCuerpoBoletaNotas(id), filename, 'portrait');
+  }catch(e){
+    console.error('boleta', e);
+    alert('Hubo un error generando la boleta: '+(e.message||e));
   }
 }
 
