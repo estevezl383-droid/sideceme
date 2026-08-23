@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.339</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.340</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -10574,6 +10574,12 @@ async function cargarNotasAcademicas(){
     }
   }catch(e){}
   acadCache = filtered;
+  // v2.9.340: la conformidad se carga ACÁ y no en cada pantalla. TODAS las vistas
+  // de notas del cursante pasan por esta función (home, panel de semestres, orden
+  // de mérito), así que engancharla en un solo punto evita el hueco que tuvimos:
+  // `verAreaSemestre` pintaba las notas sin haber cargado nunca el mapa y por eso
+  // ninguna salía en rojo.
+  try{ await cargarConformidadesCursante(); }catch(e){}
   return filtered;
 }
 
@@ -10607,15 +10613,40 @@ function _ncfPlazoTexto(plazoVenceEnISO){
   return 'te quedan ' + Math.round(horas/24) + ' días para firmar';
 }
 
-let notasConfCache = null, notasConfMap = {};
+let notasConfCache = null, notasConfMap = {}, _notasConfEnVuelo = null;
 async function cargarConformidadesCursante(force){
   if(notasConfCache && !force) return notasConfCache;
-  const r = await _ncfInvoke('pendientes');
-  if(!r.ok){ notasConfCache = []; notasConfMap = {}; return []; }
-  notasConfCache = r.confirmaciones || [];
-  notasConfMap = {};
-  notasConfCache.forEach(function(c){ notasConfMap[c.gestion+'|'+c.semestre+'|'+c.ciclo+'|'+c.materia] = c; });
-  return notasConfCache;
+  // Guard anti-doble-pedido: varias pantallas la piden casi al mismo tiempo
+  // (la home la pedía en Promise.all junto con las notas). Sin esto salían dos
+  // llamadas en paralelo a la Edge Function por cada entrada.
+  if(_notasConfEnVuelo && !force) return _notasConfEnVuelo;
+  _notasConfEnVuelo = (async function(){
+    const r = await _ncfInvoke('pendientes');
+    if(!r.ok){ notasConfCache = []; notasConfMap = {}; return []; }
+    notasConfCache = r.confirmaciones || [];
+    notasConfMap = {};
+    notasConfCache.forEach(function(c){ notasConfMap[c.gestion+'|'+c.semestre+'|'+c.ciclo+'|'+c.materia] = c; });
+    return notasConfCache;
+  })();
+  try{ return await _notasConfEnVuelo; }
+  finally{ _notasConfEnVuelo = null; }
+}
+
+// Tras firmar hay que repintar la pantalla en la que ESTÁ el alumno. Las notas
+// se ven desde dos lados (la sección del home y el panel de semestres), así que
+// repintar solo el home dejaba la nota en rojo si venía por el otro camino.
+function _ncfRepintarNotas(){
+  try{
+    if(typeof CUR_SEM_AREA !== 'undefined' && CUR_SEM_AREA === 'academicas'
+       && typeof CUR_SEM_SEL !== 'undefined' && CUR_SEM_SEL != null
+       && document.getElementById('cur-sem-detalle')){
+      verAreaSemestre('academicas', CUR_SEM_SEL);
+    }
+  }catch(e){}
+  try{
+    const c = document.getElementById('cur-acad-content');
+    if(c && c.innerHTML.trim()) renderCursanteAcademicasSection();
+  }catch(e){}
 }
 
 let notaFirmaState = { conf:null, sigCanvas:null, sigCtx:null, sigHasContent:false };
@@ -10710,7 +10741,7 @@ async function enviarConformidadNota(decision){
   if(!r.ok){ alert(r.error || 'No se pudo guardar'); return; }
   cerrarFirmaNota();
   await cargarConformidadesCursante(true);
-  renderCursanteAcademicasSection();
+  _ncfRepintarNotas();
   alert(decision === 'confirmar' ? '¡Gracias! Quedó registrada tu conformidad.' : 'Quedó registrada tu observación.');
 }
 
