@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.342</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.343</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -27632,6 +27632,24 @@ const WG_CONVOY_CAPACIDAD = 3;
 const WG_CONVOY_CLASES = { III:{ico:'⛽',nom:'Clase III (combustible)'},
                            V:{ico:'🎯',nom:'Clase V (munición)'} };
 function _wgEsConvoy(u){ return !!u && u.arma==='convoy'; }
+// v2.9.343 — ¿ESTE CONVOY ESTÁ EXPUESTO?
+// La lección más repetida de Ucrania: los 20-30 km detrás del frente son una
+// «zona de muerte» donde el dron caza todo lo que rueda. Un convoy sin ninguna
+// tropa propia cerca es un blanco servido. Acá se AVISA, no se prohíbe: la
+// decisión sigue siendo del G-4, pero que la tome viendo el riesgo.
+const WG_CONVOY_ESCOLTA_KM = 6;
+function _wgConvoyExpuesto(c){
+  if(!_wgEsConvoy(c) || !Number.isFinite(c.lat)) return null;
+  const propias=((WG.estado&&WG.estado.unidades)||[]).filter(u=>
+    u.bando===c.bando && !_wgEsConvoy(u) && u.estado!=='fuera_combate' && Number.isFinite(u.lat));
+  let dmin=Infinity, quien=null;
+  for(const u of propias){
+    const d=_wgKm([c.lng,c.lat],[u.lng,u.lat]);
+    if(d<dmin){ dmin=d; quien=u; }
+  }
+  if(!Number.isFinite(dmin)) return { expuesto:true, km:null, quien:null };
+  return { expuesto: dmin>WG_CONVOY_ESCOLTA_KM, km:dmin, quien };
+}
 function _wgCargaDe(u,c){ const x=(u&&u.carga)||{}; return Math.max(0,Number(x[c])||0); }
 function _wgCargaTotal(u){ return _wgCargaDe(u,'III')+_wgCargaDe(u,'V'); }
 function _wgConvoyesHTML(uds){
@@ -27807,43 +27825,63 @@ function _wgInstalExpuestasHTML(){
 // `rol` dice de qué célula es cada instalación: cada estación ofrece las suyas
 // y no las ajenas. El tipo va con prefijo `log_` porque así lo filtra la Edge
 // Function — el nombre quedó de la logística, pero el mecanismo es común.
+// v2.9.343 — LA FIRMA DE DETECCIÓN. Es la lección más cara del conflicto de
+// Ucrania: el depósito concentrado se ve y se bate. Cuanto mayor la firma, más
+// fácil es que el dron enemigo lo encuentre y la artillería lo alcance.
+const WG_FIRMA={1:{n:'BAJA',c:'#7fd48f',p:'●○○○'},2:{n:'MEDIA',c:'#e8c33a',p:'●●○○'},
+  3:{n:'ALTA',c:'#ff9f5a',p:'●●●○'},4:{n:'MUY ALTA',c:'#ff6b6b',p:'●●●●'}};
+function _wgFirmaHTML(I){
+  const f=WG_FIRMA[I&&I.firma]; if(!f) return '';
+  return `<span style="color:${f.c};font-weight:700">${f.p} firma ${f.n}</span>`;
+}
+// Ficha completa de una instalación: lo que tiene que saber el que la ubica.
+function _wgFichaInstal(I){
+  if(!I) return '';
+  const l=[];
+  if(I.cap) l.push(`📦 capacidad <b>${I.cap}</b> carga(s)`);
+  if(I.montaje) l.push(`⏱️ montaje/desmontaje <b>${I.montaje} h</b>`);
+  if(I.firma) l.push(_wgFirmaHTML(I));
+  if(I.movil) l.push('🚚 <b>se desplaza</b>');
+  return (l.length?`<div style="margin-top:3px;font-size:10px;opacity:.95">${l.join(' · ')}</div>`:'')
+    +(I.blanco?`<div style="margin-top:3px;font-size:9.5px;opacity:.8;font-style:italic">🎯 ${_rgEsc(I.blanco)}</div>`:'');
+}
 const WG_INSTAL={
   // ── G-4 · LOGÍSTICA
-  log_abas:{id:'log_abas',rol:'g4',nom:'Puesto de abastecimiento',ico:'📦',col:'#7fb2ff',
+  log_abas:{id:'log_abas',rol:'g4',cap:12, firma:3, montaje:3, blanco:'Depósito de combustible y víveres: el blanco más rentable del área. Vehículos entrando y saliendo todo el día lo delatan.',nom:'Puesto de abastecimiento',ico:'📦',col:'#7fb2ff',
             reparte:{combustible:1,municion:0},
             desc:'Clase I y III: raciones y combustible. Reabastece a la unidad propia que quede a menos de '+3+' km.'},
-  log_muni:{id:'log_muni',rol:'g4',nom:'Punto de municionamiento',ico:'🎯',col:'#e8c33a',
+  log_muni:{id:'log_muni',rol:'g4',cap:10, firma:3, montaje:4, blanco:'Munición concentrada: si la baten, se pierde y además explota sobre lo que tenga al lado.',nom:'Punto de municionamiento',ico:'🎯',col:'#e8c33a',
             reparte:{combustible:0,municion:1},
             desc:'Clase V: reposición de unidades de fuego a menos de 3 km.'},
-  log_mant:{id:'log_mant',rol:'g4',nom:'Taller de mantenimiento',ico:'🔧',col:'#c9a0ff',
+  log_mant:{id:'log_mant',rol:'g4',cap:8, firma:2, montaje:6, blanco:'Taller: firma media por el movimiento de material averiado.',nom:'Taller de mantenimiento',ico:'🔧',col:'#c9a0ff',
             desc:'Recuperación y reparación de material.'},
-  log_soco:{id:'log_soco',rol:'g4',nom:'Puesto de socorro',ico:'🚑',col:'#ff8f8f',
+  log_soco:{id:'log_soco',rol:'g4',cap:14, firma:2, montaje:2, blanco:'Instalación sanitaria: PROTEGIDA por el Derecho Internacional Humanitario. Batirla es un incidente grave.',nom:'Puesto de socorro',ico:'🚑',col:'#ff8f8f',
             desc:'Atención de bajas y evacuación sanitaria.'},
-  log_trans:{id:'log_trans',rol:'g4',nom:'Centro de transporte',ico:'🚚',col:'#8fe3c8',
+  log_trans:{id:'log_trans',rol:'g4',cap:8, firma:2, montaje:2, blanco:'Concentración de vehículos: se la ve desde el aire con facilidad.',nom:'Centro de transporte',ico:'🚚',col:'#8fe3c8',
             reparte:{combustible:0.5,municion:0},
             desc:'Medios de transporte y control de movimiento. Repone medio tanque a 3 km.'},
   // ── G-4 · LOS TRENES. Se MUEVEN: acompañan a la fuerza. (v2.9.320)
   // Doctrina (ECEM 15-03): «el Tren de Combate marchará con el BI, y el Tren de
   // Campaña lo hará integrando los Trenes de la División».
-  log_trenc:{id:'log_trenc',rol:'g4',movil:true,nom:'Tren de Combate',ico:'🚛',col:'#ffd47f',
+  log_trenc:{id:'log_trenc',rol:'g4',cap:4, firma:2, montaje:1, blanco:'Marcha con la unidad: comparte su suerte y su exposición.',movil:true,nom:'Tren de Combate',ico:'🚛',col:'#ffd47f',
             reparte:{combustible:0.5,municion:0.5},
             desc:'Marcha CON la unidad: lo indispensable para sostener el combate del día. Repone la MITAD de tanque y dotación a 3 km.'},
-  log_trenk:{id:'log_trenk',rol:'g4',movil:true,nom:'Tren de Campaña',ico:'🚚',col:'#e8a44a',
+  log_trenk:{id:'log_trenk',rol:'g4',cap:8, firma:2, montaje:2, blanco:'A retaguardia: más seguro, pero más lejos del que necesita.',movil:true,nom:'Tren de Campaña',ico:'🚚',col:'#e8a44a',
             reparte:{combustible:1,municion:1},
             desc:'Va con los trenes de la División, a retaguardia. Repone al Tren de Combate: tanque y dotación completos a 3 km.'},
-  log_asdi: {id:'log_asdi', rol:'g4',nom:'Área de Servicios (ASDI)',ico:'🏭',col:'#9fd0ff',
+  log_asdi: {id:'log_asdi', rol:'g4',cap:20, firma:4, montaje:12, blanco:'El área entera. Es LA instalación que el enemigo busca: perderla seca a toda la División en dos o tres turnos.',nom:'Área de Servicios (ASDI)',ico:'🏭',col:'#9fd0ff',
             reparte:{combustible:1,municion:1},
             desc:'Donde se ubican las instalaciones logísticas de la División: repone tanque y dotación completos a 3 km.'},
   // ── G-1 · PERSONAL (nombres del ECEM 15-08)
-  log_pdg:  {id:'log_pdg', rol:'g1',nom:'Puesto de Reunión de PP.GG.',ico:'🔒',col:'#bdbdbd',
+  log_pdg:  {id:'log_pdg', rol:'g1',cap:6, firma:1, montaje:1, blanco:'Custodia de prisioneros: firma baja, pero si la baten el enemigo recupera a los suyos.',nom:'Puesto de Reunión de PP.GG.',ico:'🔒',col:'#bdbdbd',
             desc:'Custodia de prisioneros de guerra para su evacuación posterior.'},
-  log_rezag:{id:'log_rezag',rol:'g1',nom:'Puesto de Reunión de Extraviados',ico:'🧭',col:'#ffc98f',
+  log_rezag:{id:'log_rezag',rol:'g1',cap:6, firma:1, montaje:1, blanco:'Firma baja.',nom:'Puesto de Reunión de Extraviados',ico:'🧭',col:'#ffc98f',
             desc:'Recupera al que se desprendió de su unidad y lo devuelve al combate.'},
-  log_reemp:{id:'log_reemp',rol:'g1',movil:true,nom:'Unidad de Reemplazos',ico:'🧍',col:'#9fe8a0',
+  log_reemp:{id:'log_reemp',rol:'g1',cap:6, firma:2, montaje:2, blanco:'Personal reunido y sin encuadrar: muy vulnerable si la sorprenden.',movil:true,nom:'Unidad de Reemplazos',ico:'🧍',col:'#9fe8a0',
             desc:'Recibe y distribuye el personal de reposición. Se desplaza con la fuerza.'},
-  log_sepul:{id:'log_sepul',rol:'g1',nom:'Sepulturas',ico:'✝️',col:'#c9b8a8',
+  log_sepul:{id:'log_sepul',rol:'g1',cap:6, firma:1, montaje:2, blanco:'Firma baja. Va LEJOS de las instalaciones de moral.',nom:'Sepulturas',ico:'✝️',col:'#c9b8a8',
             desc:'Recuperación, identificación y sepultura de los caídos.'},
-  log_pc:   {id:'log_pc',  rol:'g1',movil:true,nom:'Puesto de Comando',ico:'⛺',col:'#8fd0e8',
+  log_pc:   {id:'log_pc',  rol:'g1',cap:0, firma:2, montaje:2, blanco:'Puesto de Comando: blanco de alto valor aunque su firma sea media.',movil:true,nom:'Puesto de Comando',ico:'⛺',col:'#8fd0e8',
             desc:'Administración interna del PC: su instalación y movimiento es del G-1.'},
 };
 // Los botones de instalar de UNA célula. Compartido por las estaciones.
@@ -27860,7 +27898,10 @@ function _wgBotonesInstal(rol){
   const lista = puestas.length
     ? `<div style="font-size:8.5px;opacity:.8;margin-top:5px">`
       +puestas.map(it=>{ const I=WG_INSTAL[it.tipo];
-        return `<span style="display:inline-block;margin:0 6px 2px 0">${I.ico} ${_rgEsc(I.nom.replace(/^(Puesto|Punto|Taller|Centro|Campo) de (reunión de )?/,''))}</span>`;
+        const f=WG_FIRMA[I.firma];
+        return `<span style="display:inline-block;margin:0 6px 2px 0" title="${_rgEsc(I.blanco||'')}">${I.ico} `
+          +`${_rgEsc(I.nom.replace(/^(Puesto|Punto|Taller|Centro|Campo) de (reunión de )?/,''))}`
+          +(f?` <span style="color:${f.c};font-size:8px">${f.p}</span>`:'')+`</span>`;
       }).join('')
       +`<div style="opacity:.65;margin-top:2px">Tocá una en la carta para quitarla.</div></div>`
     : `<div style="font-size:8.5px;opacity:.6;margin-top:5px">Todavía no ubicaste ninguna. `
@@ -27879,7 +27920,7 @@ function wgInstalarModo(tipo){
   WG.instalSel = (WG.instalSel===tipo) ? null : tipo;
   const I=WG_INSTAL[tipo];
   if(WG.instalSel) _wgAviso(`${I.ico} <b>${_rgEsc(I.nom)}</b> — tocá el punto del mapa donde la ubicás. `
-    +`${_rgEsc(I.desc)}<br>Tocá el botón otra vez para cancelar.`, 6000);
+    +`${_rgEsc(I.desc)}`+_wgFichaInstal(I)+`<br>Tocá el botón otra vez para cancelar.`, 8000);
   _wgRender();
 }
 async function _wgInstalarEn(lng, lat){
@@ -32903,6 +32944,27 @@ function _wgDibArma(ctx,arma,x,y,w,h,color){
       ctx.beginPath(); ctx.arc(cx,cy,2.2,0,Math.PI*2); ctx.fill(); break; }
     case 'sanidad': { const r=Math.min(w,h)*0.26; ctx.beginPath();
       ctx.moveTo(cx,cy-r); ctx.lineTo(cx,cy+r); ctx.moveTo(cx-r,cy); ctx.lineTo(cx+r,cy); ctx.stroke(); break; }
+    // v2.9.343 — EL CONVOY SE VE COMO LO QUE ES: UN CAMIÓN.
+    // Así lo grafica la lámina del texto para los Trenes de Combate y de
+    // Campaña: un cajón sobre dos ruedas. Antes decía «Cnv» en letras y en el
+    // tablero no se distinguía de una unidad de combate — justamente lo que hay
+    // que distinguir, porque el convoy NO pelea: es un blanco rodando.
+    case 'convoy': {
+      const bw=w*0.62, bh=h*0.34;              // caja de carga
+      const bx=cx-bw/2, by=cy-bh/2-1;
+      ctx.lineWidth=4;
+      ctx.strokeRect(bx, by, bw*0.72, bh);      // caja
+      ctx.beginPath();                          // cabina, adelante
+      ctx.moveTo(bx+bw*0.72, by+bh*0.35);
+      ctx.lineTo(bx+bw*0.90, by+bh*0.35);
+      ctx.lineTo(bx+bw, by+bh*0.72);
+      ctx.lineTo(bx+bw, by+bh);
+      ctx.lineTo(bx+bw*0.72, by+bh);
+      ctx.closePath(); ctx.stroke();
+      const r=Math.max(2.4, h*0.075);           // las dos ruedas
+      ctx.beginPath(); ctx.arc(bx+bw*0.18, by+bh+r*0.6, r, 0, Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(bx+bw*0.86, by+bh+r*0.6, r, 0, Math.PI*2); ctx.fill();
+      break; }
     default:
       if(WG_ABREV[arma]){ ctx.font='bold 13px Arial, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
         ctx.fillText(WG_ABREV[arma],cx,cy+1); }
@@ -34661,6 +34723,27 @@ function _wgRender(){
       : `${_rgEsc(u.designacion||u.bando)} · ${pct}%${u.estado!=='activa'?' ('+u.estado+')':''}${obsTxt}${edadTxt}`,
       {direction:'top'});
     m.on('click', (ev)=>{ L.DomEvent.stopPropagation(ev); _wgUnidadClick(u); });
+    // v2.9.343 — EL CONVOY ES UN BLANCO RODANDO. Si no tiene tropa propia a
+    // menos de 6 km, se le pinta el anillo de exposición: se ve de un vistazo
+    // que va solo por la zona donde el dron enemigo caza camiones.
+    if(mio && _wgEsConvoy(u)){
+      const ex=_wgConvoyExpuesto(u);
+      if(ex && ex.expuesto){
+        L.circle([u.lat,u.lng],{ radius:WG_CONVOY_ESCOLTA_KM*1000, color:'#ff6b6b', weight:1.4,
+          dashArray:'6 6', fill:false, interactive:false }).addTo(WG.capa);
+        L.marker([u.lat,u.lng],{ interactive:false, zIndexOffset:2600,
+          icon:L.divIcon({className:'',iconSize:[20,20],iconAnchor:[-14,20],
+            html:'<div title="Convoy sin escolta cerca" style="font-size:13px;filter:drop-shadow(0 1px 2px #000)">🎯</div>'})
+        }).addTo(WG.capa);
+      }
+      const cargas=Object.keys(WG_CONVOY_CLASES)
+        .map(k=>`${WG_CONVOY_CLASES[k].ico} ${_wgCargaDe(u,k)}/${WG_CONVOY_CAPACIDAD}`).join(' · ');
+      m.setTooltipContent(`🚚 <b>${_rgEsc(u.designacion||'Convoy')}</b><br>${cargas}`
+        +(ex ? (ex.expuesto
+            ? `<br><span style="color:#ff9f9f">🎯 SIN ESCOLTA${ex.km!=null?` — lo propio más cercano a ${ex.km.toFixed(1)} km`:''}</span>`
+            : `<br><span style="color:#9fe8a0">🛡️ Con tropa propia a ${ex.km.toFixed(1)} km</span>`) : '')
+        +`<br><span style="opacity:.75;font-size:9.5px">No combate: se defiende con fusilería nada más.</span>`);
+    }
   }
   // v2.9.317 — INSTALACIONES DE LOGÍSTICA. Van bajo las llamas y sobre el
   // terreno: son elementos de la carta, no accidentes del suelo.
@@ -34672,7 +34755,10 @@ function _wgRender(){
       html:`<div style="width:30px;height:30px;border-radius:7px;border:2px solid ${I.col};`
         +`background:rgba(10,16,22,.82);display:flex;align-items:center;justify-content:center;`
         +`font-size:15px;box-shadow:0 1px 6px rgba(0,0,0,.5)">${I.ico}</div>`}) }).addTo(WG.capa);
-    mk.bindTooltip(`${I.ico} <b>${_rgEsc(I.nom)}</b><br>${_rgEsc(I.desc)}`,{direction:'top'});
+    const _nota=((it.geojson||{}).nota||'').trim();
+    mk.bindTooltip(`${I.ico} <b>${_rgEsc(I.nom)}</b>`
+      +(_nota?`<br><span style="opacity:.85">Planeado como: <b>${_rgEsc(_nota)}</b></span>`:'')
+      +`<br>${_rgEsc(I.desc)}`+_wgFichaInstal(I),{direction:'top'});
     // v2.9.320: la toca la célula DUEÑA (el G-1 las suyas, el G-4 las suyas) o
     // el árbitro. Y si es móvil —un tren, la unidad de reemplazos, el PC— se
     // puede DESPLAZAR, que es lo que hace en la realidad.
