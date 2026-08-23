@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.341</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.342</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -32534,8 +32534,83 @@ function _wgPreguntarFase(fases, poner){
   });
 }
 // Traduce el archivo del Generador (o un export compacto) al escenario del juego.
+// ============================================================
+// v2.9.342 — EL PUENTE DEL PLANEAMIENTO (Fase 3 del Estado Mayor).
+//
+// El Generador de Calcos trabaja con las 74 instalaciones DOCTRINARIAS del
+// reglamento (P Distr Cl III, PCED, PRPG, PRCP…) porque ahí se PLANIFICA y hay
+// que nombrar cada cosa como la nombra el texto. El Juego trabaja con 13 tipos
+// FUNCIONALES porque acá se EJECUTA y lo que importa es qué hace cada una.
+// Esta tabla traduce de uno al otro: el G-4 planifica con el nombre del
+// reglamento y juega con el efecto.
+//
+// Lo que NO tiene efecto mecánico todavía (baño, lavandería, cantina, correo,
+// pagaduría, asistencia religiosa, y las instalaciones de AC/GM del G-5) NO se
+// carga y se informa al árbitro, en vez de meter fichas mudas en el tablero.
+// ============================================================
+const WG_TRADUCE_INSTAL = {
+  // — Abastecimiento (Clases I, II, III, IV y agua)
+  pd_cl1:'log_abas', pd_cl2:'log_abas', pd_cl3:'log_abas', pd_cl3_avz:'log_abas',
+  pd_cl4:'log_abas', pd_otras:'log_abas', pd_otras_a:'log_abas', pd_otras_b:'log_abas',
+  pd_agua:'log_abas', p_puri:'log_abas', area_cocina:'log_abas', pd_forraje:'log_abas',
+  p_abast:'log_abas', deposito:'log_abas', baselog:'log_abas',
+  // — Munición (Clase V)
+  pd_cl5m:'log_muni', pcm:'log_muni', pd_cl5_avz:'log_muni', pd_cl5_rtd:'log_muni',
+  pd_mun_cia:'log_muni',
+  // — Mantenimiento y recuperación
+  prcp:'log_mant', ptec_mb:'log_mant', pmant_mov:'log_mant', pmant_pes:'log_mant',
+  area_mant:'log_mant', pcol_salv:'log_mant', prec_cap:'log_mant',
+  // — Sanidad y evacuación
+  pced:'log_soco', p_socorro:'log_soco', lug_heridos:'log_soco', p_amb:'log_soco',
+  p_quir:'log_soco', p_farm:'log_soco', p_lab:'log_soco', pd_cl8:'log_soco', p_vet:'log_soco',
+  // — Transporte y control de movimiento
+  p_transp:'log_trans', p_ctrl_tran:'log_trans', area_est:'log_trans',
+  // — Áreas
+  asdi:'log_asdi', arce:'log_asdi', atcomb:'log_trenc', atcamp:'log_trenk',
+  at:'log_trenk', atsu:'log_trenk',
+  // — Mando logístico
+  coal:'log_pc', ccom:'log_pc', pccys:'log_pc',
+  // — G-1: cadena de prisioneros (PRPG → DPG → CRPG → CC.PG.)
+  p_ppgg:'log_pdg', dpg:'log_pdg', crpg:'log_pdg', ccpg:'log_pdg',
+  // — G-1: extraviados, ley y orden
+  pce:'log_rezag', p_extrav:'log_rezag', p_pm:'log_rezag', p_confin:'log_rezag',
+  // — G-1: reemplazos y necrológico
+  p_reu_reempl:'log_reemp', prm:'log_sepul', p_sepul:'log_sepul',
+};
+// Abreviaturas reglamentarias, para que la ficha del juego siga diciendo cómo
+// se llama en el planeamiento (viaja en la `nota` de la instalación).
+const WG_ABREV_INSTAL = {
+  pd_cl1:'P Distr Cl I', pd_cl2:'P Distr Cl II', pd_cl3:'P Distr Cl III',
+  pd_cl3_avz:'P Abast Cl III Avzd', pd_cl4:'P Distr Cl IV', pd_otras:'P Distr O Cl',
+  pd_otras_a:'P Distr Cl II, V(A) y VII', pd_otras_b:'P Distr Cl IV, VI, IX y X',
+  pd_agua:'P Distr Agua', p_puri:'P Almto y Puri', area_cocina:'Cocinas',
+  pd_forraje:'P Distr Forr', p_abast:'P Abast', deposito:'Dep Abast', baselog:'Base Log',
+  pd_cl5m:'P Distr Cl V(M)', pcm:'PCM', pd_cl5_avz:'P Distr Cl V Avzd',
+  pd_cl5_rtd:'P Distr Cl V Rtd', pd_mun_cia:'P Distr Mun/Comp',
+  prcp:'PRCP', ptec_mb:'P Tec MB', pmant_mov:'P Mantto Mov', pmant_pes:'P Mantto Pes',
+  area_mant:'A Mantto', pcol_salv:'P Col Mat Salv', prec_cap:'P Rec Salv',
+  pced:'PCED', p_socorro:'P Soc', lug_heridos:'L Reu Her', p_amb:'P Amb',
+  p_quir:'P Quir Mov', p_farm:'P Farm', p_lab:'P Lab', pd_cl8:'P Distr Cl VIII', p_vet:'P Soc Vet',
+  p_transp:'P Transp', p_ctrl_tran:'P Ctrl Trán', area_est:'A Estac',
+  asdi:'ASDI', arce:'ARCE', atcomb:'ATComb', atcamp:'ATCamp', at:'AT', atsu:'ATSU',
+  coal:'COAL', ccom:'C Com', pccys:'PC C y S',
+  p_ppgg:'PRPG', dpg:'DPG', crpg:'CRPG', ccpg:'CC.PG.',
+  pce:'PCE', p_extrav:'P Reu Extrav', p_pm:'P PM', p_confin:'C Confin',
+  p_reu_reempl:'P Reu Reempl', prm:'PRM', p_sepul:'Sepult',
+};
+// Cómo se rotulan los ejes y las líneas de control del Estado Mayor cuando
+// viajan al juego. Van como capa VISUAL (`via`) porque la Edge Function sólo
+// acepta esos tipos: así entran sin desplegar nada nuevo.
+const WG_NOM_EJES = {
+  epa:'EPA — Eje Principal de Abastecimiento',
+  epe:'EPE — Eje Principal de Evacuación',
+  extraviados:'Línea de Extraviados',
+  ppgg:'Ruta de evacuación de PP.GG.',
+  humanitario:'Eje humanitario (población civil)',
+};
+
 function _wgEscenarioDesde(d, fase){
-  const unidades=[], terreno=[];
+  const unidades=[], terreno=[], instalaciones=[]; const sinEfecto=[];
   // Si se eligió una fase del COA, las unidades salen de ESA fase; si no, del
   // estado vivo del ejercicio (que es la fase que quedó abierta al guardar).
   const fuente = (fase && fase.unidades) ? fase.unidades : ((d&&d.unidades)||[]);
@@ -32543,6 +32618,17 @@ function _wgEscenarioDesde(d, fase){
     if(u==null||u.lat==null||u.lng==null) continue;
     // En el Generador el bando es 'propias' | 'enemigo'; acá es 'azul' | 'rojo'.
     const bando = (u.bando==='enemigo'||u.bando==='rojo')?'rojo':'azul';
+    // v2.9.342 — LAS INSTALACIONES NO SON UNIDADES DE COMBATE. Antes de esto,
+    // un ASDI desplegado con la plantilla del G-4 entraba al juego como 30
+    // fichas con poder de fuego, que además el motor hacía pelear. Ahora se
+    // apartan y se traducen al tipo funcional que les corresponde.
+    if(u.tipo==='instalacion'){
+      const dest=WG_TRADUCE_INSTAL[u.instalacion];
+      if(!dest){ sinEfecto.push(WG_ABREV_INSTAL[u.instalacion]||u.instalacion||'?'); continue; }
+      instalaciones.push({ bando, tipo:dest, lat:Number(u.lat), lng:Number(u.lng),
+        nota:(WG_ABREV_INSTAL[u.instalacion]||u.instalacion||'').slice(0,120) });
+      continue;
+    }
     const escalon = WG_PODER[u.escalon]!=null?u.escalon:'batallon';
     unidades.push({ bando, designacion:u.designacion||null, escalon, arma:u.arma||null,
       medio: u.medio||_wgMedioPorArma(u.arma), lat:Number(u.lat), lng:Number(u.lng),
@@ -32586,7 +32672,33 @@ function _wgEscenarioDesde(d, fase){
   // v2.9.212: las unidades del Generador vienen sin designación → se les pone la
   // nomenclatura militar antes de mandarlas (BI-III, RC-3, Brig-III, DIV-5…).
   _wgNumerarUnidades(unidades);
-  return { unidades, terreno, visuales, nombre:(d&&d.nombre)||'', fase:(fase?fase.nombre:null) };
+  // v2.9.342 — LOS EJES DEL ESTADO MAYOR. El EPA y el EPE del G-4, la Línea de
+  // Extraviados y la ruta de PP.GG. del G-1 y el eje humanitario del G-5 son
+  // decisiones de planeamiento que el Estado Mayor tiene que VER en el tablero.
+  // Viajan como capa visual `via` (es lo que acepta la Edge Function) con su
+  // nombre colgado de la geometría, igual que los poblados del G-5.
+  const ops = (fase && fase.ops) ? fase.ops : ((d&&d.ops)||{});
+  let ejes=0;
+  const meterLinea=(coords, nom)=>{
+    if(!Array.isArray(coords)||coords.length<2) return;
+    terreno.push({ tipo:'via', geojson:{ type:'LineString',
+      coordinates:coords.map(c=>[Number(c[0]),Number(c[1])]), nom } });
+    ejes++; visuales++;
+  };
+  for(const e of (ops.ejesLog||[])) meterLinea(e.coords, WG_NOM_EJES[e.tipo]||'Eje logístico');
+  for(const l of (ops.lineasEM||[])) meterLinea(l.coords, WG_NOM_EJES[l.tipo]||'Línea de control');
+  // Las zonas logísticas (ASDI, ARCE, Áreas de Trenes) son ÁREAS: van como
+  // polígono visual para que se vea el sector, además de la ficha de la instalación.
+  for(const z of (ops.zonasLog||[])){
+    const c=z&&z.coords;
+    if(!Array.isArray(c)||c.length<3) continue;
+    const anillo=c.map(x=>[Number(x[0]),Number(x[1])]); anillo.push(anillo[0]);
+    terreno.push({ tipo:'jurisdiccion', geojson:{ type:'Polygon', coordinates:[anillo],
+      nom:(WG_ABREV_INSTAL[z.zona]||'Área logística') } });
+    visuales++;
+  }
+  return { unidades, terreno, visuales, instalaciones, sinEfecto, ejes,
+    nombre:(d&&d.nombre)||'', fase:(fase?fase.nombre:null) };
 }
 async function wgImportarEscenario(inp){
   const f=inp&&inp.files&&inp.files[0]; if(!f) return;
@@ -32614,7 +32726,13 @@ async function wgImportarEscenario(inp){
   }
   const nCmoc=esc.terreno.length-(esc.visuales||0);
   const enCurso = !!(WG.estado&&WG.estado.partida&&WG.estado.partida.estado==='en_curso');
-  const resumen=`• ${esc.unidades.length} unidad(es)\n• ${nCmoc} polígono(s) de CMOC (terreno restringido / severo / clave)\n• ${esc.visuales||0} elemento(s) de carta (ríos, curvas de nivel, caminos, poblados)`;
+  const nInst=(esc.instalaciones||[]).length;
+  const resumen=`• ${esc.unidades.length} unidad(es) de combate\n• ${nCmoc} polígono(s) de CMOC (terreno restringido / severo / clave)\n• ${esc.visuales||0} elemento(s) de carta (ríos, curvas de nivel, caminos, poblados)`
+    +(nInst?`\n• ${nInst} instalación(es) logística(s) y de personal del Estado Mayor`:'')
+    +((esc.ejes||0)?`\n• ${esc.ejes} eje(s) de control (EPA, EPE, extraviados, PP.GG., humanitario)`:'')
+    +((esc.sinEfecto&&esc.sinEfecto.length)
+      ? `\n\nNO se cargan ${esc.sinEfecto.length} instalación(es) que todavía no tienen efecto en el juego:\n${esc.sinEfecto.slice(0,10).join(', ')}${esc.sinEfecto.length>10?'…':''}`
+      : '');
   if(!confirm(`Se va a REEMPLAZAR el escenario de esta partida por el del archivo:\n\n${esc.nombre||f.name}${esc.fase?('\n'+esc.fase):''}\n\n${resumen}\n\nSe borran las unidades y el terreno que tenga ahora la partida.`
     +(enCurso?`\n\n⚠️ La partida está EN CURSO: reemplazar el escenario es empezar de nuevo, así que vuelve a PLANIFICACIÓN (turno 0) y se borran las órdenes, la bitácora y las detecciones.`:'')
     +`\n\n¿Seguimos?`)){
@@ -32656,7 +32774,31 @@ async function wgImportarEscenario(inp){
     WG.terreno=null; WG.capaTerrenoFirma=null; await wgEstado(); _wgEncuadrar();
     return;
   }
+  // v2.9.342 — LAS INSTALACIONES DEL ESTADO MAYOR. Van DESPUÉS del terreno
+  // porque la primera tanda con `limpiar` borra toda la tabla wg_terreno, y las
+  // instalaciones viven ahí. El árbitro puede colocarlas de cualquier bando
+  // (la Edge Function ya lo permite), así que no hace falta desplegar nada.
+  let okInst=0, falloInst=null; const tiposFallados={};
+  if(nInst){
+    for(let k=0;k<esc.instalaciones.length;k++){
+      const it=esc.instalaciones[k];
+      poner(`⏳ Ubicando instalaciones del Estado Mayor… ${k+1} de ${nInst}`);
+      const r=await _wgInvoke('colocar_instalacion',{ partida_id:WG.partidaId,
+        bando:it.bando, tipo:it.tipo, lng:it.lng, lat:it.lat, nota:it.nota });
+      if(r.ok) okInst++;
+      else { tiposFallados[it.tipo]=(tiposFallados[it.tipo]||0)+1; if(!falloInst) falloInst=r.error||'error desconocido'; }
+    }
+  }
+  // Si falló un tipo entero conviene decir CUÁL: así no se busca el problema en
+  // el lugar equivocado. `log_pc` en particular lo rechaza la Edge Function por
+  // un defecto de su validación (pide 3 letras después de «log_» y «pc» tiene 2).
+  const detalleFallos = Object.keys(tiposFallados).length
+    ? Object.entries(tiposFallados).map(([t,n])=>`${t} (${n})`).join(', ') : '';
   poner(`✅ Escenario cargado: <b>${totU}</b> unidades · <b>${nCmoc}</b> de CMOC · <b>${cartaGuardada}</b> de carta (${totT} en total).`
+    +(nInst?`<br>🏭 <b>${okInst}</b> de ${nInst} instalación(es) del Estado Mayor ubicadas.`:'')
+    +(falloInst?`<br>⚠️ No entraron: <b>${_rgEsc(detalleFallos)}</b> — ${_rgEsc(falloInst)}`
+      +(tiposFallados.log_pc?`<br><span style="opacity:.85">El tipo <code>log_pc</code> (Puesto de Comando) lo rechaza la Edge Function por un defecto propio de su validación; se arregla cambiando <code>{3,20}</code> por <code>{2,20}</code> en <code>wargame-ops</code>.</span>`:''):'')
+    +((esc.ejes||0)?`<br>↔️ <b>${esc.ejes}</b> eje(s) de control en la carta (EPA, EPE, evacuación).`:'')
     +`<br>Si la partida estaba en curso, quedó en <b>planificación</b>: acomodá lo que haga falta y tocá <b>Iniciar partida</b>.`);
   WG.terreno=null; WG.capaTerrenoFirma=null; // forzar recarga y redibujo del CMOC
   await wgEstado();
