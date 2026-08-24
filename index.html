@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.344</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.345</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -27845,6 +27845,55 @@ function _wgFichaInstal(I){
   return (l.length?`<div style="margin-top:3px;font-size:10px;opacity:.95">${l.join(' · ')}</div>`:'')
     +(I.blanco?`<div style="margin-top:3px;font-size:9.5px;opacity:.8;font-style:italic">🎯 ${_rgEsc(I.blanco)}</div>`:'');
 }
+// ============================================================
+// v2.9.345 — SIMBOLOGÍA MILITAR PARA LAS INSTALACIONES.
+// Sergio: «esas imágenes son muy comunes, comerciales; esto es juego militar».
+// Tenía razón: 🚑 es una ambulancia civil y 🚚 un camión de reparto. El
+// reglamento grafica la instalación como un CÍRCULO con su código adentro
+// (P Distr Cl III, PCED, PRPG…), y las áreas de trenes como un cajón sobre
+// ruedas. Eso es lo que se dibuja acá, en el color del bando.
+// Se devuelve un PNG (dataURL) para usarlo igual en el 2D y en el 3D.
+const _wgInstCache={};
+const WG_INSTAL_COD={
+  log_abas:'I·III', log_muni:'V', log_mant:'MANT', log_soco:'PCED', log_trans:'TRSP',
+  log_trenc:'ATC', log_trenk:'ATK', log_asdi:'ASDI',
+  log_pdg:'PRPG', log_rezag:'EXTR', log_reemp:'REEM', log_sepul:'PRM', log_pc:'PC',
+};
+function _wgSimboloInstal(tipo, bando, nota){
+  const clave=[tipo,bando,nota||''].join('|');
+  if(_wgInstCache[clave]) return _wgInstCache[clave];
+  const I=WG_INSTAL[tipo]||{}; const col=(WG_COL&&WG_COL[bando])||'#8fa6bd';
+  const W=88,H=88,S=2;                       // se dibuja al doble y se escala
+  const c=document.createElement('canvas'); c.width=W*S; c.height=H*S;
+  const x=c.getContext('2d'); x.scale(S,S);
+  const cx=W/2, cy=H/2-6, r=24;
+  // Rueda de instalación: círculo grueso con fondo oscuro, como en la lámina.
+  x.fillStyle='rgba(10,16,22,.88)'; x.beginPath(); x.arc(cx,cy,r,0,Math.PI*2); x.fill();
+  x.strokeStyle=col; x.lineWidth=4; x.beginPath(); x.arc(cx,cy,r,0,Math.PI*2); x.stroke();
+  // El código adentro, achicado hasta que entre (mismo criterio que el Generador).
+  const cod=WG_INSTAL_COD[tipo]||'?';
+  let f=17; x.textAlign='center'; x.textBaseline='middle'; x.fillStyle=col;
+  do { x.font='bold '+f+'px Arial, sans-serif'; f-=1; }
+  while(f>7 && x.measureText(cod).width > r*1.65);
+  x.fillText(cod,cx,cy+1);
+  // Las áreas de trenes llevan además las dos ruedas: son elementos RODANTES.
+  if(tipo==='log_trenc'||tipo==='log_trenk'){
+    x.fillStyle=col;
+    x.beginPath(); x.arc(cx-11,cy+r+4,4,0,Math.PI*2); x.fill();
+    x.beginPath(); x.arc(cx+11,cy+r+4,4,0,Math.PI*2); x.fill();
+  }
+  // Rótulo debajo: SÓLO la abreviatura del reglamento que trajo el planeamiento
+  // («P Distr Cl III», «PCED»…). Sin nota no se rotula: el nombre largo se sale
+  // del recuadro y el código de adentro ya dice qué es.
+  const rot=String(nota||'').trim().slice(0,18);
+  if(rot){
+    x.font='bold 11px Arial, sans-serif'; x.textAlign='center'; x.textBaseline='top';
+    x.lineWidth=3; x.strokeStyle='rgba(0,0,0,.75)';
+    x.strokeText(rot,cx,cy+r+9); x.fillStyle='#fff'; x.fillText(rot,cx,cy+r+9);
+  }
+  const out={ url:c.toDataURL('image/png'), w:W, h:H };
+  _wgInstCache[clave]=out; return out;
+}
 const WG_INSTAL={
   // ── G-4 · LOGÍSTICA
   log_abas:{id:'log_abas',rol:'g4',cap:12, firma:3, montaje:3, blanco:'Depósito de combustible y víveres: el blanco más rentable del área. Vehículos entrando y saliendo todo el día lo delatan.',nom:'Puesto de abastecimiento',ico:'📦',col:'#7fb2ff',
@@ -31870,11 +31919,12 @@ function _wg3dDatos(){
     const c=(it.geojson||{}).coordinates;
     if(!c || !Number.isFinite(c[0]) || !Number.isFinite(c[1])) continue;
     try{
-      const el=document.createElement('div');
-      el.style.cssText='width:26px;height:26px;border-radius:7px;border:2px solid '+I.col
-        +';background:rgba(10,16,22,.85);display:flex;align-items:center;justify-content:center;'
-        +'font-size:13px;box-shadow:0 1px 6px rgba(0,0,0,.55);cursor:pointer';
-      el.textContent=I.ico;
+      // v2.9.345: el MISMO símbolo militar del 2D, para no aprender dos simbologías.
+      const _sim=_wgSimboloInstal(it.tipo, it.bando, (it.geojson||{}).nota);
+      const _F=0.52;
+      const el=document.createElement('img');
+      el.src=_sim.url; el.style.width=(_sim.w*_F)+'px'; el.style.height=(_sim.h*_F)+'px';
+      el.style.cursor='pointer';
       const nota=(it.geojson&&it.geojson.nota)?(' — '+it.geojson.nota):'';
       el.title=I.nom+nota;
       const mk=new maplibregl.Marker({element:el, anchor:'center'})
@@ -34809,10 +34859,13 @@ function _wgRender(){
     const I=WG_INSTAL[it.tipo]; if(!I) continue;
     const g=it.geojson||{}; const c=g.coordinates;
     if(!c || !Number.isFinite(c[0]) || !Number.isFinite(c[1])) continue;
-    const mk=L.marker([c[1],c[0]],{ zIndexOffset:1500, icon:L.divIcon({className:'',iconSize:[30,30],iconAnchor:[15,15],
-      html:`<div style="width:30px;height:30px;border-radius:7px;border:2px solid ${I.col};`
-        +`background:rgba(10,16,22,.82);display:flex;align-items:center;justify-content:center;`
-        +`font-size:15px;box-shadow:0 1px 6px rgba(0,0,0,.5)">${I.ico}</div>`}) }).addTo(WG.capa);
+    // v2.9.345: símbolo militar dibujado (círculo con el código del reglamento),
+    // no un emoji comercial. El mismo que usa la vista 3D.
+    const _sim=_wgSimboloInstal(it.tipo, it.bando, (it.geojson||{}).nota);
+    const _F=0.62;
+    const mk=L.marker([c[1],c[0]],{ zIndexOffset:1500, icon:L.icon({
+      iconUrl:_sim.url, iconSize:[_sim.w*_F, _sim.h*_F],
+      iconAnchor:[_sim.w*_F/2, _sim.h*_F/2-4] }) }).addTo(WG.capa);
     const _nota=((it.geojson||{}).nota||'').trim();
     mk.bindTooltip(`${I.ico} <b>${_rgEsc(I.nom)}</b>`
       +(_nota?`<br><span style="opacity:.85">Planeado como: <b>${_rgEsc(_nota)}</b></span>`:'')
@@ -34997,7 +35050,7 @@ function _wgMapClick(ev){
   if(WG.instalMover!=null){ _wgMoverInstalacionA(ev.latlng.lng, ev.latlng.lat); return; }
   if(WG.instalSel){ _wgInstalarEn(ev.latlng.lng, ev.latlng.lat); return; }
   if(!WG.sel) return;
-  if(!_wgPuedeOrdenar()) return;
+  if(!_wgPuedeOrdenarA(_wgUnidadPorId(WG.sel))) return;   // v2.9.345
   const p=[ev.latlng.lng, ev.latlng.lat];
   // v2.9.225 — REPLEGARSE: el clic marca hacia dónde romper contacto. La unidad
   // se retira sin empeñar; si tenía un enemigo encima al empezar el turno,
@@ -35229,6 +35282,30 @@ function _wgAvanzarRutas(trazas){
 }
 // ¿Se pueden dar órdenes ahora? Si no, lo DICE (el silencio hacía creer que
 // los controles estaban rotos).
+// v2.9.345 — EL G-4 MUEVE LO SUYO.
+// Sergio: «el G-4 me parece que es el que debe poder mover sus fichas para que
+// lleguen a las unidades y abastezcan o evacúen».
+// Y la doctrina le da la razón con todas las letras (ECEM 15-03): «Cuando el
+// Tren de Campaña opera junto al ASDI de la GUC, SE DESPLAZARÁ A ÓRDENES DEL
+// G-4 de la misma».
+// La distinción que hay que sostener es otra: el G-4 NO maniobra las piezas de
+// combate —eso lo ordenan el Comandante, el JEM o el G-3— pero SÍ conduce sus
+// propios elementos de apoyo. Antes el portón los frenaba a los dos por igual,
+// y entonces el convoy quedaba clavado esperando que el G-3 se acordara de él.
+function _wgEsFichaDelG4(u){
+  return !!u && (_wgEsConvoy(u) || u.arma==='logistica' || u.arma==='sanidad'
+    || u.arma==='intendencia' || u.arma==='transporte' || u.arma==='mantenimiento');
+}
+function _wgPuedeOrdenarA(u){
+  const r=_wgRol();
+  if(r==='g4' && _wgEsFichaDelG4(u)){
+    if(_wgEsMaqueta()) return false;
+    const p=(WG.estado&&WG.estado.partida)||{};
+    if(p.estado!=='en_curso'){ _wgPuedeOrdenar(); return false; }
+    return true;
+  }
+  return _wgPuedeOrdenar();
+}
 function _wgPuedeOrdenar(){
   // v2.9.319: la maqueta es una PROYECCIÓN. Nadie ordena desde la sala, y un
   // clic accidental sobre el modelo no puede mover una ficha del ejercicio.
@@ -35241,7 +35318,10 @@ function _wgPuedeOrdenar(){
     _wgAviso(`${R.ico} <b>Estás en el puesto de ${_rgEsc(R.nom)}.</b> Desde acá se <b>asesora</b>, `
       +`no se maniobra: ${_rgEsc(R.desc)}<br>`
       +`La orden la dan el <b>Comandante</b>, el <b>JEM</b> o el <b>G-3</b>, `
-      +`sobre los elementos de juicio que vos les pongas.`, 6000);
+      +`sobre los elementos de juicio que vos les pongas.`
+      + (_wgRol()==='g4'
+        ? `<br>🚚 <b>Tus convoyes y trenes sí los movés vos</b>: seleccionalos y tocá a dónde van.`
+        : ''), 6000);
     return false;
   }
   const p=(WG.estado&&WG.estado.partida)||{};
