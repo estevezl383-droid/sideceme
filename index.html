@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.343</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.344</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -30844,7 +30844,10 @@ function _wgFueraDeCajaCon(pt,t,holguraKm){
 }
 function _wgEnCamino(pt,terreno){
   for(const t of (terreno||[])){
-    if(t.tipo!=='via') continue;
+    // v2.9.344 — espejo EXACTO de `enCamino` del motor: el EPA y el EPE se
+    // trazan sobre una ruta, así que ruedan como camino. Si acá y allá no
+    // dicen lo mismo, la previsión promete un paso que el servidor no da.
+    if(t.tipo!=='via' && t.tipo!=='eje_log') continue;
     if(_wgFueraDeCajaCon(pt,t,WG_CAMINO_KM)) continue;
     for(const linea of _wgLineasDe(t.geojson)){
       for(let i=1;i<linea.length;i++){
@@ -31045,6 +31048,10 @@ function _wgRenderTerreno(){
     poblado:{color:'#d8d8d8',weight:1,fillOpacity:0.25,fillColor:'#9aa0a6'},
     vegetacion:{color:'#4f8f45',weight:1,fillOpacity:0.22,fillColor:'#4f8f45'},
     jurisdiccion:{color:'#b06de0',weight:1.2,fillOpacity:0,dashArray:'5 4'},
+    // v2.9.344 — LOS EJES DEL ESTADO MAYOR. Grueso y rosa fuerte: tienen que
+    // saltar a la vista por encima del naranja de todos los caminos, porque no
+    // son un camino más — son la decisión del G-4 sobre por dónde fluye el apoyo.
+    eje_log:{color:'#ff2e6a',weight:5,fillOpacity:0},
     ae:{color:'#ff3b3b',weight:2,fillOpacity:0.18,fillColor:'#ff3b3b',dashArray:'6 4'},
     defensivo:{color:'#00d3a7',weight:2,fillOpacity:0.12,fillColor:'#00d3a7'},
     // v2.9.324 — CAMPO MINADO. Rojo y con trazo grueso punteado: en la carta
@@ -31075,6 +31082,25 @@ function _wgRenderTerreno(){
         pointToLayer:(f,ll)=>{ const p=punto[tipo]||{r:3,color:'#aaa'};
           return L.circleMarker(ll,{radius:p.r,color:p.color,weight:1,fillColor:p.color,
             fillOpacity:.65,interactive:false,renderer:WG.lienzo}); },
+      }).addTo(WG.capaTerreno);
+    }catch(_e){}
+  }
+  // v2.9.344 — EL RÓTULO DEL EJE. De nada sirve una línea rosa si nadie sabe
+  // si es el de abastecimiento o el de evacuación: el nombre viaja en
+  // `geojson.nom` desde el Generador y acá se escribe al medio del trazo.
+  for(const t of (WG.terreno||[])){
+    if(t.tipo!=='eje_log' || !_wgCalcoVisible('eje_log')) continue;
+    const nom=(t.geojson&&t.geojson.nom)||''; if(!nom) continue;
+    const lineas=_wgLineasDe(t.geojson); const l=lineas[0];
+    if(!l||l.length<2) continue;
+    const m=l[Math.floor(l.length/2)];
+    const corto=nom.split('—')[0].trim();
+    try{
+      L.marker([m[1],m[0]],{interactive:false,zIndexOffset:900,
+        icon:L.divIcon({className:'',iconSize:[110,20],iconAnchor:[55,10],
+          html:`<div style="background:rgba(255,46,106,.92);color:#fff;font:800 11px Arial;`
+            +`padding:2px 7px;border-radius:9px;white-space:nowrap;text-align:center;`
+            +`box-shadow:0 1px 5px rgba(0,0,0,.5)" title="${_rgEsc(nom)}">${_rgEsc(corto)}</div>`})
       }).addTo(WG.capaTerreno);
     }catch(_e){}
   }
@@ -31754,6 +31780,9 @@ function _wg3dDatos(){
       u.estado||'', u.dron_rumbo==null?'':Math.round(u.dron_rumbo),
       u.poder_actual==null?'':Math.round(u.poder_actual)]),
     Object.keys(WG.ordenes||{}).sort().join(','),
+    // v2.9.344: sin esto, colocar o mover una instalación no redibujaba el 3D
+    // (la firma no cambiaba y la función se salía antes de tocar el DOM).
+    _wgInstalaciones().map(it=>[it.id,it.tipo,((it.geojson||{}).coordinates||[]).join(',')]),
     (WG.incendios||[]).length]);
   if(firma===WG._firma3d) return;
   WG._firma3d=firma;
@@ -31823,6 +31852,33 @@ function _wg3dDatos(){
       const mk=new maplibregl.Marker({element:env, anchor:'center',
         offset:[(sim.w/2-sim.ax)*F, (sim.h/2-sim.ay)*F]}).setLngLat([u.lng,u.lat]).addTo(map);
       mk.__uid=u.id; // para poder moverlo durante el replay
+      WG.marc3d.push(mk);
+    }catch(_e){}
+  }
+  // ============================================================
+  // v2.9.344 — LAS INSTALACIONES TAMBIÉN VAN EN 3D.
+  // Sergio: «en 3D no se ven las instalaciones logísticas… no puedo hacer la
+  // prueba de nada porque no aparece». Tenía razón: este bucle sólo recorría
+  // las UNIDADES, así que el ASDI entero era invisible en la vista 3D — y como
+  // la 3D es donde se aprecia el terreno, el G-4 no podía ni mirar dónde había
+  // puesto sus puestos, ni el enemigo apuntarles.
+  // Se dibujan igual que en el 2D (mismo recuadro y mismo ícono) para que se
+  // reconozcan sin tener que aprender otra simbología.
+  // ============================================================
+  for(const it of _wgInstalaciones()){
+    const I=WG_INSTAL[it.tipo]; if(!I) continue;
+    const c=(it.geojson||{}).coordinates;
+    if(!c || !Number.isFinite(c[0]) || !Number.isFinite(c[1])) continue;
+    try{
+      const el=document.createElement('div');
+      el.style.cssText='width:26px;height:26px;border-radius:7px;border:2px solid '+I.col
+        +';background:rgba(10,16,22,.85);display:flex;align-items:center;justify-content:center;'
+        +'font-size:13px;box-shadow:0 1px 6px rgba(0,0,0,.55);cursor:pointer';
+      el.textContent=I.ico;
+      const nota=(it.geojson&&it.geojson.nota)?(' — '+it.geojson.nota):'';
+      el.title=I.nom+nota;
+      const mk=new maplibregl.Marker({element:el, anchor:'center'})
+        .setLngLat([c[0],c[1]]).addTo(map);
       WG.marc3d.push(mk);
     }catch(_e){}
   }
@@ -32055,6 +32111,8 @@ const WG_CALCOS=[
   {id:'elevacion',   nom:'Elevaciones (curvas y cimas)', col:'#e0b34a', grupo:'Carta'},
   {id:'hidro',       nom:'Hidrografía (ríos, lagos)', col:'#4aa3e0', grupo:'Carta'},
   {id:'via',         nom:'Comunicaciones (caminos)', col:'#ff9a2e', grupo:'Carta'},
+  // v2.9.344: los ejes del Estado Mayor, en su propia capa y con su rótulo.
+  {id:'eje_log',     nom:'↔️ Ejes del EM (EPA · EPE · evacuación)', col:'#ff2e6a', grupo:'CMOC'},
   {id:'poblado',     nom:'Poblaciones', col:'#ffffff', grupo:'Carta'},
   {id:'vegetacion',  nom:'Vegetación', col:'#4f8f45', grupo:'Carta'},
   {id:'jurisdiccion',nom:'Jurisdicciones militares', col:'#b06de0', grupo:'Carta'},
@@ -32722,7 +32780,7 @@ function _wgEscenarioDesde(d, fase){
   let ejes=0;
   const meterLinea=(coords, nom)=>{
     if(!Array.isArray(coords)||coords.length<2) return;
-    terreno.push({ tipo:'via', geojson:{ type:'LineString',
+    terreno.push({ tipo:'eje_log', geojson:{ type:'LineString',
       coordinates:coords.map(c=>[Number(c[0]),Number(c[1])]), nom } });
     ejes++; visuales++;
   };
