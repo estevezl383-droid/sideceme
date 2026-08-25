@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.346</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.347</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -28018,6 +28018,25 @@ function _wgInstalClick(it, I){
     if(q==='2') wgQuitarInstalacion(it.id);
     return;
   }
+  // v2.9.347 — TOCAR EL PUESTO Y QUE SALGA EL VEHÍCULO.
+  // Sergio: «tal vez sería hacer clic en el puesto de abastecimiento y de ahí
+  // que salgan los vehículos». Es lo natural: el convoy sale DE la instalación,
+  // así que el gesto tiene que empezar ahí y no en una lista aparte.
+  const R=I.reparte||{};
+  const puede=[];
+  if((R.combustible||0)>0) puede.push({clase:'III', nom:'Clase III (combustible)'});
+  if((R.municion||0)>0) puede.push({clase:'V', nom:'Clase V (munición)'});
+  if(puede.length && (WG.soy==='arbitro' || _wgRol()==='g4' || !_wgRol())){
+    const ops=puede.map((x,i)=>`${i+1} = formar convoy de ${x.nom}`).join('\n');
+    const q=prompt(`${I.nom}\n\n${ops}\n${puede.length+1} = levantarla de la carta\n\n`
+      +`El convoy sale a 600 m del puesto con ${WG_CONVOY_CAPACIDAD} cargas.\n`
+      +`Después lo seleccionás en el mapa y tocás a dónde tiene que llegar.\n\nEscribí el número:`, '1');
+    if(q==null) return;
+    const k=Number(q);
+    if(k>=1 && k<=puede.length){ wgFormarConvoy(it.id, puede[k-1].clase); return; }
+    if(k===puede.length+1) wgQuitarInstalacion(it.id);
+    return;
+  }
   if(confirm(I.nom+': ¿levantarla de la carta?')) wgQuitarInstalacion(it.id);
 }
 async function _wgMoverInstalacionA(lng, lat){
@@ -31918,6 +31937,7 @@ function _wg3dDatos(){
       const mk=new maplibregl.Marker({element:env, anchor:'center',
         offset:[(sim.w/2-sim.ax)*F, (sim.h/2-sim.ay)*F]}).setLngLat([u.lng,u.lat]).addTo(map);
       mk.__uid=u.id; // para poder moverlo durante el replay
+      try{ mk.getElement().style.zIndex='6'; }catch(_e){}   // v2.9.347: por delante
       WG.marc3d.push(mk);
     }catch(_e){}
   }
@@ -31946,6 +31966,9 @@ function _wg3dDatos(){
       el.title=I.nom+nota;
       const mk=new maplibregl.Marker({element:el, anchor:'center'})
         .setLngLat([c[0],c[1]]).addTo(map);
+      // v2.9.347: la instalación va DETRÁS de las fichas. Sin esto tapaba al
+      // convoy que acaba de salir de ella, que es justo lo que hay que ver.
+      try{ mk.getElement().style.zIndex='1'; }catch(_e){}
       WG.marc3d.push(mk);
     }catch(_e){}
   }
@@ -34954,7 +34977,9 @@ function _wgRender(){
     // no un emoji comercial. El mismo que usa la vista 3D.
     const _sim=_wgSimboloInstal(it.tipo, it.bando, (it.geojson||{}).nota);
     const _F=0.62;
-    const mk=L.marker([c[1],c[0]],{ zIndexOffset:1500, icon:L.icon({
+    // v2.9.347: la instalación va DEBAJO de las fichas. Antes tenía z=1500 y
+    // tapaba al convoy recién formado, que nace a su lado.
+    const mk=L.marker([c[1],c[0]],{ zIndexOffset:200, icon:L.icon({
       iconUrl:_sim.url, iconSize:[_sim.w*_F, _sim.h*_F],
       iconAnchor:[_sim.w*_F/2, _sim.h*_F/2-4] }) }).addTo(WG.capa);
     const _nota=((it.geojson||{}).nota||'').trim();
