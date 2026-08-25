@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.349</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.350</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -33146,7 +33146,128 @@ function _wgVarianteDibujo(u){
   if(v>0) return 'convoy_v';                 // municiones
   return 'convoy';                           // vacío: camión pelado
 }
-function _wgDibArma(ctx,arma,x,y,w,h,color){
+// ============================================================
+// v2.9.350 — VEHÍCULOS DE VERDAD, CON EL COLOR DE SU BANDO.
+// Sergio: «quiero figuras militares mejores, con su tono de azul si son de azul
+// y rojo si son de rojo… los convoyes, los cisternas, los camiones — quiero
+// realidad».
+// Antes cada silueta era un contorno suelto del color del bando: a 30 px se
+// leía como una cajita gris y el cisterna no se distinguía del camión de
+// municiones. Ahora el vehículo se dibuja de PERFIL, entero y RELLENO en el
+// tono del bando: chasis, cabina con parabrisas, tren rodante 6×6 (tándem
+// atrás, como el camión militar) y la carga que le corresponde a su Clase.
+// El color no es decoración: es lo que dice de quién es la ficha.
+// ============================================================
+function _wgHexRGB(h){
+  h=String(h||'#888888').replace('#','');
+  if(h.length===3) h=h.split('').map(c=>c+c).join('');
+  const n=parseInt(h,16)||0; return [(n>>16)&255,(n>>8)&255,n&255];
+}
+function _wgMezcla(hex,dest,t){
+  const a=_wgHexRGB(hex), b=_wgHexRGB(dest);
+  return '#'+a.map((v,i)=>Math.round(v+(b[i]-v)*t).toString(16).padStart(2,'0')).join('');
+}
+function _wgClaro(hex,t){ return _wgMezcla(hex,'#ffffff',t); }
+function _wgOscuro(hex,t){ return _wgMezcla(hex,'#000000',t); }
+function _wgAlfa(hex,a){ const c=_wgHexRGB(hex); return 'rgba('+c[0]+','+c[1]+','+c[2]+','+a+')'; }
+
+// Vehículo de perfil mirando a la DERECHA, dentro del recuadro (x,y,w,h).
+// tipo: 'cisterna' | 'municion' | 'ambulancia' | 'carga'
+// `rombo` = el marco del enemigo se angosta hacia las puntas, así que el
+// vehículo entra más corto o se le recortan el morro y la caja.
+function _wgDibVehiculo(ctx,tipo,x,y,w,h,color,rombo){
+  const cx=x+w/2, cy=y+h/2;
+  const L=Math.max(18, Math.min(w*(rombo?0.56:0.84), h*(rombo?1.35:2.20)));
+  const H=L*0.32;                          // alto del cuerpo
+  const rr=Math.max(2.0, L*0.088);         // radio de rueda
+  const eje=cy+H*0.34, piso=eje-rr*0.25, techo=piso-H;
+  const bx=cx-L/2;                         // cola a la izquierda, morro a la derecha
+  const cuerpo=_wgOscuro(color,0.20), claro=_wgClaro(color,0.34), borde=_wgOscuro(color,0.66);
+  const lw=Math.max(1, L*0.032);
+  ctx.save(); ctx.lineJoin='round'; ctx.lineCap='round';
+
+  // sombra en el suelo: sin ella el vehículo flota sobre la carta
+  ctx.fillStyle='rgba(0,0,0,.30)';
+  ctx.beginPath(); ctx.ellipse(cx, eje+rr*1.05, L*0.46, rr*0.40, 0, 0, Math.PI*2); ctx.fill();
+
+  // TREN RODANTE 6×6 — tándem atrás, simple adelante.
+  const ejes=[bx+L*0.17, bx+L*0.31, bx+L*0.83];
+  for(const ex of ejes){
+    ctx.fillStyle='#0c1116'; ctx.beginPath(); ctx.arc(ex,eje,rr,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle=claro;     ctx.beginPath(); ctx.arc(ex,eje,rr*0.40,0,Math.PI*2); ctx.fill();
+  }
+  // CHASIS
+  ctx.fillStyle=borde; ctx.fillRect(bx+L*0.08, piso-H*0.06, L*0.86, Math.max(1.2,H*0.14));
+  // CABINA
+  const cw=L*0.26, cbx=bx+L*0.70, cbt=piso-H*0.78;
+  ctx.beginPath();
+  ctx.moveTo(cbx,piso); ctx.lineTo(cbx,cbt);
+  ctx.lineTo(cbx+cw*0.55,cbt); ctx.lineTo(cbx+cw,cbt+H*0.30); ctx.lineTo(cbx+cw,piso);
+  ctx.closePath(); ctx.fillStyle=cuerpo; ctx.fill();
+  ctx.strokeStyle=borde; ctx.lineWidth=lw; ctx.stroke();
+  ctx.beginPath();                                  // parabrisas
+  ctx.moveTo(cbx+cw*0.16,cbt+H*0.10); ctx.lineTo(cbx+cw*0.55,cbt+H*0.10);
+  ctx.lineTo(cbx+cw*0.86,cbt+H*0.32); ctx.lineTo(cbx+cw*0.16,cbt+H*0.32);
+  ctx.closePath(); ctx.fillStyle='rgba(222,240,255,.88)'; ctx.fill();
+
+  const kx=bx+L*0.05, kw=(cbx-L*0.02)-kx, th=piso-techo;
+  if(tipo==='cisterna'){
+    // CLASE III — el tanque es un CILINDRO. Es la silueta que separa al
+    // cisterna del camión de carga a la distancia a la que se mira la carta.
+    const r=th/2, ty=techo;
+    ctx.beginPath();
+    ctx.moveTo(kx+r,ty); ctx.lineTo(kx+kw-r,ty);
+    ctx.arc(kx+kw-r,ty+r,r,-Math.PI/2,Math.PI/2);
+    ctx.lineTo(kx+r,ty+th); ctx.arc(kx+r,ty+r,r,Math.PI/2,-Math.PI/2);
+    ctx.closePath();
+    const g=ctx.createLinearGradient(0,ty,0,ty+th);
+    g.addColorStop(0,claro); g.addColorStop(0.45,cuerpo); g.addColorStop(1,_wgOscuro(color,0.45));
+    ctx.fillStyle=g; ctx.fill(); ctx.strokeStyle=borde; ctx.lineWidth=lw; ctx.stroke();
+    ctx.strokeStyle='rgba(0,0,0,.45)'; ctx.lineWidth=Math.max(.8,lw*0.7);
+    for(const f of [0.34,0.62]){ ctx.beginPath(); ctx.moveTo(kx+kw*f,ty+1); ctx.lineTo(kx+kw*f,ty+th-1); ctx.stroke(); }
+    ctx.fillStyle=borde;
+    ctx.fillRect(kx+kw*0.44, ty-th*0.16, kw*0.13, th*0.18);          // escotilla de carga
+    ctx.beginPath(); ctx.arc(kx+lw, ty+th*0.72, Math.max(1,th*0.10),0,Math.PI*2); ctx.fill(); // boca de descarga
+  }else if(tipo==='municion'){
+    // CLASE V — camión entoldado con el aspa del material bélico.
+    ctx.beginPath(); ctx.rect(kx, techo+th*0.14, kw, th*0.86);
+    ctx.fillStyle=cuerpo; ctx.fill(); ctx.strokeStyle=borde; ctx.lineWidth=lw; ctx.stroke();
+    ctx.strokeStyle='rgba(0,0,0,.40)'; ctx.lineWidth=Math.max(.8,lw*0.65);
+    for(const f of [0.28,0.52,0.76]){ ctx.beginPath(); ctx.moveTo(kx+kw*f,techo+th*0.18); ctx.lineTo(kx+kw*f,piso-lw); ctx.stroke(); }
+    ctx.beginPath();                                   // techo de lona
+    ctx.moveTo(kx,techo+th*0.20);
+    ctx.quadraticCurveTo(kx+kw/2, techo-th*0.12, kx+kw, techo+th*0.20);
+    ctx.lineTo(kx+kw,techo+th*0.14); ctx.lineTo(kx,techo+th*0.14); ctx.closePath();
+    ctx.fillStyle=claro; ctx.fill(); ctx.strokeStyle=borde; ctx.lineWidth=lw*0.8; ctx.stroke();
+    ctx.strokeStyle='rgba(255,255,255,.92)'; ctx.lineWidth=Math.max(1,lw*0.9);
+    const ax=kx+kw*0.28, aw=kw*0.44, ay=techo+th*0.38, ah=th*0.42;
+    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(ax+aw,ay+ah);
+    ctx.moveTo(ax+aw,ay); ctx.lineTo(ax,ay+ah); ctx.stroke();
+  }else if(tipo==='ambulancia'){
+    // El furgón del PCED: más alto que un camión y con la cruz a la vista.
+    const ah=th*1.18, ay=piso-ah;
+    ctx.beginPath(); ctx.rect(kx, ay, kw, ah);
+    ctx.fillStyle=cuerpo; ctx.fill(); ctx.strokeStyle=borde; ctx.lineWidth=lw; ctx.stroke();
+    const px=kx+kw*0.22, pw=kw*0.56, py=ay+ah*0.22, ph=ah*0.56;
+    ctx.fillStyle='rgba(255,255,255,.94)'; ctx.fillRect(px,py,pw,ph);
+    ctx.strokeStyle='#c0392b'; ctx.lineWidth=Math.max(1.2,lw*1.1);
+    ctx.beginPath();
+    ctx.moveTo(px+pw/2, py+ph*0.16); ctx.lineTo(px+pw/2, py+ph*0.84);
+    ctx.moveTo(px+pw*0.18, py+ph/2); ctx.lineTo(px+pw*0.82, py+ph/2);
+    ctx.stroke();
+    const bal=Math.max(1.2,th*0.11);                  // baliza, apoyada en el techo
+    ctx.fillStyle='#ffd34d'; ctx.fillRect(cbx+cw*0.18, cbt-bal, cw*0.36, bal);
+  }else{
+    // Camión pelado: vuelve vacío del reparto. La plataforma con barandas dice
+    // «ya entregó» de un vistazo, sin tener que abrir el tablero.
+    ctx.fillStyle=borde; ctx.fillRect(kx, piso-th*0.30, kw, th*0.30);
+    ctx.strokeStyle=cuerpo; ctx.lineWidth=lw; ctx.strokeRect(kx, piso-th*0.86, kw, th*0.86);
+    ctx.strokeStyle='rgba(0,0,0,.35)'; ctx.lineWidth=Math.max(.8,lw*0.6);
+    for(const f of [0.33,0.66]){ ctx.beginPath(); ctx.moveTo(kx+kw*f,piso-th*0.86); ctx.lineTo(kx+kw*f,piso-th*0.30); ctx.stroke(); }
+  }
+  ctx.restore();
+}
+function _wgDibArma(ctx,arma,x,y,w,h,color,rombo){
   ctx.save(); ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=5;
   const cx=x+w/2, cy=y+h/2;
   switch(arma){
@@ -33166,87 +33287,13 @@ function _wgDibArma(ctx,arma,x,y,w,h,color){
       ctx.beginPath(); ctx.arc(cx,cy,2.2,0,Math.PI*2); ctx.fill(); break; }
     case 'sanidad': { const r=Math.min(w,h)*0.26; ctx.beginPath();
       ctx.moveTo(cx,cy-r); ctx.lineTo(cx,cy+r); ctx.moveTo(cx-r,cy); ctx.lineTo(cx+r,cy); ctx.stroke(); break; }
-    // v2.9.343 — EL CONVOY SE VE COMO LO QUE ES: UN CAMIÓN.
-    // Así lo grafica la lámina del texto para los Trenes de Combate y de
-    // Campaña: un cajón sobre dos ruedas. Antes decía «Cnv» en letras y en el
-    // tablero no se distinguía de una unidad de combate — justamente lo que hay
-    // que distinguir, porque el convoy NO pelea: es un blanco rodando.
-    // v2.9.346 — CAMIÓN CISTERNA (Clase III). El tanque es un CILINDRO, no un
-    // cajón: es la silueta que distingue a un cisterna de un camión de carga.
-    case 'convoy_iii': {
-      const bw=w*0.64, bh=h*0.30, bx=cx-bw/2, by=cy-bh/2-1;
-      ctx.lineWidth=4;
-      const tw=bw*0.66, r=bh/2;
-      ctx.beginPath();                                   // tanque cilíndrico
-      ctx.moveTo(bx+r, by); ctx.lineTo(bx+tw-r, by);
-      ctx.arc(bx+tw-r, by+r, r, -Math.PI/2, Math.PI/2);
-      ctx.lineTo(bx+r, by+bh);
-      ctx.arc(bx+r, by+r, r, Math.PI/2, -Math.PI/2);
-      ctx.closePath(); ctx.stroke();
-      ctx.beginPath();                                   // cabina
-      ctx.moveTo(bx+tw, by+bh*0.30); ctx.lineTo(bx+bw*0.90, by+bh*0.30);
-      ctx.lineTo(bx+bw, by+bh*0.70); ctx.lineTo(bx+bw, by+bh);
-      ctx.lineTo(bx+tw, by+bh); ctx.closePath(); ctx.stroke();
-      const rr=Math.max(2.2,h*0.07);
-      ctx.beginPath(); ctx.arc(bx+bw*0.20, by+bh+rr*0.6, rr, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(bx+bw*0.86, by+bh+rr*0.6, rr, 0, Math.PI*2); ctx.fill();
-      break; }
-    // v2.9.346 — CAMIÓN DE MUNICIONES (Clase V). Cajón cerrado con el aspa del
-    // material bélico encima: se lee de un vistazo qué se pierde si lo baten.
-    case 'convoy_v': {
-      const bw=w*0.62, bh=h*0.34, bx=cx-bw/2, by=cy-bh/2-1;
-      ctx.lineWidth=4;
-      const cw=bw*0.70;
-      ctx.strokeRect(bx, by, cw, bh);
-      ctx.lineWidth=2.6;                                  // aspa sobre la caja
-      ctx.beginPath();
-      ctx.moveTo(bx+3, by+3); ctx.lineTo(bx+cw-3, by+bh-3);
-      ctx.moveTo(bx+cw-3, by+3); ctx.lineTo(bx+3, by+bh-3);
-      ctx.stroke(); ctx.lineWidth=4;
-      ctx.beginPath();                                    // cabina
-      ctx.moveTo(bx+cw, by+bh*0.32); ctx.lineTo(bx+bw*0.90, by+bh*0.32);
-      ctx.lineTo(bx+bw, by+bh*0.70); ctx.lineTo(bx+bw, by+bh);
-      ctx.lineTo(bx+cw, by+bh); ctx.closePath(); ctx.stroke();
-      const rr=Math.max(2.2,h*0.07);
-      ctx.beginPath(); ctx.arc(bx+bw*0.18, by+bh+rr*0.6, rr, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(bx+bw*0.86, by+bh+rr*0.6, rr, 0, Math.PI*2); ctx.fill();
-      break; }
-    // AMBULANCIA MILITAR: furgón alto con la cruz. Es el vehículo del PCED que
-    // sube por el eje de evacuación.
-    case 'ambulancia': {
-      const bw=w*0.60, bh=h*0.38, bx=cx-bw/2, by=cy-bh/2-1;
-      ctx.lineWidth=4;
-      const cw=bw*0.72;
-      ctx.strokeRect(bx, by, cw, bh);
-      ctx.lineWidth=3.2;                                  // la cruz
-      ctx.beginPath();
-      ctx.moveTo(bx+cw/2, by+bh*0.22); ctx.lineTo(bx+cw/2, by+bh*0.78);
-      ctx.moveTo(bx+cw*0.22, by+bh/2); ctx.lineTo(bx+cw*0.78, by+bh/2);
-      ctx.stroke(); ctx.lineWidth=4;
-      ctx.beginPath();
-      ctx.moveTo(bx+cw, by+bh*0.34); ctx.lineTo(bx+bw*0.92, by+bh*0.34);
-      ctx.lineTo(bx+bw, by+bh*0.70); ctx.lineTo(bx+bw, by+bh);
-      ctx.lineTo(bx+cw, by+bh); ctx.closePath(); ctx.stroke();
-      const rr=Math.max(2.2,h*0.07);
-      ctx.beginPath(); ctx.arc(bx+bw*0.18, by+bh+rr*0.6, rr, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(bx+bw*0.86, by+bh+rr*0.6, rr, 0, Math.PI*2); ctx.fill();
-      break; }
-    case 'convoy': {
-      const bw=w*0.62, bh=h*0.34;              // caja de carga
-      const bx=cx-bw/2, by=cy-bh/2-1;
-      ctx.lineWidth=4;
-      ctx.strokeRect(bx, by, bw*0.72, bh);      // caja
-      ctx.beginPath();                          // cabina, adelante
-      ctx.moveTo(bx+bw*0.72, by+bh*0.35);
-      ctx.lineTo(bx+bw*0.90, by+bh*0.35);
-      ctx.lineTo(bx+bw, by+bh*0.72);
-      ctx.lineTo(bx+bw, by+bh);
-      ctx.lineTo(bx+bw*0.72, by+bh);
-      ctx.closePath(); ctx.stroke();
-      const r=Math.max(2.4, h*0.075);           // las dos ruedas
-      ctx.beginPath(); ctx.arc(bx+bw*0.18, by+bh+r*0.6, r, 0, Math.PI*2); ctx.fill();
-      ctx.beginPath(); ctx.arc(bx+bw*0.86, by+bh+r*0.6, r, 0, Math.PI*2); ctx.fill();
-      break; }
+    // v2.9.350 — el vehículo entero, de perfil y en el tono del bando.
+    // La Clase que lleva define la silueta: cisterna (III), entoldado con el
+    // aspa (V), furgón con la cruz (evacuación) o plataforma vacía (ya repartió).
+    case 'convoy_iii': _wgDibVehiculo(ctx,'cisterna',x,y,w,h,color,rombo); break;
+    case 'convoy_v':   _wgDibVehiculo(ctx,'municion',x,y,w,h,color,rombo); break;
+    case 'ambulancia': _wgDibVehiculo(ctx,'ambulancia',x,y,w,h,color,rombo); break;
+    case 'convoy':     _wgDibVehiculo(ctx,'carga',x,y,w,h,color,rombo); break;
     default:
       if(WG_ABREV[arma]){ ctx.font='bold 13px Arial, sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
         ctx.fillText(WG_ABREV[arma],cx,cy+1); }
@@ -33301,7 +33348,10 @@ function _wgSimboloUnidad(u,sel){
   // v2.9.205: la ficha SELECCIONADA se enciende en amarillo, como en los juegos:
   // halo difuso por fuera + relleno cálido. Se lee de un golpe de vista, que era
   // el problema del rayado blanco anterior.
-  ctx.fillStyle = sel?'rgba(255,225,26,0.18)':'rgba(255,255,255,0.10)';
+  // v2.9.350 — EL MARCO SE PINTA DEL COLOR DEL BANDO. Con el relleno blanco de
+  // antes, azules y rojos se leían igual de grises hasta acercarse: el color
+  // vivía sólo en el trazo del borde, que a 30 px casi no se ve.
+  ctx.fillStyle = sel?'rgba(255,225,26,0.18)':_wgAlfa(color,0.26);
   ctx.strokeStyle=color; ctx.lineWidth=7;
   const marco=()=>{ if(rojo){ const hw=fw/2+padX-2, hh=fh/2; ctx.beginPath();
       ctx.moveTo(cx,my-hh); ctx.lineTo(cx+hw,my); ctx.lineTo(cx,my+hh); ctx.lineTo(cx-hw,my); ctx.closePath();
@@ -33339,7 +33389,7 @@ function _wgSimboloUnidad(u,sel){
   if(u.estado==='fuera_combate') ctx.setLineDash([8,5]); // ya no combate
   else if(u._reportado) ctx.setLineDash([7,4]);          // v2.9.286: dato reportado
   ctx.stroke(); ctx.setLineDash([]);
-  ctx.save(); marco(); ctx.clip(); _wgDibArma(ctx,_var,fx,fy,fw,fh,color); ctx.restore();
+  ctx.save(); marco(); ctx.clip(); _wgDibArma(ctx,_var,fx,fy,fw,fh,color,rojo); ctx.restore();
   ctx.restore();
   _wgDibEscalon(ctx,esc,cx,2,color);
   // Rótulo: 5 px por debajo del marco (el trazo del marco es de 7 px y antes
