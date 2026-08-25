@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.347</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.348</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -26100,6 +26100,15 @@ function _wgMaquetaSituacion(){
 // Sin rol (el enlace liso del bando) se ordena, como siempre: es el puesto de
 // mando de toda la vida y no hay que romperle nada a quien ya lo usa así.
 function _wgRolOrdena(){ const r=_wgRol(); return !r || WG_ROLES[r].ordena; }
+// v2.9.348 — EL QUE CONDUCE FICHAS, MANDA SUS ÓRDENES.
+// Sergio: «marqué la ruta, ahora qué hago para que se mueva, no hay ni una
+// ficha que diga jugar o desplazarse». Y era literal: «✔️ Órdenes listas» y
+// «▶️ Jugar turno» estaban los dos condicionados a `ordena`, que en el G-4 es
+// false. Le daba ruta al convoy y NO TENÍA QUÉ APRETAR.
+// La distinción doctrinaria se mantiene: el G-4 MANDA lo suyo (sus convoyes y
+// trenes), pero HACER CORRER EL TURNO sigue siendo del Comandante, el JEM o el
+// G-3. El G-4 propone y ejecuta su parte; el turno lo corre el mando.
+function _wgRolEnvia(){ const r=_wgRol(); return !r || WG_ROLES[r].ordena || r==='g4'; }
 // El enlace de un puesto: el mismo del bando más `&rol=<puesto>`. Se le pasa al
 // oficial para que entre desde SU máquina, sin pisar la pantalla del Comandante.
 function _wgEnlaceRol(rol){
@@ -28022,19 +28031,69 @@ function _wgInstalClick(it, I){
   // Sergio: «tal vez sería hacer clic en el puesto de abastecimiento y de ahí
   // que salgan los vehículos». Es lo natural: el convoy sale DE la instalación,
   // así que el gesto tiene que empezar ahí y no en una lista aparte.
+  // ============================================================
+  // v2.9.348 — EL PARTE DE LA INSTALACIÓN.
+  // Sergio: «cuando se le da clic a una instalación debe salir cuántos
+  // vehículos tiene y así poder ver de manera más objetiva, bien ordenada…
+  // para que ese G-4 actúe, organice, opere».
+  // Tocar el puesto ahora da su PARTE: qué reparte, cuánta estiba le queda y
+  // QUÉ VEHÍCULOS tiene formados, con su carga y su autonomía. Desde ahí se
+  // despacha uno o se forma otro. Es el gesto del oficial de logística: se para
+  // en su puesto y ve con qué cuenta.
+  // ============================================================
   const R=I.reparte||{};
   const puede=[];
   if((R.combustible||0)>0) puede.push({clase:'III', nom:'Clase III (combustible)'});
   if((R.municion||0)>0) puede.push({clase:'V', nom:'Clase V (munición)'});
-  if(puede.length && (WG.soy==='arbitro' || _wgRol()==='g4' || !_wgRol())){
-    const ops=puede.map((x,i)=>`${i+1} = formar convoy de ${x.nom}`).join('\n');
-    const q=prompt(`${I.nom}\n\n${ops}\n${puede.length+1} = levantarla de la carta\n\n`
-      +`El convoy sale a 600 m del puesto con ${WG_CONVOY_CAPACIDAD} cargas.\n`
-      +`Después lo seleccionás en el mapa y tocás a dónde tiene que llegar.\n\nEscribí el número:`, '1');
+  const soyDuenio = (WG.soy==='arbitro' || _wgRol()==='g4' || !_wgRol());
+  if(puede.length && soyDuenio){
+    const pt=(it.geojson||{}).coordinates||[0,0];
+    // Los convoyes que están EN el puesto o a su lado (menos de 3 km).
+    const mios=((WG.estado&&WG.estado.unidades)||[]).filter(u=>
+      _wgEsConvoy(u) && u.bando===it.bando && u.estado!=='fuera_combate'
+      && _wgKm([u.lng,u.lat],[pt[0],pt[1]])<=3);
+    const cap=(I.cap||0), usado=Number((it.geojson||{}).usado||0);
+    const estiba = cap ? `Estiba: ${Math.max(0,cap-usado)} de ${cap} cargas` : 'Estiba: sin límite modelado';
+    const lineas=[];
+    lineas.push(`${I.nom}${(it.geojson||{}).nota?(' — '+(it.geojson||{}).nota):''}`);
+    lineas.push(estiba);
+    lineas.push('');
+    let n=0; const acciones=[];
+    if(mios.length){
+      lineas.push(`VEHÍCULOS EN EL PUESTO (${mios.length}):`);
+      for(const c of mios){
+        const carga=['III','V'].filter(k=>_wgCargaDe(c,k)>0)
+          .map(k=>`${_wgCargaDe(c,k)}/${WG_CONVOY_CAPACIDAD} Cl ${k}`).join(' · ') || 'VACÍO';
+        const comb=_wgCombustible(c);
+        lineas.push(`  ${++n} = ${c.designacion||('Cnv'+c.id)} · ${carga}`
+          + (comb?` · ${comb.resta} km de autonomía`:''));
+        acciones.push({t:'sel', u:c});
+      }
+      lineas.push('');
+    } else {
+      lineas.push('Sin vehículos formados en este puesto.');
+      lineas.push('');
+    }
+    lineas.push('FORMAR:');
+    for(const x of puede){ lineas.push(`  ${++n} = convoy nuevo de ${x.nom}`); acciones.push({t:'formar', clase:x.clase}); }
+    lineas.push('');
+    lineas.push(`  ${++n} = levantar la instalación de la carta`);
+    acciones.push({t:'quitar'});
+    lineas.push('');
+    lineas.push('Elegí un vehículo para DESPACHARLO (después tocás a dónde va).');
+    const q=prompt(lineas.join('\n'), mios.length?'1':'1');
     if(q==null) return;
-    const k=Number(q);
-    if(k>=1 && k<=puede.length){ wgFormarConvoy(it.id, puede[k-1].clase); return; }
-    if(k===puede.length+1) wgQuitarInstalacion(it.id);
+    const a=acciones[Number(q)-1];
+    if(!a) return;
+    if(a.t==='formar'){ wgFormarConvoy(it.id, a.clase); return; }
+    if(a.t==='quitar'){ wgQuitarInstalacion(it.id); return; }
+    if(a.t==='sel'){
+      WG.sel=a.u.id; WG.armaSel=null;
+      _wgRender(); if(WG.map3d) _wg3dDatos(); wgBarraUnidades();
+      _wgAviso(`🚚 <b>${_rgEsc(a.u.designacion||('Cnv'+a.u.id))}</b> seleccionado. `
+        +`Tocá en el mapa <b>dónde tiene que llegar</b> y después <b>✔️ Órdenes listas</b>.`, 7000);
+      return;
+    }
     return;
   }
   if(confirm(I.nom+': ¿levantarla de la carta?')) wgQuitarInstalacion(it.id);
@@ -30823,7 +30882,7 @@ async function wgEstado(silencioso){
   const enJuego = p.estado==='en_curso';
   document.getElementById('wg-btn-resolver').style.display = 'none';
   // v2.9.316: el G-2 no manda órdenes ni hace correr el turno. Informa.
-  document.getElementById('wg-btn-enviar').style.display = (enJuego && !esArb && ordena)?'':'none';
+  document.getElementById('wg-btn-enviar').style.display = (enJuego && !esArb && _wgRolEnvia())?'':'none';
   // v2.9.207: mientras la partida NO empezó, las órdenes están bloqueadas. El
   // botón de arrancar tiene que estar A LA VISTA, no enterrado en ⚙️ Configurar:
   // Sergio no podía mover nada y el clic no le decía por qué.
@@ -35436,7 +35495,8 @@ function _wgPuedeOrdenar(){
       +`La orden la dan el <b>Comandante</b>, el <b>JEM</b> o el <b>G-3</b>, `
       +`sobre los elementos de juicio que vos les pongas.`
       + (_wgRol()==='g4'
-        ? `<br>🚚 <b>Tus convoyes y trenes sí los movés vos</b>: seleccionalos y tocá a dónde van.`
+        ? `<br>🚚 <b>Tus convoyes y trenes sí los movés vos</b>: seleccionalos, tocá a dónde van `
+          + `y después <b>✔️ Órdenes listas</b> (abajo a la derecha). El turno lo hace correr el mando.`
         : ''), 6000);
     return false;
   }
