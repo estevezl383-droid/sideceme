@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.350</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.351</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -27655,8 +27655,25 @@ function _wgPanelG4HTML(mias){
 // Abastecimiento significa algo.
 // ============================================================
 const WG_CONVOY_CAPACIDAD = 3;
-const WG_CONVOY_CLASES = { III:{ico:'⛽',nom:'Clase III (combustible)'},
-                           V:{ico:'🎯',nom:'Clase V (munición)'} };
+// v2.9.351 — CADA CLASE, SU VEHÍCULO. Sergio: «cada puesto de abastecimiento ya
+// sea de munición, agua, combustible, alimentos deben ser diferentes».
+// Y así es el apoyo de servicio de combate: el que lleva raciones no es el que
+// lleva munición, y el que evacúa heridos no lleva ninguna de las dos.
+// `veh` = silueta · `efecto` = lo que hace de verdad al llegar (lo resuelve el
+// motor; acá se declara para poder explicarlo antes de despachar).
+const WG_CONVOY_CLASES = {
+  I:    {ico:'🥫', cod:'I',    nom:'Clase I (víveres)',      veh:'convoy_i',
+         efecto:'Sostiene a la unidad: recupera parte de su poder de combate.'},
+  AGUA: {ico:'💧', cod:'AGUA', nom:'Agua',                   veh:'convoy_agua',
+         efecto:'Sostiene a la unidad: recupera parte de su poder de combate.'},
+  III:  {ico:'⛽', cod:'III',  nom:'Clase III (combustible)', veh:'convoy_iii',
+         efecto:'Repone la autonomía: la unidad vuelve a poder marchar.'},
+  V:    {ico:'🎯', cod:'V',    nom:'Clase V (munición)',      veh:'convoy_v',
+         efecto:'Repone las unidades de fuego de cada sistema de arma.'},
+  EVAC: {ico:'🚑', cod:'EVAC', nom:'Evacuación sanitaria',    veh:'ambulancia',
+         efecto:'Evacúa las bajas: la unidad recupera poder de combate.'},
+};
+const WG_CLASES_ORDEN = ['I','AGUA','III','V','EVAC'];
 function _wgEsConvoy(u){ return !!u && u.arma==='convoy'; }
 // v2.9.343 — ¿ESTE CONVOY ESTÁ EXPUESTO?
 // La lección más repetida de Ucrania: los 20-30 km detrás del frente son una
@@ -27683,14 +27700,13 @@ function _wgConvoyesHTML(uds){
   // De qué instalaciones se puede formar uno, y con qué clase.
   const salidas=[];
   for(const it of (_wgInstalaciones()||[])){
-    const I=WG_INSTAL[it.tipo]; if(!I||!I.reparte) continue;
-    if((I.reparte.combustible||0)>0) salidas.push({it,I,clase:'III'});
-    if((I.reparte.municion||0)>0) salidas.push({it,I,clase:'V'});
+    const I=WG_INSTAL[it.tipo]; if(!I||!(I.despacha||[]).length) continue;
+    for(const k of I.despacha) if(WG_CONVOY_CLASES[k]) salidas.push({it,I,clase:k});
   }
   const botones = salidas.length
     ? salidas.map(x=>`<button class="wg-pill" style="font-size:9px;padding:2px 7px;margin:2px 3px 0 0"`
         +` title="Sale del ${_rgEsc(x.I.nom)} con ${WG_CONVOY_CAPACIDAD} cargas de ${_rgEsc(WG_CONVOY_CLASES[x.clase].nom)}"`
-        +` onclick="wgFormarConvoy(${x.it.id},'${x.clase}')">🚚 ${WG_CONVOY_CLASES[x.clase].ico} Cl ${x.clase} `
+        +` onclick="wgFormarConvoy(${x.it.id},'${x.clase}')">🚚 ${WG_CONVOY_CLASES[x.clase].ico} ${WG_CONVOY_CLASES[x.clase].cod} `
         +`<span style="opacity:.7">desde ${_rgEsc(x.I.nom.replace(/^(Puesto|Punto|Centro|Área) de /,''))}</span></button>`).join('')
     : `<div style="font-size:8.5px;opacity:.6;margin-top:3px">Primero ubicá una instalación que reparta `
       +`(Puesto de abastecimiento, Punto de municionamiento, Trenes o ASDI).</div>`;
@@ -27699,8 +27715,8 @@ function _wgConvoyesHTML(uds){
         const fc=c.estado==='fuera_combate';
         const tot=_wgCargaTotal(c);
         const col = fc?'#e23b3b' : tot<=0?'#e08a2c' : '#2ecc71';
-        const que=['III','V'].filter(k=>_wgCargaDe(c,k)>0)
-          .map(k=>`${WG_CONVOY_CLASES[k].ico} ${_wgCargaDe(c,k)}/${WG_CONVOY_CAPACIDAD} Cl ${k}`).join(' · ');
+        const que=WG_CLASES_ORDEN.filter(k=>_wgCargaDe(c,k)>0)
+          .map(k=>`${WG_CONVOY_CLASES[k].ico} ${_wgCargaDe(c,k)}/${WG_CONVOY_CAPACIDAD} ${WG_CONVOY_CLASES[k].cod}`).join(' · ');
         const est = fc ? '💥 DESTRUIDO — se perdió la carga'
           : tot<=0 ? '🕳️ VACÍO — mandalo a recargar a una instalación'
           : que;
@@ -27721,13 +27737,19 @@ async function wgFormarConvoy(instalacionId, clase){
     instalacion_id:instalacionId, clase });
   if(!r.ok){
     _wgAviso('No se pudo formar el convoy: '+_rgEsc(r.error||'')
-      +'<br><span style="opacity:.8">Si dice «Acción no reconocida», falta desplegar la Edge Function <b>wargame-ops</b>.</span>', 8000);
+      +'<br><span style="opacity:.8">Si dice «Acción no reconocida» o «lleva Clase III o Clase V», '
+      +'la Edge Function <b>wargame-ops</b> es la vieja: hay que desplegar la <b>v2.9.351</b> para las '
+      +'clases de víveres, agua y evacuación.</span>', 9000);
     return;
   }
   _wgAviso(`🚚 <b>${_rgEsc(r.designacion||'Convoy')}</b> formado con ${WG_CONVOY_CAPACIDAD} cargas de `
     +`${_rgEsc(WG_CONVOY_CLASES[clase].nom)}. Dale orden de marcha hasta la unidad que hay que apoyar — `
     +`y acordate de que en ruta lo pueden batir.`, 7000);
   await wgEstado(true); _wgRender(); if(WG.map3d) _wg3dDatos();
+  // v2.9.351: el panel del puesto queda abierto y con el vehículo nuevo adentro,
+  // listo para despacharlo. Antes había que volver a tocar la instalación.
+  try{ const it=(_wgInstalaciones()||[]).find(x=>x.id===instalacionId);
+       if(it && document.getElementById('wg-panel-instal')) _wgPanelInstal(it, WG_INSTAL[it.tipo]); }catch(_e){}
 }
 // ============================================================
 // v2.9.334 — A QUIÉN LE LLEGA EL APOYO.
@@ -27922,29 +27944,29 @@ function _wgSimboloInstal(tipo, bando, nota){
 }
 const WG_INSTAL={
   // ── G-4 · LOGÍSTICA
-  log_abas:{id:'log_abas',rol:'g4',cap:12, firma:3, montaje:3, blanco:'Depósito de combustible y víveres: el blanco más rentable del área. Vehículos entrando y saliendo todo el día lo delatan.',nom:'Puesto de abastecimiento',ico:'📦',col:'#7fb2ff',
+  log_abas:{id:'log_abas',rol:'g4',cap:12, despacha:['I','AGUA','III'], firma:3, montaje:3, blanco:'Depósito de combustible y víveres: el blanco más rentable del área. Vehículos entrando y saliendo todo el día lo delatan.',nom:'Puesto de abastecimiento',ico:'📦',col:'#7fb2ff',
             reparte:{combustible:1,municion:0},
             desc:'Clase I y III: raciones y combustible. Reabastece a la unidad propia que quede a menos de '+3+' km.'},
-  log_muni:{id:'log_muni',rol:'g4',cap:10, firma:3, montaje:4, blanco:'Munición concentrada: si la baten, se pierde y además explota sobre lo que tenga al lado.',nom:'Punto de municionamiento',ico:'🎯',col:'#e8c33a',
+  log_muni:{id:'log_muni',rol:'g4',cap:10, despacha:['V'], firma:3, montaje:4, blanco:'Munición concentrada: si la baten, se pierde y además explota sobre lo que tenga al lado.',nom:'Punto de municionamiento',ico:'🎯',col:'#e8c33a',
             reparte:{combustible:0,municion:1},
             desc:'Clase V: reposición de unidades de fuego a menos de 3 km.'},
   log_mant:{id:'log_mant',rol:'g4',cap:8, firma:2, montaje:6, blanco:'Taller: firma media por el movimiento de material averiado.',nom:'Taller de mantenimiento',ico:'🔧',col:'#c9a0ff',
             desc:'Recuperación y reparación de material.'},
-  log_soco:{id:'log_soco',rol:'g4',cap:14, firma:2, montaje:2, blanco:'Instalación sanitaria: PROTEGIDA por el Derecho Internacional Humanitario. Batirla es un incidente grave.',nom:'Puesto de socorro',ico:'🚑',col:'#ff8f8f',
+  log_soco:{id:'log_soco',rol:'g4',cap:14, despacha:['EVAC'], firma:2, montaje:2, blanco:'Instalación sanitaria: PROTEGIDA por el Derecho Internacional Humanitario. Batirla es un incidente grave.',nom:'Puesto de socorro',ico:'🚑',col:'#ff8f8f',
             desc:'Atención de bajas y evacuación sanitaria.'},
-  log_trans:{id:'log_trans',rol:'g4',cap:8, firma:2, montaje:2, blanco:'Concentración de vehículos: se la ve desde el aire con facilidad.',nom:'Centro de transporte',ico:'🚚',col:'#8fe3c8',
+  log_trans:{id:'log_trans',rol:'g4',cap:8, despacha:['I','AGUA','III'], firma:2, montaje:2, blanco:'Concentración de vehículos: se la ve desde el aire con facilidad.',nom:'Centro de transporte',ico:'🚚',col:'#8fe3c8',
             reparte:{combustible:0.5,municion:0},
             desc:'Medios de transporte y control de movimiento. Repone medio tanque a 3 km.'},
   // ── G-4 · LOS TRENES. Se MUEVEN: acompañan a la fuerza. (v2.9.320)
   // Doctrina (ECEM 15-03): «el Tren de Combate marchará con el BI, y el Tren de
   // Campaña lo hará integrando los Trenes de la División».
-  log_trenc:{id:'log_trenc',rol:'g4',cap:4, firma:2, montaje:1, blanco:'Marcha con la unidad: comparte su suerte y su exposición.',movil:true,nom:'Tren de Combate',ico:'🚛',col:'#ffd47f',
+  log_trenc:{id:'log_trenc',rol:'g4',cap:4, despacha:['III','V'], firma:2, montaje:1, blanco:'Marcha con la unidad: comparte su suerte y su exposición.',movil:true,nom:'Tren de Combate',ico:'🚛',col:'#ffd47f',
             reparte:{combustible:0.5,municion:0.5},
             desc:'Marcha CON la unidad: lo indispensable para sostener el combate del día. Repone la MITAD de tanque y dotación a 3 km.'},
-  log_trenk:{id:'log_trenk',rol:'g4',cap:8, firma:2, montaje:2, blanco:'A retaguardia: más seguro, pero más lejos del que necesita.',movil:true,nom:'Tren de Campaña',ico:'🚚',col:'#e8a44a',
+  log_trenk:{id:'log_trenk',rol:'g4',cap:8, despacha:['I','III','V'], firma:2, montaje:2, blanco:'A retaguardia: más seguro, pero más lejos del que necesita.',movil:true,nom:'Tren de Campaña',ico:'🚚',col:'#e8a44a',
             reparte:{combustible:1,municion:1},
             desc:'Va con los trenes de la División, a retaguardia. Repone al Tren de Combate: tanque y dotación completos a 3 km.'},
-  log_asdi: {id:'log_asdi', rol:'g4',cap:20, firma:4, montaje:12, blanco:'El área entera. Es LA instalación que el enemigo busca: perderla seca a toda la División en dos o tres turnos.',nom:'Área de Servicios (ASDI)',ico:'🏭',col:'#9fd0ff',
+  log_asdi: {id:'log_asdi', rol:'g4',cap:20, despacha:['I','AGUA','III','V','EVAC'], firma:4, montaje:12, blanco:'El área entera. Es LA instalación que el enemigo busca: perderla seca a toda la División en dos o tres turnos.',nom:'Área de Servicios (ASDI)',ico:'🏭',col:'#9fd0ff',
             reparte:{combustible:1,municion:1},
             desc:'Donde se ubican las instalaciones logísticas de la División: repone tanque y dotación completos a 3 km.'},
   // ── G-1 · PERSONAL (nombres del ECEM 15-08)
@@ -28016,87 +28038,139 @@ async function _wgInstalarEn(lng, lat){
   if(I.movil) _wgAvisoDistanciaLog(lng, lat);   // v2.9.320: la distancia enseña
   return true;
 }
-// Tocar una instalación propia: moverla (si es móvil) o levantarla.
+// ============================================================
+// v2.9.351 — EL PARTE DEL PUESTO, EN PANTALLA Y CON LOS VEHÍCULOS A LA VISTA.
+// Sergio: «se hace click en el puesto y se selecciona los vehículos que este
+// puesto tiene para abastecer a una determinada unidad, asimismo para la
+// evacuación».
+// Hasta acá esto salía por `prompt()` del navegador: un cuadro de texto donde
+// había que escribir un número. No se veía ningún vehículo — y Chrome corta los
+// prompts repetidos con «impedir que esta página cree más cuadros de diálogo»,
+// así que a la segunda vez el puesto dejaba de responder y parecía roto.
+// Ahora es un panel: la silueta de cada vehículo, su carga, su autonomía y un
+// botón para despacharlo. Es el gesto del oficial de logística — se para en su
+// puesto y ve con qué cuenta.
+// ============================================================
+// Silueta suelta de una clase, para los botones del panel.
+function _wgIconoClase(clase, bando, px){
+  const C=WG_CONVOY_CLASES[clase]; if(!C) return null;
+  const col=(WG_COL&&WG_COL[bando])||'#8fa6bd';
+  const W=px||64, H=Math.round(W*0.52), dpr=2;
+  const cv=document.createElement('canvas');
+  cv.width=W*dpr; cv.height=H*dpr;
+  const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr); ctx.lineJoin='round';
+  _wgDibArma(ctx, C.veh, 0, 0, W, H, col, false);
+  return cv.toDataURL('image/png');
+}
+function _wgCerrarPanelInstal(){
+  const el=document.getElementById('wg-panel-instal'); if(el) el.remove();
+}
+function _wgPanelInstal(it, I){
+  _wgCerrarPanelInstal();
+  const g=it.geojson||{}, pt=g.coordinates||[0,0];
+  const col=(WG_COL&&WG_COL[it.bando])||'#8fa6bd';
+  const cap=Number(I.cap||0), usado=Number(g.usado||0), quedan=Math.max(0,cap-usado);
+  const pctE = cap?Math.round(100*quedan/cap):100;
+  const colE = pctE>50?'#2ecc71':(pctE>20?'#e08a2c':'#e23b3b');
+  // Los vehículos que están EN el puesto o a su lado (menos de 3 km).
+  const mios=((WG.estado&&WG.estado.unidades)||[]).filter(u=>
+    _wgEsConvoy(u) && u.bando===it.bando && u.estado!=='fuera_combate'
+    && Number.isFinite(u.lat) && _wgKm([u.lng,u.lat],[pt[0],pt[1]])<=3);
+  const despacha=(I.despacha||[]).filter(k=>WG_CONVOY_CLASES[k]);
+  const puedeMandar = (WG.soy==='arbitro' || _wgRol()==='g4' || !_wgRol());
+
+  const tarjeta=(c)=>{
+    const _v=_wgVarianteDibujo(c);
+    const clase=WG_CLASES_ORDEN.find(k=>_wgCargaDe(c,k)>0);
+    const ic=clase?_wgIconoClase(clase,c.bando,72):null;
+    const carga=WG_CLASES_ORDEN.filter(k=>_wgCargaDe(c,k)>0)
+      .map(k=>`${WG_CONVOY_CLASES[k].ico} ${_wgCargaDe(c,k)}/${WG_CONVOY_CAPACIDAD} ${WG_CONVOY_CLASES[k].cod}`).join(' · ');
+    const comb=_wgCombustible(c);
+    const vacio=!carga;
+    return `<div class="rg-card" style="display:flex;gap:9px;align-items:center;padding:7px 9px;margin-top:6px;border-left:3px solid ${vacio?'#e08a2c':col}">`
+      +(ic?`<img src="${ic}" style="width:64px;flex:0 0 auto">`:'')
+      +`<div style="flex:1;min-width:0">`
+      +`<b style="font-size:11px">${_rgEsc(c.designacion||('Cnv'+c.id))}</b>`
+      +`<div style="font-size:9.5px;color:${vacio?'#e08a2c':'#9fe8a0'};margin-top:2px">`
+      +`${vacio?'VACÍO — recargalo acá antes de salir':_rgEsc(carga)}</div>`
+      +(comb?`<div style="font-size:8.5px;opacity:.7;margin-top:1px">${comb.resta} km de autonomía</div>`:'')
+      +`</div>`
+      +(puedeMandar?`<button class="wg-pill wg-fuerte" style="font-size:10px;padding:4px 10px;flex:0 0 auto"`
+        +` onclick="_wgDespachar(${c.id})">DESPACHAR ▸</button>`:'')
+      +`</div>`;
+  };
+
+  const formar = despacha.length && puedeMandar
+    ? despacha.map(k=>{
+        const C=WG_CONVOY_CLASES[k], ic=_wgIconoClase(k,it.bando,72);
+        return `<button class="rg-card" style="display:flex;gap:9px;align-items:center;width:100%;`
+          +`padding:7px 9px;margin-top:6px;border:1px solid rgba(255,255,255,.10);cursor:pointer;text-align:left"`
+          +` onclick="wgFormarConvoy(${it.id},'${k}')" title="${_rgEsc(C.efecto)}">`
+          +`<img src="${ic}" style="width:64px;flex:0 0 auto">`
+          +`<div style="flex:1;min-width:0">`
+          +`<b style="font-size:11px">${C.ico} ${_rgEsc(C.nom)}</b>`
+          +`<div style="font-size:9px;opacity:.75;margin-top:2px">${_rgEsc(C.efecto)}</div></div>`
+          +`<span style="font-size:16px;opacity:.6;flex:0 0 auto">+</span></button>`;
+      }).join('')
+    : `<div style="font-size:9px;opacity:.6;margin-top:6px">Este puesto no despacha vehículos: `
+      +`abastece por cuenta propia a lo que se le acerque a menos de ${WG_REABASTECER_KM} km.</div>`;
+
+  const html=`<div id="wg-panel-instal" style="position:fixed;right:18px;top:74px;width:340px;max-height:calc(100vh - 110px);`
+    +`overflow:auto;z-index:6000;background:rgba(9,14,20,.96);border:1px solid ${col};border-radius:12px;`
+    +`box-shadow:0 18px 48px rgba(0,0,0,.6);padding:13px 14px;backdrop-filter:blur(8px)">`
+    +`<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">`
+      +`<div style="min-width:0"><div style="font-size:13px;font-weight:700;color:${col}">${I.ico} ${_rgEsc(I.nom)}</div>`
+      +(g.nota?`<div style="font-size:9px;opacity:.7;margin-top:2px">Planeado como: <b>${_rgEsc(g.nota)}</b></div>`:'')
+      +`</div>`
+      +`<button class="wg-pill" style="font-size:12px;padding:2px 9px;flex:0 0 auto" onclick="_wgCerrarPanelInstal()">✕</button>`
+    +`</div>`
+    +(cap?`<div style="margin-top:9px"><div style="display:flex;justify-content:space-between;font-size:9px;opacity:.75">`
+      +`<span>ESTIBA DISPONIBLE</span><span style="color:${colE}">${quedan} de ${cap} cargas</span></div>`
+      +`<div style="height:5px;background:rgba(0,0,0,.45);border-radius:3px;margin-top:3px;overflow:hidden">`
+      +`<div style="height:100%;width:${pctE}%;background:${colE}"></div></div>`
+      +(quedan<=0?`<div style="font-size:9px;color:#e23b3b;margin-top:3px">⛔ AGOTADO — hay que reponerlo del escalón superior.</div>`:'')
+      +`</div>`:'')
+    +`<div style="font-size:9px;letter-spacing:1.2px;opacity:.6;margin:12px 0 0">`
+      +`VEHÍCULOS EN EL PUESTO (${mios.length})</div>`
+    +(mios.length?mios.map(tarjeta).join('')
+       :`<div style="font-size:9px;opacity:.6;margin-top:5px">Ninguno formado todavía. Formá uno acá abajo.</div>`)
+    +`<div style="font-size:9px;letter-spacing:1.2px;opacity:.6;margin:14px 0 0">FORMAR VEHÍCULO</div>`
+    +formar
+    +`<div style="display:flex;gap:6px;margin-top:14px;flex-wrap:wrap">`
+    +(I.movil?`<button class="wg-pill" style="font-size:10px" onclick="_wgMoverInstal(${it.id})">✋ Desplazar el puesto</button>`:'')
+    +`<button class="wg-pill" style="font-size:10px;opacity:.75" onclick="_wgLevantarInstal(${it.id})">🗑️ Levantar de la carta</button>`
+    +`</div>`
+    +`<div style="font-size:8.5px;opacity:.55;margin-top:9px;line-height:1.45">${_rgEsc(I.desc)}</div>`
+    +`</div>`;
+  const d=document.createElement('div'); d.innerHTML=html;
+  document.body.appendChild(d.firstChild);
+}
+// Despachar = seleccionar el vehículo y cerrar el panel: lo que sigue es tocar
+// en el mapa a dónde va, igual que con cualquier ficha.
+function _wgDespachar(uid){
+  const u=((WG.estado&&WG.estado.unidades)||[]).find(x=>x.id===uid);
+  _wgCerrarPanelInstal();
+  if(!u) return;
+  WG.sel=u.id; WG.armaSel=null;
+  _wgRender(); if(WG.map3d) _wg3dDatos(); wgBarraUnidades();
+  const clase=WG_CLASES_ORDEN.find(k=>_wgCargaDe(u,k)>0);
+  _wgAviso(`🚚 <b>${_rgEsc(u.designacion||('Cnv'+u.id))}</b> despachado`
+    +(clase?` con ${_rgEsc(WG_CONVOY_CLASES[clase].nom)}`:' (va VACÍO)')
+    +`.<br>Tocá en el mapa <b>la unidad a la que tiene que llegar</b> — con <b>Shift+clic</b> le vas marcando `
+    +`el itinerario por el eje — y después <b>✔️ Órdenes listas</b>.`, 8000);
+}
+function _wgMoverInstal(id){
+  _wgCerrarPanelInstal();
+  const it=(_wgInstalaciones()||[]).find(x=>x.id===id); const I=it&&WG_INSTAL[it.tipo];
+  WG.instalMover=id; WG.instalSel=null;
+  _wgAviso(`${I?I.ico:''} <b>${_rgEsc(I?I.nom:'El puesto')}</b> — tocá el punto del mapa a donde lo desplazás.`, 6000);
+}
+function _wgLevantarInstal(id){
+  _wgCerrarPanelInstal();
+  if(confirm('¿Levantar esta instalación de la carta?')) wgQuitarInstalacion(id);
+}
 function _wgInstalClick(it, I){
-  if(I.movil){
-    const q=prompt(`${I.nom}\n\n1 = MOVERLA (después tocá el punto del mapa)\n`
-      +`2 = levantarla de la carta\n\nEscribí 1 o 2:`, '1');
-    if(q==='1'){ WG.instalMover=it.id; WG.instalSel=null;
-      _wgAviso(`${I.ico} <b>${_rgEsc(I.nom)}</b> — tocá el punto del mapa a donde la desplazás.`, 6000);
-      return; }
-    if(q==='2') wgQuitarInstalacion(it.id);
-    return;
-  }
-  // v2.9.347 — TOCAR EL PUESTO Y QUE SALGA EL VEHÍCULO.
-  // Sergio: «tal vez sería hacer clic en el puesto de abastecimiento y de ahí
-  // que salgan los vehículos». Es lo natural: el convoy sale DE la instalación,
-  // así que el gesto tiene que empezar ahí y no en una lista aparte.
-  // ============================================================
-  // v2.9.348 — EL PARTE DE LA INSTALACIÓN.
-  // Sergio: «cuando se le da clic a una instalación debe salir cuántos
-  // vehículos tiene y así poder ver de manera más objetiva, bien ordenada…
-  // para que ese G-4 actúe, organice, opere».
-  // Tocar el puesto ahora da su PARTE: qué reparte, cuánta estiba le queda y
-  // QUÉ VEHÍCULOS tiene formados, con su carga y su autonomía. Desde ahí se
-  // despacha uno o se forma otro. Es el gesto del oficial de logística: se para
-  // en su puesto y ve con qué cuenta.
-  // ============================================================
-  const R=I.reparte||{};
-  const puede=[];
-  if((R.combustible||0)>0) puede.push({clase:'III', nom:'Clase III (combustible)'});
-  if((R.municion||0)>0) puede.push({clase:'V', nom:'Clase V (munición)'});
-  const soyDuenio = (WG.soy==='arbitro' || _wgRol()==='g4' || !_wgRol());
-  if(puede.length && soyDuenio){
-    const pt=(it.geojson||{}).coordinates||[0,0];
-    // Los convoyes que están EN el puesto o a su lado (menos de 3 km).
-    const mios=((WG.estado&&WG.estado.unidades)||[]).filter(u=>
-      _wgEsConvoy(u) && u.bando===it.bando && u.estado!=='fuera_combate'
-      && _wgKm([u.lng,u.lat],[pt[0],pt[1]])<=3);
-    const cap=(I.cap||0), usado=Number((it.geojson||{}).usado||0);
-    const estiba = cap ? `Estiba: ${Math.max(0,cap-usado)} de ${cap} cargas` : 'Estiba: sin límite modelado';
-    const lineas=[];
-    lineas.push(`${I.nom}${(it.geojson||{}).nota?(' — '+(it.geojson||{}).nota):''}`);
-    lineas.push(estiba);
-    lineas.push('');
-    let n=0; const acciones=[];
-    if(mios.length){
-      lineas.push(`VEHÍCULOS EN EL PUESTO (${mios.length}):`);
-      for(const c of mios){
-        const carga=['III','V'].filter(k=>_wgCargaDe(c,k)>0)
-          .map(k=>`${_wgCargaDe(c,k)}/${WG_CONVOY_CAPACIDAD} Cl ${k}`).join(' · ') || 'VACÍO';
-        const comb=_wgCombustible(c);
-        lineas.push(`  ${++n} = ${c.designacion||('Cnv'+c.id)} · ${carga}`
-          + (comb?` · ${comb.resta} km de autonomía`:''));
-        acciones.push({t:'sel', u:c});
-      }
-      lineas.push('');
-    } else {
-      lineas.push('Sin vehículos formados en este puesto.');
-      lineas.push('');
-    }
-    lineas.push('FORMAR:');
-    for(const x of puede){ lineas.push(`  ${++n} = convoy nuevo de ${x.nom}`); acciones.push({t:'formar', clase:x.clase}); }
-    lineas.push('');
-    lineas.push(`  ${++n} = levantar la instalación de la carta`);
-    acciones.push({t:'quitar'});
-    lineas.push('');
-    lineas.push('Elegí un vehículo para DESPACHARLO (después tocás a dónde va).');
-    const q=prompt(lineas.join('\n'), mios.length?'1':'1');
-    if(q==null) return;
-    const a=acciones[Number(q)-1];
-    if(!a) return;
-    if(a.t==='formar'){ wgFormarConvoy(it.id, a.clase); return; }
-    if(a.t==='quitar'){ wgQuitarInstalacion(it.id); return; }
-    if(a.t==='sel'){
-      WG.sel=a.u.id; WG.armaSel=null;
-      _wgRender(); if(WG.map3d) _wg3dDatos(); wgBarraUnidades();
-      _wgAviso(`🚚 <b>${_rgEsc(a.u.designacion||('Cnv'+a.u.id))}</b> seleccionado. `
-        +`Tocá en el mapa <b>dónde tiene que llegar</b> y después <b>✔️ Órdenes listas</b>.`, 7000);
-      return;
-    }
-    return;
-  }
-  if(confirm(I.nom+': ¿levantarla de la carta?')) wgQuitarInstalacion(it.id);
+  _wgPanelInstal(it, I);
 }
 async function _wgMoverInstalacionA(lng, lat){
   const id=WG.instalMover; if(id==null) return false;
@@ -30524,11 +30598,11 @@ function _wgCanalParar(){
 }
 // Aviso a las demás pantallas. Nunca puede romper el turno de quien lo manda:
 // todo va en try/catch y si el canal no está, el sondeo del otro lo cubre.
-function _wgCanalAvisar(turno, trazas, impactos){
+function _wgCanalAvisar(turno, trazas, impactos, entregas){
   if(!WG._canal || !WG._canalOk) return;
   try{
     let datos=null;
-    const peli={ trazas:trazas||[], impactos:impactos||[] };
+    const peli={ trazas:trazas||[], impactos:impactos||[], entregas:entregas||[] };
     // Tope prudente: un mensaje del canal no es para mandar megabytes. Si no
     // entra, viaja sólo el turno y el que escucha pide el replay.
     try{ if(JSON.stringify(peli).length<=80000) datos=peli; }catch(_e){}
@@ -30761,17 +30835,17 @@ async function _wgNovedadesInt(vistos){
 // hacía que el que escuchaba arrancara medio segundo tarde. Si no llegó (aviso
 // sin película, o vino por sondeo), se pide guardada como siempre.
 async function _wgReproducirTurno(turno, datos){
-  let trazas=[], impactos=[];
+  let trazas=[], impactos=[], entregas=[];
   if(datos && (Array.isArray(datos.trazas) || Array.isArray(datos.impactos))){
-    trazas=datos.trazas||[]; impactos=datos.impactos||[];
+    trazas=datos.trazas||[]; impactos=datos.impactos||[]; entregas=datos.entregas||[];
   }else{
     const r=await _wgInvoke('replay',{ partida_id:WG.partidaId, clave_acceso:WG.clave, turno });
-    trazas=(r.ok && r.trazas)||[]; impactos=(r.ok && r.impactos)||[];
+    trazas=(r.ok && r.trazas)||[]; impactos=(r.ok && r.impactos)||[]; entregas=(r.ok && r.entregas)||[];
   }
   WG.ultimoTurno=turno;                        // para destacarlo en la bitácora
   WG._turnoVisto=turno;                        // v2.9.309: este turno ya se vio acá
   _wgApagarViejos(turno);
-  if(trazas.length || impactos.length){
+  if(trazas.length || impactos.length || entregas.length){
     WG.replayando=true;
     try{
       // Movimiento y fuego A LA VEZ, igual que en el turno real.
@@ -30782,6 +30856,7 @@ async function _wgReproducirTurno(turno, datos){
     } finally { WG.replayando=false; }
     _wgEncender(impactos, turno);
   }
+  try{ await _wgAnimarEntregas(entregas); }catch(_e){}   // v2.9.351
   await wgEstado(true);   // recién ahora se desvanecen los que quedaron fuera de combate
   _wgRender(); if(WG.map3d) _wg3dDatos();
   await wgHistorial();
@@ -30897,11 +30972,25 @@ async function wgEstado(silencioso){
   // órdenes de los dos bandos a la vez — así que quien lo dispara no gana
   // ninguna ventaja. Lo que sigue prohibido al G-4 es ordenarle a un batallón.
   document.getElementById('wg-btn-jugar').style.display = (enJuego && _wgRolEnvia())?'':'none';
-  // precargar mis órdenes ya enviadas — v2.9.218: también el ARMA elegida, si no
-  // la vista previa calcula el alcance con otro sistema que el que se mandó.
+  // ============================================================
+  // v2.9.351 — ⚠️ EL SONDEO BORRABA LA ORDEN QUE ESTABAS ARMANDO.
+  // Éste es el «marco la ruta, aprieto y no pasa nada» que venía desde hace
+  // sesiones, y por qué en el bando rojo «no funcionó nada»: acá se hacía
+  // `WG.ordenes={}` y se repoblaba SÓLO con lo ya enviado al servidor. Como el
+  // estado se refresca solo cada pocos segundos (sondeo y aviso en vivo), la
+  // ruta que el G-4 acababa de marcar y todavía no había mandado desaparecía
+  // sin decir nada: el contador volvía a (0) y «✔️ Órdenes listas» no tenía qué
+  // enviar. Si eras rápido llegabas; si te tomabas quince segundos para pensar
+  // el itinerario —que es lo que hace un G-4— la perdías siempre.
+  // Ahora lo que está SIN ENVIAR (`_local`) manda sobre lo que vuelve del
+  // servidor: nadie te pisa lo que estás decidiendo.
+  // ============================================================
+  const _pend={};
+  for(const [k,v] of Object.entries(WG.ordenes||{})) if(v && v._local) _pend[k]=v;
   WG.ordenes={};
   for(const o of (r.ordenes||[])) WG.ordenes[o.unidad_id]={ tipo:o.tipo, destino_lat:o.destino_lat, destino_lng:o.destino_lng,
     objetivo_id:o.objetivo_id, arma:o.arma||null, ruta:o.ruta||null, inicio:o.inicio||0 }; // v2.9.223
+  for(const [k,v] of Object.entries(_pend)) WG.ordenes[k]=v;
   _wgActualizarContadorOrdenes();
   document.getElementById('wg-ayuda').innerHTML = p.estado!=='en_curso'
     ? (esArb?'⏸️ La partida <b>todavía no empezó</b> — por eso las fichas no se mueven.<br>Tocá <b>🚀 Iniciar partida</b> (abajo a la derecha) y ahí sí podés dar órdenes.'
@@ -31595,6 +31684,150 @@ function _wgAnimarDisparos(impactos){
     _wgCuadro(paso);
   });
 }
+// ============================================================
+// v2.9.351 — LA DESCARGA SE VE.
+// Sergio: «llega la unidad y debe haber una animación como si estuviera
+// descargando».
+// Hasta acá el abastecimiento pasaba en silencio: el motor lo resolvía, la
+// bitácora lo contaba en texto y en la carta no ocurría nada. Y es el momento
+// que el G-4 tiene que VER — es el resultado de todo su trabajo.
+// Cada clase descarga distinto, que es lo que la hace distinta:
+//   • bultos que saltan del vehículo a la unidad (Clase I, V)
+//   • un chorro que corre por la manguera (Clase III, agua)
+//   • camillas que van AL REVÉS, de la unidad al vehículo (evacuación)
+// ============================================================
+const WG_CLASE_COL = { I:'#9fe8a0', AGUA:'#7fd8ff', III:'#e8a44a', V:'#e8c33a', EVAC:'#ff8f8f' };
+function _wgAnimarEntregas(entregas){
+  const base=(entregas||[]).filter(e=>e && Number.isFinite(e.lng) && Number.isFinite(e.lat)
+    && Array.isArray(e.clases) && e.clases.length);
+  if(!base.length) return Promise.resolve();
+  const capa=_wgCapaEfectos();
+  if(!capa) return Promise.resolve();
+  // Cada clase tiene su TANDA: entra el vehículo, descarga y se va. Las tandas
+  // van escalonadas para que se lea una cosa por vez y no un amontonamiento.
+  const ENTRA=420, BULTO=190, VUELO=560, QUEDA=560, TANDA=760;
+  const VEH=[[-64,-6],[64,10],[-58,26]];   // dónde se para cada vehículo, respecto de la ficha
+  const coches=[], piezas=[], anillos=[], rotulos=[];
+  let finMax=0;
+  for(const e of base){
+    const clases=e.clases.filter(k=>WG_CLASE_COL[k]).slice(0,3);
+    if(!clases.length) continue;
+    clases.forEach((k,ci)=>{
+      const col=WG_CLASE_COL[k];
+      const evac=(k==='EVAC'), liquido=(k==='III'||k==='AGUA');
+      const t0=ci*TANDA;
+      const pos=VEH[ci]||VEH[0];
+      // EL VEHÍCULO. Es lo que hacía falta ver: no unas motas volando, sino el
+      // camión parado al lado de la unidad, descargando.
+      const img=new Image();
+      img.src=_wgIconoClase(k, e.bando, 84);
+      img.style.cssText='position:absolute;left:0;top:0;width:84px;pointer-events:none;display:none;'
+        +`filter:drop-shadow(0 0 7px ${col});will-change:transform`;
+      capa.appendChild(img);
+      const fin=t0+ENTRA+3*BULTO+VUELO+QUEDA;
+      finMax=Math.max(finMax,fin);
+      // El vehículo mira a la unidad: si se paró a la derecha, va espejado.
+      coches.push({ e, el:img, t0, fin, pos, espejo:pos[0]>0 });
+      for(let j=0;j<3;j++){
+        const el=document.createElement('div');
+        el.style.cssText='position:absolute;left:0;top:0;pointer-events:none;display:none;will-change:transform';
+        const p=document.createElement('div');
+        if(liquido){
+          p.style.cssText=`width:11px;height:15px;margin:-8px 0 0 -5px;`
+            +`border-radius:50% 50% 50% 50%/62% 62% 38% 38%;background:${col};box-shadow:0 0 10px ${col}`;
+        }else if(evac){
+          p.style.cssText=`width:22px;height:9px;margin:-5px 0 0 -11px;border-radius:3px;`
+            +`background:#f2f6fa;border:1.5px solid ${col};box-shadow:0 0 10px ${col}`;
+        }else{
+          p.style.cssText=`width:18px;height:15px;margin:-8px 0 0 -9px;border-radius:3px;`
+            +`background:${col};box-shadow:0 0 10px ${col};border-top:3px solid rgba(0,0,0,.35)`;
+        }
+        el.appendChild(p);
+        capa.appendChild(el);
+        piezas.push({ e, el, evac, liquido, pos,
+          salida:t0+ENTRA+j*BULTO, alto:34+j*8 });
+      }
+      // Anillo de trabajo sobre la unidad, uno por tanda.
+      const an=document.createElement('div');
+      an.style.cssText='position:absolute;left:0;top:0;border-radius:50%;pointer-events:none;'
+        +`border:3px solid ${col};display:none;will-change:transform,opacity`;
+      capa.appendChild(an);
+      anillos.push({ e, el:an, salida:t0+ENTRA });
+    });
+    const rt=document.createElement('div');
+    const nom=(e.designacion||'').trim();
+    rt.style.cssText='position:absolute;left:0;top:0;pointer-events:none;white-space:nowrap;'
+      +'font:700 12px/1.35 Arial,sans-serif;color:#eaf4ff;background:rgba(9,14,20,.90);'
+      +`border:1px solid ${WG_CLASE_COL[clases[0]]};border-radius:8px;padding:4px 10px;`
+      +'box-shadow:0 6px 20px rgba(0,0,0,.55);transform:translate(-50%,-100%);display:none';
+    rt.innerHTML=`📦 <b>${nom?_rgEsc(nom)+' — ':''}RECIBIENDO</b> `
+      +clases.map(k=>`<span style="color:${WG_CLASE_COL[k]}">${WG_CONVOY_CLASES[k]?WG_CONVOY_CLASES[k].ico:''} `
+        +`${k==='EVAC'?'EVACUACIÓN':(k==='AGUA'?'AGUA':'Cl '+k)}</span>`).join(' · ')
+      +(e.aDomicilio?`<span style="opacity:.7;font-weight:400"> · a domicilio</span>`:'');
+    capa.appendChild(rt);
+    rotulos.push({ e, el:rt });
+  }
+  if(!coches.length){ for(const r of rotulos) r.el.remove(); return Promise.resolve(); }
+  const TOTAL=finMax+260;
+  WG._accion=true;                       // la cámara no se mueve mientras se descarga
+  const liberar=()=>{ WG._accion=false; };
+  const limpiar=()=>{ for(const a of [...coches,...piezas,...anillos,...rotulos]) a.el.remove(); };
+  return new Promise((listo)=>{
+    const t0=performance.now();
+    const paso=(ahora)=>{
+      const dt=ahora-t0;
+      const cuerdo=(c)=> c && Number.isFinite(c[0]) && Math.abs(c[0])<20000 && Math.abs(c[1])<20000;
+      for(const r of rotulos){
+        const c=_wgAPixel([r.e.lng, r.e.lat]);
+        if(!cuerdo(c)){ r.el.style.display='none'; continue; }
+        r.el.style.display='';
+        r.el.style.opacity = dt>TOTAL-460 ? String(Math.max(0,(TOTAL-dt)/460)) : '1';
+        r.el.style.transform=`translate(${c[0]}px,${c[1]-54}px) translate(-50%,-100%)`;
+      }
+      for(const v of coches){
+        const c=_wgAPixel([v.e.lng, v.e.lat]);
+        if(!cuerdo(c) || dt<v.t0 || dt>v.fin){ v.el.style.display='none'; continue; }
+        // Entra desde afuera y frena junto a la unidad.
+        const k=Math.min(1,(dt-v.t0)/ENTRA);
+        const sua=1-Math.pow(1-k,3);
+        const x=c[0]+v.pos[0]*(0.35+0.65*sua)+(1-sua)*v.pos[0]*1.6;
+        const y=c[1]+v.pos[1];
+        v.el.style.display='';
+        v.el.style.opacity = dt>v.fin-300 ? String(Math.max(0,(v.fin-dt)/300)) : '1';
+        v.el.style.transform=`translate(${x}px,${y}px) translate(-50%,-50%)`
+          +(v.espejo?' scaleX(-1)':'');
+      }
+      for(const a of anillos){
+        const k=(dt-a.salida)/1000;
+        if(k<0 || k>1){ a.el.style.display='none'; continue; }
+        const c=_wgAPixel([a.e.lng, a.e.lat]);
+        if(!cuerdo(c)){ a.el.style.display='none'; continue; }
+        const r=12+k*54;
+        a.el.style.display='';
+        a.el.style.width=(r*2)+'px'; a.el.style.height=(r*2)+'px';
+        a.el.style.opacity=String((1-k)*0.8);
+        a.el.style.transform=`translate(${c[0]-r}px,${c[1]-r}px)`;
+      }
+      for(const p of piezas){
+        const k=(dt-p.salida)/VUELO;
+        if(k<0 || k>1){ p.el.style.display='none'; continue; }
+        const c=_wgAPixel([p.e.lng, p.e.lat]);
+        if(!cuerdo(c)){ p.el.style.display='none'; continue; }
+        const vx=c[0]+p.pos[0]*0.62, vy=c[1]+p.pos[1];
+        // La evacuación va AL REVÉS: las bajas salen de la unidad al vehículo.
+        const [ax,ay,bx,by] = p.evac ? [c[0],c[1],vx,vy] : [vx,vy,c[0],c[1]];
+        const x=ax+(bx-ax)*k, y=ay+(by-ay)*k - 4*p.alto*k*(1-k);
+        p.el.style.display='';
+        p.el.style.opacity=String(k>0.86?(1-k)/0.14:1);
+        p.el.style.transform=`translate(${x}px,${y}px)`
+          +(p.liquido?'':` rotate(${(p.evac?-1:1)*k*200}deg)`);
+      }
+      if(dt<TOTAL){ _wgCuadro(paso); return; }
+      limpiar(); liberar(); setTimeout(listo,120);
+    };
+    _wgCuadro(paso);
+  });
+}
 function _wg3dError(msg){
   const el=document.getElementById('wg-3d-error');
   if(!el) return;
@@ -32031,6 +32264,17 @@ function _wg3dDatos(){
       el.title=I.nom+nota;
       const mk=new maplibregl.Marker({element:el, anchor:'center'})
         .setLngLat([c[0],c[1]]).addTo(map);
+      // ============================================================
+      // v2.9.351 — EN 3D EL PUESTO TAMBIÉN SE TOCA.
+      // ÉSTE era el «no funcionó nada»: el clic sobre la instalación estaba
+      // SÓLO en el bucle del 2D. En 3D —que es la vista que se usa de verdad—
+      // el marcador se dibujaba y no escuchaba nada, así que tocar el Puesto de
+      // Abastecimiento no abría nada, ni en azul ni en rojo. Cuarta vez que algo
+      // nace andando en 2D y ausente en 3D.
+      // ============================================================
+      if(WG.soy==='arbitro' || _wgRol()===I.rol){
+        el.addEventListener('click',(ev)=>{ ev.stopPropagation(); ev.preventDefault(); _wgInstalClick(it, I); });
+      } else { el.style.cursor='default'; }
       // v2.9.347: la instalación va DETRÁS de las fichas. Sin esto tapaba al
       // convoy que acaba de salir de ella, que es justo lo que hay que ver.
       try{ mk.getElement().style.zIndex='1'; }catch(_e){}
@@ -33139,13 +33383,21 @@ function _wgDibEscalon(ctx,esc,cx,topY,color){
 }
 // Qué silueta le toca a esta ficha. Sólo los convoyes cambian según su carga.
 function _wgVarianteDibujo(u){
-  if(!u || u.arma!=='convoy') return u?u.arma:null;
+  if(!u) return null;
+  // v2.9.351 — la silueta la manda LA CLASE que lleva. El G-4 tiene que poder
+  // mirar la carta y saber qué le están llevando a cada unidad sin abrir nada.
+  if(u.arma==='sanidad'||u.arma==='ambulancia') return 'ambulancia';
+  if(u.arma!=='convoy') return u.arma;
   const c=(u.carga)||{};
-  const iii=Math.max(0,Number(c.III)||0), v=Math.max(0,Number(c.V)||0);
-  if(iii>0 && iii>=v) return 'convoy_iii';   // cisterna
-  if(v>0) return 'convoy_v';                 // municiones
-  return 'convoy';                           // vacío: camión pelado
+  const q=(k)=>Math.max(0,Number(c[k])||0);
+  const orden=['EVAC','V','III','AGUA','I'];        // la que más lleva manda
+  let mejor=null, max=0;
+  for(const k of orden){ if(q(k)>max){ max=q(k); mejor=k; } }
+  if(!mejor) return 'convoy';                        // vacío: camión pelado
+  return { I:'convoy_i', AGUA:'convoy_agua', III:'convoy_iii',
+           V:'convoy_v', EVAC:'ambulancia' }[mejor] || 'convoy';
 }
+
 // ============================================================
 // v2.9.350 — VEHÍCULOS DE VERDAD, CON EL COLOR DE SU BANDO.
 // Sergio: «quiero figuras militares mejores, con su tono de azul si son de azul
@@ -33243,6 +33495,37 @@ function _wgDibVehiculo(ctx,tipo,x,y,w,h,color,rombo){
     const ax=kx+kw*0.28, aw=kw*0.44, ay=techo+th*0.38, ah=th*0.42;
     ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(ax+aw,ay+ah);
     ctx.moveTo(ax+aw,ay); ctx.lineTo(ax,ay+ah); ctx.stroke();
+  }else if(tipo==='viveres'){
+    // CLASE I — caja abierta con la estiba a la vista: raciones, no munición.
+    ctx.fillStyle=cuerpo; ctx.beginPath(); ctx.rect(kx, techo+th*0.30, kw, th*0.70);
+    ctx.fill(); ctx.strokeStyle=borde; ctx.lineWidth=lw; ctx.stroke();
+    const bw2=kw*0.26, bh2=th*0.46;                  // tres bultos apilados
+    ctx.fillStyle=claro; ctx.strokeStyle=borde; ctx.lineWidth=Math.max(.8,lw*0.7);
+    for(const [f,alt] of [[0.06,0.0],[0.36,0.14],[0.66,0.0]]){
+      const bxx=kx+kw*f, byy=techo+th*0.30-bh2+th*alt;
+      ctx.fillRect(bxx,byy,bw2,bh2); ctx.strokeRect(bxx,byy,bw2,bh2);
+      ctx.beginPath(); ctx.moveTo(bxx,byy+bh2/2); ctx.lineTo(bxx+bw2,byy+bh2/2); ctx.stroke();
+    }
+    ctx.strokeStyle=borde; ctx.lineWidth=lw;         // baranda del cajón
+    ctx.beginPath(); ctx.moveTo(kx,techo+th*0.30); ctx.lineTo(kx,piso); ctx.stroke();
+  }else if(tipo==='agua'){
+    // AGUATERO — tanque cilíndrico más corto y bajo que el de combustible, con
+    // franja clara y la gota: a la distancia no se confunde con el cisterna.
+    const th2=th*0.86, ty=piso-th2, r=th2/2, kw2=kw*0.92;
+    ctx.beginPath();
+    ctx.moveTo(kx+r,ty); ctx.lineTo(kx+kw2-r,ty);
+    ctx.arc(kx+kw2-r,ty+r,r,-Math.PI/2,Math.PI/2);
+    ctx.lineTo(kx+r,ty+th2); ctx.arc(kx+r,ty+r,r,Math.PI/2,-Math.PI/2);
+    ctx.closePath(); ctx.fillStyle=cuerpo; ctx.fill();
+    ctx.strokeStyle=borde; ctx.lineWidth=lw; ctx.stroke();
+    ctx.fillStyle=claro; ctx.fillRect(kx+r*0.5, ty+th2*0.40, kw2-r, Math.max(1.2,th2*0.16));
+    const gx=kx+kw2*0.52, gy=ty+th2*0.52, gr=Math.max(1.6,th2*0.24);   // la gota
+    ctx.beginPath(); ctx.moveTo(gx, gy-gr*1.3);
+    ctx.quadraticCurveTo(gx+gr, gy, gx, gy+gr*0.8);
+    ctx.quadraticCurveTo(gx-gr, gy, gx, gy-gr*1.3);
+    ctx.closePath(); ctx.fillStyle='rgba(235,248,255,.95)'; ctx.fill();
+    ctx.fillStyle=borde;
+    ctx.beginPath(); ctx.arc(kx+lw, ty+th2*0.74, Math.max(1,th2*0.10),0,Math.PI*2); ctx.fill();
   }else if(tipo==='ambulancia'){
     // El furgón del PCED: más alto que un camión y con la cruz a la vista.
     const ah=th*1.18, ay=piso-ah;
@@ -33255,8 +33538,9 @@ function _wgDibVehiculo(ctx,tipo,x,y,w,h,color,rombo){
     ctx.moveTo(px+pw/2, py+ph*0.16); ctx.lineTo(px+pw/2, py+ph*0.84);
     ctx.moveTo(px+pw*0.18, py+ph/2); ctx.lineTo(px+pw*0.82, py+ph/2);
     ctx.stroke();
-    const bal=Math.max(1.2,th*0.11);                  // baliza, apoyada en el techo
-    ctx.fillStyle='#ffd34d'; ctx.fillRect(cbx+cw*0.18, cbt-bal, cw*0.36, bal);
+    // v2.9.351: la baliza iba sobre el techo de la CABINA, que en el furgón
+    // queda más abajo: se leía como un cartel amarillo suelto al costado. La
+    // cruz ya identifica al vehículo sanitaria — alcanza con ella.
   }else{
     // Camión pelado: vuelve vacío del reparto. La plataforma con barandas dice
     // «ya entregó» de un vistazo, sin tener que abrir el tablero.
@@ -33290,6 +33574,8 @@ function _wgDibArma(ctx,arma,x,y,w,h,color,rombo){
     // v2.9.350 — el vehículo entero, de perfil y en el tono del bando.
     // La Clase que lleva define la silueta: cisterna (III), entoldado con el
     // aspa (V), furgón con la cruz (evacuación) o plataforma vacía (ya repartió).
+    case 'convoy_i':    _wgDibVehiculo(ctx,'viveres',x,y,w,h,color,rombo); break;
+    case 'convoy_agua': _wgDibVehiculo(ctx,'agua',x,y,w,h,color,rombo); break;
     case 'convoy_iii': _wgDibVehiculo(ctx,'cisterna',x,y,w,h,color,rombo); break;
     case 'convoy_v':   _wgDibVehiculo(ctx,'municion',x,y,w,h,color,rombo); break;
     case 'ambulancia': _wgDibVehiculo(ctx,'ambulancia',x,y,w,h,color,rombo); break;
@@ -33325,7 +33611,14 @@ function _wgSimboloUnidad(u,sel){
   const color = u._reportado ? (WG_COL_REPORTADO[u.bando]||'#c9a0a0')
                              : (WG_COL[u.bando]||'#888');
   const desig=(u.designacion||'').trim();
-  const fw=64, fh=rojo?52:40, padTop=18, padX=rojo?6:4;
+  // v2.9.351 — EL VEHÍCULO VA SIN MARCO. Sergio: «quitale ese borde cuadrado
+  // rectangular». Y tiene razón doctrinaria: el marco rectangular/rombo es el
+  // símbolo de una UNIDAD que combate. El convoy no combate — es un medio
+  // rodando —, así que se grafica por su silueta y su color, no encerrado en el
+  // signo de una unidad de maniobra. Sin marco, además, el lienzo se le puede
+  // dar entero al vehículo y se lee mucho mejor.
+  const _sinMarco = ['convoy','convoy_i','convoy_agua','convoy_iii','convoy_v','ambulancia'].includes(_var);
+  const fw=_sinMarco?78:64, fh=_sinMarco?36:(rojo?52:40), padTop=_sinMarco?14:18, padX=_sinMarco?2:(rojo?6:4);
   const FUENTE='bold 11px Arial, sans-serif';
   // El rótulo va DEBAJO del marco y puede ser más ancho que él: se mide para
   // que no se corte y para que el marco quede igual centrado.
@@ -33385,11 +33678,21 @@ function _wgSimboloUnidad(u,sel){
     ctx.stroke();
     ctx.restore();
   }
-  marco(); ctx.fill();
+  if(!_sinMarco){ marco(); ctx.fill(); }
   if(u.estado==='fuera_combate') ctx.setLineDash([8,5]); // ya no combate
   else if(u._reportado) ctx.setLineDash([7,4]);          // v2.9.286: dato reportado
-  ctx.stroke(); ctx.setLineDash([]);
-  ctx.save(); marco(); ctx.clip(); _wgDibArma(ctx,_var,fx,fy,fw,fh,color,rojo); ctx.restore();
+  if(!_sinMarco) ctx.stroke();
+  ctx.setLineDash([]);
+  if(_sinMarco){
+    // Sin marco que lo despegue del terreno, el vehículo lleva su propio
+    // resplandor: un halo del color del bando que lo separa de la carta.
+    ctx.save(); ctx.shadowColor=_wgAlfa(color,0.95); ctx.shadowBlur=9;
+    _wgDibArma(ctx,_var,fx,fy,fw,fh,color,false);
+    ctx.shadowBlur=0; _wgDibArma(ctx,_var,fx,fy,fw,fh,color,false);
+    ctx.restore();
+  } else {
+    ctx.save(); marco(); ctx.clip(); _wgDibArma(ctx,_var,fx,fy,fw,fh,color,rojo); ctx.restore();
+  }
   ctx.restore();
   _wgDibEscalon(ctx,esc,cx,2,color);
   // Rótulo: 5 px por debajo del marco (el trazo del marco es de 7 px y antes
@@ -35079,8 +35382,8 @@ function _wgRender(){
             html:'<div title="Convoy sin escolta cerca" style="font-size:13px;filter:drop-shadow(0 1px 2px #000)">🎯</div>'})
         }).addTo(WG.capa);
       }
-      const cargas=Object.keys(WG_CONVOY_CLASES)
-        .map(k=>`${WG_CONVOY_CLASES[k].ico} ${_wgCargaDe(u,k)}/${WG_CONVOY_CAPACIDAD}`).join(' · ');
+      const cargas=WG_CLASES_ORDEN.filter(k=>_wgCargaDe(u,k)>0)
+        .map(k=>`${WG_CONVOY_CLASES[k].ico} ${_wgCargaDe(u,k)}/${WG_CONVOY_CAPACIDAD}`).join(' · ') || '🕳️ vacío';
       m.setTooltipContent(`🚚 <b>${_rgEsc(u.designacion||'Convoy')}</b><br>${cargas}`
         +(ex ? (ex.expuesto
             ? `<br><span style="color:#ff9f9f">🎯 SIN ESCOLTA${ex.km!=null?` — lo propio más cercano a ${ex.km.toFixed(1)} km`:''}</span>`
@@ -35254,7 +35557,7 @@ function _wgUnidadClick(u){
     if(!_wgPuedeOrdenar()) return;
     if(!_wgPuedeEmpenar(u)) return;        // v2.9.284: hay que reconocerlo antes
     _wgAvisarAlcance(selU,u,WG.armaSel);   // v2.9.217: avisa, pero deja ordenar
-    WG.ordenes[selU.id]={ tipo:'atacar', objetivo_id:u.id, arma:WG.armaSel||null };
+    WG.ordenes[selU.id]={ tipo:'atacar', objetivo_id:u.id, arma:WG.armaSel||null, _local:1 };
     _wgActualizarContadorOrdenes(); _wgRender();
     if(WG.map3d) _wg3dDatos();
     return;
@@ -35275,7 +35578,7 @@ function _wgUnidadClick(u){
     if(!_wgPuedeEmpenar(u)) return;        // v2.9.284: hay que reconocerlo antes
     // v2.9.217: se avisa SU alcance (no el genérico), pero la orden se manda igual.
     _wgAvisarAlcance(_wgUnidadPorId(WG.sel),u,WG.armaSel);
-    WG.ordenes[WG.sel]={ tipo:'atacar', objetivo_id:u.id, arma:WG.armaSel||null };
+    WG.ordenes[WG.sel]={ tipo:'atacar', objetivo_id:u.id, arma:WG.armaSel||null, _local:1 };
     _wgActualizarContadorOrdenes(); _wgRender();
   }
 }
@@ -35318,7 +35621,7 @@ function _wgMapClick(ev){
     // que la ocupa. Ésas las elige el Estado Mayor.
     const tareaObra = ['minado','alambrada','obstaculo','foso'].includes(WG.obraSel) ? 'bloquear' : null;
     WG.ordenes[WG.sel]={ tipo:'zapa', obra:WG.obraSel, destino_lng:p[0], destino_lat:p[1],
-      tarea:tareaObra };
+      tarea:tareaObra , _local:1 };
     const u=uO;
     const n=u?_wgTurnosDeObra(u,WG.obraSel,p):0;
     const h=u?_wgHorasDeObra(u,WG.obraSel,p):0;
@@ -35334,7 +35637,7 @@ function _wgMapClick(ev){
   }
   if(WG.modoReplegar){
     if(WG.rutas) delete WG.rutas[WG.sel];
-    WG.ordenes[WG.sel]={ tipo:'replegar', destino_lng:p[0], destino_lat:p[1] };
+    WG.ordenes[WG.sel]={ tipo:'replegar', destino_lng:p[0], destino_lat:p[1], _local:1 };
     WG.modoReplegar=false;
     _wgAviso('↩️ Orden de <b>romper contacto</b> dada. Desenganchar cuesta, pero salva a la unidad.',4200);
     _wgActualizarContadorOrdenes(); _wgRender();
@@ -35351,7 +35654,7 @@ function _wgMapClick(ev){
     // tenso el motor resuelve destrucción y listo.
     const _a=WG_ARMAS[WG.armaSel];
     WG.ordenes[WG.sel]={ tipo:'fuego', destino_lng:p[0], destino_lat:p[1], arma:WG.armaSel,
-      mision:(_a&&_a.indirecto)?(WG.misionSel||'destruccion'):'destruccion' };
+      mision:(_a&&_a.indirecto)?(WG.misionSel||'destruccion'):'destruccion' , _local:1 };
     _wgActualizarContadorOrdenes(); _wgRender();
     if(WG.map3d) _wg3dDatos();
     return;
@@ -35496,7 +35799,7 @@ function _wgOrdenDesdeRuta(id){
   // v2.9.223: se conserva la hora de arranque elegida en la matriz — si no, al
   // agregar un punto de paso se perdía la sincronización que ya habías puesto.
   const inicio=(WG.ordenes[id]||{}).inicio;
-  WG.ordenes[id]={ tipo:'mover', destino_lng:fin[0], destino_lat:fin[1], ruta:r.map(p=>[p[0],p[1]]) };
+  WG.ordenes[id]={ tipo:'mover', destino_lng:fin[0], destino_lat:fin[1], ruta:r.map(p=>[p[0],p[1]]), _local:1 };
   if(inicio) WG.ordenes[id].inicio=inicio;
 }
 // Al resolver, si la unidad alcanzó el punto de paso, se pasa al siguiente.
@@ -35579,11 +35882,14 @@ function _wgActualizarContadorOrdenes(){ const n=Object.keys(WG.ordenes).length;
 async function wgEnviarOrdenes(btn){
   const ids=Object.keys(WG.ordenes); if(!ids.length){ alert('No hay órdenes para enviar.'); return; }
   if(btn) btn.disabled=true;
-  let okc=0;
+  let okc=0; const fallos=[];
   for(const uid of ids){
     const o=WG.ordenes[uid];
-    const r=await _wgInvoke('enviar_orden',{ partida_id:WG.partidaId, clave_acceso:WG.clave, orden:Object.assign({unidad_id:Number(uid)},o) });
-    if(r.ok) okc++; else console.warn('orden',uid,r.error);
+    const env=Object.assign({unidad_id:Number(uid)},o); delete env._local;
+    const r=await _wgInvoke('enviar_orden',{ partida_id:WG.partidaId, clave_acceso:WG.clave, orden:env });
+    // v2.9.351: ya está en el servidor — deja de ser «lo que estoy armando».
+    if(r.ok){ okc++; if(WG.ordenes[uid]) delete WG.ordenes[uid]._local; }
+    else { console.warn('orden',uid,r.error); fallos.push(`${uid}: ${r.error||'sin detalle'}`); }
   }
   if(btn) btn.disabled=false;
   // v2.9.325: se avisa cuántas van SIN tarea. No se bloquea el envío —
@@ -35593,7 +35899,7 @@ async function wgEnviarOrdenes(btn){
   _wgAviso((okc===ids.length
     ? (WG.soy==='arbitro' ? `📨 ${okc} orden(es) registrada(s).`
                           : `✔️ ${okc} orden(es) enviada(s). Ahora espera al otro bando.`)
-    : `⚠️ Se enviaron ${okc} de ${ids.length}. Revisá las que fallaron.`)
+    : `⚠️ Se enviaron ${okc} de ${ids.length}.<br><span style="opacity:.85">${_rgEsc(fallos.join(' · '))}</span>`)
     + (sinTarea?`<br>📋 <b>${sinTarea} sin tarea táctica</b> — se ejecutan igual, pero la bitácora no las va a evaluar.`:''),
     sinTarea?6000:3800);
   await wgEstado();
@@ -35635,7 +35941,7 @@ async function wgResolver(btn){
   // v2.9.329 — AVISAR PRIMERO, ANIMAR DESPUÉS. Va acá y no al final a propósito:
   // las demás pantallas necesitan el aviso para arrancar la película EN EL MISMO
   // MOMENTO que ésta. Si se avisara al terminar, volveríamos al desfase de antes.
-  _wgCanalAvisar(r.turno_resuelto, trazas, impactos);
+  _wgCanalAvisar(r.turno_resuelto, trazas, impactos, r.entregas||[]);
   if(WG.estado&&WG.estado.partida) WG.estado.partida.turno_actual=r.turno_resuelto+1;
   _wgApagarViejos(r.turno_resuelto);
   // ============================================================
@@ -35654,6 +35960,8 @@ async function wgResolver(btn){
     ]);
   } finally { WG.replayando=false; }
   _wgEncender(impactos, r.turno_resuelto);
+  // v2.9.351: PRIMERO llega, DESPUÉS descarga. En ese orden se entiende.
+  try{ await _wgAnimarEntregas(r.entregas||[]); }catch(_e){}
   await wgEstado();   // recién ahora se desvanecen los que quedaron fuera de combate
   _wgRender(); if(WG.map3d) _wg3dDatos();
   if(!trazas.length){ await wgHistorial(); wgHoja('bitacora'); }
