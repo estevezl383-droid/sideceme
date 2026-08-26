@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.354</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.355</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4682,6 +4682,8 @@ body{
 
     <div class="section-label">Acciones</div>
     <div class="quick-grid">
+      <button class="quick-btn" id="qa-btn-protocolo" onclick="protAbrir()" style="border-color:rgba(212,168,74,.55);box-shadow:0 0 0 1px rgba(212,168,74,.18) inset"><span class="qa-icon">🎖️</span><span class="qa-text"><b>Protocolo y Ceremonial</b> (Aniversario 2026 · precedencias y asientos de los cuatro actos)</span></button>
+
       <button class="quick-btn" onclick="qaProf('cambiar_pwd')"><span class="qa-icon">🔐</span><span class="qa-text">Cambiar mi contraseña</span></button>
       <button class="quick-btn" onclick="ofrecerGuardarCredenciales()"><span class="qa-icon">🔑</span><span class="qa-text">Guardar credenciales (Face ID / huella / llenado automático)</span></button>
     </div>
@@ -5298,6 +5300,8 @@ body{
     <div id="alert-observacion" class="alert-banner yellow" style="display:none"><div class="alert-emoji">⚠️</div><div class="alert-text"><div class="alert-title" id="alert-observacion-title">— en observación</div><div class="alert-desc">Entre 11 y 24 pts perdidos.</div></div></div>
     <div class="section-label">Accesos rápidos</div>
     <div class="quick-grid">
+      <button class="quick-btn" id="qa-btn-protocolo" onclick="protAbrir()" style="border-color:rgba(212,168,74,.55);box-shadow:0 0 0 1px rgba(212,168,74,.18) inset"><span class="qa-icon">🎖️</span><span class="qa-text"><b>Protocolo y Ceremonial</b> (Aniversario 2026 · precedencias y asientos de los cuatro actos)</span></button>
+
       <button id="qa-btn-gest-cursantes" class="quick-btn" onclick="goGestionarCursantes()"><span class="qa-icon">👥</span><span class="qa-text">Gestionar cursantes (agregar / editar / dar de baja)</span></button>
       <button id="qa-btn-gest-profesores" class="quick-btn" onclick="goGestionarProfesores()"><span class="qa-icon">👨‍🏫</span><span class="qa-text" id="qa-profs-text">Gestionar profesores (—)</span></button>
       <button class="quick-btn" id="qa-gest-sanciones" onclick="goGestionSanciones()" style="background:linear-gradient(180deg,rgba(76,163,107,.15),rgba(76,163,107,.05));border-color:#4ca36b"><span class="qa-icon">⚖️</span><span class="qa-text"><strong>Gestionar sanciones</strong> (editar / corregir / anular / crear manual)</span></button>
@@ -5348,6 +5352,7 @@ body{
     <button class="bottom-nav-item" onclick="goDiscCursantes()"><span class="nav-icon">👥</span><span class="nav-label">Cursantes</span></button>
     <button class="bottom-nav-item" onclick="goDiscReportes()"><span class="nav-icon">📊</span><span class="nav-label">Reportes</span></button>
     <button class="bottom-nav-item" onclick="goDiscAlertas()"><span class="nav-icon">🔔</span><span class="nav-label">Alertas</span></button>
+    <button class="bottom-nav-item" onclick="protAbrir()"><span class="nav-icon">🎖️</span><span class="nav-label">Protocolo</span></button>
   </nav>
 </section>
 
@@ -5367,6 +5372,7 @@ body{
     <button class="bottom-nav-item active" onclick="goDiscCursantes()"><span class="nav-icon">👥</span><span class="nav-label">Cursantes</span></button>
     <button class="bottom-nav-item" onclick="goDiscReportes()"><span class="nav-icon">📊</span><span class="nav-label">Reportes</span></button>
     <button class="bottom-nav-item" onclick="goDiscAlertas()"><span class="nav-icon">🔔</span><span class="nav-label">Alertas</span></button>
+    <button class="bottom-nav-item" onclick="protAbrir()"><span class="nav-icon">🎖️</span><span class="nav-label">Protocolo</span></button>
   </nav>
 </section>
 
@@ -5391,6 +5397,7 @@ body{
     <button class="bottom-nav-item" onclick="goDiscCursantes()"><span class="nav-icon">👥</span><span class="nav-label">Cursantes</span></button>
     <button class="bottom-nav-item" onclick="goDiscReportes()"><span class="nav-icon">📊</span><span class="nav-label">Reportes</span></button>
     <button class="bottom-nav-item" onclick="goDiscAlertas()"><span class="nav-icon">🔔</span><span class="nav-label">Alertas</span></button>
+    <button class="bottom-nav-item" onclick="protAbrir()"><span class="nav-icon">🎖️</span><span class="nav-label">Protocolo</span></button>
   </nav>
 </section>
 
@@ -5475,6 +5482,7 @@ body{
     <button class="bottom-nav-item" onclick="goDiscCursantes()"><span class="nav-icon">👥</span><span class="nav-label">Cursantes</span></button>
     <button class="bottom-nav-item" onclick="goDiscReportes()"><span class="nav-icon">📊</span><span class="nav-label">Reportes</span></button>
     <button class="bottom-nav-item active" onclick="goDiscAlertas()"><span class="nav-icon">🔔</span><span class="nav-label">Alertas</span></button>
+    <button class="bottom-nav-item" onclick="protAbrir()"><span class="nav-icon">🎖️</span><span class="nav-label">Protocolo</span></button>
   </nav>
 </section>
 
@@ -5964,6 +5972,7 @@ body{
     <button class="bottom-nav-item" onclick="goDiscCursantes()"><span class="nav-icon">👥</span><span class="nav-label">Cursantes</span></button>
     <button class="bottom-nav-item active" onclick="goDiscReportes()"><span class="nav-icon">📊</span><span class="nav-label">Reportes</span></button>
     <button class="bottom-nav-item" onclick="goDiscAlertas()"><span class="nav-icon">🔔</span><span class="nav-label">Alertas</span></button>
+    <button class="bottom-nav-item" onclick="protAbrir()"><span class="nav-icon">🎖️</span><span class="nav-label">Protocolo</span></button>
   </nav>
 </section>
 
@@ -5976,6 +5985,7 @@ body{
     <button class="bottom-nav-item" onclick="goDiscCursantes()"><span class="nav-icon">👥</span><span class="nav-label">Cursantes</span></button>
     <button class="bottom-nav-item active" onclick="goDiscReportes()"><span class="nav-icon">📊</span><span class="nav-label">Reportes</span></button>
     <button class="bottom-nav-item" onclick="goDiscAlertas()"><span class="nav-icon">🔔</span><span class="nav-label">Alertas</span></button>
+    <button class="bottom-nav-item" onclick="protAbrir()"><span class="nav-icon">🎖️</span><span class="nav-label">Protocolo</span></button>
   </nav>
 </section>
 <!-- DISC: ALERTAS -->
@@ -5987,6 +5997,7 @@ body{
     <button class="bottom-nav-item" onclick="goDiscCursantes()"><span class="nav-icon">👥</span><span class="nav-label">Cursantes</span></button>
     <button class="bottom-nav-item" onclick="goDiscReportes()"><span class="nav-icon">📊</span><span class="nav-label">Reportes</span></button>
     <button class="bottom-nav-item active" onclick="goDiscAlertas()"><span class="nav-icon">🔔</span><span class="nav-label">Alertas</span></button>
+    <button class="bottom-nav-item" onclick="protAbrir()"><span class="nav-icon">🎖️</span><span class="nav-label">Protocolo</span></button>
   </nav>
 </section>
 
