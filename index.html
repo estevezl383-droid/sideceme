@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.357</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.359</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -27782,24 +27782,50 @@ function _wgAuditarEje(t){
 }
 function _wgEjesHTML(){
   const ejes=(WG.terreno||[]).filter(t=>t.tipo==='eje_log');
-  if(!ejes.length) return '';
+  // ============================================================
+  // v2.9.359 — SI NO HAY CAMINOS, DECIRLO ANTES.
+  // Desde la v2.9.358 el convoy sólo puede alejarse 4 km de la ruta. Eso es
+  // correcto, pero deja una trampa: un escenario importado SIN la capa de vías
+  // no tiene NINGUNA ruta, así que todos los convoyes se clavan a los 4 km y el
+  // G-4 no tiene forma de saber por qué. No es su planificación la que está mal
+  // —es que la carta no trae los caminos—, y hay que decírselo con todas las
+  // letras y con la salida al lado, no dejar que lo descubra cuando ya se le
+  // frenó la columna.
+  // ============================================================
+  const vias=(WG.terreno||[]).filter(t=>t.tipo==='via').length;
+  const sinVias = !vias
+    ? `<div class="rg-card" style="padding:9px 10px;margin-top:10px;border:1px solid #e23b3b;background:rgba(226,59,59,.10)">`
+      +`<b style="font-size:11.5px;color:#ff9d9d">⚠️ Esta carta NO tiene caminos</b>`
+      +`<div class="rg-meta" style="font-size:10.5px;margin-top:5px;line-height:1.5">`
+      +`El escenario se importó sin la capa de vías, así que <b>no hay ninguna ruta</b>: `
+      +`ningún eje va sobre camino y <b>los convoyes se van a detener a los `
+      +`${WG_CONVOY_FUERA_RUTA_KM} km</b> de haber salido.<br>`
+      +`No es tu planificación — es la carta. Cargá la capa de caminos del Generador con `
+      +`<b>➕ Agregar capa</b> (⚙️ Configurar → escenario) y volvé a trazar el eje sobre ellos.`
+      +`</div></div>`
+    : '';
+  if(!ejes.length) return sinVias;
   const filas=ejes.map(t=>{
     const nom=((t.geojson&&t.geojson.nom)||'Eje').split('—')[0].trim();
     const a=_wgAuditarEje(t);
     if(!a) return '';
-    const col = a.corta ? '#e23b3b' : (a.pct.restringido>25 ? '#e08a2c' : '#2ecc71');
+    const _fuera=a.km.libre+a.km.restringido+a.km.severo;
+    const col = (a.corta || _fuera>WG_CONVOY_FUERA_RUTA_KM) ? '#e23b3b'
+              : (_fuera>WG_CONVOY_FUERA_RUTA_KM*0.5 ? '#e08a2c' : '#2ecc71');
     const barra=['camino','libre','restringido','severo'].map(cl=>{
       const c={camino:'#2ecc71',libre:'#8fd0a0',restringido:'#e08a2c',severo:'#e23b3b'}[cl];
       return `<i style="display:block;height:100%;width:${a.pct[cl].toFixed(1)}%;background:${c}"></i>`;
     }).join('');
+    const fuera=a.km.libre+a.km.restringido+a.km.severo;
     const veredicto = a.corta
       ? `⛔ <b>${a.km.severo.toFixed(1)} km de terreno severo</b>: ahí la columna se detiene. `
-        +`Retrazarlo, o abrir paso con zapadores.`
-      : a.pct.restringido>25
-        ? `⚠️ Pasa, pero ${a.km.restringido.toFixed(1)} km al paso (6 km/h): calculá la demora.`
+        +`Retrazalo, o abrí paso con zapadores.`
+      : fuera > WG_CONVOY_FUERA_RUTA_KM
+        ? `⛔ <b>${fuera.toFixed(1)} km fuera de camino</b> — el convoy se detiene a los `
+          +`${WG_CONVOY_FUERA_RUTA_KM} km. Este eje no está trazado sobre rutas.`
         : a.pct.camino>60
-          ? `✅ Sobre ruta: rueda a 50 km/h.`
-          : `🟡 ${Math.round(a.pct.libre)} % campo traviesa (18 km/h): pasa, pero tarda.`;
+          ? `✅ Sobre ruta de punta a punta: la columna marcha a 35 km/h.`
+          : `🟡 ${fuera.toFixed(1)} km fuera de camino — entra en el margen de entrega, pero justo.`;
     return `<div class="rg-card" style="padding:7px 9px;margin-top:6px;border-left:3px solid ${col}">`
       +`<div style="display:flex;justify-content:space-between;gap:6px;align-items:baseline">`
       +`<b style="font-size:11px">${_rgEsc(nom)}</b>`
@@ -27808,13 +27834,15 @@ function _wgEjesHTML(){
       +`<div style="display:flex;height:5px;border-radius:3px;overflow:hidden;background:rgba(0,0,0,.4);margin-top:4px">${barra}</div>`
       +`<div style="font-size:9px;color:${col};margin-top:4px;line-height:1.4">${veredicto}</div></div>`;
   }).join('');
-  return `<div style="font-size:9px;letter-spacing:1.2px;opacity:.6;margin:12px 0 0">`
+  return sinVias
+    +`<div style="font-size:9px;letter-spacing:1.2px;opacity:.6;margin:12px 0 0">`
     +`↔️ EJES · ¿los aguanta un camión 6×6?</div>`+filas
     +`<div class="rg-meta" style="font-size:8.5px;margin-top:5px;line-height:1.45">`
-    +`El convoy rueda a 50 km/h por ruta, 18 campo traviesa y 6 en terreno restringido; `
-    +`el <b>severo no lo cruza</b>. El eje es <b>tu</b> decisión y el motor te deja marchar `
-    +`por donde lo trazaste: esto es el parte de transitabilidad para que la tomes con la `
-    +`carta a la vista, no un permiso.</div>`;
+    +`La columna marcha a <b>35 km/h por camino</b> (sirven los de tercera y cuarta) y `
+    +`sólo puede alejarse <b>${WG_CONVOY_FUERA_RUTA_KM} km</b> de la ruta — lo justo para el `
+    +`tramo final de entrega. Más lejos, se detiene: un convoy no cruza cerros.<br>`
+    +`El eje es <b>tu</b> decisión y el motor te deja marchar por donde lo trazaste; esto es `
+    +`el parte de transitabilidad para que la tomes con la carta a la vista, no un permiso.</div>`;
 }
 function _wgConvoyesHTML(uds){
   const convoyes=(uds||[]).filter(_wgEsConvoy);
@@ -31266,7 +31294,7 @@ function _wgClaseTerreno(pt,terreno){
 // — y el G-4 planificaría sobre una mentira.
 const WG_VEL={motor:{camino:50,libre:40,restringido:null,severo:null},
               oruga:{camino:32,libre:28,restringido:9,severo:null},
-              rueda:{camino:50,libre:18,restringido:6,severo:null},
+              rueda:{camino:35,libre:12,restringido:4,severo:null},
               pie:{camino:6,libre:5,restringido:3.5,severo:2}};
 // El convoy rueda sobre llantas aunque su columna `medio` diga «motor».
 function _wgMedioDe(u){ return _wgEsConvoy(u) ? 'rueda' : ((u&&u.medio)||'pie'); }
@@ -31280,6 +31308,7 @@ function _wgHav(a,b){
 // el barro y la roca el tanque se vacía más rápido. Sin esto la previsión
 // mentiría: diría que llega adonde el motor la va a dejar clavada.
 const WG_CONSUMO={ camino:0.9, libre:1.0, restringido:1.6, severo:2.2 };
+const WG_CONVOY_FUERA_RUTA_KM=4;   // espejo de CONVOY_FUERA_RUTA_KM del motor
 function _wgPreverMovimiento(u,destino,horas){
   const _md=_wgMedioDe(u);
   const vel=WG_VEL[_md]||WG_VEL.pie;
@@ -31287,6 +31316,11 @@ function _wgPreverMovimiento(u,destino,horas){
   const tanque=WG_AUTONOMIA[_md]||0;
   const autonomia = tanque>0 ? Math.max(0, tanque-(Number(u.combustible_km)||0)) : Infinity;
   let consumoKm=0;
+  // v2.9.358 — espejo de CONVOY_FUERA_RUTA_KM: el convoy sale del camino sólo
+  // para el último tramo, el de la entrega. Sin esto la vista previa diría
+  // «llega» y el motor lo dejaría clavado a mitad de la serranía.
+  let kmFueraRuta=0;
+  const topeFuera=_wgEsConvoy(u)?WG_CONVOY_FUERA_RUTA_KM:Infinity;
   let pos=[u.lng,u.lat];
   const totalDest=_wgHav(pos,destino);
   if(totalDest<1e-4) return {lng:pos[0],lat:pos[1],detenida:false,motivo:'ya está ahí',avanzadoKm:0,totalKm:0,llego:true,horasUsadas:0,ruta:[pos]};
@@ -31332,18 +31366,27 @@ function _wgPreverMovimiento(u,destino,horas){
       pos=[pos[0]+(sig[0]-pos[0])*f2, pos[1]+(sig[1]-pos[1])*f2];
       avanzado+=km; consumoKm+=km*gasta;
       ruta.push([pos[0],pos[1]]);
+      if(clase!=='camino') kmFueraRuta+=km;
       if(porTanque){ detenida=true; motivo='SE LE ACABA EL COMBUSTIBLE ahí — hay que reabastecer antes'; }
       else { presupuesto=0; motivo='no alcanza el tiempo del turno'; }
       break;
     }
     presupuesto-=tPaso; pos=sig; avanzado+=pasoReal; consumoKm+=pasoReal*gasta;
     ruta.push([pos[0],pos[1]]);
+    if(clase!=='camino'){
+      kmFueraRuta+=pasoReal;
+      if(kmFueraRuta>=topeFuera-1e-9){
+        detenida=true;
+        motivo=`SE SALE ${kmFueraRuta.toFixed(1)} km DEL CAMINO — una columna de camiones no cruza campo traviesa. Trazá el eje sobre caminos`;
+        break;
+      }
+    }
     if(atrapada && !motivo) motivo='sale a paso de hombre del terreno que no cruza';
     if(presupuesto<=1e-9){ motivo='no alcanza el tiempo del turno'; break; }
   }
   return {lng:pos[0],lat:pos[1],detenida,motivo,avanzadoKm:avanzado,totalKm:totalDest,
     llego:!detenida && _wgHav(pos,destino)<=1e-3, horasUsadas:Math.max(0,horas-presupuesto), ruta,
-    consumoKm, seco:/COMBUSTIBLE/.test(motivo)};
+    consumoKm, kmFueraRuta, fueraDeRuta:/DEL CAMINO/.test(motivo), seco:/COMBUSTIBLE/.test(motivo)};
 }
 // v2.9.220 — GEMELO DE `moverPorRuta` DEL MOTOR. La unidad encadena los tramos:
 // llega a un punto de paso y con las horas que le quedan sigue al siguiente, en
@@ -33437,6 +33480,13 @@ function _wgEscenarioDesde(d, fase){
 // Los archivos se leen TODOS primero y se combinan en un solo escenario, así
 // una tanda a medio camino no deja la partida rota.
 // ============================================================
+// ¿El escenario que quedó cargado tiene caminos? Mira lo IMPORTADO y también lo
+// que ya había en la partida — «Agregar capa» puede traer justamente las vías.
+function _wgSinCaminos(esc){
+  const enArchivo=((esc&&esc.terreno)||[]).some(t=>t&&t.tipo==='via');
+  const enPartida=((WG.terreno)||[]).some(t=>t&&t.tipo==='via');
+  return !enArchivo && !enPartida;
+}
 async function wgImportarEscenario(inp, sumar){
   const files=[...((inp&&inp.files)||[])]; if(!files.length) return;
   inp.value=''; // permite volver a elegir el MISMO archivo
@@ -33571,6 +33621,13 @@ async function wgImportarEscenario(inp, sumar){
     +(falloInst?`<br>⚠️ No entraron: <b>${_rgEsc(detalleFallos)}</b> — ${_rgEsc(falloInst)}`
       +(tiposFallados.log_pc?`<br><span style="opacity:.85">El tipo <code>log_pc</code> (Puesto de Comando) lo rechaza la Edge Function por un defecto propio de su validación; se arregla cambiando <code>{3,20}</code> por <code>{2,20}</code> en <code>wargame-ops</code>.</span>`:''):'')
     +((esc.ejes||0)?`<br>↔️ <b>${esc.ejes}</b> eje(s) de control en la carta (EPA, EPE, evacuación).`:'')
+    // v2.9.359 — SIN CAMINOS NO HAY LOGÍSTICA. Se avisa ACÁ, que es cuando
+    // todavía se puede agregar la capa, y no cuando el convoy ya se clavó.
+    +(_wgSinCaminos(esc)
+      ? `<br><br>⚠️ <b>Este escenario no trae capa de caminos.</b> Sin rutas, ningún eje va `
+        +`sobre camino y <b>los convoyes se detienen a los ${WG_CONVOY_FUERA_RUTA_KM} km</b> de salir. `
+        +`Volvé al Generador, bajá la capa de vías y sumala acá con <b>➕ Agregar capa</b>.`
+      : '')
     +`<br>Si la partida estaba en curso, quedó en <b>planificación</b>: acomodá lo que haga falta y tocá <b>Iniciar partida</b>.`);
   WG.terreno=null; WG.capaTerrenoFirma=null; // forzar recarga y redibujo del CMOC
   await wgEstado();
@@ -33841,127 +33898,175 @@ function _wgDibVehiculo(ctx,tipo,x,y,w,h,color,rombo){
 // barra de poder quedan siempre derechos y legibles.
 // ============================================================
 function _wgDibVehiculoPlanta(ctx, tipo, cx, cy, L, color){
-  const A=L*0.38;                       // ancho de VÍA (de rueda a rueda)
-  const B=A*0.70;                       // ancho del cuerpo: las llantas asoman
-  const cuerpo=_wgOscuro(color,0.18), claro=_wgClaro(color,0.32),
-        borde=_wgOscuro(color,0.68), techo=_wgClaro(color,0.10);
+  // v2.9.358 — CON VOLUMEN. Sergio: «la figura parece muy plana de arriba».
+  // Una planta pura no tiene altura, así que se EXTRUYE: cada pieza se dibuja
+  // primero como pared (tono oscuro) y encima su techo, corrido hacia la luz.
+  // El resultado se lee como un vehículo con cuerpo, no como una calcomanía —
+  // y sigue girando limpio con el rumbo, que es lo que no se podía perder.
+  const A=L*0.47;                       // ancho de VÍA (de rueda a rueda)
+  const B=A*0.66;                       // ancho del cuerpo: las llantas asoman
+  const cuerpo=_wgOscuro(color,0.12), claro=_wgClaro(color,0.44),
+        borde=_wgOscuro(color,0.70), pared=_wgOscuro(color,0.52);
   const lw=Math.max(1, L*0.028);
   const x0=cx-A/2, y0=cy-L/2;           // morro arriba (norte)
+  // Desplazamiento del techo por unidad de altura: la luz entra por arriba-izq.
+  const PX=-0.55, PY=-0.75;
   ctx.save(); ctx.lineJoin='round'; ctx.lineCap='round';
 
-  // Sombra proyectada: da el volumen sin tener que dibujarlo.
-  ctx.fillStyle='rgba(0,0,0,.32)';
-  ctx.beginPath();
-  ctx.ellipse(cx+L*0.05, cy+L*0.05, A*0.62, L*0.52, 0, 0, Math.PI*2);
-  ctx.fill();
+  // Sombra proyectada, en el lado opuesto a la luz y difusa.
+  ctx.save();
+  ctx.shadowColor='rgba(0,0,0,.5)'; ctx.shadowBlur=L*0.07;
+  ctx.shadowOffsetX=L*0.035; ctx.shadowOffsetY=L*0.05;
+  ctx.fillStyle='rgba(0,0,0,.34)';
+  _wgRedondo(ctx, cx-B*0.62, y0+L*0.05, B*1.24, L*0.90, B*0.26); ctx.fill();
+  ctx.restore();
 
-  // TREN RODANTE 6×6 — tres pares de llantas, ASOMANDO por fuera del cuerpo.
-  // Son las que mandan por dónde puede ir: rueda militar, no oruga. Si quedan
-  // tapadas bajo la caja, el dibujo pierde justo el dato que lo explica.
-  const rw=A*0.30, rh=L*0.16;
-  for(const fy of [0.21, 0.60, 0.78]){
+  // Levanta una pieza: `forma(ox,oy)` traza el contorno corrido.
+  const volumen=(forma, alto, pintarTecho)=>{
+    const dx=alto*PX, dy=alto*PY;
+    const n=Math.max(3, Math.round(alto*1.6));
+    ctx.fillStyle=pared;
+    for(let i=0;i<=n;i++){ forma(dx*i/n, dy*i/n); ctx.fill(); }
+    forma(dx,dy); pintarTecho();
+  };
+
+  // TREN RODANTE 6×6 — llantas ASOMANDO por fuera del cuerpo. Son las que
+  // mandan por dónde puede ir: rueda militar, no oruga.
+  const rw=A*0.26, rh=L*0.155, hR=L*0.040;
+  for(const fy of [0.20, 0.59, 0.77]){
     const y=y0+L*fy;
-    for(const rx of [x0-rw*0.10, x0+A-rw*0.90]){
-      ctx.fillStyle='#0b1016';
-      _wgRedondo(ctx, rx, y, rw, rh, rw*0.30); ctx.fill();
-      ctx.fillStyle='rgba(255,255,255,.13)';           // banda de rodadura
-      ctx.fillRect(rx+rw*0.28, y+rh*0.12, rw*0.44, rh*0.76);
+    for(const rx of [x0, x0+A-rw]){
+      volumen((ox,oy)=>_wgRedondo(ctx, rx+ox, y+oy, rw, rh, rw*0.30), hR, ()=>{
+        ctx.fillStyle='#0d1319'; ctx.fill();
+        ctx.fillStyle='rgba(255,255,255,.16)';       // banda de rodadura
+        ctx.fillRect(rx+rw*0.30+hR*PX, y+rh*0.14+hR*PY, rw*0.40, rh*0.72);
+      });
     }
   }
-  // Chasis: la viga entre los ejes. Da el largo del vehículo.
-  ctx.fillStyle=_wgOscuro(color,0.72);
-  ctx.fillRect(cx-B*0.16, y0+L*0.16, B*0.32, L*0.74);
+  // Chasis: la viga entre los ejes.
+  const hC=L*0.022;
+  volumen((ox,oy)=>{ ctx.beginPath();
+      ctx.rect(cx-B*0.17+ox, y0+L*0.16+oy, B*0.34, L*0.74); },
+    hC, ()=>{ ctx.fillStyle=_wgOscuro(color,0.62); ctx.fill(); });
 
   // CAJA / CARGA (los 2/3 de atrás)
-  const bx=cx-B/2, by=y0+L*0.34, bw=B, bh=L*0.60;
+  const bx=cx-B/2, by=y0+L*0.34, bw=B, bh=L*0.60, hB=L*0.095;
+  const luzTecho=(x,y,w,h)=>{ const g=ctx.createLinearGradient(x,y,x+w,y+h);
+    g.addColorStop(0,claro); g.addColorStop(0.45,cuerpo); g.addColorStop(1,_wgOscuro(color,0.40));
+    return g; };
   if(tipo==='cisterna' || tipo==='agua'){
-    // Tanque cilíndrico visto desde arriba: los extremos redondeados y un
-    // brillo corrido a lo largo, que es lo que delata el cilindro en planta.
-    _wgRedondo(ctx, bx, by, bw, bh, bw*0.46);
-    const g=ctx.createLinearGradient(bx,0,bx+bw,0);
-    g.addColorStop(0,_wgOscuro(color,0.42)); g.addColorStop(0.34,claro);
-    g.addColorStop(0.55,cuerpo); g.addColorStop(1,_wgOscuro(color,0.5));
-    ctx.fillStyle=g; ctx.fill();
-    ctx.strokeStyle=borde; ctx.lineWidth=lw; ctx.stroke();
-    ctx.strokeStyle='rgba(0,0,0,.42)'; ctx.lineWidth=Math.max(.8,lw*0.8);
-    for(const f of [0.30,0.58,0.84]){                    // aros del tanque
-      ctx.beginPath(); ctx.moveTo(bx+lw, by+bh*f); ctx.lineTo(bx+bw-lw, by+bh*f); ctx.stroke();
-    }
-    ctx.fillStyle=borde;                                  // boca de hombre
-    ctx.beginPath(); ctx.arc(cx, by+bh*0.20, bw*0.11, 0, Math.PI*2); ctx.fill();
-    if(tipo==='agua'){
-      ctx.fillStyle='rgba(235,248,255,.95)';              // la gota, sobre el lomo
-      const gy=by+bh*0.50, gr=bw*0.17;
-      ctx.beginPath(); ctx.moveTo(cx, gy-gr*1.25);
-      ctx.quadraticCurveTo(cx+gr, gy, cx, gy+gr*0.8);
-      ctx.quadraticCurveTo(cx-gr, gy, cx, gy-gr*1.25);
-      ctx.closePath(); ctx.fill();
-    }
+    volumen((ox,oy)=>_wgRedondo(ctx, bx+ox, by+oy, bw, bh, bw*0.46), hB, ()=>{
+      const dx=hB*PX, dy=hB*PY;
+      const g=ctx.createLinearGradient(bx+dx,0,bx+bw+dx,0);
+      g.addColorStop(0,_wgOscuro(color,0.46)); g.addColorStop(0.30,claro);
+      g.addColorStop(0.52,cuerpo); g.addColorStop(1,_wgOscuro(color,0.52));
+      ctx.fillStyle=g; ctx.fill();
+      ctx.strokeStyle=borde; ctx.lineWidth=lw; ctx.stroke();
+      ctx.save(); ctx.clip();
+      ctx.strokeStyle='rgba(0,0,0,.40)'; ctx.lineWidth=Math.max(.9,lw*0.9);
+      for(const f of [0.28,0.55,0.82]){                    // aros del tanque
+        ctx.beginPath(); ctx.moveTo(bx+dx, by+dy+bh*f); ctx.lineTo(bx+bw+dx, by+dy+bh*f); ctx.stroke(); }
+      ctx.fillStyle='rgba(255,255,255,.22)';               // brillo del cilindro
+      ctx.fillRect(bx+dx+bw*0.22, by+dy, bw*0.13, bh);
+      ctx.restore();
+      ctx.fillStyle=_wgOscuro(color,0.62);                 // boca de hombre
+      ctx.beginPath(); ctx.arc(cx+dx, by+dy+bh*0.18, bw*0.11, 0, Math.PI*2); ctx.fill();
+      if(tipo==='agua'){
+        ctx.fillStyle='rgba(238,250,255,.96)';
+        const gy=by+dy+bh*0.52, gr=bw*0.17, gx=cx+dx;
+        ctx.beginPath(); ctx.moveTo(gx, gy-gr*1.25);
+        ctx.quadraticCurveTo(gx+gr, gy, gx, gy+gr*0.8);
+        ctx.quadraticCurveTo(gx-gr, gy, gx, gy-gr*1.25);
+        ctx.closePath(); ctx.fill();
+      }
+    });
   }else if(tipo==='municion'){
-    // Entoldado: la lona vista desde arriba son sus costillas cruzadas.
-    _wgRedondo(ctx, bx, by, bw, bh, bw*0.12);
-    ctx.fillStyle=cuerpo; ctx.fill();
-    ctx.strokeStyle=borde; ctx.lineWidth=lw; ctx.stroke();
-    ctx.fillStyle=techo;
-    ctx.fillRect(bx+bw*0.16, by+bh*0.04, bw*0.68, bh*0.92);
-    ctx.strokeStyle='rgba(0,0,0,.38)'; ctx.lineWidth=Math.max(.8,lw*0.75);
-    for(const f of [0.20,0.40,0.60,0.80]){
-      ctx.beginPath(); ctx.moveTo(bx+bw*0.10, by+bh*f); ctx.lineTo(bx+bw*0.90, by+bh*f); ctx.stroke();
-    }
-    ctx.strokeStyle='rgba(255,255,255,.94)'; ctx.lineWidth=Math.max(1,lw*1.1);
-    const ax=bx+bw*0.26, aw=bw*0.48, ay=by+bh*0.32, ah=bh*0.36;
-    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(ax+aw,ay+ah);
-    ctx.moveTo(ax+aw,ay); ctx.lineTo(ax,ay+ah); ctx.stroke();
+    volumen((ox,oy)=>_wgRedondo(ctx, bx+ox, by+oy, bw, bh, bw*0.12), hB, ()=>{
+      const dx=hB*PX, dy=hB*PY;
+      ctx.fillStyle=luzTecho(bx+dx,by+dy,bw,bh); ctx.fill();
+      ctx.strokeStyle=borde; ctx.lineWidth=lw; ctx.stroke();
+      ctx.save(); ctx.clip();
+      ctx.strokeStyle='rgba(0,0,0,.34)'; ctx.lineWidth=Math.max(.9,lw*0.8);
+      for(const f of [0.18,0.36,0.54,0.72,0.90]){          // costillas de la lona
+        ctx.beginPath(); ctx.moveTo(bx+dx, by+dy+bh*f); ctx.lineTo(bx+bw+dx, by+dy+bh*f); ctx.stroke(); }
+      ctx.restore();
+      ctx.strokeStyle='rgba(255,255,255,.94)'; ctx.lineWidth=Math.max(1.1,lw*1.2);
+      const ax=bx+dx+bw*0.26, aw=bw*0.48, ay=by+dy+bh*0.32, ah=bh*0.36;
+      ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(ax+aw,ay+ah);
+      ctx.moveTo(ax+aw,ay); ctx.lineTo(ax,ay+ah); ctx.stroke();
+    });
   }else if(tipo==='ambulancia'){
-    _wgRedondo(ctx, bx, by, bw, bh, bw*0.14);
-    ctx.fillStyle=cuerpo; ctx.fill();
-    ctx.strokeStyle=borde; ctx.lineWidth=lw; ctx.stroke();
-    ctx.fillStyle='rgba(255,255,255,.94)';                // techo blanco sanitario
-    ctx.fillRect(bx+bw*0.14, by+bh*0.10, bw*0.72, bh*0.78);
-    ctx.strokeStyle='#c0392b'; ctx.lineWidth=Math.max(1.4,lw*1.5);
-    ctx.beginPath();
-    ctx.moveTo(cx, by+bh*0.24); ctx.lineTo(cx, by+bh*0.74);
-    ctx.moveTo(bx+bw*0.26, by+bh*0.49); ctx.lineTo(bx+bw*0.74, by+bh*0.49);
-    ctx.stroke();
+    const hA=L*0.115;                                       // el furgón es más alto
+    volumen((ox,oy)=>_wgRedondo(ctx, bx+ox, by+oy, bw, bh, bw*0.14), hA, ()=>{
+      const dx=hA*PX, dy=hA*PY;
+      ctx.fillStyle=luzTecho(bx+dx,by+dy,bw,bh); ctx.fill();
+      ctx.strokeStyle=borde; ctx.lineWidth=lw; ctx.stroke();
+      ctx.fillStyle='rgba(255,255,255,.95)';
+      _wgRedondo(ctx, bx+dx+bw*0.13, by+dy+bh*0.09, bw*0.74, bh*0.80, bw*0.06); ctx.fill();
+      ctx.strokeStyle='#c0392b'; ctx.lineWidth=Math.max(1.5,lw*1.6);
+      ctx.beginPath();
+      ctx.moveTo(cx+dx, by+dy+bh*0.24); ctx.lineTo(cx+dx, by+dy+bh*0.74);
+      ctx.moveTo(bx+dx+bw*0.26, by+dy+bh*0.49); ctx.lineTo(bx+dx+bw*0.74, by+dy+bh*0.49);
+      ctx.stroke();
+    });
   }else if(tipo==='viveres'){
-    _wgRedondo(ctx, bx, by, bw, bh, bw*0.10);
-    ctx.fillStyle=borde; ctx.fill();
-    ctx.strokeStyle=borde; ctx.lineWidth=lw; ctx.stroke();
-    ctx.fillStyle=claro; ctx.strokeStyle=_wgOscuro(color,0.5); ctx.lineWidth=Math.max(.8,lw*0.7);
-    const px=bw*0.34, py=bh*0.26;                          // la estiba, a la vista
-    for(const [fx,fy] of [[0.10,0.06],[0.54,0.06],[0.10,0.38],[0.54,0.38],[0.32,0.70]]){
-      ctx.fillRect(bx+bw*fx, by+bh*fy, px, py);
-      ctx.strokeRect(bx+bw*fx, by+bh*fy, px, py);
-    }
+    // La caja abierta: se ve el piso y, encima, la estiba en bultos.
+    volumen((ox,oy)=>_wgRedondo(ctx, bx+ox, by+oy, bw, bh, bw*0.10), L*0.045, ()=>{
+      const dx=L*0.045*PX, dy=L*0.045*PY;
+      ctx.fillStyle=_wgOscuro(color,0.48); ctx.fill();
+      ctx.strokeStyle=borde; ctx.lineWidth=lw; ctx.stroke();
+      const px=bw*0.34, py=bh*0.26, hb=L*0.055;
+      for(const [fx,fy] of [[0.09,0.05],[0.53,0.05],[0.09,0.37],[0.53,0.37],[0.31,0.69]]){
+        const qx=bx+dx+bw*fx, qy=by+dy+bh*fy;
+        volumen((ox,oy)=>{ ctx.beginPath(); ctx.rect(qx+ox, qy+oy, px, py); }, hb, ()=>{
+          ctx.fillStyle=claro; ctx.fill();
+          ctx.strokeStyle=_wgOscuro(color,0.55); ctx.lineWidth=Math.max(.8,lw*0.7); ctx.stroke();
+        });
+      }
+    });
   }else{
-    // Plataforma vacía: se le ve el piso y las barandas.
-    _wgRedondo(ctx, bx, by, bw, bh, bw*0.10);
-    ctx.fillStyle=_wgOscuro(color,0.42); ctx.fill();
-    ctx.strokeStyle=cuerpo; ctx.lineWidth=Math.max(1.4,lw*1.6); ctx.stroke();
-    ctx.strokeStyle='rgba(0,0,0,.30)'; ctx.lineWidth=Math.max(.8,lw*0.6);
-    for(const f of [0.28,0.52,0.76]){
-      ctx.beginPath(); ctx.moveTo(bx+bw*0.12, by+bh*f); ctx.lineTo(bx+bw*0.88, by+bh*f); ctx.stroke();
+    // Plataforma vacía: piso bajo y barandas levantadas.
+    volumen((ox,oy)=>_wgRedondo(ctx, bx+ox, by+oy, bw, bh, bw*0.10), L*0.030, ()=>{
+      const dx=L*0.030*PX, dy=L*0.030*PY;
+      ctx.fillStyle=_wgOscuro(color,0.44); ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,.30)'; ctx.lineWidth=Math.max(.8,lw*0.6);
+      for(const f of [0.26,0.50,0.74]){
+        ctx.beginPath(); ctx.moveTo(bx+dx+bw*0.10, by+dy+bh*f); ctx.lineTo(bx+dx+bw*0.90, by+dy+bh*f); ctx.stroke(); }
+    });
+    const hbar=L*0.075;                                     // las dos barandas
+    for(const lado of [0,1]){
+      const qx=bx+(lado? bw-bw*0.08 : 0);
+      volumen((ox,oy)=>{ ctx.beginPath(); ctx.rect(qx+ox, by+oy, bw*0.08, bh); }, hbar, ()=>{
+        ctx.fillStyle=cuerpo; ctx.fill(); });
     }
   }
 
   // CABINA, adelante. Es la que dice para dónde va el vehículo de un vistazo.
-  const cby=y0+L*0.02, cbh=L*0.29, cbw=B*1.06, cbx=cx-cbw/2;
-  _wgRedondo(ctx, cbx, cby, cbw, cbh, cbw*0.22);
-  ctx.fillStyle=cuerpo; ctx.fill();
-  ctx.strokeStyle=borde; ctx.lineWidth=lw; ctx.stroke();
-  // parabrisas: se ensancha hacia atrás, así el morro se lee solo
-  ctx.beginPath();
-  ctx.moveTo(cbx+cbw*0.22, cby+cbh*0.34);
-  ctx.lineTo(cbx+cbw*0.78, cby+cbh*0.34);
-  ctx.lineTo(cbx+cbw*0.90, cby+cbh*0.74);
-  ctx.lineTo(cbx+cbw*0.10, cby+cbh*0.74);
-  ctx.closePath();
-  ctx.fillStyle='rgba(222,240,255,.90)'; ctx.fill();
-  // dos faros en el morro: la punta de flecha natural del vehículo
-  ctx.fillStyle='#fff6d0';
-  const fr=Math.max(1.2, A*0.085);
-  ctx.beginPath(); ctx.arc(cbx+cbw*0.20, cby+cbh*0.10, fr, 0, Math.PI*2); ctx.fill();
-  ctx.beginPath(); ctx.arc(cbx+cbw*0.80, cby+cbh*0.10, fr, 0, Math.PI*2); ctx.fill();
+  const cby=y0+L*0.02, cbh=L*0.29, cbw=B*1.06, cbx=cx-cbw/2, hCab=L*0.075;
+  volumen((ox,oy)=>_wgRedondo(ctx, cbx+ox, cby+oy, cbw, cbh, cbw*0.22), hCab, ()=>{
+    const dx=hCab*PX, dy=hCab*PY;
+    ctx.fillStyle=luzTecho(cbx+dx,cby+dy,cbw,cbh); ctx.fill();
+    ctx.strokeStyle=borde; ctx.lineWidth=lw; ctx.stroke();
+    // parabrisas: se ensancha hacia atrás, así el morro se lee solo
+    ctx.beginPath();
+    ctx.moveTo(cbx+dx+cbw*0.22, cby+dy+cbh*0.34);
+    ctx.lineTo(cbx+dx+cbw*0.78, cby+dy+cbh*0.34);
+    ctx.lineTo(cbx+dx+cbw*0.90, cby+dy+cbh*0.74);
+    ctx.lineTo(cbx+dx+cbw*0.10, cby+dy+cbh*0.74);
+    ctx.closePath();
+    ctx.fillStyle='rgba(214,238,255,.92)'; ctx.fill();
+    ctx.strokeStyle='rgba(0,0,0,.30)'; ctx.lineWidth=Math.max(.7,lw*0.6); ctx.stroke();
+  });
+  // Faros y paragolpes en el morro. Van a MEDIA altura de la cabina: al ras del
+  // suelo quedaban corridos respecto del techo y se leían como dos bolitas
+  // sueltas al costado del vehículo.
+  const fdx=hCab*PX*0.55, fdy=hCab*PY*0.55;
+  ctx.fillStyle=_wgOscuro(color,0.74);
+  _wgRedondo(ctx, cbx+fdx+cbw*0.04, cby+fdy-L*0.010, cbw*0.92, L*0.032, L*0.014); ctx.fill();
+  ctx.fillStyle='#fff8d8';
+  const fr=Math.max(1.2, A*0.070);
+  ctx.beginPath(); ctx.arc(cbx+fdx+cbw*0.20, cby+fdy+L*0.006, fr, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cbx+fdx+cbw*0.80, cby+fdy+L*0.006, fr, 0, Math.PI*2); ctx.fill();
   ctx.restore();
 }
 function _wgRedondo(ctx,x,y,w,h,r){
