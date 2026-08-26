@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.353</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.354</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -47347,34 +47347,62 @@ async function protInyectarBoton(idPantalla){
   b.onclick = ()=>window.protAbrir();
   cont.insertBefore(b, cont.children[1] || null);
 }
-/* Dónde NO va el botón: pantallas de entrada y de trámite suelto. En cualquier
-   panel de trabajo, sí. Antes era una lista blanca y se olvidaba paneles. */
+/* Dónde NO va el botón: pantallas de entrada y de trámite suelto. */
 const SIN_BOTON = /^screen-(home|cargos|login|primer-ingreso|instalar|firma|verificar|quiz-proyector|wg-invitado|protocolo)/;
 
-/* Los paneles arman su grilla después de pintar la pantalla, así que un solo
-   intento se pierde la mitad de las veces. Se reintenta un par de veces y listo. */
-function protIntentarBoton(id){
-  if(!id || SIN_BOTON.test(id)) return;
-  if(!window.currentUser) return;
-  [0, 350, 1200].forEach(ms=>setTimeout(()=>{
-    try{ protInyectarBoton(id); }catch(e){}
-  }, ms));
+/* ────────────────────────────────────────────────────────────────────────────
+   Colgarse de `showScreen` no alcanzaba: los paneles arman su grilla cuando se
+   les canta, y si el enganche llega tarde el botón no aparece nunca y no hay
+   forma de darse cuenta. Así que directamente se vigila: cada segundo se mira
+   la pantalla activa y, si tiene grilla y le falta el botón, se lo pone.
+   Cuesta nada y no se pierde ningún caso.
+   ──────────────────────────────────────────────────────────────────────────── */
+let _vigia = null;
+/* Además de la tarjeta, un ítem en el menú lateral (Panel / Cursantes /
+   Reportes / Alertas). Es el primer lugar donde uno mira, y ahí no se pierde. */
+function protInyectarNav(sec){
+  const nav = sec.querySelector('nav.bottom-nav');
+  if(!nav || nav.querySelector('.prot-nav')) return;
+  const b = document.createElement('button');
+  b.className = 'bottom-nav-item prot-nav';
+  b.innerHTML = '<span class="nav-icon">\u{1F396}\u{FE0F}</span><span class="nav-label">Protocolo</span>';
+  b.onclick = ()=>window.protAbrir();
+  nav.appendChild(b);
 }
+
+function protVigilarBoton(){
+  if(_vigia) return;
+  _vigia = setInterval(async ()=>{
+    try{
+      if(!window.currentUser) return;
+      const act = document.querySelector('.screen.active');
+      if(!act || SIN_BOTON.test(act.id)) return;
+      // los cursantes entran sólo si el encargado de Protocolo los habilitó
+      if(quienEsMiSesion().tabla === 'cursantes'){
+        const perm = await miPermisoDelPadron();
+        if(!(perm && perm.habilitado)) return;
+      }
+      protInyectarNav(act);
+      if(act.querySelector('#prot-btn-entrar')) return;
+      if(!act.querySelector('.quick-grid, .menu-container, .disc-container')) return;
+      protInyectarBoton(act.id);
+    }catch(e){}
+  }, 1000);
+}
+protVigilarBoton();
+
 (function engancharShowScreen(){
   const previo = window.showScreen;
   if(typeof previo!=='function' || previo.__prot) return;
   const nuevo = function(id){
     previo.apply(this, arguments);
-    try{ protIntentarBoton(id); }catch(e){}
+    if(id && !SIN_BOTON.test(id)) [0,300].forEach(ms=>setTimeout(()=>{
+      try{ if(window.currentUser) protInyectarBoton(id); }catch(e){}
+    }, ms));
   };
   nuevo.__prot = true;
   window.showScreen = nuevo;
 })();
-/* y si ya estamos parados en un panel cuando carga el módulo */
-setTimeout(()=>{ try{
-  const act = document.querySelector('.screen.active');
-  if(act) protIntentarBoton(act.id);
-}catch(e){} }, 800);
 
 })();
 </script>
