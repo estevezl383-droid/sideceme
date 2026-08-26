@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.351</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.353</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7742,10 +7742,23 @@ body.wg-jugando{overflow:hidden}
   las <b>propias</b> entran como <span style="color:#1f6dff">🔵 AZUL</span> y las
   <b>enemigas</b> como <span style="color:#e23b3b">🔴 ROJO</span>.
 </div>
-<input type="file" id="wg-imp-file" accept=".json,application/json" style="display:none" onchange="wgImportarEscenario(this)">
+<!-- v2.9.352 — VARIOS ARCHIVOS A LA VEZ. Sergio: «¿puedo cargar 2 o más
+     archivos JSON a la vez?». Sí, y es lo que pide el método de trabajo POR
+     CAPAS: cada G baja la suya del Generador (el G-3 la maniobra, el G-4 la
+     logística, el G-1 el personal, el G-5 los asuntos civiles) y el G-3 las
+     integra. Antes había que elegir una sola y las demás se perdían, porque
+     cada importación BORRABA la anterior. -->
+<input type="file" id="wg-imp-file" accept=".json,application/json" multiple style="display:none" onchange="wgImportarEscenario(this,false)">
+<input type="file" id="wg-imp-file-add" accept=".json,application/json" multiple style="display:none" onchange="wgImportarEscenario(this,true)">
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">
-  <button class="rg-doc" onclick="document.getElementById('wg-imp-file').click()">📂 Elegir ejercicio.json</button>
+  <button class="rg-doc" onclick="document.getElementById('wg-imp-file').click()">📂 Cargar escenario (reemplaza)</button>
+  <button class="rg-doc" onclick="document.getElementById('wg-imp-file-add').click()">➕ Agregar capa (suma)</button>
   <button class="rg-doc" onclick="wgVaciarEscenario(this)">🧹 Vaciar escenario</button>
+</div>
+<div style="font-size:10.5px;color:var(--text-muted);line-height:1.45;margin-bottom:6px">
+  Podés elegir <b>varios archivos de una vez</b> (Cmd+clic): se combinan en un solo
+  escenario. <b>Agregar capa</b> suma sin borrar lo que ya está cargado — así cada G
+  sube la suya cuando la tiene lista.
 </div>
 <div id="wg-imp-estado" style="font-size:11px;color:var(--text-muted);margin-bottom:10px"></div>
 
@@ -26757,12 +26770,16 @@ function wgPanelLogistica(){
     +`${hayUF.toFixed(1)} de ${topeUF.toFixed(0)} unidades de fuego`
     +(secos?` · <b style="color:#ff6b6b">${secos} sistema(s) SIN MUNICIÓN</b>`:'')+`</div></div>`
     +filasMun
-    // Honestidad con el dato: lo que el motor todavía no lleva, se dice.
+    // v2.9.352 — Raciones, agua y evacuación YA cuentan (v2.9.351). Lo que sigue
+    // sin modelar es el DESGASTE por no recibirlas: el tiempo todavía no da
+    // hambre ni sed. Se dice tal cual, sin inflarlo ni ocultarlo.
     +`<div class="rg-card" style="padding:9px 10px;margin-top:9px;border:1px dashed rgba(140,210,255,.3)">`
-    +`<b style="font-size:12px">🔧 Todavía sin modelar</b>`
+    +`<b style="font-size:12px">🔧 Hasta dónde llega el modelo</b>`
     +`<div class="rg-meta" style="font-size:11px;margin-top:5px;line-height:1.5">`
-    +`<b>Raciones</b> y <b>agua</b> no las lleva el motor: el tiempo no consume víveres todavía. `
-    +`Prefiero dejarlo dicho antes que mostrarte un número inventado en un tablero de logística.</div></div>`
+    +`<b>Raciones</b>, <b>agua</b> y <b>evacuación</b> SÍ cuentan: cuando llegan, la unidad `
+    +`recupera poder de combate (+8 % el sostenimiento, +15 % la evacuación, con tope en su `
+    +`poder máximo).<br>Lo que todavía NO existe es el <b>desgaste por no recibirlas</b>: `
+    +`el tiempo no da hambre ni sed. Una unidad desabastecida no se degrada sola — todavía.</div></div>`
     // ============================================================
     // v2.9.346 — LAS HERRAMIENTAS DEL G-4, ACÁ.
     // Sergio: «selecciono y no se mueve nada». No era el candado ni el 3D: sus
@@ -27733,8 +27750,19 @@ function _wgConvoyesHTML(uds){
     +`🚚 CONVOYES · abastecimiento a domicilio</div>`+botones+lista;
 }
 async function wgFormarConvoy(instalacionId, clase){
+  // ============================================================
+  // v2.9.352 — «No se pudo formar el convoy: Falta el bando».
+  // Sergio entra con su cuenta de profesor (= ÁRBITRO) y además el enlace del
+  // puesto, así que el servidor lo trata como árbitro y le pide un `bando` que
+  // este llamado nunca mandaba. De ahí el cartel, en los DOS bandos.
+  // El bando no hay ni que preguntarlo: **es el de la instalación de la que sale
+  // el convoy**. Se manda de acá, así el arreglo funciona aunque la Edge
+  // Function todavía sea la vieja.
+  // ============================================================
+  const _it=(_wgInstalaciones()||[]).find(x=>x.id===instalacionId);
+  const bando=(_it&&_it.bando) || (WG.soy==='arbitro'?_wgBandoLente():WG.soy) || undefined;
   const r=await _wgInvoke('formar_convoy',{ partida_id:WG.partidaId, clave_acceso:WG.clave,
-    instalacion_id:instalacionId, clase });
+    instalacion_id:instalacionId, clase, bando });
   if(!r.ok){
     _wgAviso('No se pudo formar el convoy: '+_rgEsc(r.error||'')
       +'<br><span style="opacity:.8">Si dice «Acción no reconocida» o «lleva Clase III o Clase V», '
@@ -31366,8 +31394,19 @@ const WG3D_EST={
   via:{col:'#ff9a2e',fill:0,w:2.4}, poblado:{col:'#ffffff',fill:0.30,w:1.2},
   vegetacion:{col:'#4f8f45',fill:0.28,w:1.0}, jurisdiccion:{col:'#b06de0',fill:0,w:1.3},
   ae:{col:'#ff3b3b',fill:0.20,w:2.4}, defensivo:{col:'#00d3a7',fill:0.14,w:2.0},
+  // ============================================================
+  // v2.9.352 — LOS EJES DEL EM, EN 3D. (⚠️ QUINTA VEZ.)
+  // Sergio: «los ejes de evacuación y abastecimiento no aparecen en 3D».
+  // Y no aparecían porque esta tabla no los tenía: `_wg3dTerrenoFC()` descarta
+  // todo tipo que no figure acá, así que el EPA y el EPE se dibujaban en 2D y
+  // en la maqueta —que es donde se juega— no existían. Con ellos entran también
+  // los CAMPOS MINADOS, que estaban en el mismo agujero: el G-3 sembraba un
+  // obstáculo y en 3D no se veía.
+  // ============================================================
+  eje_log:{col:'#ff2e6a',fill:0,w:5},
+  minado:{col:'#ff2e2e',fill:0.22,w:3},
 };
-const WG3D_DOCT=['restringido','severo','clave','ae','defensivo'];
+const WG3D_DOCT=['restringido','severo','clave','ae','defensivo','eje_log','minado'];
 const WG3D_VACIO={type:'FeatureCollection',features:[]};
 // Arma UNA colección con todo el terreno; el estilo sale de las propiedades,
 // así MapLibre pinta cada cosa con su color sin necesitar una capa por tipo.
@@ -31375,6 +31414,8 @@ function _wg3dTerrenoFC(){
   const feats=[];
   for(const t of (WG.terreno||[])){
     const e=WG3D_EST[t.tipo]; if(!e||!t.geojson) continue;
+    // v2.9.352: si el calco está apagado en el riel, tampoco se pinta en 3D.
+    if(typeof _wgCalcoVisible==='function' && !_wgCalcoVisible(t.tipo)) continue;
     feats.push({type:'Feature',geometry:t.geojson,properties:{
       _col:e.col,_fill:e.fill,_w:e.w,_tipo:t.tipo,_doct:WG3D_DOCT.includes(t.tipo)?1:0}});
   }
@@ -32281,6 +32322,33 @@ function _wg3dDatos(){
       WG.marc3d.push(mk);
     }catch(_e){}
   }
+  // ============================================================
+  // v2.9.352 — EL NOMBRE DEL EJE, TAMBIÉN EN 3D.
+  // Una línea rosa sin nombre no sirve: hay que poder decir cuál es el eje de
+  // ABASTECIMIENTO y cuál el de EVACUACIÓN. El rótulo ya salía en el 2D desde
+  // la v2.9.344; acá faltaba, como faltaba la línea misma.
+  // ============================================================
+  try{
+    if(typeof _wgCalcoVisible!=='function' || _wgCalcoVisible('eje_log')){
+      for(const t of (WG.terreno||[])){
+        if(t.tipo!=='eje_log') continue;
+        const nom=(t.geojson&&t.geojson.nom)||''; if(!nom) continue;
+        const lineas=_wgLineasDe(t.geojson); const l=lineas[0];
+        if(!l||l.length<2) continue;
+        const m=l[Math.floor(l.length/2)];
+        const corto=nom.split('—')[0].trim();
+        const el=document.createElement('div');
+        el.style.cssText='background:rgba(255,46,106,.92);color:#fff;font:800 11px Arial;'
+          +'padding:2px 7px;border-radius:9px;white-space:nowrap;pointer-events:none;'
+          +'box-shadow:0 1px 6px rgba(0,0,0,.55)';
+        el.textContent=corto; el.title=nom;
+        const mk=new maplibregl.Marker({element:el, anchor:'center'})
+          .setLngLat([m[0],m[1]]).addTo(map);
+        try{ mk.getElement().style.zIndex='2'; }catch(_e){}
+        WG.marc3d.push(mk);
+      }
+    }
+  }catch(_e){}
   // v2.9.227 — RÓTULOS EN GLOBO. Van como marcadores del DOM, no como capa de
   // texto: así llevan el mismo bocadillo translúcido que el 2D, con su rabito
   // apuntando al punto que describen.
@@ -33010,12 +33078,13 @@ function _wgFasesCOA(d){
   return out;
 }
 // Muestra los cursos de acción disponibles y espera la elección del árbitro.
-function _wgPreguntarFase(fases, poner){
+function _wgPreguntarFase(fases, poner, archivo){
   return new Promise((resolve)=>{
     const filas=fases.map((f,i)=>
       `<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-bottom:4px" data-fase="${i}">`
       +`${f.nombre} — ${f.n} unidad(es)</button>`).join('');
-    poner(`<b>¿Qué curso de acción querés jugar?</b><br>`
+    poner(`<b>¿Qué curso de acción querés jugar?</b>`
+      +(archivo?` <span class="rg-meta">— ${_rgEsc(archivo)}</span>`:'')+`<br>`
       +`<span class="rg-meta">El ejercicio tiene ${fases.length} fase(s) guardadas. Cada una tiene las unidades en la posición de ESA fase.</span>`
       +`<div style="margin-top:8px">`
       +`<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-bottom:4px" data-fase="viva">📍 Estado actual del ejercicio (como quedó abierto)</button>`
@@ -33198,29 +33267,68 @@ function _wgEscenarioDesde(d, fase){
   return { unidades, terreno, visuales, instalaciones, sinEfecto, ejes,
     nombre:(d&&d.nombre)||'', fase:(fase?fase.nombre:null) };
 }
-async function wgImportarEscenario(inp){
-  const f=inp&&inp.files&&inp.files[0]; if(!f) return;
+// ============================================================
+// v2.9.352 — VARIOS ARCHIVOS, Y LA OPCIÓN DE SUMAR SIN BORRAR.
+// Sergio: «¿puedo cargar 2 o más archivos JSON a la vez?».
+// Sí — y hacía falta, porque el método de trabajo ya decidido es POR CAPAS:
+// cada G baja la suya del Generador y el G-3 integra. Con una sola importación
+// por vez, y borrando siempre lo anterior, ese método era imposible: la capa
+// del G-4 borraba la del G-3.
+//   • `sumar=false` (Cargar escenario) → la primera tanda limpia, como siempre.
+//   • `sumar=true`  (Agregar capa)     → no limpia nada: se apila encima.
+// Los archivos se leen TODOS primero y se combinan en un solo escenario, así
+// una tanda a medio camino no deja la partida rota.
+// ============================================================
+async function wgImportarEscenario(inp, sumar){
+  const files=[...((inp&&inp.files)||[])]; if(!files.length) return;
   inp.value=''; // permite volver a elegir el MISMO archivo
   const est=document.getElementById('wg-imp-estado');
   const poner=(t)=>{ if(est) est.innerHTML=t; };
   if(WG.soy!=='arbitro'){ poner('❌ Sólo el árbitro importa el escenario.'); return; }
-  poner('⏳ Leyendo <b>'+_rgEsc(f.name)+'</b> ('+_wgPeso(f.size)+')…');
-  let d;
-  try{ d=JSON.parse(await f.text()); }
-  catch(e){ poner('❌ Ese archivo no es un JSON válido. Buscá el <b>ejercicio.json</b> dentro de la carpeta del ejercicio.'); return; }
-  // v2.9.292 — ELEGIR EL CURSO DE ACCIÓN. El Generador guarda cada fase del COA
-  // con las unidades en su posición de esa fase, y además el «estado vivo», que
-  // es la fase que quedó abierta. El importador tomaba ese estado vivo, así que
-  // SIEMPRE traía la última fase. Ahora se elige cuál se quiere jugar.
-  const fases=_wgFasesCOA(d);
-  let faseElegida=null;
-  if(fases.length){
-    faseElegida = await _wgPreguntarFase(fases, poner);
-    if(faseElegida===undefined){ poner('Importación cancelada.'); return; }
+  // 1) Leer y traducir CADA archivo. La fase del COA se pregunta por archivo:
+  //    la capa del G-4 puede estar guardada en otra fase que la del G-3.
+  const partes=[];
+  for(const f of files){
+    poner('⏳ Leyendo <b>'+_rgEsc(f.name)+'</b> ('+_wgPeso(f.size)+')…'
+      +(files.length>1?` <span class="rg-meta">— archivo ${partes.length+1} de ${files.length}</span>`:''));
+    let d;
+    try{ d=JSON.parse(await f.text()); }
+    catch(e){ poner('❌ <b>'+_rgEsc(f.name)+'</b> no es un JSON válido. Buscá el <b>ejercicio.json</b> dentro de la carpeta del ejercicio.'); return; }
+    // v2.9.292 — ELEGIR EL CURSO DE ACCIÓN. El Generador guarda cada fase del COA
+    // con las unidades en su posición de esa fase, y además el «estado vivo», que
+    // es la fase que quedó abierta. El importador tomaba ese estado vivo, así que
+    // SIEMPRE traía la última fase. Ahora se elige cuál se quiere jugar.
+    const fases=_wgFasesCOA(d);
+    let faseElegida=null;
+    if(fases.length){
+      faseElegida = await _wgPreguntarFase(fases, poner, files.length>1?f.name:null);
+      if(faseElegida===undefined){ poner('Importación cancelada.'); return; }
+    }
+    partes.push({ nombre:f.name, esc:_wgEscenarioDesde(d, faseElegida) });
   }
-  const esc=_wgEscenarioDesde(d, faseElegida);
+  // 2) Combinar en UN escenario. Cada capa aporta lo suyo y nada se pisa.
+  const esc={ unidades:[], terreno:[], visuales:0, instalaciones:[], sinEfecto:[], ejes:0,
+              nombre:'', fase:null };
+  const detalle=[];
+  for(const p of partes){
+    const e=p.esc;
+    esc.unidades.push(...(e.unidades||[]));
+    esc.terreno.push(...(e.terreno||[]));
+    esc.instalaciones.push(...(e.instalaciones||[]));
+    esc.sinEfecto.push(...(e.sinEfecto||[]));
+    esc.visuales += (e.visuales||0);
+    esc.ejes += (e.ejes||0);
+    if(!esc.nombre && e.nombre) esc.nombre=e.nombre;
+    if(!esc.fase && e.fase) esc.fase=e.fase;
+    detalle.push(`  · ${p.nombre}: ${(e.unidades||[]).length} unidad(es), `
+      +`${(e.terreno||[]).length} elemento(s) de carta`
+      +((e.instalaciones||[]).length?`, ${(e.instalaciones||[]).length} instalación(es)`:'')
+      +((e.ejes||0)?`, ${e.ejes} eje(s)`:''));
+  }
+  esc.sinEfecto=[...new Set(esc.sinEfecto)];
   if(!esc.unidades.length && !esc.terreno.length){
-    poner('❌ No encontré ni unidades ni terreno (CMOC) en ese archivo. ¿Es el ejercicio.json del Generador?'); return;
+    poner('❌ No encontré ni unidades ni terreno (CMOC) en '+(files.length>1?'esos archivos':'ese archivo')
+      +'. ¿Es el ejercicio.json del Generador?'); return;
   }
   const nCmoc=esc.terreno.length-(esc.visuales||0);
   const enCurso = !!(WG.estado&&WG.estado.partida&&WG.estado.partida.estado==='en_curso');
@@ -33231,8 +33339,16 @@ async function wgImportarEscenario(inp){
     +((esc.sinEfecto&&esc.sinEfecto.length)
       ? `\n\nNO se cargan ${esc.sinEfecto.length} instalación(es) que todavía no tienen efecto en el juego:\n${esc.sinEfecto.slice(0,10).join(', ')}${esc.sinEfecto.length>10?'…':''}`
       : '');
-  if(!confirm(`Se va a REEMPLAZAR el escenario de esta partida por el del archivo:\n\n${esc.nombre||f.name}${esc.fase?('\n'+esc.fase):''}\n\n${resumen}\n\nSe borran las unidades y el terreno que tenga ahora la partida.`
-    +(enCurso?`\n\n⚠️ La partida está EN CURSO: reemplazar el escenario es empezar de nuevo, así que vuelve a PLANIFICACIÓN (turno 0) y se borran las órdenes, la bitácora y las detecciones.`:'')
+  const titulo = files.length>1
+    ? `${files.length} archivos:\n${detalle.join('\n')}`
+    : `${esc.nombre||partes[0].nombre}${esc.fase?('\n'+esc.fase):''}`;
+  const cab = sumar
+    ? `Se va a AGREGAR al escenario de esta partida, SIN borrar nada de lo que ya está:`
+    : `Se va a REEMPLAZAR el escenario de esta partida por:`;
+  if(!confirm(`${cab}\n\n${titulo}\n\n${resumen}\n\n`
+    +(sumar ? `Lo que ya está cargado se conserva. Si subís dos veces la misma capa vas a tener todo duplicado — para rehacerla, usá «Cargar escenario».`
+            : `Se borran las unidades y el terreno que tenga ahora la partida.`)
+    +((!sumar && enCurso)?`\n\n⚠️ La partida está EN CURSO: reemplazar el escenario es empezar de nuevo, así que vuelve a PLANIFICACIÓN (turno 0) y se borran las órdenes, la bitácora y las detecciones.`:'')
     +`\n\n¿Seguimos?`)){
     poner('Importación cancelada.'); return;
   }
@@ -33252,7 +33368,7 @@ async function wgImportarEscenario(inp){
     poner(`⏳ Enviando tanda ${i+1} de ${tandas.length}… (${totT} polígonos ya cargados)`);
     const r=await _wgInvoke('importar_escenario',{
       partida_id:WG.partidaId,
-      limpiar: i===0,                          // la primera tanda borra lo anterior
+      limpiar: (i===0 && !sumar),               // v2.9.352: «Agregar capa» no borra nada
       unidades: i===0?esc.unidades:[],         // las unidades van todas en la primera
       terreno: tandas[i],
     });
@@ -45249,5 +45365,1772 @@ function renderPlanifPanel(){
   build(); addEventListener('resize',build); requestAnimationFrame(loop);
 })();
 </script>
+
+<!-- ══════════════════════════════════════════════════════════════════════════
+     SIDECEME · SECCIÓN 6 — PROTOCOLO Y CEREMONIAL          (v2.9.353)
+     Módulo NUEVO y AISLADO. Todo va prefijado `pr-` / `prot-` / `PROT`.
+     No toca ni un selector de disciplina, académico, horarios ni sanciones.
+     ══════════════════════════════════════════════════════════════════════════ -->
+<style id="prot-css">
+#screen-protocolo{
+  --pr-laton:#d4a84a; --pr-laton-claro:#f0d28a; --pr-laton-hondo:#6e521a;
+  --pr-tinta:#e8e3d4; --pr-tinta2:#a8a092; --pr-tinta3:#75705f;
+  --pr-panel:#151a26; --pr-panel2:#1c2231; --pr-linea:rgba(212,168,74,.22);
+  --pr-linea2:rgba(212,168,74,.45);
+  --pr-verde:#5fae7d; --pr-rojo:#c2565a; --pr-esposa:#d98fb4;
+  --pr-z:1;                    /* factor de zoom del plano */
+  --pr-butaca:30px;            /* lado de la butaca a zoom 1 */
+  color:var(--pr-tinta);
+  font-family:var(--font-body,system-ui,sans-serif);
+}
+
+/* ───────────── armazón: 2 columnas en PC, 1 columna en celular ───────────── */
+#prot-wrap{ display:grid; grid-template-columns:326px minmax(0,1fr); gap:14px;
+  padding:12px 14px 20px; align-items:start; }
+#prot-rail{ position:sticky; top:var(--pr-cab,86px); max-height:calc(100vh - var(--pr-cab,86px) - 12px);
+  display:flex; flex-direction:column; min-height:0;
+  background:var(--pr-panel); border:1px solid var(--pr-linea); border-radius:12px; overflow:hidden; }
+#prot-escena{ min-width:0; display:flex; flex-direction:column; gap:14px; }
+
+/* ───────────── tira de actos ───────────── */
+#prot-actos{ display:flex; gap:8px; overflow-x:auto; padding:10px 14px 4px;
+  scrollbar-width:none; -webkit-overflow-scrolling:touch; }
+#prot-actos::-webkit-scrollbar{ display:none }
+.pr-acto{ flex:0 0 auto; min-width:158px; text-align:left; cursor:pointer;
+  background:linear-gradient(180deg,#1c2231,#141926); color:var(--pr-tinta2);
+  border:1px solid var(--pr-linea); border-radius:10px; padding:8px 12px; line-height:1.25;
+  transition:.15s; }
+.pr-acto b{ display:block; font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--pr-laton); }
+.pr-acto span{ display:block; font-size:13.5px; font-weight:700; color:var(--pr-tinta); margin:1px 0 1px; }
+.pr-acto i{ display:block; font-size:10.5px; font-style:normal; color:var(--pr-tinta3); }
+.pr-acto[aria-selected="true"]{ border-color:var(--pr-laton); color:var(--pr-tinta);
+  background:linear-gradient(180deg,#2a3145,#1a1f2d); box-shadow:0 0 0 1px rgba(212,168,74,.25) inset; }
+
+/* ───────────── bloques ───────────── */
+.pr-bloque{ background:var(--pr-panel); border:1px solid var(--pr-linea); border-radius:12px; overflow:hidden; }
+.pr-bloque-cab{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:space-between;
+  padding:9px 13px; background:linear-gradient(180deg,#1e2432,#171c28); border-bottom:1px solid var(--pr-linea); }
+.pr-bloque-cab h3{ margin:0; font-size:13px; font-weight:800; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--pr-laton-claro); font-family:var(--font-display,Georgia,serif); }
+.pr-nota{ font-size:11.5px; color:var(--pr-tinta3); display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.pr-cuerpo{ padding:13px }
+
+/* ───────────── botones ───────────── */
+.pr-btn{ background:linear-gradient(180deg,#232a3a,#171c28); color:var(--pr-tinta);
+  border:1px solid var(--pr-linea); border-radius:8px; padding:6px 11px; font-size:12px;
+  font-weight:600; cursor:pointer; font-family:inherit; white-space:nowrap; transition:.12s; }
+.pr-btn:hover{ border-color:var(--pr-linea2); color:#fff }
+.pr-btn:active{ transform:translateY(1px) }
+.pr-btn.pri{ background:linear-gradient(180deg,var(--pr-laton),#a07a2c); color:#1a1206; border-color:var(--pr-laton-claro); }
+.pr-btn.chico{ padding:3px 8px; font-size:11px }
+.pr-btn[disabled]{ opacity:.4; cursor:not-allowed }
+
+/* ───────────── autoridad que preside ───────────── */
+#prot-autoridad{ display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center;
+  padding:11px 13px; background:linear-gradient(135deg,rgba(212,168,74,.11),rgba(212,168,74,.02));
+  border:1px solid var(--pr-linea2); border-radius:12px; }
+#prot-autoridad .et{ font-size:9.5px; letter-spacing:.19em; text-transform:uppercase; color:var(--pr-laton); }
+#prot-autoridad .nm{ font-size:16px; font-weight:800; color:#fff; line-height:1.2; margin:1px 0 }
+#prot-autoridad .cg{ font-size:11px; color:var(--pr-tinta2); line-height:1.3 }
+#prot-aut-nota{ grid-column:1/-1; font-size:11.5px; color:var(--pr-tinta2); line-height:1.45;
+  border-top:1px dashed var(--pr-linea); padding-top:7px }
+#prot-aut-nota b{ color:var(--pr-laton-claro) }
+.pr-techo{ display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--pr-tinta2); cursor:pointer;
+  user-select:none; }
+.pr-techo input{ width:16px; height:16px; accent-color:var(--pr-laton); cursor:pointer }
+
+/* ───────────── nómina (rail) ───────────── */
+.pr-rail-cab{ padding:10px 11px 8px; border-bottom:1px solid var(--pr-linea); background:#171c28 }
+.pr-rail-tit{ font-size:11px; letter-spacing:.15em; text-transform:uppercase; color:var(--pr-laton);
+  font-weight:800; display:flex; justify-content:space-between; align-items:center; margin-bottom:7px }
+.pr-buscar{ width:100%; background:#0e1119; border:1px solid var(--pr-linea); border-radius:8px;
+  color:var(--pr-tinta); padding:7px 10px; font-size:12.5px; font-family:inherit; }
+.pr-buscar:focus{ outline:none; border-color:var(--pr-laton) }
+.pr-chips{ display:flex; gap:5px; overflow-x:auto; padding:8px 0 2px; scrollbar-width:none }
+.pr-chips::-webkit-scrollbar{ display:none }
+.pr-chip{ flex:0 0 auto; background:#11151f; border:1px solid var(--pr-linea); color:var(--pr-tinta3);
+  border-radius:999px; padding:3px 10px; font-size:10.5px; cursor:pointer; white-space:nowrap; font-family:inherit }
+.pr-chip[aria-pressed="true"]{ background:var(--pr-laton); color:#1a1206; border-color:var(--pr-laton); font-weight:700 }
+.pr-marcador{ display:flex; gap:10px; flex-wrap:wrap; font-size:10.5px; color:var(--pr-tinta3); margin-top:8px }
+.pr-marcador b{ color:var(--pr-tinta); font-size:12px }
+.pr-marcador .aus b{ color:var(--pr-rojo) }
+#prot-lista{ overflow-y:auto; flex:1; min-height:0; -webkit-overflow-scrolling:touch }
+.pr-grupo{ position:sticky; top:0; z-index:2; background:#10141d; color:var(--pr-laton);
+  font-size:9.5px; letter-spacing:.15em; text-transform:uppercase; font-weight:800;
+  padding:5px 11px; border-top:1px solid var(--pr-linea); border-bottom:1px solid var(--pr-linea) }
+.pr-fila{ display:grid; grid-template-columns:30px 1fr; gap:8px; padding:7px 11px;
+  border-bottom:1px solid rgba(255,255,255,.045); align-items:start }
+.pr-fila:hover{ background:rgba(212,168,74,.05) }
+.pr-fila.aus{ opacity:.42 }
+.pr-fila.aus .pr-ord{ color:var(--pr-rojo) }
+.pr-fila.destacado{ background:rgba(212,168,74,.16); box-shadow:inset 3px 0 0 var(--pr-laton) }
+.pr-ord{ font-family:ui-monospace,monospace; font-size:12px; font-weight:700; color:var(--pr-laton);
+  text-align:right; padding-top:2px }
+.pr-nom{ font-size:12.5px; line-height:1.3; color:var(--pr-tinta) }
+.pr-nom .gr{ color:var(--pr-tinta3); font-weight:400 }
+.pr-car{ font-size:10.5px; color:var(--pr-tinta3); line-height:1.3; margin-top:1px }
+.pr-donde{ font-size:10.5px; color:var(--pr-laton); margin-top:2px; font-weight:600 }
+.pr-acciones{ display:flex; gap:4px; margin-top:5px; flex-wrap:wrap }
+.pr-mini{ background:#11151f; border:1px solid var(--pr-linea); color:var(--pr-tinta3);
+  border-radius:6px; width:24px; height:24px; font-size:11px; cursor:pointer; padding:0; font-family:inherit;
+  display:inline-flex; align-items:center; justify-content:center }
+.pr-mini:hover{ border-color:var(--pr-laton); color:var(--pr-laton) }
+.pr-mini.on{ background:var(--pr-laton); color:#1a1206; border-color:var(--pr-laton) }
+.pr-mini.esp.on{ background:var(--pr-esposa); border-color:var(--pr-esposa); color:#2a0e1c }
+.pr-tog{ flex:1; min-width:76px; border-radius:6px; border:1px solid; font-size:9.5px; font-weight:800;
+  letter-spacing:.08em; cursor:pointer; padding:4px 6px; font-family:inherit; height:24px }
+.pr-tog.presente{ background:rgba(95,174,125,.14); border-color:rgba(95,174,125,.5); color:var(--pr-verde) }
+.pr-tog.ausente{ background:rgba(194,86,90,.14); border-color:rgba(194,86,90,.5); color:var(--pr-rojo) }
+.pr-tog.jerarquia{ background:rgba(255,255,255,.05); border-color:rgba(255,255,255,.14); color:var(--pr-tinta3); cursor:not-allowed }
+
+/* ───────────── la tarima: muro, pabellón y testera ───────────── */
+.pr-tarima{ background:linear-gradient(180deg,#0d1017,#141926); border:1px solid var(--pr-linea);
+  border-radius:12px; padding:0 0 10px; overflow:hidden }
+.pr-tarima-tit{ text-align:center; font-size:10px; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--pr-laton); padding:7px 10px; border-bottom:1px solid var(--pr-linea); background:#11151f }
+.pr-muro{ display:flex; align-items:flex-end; justify-content:center; gap:clamp(10px,4vw,44px);
+  padding:14px 10px 8px; background:
+    linear-gradient(180deg,rgba(212,168,74,.05),transparent 70%),
+    repeating-linear-gradient(90deg,#171b25 0 38px,#141822 38px 40px); }
+.pr-pabellon{ position:relative; width:clamp(56px,14vw,82px); height:clamp(40px,10vw,56px);
+  display:flex; flex-direction:column; border-radius:3px; overflow:hidden;
+  box-shadow:0 3px 10px rgba(0,0,0,.6); border:1px solid rgba(255,255,255,.14) }
+.pr-pabellon i{ flex:1 }
+.pr-pabellon i:nth-child(1){ background:#d52b1e }
+.pr-pabellon i:nth-child(2){ background:#f9e300 }
+.pr-pabellon i:nth-child(3){ background:#007934 }
+.pr-pabellon .esc{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-size:7px; font-weight:900; letter-spacing:.09em; color:#5a3a10; text-shadow:0 1px 0 rgba(255,255,255,.35) }
+.pr-estandartes{ display:flex; gap:5px; align-items:flex-end }
+.pr-est{ width:clamp(9px,2.4vw,14px); height:clamp(30px,8vw,46px); border-radius:2px 2px 0 0;
+  box-shadow:0 2px 6px rgba(0,0,0,.5); border:1px solid rgba(255,255,255,.12) }
+.pr-est.nac{ background:linear-gradient(180deg,#d52b1e 33%,#f9e300 33% 66%,#007934 66%) }
+.pr-est.vb{ background:linear-gradient(180deg,#0f7d3d 50%,#f2f2f2 50%) }
+.pr-est.vd{ background:#12703a }
+.pr-est.az{ background:#1c3f86 }
+.pr-est.ce{ background:#4a9fd8 }
+
+/* testera: carril horizontal con arrastre */
+.pr-testera{ display:flex; gap:9px; padding:12px 14px 6px; overflow-x:auto; scroll-snap-type:x proximity;
+  -webkit-overflow-scrolling:touch; scrollbar-width:thin }
+.pr-testera::-webkit-scrollbar{ height:7px }
+.pr-testera::-webkit-scrollbar-thumb{ background:var(--pr-laton-hondo); border-radius:4px }
+.pr-puesto{ flex:0 0 auto; width:clamp(96px,11vw,124px); scroll-snap-align:center; text-align:center; scroll-margin-top:var(--pr-salto,110px);
+  cursor:pointer; border-radius:9px; padding:5px 4px 6px; border:1px solid transparent; transition:.14s }
+.pr-puesto:hover{ background:rgba(212,168,74,.07); border-color:var(--pr-linea) }
+.pr-puesto.honor{ background:linear-gradient(180deg,rgba(212,168,74,.2),rgba(212,168,74,.03));
+  border-color:var(--pr-laton); box-shadow:0 0 16px rgba(212,168,74,.2) }
+.pr-puesto.libre{ opacity:.5 }
+.pr-puesto.destacado{ background:rgba(212,168,74,.28); border-color:var(--pr-laton-claro) }
+.pr-np{ font-size:9px; letter-spacing:.13em; font-weight:800; color:var(--pr-laton); display:block; margin-bottom:2px }
+.pr-puesto.honor .pr-np{ color:var(--pr-laton-claro) }
+.pr-silla{ width:100%; height:auto; max-height:74px; display:block }
+.pr-silla .marco{ fill:#3a3020; stroke:var(--pr-laton-hondo); stroke-width:1 }
+.pr-silla .tap{ fill:#7c2230 }
+.pr-silla .pata{ fill:#2a2316 }
+.pr-puesto.honor .pr-silla .marco{ fill:#7a5c1e; stroke:var(--pr-laton-claro) }
+.pr-puesto.honor .pr-silla .tap{ fill:#a8323f }
+.pr-placa{ font-size:9px; line-height:1.2; color:var(--pr-tinta2); margin-top:3px; min-height:22px;
+  display:flex; align-items:center; justify-content:center; text-align:center }
+.pr-chapa{ margin-top:3px; font-size:9px; font-weight:700; line-height:1.2; padding:3px 3px;
+  background:linear-gradient(180deg,var(--pr-laton),#8a6a24); color:#1a1206; border-radius:3px;
+  border:1px solid var(--pr-laton-claro); min-height:24px; display:flex; align-items:center; justify-content:center }
+.pr-piso{ height:9px; background:linear-gradient(180deg,#4a3a1e,#241c0e); border-top:1px solid var(--pr-laton-hondo);
+  margin:6px 12px 0; border-radius:2px }
+.pr-tarima-pie{ text-align:center; font-size:10px; color:var(--pr-tinta3); padding:7px 10px 0; font-style:italic }
+.pr-lados{ display:flex; justify-content:space-between; font-size:10px; letter-spacing:.09em;
+  color:var(--pr-laton); padding:7px 4px 0; font-weight:700 }
+
+/* ───────────── plano de butacas con zoom ───────────── */
+.pr-zoombar{ display:flex; gap:6px; align-items:center; flex-wrap:wrap }
+.pr-plano{ overflow:auto; -webkit-overflow-scrolling:touch; max-height:min(62vh,560px);
+  background:radial-gradient(ellipse at top,#131824,#0b0e15); border-radius:10px;
+  border:1px solid rgba(255,255,255,.05); padding:12px }
+.pr-escenario{ margin:0 auto 12px; max-width:640px; text-align:center; font-size:9.5px; letter-spacing:.2em;
+  text-transform:uppercase; color:#1a1206; font-weight:800; padding:5px;
+  background:linear-gradient(180deg,var(--pr-laton),#8a6a24); border-radius:4px }
+.pr-bfila{ display:flex; align-items:center; gap:8px; margin-bottom:calc(6px*var(--pr-z)); justify-content:center }
+.pr-bfila-et{ flex:0 0 auto; width:calc(46px*var(--pr-z)); min-width:26px; text-align:right;
+  font-size:calc(10px*var(--pr-z)); color:var(--pr-tinta3); font-weight:700; letter-spacing:.05em }
+.pr-asientos{ display:flex; gap:calc(4px*var(--pr-z)) }
+.pr-b{ flex:0 0 auto; scroll-margin-top:var(--pr-salto,110px); width:calc(var(--pr-butaca)*var(--pr-z)); height:calc(var(--pr-butaca)*var(--pr-z));
+  border-radius:calc(5px*var(--pr-z)) calc(5px*var(--pr-z)) calc(2px*var(--pr-z)) calc(2px*var(--pr-z));
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+  font-size:calc(10px*var(--pr-z)); font-weight:700; font-family:ui-monospace,monospace;
+  background:#1a1f2b; border:1px solid rgba(255,255,255,.08); color:#4e5668; transition:.1s }
+.pr-b.ocupado{ background:linear-gradient(180deg,#2f3a52,#1e2635); border-color:rgba(140,190,255,.4); color:#cfe2ff }
+.pr-b.esposa{ background:linear-gradient(180deg,#5a2f45,#3a1d2c); border-color:var(--pr-esposa); color:#f7d6e6 }
+.pr-b.testera{ background:linear-gradient(180deg,var(--pr-laton),#8a6a24); border-color:var(--pr-laton-claro); color:#1a1206 }
+.pr-b.fijado{ box-shadow:0 0 0 2px var(--pr-laton-claro) }
+.pr-b.destacado{ box-shadow:0 0 0 3px #fff, 0 0 14px 4px var(--pr-laton); z-index:3; position:relative }
+.pr-b:hover{ transform:scale(1.14); z-index:4; position:relative; border-color:var(--pr-laton) }
+.pr-frente{ text-align:center; font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--pr-laton); padding:8px 0; border-top:1px dashed var(--pr-linea); margin-top:8px }
+
+/* ───────────── plano nominal (quién en cada butaca) ───────────── */
+.pr-nominal{ margin-bottom:12px }
+.pr-nominal-tit{ font-size:10.5px; letter-spacing:.13em; text-transform:uppercase; color:var(--pr-laton);
+  font-weight:800; padding:5px 0; border-bottom:1px solid var(--pr-linea); margin-bottom:6px }
+.pr-chips-b{ display:grid; grid-template-columns:repeat(auto-fill,minmax(148px,1fr)); gap:5px }
+.pr-chb{ display:flex; gap:6px; align-items:center; background:#151a26; border:1px solid rgba(255,255,255,.06);
+  border-radius:6px; padding:4px 7px; font-size:11px; cursor:pointer; min-width:0 }
+.pr-chb:hover{ border-color:var(--pr-laton) }
+.pr-chb b{ flex:0 0 auto; font-family:ui-monospace,monospace; color:var(--pr-laton); font-size:11px; min-width:20px }
+.pr-chb span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--pr-tinta2) }
+.pr-chb.libre span{ color:var(--pr-tinta3); font-style:italic }
+.pr-chb.esposa{ border-color:rgba(217,143,180,.4) } .pr-chb.esposa span{ color:#eec3d9 }
+.pr-chb.fijado b:after{ content:' 🔒' }
+.pr-chb.destacado{ background:rgba(212,168,74,.22); border-color:var(--pr-laton) }
+
+/* ───────────── formación / ofrenda / fila de uno ───────────── */
+.pr-linea-form{ display:flex; flex-wrap:wrap; gap:7px; justify-content:center; padding:8px 0 }
+.pr-plaza{ flex:0 0 auto; scroll-margin-top:var(--pr-salto,110px); width:clamp(128px,17vw,176px); background:linear-gradient(180deg,#1d2331,#151a26);
+  border:1px solid var(--pr-linea); border-radius:9px; padding:7px 9px; cursor:pointer; transition:.14s }
+.pr-plaza:hover{ border-color:var(--pr-laton) }
+.pr-plaza.honor{ background:linear-gradient(180deg,rgba(212,168,74,.22),rgba(212,168,74,.04));
+  border-color:var(--pr-laton); box-shadow:0 0 14px rgba(212,168,74,.18) }
+.pr-plaza.libre{ opacity:.45; border-style:dashed }
+.pr-plaza.destacado{ background:rgba(212,168,74,.28); border-color:var(--pr-laton-claro) }
+.pr-plaza .idx{ font-size:8.5px; letter-spacing:.13em; font-weight:800; color:var(--pr-laton); margin-bottom:2px }
+.pr-plaza .n{ font-size:12px; font-weight:700; line-height:1.25; color:var(--pr-tinta) }
+.pr-plaza .c{ font-size:9.5px; color:var(--pr-tinta3); line-height:1.25; margin-top:2px }
+.pr-rango{ margin-bottom:10px }
+.pr-rango-et{ font-size:10px; letter-spacing:.13em; text-transform:uppercase; color:var(--pr-tinta3);
+  text-align:center; padding:5px 0; border-bottom:1px dashed var(--pr-linea) }
+
+/* ───────────── tablas ───────────── */
+.pr-tabla{ width:100%; border-collapse:collapse; font-size:12px }
+.pr-tabla th{ background:#11151f; color:var(--pr-laton); font-size:9.5px; letter-spacing:.13em;
+  text-transform:uppercase; padding:6px 9px; text-align:left; border-bottom:1px solid var(--pr-linea);
+  position:sticky; top:0; z-index:1 }
+.pr-tabla td{ padding:6px 9px; border-bottom:1px solid rgba(255,255,255,.05); vertical-align:top }
+.pr-tabla tr:hover td{ background:rgba(212,168,74,.05) }
+.pr-tabla .num{ font-family:ui-monospace,monospace; color:var(--pr-laton); width:38px; font-weight:700 }
+.pr-tabla .ub{ color:var(--pr-laton-claro); font-size:11px; white-space:nowrap }
+.pr-tabla .cg{ font-size:10px; color:var(--pr-tinta3); line-height:1.3 }
+.pr-scroll{ max-height:min(56vh,520px); overflow:auto; -webkit-overflow-scrolling:touch }
+
+/* ───────────── novedades ───────────── */
+.pr-nov{ display:flex; gap:8px; padding:6px 10px; border-bottom:1px solid rgba(255,255,255,.05); font-size:11.5px; line-height:1.4 }
+.pr-nov .hora{ flex:0 0 auto; font-family:ui-monospace,monospace; color:var(--pr-tinta3); font-size:10.5px; padding-top:1px }
+.pr-nov.baja{ background:rgba(194,86,90,.06); box-shadow:inset 2px 0 0 var(--pr-rojo) }
+.pr-nov.alta{ background:rgba(95,174,125,.06); box-shadow:inset 2px 0 0 var(--pr-verde) }
+.pr-nov b{ color:var(--pr-tinta) }
+
+/* ───────────── avisos ───────────── */
+.pr-aviso{ margin-top:10px; font-size:11.5px; line-height:1.5; color:var(--pr-tinta2);
+  background:rgba(212,168,74,.07); border-left:3px solid var(--pr-laton); border-radius:0 7px 7px 0; padding:8px 11px }
+.pr-aviso b{ color:var(--pr-laton-claro) }
+.pr-alerta{ background:rgba(194,86,90,.1); border-left-color:var(--pr-rojo) }
+.pr-alerta b{ color:#ee9a9d }
+.pr-vacio{ padding:22px 14px; text-align:center; color:var(--pr-tinta3); font-size:12px; font-style:italic }
+
+/* ───────────── hoja inferior: elegir ocupante ───────────── */
+#prot-hoja{ position:fixed; inset:0; z-index:10050; display:none }
+#prot-hoja.abierta{ display:block }
+#prot-hoja .velo{ position:absolute; inset:0; background:rgba(3,6,12,.72); backdrop-filter:blur(3px) }
+#prot-hoja .caja{ position:absolute; left:50%; transform:translateX(-50%); bottom:0; width:min(560px,100%);
+  max-height:88vh; display:flex; flex-direction:column;
+  background:var(--pr-panel2); border:1px solid var(--pr-linea2); border-radius:16px 16px 0 0;
+  box-shadow:0 -12px 44px rgba(0,0,0,.7) }
+#prot-hoja .tirador{ width:42px; height:4px; background:var(--pr-tinta3); border-radius:3px; margin:9px auto 3px }
+#prot-hoja .cab{ padding:6px 15px 10px; border-bottom:1px solid var(--pr-linea) }
+#prot-hoja .cab .t{ font-size:10px; letter-spacing:.15em; text-transform:uppercase; color:var(--pr-laton); font-weight:800 }
+#prot-hoja .cab .q{ font-size:15px; font-weight:800; color:#fff; margin-top:2px; line-height:1.25 }
+#prot-hoja .cab .c{ font-size:11px; color:var(--pr-tinta2); line-height:1.3; margin-top:1px }
+#prot-hoja .acc{ display:flex; gap:6px; flex-wrap:wrap; padding:9px 15px; border-bottom:1px solid var(--pr-linea) }
+#prot-hoja .bus{ padding:9px 15px }
+#prot-hoja .op{ overflow-y:auto; flex:1; min-height:0; -webkit-overflow-scrolling:touch; padding-bottom:14px }
+.pr-op{ display:grid; grid-template-columns:1fr auto; gap:8px; align-items:center; padding:9px 15px;
+  border-bottom:1px solid rgba(255,255,255,.05); cursor:pointer }
+.pr-op:hover,.pr-op:focus{ background:rgba(212,168,74,.1); outline:none }
+.pr-op .n{ font-size:12.5px; color:var(--pr-tinta); line-height:1.3 }
+.pr-op .c{ font-size:10px; color:var(--pr-tinta3); line-height:1.3; margin-top:1px }
+.pr-op .tag{ font-size:9px; font-weight:800; letter-spacing:.07em; padding:2px 7px; border-radius:999px;
+  border:1px solid; white-space:nowrap }
+.pr-op .tag.aqui{ background:var(--pr-laton); color:#1a1206; border-color:var(--pr-laton) }
+.pr-op .tag.aus{ background:rgba(194,86,90,.16); color:#ee9a9d; border-color:rgba(194,86,90,.5) }
+.pr-op .tag.esp{ background:rgba(217,143,180,.16); color:#eec3d9; border-color:var(--pr-esposa) }
+.pr-op .tag.otro{ background:rgba(140,190,255,.13); color:#a9caf0; border-color:rgba(140,190,255,.35) }
+.pr-op-cab{ position:sticky; top:0; background:#11151f; color:var(--pr-laton); font-size:9.5px;
+  letter-spacing:.15em; text-transform:uppercase; font-weight:800; padding:5px 15px; z-index:1 }
+
+/* ───────────── barra inferior (sólo celular) ───────────── */
+#prot-tabs{ display:none }
+
+/* ───────────── estado de sincronización ───────────── */
+#prot-sync{ display:flex; align-items:center; gap:6px; font-size:10.5px; color:var(--pr-tinta3);
+  padding:3px 9px; border:1px solid var(--pr-linea); border-radius:999px; white-space:nowrap }
+#prot-sync .luz{ width:7px; height:7px; border-radius:50%; background:var(--pr-tinta3); flex:0 0 auto }
+#prot-sync.viva .luz{ background:var(--pr-verde); box-shadow:0 0 7px var(--pr-verde) }
+#prot-sync.local .luz{ background:var(--warning,#e0a83a); box-shadow:0 0 7px #e0a83a }
+#prot-sync.mala .luz{ background:var(--pr-rojo); box-shadow:0 0 7px var(--pr-rojo) }
+
+/* ══════════════ CELULAR / TABLET ══════════════ */
+@media (max-width:1023px){
+  #prot-wrap{ grid-template-columns:1fr; gap:11px; padding:9px 10px 74px }
+  #prot-rail{ position:static; max-height:none; height:auto }
+  #prot-lista{ max-height:none; overflow:visible }
+  /* una vista por vez, gobernada por la barra de abajo */
+  #screen-protocolo[data-vista="dispositivo"] #prot-rail,
+  #screen-protocolo[data-vista="dispositivo"] #prot-panel-orden,
+  #screen-protocolo[data-vista="dispositivo"] #prot-panel-nov{ display:none }
+  #screen-protocolo[data-vista="nomina"] #prot-panel-disp,
+  #screen-protocolo[data-vista="nomina"] #prot-panel-orden,
+  #screen-protocolo[data-vista="nomina"] #prot-panel-nov,
+  #screen-protocolo[data-vista="nomina"] #prot-autoridad{ display:none }
+  #screen-protocolo[data-vista="orden"] #prot-rail,
+  #screen-protocolo[data-vista="orden"] #prot-panel-disp,
+  #screen-protocolo[data-vista="orden"] #prot-panel-nov{ display:none }
+  #screen-protocolo[data-vista="novedades"] #prot-rail,
+  #screen-protocolo[data-vista="novedades"] #prot-panel-disp,
+  #screen-protocolo[data-vista="novedades"] #prot-panel-orden{ display:none }
+
+  #prot-tabs{ display:grid; grid-template-columns:repeat(4,1fr); position:fixed; left:0; right:0; bottom:0;
+    z-index:9990; background:rgba(14,18,26,.97); backdrop-filter:blur(9px);
+    border-top:1px solid var(--pr-linea2); padding-bottom:env(safe-area-inset-bottom,0) }
+  .pr-tab{ background:none; border:none; color:var(--pr-tinta3); padding:7px 3px 8px; cursor:pointer;
+    font-family:inherit; display:flex; flex-direction:column; align-items:center; gap:2px; font-size:9.5px;
+    font-weight:700; letter-spacing:.05em; position:relative }
+  .pr-tab .ico{ font-size:17px; line-height:1 }
+  .pr-tab[aria-selected="true"]{ color:var(--pr-laton) }
+  .pr-tab[aria-selected="true"]:before{ content:''; position:absolute; top:0; left:22%; right:22%; height:2px;
+    background:var(--pr-laton); border-radius:0 0 3px 3px }
+  #version-marker{ bottom:60px !important }
+  .pr-tab .pun{ position:absolute; top:5px; right:calc(50% - 18px); min-width:15px; height:15px; border-radius:999px;
+    background:var(--pr-rojo); color:#fff; font-size:9px; line-height:15px; padding:0 3px }
+
+  .pr-acto{ min-width:132px; padding:7px 10px }
+  .pr-acto span{ font-size:12.5px }
+  #prot-autoridad{ grid-template-columns:1fr }
+  #prot-autoridad .nm{ font-size:14.5px }
+  .pr-fila{ grid-template-columns:26px 1fr; padding:8px 10px }
+  .pr-mini{ width:30px; height:30px; font-size:12px }
+  .pr-tog{ height:30px; font-size:10px }
+  .pr-plano{ max-height:none; padding:9px 6px }
+  .pr-chips-b{ grid-template-columns:repeat(auto-fill,minmax(132px,1fr)) }
+  .pr-scroll{ max-height:none }
+  .pr-tabla{ font-size:11.5px }
+  .pr-tabla td,.pr-tabla th{ padding:5px 7px }
+  #prot-hoja .caja{ width:100%; border-radius:14px 14px 0 0; max-height:90vh }
+  .pr-op{ padding:11px 14px }
+}
+@media (max-width:520px){
+  #screen-protocolo{ --pr-butaca:26px }
+  .pr-puesto{ width:92px }
+  .pr-plaza{ width:calc(50% - 4px) }
+  .pr-bloque-cab{ padding:8px 10px }
+  .pr-cuerpo{ padding:10px }
+  .pr-tabla .cg{ display:none }
+}
+
+/* ══════════════ IMPRESIÓN ══════════════ */
+@media print{
+  body>*:not(#screen-protocolo){ display:none !important }
+  #screen-protocolo{ display:block !important; background:#fff !important; color:#000 !important }
+  #prot-rail,#prot-tabs,#prot-actos,#prot-hoja,.pr-zoombar,.pr-acciones,#prot-sync{ display:none !important }
+  #prot-wrap{ grid-template-columns:1fr !important; padding:0 !important }
+  .pr-bloque,.pr-tarima,.pr-plano{ background:#fff !important; border-color:#999 !important; break-inside:avoid }
+  .pr-bloque-cab h3,.pr-nominal-tit,.pr-np{ color:#000 !important }
+  .pr-tabla th{ background:#eee !important; color:#000 !important }
+  .pr-tabla td,.pr-nom,.pr-chb span{ color:#000 !important }
+  .pr-scroll,.pr-plano{ max-height:none !important; overflow:visible !important }
+}
+</style>
+
+<!-- ══════════ SECCIÓN 6 · PANTALLA ══════════ -->
+<section id="screen-protocolo" class="screen" data-vista="dispositivo">
+  <div class="app-header">
+    <button class="back-btn" onclick="protSalir()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text">
+      <div class="header-title">Protocolo y Ceremonial</div>
+      <div class="header-sub" id="prot-sub">Aniversario ECEME 2026 · orden de precedencias</div>
+    </div>
+  </div>
+
+  <div id="prot-actos" role="tablist" aria-label="Actos del aniversario"></div>
+
+  <div id="prot-wrap">
+
+    <!-- ───────── NÓMINA ───────── -->
+    <aside id="prot-rail">
+      <div class="pr-rail-cab">
+        <div class="pr-rail-tit">
+          <span>Nómina de invitados</span>
+          <button class="pr-btn chico" id="prot-btn-agregar">+ Añadir</button>
+        </div>
+        <input class="pr-buscar" id="prot-buscar" placeholder="Buscar por nombre, grado o cargo…" autocomplete="off">
+        <div class="pr-chips" id="prot-filtros"></div>
+        <div class="pr-marcador">
+          <span>Presentes <b id="prot-c-pres">0</b></span>
+          <span class="aus">Fuera <b id="prot-c-aus">0</b></span>
+          <span>Total <b id="prot-c-tot">0</b></span>
+          <span style="color:var(--pr-laton)">★ testera <b id="prot-c-tes">0</b></span>
+        </div>
+      </div>
+      <div id="prot-lista"></div>
+    </aside>
+
+    <!-- ───────── ESCENA ───────── -->
+    <main id="prot-escena">
+
+      <div class="pr-bloque">
+        <div class="pr-bloque-cab">
+          <h3 id="prot-acto-titulo">—</h3>
+          <div class="pr-nota" id="prot-sync"><span class="luz"></span><span class="txt">conectando…</span></div>
+        </div>
+        <div class="pr-cuerpo" style="padding:10px 13px">
+          <div class="pr-nota" id="prot-acto-meta" style="margin-bottom:9px">—</div>
+          <div class="pr-zoombar" style="margin-bottom:10px">
+            <button class="pr-btn chico" id="prot-btn-guarnicion">Solo guarnición Cbba.</button>
+            <button class="pr-btn chico" id="prot-btn-todos">Todos presentes</button>
+            <button class="pr-btn chico" id="prot-btn-liberar">Liberar fijados</button>
+            <button class="pr-btn chico" id="prot-btn-imprimir">Imprimir</button>
+            <button class="pr-btn chico" id="prot-btn-copiar">Copiar orden</button>
+            <button class="pr-btn chico pri" id="prot-btn-word">Word</button>
+          </div>
+          <div id="prot-autoridad">
+            <div>
+              <div class="et">Autoridad superior que preside</div>
+              <div class="nm" id="prot-aut-nom">—</div>
+              <div class="cg" id="prot-aut-cargo">—</div>
+            </div>
+            <button class="pr-btn" id="prot-btn-autoridad">Cambiar</button>
+            <label class="pr-techo" id="prot-techo-wrap">
+              <input type="checkbox" id="prot-techo"> Aplicar techo jerárquico
+              <span style="color:var(--pr-tinta3)">(nadie de mayor jerarquía asiste)</span>
+            </label>
+            <div id="prot-aut-nota"></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="prot-panel-disp"></div>
+
+      <div class="pr-bloque" id="prot-panel-orden">
+        <div class="pr-bloque-cab">
+          <h3>Orden de protocolo · lista de control</h3>
+          <div class="pr-nota" id="prot-nota-orden"></div>
+        </div>
+        <div class="pr-scroll"><table class="pr-tabla" id="prot-tabla-orden"></table></div>
+      </div>
+
+      <div class="pr-bloque" id="prot-panel-nov">
+        <div class="pr-bloque-cab">
+          <h3>Novedades del acto</h3>
+          <div class="pr-nota">
+            Cada baja recorre la precedencia hacia arriba
+            <button class="pr-btn chico" id="prot-btn-limpiar-nov">Limpiar</button>
+          </div>
+        </div>
+        <div class="pr-scroll" id="prot-nov-lista"></div>
+      </div>
+
+    </main>
+  </div>
+
+  <!-- barra inferior: sólo en celular -->
+  <nav id="prot-tabs" role="tablist" aria-label="Vistas">
+    <button class="pr-tab" data-vista="dispositivo" aria-selected="true"><span class="ico">🎖️</span>Dispositivo</button>
+    <button class="pr-tab" data-vista="nomina" aria-selected="false"><span class="ico">👥</span>Nómina</button>
+    <button class="pr-tab" data-vista="orden" aria-selected="false"><span class="ico">📋</span>Orden</button>
+    <button class="pr-tab" data-vista="novedades" aria-selected="false"><span class="ico">🔔</span>Novedades<span class="pun" id="prot-pun-nov" style="display:none">0</span></button>
+  </nav>
+
+  <!-- hoja inferior para elegir quién ocupa un lugar -->
+  <div id="prot-hoja" role="dialog" aria-modal="true">
+    <div class="velo" data-cerrar="1"></div>
+    <div class="caja">
+      <div class="tirador"></div>
+      <div class="cab">
+        <div class="t" id="prot-hoja-t">—</div>
+        <div class="q" id="prot-hoja-q">—</div>
+        <div class="c" id="prot-hoja-c"></div>
+      </div>
+      <div class="acc" id="prot-hoja-acc"></div>
+      <div class="bus"><input class="pr-buscar" id="prot-hoja-buscar" placeholder="Buscar a quién sentar aquí…" autocomplete="off"></div>
+      <div class="op" id="prot-hoja-op"></div>
+    </div>
+  </div>
+</section>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════════
+   SIDECEME · SECCIÓN 6 — PROTOCOLO Y CEREMONIAL                     v2.9.353
+   ---------------------------------------------------------------------------
+   Motor de precedencias del prototipo `Protocolo_ECEME_Aniversario_2026.html`,
+   portado SIN alterar su lógica (ordenCentro · slotsDe · ordenLlenado ·
+   asignar · colocacion), más:
+     · el interruptor «techo jerárquico» por acto (punto 5.3 del pliego),
+     · datos en Supabase con sincronización en vivo para todo el equipo,
+     · modo sin conexión (el Paraninfo tiene mala señal),
+     · una interfaz que se lee igual en la PC y en el celular.
+   Todo el módulo vive bajo `PROT` / `prot*`. No toca nada de lo ya publicado.
+   ═══════════════════════════════════════════════════════════════════════════ */
+(function(){
+'use strict';
+
+const EVENTO_ANIO = 2026;
+const NOMFILA = ['1RA','2DA','3RA','4TA','5TA','6TA','7MA'];
+const FILAS_PARANINFO = [24,29,30,31,32,33,34];
+const CLAVE_LOCAL = 'sideceme:protocolo:2026:v1';
+
+const PROT = window.PROT = {
+  eventoId:null,
+  inv:[],            // invitados en orden de precedencia
+  IDX:{},            // codigo -> invitado
+  UUID:{},           // codigo -> uuid   (para escribir en la base)
+  CODIGO:{},         // uuid   -> codigo
+  actos:[], ACT:{},
+  acto:'central',
+  orden:[],                       // códigos en orden de precedencia
+  estado:{},                      // {clave:{codigo:{ausente,testera,acompanado}}}
+  fijos:{},                       // {clave:{slot: 'P019' | 'E:P019'}}
+  novedades:{},                   // {clave:[{hora,tipo,texto}]}
+  filtro:'', cat:'TODAS', zoom:1, destacado:null,
+  cola:[],                        // operaciones pendientes de subir
+  online:false, listo:false, canal:null, puedeEditar:false, esAdmin:false
+};
+
+/* ─────────────────────────── utilidades ─────────────────────────── */
+const $ = s => document.querySelector(s);
+const esc = s => String(s==null?'':s).replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const actoDe = c => PROT.ACT[c] || PROT.actos[0] || {};
+const filasDe = a => (a && a.filas && a.filas.length) ? a.filas : FILAS_PARANINFO;
+const nombreCorto = p => p ? (p.grado+' '+p.nombre).replace(/\s+/g,' ').trim() : '—';
+const apellidos = n => String(n||'').split(' ').slice(-2).join(' ');
+function ahora(){ const d=new Date();
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0'); }
+
+/* Persona por id de ocupante. Los ocupantes «E:<codigo>» son las esposas:
+   no son invitados de la nómina, se derivan del titular. */
+function PER(id){
+  if(!id) return null;
+  if(id.slice(0,2)==='E:'){
+    const t = PROT.IDX[id.slice(2)]; if(!t) return null;
+    const ap = apellidos(t.nombre);
+    return { codigo:id, esposa:true, grado:'Sra. de', nombre:ap,
+             etiqueta:'Sra. de '+ap.split(' ')[0],
+             cargo:'Esposa de '+t.grado+' '+t.nombre, categoria:'Acompañantes' };
+  }
+  return PROT.IDX[id];
+}
+
+const EST  = c => (PROT.estado[c] || (PROT.estado[c]={}));
+const uno  = (c,id) => EST(c)[id] || {};
+const FIJ  = c => (PROT.fijos[c] || (PROT.fijos[c]={}));
+const esAusente = (c,id) => !!uno(c,id).ausente;
+const esTestera = (c,id) => !!uno(c,id).testera;
+const esAcomp   = (c,id) => !!uno(c,id).acompanado;
+
+/* ═══════════════ MOTOR DE PRECEDENCIAS ═══════════════
+   Portado del prototipo probado: 150 ocupantes, 150 únicos, cero duplicados. */
+
+/* Orden centro-afuera. Los asientos se numeran de izquierda a derecha VISTOS
+   DESDE EL PÚBLICO. El puesto de honor es el centro; el 2.º va a la DERECHA de
+   la autoridad (= izquierda del público, índice menor), el 3.º a su izquierda. */
+function ordenCentro(n){
+  const res=[]; if(n<=0) return res;
+  const c = Math.ceil(n/2)-1;
+  res.push(c);
+  for(let k=1;k<n;k++){
+    if(c-k>=0) res.push(c-k);
+    if(c+k<n)  res.push(c+k);
+  }
+  return res.slice(0,n);
+}
+
+function indiceAutoridad(c){
+  const aut = actoDe(c).autoridad_codigo;
+  return aut ? PROT.orden.indexOf(aut) : -1;
+}
+/* Regla del techo jerárquico (4.2): la autoridad designada es el máximo del
+   acto y nadie por encima de ella asiste. El interruptor por acto (5.3) deja
+   al encargado desactivarla cuando el caso lo pide — p. ej. el Gral. Ardaya,
+   más antiguo que el Gral. Zeballos, en los actos de la mañana. */
+function excluidos(c){
+  if(!actoDe(c).techo_jerarquico) return [];
+  const ia = indiceAutoridad(c);
+  return ia<=0 ? [] : PROT.orden.slice(0, ia);
+}
+function presentes(c){
+  const ia = actoDe(c).techo_jerarquico ? indiceAutoridad(c) : -1;
+  return PROT.orden.filter((id,i)=> !esAusente(c,id) && (ia<0 || i>=ia));
+}
+function listaEfectiva(c){
+  const aut = actoDe(c).autoridad_codigo;
+  let l = presentes(c);
+  if(aut && l.includes(aut)) l = [aut, ...l.filter(i=>i!==aut)];
+  return l;
+}
+
+/* Orden en que se cubren los lugares: la autoridad, luego los designados a la
+   testera (★) y después el resto por precedencia. */
+function ordenLlenado(c){
+  const a = actoDe(c);
+  let l = presentes(c);
+  if(a.tipo==='paraninfo') l = [...l.filter(id=>esTestera(c,id)), ...l.filter(id=>!esTestera(c,id))];
+  const aut = a.autoridad_codigo;
+  if(aut && l.includes(aut)) l = [aut, ...l.filter(i=>i!==aut)];
+
+  /* En el Paraninfo las esposas de la testera ocupan las primeras butacas de la
+     1.ª fila — justo al frente de sus esposos y en el mismo orden — y de ahí en
+     adelante cada uno va con la suya en la butaca contigua. */
+  if(a.tipo==='paraninfo'){
+    const nT = Math.max(1, Math.min(a.puestos_testera||11, l.length));
+    const enT = l.slice(0,nT), resto = l.slice(nT);
+    const espT = enT.filter(id=>esAcomp(c,id)).map(id=>'E:'+id);
+    const pares = [];
+    resto.forEach(id=>{ pares.push(id); if(esAcomp(c,id)) pares.push('E:'+id); });
+    l = [...enT, ...espT, ...pares];
+  }
+  return l;
+}
+
+/* Catálogo de asientos EN ORDEN DE LLENADO, con clave estable por asiento. */
+function slotsDe(c, nGente){
+  const a = actoDe(c); const out=[];
+  if(a.tipo==='paraninfo'){
+    const nT = Math.max(1, Math.min(a.puestos_testera||11, nGente||1));
+    ordenCentro(nT).forEach(pos=>out.push(
+      {k:'T-'+pos, tipo:'T', pos, n:nT, num:pos+1, et:'Testera · silla '+(pos+1)}));
+    /* Las butacas NO son centro-afuera: se llenan de corrido desde el extremo
+       izquierdo del público (butaca n) hacia la butaca 1 del extremo derecho,
+       tal como el diagrama. Las primeras de la 1.ª fila quedan frente a la testera. */
+    filasDe(a).forEach((n,fi)=>{ for(let pos=0;pos<n;pos++) out.push(
+      {k:'B-'+fi+'-'+pos, tipo:'B', fi, pos, n, num:n-pos,
+       et:NOMFILA[fi]+' fila · butaca '+(n-pos)}); });
+  } else if(a.tipo==='ofrenda'){
+    /* Tampoco es centro-afuera: el más antiguo encabeza la 1.ª fila y se sigue
+       hacia su izquierda; recién al terminarla continúa la 2.ª fila. */
+    const tot = Math.max(2, a.entregas||16), m = Math.ceil(tot/2);
+    [m, tot-m].forEach((cn,fi)=>{ for(let pos=0;pos<cn;pos++) out.push(
+      {k:'O-'+fi+'-'+pos, tipo:'O', fi, pos, n:cn, num:pos+1,
+       et:(fi===0?'1.ª':'2.ª')+' fila · lugar '+(pos+1)}); });
+  } else { /* fila1 — vino de honor */
+    const n = Math.max(1, nGente);
+    ordenCentro(n).forEach(pos=>out.push(
+      {k:'V-'+pos, tipo:'V', pos, n, num:pos+1, et:'Fila · posición '+(pos+1)}));
+  }
+  return out;
+}
+
+/* Asignación: respeta lo fijado a mano y reacomoda el resto por precedencia.
+   Nadie ocupa jamás dos lugares. */
+function asignar(c){
+  const l = ordenLlenado(c);
+  const slots = slotsDe(c, l.length);
+  const F = FIJ(c);
+  const validos = new Set(l);
+  const res = {}, usados = new Set();
+
+  slots.forEach(s=>{ const id=F[s.k];
+    if(id && validos.has(id) && !usados.has(id)){ res[s.k]=id; usados.add(id); } });
+
+  const aut = actoDe(c).autoridad_codigo;
+  if(aut && validos.has(aut) && !usados.has(aut) && slots.length && !res[slots[0].k]){
+    res[slots[0].k]=aut; usados.add(aut);
+  }
+  let i=0;
+  slots.forEach(s=>{ if(res[s.k]) return;
+    while(i<l.length && usados.has(l[i])) i++;
+    if(i<l.length){ res[s.k]=l[i]; usados.add(l[i]); i++; } });
+
+  return {l, slots, res, F, sobrantes:l.filter(id=>!usados.has(id))};
+}
+
+function colocacion(c){
+  const A = asignar(c); const ids=[], ub=[];
+  A.slots.forEach(s=>{ const id=A.res[s.k]; if(id){ ids.push(id); ub.push(s.et); } });
+  return {ids, ub};
+}
+/* ¿dónde está sentado alguien en este acto? */
+function ubicacionDe(c, id){
+  const A = asignar(c);
+  const s = A.slots.find(z=>A.res[z.k]===id);
+  return s ? {slot:s.k, et:s.et} : null;
+}
+
+/* ═══════════════ DATOS: cargar, guardar, sincronizar ═══════════════ */
+
+function guardarLocal(){
+  try{ localStorage.setItem(CLAVE_LOCAL, JSON.stringify({
+    acto:PROT.acto, orden:PROT.orden, estado:PROT.estado, fijos:PROT.fijos,
+    novedades:PROT.novedades, cola:PROT.cola,
+    actos:PROT.actos.map(a=>({clave:a.clave, autoridad_codigo:a.autoridad_codigo,
+      techo_jerarquico:a.techo_jerarquico, entregas:a.entregas, puestos_testera:a.puestos_testera})),
+    ts:Date.now() })); }catch(e){}
+}
+function leerLocal(){
+  try{ const r=localStorage.getItem(CLAVE_LOCAL); return r?JSON.parse(r):null; }catch(e){ return null; }
+}
+
+async function cargarDeLaBase(){
+  const ev = await sb.from('protocolo_eventos').select('id').eq('anio',EVENTO_ANIO).eq('activo',true).limit(1);
+  if(ev.error || !ev.data || !ev.data.length) throw new Error('No encontré el evento del aniversario '+EVENTO_ANIO+'.');
+  PROT.eventoId = ev.data[0].id;
+
+  const [inv, act] = await Promise.all([
+    sb.from('protocolo_invitados').select('*').eq('evento_id',PROT.eventoId).order('precedencia'),
+    sb.from('protocolo_actos').select('*').eq('evento_id',PROT.eventoId).order('orden')
+  ]);
+  if(inv.error) throw inv.error;
+  if(act.error) throw act.error;
+
+  PROT.inv=[]; PROT.IDX={}; PROT.UUID={}; PROT.CODIGO={};
+  (inv.data||[]).forEach(r=>{
+    const p = {codigo:r.codigo, grado:r.grado, nombre:r.nombre, cargo:r.cargo,
+               etiqueta:r.etiqueta||r.cargo, categoria:r.categoria, sede:r.sede,
+               precedencia:r.precedencia, testera_nac:r.testera_nac};
+    PROT.inv.push(p); PROT.IDX[p.codigo]=p; PROT.UUID[p.codigo]=r.id; PROT.CODIGO[r.id]=p.codigo;
+  });
+  PROT.orden = PROT.inv.map(p=>p.codigo);
+
+  PROT.actos=[]; PROT.ACT={};
+  (act.data||[]).forEach(r=>{ r.uuid=r.id; PROT.actos.push(r); PROT.ACT[r.clave]=r; });
+  if(!PROT.ACT[PROT.acto] && PROT.actos.length) PROT.acto = PROT.actos[0].clave;
+
+  const ids = PROT.actos.map(a=>a.uuid);
+  const [est, fij, nov] = await Promise.all([
+    sb.from('protocolo_estado').select('*').in('acto_id',ids),
+    sb.from('protocolo_fijaciones').select('*').in('acto_id',ids).eq('liberada',false),
+    sb.from('protocolo_novedades').select('*').in('acto_id',ids).order('creado_en',{ascending:false}).limit(400)
+  ]);
+
+  PROT.estado={}; PROT.fijos={}; PROT.novedades={};
+  PROT.actos.forEach(a=>{ PROT.estado[a.clave]={}; PROT.fijos[a.clave]={}; PROT.novedades[a.clave]=[]; });
+  const claveDeActo = {}; PROT.actos.forEach(a=>claveDeActo[a.uuid]=a.clave);
+
+  (est.data||[]).forEach(r=>{
+    const c=claveDeActo[r.acto_id], cod=PROT.CODIGO[r.invitado_id]; if(!c||!cod) return;
+    PROT.estado[c][cod] = {ausente:!!r.ausente, testera:!!r.testera, acompanado:!!r.acompanado};
+  });
+  (fij.data||[]).forEach(r=>{
+    const c=claveDeActo[r.acto_id], cod=PROT.CODIGO[r.invitado_id]; if(!c||!cod) return;
+    PROT.fijos[c][r.slot] = (r.esposa?'E:':'')+cod;
+  });
+  (nov.data||[]).forEach(r=>{
+    const c=claveDeActo[r.acto_id]; if(!c) return;
+    if(PROT.novedades[c].length<60) PROT.novedades[c].push({
+      hora:new Date(r.creado_en).toLocaleTimeString('es-BO',{hour:'2-digit',minute:'2-digit'}),
+      tipo:r.tipo||'alta', texto:r.texto, usuario:r.usuario });
+  });
+  PROT.online = true;
+}
+
+/* ── escritura: Edge Function `protocolo-crud`. Si no está (todavía sin subir,
+   o sin señal en el Paraninfo), la operación queda en cola y el trabajo sigue
+   igual en el aparato; se sube sola en cuanto la función responde. ── */
+async function mandar(op){
+  PROT.cola.push(op); guardarLocal(); pintarSync();
+  await vaciarCola();
+}
+async function vaciarCola(){
+  if(!PROT.cola.length || PROT._subiendo) return;
+  PROT._subiendo = true;
+  try{
+    while(PROT.cola.length){
+      const op = PROT.cola[0];
+      const r = await llamarEF(op);
+      if(!r.ok){
+        PROT.online = false;
+        break;
+      }
+      PROT.cola.shift(); PROT.online = true;
+    }
+  } finally { PROT._subiendo=false; guardarLocal(); pintarSync(); }
+}
+async function llamarEF(op){
+  const tok = (typeof getTokenSesion==='function') ? getTokenSesion() : null;
+  try{
+    const llamada = sb.functions.invoke('protocolo-crud', {
+      body: Object.assign({token:tok, evento_id:PROT.eventoId}, op) });
+    const tope = new Promise((_,rech)=>setTimeout(()=>rech(new Error('sin respuesta en 15 s')),15000));
+    const {data,error} = await Promise.race([llamada,tope]);
+    if(error){
+      let msg = error.message||'error';
+      try{ if(error.context && error.context.json){ const b=await error.context.json(); if(b&&b.error) msg=b.error; } }catch(_){}
+      return {ok:false, error:msg};
+    }
+    return data || {ok:false, error:'sin respuesta'};
+  }catch(e){ return {ok:false, error:String((e&&e.message)||e)}; }
+}
+
+/* ── sincronización en vivo: lo que toca uno lo ven todos ── */
+function abrirCanal(){
+  if(PROT.canal) return;
+  try{
+    PROT.canal = sb.channel('protocolo-2026')
+      .on('postgres_changes', {event:'*', schema:'public', table:'protocolo_estado'},     m=>aplicarRemoto('estado',m))
+      .on('postgres_changes', {event:'*', schema:'public', table:'protocolo_fijaciones'}, m=>aplicarRemoto('fijacion',m))
+      .on('postgres_changes', {event:'*', schema:'public', table:'protocolo_actos'},      m=>aplicarRemoto('acto',m))
+      .on('postgres_changes', {event:'*', schema:'public', table:'protocolo_novedades'},  m=>aplicarRemoto('novedad',m))
+      .subscribe(st=>{ if(st==='SUBSCRIBED'){ PROT.online=true; pintarSync(); } });
+  }catch(e){}
+}
+function aplicarRemoto(que, msg){
+  const r = msg && msg.new; if(!r) return;
+  const a = PROT.actos.find(x=>x.uuid===r.acto_id || x.uuid===r.id);
+  if(que==='acto'){
+    if(!a) return;
+    a.autoridad_codigo=r.autoridad_codigo; a.techo_jerarquico=r.techo_jerarquico;
+    a.entregas=r.entregas; a.puestos_testera=r.puestos_testera;
+  } else if(!a){ return; }
+  else if(que==='estado'){
+    const cod=PROT.CODIGO[r.invitado_id]; if(!cod) return;
+    EST(a.clave)[cod]={ausente:!!r.ausente, testera:!!r.testera, acompanado:!!r.acompanado};
+  } else if(que==='fijacion'){
+    const cod=PROT.CODIGO[r.invitado_id]; if(!cod) return;
+    if(msg.eventType==='DELETE' || r.liberada) delete FIJ(a.clave)[r.slot];
+    else FIJ(a.clave)[r.slot]=(r.esposa?'E:':'')+cod;
+  } else if(que==='novedad'){
+    const L=PROT.novedades[a.clave]=PROT.novedades[a.clave]||[];
+    if(!L.some(x=>x._id===r.id)){
+      L.unshift({_id:r.id, hora:new Date(r.creado_en).toLocaleTimeString('es-BO',{hour:'2-digit',minute:'2-digit'}),
+                 tipo:r.tipo||'alta', texto:r.texto, usuario:r.usuario});
+      PROT.novedades[a.clave]=L.slice(0,60);
+    }
+  }
+  guardarLocal();
+  if(PROT.listo) render();
+}
+
+/* ═══════════════════ RENDER ═══════════════════ */
+
+function pintarSync(){
+  const n=$('#prot-sync'); if(!n) return;
+  const pend = PROT.cola.length;
+  n.className = 'pr-nota' + (pend ? ' local' : (PROT.online ? ' viva' : ' mala'));
+  n.querySelector('.txt').textContent =
+    pend ? (pend+' cambio'+(pend>1?'s':'')+' sin subir') :
+    (PROT.online ? 'sincronizado con el equipo' : 'trabajando en este aparato');
+  n.title = pend
+    ? 'Los cambios quedaron guardados acá y se suben solos cuando vuelva la señal (o cuando se publique la función protocolo-crud).'
+    : (PROT.online ? 'Todos los celulares del equipo ven lo mismo.' : 'Sin conexión: se sigue trabajando igual.');
+}
+
+function pintarActos(){
+  $('#prot-actos').innerHTML = PROT.actos.map(a=>`
+    <button class="pr-acto" role="tab" data-acto="${esc(a.clave)}" aria-selected="${a.clave===PROT.acto}">
+      <b>${esc(a.rotulo||'')}</b><span>${esc(a.titulo)}</span><i>${esc(a.momento||'')}</i>
+    </button>`).join('');
+}
+
+function pintarCabecera(){
+  const a = actoDe(PROT.acto);
+  $('#prot-acto-titulo').textContent = (a.rotulo?a.rotulo+' · ':'')+(a.titulo||'—');
+  $('#prot-acto-meta').textContent = [a.momento,a.lugar,a.descripcion].filter(Boolean).join(' · ');
+  $('#prot-sub').textContent = 'Aniversario ECEME 2026 · '+(a.titulo||'');
+
+  const aut = PROT.IDX[a.autoridad_codigo];
+  $('#prot-aut-nom').textContent   = aut ? nombreCorto(aut) : 'Sin designar';
+  $('#prot-aut-cargo').textContent = aut ? (aut.cargo||'—') : '—';
+  $('#prot-techo').checked = !!a.techo_jerarquico;
+
+  const fuera = excluidos(PROT.acto);
+  $('#prot-aut-nota').innerHTML = fuera.length
+    ? `Por el techo jerárquico <b>no asiste${fuera.length>1?'n':''} ${fuera.length}</b> invitado${fuera.length>1?'s':''} de mayor jerarquía: `+
+      fuera.slice(0,4).map(i=>esc(PROT.IDX[i].etiqueta||PROT.IDX[i].nombre)).join(', ')+
+      (fuera.length>4?` y ${fuera.length-4} más.`:'.')
+    : (a.techo_jerarquico
+        ? 'Ningún invitado supera en jerarquía a quien preside.'
+        : '<b>Techo desactivado:</b> quien preside ocupa el centro, pero los más antiguos siguen figurando en el dispositivo.');
+}
+
+function pintarNomina(){
+  const c = PROT.acto;
+  const q = PROT.filtro.toLowerCase().trim();
+  const efec = listaEfectiva(c); const pos={}; efec.forEach((id,i)=>pos[id]=i+1);
+  const fuera = new Set(excluidos(c));
+  const A = asignar(c); const donde={};
+  A.slots.forEach(s=>{ const id=A.res[s.k]; if(id) donde[id]=s.et; });
+
+  let html='', ultima=null, vis=0;
+  PROT.orden.forEach(id=>{
+    const p = PROT.IDX[id]; if(!p) return;
+    if(PROT.cat!=='TODAS' && p.categoria!==PROT.cat) return;
+    if(q && !((p.grado+' '+p.nombre+' '+(p.cargo||'')+' '+(p.categoria||'')).toLowerCase().includes(q))) return;
+    vis++;
+    if(p.categoria!==ultima){ html+=`<div class="pr-grupo">${esc(p.categoria||'—')}</div>`; ultima=p.categoria; }
+    const aus = esAusente(c,id), jer = fuera.has(id), off = aus||jer;
+    html += `<div class="pr-fila ${off?'aus':''} ${PROT.destacado===id?'destacado':''}" data-fila="${esc(id)}">
+      <div class="pr-ord">${off?'—':pos[id]}</div>
+      <div>
+        <div class="pr-nom" data-ver="${esc(id)}"><span class="gr">${esc(p.grado)}</span> ${esc(p.nombre)}</div>
+        <div class="pr-car">${esc(p.cargo||'—')}</div>
+        ${donde[id]?`<div class="pr-donde" data-ver="${esc(id)}">📍 ${esc(donde[id])}</div>`:''}
+        <div class="pr-acciones">
+          <button class="pr-mini" data-sube="${esc(id)}" title="Subir en la precedencia">▲</button>
+          <button class="pr-mini" data-bajar="${esc(id)}" title="Bajar en la precedencia">▼</button>
+          <button class="pr-mini est ${esTestera(c,id)?'on':''}" data-tes="${esc(id)}" title="Designar para la testera de honor">★</button>
+          <button class="pr-mini esp ${esAcomp(c,id)?'on':''}" data-esp="${esc(id)}" title="Asiste con su esposa">♀</button>
+          <button class="pr-tog ${jer?'jerarquia':(aus?'ausente':'presente')}" data-tog="${esc(id)}"
+            ${jer?'disabled title="Supera en jerarquía a quien preside: no asiste"':''}>${jer?'NO ASISTE':(aus?'AUSENTE':'PRESENTE')}</button>
+        </div>
+      </div>
+    </div>`;
+  });
+  $('#prot-lista').innerHTML = vis ? html : `<div class="pr-vacio">Ningún invitado coincide con la búsqueda.</div>`;
+
+  const nAus = PROT.orden.filter(id=>esAusente(c,id)).length;
+  $('#prot-c-pres').textContent = presentes(c).length;
+  $('#prot-c-aus').textContent  = nAus + fuera.size;
+  $('#prot-c-tot').textContent  = PROT.orden.length;
+  $('#prot-c-tes').textContent  = PROT.orden.filter(id=>esTestera(c,id)).length;
+}
+
+function pintarFiltros(){
+  const cats = [...new Set(PROT.inv.map(p=>p.categoria))];
+  $('#prot-filtros').innerHTML = ['TODAS',...cats].map(k=>
+    `<button class="pr-chip" data-cat="${esc(k)}" aria-pressed="${PROT.cat===k}">${k==='TODAS'?'Todas':esc(k)}</button>`).join('');
+}
+
+/* ─── la silla dibujada, como el diagrama oficial ─── */
+function silla(honor){
+  const arriba = honor
+    ? `<path d="M8 20 Q30 2 52 20 L52 24 L8 24 Z" class="marco"/>
+       <rect x="8" y="22" width="44" height="26" rx="4" class="marco"/>
+       <rect x="13" y="27" width="34" height="18" rx="3" class="tap"/>
+       <circle cx="30" cy="10" r="4" class="marco"/>`
+    : `<rect x="10" y="8" width="40" height="38" rx="5" class="marco"/>
+       <rect x="14" y="13" width="32" height="27" rx="3" class="tap"/>`;
+  return `<svg class="pr-silla" viewBox="0 0 60 78" aria-hidden="true">${arriba}
+    <rect x="4" y="40" width="8" height="9" rx="2.5" class="marco"/>
+    <rect x="48" y="40" width="8" height="9" rx="2.5" class="marco"/>
+    <rect x="5" y="47" width="50" height="10" rx="3" class="marco"/>
+    <rect x="9" y="49" width="42" height="6" rx="2" class="tap"/>
+    <rect x="8" y="57" width="5" height="19" rx="2" class="pata"/>
+    <rect x="47" y="57" width="5" height="19" rx="2" class="pata"/></svg>`;
+}
+
+const MURO = `<div class="pr-muro">
+  <div class="pr-estandartes"><div class="pr-est nac"></div><div class="pr-est vb"></div></div>
+  <div class="pr-pabellon"><i></i><i></i><i></i><div class="esc">BOLIVIA</div></div>
+  <div class="pr-estandartes"><div class="pr-est vd"></div><div class="pr-est az"></div><div class="pr-est ce"></div></div>
+</div>`;
+
+function barraZoom(){
+  return `<div class="pr-zoombar">
+    <button class="pr-btn chico" data-zoom="-1" title="Alejar">−</button>
+    <b style="color:var(--pr-laton);font-size:11px;min-width:38px;text-align:center">${Math.round(PROT.zoom*100)}%</b>
+    <button class="pr-btn chico" data-zoom="1" title="Acercar">+</button>
+    <button class="pr-btn chico" data-zoom="fit">Ajustar a pantalla</button>
+  </div>`;
+}
+
+/* ═══ Vista A · Paraninfo: testera + butacas ═══ */
+function vistaParaninfo(a){
+  const c=a.clave, A=asignar(c), aut=a.autoridad_codigo;
+  const T = A.slots.filter(s=>s.tipo==='T').slice().sort((x,y)=>x.pos-y.pos);
+  const centro = Math.ceil(T.length/2);
+  const nFij = Object.keys(A.F).length;
+
+  const testeraHTML = T.map(s=>{
+    const id=A.res[s.k], fij=!!A.F[s.k], p=id?PER(id):null, honor=(id===aut);
+    if(!p) return `<div class="pr-puesto libre" data-slot="${s.k}"><span class="pr-np">${s.num}</span>${silla(false)}
+      <div class="pr-placa">Libre</div><div class="pr-chapa">—</div></div>`;
+    return `<div class="pr-puesto ${honor?'honor':''} ${PROT.destacado===id?'destacado':''}" data-slot="${s.k}" id="pr-sl-${s.k}">
+      <span class="pr-np">${honor?'PRESIDE':'SILLA '+s.num}${fij?' 🔒':''}</span>
+      ${silla(honor)}
+      <div class="pr-placa">${esc(p.etiqueta||p.nombre)}</div>
+      <div class="pr-chapa">${esc(p.grado+' '+apellidos(p.nombre))}</div>
+    </div>`;
+  }).join('');
+
+  const FIL = filasDe(a);
+  let planoHTML='', nominalHTML='';
+  FIL.forEach((n,fi)=>{
+    const fila = A.slots.filter(s=>s.tipo==='B'&&s.fi===fi).slice().sort((x,y)=>x.pos-y.pos);
+    planoHTML += `<div class="pr-bfila"><div class="pr-bfila-et">${NOMFILA[fi]}</div><div class="pr-asientos">`+
+      fila.map(s=>{ const id=A.res[s.k];
+        const cls = !id ? '' : (id.slice(0,2)==='E:' ? 'ocupado esposa' : 'ocupado');
+        const q = id?PER(id):null;
+        return `<div class="pr-b ${cls} ${A.F[s.k]?'fijado':''} ${PROT.destacado===id?'destacado':''}"
+           data-slot="${s.k}" id="pr-sl-${s.k}"
+           title="${NOMFILA[fi]} fila · butaca ${s.num}${q?' — '+esc(nombreCorto(q)):' — libre'}">${s.num}</div>`;
+      }).join('')+`</div></div>`;
+
+    nominalHTML += `<div class="pr-nominal">
+      <div class="pr-nominal-tit">${NOMFILA[fi]} fila · ${n} butacas</div>
+      <div class="pr-chips-b">`+
+      fila.map(s=>{ const id=A.res[s.k]; const q=id?PER(id):null;
+        return `<div class="pr-chb ${q?'':'libre'} ${q&&q.esposa?'esposa':''} ${A.F[s.k]?'fijado':''} ${PROT.destacado===id?'destacado':''}" data-slot="${s.k}">
+          <b>${s.num}</b><span>${q?esc(q.etiqueta||nombreCorto(q)):'libre'}</span></div>`;
+      }).join('')+`</div></div>`;
+  });
+
+  const cap = FIL.reduce((x,y)=>x+y,0);
+  const ocup = A.slots.filter(s=>s.tipo==='B'&&A.res[s.k]).length;
+
+  return `
+  <div class="pr-bloque" style="margin-bottom:14px">
+    <div class="pr-bloque-cab"><h3>Testera de honor</h3>
+      <div class="pr-nota">
+        Sillas: <button class="pr-btn chico" data-tes-n="-2">−</button>
+        <b style="color:var(--pr-laton)">${a.puestos_testera||11}</b>
+        <button class="pr-btn chico" data-tes-n="2">+</button>
+        ${nFij?`· <button class="pr-btn chico" data-liberar="1">🔒 ${nFij} fijado(s)</button>`:''}
+      </div>
+    </div>
+    <div class="pr-cuerpo">
+      <div class="pr-tarima">
+        <div class="pr-tarima-tit">Diagrama de protocolo de asientos · ceremonia militar</div>
+        ${MURO}
+        <div class="pr-testera">${testeraHTML}</div>
+        <div class="pr-piso"></div>
+        <div class="pr-tarima-pie">Distribución de asientos de izquierda a derecha · vista desde el público</div>
+      </div>
+      <div class="pr-lados"><span>◀ Derecha de la autoridad</span><span>Izquierda de la autoridad ▶</span></div>
+
+      <table class="pr-tabla" style="margin-top:14px">
+        <tr><th class="num">N.º</th><th>Ocupante de la testera</th><th>Silla</th></tr>
+        ${T.slice().sort((x,y)=>A.slots.indexOf(x)-A.slots.indexOf(y)).map((s,k)=>{
+          const id=A.res[s.k]; if(!id) return '';
+          const p=PER(id);
+          const lado = s.num===centro ? 'Centro · preside'
+                     : (s.num<centro ? 'Silla '+s.num+' · a su derecha' : 'Silla '+s.num+' · a su izquierda');
+          return `<tr data-slot="${s.k}"><td class="num">${k+1}</td>
+            <td>${esc(p.grado)} <b>${esc(p.nombre)}</b><div class="cg">${esc(p.cargo||'—')}</div>
+            ${A.F[s.k]?'<div class="cg" style="color:var(--pr-laton)">🔒 fijado a mano</div>':''}</td>
+            <td class="ub">${lado}</td></tr>`;
+        }).join('')}
+      </table>
+      <div class="pr-aviso">Tocá cualquier silla para elegir <b>a quién sentar ahí</b>: el resto se reacomoda solo y
+      nadie queda repetido. Si elegís a alguien anulado, se reincorpora automáticamente.</div>
+    </div>
+  </div>
+
+  <div class="pr-bloque" style="margin-bottom:14px">
+    <div class="pr-bloque-cab"><h3>Butacas · plano de la sala</h3>
+      <div class="pr-nota">${ocup} ocupadas de ${cap} ${barraZoom()}</div>
+    </div>
+    <div class="pr-cuerpo">
+      <div class="pr-plano" id="prot-plano" style="--pr-z:${PROT.zoom}">
+        <div class="pr-escenario">TESTERA / ESCENARIO</div>
+        ${planoHTML}
+        <div class="pr-frente">Fondo de la sala</div>
+      </div>
+      <div class="pr-nota" style="margin-top:8px">
+        <span style="color:#8cbeff">■</span> invitado &nbsp;
+        <span style="color:var(--pr-esposa)">■</span> esposa &nbsp;
+        <span style="color:#4e5668">■</span> libre &nbsp; · 🔒 asiento fijado a mano
+      </div>
+      ${A.sobrantes.length?`<div class="pr-aviso pr-alerta"><b>Atención:</b> ${A.sobrantes.length} invitado(s) quedan sin lugar. Agregá butacas o marcá ausencias.</div>`:''}
+    </div>
+  </div>
+
+  <div class="pr-bloque">
+    <div class="pr-bloque-cab"><h3>Plano nominal · quién en cada butaca</h3>
+      <div class="pr-nota">Butaca 1 al extremo derecho del público · tocá para cambiar</div>
+    </div>
+    <div class="pr-cuerpo">${nominalHTML}</div>
+  </div>`;
+}
+
+/* ═══ Vista B · Ofrenda floral ═══ */
+function vistaOfrenda(a){
+  const c=a.clave, A=asignar(c), tot=a.entregas||16, m=Math.ceil(tot/2);
+  const bloque = fi => {
+    const r = A.slots.filter(s=>s.tipo==='O'&&s.fi===fi).slice().sort((x,y)=>x.pos-y.pos);
+    if(!r.length) return '';
+    return `<div class="pr-rango">
+      <div class="pr-rango-et">${fi===0?'1.ª fila (adelante)':'2.ª fila (atrás)'} · ${r.length} entregas</div>
+      <div class="pr-linea-form">${r.map(s=>{
+        const id=A.res[s.k], n=fi*m+s.num;
+        if(!id) return `<div class="pr-plaza libre" data-slot="${s.k}"><div class="idx">N.º ${n}</div><div class="n">Libre</div></div>`;
+        const p=PER(id), primero=(fi===0&&s.pos===0);
+        return `<div class="pr-plaza ${primero?'honor':''} ${PROT.destacado===id?'destacado':''}" data-slot="${s.k}" id="pr-sl-${s.k}">
+          <div class="idx">${primero?'1 · MÁS ANTIGUO':'N.º '+n}${A.F[s.k]?' 🔒':''}</div>
+          <div class="n">${esc(p.grado+' '+apellidos(p.nombre))}</div>
+          <div class="c">${esc((p.etiqueta||'').slice(0,34))}</div></div>`;
+      }).join('')}</div></div>`;
+  };
+  return `<div class="pr-bloque">
+    <div class="pr-bloque-cab"><h3>Orden de entregas florales</h3>
+      <div class="pr-nota">Entregas: <button class="pr-btn chico" data-entregas="-2">−</button>
+        <b style="color:var(--pr-laton)">${tot}</b>
+        <button class="pr-btn chico" data-entregas="2">+</button></div>
+    </div>
+    <div class="pr-cuerpo">
+      <div class="pr-escenario" style="max-width:100%">FRENTE · MONUMENTO / OFRENDA FLORAL</div>
+      ${bloque(0)}${bloque(1)}
+      <div class="pr-aviso"><b>Regla aplicada:</b> acá <b>no rige el centro-afuera</b>. El más antiguo encabeza la
+      primera fila y el siguiente se ubica a su izquierda, así hasta el final; recién entonces continúa la segunda
+      fila. Encabeza el <b>Gral. Zeballos</b> por la 7ma División; los profesores invitados de Argentina, Perú y
+      Brasil también depositan su ofrenda.</div>
+    </div>
+  </div>`;
+}
+
+/* ═══ Vista C · Vino de honor, fila de uno ═══ */
+function vistaFila1(a){
+  const c=a.clave, A=asignar(c), aut=a.autoridad_codigo;
+  const fila = A.slots.filter(s=>s.tipo==='V').slice().sort((x,y)=>x.pos-y.pos);
+  return `<div class="pr-bloque">
+    <div class="pr-bloque-cab"><h3>Fila de uno · todos de pie</h3>
+      <div class="pr-nota">${A.l.length} asistentes · tocá un lugar para elegir ocupante</div>
+    </div>
+    <div class="pr-cuerpo">
+      <div class="pr-escenario" style="max-width:100%">INGRESO DEL SALÓN</div>
+      <div class="pr-linea-form">${fila.map(s=>{
+        const id=A.res[s.k]; if(!id) return '';
+        const p=PER(id), esH=(id===aut);
+        return `<div class="pr-plaza ${esH?'honor':''} ${PROT.destacado===id?'destacado':''}" data-slot="${s.k}" id="pr-sl-${s.k}">
+          <div class="idx">${esH?'CENTRO · PRESIDE':'N.º '+s.num}${A.F[s.k]?' 🔒':''}</div>
+          <div class="n">${esc(p.grado+' '+apellidos(p.nombre))}</div>
+          <div class="c">${esc((p.etiqueta||'').slice(0,32))}</div></div>`;
+      }).join('')}</div>
+      <div class="pr-lados"><span>◀ Derecha de la autoridad</span><span>Izquierda de la autoridad ▶</span></div>
+      <div class="pr-aviso"><b>Disposición:</b> la autoridad ocupa el centro; el 2.º a su derecha, el 3.º a su
+      izquierda, alternando hacia los extremos por orden de precedencia. Nadie toma asiento.</div>
+    </div>
+  </div>`;
+}
+
+function pintarDispositivo(){
+  const a = actoDe(PROT.acto);
+  const n = $('#prot-panel-disp');
+  n.innerHTML = a.tipo==='paraninfo' ? vistaParaninfo(a)
+              : a.tipo==='ofrenda'   ? vistaOfrenda(a)
+              : vistaFila1(a);
+}
+
+function pintarTablaOrden(){
+  const {ids,ub} = colocacion(PROT.acto);
+  $('#prot-nota-orden').textContent = ids.length+' ubicados';
+  $('#prot-tabla-orden').innerHTML =
+    `<tr><th class="num">N.º</th><th>Invitado</th><th>Ubicación</th></tr>`+
+    ids.map((id,i)=>{ const p=PER(id);
+      return `<tr><td class="num">${i+1}</td>
+        <td>${esc(p.grado)} <b>${esc(p.nombre)}</b><div class="cg">${esc(p.cargo||'—')}</div></td>
+        <td class="ub">${esc(ub[i]||'—')}</td></tr>`;
+    }).join('');
+}
+
+function pintarNovedades(){
+  const n = PROT.novedades[PROT.acto]||[];
+  $('#prot-nov-lista').innerHTML = n.length
+    ? n.map(x=>`<div class="pr-nov ${esc(x.tipo||'alta')}"><span class="hora">${esc(x.hora)}</span>
+        <span>${x.texto}${x.usuario?` <span style="color:var(--pr-tinta3)">— ${esc(x.usuario)}</span>`:''}</span></div>`).join('')
+    : `<div class="pr-vacio">Sin novedades. Marcá una ausencia en la nómina para ver el recorrido.</div>`;
+  const pun=$('#prot-pun-nov');
+  if(pun){ pun.style.display = n.length?'block':'none'; pun.textContent = n.length>99?'99+':n.length; }
+}
+
+/* La cabecera de SIDECEME es pegajosa y su alto cambia con el ancho: si el rail
+   de la nómina se pega más arriba que ella, queda tapado. Se mide y se avisa. */
+function medirCabecera(){
+  const h = document.querySelector('#screen-protocolo .app-header');
+  if(!h) return;
+  const alto = Math.round(h.getBoundingClientRect().height) + 8;
+  document.getElementById('screen-protocolo').style.setProperty('--pr-cab', alto+'px');
+  document.getElementById('screen-protocolo').style.setProperty('--pr-salto', (alto+24)+'px');
+}
+window.addEventListener('resize', ()=>{ try{ medirCabecera(); }catch(e){} });
+
+function render(){
+  pintarActos(); pintarCabecera(); pintarNomina();
+  pintarDispositivo(); pintarTablaOrden(); pintarNovedades(); pintarSync();
+  medirCabecera();
+}
+
+/* ═══════════════════ ACCIONES ═══════════════════ */
+
+function quienSoy(){
+  const u = window.currentUser||{};
+  return ((u.grado?u.grado+' ':'')+(u.nombre_completo||'')).trim() || 'protocolo';
+}
+function exigirEdicion(){
+  if(PROT.puedeEditar) return true;
+  alert('Sólo el equipo de Protocolo puede modificar el dispositivo. Vos podés consultarlo e imprimirlo.');
+  return false;
+}
+function exigirAdmin(){
+  if(PROT.esAdmin) return true;
+  alert('Reordenar la precedencia general y designar autoridades es atribución del Administrador de Protocolo.');
+  return false;
+}
+
+function anotar(tipo, texto){
+  const c = PROT.acto;
+  (PROT.novedades[c] = PROT.novedades[c]||[]).unshift({hora:ahora(), tipo, texto, usuario:quienSoy()});
+  PROT.novedades[c] = PROT.novedades[c].slice(0,60);
+  mandar({accion:'novedad', acto:c, tipo, texto, usuario:quienSoy()});
+}
+
+let _lote = null;   // cuando no es null, los cambios se juntan y viajan en una sola llamada
+function ponerEstado(id, campo, valor){
+  const c=PROT.acto, e=EST(c);
+  e[id] = Object.assign({ausente:false,testera:false,acompanado:false}, e[id]||{}, {[campo]:valor});
+  const fila = {codigo:id, ausente:!!e[id].ausente, testera:!!e[id].testera, acompanado:!!e[id].acompanado};
+  if(_lote) _lote.push(fila);
+  else mandar(Object.assign({accion:'estado', acto:c}, fila));
+}
+/* Los botones que tocan a toda la nómina («Solo guarnición Cbba.», «Todos
+   presentes») cambiaban más de cien fichas: una llamada por cabeza llenaba la
+   cola de cien operaciones. Se juntan y se mandan de un saque. */
+function enLote(fn){
+  _lote = [];
+  try{ fn(); } finally {
+    const filas = _lote; _lote = null;
+    if(filas.length) mandar({accion:'estado_lote', acto:PROT.acto, filas});
+  }
+}
+
+/* Marcar ausente / reincorporar, con el recorrido completo en el registro (4.4). */
+function alternar(id){
+  if(!exigirEdicion()) return;
+  const c=PROT.acto, a=actoDe(c), p=PROT.IDX[id];
+  const era = esAusente(c,id);
+  const antes = colocacion(c);
+  const posAntes = antes.ids.indexOf(id);
+  const ubAntes = posAntes>=0 ? antes.ub[posAntes] : null;
+
+  if(!era && a.autoridad_codigo===id){
+    const sig = presentes(c).find(x=>x!==id);
+    a.autoridad_codigo = sig||null;
+    mandar({accion:'acto', acto:c, autoridad_codigo:a.autoridad_codigo});
+    anotar('baja', `<b>Cambio de autoridad.</b> ${esc(nombreCorto(p))} no asiste. Preside ahora <b style="color:var(--pr-laton)">${sig?esc(nombreCorto(PROT.IDX[sig])):'—'}</b>.`);
+  }
+  ponerEstado(id,'ausente',!era);
+
+  const desp = colocacion(c);
+  if(!era){
+    const suc = desp.ids[posAntes];
+    let mueven=0;
+    antes.ids.forEach((x,k)=>{ if(x===id) return;
+      const k2=desp.ids.indexOf(x); if(k2>=0 && desp.ub[k2]!==antes.ub[k]) mueven++; });
+    anotar('baja', `<b>Baja registrada:</b> ${esc(nombreCorto(p))} — dejaba ${esc(ubAntes||'sin ubicación')}. `+
+      (suc?`Asciende <b style="color:#7fd1a0">${esc(nombreCorto(PER(suc)))}</b> a ${esc(desp.ub[posAntes])}. `:'')+
+      `${mueven} invitado(s) cambian de ubicación.`);
+  } else {
+    const pn = desp.ids.indexOf(id);
+    let mueven=0;
+    desp.ids.forEach((x,k)=>{ if(x===id) return;
+      const k1=antes.ids.indexOf(x); if(k1>=0 && desp.ub[k]!==antes.ub[k1]) mueven++; });
+    anotar('alta', `<b>Reincorporación:</b> ${esc(nombreCorto(p))} ocupa ${esc(desp.ub[pn]||'—')}. ${mueven} invitado(s) retroceden un lugar.`);
+  }
+  render();
+}
+
+function designarTestera(id){
+  if(!exigirEdicion()) return;
+  const c=PROT.acto, v=!esTestera(c,id);
+  ponerEstado(id,'testera',v);
+  anotar('alta', `<b>Testera:</b> ${esc(nombreCorto(PROT.IDX[id]))} ${v?'queda designado':'sale de la designación'} en este acto.`);
+  render();
+}
+function marcarAcompanado(id){
+  if(!exigirEdicion()) return;
+  const c=PROT.acto, v=!esAcomp(c,id);
+  ponerEstado(id,'acompanado',v);
+  anotar('alta', `<b>Acompañante:</b> ${esc(nombreCorto(PROT.IDX[id]))} ${v?'asiste con su esposa (butaca contigua)':'asiste solo'}.`);
+  render();
+}
+
+/* Reordenar la precedencia general — atribución del administrador. */
+function mover(id, d){
+  if(!exigirAdmin()) return;
+  const i=PROT.orden.indexOf(id), j=i+d;
+  if(i<0||j<0||j>=PROT.orden.length) return;
+  [PROT.orden[i],PROT.orden[j]] = [PROT.orden[j],PROT.orden[i]];
+  PROT.orden.forEach((cod,k)=>{ if(PROT.IDX[cod]) PROT.IDX[cod].precedencia=k+1; });
+  mandar({accion:'precedencia', orden:PROT.orden});
+  anotar('alta', `<b>Precedencia ajustada:</b> ${esc(nombreCorto(PROT.IDX[id]))} pasa al lugar ${j+1}.`);
+  render();
+}
+
+/* Fijar a mano el ocupante de un asiento (4.5). */
+function fijar(slotKey, id){
+  if(!exigirEdicion()) return;
+  const c=PROT.acto, F=FIJ(c);
+  const antesOcup = asignar(c).res[slotKey];
+  const s = slotsDe(c, ordenLlenado(c).length).find(z=>z.k===slotKey);
+  const et = s ? s.et : slotKey;
+
+  if(!id){
+    delete F[slotKey];
+    mandar({accion:'liberar', acto:c, slot:slotKey});
+    anotar('alta', `<b>Asiento liberado:</b> ${esc(et)} vuelve a asignarse por precedencia.`);
+  } else {
+    // si estaba anulado, se reincorpora solo
+    const base = id.slice(0,2)==='E:' ? id.slice(2) : id;
+    if(id.slice(0,2)!=='E:' && esAusente(c,id)){
+      ponerEstado(id,'ausente',false);
+      anotar('alta', `<b>Reincorporado:</b> ${esc(nombreCorto(PROT.IDX[id]))} vuelve al acto.`);
+    }
+    if(id.slice(0,2)==='E:' && !esAcomp(c,base)){
+      ponerEstado(base,'acompanado',true);
+    }
+    // nadie en dos asientos
+    Object.keys(F).forEach(k=>{ if(F[k]===id && k!==slotKey) delete F[k]; });
+    F[slotKey]=id;
+    mandar({accion:'fijar', acto:c, slot:slotKey, codigo:base, esposa:id.slice(0,2)==='E:', usuario:quienSoy()});
+    anotar('alta', `<b>Asiento fijado:</b> ${esc(et)} → ${esc(nombreCorto(PER(id)))}.`+
+      (antesOcup && antesOcup!==id ? ` ${esc(nombreCorto(PER(antesOcup)))} se reacomoda.` : ''));
+  }
+  render();
+}
+
+function ponerAutoridad(id){
+  if(!exigirAdmin()) return;
+  const c=PROT.acto, a=actoDe(c);
+  a.autoridad_codigo=id;
+  if(esAusente(c,id)) ponerEstado(id,'ausente',false);
+  mandar({accion:'acto', acto:c, autoridad_codigo:id});
+  const fuera=excluidos(c).length;
+  anotar('alta', `<b>Autoridad superior:</b> ${esc(nombreCorto(PROT.IDX[id]))} preside el acto.`+
+    (fuera?` Quedan fuera ${fuera} invitado(s) de mayor jerarquía.`:''));
+  render();
+}
+
+function ponerTecho(v){
+  if(!exigirAdmin()){ $('#prot-techo').checked = !!actoDe(PROT.acto).techo_jerarquico; return; }
+  const c=PROT.acto, a=actoDe(c);
+  a.techo_jerarquico=!!v;
+  mandar({accion:'acto', acto:c, techo_jerarquico:!!v});
+  anotar('alta', v
+    ? '<b>Techo jerárquico activado:</b> nadie de mayor jerarquía que quien preside figura en el dispositivo.'
+    : '<b>Techo jerárquico desactivado:</b> quien preside ocupa el centro, pero los más antiguos siguen en el dispositivo.');
+  render();
+}
+
+/* ═══════════════════ HOJA INFERIOR: elegir ocupante ═══════════════════ */
+let _hoja = {slot:null, modo:'slot', filtro:''};
+
+function abrirHoja(slotKey){
+  const c=PROT.acto, A=asignar(c);
+  const s=A.slots.find(z=>z.k===slotKey); if(!s) return;
+  const id=A.res[slotKey], p=id?PER(id):null;
+  _hoja = {slot:slotKey, modo:'slot', filtro:''};
+  $('#prot-hoja-t').textContent = s.et;
+  $('#prot-hoja-q').textContent = p ? nombreCorto(p) : 'Asiento libre';
+  $('#prot-hoja-c').textContent = p ? (p.cargo||'') : 'Elegí a quién sentar acá.';
+
+  const acc=[];
+  if(A.F[slotKey]) acc.push(`<button class="pr-btn chico" data-h="libre">↺ Volver a automático</button>`);
+  if(p && !p.esposa){
+    acc.push(`<button class="pr-btn chico" data-h="aus">${esAusente(c,id)?'↩ Reincorporar':'✕ No asistirá'}</button>`);
+    acc.push(`<button class="pr-btn chico" data-h="tes">${esTestera(c,id)?'Quitar de testera':'★ A la testera'}</button>`);
+    acc.push(`<button class="pr-btn chico" data-h="esp">${esAcomp(c,id)?'Sin esposa':'♀ Con esposa'}</button>`);
+    acc.push(`<button class="pr-btn chico" data-h="aut">🎖️ Que presida</button>`);
+  }
+  acc.push(`<button class="pr-btn chico" data-h="cerrar">Cerrar</button>`);
+  $('#prot-hoja-acc').innerHTML = acc.join('');
+  $('#prot-hoja-buscar').value=''; $('#prot-hoja-buscar').placeholder='Buscar a quién sentar acá…';
+  pintarOpciones();
+  $('#prot-hoja').classList.add('abierta');
+  setTimeout(()=>{ try{ $('#prot-hoja-buscar').focus({preventScroll:true}); }catch(e){} }, 60);
+}
+
+function abrirHojaAutoridad(){
+  _hoja = {slot:null, modo:'autoridad', filtro:''};
+  const a=actoDe(PROT.acto);
+  $('#prot-hoja-t').textContent = 'Autoridad superior del acto';
+  $('#prot-hoja-q').textContent = a.titulo||'';
+  $('#prot-hoja-c').textContent = 'Quien presida marca el techo: nadie de mayor jerarquía asiste (salvo que desactives el techo).';
+  $('#prot-hoja-acc').innerHTML = `<button class="pr-btn chico" data-h="cerrar">Cerrar</button>`;
+  $('#prot-hoja-buscar').value=''; $('#prot-hoja-buscar').placeholder='Buscar a la autoridad…';
+  pintarOpciones();
+  $('#prot-hoja').classList.add('abierta');
+  setTimeout(()=>{ try{ $('#prot-hoja-buscar').focus({preventScroll:true}); }catch(e){} }, 60);
+}
+function cerrarHoja(){ $('#prot-hoja').classList.remove('abierta'); }
+
+function pintarOpciones(){
+  const c=PROT.acto, q=_hoja.filtro.toLowerCase().trim();
+  const A = _hoja.modo==='slot' ? asignar(c) : null;
+  const ocupanteActual = A ? A.res[_hoja.slot] : actoDe(c).autoridad_codigo;
+  const fuera = new Set(excluidos(c));
+  const dondeEsta = {};
+  if(A) A.slots.forEach(s=>{ const id=A.res[s.k]; if(id) dondeEsta[id]=s.et; });
+
+  const coincide = p => !q || (p.grado+' '+p.nombre+' '+(p.cargo||'')).toLowerCase().includes(q);
+  const linea = (id, tag, clase) => {
+    const p=PER(id); if(!p) return '';
+    return `<div class="pr-op" tabindex="0" data-elegir="${esc(id)}">
+      <div><div class="n">${esc(p.grado)} <b>${esc(p.nombre)}</b></div>
+      <div class="c">${esc(p.cargo||'—')}${dondeEsta[id]?' · 📍 '+esc(dondeEsta[id]):''}</div></div>
+      ${tag?`<span class="tag ${clase}">${tag}</span>`:''}</div>`;
+  };
+
+  let html='';
+  if(_hoja.modo==='slot'){
+    html += `<div class="pr-op" tabindex="0" data-elegir=""><div><div class="n">— automático (por precedencia) —</div>
+      <div class="c">Deja que el motor asigne este lugar</div></div></div>`;
+  }
+  const pres=[], aus=[], esposas=[];
+  PROT.orden.forEach(id=>{
+    if(fuera.has(id)) return;
+    const p=PROT.IDX[id]; if(!p || !coincide(p)) return;
+    if(esAusente(c,id)) aus.push(id); else pres.push(id);
+  });
+  if(_hoja.modo==='slot'){
+    PROT.orden.forEach(id=>{
+      if(fuera.has(id)||esAusente(c,id)||!esAcomp(c,id)) return;
+      const q2=PER('E:'+id); if(!q2) return;
+      if(q && !((q2.grado+' '+q2.nombre).toLowerCase().includes(q))) return;
+      esposas.push('E:'+id);
+    });
+  }
+  if(pres.length){ html += `<div class="pr-op-cab">Presentes · ${pres.length}</div>`;
+    html += pres.map(id=>linea(id, id===ocupanteActual?'ACÁ':(dondeEsta[id]?'sentado':''), id===ocupanteActual?'aqui':'otro')).join(''); }
+  if(esposas.length){ html += `<div class="pr-op-cab">Esposas · ${esposas.length}</div>`;
+    html += esposas.map(id=>linea(id, id===ocupanteActual?'ACÁ':'esposa', id===ocupanteActual?'aqui':'esp')).join(''); }
+  if(aus.length){ html += `<div class="pr-op-cab">Anulados — elegirlo lo reincorpora · ${aus.length}</div>`;
+    html += aus.map(id=>linea(id,'ausente','aus')).join(''); }
+  if(!pres.length && !aus.length && !esposas.length) html += `<div class="pr-vacio">Nadie coincide con la búsqueda.</div>`;
+  $('#prot-hoja-op').innerHTML = html;
+}
+
+/* ═══════════════════ localizar a alguien en el plano ═══════════════════ */
+function localizar(id){
+  PROT.destacado = (PROT.destacado===id) ? null : id;
+  const u = PROT.destacado ? ubicacionDe(PROT.acto, id) : null;
+  if(window.matchMedia('(max-width:1023px)').matches && u) verVista('dispositivo');
+  render();
+  if(u) setTimeout(()=>{
+    const n=document.getElementById('pr-sl-'+u.slot);
+    if(n) n.scrollIntoView({behavior:'smooth', block:'center', inline:'center'});
+  }, 90);
+  else if(PROT.destacado) alert(nombreCorto(PROT.IDX[id])+' no tiene lugar asignado en este acto.');
+}
+
+/* ═══════════════════ zoom del plano ═══════════════════ */
+function zoom(v){
+  if(v==='fit'){
+    const a=actoDe(PROT.acto);
+    const cont=$('#prot-plano');
+    const maxF = Math.max.apply(null, filasDe(a));
+    const base = parseFloat(getComputedStyle($('#screen-protocolo')).getPropertyValue('--pr-butaca'))||30;
+    const disp = (cont? cont.clientWidth : window.innerWidth) - 70;
+    PROT.zoom = Math.max(.28, Math.min(1.6, disp / (maxF*(base+4))));
+  } else {
+    PROT.zoom = Math.max(.28, Math.min(1.6, +(PROT.zoom + v*0.15).toFixed(2)));
+  }
+  pintarDispositivo();
+}
+
+/* ═══════════════════ vistas del celular ═══════════════════ */
+function verVista(v){
+  $('#screen-protocolo').dataset.vista=v;
+  document.querySelectorAll('#prot-tabs .pr-tab').forEach(b=>b.setAttribute('aria-selected', String(b.dataset.vista===v)));
+  window.scrollTo({top:0,behavior:'instant'});
+}
+
+/* ═══════════════════ herramientas ═══════════════════ */
+function soloGuarnicion(){
+  if(!exigirEdicion()) return;
+  const c=PROT.acto; let n=0;
+  enLote(()=>{
+  PROT.orden.forEach(id=>{
+    const p=PROT.IDX[id]; const local=/Cochabamba|Cbba/i.test(p.sede||'');
+    if(!local && !esAusente(c,id)){ ponerEstado(id,'ausente',true); n++; }
+    else if(local && esAusente(c,id)) ponerEstado(id,'ausente',false);
+  });
+  const aut=actoDe(c).autoridad_codigo;
+  if(aut && esAusente(c,aut)) ponerEstado(aut,'ausente',false);
+  });
+  anotar('baja', `<b>Filtro aplicado:</b> solo guarnición Cochabamba. ${n} invitados fuera del acto.`);
+  render();
+}
+function todosPresentes(){
+  if(!exigirEdicion()) return;
+  const c=PROT.acto;
+  enLote(()=>PROT.orden.forEach(id=>{ if(esAusente(c,id)) ponerEstado(id,'ausente',false); }));
+  anotar('alta','<b>Nómina restablecida:</b> todos los invitados figuran presentes.');
+  render();
+}
+function liberarFijados(){
+  if(!exigirEdicion()) return;
+  const c=PROT.acto, F=FIJ(c), ks=Object.keys(F);
+  if(!ks.length){ alert('No hay asientos fijados a mano en este acto.'); return; }
+  if(!confirm('¿Liberar los '+ks.length+' asientos fijados a mano? Todo vuelve a asignarse por precedencia.')) return;
+  ks.forEach(k=>{ delete F[k]; });
+  mandar({accion:'liberar', acto:c, slots:ks});
+  anotar('alta', `<b>Asientos liberados:</b> ${ks.length} fijación(es) retiradas; todo vuelve a precedencia.`);
+  render();
+}
+function cambiarNumero(campo, delta){
+  if(!exigirEdicion()) return;
+  const c=PROT.acto, a=actoDe(c);
+  if(campo==='entregas'){
+    a.entregas = Math.max(2, Math.min(60, (a.entregas||16)+delta));
+    mandar({accion:'acto', acto:c, entregas:a.entregas});
+  } else {
+    a.puestos_testera = Math.max(3, Math.min(15, (a.puestos_testera||11)+delta));
+    mandar({accion:'acto', acto:c, puestos_testera:a.puestos_testera});
+  }
+  render();
+}
+function textoOrden(){
+  const c=PROT.acto, a=actoDe(c);
+  const {ids,ub} = colocacion(c);
+  const aut = PROT.IDX[a.autoridad_codigo];
+  return `ORDEN DE PROTOCOLO — ${(a.rotulo?a.rotulo+': ':'')+String(a.titulo||'').toUpperCase()}\n`+
+    `${a.lugar||''} · ${a.momento||''}\n`+
+    `Autoridad superior: ${aut?nombreCorto(aut):'—'}\n\n`+
+    ids.map((id,i)=>{ const p=PER(id);
+      return `${String(i+1).padStart(3,' ')}. ${nombreCorto(p)} — ${p.cargo||''}  [${ub[i]||''}]`; }).join('\n');
+}
+async function copiarOrden(){
+  const b=$('#prot-btn-copiar');
+  try{ await navigator.clipboard.writeText(textoOrden());
+    b.textContent='Copiado ✓'; }catch(e){ b.textContent='No se pudo'; }
+  setTimeout(()=>b.textContent='Copiar orden',1700);
+}
+
+/* ═══════════════════ EXPORTAR A WORD (formato ECEME) ═══════════════════ */
+function exportarWord(){
+  const c=PROT.acto, a=actoDe(c);
+  const {ids,ub} = colocacion(c);
+  const aut = PROT.IDX[a.autoridad_codigo];
+  const A = _ARIAL;
+  const P = (t,o)=>{ o=o||{};
+    return `<w:p><w:pPr><w:jc w:val="${o.jc||'both'}"/><w:spacing w:before="${o.before||0}" w:after="${o.after||60}"/></w:pPr>`+
+      `<w:r><w:rPr>${A}${o.b?'<w:b/>':''}<w:sz w:val="${o.sz||24}"/><w:szCs w:val="${o.sz||24}"/></w:rPr>`+
+      `<w:t xml:space="preserve">${_xmlEsc(t)}</w:t></w:r></w:p>`; };
+  const CEL = (t,w,o)=>{ o=o||{};
+    return `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${o.sh?'<w:shd w:val="clear" w:fill="D9D9D9"/>':''}<w:vAlign w:val="center"/></w:tcPr>`+
+      `<w:p><w:pPr><w:jc w:val="${o.jc||'left'}"/><w:spacing w:before="20" w:after="20"/></w:pPr>`+
+      `<w:r><w:rPr>${A}${o.b?'<w:b/>':''}<w:sz w:val="${o.sz||20}"/></w:rPr><w:t xml:space="preserve">${_xmlEsc(t)}</w:t></w:r></w:p></w:tc>`; };
+
+  const body=[];
+  body.push(_pMembrete('FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES'));
+  body.push(_pMembrete('ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO'));
+  body.push(_pMembrete('“MARISCAL ANDRÉS DE SANTA CRUZ”'));
+  body.push(_pMembrete('BOLIVIA', true, 0));
+  body.push(`<w:p><w:pPr><w:jc w:val="center"/><w:spacing w:before="240" w:after="60"/></w:pPr>`+
+    `<w:r><w:rPr>${A}<w:b/><w:sz w:val="32"/></w:rPr><w:t>ORDEN DE PROTOCOLO</w:t></w:r></w:p>`);
+  body.push(P((a.rotulo?a.rotulo+' — ':'')+String(a.titulo||'').toUpperCase(), {jc:'center', b:true, sz:24, after:0}));
+  body.push(P('Aniversario de la ECEME 2026 · '+[a.momento,a.lugar].filter(Boolean).join(' · '), {jc:'center', sz:20, after:200}));
+  body.push(P('Autoridad superior que preside: '+(aut?nombreCorto(aut)+' — '+(aut.cargo||''):'—'), {b:true, after:60}));
+  body.push(P(a.techo_jerarquico
+    ? 'Se aplica el techo jerárquico: no asisten los invitados de precedencia superior a quien preside.'
+    : 'Techo jerárquico desactivado por disposición del encargado de protocolo.', {sz:20, after:200}));
+
+  const W=[620,4600,3200];
+  let tbl = `<w:tbl><w:tblPr><w:tblW w:w="8420" w:type="dxa"/><w:tblBorders>`+
+    ['top','left','bottom','right','insideH','insideV'].map(b=>`<w:${b} w:val="single" w:sz="4" w:space="0" w:color="666666"/>`).join('')+
+    `</w:tblBorders></w:tblPr><w:tblGrid>${W.map(w=>`<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>`;
+  tbl += `<w:tr><w:trPr><w:tblHeader/></w:trPr>`+
+    CEL('N.º',W[0],{b:true,sh:true,jc:'center'})+CEL('Invitado',W[1],{b:true,sh:true})+CEL('Ubicación',W[2],{b:true,sh:true})+`</w:tr>`;
+  ids.forEach((id,i)=>{ const p=PER(id);
+    tbl += `<w:tr>`+CEL(String(i+1),W[0],{jc:'center'})+
+      CEL(nombreCorto(p)+(p.cargo?' — '+p.cargo:''),W[1])+CEL(ub[i]||'—',W[2])+`</w:tr>`; });
+  tbl += `</w:tbl>`;
+  body.push(tbl);
+  body.push(P('', {after:200}));
+  body.push(P('Total de invitados ubicados: '+ids.length+'.', {sz:20, after:400}));
+
+  const f = (typeof _firmaUsuarioActual==='function') ? _firmaUsuarioActual() : {nombre:'',grado:''};
+  body.push(P((typeof _lugarFecha==='function')?_lugarFecha():'', {jc:'right', sz:22, after:600}));
+  body.push(P(f.nombre||'', {jc:'center', after:0}));
+  body.push(P(f.grado||'ENCARGADO DE PROTOCOLO', {jc:'center', b:true}));
+
+  const sectPr = `<w:sectPr><w:pgSz w:w="12240" w:h="15840"/>`+
+    `<w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1701" w:header="720" w:footer="454" w:gutter="0"/></w:sectPr>`;
+  const documentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>${body.join('')}${sectPr}</w:body></w:document>`;
+  const stylesXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr>${A}<w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr></w:rPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style></w:styles>`;
+  const contentTypes = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/></Types>`;
+  const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`;
+  const docRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+
+  try{
+    const blob = _zipStore([
+      {name:'[Content_Types].xml', str:contentTypes},
+      {name:'_rels/.rels', str:rels},
+      {name:'word/document.xml', str:documentXml},
+      {name:'word/_rels/document.xml.rels', str:docRels},
+      {name:'word/styles.xml', str:stylesXml}
+    ]);
+    const url=URL.createObjectURL(blob), el=document.createElement('a');
+    el.href=url; el.download='ORDEN_PROTOCOLO_'+String(a.clave||'acto').toUpperCase()+'.docx';
+    document.body.appendChild(el); el.click(); document.body.removeChild(el);
+    setTimeout(()=>URL.revokeObjectURL(url),4000);
+  }catch(e){ alert('No se pudo generar el Word: '+(e.message||e)); }
+}
+
+/* ═══════════════════ EVENTOS ═══════════════════ */
+const raiz = () => document.getElementById('screen-protocolo');
+
+raiz().addEventListener('click', e=>{
+  const t = e.target;
+
+  const tab = t.closest('[data-acto]');
+  if(tab){ PROT.acto = tab.dataset.acto; PROT.destacado=null; guardarLocal(); render(); return; }
+
+  const vt = t.closest('.pr-tab');
+  if(vt){ verVista(vt.dataset.vista); return; }
+
+  const ch = t.closest('.pr-chip');
+  if(ch){ PROT.cat = ch.dataset.cat; pintarFiltros(); pintarNomina(); return; }
+
+  const z = t.closest('[data-zoom]');
+  if(z){ const v=z.dataset.zoom; zoom(v==='fit'?'fit':+v); return; }
+
+  if(t.closest('[data-liberar]')){ liberarFijados(); return; }
+  const en = t.closest('[data-entregas]'); if(en){ cambiarNumero('entregas', +en.dataset.entregas); return; }
+  const tn = t.closest('[data-tes-n]');   if(tn){ cambiarNumero('testera',  +tn.dataset.tesN); return; }
+
+  if(t.dataset.tog){ alternar(t.dataset.tog); return; }
+  if(t.dataset.tes){ designarTestera(t.dataset.tes); return; }
+  if(t.dataset.esp){ marcarAcompanado(t.dataset.esp); return; }
+  if(t.dataset.sube){ mover(t.dataset.sube,-1); return; }
+  if(t.dataset.bajar){ mover(t.dataset.bajar, 1); return; }
+
+  const ver = t.closest('[data-ver]');
+  if(ver){ localizar(ver.dataset.ver); return; }
+
+  const sitio = t.closest('[data-slot]');
+  if(sitio && sitio.dataset.slot){ abrirHoja(sitio.dataset.slot); return; }
+});
+
+/* hoja inferior */
+$('#prot-hoja').addEventListener('click', e=>{
+  if(e.target.dataset.cerrar){ cerrarHoja(); return; }
+  const b = e.target.closest('[data-h]');
+  if(b){
+    const k=b.dataset.h, c=PROT.acto;
+    const id = _hoja.slot ? asignar(c).res[_hoja.slot] : null;
+    if(k==='cerrar'){ cerrarHoja(); return; }
+    if(k==='libre'){ cerrarHoja(); fijar(_hoja.slot, null); return; }
+    cerrarHoja(); if(!id) return;
+    if(k==='aus') alternar(id);
+    else if(k==='tes') designarTestera(id);
+    else if(k==='esp') marcarAcompanado(id);
+    else if(k==='aut') ponerAutoridad(id);
+    return;
+  }
+  const op = e.target.closest('[data-elegir]');
+  if(op){
+    const val = op.dataset.elegir || null;
+    cerrarHoja();
+    if(_hoja.modo==='autoridad'){ if(val) ponerAutoridad(val); }
+    else fijar(_hoja.slot, val);
+  }
+});
+$('#prot-hoja-buscar').addEventListener('input', e=>{ _hoja.filtro=e.target.value; pintarOpciones(); });
+$('#prot-hoja-op').addEventListener('keydown', e=>{
+  if(e.key==='Enter'){ const n=e.target.closest('[data-elegir]'); if(n) n.click(); }
+});
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape' && $('#prot-hoja').classList.contains('abierta')) cerrarHoja();
+});
+
+$('#prot-buscar').addEventListener('input', e=>{ PROT.filtro=e.target.value; pintarNomina(); });
+$('#prot-techo').addEventListener('change', e=>ponerTecho(e.target.checked));
+$('#prot-btn-autoridad').addEventListener('click', abrirHojaAutoridad);
+$('#prot-btn-guarnicion').addEventListener('click', soloGuarnicion);
+$('#prot-btn-todos').addEventListener('click', todosPresentes);
+$('#prot-btn-liberar').addEventListener('click', liberarFijados);
+$('#prot-btn-imprimir').addEventListener('click', ()=>window.print());
+$('#prot-btn-copiar').addEventListener('click', copiarOrden);
+$('#prot-btn-word').addEventListener('click', exportarWord);
+$('#prot-btn-limpiar-nov').addEventListener('click', ()=>{
+  if(!exigirEdicion()) return;
+  PROT.novedades[PROT.acto]=[]; guardarLocal(); pintarNovedades();
+});
+$('#prot-btn-agregar').addEventListener('click', ()=>{
+  if(!exigirAdmin()) return;
+  const grado = prompt('Grado y tratamiento (ej.: Sr. Cnl. DAEN.)'); if(grado===null) return;
+  const nombre = prompt('Nombres y apellidos'); if(!nombre) return;
+  const cargo = (prompt('Cargo')||'').toUpperCase();
+  const ref = prompt('¿Después de qué número de precedencia lo ubico? (vacío = al final)');
+  const codigo = 'X'+Date.now().toString(36).toUpperCase();
+  const n = parseInt(ref,10);
+  const destino = (!isNaN(n) && n>0 && n<=PROT.orden.length) ? n : PROT.orden.length;
+  mandar({accion:'alta_invitado', codigo, grado, nombre, cargo, categoria:'Añadidos',
+          sede:'Cochabamba', etiqueta:cargo.slice(0,40), precedencia:destino+1});
+  alert('Se registró el alta de '+grado+' '+nombre+'.\n\nSe verá en la nómina cuando la Sección 6 vuelva a leer la base (o al recargar la pantalla).');
+});
+
+/* volver a subir lo pendiente cuando vuelve la señal o la app al frente */
+window.addEventListener('online', ()=>{ vaciarCola(); });
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) vaciarCola(); });
+
+/* ═══════════════════ ENTRADA / SALIDA ═══════════════════ */
+let _protVolverA = 'screen-home';
+
+window.protAbrir = async function(){
+  const act = document.querySelector('.screen.active');
+  if(act && act.id!=='screen-protocolo') _protVolverA = act.id;
+
+  const u = window.currentUser||{};
+  const roles = (Array.isArray(u.roles)?u.roles:[]).map(r=>String(r).toLowerCase());
+  PROT.esAdmin     = roles.includes('protocolo_admin') || window.activeRole==='ciencia_tecnologia';
+  PROT.puedeEditar = PROT.esAdmin || roles.includes('protocolo');
+
+  showScreen('screen-protocolo');
+  if(PROT.listo){ render(); return; }
+
+  $('#prot-panel-disp').innerHTML = '<div class="pr-bloque"><div class="pr-vacio">Cargando la nómina y los cuatro actos…</div></div>';
+
+  // 1) lo que quedó guardado en el aparato: se ve al instante, aun sin señal
+  const loc = leerLocal();
+
+  // 2) la base manda
+  try{
+    await cargarDeLaBase();
+    if(loc && loc.cola && loc.cola.length){ PROT.cola = loc.cola; }
+    if(loc && loc.acto) PROT.acto = loc.acto;
+    abrirCanal();
+  }catch(e){
+    if(loc){
+      Object.assign(PROT, {orden:loc.orden||[], estado:loc.estado||{}, fijos:loc.fijos||{},
+                           novedades:loc.novedades||{}, cola:loc.cola||[], acto:loc.acto||PROT.acto});
+      PROT.online=false;
+      alert('Sin conexión con la base. Se abre lo último guardado en este aparato; los cambios se suben cuando vuelva la señal.');
+    } else {
+      $('#prot-panel-disp').innerHTML =
+        '<div class="pr-bloque"><div class="pr-vacio">No se pudo cargar el protocolo: '+esc(e.message||e)+'</div></div>';
+      return;
+    }
+  }
+  PROT.listo = true;
+  pintarFiltros(); render(); vaciarCola();
+  if(window.matchMedia('(max-width:1023px)').matches) setTimeout(()=>zoom('fit'), 120);
+};
+window.protSalir = function(){ showScreen(_protVolverA||'screen-home'); };
+
+/* botón de entrada en el panel de quien tenga la función */
+function protInyectarBoton(idPantalla){
+  const u = window.currentUser; if(!u) return;
+  const roles = (Array.isArray(u.roles)?u.roles:[]).map(r=>String(r).toLowerCase());
+  const puede = roles.includes('protocolo') || roles.includes('protocolo_admin') || window.activeRole==='ciencia_tecnologia';
+  if(!puede) return;
+  const sec = document.getElementById(idPantalla); if(!sec) return;
+  if(sec.querySelector('#prot-btn-entrar')) return;
+  const cont = sec.querySelector('.menu-container') || sec.querySelector('.disc-container');
+  if(!cont) return;
+  const b = document.createElement('button');
+  b.id='prot-btn-entrar'; b.className='btn-secondary';
+  b.style.cssText='width:100%;margin-top:12px';
+  b.innerHTML='🎖️ Protocolo y Ceremonial — Aniversario 2026';
+  b.onclick = ()=>window.protAbrir();
+  cont.appendChild(b);
+}
+const PANELES_PROTOCOLO = ['screen-prof-panel','screen-disc-panel','screen-planif-panel','screen-panel-generico','screen-jc-panel'];
+(function engancharShowScreen(){
+  const previo = window.showScreen;
+  if(typeof previo!=='function' || previo.__prot) return;
+  const nuevo = function(id){
+    previo.apply(this, arguments);
+    try{ if(PANELES_PROTOCOLO.includes(id)) protInyectarBoton(id); }catch(e){}
+  };
+  nuevo.__prot = true;
+  window.showScreen = nuevo;
+})();
+
+})();
+</script>
+
 </body>
 </html>
