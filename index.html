@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.355</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.357</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7275,6 +7275,17 @@ body.wg-jugando{overflow:hidden}
 .wg-ficha2d{position:relative;width:100%;height:100%;line-height:0;
   transform-origin:50% 88%;will-change:transform}
 .wg-ficha2d>img{display:block;width:100%;height:100%}
+/* v2.9.353 — LA FICHA DEL VEHÍCULO VA EN DOS PIEZAS.
+   El vehículo se dibuja en PLANTA y gira con el rumbo de marcha (como el
+   cochecito de Google Maps); el pie —nombre y barra de poder— tiene que quedar
+   derecho para poder leerse. Por eso son dos imágenes dentro de la misma cuna:
+   la rotación se le aplica sólo a `.wg-veh`. */
+.wg-ficha2d.wg-vehcuna>img,.wg-ficha3d.wg-vehcuna>img{position:absolute;left:50%;width:auto;height:auto}
+.wg-vehcuna>.wg-veh{top:0;transform:translateX(-50%);transform-origin:50% 50%;
+  will-change:transform;transition:transform .18s linear}
+.wg-vehcuna>.wg-pie{bottom:0;transform:translateX(-50%)}
+/* La planta ya trae su propia sombra dibujada: la del envoltorio sobraría. */
+.wg-ficha2d.wg-vehcuna::after{display:none}
 /* La sombra aparece sólo mientras marcha: da el despegue del suelo sin
    ensuciar la carta cuando la unidad está detenida. */
 .wg-ficha2d::after{content:'';position:absolute;left:50%;bottom:-3px;width:64%;height:16%;
@@ -26801,7 +26812,7 @@ function wgPanelLogistica(){
     // ============================================================
     + (_wgEsG4()
         ? `<div style="margin-top:12px;border-top:1px solid rgba(140,210,255,.2);padding-top:10px">`
-          + _wgBotonesInstal('g4') + _wgConvoyesHTML(uds)
+          + _wgBotonesInstal('g4') + _wgConvoyesHTML(uds) + _wgEjesHTML()
           + `<div class="rg-meta" style="font-size:10.5px;margin-top:8px;line-height:1.5">`
           + `🚚 <b>Cómo se abastece:</b> formá el convoy en la instalación que reparte, `
           + `tocá la ficha del camión en el mapa y después tocá <b>dónde tiene que llegar</b>. `
@@ -27723,6 +27734,88 @@ function _wgConvoyExpuesto(c){
 }
 function _wgCargaDe(u,c){ const x=(u&&u.carga)||{}; return Math.max(0,Number(x[c])||0); }
 function _wgCargaTotal(u){ return _wgCargaDe(u,'III')+_wgCargaDe(u,'V'); }
+// ============================================================
+// v2.9.353 — ¿ESTE EJE LO AGUANTA UN CAMIÓN?
+// Sergio: «los ejes de abastecimiento también deberían considerar eso» — «eso»
+// es la capacidad de desplazamiento por LLANTAS.
+// Un eje trazado sobre la carta puede verse impecable y ser intransitable para
+// una columna de camiones: basta que cruce un tramo de terreno severo. Y eso no
+// se descubre planificando, se descubre cuando el convoy queda clavado a mitad
+// de camino y la unidad se queda sin munición.
+// Acá se recorre el eje metro a metro y se dice, ANTES de usarlo, cuánto de su
+// trazado rueda, cuánto va a paso y cuánto NO PASA.
+// ============================================================
+function _wgAuditarEje(t){
+  const lineas=_wgLineasDe(t&&t.geojson); if(!lineas.length) return null;
+  // Mide el SUELO por el que pasa el eje — exactamente lo mismo que va a mirar
+  // el motor (v2.9.354). No es un juicio sobre el trazado: es el parte de
+  // transitabilidad que un G-4 hace antes de comprometer una columna.
+  const terreno=WG.terreno||[];
+  const vel=WG_VEL.rueda;
+  const km={camino:0, libre:0, restringido:0, severo:0};
+  let total=0;
+  for(const l of lineas){
+    for(let i=1;i<l.length;i++){
+      const a=l[i-1], b=l[i];
+      const d=_wgHav(a,b); if(!(d>0)) continue;
+      // Se muestrea cada 250 m: suficiente para no perderse un tramo malo y
+      // barato incluso con un eje de 60 km.
+      const n=Math.max(1, Math.ceil(d/0.25));
+      for(let k=0;k<n;k++){
+        const f=(k+0.5)/n;
+        const pt=[a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f];
+        const cl=_wgClaseTerreno(pt, terreno);
+        km[cl]=(km[cl]||0)+d/n; total+=d/n;
+      }
+    }
+  }
+  if(!(total>0)) return null;
+  const corta = km.severo>0.05;
+  // Horas de marcha de una columna cargada, por este eje.
+  let horas=0;
+  for(const cl of ['camino','libre','restringido']){
+    const v=vel[cl]; if(v) horas += (km[cl]||0)/v;
+  }
+  return { total, km, corta, horas,
+    pct:{ camino:100*km.camino/total, libre:100*km.libre/total,
+          restringido:100*km.restringido/total, severo:100*km.severo/total } };
+}
+function _wgEjesHTML(){
+  const ejes=(WG.terreno||[]).filter(t=>t.tipo==='eje_log');
+  if(!ejes.length) return '';
+  const filas=ejes.map(t=>{
+    const nom=((t.geojson&&t.geojson.nom)||'Eje').split('—')[0].trim();
+    const a=_wgAuditarEje(t);
+    if(!a) return '';
+    const col = a.corta ? '#e23b3b' : (a.pct.restringido>25 ? '#e08a2c' : '#2ecc71');
+    const barra=['camino','libre','restringido','severo'].map(cl=>{
+      const c={camino:'#2ecc71',libre:'#8fd0a0',restringido:'#e08a2c',severo:'#e23b3b'}[cl];
+      return `<i style="display:block;height:100%;width:${a.pct[cl].toFixed(1)}%;background:${c}"></i>`;
+    }).join('');
+    const veredicto = a.corta
+      ? `⛔ <b>${a.km.severo.toFixed(1)} km de terreno severo</b>: ahí la columna se detiene. `
+        +`Retrazarlo, o abrir paso con zapadores.`
+      : a.pct.restringido>25
+        ? `⚠️ Pasa, pero ${a.km.restringido.toFixed(1)} km al paso (6 km/h): calculá la demora.`
+        : a.pct.camino>60
+          ? `✅ Sobre ruta: rueda a 50 km/h.`
+          : `🟡 ${Math.round(a.pct.libre)} % campo traviesa (18 km/h): pasa, pero tarda.`;
+    return `<div class="rg-card" style="padding:7px 9px;margin-top:6px;border-left:3px solid ${col}">`
+      +`<div style="display:flex;justify-content:space-between;gap:6px;align-items:baseline">`
+      +`<b style="font-size:11px">${_rgEsc(nom)}</b>`
+      +`<span style="font-size:9px;opacity:.75">${a.total.toFixed(1)} km · `
+      +`${a.horas>0?(a.horas<1?Math.round(a.horas*60)+' min':a.horas.toFixed(1)+' h'):'—'} de marcha</span></div>`
+      +`<div style="display:flex;height:5px;border-radius:3px;overflow:hidden;background:rgba(0,0,0,.4);margin-top:4px">${barra}</div>`
+      +`<div style="font-size:9px;color:${col};margin-top:4px;line-height:1.4">${veredicto}</div></div>`;
+  }).join('');
+  return `<div style="font-size:9px;letter-spacing:1.2px;opacity:.6;margin:12px 0 0">`
+    +`↔️ EJES · ¿los aguanta un camión 6×6?</div>`+filas
+    +`<div class="rg-meta" style="font-size:8.5px;margin-top:5px;line-height:1.45">`
+    +`El convoy rueda a 50 km/h por ruta, 18 campo traviesa y 6 en terreno restringido; `
+    +`el <b>severo no lo cruza</b>. El eje es <b>tu</b> decisión y el motor te deja marchar `
+    +`por donde lo trazaste: esto es el parte de transitabilidad para que la tomes con la `
+    +`carta a la vista, no un permiso.</div>`;
+}
 function _wgConvoyesHTML(uds){
   const convoyes=(uds||[]).filter(_wgEsConvoy);
   // De qué instalaciones se puede formar uno, y con qué clase.
@@ -31122,10 +31215,11 @@ function _wgFueraDeCajaCon(pt,t,holguraKm){
 }
 function _wgEnCamino(pt,terreno){
   for(const t of (terreno||[])){
-    // v2.9.344 — espejo EXACTO de `enCamino` del motor: el EPA y el EPE se
-    // trazan sobre una ruta, así que ruedan como camino. Si acá y allá no
-    // dicen lo mismo, la previsión promete un paso que el servidor no da.
-    if(t.tipo!=='via' && t.tipo!=='eje_log') continue;
+    // v2.9.354 — espejo EXACTO de `enCamino` del motor. El `eje_log` YA NO
+    // cuenta como camino: el eje es la DECISIÓN del G-4, no una ruta que exista.
+    // Manda el suelo por el que pasa. (Si acá y allá no dicen lo mismo, la
+    // previsión promete un paso que el servidor no da.)
+    if(t.tipo!=='via') continue;
     if(_wgFueraDeCajaCon(pt,t,WG_CAMINO_KM)) continue;
     for(const linea of _wgLineasDe(t.geojson)){
       for(let i=1;i<linea.length;i++){
@@ -31166,9 +31260,16 @@ function _wgClaseTerreno(pt,terreno){
 // ============================================================
 // v2.9.221 — MISMAS VELOCIDADES QUE EL MOTOR, con la clase `camino`: por la
 // carretera se pasa aunque el sector sea restringido o severo.
+// v2.9.353 — MISMAS CIFRAS QUE EL MOTOR, incluida la clase `rueda`: el convoy
+// es un camión militar 6×6 CARGADO. Si esta tabla no coincidiera con la del
+// servidor, la vista previa prometería un recorrido que el motor no va a hacer
+// — y el G-4 planificaría sobre una mentira.
 const WG_VEL={motor:{camino:50,libre:40,restringido:null,severo:null},
               oruga:{camino:32,libre:28,restringido:9,severo:null},
+              rueda:{camino:50,libre:18,restringido:6,severo:null},
               pie:{camino:6,libre:5,restringido:3.5,severo:2}};
+// El convoy rueda sobre llantas aunque su columna `medio` diga «motor».
+function _wgMedioDe(u){ return _wgEsConvoy(u) ? 'rueda' : ((u&&u.medio)||'pie'); }
 function _wgHav(a,b){
   const R=6371, rad=(d)=>d*Math.PI/180;
   const dLat=rad(b[1]-a[1]), dLng=rad(b[0]-a[0]), la1=rad(a[1]), la2=rad(b[1]);
@@ -31180,9 +31281,10 @@ function _wgHav(a,b){
 // mentiría: diría que llega adonde el motor la va a dejar clavada.
 const WG_CONSUMO={ camino:0.9, libre:1.0, restringido:1.6, severo:2.2 };
 function _wgPreverMovimiento(u,destino,horas){
-  const vel=WG_VEL[u.medio]||WG_VEL.pie;
+  const _md=_wgMedioDe(u);
+  const vel=WG_VEL[_md]||WG_VEL.pie;
   const terreno=WG.terreno||[];
-  const tanque=WG_AUTONOMIA[u&&u.medio]||0;
+  const tanque=WG_AUTONOMIA[_md]||0;
   const autonomia = tanque>0 ? Math.max(0, tanque-(Number(u.combustible_km)||0)) : Infinity;
   let consumoKm=0;
   let pos=[u.lng,u.lat];
@@ -31218,7 +31320,8 @@ function _wgPreverMovimiento(u,destino,horas){
     if(v==null){ detenida=true; motivo='terreno '+clase+' infranqueable para '+(u.medio||'pie'); break; }
     const pasoReal=_wgHav(pos,sig), tPaso=pasoReal/v;
     // v2.9.334: el tanque limita igual que el reloj (idéntico al motor).
-    const gasta = WG_CONSUMO[clase]!=null ? WG_CONSUMO[clase] : 1;
+    let gasta = WG_CONSUMO[clase]!=null ? WG_CONSUMO[clase] : 1;
+    if(_wgEsConvoy(u) && clase!=='camino') gasta = gasta*1.5;   // v2.9.353: camión cargado
     const kmPorTanque = (autonomia===Infinity||gasta<=0) ? Infinity
       : Math.max(0,(autonomia-consumoKm)/gasta);
     const kmPorTiempo = presupuesto*v;
@@ -32277,18 +32380,62 @@ function _wg3dDatos(){
       cuna.className='wg-ficha3d'
         + (u.estado==='fuera_combate'?' fuera':(u.estado==='desgastada'?' tocada':''));
       cuna.style.cssText='will-change:transform';
-      cuna.appendChild(img);
-      const mastil=document.createElement('div'); mastil.className='mastil';
-      const peana=document.createElement('div'); peana.className='peana';
-      cuna.appendChild(mastil); cuna.appendChild(peana);
-      const env=document.createElement('div');
-      env.style.lineHeight='0';
-      env.appendChild(cuna);
-      const mk=new maplibregl.Marker({element:env, anchor:'center',
-        offset:[(sim.w/2-sim.ax)*F, (sim.h/2-sim.ay)*F]}).setLngLat([u.lng,u.lat]).addTo(map);
-      mk.__uid=u.id; // para poder moverlo durante el replay
-      try{ mk.getElement().style.zIndex='6'; }catch(_e){}   // v2.9.347: por delante
-      WG.marc3d.push(mk);
+      // ============================================================
+      // v2.9.353 — EL VEHÍCULO SE ACUESTA SOBRE EL TERRENO Y APUNTA A DONDE VA.
+      // Sergio: «como el vehículo de Google Maps… depende de dónde veas la
+      // imagen, va de frente hacia donde avanza».
+      // Son las dos opciones nativas de MapLibre las que dan ese efecto:
+      //   · `pitchAlignment:'map'`    → la ficha se APOYA en el suelo en vez de
+      //     quedar como un cartel parado frente a la cámara;
+      //   · `rotationAlignment:'map'` → gira CON el mapa, así el rumbo que se ve
+      //     es el rumbo real y no depende de hacia dónde mire la cámara.
+      // El rótulo va en un marcador APARTE, alineado a la pantalla, para que se
+      // pueda leer siempre. Y el vehículo va sin mástil ni peana: rueda por el
+      // terreno, no está izado en un asta.
+      // ============================================================
+      let mk;
+      if(sim.veh){
+        cuna.classList.add('wg-vehcuna');
+        const iv=document.createElement('img');
+        iv.className='wg-veh'; iv.src=sim.veh.url;
+        iv.style.width=(sim.veh.px*F)+'px'; iv.style.height=(sim.veh.px*F)+'px';
+        iv.style.transform=`translateX(-50%) rotate(${_wgRumboDe(u).toFixed(1)}deg)`;
+        iv.style.cursor='pointer';
+        iv.addEventListener('click',(ev)=>{ ev.stopPropagation();
+          if(WG.replayando) return; _wgUnidadClick(u); _wg3dDatos(); });
+        cuna.style.width=(sim.veh.px*F)+'px'; cuna.style.height=(sim.veh.px*F)+'px';
+        cuna.style.position='relative';
+        cuna.appendChild(iv);
+        const env0=document.createElement('div'); env0.style.lineHeight='0'; env0.appendChild(cuna);
+        mk=new maplibregl.Marker({element:env0, anchor:'center',
+          pitchAlignment:'map', rotationAlignment:'map'}).setLngLat([u.lng,u.lat]).addTo(map);
+        mk.__uid=u.id; try{ mk.getElement().style.zIndex='6'; }catch(_e){}
+        WG.marc3d.push(mk);
+        // El nombre y la barra, aparte y siempre de cara a quien mira.
+        const ep=document.createElement('div'); ep.style.lineHeight='0';
+        const ip=document.createElement('img'); ip.src=sim.pie.url;
+        ip.style.width=(sim.pie.w*F)+'px'; ip.style.height=(sim.pie.h*F)+'px';
+        ip.style.display='block'; ip.style.pointerEvents='none';
+        ep.appendChild(ip);
+        const mp=new maplibregl.Marker({element:ep, anchor:'top',
+          offset:[0, sim.veh.px*F*0.45]}).setLngLat([u.lng,u.lat]).addTo(map);
+        mp.__uid=u.id; mp.__pie=1;
+        try{ mp.getElement().style.zIndex='7'; }catch(_e){}
+        WG.marc3d.push(mp);
+      } else {
+        cuna.appendChild(img);
+        const mastil=document.createElement('div'); mastil.className='mastil';
+        const peana=document.createElement('div'); peana.className='peana';
+        cuna.appendChild(mastil); cuna.appendChild(peana);
+        const env=document.createElement('div');
+        env.style.lineHeight='0';
+        env.appendChild(cuna);
+        mk=new maplibregl.Marker({element:env, anchor:'center',
+          offset:[(sim.w/2-sim.ax)*F, (sim.h/2-sim.ay)*F]}).setLngLat([u.lng,u.lat]).addTo(map);
+        mk.__uid=u.id; // para poder moverlo durante el replay
+        try{ mk.getElement().style.zIndex='6'; }catch(_e){}   // v2.9.347: por delante
+        WG.marc3d.push(mk);
+      }
     }catch(_e){}
   }
   // ============================================================
@@ -33678,6 +33825,179 @@ function _wgDibVehiculo(ctx,tipo,x,y,w,h,color,rombo){
   }
   ctx.restore();
 }
+// ============================================================
+// v2.9.353 — EL VEHÍCULO VISTO DESDE ARRIBA, MIRANDO A DONDE VA.
+// Sergio: «quisiera que su vista no sea de costado sino de frente… como el
+// vehículo de Google Maps: depende de dónde veas la imagen, va de frente hacia
+// donde avanza».
+// Eso es exactamente el problema de la silueta de perfil: mira SIEMPRE a la
+// derecha, así que un convoy que marcha al norte se ve cruzado. La solución no
+// es dibujar un vehículo «de frente» —quedaría igual de fijo—, es dibujarlo en
+// PLANTA (desde arriba) y ROTARLO con el rumbo de marcha. Así, vaya a donde
+// vaya, se lo ve yendo hacia allá; que es lo que hace el cochecito de Google
+// Maps y lo que hace cualquier carta militar: la ficha apunta al eje de marcha.
+// El vehículo se dibuja apuntando al NORTE (arriba) y la rotación la pone
+// `_wgOrientar()` sobre el elemento, no sobre el canvas: así el rótulo y la
+// barra de poder quedan siempre derechos y legibles.
+// ============================================================
+function _wgDibVehiculoPlanta(ctx, tipo, cx, cy, L, color){
+  const A=L*0.38;                       // ancho de VÍA (de rueda a rueda)
+  const B=A*0.70;                       // ancho del cuerpo: las llantas asoman
+  const cuerpo=_wgOscuro(color,0.18), claro=_wgClaro(color,0.32),
+        borde=_wgOscuro(color,0.68), techo=_wgClaro(color,0.10);
+  const lw=Math.max(1, L*0.028);
+  const x0=cx-A/2, y0=cy-L/2;           // morro arriba (norte)
+  ctx.save(); ctx.lineJoin='round'; ctx.lineCap='round';
+
+  // Sombra proyectada: da el volumen sin tener que dibujarlo.
+  ctx.fillStyle='rgba(0,0,0,.32)';
+  ctx.beginPath();
+  ctx.ellipse(cx+L*0.05, cy+L*0.05, A*0.62, L*0.52, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // TREN RODANTE 6×6 — tres pares de llantas, ASOMANDO por fuera del cuerpo.
+  // Son las que mandan por dónde puede ir: rueda militar, no oruga. Si quedan
+  // tapadas bajo la caja, el dibujo pierde justo el dato que lo explica.
+  const rw=A*0.30, rh=L*0.16;
+  for(const fy of [0.21, 0.60, 0.78]){
+    const y=y0+L*fy;
+    for(const rx of [x0-rw*0.10, x0+A-rw*0.90]){
+      ctx.fillStyle='#0b1016';
+      _wgRedondo(ctx, rx, y, rw, rh, rw*0.30); ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,.13)';           // banda de rodadura
+      ctx.fillRect(rx+rw*0.28, y+rh*0.12, rw*0.44, rh*0.76);
+    }
+  }
+  // Chasis: la viga entre los ejes. Da el largo del vehículo.
+  ctx.fillStyle=_wgOscuro(color,0.72);
+  ctx.fillRect(cx-B*0.16, y0+L*0.16, B*0.32, L*0.74);
+
+  // CAJA / CARGA (los 2/3 de atrás)
+  const bx=cx-B/2, by=y0+L*0.34, bw=B, bh=L*0.60;
+  if(tipo==='cisterna' || tipo==='agua'){
+    // Tanque cilíndrico visto desde arriba: los extremos redondeados y un
+    // brillo corrido a lo largo, que es lo que delata el cilindro en planta.
+    _wgRedondo(ctx, bx, by, bw, bh, bw*0.46);
+    const g=ctx.createLinearGradient(bx,0,bx+bw,0);
+    g.addColorStop(0,_wgOscuro(color,0.42)); g.addColorStop(0.34,claro);
+    g.addColorStop(0.55,cuerpo); g.addColorStop(1,_wgOscuro(color,0.5));
+    ctx.fillStyle=g; ctx.fill();
+    ctx.strokeStyle=borde; ctx.lineWidth=lw; ctx.stroke();
+    ctx.strokeStyle='rgba(0,0,0,.42)'; ctx.lineWidth=Math.max(.8,lw*0.8);
+    for(const f of [0.30,0.58,0.84]){                    // aros del tanque
+      ctx.beginPath(); ctx.moveTo(bx+lw, by+bh*f); ctx.lineTo(bx+bw-lw, by+bh*f); ctx.stroke();
+    }
+    ctx.fillStyle=borde;                                  // boca de hombre
+    ctx.beginPath(); ctx.arc(cx, by+bh*0.20, bw*0.11, 0, Math.PI*2); ctx.fill();
+    if(tipo==='agua'){
+      ctx.fillStyle='rgba(235,248,255,.95)';              // la gota, sobre el lomo
+      const gy=by+bh*0.50, gr=bw*0.17;
+      ctx.beginPath(); ctx.moveTo(cx, gy-gr*1.25);
+      ctx.quadraticCurveTo(cx+gr, gy, cx, gy+gr*0.8);
+      ctx.quadraticCurveTo(cx-gr, gy, cx, gy-gr*1.25);
+      ctx.closePath(); ctx.fill();
+    }
+  }else if(tipo==='municion'){
+    // Entoldado: la lona vista desde arriba son sus costillas cruzadas.
+    _wgRedondo(ctx, bx, by, bw, bh, bw*0.12);
+    ctx.fillStyle=cuerpo; ctx.fill();
+    ctx.strokeStyle=borde; ctx.lineWidth=lw; ctx.stroke();
+    ctx.fillStyle=techo;
+    ctx.fillRect(bx+bw*0.16, by+bh*0.04, bw*0.68, bh*0.92);
+    ctx.strokeStyle='rgba(0,0,0,.38)'; ctx.lineWidth=Math.max(.8,lw*0.75);
+    for(const f of [0.20,0.40,0.60,0.80]){
+      ctx.beginPath(); ctx.moveTo(bx+bw*0.10, by+bh*f); ctx.lineTo(bx+bw*0.90, by+bh*f); ctx.stroke();
+    }
+    ctx.strokeStyle='rgba(255,255,255,.94)'; ctx.lineWidth=Math.max(1,lw*1.1);
+    const ax=bx+bw*0.26, aw=bw*0.48, ay=by+bh*0.32, ah=bh*0.36;
+    ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(ax+aw,ay+ah);
+    ctx.moveTo(ax+aw,ay); ctx.lineTo(ax,ay+ah); ctx.stroke();
+  }else if(tipo==='ambulancia'){
+    _wgRedondo(ctx, bx, by, bw, bh, bw*0.14);
+    ctx.fillStyle=cuerpo; ctx.fill();
+    ctx.strokeStyle=borde; ctx.lineWidth=lw; ctx.stroke();
+    ctx.fillStyle='rgba(255,255,255,.94)';                // techo blanco sanitario
+    ctx.fillRect(bx+bw*0.14, by+bh*0.10, bw*0.72, bh*0.78);
+    ctx.strokeStyle='#c0392b'; ctx.lineWidth=Math.max(1.4,lw*1.5);
+    ctx.beginPath();
+    ctx.moveTo(cx, by+bh*0.24); ctx.lineTo(cx, by+bh*0.74);
+    ctx.moveTo(bx+bw*0.26, by+bh*0.49); ctx.lineTo(bx+bw*0.74, by+bh*0.49);
+    ctx.stroke();
+  }else if(tipo==='viveres'){
+    _wgRedondo(ctx, bx, by, bw, bh, bw*0.10);
+    ctx.fillStyle=borde; ctx.fill();
+    ctx.strokeStyle=borde; ctx.lineWidth=lw; ctx.stroke();
+    ctx.fillStyle=claro; ctx.strokeStyle=_wgOscuro(color,0.5); ctx.lineWidth=Math.max(.8,lw*0.7);
+    const px=bw*0.34, py=bh*0.26;                          // la estiba, a la vista
+    for(const [fx,fy] of [[0.10,0.06],[0.54,0.06],[0.10,0.38],[0.54,0.38],[0.32,0.70]]){
+      ctx.fillRect(bx+bw*fx, by+bh*fy, px, py);
+      ctx.strokeRect(bx+bw*fx, by+bh*fy, px, py);
+    }
+  }else{
+    // Plataforma vacía: se le ve el piso y las barandas.
+    _wgRedondo(ctx, bx, by, bw, bh, bw*0.10);
+    ctx.fillStyle=_wgOscuro(color,0.42); ctx.fill();
+    ctx.strokeStyle=cuerpo; ctx.lineWidth=Math.max(1.4,lw*1.6); ctx.stroke();
+    ctx.strokeStyle='rgba(0,0,0,.30)'; ctx.lineWidth=Math.max(.8,lw*0.6);
+    for(const f of [0.28,0.52,0.76]){
+      ctx.beginPath(); ctx.moveTo(bx+bw*0.12, by+bh*f); ctx.lineTo(bx+bw*0.88, by+bh*f); ctx.stroke();
+    }
+  }
+
+  // CABINA, adelante. Es la que dice para dónde va el vehículo de un vistazo.
+  const cby=y0+L*0.02, cbh=L*0.29, cbw=B*1.06, cbx=cx-cbw/2;
+  _wgRedondo(ctx, cbx, cby, cbw, cbh, cbw*0.22);
+  ctx.fillStyle=cuerpo; ctx.fill();
+  ctx.strokeStyle=borde; ctx.lineWidth=lw; ctx.stroke();
+  // parabrisas: se ensancha hacia atrás, así el morro se lee solo
+  ctx.beginPath();
+  ctx.moveTo(cbx+cbw*0.22, cby+cbh*0.34);
+  ctx.lineTo(cbx+cbw*0.78, cby+cbh*0.34);
+  ctx.lineTo(cbx+cbw*0.90, cby+cbh*0.74);
+  ctx.lineTo(cbx+cbw*0.10, cby+cbh*0.74);
+  ctx.closePath();
+  ctx.fillStyle='rgba(222,240,255,.90)'; ctx.fill();
+  // dos faros en el morro: la punta de flecha natural del vehículo
+  ctx.fillStyle='#fff6d0';
+  const fr=Math.max(1.2, A*0.085);
+  ctx.beginPath(); ctx.arc(cbx+cbw*0.20, cby+cbh*0.10, fr, 0, Math.PI*2); ctx.fill();
+  ctx.beginPath(); ctx.arc(cbx+cbw*0.80, cby+cbh*0.10, fr, 0, Math.PI*2); ctx.fill();
+  ctx.restore();
+}
+function _wgRedondo(ctx,x,y,w,h,r){
+  r=Math.max(0,Math.min(r, w/2, h/2));
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+// Rumbo de marcha por unidad, en grados (0 = norte). Lo escribe el replay
+// cuadro a cuadro y la vista previa de la orden; se conserva entre turnos para
+// que la ficha quede apuntando a donde venía yendo.
+function _wgRumboDe(u){
+  if(!u) return 0;
+  const g=(WG.rumbos||{})[String(u.id)];
+  if(Number.isFinite(g)) return g;
+  // Sin rumbo conocido: si tiene orden de marcha, mira a su destino.
+  const o=(WG.ordenes||{})[String(u.id)];
+  if(o && o.destino_lat!=null) return _wgRumboEntre([u.lng,u.lat],[o.destino_lng,o.destino_lat]);
+  return 0;
+}
+function _wgRumboEntre(a,b){
+  const dx=(b[0]-a[0])*Math.cos((a[1]+b[1])/2*Math.PI/180), dy=(b[1]-a[1]);
+  if(!dx && !dy) return 0;
+  return (Math.atan2(dx,dy)*180/Math.PI+360)%360;
+}
+// Aplica el rumbo al vehículo de una ficha ya dibujada, sin tocar el
+// `transform` del marcador (que es de Leaflet / MapLibre).
+function _wgOrientar(cuna, grados){
+  if(!cuna) return;
+  const v=cuna.querySelector&&cuna.querySelector('.wg-veh');
+  if(!v) return;
+  v.style.transform=`translateX(-50%) rotate(${(Number(grados)||0).toFixed(1)}deg)`;
+}
 function _wgDibArma(ctx,arma,x,y,w,h,color,rombo){
   ctx.save(); ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=5;
   const cx=x+w/2, cy=y+h/2;
@@ -33714,6 +34034,80 @@ function _wgDibArma(ctx,arma,x,y,w,h,color,rombo){
   ctx.restore();
 }
 // u = fila de wg_unidades · sel = si está seleccionada
+// Los tipos que se dibujan como VEHÍCULO en planta (rotables por rumbo).
+const WG_PLANTA={ convoy:'vacio', convoy_i:'viveres', convoy_agua:'agua',
+                  convoy_iii:'cisterna', convoy_v:'municion', ambulancia:'ambulancia' };
+// v2.9.353 — El símbolo del vehículo va en DOS piezas: el vehículo (cuadrado,
+// apuntando al norte, ROTABLE) y el pie (rótulo + barra de poder, que tiene que
+// quedar SIEMPRE derecho para poder leerse). Si fueran una sola imagen, al
+// girar el camión giraría también su nombre.
+function _wgSimboloVehiculo(u, sel, _var){
+  const tipo=WG_PLANTA[_var]||'vacio';
+  const pct = u.poder_max? Math.max(0,Math.min(100,Math.round(100*u.poder_actual/u.poder_max))):100;
+  const clave=['V',u.bando,_var,u.designacion||'',pct,u.estado,sel?1:0,u._reportado?'R':''].join('|');
+  if(_wgSimCache[clave]) return _wgSimCache[clave];
+  const color = u._reportado ? (WG_COL_REPORTADO[u.bando]||'#c9a0a0') : (WG_COL[u.bando]||'#888');
+  const dpr=(window.devicePixelRatio||1)*2;
+  const nuevo=(w,h)=>{ const c=document.createElement('canvas');
+    c.width=Math.round(w*dpr); c.height=Math.round(h*dpr);
+    const x=c.getContext('2d'); x.scale(dpr,dpr); x.lineJoin='round'; return {c,x}; };
+
+  // ---- 1) el vehículo, en un cuadro (para que al rotar no se recorte) ----
+  const VP=58, L=VP*0.78;
+  const A=nuevo(VP,VP);
+  A.x.globalAlpha = u.estado==='fuera_combate'?0.42:1;
+  if(sel){
+    // Anillo de selección: circular a propósito — al rotar el vehículo, el
+    // anillo se ve igual desde cualquier rumbo.
+    A.x.save(); A.x.strokeStyle='#ffe11a'; A.x.shadowColor='#ffe11a';
+    for(const [w,al,bl] of [[7,0.28,18],[4,0.6,10],[2.2,1,4]]){
+      A.x.lineWidth=w; A.x.globalAlpha=al; A.x.shadowBlur=bl;
+      A.x.beginPath(); A.x.ellipse(VP/2,VP/2,VP*0.42,VP*0.42,0,0,Math.PI*2); A.x.stroke();
+    }
+    A.x.restore();
+  }
+  _wgDibVehiculoPlanta(A.x, tipo, VP/2, VP/2, L, color);
+  if(u.estado==='fuera_combate'){          // batido: cruz sobre el vehículo
+    A.x.save(); A.x.strokeStyle='#ff3b3b'; A.x.lineWidth=3.4; A.x.globalAlpha=0.9;
+    A.x.beginPath();
+    A.x.moveTo(VP*0.28,VP*0.28); A.x.lineTo(VP*0.72,VP*0.72);
+    A.x.moveTo(VP*0.72,VP*0.28); A.x.lineTo(VP*0.28,VP*0.72);
+    A.x.stroke(); A.x.restore();
+  }
+
+  // ---- 2) el pie: nombre y barra de poder, derechos ----
+  const desig=(u.designacion||'').trim();
+  const FUENTE='bold 11px Arial, sans-serif';
+  let anchoTexto=0;
+  if(desig){ const med=document.createElement('canvas').getContext('2d'); med.font=FUENTE;
+    anchoTexto=med.measureText(desig).width; }
+  const pieW=Math.ceil(Math.max(46, anchoTexto+8)), pieH=(desig?17:0)+8;
+  const B=nuevo(pieW,pieH);
+  B.x.globalAlpha = u.estado==='fuera_combate'?0.55:1;
+  if(desig){
+    B.x.fillStyle=color; B.x.font=FUENTE; B.x.textAlign='center'; B.x.textBaseline='top';
+    B.x.strokeStyle='rgba(0,0,0,.6)'; B.x.lineWidth=3;
+    B.x.strokeText(desig,pieW/2,1); B.x.fillText(desig,pieW/2,1);
+  }
+  const bw=pieW*0.72, bx=(pieW-bw)/2, by=(desig?17:0)+2;
+  B.x.globalAlpha=1;
+  B.x.fillStyle='rgba(0,0,0,.45)'; B.x.fillRect(bx,by,bw,4);
+  B.x.fillStyle = pct>60?'#2ecc71':(pct>20?'#e08a2c':'#e23b3b');
+  B.x.fillRect(bx,by,bw*pct/100,4);
+
+  // ---- 3) una imagen compuesta, para las listas y tarjetas ----
+  const W=Math.max(VP,pieW), H=VP+pieH;
+  const C=nuevo(W,H);
+  C.x.drawImage(A.c,(W-VP)/2,0,VP,VP);
+  C.x.drawImage(B.c,(W-pieW)/2,VP,pieW,pieH);
+
+  const r={ url:C.c.toDataURL('image/png'), w:W, h:H, ax:W/2, ay:VP/2,
+            veh:{ url:A.c.toDataURL('image/png'), px:VP },
+            pie:{ url:B.c.toDataURL('image/png'), w:pieW, h:pieH },
+            rot:true };
+  _wgSimCache[clave]=r;
+  return r;
+}
 function _wgSimboloUnidad(u,sel){
   const pct = u.poder_max? Math.max(0,Math.min(100,Math.round(100*u.poder_actual/u.poder_max))):100;
   // v2.9.286: `_reportado` entra en la clave del caché, si no la marca subida y
@@ -33723,6 +34117,8 @@ function _wgSimboloUnidad(u,sel){
   // información: el que ve la silueta sabe qué le están llevando y qué pierde
   // el enemigo si lo bate.
   const _var=_wgVarianteDibujo(u);
+  // v2.9.353: los vehículos tienen su propio símbolo, en planta y rotable.
+  if(WG_PLANTA[_var]) return _wgSimboloVehiculo(u, sel, _var);
   const clave=[u.bando,u.escalon,_var,u.designacion||'',pct,u.estado,sel?1:0,u._reportado?'R':''].join('|');
   if(_wgSimCache[clave]) return _wgSimCache[clave];
   const esc=WG_ESCALONES[u.escalon]||WG_ESCALONES.batallon;
@@ -34043,9 +34439,9 @@ function _wgDibujo(){
 // 200 km por carreteras». Con los 600/450 de antes nadie se quedaba nunca sin
 // combustible (medido: lo más que había andado una unidad eran 52 km en 29
 // turnos), así que la regla no enseñaba nada.
-const WG_AUTONOMIA={ motor:200, oruga:150, pie:0 };
+const WG_AUTONOMIA={ motor:200, oruga:150, rueda:200, pie:0 };
 function _wgCombustible(u){
-  const tanque=WG_AUTONOMIA[u&&u.medio]||0;
+  const tanque=WG_AUTONOMIA[_wgMedioDe(u)]||0;
   if(!tanque) return null;
   const usado=Math.max(0,Number(u.combustible_km)||0);
   const pct=Math.min(100,Math.round(100*usado/tanque));
@@ -35459,7 +35855,10 @@ function _wgRender(){
     const mio = (WG.soy==='arbitro') || (u.bando===WG.soy);
     const sel = String(WG.sel)===String(u.id);
     const sim = _wgSimboloUnidad(u,sel);
-    const F = 0.46; // v2.9.261: más chicas, para que se lea el terreno
+    // v2.9.261: más chicas, para que se lea el terreno.
+    // v2.9.353: el VEHÍCULO va más grande — es una silueta con detalle (llantas,
+    // cabina, carga) y a 27 px no se distinguía un cisterna de una ambulancia.
+    const F = 0.46 * (sim.veh ? 1.55 : 1);
     // v2.9.323 — LA FICHA VA ENVUELTA. Era un `L.icon` (un `<img>` pelado) y por
     // eso el replay no podía hacerla caminar: el `transform` de ese elemento lo
     // escribe Leaflet para colocarla en el mapa, así que el cabeceo de la marcha
@@ -35468,7 +35867,14 @@ function _wgRender(){
     // es EL MISMO: la misma imagen, el mismo tamaño y el mismo anclaje.
     const m = L.marker([u.lat,u.lng],{
       icon: L.divIcon({ className:'', iconSize:[sim.w*F,sim.h*F], iconAnchor:[sim.ax*F,sim.ay*F],
-        html:`<div class="wg-ficha2d"><img src="${sim.url}" alt="" draggable="false"></div>` }),
+        html: sim.veh
+          ? `<div class="wg-ficha2d wg-vehcuna">`
+            +`<img class="wg-veh" src="${sim.veh.url}" alt="" draggable="false" `
+            +`style="width:${(sim.veh.px*F).toFixed(1)}px;height:${(sim.veh.px*F).toFixed(1)}px;`
+            +`transform:translateX(-50%) rotate(${_wgRumboDe(u).toFixed(1)}deg)">`
+            +`<img class="wg-pie" src="${sim.pie.url}" alt="" draggable="false" `
+            +`style="width:${(sim.pie.w*F).toFixed(1)}px;height:${(sim.pie.h*F).toFixed(1)}px"></div>`
+          : `<div class="wg-ficha2d"><img src="${sim.url}" alt="" draggable="false"></div>` }),
       // v2.9.316 — EN LA ESTACIÓN DEL G-2 LAS PROPIAS VAN APAGADAS. Es una carta
       // de situación de INTELIGENCIA: el protagonista es el enemigo, y las
       // propias están sólo para ubicarse. Si se dibujan igual de fuertes, el ojo
@@ -35927,6 +36333,12 @@ function _wgOrdenDesdeRuta(id){
   // agregar un punto de paso se perdía la sincronización que ya habías puesto.
   const inicio=(WG.ordenes[id]||{}).inicio;
   WG.ordenes[id]={ tipo:'mover', destino_lng:fin[0], destino_lat:fin[1], ruta:r.map(p=>[p[0],p[1]]), _local:1 };
+  // v2.9.353: apenas se marca la ruta, la ficha ya se orienta hacia el primer
+  // tramo — se ve para dónde va a salir ANTES de jugar el turno.
+  try{
+    const u0=((WG.estado&&WG.estado.unidades)||[]).find(x=>String(x.id)===String(id));
+    if(u0 && r[0]) (WG.rumbos||(WG.rumbos={}))[String(id)]=_wgRumboEntre([u0.lng,u0.lat], r[0]);
+  }catch(_e){}
   if(inicio) WG.ordenes[id].inicio=inicio;
 }
 // Al resolver, si la unidad alcanzó el punto de paso, se pasa al siguiente.
@@ -36269,11 +36681,23 @@ async function wgReplay(trazas, segundos=22){
             // el `transform` del marcador es de Leaflet y pisarlo la manda a
             // otro lado del mapa.
             const cuna=fic._icon && fic._icon.firstChild;
+            // v2.9.353 — LA FICHA GIRA CON LA MARCHA. `rumbo` ya se calculaba
+            // acá (para tirar el polvo hacia atrás); ahora también orienta al
+            // vehículo, que es lo que se ve como «va de frente a donde avanza».
+            // Sólo si HAY tramo: en el último cuadro el punto de adelante y el
+            // actual son el mismo, el rumbo daría 0 (norte) y la ficha terminaría
+            // la marcha girando de golpe hacia arriba. Sin tramo, se conserva el
+            // último rumbo bueno — que es hacia donde quedó mirando.
+            if(cuna && (dx||dy)){ const g=(rumbo*180/Math.PI+360)%360;
+              (WG.rumbos||(WG.rumbos={}))[String(p.t.id)]=g; _wgOrientar(cuna,g); }
             if(cuna && cuna.style){
               if(anda){
                 const ph=ahora/115 + p.desf;
+                // v2.9.353: en el vehículo el balanceo NO gira la cuna — giraría
+                // también el rumbo que acabamos de fijar. Sólo cabecea.
+                const esVeh=cuna.classList && cuna.classList.contains('wg-vehcuna');
                 cuna.style.transform=`translateY(${(Math.sin(ph)*1.7).toFixed(2)}px) `
-                  +`rotate(${(Math.sin(ph*0.61)*1.4).toFixed(2)}deg)`;
+                  +(esVeh?'':`rotate(${(Math.sin(ph*0.61)*1.4).toFixed(2)}deg)`);
                 if(!p._marchando){ cuna.classList.add('marchando'); p._marchando=1; }
               }else if(p._marchando!==0){
                 cuna.style.transform=''; cuna.classList.remove('marchando'); p._marchando=0;
@@ -36610,9 +37034,22 @@ function _wg3dReplayPaso(piezas, horaSim, humo, ahora){
     const f=_wgSuaveMarcha(fLin);
     // La ficha va viajando sobre el relieve mientras dura el replay.
     const pos=_wgInterp(p.t.ruta,f);
-    const mk=WG.marc3d&&WG.marc3d.find(m=>m.__uid===p.t.id);
+    // v2.9.353: un vehículo tiene DOS marcadores (el vehículo y su rótulo).
+    // Si sólo se movía el primero, el nombre se quedaba clavado en la salida.
+    const todos=(WG.marc3d||[]).filter(m=>m.__uid===p.t.id);
+    const mk=todos[0];
+    if(pos) for(const m2 of todos){ try{ m2.setLngLat(pos); }catch(_e){} }
     if(mk&&pos){
-      try{ mk.setLngLat(pos); }catch(_e){}
+      // Rumbo del tramo: lo mismo que en 2D, para que las dos vistas coincidan.
+      try{
+        const ade=_wgInterp(p.t.ruta, Math.min(1,f+0.02))||pos;
+        const dx=(ade[0]-pos[0])*Math.cos(pos[1]*Math.PI/180), dy=(ade[1]-pos[1]);
+        if(dx||dy){
+          const g=(Math.atan2(dx,dy)*180/Math.PI+360)%360;
+          (WG.rumbos||(WG.rumbos={}))[String(p.t.id)]=g;
+          for(const m2 of todos){ if(!m2.__pie) _wgOrientar(m2.getElement()&&m2.getElement().firstChild, g); }
+        }
+      }catch(_e){}
       // v2.9.222 — QUE SE VEA ANDANDO, no deslizándose. Un cabeceo corto
       // mientras avanza da la sensación de vehículo pisando terreno; al llegar,
       // la ficha se queda quieta. El vaivén va en el envoltorio, NO en el
@@ -36623,7 +37060,9 @@ function _wg3dReplayPaso(piezas, horaSim, humo, ahora){
           const anda=f<1&&p.t.km>0;
           const b=anda?Math.sin(ahora/110+(p.t.id?String(p.t.id).length:0))*1.8:0;
           const inc=anda?Math.sin(ahora/150)*1.1:0;
-          cuna.style.transform=`translateY(${b.toFixed(2)}px) rotate(${inc.toFixed(2)}deg)`;
+          const esVeh=cuna.classList && cuna.classList.contains('wg-vehcuna');
+          cuna.style.transform=`translateY(${b.toFixed(2)}px) `
+            +(esVeh?'':`rotate(${inc.toFixed(2)}deg)`);
         }
       }catch(_e){}
     }
