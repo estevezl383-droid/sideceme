@@ -45655,6 +45655,17 @@ function renderPlanifPanel(){
 .pr-op-cab{ position:sticky; top:0; background:#11151f; color:var(--pr-laton); font-size:9.5px;
   letter-spacing:.15em; text-transform:uppercase; font-weight:800; padding:5px 15px; z-index:1 }
 
+/* ───────────── botones de nivel del padrón ───────────── */
+.pr-op-perm{ grid-template-columns:1fr auto; align-items:center }
+.pr-niveles{ display:flex; gap:3px; flex-wrap:wrap; justify-content:flex-end }
+.pr-nv{ background:#11151f; border:1px solid var(--pr-linea); color:var(--pr-tinta3);
+  border-radius:6px; padding:4px 8px; font-size:10px; font-weight:700; cursor:pointer;
+  font-family:inherit; white-space:nowrap }
+.pr-nv:hover{ border-color:var(--pr-laton); color:var(--pr-laton) }
+.pr-nv.on{ background:var(--pr-laton); color:#1a1206; border-color:var(--pr-laton-claro) }
+.pr-nv.quitar{ color:var(--pr-rojo); border-color:rgba(194,86,90,.4) }
+.pr-nv.quitar.off{ opacity:.25; pointer-events:none }
+
 /* ───────────── barra inferior (sólo celular) ───────────── */
 #prot-tabs{ display:none }
 
@@ -45789,6 +45800,8 @@ function renderPlanifPanel(){
             <button class="pr-btn chico" id="prot-btn-imprimir">Imprimir</button>
             <button class="pr-btn chico" id="prot-btn-copiar">Copiar orden</button>
             <button class="pr-btn chico pri" id="prot-btn-word">Word</button>
+            <button class="pr-btn chico" id="prot-btn-permisos">👥 Quién puede qué</button>
+            <span id="prot-mi-nivel"></span>
           </div>
           <div id="prot-autoridad">
             <div>
@@ -45890,8 +45903,12 @@ const PROT = window.PROT = {
   novedades:{},                   // {clave:[{hora,tipo,texto}]}
   filtro:'', cat:'TODAS', zoom:1, destacado:null,
   cola:[],                        // operaciones pendientes de subir
+  permisos:{},                    // 'tabla:id' -> {nivel,habilitado,nombre}
+  gente:null,                     // padrón para el panel de habilitación
+  nivel:'ve',                     // el MÍO en este evento
   online:false, listo:false, canal:null, puedeEditar:false, esAdmin:false
 };
+const CLAVE_USR = (tabla,id) => tabla+':'+id;
 
 /* ─────────────────────────── utilidades ─────────────────────────── */
 const $ = s => document.querySelector(s);
@@ -46093,11 +46110,15 @@ async function cargarDeLaBase(){
   if(!PROT.ACT[PROT.acto] && PROT.actos.length) PROT.acto = PROT.actos[0].clave;
 
   const ids = PROT.actos.map(a=>a.uuid);
-  const [est, fij, nov] = await Promise.all([
+  const [est, fij, nov, per] = await Promise.all([
     sb.from('protocolo_estado').select('*').in('acto_id',ids),
     sb.from('protocolo_fijaciones').select('*').in('acto_id',ids).eq('liberada',false),
-    sb.from('protocolo_novedades').select('*').in('acto_id',ids).order('creado_en',{ascending:false}).limit(400)
+    sb.from('protocolo_novedades').select('*').in('acto_id',ids).order('creado_en',{ascending:false}).limit(400),
+    sb.from('protocolo_permisos').select('*').eq('evento_id',PROT.eventoId)
   ]);
+  PROT.permisos = {};
+  (per.data||[]).forEach(r=>{ PROT.permisos[CLAVE_USR(r.usuario_tabla,r.usuario_id)] =
+    {nivel:r.nivel, habilitado:r.habilitado!==false, nombre:r.nombre_cache||''}; });
 
   PROT.estado={}; PROT.fijos={}; PROT.novedades={};
   PROT.actos.forEach(a=>{ PROT.estado[a.clave]={}; PROT.fijos[a.clave]={}; PROT.novedades[a.clave]=[]; });
@@ -46167,11 +46188,19 @@ function abrirCanal(){
       .on('postgres_changes', {event:'*', schema:'public', table:'protocolo_fijaciones'}, m=>aplicarRemoto('fijacion',m))
       .on('postgres_changes', {event:'*', schema:'public', table:'protocolo_actos'},      m=>aplicarRemoto('acto',m))
       .on('postgres_changes', {event:'*', schema:'public', table:'protocolo_novedades'},  m=>aplicarRemoto('novedad',m))
+      .on('postgres_changes', {event:'*', schema:'public', table:'protocolo_permisos'},   m=>aplicarRemoto('permiso',m))
       .subscribe(st=>{ if(st==='SUBSCRIBED'){ PROT.online=true; pintarSync(); } });
   }catch(e){}
 }
 function aplicarRemoto(que, msg){
   const r = msg && msg.new; if(!r) return;
+  if(que==='permiso'){
+    PROT.permisos[CLAVE_USR(r.usuario_tabla,r.usuario_id)] =
+      {nivel:r.nivel, habilitado:r.habilitado!==false, nombre:r.nombre_cache||''};
+    aplicarMiNivel();
+    if(PROT.listo){ render(); if(_hoja.modo==='permisos' && PROT.gente) pintarPermisos(); }
+    return;
+  }
   const a = PROT.actos.find(x=>x.uuid===r.acto_id || x.uuid===r.id);
   if(que==='acto'){
     if(!a) return;
@@ -46530,10 +46559,26 @@ function medirCabecera(){
 }
 window.addEventListener('resize', ()=>{ try{ medirCabecera(); }catch(e){} });
 
+/* Que se vea de entrada con qué puede uno, en vez de descubrirlo a los golpes. */
+function pintarMiNivel(){
+  const n = $('#prot-mi-nivel'); if(!n) return;
+  const et = PROT.nivel==='admin' ? '🎖️ Administrador de Protocolo'
+           : PROT.nivel==='edita' ? '✍️ Edición'
+           : '👁️ Sólo consulta';
+  n.className = 'pr-nota';
+  n.style.cssText = 'padding:3px 9px;border:1px solid var(--pr-linea);border-radius:999px';
+  n.textContent = et;
+  $('#prot-btn-permisos').style.display = PROT.esAdmin ? '' : 'none';
+  ['prot-btn-guarnicion','prot-btn-todos','prot-btn-liberar','prot-btn-limpiar-nov','prot-btn-agregar']
+    .forEach(id=>{ const b=document.getElementById(id); if(b) b.disabled = !PROT.puedeEditar; });
+  const b = document.getElementById('prot-btn-autoridad'); if(b) b.disabled = !PROT.esAdmin;
+  const t = document.getElementById('prot-techo'); if(t) t.disabled = !PROT.esAdmin;
+}
+
 function render(){
   pintarActos(); pintarCabecera(); pintarNomina();
   pintarDispositivo(); pintarTablaOrden(); pintarNovedades(); pintarSync();
-  medirCabecera();
+  pintarMiNivel(); medirCabecera();
 }
 
 /* ═══════════════════ ACCIONES ═══════════════════ */
@@ -46544,12 +46589,14 @@ function quienSoy(){
 }
 function exigirEdicion(){
   if(PROT.puedeEditar) return true;
-  alert('Sólo el equipo de Protocolo puede modificar el dispositivo. Vos podés consultarlo e imprimirlo.');
+  alert('Tenés acceso de CONSULTA. Podés ver el dispositivo, imprimirlo y exportarlo,\n'+
+        'pero no modificarlo. Si necesitás editar, pedíselo al encargado de Protocolo.');
   return false;
 }
 function exigirAdmin(){
   if(PROT.esAdmin) return true;
-  alert('Reordenar la precedencia general y designar autoridades es atribución del Administrador de Protocolo.');
+  alert('Reordenar la precedencia general, designar autoridades y habilitar gente\n'+
+        'es atribución del Administrador de Protocolo.');
   return false;
 }
 
@@ -46738,6 +46785,111 @@ function abrirHojaAutoridad(){
   setTimeout(()=>{ try{ $('#prot-hoja-buscar').focus({preventScroll:true}); }catch(e){} }, 60);
 }
 function cerrarHoja(){ $('#prot-hoja').classList.remove('abierta'); }
+
+/* ═══════════════ QUIÉN PUEDE QUÉ ═══════════════
+   El padrón único de la Sección 6. Sergio habilita acá al equipo y a los
+   cursantes de 1.er y 2.º ciclo que quiera sumar, con el nivel de cada uno. */
+const NIVELES = {admin:'Todo', edita:'Editar', ve:'Sólo ver'};
+
+/* El padrón lo sirve la Edge Function: `profesores` y `cursantes` NO son legibles
+   con la clave pública, y así tiene que seguir siendo. */
+async function cargarPadron(){
+  if(PROT.gente) return PROT.gente;
+  const r = await llamarEF({accion:'padron', evento_id:PROT.eventoId});
+  if(!r.ok){ PROT.gente=null; return {error:r.error}; }
+  const prof = (r.profesores||[]).map(x=>({tabla:'profesores', id:x.id, grado:x.grado,
+    nombre:x.nombre, grupo:'Profesores y personal', detalle:x.detalle}));
+  const curs = (r.cursantes||[]).map(x=>({tabla:'cursantes', id:x.id, grado:x.grado,
+    nombre:x.nombre, grupo:x.ciclo, detalle:x.detalle}));
+  const orden = x => (x.grado+' '+x.nombre).toLowerCase();
+  prof.sort((a,b)=>orden(a).localeCompare(orden(b)));
+  curs.sort((a,b)=>orden(a).localeCompare(orden(b)));
+  PROT.gente = {prof, curs};
+  return PROT.gente;
+}
+
+async function abrirHojaPermisos(){
+  if(!exigirAdmin()) return;
+  _hoja = {slot:null, modo:'permisos', filtro:'', grupo:'Profesores y personal'};
+  $('#prot-hoja-t').textContent = 'Quién puede qué en Protocolo';
+  $('#prot-hoja-q').textContent = 'Habilitar al equipo y a los cursantes';
+  $('#prot-hoja-c').textContent = 'Todo = también reordena la precedencia y habilita gente · '+
+    'Editar = ausencias y asientos · Sólo ver = consulta e impresión.';
+  $('#prot-hoja-acc').innerHTML =
+    ['Profesores y personal','1ER CICLO','2DO CICLO','Habilitados'].map(g=>
+      `<button class="pr-btn chico ${g===_hoja.grupo?'pri':''}" data-grupo="${esc(g)}">${esc(g==='Profesores y personal'?'Personal':g)}</button>`).join('')+
+    `<button class="pr-btn chico" data-h="cerrar">Cerrar</button>`;
+  $('#prot-hoja-buscar').value=''; $('#prot-hoja-buscar').placeholder='Buscar por nombre o grado…';
+  $('#prot-hoja-op').innerHTML = '<div class="pr-vacio">Cargando el padrón…</div>';
+  $('#prot-hoja').classList.add('abierta');
+  const g = await cargarPadron();
+  if(g && g.error){
+    $('#prot-hoja-op').innerHTML = `<div class="pr-aviso pr-alerta" style="margin:14px">
+      <b>Todavía no puedo traer el padrón.</b> Esta pantalla necesita la Edge Function
+      <b>protocolo-crud</b> publicada, porque las tablas de profesores y cursantes no se
+      leen desde el navegador (y así tiene que ser).<br><br>
+      Detalle: ${esc(g.error)}</div>`;
+    return;
+  }
+  pintarPermisos();
+}
+
+function pintarPermisos(){
+  const q = _hoja.filtro.toLowerCase().trim();
+  const g = _hoja.grupo;
+  let lista;
+  if(g==='Habilitados'){
+    lista = [...PROT.gente.prof, ...PROT.gente.curs]
+      .filter(x=>{ const p=PROT.permisos[CLAVE_USR(x.tabla,x.id)]; return p && p.habilitado; });
+  } else {
+    lista = (g==='Profesores y personal' ? PROT.gente.prof : PROT.gente.curs.filter(x=>x.grupo===g));
+  }
+  if(q) lista = lista.filter(x=>(x.grado+' '+x.nombre).toLowerCase().includes(q));
+
+  $('#prot-hoja-acc').querySelectorAll('[data-grupo]').forEach(b=>
+    b.classList.toggle('pri', b.dataset.grupo===g));
+
+  if(!lista.length){ $('#prot-hoja-op').innerHTML = '<div class="pr-vacio">Nadie coincide.</div>'; return; }
+
+  $('#prot-hoja-op').innerHTML =
+    `<div class="pr-op-cab">${esc(g)} · ${lista.length}</div>` +
+    lista.map(x=>{
+      const p = PROT.permisos[CLAVE_USR(x.tabla,x.id)];
+      const nivel = (p && p.habilitado) ? p.nivel : null;
+      return `<div class="pr-op pr-op-perm">
+        <div><div class="n">${esc(x.grado)} <b>${esc(x.nombre)}</b></div>
+        <div class="c">${esc(x.detalle)}${nivel?' · <b style="color:var(--pr-laton)">'+NIVELES[nivel]+'</b>':''}</div></div>
+        <div class="pr-niveles">
+          ${['admin','edita','ve'].map(k=>
+            `<button class="pr-nv ${nivel===k?'on':''}" data-perm="${esc(x.tabla)}|${esc(x.id)}|${k}"
+              title="${esc(NIVELES[k])}">${esc(NIVELES[k])}</button>`).join('')}
+          <button class="pr-nv quitar ${nivel?'':'off'}" data-perm="${esc(x.tabla)}|${esc(x.id)}|no"
+            title="Quitarle el acceso">✕</button>
+        </div></div>`;
+    }).join('');
+}
+
+function darPermiso(tabla, id, nivel){
+  if(!exigirAdmin()) return;
+  const gente = [...(PROT.gente?PROT.gente.prof:[]), ...(PROT.gente?PROT.gente.curs:[])];
+  const x = gente.find(z=>z.tabla===tabla && z.id===id);
+  const nombre = x ? (x.grado+' '+x.nombre).trim() : id;
+  const clave = CLAVE_USR(tabla,id);
+  const yo = quienEsMiSesion();
+  if(nivel==='no' && clave===CLAVE_USR(yo.tabla,yo.id)){
+    alert('No te podés quitar a vos mismo el acceso: quedaría el evento sin administrador.');
+    return;
+  }
+  if(nivel==='no'){ delete PROT.permisos[clave]; }
+  else PROT.permisos[clave] = {nivel, habilitado:true, nombre};
+  mandar({accion:'permiso', usuario_tabla:tabla, usuario_id:id,
+          nivel:(nivel==='no'?'ve':nivel), habilitado:nivel!=='no', nombre});
+  anotar('alta', nivel==='no'
+    ? `<b>Acceso retirado:</b> ${esc(nombre)} ya no entra a Protocolo.`
+    : `<b>Acceso concedido:</b> ${esc(nombre)} — ${esc(NIVELES[nivel])}.`);
+  aplicarMiNivel();
+  pintarPermisos(); render();
+}
 
 function pintarOpciones(){
   const c=PROT.acto, q=_hoja.filtro.toLowerCase().trim();
@@ -47009,6 +47161,10 @@ $('#prot-hoja').addEventListener('click', e=>{
     else if(k==='aut') ponerAutoridad(id);
     return;
   }
+  const gr = e.target.closest('[data-grupo]');
+  if(gr){ _hoja.grupo = gr.dataset.grupo; pintarPermisos(); return; }
+  const pm = e.target.closest('[data-perm]');
+  if(pm){ const [t,i,nv] = pm.dataset.perm.split('|'); darPermiso(t,i,nv); return; }
   const op = e.target.closest('[data-elegir]');
   if(op){
     const val = op.dataset.elegir || null;
@@ -47017,7 +47173,10 @@ $('#prot-hoja').addEventListener('click', e=>{
     else fijar(_hoja.slot, val);
   }
 });
-$('#prot-hoja-buscar').addEventListener('input', e=>{ _hoja.filtro=e.target.value; pintarOpciones(); });
+$('#prot-hoja-buscar').addEventListener('input', e=>{
+  _hoja.filtro = e.target.value;
+  if(_hoja.modo==='permisos') pintarPermisos(); else pintarOpciones();
+});
 $('#prot-hoja-op').addEventListener('keydown', e=>{
   if(e.key==='Enter'){ const n=e.target.closest('[data-elegir]'); if(n) n.click(); }
 });
@@ -47034,6 +47193,7 @@ $('#prot-btn-liberar').addEventListener('click', liberarFijados);
 $('#prot-btn-imprimir').addEventListener('click', ()=>window.print());
 $('#prot-btn-copiar').addEventListener('click', copiarOrden);
 $('#prot-btn-word').addEventListener('click', exportarWord);
+$('#prot-btn-permisos').addEventListener('click', abrirHojaPermisos);
 $('#prot-btn-limpiar-nov').addEventListener('click', ()=>{
   if(!exigirEdicion()) return;
   PROT.novedades[PROT.acto]=[]; guardarLocal(); pintarNovedades();
@@ -47063,10 +47223,7 @@ window.protAbrir = async function(){
   const act = document.querySelector('.screen.active');
   if(act && act.id!=='screen-protocolo') _protVolverA = act.id;
 
-  const u = window.currentUser||{};
-  const roles = (Array.isArray(u.roles)?u.roles:[]).map(r=>String(r).toLowerCase());
-  PROT.esAdmin     = roles.includes('protocolo_admin') || window.activeRole==='ciencia_tecnologia';
-  PROT.puedeEditar = PROT.esAdmin || roles.includes('protocolo');
+  aplicarMiNivel();
 
   showScreen('screen-protocolo');
   if(PROT.listo){ render(); return; }
@@ -47100,34 +47257,124 @@ window.protAbrir = async function(){
 };
 window.protSalir = function(){ showScreen(_protVolverA||'screen-home'); };
 
+/* Mi nivel en la Sección 6 sale del padrón `protocolo_permisos`, que es el único
+   que sirve para profesores Y cursantes (los cursantes no tienen `roles`).
+   Los roles del profesor sólo se usan como red mientras el padrón no cargó. */
+function quienEsMiSesion(){
+  const ses = (typeof getSession==='function') ? getSession() : null;
+  const u = window.currentUser||{};
+  const tabla = (ses && ses.tipo==='cursante') ? 'cursantes' : 'profesores';
+  return {tabla, id:String(u.id||'')};
+}
+function aplicarMiNivel(){
+  const yo = quienEsMiSesion();
+  const p = PROT.permisos[CLAVE_USR(yo.tabla, yo.id)];
+  if(p && p.habilitado) PROT.nivel = p.nivel;
+  else if(yo.tabla==='profesores'){
+    const roles = (Array.isArray(window.currentUser&&window.currentUser.roles)?window.currentUser.roles:[])
+                    .map(r=>String(r).toLowerCase());
+    PROT.nivel = roles.includes('protocolo_admin') ? 'admin'
+               : roles.includes('protocolo')       ? 'edita' : 've';
+  } else PROT.nivel = 've';
+  PROT.esAdmin     = PROT.nivel==='admin';
+  PROT.puedeEditar = PROT.nivel==='admin' || PROT.nivel==='edita';
+}
+
 /* botón de entrada en el panel de quien tenga la función */
-function protInyectarBoton(idPantalla){
+/* La consulta se recuerda POR USUARIO, no con una bandera suelta: si alguien
+   cierra sesión y entra otro en la misma pestaña, al segundo hay que preguntarle
+   igual — si no, un cursante habilitado se quedaba sin ver el botón. */
+const _padronVisto = new Set();
+async function miPermisoDelPadron(){
+  const yo = quienEsMiSesion(); if(!yo.id) return null;
+  const k = CLAVE_USR(yo.tabla,yo.id);
+  const hay = PROT.permisos[k];
+  if(hay) return hay;
+  if(_padronVisto.has(k)) return null;
+  _padronVisto.add(k);
+  try{
+    const {data} = await sb.from('protocolo_permisos')
+      .select('usuario_tabla,usuario_id,nivel,habilitado,nombre_cache')
+      .eq('usuario_tabla',yo.tabla).eq('usuario_id',yo.id).limit(1);
+    if(data && data[0]){
+      const r = {nivel:data[0].nivel, habilitado:data[0].habilitado!==false, nombre:data[0].nombre_cache||''};
+      PROT.permisos[CLAVE_USR(data[0].usuario_tabla,data[0].usuario_id)] = r;
+      return r;
+    }
+  }catch(e){}
+  return null;
+}
+
+/* El botón de entrada.
+   · El personal lo ve SIEMPRE: el que no edita igual consulta, imprime y exporta.
+   · Los cursantes, sólo si el encargado de Protocolo los habilitó.
+   Va como una tarjeta más de «Accesos rápidos» y ARRIBA DE TODO, porque al final
+   de una lista de treinta quedaba enterrado y no se encontraba. */
+async function protInyectarBoton(idPantalla){
   const u = window.currentUser; if(!u) return;
-  const roles = (Array.isArray(u.roles)?u.roles:[]).map(r=>String(r).toLowerCase());
-  const puede = roles.includes('protocolo') || roles.includes('protocolo_admin') || window.activeRole==='ciencia_tecnologia';
-  if(!puede) return;
   const sec = document.getElementById(idPantalla); if(!sec) return;
   if(sec.querySelector('#prot-btn-entrar')) return;
+
+  const yo = quienEsMiSesion();
+  const perm = await miPermisoDelPadron();
+  if(yo.tabla === 'cursantes' && !(perm && perm.habilitado)) return;
+
+  const roles = (Array.isArray(u.roles)?u.roles:[]).map(r=>String(r).toLowerCase());
+  const nivel = (perm && perm.habilitado) ? perm.nivel
+              : roles.includes('protocolo_admin') ? 'admin'
+              : roles.includes('protocolo')       ? 'edita' : 've';
+  const cola = nivel==='admin' ? 'organizar el dispositivo de los cuatro actos'
+             : nivel==='edita' ? 'marcar ausencias y acomodar asientos'
+             : 'ver cómo queda sentada la gente';
+
+  const grid = sec.querySelector('.quick-grid');
+  if(grid){
+    const b = document.createElement('button');
+    b.id = 'prot-btn-entrar'; b.className = 'quick-btn';
+    b.style.cssText = 'border-color:rgba(212,168,74,.55);box-shadow:0 0 0 1px rgba(212,168,74,.18) inset';
+    b.innerHTML = '<span class="qa-icon">\u{1F396}\u{FE0F}</span>'+
+      '<span class="qa-text"><b>Protocolo y Ceremonial</b> (Aniversario 2026 \u00b7 '+cola+')</span>';
+    b.onclick = ()=>window.protAbrir();
+    grid.insertBefore(b, grid.firstChild);
+    return;
+  }
   const cont = sec.querySelector('.menu-container') || sec.querySelector('.disc-container');
   if(!cont) return;
   const b = document.createElement('button');
   b.id='prot-btn-entrar'; b.className='btn-secondary';
-  b.style.cssText='width:100%;margin-top:12px';
-  b.innerHTML='🎖️ Protocolo y Ceremonial — Aniversario 2026';
+  b.style.cssText='width:100%;margin-top:12px;border-color:rgba(212,168,74,.55)';
+  b.innerHTML='\u{1F396}\u{FE0F} Protocolo y Ceremonial \u2014 Aniversario 2026';
   b.onclick = ()=>window.protAbrir();
-  cont.appendChild(b);
+  cont.insertBefore(b, cont.children[1] || null);
 }
-const PANELES_PROTOCOLO = ['screen-prof-panel','screen-disc-panel','screen-planif-panel','screen-panel-generico','screen-jc-panel'];
+/* Dónde NO va el botón: pantallas de entrada y de trámite suelto. En cualquier
+   panel de trabajo, sí. Antes era una lista blanca y se olvidaba paneles. */
+const SIN_BOTON = /^screen-(home|cargos|login|primer-ingreso|instalar|firma|verificar|quiz-proyector|wg-invitado|protocolo)/;
+
+/* Los paneles arman su grilla después de pintar la pantalla, así que un solo
+   intento se pierde la mitad de las veces. Se reintenta un par de veces y listo. */
+function protIntentarBoton(id){
+  if(!id || SIN_BOTON.test(id)) return;
+  if(!window.currentUser) return;
+  [0, 350, 1200].forEach(ms=>setTimeout(()=>{
+    try{ protInyectarBoton(id); }catch(e){}
+  }, ms));
+}
 (function engancharShowScreen(){
   const previo = window.showScreen;
   if(typeof previo!=='function' || previo.__prot) return;
   const nuevo = function(id){
     previo.apply(this, arguments);
-    try{ if(PANELES_PROTOCOLO.includes(id)) protInyectarBoton(id); }catch(e){}
+    try{ protIntentarBoton(id); }catch(e){}
   };
   nuevo.__prot = true;
   window.showScreen = nuevo;
 })();
+/* y si ya estamos parados en un panel cuando carga el módulo */
+setTimeout(()=>{ try{
+  const act = document.querySelector('.screen.active');
+  if(act) protIntentarBoton(act.id);
+}catch(e){} }, 800);
 
 })();
 </script>
