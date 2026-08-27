@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗺️</text></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Generador de Calcos Temáticos</title>
+    <!--
+      Puente con SIDECEME.
+
+      Publicado en /sideceme/calcos/, esta página comparte dominio con
+      SIDECEME, así que puede leer la sesión que el alumno ya abrió: no
+      hay que volver a pedirle usuario ni contraseña, ni pasar el token
+      por la URL (donde quedaría en el historial y en los registros).
+
+      Si NO hay sesión, `token` queda nulo: capas.js lo detecta y avisa
+      que hay que entrar por SIDECEME, en vez de fallar con un error
+      técnico. En escritorio y en desarrollo esta variable no existe y
+      la app sigue leyendo los GeoJSON del disco, como siempre.
+    -->
+    <script>
+      (function () {
+        try {
+          // Sólo en la versión publicada. En desarrollo (localhost) y en
+          // la app de escritorio (file://) no se toca nada: los datos
+          // siguen saliendo de los GeoJSON del disco.
+          var enLocal =
+            location.protocol === 'file:' ||
+            location.hostname === 'localhost' ||
+            location.hostname === '127.0.0.1'
+          if (enLocal) return
+
+          // SIDECEME guarda la sesión en DOS lugares según el rol:
+          //   profesores → localStorage 'sideceme_token_p'   (entre pestañas)
+          //   cursantes  → sessionStorage 'sideceme_token'   (SOLO esa pestaña)
+          // Por eso hay que mirar los dos. Y por eso el Generador se abre
+          // en la MISMA pestaña: sessionStorage sobrevive al navegar dentro
+          // del mismo sitio, pero no existe en una pestaña nueva.
+          var lee = function (clave) {
+            try {
+              return sessionStorage.getItem(clave) || localStorage.getItem(clave)
+            } catch (e) {
+              return null
+            }
+          }
+          var t = lee('sideceme_token_p') || lee('sideceme_token') || null
+          var expira = lee('sideceme_token_expira_p') || lee('sideceme_token_expira')
+          if (expira && new Date(expira) < new Date()) t = null
+          window.SIDECEME_CALCOS = {
+            url: 'https://ofsyiylhdrdiqtnbaovo.supabase.co',
+            anonKey: 'sb_publishable_adOxDHyWfXOXDqC9lmnP7g_m4Sf4AIx',
+            token: t,
+          }
+        } catch (e) {
+          /* sin localStorage (modo privado): queda en modo archivos */
+        }
+      })()
+    </script>
+    <script type="module" crossorigin src="./assets/index-Ao1w9UUq.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-Cjxe7ScA.css">
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

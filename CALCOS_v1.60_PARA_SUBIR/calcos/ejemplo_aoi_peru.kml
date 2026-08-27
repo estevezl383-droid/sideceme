@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+  <name>Área de ejemplo — Lima</name>
+  <Placemark>
+    <name>AOI Lima</name>
+    <Polygon>
+      <outerBoundaryIs>
+        <LinearRing>
+          <coordinates>
+            -77.20,-12.30,0
+            -76.80,-12.30,0
+            -76.80,-11.90,0
+            -77.20,-11.90,0
+            -77.20,-12.30,0
+          </coordinates>
+        </LinearRing>
+      </outerBoundaryIs>
+    </Polygon>
+  </Placemark>
+</Document>
+</kml>

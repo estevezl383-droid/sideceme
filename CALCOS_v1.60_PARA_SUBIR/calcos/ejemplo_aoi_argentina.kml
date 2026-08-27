@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+  <name>Área de ejemplo — Mendoza</name>
+  <Placemark>
+    <name>AOI Mendoza</name>
+    <Polygon>
+      <outerBoundaryIs>
+        <LinearRing>
+          <coordinates>
+            -69.05,-33.20,0
+            -68.55,-33.20,0
+            -68.55,-32.70,0
+            -69.05,-32.70,0
+            -69.05,-33.20,0
+          </coordinates>
+        </LinearRing>
+      </outerBoundaryIs>
+    </Polygon>
+  </Placemark>
+</Document>
+</kml>
