@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.359</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.360</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -38930,6 +38930,385 @@ async function confirmarReiniciar(){
   }
 }
 
+/* ==================== EXTRACTO DE SANCIONES POR PROFESOR (v2.9.360) ====================
+   Sergio: «me están pidiendo los datos de los profesores que sancionaron la semana
+   anterior... necesito que aparezcan TODOS los profesores que sancionan, no sólo los 10,
+   y poder descargar un extracto de cada uno, con a quién sancionó y la fecha».
+
+   El "Top 10" dejaba fuera a 17 de los 27 profesores que tienen sanciones cargadas —entre
+   ellos cuatro de los seis Asesores de Ciclo—. Acá va la lista COMPLETA, filtrable por
+   período (semana anterior, esta semana, rango de fechas), con el Word listo para mandar:
+   una fila por sanción con FECHA, CURSANTE, ciclo/paralelo, artículo, falta y puntaje.
+   ==================================================================================== */
+
+let _estPeriodo = 'todo';
+let _estDesde   = '';
+let _estHasta   = '';
+
+function _estLunes(d){
+  const x = new Date(d); x.setHours(0,0,0,0);
+  x.setDate(x.getDate() - ((x.getDay()+6)%7));   // 0 = lunes
+  return x;
+}
+function _estFinDia(d){ const x = new Date(d); x.setHours(23,59,59,999); return x; }
+
+// {ini, fin} del período elegido. Nulos = sin límite.
+function _estRango(){
+  const hoy = new Date();
+  const lunes = _estLunes(hoy);
+  switch(_estPeriodo){
+    case 'semana_actual': return {ini:lunes, fin:_estFinDia(hoy)};
+    case 'semana_anterior': {
+      const i = new Date(lunes); i.setDate(lunes.getDate()-7);
+      const f = new Date(lunes); f.setDate(lunes.getDate()-1);
+      return {ini:i, fin:_estFinDia(f)};
+    }
+    case 'ult7':  { const i=new Date(hoy); i.setHours(0,0,0,0); i.setDate(i.getDate()-6);  return {ini:i, fin:_estFinDia(hoy)}; }
+    case 'ult30': { const i=new Date(hoy); i.setHours(0,0,0,0); i.setDate(i.getDate()-29); return {ini:i, fin:_estFinDia(hoy)}; }
+    case 'rango': return {
+      ini: _estDesde ? new Date(_estDesde+'T00:00:00') : null,
+      fin: _estHasta ? new Date(_estHasta+'T23:59:59') : null
+    };
+    default: return {ini:null, fin:null};
+  }
+}
+function _estFecha(d){ return d ? new Date(d).toLocaleDateString('es-BO',{day:'2-digit',month:'2-digit',year:'numeric'}) : '—'; }
+function _estRangoLabel(){
+  const r = _estRango();
+  if(!r.ini && !r.fin) return 'Todo el semestre en curso';
+  if(r.ini && r.fin)   return 'Del ' + _estFecha(r.ini) + ' al ' + _estFecha(r.fin);
+  if(r.ini)            return 'Desde el ' + _estFecha(r.ini);
+  return 'Hasta el ' + _estFecha(r.fin);
+}
+function _estEnRango(s){
+  const r = _estRango();
+  if(!r.ini && !r.fin) return true;
+  if(!s.creado_en) return false;
+  const d = new Date(s.creado_en);
+  if(r.ini && d < r.ini) return false;
+  if(r.fin && d > r.fin) return false;
+  return true;
+}
+function _estValidas(){
+  return discData.sanciones.filter(s => !s.anulada && s.es_prueba !== true && _estEnRango(s));
+}
+
+// TODOS los profesores que sancionaron en el período, ordenados por cantidad.
+function _estProfesores(){
+  const by = {};
+  _estValidas().forEach(s=>{
+    const pid = s.profesor_id || 'sin_id';
+    if(!by[pid]) by[pid] = {id:pid, nombre:s.profesor_nombre||pid, grado:s.profesor_grado||'', count:0, pts:0, ult:null, sanciones:[]};
+    const p = by[pid];
+    p.count++;
+    p.pts += Number(s.puntos_aplicados)||0;
+    p.sanciones.push(s);
+    const d = s.creado_en ? new Date(s.creado_en) : null;
+    if(d && (!p.ult || d > p.ult)) p.ult = d;
+  });
+  Object.values(by).forEach(p => p.sanciones.sort((a,b)=> new Date(a.creado_en||0) - new Date(b.creado_en||0)));
+  return Object.values(by).sort((a,b)=> b.count - a.count || String(a.nombre).localeCompare(String(b.nombre)));
+}
+
+function estCambiarPeriodo(){
+  _estPeriodo = document.getElementById('est-periodo').value;
+  const w = document.getElementById('est-rango-wrap');
+  if(w) w.style.display = (_estPeriodo === 'rango') ? 'flex' : 'none';
+  estRenderProfes();
+}
+function estCambiarRango(){
+  _estDesde = (document.getElementById('est-desde')||{}).value || '';
+  _estHasta = (document.getElementById('est-hasta')||{}).value || '';
+  estRenderProfes();
+}
+
+function estRenderProfes(){
+  const cont = document.getElementById('est-prof-list');
+  if(!cont) return;
+  const q = ((document.getElementById('est-busca-prof')||{}).value||'').trim().toLowerCase();
+  const todos = _estProfesores();
+  const arr = q ? todos.filter(p => (p.nombre+' '+p.id).toLowerCase().indexOf(q) >= 0) : todos;
+
+  const cap = document.getElementById('est-prof-cap');
+  if(cap) cap.textContent = _estRangoLabel() + ' · ' + todos.length + ' profesor' + (todos.length===1?'':'es')
+        + ' · ' + todos.reduce((a,p)=>a+p.count,0) + ' sanciones';
+
+  if(!arr.length){
+    cont.innerHTML = '<div class="sb-row"><span class="label">'
+      + (todos.length ? 'Ningún profesor coincide con la búsqueda.' : 'Ningún profesor sancionó en este período.')
+      + '</span></div>';
+    return;
+  }
+  cont.innerHTML = arr.map(p =>
+      '<div class="sb-row" style="cursor:pointer" onclick="verEstadisticasProfesor(\'' + escapeAttr(p.id) + '\')">'
+    +   '<span class="label">' + escapeHtml(p.nombre)
+    +     ' <span style="color:var(--text-muted);font-size:11px">[' + escapeHtml(p.id) + ']</span>'
+    +     (p.ult ? ' <span style="color:var(--text-muted);font-size:11px">· última: ' + _estFecha(p.ult) + '</span>' : '')
+    +   '</span>'
+    +   '<span class="val" style="display:inline-flex;align-items:center;gap:12px">'
+    +     '<span title="Descargar extracto en Word" style="font-size:17px;cursor:pointer" '
+    +       'onclick="event.stopPropagation();descargarExtractoProfesor(\'' + escapeAttr(p.id) + '\')">📄</span>'
+    +     '<span>' + p.count + ' ›</span>'
+    +   '</span>'
+    + '</div>'
+  ).join('');
+}
+
+/* ── El Word del extracto: membrete ECEME + tabla apaisada ─────────────────────────
+   Reusa _ARIAL / _xmlEsc / _zipStore del motor de informes. Hoja carta APAISADA
+   (15840 × 12240 twips) con márgenes de 1134 → ancho útil 13572 twips. */
+
+function _extP(text, o){
+  o = o || {};
+  const sz = o.sz || 20;
+  return '<w:p><w:pPr><w:jc w:val="' + (o.jc||'left') + '"/>'
+    + '<w:spacing w:before="' + (o.before||0) + '" w:after="' + (o.after!=null?o.after:60) + '" w:line="240" w:lineRule="auto"/></w:pPr>'
+    + '<w:r><w:rPr>' + _ARIAL + (o.bold?'<w:b/><w:bCs/>':'') + (o.u?'<w:u w:val="single"/>':'')
+    + '<w:sz w:val="' + sz + '"/><w:szCs w:val="' + sz + '"/></w:rPr>'
+    + '<w:t xml:space="preserve">' + _xmlEsc(text) + '</w:t></w:r></w:p>';
+}
+function _extSaltoPagina(){
+  return '<w:p><w:pPr><w:spacing w:after="0"/></w:pPr><w:r><w:br w:type="page"/></w:r></w:p>';
+}
+function _extCelda(text, w, o){
+  o = o || {};
+  const sz = o.sz || 18;
+  const runs = String(text==null?'':text).split('\n').map(function(ln,i){
+    return '<w:r><w:rPr>' + _ARIAL + (o.bold?'<w:b/>':'') + '<w:sz w:val="'+sz+'"/><w:szCs w:val="'+sz+'"/></w:rPr>'
+         + (i ? '<w:br/>' : '') + '<w:t xml:space="preserve">' + _xmlEsc(ln) + '</w:t></w:r>';
+  }).join('');
+  return '<w:tc><w:tcPr><w:tcW w:w="' + w + '" w:type="dxa"/>'
+    + (o.shd ? '<w:shd w:val="clear" w:color="auto" w:fill="' + o.shd + '"/>' : '')
+    + '<w:vAlign w:val="center"/></w:tcPr>'
+    + '<w:p><w:pPr><w:spacing w:before="20" w:after="20" w:line="240" w:lineRule="auto"/>'
+    + '<w:jc w:val="' + (o.jc||'left') + '"/></w:pPr>' + runs + '</w:p></w:tc>';
+}
+function _extFila(cols, celdas, o){
+  o = o || {};
+  return '<w:tr>' + (o.head ? '<w:trPr><w:tblHeader/></w:trPr>' : '')
+    + celdas.map(function(c,i){
+        const base = {bold:o.bold, shd:o.shd, sz:o.sz};
+        const esp  = (o.jc && o.jc[i]) ? {jc:o.jc[i]} : {};
+        return _extCelda(c, cols[i], Object.assign({}, base, esp));
+      }).join('')
+    + '</w:tr>';
+}
+function _extTabla(cols, filas){
+  const bordes = '<w:tblBorders>'
+    + ['top','left','bottom','right','insideH','insideV'].map(function(k){
+        return '<w:' + k + ' w:val="single" w:sz="4" w:space="0" w:color="000000"/>'; }).join('')
+    + '</w:tblBorders>';
+  const ancho = cols.reduce(function(a,b){ return a+b; }, 0);
+  return '<w:tbl><w:tblPr><w:tblW w:w="' + ancho + '" w:type="dxa"/><w:jc w:val="center"/>' + bordes
+    + '<w:tblCellMar><w:top w:w="40" w:type="dxa"/><w:left w:w="70" w:type="dxa"/>'
+    + '<w:bottom w:w="40" w:type="dxa"/><w:right w:w="70" w:type="dxa"/></w:tblCellMar></w:tblPr>'
+    + '<w:tblGrid>' + cols.map(function(w){ return '<w:gridCol w:w="' + w + '"/>'; }).join('') + '</w:tblGrid>'
+    + filas.join('') + '</w:tbl>';
+}
+
+// Nº | Fecha | Cursante | Ciclo y paralelo | Art. | Categoría | Falta | Pts.  = 13572
+const _EXT_COLS = [520, 1100, 3200, 1150, 780, 1180, 4942, 700];
+// Profesor | Sanciones | Pts. | Primera | Última  = 13572
+const _EXT_COLS_RES = [520, 6252, 1400, 1000, 2200, 2200];
+
+function _extMembrete(){
+  return [
+    _extP('FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES', {jc:'center', bold:true, sz:20, after:0}),
+    _extP('ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO',    {jc:'center', bold:true, sz:20, after:0}),
+    _extP('“MARISCAL ANDRÉS DE SANTA CRUZ”',                   {jc:'center', bold:true, sz:20, after:0}),
+    _extP('BOLIVIA',                                           {jc:'center', bold:true, sz:20, u:true, after:0})
+  ].join('');
+}
+
+function _extCicloPar(s){
+  const cur   = discData.cursantes.find(function(x){ return x.id === s.cursante_id; });
+  const ciclo = ((cur && cur.ciclo) || s.cursante_ciclo || '').toString().trim();
+  const par   = ((cur && cur.paralelo) || s.cursante_paralelo || '').toString().trim();
+  const L = {'1er_ciclo':'1er Ciclo', '2do_ciclo':'2do Ciclo'};
+  return [ (L[ciclo] || ciclo), par ? '"' + par + '"' : '' ].filter(Boolean).join(' ') || '—';
+}
+function _extNombreProf(p){
+  const g = (p.grado||'').trim();
+  return (g ? g.toUpperCase() + ' ' : '') + (p.nombre||p.id);
+}
+
+// Bloque de UN profesor (encabezado + tabla + firma). `idx>0` mete salto de página.
+function _extBloqueProfesor(p, idx){
+  const b = [];
+  if(idx > 0) b.push(_extSaltoPagina());
+  b.push(_extMembrete());
+  b.push(_extP('EXTRACTO DE SANCIONES IMPUESTAS', {jc:'center', bold:true, sz:28, before:240, after:60}));
+  b.push(_extP('Sistema SIDECEME — Registro de disciplina', {jc:'center', sz:18, after:200}));
+
+  b.push(_extP('Profesor: ' + _extNombreProf(p) + '   [' + p.id + ']', {sz:22, bold:true, after:40}));
+  b.push(_extP('Período: ' + _estRangoLabel(), {sz:20, after:40}));
+  const cursantes = {};
+  p.sanciones.forEach(function(s){ cursantes[s.cursante_id] = 1; });
+  b.push(_extP('Sanciones impuestas: ' + p.sanciones.length
+             + '   ·   Puntaje aplicado: ' + p.pts + ' pts'
+             + '   ·   Cursantes sancionados: ' + Object.keys(cursantes).length, {sz:20, after:160}));
+
+  const filas = [ _extFila(_EXT_COLS,
+      ['Nº','Fecha','Cursante sancionado','Ciclo y paralelo','Art.','Categoría','Falta','Pts.'],
+      {head:true, bold:true, shd:'D9D9D9', jc:['center','center','left','center','center','center','left','center']}) ];
+
+  p.sanciones.forEach(function(s, i){
+    filas.push(_extFila(_EXT_COLS, [
+      String(i+1),
+      _estFecha(s.creado_en),
+      s.cursante_nombre || s.cursante_id || '—',
+      _extCicloPar(s),
+      s.falta_articulo != null ? String(s.falta_articulo) : '—',
+      s.falta_categoria || '—',
+      obtenerDescripcionSancion(s),
+      String(s.puntos_aplicados != null ? s.puntos_aplicados : '')
+    ], {jc:['center','center','left','center','center','center','left','center']}));
+  });
+  filas.push(_extFila(_EXT_COLS,
+    ['', '', 'TOTAL', '', '', '', String(p.sanciones.length) + ' sanciones', String(p.pts)],
+    {bold:true, shd:'F2F2F2', jc:['center','center','right','center','center','center','right','center']}));
+
+  b.push(_extTabla(_EXT_COLS, filas));
+
+  const f = _firmaUsuarioActual();
+  b.push(_extP('', {after:0}));
+  b.push(_extP(_lugarFecha(), {jc:'right', sz:18, before:200, after:600}));
+  // La firma es la del usuario que lo emite: no se le pone unidad fija, porque el
+  // extracto lo puede sacar Disciplina, Estudios o C&T.
+  b.push(_extP(f.nombre || '', {jc:'center', sz:22, after:0}));
+  b.push(_extP(f.grado  || '', {jc:'center', sz:22, bold:true, after:0}));
+  return b.join('');
+}
+
+// Hoja resumen: quiénes sancionaron en el período y cuánto.
+function _extBloqueResumen(profes){
+  const b = [];
+  b.push(_extMembrete());
+  b.push(_extP('EXTRACTO DE SANCIONES POR PROFESOR', {jc:'center', bold:true, sz:28, before:240, after:60}));
+  b.push(_extP('Sistema SIDECEME — Registro de disciplina', {jc:'center', sz:18, after:160}));
+  b.push(_extP('Período: ' + _estRangoLabel(), {sz:20, after:40}));
+  const tot = profes.reduce(function(a,p){ return a + p.sanciones.length; }, 0);
+  b.push(_extP('Profesores que sancionaron: ' + profes.length + '   ·   Sanciones: ' + tot, {sz:20, after:160}));
+
+  const filas = [ _extFila(_EXT_COLS_RES,
+    ['Nº','Profesor','Sanciones','Pts.','Primera sanción','Última sanción'],
+    {head:true, bold:true, shd:'D9D9D9', jc:['center','left','center','center','center','center']}) ];
+  profes.forEach(function(p, i){
+    const fechas = p.sanciones.map(function(s){ return s.creado_en; }).filter(Boolean).sort();
+    filas.push(_extFila(_EXT_COLS_RES, [
+      String(i+1),
+      _extNombreProf(p) + '   [' + p.id + ']',
+      String(p.sanciones.length),
+      String(p.pts),
+      _estFecha(fechas[0]),
+      _estFecha(fechas[fechas.length-1])
+    ], {jc:['center','left','center','center','center','center']}));
+  });
+  b.push(_extTabla(_EXT_COLS_RES, filas));
+  b.push(_extP('El detalle de cada profesor —cursante sancionado y fecha— va en las páginas siguientes.',
+               {sz:18, before:160, after:0}));
+  return b.join('');
+}
+
+function _extPaquete(bodyXml){
+  const fr = _ARIAL + '<w:b/><w:bCs/><w:sz w:val="20"/>';
+  const FOOT = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+    + '<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:p><w:pPr><w:jc w:val="center"/></w:pPr>'
+    + '<w:r><w:rPr>'+fr+'</w:rPr><w:fldChar w:fldCharType="begin"/></w:r>'
+    + '<w:r><w:rPr>'+fr+'</w:rPr><w:instrText xml:space="preserve"> PAGE </w:instrText></w:r>'
+    + '<w:r><w:rPr>'+fr+'</w:rPr><w:fldChar w:fldCharType="end"/></w:r>'
+    + '<w:r><w:rPr>'+fr+'</w:rPr><w:t xml:space="preserve"> - </w:t></w:r>'
+    + '<w:r><w:rPr>'+fr+'</w:rPr><w:fldChar w:fldCharType="begin"/></w:r>'
+    + '<w:r><w:rPr>'+fr+'</w:rPr><w:instrText xml:space="preserve"> NUMPAGES </w:instrText></w:r>'
+    + '<w:r><w:rPr>'+fr+'</w:rPr><w:fldChar w:fldCharType="end"/></w:r>'
+    + '</w:p></w:ftr>';
+
+  const sectPr = '<w:sectPr><w:footerReference w:type="default" r:id="rId10"/>'
+    + '<w:pgSz w:w="15840" w:h="12240" w:orient="landscape"/>'
+    + '<w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="720" w:footer="454" w:gutter="0"/></w:sectPr>';
+
+  const documentXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+    + '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+    + 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><w:body>'
+    + bodyXml + sectPr + '</w:body></w:document>';
+
+  const stylesXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+    + '<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr>'
+    + _ARIAL + '<w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr></w:rPrDefault></w:docDefaults>'
+    + '<w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style></w:styles>';
+
+  const settingsXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+    + '<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:updateFields w:val="true"/></w:settings>';
+
+  const contentTypes = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+    + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+    + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+    + '<Default Extension="xml" ContentType="application/xml"/>'
+    + '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
+    + '<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>'
+    + '<Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>'
+    + '<Override PartName="/word/settings.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.settings+xml"/></Types>';
+
+  const rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+    + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>';
+
+  const docRels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+    + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+    + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>'
+    + '<Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" Target="settings.xml"/>'
+    + '<Relationship Id="rId10" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/></Relationships>';
+
+  return [
+    { name:'[Content_Types].xml',           str: contentTypes },
+    { name:'_rels/.rels',                   str: rels },
+    { name:'word/document.xml',             str: documentXml },
+    { name:'word/_rels/document.xml.rels',  str: docRels },
+    { name:'word/styles.xml',               str: stylesXml },
+    { name:'word/settings.xml',             str: settingsXml },
+    { name:'word/footer1.xml',              str: FOOT }
+  ];
+}
+
+function _extNombreArchivo(txt){
+  return String(txt||'EXTRACTO')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/\//g,'-')                       // 24/08/2026 → 24-08-2026, que si no se pierde la fecha
+    .replace(/[^A-Za-z0-9 \-_.]/g,'').replace(/\s+/g,' ').trim().slice(0,110) || 'EXTRACTO';
+}
+function _extDescargar(bodyXml, nombreArchivo){
+  try{
+    const blob = _zipStore(_extPaquete(bodyXml));
+    const url  = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = _extNombreArchivo(nombreArchivo) + '.docx';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(url); }, 4000);
+    return true;
+  }catch(e){ alert('No se pudo generar el Word: ' + (e.message||e)); return false; }
+}
+
+// Un profesor → un Word.
+function descargarExtractoProfesor(profId){
+  const p = _estProfesores().find(function(x){ return x.id === profId; });
+  if(!p || !p.sanciones.length){
+    alert('Ese profesor no tiene sanciones en el período seleccionado (' + _estRangoLabel() + ').\n\n'
+        + 'Cambiá el período arriba, en «Profesores que sancionan», y volvé a intentar.');
+    return;
+  }
+  _extDescargar(_extBloqueProfesor(p, 0),
+    'EXTRACTO SANCIONES - ' + _extNombreProf(p) + ' - ' + _estRangoLabel());
+}
+
+// Todos los del período → un solo Word con hoja resumen + una hoja por profesor.
+function descargarExtractoTodos(){
+  const profes = _estProfesores();
+  if(!profes.length){ alert('Ningún profesor sancionó en el período seleccionado (' + _estRangoLabel() + ').'); return; }
+  const body = [ _extBloqueResumen(profes) ]
+    .concat(profes.map(function(p,i){ return _extBloqueProfesor(p, i+1); }));
+  _extDescargar(body.join(''), 'EXTRACTO SANCIONES POR PROFESOR - ' + _estRangoLabel());
+}
+
 /* ==================== ESTADÍSTICAS ==================== */
 function goEstadisticas(){ renderEstadisticas(); showScreen('screen-estadisticas'); }
 function renderEstadisticas(){
@@ -38947,15 +39326,8 @@ function renderEstadisticas(){
   const topCurCount = Object.entries(byCur).map(([id,v])=>({id,...v})).sort((a,b)=>b.count-a.count).slice(0,10);
   const topCurPts   = Object.entries(byCur).map(([id,v])=>({id,...v})).sort((a,b)=>b.pts-a.pts).slice(0,10);
 
-  // Top profesores que más sancionan (con detalle clickeable)
-  const byProf={};
-  validas.forEach(s=>{
-    const pid=s.profesor_id||'sin_id';
-    if(!byProf[pid]) byProf[pid]={count:0,nombre:s.profesor_nombre||pid,sanciones:[]};
-    byProf[pid].count++;
-    byProf[pid].sanciones.push(s);
-  });
-  const topProf = Object.entries(byProf).map(([id,v])=>({id,...v})).sort((a,b)=>b.count-a.count).slice(0,10);
+  // v2.9.360: la lista de profesores ya NO se corta en 10 ni se arma acá.
+  // La construye _estProfesores() con el período elegido y la pinta estRenderProfes().
 
   // Sanciones por ciclo + paralelo — agrupa según datos reales de la BD
   // v2.9.16: matching directo contra valores de cursantes (no hardcodeados)
@@ -38994,8 +39366,24 @@ function renderEstadisticas(){
     </div>
 
     <div class="stat-block">
-      <div class="sb-title">Top 10 profesores que más sancionan</div>
-      ${topProf.map(x=>`<div class="sb-row" style="cursor:pointer" onclick="verEstadisticasProfesor('${x.id}')"><span class="label">${x.nombre} <span style="color:var(--text-muted);font-size:11px">[${x.id}]</span></span><span class="val">${x.count} ›</span></div>`).join('')||'<div class="sb-row"><span class="label">Sin datos</span></div>'}
+      <div class="sb-title">Profesores que sancionan — lista completa</div>
+      <div id="est-prof-cap" style="font-size:12px;color:var(--text-muted);margin:-6px 0 10px"></div>
+      <select id="est-periodo" onchange="estCambiarPeriodo()" style="width:100%;margin-bottom:8px;padding:10px 12px;background:rgba(5,10,20,.5);border:1px solid var(--border-subtle);border-radius:8px;color:var(--text-primary);font-size:14px;font-family:inherit">
+        <option value="todo">Todo el semestre</option>
+        <option value="semana_anterior">Semana anterior (lunes a domingo)</option>
+        <option value="semana_actual">Esta semana (lunes a hoy)</option>
+        <option value="ult7">Últimos 7 días</option>
+        <option value="ult30">Últimos 30 días</option>
+        <option value="rango">Rango de fechas…</option>
+      </select>
+      <div id="est-rango-wrap" style="display:none;gap:8px;margin-bottom:8px">
+        <input type="date" id="est-desde" onchange="estCambiarRango()" title="Desde" style="flex:1;padding:10px 12px;background:rgba(5,10,20,.5);border:1px solid var(--border-subtle);border-radius:8px;color:var(--text-primary);font-size:14px;font-family:inherit">
+        <input type="date" id="est-hasta" onchange="estCambiarRango()" title="Hasta" style="flex:1;padding:10px 12px;background:rgba(5,10,20,.5);border:1px solid var(--border-subtle);border-radius:8px;color:var(--text-primary);font-size:14px;font-family:inherit">
+      </div>
+      <div class="search-bar" style="margin-bottom:8px"><span class="search-icon">🔍</span><input type="text" id="est-busca-prof" placeholder="Buscar profesor por nombre o código..." oninput="estRenderProfes()"></div>
+      <div id="est-prof-list"></div>
+      <button class="btn-secondary" onclick="descargarExtractoTodos()" style="margin-top:12px">📄 Extracto en Word de TODOS los profesores</button>
+      <div style="font-size:11px;color:var(--text-muted);margin-top:8px;line-height:1.5">Tocá 📄 en cualquier profesor para bajar sólo su extracto. Cada extracto trae, sanción por sanción: <strong>fecha, cursante sancionado, ciclo y paralelo, artículo, categoría, falta y puntaje</strong>.</div>
     </div>
 
     <div class="stat-block">
@@ -39010,10 +39398,19 @@ function renderEstadisticas(){
 
     <button class="btn-primary" onclick="downloadXLSX()" style="margin-top:16px">📊 Exportar todo a Excel</button>
   `;
+  // v2.9.360: la lista completa de profesores se pinta aparte para que el buscador
+  // no pierda el foco en cada tecla.
+  const selP = document.getElementById('est-periodo'); if(selP) selP.value = _estPeriodo;
+  const wrapP = document.getElementById('est-rango-wrap'); if(wrapP) wrapP.style.display = (_estPeriodo==='rango') ? 'flex' : 'none';
+  const dP = document.getElementById('est-desde'); if(dP) dP.value = _estDesde;
+  const hP = document.getElementById('est-hasta'); if(hP) hP.value = _estHasta;
+  estRenderProfes();
 }
 
 function verEstadisticasProfesor(profId){
-  const sancs = discData.sanciones.filter(s=>!s.anulada && s.profesor_id===profId).sort((a,b)=>new Date(b.creado_en||0)-new Date(a.creado_en||0));
+  // v2.9.360: el detalle mira el MISMO período elegido en Estadísticas, así lo que se ve
+  // en pantalla es exactamente lo que sale en el Word del extracto.
+  const sancs = _estValidas().filter(s=>s.profesor_id===profId).sort((a,b)=>new Date(b.creado_en||0)-new Date(a.creado_en||0));
   const profNombre = sancs[0]?.profesor_nombre || profId;
   const totalPts = sancs.reduce((sum,s)=>sum+(Number(s.puntos_aplicados)||0), 0);
 
@@ -39034,7 +39431,7 @@ function verEstadisticasProfesor(profId){
   });
 
   document.getElementById('est-prof-title').textContent = profNombre;
-  document.getElementById('est-prof-sub').textContent = `${sancs.length} sanciones · ${totalPts} pts`;
+  document.getElementById('est-prof-sub').textContent = `${sancs.length} sanciones · ${totalPts} pts · ${_estRangoLabel()}`;
 
   const c = document.getElementById('est-prof-content'); c.className='';
   c.innerHTML = `
@@ -39043,6 +39440,9 @@ function verEstadisticasProfesor(profId){
       <div class="stat-card"><div class="stat-num">${totalPts}</div><div class="stat-label">Pts aplicados</div></div>
       <div class="stat-card"><div class="stat-num">${Object.keys(byCur).length}</div><div class="stat-label">Cursantes</div></div>
     </div>
+
+    <button class="btn-secondary" onclick="descargarExtractoProfesor('${escapeAttr(profId)}')" style="margin:4px 0 14px">📄 Descargar extracto en Word</button>
+    <div style="font-size:11px;color:var(--text-muted);margin:-8px 0 14px">Período: ${escapeHtml(_estRangoLabel())}. Se cambia en la pantalla anterior.</div>
 
     <div class="stat-block">
       <div class="sb-title">Por categoría de falta</div>
