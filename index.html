@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.362</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.363</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -9674,8 +9674,15 @@ function _ncNorm(s){
 function _ncTokens(s){
   return new Set(_ncNorm(s).split(' ').filter(function(t){ return t.length > 1; }));
 }
-function _ncR4(n){
-  return (n == null || isNaN(n)) ? null : Math.round(Number(n) * 10000) / 10000;
+// v2.9.363: FIDELIDAD TOTAL a la planilla del Sof. Balderrama. Antes esto redondeaba
+// con Math.round(n*10000)/10000, que MODIFICABA el número: el 26.71875 del Excel se
+// guardaba como 26.7188, y por el error de coma flotante ese mismo Math.round podía
+// mover el 4º decimal (262187.49999999994 → 26.2187 en vez de 26.2188). Ahora la nota
+// se guarda EXACTAMENTE como viene de la celda; nota_final es `numeric` sin escala,
+// así que Postgres la almacena entera. Los 4 decimales son de PRESENTACIÓN
+// (fmtNota → toFixed(4)), nunca de almacenamiento.
+function _ncNum(n){
+  return (n == null || n === '' || isNaN(n)) ? null : Number(n);
 }
 const _NC_MIN = new Set(['DE','DEL','LA','LAS','LOS','EL','Y','E','EN','A','AL','CON','PARA','POR','SU','SUS']);
 const _NC_AC = { FORMACION:'formación', ACCION:'acción', METODOLOGIA:'metodología',
@@ -9968,12 +9975,12 @@ function _ncDetalle(header, row, comps){
       const n = Number(v);
       // La etiqueta va tal cual está en el Excel ("TRAB.", "FOR.", "SUM."),
       // igual que las notas cargadas por SQL: si no, el alumno vería una mezcla.
-      g[t].items.push({ n: String(h).replace(/\s+/g,' ').trim(), v: isNaN(n) ? String(v) : _ncR4(n) });
+      g[t].items.push({ n: String(h).replace(/\s+/g,' ').trim(), v: isNaN(n) ? String(v) : _ncNum(n) });
     }
   }
   const orden = ['Trabajo','Práctica','Formativa','Sumativa','Examen','Otros'];
   const bloques = orden.filter(function(t){ return g[t] && (g[t].items.length || g[t].aporte != null); })
-    .map(function(t){ return { tipo:t, aporte: g[t].aporte != null ? _ncR4(g[t].aporte) : null, items:g[t].items }; });
+    .map(function(t){ return { tipo:t, aporte: g[t].aporte != null ? _ncNum(g[t].aporte) : null, items:g[t].items }; });
   return bloques.length ? { bloques:bloques } : null;
 }
 
@@ -10013,7 +10020,7 @@ function ncRevisar(){
       cursante_id: m.c.id,
       _nombre: m.c.nombre,
       _excel: String(nm).trim(),
-      nota_final: _ncR4(nota),
+      nota_final: _ncNum(nota),
       atributo: c.atr >= 0 ? String(row[c.atr] == null ? '' : row[c.atr]).trim() : '',
       om_materia: c.om >= 0 && row[c.om] != null && !isNaN(Number(row[c.om])) ? Math.trunc(Number(row[c.om])) : null,
       detalle_json: _ncDetalle(header, row, comps)
@@ -13309,7 +13316,7 @@ function _renderSemPanel(){
   const discNota=d.disc?Number(d.disc.nota).toFixed(2):'—';
   const discPts=d.disc?('−'+d.disc.perdido+' pts'):'—';
   const efm=(d.efm&&d.efm.nota!=null)?Number(d.efm.nota).toFixed(1):'—';
-  const notas=(d.notas!=null)?Number(d.notas).toFixed(2):'—';
+  const notas=(d.notas!=null)?fmtNota(d.notas):'—';   // v2.9.363: 4 decimales como toda nota académica
   const om=(d.om!=null)?('#'+d.om):'—';
   const titulo=_ordWord(n)+' SEMESTRE '+_CUR_SEM_DATA.gestion+(n===_CUR_SEM_DATA.active?' · EN CURSO':(d.disc&&d.disc.cerrado?' · CERRADO':''));
   const card=(area,icon,tit,val,sub)=>{ const act=(CUR_SEM_AREA===area)?'active':''; return `<button class="cur-area-card ${act}" onclick="verAreaSemestre('${area}',${n})" style="cursor:pointer"><div class="ca-icon">${icon}</div><div class="ca-title">${tit}</div><div class="ca-value">${val}</div><div class="ca-sub">${sub}</div></button>`; };
