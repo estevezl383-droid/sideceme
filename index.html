@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.363</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.365</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -22354,8 +22354,14 @@ function repoRenderMateria(){
     +'Si te corresponde, pedí al <strong>Jefe de la SAC</strong> o a la <strong>Sección Tecnología</strong> que te agregue.'
     +'</span></span></div>';
   // botón "copiar del año anterior" cuando la gestión actual está editable y vacía
-  const copiar = (ed && !(REPO.adjuntos||[]).length)
-    ? '<div class="rg-card" style="text-align:center;padding:14px;margin-bottom:10px"><div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Esta gestión está vacía. Podés arrancar copiando los documentos de la gestión anterior y luego actualizarlos.</div><button class="btn-secondary" style="border-color:#1f6f5c" onclick="repoCopiarAnterior(this)">📥 Copiar del año anterior ('+(REPO.gestion-1)+')</button></div>'
+  // v2.9.364: el año de origen es la gestión ANTERIOR QUE EXISTE, no `gestion-1`
+  // a ciegas. Doctrina de Patriotas tiene su material en 2024 y no tiene 2025:
+  // el botón ofrecía copiar de 2025 y moría con "No hay carpeta de la gestión 2025".
+  const _fuente=_repoAnioFuente();
+  const copiar = (ed && !(REPO.adjuntos||[]).length && _fuente)
+    ? '<div class="rg-card" style="text-align:center;padding:14px;margin-bottom:10px"><div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">Esta gestión está vacía. Podés arrancar copiando los documentos de la gestión '+_fuente+' y luego actualizarlos.</div><button class="btn-secondary" style="border-color:#1f6f5c" onclick="repoCopiarAnterior(this)">📥 Copiar de la gestión '+_fuente+'</button></div>'
+    : (ed && !(REPO.adjuntos||[]).length)
+    ? '<div class="rg-card" style="text-align:center;padding:14px;margin-bottom:10px"><div style="font-size:12px;color:var(--text-muted)">Esta gestión está vacía y la materia no tiene ninguna gestión anterior cargada. Subí los documentos uno por uno en los casilleros de abajo.</div></div>'
     : '';
   const slots=REPO_SLOTS.map(s=>{
     const a=(byTipo[s.tipo]||[])[0];
@@ -22405,12 +22411,22 @@ function repoRenderMateria(){
     + zona('recurso_interactivo','Recursos Interactivos','🎮',true,true)
     + '<input type="file" id="repo-file" style="display:none">';
 }
+// v2.9.364 — La gestión anterior MÁS RECIENTE que esta materia tenga cargada.
+// `REPO.gestiones` son los años que existen de verdad (los mismos que dibujan
+// las pestañas 2026 | 2024). Devuelve 0 si no hay ninguna anterior.
+function _repoAnioFuente(){
+  const previas=(REPO.gestiones||[]).map(Number).filter(y=>y&&y<REPO.gestion);
+  return previas.length ? Math.max.apply(null, previas) : 0;
+}
 async function repoCopiarAnterior(btn){
   const m=REPO.materia; if(!m) return;
-  if(!confirm('¿Copiar todos los documentos de la gestión '+(REPO.gestion-1)+' a la gestión '+REPO.gestion+'? Después podés actualizarlos sin afectar el año anterior.')) return;
+  const fuente=_repoAnioFuente();
+  if(!fuente){ alert('Esta materia no tiene ninguna gestión anterior cargada para copiar.'); return; }
+  if(!confirm('¿Copiar todos los documentos de la gestión '+fuente+' a la gestión '+REPO.gestion+'? Después podés actualizarlos sin afectar el año anterior.')) return;
   if(btn){ btn.disabled=true; btn.textContent='📥 Copiando…'; }
-  const r=await _avInvoke('repo_copiar_anterior',{materia_codigo:m.codigo_uc, gestion:REPO.gestion});
-  if(!r.ok){ if(btn){ btn.disabled=false; btn.textContent='📥 Copiar del año anterior ('+(REPO.gestion-1)+')'; } alert('No se pudo copiar: '+(r.error||'')); return; }
+  const r=await _avInvoke('repo_copiar_anterior',{materia_codigo:m.codigo_uc, gestion:REPO.gestion, desde_gestion:fuente});
+  if(!r.ok){ if(btn){ btn.disabled=false; btn.textContent='📥 Copiar de la gestión '+fuente; } alert('No se pudo copiar: '+(r.error||'')); return; }
+  if(r.copiados!=null) alert('Se copiaron '+r.copiados+' documento(s) de la gestión '+(r.desde_gestion||fuente)+'.');
   await repoCargarMateria();
 }
 function repoPick(tipo){
@@ -33281,14 +33297,36 @@ function _wgNumerarUnidades(unidades){
   return unidades;
 }
 // Lista las fases del COA guardadas en el ejercicio, para poder elegir cuál jugar.
+// ============================================================
+// v2.9.365 — LA FASE VIAJA ENTERA, Y EL ASDI NO DEPENDE DEL COA.
+// Sergio: «puse mis instalaciones logísticas y en el juego no aparecieron».
+// Eran DOS defectos encadenados, verificados en la partida 10 «qwert»
+// (8 unidades, 3 ejes, 2 áreas y CERO instalaciones, importando un archivo
+// que traía 30):
+//   1) Esta función armaba la fase con `unidades` pero SIN `ops`. Al elegir un
+//      COA, las fichas salían de la fase y los ejes del estado vivo: escenario
+//      mezclado, mitad de una foto y mitad de otra.
+//   2) La foto de la fase se tomó ANTES de desplegar el ASDI, así que las
+//      instalaciones no estaban en ella y se perdían las 30.
+// Ahora la fase lleva lo suyo (`ops`, `desplazamientos`) y las instalaciones se
+// tratan aparte: ver `_wgEscenarioDesde`. Un ASDI no es una ficha de maniobra
+// —no se mueve de un COA a otro— así que no puede depender de cuál se elija.
+// ============================================================
 function _wgFasesCOA(d){
   const fc=(d&&d.fasesCOA)||null; if(!fc) return [];
   const out=[];
   for(const bando of ['propio','enemigo']){
     const arr=fc[bando]||[];
     arr.forEach((f,i)=>{
-      const n=(f&&f.unidades||[]).length;
-      if(n) out.push({bando, idx:i, n, nombre:`COA ${bando==='propio'?'PROPIO':'ENEMIGO'} · Fase ${i+1}`, unidades:f.unidades});
+      const us=(f&&f.unidades)||[];
+      const n=us.length;
+      if(n) out.push({bando, idx:i, nombre:`COA ${bando==='propio'?'PROPIO':'ENEMIGO'} · Fase ${i+1}`,
+        unidades:us,
+        // Cuántas de esas fichas son de combate y cuántas son instalaciones: es
+        // lo que hay que ver ANTES de elegir, no descubrirlo con el tablero vacío.
+        n: us.filter(u=>u&&u.tipo!=='instalacion').length,
+        nInst: us.filter(u=>u&&u.tipo==='instalacion').length,
+        ops:(f&&f.ops)||null, desplazamientos:(f&&f.desplazamientos)||null});
     });
   }
   return out;
@@ -33296,14 +33334,24 @@ function _wgFasesCOA(d){
 // Muestra los cursos de acción disponibles y espera la elección del árbitro.
 function _wgPreguntarFase(fases, poner, archivo){
   return new Promise((resolve)=>{
+    // v2.9.365: cada opción dice qué trae. Antes decía sólo «8 unidad(es)» y
+    // contaba las instalaciones adentro de ese número, así que un COA sin ASDI
+    // se veía igual que uno con ASDI.
+    const vivas=(fases._vivas||{});
     const filas=fases.map((f,i)=>
       `<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-bottom:4px" data-fase="${i}">`
-      +`${f.nombre} — ${f.n} unidad(es)</button>`).join('');
+      +`${f.nombre} — ${f.n} unidad(es) de combate`
+      +`<br><span class="rg-meta">🏭 ${f.nInst||0} instalación(es) propias de esta fase`
+      +((vivas.inst||0)>(f.nInst||0)
+        ? ` · se completan con las ${vivas.inst} del estado actual`
+        : '')+`</span></button>`).join('');
     poner(`<b>¿Qué curso de acción querés jugar?</b>`
       +(archivo?` <span class="rg-meta">— ${_rgEsc(archivo)}</span>`:'')+`<br>`
-      +`<span class="rg-meta">El ejercicio tiene ${fases.length} fase(s) guardadas. Cada una tiene las unidades en la posición de ESA fase.</span>`
+      +`<span class="rg-meta">El ejercicio tiene ${fases.length} fase(s) guardadas. Cada una tiene las unidades en la posición de ESA fase. `
+      +`Las instalaciones logísticas (ASDI, ARCE, PCED…) <b>no dependen del COA</b>: entran siempre, se elija la fase que se elija.</span>`
       +`<div style="margin-top:8px">`
-      +`<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-bottom:4px" data-fase="viva">📍 Estado actual del ejercicio (como quedó abierto)</button>`
+      +`<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-bottom:4px" data-fase="viva">📍 Estado actual del ejercicio (como quedó abierto)`
+      +`<br><span class="rg-meta">${vivas.comb||0} unidad(es) de combate · 🏭 ${vivas.inst||0} instalación(es)</span></button>`
       +filas
       +`<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-top:6px" data-fase="no">✖️ Cancelar</button></div>`);
     const cont=document.getElementById('wg-imp-estado');
@@ -33396,7 +33444,30 @@ function _wgEscenarioDesde(d, fase){
   const unidades=[], terreno=[], instalaciones=[]; const sinEfecto=[];
   // Si se eligió una fase del COA, las unidades salen de ESA fase; si no, del
   // estado vivo del ejercicio (que es la fase que quedó abierta al guardar).
-  const fuente = (fase && fase.unidades) ? fase.unidades : ((d&&d.unidades)||[]);
+  // ============================================================
+  // v2.9.365 — LAS INSTALACIONES NO SE ELIGEN CON EL COA.
+  // Las fichas de MANIOBRA sí salen de la fase (esa es la gracia de elegir un
+  // curso de acción: cada una tiene las unidades donde estaban en esa fase).
+  // Las INSTALACIONES, no: el ASDI se despliega una vez y queda. Si la foto de
+  // la fase se tomó antes de desplegarlo —que es lo normal, primero se hacen
+  // las fases y después el G-4 monta el área de servicios— la fase no las
+  // tiene, y tomándolas de ahí desaparecían las 30.
+  // Así que: maniobra de la fase (o del estado vivo si no se eligió fase) +
+  // instalaciones de las DOS, sin repetir. La clave para no repetir es el tipo
+  // de instalación y su posición redondeada a ~1 m.
+  // ============================================================
+  const maniobra = (fase && fase.unidades) ? fase.unidades : ((d&&d.unidades)||[]);
+  const esInst = (u)=> u && u.tipo==='instalacion';
+  const claveInst = (u)=> `${u.instalacion||''}|${Number(u.lat).toFixed(5)}|${Number(u.lng).toFixed(5)}`;
+  const fuente = maniobra.filter(u=>!esInst(u));
+  const vistas = new Set();
+  for(const lista of [maniobra, ((d&&d.unidades)||[])])
+    for(const u of lista){
+      if(!esInst(u) || u.lat==null || u.lng==null) continue;
+      const k=claveInst(u);
+      if(vistas.has(k)) continue;
+      vistas.add(k); fuente.push(u);
+    }
   for(const u of fuente){
     if(u==null||u.lat==null||u.lng==null) continue;
     // En el Generador el bando es 'propias' | 'enemigo'; acá es 'azul' | 'rojo'.
@@ -33460,7 +33531,27 @@ function _wgEscenarioDesde(d, fase){
   // decisiones de planeamiento que el Estado Mayor tiene que VER en el tablero.
   // Viajan como capa visual `via` (es lo que acepta la Edge Function) con su
   // nombre colgado de la geometría, igual que los poblados del G-5.
-  const ops = (fase && fase.ops) ? fase.ops : ((d&&d.ops)||{});
+  // ============================================================
+  // v2.9.365 — EL `ops` SE COMBINA, NO SE ELIGE.
+  // Antes esto caía SIEMPRE al estado vivo (`_wgFasesCOA` no devolvía `ops`),
+  // así que se jugaba un COA con los ejes de otro. Pero pasar a usar sólo el de
+  // la fase sería peor: las fases se guardan con `zonasLog`/`ejesLog` vacíos
+  // —el G-4 traza el ASDI y el EPA DESPUÉS de armar los cursos de acción— y
+  // elegir un COA borraría el eje principal de abastecimiento.
+  // Regla: se parte del estado vivo y la fase pisa SÓLO lo que ella tiene.
+  // Los límites y las tareas son de la fase (son la maniobra); el ASDI, los
+  // ejes y las líneas del EM quedan, porque no cambian de un COA a otro.
+  // ============================================================
+  const opsVivo=(d&&d.ops)||{};
+  const opsFase=(fase&&fase.ops)||null;
+  let ops=opsVivo;
+  if(opsFase){
+    ops=Object.assign({}, opsVivo);
+    for(const k in opsFase){
+      const v=opsFase[k];
+      if(Array.isArray(v)? v.length : (v!=null)) ops[k]=v;
+    }
+  }
   let ejes=0;
   const meterLinea=(coords, nom)=>{
     if(!Array.isArray(coords)||coords.length<2) return;
@@ -33522,6 +33613,11 @@ async function wgImportarEscenario(inp, sumar){
     // es la fase que quedó abierta. El importador tomaba ese estado vivo, así que
     // SIEMPRE traía la última fase. Ahora se elige cuál se quiere jugar.
     const fases=_wgFasesCOA(d);
+    // v2.9.365: el cuadro compara cada COA contra el estado vivo, que es de
+    // donde salen las instalaciones pase lo que pase.
+    const _uv=(d&&d.unidades)||[];
+    fases._vivas={ comb:_uv.filter(u=>u&&u.tipo!=='instalacion').length,
+                   inst:_uv.filter(u=>u&&u.tipo==='instalacion').length };
     let faseElegida=null;
     if(fases.length){
       faseElegida = await _wgPreguntarFase(fases, poner, files.length>1?f.name:null);
