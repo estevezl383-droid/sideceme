@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.360</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.362</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4477,7 +4477,7 @@ body{
         <div class="field" style="margin-bottom:8px"><label>Columna de nombres</label><select id="nc-col-nombre" onchange="ncRevisar()"></select></div>
         <div class="field" style="margin-bottom:8px"><label>Columna de la nota final</label><select id="nc-col-nota" onchange="ncRevisar()"></select></div>
         <div class="field" style="margin-bottom:8px"><label>Columna de atributo (opcional)</label><select id="nc-col-atrib" onchange="ncRevisar()"></select></div>
-        <div class="field" style="margin-bottom:12px"><label>Columna N° / orden de mérito (opcional)</label><select id="nc-col-om" onchange="ncRevisar()"></select></div>
+        <div class="field" style="margin-bottom:12px"><label>Columna del ORDEN DE MÉRITO (opcional) — ⚠️ NO es la columna "N°": esa es el número de lista</label><select id="nc-col-om" onchange="ncRevisar()"></select></div>
         <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px">Vista previa de la hoja (las columnas elegidas van resaltadas):</div>
         <div id="nc-prev-tabla" style="overflow-x:auto"></div>
       </div>
@@ -9906,10 +9906,13 @@ function ncAnalizarHoja(nombreHoja){
   for(let j=header.length-1; j>=0; j--){ if(/^NOTA/i.test(header[j]) && !/%/.test(header[j])){ colNota = j; break; } }
   if(colNota < 0) colNota = Math.max(header.length - 2, 0);
   const colAtr = header.findIndex(function(h){ return /ATRIB/i.test(h); });
-  // La columna "N°" de la planilla SINE es el orden de mérito DE LA MATERIA.
+  // v2.9.362: NO auto-detectar "N°" / "NRO". En la planilla SINE esa columna es el
+  // NÚMERO DE LISTA alfabético, no el orden de mérito: por creerlo OM se publicó
+  // "Puesto 46 en esta materia" a quien era el 46 de la lista. Solo se toma sola una
+  // columna que diga OM / ORDEN / PTO / PUESTO; cualquier otra la elige el operador.
   const colOM = header.findIndex(function(h){
     const k = _ncNorm(h).replace(/[^A-Z0-9]/g,'');
-    return k==='N' || k==='NO' || k==='NRO' || k==='OM' || k==='ORDEN' || k==='PTO' || k==='PUESTO';
+    return k==='OM' || k==='ORDEN' || k==='PTO' || k==='PUESTO';
   });
 
   const opciones = function(sel, conVacio){
@@ -11077,13 +11080,17 @@ function toggleAcad3D(id){
 }
 
 // Detalle de una materia: bloques de componentes (Trabajo/Formativa/Sumativa o los que tenga)
+// v2.9.361: NO se muestra "Puesto N° en esta materia". El cargador de Excel guarda en
+// om_materia la columna "N°" de la planilla SINE, que es el número de lista ALFABÉTICO,
+// no el orden de mérito (FERNANDEZ salía "Puesto 46" siendo el 46 de la lista). El dato
+// sigue guardado y visible en los paneles de carga/control, pero el alumno ya no lo ve.
 function htmlDetalleMateria(m){
   let dj = m.detalle_json;
   if(typeof dj === 'string'){ try{ dj = JSON.parse(dj); }catch(e){ dj = null; } }
   const color = colorAtributo(m.atributo);
   const nota = m.nota_final!=null ? fmtNota(m.nota_final) : '—';
   if(!dj || !dj.bloques || !dj.bloques.length){
-    return `<div style="padding:10px 0;font-size:12px;color:var(--text-muted)">Nota final: <b style="color:${color}">${nota}</b>${m.om_materia?` · Puesto ${m.om_materia}`:''}</div>`;
+    return `<div style="padding:10px 0;font-size:12px;color:var(--text-muted)">Nota final: <b style="color:${color}">${nota}</b></div>`;
   }
   const bloques = dj.bloques.map(b=>{
     const items = (b.items||[]).map(it=>`
@@ -11100,8 +11107,7 @@ function htmlDetalleMateria(m){
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 2px;border-top:2px solid var(--gold-dark);margin-top:4px">
       <span style="font-size:12px;font-weight:700;color:var(--gold-light);text-transform:uppercase;letter-spacing:1px">Nota final</span>
       <span style="font-size:18px;font-weight:700;color:${color};font-family:var(--font-display)">${nota}</span>
-    </div>
-    ${m.om_materia?`<div style="font-size:11px;color:var(--text-muted);text-align:right;margin-top:4px">🏅 Puesto ${m.om_materia} en esta materia</div>`:''}`;
+    </div>`;
 }
 
 function htmlTarjetaAcademica(g){
@@ -17891,6 +17897,9 @@ function exportarExcelPlanillaNotas(materia, cicloSel, paraSel, filename){
 }
 
 /* ---------- boleta individual ---------- */
+// v2.9.362: la boleta SE LE ENTREGA AL ALUMNO, así que tampoco lleva la columna
+// "O.M.": ese valor es om_materia y en las materias cargadas por Excel es el número
+// de lista alfabético de la planilla SINE, no el puesto. Ver htmlDetalleMateria().
 function htmlCuerpoBoletaNotas(cursanteId){
   const cur = (discData.cursantes||[]).find(function(c){ return String(c.id)===String(cursanteId); });
   if(!cur) return _nrepEncabezado()+'<p style="text-align:center;padding:30pt 0">Cursante no encontrado.</p>';
@@ -17908,7 +17917,6 @@ function htmlCuerpoBoletaNotas(cursanteId){
       + '<td class="left" style="font-size:8pt">'+escapeHtml(f.grupo||'—')+'</td>'
       + '<td class="num">'+(f.nota_final!=null?fmtNota(f.nota_final):'—')+'</td>'
       + '<td class="ctr">'+escapeHtml(f.atributo||'—')+'</td>'
-      + '<td class="num">'+(f.om_materia!=null?f.om_materia:'—')+'</td>'
       + '<td class="ctr" style="font-size:8pt">'+escapeHtml(obs)+'</td></tr>';
   }).join('');
 
@@ -17935,8 +17943,8 @@ function htmlCuerpoBoletaNotas(cursanteId){
     + '<table class="main-table"><thead><tr>'
     +   '<th style="width:30%">UNIDAD ACADÉMICA</th><th style="width:24%">MÓDULO</th>'
     +   '<th style="width:11%">NOTA FINAL</th><th style="width:9%">ATRIB.</th>'
-    +   '<th style="width:8%">O.M.</th><th style="width:18%">OBSERVACIONES</th>'
-    + '</tr></thead><tbody>'+(bloques||'<tr><td colspan="6" class="ctr">Sin notas en el período.</td></tr>')+'</tbody></table>'
+    +   '<th style="width:26%">OBSERVACIONES</th>'
+    + '</tr></thead><tbody>'+(bloques||'<tr><td colspan="5" class="ctr">Sin notas en el período.</td></tr>')+'</tbody></table>'
     + '<p style="font-family:Arial;font-size:11pt;font-weight:bold;margin:10pt 0">PROMEDIO DEL PERÍODO: '+prom+'</p>'
     + (detalle ? ('<h2 class="subtitulo-rep" style="margin-top:14pt">DESGLOSE POR UNIDAD ACADÉMICA</h2>'+detalle) : '')
     + _nrepFirmas(cur.ciclo||'');
