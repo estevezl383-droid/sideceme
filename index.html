@@ -31513,6 +31513,12 @@ function _wgRenderTerreno(){
     // militar el obstáculo minado se marca fuerte a propósito, es lo último que
     // uno quiere confundir con otra cosa. Sobre la maqueta también se ve solo.
     minado:{color:'#ff2e2e',weight:3,fillOpacity:0.22,fillColor:'#ff2e2e',dashArray:'2 6'},
+    // v2.9.365 — EL PLAN DE BARRERAS que llega de la Mesa del Estado Mayor.
+    // Verde de ingenieros, como en el calco, y punteado: son obras del PLAN.
+    // Las que ya tienen efecto en el motor no salen acá — el campo minado
+    // ejecutado entra como `minado` (rojo) y la posición ocupada como
+    // `defensivo` (turquesa), para no decir dos veces la misma cosa.
+    obstaculo:{color:'#3fbf6a',weight:3,fillOpacity:0.1,fillColor:'#3fbf6a',dashArray:'7 5'},
   };
   // Los puntos (cimas, volcanes, poblados, hitos) van como circulitos chicos.
   const punto={ elevacion:{r:3.4,color:'#e0b34a'}, poblado:{r:3.8,color:'#ffffff'}, jurisdiccion:{r:3,color:'#b06de0'} };
@@ -31593,8 +31599,13 @@ const WG3D_EST={
   // ============================================================
   eje_log:{col:'#ff2e6a',fill:0,w:5},
   minado:{col:'#ff2e2e',fill:0.22,w:3},
+  // v2.9.365: el plan de barreras también en la maqueta. Si no está acá,
+  // `_wg3dTerrenoFC()` lo descarta y el G-3 ve su defensa en 2D y no en 3D,
+  // que es justamente donde se juega. (Mismo agujero que tuvieron el EPA y el
+  // campo minado en la v2.9.344.)
+  obstaculo:{col:'#3fbf6a',fill:0.1,w:3},
 };
-const WG3D_DOCT=['restringido','severo','clave','ae','defensivo','eje_log','minado'];
+const WG3D_DOCT=['restringido','severo','clave','ae','defensivo','eje_log','minado','obstaculo'];
 const WG3D_VACIO={type:'FeatureCollection',features:[]};
 // Arma UNA colección con todo el terreno; el estilo sale de las propiedades,
 // así MapLibre pinta cada cosa con su color sin necesitar una capa por tipo.
@@ -32807,6 +32818,11 @@ const WG_CALCOS=[
   // v2.9.324: los campos minados también se encienden y apagan — sobre la
   // maqueta conviene poder mostrarlos solos cuando se explica el plan de barreras.
   {id:'minado',      nom:'💣 Campos minados', col:'#ff2e2e', grupo:'CMOC'},
+  // v2.9.365: el plan de barreras que llega de la Mesa (alambradas, zanjas,
+  // demoliciones y todo lo proyectado). Se apaga aparte de los campos minados
+  // ejecutados: al explicar la defensa conviene mostrar primero lo que hay y
+  // después lo que falta construir.
+  {id:'obstaculo',   nom:'🛡️ Plan de barreras (proyectado)', col:'#3fbf6a', grupo:'CMOC'},
   {id:'elevacion',   nom:'Elevaciones (curvas y cimas)', col:'#e0b34a', grupo:'Carta'},
   {id:'hidro',       nom:'Hidrografía (ríos, lagos)', col:'#4aa3e0', grupo:'Carta'},
   {id:'via',         nom:'Comunicaciones (caminos)', col:'#ff9a2e', grupo:'Carta'},
@@ -33561,6 +33577,72 @@ function _wgEscenarioDesde(d, fase){
   };
   for(const e of (ops.ejesLog||[])) meterLinea(e.coords, WG_NOM_EJES[e.tipo]||'Eje logístico');
   for(const l of (ops.lineasEM||[])) meterLinea(l.coords, WG_NOM_EJES[l.tipo]||'Línea de control');
+  // ============================================================
+  // v2.9.365 — EL PLAN DE BARRERAS LLEGA AL TABLERO (RC-02-114).
+  //
+  // El G-3 dibuja en la Mesa sus alambradas, concertinas, zanjas, campos
+  // minados y posiciones defensivas. Hasta ahora se quedaban en el calco: el
+  // Juego tenía obstáculos, pero sólo los que una unidad construía DENTRO de
+  // la partida. O sea que el plan de defensa no se podía jugar.
+  //
+  // Cómo entra cada cosa, y por qué:
+  //   · Campo minado EJECUTADO → `minado`, que es doctrinal: DETIENE al que
+  //     entra. Es el único obstáculo del plan con efecto mecánico, y sólo si
+  //     ya está construido.
+  //   · Posición defensiva OCUPADA → `defensivo`: da el bono de defensa a
+  //     quien la ocupe. Una posición sólo PROYECTADA no lo da — todavía no
+  //     hay pozo cavado.
+  //   · Todo lo demás (alambradas, zanjas, demoliciones, y lo proyectado)
+  //     entra como `obstaculo`: se VE en la carta y en la maqueta, pero no
+  //     mueve el motor. Es el plan, no el terreno.
+  // ============================================================
+  const OBS_ABREV = {
+    alambre_simple:'AL', alambre_doble:'AL 2', concertina:'CONC', concertina_triple:'CONC 3',
+    zanja_at:'ZAT', abatida:'ABT', minado_ap:'CM AP', minado_ac:'CM AC',
+    minado_mixto:'CM MX', minado_ficticio:'CM FIC', demolicion:'DEM', bloqueo:'BLQ',
+  };
+  const OBS_AREA = ['minado_ap','minado_ac','minado_mixto','minado_ficticio'];
+  let obstaculos=0, obsMecanicos=0;
+  const meterObs=(tipo, geom, nom)=>{
+    if(!geom) return;
+    terreno.push({ tipo, geojson: Object.assign({}, geom, { nom }) });
+    obstaculos++; visuales++;
+    if(tipo==='minado' || tipo==='defensivo') obsMecanicos++;
+  };
+  for(const ob of (ops.obstaculos||[])){
+    const ab = OBS_ABREV[ob.tipo] || 'OBST';
+    const proy = (ob.estado||'proyectado')==='proyectado';
+    const nom = ab + (proy ? ' (proyectado)' : '');
+    if(OBS_AREA.includes(ob.tipo)){
+      const c=ob.coords;
+      if(!Array.isArray(c)||c.length<3) continue;
+      const anillo=c.map(x=>[Number(x[0]),Number(x[1])]); anillo.push(anillo[0]);
+      // El campo minado FICTICIO no detiene a nadie: es señalización sin mina.
+      // Que entrara como `minado` sería regalarle al que lo pone un obstáculo
+      // real que no construyó.
+      const real = !proy && ob.tipo!=='minado_ficticio';
+      meterObs(real?'minado':'obstaculo', { type:'Polygon', coordinates:[anillo] }, nom);
+    } else if(ob.centro){
+      meterObs('obstaculo', { type:'Point',
+        coordinates:[Number(ob.centro[0]), Number(ob.centro[1])] }, nom);
+    } else {
+      const c=ob.coords;
+      if(!Array.isArray(c)||c.length<2) continue;
+      meterObs('obstaculo', { type:'LineString',
+        coordinates:c.map(x=>[Number(x[0]),Number(x[1])]) }, nom);
+    }
+  }
+  // Las posiciones «riñón». El contorno ya viene calculado del lado de la Mesa
+  // (`anillo`), así que acá no hay que rehacer la geometría del óvalo.
+  for(const pd of (ops.posDef||[])){
+    const c=pd&&pd.anillo;
+    if(!Array.isArray(c)||c.length<4) continue;
+    const anillo=c.map(x=>[Number(x[0]),Number(x[1])]);
+    if(anillo[0][0]!==anillo[anillo.length-1][0] || anillo[0][1]!==anillo[anillo.length-1][1]) anillo.push(anillo[0]);
+    const ocup=(pd.estado||'ocupada')==='ocupada';
+    meterObs(ocup?'defensivo':'obstaculo', { type:'Polygon', coordinates:[anillo] },
+      'Posición '+(pd.etiqueta||'')+(ocup?'':' (proyectada)'));
+  }
   // Las zonas logísticas (ASDI, ARCE, Áreas de Trenes) son ÁREAS: van como
   // polígono visual para que se vea el sector, además de la ficha de la instalación.
   for(const z of (ops.zonasLog||[])){
@@ -33572,6 +33654,7 @@ function _wgEscenarioDesde(d, fase){
     visuales++;
   }
   return { unidades, terreno, visuales, instalaciones, sinEfecto, ejes,
+    obstaculos, obsMecanicos,
     nombre:(d&&d.nombre)||'', fase:(fase?fase.nombre:null) };
 }
 // ============================================================
@@ -33627,7 +33710,7 @@ async function wgImportarEscenario(inp, sumar){
   }
   // 2) Combinar en UN escenario. Cada capa aporta lo suyo y nada se pisa.
   const esc={ unidades:[], terreno:[], visuales:0, instalaciones:[], sinEfecto:[], ejes:0,
-              nombre:'', fase:null };
+              obstaculos:0, obsMecanicos:0, nombre:'', fase:null };
   const detalle=[];
   for(const p of partes){
     const e=p.esc;
@@ -33637,6 +33720,8 @@ async function wgImportarEscenario(inp, sumar){
     esc.sinEfecto.push(...(e.sinEfecto||[]));
     esc.visuales += (e.visuales||0);
     esc.ejes += (e.ejes||0);
+    esc.obstaculos += (e.obstaculos||0);
+    esc.obsMecanicos += (e.obsMecanicos||0);
     if(!esc.nombre && e.nombre) esc.nombre=e.nombre;
     if(!esc.fase && e.fase) esc.fase=e.fase;
     detalle.push(`  · ${p.nombre}: ${(e.unidades||[]).length} unidad(es), `
@@ -33655,6 +33740,9 @@ async function wgImportarEscenario(inp, sumar){
   const resumen=`• ${esc.unidades.length} unidad(es) de combate\n• ${nCmoc} polígono(s) de CMOC (terreno restringido / severo / clave)\n• ${esc.visuales||0} elemento(s) de carta (ríos, curvas de nivel, caminos, poblados)`
     +(nInst?`\n• ${nInst} instalación(es) logística(s) y de personal del Estado Mayor`:'')
     +((esc.ejes||0)?`\n• ${esc.ejes} eje(s) de control (EPA, EPE, extraviados, PP.GG., humanitario)`:'')
+    +((esc.obstaculos||0)?`\n• ${esc.obstaculos} obstáculo(s) del plan de barreras`
+      +(esc.obsMecanicos?` — ${esc.obsMecanicos} con efecto en el juego (campos minados ejecutados y posiciones ocupadas); el resto se ve pero no frena`
+        :` — ninguno con efecto todavía: están todos PROYECTADOS`):'')
     +((esc.sinEfecto&&esc.sinEfecto.length)
       ? `\n\nNO se cargan ${esc.sinEfecto.length} instalación(es) que todavía no tienen efecto en el juego:\n${esc.sinEfecto.slice(0,10).join(', ')}${esc.sinEfecto.length>10?'…':''}`
       : '');
@@ -33683,6 +33771,10 @@ async function wgImportarEscenario(inp, sumar){
   if(!tandas.length) tandas.push([]); // sólo unidades
 
   let totU=0, totT=0;
+  // v2.9.365: cuántas filas ACEPTÓ el servidor de las que se le mandaron. La
+  // Edge Function descarta en silencio los tipos que no conoce, así que ésta es
+  // la única forma de saber que se quedó una capa afuera sin ir a consultarla.
+  let insT=0;
   for(let i=0;i<tandas.length;i++){
     poner(`⏳ Enviando tanda ${i+1} de ${tandas.length}… (${totT} polígonos ya cargados)`);
     const r=await _wgInvoke('importar_escenario',{
@@ -33693,6 +33785,7 @@ async function wgImportarEscenario(inp, sumar){
     });
     if(!r.ok){ poner(`❌ Falló en la tanda ${i+1}: ${_rgEsc(r.error)}`+(i>0?'<br>El escenario quedó a medio cargar: volvé a importar.':'')); return; }
     totU=r.total_unidades||totU; totT=r.total_terreno||totT;
+    insT += (r.terreno||0);
   }
   // v2.9.205: si se mandaron capas de carta y el servidor no las guardó, es que
   // la Edge Function `wargame-ops` está DESACTUALIZADA (la vieja sólo acepta
@@ -33707,6 +33800,28 @@ async function wgImportarEscenario(inp, sumar){
     WG.terreno=null; WG.capaTerrenoFirma=null; await wgEstado(); _wgEncuadrar();
     return;
   }
+  // ============================================================
+  // v2.9.365 — ¿ENTRÓ EL PLAN DE BARRERAS?
+  // Los obstáculos viajan como tipos `minado` y `obstaculo`. La Edge Function
+  // vieja no los tiene en sus listas y los tira sin decir nada: en el tablero
+  // eso se ve como «dibujé la defensa y no aparece», que es exactamente el
+  // problema que costó una sesión entera con el ASDI. Así que se avisa acá, con
+  // el arreglo escrito, en vez de dejarlo para que se descubra jugando.
+  // ============================================================
+  const perdidas = esc.terreno.length - insT;
+  // Se guarda para SUMARLO al resumen final. Mostrarlo acá con `poner` no
+  // serviría de nada: el mensaje de éxito lo pisa tres líneas más abajo.
+  const avisoBarreras = ((esc.obstaculos||0) > 0 && perdidas > 0)
+    ? `<br><br>⚠️ <b>El escenario entró, pero el plan de barreras NO.</b><br>`
+      +`Se enviaron ${esc.terreno.length} elementos de terreno y el servidor guardó <b>${insT}</b>: `
+      +`quedaron afuera <b>${perdidas}</b>, que son los obstáculos.<br>`
+      +`La Edge Function <code>wargame-ops</code> todavía no conoce los tipos <code>minado</code> `
+      +`y <code>obstaculo</code> al importar, así que los descarta.<br>`
+      +`<b>Solución:</b> en <code>wargame-ops</code>, agregá <code>"minado"</code> a `
+      +`<code>TIPOS_DOCTRINA</code> y <code>"obstaculo"</code> a <code>TIPOS_VISUALES</code>, `
+      +`desplegala y volvé a importar este mismo archivo. `
+      +`Las posiciones defensivas ocupadas sí entraron: <code>defensivo</code> ya estaba aceptado.`
+    : '';
   // v2.9.342 — LAS INSTALACIONES DEL ESTADO MAYOR. Van DESPUÉS del terreno
   // porque la primera tanda con `limpiar` borra toda la tabla wg_terreno, y las
   // instalaciones viven ahí. El árbitro puede colocarlas de cualquier bando
@@ -33732,6 +33847,9 @@ async function wgImportarEscenario(inp, sumar){
     +(falloInst?`<br>⚠️ No entraron: <b>${_rgEsc(detalleFallos)}</b> — ${_rgEsc(falloInst)}`
       +(tiposFallados.log_pc?`<br><span style="opacity:.85">El tipo <code>log_pc</code> (Puesto de Comando) lo rechaza la Edge Function por un defecto propio de su validación; se arregla cambiando <code>{3,20}</code> por <code>{2,20}</code> en <code>wargame-ops</code>.</span>`:''):'')
     +((esc.ejes||0)?`<br>↔️ <b>${esc.ejes}</b> eje(s) de control en la carta (EPA, EPE, evacuación).`:'')
+    +((esc.obstaculos||0)?`<br>🛡️ <b>${esc.obstaculos}</b> obstáculo(s) del plan de barreras`
+      +(esc.obsMecanicos?` (<b>${esc.obsMecanicos}</b> con efecto en el motor).`:` — todos proyectados, todavía sin efecto.`):'')
+    +avisoBarreras
     // v2.9.359 — SIN CAMINOS NO HAY LOGÍSTICA. Se avisa ACÁ, que es cuando
     // todavía se puede agregar la capa, y no cuando el convoy ya se clavó.
     +(_wgSinCaminos(esc)
