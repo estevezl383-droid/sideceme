@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.365</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.367</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5279,7 +5279,7 @@ body{
       <div class="stat-card danger" onclick="goDiscConsejo()"><div class="stat-num" id="stat-consejo">—</div><div class="stat-label">En Riesgo</div></div>
     </div>
 
-    <button class="btn-mega" onclick="goProfNuevaSancion()" style="margin:8px 0 10px 0">
+    <button class="btn-mega" id="btn-mega-nueva-sancion" onclick="goProfNuevaSancion()" style="margin:8px 0 10px 0">
       <span class="mega-icon">📝</span>
       <span>Registrar nueva sanción</span>
     </button>
@@ -8126,12 +8126,19 @@ const CARGOS = {
 // gestionar sanciones (anular/editar/crear manual), ni cambio de funciones. SÍ puede
 // la tarea de rutina (registrar sanción, ver, cargar). La matriz se afina después.
 function esAuxiliar(){ return !!(currentUser && currentUser.es_auxiliar===true); }
+// v2.9.367 — AUXILIAR DE SOLO CONSULTA (marca `solo_lectura` en profesores).
+// Es el auxiliar administrativo de la Sección: entra al panel de la función para
+// CONSULTAR y para IMPRIMIR reportes, pero NO sanciona, no anula y no modifica
+// nada. Se distingue del auxiliar común (es_auxiliar), que sí registra sanciones.
+function esSoloLectura(){ return !!(currentUser && currentUser.solo_lectura===true); }
+// Único lugar que decide si esta sesión puede REGISTRAR una sanción.
+function puedeSancionar(){ return !esSoloLectura(); }
 function esCT(){ return activeRole === 'ciencia_tecnologia' && !esAuxiliar(); }
 function esJefeSAC(){ return activeRole === 'jefe_sac'; }
 // Panel disciplina: todos los que usan screen-disc-panel (incluye jefe_sac para vista integral)
 function esAdminPanel(){ return ['disciplina','comandante','estudios','ciencia_tecnologia','jefe_sac'].includes(activeRole); }
 // Puede gestionar sanciones (anular/editar/reactivar) — jefe_sac NO, auxiliar NO
-function esGestSanc(){ return !esAuxiliar() && ['disciplina','estudios','ciencia_tecnologia'].includes(activeRole); }
+function esGestSanc(){ return !esAuxiliar() && !esSoloLectura() && ['disciplina','estudios','ciencia_tecnologia'].includes(activeRole); }
 // v2.9.302: el cursante entra SIN cargo (activeRole queda en null) — así lo distinguimos
 // de cualquier docente para no ofrecerle el canal directo al Comandante.
 function esCursanteSesion(){ return !!currentUser && !activeRole; }
@@ -14527,9 +14534,13 @@ function renderDiscPanel(){
   (function(){
     var strip=document.querySelector('#screen-disc-panel .user-strip'); if(!strip) return;
     var b=document.getElementById('aux-banner');
-    if(esAuxiliar()){
+    if(esAuxiliar() || esSoloLectura()){
       if(!b){ b=document.createElement('div'); b.id='aux-banner'; b.style.cssText='margin-bottom:16px;padding:10px 14px;border-radius:10px;background:rgba(80,160,255,.12);border:1px solid rgba(140,210,255,.4);color:#bfe6ff;font-size:13px'; strip.parentNode.insertBefore(b, strip.nextSibling); }
-      b.innerHTML='🤝 <b>Modo auxiliar</b> — acceso limitado: podés registrar y ver, pero no anular/modificar sanciones ni las acciones de mando.';
+      // v2.9.367: el auxiliar de CONSULTA tiene otra función que el auxiliar común,
+      // así que el aviso tiene que decirle exactamente qué puede hacer.
+      b.innerHTML = esSoloLectura()
+        ? '📄 <b>Auxiliar de la Sección Disciplina — consulta y reportes.</b> Podés ver la situación de disciplina de cada cursante, generar su informe individual y descargar los reportes oficiales. No registrás, no anulás ni modificás sanciones.'
+        : '🤝 <b>Modo auxiliar</b> — acceso limitado: podés registrar y ver, pero no anular/modificar sanciones ni las acciones de mando.';
       b.style.display='';
     } else if(b){ b.style.display='none'; }
   })();
@@ -14597,6 +14608,15 @@ function renderDiscPanel(){
   document.getElementById('qa-profs-text').textContent=`Gestionar profesores (${activosProfs})`;
 
   // Visibilidad de botones según rol
+  // v2.9.367: primero se deshace lo que haya ocultado el modo de SOLO CONSULTA (más
+  // abajo). Si no, al cerrar sesión el auxiliar y entrar otro en la misma pestaña,
+  // el titular se encontraba el panel recortado.
+  document.querySelectorAll('#screen-disc-panel [data-oculto-consulta]').forEach(function(b){
+    b.style.display=''; b.removeAttribute('data-oculto-consulta');
+  });
+  document.querySelectorAll('.bottom-nav-item[data-oculto-consulta]').forEach(function(b){
+    b.style.display=''; b.removeAttribute('data-oculto-consulta');
+  });
   const soloCT = esCT();
   const btnsCT = ['qa-btn-gest-cursantes','qa-btn-gest-profesores','qa-btn-diagnostico','qa-btn-pwd-otro','qa-btn-bloqueo-materias','qa-btn-carpeta-clases','qa-btn-avisos','qa-btn-cerrar-sem','qa-btn-funciones','qa-btn-cargas-notas','qa-btn-control-notas'];
   btnsCT.forEach(id => {
@@ -14625,6 +14645,32 @@ function renderDiscPanel(){
   document.querySelectorAll('[data-sac-hide]').forEach(el => {
     el.style.display = esJefeSAC() ? 'none' : '';
   });
+
+  // ── v2.9.367: AUXILIAR DE SOLO CONSULTA (Sección Disciplina) ───────────────
+  // Su función es CONSULTAR la situación de disciplina de cada cursante e IMPRIMIR
+  // los reportes y documentos de la Sección. No sanciona, no anula, no modifica y
+  // no toca nada de mando. Como el panel de Disciplina abre además la puerta a
+  // media escuela (notas, planificación, calcos, wargame, respaldos), acá NO se va
+  // ocultando de a uno: se apaga todo y se enciende solo lo suyo (lista blanca).
+  if(esSoloLectura()){
+    const _ocultar = function(el){
+      if(!el) return;
+      el.style.display = 'none';
+      el.setAttribute('data-oculto-consulta','1');
+    };
+    _ocultar(document.getElementById('btn-mega-nueva-sancion'));
+    // Lo que SÍ puede abrir, identificado por su acción (no por id, que varios no tienen)
+    const PERMITIDOS = ['goAuditoria(', 'goEstadisticas(', 'cambiar_mi_pwd', 'activarNotificacionesStaff('];
+    document.querySelectorAll('#screen-disc-panel .quick-grid .quick-btn').forEach(function(b){
+      const acc = b.getAttribute('onclick') || '';
+      if(!PERMITIDOS.some(function(x){ return acc.indexOf(x) >= 0; })) _ocultar(b);
+    });
+    // Protocolo y Ceremonial es de otra sección: fuera también del menú de abajo
+    document.querySelectorAll('.bottom-nav-item').forEach(function(b){
+      if((b.getAttribute('onclick')||'').indexOf('protAbrir(') >= 0) _ocultar(b);
+    });
+    _ocultar(document.getElementById('cierre-sem-block'));
+  }
 
   // v2.9.9: feed de actividad reciente al final del panel
   renderActividadReciente();
@@ -40796,6 +40842,13 @@ function goAnyPanel(){
 function volverDeDetalleSancion(){ goAnyPanel(); }
 
 function goProfNuevaSancion(){
+  // v2.9.367: el auxiliar de SOLO CONSULTA no registra sanciones (su función es
+  // consultar la situación de disciplina e imprimir los reportes). El servidor lo
+  // rechaza igual (sanciones-crear), esto es para no llevarlo a un formulario ciego.
+  if(!puedeSancionar()){
+    alert('Tu cuenta es de AUXILIAR DE CONSULTA de la Sección Disciplina.\n\nPodés ver la situación de disciplina de cada cursante e imprimir los reportes, pero no registrar sanciones.');
+    return;
+  }
   // Reset state
   nuevaSancion = {
     cursante: null, falta: null,
