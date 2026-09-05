@@ -22465,7 +22465,7 @@ function repoRenderMateria(){
     +'<button class="rg-doc" style="'+DB+'" onclick="repoPreview(\''+a.id+'\')">👁 Vista previa</button>'
     +'<button class="rg-doc" style="'+DB+'" onclick="repoDescargar(\''+a.id+'\',this)">⬇ Descargar</button>'
     +((ed&&(s.tipo==='doc_texto'||s.tipo==='doc_hoja_orientacion'))?'<button class="rg-doc" style="'+DB+';border-color:#2e6e9e;color:#bfe6ff" onclick="repoCompartirUI(\''+a.id+'\')">👥 Compartir</button>':'')
-    +((ed&&principal)?'<button class="rg-doc" style="'+DB+'" onclick="repoPick(\''+s.tipo+'\')">🔁 Reemplazar</button>':'')
+    +(ed?'<button class="rg-doc" style="'+DB+'" onclick="repoReemplazar(\''+s.tipo+'\',\''+a.id+'\')">🔁 Reemplazar</button>':'')
     +(ed?'<button class="rg-doc" style="'+DB+';border-color:#8a6d1f;color:#e8c46a" onclick="repoMoverTipo(\''+a.id+'\')" title="Mandarlo al casillero que le corresponde, sin cambiarle el nombre">📂 Mover</button>':'')
     +(ed?'<button class="rg-doc" style="'+DB+';border-color:#7a2230;color:#ffc9c9;background:rgba(122,34,48,.12)" onclick="repoEliminar(\''+a.id+'\')">🗑</button>':'')
     +'</div>'
@@ -22477,6 +22477,7 @@ function repoRenderMateria(){
     let inner;
     if(a){
       inner = fila(a,s,true);
+      if(ed) inner += '<div style="margin-top:8px"><button class="btn-secondary" style="padding:5px 12px;width:auto" onclick="repoPick(\''+s.tipo+'\')">➕ Agregar otro documento a este casillero</button></div>';
       if(resto.length){
         inner += '<details style="margin-top:8px">'
           +'<summary style="cursor:pointer;font-size:12px;color:var(--text-muted)">📎 '+resto.length+' documento(s) más en este casillero</summary>'
@@ -22539,11 +22540,19 @@ async function repoCopiarAnterior(btn){
   if(r.copiados!=null) alert('Se copiaron '+r.copiados+' documento(s) de la gestión '+(r.desde_gestion||fuente)+'.');
   await repoCargarMateria();
 }
-function repoPick(tipo){
+function repoPick(tipo, reemplazaId){
   const inp=document.getElementById('repo-file'); if(!inp) return;
   inp.value=''; inp.accept=_repoAccept(tipo);
-  inp.onchange=()=>{ const f=inp.files&&inp.files[0]; if(f) repoSubir(tipo, f); };
+  inp.onchange=()=>{ const f=inp.files&&inp.files[0]; if(f) repoSubir(tipo, f, reemplazaId); };
   inp.click();
+}
+/* v2.9.368 — REEMPLAZAR PIDE CONFIRMACIÓN Y DICE QUÉ SE PIERDE.
+   El casillero puede tener varios documentos; se reemplaza SOLO el que se
+   apretó, y el profesor ve el nombre antes de que se borre nada. */
+function repoReemplazar(tipo, adjId){
+  const a=(REPO.adjuntos||[]).find(function(x){ return String(x.id)===String(adjId); }); if(!a) return;
+  if(!confirm('Vas a reemplazar «'+a.nombre+'».\n\nEse documento y su archivo se BORRAN y quedan los demás del casillero. ¿Seguimos?')) return;
+  repoPick(tipo, a.id);
 }
 /* v2.9.368 — MOVER UN DOCUMENTO AL CASILLERO QUE LE CORRESPONDE.
    Hasta ahora, si un documento aparecía en el casillero equivocado (por ejemplo
@@ -22672,7 +22681,7 @@ async function avVerCarpetaConsolidada(){
   REPO.esAdmin=(typeof _avEsAdminAcad==='function')?_avEsAdminAcad():false;
   repoAbrirMateria(codigo);
 }
-async function repoSubir(tipo, file){
+async function repoSubir(tipo, file, reemplazaId){
   const m=REPO.materia; if(!m) return;
   if(file.size>25*1024*1024){ alert('El archivo supera 25 MB.'); return; }
   const prog=document.getElementById('repo-prog');
@@ -22685,7 +22694,7 @@ async function repoSubir(tipo, file){
     const u=await sb.storage.from('documentos-academicos').uploadToSignedUrl(up.path, up.token, file);
     if(u.error) throw new Error(u.error.message||'falló la subida');
     set('③ Registrando…');
-    const reg=await _avInvoke('repo_registrar',{materia_codigo:m.codigo_uc, gestion:REPO.gestion, tipo, storage_path:up.path, nombre:file.name, mime:file.type});
+    const reg=await _avInvoke('repo_registrar',{materia_codigo:m.codigo_uc, gestion:REPO.gestion, tipo, storage_path:up.path, nombre:file.name, mime:file.type, reemplaza_id:reemplazaId||null});
     if(!reg.ok) throw new Error(reg.error||'no se pudo registrar');
     set('✅ Guardado.');
     await repoCargarMateria();
