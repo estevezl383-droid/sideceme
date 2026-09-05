@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.367</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.368</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -22120,6 +22120,50 @@ const REPO_SLOTS = [
   {tipo:'doc_desagregacion',    n:'0005 · Cuadro de Desagregación'},
   {tipo:'doc_tareas',           n:'0006 · Cuadro de Planificación de Tareas'},
 ];
+/* v2.9.368 — A QUÉ CASILLERO PERTENECE UN DOCUMENTO, SEGÚN SU NOMBRE.
+   La importación masiva de 2024/2025 cargó TODO como 'doc_texto'. Al copiar la
+   carpeta del año anterior, los 19 documentos de Estudio de Estado Mayor
+   llegaron a 2026 con ese tipo: el casillero "0001 · Texto de la materia"
+   mostraba el PRIMERO de la lista —el Plan de Clases— y los otros 18 quedaban
+   invisibles en la pantalla. Con esto cada documento se ordena solo.
+   OJO CON LOS ACENTOS: los nombres vienen de macOS en NFD (la "Ó" es una "O"
+   más el acento aparte), así que hay que normalizar antes de comparar o
+   "DESAGREGACIÓN" nunca coincide con "DESAGREGACION". */
+function _repoNorm(s){
+  return String(s||'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+}
+function _repoTipoPorNombre(nombre){
+  const u=_repoNorm(nombre);
+  if(u.includes('PLAN DE CLASES'))      return 'doc_plan_clases';
+  if(u.includes('HOJA DE ORIENTACION')) return 'doc_hoja_orientacion';
+  if(u.includes('DISTRIBUCION'))        return 'doc_distribucion';
+  if(u.includes('DESAGREGACION'))       return 'doc_desagregacion';
+  if(u.includes('PLANIFICACION DE TAREAS')||u.includes('PLAN. TAREAS')
+   ||u.includes('PLAN TAREAS')||u.includes('CUADRO DE TAREAS')) return 'doc_tareas';
+  // "TEXTO" solo cuenta si es el texto en sí: el índice, la carátula y la
+  // bibliografía del texto también llevan la palabra y no son el documento.
+  if((u.includes('TEXTO DE ')||u.includes('TEXTO DEL '))
+   && !u.includes('INDICE') && !u.includes('BIBLIOGRAFIA') && !u.includes('CARATULA')) return 'doc_texto';
+  return '';
+}
+// Dentro de un casillero, primero el documento cuyo NOMBRE dice que es ese
+// documento. Así "0001 · Texto de la materia" encabeza con el texto de verdad
+// y no con lo primero que se haya subido.
+function _repoOrdenarCasillero(arr, tipo){
+  return (arr||[]).slice().sort(function(x,y){
+    const dx=(_repoTipoPorNombre(x.nombre)===tipo)?0:1;
+    const dy=(_repoTipoPorNombre(y.nombre)===tipo)?0:1;
+    if(dx!==dy) return dx-dy;
+    return String(x.nombre||'').localeCompare(String(y.nombre||''));
+  });
+}
+// "borrador de 2025": vino copiado del año anterior y todavía nadie lo actualizó.
+function _repoChipOrigen(a){
+  if(!a || !a.origen_gestion) return '';
+  return '<span style="display:inline-block;font-size:10.5px;font-weight:700;padding:2px 9px;border-radius:999px;margin-top:6px;'
+       + 'background:rgba(232,196,106,.12);border:1px solid rgba(232,196,106,.45);color:#e8c46a">'
+       + '📥 borrador de '+Number(a.origen_gestion)+' — todavía sin actualizar</span>';
+}
 function _repoAccept(tipo){
   return tipo==='presentacion' ? '.ppt,.pptx,.pdf,.doc,.docx'
        : tipo==='recurso_interactivo' ? '.html,.htm,.zip,.pdf,.doc,.docx,.ppt,.pptx'
@@ -22409,26 +22453,45 @@ function repoRenderMateria(){
     : (ed && !(REPO.adjuntos||[]).length)
     ? '<div class="rg-card" style="text-align:center;padding:14px;margin-bottom:10px"><div style="font-size:12px;color:var(--text-muted)">Esta gestión está vacía y la materia no tiene ninguna gestión anterior cargada. Subí los documentos uno por uno en los casilleros de abajo.</div></div>'
     : '';
+  /* v2.9.368 — EL CASILLERO MUESTRA TODO LO QUE TIENE, NO SOLO EL PRIMERO.
+     Antes era `(byTipo[s.tipo]||[])[0]`: con los 19 documentos que llegaron
+     como 'doc_texto' al copiar de 2025, la pantalla mostraba UNO —el Plan de
+     Clases— y los otros 18 no existían para el profesor. Ahora encabeza el que
+     por su nombre ES ese documento y los demás quedan a un clic, con el mismo
+     nombre con el que se subieron. */
+  const fila=(a,s,principal)=>
+     '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px">'
+    +'<span style="flex:1;min-width:130px;font-size:12px;color:var(--text-muted)">📄 '+_rgEsc(a.nombre)+(a.subido_por_nombre?(' · '+_rgEsc(a.subido_por_nombre)):'')+'</span>'
+    +'<button class="rg-doc" style="'+DB+'" onclick="repoPreview(\''+a.id+'\')">👁 Vista previa</button>'
+    +'<button class="rg-doc" style="'+DB+'" onclick="repoDescargar(\''+a.id+'\',this)">⬇ Descargar</button>'
+    +((ed&&(s.tipo==='doc_texto'||s.tipo==='doc_hoja_orientacion'))?'<button class="rg-doc" style="'+DB+';border-color:#2e6e9e;color:#bfe6ff" onclick="repoCompartirUI(\''+a.id+'\')">👥 Compartir</button>':'')
+    +((ed&&principal)?'<button class="rg-doc" style="'+DB+'" onclick="repoPick(\''+s.tipo+'\')">🔁 Reemplazar</button>':'')
+    +(ed?'<button class="rg-doc" style="'+DB+';border-color:#8a6d1f;color:#e8c46a" onclick="repoMoverTipo(\''+a.id+'\')" title="Mandarlo al casillero que le corresponde, sin cambiarle el nombre">📂 Mover</button>':'')
+    +(ed?'<button class="rg-doc" style="'+DB+';border-color:#7a2230;color:#ffc9c9;background:rgba(122,34,48,.12)" onclick="repoEliminar(\''+a.id+'\')">🗑</button>':'')
+    +'</div>'
+    +_repoChipOrigen(a)
+    +((s.tipo==='doc_texto'||s.tipo==='doc_hoja_orientacion')?_repoShareChip(a):'');
   const slots=REPO_SLOTS.map(s=>{
-    const a=(byTipo[s.tipo]||[])[0];
+    const arr=_repoOrdenarCasillero(byTipo[s.tipo]||[], s.tipo);
+    const a=arr[0], resto=arr.slice(1);
     let inner;
     if(a){
-      inner='<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:6px">'
-        +'<span style="flex:1;min-width:130px;font-size:12px;color:var(--text-muted)">📄 '+_rgEsc(a.nombre)+(a.subido_por_nombre?(' · '+_rgEsc(a.subido_por_nombre)):'')+'</span>'
-        +'<button class="rg-doc" style="'+DB+'" onclick="repoPreview(\''+a.id+'\')">👁 Vista previa</button>'
-        +'<button class="rg-doc" style="'+DB+'" onclick="repoDescargar(\''+a.id+'\',this)">⬇ Descargar</button>'
-        +((ed&&(s.tipo==='doc_texto'||s.tipo==='doc_hoja_orientacion'))?'<button class="rg-doc" style="'+DB+';border-color:#2e6e9e;color:#bfe6ff" onclick="repoCompartirUI(\''+a.id+'\')">👥 Compartir</button>':'')
-        +(ed?'<button class="rg-doc" style="'+DB+'" onclick="repoPick(\''+s.tipo+'\')">🔁 Reemplazar</button>':'')
-        +(ed?'<button class="rg-doc" style="'+DB+';border-color:#7a2230;color:#ffc9c9;background:rgba(122,34,48,.12)" onclick="repoEliminar(\''+a.id+'\')">🗑</button>':'')
-        +'</div>'
-        +((s.tipo==='doc_texto'||s.tipo==='doc_hoja_orientacion')?_repoShareChip(a):'');
+      inner = fila(a,s,true);
+      if(resto.length){
+        inner += '<details style="margin-top:8px">'
+          +'<summary style="cursor:pointer;font-size:12px;color:var(--text-muted)">📎 '+resto.length+' documento(s) más en este casillero</summary>'
+          + resto.map(x=>fila(x,s,false)).join('')
+          +'</details>';
+      }
     }else{
       inner = ed
         ? '<div style="margin-top:6px"><button class="btn-secondary" style="padding:6px 14px" onclick="repoPick(\''+s.tipo+'\')">⬆ Subir</button></div>'
         : '<div style="margin-top:6px;font-size:12px;color:var(--text-muted)">— Sin documento —</div>';
     }
     const ok=!!a;
-    return '<div class="rg-card"><div class="rg-asunto" style="font-size:13px">'+(ok?'✅ ':'⚪ ')+_rgEsc(s.n)+'</div>'+inner+'</div>';
+    return '<div class="rg-card"><div class="rg-asunto" style="font-size:13px">'+(ok?'✅ ':'⚪ ')+_rgEsc(s.n)
+      +(arr.length>1?('<span style="font-weight:400;color:var(--text-muted);font-size:12px"> · '+arr.length+' documentos</span>'):'')
+      +'</div>'+inner+'</div>';
   }).join('');
   const zona=(tipo,titulo,icon,conEnlace,conQuiz)=>{
     const list=(byTipo[tipo]||[]);
@@ -22441,6 +22504,7 @@ function repoRenderMateria(){
         +(ed?'<button class="rg-doc" style="'+DB+';border-color:#2e6e9e;color:#bfe6ff" onclick="repoCompartirUI(\''+a.id+'\')">👥</button>':'')
         +(ed?'<button class="rg-doc" style="'+DB+';border-color:#7a2230;color:#ffc9c9;background:rgba(122,34,48,.12)" onclick="repoEliminar(\''+a.id+'\')">🗑</button>':'')
         +'</div>'
+        +_repoChipOrigen(a)
         +_repoShareChip(a);
     }).join('') : '<div style="font-size:12px;color:var(--text-muted);padding:5px 0">Sin archivos aún.</div>';
     const acciones = ed ? ('<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">'
@@ -22480,6 +22544,29 @@ function repoPick(tipo){
   inp.value=''; inp.accept=_repoAccept(tipo);
   inp.onchange=()=>{ const f=inp.files&&inp.files[0]; if(f) repoSubir(tipo, f); };
   inp.click();
+}
+/* v2.9.368 — MOVER UN DOCUMENTO AL CASILLERO QUE LE CORRESPONDE.
+   Hasta ahora, si un documento aparecía en el casillero equivocado (por ejemplo
+   el Plan de Clases figurando como "Texto de la materia"), la única salida era
+   borrarlo y volver a subirlo. Esto lo cambia de casillero SIN TOCARLE EL
+   NOMBRE al archivo: el documento sigue siendo el mismo, solo se guarda donde
+   debe estar. */
+async function repoMoverTipo(adjId){
+  const a=(REPO.adjuntos||[]).find(function(x){ return String(x.id)===String(adjId); }); if(!a) return;
+  const sug=_repoTipoPorNombre(a.nombre);
+  const opciones=REPO_SLOTS.concat([{tipo:'presentacion',n:'0007 · Presentaciones'}]);
+  const lista=opciones.map(function(o,i){
+    return (i+1)+') '+o.n+(o.tipo===a.tipo?'   ← está acá':'')+(o.tipo===sug&&o.tipo!==a.tipo?'   ← sugerido por el nombre':'');
+  }).join('\n');
+  const r=prompt('📂 «'+a.nombre+'»\n\n¿A qué casillero lo mando? (escribí el número)\nEl nombre del archivo no cambia.\n\n'+lista);
+  if(r===null) return;
+  const i=parseInt(String(r).trim(),10);
+  if(!(i>=1 && i<=opciones.length)){ alert('Número fuera de la lista. No se movió nada.'); return; }
+  const destino=opciones[i-1];
+  if(destino.tipo===a.tipo){ alert('Ya está en ese casillero.'); return; }
+  const res=await _avInvoke('repo_mover_tipo',{adjunto_id:a.id, tipo:destino.tipo});
+  if(!res.ok){ alert('No se pudo mover: '+(res.error||'')); return; }
+  await repoCargarMateria();
 }
 // ── v2.9.177: COMPARTIR documentos de la Carpeta consolidada con ALUMNOS ──
 const MENCIONES_2DO=['Estrategia','Inteligencia','Logística','Recursos Humanos'];
