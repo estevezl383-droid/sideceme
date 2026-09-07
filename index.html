@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.368</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.369</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4522,6 +4522,19 @@ body{
   </div>
   <div class="menu-container">
     <div id="nccd-cont"></div>
+  </div>
+</section>
+
+<!-- v2.9.369 — Cargas dadas de baja: lo que se sacó de la vista y cómo devolverlo -->
+<section id="screen-notas-archivadas" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goAnyPanel()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">🗄️ Cargas dadas de baja</div><div class="header-sub" id="narch-sub">—</div></div>
+  </div>
+  <div class="menu-container">
+    <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px">Una carga dada de baja sale de la vista de todos, pero no se destruye: las notas y las firmas quedan enteras acá y vuelven con un clic.</div>
+    <div id="narch-cont"><div class="efm-no-data">⏳ Consultando el archivo…</div></div>
   </div>
 </section>
 
@@ -9534,7 +9547,14 @@ function verCargaDetalle(idx){
       + '<div><div class="ef-cur-nombre">' + escapeHtml(m||'—') + '</div>'
       + '<div class="ef-cur-meta">' + arr.length + ' alumnos</div></div>'
       + '<div class="ef-cur-nota ' + cls + '">' + fmtNota(prom) + '</div>'
-      + '</div>';
+      + '</div>'
+      // v2.9.369 — desde acá mismo se da de baja la materia mal subida.
+      + (_ncPuedeDarBaja()
+          ? '<div style="text-align:right;margin:-4px 0 8px"><button class="btn-danger" '
+            + 'style="margin:0;padding:7px 14px;width:auto;display:inline-block;font-size:11px;letter-spacing:1px" '
+            + 'onclick="ncBajaCarga(' + t.gestion + ',' + t.semestre + ',\'' + escapeAttr(t.ciclo) + '\',\'' + escapeAttr(m) + '\',' + arr.length + ',function(){ goCargasNotas(); })">'
+            + '🗄️ Dar de baja esta carga</button></div>'
+          : '');
   }).join('');
   html += '</div>';
 
@@ -9625,9 +9645,21 @@ function _ncBotonControl(screenId){
   if(!cont) return;
   const ya=cont.querySelector('.nc-btn-control');
   const yaRep=cont.querySelector('.nc-btn-reportes');
+  const yaArch=cont.querySelector('.nc-btn-archivadas');   // v2.9.369
   // Los botones inyectados quedan pegados en el DOM entre sesiones de la misma
   // pesta\u00f1a: si el usuario ya no es evaluador hay que REMOVERLOS, no solo no crearlos.
-  if(!_ncEsEvaluador()){ if(ya) ya.remove(); if(yaRep) yaRep.remove(); return; }
+  if(!_ncEsEvaluador()){ if(ya) ya.remove(); if(yaRep) yaRep.remove(); if(yaArch) yaArch.remove(); return; }
+  // v2.9.369 — el archivo de bajas es solo del evaluador pleno: el auxiliar que
+  // carga (Balderrama) no da de baja ni devuelve. Si dejó de serlo, se REMUEVE.
+  if(!_ncPuedeDarBaja()){ if(yaArch) yaArch.remove(); }
+  else if(!yaArch){
+    const a=document.createElement('button');
+    a.className='btn-mega nc-btn-archivadas';
+    a.style.cssText='margin:0 0 8px';
+    a.onclick=function(){ goNotasArchivadas(); };
+    a.innerHTML='<span class="mega-icon">\ud83d\uddc4\ufe0f</span><span>Cargas dadas de baja \u2014 devolver una carga mal subida</span>';
+    cont.insertBefore(a, cont.firstElementChild);
+  }
   if(!ya){
     const b=document.createElement('button');
     b.className='btn-mega nc-btn-control';
@@ -10360,7 +10392,17 @@ async function ncVerMateria(idxC, idxM){
     + '<button class="btn-mega" style="background:none;border:1px solid var(--border-subtle);color:var(--text-secondary);margin-bottom:10px" onclick="ncPublicarConformidad('+idxC+','+idxM+')">🔁 Volver a avisar / incluir alumnos nuevos</button>'
     + '<div id="nccd-conf-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Consultando…</div></div>'
     + '</div>'
-    + '<div class="sd-block" id="nccd-faltantes"><div class="sd-block-title">👥 Sin nota en esta materia</div><div class="efm-no-data" style="color:var(--text-muted)">⏳ Consultando…</div></div>';
+    + '<div class="sd-block" id="nccd-faltantes"><div class="sd-block-title">👥 Sin nota en esta materia</div><div class="efm-no-data" style="color:var(--text-muted)">⏳ Consultando…</div></div>'
+    // v2.9.369 — deshacer una carga mal subida. Solo el evaluador de ciclo.
+    + (_ncPuedeDarBaja()
+        ? '<div class="sd-block" style="border-color:rgba(165,51,74,.45)">'
+          + '<div class="sd-block-title" style="color:#d98aa0">⚠️ Carga equivocada</div>'
+          + '<div style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px">Si esta materia se subió mal, sacala de la vista. Las '
+          + m.alumnos + ' notas no se destruyen: quedan en el archivo y volvés a traerlas con un clic.</div>'
+          + '<button class="btn-danger" style="margin:0;padding:16px" '
+          + 'onclick="ncBajaCarga(' + NC.control.gestion + ',' + NC.control.semestre + ',\'' + escapeAttr(ci.ciclo) + '\',\'' + escapeAttr(m.materia) + '\',' + m.alumnos + ',function(){ ncControlCargar(true); })">'
+          + '🗄️ Dar de baja esta carga</button></div>'
+        : '');
 
   showScreen('screen-notas-control-det');
   ncCargarConformidad(idxC, idxM);
@@ -10467,6 +10509,8 @@ async function verNotaAlumno(cursanteId, idxC, idxM){
 
   // Estado de reconocimiento
   let confHtml = '';
+  NC._corrObs = null;   // v2.9.369: lo que objetó el alumno. NO va por el onclick:
+                        // es texto libre y un enter ahí adentro rompe el literal.
   try{
     const rc = await _ncInvoke('estado_confirmaciones', {
       gestion:NC.control.gestion, semestre:NC.control.semestre, ciclo:ci.ciclo, materia:m.materia });
@@ -10474,6 +10518,7 @@ async function verNotaAlumno(cursanteId, idxC, idxM){
       const x = (rc.lista||[]).find(function(y){ return String(y.cursante_id)===String(cursanteId); });
       if(x){
         const color = _NC_CONF_COLOR[x.estado]||'#9aa3b8';
+        NC._corrObs = x.observacion_cursante || null;
         confHtml = '<div class="sd-block"><div class="sd-block-title">✍️ Reconocimiento</div>'
           + '<div class="sd-row"><span class="lbl">Estado</span><span class="vl" style="color:'+color+'">'+escapeHtml(_NC_CONF_LABEL[x.estado]||x.estado)+'</span></div>'
           + (x.confirmada_en ? '<div class="sd-row"><span class="lbl">Firmó el</span><span class="vl">'+escapeHtml(new Date(x.confirmada_en).toLocaleString('es-BO'))+'</span></div>' : '')
@@ -10494,6 +10539,14 @@ async function verNotaAlumno(cursanteId, idxC, idxM){
     + '</div>'
     + '<div class="sd-block"><div class="sd-block-title">🧮 Desglose de la nota</div>'+desglose+'</div>'
     + confHtml
+    // v2.9.369 — el alumno objeta y acá se corrige. Antes el evaluador leía la
+    // queja y no tenía con qué cambiar el número.
+    + (_ncPuedeDarBaja()
+        ? '<button class="btn-mega" style="margin-top:10px" '
+          + 'onclick="ncCorregirNota(\''+escapeAttr(String(cursanteId))+'\','+fila.gestion+','+fila.semestre+',\''+escapeAttr(ci.ciclo)+'\',\''+escapeAttr(m.materia)+'\','+Number(fila.nota_final)+','
+          + 'function(){ verNotaAlumno(\''+escapeAttr(String(cursanteId))+'\','+idxC+','+idxM+'); })">'
+          + '✏️ Corregir esta nota</button>'
+        : '')
     + '<button class="btn-mega" style="background:linear-gradient(180deg,#2b4d8c,#1a3060);color:#fff;margin-top:10px" onclick="verEvalCursante(\''+escapeAttr(String(cursanteId))+'\')">📚 Ver TODAS las notas de este cursante</button>';
 }
 
@@ -10526,6 +10579,208 @@ async function ncFijarPlazo(idxC, idxM){
   if(!r.ok){ alert(r.error || 'No se pudo cambiar el plazo'); return; }
   alert('Listo. Plazo actualizado a '+horas+'h para '+r.actualizadas+' alumno(s) pendiente(s).');
   ncCargarConformidad(idxC, idxM);
+}
+
+/* ============================================================================
+   v2.9.369 — DESHACER UNA CARGA MAL SUBIDA · CORREGIR UNA NOTA OBSERVADA
+
+   Por qué existe: el 7-sep-2026 el Sof. Balderrama subió mal "Menciones" y
+   "UC. Menciones" (198 notas). Desde la app no había forma de deshacerlo —
+   hubo que borrarlas a mano contra la base. Y del otro lado pasaba algo
+   parecido: el alumno podía OBJETAR su nota y dejar su observación, pero el
+   evaluador leía la queja y no tenía con qué corregir el número.
+
+   Quién puede: el EVALUADOR DE CICLO. El que carga no es el que deshace —
+   Balderrama (S001) tiene rol 'evaluaciones' porque sube las planillas, pero
+   es_auxiliar=true. La Edge Function lo vuelve a verificar del lado servidor:
+   la lección del auxiliar de Disciplina fue que un "no puede" que vive solo
+   en la pantalla no es una restricción, es una sugerencia.
+
+   Nada se destruye: la baja ARCHIVA (notas_archivadas + el lote con la foto
+   de las firmas) y vuelve con un clic; la corrección deja la nota vieja en
+   notas_correcciones con quién, cuándo y por qué.
+   ============================================================================ */
+
+// Evaluador de verdad: puede tocar notas ajenas. El auxiliar que carga, no.
+function _ncPuedeDarBaja(){
+  try{ return _ncPuede() && !esAuxiliar(); }catch(e){ return false; }
+}
+
+// ---------------------------------------------------------------- BAJA -----
+// Genérica a propósito: la llaman el detalle de la materia (Control de carga)
+// y el detalle de una tanda (Registro de cargas), que es la pantalla donde
+// Sergio vio el problema.
+async function ncBajaCarga(gestion, semestre, ciclo, materia, alumnos, alVolver){
+  if(!_ncPuedeDarBaja()){ alert('La baja de una carga la autoriza el evaluador de ciclo.'); return; }
+
+  const cuantos = alumnos ? (alumnos + ' nota(s)') : 'todas sus notas';
+  const motivo = prompt(
+    'DAR DE BAJA "' + materia + '"\n'
+    + ciclo + ' · gestión ' + gestion + ' · semestre ' + semestre + '\n\n'
+    + 'Se sacan de la vista ' + cuantos + '. NO se destruyen: quedan en el archivo\n'
+    + 'y se pueden devolver con un clic desde "Cargas dadas de baja".\n\n'
+    + '¿Por qué se da de baja? (queda registrado con tu nombre)');
+  if(motivo === null) return;                       // canceló
+  if(String(motivo).trim().length < 10){
+    alert('Escribí el motivo con un poco más de detalle (al menos 10 caracteres).\nEs lo que va a explicar la baja dentro de seis meses.');
+    return;
+  }
+
+  // Segunda barrera, escrita: un "Aceptar" de más no puede llevarse 99 notas.
+  const tecleado = prompt('Última confirmación.\n\nEscribí el nombre de la materia EXACTO para confirmar la baja:\n\n' + materia);
+  if(tecleado === null) return;
+  if(String(tecleado).trim() !== String(materia).trim()){
+    alert('No coincide. No se dio de baja nada.');
+    return;
+  }
+
+  const r = await _ncInvoke('borrar_carga', {
+    gestion: Number(gestion), semestre: Number(semestre),
+    ciclo: ciclo, materia: materia, motivo: String(motivo).trim()
+  });
+  if(!r.ok){ alert(r.error || 'No se pudo dar de baja'); return; }
+
+  alert('Listo. "' + r.materia + '" salió de la vista.\n\n'
+    + r.archivadas + ' nota(s) archivada(s)'
+    + (r.conformidades_guardadas ? ' y ' + r.conformidades_guardadas + ' firma(s) guardada(s)' : '')
+    + '.\n\nSe devuelven desde "Cargas dadas de baja".');
+
+  cargasData.loaded = false;                        // el registro quedó viejo
+  if(typeof alVolver === 'function') alVolver();
+}
+
+// --------------------------------------------------- ARCHIVO / RESTAURAR ---
+async function goNotasArchivadas(){
+  showScreen('screen-notas-archivadas');
+  const cont = document.getElementById('narch-cont');
+  if(cont) cont.innerHTML = '<div class="efm-no-data">⏳ Consultando el archivo…</div>';
+  const r = await _ncInvoke('cargas_archivadas', { incluir_restauradas:true });
+  if(!cont) return;
+  if(!r.ok){ cont.innerHTML = '<div class="efm-no-data" style="color:#e87878">'+escapeHtml(r.error||'No se pudo leer el archivo')+'</div>'; return; }
+
+  const lotes = r.lotes || [];
+  const sub = document.getElementById('narch-sub');
+  const vivos = lotes.filter(function(l){ return !l.restaurado_en; }).length;
+  if(sub) sub.textContent = vivos + ' carga(s) dada(s) de baja';
+
+  if(!lotes.length){
+    cont.innerHTML = '<div class="sd-block"><div class="efm-no-data" style="color:var(--text-muted)">'
+      + 'No hay ninguna carga dada de baja. Cuando el evaluador dé de baja una materia mal subida, aparece acá y desde acá se devuelve.'
+      + '</div></div>';
+    return;
+  }
+
+  cont.innerHTML = lotes.map(function(l){
+    const yaVolvio = !!l.restaurado_en;
+    const cuando = l.archivado_en ? new Date(l.archivado_en).toLocaleString('es-BO') : '—';
+    return '<div class="sd-block" style="opacity:'+(yaVolvio?'.55':'1')+'">'
+      + '<div class="sd-block-title">'+(yaVolvio?'↩️ ':'🗄️ ')+escapeHtml(l.materia)+'</div>'
+      + '<div class="sd-row"><span class="lbl">Ciclo y período</span><span class="vl">'+escapeHtml(l.ciclo)+' · '+l.gestion+' · sem. '+l.semestre+'</span></div>'
+      + '<div class="sd-row"><span class="lbl">Notas archivadas</span><span class="vl gold">'+l.filas+'</span></div>'
+      + '<div class="sd-row"><span class="lbl">La había cargado</span><span class="vl">'+escapeHtml(l.cargado_por_original||'—')+'</span></div>'
+      + '<div class="sd-row"><span class="lbl">Dada de baja por</span><span class="vl">'+escapeHtml(l.archivado_por_nombre||'—')+'</span></div>'
+      + '<div class="sd-row"><span class="lbl">Cuándo</span><span class="vl">'+escapeHtml(cuando)+'</span></div>'
+      + '<div style="margin-top:8px;padding:8px 10px;background:rgba(0,0,0,.18);border-radius:6px;font-size:12px;color:var(--text-secondary)">'
+      + '<b style="color:var(--gold-light)">Motivo:</b> '+escapeHtml(l.motivo||'—')+'</div>'
+      + (yaVolvio
+          ? '<div style="margin-top:8px;font-size:11.5px;color:#7ddba0">✔ Ya fue devuelta el '+escapeHtml(new Date(l.restaurado_en).toLocaleString('es-BO'))+' por '+escapeHtml(l.restaurado_por_nombre||'—')+'</div>'
+          : (_ncPuedeDarBaja()
+              ? '<button class="btn-mega" style="margin:10px 0 0" onclick="ncRestaurarCarga(\''+escapeAttr(String(l.lote_id))+'\',false)">↩️ Devolver esta carga</button>'
+              : ''))
+      + '</div>';
+  }).join('');
+}
+
+async function ncRestaurarCarga(loteId, pisar){
+  if(!_ncPuedeDarBaja()){ alert('Devolver una carga la autoriza el evaluador de ciclo.'); return; }
+  if(!pisar && !confirm('¿Devolver esta carga? Las notas vuelven a verse tal cual estaban, con las firmas que ya tenían.')) return;
+
+  const r = await _ncInvoke('restaurar_carga', { lote_id: loteId, pisar: pisar === true });
+
+  // La materia se volvió a cargar después de la baja: devolver pisaría lo nuevo.
+  if(!r.ok && r.ya_existe){
+    if(!confirm('OJO.\n\n' + r.error + '\n\n¿Devolver igual la carga vieja, pisando esas ' + r.filas_actuales + ' notas?')) return;
+    return ncRestaurarCarga(loteId, true);
+  }
+  if(!r.ok){ alert(r.error || 'No se pudo devolver'); return; }
+
+  alert('Listo. "' + r.materia + '" volvió: ' + r.restauradas + ' nota(s)'
+    + (r.conformidades ? ' y ' + r.conformidades + ' firma(s)' : '') + '.');
+  cargasData.loaded = false;
+  goNotasArchivadas();
+}
+
+// ---------------------------------------------------------- CORRECCIÓN -----
+// El alumno objetó su nota y dejó su observación. Acá el evaluador la corrige:
+// la nota vieja NO se pisa (queda en notas_correcciones) y la conformidad se
+// reabre, porque una firma vieja no vale para un número distinto.
+async function ncCorregirNota(cursanteId, gestion, semestre, ciclo, materia, notaActual, alVolver){
+  if(!_ncPuedeDarBaja()){ alert('La corrección de una nota la autoriza el evaluador de ciclo.'); return; }
+  const obsAlumno = NC._corrObs || null;   // la dejó verNotaAlumno
+
+  const cur = (discData.cursantes||[]).find(function(c){ return String(c.id)===String(cursanteId); });
+  const nom = cur ? nombreConGrado(cur) : cursanteId;
+
+  const nueva = prompt(
+    'CORREGIR LA NOTA DE ' + nom + '\n'
+    + materia + ' · ' + ciclo + ' · ' + gestion + ' sem. ' + semestre + '\n\n'
+    + 'Nota cargada hoy: ' + fmtNota(notaActual) + '\n'
+    + (obsAlumno ? '\nLo que observó el alumno:\n"' + obsAlumno + '"\n' : '')
+    + '\nEscribí la nota corregida (0 a 100). Los decimales van con punto:',
+    String(notaActual == null ? '' : notaActual));
+  if(nueva === null) return;
+
+  const n = Number(String(nueva).trim().replace(',', '.'));
+  if(!isFinite(n)){ alert('Eso no es un número.'); return; }
+  if(n < 0 || n > 100){ alert('La nota tiene que estar entre 0 y 100.'); return; }
+  if(Number(notaActual) === n){ alert('Esa es la misma nota que ya está cargada.'); return; }
+
+  const motivo = prompt(
+    'Nota corregida: ' + fmtNota(notaActual) + '  →  ' + fmtNota(n) + '\n\n'
+    + '¿Por qué se corrige? (queda en el historial con tu nombre; es lo que\n'
+    + 'respalda el cambio si mañana alguien lo pregunta)');
+  if(motivo === null) return;
+  if(String(motivo).trim().length < 10){
+    alert('Escribí el motivo con un poco más de detalle (al menos 10 caracteres).');
+    return;
+  }
+
+  const r = await _ncInvoke('corregir_nota', {
+    cursante_id: cursanteId, gestion: Number(gestion), semestre: Number(semestre),
+    ciclo: ciclo, materia: materia, nota_final: n,
+    atributo: atributoCalificacion(n), motivo: String(motivo).trim()
+  });
+  if(!r.ok){ alert(r.error || 'No se pudo corregir'); return; }
+
+  alert('Nota corregida.\n\n' + nom + '\n'
+    + fmtNota(r.nota_anterior) + '  →  ' + fmtNota(r.nota_nueva) + '  (' + r.atributo + ')\n\n'
+    + (r.conformidad_reabierta
+        ? 'Se le volvió a pedir la conformidad: la firma anterior no vale para una nota distinta. Tiene 48 horas.'
+        : 'Esta materia no tenía aviso de conformidad, así que no hubo nada que reabrir.'));
+
+  cargasData.loaded = false;
+  if(typeof alVolver === 'function') alVolver();
+}
+
+// El rastro de las correcciones de un alumno, para pegarlo en su ficha.
+async function _ncHistorialCorr(cursanteId){
+  try{
+    const r = await _ncInvoke('historial_correcciones', { cursante_id: cursanteId });
+    if(!r.ok || !(r.correcciones||[]).length) return '';
+    return '<div class="sd-block"><div class="sd-block-title">📝 Correcciones de nota</div>'
+      + r.correcciones.map(function(c){
+          return '<div style="padding:7px 0;border-bottom:1px solid var(--border-subtle)">'
+            + '<div style="font-size:12.5px;color:var(--text-primary)"><b>'+escapeHtml(c.materia)+'</b> — '
+            + '<span style="color:#e87878">'+fmtNota(c.nota_anterior)+'</span> → '
+            + '<span style="color:#7ddba0">'+fmtNota(c.nota_nueva)+'</span></div>'
+            + '<div style="font-size:11px;color:var(--text-muted);margin-top:2px">'
+            + escapeHtml(new Date(c.creado_en).toLocaleString('es-BO'))+' · '+escapeHtml(c.corregido_por_nombre||'—')+'</div>'
+            + '<div style="font-size:11.5px;color:var(--text-secondary);margin-top:3px">'+escapeHtml(c.motivo||'')+'</div>'
+            + (c.observacion_alumno ? '<div style="font-size:11px;color:#d98aa0;margin-top:2px">Había observado: "'+escapeHtml(c.observacion_alumno)+'"</div>' : '')
+            + '</div>';
+        }).join('')
+      + '</div>';
+  }catch(e){ return ''; }
 }
 
 function renderGenericoPanel(role){
