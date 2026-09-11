@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.370</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.371</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -6492,6 +6492,66 @@ body{
 </section>
 
 <!-- PROFESOR: PROYECTOR (juego en vivo) -->
+<!-- ===== v2.9.371: MURO EN VIVO — la pregunta en vivo como juego (nube/muro/encuesta que crecen en pantalla) ===== -->
+<style>
+.qz-live{display:flex;gap:clamp(12px,2vw,26px);align-items:stretch;width:100%;flex:1;min-height:0;margin-top:6px}
+.qz-live-main{flex:1;min-width:0;display:flex;flex-direction:column}
+.qz-live-side{flex:0 0 clamp(170px,16vw,240px);display:flex;flex-direction:column;gap:9px;align-items:center}
+@media(max-width:880px){.qz-live{flex-direction:column-reverse}.qz-live-side{flex:none;flex-direction:row;flex-wrap:wrap;justify-content:center;align-items:center}.qz-live-qr{display:none}}
+.qz-live-preg{font-size:clamp(21px,3.1vw,40px);font-weight:900;text-align:center;line-height:1.2;margin:2px 0 10px;text-shadow:0 4px 26px rgba(140,210,255,.28)}
+.qz-live-side-lbl{font-size:12px;font-weight:800;letter-spacing:2px;color:#9ec3ef;text-transform:uppercase}
+.qz-live-pin{font-family:ui-monospace,Menlo,monospace;font-size:clamp(24px,3vw,40px);font-weight:900;letter-spacing:.12em;color:#0a1628;background:linear-gradient(180deg,#bfe6ff,#7fc4ff);border-radius:12px;padding:5px 14px;box-shadow:0 0 26px rgba(140,210,255,.45)}
+.qz-live-qr{padding:8px 8px 6px}
+.qz-live-qr img{min-width:130px;min-height:130px;width:130px;height:130px}
+.qz-live-kpi{width:100%;max-width:200px;display:flex;align-items:baseline;justify-content:center;gap:8px;background:rgba(140,210,255,.10);border:1px solid rgba(140,210,255,.30);border-radius:12px;padding:7px 12px}
+.qz-live-kpi b{font-family:ui-monospace,Menlo,monospace;font-size:clamp(24px,2.6vw,34px);font-weight:900;color:#7fe7ff;line-height:1}
+.qz-live-kpi span{font-size:11px;font-weight:800;letter-spacing:1px;color:#9ec3ef;text-transform:uppercase}
+.qz-live-kpi.alt b{color:#ffd97a}
+.qz-kpi-bump{animation:qzKpiBump .5s cubic-bezier(.2,.9,.3,1.4)}
+@keyframes qzKpiBump{0%{transform:scale(1)}40%{transform:scale(1.45)}100%{transform:scale(1)}}
+.qz-live-vacio{width:100%;text-align:center;color:#9ec3ef;font-size:clamp(16px,2vw,22px);font-weight:700;padding:38px 10px;opacity:.85;animation:qzRespira 2.4s ease-in-out infinite}
+@keyframes qzRespira{0%,100%{opacity:.45}50%{opacity:.95}}
+.qz-live-main #qz-live-zona{flex:1;min-height:0}
+.qz-live-main .qz-bars{justify-content:center;max-width:none}
+.qz-live-main .qz-muro{align-content:center;overflow:auto;max-width:none}
+.qz-live-main .qz-bartrack{height:clamp(34px,5.4vh,54px)}
+.qz-live-main .qz-barlabel{font-size:clamp(15px,1.9vw,24px);flex-basis:36%}
+.qz-live-main .qz-barfill{font-size:clamp(16px,1.9vw,22px)}
+.qz-live-main .qz-muro-card{font-size:clamp(14px,1.5vw,19px);padding:14px 16px}
+.qz-live-main .qz-muro-card .qn{font-size:clamp(10px,1vw,12px)}
+.qz-live-quienes{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:8px;max-height:78px;overflow:hidden}
+.qz-live-quienes .qz-chip{font-size:12px;padding:3px 10px}
+.qz-live-anon{font-size:13px;font-weight:800;color:#9ec3ef;letter-spacing:1px}
+/* --- NUBE DE PALABRAS viva --- */
+.qz-cloud-live{flex:1;align-content:center;max-width:none;margin:4px auto;min-height:190px;gap:6px 20px;padding:6px}
+.qz-w{font-weight:900;line-height:1.05;color:var(--c,#7fe7ff);font-size:var(--s,22px);transform:rotate(var(--r,0deg));transition:font-size .55s cubic-bezier(.2,.8,.2,1),color .4s ease;text-shadow:0 0 18px color-mix(in srgb,var(--c,#7fe7ff) 45%,transparent);white-space:nowrap}
+.qz-w sup{font-size:.42em;font-weight:800;opacity:.75;margin-left:2px;vertical-align:super}
+.qz-w-new{animation:qzWordIn .7s cubic-bezier(.2,.9,.3,1.35)}
+@keyframes qzWordIn{0%{transform:scale(.2) rotate(var(--r,0deg));opacity:0;filter:blur(6px)}60%{transform:scale(1.18) rotate(var(--r,0deg));opacity:1;filter:blur(0)}100%{transform:scale(1) rotate(var(--r,0deg))}}
+.qz-w-bump{animation:qzWordBump .6s cubic-bezier(.2,.9,.3,1.4)}
+@keyframes qzWordBump{0%{transform:scale(1) rotate(var(--r,0deg))}45%{transform:scale(1.3) rotate(var(--r,0deg))}100%{transform:scale(1) rotate(var(--r,0deg))}}
+.qz-w-top{color:#ffd97a!important;text-shadow:0 0 26px rgba(255,217,122,.75)}
+.qz-w-top::after{content:'\1F451';font-size:.4em;vertical-align:super;margin-left:4px;filter:none;text-shadow:none}
+/* --- MURO DE IDEAS vivo (post-it) --- */
+.qz-muro{align-content:flex-start;overflow:auto}
+.qz-mc0{background:linear-gradient(160deg,#fff7d1,#ffeda1)}
+.qz-mc1{background:linear-gradient(160deg,#d6f5ff,#a9e6ff)}
+.qz-mc2{background:linear-gradient(160deg,#dcffe4,#aeeec1)}
+.qz-mc3{background:linear-gradient(160deg,#ffe0e6,#ffc3cf)}
+.qz-mc4{background:linear-gradient(160deg,#ece0ff,#d4c1ff)}
+.qz-mc5{background:linear-gradient(160deg,#ffe7cf,#ffd0a4)}
+.qz-muro-card{font-weight:600}
+.qz-mc-new{animation:qzCardIn .55s cubic-bezier(.2,.9,.3,1.3),qzCardGlow 2.4s ease-out}
+@keyframes qzCardIn{0%{transform:translateY(26px) scale(.82) rotate(-3deg);opacity:0}100%{transform:none;opacity:1}}
+@keyframes qzCardGlow{0%{box-shadow:0 0 0 4px rgba(127,231,255,.9),0 3px 14px rgba(0,0,0,.4)}100%{box-shadow:0 0 0 0 rgba(127,231,255,0),0 3px 14px rgba(0,0,0,.4)}}
+/* --- ENCUESTA viva --- */
+.qz-barpct{flex:0 0 62px;text-align:right;font-family:ui-monospace,Menlo,monospace;font-weight:900;font-size:clamp(14px,1.8vw,20px);color:#7fe7ff}
+/* --- alumno: palabras para la nube --- */
+.qz-nube-ins{display:flex;flex-direction:column;gap:8px}
+.qz-nube-inp{width:100%;border:1.5px solid #7fc4ff;background:rgba(140,210,255,.08);color:inherit;border-radius:10px;padding:12px 14px;font-size:17px;font-weight:800;letter-spacing:.5px}
+.qz-nube-inp::placeholder{font-weight:600;opacity:.55;letter-spacing:0}
+</style>
+
 <section id="screen-quiz-proyector" class="screen">
   <div class="qz-board" id="qz-board"></div>
 </section>
@@ -20312,9 +20372,22 @@ function _qzProfRender(){
   <div id="qz-rapida" style="display:none" class="qz-ed-card">
     <div style="font-weight:800;margin-bottom:8px">⚡ Lanzar UNA pregunta ya mismo (para proyectar)</div>
     <div class="field"><label>Consigna para el curso</label><textarea id="qz-rap-texto" rows="2" placeholder="Ej: En una palabra, ¿qué es liderazgo?"></textarea></div>
-    <div class="field"><label>Tipo</label><select id="qz-rap-tipo"><option value="nube">☁️ Nube de palabras</option><option value="abierta">💬 Muro de ideas (respuestas abiertas)</option><option value="encuesta">📊 Encuesta (opciones)</option></select></div>
-    <div class="field"><label>Opciones (solo encuesta — una por línea)</label><textarea id="qz-rap-ops" rows="3" placeholder="Opción A&#10;Opción B"></textarea></div>
+    <div class="field"><label>Tipo</label><select id="qz-rap-tipo" onchange="qzRapidaTipo()"><option value="nube">☁️ Nube de palabras</option><option value="abierta">💬 Muro de ideas (respuestas abiertas)</option><option value="encuesta">📊 Encuesta (opciones)</option></select></div>
+    <div class="field" id="qz-rap-opsbox" style="display:none"><label>Opciones de la encuesta (una por línea)</label><textarea id="qz-rap-ops" rows="3" placeholder="Opción A&#10;Opción B"></textarea></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <div class="field" style="flex:1;min-width:210px"><label>¿Se ven los nombres en la pantalla?</label><select id="qz-rap-anon">
+        <option value="0">🪪 Con nombre — se ve quién lo dijo</option>
+        <option value="1">🙈 Anónimo — solo las ideas, sin nombres</option>
+      </select></div>
+      <div class="field" style="flex:1;min-width:180px"><label>Tiempo en pantalla</label><select id="qz-rap-tiempo">
+        <option value="60">⏱ 1 minuto</option>
+        <option value="180" selected>⏱ 3 minutos</option>
+        <option value="300">⏱ 5 minutos</option>
+        <option value="900">♾️ Sin apuro</option>
+      </select></div>
+    </div>
     <button class="qz-btn gold" onclick="qzRapidaLanzar()">🚀 Lanzar EN VIVO</button>
+    <div style="font-size:12px;color:var(--text-muted);margin-top:8px">Se proyecta al instante: el PIN y el QR quedan al costado y las respuestas van apareciendo solas en la pantalla.</div>
   </div>
   <div class="field" style="margin-bottom:10px"><label>Filtrar por materia</label><select id="qz-mat-filtro" onchange="_qzMatFiltro=this.value;_qzProfRender()">
     <option value="">Todas las materias</option>
@@ -20350,19 +20423,32 @@ function _qzProfRender(){
   } else html+='<div class="efm-no-data" style="color:var(--text-muted)">Todavía no hay recursos. Creá el primero con ➕.</div>';
   cont.innerHTML = html;
 }
-function qzRapidaToggle(){ const d=document.getElementById('qz-rapida'); d.style.display = d.style.display==='none'?'block':'none'; }
+function qzRapidaToggle(){ const d=document.getElementById('qz-rapida'); d.style.display = d.style.display==='none'?'block':'none'; qzRapidaTipo(); }
+// las opciones solo tienen sentido en la encuesta: en nube/muro estorban
+function qzRapidaTipo(){
+  const t=document.getElementById('qz-rap-tipo'), box=document.getElementById('qz-rap-opsbox');
+  if(t&&box) box.style.display = t.value==='encuesta' ? '' : 'none';
+}
 async function qzRapidaLanzar(){
   const texto=(document.getElementById('qz-rap-texto').value||'').trim();
   const tipo=document.getElementById('qz-rap-tipo').value;
   if(!texto){ alert('Escribí la consigna'); return; }
-  const p={tipo, texto, tiempo: tipo==='encuesta'?45:120, max: tipo==='nube'?40:240};
+  // v2.9.371: el profesor elige si se ven los nombres y cuánto tiempo queda en pantalla
+  const anon=(document.getElementById('qz-rap-anon')||{}).value==='1';
+  const tiempo=Number((document.getElementById('qz-rap-tiempo')||{}).value)||180;
+  const p={tipo, texto, tiempo, max: tipo==='nube'?40:240, anon};
   if(tipo==='encuesta'){
     p.opciones=(document.getElementById('qz-rap-ops').value||'').split('\n').map(s=>s.trim()).filter(Boolean);
     if(p.opciones.length<2){ alert('La encuesta necesita al menos 2 opciones'); return; }
   }
   try{
     const g = await _qzInvoke('guardar', {titulo:('⚡ '+texto).slice(0,120), estado:'borrador', preguntas:[p], materia_aula_id:_qzMatFiltro||null});
-    await qzEnVivo(g.id);
+    // se proyecta YA: abrimos la sesión y lanzamos la pregunta sin esperar a nadie.
+    // Los alumnos se siguen sumando con el PIN/QR que queda al costado (unirse acepta
+    // cualquier sesión que no esté en 'fin').
+    const d = await _qzInvoke('abrir_sesion',{cuestionario_id:g.id});
+    _qzBoardArrancar(d.sesion, d.cuestionario);
+    await _qzBoardControl('lanzar', 0);
   }catch(e){ alert('⚠️ '+e.message); }
 }
 async function qzEliminar(id){
@@ -21253,9 +21339,24 @@ function _qzBoardArrancar(sesion, cuest){
   _qzBSig=''; _qzBShowTabla=false;
   showScreen('screen-quiz-proyector');
   _qzBoardRender();
-  clearInterval(_qzBPoll);
-  _qzBPoll=setInterval(_qzBoardTick, 2000);
+  _qzBoardPoll();
   _qzBoardTick();
+}
+// v2.9.371: mientras corre una pregunta ABIERTA (nube/muro/encuesta) el tablero es la
+// atracción de la clase — se refresca más seguido para que las ideas "caigan" en vivo.
+function _qzBoardPollMs(){
+  if(!_qzB) return 2000;
+  if(_qzB.ses.estado==='carrera') return 1500;
+  const p=(_qzB.cuest.preguntas||[])[_qzB.ses.pregunta_idx];
+  return (_qzB.ses.estado==='pregunta' && p && QZ_NO_CALIFICA.includes(p.tipo)) ? 1200 : 2000;
+}
+function _qzBoardPoll(){ clearInterval(_qzBPoll); _qzBPoll=setInterval(_qzBoardTick, _qzBoardPollMs()); }
+// ¿la pantalla está mostrando una pregunta abierta que se actualiza sola (sin redibujar todo)?
+function _qzBoardEsVivo(){
+  if(!_qzB || _qzBShowTabla) return false;
+  if(_qzB.ses.estado!=='pregunta' && _qzB.ses.estado!=='resultados') return false;
+  const p=(_qzB.cuest.preguntas||[])[_qzB.ses.pregunta_idx];
+  return !!(p && QZ_NO_CALIFICA.includes(p.tipo));
 }
 async function _qzBoardTick(){
   const act=document.querySelector('.screen.active');
@@ -21268,8 +21369,12 @@ async function _qzBoardTick(){
     ]);
     if(!pr.error && pr.data) _qzB.parts=pr.data;
     if(!rr.error && rr.data) _qzB.resp=rr.data;
-    const sig=_qzB.ses.estado+'|'+_qzB.ses.pregunta_idx+'|'+_qzB.parts.length+'|'+_qzB.resp.length+'|'+_qzBShowTabla;
+    // en una pregunta abierta NO redibujamos todo cuando llega una respuesta (eso mataba
+    // las animaciones y hacía parpadear la pantalla): se actualiza la nube/muro EN SITIO.
+    const vivo=_qzBoardEsVivo();
+    const sig=_qzB.ses.estado+'|'+_qzB.ses.pregunta_idx+'|'+(vivo?'LIVE':_qzB.parts.length+'|'+_qzB.resp.length)+'|'+_qzBShowTabla;
     if(sig!==_qzBSig){ _qzBSig=sig; _qzBoardRender(); }
+    else if(vivo) _qzLiveSync();
   }catch(e){ /* red intermitente: el próximo tick reintenta */ }
 }
 async function _qzBoardControl(op, idx){
@@ -21277,7 +21382,7 @@ async function _qzBoardControl(op, idx){
     const d=await _qzInvoke('control',{sesion_id:_qzB.ses.id, op, idx});
     if(d.sesion) _qzB.ses=d.sesion;
     if(op==='lanzar') _qzBAnon=null; // cada pregunta arranca con su propia configuración de anonimato
-    _qzBSig=''; _qzBShowTabla=false; _qzBoardRender();
+    _qzBSig=''; _qzBShowTabla=false; _qzBoardRender(); _qzBoardPoll();
   }catch(e){ alert('⚠️ '+e.message); }
 }
 // v2.9.159: muro anónimo — el profesor puede mostrar/ocultar nombres EN VIVO desde el proyector
@@ -21291,7 +21396,6 @@ function qzBoardToggleAnon(){
 function qzBoardComenzar(){ _qzBoardControl('lanzar',0); }
 function qzBoardCarrera(){ // v2.9.165: arranca el examen a ritmo libre + acelera el polling del leaderboard
   _qzBoardControl('carrera');
-  clearInterval(_qzBPoll); _qzBPoll=setInterval(_qzBoardTick, 1500);
 }
 function qzBoardResultados(){ _qzBoardControl('resultados'); }
 function qzBoardSiguiente(){ _qzBoardControl('lanzar', _qzB.ses.pregunta_idx+1); }
@@ -21394,6 +21498,121 @@ function _qzCompletarResHtml(p, rows){
   }).join('')}</div>`;
   return html;
 }
+// ============================================================================
+// v2.9.371 — MURO EN VIVO: la nube / el muro / la encuesta se actualizan EN SITIO,
+// sin redibujar el tablero. Cada palabra o tarjeta es un nodo con su propia
+// identidad: si ya estaba, crece suave; si es nueva, entra con animación.
+// ============================================================================
+const QZ_CLOUD_COLS=['#7fe7ff','#ffd97a','#8effa0','#ff9fb0','#c9a4ff','#9ec3ef','#ffbe7a','#6ee7d6'];
+function _qzFreqNube(textos){
+  const freq={};
+  (textos||[]).forEach(t=> String(t||'').split(/[,;\n]+/).forEach(w=>{
+    w=w.trim().replace(/^[«"']+|[»"'.!?]+$/g,''); if(!w) return;
+    const k=w.toLowerCase(); (freq[k]=freq[k]||{n:0,w:w}).n++;
+  }));
+  return Object.values(freq).sort((a,b)=> b.n-a.n || a.w.localeCompare(b.w)).slice(0,70);
+}
+function _qzVacio(el, msg){
+  if(el._vacio) return true;
+  el.innerHTML='<div class="qz-live-vacio">'+msg+'</div>';
+  el._nodes={}; el._built=0; el._vacio=true;
+  return true;
+}
+function _qzCloudSync(el, textos){
+  const arr=_qzFreqNube(textos);
+  if(!el._nodes) el._nodes={};
+  if(!arr.length) return _qzVacio(el,'☁️ Esperando las primeras palabras…');
+  if(el._vacio){ el.innerHTML=''; el._nodes={}; el._vacio=false; }
+  const max=arr[0].n, vivos={};
+  arr.forEach((x,i)=>{
+    const k=x.w.toLowerCase(); vivos[k]=1;
+    let sp=el._nodes[k];
+    if(!sp){
+      sp=document.createElement('span');
+      sp.className='qz-w qz-w-new';
+      sp.style.setProperty('--c', QZ_CLOUD_COLS[Object.keys(el._nodes).length % QZ_CLOUD_COLS.length]);
+      sp.style.setProperty('--r', ((i%5===1)?-5:((i%7===3)?4:0))+'deg');
+      sp.dataset.n='';
+      el.appendChild(sp); el._nodes[k]=sp;
+      setTimeout(()=>sp.classList.remove('qz-w-new'), 750);
+    }
+    if(sp.dataset.n!==String(x.n)){
+      const subia=sp.dataset.n!=='';
+      sp.dataset.n=String(x.n);
+      sp.innerHTML=escapeHtml(x.w)+(x.n>1?'<sup>'+x.n+'</sup>':'');
+      if(subia){ sp.classList.remove('qz-w-bump'); void sp.offsetWidth; sp.classList.add('qz-w-bump'); }
+    }
+    // tamaño por frecuencia (raíz suavizada: con 1 voto ya se lee, con muchas se agranda)
+    sp.style.setProperty('--s', Math.round(21+Math.pow(x.n/max,.62)*56)+'px');
+    sp.classList.toggle('qz-w-top', i===0 && x.n>1);
+  });
+  Object.keys(el._nodes).forEach(k=>{ if(!vivos[k]){ el._nodes[k].remove(); delete el._nodes[k]; } });
+}
+function _qzMuroSync(el, rows, anon){
+  if(!el._nodes) el._nodes={};
+  if(!rows.length) return _qzVacio(el,'💬 Esperando las primeras ideas…');
+  if(el._vacio){ el.innerHTML=''; el._nodes={}; el._vacio=false; }
+  const vivos={};
+  rows.forEach((r,i)=>{
+    const k=(r.nombre||'')+'\u0001'+(r.creado_en||i)+'\u0001'+String(r.respuesta||'').slice(0,60);
+    vivos[k]=1;
+    let card=el._nodes[k];
+    if(!card){
+      card=document.createElement('div');
+      card.className='qz-muro-card qz-mc'+(Object.keys(el._nodes).length%6)+' qz-mc-new';
+      el.insertBefore(card, el.firstChild);   // la más nueva, arriba de todo
+      el._nodes[k]=card;
+      setTimeout(()=>card.classList.remove('qz-mc-new'), 2600);
+    }
+    const html=escapeHtml(String(r.respuesta||''))+'<span class="qn">'+escapeHtml(anon?'Anónimo':(r.nombre||'—'))+'</span>';
+    if(card._h!==html){ card._h=html; card.innerHTML=html; }
+  });
+  Object.keys(el._nodes).forEach(k=>{ if(!vivos[k]){ el._nodes[k].remove(); delete el._nodes[k]; } });
+}
+function _qzBarsSync(el, p, rows){
+  const counts=(p.opciones||[]).map(()=>0);
+  rows.forEach(r=>{
+    const v=r.respuesta;
+    if(Array.isArray(v)) v.forEach(i=>{ if(counts[i]!=null) counts[i]++; });
+    else if(counts[Number(v)]!=null) counts[Number(v)]++;
+  });
+  if(!el._built){
+    el._vacio=false;
+    el.innerHTML=(p.opciones||[]).map((o,i)=>`<div class="qz-barrow"><div class="qz-barlabel">${escapeHtml(o)}</div><div class="qz-bartrack"><div class="qz-barfill qz-c${i%6}" style="width:0"><b></b></div></div><div class="qz-barpct">0%</div></div>`).join('');
+    el._built=1;
+  }
+  const tot=counts.reduce((a,b)=>a+b,0), max=Math.max(1,...counts);
+  const fills=el.querySelectorAll('.qz-barfill'), pcts=el.querySelectorAll('.qz-barpct');
+  counts.forEach((n,i)=>{
+    if(fills[i]){ fills[i].style.width=Math.round(n/max*100)+'%'; const b=fills[i].querySelector('b'); if(b) b.textContent=n||''; }
+    if(pcts[i]) pcts[i].textContent=(tot?Math.round(n/tot*100):0)+'%';
+  });
+}
+// actualiza SOLO la zona viva + los contadores del costado
+function _qzLiveSync(){
+  if(!_qzB) return;
+  const zona=document.getElementById('qz-live-zona'); if(!zona) return;
+  const idx=_qzB.ses.pregunta_idx, p=(_qzB.cuest.preguntas||[])[idx]; if(!p) return;
+  const rows=_qzB.resp.filter(r=>r.pregunta_idx===idx);
+  const anon=_qzBAnonNow(p);
+  if(p.tipo==='nube') _qzCloudSync(zona, rows.map(r=>r.respuesta));
+  else if(p.tipo==='abierta') _qzMuroSync(zona, rows, anon);
+  else _qzBarsSync(zona, p, rows);
+  const nR=document.getElementById('qz-live-nresp');
+  if(nR && nR.textContent!==String(rows.length)){
+    nR.textContent=rows.length;
+    nR.classList.remove('qz-kpi-bump'); void nR.offsetWidth; nR.classList.add('qz-kpi-bump');
+  }
+  const nC=document.getElementById('qz-live-nconn');
+  if(nC) nC.textContent=_qzB.parts.length;
+  const q=document.getElementById('qz-live-quienes');
+  if(q){
+    const gente=[...new Set(rows.map(r=>r.nombre||'—'))];
+    const html = anon ? '<span class="qz-live-anon">🙈 Aportes anónimos — nadie queda expuesto</span>'
+      : (gente.length? '<span class="qz-live-anon">✍️ Aportaron:</span>'+gente.map(n=>`<span class="qz-chip">${escapeHtml(n)}</span>`).join('') : '');
+    if(q._h!==html){ q._h=html; q.innerHTML=html; }
+  }
+}
 function _qzBoardRender(){
   if(!_qzB) return;
   const cont=document.getElementById('qz-board');
@@ -21403,7 +21622,7 @@ function _qzBoardRender(){
     <button class="qz-btn ghost" onclick="qzBoardSalir()">← Salir</button>
     <div class="qz-b-tit">${escapeHtml(c.titulo)}</div>
     <div class="qz-b-pinmini">PIN ${escapeHtml(ses.pin)}</div>
-    <button class="qz-btn ghost" onclick="qzBoardTabla()">🏅 Posiciones</button>
+    ${(pregs.length>0 && pregs.every(pp=>QZ_NO_CALIFICA.includes(pp.tipo)))?'':`<button class="qz-btn ghost" onclick="qzBoardTabla()">🏅 Posiciones</button>`}
   </div>`;
   let body='';
   const respAll=_qzB.resp, respIdx=respAll.filter(r=>r.pregunta_idx===idx);
@@ -21415,6 +21634,9 @@ function _qzBoardRender(){
   else if(ses.estado==='lobby'){
     const link=_qzLinkJuego(ses.pin);
     const aud=_qzAudLabel(c);
+    // v2.9.371: una DINÁMICA (solo nube/muro/encuesta) se proyecta sin esperar a nadie:
+    // el PIN y el QR quedan en pantalla y la gente se suma con las respuestas ya saliendo.
+    const esDinamica = pregs.length>0 && pregs.every(pp=>QZ_NO_CALIFICA.includes(pp.tipo));
     body=`<div style="text-align:center;margin-top:4px;font-size:clamp(15px,2.2vw,22px);color:#9ec3ef">Entrá en <b style="color:#fff">SIDECEME → Aula Virtual → 🎯 juego EN VIVO</b> con este PIN, o escaneá el QR:</div>
     ${aud?`<div style="text-align:center;margin-top:4px;font-size:clamp(13px,1.8vw,17px);color:#f4d574;font-weight:800">👥 ${escapeHtml(aud)}</div>`:''}
     <div style="display:flex;align-items:center;justify-content:center;gap:clamp(20px,5vw,70px);flex-wrap:wrap;margin-top:4px">
@@ -21425,9 +21647,10 @@ function _qzBoardRender(){
     <div class="qz-contador">👥 ${_qzB.parts.length} conectado(s)</div>
     <div class="qz-lobby-nombres">${_qzB.parts.map(x=>`<span class="qz-chip">${escapeHtml(x.nombre||'—')}</span>`).join('')}</div>
     <div class="qz-b-foot" style="flex-direction:column;gap:8px">
-      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
-        <button class="qz-btn gold big" onclick="qzBoardComenzar()" ${_qzB.parts.length?'':'disabled'}>▶️ COMPETENCIA GUIADA<br><span style="font-size:12px;font-weight:600;opacity:.85">todos responden la misma pregunta</span></button>
-        <button class="qz-btn big" style="background:linear-gradient(90deg,#7a1fb0,#b02da0)" onclick="qzBoardCarrera()" ${_qzB.parts.length?'':'disabled'}>🏁 CARRERA LIBRE<br><span style="font-size:12px;font-weight:600;opacity:.85">cada uno a su ritmo · leaderboard en vivo</span></button>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">${esDinamica
+        ? `<button class="qz-btn gold big" onclick="qzBoardComenzar()">🚀 MOSTRAR LA PREGUNTA AHORA<br><span style="font-size:12px;font-weight:600;opacity:.85">las respuestas van saliendo solas · se siguen sumando con el PIN</span></button>`
+        : `<button class="qz-btn gold big" onclick="qzBoardComenzar()" ${_qzB.parts.length?'':'disabled'}>▶️ COMPETENCIA GUIADA<br><span style="font-size:12px;font-weight:600;opacity:.85">todos responden la misma pregunta</span></button>
+        <button class="qz-btn big" style="background:linear-gradient(90deg,#7a1fb0,#b02da0)" onclick="qzBoardCarrera()" ${_qzB.parts.length?'':'disabled'}>🏁 CARRERA LIBRE<br><span style="font-size:12px;font-weight:600;opacity:.85">cada uno a su ritmo · leaderboard en vivo</span></button>`}
       </div>
       <div style="font-size:12px;color:#9ec3ef">${pregs.length} pregunta${pregs.length!==1?'s':''}</div>
     </div>`;
@@ -21444,6 +21667,41 @@ function _qzBoardRender(){
     (_qzRaceHtml(stC,'🏁 POSICIONES EN VIVO') || '<div style="text-align:center;color:#9ec3ef;font-size:18px;padding:34px">Esperando las primeras respuestas…</div>')+
     `<div class="qz-b-foot"><button class="qz-btn red" onclick="qzBoardPodio()">🏆 Terminar y ver podio</button></div>`;
     cont.innerHTML = top + body;
+    return;
+  }
+  // ===== v2.9.371: PREGUNTA ABIERTA (nube / muro / encuesta) — la pantalla grande =====
+  else if((ses.estado==='pregunta'||ses.estado==='resultados') && p && QZ_NO_CALIFICA.includes(p.tipo)){
+    const vivo = ses.estado==='pregunta';
+    const anon = _qzBAnonNow(p);
+    const link = _qzLinkJuego(ses.pin);
+    const conTimer = vivo && (p.tiempo||0)>0 && (p.tiempo||0)<=300;
+    const zonaCls = p.tipo==='nube' ? 'qz-cloud qz-cloud-live' : p.tipo==='abierta' ? 'qz-muro' : 'qz-bars';
+    const esUltima = idx>=pregs.length-1;
+    body=`<div class="qz-live">
+      <div class="qz-live-main">
+        <div style="text-align:center;color:#9ec3ef;font-weight:800;font-size:13px;letter-spacing:2px">${vivo?'🟢 EN VIVO':'⏸ PREGUNTA CERRADA'} · ${QZ_TIPOS[p.tipo].ic} ${QZ_TIPOS[p.tipo].lbl.toUpperCase()}${pregs.length>1?` · ${idx+1} DE ${pregs.length}`:''}</div>
+        <div class="qz-live-preg">${escapeHtml(p.texto)}</div>
+        ${conTimer?`<div class="qz-timerwrap" style="max-width:none"><div class="qz-timerbar"><div id="qz-tbar" style="width:100%"></div></div><div class="qz-timer-num" id="qz-tnum">·</div></div>`:''}
+        <div class="${zonaCls}" id="qz-live-zona"></div>
+        <div class="qz-live-quienes" id="qz-live-quienes"></div>
+      </div>
+      <div class="qz-live-side">
+        <div class="qz-live-side-lbl">📱 Sumate con este PIN</div>
+        <div class="qz-live-pin">${escapeHtml(ses.pin)}</div>
+        <div class="qz-qr-card qz-live-qr"><img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=6&data=${encodeURIComponent(link)}" alt="QR del juego" width="130" height="130"><div class="qz-qr-txt">Escaneá y participá</div></div>
+        <div class="qz-live-kpi"><b id="qz-live-nresp">0</b><span>respuestas</span></div>
+        <div class="qz-live-kpi alt"><b id="qz-live-nconn">0</b><span>conectados</span></div>
+        <button class="qz-btn ghost" style="width:100%;max-width:200px;font-size:13px;padding:9px 10px" onclick="qzBoardToggleAnon()">${anon?'🪪 Mostrar nombres':'🙈 Ocultar nombres'}</button>
+      </div>
+    </div>
+    <div class="qz-b-foot">${vivo
+      ? `<button class="qz-btn" onclick="qzBoardResultados()">⏸ Cerrar la pregunta (deja de recibir)</button>`
+      : ''}${esUltima
+      ? `<button class="qz-btn gold big" onclick="qzBoardPodio()">🏁 Terminar la dinámica</button>`
+      : `<button class="qz-btn gold big" onclick="qzBoardSiguiente()">▶️ Siguiente pregunta</button><button class="qz-btn red" onclick="qzBoardPodio()">🏁 Terminar acá</button>`}</div>`;
+    cont.innerHTML = top + body;
+    _qzLiveSync();
+    if(conTimer) setTimeout(()=>_qzTimerStart(ses.pregunta_abierta_en, p.tiempo),0); else clearInterval(_qzTimerInt);
     return;
   }
   else if(ses.estado==='pregunta' && p){
@@ -21481,6 +21739,26 @@ function _qzBoardRender(){
     body+=`<div class="qz-b-foot">${p.tipo==='abierta'?`<button class="qz-btn ghost" onclick="qzBoardToggleAnon()">${_qzBAnonNow(p)?'🪪 Mostrar nombres':'🙈 Ocultar nombres'}</button>`:''}${esUltima
       ? '<button class="qz-btn gold big" onclick="qzBoardPodio()">🏆 PODIO FINAL</button>'
       : '<button class="qz-btn gold big" onclick="qzBoardSiguiente()">▶️ Siguiente pregunta</button><button class="qz-btn red" onclick="qzBoardPodio()">🏁 Terminar acá</button>'}</div>`;
+  }
+  // v2.9.371: una dinámica de ideas no tiene ganadores — se cierra mostrando lo producido
+  else if(ses.estado==='fin' && pregs.length>0 && pregs.every(pp=>QZ_NO_CALIFICA.includes(pp.tipo))){
+    const ult=pregs.length-1, pU=pregs[ult];
+    const rowsU=respAll.filter(r=>r.pregunta_idx===ult);
+    const zonaCls = pU.tipo==='nube' ? 'qz-cloud qz-cloud-live' : pU.tipo==='abierta' ? 'qz-muro' : 'qz-bars';
+    body=`<div style="text-align:center;color:#9ec3ef;font-weight:800;font-size:13px;letter-spacing:2px">✔ DINÁMICA CERRADA</div>
+    <div class="qz-live-preg">${escapeHtml(pU.texto)}</div>
+    <div class="qz-live-main"><div class="${zonaCls}" id="qz-live-zona"></div></div>
+    <div class="qz-contador">💬 ${respAll.length} aporte(s) de ${new Set(respAll.map(r=>r.nombre)).size} participante(s)</div>
+    <div class="qz-b-foot"><button class="qz-btn" onclick="qzBoardSalir()">✔ Cerrar proyector</button></div>`;
+    cont.innerHTML = top + body;
+    const z=document.getElementById('qz-live-zona');
+    if(z){
+      if(pU.tipo==='nube') _qzCloudSync(z, rowsU.map(r=>r.respuesta));
+      else if(pU.tipo==='abierta') _qzMuroSync(z, rowsU, _qzBAnonNow(pU));
+      else _qzBarsSync(z, pU, rowsU);
+    }
+    clearInterval(_qzTimerInt);
+    return;
   }
   else if(ses.estado==='fin'){
     const st=_qzStandings(respAll);
@@ -21786,7 +22064,14 @@ function _qzAluZonaHtml(p, prefix){
     return _qzCompletarHtml(p,prefix)+`<button class="qz-btn gold" style="width:100%;margin-top:14px" onclick="qzAluEnviar('${prefix}')">📨 Enviar respuestas</button>`;
   }
   const max=p.max||240;
-  return `<textarea id="${prefix}-txt" rows="${max>80?4:2}" maxlength="${max}" style="width:100%" placeholder="${p.tipo==='nube'?'Una o dos palabras (podés separar con coma)':'Escribí tu idea…'}"></textarea>
+  // v2.9.371: la NUBE se alimenta de palabras sueltas — tres casillas grandes en vez de
+  // un textarea con comas (viaja igual: "a, b, c" en una sola respuesta).
+  if(p.tipo==='nube'){
+    return `<div style="font-size:12px;color:#9fb3cc;margin-bottom:8px">Escribí <b>1, 2 o 3 palabras</b>. Aparecen al instante en la nube de la pantalla 👁</div>
+    <div class="qz-nube-ins">${[0,1,2].map(i=>`<input class="qz-nube-inp" id="${prefix}-w${i}" maxlength="${Math.min(max,40)}" autocomplete="off" placeholder="${i===0?'palabra 1':'palabra '+(i+1)+' (opcional)'}">`).join('')}</div>
+    <button class="qz-btn gold" style="width:100%;margin-top:12px" onclick="qzAluEnviar('${prefix}')">☁️ Enviar a la nube</button>`;
+  }
+  return `<textarea id="${prefix}-txt" rows="${max>80?4:2}" maxlength="${max}" style="width:100%" placeholder="Escribí tu idea…"></textarea>
     <div style="font-size:11px;color:var(--text-muted);text-align:right">máx. ${max} caracteres</div>
     <button class="qz-btn gold" style="width:100%;margin-top:8px" onclick="qzAluEnviar('${prefix}')">📨 Enviar</button>`;
 }
@@ -21850,6 +22135,11 @@ function qzAluEnviar(prefix){
   else if(p.tipo==='arrastrar'){
     if(_qzArrHuecos.some(v=>!v)){ alert('Llená todos los huecos con opciones del banco'); return; }
     r=_qzArrHuecos.slice();
+  }
+  else if(p.tipo==='nube'){
+    const ws=[0,1,2].map(i=>{ const e=document.getElementById(prefix+'-w'+i); return e? String(e.value||'').trim() : ''; }).filter(Boolean);
+    if(!ws.length){ alert('Escribí al menos una palabra'); return; }
+    r=ws.join(', ');
   }
   else { const t=document.getElementById(prefix+'-txt'); r=(t? t.value:'').trim(); if(!r){ alert('Escribí tu respuesta'); return; } }
   _qzAluEnviarRespuesta(r);
