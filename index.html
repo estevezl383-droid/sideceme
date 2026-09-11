@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.371</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.372</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -9326,6 +9326,8 @@ function renderEvalPanel(){
 
   // v2.9.370 — el rojo pulsante: notas corregidas que esperan su conformidad.
   try{ _ncCorreccionesUI('screen-eval-panel'); }catch(e){ console.warn('eval correcciones', e); }
+  // v2.9.372 — y el registro de cargas, para el que no lo tiene en su barra.
+  try{ _ncBotonControl('screen-eval-panel'); }catch(e){ console.warn('eval control', e); }
 
   const subEl = document.getElementById('eval-header-sub');
   if(subEl){
@@ -9724,7 +9726,8 @@ function _ncBotonControl(screenId){
   const yaArch=cont.querySelector('.nc-btn-archivadas');   // v2.9.369
   // Los botones inyectados quedan pegados en el DOM entre sesiones de la misma
   // pesta\u00f1a: si el usuario ya no es evaluador hay que REMOVERLOS, no solo no crearlos.
-  if(!_ncEsEvaluador()){ if(ya) ya.remove(); if(yaRep) yaRep.remove(); if(yaArch) yaArch.remove(); return; }
+  if(!_ncEsEvaluador()){ if(ya) ya.remove(); if(yaRep) yaRep.remove(); if(yaArch) yaArch.remove();
+    const rg=cont.querySelector('.nc-btn-registro'); if(rg) rg.remove(); return; }
   // v2.9.369 — el archivo de bajas es solo del evaluador pleno: el auxiliar que
   // carga (Balderrama) no da de baja ni devuelve. Si dejó de serlo, se REMUEVE.
   if(!_ncPuedeDarBaja()){ if(yaArch) yaArch.remove(); }
@@ -9743,6 +9746,21 @@ function _ncBotonControl(screenId){
     b.onclick=function(){ goNotasControl(); };
     b.innerHTML='<span class="mega-icon">\u2705</span><span>Control de carga de notas \u2014 seguimiento por materia y ciclo</span>';
     cont.insertBefore(b, cont.firstElementChild);
+  }
+  // v2.9.372 — EL REGISTRO DE CARGAS TAMBIÉN ES DEL EVALUADOR DE CICLO.
+  // La pantalla ya le funcionaba (la EF `mis_cargas` no filtra por usuario),
+  // pero el botón vivía SOLO en la barra de Ciencia y Tecnología con
+  // display:none para todos los demás — así que el My. Ortiz no tenía por
+  // dónde entrar a ver qué subió el Sof. Balderrama. Se inyecta acá, que es
+  // lo que ya corre en su panel de profesor.
+  const yaReg=cont.querySelector('.nc-btn-registro');
+  if(!yaReg){
+    const g=document.createElement('button');
+    g.className='btn-mega nc-btn-registro';
+    g.style.cssText='background:linear-gradient(180deg,#6d5b9c,#3f3260);margin:0 0 8px;color:#fff';
+    g.onclick=function(){ goCargasNotas(); };
+    g.innerHTML='<span class="mega-icon">\ud83d\uddc2\ufe0f</span><span>Registro de cargas \u2014 qui\u00e9n subi\u00f3 cada materia, cu\u00e1ndo y cu\u00e1ntas notas</span>';
+    cont.insertBefore(g, cont.firstElementChild);
   }
   if(!yaRep){
     const r=document.createElement('button');
