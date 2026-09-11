@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.372</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.373</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -9477,16 +9477,31 @@ async function verEvalCursante(cursanteId){
       + '<th style="padding:6px 4px;border-bottom:1px solid var(--border-subtle);text-align:right;white-space:nowrap">Nota</th>'
       + '<th style="padding:6px 4px;border-bottom:1px solid var(--border-subtle);text-align:center">Atrib.</th>'
       + '<th style="padding:6px 4px;border-bottom:1px solid var(--border-subtle);text-align:right;white-space:nowrap">O.M.</th>'
+      + (((typeof _ncPuedeDarBaja === 'function') && _ncPuedeDarBaja())
+          ? '<th style="padding:6px 4px;border-bottom:1px solid var(--border-subtle)"></th>' : '')
       + '</tr></thead><tbody>';
 
+    // v2.9.373 — DESDE ACÁ TAMBIÉN SE CORRIGE.
+    // El evaluador entra por esta pantalla (es la que se abre al buscar al
+    // cursante por su nombre) y acá no había con qué corregir: el botón vivía
+    // solo en Control de carga → materia → alumno. Tres pantallas más adentro.
+    // Ahora cada materia lleva su ✏️ al lado de la nota.
+    const _puedeCorr = (typeof _ncPuedeDarBaja === 'function') && _ncPuedeDarBaja();
     filas.forEach(function(n){
       const nf = Number(n.nota_final);
       const cls = (!isNaN(nf) && nf > 0) ? atributoCalificacion(nf) : 'sin';
+      if(_puedeCorr){ NC._fichaNotas[String(n.id)] = n; }
       html += '<tr>'
         + '<td style="padding:6px 4px;border-bottom:1px solid var(--border-subtle)">' + escapeHtml(n.materia||'—') + '</td>'
         + '<td style="padding:6px 4px;border-bottom:1px solid var(--border-subtle);text-align:right" class="ef-cur-nota ' + cls + '">' + (!isNaN(nf) && nf > 0 ? fmtNota(nf) : '—') + '</td>'
         + '<td style="padding:6px 4px;border-bottom:1px solid var(--border-subtle);text-align:center">' + escapeHtml(n.atributo||'—') + '</td>'
         + '<td style="padding:6px 4px;border-bottom:1px solid var(--border-subtle);text-align:right">' + (n.om_materia != null ? n.om_materia : '—') + '</td>'
+        + (_puedeCorr
+            ? '<td style="padding:4px 0 4px 6px;border-bottom:1px solid var(--border-subtle);text-align:right">'
+              + '<button onclick="ncCorregirDesdeFicha(\'' + escapeAttr(String(n.id)) + '\')" title="Corregir esta nota" '
+              + 'style="background:linear-gradient(180deg,#c49234,#8a6420);border:none;border-radius:7px;color:#fff;'
+              + 'font-size:13px;padding:5px 9px;cursor:pointer;line-height:1">✏️</button></td>'
+            : '')
         + '</tr>';
     });
     html += '</tbody></table></div></div>';
@@ -10902,15 +10917,33 @@ function _ncNotaPrevia(orig, nuevos, modo, notaGuardada){
 }
 
 NC._corrFila = null;   // la fila completa que se está corrigiendo (con su desglose)
+NC._fichaNotas = {};   // v2.9.373: las notas de la ficha del cursante, por id
 
-// Abre el corrector. `fila` es la nota tal cual salió de la base.
-function ncCorregirNota(cursanteId, idxC, idxM){
+// v2.9.373 — Corregir desde la ficha del cursante (📚 Notas académicas), que es
+// la pantalla a la que se llega buscando al alumno por su nombre. Antes había
+// que ir por Control de carga → materia → alumno, tres pantallas más adentro,
+// y el evaluador no lo encontraba.
+function ncCorregirDesdeFicha(notaId){
+  const n = NC._fichaNotas[String(notaId)];
+  if(!n){ alert('No pude leer esa nota. Volvé a abrir la ficha.'); return; }
+  NC._corrFila = n;
+  NC._corrObs = null;                      // acá no se trae la objeción del alumno
+  ncCorregirNota(n.cursante_id, null, null, {
+    ciclo: n.ciclo, materia: n.materia,
+    alVolver: function(){ verEvalCursante(n.cursante_id); }
+  });
+}
+
+// Abre el corrector. La nota viaja por NC._corrFila.
+// `ctx` (v2.9.373) permite abrirlo desde una pantalla que no es el Control de
+// carga: trae el ciclo, la materia y a dónde volver después de guardar.
+function ncCorregirNota(cursanteId, idxC, idxM, ctx){
   if(!_ncPuedeDarBaja()){ alert('La corrección de una nota la autoriza el evaluador de ciclo.'); return; }
   const fila = NC._corrFila;
   if(!fila){ alert('No pude leer el desglose de esta nota. Volvé a abrirla.'); return; }
 
-  const ci = (NC.control && NC.control.ciclos || [])[idxC];
-  const m = ci && (ci.materias || [])[idxM];
+  const ci = ctx ? { ciclo: ctx.ciclo } : (NC.control && NC.control.ciclos || [])[idxC];
+  const m  = ctx ? { materia: ctx.materia } : (ci && (ci.materias || [])[idxM]);
   if(!ci || !m){ alert('Perdí la materia. Volvé a entrar al control.'); return; }
 
   const cur = (discData.cursantes||[]).find(function(c){ return String(c.id)===String(cursanteId); });
@@ -10926,6 +10959,7 @@ function ncCorregirNota(cursanteId, idxC, idxM){
     cursanteId: cursanteId, idxC: idxC, idxM: idxM,
     gestion: fila.gestion, semestre: fila.semestre, ciclo: ci.ciclo, materia: m.materia,
     nom: nom, bloques: bloques, nota: notaGuardada, modo: modo,
+    alVolver: (ctx && typeof ctx.alVolver === 'function') ? ctx.alVolver : null,
     nuevos: JSON.parse(JSON.stringify(bloques))
   };
 
@@ -11154,7 +11188,9 @@ async function ncGuardarCorreccion(){
     + 'El aviso ya está esperando la conformidad del auxiliar de Evaluaciones.');
 
   cargasData.loaded = false;
-  verNotaAlumno(c.cursanteId, c.idxC, c.idxM);
+  acadCache = null;                      // la ficha del alumno tiene que releer
+  if(c.alVolver) c.alVolver();           // v2.9.373: volver a donde se abrió
+  else verNotaAlumno(c.cursanteId, c.idxC, c.idxM);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
