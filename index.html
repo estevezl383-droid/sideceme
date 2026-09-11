@@ -3947,7 +3947,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.369</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.370</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4535,6 +4535,19 @@ body{
   <div class="menu-container">
     <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px">Una carga dada de baja sale de la vista de todos, pero no se destruye: las notas y las firmas quedan enteras acá y vuelven con un clic.</div>
     <div id="narch-cont"><div class="efm-no-data">⏳ Consultando el archivo…</div></div>
+  </div>
+</section>
+
+<!-- v2.9.370 — Correcciones de notas: qué casillero cambió y la conformidad del auxiliar -->
+<section id="screen-notas-correcciones" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goAnyPanel()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">📝 Correcciones de notas</div><div class="header-sub" id="ncorr-sub">—</div></div>
+  </div>
+  <div class="menu-container">
+    <div style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px">Cuando el evaluador de ciclo corrige un casillero de una nota, acá se ve exactamente qué cambió. El auxiliar que lleva la planilla responde su conformidad y eso queda como constancia para los dos lados.</div>
+    <div id="ncorr-cont"><div class="efm-no-data">⏳ Buscando las correcciones…</div></div>
   </div>
 </section>
 
@@ -9251,6 +9264,9 @@ function renderEvalPanel(){
     : 'Sub. Sec. Evaluaciones';
   document.getElementById('eval-initials').textContent = initials || '—';
 
+  // v2.9.370 — el rojo pulsante: notas corregidas que esperan su conformidad.
+  try{ _ncCorreccionesUI('screen-eval-panel'); }catch(e){ console.warn('eval correcciones', e); }
+
   const subEl = document.getElementById('eval-header-sub');
   if(subEl){
     // El período abarca los dos ciclos, así que se muestra el semestre CRUDO
@@ -10511,6 +10527,7 @@ async function verNotaAlumno(cursanteId, idxC, idxM){
   let confHtml = '';
   NC._corrObs = null;   // v2.9.369: lo que objetó el alumno. NO va por el onclick:
                         // es texto libre y un enter ahí adentro rompe el literal.
+  NC._corrFila = fila;  // v2.9.370: la nota con su desglose, para el corrector.
   try{
     const rc = await _ncInvoke('estado_confirmaciones', {
       gestion:NC.control.gestion, semestre:NC.control.semestre, ciclo:ci.ciclo, materia:m.materia });
@@ -10541,10 +10558,11 @@ async function verNotaAlumno(cursanteId, idxC, idxM){
     + confHtml
     // v2.9.369 — el alumno objeta y acá se corrige. Antes el evaluador leía la
     // queja y no tenía con qué cambiar el número.
+    // v2.9.370 — se corrige el CASILLERO (trabajo/formativa/sumativa), no el
+    // promedio: el desglose entero viaja por NC._corrFila, jamás por el onclick.
     + (_ncPuedeDarBaja()
         ? '<button class="btn-mega" style="margin-top:10px" '
-          + 'onclick="ncCorregirNota(\''+escapeAttr(String(cursanteId))+'\','+fila.gestion+','+fila.semestre+',\''+escapeAttr(ci.ciclo)+'\',\''+escapeAttr(m.materia)+'\','+Number(fila.nota_final)+','
-          + 'function(){ verNotaAlumno(\''+escapeAttr(String(cursanteId))+'\','+idxC+','+idxM+'); })">'
+          + 'onclick="ncCorregirNota(\''+escapeAttr(String(cursanteId))+'\','+idxC+','+idxM+')">'
           + '✏️ Corregir esta nota</button>'
         : '')
     + '<button class="btn-mega" style="background:linear-gradient(180deg,#2b4d8c,#1a3060);color:#fff;margin-top:10px" onclick="verEvalCursante(\''+escapeAttr(String(cursanteId))+'\')">📚 Ver TODAS las notas de este cursante</button>';
@@ -10714,53 +10732,511 @@ async function ncRestaurarCarga(loteId, pisar){
 // El alumno objetó su nota y dejó su observación. Acá el evaluador la corrige:
 // la nota vieja NO se pisa (queda en notas_correcciones) y la conformidad se
 // reabre, porque una firma vieja no vale para un número distinto.
-async function ncCorregirNota(cursanteId, gestion, semestre, ciclo, materia, notaActual, alVolver){
+/* ══════════════════════════════════════════════════════════════════════════
+   v2.9.370 — CORREGIR EL COMPONENTE, NO EL PROMEDIO
+
+   Lo que pasó el 9-SEP-2026: un alumno objetó su nota pidiendo que le revisen
+   la FORMATIVA. El evaluador abrió la corrección y lo único que había era un
+   casillero con la nota FINAL. Corrigió el promedio, el desglose siguió
+   diciendo lo de antes y la nota quedó sin respaldo — "salió peor la nota".
+
+   Ahora se corrige el casillero que corresponde (trabajo / formativa /
+   sumativa, o el ítem que sea) y la nota final se recalcula sola. El cálculo
+   de verdad lo hace la Edge Function; lo de acá abajo es la vista previa para
+   que el evaluador vea en qué va a quedar ANTES de guardar.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+// ── El mismo motor de la EF, para mostrar la cuenta en vivo ────────────────
+// Dos formatos conviven en las notas cargadas y hay que respetar el de cada una:
+//   A: `aporte` es el PESO del bloque (10/30/60) → nota = Σ prom×aporte/100
+//   B: `aporte` son los PUNTOS ya ponderados     → nota = Σ aporte
+//   C: ninguna de las dos da la nota guardada    → no se puede tocar el desglose
+// Un casillero VACÍO no es un cero: Number(null) y Number('') dan 0, y por ahí
+// se colaba un 0 que nadie escribió. Vacío = no hay valor.
+function _ncValor(v){
+  if(v===null || v===undefined || v==='') return null;
+  const n = Number(v);
+  return isFinite(n) ? n : null;
+}
+function _ncProm(b){
+  const its = (b && Array.isArray(b.items)) ? b.items : [];
+  const vs = its.map(function(i){ return _ncValor(i && i.v); }).filter(function(n){ return n!==null; });
+  if(!vs.length) return null;
+  return vs.reduce(function(a,c){ return a+c; },0)/vs.length;
+}
+function _ncLimpiar(n){ return parseFloat(n.toFixed(10)); }
+function _ncModo(bloques, nota){
+  if(!bloques || !bloques.length || !isFinite(nota)) return 'C';
+  let a=0, b=0, okA=true, okB=true;
+  bloques.forEach(function(bl){
+    const p=_ncProm(bl), ap=Number(bl && bl.aporte);
+    if(p===null || !isFinite(ap)){ okA=false; } else { a += p*ap/100; }
+    if(!isFinite(ap)){ okB=false; } else { b += ap; }
+  });
+  if(okA && Math.abs(a-nota) < 0.01) return 'A';
+  if(okB && Math.abs(b-nota) < 0.01) return 'B';
+  // Ninguna da: la nota fue pisada a mano y quedó divorciada de su desglose
+  // (le pasó a C045 el 9-SEP). Si los aportes suman 100 el desglose es de
+  // porcentajes igual, y hay que poder corregirlo: sería absurdo que la única
+  // nota que hay que reparar sea la única que no se deja tocar.
+  const sumaAp = bloques.reduce(function(t,x){ return t + (Number(x && x.aporte)||0); },0);
+  if(Math.abs(sumaAp-100) < 0.5) return 'A';
+  return 'C';
+}
+// Lo que da el desglose hoy. Si no coincide con la nota guardada, esa nota fue
+// pisada a mano.
+function _ncSegunDesglose(bloques, modo){
+  if(modo==='A'){
+    let t=0; for(const b of bloques){ const p=_ncProm(b), ap=Number(b.aporte);
+      if(p===null||!isFinite(ap)) return null; t += p*ap/100; }
+    return t;
+  }
+  let t=0; for(const b of bloques){ const ap=Number(b.aporte); if(!isFinite(ap)) return null; t += ap; }
+  return t;
+}
+// La nota que queda al mover un bloque: se aplica el DELTA sobre la nota
+// guardada, no se rehace la suma. Ver el comentario largo en la EF.
+function _ncNotaPrevia(orig, nuevos, modo, notaGuardada){
+  let delta = 0;
+  for(let i=0;i<orig.length;i++){
+    const pv=_ncProm(orig[i]), pn=_ncProm(nuevos[i]);
+    if(pn===null) return { error:'El bloque "'+(orig[i].tipo||'')+'" quedó sin valores' };
+    if(pv===null || pn===pv) continue;
+    const ap=Number(orig[i].aporte);
+    if(!isFinite(ap)) return { error:'El bloque "'+(orig[i].tipo||'')+'" no tiene aporte' };
+    if(modo==='A'){ delta += (pn-pv)*ap/100; }
+    else{
+      if(pv===0) return { error:'El bloque "'+(orig[i].tipo||'')+'" no permite deducir su peso (antes valía 0)' };
+      delta += (pn-pv)*(ap/pv);
+    }
+  }
+  // Si la nota guardada no cuadra con su desglose, fue pisada a mano: ahí la
+  // nota se SINCERA rehaciendo la suma, en vez de arrastrar el desfase.
+  const segun = _ncSegunDesglose(orig, modo);
+  const cuadra = segun !== null && Math.abs(segun - notaGuardada) < 0.01;
+  if(!cuadra){
+    const rehecha = _ncSegunDesglose(nuevos, modo);
+    if(rehecha === null) return { error:'No se pudo rehacer la suma del desglose' };
+    return { nota: _ncLimpiar(rehecha), delta: rehecha - notaGuardada, rehecha:true };
+  }
+  if(delta===0) return { nota: notaGuardada, delta:0 };
+  return { nota: _ncLimpiar(notaGuardada + delta), delta: delta };
+}
+
+NC._corrFila = null;   // la fila completa que se está corrigiendo (con su desglose)
+
+// Abre el corrector. `fila` es la nota tal cual salió de la base.
+function ncCorregirNota(cursanteId, idxC, idxM){
   if(!_ncPuedeDarBaja()){ alert('La corrección de una nota la autoriza el evaluador de ciclo.'); return; }
-  const obsAlumno = NC._corrObs || null;   // la dejó verNotaAlumno
+  const fila = NC._corrFila;
+  if(!fila){ alert('No pude leer el desglose de esta nota. Volvé a abrirla.'); return; }
+
+  const ci = (NC.control && NC.control.ciclos || [])[idxC];
+  const m = ci && (ci.materias || [])[idxM];
+  if(!ci || !m){ alert('Perdí la materia. Volvé a entrar al control.'); return; }
 
   const cur = (discData.cursantes||[]).find(function(c){ return String(c.id)===String(cursanteId); });
   const nom = cur ? nombreConGrado(cur) : cursanteId;
+  const obsAlumno = NC._corrObs || null;
 
-  const nueva = prompt(
-    'CORREGIR LA NOTA DE ' + nom + '\n'
-    + materia + ' · ' + ciclo + ' · ' + gestion + ' sem. ' + semestre + '\n\n'
-    + 'Nota cargada hoy: ' + fmtNota(notaActual) + '\n'
-    + (obsAlumno ? '\nLo que observó el alumno:\n"' + obsAlumno + '"\n' : '')
-    + '\nEscribí la nota corregida (0 a 100). Los decimales van con punto:',
-    String(notaActual == null ? '' : notaActual));
-  if(nueva === null) return;
+  const bloques = _nrepBloques(fila);
+  const notaGuardada = Number(fila.nota_final);
+  const modo = _ncModo(bloques, notaGuardada);
 
-  const n = Number(String(nueva).trim().replace(',', '.'));
-  if(!isFinite(n)){ alert('Eso no es un número.'); return; }
-  if(n < 0 || n > 100){ alert('La nota tiene que estar entre 0 y 100.'); return; }
-  if(Number(notaActual) === n){ alert('Esa es la misma nota que ya está cargada.'); return; }
+  // Estado vivo del modal
+  NC._corr = {
+    cursanteId: cursanteId, idxC: idxC, idxM: idxM,
+    gestion: fila.gestion, semestre: fila.semestre, ciclo: ci.ciclo, materia: m.materia,
+    nom: nom, bloques: bloques, nota: notaGuardada, modo: modo,
+    nuevos: JSON.parse(JSON.stringify(bloques))
+  };
 
-  const motivo = prompt(
-    'Nota corregida: ' + fmtNota(notaActual) + '  →  ' + fmtNota(n) + '\n\n'
-    + '¿Por qué se corrige? (queda en el historial con tu nombre; es lo que\n'
-    + 'respalda el cambio si mañana alguien lo pregunta)');
-  if(motivo === null) return;
-  if(String(motivo).trim().length < 10){
-    alert('Escribí el motivo con un poco más de detalle (al menos 10 caracteres).');
+  let ov = document.getElementById('nc-corr-modal');
+  if(ov) ov.remove();
+  ov = document.createElement('div');
+  ov.id = 'nc-corr-modal'; ov.className = 'avm-overlay';
+  ov.onclick = function(e){ if(e.target===ov) ncCerrarCorreccion(); };
+
+  // El aviso que no estaba: si el desglose guardado no da la nota guardada,
+  // alguien ya corrigió el promedio a mano. Hay que decirlo, no esconderlo.
+  let alertaDesfase = '';
+  if(modo !== 'C'){
+    const suma = _ncSegunDesglose(bloques, modo);
+    // El mismo umbral que usa el motor para decidir si la nota "cuadra": si
+    // avisa acá, allá se recalcula; si no avisa, se mueve solo el delta. Con
+    // un umbral más fino saltaba en las 597 notas cargadas con 4 decimales,
+    // que no tienen nada malo.
+    if(suma !== null && Math.abs(suma - notaGuardada) >= 0.01){
+      alertaDesfase = '<div style="margin:10px 0;padding:10px 12px;border:1px solid #c9a227;border-radius:9px;background:rgba(201,162,39,.12);font-size:12px;color:#f0d98a">'
+        + '⚠️ <b>Esta nota y su desglose no coinciden.</b> El desglose de abajo suma <b>'+fmtNota(suma)+'</b> '
+        + 'pero la nota cargada dice <b>'+fmtNota(notaGuardada)+'</b> — señal de que alguna vez se corrigió el promedio a mano. '
+        + 'Al guardar, la nota final se <b>recalcula desde el desglose</b> y las dos vuelven a decir lo mismo. '
+        + 'Fijate abajo en qué va a quedar antes de confirmar.'
+        + '</div>';
+    }
+  }
+
+  const cuerpo = (modo === 'C')
+    ? '<div style="margin:10px 0;padding:10px 12px;border:1px solid #7a6a3a;border-radius:9px;background:rgba(0,0,0,.25);font-size:12px;color:var(--text-secondary)">'
+      + 'Esta nota se cargó <b>sin un desglose que cuadre con la nota final</b>, así que no hay componente que corregir: '
+      + 'lo único posible es escribir la nota final. Queda en el historial igual.'
+      + '</div>'
+      + '<label>Nota final corregida (0 a 100)</label>'
+      + '<input id="nc-corr-total" type="number" step="0.0001" min="0" max="100" value="'+escapeAttr(String(notaGuardada))+'">'
+    : _ncCorrTablaHTML();
+
+  ov.innerHTML = '<div class="avm-box" onclick="event.stopPropagation()">'
+    + '<h3>✏️ Corregir la nota</h3>'
+    + '<div style="font-size:12.5px;color:var(--text-primary);margin-bottom:2px">'+escapeHtml(nom)+'</div>'
+    + '<div style="font-size:11.5px;color:var(--text-muted);margin-bottom:8px">'+escapeHtml(m.materia)+' · '+escapeHtml(ci.ciclo)+' · '+fila.gestion+' sem. '+fila.semestre+'</div>'
+    + (obsAlumno
+        ? '<div style="margin:8px 0;padding:9px 11px;border-left:3px solid #d98aa0;background:rgba(217,138,160,.10);border-radius:0 8px 8px 0;font-size:12px;color:#e8c3cd">'
+          + '<b>Lo que observó el alumno:</b><br>“'+escapeHtml(obsAlumno)+'”</div>'
+        : '')
+    + alertaDesfase
+    + cuerpo
+    + '<label>¿Por qué se corrige?</label>'
+    + '<textarea id="nc-corr-motivo" placeholder="Queda en el historial con tu nombre. Es lo que respalda el cambio si mañana alguien lo pregunta."></textarea>'
+    + '<div style="font-size:11px;color:var(--text-muted);margin-top:8px;line-height:1.5">'
+    + '🔁 Al guardar, el alumno tiene que volver a firmar (la firma anterior no vale para otra nota) '
+    + 'y le llega el aviso al auxiliar que lleva la planilla, que debe responder su conformidad.'
+    + '</div>'
+    + '<div style="display:flex;gap:10px;margin-top:14px">'
+    + '<button class="btn-primary" style="flex:1" onclick="ncGuardarCorreccion()">✅ Guardar la corrección</button>'
+    + '<button class="btn-secondary" style="flex:0 0 auto" onclick="ncCerrarCorreccion()">Cancelar</button>'
+    + '</div></div>';
+  document.body.appendChild(ov);
+  if(modo !== 'C') _ncCorrRefrescar();
+}
+
+// La tabla de casilleros. Uno por ítem: en la mayoría de las materias son
+// TRAB. / FOR. / SUM., pero hay materias con siete formativas y hay que poder
+// tocar la que corresponde, no el bloque entero.
+function _ncCorrTablaHTML(){
+  const c = NC._corr;
+  const filas = c.bloques.map(function(b, bi){
+    const peso = (c.modo === 'A')
+      ? ('aporta ' + b.aporte + '%')
+      : ('vale ' + fmtNota(b.aporte) + ' pts');
+    const items = (b.items||[]).map(function(it, ii){
+      return '<div style="display:flex;align-items:center;gap:8px;padding:5px 0 5px 12px">'
+        + '<span style="flex:1;min-width:0;font-size:12.5px;color:var(--text-secondary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+escapeHtml(String(it.n||'—'))+'</span>'
+        + '<input type="number" step="0.0001" min="0" max="100" data-b="'+bi+'" data-i="'+ii+'" '
+        + 'value="'+escapeAttr(String(it.v==null?'':it.v))+'" oninput="_ncCorrCambio(this)" '
+        + 'style="width:108px;flex:0 0 108px;text-align:right;background:var(--bg-deep);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:7px;padding:7px 8px;font-size:13.5px;font-family:inherit">'
+        + '</div>';
+    }).join('');
+    return '<div style="margin:8px 0;padding:8px 10px;background:rgba(0,0,0,.18);border-radius:9px">'
+      + '<div style="display:flex;justify-content:space-between;align-items:baseline">'
+      + '<span style="font-size:12px;font-weight:700;letter-spacing:.5px;color:var(--gold-light)">'+escapeHtml(String(b.tipo||'—').toUpperCase())+'</span>'
+      + '<span style="font-size:11px;color:var(--text-muted)">'+escapeHtml(peso)+'</span></div>'
+      + items + '</div>';
+  }).join('');
+
+  return '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-secondary);margin:12px 0 2px">Corregí el casillero que corresponde</div>'
+    + filas
+    + '<div id="nc-corr-resumen" style="margin-top:10px;padding:11px 12px;border-radius:10px;border:1px solid var(--border-strong);background:var(--bg-deep)"></div>';
+}
+
+// Cada tecla mueve la vista previa de la nota final.
+function _ncCorrCambio(inp){
+  const c = NC._corr; if(!c) return;
+  const bi = Number(inp.getAttribute('data-b')), ii = Number(inp.getAttribute('data-i'));
+  const v = inp.value === '' ? null : Number(String(inp.value).replace(',','.'));
+  c.nuevos[bi].items[ii].v = v;
+  const malo = (v===null || !isFinite(v) || v<0 || v>100);
+  inp.style.borderColor = malo ? '#e05a4d' : 'var(--border-subtle)';
+  _ncCorrRefrescar();
+}
+
+function _ncCorrRefrescar(){
+  const c = NC._corr; const cont = document.getElementById('nc-corr-resumen');
+  if(!c || !cont) return;
+  // Un valor imposible no debe producir una nota de mentira en pantalla.
+  const malos = _ncCasillerosMalos();
+  if(malos.length){
+    cont.innerHTML = '<span style="color:#e87878;font-size:12.5px">⚠️ '
+      + escapeHtml(malos.length===1 ? ('“'+malos[0]+'” está vacío o fuera de 0 a 100')
+                                    : (malos.length + ' casilleros están vacíos o fuera de 0 a 100'))
+      + '</span>';
+    return;
+  }
+  const prev = _ncNotaPrevia(c.bloques, c.nuevos, c.modo, c.nota);
+  if(prev.error){
+    cont.innerHTML = '<span style="color:#e87878;font-size:12.5px">⚠️ '+escapeHtml(prev.error)+'</span>';
+    return;
+  }
+  const cambios = _ncCambios();
+  const igual = !cambios.length;
+  const flecha = igual
+    ? '<span style="color:var(--text-muted)">sin cambios todavía</span>'
+    : '<span style="color:#e87878">'+fmtNota(c.nota)+'</span>'
+      + ' <span style="color:var(--text-muted)">→</span> '
+      + '<span style="color:#7ddba0;font-weight:700">'+fmtNota(prev.nota)+'</span>'
+      + ' <span style="color:var(--text-muted);font-size:12px">('+atributoCalificacion(prev.nota)+')</span>';
+  cont.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">'
+    + '<span style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-secondary)">Nota final</span>'
+    + '<span style="font-size:16px">'+flecha+'</span></div>'
+    + (cambios.length
+        ? '<div style="margin-top:7px;font-size:11.5px;color:var(--text-secondary);line-height:1.6">'
+          + cambios.map(function(x){
+              return '• <b style="color:var(--gold-light)">'+escapeHtml(x.bloque)+'</b> — '+escapeHtml(x.item)+': '
+                + fmtNota(x.antes)+' → '+fmtNota(x.despues); }).join('<br>')
+          + '</div>'
+        : '');
+}
+
+// Los casilleros que hoy no sirven para guardar (vacíos, texto, fuera de rango).
+function _ncCasillerosMalos(){
+  const c = NC._corr; const out = [];
+  if(!c) return out;
+  c.nuevos.forEach(function(b){
+    (b.items||[]).forEach(function(it){
+      const v = _ncValor(it.v);
+      if(v === null || v < 0 || v > 100) out.push(String(it.n||'—'));
+    });
+  });
+  return out;
+}
+
+function _ncCambios(){
+  const c = NC._corr; const out = [];
+  if(!c) return out;
+  for(let i=0;i<c.bloques.length;i++){
+    const oi = c.bloques[i].items||[], ni = c.nuevos[i].items||[];
+    for(let j=0;j<oi.length;j++){
+      const a = _ncValor(oi[j].v), b = _ncValor(ni[j].v);
+      if(b !== null && a !== b) out.push({ bloque:String(c.bloques[i].tipo||''), item:String(oi[j].n||''), antes:a, despues:b });
+    }
+  }
+  return out;
+}
+
+function ncCerrarCorreccion(){
+  const ov = document.getElementById('nc-corr-modal');
+  if(ov) ov.remove();
+  NC._corr = null;
+}
+
+async function ncGuardarCorreccion(){
+  const c = NC._corr; if(!c) return;
+  const motivoEl = document.getElementById('nc-corr-motivo');
+  const motivo = String((motivoEl && motivoEl.value) || '').trim();
+  if(motivo.length < 10){ alert('Escribí el motivo con un poco más de detalle (al menos 10 caracteres).'); if(motivoEl) motivoEl.focus(); return; }
+
+  const cuerpo = { cursante_id: c.cursanteId, gestion: Number(c.gestion), semestre: Number(c.semestre),
+                   ciclo: c.ciclo, materia: c.materia, motivo: motivo };
+
+  let resumen;
+  if(c.modo === 'C'){
+    const el = document.getElementById('nc-corr-total');
+    const n = Number(String((el && el.value) || '').trim().replace(',','.'));
+    if(!isFinite(n)){ alert('Eso no es un número.'); return; }
+    if(n < 0 || n > 100){ alert('La nota tiene que estar entre 0 y 100.'); return; }
+    if(Number(c.nota) === n){ alert('Esa es la misma nota que ya está cargada.'); return; }
+    cuerpo.nota_final = n; cuerpo.atributo = atributoCalificacion(n);
+    resumen = fmtNota(c.nota)+'  →  '+fmtNota(n);
+  }else{
+    // Primero los casilleros imposibles: si hay uno, decirlo POR SU NOMBRE.
+    // Antes, un casillero vaciado caía en "no cambiaste nada", que no ayudaba.
+    const malos = _ncCasillerosMalos();
+    if(malos.length){
+      alert((malos.length===1 ? 'El casillero “'+malos[0]+'” está' : 'Estos casilleros están')
+        + ' vacío(s) o fuera de 0 a 100:\n\n' + malos.join(' · ')
+        + '\n\nRevisalo antes de guardar. Un casillero en blanco no es un cero.');
+      return;
+    }
+    const cambios = _ncCambios();
+    if(!cambios.length){ alert('No cambiaste ningún casillero.'); return; }
+    const prev = _ncNotaPrevia(c.bloques, c.nuevos, c.modo, c.nota);
+    if(prev.error){ alert(prev.error); return; }
+    cuerpo.bloques = c.nuevos;
+    cuerpo.atributo = atributoCalificacion(prev.nota);
+    resumen = cambios.map(function(x){ return x.bloque+' · '+x.item+': '+fmtNota(x.antes)+' → '+fmtNota(x.despues); }).join('\n')
+      + '\n\nNota final: ' + fmtNota(c.nota) + '  →  ' + fmtNota(prev.nota);
+  }
+
+  if(!confirm('CONFIRMAR LA CORRECCIÓN\n\n' + c.nom + '\n' + c.materia + '\n\n' + resumen
+    + '\n\nEl alumno tendrá que volver a firmar y el aviso le llega al auxiliar de Evaluaciones.')) return;
+
+  const r = await _ncInvoke('corregir_nota', cuerpo);
+  if(!r.ok){ alert(r.error || 'No se pudo corregir'); return; }
+
+  ncCerrarCorreccion();
+  alert('Nota corregida.\n\n' + c.nom + '\n'
+    + fmtNota(r.nota_anterior) + '  →  ' + fmtNota(r.nota_nueva) + '  (' + r.atributo + ')\n\n'
+    + ((r.cambios && r.cambios.length)
+        ? r.cambios.map(function(x){ return '· '+x.bloque+' — '+x.item+': '+fmtNota(x.antes)+' → '+fmtNota(x.despues); }).join('\n') + '\n\n'
+        : '')
+    + (r.conformidad === 'reabierta' || r.conformidad_reabierta
+        ? 'Se le volvió a pedir la conformidad al alumno: la firma anterior no vale para una nota distinta. Tiene 48 horas.\n\n'
+        : (r.conformidad === 'error'
+            ? '⚠️ OJO: la nota quedó corregida pero NO se pudo reabrir la conformidad del alumno, así que su firma anterior sigue puesta sobre la nota vieja. Avisá para que se corrija eso.\n\n'
+            : 'Esta materia no tenía aviso de conformidad, así que no hubo nada que reabrir.\n\n'))
+    + 'El aviso ya está esperando la conformidad del auxiliar de Evaluaciones.');
+
+  cargasData.loaded = false;
+  verNotaAlumno(c.cursanteId, c.idxC, c.idxM);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+   v2.9.370 — EL AVISO AL QUE LLEVA LA PLANILLA
+
+   La nota vive en dos lados: en la app y en la planilla de la Sub. Sec. de
+   Evaluaciones. Si el evaluador de ciclo corrige acá y nadie le avisa al
+   auxiliar, las dos se separan en silencio y nadie se entera hasta que sale
+   una boleta mal.
+
+   Por eso cada corrección deja un aviso PENDIENTE, que el auxiliar ve en ROJO
+   al entrar — igual que el alumno ve su sanción sin firmar — y que se apaga
+   recién cuando él responde que ya lo pasó a su base. Esa respuesta queda con
+   su nombre y la hora: constancia para los dos lados.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+// El botón fijo + el rojo pulsante en el panel. Lo ve cualquiera de la sección;
+// el que corrigió lo ve como seguimiento (si su corrección fue recibida o no).
+async function _ncCorreccionesUI(screenId){
+  const sc = document.getElementById(screenId); if(!sc) return;
+  const cont = sc.querySelector('.menu-container') || sc.querySelector('.disc-container');
+  if(!cont) return;
+  const viejo = cont.querySelector('.nc-banner-corr');
+  const yaBtn = cont.querySelector('.nc-btn-corr');
+  // Los botones inyectados quedan pegados al DOM entre sesiones de la misma
+  // pestaña: si el usuario ya no es de la sección hay que REMOVERLOS.
+  //
+  // OJO: acá va _ncPuede(), NO _ncEsEvaluador(). Balderrama (S001) y el Tcnl.
+  // Díaz Andia (P008) tienen rol='evaluaciones' y roles=[] — _ncEsEvaluador()
+  // mira SOLO roles[] y a los dos les daría false. Justamente al auxiliar que
+  // lleva la planilla, que es para quien existe este aviso.
+  if(!_ncPuede()){ if(viejo) viejo.remove(); if(yaBtn) yaBtn.remove(); return; }
+
+  if(!yaBtn){
+    const b = document.createElement('button');
+    b.className = 'btn-mega nc-btn-corr';
+    b.style.cssText = 'background:linear-gradient(180deg,#7a4d8c,#4a2860);margin:0 0 8px;color:#fff';
+    b.onclick = function(){ goNotasCorrecciones(); };
+    b.innerHTML = '<span class="mega-icon">\ud83d\udcdd</span><span>Correcciones de notas \u2014 qu\u00e9 casillero cambi\u00f3 y su conformidad</span>';
+    cont.insertBefore(b, cont.firstElementChild);
+  }
+
+  let r;
+  try{ r = await _ncInvoke('correcciones_aviso', { solo_pendientes:true, limite:200 }); }catch(e){ return; }
+  if(!r || !r.ok){ if(viejo) viejo.remove(); return; }
+
+  const n = (r.correcciones||[]).length;
+  if(!n){ if(viejo) viejo.remove(); return; }
+
+  const mias = (r.correcciones||[]).filter(function(c){
+    return currentUser && String(c.corregido_por||'') === String(currentUser.id); }).length;
+  const paraMi = n - mias;   // las que ESTE usuario tiene que acusar
+
+  const el = viejo || document.createElement('div');
+  el.className = 'nc-banner-corr';
+  el.setAttribute('role','button');
+  el.style.cssText = 'cursor:pointer;margin:0 0 10px;padding:16px 18px;border:2px solid #ff5a4d;border-radius:14px;'
+    + 'background:linear-gradient(135deg,#e01f1f,#7a0d0d);color:#fff;box-shadow:0 0 22px rgba(224,31,31,.6);'
+    + 'animation:sancPulse 1.5s ease-in-out infinite;display:flex;align-items:center;gap:12px';
+  el.onclick = function(){ goNotasCorrecciones(); };
+  el.innerHTML = '<span style="font-size:30px;line-height:1;flex-shrink:0">🚨</span>'
+    + '<span style="flex:1;min-width:0">'
+    + '<b style="display:block;font-size:16px;letter-spacing:.3px">'
+    + (paraMi > 0
+        ? (paraMi + ' nota' + (paraMi>1?'s':'') + ' corregida' + (paraMi>1?'s':'') + ' — falta tu conformidad')
+        : (n + ' corrección' + (n>1?'es':'') + ' esperando la conformidad del auxiliar'))
+    + '</b>'
+    + '<span style="font-size:13px;color:#ffe0dd">'
+    + (paraMi > 0 ? 'Tocá acá para ver qué cambió y actualizar tu planilla →' : 'Tocá acá para ver el estado →')
+    + '</span></span>'
+    + '<span style="font-size:26px;flex-shrink:0;opacity:.9">›</span>';
+  if(!viejo) cont.insertBefore(el, cont.firstElementChild);
+}
+
+async function goNotasCorrecciones(){
+  showScreen('screen-notas-correcciones');
+  const cont = document.getElementById('ncorr-cont');
+  if(cont) cont.innerHTML = '<div class="efm-no-data">⏳ Buscando las correcciones…</div>';
+  const r = await _ncInvoke('correcciones_aviso', { limite:200 });
+  if(!cont) return;
+  if(!r.ok){ cont.innerHTML = '<div class="efm-no-data" style="color:#e87878">'+escapeHtml(r.error||'No se pudieron leer las correcciones')+'</div>'; return; }
+
+  const lista = r.correcciones || [];
+  const pend = lista.filter(function(c){ return c.aviso_estado === 'pendiente'; });
+  const sub = document.getElementById('ncorr-sub');
+  if(sub) sub.textContent = pend.length ? (pend.length + ' sin conformidad') : 'todo al día';
+
+  if(!lista.length){
+    cont.innerHTML = '<div class="sd-block"><div class="efm-no-data" style="color:var(--text-muted)">'
+      + 'Ninguna nota fue corregida todavía. Cuando el evaluador de ciclo corrija una, aparece acá con el detalle de qué casillero cambió.'
+      + '</div></div>';
     return;
   }
 
-  const r = await _ncInvoke('corregir_nota', {
-    cursante_id: cursanteId, gestion: Number(gestion), semestre: Number(semestre),
-    ciclo: ciclo, materia: materia, nota_final: n,
-    atributo: atributoCalificacion(n), motivo: String(motivo).trim()
-  });
-  if(!r.ok){ alert(r.error || 'No se pudo corregir'); return; }
+  cont.innerHTML = lista.map(function(c){
+    const yo = currentUser && String(c.corregido_por||'') === String(currentUser.id);
+    const listo = c.aviso_estado === 'acusado';
+    const cur = (discData.cursantes||[]).find(function(x){ return String(x.id)===String(c.cursante_id); });
+    const nom = cur ? nombreConGrado(cur) : c.cursante_id;
 
-  alert('Nota corregida.\n\n' + nom + '\n'
-    + fmtNota(r.nota_anterior) + '  →  ' + fmtNota(r.nota_nueva) + '  (' + r.atributo + ')\n\n'
-    + (r.conformidad_reabierta
-        ? 'Se le volvió a pedir la conformidad: la firma anterior no vale para una nota distinta. Tiene 48 horas.'
-        : 'Esta materia no tenía aviso de conformidad, así que no hubo nada que reabrir.'));
+    const detalle = (c.cambios && c.cambios.length)
+      ? c.cambios.map(function(x){
+          return '<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;font-size:12.5px">'
+            + '<span style="color:var(--text-secondary);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'
+            + '<b style="color:var(--gold-light)">'+escapeHtml(x.bloque)+'</b> · '+escapeHtml(x.item)+'</span>'
+            + '<span style="white-space:nowrap"><span style="color:#e87878">'+fmtNota(x.antes)+'</span>'
+            + ' <span style="color:var(--text-muted)">→</span> '
+            + '<span style="color:#7ddba0;font-weight:700">'+fmtNota(x.despues)+'</span></span></div>';
+        }).join('')
+      : '<div style="font-size:12px;color:#e0b36a;padding:4px 0">Se corrigió la nota final (esta nota no tiene desglose con que reconstruirla).</div>';
 
-  cargasData.loaded = false;
-  if(typeof alVolver === 'function') alVolver();
+    return '<div class="sd-block" style="'+(listo?'opacity:.6':'border-color:#8a2b2b')+'">'
+      + '<div class="sd-block-title">'+(listo?'✅ ':'🚨 ')+escapeHtml(c.materia)+'</div>'
+      + '<div class="sd-row"><span class="lbl">Cursante</span><span class="vl">'+escapeHtml(nom)+'</span></div>'
+      + '<div class="sd-row"><span class="lbl">Ciclo y período</span><span class="vl">'+escapeHtml(c.ciclo)+' · '+c.gestion+' · sem. '+c.semestre+'</span></div>'
+      + '<div style="margin:8px 0;padding:8px 10px;background:rgba(0,0,0,.2);border-radius:8px">'
+      + '<div style="font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-secondary);margin-bottom:3px">Qué cambió</div>'
+      + detalle
+      + '<div style="display:flex;justify-content:space-between;gap:8px;padding-top:6px;margin-top:4px;border-top:1px solid var(--border-subtle);font-size:13px">'
+      + '<span style="color:var(--text-secondary)">Nota final</span>'
+      + '<span><span style="color:#e87878">'+fmtNota(c.nota_anterior)+'</span> <span style="color:var(--text-muted)">→</span> '
+      + '<span style="color:#7ddba0;font-weight:700">'+fmtNota(c.nota_nueva)+'</span></span></div>'
+      + '</div>'
+      + '<div class="sd-row"><span class="lbl">Corrigió</span><span class="vl">'+escapeHtml(c.corregido_por_nombre||'—')+'</span></div>'
+      + '<div class="sd-row"><span class="lbl">Cuándo</span><span class="vl">'+escapeHtml(c.creado_en ? new Date(c.creado_en).toLocaleString('es-BO') : '—')+'</span></div>'
+      + '<div style="margin-top:6px;padding:8px 10px;background:rgba(0,0,0,.18);border-radius:6px;font-size:12px;color:var(--text-secondary)">'
+      + '<b style="color:var(--gold-light)">Motivo:</b> '+escapeHtml(c.motivo||'—')+'</div>'
+      + (c.observacion_alumno
+          ? '<div style="margin-top:5px;font-size:11.5px;color:#d98aa0">El alumno había observado: “'+escapeHtml(c.observacion_alumno)+'”</div>'
+          : '')
+      + (listo
+          ? '<div style="margin-top:9px;padding:9px 11px;border-radius:8px;background:rgba(46,125,50,.15);border:1px solid #2e7d32;font-size:12px;color:#a9e3b6">'
+            + '✔ <b>Conformidad dada</b> por '+escapeHtml(c.acusado_por_nombre||'—')+'<br>'
+            + '<span style="color:#8fc79c">'+escapeHtml(c.acusado_en ? new Date(c.acusado_en).toLocaleString('es-BO') : '')+'</span>'
+            + (c.acuse_comentario ? '<br><span style="color:var(--text-secondary)">“'+escapeHtml(c.acuse_comentario)+'”</span>' : '')
+            + '</div>'
+          : (yo
+              ? '<div style="margin-top:9px;font-size:12px;color:#e0b36a">⏳ Esperando la conformidad del auxiliar que lleva la planilla. '
+                + 'Esta corrección la hiciste vos, así que el acuse lo da el otro lado.</div>'
+              : '<button class="btn-mega" style="margin:10px 0 0;background:linear-gradient(180deg,#2e7d32,#1b5e20);color:#fff" '
+                + 'onclick="ncAcusarCorreccion(\''+escapeAttr(String(c.id))+'\')">✅ Conforme — ya lo actualicé en mi base</button>'))
+      + '</div>';
+  }).join('');
 }
+
+async function ncAcusarCorreccion(id){
+  const comentario = prompt(
+    'CONFORMIDAD DE LA CORRECCIÓN\n\n'
+    + 'Al aceptar queda registrado, con tu nombre y la hora, que ya pasaste el\n'
+    + 'cambio a tu planilla. Es la constancia para el Jefe de Evaluaciones.\n\n'
+    + 'Podés dejar una aclaración (opcional):', '');
+  if(comentario === null) return;
+
+  const r = await _ncInvoke('acusar_correccion', { id: id, comentario: String(comentario).trim() || null });
+  if(!r.ok){ alert(r.error || 'No se pudo registrar la conformidad'); return; }
+  alert('Conformidad registrada.\n\nQueda como constancia para el Jefe de Evaluaciones.');
+  goNotasCorrecciones();
+  try{ _ncCorreccionesUI('screen-eval-panel'); }catch(e){}
+}
+
 
 // El rastro de las correcciones de un alumno, para pegarlo en su ficha.
 async function _ncHistorialCorr(cursanteId){
@@ -10775,8 +11251,16 @@ async function _ncHistorialCorr(cursanteId){
             + '<span style="color:#7ddba0">'+fmtNota(c.nota_nueva)+'</span></div>'
             + '<div style="font-size:11px;color:var(--text-muted);margin-top:2px">'
             + escapeHtml(new Date(c.creado_en).toLocaleString('es-BO'))+' · '+escapeHtml(c.corregido_por_nombre||'—')+'</div>'
+            + ((c.cambios && c.cambios.length)   // v2.9.370: qué casillero se tocó
+                ? '<div style="font-size:11px;color:var(--text-secondary);margin-top:2px">'
+                  + c.cambios.map(function(x){ return '· <b style="color:var(--gold-light)">'+escapeHtml(x.bloque)+'</b> '+escapeHtml(x.item)+': '+fmtNota(x.antes)+' → '+fmtNota(x.despues); }).join('<br>')
+                  + '</div>'
+                : '')
             + '<div style="font-size:11.5px;color:var(--text-secondary);margin-top:3px">'+escapeHtml(c.motivo||'')+'</div>'
             + (c.observacion_alumno ? '<div style="font-size:11px;color:#d98aa0;margin-top:2px">Había observado: "'+escapeHtml(c.observacion_alumno)+'"</div>' : '')
+            + (c.aviso_estado === 'acusado'   // v2.9.370: la constancia del auxiliar
+                ? '<div style="font-size:11px;color:#8fc79c;margin-top:2px">✔ Conformidad de '+escapeHtml(c.acusado_por_nombre||'—')+'</div>'
+                : '<div style="font-size:11px;color:#e0b36a;margin-top:2px">⏳ Falta la conformidad del auxiliar</div>')
             + '</div>';
         }).join('')
       + '</div>';
@@ -40564,6 +41048,7 @@ function renderProfPanel(){
   // roles[] se le AGREGA el control de cargas de notas; conserva intacto todo
   // lo demás de su panel de profesor.
   try{ _ncBotonControl('screen-prof-panel'); }catch(e){}
+  try{ _ncCorreccionesUI('screen-prof-panel'); }catch(e){}   // v2.9.370
   // === DEFENSA DE SEGURIDAD ===
   // Solo registros de la tabla 'profesores' pueden ver este panel.
   // Si alguien con sesión de cursante llega acá, lo expulsamos.
