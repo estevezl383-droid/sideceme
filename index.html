@@ -3933,6 +3933,71 @@ body{
   padding:10px 12px; font-size:12px; color:var(--text-secondary); line-height:1.5; margin-bottom:11px }
 .pl-ol{ margin:0; padding-left:20px; font-size:12px; color:var(--text-secondary); line-height:1.7 }
 
+/* ===== v2.9.374: HORARIO INTEGRADO — propuestas de las secciones ===== */
+.plp-wrap{ max-width:1500px; margin:0 auto; padding:14px 14px 40px }
+.plp-chips{ display:flex; gap:5px; flex-wrap:wrap; margin-bottom:8px }
+.plp-leyenda{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; font-size:12px; color:var(--text-secondary); margin-bottom:8px }
+.plp-sw{ display:inline-block; width:16px; height:12px; border-radius:3px; margin-right:-8px; vertical-align:middle }
+.plp-sw-base{ background:#3a4556; border:1px solid #5b6a80 }
+.plp-sw-pend{ background:#c62828 }
+.plp-sw-aprob{ background:#1e5bb8 }
+.plp-sw-rec{ background:#3a4556; border:1px dashed #f4d574 }
+.plp-av{ border-radius:8px; padding:8px 11px; font-size:13px; line-height:1.5; margin-bottom:8px; border:1px solid }
+.plp-av-ok{ background:rgba(76,163,107,.10); border-color:#3a8c5a; color:#cdeed8 }
+.plp-av-cer{ background:rgba(255,255,255,.04); border-color:var(--border-subtle); color:var(--text-secondary) }
+.plp-av-pend{ background:rgba(198,40,40,.12); border-color:#c62828; color:#ffd6d6 }
+.plp-av-err{ background:rgba(198,40,40,.18); border-color:#e57373; color:#ffd6d6 }
+.plp-av .pl-b{ margin-left:6px }
+.plp-cierre{ display:inline-flex; flex-wrap:wrap; align-items:center; gap:6px; margin-left:8px }
+.plp-cierre .pl-i{ width:auto; font-size:13px }
+.plp-cargando{ padding:30px; text-align:center; color:var(--text-muted); font-size:14px; line-height:1.6 }
+#plp-cal{ --fc-border-color:rgba(255,255,255,.10); --fc-page-bg-color:transparent; --fc-neutral-bg-color:rgba(255,255,255,.04);
+  --fc-today-bg-color:rgba(212,175,55,.07); --fc-button-bg-color:rgba(255,255,255,.06); --fc-button-border-color:var(--border-subtle);
+  --fc-button-text-color:var(--text-primary); --fc-button-hover-bg-color:rgba(212,175,55,.18); --fc-button-hover-border-color:var(--gold);
+  --fc-button-active-bg-color:rgba(212,175,55,.26); --fc-button-active-border-color:var(--gold); --fc-now-indicator-color:#f4d574;
+  --fc-event-border-color:transparent; font-size:13px; color:var(--text-primary);
+  background:rgba(0,0,0,.18); border-radius:10px; padding:8px }
+#plp-cal .fc-toolbar-title{ font-size:18px; color:#f4d574; text-transform:capitalize }
+#plp-cal .fc-col-header-cell-cushion,#plp-cal .fc-daygrid-day-number{ color:var(--text-primary); text-transform:capitalize; font-weight:700 }
+#plp-cal .fc-timegrid-slot{ height:1.5em }
+#plp-cal .fc-timegrid-slot-label-cushion{ color:var(--text-secondary); font-size:12px }
+#plp-cal .fc-event{ cursor:pointer; border-radius:4px }
+.plp-ev{ padding:1px 3px; overflow:hidden; line-height:1.25 }
+.plp-ev-h{ font-size:11px; opacity:.85; font-weight:700 }
+.plp-ev-t{ font-size:12px; font-weight:700; text-transform:uppercase }
+.plp-ev-s{ font-size:10.5px; opacity:.9 }
+.fc-event.plp-base{ background:#2f3a4a !important; border:1px solid #4d5b70 !important; color:#dfe6ef !important }
+.fc-event.plp-base .plp-ev-t{ font-weight:600 }
+.fc-event.plp-franja{ background:repeating-linear-gradient(135deg,#252d39 0 6px,#2b3441 6px 12px) !important; color:#9aa6b6 !important }
+.fc-event.plp-recortada{ border:1px dashed #f4d574 !important }
+.fc-event.plp-pendiente{ background:#c62828 !important; border:1px solid #ff8a80 !important; color:#fff !important }
+.fc-event.plp-aprobada{ background:#1e5bb8 !important; border:1px solid #82b1ff !important; color:#fff !important }
+.fc-event.plp-rechazada{ background:#4a4a4a !important; color:#ddd !important; text-decoration:line-through; opacity:.8 }
+.fc-event.plp-mia{ box-shadow:inset 4px 0 0 #f4d574 }
+.fc-event.plp-prop{ z-index:3 }
+.plp-modal[hidden]{ display:none !important }
+.plp-modal{ position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:10050; display:flex; align-items:flex-start; justify-content:center; padding:4vh 10px; overflow:auto }
+.plp-dlg{ background:var(--bg-deep,#0d1726); border:1px solid var(--gold); border-radius:12px; width:100%; max-width:640px; padding:16px; box-shadow:0 12px 40px rgba(0,0,0,.6) }
+.plp-dlg-h{ font-size:17px; font-weight:800; color:#f4d574; margin-bottom:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap }
+.plp-dlg .pl-i{ font-size:14px; padding:7px 8px }
+.plp-dlg label{ font-size:12px }
+.plp-g3{ grid-template-columns:2fr 1fr 1fr }
+.plp-aud{ display:flex; flex-wrap:wrap; gap:6px 16px; font-size:14px; margin:10px 0 6px; color:var(--text-primary) }
+.plp-aud label{ font-size:14px; display:inline-flex; align-items:center; gap:5px }
+.plp-rec{ display:flex; gap:6px; align-items:flex-start; font-size:12px; color:var(--text-secondary); margin:4px 0 10px }
+.plp-btns{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px }
+.plp-bw{ width:auto !important; height:auto !important; padding:6px 12px !important; font-size:12px !important }
+.plp-b-aprob{ background:linear-gradient(180deg,#1e5bb8,#123a78) !important; color:#fff !important }
+.plp-rech{ margin-top:12px; padding-top:10px; border-top:1px solid var(--border-subtle) }
+.plp-pill{ font-size:11px; padding:2px 8px; border-radius:10px; color:#fff; font-weight:700 }
+.plp-pill-pendiente{ background:#c62828 } .plp-pill-aprobada{ background:#1e5bb8 } .plp-pill-rechazada{ background:#555 }
+.plp-dato{ font-size:14px; margin:3px 0 } .plp-dato span{ display:inline-block; min-width:100px; color:var(--text-muted); font-size:12px }
+.plp-dato-t{ font-size:15px; font-weight:700; margin-bottom:8px }
+.plp-item{ display:flex; flex-direction:column; gap:2px; width:100%; text-align:left; background:rgba(198,40,40,.10); border:1px solid #c62828;
+  border-radius:8px; padding:8px 10px; margin-bottom:6px; color:var(--text-primary); font-family:inherit; font-size:13px; cursor:pointer }
+.plp-item small{ color:var(--text-muted) }
+@media (max-width:600px){ .plp-g3{ grid-template-columns:1fr 1fr } #plp-cal .fc-toolbar{ flex-direction:column; gap:6px } }
+
 .pl-orient{ display:flex; align-items:center; gap:5px; flex:0 0 auto;
   font-size:11px; color:var(--text-muted); white-space:nowrap }
 .pl-orient .pl-i{ width:auto; flex:0 0 auto; padding:4px 6px }
@@ -3947,7 +4012,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.373</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.374</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5811,6 +5876,25 @@ body{
     </div>
   </div>
 </section>
+
+<!-- v2.9.374: HORARIO INTEGRADO — propuestas de las secciones -->
+<section id="screen-planif-cal" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="plpVolver()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text">
+      <div class="header-title">Horario integrado</div>
+      <div class="header-sub" id="plp-sub">Actividades de las secciones</div>
+    </div>
+  </div>
+  <div class="plp-wrap">
+    <div id="plp-barra"></div>
+    <div id="plp-aviso"></div>
+    <div id="plp-cal"></div>
+  </div>
+</section>
+<div id="plp-modal" class="plp-modal" hidden onclick="if(event.target===this)_plpCerrarModal()"><div class="plp-dlg" id="plp-dlg"></div></div>
+
 
 <!-- PLANILLAS DE DISCIPLINA: lista -->
 <section id="screen-planillas" class="screen with-bottom-nav">
@@ -8322,6 +8406,9 @@ const _LIBS = {
   qrcode:  {key:'qrcode',  js:'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js', test:()=>typeof QRCode!=='undefined'},
   bcrypt:  {key:'bcrypt',  js:'https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js', test:()=>(typeof dcodeIO!=='undefined' && dcodeIO.bcrypt) || typeof bcrypt!=='undefined'},
   jszip:   {key:'jszip',   js:'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', test:()=>typeof JSZip!=='undefined'},
+  // v2.9.374 — Horario integrado. Se baja recién al abrir el calendario (no va en el warmup).
+  fullcalendar:  {key:'fullcalendar',  js:'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.21/index.global.min.js', test:()=>typeof FullCalendar!=='undefined'},
+  fullcalendarEs:{key:'fullcalendarEs',js:'https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.21/locales/es.global.min.js', test:()=>typeof FullCalendar!=='undefined' && (FullCalendar.globalLocales||[]).some(l=>l.code==='es')},
   // v2.9.202 — Vista 3D del Juego de Guerra. OJO: **v5**. La v6 NO funciona
   // (ni siquiera carga un estilo mínimo); ya se comprobó en el Generador de
   // Calcos. Pesa ~900 KB, así que NO va en el warmup: se baja recién cuando el
@@ -9219,6 +9306,8 @@ async function enterRole(role){
   }
   // v2.9.16: Iniciar polling de notificaciones
   try{ iniciarNotificaciones(); }catch(e){}
+  // v2.9.374: botón del Horario integrado para los que están en planif_editores
+  try{ _plpBoton(); }catch(e){}
   // v2.9.60: precarga libs pesadas en background tras el login (no bloqueante)
   try{ _warmupLibs(); }catch(e){}
 }
@@ -45752,6 +45841,7 @@ async function plAbrir(id){
   PLANIF.cargando=false;
   if(!r.ok){ alert('❌ '+r.error); plVolver(); return; }
   PLANIF.sem=r.semana;
+  _plpTraerAprobadas(PLANIF.sem);   // v2.9.374: las aprobadas de las secciones entran al documento
   if(!PLANIF.sem.datos || !PLANIF.sem.datos.planta){
     PLANIF.sem.datos=Object.assign(_plNuevaDatos(PLANIF.sem.fecha_desde), PLANIF.sem.datos||{});
   }
@@ -45948,10 +46038,10 @@ function plRenderEditor(){
 
   const body=document.getElementById('pl-tab-body');
   if(!body) return;
-  if(PLANIF.tab==='datos')       body.innerHTML=_plUIDatos();
-  else if(PLANIF.tab==='planta') body.innerHTML=_plUIPlanta();
-  else if(PLANIF.tab==='c1')     body.innerHTML=_plUICiclo('c1');
-  else if(PLANIF.tab==='c2')     body.innerHTML=_plUICiclo('c2');
+  if(PLANIF.tab==='datos')       body.innerHTML=_plpBannerEditor()+_plUIDatos();
+  else if(PLANIF.tab==='planta') body.innerHTML=_plpBannerEditor()+_plUIPlanta();
+  else if(PLANIF.tab==='c1')     body.innerHTML=_plpBannerEditor()+_plUICiclo('c1');
+  else if(PLANIF.tab==='c2')     body.innerHTML=_plpBannerEditor()+_plUICiclo('c2');
   else if(PLANIF.tab==='fac')    body.innerHTML=_plUIFacultad();
   else if(PLANIF.tab==='ns')     body.innerHTML=_plUINotas();
   plPintarEstado();
@@ -46039,6 +46129,9 @@ function _plOnInput(ev){
 async function plPublicar(){
   const s=PLANIF.sem; if(!s) return;
   const nuevo = s.estado==='publicado' ? 'borrador' : 'publicado';
+  // v2.9.374: no publicar sin darse cuenta de que quedan propuestas sin revisar.
+  const pend=(PLANIF.props && PLANIF.props.semId===s.id) ? PLANIF.props.lista.filter(function(p){ return p.estado==='pendiente'; }).length : 0;
+  if(nuevo==='publicado' && pend && !confirm('🔴 Quedan '+pend+' actividad(es) de las secciones PENDIENTES de aprobación.\n\nSi publicás ahora, NO salen en el documento. ¿Publicar igual?')) return;
   if(!confirm(nuevo==='publicado'
     ? '¿Marcar la SEMANA '+s.semana_num+' como PUBLICADA?'
     : '¿Devolver la SEMANA '+s.semana_num+' a BORRADOR?')) return;
@@ -46623,7 +46716,7 @@ function _plRango(){
 
 // ---- 1.- HORARIO DEL PERSONAL DE PLANTA ----
 function _plDocPlanta(){
-  const s=PLANIF.sem, c=s.datos.cab||{}, p=s.datos.planta||{};
+  const s=PLANIF.sem, c=s.datos.cab||{}, p=_plpBloqueDoc('planta')||{};   // v2.9.374: base + aprobadas
   let h=_plMembrete(
     ['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES',
      'ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO',
@@ -46692,7 +46785,7 @@ function _plDocPlanta(){
 
 // ---- 2/3.- HORARIO SEMANAL POR CICLO ----
 function _plDocCiclo(k){
-  const s=PLANIF.sem, c=s.datos.cab||{}, b=s.datos[k]||{};
+  const s=PLANIF.sem, c=s.datos.cab||{}, b=_plpBloqueDoc(k)||{};   // v2.9.374: base + aprobadas
   let h=_plMembrete(   // v2.9.299: sin "COMANDO DE INSTITUTOS MILITARES" (pedido de Sergio)
     ['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES',
      'ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO',
@@ -46722,6 +46815,13 @@ function _plDocCiclo(k){
       h+='<td style="'+_PL_TD+';text-align:center">'+_plEsc(f.desde)+(f.hasta?(' – '+_plEsc(f.hasta)):'')+'</td>';
       if(f.span){
         h+='<td colspan="6" style="'+_PL_TD+';text-align:center;font-weight:bold">'+_plNl(f.uc)+'</td>';
+      } else if(f.act3){
+        // v2.9.374: actividad (parte, misa, conferencia...) — como en el horario firmado,
+        // el texto ocupa MÓDULO + U.C. + CÓDIGO y conserva lugar, uniforme y responsable.
+        h+='<td colspan="3" style="'+_PL_TD+';text-align:center">'+_plNl(f.uc)+'</td>'
+          +'<td style="'+_PL_TD+';text-align:center">'+_plNl(f.lugar)+'</td>'
+          +'<td style="'+_PL_TD+';text-align:center">'+_plNl(f.unif)+'</td>'
+          +'<td style="'+_PL_TD+'">'+_plNl(f.resp)+'</td>';
       } else {
         h+='<td style="'+_PL_TD+'">'+_plNl(f.modulo)+'</td>'
           +'<td style="'+_PL_TD+'">'+_plNl(f.uc)+'</td>'
@@ -47686,6 +47786,647 @@ function renderPlanifPanel(){
       cont.appendChild(b);
     }
   }catch(e){ console.warn('plp doble funcion', e); }
+}
+
+
+// ============================================================
+// v2.9.374 — HORARIO INTEGRADO: PROPUESTAS DE LAS SECCIONES
+// Los jefes de sección (planif_editores) proponen actividades sobre la semana
+// que armó Planificación; el Jefe de Estudios las aprueba. Pendiente = ROJO,
+// aprobada = AZUL. El cierre por defecto es el miércoles anterior a las 23:59
+// y Planificación (Sof. Arce) lo puede correr semana por semana.
+//
+// 🔑 LAS APROBADAS NO SE ESCRIBEN EN planif_semanas.datos. Se mezclan con la
+// base recién al dibujar (calendario) y al generar el documento
+// (_plpBloqueDoc). Si se escribieran, el guardado por bloque del editor de
+// Planificación —que manda el bloque ENTERO— borraría una actividad aprobada
+// apenas el auxiliar tocara una coma con la semana abierta.
+// ============================================================
+const PLP = { perfil:null, perfilTok:null, cal:null, vista:'planta', semanas:[], props:[],
+  conBase:false, cacheKey:null, recargar:false, origen:null, pendientesN:0 };
+
+const _PLP_AUD = [['planta','Plantel docente'],['c1','1er Ciclo'],['c2','2do Ciclo']];
+const _PLP_EST = { pendiente:'PENDIENTE', aprobada:'APROBADA', rechazada:'RECHAZADA', retirada:'RETIRADA' };
+
+// ---------- horas ----------
+function _plpMin(t){
+  const m=/^\s*(\d{1,2})\s*[:.hH]\s*(\d{2})/.exec(String(t==null?'':t));
+  if(!m) return null;
+  const h=+m[1], mi=+m[2];
+  return (h>23||mi>59) ? null : h*60+mi;
+}
+function _plpHHMM(n){ return String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0'); }
+// "1200", "12.00", "9:30" → "12:00", "09:30". Si no se entiende, se devuelve tal cual (y la validación avisa).
+function _plpNormHora(t){
+  const v=String(t||'').trim(), solo=/^(\d{1,2})(\d{2})$/.exec(v);
+  const n=solo ? _plpMin(solo[1]+':'+solo[2]) : _plpMin(v);
+  return n===null ? v : _plpHHMM(n);
+}
+function _plpFmtHora(el){ if(el && el.value) el.value=_plpNormHora(el.value); }
+
+// Uniforme del tramo (misma regla que _plUnifDia, pero sin depender de PLANIF.sem:
+// el calendario no abre la semana en el editor).
+function _plpUnif(cab, idx, txt){
+  cab=cab||{};
+  if(/DEPORTE|ENTRENAMIENTO F[IÍ]SICO|EFM/i.test(String(txt||''))) return cab.unif_dep||'N° 8';
+  return (idx<=2) ? (cab.unif_lmx||'N° 3-C') : (cab.unif_jv||'N° 3-C');
+}
+
+// Fila del documento que genera una propuesta aprobada.
+function _plpFilaDeProp(k, p, cab, idx){
+  const unif=String(p.uniforme||'').trim() || _plpUnif(cab, idx, p.actividad);
+  if(k==='planta'){
+    return { desde:p.desde, hasta:p.hasta, act:p.actividad, lugar:p.lugar||'',
+      asisten:p.asisten||'TODOS', resp:p.responsable||'', unif:unif, span:false, prop:p.id };
+  }
+  // En los ciclos va como en el horario firmado: el texto ocupa MÓDULO + U.C. +
+  // CÓDIGO y conserva LUGAR, UNIFORME y RESPONSABLE (fila `act3`).
+  return { desde:p.desde, hasta:p.hasta, modulo:'', uc:p.actividad, codigo:'', lugar:p.lugar||'',
+    unif:unif, resp:p.responsable||'', span:false, act3:true, prop:p.id };
+}
+
+// Mezcla la base de UN bloque (planta / c1 / c2) con las propuestas aprobadas.
+// Devuelve una COPIA; la base guardada no se toca nunca.
+//  - Las filas `fijo` (partes, EFM, deportes) no se recortan.
+//  - Las demás se recortan o se parten donde cae una aprobada con recortar=true.
+//  - Un día escrito como "Día completo" (libre) pasa a banda + filas, como plUsarFilas.
+function _plpMezclarBloque(k, bloque, props, cab){
+  if(!bloque || !Array.isArray(bloque.dias)) return bloque;
+  const out=JSON.parse(JSON.stringify(bloque));
+  const aprob=(props||[]).filter(function(p){
+    return p.estado==='aprobada' && (p.audiencias||[]).indexOf(k)>=0
+      && _plpMin(p.desde)!==null && _plpMin(p.hasta)!==null;
+  });
+  if(!aprob.length) return out;
+  out.dias.forEach(function(d, idx){
+    const ps=aprob.filter(function(p){ return p.fecha===d.iso; })
+      .sort(function(a,b){ return _plpMin(a.desde)-_plpMin(b.desde); });
+    if(!ps.length) return;
+    let filas=Array.isArray(d.filas)?d.filas:[];
+    const libre=String(d.libre||'').trim();
+    if(libre){
+      // El documento ignora las filas de un día libre: se conserva solo la banda.
+      const f={ desde:'', hasta:'', span:true };
+      if(k==='planta') f.act=libre; else f.uc=libre;
+      filas=[f]; d.libre='';
+    }
+    const res=[];
+    filas.forEach(function(f){
+      const a=_plpMin(f.desde), b=_plpMin(f.hasta);
+      if(f.fijo || a===null || b===null || b<=a){ res.push(f); return; }
+      let segs=[[a,b]];
+      ps.forEach(function(p){
+        if(p.recortar===false) return;
+        const pa=_plpMin(p.desde), pb=_plpMin(p.hasta), nx=[];
+        segs.forEach(function(s){
+          if(pb<=s[0] || pa>=s[1]){ nx.push(s); return; }
+          if(pa>s[0]) nx.push([s[0],pa]);
+          if(pb<s[1]) nx.push([pb,s[1]]);
+        });
+        segs=nx;
+      });
+      segs.forEach(function(s){
+        if(s[0]===a && s[1]===b){ res.push(f); return; }
+        const c=Object.assign({}, f);
+        c.desde=_plpHHMM(s[0]); c.hasta=_plpHHMM(s[1]); c._recortada=true;
+        res.push(c);
+      });
+    });
+    ps.forEach(function(p){
+      const row=_plpFilaDeProp(k, p, cab, idx), pm=_plpMin(p.desde);
+      let pos=res.length;
+      for(let i=0;i<res.length;i++){
+        const m=_plpMin(res[i].desde);
+        if(m!==null && m>pm){ pos=i; break; }
+      }
+      res.splice(pos, 0, row);
+    });
+    d.filas=res;
+  });
+  return out;
+}
+
+// Con qué se choca una actividad en cada horario al que aplica (para el modal).
+function _plpConflictos(sem, c, excluirId){
+  const out=[];
+  if(!sem || !sem.datos) return out;
+  const cab=sem.datos.cab||{};
+  const pa=_plpMin(c.desde), pb=_plpMin(c.hasta);
+  if(pa===null || pb===null || pb<=pa) return out;
+  const otras=PLP.props.filter(function(p){ return p.id!==excluirId && p.estado==='aprobada'; });
+  (c.audiencias||[]).forEach(function(k){
+    const b=_plpMezclarBloque(k, sem.datos[k], otras, cab);
+    if(!b || !b.dias) return;
+    const d=b.dias.filter(function(x){ return x.iso===c.fecha; })[0];
+    if(!d) return;
+    const nom=(_PLP_AUD.filter(function(x){ return x[0]===k; })[0]||[k,k])[1];
+    // Día completo: el documento no muestra sus filas, así que tampoco se listan.
+    if(String(d.libre||'').trim()){ out.push({ k:k, nom:nom, txt:'Día completo: '+d.libre, efecto:'la banda del día se conserva arriba' }); return; }
+    (d.filas||[]).forEach(function(f){
+      const a=_plpMin(f.desde), z=_plpMin(f.hasta);
+      if(a===null || z===null || z<=a || pb<=a || pa>=z) return;
+      const txt=_plpHHMM(a)+'–'+_plpHHMM(z)+' '+String((k==='planta'?f.act:(f.uc||f.modulo))||'').trim();
+      let efecto;
+      if(f.prop) efecto='otra actividad aprobada (se ven las dos)';
+      else if(f.fijo) efecto='fila fija: no se recorta (se ven las dos)';
+      else if(c.recortar===false) efecto='no se recorta (se ven las dos)';
+      else {
+        const quedan=[];
+        if(pa>a) quedan.push(_plpHHMM(a)+'–'+_plpHHMM(pa));
+        if(pb<z) quedan.push(_plpHHMM(pb)+'–'+_plpHHMM(z));
+        efecto = quedan.length ? 'queda '+quedan.join(' y ') : 'sale del documento (la tapa entera)';
+      }
+      out.push({ k:k, nom:nom, txt:txt, efecto:efecto });
+    });
+  });
+  return out;
+}
+
+// ---------- backend ----------
+async function _plpInvoke(accion, extra){
+  const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
+  if(!tok) return {ok:false,error:'sin sesión'};
+  try{
+    const { data, error } = await sb.functions.invoke('planif-propuestas',{ body:Object.assign({accion, token:tok}, extra||{}) });
+    if(error){
+      let msg=error.message||'error', st=0;
+      try{ if(error.context){ st=error.context.status||0;
+        if(typeof error.context.json==='function'){ const b=await error.context.json(); if(b&&b.error) msg=b.error; } } }catch(_){}
+      return {ok:false, error:msg, status:st};
+    }
+    return data||{ok:false,error:'sin respuesta'};
+  }catch(e){ return {ok:false,error:String((e&&e.message)||e)}; }
+}
+// Perfil cacheado POR TOKEN: si otro usuario entra en la misma pestaña, se vuelve a pedir.
+async function _plpPerfil(forzar){
+  const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
+  if(!tok){ PLP.perfil=false; return false; }
+  if(!forzar && PLP.perfilTok===tok && PLP.perfil!==null) return PLP.perfil;
+  const r=await _plpInvoke('perfil');
+  PLP.perfilTok=tok; PLP.perfil=(r.ok && r.perfil) ? r.perfil : false;
+  return PLP.perfil;
+}
+
+// ---------- fechas ----------
+function _plpIso(dt){ return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0'); }
+function _plpHora(dt){ return String(dt.getHours()).padStart(2,'0')+':'+String(dt.getMinutes()).padStart(2,'0'); }
+function _plpProximoLunes(){ const d=new Date(); d.setHours(12,0,0,0); do{ d.setDate(d.getDate()+1); }while(d.getDay()!==1); return _plpIso(d); }
+function _plpFechaLarga(iso){
+  const t=new Date(iso);
+  return t.toLocaleString('es-BO',{timeZone:'America/La_Paz',weekday:'long',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
+}
+function _plpSemanaDe(fecha){ return PLP.semanas.filter(function(s){ return s.fecha_desde<=fecha && fecha<=s.fecha_hasta; })[0]||null; }
+function _plpAbierta(s){ return !!s && Date.now() < new Date(s.cierre).getTime(); }
+function _plpPuedeEditar(p){
+  const u=PLP.perfil;
+  if(!u || p.estado==='retirada') return false;
+  if(u.aprobar) return true;
+  return !!(u.proponer && p.creado_por===u.id && _plpAbierta(_plpSemanaDe(p.fecha)));
+}
+
+// ---------- botón en el panel de cada uno ----------
+// Los 10 oficiales entran por 5 paneles distintos (comandante, estudios, SAC,
+// evaluaciones, profesor...). En vez de tocar cada panel, se inyecta en el que
+// quedó activo después de enterRole. Si el usuario ya no tiene acceso, se REMUEVE.
+async function _plpBoton(){
+  document.querySelectorAll('.plp-btn').forEach(function(b){ b.remove(); });
+  const p=await _plpPerfil(true);
+  if(!p) return;
+  const sc=document.querySelector('.screen.active'); if(!sc) return;
+  const cont=sc.querySelector('.menu-container')||sc.querySelector('.disc-container'); if(!cont) return;
+  const b=document.createElement('button');
+  b.className='btn-mega plp-btn';
+  b.style.cssText='background:linear-gradient(180deg,#1e5bb8,#123a78);margin:0 0 8px;color:#fff';
+  b.onclick=function(){ goPlanifCal(); };
+  const que = p.aprobar ? 'revisar y aprobar las actividades de las secciones'
+            : p.proponer ? 'proponer las actividades de tu sección'
+            : 'ver las actividades de la semana';
+  b.innerHTML='<span class="mega-icon">🗓️</span><span>Horario integrado — '+que+' <b class="plp-cuenta"></b></span>';
+  const ref=cont.querySelector('.btn-mega');
+  cont.insertBefore(b, ref||cont.firstElementChild);
+  if(p.aprobar){
+    const hoy=_plpIso(new Date()), fin=new Date(); fin.setDate(fin.getDate()+28);
+    const r=await _plpInvoke('cargar',{desde:hoy, hasta:_plpIso(fin), con_base:false});
+    if(r.ok){
+      const n=(r.propuestas||[]).filter(function(x){ return x.estado==='pendiente'; }).length;
+      const el=b.querySelector('.plp-cuenta'); if(el && n) el.textContent='· 🔴 '+n+' pendiente'+(n>1?'s':'');
+    }
+  }
+}
+
+// ---------- pantalla ----------
+async function goPlanifCal(fecha){
+  const act=document.querySelector('.screen.active');
+  if(act && act.id!=='screen-planif-cal') PLP.origen=act.id;
+  showScreen('screen-planif-cal');
+  const el=document.getElementById('plp-cal');
+  const av=document.getElementById('plp-aviso');
+  if(av) av.innerHTML='';
+  if(PLP.cal){ PLP.cal.destroy(); PLP.cal=null; }
+  el.innerHTML='<div class="plp-cargando">⏳ Cargando el calendario...</div>';
+  const p=await _plpPerfil();
+  if(!p){ el.innerHTML='<div class="plp-cargando">⚠️ Tu usuario no tiene acceso al horario integrado.<br>Si acabás de recibirlo, cerrá sesión y volvé a entrar.</div>'; return; }
+  try{ await _loadLib(_LIBS.fullcalendar); await _loadLib(_LIBS.fullcalendarEs); }
+  catch(e){ el.innerHTML='<div class="plp-cargando">⚠️ No se pudo cargar el calendario. Revisá la conexión y volvé a intentar.</div>'; return; }
+  el.innerHTML='';
+  PLP.cacheKey=null;
+  const angosto=window.innerWidth<760;
+  PLP.cal=new FullCalendar.Calendar(el,{
+    locale:'es', firstDay:1, timeZone:'local',
+    initialView: angosto?'timeGridDay':'timeGridWeek',
+    initialDate: fecha || _plpProximoLunes(),
+    headerToolbar:{ left:'prev,next today', center:'title', right:'dayGridMonth,timeGridWeek,timeGridDay' },
+    buttonText:{ today:'Hoy', month:'Mes', week:'Semana', day:'Día' },
+    slotMinTime:'05:00:00', slotMaxTime:'19:00:00', slotDuration:'00:15:00', snapDuration:'00:05:00',
+    slotLabelInterval:'01:00', slotLabelFormat:{hour:'2-digit',minute:'2-digit',hour12:false},
+    eventTimeFormat:{hour:'2-digit',minute:'2-digit',hour12:false},
+    allDayText:'Día', nowIndicator:true, height:'auto', slotEventOverlap:false,
+    dayMaxEvents:5, selectable:!!p.proponer, selectMirror:true, editable:false,
+    eventDurationEditable:true, eventStartEditable:true,
+    events:function(info, ok, fail){ _plpEventos(info).then(ok).catch(function(e){ console.warn(e); ok([]); }); },
+    eventClassNames:function(a){ return a.event.extendedProps.cls||[]; },
+    eventContent:_plpContenido,
+    eventAllow:function(span){ return !span.allDay; },
+    select:function(info){ _plpNueva(info); },
+    dateClick:function(info){ if(info.view.type==='dayGridMonth') PLP.cal.changeView('timeGridWeek', info.dateStr); },
+    eventClick:function(info){ info.jsEvent.preventDefault(); _plpAbrir(info.event); },
+    eventDrop:_plpMovido, eventResize:_plpMovido
+  });
+  PLP.cal.render();
+  _plpBarra();
+}
+function plpVolver(){
+  _plpCerrarModal();
+  if(PLP.cal){ PLP.cal.destroy(); PLP.cal=null; }
+  const dest=PLP.origen; PLP.origen=null;
+  if(dest){ showScreen(dest); if(dest==='screen-planif-sem' && PLANIF.sem){ _plpTraerAprobadas(PLANIF.sem); } }
+  else if(typeof esAdminPanel==='function' && esAdminPanel()) showScreen('screen-disc-panel');
+  else showScreen('screen-panel-generico');
+}
+function plpVista(v){ PLP.vista=v; _plpBarra(); if(PLP.cal) PLP.cal.refetchEvents(); }
+function _plpRecargar(){ PLP.recargar=true; if(PLP.cal) PLP.cal.refetchEvents(); }
+
+async function _plpEventos(info){
+  const desde=_plpIso(info.start), hasta=_plpIso(new Date(info.end.getTime()-1));
+  const conBase=(info.end-info.start) <= 8*864e5;
+  const key=desde+'|'+hasta+'|'+conBase;
+  if(PLP.cacheKey!==key || PLP.recargar){
+    const r=await _plpInvoke('cargar',{desde:desde, hasta:hasta, con_base:conBase});
+    const av=document.getElementById('plp-aviso');
+    if(!r.ok){
+      if(av) av.innerHTML='<div class="plp-av plp-av-err">⚠️ '+_plEsc(r.error)
+        +(/no autorizado/i.test(r.error)?' — cerrá sesión y volvé a entrar.':'')+'</div>';
+      return [];
+    }
+    if(av) av.innerHTML='';
+    PLP.semanas=r.semanas||[]; PLP.props=r.propuestas||[]; PLP.perfil=r.perfil||PLP.perfil;
+    PLP.conBase=conBase; PLP.cacheKey=key; PLP.recargar=false;
+  }
+  _plpBarra();
+  return _plpArmarEventos();
+}
+
+function _plpArmarEventos(){
+  const ev=[], v=PLP.vista, u=PLP.perfil||{};
+  const aprob=PLP.props.filter(function(p){ return p.estado==='aprobada'; });
+  if(PLP.conBase && v!=='todas'){
+    PLP.semanas.forEach(function(s){
+      if(!s.datos || !s.datos[v]) return;
+      const b=_plpMezclarBloque(v, s.datos[v], aprob, s.datos.cab||{});
+      (b.dias||[]).forEach(function(d){
+        if(String(d.libre||'').trim()){
+          ev.push({ id:'L'+v+d.iso, title:d.libre, start:d.iso, allDay:true,
+            extendedProps:{ tipo:'base', fila:{act:d.libre, span:true}, cls:['plp-base','plp-franja'] } });
+        }
+        (d.filas||[]).forEach(function(f,j){
+          if(f.prop) return;                       // las propuestas van con su color, abajo
+          const titulo=String((v==='planta'?f.act:(f.uc||f.modulo))||'').trim() || '(sin texto)';
+          const a=_plpMin(f.desde);
+          if(a===null){
+            ev.push({ id:'B'+v+d.iso+'-'+j, title:titulo, start:d.iso, allDay:true,
+              extendedProps:{ tipo:'base', fila:f, cls:['plp-base','plp-franja'] } });
+            return;
+          }
+          let z=_plpMin(f.hasta); if(z===null || z<=a) z=a+5;
+          ev.push({ id:'B'+v+d.iso+'-'+j, title:titulo, start:d.iso+'T'+_plpHHMM(a), end:d.iso+'T'+_plpHHMM(z),
+            extendedProps:{ tipo:'base', fila:f, cls:['plp-base'].concat(f.span?['plp-franja']:[]).concat(f._recortada?['plp-recortada']:[]) } });
+        });
+      });
+    });
+  }
+  PLP.props.forEach(function(p){
+    if(PLP.conBase && v!=='todas' && (p.audiencias||[]).indexOf(v)<0) return;
+    if(p.estado==='rechazada' && !(u.aprobar || p.creado_por===u.id)) return;
+    const puede=_plpPuedeEditar(p);
+    ev.push({ id:'P'+p.id, title:p.actividad, start:p.fecha+'T'+p.desde, end:p.fecha+'T'+p.hasta,
+      editable:puede, startEditable:puede, durationEditable:puede,
+      extendedProps:{ tipo:'prop', p:p, cls:['plp-prop','plp-'+p.estado].concat(p.creado_por===u.id?['plp-mia']:[]) } });
+  });
+  return ev;
+}
+
+function _plpContenido(a){
+  const x=a.event.extendedProps;
+  const hora=a.timeText?'<div class="plp-ev-h">'+_plEsc(a.timeText)+'</div>':'';
+  if(x.tipo!=='prop') return { html:'<div class="plp-ev">'+hora+'<div class="plp-ev-t">'+_plEsc(a.event.title)+'</div></div>' };
+  const p=x.p, aud=(p.audiencias||[]).map(function(k){ return {planta:'Planta',c1:'1er C.',c2:'2do C.'}[k]; }).join(' · ');
+  return { html:'<div class="plp-ev">'+hora+'<div class="plp-ev-t">'+_plEsc(p.actividad)+'</div>'
+    +'<div class="plp-ev-s">'+_plEsc((p.seccion||'')+' · '+_PLP_EST[p.estado]+' · '+aud)+'</div></div>' };
+}
+
+// ---------- barra superior: vista, leyenda, cierre ----------
+function _plpBarra(){
+  const el=document.getElementById('plp-barra'); if(!el) return;
+  const u=PLP.perfil||{};
+  const sub=document.getElementById('plp-sub');
+  if(sub) sub.textContent=(u.nombre||'')+(u.seccion?' · '+u.seccion:'')
+    +(u.aprobar?' · aprueba':(u.proponer?' · propone':' · solo consulta'));
+  const vistas=_PLP_AUD.concat([['todas','Solo propuestas']]);
+  let h='<div class="plp-chips">'+vistas.map(function(x){
+    return '<button class="pl-tab'+(PLP.vista===x[0]?' on':'')+'" onclick="plpVista(\''+x[0]+'\')">'+x[1]+'</button>';
+  }).join('')+'</div>';
+  h+='<div class="plp-leyenda"><span class="plp-sw plp-sw-base"></span>Horario base'
+    +'<span class="plp-sw plp-sw-pend"></span>Pendiente'
+    +'<span class="plp-sw plp-sw-aprob"></span>Aprobada'
+    +'<span class="plp-sw plp-sw-rec"></span>Recortada por una aprobada</div>';
+  const pend=PLP.props.filter(function(p){ return p.estado==='pendiente'; });
+  if(u.aprobar && pend.length){
+    h+='<div class="plp-av plp-av-pend">🔴 <b>'+pend.length+'</b> actividad'+(pend.length>1?'es':'')+' pendiente'+(pend.length>1?'s':'')
+      +' en lo que estás viendo. <button class="btn-primary pl-b" onclick="plpListaPendientes()">Revisar una por una</button></div>';
+  }
+  PLP.semanas.forEach(function(s){
+    const ab=_plpAbierta(s);
+    h+='<div class="plp-av '+(ab?'plp-av-ok':'plp-av-cer')+'">'
+      +(ab?'🟢 ':'🔒 ')+'<b>Semana '+s.semana_num+'</b> — las secciones '+(ab?'pueden proponer hasta el ':'no pueden cambiar nada desde el ')
+      +'<b>'+_plEsc(_plpFechaLarga(s.cierre))+'</b>'+(s.prop_cierre?' (fijado por Planificación)':' (miércoles, por defecto)');
+    if(u.planif){
+      // Hora de Bolivia (UTC-4, sin horario de verano). Fecha + HH:MM en texto: el
+      // datetime-local muestra "11:59 p.m." según el idioma de la PC.
+      const local=new Date(new Date(s.cierre).getTime()-4*3600e3).toISOString();
+      h+='<span class="plp-cierre">Correr el cierre: <input type="date" class="pl-i" id="plp-cierre-d-'+s.id+'" value="'+local.slice(0,10)+'">'
+        +'<input class="pl-i" id="plp-cierre-h-'+s.id+'" style="width:70px" inputmode="numeric" maxlength="5" onblur="_plpFmtHora(this)" value="'+local.slice(11,16)+'">'
+        +'<button class="btn-primary pl-b" onclick="plpFijarCierre('+s.id+',false)">Fijar</button>'
+        +(s.prop_cierre?'<button class="pl-add" onclick="plpFijarCierre('+s.id+',true)">Volver al miércoles</button>':'')+'</span>';
+    }
+    h+='</div>';
+  });
+  if(PLP.cal && PLP.cal.view && PLP.cal.view.type!=='dayGridMonth' && !PLP.semanas.length){
+    h+='<div class="plp-av plp-av-cer">📭 Planificación todavía no creó esta semana: no hay horario base sobre el cual proponer.</div>';
+  }
+  if(u.proponer) h+='<div class="pl-hint">Arrastrá sobre una hora vacía para <b>agregar</b> una actividad; arrastrá la tuya para <b>moverla</b> o estirá su borde para cambiar la hora de fin. Tocá cualquier casilla para ver el detalle.</div>';
+  el.innerHTML=h;
+}
+async function plpFijarCierre(id, volver){
+  let cierre=null;
+  if(!volver){
+    const d=document.getElementById('plp-cierre-d-'+id), t=document.getElementById('plp-cierre-h-'+id);
+    const hora=_plpNormHora(t?t.value:'');
+    if(!d || !/^\d{4}-\d{2}-\d{2}$/.test(d.value) || !/^\d{2}:\d{2}$/.test(hora)){ alert('Elegí la fecha y escribí la hora del cierre (HH:MM).'); return; }
+    cierre=d.value+'T'+hora+':00-04:00';     // lo que se escribe es hora de Bolivia
+  }
+  const r=await _plpInvoke('fijar_cierre',{semana_id:id, cierre:cierre});
+  if(!r.ok){ alert('❌ '+r.error); return; }
+  _plpRecargar();
+}
+
+// ---------- modal ----------
+function _plpCerrarModal(){ const m=document.getElementById('plp-modal'); if(m) m.hidden=true; PLP.edit=null; }
+function _plpModal(html){
+  const m=document.getElementById('plp-modal'), d=document.getElementById('plp-dlg');
+  d.innerHTML=html; m.hidden=false; d.scrollTop=0;
+}
+function _plpNueva(info){
+  PLP.cal.unselect();
+  const u=PLP.perfil||{};
+  if(!u.proponer) return;
+  const fecha=_plpIso(info.start);
+  let desde='08:00', hasta='09:00';
+  if(!info.allDay){ desde=_plpHora(info.start); hasta=_plpHora(info.end); if(hasta<=desde) hasta=_plpHHMM(_plpMin(desde)+30); }
+  const s=_plpSemanaDe(fecha);
+  if(!s){ alert('📭 Planificación todavía no creó la semana de esa fecha.\n\nCuando el auxiliar la arme, vas a poder proponer sobre ella.'); return; }
+  if(!u.aprobar && !_plpAbierta(s)){ alert('🔒 La semana '+s.semana_num+' ya está cerrada para las secciones desde el '+_plpFechaLarga(s.cierre)+'.\n\nPedí el cambio al Jefe de Estudios.'); return; }
+  const aud = PLP.vista==='todas' ? ['planta'] : [PLP.vista];
+  _plpForm({ id:null, fecha:fecha, desde:desde, hasta:hasta, actividad:'', lugar:'', responsable:u.seccion?u.seccion+'.':'',
+    asisten:'TODOS', uniforme:'', audiencias:aud, recortar:true, estado:null });
+}
+function _plpAbrir(ev){
+  const x=ev.extendedProps;
+  if(x.tipo==='prop'){ _plpForm(x.p); return; }
+  const f=x.fila||{}, v=PLP.vista;
+  const fila=function(n,val){ return val?'<div class="plp-dato"><span>'+n+'</span>'+_plEsc(val)+'</div>':''; };
+  _plpModal('<div class="plp-dlg-h">📋 Horario base</div>'
+    +'<div class="plp-dato-t">'+_plEsc(ev.title)+'</div>'
+    +fila('Hora', f.desde?(f.desde+(f.hasta?' – '+f.hasta:'')):'todo el día')
+    +(v==='planta'?fila('Lugar',f.lugar)+fila('Asisten',f.asisten):fila('Módulo',f.modulo)+fila('Código',f.codigo)+fila('Lugar',f.lugar))
+    +fila('Responsable',f.resp)+fila('Uniforme',f.unif)
+    +(f._recortada?'<div class="plp-av plp-av-pend">✂️ Esta fila está recortada por una actividad aprobada. En el documento sale con este horario.</div>':'')
+    +'<div class="pl-hint">Esta fila la arma Planificación en el editor de la semana; desde el calendario no se cambia.</div>'
+    +'<div class="plp-btns"><button class="btn-primary pl-b" onclick="_plpCerrarModal()">Cerrar</button></div>');
+}
+
+function _plpForm(p){
+  const u=PLP.perfil||{};
+  const nueva=!p.id;
+  const puede=nueva || _plpPuedeEditar(p);
+  PLP.edit={ p:p, original:JSON.stringify(_plpCamposDe(p)) };
+  const dis=puede?'':' disabled';
+  const inp=function(id,val,extra){ return '<input class="pl-i" id="plp-f-'+id+'" value="'+_plEsc(val||'')+'"'+dis+(extra||'')+'>'; };
+  let h='<div class="plp-dlg-h">'+(nueva?'➕ Nueva actividad':'🗓️ Actividad')
+    +(p.estado?' <span class="plp-pill plp-pill-'+p.estado+'">'+_PLP_EST[p.estado]+'</span>':'')+'</div>';
+  if(!nueva){
+    h+='<div class="pl-hint" style="margin:0 0 8px">'+_plEsc(p.seccion||'Sin sección')+' · propuesta por '+_plEsc(p.creado_por_nombre||p.creado_por)
+      +(p.aprobado_por_nombre?' · aprobada por '+_plEsc(p.aprobado_por_nombre):'')+'</div>';
+    if(p.estado==='rechazada' && p.motivo_rechazo) h+='<div class="plp-av plp-av-err">❌ Motivo del rechazo: '+_plEsc(p.motivo_rechazo)+'</div>';
+    if(!puede) h+='<div class="plp-av plp-av-cer">'+(u.proponer&&p.creado_por===u.id
+      ?'🔒 La semana ya está cerrada para las secciones. Pedí el cambio al Jefe de Estudios.'
+      :'👁️ Es de otra sección: la ves para saber cómo queda el horario, pero no la podés cambiar.')+'</div>';
+  }
+  h+='<label class="pl-full">Actividad<textarea class="pl-i" id="plp-f-actividad" rows="2"'+dis
+    +' placeholder="Ej: CONFERENCIA &quot;SUICIDIO SUS SEÑALES Y ADVERTENCIAS&quot;">'+_plEsc(p.actividad||'')+'</textarea></label>'
+    +'<div class="pl-grid2 plp-g3">'
+    +'<label>Fecha<input type="date" class="pl-i" id="plp-f-fecha" value="'+_plEsc(p.fecha)+'"'+dis+'></label>'
+    // Texto HH:MM y no type="time": ese control muestra "12:00 p.m." según el idioma de la PC.
+    +'<label>Desde (HH:MM)<input class="pl-i" id="plp-f-desde" inputmode="numeric" maxlength="5" placeholder="08:15" onblur="_plpFmtHora(this)" value="'+_plEsc(p.desde)+'"'+dis+'></label>'
+    +'<label>Hasta (HH:MM)<input class="pl-i" id="plp-f-hasta" inputmode="numeric" maxlength="5" placeholder="09:30" onblur="_plpFmtHora(this)" value="'+_plEsc(p.hasta)+'"'+dis+'></label>'
+    +'</div><div class="pl-grid2" style="margin-top:8px">'
+    +'<label>Lugar'+inp('lugar',p.lugar,' placeholder="PARANINFO"')+'</label>'
+    +'<label>Responsable'+inp('responsable',p.responsable,' placeholder="SEAC."')+'</label>'
+    +'<label>Asisten (plantel)'+inp('asisten',p.asisten,' placeholder="TODOS"')+'</label>'
+    +'<label>Uniforme'+inp('uniforme',p.uniforme,' placeholder="vacío = el del día"')+'</label>'
+    +'</div>'
+    +'<div class="plp-aud"><b>Aplica a:</b> '+_PLP_AUD.map(function(x){
+      return '<label><input type="checkbox" class="plp-f-aud" value="'+x[0]+'"'+((p.audiencias||[]).indexOf(x[0])>=0?' checked':'')+dis+'> '+x[1]+'</label>';
+    }).join('')+'</div>'
+    +'<label class="plp-rec"><input type="checkbox" id="plp-f-recortar"'+(p.recortar!==false?' checked':'')+dis
+    +'> Recortar lo que se superpone en el horario base (las filas fijas —partes, EFM, deportes— nunca se recortan)</label>'
+    +'<div id="plp-conf"></div>';
+  h+='<div class="plp-btns">';
+  if(puede) h+='<button class="btn-primary pl-b" onclick="plpGuardar()">'+(nueva?(u.aprobar?'💾 Guardar (queda aprobada)':'📨 Enviar propuesta'):'💾 Guardar cambios')+'</button>';
+  if(!nueva && puede) h+='<button class="pl-x plp-bw" onclick="plpRetirar()">🗑️ Retirar</button>';
+  if(!nueva && u.aprobar && p.estado!=='aprobada') h+='<button class="btn-primary pl-b plp-b-aprob" onclick="plpAprobar()">✅ Aprobar</button>';
+  if(!nueva) h+='<button class="pl-add" onclick="plpHistorial()">🕘 Historial</button>';
+  h+='<span style="flex:1"></span><button class="pl-add" onclick="_plpCerrarModal()">Cerrar</button></div>';
+  if(!nueva && u.aprobar && p.estado!=='rechazada'){
+    h+='<div class="plp-rech"><label class="pl-full">Motivo (para rechazar)<textarea class="pl-i" id="plp-f-motivo" rows="2" oninput="_plpToggleRech()" placeholder="Ej: choca con la evaluación sumativa"></textarea></label>'
+      +'<button class="pl-x plp-bw" id="plp-b-rech" disabled onclick="plpRechazar()">❌ Rechazar</button></div>';
+  }
+  h+='<div id="plp-hist"></div>';
+  _plpModal(h);
+  const dlg=document.getElementById('plp-dlg');
+  dlg.oninput=dlg.onchange=function(e){ if(e.target && e.target.id!=='plp-f-motivo') _plpPintarConflictos(); };
+  _plpPintarConflictos();
+}
+function _plpToggleRech(){
+  const t=document.getElementById('plp-f-motivo'), b=document.getElementById('plp-b-rech');
+  if(t&&b) b.disabled=String(t.value).trim().length<3;
+}
+function _plpCamposDe(p){
+  return { fecha:p.fecha, desde:p.desde, hasta:p.hasta, actividad:p.actividad||'', lugar:p.lugar||'',
+    responsable:p.responsable||'', asisten:p.asisten||'', uniforme:p.uniforme||'',
+    audiencias:(p.audiencias||[]).slice().sort(), recortar:p.recortar!==false };
+}
+function _plpLeerForm(){
+  const g=function(id){ const e=document.getElementById('plp-f-'+id); return e?String(e.value||'').trim():''; };
+  const aud=[]; document.querySelectorAll('.plp-f-aud').forEach(function(c){ if(c.checked) aud.push(c.value); });
+  const rec=document.getElementById('plp-f-recortar');
+  return { fecha:g('fecha'), desde:_plpNormHora(g('desde')), hasta:_plpNormHora(g('hasta')), actividad:g('actividad'),
+    lugar:g('lugar'), responsable:g('responsable'), asisten:g('asisten'), uniforme:g('uniforme'),
+    audiencias:aud.sort(), recortar:rec?rec.checked:true };
+}
+function _plpPintarConflictos(){
+  const el=document.getElementById('plp-conf'); if(!el || !PLP.edit) return;
+  const c=_plpLeerForm();
+  const s=_plpSemanaDe(c.fecha);
+  if(!s){ el.innerHTML='<div class="plp-av plp-av-cer">📭 No hay semana creada para esa fecha.</div>'; return; }
+  if(!s.datos){ el.innerHTML='<div class="pl-hint">Abrí la vista <b>Semana</b> para ver con qué se superpone en el horario.</div>'; return; }
+  const cf=_plpConflictos(s, c, PLP.edit.p.id);
+  if(!cf.length){ el.innerHTML='<div class="plp-av plp-av-ok">✅ No se superpone con nada del horario base en ese horario.</div>'; return; }
+  el.innerHTML='<div class="plp-av plp-av-pend"><b>Así queda afectado el horario:</b><ul class="pl-ol">'+cf.map(function(x){
+    return '<li><b>'+_plEsc(x.nom)+'</b> · '+_plEsc(x.txt)+' → <i>'+_plEsc(x.efecto)+'</i></li>';
+  }).join('')+'</ul></div>';
+}
+function _plpValidar(c){
+  if(!c.actividad) return 'Escribí la actividad.';
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(c.fecha)) return 'Elegí la fecha.';
+  if(!/^\d{2}:\d{2}$/.test(c.desde) || !/^\d{2}:\d{2}$/.test(c.hasta)) return 'Completá la hora de inicio y de fin.';
+  if(c.hasta<=c.desde) return 'La hora de fin tiene que ser posterior a la de inicio.';
+  if(!c.audiencias.length) return 'Marcá a quién aplica: plantel docente, 1er ciclo o 2do ciclo.';
+  return null;
+}
+async function plpGuardar(){
+  const ed=PLP.edit; if(!ed) return null;
+  const c=_plpLeerForm(), e=_plpValidar(c);
+  if(e){ alert('⚠️ '+e); return null; }
+  const p=ed.p;
+  if(p.id && !(PLP.perfil||{}).aprobar && p.estado==='aprobada'
+     && !confirm('Esta actividad ya está APROBADA.\n\nSi la cambiás vuelve a PENDIENTE hasta que el Jefe de Estudios la apruebe de nuevo. ¿Guardar igual?')) return null;
+  const r=await _plpInvoke('guardar', p.id ? {id:p.id, version:p.version, campos:c} : {campos:c});
+  if(!r.ok){ alert('❌ '+r.error); if(r.status===409) { _plpCerrarModal(); _plpRecargar(); } return null; }
+  _plpCerrarModal(); _plpRecargar();
+  return r.propuesta;
+}
+async function plpRetirar(){
+  const p=PLP.edit&&PLP.edit.p; if(!p) return;
+  if(!confirm('¿Retirar «'+p.actividad+'»?\n\nSale del calendario y del documento. Queda en el historial.')) return;
+  const r=await _plpInvoke('retirar',{id:p.id, version:p.version});
+  if(!r.ok){ alert('❌ '+r.error); return; }
+  _plpCerrarModal(); _plpRecargar();
+}
+async function plpAprobar(){
+  const ed=PLP.edit; if(!ed) return;
+  let p=ed.p;
+  const c=_plpLeerForm(), e=_plpValidar(c);
+  if(e){ alert('⚠️ '+e); return; }
+  // Si el Jefe de Estudios corrigió horas o texto, primero se guarda y después se aprueba.
+  if(JSON.stringify(c)!==ed.original){
+    const g=await _plpInvoke('guardar',{id:p.id, version:p.version, campos:c});
+    if(!g.ok){ alert('❌ '+g.error); return; }
+    p=g.propuesta;
+  }
+  const r=await _plpInvoke('aprobar',{id:p.id, version:p.version});
+  if(!r.ok){ alert('❌ '+r.error); return; }
+  _plpCerrarModal(); _plpRecargar();
+}
+async function plpRechazar(){
+  const p=PLP.edit&&PLP.edit.p; if(!p) return;
+  const t=document.getElementById('plp-f-motivo'), motivo=t?String(t.value).trim():'';
+  if(motivo.length<3){ alert('Escribí el motivo del rechazo.'); return; }
+  if(!confirm('¿Rechazar «'+p.actividad+'»?\n\nMotivo: '+motivo)) return;
+  const r=await _plpInvoke('rechazar',{id:p.id, version:p.version, motivo:motivo});
+  if(!r.ok){ alert('❌ '+r.error); return; }
+  _plpCerrarModal(); _plpRecargar();
+}
+async function plpHistorial(){
+  const p=PLP.edit&&PLP.edit.p, el=document.getElementById('plp-hist'); if(!p||!el) return;
+  el.innerHTML='<div class="pl-hint">⏳ Cargando historial...</div>';
+  const r=await _plpInvoke('historial',{id:p.id});
+  if(!r.ok){ el.innerHTML='<div class="plp-av plp-av-err">⚠️ '+_plEsc(r.error)+'</div>'; return; }
+  const nom={crear:'Creó',modificar:'Modificó',aprobar:'Aprobó',rechazar:'Rechazó',retirar:'Retiró'};
+  el.innerHTML='<div class="pl-card" style="margin-top:10px"><div class="pl-card-h">🕘 Historial</div><ul class="pl-ol">'
+    +r.historial.map(function(h){
+      const d=h.despues||{}, a=h.antes||{};
+      let det='';
+      if(h.accion==='modificar' && (a.fecha!==d.fecha || a.desde!==d.desde || a.hasta!==d.hasta))
+        det=' ('+a.fecha+' '+a.desde+'–'+a.hasta+' → '+d.fecha+' '+d.desde+'–'+d.hasta+')';
+      if(h.accion==='rechazar' && d.motivo_rechazo) det=' — '+d.motivo_rechazo;
+      return '<li>'+_plEsc(_plpFechaLarga(h.en))+' · <b>'+_plEsc(nom[h.accion]||h.accion)+'</b> '+_plEsc(h.usuario_nombre||'')+_plEsc(det)+'</li>';
+    }).join('')+'</ul></div>';
+}
+function plpListaPendientes(){
+  const pend=PLP.props.filter(function(p){ return p.estado==='pendiente'; });
+  _plpModal('<div class="plp-dlg-h">🔴 Pendientes de aprobación</div>'
+    +(pend.length?pend.map(function(p){
+      return '<button class="plp-item" onclick="_plpAbrirId('+p.id+')"><b>'+_plEsc(_plDiaNombre(p.fecha)+' '+_plDiaNum(p.fecha)+' · '+p.desde+'–'+p.hasta)+'</b>'
+        +'<span>'+_plEsc(p.actividad)+'</span><small>'+_plEsc((p.seccion||'')+' · '+(p.creado_por_nombre||''))+'</small></button>';
+    }).join(''):'<div class="pl-hint">No quedan pendientes.</div>')
+    +'<div class="plp-btns"><span style="flex:1"></span><button class="pl-add" onclick="_plpCerrarModal()">Cerrar</button></div>');
+}
+function _plpAbrirId(id){ const p=PLP.props.filter(function(x){ return x.id===id; })[0]; if(p) _plpForm(p); }
+
+async function _plpMovido(info){
+  const ev=info.event, p=ev.extendedProps.p;
+  if(!p || ev.allDay){ info.revert(); return; }
+  const fin=ev.end || new Date(ev.start.getTime()+(_plpMin(p.hasta)-_plpMin(p.desde))*60000);
+  if(_plpIso(fin)!==_plpIso(ev.start)){ info.revert(); alert('La actividad tiene que empezar y terminar el mismo día.'); return; }
+  const campos={ fecha:_plpIso(ev.start), desde:_plpHora(ev.start), hasta:_plpHora(fin) };
+  if(!(PLP.perfil||{}).aprobar && p.estado==='aprobada'
+     && !confirm('Esta actividad ya está APROBADA.\n\nSi la movés vuelve a PENDIENTE hasta que el Jefe de Estudios la apruebe de nuevo. ¿Mover igual?')){ info.revert(); return; }
+  const r=await _plpInvoke('guardar',{id:p.id, version:p.version, campos:campos});
+  if(!r.ok){ info.revert(); alert('❌ '+r.error); }
+  _plpRecargar();
+}
+
+// ---------- enganche con el editor de Planificación ----------
+// Al abrir una semana se traen sus propuestas: las aprobadas entran al documento
+// y el aviso muestra cuántas quedan pendientes.
+async function _plpTraerAprobadas(s){
+  if(!s || !s.fecha_desde) return;
+  PLANIF.props={ estado:'cargando', semId:s.id, lista:[] };
+  const r=await _plpInvoke('cargar',{desde:s.fecha_desde, hasta:s.fecha_hasta, con_base:false});
+  if(!PLANIF.sem || PLANIF.sem.id!==s.id) return;
+  PLANIF.props = r.ok ? { estado:'ok', semId:s.id, lista:(r.propuestas||[]).filter(function(p){ return p.semana_id===s.id; }) }
+                      : { estado:'error', semId:s.id, lista:[], error:r.error };
+  if(document.getElementById('screen-planif-sem').classList.contains('active')) plRenderEditor();
+}
+function _plpBloqueDoc(k){
+  const s=PLANIF.sem, base=s.datos[k];
+  const pr=PLANIF.props;
+  if(!pr || pr.semId!==s.id || !pr.lista.length) return base;
+  return _plpMezclarBloque(k, base, pr.lista, s.datos.cab||{});
+}
+function _plpBannerEditor(){
+  const s=PLANIF.sem, pr=PLANIF.props;
+  if(!s || ['datos','planta','c1','c2'].indexOf(PLANIF.tab)<0) return '';
+  const ir='<button class="btn-primary pl-b" onclick="goPlanifCal(\''+s.fecha_desde+'\')">🗓️ Ver en el calendario</button>';
+  if(!pr || pr.semId!==s.id || pr.estado==='cargando') return '<div class="plp-av plp-av-cer">⏳ Trayendo las actividades de las secciones...</div>';
+  if(pr.estado==='error') return '<div class="plp-av plp-av-err">⚠️ No se pudieron traer las actividades de las secciones ('+_plEsc(pr.error)
+    +'). <b>Si generás el documento ahora, sale SIN ellas.</b></div>';
+  const k=PLANIF.tab, ap=pr.lista.filter(function(p){ return p.estado==='aprobada' && (k==='datos' || p.audiencias.indexOf(k)>=0); });
+  const pe=pr.lista.filter(function(p){ return p.estado==='pendiente'; });
+  if(!ap.length && !pe.length) return '<div class="plp-av plp-av-ok">🗓️ Ninguna sección propuso actividades para esta semana. '+ir+'</div>';
+  return '<div class="plp-av '+(pe.length?'plp-av-pend':'plp-av-ok')+'">🗓️ Actividades de las secciones: <b>'+ap.length+' aprobada'+(ap.length!==1?'s':'')+'</b>'
+    +(k==='datos'?'':' en este horario')+' — se agregan solas al generar el documento (acá abajo no aparecen).'
+    +(pe.length?' 🔴 <b>'+pe.length+' pendiente'+(pe.length>1?'s':'')+'</b> de aprobación.':'')+' '+ir+'</div>';
 }
 
 </script>
