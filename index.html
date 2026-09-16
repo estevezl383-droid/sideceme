@@ -3933,14 +3933,14 @@ body{
   padding:10px 12px; font-size:12px; color:var(--text-secondary); line-height:1.5; margin-bottom:11px }
 .pl-ol{ margin:0; padding-left:20px; font-size:12px; color:var(--text-secondary); line-height:1.7 }
 
-/* ===== v2.9.374: HORARIO INTEGRADO — propuestas de las secciones ===== */
+/* ===== v2.9.375: HORARIO INTEGRADO — propuestas sobre el horario ===== */
 .plp-wrap{ max-width:1500px; margin:0 auto; padding:14px 14px 40px }
 .plp-chips{ display:flex; gap:5px; flex-wrap:wrap; margin-bottom:8px }
 .plp-leyenda{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; font-size:12px; color:var(--text-secondary); margin-bottom:8px }
 .plp-sw{ display:inline-block; width:16px; height:12px; border-radius:3px; margin-right:-8px; vertical-align:middle }
 .plp-sw-base{ background:#3a4556; border:1px solid #5b6a80 }
-.plp-sw-pend{ background:#c62828 }
-.plp-sw-aprob{ background:#1e5bb8 }
+.plp-sw-pend{ background:#1e5bb8 }
+.plp-sw-aprob{ background:#1b7f3b }
 .plp-sw-rec{ background:#3a4556; border:1px dashed #f4d574 }
 .plp-av{ border-radius:8px; padding:8px 11px; font-size:13px; line-height:1.5; margin-bottom:8px; border:1px solid }
 .plp-av-ok{ background:rgba(76,163,107,.10); border-color:#3a8c5a; color:#cdeed8 }
@@ -3970,8 +3970,10 @@ body{
 .fc-event.plp-base .plp-ev-t{ font-weight:600 }
 .fc-event.plp-franja{ background:repeating-linear-gradient(135deg,#252d39 0 6px,#2b3441 6px 12px) !important; color:#9aa6b6 !important }
 .fc-event.plp-recortada{ border:1px dashed #f4d574 !important }
-.fc-event.plp-pendiente{ background:#c62828 !important; border:1px solid #ff8a80 !important; color:#fff !important }
-.fc-event.plp-aprobada{ background:#1e5bb8 !important; border:1px solid #82b1ff !important; color:#fff !important }
+/* v2.9.375 — propuesta PENDIENTE = AZUL; cuando el Jefe de Estudios la aprueba
+   pasa a VERDE. Rechazada = gris tachado. */
+.fc-event.plp-pendiente{ background:#1e5bb8 !important; border:1px solid #82b1ff !important; color:#fff !important }
+.fc-event.plp-aprobada{ background:#1b7f3b !important; border:1px solid #7fe0a0 !important; color:#fff !important }
 .fc-event.plp-rechazada{ background:#4a4a4a !important; color:#ddd !important; text-decoration:line-through; opacity:.8 }
 .fc-event.plp-mia{ box-shadow:inset 4px 0 0 #f4d574 }
 .fc-event.plp-prop{ z-index:3 }
@@ -3985,15 +3987,25 @@ body{
 .plp-aud{ display:flex; flex-wrap:wrap; gap:6px 16px; font-size:14px; margin:10px 0 6px; color:var(--text-primary) }
 .plp-aud label{ font-size:14px; display:inline-flex; align-items:center; gap:5px }
 .plp-rec{ display:flex; gap:6px; align-items:flex-start; font-size:12px; color:var(--text-secondary); margin:4px 0 10px }
+/* ===== v2.9.375: justificación obligatoria, plazo por día y seguimiento ===== */
+.plp-av-just{ background:rgba(212,175,55,.12); border-color:var(--gold); color:#f6e3ae }
+.plp-justif{ display:block; margin:4px 0 10px; font-size:12px; color:#f4d574 }
+.plp-justif i{ color:var(--text-muted); font-style:italic; font-weight:400 }
+.plp-justif textarea{ margin-top:3px }
+.plp-cierre{ display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin:6px 0 0 }
+.plp-dias{ display:inline-flex; flex-wrap:wrap; gap:4px }
+.plp-dias .pl-add{ padding:3px 9px; font-size:12px }
+.plp-cierre-lib{ display:inline-flex; flex-wrap:wrap; align-items:center; gap:5px; font-size:12px; color:var(--text-secondary) }
+.plp-item .plp-just{ color:#f6e3ae; font-style:italic; line-height:1.4 }
 .plp-btns{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px }
 .plp-bw{ width:auto !important; height:auto !important; padding:6px 12px !important; font-size:12px !important }
 .plp-b-aprob{ background:linear-gradient(180deg,#1e5bb8,#123a78) !important; color:#fff !important }
 .plp-rech{ margin-top:12px; padding-top:10px; border-top:1px solid var(--border-subtle) }
 .plp-pill{ font-size:11px; padding:2px 8px; border-radius:10px; color:#fff; font-weight:700 }
-.plp-pill-pendiente{ background:#c62828 } .plp-pill-aprobada{ background:#1e5bb8 } .plp-pill-rechazada{ background:#555 }
+.plp-pill-pendiente{ background:#1e5bb8 } .plp-pill-aprobada{ background:#1b7f3b } .plp-pill-rechazada{ background:#8a3030 }
 .plp-dato{ font-size:14px; margin:3px 0 } .plp-dato span{ display:inline-block; min-width:100px; color:var(--text-muted); font-size:12px }
 .plp-dato-t{ font-size:15px; font-weight:700; margin-bottom:8px }
-.plp-item{ display:flex; flex-direction:column; gap:2px; width:100%; text-align:left; background:rgba(198,40,40,.10); border:1px solid #c62828;
+.plp-item{ display:flex; flex-direction:column; gap:2px; width:100%; text-align:left; background:rgba(30,91,184,.12); border:1px solid #1e5bb8;
   border-radius:8px; padding:8px 10px; margin-bottom:6px; color:var(--text-primary); font-family:inherit; font-size:13px; cursor:pointer }
 .plp-item small{ color:var(--text-muted) }
 @media (max-width:600px){ .plp-g3{ grid-template-columns:1fr 1fr } #plp-cal .fc-toolbar{ flex-direction:column; gap:6px } }
@@ -4012,7 +4024,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.374</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.375</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -5877,7 +5889,7 @@ body{
   </div>
 </section>
 
-<!-- v2.9.374: HORARIO INTEGRADO — propuestas de las secciones -->
+<!-- v2.9.375: HORARIO INTEGRADO — propuestas sobre el horario -->
 <section id="screen-planif-cal" class="screen">
   <div class="app-header">
     <button class="back-btn" onclick="plpVolver()">←</button>
@@ -45264,7 +45276,7 @@ function _plMigrarEfmDep(){
       // reemplaza por el bloque de EFM, que termina con su propio parte 08:10.
       const resto=d.filas.filter(function(f){ return !(f.desde && _plMin(f.desde)<480); });
       const prim=resto.find(function(f){ return f.desde && _plMin(f.desde)===480; });
-      if(prim) prim.desde=PL_EFM_H.parte[1];                                   // arranca 08:15
+      if(prim) prim.desde=PL_EFM_H.parte[1];                                   // arranca 08:00
       d.filas=(k==='planta'?_plFijasEfmPlanta():_plFijasEfmCiclo()).concat(resto);
       toco=true;
     });
@@ -45357,9 +45369,10 @@ function _plSpan(txt){ return {desde:'',hasta:'',act:txt,lugar:'',asisten:'',res
 // ------------------------------------------------------------
 // El ENTRENAMIENTO FÍSICO MILITAR es MARTES y JUEVES A PRIMERA HORA — no a las
 // 13:15 como decía el esqueleto viejo, que por eso no aparecía en casi ningún
-// horario. Copiado del horario firmado: parte al Jefe de Estudios 05:50, parte
-// al Comandante 05:55, EFM 06:00-06:50 en las canchas del COE. con uniforme
-// N° 8, y recién 08:10-08:15 el parte de la mañana (las clases arrancan 08:15).
+// horario. v2.9.375 — copiado del horario FIRMADO del 14 al 20 de septiembre de
+// 2026: una sola fila 05:30-06:30 «PARTE ... Y ENTRENAMIENTO FÍSICO MILITAR» en
+// las canchas del COE. con uniforme N° 8, y el parte 07:50-08:00 en el Patio de
+// Honor (las clases arrancan 08:00 todos los días).
 // Va en los TRES horarios: planta, 1er ciclo y 2do ciclo.
 //
 // DEPORTES es por la TARDE, 15:00-16:30: planta el JUEVES, 1er ciclo el
@@ -45370,8 +45383,16 @@ function _plSpan(txt){ return {desde:'',hasta:'',act:txt,lugar:'',asisten:'',res
 // ============================================================
 const PL_EFM_DIAS = [1,3];                       // 0=lunes … EFM martes y jueves
 const PL_DEP_DIA  = { planta:3, c1:4, c2:3 };    // deportes: jueves · viernes · jueves
-const PL_EFM_H    = { p1:['05:50','05:55'], p2:['05:55','06:00'],
-                      efm:['06:00','06:50'], parte:['08:10','08:15'] };
+// v2.9.375 — HORAS DEL HORARIO FIRMADO «DEL 14 AL 20 DE SEPTIEMBRE 2026»:
+// una SOLA fila de 05:30 a 06:30 que junta el parte y el Entrenamiento Físico
+// Militar en las canchas del COE., y el parte de la mañana 07:50-08:00 en el
+// Patio de Honor. Las clases arrancan 08:00 TODOS los días (antes los días de
+// EFM arrancaban 08:15, que era la hora del esqueleto viejo).
+const PL_EFM_H    = { efm:['05:30','06:30'], parte:['07:50','08:00'] };
+// Texto de la fila de 05:30: en el horario de PLANTA el parte es al Comandante;
+// en los horarios de CICLO es al Supervisor Académico Disciplinario.
+const PL_EFM_TXT_PLANTA = 'PARTE AL SR. COMANDANTE ECEME. Y ENTRENAMIENTO FÍSICO MILITAR';
+const PL_EFM_TXT_CICLO  = 'PARTE AL SUPERVISOR ACADÉMICO DISCIPLINARIO Y ENTRENAMIENTO FÍSICO MILITAR';
 const PL_DEP_H    = ['15:00','16:30'];
 const PL_LUGAR_EFM= 'CANCHAS COE.';
 const PL_UNIF_EFM = 'N° 8';
@@ -45409,10 +45430,8 @@ function _plEsTarde(f){ return _plMin(f&&f.desde) >= 780; }
 // Las 4 filas de la mañana de EFM, tal cual el horario firmado.
 function _plFijasEfmPlanta(){
   const f=[
-    _plFilaPlanta(PL_EFM_H.p1[0],PL_EFM_H.p1[1],'PARTE AL SR. JEFE DE ESTUDIOS',PL_LUGAR_EFM,'TODOS','JEFES DE SECCIÓN',PL_UNIF_EFM),
-    _plFilaPlanta(PL_EFM_H.p2[0],PL_EFM_H.p2[1],'PARTE AL SR. COMANDANTE ECEME.',PL_LUGAR_EFM,'TODOS','JEFE DE ESTUDIOS',PL_UNIF_EFM),
-    _plFilaPlanta(PL_EFM_H.efm[0],PL_EFM_H.efm[1],'ENTRENAMIENTO FÍSICO MILITAR',PL_LUGAR_EFM,'TODOS','JEFES DE SECCIÓN',PL_UNIF_EFM),
-    _plFilaPlanta(PL_EFM_H.parte[0],PL_EFM_H.parte[1],'PARTE AL SR. JEFE DE ESTUDIOS','PATIO DE HONOR','TODOS','JEFES DE SECCIÓN','N° 3-C')
+    _plFilaPlanta(PL_EFM_H.efm[0],PL_EFM_H.efm[1],PL_EFM_TXT_PLANTA,PL_LUGAR_EFM,'TODOS','JEFE DE ESTUDIOS',PL_UNIF_EFM),
+    _plFilaPlanta(PL_EFM_H.parte[0],PL_EFM_H.parte[1],'PARTE AL SR. COMANDANTE ECEME.','PATIO DE HONOR','TODOS','JEFE DE ESTUDIOS','N° 3-C')
   ];
   f.forEach(function(x){ x.fijo=true; });
   return f;
@@ -45425,10 +45444,8 @@ function _plFijasEfmCiclo(){
     r.fijo=true; return r;
   };
   return [
-    mk(PL_EFM_H.p1,'PARTE AL SR. JEFE DE ESTUDIOS','JEFE DE CURSO'),
-    mk(PL_EFM_H.p2,'PARTE AL SR. COMANDANTE ECEME.','JEFE DE ESTUDIOS'),
-    mk(PL_EFM_H.efm,'ENTRENAMIENTO FÍSICO MILITAR','JEFE DE CURSO'),
-    mk(PL_EFM_H.parte,'PARTE AL SR. JEFE DE ESTUDIOS','JEFE DE CURSO','PATIO DE HONOR','N° 3-C')
+    mk(PL_EFM_H.efm,PL_EFM_TXT_CICLO,'SUB. SECCIÓN EFM. Y DEPORTES'),
+    mk(PL_EFM_H.parte,'PARTE AL JEFE DE CURSO','JEFE DE ESTUDIOS','PATIO DE HONOR','N° 3-C')
   ];
 }
 
@@ -45440,7 +45457,7 @@ function _plDiaPlantaRutina(idx, md){
     f.push(_plFilaPlanta(PL_EFM_H.parte[1],'09:30','ACTIVIDADES ADMINISTRATIVAS Y ACADÉMICAS','ECEME.','TODOS','JEFES DE SECCIÓN','N° 3-C'));
   } else {
     if(idx===0) f.push(_plFilaPlanta('07:35','08:00','PARTE AL SR. COMANDANTE ECEME. E IZA DE LA BANDERA','PATIO DE HONOR','TODOS','JEFE DE ESTUDIOS','N° 3-C  CON SABLE'));
-    else        f.push(_plFilaPlanta('07:55','08:00','PARTE AL SR. COMANDANTE ECEME.','PATIO DE HONOR','TODOS','JEFE DE ESTUDIOS','N° 3-C'));
+    else        f.push(_plFilaPlanta('07:50','08:00','PARTE AL SR. COMANDANTE ECEME.','PATIO DE HONOR','TODOS','JEFE DE ESTUDIOS','N° 3-C'));
     f[f.length-1].fijo=true;
     f.push(_plFilaPlanta('08:00','09:30','ACTIVIDADES ADMINISTRATIVAS Y ACADÉMICAS','ECEME.','TODOS','JEFES DE SECCIÓN','N° 3-C'));
   }
@@ -45483,10 +45500,10 @@ function _plDiaCicloRutina(ciclo, idx, md){
     f.push(_plFilaCiclo('07:30','08:00','','PARTE AL SR. COMANDANTE DE LA ECEME. E IZA DE LA BANDERA','','PATIO DE HONOR','N° 3-C CON SABLE','JEFE DE ESTUDIOS - SEIS'));
     f[f.length-1].span=true;
   } else {
-    f.push(_plFilaCiclo('07:55','08:00','','PARTE AL JEFE DE CURSO','','PATIO DE HONOR','N° 3-C','JEFE DE ESTUDIOS'));
+    f.push(_plFilaCiclo('07:50','08:00','','PARTE AL JEFE DE CURSO','','PATIO DE HONOR','N° 3-C','JEFE DE ESTUDIOS'));
     f[f.length-1].span=true;
   }
-  // Los días de EFM la mañana arranca 08:15 (después del parte), no 08:00.
+  // v2.9.375: la mañana arranca 08:00 también los días de EFM (el parte pasó a 07:50-08:00).
   const ini = efm ? PL_EFM_H.parte[1] : '08:00';
   if(ciclo==='c1'){
     f.push(_plFilaCiclo(ini,'10:10','','','','AULAS','N° 3-C',''));
@@ -45529,10 +45546,10 @@ function _plTardeCiclo(f, ciclo, idx, md){
 
 // v2.9.306: las franjas salen del PROGRAMA SEMANAL ACADÉMICO real (se comparó
 // contra `4.- FACULTAD DEL 10 DE AGOSTO AL 16 DE AGOSTO.doc`, ya firmado):
-// la primera fila es la de EFM **06:00-06:50** y NO existe la de 13:00-14:15,
+// la primera fila es la de EFM **05:30-06:30** (v2.9.375) y NO existe la de 13:00-14:15,
 // que era donde el esqueleto viejo ponía "ENTRENAMIENTO FÍSICO MILITAR" a las
 // 13:15 — la hora equivocada, y encima como franja de ancho completo.
-const _PL_FAC_MANANA = ['06:00-06:50','08:00-09:10','09:10-09:50','09:50-10:10','10:10-10:50','10:50-11:30','11:30-11:40','11:40-12:20','12:20-13:00'];
+const _PL_FAC_MANANA = ['05:30-06:30','08:00-09:10','09:10-09:50','09:50-10:10','10:10-10:50','10:50-11:30','11:30-11:40','11:40-12:20','12:20-13:00'];
 const _PL_FAC_TARDE  = ['15:00-15:40','15:40-16:20','16:20-16:40','16:40-17:20','17:20-18:00'];
 // En el documento oficial NINGUNA casilla queda en blanco: lo que no tiene
 // actividad lleva una raya.
@@ -47371,14 +47388,14 @@ function plDiaMateria(k,i,val){
 const PL_PRESETS_TEMPRANO = [
   {d:'05:50',h:'05:55',t:'PARTE AL SR. JEFE DE ESTUDIOS',      l:PL_LUGAR_EFM, r:'JEFES DE SECCIÓN', u:PL_UNIF_EFM},
   {d:'05:55',h:'06:00',t:'PARTE AL SR. COMANDANTE ECEME.',     l:PL_LUGAR_EFM, r:'JEFE DE ESTUDIOS', u:PL_UNIF_EFM},
-  {d:'06:00',h:'06:50',t:'ENTRENAMIENTO FÍSICO MILITAR',       l:PL_LUGAR_EFM, r:'JEFES DE SECCIÓN', u:PL_UNIF_EFM},
+  {d:'05:30',h:'06:30',t:PL_EFM_TXT_PLANTA,                    l:PL_LUGAR_EFM, r:'JEFE DE ESTUDIOS', u:PL_UNIF_EFM},
+  {d:'05:30',h:'06:30',t:PL_EFM_TXT_CICLO,                     l:PL_LUGAR_EFM, r:'SUB. SECCIÓN EFM. Y DEPORTES', u:PL_UNIF_EFM},
   {d:'06:50',h:'07:15',t:'ASEO PERSONAL',                      l:'ECEME.',     r:'JEFE DE CURSO',    u:PL_UNIF_EFM},
   {d:'07:15',h:'07:30',t:'REVISIÓN DE UNIFORMES Y DOCUMENTACIÓN PERSONAL', l:'PATIO DE HONOR', r:'JEFE DE CURSO', u:'N° 3-C'},
   {d:'07:30',h:'08:00',t:'PARTE AL SR. COMANDANTE DE LA ECEME. E IZA DE LA BANDERA', l:'PATIO DE HONOR', r:'JEFE DE ESTUDIOS', u:'N° 3-C  CON SABLE'},
   {d:'07:35',h:'08:00',t:'PARTE AL SR. COMANDANTE ECEME. E IZA DE LA BANDERA', l:'PATIO DE HONOR', r:'JEFE DE ESTUDIOS', u:'N° 3-C  CON SABLE'},
-  {d:'07:55',h:'08:00',t:'PARTE AL SR. COMANDANTE ECEME.',     l:'PATIO DE HONOR', r:'JEFE DE ESTUDIOS', u:'N° 3-C'},
-  {d:'07:55',h:'08:00',t:'PARTE AL JEFE DE CURSO',             l:'PATIO DE HONOR', r:'JEFE DE ESTUDIOS', u:'N° 3-C'},
-  {d:'08:10',h:'08:15',t:'PARTE AL SR. JEFE DE ESTUDIOS',      l:'PATIO DE HONOR', r:'JEFES DE SECCIÓN', u:'N° 3-C'}
+  {d:'07:50',h:'08:00',t:'PARTE AL SR. COMANDANTE ECEME.',     l:'PATIO DE HONOR', r:'JEFE DE ESTUDIOS', u:'N° 3-C'},
+  {d:'07:50',h:'08:00',t:'PARTE AL JEFE DE CURSO',             l:'PATIO DE HONOR', r:'JEFE DE ESTUDIOS', u:'N° 3-C'}
 ];
 function plFilaTemprano(k,i,idx){
   const p=PL_PRESETS_TEMPRANO[parseInt(idx,10)]; if(!p) return;
@@ -47790,11 +47807,21 @@ function renderPlanifPanel(){
 
 
 // ============================================================
-// v2.9.374 — HORARIO INTEGRADO: PROPUESTAS DE LAS SECCIONES
-// Los jefes de sección (planif_editores) proponen actividades sobre la semana
-// que armó Planificación; el Jefe de Estudios las aprueba. Pendiente = ROJO,
-// aprobada = AZUL. El cierre por defecto es el miércoles anterior a las 23:59
-// y Planificación (Sof. Arce) lo puede correr semana por semana.
+// ============================================================
+// ============================================================
+// v2.9.375 — HORARIO INTEGRADO: PROPUESTAS SOBRE EL HORARIO
+// CUALQUIER profesor propone actividades sobre la semana que armó Planificación
+// —y SIEMPRE escribiendo por qué—; el Jefe de Estudios lee la justificación y
+// aprueba. Pendiente = AZUL, aprobada = VERDE.
+//
+// Permisos especiales (tabla planif_editores):
+//   · puede_aprobar → Jefe de Estudios (Cnl. Baptista)
+//   · puede_efm     → Tcnl. Aguirre, My. Linares y Tcnl. Fuentes: son los únicos
+//                     que mueven el ENTRENAMIENTO FÍSICO de martes y jueves
+//   · puede_cierre  → Cnl. Montecinos, Tcnl. Morales, Tcnl. Villarroel y el
+//                     Sof. Arce: corren el plazo hasta el día que quieran
+//   · ve_todo       → los mismos + el Comandante: panel de seguimiento
+// El cierre por defecto es el miércoles anterior a las 23:59.
 //
 // 🔑 LAS APROBADAS NO SE ESCRIBEN EN planif_semanas.datos. Se mezclan con la
 // base recién al dibujar (calendario) y al generar el documento
@@ -47845,6 +47872,12 @@ function _plpFilaDeProp(k, p, cab, idx){
     unif:unif, resp:p.responsable||'', span:false, act3:true, prop:p.id };
 }
 
+// ¿Esta fila del horario base es la del Entrenamiento Físico Militar?
+// (la del PDF firmado dice «PARTE ... Y ENTRENAMIENTO FÍSICO MILITAR»).
+function _plpEsFilaEfm(f){
+  return /ENTRENAMIENTO F[IÍ]SICO/i.test(String((f && (f.act || f.uc)) || ''));
+}
+
 // Mezcla la base de UN bloque (planta / c1 / c2) con las propuestas aprobadas.
 // Devuelve una COPIA; la base guardada no se toca nunca.
 //  - Las filas `fijo` (partes, EFM, deportes) no se recortan.
@@ -47869,6 +47902,12 @@ function _plpMezclarBloque(k, bloque, props, cab){
       const f={ desde:'', hasta:'', span:true };
       if(k==='planta') f.act=libre; else f.uc=libre;
       filas=[f]; d.libre='';
+    }
+    // v2.9.375 — una propuesta de tipo 'efm' MUEVE el Entrenamiento Físico: como
+    // las filas `fijo` nunca se recortan, hay que sacarla a mano para que no
+    // quede duplicada con la hora nueva.
+    if(ps.some(function(p){ return p.tipo==='efm'; })){
+      filas=filas.filter(function(f){ return !_plpEsFilaEfm(f); });
     }
     const res=[];
     filas.forEach(function(f){
@@ -47985,9 +48024,9 @@ function _plpPuedeEditar(p){
 }
 
 // ---------- botón en el panel de cada uno ----------
-// Los 10 oficiales entran por 5 paneles distintos (comandante, estudios, SAC,
-// evaluaciones, profesor...). En vez de tocar cada panel, se inyecta en el que
-// quedó activo después de enterRole. Si el usuario ya no tiene acceso, se REMUEVE.
+// v2.9.375: entra CUALQUIER profesor, y cada uno llega por un panel distinto
+// (comandante, estudios, SAC, evaluaciones, profesor...). En vez de tocar cada
+// panel, se inyecta en el que quedó activo después de enterRole.
 async function _plpBoton(){
   document.querySelectorAll('.plp-btn').forEach(function(b){ b.remove(); });
   const p=await _plpPerfil(true);
@@ -47998,18 +48037,21 @@ async function _plpBoton(){
   b.className='btn-mega plp-btn';
   b.style.cssText='background:linear-gradient(180deg,#1e5bb8,#123a78);margin:0 0 8px;color:#fff';
   b.onclick=function(){ goPlanifCal(); };
-  const que = p.aprobar ? 'revisar y aprobar las actividades de las secciones'
-            : p.proponer ? 'proponer las actividades de tu sección'
+  const que = p.aprobar ? 'leer las justificaciones y aprobar los cambios'
+            : p.veTodo  ? 'seguir y aprobar el movimiento del horario'
+            : p.efm     ? 'mover el Entrenamiento Físico y proponer actividades'
+            : p.proponer ? 'proponer un cambio al horario (con su justificación)'
             : 'ver las actividades de la semana';
   b.innerHTML='<span class="mega-icon">🗓️</span><span>Horario integrado — '+que+' <b class="plp-cuenta"></b></span>';
   const ref=cont.querySelector('.btn-mega');
   cont.insertBefore(b, ref||cont.firstElementChild);
-  if(p.aprobar){
+  if(p.aprobar || p.veTodo){
     const hoy=_plpIso(new Date()), fin=new Date(); fin.setDate(fin.getDate()+28);
     const r=await _plpInvoke('cargar',{desde:hoy, hasta:_plpIso(fin), con_base:false});
     if(r.ok){
       const n=(r.propuestas||[]).filter(function(x){ return x.estado==='pendiente'; }).length;
-      const el=b.querySelector('.plp-cuenta'); if(el && n) el.textContent='· 🔴 '+n+' pendiente'+(n>1?'s':'');
+      const el=b.querySelector('.plp-cuenta');
+      if(el && n) el.textContent='· 🔵 '+n+(p.aprobar?(' esperando tu aprobación'):(' sin aprobar'));
     }
   }
 }
@@ -48130,7 +48172,7 @@ function _plpContenido(a){
   const hora=a.timeText?'<div class="plp-ev-h">'+_plEsc(a.timeText)+'</div>':'';
   if(x.tipo!=='prop') return { html:'<div class="plp-ev">'+hora+'<div class="plp-ev-t">'+_plEsc(a.event.title)+'</div></div>' };
   const p=x.p, aud=(p.audiencias||[]).map(function(k){ return {planta:'Planta',c1:'1er C.',c2:'2do C.'}[k]; }).join(' · ');
-  return { html:'<div class="plp-ev">'+hora+'<div class="plp-ev-t">'+_plEsc(p.actividad)+'</div>'
+  return { html:'<div class="plp-ev">'+hora+'<div class="plp-ev-t">'+(p.tipo==='efm'?'🏃 ':'')+_plEsc(p.actividad)+'</div>'
     +'<div class="plp-ev-s">'+_plEsc((p.seccion||'')+' · '+_PLP_EST[p.estado]+' · '+aud)+'</div></div>' };
 }
 
@@ -48139,34 +48181,50 @@ function _plpBarra(){
   const el=document.getElementById('plp-barra'); if(!el) return;
   const u=PLP.perfil||{};
   const sub=document.getElementById('plp-sub');
-  if(sub) sub.textContent=(u.nombre||'')+(u.seccion?' · '+u.seccion:'')
-    +(u.aprobar?' · aprueba':(u.proponer?' · propone':' · solo consulta'));
+  if(sub){
+    const poderes=[];
+    if(u.aprobar) poderes.push('aprueba'); else if(u.proponer) poderes.push('propone'); else poderes.push('solo consulta');
+    if(u.efm)    poderes.push('mueve el E.F.M.');
+    if(u.cierre) poderes.push('corre el plazo');
+    if(u.veTodo) poderes.push('hace seguimiento');
+    sub.textContent=(u.nombre||'')+(u.seccion?' · '+u.seccion:'')+' · '+poderes.join(' · ');
+  }
   const vistas=_PLP_AUD.concat([['todas','Solo propuestas']]);
   let h='<div class="plp-chips">'+vistas.map(function(x){
     return '<button class="pl-tab'+(PLP.vista===x[0]?' on':'')+'" onclick="plpVista(\''+x[0]+'\')">'+x[1]+'</button>';
   }).join('')+'</div>';
   h+='<div class="plp-leyenda"><span class="plp-sw plp-sw-base"></span>Horario base'
-    +'<span class="plp-sw plp-sw-pend"></span>Pendiente'
-    +'<span class="plp-sw plp-sw-aprob"></span>Aprobada'
+    +'<span class="plp-sw plp-sw-pend"></span>Propuesta — espera al Jefe de Estudios'
+    +'<span class="plp-sw plp-sw-aprob"></span>Aprobada por el Jefe de Estudios'
     +'<span class="plp-sw plp-sw-rec"></span>Recortada por una aprobada</div>';
   const pend=PLP.props.filter(function(p){ return p.estado==='pendiente'; });
   if(u.aprobar && pend.length){
-    h+='<div class="plp-av plp-av-pend">🔴 <b>'+pend.length+'</b> actividad'+(pend.length>1?'es':'')+' pendiente'+(pend.length>1?'s':'')
+    h+='<div class="plp-av plp-av-pend">🔵 <b>'+pend.length+'</b> actividad'+(pend.length>1?'es':'')+' esperando tu aprobación'
       +' en lo que estás viendo. <button class="btn-primary pl-b" onclick="plpListaPendientes()">Revisar una por una</button></div>';
+  }
+  if(u.veTodo){
+    h+='<div class="plp-av plp-av-ok">📊 Seguimiento de la Sección Académica: '+PLP.props.length+' actividad'+(PLP.props.length!==1?'es':'')
+      +' en lo que estás viendo. <button class="btn-primary pl-b" onclick="plpSeguimiento()">Ver quién pidió qué y por qué</button></div>';
   }
   PLP.semanas.forEach(function(s){
     const ab=_plpAbierta(s);
     h+='<div class="plp-av '+(ab?'plp-av-ok':'plp-av-cer')+'">'
       +(ab?'🟢 ':'🔒 ')+'<b>Semana '+s.semana_num+'</b> — las secciones '+(ab?'pueden proponer hasta el ':'no pueden cambiar nada desde el ')
       +'<b>'+_plEsc(_plpFechaLarga(s.cierre))+'</b>'+(s.prop_cierre?' (fijado por Planificación)':' (miércoles, por defecto)');
-    if(u.planif){
+    if(u.cierre){
       // Hora de Bolivia (UTC-4, sin horario de verano). Fecha + HH:MM en texto: el
       // datetime-local muestra "11:59 p.m." según el idioma de la PC.
       const local=new Date(new Date(s.cierre).getTime()-4*3600e3).toISOString();
-      h+='<span class="plp-cierre">Correr el cierre: <input type="date" class="pl-i" id="plp-cierre-d-'+s.id+'" value="'+local.slice(0,10)+'">'
+      // Un clic por día: el plazo se corre al lunes/martes/.../viernes ANTERIOR a
+      // la semana planificada, siempre a las 23:59 de Bolivia.
+      h+='<div class="plp-cierre"><b>Hasta qué día se puede modificar:</b><span class="plp-dias">'
+        +_PLP_DIAS_CIERRE.map(function(d){
+          return '<button class="pl-add" onclick="plpCierreDia('+s.id+','+d[1]+')">'+d[0]+'</button>';
+        }).join('')+'</span>'
+        +'<span class="plp-cierre-lib">o la fecha que quieras: <input type="date" class="pl-i" id="plp-cierre-d-'+s.id+'" value="'+local.slice(0,10)+'">'
         +'<input class="pl-i" id="plp-cierre-h-'+s.id+'" style="width:70px" inputmode="numeric" maxlength="5" onblur="_plpFmtHora(this)" value="'+local.slice(11,16)+'">'
         +'<button class="btn-primary pl-b" onclick="plpFijarCierre('+s.id+',false)">Fijar</button>'
-        +(s.prop_cierre?'<button class="pl-add" onclick="plpFijarCierre('+s.id+',true)">Volver al miércoles</button>':'')+'</span>';
+        +(s.prop_cierre?'<button class="pl-add" onclick="plpFijarCierre('+s.id+',true)">Volver al miércoles</button>':'')+'</span></div>';
     }
     h+='</div>';
   });
@@ -48176,6 +48234,53 @@ function _plpBarra(){
   if(u.proponer) h+='<div class="pl-hint">Arrastrá sobre una hora vacía para <b>agregar</b> una actividad; arrastrá la tuya para <b>moverla</b> o estirá su borde para cambiar la hora de fin. Tocá cualquier casilla para ver el detalle.</div>';
   el.innerHTML=h;
 }
+// Días hasta los que se puede correr el plazo, contados HACIA ATRÁS desde el
+// lunes de la semana planificada: lunes anterior = -7 ... viernes anterior = -3.
+const _PLP_DIAS_CIERRE = [['Lunes',7],['Martes',6],['Miércoles',5],['Jueves',4],['Viernes',3]];
+
+// Corre el plazo al día elegido de la semana anterior, 23:59 hora de Bolivia.
+async function plpCierreDia(id, restar){
+  const s=PLP.semanas.filter(function(x){ return x.id===id; })[0];
+  if(!s) return;
+  const d=new Date(s.fecha_desde+'T12:00:00');
+  d.setDate(d.getDate()-restar);
+  const iso=_plpIso(d);
+  const r=await _plpInvoke('fijar_cierre',{semana_id:id, cierre:iso+'T23:59:00-04:00'});
+  if(!r.ok){ alert('❌ '+r.error); return; }
+  _plpRecargar();
+}
+
+// Panel de seguimiento: TODO lo que se pidió sobre el horario, con su
+// justificación y en qué quedó. Lo ven el Cnl. Montecinos, el Tcnl. Morales,
+// el Tcnl. Villarroel, el Sof. Arce, el Jefe de Estudios y el Comandante.
+function plpSeguimiento(){
+  const lista=PLP.props.slice().sort(function(a,b){
+    return a.fecha===b.fecha ? (a.desde<b.desde?-1:1) : (a.fecha<b.fecha?-1:1);
+  });
+  const cuenta=function(e){ return lista.filter(function(p){ return p.estado===e; }).length; };
+  let h='<div class="plp-dlg-h">📊 Seguimiento del horario</div>'
+    +'<div class="pl-hint" style="margin:0 0 8px">🔵 '+cuenta('pendiente')+' esperando al Jefe de Estudios · '
+    +'🟢 '+cuenta('aprobada')+' aprobada'+(cuenta('aprobada')!==1?'s':'')+' · ❌ '+cuenta('rechazada')+' rechazada'
+    +(cuenta('rechazada')!==1?'s':'')+'</div>';
+  if(!lista.length){
+    h+='<div class="pl-hint">Nadie pidió cambios sobre el horario en las fechas que estás viendo.</div>';
+  } else {
+    h+=lista.map(function(p){
+      const ic={pendiente:'🔵',aprobada:'🟢',rechazada:'❌'}[p.estado]||'·';
+      return '<button class="plp-item" onclick="_plpAbrirId('+p.id+')">'
+        +'<b>'+ic+' '+_plEsc(_plDiaNombre(p.fecha)+' '+_plDiaNum(p.fecha)+' · '+p.desde+'–'+p.hasta)+'</b>'
+        +'<span>'+(p.tipo==='efm'?'🏃 ':'')+_plEsc(p.actividad)+'</span>'
+        +'<small>'+_plEsc((p.creado_por_nombre||'')+(p.seccion?' · '+p.seccion:''))+'</small>'
+        +(p.motivo?'<small class="plp-just">📝 '+_plEsc(p.motivo)+'</small>':'<small class="plp-just">📝 (sin justificación: es anterior a la v2.9.375)</small>')
+        +(p.estado==='aprobada'&&p.aprobado_por_nombre?'<small>✅ Aprobó '+_plEsc(p.aprobado_por_nombre)+'</small>':'')
+        +(p.estado==='rechazada'&&p.motivo_rechazo?'<small>❌ '+_plEsc(p.motivo_rechazo)+'</small>':'')
+        +'</button>';
+    }).join('');
+  }
+  h+='<div class="plp-btns"><span style="flex:1"></span><button class="pl-add" onclick="_plpCerrarModal()">Cerrar</button></div>';
+  _plpModal(h);
+}
+
 async function plpFijarCierre(id, volver){
   let cierre=null;
   if(!volver){
@@ -48236,6 +48341,8 @@ function _plpForm(p){
   if(!nueva){
     h+='<div class="pl-hint" style="margin:0 0 8px">'+_plEsc(p.seccion||'Sin sección')+' · propuesta por '+_plEsc(p.creado_por_nombre||p.creado_por)
       +(p.aprobado_por_nombre?' · aprobada por '+_plEsc(p.aprobado_por_nombre):'')+'</div>';
+    if(p.motivo) h+='<div class="plp-av plp-av-just">📝 <b>Justificación de quien lo pide:</b><br>'+_plEsc(p.motivo)+'</div>';
+    if(p.tipo==='efm') h+='<div class="plp-av plp-av-ok">🏃 Mueve el <b>ENTRENAMIENTO FÍSICO MILITAR</b>: si se aprueba, la fila de las 05:30 sale del horario base y queda esta en su lugar.</div>';
     if(p.estado==='rechazada' && p.motivo_rechazo) h+='<div class="plp-av plp-av-err">❌ Motivo del rechazo: '+_plEsc(p.motivo_rechazo)+'</div>';
     if(!puede) h+='<div class="plp-av plp-av-cer">'+(u.proponer&&p.creado_por===u.id
       ?'🔒 La semana ya está cerrada para las secciones. Pedí el cambio al Jefe de Estudios.'
@@ -48258,7 +48365,18 @@ function _plpForm(p){
       return '<label><input type="checkbox" class="plp-f-aud" value="'+x[0]+'"'+((p.audiencias||[]).indexOf(x[0])>=0?' checked':'')+dis+'> '+x[1]+'</label>';
     }).join('')+'</div>'
     +'<label class="plp-rec"><input type="checkbox" id="plp-f-recortar"'+(p.recortar!==false?' checked':'')+dis
-    +'> Recortar lo que se superpone en el horario base (las filas fijas —partes, EFM, deportes— nunca se recortan)</label>'
+    +'> Recortar lo que se superpone en el horario base (las filas fijas —partes, EFM, deportes— nunca se recortan)</label>';
+  // v2.9.375 — SOLO los encargados de EFM. y Deportes (Tcnl. Aguirre, My. Linares,
+  // Tcnl. Fuentes) y el Jefe de Estudios pueden mover el Entrenamiento Físico.
+  if(u.efm){
+    h+='<label class="plp-rec"><input type="checkbox" id="plp-f-efm"'+(p.tipo==='efm'?' checked':'')+dis
+      +'> 🏃 Esta actividad <b>MUEVE el Entrenamiento Físico Militar</b> de ese día (saca la fila de las 05:30 del horario base)</label>';
+  }
+  // La JUSTIFICACIÓN es obligatoria: es lo que lee el Jefe de Estudios.
+  h+='<label class="pl-full plp-justif">📝 ¿Por qué se altera el horario? <i>(obligatorio, lo lee el Jefe de Estudios)</i>'
+    +'<textarea class="pl-i" id="plp-f-justif" rows="2"'+dis
+    +' placeholder="Ej: disposición del Comando llegada hoy; hay que reconocer el examen de la U.C. antes del cierre de notas.">'
+    +_plEsc(p.motivo||'')+'</textarea></label>'
     +'<div id="plp-conf"></div>';
   h+='<div class="plp-btns">';
   if(puede) h+='<button class="btn-primary pl-b" onclick="plpGuardar()">'+(nueva?(u.aprobar?'💾 Guardar (queda aprobada)':'📨 Enviar propuesta'):'💾 Guardar cambios')+'</button>';
@@ -48283,15 +48401,18 @@ function _plpToggleRech(){
 function _plpCamposDe(p){
   return { fecha:p.fecha, desde:p.desde, hasta:p.hasta, actividad:p.actividad||'', lugar:p.lugar||'',
     responsable:p.responsable||'', asisten:p.asisten||'', uniforme:p.uniforme||'',
-    audiencias:(p.audiencias||[]).slice().sort(), recortar:p.recortar!==false };
+    audiencias:(p.audiencias||[]).slice().sort(), recortar:p.recortar!==false,
+    motivo:p.motivo||'', tipo:p.tipo||'normal' };
 }
 function _plpLeerForm(){
   const g=function(id){ const e=document.getElementById('plp-f-'+id); return e?String(e.value||'').trim():''; };
   const aud=[]; document.querySelectorAll('.plp-f-aud').forEach(function(c){ if(c.checked) aud.push(c.value); });
   const rec=document.getElementById('plp-f-recortar');
+  const efm=document.getElementById('plp-f-efm');
   return { fecha:g('fecha'), desde:_plpNormHora(g('desde')), hasta:_plpNormHora(g('hasta')), actividad:g('actividad'),
     lugar:g('lugar'), responsable:g('responsable'), asisten:g('asisten'), uniforme:g('uniforme'),
-    audiencias:aud.sort(), recortar:rec?rec.checked:true };
+    audiencias:aud.sort(), recortar:rec?rec.checked:true,
+    motivo:g('justif'), tipo:(efm && efm.checked)?'efm':'normal' };
 }
 function _plpPintarConflictos(){
   const el=document.getElementById('plp-conf'); if(!el || !PLP.edit) return;
@@ -48311,6 +48432,8 @@ function _plpValidar(c){
   if(!/^\d{2}:\d{2}$/.test(c.desde) || !/^\d{2}:\d{2}$/.test(c.hasta)) return 'Completá la hora de inicio y de fin.';
   if(c.hasta<=c.desde) return 'La hora de fin tiene que ser posterior a la de inicio.';
   if(!c.audiencias.length) return 'Marcá a quién aplica: plantel docente, 1er ciclo o 2do ciclo.';
+  if(String(c.motivo||'').trim().length<10)
+    return 'Escribí POR QUÉ se altera el horario. Es lo que lee el Jefe de Estudios para aprobar (al menos 10 caracteres).';
   return null;
 }
 async function plpGuardar(){
@@ -48374,10 +48497,11 @@ async function plpHistorial(){
 }
 function plpListaPendientes(){
   const pend=PLP.props.filter(function(p){ return p.estado==='pendiente'; });
-  _plpModal('<div class="plp-dlg-h">🔴 Pendientes de aprobación</div>'
+  _plpModal('<div class="plp-dlg-h">🔵 Esperando tu aprobación</div>'
     +(pend.length?pend.map(function(p){
       return '<button class="plp-item" onclick="_plpAbrirId('+p.id+')"><b>'+_plEsc(_plDiaNombre(p.fecha)+' '+_plDiaNum(p.fecha)+' · '+p.desde+'–'+p.hasta)+'</b>'
-        +'<span>'+_plEsc(p.actividad)+'</span><small>'+_plEsc((p.seccion||'')+' · '+(p.creado_por_nombre||''))+'</small></button>';
+        +'<span>'+(p.tipo==='efm'?'🏃 ':'')+_plEsc(p.actividad)+'</span><small>'+_plEsc((p.seccion||'')+' · '+(p.creado_por_nombre||''))+'</small>'
+        +'<small class="plp-just">📝 '+_plEsc(p.motivo||'(sin justificación: es anterior a la v2.9.375)')+'</small></button>';
     }).join(''):'<div class="pl-hint">No quedan pendientes.</div>')
     +'<div class="plp-btns"><span style="flex:1"></span><button class="pl-add" onclick="_plpCerrarModal()">Cerrar</button></div>');
 }
@@ -48388,9 +48512,14 @@ async function _plpMovido(info){
   if(!p || ev.allDay){ info.revert(); return; }
   const fin=ev.end || new Date(ev.start.getTime()+(_plpMin(p.hasta)-_plpMin(p.desde))*60000);
   if(_plpIso(fin)!==_plpIso(ev.start)){ info.revert(); alert('La actividad tiene que empezar y terminar el mismo día.'); return; }
-  const campos={ fecha:_plpIso(ev.start), desde:_plpHora(ev.start), hasta:_plpHora(fin) };
   if(!(PLP.perfil||{}).aprobar && p.estado==='aprobada'
      && !confirm('Esta actividad ya está APROBADA.\n\nSi la movés vuelve a PENDIENTE hasta que el Jefe de Estudios la apruebe de nuevo. ¿Mover igual?')){ info.revert(); return; }
+  // v2.9.375: mover con el dedo también es alterar el horario, así que también
+  // lleva su justificación.
+  const just=prompt('¿Por qué se cambia la hora de «'+p.actividad+'»?\n\nEl Jefe de Estudios lo lee antes de aprobar.', p.motivo||'');
+  if(just===null){ info.revert(); return; }
+  if(String(just).trim().length<10){ info.revert(); alert('⚠️ Escribí la razón del cambio (al menos 10 caracteres).'); return; }
+  const campos={ fecha:_plpIso(ev.start), desde:_plpHora(ev.start), hasta:_plpHora(fin), motivo:String(just).trim() };
   const r=await _plpInvoke('guardar',{id:p.id, version:p.version, campos:campos});
   if(!r.ok){ info.revert(); alert('❌ '+r.error); }
   _plpRecargar();
