@@ -3997,6 +3997,29 @@ body{
 .plp-dias .pl-add{ padding:3px 9px; font-size:12px }
 .plp-cierre-lib{ display:inline-flex; flex-wrap:wrap; align-items:center; gap:5px; font-size:12px; color:var(--text-secondary) }
 .plp-item .plp-just{ color:#f6e3ae; font-style:italic; line-height:1.4 }
+/* --- Tiradores para ALARGAR / ACORTAR: antes era una flecha de 2 px que nadie
+   veía y que se soltaba sola. Ahora es una barra dorada, arriba y abajo. --- */
+.fc-timegrid-event.plp-prop .fc-event-resizer{ display:block; left:0; right:0; height:14px; cursor:ns-resize; z-index:6; touch-action:none }
+.fc-timegrid-event.plp-prop .fc-event-resizer-start{ top:-3px }
+.fc-timegrid-event.plp-prop .fc-event-resizer-end{ bottom:-3px }
+.fc-timegrid-event.plp-base .fc-event-resizer{ display:none !important }
+.fc-timegrid-event.plp-prop .fc-event-resizer::after{
+  content:'≡'; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+  width:44px; max-width:80%; height:12px; line-height:10px; text-align:center;
+  font-size:12px; font-weight:900; color:#20180a; background:#f4d574;
+  border:1px solid #fff6d0; border-radius:7px; box-shadow:0 1px 5px rgba(0,0,0,.55); }
+.fc-timegrid-event.plp-prop .fc-event-resizer:hover::after{ background:#fff0b0; transform:translate(-50%,-50%) scale(1.12) }
+.fc-event.plp-prop[data-editable]{ cursor:grab }
+.fc-timegrid-event.fc-event-draggable{ cursor:grab }
+.fc-timegrid-event.fc-event-dragging{ cursor:grabbing; opacity:.85 }
+/* --- Botón de agregar, siempre a la vista --- */
+.plp-add-gr{ display:block; width:100%; margin:0 0 8px; padding:10px 12px; font-size:14px; font-weight:800;
+  border-radius:9px; background:linear-gradient(180deg,#1e5bb8,#123a78); color:#fff; border:1px solid #82b1ff; cursor:pointer }
+.plp-add-gr:hover{ filter:brightness(1.15) }
+/* --- Meter una actividad dentro de un bloque del horario base --- */
+.plp-meter{ margin:10px 0 4px; padding:9px 11px; border:1px solid var(--gold); border-radius:9px; background:rgba(212,175,55,.10); color:#f6e3ae; font-size:13px }
+.plp-meter-b{ display:flex; flex-wrap:wrap; gap:6px }
+.plp-meter-b .pl-b{ flex:1 1 30%; min-width:110px }
 .plp-btns{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px }
 .plp-bw{ width:auto !important; height:auto !important; padding:6px 12px !important; font-size:12px !important }
 .plp-b-aprob{ background:linear-gradient(180deg,#1e5bb8,#123a78) !important; color:#fff !important }
@@ -4024,7 +4047,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.375</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.376</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -47809,6 +47832,9 @@ function renderPlanifPanel(){
 // ============================================================
 // ============================================================
 // ============================================================
+// ============================================================
+// ============================================================
+// ============================================================
 // v2.9.375 — HORARIO INTEGRADO: PROPUESTAS SOBRE EL HORARIO
 // CUALQUIER profesor propone actividades sobre la semana que armó Planificación
 // —y SIEMPRE escribiendo por qué—; el Jefe de Estudios lee la justificación y
@@ -47830,7 +47856,8 @@ function renderPlanifPanel(){
 // apenas el auxiliar tocara una coma con la semana abierta.
 // ============================================================
 const PLP = { perfil:null, perfilTok:null, cal:null, vista:'planta', semanas:[], props:[],
-  conBase:false, cacheKey:null, recargar:false, origen:null, pendientesN:0 };
+  conBase:false, cacheKey:null, recargar:false, origen:null, pendientesN:0,
+  volverSiCancela:false, base:null };
 
 const _PLP_AUD = [['planta','Plantel docente'],['c1','1er Ciclo'],['c2','2do Ciclo']];
 const _PLP_EST = { pendiente:'PENDIENTE', aprobada:'APROBADA', rechazada:'RECHAZADA', retirada:'RETIRADA' };
@@ -48084,7 +48111,7 @@ async function goPlanifCal(fecha){
     eventTimeFormat:{hour:'2-digit',minute:'2-digit',hour12:false},
     allDayText:'Día', nowIndicator:true, height:'auto', slotEventOverlap:false,
     dayMaxEvents:5, selectable:!!p.proponer, selectMirror:true, editable:false,
-    eventDurationEditable:true, eventStartEditable:true,
+    eventDurationEditable:true, eventStartEditable:true, eventResizableFromStart:true,
     events:function(info, ok, fail){ _plpEventos(info).then(ok).catch(function(e){ console.warn(e); ok([]); }); },
     eventClassNames:function(a){ return a.event.extendedProps.cls||[]; },
     eventContent:_plpContenido,
@@ -48138,6 +48165,7 @@ function _plpArmarEventos(){
       (b.dias||[]).forEach(function(d){
         if(String(d.libre||'').trim()){
           ev.push({ id:'L'+v+d.iso, title:d.libre, start:d.iso, allDay:true,
+            editable:false, startEditable:false, durationEditable:false,
             extendedProps:{ tipo:'base', fila:{act:d.libre, span:true}, cls:['plp-base','plp-franja'] } });
         }
         (d.filas||[]).forEach(function(f,j){
@@ -48146,11 +48174,16 @@ function _plpArmarEventos(){
           const a=_plpMin(f.desde);
           if(a===null){
             ev.push({ id:'B'+v+d.iso+'-'+j, title:titulo, start:d.iso, allDay:true,
+              editable:false, startEditable:false, durationEditable:false,
               extendedProps:{ tipo:'base', fila:f, cls:['plp-base','plp-franja'] } });
             return;
           }
           let z=_plpMin(f.hasta); if(z===null || z<=a) z=a+5;
           ev.push({ id:'B'+v+d.iso+'-'+j, title:titulo, start:d.iso+'T'+_plpHHMM(a), end:d.iso+'T'+_plpHHMM(z),
+            // El horario base NO se arrastra ni se estira: es de Planificación. Hay que
+            // decirlo fila por fila porque eventDurationEditable del calendario pisa el
+            // editable:false general — sin esto la casilla se dejaba agarrar y volvía sola.
+            editable:false, startEditable:false, durationEditable:false,
             extendedProps:{ tipo:'base', fila:f, cls:['plp-base'].concat(f.span?['plp-franja']:[]).concat(f._recortada?['plp-recortada']:[]) } });
         });
       });
@@ -48193,6 +48226,9 @@ function _plpBarra(){
   let h='<div class="plp-chips">'+vistas.map(function(x){
     return '<button class="pl-tab'+(PLP.vista===x[0]?' on':'')+'" onclick="plpVista(\''+x[0]+'\')">'+x[1]+'</button>';
   }).join('')+'</div>';
+  // v2.9.375 — antes la ÚNICA forma de crear era arrastrar sobre un hueco vacío, y
+  // cuando el día estaba lleno no había hueco donde arrastrar. Este botón siempre está.
+  if(u.proponer) h+='<button class="btn-primary plp-add-gr" onclick="plpNuevaLibre()">➕ Agregar una actividad al horario</button>';
   h+='<div class="plp-leyenda"><span class="plp-sw plp-sw-base"></span>Horario base'
     +'<span class="plp-sw plp-sw-pend"></span>Propuesta — espera al Jefe de Estudios'
     +'<span class="plp-sw plp-sw-aprob"></span>Aprobada por el Jefe de Estudios'
@@ -48231,7 +48267,10 @@ function _plpBarra(){
   if(PLP.cal && PLP.cal.view && PLP.cal.view.type!=='dayGridMonth' && !PLP.semanas.length){
     h+='<div class="plp-av plp-av-cer">📭 Planificación todavía no creó esta semana: no hay horario base sobre el cual proponer.</div>';
   }
-  if(u.proponer) h+='<div class="pl-hint">Arrastrá sobre una hora vacía para <b>agregar</b> una actividad; arrastrá la tuya para <b>moverla</b> o estirá su borde para cambiar la hora de fin. Tocá cualquier casilla para ver el detalle.</div>';
+  if(u.proponer) h+='<div class="pl-hint">Hay <b>tres formas</b> de tocar el horario: el botón <b>➕ Agregar una actividad</b> de arriba; '
+    +'tocar una casilla gris del horario base y elegir <b>poner una actividad adentro</b> (al principio, en el medio o al final); '
+    +'o arrastrar sobre una hora vacía. Las tuyas se <b>mueven</b> arrastrándolas y se <b>alargan o acortan</b> tirando de la '
+    +'<b>barra ⇕ del borde de arriba o de abajo</b>. Siempre se abre la ficha para que escribas por qué.</div>';
   el.innerHTML=h;
 }
 // Días hasta los que se puede correr el plazo, contados HACIA ATRÁS desde el
@@ -48295,7 +48334,12 @@ async function plpFijarCierre(id, volver){
 }
 
 // ---------- modal ----------
-function _plpCerrarModal(){ const m=document.getElementById('plp-modal'); if(m) m.hidden=true; PLP.edit=null; }
+function _plpCerrarModal(){
+  const m=document.getElementById('plp-modal'); if(m) m.hidden=true; PLP.edit=null;
+  // Si la ficha se abrió por un arrastre y se cerró sin guardar, el calendario
+  // tiene que volver a la hora de antes.
+  if(PLP.volverSiCancela){ PLP.volverSiCancela=false; _plpRecargar(); }
+}
 function _plpModal(html){
   const m=document.getElementById('plp-modal'), d=document.getElementById('plp-dlg');
   d.innerHTML=html; m.hidden=false; d.scrollTop=0;
@@ -48319,17 +48363,88 @@ function _plpAbrir(ev){
   if(x.tipo==='prop'){ _plpForm(x.p); return; }
   const f=x.fila||{}, v=PLP.vista;
   const fila=function(n,val){ return val?'<div class="plp-dato"><span>'+n+'</span>'+_plEsc(val)+'</div>':''; };
+  // v2.9.375 — contexto para poder METER una actividad adentro de esta fila.
+  const ini=f.desde||_plpHora(ev.start);
+  const fin=f.hasta||_plpHora(ev.end||new Date(ev.start.getTime()+36e5));
+  PLP.base={ iso:_plpIso(ev.start), desde:ini, hasta:fin, titulo:ev.title };
+  const u=PLP.perfil||{};
+  const dur=(_plpMin(fin)||0)-(_plpMin(ini)||0);
+  let meter='';
+  if(u.proponer && f.desde && f.hasta && dur>=10 && !f.fijo){
+    meter='<div class="plp-meter"><b>➕ ¿Querés poner una actividad DENTRO de este bloque?</b>'
+      +'<div class="pl-hint" style="margin:3px 0 6px">Elegí en qué parte. El bloque se parte solo y lo que queda se acorta; '
+      +'no hace falta arrastrar nada.</div>'
+      +'<div class="plp-meter-b">'
+      +'<button class="btn-primary pl-b" onclick="plpMeterEnBase(\'inicio\')">⬆️ Al principio</button>'
+      +'<button class="btn-primary pl-b" onclick="plpMeterEnBase(\'medio\')">↔️ En el medio</button>'
+      +'<button class="btn-primary pl-b" onclick="plpMeterEnBase(\'fin\')">⬇️ Al final</button>'
+      +'</div></div>';
+  } else if(u.proponer && f.fijo){
+    meter='<div class="plp-av plp-av-cer">🔒 Esta fila es fija (parte, E.F.M. o deportes): no se parte ni se recorta. '
+      +'El E.F.M. solo lo mueven los encargados de EFM. y Deportes.</div>';
+  }
   _plpModal('<div class="plp-dlg-h">📋 Horario base</div>'
     +'<div class="plp-dato-t">'+_plEsc(ev.title)+'</div>'
     +fila('Hora', f.desde?(f.desde+(f.hasta?' – '+f.hasta:'')):'todo el día')
     +(v==='planta'?fila('Lugar',f.lugar)+fila('Asisten',f.asisten):fila('Módulo',f.modulo)+fila('Código',f.codigo)+fila('Lugar',f.lugar))
     +fila('Responsable',f.resp)+fila('Uniforme',f.unif)
     +(f._recortada?'<div class="plp-av plp-av-pend">✂️ Esta fila está recortada por una actividad aprobada. En el documento sale con este horario.</div>':'')
-    +'<div class="pl-hint">Esta fila la arma Planificación en el editor de la semana; desde el calendario no se cambia.</div>'
-    +'<div class="plp-btns"><button class="btn-primary pl-b" onclick="_plpCerrarModal()">Cerrar</button></div>');
+    +meter
+    +'<div class="pl-hint">El texto de esta fila lo arma Planificación en el editor de la semana; desde el calendario no se cambia.</div>'
+    +'<div class="plp-btns"><span style="flex:1"></span><button class="pl-add" onclick="_plpCerrarModal()">Cerrar</button></div>');
 }
 
-function _plpForm(p){
+// Botón «➕ Agregar una actividad»: no necesita ningún hueco libre. Arranca en el
+// primer día de lo que se está mirando que tenga semana creada.
+function plpNuevaLibre(){
+  const u=PLP.perfil||{};
+  if(!u.proponer) return;
+  let iso=null;
+  if(PLP.cal && PLP.cal.view){
+    const d=new Date(PLP.cal.view.currentStart.getTime()), fin=PLP.cal.view.currentEnd;
+    while(d<fin){ if(_plpSemanaDe(_plpIso(d))){ iso=_plpIso(d); break; } d.setDate(d.getDate()+1); }
+  }
+  if(!iso && PLP.semanas.length) iso=PLP.semanas[0].fecha_desde;
+  if(!iso){ alert('📭 Planificación todavía no creó ninguna semana en las fechas que estás viendo.\n\nMovete con ◀ ▶ hasta una semana armada.'); return; }
+  const s=_plpSemanaDe(iso);
+  if(!u.aprobar && !_plpAbierta(s)){
+    alert('🔒 La semana '+s.semana_num+' ya está cerrada para las secciones desde el '+_plpFechaLarga(s.cierre)+'.\n\nPedí el cambio al Jefe de Estudios.');
+    return;
+  }
+  const aud = PLP.vista==='todas' ? ['planta'] : [PLP.vista];
+  _plpForm({ id:null, fecha:iso, desde:'08:00', hasta:'08:30', actividad:'', lugar:'',
+    responsable:u.seccion?u.seccion+'.':'', asisten:'TODOS', uniforme:'',
+    audiencias:aud, recortar:true, estado:null },
+    '🗓️ Poné el <b>día</b> y la <b>hora</b> acá abajo. Si cae encima de algo del horario base, ese bloque se parte solo.');
+}
+
+// Mete una actividad nueva ADENTRO de una fila del horario base, sin arrastrar.
+// 'inicio' | 'medio' | 'fin' — 30 minutos, o el bloque entero si es más corto.
+function plpMeterEnBase(donde){
+  const b=PLP.base; if(!b) return;
+  const a=_plpMin(b.desde), z=_plpMin(b.hasta);
+  if(a===null || z===null || z<=a) return;
+  const largo=Math.min(30, z-a);
+  let ini;
+  if(donde==='inicio')     ini=a;
+  else if(donde==='fin')   ini=z-largo;
+  else                     ini=a+Math.round((z-a-largo)/2/5)*5;
+  const s=_plpSemanaDe(b.iso);
+  const u=PLP.perfil||{};
+  if(!s){ alert('📭 Planificación todavía no creó la semana de esa fecha.'); return; }
+  if(!u.aprobar && !_plpAbierta(s)){
+    alert('🔒 La semana '+s.semana_num+' ya está cerrada para las secciones desde el '+_plpFechaLarga(s.cierre)+'.\n\nPedí el cambio al Jefe de Estudios.');
+    return;
+  }
+  const aud = PLP.vista==='todas' ? ['planta'] : [PLP.vista];
+  _plpForm({ id:null, fecha:b.iso, desde:_plpHHMM(ini), hasta:_plpHHMM(ini+largo), actividad:'',
+    lugar:'', responsable:u.seccion?u.seccion+'.':'', asisten:'TODOS', uniforme:'',
+    audiencias:aud, recortar:true, estado:null },
+    '✂️ Se va a meter dentro de «'+_plEsc(b.titulo)+'» ('+_plEsc(b.desde)+'–'+_plEsc(b.hasta)+'). '
+    +'Ese bloque se parte solo cuando el Jefe de Estudios apruebe.');
+}
+
+function _plpForm(p, aviso){
   const u=PLP.perfil||{};
   const nueva=!p.id;
   const puede=nueva || _plpPuedeEditar(p);
@@ -48338,6 +48453,7 @@ function _plpForm(p){
   const inp=function(id,val,extra){ return '<input class="pl-i" id="plp-f-'+id+'" value="'+_plEsc(val||'')+'"'+dis+(extra||'')+'>'; };
   let h='<div class="plp-dlg-h">'+(nueva?'➕ Nueva actividad':'🗓️ Actividad')
     +(p.estado?' <span class="plp-pill plp-pill-'+p.estado+'">'+_PLP_EST[p.estado]+'</span>':'')+'</div>';
+  if(aviso) h+='<div class="plp-av plp-av-just">'+aviso+'</div>';
   if(!nueva){
     h+='<div class="pl-hint" style="margin:0 0 8px">'+_plEsc(p.seccion||'Sin sección')+' · propuesta por '+_plEsc(p.creado_por_nombre||p.creado_por)
       +(p.aprobado_por_nombre?' · aprobada por '+_plEsc(p.aprobado_por_nombre):'')+'</div>';
@@ -48509,20 +48625,23 @@ function _plpAbrirId(id){ const p=PLP.props.filter(function(x){ return x.id===id
 
 async function _plpMovido(info){
   const ev=info.event, p=ev.extendedProps.p;
-  if(!p || ev.allDay){ info.revert(); return; }
+  if(ev.allDay){ info.revert(); return; }
+  if(!p){
+    info.revert();
+    alert('📋 Esta fila es del horario base y no se arrastra.\n\nTocala y elegí «poner una actividad adentro» (al principio, en el medio o al final): el bloque se parte solo.');
+    return;
+  }
   const fin=ev.end || new Date(ev.start.getTime()+(_plpMin(p.hasta)-_plpMin(p.desde))*60000);
   if(_plpIso(fin)!==_plpIso(ev.start)){ info.revert(); alert('La actividad tiene que empezar y terminar el mismo día.'); return; }
-  if(!(PLP.perfil||{}).aprobar && p.estado==='aprobada'
-     && !confirm('Esta actividad ya está APROBADA.\n\nSi la movés vuelve a PENDIENTE hasta que el Jefe de Estudios la apruebe de nuevo. ¿Mover igual?')){ info.revert(); return; }
-  // v2.9.375: mover con el dedo también es alterar el horario, así que también
-  // lleva su justificación.
-  const just=prompt('¿Por qué se cambia la hora de «'+p.actividad+'»?\n\nEl Jefe de Estudios lo lee antes de aprobar.', p.motivo||'');
-  if(just===null){ info.revert(); return; }
-  if(String(just).trim().length<10){ info.revert(); alert('⚠️ Escribí la razón del cambio (al menos 10 caracteres).'); return; }
-  const campos={ fecha:_plpIso(ev.start), desde:_plpHora(ev.start), hasta:_plpHora(fin), motivo:String(just).trim() };
-  const r=await _plpInvoke('guardar',{id:p.id, version:p.version, campos:campos});
-  if(!r.ok){ info.revert(); alert('❌ '+r.error); }
-  _plpRecargar();
+  // v2.9.375 — ANTES: un prompt() pedía la razón y, si fallaba cualquier cosa, la
+  // casilla «se soltaba y se volvía a bajar» sola. AHORA la casilla se queda donde
+  // la soltaste y se abre su ficha con la hora nueva ya puesta: ahí se escribe la
+  // justificación y se guarda. Si se cierra sin guardar, el calendario se recarga
+  // y vuelve a la hora anterior (nada se pierde).
+  const nuevo=Object.assign({}, p, { fecha:_plpIso(ev.start), desde:_plpHora(ev.start), hasta:_plpHora(fin) });
+  PLP.volverSiCancela=true;
+  _plpForm(nuevo, '⏰ Cambiaste el horario a <b>'+_plEsc(_plpHora(ev.start))+' – '+_plEsc(_plpHora(fin))
+    +'</b>. Escribí abajo por qué y tocá <b>Guardar cambios</b>.');
 }
 
 // ---------- enganche con el editor de Planificación ----------
