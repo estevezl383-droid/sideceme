@@ -4125,7 +4125,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.383</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.384</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -47258,6 +47258,11 @@ function plNSTareaDel(campo,i){ PLANIF.sem.datos.ns[campo].splice(i,1); plMarcar
 // igual que el resto de los reportes de la app.
 // ============================================================
 function _plNl(s){ return _plEsc(s).replace(/\n/g,'<br>'); }
+// v2.9.384 — TODO EL INTERIOR DEL HORARIO VA EN MAYÚSCULAS.
+// Se aplica SOLO dentro de las tablas de los tres horarios; la firma, el lugar y
+// fecha y las notas de servicio se dejan como están escritas.
+function _plMay(t){ return String(t==null?'':t).toUpperCase(); }
+function _plNlM(s){ return _plNl(_plMay(s)); }
 const _PL_TB='border-collapse:collapse;width:100%;table-layout:fixed';
 const _PL_TD='border:1px solid #000;padding:2px 3px;font-size:8.5pt;vertical-align:middle';
 const _PL_TH=_PL_TD+';font-weight:bold;text-align:center;background:#e8e8e8';
@@ -47318,25 +47323,25 @@ function _plDocPlanta(){
   (p.dias||[]).forEach(function(d){
     const nom=_plDiaNombre(d.iso)+'  '+_plDiaNum(d.iso);
     if(d.libre){
-      h+='<tr><td style="'+_PL_TD+';font-weight:bold">'+_plEsc(nom)+'</td>'
-        +'<td colspan="7" style="'+_PL_TD+'">'+_plNl(d.libre)+'</td></tr>';
+      h+='<tr><td style="'+_PL_TD+';font-weight:bold">'+_plEsc(_plMay(nom))+'</td>'
+        +'<td colspan="7" style="'+_PL_TD+'">'+_plNlM(d.libre)+'</td></tr>';
       return;
     }
     const filas=(d.filas||[]);
     if(!filas.length) return;
     filas.forEach(function(f,j){
       h+='<tr>';
-      if(j===0) h+='<td rowspan="'+filas.length+'" style="'+_PL_TD+';font-weight:bold;text-align:center">'+_plEsc(nom)+'</td>';
+      if(j===0) h+='<td rowspan="'+filas.length+'" style="'+_PL_TD+';font-weight:bold;text-align:center">'+_plEsc(_plMay(nom))+'</td>';
       h+='<td style="'+_PL_TD+';text-align:center">'+_plEsc(f.desde)+'</td>'
         +'<td style="'+_PL_TD+';text-align:center">'+_plEsc(f.hasta)+'</td>';
       if(f.span){
-        h+='<td colspan="5" style="'+_PL_TD+';text-align:center;font-weight:bold">'+_plNl(f.act)+'</td>';
+        h+='<td colspan="5" style="'+_PL_TD+';text-align:center;font-weight:bold">'+_plNlM(f.act)+'</td>';
       } else {
-        h+='<td style="'+_PL_TD+'">'+_plNl(f.act)+'</td>'
-          +'<td style="'+_PL_TD+';text-align:center">'+_plNl(f.lugar)+'</td>'
-          +'<td style="'+_PL_TD+';text-align:center">'+_plNl(f.asisten)+'</td>'
-          +'<td style="'+_PL_TD+';text-align:center">'+_plNl(f.resp)+'</td>'
-          +'<td style="'+_PL_TD+';text-align:center">'+_plNl(f.unif)+'</td>';
+        h+='<td style="'+_PL_TD+'">'+_plNlM(f.act)+'</td>'
+          +'<td style="'+_PL_TD+';text-align:center">'+_plNlM(f.lugar)+'</td>'
+          +'<td style="'+_PL_TD+';text-align:center">'+_plNlM(f.asisten)+'</td>'
+          +'<td style="'+_PL_TD+';text-align:center">'+_plNlM(f.resp)+'</td>'
+          +'<td style="'+_PL_TD+';text-align:center">'+_plNlM(f.unif)+'</td>';
       }
       h+='</tr>';
     });
@@ -47344,19 +47349,19 @@ function _plDocPlanta(){
 
   if(p.supervisor){
     h+='<tr><td colspan="3" style="'+_PL_TD+';font-weight:bold">SUPERVISOR ACADÉMICO DE LA SEMANA</td>'
-      +'<td colspan="5" style="'+_PL_TD+';text-align:center;font-weight:bold">'+_plNl(p.supervisor.toUpperCase())+'</td></tr>';
+      +'<td colspan="5" style="'+_PL_TD+';text-align:center;font-weight:bold">'+_plNlM(p.supervisor.toUpperCase())+'</td></tr>';
   }
   const encs=(p.encargados||[]).filter(function(e){ return e.nombre; });
   if(encs.length){
     h+='<tr><td colspan="3" style="'+_PL_TD+';font-weight:bold">ENCARGADOS DE DISCIPLINA</td>'
       +'<td colspan="5" style="'+_PL_TD+'">'
-      +encs.map(function(e){ return _plEsc(e.ciclo)+'&nbsp;&nbsp;'+_plEsc(String(e.nombre).toUpperCase()); }).join('<br>')
+      +encs.map(function(e){ return _plEsc(_plMay(e.ciclo))+'&nbsp;&nbsp;'+_plEsc(String(e.nombre).toUpperCase()); }).join('<br>')
       +'</td></tr>';
   }
   const notas=(p.notas||[]).filter(function(n){ return String(n).trim(); });
   if(notas.length){
     h+='<tr><td colspan="8" style="'+_PL_TD+'"><b>NOTAS ACLARATORIAS:</b><br>'
-      +notas.map(function(n){ return '- '+_plNl(n); }).join('<br>')+'</td></tr>';
+      +notas.map(function(n){ return '- '+_plNlM(n); }).join('<br>')+'</td></tr>';
   }
   h+='</table>';
   h+=_plFirma(c.firmante,c.cargo,c.referencia, s.lugar_fecha||_plLugarFecha(s.fecha_desde));
@@ -47383,32 +47388,32 @@ function _plDocCiclo(k){
   (b.dias||[]).forEach(function(d){
     const nom=_plDiaNombre(d.iso)+'  '+_plDiaNum(d.iso);
     if(d.libre){
-      h+='<tr><td style="'+_PL_TD+';font-weight:bold;text-align:center">'+_plEsc(nom)+'</td>'
-        +'<td colspan="7" style="'+_PL_TD+'">'+_plNl(d.libre)+'</td></tr>';
+      h+='<tr><td style="'+_PL_TD+';font-weight:bold;text-align:center">'+_plEsc(_plMay(nom))+'</td>'
+        +'<td colspan="7" style="'+_PL_TD+'">'+_plNlM(d.libre)+'</td></tr>';
       return;
     }
     const filas=(d.filas||[]);
     if(!filas.length) return;
     filas.forEach(function(f,j){
       h+='<tr>';
-      if(j===0) h+='<td rowspan="'+filas.length+'" style="'+_PL_TD+';font-weight:bold;text-align:center">'+_plEsc(nom)+'</td>';
+      if(j===0) h+='<td rowspan="'+filas.length+'" style="'+_PL_TD+';font-weight:bold;text-align:center">'+_plEsc(_plMay(nom))+'</td>';
       h+='<td style="'+_PL_TD+';text-align:center">'+_plEsc(f.desde)+(f.hasta?(' – '+_plEsc(f.hasta)):'')+'</td>';
       if(f.span){
-        h+='<td colspan="6" style="'+_PL_TD+';text-align:center;font-weight:bold">'+_plNl(f.uc)+'</td>';
+        h+='<td colspan="6" style="'+_PL_TD+';text-align:center;font-weight:bold">'+_plNlM(f.uc)+'</td>';
       } else if(f.act3){
         // v2.9.374: actividad (parte, misa, conferencia...) — como en el horario firmado,
         // el texto ocupa MÓDULO + U.C. + CÓDIGO y conserva lugar, uniforme y responsable.
-        h+='<td colspan="3" style="'+_PL_TD+';text-align:center">'+_plNl(f.uc)+'</td>'
-          +'<td style="'+_PL_TD+';text-align:center">'+_plNl(f.lugar)+'</td>'
-          +'<td style="'+_PL_TD+';text-align:center">'+_plNl(f.unif)+'</td>'
-          +'<td style="'+_PL_TD+'">'+_plNl(f.resp)+'</td>';
+        h+='<td colspan="3" style="'+_PL_TD+';text-align:center">'+_plNlM(f.uc)+'</td>'
+          +'<td style="'+_PL_TD+';text-align:center">'+_plNlM(f.lugar)+'</td>'
+          +'<td style="'+_PL_TD+';text-align:center">'+_plNlM(f.unif)+'</td>'
+          +'<td style="'+_PL_TD+'">'+_plNlM(f.resp)+'</td>';
       } else {
-        h+='<td style="'+_PL_TD+'">'+_plNl(f.modulo)+'</td>'
-          +'<td style="'+_PL_TD+'">'+_plNl(f.uc)+'</td>'
-          +'<td style="'+_PL_TD+';text-align:center">'+_plNl(f.codigo)+'</td>'
-          +'<td style="'+_PL_TD+';text-align:center">'+_plNl(f.lugar)+'</td>'
-          +'<td style="'+_PL_TD+';text-align:center">'+_plNl(f.unif)+'</td>'
-          +'<td style="'+_PL_TD+'">'+_plNl(f.resp)+'</td>';
+        h+='<td style="'+_PL_TD+'">'+_plNlM(f.modulo)+'</td>'
+          +'<td style="'+_PL_TD+'">'+_plNlM(f.uc)+'</td>'
+          +'<td style="'+_PL_TD+';text-align:center">'+_plNlM(f.codigo)+'</td>'
+          +'<td style="'+_PL_TD+';text-align:center">'+_plNlM(f.lugar)+'</td>'
+          +'<td style="'+_PL_TD+';text-align:center">'+_plNlM(f.unif)+'</td>'
+          +'<td style="'+_PL_TD+'">'+_plNlM(f.resp)+'</td>';
       }
       h+='</tr>';
     });
@@ -47417,20 +47422,20 @@ function _plDocCiclo(k){
   // v2.9.295: encargados de curso (en época de menciones, uno por mención)
   if(String(b.encargados_mencion||'').trim()){
     h+='<tr><td colspan="2" style="'+_PL_TD+';font-weight:bold">ENCARGADOS DE CURSO</td>'
-      +'<td colspan="6" style="'+_PL_TD+'">'+_plNl(b.encargados_mencion)+'</td></tr>';
+      +'<td colspan="6" style="'+_PL_TD+'">'+_plNlM(b.encargados_mencion)+'</td></tr>';
   }
   if(String(b.servicio||'').trim()){
     h+='<tr><td colspan="2" style="'+_PL_TD+';font-weight:bold">CURSANTES DE SERVICIO DE AULAS</td>'
-      +'<td colspan="6" style="'+_PL_TD+'">'+_plNl(b.servicio)+'</td></tr>';
+      +'<td colspan="6" style="'+_PL_TD+'">'+_plNlM(b.servicio)+'</td></tr>';
   }
   if(String(b.servicio_efm||'').trim()){
     h+='<tr><td colspan="2" style="'+_PL_TD+';font-weight:bold">CURSANTES DE SERVICIO DE EFM. Y DEPORTES</td>'
-      +'<td colspan="6" style="'+_PL_TD+'">'+_plNl(b.servicio_efm)+'</td></tr>';
+      +'<td colspan="6" style="'+_PL_TD+'">'+_plNlM(b.servicio_efm)+'</td></tr>';
   }
   const notas=(b.notas||[]).filter(function(n){ return String(n).trim(); });
   if(notas.length){
     h+='<tr><td colspan="8" style="'+_PL_TD+'"><b>NOTA:</b><br>'
-      +notas.map(function(n){ return '- '+_plNl(n); }).join('<br>')+'</td></tr>';
+      +notas.map(function(n){ return '- '+_plNlM(n); }).join('<br>')+'</td></tr>';
   }
   h+='</table>';
   h+=_plFirma(c.firmante,c.cargo,c.referencia, s.lugar_fecha||_plLugarFecha(s.fecha_desde));
@@ -47461,8 +47466,8 @@ function _plDocFacultad(){
       const cel=r.celdas||[];
       const unico = r.desc && cel[0] && cel.slice(1).every(function(x){ return !String(x||'').trim(); });
       h+='<tr><td style="'+_PL_TD+';text-align:center;font-weight:bold">'+_plEsc(r.h)+'</td>';
-      if(unico) h+='<td colspan="7" style="'+_PL_TD+';text-align:center;font-weight:bold">'+_plNl(cel[0])+'</td>';
-      else for(let i=0;i<7;i++) h+='<td style="'+_PL_TD+';text-align:center">'+_plNl(cel[i]||'')+'</td>';
+      if(unico) h+='<td colspan="7" style="'+_PL_TD+';text-align:center;font-weight:bold">'+_plNlM(cel[0])+'</td>';
+      else for(let i=0;i<7;i++) h+='<td style="'+_PL_TD+';text-align:center">'+_plNlM(cel[i]||'')+'</td>';
       h+='</tr>';
     });
     h+='<tr><td colspan="8" style="'+_PL_TD+';text-align:center;font-weight:bold">TARDE</td></tr>';
@@ -47473,8 +47478,8 @@ function _plDocFacultad(){
       const cel=r.celdas||[];
       const unico = r.desc && cel[0] && cel.slice(1).every(function(x){ return !String(x||'').trim(); });
       h+='<tr><td style="'+_PL_TD+';text-align:center;font-weight:bold">'+_plEsc(r.h)+'</td>';
-      if(unico) h+='<td colspan="5" style="'+_PL_TD+';text-align:center;font-weight:bold">'+_plNl(cel[0])+'</td>';
-      else for(let i=0;i<5;i++) h+='<td style="'+_PL_TD+';text-align:center">'+_plNl(cel[i]||'')+'</td>';
+      if(unico) h+='<td colspan="5" style="'+_PL_TD+';text-align:center;font-weight:bold">'+_plNlM(cel[0])+'</td>';
+      else for(let i=0;i<5;i++) h+='<td style="'+_PL_TD+';text-align:center">'+_plNlM(cel[i]||'')+'</td>';
       h+='<td colspan="2" style="'+_PL_TD+'"></td></tr>';
     });
     h+='</table>';
