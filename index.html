@@ -4003,7 +4003,19 @@ body{
 .fc-timegrid-event.plp-prop .fc-event-resizer{ display:block; left:0; right:0; height:12px; cursor:ns-resize; z-index:6; touch-action:none }
 .fc-timegrid-event.plp-prop .fc-event-resizer-start{ top:-2px }
 .fc-timegrid-event.plp-prop .fc-event-resizer-end{ bottom:-2px }
-.fc-timegrid-event.plp-base .fc-event-resizer{ display:none !important }
+/* v2.9.386 — el horario base TAMBIÉN se estira, así que su tirador tiene que
+   verse. Va en gris para distinguirlo del dorado de las actividades propias. */
+.fc-timegrid-event.plp-base .fc-event-resizer{ display:block; left:0; right:0; height:12px; cursor:ns-resize; z-index:6; touch-action:none }
+.fc-timegrid-event.plp-base .fc-event-resizer-start{ top:-2px }
+.fc-timegrid-event.plp-base .fc-event-resizer-end{ bottom:-2px }
+.fc-timegrid-event.plp-base .fc-event-resizer::after{
+  content:'≡'; position:absolute; right:5px; top:50%; transform:translateY(-50%);
+  width:34px; max-width:45%; height:11px; line-height:9px; text-align:center;
+  font-size:11px; font-weight:900; color:#0f1620; background:#b9c6d6;
+  border:1px solid #e6eef8; border-radius:6px; box-shadow:0 1px 5px rgba(0,0,0,.55); }
+.fc-timegrid-event.plp-base .fc-event-resizer:hover::after{ background:#e6eef8; transform:translateY(-50%) scale(1.14) }
+.fc-event.plp-base .plp-ev{ padding-top:11px; padding-bottom:11px }
+.fc-event.plp-base .plp-ev-h{ padding-right:44px }
 /* v2.9.378 — el tirador va CORRIDO A LA DERECHA: centrado tapaba el nombre de
    quien pide en las casillas cortas. */
 .fc-timegrid-event.plp-prop .fc-event-resizer::after{
@@ -4024,6 +4036,23 @@ body{
   letter-spacing:.3px; border-radius:9px; background:linear-gradient(180deg,#8a6b12,#5d4708);
   color:#fff6d0; border:1px solid var(--gold); cursor:pointer; font-family:inherit }
 .plp-enc-gr:hover{ filter:brightness(1.2) }
+.plp-prev-gr{ display:block; width:100%; margin:0 0 8px; padding:9px 12px; font-size:13px; font-weight:700;
+  border-radius:9px; background:rgba(255,255,255,.07); color:var(--text-primary);
+  border:1px solid var(--border-subtle); cursor:pointer; font-family:inherit }
+.plp-prev-gr:hover{ background:rgba(212,175,55,.18); border-color:var(--gold); color:#f4d574 }
+/* ===== v2.9.386: la hoja de la vista previa ===== */
+#plp-prev[hidden]{ display:none !important }
+#plp-prev{ position:fixed; inset:0; z-index:10070; background:#3a3a3a; overflow:auto }
+.plp-prev-bar{ position:sticky; top:0; z-index:2; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:10px 14px; background:var(--bg-deep,#0d1726); border-bottom:1px solid var(--gold); color:#f4d574; font-size:13px }
+.plp-prev-bar span{ flex:1; color:var(--text-secondary); font-size:12px }
+.plp-prev-hoja{ background:#fff; color:#000; max-width:880px; margin:18px auto 40px; padding:26px 30px;
+  box-shadow:0 8px 30px rgba(0,0,0,.6); font-family:Arial,Helvetica,sans-serif }
+.plp-prev-hoja table{ width:100% }
+.plp-prev-hoja td,.plp-prev-hoja th{ font-size:9pt }
+/* el menú de click derecho del calendario reusa el estilo del editor */
+.pl-menu .pl-menu-x{ color:#ff9c9c }
+.pl-menu .pl-menu-x:hover{ background:rgba(198,40,40,.28); color:#fff }
 .plp-enc-modo{ display:flex; flex-wrap:wrap; gap:6px; margin:9px 0 10px }
 .plp-enc-modo .pl-tab{ flex:1 1 220px; text-align:left; font-size:12.5px; line-height:1.35; padding:8px 10px }
 .plp-enc-t{ max-height:44vh; overflow:auto; border:1px solid var(--border-subtle); border-radius:8px; margin-bottom:8px }
@@ -4142,7 +4171,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.385</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.386</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -48405,6 +48434,9 @@ function renderPlanifPanel(){
 // ============================================================
 // ============================================================
 // ============================================================
+// ============================================================
+// ============================================================
+// ============================================================
 // v2.9.375 — HORARIO INTEGRADO: PROPUESTAS SOBRE EL HORARIO
 // CUALQUIER profesor propone actividades sobre la semana que armó Planificación
 // —y SIEMPRE escribiendo por qué—; el Jefe de Estudios lee la justificación y
@@ -48712,11 +48744,12 @@ async function goPlanifCal(fecha){
     // v2.9.377 — FullCalendar reparte el ancho de la columna entre las casillas que
     // se pisan, y la propuesta quedaba como una tirita ilegible al lado del horario
     // base. Se marca el CONTENEDOR (.fc-timegrid-event-harness, que es quien lleva el
-    // ancho en un style inline) para que el CSS le devuelva la columna entera a las
-    // dos: el horario base abajo y la propuesta arriba.
+    // ancho en un style inline) para que el CSS le devuelva la columna entera a las dos.
+    // v2.9.386: de paso se engancha el CLICK DERECHO sobre la casilla.
     eventDidMount:function(a){
       const h=a.el.closest('.fc-timegrid-event-harness');
       if(h) h.classList.add(a.event.extendedProps.tipo==='prop' ? 'plp-h-prop' : 'plp-h-base');
+      a.el.addEventListener('contextmenu', function(ev){ plpMenuEvento(ev, a.event); });
     },
     eventContent:_plpContenido,
     eventAllow:function(span){ return !span.allDay; },
@@ -48856,6 +48889,7 @@ function _plpBarra(){
   if(u.proponer) h+='<button class="btn-primary plp-add-gr" onclick="plpNuevaLibre()">➕ Agregar una actividad al horario</button>';
   // v2.9.385 — solo los que pueden reacomodar el horario
   if(u.mover || u.aprobar) h+='<button class="plp-enc-gr" onclick="plpEncajarAbrir()">🔗 ENCAJAR EL DÍA — que nada quede encimado</button>';
+  h+='<button class="plp-prev-gr" onclick="plpVistaPrevia()">👁️ Vista previa — cómo sale impreso</button>';
   h+='<div class="plp-leyenda"><span class="plp-sw plp-sw-base"></span>Horario base'
     +'<span class="plp-sw plp-sw-pend"></span>🔴 Espera al Jefe de Estudios'
     +'<span class="plp-sw plp-sw-aprob"></span>🟢 Aprobada'
@@ -48901,7 +48935,9 @@ function _plpBarra(){
       ? 'Como podés <b>reacomodar el horario</b>, movés y estirás <b>cualquier</b> actividad, sea de quien sea: '
       : 'Las tuyas se ')
     +'<b>mueven</b> arrastrándolas y se <b>alargan o acortan</b> tirando de la '
-    +'<b>barra ⇕ del borde de arriba o de abajo</b>. Siempre se abre la ficha para que escribas por qué.</div>';
+    +'<b>barra ≡ del borde de arriba o de abajo</b>'
+    +(_plpSinJustificar()?'.' : ', y siempre se abre la ficha para que escribas por qué.')
+    +' Con <b>click derecho</b> sobre una casilla la abrís, la aprobás o la borrás.</div>';
   el.innerHTML=h;
 }
 // Días hasta los que se puede correr el plazo, contados HACIA ATRÁS desde el
@@ -49097,7 +49133,8 @@ function _plpEncajarPintar(){
   }
   if(cambia.length && !malas.length){
     h+='<label class="pl-full plp-justif">📝 ¿Por qué se reacomoda el día? <i>(obligatorio)</i>'
-      +'<textarea class="pl-i" id="plp-enc-motivo" rows="2">Se encaja el horario del día para que ninguna actividad quede encimada.</textarea></label>'
+      +'<textarea class="pl-i" id="plp-enc-motivo" rows="2">'
+      +(_plpSinJustificar()?'':'Se encaja el horario del día para que ninguna actividad quede encimada.')+'</textarea></label>'
       +'<div class="plp-av plp-av-pend">Se van a tocar <b>'+cambia.length+'</b> casilla'+(cambia.length>1?'s':'')+'. '
       +'Las del horario base salen como propuesta y las tiene que aprobar el Jefe de Estudios.</div>';
   }
@@ -49112,7 +49149,7 @@ async function plpEncajarAplicar(){
   const u=PLP.perfil||{};
   const t=document.getElementById('plp-enc-motivo');
   const motivo=t?String(t.value).trim():'';
-  if(motivo.length<10){ alert('⚠️ Escribí por qué se reacomoda el día.'); return; }
+  if(!_plpSinJustificar() && motivo.length<10){ alert('⚠️ Escribí por qué se reacomoda el día.'); return; }
   const cambia=e.calc.filter(function(x){ return x.na!==x.a || x.nz!==x.z; });
   if(!cambia.length) return;
   if(e.calc.some(function(x){ return x.imposible || x.pasaDia; })){
@@ -49150,6 +49187,92 @@ async function plpEncajarAplicar(){
     +(fallos.length?'<br>⚠️ No se pudo con:<br>'+fallos.map(_plEsc).join('<br>'):'')+'</div>';
   _plpRecargar();
   if(!fallos.length) setTimeout(_plpCerrarModal, 1400);
+}
+
+// ============================================================
+// v2.9.386 — CLICK DERECHO sobre una casilla del calendario
+// ============================================================
+function _plpCerrarMenuEv(){ const m=document.getElementById('plp-menu-ev'); if(m) m.hidden=true; }
+function plpMenuEvento(ev, evento){
+  const x=evento.extendedProps||{}, u=PLP.perfil||{};
+  ev.preventDefault(); ev.stopPropagation();
+  PLP.menuEv=evento;
+  let m=document.getElementById('plp-menu-ev');
+  if(!m){ m=document.createElement('div'); m.id='plp-menu-ev'; m.className='pl-menu'; document.body.appendChild(m); }
+  let h='';
+  if(x.tipo==='prop'){
+    const p=x.p;
+    h+='<div class="pl-menu-t">'+_plEsc(String(p.actividad||'').slice(0,54))
+      +'<br>👤 '+_plEsc(p.creado_por_nombre||'')+'</div>'
+      +'<button onclick="_plpCerrarMenuEv();_plpAbrirId('+p.id+')">🗓️ Abrir la ficha</button>';
+    if(u.aprobar && p.estado!=='aprobada')
+      h+='<button onclick="plpAprobarId('+p.id+')">✅ Aprobar</button>';
+    if(_plpPuedeEditar(p))
+      h+='<button class="pl-menu-x" onclick="plpBorrarId('+p.id+')">🗑️ Borrar esta actividad</button>';
+  } else {
+    h+='<div class="pl-menu-t">'+_plEsc(String(evento.title||'').slice(0,54))+'<br>Horario base</div>'
+      +'<button onclick="_plpCerrarMenuEv();_plpAbrir(PLP.menuEv)">📋 Ver el detalle / poner una actividad adentro</button>'
+      +'<div class="pl-menu-t" style="border:0;margin:4px 0 0;padding-top:6px">Para moverla o acortarla, arrastrala o tirá de la barra ≡ del borde.</div>';
+  }
+  m.innerHTML=h;
+  m.hidden=false;
+  const an=m.offsetWidth||270, al=m.offsetHeight||100;
+  m.style.left=Math.max(6, Math.min(ev.pageX, window.scrollX+document.documentElement.clientWidth-an-8))+'px';
+  m.style.top =Math.max(6, Math.min(ev.pageY, window.scrollY+document.documentElement.clientHeight-al-8))+'px';
+}
+document.addEventListener('click', function(e){
+  const m=document.getElementById('plp-menu-ev');
+  if(m && !m.hidden && !m.contains(e.target)) m.hidden=true;
+});
+async function plpAprobarId(id){
+  _plpCerrarMenuEv();
+  const p=PLP.props.filter(function(x){ return x.id===id; })[0]; if(!p) return;
+  const r=await _plpInvoke('aprobar',{id:p.id, version:p.version});
+  if(!r.ok){ alert('❌ '+r.error); return; }
+  _plpRecargar();
+}
+async function plpBorrarId(id){
+  _plpCerrarMenuEv();
+  const p=PLP.props.filter(function(x){ return x.id===id; })[0]; if(!p) return;
+  if(!confirm('¿Borrar «'+p.actividad+'»?\n\nSale del calendario y del documento. Queda en el historial.')) return;
+  const r=await _plpInvoke('retirar',{id:p.id, version:p.version});
+  if(!r.ok){ alert('❌ '+r.error); return; }
+  _plpRecargar();
+}
+
+// ============================================================
+// v2.9.386 — VISTA PREVIA DE LA IMPRESIÓN
+// Usa EXACTAMENTE los mismos generadores que el documento final, prestándoles
+// por un momento la semana cargada en el calendario.
+// ============================================================
+function plpVistaPrevia(){
+  const v=(PLP.vista==='todas') ? 'planta' : PLP.vista;
+  const s=PLP.semanas.filter(function(x){ return x.datos; })[0];
+  if(!s){ alert('📄 Poné la vista en SEMANA o DÍA para que se cargue el horario, y volvé a intentar.'); return; }
+  const gSem=PLANIF.sem, gProps=PLANIF.props;
+  let html='';
+  try{
+    PLANIF.sem=Object.assign({}, s);
+    PLANIF.props={ estado:'ok', semId:s.id, lista:PLP.props };
+    html=(v==='planta') ? _plDocPlanta() : _plDocCiclo(v);
+  }catch(e){
+    html='<p style="color:#900">No se pudo armar la vista previa: '+_plEsc(String((e&&e.message)||e))+'</p>';
+  }
+  PLANIF.sem=gSem; PLANIF.props=gProps;
+  const nom={planta:'Horario del personal de planta', c1:'Horario del 1er ciclo', c2:'Horario del 2do ciclo'}[v];
+  let ov=document.getElementById('plp-prev');
+  if(!ov){ ov=document.createElement('div'); ov.id='plp-prev'; document.body.appendChild(ov); }
+  ov.innerHTML='<div class="plp-prev-bar"><b>👁️ Vista previa — '+_plEsc(nom)+' · semana '+_plEsc(String(s.semana_num))+'</b>'
+    +'<span>Así sale impreso. Solo entran las actividades APROBADAS.</span>'
+    +'<button class="pl-add" onclick="plpVistaPreviaCerrar()">Cerrar</button></div>'
+    +'<div class="plp-prev-hoja">'+html+'</div>';
+  ov.hidden=false;
+  document.body.style.overflow='hidden';
+}
+function plpVistaPreviaCerrar(){
+  const ov=document.getElementById('plp-prev');
+  if(ov) ov.hidden=true;
+  document.body.style.overflow='';
 }
 
 // ---------- modal ----------
@@ -49319,7 +49442,8 @@ function _plpForm(p, aviso){
       +'> 🏃 Esta actividad <b>MUEVE el Entrenamiento Físico Militar</b> de ese día (saca la fila de las 05:30 del horario base)</label>';
   }
   // La JUSTIFICACIÓN es obligatoria: es lo que lee el Jefe de Estudios.
-  h+='<label class="pl-full plp-justif">📝 ¿Por qué se altera el horario? <i>(obligatorio, lo lee el Jefe de Estudios)</i>'
+  h+='<label class="pl-full plp-justif">📝 ¿Por qué se altera el horario? <i>'
+    +(_plpSinJustificar()?'(opcional para vos: queda guardado que lo hiciste)':'(obligatorio, lo lee el Jefe de Estudios)')+'</i>'
     +'<textarea class="pl-i" id="plp-f-justif" rows="2"'+dis
     +' placeholder="Ej: disposición del Comando llegada hoy; hay que reconocer el examen de la U.C. antes del cierre de notas.">'
     +_plEsc(p.motivo||'')+'</textarea></label>'
@@ -49378,13 +49502,19 @@ function _plpPintarConflictos(){
     return '<li><b>'+_plEsc(x.nom)+'</b> · '+_plEsc(x.txt)+' → <i>'+_plEsc(x.efecto)+'</i></li>';
   }).join('')+'</ul></div>';
 }
+// v2.9.386 — el Jefe de Estudios y los que reacomodan el horario NO justifican
+// cada cambio: igual queda guardado quién lo hizo.
+function _plpSinJustificar(){
+  const u=PLP.perfil||{};
+  return !!(u.aprobar || u.mover);
+}
 function _plpValidar(c){
   if(!c.actividad) return 'Escribí la actividad.';
   if(!/^\d{4}-\d{2}-\d{2}$/.test(c.fecha)) return 'Elegí la fecha.';
   if(!/^\d{2}:\d{2}$/.test(c.desde) || !/^\d{2}:\d{2}$/.test(c.hasta)) return 'Completá la hora de inicio y de fin.';
   if(c.hasta<=c.desde) return 'La hora de fin tiene que ser posterior a la de inicio.';
   if(!c.audiencias.length) return 'Marcá a quién aplica: plantel docente, 1er ciclo o 2do ciclo.';
-  if(String(c.motivo||'').trim().length<10)
+  if(!_plpSinJustificar() && String(c.motivo||'').trim().length<10)
     return 'Escribí POR QUÉ se altera el horario. Es lo que lee el Jefe de Estudios para aprobar (al menos 10 caracteres).';
   return null;
 }
@@ -49497,7 +49627,8 @@ async function _plpMovido(info){
       '↔️ Estás <b>reacomodando</b> «'+_plEsc(texto)+'» de <b>'+_plEsc(_plDiaNombre(origen.fecha)+' '+_plDiaNum(origen.fecha)
       +' '+origen.desde+'–'+origen.hasta)+'</b> a <b>'+_plEsc(_plDiaNombre(_plpIso(ev.start))+' '+_plDiaNum(_plpIso(ev.start))
       +' '+_plpHora(ev.start)+'–'+_plpHora(destinoFin))+'</b>. Cuando el Jefe de Estudios apruebe, '
-      +'desaparece de su lugar viejo y el horario queda actualizado solo. Escribí abajo por qué.');
+      +'desaparece de su lugar viejo y el horario queda actualizado solo.'
+      +(_plpSinJustificar()?' Tocá <b>Guardar cambios</b>.':' Escribí abajo por qué.'));
     return;
   }
   const fin=ev.end || new Date(ev.start.getTime()+(_plpMin(p.hasta)-_plpMin(p.desde))*60000);
@@ -49511,7 +49642,7 @@ async function _plpMovido(info){
   PLP.volverSiCancela=true;
   const ajena=(p.creado_por!==u.id) ? ' Es de <b>'+_plEsc(p.creado_por_nombre||'otra sección')+'</b>.' : '';
   _plpForm(nuevo, '⏰ Cambiaste el horario a <b>'+_plEsc(_plpHora(ev.start))+' – '+_plEsc(_plpHora(fin))
-    +'</b>.'+ajena+' Escribí abajo por qué y tocá <b>Guardar cambios</b>.');
+    +'</b>.'+ajena+(_plpSinJustificar()?' Tocá <b>Guardar cambios</b>.':' Escribí abajo por qué y tocá <b>Guardar cambios</b>.'));
 }
 
 // ---------- enganche con el editor de Planificación ----------
