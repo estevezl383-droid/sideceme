@@ -4083,6 +4083,9 @@ body{
   border:1px solid var(--border-subtle); background:rgba(212,175,55,.10); color:#f4d574;
   border-radius:5px; cursor:pointer; font-family:inherit }
 .pl-prof-b:hover{ background:rgba(212,175,55,.26); border-color:var(--gold) }
+.pl-cp-ej{ margin-top:7px; font-size:12px; line-height:1.45; color:var(--text-primary) }
+.pl-cp-ej div{ padding:3px 0; border-top:1px solid rgba(255,255,255,.10) }
+.pl-cp-ej span{ display:block; color:var(--text-muted); font-size:11px }
 .plp-btns{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px }
 .plp-bw{ width:auto !important; height:auto !important; padding:6px 12px !important; font-size:12px !important }
 .plp-b-aprob{ background:linear-gradient(180deg,#1e5bb8,#123a78) !important; color:#fff !important }
@@ -46929,10 +46932,34 @@ function _plNombresEnHorario(){
     .map(function(t){ return {txt:t, n:mapa[t]}; });
 }
 
-// Devuelve en cuántas filas cambiaría (simular=true) o cambia de verdad.
+// ¿El texto tiene UN SOLO grado militar? Si tiene dos, no es un nombre escrito de
+// otra forma: son DOS personas en el mismo renglón (al cargar se comió el salto).
+const _PL_MARCA='\u0001PROF\u0001';
+function _plUnSoloGrado(t){
+  const m=String(t==null?'':t).match(/\b(CNL|TCNL|MY|SOF|CAP|TTE|GRAL|SGTO)\b/gi);
+  return !m || m.length<=1;
+}
+// El mismo profesor suele estar escrito de varias formas («Galvez» y «Galvez
+// Galvez»). Se cambian TODAS, empezando por la más larga: si se hiciera al revés
+// quedaría un pedazo suelto del apellido.
+function _plVariantesDe(viejo){
+  const v=_plNormNom(viejo);
+  const out=_plNombresEnHorario().map(function(x){ return x.txt; }).filter(function(t){
+    const n=_plNormNom(t);
+    return n!==v && n.indexOf(v)===0 && _plUnSoloGrado(t);
+  });
+  out.sort(function(a,b){ return b.length-a.length; });
+  out.push(viejo);                       // el elegido va último: el más corto
+  return out;
+}
+
+// Devuelve cuántas filas cambiarían y ejemplos de cómo quedan (simular=true),
+// o hace el cambio de verdad (simular=false).
 function _plCambiarProfEn(viejo, nuevo, ambito, simular){
   const bloques = (ambito==='todo') ? ['planta','c1','c2'] : [ambito];
-  let n=0;
+  const nom={planta:'Planta', c1:'1er ciclo', c2:'2do ciclo'};
+  const variantes=_plVariantesDe(viejo);
+  let n=0; const ej=[];
   bloques.forEach(function(k){
     const b=PLANIF.sem && PLANIF.sem.datos && PLANIF.sem.datos[k];
     if(!b || !Array.isArray(b.dias)) return;
@@ -46940,12 +46967,28 @@ function _plCambiarProfEn(viejo, nuevo, ambito, simular){
       (d.filas||[]).forEach(function(f){
         const antes=String(f.resp||'');
         if(!antes) return;
-        const despues=_plCambiaNombre(antes, viejo, nuevo);
-        if(despues!==antes){ n++; if(!simular) f.resp=despues; }
+        // Se cambia primero a un MARCADOR y recién al final al nombre nuevo. Si se
+        // escribiera el nombre nuevo de una, la pasada siguiente lo volvería a
+        // encontrar adentro de sí mismo (pasa cuando el nombre nuevo contiene al
+        // viejo, p. ej. «Galvez» → «Galvez Galvez»).
+        let despues=antes;
+        variantes.forEach(function(v){ despues=_plCambiaNombre(despues, v, _PL_MARCA); });
+        despues=despues.split(_PL_MARCA).join(nuevo);
+        // si el mismo nombre quedó dos veces seguidas, se deja uno
+        despues=despues.split('\n').map(function(L){ return L.trim(); })
+          .filter(function(L,idx,arr){ return L!=='' ? !(idx>0 && _plNormNom(arr[idx-1])===_plNormNom(L)) : true; })
+          .join('\n');
+        if(despues===antes) return;
+        n++;
+        if(ej.length<3){
+          ej.push({ donde:nom[k]+' · '+_plDiaNombre(d.iso)+' '+_plDiaNum(d.iso)+' '+(f.desde||''),
+                    queda:despues.split('\n').map(function(t){ return t.trim(); }).filter(Boolean).join(' · ') });
+        }
+        if(!simular) f.resp=despues;
       });
     });
   });
-  return n;
+  return simular ? {n:n, ej:ej} : n;
 }
 
 function _plBtnProf(k,i,j){
@@ -47001,19 +47044,37 @@ function _plCambioProfPrev(){
   const c=_plCambioProfDatos();
   if(!c.a){ el.innerHTML='<div class="plp-av plp-av-cer">Elegí o escribí quién entra en su lugar.</div>'; return; }
   if(_plNormNom(c.a)===_plNormNom(c.de)){ el.innerHTML='<div class="plp-av plp-av-cer">Es el mismo nombre.</div>'; return; }
-  const n=_plCambiarProfEn(c.de, c.a, c.amb, true);
-  el.innerHTML = n
-    ? '<div class="plp-av plp-av-ok">✅ Va a cambiar en <b>'+n+'</b> fila'+(n===1?'':'s')+':<br>'
-        +_plEsc(c.de)+'  →  <b>'+_plEsc(c.a)+'</b></div>'
-    : '<div class="plp-av plp-av-pend">⚠️ Ese nombre no aparece en el ámbito elegido.</div>';
+  const r=_plCambiarProfEn(c.de, c.a, c.amb, true);
+  if(!r.n){ el.innerHTML='<div class="plp-av plp-av-pend">⚠️ Ese nombre no aparece en el ámbito elegido.</div>'; return; }
+  // Aviso: hay nombres parecidos que EMPIEZAN igual (pasa cuando el mismo profesor
+  // quedó escrito de dos formas). Al cambiar el corto puede quedar un pedazo suelto.
+  // Las variantes del mismo nombre se cambian solas; acá solo se avisa de los
+  // renglones que tienen DOS profesores pegados, que hay que revisar a mano.
+  const parecidos=_plNombresEnHorario().filter(function(x){
+    return _plNormNom(x.txt)!==_plNormNom(c.de)
+      && _plNormNom(x.txt).indexOf(_plNormNom(c.de))===0
+      && !_plUnSoloGrado(x.txt);
+  });
+  let h='<div class="plp-av plp-av-ok">✅ Va a cambiar en <b>'+r.n+'</b> fila'+(r.n===1?'':'s')+':<br>'
+    +_plEsc(c.de)+'  →  <b>'+_plEsc(c.a)+'</b>'
+    +'<div class="pl-cp-ej">'+r.ej.map(function(x){
+      return '<div><span>'+_plEsc(x.donde)+'</span>'+_plEsc(x.queda)+'</div>';
+    }).join('')+'</div></div>';
+  if(parecidos.length){
+    h+='<div class="plp-av plp-av-pend">⚠️ Ojo: en estos renglones hay <b>dos profesores pegados</b>, '
+      +'les falta el salto de línea:<br>'
+      +parecidos.map(function(x){ return '• '+_plEsc(x.txt); }).join('<br>')
+      +'<br>El cambio se hace igual, pero revisá esa casilla a mano después.</div>';
+  }
+  el.innerHTML=h;
 }
 function plCambiarProfAplicar(){
   const c=_plCambioProfDatos();
   if(!c.a){ alert('⚠️ Elegí o escribí quién entra en su lugar.'); return; }
   if(_plNormNom(c.a)===_plNormNom(c.de)){ alert('⚠️ Es el mismo nombre.'); return; }
-  const n=_plCambiarProfEn(c.de, c.a, c.amb, true);
-  if(!n){ alert('⚠️ Ese nombre no aparece en el ámbito elegido.'); return; }
-  if(!confirm('¿Cambiar «'+c.de+'»\npor «'+c.a+'»\n\nen '+n+' fila'+(n===1?'':'s')+'?')) return;
+  const r=_plCambiarProfEn(c.de, c.a, c.amb, true);
+  if(!r.n){ alert('⚠️ Ese nombre no aparece en el ámbito elegido.'); return; }
+  if(!confirm('¿Cambiar «'+c.de+'»\npor «'+c.a+'»\n\nen '+r.n+' fila'+(r.n===1?'':'s')+'?')) return;
   _plCambiarProfEn(c.de, c.a, c.amb, false);
   _plpCerrarModal();
   plMarcarSucio();
