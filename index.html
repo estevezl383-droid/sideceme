@@ -4113,7 +4113,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.381</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.382</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -48302,6 +48302,7 @@ function renderPlanifPanel(){
 // ============================================================
 // ============================================================
 // ============================================================
+// ============================================================
 // v2.9.375 — HORARIO INTEGRADO: PROPUESTAS SOBRE EL HORARIO
 // CUALQUIER profesor propone actividades sobre la semana que armó Planificación
 // —y SIEMPRE escribiendo por qué—; el Jefe de Estudios lee la justificación y
@@ -48534,7 +48535,11 @@ function _plpAbierta(s){ return !!s && Date.now() < new Date(s.cierre).getTime()
 function _plpPuedeEditar(p){
   const u=PLP.perfil;
   if(!u || p.estado==='retirada') return false;
-  if(u.aprobar) return true;
+  // v2.9.382 — REACOMODAR EL HORARIO: el Jefe de Estudios y los cinco con
+  // `puede_mover` (Baptista, Montecinos, Morales, Villarroel, Arce) mueven y
+  // estiran CUALQUIER actividad, no solo la propia. El resto, solo la suya y
+  // mientras la semana siga abierta.
+  if(u.aprobar || u.mover) return true;
   return !!(u.proponer && p.creado_por===u.id && _plpAbierta(_plpSemanaDe(p.fecha)));
 }
 
@@ -48723,6 +48728,7 @@ function _plpBarra(){
   if(sub){
     const poderes=[];
     if(u.aprobar) poderes.push('aprueba'); else if(u.proponer) poderes.push('propone'); else poderes.push('solo consulta');
+    if(u.mover && !u.aprobar) poderes.push('reacomoda todo el horario');
     if(u.efm)    poderes.push('mueve el E.F.M.');
     if(u.cierre) poderes.push('corre el plazo');
     if(u.veTodo) poderes.push('hace seguimiento');
@@ -48775,7 +48781,11 @@ function _plpBarra(){
   }
   if(u.proponer) h+='<div class="pl-hint">Hay <b>tres formas</b> de tocar el horario: el botón <b>➕ Agregar una actividad</b> de arriba; '
     +'tocar una casilla gris del horario base y elegir <b>poner una actividad adentro</b> (al principio, en el medio o al final); '
-    +'o arrastrar sobre una hora vacía. Las tuyas se <b>mueven</b> arrastrándolas y se <b>alargan o acortan</b> tirando de la '
+    +'o arrastrar sobre una hora vacía. '
+    +(u.aprobar||u.mover
+      ? 'Como podés <b>reacomodar el horario</b>, movés y estirás <b>cualquier</b> actividad, sea de quien sea: '
+      : 'Las tuyas se ')
+    +'<b>mueven</b> arrastrándolas y se <b>alargan o acortan</b> tirando de la '
     +'<b>barra ⇕ del borde de arriba o de abajo</b>. Siempre se abre la ficha para que escribas por qué.</div>';
   el.innerHTML=h;
 }
@@ -48973,6 +48983,10 @@ function _plpForm(p, aviso){
       h+='<div class="plp-av plp-av-ok">🏃 Mueve el <b>ENTRENAMIENTO FÍSICO MILITAR</b>: si se aprueba, la fila de las 05:30 sale del horario base y queda esta en su lugar.</div>';
     }
     if(p.estado==='rechazada' && p.motivo_rechazo) h+='<div class="plp-av plp-av-err">❌ Motivo del rechazo: '+_plEsc(p.motivo_rechazo)+'</div>';
+    if(puede && !u.aprobar && u.mover && p.creado_por!==u.id){
+      h+='<div class="plp-av plp-av-pend">✋ Esta actividad es de <b>'+_plEsc(p.creado_por_nombre||'otra sección')
+        +'</b>. La podés reacomodar, pero al guardar vuelve a quedar <b>pendiente</b> hasta que el Jefe de Estudios la apruebe.</div>';
+    }
     if(!puede) h+='<div class="plp-av plp-av-cer">'+(u.proponer&&p.creado_por===u.id
       ?'🔒 La semana ya está cerrada para las secciones. Pedí el cambio al Jefe de Estudios.'
       :'👁️ Es de otra sección: la ves para saber cómo queda el horario, pero no la podés cambiar.')+'</div>';
@@ -49190,8 +49204,9 @@ async function _plpMovido(info){
   // y vuelve a la hora anterior (nada se pierde).
   const nuevo=Object.assign({}, p, { fecha:_plpIso(ev.start), desde:_plpHora(ev.start), hasta:_plpHora(fin) });
   PLP.volverSiCancela=true;
+  const ajena=(p.creado_por!==u.id) ? ' Es de <b>'+_plEsc(p.creado_por_nombre||'otra sección')+'</b>.' : '';
   _plpForm(nuevo, '⏰ Cambiaste el horario a <b>'+_plEsc(_plpHora(ev.start))+' – '+_plEsc(_plpHora(fin))
-    +'</b>. Escribí abajo por qué y tocá <b>Guardar cambios</b>.');
+    +'</b>.'+ajena+' Escribí abajo por qué y tocá <b>Guardar cambios</b>.');
 }
 
 // ---------- enganche con el editor de Planificación ----------
