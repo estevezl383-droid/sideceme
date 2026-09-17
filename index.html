@@ -4050,6 +4050,22 @@ body{
 .plp-quien b{ color:#f4d574 }
 .plp-quien span{ color:var(--text-secondary); font-size:12.5px }
 .plp-item .plp-quien-mini{ color:#cfe0f5 !important; font-weight:700 }
+/* ===== v2.9.379: ALERTA de horarios superpuestos en el editor de la semana =====
+   Grande y roja para que no pase desapercibida, con botón para darla por vista. */
+.pl-alerta{ margin:10px 0; padding:14px 16px; border:3px solid #ff5252; border-radius:12px;
+  background:linear-gradient(180deg,rgba(198,40,40,.30),rgba(120,20,20,.22));
+  box-shadow:0 0 0 2px rgba(255,82,82,.18), 0 6px 22px rgba(0,0,0,.45);
+  animation:plAlertaLatido 1.5s ease-in-out 3 }
+@keyframes plAlertaLatido{ 0%,100%{ box-shadow:0 0 0 2px rgba(255,82,82,.18), 0 6px 22px rgba(0,0,0,.45) }
+  50%{ box-shadow:0 0 0 7px rgba(255,82,82,.32), 0 6px 22px rgba(0,0,0,.45) } }
+.pl-alerta-t{ font-size:19px; font-weight:900; color:#ffdad6; letter-spacing:.5px; margin-bottom:8px; line-height:1.25 }
+.pl-alerta-l{ margin:0 0 9px; padding-left:20px; color:#fff; font-size:14.5px; font-weight:700; line-height:1.55 }
+.pl-alerta-l li{ margin:3px 0 }
+.pl-alerta-p{ font-size:13px; color:#ffd6d6; line-height:1.5; margin-bottom:11px }
+.pl-alerta-b{ display:block; width:100%; padding:11px 14px; font-size:14.5px; font-weight:800;
+  border-radius:9px; border:1px solid #ffb3b3; background:#c62828; color:#fff; cursor:pointer; font-family:inherit }
+.pl-alerta-b:hover{ background:#e03535 }
+@media (max-width:700px){ .pl-alerta-t{ font-size:16px } .pl-alerta-l{ font-size:13px } }
 .plp-btns{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px }
 .plp-bw{ width:auto !important; height:auto !important; padding:6px 12px !important; font-size:12px !important }
 .plp-b-aprob{ background:linear-gradient(180deg,#1e5bb8,#123a78) !important; color:#fff !important }
@@ -4077,7 +4093,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.378</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.379</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -45233,7 +45249,10 @@ setTimeout(()=>{ if(currentUser) iniciarNotificaciones(); }, 3000);
 // Edición: un único listener delegado lee data-p="ruta.al.campo" y escribe
 // en PLANIF.sem.datos. Nada de un handler por input.
 // ============================================================
-const PLANIF = { lista:[], sem:null, tab:'datos', dirty:false, guardando:false, tSave:null, cargando:false, origen:null };
+const PLANIF = { lista:[], sem:null, tab:'datos', dirty:false, guardando:false, tSave:null, cargando:false, origen:null,
+  // v2.9.379 — avisos de superposición que el usuario ya dio por vistos, por día.
+  // Se guarda la FIRMA del choque: si el choque cambia, el aviso vuelve a salir.
+  supOK:{} };
 
 const PLANIF_ROLES = ['jefe_planificacion','jefe_sac','estudios','comandante','ciencia_tecnologia'];
 function esRolPlanificacion(){ return PLANIF_ROLES.includes(activeRole); }
@@ -46310,7 +46329,8 @@ function _plUIPlanta(){
     const nom=_plDiaNombre(d.iso)+'  '+_plDiaNum(d.iso);
     let cuerpo='<label class="pl-full">Día completo (dejar vacío para usar las filas)'
       +_plInp('planta.dias.'+i+'.libre',d.libre,'Ej: FERIADO NACIONAL EN CONMEMORACIÓN AL...')+'</label>'
-      +_plAvisoLibre('planta',i,d);
+      +_plAvisoLibre('planta',i,d)
+      +'<div id="pl-sup-planta-'+i+'">'+_plAvisoSupHTML('planta',i)+'</div>';
     {
       cuerpo+='<div class="pl-tw"'+(d.libre?' style="opacity:.45"':'')+'><table class="pl-t"><tr>'
         +'<th style="width:62px">Desde</th><th style="width:62px">Hasta</th><th>Actividad</th>'
@@ -46320,8 +46340,8 @@ function _plUIPlanta(){
       (d.filas||[]).forEach(function(f,j){
         const b='planta.dias.'+i+'.filas.'+j+'.';
         cuerpo+='<tr>'
-          +'<td>'+_plInp(b+'desde',f.desde,'')+'</td>'
-          +'<td>'+_plInp(b+'hasta',f.hasta,'')+'</td>'
+          +'<td>'+_plInpHora(b+'desde',f.desde)+'</td>'
+          +'<td>'+_plInpHora(b+'hasta',f.hasta)+'</td>'
           +'<td>'+_plInp(b+'act',f.act,'')+'</td>'
           +'<td>'+(f.span?'':_plInp(b+'lugar',f.lugar,''))+'</td>'
           +'<td>'+(f.span?'':_plInp(b+'asisten',f.asisten,''))+'</td>'
@@ -46448,7 +46468,8 @@ function _plUICiclo(k){
     let cuerpo=(i<5?('<div style="margin-bottom:8px">'+_selMat(i)+'</div>'):'')
       +'<label class="pl-full">Día completo (dejar vacío para usar las filas)'
       +_plInp(k+'.dias.'+i+'.libre',d.libre,'Ej: FERIADO NACIONAL...')+'</label>'
-      +_plAvisoLibre(k,i,d);
+      +_plAvisoLibre(k,i,d)
+      +'<div id="pl-sup-'+k+'-'+i+'">'+_plAvisoSupHTML(k,i)+'</div>';
     {
       cuerpo+='<div class="pl-tw"'+(d.libre?' style="opacity:.45"':'')+'><table class="pl-t"><tr>'
         +'<th style="width:60px">Desde</th><th style="width:60px">Hasta</th>'
@@ -46459,8 +46480,8 @@ function _plUICiclo(k){
       (d.filas||[]).forEach(function(f,j){
         const p=k+'.dias.'+i+'.filas.'+j+'.';
         cuerpo+='<tr>'
-          +'<td>'+_plInp(p+'desde',f.desde,'')+'</td>'
-          +'<td>'+_plInp(p+'hasta',f.hasta,'')+'</td>'
+          +'<td>'+_plInpHora(p+'desde',f.desde)+'</td>'
+          +'<td>'+_plInpHora(p+'hasta',f.hasta)+'</td>'
           +'<td>'+(f.span?'':_plInp(p+'modulo',f.modulo,''))+'</td>'
           +'<td>'+_plTa(p+'uc',f.uc,'',2)+'</td>'
           +'<td>'+(f.span?'':_plTa(p+'codigo',f.codigo,'',2))+'</td>'
@@ -46704,6 +46725,108 @@ function plUsarFilas(k,i){
   }
   d.libre='';
   plMarcarSucio(); plRenderEditor();
+}
+
+// ============================================================
+// v2.9.379 — LAS FILAS SE ACOMODAN SOLAS POR HORA
+// Antes, una fila agregada quedaba al final de la lista aunque fuera de las
+// 12:00: el Sof. Arce tenía que reordenarla a mano. Ahora, al salir de la
+// casilla de hora, el día se ordena solo y, si la fila pisa a otra, sale una
+// ALERTA ROJA que se puede dar por vista.
+// ============================================================
+
+// Hora válida → minutos; cualquier otra cosa → null (NO 0, que sería medianoche).
+function _plHoraValida(v){
+  const m=/^\s*(\d{1,2})\s*[:.hH]?\s*([0-5]\d)\s*$/.exec(String(v==null?'':v));
+  if(!m) return null;
+  const h=+m[1];
+  return h<=23 ? h*60+(+m[2]) : null;
+}
+// '1200' o '12.00' → '12:00'. Lo que no es hora se devuelve tal cual.
+function _plHoraFmt(v){
+  const n=_plHoraValida(v);
+  return n===null ? String(v==null?'':v).trim()
+                  : String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');
+}
+function _plInpHora(path,val){
+  return '<input class="pl-i" data-p="'+path+'" value="'+_plEsc(val)+'" inputmode="numeric" '
+    +'maxlength="5" placeholder="08:00" onblur="plHoraBlur(this)">';
+}
+
+// Ordena las filas del día por hora de inicio. Las que todavía no tienen hora
+// (una fila recién agregada) quedan al final. Devuelve true si algo se movió.
+function _plOrdenarDia(k,i){
+  const b=PLANIF.sem && PLANIF.sem.datos && PLANIF.sem.datos[k];
+  const d=b && b.dias && b.dias[i];
+  if(!d || !Array.isArray(d.filas) || d.filas.length<2) return false;
+  const antes=d.filas.slice();
+  d.filas.sort(function(x,y){
+    const a=_plHoraValida(x.desde), z=_plHoraValida(y.desde);
+    if(a===null && z===null) return 0;
+    if(a===null) return 1;
+    if(z===null) return -1;
+    return a-z;
+  });
+  return antes.some(function(f,n){ return f!==d.filas[n]; });
+}
+
+// Pares de filas que se pisan en el mismo día (texto listo para mostrar).
+function _plSuperpuestas(k,i){
+  const out=[];
+  const b=PLANIF.sem && PLANIF.sem.datos && PLANIF.sem.datos[k];
+  const d=b && b.dias && b.dias[i];
+  if(!d || !Array.isArray(d.filas) || String(d.libre||'').trim()) return out;
+  const tx=function(f){ return String((k==='planta'?f.act:(f.uc||f.modulo))||'').trim() || '(sin texto)'; };
+  const fs=d.filas.map(function(f){ return {f:f, a:_plHoraValida(f.desde), z:_plHoraValida(f.hasta)}; })
+                  .filter(function(x){ return x.a!==null && x.z!==null && x.z>x.a; });
+  for(let m=0;m<fs.length;m++){
+    for(let n=m+1;n<fs.length;n++){
+      if(fs[m].a < fs[n].z && fs[n].a < fs[m].z){
+        out.push(_plHoraFmt(fs[m].f.desde)+'–'+_plHoraFmt(fs[m].f.hasta)+'  «'+tx(fs[m].f)+'»'
+          +'   pisa a   '+_plHoraFmt(fs[n].f.desde)+'–'+_plHoraFmt(fs[n].f.hasta)+'  «'+tx(fs[n].f)+'»');
+      }
+    }
+  }
+  return out;
+}
+
+function _plAvisoSupHTML(k,i){
+  const ch=_plSuperpuestas(k,i);
+  if(!ch.length) return '';
+  const firma=ch.join(' ## ');
+  if(PLANIF.supOK[k+'|'+i]===firma) return '';        // ya lo dio por visto
+  return '<div class="pl-alerta">'
+    +'<div class="pl-alerta-t">⚠️ ¡ATENCIÓN! HAY HORARIOS SUPERPUESTOS</div>'
+    +'<ul class="pl-alerta-l">'+ch.map(function(t){ return '<li>'+_plEsc(t)+'</li>'; }).join('')+'</ul>'
+    +'<div class="pl-alerta-p">Las filas ya quedaron <b>ordenadas por hora</b>. Corregí las horas si no era '
+    +'lo que querías, o seguí adelante si la superposición es a propósito.</div>'
+    +'<button class="pl-alerta-b" onclick="plSupOK(\''+k+'\','+i+')">✔ TENGO CONOCIMIENTO — ocultar este aviso</button>'
+    +'</div>';
+}
+function _plPintarSup(k,i){
+  const el=document.getElementById('pl-sup-'+k+'-'+i);
+  if(el) el.innerHTML=_plAvisoSupHTML(k,i);
+}
+function plSupOK(k,i){
+  PLANIF.supOK[k+'|'+i]=_plSuperpuestas(k,i).join(' ## ');
+  _plPintarSup(k,i);
+}
+
+// Al salir de una casilla de hora: se normaliza (1200 → 12:00), el día se
+// ordena solo y se revisa si quedó pisando a otra fila.
+function plHoraBlur(el){
+  if(!el || !el.dataset || !PLANIF.sem) return;
+  const m=/^(planta|c1|c2)\.dias\.(\d+)\.filas\.(\d+)\.(desde|hasta)$/.exec(el.dataset.p||'');
+  if(!m) return;
+  const k=m[1], i=+m[2];
+  const norm=_plHoraFmt(el.value);
+  if(norm!==el.value){
+    el.value=norm;
+    _plSetPath(PLANIF.sem.datos, el.dataset.p, norm);
+    plMarcarSucio();
+  }
+  if(_plOrdenarDia(k,i)){ plMarcarSucio(); plRenderEditor(); return; }
+  _plPintarSup(k,i);
 }
 
 // ---------- acciones de estructura ----------
