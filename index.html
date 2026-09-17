@@ -4086,6 +4086,18 @@ body{
 .pl-cp-ej{ margin-top:7px; font-size:12px; line-height:1.45; color:var(--text-primary) }
 .pl-cp-ej div{ padding:3px 0; border-top:1px solid rgba(255,255,255,.10) }
 .pl-cp-ej span{ display:block; color:var(--text-muted); font-size:11px }
+/* ===== v2.9.383: casillas unidas + menú de click derecho ===== */
+.pl-unida{ background:rgba(212,175,55,.09); box-shadow:inset 0 0 0 1px rgba(212,175,55,.35) }
+.pl-unida textarea{ text-align:center; font-weight:600 }
+.pl-menu{ position:absolute; z-index:10060; min-width:250px; padding:5px;
+  background:var(--bg-deep,#0d1726); border:1px solid var(--gold); border-radius:9px;
+  box-shadow:0 10px 30px rgba(0,0,0,.6) }
+.pl-menu[hidden]{ display:none }
+.pl-menu-t{ font-size:11px; color:var(--text-muted); padding:4px 8px 6px; line-height:1.35;
+  border-bottom:1px solid var(--border-subtle); margin-bottom:4px }
+.pl-menu button{ display:block; width:100%; text-align:left; padding:8px 10px; font-size:13px;
+  background:transparent; border:0; border-radius:6px; color:var(--text-primary); cursor:pointer; font-family:inherit }
+.pl-menu button:hover{ background:rgba(212,175,55,.20); color:#f4d574 }
 .plp-btns{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px }
 .plp-bw{ width:auto !important; height:auto !important; padding:6px 12px !important; font-size:12px !important }
 .plp-b-aprob{ background:linear-gradient(180deg,#1e5bb8,#123a78) !important; color:#fff !important }
@@ -4113,7 +4125,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.382</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.383</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -46503,19 +46515,29 @@ function _plUICiclo(k){
         +'<th style="width:130px">Módulo</th><th>Unidad de Competencia</th>'
         +'<th style="width:110px">Código</th><th style="width:80px">Lugar</th>'
         +'<th style="width:88px">Uniforme</th><th style="width:150px">Responsable</th>'
+        +'<th style="width:52px" title="Une Módulo + U.C. + Código en una sola casilla, como en el horario firmado">Unir</th>'
         +'<th style="width:58px">Franja</th><th style="width:34px"></th></tr>';
       (d.filas||[]).forEach(function(f,j){
         const p=k+'.dias.'+i+'.filas.'+j+'.';
-        cuerpo+='<tr ondragover="event.preventDefault()" ondrop="plFilaDrop(event,\''+k+'\','+i+','+j+')">'
+        // v2.9.383: con `act3` las tres casillas se dibujan como UNA sola, igual que
+        // sale en el documento. La franja (`span`) ya ocupaba todo el ancho.
+        const unida = !f.span && !!f.act3;
+        cuerpo+='<tr ondragover="event.preventDefault()" ondrop="plFilaDrop(event,\''+k+'\','+i+','+j+')"'
+          +' oncontextmenu="return plMenuFila(event,\''+k+'\','+i+','+j+')">'
           +_plMoverCelda(k,i,j,(d.filas||[]).length)
           +'<td>'+_plInpHora(p+'desde',f.desde)+'</td>'
           +'<td>'+_plInpHora(p+'hasta',f.hasta)+'</td>'
-          +'<td>'+(f.span?'':_plInp(p+'modulo',f.modulo,''))+'</td>'
-          +'<td>'+_plTa(p+'uc',f.uc,'',2)+'</td>'
-          +'<td>'+(f.span?'':_plTa(p+'codigo',f.codigo,'',2))+'</td>'
+          +(unida
+            ? '<td colspan="3" class="pl-unida">'+_plTa(p+'uc',f.uc,'',2)+'</td>'
+            : ('<td>'+(f.span?'':_plInp(p+'modulo',f.modulo,''))+'</td>'
+               +'<td>'+_plTa(p+'uc',f.uc,'',2)+'</td>'
+               +'<td>'+(f.span?'':_plTa(p+'codigo',f.codigo,'',2))+'</td>'))
           +'<td>'+(f.span?'':_plInp(p+'lugar',f.lugar,''))+'</td>'
           +'<td>'+(f.span?'':_plInp(p+'unif',f.unif,''))+'</td>'
           +'<td>'+(f.span?'':(_plTa(p+'resp',f.resp,'',2)+_plBtnProf(k,i,j)))+'</td>'
+          +'<td style="text-align:center"><input type="checkbox"'+(unida?' checked':'')+(f.span?' disabled':'')
+            +' title="Une Módulo + U.C. + Código en una sola casilla"'
+            +' onchange="plToggleAct3(\''+k+'\','+i+','+j+',this.checked)"></td>'
           +'<td style="text-align:center"><input type="checkbox"'+(f.span?' checked':'')+' onchange="plToggleSpan(\''+k+'\','+i+','+j+',this.checked)"></td>'
           +'<td><button class="pl-x" onclick="plFilaDel(\''+k+'\','+i+','+j+')">✕</button></td>'
           +'</tr>';
@@ -47154,6 +47176,60 @@ function plFilaDel(k,i,j){
 // "Franja" cambia qué columnas se muestran, así que hay que re-dibujar. Ojo:
 // el valor se escribe ANTES del re-render (si lo dejáramos al listener delegado,
 // el re-render leería el dato viejo y el tilde volvería atrás).
+// ============================================================
+// v2.9.383 — UNIR MÓDULO + UNIDAD DE COMPETENCIA + CÓDIGO
+// En el horario firmado, las filas que no son clase (el parte, la iza, la misa,
+// una conferencia) llevan el texto ocupando las tres casillas juntas. El
+// documento ya sabía dibujarlo (`act3`); faltaba poder marcarlo desde el editor.
+// Se marca con la casilla «Unir» o con CLICK DERECHO sobre la fila.
+// ============================================================
+function plToggleAct3(k,i,j,val){
+  const f=PLANIF.sem.datos[k].dias[i].filas[j];
+  _plCerrarMenuFila();
+  if(val){
+    // Si Módulo o Código tenían texto, se suman a la U.C. para no perderlos:
+    // en la casilla unida el documento muestra SOLO la Unidad de Competencia.
+    const mod=String(f.modulo||'').trim(), cod=String(f.codigo||'').trim();
+    if(mod || cod){
+      if(!confirm('Al unir las tres casillas queda un solo texto.\n\n«'+mod+'» y «'+cod+'» se van a sumar al final de la Unidad de Competencia. ¿Seguir?')) return;
+      f.uc=[String(f.uc||'').trim(), mod, cod].filter(Boolean).join(' ');
+      f.modulo=''; f.codigo='';
+    }
+    f.act3=true;
+  } else {
+    delete f.act3;
+  }
+  plMarcarSucio(); plRenderEditor();
+}
+function _plCerrarMenuFila(){ const m=document.getElementById('pl-menu'); if(m) m.hidden=true; }
+// Click derecho sobre una fila del horario de ciclo.
+function plMenuFila(ev,k,i,j){
+  const f=(PLANIF.sem && PLANIF.sem.datos[k] && PLANIF.sem.datos[k].dias[i]
+    && PLANIF.sem.datos[k].dias[i].filas || [])[j];
+  if(!f) return true;
+  ev.preventDefault();
+  let m=document.getElementById('pl-menu');
+  if(!m){ m=document.createElement('div'); m.id='pl-menu'; m.className='pl-menu'; document.body.appendChild(m); }
+  const q="'"+k+"',"+i+","+j;
+  m.innerHTML = f.span
+    ? '<div class="pl-menu-t">Esta fila está marcada como <b>franja</b>: ya ocupa todo el ancho.</div>'
+    : '<div class="pl-menu-t">'+_plEsc(String(f.uc||'(sin texto)').slice(0,54))+'</div>'
+      +(f.act3
+        ? '<button onclick="plToggleAct3('+q+',false)">⇔ Separar Módulo · U.C. · Código</button>'
+        : '<button onclick="plToggleAct3('+q+',true)">⇔ Unir Módulo + U.C. + Código</button>')
+      +'<button onclick="plToggleSpan('+q+','+(f.span?'false':'true')+');_plCerrarMenuFila()">▭ '
+        +(f.span?'Sacar de franja':'Convertir en franja (todo el ancho)')+'</button>';
+  m.hidden=false;
+  const an=m.offsetWidth||250, al=m.offsetHeight||90;
+  m.style.left=Math.max(6, Math.min(ev.pageX, window.scrollX+document.documentElement.clientWidth-an-8))+'px';
+  m.style.top =Math.max(6, Math.min(ev.pageY, window.scrollY+document.documentElement.clientHeight-al-8))+'px';
+  return false;
+}
+document.addEventListener('click', function(e){
+  const m=document.getElementById('pl-menu');
+  if(m && !m.hidden && !m.contains(e.target)) m.hidden=true;
+});
+
 function plToggleSpan(k,i,j,val){
   PLANIF.sem.datos[k].dias[i].filas[j].span=!!val;
   plMarcarSucio(); plRenderEditor();
