@@ -4066,6 +4066,23 @@ body{
   border-radius:9px; border:1px solid #ffb3b3; background:#c62828; color:#fff; cursor:pointer; font-family:inherit }
 .pl-alerta-b:hover{ background:#e03535 }
 @media (max-width:700px){ .pl-alerta-t{ font-size:16px } .pl-alerta-l{ font-size:13px } }
+/* ===== v2.9.380: mover la fila de lugar (tirador + flechas) ===== */
+.pl-mv{ white-space:nowrap; text-align:center; padding:2px 1px !important }
+.pl-grip{ display:inline-block; cursor:grab; color:var(--gold); font-size:15px; line-height:1;
+  padding:1px 3px; border-radius:4px; user-select:none; vertical-align:middle }
+.pl-grip:hover{ background:rgba(212,175,55,.20) }
+.pl-grip:active{ cursor:grabbing }
+.pl-mv-b{ display:inline-block; width:17px; padding:0; font-size:10px; line-height:15px;
+  border:1px solid var(--border-subtle); background:rgba(255,255,255,.06); color:var(--text-primary);
+  border-radius:4px; cursor:pointer; font-family:inherit; vertical-align:middle }
+.pl-mv-b:hover:not(:disabled){ background:rgba(212,175,55,.22); border-color:var(--gold) }
+.pl-mv-b:disabled{ opacity:.25; cursor:default }
+.pl-t tr.pl-drop-ok > td{ border-top:2px solid var(--gold) !important }
+/* ===== v2.9.381: cambiar un profesor por otro ===== */
+.pl-prof-b{ display:block; width:100%; margin-top:3px; padding:2px 4px; font-size:11px; line-height:1.35;
+  border:1px solid var(--border-subtle); background:rgba(212,175,55,.10); color:#f4d574;
+  border-radius:5px; cursor:pointer; font-family:inherit }
+.pl-prof-b:hover{ background:rgba(212,175,55,.26); border-color:var(--gold) }
 .plp-btns{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px }
 .plp-bw{ width:auto !important; height:auto !important; padding:6px 12px !important; font-size:12px !important }
 .plp-b-aprob{ background:linear-gradient(180deg,#1e5bb8,#123a78) !important; color:#fff !important }
@@ -4093,7 +4110,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.379</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.381</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -45944,6 +45961,8 @@ async function plAbrir(id){
   // v2.9.305: la numeración de notas de servicio se deriva del ancla (semana 31 = 241)
   if(!PLANIF.sem.ns_correlativo){ PLANIF.sem.ns_correlativo=_plNSDeSemana(PLANIF.sem.semana_num); PLANIF.dirty=true; }
   if(_plMigrarTareas()) PLANIF.dirty=true;
+  // v2.9.380: las filas guardadas fuera de orden se acomodan solas al abrir.
+  if(_plOrdenarTodo()) PLANIF.dirty=true;
   // v2.9.306: la fecha de las notas se deja ESCRITA, no como texto de ayuda.
   if(PLANIF.sem.datos.ns && !String(PLANIF.sem.datos.ns.fecha||'').trim()){
     PLANIF.sem.datos.ns.fecha=_plNSFechaDef(); PLANIF.dirty=true;
@@ -46321,7 +46340,9 @@ function _plUIDatos(){
 function _plUIPlanta(){
   const p=PLANIF.sem.datos.planta;
   let h=_plBarraDoc('planta','1.- Horario del personal de planta','planta');
-  h+='<div class="pl-hint">Cada día se edita por filas. Marcá <b>franja</b> cuando la fila ocupa todo el ancho '
+  h+='<div class="pl-hint">Cada día se edita por filas y <b>se ordenan solas por hora</b>. Para cambiar una de lugar, '
+    +'arrastrala del tirador <b>⠿</b> o usá las flechas <b>▲▼</b>: la fila se lleva sus horas y las vecinas se '
+    +'reacomodan sin dejar huecos. Marcá <b>franja</b> cuando la fila ocupa todo el ancho '
     +'(DESCANSO, A DISPOSICIÓN DEL COMANDO). Si el día entero es feriado o libre, escribilo en <b>Día completo</b> '
     +'y las filas se ignoran.</div>';
 
@@ -46333,19 +46354,21 @@ function _plUIPlanta(){
       +'<div id="pl-sup-planta-'+i+'">'+_plAvisoSupHTML('planta',i)+'</div>';
     {
       cuerpo+='<div class="pl-tw"'+(d.libre?' style="opacity:.45"':'')+'><table class="pl-t"><tr>'
+        +'<th style="width:56px" title="Arrastrá la fila o usá las flechas">↕</th>'
         +'<th style="width:62px">Desde</th><th style="width:62px">Hasta</th><th>Actividad</th>'
         +'<th style="width:110px">Lugar</th><th style="width:80px">Asisten</th>'
         +'<th style="width:120px">Responsable</th><th style="width:95px">Uniforme</th>'
         +'<th style="width:58px">Franja</th><th style="width:34px"></th></tr>';
       (d.filas||[]).forEach(function(f,j){
         const b='planta.dias.'+i+'.filas.'+j+'.';
-        cuerpo+='<tr>'
+        cuerpo+='<tr ondragover="event.preventDefault()" ondrop="plFilaDrop(event,\'planta\','+i+','+j+')">'
+          +_plMoverCelda('planta',i,j,(d.filas||[]).length)
           +'<td>'+_plInpHora(b+'desde',f.desde)+'</td>'
           +'<td>'+_plInpHora(b+'hasta',f.hasta)+'</td>'
           +'<td>'+_plInp(b+'act',f.act,'')+'</td>'
           +'<td>'+(f.span?'':_plInp(b+'lugar',f.lugar,''))+'</td>'
           +'<td>'+(f.span?'':_plInp(b+'asisten',f.asisten,''))+'</td>'
-          +'<td>'+(f.span?'':_plInp(b+'resp',f.resp,''))+'</td>'
+          +'<td>'+(f.span?'':(_plInp(b+'resp',f.resp,'')+_plBtnProf('planta',i,j)))+'</td>'
           +'<td>'+(f.span?'':_plInp(b+'unif',f.unif,''))+'</td>'
           +'<td style="text-align:center"><input type="checkbox"'+(f.span?' checked':'')+' onchange="plToggleSpan(\'planta\','+i+','+j+',this.checked)"></td>'
           +'<td><button class="pl-x" onclick="plFilaDel(\'planta\','+i+','+j+')">✕</button></td>'
@@ -46472,6 +46495,7 @@ function _plUICiclo(k){
       +'<div id="pl-sup-'+k+'-'+i+'">'+_plAvisoSupHTML(k,i)+'</div>';
     {
       cuerpo+='<div class="pl-tw"'+(d.libre?' style="opacity:.45"':'')+'><table class="pl-t"><tr>'
+        +'<th style="width:56px" title="Arrastrá la fila o usá las flechas">↕</th>'
         +'<th style="width:60px">Desde</th><th style="width:60px">Hasta</th>'
         +'<th style="width:130px">Módulo</th><th>Unidad de Competencia</th>'
         +'<th style="width:110px">Código</th><th style="width:80px">Lugar</th>'
@@ -46479,7 +46503,8 @@ function _plUICiclo(k){
         +'<th style="width:58px">Franja</th><th style="width:34px"></th></tr>';
       (d.filas||[]).forEach(function(f,j){
         const p=k+'.dias.'+i+'.filas.'+j+'.';
-        cuerpo+='<tr>'
+        cuerpo+='<tr ondragover="event.preventDefault()" ondrop="plFilaDrop(event,\''+k+'\','+i+','+j+')">'
+          +_plMoverCelda(k,i,j,(d.filas||[]).length)
           +'<td>'+_plInpHora(p+'desde',f.desde)+'</td>'
           +'<td>'+_plInpHora(p+'hasta',f.hasta)+'</td>'
           +'<td>'+(f.span?'':_plInp(p+'modulo',f.modulo,''))+'</td>'
@@ -46487,7 +46512,7 @@ function _plUICiclo(k){
           +'<td>'+(f.span?'':_plTa(p+'codigo',f.codigo,'',2))+'</td>'
           +'<td>'+(f.span?'':_plInp(p+'lugar',f.lugar,''))+'</td>'
           +'<td>'+(f.span?'':_plInp(p+'unif',f.unif,''))+'</td>'
-          +'<td>'+(f.span?'':_plTa(p+'resp',f.resp,'',2))+'</td>'
+          +'<td>'+(f.span?'':(_plTa(p+'resp',f.resp,'',2)+_plBtnProf(k,i,j)))+'</td>'
           +'<td style="text-align:center"><input type="checkbox"'+(f.span?' checked':'')+' onchange="plToggleSpan(\''+k+'\','+i+','+j+',this.checked)"></td>'
           +'<td><button class="pl-x" onclick="plFilaDel(\''+k+'\','+i+','+j+')">✕</button></td>'
           +'</tr>';
@@ -46748,6 +46773,10 @@ function _plHoraFmt(v){
   return n===null ? String(v==null?'':v).trim()
                   : String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');
 }
+function _plDeMin(n){
+  n=Math.max(0, Math.min(23*60+59, Math.round(n)));
+  return String(Math.floor(n/60)).padStart(2,'0')+':'+String(n%60).padStart(2,'0');
+}
 function _plInpHora(path,val){
   return '<input class="pl-i" data-p="'+path+'" value="'+_plEsc(val)+'" inputmode="numeric" '
     +'maxlength="5" placeholder="08:00" onblur="plHoraBlur(this)">';
@@ -46768,6 +46797,227 @@ function _plOrdenarDia(k,i){
     return a-z;
   });
   return antes.some(function(f,n){ return f!==d.filas[n]; });
+}
+
+// v2.9.380 — Ordena TODOS los días de los tres horarios. Se llama al ABRIR la
+// semana: una fila que quedó fuera de orden de antes (guardada con una versión
+// vieja) se acomoda sola, sin esperar a que alguien toque su hora.
+function _plOrdenarTodo(){
+  let toco=false;
+  ['planta','c1','c2'].forEach(function(k){
+    const b=PLANIF.sem && PLANIF.sem.datos && PLANIF.sem.datos[k];
+    if(!b || !Array.isArray(b.dias)) return;
+    b.dias.forEach(function(d,i){ if(_plOrdenarDia(k,i)) toco=true; });
+  });
+  return toco;
+}
+
+// v2.9.380 — Mueve una fila ARRIBA o ABAJO y se lleva sus horas: las filas del
+// tramo afectado se vuelven a acomodar una atrás de otra, cada una conservando
+// SU duración. Por eso un DESCANSO de 30 min sigue siendo de 30 min aunque pase
+// a ocupar el lugar de un bloque de hora y media.
+function _plMoverFilaHoras(k,i,from,to){
+  const b=PLANIF.sem && PLANIF.sem.datos && PLANIF.sem.datos[k];
+  const d=b && b.dias && b.dias[i];
+  const fs=d && d.filas;
+  if(!Array.isArray(fs) || from===to) return false;
+  if(from<0 || to<0 || from>=fs.length || to>=fs.length) return false;
+
+  // Solo se mueven entre sí las filas que tienen hora válida; las que todavía no
+  // tienen (una recién agregada) se quedan donde están.
+  const conHora=[];
+  fs.forEach(function(f,n){
+    const a=_plHoraValida(f.desde), z=_plHoraValida(f.hasta);
+    if(a!==null && z!==null && z>a) conHora.push(n);
+  });
+  const pFrom=conHora.indexOf(from), pTo=conHora.indexOf(to);
+  if(pFrom<0 || pTo<0) return false;
+
+  const orden=conHora.slice();
+  orden.splice(pFrom,1);
+  orden.splice(pTo,0,from);
+
+  // Se recalculan las horas SOLO del tramo que se movió, arrancando donde
+  // arrancaba la primera fila de ese tramo.
+  const a=Math.min(pFrom,pTo), z=Math.max(pFrom,pTo);
+  let t=_plHoraValida(fs[conHora[a]].desde);
+  for(let n=a;n<=z;n++){
+    const f=fs[orden[n]];
+    const dur=_plHoraValida(f.hasta)-_plHoraValida(f.desde);
+    f.desde=_plDeMin(t);
+    f.hasta=_plDeMin(t+dur);
+    t+=dur;
+  }
+
+  // El array se reescribe en el orden nuevo, dejando en su sitio a las filas sin hora.
+  const nuevas=[]; let q=0;
+  fs.forEach(function(f,n){
+    nuevas.push(conHora.indexOf(n)>=0 ? fs[orden[q++]] : f);
+  });
+  d.filas=nuevas;
+  return true;
+}
+function plFilaMover(k,i,j,paso){
+  if(_plMoverFilaHoras(k,i,j,j+paso)){ plMarcarSucio(); plRenderEditor(); }
+}
+function plFilaDragIni(ev,k,i,j){
+  PLANIF.drag={k:k,i:i,j:j};
+  try{ ev.dataTransfer.effectAllowed='move'; ev.dataTransfer.setData('text/plain',String(j)); }catch(_){}
+}
+function plFilaDrop(ev,k,i,j){
+  ev.preventDefault();
+  const d=PLANIF.drag; PLANIF.drag=null;
+  if(!d || d.k!==k || d.i!==i || d.j===j) return;
+  if(_plMoverFilaHoras(k,i,d.j,j)){ plMarcarSucio(); plRenderEditor(); }
+}
+// Celda con el tirador para arrastrar y las flechas de subir / bajar.
+function _plMoverCelda(k,i,j,n){
+  const q="'"+k+"',"+i+","+j;
+  return '<td class="pl-mv">'
+    +'<div class="pl-grip" draggable="true" title="Arrastrá la fila a su lugar (se lleva sus horas)" '
+      +'ondragstart="plFilaDragIni(event,'+q+')">⠿</div>'
+    +'<button class="pl-mv-b" title="Subir la fila" onclick="plFilaMover('+q+',-1)"'+(j===0?' disabled':'')+'>▲</button>'
+    +'<button class="pl-mv-b" title="Bajar la fila" onclick="plFilaMover('+q+',1)"'+(j===n-1?' disabled':'')+'>▼</button>'
+    +'</td>';
+}
+
+// ============================================================
+// v2.9.381 — CAMBIAR UN PROFESOR POR OTRO EN TODO EL HORARIO
+// A último momento se cambia el profesor de una materia. Antes había que
+// buscarlo fila por fila en los siete días. Ahora se toca el 🔁 de la casilla
+// del responsable, se elige el reemplazo y el cambio entra en todas las filas
+// donde ese nombre aparece.
+// ============================================================
+
+// Nombre comparable: sin dobles espacios, sin may/min.
+function _plNormNom(t){ return String(t==null?'':t).replace(/\s+/g,' ').trim().toUpperCase(); }
+
+// Reemplaza el nombre dentro de un campo "responsable", que suele tener VARIOS
+// nombres, uno por renglón. Primero por renglón entero; si no aparece así, se
+// busca dentro del texto (pasa cuando al cargar se comió el salto de línea).
+function _plCambiaNombre(txt, viejo, nuevo){
+  const v=_plNormNom(viejo);
+  if(!v) return txt;
+  const lineas=String(txt==null?'':txt).split('\n');
+  let toco=false;
+  const out=lineas.map(function(L){
+    if(_plNormNom(L)===v){ toco=true; return nuevo; }
+    return L;
+  });
+  if(toco) return out.join('\n');
+  const patron=String(viejo).trim().replace(/[.*+?^${}()|[\]\\]/g,'\\$&').replace(/\s+/g,'\\s+');
+  const re=new RegExp(patron,'gi');
+  return re.test(String(txt)) ? String(txt).replace(new RegExp(patron,'gi'), nuevo) : txt;
+}
+
+// Todos los nombres que figuran hoy como responsables, con en cuántas filas.
+function _plNombresEnHorario(){
+  const mapa={};
+  ['planta','c1','c2'].forEach(function(k){
+    const b=PLANIF.sem && PLANIF.sem.datos && PLANIF.sem.datos[k];
+    if(!b || !Array.isArray(b.dias)) return;
+    b.dias.forEach(function(d){
+      (d.filas||[]).forEach(function(f){
+        String(f.resp||'').split('\n').forEach(function(L){
+          const t=L.trim(); if(!t) return;
+          mapa[t]=(mapa[t]||0)+1;
+        });
+      });
+    });
+  });
+  return Object.keys(mapa).sort(function(a,b){ return a.localeCompare(b,'es'); })
+    .map(function(t){ return {txt:t, n:mapa[t]}; });
+}
+
+// Devuelve en cuántas filas cambiaría (simular=true) o cambia de verdad.
+function _plCambiarProfEn(viejo, nuevo, ambito, simular){
+  const bloques = (ambito==='todo') ? ['planta','c1','c2'] : [ambito];
+  let n=0;
+  bloques.forEach(function(k){
+    const b=PLANIF.sem && PLANIF.sem.datos && PLANIF.sem.datos[k];
+    if(!b || !Array.isArray(b.dias)) return;
+    b.dias.forEach(function(d){
+      (d.filas||[]).forEach(function(f){
+        const antes=String(f.resp||'');
+        if(!antes) return;
+        const despues=_plCambiaNombre(antes, viejo, nuevo);
+        if(despues!==antes){ n++; if(!simular) f.resp=despues; }
+      });
+    });
+  });
+  return n;
+}
+
+function _plBtnProf(k,i,j){
+  return '<button class="pl-prof-b" title="Cambiar este profesor en todo el horario" '
+    +'onclick="plCambiarProf(\''+k+'\','+i+','+j+')">🔁</button>';
+}
+function plCambiarProf(k,i,j){
+  const b=PLANIF.sem && PLANIF.sem.datos && PLANIF.sem.datos[k];
+  const f=(b && b.dias && b.dias[i] && b.dias[i].filas || [])[j] || {};
+  const enFila=String(f.resp||'').split('\n').map(function(t){ return t.trim(); }).filter(Boolean);
+  _plAbrirCambioProf(enFila[0]||'');
+}
+function _plAbrirCambioProf(pre){
+  if(!PLANIF.sem){ return; }
+  const lista=_plNombresEnHorario();
+  if(!lista.length){ alert('Todavía no hay ningún responsable escrito en el horario.'); return; }
+  const profes=(PLANC.profes||[]).map(_plNomProf).sort(function(a,b){ return a.localeCompare(b,'es'); });
+  const pn=_plNormNom(pre);
+  let h='<div class="plp-dlg-h">🔁 Cambiar un profesor por otro</div>'
+    +'<div class="pl-hint" style="margin:0 0 10px">Cambia el nombre en el <b>Responsable</b> de todas las filas '
+    +'donde aparezca. Lo demás del horario queda igual.</div>'
+    +'<label class="pl-full">¿A quién se reemplaza?<select class="pl-i" id="pl-cp-de" onchange="_plCambioProfPrev()">'
+    +lista.map(function(x){
+      return '<option value="'+_plEsc(x.txt)+'"'+(_plNormNom(x.txt)===pn?' selected':'')+'>'
+        +_plEsc(x.txt)+'   ('+x.n+' fila'+(x.n===1?'':'s')+')</option>';
+    }).join('')+'</select></label>'
+    +'<label class="pl-full" style="margin-top:9px">¿Quién entra en su lugar?'
+    +'<select class="pl-i" id="pl-cp-a" onchange="_plCambioProfPrev()">'
+    +'<option value="">— elegilo de la lista de profesores —</option>'
+    +profes.map(function(t){ return '<option value="'+_plEsc(t)+'">'+_plEsc(t)+'</option>'; }).join('')
+    +'</select></label>'
+    +'<label class="pl-full" style="margin-top:6px">…o escribilo a mano (manda sobre la lista)'
+    +'<input class="pl-i" id="pl-cp-txt" oninput="_plCambioProfPrev()" placeholder="Tcnl. DEM. Pedro Peter Gálvez Gálvez"></label>'
+    +'<label class="pl-full" style="margin-top:9px">¿Dónde se cambia?'
+    +'<select class="pl-i" id="pl-cp-amb" onchange="_plCambioProfPrev()">'
+    +'<option value="todo">En toda la semana (planta + 1er ciclo + 2do ciclo)</option>'
+    +'<option value="planta">Solo en el horario de planta</option>'
+    +'<option value="c1">Solo en el 1er ciclo</option>'
+    +'<option value="c2">Solo en el 2do ciclo</option>'
+    +'</select></label>'
+    +'<div id="pl-cp-prev" style="margin-top:10px"></div>'
+    +'<div class="plp-btns"><button class="btn-primary pl-b" onclick="plCambiarProfAplicar()">🔁 Cambiar</button>'
+    +'<span style="flex:1"></span><button class="pl-add" onclick="_plpCerrarModal()">Cancelar</button></div>';
+  _plpModal(h);
+  _plCambioProfPrev();
+}
+function _plCambioProfDatos(){
+  const g=function(id){ const e=document.getElementById(id); return e?String(e.value||'').trim():''; };
+  return { de:g('pl-cp-de'), a:(g('pl-cp-txt') || g('pl-cp-a')), amb:g('pl-cp-amb')||'todo' };
+}
+function _plCambioProfPrev(){
+  const el=document.getElementById('pl-cp-prev'); if(!el) return;
+  const c=_plCambioProfDatos();
+  if(!c.a){ el.innerHTML='<div class="plp-av plp-av-cer">Elegí o escribí quién entra en su lugar.</div>'; return; }
+  if(_plNormNom(c.a)===_plNormNom(c.de)){ el.innerHTML='<div class="plp-av plp-av-cer">Es el mismo nombre.</div>'; return; }
+  const n=_plCambiarProfEn(c.de, c.a, c.amb, true);
+  el.innerHTML = n
+    ? '<div class="plp-av plp-av-ok">✅ Va a cambiar en <b>'+n+'</b> fila'+(n===1?'':'s')+':<br>'
+        +_plEsc(c.de)+'  →  <b>'+_plEsc(c.a)+'</b></div>'
+    : '<div class="plp-av plp-av-pend">⚠️ Ese nombre no aparece en el ámbito elegido.</div>';
+}
+function plCambiarProfAplicar(){
+  const c=_plCambioProfDatos();
+  if(!c.a){ alert('⚠️ Elegí o escribí quién entra en su lugar.'); return; }
+  if(_plNormNom(c.a)===_plNormNom(c.de)){ alert('⚠️ Es el mismo nombre.'); return; }
+  const n=_plCambiarProfEn(c.de, c.a, c.amb, true);
+  if(!n){ alert('⚠️ Ese nombre no aparece en el ámbito elegido.'); return; }
+  if(!confirm('¿Cambiar «'+c.de+'»\npor «'+c.a+'»\n\nen '+n+' fila'+(n===1?'':'s')+'?')) return;
+  _plCambiarProfEn(c.de, c.a, c.amb, false);
+  _plpCerrarModal();
+  plMarcarSucio();
+  plRenderEditor();
 }
 
 // Pares de filas que se pisan en el mismo día (texto listo para mostrar).
