@@ -4020,6 +4020,24 @@ body{
 .plp-meter{ margin:10px 0 4px; padding:9px 11px; border:1px solid var(--gold); border-radius:9px; background:rgba(212,175,55,.10); color:#f6e3ae; font-size:13px }
 .plp-meter-b{ display:flex; flex-wrap:wrap; gap:6px }
 .plp-meter-b .pl-b{ flex:1 1 30%; min-width:110px }
+/* ===== v2.9.377: la columna no se parte =====
+   FullCalendar reparte el ancho entre las casillas que se pisan, y la propuesta
+   quedaba como una tirita ilegible mientras el horario base se adelgazaba. Acá
+   las dos se llevan la COLUMNA ENTERA: el horario base al fondo y la propuesta
+   encima, con sombra para que se lea que está por delante. */
+.fc-timegrid-col-events .fc-timegrid-event-harness.plp-h-base,
+.fc-timegrid-col-events .fc-timegrid-event-harness.plp-h-prop{
+  inset-inline-start:0 !important; inset-inline-end:0 !important;
+  left:0 !important; right:0 !important; width:auto !important; }
+.fc-timegrid-col-events .fc-timegrid-event-harness.plp-h-base{ z-index:1 !important }
+.fc-timegrid-col-events .fc-timegrid-event-harness.plp-h-prop{ z-index:8 !important }
+/* La propuesta se separa un poco de los bordes para que se vea el horario base
+   por detrás y se entienda que está montada encima. */
+.fc-timegrid-col-events .fc-timegrid-event-harness.plp-h-prop > .fc-timegrid-event{
+  margin:0 6px 0 14px; box-shadow:-3px 2px 10px rgba(0,0,0,.55); border-radius:6px }
+.fc-event.plp-prop .plp-ev{ padding:2px 5px }
+.fc-event.plp-prop .plp-ev-t{ font-size:12.5px; white-space:normal }
+.fc-event.plp-prop .plp-ev-s{ font-size:10.5px; white-space:normal }
 .plp-btns{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px }
 .plp-bw{ width:auto !important; height:auto !important; padding:6px 12px !important; font-size:12px !important }
 .plp-b-aprob{ background:linear-gradient(180deg,#1e5bb8,#123a78) !important; color:#fff !important }
@@ -4047,7 +4065,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.376</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.377</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -47835,6 +47853,8 @@ function renderPlanifPanel(){
 // ============================================================
 // ============================================================
 // ============================================================
+// ============================================================
+// ============================================================
 // v2.9.375 — HORARIO INTEGRADO: PROPUESTAS SOBRE EL HORARIO
 // CUALQUIER profesor propone actividades sobre la semana que armó Planificación
 // —y SIEMPRE escribiendo por qué—; el Jefe de Estudios lee la justificación y
@@ -47899,6 +47919,17 @@ function _plpFilaDeProp(k, p, cab, idx){
     unif:unif, resp:p.responsable||'', span:false, act3:true, prop:p.id };
 }
 
+// Texto comparable: sin dobles espacios, sin may/min.
+function _plpNormTxt(t){ return String(t||'').replace(/\s+/g,' ').trim().toUpperCase(); }
+
+// ¿`f` es exactamente la fila del horario base descrita en `mv` (lo que guarda
+// planif_propuestas.mueve)? Se compara hora de inicio, hora de fin y texto.
+function _plpEsEsaFila(f, mv){
+  if(!f || !mv) return false;
+  if(String(f.desde||'')!==String(mv.desde||'') || String(f.hasta||'')!==String(mv.hasta||'')) return false;
+  return _plpNormTxt(f.act||f.uc)===_plpNormTxt(mv.texto);
+}
+
 // ¿Esta fila del horario base es la del Entrenamiento Físico Militar?
 // (la del PDF firmado dice «PARTE ... Y ENTRENAMIENTO FÍSICO MILITAR»).
 function _plpEsFilaEfm(f){
@@ -47918,10 +47949,14 @@ function _plpMezclarBloque(k, bloque, props, cab){
       && _plpMin(p.desde)!==null && _plpMin(p.hasta)!==null;
   });
   if(!aprob.length) return out;
+  // v2.9.377 — filas del horario base que alguien arrastró a otro día u hora.
+  // Ojo: el día del que SALEN no es el mismo al que LLEGAN, por eso van aparte.
+  const mudanzas=aprob.filter(function(p){ return p.mueve && p.mueve.fecha; });
   out.dias.forEach(function(d, idx){
     const ps=aprob.filter(function(p){ return p.fecha===d.iso; })
       .sort(function(a,b){ return _plpMin(a.desde)-_plpMin(b.desde); });
-    if(!ps.length) return;
+    const seVan=mudanzas.filter(function(p){ return p.mueve.fecha===d.iso; });
+    if(!ps.length && !seVan.length) return;
     let filas=Array.isArray(d.filas)?d.filas:[];
     const libre=String(d.libre||'').trim();
     if(libre){
@@ -47930,10 +47965,16 @@ function _plpMezclarBloque(k, bloque, props, cab){
       if(k==='planta') f.act=libre; else f.uc=libre;
       filas=[f]; d.libre='';
     }
-    // v2.9.375 — una propuesta de tipo 'efm' MUEVE el Entrenamiento Físico: como
-    // las filas `fijo` nunca se recortan, hay que sacarla a mano para que no
-    // quede duplicada con la hora nueva.
-    if(ps.some(function(p){ return p.tipo==='efm'; })){
+    // v2.9.377 — la fila que se arrastró desaparece de su lugar original. Vale
+    // también para las `fijo` (E.F.M., partes, deportes), que nunca se recortan.
+    if(seVan.length){
+      filas=filas.filter(function(f){
+        return !seVan.some(function(p){ return _plpEsEsaFila(f, p.mueve); });
+      });
+    }
+    // Compatibilidad v2.9.375: una propuesta marcada 'efm' SIN `mueve` saca el
+    // Entrenamiento Físico del día donde aterriza.
+    if(ps.some(function(p){ return p.tipo==='efm' && !p.mueve; })){
       filas=filas.filter(function(f){ return !_plpEsFilaEfm(f); });
     }
     const res=[];
@@ -48114,6 +48155,15 @@ async function goPlanifCal(fecha){
     eventDurationEditable:true, eventStartEditable:true, eventResizableFromStart:true,
     events:function(info, ok, fail){ _plpEventos(info).then(ok).catch(function(e){ console.warn(e); ok([]); }); },
     eventClassNames:function(a){ return a.event.extendedProps.cls||[]; },
+    // v2.9.377 — FullCalendar reparte el ancho de la columna entre las casillas que
+    // se pisan, y la propuesta quedaba como una tirita ilegible al lado del horario
+    // base. Se marca el CONTENEDOR (.fc-timegrid-event-harness, que es quien lleva el
+    // ancho en un style inline) para que el CSS le devuelva la columna entera a las
+    // dos: el horario base abajo y la propuesta arriba.
+    eventDidMount:function(a){
+      const h=a.el.closest('.fc-timegrid-event-harness');
+      if(h) h.classList.add(a.event.extendedProps.tipo==='prop' ? 'plp-h-prop' : 'plp-h-base');
+    },
     eventContent:_plpContenido,
     eventAllow:function(span){ return !span.allDay; },
     select:function(info){ _plpNueva(info); },
@@ -48180,10 +48230,11 @@ function _plpArmarEventos(){
           }
           let z=_plpMin(f.hasta); if(z===null || z<=a) z=a+5;
           ev.push({ id:'B'+v+d.iso+'-'+j, title:titulo, start:d.iso+'T'+_plpHHMM(a), end:d.iso+'T'+_plpHHMM(z),
-            // El horario base NO se arrastra ni se estira: es de Planificación. Hay que
-            // decirlo fila por fila porque eventDurationEditable del calendario pisa el
-            // editable:false general — sin esto la casilla se dejaba agarrar y volvía sola.
-            editable:false, startEditable:false, durationEditable:false,
+            // v2.9.377 — el horario base SÍ se arrastra (mover la actividad a otro día
+            // u hora, como en Google Calendar), pero NO se estira: la duración de una
+            // fila del horario base la fija Planificación. Hay que decirlo fila por fila
+            // porque eventDurationEditable del calendario pisa el editable:false general.
+            editable:true, startEditable:!!u.proponer, durationEditable:false,
             extendedProps:{ tipo:'base', fila:f, cls:['plp-base'].concat(f.span?['plp-franja']:[]).concat(f._recortada?['plp-recortada']:[]) } });
         });
       });
@@ -48458,7 +48509,13 @@ function _plpForm(p, aviso){
     h+='<div class="pl-hint" style="margin:0 0 8px">'+_plEsc(p.seccion||'Sin sección')+' · propuesta por '+_plEsc(p.creado_por_nombre||p.creado_por)
       +(p.aprobado_por_nombre?' · aprobada por '+_plEsc(p.aprobado_por_nombre):'')+'</div>';
     if(p.motivo) h+='<div class="plp-av plp-av-just">📝 <b>Justificación de quien lo pide:</b><br>'+_plEsc(p.motivo)+'</div>';
-    if(p.tipo==='efm') h+='<div class="plp-av plp-av-ok">🏃 Mueve el <b>ENTRENAMIENTO FÍSICO MILITAR</b>: si se aprueba, la fila de las 05:30 sale del horario base y queda esta en su lugar.</div>';
+    if(p.mueve && p.mueve.fecha){
+      h+='<div class="plp-av plp-av-just">↔️ <b>Mueve una fila del horario base.</b><br>Sale de '
+        +_plEsc(_plDiaNombre(p.mueve.fecha)+' '+_plDiaNum(p.mueve.fecha)+' '+p.mueve.desde+'–'+p.mueve.hasta)
+        +' → «'+_plEsc(p.mueve.texto)+'». Al aprobarse desaparece de ahí.</div>';
+    } else if(p.tipo==='efm'){
+      h+='<div class="plp-av plp-av-ok">🏃 Mueve el <b>ENTRENAMIENTO FÍSICO MILITAR</b>: si se aprueba, la fila de las 05:30 sale del horario base y queda esta en su lugar.</div>';
+    }
     if(p.estado==='rechazada' && p.motivo_rechazo) h+='<div class="plp-av plp-av-err">❌ Motivo del rechazo: '+_plEsc(p.motivo_rechazo)+'</div>';
     if(!puede) h+='<div class="plp-av plp-av-cer">'+(u.proponer&&p.creado_por===u.id
       ?'🔒 La semana ya está cerrada para las secciones. Pedí el cambio al Jefe de Estudios.'
@@ -48518,17 +48575,23 @@ function _plpCamposDe(p){
   return { fecha:p.fecha, desde:p.desde, hasta:p.hasta, actividad:p.actividad||'', lugar:p.lugar||'',
     responsable:p.responsable||'', asisten:p.asisten||'', uniforme:p.uniforme||'',
     audiencias:(p.audiencias||[]).slice().sort(), recortar:p.recortar!==false,
-    motivo:p.motivo||'', tipo:p.tipo||'normal' };
+    motivo:p.motivo||'', tipo:p.tipo||'normal', mueve:p.mueve||null };
 }
 function _plpLeerForm(){
   const g=function(id){ const e=document.getElementById('plp-f-'+id); return e?String(e.value||'').trim():''; };
   const aud=[]; document.querySelectorAll('.plp-f-aud').forEach(function(c){ if(c.checked) aud.push(c.value); });
   const rec=document.getElementById('plp-f-recortar');
   const efm=document.getElementById('plp-f-efm');
+  const mv=(PLP.edit && PLP.edit.p && PLP.edit.p.mueve) || null;
   return { fecha:g('fecha'), desde:_plpNormHora(g('desde')), hasta:_plpNormHora(g('hasta')), actividad:g('actividad'),
     lugar:g('lugar'), responsable:g('responsable'), asisten:g('asisten'), uniforme:g('uniforme'),
     audiencias:aud.sort(), recortar:rec?rec.checked:true,
-    motivo:g('justif'), tipo:(efm && efm.checked)?'efm':'normal' };
+    motivo:g('justif'),
+    // `mueve` no es un campo que se escriba: viene del arrastre y viaja con la ficha.
+    mueve:mv,
+    // Si lo que se está moviendo ES el Entrenamiento Físico, queda marcado como tal
+    // aunque la casilla 🏃 no esté a la vista (el permiso lo revisa igual el servidor).
+    tipo: ((efm && efm.checked) || (mv && /ENTRENAMIENTO\s+F[IÍ]SICO/i.test(String(mv.texto||'')))) ? 'efm' : 'normal' };
 }
 function _plpPintarConflictos(){
   const el=document.getElementById('plp-conf'); if(!el || !PLP.edit) return;
@@ -48624,11 +48687,41 @@ function plpListaPendientes(){
 function _plpAbrirId(id){ const p=PLP.props.filter(function(x){ return x.id===id; })[0]; if(p) _plpForm(p); }
 
 async function _plpMovido(info){
-  const ev=info.event, p=ev.extendedProps.p;
+  const ev=info.event, p=ev.extendedProps.p, u=PLP.perfil||{};
   if(ev.allDay){ info.revert(); return; }
+
+  // ---- v2.9.377: arrastraron una fila del HORARIO BASE ----
+  // No se toca el jsonb de la semana: se propone MOVERLA. La propuesta guarda en
+  // `mueve` de dónde salió, y al aprobarse esa fila desaparece de su lugar viejo.
   if(!p){
-    info.revert();
-    alert('📋 Esta fila es del horario base y no se arrastra.\n\nTocala y elegí «poner una actividad adentro» (al principio, en el medio o al final): el bloque se parte solo.');
+    const f=ev.extendedProps.fila||{};
+    const texto=String(f.act||f.uc||ev.title||'').trim();
+    const viejo=info.oldEvent;
+    if(!u.proponer || !f.desde || !f.hasta || !viejo || !viejo.start){ info.revert(); return; }
+    if(_plpEsFilaEfm(f) && !u.efm){
+      info.revert();
+      alert('🏃 El ENTRENAMIENTO FÍSICO solo lo mueven sus encargados:\n\n· Tcnl. Aguirre\n· My. Linares\n· Tcnl. Fuentes\n\n(o el Jefe de Estudios).');
+      return;
+    }
+    const origen={ fecha:_plpIso(viejo.start), desde:f.desde, hasta:f.hasta, texto:texto };
+    const destinoFin = ev.end || new Date(ev.start.getTime()+(_plpMin(f.hasta)-_plpMin(f.desde))*60000);
+    if(_plpIso(destinoFin)!==_plpIso(ev.start)){ info.revert(); alert('La actividad tiene que empezar y terminar el mismo día.'); return; }
+    const s=_plpSemanaDe(_plpIso(ev.start));
+    if(!s){ info.revert(); alert('📭 Planificación todavía no creó la semana de esa fecha.'); return; }
+    if(!u.aprobar && !_plpAbierta(s)){
+      info.revert();
+      alert('🔒 La semana '+s.semana_num+' ya está cerrada para las secciones desde el '+_plpFechaLarga(s.cierre)+'.');
+      return;
+    }
+    const aud = PLP.vista==='todas' ? ['planta'] : [PLP.vista];
+    PLP.volverSiCancela=true;
+    _plpForm({ id:null, fecha:_plpIso(ev.start), desde:_plpHora(ev.start), hasta:_plpHora(destinoFin),
+      actividad:texto, lugar:f.lugar||'', responsable:f.resp||'', asisten:f.asisten||'TODOS',
+      uniforme:f.unif||'', audiencias:aud, recortar:true, estado:null, mueve:origen },
+      '↔️ Estás <b>moviendo</b> «'+_plEsc(texto)+'» de <b>'+_plEsc(_plDiaNombre(origen.fecha)+' '+_plDiaNum(origen.fecha)
+      +' '+origen.desde+'–'+origen.hasta)+'</b> a <b>'+_plEsc(_plDiaNombre(_plpIso(ev.start))+' '+_plDiaNum(_plpIso(ev.start))
+      +' '+_plpHora(ev.start)+'–'+_plpHora(destinoFin))+'</b>. Cuando el Jefe de Estudios apruebe, '
+      +'desaparece de su lugar viejo y el horario queda actualizado solo. Escribí abajo por qué.');
     return;
   }
   const fin=ev.end || new Date(ev.start.getTime()+(_plpMin(p.hasta)-_plpMin(p.desde))*60000);
