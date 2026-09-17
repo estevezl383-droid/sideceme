@@ -3939,7 +3939,7 @@ body{
 .plp-leyenda{ display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px; font-size:12px; color:var(--text-secondary); margin-bottom:8px }
 .plp-sw{ display:inline-block; width:16px; height:12px; border-radius:3px; margin-right:-8px; vertical-align:middle }
 .plp-sw-base{ background:#3a4556; border:1px solid #5b6a80 }
-.plp-sw-pend{ background:#1e5bb8 }
+.plp-sw-pend{ background:#c62828 }
 .plp-sw-aprob{ background:#1b7f3b }
 .plp-sw-rec{ background:#3a4556; border:1px dashed #f4d574 }
 .plp-av{ border-radius:8px; padding:8px 11px; font-size:13px; line-height:1.5; margin-bottom:8px; border:1px solid }
@@ -3970,9 +3970,10 @@ body{
 .fc-event.plp-base .plp-ev-t{ font-weight:600 }
 .fc-event.plp-franja{ background:repeating-linear-gradient(135deg,#252d39 0 6px,#2b3441 6px 12px) !important; color:#9aa6b6 !important }
 .fc-event.plp-recortada{ border:1px dashed #f4d574 !important }
-/* v2.9.375 — propuesta PENDIENTE = AZUL; cuando el Jefe de Estudios la aprueba
-   pasa a VERDE. Rechazada = gris tachado. */
-.fc-event.plp-pendiente{ background:#1e5bb8 !important; border:1px solid #82b1ff !important; color:#fff !important }
+/* v2.9.378 — PENDIENTE = ROJO, para que salte a la vista que falta aprobarla.
+   Cuando el Jefe de Estudios la aprueba pasa a VERDE. Rechazada = gris tachado y
+   solo la ve quien la pidió. */
+.fc-event.plp-pendiente{ background:#c62828 !important; border:1px solid #ff8a80 !important; color:#fff !important }
 .fc-event.plp-aprobada{ background:#1b7f3b !important; border:1px solid #7fe0a0 !important; color:#fff !important }
 .fc-event.plp-rechazada{ background:#4a4a4a !important; color:#ddd !important; text-decoration:line-through; opacity:.8 }
 .fc-event.plp-mia{ box-shadow:inset 4px 0 0 #f4d574 }
@@ -3999,16 +4000,18 @@ body{
 .plp-item .plp-just{ color:#f6e3ae; font-style:italic; line-height:1.4 }
 /* --- Tiradores para ALARGAR / ACORTAR: antes era una flecha de 2 px que nadie
    veía y que se soltaba sola. Ahora es una barra dorada, arriba y abajo. --- */
-.fc-timegrid-event.plp-prop .fc-event-resizer{ display:block; left:0; right:0; height:14px; cursor:ns-resize; z-index:6; touch-action:none }
-.fc-timegrid-event.plp-prop .fc-event-resizer-start{ top:-3px }
-.fc-timegrid-event.plp-prop .fc-event-resizer-end{ bottom:-3px }
+.fc-timegrid-event.plp-prop .fc-event-resizer{ display:block; left:0; right:0; height:12px; cursor:ns-resize; z-index:6; touch-action:none }
+.fc-timegrid-event.plp-prop .fc-event-resizer-start{ top:-2px }
+.fc-timegrid-event.plp-prop .fc-event-resizer-end{ bottom:-2px }
 .fc-timegrid-event.plp-base .fc-event-resizer{ display:none !important }
+/* v2.9.378 — el tirador va CORRIDO A LA DERECHA: centrado tapaba el nombre de
+   quien pide en las casillas cortas. */
 .fc-timegrid-event.plp-prop .fc-event-resizer::after{
-  content:'≡'; position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
-  width:44px; max-width:80%; height:12px; line-height:10px; text-align:center;
-  font-size:12px; font-weight:900; color:#20180a; background:#f4d574;
-  border:1px solid #fff6d0; border-radius:7px; box-shadow:0 1px 5px rgba(0,0,0,.55); }
-.fc-timegrid-event.plp-prop .fc-event-resizer:hover::after{ background:#fff0b0; transform:translate(-50%,-50%) scale(1.12) }
+  content:'≡'; position:absolute; right:5px; top:50%; transform:translateY(-50%);
+  width:34px; max-width:45%; height:11px; line-height:9px; text-align:center;
+  font-size:11px; font-weight:900; color:#20180a; background:#f4d574;
+  border:1px solid #fff6d0; border-radius:6px; box-shadow:0 1px 5px rgba(0,0,0,.55); }
+.fc-timegrid-event.plp-prop .fc-event-resizer:hover::after{ background:#fff0b0; transform:translateY(-50%) scale(1.14) }
 .fc-event.plp-prop[data-editable]{ cursor:grab }
 .fc-timegrid-event.fc-event-draggable{ cursor:grab }
 .fc-timegrid-event.fc-event-dragging{ cursor:grabbing; opacity:.85 }
@@ -4035,18 +4038,27 @@ body{
    por detrás y se entienda que está montada encima. */
 .fc-timegrid-col-events .fc-timegrid-event-harness.plp-h-prop > .fc-timegrid-event{
   margin:0 6px 0 14px; box-shadow:-3px 2px 10px rgba(0,0,0,.55); border-radius:6px }
-.fc-event.plp-prop .plp-ev{ padding:2px 5px }
+.fc-event.plp-prop .plp-ev{ padding:11px 5px 11px }
+.fc-event.plp-prop .plp-ev-h{ padding-right:44px }
 .fc-event.plp-prop .plp-ev-t{ font-size:12.5px; white-space:normal }
 .fc-event.plp-prop .plp-ev-s{ font-size:10.5px; white-space:normal }
+/* v2.9.378 — quién está pidiendo el cambio, en su propia línea y destacado. */
+.plp-ev-q{ font-size:11.5px; font-weight:800; white-space:normal; line-height:1.2;
+  margin-top:1px; padding:1px 4px; border-radius:4px; background:rgba(255,255,255,.18) }
+.plp-quien{ margin:0 0 9px; padding:7px 10px; border-radius:8px; font-size:13.5px;
+  background:rgba(255,255,255,.07); border:1px solid var(--border-subtle); color:var(--text-primary) }
+.plp-quien b{ color:#f4d574 }
+.plp-quien span{ color:var(--text-secondary); font-size:12.5px }
+.plp-item .plp-quien-mini{ color:#cfe0f5 !important; font-weight:700 }
 .plp-btns{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-top:12px }
 .plp-bw{ width:auto !important; height:auto !important; padding:6px 12px !important; font-size:12px !important }
 .plp-b-aprob{ background:linear-gradient(180deg,#1e5bb8,#123a78) !important; color:#fff !important }
 .plp-rech{ margin-top:12px; padding-top:10px; border-top:1px solid var(--border-subtle) }
 .plp-pill{ font-size:11px; padding:2px 8px; border-radius:10px; color:#fff; font-weight:700 }
-.plp-pill-pendiente{ background:#1e5bb8 } .plp-pill-aprobada{ background:#1b7f3b } .plp-pill-rechazada{ background:#8a3030 }
+.plp-pill-pendiente{ background:#c62828 } .plp-pill-aprobada{ background:#1b7f3b } .plp-pill-rechazada{ background:#555 }
 .plp-dato{ font-size:14px; margin:3px 0 } .plp-dato span{ display:inline-block; min-width:100px; color:var(--text-muted); font-size:12px }
 .plp-dato-t{ font-size:15px; font-weight:700; margin-bottom:8px }
-.plp-item{ display:flex; flex-direction:column; gap:2px; width:100%; text-align:left; background:rgba(30,91,184,.12); border:1px solid #1e5bb8;
+.plp-item{ display:flex; flex-direction:column; gap:2px; width:100%; text-align:left; background:rgba(198,40,40,.12); border:1px solid #c62828;
   border-radius:8px; padding:8px 10px; margin-bottom:6px; color:var(--text-primary); font-family:inherit; font-size:13px; cursor:pointer }
 .plp-item small{ color:var(--text-muted) }
 @media (max-width:600px){ .plp-g3{ grid-template-columns:1fr 1fr } #plp-cal .fc-toolbar{ flex-direction:column; gap:6px } }
@@ -4065,7 +4077,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.377</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.378</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -47855,6 +47867,7 @@ function renderPlanifPanel(){
 // ============================================================
 // ============================================================
 // ============================================================
+// ============================================================
 // v2.9.375 — HORARIO INTEGRADO: PROPUESTAS SOBRE EL HORARIO
 // CUALQUIER profesor propone actividades sobre la semana que armó Planificación
 // —y SIEMPRE escribiendo por qué—; el Jefe de Estudios lee la justificación y
@@ -48119,7 +48132,7 @@ async function _plpBoton(){
     if(r.ok){
       const n=(r.propuestas||[]).filter(function(x){ return x.estado==='pendiente'; }).length;
       const el=b.querySelector('.plp-cuenta');
-      if(el && n) el.textContent='· 🔵 '+n+(p.aprobar?(' esperando tu aprobación'):(' sin aprobar'));
+      if(el && n) el.textContent='· 🔴 '+n+(p.aprobar?(' esperando tu aprobación'):(' sin aprobar'));
     }
   }
 }
@@ -48242,7 +48255,11 @@ function _plpArmarEventos(){
   }
   PLP.props.forEach(function(p){
     if(PLP.conBase && v!=='todas' && (p.audiencias||[]).indexOf(v)<0) return;
-    if(p.estado==='rechazada' && !(u.aprobar || p.creado_por===u.id)) return;
+    // v2.9.378 — una actividad RECHAZADA queda en el calendario SOLO para quien la
+    // pidió, para que sepa que no salió y por qué. Nadie más la ve, y al documento
+    // no llega nunca (la mezcla toma únicamente las aprobadas). El Jefe de Estudios
+    // y los de seguimiento la siguen viendo en el panel «Ver quién pidió qué y por qué».
+    if(p.estado==='rechazada' && p.creado_por!==u.id) return;
     const puede=_plpPuedeEditar(p);
     ev.push({ id:'P'+p.id, title:p.actividad, start:p.fecha+'T'+p.desde, end:p.fecha+'T'+p.hasta,
       editable:puede, startEditable:puede, durationEditable:puede,
@@ -48256,7 +48273,11 @@ function _plpContenido(a){
   const hora=a.timeText?'<div class="plp-ev-h">'+_plEsc(a.timeText)+'</div>':'';
   if(x.tipo!=='prop') return { html:'<div class="plp-ev">'+hora+'<div class="plp-ev-t">'+_plEsc(a.event.title)+'</div></div>' };
   const p=x.p, aud=(p.audiencias||[]).map(function(k){ return {planta:'Planta',c1:'1er C.',c2:'2do C.'}[k]; }).join(' · ');
+  // v2.9.378 — QUIÉN LO PIDE en su propia línea y destacado: el Cnl. Baptista tiene
+  // que saber de un vistazo de quién es cada pedido, sin abrir la ficha.
+  const quien=String(p.creado_por_nombre||'').trim();
   return { html:'<div class="plp-ev">'+hora+'<div class="plp-ev-t">'+(p.tipo==='efm'?'🏃 ':'')+_plEsc(p.actividad)+'</div>'
+    +(quien?'<div class="plp-ev-q">👤 '+_plEsc(quien)+'</div>':'')
     +'<div class="plp-ev-s">'+_plEsc((p.seccion||'')+' · '+_PLP_EST[p.estado]+' · '+aud)+'</div></div>' };
 }
 
@@ -48281,12 +48302,12 @@ function _plpBarra(){
   // cuando el día estaba lleno no había hueco donde arrastrar. Este botón siempre está.
   if(u.proponer) h+='<button class="btn-primary plp-add-gr" onclick="plpNuevaLibre()">➕ Agregar una actividad al horario</button>';
   h+='<div class="plp-leyenda"><span class="plp-sw plp-sw-base"></span>Horario base'
-    +'<span class="plp-sw plp-sw-pend"></span>Propuesta — espera al Jefe de Estudios'
-    +'<span class="plp-sw plp-sw-aprob"></span>Aprobada por el Jefe de Estudios'
+    +'<span class="plp-sw plp-sw-pend"></span>🔴 Espera al Jefe de Estudios'
+    +'<span class="plp-sw plp-sw-aprob"></span>🟢 Aprobada'
     +'<span class="plp-sw plp-sw-rec"></span>Recortada por una aprobada</div>';
   const pend=PLP.props.filter(function(p){ return p.estado==='pendiente'; });
   if(u.aprobar && pend.length){
-    h+='<div class="plp-av plp-av-pend">🔵 <b>'+pend.length+'</b> actividad'+(pend.length>1?'es':'')+' esperando tu aprobación'
+    h+='<div class="plp-av plp-av-pend">🔴 <b>'+pend.length+'</b> actividad'+(pend.length>1?'es':'')+' esperando tu aprobación'
       +' en lo que estás viendo. <button class="btn-primary pl-b" onclick="plpListaPendientes()">Revisar una por una</button></div>';
   }
   if(u.veTodo){
@@ -48349,18 +48370,18 @@ function plpSeguimiento(){
   });
   const cuenta=function(e){ return lista.filter(function(p){ return p.estado===e; }).length; };
   let h='<div class="plp-dlg-h">📊 Seguimiento del horario</div>'
-    +'<div class="pl-hint" style="margin:0 0 8px">🔵 '+cuenta('pendiente')+' esperando al Jefe de Estudios · '
+    +'<div class="pl-hint" style="margin:0 0 8px">🔴 '+cuenta('pendiente')+' esperando al Jefe de Estudios · '
     +'🟢 '+cuenta('aprobada')+' aprobada'+(cuenta('aprobada')!==1?'s':'')+' · ❌ '+cuenta('rechazada')+' rechazada'
     +(cuenta('rechazada')!==1?'s':'')+'</div>';
   if(!lista.length){
     h+='<div class="pl-hint">Nadie pidió cambios sobre el horario en las fechas que estás viendo.</div>';
   } else {
     h+=lista.map(function(p){
-      const ic={pendiente:'🔵',aprobada:'🟢',rechazada:'❌'}[p.estado]||'·';
+      const ic={pendiente:'🔴',aprobada:'🟢',rechazada:'❌'}[p.estado]||'·';
       return '<button class="plp-item" onclick="_plpAbrirId('+p.id+')">'
         +'<b>'+ic+' '+_plEsc(_plDiaNombre(p.fecha)+' '+_plDiaNum(p.fecha)+' · '+p.desde+'–'+p.hasta)+'</b>'
         +'<span>'+(p.tipo==='efm'?'🏃 ':'')+_plEsc(p.actividad)+'</span>'
-        +'<small>'+_plEsc((p.creado_por_nombre||'')+(p.seccion?' · '+p.seccion:''))+'</small>'
+        +'<small class="plp-quien-mini">👤 '+_plEsc(p.creado_por_nombre||'')+(p.seccion?' · '+_plEsc(p.seccion):'')+'</small>'
         +(p.motivo?'<small class="plp-just">📝 '+_plEsc(p.motivo)+'</small>':'<small class="plp-just">📝 (sin justificación: es anterior a la v2.9.375)</small>')
         +(p.estado==='aprobada'&&p.aprobado_por_nombre?'<small>✅ Aprobó '+_plEsc(p.aprobado_por_nombre)+'</small>':'')
         +(p.estado==='rechazada'&&p.motivo_rechazo?'<small>❌ '+_plEsc(p.motivo_rechazo)+'</small>':'')
@@ -48506,8 +48527,9 @@ function _plpForm(p, aviso){
     +(p.estado?' <span class="plp-pill plp-pill-'+p.estado+'">'+_PLP_EST[p.estado]+'</span>':'')+'</div>';
   if(aviso) h+='<div class="plp-av plp-av-just">'+aviso+'</div>';
   if(!nueva){
-    h+='<div class="pl-hint" style="margin:0 0 8px">'+_plEsc(p.seccion||'Sin sección')+' · propuesta por '+_plEsc(p.creado_por_nombre||p.creado_por)
-      +(p.aprobado_por_nombre?' · aprobada por '+_plEsc(p.aprobado_por_nombre):'')+'</div>';
+    h+='<div class="plp-quien">👤 <b>Lo pide:</b> '+_plEsc(p.creado_por_nombre||p.creado_por)
+      +(p.seccion?'<span> · '+_plEsc(p.seccion)+'</span>':'')
+      +(p.aprobado_por_nombre?'<span> · ✅ aprobada por '+_plEsc(p.aprobado_por_nombre)+'</span>':'')+'</div>';
     if(p.motivo) h+='<div class="plp-av plp-av-just">📝 <b>Justificación de quien lo pide:</b><br>'+_plEsc(p.motivo)+'</div>';
     if(p.mueve && p.mueve.fecha){
       h+='<div class="plp-av plp-av-just">↔️ <b>Mueve una fila del horario base.</b><br>Sale de '
@@ -48676,10 +48698,11 @@ async function plpHistorial(){
 }
 function plpListaPendientes(){
   const pend=PLP.props.filter(function(p){ return p.estado==='pendiente'; });
-  _plpModal('<div class="plp-dlg-h">🔵 Esperando tu aprobación</div>'
+  _plpModal('<div class="plp-dlg-h">🔴 Esperando tu aprobación</div>'
     +(pend.length?pend.map(function(p){
       return '<button class="plp-item" onclick="_plpAbrirId('+p.id+')"><b>'+_plEsc(_plDiaNombre(p.fecha)+' '+_plDiaNum(p.fecha)+' · '+p.desde+'–'+p.hasta)+'</b>'
-        +'<span>'+(p.tipo==='efm'?'🏃 ':'')+_plEsc(p.actividad)+'</span><small>'+_plEsc((p.seccion||'')+' · '+(p.creado_por_nombre||''))+'</small>'
+        +'<span>'+(p.tipo==='efm'?'🏃 ':'')+_plEsc(p.actividad)+'</span>'
+        +'<small class="plp-quien-mini">👤 '+_plEsc(p.creado_por_nombre||'')+(p.seccion?' · '+_plEsc(p.seccion):'')+'</small>'
         +'<small class="plp-just">📝 '+_plEsc(p.motivo||'(sin justificación: es anterior a la v2.9.375)')+'</small></button>';
     }).join(''):'<div class="pl-hint">No quedan pendientes.</div>')
     +'<div class="plp-btns"><span style="flex:1"></span><button class="pl-add" onclick="_plpCerrarModal()">Cerrar</button></div>');
