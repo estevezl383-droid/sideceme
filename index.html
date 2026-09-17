@@ -4040,6 +4040,13 @@ body{
   border-radius:9px; background:rgba(255,255,255,.07); color:var(--text-primary);
   border:1px solid var(--border-subtle); cursor:pointer; font-family:inherit }
 .plp-prev-gr:hover{ background:rgba(212,175,55,.18); border-color:var(--gold); color:#f4d574 }
+/* ===== v2.9.387: se repite (como Google Calendar) ===== */
+.plp-rep{ margin:4px 0 10px; padding:9px 11px; border:1px solid var(--border-subtle); border-radius:9px;
+  background:rgba(255,255,255,.04); font-size:13px; color:var(--text-primary);
+  display:flex; flex-wrap:wrap; align-items:center; gap:7px }
+.plp-rep b{ color:#f4d574 }
+.plp-rep .pl-i{ width:auto; font-size:13px; padding:5px 7px }
+.plp-rep .pl-hint{ flex-basis:100%; margin:0 }
 /* ===== v2.9.386: la hoja de la vista previa ===== */
 #plp-prev[hidden]{ display:none !important }
 #plp-prev{ position:fixed; inset:0; z-index:10070; background:#3a3a3a; overflow:auto }
@@ -4171,7 +4178,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.386</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.387</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -48437,6 +48444,7 @@ function renderPlanifPanel(){
 // ============================================================
 // ============================================================
 // ============================================================
+// ============================================================
 // v2.9.375 — HORARIO INTEGRADO: PROPUESTAS SOBRE EL HORARIO
 // CUALQUIER profesor propone actividades sobre la semana que armó Planificación
 // —y SIEMPRE escribiendo por qué—; el Jefe de Estudios lee la justificación y
@@ -48665,7 +48673,10 @@ function _plpFechaLarga(iso){
   return t.toLocaleString('es-BO',{timeZone:'America/La_Paz',weekday:'long',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false});
 }
 function _plpSemanaDe(fecha){ return PLP.semanas.filter(function(s){ return s.fecha_desde<=fecha && fecha<=s.fecha_hasta; })[0]||null; }
-function _plpAbierta(s){ return !!s && Date.now() < new Date(s.cierre).getTime(); }
+// v2.9.387 — si Planificación todavía no creó esa semana, no hay plazo que
+// vencer: se puede programar con toda la antelación que uno quiera.
+function _plpAbierta(s){ return !s || Date.now() < new Date(s.cierre).getTime(); }
+function _plpSinSemana(fecha){ return !_plpSemanaDe(fecha); }
 function _plpPuedeEditar(p){
   const u=PLP.perfil;
   if(!u || p.estado==='retirada') return false;
@@ -49294,11 +49305,11 @@ function _plpNueva(info){
   let desde='08:00', hasta='09:00';
   if(!info.allDay){ desde=_plpHora(info.start); hasta=_plpHora(info.end); if(hasta<=desde) hasta=_plpHHMM(_plpMin(desde)+30); }
   const s=_plpSemanaDe(fecha);
-  if(!s){ alert('📭 Planificación todavía no creó la semana de esa fecha.\n\nCuando el auxiliar la arme, vas a poder proponer sobre ella.'); return; }
-  if(!u.aprobar && !_plpAbierta(s)){ alert('🔒 La semana '+s.semana_num+' ya está cerrada para las secciones desde el '+_plpFechaLarga(s.cierre)+'.\n\nPedí el cambio al Jefe de Estudios.'); return; }
+  if(s && !u.aprobar && !_plpAbierta(s)){ alert('🔒 La semana '+s.semana_num+' ya está cerrada para las secciones desde el '+_plpFechaLarga(s.cierre)+'.\n\nPedí el cambio al Jefe de Estudios.'); return; }
   const aud = PLP.vista==='todas' ? ['planta'] : [PLP.vista];
   _plpForm({ id:null, fecha:fecha, desde:desde, hasta:hasta, actividad:'', lugar:'', responsable:u.seccion?u.seccion+'.':'',
-    asisten:'TODOS', uniforme:'', audiencias:aud, recortar:true, estado:null });
+    asisten:'TODOS', uniforme:'', audiencias:aud, recortar:true, estado:null },
+    s ? null : _plpAvisoSinSemana(fecha));
 }
 function _plpAbrir(ev){
   const x=ev.extendedProps;
@@ -49346,10 +49357,13 @@ function plpNuevaLibre(){
     const d=new Date(PLP.cal.view.currentStart.getTime()), fin=PLP.cal.view.currentEnd;
     while(d<fin){ if(_plpSemanaDe(_plpIso(d))){ iso=_plpIso(d); break; } d.setDate(d.getDate()+1); }
   }
+  // v2.9.387: si no hay semana creada en la vista, igual se puede programar:
+  // arranca en el primer día que se está mirando.
+  if(!iso && PLP.cal && PLP.cal.view) iso=_plpIso(PLP.cal.view.currentStart);
   if(!iso && PLP.semanas.length) iso=PLP.semanas[0].fecha_desde;
-  if(!iso){ alert('📭 Planificación todavía no creó ninguna semana en las fechas que estás viendo.\n\nMovete con ◀ ▶ hasta una semana armada.'); return; }
+  if(!iso) iso=_plpProximoLunes();
   const s=_plpSemanaDe(iso);
-  if(!u.aprobar && !_plpAbierta(s)){
+  if(s && !u.aprobar && !_plpAbierta(s)){
     alert('🔒 La semana '+s.semana_num+' ya está cerrada para las secciones desde el '+_plpFechaLarga(s.cierre)+'.\n\nPedí el cambio al Jefe de Estudios.');
     return;
   }
@@ -49357,7 +49371,16 @@ function plpNuevaLibre(){
   _plpForm({ id:null, fecha:iso, desde:'08:00', hasta:'08:30', actividad:'', lugar:'',
     responsable:u.seccion?u.seccion+'.':'', asisten:'TODOS', uniforme:'',
     audiencias:aud, recortar:true, estado:null },
-    '🗓️ Poné el <b>día</b> y la <b>hora</b> acá abajo. Si cae encima de algo del horario base, ese bloque se parte solo.');
+    s ? '🗓️ Poné el <b>día</b> y la <b>hora</b> acá abajo. Si cae encima de algo del horario base, ese bloque se parte solo.'
+      : _plpAvisoSinSemana(iso));
+}
+
+// v2.9.387 — cartel para cuando se programa una fecha cuya semana todavía no armó
+// Planificación: se puede igual, queda esperando.
+function _plpAvisoSinSemana(iso){
+  return '📅 <b>Estás programando con antelación.</b> Planificación todavía no armó la semana '
+    +'del '+_plEsc(_plDiaNombre(iso)+' '+_plDiaNum(iso))+', así que todavía no hay horario base para ver. '
+    +'La actividad queda guardada igual y aparece sola en cuanto la semana se arme.';
 }
 
 // Mete una actividad nueva ADENTRO de una fila del horario base, sin arrastrar.
@@ -49373,8 +49396,7 @@ function plpMeterEnBase(donde){
   else                     ini=a+Math.round((z-a-largo)/2/5)*5;
   const s=_plpSemanaDe(b.iso);
   const u=PLP.perfil||{};
-  if(!s){ alert('📭 Planificación todavía no creó la semana de esa fecha.'); return; }
-  if(!u.aprobar && !_plpAbierta(s)){
+  if(s && !u.aprobar && !_plpAbierta(s)){
     alert('🔒 La semana '+s.semana_num+' ya está cerrada para las secciones desde el '+_plpFechaLarga(s.cierre)+'.\n\nPedí el cambio al Jefe de Estudios.');
     return;
   }
@@ -49441,6 +49463,20 @@ function _plpForm(p, aviso){
     h+='<label class="plp-rec"><input type="checkbox" id="plp-f-efm"'+(p.tipo==='efm'?' checked':'')+dis
       +'> 🏃 Esta actividad <b>MUEVE el Entrenamiento Físico Militar</b> de ese día (saca la fila de las 05:30 del horario base)</label>';
   }
+  // v2.9.387 — SE REPITE, como en Google Calendar. Solo al crear: cada vez que se
+  // repite se guarda como una actividad aparte, así cada una se puede mover,
+  // aprobar o borrar por su cuenta sin tocar a las demás.
+  if(nueva){
+    h+='<div class="plp-rep"><b>🔁 Se repite:</b>'
+      +'<select class="pl-i" id="plp-f-rep" onchange="_plpRepCambio()">'
+      +'<option value="no">Solo esa vez</option>'
+      +'<option value="semanal">Cada semana, el mismo día</option>'
+      +'<option value="mensual">Cada mes, la misma fecha</option>'
+      +'</select>'
+      +'<span id="plp-rep-n" hidden> durante <input class="pl-i" id="plp-f-repn" type="number" min="2" max="26" value="4" '
+      +'oninput="_plpRepCambio()" style="width:62px"> veces</span>'
+      +'<div class="pl-hint" id="plp-rep-det" style="margin:5px 0 0"></div></div>';
+  }
   // La JUSTIFICACIÓN es obligatoria: es lo que lee el Jefe de Estudios.
   h+='<label class="pl-full plp-justif">📝 ¿Por qué se altera el horario? <i>'
     +(_plpSinJustificar()?'(opcional para vos: queda guardado que lo hiciste)':'(obligatorio, lo lee el Jefe de Estudios)')+'</i>'
@@ -49461,8 +49497,47 @@ function _plpForm(p, aviso){
   h+='<div id="plp-hist"></div>';
   _plpModal(h);
   const dlg=document.getElementById('plp-dlg');
-  dlg.oninput=dlg.onchange=function(e){ if(e.target && e.target.id!=='plp-f-motivo') _plpPintarConflictos(); };
+  dlg.oninput=dlg.onchange=function(e){
+    if(e.target && e.target.id!=='plp-f-motivo') _plpPintarConflictos();
+    if(e.target && e.target.id==='plp-f-fecha') _plpRepCambio();
+  };
   _plpPintarConflictos();
+  _plpRepCambio();
+}
+// Las fechas en las que va a caer la repetición.
+function _plpRepFechas(iso, modo, veces){
+  const out=[iso];
+  if(modo==='no') return out;
+  const n=Math.max(2, Math.min(26, parseInt(veces,10)||2));
+  const base=new Date(iso+'T12:00:00');
+  for(let i=1;i<n;i++){
+    const d=new Date(base.getTime());
+    if(modo==='semanal'){
+      d.setDate(base.getDate()+7*i);
+    } else {
+      // misma fecha del mes siguiente; si ese mes es más corto, el último día
+      const dia=base.getDate();
+      d.setDate(1); d.setMonth(base.getMonth()+i);
+      const ultimo=new Date(d.getFullYear(), d.getMonth()+1, 0).getDate();
+      d.setDate(Math.min(dia, ultimo));
+    }
+    out.push(_plpIso(d));
+  }
+  return out;
+}
+function _plpRepCambio(){
+  const sel=document.getElementById('plp-f-rep'), cont=document.getElementById('plp-rep-n'),
+        det=document.getElementById('plp-rep-det');
+  if(!sel || !det) return;
+  const modo=sel.value;
+  if(cont) cont.hidden = (modo==='no');
+  if(modo==='no'){ det.innerHTML=''; return; }
+  const f=document.getElementById('plp-f-fecha');
+  const n=document.getElementById('plp-f-repn');
+  const fechas=_plpRepFechas(f?f.value:'', modo, n?n.value:4);
+  det.innerHTML='Se van a crear <b>'+fechas.length+'</b> actividades, una por fecha: '
+    +fechas.map(function(x){ return _plEsc(_plDiaNombre(x).slice(0,3)+' '+_plDiaNum(x)); }).join(' · ')
+    +'.<br>Cada una queda por separado: se mueve, se aprueba o se borra sin tocar a las otras.';
 }
 function _plpToggleRech(){
   const t=document.getElementById('plp-f-motivo'), b=document.getElementById('plp-b-rech');
@@ -49525,6 +49600,25 @@ async function plpGuardar(){
   const p=ed.p;
   if(p.id && !(PLP.perfil||{}).aprobar && p.estado==='aprobada'
      && !confirm('Esta actividad ya está APROBADA.\n\nSi la cambiás vuelve a PENDIENTE hasta que el Jefe de Estudios la apruebe de nuevo. ¿Guardar igual?')) return null;
+  // v2.9.387: si se marcó que se repite, se crea una actividad por cada fecha.
+  if(!p.id){
+    const sel=document.getElementById('plp-f-rep');
+    const modo=sel?sel.value:'no';
+    if(modo!=='no'){
+      const nEl=document.getElementById('plp-f-repn');
+      const fechas=_plpRepFechas(c.fecha, modo, nEl?nEl.value:4);
+      if(!confirm('Se van a crear '+fechas.length+' actividades, una por cada fecha.\n\n¿Seguir?')) return null;
+      let ok=0; const fallos=[];
+      for(const f of fechas){
+        const rr=await _plpInvoke('guardar',{campos:Object.assign({}, c, {fecha:f})});
+        if(rr && rr.ok) ok++; else fallos.push(_plDiaNombre(f)+' '+_plDiaNum(f)+': '+((rr&&rr.error)||'error'));
+      }
+      _plpCerrarModal(); _plpRecargar();
+      alert((ok?'✅ Se crearon '+ok+' actividad'+(ok>1?'es':'')+'.':'')
+        +(fallos.length?'\n\n⚠️ No se pudo con:\n'+fallos.join('\n'):''));
+      return null;
+    }
+  }
   const r=await _plpInvoke('guardar', p.id ? {id:p.id, version:p.version, campos:c} : {campos:c});
   if(!r.ok){ alert('❌ '+r.error); if(r.status===409) { _plpCerrarModal(); _plpRecargar(); } return null; }
   _plpCerrarModal(); _plpRecargar();
@@ -49653,7 +49747,10 @@ async function _plpTraerAprobadas(s){
   PLANIF.props={ estado:'cargando', semId:s.id, lista:[] };
   const r=await _plpInvoke('cargar',{desde:s.fecha_desde, hasta:s.fecha_hasta, con_base:false});
   if(!PLANIF.sem || PLANIF.sem.id!==s.id) return;
-  PLANIF.props = r.ok ? { estado:'ok', semId:s.id, lista:(r.propuestas||[]).filter(function(p){ return p.semana_id===s.id; }) }
+  // v2.9.387: por FECHA y no por semana_id — las programadas con antelación
+  // todavía no tienen semana asignada.
+  PLANIF.props = r.ok ? { estado:'ok', semId:s.id, lista:(r.propuestas||[]).filter(function(p){
+                            return p.fecha>=s.fecha_desde && p.fecha<=s.fecha_hasta; }) }
                       : { estado:'error', semId:s.id, lista:[], error:r.error };
   if(document.getElementById('screen-planif-sem').classList.contains('active')) plRenderEditor();
 }
