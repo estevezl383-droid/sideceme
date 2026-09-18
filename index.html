@@ -4178,7 +4178,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.387</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.388</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -45108,8 +45108,12 @@ async function verificarNotificaciones(){
       // 🚨 v2.9.58: Roles monitor (Disciplina/Comandante/CT/Estudios/SAC) →
       // detectar SANCIONES NUEVAS registradas en el sistema y mostrar el puntito rojo.
       if(typeof esRolMonitorSanciones==='function' && esRolMonitorSanciones()){
+        // v2.9.388: ANTES pedia solo 7 columnas y metia esas filas MOCHAS en discData.
+        // Resultado: la sancion nueva se pintaba como "Registro analogico", -0 PTS, falta
+        // "—" y sin ciclo, y al no traer cursante_id NO aparecia en la ficha del cursante.
+        // Ahora pide las MISMAS columnas que el resto de la app.
         const {data:nuevasS} = await sb.from('v_sanciones')
-          .select('id,folio,cursante_nombre,profesor_nombre,creado_en,anulada,es_prueba')
+          .select(SANC_COLS_LITE)
           .eq('anulada', false)
           .order('creado_en', {ascending:false})
           .limit(30);
@@ -45119,7 +45123,18 @@ async function verificarNotificaciones(){
           // Sincronizar discData para que el panel quede fresco aunque no se re-renderice
           try{
             const ids = new Set((discData.sanciones||[]).map(x=>String(x.id)));
-            nuevasS.forEach(d=>{ if(!ids.has(String(d.id))) discData.sanciones.push(d); });
+            let agregadas = 0;
+            nuevasS.forEach(d=>{
+              // v2.9.388: blindaje — nunca meter una fila sin cursante_id ni tipo: esa fila
+              // desaparece de la ficha del cursante y se pinta como analogica.
+              if(ids.has(String(d.id))) return;
+              if(!d.cursante_id || !d.tipo) return;
+              discData.sanciones.push(d); agregadas++;
+            });
+            // v2.9.388: repintar la lista visible para que la sancion nueva salga completa
+            if(agregadas > 0){
+              try{ if(document.getElementById('sanciones-list')?.offsetParent) renderSancionesList(); }catch(_){}
+            }
           }catch(_){}
           // Notificación del navegador SOLO por las que aún no avisamos en esta sesión
           const porAvisar = sinVer.filter(d => !notifLastKnown['adm_'+d.id]);
