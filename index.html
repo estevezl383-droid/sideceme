@@ -4178,7 +4178,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.389</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.390</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -51928,11 +51928,11 @@ protVigilarBoton();
 
 
 <!-- =====================================================================
-     EVALUACION SUMATIVA — ESTUDIO DE ESTADO MAYOR · FASE 1  (v2.9.389)
+     EVALUACION SUMATIVA — ESTUDIO DE ESTADO MAYOR · FASES 1 y 2  (v2.9.390)
      Carpeta de Clases: el alumno entrega, el Evaluador administra y
      Ciencia y Tecnologia supervisa.
      TODO ADITIVO: no se modifico ni una linea de lo anterior.
-     Backend: eem-ops · eem-entrega-subir · eem-entrega-descargar
+     Backend: eem-ops · eem-entrega-subir · eem-entrega-descargar · eem-evaluar-forma
      ===================================================================== -->
 
 <style>
@@ -52034,7 +52034,7 @@ protVigilarBoton();
 
 <script>
 /* =====================================================================
-   EVALUACION SUMATIVA EEM — FASE 1 (v2.9.389)
+   EVALUACION SUMATIVA EEM — FASES 1 y 2 (v2.9.390)
    Modulo autonomo: no toca ninguna funcion existente. Se engancha
    envolviendo showScreen, igual que el modulo de Protocolo.
    ===================================================================== */
@@ -52678,7 +52678,7 @@ function vistaPorGrupo(){
       '<td>'+(e&&e.entrega_id
               ? (e.fuera_de_plazo ? '<span class="eem-chip warn">TARDÍA</span>' : '<span class="eem-chip ok">EN PLAZO</span>')
               : '<span class="eem-chip warn">PENDIENTE</span>')+'</td>'+
-      '<td style="color:#7d8aa3">— <span style="font-size:9px">F2</span></td>'+
+      '<td>'+celdaForma(e)+'</td>'+
       '<td style="color:#7d8aa3">— <span style="font-size:9px">F3</span></td>'+
       '<td style="color:#7d8aa3">— <span style="font-size:9px">F5</span></td>'+
       '<td>'+(e&&e.entrega_id
@@ -52693,7 +52693,11 @@ function vistaPorGrupo(){
     '<div class="eem-card">'+
       '<div class="eem-row" style="justify-content:space-between;margin-bottom:8px">'+
         '<b style="color:#e8d79a">Vista por GRUPO — trabajo escrito (65%)</b>'+
-        '<button class="eem-btn sec mini" disabled title="Se implementa en las Fases 2 y 3">⚙️ Lanzar revisión de los seleccionados</button>'+
+        '<div class="eem-row">'+
+          '<button class="eem-btn mini" onclick="eemRevisarForma(\'todas\')">⚙️ REVISAR LA FORMA DE TODAS LAS ENTREGAS</button>'+
+          '<button class="eem-btn sec mini" onclick="eemRevisarForma(\'seleccion\')">⚙️ Sólo los seleccionados</button>'+
+          '<button class="eem-btn sec mini" onclick="eemExportarForma()">⬇️ Cuadro de forma a Excel</button>'+
+        '</div>'+
       '</div>'+
       '<div class="eem-scroll"><table class="eem-tabla"><thead><tr>'+
         '<th></th><th>N°</th><th>Tema</th><th>Integrantes</th><th>Archivo</th><th>Fecha</th><th>Estado</th>'+
@@ -52744,6 +52748,7 @@ function paraInput(iso){
 function vistaConfig(){
   const p = EEM.panel, cp = p.carpeta, per = (p.perfil && p.perfil.perfil) || {};
   const m = per.margenes_cm || {}; const pie = per.pie_paginado || {};
+  const mo = per.motor || {};   // los umbrales del motor de forma (Fase 2)
   const sinGrupo = (p.roster||[]).filter(r=>!r.grupo_id);
 
   const opcionesGrupo = (p.grupos||[]).map(g=>'<option value="'+g.id+'">Grupo '+esc(rotuloGrupo(g.numero,g.nombre))+(g.tema?' — '+esc(g.tema):'')+'</option>').join('');
@@ -52853,7 +52858,39 @@ function vistaConfig(){
         '<span class="eem-sub">Exigir pie de página con paginado (patrón <b>n - N</b>)</span></label>'+
       '<div class="eem-field"><label>Elementos estructurales obligatorios (uno por línea)</label>'+
         '<textarea id="eem-p-estr" rows="6">'+esc((per.estructura_obligatoria||[]).join('\n'))+'</textarea></div>'+
-      '<button class="eem-btn" onclick="eemGuardarPerfil()">Guardar como versión nueva</button>'+
+      '<div style="border-top:1px solid rgba(255,255,255,.1);margin:12px 0 10px;padding-top:10px">'+
+        '<b style="color:#e8d79a;font-size:13px">Cómo mide el motor</b>'+
+        '<div class="eem-sub">Estos umbrales NO están en el código: salen de acá. Cambiarlos y volver a revisar cambia la nota.</div>'+
+      '</div>'+
+      '<div class="eem-grid2">'+
+        '<div class="eem-field"><label>Tolerancia del tamaño de letra (pt)</label>'+
+          '<input id="eem-p-tolpt" type="number" step="0.1" value="'+esc(per.tolerancia_pt!=null?per.tolerancia_pt:0.5)+'"></div>'+
+        '<div class="eem-field"><label>% de páginas conformes exigido en cada margen</label>'+
+          '<input id="eem-p-conf" type="number" step="1" value="'+esc(mo.margen_conforme_min_pct!=null?mo.margen_conforme_min_pct:90)+'"></div>'+
+        '<div class="eem-field"><label>% mínimo del texto en las tipografías permitidas</label>'+
+          '<input id="eem-p-cobf" type="number" step="1" value="'+esc(mo.cobertura_fuente_min_pct!=null?mo.cobertura_fuente_min_pct:90)+'"></div>'+
+        '<div class="eem-field"><label>% mínimo del texto en el tamaño exigido</label>'+
+          '<input id="eem-p-cobt" type="number" step="1" value="'+esc(mo.cobertura_tamano_min_pct!=null?mo.cobertura_tamano_min_pct:80)+'"></div>'+
+        '<div class="eem-field"><label>Secciones romanas exigidas (separadas por coma)</label>'+
+          '<input id="eem-p-rom" value="'+esc(((mo.estructura||{}).secciones_romanas||['I.-','II.-','III.-','IV.-']).join(', '))+'"></div>'+
+        '<div class="eem-field"><label>Escalón de tabulación: mínimo de páginas (0 a 1)</label>'+
+          '<input id="eem-p-esc" type="number" step="0.01" value="'+esc(mo.frecuencia_minima_escalon!=null?mo.frecuencia_minima_escalon:0.15)+'"></div>'+
+      '</div>'+
+      '<label class="eem-integ"><input type="checkbox" id="eem-p-obj"'+(((mo.estructura||{}).exigir_objeto)!==false?' checked':'')+'>'+
+        '<span class="eem-sub">Exigir la palabra <b>OBJETO</b></span></label>'+
+      '<label class="eem-integ"><input type="checkbox" id="eem-p-anx"'+(((mo.estructura||{}).exigir_anexo)===true?' checked':'')+'>'+
+        '<span class="eem-sub">Exigir al menos un <b>ANEXO</b></span></label>'+
+      '<div class="eem-sub" style="margin:10px 0 4px"><b style="color:#e8d79a">Criterios opcionales del ítem 2</b> — cada uno que se active suma un criterio más al denominador.</div>'+
+      '<label class="eem-integ"><input type="checkbox" id="eem-p-ci"'+((mo.criterios_opcionales||{}).interlineado?' checked':'')+'>'+
+        '<span class="eem-sub">Medir el <b>interlineado</b></span></label>'+
+      '<label class="eem-integ"><input type="checkbox" id="eem-p-cj"'+((mo.criterios_opcionales||{}).justificacion?' checked':'')+'>'+
+        '<span class="eem-sub">Medir la <b>justificación</b> a ambos márgenes</span></label>'+
+      '<label class="eem-integ"><input type="checkbox" id="eem-p-ce"'+((mo.criterios_opcionales||{}).espaciado_parrafos?' checked':'')+'>'+
+        '<span class="eem-sub">Medir el <b>espaciado entre párrafos</b></span></label>'+
+      '<div class="eem-row" style="margin-top:10px">'+
+        '<button class="eem-btn" onclick="eemGuardarPerfil()">Guardar como versión nueva</button>'+
+        '<button class="eem-btn sec" onclick="eemAutoprueba()">🔧 Probar el motor</button>'+
+      '</div>'+
     '</div>';
 }
 
@@ -52989,8 +53026,30 @@ async function eemGuardarPerfil(){
     interlineado: Number(v('eem-p-inter')),
     clasificacion: v('eem-p-clas'),
     pie_paginado: { exigido: document.getElementById('eem-p-pie').checked, patron: 'n - N' },
-    estructura_obligatoria: v('eem-p-estr').split('\n').map(s=>s.trim()).filter(Boolean)
+    estructura_obligatoria: v('eem-p-estr').split('\n').map(s=>s.trim()).filter(Boolean),
+    tolerancia_pt: Number(v('eem-p-tolpt'))
   };
+  /* El bloque "motor" se ARRASTRA entero del perfil anterior y se le pisan
+     sólo los campos editables. Si se perdiera, la revisión de forma dejaría
+     de correr y avisaría que al perfil le falta un umbral. */
+  const ch = id=>{ const e = document.getElementById(id); return e ? e.checked : false; };
+  const moAnt = ((EEM.panel.perfil||{}).perfil||{}).motor || {};
+  perfil.motor = Object.assign({}, moAnt, {
+    margen_conforme_min_pct:  Number(v('eem-p-conf')),
+    cobertura_fuente_min_pct: Number(v('eem-p-cobf')),
+    cobertura_tamano_min_pct: Number(v('eem-p-cobt')),
+    frecuencia_minima_escalon: Number(v('eem-p-esc')),
+    criterios_opcionales: {
+      interlineado:       ch('eem-p-ci'),
+      justificacion:      ch('eem-p-cj'),
+      espaciado_parrafos: ch('eem-p-ce')
+    },
+    estructura: Object.assign({}, moAnt.estructura || {}, {
+      exigir_objeto: ch('eem-p-obj'),
+      exigir_anexo:  ch('eem-p-anx'),
+      secciones_romanas: v('eem-p-rom').split(',').map(x=>x.trim()).filter(Boolean)
+    })
+  });
   if(!confirm('Se guarda como VERSIÓN NUEVA del perfil normativo y la carpeta pasa a usarla. La versión anterior queda intacta. ¿Seguís?')) return;
   await escribir('perfil_guardar', { perfil: perfil, base_id: (EEM.panel.perfil||{}).id || null }, 'Perfil guardado como versión nueva.');
 }
@@ -53539,6 +53598,309 @@ async function eemBajarPlantilla(){
   setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
 }
 window.eemBajarPlantilla = eemBajarPlantilla;
+
+/* =====================================================================
+   FASE 2 — REVISION DE FORMA (motor determinista, sin IA)
+   Backend: eem-evaluar-forma (acciones tablero / revisar / detalle /
+   ajuste / autoprueba). Todo lo que mide sale del perfil normativo.
+   ===================================================================== */
+EEM.forma = null;        // { filas:[], perfil:{}, motor_version }
+EEM._formaPidiendo = false;
+
+const TOPE_LOTE = 10;    // de a cuantas entregas por llamada, para ver avance
+
+async function eemCargarForma(silencioso){
+  if(EEM._formaPidiendo) return;
+  EEM._formaPidiendo = true;
+  const r = await eemInvoke('eem-evaluar-forma', 'tablero', { carpeta_id: EEM.carpetaId });
+  EEM._formaPidiendo = false;
+  if(!r.ok){ EEM.forma = { filas:[], error:r.error }; if(!silencioso) aviso('⛔ '+r.error); }
+  else EEM.forma = r;
+  pintarPanel();
+}
+window.eemCargarForma = eemCargarForma;
+
+function formaDe(entregaId){
+  if(!EEM.forma || !EEM.forma.filas) return null;
+  return EEM.forma.filas.find(f=>f.entrega_id === entregaId) || null;
+}
+const dec2 = n => (n==null || n==='') ? null : Number(Number(n).toFixed(2));
+
+/* La celda "Forma 20" de la vista por grupo. */
+function celdaForma(e){
+  if(!e || !e.entrega_id) return '<span style="color:#7d8aa3">—</span>';
+  if(EEM.forma === null){
+    if(!EEM._formaPidiendo) setTimeout(()=>eemCargarForma(true), 0);
+    return '<span style="color:#7d8aa3">…</span>';
+  }
+  const f = formaDe(e.entrega_id);
+  if(!f || !f.revisada) return '<span style="color:#f0cf7a">sin revisar</span>';
+  const aMano = [f.origen1,f.origen2,f.origen3].some(o=>o==='ajuste_manual');
+  return '<b style="color:#8fe3b0">'+esc(dec2(f.nota_forma))+'</b>'+
+         '<span style="color:#7d8aa3"> / 15</span>'+
+         (aMano ? ' <span class="eem-chip warn" style="padding:1px 6px;font-size:9px">a mano</span>' : '')+
+         '<br><span style="font-size:9.5px;color:#93a0b8">'+
+           esc(dec2(f.item1))+' · '+esc(dec2(f.item2))+' · '+esc(dec2(f.item3))+
+           ' · <b>+5 IA</b></span>'+
+         '<br><button class="eem-btn sec mini" style="margin-top:3px" onclick="eemVerForma(\''+esc(f.entrega_id)+'\')">🔍 '+
+           (f.hallazgos ? f.hallazgos+' hallazgo'+(f.hallazgos===1?'':'s') : 'sin observaciones')+'</button>';
+}
+
+/* ── el lote ──────────────────────────────────────────────────────── */
+function eemSeleccionados(){
+  return Array.from(document.querySelectorAll('.eem-masivo:checked')).map(c=>c.value);
+}
+async function eemRevisarForma(alcance){
+  const p = EEM.panel; if(!p) return;
+  const conEntrega = (p.grupos||[]).filter(g=>g.entrega && g.entrega.entrega_id);
+  let objetivo = conEntrega;
+  if(alcance === 'seleccion'){
+    const ids = eemSeleccionados();
+    if(!ids.length) return aviso('Tildá primero los grupos que querés revisar.');
+    objetivo = conEntrega.filter(g=>ids.indexOf(g.id) >= 0);
+    if(!objetivo.length) return aviso('Ninguno de los grupos tildados tiene entrega cargada.');
+  }
+  if(!objetivo.length) return aviso('Todavía no hay ninguna entrega para revisar.');
+
+  const forzar = confirm('Se van a revisar '+objetivo.length+' entrega(s).\n\n'+
+    'Aceptar = volver a medir TODAS, aunque ya tengan nota con este mismo perfil.\n'+
+    'Cancelar = medir sólo las que faltan (más rápido y da exactamente lo mismo).');
+
+  const entregas = objetivo.map(g=>g.entrega.entrega_id);
+  const bg = document.createElement('div');
+  bg.className='eem-modal-bg'; bg.id='eem-modal-forma-prog';
+  bg.innerHTML = '<div class="eem-modal"><h3>⚙️ Revisando la forma</h3>'+
+    '<div class="eem-sub">Motor determinista, sin IA. El mismo archivo con el mismo perfil da siempre la misma nota.</div>'+
+    '<div id="eem-prog-barra" style="height:12px;background:#0c1220;border:1px solid rgba(255,255,255,.16);'+
+      'border-radius:99px;overflow:hidden;margin:12px 0"><div id="eem-prog-fill" style="height:100%;width:0%;'+
+      'background:linear-gradient(90deg,#9a7b1f,#d4af37);transition:width .25s"></div></div>'+
+    '<div id="eem-prog-txt" class="eem-sub">Empezando…</div>'+
+    '<div id="eem-prog-det" class="eem-sub" style="max-height:34vh;overflow:auto;margin-top:8px"></div>'+
+    '<div id="eem-prog-pie" style="margin-top:12px"></div></div>';
+  document.body.appendChild(bg);
+  const fill = ()=>document.getElementById('eem-prog-fill');
+  const txt  = ()=>document.getElementById('eem-prog-txt');
+  const det  = ()=>document.getElementById('eem-prog-det');
+
+  let hechas = 0, salteadas = 0, conError = 0, t0 = Date.now();
+  const lineas = [];
+  for(let i = 0; i < entregas.length; i += TOPE_LOTE){
+    const lote = entregas.slice(i, i + TOPE_LOTE);
+    txt().textContent = 'Midiendo '+(i+1)+'–'+Math.min(i+lote.length, entregas.length)+' de '+entregas.length+'…';
+    const r = await eemInvoke('eem-evaluar-forma', 'revisar',
+      { carpeta_id: EEM.carpetaId, entrega_ids: lote, forzar: forzar });
+    if(!r.ok){
+      conError += lote.length;
+      lineas.push('<span class="eem-rojo">⛔ '+esc(r.error)+'</span>');
+    }else{
+      hechas    += (r.revisadas||[]).length;
+      salteadas += (r.salteadas||0);
+      (r.revisadas||[]).forEach(x=>lineas.push(
+        '✔ Grupo '+esc(x.grupo_numero==null?'—':x.grupo_numero)+' · '+esc(dec2(x.nota_forma))+' / 15 · '+
+        x.paginas+' pág · '+x.hallazgos+' hallazgo(s)'));
+      (r.errores||[]).forEach(x=>{ conError++; lineas.push(
+        '<span class="eem-rojo">⛔ Grupo '+esc(x.grupo_numero==null?'—':x.grupo_numero)+' — '+esc(x.error)+'</span>'); });
+    }
+    const pct = Math.round(100 * Math.min(i + lote.length, entregas.length) / entregas.length);
+    fill().style.width = pct + '%';
+    det().innerHTML = lineas.slice(-200).join('<br>');
+    det().scrollTop = det().scrollHeight;
+  }
+  const seg = ((Date.now()-t0)/1000).toFixed(1);
+  txt().innerHTML = '<b style="color:#8fe3b0">Listo en '+seg+' s.</b> '+hechas+' medida(s)'+
+    (salteadas ? ' · '+salteadas+' ya estaban al día' : '')+
+    (conError ? ' · <span class="eem-rojo">'+conError+' con problema</span>' : '');
+  document.getElementById('eem-prog-pie').innerHTML =
+    '<button class="eem-btn" onclick="eemCerrarProg()">Cerrar y ver el cuadro</button>';
+}
+function eemCerrarProg(){
+  const b = document.getElementById('eem-modal-forma-prog'); if(b) b.remove();
+  EEM.forma = null; eemCargarForma(true);
+}
+window.eemRevisarForma = eemRevisarForma; window.eemCerrarProg = eemCerrarProg;
+
+/* ── el detalle: la evidencia con la que se contesta un reclamo ───── */
+const NOMBRE_CRIT = {
+  margen_izquierdo:'Margen izquierdo', margen_derecho:'Margen derecho',
+  margen_superior:'Margen superior', margen_inferior:'Margen inferior',
+  familia_tipografica:'Familia tipográfica', tamano_letra:'Tamaño de letra',
+  interlineado:'Interlineado', justificacion:'Justificación',
+  espaciado_parrafos:'Espaciado entre párrafos'
+};
+function filaMedida(rot, medido, norma, tol, pctConf, cumple){
+  return '<tr><td>'+esc(rot)+'</td>'+
+    '<td><b>'+esc(medido==null?'—':medido)+'</b></td>'+
+    '<td>'+esc(norma==null?'—':norma)+'</td>'+
+    '<td>'+esc(tol==null?'—':'±'+tol)+'</td>'+
+    '<td>'+esc(pctConf==null?'—':pctConf)+'</td>'+
+    '<td>'+(cumple ? '<span class="eem-chip ok">cumple</span>' : '<span class="eem-chip bad">no cumple</span>')+'</td></tr>';
+}
+async function eemVerForma(entregaId){
+  const r = await eemInvoke('eem-evaluar-forma', 'detalle', { entrega_id: entregaId });
+  if(!r.ok) return aviso('⛔ '+r.error);
+  const ev = r.evaluacion;
+  if(!ev) return aviso('Esa entrega todavía no fue revisada.');
+  const med = ev.mediciones || {}, it = med.items || {};
+  const m2 = it['2'] || {}, m1 = it['1'] || {}, m3 = it['3'] || {};
+  const M = m2.norma_cm || {}, TOL = m2.tolerancia_cm;
+
+  let tabla = '';
+  (m2.criterios||[]).forEach(c=>{
+    const rot = NOMBRE_CRIT[c.clave] || c.clave;
+    if(c.clave === 'margen_izquierdo')
+      tabla += filaMedida(rot, m2.margen_izquierdo_cm+' cm', M.izq+' cm', TOL+' cm',
+        'escalón presente en ≥'+m2.escalon_umbral_paginas+' pág', c.cumple);
+    else if(c.clave === 'margen_derecho')
+      tabla += filaMedida(rot, m2.margen_derecho_cm+' cm', M.der+' cm', TOL+' cm',
+        m2.derecho_conforme_pct+'% ('+m2.derecho_paginas_conformes+' de '+m2.derecho_paginas_medidas+')', c.cumple);
+    else if(c.clave === 'margen_superior')
+      tabla += filaMedida(rot, m2.margen_superior_cm+' cm', M.sup+' cm', TOL+' cm',
+        m2.superior_conforme_pct+'% ('+m2.superior_paginas_conformes+' de '+m2.superior_paginas_medidas+')', c.cumple);
+    else if(c.clave === 'margen_inferior')
+      tabla += filaMedida(rot, 'mínimo '+m2.margen_inferior_min_cm+' cm', 'no invadir '+M.inf+' cm', TOL+' cm',
+        m2.inferior_invasiones+' invasión(es)', c.cumple);
+    else if(c.clave === 'familia_tipografica')
+      tabla += filaMedida(rot, m2.cobertura_fuente_pct+'%', '≥'+m2.conforme_min_pct+'%', null,
+        Object.keys(m2.familias||{}).join(', '), c.cumple);
+    else if(c.clave === 'tamano_letra')
+      tabla += filaMedida(rot, m2.cobertura_tamano_pct+'%', '—', null,
+        Object.keys(m2.tamanos_pt||{}).map(k=>k+' pt').join(', '), c.cumple);
+    else
+      tabla += filaMedida(rot, '—', '—', null, null, c.cumple);
+  });
+
+  const items = (r.items||[]).map(i=>
+    '<tr><td>'+i.orden+'</td><td>'+esc(i.descripcion)+'</td>'+
+    '<td><b>'+(i.nota==null ? '<span style="color:#f0cf7a">la pone la IA</span>' : esc(dec2(i.nota)))+'</b></td>'+
+    '<td>'+esc(i.sobre)+'</td>'+
+    '<td>'+(i.origen==='ajuste_manual'
+        ? '<span class="eem-chip warn">a mano</span><br><span style="font-size:10px">'+esc(i.motivo_ajuste||'')+'</span>'
+        : esc(i.origen||'—'))+'</td>'+
+    '<td>'+(i.nota==null ? '—' :
+      '<button class="eem-btn sec mini" onclick="eemAjustarForma(\''+esc(entregaId)+'\','+i.orden+','+i.sobre+')">✏️ ajustar</button>')+
+    '</td></tr>').join('');
+
+  const hall = (ev.hallazgos||[]);
+  const listaHall = hall.length
+    ? hall.map((h,k)=>'<div style="border-left:3px solid #c0392b;padding:6px 10px;margin:0 0 7px;'+
+        'background:rgba(255,255,255,.03);border-radius:0 8px 8px 0">'+
+        '<span style="color:#93a0b8;font-size:10px">ÍTEM '+esc(h.item)+'</span><br>'+esc(h.texto)+
+        ((h.paginas && h.paginas.length)
+          ? '<br><button class="eem-btn sec mini" style="margin-top:5px" onclick="eemPaginasFalla('+k+')">📄 ver las '+
+            h.paginas.length+' páginas que fallan</button><div id="eem-pf-'+k+'" class="eem-sub"></div>'
+          : '')+'</div>').join('')
+    : '<div class="eem-chip ok">Sin observaciones de forma.</div>';
+
+  EEM._hall = hall; EEM._hallEntrega = entregaId;
+
+  const bg = document.createElement('div'); bg.className='eem-modal-bg'; bg.id='eem-modal-forma';
+  bg.innerHTML = '<div class="eem-modal" style="max-width:900px">'+
+    '<h3>📐 Revisión de forma — '+esc(r.entrega.archivo_nombre||'')+'</h3>'+
+    '<div class="eem-sub">Motor '+esc(ev.motor_version)+' · perfil normativo v'+esc(ev.perfil_version)+
+      ' · '+esc(med.paginas||'?')+' páginas · medido el '+esc(fechaHora(ev.calculado_en))+
+      '<br>Medición determinista: el mismo archivo con el mismo perfil da siempre esta misma nota.</div>'+
+
+    '<div class="eem-scroll" style="max-height:none;margin:12px 0"><table class="eem-tabla"><thead><tr>'+
+      '<th>N°</th><th>Ítem de la rúbrica</th><th>Nota</th><th>Sobre</th><th>Origen</th><th></th>'+
+      '</tr></thead><tbody>'+items+
+      '<tr><td colspan="2" style="text-align:right"><b>SUBTOTAL AUTOMÁTICO</b></td>'+
+        '<td><b style="color:#8fe3b0">'+esc(dec2(ev.nota_parcial))+'</b></td><td><b>15</b></td><td colspan="2"></td></tr>'+
+      '</tbody></table></div>'+
+
+    '<b style="color:#e8d79a;font-size:13px">Ítem 2 — normas tipográficas, criterio por criterio</b>'+
+    '<div class="eem-scroll" style="max-height:none;margin:6px 0 12px"><table class="eem-tabla"><thead><tr>'+
+      '<th>Criterio</th><th>Valor medido</th><th>Norma</th><th>Tolerancia</th><th>Páginas conformes</th><th></th>'+
+      '</tr></thead><tbody>'+tabla+'</tbody></table></div>'+
+
+    '<b style="color:#e8d79a;font-size:13px">Ítem 1 — impresión</b>'+
+    '<div class="eem-sub" style="margin:4px 0 12px">Hoja '+esc(m1.hoja_ancho_cm)+' × '+esc(m1.hoja_alto_cm)+
+      ' cm (norma '+esc(m1.norma_ancho_cm)+' × '+esc(m1.norma_alto_cm)+' ±'+esc(m1.tolerancia_cm)+') · '+
+      esc(m1.tamanos_distintos)+' tamaño(s) de hoja · '+
+      ((m1.paginas_sin_texto||[]).length ? '<span class="eem-rojo">'+(m1.paginas_sin_texto||[]).length+' página(s) sin texto extraíble</span>' : 'todas las páginas con texto')+'</div>'+
+
+    '<b style="color:#e8d79a;font-size:13px">Ítem 3 — formato básico del E.E.M. ('+esc(m3.cumplidas)+' de '+esc(m3.total)+')</b>'+
+    '<div class="eem-sub" style="margin:4px 0 12px">'+
+      Object.keys(m3.verificaciones||{}).map(k=>
+        (m3.verificaciones[k] ? '<span class="eem-chip ok">' : '<span class="eem-chip bad">')+esc(k)+'</span>').join(' ')+
+    '</div>'+
+
+    '<b style="color:#e8d79a;font-size:13px">Hallazgos — es el texto que se le muestra al alumno si reclama</b>'+
+    '<div style="margin:8px 0 4px">'+listaHall+'</div>'+
+
+    '<div class="eem-row" style="margin-top:14px">'+
+      '<button class="eem-btn sec" onclick="eemBajarEntrega(\''+esc(entregaId)+'\')">⬇️ Abrir el PDF</button>'+
+      '<button class="eem-btn" onclick="document.getElementById(\'eem-modal-forma\').remove()">Cerrar</button>'+
+    '</div></div>';
+  document.body.appendChild(bg);
+}
+window.eemVerForma = eemVerForma;
+
+/* El visor de páginas no conformes: las lista y abre el PDF en la primera. */
+function eemPaginasFalla(k){
+  const h = (EEM._hall||[])[k]; if(!h) return;
+  const el = document.getElementById('eem-pf-'+k); if(!el) return;
+  if(el.innerHTML){ el.innerHTML=''; return; }
+  el.innerHTML = '<div style="margin-top:6px;color:#f0cf7a">Páginas que no cumplen ('+h.paginas.length+'): </div>'+
+    '<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px">'+
+    h.paginas.map(n=>'<button class="eem-btn sec mini" onclick="eemAbrirPagina('+n+')">pág. '+n+'</button>').join('')+
+    '</div>';
+}
+async function eemAbrirPagina(n){
+  const r = await eemInvoke('eem-entrega-descargar', null, { entrega_id: EEM._hallEntrega });
+  if(!r.ok) return aviso('No se pudo abrir el PDF: '+r.error);
+  window.open(r.url + '#page=' + n, '_blank');
+}
+window.eemPaginasFalla = eemPaginasFalla; window.eemAbrirPagina = eemAbrirPagina;
+
+/* ── ajuste manual, con motivo obligatorio y auditado ─────────────── */
+async function eemAjustarForma(entregaId, orden, sobre){
+  const v = prompt('Nota nueva para el ítem '+orden+' (de 0 a '+sobre+'):');
+  if(v === null) return;
+  const valor = Number(String(v).replace(',','.'));
+  if(!isFinite(valor) || valor < 0 || valor > sobre) return aviso('⛔ Tiene que ser un número entre 0 y '+sobre+'.');
+  const motivo = prompt('Motivo del ajuste (OBLIGATORIO — queda en la auditoría a tu nombre):');
+  if(!motivo || !motivo.trim()) return aviso('⛔ Sin motivo no se guarda.');
+  const r = await eemInvoke('eem-evaluar-forma', 'ajuste',
+    { entrega_id: entregaId, orden: orden, valor: valor, motivo: motivo.trim() });
+  if(!r.ok) return aviso('⛔ '+r.error);
+  aviso('Ajuste guardado. El motor no lo va a pisar aunque se vuelva a revisar.');
+  const b = document.getElementById('eem-modal-forma'); if(b) b.remove();
+  EEM.forma = null; eemCargarForma(true);
+}
+window.eemAjustarForma = eemAjustarForma;
+
+/* ── el cuadro de forma a Excel ───────────────────────────────────── */
+function eemExportarForma(){
+  const filas = (EEM.forma && EEM.forma.filas) || [];
+  if(!filas.length) return aviso('Todavía no hay nada revisado para exportar.');
+  const enc = ['Grupo','Nombre','Tema','Integrantes','Archivo','Entregado','Revisada',
+               'Motor','Perfil v','Paginas','Item 1 Impresion','Item 2 Tipografia',
+               'Item 3 Formato EEM','Origen 1','Origen 2','Origen 3','Forma sobre 15',
+               'Item 4 (IA, Fase 3)','Hallazgos'];
+  const cuerpo = filas.map(f=>[
+    f.grupo_numero, f.grupo_nombre||'', f.grupo_tema||'', f.integrantes, f.archivo_nombre||'',
+    fechaHora(f.entregado_en), f.revisada?'SI':'NO', f.motor_version||'', f.perfil_version||'',
+    f.paginas||'', dec2(f.item1)==null?'':dec2(f.item1), dec2(f.item2)==null?'':dec2(f.item2),
+    dec2(f.item3)==null?'':dec2(f.item3), f.origen1||'', f.origen2||'', f.origen3||'',
+    dec2(f.nota_forma)==null?'':dec2(f.nota_forma), 'pendiente', f.hallazgos||0
+  ]);
+  const csv = [enc.join(';')].concat(cuerpo.map(r=>r.map(c=>'"'+String(c==null?'':c).replace(/"/g,"'")+'"').join(';'))).join('\n');
+  const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'forma_eem_'+((EEM.panel&&EEM.panel.carpeta&&EEM.panel.carpeta.materia_nombre)||'carpeta').replace(/[^\w]+/g,'_')+'.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+window.eemExportarForma = eemExportarForma;
+
+/* ── autoprueba del motor publicado ───────────────────────────────── */
+async function eemAutoprueba(){
+  const r = await eemInvoke('eem-evaluar-forma', 'autoprueba', {});
+  if(!r.ok) return aviso('⛔ '+r.error);
+  aviso('MOTOR '+r.motor_version+' — '+(r.todas_bien?'TODO BIEN':'HAY FALLAS')+'\n\n'+
+    (r.pruebas||[]).map(p=>(p.ok?'✔ ':'✘ ')+p.prueba+'\n   '+p.detalle).join('\n\n'));
+}
+window.eemAutoprueba = eemAutoprueba;
+
 
 /* =====================================================================
    3) LOS BOTONES DE ENTRADA — se inyectan, no se toca nada existente
