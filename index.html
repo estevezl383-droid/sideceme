@@ -4178,7 +4178,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.388</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.389</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -51920,6 +51920,1122 @@ protVigilarBoton();
     }, ms));
   };
   nuevo.__prot = true;
+  window.showScreen = nuevo;
+})();
+
+})();
+</script>
+
+
+<!-- =====================================================================
+     EVALUACION SUMATIVA — ESTUDIO DE ESTADO MAYOR · FASE 1  (v2.9.389)
+     Carpeta de Clases: el alumno entrega, el Evaluador administra y
+     Ciencia y Tecnologia supervisa.
+     TODO ADITIVO: no se modifico ni una linea de lo anterior.
+     Backend: eem-ops · eem-entrega-subir · eem-entrega-descargar
+     ===================================================================== -->
+
+<style>
+.eem-wrap{padding:0 14px 90px}
+.eem-card{background:linear-gradient(180deg,#141a28,#0d1220);border:1px solid rgba(212,175,55,.28);
+  border-radius:14px;padding:14px;margin:0 0 12px;box-shadow:0 3px 12px rgba(0,0,0,.35)}
+.eem-card h3{margin:0 0 4px;font-size:15px;color:#e8d79a;letter-spacing:.3px}
+.eem-sub{font-size:11.5px;color:#93a0b8;line-height:1.5}
+.eem-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.eem-chip{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:3px 10px;font-size:11px;color:#cfd8e8}
+.eem-chip b{color:#fff}
+.eem-chip.ok{border-color:rgba(46,204,113,.45);color:#8fe3b0}
+.eem-chip.warn{border-color:rgba(230,180,60,.5);color:#f0cf7a}
+.eem-chip.bad{border-color:rgba(231,76,60,.55);color:#f0938a}
+.eem-btn{border:0;border-radius:10px;padding:10px 14px;font-weight:800;font-size:13px;cursor:pointer;
+  background:linear-gradient(180deg,#9a7b1f,#d4af37);color:#0a1628}
+.eem-btn.sec{background:linear-gradient(180deg,#26324a,#1a2337);color:#dfe7f5;border:1px solid rgba(255,255,255,.14)}
+.eem-btn.red{background:linear-gradient(180deg,#8e2f26,#c0392b);color:#fff}
+.eem-btn:disabled{opacity:.42;cursor:not-allowed}
+.eem-btn.mini{padding:5px 9px;font-size:11px;border-radius:8px}
+.eem-tabs{display:flex;gap:6px;margin:10px 0;overflow-x:auto;padding-bottom:2px}
+.eem-tab{white-space:nowrap;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.04);
+  color:#c2cde0;border-radius:999px;padding:7px 14px;font-size:12px;font-weight:700;cursor:pointer}
+.eem-tab.on{background:linear-gradient(180deg,#9a7b1f,#d4af37);color:#0a1628;border-color:transparent}
+.eem-tabla{width:100%;border-collapse:collapse;font-size:11.5px}
+.eem-tabla th{position:sticky;top:0;background:#101728;color:#e8d79a;text-align:left;padding:7px 6px;
+  font-size:10.5px;letter-spacing:.4px;text-transform:uppercase;border-bottom:1px solid rgba(212,175,55,.3)}
+.eem-tabla td{padding:7px 6px;border-bottom:1px solid rgba(255,255,255,.07);color:#d6dfef;vertical-align:top}
+.eem-tabla tr:hover td{background:rgba(255,255,255,.03)}
+.eem-scroll{max-height:60vh;overflow:auto;border:1px solid rgba(255,255,255,.09);border-radius:10px}
+.eem-rojo{color:#ff8b7d;font-weight:800}
+.eem-field{margin:0 0 10px}
+.eem-field label{display:block;font-size:11px;color:#9fb0c9;margin:0 0 4px;font-weight:700;letter-spacing:.3px}
+.eem-field input,.eem-field select,.eem-field textarea{width:100%;box-sizing:border-box;background:#0c1220;
+  border:1px solid rgba(255,255,255,.16);border-radius:9px;color:#eaf0fb;padding:9px 10px;font-size:13px}
+.eem-grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:520px){.eem-grid2{grid-template-columns:1fr}}
+.eem-modal-bg{position:fixed;inset:0;background:rgba(3,6,14,.82);z-index:9000;display:flex;
+  align-items:flex-start;justify-content:center;padding:18px;overflow:auto}
+.eem-modal{background:#111829;border:1px solid rgba(212,175,55,.35);border-radius:16px;max-width:620px;
+  width:100%;padding:18px;box-shadow:0 18px 60px rgba(0,0,0,.6)}
+.eem-modal h3{margin:0 0 10px;color:#e8d79a;font-size:16px}
+.eem-super-banner{position:sticky;top:0;z-index:50;background:linear-gradient(90deg,#7b1f1f,#c0392b);
+  color:#fff;font-weight:900;font-size:12px;letter-spacing:.4px;padding:9px 12px;text-align:center;
+  border-bottom:2px solid #ffce54;box-shadow:0 4px 14px rgba(0,0,0,.5)}
+.eem-integ{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:9px;
+  border:1px solid rgba(255,255,255,.1);margin:0 0 6px;background:rgba(255,255,255,.03)}
+.eem-integ input{width:18px;height:18px;accent-color:#d4af37}
+.eem-mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:10.5px;color:#9fe3c0;word-break:break-all}
+.eem-cuenta{font-size:12.5px;font-weight:800;letter-spacing:.3px}
+.eem-vacio{text-align:center;color:#8492ab;padding:26px 10px;font-size:12.5px}
+</style>
+
+<!-- ============ ALUMNO: Mis Carpetas de Clases ============ -->
+<section id="screen-eem-alumno" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('screen-cursante-home')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">🎓 Mis Carpetas de Clases</div>
+      <div class="header-sub">Entrega de trabajos evaluados</div></div>
+  </div>
+  <div class="eem-wrap" id="eem-alumno-cont"><div class="eem-vacio">Cargando…</div></div>
+</section>
+
+<!-- ============ DOCENTE: listado de carpetas ============ -->
+<section id="screen-eem-carpetas" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="eemVolverDelListado()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">📋 Carpetas de Clases</div>
+      <div class="header-sub" id="eem-carpetas-sub">Evaluación sumativa</div></div>
+  </div>
+  <div class="eem-wrap" id="eem-carpetas-cont"><div class="eem-vacio">Cargando…</div></div>
+</section>
+
+<!-- ============ EVALUADOR / SUPERVISOR: el tablero ============ -->
+<section id="screen-eem-panel" class="screen">
+  <div id="eem-banner-super"></div>
+  <div class="app-header">
+    <button class="back-btn" onclick="eemVolverAlListado()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title" id="eem-panel-tit">Carpeta de Clases</div>
+      <div class="header-sub" id="eem-panel-sub">—</div></div>
+  </div>
+  <div class="eem-wrap" id="eem-panel-cont"><div class="eem-vacio">Cargando…</div></div>
+</section>
+
+<!-- ============ AUDITORÍA ============ -->
+<section id="screen-eem-auditoria" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('screen-eem-panel')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">🔎 Registro de auditoría</div>
+      <div class="header-sub" id="eem-audit-sub">Quién tocó qué, cuándo y por qué</div></div>
+  </div>
+  <div class="eem-wrap" id="eem-audit-cont"><div class="eem-vacio">Cargando…</div></div>
+</section>
+
+<script>
+/* =====================================================================
+   EVALUACION SUMATIVA EEM — FASE 1 (v2.9.389)
+   Modulo autonomo: no toca ninguna funcion existente. Se engancha
+   envolviendo showScreen, igual que el modulo de Protocolo.
+   ===================================================================== */
+(function(){
+"use strict";
+
+const EEM = {
+  soyDocente:false, supervisor:false, carpetasDocente:null, hayAlgo:null,
+  alumno:null, panel:null, carpetaId:null, supervision:false,
+  vista:'grupo', filtro:'', filtroEstado:'todos', filtroParalelo:'',
+  relojes:[], subiendo:false
+};
+window.EEM = EEM;
+
+/* ── utilidades ───────────────────────────────────────────────────── */
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function tok(){ return (typeof getTokenSesion==='function') ? getTokenSesion() : null; }
+function fechaHora(d){ if(!d) return '—';
+  try{ return new Date(d).toLocaleString('es-BO',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}); }
+  catch(e){ return String(d); } }
+function kb(n){ n=Number(n||0); return n>=1048576 ? (n/1048576).toFixed(2)+' MB' : Math.round(n/1024)+' KB'; }
+function nom(o){ return ((o.grado?o.grado+' ':'')+(o.nombre_completo||o.cursante_id||'')).trim(); }
+
+async function eemInvoke(fn, accion, extra){
+  const t = tok();
+  if(!t) return {ok:false, error:'Sin sesión. Volvé a entrar.'};
+  try{
+    const { data, error } = await sb.functions.invoke(fn, { body: Object.assign({accion, token:t}, extra||{}) });
+    if(error){
+      let msg = error.message || 'error';
+      try{ if(error.context && typeof error.context.json==='function'){ const b = await error.context.json(); if(b && b.error) msg = b.error; } }catch(_){}
+      return {ok:false, error:msg};
+    }
+    return data || {ok:false, error:'sin respuesta'};
+  }catch(e){ return {ok:false, error:String((e&&e.message)||e)}; }
+}
+function aviso(msg){ try{ alert(msg); }catch(e){ console.warn(msg); } }
+
+/* ── cuenta regresiva ─────────────────────────────────────────────── */
+function limpiarRelojes(){ EEM.relojes.forEach(id=>clearInterval(id)); EEM.relojes = []; }
+function pintarCuenta(el, limite){
+  if(!el) return;
+  const f = ()=>{
+    if(!document.body.contains(el)) return;
+    if(!limite){ el.innerHTML = '<span style="color:#93a0b8">Sin fecha límite fijada</span>'; return; }
+    const ms = new Date(limite).getTime() - Date.now();
+    if(ms <= 0){ el.innerHTML = '<span style="color:#f0938a">⛔ PLAZO VENCIDO — '+esc(fechaHora(limite))+'</span>'; return; }
+    const d = Math.floor(ms/86400000), h = Math.floor(ms%86400000/3600000),
+          m = Math.floor(ms%3600000/60000), s = Math.floor(ms%60000/1000);
+    const color = ms < 86400000 ? '#f0cf7a' : '#8fe3b0';
+    el.innerHTML = '<span style="color:'+color+'">⏳ Faltan '+(d?d+'d ':'')+h+'h '+m+'m '+s+'s</span>'+
+                   '<span style="color:#7d8aa3"> · vence el '+esc(fechaHora(limite))+'</span>';
+  };
+  f(); EEM.relojes.push(setInterval(f, 1000));
+}
+
+/* =====================================================================
+   1) EL ALUMNO
+   ===================================================================== */
+async function eemAbrirAlumno(){
+  showScreen('screen-eem-alumno');
+  const c = document.getElementById('eem-alumno-cont');
+  c.innerHTML = '<div class="eem-vacio">Cargando tus carpetas…</div>';
+  const r = await eemInvoke('eem-ops', 'mis_carpetas', {});
+  if(!r.ok){ c.innerHTML = '<div class="eem-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
+  EEM.alumno = r.carpetas || [];
+  pintarAlumno();
+}
+window.eemAbrirAlumno = eemAbrirAlumno;
+
+function pintarAlumno(){
+  limpiarRelojes();
+  const c = document.getElementById('eem-alumno-cont');
+  if(!EEM.alumno || !EEM.alumno.length){
+    c.innerHTML = '<div class="eem-vacio">Todavía no tenés ninguna carpeta de clases con trabajo evaluado.</div>'; return;
+  }
+  c.innerHTML = EEM.alumno.map((x,i)=>tarjetaAlumno(x,i)).join('');
+  EEM.alumno.forEach((x,i)=>pintarCuenta(document.getElementById('eem-cuenta-'+i), x.carpeta.fecha_limite));
+}
+
+function tarjetaAlumno(x, i){
+  const cp = x.carpeta, e = x.entrega;
+  const vencio = !!(cp.fecha_limite && new Date(cp.fecha_limite) < new Date());
+  const abierta = cp.estado === 'abierta';
+  const puede = abierta && (!vencio || x.tardia_habilitada);
+
+  let grupo;
+  if(!x.grupo){
+    grupo = '<div class="eem-chip bad">⚠️ Todavía no estás asignado a ningún grupo</div>'+
+            '<div class="eem-sub" style="margin-top:6px">Sin grupo no se puede entregar. Avisale al Evaluador.</div>';
+  } else {
+    const rotulo = (x.grupo.nombre && x.grupo.nombre !== 'Grupo '+x.grupo.numero) ? ' · '+esc(x.grupo.nombre) : '';
+    grupo = '<div class="eem-row"><span class="eem-chip"><b>Grupo '+esc(x.grupo.numero)+'</b>'+rotulo+'</span>'+
+      (x.grupo.tema?'<span class="eem-chip">Tema: '+esc(x.grupo.tema)+'</span>':'')+'</div>'+
+      '<div class="eem-sub" style="margin-top:6px">'+
+        x.integrantes.map(g=>'• '+esc(nom(g))+(g.es_jefe?' <b style="color:#e8d79a">(jefe de grupo)</b>':'')).join('<br>')+
+      '</div>';
+  }
+
+  let entrega;
+  if(e){
+    entrega =
+      '<div class="eem-card" style="margin:10px 0 0;border-color:rgba(46,204,113,.35)">'+
+      '<div class="eem-row" style="justify-content:space-between">'+
+        '<b style="color:#8fe3b0">✅ Trabajo entregado</b>'+
+        '<span class="eem-chip '+(e.fuera_de_plazo?'warn':'ok')+'">'+(e.fuera_de_plazo?'TARDÍA · '+e.retraso_minutos+' min':'EN PLAZO')+'</span>'+
+      '</div>'+
+      '<div class="eem-sub" style="margin-top:6px">'+
+        '<b>'+esc(e.archivo_nombre)+'</b> · '+kb(e.tamano_bytes)+' · intento '+e.numero_intento+'<br>'+
+        'Subido por '+esc(e.entregado_por_nombre||e.entregado_por)+' el '+esc(fechaHora(e.entregado_en))+
+      '</div>'+
+      '<div class="eem-mono" style="margin-top:6px">SHA-256: '+esc(e.sha256||'')+'</div>'+
+      '<div class="eem-row" style="margin-top:10px">'+
+        '<button class="eem-btn sec mini" onclick="eemAcusePDF('+i+')">📄 Descargar acuse (PDF)</button>'+
+        '<button class="eem-btn sec mini" onclick="eemBajarEntrega(\''+e.id+'\')">⬇️ Descargar lo entregado</button>'+
+      '</div>'+
+      (x.intentos.length>1
+        ? '<div class="eem-sub" style="margin-top:10px;border-top:1px solid rgba(255,255,255,.08);padding-top:8px">'+
+          '<b>Historial:</b> nada se borra.<br>'+
+          x.intentos.map(t=>'• Intento '+t.numero_intento+' — '+esc(t.archivo_nombre)+' — '+esc(fechaHora(t.entregado_en))+
+            ' — '+esc(t.entregado_por_nombre||t.entregado_por)+
+            (t.estado==='anulada'?' <span class="eem-rojo">(ANULADA)</span>':(t.vigente?' <b style="color:#8fe3b0">(la que se evalúa)</b>':''))).join('<br>')+
+          '</div>' : '')+
+      '</div>';
+  } else {
+    entrega = '<div class="eem-card" style="margin:10px 0 0;border-color:rgba(230,180,60,.35)">'+
+      '<b style="color:#f0cf7a">⏳ Sin entregar</b>'+
+      '<div class="eem-sub" style="margin-top:4px">Un solo PDF por grupo. Lo sube cualquiera de ustedes y tilda quiénes entregan.</div></div>';
+  }
+
+  let nota = '';
+  if(x.nota){
+    nota = '<div class="eem-card" style="margin:10px 0 0;border-color:rgba(212,175,55,.5)">'+
+      '<b style="color:#e8d79a">🏅 Nota publicada</b>'+
+      '<div class="eem-row" style="margin-top:8px">'+
+        '<span class="eem-chip">Trabajo escrito 65% <b>'+esc(x.nota.nota_grupal_65)+'</b></span>'+
+        '<span class="eem-chip">Exposición 35% <b>'+esc(x.nota.nota_individual_35)+'</b></span>'+
+        '<span class="eem-chip ok">Nota final <b>'+esc(x.nota.nota_total)+'</b></span>'+
+      '</div></div>';
+  }
+
+  let boton = '';
+  if(!x.grupo){ boton = ''; }
+  else if(!abierta){ boton = '<div class="eem-chip bad" style="margin-top:10px">La carpeta está '+esc(cp.estado)+': ya no admite entregas.</div>'; }
+  else if(puede){
+    boton = '<button class="eem-btn" style="width:100%;margin-top:12px" onclick="eemDialogoEntrega('+i+')">'+
+            (e?'🔁 REENTREGAR EL TRABAJO DEL GRUPO':'📤 ENTREGAR TRABAJO DEL GRUPO')+'</button>'+
+            (x.tardia_habilitada && vencio
+              ? '<div class="eem-chip warn" style="margin-top:8px">El Evaluador te habilitó una entrega TARDÍA. Quedará marcada como tal.</div>' : '');
+  } else {
+    boton = '<div class="eem-chip bad" style="margin-top:10px">⛔ El plazo venció. Solo el Evaluador puede habilitar una entrega tardía.</div>';
+  }
+
+  return '<div class="eem-card">'+
+    '<h3>'+esc(cp.materia_nombre)+'</h3>'+
+    '<div class="eem-sub">'+esc(cp.ciclo)+'° Ciclo'+(cp.paralelo?' · Paralelo '+esc(cp.paralelo):'')+' · Gestión '+esc(cp.gestion)+
+      ' · Evaluador: <b>'+esc(cp.evaluador)+'</b></div>'+
+    '<div class="eem-cuenta" id="eem-cuenta-'+i+'" style="margin:8px 0"></div>'+
+    grupo + entrega + nota + boton +
+  '</div>';
+}
+
+/* ── el diálogo de entrega ────────────────────────────────────────── */
+function eemDialogoEntrega(i){
+  const x = EEM.alumno[i]; if(!x || !x.grupo) return;
+  const filas = x.integrantes.map(g=>
+    '<label class="eem-integ"><input type="checkbox" class="eem-tilda" value="'+esc(g.cursante_id)+'" checked>'+
+    '<span>'+esc(nom(g))+(g.es_jefe?' <b style="color:#e8d79a">(jefe)</b>':'')+'</span></label>').join('');
+
+  const bg = document.createElement('div');
+  bg.className = 'eem-modal-bg'; bg.id = 'eem-modal-entrega';
+  bg.innerHTML =
+   '<div class="eem-modal">'+
+    '<h3>📤 Entregar el trabajo del grupo</h3>'+
+    '<div class="eem-sub" style="margin-bottom:10px">'+esc(x.carpeta.materia_nombre)+' · '+
+      '<b>Grupo '+esc(x.grupo.numero)+'</b>'+(x.grupo.tema?' — '+esc(x.grupo.tema):'')+
+      '<br>El grupo no se elige: es el que te asignó el Evaluador.</div>'+
+    '<div class="eem-field"><label>Archivo PDF del trabajo (máximo 25 MB)</label>'+
+      '<input type="file" id="eem-file" accept="application/pdf,.pdf"></div>'+
+    '<div id="eem-file-info" class="eem-sub" style="margin:-4px 0 10px"></div>'+
+    '<div class="eem-field"><label>Integrantes que entregan — tildá a los que corresponde</label>'+filas+'</div>'+
+    '<label class="eem-integ" style="align-items:flex-start">'+
+      '<input type="checkbox" id="eem-declaro">'+
+      '<span class="eem-sub">Declaro que el presente trabajo es de autoría del grupo y que sus integrantes son los aquí listados.</span>'+
+    '</label>'+
+    '<div id="eem-subida-estado" class="eem-sub" style="margin:10px 0"></div>'+
+    '<div class="eem-row" style="justify-content:flex-end;margin-top:12px">'+
+      '<button class="eem-btn sec" onclick="eemCerrarModal(\'eem-modal-entrega\')">Cancelar</button>'+
+      '<button class="eem-btn" id="eem-btn-subir" onclick="eemSubir('+i+')" disabled>SUBIR</button>'+
+    '</div>'+
+   '</div>';
+  document.body.appendChild(bg);
+  document.getElementById('eem-file').addEventListener('change', ev=>revisarArchivo(ev.target.files[0]));
+}
+window.eemDialogoEntrega = eemDialogoEntrega;
+function eemCerrarModal(id){ const el = document.getElementById(id); if(el) el.remove(); }
+window.eemCerrarModal = eemCerrarModal;
+
+let _eemArchivo = null;
+
+/* Todo lo que se puede rechazar SIN gastar red. Un escaneo no se evalúa. */
+async function revisarArchivo(f){
+  _eemArchivo = null;
+  const info = document.getElementById('eem-file-info');
+  const btn = document.getElementById('eem-btn-subir');
+  btn.disabled = true;
+  if(!f){ info.innerHTML=''; return; }
+  const di = (t,c)=>{ info.innerHTML = '<span style="color:'+c+'">'+t+'</span>'; };
+
+  if(!/\.pdf$/i.test(f.name)) return di('⛔ El formato de entrega es PDF, y solo PDF.', '#f0938a');
+  if(f.size > 25*1024*1024) return di('⛔ Pesa '+(f.size/1048576).toFixed(1)+' MB. El máximo son 25 MB.', '#f0938a');
+  if(f.size === 0) return di('⛔ El archivo está vacío.', '#f0938a');
+
+  di('Revisando el archivo…', '#9fb0c9');
+  let buf;
+  try{ buf = await f.arrayBuffer(); }catch(e){ return di('⛔ No se pudo leer el archivo.', '#f0938a'); }
+
+  const firma = new TextDecoder().decode(new Uint8Array(buf.slice(0,5)));
+  if(firma !== '%PDF-') return di('⛔ Eso no es un PDF: le falta la firma %PDF-. Cambiarle el nombre a un archivo no lo convierte en PDF.', '#f0938a');
+
+  try{ await ensurePdfJs(); }catch(e){ return di('⛔ Sin conexión para revisar el PDF. Reintentá.', '#f0938a'); }
+  try{ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'; }catch(e){}
+
+  let doc;
+  try{
+    doc = await pdfjsLib.getDocument({data: buf.slice(0)}).promise;
+  }catch(e){
+    if(e && (e.name === 'PasswordException' || /password/i.test(String(e.message||''))))
+      return di('⛔ El PDF está protegido con contraseña. Así no se puede abrir ni evaluar: sacale la protección y volvé a subirlo.', '#f0938a');
+    return di('⛔ El PDF está dañado o no se puede abrir.', '#f0938a');
+  }
+
+  let texto = '';
+  const hasta = Math.min(doc.numPages, 5);
+  for(let p=1; p<=hasta; p++){
+    try{
+      const pg = await doc.getPage(p);
+      const tc = await pg.getTextContent();
+      texto += tc.items.map(it=>it.str||'').join(' ');
+    }catch(e){}
+  }
+  if(texto.replace(/\s+/g,'').length < 200){
+    return di('⛔ Este PDF no tiene texto: es un escaneo (una foto de las hojas). Sin capa de texto no se puede medir ni la forma ni el fondo, así que la entrega se rechaza. Exportá el documento a PDF desde Word, no lo escanees.', '#f0938a');
+  }
+
+  di('Calculando la huella del archivo…', '#9fb0c9');
+  const h = await crypto.subtle.digest('SHA-256', buf);
+  const hex = Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');
+  _eemArchivo = { file:f, sha256:hex, tamano:f.size, paginas:doc.numPages };
+  info.innerHTML = '<span style="color:#8fe3b0">✅ PDF correcto · '+doc.numPages+' páginas · '+kb(f.size)+
+                   '</span><div class="eem-mono" style="margin-top:4px">SHA-256: '+esc(hex)+'</div>';
+  document.getElementById('eem-btn-subir').disabled = false;
+}
+
+async function eemSubir(i){
+  if(EEM.subiendo) return;
+  const x = EEM.alumno[i];
+  const est = document.getElementById('eem-subida-estado');
+  if(!_eemArchivo){ est.innerHTML = '<span style="color:#f0938a">Elegí primero el archivo PDF.</span>'; return; }
+  if(!document.getElementById('eem-declaro').checked){
+    est.innerHTML = '<span style="color:#f0938a">Falta la declaración de autoría.</span>'; return; }
+  const tildados = Array.from(document.querySelectorAll('.eem-tilda:checked')).map(el=>el.value);
+  if(!tildados.length){ est.innerHTML = '<span style="color:#f0938a">Tildá al menos a un integrante.</span>'; return; }
+
+  EEM.subiendo = true;
+  const btn = document.getElementById('eem-btn-subir'); btn.disabled = true;
+  const paso = t => est.innerHTML = '<span style="color:#9fb0c9">'+t+'</span>';
+
+  try{
+    paso('1/3 · Pidiendo permiso de subida…');
+    const ini = await eemInvoke('eem-entrega-subir', 'iniciar', {
+      carpeta_id: x.carpeta.id, integrantes: tildados,
+      archivo_nombre: _eemArchivo.file.name, tamano: _eemArchivo.tamano, sha256: _eemArchivo.sha256 });
+    if(!ini.ok) throw new Error(ini.error);
+
+    paso('2/3 · Subiendo el PDF…');
+    const up = await sb.storage.from('eem-entregas')
+      .uploadToSignedUrl(ini.path, ini.token_subida, _eemArchivo.file, { contentType:'application/pdf' });
+    if(up.error) throw new Error('No se pudo subir el archivo: '+up.error.message);
+
+    paso('3/3 · Registrando la entrega y verificando la huella…');
+    const fin = await eemInvoke('eem-entrega-subir', 'confirmar', {
+      carpeta_id: x.carpeta.id, integrantes: tildados, path: ini.path,
+      archivo_nombre: _eemArchivo.file.name, sha256: _eemArchivo.sha256,
+      user_agent: navigator.userAgent });
+    if(!fin.ok) throw new Error(fin.error);
+
+    eemCerrarModal('eem-modal-entrega');
+    await eemAbrirAlumno();
+    const idx = (EEM.alumno||[]).findIndex(c=>c.carpeta.id === x.carpeta.id);
+    if(idx >= 0) eemAcusePantalla(idx);
+  }catch(e){
+    est.innerHTML = '<span style="color:#f0938a">⛔ '+esc(e.message||e)+'</span>';
+    btn.disabled = false;
+  } finally { EEM.subiendo = false; }
+}
+window.eemSubir = eemSubir;
+
+/* ── acuse de recibo ──────────────────────────────────────────────── */
+function eemAcusePantalla(i){
+  const x = EEM.alumno[i], e = x.entrega; if(!e) return;
+  const bg = document.createElement('div');
+  bg.className='eem-modal-bg'; bg.id='eem-modal-acuse';
+  bg.innerHTML = '<div class="eem-modal">'+
+    '<h3>✅ Acuse de recibo</h3>'+
+    '<div class="eem-sub">'+esc(x.carpeta.materia_nombre)+' · Grupo '+esc(x.grupo.numero)+'</div>'+
+    '<div class="eem-sub" style="margin-top:8px"><b>'+esc(e.archivo_nombre)+'</b><br>'+
+      'Recibido el '+esc(fechaHora(e.entregado_en))+' · intento '+e.numero_intento+' · '+kb(e.tamano_bytes)+'<br>'+
+      (e.fuera_de_plazo?'<span class="eem-rojo">ENTREGA TARDÍA ('+e.retraso_minutos+' min)</span>':'Dentro del plazo')+'</div>'+
+    '<div class="eem-mono" style="margin-top:8px">SHA-256: '+esc(e.sha256)+'</div>'+
+    '<div class="eem-row" style="justify-content:flex-end;margin-top:14px">'+
+      '<button class="eem-btn sec" onclick="eemCerrarModal(\'eem-modal-acuse\')">Cerrar</button>'+
+      '<button class="eem-btn" onclick="eemAcusePDF('+i+')">📄 Descargar en PDF</button>'+
+    '</div></div>';
+  document.body.appendChild(bg);
+}
+
+async function eemAcusePDF(i){
+  const x = EEM.alumno[i], e = x.entrega; if(!e) return;
+  let JsPDF;
+  try{ JsPDF = await _rgJsPDF(); }catch(err){ return aviso('No se pudo cargar el generador de PDF: '+(err.message||err)); }
+  const doc = new JsPDF({unit:'pt', format:'letter'});
+  const W = doc.internal.pageSize.getWidth(); const ML = 70; const ANCHO = W - ML*2;
+  let y = 64;
+  doc.setFont('helvetica','bold'); doc.setFontSize(10);
+  ['ESCUELA DE COMANDO Y ESTADO MAYOR','"CNL. EDUARDO AVAROA"'].forEach(t=>{ doc.text(t, W/2, y, {align:'center'}); y+=13; });
+  y += 18; doc.setFontSize(15); doc.text('ACUSE DE RECIBO DE ENTREGA', W/2, y, {align:'center'}); y += 8;
+  doc.setLineWidth(1.2); doc.line(ML, y, W-ML, y); y += 22;
+
+  doc.setFontSize(10);
+  const linea = (rot, val)=>{
+    doc.setFont('helvetica','bold'); doc.text(rot, ML, y);
+    doc.setFont('helvetica','normal');
+    const t = doc.splitTextToSize(String(val==null?'—':val), ANCHO-150);
+    doc.text(t, ML+150, y); y += 14*t.length + 4;
+  };
+  linea('Materia:', x.carpeta.materia_nombre);
+  linea('Ciclo / Gestión:', x.carpeta.ciclo+'° Ciclo · '+x.carpeta.gestion);
+  linea('Evaluador:', x.carpeta.evaluador);
+  linea('Grupo:', 'N° '+x.grupo.numero+(x.grupo.tema?' — '+x.grupo.tema:''));
+  linea('Integrantes:', x.integrantes.map(g=>nom(g)).join(' · '));
+  linea('Archivo:', e.archivo_nombre);
+  linea('Tamaño:', kb(e.tamano_bytes));
+  linea('Recibido el:', fechaHora(e.entregado_en));
+  linea('Subido por:', e.entregado_por_nombre||e.entregado_por);
+  linea('Intento N°:', e.numero_intento);
+  linea('Situación:', e.fuera_de_plazo ? ('ENTREGA TARDÍA — '+e.retraso_minutos+' minutos después del plazo') : 'DENTRO DEL PLAZO');
+  y += 6; doc.setFont('helvetica','bold'); doc.text('Huella digital del archivo (SHA-256):', ML, y); y += 14;
+  doc.setFont('courier','normal'); doc.setFontSize(9);
+  doc.splitTextToSize(String(e.sha256||''), ANCHO).forEach(t=>{ doc.text(t, ML, y); y += 12; });
+
+  y += 20; doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
+  doc.splitTextToSize('Este acuse lo emite SIDECEME al registrar la entrega. La huella SHA-256 identifica de forma unívoca el archivo recibido: cualquier cambio posterior, por mínimo que sea, da una huella distinta.', ANCHO)
+     .forEach(t=>{ doc.text(t, ML, y); y += 11; });
+
+  doc.save('Acuse_entrega_Grupo'+x.grupo.numero+'_'+(x.carpeta.materia_nombre||'').replace(/[^\w]+/g,'_')+'.pdf');
+}
+window.eemAcusePDF = eemAcusePDF;
+
+async function eemBajarEntrega(entregaId){
+  const r = await eemInvoke('eem-entrega-descargar', null, { entrega_id: entregaId });
+  if(!r.ok) return aviso('No se pudo descargar: '+r.error);
+  const a = document.createElement('a');
+  a.href = r.url; a.download = r.archivo_nombre || 'trabajo.pdf'; a.target = '_blank';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+window.eemBajarEntrega = eemBajarEntrega;
+
+/* =====================================================================
+   2) EL EVALUADOR  (y el SUPERVISOR con "Ver como Evaluador")
+   ===================================================================== */
+async function eemAbrirCarpetas(){
+  showScreen('screen-eem-carpetas');
+  const c = document.getElementById('eem-carpetas-cont');
+  c.innerHTML = '<div class="eem-vacio">Cargando…</div>';
+  const r = await eemInvoke('eem-ops', 'carpetas', {});
+  if(!r.ok){ c.innerHTML = '<div class="eem-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
+  EEM.carpetasDocente = r.carpetas || [];
+  EEM.supervisor = !!r.supervisor;
+  document.getElementById('eem-carpetas-sub').textContent =
+    EEM.supervisor ? 'Supervisión — todas las carpetas de la Escuela' : 'Las carpetas en las que estás habilitado';
+
+  if(!EEM.carpetasDocente.length){
+    c.innerHTML = '<div class="eem-vacio">No hay carpetas de clases cargadas todavía.</div>'; return;
+  }
+  c.innerHTML = EEM.carpetasDocente.map(cp=>{
+    const sup = EEM.supervisor && cp.evaluador_id !== (quienSoy()||{}).id;
+    return '<div class="eem-card">'+
+      '<h3>'+esc(cp.materia_nombre)+'</h3>'+
+      '<div class="eem-sub">'+esc(cp.ciclo)+'° Ciclo'+(cp.paralelo?' · Paralelo '+esc(cp.paralelo):'')+
+        ' · Gestión '+esc(cp.gestion)+' · Evaluador: <b>'+esc(cp.evaluador_nombre)+'</b></div>'+
+      '<div class="eem-row" style="margin-top:8px">'+
+        '<span class="eem-chip">Alumnos <b>'+cp.alumnos+'</b></span>'+
+        '<span class="eem-chip'+(cp.sin_grupo?' bad':'')+'">Sin grupo <b>'+cp.sin_grupo+'</b></span>'+
+        '<span class="eem-chip ok">Entregas <b>'+cp.entregas+'</b></span>'+
+        '<span class="eem-chip'+(cp.estado==='abierta'?' ok':' warn')+'">'+esc(cp.estado)+'</span>'+
+      '</div>'+
+      '<div class="eem-row" style="margin-top:12px">'+
+        '<button class="eem-btn" onclick="eemAbrirPanel(\''+cp.id+'\', false)">ABRIR</button>'+
+        (sup ? '<button class="eem-btn red" onclick="eemAbrirPanel(\''+cp.id+'\', true)">👁️ VER COMO EVALUADOR</button>' : '')+
+      '</div></div>';
+  }).join('');
+}
+window.eemAbrirCarpetas = eemAbrirCarpetas;
+
+function eemVolverDelListado(){
+  const s = getSession();
+  if(s && s.tipo === 'cursante') return showScreen('screen-cursante-home');
+  const r = (quienSoy()||{}).rol || (typeof activeRole!=='undefined'?activeRole:'');
+  showScreen(['disciplina','comandante','estudios','ciencia_tecnologia','jefe_sac'].includes(r)
+    ? 'screen-disc-panel' : 'screen-prof-panel');
+}
+window.eemVolverDelListado = eemVolverDelListado;
+function eemVolverAlListado(){ eemAbrirCarpetas(); }
+window.eemVolverAlListado = eemVolverAlListado;
+
+async function eemAbrirPanel(carpetaId, supervision){
+  EEM.carpetaId = carpetaId; EEM.supervision = !!supervision;
+  showScreen('screen-eem-panel');
+  document.getElementById('eem-panel-cont').innerHTML = '<div class="eem-vacio">Cargando la carpeta…</div>';
+  await eemRefrescarPanel();
+}
+window.eemAbrirPanel = eemAbrirPanel;
+
+async function eemRefrescarPanel(){
+  const r = await eemInvoke('eem-ops', 'panel', { carpeta_id: EEM.carpetaId, supervision: EEM.supervision });
+  if(!r.ok){ document.getElementById('eem-panel-cont').innerHTML = '<div class="eem-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
+  EEM.panel = r;
+  pintarPanel();
+}
+
+function pintarPanel(){
+  limpiarRelojes();
+  const p = EEM.panel, cp = p.carpeta;
+
+  document.getElementById('eem-banner-super').innerHTML =
+    (EEM.supervision && p.modo === 'supervision')
+      ? '<div class="eem-super-banner">⚠️ MODO SUPERVISIÓN — '+esc(nombreCorto())+
+        ' actuando sobre la carpeta de '+esc(cp.evaluador_nombre)+
+        '<div style="font-weight:700;font-size:10.5px;opacity:.95;margin-top:2px">Todo lo que toques queda registrado en la auditoría como supervisión.</div></div>'
+      : '';
+  document.getElementById('eem-panel-tit').textContent = cp.materia_nombre;
+  document.getElementById('eem-panel-sub').textContent =
+    cp.ciclo+'° Ciclo'+(cp.paralelo?' · Paralelo '+cp.paralelo:'')+' · Gestión '+cp.gestion+' · '+(p.mi_rol||'');
+
+  const k = p.contadores;
+  const tablero =
+    '<div class="eem-card">'+
+      '<div class="eem-cuenta" id="eem-cuenta-panel" style="margin-bottom:10px"></div>'+
+      '<div class="eem-row">'+
+        '<span class="eem-chip">Alumnos <b>'+k.alumnos+'</b></span>'+
+        '<span class="eem-chip">Grupos <b>'+k.grupos+'</b></span>'+
+        '<span class="eem-chip ok">Entregados <b>'+k.grupos_con_entrega+'</b> grupos ('+k.alumnos_con_entrega+' alumnos)</span>'+
+        '<span class="eem-chip warn">Pendientes <b>'+k.grupos_sin_entrega+'</b> grupos ('+k.alumnos_sin_entrega+' alumnos)</span>'+
+        '<span class="eem-chip'+(k.sin_grupo?' bad':'')+'">Sin grupo <b>'+k.sin_grupo+'</b></span>'+
+        '<span class="eem-chip'+(k.tardias?' warn':'')+'">Tardías <b>'+k.tardias+'</b></span>'+
+        '<span class="eem-chip">Evaluados <b>0</b> <span style="opacity:.6">(Fases 2 y 3)</span></span>'+
+        '<span class="eem-chip">Reclamos <b>0</b> <span style="opacity:.6">(Fase 6)</span></span>'+
+      '</div>'+
+      (p.banda_activa
+        ? '<div class="eem-sub" style="margin-top:10px">Banda del trabajo escrito: <b>'+esc(p.banda_activa.nota_minima)+
+          '</b> – <b>'+esc(p.banda_activa.nota_maxima)+'</b> · modo '+esc(p.banda_activa.modo)+' · <b style="color:#8fe3b0">ACTIVA</b></div>'
+        : '<div class="eem-chip bad" style="margin-top:10px">⚠️ La banda de notas todavía no está activa. Hay que fijarla ANTES de evaluar.</div>')+
+    '</div>';
+
+  const tabs =
+    '<div class="eem-tabs">'+
+      ['grupo:Por GRUPO (65%)','alumno:Por ALUMNO (35% y final)','config:Configuración','audit:Auditoría']
+        .map(t=>{ const [k2,n]=t.split(':');
+          return '<button class="eem-tab'+(EEM.vista===k2?' on':'')+'" onclick="eemVista(\''+k2+'\')">'+n+'</button>'; }).join('')+
+    '</div>';
+
+  let cuerpo = '';
+  if(EEM.vista === 'grupo')      cuerpo = vistaPorGrupo();
+  else if(EEM.vista === 'alumno') cuerpo = vistaPorAlumno();
+  else if(EEM.vista === 'config') cuerpo = vistaConfig();
+  else                            cuerpo = '<div class="eem-card"><button class="eem-btn" onclick="eemAbrirAuditoria()">Abrir el registro de auditoría</button></div>';
+
+  const publicar =
+    '<div class="eem-card" style="text-align:center">'+
+      '<button class="eem-btn" style="width:100%" disabled title="Se activa en la Fase 5">🏅 PUBLICAR NOTAS</button>'+
+      '<div class="eem-sub" style="margin-top:6px">Se habilita en la Fase 5, cuando todas las notas estén consolidadas.</div>'+
+    '</div>';
+
+  document.getElementById('eem-panel-cont').innerHTML = tablero + tabs + cuerpo + publicar;
+  pintarCuenta(document.getElementById('eem-cuenta-panel'), cp.fecha_limite);
+}
+function nombreCorto(){
+  const u = quienSoy() || {};
+  return ((u.grado?u.grado+' ':'')+(u.nombre_completo||'')).trim() || 'Supervisor';
+}
+function eemVista(v){ EEM.vista = v; pintarPanel(); }
+window.eemVista = eemVista;
+
+/* ── filtros ──────────────────────────────────────────────────────── */
+function barraFiltros(conEstado){
+  const paralelos = Array.from(new Set((EEM.panel.roster||[]).map(r=>r.paralelo).filter(Boolean))).sort();
+  return '<div class="eem-card"><div class="eem-grid2">'+
+    '<div class="eem-field"><label>Buscar</label>'+
+      '<input id="eem-q" placeholder="Nombre, grupo o tema" value="'+esc(EEM.filtro)+'" oninput="eemFiltro(this.value)"></div>'+
+    '<div class="eem-field"><label>Paralelo</label><select onchange="eemFiltroParalelo(this.value)">'+
+      '<option value="">Todos</option>'+paralelos.map(p=>'<option value="'+esc(p)+'"'+(EEM.filtroParalelo===p?' selected':'')+'>'+esc(p)+'</option>').join('')+
+      '</select></div>'+
+    (conEstado ? '<div class="eem-field"><label>Estado</label><select onchange="eemFiltroEstado(this.value)">'+
+      [['todos','Todos'],['entregado','Con entrega'],['pendiente','Sin entrega'],['tardia','Tardías'],['singrupo','Sin grupo']]
+        .map(o=>'<option value="'+o[0]+'"'+(EEM.filtroEstado===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+
+      '</select></div>' : '')+
+    '</div></div>';
+}
+function eemFiltro(v){ EEM.filtro = v; pintarPanel();
+  const i = document.getElementById('eem-q'); if(i){ i.focus(); i.setSelectionRange(i.value.length,i.value.length); } }
+function eemFiltroEstado(v){ EEM.filtroEstado = v; pintarPanel(); }
+function eemFiltroParalelo(v){ EEM.filtroParalelo = v; pintarPanel(); }
+window.eemFiltro = eemFiltro; window.eemFiltroEstado = eemFiltroEstado; window.eemFiltroParalelo = eemFiltroParalelo;
+
+function pasaFiltro(r){
+  const q = (EEM.filtro||'').toLowerCase().trim();
+  if(EEM.filtroParalelo && r.paralelo !== EEM.filtroParalelo) return false;
+  if(q){
+    const heno = [r.nombre_completo, r.grado, r.grupo_nombre, r.grupo_tema, r.grupo_numero].join(' ').toLowerCase();
+    if(heno.indexOf(q) < 0) return false;
+  }
+  const e = EEM.filtroEstado;
+  if(e === 'entregado' && !r.entrega_id) return false;
+  if(e === 'pendiente' && r.entrega_id)  return false;
+  if(e === 'tardia'    && !r.fuera_de_plazo) return false;
+  if(e === 'singrupo'  && r.grupo_id)    return false;
+  return true;
+}
+
+/* ── VISTA POR GRUPO (el 65%) ─────────────────────────────────────── */
+function vistaPorGrupo(){
+  const p = EEM.panel;
+  const q = (EEM.filtro||'').toLowerCase().trim();
+  const grupos = (p.grupos||[]).filter(g=>{
+    if(EEM.filtroParalelo && !g.integrantes.some(i=>i.paralelo===EEM.filtroParalelo)) return false;
+    if(!q) return true;
+    return [g.numero,g.nombre,g.tema].join(' ').toLowerCase().indexOf(q) >= 0 ||
+           g.integrantes.some(i=>(i.nombre_completo||'').toLowerCase().indexOf(q) >= 0);
+  });
+
+  const filas = grupos.map(g=>{
+    const e = g.entrega;
+    return '<tr>'+
+      '<td><input type="checkbox" class="eem-masivo" value="'+esc(g.id)+'"></td>'+
+      '<td><b>'+esc(g.numero)+'</b>'+((g.nombre && g.nombre !== 'Grupo '+g.numero)?'<br><span style="color:#93a0b8">'+esc(g.nombre)+'</span>':'')+'</td>'+
+      '<td>'+esc(g.tema||'—')+'</td>'+
+      '<td>'+(g.integrantes.length
+              ? g.integrantes.map(i=>esc(nom(i))+(i.es_jefe?' ⭐':'')).join('<br>')
+              : '<span class="eem-rojo">sin integrantes</span>')+'</td>'+
+      '<td>'+(e&&e.entrega_id ? esc(e.archivo_nombre)+'<br><span style="color:#93a0b8">intento '+e.numero_intento+'</span>' : '<span style="color:#f0cf7a">—</span>')+'</td>'+
+      '<td>'+(e&&e.entrega_id ? esc(fechaHora(e.entregado_en))+'<br><span style="color:#93a0b8">'+esc(e.entregado_por_nombre||'')+'</span>' : '—')+'</td>'+
+      '<td>'+(e&&e.entrega_id
+              ? (e.fuera_de_plazo ? '<span class="eem-chip warn">TARDÍA</span>' : '<span class="eem-chip ok">EN PLAZO</span>')
+              : '<span class="eem-chip warn">PENDIENTE</span>')+'</td>'+
+      '<td style="color:#7d8aa3">— <span style="font-size:9px">F2</span></td>'+
+      '<td style="color:#7d8aa3">— <span style="font-size:9px">F3</span></td>'+
+      '<td style="color:#7d8aa3">— <span style="font-size:9px">F5</span></td>'+
+      '<td>'+(e&&e.entrega_id
+        ? '<button class="eem-btn sec mini" onclick="eemBajarEntrega(\''+e.entrega_id+'\')">⬇️</button> '+
+          '<button class="eem-btn sec mini" onclick="eemVerIntentos(\''+g.id+'\')">🕐</button> '+
+          '<button class="eem-btn red mini" onclick="eemAnular(\''+e.entrega_id+'\')">✖</button>'
+        : '<span style="color:#7d8aa3">—</span>')+'</td>'+
+    '</tr>';
+  }).join('');
+
+  return barraFiltros(false)+
+    '<div class="eem-card">'+
+      '<div class="eem-row" style="justify-content:space-between;margin-bottom:8px">'+
+        '<b style="color:#e8d79a">Vista por GRUPO — trabajo escrito (65%)</b>'+
+        '<button class="eem-btn sec mini" disabled title="Se implementa en las Fases 2 y 3">⚙️ Lanzar revisión de los seleccionados</button>'+
+      '</div>'+
+      '<div class="eem-scroll"><table class="eem-tabla"><thead><tr>'+
+        '<th></th><th>N°</th><th>Tema</th><th>Integrantes</th><th>Archivo</th><th>Fecha</th><th>Estado</th>'+
+        '<th>Forma 20</th><th>Fondo 45</th><th>Texto 65</th><th>Acciones</th>'+
+      '</tr></thead><tbody>'+(filas || '<tr><td colspan="11" class="eem-vacio">Todavía no hay grupos. Creálos en <b>Configuración</b>.</td></tr>')+'</tbody></table></div>'+
+    '</div>';
+}
+
+/* ── VISTA POR ALUMNO (el 35% y la final) ─────────────────────────── */
+function vistaPorAlumno(){
+  const filas = (EEM.panel.roster||[]).filter(pasaFiltro).map(r=>
+    '<tr>'+
+      '<td>'+esc(nom(r))+'<br><span style="color:#93a0b8">'+esc(r.paralelo||'')+(r.mencion?' · '+esc(r.mencion):'')+'</span></td>'+
+      '<td>'+(r.grupo_id
+              ? '<b>'+esc(r.grupo_numero)+'</b>'+(r.es_jefe?' ⭐':'')+(r.grupo_tema?'<br><span style="color:#93a0b8">'+esc(r.grupo_tema)+'</span>':'')
+              : '<span class="eem-rojo">SIN GRUPO</span>')+'</td>'+
+      '<td>'+(r.entrega_id
+              ? esc(fechaHora(r.entregado_en))+(r.fuera_de_plazo?'<br><span class="eem-rojo">TARDÍA</span>':'')
+              : '<span style="color:#f0cf7a">sin entrega</span>')+'</td>'+
+      '<td style="color:#7d8aa3">— <span style="font-size:9px">F2/F3</span></td>'+
+      '<td style="color:#7d8aa3">— <span style="font-size:9px">F4</span></td>'+
+      '<td style="color:#7d8aa3">— <span style="font-size:9px">F5</span></td>'+
+      '<td>'+
+        '<button class="eem-btn sec mini" onclick="eemAsignarGrupo(\''+esc(r.cursante_id)+'\')">👥 Grupo</button> '+
+        '<button class="eem-btn sec mini" onclick="eemTardia(\''+esc(r.cursante_id)+'\','+(r.tardia_habilitada?'false':'true')+')">'+
+          (r.tardia_habilitada?'⏰ Quitar tardía':'⏰ Habilitar tardía')+'</button> '+
+        (r.grupo_id ? '<button class="eem-btn sec mini" onclick="eemCargarPorEl(\''+esc(r.cursante_id)+'\')">📤 Cargar por él</button>' : '')+
+      '</td>'+
+    '</tr>').join('');
+
+  return barraFiltros(true)+
+    '<div class="eem-card">'+
+      '<b style="color:#e8d79a">Vista por ALUMNO — exposición (35%) y nota final</b>'+
+      '<div class="eem-sub" style="margin:4px 0 8px">La nota del 65% la hereda del grupo; la exposición es de cada uno.</div>'+
+      '<div class="eem-scroll"><table class="eem-tabla"><thead><tr>'+
+        '<th>Cursante</th><th>Grupo</th><th>Entrega</th><th>Texto 65</th><th>Exposición 35</th><th>Final 100</th><th>Acciones</th>'+
+      '</tr></thead><tbody>'+(filas || '<tr><td colspan="7" class="eem-vacio">Nadie coincide con el filtro.</td></tr>')+'</tbody></table></div>'+
+    '</div>';
+}
+
+/* ── CONFIGURACIÓN ────────────────────────────────────────────────── */
+function paraInput(iso){
+  if(!iso) return '';
+  const d = new Date(iso);
+  const p = n=>String(n).padStart(2,'0');
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'T'+p(d.getHours())+':'+p(d.getMinutes());
+}
+function vistaConfig(){
+  const p = EEM.panel, cp = p.carpeta, per = (p.perfil && p.perfil.perfil) || {};
+  const m = per.margenes_cm || {}; const pie = per.pie_paginado || {};
+  const sinGrupo = (p.roster||[]).filter(r=>!r.grupo_id);
+
+  const opcionesGrupo = (p.grupos||[]).map(g=>'<option value="'+g.id+'">Grupo '+g.numero+(g.nombre?' — '+esc(g.nombre):'')+'</option>').join('');
+
+  return '<div class="eem-card">'+
+      '<h3>📅 Plazo y estado</h3>'+
+      '<div class="eem-grid2">'+
+        '<div class="eem-field"><label>Fecha y hora límite</label>'+
+          '<input type="datetime-local" id="eem-cfg-limite" value="'+paraInput(cp.fecha_limite)+'"></div>'+
+        '<div class="eem-field"><label>Estado de la carpeta</label><select id="eem-cfg-estado">'+
+          ['abierta','cerrada'].map(e=>'<option value="'+e+'"'+(cp.estado===e?' selected':'')+'>'+e+'</option>').join('')+
+          '</select></div>'+
+      '</div>'+
+      '<div class="eem-row">'+
+        '<button class="eem-btn" onclick="eemGuardarPlazo()">Guardar</button>'+
+        '<button class="eem-btn sec" onclick="eemSinLimite()">Quitar la fecha límite</button>'+
+      '</div>'+
+      '<div class="eem-sub" style="margin-top:8px">Vencido el plazo, al alumno le desaparece el botón de entrega. La excepción se habilita uno por uno, con motivo, desde la vista por alumno.</div>'+
+    '</div>'+
+
+    '<div class="eem-card">'+
+      '<h3>📏 Banda de notas</h3>'+
+      '<div class="eem-sub">Se fija ANTES de evaluar. No se edita: cada cambio crea una versión nueva y queda registrado quién la fijó.</div>'+
+      '<div class="eem-grid2" style="margin-top:10px">'+
+        '<div class="eem-field"><label>Se aplica a</label><select id="eem-b-aplica">'+
+          [['texto_65','Trabajo escrito (65%)'],['exposicion_35','Exposición (35%)'],['final_100','Nota final (100%)']]
+            .map(o=>'<option value="'+o[0]+'">'+o[1]+'</option>').join('')+'</select></div>'+
+        '<div class="eem-field"><label>Modo</label><select id="eem-b-modo" onchange="eemAvisoModo()">'+
+          '<option value="reescalado">Reescalado (recomendado)</option><option value="truncado">Truncado</option>'+
+          '</select></div>'+
+        '<div class="eem-field"><label>Nota mínima</label><input id="eem-b-min" type="number" step="0.0001" value="'+
+          esc(p.banda_activa?p.banda_activa.nota_minima:'59.0000')+'"></div>'+
+        '<div class="eem-field"><label>Nota máxima</label><input id="eem-b-max" type="number" step="0.0001" value="'+
+          esc(p.banda_activa?p.banda_activa.nota_maxima:'64.0000')+'"></div>'+
+      '</div>'+
+      '<div class="eem-field"><label>Motivo (obligatorio si ya hay notas publicadas)</label><input id="eem-b-motivo"></div>'+
+      '<div id="eem-b-aviso" class="eem-sub"></div>'+
+      '<button class="eem-btn" onclick="eemFijarBanda()">Fijar la banda</button>'+
+      (p.bandas && p.bandas.length
+        ? '<div class="eem-sub" style="margin-top:10px;border-top:1px solid rgba(255,255,255,.08);padding-top:8px">'+
+          p.bandas.map(b=>'• v'+b.version+' · '+esc(b.aplicar_a)+' · '+esc(b.nota_minima)+'–'+esc(b.nota_maxima)+
+            ' · '+esc(b.modo)+(b.activa?' <b style="color:#8fe3b0">ACTIVA</b>':'')).join('<br>')+'</div>' : '')+
+    '</div>'+
+
+    '<div class="eem-card">'+
+      '<h3>👥 Grupos</h3>'+
+      (sinGrupo.length
+        ? '<div class="eem-chip bad">⚠️ '+sinGrupo.length+' cursante(s) sin grupo. Sin grupo no entregan y se quedan sin nota.</div>'
+        : '<div class="eem-chip ok">Todos los cursantes tienen grupo.</div>')+
+      '<div class="eem-grid2" style="margin-top:10px">'+
+        '<div class="eem-field"><label>Nombre del grupo nuevo (opcional)</label><input id="eem-g-nombre" placeholder="Grupo 1"></div>'+
+        '<div class="eem-field"><label>Tema</label><input id="eem-g-tema" placeholder="Tema del Estudio de Estado Mayor"></div>'+
+      '</div>'+
+      '<button class="eem-btn" onclick="eemCrearGrupo()">Crear grupo</button>'+
+      '<div class="eem-scroll" style="margin-top:12px"><table class="eem-tabla"><thead><tr>'+
+        '<th>N°</th><th>Nombre / Tema</th><th>Integrantes</th><th></th></tr></thead><tbody>'+
+        ((p.grupos||[]).map(g=>'<tr><td><b>'+g.numero+'</b></td>'+
+          '<td>'+esc(g.nombre||'—')+'<br><span style="color:#93a0b8">'+esc(g.tema||'sin tema')+'</span></td>'+
+          '<td>'+(g.integrantes.length
+            ? g.integrantes.map(i=>esc(nom(i))+(i.es_jefe?' ⭐':'')+
+                ' <button class="eem-btn sec mini" onclick="eemAsignarGrupo(\''+esc(i.cursante_id)+'\')">editar</button>').join('<br>')
+            : '<span class="eem-rojo">vacío</span>')+'</td>'+
+          '<td><button class="eem-btn sec mini" onclick="eemEditarGrupo(\''+g.id+'\')">✎</button></td></tr>').join('')
+          || '<tr><td colspan="4" class="eem-vacio">Todavía no hay grupos.</td></tr>')+
+        '</tbody></table></div>'+
+      (sinGrupo.length
+        ? '<div style="margin-top:12px"><b class="eem-sub">Sin grupo:</b>'+
+          sinGrupo.map(r=>'<div class="eem-integ"><span style="flex:1">'+esc(nom(r))+' · '+esc(r.paralelo||'')+'</span>'+
+            '<select onchange="eemAsignarDirecto(\''+esc(r.cursante_id)+'\', this.value)">'+
+            '<option value="">— elegir grupo —</option>'+opcionesGrupo+'</select></div>').join('')+'</div>'
+        : '')+
+    '</div>'+
+
+    '<div class="eem-card">'+
+      '<h3>⚖️ Tribunal</h3>'+
+      '<div class="eem-sub">3 o 4 miembros. Todavía no ven nada: la calificación de la exposición llega en la Fase 4.</div>'+
+      '<div class="eem-row" style="margin:8px 0">'+
+        ((p.tribunal||[]).map(t=>'<span class="eem-chip ok">'+esc(t.nombre)+
+          ' <button class="eem-btn red mini" onclick="eemTribunal(\''+esc(t.profesor_id)+'\',false)">quitar</button></span>').join('')
+          || '<span class="eem-chip bad">Sin tribunal designado</span>')+
+      '</div>'+
+      '<div class="eem-field"><label>Buscar profesor</label>'+
+        '<input id="eem-t-q" placeholder="Apellido" oninput="eemBuscarProfes(this.value)"></div>'+
+      '<div id="eem-t-res"></div>'+
+    '</div>'+
+
+    '<div class="eem-card">'+
+      '<h3>📐 Perfil normativo — '+esc((p.perfil||{}).nombre||'—')+' v'+esc((p.perfil||{}).version||1)+'</h3>'+
+      '<div class="eem-sub">Es lo que la Fase 2 va a medir sobre el PDF. Guardar crea una <b>versión nueva</b>: la anterior nunca se pisa.</div>'+
+      '<div class="eem-grid2" style="margin-top:10px">'+
+        '<div class="eem-field"><label>Hoja</label><select id="eem-p-hoja">'+
+          ['carta','oficio','a4'].map(h=>'<option value="'+h+'"'+((per.hoja||'carta')===h?' selected':'')+'>'+h+'</option>').join('')+'</select></div>'+
+        '<div class="eem-field"><label>Tolerancia (cm)</label><input id="eem-p-tol" type="number" step="0.01" value="'+esc(per.tolerancia_cm!=null?per.tolerancia_cm:0.25)+'"></div>'+
+        '<div class="eem-field"><label>Margen superior (cm)</label><input id="eem-p-sup" type="number" step="0.1" value="'+esc(m.sup!=null?m.sup:2)+'"></div>'+
+        '<div class="eem-field"><label>Margen derecho (cm)</label><input id="eem-p-der" type="number" step="0.1" value="'+esc(m.der!=null?m.der:2)+'"></div>'+
+        '<div class="eem-field"><label>Margen inferior (cm)</label><input id="eem-p-inf" type="number" step="0.1" value="'+esc(m.inf!=null?m.inf:2)+'"></div>'+
+        '<div class="eem-field"><label>Margen izquierdo (cm)</label><input id="eem-p-izq" type="number" step="0.1" value="'+esc(m.izq!=null?m.izq:3)+'"></div>'+
+        '<div class="eem-field"><label>Tipografías permitidas (separadas por coma)</label>'+
+          '<input id="eem-p-fuentes" value="'+esc((per.fuentes_permitidas||['Arial']).join(', '))+'"></div>'+
+        '<div class="eem-field"><label>Tamaño (pt)</label><input id="eem-p-pt" type="number" step="0.5" value="'+esc(per.tamano_pt!=null?per.tamano_pt:12)+'"></div>'+
+        '<div class="eem-field"><label>Interlineado</label><input id="eem-p-inter" type="number" step="0.1" value="'+esc(per.interlineado!=null?per.interlineado:1.5)+'"></div>'+
+        '<div class="eem-field"><label>Marca de clasificación</label><input id="eem-p-clas" value="'+esc(per.clasificacion||'RESERVADO')+'"></div>'+
+      '</div>'+
+      '<label class="eem-integ"><input type="checkbox" id="eem-p-pie"'+(pie.exigido!==false?' checked':'')+'>'+
+        '<span class="eem-sub">Exigir pie de página con paginado (patrón <b>n - N</b>)</span></label>'+
+      '<div class="eem-field"><label>Elementos estructurales obligatorios (uno por línea)</label>'+
+        '<textarea id="eem-p-estr" rows="6">'+esc((per.estructura_obligatoria||[]).join('\n'))+'</textarea></div>'+
+      '<button class="eem-btn" onclick="eemGuardarPerfil()">Guardar como versión nueva</button>'+
+    '</div>';
+}
+
+function eemAvisoModo(){
+  const el = document.getElementById('eem-b-aviso');
+  el.innerHTML = document.getElementById('eem-b-modo').value === 'truncado'
+    ? '<span style="color:#f0cf7a">⚠️ El modo TRUNCADO aplasta en un mismo valor a todos los que quedan fuera de la banda: genera empates y destruye la antigüedad. El reescalado conserva el orden y las distancias.</span>'
+    : '';
+}
+window.eemAvisoModo = eemAvisoModo;
+
+/* ── acciones del evaluador ───────────────────────────────────────── */
+async function escribir(accion, extra, ok){
+  const r = await eemInvoke('eem-ops', accion,
+    Object.assign({ carpeta_id: EEM.carpetaId, supervision: EEM.supervision }, extra||{}));
+  if(!r.ok){ aviso('⛔ '+r.error); return null; }
+  if(ok) aviso(ok + (r.aviso ? '\n\n⚠️ '+r.aviso : ''));
+  else if(r.aviso) aviso('⚠️ '+r.aviso);
+  await eemRefrescarPanel();
+  return r;
+}
+async function eemGuardarPlazo(){
+  const v = document.getElementById('eem-cfg-limite').value;
+  await escribir('carpeta_config', {
+    fecha_limite: v ? new Date(v).toISOString() : null,
+    estado: document.getElementById('eem-cfg-estado').value }, 'Guardado.');
+}
+async function eemSinLimite(){
+  if(!confirm('¿Quitar la fecha límite? La carpeta queda sin plazo y todos pueden entregar.')) return;
+  await escribir('carpeta_config', { sin_limite:true }, 'Listo: la carpeta quedó sin fecha límite.');
+}
+async function eemFijarBanda(){
+  const min = document.getElementById('eem-b-min').value, max = document.getElementById('eem-b-max').value;
+  const modo = document.getElementById('eem-b-modo').value;
+  if(!confirm('Vas a fijar la banda '+min+' – '+max+' ('+modo+'). Se crea una versión nueva y queda registrado quién la fijó. ¿Seguís?')) return;
+  await escribir('banda_fijar', { aplicar_a: document.getElementById('eem-b-aplica').value,
+    minima: min, maxima: max, modo_banda: modo, activar: true,
+    motivo: document.getElementById('eem-b-motivo').value || null }, 'Banda fijada y activa.');
+}
+async function eemCrearGrupo(){
+  await escribir('grupo_guardar', { nombre: document.getElementById('eem-g-nombre').value,
+    tema: document.getElementById('eem-g-tema').value }, 'Grupo creado.');
+}
+async function eemEditarGrupo(id){
+  const g = (EEM.panel.grupos||[]).find(x=>x.id===id); if(!g) return;
+  const nombre = prompt('Nombre del grupo:', g.nombre||''); if(nombre === null) return;
+  const tema = prompt('Tema del grupo:', g.tema||''); if(tema === null) return;
+  await escribir('grupo_guardar', { grupo_id:id, nombre, tema }, 'Grupo actualizado.');
+}
+async function eemAsignarDirecto(cursante, grupoId){
+  if(!grupoId) return;
+  await escribir('grupo_asignar', { cursante_id: cursante, grupo_id: grupoId }, null);
+}
+function eemAsignarGrupo(cursante){
+  const p = EEM.panel;
+  const r = (p.roster||[]).find(x=>x.cursante_id === cursante); if(!r) return;
+  const ops = (p.grupos||[]).map(g=>'<option value="'+g.id+'"'+(r.grupo_id===g.id?' selected':'')+'>Grupo '+g.numero+(g.nombre?' — '+esc(g.nombre):'')+'</option>').join('');
+  const bg = document.createElement('div'); bg.className='eem-modal-bg'; bg.id='eem-modal-grupo';
+  bg.innerHTML = '<div class="eem-modal"><h3>👥 Grupo de '+esc(nom(r))+'</h3>'+
+    '<div class="eem-field"><label>Grupo</label><select id="eem-mg-grupo">'+
+      '<option value="">— sin grupo —</option>'+ops+'</select></div>'+
+    '<label class="eem-integ"><input type="checkbox" id="eem-mg-jefe"'+(r.es_jefe?' checked':'')+
+      '><span class="eem-sub">Es el jefe de grupo</span></label>'+
+    '<div class="eem-row" style="justify-content:flex-end;margin-top:12px">'+
+      '<button class="eem-btn sec" onclick="eemCerrarModal(\'eem-modal-grupo\')">Cancelar</button>'+
+      '<button class="eem-btn" onclick="eemAsignarGrupoOk(\''+esc(cursante)+'\')">Guardar</button></div></div>';
+  document.body.appendChild(bg);
+}
+async function eemAsignarGrupoOk(cursante){
+  const g = document.getElementById('eem-mg-grupo').value;
+  const jefe = document.getElementById('eem-mg-jefe').checked;
+  eemCerrarModal('eem-modal-grupo');
+  await escribir('grupo_asignar', { cursante_id: cursante, grupo_id: g || null, es_jefe: jefe }, null);
+}
+async function eemTardia(cursante, habilitar){
+  let motivo = null;
+  if(habilitar){
+    motivo = prompt('Motivo de la entrega tardía (queda en la auditoría):');
+    if(!motivo || !motivo.trim()) return;
+  } else if(!confirm('¿Quitar el permiso de entrega tardía?')) return;
+  await escribir('tardia', { cursante_id: cursante, habilitar: habilitar, motivo: motivo },
+    habilitar ? 'Entrega tardía habilitada.' : 'Permiso quitado.');
+}
+async function eemAnular(entregaId){
+  const motivo = prompt('¿Por qué se anula esta entrega? (obligatorio; nada se borra, queda anulada y vuelve a regir el intento anterior)');
+  if(!motivo || !motivo.trim()) return;
+  await escribir('entrega_anular', { entrega_id: entregaId, motivo }, 'Entrega anulada.');
+}
+async function eemVerIntentos(grupoId){
+  const r = await eemInvoke('eem-ops', 'intentos', { carpeta_id: EEM.carpetaId, grupo_id: grupoId });
+  if(!r.ok) return aviso('⛔ '+r.error);
+  const bg = document.createElement('div'); bg.className='eem-modal-bg'; bg.id='eem-modal-intentos';
+  bg.innerHTML = '<div class="eem-modal"><h3>🕐 Todos los intentos</h3>'+
+    '<div class="eem-sub">Nada se sobrescribe. La vigente es la que se evalúa.</div>'+
+    (r.intentos||[]).map(i=>'<div class="eem-card" style="margin:10px 0 0">'+
+      '<b>Intento '+i.numero_intento+'</b> '+(i.vigente?'<span class="eem-chip ok">VIGENTE</span>':'')+
+      (i.estado==='anulada'?'<span class="eem-chip bad">ANULADA</span>':'')+
+      '<div class="eem-sub" style="margin-top:4px">'+esc(i.archivo_nombre)+' · '+kb(i.tamano_bytes)+'<br>'+
+      esc(fechaHora(i.entregado_en))+' · '+esc(i.entregado_por_nombre||i.entregado_por)+
+      (i.fuera_de_plazo?' · <span class="eem-rojo">TARDÍA '+i.retraso_minutos+' min</span>':'')+
+      (i.ip?'<br>IP: '+esc(i.ip):'')+'</div>'+
+      '<div class="eem-mono" style="margin-top:4px">'+esc(i.sha256||'')+'</div>'+
+      (i.error_detalle?'<div class="eem-sub eem-rojo" style="margin-top:4px">'+esc(i.error_detalle)+'</div>':'')+
+      '<button class="eem-btn sec mini" style="margin-top:8px" onclick="eemBajarEntrega(\''+i.id+'\')">⬇️ Descargar</button>'+
+      '</div>').join('')+
+    '<div class="eem-row" style="justify-content:flex-end;margin-top:12px">'+
+      '<button class="eem-btn sec" onclick="eemCerrarModal(\'eem-modal-intentos\')">Cerrar</button></div></div>';
+  document.body.appendChild(bg);
+}
+async function eemBuscarProfes(q){
+  const r = await eemInvoke('eem-ops', 'profesores_buscar', { carpeta_id: EEM.carpetaId, q: q });
+  const cont = document.getElementById('eem-t-res'); if(!cont) return;
+  if(!r.ok){ cont.innerHTML = '<div class="eem-sub eem-rojo">'+esc(r.error)+'</div>'; return; }
+  const ya = new Set((EEM.panel.tribunal||[]).map(t=>t.profesor_id));
+  cont.innerHTML = (r.profesores||[]).slice(0,12).map(p=>
+    '<div class="eem-integ"><span style="flex:1">'+esc((p.grado?p.grado+' ':'')+p.nombre_completo)+'</span>'+
+    (ya.has(p.id) ? '<span class="eem-chip ok">ya está</span>'
+      : '<button class="eem-btn mini" onclick="eemTribunal(\''+esc(p.id)+'\',true)">habilitar</button>')+'</div>').join('')
+    || '<div class="eem-sub">Sin resultados.</div>';
+}
+async function eemTribunal(profesorId, activo){
+  await escribir('tribunal_set', { profesor_id: profesorId, activo: activo }, null);
+}
+async function eemGuardarPerfil(){
+  const v = id=>document.getElementById(id).value;
+  const perfil = {
+    hoja: v('eem-p-hoja'),
+    margenes_cm: { sup:Number(v('eem-p-sup')), der:Number(v('eem-p-der')),
+                   inf:Number(v('eem-p-inf')), izq:Number(v('eem-p-izq')) },
+    tolerancia_cm: Number(v('eem-p-tol')),
+    fuentes_permitidas: v('eem-p-fuentes').split(',').map(s=>s.trim()).filter(Boolean),
+    tamano_pt: Number(v('eem-p-pt')),
+    interlineado: Number(v('eem-p-inter')),
+    clasificacion: v('eem-p-clas'),
+    pie_paginado: { exigido: document.getElementById('eem-p-pie').checked, patron: 'n - N' },
+    estructura_obligatoria: v('eem-p-estr').split('\n').map(s=>s.trim()).filter(Boolean)
+  };
+  if(!confirm('Se guarda como VERSIÓN NUEVA del perfil normativo y la carpeta pasa a usarla. La versión anterior queda intacta. ¿Seguís?')) return;
+  await escribir('perfil_guardar', { perfil: perfil, base_id: (EEM.panel.perfil||{}).id || null }, 'Perfil guardado como versión nueva.');
+}
+async function eemCargarPorEl(cursante){
+  const r = (EEM.panel.roster||[]).find(x=>x.cursante_id===cursante); if(!r) return;
+  aviso('Carga por excepción para '+nom(r)+'.\n\nElegí el PDF y escribí el motivo: queda registrado en la auditoría a tu nombre.');
+  const inp = document.createElement('input'); inp.type='file'; inp.accept='application/pdf,.pdf';
+  inp.onchange = async ()=>{
+    const f = inp.files[0]; if(!f) return;
+    if(!/\.pdf$/i.test(f.name)) return aviso('⛔ Solo PDF.');
+    if(f.size > 25*1024*1024) return aviso('⛔ Máximo 25 MB.');
+    const motivo = prompt('Motivo de la carga por excepción (obligatorio):');
+    if(!motivo || !motivo.trim()) return;
+    const buf = await f.arrayBuffer();
+    if(new TextDecoder().decode(new Uint8Array(buf.slice(0,5))) !== '%PDF-') return aviso('⛔ Ese archivo no es un PDF.');
+    const h = await crypto.subtle.digest('SHA-256', buf);
+    const hex = Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');
+    const ini = await eemInvoke('eem-entrega-subir','iniciar',{ carpeta_id:EEM.carpetaId, entregado_por:cursante,
+      motivo:motivo, integrantes:[], archivo_nombre:f.name, tamano:f.size, sha256:hex, supervision:EEM.supervision });
+    if(!ini.ok) return aviso('⛔ '+ini.error);
+    const up = await sb.storage.from('eem-entregas').uploadToSignedUrl(ini.path, ini.token_subida, f, {contentType:'application/pdf'});
+    if(up.error) return aviso('⛔ No se pudo subir: '+up.error.message);
+    const fin = await eemInvoke('eem-entrega-subir','confirmar',{ carpeta_id:EEM.carpetaId, entregado_por:cursante,
+      motivo:motivo, integrantes:[], path:ini.path, archivo_nombre:f.name, sha256:hex, supervision:EEM.supervision });
+    if(!fin.ok) return aviso('⛔ '+fin.error);
+    aviso('✅ Cargado en nombre de '+nom(r)+'.');
+    eemRefrescarPanel();
+  };
+  inp.click();
+}
+window.eemGuardarPlazo=eemGuardarPlazo; window.eemSinLimite=eemSinLimite; window.eemFijarBanda=eemFijarBanda;
+window.eemCrearGrupo=eemCrearGrupo; window.eemEditarGrupo=eemEditarGrupo; window.eemAsignarDirecto=eemAsignarDirecto;
+window.eemAsignarGrupo=eemAsignarGrupo; window.eemAsignarGrupoOk=eemAsignarGrupoOk; window.eemTardia=eemTardia;
+window.eemAnular=eemAnular; window.eemVerIntentos=eemVerIntentos; window.eemBuscarProfes=eemBuscarProfes;
+window.eemTribunal=eemTribunal; window.eemGuardarPerfil=eemGuardarPerfil; window.eemCargarPorEl=eemCargarPorEl;
+
+/* ── AUDITORÍA ────────────────────────────────────────────────────── */
+async function eemAbrirAuditoria(){
+  showScreen('screen-eem-auditoria');
+  const c = document.getElementById('eem-audit-cont');
+  c.innerHTML = '<div class="eem-vacio">Cargando…</div>';
+  const r = await eemInvoke('eem-ops', 'auditoria', { carpeta_id: EEM.carpetaId, supervision: EEM.supervision, limite: 300 });
+  if(!r.ok){ c.innerHTML = '<div class="eem-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
+  const filas = (r.auditoria||[]).map(a=>'<tr>'+
+    '<td>'+esc(fechaHora(a.timestamp_ms))+'</td>'+
+    '<td>'+esc(a.tabla)+'</td>'+
+    '<td>'+esc(a.operacion)+'</td>'+
+    '<td>'+esc(a.actor_nombre||'—')+'</td>'+
+    '<td>'+(a.modo==='supervision'?'<span class="eem-chip bad">SUPERVISIÓN</span>':'normal')+'</td>'+
+    '<td>'+esc(a.motivo||'—')+'</td>'+
+    '<td>'+esc(a.ip||'')+'</td></tr>').join('');
+  c.innerHTML = '<div class="eem-card">'+
+    '<div class="eem-row" style="justify-content:space-between;margin-bottom:8px">'+
+      '<b style="color:#e8d79a">'+(r.auditoria||[]).length+' movimientos</b>'+
+      '<button class="eem-btn sec mini" onclick="eemExportarAuditoria()">⬇️ Exportar CSV</button></div>'+
+    '<div class="eem-scroll"><table class="eem-tabla"><thead><tr>'+
+      '<th>Cuándo</th><th>Tabla</th><th>Operación</th><th>Quién</th><th>Modo</th><th>Motivo</th><th>IP</th>'+
+      '</tr></thead><tbody>'+(filas||'<tr><td colspan="7" class="eem-vacio">Sin movimientos.</td></tr>')+'</tbody></table></div></div>';
+  EEM._audit = r.auditoria || [];
+}
+function eemExportarAuditoria(){
+  const f = (EEM._audit||[]).map(a=>[fechaHora(a.timestamp_ms), a.tabla, a.operacion,
+    a.actor_nombre||'', a.modo||'', (a.motivo||'').replace(/"/g,"'"), a.ip||''] );
+  const csv = ['Cuando;Tabla;Operacion;Quien;Modo;Motivo;IP'].concat(f.map(r=>r.map(c=>'"'+String(c)+'"').join(';'))).join('\n');
+  const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'auditoria_eem.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+window.eemAbrirAuditoria = eemAbrirAuditoria; window.eemExportarAuditoria = eemExportarAuditoria;
+
+/* =====================================================================
+   3) LOS BOTONES DE ENTRADA — se inyectan, no se toca nada existente
+   ===================================================================== */
+const EEM_SIN_BOTON = /^screen-(home|cargos|login|primer-ingreso|instalar|firma|verificar|quiz-proyector|wg-invitado|eem-)/;
+
+async function eemHayAlgoDocente(){
+  if(EEM.hayAlgo !== null) return EEM.hayAlgo;
+  const r = await eemInvoke('eem-ops', 'carpetas', {});
+  EEM.hayAlgo = !!(r.ok && (r.carpetas||[]).length);
+  if(r.ok){ EEM.supervisor = !!r.supervisor; EEM.carpetasDocente = r.carpetas || []; }
+  return EEM.hayAlgo;
+}
+
+/* OJO: `currentUser` esta declarado con `let` en el primer <script>, asi que
+   vive en el ambito lexico global y NO es window.currentUser (eso es undefined
+   en toda la app). Hay que leerlo por el nombre pelado. */
+function quienSoy(){
+  try{ if(typeof currentUser !== 'undefined' && currentUser) return currentUser; }catch(e){}
+  return window.currentUser || null;
+}
+
+async function eemInyectar(idPantalla){
+  const u = quienSoy(); if(!u) return;
+  const sec = document.getElementById(idPantalla); if(!sec) return;
+  if(EEM_SIN_BOTON.test(idPantalla)) return;
+  if(sec.querySelector('.eem-btn-entrar')) return;
+  const s = getSession(); if(!s) return;
+
+  const cont = sec.querySelector('.menu-container') || sec.querySelector('.disc-container')
+            || sec.querySelector('.cursante-container');
+  if(!cont) return;
+
+  if(s.tipo === 'cursante'){
+    if(idPantalla !== 'screen-cursante-home' && idPantalla !== 'screen-aula-hub') return;
+    const destino = sec.querySelector('#cur-tab-inicio') || sec.querySelector('.hub-grid') || cont;
+    const b = document.createElement('button');
+    b.className = 'btn-mega eem-btn-entrar';
+    b.style.cssText = 'background:linear-gradient(180deg,#9a7b1f,#d4af37);margin:0 0 10px;color:#0a1628';
+    b.innerHTML = '<span class="mega-icon">🎓</span><span>Mis Carpetas de Clases — entregar el trabajo evaluado</span>';
+    b.onclick = ()=>eemAbrirAlumno();
+    destino.insertBefore(b, destino.firstElementChild);
+    return;
+  }
+
+  if(!(await eemHayAlgoDocente())) return;
+  const b = document.createElement('button');
+  b.className = 'btn-mega eem-btn-entrar';
+  b.style.cssText = 'background:linear-gradient(180deg,#1f4f6f,#0e3a4a);margin:0 0 10px;color:#fff';
+  b.innerHTML = '<span class="mega-icon">📋</span><span>Carpetas de Clases — evaluación sumativa'+
+    (EEM.supervisor ? ' (supervisión)' : '')+'</span>';
+  b.onclick = ()=>eemAbrirCarpetas();
+  cont.insertBefore(b, cont.children[1] || null);
+}
+
+/* Envoltorio de showScreen, igual que el módulo de Protocolo. */
+(function(){
+  const anterior = window.showScreen;
+  if(!anterior || anterior.__eem) return;
+  const nuevo = function(id){
+    const r = anterior.apply(this, arguments);
+    if(id !== 'screen-eem-alumno') limpiarRelojes();
+    setTimeout(()=>{ try{ if(quienSoy()) eemInyectar(id); }catch(e){} }, 60);
+    return r;
+  };
+  nuevo.__eem = true;
   window.showScreen = nuevo;
 })();
 
