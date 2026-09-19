@@ -52709,7 +52709,9 @@ function vistaConfig(){
         '<div class="eem-field"><label>Nombre del grupo nuevo (opcional)</label><input id="eem-g-nombre" placeholder="Grupo 1"></div>'+
         '<div class="eem-field"><label>Tema</label><input id="eem-g-tema" placeholder="Tema del Estudio de Estado Mayor"></div>'+
       '</div>'+
-      '<button class="eem-btn" onclick="eemCrearGrupo()">Crear grupo</button>'+
+      '<div class="eem-row"><button class="eem-btn" onclick="eemCrearGrupo()">Crear grupo</button>'+
+        '<button class="eem-btn sec" onclick="eemImportarAbrir()">📄 Importar del documento (.docx)</button>'+
+        '<button class="eem-btn sec mini" onclick="eemPlantillaGrupos()">Ver el formato que espera</button></div>'+
       '<div class="eem-scroll" style="margin-top:12px"><table class="eem-tabla"><thead><tr>'+
         '<th>N°</th><th>Nombre / Tema</th><th>Integrantes</th><th></th></tr></thead><tbody>'+
         ((p.grupos||[]).map(g=>'<tr><td><b>'+g.numero+'</b></td>'+
@@ -52970,6 +52972,441 @@ function eemExportarAuditoria(){
   a.download = 'auditoria_eem.csv'; document.body.appendChild(a); a.click(); document.body.removeChild(a);
 }
 window.eemAbrirAuditoria = eemAbrirAuditoria; window.eemExportarAuditoria = eemExportarAuditoria;
+
+
+/* =====================================================================
+   IMPORTAR LA ORGANIZACION DE GRUPOS DESDE EL DOCUMENTO (.docx)
+   Lee el Word del Evaluador, engancha cada nombre con un cursante de la
+   nomina y MUESTRA lo que va a hacer antes de tocar nada. Nada se aplica
+   sin que el Evaluador lo vea y lo confirme.
+   ===================================================================== */
+
+const EEM_IMP = { filas:[], grupos:[], sinDocumento:[], texto:'' };
+
+/* Grados y armas: estorban para comparar nombres, se sacan. */
+const EEM_RUIDO = new Set(('GRAL BRIG CNL TCNL MY MAY CAP TTE SUBTTE SBTTE SOF SGTO SGT CBO '+
+  'DEM DAEN DEPSS EC PROF TEC INCL INF ART CAB ING COM LOG SERV INT INTD AV MUS SAN VET ODO '+
+  'DR LIC ING2 SRA SR DON').split(' '));
+
+function eemNormal(t){
+  return String(t||'').normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .toUpperCase().replace(/[^A-Z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
+}
+function eemTokens(t){
+  return eemNormal(t).split(' ').filter(w=>w && w.length>1 && !EEM_RUIDO.has(w) && !/^\d+$/.test(w));
+}
+
+/* ── leer el .docx ─────────────────────────────────────────────────
+   Devuelve los bloques EN EL ORDEN DEL DOCUMENTO:
+     {p:'texto'}                     un renglón suelto
+     {fila:[[..],[..]]}              una fila de cuadro, celda por celda
+   Los documentos militares suelen venir en CUADRO, así que hay que leer las
+   dos formas o el lector sirve para la mitad de los casos.               */
+function eemTextoDe(frag){
+  return (frag.match(/<w:t[^>]*>[\s\S]*?<\/w:t>/g) || [])
+    .map(x=>x.replace(/<[^>]+>/g,'')).join('')
+    .replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>')
+    .replace(/&quot;/g,'"').replace(/&#39;/g,"'")
+    .replace(/\s+/g,' ').trim();
+}
+function eemParrafosDe(frag){
+  return (frag.match(/<w:p[ >][\s\S]*?<\/w:p>/g) || []).map(eemTextoDe).filter(Boolean);
+}
+function eemBloquesDe(xml){
+  const bloques = [];
+  const re = /<w:tbl>[\s\S]*?<\/w:tbl>/g;
+  let pos = 0, m;
+  const sueltos = (trozo)=>eemParrafosDe(trozo).forEach(t=>bloques.push({p:t}));
+  while((m = re.exec(xml)) !== null){
+    sueltos(xml.slice(pos, m.index));
+    (m[0].match(/<w:tr[ >][\s\S]*?<\/w:tr>/g) || []).forEach(tr=>{
+      const celdas = (tr.match(/<w:tc>[\s\S]*?<\/w:tc>/g) || []).map(eemParrafosDe);
+      if(celdas.some(c=>c.length)) bloques.push({fila: celdas});
+    });
+    pos = m.index + m[0].length;
+  }
+  sueltos(xml.slice(pos));
+  return bloques;
+}
+async function eemLeerDocx(file){
+  await ensureJSZip();
+  const zip = await JSZip.loadAsync(await file.arrayBuffer());
+  const f = zip.file('word/document.xml');
+  if(!f) throw new Error('Ese archivo no parece un Word (.docx) válido.');
+  const bloques = eemBloquesDe(await f.async('string'));
+  if(!bloques.length) throw new Error('El documento no tiene texto legible.');
+  return bloques;
+}
+
+/* ── reconocer grupos y nombres ────────────────────────────────────── */
+const EEM_RE_GRUPO = /^\s*(?:[a-z]\s*[.)\-]\s*)?(?:GRUPO|EQUIPO)\s*(?:N\s*[°ºo]?\.?\s*)?(\d{1,2})\b[\s.:\-–—]*(.*)$/i;
+const EEM_RE_TEMA  = /^\s*TEMA\s*[:.\-–—]\s*(.+)$/i;
+const EEM_RE_JEFE  = /\b(JEFE\s+DE\s+GRUPO|JEFE)\b/i;
+const EEM_RE_ROTULO= /^\s*(CURSANTES?|INTEGRANTES?|RESPONSABLES?|COORDINADOR|ENCARGADOS?|OBJETO|CARTAS|APENDICES|ANEXO|OBSERVACIONES|MIEMBROS)\s*[:.\-–—]?\s*$/i;
+
+function eemParsear(bloques, roster){
+  const grupos = [];
+  let actual = null;
+
+  const nuevoGrupo = (numero, resto)=>{
+    const ya = grupos.find(g=>g.numero === numero);
+    if(ya){ actual = ya; if(resto && !ya.tema && eemTokens(resto).length) ya.tema = resto; return; }
+    actual = { numero: numero, nombre: 'Grupo '+numero,
+               tema: (resto && eemTokens(resto).length) ? resto : '', lineas: [] };
+    grupos.push(actual);
+  };
+
+  const empujar = (texto, jefe)=>{
+    if(!actual) return;
+    const limpio = String(texto).replace(/^[\s\-–—•*·.]+/,'').replace(/\(.*?\)/g,' ')
+                        .replace(EEM_RE_JEFE,' ').replace(/\s+/g,' ').trim();
+    if(eemTokens(limpio).length < 2) return;   // "Cursantes:" y sueltos no son nombres
+    if(actual.lineas.some(x=>x.crudo === texto)) return;
+    actual.lineas.push({ texto: limpio, crudo: String(texto), es_jefe: !!jefe, cel: celActual });
+  };
+  let celActual = null;
+
+  // un renglón cualquiera: ¿abre grupo?, ¿es el tema?, ¿es un rótulo?, ¿es un nombre?
+  const renglon = (l)=>{
+    const g = String(l).match(EEM_RE_GRUPO);
+    if(g){ nuevoGrupo(parseInt(g[1],10), (g[2]||'').trim()); return; }
+    if(!actual) return;
+    const t = String(l).match(EEM_RE_TEMA);
+    if(t){ actual.tema = t[1].trim(); return; }
+    if(EEM_RE_ROTULO.test(l)) return;
+    const jefe = EEM_RE_JEFE.test(l);
+    const tras = String(l).split(/[:：]/);
+    empujar(tras.length > 1 && eemTokens(tras[0]).length <= 2 ? tras.slice(1).join(':') : l, jefe);
+  };
+
+  bloques.forEach((b, fi)=>{
+    if(b.p !== undefined){ celActual = null; renglon(b.p); return; }
+
+    // ---- fila de cuadro ----
+    // La primera celda suele traer el número del grupo (a veces vacía, porque
+    // la celda está combinada y vale para varias filas).
+    const celdas = b.fila || [];
+    let abrio = false;
+    for(let c = 0; c < Math.min(celdas.length, 2); c++){
+      const txt = (celdas[c][0] || '').trim();
+      const solo = txt.match(/^(?:GRUPO|EQUIPO)?\s*N?\s*[°º]?\.?\s*(\d{1,2})$/i);
+      const conPalabra = txt.match(EEM_RE_GRUPO);
+      if(conPalabra){ nuevoGrupo(parseInt(conPalabra[1],10), (conPalabra[2]||'').trim()); abrio = true; break; }
+      if(solo && c === 0){ nuevoGrupo(parseInt(solo[1],10), ''); abrio = true; break; }
+    }
+    // el resto de la fila: renglones sueltos (nombres, "Tema:", rótulos)
+    celdas.forEach((cel, idx)=>{
+      if(abrio && idx === 0) return;
+      celActual = fi + ':' + idx;
+      cel.forEach(renglon);
+    });
+    celActual = null;
+  });
+
+  // enganchar cada renglón con un cursante de la nómina
+  const usados = new Set();
+  grupos.forEach(gr=>{
+    gr.lineas.forEach(ln=>{
+      const r = eemEnganchar(ln.texto, roster, usados);
+      ln.cursante_id = r.id; ln.estado = r.estado; ln.candidatos = r.candidatos;
+      if(r.id) usados.add(r.id);
+    });
+  });
+  // En un cuadro, la celda del TEMA no engancha con nadie (no es un nombre).
+  // Si el grupo se quedó sin tema y hay una celda entera sin enganchar, esa es.
+  grupos.forEach(gr=>{
+    if(gr.tema) return;
+    const porCelda = {};
+    gr.lineas.forEach(l=>{ if(l.cel){ (porCelda[l.cel] = porCelda[l.cel] || []).push(l); } });
+    for(const k of Object.keys(porCelda)){
+      const cel = porCelda[k];
+      if(cel.every(l=>!l.cursante_id) && gr.lineas.some(l=>l.cursante_id)){
+        gr.tema = cel.slice().sort((a,b)=>b.crudo.length - a.crudo.length)[0].crudo.trim();
+        gr.lineas = gr.lineas.filter(l=>cel.indexOf(l) < 0);
+        break;
+      }
+    }
+  });
+  return grupos.filter(g=>g.lineas.length);
+}
+
+/* Engancha un nombre del documento con un cursante. NO adivina: si hay más de
+   un candidato lo deja marcado para que el Evaluador elija. */
+function eemEnganchar(texto, roster, usados){
+  const tk = eemTokens(texto);
+  if(!tk.length) return { id:null, estado:'vacio', candidatos:[] };
+
+  // por CI, si el renglón trae un número largo
+  const ci = (String(texto).match(/\b\d{5,10}\b/) || [])[0];
+  if(ci){
+    const porCi = roster.filter(r=>String(r.ci||'') === ci);
+    if(porCi.length === 1) return { id:porCi[0].cursante_id, estado:'exacto', candidatos:[] };
+  }
+
+  const exactos = roster.filter(r=>eemNormal(r.nombre_completo) === tk.join(' '));
+  if(exactos.length === 1) return { id:exactos[0].cursante_id, estado:'exacto', candidatos:[] };
+
+  // por tokens: los del documento tienen que estar TODOS en el nombre del cursante
+  const cand = roster.filter(r=>{
+    const rt = eemTokens(r.nombre_completo);
+    if(rt.length < 2) return false;
+    const dentro = tk.filter(w=>rt.includes(w));
+    return dentro.length >= 2 && dentro.length === tk.length;
+  });
+  if(cand.length === 1){
+    return { id:cand[0].cursante_id,
+             estado: usados.has(cand[0].cursante_id) ? 'repetido' : 'probable', candidatos:[] };
+  }
+  if(cand.length > 1) return { id:null, estado:'ambiguo', candidatos:cand.map(c=>c.cursante_id) };
+
+  // al revés: el documento trae más palabras que la nómina (segundo nombre, etc.)
+  const cand2 = roster.filter(r=>{
+    const rt = eemTokens(r.nombre_completo);
+    const dentro = rt.filter(w=>tk.includes(w));
+    return dentro.length >= 2 && dentro.length === rt.length;
+  });
+  if(cand2.length === 1) return { id:cand2[0].cursante_id, estado:'probable', candidatos:[] };
+  if(cand2.length > 1) return { id:null, estado:'ambiguo', candidatos:cand2.map(c=>c.cursante_id) };
+
+  return { id:null, estado:'sin_enganche', candidatos:[] };
+}
+
+/* ── el diálogo ───────────────────────────────────────────────────── */
+function eemImportarAbrir(){
+  const bg = document.createElement('div');
+  bg.className='eem-modal-bg'; bg.id='eem-modal-import';
+  bg.innerHTML = '<div class="eem-modal" style="max-width:860px">'+
+    '<h3>📄 Importar la organización de grupos</h3>'+
+    '<div class="eem-sub">Leo el Word, engancho cada nombre con la nómina de la carpeta y '+
+      '<b>te muestro lo que voy a hacer antes de tocar nada</b>.</div>'+
+    '<div class="eem-field" style="margin-top:12px"><label>Documento Word (.docx)</label>'+
+      '<input type="file" id="eem-imp-file" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"></div>'+
+    '<div class="eem-field"><label>…o pegá acá la lista, si el documento no es Word</label>'+
+      '<textarea id="eem-imp-texto" rows="4" placeholder="GRUPO 1 — Tema del trabajo&#10;My. Inf. Juan Perez Lopez (jefe)&#10;My. Art. Ana Quispe Mamani"></textarea></div>'+
+    '<div id="eem-imp-estado" class="eem-sub"></div>'+
+    '<div class="eem-row" style="justify-content:flex-end;margin-top:10px">'+
+      '<button class="eem-btn sec" onclick="eemCerrarModal(\'eem-modal-import\')">Cancelar</button>'+
+      '<button class="eem-btn" onclick="eemImportarLeer()">LEER EL DOCUMENTO</button>'+
+    '</div><div id="eem-imp-previa"></div></div>';
+  document.body.appendChild(bg);
+}
+window.eemImportarAbrir = eemImportarAbrir;
+
+async function eemImportarLeer(){
+  const est = document.getElementById('eem-imp-estado');
+  const f = document.getElementById('eem-imp-file').files[0];
+  const pegado = document.getElementById('eem-imp-texto').value.trim();
+  est.innerHTML = '<span style="color:#9fb0c9">Leyendo…</span>';
+  let lineas = [];
+  try{
+    if(f){
+      if(!/\.docx$/i.test(f.name)) throw new Error('Tiene que ser un .docx (Word). El .doc viejo no sirve: guardalo como .docx.');
+      lineas = await eemLeerDocx(f);
+    } else if(pegado){
+      lineas = pegado.split(/\r?\n/).map(x=>x.trim()).filter(Boolean).map(t=>({p:t}));
+    } else {
+      throw new Error('Elegí el documento, o pegá la lista.');
+    }
+  }catch(e){ est.innerHTML = '<span style="color:#f0938a">⛔ '+esc(e.message||e)+'</span>'; return; }
+
+  const roster = EEM.panel.roster || [];
+  const grupos = eemParsear(lineas, roster);
+  if(!grupos.length){
+    est.innerHTML = '<span style="color:#f0938a">⛔ No encontré ningún grupo. '+
+      'Cada grupo tiene que empezar con un renglón que diga <b>GRUPO 1</b>, <b>GRUPO N° 2</b> o <b>EQUIPO 3</b>. '+
+      'Mirá «Ver el formato que espera».</span>'; return; }
+
+  EEM_IMP.grupos = grupos;
+  const cuantos = lineas.reduce((a,b)=>a + (b.p !== undefined ? 1 : (b.fila||[]).reduce((x,c)=>x+c.length,0)), 0);
+  est.innerHTML = '<span style="color:#8fe3b0">Leí '+cuantos+' renglones'+
+    (lineas.some(b=>b.fila) ? ' (el documento viene en cuadro)' : '')+
+    ' y encontré '+grupos.length+' grupos.</span>';
+  eemImportarPrevia();
+}
+window.eemImportarLeer = eemImportarLeer;
+
+function eemImportarPrevia(){
+  const roster = EEM.panel.roster || [];
+  const opciones = roster.map(r=>'<option value="'+esc(r.cursante_id)+'">'+esc(nom(r))+' · '+esc(r.paralelo||'')+'</option>').join('');
+  let n=0, ok=0, dudas=0;
+
+  const bloques = EEM_IMP.grupos.map((g,gi)=>{
+    const filas = g.lineas.map((ln,li)=>{
+      n++;
+      const chip = ln.estado==='exacto'   ? '<span class="eem-chip ok">enganchado</span>'
+                 : ln.estado==='probable' ? '<span class="eem-chip ok">enganchado</span>'
+                 : ln.estado==='repetido' ? '<span class="eem-chip warn">ya figuraba en otro grupo</span>'
+                 : ln.estado==='ambiguo'  ? '<span class="eem-chip bad">hay más de uno con ese apellido</span>'
+                 : '<span class="eem-chip bad">no está en la nómina</span>';
+      if(ln.cursante_id) ok++; else dudas++;
+      return '<tr>'+
+        '<td>'+esc(ln.crudo)+'</td>'+
+        '<td><select onchange="eemImpElegir('+gi+','+li+',this.value)">'+
+          '<option value="">— ignorar este renglón —</option>'+
+          opciones.replace('value="'+esc(ln.cursante_id||'@@')+'"', 'value="'+esc(ln.cursante_id||'@@')+'" selected')+
+          '</select></td>'+
+        '<td><label class="eem-sub" style="white-space:nowrap"><input type="checkbox" '+(ln.es_jefe?'checked':'')+
+          ' onchange="eemImpJefe('+gi+','+li+',this.checked)"> jefe</label></td>'+
+        '<td>'+chip+'</td></tr>';
+    }).join('');
+    return '<div class="eem-card" style="margin:10px 0 0">'+
+      '<div class="eem-row"><b style="color:#e8d79a">Grupo '+g.numero+'</b>'+
+        '<span class="eem-chip">'+g.lineas.length+' integrantes</span>'+
+        (g.tema?'':'<span class="eem-chip warn">sin tema</span>')+'</div>'+
+      '<div class="eem-field" style="margin:8px 0 0"><label>Tema del grupo '+g.numero+
+        ' — corregilo acá si el documento no lo trajo bien</label>'+
+        '<input value="'+esc(g.tema||'')+'" placeholder="Tema del Estudio de Estado Mayor" '+
+        'onchange="eemImpTema('+gi+',this.value)"></div>'+
+      '<div class="eem-scroll" style="max-height:none;margin-top:8px"><table class="eem-tabla"><thead><tr>'+
+        '<th>Renglón del documento</th><th>Cursante de la nómina</th><th></th><th>Estado</th>'+
+      '</tr></thead><tbody>'+filas+'</tbody></table></div></div>';
+  }).join('');
+
+  const asignados = new Set();
+  EEM_IMP.grupos.forEach(g=>g.lineas.forEach(l=>{ if(l.cursante_id) asignados.add(l.cursante_id); }));
+  const fuera = roster.filter(r=>!asignados.has(r.cursante_id));
+
+  document.getElementById('eem-imp-previa').innerHTML =
+    '<div class="eem-card" style="margin-top:14px;border-color:rgba(212,175,55,.5)">'+
+      '<div class="eem-row">'+
+        '<span class="eem-chip">Renglones leídos <b>'+n+'</b></span>'+
+        '<span class="eem-chip ok">Enganchados <b>'+ok+'</b></span>'+
+        '<span class="eem-chip'+(dudas?' bad':'')+'">Sin enganchar <b>'+dudas+'</b></span>'+
+        '<span class="eem-chip'+(fuera.length?' warn':'')+'">Quedan sin grupo <b>'+fuera.length+'</b></span>'+
+      '</div>'+
+      (dudas ? '<div class="eem-sub" style="margin-top:8px;color:#f0cf7a">Los renglones sin enganchar se van a <b>ignorar</b>. '+
+               'Elegí vos el cursante en el desplegable, o corregí el documento y volvé a leerlo.</div>' : '')+
+      (fuera.length ? '<div class="eem-sub" style="margin-top:8px"><b>No figuran en el documento:</b> '+
+               fuera.map(r=>esc(nom(r))).join(' · ')+'</div>' : '')+
+      '<label class="eem-integ" style="margin-top:10px"><input type="checkbox" id="eem-imp-reemplazar" checked>'+
+        '<span class="eem-sub">El documento <b>reemplaza</b> la organización actual: el que no figure queda sin grupo. '+
+        'Si lo destildás, sólo se agrega lo que trae el documento.</span></label>'+
+      '<div class="eem-row" style="justify-content:flex-end;margin-top:10px">'+
+        '<button class="eem-btn" onclick="eemImportarAplicar()">APLICAR ESTA ORGANIZACIÓN</button></div>'+
+    '</div>' + bloques;
+}
+function eemImpElegir(gi, li, valor){
+  const ln = EEM_IMP.grupos[gi].lineas[li];
+  ln.cursante_id = valor || null;
+  ln.estado = valor ? 'manual' : 'sin_enganche';
+  eemImportarPrevia();
+}
+function eemImpJefe(gi, li, v){ EEM_IMP.grupos[gi].lineas[li].es_jefe = v; }
+function eemImpTema(gi, v){ EEM_IMP.grupos[gi].tema = String(v||'').trim(); }
+window.eemImpElegir = eemImpElegir; window.eemImpJefe = eemImpJefe; window.eemImpTema = eemImpTema;
+window.EEM_IMP = EEM_IMP;
+
+async function eemImportarAplicar(){
+  const reemplazar = document.getElementById('eem-imp-reemplazar').checked;
+  const grupos = EEM_IMP.grupos.map(g=>({
+    numero: g.numero, nombre: g.nombre, tema: g.tema,
+    integrantes: g.lineas.filter(l=>l.cursante_id)
+      .map(l=>({ cursante_id: l.cursante_id, es_jefe: !!l.es_jefe }))
+  })).filter(g=>g.integrantes.length);
+
+  if(!grupos.length) return aviso('⛔ No quedó ningún integrante enganchado. No hay nada que aplicar.');
+  const total = grupos.reduce((a,g)=>a+g.integrantes.length,0);
+  if(!confirm('Se van a armar '+grupos.length+' grupos con '+total+' cursantes.'+
+      (reemplazar ? '\n\nLos que no figuran en el documento QUEDAN SIN GRUPO.' : '')+
+      '\n\n¿Aplico?')) return;
+
+  const r = await eemInvoke('eem-ops', 'importar_grupos', {
+    carpeta_id: EEM.carpetaId, supervision: EEM.supervision,
+    grupos: grupos, reemplazar: reemplazar });
+  if(!r.ok) return aviso('⛔ '+r.error);
+
+  const s = r.resumen || {};
+  const bloq = (s.bloqueados||[]);
+  let msg = '✅ Listo.\n\nGrupos creados: '+(s.grupos_creados||0)+
+            '\nGrupos actualizados: '+(s.grupos_actualizados||0)+
+            '\nCursantes asignados: '+(s.asignados||0);
+  if(bloq.length){
+    msg += '\n\n⚠️ NO se movieron '+bloq.length+' cursante(s) porque su grupo ya tiene una entrega '+
+           'registrada. Moverlos ahora les cambiaría la nota. Si de verdad hay que moverlos, '+
+           'anulá primero esa entrega.';
+  }
+  eemCerrarModal('eem-modal-import');
+  aviso(msg);
+  await eemRefrescarPanel();
+}
+window.eemImportarAplicar = eemImportarAplicar;
+
+/* ── el formato que espera, para que el documento salga bien de entrada ── */
+function eemPlantillaGrupos(){
+  const bg = document.createElement('div');
+  bg.className='eem-modal-bg'; bg.id='eem-modal-plantilla';
+  bg.innerHTML = '<div class="eem-modal"><h3>📐 Cómo tiene que estar armado el documento</h3>'+
+    '<div class="eem-sub">No hace falta que sea bonito ni que tenga un formato especial: alcanza con '+
+    'que <b>cada grupo empiece por su renglón</b> y debajo vayan los nombres, uno por renglón. '+
+    'Sirve igual si está en una tabla de Word.</div>'+
+    '<div class="eem-card" style="margin-top:12px"><pre style="white-space:pre-wrap;font-size:12px;color:#d6dfef;margin:0">'+
+'GRUPO 1 — La defensa del sector Calacoto\n'+
+'My. Inf. Eigner Oscar Camacho Orellana (jefe)\n'+
+'My. Art. Rodolfo Choque Azari\n'+
+'My. Log. Paola Valeria Guevara Revollo\n'+
+'\n'+
+'GRUPO 2\n'+
+'Tema: El ataque a la altura 1450\n'+
+'My. Cab. José Antonio Merubia Paredes\n'+
+'My. Inf. Mario Frederick Daza Rafael\n'+
+    '</pre></div>'+
+    '<div class="eem-sub" style="margin-top:10px">'+
+      '• El encabezado puede decir <b>GRUPO 1</b>, <b>GRUPO N° 1</b> o <b>EQUIPO 1</b>.<br>'+
+      '• El <b>tema</b> va en el mismo renglón después de un guión, o en un renglón <b>Tema:</b>.<br>'+
+      '• El <b>jefe de grupo</b> se marca escribiendo <b>(jefe)</b> al lado del nombre.<br>'+
+      '• El grado y el arma no molestan: los descarto para comparar.<br>'+
+      '• Renglones sueltos como «Cursantes:» o «Responsable:» los ignoro.<br>'+
+      '• Si un nombre no coincide con nadie de la nómina, <b>no lo adivino</b>: te lo muestro para '+
+      'que lo elijas a mano.</div>'+
+    '<div class="eem-row" style="justify-content:flex-end;margin-top:12px">'+
+      '<button class="eem-btn sec" onclick="eemCerrarModal(\'eem-modal-plantilla\')">Cerrar</button>'+
+      '<button class="eem-btn" onclick="eemBajarPlantilla()">⬇️ Bajar la plantilla (.docx)</button></div></div>';
+  document.body.appendChild(bg);
+}
+window.eemPlantillaGrupos = eemPlantillaGrupos;
+
+/* Genera un .docx mínimo con el ejemplo, para que lo llenen. */
+async function eemBajarPlantilla(){
+  await ensureJSZip();
+  const R = (EEM.panel && EEM.panel.roster) || [];
+  const ejemplo = R.slice(0,3).map(r=>nom(r));
+  const lineas = [
+    'ORGANIZACIÓN DE GRUPOS — ' + ((EEM.panel&&EEM.panel.carpeta.materia_nombre)||'ESTUDIO DE ESTADO MAYOR'),
+    '', 'GRUPO 1 — (escribí acá el tema del grupo)',
+    (ejemplo[0]||'My. Inf. Nombre Apellido Apellido') + ' (jefe)',
+    (ejemplo[1]||'My. Art. Nombre Apellido Apellido'),
+    (ejemplo[2]||'My. Log. Nombre Apellido Apellido'),
+    '', 'GRUPO 2', 'Tema: (escribí acá el tema del grupo)',
+    'My. Inf. Nombre Apellido Apellido (jefe)', 'My. Cab. Nombre Apellido Apellido',
+    '', '(Repetí el bloque por cada grupo. Los nombres tienen que ser los de la nómina del ciclo.)'
+  ];
+  const esc2 = t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const cuerpo = lineas.map(t=>'<w:p><w:r><w:t xml:space="preserve">'+esc2(t)+'</w:t></w:r></w:p>').join('');
+  const doc = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+    '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+
+    cuerpo+'<w:sectPr/></w:body></w:document>';
+  const ct = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+    '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'+
+    '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'+
+    '<Default Extension="xml" ContentType="application/xml"/>'+
+    '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'+
+    '</Types>';
+  const rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'+
+    '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'+
+    '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'+
+    '</Relationships>';
+  const zip = new JSZip();
+  zip.file('[Content_Types].xml', ct);
+  zip.folder('_rels').file('.rels', rels);
+  zip.folder('word').file('document.xml', doc);
+  const blob = await zip.generateAsync({type:'blob',
+    mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'PLANTILLA_ORGANIZACION_DE_GRUPOS.docx';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+}
+window.eemBajarPlantilla = eemBajarPlantilla;
 
 /* =====================================================================
    3) LOS BOTONES DE ENTRADA — se inyectan, no se toca nada existente
