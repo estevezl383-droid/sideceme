@@ -4178,7 +4178,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.390</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.391</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -53970,6 +53970,1016 @@ async function eemInyectar(idPantalla){
     return r;
   };
   nuevo.__eem = true;
+  window.showScreen = nuevo;
+})();
+
+})();
+</script>
+
+
+<!-- =====================================================================
+     EVALUACION SUMATIVA — ESTUDIO DE ESTADO MAYOR · FASE 4: EL TRIBUNAL
+     La exposicion, 35% INDIVIDUAL. (v2.9.391)
+     TODO ADITIVO: no se modifico ni una linea de lo anterior.
+     Backend: eem-tribunal
+     ===================================================================== -->
+
+<style>
+.trb-wrap{padding:0 14px 120px}
+.trb-card{background:linear-gradient(180deg,#141a28,#0d1220);border:1px solid rgba(212,175,55,.28);
+  border-radius:14px;padding:12px 13px;margin:0 0 11px}
+.trb-card h3{margin:0 0 4px;font-size:15px;color:#e8d79a;letter-spacing:.3px}
+.trb-sub{font-size:11.5px;color:#93a0b8;line-height:1.5}
+.trb-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.trb-chip{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:3px 9px;font-size:11px;color:#c9d6ea}
+.trb-chip b{color:#fff}
+.trb-chip.ok{border-color:rgba(46,204,113,.45);color:#8fe3b0}
+.trb-chip.warn{border-color:rgba(230,180,60,.5);color:#f0cf7a}
+.trb-chip.bad{border-color:rgba(231,76,60,.55);color:#f0938a}
+.trb-btn{border:0;border-radius:10px;padding:10px 14px;font-weight:800;font-size:13px;cursor:pointer;
+  background:linear-gradient(180deg,#9a7b1f,#d4af37);color:#0a1628}
+.trb-btn.sec{background:linear-gradient(180deg,#26324a,#1a2337);color:#dfe7f5;border:1px solid rgba(255,255,255,.14)}
+.trb-btn.red{background:linear-gradient(180deg,#8e2f26,#c0392b);color:#fff}
+.trb-btn.mini{padding:5px 9px;font-size:11px;border-radius:8px}
+.trb-btn:disabled{opacity:.42;cursor:not-allowed}
+.trb-vacio{color:#8b9ab4;font-size:12.5px;text-align:center;padding:26px 10px}
+
+/* ── LA GRILLA ─────────────────────────────────────────────────────── */
+.trb-grilla{width:100%;border-collapse:collapse;font-size:12px}
+.trb-grilla th{background:#101728;color:#e8d79a;text-align:center;padding:7px 5px;font-size:10.5px;
+  letter-spacing:.3px;border-bottom:1px solid rgba(212,175,55,.3);white-space:nowrap}
+.trb-grilla th.izq{text-align:left}
+.trb-grilla td{padding:6px 5px;border-bottom:1px solid rgba(255,255,255,.07);color:#d6dfef;vertical-align:middle}
+.trb-grilla tr.par td{background:rgba(255,255,255,.02)}
+.trb-nom{font-size:12px;line-height:1.3}
+.trb-nom small{display:block;color:#7d8aa3;font-size:10px}
+.trb-in{width:68px;box-sizing:border-box;background:#0c1220;border:1px solid rgba(255,255,255,.18);
+  border-radius:8px;color:#fff;font-size:15px;font-weight:800;text-align:center;padding:9px 4px;
+  font-variant-numeric:tabular-nums}
+.trb-in:focus{outline:0;border-color:#d4af37;box-shadow:0 0 0 2px rgba(212,175,55,.25)}
+.trb-in.bajo{border-color:rgba(231,76,60,.7);color:#ffb4a8}
+.trb-in.mal{border-color:#e74c3c;background:#2a1210}
+.trb-in[readonly]{background:transparent;border-color:transparent;color:#cbd6e8;font-weight:700}
+.trb-total{font-size:15px;font-weight:900;color:#e8d79a;text-align:center;font-variant-numeric:tabular-nums}
+.trb-total.vacio{color:#5f6d85;font-weight:700}
+.trb-obs{width:100%;box-sizing:border-box;background:#0c1220;border:1px solid rgba(255,255,255,.18);
+  border-radius:8px;color:#e6edf8;font-size:12px;padding:8px 9px;margin-top:2px}
+.trb-obs.falta{border-color:#e74c3c}
+.trb-aviso{font-size:11px;color:#f0cf7a;margin:4px 0 2px}
+.trb-ausente td{opacity:.62}
+.trb-ausente .trb-nom{text-decoration:line-through}
+.trb-barra{position:fixed;left:0;right:0;bottom:0;background:rgba(9,14,24,.96);
+  border-top:1px solid rgba(212,175,55,.3);padding:9px 12px;display:flex;gap:8px;
+  align-items:center;justify-content:space-between;z-index:80;flex-wrap:wrap}
+.trb-estado{font-size:11px;color:#8fe3b0}
+.trb-estado.off{color:#f0cf7a}
+.trb-estado.err{color:#f0938a}
+.trb-mas{display:none}
+.trb-tarjetas{display:none}
+@media(max-width:700px){
+  .trb-grilla{display:none}
+  .trb-cuadro{display:none}       /* el marco vacío del cuadro tampoco se ve */
+  .trb-tarjetas{display:block}
+}
+.trb-t{background:linear-gradient(180deg,#141a28,#0d1220);border:1px solid rgba(255,255,255,.12);
+  border-radius:12px;padding:11px 12px;margin:0 0 9px}
+.trb-t h4{margin:0 0 8px;font-size:13px;color:#e8d79a}
+.trb-t .lin{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 7px}
+.trb-t .lin span{font-size:11.5px;color:#a9b8cf;flex:1}
+.trb-pm{display:flex;align-items:center;gap:6px}
+.trb-pm button{width:44px;height:44px;border-radius:10px;border:1px solid rgba(255,255,255,.18);
+  background:#1a2337;color:#fff;font-size:20px;font-weight:800;cursor:pointer}
+.trb-mesa{border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:10px 11px;margin:0 0 9px;
+  background:rgba(255,255,255,.03)}
+.trb-mesa b{color:#e8d79a}
+.trb-opt{display:flex;gap:8px;align-items:flex-start;padding:9px 10px;border:1px solid rgba(255,255,255,.14);
+  border-radius:10px;margin:0 0 7px;cursor:pointer;background:rgba(255,255,255,.02)}
+.trb-opt.on{border-color:#d4af37;background:rgba(212,175,55,.09)}
+.trb-cmp{width:100%;border-collapse:collapse;font-size:11.5px;margin-top:6px}
+.trb-cmp th,.trb-cmp td{padding:5px 6px;border-bottom:1px solid rgba(255,255,255,.08);text-align:center}
+.trb-cmp th{color:#e8d79a;font-size:10.5px}
+.trb-cmp td.izq,.trb-cmp th.izq{text-align:left}
+</style>
+
+<!-- ============ CARPETAS DEL TRIBUNAL ============ -->
+<section id="screen-eem-trib-carpetas" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('screen-profesor-home')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">🎖️ Tribunal — Exposiciones</div>
+      <div class="header-sub">La calificación individual de cada cursante</div></div>
+  </div>
+  <div class="trb-wrap" id="trb-carpetas-cont"><div class="trb-vacio">Cargando…</div></div>
+</section>
+
+<!-- ============ MIS GRUPOS ============ -->
+<section id="screen-eem-trib-grupos" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('screen-eem-trib-carpetas')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title" id="trb-grupos-tit">Mis grupos</div>
+      <div class="header-sub" id="trb-grupos-sub">—</div></div>
+  </div>
+  <div class="trb-wrap" id="trb-grupos-cont"><div class="trb-vacio">Cargando…</div></div>
+</section>
+
+<!-- ============ LA GRILLA ============ -->
+<section id="screen-eem-trib-grilla" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="trbVolverGrupos()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title" id="trb-grilla-tit">Calificación</div>
+      <div class="header-sub" id="trb-grilla-sub">—</div></div>
+  </div>
+  <div class="trb-wrap" id="trb-grilla-cont"><div class="trb-vacio">Cargando…</div></div>
+</section>
+
+<!-- ============ ARMAR LOS TRIBUNALES ============ -->
+<section id="screen-eem-trib-mesas" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('screen-eem-trib-carpetas')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">⚖️ Armar los tribunales</div>
+      <div class="header-sub" id="trb-mesas-sub">3 o 4 jurados por mesa</div></div>
+  </div>
+  <div class="trb-wrap" id="trb-mesas-cont"><div class="trb-vacio">Cargando…</div></div>
+</section>
+
+<!-- ============ TABLERO DEL EVALUADOR ============ -->
+<section id="screen-eem-trib-tablero" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('screen-eem-trib-carpetas')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">📊 Tablero del tribunal</div>
+      <div class="header-sub" id="trb-tablero-sub">Quién falta cerrar y cómo va cada alumno</div></div>
+  </div>
+  <div class="trb-wrap" id="trb-tablero-cont"><div class="trb-vacio">Cargando…</div></div>
+</section>
+
+<script>
+/* =====================================================================
+   FASE 4 — EL TRIBUNAL (v2.9.391)
+   Modulo autonomo. No toca ninguna funcion existente: se engancha
+   envolviendo showScreen, igual que las Fases 1 y 2.
+   ===================================================================== */
+(function(){
+"use strict";
+
+const TRB = {
+  carpetas:null, carpeta:null, rol:null, grupos:null, grilla:null,
+  incremento:0.5, sucio:false, guardando:false, timer:null, yo:null,
+  mesas:null, tablero:null, ambito:'paralelo'
+};
+window.TRB = TRB;
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function tok(){ return (typeof getTokenSesion==='function') ? getTokenSesion() : null; }
+function aviso(m){ try{ alert(m); }catch(e){ console.warn(m); } }
+function dec2(n){ return (n==null||n==='') ? null : Number(n).toFixed(2); }
+function fechaHora(d){ if(!d) return '—';
+  try{ return new Date(d).toLocaleString('es-BO',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }
+  catch(e){ return String(d); } }
+function nomP(o){ return ((o.grado?o.grado+' ':'')+(o.nombre||o.nombre_completo||'')).trim(); }
+
+async function api(accion, extra){
+  const t = tok();
+  if(!t) return {ok:false, error:'Sin sesión. Volvé a entrar.'};
+  try{
+    const { data, error } = await sb.functions.invoke('eem-tribunal',
+      { body: Object.assign({accion, token:t}, extra||{}) });
+    if(error){
+      let msg = error.message || 'error';
+      try{ if(error.context && typeof error.context.json==='function'){ const b = await error.context.json(); if(b && b.error) msg = b.error; } }catch(_){}
+      return {ok:false, error:msg};
+    }
+    return data || {ok:false, error:'sin respuesta'};
+  }catch(e){ return {ok:false, error:String((e&&e.message)||e)}; }
+}
+
+/* ── El borrador que sobrevive a la caída de señal ─────────────────── */
+function claveLocal(grupo){ return 'eem_trib_' + grupo + '_' + ((TRB.yo&&TRB.yo.id)||'x'); }
+function guardarLocal(grupo, filas){
+  try{ localStorage.setItem(claveLocal(grupo), JSON.stringify({filas, en:Date.now()})); }catch(e){}
+}
+function leerLocal(grupo){
+  try{ const s = localStorage.getItem(claveLocal(grupo)); return s ? JSON.parse(s) : null; }catch(e){ return null; }
+}
+function borrarLocal(grupo){ try{ localStorage.removeItem(claveLocal(grupo)); }catch(e){} }
+
+/* =====================================================================
+   1) MIS CARPETAS
+   ===================================================================== */
+async function trbAbrir(){
+  showScreen('screen-eem-trib-carpetas');
+  const c = document.getElementById('trb-carpetas-cont');
+  c.innerHTML = '<div class="trb-vacio">Cargando…</div>';
+  const r = await api('mis_carpetas', {});
+  if(!r.ok){ c.innerHTML = '<div class="trb-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
+  TRB.carpetas = r.carpetas || []; TRB.yo = r.yo;
+  if(!TRB.carpetas.length){
+    c.innerHTML = '<div class="trb-vacio">Todavía no te designaron en ninguna mesa de tribunal.</div>'; return;
+  }
+  c.innerHTML = TRB.carpetas.map(k=>{
+    const esEval = k.rol==='evaluador' || k.rol==='supervisor';
+    return '<div class="trb-card">'
+      +'<h3>'+esc(k.materia_nombre)+'</h3>'
+      +'<div class="trb-sub">'+esc(k.ciclo)+'º Ciclo'+(k.paralelo?' · Paralelo "'+esc(k.paralelo)+'"':'')
+      +' · gestión '+esc(k.gestion)+'</div>'
+      +'<div class="trb-row" style="margin-top:8px">'
+      +'<span class="trb-chip">'+(k.rol==='tribunal'?'🎖️ Jurado':(k.rol==='supervisor'?'🛡️ Supervisión':'📋 Evaluador'))+'</span>'
+      +'<span class="trb-chip">Grupos a mi cargo: <b>'+k.grupos+'</b></span></div>'
+      +'<div class="trb-row" style="margin-top:9px">'
+      +(k.grupos ? '<button class="trb-btn" onclick="trbGrupos(\''+k.id+'\',\''+esc(k.materia_nombre)+'\')">Calificar exposiciones</button>' : '')
+      +(esEval ? '<button class="trb-btn sec" onclick="trbMesas(\''+k.id+'\')">⚖️ Armar los tribunales</button>'
+                +'<button class="trb-btn sec" onclick="trbTablero(\''+k.id+'\')">📊 Tablero</button>' : '')
+      +'</div></div>';
+  }).join('');
+}
+window.trbAbrir = trbAbrir;
+
+/* =====================================================================
+   2) MIS GRUPOS
+   ===================================================================== */
+async function trbGrupos(carpetaId, titulo){
+  TRB.carpeta = carpetaId;
+  showScreen('screen-eem-trib-grupos');
+  document.getElementById('trb-grupos-tit').textContent = titulo || 'Mis grupos';
+  const c = document.getElementById('trb-grupos-cont');
+  c.innerHTML = '<div class="trb-vacio">Cargando…</div>';
+  const r = await api('grupos', { carpeta_id: carpetaId });
+  if(!r.ok){ c.innerHTML = '<div class="trb-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
+  TRB.grupos = r.grupos || [];
+  const listos = TRB.grupos.filter(g=>g.integrantes && g.cerrados >= g.integrantes).length;
+  document.getElementById('trb-grupos-sub').textContent =
+    TRB.grupos.length + ' grupos · ' + listos + ' con la calificación cerrada';
+  if(!TRB.grupos.length){ c.innerHTML = '<div class="trb-vacio">No tenés grupos asignados en esta carpeta.</div>'; return; }
+
+  c.innerHTML = TRB.grupos.map(g=>{
+    const cerr = g.integrantes && g.cerrados >= g.integrantes;
+    const pend = leerLocal(g.grupo_id);
+    return '<div class="trb-card">'
+      +'<h3>GRUPO '+esc(g.nombre||g.numero)+(g.paralelo?' · Paralelo "'+esc(g.paralelo)+'"':'')+'</h3>'
+      +'<div class="trb-sub">'+esc(g.tema||'(sin tema cargado)')+'</div>'
+      +'<div class="trb-row" style="margin-top:8px">'
+      +'<span class="trb-chip">'+g.integrantes+' cursantes</span>'
+      +(cerr ? '<span class="trb-chip ok">🔒 Cerrada</span>'
+             : '<span class="trb-chip'+(g.calificados?' warn':'')+'">'+g.calificados+' de '+g.integrantes+' calificados</span>')
+      +'<span class="trb-chip">Mesa de '+g.jurados+' jurados</span>'
+      +(pend ? '<span class="trb-chip warn">✎ hay un borrador sin subir</span>' : '')
+      +'</div>'
+      +'<div class="trb-row" style="margin-top:9px">'
+      +(g.tiene_entrega
+        ? '<button class="trb-btn" onclick="trbGrilla(\''+g.grupo_id+'\')">'+(cerr?'Ver la calificación':'Calificar')+'</button>'
+          +'<button class="trb-btn sec" onclick="trbVerPdf(\''+g.entrega_id+'\')">📄 Ver el trabajo</button>'
+        : '<span class="trb-chip bad">✖ Sin trabajo entregado — no habilitado para exponer</span>')
+      +'</div></div>';
+  }).join('');
+}
+window.trbGrupos = trbGrupos;
+
+async function trbVerPdf(entregaId){
+  const t = tok();
+  const { data, error } = await sb.functions.invoke('eem-entrega-descargar',
+    { body: { entrega_id: entregaId, token: t } });
+  if(error || !data || !data.ok) return aviso('No se pudo abrir el PDF.');
+  window.open(data.url, '_blank');
+}
+window.trbVerPdf = trbVerPdf;
+function trbVolverGrupos(){ if(TRB.carpeta) trbGrupos(TRB.carpeta); else trbAbrir(); }
+window.trbVolverGrupos = trbVolverGrupos;
+
+/* =====================================================================
+   3) LA GRILLA — el corazón de la fase
+   ===================================================================== */
+async function trbGrilla(grupoId){
+  showScreen('screen-eem-trib-grilla');
+  const c = document.getElementById('trb-grilla-cont');
+  c.innerHTML = '<div class="trb-vacio">Cargando…</div>';
+  const r = await api('grilla', { grupo_id: grupoId });
+  if(!r.ok){ c.innerHTML = '<div class="trb-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
+  TRB.grilla = r.grilla; TRB.yo = r.yo; TRB.sucio = false;
+
+  // Lo que quedó guardado en este equipo pisa a lo del servidor.
+  const local = leerLocal(grupoId);
+  if(local && local.filas){
+    local.filas.forEach(f=>{
+      const fila = (TRB.grilla.filas||[]).find(x=>x.cursante_id===f.cursante_id);
+      if(fila && !fila.cerrado){
+        fila.notas = Object.assign({}, fila.notas, f.notas||{});
+        if(f.observacion) fila.observacion = f.observacion;
+      }
+    });
+    TRB.sucio = true;
+  }
+  pintarGrilla();
+  if(TRB.sucio) sincronizar();
+}
+window.trbGrilla = trbGrilla;
+
+function itemsDe(){ return (TRB.grilla && TRB.grilla.items) || []; }
+function filaDe(cid){ return (TRB.grilla.filas||[]).find(f=>f.cursante_id===cid); }
+
+function totalFila(f){
+  const it = itemsDe(); let hay = false, t = 0;
+  for(const i of it){
+    const v = f.notas ? f.notas[String(i.orden)] : null;
+    if(v===null || v===undefined || v==='') return null;
+    hay = true; t += Number(v);
+  }
+  return hay ? t : null;
+}
+function algoBajo(f){
+  return itemsDe().some(i=>{
+    const v = f.notas ? f.notas[String(i.orden)] : null;
+    return v!==null && v!==undefined && v!=='' && Number(v) < Number(i.mitad);
+  });
+}
+
+function pintarGrilla(){
+  const g = TRB.grilla, c = document.getElementById('trb-grilla-cont');
+  const it = itemsDe(), filas = g.filas||[];
+  const cerrados = filas.filter(f=>f.cerrado).length;
+  const calif = filas.filter(f=>f.ausencia || totalFila(f)!==null).length;
+  const todos = filas.length;
+  const yaCerre = todos>0 && cerrados===todos;
+
+  document.getElementById('trb-grilla-tit').textContent = 'GRUPO ' + (g.grupo.nombre||g.grupo.numero);
+  document.getElementById('trb-grilla-sub').textContent = g.grupo.tema || 'Calificación de la exposición';
+
+  let h = '<div class="trb-card">'
+    +'<h3>GRUPO '+esc(g.grupo.nombre||g.grupo.numero)+'</h3>'
+    +'<div class="trb-sub">'+esc(g.grupo.tema||'(sin tema cargado)')+'</div>'
+    +'<div class="trb-row" style="margin-top:8px">'
+    +'<span class="trb-chip'+(yaCerre?' ok':'')+'">'+(yaCerre?'🔒 Cerrada':calif+' de '+todos+' cursantes calificados')+'</span>'
+    +(g.entrega ? '<button class="trb-btn sec mini" onclick="trbVerPdf(\''+g.entrega.entrega_id+'\')">📄 Ver el trabajo</button>' : '')
+    +'<span class="trb-chip">Mesa de '+(g.jurados||[]).length+' jurados</span>'
+    +'</div>'
+    +'<div style="margin-top:8px"><button class="trb-btn sec mini" onclick="trbDescriptores()">📖 Descriptores de nivel</button>'
+    +' <button class="trb-btn sec mini" onclick="trbIncremento()">± Incremento: '+TRB.incremento+'</button></div>'
+    +'<div id="trb-desc" style="display:none;margin-top:8px"></div>'
+    +'</div>';
+
+  if(!g.entrega){
+    h += '<div class="trb-card"><div class="trb-sub" style="color:#f0938a">✖ Este grupo no tiene el trabajo '
+      +'entregado, así que todavía no puede exponer. Sin entrega no se carga ninguna nota.</div></div>';
+    c.innerHTML = h; return;
+  }
+
+  /* ── cuadro grande ── */
+  h += '<div class="trb-card trb-cuadro" style="padding:8px 6px"><table class="trb-grilla"><thead><tr>'
+    +'<th class="izq" style="width:36%">GRADO, APELLIDOS Y NOMBRES</th>';
+  it.forEach(i=>{ h += '<th>ÍTEM '+i.orden+'<br><span style="color:#93a0b8">/'+Number(i.valor).toFixed(0)+'</span></th>'; });
+  h += '<th>TOTAL<br><span style="color:#93a0b8">/35</span></th><th>✎</th></tr></thead><tbody>';
+
+  filas.forEach((f, idx)=>{
+    const tot = totalFila(f), bajo = algoBajo(f);
+    if(f.ausencia){
+      h += '<tr class="trb-ausente'+(idx%2?' par':'')+'"><td class="trb-nom">'+esc(nomP(f))+'</td>'
+        +'<td colspan="'+(it.length+1)+'" style="text-align:center;color:#f0cf7a">✖ NO EXPUSO — '
+        +esc(f.ausencia.motivo)+'</td>'
+        +'<td style="text-align:center">'+(f.cerrado?'🔒':'<button class="trb-btn sec mini" onclick="trbAusencia(\''+f.cursante_id+'\',true)">↺</button>')+'</td></tr>';
+      return;
+    }
+    h += '<tr class="'+(idx%2?'par':'')+'" data-fila="'+esc(f.cursante_id)+'">'
+      +'<td class="trb-nom">'+esc(nomP(f))+(f.es_jefe?' <small>jefe de grupo</small>':'')+'</td>';
+    it.forEach(i=>{
+      const v = (f.notas && f.notas[String(i.orden)]!=null) ? Number(f.notas[String(i.orden)]) : '';
+      h += '<td style="text-align:center"><input class="trb-in'+(v!=='' && v<Number(i.mitad)?' bajo':'')+'" '
+        +'inputmode="decimal" '+(f.cerrado?'readonly':'')+' value="'+(v===''?'':v)+'" '
+        +'data-c="'+esc(f.cursante_id)+'" data-i="'+i.orden+'" data-max="'+i.valor+'" data-mitad="'+i.mitad+'" '
+        +'onkeydown="trbTecla(event)" oninput="trbCambio(this)"></td>';
+    });
+    h += '<td class="trb-total'+(tot===null?' vacio':'')+'" id="trb-tot-'+esc(f.cursante_id)+'">'
+      +(tot===null?'—':tot.toFixed(2))+'</td>'
+      +'<td style="text-align:center">'
+      +(f.cerrado ? '🔒'
+        : '<button class="trb-btn sec mini" onclick="trbObs(\''+f.cursante_id+'\')" title="Observación">'
+          +(f.observacion?'✎·':'✎')+'</button>'
+          +' <button class="trb-btn sec mini" onclick="trbAusencia(\''+f.cursante_id+'\',false)" title="No expuso">✖</button>')
+      +'</td></tr>';
+    // La fila de observación se dibuja SIEMPRE y se muestra sola en cuanto una
+    // nota baja de la mitad: si sólo se pintara al recargar, el jurado vería el
+    // campo en rojo y no tendría dónde escribir.
+    h += '<tr class="'+(idx%2?'par':'')+'" id="trb-obsfila-'+esc(f.cursante_id)+'" '
+      +'style="display:'+((bajo||f.observacion)?'table-row':'none')+'">'
+      +'<td colspan="'+(it.length+3)+'" style="padding-top:0">'
+      +'<div class="trb-aviso" id="trb-avisobajo-'+esc(f.cursante_id)+'" style="display:'+(bajo?'block':'none')+'">'
+      +'⚠ Hay una nota por debajo de la mitad del ítem: la observación es obligatoria.</div>'
+      +'<textarea class="trb-obs'+(bajo && !f.observacion?' falta':'')+'" rows="2" '
+      +(f.cerrado?'readonly':'')+' placeholder="Observación del jurado" '
+      +'data-obs="'+esc(f.cursante_id)+'" oninput="trbCambioObs(this)">'+esc(f.observacion||'')+'</textarea>'
+      +'</td></tr>';
+  });
+  h += '</tbody></table></div>';
+
+  /* ── tarjetas para el teléfono ── */
+  h += '<div class="trb-tarjetas">';
+  filas.forEach(f=>{
+    if(f.ausencia){
+      h += '<div class="trb-t"><h4>'+esc(nomP(f))+'</h4>'
+        +'<div class="trb-sub" style="color:#f0cf7a">✖ NO EXPUSO — '+esc(f.ausencia.motivo)+'</div>'
+        +(f.cerrado?'':'<div style="margin-top:7px"><button class="trb-btn sec mini" onclick="trbAusencia(\''+f.cursante_id+'\',true)">↺ Deshacer</button></div>')
+        +'</div>';
+      return;
+    }
+    const tot = totalFila(f);
+    h += '<div class="trb-t"><h4>'+esc(nomP(f))+'</h4>';
+    it.forEach(i=>{
+      const v = (f.notas && f.notas[String(i.orden)]!=null) ? Number(f.notas[String(i.orden)]) : '';
+      h += '<div class="lin"><span>'+esc(i.descripcion)+' <b style="color:#e8d79a">/'+Number(i.valor).toFixed(0)+'</b></span>'
+        +'<div class="trb-pm">'
+        +(f.cerrado?'':'<button onclick="trbPaso(\''+f.cursante_id+'\','+i.orden+',-1)">−</button>')
+        +'<input class="trb-in'+(v!=='' && v<Number(i.mitad)?' bajo':'')+'" inputmode="decimal" '
+        +(f.cerrado?'readonly':'')+' value="'+(v===''?'':v)+'" data-c="'+esc(f.cursante_id)+'" data-i="'+i.orden+'" '
+        +'data-max="'+i.valor+'" data-mitad="'+i.mitad+'" onkeydown="trbTecla(event)" oninput="trbCambio(this)">'
+        +(f.cerrado?'':'<button onclick="trbPaso(\''+f.cursante_id+'\','+i.orden+',1)">+</button>')
+        +'</div></div>';
+    });
+    h += '<div class="lin" style="border-top:1px solid rgba(255,255,255,.1);padding-top:7px">'
+      +'<span><b>TOTAL</b></span><span class="trb-total" id="trb-totm-'+esc(f.cursante_id)+'">'
+      +(tot===null?'—':tot.toFixed(2))+' / 35</span></div>';
+    if(!f.cerrado){
+      h += '<div class="trb-row"><button class="trb-btn sec mini" onclick="trbObs(\''+f.cursante_id+'\')">✎ Observación</button>'
+        +'<button class="trb-btn sec mini" onclick="trbAusencia(\''+f.cursante_id+'\',false)">✖ No expuso</button></div>';
+    }
+    h += '</div>';
+  });
+  h += '</div>';
+
+  /* ── el comparativo, recién cuando cerró ── */
+  if(yaCerre){
+    h += '<div class="trb-card"><h3>Cuadro comparativo</h3>'
+      +'<div class="trb-sub">Ahora que cerraste, podés ver lo que pusieron los demás jurados.</div>'
+      +'<div id="trb-cmp" style="margin-top:8px"><button class="trb-btn sec mini" onclick="trbComparativos()">Ver el cuadro de los '+filas.length+' cursantes</button></div></div>';
+  }
+
+  /* ── la barra de abajo ── */
+  h += '<div class="trb-barra">'
+    +'<div><span class="trb-estado" id="trb-estado">'+(TRB.sucio?'✎ sin guardar':'Todo guardado')+'</span></div>'
+    +'<div class="trb-row">'
+    +(yaCerre ? '<span class="trb-chip ok">🔒 Calificación cerrada</span>'
+      : '<button class="trb-btn sec" onclick="trbGuardar(true)">GUARDAR BORRADOR</button>'
+        +'<button class="trb-btn" id="trb-cerrar" '+((calif<todos)?'disabled':'')
+        +' onclick="trbCerrar()">CERRAR CALIFICACIÓN DEL GRUPO</button>')
+    +'</div></div>';
+
+  c.innerHTML = h;
+  estadoRed();
+}
+
+function trbIncremento(){
+  const v = prompt('¿De a cuánto suben y bajan las notas con + y −?\n(0.25, 0.5 o 1)', String(TRB.incremento));
+  if(v===null) return;
+  const n = Number(String(v).replace(',','.'));
+  if(!isFinite(n) || n<=0 || n>5) return aviso('Tiene que ser un número entre 0 y 5.');
+  TRB.incremento = n; pintarGrilla();
+}
+window.trbIncremento = trbIncremento;
+
+function trbDescriptores(){
+  const d = document.getElementById('trb-desc');
+  if(!d) return;
+  if(d.style.display==='block'){ d.style.display='none'; return; }
+  d.innerHTML = itemsDe().map(i=>{
+    const v = Number(i.valor);
+    return '<div style="margin:0 0 7px"><div style="color:#e8d79a;font-size:12px;font-weight:800">ÍTEM '+i.orden+' — '+esc(i.descripcion)+' ('+v.toFixed(0)+' pts)</div>'
+      +'<div class="trb-sub">Excelente '+v.toFixed(2)+' · Satisfactorio '+(v*0.75).toFixed(2)
+      +' · Insuficiente '+(v*0.5).toFixed(2)+' · Deficiente '+(v*0.25).toFixed(2)
+      +' · Ausente 0. Por debajo de '+Number(i.mitad).toFixed(2)+' hay que escribir la observación.</div></div>';
+  }).join('');
+  d.style.display='block';
+}
+window.trbDescriptores = trbDescriptores;
+
+/* ── teclado: Tab natural, Enter baja, + y − mueven ─────────────────── */
+function trbTecla(ev){
+  const el = ev.target;
+  if(ev.key==='Enter'){
+    ev.preventDefault();
+    const todos = Array.from(document.querySelectorAll('.trb-grilla .trb-in[data-i="'+el.dataset.i+'"]'));
+    const i = todos.indexOf(el);
+    if(i>=0 && i+1<todos.length){ todos[i+1].focus(); todos[i+1].select(); }
+    else trbGuardar(false);
+    return;
+  }
+  if(ev.key==='+' || ev.key==='-'){
+    ev.preventDefault();
+    trbPaso(el.dataset.c, Number(el.dataset.i), ev.key==='+'?1:-1);
+    return;
+  }
+  if((ev.ctrlKey||ev.metaKey) && (ev.key==='s'||ev.key==='S')){
+    ev.preventDefault(); trbGuardar(true);
+  }
+}
+window.trbTecla = trbTecla;
+
+function trbPaso(cid, orden, signo){
+  const f = filaDe(cid); if(!f || f.cerrado) return;
+  const it = itemsDe().find(x=>x.orden===orden); if(!it) return;
+  const actual = (f.notas && f.notas[String(orden)]!=null) ? Number(f.notas[String(orden)]) : 0;
+  let v = actual + signo*TRB.incremento;
+  if(v < 0) v = 0;
+  if(v > Number(it.valor)) v = Number(it.valor);
+  f.notas = f.notas || {};
+  f.notas[String(orden)] = Number(v.toFixed(2));
+  TRB.sucio = true;
+  refrescarFila(cid);
+  refrescarObs(cid);
+  programarGuardado();
+}
+window.trbPaso = trbPaso;
+
+function trbCambio(el){
+  const cid = el.dataset.c, orden = el.dataset.i, max = Number(el.dataset.max);
+  const f = filaDe(cid); if(!f) return;
+  const txt = String(el.value).replace(',','.').trim();
+  el.classList.remove('mal');
+  if(txt===''){ if(f.notas) delete f.notas[orden]; }
+  else{
+    const v = Number(txt);
+    if(!isFinite(v) || v < 0 || v > max){ el.classList.add('mal'); return; }
+    f.notas = f.notas || {};
+    f.notas[orden] = v;
+  }
+  el.classList.toggle('bajo', txt!=='' && Number(txt) < Number(el.dataset.mitad));
+  TRB.sucio = true;
+  refrescarTotal(cid);
+  refrescarObs(cid);
+  programarGuardado();
+}
+window.trbCambio = trbCambio;
+
+function trbCambioObs(el){
+  const f = filaDe(el.dataset.obs); if(!f) return;
+  f.observacion = el.value;
+  TRB.sucio = true;
+  refrescarObs(el.dataset.obs);
+  programarGuardado();
+}
+window.trbCambioObs = trbCambioObs;
+
+function refrescarTotal(cid){
+  const f = filaDe(cid); if(!f) return;
+  const t = totalFila(f);
+  const a = document.getElementById('trb-tot-'+cid);
+  if(a){ a.textContent = t===null?'—':t.toFixed(2); a.classList.toggle('vacio', t===null); }
+  const b = document.getElementById('trb-totm-'+cid);
+  if(b) b.textContent = (t===null?'—':t.toFixed(2)) + ' / 35';
+  const btn = document.getElementById('trb-cerrar');
+  if(btn){
+    const filas = TRB.grilla.filas||[];
+    const listos = filas.filter(x=>x.ausencia || totalFila(x)!==null).length;
+    btn.disabled = listos < filas.length;
+  }
+}
+/* Muestra o esconde la observación de esa fila, en el momento. */
+function refrescarObs(cid){
+  const f = filaDe(cid); if(!f || f.cerrado || f.ausencia) return;
+  const bajo = algoBajo(f);
+  const fila = document.getElementById('trb-obsfila-'+cid);
+  const av = document.getElementById('trb-avisobajo-'+cid);
+  const ta = document.querySelector('textarea.trb-obs[data-obs="'+cid+'"]');
+  if(fila) fila.style.display = (bajo || (f.observacion&&f.observacion.trim())) ? 'table-row' : 'none';
+  if(av) av.style.display = bajo ? 'block' : 'none';
+  if(ta) ta.classList.toggle('falta', bajo && !(f.observacion&&f.observacion.trim()));
+}
+
+function refrescarFila(cid){
+  const f = filaDe(cid); if(!f) return;
+  document.querySelectorAll('.trb-in[data-c="'+cid+'"]').forEach(el=>{
+    const v = f.notas ? f.notas[el.dataset.i] : null;
+    el.value = (v==null) ? '' : v;
+    el.classList.toggle('bajo', v!=null && Number(v) < Number(el.dataset.mitad));
+  });
+  refrescarTotal(cid);
+}
+
+function trbObs(cid){
+  const f = filaDe(cid); if(!f) return;
+  const t = prompt('Observación sobre '+nomP(f)+':', f.observacion||'');
+  if(t===null) return;
+  f.observacion = t.trim();
+  TRB.sucio = true;
+  const ta = document.querySelector('textarea.trb-obs[data-obs="'+cid+'"]');
+  if(ta) ta.value = f.observacion;
+  refrescarObs(cid);
+  programarGuardado();
+}
+window.trbObs = trbObs;
+
+async function trbAusencia(cid, anular){
+  const f = filaDe(cid); if(!f) return;
+  let motivo = null;
+  if(!anular){
+    motivo = prompt('¿Por qué NO EXPUSO '+nomP(f)+'?\n(queda escrito en el acta y a tu nombre)');
+    if(motivo===null) return;
+    if(!motivo.trim()) return aviso('Sin motivo no se marca.');
+  }else{
+    if(!confirm('¿Deshacer la marca de NO EXPUSO de '+nomP(f)+'?')) return;
+  }
+  const r = await api('ausencia', { carpeta_id: TRB.grilla.carpeta_id, cursante_id: cid,
+    motivo: motivo, anular: !!anular });
+  if(!r.ok) return aviso('⛔ '+r.error);
+  trbGrilla(TRB.grilla.grupo.grupo_id);
+}
+window.trbAusencia = trbAusencia;
+
+/* ── guardado ──────────────────────────────────────────────────────── */
+function payload(){
+  return (TRB.grilla.filas||[])
+    .filter(f=>!f.cerrado && !f.ausencia)
+    .map(f=>({ cursante_id:f.cursante_id, notas:f.notas||{}, observacion:f.observacion||null }));
+}
+function programarGuardado(){
+  estadoRed('✎ sin guardar');
+  if(TRB.timer) clearTimeout(TRB.timer);
+  TRB.timer = setTimeout(()=>trbGuardar(false), 1200);
+}
+function estadoRed(txt){
+  const e = document.getElementById('trb-estado'); if(!e) return;
+  if(!navigator.onLine){
+    e.className = 'trb-estado off';
+    e.textContent = '⬤ Sin conexión — guardado en este equipo';
+    return;
+  }
+  e.className = 'trb-estado';
+  e.textContent = txt || (TRB.sucio ? '✎ sin guardar' : '● Guardado ' + new Date().toLocaleTimeString('es-BO',{hour:'2-digit',minute:'2-digit'}));
+}
+async function trbGuardar(mostrar){
+  if(!TRB.grilla || TRB.guardando) return;
+  const filas = payload();
+  const grupo = TRB.grilla.grupo.grupo_id;
+  guardarLocal(grupo, filas);
+  if(!navigator.onLine){ estadoRed(); if(mostrar) aviso('Sin señal: la calificación quedó guardada en este equipo y se sube sola al volver la conexión.'); return; }
+  TRB.guardando = true;
+  const r = await api('guardar', { grupo_id: grupo, filas: filas });
+  TRB.guardando = false;
+  if(!r.ok){
+    const e = document.getElementById('trb-estado');
+    if(e){ e.className='trb-estado err'; e.textContent='⚠ '+r.error; }
+    if(mostrar) aviso('⛔ '+r.error);
+    return;
+  }
+  TRB.sucio = false; borrarLocal(grupo); estadoRed();
+  if(mostrar) aviso('Borrador guardado. Podés seguir corrigiendo las veces que quieras.');
+}
+window.trbGuardar = trbGuardar;
+
+async function sincronizar(){
+  if(!navigator.onLine || !TRB.grilla) return;
+  await trbGuardar(false);
+}
+window.addEventListener('online', ()=>{ estadoRed(); sincronizar(); });
+window.addEventListener('offline', ()=>estadoRed());
+
+async function trbCerrar(){
+  // El servidor lo rechaza igual, pero es mejor decirlo antes de viajar.
+  const sinObs = (TRB.grilla.filas||[]).filter(f=>!f.cerrado && !f.ausencia &&
+    algoBajo(f) && !((f.observacion||'').trim()));
+  if(sinObs.length){
+    aviso('Falta la observación de: '+sinObs.map(f=>nomP(f)).join(', ')
+      +'\n\nCuando una nota baja de la mitad del ítem, la observación es obligatoria.');
+    const ta = document.querySelector('textarea.trb-obs[data-obs="'+sinObs[0].cursante_id+'"]');
+    if(ta){ ta.scrollIntoView({block:'center'}); ta.focus(); }
+    return;
+  }
+  if(!confirm('CERRAR LA CALIFICACIÓN DEL GRUPO\n\n'
+    +'Es definitiva: para corregir algo después, el Evaluador tiene que reabrirla con motivo.\n\n'
+    +'Recién cuando cierres vas a ver lo que pusieron los demás jurados.\n\n¿Cerramos?')) return;
+  await trbGuardar(false);
+  const r = await api('cerrar', { grupo_id: TRB.grilla.grupo.grupo_id });
+  if(!r.ok) return aviso('⛔ '+r.error);
+  borrarLocal(TRB.grilla.grupo.grupo_id);
+  aviso('Calificación cerrada: '+(r.resultado&&r.resultado.cerrados)+' cursantes.');
+  trbGrilla(TRB.grilla.grupo.grupo_id);
+}
+window.trbCerrar = trbCerrar;
+
+/* ── el comparativo ────────────────────────────────────────────────── */
+async function trbComparativos(){
+  const cont = document.getElementById('trb-cmp');
+  cont.innerHTML = '<div class="trb-sub">Cargando…</div>';
+  const it = itemsDe();
+  let h = '';
+  for(const f of (TRB.grilla.filas||[])){
+    const r = await api('comparativo', { carpeta_id: TRB.grilla.carpeta_id, cursante_id: f.cursante_id });
+    if(!r.ok){ h += '<div class="trb-sub">⚠️ '+esc(nomP(f))+': '+esc(r.error)+'</div>'; continue; }
+    const c = r.comparativo;
+    h += '<div style="margin:0 0 12px"><div style="color:#e8d79a;font-size:12.5px;font-weight:800">'+esc(nomP(f))+'</div>'
+      +'<table class="trb-cmp"><thead><tr><th class="izq">JURADO</th>'
+      + it.map(i=>'<th>ÍTEM '+i.orden+'</th>').join('')
+      +'<th>TOTAL</th></tr></thead><tbody>'
+      + (c.jurados||[]).map(j=>'<tr><td class="izq">'+esc(nomP(j))
+          +(j.excluido?' <span style="color:#f0938a">(excluido)</span>':'')
+          +(j.cerrado?'':' <span style="color:#f0cf7a">(sin cerrar)</span>')+'</td>'
+          + it.map(i=>'<td>'+(j.notas&&j.notas[String(i.orden)]!=null?Number(j.notas[String(i.orden)]).toFixed(2):'—')+'</td>').join('')
+          +'<td><b>'+Number(j.total||0).toFixed(2)+'</b></td></tr>').join('')
+      +'</tbody></table>'
+      +'<div class="trb-row" style="margin-top:5px">'
+      +'<span class="trb-chip ok">Promedio '+Number(c.promedio||0).toFixed(2)+' / 35</span>'
+      +'<span class="trb-chip">'+c.cerrados+' jurados cerrados</span>'
+      +(c.discrepancia ? '<span class="trb-chip bad">⚠ Discrepancia significativa: '+Number(c.brecha).toFixed(2)+' puntos entre jurados</span>'
+                       : '<span class="trb-chip">Brecha '+Number(c.brecha||0).toFixed(2)+'</span>')
+      +'</div></div>';
+  }
+  cont.innerHTML = h || '<div class="trb-sub">Sin datos.</div>';
+}
+window.trbComparativos = trbComparativos;
+
+/* =====================================================================
+   4) ARMAR LOS TRIBUNALES (Evaluador)
+   ===================================================================== */
+async function trbMesas(carpetaId){
+  TRB.carpeta = carpetaId;
+  showScreen('screen-eem-trib-mesas');
+  const c = document.getElementById('trb-mesas-cont');
+  c.innerHTML = '<div class="trb-vacio">Cargando…</div>';
+  const r = await api('mesas', { carpeta_id: carpetaId });
+  if(!r.ok){ c.innerHTML = '<div class="trb-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
+  TRB.mesas = r.mesas; TRB.puedeDesignar = r.puede_designar;
+  pintarMesas();
+}
+window.trbMesas = trbMesas;
+
+function pintarMesas(){
+  const m = TRB.mesas, c = document.getElementById('trb-mesas-cont');
+  const paralelos = Array.from(new Set((m.grupos||[]).map(g=>g.paralelo).filter(Boolean))).sort();
+  document.getElementById('trb-mesas-sub').textContent =
+    (m.grupos||[]).length + ' grupos · ' + paralelos.length + ' paralelos';
+
+  let h = '<div class="trb-card"><h3>¿Cómo se arma el tribunal?</h3>'
+    +'<div class="trb-sub">Una mesa se arma con <b>3 o 4 jurados</b>. Nunca uno solo: la nota de cada alumno '
+    +'es el promedio, ítem por ítem, de lo que le pusieron los jurados de su mesa.</div>'
+    +'<div style="margin-top:9px">'
+    +'<div class="trb-opt'+(TRB.ambito==='carpeta'?' on':'')+'" onclick="trbAmbito(\'carpeta\')">'
+    +'<div>'+(TRB.ambito==='carpeta'?'◉':'○')+'</div><div><b>Un solo tribunal para toda la materia</b>'
+    +'<div class="trb-sub">Los mismos 3 o 4 profesores califican los '+(m.grupos||[]).length+' grupos.</div></div></div>'
+    +'<div class="trb-opt'+(TRB.ambito==='paralelo'?' on':'')+'" onclick="trbAmbito(\'paralelo\')">'
+    +'<div>'+(TRB.ambito==='paralelo'?'◉':'○')+'</div><div><b>Un tribunal por paralelo</b>'
+    +'<div class="trb-sub">'+paralelos.length+' mesas ('+paralelos.join(', ')+'), cada una con sus 3 o 4 jurados.</div></div></div>'
+    +'<div class="trb-opt'+(TRB.ambito==='grupo'?' on':'')+'" onclick="trbAmbito(\'grupo\')">'
+    +'<div>'+(TRB.ambito==='grupo'?'◉':'○')+'</div><div><b>Un tribunal por grupo</b>'
+    +'<div class="trb-sub">Para la excepción: una mesa suelta para un grupo determinado.</div></div></div>'
+    +'</div></div>';
+
+  /* las mesas ya armadas */
+  h += '<div class="trb-card"><h3>Mesas armadas</h3>';
+  if(!(m.mesas||[]).length){
+    h += '<div class="trb-sub">Todavía no hay ningún jurado designado. Ningún grupo puede ser calificado hasta que arme al menos una mesa.</div>';
+  }else{
+    h += (m.mesas||[]).map(x=>
+      '<div class="trb-mesa"><b>'+esc(x.ambito==='carpeta'?'TODA LA MATERIA':(x.ambito==='paralelo'?'PARALELO "'+x.rotulo+'"':'GRUPO '+x.rotulo))+'</b>'
+      +' <span class="trb-chip'+(x.aviso?' warn':' ok')+'">'+x.cantidad+' jurados</span>'
+      +(x.aviso?'<div class="trb-aviso">⚠ '+esc(x.aviso)+'</div>':'')
+      +'<div style="margin-top:6px">'
+      + (x.jurados||[]).map(j=>'<div class="trb-row" style="justify-content:space-between;padding:4px 0">'
+          +'<span style="font-size:12px">'+esc(nomP(j))+(j.presidente?' <span style="color:#e8d79a">· Presidente</span>':'')+'</span>'
+          +(TRB.puedeDesignar?'<button class="trb-btn sec mini" onclick="trbQuitar(\''+j.profesor_id+'\',\''+x.ambito+'\')">Quitar</button>':'')
+          +'</div>').join('')
+      +'</div></div>').join('');
+  }
+  if((m.excluidos||[]).length){
+    h += '<div style="margin-top:8px"><div class="trb-sub" style="color:#f0cf7a">Jurados apartados (sus notas quedaron excluidas del promedio, no se borraron):</div>'
+      + (m.excluidos||[]).map(e=>'<div class="trb-sub">· '+esc(nomP(e))+' — '+esc(e.motivo||'')+'</div>').join('')+'</div>';
+  }
+  h += '</div>';
+
+  if(TRB.puedeDesignar){
+    h += '<div class="trb-card"><h3>Agregar un jurado</h3>'
+      +(TRB.ambito==='paralelo'
+        ? '<div class="trb-row" style="margin:6px 0"><span class="trb-sub">Paralelo:</span>'
+          + paralelos.map(p=>'<button class="trb-btn '+(TRB.paralelo===p?'':'sec')+' mini" onclick="trbParalelo(\''+p+'\')">'+esc(p)+'</button>').join('')
+          +'</div>' : '')
+      +(TRB.ambito==='grupo'
+        ? '<div class="trb-row" style="margin:6px 0"><span class="trb-sub">Grupo:</span>'
+          + (m.grupos||[]).map(g=>'<button class="trb-btn '+(TRB.grupoSel===g.grupo_id?'':'sec')+' mini" onclick="trbGrupoSel(\''+g.grupo_id+'\')">'+esc(g.nombre)+'</button>').join('')
+          +'</div>' : '')
+      +'<input class="trb-obs" id="trb-busca" placeholder="Escribí el apellido del profesor…" '
+      +'oninput="trbBuscar(this.value)" style="margin-top:6px">'
+      +'<div id="trb-res" style="margin-top:6px"></div></div>';
+  }
+
+  /* qué grupo quedó sin mesa */
+  const huerfanos = (m.grupos||[]).filter(g=>!g.jurados);
+  if(huerfanos.length){
+    h += '<div class="trb-card"><h3 style="color:#f0938a">Grupos todavía sin tribunal ('+huerfanos.length+')</h3>'
+      +'<div class="trb-sub">'+huerfanos.map(g=>esc(g.nombre)).join(' · ')+'</div></div>';
+  }
+  c.innerHTML = h;
+}
+function trbAmbito(a){ TRB.ambito = a; pintarMesas(); }
+function trbParalelo(p){ TRB.paralelo = p; pintarMesas(); }
+function trbGrupoSel(g){ TRB.grupoSel = g; pintarMesas(); }
+window.trbAmbito = trbAmbito; window.trbParalelo = trbParalelo; window.trbGrupoSel = trbGrupoSel;
+
+let _trbBuscaT = null;
+function trbBuscar(q){
+  if(_trbBuscaT) clearTimeout(_trbBuscaT);
+  _trbBuscaT = setTimeout(async ()=>{
+    const r = await api('profesores', { q: q });
+    const d = document.getElementById('trb-res'); if(!d) return;
+    if(!r.ok){ d.innerHTML = '<div class="trb-sub">⚠️ '+esc(r.error)+'</div>'; return; }
+    d.innerHTML = (r.profesores||[]).map(p=>
+      '<div class="trb-row" style="justify-content:space-between;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.07)">'
+      +'<span style="font-size:12px">'+esc(nomP(p))+'</span>'
+      +'<span><button class="trb-btn mini" onclick="trbAgregar(\''+p.id+'\',false)">Agregar</button> '
+      +'<button class="trb-btn sec mini" onclick="trbAgregar(\''+p.id+'\',true)">Presidente</button></span></div>').join('')
+      || '<div class="trb-sub">Sin resultados.</div>';
+  }, 350);
+}
+window.trbBuscar = trbBuscar;
+
+async function trbAgregar(profesorId, presidente){
+  if(TRB.ambito==='paralelo' && !TRB.paralelo) return aviso('Elegí primero el paralelo.');
+  if(TRB.ambito==='grupo' && !TRB.grupoSel) return aviso('Elegí primero el grupo.');
+  const r = await api('designar', { carpeta_id: TRB.carpeta, profesor_id: profesorId,
+    ambito: TRB.ambito, paralelo: TRB.ambito==='paralelo'?TRB.paralelo:null,
+    grupo_id: TRB.ambito==='grupo'?TRB.grupoSel:null, presidente: !!presidente, activo: true });
+  if(!r.ok) return aviso('⛔ '+r.error);
+  const b = document.getElementById('trb-busca'); if(b) b.value='';
+  const d = document.getElementById('trb-res'); if(d) d.innerHTML='';
+  trbMesas(TRB.carpeta);
+}
+window.trbAgregar = trbAgregar;
+
+async function trbQuitar(profesorId, ambito){
+  const motivo = prompt('¿Por qué lo quitás del tribunal?\n\n'
+    +'Si ya calificó, sus notas NO se borran: quedan excluidas del promedio y el motivo queda auditado.\n'
+    +'(dejalo vacío si todavía no calificó nada)');
+  if(motivo===null) return;
+  const r = await api('designar', { carpeta_id: TRB.carpeta, profesor_id: profesorId,
+    ambito: ambito, activo: false, motivo: motivo.trim()||null });
+  if(!r.ok) return aviso('⛔ '+r.error);
+  trbMesas(TRB.carpeta);
+}
+window.trbQuitar = trbQuitar;
+
+/* =====================================================================
+   5) EL TABLERO DEL EVALUADOR
+   ===================================================================== */
+async function trbTablero(carpetaId){
+  TRB.carpeta = carpetaId;
+  showScreen('screen-eem-trib-tablero');
+  const c = document.getElementById('trb-tablero-cont');
+  c.innerHTML = '<div class="trb-vacio">Cargando…</div>';
+  const r = await api('tablero', { carpeta_id: carpetaId });
+  if(!r.ok){ c.innerHTML = '<div class="trb-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
+  TRB.tablero = r.tablero;
+  pintarTablero();
+}
+window.trbTablero = trbTablero;
+
+function pintarTablero(){
+  const t = TRB.tablero, c = document.getElementById('trb-tablero-cont');
+  const al = t.alumnos||[];
+  const completos = al.filter(a=>a.cerrados>=a.jurados && a.jurados>0).length;
+  const pend = al.filter(a=>a.ausencia && a.ausencia.decision==='pendiente');
+  const disc = al.filter(a=>Number(a.brecha)>5);
+
+  let h = '<div class="trb-card"><h3>Cómo va</h3><div class="trb-row" style="margin-top:6px">'
+    +'<span class="trb-chip">Alumnos: <b>'+al.length+'</b></span>'
+    +'<span class="trb-chip ok">Con la mesa completa: <b>'+completos+'</b></span>'
+    +'<span class="trb-chip warn">Pendientes: <b>'+(al.length-completos)+'</b></span>'
+    +'</div>'
+    +'<div class="trb-row" style="margin-top:9px">'
+    +'<button class="trb-btn" onclick="trbConsolidarTodo()">Consolidar las notas que ya se puedan</button>'
+    +'</div></div>';
+
+  if(pend.length){
+    h += '<div class="trb-card"><h3 style="color:#f0cf7a">No expusieron — falta decidir ('+pend.length+')</h3>'
+      + pend.map(a=>'<div class="trb-row" style="justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.07)">'
+        +'<span style="font-size:12px">'+esc(nomP(a))+'<br><span class="trb-sub">'+esc(a.ausencia.motivo)+'</span></span>'
+        +'<span><button class="trb-btn mini" onclick="trbDecidir(\''+a.cursante_id+'\',\'cero\')">Poner 0</button> '
+        +'<button class="trb-btn sec mini" onclick="trbDecidir(\''+a.cursante_id+'\',\'pendiente\')">Dejar pendiente</button></span>'
+        +'</div>').join('')+'</div>';
+  }
+
+  if(disc.length){
+    h += '<div class="trb-card"><h3 style="color:#f0938a">Discrepancias mayores a 5 puntos ('+disc.length+')</h3>'
+      +'<div class="trb-sub">No bloquea nada, pero conviene mirarlo antes de consolidar.</div>'
+      + disc.map(a=>'<div class="trb-sub" style="padding:4px 0">· '+esc(nomP(a))+' — '+Number(a.brecha).toFixed(2)+' puntos entre el más alto y el más bajo</div>').join('')
+      +'</div>';
+  }
+
+  if((t.sesgo||[]).length){
+    h += '<div class="trb-card"><h3>Cómo califica cada jurado</h3>'
+      +'<div class="trb-sub">Promedio general de la mesa: '+Number(t.media_general||0).toFixed(2)+' / 35</div>'
+      +'<table class="trb-cmp"><thead><tr><th class="izq">JURADO</th><th>ALUMNOS</th><th>SU PROMEDIO</th><th>DIFERENCIA</th></tr></thead><tbody>'
+      + (t.sesgo||[]).map(s=>'<tr><td class="izq">'+esc(nomP(s))+'</td><td>'+s.alumnos+'</td>'
+        +'<td>'+Number(s.promedio).toFixed(2)+'</td><td'+(s.aparte?' style="color:#f0cf7a"':'')+'>'
+        +(Number(s.desvio)>0?'+':'')+Number(s.desvio).toFixed(2)+(s.aparte?' ⚠':'')+'</td></tr>').join('')
+      +'</tbody></table>'
+      +((t.sesgo||[]).some(s=>s.aparte)?'<div class="trb-aviso">⚠ Hay un jurado que se aparta notoriamente del resto.</div>':'')
+      +'</div>';
+  }
+
+  h += '<div class="trb-card" style="padding:8px 6px"><table class="trb-cmp"><thead><tr>'
+    +'<th class="izq">GRADO, APELLIDOS Y NOMBRES</th><th>GRUPO</th><th>CERRARON</th>'
+    +'<th>35%</th><th>65%</th><th>100%</th><th></th></tr></thead><tbody>'
+    + al.map(a=>'<tr><td class="izq">'+esc(nomP(a))
+        +(a.ausencia?' <span style="color:#f0cf7a">· NO EXPUSO ('+esc(a.ausencia.decision)+')</span>':'')
+        +((a.faltan||[]).length?'<br><span class="trb-sub">falta cerrar: '+(a.faltan||[]).map(j=>esc(nomP(j))).join(', ')+'</span>':'')
+        +'</td>'
+      +'<td>'+esc(a.grupo_nombre||'')+'</td>'
+      +'<td'+(a.cerrados<a.jurados?' style="color:#f0cf7a"':'')+'>'+a.cerrados+' / '+a.jurados+'</td>'
+      +'<td><b>'+(a.expo!=null?Number(a.expo).toFixed(2):'—')+'</b></td>'
+      +'<td>'+(a.texto_65!=null?Number(a.texto_65).toFixed(2):'—')+'</td>'
+      +'<td><b style="color:#e8d79a">'+(a.final_100!=null?Number(a.final_100).toFixed(2):'—')+'</b></td>'
+      +'<td><button class="trb-btn sec mini" onclick="trbConsolidar(\''+a.cursante_id+'\')">Consolidar</button></td></tr>').join('')
+    +'</tbody></table></div>';
+
+  c.innerHTML = h;
+}
+
+async function trbDecidir(cursante, decision){
+  const r = await api('ausencia_decidir', { carpeta_id: TRB.carpeta, cursante_id: cursante, decision: decision });
+  if(!r.ok) return aviso('⛔ '+r.error);
+  trbTablero(TRB.carpeta);
+}
+window.trbDecidir = trbDecidir;
+
+async function trbConsolidar(cursante){
+  let r = await api('consolidar', { carpeta_id: TRB.carpeta, cursante_id: cursante });
+  if(!r.ok && /escribir el motivo/.test(r.error||'')){
+    const m = prompt(r.error + '\n\nMotivo:');
+    if(m===null) return;
+    if(!m.trim()) return aviso('Sin motivo no se consolida.');
+    r = await api('consolidar', { carpeta_id: TRB.carpeta, cursante_id: cursante, motivo: m.trim() });
+  }
+  if(!r.ok) return aviso('⛔ '+r.error);
+  const x = r.resultado||{};
+  aviso('Consolidado: exposición '+Number(x.nota_expo_35||0).toFixed(4)
+    +' · trabajo '+Number(x.nota_texto_65||0).toFixed(4)
+    +' · final '+Number(x.nota_final_100||0).toFixed(4));
+  trbTablero(TRB.carpeta);
+}
+window.trbConsolidar = trbConsolidar;
+
+async function trbConsolidarTodo(){
+  if(!confirm('Se va a calcular la nota final de todos los alumnos que ya tengan su mesa cerrada.\n\n'
+    +'A los que les falte algo, el sistema te va a decir qué falta, alumno por alumno. ¿Seguimos?')) return;
+  const r = await api('consolidar_carpeta', { carpeta_id: TRB.carpeta });
+  if(!r.ok) return aviso('⛔ '+r.error);
+  const x = r.resultado||{};
+  const pend = x.pendientes||[];
+  aviso('Consolidados: '+x.consolidados+'\n\n'
+    +(pend.length ? 'Quedaron '+pend.length+' sin consolidar:\n\n'
+      + pend.slice(0,12).map(p=>'· '+p.nombre+': '+p.motivo).join('\n')
+      + (pend.length>12?'\n… y '+(pend.length-12)+' más.':'')
+      : 'No quedó ninguno pendiente.'));
+  trbTablero(TRB.carpeta);
+}
+window.trbConsolidarTodo = trbConsolidarTodo;
+
+/* =====================================================================
+   6) EL BOTÓN DE ENTRADA — se inyecta, no se toca nada existente
+   ===================================================================== */
+const TRB_SIN_BOTON = /^screen-(home|cargos|login|primer-ingreso|instalar|firma|verificar|quiz-proyector|wg-invitado|eem-|cursante)/;
+let _trbHay = null;
+
+async function trbHayAlgo(){
+  if(_trbHay !== null) return _trbHay;
+  const r = await api('mis_carpetas', {});
+  _trbHay = !!(r.ok && (r.carpetas||[]).length);
+  if(r.ok){ TRB.carpetas = r.carpetas||[]; TRB.yo = r.yo; }
+  return _trbHay;
+}
+
+function quienSoy(){
+  try{ if(typeof currentUser !== 'undefined' && currentUser) return currentUser; }catch(e){}
+  return window.currentUser || null;
+}
+
+async function trbInyectar(idPantalla){
+  const u = quienSoy(); if(!u) return;
+  const sec = document.getElementById(idPantalla); if(!sec) return;
+  if(TRB_SIN_BOTON.test(idPantalla)) return;
+  if(sec.querySelector('.trb-btn-entrar')) return;
+  const s = (typeof getSession==='function') ? getSession() : null;
+  if(!s || s.tipo === 'cursante') return;
+
+  const cont = sec.querySelector('.menu-container') || sec.querySelector('.disc-container');
+  if(!cont) return;
+  if(!(await trbHayAlgo())) return;
+
+  const b = document.createElement('button');
+  b.className = 'btn-mega trb-btn-entrar';
+  b.style.cssText = 'background:linear-gradient(180deg,#6b4c1a,#9a7b1f);margin:0 0 10px;color:#fff';
+  b.innerHTML = '<span class="mega-icon">🎖️</span><span>Tribunal — calificar las exposiciones (35%)</span>';
+  b.onclick = ()=>trbAbrir();
+  cont.insertBefore(b, cont.children[1] || null);
+}
+
+(function(){
+  const anterior = window.showScreen;
+  if(!anterior || anterior.__trb) return;
+  const nuevo = function(id){
+    const r = anterior.apply(this, arguments);
+    setTimeout(()=>{ try{ if(quienSoy()) trbInyectar(id); }catch(e){} }, 70);
+    return r;
+  };
+  nuevo.__trb = true;
   window.showScreen = nuevo;
 })();
 
