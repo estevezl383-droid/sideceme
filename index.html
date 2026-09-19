@@ -51992,8 +51992,8 @@ protVigilarBoton();
   <div class="app-header">
     <button class="back-btn" onclick="showScreen('screen-cursante-home')">←</button>
     <div class="header-crest"><svg><use href="#crest"/></svg></div>
-    <div class="header-text"><div class="header-title">🎓 Mis Carpetas de Clases</div>
-      <div class="header-sub">Entrega de trabajos evaluados</div></div>
+    <div class="header-text"><div class="header-title">🎓 Mis Evaluaciones</div>
+      <div class="header-sub">Trabajos y exposiciones que se califican</div></div>
   </div>
   <div class="eem-wrap" id="eem-alumno-cont"><div class="eem-vacio">Cargando…</div></div>
 </section>
@@ -52003,8 +52003,8 @@ protVigilarBoton();
   <div class="app-header">
     <button class="back-btn" onclick="eemVolverDelListado()">←</button>
     <div class="header-crest"><svg><use href="#crest"/></svg></div>
-    <div class="header-text"><div class="header-title">📋 Carpetas de Clases</div>
-      <div class="header-sub" id="eem-carpetas-sub">Evaluación sumativa</div></div>
+    <div class="header-text"><div class="header-title">📋 Evaluaciones y Exposiciones</div>
+      <div class="header-sub" id="eem-carpetas-sub">Carpetas de evaluación por materia</div></div>
   </div>
   <div class="eem-wrap" id="eem-carpetas-cont"><div class="eem-vacio">Cargando…</div></div>
 </section>
@@ -52015,7 +52015,7 @@ protVigilarBoton();
   <div class="app-header">
     <button class="back-btn" onclick="eemVolverAlListado()">←</button>
     <div class="header-crest"><svg><use href="#crest"/></svg></div>
-    <div class="header-text"><div class="header-title" id="eem-panel-tit">Carpeta de Clases</div>
+    <div class="header-text"><div class="header-title" id="eem-panel-tit">Carpeta de evaluación</div>
       <div class="header-sub" id="eem-panel-sub">—</div></div>
   </div>
   <div class="eem-wrap" id="eem-panel-cont"><div class="eem-vacio">Cargando…</div></div>
@@ -52057,6 +52057,12 @@ function fechaHora(d){ if(!d) return '—';
   catch(e){ return String(d); } }
 function kb(n){ n=Number(n||0); return n>=1048576 ? (n/1048576).toFixed(2)+' MB' : Math.round(n/1024)+' KB'; }
 function nom(o){ return ((o.grado?o.grado+' ':'')+(o.nombre_completo||o.cursante_id||'')).trim(); }
+/* El rótulo del grupo. Cuando el documento viene por paralelos, el nombre es
+   «A-1» y es lo que entiende el Evaluador; el número es sólo interno. */
+function rotuloGrupo(numero, nombre){
+  const n = String(nombre||'').trim();
+  return n && n !== ('Grupo '+numero) ? n : String(numero);
+}
 
 async function eemInvoke(fn, accion, extra){
   const t = tok();
@@ -52109,7 +52115,7 @@ function pintarAlumno(){
   limpiarRelojes();
   const c = document.getElementById('eem-alumno-cont');
   if(!EEM.alumno || !EEM.alumno.length){
-    c.innerHTML = '<div class="eem-vacio">Todavía no tenés ninguna carpeta de clases con trabajo evaluado.</div>'; return;
+    c.innerHTML = '<div class="eem-vacio">Todavía no tenés ninguna evaluación con trabajo para entregar.</div>'; return;
   }
   c.innerHTML = EEM.alumno.map((x,i)=>tarjetaAlumno(x,i)).join('');
   EEM.alumno.forEach((x,i)=>pintarCuenta(document.getElementById('eem-cuenta-'+i), x.carpeta.fecha_limite));
@@ -52126,8 +52132,7 @@ function tarjetaAlumno(x, i){
     grupo = '<div class="eem-chip bad">⚠️ Todavía no estás asignado a ningún grupo</div>'+
             '<div class="eem-sub" style="margin-top:6px">Sin grupo no se puede entregar. Avisale al Evaluador.</div>';
   } else {
-    const rotulo = (x.grupo.nombre && x.grupo.nombre !== 'Grupo '+x.grupo.numero) ? ' · '+esc(x.grupo.nombre) : '';
-    grupo = '<div class="eem-row"><span class="eem-chip"><b>Grupo '+esc(x.grupo.numero)+'</b>'+rotulo+'</span>'+
+    grupo = '<div class="eem-row"><span class="eem-chip"><b>Grupo '+esc(rotuloGrupo(x.grupo.numero, x.grupo.nombre))+'</b></span>'+
       (x.grupo.tema?'<span class="eem-chip">Tema: '+esc(x.grupo.tema)+'</span>':'')+'</div>'+
       '<div class="eem-sub" style="margin-top:6px">'+
         x.integrantes.map(g=>'• '+esc(nom(g))+(g.es_jefe?' <b style="color:#e8d79a">(jefe de grupo)</b>':'')).join('<br>')+
@@ -52210,7 +52215,7 @@ function eemDialogoEntrega(i){
    '<div class="eem-modal">'+
     '<h3>📤 Entregar el trabajo del grupo</h3>'+
     '<div class="eem-sub" style="margin-bottom:10px">'+esc(x.carpeta.materia_nombre)+' · '+
-      '<b>Grupo '+esc(x.grupo.numero)+'</b>'+(x.grupo.tema?' — '+esc(x.grupo.tema):'')+
+      '<b>Grupo '+esc(rotuloGrupo(x.grupo.numero,x.grupo.nombre))+'</b>'+(x.grupo.tema?' — '+esc(x.grupo.tema):'')+
       '<br>El grupo no se elige: es el que te asignó el Evaluador.</div>'+
     '<div class="eem-field"><label>Archivo PDF del trabajo (máximo 25 MB)</label>'+
       '<input type="file" id="eem-file" accept="application/pdf,.pdf"></div>'+
@@ -52340,7 +52345,7 @@ function eemAcusePantalla(i){
   bg.className='eem-modal-bg'; bg.id='eem-modal-acuse';
   bg.innerHTML = '<div class="eem-modal">'+
     '<h3>✅ Acuse de recibo</h3>'+
-    '<div class="eem-sub">'+esc(x.carpeta.materia_nombre)+' · Grupo '+esc(x.grupo.numero)+'</div>'+
+    '<div class="eem-sub">'+esc(x.carpeta.materia_nombre)+' · Grupo '+esc(rotuloGrupo(x.grupo.numero,x.grupo.nombre))+'</div>'+
     '<div class="eem-sub" style="margin-top:8px"><b>'+esc(e.archivo_nombre)+'</b><br>'+
       'Recibido el '+esc(fechaHora(e.entregado_en))+' · intento '+e.numero_intento+' · '+kb(e.tamano_bytes)+'<br>'+
       (e.fuera_de_plazo?'<span class="eem-rojo">ENTREGA TARDÍA ('+e.retraso_minutos+' min)</span>':'Dentro del plazo')+'</div>'+
@@ -52374,7 +52379,7 @@ async function eemAcusePDF(i){
   linea('Materia:', x.carpeta.materia_nombre);
   linea('Ciclo / Gestión:', x.carpeta.ciclo+'° Ciclo · '+x.carpeta.gestion);
   linea('Evaluador:', x.carpeta.evaluador);
-  linea('Grupo:', 'N° '+x.grupo.numero+(x.grupo.tema?' — '+x.grupo.tema:''));
+  linea('Grupo:', rotuloGrupo(x.grupo.numero, x.grupo.nombre)+(x.grupo.tema?' — '+x.grupo.tema:''));
   linea('Integrantes:', x.integrantes.map(g=>nom(g)).join(' · '));
   linea('Archivo:', e.archivo_nombre);
   linea('Tamaño:', kb(e.tamano_bytes));
@@ -52390,7 +52395,7 @@ async function eemAcusePDF(i){
   doc.splitTextToSize('Este acuse lo emite SIDECEME al registrar la entrega. La huella SHA-256 identifica de forma unívoca el archivo recibido: cualquier cambio posterior, por mínimo que sea, da una huella distinta.', ANCHO)
      .forEach(t=>{ doc.text(t, ML, y); y += 11; });
 
-  doc.save('Acuse_entrega_Grupo'+x.grupo.numero+'_'+(x.carpeta.materia_nombre||'').replace(/[^\w]+/g,'_')+'.pdf');
+  doc.save('Acuse_entrega_Grupo'+rotuloGrupo(x.grupo.numero,x.grupo.nombre)+'_'+(x.carpeta.materia_nombre||'').replace(/[^\w]+/g,'_')+'.pdf');
 }
 window.eemAcusePDF = eemAcusePDF;
 
@@ -52414,13 +52419,21 @@ async function eemAbrirCarpetas(){
   if(!r.ok){ c.innerHTML = '<div class="eem-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
   EEM.carpetasDocente = r.carpetas || [];
   EEM.supervisor = !!r.supervisor;
+  EEM.rubricas = r.rubricas || []; EEM.perfiles = r.perfiles || []; EEM.yo = r.yo || null;
   document.getElementById('eem-carpetas-sub').textContent =
-    EEM.supervisor ? 'Supervisión — todas las carpetas de la Escuela' : 'Las carpetas en las que estás habilitado';
+    EEM.supervisor ? 'Supervisión — todas las carpetas de la Escuela' : 'Tus carpetas de evaluación';
+
+  const alta = '<div class="eem-card" style="border-color:rgba(46,204,113,.4)">'+
+      '<div class="eem-row" style="justify-content:space-between">'+
+        '<div><b style="color:#8fe3b0">➕ Abrir una carpeta de evaluación</b>'+
+        '<div class="eem-sub">Una por materia: su evaluador, su plazo, sus grupos y su tribunal.</div></div>'+
+        '<button class="eem-btn" onclick="eemNuevaCarpeta()">NUEVA CARPETA</button>'+
+      '</div></div>';
 
   if(!EEM.carpetasDocente.length){
-    c.innerHTML = '<div class="eem-vacio">No hay carpetas de clases cargadas todavía.</div>'; return;
+    c.innerHTML = alta + '<div class="eem-vacio">Todavía no tenés ninguna carpeta de evaluación abierta.</div>'; return;
   }
-  c.innerHTML = EEM.carpetasDocente.map(cp=>{
+  c.innerHTML = alta + EEM.carpetasDocente.map(cp=>{
     const sup = EEM.supervisor && cp.evaluador_id !== (quienSoy()||{}).id;
     return '<div class="eem-card">'+
       '<h3>'+esc(cp.materia_nombre)+'</h3>'+
@@ -52439,6 +52452,81 @@ async function eemAbrirCarpetas(){
   }).join('');
 }
 window.eemAbrirCarpetas = eemAbrirCarpetas;
+
+/* ── abrir una carpeta de evaluación para otra materia ────────────── */
+function eemNuevaCarpeta(){
+  const anio = new Date().getFullYear();
+  const rub = (EEM.rubricas||[]).map(r=>'<option value="'+r.id+'">'+esc(r.materia_nombre)+' · '+
+      r.ciclo+'° ciclo '+r.gestion+' · v'+r.version+(r.estado==='congelada'?' (congelada)':'')+'</option>').join('');
+  const per = (EEM.perfiles||[]).map(r=>'<option value="'+r.id+'">'+esc(r.nombre)+' · v'+r.version+'</option>').join('');
+  const bg = document.createElement('div'); bg.className='eem-modal-bg'; bg.id='eem-modal-nueva';
+  bg.innerHTML = '<div class="eem-modal"><h3>➕ Abrir una carpeta de evaluación</h3>'+
+    '<div class="eem-sub">Se abre una por materia y por ciclo. Los alumnos son los del ciclo '+
+    '(y del paralelo, si elegís uno).</div>'+
+    '<div class="eem-field" style="margin-top:12px"><label>Materia / Unidad de Competencia</label>'+
+      '<input id="eem-nc-materia" placeholder="ESTUDIO DE ESTADO MAYOR"></div>'+
+    '<div class="eem-grid2">'+
+      '<div class="eem-field"><label>Código (opcional)</label><input id="eem-nc-codigo" placeholder="EM-MR-PL-05"></div>'+
+      '<div class="eem-field"><label>Gestión</label><input id="eem-nc-gestion" type="number" value="'+anio+'"></div>'+
+      '<div class="eem-field"><label>Ciclo</label><select id="eem-nc-ciclo">'+
+        '<option value="1">1er Ciclo</option><option value="2" selected>2do Ciclo</option>'+
+        '<option value="3">3er Ciclo</option></select></div>'+
+      '<div class="eem-field"><label>Paralelo</label><select id="eem-nc-paralelo">'+
+        '<option value="">Todos (A, B y C)</option><option value="A">Sólo A</option>'+
+        '<option value="B">Sólo B</option><option value="C">Sólo C</option></select></div>'+
+    '</div>'+
+    '<div class="eem-field"><label>Rúbrica</label><select id="eem-nc-rubrica">'+rub+'</select></div>'+
+    '<div class="eem-field"><label>Perfil normativo (lo que la revisión de forma va a medir)</label>'+
+      '<select id="eem-nc-perfil">'+per+'</select></div>'+
+    (EEM.supervisor
+      ? '<div class="eem-field"><label>Evaluador</label>'+
+        '<input id="eem-nc-eval-q" placeholder="Buscar por apellido" oninput="eemNCBuscar(this.value)">'+
+        '<div id="eem-nc-eval-res" class="eem-sub" style="margin-top:6px">Queda a tu nombre si no elegís otro.</div></div>'
+      : '<div class="eem-sub">Vas a quedar vos como Evaluador de esta carpeta.</div>')+
+    '<div id="eem-nc-estado" class="eem-sub" style="margin-top:8px"></div>'+
+    '<div class="eem-row" style="justify-content:flex-end;margin-top:12px">'+
+      '<button class="eem-btn sec" onclick="eemCerrarModal(\'eem-modal-nueva\')">Cancelar</button>'+
+      '<button class="eem-btn" onclick="eemCrearCarpeta()">ABRIR LA CARPETA</button></div></div>';
+  document.body.appendChild(bg);
+  EEM._evalElegido = null;
+}
+window.eemNuevaCarpeta = eemNuevaCarpeta;
+
+async function eemNCBuscar(q){
+  const cont = document.getElementById('eem-nc-eval-res'); if(!cont) return;
+  if(!q || q.length < 2){ cont.textContent = 'Queda a tu nombre si no elegís otro.'; return; }
+  const r = await eemInvoke('eem-ops', 'profesores_buscar', { carpeta_id: (EEM.carpetasDocente[0]||{}).id, q: q });
+  if(!r.ok){ cont.innerHTML = '<span class="eem-rojo">'+esc(r.error)+'</span>'; return; }
+  cont.innerHTML = (r.profesores||[]).slice(0,8).map(p=>
+    '<div class="eem-integ"><span style="flex:1">'+esc((p.grado?p.grado+' ':'')+p.nombre_completo)+'</span>'+
+    '<button class="eem-btn mini" onclick="eemNCElegir(\''+esc(p.id)+'\',\''+esc((p.grado?p.grado+' ':'')+p.nombre_completo).replace(/'/g,"")+'\')">elegir</button></div>').join('')
+    || 'Sin resultados.';
+}
+function eemNCElegir(id, nombre){
+  EEM._evalElegido = id;
+  document.getElementById('eem-nc-eval-res').innerHTML = '<span class="eem-chip ok">Evaluador: '+esc(nombre)+'</span>';
+}
+window.eemNCBuscar = eemNCBuscar; window.eemNCElegir = eemNCElegir;
+
+async function eemCrearCarpeta(){
+  const v = id=>(document.getElementById(id)||{}).value;
+  const est = document.getElementById('eem-nc-estado');
+  const materia = (v('eem-nc-materia')||'').trim();
+  if(!materia){ est.innerHTML = '<span class="eem-rojo">Falta el nombre de la materia.</span>'; return; }
+  est.innerHTML = 'Abriendo…';
+  const r = await eemInvoke('eem-ops', 'carpeta_crear', {
+    materia: materia, codigo: v('eem-nc-codigo') || null,
+    ciclo: Number(v('eem-nc-ciclo')), paralelo: v('eem-nc-paralelo') || null,
+    gestion: Number(v('eem-nc-gestion')),
+    rubrica_id: v('eem-nc-rubrica') || null, perfil_id: v('eem-nc-perfil') || null,
+    evaluador_id: EEM._evalElegido || null });
+  if(!r.ok){ est.innerHTML = '<span class="eem-rojo">⛔ '+esc(r.error)+'</span>'; return; }
+  eemCerrarModal('eem-modal-nueva');
+  EEM.hayAlgo = null;
+  await eemAbrirCarpetas();
+  await eemAbrirPanel(r.carpeta_id, false);
+}
+window.eemCrearCarpeta = eemCrearCarpeta;
 
 function eemVolverDelListado(){
   const s = getSession();
@@ -52580,7 +52668,7 @@ function vistaPorGrupo(){
     const e = g.entrega;
     return '<tr>'+
       '<td><input type="checkbox" class="eem-masivo" value="'+esc(g.id)+'"></td>'+
-      '<td><b>'+esc(g.numero)+'</b>'+((g.nombre && g.nombre !== 'Grupo '+g.numero)?'<br><span style="color:#93a0b8">'+esc(g.nombre)+'</span>':'')+'</td>'+
+      '<td><b>'+esc(rotuloGrupo(g.numero, g.nombre))+'</b></td>'+
       '<td>'+esc(g.tema||'—')+'</td>'+
       '<td>'+(g.integrantes.length
               ? g.integrantes.map(i=>esc(nom(i))+(i.es_jefe?' ⭐':'')).join('<br>')
@@ -52620,7 +52708,7 @@ function vistaPorAlumno(){
     '<tr>'+
       '<td>'+esc(nom(r))+'<br><span style="color:#93a0b8">'+esc(r.paralelo||'')+(r.mencion?' · '+esc(r.mencion):'')+'</span></td>'+
       '<td>'+(r.grupo_id
-              ? '<b>'+esc(r.grupo_numero)+'</b>'+(r.es_jefe?' ⭐':'')+(r.grupo_tema?'<br><span style="color:#93a0b8">'+esc(r.grupo_tema)+'</span>':'')
+              ? '<b>'+esc(rotuloGrupo(r.grupo_numero, r.grupo_nombre))+'</b>'+(r.es_jefe?' ⭐':'')+(r.grupo_tema?'<br><span style="color:#93a0b8">'+esc(r.grupo_tema)+'</span>':'')
               : '<span class="eem-rojo">SIN GRUPO</span>')+'</td>'+
       '<td>'+(r.entrega_id
               ? esc(fechaHora(r.entregado_en))+(r.fuera_de_plazo?'<br><span class="eem-rojo">TARDÍA</span>':'')
@@ -52658,7 +52746,7 @@ function vistaConfig(){
   const m = per.margenes_cm || {}; const pie = per.pie_paginado || {};
   const sinGrupo = (p.roster||[]).filter(r=>!r.grupo_id);
 
-  const opcionesGrupo = (p.grupos||[]).map(g=>'<option value="'+g.id+'">Grupo '+g.numero+(g.nombre?' — '+esc(g.nombre):'')+'</option>').join('');
+  const opcionesGrupo = (p.grupos||[]).map(g=>'<option value="'+g.id+'">Grupo '+esc(rotuloGrupo(g.numero,g.nombre))+(g.tema?' — '+esc(g.tema):'')+'</option>').join('');
 
   return '<div class="eem-card">'+
       '<h3>📅 Plazo y estado</h3>'+
@@ -52714,8 +52802,8 @@ function vistaConfig(){
         '<button class="eem-btn sec mini" onclick="eemPlantillaGrupos()">Ver el formato que espera</button></div>'+
       '<div class="eem-scroll" style="margin-top:12px"><table class="eem-tabla"><thead><tr>'+
         '<th>N°</th><th>Nombre / Tema</th><th>Integrantes</th><th></th></tr></thead><tbody>'+
-        ((p.grupos||[]).map(g=>'<tr><td><b>'+g.numero+'</b></td>'+
-          '<td>'+esc(g.nombre||'—')+'<br><span style="color:#93a0b8">'+esc(g.tema||'sin tema')+'</span></td>'+
+        ((p.grupos||[]).map(g=>'<tr><td><b>'+esc(rotuloGrupo(g.numero,g.nombre))+'</b></td>'+
+          '<td><span style="color:#93a0b8">'+esc(g.tema||'sin tema')+'</span></td>'+
           '<td>'+(g.integrantes.length
             ? g.integrantes.map(i=>esc(nom(i))+(i.es_jefe?' ⭐':'')+
                 ' <button class="eem-btn sec mini" onclick="eemAsignarGrupo(\''+esc(i.cursante_id)+'\')">editar</button>').join('<br>')
@@ -52822,7 +52910,7 @@ async function eemAsignarDirecto(cursante, grupoId){
 function eemAsignarGrupo(cursante){
   const p = EEM.panel;
   const r = (p.roster||[]).find(x=>x.cursante_id === cursante); if(!r) return;
-  const ops = (p.grupos||[]).map(g=>'<option value="'+g.id+'"'+(r.grupo_id===g.id?' selected':'')+'>Grupo '+g.numero+(g.nombre?' — '+esc(g.nombre):'')+'</option>').join('');
+  const ops = (p.grupos||[]).map(g=>'<option value="'+g.id+'"'+(r.grupo_id===g.id?' selected':'')+'>Grupo '+esc(rotuloGrupo(g.numero,g.nombre))+(g.tema?' — '+esc(g.tema):'')+'</option>').join('');
   const bg = document.createElement('div'); bg.className='eem-modal-bg'; bg.id='eem-modal-grupo';
   bg.innerHTML = '<div class="eem-modal"><h3>👥 Grupo de '+esc(nom(r))+'</h3>'+
     '<div class="eem-field"><label>Grupo</label><select id="eem-mg-grupo">'+
@@ -53040,19 +53128,38 @@ async function eemLeerDocx(file){
 
 /* ── reconocer grupos y nombres ────────────────────────────────────── */
 const EEM_RE_GRUPO = /^\s*(?:[a-z]\s*[.)\-]\s*)?(?:GRUPO|EQUIPO)\s*(?:N\s*[°ºo]?\.?\s*)?(\d{1,2})\b[\s.:\-–—]*(.*)$/i;
+/* PARALELO "A" — los números de grupo ARRANCAN DE NUEVO en cada paralelo, así
+   que el grupo se identifica por paralelo + número, no por el número solo. */
+const EEM_RE_PARALELO = /^\s*PARALELO\s*[:\-–—]?\s*["“”'‘’]?\s*([A-Z])\s*["“”'‘’]?\s*$/i;
 const EEM_RE_TEMA  = /^\s*TEMA\s*[:.\-–—]\s*(.+)$/i;
 const EEM_RE_JEFE  = /\b(JEFE\s+DE\s+GRUPO|JEFE)\b/i;
-const EEM_RE_ROTULO= /^\s*(CURSANTES?|INTEGRANTES?|RESPONSABLES?|COORDINADOR|ENCARGADOS?|OBJETO|CARTAS|APENDICES|ANEXO|OBSERVACIONES|MIEMBROS)\s*[:.\-–—]?\s*$/i;
+/* Encabezados de cuadro y rótulos sueltos: no son nombres de nadie. */
+const EEM_RE_ROTULO= /^\s*(CURSANTES?|INTEGRANTES?|RESPONSABLES?|COORDINADOR|ENCARGADOS?|OBJETO|CARTAS|APENDICES|ANEXO|OBSERVACIONES|MIEMBROS|NOMBRES?(\s+Y\s+APELLIDOS?)?|APELLIDOS?(\s+Y\s+NOMBRES?)?|GRADOS?|ARMAS?|ESPECIALIDAD|N[°ºo]?|NRO|ITEM|PARALELOS?|CICLO|TOTAL|OBS)\s*[:.\-–—]?\s*$/i;
+/* "(4 cursantes)" al lado del título del grupo es una cuenta, no el tema. */
+const EEM_RE_CUENTA = /^\(?\s*\d+\s*(CURSANTES?|INTEGRANTES?|ALUMNOS?|MIEMBROS?|OFICIALES?)\s*\)?$/i;
 
 function eemParsear(bloques, roster){
   const grupos = [];
   let actual = null;
+  let paralelo = '';          // PARALELO "A" / "B" / "C"
+  let celActual = null;
+
+  const limpiarResto = (t)=>{
+    let x = String(t||'').replace(/^[\s.:\-–—]+/,'').trim();
+    if(!x || EEM_RE_CUENTA.test(x)) return '';
+    x = x.replace(/\(\s*\d+\s*(cursantes?|integrantes?|alumnos?|miembros?|oficiales?)\s*\)/ig,'').trim();
+    return eemTokens(x).length ? x : '';
+  };
 
   const nuevoGrupo = (numero, resto)=>{
-    const ya = grupos.find(g=>g.numero === numero);
-    if(ya){ actual = ya; if(resto && !ya.tema && eemTokens(resto).length) ya.tema = resto; return; }
-    actual = { numero: numero, nombre: 'Grupo '+numero,
-               tema: (resto && eemTokens(resto).length) ? resto : '', lineas: [] };
+    const tema = limpiarResto(resto);
+    const clave = (paralelo||'') + '|' + numero;
+    const ya = grupos.find(g=>g.clave === clave);
+    if(ya){ actual = ya; if(tema && !ya.tema) ya.tema = tema; return; }
+    actual = { clave: clave, paralelo: paralelo, numero_doc: numero,
+               numero: grupos.length + 1,
+               nombre: (paralelo ? paralelo + '-' : 'G') + numero,
+               tema: tema, lineas: [] };
     grupos.push(actual);
   };
 
@@ -53060,43 +53167,36 @@ function eemParsear(bloques, roster){
     if(!actual) return;
     const limpio = String(texto).replace(/^[\s\-–—•*·.]+/,'').replace(/\(.*?\)/g,' ')
                         .replace(EEM_RE_JEFE,' ').replace(/\s+/g,' ').trim();
-    if(eemTokens(limpio).length < 2) return;   // "Cursantes:" y sueltos no son nombres
+    if(eemTokens(limpio).length < 2) return;
+    if(EEM_RE_ROTULO.test(limpio)) return;
     if(actual.lineas.some(x=>x.crudo === texto)) return;
     actual.lineas.push({ texto: limpio, crudo: String(texto), es_jefe: !!jefe, cel: celActual });
   };
-  let celActual = null;
 
-  // un renglón cualquiera: ¿abre grupo?, ¿es el tema?, ¿es un rótulo?, ¿es un nombre?
   const renglon = (l)=>{
-    const g = String(l).match(EEM_RE_GRUPO);
-    if(g){ nuevoGrupo(parseInt(g[1],10), (g[2]||'').trim()); return; }
+    const t0 = String(l).trim();
+    const par = t0.match(EEM_RE_PARALELO);
+    if(par){ paralelo = par[1].toUpperCase(); actual = null; return; }
+    const g = t0.match(EEM_RE_GRUPO);
+    if(g){ nuevoGrupo(parseInt(g[1],10), g[2]||''); return; }
     if(!actual) return;
-    const t = String(l).match(EEM_RE_TEMA);
+    const t = t0.match(EEM_RE_TEMA);
     if(t){ actual.tema = t[1].trim(); return; }
-    if(EEM_RE_ROTULO.test(l)) return;
-    const jefe = EEM_RE_JEFE.test(l);
-    const tras = String(l).split(/[:：]/);
-    empujar(tras.length > 1 && eemTokens(tras[0]).length <= 2 ? tras.slice(1).join(':') : l, jefe);
+    if(EEM_RE_ROTULO.test(t0)) return;
+    const jefe = EEM_RE_JEFE.test(t0);
+    const tras = t0.split(/[:：]/);
+    empujar(tras.length > 1 && eemTokens(tras[0]).length <= 2 ? tras.slice(1).join(':') : t0, jefe);
   };
 
   bloques.forEach((b, fi)=>{
     if(b.p !== undefined){ celActual = null; renglon(b.p); return; }
 
     // ---- fila de cuadro ----
-    // La primera celda suele traer el número del grupo (a veces vacía, porque
-    // la celda está combinada y vale para varias filas).
+    // OJO: la primera columna de estos cuadros es el N° DE ORDEN DE LA PERSONA
+    // (1,2,3,4), no el número del grupo. Un grupo sólo se abre si el renglón
+    // dice la palabra GRUPO o EQUIPO.
     const celdas = b.fila || [];
-    let abrio = false;
-    for(let c = 0; c < Math.min(celdas.length, 2); c++){
-      const txt = (celdas[c][0] || '').trim();
-      const solo = txt.match(/^(?:GRUPO|EQUIPO)?\s*N?\s*[°º]?\.?\s*(\d{1,2})$/i);
-      const conPalabra = txt.match(EEM_RE_GRUPO);
-      if(conPalabra){ nuevoGrupo(parseInt(conPalabra[1],10), (conPalabra[2]||'').trim()); abrio = true; break; }
-      if(solo && c === 0){ nuevoGrupo(parseInt(solo[1],10), ''); abrio = true; break; }
-    }
-    // el resto de la fila: renglones sueltos (nombres, "Tema:", rótulos)
     celdas.forEach((cel, idx)=>{
-      if(abrio && idx === 0) return;
       celActual = fi + ':' + idx;
       cel.forEach(renglon);
     });
@@ -53112,8 +53212,8 @@ function eemParsear(bloques, roster){
       if(r.id) usados.add(r.id);
     });
   });
-  // En un cuadro, la celda del TEMA no engancha con nadie (no es un nombre).
-  // Si el grupo se quedó sin tema y hay una celda entera sin enganchar, esa es.
+
+  // En un cuadro con columna de TEMA, esa celda no engancha con nadie: se rescata.
   grupos.forEach(gr=>{
     if(gr.tema) return;
     const porCelda = {};
@@ -53127,7 +53227,10 @@ function eemParsear(bloques, roster){
       }
     }
   });
-  return grupos.filter(g=>g.lineas.length);
+
+  const vivos = grupos.filter(g=>g.lineas.length);
+  vivos.forEach((g,i)=>{ g.numero = i + 1; });   // el N° interno, correlativo
+  return vivos;
 }
 
 /* Engancha un nombre del documento con un cursante. NO adivina: si hay más de
@@ -53168,7 +53271,34 @@ function eemEnganchar(texto, roster, usados){
   if(cand2.length === 1) return { id:cand2[0].cursante_id, estado:'probable', candidatos:[] };
   if(cand2.length > 1) return { id:null, estado:'ambiguo', candidatos:cand2.map(c=>c.cursante_id) };
 
+  // Tolerancia de UNA letra. Los documentos vienen con erratas de tipeo
+  // ("EIGNAR" por "Eigner"), y dejar afuera a un cursante por una letra es
+  // peor que mostrarlo marcado. Se devuelve como PARECIDO: entra enganchado
+  // pero con la marca puesta, para que el Evaluador lo confirme.
+  const pare = roster.filter(r=>{
+    const rt = eemTokens(r.nombre_completo);
+    if(rt.length < 2) return false;
+    const comunes = tk.filter(w=>rt.includes(w));
+    if(comunes.length < 2) return false;
+    const sobranDoc = tk.filter(w=>!rt.includes(w));
+    const sobranNom = rt.filter(w=>!tk.includes(w));
+    if(!sobranDoc.length || sobranDoc.length > 1) return false;
+    return sobranDoc.every(w=>sobranNom.some(v=>eemCasiIgual(w, v)));
+  });
+  if(pare.length === 1) return { id:pare[0].cursante_id, estado:'parecido', candidatos:[] };
+
   return { id:null, estado:'sin_enganche', candidatos:[] };
+}
+
+/* ¿Se diferencian en una sola letra? (una cambiada, una de más o una de menos) */
+function eemCasiIgual(a, b){
+  if(a === b) return true;
+  if(Math.abs(a.length - b.length) > 1) return false;
+  if(a.length < 4 || b.length < 4) return false;
+  let i = 0, j = a.length - 1, k = b.length - 1;
+  while(i < a.length && i < b.length && a[i] === b[i]) i++;
+  while(j >= i && k >= i && a[j] === b[k]){ j--; k--; }
+  return (j - i < 1) && (k - i < 1);
 }
 
 /* ── el diálogo ───────────────────────────────────────────────────── */
@@ -53233,8 +53363,9 @@ function eemImportarPrevia(){
   const bloques = EEM_IMP.grupos.map((g,gi)=>{
     const filas = g.lineas.map((ln,li)=>{
       n++;
-      const chip = ln.estado==='exacto'   ? '<span class="eem-chip ok">enganchado</span>'
-                 : ln.estado==='probable' ? '<span class="eem-chip ok">enganchado</span>'
+      const chip = (ln.estado==='exacto' || ln.estado==='probable') ? '<span class="eem-chip ok">enganchado</span>'
+                 : ln.estado==='manual'   ? '<span class="eem-chip ok">elegido a mano</span>'
+                 : ln.estado==='parecido' ? '<span class="eem-chip warn">se escribe casi igual — confirmalo</span>'
                  : ln.estado==='repetido' ? '<span class="eem-chip warn">ya figuraba en otro grupo</span>'
                  : ln.estado==='ambiguo'  ? '<span class="eem-chip bad">hay más de uno con ese apellido</span>'
                  : '<span class="eem-chip bad">no está en la nómina</span>';
@@ -53250,10 +53381,11 @@ function eemImportarPrevia(){
         '<td>'+chip+'</td></tr>';
     }).join('');
     return '<div class="eem-card" style="margin:10px 0 0">'+
-      '<div class="eem-row"><b style="color:#e8d79a">Grupo '+g.numero+'</b>'+
+      '<div class="eem-row"><b style="color:#e8d79a">'+
+        (g.paralelo ? 'Paralelo &quot;'+esc(g.paralelo)+'&quot; · Grupo '+g.numero_doc : 'Grupo '+g.numero)+'</b>'+
         '<span class="eem-chip">'+g.lineas.length+' integrantes</span>'+
         (g.tema?'':'<span class="eem-chip warn">sin tema</span>')+'</div>'+
-      '<div class="eem-field" style="margin:8px 0 0"><label>Tema del grupo '+g.numero+
+      '<div class="eem-field" style="margin:8px 0 0"><label>Tema de '+esc(g.nombre)+
         ' — corregilo acá si el documento no lo trajo bien</label>'+
         '<input value="'+esc(g.tema||'')+'" placeholder="Tema del Estudio de Estado Mayor" '+
         'onchange="eemImpTema('+gi+',this.value)"></div>'+
@@ -53299,7 +53431,7 @@ window.EEM_IMP = EEM_IMP;
 async function eemImportarAplicar(){
   const reemplazar = document.getElementById('eem-imp-reemplazar').checked;
   const grupos = EEM_IMP.grupos.map(g=>({
-    numero: g.numero, nombre: g.nombre, tema: g.tema,
+    numero: g.numero, nombre: g.nombre, tema: g.tema, paralelo: g.paralelo || null,
     integrantes: g.lineas.filter(l=>l.cursante_id)
       .map(l=>({ cursante_id: l.cursante_id, es_jefe: !!l.es_jefe }))
   })).filter(g=>g.integrantes.length);
@@ -53414,10 +53546,13 @@ window.eemBajarPlantilla = eemBajarPlantilla;
 const EEM_SIN_BOTON = /^screen-(home|cargos|login|primer-ingreso|instalar|firma|verificar|quiz-proyector|wg-invitado|eem-)/;
 
 async function eemHayAlgoDocente(){
+  // El botón sale para todo el cuerpo docente: el que todavía no tiene carpeta
+  // es justamente el que necesita abrir una.
   if(EEM.hayAlgo !== null) return EEM.hayAlgo;
   const r = await eemInvoke('eem-ops', 'carpetas', {});
-  EEM.hayAlgo = !!(r.ok && (r.carpetas||[]).length);
-  if(r.ok){ EEM.supervisor = !!r.supervisor; EEM.carpetasDocente = r.carpetas || []; }
+  EEM.hayAlgo = !!r.ok;
+  if(r.ok){ EEM.supervisor = !!r.supervisor; EEM.carpetasDocente = r.carpetas || [];
+            EEM.rubricas = r.rubricas || []; EEM.perfiles = r.perfiles || []; EEM.yo = r.yo || null; }
   return EEM.hayAlgo;
 }
 
@@ -53446,7 +53581,7 @@ async function eemInyectar(idPantalla){
     const b = document.createElement('button');
     b.className = 'btn-mega eem-btn-entrar';
     b.style.cssText = 'background:linear-gradient(180deg,#9a7b1f,#d4af37);margin:0 0 10px;color:#0a1628';
-    b.innerHTML = '<span class="mega-icon">🎓</span><span>Mis Carpetas de Clases — entregar el trabajo evaluado</span>';
+    b.innerHTML = '<span class="mega-icon">🎓</span><span>Mis Evaluaciones — entregar el trabajo y ver la exposición</span>';
     b.onclick = ()=>eemAbrirAlumno();
     destino.insertBefore(b, destino.firstElementChild);
     return;
@@ -53456,7 +53591,7 @@ async function eemInyectar(idPantalla){
   const b = document.createElement('button');
   b.className = 'btn-mega eem-btn-entrar';
   b.style.cssText = 'background:linear-gradient(180deg,#1f4f6f,#0e3a4a);margin:0 0 10px;color:#fff';
-  b.innerHTML = '<span class="mega-icon">📋</span><span>Carpetas de Clases — evaluación sumativa'+
+  b.innerHTML = '<span class="mega-icon">📋</span><span>Evaluaciones y Exposiciones — trabajos calificados'+
     (EEM.supervisor ? ' (supervisión)' : '')+'</span>';
   b.onclick = ()=>eemAbrirCarpetas();
   cont.insertBefore(b, cont.children[1] || null);
