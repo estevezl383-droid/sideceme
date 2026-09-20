@@ -4178,7 +4178,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.392</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.394</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -55137,7 +55137,7 @@ async function trbInyectar(idPantalla){
 
 <script>
 /* =====================================================================
-   FASE 5 — EL ACTA (v2.9.392)
+   FASE 5 — EL ACTA (v2.9.394 — el acta sale sobre la RUBRICA OFICIAL)
    Modulo autonomo. No toca ninguna funcion existente: se engancha
    envolviendo showScreen, igual que las Fases 1, 2 y 4.
    ===================================================================== */
@@ -55328,7 +55328,7 @@ function pFirma(doc, valor, negrita){
   }
   return p;
 }
-function celdaFirma(doc, ancho, span, firmante){
+function celdaFirma(doc, ancho, span, firmante, renglones){
   const tc = doc.createElementNS(NS_W,"w:tc");
   const tcPr = doc.createElementNS(NS_W,"w:tcPr");
   const tcW = doc.createElementNS(NS_W,"w:tcW");
@@ -55340,9 +55340,9 @@ function celdaFirma(doc, ancho, span, firmante){
   }
   tc.appendChild(tcPr);
   if(firmante){
-    tc.appendChild(pFirma(doc,"",false));
-    tc.appendChild(pFirma(doc,"",false));
-    tc.appendChild(pFirma(doc,"",false));
+    // El hueco para firmar a mano. Con mesa grande se achica un renglon: mas
+    // vale firmar algo apretado que abrir una hoja de mas casi vacia.
+    for(let i=0;i<(renglones||3);i++) tc.appendChild(pFirma(doc,"",false));
     tc.appendChild(pFirma(doc, firmante.nombre||"", false));
     tc.appendChild(pFirma(doc, firmante.cargo||"", true));
   }else{
@@ -55353,6 +55353,14 @@ function celdaFirma(doc, ancho, span, firmante){
 function rellenarFirmas(doc, tablaFirmas, firmantes){
   const anidada = tablaFirmas.getElementsByTagName("w:tbl")[0];
   if(!anidada) return;
+
+  // El bloque entero de firmas viaja junto de una hoja a la otra. Un acta con
+  // «EVALUADOR 3» en una hoja y su nombre en la anterior no la firma nadie.
+  for(const tr of hijos(tablaFirmas,"w:tr")){
+    let trPr = primerHijo(tr,"w:trPr");
+    if(!trPr){ trPr = doc.createElementNS(NS_W,"w:trPr"); tr.insertBefore(trPr, tr.firstChild); }
+    if(!primerHijo(trPr,"w:cantSplit")) trPr.insertBefore(doc.createElementNS(NS_W,"w:cantSplit"), trPr.firstChild);
+  }
   let total = 9630;
   const tblPr = primerHijo(anidada, "w:tblPr");
   const tblW = tblPr ? primerHijo(tblPr, "w:tblW") : null;
@@ -55367,13 +55375,17 @@ function rellenarFirmas(doc, tablaFirmas, firmantes){
     }
   }
   for(const tr of hijos(anidada,"w:tr")) anidada.removeChild(tr);
+  const renglones = firmantes.length > 4 ? 2 : 3;
   for(let i=0;i<firmantes.length;i+=2){
     const tr = doc.createElementNS(NS_W,"w:tr");
+    const trPr = doc.createElementNS(NS_W,"w:trPr");
+    trPr.appendChild(doc.createElementNS(NS_W,"w:cantSplit"));
+    tr.appendChild(trPr);
     if(i+1 < firmantes.length){
-      tr.appendChild(celdaFirma(doc, mitad, 1, firmantes[i]));
-      tr.appendChild(celdaFirma(doc, mitad, 1, firmantes[i+1]));
+      tr.appendChild(celdaFirma(doc, mitad, 1, firmantes[i], renglones));
+      tr.appendChild(celdaFirma(doc, mitad, 1, firmantes[i+1], renglones));
     }else{
-      tr.appendChild(celdaFirma(doc, total, 2, firmantes[i]));
+      tr.appendChild(celdaFirma(doc, total, 2, firmantes[i], renglones));
     }
     anidada.appendChild(tr);
   }
@@ -55413,6 +55425,111 @@ function rellenarCursantes(doc, tabla, cursantes){
     escribirCelda(doc, tcs[3], (c.final_100===null||c.final_100===undefined) ? '' : d2(c.final_100));
     escribirCelda(doc, tcs[4], '');          // FIRMA: en blanco, se firma a mano
   });
+}
+
+
+/* ── El cuadro de NOTA FINAL POR EVALUADOR ────────────────────────────
+   La plantilla de la Escuela trae UN solo cuadro de cursantes (65/35/100).
+   El acta necesita ademas el cuadro con la NOTA FINAL de CADA evaluador y el
+   PROMEDIO de la mesa: es lo que sostiene un reclamo.
+   No se dibuja de cero: se CLONA el cuadro de cursantes de la propia plantilla
+   —sus bordes, su Arial, su ancho— y se le cambian las columnas. */
+function ajustarCeldas(tr, cuantas){
+  let tcs = hijos(tr, "w:tc");
+  while(tcs.length > cuantas && tcs.length > 2){
+    tr.removeChild(tcs[tcs.length-2]);
+    tcs = hijos(tr, "w:tc");
+  }
+  while(tcs.length < cuantas){
+    tr.insertBefore(tcs[tcs.length-2].cloneNode(true), tcs[tcs.length-1]);
+    tcs = hijos(tr, "w:tc");
+  }
+  return tcs;
+}
+function anchoCelda(doc, tc, w){
+  let tcPr = primerHijo(tc, "w:tcPr");
+  if(!tcPr){ tcPr = doc.createElementNS(NS_W,"w:tcPr"); tc.insertBefore(tcPr, tc.firstChild); }
+  let tcW = primerHijo(tcPr, "w:tcW");
+  if(!tcW){ tcW = doc.createElementNS(NS_W,"w:tcW"); tcPr.insertBefore(tcW, tcPr.firstChild); }
+  tcW.setAttribute("w:w", String(w)); tcW.setAttribute("w:type","dxa");
+}
+function escribirCeldaLineas(doc, tc, lineas){
+  const ps = hijos(tc, "w:p");
+  if(!ps.length) return;
+  const base = ps[0].cloneNode(true);
+  while(hijos(tc,"w:p").length > lineas.length){
+    const act = hijos(tc,"w:p"); tc.removeChild(act[act.length-1]);
+  }
+  while(hijos(tc,"w:p").length < lineas.length) tc.appendChild(base.cloneNode(true));
+  hijos(tc,"w:p").forEach((p,i)=>{ escribirParrafo(doc, p, lineas[i], {sinSangria:true}); centrar(doc, p); });
+}
+function quitarVMerge(tr){
+  const vm = tr.getElementsByTagName("w:vMerge");
+  for(let i=vm.length-1;i>=0;i--) vm[i].parentNode.removeChild(vm[i]);
+}
+function cuadroPorEvaluador(doc, modelo, cursantes, jurados){
+  const n = jurados.length;
+  if(!n || !cursantes.length) return null;
+  const M = n + 3;                       // nombres + N evaluadores + promedio + firma
+  const tabla = modelo.cloneNode(true);
+
+  let total = 9895;
+  const tblPr = primerHijo(tabla, "w:tblPr");
+  const tblW = tblPr ? primerHijo(tblPr, "w:tblW") : null;
+  if(tblW && Number(tblW.getAttribute("w:w"))) total = Number(tblW.getAttribute("w:w"));
+  const firma = 1100;
+  // La ultima columna de notas dice PROMEDIO: con el ancho de las otras Word
+  // le parte la palabra («PROMEDI / O»). Lleva ancho propio.
+  const anchoProm = 1420;
+  const anchoNota = Math.max(820, Math.min(1418, Math.floor((total - firma - anchoProm - 3600) / n)));
+  const anchoNombre = total - firma - anchoProm - anchoNota * n;
+  const anchos = [anchoNombre];
+  for(let i=0;i<n;i++) anchos.push(anchoNota);
+  anchos.push(anchoProm); anchos.push(firma);
+
+  const grid = primerHijo(tabla, "w:tblGrid");
+  if(grid){
+    while(grid.firstChild) grid.removeChild(grid.firstChild);
+    anchos.forEach(w=>{
+      const gc = doc.createElementNS(NS_W,"w:gridCol");
+      gc.setAttribute("w:w", String(w)); grid.appendChild(gc);
+    });
+  }
+
+  const filas = hijos(tabla, "w:tr");
+  const encabezado = filas[0];
+  const modeloDato = (filas[1] || filas[0]).cloneNode(true);
+  for(let i=1;i<filas.length;i++) tabla.removeChild(filas[i]);
+
+  quitarVMerge(encabezado);
+  const tcsEnc = ajustarCeldas(encabezado, M);
+  const rotulos = [["GRADO, APELLIDOS Y","NOMBRES"]];
+  for(let k=1;k<=n;k++) rotulos.push(["NOTA","FINAL","EV. "+k]);
+  rotulos.push(["NOTA","FINAL","PROMEDIO"]);
+  rotulos.push(["FIRMA"]);
+  rotulos.forEach((lineas,i)=>{ escribirCeldaLineas(doc, tcsEnc[i], lineas); anchoCelda(doc, tcsEnc[i], anchos[i]); });
+
+  cursantes.forEach(c=>{
+    const tr = modeloDato.cloneNode(true);
+    quitarVMerge(tr);
+    const trPr = primerHijo(tr, "w:trPr");
+    if(trPr){ const th = primerHijo(trPr,"w:trHeight"); if(th) th.setAttribute("w:val","454"); }
+    const tcs = ajustarCeldas(tr, M);
+    const porEv = c.por_evaluador || [];
+    const valores = [ (c.grado ? c.grado+' ' : '') + (c.nombre||'') ];
+    for(let k=0;k<n;k++) valores.push(porEv[k]==null ? '' : d2(porEv[k]));
+    valores.push(c.promedio_final==null
+      ? ((c.final_100==null) ? '' : d2(c.final_100))
+      : d2(c.promedio_final));
+    valores.push('');                      // FIRMA: se firma a mano
+    tcs.forEach((tc,i)=>{
+      anchoCelda(doc, tc, anchos[i]);
+      escribirCelda(doc, tc, valores[i]);
+      if(i>0){ const ps = hijos(tc,"w:p"); if(ps.length) centrar(doc, ps[0]); }
+    });
+    tabla.appendChild(tr);
+  });
+  return tabla;
 }
 
 async function actaDocx(plantilla, acta){
@@ -55482,9 +55599,25 @@ async function actaDocx(plantilla, acta){
     escribirNota(doc, fTot, tot.exposicion_35_grupal);
   }
 
-  // 5 · los cursantes
+  // 5 · los cursantes + el cuadro de NOTA FINAL por evaluador
   const tCur = buscarTabla(tablas, "GRADO, APELLIDOS Y NOMBRES");
-  if(tCur) rellenarCursantes(doc, tCur, acta.cursantes||[]);
+  if(tCur){
+    // El cuadro LIMPIO, antes de escribirle nada: de el sale el segundo.
+    const molde = tCur.cloneNode(true);
+    rellenarCursantes(doc, tCur, acta.cursantes||[]);
+    const tEval = cuadroPorEvaluador(doc, molde, acta.cursantes||[], acta.jurados||[]);
+    if(tEval){
+      // Un parrafo vacio DE VERDAD entre cuadro y cuadro: Word ignora el
+      // margen de una tabla y sin esto los dos salen pegados.
+      const hueco = doc.createElementNS(NS_W,"w:p");
+      const pPrH = doc.createElementNS(NS_W,"w:pPr");
+      pPrH.appendChild(rPrArial(doc,false));
+      hueco.appendChild(pPrH);
+      const sig = tCur.nextSibling;
+      body.insertBefore(hueco, sig);
+      body.insertBefore(tEval, sig);
+    }
+  }
 
   // 6 · lugar y fecha
   const pFecha = parrafoQueEmpieza(body, (cfg.lugar||"Cochabamba")+",") || parrafoQueEmpieza(body, "Cochabamba,");
@@ -55496,6 +55629,19 @@ async function actaDocx(plantilla, acta){
   if(cfg.jefe_nombre  || cfg.jefe_cargo)  firmantes.push({nombre:cfg.jefe_nombre||'',  cargo:cfg.jefe_cargo||''});
   const tFirmas = tablas[tablas.length-1];
   if(tFirmas && firmantes.length) rellenarFirmas(doc, tFirmas, firmantes);
+
+  // 8 · ni una hoja de mas
+  // La plantilla termina con parrafos vacios. Con el cuadro de evaluadores
+  // agregado esos parrafos se pasan de largo y Word abre una hoja entera en
+  // blanco, con su RESERVADO y su «4 - 4». Se borran los vacios del final.
+  for(;;){
+    const ps = hijos(body, "w:p");
+    if(!ps.length) break;
+    const ultimo = ps[ps.length-1];
+    if(textoDe(ultimo).trim() !== "") break;
+    if(ultimo.getElementsByTagName("w:sectPr").length) break;
+    ultimo.parentNode.removeChild(ultimo);
+  }
 
   zip.file("word/document.xml", new XMLSerializer().serializeToString(doc));
   return await zip.generateAsync({type:'uint8array', compression:'DEFLATE'});
@@ -55813,6 +55959,40 @@ ACT.marcarTodos = function(on){
 /* =====================================================================
    7) VISTA PREVIA — la hoja, antes de gastar papel
    ===================================================================== */
+/* ── La NOTA FINAL de CADA evaluador ─────────────────────────────────
+   El acta que arma la base trae el PROMEDIO de la mesa. El cuadro que la
+   mesa firma pide ademas lo que puso cada uno: esa cifra es la que sostiene
+   un reclamo. Sale de `fn_eem_f4_comparativo`, que ya esta en la base:
+   la exposicion de cada jurado + el 65% del grupo.
+   Si la base la niega —un jurado que todavia no cerro su planilla— el
+   cuadro sale EN BLANCO para llenarlo a mano y el acta se imprime igual. */
+async function actPorEvaluador(acta){
+  try{
+    const jur = (acta && acta.jurados) || [];
+    const cur = (acta && acta.cursantes) || [];
+    const carpeta = acta && acta.carpeta && acta.carpeta.id;
+    const t = (typeof tok === 'function') ? tok() : null;
+    if(!jur.length || !cur.length || !carpeta || !t) return;
+    for(const c of cur){
+      if(!c.cursante_id) continue;
+      try{
+        const { data } = await sb.functions.invoke('eem-tribunal',
+          { body:{ accion:'comparativo', token:t, carpeta_id:carpeta, cursante_id:c.cursante_id } });
+        const comp = data && data.ok && data.comparativo;
+        if(!comp) continue;
+        const porId = {};
+        (comp.jurados||[]).forEach(j=>{
+          if(j && j.cerrado && !j.excluido && j.total!=null) porId[j.profesor_id] = Number(j.total);
+        });
+        const t65 = Number(c.texto_65||0);
+        const vals = jur.map(j => porId[j.profesor_id]==null
+          ? null : Number((t65 + porId[j.profesor_id]).toFixed(2)));
+        if(vals.some(v=>v!==null)) c.por_evaluador = vals;
+      }catch(_){ /* ese cursante sale en blanco, el resto no se cae */ }
+    }
+  }catch(_){ /* el acta se imprime igual */ }
+}
+
 ACT.vista = async function(grupoId){
   showScreen('screen-eem-acta-vista');
   const c = document.getElementById('act-vista-cont');
@@ -55820,6 +56000,7 @@ ACT.vista = async function(grupoId){
   const r = await api('acta_grupo', {grupo_id: grupoId});
   if(!r.ok){ c.innerHTML = '<div class="act-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
   const acta = r.acta;
+  await actPorEvaluador(acta);
   ACT.actaActual = acta;
   document.getElementById('act-vista-tit').textContent = acta.grupo.nombre || ('Grupo '+acta.grupo.numero);
   document.getElementById('act-vista-sub').textContent = acta.grupo.tema || '—';
@@ -55895,6 +56076,7 @@ ACT.descargarZip = async function(){
   const actas = r.actas || [];
   for(let i=0;i<actas.length;i++){
     try{
+      await actPorEvaluador(actas[i]);
       const bytes = await actaDocx(plantilla, actas[i]);
       zip.file(nombreActa(actas[i]), bytes);
     }catch(e){ console.warn('acta', i, e); }
@@ -56305,6 +56487,1548 @@ async function actInyectar(idPantalla){
     return r;
   };
   nuevo.__act = true;
+  window.showScreen = nuevo;
+})();
+
+})();
+</script>
+
+<!-- =====================================================================
+     EVALUACION SUMATIVA — ESTUDIO DE ESTADO MAYOR · FASE 6: RECLAMOS
+     Reclamos, auditoria y panel del Supervisor. (v2.9.393)
+     TODO ADITIVO: no se modifico ni una linea de lo anterior.
+     Backend: eem-reclamos   ·   Los documentos se arman EN EL NAVEGADOR
+     ===================================================================== -->
+
+<style>
+.rec-wrap{padding:0 14px 120px}
+.rec-card{background:linear-gradient(180deg,#141a28,#0d1220);border:1px solid rgba(212,175,55,.28);
+  border-radius:14px;padding:12px 13px;margin:0 0 11px}
+.rec-card h3{margin:0 0 4px;font-size:15px;color:#e8d79a;letter-spacing:.3px}
+.rec-card.roja{border-color:rgba(231,76,60,.5)}
+.rec-card.verde{border-color:rgba(46,204,113,.4)}
+.rec-sub{font-size:11.5px;color:#93a0b8;line-height:1.5}
+.rec-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.rec-chip{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.12);border-radius:999px;padding:3px 9px;font-size:11px;color:#c9d6ea}
+.rec-chip b{color:#fff}
+.rec-chip.ok{border-color:rgba(46,204,113,.45);color:#8fe3b0}
+.rec-chip.warn{border-color:rgba(230,180,60,.5);color:#f0cf7a}
+.rec-chip.bad{border-color:rgba(231,76,60,.55);color:#f0938a}
+.rec-btn{border:0;border-radius:10px;padding:10px 14px;font-weight:800;font-size:13px;cursor:pointer;
+  background:linear-gradient(180deg,#9a7b1f,#d4af37);color:#0a1628}
+.rec-btn.sec{background:linear-gradient(180deg,#26324a,#1a2337);color:#dfe7f5;border:1px solid rgba(255,255,255,.14)}
+.rec-btn.red{background:linear-gradient(180deg,#8e2f26,#c0392b);color:#fff}
+.rec-btn.verde{background:linear-gradient(180deg,#1e7a4a,#2ecc71);color:#06281a}
+.rec-btn.mini{padding:5px 9px;font-size:11px;border-radius:8px}
+.rec-btn:disabled{opacity:.42;cursor:not-allowed}
+.rec-vacio{color:#8b9ab4;font-size:12.5px;text-align:center;padding:26px 10px;line-height:1.6}
+.rec-in{box-sizing:border-box;background:#0c1220;border:1px solid rgba(255,255,255,.18);
+  border-radius:8px;color:#fff;font-size:13px;padding:9px 10px;width:100%}
+.rec-in:focus{outline:0;border-color:#d4af37;box-shadow:0 0 0 2px rgba(212,175,55,.25)}
+.rec-in.mal{border-color:#c0392b;box-shadow:0 0 0 2px rgba(192,57,43,.25)}
+textarea.rec-in{min-height:78px;resize:vertical;font-family:inherit;line-height:1.5}
+.rec-lab{display:block;font-size:11px;color:#9fb0c9;margin:9px 0 4px;letter-spacing:.2px}
+.rec-tabla{width:100%;border-collapse:collapse;font-size:12px}
+.rec-tabla th{background:#101728;color:#e8d79a;text-align:left;padding:7px 6px;font-size:10.5px;
+  letter-spacing:.3px;border-bottom:1px solid rgba(212,175,55,.3);white-space:nowrap}
+.rec-tabla td{padding:6px;border-bottom:1px solid rgba(255,255,255,.07);color:#d6dfef;vertical-align:top}
+.rec-tabla td.c,.rec-tabla th.c{text-align:center}
+.rec-tabla tr.par td{background:rgba(255,255,255,.02)}
+.rec-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+
+/* El ítem, con su evidencia al lado */
+.rec-item{border:1px solid rgba(255,255,255,.12);border-radius:11px;padding:10px;margin:0 0 9px;
+  background:rgba(255,255,255,.02)}
+.rec-item.marcado{border-color:#d4af37;background:rgba(212,175,55,.07)}
+.rec-item.proc{border-color:rgba(46,204,113,.5);background:rgba(46,204,113,.06)}
+.rec-item.impr{border-color:rgba(231,76,60,.45);background:rgba(231,76,60,.05)}
+.rec-item h4{margin:0 0 3px;font-size:13px;color:#e6edf8;line-height:1.35;font-weight:700}
+.rec-item .rec-nota{float:right;font-size:15px;font-weight:800;color:#f0cf7a;margin-left:8px}
+.rec-cita{background:#0a0f1b;border-left:3px solid #4a90d9;border-radius:0 8px 8px 0;
+  padding:7px 9px;margin:7px 0 0;font-size:11.5px;color:#c3d2e8;line-height:1.55;font-style:italic}
+.rec-cita b{font-style:normal;color:#8fb8e8}
+.rec-lado{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+@media (max-width:700px){ .rec-lado{grid-template-columns:1fr} }
+.rec-col{background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.1);
+  border-radius:9px;padding:8px 9px}
+.rec-col h5{margin:0 0 5px;font-size:10.5px;color:#e8d79a;letter-spacing:.5px;text-transform:uppercase}
+.rec-reloj{font-size:12px;font-weight:700}
+.rec-banner{position:sticky;top:0;z-index:40;background:linear-gradient(180deg,#8e2f26,#6b241d);
+  color:#ffe9e5;font-size:11.5px;font-weight:700;padding:7px 12px;text-align:center;
+  border-bottom:1px solid rgba(255,255,255,.2)}
+.rec-barra{height:9px;border-radius:5px;background:rgba(255,255,255,.08);overflow:hidden}
+.rec-barra i{display:block;height:100%;background:linear-gradient(90deg,#9a7b1f,#d4af37)}
+.rec-hist{display:flex;align-items:flex-end;gap:3px;height:110px;margin:10px 0 4px}
+.rec-hist div{flex:1;background:linear-gradient(180deg,#d4af37,#9a7b1f);border-radius:3px 3px 0 0;min-height:2px;position:relative}
+.rec-hist span{position:absolute;top:-15px;left:0;right:0;text-align:center;font-size:9px;color:#c9d6ea}
+.rec-hist-pie{display:flex;gap:3px;font-size:8.5px;color:#7d8aa3}
+.rec-hist-pie div{flex:1;text-align:center}
+</style>
+
+<!-- ============ CURSANTE: MIS NOTAS ============ -->
+<section id="screen-rec-mis" class="screen">
+  <div class="app-header cursante-app-header">
+    <button class="back-btn" onclick="showScreen('screen-cursante-home')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">⚖️ Mis notas y reclamos</div>
+      <div class="header-sub">Evaluación Sumativa</div></div>
+  </div>
+  <div class="rec-wrap" id="rec-mis-cont"><div class="rec-vacio">Cargando…</div></div>
+</section>
+
+<!-- ============ CURSANTE: LA EVIDENCIA Y EL RECLAMO ============ -->
+<section id="screen-rec-evid" class="screen">
+  <div class="app-header cursante-app-header">
+    <button class="back-btn" onclick="REC.abrirAlumno()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title" id="rec-evid-tit">Cómo se calificó</div>
+      <div class="header-sub" id="rec-evid-sub">—</div></div>
+  </div>
+  <div class="rec-wrap" id="rec-evid-cont"><div class="rec-vacio">Cargando…</div></div>
+</section>
+
+<!-- ============ EVALUADOR: MIS MATERIAS ============ -->
+<section id="screen-rec-carpetas" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="REC.volverAlPanel()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">⚖️ Reclamos y supervisión</div>
+      <div class="header-sub">Evaluación Sumativa</div></div>
+  </div>
+  <div class="rec-wrap" id="rec-carpetas-cont"><div class="rec-vacio">Cargando…</div></div>
+</section>
+
+<!-- ============ EVALUADOR: LA BANDEJA ============ -->
+<section id="screen-rec-bandeja" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="REC.volverCarpetas()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title" id="rec-band-tit">Reclamos</div>
+      <div class="header-sub" id="rec-band-sub">—</div></div>
+  </div>
+  <div id="rec-band-banner"></div>
+  <div class="rec-wrap" id="rec-band-cont"><div class="rec-vacio">Cargando…</div></div>
+</section>
+
+<!-- ============ EVALUADOR: EL RECLAMO, LADO A LADO ============ -->
+<section id="screen-rec-detalle" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="REC.volverBandeja()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title" id="rec-det-tit">Reclamo</div>
+      <div class="header-sub" id="rec-det-sub">—</div></div>
+  </div>
+  <div class="rec-wrap" id="rec-det-cont"><div class="rec-vacio">Cargando…</div></div>
+</section>
+
+<!-- ============ LOS PLAZOS ============ -->
+<section id="screen-rec-config" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="REC.volverBandeja()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">⏱️ Los plazos del reclamo</div>
+      <div class="header-sub">Cuánto tiene el cursante y cuánto el Evaluador</div></div>
+  </div>
+  <div class="rec-wrap" id="rec-cfg-cont"><div class="rec-vacio">Cargando…</div></div>
+</section>
+
+<!-- ============ TABLERO DE INTEGRIDAD ============ -->
+<section id="screen-rec-integridad" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="REC.volverBandeja()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">🚦 Integridad de la evaluación</div>
+      <div class="header-sub" id="rec-int-sub">—</div></div>
+  </div>
+  <div class="rec-wrap" id="rec-int-cont"><div class="rec-vacio">Cargando…</div></div>
+</section>
+
+<!-- ============ ESTADISTICA ============ -->
+<section id="screen-rec-estad" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="REC.volverBandeja()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">📊 Estadística de la evaluación</div>
+      <div class="header-sub" id="rec-est-sub">—</div></div>
+  </div>
+  <div class="rec-wrap" id="rec-est-cont"><div class="rec-vacio">Cargando…</div></div>
+</section>
+
+<!-- ============ SUPERVISOR: TODAS LAS CARPETAS ============ -->
+<section id="screen-rec-sup" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="REC.volverAlPanel()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">🛡️ Panel del Jefe de C&amp;T</div>
+      <div class="header-sub">Todas las carpetas de la Escuela</div></div>
+  </div>
+  <div class="rec-wrap" id="rec-sup-cont"><div class="rec-vacio">Cargando…</div></div>
+</section>
+
+<!-- ============ BITACORA ============ -->
+<section id="screen-rec-bitacora" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="REC.volverDeBitacora()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">📜 Bitácora de auditoría</div>
+      <div class="header-sub" id="rec-bit-sub">Nada se borra. Nada se edita.</div></div>
+  </div>
+  <div class="rec-wrap" id="rec-bit-cont"><div class="rec-vacio">Cargando…</div></div>
+</section>
+
+<!-- ============ SUPERVISOR: CORREGIR UNA NOTA ============ -->
+<section id="screen-rec-corregir" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="REC.volverBandeja()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">✏️ Corregir una nota</div>
+      <div class="header-sub" id="rec-cor-sub">Con motivo escrito y reconsolidación</div></div>
+  </div>
+  <div id="rec-cor-banner"></div>
+  <div class="rec-wrap" id="rec-cor-cont"><div class="rec-vacio">Cargando…</div></div>
+</section>
+
+<script>
+/* =====================================================================
+   FASE 6 — RECLAMOS, AUDITORIA Y PANEL DEL SUPERVISOR (v2.9.393)
+   Modulo autonomo. No toca ninguna funcion existente: se engancha
+   envolviendo showScreen, igual que las Fases 1, 2, 4 y 5.
+
+   NO GASTA UN CENTAVO: los documentos se arman en el navegador con el
+   generador de INFORMES que ya trae SIDECEME (_descargarInformeDocx),
+   que produce el formato militar oficial: membrete, Al/Del/Objeto,
+   linea doble, parrafos numerados, firma y pie «n - N».
+   ===================================================================== */
+(function(){
+"use strict";
+
+const REC = { carpetas:null, carpeta:null, rol:null, sup:null, supervisando:false,
+              evid:null, marcados:new Map(), band:null, det:null,
+              integ:null, estad:null, bit:null, filtros:{}, relojes:[] };
+window.REC = REC;
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function tok(){ return (typeof getTokenSesion==='function') ? getTokenSesion() : null; }
+function aviso(m){ try{ alert(m); }catch(e){ console.warn(m); } }
+function n2(v){ return (v==null||v==='') ? '—' : Number(v).toFixed(2); }
+function val(id){ const e=document.getElementById(id); return e ? e.value : ''; }
+function fechaHora(t){
+  if(!t) return '—';
+  try{ const d=new Date(t);
+    return d.toLocaleDateString('es-BO',{day:'2-digit',month:'2-digit',year:'numeric'})+
+           ' ' + d.toLocaleTimeString('es-BO',{hour:'2-digit',minute:'2-digit'});
+  }catch(e){ return String(t); }
+}
+function limpiarRelojes(){ REC.relojes.forEach(i=>clearInterval(i)); REC.relojes=[]; }
+
+async function api(accion, extra){
+  const t = tok();
+  if(!t) return {ok:false, error:'Sin sesión. Volvé a entrar.'};
+  try{
+    const { data, error } = await sb.functions.invoke('eem-reclamos',
+      { body: Object.assign({accion, token:t}, extra||{}) });
+    if(error){
+      let msg = error.message || 'error';
+      try{ if(error.context && typeof error.context.json==='function'){
+             const b = await error.context.json(); if(b && b.error) msg = b.error; } }catch(_){}
+      return {ok:false, error:msg};
+    }
+    return data || {ok:false, error:'sin respuesta'};
+  }catch(e){ return {ok:false, error:String((e&&e.message)||e)}; }
+}
+
+/* Las materias del Evaluador ya las sabe la Fase 5; no se duplica. */
+async function misCarpetas(){
+  const t = tok(); if(!t) return {ok:false, error:'Sin sesión.'};
+  try{
+    const { data, error } = await sb.functions.invoke('eem-acta', { body:{accion:'mis_carpetas', token:t} });
+    if(error) return {ok:false, error:error.message||'error'};
+    return data || {ok:false, error:'sin respuesta'};
+  }catch(e){ return {ok:false, error:String((e&&e.message)||e)}; }
+}
+
+/* ── Las librerias no estan cargadas de entrada ─────────────────────────
+   Pasa lo mismo que en la Fase 5: XLSX se baja RECIEN cuando hace falta.
+   El .docx NO necesita ninguna: _zipStore de la app arma el zip a mano. */
+function cargarScript(url){
+  return new Promise((res, rej)=>{
+    const s=document.createElement('script'); s.src=url; s.async=true;
+    s.onload=()=>res(); s.onerror=()=>rej(new Error('No se pudo cargar '+url));
+    document.head.appendChild(s);
+  });
+}
+async function libXLSX(){
+  if(typeof XLSX !== 'undefined') return;
+  if(typeof ensureXLSX === 'function'){ await ensureXLSX(); }
+  if(typeof XLSX === 'undefined')
+    await cargarScript('https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js');
+}
+
+/* El .docx sale por el generador de INFORMES de SIDECEME: formato militar
+   oficial, hecho en el navegador y sin una sola llamada al servidor. */
+function informeWord(d, nombre){
+  if(typeof _descargarInformeDocx !== 'function'){
+    aviso('El generador de documentos de la app no está disponible en esta pantalla.');
+    return false;
+  }
+  return _descargarInformeDocx(d, nombre);
+}
+function firmaDe(o){ return ((o&&o.nombre)||'').trim(); }
+
+/* Los rótulos técnicos de la banda no se le muestran a nadie así. */
+function bandaTexto(a){
+  return ({texto_65:'el 65% del trabajo escrito', exposicion_35:'el 35% de la exposición',
+           final_100:'la nota final sobre 100'})[a] || a;
+}
+
+/* =====================================================================
+   1) EL CURSANTE — sus notas publicadas, con el reloj a la vista
+   ===================================================================== */
+async function recAbrirAlumno(){
+  limpiarRelojes();
+  showScreen('screen-rec-mis');
+  const c = document.getElementById('rec-mis-cont');
+  c.innerHTML = '<div class="rec-vacio">Cargando tus notas…</div>';
+  const r = await api('mis_notas', {});
+  if(!r.ok){ c.innerHTML = '<div class="rec-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
+  const m = r.materias || [];
+  if(!m.length){
+    c.innerHTML = '<div class="rec-vacio">Todavía no tenés ninguna nota publicada de la Evaluación Sumativa.<br><br>'+
+      'Cuando el Evaluador publique tu nota vas a poder verla acá, con la evidencia con la que se calificó cada ítem.</div>';
+    return;
+  }
+  c.innerHTML = m.map(k=>{
+    const v = k.ventana || {};
+    const abierta = !!v.puede;
+    return `<div class="rec-card ${abierta?'':''}">
+      <h3>${esc(k.materia)}</h3>
+      <div class="rec-sub">${esc(k.ciclo)}º ciclo · gestión ${esc(k.gestion)}</div>
+      <div class="rec-row" style="margin:9px 0">
+        <span class="rec-chip"><b style="font-size:17px">${n2(k.nota_final)}</b> nota final</span>
+        <span class="rec-chip">Texto 65%: <b>${n2(k.nota_texto_65)}</b></span>
+        <span class="rec-chip">Exposición 35%: <b>${n2(k.nota_expo_35)}</b></span>
+      </div>
+      <div class="rec-sub">Publicada el ${esc(fechaHora(k.publicada_en))}</div>
+      <div class="rec-row" style="margin-top:8px">
+        <span class="rec-reloj" id="rec-reloj-${esc(k.carpeta_id)}"></span>
+      </div>
+      ${Number(k.reclamos)>0 ? `<div class="rec-sub" style="margin-top:6px">
+        📋 Reclamos presentados: <b>${esc(k.reclamos)}</b>${Number(k.reclamos_abiertos)>0?' · <span style="color:#f0cf7a">'+esc(k.reclamos_abiertos)+' en trámite</span>':''}</div>`:''}
+      <div class="rec-row" style="margin-top:10px">
+        <button class="rec-btn" onclick="REC.evidencia('${esc(k.carpeta_id)}')">
+          ${abierta ? 'Ver cómo se calificó y reclamar' : 'Ver cómo se calificó'}</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  m.forEach(k=>{
+    const v = k.ventana || {};
+    const el = document.getElementById('rec-reloj-'+k.carpeta_id);
+    if(!el) return;
+    if(!v.vence_en){ el.innerHTML = '<span style="color:#8b9ab4">—</span>'; return; }
+    const f = ()=>{
+      const ms = new Date(v.vence_en) - new Date();
+      if(ms <= 0){ el.innerHTML = '<span style="color:#f0938a">⛔ El plazo para reclamar venció el '+esc(fechaHora(v.vence_en))+'</span>'; return; }
+      const h = Math.floor(ms/3600000), mi = Math.floor(ms%3600000/60000), s = Math.floor(ms%60000/1000);
+      el.innerHTML = '<span style="color:'+(ms<3600000?'#f0cf7a':'#8fe3b0')+'">⏳ Para reclamar te quedan '+
+        h+'h '+mi+'m '+s+'s</span>';
+    };
+    f(); REC.relojes.push(setInterval(f, 1000));
+  });
+}
+REC.abrirAlumno = recAbrirAlumno;
+
+/* =====================================================================
+   2) LA EVIDENCIA — lo que hace caer solo a la mitad de los reclamos
+   ===================================================================== */
+async function recEvidencia(carpeta){
+  limpiarRelojes();
+  REC.marcados = new Map();
+  showScreen('screen-rec-evid');
+  const c = document.getElementById('rec-evid-cont');
+  c.innerHTML = '<div class="rec-vacio">Cargando la evidencia…</div>';
+  const r = await api('evidencia', { carpeta_id: carpeta });
+  if(!r.ok){ c.innerHTML = '<div class="rec-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
+  REC.evid = r.datos; REC.carpeta = carpeta;
+  pintarEvidencia();
+}
+REC.evidencia = recEvidencia;
+
+function fmtMedicion(it){
+  const m = it.medicion || {};
+  const h = m.hallazgos;
+  if(!h || !h.length) return '';
+  const lista = (Array.isArray(h)?h:[h]).slice(0,8).map(x=>{
+    if(typeof x === 'string') return '<li>'+esc(x)+'</li>';
+    const pags = x.paginas ? ' <b>(pág. '+esc([].concat(x.paginas).join(', '))+')</b>' : '';
+    return '<li>'+esc(x.detalle || x.texto || x.regla || JSON.stringify(x))+pags+'</li>';
+  }).join('');
+  return '<div class="rec-cita"><b>Lo que midió el motor:</b><ul style="margin:4px 0 0;padding-left:16px">'+lista+'</ul></div>';
+}
+
+function pintarEvidencia(){
+  const d = REC.evid, c = document.getElementById('rec-evid-cont');
+  document.getElementById('rec-evid-tit').textContent = d.carpeta ? d.carpeta.materia : 'Cómo se calificó';
+  const v = d.ventana || {};
+
+  if(!d.publicada){
+    document.getElementById('rec-evid-sub').textContent = '—';
+    c.innerHTML = '<div class="rec-vacio">'+esc((v.motivo)||'Tu nota todavía no está publicada.')+'</div>';
+    return;
+  }
+  document.getElementById('rec-evid-sub').textContent =
+    'Grupo ' + ((d.grupo&&d.grupo.numero)||'—') + ' · nota final ' + n2(d.notas.final_100_final);
+
+  const abierta = !!v.puede;
+  const min = Number(v.minimo_fundamento || 40);
+
+  const cabeza = `
+    <div class="rec-card">
+      <h3>Tu nota, renglón por renglón</h3>
+      <div class="rec-row" style="margin:8px 0">
+        <span class="rec-chip">Forma 20%: <b>${n2(d.notas.forma_20)}</b></span>
+        <span class="rec-chip">Fondo 45%: <b>${n2(d.notas.fondo_45)}</b></span>
+        <span class="rec-chip">Texto 65%: <b>${n2(d.notas.texto_65_final)}</b></span>
+        <span class="rec-chip">Exposición 35%: <b>${n2(d.notas.expo_35_final)}</b></span>
+        <span class="rec-chip ok">FINAL: <b style="font-size:16px">${n2(d.notas.final_100_final)}</b></span>
+      </div>
+      ${d.hay_banda ? `<div class="rec-sub" style="margin-top:6px">
+         <b style="color:#f0cf7a">Se aplicó una banda de nota.</b> Tu nota BRUTA fue
+         ${n2(d.notas.final_100_bruta)} y la fórmula aplicada es:
+         ${(d.bandas||[]).map(b=>'<br>· En '+esc(bandaTexto(b.aplicar_a))+': '+esc(b.formula)).join('')}</div>`
+        : '<div class="rec-sub" style="margin-top:6px">No se aplicó ninguna banda: la nota es la suma directa de los ítems.</div>'}
+      ${d.entrega ? `<div class="rec-sub" style="margin-top:6px">📄 ${esc(d.entrega.archivo||'')} · entregado el ${esc(fechaHora(d.entrega.entregado_en))}${d.entrega.fuera_de_plazo?' · <span style="color:#f0938a">fuera de plazo</span>':''}<br>
+        <span style="font-size:10px;color:#6f7d95">huella SHA-256: ${esc((d.entrega.sha256||'').slice(0,32))}…</span></div>`:''}
+      <div class="rec-sub" style="margin-top:8px">
+        ${abierta
+          ? 'Mirá primero con qué se calificó cada ítem. Si algo está mal, marcá <b>ese ítem</b> y fundamentá por escrito (mínimo '+min+' caracteres). No se admiten reclamos generales.'
+          : '<span style="color:#f0938a">'+esc(v.motivo||'El plazo para reclamar está cerrado.')+'</span> Podés seguir viendo la evidencia.'}
+      </div>
+    </div>`;
+
+  const itemHtml = (it, tipo) => {
+    const key = it.rubrica_item_id;
+    const marc = REC.marcados.has(key);
+    const yaRec = (d.reclamos||[]).some(r=>(r.items||[]).some(x=>x.rubrica_item_id===key));
+    return `<div class="rec-item ${marc?'marcado':''}" id="rec-it-${esc(key)}">
+      <span class="rec-nota">${n2(it.nota)}<small style="font-size:10px;color:#8b9ab4"> / ${esc(it.vale)}</small></span>
+      <h4>${esc(it.bloque)} ${esc(it.orden)}. ${esc(it.descripcion)}</h4>
+      <div class="rec-sub">${it.alcance==='grupal'?'Ítem del TRABAJO (nota del grupo)':'Ítem de tu EXPOSICIÓN (nota individual)'}${it.nivel?' · nivel: '+esc(it.nivel):''}</div>
+      ${tipo==='texto' && it.cita ? `<div class="rec-cita"><b>Pág. ${esc(it.pagina||'?')}${it.rotulo?' — '+esc(it.rotulo):''}:</b> “${esc(it.cita)}”${it.palabras?' <b>('+esc(it.palabras)+' palabras de desarrollo)</b>':''}</div>`:''}
+      ${tipo==='texto' && !it.cita && it.fundamento_motor ? `<div class="rec-cita">${esc(it.fundamento_motor)}</div>`:''}
+      ${tipo==='texto' ? fmtMedicion(it) : ''}
+      ${tipo==='expo' ? `<div class="rec-cita"><b>Promedio del tribunal:</b> ${n2(it.promedio_tribunal)} sobre ${esc(it.vale)} · ${esc(it.calificaciones)} calificación(es) cerrada(s)${it.ajustada?' · <b style="color:#f0cf7a">corregida por el Evaluador</b>':''}
+        ${(it.observaciones||[]).length ? '<ul style="margin:4px 0 0;padding-left:16px">'+(it.observaciones||[]).map(o=>'<li>'+esc(o)+'</li>').join('')+'</ul>' : ''}</div>`:''}
+      ${it.motivo_ajuste ? `<div class="rec-cita" style="border-left-color:#d4af37"><b>Corrección registrada:</b> ${esc(it.motivo_ajuste)}</div>`:''}
+      ${yaRec ? '<div class="rec-sub" style="margin-top:7px;color:#f0cf7a">📋 Ya reclamaste este ítem. Mirá la resolución más abajo.</div>'
+        : (abierta ? `
+      <div class="rec-row" style="margin-top:8px">
+        <button class="rec-btn ${marc?'red':'sec'} mini" onclick="REC.marcar('${esc(key)}')">${marc?'Quitar este ítem del reclamo':'⚖️ Objetar este ítem'}</button>
+      </div>
+      ${marc ? `<div>
+        <label class="rec-lab">Por qué está mal (mínimo ${min} caracteres, se lee en la resolución)</label>
+        <textarea class="rec-in" id="rec-fund-${esc(key)}" oninput="REC.contar('${esc(key)}')"
+          placeholder="Explicá con hechos: qué dice tu trabajo, en qué página, qué prueba tenés.">${esc(REC.marcados.get(key)||'')}</textarea>
+        <div class="rec-sub" id="rec-cont-${esc(key)}">0 caracteres</div>
+      </div>`:''}`:'')}
+    </div>`;
+  };
+
+  const reclamos = (d.reclamos||[]).length ? `
+    <div class="rec-card">
+      <h3>Tus reclamos</h3>
+      ${(d.reclamos||[]).map(r=>`
+        <div class="rec-item ${r.desenlace==='improcedente'?'impr':(r.desenlace?'proc':'')}" style="margin-top:9px">
+          <h4>RECLAMO N° ${esc(r.numero)} — ${esc(r.desenlace ? ({procedente:'PROCEDENTE',parcial:'PARCIALMENTE PROCEDENTE',improcedente:'IMPROCEDENTE'})[r.desenlace] : 'EN TRÁMITE')}</h4>
+          <div class="rec-sub">Presentado el ${esc(fechaHora(r.creado_en))}${r.resuelto_en?' · resuelto el '+esc(fechaHora(r.resuelto_en)):''}</div>
+          ${r.resolucion ? '<div class="rec-cita" style="border-left-color:#d4af37"><b>Resolución:</b> '+esc(r.resolucion)+'</div>':''}
+          ${(r.items||[]).map(x=>`<div class="rec-sub" style="margin-top:6px">
+            · <b>${esc(x.bloque)} ${esc(x.orden)}</b> — ${esc(x.descripcion)}<br>
+            &nbsp;&nbsp;<i>Lo que dijiste:</i> ${esc(x.fundamento)}<br>
+            ${x.decision?`&nbsp;&nbsp;<i>Contestación:</i> <b style="color:${x.decision==='procedente'?'#8fe3b0':'#f0938a'}">${esc(x.decision.toUpperCase())}</b> — ${esc(x.respuesta||'')}
+            ${x.valor_antes!=null?'<br>&nbsp;&nbsp;<i>Nota del ítem:</i> '+n2(x.valor_antes)+' → <b>'+n2(x.valor_despues)+'</b>':''}`:''}
+          </div>`).join('')}
+        </div>`).join('')}
+    </div>` : '';
+
+  const marcados = REC.marcados.size;
+  const pie = abierta ? `
+    <div class="rec-card" id="rec-enviar-card">
+      <h3>Presentar el reclamo</h3>
+      <div class="rec-sub">Ítems marcados: <b id="rec-marcados">${marcados}</b>.
+        Una vez presentado no se puede modificar, y el Evaluador contesta <b>cada ítem por separado</b>.</div>
+      <label class="rec-lab">Una línea de encabezado (opcional)</label>
+      <input class="rec-in" id="rec-motivo" maxlength="300" placeholder="Ej.: Reclamo contra la calificación de forma del trabajo.">
+      <div class="rec-row" style="margin-top:10px">
+        <button class="rec-btn" id="rec-btn-enviar" ${marcados?'':'disabled'} onclick="REC.presentar()">⚖️ PRESENTAR RECLAMO</button>
+      </div>
+    </div>` : '';
+
+  c.innerHTML = cabeza
+    + '<div class="rec-card"><h3>El trabajo escrito (65%)</h3><div class="rec-sub">Forma y fondo. Estos ítems son del GRUPO: si uno se corrige, se corrige para todos los integrantes.</div></div>'
+    + (d.items||[]).map(it=>itemHtml(it,'texto')).join('')
+    + '<div class="rec-card"><h3>La exposición (35%)</h3><div class="rec-sub">Nota individual. Acá va el promedio de los jurados de tu mesa; los nombres de cada jurado están en el expediente que maneja el Evaluador.</div></div>'
+    + (d.exposicion||[]).map(it=>itemHtml(it,'expo')).join('')
+    + reclamos + pie;
+
+  REC.marcados.forEach((txt,k)=>{ const t=document.getElementById('rec-fund-'+k); if(t){ t.value=txt; REC.contar(k); } });
+}
+
+REC.marcar = function(key){
+  if(REC.marcados.has(key)){
+    const t = document.getElementById('rec-fund-'+key);
+    if(t) REC.marcados.set(key, t.value);
+    REC.marcados.delete(key);
+  } else {
+    REC.marcados.set(key, '');
+  }
+  pintarEvidencia();
+};
+
+REC.contar = function(key){
+  const t = document.getElementById('rec-fund-'+key);
+  const e = document.getElementById('rec-cont-'+key);
+  if(!t || !e) return;
+  REC.marcados.set(key, t.value);
+  const min = Number((REC.evid.ventana||{}).minimo_fundamento || 40);
+  const n = t.value.trim().length;
+  e.innerHTML = n + ' caracteres' + (n < min ? ' — <span style="color:#f0938a">faltan '+(min-n)+'</span>' : ' — <span style="color:#8fe3b0">alcanza</span>');
+  t.classList.toggle('mal', n>0 && n<min);
+};
+
+REC.presentar = async function(){
+  const d = REC.evid;
+  const min = Number((d.ventana||{}).minimo_fundamento || 40);
+  const items = [];
+  let corto = null;
+  REC.marcados.forEach((_,k)=>{
+    const t = document.getElementById('rec-fund-'+k);
+    const txt = (t ? t.value : '').trim();
+    if(txt.length < min){ corto = corto || k; return; }
+    items.push({ rubrica_item_id:k, fundamento:txt });
+  });
+  if(corto){
+    aviso('El fundamento de un ítem no llega a los '+min+' caracteres. Escribí con qué hecho lo sostenés.');
+    const el = document.getElementById('rec-it-'+corto); if(el) el.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+  if(!items.length){ aviso('Marcá al menos un ítem. No se admiten reclamos generales.'); return; }
+
+  const nombres = items.map(i=>{
+    const t = (d.items||[]).concat(d.exposicion||[]).find(x=>x.rubrica_item_id===i.rubrica_item_id);
+    return t ? ('· '+t.bloque+' '+t.orden+' — '+t.descripcion) : '';
+  }).join('\n');
+  if(!confirm('Vas a presentar un reclamo contra '+items.length+' ítem(s):\n\n'+nombres+
+     '\n\nUna vez presentado no se puede modificar. ¿Confirmás?')) return;
+
+  const b = document.getElementById('rec-btn-enviar');
+  if(b){ b.disabled = true; b.textContent = 'Presentando…'; }
+  const r = await api('presentar', { carpeta_id: REC.carpeta, items, motivo: val('rec-motivo') || null });
+  if(!r.ok){
+    if(b){ b.disabled = false; b.textContent = '⚖️ PRESENTAR RECLAMO'; }
+    aviso('No se pudo presentar:\n\n'+r.error); return;
+  }
+  const a = r.datos || {};
+  aviso('✅ ' + (a.acuse || 'Reclamo presentado.') +
+        '\n\nEl Evaluador tiene plazo hasta el ' + fechaHora(a.vence_en) + ' para resolverlo.' +
+        '\nLa resolución te va a llegar con la fundamentación completa.');
+  REC.marcados = new Map();
+  recEvidencia(REC.carpeta);
+};
+
+/* =====================================================================
+   3) EL EVALUADOR — sus materias
+   ===================================================================== */
+async function recAbrirCarpetas(){
+  limpiarRelojes();
+  REC.supervisando = false;
+  showScreen('screen-rec-carpetas');
+  const c = document.getElementById('rec-carpetas-cont');
+  c.innerHTML = '<div class="rec-vacio">Cargando…</div>';
+  const r = await misCarpetas();
+  if(!r.ok){ c.innerHTML = '<div class="rec-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
+  REC.carpetas = r.carpetas || [];
+  const sup = await api('sup_carpetas', {});
+  const esSup = !!sup.ok;
+  REC.sup = esSup ? (sup.datos||{}).carpetas || [] : null;
+
+  let h = '';
+  if(!REC.carpetas.length){
+    h += '<div class="rec-vacio">No sos Evaluador de ninguna materia con evaluación sumativa.</div>';
+  } else {
+    h += REC.carpetas.map(k=>`
+      <div class="rec-card">
+        <h3>${esc(k.materia_nombre)}</h3>
+        <div class="rec-sub">${esc(k.ciclo)}º ciclo · gestión ${esc(k.gestion)} · ${esc(k.estado||'')}</div>
+        <div class="rec-row" style="margin-top:9px">
+          <button class="rec-btn" onclick="REC.bandeja('${k.id}','${esc((k.materia_nombre||'').replace(/'/g,"\\'"))}')">Abrir los reclamos</button>
+        </div>
+      </div>`).join('');
+  }
+  if(esSup){
+    h += `<div class="rec-card" style="border-color:rgba(231,76,60,.45)">
+      <h3>🛡️ Panel del Jefe de Ciencia y Tecnología</h3>
+      <div class="rec-sub">Todas las carpetas de la Escuela, la bitácora completa y la corrección de cualquier nota.</div>
+      <div class="rec-row" style="margin-top:9px">
+        <button class="rec-btn red" onclick="REC.sup_abrir()">Abrir el panel de supervisión</button>
+      </div>
+    </div>`;
+  }
+  c.innerHTML = h;
+}
+REC.abrirCarpetas = recAbrirCarpetas;
+REC.volverCarpetas = ()=> REC.supervisando ? recSupAbrir() : recAbrirCarpetas();
+
+/* El panel del profesor no es una sola pantalla: depende de su rol.
+   La Fase 1 ya resolvió a cuál volver, así que se reutiliza su camino. */
+REC.volverAlPanel = function(){
+  if(typeof eemVolverDelListado === 'function') return eemVolverDelListado();
+  const s = (typeof getSession==='function') ? getSession() : null;
+  if(s && s.tipo === 'cursante') return showScreen('screen-cursante-home');
+  const r = (quienSoy()||{}).rol || '';
+  showScreen(['disciplina','comandante','estudios','ciencia_tecnologia','jefe_sac'].includes(r)
+    ? 'screen-disc-panel' : 'screen-prof-panel');
+};
+
+/* =====================================================================
+   4) LA BANDEJA
+   ===================================================================== */
+async function recBandeja(carpeta, titulo){
+  limpiarRelojes();
+  showScreen('screen-rec-bandeja');
+  REC.carpeta = carpeta;
+  if(titulo) document.getElementById('rec-band-tit').textContent = titulo;
+  document.getElementById('rec-band-banner').innerHTML = REC.supervisando
+    ? '<div class="rec-banner">🛡️ MODO SUPERVISIÓN — estás viendo esta materia como Jefe de Ciencia y Tecnología. Todo lo que toques queda con tu nombre.</div>' : '';
+  const c = document.getElementById('rec-band-cont');
+  c.innerHTML = '<div class="rec-vacio">Cargando…</div>';
+  const r = await api('bandeja', { carpeta_id: carpeta });
+  if(!r.ok){ c.innerHTML = '<div class="rec-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
+  REC.band = r.datos; REC.rol = r.datos.rol;
+  pintarBandeja();
+}
+REC.bandeja = recBandeja;
+REC.volverBandeja = ()=> recBandeja(REC.carpeta);
+
+function pintarBandeja(){
+  const d = REC.band, c = document.getElementById('rec-band-cont');
+  const k = d.config || {};
+  document.getElementById('rec-band-sub').textContent =
+    d.abiertos + ' sin resolver' + (d.vencidos ? ' · ' + d.vencidos + ' fuera de plazo' : '');
+
+  const filas = (d.reclamos||[]).map((r,i)=>{
+    const estado = r.desenlace
+      ? ({procedente:'<span class="rec-chip ok">PROCEDENTE</span>',
+          parcial:'<span class="rec-chip warn">PARCIAL</span>',
+          improcedente:'<span class="rec-chip bad">IMPROCEDENTE</span>'})[r.desenlace]
+      : (r.vencido ? '<span class="rec-chip bad">FUERA DE PLAZO</span>'
+                   : '<span class="rec-chip warn">SIN RESOLVER</span>');
+    const plazo = r.desenlace ? esc(fechaHora(r.resuelto_en))
+      : (r.vencido ? '<span style="color:#f0938a">venció hace '+Math.abs(Number(r.horas_restantes)).toFixed(0)+' h</span>'
+                   : 'quedan <b>'+Number(r.horas_restantes).toFixed(0)+' h</b>');
+    return `<tr class="${i%2?'par':''}">
+      <td class="c"><b>${esc(r.numero)}</b></td>
+      <td>${esc(r.cursante)}<br><small style="color:#7d8aa3">${esc(r.paralelo||'')} · grupo ${esc(r.grupo_numero||'—')}</small></td>
+      <td class="c">${esc(r.items)}</td>
+      <td>${estado}</td>
+      <td>${plazo}</td>
+      <td class="c">${r.nota_antes!=null ? n2(r.nota_antes)+(r.nota_despues!=null&&r.nota_despues!==r.nota_antes?' → <b>'+n2(r.nota_despues)+'</b>':'') : '—'}</td>
+      <td class="c"><button class="rec-btn mini" onclick="REC.detalle('${esc(r.id)}')">${r.desenlace?'Ver':'Resolver'}</button></td>
+    </tr>`;
+  }).join('');
+
+  c.innerHTML = `
+    <div class="rec-card">
+      <h3>Herramientas de la materia</h3>
+      <div class="rec-row" style="margin-top:9px">
+        <button class="rec-btn sec mini" onclick="REC.config()">⏱️ Plazos (${esc(k.horas_presentar)} h / ${esc(k.horas_resolver)} h)</button>
+        <button class="rec-btn sec mini" onclick="REC.integridad()">🚦 Integridad</button>
+        <button class="rec-btn sec mini" onclick="REC.estadistica()">📊 Estadística</button>
+        <button class="rec-btn sec mini" onclick="REC.transparencia()">📄 Informe de transparencia</button>
+        <button class="rec-btn sec mini" onclick="REC.bitacoraCarpeta()">📜 Bitácora</button>
+        ${REC.supervisando ? '<button class="rec-btn red mini" onclick="REC.corregir()">✏️ Corregir una nota</button>' : ''}
+      </div>
+      ${!k.habilitado ? '<div class="rec-sub" style="margin-top:8px;color:#f0938a">⚠️ La presentación de reclamos está CERRADA en esta materia.</div>':''}
+    </div>
+
+    ${(d.reclamos||[]).length ? `
+    <div class="rec-card">
+      <h3>Reclamos presentados</h3>
+      <div class="rec-scroll"><table class="rec-tabla">
+        <thead><tr><th class="c">N°</th><th>Cursante</th><th class="c">Ítems</th><th>Estado</th>
+          <th>Plazo</th><th class="c">Nota</th><th></th></tr></thead>
+        <tbody>${filas}</tbody></table></div>
+    </div>` : '<div class="rec-vacio">Todavía no se presentó ningún reclamo en esta materia.<br><br>El reloj de cada cursante arranca cuando se publica su nota.</div>'}`;
+}
+
+/* =====================================================================
+   5) EL RECLAMO, LADO A LADO — y la resolución
+   ===================================================================== */
+async function recDetalle(id){
+  showScreen('screen-rec-detalle');
+  const c = document.getElementById('rec-det-cont');
+  c.innerHTML = '<div class="rec-vacio">Cargando…</div>';
+  const r = await api('detalle', { reclamo_id: id });
+  if(!r.ok){ c.innerHTML = '<div class="rec-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
+  REC.det = r.datos;
+  pintarDetalle();
+}
+REC.detalle = recDetalle;
+
+function pintarDetalle(){
+  const d = REC.det, c = document.getElementById('rec-det-cont'), r = d.reclamo;
+  const cerrado = !!r.desenlace;
+  document.getElementById('rec-det-tit').textContent = 'Reclamo N° ' + r.numero;
+  document.getElementById('rec-det-sub').textContent =
+    ((d.cursante.grado?d.cursante.grado+' ':'')+d.cursante.nombre) +
+    (cerrado ? ' · resuelto' : ' · sin resolver');
+
+  const evidHtml = (it) => {
+    const e = it.evidencia;
+    if(!e) return '<div class="rec-sub">Sin evidencia registrada.</div>';
+    if(Array.isArray(e)){
+      return '<table class="rec-tabla"><thead><tr><th>Jurado</th><th class="c">Nota</th><th>Observación</th></tr></thead><tbody>'+
+        e.map(j=>'<tr><td>'+esc(j.jurado||'—')+'</td><td class="c"><b>'+n2(j.nota)+'</b></td><td>'+esc(j.observacion||'—')+'</td></tr>').join('')+
+        '</tbody></table>';
+    }
+    let h = '';
+    if(e.cita) h += '<div class="rec-cita"><b>Pág. '+esc(e.pagina||'?')+(e.rotulo?' — '+esc(e.rotulo):'')+':</b> “'+esc(e.cita)+'”'+(e.palabras?' <b>('+esc(e.palabras)+' palabras)</b>':'')+'</div>';
+    else if(e.fundamento_motor) h += '<div class="rec-cita">'+esc(e.fundamento_motor)+'</div>';
+    if(e.mediciones) h += '<div class="rec-sub" style="margin-top:5px"><b>Medición:</b> '+esc(JSON.stringify(e.mediciones).slice(0,400))+'</div>';
+    if(e.hallazgos && e.hallazgos.length) h += '<div class="rec-sub" style="margin-top:5px"><b>Hallazgos:</b> '+esc(JSON.stringify(e.hallazgos).slice(0,400))+'</div>';
+    if(e.nivel) h += '<div class="rec-sub" style="margin-top:5px">Nivel: <b>'+esc(e.nivel)+'</b> · origen: '+esc(e.origen||'')+'</div>';
+    if(e.motivo_ajuste) h += '<div class="rec-cita" style="border-left-color:#d4af37"><b>Corrección previa:</b> '+esc(e.motivo_ajuste)+'</div>';
+    return h || '<div class="rec-sub">Sin evidencia registrada. ⚠️ Un ítem sin evidencia es difícil de sostener.</div>';
+  };
+
+  const items = (d.items||[]).map(it=>`
+    <div class="rec-item ${it.decision==='procedente'?'proc':(it.decision==='improcedente'?'impr':'')}">
+      <span class="rec-nota">${n2(it.valor_actual)}<small style="font-size:10px;color:#8b9ab4"> / ${esc(it.vale)}</small></span>
+      <h4>${esc(it.bloque)} ${esc(it.orden)}. ${esc(it.descripcion)}</h4>
+      <div class="rec-sub">${it.alcance==='grupal'
+        ? '<b style="color:#f0cf7a">Ítem del GRUPO</b> — si prospera, cambia la nota de los '+((d.grupo_integrantes||[]).length)+' integrantes'
+        : 'Ítem individual de la exposición — si prospera, tu nota <b>pisa el promedio del tribunal</b>'}</div>
+      <div class="rec-lado" style="margin-top:9px">
+        <div class="rec-col"><h5>Lo que reclama</h5>
+          <div class="rec-sub" style="color:#dbe5f3">${esc(it.fundamento)}</div>
+          ${it.valor_pretendido!=null?'<div class="rec-sub" style="margin-top:5px">Pide llegar a: <b>'+n2(it.valor_pretendido)+'</b></div>':''}
+        </div>
+        <div class="rec-col"><h5>La evidencia del sistema</h5>${evidHtml(it)}</div>
+      </div>
+      ${cerrado ? `<div class="rec-sub" style="margin-top:9px">
+          <b style="color:${it.decision==='procedente'?'#8fe3b0':'#f0938a'}">${esc((it.decision||'').toUpperCase())}</b> — ${esc(it.respuesta||'')}
+          ${it.valor_antes!=null?'<br>Nota del ítem: '+n2(it.valor_antes)+' → <b>'+n2(it.valor_despues)+'</b>':''}</div>`
+        : `<div style="margin-top:10px">
+          <div class="rec-row">
+            <button class="rec-btn verde mini" onclick="REC.decidir('${esc(it.rubrica_item_id)}','procedente')">Procedente</button>
+            <button class="rec-btn red mini" onclick="REC.decidir('${esc(it.rubrica_item_id)}','improcedente')">Improcedente</button>
+            <span class="rec-sub" id="rec-dec-${esc(it.rubrica_item_id)}">sin contestar</span>
+          </div>
+          <div id="rec-nuevo-${esc(it.rubrica_item_id)}" style="display:none">
+            <label class="rec-lab">Nota nueva del ítem (de 0 a ${esc(it.vale)}; tiene que ser distinta de ${n2(it.valor_actual)})</label>
+            <input class="rec-in" type="number" step="0.25" min="0" max="${esc(it.vale)}" id="rec-val-${esc(it.rubrica_item_id)}">
+          </div>
+          <label class="rec-lab">La contestación de ESTE ítem (se le copia textual al cursante)</label>
+          <textarea class="rec-in" id="rec-resp-${esc(it.rubrica_item_id)}" placeholder="Fundamentá con la evidencia que estás viendo arriba."></textarea>
+        </div>`}
+    </div>`).join('');
+
+  const afectados = (d.grupo_integrantes||[]).map(g=>
+    '<li>'+esc(g.nombre)+(g.es_el_reclamante?' <b>(el que reclama)</b>':'')+' — nota actual <b>'+n2(g.nota_actual)+'</b></li>').join('');
+
+  c.innerHTML = `
+    <div class="rec-card ${cerrado?'verde':''}">
+      <h3>RECLAMO N° ${esc(r.numero)} — ${esc(cerrado ? ({procedente:'PROCEDENTE',parcial:'PARCIALMENTE PROCEDENTE',improcedente:'IMPROCEDENTE'})[r.desenlace] : (r.vencido?'FUERA DE PLAZO':'SIN RESOLVER'))}</h3>
+      <div class="rec-sub">${esc(d.cursante.grado||'')} ${esc(d.cursante.nombre)} · ${esc(d.cursante.paralelo||'')} · grupo ${esc((d.grupo&&d.grupo.numero)||'—')}</div>
+      <div class="rec-sub" style="margin-top:5px">Presentado el ${esc(fechaHora(r.creado_en))}${r.presentado_ip?' desde '+esc(r.presentado_ip):''} · plazo para resolver: ${esc(fechaHora(r.vence_en))}</div>
+      ${r.motivo?'<div class="rec-cita">'+esc(r.motivo)+'</div>':''}
+      ${cerrado?`<div class="rec-cita" style="border-left-color:#2ecc71"><b>Resolución:</b> ${esc(r.resolucion)}</div>
+        <div class="rec-sub" style="margin-top:6px">Resuelto el ${esc(fechaHora(r.resuelto_en))} · nota ${n2(r.nota_antes)} → <b>${n2(r.nota_despues)}</b>${r.alcanzo_al_grupo?' · <b style="color:#f0cf7a">alcanzó a todo el grupo</b>':''}</div>`:''}
+      <div class="rec-row" style="margin-top:10px">
+        <button class="rec-btn sec mini" onclick="REC.expediente()">🗂️ GENERAR EXPEDIENTE</button>
+        ${cerrado?'<button class="rec-btn mini" onclick="REC.actaWord()">📄 Acta de resolución (Word)</button>':''}
+      </div>
+    </div>
+
+    ${d.hay_items_grupales ? `<div class="rec-card" style="border-color:rgba(230,180,60,.5)">
+      <h3>⚠️ Esto alcanza a todo el grupo</h3>
+      <div class="rec-sub">El trabajo escrito es uno solo. Si un ítem del 65% prospera, la nota cambia para:
+        <ul style="margin:6px 0 0;padding-left:18px">${afectados}</ul></div>
+    </div>`:''}
+
+    ${items}
+
+    ${cerrado ? '' : `
+    <div class="rec-card">
+      <h3>La resolución</h3>
+      <label class="rec-lab">Desenlace</label>
+      <select class="rec-in" id="rec-desenlace">
+        <option value="">— elegí —</option>
+        <option value="procedente">PROCEDENTE (prosperan todos los ítems)</option>
+        <option value="parcial">PARCIALMENTE PROCEDENTE (algunos sí, otros no)</option>
+        <option value="improcedente">IMPROCEDENTE (no prospera ninguno)</option>
+      </select>
+      <label class="rec-lab">Fundamentación de la resolución (obligatoria en los TRES desenlaces)</label>
+      <textarea class="rec-in" id="rec-fundamentacion" style="min-height:110px"
+        placeholder="Esto es lo que va a leer el cursante y lo que sostiene la nota si el reclamo escala."></textarea>
+      <div class="rec-row" style="margin-top:10px">
+        <button class="rec-btn" onclick="REC.resolver()">⚖️ RESOLVER EL RECLAMO</button>
+      </div>
+      <div class="rec-sub" style="margin-top:7px">La resolución no se puede reescribir. La nota se reconsolida sola y queda publicada.</div>
+    </div>`}`;
+
+  (d.items||[]).forEach(it=>{ if(REC.decisiones && REC.decisiones[it.rubrica_item_id]) REC.decidir(it.rubrica_item_id, REC.decisiones[it.rubrica_item_id], true); });
+}
+
+REC.decisiones = {};
+REC.decidir = function(item, cual, silencioso){
+  REC.decisiones[item] = cual;
+  const e = document.getElementById('rec-dec-'+item);
+  const n = document.getElementById('rec-nuevo-'+item);
+  if(e) e.innerHTML = cual==='procedente'
+    ? '<b style="color:#8fe3b0">PROCEDENTE</b>' : '<b style="color:#f0938a">IMPROCEDENTE</b>';
+  if(n) n.style.display = (cual==='procedente') ? 'block' : 'none';
+};
+
+REC.resolver = async function(){
+  const d = REC.det, des = val('rec-desenlace'), fund = val('rec-fundamentacion').trim();
+  if(!des){ aviso('Elegí el desenlace.'); return; }
+  if(fund.length < 20){ aviso('Los tres desenlaces exigen fundamentación escrita (al menos 20 caracteres).'); return; }
+
+  const items = [];
+  for(const it of (d.items||[])){
+    const dec = REC.decisiones[it.rubrica_item_id];
+    if(!dec){ aviso('Falta contestar el ítem '+it.bloque+' '+it.orden+'. Cada ítem se contesta por separado.'); return; }
+    const resp = val('rec-resp-'+it.rubrica_item_id).trim();
+    if(resp.length < 10){ aviso('Falta la contestación escrita del ítem '+it.bloque+' '+it.orden+'.'); return; }
+    const fila = { rubrica_item_id: it.rubrica_item_id, decision: dec, respuesta: resp };
+    if(dec === 'procedente'){
+      const v = val('rec-val-'+it.rubrica_item_id);
+      if(v === ''){ aviso('El ítem '+it.bloque+' '+it.orden+' prospera: falta la nota nueva.'); return; }
+      fila.valor_nuevo = String(v);
+    }
+    items.push(fila);
+  }
+
+  const proc = items.filter(i=>i.decision==='procedente').length;
+  const grupal = (d.items||[]).some(it=>it.alcance==='grupal' && REC.decisiones[it.rubrica_item_id]==='procedente');
+  let texto = 'Vas a resolver el reclamo N° '+d.reclamo.numero+' como '+des.toUpperCase()+
+              '.\n\nÍtems que prosperan: '+proc+' de '+items.length+'.';
+  if(grupal) texto += '\n\n⚠️ Al menos un ítem es del TRABAJO: la corrección le cambia la nota a los '+
+              ((d.grupo_integrantes||[]).length)+' integrantes del grupo, no sólo al que reclamó.';
+  texto += '\n\nUna resolución no se puede reescribir. ¿Confirmás?';
+  if(!confirm(texto)) return;
+
+  const r = await api('resolver', { reclamo_id: d.reclamo.id, desenlace: des,
+                                    fundamentacion: fund, items });
+  if(!r.ok){ aviso('No se pudo resolver:\n\n'+r.error); return; }
+  const x = r.datos || {};
+  let msg = '✅ Reclamo N° '+x.numero+' resuelto como '+String(x.desenlace).toUpperCase()+'.';
+  if(x.nota_antes != null) msg += '\n\nNota del reclamante: '+n2(x.nota_antes)+' → '+n2(x.nota_despues)+'.';
+  if(x.alcanzo_al_grupo && (x.afectados||[]).length){
+    msg += '\n\nQuedaron así los del grupo:\n' + (x.afectados||[]).map(a=>'· '+a.nombre+': '+n2(a.nota)).join('\n');
+  }
+  msg += '\n\nYa podés generar el acta de resolución en Word.';
+  aviso(msg);
+  REC.decisiones = {};
+  recDetalle(d.reclamo.id);
+};
+
+/* ── El acta de resolución, en el formato de INFORME de la Escuela ─────── */
+REC.actaWord = async function(){
+  const r = await api('acta_reclamo', { reclamo_id: REC.det.reclamo.id });
+  if(!r.ok){ aviso('No se pudo armar el acta:\n\n'+r.error); return; }
+  const a = r.datos;
+  const cur = (a.cursante.grado?a.cursante.grado+' ':'')+a.cursante.nombre;
+  const cuerpo = [];
+
+  cuerpo.push('ANTECEDENTES.- El '+fechaHora(a.reclamo.presentado_en)+' el '+cur+
+    ', integrante del grupo '+((a.grupo&&a.grupo.numero)||'—')+' de la materia '+a.carpeta.materia+
+    ' ('+(a.carpeta.ciclo_texto||'')+', gestión '+a.carpeta.gestion+'), presentó el RECLAMO N° '+
+    a.reclamo.numero+' contra '+(a.items||[]).length+' ítem(s) de su calificación, con la nota final de '+
+    n2(a.reclamo.nota_antes)+' publicada.');
+
+  (a.items||[]).forEach((it,i)=>{
+    cuerpo.push('ÍTEM RECLAMADO N° '+(i+1)+' — '+it.bloque+' '+it.orden+': "'+it.descripcion+
+      '" (vale '+it.vale+' puntos).\n\nLo expuesto por el cursante: '+it.fundamento+
+      '\n\nResolución de este ítem: '+String(it.decision||'').toUpperCase()+'. '+(it.respuesta||'')+
+      (it.valor_antes!=null ? '\n\nCalificación del ítem: de '+n2(it.valor_antes)+' a '+n2(it.valor_despues)+
+        ' puntos'+(it.cambio!=null && Number(it.cambio)!==0 ? ' ('+(Number(it.cambio)>0?'+':'')+n2(it.cambio)+')' : ' (sin variación)')+'.' : ''));
+  });
+
+  cuerpo.push('FUNDAMENTACIÓN DE LA RESOLUCIÓN.- '+(a.reclamo.resolucion||''));
+
+  let efecto = 'EFECTO EN LA CALIFICACIÓN.- La nota final del '+cur+' pasa de '+
+    n2(a.reclamo.nota_antes)+' a '+n2(a.reclamo.nota_despues)+' puntos sobre 100.';
+  if(a.reclamo.alcanzo_al_grupo && (a.alcanzados||[]).length){
+    efecto += ' Por tratarse de ítems del trabajo escrito, que es de autoría grupal, la corrección alcanza también a: '+
+      (a.alcanzados||[]).map(x=>x.nombre+' ('+n2(x.nota)+')').join('; ')+'.';
+  }
+  cuerpo.push(efecto);
+  cuerpo.push('El presente documento se emite en cumplimiento del procedimiento de reclamos de la Evaluación Sumativa, '+
+    'y queda registrado en la bitácora de auditoría del sistema junto con la evidencia de cada ítem calificado.');
+
+  const d = {
+    destinatario_nombre: cur,
+    destinatario_cargo: 'OFICIAL SUPERIOR CURSANTE — '+(a.cursante.paralelo||'')+(a.cursante.mencion?' · '+a.cursante.mencion:''),
+    del: firmaDe(a.firmas.evaluador) ? (a.firmas.evaluador.cargo+' — '+firmaDe(a.firmas.evaluador)) : 'Evaluador de la materia.',
+    objeto: 'RESOLUCIÓN DEL RECLAMO N° '+a.reclamo.numero+' — '+a.reclamo.desenlace_texto+'.',
+    lugar_fecha: a.lugar_fecha,
+    saludo: 'Señor Oficial Superior Cursante:',
+    intro: 'En atención al reclamo presentado contra la calificación de la Evaluación Sumativa de la materia '+
+           a.carpeta.materia+', y habiéndose revisado la evidencia registrada para cada ítem objetado, '+
+           'se resuelve declararlo '+a.reclamo.desenlace_texto+', conforme al siguiente detalle:',
+    cuerpo: cuerpo,
+    cierre: 'Es cuanto se resuelve, quedando a salvo el derecho del cursante de elevar la presente resolución a conocimiento del Jefe de Ciencia y Tecnología.',
+    firma_nombre: firmaDe(a.firmas.evaluador) || '',
+    firma_grado: a.firmas.evaluador.cargo || 'EVALUADOR DE LA MATERIA'
+  };
+  informeWord(d, 'RESOLUCION RECLAMO '+a.reclamo.numero+' - '+a.cursante.nombre);
+};
+
+/* ── El expediente de la Fase 5, con un clic ──────────────────────────── */
+REC.expediente = async function(){
+  const d = REC.det;
+  const r = await api('expediente', { carpeta_id: d.carpeta_id, cursante_id: d.cursante.id });
+  if(!r.ok){ aviso('No se pudo armar el expediente:\n\n'+r.error); return; }
+  const e = r.datos;
+  const w = window.open('', '_blank');
+  if(!w){ aviso('El navegador bloqueó la ventana. Habilitá las ventanas emergentes.'); return; }
+  const fila = (a,b)=>'<tr><td style="width:34%"><b>'+esc(a)+'</b></td><td>'+(b==null?'—':esc(String(b)))+'</td></tr>';
+  const itemsExp = (e.items||[]).map(i=>'<tr><td>'+esc(i.bloque)+' '+esc(i.orden)+'</td><td>'+esc(i.descripcion)+
+    '</td><td style="text-align:center">'+n2(i.nota)+' / '+esc(i.valor_pct)+'</td><td>'+esc(i.origen)+
+    '</td><td>'+esc((i.evidencia&&(i.evidencia.motor&&i.evidencia.motor.cita))||(i.evidencia&&i.evidencia.nivel)||'—').slice(0,300)+'</td></tr>').join('');
+  const trib = (e.tribunal||[]).map(t=>'<tr><td>'+esc(t.jurado||t.profesor_id)+'</td><td>'+esc(t.descripcion)+
+    '</td><td style="text-align:center">'+n2(t.nota)+'</td><td>'+esc(t.observacion||'—')+'</td></tr>').join('');
+  const aud = (e.auditoria||[]).slice(0,60).map(x=>'<tr><td>'+esc(fechaHora(x.cuando))+'</td><td>'+esc(x.tabla)+
+    '</td><td>'+esc(x.operacion)+'</td><td>'+esc(x.actor||'')+'</td><td>'+esc(x.motivo||'')+'</td></tr>').join('');
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Expediente — ${esc(e.cursante.nombre)}</title>
+    <style>@page{size:letter;margin:2cm 2cm 2cm 3cm}
+      body{font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#000}
+      h1{font-size:16px;text-align:center;margin:0 0 4px} h2{font-size:12px;margin:14px 0 4px;border-bottom:1px solid #000}
+      table{width:100%;border-collapse:collapse;margin:4px 0 8px} td,th{border:1px solid #777;padding:3px 4px;vertical-align:top}
+      th{background:#eee;text-align:left} .c{text-align:center}</style></head><body>
+    <h1>EXPEDIENTE DE EVALUACIÓN</h1>
+    <div class="c">${esc(e.carpeta.materia)} · ${esc(e.fecha_texto||'')}</div>
+    <h2>1. El cursante</h2><table>
+      ${fila('Nombre',(e.cursante.grado?e.cursante.grado+' ':'')+e.cursante.nombre)}
+      ${fila('C.I.',e.cursante.ci)}${fila('Paralelo',e.cursante.paralelo)}
+      ${fila('Grupo',(e.grupo&&(e.grupo.numero+' — '+(e.grupo.tema||'')))||'—')}</table>
+    <h2>2. El archivo entregado</h2><table>
+      ${fila('Archivo',e.entrega&&e.entrega.archivo)}
+      ${fila('Huella SHA-256',e.entrega&&e.entrega.sha256)}
+      ${fila('Entregado',e.entrega&&fechaHora(e.entrega.entregado_en))}
+      ${fila('Fuera de plazo',e.entrega&&(e.entrega.fuera_de_plazo?'SÍ ('+e.entrega.retraso_minutos+' min)':'no'))}</table>
+    <h2>3. Los ítems del trabajo escrito, con su evidencia</h2>
+    <table><thead><tr><th>Ítem</th><th>Descripción</th><th class="c">Nota</th><th>Origen</th><th>Evidencia</th></tr></thead><tbody>${itemsExp}</tbody></table>
+    <h2>4. La exposición, jurado por jurado</h2>
+    <table><thead><tr><th>Jurado</th><th>Ítem</th><th class="c">Nota</th><th>Observación</th></tr></thead><tbody>${trib||'<tr><td colspan="4">Sin calificaciones.</td></tr>'}</tbody></table>
+    <h2>5. La nota, con su fórmula</h2><table>
+      ${fila('Forma 20%',n2(e.notas&&e.notas.forma_20))}${fila('Fondo 45%',n2(e.notas&&e.notas.fondo_45))}
+      ${fila('Texto 65% bruto',n2(e.notas&&e.notas.texto_65_bruta))}${fila('Texto 65% final',n2(e.notas&&e.notas.texto_65_final))}
+      ${fila('Exposición 35% bruta',n2(e.notas&&e.notas.expo_35_bruta))}${fila('Exposición 35% final',n2(e.notas&&e.notas.expo_35_final))}
+      ${fila('FINAL bruta',n2(e.notas&&e.notas.final_100_bruta))}${fila('FINAL',n2(e.notas&&e.notas.final_100_final))}
+      ${fila('Jurados contados',e.notas&&e.notas.jurados_contados)}
+      ${fila('Publicada',e.notas&&(e.notas.publicada?fechaHora(e.notas.publicada_en):'no'))}
+      ${(e.bandas||[]).map(b=>fila('Banda '+b.aplicar_a,b.formula)).join('')}</table>
+    <h2>6. La bitácora de este cursante</h2>
+    <table><thead><tr><th>Cuándo</th><th>Tabla</th><th>Operación</th><th>Quién</th><th>Motivo</th></tr></thead><tbody>${aud||'<tr><td colspan="5">—</td></tr>'}</tbody></table>
+    <script>setTimeout(function(){window.print();},400);<\/script></body></html>`);
+  w.document.close();
+};
+
+/* =====================================================================
+   6) LOS PLAZOS
+   ===================================================================== */
+REC.config = async function(){
+  showScreen('screen-rec-config');
+  const c = document.getElementById('rec-cfg-cont');
+  c.innerHTML = '<div class="rec-vacio">Cargando…</div>';
+  const r = await api('config', { carpeta_id: REC.carpeta });
+  if(!r.ok){ c.innerHTML = '<div class="rec-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
+  const k = r.datos;
+  c.innerHTML = `
+    <div class="rec-card">
+      <h3>Cuánto tiempo tiene cada uno</h3>
+      <div class="rec-sub">El reloj del cursante arranca cuando <b>se publica su nota</b>, no antes.
+        El del Evaluador arranca cuando se presenta el reclamo.</div>
+      <label class="rec-lab">Horas que tiene el cursante para reclamar (desde la publicación)</label>
+      <input class="rec-in" type="number" min="1" max="720" id="rec-cfg-pres" value="${esc(k.horas_presentar)}">
+      <label class="rec-lab">Horas que tiene el Evaluador para resolver</label>
+      <input class="rec-in" type="number" min="1" max="2160" id="rec-cfg-res" value="${esc(k.horas_resolver)}">
+      <label class="rec-lab">Mínimo de caracteres del fundamento de cada ítem</label>
+      <input class="rec-in" type="number" min="0" max="2000" id="rec-cfg-min" value="${esc(k.minimo_fundamento)}">
+      <label class="rec-lab">¿Se admiten reclamos en esta materia?</label>
+      <select class="rec-in" id="rec-cfg-hab">
+        <option value="1" ${k.habilitado?'selected':''}>Sí, la ventana está abierta</option>
+        <option value="0" ${k.habilitado?'':'selected'}>No, la presentación está cerrada</option>
+      </select>
+      <label class="rec-lab">Instrucciones para el cursante (opcional)</label>
+      <textarea class="rec-in" id="rec-cfg-txt" placeholder="Se le muestran antes de reclamar.">${esc(k.instrucciones||'')}</textarea>
+      <div class="rec-row" style="margin-top:11px">
+        <button class="rec-btn" onclick="REC.guardarConfig()">Guardar los plazos</button>
+      </div>
+      <div class="rec-sub" style="margin-top:8px">
+        ${k.configurada ? 'Última modificación: '+esc(fechaHora(k.actualizado_en))+' por '+esc(k.actualizado_por||'—')
+          : 'Todavía no se configuró: rigen los valores de fábrica (24 h para reclamar, 72 h para resolver).'}</div>
+    </div>`;
+};
+
+REC.guardarConfig = async function(){
+  const datos = {
+    horas_presentar: Number(val('rec-cfg-pres')),
+    horas_resolver: Number(val('rec-cfg-res')),
+    minimo_fundamento: Number(val('rec-cfg-min')),
+    habilitado: val('rec-cfg-hab') === '1',
+    instrucciones: val('rec-cfg-txt')
+  };
+  if(!(datos.horas_presentar >= 1) || !(datos.horas_resolver >= 1)){ aviso('Los plazos van en horas, mínimo 1.'); return; }
+  const r = await api('config_guardar', { carpeta_id: REC.carpeta, datos });
+  if(!r.ok){ aviso('No se pudo guardar:\n\n'+r.error); return; }
+  aviso('✅ Plazos guardados: '+datos.horas_presentar+' h para reclamar y '+datos.horas_resolver+' h para resolver.');
+  recBandeja(REC.carpeta);
+};
+
+/* =====================================================================
+   7) EL TABLERO DE INTEGRIDAD
+   ===================================================================== */
+REC.integridad = async function(){
+  showScreen('screen-rec-integridad');
+  const c = document.getElementById('rec-int-cont');
+  c.innerHTML = '<div class="rec-vacio">Revisando…</div>';
+  const r = await api('integridad', { carpeta_id: REC.carpeta });
+  if(!r.ok){ c.innerHTML = '<div class="rec-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
+  const d = r.datos; REC.integ = d;
+  document.getElementById('rec-int-sub').textContent = d.materia + ' · ' + d.alertas + ' alerta(s)';
+
+  const bloque = (titulo, obj, pinta, ayuda) => {
+    const mal = obj && obj.alerta;
+    return `<div class="rec-card ${mal?'roja':'verde'}">
+      <h3>${mal?'🔴':'🟢'} ${esc(titulo)}${obj&&obj.cuantos!=null?' — '+esc(obj.cuantos):''}</h3>
+      <div class="rec-sub">${ayuda}</div>
+      ${mal && obj.detalle && obj.detalle.length ? '<div class="rec-scroll" style="margin-top:8px">'+pinta(obj.detalle)+'</div>' : ''}
+    </div>`;
+  };
+  const tabla = (cab, filas) => '<table class="rec-tabla"><thead><tr>'+cab.map(x=>'<th>'+esc(x)+'</th>').join('')+
+    '</tr></thead><tbody>'+filas+'</tbody></table>';
+
+  c.innerHTML =
+    bloque('Mezcla de versiones', {alerta:d.versiones.alerta, cuantos:null,
+        detalle:[].concat(d.versiones.forma||[], d.versiones.fondo||[])},
+      (x)=>'<ul class="rec-sub" style="padding-left:16px">'+x.map(v=>'<li>'+esc(v)+'</li>').join('')+'</ul>',
+      'Todos los trabajos de la carpeta tienen que haberse medido con el MISMO motor, el mismo prompt y la misma rúbrica. Si hay mezcla, dos trabajos iguales pudieron sacar notas distintas.')
+
+  + bloque('Ítems calificados sin evidencia', d.integridad_vacia || d.evidencia_vacia,
+      (x)=>tabla(['Cursante','Ítem','Descripción','Origen','Nota'],
+        x.map(i=>'<tr><td>'+esc(i.cursante_id)+'</td><td>'+esc(i.bloque)+' '+esc(i.orden)+'</td><td>'+esc(i.descripcion)+'</td><td>'+esc(i.origen)+'</td><td class="c">'+n2(i.nota)+'</td></tr>').join('')),
+      'Una nota sin evidencia no se puede sostener en un reclamo: no hay con qué contestar.')
+
+  + bloque('Dispersión alta sin resolver', d.dispersion_sin_resolver,
+      (x)=>tabla(['Grupo','Dispersión','Pasadas'],
+        x.map(i=>'<tr><td>'+esc(i.grupo)+'</td><td>'+esc(i.dispersion_max)+'</td><td>'+esc(i.pasadas)+'</td></tr>').join('')),
+      'Trabajos donde la revisión quedó marcada para revisión humana y todavía nadie la confirmó.')
+
+  + bloque('Bandas de nota', d.bandas,
+      (x)=>tabla(['Aplica a','Modo','Rango','Fijada','Por','Aviso'],
+        x.map(b=>'<tr><td>'+esc(b.aplicar_a)+'</td><td>'+esc(b.modo)+'</td><td>'+esc(b.minima)+' – '+esc(b.maxima)+
+          '</td><td>'+esc(fechaHora(b.fijada_en))+'</td><td>'+esc(b.fijada_por||'—')+'</td><td>'+
+          (b.fijada_con_notas_ya_publicadas?'<b style="color:#f0938a">cambiada con notas YA PUBLICADAS</b>':
+           (b.fijada_con_calificaciones_ya_hechas?'<span style="color:#f0cf7a">fijada con la evaluación ya empezada</span>':'—'))+
+          '</td></tr>').join('')),
+      'Una banda fijada después de empezar a calificar —o peor, con notas ya publicadas— es lo primero que se cuestiona.')
+
+  + bloque('Empates por el modo truncado', d.empates,
+      (x)=>tabla(['Aplica a','Modo','Empates','Notas distintas antes','Después'],
+        x.map(b=>'<tr><td>'+esc(b.aplicar_a)+'</td><td>'+esc(b.modo)+'</td><td class="c"><b>'+esc(b.empates)+'</b></td><td class="c">'+esc(b.distintas_antes)+'</td><td class="c">'+esc(b.distintas_despues)+'</td></tr>').join('')),
+      'El modo truncado aplasta en un mismo valor a todos los que quedan fuera de la banda. Cada empate es antigüedad que se pierde.')
+
+  + bloque('Reclamos fuera de plazo de resolución', d.reclamos_vencidos,
+      (x)=>tabla(['N°','Cursante','Presentado','Vencía','Atraso'],
+        x.map(i=>'<tr><td class="c">'+esc(i.numero)+'</td><td>'+esc(i.cursante)+'</td><td>'+esc(fechaHora(i.creado_en))+
+          '</td><td>'+esc(fechaHora(i.vence_en))+'</td><td><b style="color:#f0938a">'+esc(i.horas_vencido)+' h</b></td></tr>').join('')),
+      'El sistema no cierra ningún reclamo solo: acá queda a la vista quién no contestó a tiempo.')
+
+  + bloque('Discrepancias del tribunal', d.discrepancias_tribunal,
+      (x)=>tabla(['Cursante','Más alta','Más baja','Diferencia','Jurados'],
+        x.map(i=>'<tr><td>'+esc(i.cursante)+'</td><td class="c">'+n2(i.mas_alta)+'</td><td class="c">'+n2(i.mas_baja)+
+          '</td><td class="c"><b>'+n2(i.diferencia)+'</b></td><td class="c">'+esc(i.jurados)+'</td></tr>').join('')),
+      'Diferencias de más del 20% del tope del 35% entre dos jurados de la misma mesa. No es un error, pero hay que poder explicarlo.')
+
+  + `<div class="rec-card">
+      <h3>✏️ Notas ajustadas a mano — ${esc((d.ajustes_manuales||{}).cuantos||0)}</h3>
+      <div class="rec-sub">No es una falta: es lo que hay que poder mostrar. Cada una con quién la tocó y por qué.</div>
+      ${((d.ajustes_manuales||{}).detalle||[]).length ? '<div class="rec-scroll" style="margin-top:8px">'+
+        tabla(['Cursante','Ítem','Nota','Quién','Motivo','Cuándo'],
+          (d.ajustes_manuales.detalle||[]).map(a=>'<tr><td>'+esc(a.cursante)+'</td><td>'+esc(a.bloque)+' '+esc(a.orden)+
+            '</td><td class="c">'+n2(a.nota)+'</td><td>'+esc(a.por||'—')+'</td><td>'+esc(a.motivo||'—')+
+            '</td><td>'+esc(fechaHora(a.cuando))+'</td></tr>').join(''))+'</div>' : ''}
+    </div>`;
+};
+
+/* =====================================================================
+   8) ESTADISTICA
+   ===================================================================== */
+REC.estadistica = async function(){
+  showScreen('screen-rec-estad');
+  const c = document.getElementById('rec-est-cont');
+  c.innerHTML = '<div class="rec-vacio">Calculando…</div>';
+  const r = await api('estadistica', { carpeta_id: REC.carpeta });
+  if(!r.ok){ c.innerHTML = '<div class="rec-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
+  const d = r.datos; REC.estad = d;
+  document.getElementById('rec-est-sub').textContent = d.materia;
+  const s = d.resumen || {};
+  if(!s.cuantos){
+    c.innerHTML = '<div class="rec-vacio">Todavía no hay ninguna nota consolidada en esta materia.</div>'; return;
+  }
+  const maxi = Math.max(1, ...(d.histograma||[]).map(h=>Number(h.cuantos)));
+  c.innerHTML = `
+    <div class="rec-card">
+      <h3>Distribución de la nota final</h3>
+      <div class="rec-row" style="margin:8px 0">
+        <span class="rec-chip">Notas: <b>${esc(s.cuantos)}</b></span>
+        <span class="rec-chip">Media: <b>${n2(s.media)}</b></span>
+        <span class="rec-chip">Mediana: <b>${n2(s.mediana)}</b></span>
+        <span class="rec-chip">Desviación: <b>${n2(s.desviacion)}</b></span>
+        <span class="rec-chip">Mínima: <b>${n2(s.minima)}</b></span>
+        <span class="rec-chip">Máxima: <b>${n2(s.maxima)}</b></span>
+        <span class="rec-chip ok">≥ 61: <b>${esc(s.aprobados_61)}</b></span>
+        <span class="rec-chip ${Number(s.distintas)<Number(s.cuantos)?'warn':'ok'}">Notas distintas: <b>${esc(s.distintas)}</b> de ${esc(s.cuantos)}</span>
+      </div>
+      <div class="rec-hist">${(d.histograma||[]).map(h=>
+        '<div style="height:'+Math.round(100*Number(h.cuantos)/maxi)+'%"><span>'+esc(h.cuantos)+'</span></div>').join('')}</div>
+      <div class="rec-hist-pie">${(d.histograma||[]).map(h=>'<div>'+esc(h.desde)+'</div>').join('')}</div>
+      ${Number(s.distintas)<Number(s.cuantos) ? '<div class="rec-sub" style="margin-top:8px;color:#f0cf7a">⚠️ Hay notas repetidas: cada repetición es un empate en la antigüedad.</div>':''}
+    </div>
+
+    <div class="rec-card">
+      <h3>Comparación entre paralelos</h3>
+      <div class="rec-scroll"><table class="rec-tabla">
+        <thead><tr><th>Paralelo</th><th class="c">Cuántos</th><th class="c">Media</th><th class="c">Mediana</th><th class="c">Desv.</th><th class="c">Mín</th><th class="c">Máx</th></tr></thead>
+        <tbody>${(d.paralelos||[]).map((p,i)=>'<tr class="'+(i%2?'par':'')+'"><td>'+esc(p.paralelo)+'</td><td class="c">'+esc(p.cuantos)+
+          '</td><td class="c"><b>'+n2(p.media)+'</b></td><td class="c">'+n2(p.mediana)+'</td><td class="c">'+n2(p.desviacion)+
+          '</td><td class="c">'+n2(p.minima)+'</td><td class="c">'+n2(p.maxima)+'</td></tr>').join('')}</tbody></table></div>
+    </div>
+
+    <div class="rec-card">
+      <h3>Los ítems con peor rendimiento</h3>
+      <div class="rec-sub">Sirven para corregir la enseñanza, no sólo la nota.</div>
+      <div class="rec-scroll" style="margin-top:8px"><table class="rec-tabla">
+        <thead><tr><th>Ítem</th><th>Descripción</th><th class="c">Promedio</th><th class="c">Logro</th><th class="c">En cero</th></tr></thead>
+        <tbody>${(d.items_peor_rendimiento||[]).slice(0,12).map((it,i)=>'<tr class="'+(i%2?'par':'')+'"><td>'+esc(it.bloque)+' '+esc(it.orden)+
+          '</td><td>'+esc(it.descripcion)+'</td><td class="c">'+n2(it.promedio)+' / '+esc(it.vale)+
+          '</td><td class="c"><b>'+n2(it.logro_pct)+'%</b></td><td class="c">'+esc(it.en_cero)+'</td></tr>').join('')}</tbody></table></div>
+    </div>
+
+    <div class="rec-card">
+      <h3>Texto contra exposición</h3>
+      <div class="rec-row" style="margin:8px 0">
+        <span class="rec-chip">Correlación: <b>${d.correlacion_texto_exposicion==null?'—':Number(d.correlacion_texto_exposicion).toFixed(3)}</b></span>
+      </div>
+      <div class="rec-sub">${esc(d.correlacion_lectura||'')}</div>
+    </div>
+
+    <div class="rec-card">
+      <h3>Tiempo y costo</h3>
+      <div class="rec-sub">De la entrega a la revisión automática: <b>${d.minutos_entrega_a_revision==null?'—':esc(d.minutos_entrega_a_revision)+' minutos</b> en promedio'}<br>
+        Costo de IA por trabajo: <b style="color:#8fe3b0">0 Bs.</b><br>${esc(d.costo_ia_nota||'')}</div>
+    </div>`;
+};
+
+/* =====================================================================
+   9) EL INFORME DE TRANSPARENCIA — el papel para el Consejo Académico
+   ===================================================================== */
+REC.transparencia = async function(){
+  const r = await api('transparencia', { carpeta_id: REC.carpeta });
+  if(!r.ok){ aviso('No se pudo armar el informe:\n\n'+r.error); return; }
+  const d = r.datos, p = d.poblacion||{}, e = (d.estadistica||{}).resumen||{}, g = d.integridad||{};
+  const cuerpo = [];
+
+  cuerpo.push('OBJETO Y ALCANCE.- El presente informe da cuenta de cómo se calificó la Evaluación Sumativa de la materia '+
+    d.carpeta.materia+' ('+(d.carpeta.ciclo_texto||'')+', gestión '+d.carpeta.gestion+'), con qué criterio, '+
+    'cuántas correcciones hubo y por qué, para que la evaluación pueda ser revisada en su conjunto.');
+
+  cuerpo.push('EL CRITERIO ESTUVO CONGELADO ANTES DE CALIFICAR.- Se aplicó la rúbrica versión '+d.rubrica.version+
+    ', en estado '+(d.rubrica.estado||'')+(d.rubrica.congelada_en?' desde el '+fechaHora(d.rubrica.congelada_en):'')+
+    '. Se compone de: '+(d.rubrica.bloques||[]).map(b=>b.bloque+' ('+b.items+' ítems, '+b.peso+' puntos)').join('; ')+
+    '. Una rúbrica congelada no se puede modificar: para cambiarla hay que clonarla en una versión nueva.');
+
+  cuerpo.push('POBLACIÓN EVALUADA.- '+p.cursantes+' cursantes en '+p.grupos+' grupos. Entregas vigentes: '+
+    p.entregas+(p.fuera_de_plazo?' ('+p.fuera_de_plazo+' fuera de plazo)':'')+'. Notas consolidadas: '+
+    p.consolidadas+'. Notas publicadas: '+p.publicadas+'.');
+
+  cuerpo.push('EL TRIBUNAL.- '+(d.tribunal.jurados||0)+' jurados designados en '+(d.tribunal.mesas||0)+
+    ' mesa(s)'+((d.tribunal.excluidos||0)?', con '+d.tribunal.excluidos+' jurado(s) apartado(s), cuyas calificaciones se excluyeron sin borrarse':'')+
+    '. El 35% individual sale del promedio de los jurados que cerraron su calificación, y nunca con menos de tres.');
+
+  cuerpo.push('BANDAS DE NOTA.- '+((d.bandas||[]).length
+    ? (d.bandas||[]).map(b=>b.aplicar_a+': '+(b.activa?'ACTIVA':'inactiva')+', modo '+b.modo+', rango '+b.minima+' a '+b.maxima+
+        ', fijada el '+fechaHora(b.fijada_en)+(b.fijada_por?' por '+b.fijada_por:'')).join('; ')
+    : 'no se aplicó ninguna banda: la nota es la suma directa de los ítems.'));
+
+  cuerpo.push('RESULTADOS.- '+(e.cuantos||0)+' notas consolidadas. Media '+n2(e.media)+', mediana '+n2(e.mediana)+
+    ', desviación estándar '+n2(e.desviacion)+', mínima '+n2(e.minima)+' y máxima '+n2(e.maxima)+
+    '. Notas distintas: '+(e.distintas||0)+' sobre '+(e.cuantos||0)+
+    ((e.distintas||0) < (e.cuantos||0) ? ' — las repeticiones producen empates en la antigüedad.' : '.'));
+
+  cuerpo.push('CORRECCIONES MANUALES.- Se registraron '+((d.ajustes_manuales||{}).cuantos||0)+
+    ' calificaciones ajustadas a mano'+(((d.ajustes_manuales||{}).por_quien||[]).length
+      ? ', por: '+((d.ajustes_manuales||{}).por_quien||[]).join('; ') : '')+
+    '. Toda corrección exige motivo escrito: el sistema rechaza un ajuste sin fundamento.');
+
+  const rc = d.reclamos||{};
+  cuerpo.push('RECLAMOS.- Se presentaron '+(rc.presentados||0)+' reclamos: '+(rc.procedentes||0)+' procedentes, '+
+    (rc.parciales||0)+' parcialmente procedentes, '+(rc.improcedentes||0)+' improcedentes y '+(rc.sin_resolver||0)+
+    ' sin resolver'+((rc.fuera_de_plazo||0)?', de los cuales '+rc.fuera_de_plazo+' están fuera del plazo de resolución':'')+
+    '. Cada reclamo se presenta contra ítems concretos y se contesta ítem por ítem, con fundamentación escrita en los tres desenlaces.');
+
+  const alertas = [];
+  if(g.versiones && g.versiones.alerta) alertas.push('hay mezcla de versiones de motor, prompt o rúbrica');
+  if(g.evidencia_vacia && g.evidencia_vacia.alerta) alertas.push(g.evidencia_vacia.cuantos+' ítem(s) calificados sin evidencia');
+  if(g.dispersion_sin_resolver && g.dispersion_sin_resolver.alerta) alertas.push(g.dispersion_sin_resolver.cuantos+' trabajo(s) con dispersión sin resolver');
+  if(g.bandas && g.bandas.alerta) alertas.push('hay bandas fijadas o cambiadas fuera de tiempo');
+  if(g.empates && g.empates.alerta) alertas.push(g.empates.cuantos+' empate(s) producidos por el modo truncado');
+  if(g.reclamos_vencidos && g.reclamos_vencidos.alerta) alertas.push(g.reclamos_vencidos.cuantos+' reclamo(s) fuera de plazo de resolución');
+  if(g.discrepancias_tribunal && g.discrepancias_tribunal.alerta) alertas.push(g.discrepancias_tribunal.cuantos+' discrepancia(s) significativa(s) del tribunal');
+  cuerpo.push('TABLERO DE INTEGRIDAD.- '+(alertas.length
+    ? 'El sistema señala: '+alertas.join('; ')+'. Cada punto está detallado en el tablero de integridad del módulo.'
+    : 'El sistema no señala ninguna alerta: sin mezcla de versiones, sin ítems sin evidencia, sin bandas fijadas fuera de tiempo, sin empates por truncado, sin reclamos vencidos y sin discrepancias significativas del tribunal.'));
+
+  cuerpo.push('TRAZABILIDAD.- Cada entrega quedó registrada con su huella SHA-256, cada ítem con la evidencia con la que se calificó '+
+    '—la cita textual del trabajo y la página—, y cada modificación con su autor, su motivo, su dirección IP y su hora. '+
+    'La bitácora de auditoría no admite borrado ni modificación, ni siquiera desde el propio sistema. '+
+    'La evaluación no empleó inteligencia artificial de pago: el fondo se localiza con un motor determinista y los documentos se arman en el navegador.');
+
+  const d2 = {
+    destinatario_nombre: 'SEÑOR PRESIDENTE DEL CONSEJO ACADÉMICO',
+    destinatario_cargo: 'ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO',
+    del: firmaDe(d.firmas.evaluador) ? (d.firmas.evaluador.cargo+' — '+firmaDe(d.firmas.evaluador)) : 'Evaluador de la materia.',
+    objeto: 'INFORME DE TRANSPARENCIA DE LA EVALUACIÓN SUMATIVA — '+d.carpeta.materia+'.',
+    lugar_fecha: d.lugar_fecha,
+    saludo: 'Señor Presidente:',
+    intro: 'En cumplimiento a normas y procedimientos establecidos, elevo para conocimiento y consideración de su Autoridad '+
+           'el presente informe sobre la forma en que se calificó la Evaluación Sumativa de la materia de referencia, '+
+           'de acuerdo al siguiente detalle:',
+    cuerpo: cuerpo,
+    cierre: 'Es cuanto tengo a bien informar a su Autoridad, para los fines consiguientes.',
+    firma_nombre: firmaDe(d.firmas.evaluador) || '',
+    firma_grado: d.firmas.evaluador.cargo || 'EVALUADOR DE LA MATERIA'
+  };
+  informeWord(d2, 'INFORME DE TRANSPARENCIA - '+d.carpeta.materia);
+};
+
+/* =====================================================================
+   10) EL PANEL DEL SUPERVISOR
+   ===================================================================== */
+async function recSupAbrir(){
+  limpiarRelojes();
+  showScreen('screen-rec-sup');
+  const c = document.getElementById('rec-sup-cont');
+  c.innerHTML = '<div class="rec-vacio">Cargando todas las carpetas…</div>';
+  const r = await api('sup_carpetas', {});
+  if(!r.ok){ c.innerHTML = '<div class="rec-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
+  REC.sup = (r.datos||{}).carpetas || [];
+  const k = REC.sup;
+  const tot = k.reduce((a,x)=>({
+    alumnos:a.alumnos+Number(x.alumnos||0), pub:a.pub+Number(x.publicadas||0),
+    rec:a.rec+Number(x.reclamos||0), venc:a.venc+Number(x.reclamos_vencidos||0),
+    aj:a.aj+Number(x.ajustes_manuales||0)
+  }), {alumnos:0,pub:0,rec:0,venc:0,aj:0});
+
+  c.innerHTML = `
+    <div class="rec-card">
+      <h3>La Escuela entera</h3>
+      <div class="rec-row" style="margin:8px 0">
+        <span class="rec-chip">Carpetas: <b>${k.length}</b></span>
+        <span class="rec-chip">Cursantes: <b>${tot.alumnos}</b></span>
+        <span class="rec-chip">Notas publicadas: <b>${tot.pub}</b></span>
+        <span class="rec-chip ${tot.rec?'warn':''}">Reclamos: <b>${tot.rec}</b></span>
+        <span class="rec-chip ${tot.venc?'bad':'ok'}">Fuera de plazo: <b>${tot.venc}</b></span>
+        <span class="rec-chip">Ajustes a mano: <b>${tot.aj}</b></span>
+      </div>
+      <div class="rec-row" style="margin-top:8px">
+        <button class="rec-btn sec mini" onclick="REC.bitacoraTodo()">📜 Bitácora completa</button>
+      </div>
+    </div>
+
+    ${k.map(x=>`
+      <div class="rec-card ${(x.reclamos_vencidos||x.mezcla_versiones)?'roja':''}">
+        <h3>${esc(x.materia)}</h3>
+        <div class="rec-sub">${esc(x.ciclo)}º ciclo · gestión ${esc(x.gestion)} · Evaluador: ${esc(x.evaluador||x.evaluador_id)}</div>
+        <div class="rec-row" style="margin:8px 0">
+          <span class="rec-chip">${esc(x.alumnos)} cursantes</span>
+          <span class="rec-chip">${esc(x.entregas)} entregas</span>
+          <span class="rec-chip">${esc(x.publicadas)} publicadas</span>
+          ${Number(x.reclamos)?`<span class="rec-chip warn">${esc(x.reclamos)} reclamos</span>`:''}
+          ${Number(x.reclamos_vencidos)?`<span class="rec-chip bad">${esc(x.reclamos_vencidos)} fuera de plazo</span>`:''}
+          ${Number(x.ajustes_manuales)?`<span class="rec-chip">${esc(x.ajustes_manuales)} ajustes a mano</span>`:''}
+          ${x.mezcla_versiones?'<span class="rec-chip bad">mezcla de versiones</span>':''}
+        </div>
+        <div class="rec-row">
+          <button class="rec-btn red mini" onclick="REC.verComo('${x.carpeta_id}','${esc((x.materia||'').replace(/'/g,"\\'"))}')">👁️ VER COMO EVALUADOR</button>
+        </div>
+      </div>`).join('')}`;
+}
+REC.sup_abrir = recSupAbrir;
+
+REC.verComo = function(carpeta, titulo){
+  REC.supervisando = true;
+  recBandeja(carpeta, titulo);
+};
+
+/* ── Corregir cualquier nota ──────────────────────────────────────────── */
+REC.corregir = async function(){
+  showScreen('screen-rec-corregir');
+  document.getElementById('rec-cor-banner').innerHTML =
+    '<div class="rec-banner">🛡️ MODO SUPERVISIÓN — la corrección queda con tu nombre, tu motivo y tu hora en la bitácora.</div>';
+  const c = document.getElementById('rec-cor-cont');
+  c.innerHTML = `
+    <div class="rec-card">
+      <h3>Elegí al cursante</h3>
+      <div class="rec-sub">Se busca por su código (por ejemplo C127). La pantalla trae su nota, ítem por ítem, con la evidencia.</div>
+      <label class="rec-lab">Código del cursante</label>
+      <input class="rec-in" id="rec-cor-id" placeholder="C127">
+      <div class="rec-row" style="margin-top:10px">
+        <button class="rec-btn" onclick="REC.corBuscar()">Traer su calificación</button>
+      </div>
+    </div>
+    <div id="rec-cor-ficha"></div>`;
+};
+
+REC.corBuscar = async function(){
+  const id = val('rec-cor-id').trim();
+  if(!id){ aviso('Escribí el código del cursante.'); return; }
+  const f = document.getElementById('rec-cor-ficha');
+  f.innerHTML = '<div class="rec-vacio">Buscando…</div>';
+  const r = await api('ver_evidencia', { carpeta_id: REC.carpeta, cursante_id: id });
+  if(!r.ok){ f.innerHTML = '<div class="rec-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
+  const d = r.datos;
+  if(!d.publicada && !d.items){ f.innerHTML = '<div class="rec-vacio">Ese cursante todavía no tiene nota en esta materia.</div>'; return; }
+  const todos = (d.items||[]).concat(d.exposicion||[]);
+  f.innerHTML = `
+    <div class="rec-card">
+      <h3>${esc((d.cursante.grado?d.cursante.grado+' ':'')+d.cursante.nombre)}</h3>
+      <div class="rec-sub">${esc(d.cursante.paralelo||'')} · grupo ${esc((d.grupo&&d.grupo.numero)||'—')} ·
+        nota final <b>${n2(d.notas&&d.notas.final_100_final)}</b>${d.notas&&d.notas.publicada_en?' (publicada)':''}</div>
+    </div>
+    ${todos.map(it=>`
+      <div class="rec-item">
+        <span class="rec-nota">${n2(it.nota)}<small style="font-size:10px;color:#8b9ab4"> / ${esc(it.vale)}</small></span>
+        <h4>${esc(it.bloque)} ${esc(it.orden)}. ${esc(it.descripcion)}</h4>
+        <div class="rec-sub">${it.alcance==='grupal'?'<b style="color:#f0cf7a">Del GRUPO</b> — corregirlo cambia la nota de todos los integrantes':'Individual (exposición) — pisa el promedio del tribunal'}</div>
+        <div class="rec-row" style="margin-top:8px">
+          <input class="rec-in" style="max-width:110px" type="number" step="0.25" min="0" max="${esc(it.vale)}" id="rec-cv-${esc(it.rubrica_item_id)}" placeholder="nota">
+          <input class="rec-in" style="flex:1;min-width:180px" id="rec-cm-${esc(it.rubrica_item_id)}" placeholder="Motivo (obligatorio, mínimo 10 caracteres)">
+          <button class="rec-btn red mini" onclick="REC.corAplicar('${esc(d.cursante.id)}','${esc(it.rubrica_item_id)}','${esc(it.alcance)}')">Corregir</button>
+        </div>
+      </div>`).join('')}`;
+};
+
+REC.corAplicar = async function(cursante, item, alcance){
+  const v = val('rec-cv-'+item), m = val('rec-cm-'+item).trim();
+  if(v === ''){ aviso('Falta la nota nueva.'); return; }
+  if(m.length < 10){ aviso('Corregir una nota exige motivo escrito.'); return; }
+  let t = 'Vas a corregir esta nota a '+v+'.';
+  if(alcance === 'grupal') t += '\n\n⚠️ Es un ítem del TRABAJO: le cambia la nota a TODOS los integrantes del grupo.';
+  t += '\n\nQueda registrado con tu nombre y este motivo. ¿Confirmás?';
+  if(!confirm(t)) return;
+  const r = await api('sup_ajustar', { carpeta_id: REC.carpeta, cursante_id: cursante,
+                                        rubrica_item_id: item, valor: v, motivo: m, modo:'supervision' });
+  if(!r.ok){ aviso('No se pudo corregir:\n\n'+r.error); return; }
+  const x = r.datos||{};
+  aviso('✅ '+x.item+': '+n2(x.valor_antes)+' → '+n2(x.valor_despues)+
+        '\n\nAlcanzó a '+((x.afectados||[]).length)+' cursante(s). Nota final del cursante: '+n2(x.nota_final)+
+        (x.publicada?' (sigue publicada).':'.'));
+  REC.corBuscar();
+};
+
+/* =====================================================================
+   11) LA BITACORA
+   ===================================================================== */
+REC.bitacoraCarpeta = function(){ REC.volverDe='bandeja'; abrirBitacora({ carpeta_id: REC.carpeta }); };
+REC.bitacoraTodo    = function(){ REC.volverDe='sup';     abrirBitacora({}); };
+REC.volverDeBitacora = function(){ if(REC.volverDe==='sup') recSupAbrir(); else recBandeja(REC.carpeta); };
+
+async function abrirBitacora(filtros){
+  showScreen('screen-rec-bitacora');
+  REC.filtros = Object.assign({ limite:300, desplazamiento:0 }, filtros||{});
+  const c = document.getElementById('rec-bit-cont');
+  c.innerHTML = '<div class="rec-vacio">Cargando…</div>';
+  await pintarBitacora();
+}
+
+async function pintarBitacora(){
+  const c = document.getElementById('rec-bit-cont');
+  const r = await api('bitacora', REC.filtros);
+  if(!r.ok){ c.innerHTML = '<div class="rec-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
+  const d = r.datos; REC.bit = d;
+  const f = REC.filtros;
+  document.getElementById('rec-bit-sub').textContent = d.total + ' asiento(s) · se muestran ' + d.mostrados;
+
+  const filas = (d.filas||[]).map((x,i)=>`<tr class="${i%2?'par':''}">
+      <td>${esc(fechaHora(x.cuando))}</td>
+      <td>${esc(x.tabla.replace('eem_',''))}</td>
+      <td>${esc(x.operacion)}</td>
+      <td>${esc(x.actor||'—')}<br><small style="color:#7d8aa3">${esc(x.quien_es)}${x.rol?' · '+esc(x.rol):''}</small></td>
+      <td>${esc(x.cursante_id||'—')}</td>
+      <td>${esc(x.motivo||'—')}</td>
+      <td>${x.valor_antes!=null||x.valor_despues!=null ? esc(x.valor_antes||'—')+' → '+esc(x.valor_despues||'—') : '—'}</td>
+      <td>${esc(x.modo||'')}${x.ip?'<br><small style="color:#7d8aa3">'+esc(x.ip)+'</small>':''}</td>
+    </tr>`).join('');
+
+  c.innerHTML = `
+    <div class="rec-card">
+      <h3>Filtros</h3>
+      <div class="rec-lado">
+        <div><label class="rec-lab">Cursante (código)</label>
+          <input class="rec-in" id="rec-bf-cur" value="${esc(f.cursante_id||'')}" placeholder="C127"></div>
+        <div><label class="rec-lab">Quién lo hizo (código)</label>
+          <input class="rec-in" id="rec-bf-act" value="${esc(f.actor_id||'')}" placeholder="P017"></div>
+        <div><label class="rec-lab">Tabla</label>
+          <input class="rec-in" id="rec-bf-tab" value="${esc(f.tabla||'')}" placeholder="eem_notas_item"></div>
+        <div><label class="rec-lab">Operación</label>
+          <select class="rec-in" id="rec-bf-op">
+            <option value="">todas</option>
+            <option value="INSERT" ${f.operacion==='INSERT'?'selected':''}>INSERT</option>
+            <option value="UPDATE" ${f.operacion==='UPDATE'?'selected':''}>UPDATE</option>
+            <option value="DELETE" ${f.operacion==='DELETE'?'selected':''}>DELETE</option>
+          </select></div>
+        <div><label class="rec-lab">Desde</label>
+          <input class="rec-in" type="date" id="rec-bf-des" value="${esc((f.desde||'').slice(0,10))}"></div>
+        <div><label class="rec-lab">Hasta</label>
+          <input class="rec-in" type="date" id="rec-bf-has" value="${esc((f.hasta||'').slice(0,10))}"></div>
+      </div>
+      <div class="rec-row" style="margin-top:10px">
+        <button class="rec-btn" onclick="REC.bitFiltrar()">Filtrar</button>
+        <button class="rec-btn sec" onclick="REC.bitExcel()">📊 Excel</button>
+        <button class="rec-btn sec" onclick="REC.bitPdf()">🖨️ PDF</button>
+        ${Number(d.total) > (Number(f.desplazamiento)+Number(d.mostrados))
+          ? '<button class="rec-btn sec" onclick="REC.bitMas()">Traer 300 más</button>' : ''}
+      </div>
+      <div class="rec-sub" style="margin-top:8px">La bitácora no admite borrado ni modificación: la base rechaza las dos cosas.</div>
+    </div>
+    <div class="rec-card">
+      <div class="rec-scroll"><table class="rec-tabla">
+        <thead><tr><th>Cuándo</th><th>Tabla</th><th>Op.</th><th>Quién</th><th>Cursante</th><th>Motivo</th><th>Valor</th><th>Modo</th></tr></thead>
+        <tbody>${filas || '<tr><td colspan="8">Sin asientos con esos filtros.</td></tr>'}</tbody></table></div>
+    </div>`;
+}
+
+REC.bitFiltrar = function(){
+  const f = REC.filtros;
+  f.cursante_id = val('rec-bf-cur') || null;
+  f.actor_id    = val('rec-bf-act') || null;
+  f.tabla       = val('rec-bf-tab') || null;
+  f.operacion   = val('rec-bf-op')  || null;
+  f.desde       = val('rec-bf-des') ? val('rec-bf-des')+'T00:00:00' : null;
+  f.hasta       = val('rec-bf-has') ? val('rec-bf-has')+'T23:59:59' : null;
+  f.desplazamiento = 0;
+  pintarBitacora();
+};
+REC.bitMas = function(){
+  REC.filtros.desplazamiento = Number(REC.filtros.desplazamiento||0) + Number(REC.bit.mostrados||0);
+  pintarBitacora();
+};
+
+REC.bitExcel = async function(){
+  try{ await libXLSX(); }catch(e){ aviso('No se pudo cargar la planilla de cálculo.'); return; }
+  const filas = (REC.bit.filas||[]).map(x=>({
+    'Cuándo': fechaHora(x.cuando), 'Tabla': x.tabla, 'Operación': x.operacion,
+    'Quién': x.actor||'', 'Código': x.actor_id||'', 'Tipo': x.quien_es||'', 'Rol': x.rol||'',
+    'Cursante': x.cursante_id||'', 'Motivo': x.motivo||'',
+    'Valor antes': x.valor_antes||'', 'Valor después': x.valor_despues||'',
+    'Modo': x.modo||'', 'IP': x.ip||'', 'Registro': x.registro_id||''
+  }));
+  if(!filas.length){ aviso('No hay asientos que exportar.'); return; }
+  const hoja = XLSX.utils.json_to_sheet(filas);
+  const libro = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(libro, hoja, 'Bitacora');
+  XLSX.writeFile(libro, 'BITACORA EEM '+new Date().toISOString().slice(0,10)+'.xlsx');
+};
+
+REC.bitPdf = function(){
+  const w = window.open('', '_blank');
+  if(!w){ aviso('El navegador bloqueó la ventana. Habilitá las ventanas emergentes.'); return; }
+  const filas = (REC.bit.filas||[]).map(x=>'<tr><td>'+esc(fechaHora(x.cuando))+'</td><td>'+esc(x.tabla)+'</td><td>'+
+    esc(x.operacion)+'</td><td>'+esc(x.actor||'')+'</td><td>'+esc(x.cursante_id||'')+'</td><td>'+
+    esc(x.motivo||'')+'</td><td>'+esc((x.valor_antes||'')+' → '+(x.valor_despues||''))+'</td></tr>').join('');
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Bitácora</title>
+    <style>@page{size:letter landscape;margin:1.5cm}
+      body{font-family:Arial,Helvetica,sans-serif;font-size:9px}
+      h1{font-size:14px;text-align:center;margin:0 0 3px}
+      table{width:100%;border-collapse:collapse} td,th{border:1px solid #888;padding:2px 3px;vertical-align:top}
+      th{background:#eee;text-align:left}</style></head><body>
+    <h1>BITÁCORA DE AUDITORÍA — EVALUACIÓN SUMATIVA</h1>
+    <div style="text-align:center;margin-bottom:6px">${esc(REC.bit.total)} asiento(s) · ${esc(REC.bit.mostrados)} en este listado · emitido el ${esc(fechaHora(new Date()))}</div>
+    <table><thead><tr><th>Cuándo</th><th>Tabla</th><th>Op.</th><th>Quién</th><th>Cursante</th><th>Motivo</th><th>Valor</th></tr></thead>
+    <tbody>${filas}</tbody></table>
+    <script>setTimeout(function(){window.print();},400);<\/script></body></html>`);
+  w.document.close();
+};
+
+/* =====================================================================
+   12) EL BOTON — se engancha envolviendo showScreen
+   ===================================================================== */
+const REC_SIN_BOTON = /^screen-(home|cargos|login|primer-ingreso|instalar|firma|verificar|quiz-proyector|wg-invitado|rec-|eem-)/;
+
+let _recHay = null;
+async function recHayAlgoDocente(){
+  if(_recHay !== null) return _recHay;
+  const r = await misCarpetas();
+  let hay = !!(r.ok && (r.carpetas||[]).length);
+  if(!hay){ const s = await api('sup_carpetas', {}); hay = !!s.ok; }
+  _recHay = hay;
+  return hay;
+}
+
+function quienSoy(){
+  try{ if(typeof currentUser !== 'undefined' && currentUser) return currentUser; }catch(e){}
+  return window.currentUser || null;
+}
+
+async function recInyectar(idPantalla){
+  const u = quienSoy(); if(!u) return;
+  const sec = document.getElementById(idPantalla); if(!sec) return;
+  if(REC_SIN_BOTON.test(idPantalla)) return;
+  if(sec.querySelector('.rec-btn-entrar')) return;
+  const s = (typeof getSession==='function') ? getSession() : null;
+  if(!s) return;
+
+  if(s.tipo === 'cursante'){
+    if(idPantalla !== 'screen-cursante-home') return;
+    const destino = sec.querySelector('#cur-tab-inicio') || sec.querySelector('.cursante-container')
+                 || sec.querySelector('.menu-container');
+    if(!destino) return;
+    const b = document.createElement('button');
+    b.className = 'btn-mega rec-btn-entrar';
+    b.style.cssText = 'background:linear-gradient(180deg,#6b3f1a,#a8632a);margin:0 0 10px;color:#fff';
+    b.innerHTML = '<span class="mega-icon">⚖️</span><span>Mis notas y reclamos — Evaluación Sumativa</span>';
+    b.onclick = ()=>recAbrirAlumno();
+    destino.insertBefore(b, destino.firstElementChild);
+    return;
+  }
+
+  const cont = sec.querySelector('.menu-container') || sec.querySelector('.disc-container');
+  if(!cont) return;
+  if(!(await recHayAlgoDocente())) return;
+  const b = document.createElement('button');
+  b.className = 'btn-mega rec-btn-entrar';
+  b.style.cssText = 'background:linear-gradient(180deg,#6b2f24,#8e3f30);margin:0 0 10px;color:#fff';
+  b.innerHTML = '<span class="mega-icon">⚖️</span><span>Reclamos y supervisión — Evaluación Sumativa</span>';
+  b.onclick = ()=>recAbrirCarpetas();
+  cont.insertBefore(b, cont.children[1] || null);
+}
+
+(function(){
+  const anterior = window.showScreen;
+  if(!anterior || anterior.__rec) return;
+  const nuevo = function(id){
+    const r = anterior.apply(this, arguments);
+    if(id !== 'screen-rec-mis') limpiarRelojes();
+    setTimeout(()=>{ try{ if(quienSoy()) recInyectar(id); }catch(e){} }, 80);
+    return r;
+  };
+  nuevo.__rec = true;
   window.showScreen = nuevo;
 })();
 
