@@ -4178,7 +4178,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.394</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.395</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -54140,7 +54140,20 @@ function dec2(n){ return (n==null||n==='') ? null : Number(n).toFixed(2); }
 function fechaHora(d){ if(!d) return '—';
   try{ return new Date(d).toLocaleString('es-BO',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }
   catch(e){ return String(d); } }
-function nomP(o){ return ((o.grado?o.grado+' ':'')+(o.nombre||o.nombre_completo||'')).trim(); }
+function eemNombre(o, tipo){
+  o=o||{};
+  let nombre=String(o.nombre||o.nombre_completo||'').trim();
+  let grado=String(o.grado||'').trim();
+  if(!grado){const m=nombre.match(/^(Tcnl\.?|My\.?|Cnl\.?)\s+(?:(DEM\.?|DAEN\.?)\s+)?/i);
+    if(m){grado=m[1]+(m[2]?' '+m[2]:'');nombre=nombre.slice(m[0].length);}}
+  const esCursante=tipo==='cursante'||(!tipo&&(o.cursante_id||Object.prototype.hasOwnProperty.call(o,'arma')));
+  const m=grado.match(/^(Tcnl|My|Cnl)\.?(?:\s|$)/i);
+  if(m){const g={tcnl:'Tcnl.',my:'My.',cnl:'Cnl.'}[m[1].toLowerCase()];
+    grado=esCursante ? g : g+' '+(m[1].toLowerCase()==='cnl'?'DAEN.':'DEM.');}
+  if(!esCursante && nombre==='Adrián Villarroel Veliz') nombre='Adrián Villarroel Véliz';
+  return [grado,esCursante?String(o.arma||'').trim():'',nombre].filter(Boolean).join(' ');
+}
+function nomP(o){ return eemNombre(o); }
 
 async function api(accion, extra){
   const t = tok();
@@ -55153,7 +55166,20 @@ function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;
 function tok(){ return (typeof getTokenSesion==='function') ? getTokenSesion() : null; }
 function aviso(m){ try{ alert(m); }catch(e){ console.warn(m); } }
 function n2(v){ return (v==null||v==='') ? '—' : Number(v).toFixed(2); }
-function nomP(o){ return ((o.grado?o.grado+' ':'')+(o.nombre||o.nombre_completo||'')).trim(); }
+function eemNombre(o, tipo){
+  o=o||{};
+  let nombre=String(o.nombre||o.nombre_completo||'').trim();
+  let grado=String(o.grado||'').trim();
+  if(!grado){const m=nombre.match(/^(Tcnl\.?|My\.?|Cnl\.?)\s+(?:(DEM\.?|DAEN\.?)\s+)?/i);
+    if(m){grado=m[1]+(m[2]?' '+m[2]:'');nombre=nombre.slice(m[0].length);}}
+  const esCursante=tipo==='cursante'||(!tipo&&(o.cursante_id||Object.prototype.hasOwnProperty.call(o,'arma')));
+  const m=grado.match(/^(Tcnl|My|Cnl)\.?(?:\s|$)/i);
+  if(m){const g={tcnl:'Tcnl.',my:'My.',cnl:'Cnl.'}[m[1].toLowerCase()];
+    grado=esCursante ? g : g+' '+(m[1].toLowerCase()==='cnl'?'DAEN.':'DEM.');}
+  if(!esCursante && nombre==='Adrián Villarroel Veliz') nombre='Adrián Villarroel Véliz';
+  return [grado,esCursante?String(o.arma||'').trim():'',nombre].filter(Boolean).join(' ');
+}
+function nomP(o){ return eemNombre(o); }
 
 async function api(accion, extra){
   const t = tok();
@@ -55419,7 +55445,7 @@ function rellenarCursantes(doc, tabla, cursantes){
   cursantes.forEach((c,i)=>{
     const tcs = hijos(datos[i], "w:tc");
     if(tcs.length < 5) return;
-    escribirCelda(doc, tcs[0], (c.grado ? c.grado+' ' : '') + (c.nombre||''));
+    escribirCelda(doc, tcs[0], eemNombre(c, 'cursante'));
     if(i === 0) escribirCelda(doc, tcs[1], d2(c.texto_65));
     escribirCelda(doc, tcs[2], textoExposicion(c));
     escribirCelda(doc, tcs[3], (c.final_100===null||c.final_100===undefined) ? '' : d2(c.final_100));
@@ -55516,7 +55542,7 @@ function cuadroPorEvaluador(doc, modelo, cursantes, jurados){
     if(trPr){ const th = primerHijo(trPr,"w:trHeight"); if(th) th.setAttribute("w:val","454"); }
     const tcs = ajustarCeldas(tr, M);
     const porEv = c.por_evaluador || [];
-    const valores = [ (c.grado ? c.grado+' ' : '') + (c.nombre||'') ];
+    const valores = [ eemNombre(c, 'cursante') ];
     for(let k=0;k<n;k++) valores.push(porEv[k]==null ? '' : d2(porEv[k]));
     valores.push(c.promedio_final==null
       ? ((c.final_100==null) ? '' : d2(c.final_100))
@@ -55546,10 +55572,8 @@ async function actaDocx(plantilla, acta){
   const tablas = hijos(body, "w:tbl");
 
   // 1 · encabezado
-  if(cfg.codigo && tablas[0]){
-    const f = hijos(tablas[0], "w:tr");
-    if(f.length > 1) escribirCelda(doc, hijos(f[1],"w:tc")[0], String(cfg.codigo));
-  }
+  const cuadroCodigo = tablas.find(t => /^C[ÓO]DIGO\s*$/i.test(texto(t).trim()));
+  if(cuadroCodigo) cuadroCodigo.parentNode.removeChild(cuadroCodigo);
   const pUC = parrafoQueEmpieza(body, "UNIDAD DE COMPETENCIA");
   if(pUC) escribirParrafo(doc, pUC, "UNIDAD DE COMPETENCIA: " + (cfg.unidad_competencia||""));
   const pCiclo = parrafoQueEmpieza(body, "CICLO:");
@@ -55624,9 +55648,9 @@ async function actaDocx(plantilla, acta){
   if(pFecha && acta.fecha_texto) escribirParrafo(doc, pFecha, acta.fecha_texto);
 
   // 7 · firmas
-  const firmantes = (acta.jurados||[]).map((j,i)=>({nombre:j.nombre||'', cargo:'EVALUADOR '+(i+1)}));
-  if(cfg.ciclo_nombre || cfg.ciclo_cargo) firmantes.push({nombre:cfg.ciclo_nombre||'', cargo:cfg.ciclo_cargo||''});
-  if(cfg.jefe_nombre  || cfg.jefe_cargo)  firmantes.push({nombre:cfg.jefe_nombre||'',  cargo:cfg.jefe_cargo||''});
+  const firmantes = (acta.jurados||[]).map((j,i)=>({nombre:eemNombre(j, 'profesor'), cargo:'EVALUADOR '+(i+1)}));
+  if(cfg.ciclo_nombre || cfg.ciclo_cargo) firmantes.push({nombre:eemNombre({nombre:cfg.ciclo_nombre}, 'profesor'), cargo:cfg.ciclo_cargo||''});
+  if(cfg.jefe_nombre  || cfg.jefe_cargo)  firmantes.push({nombre:eemNombre({nombre:cfg.jefe_nombre}, 'profesor'),  cargo:cfg.jefe_cargo||''});
   const tFirmas = tablas[tablas.length-1];
   if(tFirmas && firmantes.length) rellenarFirmas(doc, tFirmas, firmantes);
 
@@ -56106,7 +56130,7 @@ ACT.planillaExcel = async function(){
   const filas = [['GRADO','APELLIDOS Y NOMBRES','PARALELO','GRUPO','FORMA 20%','FONDO 45%',
                   'TEXTO 65%','EXPOSICIÓN 35%','FINAL 100%','OBSERVACIÓN']];
   for(const f of p.filas){
-    filas.push([f.grado||'', f.nombre||'', f.paralelo||'', f.grupo_numero||'',
+    filas.push([[f.grado,f.arma].filter(Boolean).join(' '), f.nombre||'', f.paralelo||'', f.grupo_numero||'',
       f.forma_20, f.fondo_45, f.texto_65, f.expo_35, f.final_100,
       f.no_expuso ? ('NO EXPUSO'+(f.decision_ausencia==='cero'?' (0)':' — PENDIENTE'))
                   : (f.consolidada ? (f.publicada?'publicada':'consolidada') : 'sin consolidar')]);
@@ -56124,7 +56148,7 @@ ACT.actaConsolidada = async function(){
   const p = await planilla(); if(!p) return;
   const cfg = p.config || {};
   const filas = p.filas.map(f=>`
-    <tr><td>${esc((f.grado?f.grado+' ':'')+f.nombre)}</td>
+    <tr><td>${esc(eemNombre(f, 'cursante'))}</td>
         <td class="c">${esc(f.paralelo||'')}</td>
         <td class="c">${esc(f.grupo_numero||'')}</td>
         <td class="c">${n2(f.texto_65)}</td>
