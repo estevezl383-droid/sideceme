@@ -4178,7 +4178,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.395</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.396</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -52033,6 +52033,10 @@ protVigilarBoton();
 </section>
 
 <script>
+window.eemEsPrincipal = id => ['screen-prof-panel','screen-disc-panel','screen-eval-panel','screen-ef-panel','screen-planif-panel','screen-jc-panel','screen-panel-generico'].includes(id);
+window.eemEsGestor = u => !!u && ['P017','P028','P030','P008'].includes(u.id) && u.activo !== false;
+</script>
+<script>
 /* =====================================================================
    EVALUACION SUMATIVA EEM — FASES 1 y 2 (v2.9.390)
    Modulo autonomo: no toca ninguna funcion existente. Se engancha
@@ -52217,7 +52221,7 @@ function eemDialogoEntrega(i){
     '<div class="eem-sub" style="margin-bottom:10px">'+esc(x.carpeta.materia_nombre)+' · '+
       '<b>Grupo '+esc(rotuloGrupo(x.grupo.numero,x.grupo.nombre))+'</b>'+(x.grupo.tema?' — '+esc(x.grupo.tema):'')+
       '<br>El grupo no se elige: es el que te asignó el Evaluador.</div>'+
-    '<div class="eem-field"><label>Archivo PDF del trabajo (máximo 25 MB)</label>'+
+    '<div class="eem-field"><label>Archivo PDF del trabajo (máximo 5 MB)</label>'+
       '<input type="file" id="eem-file" accept="application/pdf,.pdf"></div>'+
     '<div id="eem-file-info" class="eem-sub" style="margin:-4px 0 10px"></div>'+
     '<div class="eem-field"><label>Integrantes que entregan — tildá a los que corresponde</label>'+filas+'</div>'+
@@ -52250,7 +52254,7 @@ async function revisarArchivo(f){
   const di = (t,c)=>{ info.innerHTML = '<span style="color:'+c+'">'+t+'</span>'; };
 
   if(!/\.pdf$/i.test(f.name)) return di('⛔ El formato de entrega es PDF, y solo PDF.', '#f0938a');
-  if(f.size > 25*1024*1024) return di('⛔ Pesa '+(f.size/1048576).toFixed(1)+' MB. El máximo son 25 MB.', '#f0938a');
+  if(f.size > 5*1024*1024) return di('⛔ Pesa '+(f.size/1048576).toFixed(1)+' MB. El máximo son 5 MB.', '#f0938a');
   if(f.size === 0) return di('⛔ El archivo está vacío.', '#f0938a');
 
   di('Revisando el archivo…', '#9fb0c9');
@@ -52294,6 +52298,27 @@ async function revisarArchivo(f){
   document.getElementById('eem-btn-subir').disabled = false;
 }
 
+async function eemTransferir(ini, file, datos, progreso){
+  // Retry the same signed path: an interrupted response must not create a new submission.
+  let error;
+  for(let intento=0; intento<2; intento++){
+    try{
+      const up=await sb.storage.from('eem-entregas').uploadToSignedUrl(ini.path, ini.token_subida, file, {contentType:'application/pdf'});
+      if(!up.error) return;
+      error=up.error;
+    }catch(e){ error=e; }
+    if(String(error.statusCode||error.status)==='409' || /already exists|duplicate/i.test(error.message||'')) return;
+    if(!/fetch|network|connection|timeout|load failed/i.test(error.message||'')) throw new Error('No se pudo subir el PDF: '+error.message);
+    if(progreso) progreso('Conexión interrumpida. Reintentando la subida…');
+  }
+  if(progreso) progreso('Reintentando por la vía alternativa…');
+  const bytes=new Uint8Array(await file.arrayBuffer());
+  let binary='';
+  for(let i=0;i<bytes.length;i+=32768) binary+=String.fromCharCode(...bytes.subarray(i,i+32768));
+  const r=await eemInvoke('eem-entrega-subir','transferir',Object.assign({},datos,{path:ini.path,pdf_base64:btoa(binary)}));
+  if(!r.ok) throw new Error('No se pudo completar la transferencia. El archivo sigue seleccionado; revise su conexión y vuelva a pulsar SUBIR. Detalle: '+r.error);
+}
+
 async function eemSubir(i){
   if(EEM.subiendo) return;
   const x = EEM.alumno[i];
@@ -52316,9 +52341,7 @@ async function eemSubir(i){
     if(!ini.ok) throw new Error(ini.error);
 
     paso('2/3 · Subiendo el PDF…');
-    const up = await sb.storage.from('eem-entregas')
-      .uploadToSignedUrl(ini.path, ini.token_subida, _eemArchivo.file, { contentType:'application/pdf' });
-    if(up.error) throw new Error('No se pudo subir el archivo: '+up.error.message);
+    await eemTransferir(ini, _eemArchivo.file, {carpeta_id:x.carpeta.id, integrantes:tildados, sha256:_eemArchivo.sha256}, paso);
 
     paso('3/3 · Registrando la entrega y verificando la huella…');
     const fin = await eemInvoke('eem-entrega-subir', 'confirmar', {
@@ -53060,7 +53083,7 @@ async function eemCargarPorEl(cursante){
   inp.onchange = async ()=>{
     const f = inp.files[0]; if(!f) return;
     if(!/\.pdf$/i.test(f.name)) return aviso('⛔ Solo PDF.');
-    if(f.size > 25*1024*1024) return aviso('⛔ Máximo 25 MB.');
+    if(f.size > 5*1024*1024) return aviso('⛔ Máximo 5 MB.');
     const motivo = prompt('Motivo de la carga por excepción (obligatorio):');
     if(!motivo || !motivo.trim()) return;
     const buf = await f.arrayBuffer();
@@ -53070,8 +53093,8 @@ async function eemCargarPorEl(cursante){
     const ini = await eemInvoke('eem-entrega-subir','iniciar',{ carpeta_id:EEM.carpetaId, entregado_por:cursante,
       motivo:motivo, integrantes:[], archivo_nombre:f.name, tamano:f.size, sha256:hex, supervision:EEM.supervision });
     if(!ini.ok) return aviso('⛔ '+ini.error);
-    const up = await sb.storage.from('eem-entregas').uploadToSignedUrl(ini.path, ini.token_subida, f, {contentType:'application/pdf'});
-    if(up.error) return aviso('⛔ No se pudo subir: '+up.error.message);
+    try { await eemTransferir(ini,f,{carpeta_id:EEM.carpetaId,entregado_por:cursante,motivo,integrantes:[],sha256:hex}); }
+    catch(e){ return aviso('⛔ '+e.message); }
     const fin = await eemInvoke('eem-entrega-subir','confirmar',{ carpeta_id:EEM.carpetaId, entregado_por:cursante,
       motivo:motivo, integrantes:[], path:ini.path, archivo_nombre:f.name, sha256:hex, supervision:EEM.supervision });
     if(!fin.ok) return aviso('⛔ '+fin.error);
@@ -53927,9 +53950,11 @@ function quienSoy(){
 }
 
 async function eemInyectar(idPantalla){
+  document.querySelectorAll('#'+idPantalla+' .eem-btn-entrar').forEach(b=>b.remove());
   const u = quienSoy(); if(!u) return;
   const sec = document.getElementById(idPantalla); if(!sec) return;
   if(EEM_SIN_BOTON.test(idPantalla)) return;
+  if(!['screen-cursante-home','screen-aula-hub'].includes(idPantalla) && (!eemEsPrincipal(idPantalla) || !eemEsGestor(u))) return;
   if(sec.querySelector('.eem-btn-entrar')) return;
   const s = getSession(); if(!s) return;
 
@@ -53950,6 +53975,7 @@ async function eemInyectar(idPantalla){
   }
 
   if(!(await eemHayAlgoDocente())) return;
+  if(quienSoy() !== u) return;
   const b = document.createElement('button');
   b.className = 'btn-mega eem-btn-entrar';
   b.style.cssText = 'background:linear-gradient(180deg,#1f4f6f,#0e3a4a);margin:0 0 10px;color:#fff';
@@ -54952,9 +54978,9 @@ const TRB_SIN_BOTON = /^screen-(home|cargos|login|primer-ingreso|instalar|firma|
 let _trbHay = null;
 
 async function trbHayAlgo(){
-  if(_trbHay !== null) return _trbHay;
+  // Consult active designations again when opening the main panel.
   const r = await api('mis_carpetas', {});
-  _trbHay = !!(r.ok && (r.carpetas||[]).length);
+  _trbHay = !!(r.ok && (eemEsGestor(quienSoy()) || (r.carpetas||[]).some(c=>c.asignado === true)));
   if(r.ok){ TRB.carpetas = r.carpetas||[]; TRB.yo = r.yo; }
   return _trbHay;
 }
@@ -54965,9 +54991,10 @@ function quienSoy(){
 }
 
 async function trbInyectar(idPantalla){
+  document.querySelectorAll('#'+idPantalla+' .trb-btn-entrar').forEach(b=>b.remove());
   const u = quienSoy(); if(!u) return;
   const sec = document.getElementById(idPantalla); if(!sec) return;
-  if(TRB_SIN_BOTON.test(idPantalla)) return;
+  if(TRB_SIN_BOTON.test(idPantalla) || !eemEsPrincipal(idPantalla)) return;
   if(sec.querySelector('.trb-btn-entrar')) return;
   const s = (typeof getSession==='function') ? getSession() : null;
   if(!s || s.tipo === 'cursante') return;
@@ -54975,11 +55002,12 @@ async function trbInyectar(idPantalla){
   const cont = sec.querySelector('.menu-container') || sec.querySelector('.disc-container');
   if(!cont) return;
   if(!(await trbHayAlgo())) return;
+  if(quienSoy() !== u) return;
 
   const b = document.createElement('button');
   b.className = 'btn-mega trb-btn-entrar';
   b.style.cssText = 'background:linear-gradient(180deg,#6b4c1a,#9a7b1f);margin:0 0 10px;color:#fff';
-  b.innerHTML = '<span class="mega-icon">🎖️</span><span>Tribunal — calificar las exposiciones (35%)</span>';
+  b.innerHTML = '<span class="mega-icon">🎖️</span><span>'+((TRB.carpetas||[]).some(c=>c.asignado === true) ? 'Evaluadores — calificar las exposiciones (35%)' : 'Exposiciones — organizar evaluadores y supervisar')+'</span>';
   b.onclick = ()=>trbAbrir();
   cont.insertBefore(b, cont.children[1] || null);
 }
@@ -56483,16 +56511,18 @@ function quienSoy(){
 }
 
 async function actInyectar(idPantalla){
+  document.querySelectorAll('#'+idPantalla+' .act-btn-entrar').forEach(b=>b.remove());
   const u = quienSoy(); if(!u) return;
   const sec = document.getElementById(idPantalla); if(!sec) return;
-  if(ACT_SIN_BOTON.test(idPantalla)) return;
+  if(ACT_SIN_BOTON.test(idPantalla) || !eemEsPrincipal(idPantalla) || !eemEsGestor(u)) return;
   if(sec.querySelector('.act-btn-entrar')) return;
   const s = (typeof getSession==='function') ? getSession() : null;
   if(!s || s.tipo === 'cursante') return;
 
   const cont = sec.querySelector('.menu-container') || sec.querySelector('.disc-container');
   if(!cont) return;
-  if(!(await actHayAlgo())) return;
+  await actHayAlgo();
+  if(quienSoy() !== u) return;
 
   const b = document.createElement('button');
   b.className = 'btn-mega act-btn-entrar';
@@ -58011,9 +58041,11 @@ function quienSoy(){
 }
 
 async function recInyectar(idPantalla){
+  document.querySelectorAll('#'+idPantalla+' .rec-btn-entrar').forEach(b=>b.remove());
   const u = quienSoy(); if(!u) return;
   const sec = document.getElementById(idPantalla); if(!sec) return;
   if(REC_SIN_BOTON.test(idPantalla)) return;
+  if(idPantalla !== 'screen-cursante-home' && (!eemEsPrincipal(idPantalla) || !eemEsGestor(u))) return;
   if(sec.querySelector('.rec-btn-entrar')) return;
   const s = (typeof getSession==='function') ? getSession() : null;
   if(!s) return;
@@ -58034,7 +58066,8 @@ async function recInyectar(idPantalla){
 
   const cont = sec.querySelector('.menu-container') || sec.querySelector('.disc-container');
   if(!cont) return;
-  if(!(await recHayAlgoDocente())) return;
+  await recHayAlgoDocente();
+  if(quienSoy() !== u) return;
   const b = document.createElement('button');
   b.className = 'btn-mega rec-btn-entrar';
   b.style.cssText = 'background:linear-gradient(180deg,#6b2f24,#8e3f30);margin:0 0 10px;color:#fff';
