@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.402</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.403</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -54447,6 +54447,7 @@ async function trbGrupos(carpetaId, titulo){
         ? '<button class="trb-btn" onclick="trbGrilla(\''+g.grupo_id+'\')">'+(cerr?'Ver la calificación':'Calificar')+'</button>'
           +'<button class="trb-btn sec" onclick="trbVerPdf(\''+g.entrega_id+'\')">📄 Ver el trabajo</button>'
         : '<span class="trb-chip bad">✖ Sin trabajo entregado — no habilitado para exponer</span>')
+      +'<button class="trb-btn sec" onclick="ACT.vista(\''+g.grupo_id+'\',false,true)">📋 Consolidado · Word / PDF / Excel</button>'
       +eemMaterialHTML(g.enlace_complementario)+'</div></div>';
   }).join('');
 }
@@ -54529,6 +54530,7 @@ function pintarGrilla(){
     +(g.entrega ? '<button class="trb-btn sec mini" onclick="trbVerPdf(\''+g.entrega.entrega_id+'\')">📄 Ver el trabajo</button>' : '')
     +eemMaterialHTML(g.entrega && g.entrega.enlace_complementario)
     +'<span class="trb-chip">Mesa de '+(g.jurados||[]).length+' jurados</span>'
+    +'<button class="trb-btn sec mini" onclick="ACT.vista(\''+g.grupo.grupo_id+'\',false,true)">📋 Consolidado · Word / PDF / Excel</button>'
     +'</div>'
     +'<div style="margin-top:8px"><button class="trb-btn sec mini" onclick="trbDescriptores()">📖 Descriptores de nivel</button>'
     +' <button class="trb-btn sec mini" onclick="trbIncremento()">± Incremento: '+TRB.incremento+'</button></div>'
@@ -55323,7 +55325,7 @@ async function trbInyectar(idPantalla){
 <!-- ============ VISTA PREVIA ============ -->
 <section id="screen-eem-acta-vista" class="screen">
   <div class="app-header">
-    <button class="back-btn" onclick="showScreen('screen-eem-acta-generar')">←</button>
+    <button class="back-btn" onclick="showScreen(ACT.volverConsolidado ? 'screen-eem-trib-grupos' : 'screen-eem-acta-generar')">←</button>
     <div class="header-crest"><svg><use href="#crest"/></svg></div>
     <div class="header-text"><div class="header-title" id="act-vista-tit">Vista previa</div>
       <div class="header-sub" id="act-vista-sub">—</div></div>
@@ -56231,19 +56233,21 @@ async function actPorEvaluador(acta){
   }catch(_){ /* el acta se imprime igual */ }
 }
 
-ACT.vista = async function(grupoId, parcial=false){
+ACT.vista = async function(grupoId, parcial=false, consolidado=false){
+  ACT.bytesActual = null; ACT.actaActual = null;
+  ACT.volverConsolidado = consolidado;
   showScreen('screen-eem-acta-vista');
   const c = document.getElementById('act-vista-cont');
   c.innerHTML = '<div class="act-vacio">Armando el acta…</div>';
   const r = parcial ? await (async()=>{
     const {data,error}=await sb.functions.invoke('eem-evaluar-forma',{body:{accion:'rubrica_parcial',grupo_id:grupoId,token:tok()}});
     return error?{ok:false,error:error.message}:data;
-  })() : await api('acta_grupo', {grupo_id: grupoId});
+  })() : await api(consolidado ? 'consolidado_grupo' : 'acta_grupo', {grupo_id: grupoId});
   if(!r.ok){ c.innerHTML = '<div class="act-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
   const acta = r.acta;
   const escritoItems=['forma','fondo'].flatMap(b=>(acta[b]||[]).map(i=>({...i,bloque:b.toUpperCase(),maximo:i.valor_pct??i.valor??i.maximo,descripcion:i.descripcion??i.criterio})));
   if(parcial && acta.totales?.texto_65!=null) acta.avisos=['Trabajo escrito calificado. La exposición y la nota final pueden seguir pendientes.'];
-  await actPorEvaluador(acta);
+  if(!consolidado) await actPorEvaluador(acta);
   if(parcial){
     for(const bloque of ['forma','fondo','exposicion'])for(const it of acta[bloque]||[])if(it.nota==null)it.nota='Por completar';
     for(const k of Object.keys(acta.totales||{}))if(acta.totales[k]==null)acta.totales[k]='Por completar';
@@ -56254,7 +56258,7 @@ ACT.vista = async function(grupoId, parcial=false){
     }
   }
   ACT.actaActual = acta;
-  document.getElementById('act-vista-tit').textContent = acta.grupo.nombre || ('Grupo '+acta.grupo.numero);
+  document.getElementById('act-vista-tit').textContent = (consolidado?'CONSOLIDADO · ':'') + (acta.grupo.nombre || ('Grupo '+acta.grupo.numero));
   document.getElementById('act-vista-sub').textContent = acta.grupo.tema || '—';
 
   let bytes;
@@ -56267,7 +56271,8 @@ ACT.vista = async function(grupoId, parcial=false){
   c.innerHTML = (escritoItems.length?'<div class="act-card">'+window.eemResumenEscrito(escritoItems)+'</div>':'')+(parcial ? '<div class="act-card"><b>Hallazgos de la revisión</b>'+ (acta.hallazgos||[]).map(h=>'<p>Ítem '+esc(h.item)+': '+esc(h.texto)+'</p>').join('')+((acta.criterios_omitidos||[]).length?'<p>No se computan: '+acta.criterios_omitidos.map(esc).join(', ')+'</p>':'')+'</div>' : '')+(acta.avisos||[]).map(a=>`<div class="act-aviso">⚠️ ${esc(a)}</div>`).join('')
     + `<div class="act-card">
          <div class="act-row">
-           <button class="act-btn" onclick="ACT.bajarActa()">⬇️ Descargar el .docx</button>
+           <button class="act-btn" onclick="ACT.bajarActa()">⬇️ Word (.docx)</button>
+           <button class="act-btn sec" onclick="ACT.rubricaExcel()">⬇️ Excel (.xlsx)</button>
            <button class="act-btn sec" onclick="ACT.imprimir()">🖨️ Imprimir / PDF</button>
          </div>
          <div class="act-sub" style="margin-top:7px">El <b>.docx</b> es el que conserva el formato exacto.
@@ -56282,6 +56287,36 @@ ACT.vista = async function(grupoId, parcial=false){
     document.getElementById('act-vista-hoja').innerHTML =
       '<div class="act-vacio">La vista previa no se pudo dibujar, pero el .docx está bien: descargalo.</div>';
   }
+};
+
+ACT.rubricaExcel = async function(){
+  const a = ACT.actaActual; if(!a || !ACT.bytesActual) return;
+  try {
+    await libXLSX();
+    const wb = XLSX.utils.book_new();
+    const valor = v => v == null || v === '' || !Number.isFinite(Number(v)) ? 'Por completar' : Number(v);
+    const rubrica = [['RÚBRICA CONSOLIDADA — '+(a.grupo.nombre||a.grupo.numero)],
+      ['MATERIA',a.carpeta.materia||''],['TEMA',a.grupo.tema||''],['FECHA',a.fecha_texto||''],[],
+      ['BLOQUE','ÍTEM','CRITERIO','VALOR MÁXIMO','NOTA']];
+    for(const bloque of ['forma','fondo','exposicion']) {
+      for(const i of a[bloque]||[]) rubrica.push([bloque==='exposicion'?'EXPOSICIÓN (promedio grupal)':bloque.toUpperCase(),i.orden,i.descripcion,valor(i.valor_pct),valor(i.nota)]);
+    }
+    rubrica.push([],['TOTALES','FORMA /20','FONDO /45','ESCRITO /65','EXPOSICIÓN GRUPAL /35'],
+      ['',valor(a.totales.forma_20),valor(a.totales.fondo_45),valor(a.totales.texto_65),valor(a.totales.exposicion_35_grupal)]);
+    const finales = [['CURSANTE','ESCRITO /65','EXPOSICIÓN /35',...(a.jurados||[]).map(j=>'FINAL — '+j.nombre),'NOTA FINAL /100','OBSERVACIÓN']];
+    for(const c of a.cursantes||[]) finales.push([eemNombre(c,'cursante'),valor(c.texto_65),valor(c.expo_35),
+      ...(a.jurados||[]).map((j,i)=>c.no_expuso?'NO EXPUSO':valor(c.por_evaluador?.[i])),valor(c.final_100),c.no_expuso?'NO EXPUSO — '+(c.motivo_ausencia||''):c.requiere_recalculo?'PENDIENTE DE RECÁLCULO':c.consolidada?'CONSOLIDADA':'PENDIENTE']);
+    const detalle = [['CURSANTE','EVALUADOR',...(a.exposicion||[]).map(i=>'ÍTEM '+i.orden+' /'+i.valor_pct),'TOTAL /35']];
+    for(const c of a.cursantes||[]) for(const j of c.detalle_evaluadores||[]) detalle.push([eemNombre(c,'cursante'),j.nombre,
+      ...(a.exposicion||[]).map(i=>valor(j.notas?.[String(i.orden)])),valor(j.total)]);
+    for(const [nombre,filas,anchos] of [['Rúbrica',rubrica,[30,14,85,18,18]],['Notas finales',finales,[48,18,18]],['Evaluadores',detalle,[48,42]]]) {
+      const ws = XLSX.utils.aoa_to_sheet(filas);
+      ws['!cols'] = Array.from({length:Math.max(...filas.map(f=>f.length))},(_,i)=>({wch:anchos[i]||24}));
+      for(const k of Object.keys(ws)) if(!k.startsWith('!') && ws[k].t==='n') ws[k].z='0.00';
+      XLSX.utils.book_append_sheet(wb,ws,nombre);
+    }
+    XLSX.writeFile(wb,nombreActa(a).replace(/\.docx$/i,'.xlsx'));
+  } catch(e){ aviso('No se pudo generar Excel: '+e.message); }
 };
 
 ACT.bajarActa = function(){
