@@ -4174,11 +4174,14 @@ body{
   flex-wrap:wrap; background:var(--bg-deep); border-top:1px solid var(--border-subtle);
   padding:9px 0; margin-top:6px }
 </style>
+<style>
+.eem-rubrica-hoja{background:#fff;color:#111;padding:28px;max-width:1050px;margin:20px auto;font:15px Arial,sans-serif}.eem-rubrica-hoja h3,.eem-rubrica-hoja>p{text-align:center;color:#111}.eem-rubrica-tabla{width:100%;border-collapse:collapse;margin:22px 0;color:#111;table-layout:fixed}.eem-rubrica-tabla th,.eem-rubrica-tabla td{border:1px solid #555;padding:8px;vertical-align:middle}.eem-rubrica-tabla thead,.eem-rubrica-tabla .eem-total{background:#e7e7e7}.eem-rubrica-tabla th{width:auto!important}.eem-rubrica-tabla input,.eem-rubrica-tabla textarea{background:#fffdf2!important;color:#111!important;box-shadow:none!important}.eem-rubrica-tabla th:first-child:not([colspan]){width:6%}.eem-rubrica-tabla th:nth-child(2){width:62%}.eem-rubrica-tabla th:nth-child(3),.eem-rubrica-tabla th:nth-child(4){width:16%}.eem-rubrica-tabla td:nth-last-child(-n+2){text-align:center}.eem-rubrica-tabla input{width:90%;min-width:55px;box-sizing:border-box;background:#fffdf2;color:#111;border:1px solid #9b8028;border-radius:4px;padding:8px;font:inherit;text-align:center}.eem-rubrica-tabla textarea{width:100%;box-sizing:border-box;background:white;color:#111;font:14px Arial;padding:8px;margin:6px 0}.eem-sustento summary{color:#344d79;cursor:pointer;font-size:13px;margin-top:5px}.eem-sustento small{display:block;margin-top:5px}.eem-resumen{margin:12px 0;padding:12px;border:1px solid #7d744b;border-radius:8px;text-align:left;white-space:normal;font-size:14px}.eem-resumen p{margin:6px 0}.eem-resumen li{margin:8px 0}.eem-resumen summary{cursor:pointer}.eem-resumen ul{padding-left:20px}@media(max-width:650px){.eem-rubrica-hoja{padding:8px;font-size:12px}.eem-rubrica-tabla th,.eem-rubrica-tabla td{padding:4px}}
+</style>
 </head>
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.401</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.402</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -53772,7 +53775,7 @@ function eemIACelda(e,bloque){
  if(!ns.length)return null;
  const suma=ns.reduce((a,n)=>a+Number(n.valor),0),max=its.reduce((a,i)=>a+Number(i.valor_pct),0),completo=ns.length===its.length;
  const b=c.banda;let nota=suma;if(!bloque&&completo&&b){nota=b.modo==='reescalado'?Number(b.nota_minima)+(suma/65)*(Number(b.nota_maxima)-Number(b.nota_minima)):Math.min(Number(b.nota_maxima),Math.max(Number(b.nota_minima),suma));}
- return (!bloque&&completo&&b?'<b>'+esc(dec2(nota))+' / 65</b><br><small>Rúbrica: '+esc(dec2(suma))+' · Banda '+esc(b.nota_minima)+'–'+esc(b.nota_maxima)+'</small>':'<b>'+esc(dec2(suma))+' / '+esc(max)+'</b>')+(!completo?'<br><span class="eem-chip warn">Parcial · '+(its.length-ns.length)+' pendientes</span>':'');
+ return (!bloque&&completo&&b?'<b>'+esc(dec2(nota))+' / 65</b><br><small>Rúbrica: '+esc(dec2(suma))+' · Banda '+esc(b.nota_minima)+'–'+esc(b.nota_maxima)+'</small>':'<b>'+esc(dec2(suma))+' / '+esc(max)+'</b>')+(!completo?'<br><span class="eem-chip warn">Parcial · '+(its.length-ns.length)+' pendientes</span>':'')+(!bloque?window.eemResumenEscrito(its.map(i=>{const n=ns.find(n=>n.item_id===i.id);return {...i,maximo:i.valor_pct,nota:n?.valor??null,sustento:n?.sustento||n?.motivo_ajuste};})): '');
 }
 
 async function eemExportarMD(incluirPDF=false){
@@ -56238,6 +56241,8 @@ ACT.vista = async function(grupoId, parcial=false){
   })() : await api('acta_grupo', {grupo_id: grupoId});
   if(!r.ok){ c.innerHTML = '<div class="act-vacio">⚠️ '+esc(r.error)+'</div>'; return; }
   const acta = r.acta;
+  const escritoItems=['forma','fondo'].flatMap(b=>(acta[b]||[]).map(i=>({...i,bloque:b.toUpperCase(),maximo:i.valor_pct??i.valor??i.maximo,descripcion:i.descripcion??i.criterio})));
+  if(parcial && acta.totales?.texto_65!=null) acta.avisos=['Trabajo escrito calificado. La exposición y la nota final pueden seguir pendientes.'];
   await actPorEvaluador(acta);
   if(parcial){
     for(const bloque of ['forma','fondo','exposicion'])for(const it of acta[bloque]||[])if(it.nota==null)it.nota='Por completar';
@@ -56259,7 +56264,7 @@ ACT.vista = async function(grupoId, parcial=false){
   catch(e){ c.innerHTML = '<div class="act-vacio">⚠️ No se pudo armar el acta: '+esc(e.message)+'</div>'; return; }
   ACT.bytesActual = bytes;
 
-  c.innerHTML = (parcial ? '<div class="act-card"><b>Hallazgos de la revisión</b>'+ (acta.hallazgos||[]).map(h=>'<p>Ítem '+esc(h.item)+': '+esc(h.texto)+'</p>').join('')+((acta.criterios_omitidos||[]).length?'<p>No se computan: '+acta.criterios_omitidos.map(esc).join(', ')+'</p>':'')+'</div>' : '')+(acta.avisos||[]).map(a=>`<div class="act-aviso">⚠️ ${esc(a)}</div>`).join('')
+  c.innerHTML = (escritoItems.length?'<div class="act-card">'+window.eemResumenEscrito(escritoItems)+'</div>':'')+(parcial ? '<div class="act-card"><b>Hallazgos de la revisión</b>'+ (acta.hallazgos||[]).map(h=>'<p>Ítem '+esc(h.item)+': '+esc(h.texto)+'</p>').join('')+((acta.criterios_omitidos||[]).length?'<p>No se computan: '+acta.criterios_omitidos.map(esc).join(', ')+'</p>':'')+'</div>' : '')+(acta.avisos||[]).map(a=>`<div class="act-aviso">⚠️ ${esc(a)}</div>`).join('')
     + `<div class="act-card">
          <div class="act-row">
            <button class="act-btn" onclick="ACT.bajarActa()">⬇️ Descargar el .docx</button>
@@ -58288,6 +58293,18 @@ async function recInyectar(idPantalla){
 </script>
 
 <script>
+
+window.eemResumenEscrito=function(items){
+ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+ const n=v=>Number(v).toFixed(2), faltan=items.filter(i=>i.nota==null).length;
+ const perdidos=items.filter(i=>i.nota!=null&&Number(i.nota)<Number(i.maximo));
+ const resta=b=>perdidos.filter(i=>i.bloque===b).reduce((a,i)=>a+Number(i.maximo)-Number(i.nota),0);
+ const motivo=i=>{let t=String(i.sustento||'Sin justificación registrada; requiere revisión docente.');
+ if(/ESTIMACIÓN PROVISIONAL/.test(t))return 'Estimación provisional: requiere verificar el PDF; no acredita un defecto visual.';
+ t=t.replace(/^EVALUACIÓN (?:DOCUMENTAL|TEXTUAL) PROVISIONAL\.\s*/,'').replace(/^Requisito:.*?Evidencia:.*?secciones correspondientes del informe y\/o Anexo A\.\s*/,'').replace(/^Rúbrica:.*?puntos\.\s*/,'').split(/Cumplimiento parcial:|Nota \d+[.,]?\d*\//)[0].trim();
+ return t.length>240?t.slice(0,237).replace(/\s+\S*$/,'')+'…':t;};
+ return '<div class="eem-resumen"><b>Resumen de la calificación</b><p>'+ (faltan?'Evaluación parcial: '+faltan+' criterios pendientes. ':'')+'Descuento'+(faltan?' registrado':' total')+': <b>'+n(resta('FORMA')+resta('FONDO'))+' puntos</b> — Forma: '+n(resta('FORMA'))+'; Fondo: '+n(resta('FONDO'))+'.</p>'+(['FORMA','FONDO'].map(b=>{const p=perdidos.filter(i=>i.bloque===b).sort((a,b)=>(Number(b.maximo)-Number(b.nota))-(Number(a.maximo)-Number(a.nota)));return p.length?'<p><b>'+b+':</b> '+esc(p[0].descripcion)+': '+esc(motivo(p[0]))+(p.length>1?' Otros '+(p.length-1)+' criterios con descuento; ver detalle.':'')+'</p>':'';}).join(''))+(perdidos.length?'<details><summary>Ver dónde perdió puntos ('+perdidos.length+' criterios)</summary><ul>'+perdidos.map(i=>'<li><b>'+esc(i.bloque)+' '+esc(i.orden)+' · '+esc(i.descripcion)+' (−'+n(Number(i.maximo)-Number(i.nota))+')</b>: '+esc(motivo(i))+'</li>').join('')+'</ul></details>':'<p>Sin descuentos en los criterios calificados.</p>')+'</div>';
+};
 (function(){
 'use strict';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -58307,10 +58324,13 @@ function montar(host,grupo){
  const vigente=()=>host.isConnected&&host.dataset.escritoInstancia===String(instancia);
  function pintar(){
   const d=datos;let anterior='';
-  host.innerHTML='<h3>Trabajo escrito · Grupo '+esc(d.grupo)+'</h3><p><b>Nota del escrito: '+num(d.texto_65)+' / 65</b><br>Rúbrica: '+num(d.bruta)+' / 65'+(d.banda?' · Banda '+esc(d.banda.nota_minima)+'–'+esc(d.banda.nota_maxima):' · Sin banda activa')+(d.pendientes?' · '+d.pendientes+' criterios pendientes':'')+'</p><p>Las notas y justificaciones son comunes al grupo. Cada corrección se guarda con su autor y se sincroniza con los demás profesores.</p><button type="button" class="eem-btn sec" data-actualizar>Actualizar notas</button><p role="status" data-estado></p><details><summary>Ver y corregir los 30 criterios · Forma 20 + Fondo 45</summary>'+d.items.map(i=>{const titulo=anterior!==i.bloque?'<h4>'+esc(i.bloque)+(i.bloque==='FORMA'?' · 20 puntos':' · 45 puntos')+'</h4>':'';anterior=i.bloque;return titulo+'<div data-item="'+esc(i.id)+'" style="border-top:1px solid #46506a;padding:12px 0"><label>'+esc(i.orden)+'. '+esc(i.descripcion)+' <b>/ '+esc(i.maximo)+'</b></label><div style="display:flex;gap:8px;margin:8px 0"><input aria-label="Nota '+esc(i.bloque)+' '+esc(i.orden)+'" type="number" min="0" max="'+esc(i.maximo)+'" step="0.01" value="'+(i.nota==null?'':esc(i.nota))+'" '+(!d.editable?'disabled':'')+' style="width:110px;padding:10px"><span>'+esc(i.origen==='IA_EXTERNA_CONFIRMADA'?'Propuesta IA confirmada':i.calificador?'Revisado por '+i.calificador:'Por evaluar')+'</span></div><textarea aria-label="Justificación '+esc(i.bloque)+' '+esc(i.orden)+'" rows="3" style="width:100%;box-sizing:border-box" '+(!d.editable?'disabled':'')+'>'+esc(i.sustento||'')+'</textarea><button type="button" class="eem-btn" data-guardar '+(!d.editable?'disabled':'')+'>Guardar criterio</button></div>';}).join('')+'</details>';
+  const total=b=>d.items.filter(i=>i.bloque===b).some(i=>i.nota==null)?null:d.items.filter(i=>i.bloque===b).reduce((a,i)=>a+Number(i.nota),0);
+  const fila=(label,max,nota)=>'<tr class="eem-total"><th colspan="2">'+label+'</th><td>'+max+'%</td><td>'+num(nota)+'</td></tr>';
+  const tabla=b=>'<table class="eem-rubrica-tabla"><colgroup><col style="width:6%"><col style="width:62%"><col style="width:16%"><col style="width:16%"></colgroup><thead><tr><th colspan="4">ASPECTOS DE '+b+' ('+(b==='FORMA'?20:45)+'%)</th></tr><tr><th>N.º</th><th>CRITERIO</th><th>VALOR</th><th>NOTA</th></tr></thead><tbody>'+d.items.filter(i=>i.bloque===b).map((i,idx,items)=>(i.sub_bloque&&i.sub_bloque!==items[idx-1]?.sub_bloque?'<tr class="eem-total"><th colspan="4">'+esc(i.sub_bloque)+' ('+items.filter(x=>x.sub_bloque===i.sub_bloque).reduce((a,x)=>a+Number(x.maximo),0)+'%)</th></tr>':'')+'<tr data-item="'+esc(i.id)+'"><td>'+esc(i.orden)+'</td><td><b>'+esc(i.descripcion)+'</b><details class="eem-sustento"><summary>Justificación y corrección</summary><textarea aria-label="Justificación '+esc(i.bloque)+' '+esc(i.orden)+'" rows="4" '+(!d.editable?'disabled':'')+'>'+esc(i.sustento||'')+'</textarea><button type="button" class="eem-btn" data-guardar '+(!d.editable?'disabled':'')+'>Guardar criterio</button><small>'+esc(i.origen==='IA_EXTERNA_CONFIRMADA'?'Calificación IA · revisión docente disponible':i.calificador?'Revisado por '+i.calificador:'Por evaluar')+'</small></details></td><td>'+esc(i.maximo)+'%</td><td><input aria-label="Nota '+esc(i.bloque)+' '+esc(i.orden)+'" type="number" min="0" max="'+esc(i.maximo)+'" step="0.01" value="'+(i.nota==null?'':Number(i.nota).toFixed(2))+'" '+(!d.editable?'disabled':'')+'></td></tr>').join('')+fila('PROMEDIO PARCIAL',b==='FORMA'?20:45,total(b))+'</tbody></table>';
+  host.innerHTML='<h3>Trabajo escrito · Grupo '+esc(d.grupo)+'</h3><p><b>Nota del escrito: '+num(d.texto_65)+' / 65</b>'+(d.pendientes?' · '+d.pendientes+' criterios pendientes':'')+'</p><p>Modifica la nota en la tabla y guarda el criterio con su justificación. La corrección se sincroniza con los demás profesores.</p><button type="button" class="eem-btn sec" data-actualizar>Actualizar notas</button><p role="status" aria-live="polite" data-estado></p>'+window.eemResumenEscrito(d.items)+'<div class="eem-rubrica-hoja"><h3>HOJA DE CALIFICACIÓN DEL TRABAJO ESCRITO</h3><p>GRUPO '+esc(d.grupo)+' · 65%</p>'+tabla('FORMA')+tabla('FONDO')+'<table class="eem-rubrica-tabla"><colgroup><col style="width:6%"><col style="width:62%"><col style="width:16%"><col style="width:16%"></colgroup><thead><tr><th colspan="2">TOTALES PARCIALES</th><th>VALOR</th><th>NOTA</th></tr></thead><tbody>'+fila('ASPECTOS DE FORMA',20,total('FORMA'))+fila('ASPECTOS DE FONDO',45,total('FONDO'))+fila('TOTAL PARCIAL',65,d.bruta)+'</tbody></table></div>';
   host.querySelector('[data-actualizar]').onclick=()=>cargar(true);
   host.querySelectorAll('[data-item]').forEach(row=>{
-   row.querySelector('input').oninput=row.querySelector('textarea').oninput=()=>{sucio=true;row.dataset.sucio='1';};
+   row.querySelector('input').oninput=row.querySelector('textarea').oninput=()=>{sucio=true;row.dataset.sucio='1';row.querySelector('details').open=true;};
    row.querySelector('[data-guardar]').onclick=()=>guardar(row);
   });
  }
@@ -58343,7 +58363,7 @@ function montar(host,grupo){
  cargar();timer=setInterval(()=>{if(!vigente()){clearInterval(timer);return;}if(!document.hidden)cargar();},15000);
 }
 window.eemEscritoMontar=grupo=>{const host=document.getElementById('eem-escrito-tribunal');if(host)montar(host,grupo);};
-window.eemEscritoAbrir=grupo=>{document.getElementById('eem-escrito-modal')?.remove();const bg=document.createElement('div');bg.id='eem-escrito-modal';bg.className='eem-modal-bg';bg.innerHTML='<div class="eem-modal" style="max-width:900px;max-height:90vh;overflow:auto"><button class="eem-btn sec" data-cerrar>Cerrar</button><div data-escrito>Cargando notas…</div></div>';document.body.appendChild(bg);bg.querySelector('[data-cerrar]').onclick=()=>bg.remove();montar(bg.querySelector('[data-escrito]'),grupo);};
+window.eemEscritoAbrir=grupo=>{document.getElementById('eem-escrito-modal')?.remove();const bg=document.createElement('div');bg.id='eem-escrito-modal';bg.className='eem-modal-bg';bg.innerHTML='<div class="eem-modal" style="max-width:1100px;max-height:90vh;overflow:auto"><button class="eem-btn sec" data-cerrar>Cerrar</button><div data-escrito>Cargando notas…</div></div>';document.body.appendChild(bg);bg.querySelector('[data-cerrar]').onclick=()=>bg.remove();montar(bg.querySelector('[data-escrito]'),grupo);};
 })();
 
 </script>
