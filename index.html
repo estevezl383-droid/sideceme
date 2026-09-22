@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.403</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.404</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -55767,7 +55767,40 @@ function cuadroPorEvaluador(doc, modelo, cursantes, jurados){
   return tabla;
 }
 
+// Recalcular el documento desde las notas cerradas que aparecen en su tribunal.
+function actPromediosEvaluadores(acta){
+  const numero = v => v !== null && v !== undefined && v !== '' && Number.isFinite(Number(v));
+  const media = vs => vs.reduce((a,b)=>a+Number(b),0)/vs.length;
+  const n = (acta.jurados||[]).length;
+  const exposiciones = [];
+  for(const c of acta.cursantes||[]){
+    if(c.no_expuso){
+      if(c.decision_ausencia==='cero' && numero(c.texto_65)){
+        c.expo_35=0; c.final_100=Number(c.texto_65); c.promedio_final=c.final_100;
+      }
+      continue;
+    }
+    const finales=c.por_evaluador||[];
+    if(n<3 || finales.length!==n || !finales.every(numero) || !numero(c.texto_65)) continue;
+    const detalles=c.detalle_evaluadores||[];
+    const expo=detalles.length===n && detalles.every(j=>numero(j.total))
+      ? media(detalles.map(j=>j.total)) : media(finales)-Number(c.texto_65);
+    if(expo < -0.005 || expo > 35.005) continue;
+    c.expo_35=Number(expo.toFixed(4));
+    c.final_100=Number((Number(c.texto_65)+expo).toFixed(4));
+    c.promedio_final=c.final_100;
+    exposiciones.push(expo);
+  }
+  const presentes=(acta.cursantes||[]).filter(c=>!c.no_expuso);
+  if(presentes.length && exposiciones.length===presentes.length){
+    acta.totales=acta.totales||{};
+    acta.totales.exposicion_35_grupal=Number(media(exposiciones).toFixed(4));
+  }
+  return acta;
+}
+
 async function actaDocx(plantilla, acta){
+  actPromediosEvaluadores(acta);
   const zip = await JSZip.loadAsync(plantilla);
   const archivo = zip.file("word/document.xml");
   if(!archivo) throw new Error("La plantilla no parece un .docx de Word.");
@@ -55837,6 +55870,8 @@ async function actaDocx(plantilla, acta){
   if(tCur){
     // El cuadro LIMPIO, antes de escribirle nada: de el sale el segundo.
     const molde = tCur.cloneNode(true);
+    const cabecera = hijos(hijos(tCur, 'w:tr')[0], 'w:tc');
+    if(cabecera[1]) escribirCeldaLineas(doc, cabecera[1], ['NOTA FONDO','Y FORMA','65%']);
     rellenarCursantes(doc, tCur, acta.cursantes||[]);
     const tEval = cuadroPorEvaluador(doc, molde, acta.cursantes||[], acta.jurados||[]);
     if(tEval){
@@ -56228,6 +56263,7 @@ async function actPorEvaluador(acta){
         const vals = jur.map(j => porId[j.profesor_id]==null
           ? null : Number((t65 + porId[j.profesor_id]).toFixed(2)));
         if(vals.some(v=>v!==null)) c.por_evaluador = vals;
+        c.detalle_evaluadores = jur.map(j=>(comp.jurados||[]).find(x=>x.profesor_id===j.profesor_id && x.cerrado && !x.excluido)).filter(Boolean);
       }catch(_){ /* ese cursante sale en blanco, el resto no se cae */ }
     }
   }catch(_){ /* el acta se imprime igual */ }
@@ -56248,6 +56284,7 @@ ACT.vista = async function(grupoId, parcial=false, consolidado=false){
   const escritoItems=['forma','fondo'].flatMap(b=>(acta[b]||[]).map(i=>({...i,bloque:b.toUpperCase(),maximo:i.valor_pct??i.valor??i.maximo,descripcion:i.descripcion??i.criterio})));
   if(parcial && acta.totales?.texto_65!=null) acta.avisos=['Trabajo escrito calificado. La exposición y la nota final pueden seguir pendientes.'];
   if(!consolidado) await actPorEvaluador(acta);
+  actPromediosEvaluadores(acta);
   if(parcial){
     for(const bloque of ['forma','fondo','exposicion'])for(const it of acta[bloque]||[])if(it.nota==null)it.nota='Por completar';
     for(const k of Object.keys(acta.totales||{}))if(acta.totales[k]==null)acta.totales[k]='Por completar';
@@ -56301,9 +56338,9 @@ ACT.rubricaExcel = async function(){
     for(const bloque of ['forma','fondo','exposicion']) {
       for(const i of a[bloque]||[]) rubrica.push([bloque==='exposicion'?'EXPOSICIÓN (promedio grupal)':bloque.toUpperCase(),i.orden,i.descripcion,valor(i.valor_pct),valor(i.nota)]);
     }
-    rubrica.push([],['TOTALES','FORMA /20','FONDO /45','ESCRITO /65','EXPOSICIÓN GRUPAL /35'],
+    rubrica.push([],['TOTALES','FORMA /20','FONDO /45','FONDO Y FORMA /65','EXPOSICIÓN GRUPAL /35'],
       ['',valor(a.totales.forma_20),valor(a.totales.fondo_45),valor(a.totales.texto_65),valor(a.totales.exposicion_35_grupal)]);
-    const finales = [['CURSANTE','ESCRITO /65','EXPOSICIÓN /35',...(a.jurados||[]).map(j=>'FINAL — '+j.nombre),'NOTA FINAL /100','OBSERVACIÓN']];
+    const finales = [['CURSANTE','FONDO Y FORMA /65','EXPOSICIÓN /35',...(a.jurados||[]).map(j=>'FINAL — '+j.nombre),'NOTA FINAL /100','OBSERVACIÓN']];
     for(const c of a.cursantes||[]) finales.push([eemNombre(c,'cursante'),valor(c.texto_65),valor(c.expo_35),
       ...(a.jurados||[]).map((j,i)=>c.no_expuso?'NO EXPUSO':valor(c.por_evaluador?.[i])),valor(c.final_100),c.no_expuso?'NO EXPUSO — '+(c.motivo_ausencia||''):c.requiere_recalculo?'PENDIENTE DE RECÁLCULO':c.consolidada?'CONSOLIDADA':'PENDIENTE']);
     const detalle = [['CURSANTE','EVALUADOR',...(a.exposicion||[]).map(i=>'ÍTEM '+i.orden+' /'+i.valor_pct),'TOTAL /35']];
