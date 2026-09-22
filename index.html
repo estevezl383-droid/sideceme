@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.405</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.406</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -54636,6 +54636,7 @@ function pintarGrilla(){
   h += '<div class="trb-barra">'
     +'<div><span class="trb-estado" id="trb-estado">'+(TRB.sucio?'✎ sin guardar':'Todo guardado')+'</span></div>'
     +'<div class="trb-row">'
+    +(g.puede_reabrir && cerrados>0 ? '<button class="trb-btn sec" onclick="trbEditarMisNotas()">EDITAR MIS NOTAS</button>' : '')
     +(yaCerre ? '<span class="trb-chip ok">🔒 Calificación cerrada</span>'
       : '<button class="trb-btn sec" onclick="trbGuardar(true)">GUARDAR BORRADOR</button>'
         +'<button class="trb-btn" id="trb-cerrar" '+((calif<todos)?'disabled':'')
@@ -54853,6 +54854,21 @@ async function sincronizar(){
 window.addEventListener('online', ()=>{ estadoRed(); sincronizar(); });
 window.addEventListener('offline', ()=>estadoRed());
 
+async function trbEditarMisNotas(){
+  const g=TRB.grilla;
+  if(!g?.puede_reabrir || !TRB.yo?.id) return;
+  const motivo=prompt('Motivo de la corrección de sus notas:', 'Corrección durante la evaluación de los grupos');
+  if(!motivo?.trim()) return;
+  for(const f of g.filas||[]){
+    if(!f.cerrado) continue;
+    const r=await api('reabrir',{carpeta_id:g.carpeta_id,cursante_id:f.cursante_id,profesor_id:TRB.yo.id,motivo:motivo.trim()});
+    if(!r.ok){aviso(r.error); await trbGrilla(g.grupo.grupo_id); return;}
+  }
+  await trbGrilla(g.grupo.grupo_id);
+  aviso('Ya puede editar sus notas. Guarde y cierre nuevamente el grupo al terminar.');
+}
+window.trbEditarMisNotas=trbEditarMisNotas;
+
 async function trbCerrar(){
   // El servidor lo rechaza igual, pero es mejor decirlo antes de viajar.
   const sinObs = (TRB.grilla.filas||[]).filter(f=>!f.cerrado && !f.ausencia &&
@@ -54865,7 +54881,7 @@ async function trbCerrar(){
     return;
   }
   if(!confirm('CERRAR LA CALIFICACIÓN DEL GRUPO\n\n'
-    +'Es definitiva: para corregir algo después, el Evaluador tiene que reabrirla con motivo.\n\n'
+    +'Podrá usar EDITAR MIS NOTAS mientras queden grupos por evaluar. Al terminar todos, la reapertura corresponde al Evaluador.\n\n'
     +'Recién cuando cierres vas a ver lo que pusieron los demás jurados.\n\n¿Cerramos?')) return;
   await trbGuardar(false);
   const r = await api('cerrar', { grupo_id: TRB.grilla.grupo.grupo_id });
