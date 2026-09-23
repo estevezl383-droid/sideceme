@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.406</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.407</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -9510,6 +9510,21 @@ async function _evalTraerPagina(gestion, semestre){
 }
 
 // Carga el ÚLTIMO período cargado (gestión + semestre más recientes).
+// v2.9.407: años con notas cargadas. Antes se pedía la columna entera y Supabase cortaba en
+// 1.000 filas → sólo llegaba 2026 y 2025 desaparecía del selector. Ahora se pide año por año.
+async function _gestionesDeNotas(){
+  const anios = [];
+  let techo = null;
+  for(let i=0; i<30; i++){
+    let q = sb.from('notas_academicas').select('gestion').not('gestion','is',null)
+      .order('gestion',{ascending:false}).limit(1);
+    if(techo != null) q = q.lt('gestion', techo);
+    const { data, error } = await q;
+    if(error || !data || !data.length) break;
+    techo = data[0].gestion; anios.push(techo);
+  }
+  return anios;
+}
 async function loadNotasAcademicas(force){
   if(evalData.loaded && !force) return;
   try{
@@ -15409,7 +15424,8 @@ function _reconstruirIndicesDisc(){
 // SIEMPRE en background tras pintar con la caché, así nunca quedan datos viejos por mucho.
 // v2.9.78: clave v2 → ignora cualquier caché viejo (posiblemente envenenado con
 // sanciones=[] por un error de red de versiones anteriores). Arranca limpio.
-const _DISC_CACHE_KEY = 'sideceme_disc_cache_v2';
+// v2.9.407: v3 — las cachés v2 guardadas desde el 02-sep-2026 tienen sólo 1.000 sanciones (tope de Supabase).
+const _DISC_CACHE_KEY = 'sideceme_disc_cache_v3';
 const _DISC_CACHE_TTL_MS = 30 * 60 * 1000;
 function _guardarDiscCache(){
   try{
@@ -15422,9 +15438,12 @@ function _guardarDiscCache(){
       profesores: discData.profesores,
       reglamentos: discData.reglamentos
     };
+    try{ localStorage.removeItem('sideceme_disc_cache_v1'); localStorage.removeItem('sideceme_disc_cache_v2'); }catch(_){}
     localStorage.setItem(_DISC_CACHE_KEY, JSON.stringify(blob));
-    try{ localStorage.removeItem('sideceme_disc_cache_v1'); }catch(_){}
-  }catch(e){ /* quota llena → ignorar */ }
+  }catch(e){
+    // quota llena → borrar la caché para que NUNCA quede una versión vieja/incompleta pintándose al abrir
+    try{ localStorage.removeItem(_DISC_CACHE_KEY); }catch(_){}
+  }
 }
 function _cargarDiscCache(){
   try{
@@ -15463,12 +15482,57 @@ async function loadDiscData(force=false){
 async function _refrescarDiscDataBG(){
   try{ await _fetchDiscDataReal(true); }catch(e){ console.warn('refresh BG:', e); }
 }
+// v2.9.407: Supabase entrega como MÁXIMO 1.000 filas por consulta. El 02-sep-2026 las sanciones
+// pasaron de 1.000 y desde entonces la app perdía ~123 en cada carga (sin orden fijo → cambiaban
+// cuáles), y los puntajes salían MENORES a los reales. Ahora se traen por páginas de 1.000,
+// ordenadas por id (orden estable: sin él las páginas se pisan o saltan filas), hasta LIMITE_SANCIONES.
+const LIMITE_SANCIONES = 5000;
+async function _traerSancionesPaginado(){
+  const PAG = 1000;
+  let out = [], total = null;
+  for(let desde = 0; desde < LIMITE_SANCIONES; desde += PAG){
+    const hasta = Math.min(desde + PAG, LIMITE_SANCIONES) - 1;
+    const r = await sb.from('v_sanciones')
+      .select(SANC_COLS_LITE, desde === 0 ? { count: 'exact' } : undefined)
+      .order('id', { ascending: true })
+      .range(desde, hasta);
+    // Una página fallida = carga INCOMPLETA → se informa error y no se pisa lo que había.
+    if(r.error) return { data: null, error: r.error, total };
+    if(desde === 0 && typeof r.count === 'number') total = r.count;
+    out = out.concat(r.data || []);
+    if(!r.data || r.data.length < (hasta - desde + 1)) break;
+  }
+  if(total == null) total = out.length;
+  _avisoLimiteSanciones(total, out.length);
+  return { data: out, error: null, total };
+}
+// Anuncio GRANDE cuando la base tiene más sanciones de las que la app puede cargar.
+function _avisoLimiteSanciones(total, cargadas){
+  let el = document.getElementById('aviso-limite-sanciones');
+  if(total <= LIMITE_SANCIONES){ if(el) el.remove(); return; }
+  console.error(`[sanciones] LÍMITE SOBREPASADO: ${total} en la base, cargadas ${cargadas}`);
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'aviso-limite-sanciones';
+    el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:100000;background:#b00020;color:#fff;'
+      + 'padding:22px 16px;text-align:center;font-family:Arial,sans-serif;box-shadow:0 6px 24px rgba(0,0,0,.6);'
+      + 'border-bottom:4px solid #ffd54f;';
+    document.body.appendChild(el);
+  }
+  const fmt = n => Number(n).toLocaleString('es-BO');
+  el.innerHTML = '<div style="font-size:30px;font-weight:900;letter-spacing:1px;">⚠️ SE SOBREPASÓ EL LÍMITE DE '
+    + fmt(LIMITE_SANCIONES) + ' SANCIONES</div>'
+    + '<div style="font-size:18px;margin-top:8px;">La base tiene <b>' + fmt(total) + '</b> sanciones y el sistema carga sólo <b>'
+    + fmt(cargadas) + '</b>. Los puntajes y la lista «En Riesgo» <b>NO SON CONFIABLES</b>. Avise al administrador del sistema.</div>'
+    + '<button onclick="this.parentNode.remove()" style="margin-top:12px;padding:8px 22px;font-size:15px;font-weight:700;'
+    + 'border:0;border-radius:6px;background:#fff;color:#b00020;cursor:pointer;">Entendido (vuelve a salir al recargar)</button>';
+}
 async function _fetchDiscDataReal(silent){
   try{
     await cargarCierreVigente();  // v2.9.104: boundary del semestre antes de recomputar puntajes
     const [curRes,sanRes,profRes,regRes] = await Promise.all([
       sb.from('v_cursantes').select('*').order('id'),
-      sb.from('v_sanciones').select(SANC_COLS_LITE),
+      _traerSancionesPaginado(),
       sb.from('v_profesores').select('*').order('id'),
       sb.from('reglamentos').select('*')
     ]);
@@ -20105,8 +20169,7 @@ async function goBloqueoMaterias(){
   try{
     const sel = document.getElementById('bm-gestion');
     if(sel && !sel.options.length){
-      const {data} = await sb.from('notas_academicas').select('gestion').order('gestion',{ascending:false});
-      const anios = [...new Set((data||[]).map(x=>x.gestion).filter(x=>x!=null))];
+      const anios = await _gestionesDeNotas();
       if(!anios.length) anios.push(new Date().getFullYear());
       sel.innerHTML = anios.map(a=>`<option value="${a}">${a}</option>`).join('');
     }
@@ -40267,8 +40330,7 @@ async function goAulaGestion(){
   try{
     const sel = document.getElementById('aula-gestion');
     if(sel && !sel.options.length){
-      const {data} = await sb.from('notas_academicas').select('gestion').order('gestion',{ascending:false});
-      const anios = [...new Set((data||[]).map(x=>x.gestion).filter(x=>x!=null))];
+      const anios = await _gestionesDeNotas();
       const hoy = new Date().getFullYear();
       if(!anios.includes(hoy)) anios.unshift(hoy);
       sel.innerHTML = anios.map(a=>`<option value="${a}">${a}</option>`).join('');
