@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.408</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.409</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4551,6 +4551,69 @@ body{
   </div>
   <div class="menu-container">
     <div id="ef-det-content"></div>
+  </div>
+</section>
+
+<!-- =============== v2.9.409: CARGA DE NOTAS EFM POR PLANILLA (Sub. Sec. EF) =============== -->
+<!-- Solo Tcnl. Aguirre y My. Linares (rol sub_ef). El Excel se lee en el navegador; -->
+<!-- la Edge Function efm-ops revalida contra el padrón y guarda. Nada se calcula.    -->
+<section id="screen-efm-carga" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goEfPanel()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">📥 Cargar Notas EFM</div><div class="header-sub">Desde la planilla Excel de la Sección</div></div>
+  </div>
+  <div class="menu-container">
+    <div class="alert-banner blue"><div class="alert-emoji">🛡️</div><div class="alert-text"><div class="alert-desc">El Excel se lee <strong>en este dispositivo</strong> y la plataforma <strong>no calcula nada</strong>: guarda exactamente lo que dice la planilla. Las notas quedan como <strong>BORRADOR</strong> — los cursantes no las ven hasta que las publiques. Normal y Excelencia se suben por separado (una planilla por vez).</div></div></div>
+
+    <div class="sd-block">
+      <div class="sd-block-title">1 · Evaluación</div>
+      <div class="ef-filtros" style="margin:0;flex-wrap:wrap">
+        <select id="efm-gestion" onchange="efmRevisar()" style="flex:1 1 120px"></select>
+        <select id="efm-semestre" onchange="efmRevisar()" style="flex:1 1 150px"><option value="1">1er semestre del ciclo</option><option value="2">2do semestre del ciclo</option></select>
+        <select id="efm-tipo" onchange="efmRevisar()" style="flex:1 1 100%"><option value="DIAGNOSTICA">Diagnóstica (no promedia)</option><option value="CALIFICA">Califica (promedia)</option><option value="REPROGRAMADA">Reprogramada</option></select>
+      </div>
+      <div style="font-size:11.5px;color:var(--text-muted);margin-top:8px">Semestre del ciclo: en 2do ciclo, el "2do semestre" es el 4TO semestre del curso; en 1er ciclo, el 2DO.</div>
+    </div>
+
+    <div class="sd-block">
+      <div class="sd-block-title">2 · Planilla EFM</div>
+      <div class="field" style="margin-bottom:8px"><label>Archivo Excel (.xlsx / .xls)</label><input type="file" id="efm-file" accept=".xlsx,.xls,.xlsm" onchange="efmArchivo(this)"></div>
+      <div id="efm-file-info" style="font-size:12px;color:var(--text-muted);min-height:16px"></div>
+      <div class="field" id="efm-hoja-wrap" style="display:none;margin:12px 0 0"><label>Hoja del libro</label><select id="efm-hoja" onchange="efmAnalizarHoja(this.value)"></select></div>
+    </div>
+
+    <div id="efm-paso3" style="display:none">
+      <div class="sd-block">
+        <div class="sd-block-title">3 · Revisión antes de guardar</div>
+        <div class="field" style="margin-bottom:10px"><label>Tipo de planilla</label><select id="efm-categoria" onchange="efmRevisar()"><option value="NORMAL">Normal (talla/peso · natación · abdominales · flexiones · aeróbica)</option><option value="EXCELENCIA">Excelencia física (aptitud física sobresaliente)</option></select></div>
+        <div id="efm-revision"></div>
+      </div>
+      <button class="btn-primary" id="efm-btn-subir" onclick="efmSubir()">💾 Guardar como borrador</button>
+      <div id="efm-resultado" style="margin-top:14px"></div>
+    </div>
+  </div>
+</section>
+
+<section id="screen-efm-control" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goEfPanel()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">✅ Notas EFM</div><div class="header-sub">Publicación, conformidad y reclamos</div></div>
+  </div>
+  <div class="menu-container">
+    <div id="efm-ctrl-cont"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
+  </div>
+</section>
+
+<section id="screen-efm-detalle" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goEfmControl()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">🏃 Notas EFM</div><div class="header-sub" id="efm-det-sub">—</div></div>
+  </div>
+  <div class="menu-container">
+    <div id="efm-det-cont"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
   </div>
 </section>
 
@@ -11821,7 +11884,7 @@ async function renderCursanteEfmSection(){
   if(!cont || !currentUser) return;
   cont.innerHTML = '<div class="placeholder-container" style="padding:24px 12px"><div class="placeholder-icon">⏳</div><div class="placeholder-title">Cargando notas EFM...</div></div>';
   try{
-    const {data, error} = await sb.from('evaluaciones_fisicas')
+    const {data: todas, error} = await sb.from('evaluaciones_fisicas')
       .select('*')
       .eq('cursante_id', currentUser.id)
       .order('tipo_evaluacion', {ascending:true});
@@ -11829,6 +11892,9 @@ async function renderCursanteEfmSection(){
       cont.innerHTML = '<div class="efm-no-data">⚠️ Error cargando: ' + (error.message||'') + '</div>';
       return;
     }
+    // v2.9.409: los borradores (publicado=false) no se muestran hasta que la Sección los publique.
+    const data = (todas || []).filter(ev => ev.publicado !== false);
+    try{ await cargarConformidadesEfm(); }catch(e){}
     if(!data || !data.length){
       cont.innerHTML = '<div class="efm-no-data">🏃 Todavía no tenés notas físicas cargadas. Consultá con el Sub. Sec. de Entrenamiento Físico.</div>';
       return;
@@ -12420,7 +12486,12 @@ function htmlTarjetaEvaluacionFisica(ev, conEditar){
   const esCalifica = tipoLabel === 'CALIFICA';
   const tipoTxt = tipoLabel === 'DIAGNOSTICA' ? 'DIAGNÓSTICA' : tipoLabel;
   const periodo = ev.semestre ? (etiquetaSemAcad(ev.ciclo, ev.semestre) + (ev.gestion ? ' · ' + ev.gestion : '')) : '';
-  const tituloTxt = esCalifica ? (periodo || 'EVALUACIÓN QUE CALIFICA') : tipoTxt;
+  // v2.9.409: las cargadas por planilla traen semestre → "DIAGNÓSTICA · 4TO SEMESTRE · 2026".
+  // Las históricas no tienen semestre y se ven igual que siempre.
+  const tituloTxt = esCalifica ? (periodo || 'EVALUACIÓN QUE CALIFICA') : (periodo ? tipoTxt + ' · ' + periodo : tipoTxt);
+  const borradorHtml = ev.publicado === false
+    ? `<div style="margin:0 0 10px;padding:6px 10px;border-radius:8px;background:rgba(154,163,184,.18);border:1px dashed #9aa3b8;font-size:12px;color:#cfd6e4;text-align:center">📝 BORRADOR — todavía no publicada, el cursante no la ve</div>`
+    : '';
   const promChip = esCalifica
     ? `<span style="background:#1e6e3a;color:#bff5cf;font-size:10px;font-weight:700;padding:3px 9px;border-radius:6px;letter-spacing:.5px;white-space:nowrap;display:inline-block">✓ PROMEDIA</span>`
     : `<span style="background:#7a2230;color:#ffd6dc;font-size:10px;font-weight:700;padding:3px 9px;border-radius:6px;letter-spacing:.5px;white-space:nowrap;display:inline-block">NO PROMEDIA</span>`;
@@ -12430,6 +12501,7 @@ function htmlTarjetaEvaluacionFisica(ev, conEditar){
         <div class="efm-cur-title">🏃 ${tituloTxt}${promChip}</div>
         <div class="efm-cur-badge">${[categoria, edad].filter(Boolean).join(' · ')||'EFM'}</div>
       </div>
+      ${borradorHtml}
       <div class="efm-cur-final">
         <div class="efm-cur-final-num">${nota||'—'}</div>
         <div class="efm-cur-final-lbl">NOTA FINAL</div>
@@ -12449,6 +12521,7 @@ function htmlTarjetaEvaluacionFisica(ev, conEditar){
       </div>
       ${hayPon ? `<div class="efm-pon-note">🟢 La <b>nota más</b> en verde es lo que suma cada prueba. La suma de todas = <b>NOTA FINAL ${nota||'—'}</b>.</div>` : ''}
       ${ev.observaciones ? `<div class="efm-cur-obs">📝 ${ev.observaciones}</div>` : ''}
+      ${conEditar ? '' : _efmConfHtml(ev)}
     </div>`;
 }
 
@@ -12480,6 +12553,7 @@ function renderEfPanel(){
   try{ avBotonCarpeta('screen-ef-panel'); }catch(e){}  // v2.9.194
   try{ avOpcionesDocente('screen-ef-panel'); }catch(e){}  // v2.9.195
   if(!currentUser) return;
+  try{ _efmBotonesPanel(); }catch(e){ console.warn('efm botones', e); }  // v2.9.409
   // Defensa
   const s = getSession();
   if(s && s.tipo !== 'docente'){
@@ -12586,6 +12660,698 @@ function verEfCursante(cursanteId){
   }
   document.getElementById('ef-det-content').innerHTML = headerHtml + body;
   showScreen('screen-ef-cursante');
+}
+
+/* ============================================================================
+   v2.9.409 — CARGA DE NOTAS EFM POR PLANILLA (Sub. Sec. Entrenamiento Físico)
+   Tcnl. Aguirre (P019) y My. Linares (P020), rol 'sub_ef'.
+
+   Mismo circuito que las notas académicas del Sof. Balderrama, pero SOLO EFM:
+     1. El Excel de la Sección (Normal o Excelencia) se lee acá con SheetJS.
+        La plataforma NO calcula: guarda lo que dice cada celda.
+     2. Revisión completa en pantalla (qué cursante recibe qué nota).
+     3. La Edge Function `efm-ops` revalida contra el padrón y guarda como
+        BORRADOR (publicado=false). El cursante no ve nada todavía.
+     4. Publicar → el cursante la ve y da su conformidad o su reclamo (firma).
+     5. Reclamo pertinente → corrección con motivo; la conformidad se reabre.
+   Las filas históricas (publicado = NULL) no se tocan y se siguen viendo igual.
+   ============================================================================ */
+const EFM = { wb:null, archivo:'', hoja:'', filas:[], padron:[], grupos:[], cargas:[], det:null, detFilas:[], detFiltro:'todos' };
+
+function _efmRoles(){
+  const u = currentUser || {};
+  return [u.rol].concat(Array.isArray(u.roles) ? u.roles : [])
+    .map(function(x){ return String(x||'').toLowerCase(); });
+}
+function _efmPuede(){ return _efmRoles().indexOf('sub_ef') >= 0; }
+
+async function _efmInvoke(accion, extra){
+  const tok = (typeof getTokenSesion === 'function') ? getTokenSesion() : null;
+  if(!tok) return { ok:false, error:'Tu sesión no es válida. Volvé a entrar.' };
+  try{
+    const { data, error } = await sb.functions.invoke('efm-ops', {
+      body: Object.assign({ accion:accion, token:tok }, extra || {})
+    });
+    if(error){
+      let cuerpo = null;
+      try{ if(error.context && typeof error.context.json === 'function') cuerpo = await error.context.json(); }catch(_){}
+      if(cuerpo) return Object.assign({ ok:false, error: cuerpo.error || error.message }, cuerpo);
+      return { ok:false, error: error.message || 'No se pudo contactar al servidor' };
+    }
+    return data || { ok:false, error:'El servidor no respondió' };
+  }catch(e){ return { ok:false, error: String((e && e.message) || e) }; }
+}
+
+// Botones del panel EF. Se REMUEVEN si el usuario no corresponde: los inyectados
+// quedan pegados en el DOM entre sesiones de la misma pestaña.
+function _efmBotonesPanel(){
+  const cont = document.querySelector('#screen-ef-panel .menu-container');
+  if(!cont) return;
+  ['efm-btn-carga','efm-btn-control','efm-btn-jc'].forEach(function(id){ const e=document.getElementById(id); if(e) e.remove(); });
+  const ref = cont.querySelector('.ef-panel-stats');
+  const poner = function(b){ cont.insertBefore(b, ref ? ref.nextSibling : cont.firstElementChild); };
+  // Tcnl. Aguirre entra como Jefe de Curso: le dejamos la vuelta a su panel.
+  if(currentUser && String(currentUser.rol||'').toLowerCase() === 'jefe_curso'){
+    const j = document.createElement('button');
+    j.id='efm-btn-jc'; j.className='btn-secondary'; j.style.cssText='width:100%;margin:0 0 8px';
+    j.innerHTML='🎓 Volver a mi panel de Jefe de Curso';
+    j.onclick=function(){ activeRole='jefe_curso'; selectedCargo='jefe_curso'; enterRole('jefe_curso'); };
+    poner(j);
+  }
+  if(!_efmPuede()) return;
+  const c = document.createElement('button');
+  c.id='efm-btn-control'; c.className='btn-mega';
+  c.style.cssText='background:linear-gradient(180deg,#c49234,#8a6420);margin:0 0 8px;color:#fff';
+  c.innerHTML='<span class="mega-icon">✅</span><span>Notas EFM — publicar, conformidad y reclamos</span>';
+  c.onclick=function(){ goEfmControl(); };
+  poner(c);
+  const b = document.createElement('button');
+  b.id='efm-btn-carga'; b.className='btn-mega';
+  b.style.cssText='background:linear-gradient(180deg,#2b6d8c,#1a4460);margin:0 0 8px;color:#fff';
+  b.innerHTML='<span class="mega-icon">📥</span><span>Cargar notas EFM desde la planilla Excel</span>';
+  b.onclick=function(){ goEfmCarga(); };
+  poner(b);
+}
+
+// En el panel de Jefe de Curso: acceso al panel EF para quien además es sub_ef.
+function _efmBotonEnJC(){
+  const cont = document.querySelector('#screen-jc-panel .menu-container') || document.querySelector('#screen-jc-panel .disc-container');
+  if(!cont) return;
+  const ya = document.getElementById('efm-btn-ir-ef');
+  if(!_efmPuede()){ if(ya) ya.remove(); return; }
+  if(ya) return;
+  const b = document.createElement('button');
+  b.id='efm-btn-ir-ef'; b.className='btn-mega';
+  b.style.cssText='background:linear-gradient(180deg,#2d6a4f,#1b4332);margin:0 0 8px;color:#fff';
+  b.innerHTML='<span class="mega-icon">🏃</span><span>Entrenamiento Físico — cargar y publicar notas EFM</span>';
+  b.onclick=function(){ activeRole='ef'; selectedCargo='ef'; enterRole('ef'); };
+  cont.insertBefore(b, cont.firstElementChild);
+}
+
+/* ------------------------------ lectura del Excel ------------------------------ */
+function _efmN(s){ return _ncNorm(s).replace(/[.:%]/g,' ').replace(/\s+/g,' ').trim(); }
+function _efmGrupo(g){
+  if(/TALLA|PESO/.test(g)) return 'tp';
+  if(/NATACION/.test(g)) return 'nat';
+  if(/BARRA/.test(g)) return 'bar';          // antes que FLEXION: "FLEXIONES EN BARRA"
+  if(/ABDOMINAL/.test(g)) return 'abd';
+  if(/FLEXION/.test(g)) return 'flex';
+  if(/AEROBIC/.test(g)) return 'aer';
+  return null;
+}
+const _EFM_NOTA = { tp:'nota_talla_peso', nat:'natacion_nota', abd:'abdominales_nota', flex:'flexiones_nota', bar:'barra_nota', aer:'aerobica_nota' };
+const _EFM_PON  = { tp:'nota_talla_peso_pon', nat:'natacion_nota_pon', abd:'abdominales_nota_pon', flex:'flexiones_nota_pon', aer:'aerobica_nota_pon' };
+const _EFM_MARCA = { nat:'__nat', abd:'abdominales_cant', flex:'flexiones_cant', bar:'barra_cant', aer:'aerobica_tiempo' };
+function _efmCampo(grp, s){
+  if(/^NOTA ?\d/.test(s)) return _EFM_PON[grp] || null;     // "NOTA 1".."NOTA 5" = lo que suma
+  if(s === 'NOTA') return _EFM_NOTA[grp] || null;
+  if(grp === 'tp'){ if(s === 'TALLA') return 'talla'; if(s === 'PESO') return 'peso'; return null; }
+  if(/^(DIST|TIEMPO|TPO|CANT|MARCA|REP)/.test(s)) return _EFM_MARCA[grp] || null;
+  return null;
+}
+// Número tal cual la celda; solo se limpia el ruido de coma flotante (19.400000000000002).
+function _efmNumTxt(x){ return String(Number(x.toFixed(10))); }
+
+function _efmParse(raw, tx){
+  let h = -1;
+  for(let r=0; r<Math.min(raw.length, 40); r++){
+    if((raw[r]||[]).some(function(v){ return /APELLIDOS/.test(_efmN(v)); })){ h = r; break; }
+  }
+  if(h < 0) return { error:'No encontré la fila de encabezado (la que dice "NOMBRES Y APELLIDOS").' };
+  const H = raw[h]||[], G = raw[h+1]||[], S = raw[h+2]||[];
+  const ncol = Math.max(H.length, G.length, S.length);
+  let cNum=-1, cGrado=-1, cNom=-1, cEdad=-1, cFinal=-1, cObs=-1;
+  for(let c=0; c<ncol; c++){
+    const t = _efmN(H[c]); if(!t) continue;
+    if(cNom<0 && /APELLIDOS/.test(t)) cNom=c;
+    else if(cGrado<0 && t==='GRADO') cGrado=c;
+    else if(cEdad<0 && t==='EDAD') cEdad=c;
+    else if(cFinal<0 && /NOTA FINAL/.test(t)) cFinal=c;
+    else if(cObs<0 && /^OBS/.test(t)) cObs=c;
+    else if(cNum<0 && /^(NO|N°|N|NRO|NUM)$/.test(t)) cNum=c;
+  }
+  if(cNom<0 || cFinal<0) return { error:'No encontré las columnas "NOMBRES Y APELLIDOS" y "NOTA FINAL" en esta hoja.' };
+  if(cNum<0) cNum = 0;
+  const fijas = [cNum,cGrado,cNom,cEdad,cFinal,cObs];
+  const mapa = {}; let grp = null;
+  for(let c=0; c<ncol; c++){
+    if(fijas.indexOf(c) >= 0){ grp = null; continue; }
+    const g = _efmN(G[c]); if(g) grp = _efmGrupo(g);
+    const s = _efmN(S[c]); if(!grp || !s) continue;
+    const campo = _efmCampo(grp, s); if(campo) mapa[c] = campo;
+  }
+  const campos = Object.keys(mapa).map(function(k){ return mapa[k]; });
+  if(!campos.length) return { error:'No reconocí las columnas de las pruebas (natación, abdominales, flexiones, aeróbica…).' };
+  let titulo = '';
+  for(let r=0; r<h; r++) titulo += ' ' + (raw[r]||[]).map(_efmN).join(' ');
+  const esExc = /SOBRESALIENTE|EXCELENCIA/.test(titulo) || (campos.indexOf('barra_cant')>=0 && campos.indexOf('talla')<0);
+
+  const filas = [];
+  for(let r=h+1; r<raw.length; r++){
+    const row = raw[r]||[], rt = tx[r]||[];
+    if(typeof row[cNum] !== 'number') continue;
+    const nombre = String(row[cNom]==null ? '' : row[cNom]).trim();
+    if(!/[A-Za-zÁÉÍÓÚÑáéíóúñ]{2}/.test(nombre)) continue;   // filas de fórmula vacías ("0") de la plantilla
+    const val = function(c){
+      const x = row[c];
+      if(x == null || x === '') return null;
+      if(typeof x === 'number') return _efmNumTxt(x);
+      const s = String(x).trim(); return s || null;
+    };
+    // Tiempos: si Excel los guardó como hora (fracción de día), va el texto que se ve en la celda.
+    const valTiempo = function(c){
+      const x = row[c];
+      if(typeof x === 'number' && x > 0 && x < 1){ const s = String(rt[c]||'').trim(); return s || _efmNumTxt(x); }
+      return val(c);
+    };
+    const v = {};
+    Object.keys(mapa).forEach(function(c){
+      const f = mapa[c];
+      if(f === '__nat'){
+        const s = valTiempo(c); if(s == null) return;
+        if(s.indexOf(':') >= 0) v.natacion_tiempo = s; else v.natacion_distancia = s;
+      } else if(f === 'aerobica_tiempo') v[f] = valTiempo(c);
+      else v[f] = val(c);
+    });
+    if(cEdad >= 0) v.edad = val(cEdad);
+    v.nota_final = val(cFinal);
+    if(cObs >= 0) v.observaciones = val(cObs);
+    filas.push({ n:row[cNum], fila:r+1, nombre:nombre, grado: cGrado>=0 ? String(row[cGrado]||'').trim() : '', v:v, cur:null, excluir:false });
+  }
+  if(!filas.length) return { error:'La hoja no tiene filas de cursantes (columna N° con número y nombre).' };
+  return { filas:filas, categoria: esExc ? 'EXCELENCIA' : 'NORMAL' };
+}
+
+function _efmMatch(nombre){
+  const tk = _ncTokens(nombre);
+  let best=null, bs=0, sec=0;
+  EFM.padron.forEach(function(p){
+    let k=0; tk.forEach(function(t){ if(p.tk.has(t)) k++; });
+    if(k > bs){ sec = bs; bs = k; best = p; } else if(k > sec) sec = k;
+  });
+  const ok = best && bs >= 2 && bs > sec && (bs >= 3 || bs === best.tk.size);
+  return ok ? best.c : null;
+}
+
+/* ------------------------------ pantalla de carga ------------------------------ */
+async function goEfmCarga(){
+  if(!_efmPuede()){ alert('Esta función es solo de la Sub. Sec. Entrenamiento Físico.'); return; }
+  const hoy = new Date(), y = hoy.getFullYear();
+  const selG = document.getElementById('efm-gestion');
+  selG.innerHTML = [y, y-1].map(function(g){ return '<option value="'+g+'">Gestión '+g+'</option>'; }).join('');
+  document.getElementById('efm-semestre').value = hoy.getMonth() >= 6 ? '2' : '1';
+  document.getElementById('efm-tipo').value = 'DIAGNOSTICA';
+  document.getElementById('efm-file').value = '';
+  document.getElementById('efm-file-info').textContent = '';
+  document.getElementById('efm-hoja-wrap').style.display = 'none';
+  document.getElementById('efm-paso3').style.display = 'none';
+  document.getElementById('efm-resultado').innerHTML = '';
+  EFM.wb = null; EFM.filas = [];
+  showScreen('screen-efm-carga');
+  if(!(discData.cursantes||[]).length){ try{ await loadDiscData(true); }catch(e){} }
+  EFM.padron = (discData.cursantes||[])
+    .filter(function(c){ return c.activo !== false && c.ciclo; })
+    .map(function(c){ return { c:c, tk:_ncTokens(c.nombre_completo) }; });
+}
+
+async function efmArchivo(input){
+  const f = input.files && input.files[0];
+  const info = document.getElementById('efm-file-info');
+  document.getElementById('efm-paso3').style.display = 'none';
+  document.getElementById('efm-resultado').innerHTML = '';
+  if(!f) return;
+  info.textContent = '⏳ Leyendo ' + f.name + '…';
+  try{
+    await ensureXLSX();
+    const buf = await f.arrayBuffer();
+    EFM.wb = XLSX.read(buf, { type:'array' });
+    EFM.archivo = f.name;
+  }catch(e){ info.textContent = '❌ No se pudo leer el archivo: ' + ((e && e.message) || e); return; }
+  const hojas = EFM.wb.SheetNames || [];
+  // Por defecto, la ÚLTIMA hoja con planilla reconocible (la hoja "DBF." es la plantilla vieja).
+  let elegida = hojas[hojas.length-1];
+  for(let i=hojas.length-1; i>=0; i--){ if(!_efmLeerHoja(hojas[i]).error){ elegida = hojas[i]; break; } }
+  const sel = document.getElementById('efm-hoja');
+  sel.innerHTML = hojas.map(function(h){ return '<option value="'+escapeHtml(h)+'"'+(h===elegida?' selected':'')+'>'+escapeHtml(h)+'</option>'; }).join('');
+  document.getElementById('efm-hoja-wrap').style.display = hojas.length > 1 ? '' : 'none';
+  info.textContent = '📄 ' + f.name + ' · ' + hojas.length + ' hoja(s)';
+  efmAnalizarHoja(elegida);
+}
+
+function _efmLeerHoja(nombre){
+  const ws = EFM.wb && EFM.wb.Sheets[nombre];
+  if(!ws) return { error:'Hoja no encontrada' };
+  const raw = XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:null });
+  const tx  = XLSX.utils.sheet_to_json(ws, { header:1, raw:false, defval:'' });
+  return _efmParse(raw, tx);
+}
+
+function efmAnalizarHoja(nombre){
+  EFM.hoja = nombre;
+  const p = _efmLeerHoja(nombre);
+  const rev = document.getElementById('efm-revision');
+  document.getElementById('efm-paso3').style.display = '';
+  if(p.error){
+    EFM.filas = [];
+    rev.innerHTML = '<div class="efm-no-data" style="color:#e87878">❌ '+escapeHtml(p.error)+'</div>';
+    document.getElementById('efm-btn-subir').disabled = true;
+    return;
+  }
+  p.filas.forEach(function(f){ f.cur = _efmMatch(f.nombre); });
+  EFM.filas = p.filas;
+  document.getElementById('efm-categoria').value = p.categoria;
+  efmRevisar();
+}
+
+function efmAsignar(i, val){
+  const f = EFM.filas[i]; if(!f) return;
+  f.excluir = (val === '__excluir');
+  f.cur = (!val || val === '__excluir') ? null
+        : ((EFM.padron.find(function(p){ return String(p.c.id) === String(val); })||{}).c || null);
+  efmRevisar();
+}
+
+function _efmCiclosDe(filas){
+  const cnt = {};
+  filas.forEach(function(f){ if(f.cur) cnt[f.cur.ciclo] = (cnt[f.cur.ciclo]||0) + 1; });
+  return Object.keys(cnt).sort(function(a,b){ return cnt[b]-cnt[a]; });
+}
+
+function efmRevisar(){
+  const rev = document.getElementById('efm-revision');
+  const btn = document.getElementById('efm-btn-subir');
+  if(!rev || !EFM.filas.length){ if(btn) btn.disabled = true; return; }
+  const filas = EFM.filas;
+  const cat = document.getElementById('efm-categoria').value;
+  const sem = document.getElementById('efm-semestre').value;
+  const gest = document.getElementById('efm-gestion').value;
+  const tipo = document.getElementById('efm-tipo').value;
+  const activas = filas.filter(function(f){ return !f.excluir; });
+  const sinAsignar = activas.filter(function(f){ return !f.cur; });
+  const usos = {};
+  activas.forEach(function(f){ if(f.cur) usos[f.cur.id] = (usos[f.cur.id]||0) + 1; });
+  const repetidos = activas.filter(function(f){ return f.cur && usos[f.cur.id] > 1; });
+  const ciclos = _efmCiclosDe(activas);
+  const cicloPpal = ciclos[0] || '';
+  const otroCiclo = activas.filter(function(f){ return f.cur && f.cur.ciclo !== cicloPpal; });
+  const sinNotaFinal = activas.filter(function(f){ return f.v.nota_final == null; });
+  const enPlanilla = new Set(activas.filter(function(f){ return f.cur; }).map(function(f){ return String(f.cur.id); }));
+  const faltan = EFM.padron.filter(function(p){ return p.c.ciclo === cicloPpal && !enPlanilla.has(String(p.c.id)); });
+
+  const opciones = function(i, sel){
+    const lista = EFM.padron.slice().sort(function(a,b){
+      const ca = a.c.ciclo === cicloPpal ? 0 : 1, cb = b.c.ciclo === cicloPpal ? 0 : 1;
+      return ca - cb || String(a.c.nombre_completo).localeCompare(String(b.c.nombre_completo));
+    });
+    return '<select onchange="efmAsignar('+i+',this.value)" style="width:100%;max-width:260px;font-size:12px">'
+      + '<option value="">— elegir cursante —</option>'
+      + '<option value="__excluir"'+(sel==='__excluir'?' selected':'')+'>✖ No cargar esta fila</option>'
+      + lista.map(function(p){ return '<option value="'+escapeHtml(p.c.id)+'"'+(String(sel)===String(p.c.id)?' selected':'')+'>'
+          + escapeHtml((p.c.nombre_completo||'')+' · '+(p.c.ciclo||'')+(p.c.paralelo?' "'+p.c.paralelo+'"':'')) + '</option>'; }).join('')
+      + '</select>';
+  };
+  const nota = function(x){ return x == null ? '<span style="color:var(--text-muted)">—</span>' : escapeHtml(x); };
+  const esExc = cat === 'EXCELENCIA';
+  const cols = esExc
+    ? [['natacion_nota','Nat.'],['barra_nota','Barra'],['abdominales_nota','Abd.'],['flexiones_nota','Flex.'],['aerobica_nota','Aer.']]
+    : [['nota_talla_peso_pon','T/P'],['natacion_nota_pon','Nat.'],['abdominales_nota_pon','Abd.'],['flexiones_nota_pon','Flex.'],['aerobica_nota_pon','Aer.']];
+
+  let avisos = '';
+  const aviso = function(color, txt){ avisos += '<div style="font-size:12.5px;margin:4px 0;color:'+color+'">'+txt+'</div>'; };
+  aviso('var(--text-secondary)', '📋 <b>'+activas.length+'</b> fila(s) · <b>'+(activas.length-sinAsignar.length)+'</b> reconocida(s) en el padrón'
+    + (cicloPpal ? ' · <b>'+escapeHtml(cicloPpal)+'</b> → se guarda como <b>'+escapeHtml((tipo==='DIAGNOSTICA'?'DIAGNÓSTICA':tipo)+' · '+etiquetaSemAcad(cicloPpal, sem)+' '+gest)+'</b>' : ''));
+  aviso('var(--text-secondary)', esExc ? '🏅 Planilla de <b>EXCELENCIA FÍSICA</b>.' : '🏃 Planilla <b>NORMAL</b>.');
+  if(sinAsignar.length) aviso('#e87878', '❌ '+sinAsignar.length+' fila(s) sin cursante: elegilo en la lista o marcá "No cargar esta fila".');
+  if(repetidos.length) aviso('#e87878', '❌ Hay cursantes asignados a más de una fila (marcados en rojo).');
+  if(otroCiclo.length) aviso('#e0b050', '⚠️ '+otroCiclo.length+' fila(s) de otro ciclo. Cada nota se guarda en el ciclo real del cursante.');
+  if(sinNotaFinal.length) aviso('#e0b050', '⚠️ '+sinNotaFinal.length+' fila(s) sin NOTA FINAL: se guardan, pero el cursante no ve nota hasta que la tenga.');
+  if(faltan.length) aviso('var(--text-muted)', 'ℹ️ '+faltan.length+' cursante(s) de '+escapeHtml(cicloPpal)+' no están en esta planilla'
+    + (esExc ? '' : ' (los de excelencia van en su propia planilla)') + ': '
+    + escapeHtml(faltan.slice(0,12).map(function(p){ return p.c.nombre_completo; }).join(', ')) + (faltan.length>12?'…':''));
+
+  const th = 'style="padding:6px 5px;text-align:left;font-size:11px;color:var(--gold);border-bottom:1px solid var(--border-subtle)"';
+  const td = 'style="padding:5px;font-size:12px;border-bottom:1px solid var(--border-subtle);vertical-align:top"';
+  const tabla = '<div style="overflow-x:auto;margin-top:10px"><table style="width:100%;border-collapse:collapse">'
+    + '<tr><th '+th+'>N°</th><th '+th+'>En la planilla</th><th '+th+'>Cursante en el sistema</th>'
+    + cols.map(function(c){ return '<th '+th+'>'+c[1]+'</th>'; }).join('') + '<th '+th+'>FINAL</th></tr>'
+    + filas.map(function(f, i){
+        const rep = f.cur && usos[f.cur.id] > 1 && !f.excluir;
+        const bg = f.excluir ? 'opacity:.45' : ((!f.cur || rep) ? 'background:rgba(232,120,120,.12)' : '');
+        const cur = f.excluir ? opciones(i, '__excluir')
+          : (f.cur ? '<div style="color:'+(rep?'#e87878':'#7ddba0')+'">'+escapeHtml(f.cur.nombre_completo)+'</div>'
+                     + '<div style="font-size:10.5px;color:var(--text-muted)">'+escapeHtml(f.cur.ciclo||'')+(f.cur.paralelo?' "'+escapeHtml(f.cur.paralelo)+'"':'')
+                     + ' · <a href="#" onclick="efmAsignar('+i+',\'\');return false" style="color:var(--text-muted)">cambiar</a></div>'
+                   : opciones(i, ''));
+        return '<tr style="'+bg+'"><td '+td+'>'+escapeHtml(f.n)+'</td>'
+          + '<td '+td+'>'+escapeHtml(f.nombre)+(f.grado?'<div style="font-size:10.5px;color:var(--text-muted)">'+escapeHtml(f.grado)+'</div>':'')+'</td>'
+          + '<td '+td+'>'+cur+'</td>'
+          + cols.map(function(c){ return '<td '+td+'>'+nota(f.v[c[0]])+'</td>'; }).join('')
+          + '<td '+td+'><b>'+nota(f.v.nota_final)+'</b></td></tr>';
+      }).join('')
+    + '</table></div>';
+  rev.innerHTML = avisos + tabla
+    + '<div style="font-size:11px;color:var(--text-muted);margin-top:6px">'+(esExc?'Columnas: nota de cada prueba.':'Columnas: la "nota más" de cada prueba (lo que suma a la NOTA FINAL).')+' El detalle completo (marcas y notas) se guarda igual que en la planilla.</div>';
+  btn.disabled = !!(sinAsignar.length || repetidos.length || !activas.length);
+}
+
+async function efmSubir(){
+  const activas = EFM.filas.filter(function(f){ return !f.excluir; });
+  if(!activas.length || activas.some(function(f){ return !f.cur; })) return;
+  const gestion = Number(document.getElementById('efm-gestion').value);
+  const semestre = Number(document.getElementById('efm-semestre').value);
+  const tipo = document.getElementById('efm-tipo').value;
+  const categoria = document.getElementById('efm-categoria').value;
+  const ciclo = _efmCiclosDe(activas)[0] || '';
+  const etiqueta = (tipo==='DIAGNOSTICA'?'DIAGNÓSTICA':tipo)+' · '+etiquetaSemAcad(ciclo, semestre)+' '+gestion+' · '+ciclo;
+  if(!confirm('Vas a guardar '+activas.length+' nota(s) EFM ('+categoria+') como BORRADOR en:\n\n'+etiqueta
+    +'\n\nLos cursantes NO las ven hasta que las publiques. ¿Continuar?')) return;
+  const btn = document.getElementById('efm-btn-subir');
+  const res = document.getElementById('efm-resultado');
+  btn.disabled = true; const t0 = btn.textContent; btn.textContent = '⏳ Guardando…';
+  const r = await _efmInvoke('cargar', {
+    gestion:gestion, semestre:semestre, tipo_evaluacion:tipo, categoria:categoria,
+    archivo:EFM.archivo, hoja:EFM.hoja,
+    filas: activas.map(function(f){ return Object.assign({ cursante_id:f.cur.id }, f.v); })
+  });
+  btn.textContent = t0; btn.disabled = false;
+  if(!r.ok){ res.innerHTML = '<div class="efm-no-data" style="color:#e87878">❌ '+escapeHtml(r.error||'No se pudo guardar')+'</div>'; return; }
+  res.innerHTML = '<div class="sd-block"><div class="sd-block-title">✔ Planilla guardada como borrador</div>'
+    + '<div style="font-size:13px;line-height:1.6">Nuevas: <b>'+r.nuevas+'</b> · Actualizadas: <b>'+r.actualizadas+'</b> · Sin cambios: <b>'+r.sin_cambio+'</b>'
+    + (r.reabiertas ? '<br>⚠️ '+r.reabiertas+' nota(s) ya publicadas cambiaron: esos cursantes tienen que volver a dar su conformidad.' : '')
+    + '<br>Cuando estén las dos planillas (normal y excelencia), publicalas desde <b>Notas EFM — publicar</b>.</div>'
+    + '<button class="btn-primary" style="margin-top:10px" onclick="goEfmControl()">✅ Ir a publicar</button></div>';
+  try{ await loadEvaluacionesFisicas(); }catch(e){}
+}
+
+/* ------------------------- publicación, conformidad, reclamos ------------------------- */
+function _efmTipoTxt(t){ t = String(t||'').toUpperCase(); return t === 'DIAGNOSTICA' ? 'DIAGNÓSTICA' : t; }
+function _efmGrupoTitulo(g){ return _efmTipoTxt(g.tipo_evaluacion)+' · '+etiquetaSemAcad(g.ciclo, g.semestre)+' '+g.gestion+' · '+g.ciclo; }
+function _efmGrupoParams(g){ return { gestion:g.gestion, semestre:g.semestre, ciclo:g.ciclo, tipo_evaluacion:g.tipo_evaluacion }; }
+
+async function goEfmControl(){
+  if(!_efmPuede()){ alert('Esta función es solo de la Sub. Sec. Entrenamiento Físico.'); return; }
+  showScreen('screen-efm-control');
+  const cont = document.getElementById('efm-ctrl-cont');
+  cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const r = await _efmInvoke('listar');
+  if(!r.ok){ cont.innerHTML = '<div class="efm-no-data" style="color:#e87878">❌ '+escapeHtml(r.error||'No se pudo leer')+'</div>'; return; }
+  EFM.grupos = (r.grupos||[]).sort(function(a,b){
+    return (b.gestion-a.gestion) || (b.semestre-a.semestre) || String(a.ciclo).localeCompare(String(b.ciclo)) || String(a.tipo_evaluacion).localeCompare(String(b.tipo_evaluacion));
+  });
+  EFM.cargas = r.cargas || [];
+  if(!EFM.grupos.length){
+    cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">Todavía no se cargó ninguna planilla EFM por la plataforma.</div>'
+      + '<button class="btn-primary" onclick="goEfmCarga()">📥 Cargar planilla</button>';
+    return;
+  }
+  const btn = function(txt, fn, bg){ return '<button class="btn-secondary" style="flex:1;min-width:140px;margin:0;'+(bg?'background:'+bg+';color:#fff;':'')+'" onclick="'+fn+'">'+txt+'</button>'; };
+  cont.innerHTML = EFM.grupos.map(function(g, i){
+    return '<div class="sd-block">'
+      + '<div class="sd-block-title">🏃 '+escapeHtml(_efmGrupoTitulo(g))+'</div>'
+      + '<div style="font-size:13px;line-height:1.7">'
+      + '<b>'+g.total+'</b> nota(s) — '+g.normal+' normal · '+g.excelencia+' excelencia<br>'
+      + (g.borrador ? '📝 Borrador (no visible): <b>'+g.borrador+'</b><br>' : '')
+      + (g.publicadas ? '📢 Publicadas: <b>'+g.publicadas+'</b> — 🟢 firmaron <b>'+g.confirmada+'</b> · ⏳ pendientes <b>'+g.pendiente+'</b> · '
+          + '<span style="color:'+(g.rechazada?'#ff8a8a':'inherit')+'">🔴 reclamos <b>'+g.rechazada+'</b></span>' : '')
+      + '</div>'
+      + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'
+      + btn('👁️ Ver notas y reclamos', 'efmVerDetalle('+i+')')
+      + (g.borrador ? btn('📢 Publicar '+g.borrador, 'efmAccionGrupo('+i+',\'publicar\')', '#2d6a4f') : '')
+      + (g.publicadas ? btn('↩️ Retirar publicación', 'efmAccionGrupo('+i+',\'retirar\')') : '')
+      + (!g.publicadas ? btn('🗑️ Eliminar borrador', 'efmAccionGrupo('+i+',\'eliminar_borrador\')', '#7a2230') : '')
+      + '</div></div>';
+  }).join('')
+  + '<div class="sd-block"><div class="sd-block-title">🗂️ Planillas subidas</div>'
+  + EFM.cargas.slice(0, 20).map(function(c){
+      const f = c.subido_en ? new Date(c.subido_en).toLocaleString('es-BO',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+      return '<div style="font-size:12px;padding:6px 0;border-bottom:1px solid var(--border-subtle)">'
+        + '<b>'+escapeHtml(c.archivo||'—')+'</b> · '+escapeHtml(c.categoria)+' · '+c.filas+' fila(s)<br>'
+        + '<span style="color:var(--text-muted)">'+escapeHtml(_efmTipoTxt(c.tipo_evaluacion)+' · sem. '+c.semestre+' '+c.gestion+' · '+(c.ciclo||''))
+        + ' — '+escapeHtml(c.subido_por_nombre||'')+' · '+f+'</span></div>';
+    }).join('') + '</div>'
+  + '<button class="btn-primary" onclick="goEfmCarga()">📥 Cargar otra planilla</button>';
+}
+
+async function efmAccionGrupo(i, accion){
+  const g = EFM.grupos[i]; if(!g) return;
+  const tit = _efmGrupoTitulo(g);
+  const preg = {
+    publicar: '¿Publicar '+g.borrador+' nota(s) de '+tit+'?\n\nLos cursantes las van a ver y se les va a pedir su conformidad (firma).',
+    retirar: '¿Retirar la publicación de '+tit+'?\n\nLos cursantes dejan de verlas. No se borra nada: se pueden volver a publicar.',
+    eliminar_borrador: '¿ELIMINAR el borrador de '+tit+' ('+g.total+' notas)?\n\nÚsalo solo si la planilla se subió al período equivocado. Esto no se puede deshacer.'
+  }[accion];
+  if(!confirm(preg)) return;
+  const r = await _efmInvoke(accion, _efmGrupoParams(g));
+  if(!r.ok){ alert('❌ ' + (r.error || 'No se pudo completar')); return; }
+  alert(accion === 'publicar' ? '✔ Publicadas: '+r.publicadas
+      : accion === 'retirar' ? '✔ Publicación retirada: '+r.retiradas
+      : '✔ Borrador eliminado: '+r.eliminadas+' nota(s)');
+  try{ await loadEvaluacionesFisicas(); }catch(e){}
+  goEfmControl();
+}
+
+async function efmVerDetalle(i){
+  const g = EFM.grupos[i]; if(!g) return;
+  EFM.det = g; EFM.detFiltro = 'todos';
+  document.getElementById('efm-det-sub').textContent = _efmGrupoTitulo(g);
+  showScreen('screen-efm-detalle');
+  await _efmCargarDetalle();
+}
+async function _efmCargarDetalle(){
+  const cont = document.getElementById('efm-det-cont');
+  cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div>';
+  const r = await _efmInvoke('detalle', _efmGrupoParams(EFM.det));
+  if(!r.ok){ cont.innerHTML = '<div class="efm-no-data" style="color:#e87878">❌ '+escapeHtml(r.error||'No se pudo leer')+'</div>'; return; }
+  EFM.detFilas = (r.filas||[]).sort(function(a,b){ return String(a.nombre_completo||'').localeCompare(String(b.nombre_completo||'')); });
+  efmPintarDetalle();
+}
+function _efmEstado(f){
+  if(f.publicado !== true) return 'borrador';
+  return (f.conformidad && f.conformidad.estado) || 'pendiente';
+}
+const _EFM_ESTADOS = {
+  borrador:   { txt:'📝 Borrador',   color:'#9aa3b8' },
+  pendiente:  { txt:'⏳ Pendiente',  color:'#e0b050' },
+  confirmada: { txt:'🟢 Conforme',   color:'#7ddba0' },
+  rechazada:  { txt:'🔴 Reclamo',    color:'#ff8a8a' }
+};
+function efmFiltrarDetalle(f){ EFM.detFiltro = f; efmPintarDetalle(); }
+function efmPintarDetalle(){
+  const cont = document.getElementById('efm-det-cont');
+  const q = ((document.getElementById('efm-det-buscar')||{}).value || '').trim().toLowerCase();
+  const cuenta = { todos:EFM.detFilas.length, rechazada:0, pendiente:0, confirmada:0, borrador:0 };
+  EFM.detFilas.forEach(function(f){ cuenta[_efmEstado(f)]++; });
+  const lista = EFM.detFilas.filter(function(f){
+    if(EFM.detFiltro !== 'todos' && _efmEstado(f) !== EFM.detFiltro) return false;
+    if(q && ((f.nombre_completo||'')+' '+(f.ci||'')).toLowerCase().indexOf(q) < 0) return false;
+    return true;
+  });
+  const chip = function(k, txt){
+    const act = EFM.detFiltro === k;
+    return '<button onclick="efmFiltrarDetalle(\''+k+'\')" style="border:1px solid var(--border-subtle);border-radius:14px;padding:5px 10px;font-size:12px;cursor:pointer;'
+      + (act ? 'background:var(--gold);color:#1a1205;font-weight:700' : 'background:transparent;color:var(--text-secondary)')+'">'+txt+' ('+cuenta[k]+')</button>';
+  };
+  const buscar = document.getElementById('efm-det-buscar');
+  if(!buscar){
+    cont.innerHTML = '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="efm-det-chips"></div>'
+      + '<div class="ef-filtros" style="margin:0 0 10px"><input type="text" id="efm-det-buscar" placeholder="🔎 Buscar nombre o CI..." oninput="efmPintarDetalle()"></div>'
+      + '<div id="efm-det-lista"></div>';
+  }
+  document.getElementById('efm-det-chips').innerHTML = chip('todos','Todos') + chip('rechazada','🔴 Reclamos') + chip('pendiente','⏳ Pendientes') + chip('confirmada','🟢 Conformes') + chip('borrador','📝 Borrador');
+  const cont2 = document.getElementById('efm-det-lista');
+  if(!lista.length){ cont2.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">Nada que mostrar con este filtro.</div>'; return; }
+  cont2.innerHTML = lista.map(function(f){
+    const e = _EFM_ESTADOS[_efmEstado(f)];
+    const obs = f.conformidad && f.conformidad.estado === 'rechazada' && f.conformidad.observacion_cursante
+      ? '<div style="font-size:11.5px;color:#ffb3b3;margin-top:3px">“'+escapeHtml(f.conformidad.observacion_cursante)+'”</div>' : '';
+    return '<div class="ef-cursante-row" onclick="efmAbrirFila('+Number(f.efm_id)+')">'
+      + '<div><div class="ef-cur-nombre">'+escapeHtml(nombreConGrado(f))+'</div>'
+      + '<div class="ef-cur-meta">'+escapeHtml([f.paralelo?'"'+f.paralelo+'"':'', f.categoria||'', 'CI '+(f.ci||'—')].filter(Boolean).join(' · '))
+      + ' · <span style="color:'+e.color+'">'+e.txt+'</span></div>'+obs+'</div>'
+      + '<div class="ef-cur-nota">'+(f.nota_final != null ? escapeHtml(f.nota_final) : '—')+'</div></div>';
+  }).join('');
+}
+
+const _EFM_CAMPOS_FORM = [
+  ['edad','Edad'],['talla','Talla'],['peso','Peso'],['nota_talla_peso','Talla/Peso · nota'],['nota_talla_peso_pon','Talla/Peso · nota más'],
+  ['natacion_distancia','Natación · distancia'],['natacion_tiempo','Natación · tiempo'],['natacion_nota','Natación · nota'],['natacion_nota_pon','Natación · nota más'],
+  ['barra_cant','Barra · cantidad'],['barra_nota','Barra · nota'],
+  ['abdominales_cant','Abdominales · cantidad'],['abdominales_nota','Abdominales · nota'],['abdominales_nota_pon','Abdominales · nota más'],
+  ['flexiones_cant','Flexiones · cantidad'],['flexiones_nota','Flexiones · nota'],['flexiones_nota_pon','Flexiones · nota más'],
+  ['aerobica_tiempo','Aeróbica · tiempo'],['aerobica_nota','Aeróbica · nota'],['aerobica_nota_pon','Aeróbica · nota más'],
+  ['nota_final','NOTA FINAL'],['observaciones','Observaciones']
+];
+function _efmCampoVisible(f, k){
+  if(f[k] != null && f[k] !== '') return true;
+  if(k === 'nota_final' || k === 'observaciones' || k === 'edad') return true;
+  const exc = f.categoria === 'EXCELENCIA';
+  if(exc) return !(k === 'talla' || k === 'peso' || k.indexOf('talla_peso') >= 0 || /_pon$/.test(k));
+  return k.indexOf('barra_') !== 0;
+}
+
+async function efmAbrirFila(efmId){
+  const f = EFM.detFilas.find(function(x){ return Number(x.efm_id) === Number(efmId); });
+  if(!f) return;
+  let ov = document.getElementById('efm-fila-modal');
+  if(!ov){ ov = document.createElement('div'); ov.id='efm-fila-modal'; ov.className='avm-overlay'; document.body.appendChild(ov); }
+  ov.onclick = function(){ ov.style.display = 'none'; };
+  const c = f.conformidad;
+  const e = _EFM_ESTADOS[_efmEstado(f)];
+  const confHtml = '<div style="font-size:13px;margin:8px 0;color:'+e.color+'"><b>'+e.txt+'</b>'
+    + (c && c.confirmada_en ? ' · '+new Date(c.confirmada_en).toLocaleString('es-BO') : '') + '</div>'
+    + (c && c.observacion_cursante ? '<div style="font-size:12.5px;background:rgba(165,51,74,.18);border-left:3px solid #a5334a;padding:8px 10px;border-radius:6px;margin-bottom:8px">Reclamo del cursante: “'+escapeHtml(c.observacion_cursante)+'”</div>' : '');
+  const inputs = _EFM_CAMPOS_FORM.filter(function(p){ return _efmCampoVisible(f, p[0]); }).map(function(p){
+    const val = f[p[0]] == null ? '' : String(f[p[0]]);
+    return '<div class="field" style="margin:0 0 6px"><label style="font-size:11px">'+p[1]+'</label>'
+      + '<input type="text" data-efm-campo="'+p[0]+'" value="'+escapeHtml(val)+'" style="'+(p[0]==='nota_final'?'font-weight:700':'')+'"></div>';
+  }).join('');
+  ov.innerHTML = '<div class="avm-box" onclick="event.stopPropagation()" style="max-height:90vh;overflow:auto">'
+    + '<h3 style="margin:0 0 4px">🏃 '+escapeHtml(nombreConGrado(f))+'</h3>'
+    + '<div style="font-size:12px;color:var(--text-muted)">'+escapeHtml(_efmGrupoTitulo(EFM.det))+' · '+escapeHtml(f.categoria||'')+'</div>'
+    + confHtml
+    + htmlTarjetaEvaluacionFisica(f, true)
+    + '<details style="margin-top:12px"><summary style="cursor:pointer;font-weight:700;color:var(--gold)">✏️ Corregir esta nota (reclamo pertinente)</summary>'
+    + '<div style="font-size:11.5px;color:var(--text-muted);margin:8px 0">La plataforma <b>no recalcula</b>: si cambiás una prueba, poné también la NOTA FINAL que da la planilla. '
+    + (f.publicado === true ? 'Al guardar, el cursante tiene que volver a dar su conformidad.' : '') + '</div>'
+    + '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:4px 10px">'+inputs+'</div>'
+    + '<div class="field" style="margin:8px 0"><label>Motivo de la corrección (obligatorio)</label><textarea id="efm-corr-motivo" style="width:100%;min-height:60px;padding:8px;border-radius:8px;border:1px solid var(--border-subtle);background:var(--bg-elevated);color:var(--text-primary)"></textarea></div>'
+    + '<button class="btn-primary" onclick="efmGuardarCorreccion('+Number(f.efm_id)+')">💾 Guardar corrección</button>'
+    + '</details>'
+    + '<div id="efm-fila-hist" style="margin-top:12px;font-size:12px;color:var(--text-muted)">⏳ Historial…</div>'
+    + '<button type="button" style="margin-top:12px;background:none;border:none;color:var(--text-muted);font-size:12px;cursor:pointer" onclick="document.getElementById(\'efm-fila-modal\').style.display=\'none\'">Cerrar</button>'
+    + '</div>';
+  ov.style.display = 'flex';
+  const h = await _efmInvoke('historial', { efm_id:f.efm_id });
+  const box = document.getElementById('efm-fila-hist'); if(!box) return;
+  const lista = (h.ok && h.historial) || [];
+  box.innerHTML = !lista.length ? 'Sin correcciones registradas.'
+    : '<div style="font-weight:700;color:var(--gold);margin-bottom:4px">🧾 Historial de cambios</div>' + lista.map(function(x){
+        const cambios = Object.keys(x.despues||{}).map(function(k){
+          const a = (x.antes||{})[k]; const d = (x.despues||{})[k];
+          return (a === d) ? '' : escapeHtml(k)+': '+escapeHtml(a==null?'—':a)+' → <b>'+escapeHtml(d==null?'—':d)+'</b>';
+        }).filter(Boolean).join(' · ');
+        return '<div style="padding:5px 0;border-bottom:1px solid var(--border-subtle)">'
+          + escapeHtml(new Date(x.en).toLocaleString('es-BO'))+' · '+escapeHtml(x.por_nombre||'')+' ('+escapeHtml(x.origen)+')<br>'
+          + cambios + (x.motivo ? '<br><i>'+escapeHtml(x.motivo)+'</i>' : '') + '</div>';
+      }).join('');
+}
+
+async function efmGuardarCorreccion(efmId){
+  const f = EFM.detFilas.find(function(x){ return Number(x.efm_id) === Number(efmId); });
+  if(!f) return;
+  const cambios = {};
+  document.querySelectorAll('#efm-fila-modal [data-efm-campo]').forEach(function(inp){
+    const k = inp.getAttribute('data-efm-campo');
+    const nuevo = inp.value.trim() === '' ? null : inp.value.trim();
+    const viejo = (f[k] == null || f[k] === '') ? null : String(f[k]);
+    if(nuevo !== viejo) cambios[k] = nuevo;
+  });
+  const motivo = (document.getElementById('efm-corr-motivo').value || '').trim();
+  if(!Object.keys(cambios).length){ alert('No cambiaste ningún valor.'); return; }
+  if(motivo.length < 5){ alert('Escribí el motivo de la corrección.'); return; }
+  const resumen = Object.keys(cambios).map(function(k){ return k+': '+(f[k]==null?'—':f[k])+' → '+(cambios[k]==null?'—':cambios[k]); }).join('\n');
+  if(!confirm('¿Guardar esta corrección para '+(f.nombre_completo||'')+'?\n\n'+resumen+'\n\nMotivo: '+motivo)) return;
+  const r = await _efmInvoke('corregir', { efm_id:f.efm_id, cambios:cambios, motivo:motivo });
+  if(!r.ok){ alert('❌ ' + (r.error || 'No se pudo guardar')); return; }
+  alert('✔ Corrección guardada.' + (r.reabierta ? '\nEl cursante tiene que volver a dar su conformidad.' : ''));
+  const ov = document.getElementById('efm-fila-modal'); if(ov) ov.style.display = 'none';
+  try{ await loadEvaluacionesFisicas(); }catch(e){}
+  await _efmCargarDetalle();
+}
+
+/* ------------------------------ lado del cursante ------------------------------ */
+// Conformidades EFM del cursante, por efm_id. Se ata al usuario: si en la misma
+// pestaña entra otro, el mapa viejo no se muestra.
+let efmConfMap = {}, _efmConfUser = null;
+async function cargarConformidadesEfm(force){
+  const uid = currentUser && currentUser.id;
+  if(!uid) return {};
+  if(_efmConfUser === uid && !force) return efmConfMap;
+  const r = await _efmInvoke('mis_conformidades');
+  efmConfMap = {};
+  if(r && r.ok) (r.confirmaciones||[]).forEach(function(c){ efmConfMap[String(c.efm_id)] = c; });
+  _efmConfUser = uid;
+  return efmConfMap;
+}
+function _efmConfHtml(ev){
+  if(!ev || ev.efm_id == null || !currentUser || _efmConfUser !== currentUser.id) return '';
+  const c = efmConfMap[String(ev.efm_id)];
+  if(!c) return '';
+  if(c.estado === 'confirmada') return '<div style="margin-top:10px;font-size:12px;color:#7ddba0;text-align:center">🟢 Diste tu conformidad — firmada</div>';
+  if(c.estado === 'rechazada') return '<div style="margin-top:10px;font-size:12px;color:#ff8a8a;text-align:center">🔴 Presentaste un reclamo'
+    + (c.observacion_cursante ? ': “'+escapeHtml(c.observacion_cursante)+'”' : '') + '<br><span style="color:var(--text-muted)">La Sub. Sec. de Entrenamiento Físico lo va a revisar.</span></div>';
+  return '<div style="margin-top:10px;padding:10px;border-radius:8px;background:rgba(224,176,80,.14);border:1px solid rgba(224,176,80,.5);text-align:center">'
+    + '<div style="font-size:12.5px;color:#f0d08a;margin-bottom:8px">⏳ Falta tu conformidad sobre esta nota</div>'
+    + '<button class="btn-papeleta primary" onclick="efmAbrirFirma('+Number(c.id)+')">✍️ Dar mi conformidad o reclamar</button></div>';
+}
+
+let efmFirma = { conf:null, cv:null, ctx:null, has:false };
+function efmAbrirFirma(confId){
+  const conf = Object.keys(efmConfMap).map(function(k){ return efmConfMap[k]; }).find(function(c){ return Number(c.id) === Number(confId); });
+  if(!conf) return;
+  efmFirma = { conf:conf, cv:null, ctx:null, has:false };
+  let ov = document.getElementById('efm-firma-modal');
+  if(!ov){ ov = document.createElement('div'); ov.id='efm-firma-modal'; ov.className='avm-overlay'; document.body.appendChild(ov); }
+  ov.onclick = efmCerrarFirma;
+  ov.innerHTML = '<div class="avm-box" onclick="event.stopPropagation()" style="max-height:88vh;overflow:auto">'
+    + '<h3 style="margin:0 0 4px">✍️ Conformidad de tu nota EFM</h3>'
+    + '<div style="font-size:12.5px;color:var(--text-muted);margin-bottom:6px">'+escapeHtml(_efmTipoTxt(conf.tipo_evaluacion)+' · '+etiquetaSemAcad(conf.ciclo, conf.semestre)+' · '+(conf.gestion||''))+'</div>'
+    + '<div style="font-size:22px;font-weight:700;color:var(--gold);font-family:var(--font-display);margin-bottom:12px">Nota final: '+escapeHtml(conf.nota_final==null?'—':conf.nota_final)+'</div>'
+    + '<div class="papeleta-block"><div class="pb-title">Firmá con el dedo o el mouse</div>'
+    + '<div class="sig-wrap"><canvas id="sig-canvas-efm" class="sig-canvas"></canvas></div>'
+    + '<button type="button" class="btn-clear-sig" onclick="efmBorrarFirma()">🧹 Borrar firma</button></div>'
+    + '<div style="font-size:11px;color:var(--text-muted);margin:10px 0 4px">Motivo — obligatorio solo si NO estás de acuerdo:</div>'
+    + '<textarea id="efm-firma-obs" oninput="efmToggleRechazo()" placeholder="Escribí acá por qué no estás de acuerdo con esta nota" style="width:100%;min-height:70px;margin:0 0 10px;padding:8px;border-radius:8px;border:1px solid var(--border-subtle);background:var(--bg-elevated);color:var(--text-primary)"></textarea>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    + '<button class="btn-papeleta primary" style="flex:1" onclick="efmEnviarConformidad(\'confirmar\')">✅ Estoy de acuerdo — firmar</button>'
+    + '<button id="efm-firma-btn-rechazar" class="btn-papeleta" style="flex:1;background:#5a3040;opacity:.5;cursor:not-allowed" disabled onclick="efmEnviarConformidad(\'rechazar\')">❌ No estoy de acuerdo</button>'
+    + '</div>'
+    + '<button type="button" style="margin-top:10px;background:none;border:none;color:var(--text-muted);font-size:12px;cursor:pointer" onclick="efmCerrarFirma()">Cerrar</button>'
+    + '</div>';
+  ov.style.display = 'flex';
+  setTimeout(_efmInitFirma, 30);
+}
+function efmCerrarFirma(){ const ov = document.getElementById('efm-firma-modal'); if(ov) ov.style.display = 'none'; }
+function efmToggleRechazo(){
+  const obs = document.getElementById('efm-firma-obs'), btn = document.getElementById('efm-firma-btn-rechazar');
+  if(!obs || !btn) return;
+  const listo = (obs.value || '').trim().length >= 5;
+  btn.disabled = !listo;
+  btn.style.opacity = listo ? '1' : '.5';
+  btn.style.cursor = listo ? 'pointer' : 'not-allowed';
+  btn.style.background = listo ? '#a5334a' : '#5a3040';
+}
+function _efmInitFirma(){
+  const cv = document.getElementById('sig-canvas-efm'); if(!cv) return;
+  const ctx = cv.getContext('2d'); const rect = cv.getBoundingClientRect();
+  cv.width = rect.width; cv.height = rect.height;
+  ctx.strokeStyle = '#f4d574'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  efmFirma.cv = cv; efmFirma.ctx = ctx; efmFirma.has = false;
+  let dibujando = false;
+  const pos = function(e){ const r = cv.getBoundingClientRect(); const p = e.touches ? e.touches[0] : e; return { x:p.clientX-r.left, y:p.clientY-r.top }; };
+  const ini = function(e){ dibujando = true; const p = pos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); e.preventDefault(); };
+  const mov = function(e){ if(!dibujando) return; const p = pos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); efmFirma.has = true; e.preventDefault(); };
+  const fin = function(){ dibujando = false; };
+  cv.onmousedown = ini; cv.onmousemove = mov; cv.onmouseup = fin; cv.onmouseleave = fin;
+  cv.ontouchstart = ini; cv.ontouchmove = mov; cv.ontouchend = fin;
+}
+function efmBorrarFirma(){ if(efmFirma.ctx && efmFirma.cv){ efmFirma.ctx.clearRect(0, 0, efmFirma.cv.width, efmFirma.cv.height); efmFirma.has = false; } }
+async function efmEnviarConformidad(decision){
+  const conf = efmFirma.conf; if(!conf) return;
+  if(!efmFirma.has){ alert('Firmá en el recuadro antes de continuar.'); return; }
+  const obs = ((document.getElementById('efm-firma-obs')||{}).value || '').trim();
+  if(decision === 'rechazar' && obs.length < 5){ alert('Si no estás de acuerdo, tenés que explicar por qué (el motivo).'); return; }
+  const pregunta = decision === 'confirmar'
+    ? '¿Confirmás que estás de acuerdo con tu nota EFM '+(conf.nota_final==null?'':conf.nota_final)+'? Esto queda registrado con tu firma.'
+    : '¿Confirmás que NO estás de acuerdo con tu nota EFM '+(conf.nota_final==null?'':conf.nota_final)+' por este motivo?\n\n"'+obs+'"\n\nEsto queda registrado con tu firma.';
+  if(!confirm(pregunta)) return;
+  const r = await _efmInvoke('resolver', { confirmacion_id:conf.id, decision:decision, firma:efmFirma.cv.toDataURL('image/png'), observacion: obs || null });
+  if(!r.ok){ alert(r.error || 'No se pudo guardar'); return; }
+  efmCerrarFirma();
+  await cargarConformidadesEfm(true);
+  try{ const c = document.getElementById('cur-efm-content'); if(c && c.innerHTML.trim()) renderCursanteEfmSection(); }catch(e){}
+  try{ if(CUR_SEM_AREA === 'efm' && CUR_SEM_SEL != null && document.getElementById('cur-sem-detalle')) verAreaSemestre('efm', CUR_SEM_SEL); }catch(e){}
+  alert(decision === 'confirmar' ? '¡Gracias! Quedó registrada tu conformidad.' : 'Quedó registrado tu reclamo. La Sub. Sec. de Entrenamiento Físico lo va a revisar.');
 }
 
 /* ==================== v2.9.2: HORARIO SEMANAL (todos los usuarios) ==================== */
@@ -14394,7 +15160,8 @@ async function renderSemestresCursante(){
   let mr=null, acad=[], efm=[];
   try{ const r=await _csInvoke('mi_resumen'); if(r&&r.ok) mr=r; }catch(e){}
   try{ acad=(await cargarNotasAcademicas())||[]; }catch(e){}
-  try{ const {data}=await sb.from('evaluaciones_fisicas').select('*').eq('cursante_id',currentUser.id); efm=data||[]; }catch(e){}
+  try{ const {data}=await sb.from('evaluaciones_fisicas').select('*').eq('cursante_id',currentUser.id); efm=(data||[]).filter(ev=>ev.publicado!==false); }catch(e){}  // v2.9.409: sin borradores
+  try{ await cargarConformidadesEfm(); }catch(e){}
   const cierres = (mr&&mr.cierres)||[];
   const cierresGestion = cierres.filter(c=>Number(c.gestion)===gestion);
   const active = base + (cierresGestion.length + 1);
@@ -14635,15 +15402,17 @@ async function renderCursanteHome(){
   // Buscar nota EFM (best-effort, sin bloquear)
   try{
     const {data: efs} = await sb.from('evaluaciones_fisicas')
-      .select('nota_final,tipo_evaluacion,gestion,semestre')
+      .select('nota_final,tipo_evaluacion,gestion,semestre,publicado')
       .eq('cursante_id', currentUser.id)
       .not('nota_final', 'is', null);
+    // v2.9.409: los borradores no cuentan hasta que se publiquen.
+    const efsPub = (efs||[]).filter(e => e.publicado !== false);
     // v2.9.80: el badge muestra la evaluación que CALIFICA (la que promedia), no la diagnóstica.
     // Prioridad: CALIFICA > otras; dentro, la más reciente (gestión, semestre, nota).
     let pick = null;
-    if(efs && efs.length){
-      const cal = efs.filter(e => String(e.tipo_evaluacion||'').toUpperCase() === 'CALIFICA');
-      const pool = cal.length ? cal : efs;
+    if(efsPub.length){
+      const cal = efsPub.filter(e => String(e.tipo_evaluacion||'').toUpperCase() === 'CALIFICA');
+      const pool = cal.length ? cal : efsPub;
       pool.sort((a,b)=> (Number(b.gestion||0)-Number(a.gestion||0))
         || (Number(b.semestre||0)-Number(a.semestre||0))
         || (Number(b.nota_final||0)-Number(a.nota_final||0)));
@@ -14658,6 +15427,12 @@ async function renderCursanteHome(){
       document.getElementById('cur-area-efm-val').textContent = '—';
       document.getElementById('cur-area-efm-sub').textContent = 'Sin evaluar';
     }
+    // v2.9.409: si tiene una nota EFM publicada esperando su firma, se le avisa acá.
+    try{
+      const m = await cargarConformidadesEfm(true);
+      if(Object.keys(m).some(k => m[k].estado === 'pendiente'))
+        document.getElementById('cur-area-efm-sub').textContent = '✍️ Dar conformidad';
+    }catch(e){}
   }catch(e){ /* silent */ }
 
   // Cargar badges de Notas Académicas y Orden de Mérito (best-effort)
@@ -16831,7 +17606,7 @@ async function verReporteIntegral(cursanteId){
   let efis = [], notas = [];
   try{
     const {data} = await sb.from('evaluaciones_fisicas').select('*').eq('cursante_id', cursanteId).order('tipo_evaluacion',{ascending:true});
-    efis = (data||[]).filter(ev => ev.nota_final != null && ev.nota_final !== '');
+    efis = (data||[]).filter(ev => ev.nota_final != null && ev.nota_final !== '' && ev.publicado !== false);  // v2.9.409
   }catch(e){ console.warn('repint efm:', e); }
   try{
     const {data} = await sb.from('notas_academicas').select('*').eq('cursante_id', cursanteId).order('gestion',{ascending:true}).order('semestre',{ascending:true}).order('materia',{ascending:true});
@@ -44166,6 +44941,7 @@ function renderJCPanel(){
   try{ avBotonCarpeta('screen-jc-panel'); }catch(e){}  // v2.9.194
   try{ avOpcionesDocente('screen-jc-panel'); }catch(e){}  // v2.9.195
   if(!currentUser) return;
+  try{ _efmBotonEnJC(); }catch(e){ console.warn('efm jc', e); }  // v2.9.409
   const name = currentUser.nombre_completo || '—';
   const initials = name.split(' ').filter(Boolean).slice(0,2).map(w=>w[0]).join('').toUpperCase();
   document.getElementById('jc-initials').textContent = initials || '—';
