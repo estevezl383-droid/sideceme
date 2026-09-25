@@ -1,5 +1,5 @@
 // ================================================================================
-// SIDECEME — Edge Function  efm-ops   (v2.9.411)
+// SIDECEME — Edge Function  efm-ops   (v2.9.412)
 //
 // Carga, publicación, conformidad y corrección de NOTAS EFM (Entrenamiento
 // Físico Militar). Es el espejo de `notas-ops` + `notas-confirmar`, pero SOLO
@@ -206,7 +206,7 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { return json({ ok: false, error: "Cuerpo invalido" }, 400); }
 
   if (body.accion === "ping") {
-    return json({ ok: true, funcion: "efm-ops", version: "2.9.411" });
+    return json({ ok: true, funcion: "efm-ops", version: "2.9.412" });
   }
 
   const ses = await leerSesion(body.token);
@@ -348,6 +348,8 @@ Deno.serve(async (req) => {
         const semestre = entero(body.semestre);
         const tipo = (txt(body.tipo_evaluacion, 20) || "").toUpperCase();
         const categoria = (txt(body.categoria, 20) || "").toUpperCase();
+        const ciclo = txt(body.ciclo, 20); // v2.9.412: el ciclo lo elige el oficial
+        if (ciclo !== "1ER CICLO" && ciclo !== "2DO CICLO") return json({ ok: false, error: "Elegi el ciclo" }, 400);
         if (!gestion || gestion < 2020 || gestion > 2100) return json({ ok: false, error: "Gestion invalida" }, 400);
         if (semestre !== 1 && semestre !== 2) return json({ ok: false, error: "Semestre invalido" }, 400);
         if (!TIPOS.includes(tipo)) return json({ ok: false, error: "Tipo de evaluacion invalido" }, 400);
@@ -381,6 +383,10 @@ Deno.serve(async (req) => {
         }
         const malos = idList.filter((id) => !curs[id] || curs[id].activo === false || !curs[id].ciclo);
         if (malos.length) return json({ ok: false, error: "Cursantes no validos o inactivos: " + malos.join(", ") }, 400);
+        const deOtroCiclo = idList.filter((id) => curs[id].ciclo !== ciclo);
+        if (deOtroCiclo.length) {
+          return json({ ok: false, error: `Hay ${deOtroCiclo.length} cursante(s) que no son del ${ciclo}: ` + deOtroCiclo.map((id) => curs[id].nombre_completo).join(", ") }, 400);
+        }
 
         // Si esa evaluación ya existe como HISTÓRICA (cargada antes de este sistema),
         // no se duplica: el cursante vería dos tarjetas de la misma evaluación.
@@ -394,7 +400,7 @@ Deno.serve(async (req) => {
         }
 
         const { data: carga, error: errCarga } = await sb.from("efm_cargas").insert({
-          gestion, semestre, ciclo: [...new Set(idList.map((id) => curs[id].ciclo))].join(" + "),
+          gestion, semestre, ciclo,
           tipo_evaluacion: tipo, categoria,
           archivo: txt(body.archivo, 200), hoja: txt(body.hoja, 100), filas: limpias.length,
           subido_por: prof.id, subido_por_nombre: profNombre,

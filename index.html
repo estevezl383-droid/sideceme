@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.411</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.412</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -4568,17 +4568,19 @@ body{
 
     <div class="sd-block">
       <div class="sd-block-title">1 · Evaluación</div>
-      <div class="ef-filtros" style="margin:0;flex-wrap:wrap">
+      <div class="field" style="margin:0 0 10px"><label>Ciclo</label>
+        <select id="efm-ciclo" onchange="efmCicloCambio()"><option value="">— Elegí el ciclo —</option><option value="1ER CICLO">1er Ciclo</option><option value="2DO CICLO">2do Ciclo</option></select></div>
+      <div class="ef-filtros" style="margin:0 0 10px;flex-wrap:wrap">
+        <select id="efm-semestre" onchange="efmRevisar()" style="flex:1 1 150px"></select>
         <select id="efm-gestion" onchange="efmRevisar()" style="flex:1 1 120px"></select>
-        <select id="efm-semestre" onchange="efmRevisar()" style="flex:1 1 150px"><option value="1">1er semestre del ciclo</option><option value="2">2do semestre del ciclo</option></select>
-        <select id="efm-tipo" onchange="efmRevisar()" style="flex:1 1 100%"><option value="DIAGNOSTICA">Diagnóstica (no promedia)</option><option value="CALIFICA">Califica (promedia)</option><option value="REPROGRAMADA">Reprogramada</option></select>
       </div>
-      <div style="font-size:11.5px;color:var(--text-muted);margin-top:8px">Semestre del ciclo: en 2do ciclo, el "2do semestre" es el 4TO semestre del curso; en 1er ciclo, el 2DO.</div>
+      <div class="field" style="margin:0"><label>Tipo de evaluación</label>
+        <select id="efm-tipo" onchange="efmRevisar()"><option value="DIAGNOSTICA">DIAGNÓSTICA — no promedia</option><option value="CALIFICA">CALIFICA — promedia (cuenta para la nota)</option><option value="REPROGRAMADA">REPROGRAMADA</option></select></div>
     </div>
 
     <div class="sd-block">
       <div class="sd-block-title">2 · Planilla EFM</div>
-      <div class="field" style="margin-bottom:8px"><label>Archivo Excel (.xlsx / .xls)</label><input type="file" id="efm-file" accept=".xlsx,.xls,.xlsm" onchange="efmArchivo(this)"></div>
+      <div class="field" style="margin-bottom:8px"><label>Archivo Excel (.xlsx / .xls)</label><input type="file" id="efm-file" accept=".xlsx,.xls,.xlsm" onchange="efmArchivo(this)" disabled></div>
       <div id="efm-file-info" style="font-size:12px;color:var(--text-muted);min-height:16px"></div>
       <div class="field" id="efm-hoja-wrap" style="display:none;margin:12px 0 0"><label>Hoja del libro</label><select id="efm-hoja" onchange="efmAnalizarHoja(this.value)"></select></div>
     </div>
@@ -12807,6 +12809,7 @@ function _efmParse(raw, tx){
   let titulo = '';
   for(let r=0; r<h; r++) titulo += ' ' + (raw[r]||[]).map(_efmN).join(' ');
   const esExc = /SOBRESALIENTE|EXCELENCIA/.test(titulo) || (campos.indexOf('barra_cant')>=0 && campos.indexOf('talla')<0);
+  const cicloTitulo = /\b(2DO|SEGUNDO) CICLO/.test(titulo) ? '2DO CICLO' : (/\b(1ER|PRIMER) CICLO/.test(titulo) ? '1ER CICLO' : '');
 
   const filas = [];
   for(let r=h+1; r<raw.length; r++){
@@ -12841,13 +12844,16 @@ function _efmParse(raw, tx){
     filas.push({ n:row[cNum], fila:r+1, nombre:nombre, grado: cGrado>=0 ? String(row[cGrado]||'').trim() : '', v:v, cur:null, excluir:false });
   }
   if(!filas.length) return { error:'La hoja no tiene filas de cursantes (columna N° con número y nombre).' };
-  return { filas:filas, categoria: esExc ? 'EXCELENCIA' : 'NORMAL' };
+  return { filas:filas, categoria: esExc ? 'EXCELENCIA' : 'NORMAL', cicloTitulo: cicloTitulo };
 }
 
+// v2.9.412: el ciclo lo elige el oficial; solo se busca entre los cursantes de ese ciclo.
+function _efmCicloSel(){ const e=document.getElementById('efm-ciclo'); return e ? e.value : ''; }
+function _efmPadronCiclo(){ const c=_efmCicloSel(); return EFM.padron.filter(function(p){ return !c || p.c.ciclo === c; }); }
 function _efmMatch(nombre){
   const tk = _ncTokens(nombre);
   let best=null, bs=0, sec=0;
-  EFM.padron.forEach(function(p){
+  _efmPadronCiclo().forEach(function(p){
     let k=0; tk.forEach(function(t){ if(p.tk.has(t)) k++; });
     if(k > bs){ sec = bs; bs = k; best = p; } else if(k > sec) sec = k;
   });
@@ -12861,7 +12867,9 @@ async function goEfmCarga(){
   const hoy = new Date(), y = hoy.getFullYear();
   const selG = document.getElementById('efm-gestion');
   selG.innerHTML = [y, y-1].map(function(g){ return '<option value="'+g+'">Gestión '+g+'</option>'; }).join('');
-  document.getElementById('efm-semestre').value = hoy.getMonth() >= 6 ? '2' : '1';
+  document.getElementById('efm-ciclo').value = '';
+  EFM.semDefecto = hoy.getMonth() >= 6 ? '2' : '1';
+  efmCicloCambio();
   document.getElementById('efm-tipo').value = 'DIAGNOSTICA';
   document.getElementById('efm-file').value = '';
   document.getElementById('efm-file-info').textContent = '';
@@ -12874,6 +12882,17 @@ async function goEfmCarga(){
   EFM.padron = (discData.cursantes||[])
     .filter(function(c){ return c.activo !== false && c.ciclo; })
     .map(function(c){ return { c:c, tk:_ncTokens(c.nombre_completo) }; });
+}
+
+function efmCicloCambio(){
+  const c = _efmCicloSel();
+  const sel = document.getElementById('efm-semestre');
+  const prev = sel.value || EFM.semDefecto || '1';
+  const n = c === '2DO CICLO' ? ['3ER','4TO'] : (c === '1ER CICLO' ? ['1ER','2DO'] : ['1er','2do']);
+  sel.innerHTML = '<option value="1">'+n[0]+' semestre</option><option value="2">'+n[1]+' semestre</option>';
+  sel.value = prev;
+  document.getElementById('efm-file').disabled = !c;
+  if(EFM.filas.length){ EFM.filas.forEach(function(f){ f.cur = _efmMatch(f.nombre); f.excluir = false; }); efmRevisar(); }
 }
 
 async function efmArchivo(input){
@@ -12921,6 +12940,7 @@ function efmAnalizarHoja(nombre){
   }
   p.filas.forEach(function(f){ f.cur = _efmMatch(f.nombre); });
   EFM.filas = p.filas;
+  EFM.cicloTitulo = p.cicloTitulo;
   document.getElementById('efm-categoria').value = p.categoria;
   efmRevisar();
 }
@@ -12931,12 +12951,6 @@ function efmAsignar(i, val){
   f.cur = (!val || val === '__excluir') ? null
         : ((EFM.padron.find(function(p){ return String(p.c.id) === String(val); })||{}).c || null);
   efmRevisar();
-}
-
-function _efmCiclosDe(filas){
-  const cnt = {};
-  filas.forEach(function(f){ if(f.cur) cnt[f.cur.ciclo] = (cnt[f.cur.ciclo]||0) + 1; });
-  return Object.keys(cnt).sort(function(a,b){ return cnt[b]-cnt[a]; });
 }
 
 function efmRevisar(){
@@ -12953,17 +12967,15 @@ function efmRevisar(){
   const usos = {};
   activas.forEach(function(f){ if(f.cur) usos[f.cur.id] = (usos[f.cur.id]||0) + 1; });
   const repetidos = activas.filter(function(f){ return f.cur && usos[f.cur.id] > 1; });
-  const ciclos = _efmCiclosDe(activas);
-  const cicloPpal = ciclos[0] || '';
+  const cicloPpal = _efmCicloSel();
   const otroCiclo = activas.filter(function(f){ return f.cur && f.cur.ciclo !== cicloPpal; });
   const sinNotaFinal = activas.filter(function(f){ return f.v.nota_final == null; });
   const enPlanilla = new Set(activas.filter(function(f){ return f.cur; }).map(function(f){ return String(f.cur.id); }));
   const faltan = EFM.padron.filter(function(p){ return p.c.ciclo === cicloPpal && !enPlanilla.has(String(p.c.id)); });
 
   const opciones = function(i, sel){
-    const lista = EFM.padron.slice().sort(function(a,b){
-      const ca = a.c.ciclo === cicloPpal ? 0 : 1, cb = b.c.ciclo === cicloPpal ? 0 : 1;
-      return ca - cb || String(a.c.nombre_completo).localeCompare(String(b.c.nombre_completo));
+    const lista = _efmPadronCiclo().slice().sort(function(a,b){
+      return String(a.c.nombre_completo).localeCompare(String(b.c.nombre_completo));
     });
     return '<select onchange="efmAsignar('+i+',this.value)" style="width:100%;max-width:260px;font-size:12px">'
       + '<option value="">— elegir cursante —</option>'
@@ -12981,11 +12993,12 @@ function efmRevisar(){
   let avisos = '';
   const aviso = function(color, txt){ avisos += '<div style="font-size:12.5px;margin:4px 0;color:'+color+'">'+txt+'</div>'; };
   aviso('var(--text-secondary)', '📋 <b>'+activas.length+'</b> fila(s) · <b>'+(activas.length-sinAsignar.length)+'</b> reconocida(s) en el padrón'
-    + (cicloPpal ? ' · <b>'+escapeHtml(cicloPpal)+'</b> → se guarda como <b>'+escapeHtml((tipo==='DIAGNOSTICA'?'DIAGNÓSTICA':tipo)+' · '+etiquetaSemAcad(cicloPpal, sem)+' '+gest)+'</b>' : ''));
+    + ' → se guarda como <b>'+escapeHtml(_efmTipoLargo(tipo)+' · '+etiquetaSemAcad(cicloPpal, sem)+' '+gest+' · '+cicloPpal)+'</b>');
+  if(EFM.cicloTitulo && EFM.cicloTitulo !== cicloPpal) aviso('#e0b050', '⚠️ El título de la planilla dice <b>'+escapeHtml(EFM.cicloTitulo)+'</b>, pero elegiste <b>'+escapeHtml(cicloPpal)+'</b>. Revisá el ciclo.');
   aviso('var(--text-secondary)', esExc ? '🏅 Planilla de <b>EXCELENCIA FÍSICA</b>.' : '🏃 Planilla <b>NORMAL</b>.');
   if(sinAsignar.length) aviso('#e87878', '❌ '+sinAsignar.length+' fila(s) sin cursante: elegilo en la lista o marcá "No cargar esta fila".');
   if(repetidos.length) aviso('#e87878', '❌ Hay cursantes asignados a más de una fila (marcados en rojo).');
-  if(otroCiclo.length) aviso('#e0b050', '⚠️ '+otroCiclo.length+' fila(s) de otro ciclo. Cada nota se guarda en el ciclo real del cursante.');
+  if(otroCiclo.length) aviso('#e87878', '❌ '+otroCiclo.length+' fila(s) asignadas a cursantes de otro ciclo.');
   if(sinNotaFinal.length) aviso('#e0b050', '⚠️ '+sinNotaFinal.length+' fila(s) sin NOTA FINAL: se guardan, pero el cursante no ve nota hasta que la tenga.');
   if(faltan.length) aviso('var(--text-muted)', 'ℹ️ '+faltan.length+' cursante(s) de '+escapeHtml(cicloPpal)+' no están en esta planilla'
     + (esExc ? '' : ' (los de excelencia van en su propia planilla)') + ': '
@@ -13013,7 +13026,7 @@ function efmRevisar(){
     + '</table></div>';
   rev.innerHTML = avisos + tabla
     + '<div style="font-size:11px;color:var(--text-muted);margin-top:6px">'+(esExc?'Columnas: nota de cada prueba.':'Columnas: la "nota más" de cada prueba (lo que suma a la NOTA FINAL).')+' El detalle completo (marcas y notas) se guarda igual que en la planilla.</div>';
-  btn.disabled = !!(sinAsignar.length || repetidos.length || !activas.length);
+  btn.disabled = !!(sinAsignar.length || repetidos.length || otroCiclo.length || !activas.length || !cicloPpal);
 }
 
 async function efmSubir(){
@@ -13023,15 +13036,16 @@ async function efmSubir(){
   const semestre = Number(document.getElementById('efm-semestre').value);
   const tipo = document.getElementById('efm-tipo').value;
   const categoria = document.getElementById('efm-categoria').value;
-  const ciclo = _efmCiclosDe(activas)[0] || '';
-  const etiqueta = (tipo==='DIAGNOSTICA'?'DIAGNÓSTICA':tipo)+' · '+etiquetaSemAcad(ciclo, semestre)+' '+gestion+' · '+ciclo;
+  const ciclo = _efmCicloSel();
+  if(!ciclo){ alert('Elegí el ciclo.'); return; }
+  const etiqueta = _efmTipoLargo(tipo)+' · '+etiquetaSemAcad(ciclo, semestre)+' '+gestion+' · '+ciclo;
   if(!confirm('Vas a guardar '+activas.length+' nota(s) EFM ('+categoria+') como BORRADOR en:\n\n'+etiqueta
     +'\n\nLos cursantes NO las ven hasta que las publiques. ¿Continuar?')) return;
   const btn = document.getElementById('efm-btn-subir');
   const res = document.getElementById('efm-resultado');
   btn.disabled = true; const t0 = btn.textContent; btn.textContent = '⏳ Guardando…';
   const r = await _efmInvoke('cargar', {
-    gestion:gestion, semestre:semestre, tipo_evaluacion:tipo, categoria:categoria,
+    gestion:gestion, semestre:semestre, ciclo:ciclo, tipo_evaluacion:tipo, categoria:categoria,
     archivo:EFM.archivo, hoja:EFM.hoja,
     filas: activas.map(function(f){ return Object.assign({ cursante_id:f.cur.id }, f.v); })
   });
@@ -13046,8 +13060,9 @@ async function efmSubir(){
 }
 
 /* ------------------------- publicación, conformidad, reclamos ------------------------- */
+function _efmTipoLargo(t){ t = String(t||'').toUpperCase(); return t === 'DIAGNOSTICA' ? 'DIAGNÓSTICA (no promedia)' : (t === 'CALIFICA' ? 'CALIFICA (promedia)' : t); }
 function _efmTipoTxt(t){ t = String(t||'').toUpperCase(); return t === 'DIAGNOSTICA' ? 'DIAGNÓSTICA' : t; }
-function _efmGrupoTitulo(g){ return _efmTipoTxt(g.tipo_evaluacion)+' · '+etiquetaSemAcad(g.ciclo, g.semestre)+' '+g.gestion+' · '+g.ciclo; }
+function _efmGrupoTitulo(g){ return _efmTipoLargo(g.tipo_evaluacion)+' · '+etiquetaSemAcad(g.ciclo, g.semestre)+' '+g.gestion+' · '+g.ciclo; }
 function _efmGrupoParams(g){ return { gestion:g.gestion, semestre:g.semestre, ciclo:g.ciclo, tipo_evaluacion:g.tipo_evaluacion }; }
 
 async function goEfmControl(){
