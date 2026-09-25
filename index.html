@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.407</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.408</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -48886,11 +48886,24 @@ async function _plpEventos(info){
 function _plpArmarEventos(){
   const ev=[], v=PLP.vista, u=PLP.perfil||{};
   const aprob=PLP.props.filter(function(p){ return p.estado==='aprobada'; });
+  // v2.9.408 — una fila del horario base que alguien MOVIÓ (arrastre con `mueve`)
+  // y todavía espera aprobación ya no se dibuja en su lugar viejo: se ve SOLO
+  // donde la pusieron. Antes el E.F.M. que el My. Linares pasó del jueves al
+  // viernes salía los dos días hasta que el Jefe de Estudios aprobara. Si la
+  // rechazan o la retiran, la fila vuelve sola a su lugar. El documento impreso
+  // sigue tomando únicamente las aprobadas (_plpMezclarBloque no cambia).
+  const pendMueven=PLP.props.filter(function(p){
+    return p.estado==='pendiente' && p.mueve && p.mueve.fecha && (p.audiencias||[]).indexOf(v)>=0;
+  });
   if(PLP.conBase && v!=='todas'){
     PLP.semanas.forEach(function(s){
       if(!s.datos || !s.datos[v]) return;
       const b=_plpMezclarBloque(v, s.datos[v], aprob, s.datos.cab||{});
       (b.dias||[]).forEach(function(d){
+        const seVan=pendMueven.filter(function(p){ return p.mueve.fecha===d.iso; });
+        if(seVan.length) d.filas=(d.filas||[]).filter(function(f){
+          return f.prop || !seVan.some(function(p){ return _plpEsEsaFila(f, p.mueve); });
+        });
         if(String(d.libre||'').trim()){
           ev.push({ id:'L'+v+d.iso, title:d.libre, start:d.iso, allDay:true,
             editable:false, startEditable:false, durationEditable:false,
@@ -49506,7 +49519,7 @@ function _plpForm(p, aviso){
     if(p.mueve && p.mueve.fecha){
       h+='<div class="plp-av plp-av-just">↔️ <b>Mueve una fila del horario base.</b><br>Sale de '
         +_plEsc(_plDiaNombre(p.mueve.fecha)+' '+_plDiaNum(p.mueve.fecha)+' '+p.mueve.desde+'–'+p.mueve.hasta)
-        +' → «'+_plEsc(p.mueve.texto)+'». Al aprobarse desaparece de ahí.</div>';
+        +' → «'+_plEsc(p.mueve.texto)+'». En el calendario ya no se ve ahí; en el documento impreso sale de ahí al aprobarse.</div>';
     } else if(p.tipo==='efm'){
       h+='<div class="plp-av plp-av-ok">🏃 Mueve el <b>ENTRENAMIENTO FÍSICO MILITAR</b>: si se aprueba, la fila de las 05:30 sale del horario base y queda esta en su lugar.</div>';
     }
@@ -49800,8 +49813,8 @@ async function _plpMovido(info){
       uniforme:f.unif||'', audiencias:aud, recortar:true, estado:null, mueve:origen },
       '↔️ Estás <b>reacomodando</b> «'+_plEsc(texto)+'» de <b>'+_plEsc(_plDiaNombre(origen.fecha)+' '+_plDiaNum(origen.fecha)
       +' '+origen.desde+'–'+origen.hasta)+'</b> a <b>'+_plEsc(_plDiaNombre(_plpIso(ev.start))+' '+_plDiaNum(_plpIso(ev.start))
-      +' '+_plpHora(ev.start)+'–'+_plpHora(destinoFin))+'</b>. Cuando el Jefe de Estudios apruebe, '
-      +'desaparece de su lugar viejo y el horario queda actualizado solo.'
+      +' '+_plpHora(ev.start)+'–'+_plpHora(destinoFin))+'</b>. Al guardar deja de verse en su lugar viejo; '
+      +'cuando el Jefe de Estudios apruebe, el documento impreso queda actualizado solo.'
       +(_plpSinJustificar()?' Tocá <b>Guardar cambios</b>.':' Escribí abajo por qué.'));
     return;
   }
