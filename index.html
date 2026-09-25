@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.412</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.413</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -12504,7 +12504,7 @@ function htmlTarjetaEvaluacionFisica(ev, conEditar){
         <div class="efm-cur-badge">${[categoria, edad].filter(Boolean).join(' · ')||'EFM'}</div>
       </div>
       ${borradorHtml}
-      <div class="efm-cur-final">
+      <div class="efm-cur-final"${_efmFinalEstilo(ev, conEditar)}>
         <div class="efm-cur-final-num">${nota||'—'}</div>
         <div class="efm-cur-final-lbl">NOTA FINAL</div>
         <div class="efm-cur-final-atr">${atributo}</div>
@@ -13088,8 +13088,9 @@ async function goEfmControl(){
       + '<div style="font-size:13px;line-height:1.7">'
       + '<b>'+g.total+'</b> nota(s) — '+g.normal+' normal · '+g.excelencia+' excelencia<br>'
       + (g.borrador ? '📝 Borrador (no visible): <b>'+g.borrador+'</b><br>' : '')
-      + (g.publicadas ? '📢 Publicadas: <b>'+g.publicadas+'</b> — 🟢 firmaron <b>'+g.confirmada+'</b> · ⏳ pendientes <b>'+g.pendiente+'</b> · '
-          + '<span style="color:'+(g.rechazada?'#ff8a8a':'inherit')+'">🔴 reclamos <b>'+g.rechazada+'</b></span>' : '')
+      + (g.publicadas ? '📢 Publicadas: <b>'+g.publicadas+'</b> — <span style="color:#7ddba0">🟢 firmaron <b>'+g.confirmada+'</b></span> · '
+          + '<span style="color:#e87878">🔴 sin responder <b>'+g.pendiente+'</b></span> · '
+          + '<span style="color:#d98aa0">🟣 objetaron <b>'+g.rechazada+'</b></span>' : '')
       + '</div>'
       + '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">'
       + btn('👁️ Ver notas y reclamos', 'efmVerDetalle('+i+')')
@@ -13148,9 +13149,9 @@ function _efmEstado(f){
 }
 const _EFM_ESTADOS = {
   borrador:   { txt:'📝 Borrador',   color:'#9aa3b8' },
-  pendiente:  { txt:'⏳ Pendiente',  color:'#e0b050' },
-  confirmada: { txt:'🟢 Conforme',   color:'#7ddba0' },
-  rechazada:  { txt:'🔴 Reclamo',    color:'#ff8a8a' }
+  pendiente:  { txt:'🔴 No vio / no firmó',  color:'#e87878' },
+  confirmada: { txt:'🟢 Firmó — de acuerdo', color:'#7ddba0' },
+  rechazada:  { txt:'🟣 No está de acuerdo', color:'#d98aa0' }
 };
 function efmFiltrarDetalle(f){ EFM.detFiltro = f; efmPintarDetalle(); }
 function efmPintarDetalle(){
@@ -13174,18 +13175,18 @@ function efmPintarDetalle(){
       + '<div class="ef-filtros" style="margin:0 0 10px"><input type="text" id="efm-det-buscar" placeholder="🔎 Buscar nombre o CI..." oninput="efmPintarDetalle()"></div>'
       + '<div id="efm-det-lista"></div>';
   }
-  document.getElementById('efm-det-chips').innerHTML = chip('todos','Todos') + chip('rechazada','🔴 Reclamos') + chip('pendiente','⏳ Pendientes') + chip('confirmada','🟢 Conformes') + chip('borrador','📝 Borrador');
+  document.getElementById('efm-det-chips').innerHTML = chip('todos','Todos') + chip('rechazada','🟣 Objetaron') + chip('pendiente','🔴 Sin responder') + chip('confirmada','🟢 Firmaron') + chip('borrador','📝 Borrador');
   const cont2 = document.getElementById('efm-det-lista');
   if(!lista.length){ cont2.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">Nada que mostrar con este filtro.</div>'; return; }
   cont2.innerHTML = lista.map(function(f){
     const e = _EFM_ESTADOS[_efmEstado(f)];
     const obs = f.conformidad && f.conformidad.estado === 'rechazada' && f.conformidad.observacion_cursante
-      ? '<div style="font-size:11.5px;color:#ffb3b3;margin-top:3px">“'+escapeHtml(f.conformidad.observacion_cursante)+'”</div>' : '';
+      ? '<div style="font-size:11.5px;color:#d98aa0;margin-top:3px">“'+escapeHtml(f.conformidad.observacion_cursante)+'”</div>' : '';
     return '<div class="ef-cursante-row" onclick="efmAbrirFila('+Number(f.efm_id)+')">'
       + '<div><div class="ef-cur-nombre">'+escapeHtml(nombreConGrado(f))+'</div>'
       + '<div class="ef-cur-meta">'+escapeHtml([f.paralelo?'"'+f.paralelo+'"':'', f.categoria||'', 'CI '+(f.ci||'—')].filter(Boolean).join(' · '))
       + ' · <span style="color:'+e.color+'">'+e.txt+'</span></div>'+obs+'</div>'
-      + '<div class="ef-cur-nota">'+(f.nota_final != null ? escapeHtml(f.nota_final) : '—')+'</div></div>';
+      + '<div class="ef-cur-nota" style="color:'+e.color+'">'+(f.nota_final != null ? escapeHtml(f.nota_final) : '—')+'</div></div>';
   }).join('');
 }
 
@@ -13301,16 +13302,31 @@ async function cargarConformidadesEfm(force){
   _efmConfUser = uid;
   return efmConfMap;
 }
+function _efmConfDe(ev){
+  if(!ev || ev.efm_id == null || !currentUser || _efmConfUser !== currentUser.id) return null;
+  return efmConfMap[String(ev.efm_id)] || null;
+}
+// El recuadro de la NOTA FINAL se pinta rojo mientras no la firme y guinda si la objetó.
+function _efmFinalEstilo(ev, conEditar){
+  if(conEditar) return '';
+  const c = _efmConfDe(ev); if(!c) return '';
+  if(c.estado === 'pendiente') return ' style="background:linear-gradient(180deg,#ff5b5b,#c52020)"';
+  if(c.estado === 'rechazada') return ' style="background:linear-gradient(180deg,#c9527a,#7a2038)"';
+  return '';
+}
 function _efmConfHtml(ev){
   if(!ev || ev.efm_id == null || !currentUser || _efmConfUser !== currentUser.id) return '';
   const c = efmConfMap[String(ev.efm_id)];
   if(!c) return '';
+  // v2.9.413: mismo semáforo que notas académicas — 🔴 sin firmar · 🟣 objetada · 🟢 firmada.
   if(c.estado === 'confirmada') return '<div style="margin-top:10px;font-size:12px;color:#7ddba0;text-align:center">🟢 Diste tu conformidad — firmada</div>';
-  if(c.estado === 'rechazada') return '<div style="margin-top:10px;font-size:12px;color:#ff8a8a;text-align:center">🔴 Presentaste un reclamo'
-    + (c.observacion_cursante ? ': “'+escapeHtml(c.observacion_cursante)+'”' : '') + '<br><span style="color:var(--text-muted)">La Sub. Sec. de Entrenamiento Físico lo va a revisar.</span></div>';
-  return '<div style="margin-top:10px;padding:10px;border-radius:8px;background:rgba(224,176,80,.14);border:1px solid rgba(224,176,80,.5);text-align:center">'
-    + '<div style="font-size:12.5px;color:#f0d08a;margin-bottom:8px">⏳ Falta tu conformidad sobre esta nota</div>'
-    + '<button class="btn-papeleta primary" onclick="efmAbrirFirma('+Number(c.id)+')">✍️ Dar mi conformidad o reclamar</button></div>';
+  if(c.estado === 'rechazada') return '<div style="margin-top:10px;padding:8px 10px;background:rgba(165,51,74,.12);border:1px solid rgba(165,51,74,.4);border-radius:8px">'
+    + '<div style="font-size:11.5px;color:#d98aa0;font-weight:700">🟣 Objetaste esta nota</div>'
+    + (c.observacion_cursante ? '<div style="font-size:11.5px;color:var(--text-secondary);margin-top:4px">"'+escapeHtml(c.observacion_cursante)+'"</div>' : '')
+    + '<div style="font-size:11px;color:var(--text-muted);margin-top:4px">La Sub. Sec. de Entrenamiento Físico la va a revisar.</div></div>';
+  return '<div style="margin-top:10px;padding:8px 10px;background:rgba(255,91,91,.12);border:1px solid rgba(255,91,91,.4);border-radius:8px">'
+    + '<div style="font-size:11.5px;color:#ff8f8f;font-weight:700;margin-bottom:6px">🔴 Reconocimiento de nota pendiente</div>'
+    + '<button onclick="efmAbrirFirma('+Number(c.id)+')" style="background:linear-gradient(180deg,#e8c46a,#c49234);color:#2a1f0a;border:none;border-radius:8px;padding:7px 14px;font-size:11.5px;font-weight:700;cursor:pointer;width:100%">✍️ Ver mi nota y firmar</button></div>';
 }
 
 let efmFirma = { conf:null, cv:null, ctx:null, has:false };
@@ -15199,7 +15215,7 @@ async function renderSemestresCursante(){
   // Disciplina ACTIVA (en curso)
   if(porSem[active]){ const sv=(mr&&mr.semestre_vigente)||{}; porSem[active].disc={nota:(sv.nota_semestre!=null?sv.nota_semestre:100), perdido:(sv.perdido_semestre||0), sanciones:(sv.sanciones||[]), label:_ordWord(active)+' SEMESTRE '+gestion, cerrado:false}; porSem[active].status='activo'; }
   // EFM por semestre absoluto
-  efm.forEach(e=>{ const a=_absSemDe(e.ciclo,e.semestre); if(porSem[a]){ const isCal=String(e.tipo_evaluacion||'').toUpperCase()==='CALIFICA'; const prev=porSem[a].efm; if(!prev || (isCal&&!prev._cal)) porSem[a].efm={nota:e.nota_final, tipo:e.tipo_evaluacion, _cal:isCal}; if(porSem[a].status==='sin') porSem[a].status='datos'; } });
+  efm.forEach(e=>{ const a=_absSemDe(e.ciclo,e.semestre); if(porSem[a]){ const isCal=String(e.tipo_evaluacion||'').toUpperCase()==='CALIFICA'; const prev=porSem[a].efm; if(!prev || (isCal&&!prev._cal)) porSem[a].efm={nota:e.nota_final, tipo:e.tipo_evaluacion, _cal:isCal, efm_id:e.efm_id}; if(porSem[a].status==='sin') porSem[a].status='datos'; } });
   // Notas + Orden de mérito por semestre absoluto
   acad.forEach(n0=>{ const a=_absSemDe(n0.ciclo,n0.semestre); if(porSem[a]){ if(n0.promedio_general!=null && porSem[a].notas==null) porSem[a].notas=Number(n0.promedio_general); if(n0.om_general!=null && porSem[a].om==null) porSem[a].om=n0.om_general; if(porSem[a].status==='sin') porSem[a].status='datos'; } });
   _CUR_SEM_DATA = { gestion, base, active, porSem };
@@ -15250,7 +15266,7 @@ function _renderSemPanel(){
   const card=(area,icon,tit,val,sub)=>{ const act=(CUR_SEM_AREA===area)?'active':''; return `<button class="cur-area-card ${act}" onclick="verAreaSemestre('${area}',${n})" style="cursor:pointer"><div class="ca-icon">${icon}</div><div class="ca-title">${tit}</div><div class="ca-value">${val}</div><div class="ca-sub">${sub}</div></button>`; };
   const cards=`<div class="cur-areas-grid">
     ${card('disciplina','⭐','Disciplina',discNota,discPts)}
-    ${card('efm','🏃','EFM',efm,d.efm?escapeHtml(d.efm.tipo||'Ver'):'Ver')}
+    ${card('efm','🏃','EFM',efm,d.efm?(((_efmConfDe(d.efm)||{}).estado==='pendiente')?'🔴 Por firmar':escapeHtml(d.efm.tipo||'Ver')):'Ver')}
     ${card('academicas','📚','Notas',notas,'Ver notas')}
     ${card('merito','🏆','Orden de Mérito',om,'Ver posición')}
   </div>`;
@@ -15456,7 +15472,7 @@ async function renderCursanteHome(){
     try{
       const m = await cargarConformidadesEfm(true);
       if(Object.keys(m).some(k => m[k].estado === 'pendiente'))
-        document.getElementById('cur-area-efm-sub').textContent = '✍️ Dar conformidad';
+        document.getElementById('cur-area-efm-sub').textContent = '🔴 Por firmar';
     }catch(e){}
   }catch(e){ /* silent */ }
 
