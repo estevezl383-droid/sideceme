@@ -1,5 +1,5 @@
 // ================================================================================
-// SIDECEME — Edge Function  efm-ops   (v2.9.409)
+// SIDECEME — Edge Function  efm-ops   (v2.9.411)
 //
 // Carga, publicación, conformidad y corrección de NOTAS EFM (Entrenamiento
 // Físico Militar). Es el espejo de `notas-ops` + `notas-confirmar`, pero SOLO
@@ -10,8 +10,9 @@
 // Quién puede qué:
 //   - Personal con 'sub_ef' en rol o roles[] (Tcnl. Aguirre P019, My. Linares
 //     P020): cargar · publicar · retirar · eliminar_borrador · listar ·
-//     detalle · corregir · historial
-//   - Cursante (sesión de cursante): mis_conformidades · resolver — siempre
+//     detalle · corregir · historial · panel_ef
+//   - Cualquier profesor activo: evaluaciones_de (ficha EFM de un cursante, solo lectura)
+//   - Cursante (sesión de cursante): mis_evaluaciones · mis_conformidades · resolver — siempre
 //     sobre SUS filas (cursante_id sale de la sesión, nunca del body).
 //
 // Reglas que protegen lo que ya existe:
@@ -169,6 +170,10 @@ function difiere(a: any, b: Record<string, string | null>): boolean {
   }
   return false;
 }
+// La columna password nunca sale de acá.
+function sinPassword(rows: any[]): any[] {
+  return rows.map((r) => { const { password: _pw, ...resto } = r; return resto; });
+}
 function soloCampos(row: any): Record<string, string | null> {
   const o: Record<string, string | null> = {};
   for (const c of CAMPOS) o[c] = row?.[c] ?? null;
@@ -201,7 +206,7 @@ Deno.serve(async (req) => {
   try { body = await req.json(); } catch { return json({ ok: false, error: "Cuerpo invalido" }, 400); }
 
   if (body.accion === "ping") {
-    return json({ ok: true, funcion: "efm-ops", version: "2.9.409" });
+    return json({ ok: true, funcion: "efm-ops", version: "2.9.411" });
   }
 
   const ses = await leerSesion(body.token);
@@ -215,6 +220,16 @@ Deno.serve(async (req) => {
       const curId = ses.usuario_id;
 
       switch (body.accion) {
+        // v2.9.411: el cursante lee SUS notas EFM por acá (nunca las de otro):
+        // cursante_id sale de la sesión. Borradores fuera.
+        case "mis_evaluaciones": {
+          const { data, error } = await sb.from("evaluaciones_fisicas").select("*")
+            .eq("cursante_id", curId).or("publicado.is.null,publicado.eq.true")
+            .order("tipo_evaluacion", { ascending: true });
+          if (error) return json({ ok: false, error: "No se pudo leer tus notas EFM" }, 500);
+          return json({ ok: true, evaluaciones: sinPassword(data || []) });
+        }
+
         case "mis_conformidades": {
           const { data, error } = await sb.from("efm_confirmaciones")
             .select("id, efm_id, gestion, semestre, ciclo, tipo_evaluacion, nota_final, estado, publicado_en, confirmada_en, observacion_cursante")
@@ -271,6 +286,21 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ===================== PERSONAL: ver la ficha EFM de un cursante =====================
+    // v2.9.411: cualquier profesor activo (Disciplina, Jefe de Curso, etc.) ve las
+    // notas EFM publicadas de UN cursante en su ficha. Solo lectura.
+    if (body.accion === "evaluaciones_de") {
+      const { data: p } = await sb.from("profesores").select("activo").eq("id", ses.usuario_id).maybeSingle();
+      if (!p || p.activo === false) return json({ ok: false, error: "Usuario inactivo" }, 403);
+      const cid = txt(body.cursante_id, 40);
+      if (!cid) return json({ ok: false, error: "Falta el cursante" }, 400);
+      const { data, error } = await sb.from("evaluaciones_fisicas").select("*")
+        .eq("cursante_id", cid).or("publicado.is.null,publicado.eq.true")
+        .order("tipo_evaluacion", { ascending: true });
+      if (error) return json({ ok: false, error: "No se pudo leer las notas EFM" }, 500);
+      return json({ ok: true, evaluaciones: sinPassword(data || []) });
+    }
+
     // ============================ LADO DE LA SECCIÓN EF ============================
     const auth = await validarEf(ses.usuario_id);
     if ("error" in auth) return json({ ok: false, error: auth.error }, auth.status);
@@ -278,6 +308,13 @@ Deno.serve(async (req) => {
     const profNombre = [prof.grado, prof.nombre_completo].filter(Boolean).join(" ");
 
     switch (body.accion) {
+      // v2.9.411: todas las notas EFM para el panel de la Sección (incluye borradores).
+      case "panel_ef": {
+        const { data, error } = await sb.from("evaluaciones_fisicas").select("*").limit(5000);
+        if (error) return json({ ok: false, error: "No se pudo leer las notas EFM" }, 500);
+        return json({ ok: true, evaluaciones: sinPassword(data || []) });
+      }
+
       // Resumen de todas las evaluaciones cargadas por la plataforma.
       case "listar": {
         const { data, error } = await sb.from("evaluaciones_fisicas")

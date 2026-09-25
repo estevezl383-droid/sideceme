@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.409</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.411</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -11884,11 +11884,11 @@ async function renderCursanteEfmSection(){
   if(!cont || !currentUser) return;
   cont.innerHTML = '<div class="placeholder-container" style="padding:24px 12px"><div class="placeholder-icon">⏳</div><div class="placeholder-title">Cargando notas EFM...</div></div>';
   try{
-    const {data: todas, error} = await sb.from('evaluaciones_fisicas')
-      .select('*')
-      .eq('cursante_id', currentUser.id)
-      .order('tipo_evaluacion', {ascending:true});
-    if(error){
+    // v2.9.411: las notas llegan por el servidor (efm-ops), que entrega SOLO las del
+    // cursante de esta sesión. Ya no se lee la tabla directo.
+    let todas;
+    try{ todas = await cargarMisEvaluacionesEfm(); }
+    catch(error){
       cont.innerHTML = '<div class="efm-no-data">⚠️ Error cargando: ' + (error.message||'') + '</div>';
       return;
     }
@@ -12530,8 +12530,10 @@ let efmData = { evaluaciones: [], byCursante: {}, loaded: false };
 
 async function loadEvaluacionesFisicas(){
   try{
-    const {data, error} = await sb.from('evaluaciones_fisicas').select('*');
-    if(error){ console.error('Error cargando evaluaciones:', error); return; }
+    // v2.9.411: por el servidor (solo Sub. Sec. EF). Ya no se lee la tabla directo.
+    const r = await _efmInvoke('panel_ef');
+    if(!r.ok){ console.error('Error cargando evaluaciones:', r.error); return; }
+    const data = r.evaluaciones;
     efmData.evaluaciones = data || [];
     efmData.byCursante = {};
     for(const ev of efmData.evaluaciones){
@@ -13262,6 +13264,17 @@ async function efmGuardarCorreccion(efmId){
 /* ------------------------------ lado del cursante ------------------------------ */
 // Conformidades EFM del cursante, por efm_id. Se ata al usuario: si en la misma
 // pestaña entra otro, el mapa viejo no se muestra.
+// v2.9.411: las notas EFM del cursante, pedidas al servidor con su sesión.
+let _efmMisEvals = null, _efmMisEvalsUser = null;
+async function cargarMisEvaluacionesEfm(force){
+  const uid = currentUser && currentUser.id;
+  if(!uid) return [];
+  if(!force && _efmMisEvalsUser === uid && _efmMisEvals) return _efmMisEvals;
+  const r = await _efmInvoke('mis_evaluaciones');
+  if(!r.ok) throw new Error(r.error || 'No se pudieron leer tus notas EFM');
+  _efmMisEvals = r.evaluaciones || []; _efmMisEvalsUser = uid;
+  return _efmMisEvals;
+}
 let efmConfMap = {}, _efmConfUser = null;
 async function cargarConformidadesEfm(force){
   const uid = currentUser && currentUser.id;
@@ -15160,7 +15173,7 @@ async function renderSemestresCursante(){
   let mr=null, acad=[], efm=[];
   try{ const r=await _csInvoke('mi_resumen'); if(r&&r.ok) mr=r; }catch(e){}
   try{ acad=(await cargarNotasAcademicas())||[]; }catch(e){}
-  try{ const {data}=await sb.from('evaluaciones_fisicas').select('*').eq('cursante_id',currentUser.id); efm=(data||[]).filter(ev=>ev.publicado!==false); }catch(e){}  // v2.9.409: sin borradores
+  try{ efm=(await cargarMisEvaluacionesEfm()).filter(ev=>ev.publicado!==false); }catch(e){}  // v2.9.411: por el servidor, solo las propias
   try{ await cargarConformidadesEfm(); }catch(e){}
   const cierres = (mr&&mr.cierres)||[];
   const cierresGestion = cierres.filter(c=>Number(c.gestion)===gestion);
@@ -15401,10 +15414,7 @@ async function renderCursanteHome(){
   document.getElementById('cur-area-disc-sub').textContent = estado === 'regla' ? '✓ En regla' : estado === 'observacion' ? '⚠ Observación' : '🚨 Consejo';
   // Buscar nota EFM (best-effort, sin bloquear)
   try{
-    const {data: efs} = await sb.from('evaluaciones_fisicas')
-      .select('nota_final,tipo_evaluacion,gestion,semestre,publicado')
-      .eq('cursante_id', currentUser.id)
-      .not('nota_final', 'is', null);
+    const efs = (await cargarMisEvaluacionesEfm(true)).filter(e => e.nota_final != null);  // v2.9.411
     // v2.9.409: los borradores no cuentan hasta que se publiquen.
     const efsPub = (efs||[]).filter(e => e.publicado !== false);
     // v2.9.80: el badge muestra la evaluación que CALIFICA (la que promedia), no la diagnóstica.
@@ -17605,7 +17615,8 @@ async function verReporteIntegral(cursanteId){
   // ── 2) ENTRENAMIENTO FÍSICO y 3) NOTAS (consulta on-demand por cursante) ──
   let efis = [], notas = [];
   try{
-    const {data} = await sb.from('evaluaciones_fisicas').select('*').eq('cursante_id', cursanteId).order('tipo_evaluacion',{ascending:true});
+    const r = await _efmInvoke('evaluaciones_de', { cursante_id: cursanteId });  // v2.9.411: por el servidor
+    const data = r.ok ? r.evaluaciones : [];
     efis = (data||[]).filter(ev => ev.nota_final != null && ev.nota_final !== '' && ev.publicado !== false);  // v2.9.409
   }catch(e){ console.warn('repint efm:', e); }
   try{
