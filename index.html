@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.414</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.415</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -14803,54 +14803,24 @@ async function guardarSancionManual(){
   btn.disabled = true; btn.textContent = 'Creando...';
   try{
     const c = cursanteSeleccionadoManual;
-    const sancionId = 'manual_' + Date.now() + '_' + Math.random().toString(36).slice(2,8);
-    const nueva = {
-      id: sancionId,
-      cursante_id: c.id,
-      cursante_nombre: c.nombre_completo,
-      cursante_ci: c.ci,
-      cursante_ciclo: c.ciclo,
-      cursante_paralelo: c.paralelo,
-      profesor_id: currentUser.id,
-      profesor_nombre: currentUser.nombre_completo,
-      profesor_ci: currentUser.ci,
-      falta_categoria: categoria,
-      falta_id: faltaId || null,
-      falta_descripcion: descripcion,
-      puntos_aplicados: puntos,
-      fecha_original: fecha,
-      observaciones: observaciones || null,
-      creado_en: new Date().toISOString(),
-      es_carga_manual: true,
-      carga_manual_razon: razon,
-      anulada: false,
-      tipo: 'analogica',
-      confirmacion_estado: 'analogico',
-      huella_forense: JSON.stringify({
-        tipo:'carga_manual_jefe_disciplina',
-        creado_por: currentUser.id,
-        creado_por_nombre: currentUser.nombre_completo,
-        razon: razon,
-        timestamp: new Date().toISOString(),
-        user_agent: navigator.userAgent.slice(0,200)
-      })
-    };
+    // v2.9.415: sanciones-ops arma la sanción con los datos del cursante y de quien la
+    // carga, y valida los puntos contra el reglamento. Acá van solo los del formulario.
     const _tok = getTokenSesion();
     const { data: r, error: efErr } = await sb.functions.invoke('sanciones-ops', {
-      body: { accion:'crear_manual', token:_tok, nueva:nueva, razon:razon, usuario_nombre:currentUser.nombre_completo }
+      body: { accion:'crear_manual', token:_tok, cursante_id:c.id, falta_categoria:categoria, falta_id:faltaId||null,
+              falta_descripcion:descripcion, puntos_aplicados:puntos, fecha:fecha, observaciones:observaciones||null, razon:razon }
     });
     if(efErr){
       let detalle = efErr.message || 'Error en sanciones-ops';
       try{ if(efErr.context && typeof efErr.context.json === 'function'){ const b = await efErr.context.json(); detalle = b.error || JSON.stringify(b); } }catch(_){}
       throw new Error(detalle);
     }
-    if(!r || !r.ok) throw new Error(r?.error || 'Error en sanciones-ops');
-    // El EF ya insertó + auditó. Reflejamos en memoria local.
-    const _nidM = nueva.id;  // v2.9.77: no duplicar si ya está en memoria
-    if(!discData.sanciones.some(x=>x && x.id===_nidM)) discData.sanciones.push(nueva);
-    if(!discData.byCursanteSanc[c.id]) discData.byCursanteSanc[c.id] = [];
-    if(!discData.byCursanteSanc[c.id].some(x=>x && x.id===_nidM)) discData.byCursanteSanc[c.id].push(nueva);
-    alert('✓ Sanción creada manualmente. ID: ' + sancionId);
+    if(!r || !r.ok || !r.sancion) throw new Error(r?.error || 'Error en sanciones-ops');
+    // El EF ya insertó, auditó y recalculó. Reflejamos en memoria la sanción tal como quedó guardada.
+    const nueva = r.sancion;
+    if(!discData.sanciones.some(x=>x && x.id===nueva.id)) discData.sanciones.push(nueva);  // v2.9.77: no duplicar
+    _reconstruirIndicesDisc(); _invalidarCacheDisc();   // el puntaje del cursante se ve al instante
+    alert('✓ Sanción creada manualmente. ID: ' + nueva.id);
     goGestionSanciones();
   }catch(e){
     console.error('Error creando sanción manual:', e);
