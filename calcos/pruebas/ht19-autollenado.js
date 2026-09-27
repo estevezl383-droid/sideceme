@@ -10,36 +10,17 @@
 //
 // Para comparar con el compilado de antes de un commit:
 //   git show <commit>:calcos/assets/index-XXXX.js > /tmp/anterior.js
-const fs = require('fs')
 const path = require('path')
-const vm = require('vm')
 const assert = require('assert')
-const acorn = require('acorn')
+const { vigente, cargar: cargarNombres } = require('./extraer')
 
 const args = process.argv.slice(2)
 const base = args.includes('--base') ? args[args.indexOf('--base') + 1] : null
 const suelto = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--base')
-const vigente = () => {
-  const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8')
-  return path.join(__dirname, '..', html.match(/\.\/(assets\/index-[\w-]+\.js)/)[1])
-}
 const archivo = suelto || vigente()
 
-// Las funciones de nivel superior, copiadas textualmente del compilado.
-function cargar(ruta) {
-  const src = fs.readFileSync(ruta, 'utf8')
-  const ast = acorn.parse(src, { ecmaVersion: 'latest', sourceType: 'module' })
-  const quiero = new Set(['UIe', 'vD', 'iq'])
-  const partes = []
-  for (const n of ast.body) {
-    if (n.type === 'FunctionDeclaration' && quiero.delete(n.id.name)) partes.push(src.slice(n.start, n.end))
-  }
-  if (quiero.size) throw new Error(`No están en ${ruta}: ${[...quiero].join(', ')}`)
-  const ctx = { hie: () => ({}) } // hie() sólo alimenta a otras hojas
-  vm.createContext(ctx)
-  vm.runInContext(partes.join('\n'), ctx)
-  return ctx
-}
+// hie() sólo alimenta a otras hojas.
+const cargar = ruta => cargarNombres(ruta, ['UIe', 'vD', 'iq'], { hie: () => ({}) })
 
 // Las 16 fichas de la plantilla situacional de la 1ra. Brigada Acorazada
 // (RAGNAR, envolvimiento, nivel brigada) y dos fichas propias. Sólo los
@@ -139,6 +120,84 @@ caso('Sigue sin repartir fichas entre OC-1…OD (arreglo del 27-09)', () => {
   assert.strictEqual(c.vD('OC-1', { _ocsNom: { 'OC-1': 'brigada Cab. Mec.' } }), 'OC-1')
 })
 
+// Quién es cada OC/OD: sale de las fichas del CAE más probable, con su rol de la
+// plantilla. Las fichas de maniobra de los dos CAE de «ARMAS» (27-09).
+const M = (designacion, rol, escalon, extra = {}) => ({ designacion, rol, escalon, tipo: 'unidad', bando: 'enemigo', ...extra })
+const PROBABLE = [
+  M('BAT. INF. BLIN. «CARAMPAGUÉ» (AMARRE)', 'e1', 'batallon'),
+  M('G. BLIN. 9 «VENCEDORES» (OD)', 'flanqueo', 'batallon', { principal: true }),
+  M('RESERVA', 'reserva', 'compania'),
+  M('G.A.AP. «SALVO»', 'artilleria', 'batallon', { principal: true }),
+  M('PEL. REC. BLIN.', 'reconocimiento', 'seccion'),
+]
+const PELIGROSO = [
+  M('DEMOSTRACIÓN', 'e1', 'compania'),
+  M('G. BLIN. 9 «VENCEDORES» (OD)', 'flanqueo', 'batallon', { principal: true }),
+  M('BAT. INF. BLIN. «CARAMPAGUÉ» (SIGUE)', 'e2', 'batallon'),
+]
+const unidadesDe = s => Object.fromEntries(['OC-1', 'OC-2', 'OC-3', 'OD'].map(i => [i, s[`MANIOBRA|${i}|Unidad`]]))
+const conFases = (...fases) => c.UIe('ht19', { unidades: [], picb: {}, fasesCOA: { enemigo: fases } })
+
+caso('Propone quién es cada OC/OD con el CAE más probable del calco (aunque el peligroso esté primero)', () => {
+  const s = conFases({ coa: 'peligroso', unidades: PELIGROSO }, { coa: 'probable', unidades: PROBABLE })
+  assert.deepStrictEqual(unidadesDe(s), {
+    'OC-1': 'BAT. INF. BLIN. «CARAMPAGUÉ» (AMARRE)',
+    'OC-2': 'RESERVA',
+    'OC-3': undefined,
+    OD: 'G. BLIN. 9 «VENCEDORES» (OD)',
+  })
+})
+
+caso('Las OC van por ocurrencia (1er escalón → 2do escalón → reserva); si coinciden, el de mayor escalón', () => {
+  const s = conFases({ coa: 'probable', unidades: [
+    M('RES', 'reserva', 'batallon'), M('B', 'e1', 'batallon'), M('SIG', 'e2', 'batallon'),
+    M('A', 'e1', 'regimiento'), M('X (OD)', 'e2', 'brigada'),
+  ] })
+  assert.deepStrictEqual(unidadesDe(s), { 'OC-1': 'A', 'OC-2': 'B', 'OC-3': 'SIG', OD: 'X (OD)' })
+})
+
+caso('Sin una ficha marcada (OD) no propone nada: lo escribe el docente', () => {
+  const s = conFases({ coa: 'probable', unidades: [M('ESF. PPAL.', 'flanqueo', 'batallon', { principal: true }), M('AMARRE', 'e1', 'batallon')] })
+  assert.deepStrictEqual(unidadesDe(s), { 'OC-1': undefined, 'OC-2': undefined, 'OC-3': undefined, OD: undefined })
+})
+
+caso('Sin fases trazadas usa las fichas que están en el calco', () => {
+  const s = c.UIe('ht19', { unidades: PROBABLE, picb: {} })
+  assert.strictEqual(s['MANIOBRA|OD|Unidad'], 'G. BLIN. 9 «VENCEDORES» (OD)')
+  assert.strictEqual(s['MANIOBRA|OC-1|Unidad'], 'BAT. INF. BLIN. «CARAMPAGUÉ» (AMARRE)')
+})
+
+caso('El rótulo (hoja, vista previa, Word e IA) muestra la unidad; lo escrito por el docente no se pisa', () => {
+  const hoja = { 'MANIOBRA|OC-1|Unidad': 'FT IBARRA', 'MANIOBRA|OC-2|Unidad': '   ' }
+  assert.strictEqual(c.vD('OC-1', hoja), 'OC-1 · FT IBARRA')
+  assert.strictEqual(c.vD('OC-2', hoja), 'OC-2')
+  assert.strictEqual(c.vD('ART.', hoja), 'ART.')
+  const m = c.iq(hoja, conFases({ coa: 'probable', unidades: PROBABLE }))
+  assert.strictEqual(m['MANIOBRA|OC-1|Unidad'], 'FT IBARRA')
+  assert.strictEqual(m['MANIOBRA|OD|Unidad'], 'G. BLIN. 9 «VENCEDORES» (OD)')
+})
+
+// Las columnas de fase: sólo las del CAE más probable, y nunca sobre una hoja ya escrita.
+const OCHO_FASES = ['probable', 'peligroso'].flatMap(coa =>
+  ['Ramificación', 'Apresto lejano', 'Ataque propiamente tal', 'Ruptura'].map(nombre => ({ coa, nombre, unidades: [] })))
+
+caso('Hoja ya escrita en FASE I…IV: «Traer del calco» no le cambia las columnas (lo escrito seguía oculto)', () => {
+  const escrita = { 'MANIOBRA|OC-1|FASE I|Tarea': 'Texto del docente', 'Cuándo': '' }
+  const s = c.UIe('ht19', { unidades: [], picb: { ht19: escrita }, fasesCOA: { enemigo: OCHO_FASES } })
+  assert.strictEqual(s._fases, undefined, `_fases = ${JSON.stringify(s._fases)}`)
+  assert.strictEqual(s['Cuándo'], undefined)
+  assert.ok('INTELIGENCIA|—|FASE I|A.I.N.' in s, 'lo que propone va en FASE I…IV')
+  const m = c.iq(escrita, s)
+  assert.strictEqual(m._fases, undefined)
+  assert.strictEqual(m['MANIOBRA|OC-1|FASE I|Tarea'], 'Texto del docente')
+})
+
+caso('Hoja vacía: toma las 4 fases del CAE más probable (no las 8 de los dos cursos)', () => {
+  const s = c.UIe('ht19', { unidades: [], picb: {}, fasesCOA: { enemigo: OCHO_FASES } })
+  assert.deepStrictEqual([...s._fases], ['Ramificación', 'Apresto lejano', 'Ataque propiamente tal', 'Ruptura'])
+  assert.match(s['Cuándo'], /^4 fase\(s\)/)
+})
+
 if (base) {
   caso('El resto del autollenado de la H.T. 19 no cambia respecto del anterior', () => {
     const b = cargar(base)
@@ -151,7 +210,10 @@ if (base) {
     ]
     for (const [nom, e] of escenarios) {
       const ctx = { picb: {}, ...e }
-      const sin = o => { const { 'Quién': _q, 'Con qué fuerza': _f, _ocsNom: _o, ...resto } = o; return resto }
+      const sin = o => {
+        const { 'Quién': _q, 'Con qué fuerza': _f, _ocsNom: _o, ...resto } = o
+        return Object.fromEntries(Object.entries(resto).filter(([k]) => !/^MANIOBRA\|.*\|Unidad$/.test(k)))
+      }
       assert.deepStrictEqual(sin(c.UIe('ht19', ctx)), sin(b.UIe('ht19', ctx)), `difiere en «${nom}»`)
     }
   })

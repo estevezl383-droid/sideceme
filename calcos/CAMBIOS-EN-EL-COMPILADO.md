@@ -5,6 +5,71 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-09-27 — H.T. 19 dice quién es cada OC/OD, y ninguna ficha enemiga en el lago (`index-4OsERrlJ.js`)
+
+Parte de `index-oeww4UiF.js`: trae todo lo de abajo y suma esto. Lo pidió Sergio.
+
+### H.T. 19: quién es OC-1, OC-2, OC-3 y OD
+
+- En el formulario, cada renglón de MANIOBRA tiene su campo «Unidad». Se guarda
+  en la hoja con la clave `MANIOBRA|<OC-1…OD>|Unidad`, y `vD()` lo muestra como
+  «OC-1 · <unidad>» en el formulario, la vista previa, los dos Word y los rótulos
+  que recibe la IA. Lo que escriba el docente manda.
+- «Traer del calco lo que falte» lo propone (sólo si el campo está vacío) con las
+  fichas de maniobra del CAE MÁS PROBABLE (`fasesCOA.enemigo` con
+  `coa: "probable"`; sin fases, las fichas del calco):
+  - OD: la ficha que la plantilla marca «(OD)». Si ninguna lo está, no propone
+    nada y lo escribe el docente.
+  - OC: el resto de las fichas de maniobra (roles `e1`, `e2`, `flanqueo`,
+    `reserva`) numeradas «de acuerdo a la proyección de ocurrencia» y, si son
+    simultáneas, primero la de mayor poder de combate (texto del PMTD 2017):
+    primer escalón → segundo escalón → reserva; empate, el de mayor escalón.
+  - En «ARMAS»: OC-1 BAT. INF. BLIN. «CARAMPAGUÉ» (AMARRE), OC-2 RESERVA,
+    OD G. BLIN. 9 «VENCEDORES» (OD).
+- Arreglo de paso, que ya estaba mal: con los dos CAE acostados, «Traer del
+  calco» ponía como columnas las 8 fases de los dos cursos (con nombres
+  repetidos), y en una hoja ya escrita en FASE I…IV lo escrito quedaba oculto
+  (en «ARMAS» se veían 8 de 148 textos). Ahora toma sólo las 4 fases del CAE
+  más probable, y si la hoja ya tiene texto en FASE I…IV no le cambia las
+  columnas.
+
+### Fichas enemigas fuera del agua
+
+- El calco sólo baja agua dentro del Área de Interés, y las fichas enemigas
+  quedan afuera: en «ARMAS» la fase 1 dejaba 5 fichas (CAE más probable) y 4
+  (CAE más peligroso) en el Lago Menor.
+- `AGUA_LAGOS`: contorno del lago Titicaca de Natural Earth 1:10m (dominio
+  público, 401 vértices, error del orden de 1 km). `fueraDelAgua([lng, lat])`
+  lleva un punto que cae en el lago a la costa más cercana y 1,5 km tierra
+  adentro (3 o 5 km si hace falta); en tierra no lo toca. `sinAguaFicha()` hace
+  lo mismo con una ficha enemiga; las propias no se tocan.
+- Se aplica en cuatro lugares: al armar cada fase de los CAE (`gCe`), al tocar
+  una fase ya guardada (`Uo`, así se corrigen los ejercicios que ya estaban),
+  y al dibujar las fichas de la plantilla en 2D y en 3D.
+- Otros lagos no están: si aparece uno, se suma su contorno a `AGUA_LAGOS`.
+
+### En el fuente
+
+- Rótulo del renglón de la H.T. 19: leer `MANIOBRA|<ítem>|Unidad`. Formulario:
+  un campo por ítem de MANIOBRA. Autollenado: el bloque que propone esas claves.
+- Autollenado de la H.T. 19: filtrar `fasesCOA.enemigo` por `coa === "probable"`
+  y no poner `_fases` si la hoja ya tiene texto por fase.
+- Agregar el contorno y `fueraDelAgua` donde se arma cada ficha de cada fase,
+  donde se aplica una fase guardada al mapa, y donde se dibujan las fichas de la
+  plantilla (2D y 3D).
+
+### Cómo se comprobó
+
+- `cd calcos/pruebas && npm test`: `ht19-autollenado.js` (15 casos con
+  `--base`) y `fichas-fuera-del-agua.js` (7 casos con `--base`: usa `gCe` real).
+  Con el compilado anterior fallan los casos nuevos.
+- En Chromium, con la H.T. 19 y las fases guardadas de «ARMAS»: «Traer del
+  calco» llena las tres unidades; el Word sale con «OC-1 · BAT. INF. BLIN.
+  «CARAMPAGUÉ» (AMARRE)»… y los 148 textos visibles en FASE I…IV; al tocar la
+  FASE 1 de cada CAE, ninguna de las 16 fichas enemigas queda en el lago (antes,
+  5 y 4). Sin errores de JavaScript.
+- Deshaciendo estos reemplazos se vuelve byte por byte a `index-oeww4UiF.js`.
+
 ## 2026-09-27 — H.T. 19: «Con qué fuerza» sin los PC y con plurales correctos (`index-oeww4UiF.js`)
 
 Parte de `index-zHea8q-_.js`: trae todo lo de abajo y suma esto.
