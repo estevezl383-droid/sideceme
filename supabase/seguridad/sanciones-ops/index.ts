@@ -4,7 +4,7 @@
 // Anular, reactivar y editar una sanción, firma del cursante, token QR y, desde
 // v2.9.415, la carga manual de una sanción en papel (crear_manual).
 //
-// >>> ESTE ARCHIVO VA EN LA FUNCION "sanciones-ops" (reemplaza la versión 17).
+// >>> ESTE ARCHIVO VA EN LA FUNCION "sanciones-ops" (reemplaza la versión 18).
 //
 // Seguridad: JWT OFF + service_role. La autorización es validarToken() y, según la
 // acción, bloqueoGestionSancion() o crearManual().
@@ -303,11 +303,20 @@ async function crearManual(body: Record<string, any>, usuarioId: string, usuario
     },
   };
 
-  const { data: creada, error: insErr } = await sb.from("sanciones").insert(fila).select("*").single();
-  if (insErr || !creada) {
-    if (insErr?.code === "23505") return err("Ya existe una sanción con ese identificador. Volvé a intentar.", 409);
+  // sanciones_no_duplicar es UNIQUE (cursante_id, falta_articulo, creado_en, profesor_id):
+  // con la hora fija, una segunda papeleta del mismo artículo, del mismo día y cargada
+  // por la misma persona chocaría, así que se corre un segundo por cada una que ya esté.
+  let creada: any = null;
+  for (let seg = 0; seg < 60; seg++) {
+    fila.creado_en = `${fecha}T12:00:${String(seg).padStart(2, "0")}-04:00`;
+    const { data, error: insErr } = await sb.from("sanciones").insert(fila).select("*").single();
+    if (data && !insErr) { creada = data; break; }
+    if (insErr?.code === "23505" && String(insErr.message || "").includes("sanciones_no_duplicar")) continue;
+    // Mismo id: la app publicada (que manda su propio id) reenvió la misma carga.
+    if (insErr?.code === "23505") return err("Esta sanción ya fue cargada.", 409);
     return err("No se pudo guardar la sanción: " + (insErr?.message || "sin respuesta"), 500);
   }
+  if (!creada) return err("Ya hay 60 sanciones de ese artículo con esa fecha, cargadas por vos para este cursante.", 409);
 
   // Una sanción cargada suma puntos: aparece siempre en el historial oficial,
   // también si la carga C&T.
