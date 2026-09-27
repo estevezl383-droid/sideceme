@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.415</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.416</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -8577,6 +8577,20 @@ async function _solOps(accion, extra){
   const tok = (typeof getTokenSesion==='function') ? getTokenSesion() : null;
   if(!tok) throw new Error('Sesión no válida — volvé a entrar');
   const {data,error} = await sb.functions.invoke('solicitudes-ops', {body: Object.assign({accion, token: tok}, extra||{})});
+  if(error){
+    let msg = error.message||'Error de conexión';
+    try{ if(error.context && typeof error.context.json==='function'){ const b=await error.context.json(); if(b&&b.error) msg=b.error; } }catch(_e){}
+    throw new Error(msg);
+  }
+  if(!data || data.ok===false) throw new Error((data&&data.error)||'Error desconocido');
+  return data;
+}
+// v2.9.416: eliminar horarios y planillas, y registrar el titular de la Sección, pasan por
+// registros-ops (valida sesión y rol). Subir un horario o una planilla sigue igual.
+async function _regOps(accion, extra){
+  const tok = (typeof getTokenSesion==='function') ? getTokenSesion() : null;
+  if(!tok) throw new Error('Sesión no válida — volvé a entrar');
+  const {data,error} = await sb.functions.invoke('registros-ops', {body: Object.assign({accion, token: tok}, extra||{})});
   if(error){
     let msg = error.message||'Error de conexión';
     try{ if(error.context && typeof error.context.json==='function'){ const b=await error.context.json(); if(b&&b.error) msg=b.error; } }catch(_e){}
@@ -13690,10 +13704,7 @@ async function eliminarHorarioActual(){
   if(!horarioVisualizandoId) return;
   if(!confirm('¿Eliminar este horario? Quedará marcado como inactivo (no se borra físicamente).')) return;
   try{
-    const {error} = await sb.from('horarios_semanales')
-      .update({activo:false, eliminado_por: currentUser.id, eliminado_en: new Date().toISOString()})
-      .eq('id', horarioVisualizandoId);
-    if(error) throw error;
+    await _regOps('horario_eliminar', {id: horarioVisualizandoId});
     alert('✓ Horario eliminado.');
     horariosData.loaded = false;
     goHorarios();
@@ -13960,8 +13971,7 @@ async function eliminarPlanilla(id){
   if(!esAdminPlanilla()){ alert('Solo Jefe Disciplina o Comandante.'); return; }
   if(!confirm('¿Eliminar esta planilla? Dejará de verse para los alumnos (no se borra físicamente).')) return;
   try{
-    const {error} = await sb.from('planillas_disciplina').update({activo:false}).eq('id', id);
-    if(error) throw error;
+    await _regOps('planilla_eliminar', {id});
     planillasData.loaded = false;
     cargarPlanillas();
   }catch(e){
@@ -14414,10 +14424,8 @@ async function seccionCargoRegistrar(){
   const desde=prompt('Se hace cargo DESDE (AAAA-MM-DD):', new Date().toISOString().slice(0,10)); if(!desde) return;
   const obs=prompt('Observaciones (opcional):')||'';
   try{
-    const act=(window._scCargos||[]).find(function(c){ return c.estado==='ACTUAL'; });
-    if(act) await sb.from('seccion_cargos').update({hasta:desde,estado:'CONCLUIDO'}).eq('id',act.id);
-    const {error}=await sb.from('seccion_cargos').insert([{seccion:'DISCIPLINA',titular_grado:grado.trim(),titular_nombre:nombre.trim(),desde:desde,estado:'ACTUAL',observaciones:obs.trim()||null,creado_por:(currentUser&&currentUser.nombre_completo)||null}]);
-    if(error) throw error;
+    // v2.9.416: registros-ops cierra al titular anterior y registra al nuevo (con quién lo cargó).
+    await _regOps('cargo_registrar', {titular_grado:grado.trim(), titular_nombre:nombre.trim(), desde:desde.trim(), observaciones:obs.trim()||null});
     alert('✓ Cambio de titular registrado.'); await seccionCargosPintar();
   }catch(e){ alert('❌ '+(e.message||e)); }
 }
