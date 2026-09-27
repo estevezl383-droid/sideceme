@@ -5,6 +5,56 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-09-27 — H.T. 19: «Con qué fuerza» sin los PC y con plurales correctos (`index-oeww4UiF.js`)
+
+Parte de `index-zHea8q-_.js`: trae todo lo de abajo y suma esto.
+
+### Qué pasaba
+
+- Al llenar la H.T. 19 desde el calco (sólo cuando el campo está vacío),
+  «Con qué fuerza» contaba las fichas enemigas por escalón y le agregaba «es»
+  a cualquier escalón, sin tildes. Con las 16 fichas de la plantilla de la
+  1ra. Brigada Acorazada daba «5 batallones · 9 companiaes · 1 seccion ·
+  1 brigada».
+- También contaba los puestos de mando (`tipo: "pc"`): el «1 brigada» era el
+  PC 1RA. BRIG., y dos de los «batallones», los PC BAT. «Quién» también los
+  listaba.
+
+### Qué se cambió (dos reemplazos en `UIe`, caso `ht19`)
+
+- «Con qué fuerza» usa el singular y el plural de los diez escalones de la
+  app: equipo, escuadra, sección, compañía, batallón, regimiento, brigada,
+  división, cuerpo de ejército y ejército. Un escalón que no esté en la lista
+  queda tal cual, sin plural inventado. Sin escalón sigue contando como
+  batallón.
+- «Quién» y «Con qué fuerza» toman sólo las unidades enemigas
+  (`(tipo || "unidad") === "unidad"`), el mismo criterio que el resto del
+  autollenado: quedan fuera los PC y las instalaciones. Lo decidió Sergio el
+  27-09. La CÍA. TELECOM. es una unidad y sigue contando.
+- Con las 16 fichas queda «3 batallones · 9 compañías · 1 sección», y «Quién»
+  con las 13 unidades.
+- Como antes, sólo se llena lo vacío (`iq()`): lo ya escrito no cambia.
+
+### En el fuente
+
+En el autollenado de la H.T. 19, donde se arman «Quién» y «Con qué fuerza»:
+filtrar las fichas enemigas con `(tipo || "unidad") === "unidad"` en vez de
+`tipo !== "instalacion"`, y armar «Con qué fuerza» con un diccionario
+escalón → [singular, plural] en lugar de agregar «es».
+
+### Cómo se comprobó
+
+- `calcos/pruebas/ht19-autollenado.js` (`cd calcos/pruebas && npm install &&
+  npm test`): extrae `UIe`, `vD` e `iq` del compilado que carga
+  `calcos/index.html` y los corre en Node. También vigila el arreglo anterior
+  (sin `_ocsNom`). Con `--base <compilado anterior>` muestra el antes y el
+  después, y compara el resto del autollenado de la H.T. 19 en cuatro
+  escenarios: queda idéntico. Con el compilado anterior fallan 5 de los 7
+  casos; con éste pasan todos (8 con `--base`).
+- En Chromium, con la app: con la H.T. 19 vacía y las 16 fichas, «Traer del
+  calco lo que falte» propone lo de arriba; con la H.T. 19 de «ARMAS», que ya
+  tiene texto, no cambia nada.
+
 ## 2026-09-27 — H.T. 19: los renglones OC-1…OD ya no llevan una unidad elegida por escalón (`index-zHea8q-_.js`)
 
 Parte de `index-eiGjBHyz.js`: trae todo lo del 26-09 (más abajo) y suma esto.
