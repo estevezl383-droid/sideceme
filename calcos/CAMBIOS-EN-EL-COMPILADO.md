@@ -5,6 +5,57 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-09-27 — H.T. 19: los renglones OC-1…OD ya no llevan una unidad elegida por escalón (`index-zHea8q-_.js`)
+
+Parte de `index-eiGjBHyz.js`: trae todo lo del 26-09 (más abajo) y suma esto.
+
+### Qué pasaba
+
+- El autollenado de la H.T. 19 (`UIe`, caso `ht19`) ordenaba las fichas
+  enemigas por escalón y les daba las cuatro más grandes a OC-1, OC-2, OC-3 y
+  OD, en ese orden, sin mirar el rol de cada ficha. Lo guardaba en
+  `ht19._ocsNom`.
+- `vD()` le pegaba ese nombre al rótulo del renglón («OC-1 · brigada Cab.
+  Mec.») en el formulario, en los rótulos que recibe la IA, en la vista previa
+  y en los dos Word.
+- `iq()` no pisa lo ya guardado, así que el nombre quedaba congelado. En el
+  ejercicio «ARMAS» se grabó el 27-09 a las 08:22 UTC, cuando el calco tenía
+  una sola ficha enemiga (una brigada de Caballería Mecanizada sin
+  designación). Siguió saliendo después de acostar la plantilla situacional
+  (16 fichas) y de que esa brigada ya no estuviera en el calco.
+- Recalcularlo tampoco servía: con esas 16 fichas daba OC-1 = PC 1RA. BRIG.,
+  OC-3 = G. BLIN. 9 «VENCEDORES» (OD) y OD = G.A.AP. «SALVO».
+
+### Qué se cambió (dos reemplazos)
+
+- `vD(t,e)` devuelve el renglón de la plantilla tal cual (`OC-1`, `OC-2`,
+  `OC-3`, `OD`); ya no lee `_ocsNom`.
+- El caso `ht19` de `UIe` ya no arma `_ocsNom`. «Quién», «Con qué fuerza»,
+  «Cuándo» y el resto del autollenado quedan igual.
+- No se borra nada guardado: el `_ocsNom` que ya tenga un ejercicio sigue en
+  los datos, pero no se muestra ni se exporta.
+- Qué ficha es OC-1, OC-2, OC-3 u OD lo escribe el docente o el cursante; la
+  app no lo deduce.
+
+### En el fuente
+
+Buscar `_ocsNom` y `["OC-1","OC-2","OC-3","OD"]`: sacar el reparto por escalón
+del autollenado de la H.T. 19 y que la función que arma el rótulo del renglón
+devuelva el ítem sin agregarle nombre.
+
+### Cómo se comprobó
+
+- Las funciones reales del compilado (`UIe`, `vD`, `iq`, `I3e`, `ED`, `KS`),
+  con la H.T. 19 y las fichas guardadas de «ARMAS»: antes el rótulo era
+  «OC-1 · brigada Cab. Mec.»; ahora es «OC-1», y las 148 celdas de texto salen
+  idénticas, con su «[IA — verificar]».
+- En Chromium, con la app: formulario, vista previa, Word y Word (formato
+  militar), también después de «Traer del calco lo que falte». Con el
+  compilado anterior, el Word (formato militar) sale idéntico al que se
+  entregó; con este, la única diferencia es esa celda.
+- Rápida para cualquier sesión: `grep -c _ocsNom` sobre el compilado que carga
+  `calcos/index.html` tiene que dar 0.
+
 ## 2026-09-26 — H.T. 13 con todas las fases, y 3D más liviano (`index-eiGjBHyz.js`)
 
 ### H.T. 13 «Tácticas, técnicas y procedimientos» (hoja `ht13`, tipo `fasesSOCB`)
