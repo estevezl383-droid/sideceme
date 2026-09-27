@@ -1,0 +1,11 @@
+{
+  "name": "pruebas-mesa-em",
+  "private": true,
+  "description": "Pruebas sobre el compilado de la Mesa del EM (calcos/assets)",
+  "scripts": {
+    "test": "node ht19-autollenado.js"
+  },
+  "devDependencies": {
+    "acorn": "^8.15.0"
+  }
+}
