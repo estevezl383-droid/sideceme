@@ -3,7 +3,7 @@
   "private": true,
   "description": "Pruebas sobre el compilado de la Mesa del EM (calcos/assets)",
   "scripts": {
-    "test": "node ht19-autollenado.js"
+    "test": "node ht19-autollenado.js && node fichas-fuera-del-agua.js"
   },
   "devDependencies": {
     "acorn": "^8.15.0"
