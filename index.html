@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.413</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.414</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -8570,14 +8570,27 @@ let selectedCargo=null, currentUser=null, activeRole=null;
 let selectedSancionId=null, lastSancionListScroll=0;
 let leafletMap=null;
 let discData = {cursantes:[], sanciones:[], profesores:[], reglamentos:[], byCursanteLost:{}, byCursanteSanc:{}, loaded:false, fullLoaded:false, lastSync:null, sancionesEditadas:new Set()};
+// v2.9.414: las solicitudes de reconsideración/anulación y el historial de sanciones
+// pasan por la Edge Function solicitudes-ops, que valida la sesión y quién puede hacer
+// qué. La app ya no lee ni escribe directo solicitudes_anulacion ni sanciones_audit.
+async function _solOps(accion, extra){
+  const tok = (typeof getTokenSesion==='function') ? getTokenSesion() : null;
+  if(!tok) throw new Error('Sesión no válida — volvé a entrar');
+  const {data,error} = await sb.functions.invoke('solicitudes-ops', {body: Object.assign({accion, token: tok}, extra||{})});
+  if(error){
+    let msg = error.message||'Error de conexión';
+    try{ if(error.context && typeof error.context.json==='function'){ const b=await error.context.json(); if(b&&b.error) msg=b.error; } }catch(_e){}
+    throw new Error(msg);
+  }
+  if(!data || data.ok===false) throw new Error((data&&data.error)||'Error desconocido');
+  return data;
+}
 // v2.9.79: marca de sanciones MODIFICADAS (corrección por orden del Comandante) desde la auditoría.
+// Antes del login no hay sesión: la marca se carga al entrar (loadDiscData / loadCursanteData).
 async function _cargarSancionesEditadas(){
   try{
-    const {data,error} = await sb.from('sanciones_audit').select('sancion_id').eq('accion','editar');
-    if(error){ return; }
-    const set = new Set();
-    (data||[]).forEach(r=>{ if(r && r.sancion_id!=null) set.add(String(r.sancion_id)); });
-    discData.sancionesEditadas = set;
+    const r = await _solOps('historial_editadas');
+    discData.sancionesEditadas = new Set((r.ids||[]).map(String));
   }catch(e){ /* no romper si la auditoría no carga */ }
 }
 function _marcarSancionEditada(id){
@@ -14027,37 +14040,14 @@ async function enviarReconsideracion(){
   const btn = document.getElementById('btn-enviar-reconsideracion');
   btn.disabled=true; btn.textContent='Enviando...';
   try{
-    // Anti-duplicado: ¿ya hay una solicitud pendiente de este cursante para esta sanción?
-    try{
-      const {data:prev} = await sb.from('solicitudes_anulacion').select('id,estado').eq('sancion_id', s.id).eq('cursante_id', currentUser.id).limit(5);
-      if(prev && prev.some(x => _solPendiente(x))){
-        showErr('Ya tenés una solicitud pendiente para esta sanción.');
-        btn.disabled=false; btn.textContent='📨 Enviar solicitud al Jefe de Disciplina'; return;
-      }
-    }catch(_){}
-    const firma = recFirmaState.canvas.toDataURL('image/png');
-    const solicitud = {
-      sancion_id: s.id,
-      cursante_id: currentUser.id,
-      cursante_nombre: nombreConGrado(currentUser),
-      origen: 'cursante',
+    // v2.9.414: solicitudes-ops controla que la sanción sea del cursante y que no tenga
+    // otra solicitud pendiente; el nombre del solicitante sale de la sesión.
+    await _solOps('crear', {
+      sancion_id: String(s.id),
       tipo_solicitud: 'reconsideracion',
-      detalle_cursante: desarrollo,
-      firma_cursante_solicitud: firma,
-      estado: 'pendiente',
-      fecha_creacion: new Date().toISOString()
-    };
-    let {error} = await sb.from('solicitudes_anulacion').insert([solicitud]);
-    if(error && error.message && error.message.toLowerCase().includes('column')){
-      // Fallback si la tabla aún no tiene las columnas nuevas: guardar en comentario genérico
-      const fb = {
-        sancion_id: s.id, cursante_id: currentUser.id,
-        comentario_disciplina: `[RECONSIDERACIÓN CURSANTE] ${nombreConGrado(currentUser)}: ${desarrollo}`,
-        estado: 'pendiente', fecha_creacion: new Date().toISOString()
-      };
-      const r2 = await sb.from('solicitudes_anulacion').insert([fb]);
-      if(r2.error) throw r2.error;
-    } else if(error){ throw error; }
+      detalle: desarrollo,
+      firma: recFirmaState.canvas.toDataURL('image/png')
+    });
     alert('✅ Solicitud enviada al Jefe de Disciplina.');
     volverDeReconsideracion();
   }catch(e){
@@ -14080,12 +14070,9 @@ async function cargarMisSolicitudes(){
   const cont = document.getElementById('mis-sol-lista');
   if(!cont || !currentUser) return;
   try{
-    const {data, error} = await sb.from('solicitudes_anulacion')
-      .select('*')
-      .eq('cursante_id', currentUser.id)
-      .order('fecha_creacion', {ascending:false})
-      .limit(50);
-    if(error){ cont.innerHTML = `<div class="ms-empty"><div class="me-icon">⚠️</div><div>No se pudo cargar: ${escapeHtml(error.message||'')}</div></div>`; return; }
+    let data;
+    try{ data = (await _solOps('mias')).solicitudes; }
+    catch(error){ cont.innerHTML = `<div class="ms-empty"><div class="me-icon">⚠️</div><div>No se pudo cargar: ${escapeHtml(error.message||'')}</div></div>`; return; }
     // Solo las solicitudes propias del cursante (no las que un profesor hizo sobre él)
     const mias = (data||[]).filter(x => _solInfo(x).esCursante);
     if(!mias.length){ cont.innerHTML = '<div class="ms-empty"><div class="me-icon">📨</div><div>Todavía no enviaste solicitudes de reconsideración.</div></div>'; return; }
@@ -14261,7 +14248,7 @@ async function guardarEdicionSancion(){
     // queda LIGADA al solicitante (nombre completo, fecha y motivo textual) en la auditoría.
     let _solE=null;
     try{
-      const {data:_ss}=await sb.from('solicitudes_anulacion').select('*').eq('sancion_id',editandoSancionId).order('fecha_creacion',{ascending:false}).limit(5);
+      const _ss=(await _solOps('por_sancion',{sancion_id:String(editandoSancionId),orden:'desc'})).solicitudes.slice(0,5);
       _solE=(_ss||[]).find(x=>String(x.estado||'')==='aprobado')||(_ss||[])[0]||null;
     }catch(_){ }
     const _bodyE = { accion:'editar', token:_tok, sancion_id:editandoSancionId, cambios:cambios, previo:previo, razon:razon, usuario_nombre:currentUser.nombre_completo, registrar:_reg,
@@ -14323,7 +14310,7 @@ async function anularSancionDirecto(sancionId){
   // presentada por el sistema se toma de ahí; si no, se pregunta. Vacío = de oficio.
   let _solA = null;
   try{
-    const {data:_ss} = await sb.from('solicitudes_anulacion').select('*').eq('sancion_id',String(sancionId)).order('fecha_creacion',{ascending:false}).limit(5);
+    const _ss = (await _solOps('por_sancion',{sancion_id:String(sancionId),orden:'desc'})).solicitudes.slice(0,5);
     _solA = (_ss||[]).find(x=>String(x.estado||'')==='aprobado') || (_ss||[]).find(x=>_solPendiente(x)) || null;
   }catch(_){ }
   let _solNombreA = null, _solFechaA = null, _solMotivoA = null;
@@ -14696,7 +14683,7 @@ async function reactivarSancion(sancionId){
   // quién y con qué justificativo. Si hay una solicitud en el sistema se toma de ahí.
   let _solR = null;
   try{
-    const {data:_ss} = await sb.from('solicitudes_anulacion').select('*').eq('sancion_id',String(sancionId)).order('fecha_creacion',{ascending:false}).limit(5);
+    const _ss = (await _solOps('por_sancion',{sancion_id:String(sancionId),orden:'desc'})).solicitudes.slice(0,5);
     _solR = (_ss||[]).find(x=>String(x.estado||'')==='aprobado') || (_ss||[]).find(x=>_solPendiente(x)) || null;
   }catch(_){ }
   let _solNombreR = null, _solFechaR = null, _solMotivoR = null;
@@ -14873,33 +14860,6 @@ async function guardarSancionManual(){
   }
 }
 
-/* ------- AUDITORÍA: registrar cambios ------- */
-async function registrarAuditSancion(payload){
-  try{
-    const registro = {
-      sancion_id: String(payload.sancion_id),
-      accion: payload.accion,
-      realizado_por: currentUser ? currentUser.id : 'desconocido',
-      realizado_por_nombre: currentUser ? currentUser.nombre_completo : 'desconocido',
-      campos_antes: payload.campos_antes || {},
-      campos_despues: payload.campos_despues || {},
-      razon: payload.razon || null,
-      user_agent: (navigator.userAgent||'').slice(0,300),
-      creado_en: new Date().toISOString()
-    };
-    const {error} = await sb.from('sanciones_audit').insert([registro]);
-    if(error){
-      console.warn('No se pudo registrar auditoría (¿tabla sanciones_audit existe?):', error);
-      // No bloqueamos la operación principal — guardamos en localStorage como respaldo
-      const backups = JSON.parse(localStorage.getItem('audit_sanciones_pendientes')||'[]');
-      backups.push(registro);
-      localStorage.setItem('audit_sanciones_pendientes', JSON.stringify(backups));
-    }
-  }catch(e){
-    console.warn('registrarAuditSancion error:', e);
-  }
-}
-
 /* ------- VER HISTORIAL DE EDICIONES DE UNA SANCIÓN ------- */
 async function verHistorialEdicionesSancion(sancionId){
   selectedSancionId = sancionId;
@@ -14909,12 +14869,10 @@ async function verHistorialEdicionesSancion(sancionId){
   cont.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-muted)">⏳ Cargando historial...</div>';
   showScreen('screen-historial-sancion');
   try{
-    const {data, error} = await sb.from('sanciones_audit')
-      .select('*')
-      .eq('sancion_id', String(sancionId))
-      .order('creado_en', {ascending: false});
-    if(error){
-      cont.innerHTML = `<div class="efm-no-data" style="color:#e88a8a">⚠️ ${error.message}<br><br>Si decís que la tabla <code>sanciones_audit</code> no existe, ejecutá el SQL provisto.</div>`;
+    let data;
+    try{ data = (await _solOps('historial',{sancion_id:String(sancionId),orden:'desc'})).historial; }
+    catch(error){
+      cont.innerHTML = `<div class="efm-no-data" style="color:#e88a8a">⚠️ ${escapeHtml(error.message||String(error))}</div>`;
       return;
     }
     if(!data || !data.length){
@@ -16448,11 +16406,7 @@ async function cargarAlertasSeguridadCT(){
   // (A) Modificaciones a sanciones en los últimos 7 días (auditoría)
   try{
     const desde = new Date(Date.now() - 7*24*60*60*1000).toISOString();
-    const {data, error} = await sb.from('sanciones_audit')
-      .select('accion, realizado_por_nombre, creado_en')
-      .gte('creado_en', desde)
-      .order('creado_en', {ascending:false});
-    const filas = (!error && data) ? data : [];
+    const filas = (await _solOps('historial_recientes',{desde})).historial || [];
     if(filas.length){
       const c = filas.reduce((a,x)=>{a[x.accion]=(a[x.accion]||0)+1;return a;},{});
       const partes=[];
@@ -17202,14 +17156,12 @@ const _ACC_ICONO = {editar:'✏️', anular:'🚫', reactivar:'↩️', crear_ma
 
 async function _resolucionSancionDatos(sancionId, s){
   let aud=[], sols=[];
-  try{
-    const r=await sb.from('sanciones_audit').select('*').eq('sancion_id',String(sancionId)).order('creado_en',{ascending:true});
-    aud=r.data||[];
-  }catch(_){ }
-  try{
-    const r=await sb.from('solicitudes_anulacion').select('*').eq('sancion_id',String(sancionId)).order('fecha_creacion',{ascending:true});
-    sols=r.data||[];
-  }catch(_){ }
+  const [_rAud, _rSol] = await Promise.allSettled([
+    _solOps('historial',{sancion_id:String(sancionId)}),
+    _solOps('por_sancion',{sancion_id:String(sancionId)})
+  ]);
+  if(_rAud.status==='fulfilled') aud=_rAud.value.historial||[];
+  if(_rSol.status==='fulfilled') sols=_rSol.value.solicitudes||[];
   // El historial OFICIAL oculta las acciones directas de C&T sin registro; C&T sí las ve.
   const esCT_ = (typeof _rolEsCT==='function') && _rolEsCT();
   const visibles = aud.filter(a => a.registro_generado!==false || esCT_);
@@ -18359,43 +18311,11 @@ async function enviarAnulacion(){
   const btn = document.getElementById('btn-anul');
   btn.disabled = true; btn.textContent = 'Guardando...';
   try{
-    // v2.9.302: anti-duplicado (misma sanción, mismo solicitante, aún sin resolver)
-    try{
-      const {data:prev} = await sb.from('solicitudes_anulacion')
-        .select('id,estado,creada_por').eq('sancion_id', String(s.id)).limit(20);
-      if((prev||[]).some(x => String(x.creada_por||'')===String(currentUser?.id||'') && _solPendiente(x))){
-        showError('err-anul','Ya hay una solicitud tuya sin resolver para esta sanción.');
-        btn.disabled=false; btn.textContent='📨 Enviar al Jefe de Disciplina'; return;
-      }
-    }catch(_){}
-    // v2.9.302: SIEMPRE entra pendiente y SIN elevar — la canaliza el Jefe de Disciplina.
-    // Además se marca el ORIGEN real: si quien pide es el propio cursante, no se lo
-    // rotula como profesor (ese era el motivo de las tarjetas "PROFESOR/A" equivocadas).
-    const _esCur = esCursanteSesion() || String(currentUser?.id||'')===String(s.cursante_id||'');
-    const _nom = (currentUser?.grado?currentUser.grado+' ':'')+(currentUser?.nombre_completo||'');
-    const payload = {
-      sancion_id: String(s.id),
-      cursante_id: s.cursante_id,
-      comentario_disciplina: coment,
-      estado: 'pendiente',
-      enviado_a_comandante: false,
-      enviado_a_estudios: false,
-      creada_por: currentUser?.id || 'desconocido',
-      origen: _esCur ? 'cursante' : 'profesor',
-      tipo_solicitud: 'reconsideracion',
-      // v2.9.170: NOMBRE COMPLETO del solicitante + fecha — el registro debe decir QUIÉN pidió qué
-      fecha_creacion: new Date().toISOString()
-    };
-    if(_esCur){ payload.cursante_nombre = _nom; payload.detalle_cursante = coment; }
-    else { payload.profesor_nombre = _nom; payload.detalle_profesor = coment; }
-    let {error} = await sb.from('solicitudes_anulacion').insert(payload);
-    if(error && /column/i.test(error.message||'')){
-      delete payload.profesor_nombre; delete payload.cursante_nombre; delete payload.detalle_profesor;
-      delete payload.detalle_cursante; delete payload.origen; delete payload.tipo_solicitud;
-      delete payload.enviado_a_estudios; delete payload.fecha_creacion;
-      ({error} = await sb.from('solicitudes_anulacion').insert(payload));
-    }
-    if(error) throw error;
+    // v2.9.414: solicitudes-ops hace el anti-duplicado (misma sanción, mismo solicitante,
+    // aún sin resolver), marca el ORIGEN real según quién inició sesión (cursante o
+    // profesor) y guarda su nombre completo. Siempre entra pendiente y SIN elevar: la
+    // canaliza el Jefe de Disciplina.
+    await _solOps('crear', { sancion_id: String(s.id), tipo_solicitud: 'reconsideracion', detalle: coment });
     alert('✅ Solicitud enviada al Jefe de Disciplina.');
     verSancionDetalle(selectedSancionId);
   }catch(e){
@@ -42138,9 +42058,7 @@ async function actualizarBadgeSolicitudes(){
   const badge = document.getElementById('badge-solicitudes');
   if(!badge) return;
   try{
-    const {data} = await sb.from('solicitudes_anulacion')
-      .select('id,estado,enviado_a_comandante,enviado_a_estudios').limit(500);
-    const all = data||[];
+    const all = (await _solOps('bandeja',{resumen:true})).solicitudes || [];
     let pend;
     // v2.9.302: el Jefe de Disciplina cuenta TODAS las pendientes — también las que ya
     // fueron elevadas — porque es el conducto por el que deben pasar todas.
@@ -42155,16 +42073,13 @@ async function actualizarBadgeSolicitudes(){
 // ── ELEVAR ──────────────────────────────────────────────────────────────────
 async function elevarSolicitud(id, destino){
   if(activeRole!=='disciplina'&&!esCT()){alert('Solo el Jefe de Disciplina o C&T.');return;}
-  const campo=destino==='comandante'?'enviado_a_comandante':'enviado_a_estudios';
   const pDest=destino==='comandante'
     ?discData.profesores.find(p=>p.rol==='comandante')
     :discData.profesores.find(p=>p.rol==='jefe_estudios');
   const quien=pDest?nombreConGrado(pDest):(destino==='comandante'?'Comandante':'Jefe de Estudios');
   if(!confirm(`¿Elevar esta solicitud al ${quien}?`))return;
   try{
-    const upd={};upd[campo]=true;
-    const {error}=await sb.from('solicitudes_anulacion').update(upd).eq('id',id);
-    if(error)throw error;
+    await _solOps('elevar',{id, destino});
     alert(`✅ Solicitud elevada al ${quien}.`);
     goAnulaciones();
   }catch(e){alert('Error: '+(e.message||e));}
@@ -42193,8 +42108,12 @@ async function anularDesdeSolicitud(solId, sancionId){
     if(!r||!r.ok)throw new Error(r?.error||'Error en sanciones-ops');
     if(s)Object.assign(s,{anulada:true,anulada_razon:razon.trim(),anulada_por:currentUser.id,anulada_por_nombre:currentUser.nombre_completo,anulada_en:new Date().toISOString(),estado:'ANULADA'});
     _reconstruirIndicesDisc(); _invalidarCacheDisc();
-    await sb.from('solicitudes_anulacion').update({estado:'aprobado',comentario_comandante:_dec}).eq('id',solId);
-    alert('✅ Sanción anulada. La solicitud queda como Aprobada y el cursante verá la respuesta.');
+    try{
+      await _solOps('resolver',{id:solId, decision:'anular', razon:razon.trim()});
+      alert('✅ Sanción anulada. La solicitud queda como Aprobada y el cursante verá la respuesta.');
+    }catch(eSol){
+      alert('⚠️ La sanción quedó anulada, pero la solicitud no se pudo cerrar: '+(eSol.message||eSol)+'\n\nVolvé a intentarlo desde esta bandeja.');
+    }
     goAnulaciones();
   }catch(e){console.error(e);alert('❌ Error: '+(e.message||e));}
 }
@@ -42206,8 +42125,7 @@ async function rechazarSolicitud(solId){
   if(razon===null)return;
   if(!razon||razon.trim().length<5){alert('El motivo debe tener al menos 5 caracteres.');return;}
   try{
-    const {error}=await sb.from('solicitudes_anulacion').update({estado:'rechazado',comentario_comandante:'RECHAZADA por '+currentUser.nombre_completo+': '+razon.trim()}).eq('id',solId);
-    if(error)throw error;
+    await _solOps('resolver',{id:solId, decision:'rechazar', razon:razon.trim()});
     alert('Solicitud rechazada. El cursante/docente verá la respuesta.');
     goAnulaciones();
   }catch(e){alert('Error: '+(e.message||e));}
@@ -42220,8 +42138,7 @@ async function modificarSolicitud(solId){
   if(razon===null)return;
   if(!razon||razon.trim().length<5){alert('Indicá la modificación requerida (mínimo 5 caracteres).');return;}
   try{
-    const {error}=await sb.from('solicitudes_anulacion').update({estado:'aprobado',comentario_comandante:'MODIFICAR por '+currentUser.nombre_completo+': '+razon.trim()}).eq('id',solId);
-    if(error)throw error;
+    await _solOps('resolver',{id:solId, decision:'modificar', razon:razon.trim()});
     alert('✅ Aprobada para modificación. El Jefe de Disciplina aplicará la corrección.');
     goAnulaciones();
   }catch(e){alert('Error: '+(e.message||e));}
@@ -42235,13 +42152,7 @@ async function retomarSolicitud(solId){
   if(activeRole!=='disciplina'&&!esCT()){alert('Solo el Jefe de Disciplina o C&T.');return;}
   if(!confirm('¿Traer esta solicitud al canal del Jefe de Disciplina?\n\nSaldrá de la bandeja del Comandante / Jefe de Estudios y se tramita por conducto regular.'))return;
   try{
-    const _sol=(window.__solicitudesCache||[]).find(x=>String(x.id)===String(solId))||{};
-    const prev=_sol.comentario_comandante?(_sol.comentario_comandante+' · '):'';
-    const {error}=await sb.from('solicitudes_anulacion').update({
-      enviado_a_comandante:false, enviado_a_estudios:false, estado:'pendiente',
-      comentario_comandante: prev+'Canalizada por conducto regular ('+currentUser.nombre_completo+', '+new Date().toLocaleDateString('es-BO')+')'
-    }).eq('id',solId);
-    if(error)throw error;
+    await _solOps('retomar',{id:solId});
     alert('✅ Solicitud retomada. Ahora se tramita por el Jefe de Disciplina.');
     goAnulaciones();
   }catch(e){alert('Error: '+(e.message||e));}
@@ -42253,13 +42164,7 @@ async function devolverAlJefeDisciplina(solId){
   const obs=prompt('DEVOLVER AL JEFE DE DISCIPLINA para revisión.\n\nObservaciones (opcional):');
   if(obs===null)return;
   try{
-    const pDisc=discData.profesores.find(p=>p.rol==='jefe_disciplina');
-    const nDisc=pDisc?nombreConGrado(pDisc):'Jefe de Disciplina';
-    const coment='Devuelta a '+nDisc+(obs&&obs.trim()?': '+obs.trim():'');
-    const {error}=await sb.from('solicitudes_anulacion').update({
-      enviado_a_comandante:false,enviado_a_estudios:false,estado:'pendiente',comentario_comandante:coment
-    }).eq('id',solId);
-    if(error)throw error;
+    await _solOps('devolver',{id:solId, obs:(obs||'').trim()});
     alert('✅ Solicitud devuelta al Jefe de Disciplina para su revisión.');
     goAnulaciones();
   }catch(e){alert('Error: '+(e.message||e));}
@@ -42278,7 +42183,7 @@ async function generarInformeAnulacion(solId){
   const _solTexto=s.motivo||s.detalle_profesor||s.comentario_disciplina||s.detalle_cursante||s.comentario||'';
   let histHtml='';
   try{
-    const {data:_aud}=await sb.from('sanciones_audit').select('*').eq('sancion_id',String(s.sancion_id)).order('creado_en',{ascending:true});
+    const _aud=(await _solOps('historial',{sancion_id:String(s.sancion_id)})).historial;
     const _vis=(_aud||[]).filter(a=>a.registro_generado!==false||(typeof _rolEsCT==='function'&&_rolEsCT()));
     if(_vis.length){
       histHtml='<p><strong>HISTORIAL DE LA SANCIÓN (auditoría del sistema):</strong></p>'+_vis.map(function(a){
@@ -42346,8 +42251,9 @@ async function goAnulaciones(){
   const c=document.getElementById('anulaciones-list');
   c.className='';
   try{
-    const {data,error}=await sb.from('solicitudes_anulacion').select('*').order('fecha_creacion',{ascending:false});
-    if(error){c.innerHTML=`<div class="list-empty">⚠️ Error al cargar: ${error.message||JSON.stringify(error)}</div>`;return;}
+    let data;
+    try{ data=(await _solOps('bandeja')).solicitudes; }
+    catch(error){c.innerHTML=`<div class="list-empty">⚠️ Error al cargar: ${escapeHtml(error.message||String(error))}</div>`;return;}
     if(!data||!data.length){c.innerHTML='<div class="list-empty">No hay solicitudes todavía.</div>';return;}
     window.__solicitudesCache=data;
 
@@ -43054,37 +42960,9 @@ async function enviarSolicitudProfesor(sancionId){
   const btn = document.getElementById('btn-enviar-sol-'+sancionId);
   btn.disabled = true; btn.textContent = 'Enviando...';
   try{
-    const s = discData.sanciones.find(x=>String(x.id)===String(sancionId));
-    const solicitud = {
-      sancion_id: sancionId,
-      cursante_id: s?.cursante_id || null,
-      cursante_nombre: s ? (s.cursante_nombre || null) : null,
-      origen: 'profesor',
-      tipo_solicitud: tipo,
-      detalle_profesor: detalle,
-      firma_profesor_solicitud: firmaData,
-      profesor_id: currentUser?.id || null,
-      profesor_nombre: currentUser ? nombreConGrado(currentUser) : '',
-      estado: 'pendiente',
-      fecha_creacion: new Date().toISOString()
-    };
-    const {error} = await sb.from('solicitudes_anulacion').insert([solicitud]);
-    if(error){
-      // Fallback progresivo: si hay columnas que no existen aún en la BD,
-      // reintentar con esquema mínimo base (solo columnas conocidas)
-      if(error.message && (error.message.includes('column') || error.message.includes('schema cache') || error.message.includes('does not exist'))){
-        const fallback = {
-          sancion_id: solicitud.sancion_id,
-          cursante_id: solicitud.cursante_id,
-          origen: 'profesor',
-          cursante_nombre: s ? (s.cursante_nombre || null) : null,
-          comentario_disciplina: `[${tipo.toUpperCase()}] ${detalle} — Por: ${solicitud.profesor_nombre||'Profesor'}`,
-          estado: 'pendiente'
-        };
-        const {error:e2} = await sb.from('solicitudes_anulacion').insert([fallback]);
-        if(e2) throw e2;
-      } else throw error;
-    }
+    // v2.9.414: por solicitudes-ops; el profesor y el cursante de la sanción salen de la
+    // sesión y de la sanción guardada, no de lo que mande el navegador.
+    await _solOps('crear', { sancion_id: String(sancionId), tipo_solicitud: tipo, detalle: detalle, firma: firmaData });
     alert('✅ Solicitud enviada al Jefe de Disciplina.\n\nRecibirás respuesta cuando sea procesada.');
     document.getElementById('form-solicitud-prof-'+sancionId).style.display = 'none';
     document.getElementById('btn-abrir-sol-'+sancionId).innerHTML = '✅ Solicitud enviada';
@@ -46092,21 +45970,11 @@ async function _ctVerificarSeguridadBG(){
   // (A) Auditoría de sanciones (últimos 7 días) — comparar con seen
   try{
     const desde = new Date(Math.max(seen, Date.now() - 7*86400000)).toISOString();
-    const {data} = await sb.from('sanciones_audit')
-      .select('id,accion,creado_en')
-      .gt('creado_en', desde)
-      .order('creado_en', {ascending:false})
-      .limit(50);
-    if(data && data.length){
+    const data = ((await _solOps('historial_recientes',{desde})).historial || []).slice(0,50);
+    if(data.length){
       nuevasDesdeVista += data.length;
       partes.push(`${data.length} acción(es) sobre sanciones`);
     }
-    // total vigente en ventana 7d (independiente de seen)
-    const desde7d = new Date(Date.now() - 7*86400000).toISOString();
-    const {data: data7d} = await sb.from('sanciones_audit')
-      .select('id', {count:'exact', head:true})
-      .gte('creado_en', desde7d);
-    // count viene en respuesta del select head:true → leer header
   }catch(_){}
 
   // (B) Logins fallidos + cuentas dañadas (via ct-seguridad EF)
