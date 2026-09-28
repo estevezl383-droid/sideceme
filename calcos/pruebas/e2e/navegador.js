@@ -101,12 +101,16 @@ async function abrir({ ancho = 1440, alto = 900, movil = false, consulta = '' } 
 }
 
 // Primer estado de React que cumpla `prueba` (recorre el árbol de fibras).
+// Se parte del árbol CONFIRMADO (`stateNode.current`): `__reactContainer…` guarda la
+// fibra raíz de cuando se creó la raíz, y React alterna entre dos fibras raíz en cada
+// confirmación; la mitad de las veces esa es la otra copia, con el estado de un render
+// anterior (p. ej. `orgTarea` todavía vacía después de abrir un ejercicio).
 async function estadoReact(page, prueba) {
   return page.evaluate((src) => {
     const f = new Function('v', `return (${src})(v)`)
     const root = document.getElementById('root')
     const k = Object.keys(root).find((x) => x.startsWith('__reactContainer'))
-    const pila = [root[k]]
+    const pila = [root[k]?.stateNode?.current || root[k]]
     const vistos = new Set()
     while (pila.length) {
       const n = pila.pop()
