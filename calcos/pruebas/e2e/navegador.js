@@ -245,4 +245,4 @@ async function toqueLargo(page, x, y, ms = 900) {
   await cdp.detach()
 }
 
-module.exports = { abrir, estadoReact, estadoOps, esperarCambio, sembrarYAbrir, leerGuardado, entrar3D, salir3D, aPantalla, toques, toqueLargo, RAIZ }
+module.exports = { abrir, estadoReact, estadoOps, esperarCambio, sembrarYAbrir, leerGuardado, entrar3D, salir3D, aPantalla, toques, toqueLargo, RAIZ, servir, cargarPlaywright }

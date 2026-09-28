@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex" />
+  <title>Prueba de carga — Generador de Calcos</title>
+  <!--
+    Prueba de carga controlada de `calcos-datos` (el servidor del Generador).
+
+    Simula N alumnos que abren la BASE del G-3 y aprietan ⚡ GENERAR CALCOS,
+    con los MISMOS pedidos que hace la Mesa (index-zhbwncsH.js):
+      - al abrir la BASE, la Mesa pide sola las capas prendidas del tablero
+        (por defecto hidro_lineas + poblaciones_puntos) en UN pedido;
+      - ⚡ GENERAR CALCOS pide UNA capa por pedido, una tras otra, por cada
+        país cuya caja toca el área (las que ya trajo al abrir no las repite).
+    Cada alumno virtual hace sus pedidos en fila; los alumnos van en paralelo.
+    e2e/carga.js comprueba que la secuencia es la misma que la de la Mesa.
+
+    Sólo LEE (acción 'recortar'): no guarda ni borra nada. Pero carga el
+    servidor de verdad, que es el mismo del resto de SIDECEME: correrla fuera
+    del horario de clases. Usa la sesión de SIDECEME abierta en este navegador
+    y sólo arranca con Ciencia y Tecnología o Planificación.
+  -->
+  <style>
+    :root {
+      --fondo: #0b1419; --panel: #12212a; --borde: #25404d; --texto: #e3edf2;
+      --suave: #8fa9b5; --oro: #c8952b; --ok: #3ecf8e; --alerta: #f2b134; --mal: #ff5d5d;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--fondo); color: var(--texto);
+      font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    main { max-width: 980px; margin: 0 auto; padding: 16px; }
+    h1 { font-size: 1.35rem; margin: 8px 0 4px; }
+    h2 { font-size: 1.05rem; margin: 0 0 10px; color: var(--oro); }
+    p { margin: 6px 0; }
+    .sub { color: var(--suave); margin-bottom: 14px; }
+    section { background: var(--panel); border: 1px solid var(--borde); border-radius: 10px;
+      padding: 14px 16px; margin: 12px 0; }
+    label { display: inline-flex; align-items: center; gap: 6px; margin: 4px 14px 4px 0; }
+    select, input[type=number] { background: #0b1419; color: var(--texto); border: 1px solid var(--borde);
+      border-radius: 6px; padding: 5px 8px; font: inherit; }
+    button { background: #1b3441; color: var(--texto); border: 1px solid var(--borde); border-radius: 8px;
+      padding: 8px 14px; font: inherit; cursor: pointer; margin: 4px 8px 4px 0; }
+    button:hover:not(:disabled) { border-color: var(--oro); }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    button.pri { background: var(--oro); color: #111; border-color: var(--oro); font-weight: 600; }
+    .aviso { border-left: 4px solid var(--alerta); padding: 6px 10px; background: #2a2412; border-radius: 4px; }
+    .malo { border-left-color: var(--mal); background: #2a1414; }
+    .bien { border-left-color: var(--ok); background: #12291f; }
+    .dato { color: var(--suave); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .88rem; }
+    table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+    th, td { text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--borde); white-space: nowrap; }
+    th:first-child, td:first-child { text-align: left; white-space: normal; }
+    .tabla { overflow-x: auto; }
+    .barra { height: 8px; background: #0b1419; border-radius: 4px; overflow: hidden; margin: 8px 0; }
+    .barra > div { height: 100%; width: 0; background: var(--oro); transition: width .3s; }
+    .alumnos { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 8px; }
+    .alumnos span { width: 18px; height: 18px; border-radius: 3px; background: #22343d; font-size: 10px;
+      display: grid; place-items: center; color: #0b1419; }
+    .alumnos span.va { background: var(--alerta); }
+    .alumnos span.ok { background: var(--ok); }
+    .alumnos span.mal { background: var(--mal); }
+    details { margin-top: 8px; }
+    summary { cursor: pointer; color: var(--oro); }
+    pre { background: #0b1419; border: 1px solid var(--borde); border-radius: 6px; padding: 10px;
+      overflow-x: auto; white-space: pre; }
+    #veredicto { font-size: 1.05rem; margin-top: 10px; }
+    @media (max-width: 600px) { main { padding: 12px; } th, td { padding: 4px 5px; } }
+  </style>
+</head>
+<body>
+<main>
+  <h1>🧪 Prueba de carga del Generador de Calcos</h1>
+  <p class="sub">Simula a los alumnos abriendo la BASE y generando los calcos al mismo tiempo, con los mismos
+    pedidos que hace la Mesa del EM. Sólo lee: no guarda nada. Pero el servidor es el mismo del resto de SIDECEME:
+    <b>correla fuera del horario de clases</b>.</p>
+
+  <section id="secSesion">
+    <h2>Sesión</h2>
+    <p id="sesion" class="dato">Revisando la sesión de SIDECEME…</p>
+  </section>
+
+  <section>
+    <h2>1 · Área del ejercicio</h2>
+    <p>Usá la BASE que va a repartir el instructor: el área, el país y el tamaño son lo que decide la carga.</p>
+    <button id="btnBaseGuardada">📥 BASE repartida en este navegador</button>
+    <button id="btnArchivo">📂 Abrir BASE_….json o GeoJSON</button>
+    <button id="btnEjemplo">Ejemplo: Cochabamba (0,6° × 0,55°)</button>
+    <input id="archivo" type="file" accept=".json,.geojson,application/json" hidden />
+    <p id="area" class="dato">Todavía no hay área.</p>
+    <label>País de la BASE <select id="pais"></select></label>
+  </section>
+
+  <section>
+    <h2>2 · Qué hace cada alumno</h2>
+    <label><input type="radio" name="escenario" value="generar" checked />
+      Abre la BASE y aprieta ⚡ GENERAR CALCOS</label>
+    <label><input type="radio" name="escenario" value="abrir" />
+      Sólo abre la BASE</label>
+    <p class="dato" id="plan"></p>
+    <label>Alumnos a la vez
+      <select id="alumnos">
+        <option>1</option><option selected>5</option><option>10</option><option>20</option>
+        <option>30</option><option>45</option>
+      </select>
+    </label>
+    <label>Arrancan
+      <select id="escalon">
+        <option value="0" selected>todos en el mismo segundo</option>
+        <option value="30">repartidos en 30 s</option>
+        <option value="120">repartidos en 2 min</option>
+      </select>
+    </label>
+    <p class="dato">Empezá con 1 (el tiempo de un alumno solo), después 5, 10… Si con pocos ya hay errores, no sigas subiendo.</p>
+  </section>
+
+  <section>
+    <h2>3 · Prueba</h2>
+    <button id="btnEmpezar" class="pri" disabled>▶ Empezar</button>
+    <button id="btnParar" disabled>■ Parar</button>
+    <button id="btnCopiar" disabled>📋 Copiar resumen</button>
+    <div class="barra"><div id="barra"></div></div>
+    <p id="estado" class="dato">—</p>
+    <div class="alumnos" id="alumnosVista"></div>
+    <div class="tabla"><table id="tabla" hidden>
+      <thead><tr><th></th><th>mediana</th><th>95 %</th><th>máximo</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <div id="errores"></div>
+    <div id="veredicto"></div>
+  </section>
+
+  <section>
+    <h2>Mientras corre, en Supabase</h2>
+    <p><b>Reports → Database</b>: CPU, memoria y <b>Disk IO</b>. Si el «Disk IO budget» baja a cero, el servidor
+      entero (no sólo los calcos) se pone lento.</p>
+    <details>
+      <summary>Tiempos y errores de <span class="mono">calcos-datos</span> por minuto (Logs → SQL)</summary>
+      <pre class="mono">select toStartOfMinute(timestamp) as minuto, count(*) as llamadas,
+       countIf(toInt32OrZero(log_attributes['response.status_code']) >= 500) as errores,
+       round(avg(toFloat64OrZero(log_attributes['execution_time_ms']))) as prom_ms,
+       max(toFloat64OrZero(log_attributes['execution_time_ms'])) as max_ms
+from logs
+where source = 'function_edge_logs'
+  and log_attributes['request.pathname'] like '%calcos-datos%'
+group by minuto order by minuto desc</pre>
+      <p class="dato">Si esa consulta no corre en el editor de Logs, pasale a Claude el resumen de esta página
+        (📋) con la hora: él la corre contra los registros.</p>
+    </details>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  // Mismos datos que calcos/index.html.
+  const SUPABASE = {
+    url: 'https://ofsyiylhdrdiqtnbaovo.supabase.co',
+    anonKey: 'sb_publishable_adOxDHyWfXOXDqC9lmnP7g_m4Sf4AIx',
+  };
+  const CLAVE_BASE = 'pmtd_base_repartida'; // donde la Mesa deja la BASE repartida
+  const LADO_MAX_GRADOS = 4;                // el mismo tope que calcos-datos
+
+  // Países del Generador (Lp en el compilado): caja y capas que no tiene.
+  const SIN_MIL = ['mil_vias', 'mil_jurisdicciones', 'mil_jurisdicciones_pu', 'mil_unidades', 'mil_pma',
+    'mil_otros_puestos', 'mil_hitos'];
+  const PAISES = {
+    bolivia:             { nombre: 'Bolivia',         bbox: [-69.7, -23.1, -57.4, -9.6], excluidas: [] },
+    paraguay:            { nombre: 'Paraguay',        bbox: [-62.7, -27.7, -54.2, -19.2], excluidas: SIN_MIL },
+    chile:               { nombre: 'Chile',           bbox: [-76, -56.1, -66.3, -17.4], excluidas: SIN_MIL },
+    peru:                { nombre: 'Perú',            bbox: [-81.4, -18.4, -68.6, 0.1], excluidas: SIN_MIL },
+    argentina:           { nombre: 'Argentina',       bbox: [-73.6, -55.1, -53.6, -21.7], excluidas: SIN_MIL },
+    brasil_norte:        { nombre: 'Brasil Norte',    bbox: [-73.9, -13.7, -46, 5.4], excluidas: SIN_MIL },
+    brasil_centro_oeste: { nombre: 'Brasil C. Oeste', bbox: [-61.7, -24.1, -45.9, -7.3], excluidas: SIN_MIL },
+  };
+
+  // Lo que pide la Mesa al abrir la BASE: las capas prendidas del tablero.
+  const CAPAS_AL_ABRIR = ['hidro_lineas', 'poblaciones_puntos'];
+  // Lo que pide ⚡ GENERAR CALCOS, en su orden (kf en el compilado), sin
+  // comunicaciones_huellas: esa sale de OpenStreetMap, no de este servidor.
+  const CAPAS_GENERAR = ['hidro_lineas', 'hidro_poligonos', 'elevaciones_puntos',
+    'comunicaciones_vias', 'comunicaciones_caminos', 'comunicaciones_calles', 'comunicaciones_ffcc',
+    'comunicaciones_aero', 'mil_vias', 'poblaciones_puntos', 'poblaciones_areas', 'poblaciones_pois',
+    'vegetacion', 'mil_jurisdicciones', 'mil_jurisdicciones_pu', 'mil_unidades', 'mil_pma',
+    'mil_otros_puestos', 'mil_hitos'];
+
+  const EJEMPLO_COCHABAMBA = { type: 'Polygon', coordinates: [[[-66.5, -17.7], [-65.9, -17.7],
+    [-65.9, -17.15], [-66.5, -17.15], [-66.5, -17.7]]] };
+
+  const $ = (id) => document.getElementById(id);
+  const leer = (clave) => {
+    try { return sessionStorage.getItem(clave) || localStorage.getItem(clave); } catch (e) { return null; }
+  };
+
+  // ---------- Sesión: la misma que usa la Mesa ----------
+  let token = leer('sideceme_token_p') || leer('sideceme_token') || null;
+  const expira = leer('sideceme_token_expira_p') || leer('sideceme_token_expira');
+  if (expira && new Date(expira) < new Date()) token = null;
+  let habilitado = false;
+
+  // ---------- Área ----------
+  let aoi = null;
+
+  function coordenadas(g, salida) {
+    if (!g || !g.coordinates) return;
+    const plano = (a) => { if (typeof a[0] === 'number') salida.push(a); else for (const x of a) plano(x); };
+    plano(g.coordinates);
+  }
+  function cajaDe(area) {
+    const c = [];
+    if (area.type === 'FeatureCollection') for (const f of area.features || []) coordenadas(f.geometry, c);
+    else if (area.type === 'Feature') coordenadas(area.geometry, c);
+    else coordenadas(area, c);
+    if (!c.length) return null;
+    const lons = c.map((p) => p[0]), lats = c.map((p) => p[1]);
+    return [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
+  }
+  const tocan = (a, b) => a[0] <= b[2] && a[2] >= b[0] && a[1] <= b[3] && a[3] >= b[1];
+
+  function ponerArea(area, pais, origen) {
+    const caja = cajaDe(area);
+    if (!caja) { $('area').textContent = '⚠️ Esa área no tiene geometría.'; return; }
+    aoi = area;
+    const ancho = caja[2] - caja[0], alto = caja[3] - caja[1];
+    const latMedia = ((caja[1] + caja[3]) / 2) * Math.PI / 180;
+    const kmX = ancho * 111.32 * Math.cos(latMedia), kmY = alto * 110.57;
+    const paises = Object.keys(PAISES).filter((p) => tocan(PAISES[p].bbox, caja));
+    const grande = ancho > LADO_MAX_GRADOS || alto > LADO_MAX_GRADOS;
+    $('area').innerHTML =
+      `<b>${esc(origen)}</b> · ${fmt(ancho, 2)}° × ${fmt(alto, 2)}° (≈ ${fmt(kmX, 0)} × ${fmt(kmY, 0)} km) · ` +
+      `toca: ${paises.map((p) => PAISES[p].nombre).join(', ') || 'ningún país del Generador'}` +
+      (grande ? `<br><span class="aviso malo">Pasa el tope de ${LADO_MAX_GRADOS}° por lado: el servidor la rechaza.</span>` : '');
+    $('pais').innerHTML = paises.map((p) => `<option value="${p}">${PAISES[p].nombre}</option>`).join('');
+    if (pais && paises.includes(pais)) $('pais').value = pais;
+    actualizarPlan();
+  }
+
+  function paisesDelArea() {
+    const caja = aoi && cajaDe(aoi);
+    return caja ? Object.keys(PAISES).filter((p) => tocan(PAISES[p].bbox, caja)) : [];
+  }
+
+  // Los pedidos de UN alumno, en el orden en que los hace la Mesa.
+  function planDeAlumno() {
+    const pais = $('pais').value;
+    if (!aoi || !pais) return [];
+    const excluida = (p, capa) => PAISES[p].excluidas.includes(capa);
+    const alAbrir = CAPAS_AL_ABRIR.filter((c) => !excluida(pais, c));
+    const pedidos = alAbrir.length ? [{ pais, capas: alAbrir }] : [];
+    if (escenario() === 'generar') {
+      const paises = paisesDelArea();
+      for (const capa of CAPAS_GENERAR) {
+        for (const p of paises) {
+          if (excluida(p, capa)) continue;
+          if (p === pais && alAbrir.includes(capa)) continue; // la Mesa ya la tiene
+          pedidos.push({ pais: p, capas: [capa] });
+        }
+      }
+    }
+    return pedidos;
+  }
+
+  const escenario = () => document.querySelector('input[name=escenario]:checked').value;
+
+  function actualizarPlan() {
+    const plan = planDeAlumno();
+    const n = Number($('alumnos').value);
+    $('plan').textContent = plan.length
+      ? `Cada alumno hace ${plan.length} pedidos en fila; ` +
+        `con ${n} alumno${n === 1 ? '' : 's'} son ${plan.length * n} pedidos.`
+      : 'Elegí primero el área.';
+    $('btnEmpezar').disabled = !(habilitado && plan.length) || corriendo;
+  }
+
+  // ---------- Pedido a calcos-datos ----------
+  async function pedir(p, senal) {
+    const t0 = performance.now();
+    try {
+      const res = await fetch(`${SUPABASE.url}/functions/v1/calcos-datos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: SUPABASE.anonKey,
+          Authorization: `Bearer ${SUPABASE.anonKey}` },
+        body: JSON.stringify({ accion: 'recortar', token, pais: p.pais, capas: p.capas, aoi }),
+        signal: senal,
+      });
+      const t1 = performance.now(); // llegó la cabecera: el servidor terminó de armar la respuesta
+      const cuerpo = new Uint8Array(await res.arrayBuffer());
+      const t2 = performance.now();
+      const inicio = new TextDecoder().decode(cuerpo.subarray(0, 12));
+      const ok = res.ok && inicio.startsWith('{"ok":true');
+      let error = null;
+      if (!ok) {
+        const texto = new TextDecoder().decode(cuerpo.subarray(0, 4000));
+        try { error = JSON.parse(texto).error || texto.slice(0, 160); } catch (e) { error = texto.slice(0, 160) || 'respuesta vacía'; }
+      }
+      return { status: res.status, ok, error, servidor: t1 - t0, total: t2 - t0, bytes: cuerpo.length };
+    } catch (e) {
+      if (senal.aborted) return null;
+      return { status: 0, ok: false, error: `sin respuesta (${e.message})`, servidor: performance.now() - t0,
+        total: performance.now() - t0, bytes: 0 };
+    }
+  }
+
+  // ---------- La prueba ----------
+  let corriendo = false, control = null, prueba = null, reloj = null;
+
+  const dormir = (ms, senal) => new Promise((listo) => {
+    if (ms <= 0) return listo();
+    const t = setTimeout(listo, ms);
+    senal.addEventListener('abort', () => { clearTimeout(t); listo(); }, { once: true });
+  });
+
+  async function alumno(a, plan, senal) {
+    await dormir(a.retraso, senal);
+    a.estado = 'va';
+    const t0 = performance.now();
+    for (const p of plan) {
+      if (senal.aborted) return;
+      const r = await pedir(p, senal);
+      if (!r) return;
+      r.capa = p.capas.join('+'); r.pais = p.pais;
+      prueba.resultados.push(r);
+      a.hechos++;
+      if (!r.ok) a.errores++;
+    }
+    a.duracion = performance.now() - t0;
+    a.estado = a.errores ? 'mal' : 'ok';
+  }
+
+  async function empezar() {
+    const plan = planDeAlumno();
+    const n = Number($('alumnos').value);
+    const escalonS = Number($('escalon').value);
+    if (!plan.length) return;
+    const total = plan.length * n;
+    if (n >= 10 && !confirm(`Van ${total} pedidos de ${n} alumnos simulados al servidor de verdad ` +
+        `(el mismo de todo SIDECEME). ¿Seguimos?`)) return;
+
+    corriendo = true; control = new AbortController();
+    prueba = {
+      inicio: new Date(), fin: null, n, escenario: escenario(), pais: $('pais').value, plan,
+      caja: cajaDe(aoi), area: $('area').textContent, resultados: [], total,
+      alumnos: Array.from({ length: n }, (_, i) => ({
+        i, estado: 'espera', hechos: 0, errores: 0, duracion: null,
+        retraso: n > 1 ? Math.round((escalonS * 1000 * i) / (n - 1)) : 0,
+      })),
+    };
+    $('btnEmpezar').disabled = true; $('btnParar').disabled = false; $('btnCopiar').disabled = true;
+    $('veredicto').innerHTML = ''; $('errores').innerHTML = '';
+    reloj = setInterval(pintar, 400);
+    await Promise.all(prueba.alumnos.map((a) => alumno(a, plan, control.signal)));
+    prueba.fin = new Date();
+    prueba.parada = control.signal.aborted;
+    clearInterval(reloj); corriendo = false;
+    pintar(); veredicto();
+    $('btnParar').disabled = true; $('btnCopiar').disabled = false; actualizarPlan();
+  }
+
+  function parar() { if (control) control.abort(); }
+
+  // ---------- Números ----------
+  function percentil(valores, q) {
+    if (!valores.length) return null;
+    const v = [...valores].sort((a, b) => a - b);
+    return v[Math.min(v.length - 1, Math.ceil(q * v.length) - 1)];
+  }
+  const fmt = (x, dec = 1) => x == null ? '—' : Number(x).toLocaleString('es', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+  const seg = (ms) => ms == null ? '—' : `${fmt(ms / 1000, 1)} s`;
+  const mb = (b) => `${fmt(b / 1048576, 1)} MB`;
+  const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+  function numeros() {
+    const r = prueba.resultados;
+    const ok = r.filter((x) => x.ok);
+    const terminados = prueba.alumnos.filter((a) => a.duracion != null);
+    const errores = {};
+    for (const x of r) if (!x.ok) {
+      const clave = `${x.status || 'red'} · ${x.error}`;
+      errores[clave] = errores[clave] || { n: 0, capas: new Set() };
+      errores[clave].n++; errores[clave].capas.add(x.capa);
+    }
+    const lenta = [...ok].sort((a, b) => b.servidor - a.servidor)[0];
+    return {
+      hechos: r.length, ok: ok.length, mal: r.length - ok.length,
+      servidor: r.map((x) => x.servidor), total: r.map((x) => x.total),
+      alumno: terminados.map((a) => a.duracion), bytes: r.reduce((s, x) => s + x.bytes, 0),
+      alumnosOk: prueba.alumnos.filter((a) => a.estado === 'ok').length,
+      alumnosMal: prueba.alumnos.filter((a) => a.errores > 0).length,
+      errores, lenta,
+      maxRespuesta: Math.max(0, ...ok.map((x) => x.bytes)),
+    };
+  }
+
+  function pintar() {
+    if (!prueba) return;
+    const k = numeros();
+    $('barra').style.width = `${Math.round((100 * k.hechos) / prueba.total)}%`;
+    const pasado = ((prueba.fin || new Date()) - prueba.inicio) / 1000;
+    $('estado').textContent = `${k.hechos} de ${prueba.total} pedidos · ${k.ok} bien · ${k.mal} con error · ` +
+      `${mb(k.bytes)} bajados · ${fmt(pasado, 0)} s`;
+    $('alumnosVista').innerHTML = prueba.alumnos.map((a) =>
+      `<span class="${a.estado === 'espera' ? '' : a.estado}" title="Alumno ${a.i + 1}: ${a.hechos}/${prueba.plan.length}` +
+      `${a.errores ? `, ${a.errores} con error` : ''}">${a.i + 1}</span>`).join('');
+    const filas = [
+      ['Cada pedido: hasta que responde el servidor', k.servidor, seg],
+      ['Cada pedido: con la bajada por la red', k.total, seg],
+      ['Cada alumno: todos sus pedidos', k.alumno, seg],
+    ];
+    $('tabla').hidden = false;
+    $('tabla').querySelector('tbody').innerHTML = filas.map(([t, v, f]) =>
+      `<tr><td>${t}</td><td>${f(percentil(v, 0.5))}</td><td>${f(percentil(v, 0.95))}</td>` +
+      `<td>${f(v.length ? Math.max(...v) : null)}</td></tr>`).join('');
+    const errs = Object.entries(k.errores);
+    $('errores').innerHTML = errs.length
+      ? `<p class="aviso malo"><b>Errores</b><br>${errs.map(([m, e]) =>
+          `${e.n} × ${esc(m)} <span class="dato">(${esc([...e.capas].slice(0, 4).join(', '))})</span>`).join('<br>')}</p>`
+      : '';
+  }
+
+  function veredicto() {
+    const k = numeros();
+    const p95 = percentil(k.servidor, 0.95), maxAlumno = k.alumno.length ? Math.max(...k.alumno) : null;
+    let clase, texto;
+    if (prueba.parada) {
+      clase = 'aviso'; texto = '■ Prueba parada a mano: los números valen para lo que alcanzó a correr.';
+    } else if (k.mal) {
+      clase = 'aviso malo';
+      texto = `🔴 ${k.alumnosMal} de ${prueba.n} alumnos habrían visto un error. Con esta área y esta cantidad ` +
+        `de alumnos a la vez, no alcanza: no subas más la cantidad; achicá el área o escalonalos.`;
+    } else if (p95 > 20000 || maxAlumno > 180000) {
+      clase = 'aviso';
+      texto = `🟡 Anduvo sin errores, pero lento: el alumno más lento esperó ${seg(maxAlumno)}. ` +
+        `Se aguanta si se avisa que tarda; si va a ser con más alumnos, probá antes.`;
+    } else {
+      clase = 'aviso bien';
+      texto = `🟢 Sin errores. El alumno más lento terminó en ${seg(maxAlumno)}.`;
+    }
+    $('veredicto').innerHTML = `<p class="${clase}">${texto}</p>`;
+  }
+
+  function resumen() {
+    const k = numeros();
+    const lin = [
+      `Prueba de carga calcos-datos — ${prueba.inicio.toISOString()} a ${(prueba.fin || new Date()).toISOString()} (UTC)`,
+      `Área: ${prueba.area}`,
+      `Caja: ${prueba.caja.map((x) => x.toFixed(3)).join(', ')} · país de la BASE: ${prueba.pais}`,
+      `Escenario: ${prueba.escenario === 'generar' ? 'abrir BASE + GENERAR CALCOS' : 'sólo abrir BASE'} · ` +
+        `${prueba.n} alumnos · arranque en ${$('escalon').value} s · ${prueba.plan.length} pedidos por alumno` +
+        (prueba.parada ? ' · PARADA A MANO' : ''),
+      `Pedidos: ${k.hechos}/${prueba.total} · bien ${k.ok} · error ${k.mal} · bajado ${mb(k.bytes)} · ` +
+        `respuesta más grande ${mb(k.maxRespuesta)}`,
+      `Servidor por pedido: mediana ${seg(percentil(k.servidor, 0.5))} · 95% ${seg(percentil(k.servidor, 0.95))} · ` +
+        `máx ${seg(k.servidor.length ? Math.max(...k.servidor) : null)}` +
+        (k.lenta ? ` (la más lenta: ${k.lenta.capa}, ${k.lenta.pais})` : ''),
+      `Con la red por pedido: mediana ${seg(percentil(k.total, 0.5))} · 95% ${seg(percentil(k.total, 0.95))} · ` +
+        `máx ${seg(k.total.length ? Math.max(...k.total) : null)}`,
+      `Por alumno: mediana ${seg(percentil(k.alumno, 0.5))} · máx ${seg(k.alumno.length ? Math.max(...k.alumno) : null)} · ` +
+        `alumnos con error ${k.alumnosMal}`,
+    ];
+    for (const [m, e] of Object.entries(k.errores)) lin.push(`Error: ${e.n} × ${m} (${[...e.capas].join(', ')})`);
+    return lin.join('\n');
+  }
+
+  // ---------- Botones ----------
+  $('btnBaseGuardada').onclick = () => {
+    let base = null;
+    try { base = JSON.parse(localStorage.getItem(CLAVE_BASE) || 'null'); } catch (e) { /* nada */ }
+    if (!base || !base.aoi) {
+      $('area').innerHTML = '⚠️ En este navegador no hay BASE repartida con área. En la Mesa: 🎖️ Mesa EM → ' +
+        '«⬇️ Bajar la BASE para repartir…», o abrí el BASE_….json con el otro botón.';
+      return;
+    }
+    ponerArea(base.aoi, base.pais, `BASE «${base.ejercicio || 'sin nombre'}»`);
+  };
+  $('btnArchivo').onclick = () => $('archivo').click();
+  $('archivo').onchange = async (ev) => {
+    const f = ev.target.files && ev.target.files[0];
+    ev.target.value = '';
+    if (!f) return;
+    let datos;
+    try { datos = JSON.parse(await f.text()); } catch (e) { $('area').textContent = '⚠️ Ese archivo no es un JSON válido.'; return; }
+    if (datos && datos.tipoArchivo === 'base-pmtd') {
+      if (!datos.aoi) { $('area').textContent = '⚠️ Esa BASE no tiene Área de Interés.'; return; }
+      ponerArea(datos.aoi, datos.pais, `BASE «${datos.ejercicio || f.name}»`);
+    } else if (datos && datos.type) {
+      ponerArea(datos, null, f.name);
+    } else {
+      $('area').textContent = '⚠️ No es una BASE del G-3 ni un GeoJSON.';
+    }
+  };
+  $('btnEjemplo').onclick = () => ponerArea(EJEMPLO_COCHABAMBA, 'bolivia', 'Ejemplo Cochabamba');
+  document.querySelectorAll('input[name=escenario]').forEach((r) => (r.onchange = actualizarPlan));
+  $('alumnos').onchange = actualizarPlan;
+  $('pais').onchange = actualizarPlan;
+  $('btnEmpezar').onclick = empezar;
+  $('btnParar').onclick = parar;
+  $('btnCopiar').onclick = async () => {
+    const texto = resumen();
+    try { await navigator.clipboard.writeText(texto); $('btnCopiar').textContent = '✓ Copiado'; }
+    catch (e) { prompt('Copiá el resumen:', texto); }
+    setTimeout(() => ($('btnCopiar').textContent = '📋 Copiar resumen'), 2000);
+  };
+
+  // ---------- Al abrir: ¿quién es y puede correrla? ----------
+  (async () => {
+    if (!token) {
+      $('sesion').innerHTML = '⚠️ No hay sesión de SIDECEME en este navegador. Entrá a SIDECEME con el usuario de ' +
+        'Ciencia y Tecnología y volvé a abrir esta página.';
+      return;
+    }
+    try {
+      const res = await fetch(`${SUPABASE.url}/functions/v1/calcos-datos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', apikey: SUPABASE.anonKey, Authorization: `Bearer ${SUPABASE.anonKey}` },
+        body: JSON.stringify({ accion: 'permiso', token }),
+      });
+      const r = await res.json();
+      if (!r.ok) { $('sesion').textContent = `⚠️ ${r.error || 'La sesión no es válida.'}`; return; }
+      habilitado = r.administra === true;
+      $('sesion').innerHTML = habilitado
+        ? `✅ ${esc(r.nombre)} — puede correr la prueba.`
+        : `⛔ ${esc(r.nombre)}: la prueba carga el servidor de todos; la corren sólo Ciencia y Tecnología o Planificación.`;
+      actualizarPlan();
+    } catch (e) {
+      $('sesion').textContent = `⚠️ No se pudo hablar con el servidor (${e.message}).`;
+    }
+  })();
+  actualizarPlan();
+})();
+</script>
+</body>
+</html>
