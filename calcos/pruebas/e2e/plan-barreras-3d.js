@@ -124,6 +124,9 @@ async function conRaton(vista) {
 
 // Con el dedo, como en un iPad: sin la plantilla enemiga (eso ya lo prueba el
 // ratón) y sin el «dblclick» que Safari no manda, así se prueba sólo el dedo.
+// Cada gesto espera a que la vista 3D esté lista (`listoParaElDedo` en
+// navegador.js): sin eso, en una máquina sin GPU un toque corto se tomaba por
+// largo de vez en cuando.
 async function conDedo() {
   const { page, errores, cerrar } = await preparar({ movil: true, vista: '3d', conPlantilla: false, comoSafari: true })
   try {
