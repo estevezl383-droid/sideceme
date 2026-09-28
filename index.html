@@ -5320,6 +5320,9 @@ body{
       <!-- Aviso de pendientes (sanción sin firmar) -->
       <div id="cur-pendientes-banner" style="margin:0 0 4px"></div>
 
+      <!-- Aviso de pendientes (nota académica o EFM sin reconocer) -->
+      <div id="cur-notas-pendientes-banner" style="margin:0 0 4px"></div>
+
       <!-- Círculos: SEMESTRAL (grande) + ANUAL (chico, contraste) -->
       <div class="nota-circle-wrap">
         <div style="display:flex;align-items:flex-start;justify-content:center;gap:18px;flex-wrap:wrap">
@@ -11106,7 +11109,29 @@ async function ncPublicarConformidad(idxC, idxM){
   });
   if(!r.ok){ alert(r.error || 'No se pudo avisar'); return; }
   alert('Listo. '+r.nuevas+' avisos nuevos, '+r.reabiertas+' reabiertos, '+r.sin_tocar+' ya habían respondido (no se tocaron).');
+  // 🔔 Aviso automático a cada cursante: tiene una nota académica nueva para
+  // reconocer y firmar (mismo criterio que el aviso de "nueva sanción").
+  _ncAvisarPublicacion(ci.ciclo, m.materia).catch(()=>{});
   ncCargarConformidad(idxC, idxM);
+}
+
+async function _ncAvisarPublicacion(ciclo, materia){
+  const _tp = (typeof getTokenSesion === 'function') ? getTokenSesion() : null;
+  if(!_tp) return;
+  const rc = await _ncInvoke('estado_confirmaciones', {
+    gestion: NC.control.gestion, semestre: NC.control.semestre, ciclo: ciclo, materia: materia
+  });
+  if(!rc || !rc.ok || !Array.isArray(rc.lista)) return;
+  rc.lista
+    .filter(x => x.estado === 'pendiente' && x.cursante_id)
+    .forEach(x => {
+      sb.functions.invoke('push-ops', { body: {
+        accion:'enviar', token:_tp, destino_usuario_id: x.cursante_id, destino_tabla:'cursantes',
+        title:'SIDECEME — Nota publicada',
+        body:'Tienes tu nota de "'+materia+'" lista. Ábrela y fírmala.',
+        url:'./'
+      }}).catch(()=>{});
+    });
 }
 
 async function ncFijarPlazo(idxC, idxM){
@@ -12117,10 +12142,49 @@ async function cargarConformidadesCursante(force){
   finally{ _notasConfEnVuelo = null; }
 }
 
+// 🔔 Aviso de pendientes (home): nota académica o EFM publicada y sin reconocer.
+// Mismo criterio visual y de comportamiento que el aviso de sanción sin firmar
+// (screen-panel-cursante, más arriba): el cuadro rojo ES el enlace y lleva
+// directo a la firma de esa nota. Se llama al entrar al home y también
+// después de firmar/objetar una nota, para que el aviso baje de número o
+// desaparezca solo sin que el alumno tenga que recargar la app.
+let _homeSancPendCount = 0, _homeNotasPendCount = 0;
+function _actualizarBadgeAppTotal(){
+  try{ actualizarBadgeApp(_homeSancPendCount + _homeNotasPendCount); }catch(e){}
+}
+async function actualizarAvisoNotasPendientes(){
+  const _banNotas = document.getElementById('cur-notas-pendientes-banner');
+  if(!_banNotas) return;
+  try{
+    try{ await cargarConformidadesCursante(true); }catch(e){}
+    try{ await cargarConformidadesEfm(true); }catch(e){}
+    const _notasPend = Object.values(notasConfMap||{}).filter(c => c && c.estado === 'pendiente');
+    const _efmPend = Object.values(efmConfMap||{}).filter(c => c && c.estado === 'pendiente');
+    _homeNotasPendCount = _notasPend.length + _efmPend.length;
+    const _primeraNota = _notasPend[0] || null;
+    const _primeraEfm = !_primeraNota ? (_efmPend[0] || null) : null;
+    const _onclickFirma = _primeraNota
+      ? `abrirFirmaNota('${escapeAttr(String(_primeraNota.id))}')`
+      : (_primeraEfm ? `efmAbrirFirma(${Number(_primeraEfm.id)})` : '');
+    _banNotas.innerHTML = (_homeNotasPendCount > 0 && _onclickFirma)
+      ? `<div onclick="${_onclickFirma}" role="button" style="cursor:pointer;margin:0 0 4px;padding:16px 18px;border:2px solid #ff5a4d;border-radius:14px;background:linear-gradient(135deg,#e01f1f,#7a0d0d);color:#fff;box-shadow:0 0 22px rgba(224,31,31,.6);animation:sancPulse 1.5s ease-in-out infinite;display:flex;align-items:center;gap:12px">
+          <span style="font-size:30px;line-height:1;flex-shrink:0">📝</span>
+          <span style="flex:1;min-width:0">
+            <b style="display:block;font-size:16px;letter-spacing:.3px">Tenés ${_homeNotasPendCount} nota${_homeNotasPendCount>1?'s':''} por reconocer</b>
+            <span style="font-size:13px;color:#ffe0dd">Tocá aquí para ver tu nota y firmarla →</span>
+          </span>
+          <span style="font-size:26px;flex-shrink:0;opacity:.9">›</span>
+        </div>`
+      : '';
+  }catch(e){ /* silent */ }
+  _actualizarBadgeAppTotal();
+}
+
 // Tras firmar hay que repintar la pantalla en la que ESTÁ el alumno. Las notas
 // se ven desde dos lados (la sección del home y el panel de semestres), así que
 // repintar solo el home dejaba la nota en rojo si venía por el otro camino.
 function _ncfRepintarNotas(){
+  try{ actualizarAvisoNotasPendientes(); }catch(e){}
   try{
     if(typeof CUR_SEM_AREA !== 'undefined' && CUR_SEM_AREA === 'academicas'
        && typeof CUR_SEM_SEL !== 'undefined' && CUR_SEM_SEL != null
@@ -13220,8 +13284,31 @@ async function efmAccionGrupo(i, accion){
   alert(accion === 'publicar' ? '✔ Publicadas: '+r.publicadas
       : accion === 'retirar' ? '✔ Publicación retirada: '+r.retiradas
       : '✔ Borrador eliminado: '+r.eliminadas+' nota(s)');
+  // 🔔 Aviso automático a cada cursante: tiene una nota EFM nueva para reconocer
+  // y firmar (mismo criterio que el aviso de "nueva sanción").
+  if(accion === 'publicar'){
+    _efmAvisarPublicacion(g).catch(()=>{});
+  }
   try{ await loadEvaluacionesFisicas(); }catch(e){}
   goEfmControl();
+}
+
+async function _efmAvisarPublicacion(g){
+  const _tp = (typeof getTokenSesion === 'function') ? getTokenSesion() : null;
+  if(!_tp) return;
+  const rd = await _efmInvoke('detalle', _efmGrupoParams(g));
+  if(!rd || !rd.ok || !Array.isArray(rd.filas)) return;
+  const tit = _efmTipoTxt(g.tipo_evaluacion);
+  rd.filas
+    .filter(f => f.conformidad && f.conformidad.estado === 'pendiente' && f.cursante_id)
+    .forEach(f => {
+      sb.functions.invoke('push-ops', { body: {
+        accion:'enviar', token:_tp, destino_usuario_id: f.cursante_id, destino_tabla:'cursantes',
+        title:'SIDECEME — Nota EFM publicada',
+        body:'Tienes tu nota '+tit+' de Educación Física lista. Ábrela y fírmala.',
+        url:'./'
+      }}).catch(()=>{});
+    });
 }
 
 async function efmVerDetalle(i){
@@ -13489,6 +13576,7 @@ async function efmEnviarConformidad(decision){
   if(!r.ok){ alert(r.error || 'No se pudo guardar'); return; }
   efmCerrarFirma();
   await cargarConformidadesEfm(true);
+  try{ actualizarAvisoNotasPendientes(); }catch(e){}
   try{ const c = document.getElementById('cur-efm-content'); if(c && c.innerHTML.trim()) renderCursanteEfmSection(); }catch(e){}
   try{ if(CUR_SEM_AREA === 'efm' && CUR_SEM_SEL != null && document.getElementById('cur-sem-detalle')) verAreaSemestre('efm', CUR_SEM_SEL); }catch(e){}
   alert(decision === 'confirmar' ? '¡Gracias! Quedó registrada tu conformidad.' : 'Quedó registrado tu reclamo. La Sub. Sec. de Entrenamiento Físico lo va a revisar.');
@@ -15426,7 +15514,8 @@ async function renderCursanteHome(){
       : '';
   }
   // 🔴 Número rojo en el ícono = sanciones sin firmar (se borra solo al firmar)
-  actualizarBadgeApp(cantDigitalesPendientes);
+  _homeSancPendCount = cantDigitalesPendientes;
+  _actualizarBadgeAppTotal();
 
   // Actualizar círculo grande
   const circle = document.getElementById('cur-nota-circle');
@@ -15487,6 +15576,11 @@ async function renderCursanteHome(){
     const acadData = await cargarNotasAcademicas();
     if(acadData && acadData.length) actualizarBadgesAcademicas(acadData);
   }catch(e){ /* silent */ }
+
+  // 🔔 Aviso de pendientes: nota académica o EFM publicada y sin reconocer
+  // (mismo criterio visual y de comportamiento que el aviso de sanción sin firmar:
+  // el cuadro rojo ES el enlace, y lleva directo a la firma de esa nota).
+  try{ await actualizarAvisoNotasPendientes(); }catch(e){ /* silent */ }
 
   // === 4to cuadro destacado: Pérdida anual de puntaje (causal de baja) ===
   const anualStat = calcularPerdidaAnual(todasSanciones);
