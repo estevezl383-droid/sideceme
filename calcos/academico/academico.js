@@ -592,6 +592,10 @@
       if (im.tipo === 'obst') return s && s.VK ? s.VK(im.marca, { color: '#1f7a3d', px: grande ? 96 : 52, grosor: (im.grosor || 2.4) * 1.1 }) : ''
       if (im.tipo === 'tarea') return s && s.cb ? s.cb(im.id, grande ? 110 : 60, TINTA) : ''
       if (im.tipo === 'texto') return `<span class="ac-sim-texto" style="font-size:${grande ? 22 : 13}px">${esc(im.texto)}</span>`
+      if (im.tipo === 'cruz') {
+        const t = grande ? 80 : 40
+        return `<svg width="${t}" height="${t}" viewBox="0 0 60 60" aria-label="cruz recta negra"><path d="M30 8 V52 M8 30 H52" stroke="#000" stroke-width="5" stroke-linecap="butt"/></svg>`
+      }
       if (im.tipo === 'cruces') {
         const t = grande ? 70 : 34
         const l = 'stroke="#000" stroke-width="7" stroke-linecap="round"'
@@ -932,8 +936,8 @@
       `<aside class="ac-ficha" aria-live="polite" aria-label="Ficha ${esc(f.denominacion)}">` +
       `<div class="ac-ficha-cab"><h3>${esc(f.denominacion)}</h3><button type="button" class="ac-btn ac-btn-chico" data-acc="ficha" data-v="" title="Cerrar la ficha">✕</button></div>` +
       `<div class="ac-ficha-img">${imagenFicha(f, true)}<small>${
-        f.imagen && f.imagen.tipo === 'cruces'
-          ? 'Las dos formas que puede tener una «cruz». Se muestran para preguntar cuál es: no son un símbolo del reglamento.'
+        f.imagen && f.imagen.tipo === 'cruz'
+          ? 'Como la indicó el docente.'
           : 'Así lo dibuja hoy la Mesa.'
       }</small></div>` +
       `<div class="ac-bloque"><div class="ac-bloque-tit">Explicación doctrinaria</div>` +
@@ -942,6 +946,7 @@
         : `<div class="ac-pendiente">Pendiente de verificación: no se redacta sin el reglamento a la vista, para no inventar su interpretación.</div>`) +
       `</div>` +
       (f.usoEnLaMesa ? `<div class="ac-bloque"><div class="ac-bloque-tit">Uso en la Mesa</div><div>${esc(f.usoEnLaMesa)}</div></div>` : '') +
+      (f.segunDocente ? `<div class="ac-bloque"><div class="ac-bloque-tit">Según el docente <small>(no es cita del reglamento)</small></div><div>${esc(f.segunDocente)}</div></div>` : '') +
       (f.notaDeLaMesa ? `<div class="ac-bloque"><div class="ac-bloque-tit">Nota que ya trae la Mesa <small>(no es cita del reglamento)</small></div><div>${esc(f.notaDeLaMesa)}</div></div>` : '') +
       `<div class="ac-bloque"><div class="ac-bloque-tit">Referencia</div>` +
       fila('Documento', r.documento, 'sin documento citado') +

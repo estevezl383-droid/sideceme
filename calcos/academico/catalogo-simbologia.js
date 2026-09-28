@@ -196,27 +196,28 @@
       {
         id: 'pendientes',
         titulo: 'Consultas pendientes',
-        bajada: 'Símbolos por los que se preguntó y que no se pudieron verificar.',
+        bajada: 'Símbolos por los que se preguntó: lo que se sabe y de dónde sale, sin verificar en el reglamento.',
         fichas: [
           {
             id: 'pendientes:cruz-negra',
             lamina: 'pendientes',
-            denominacion: 'Cruz negra',
-            imagen: { tipo: 'cruces' },
+            denominacion: 'Cruz negra (+) — plan de blancos',
+            imagen: { tipo: 'cruz' },
             explicacion: null,
-            usoEnLaMesa:
-              'No se sabe si se trata de una cruz recta (+) o en aspa (×). En NEGRO la Mesa dibuja dos, en el panel «🧩 Organización de la tarea»: la pieza de Sanidad (+ dentro de un rectángulo) y la pieza de Helicóptero de ataque (× dentro de un rectángulo). Con el color del bando, la «+» es el símbolo de Sanidad y la «×» es la magnitud de brigada y mayores, el marco de Infantería y el de Aviación; en verde, la «×» dentro de un círculo es el Bloqueo de camino. Esto describe el dibujo de la Mesa, NO lo que dice el reglamento.',
+            segunDocente:
+              'Es una cruz recta negra, simple, sin marco: marca dónde está un blanco del plan de blancos. (Indicación del docente, 28-09-2026, con la imagen de la cruz.)',
+            usoEnLaMesa: 'La Mesa no dibuja hoy esta marca: el plan de blancos no está en el catálogo de símbolos de la app.',
             notaDeLaMesa: null,
             referencia: {
               documento: null,
               apartado: null,
               pagina: null,
-              origen: 'Consulta del usuario. No se encontró en el código de la Mesa una «cruz negra» con ese nombre ni una cita de reglamento para ella.',
+              origen: 'Indicación del docente (no es cita de reglamento). En el código de la Mesa no hay una cita de reglamento para esta marca.',
             },
             verificacion: {
               estado: 'no-verificable',
               falta:
-                'El reglamento de simbología (EAA-15-29 y/o EAA-15-07 / RC-02-15) con la página donde aparece la cruz, y saber dónde se vio (captura o nombre del calco). Sin eso no se le asigna significado.',
+                'La página del reglamento de simbología (EAA-15-29 y/o EAA-15-07 / RC-02-15) donde figura la cruz del plan de blancos, para pasarla de «indicación del docente» a referencia verificada.',
             },
           },
         ],

@@ -177,6 +177,7 @@ async function docente() {
       const c = await page.locator('.ac-ficha').innerText()
       assert.match(c, /NO VERIFICABLE/i)
       assert.match(c, /sin documento citado/)
+      assert.match(c, /plan de blancos/)
       await page.locator('input[data-acc="buscar"]').fill('zanja')
       assert.deepStrictEqual(await page.locator('.ac-tile .ac-tile-nom').allInnerTexts(), ['Zanja antitanque (ZAT)'])
     })

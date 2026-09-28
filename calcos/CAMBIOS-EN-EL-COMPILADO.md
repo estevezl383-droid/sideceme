@@ -86,8 +86,9 @@ y consultas pendientes), 102 fichas. Cada ficha: denominación e imagen tal como
 la dibuja la Mesa, la referencia que la propia Mesa declara (documento,
 apartado, página y de dónde sale la cita) y su estado de verificación.
 **Ningún reglamento de simbología estuvo disponible**: ninguna ficha está
-verificada y no se redactó explicación doctrinaria. La «cruz negra» figura como
-no verificable, sin significado asignado.
+verificada y no se redactó explicación doctrinaria. La «cruz negra» lleva lo
+que indicó el docente el 28-09 (cruz recta negra, simple: marca un blanco del
+plan de blancos), rotulado «según el docente» y todavía sin cita de reglamento.
 
 Qué se tocó en el compilado para conectarlo:
 - Estado `[acadMesa, setAcadMesa]`; `academico` en lo que se guarda (`Ud`, `BSe`)
@@ -137,7 +138,8 @@ Qué se tocó en el compilado para conectarlo:
 
 - Los reglamentos de simbología (EAA-15-29 —al menos la Figura 6—, EAA-15-07 /
   RC-02-15, RC-02-114 y RC-02-108) para verificar cada ficha, anotar la página y
-  redactar la explicación; y saber dónde apareció la «cruz negra».
+  redactar la explicación; y la página donde el reglamento define la cruz del
+  plan de blancos.
 - No se pudo probar en un iPad real (no hay WebKit acá): el caso de Safari se
   reprodujo en Chromium cortando el `dblclick` del doble toque.
 - La app de escritorio tiene que llevar también `calcos/academico/`.

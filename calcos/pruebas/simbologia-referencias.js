@@ -74,14 +74,15 @@ caso('Lo que la Mesa no respalda con reglamento queda como «no verificable»', 
   }
 })
 
-caso('La «cruz negra»: no verificable, sin significado asignado y diciendo qué falta', () => {
+caso('La «cruz negra»: lo que dijo el docente (plan de blancos), marcado como no verificado en el reglamento', () => {
   const f = cat.fichas.find((x) => x.id === 'pendientes:cruz-negra')
   assert.ok(f, 'no está la ficha')
   assert.strictEqual(f.verificacion.estado, 'no-verificable')
-  assert.strictEqual(f.explicacion, null)
+  assert.strictEqual(f.explicacion, null, 'no es explicación del reglamento')
   assert.strictEqual(f.referencia.documento, null)
+  assert.match(f.segunDocente, /plan de blancos/)
+  assert.match(f.referencia.origen, /Indicación del docente/)
   assert.match(f.verificacion.falta, /reglamento de simbología/)
-  assert.match(f.usoEnLaMesa, /NO lo que dice el reglamento/)
 })
 
 caso('Las láminas no llevan carta ni coordenadas: ninguna ficha trae posición', () => {
