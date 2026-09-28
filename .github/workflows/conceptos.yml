@@ -31,6 +31,8 @@ jobs:
         env:
           PLAYWRIGHT_MODULE: /tmp/prueba-conceptos/node_modules/playwright
         run: node calcos/pruebas/e2e/conceptos.cjs
+      - name: Validar estructura de los Word descargados
+        run: python3 calcos/pruebas/word-conceptos.py
       - uses: actions/upload-artifact@v4
         if: always()
         with:
