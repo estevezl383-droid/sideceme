@@ -38,7 +38,7 @@ async function hoja(page){
   await page.getByRole('button',{name:'Descargar Word gráfico',exact:true}).click()
   const doc=await descarga;assert.equal(doc.suggestedFilename(),'F2P1_Conceptos_entrelazados.docx')
   await doc.saveAs(path.join(out,movil?'movil.docx':'escritorio.docx'))
-  await page.getByRole('button',{name:/^📁 Ejercicio/i}).first().dispatchEvent('click')
+  await page.getByRole('button',{name:/^📁 PRUEBA FORMATO CONCEPTOS/i}).first().dispatchEvent('click')
   await page.getByRole('button',{name:/Guardar todo/}).dispatchEvent('click')
   let guardado
   for(let i=0;i<30;i++){guardado=await leerGuardado(page,datos.nombre);if(guardado?.g3?.entrelazados?.unidades?.length===4)break;await page.waitForTimeout(200)}
