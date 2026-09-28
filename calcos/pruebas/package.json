@@ -1,9 +1,10 @@
 {
   "name": "pruebas-mesa-em",
   "private": true,
-  "description": "Pruebas sobre el compilado de la Mesa del EM (calcos/assets)",
+  "description": "Pruebas sobre el compilado de la Mesa del EM (calcos/assets) y el módulo de estudio (calcos/academico). e2e: Chromium con Playwright.",
   "scripts": {
-    "test": "node ht19-autollenado.js && node fichas-fuera-del-agua.js"
+    "test": "node ht19-autollenado.js && node fichas-fuera-del-agua.js && node academico-modelo.js && node simbologia-referencias.js && node reemplazos-compilado.js",
+    "e2e": "node e2e/plan-barreras-3d.js && node e2e/academico.js"
   },
   "devDependencies": {
     "acorn": "^8.15.0"

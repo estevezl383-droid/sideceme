@@ -5,6 +5,143 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-09-27 — El plan de barreras se traza en 3D, y 🎓 Estudio doctrinario (`index-sxnJI1Ur.js`)
+
+Parte de `index-4OsERrlJ.js`: trae todo lo de abajo y suma esto. Lo pidió Sergio.
+La lista EXACTA de reemplazos (texto buscado → texto nuevo) está en
+`calcos/pruebas/reemplazos-2026-09-27.js`; `reemplazos-compilado.js` comprueba
+que deshaciéndolos se vuelve byte por byte a `index-4OsERrlJ.js`.
+
+### Plan de barreras en 3D (y en 2D)
+
+Se reprodujo en Chromium con un ejercicio de unidades ficticias. Había tres causas:
+
+1. **La plantilla situacional enemiga se quedaba con el clic.** Sus arcos de
+   apoyo, bandas, líneas y fichas (`lve`) eran la única capa que seguía
+   `interactive` mientras se traza: el clic abría el cartel «🔶 ARCO DE APOYO»
+   y el vértice no se ponía. El arco cubre justo el terreno propio donde va el
+   plan de barreras («bate hasta N km de NUESTRO lado de la LPR»). Pasaba en 3D
+   y también en 2D: con el arco encima no se podía poner ni una alambrada, ni una
+   demolición, ni un campo minado, ni una posición defensiva.
+   - `lve` recibe `dibujando` (lo mismo que ya recibían el CMOC, las medidas y el
+     terreno) y sus capas quedan `interactive:!dj` mientras se traza; se
+     redibujan al empezar y al terminar (`dj` en las dependencias del efecto).
+2. **Con el dedo (iPad, teléfono) las líneas y las áreas no se terminaban en 3D.**
+   Safari no manda `dblclick` después de un doble toque; en 2D Leaflet lo simula,
+   el espejo 3D (`yze.mando`) no. Tampoco llegaba el toque largo (clic derecho).
+   - Dos toques en ≤ 400 ms y ≤ 30 px (marcas de tiempo del evento) = doble clic
+     a la carta. Si el navegador además manda su propio `dblclick` (Chrome), no
+     se repite (ventana de 1,5 s).
+   - Dedo quieto 600 ms (≤ 15 px) = `contextmenu` (termina la línea, como el
+     clic derecho). El `click` que pueda venir al levantar el dedo se ignora.
+   - Al apoyar el dedo se sincroniza el zoom por doble toque de MapLibre con el
+     de Leaflet (antes sólo con `mousedown`): dibujando, el doble toque no hace zoom.
+3. **En 3D las distancias en píxeles se medían en la carta plana escondida**, que
+   tiene otra escala (medido: 30 px de la pantalla 3D son entre 2 y 15 px en la
+   carta Leaflet). «Tocar el primer vértice para cerrar el Área de Operaciones»
+   (12 px) cerraba el área tocando lejos, y la manija ⟳ de giro de tareas y
+   magnitudes (55 px) aparecía desde muy lejos.
+   - `pxVista(m, ll)`: si el 3D está abierto (`window.__map3d`) mide con su
+     proyección; si no, con la de Leaflet como siempre. Se usa en `Yt` (Ave) y en
+     la manija de giro.
+
+### 🎓 Estudio doctrinario (material didáctico)
+
+Botón «🎓 Estudio» en la barra (al lado de «🎖️ Mesa EM»). El código es legible
+y está APARTE del compilado, en `calcos/academico/` (lo carga `calcos/index.html`
+antes del compilado):
+
+- `academico.js` — modelo (sin DOM, se prueba en Node) y las dos vistas.
+- `catalogo-simbologia.js` — fichas y láminas de simbología.
+- `academico.css` — mismo aspecto que «🧩 Organización de la tarea».
+
+**🧩 Organización académica.** Usa la MISMA `orgTarea` del ejercicio:
+- Clase de cada organización: `clase: "ft" | "pura" | "agrupacion"` (+ `arma`
+  en la unidad pura: ingeniería, artillería o caballería). `ft` sigue mandando,
+  así que «🛡️ Convertir en Fuerza de Tarea» del panel de siempre funciona igual.
+  Una organización de antes, sin `clase`, se lee como FT (si tiene `ft`) o como
+  agrupación táctica. No se cambian identificadores ni se borran campos.
+- Por cada elemento (pieza), el TIPO (arma y escalón; no cambia) separado de la
+  PERTENENCIA (a qué organización está integrado, o «con su unidad orgánica»).
+  El docente la cambia a mano; al mover un elemento se saca de cualquier otra
+  organización, así que nunca queda repetido.
+- Validación: elemento en dos organizaciones o dos veces en una (con botón
+  «Dejarla sólo en…»), elementos que ya no están en el calco, unidad pura con
+  otra arma, fichas del calco repetidas (mismo `agId`), unidades con el mismo
+  id o la misma designación, ficha consolidada con otra composición,
+  organizaciones vacías. No obliga a integrar: las unidades que conservan todos
+  sus elementos se muestran como «unidades orgánicas puras».
+- Actividades académicas (pregunta, lectura, análisis doctrinario) vinculadas a
+  mano a una unidad o a una organización. Se guardan con el ejercicio en
+  `academico: { version: 1, actividades: [...] }`. No son órdenes ni asignan
+  nada: no tienen campos de tarea, misión, fuego ni objetivo.
+- Edita sólo el puesto del instructor (y, en la versión publicada, con sesión
+  de profesor de SIDECEME: `SIDECEME_CALCOS.esProfesor`); los puestos ven todo
+  en sólo lectura. Es una guía de pantalla, no un permiso.
+- Con el calco vacío ofrece cargar un ejemplo con cuatro unidades FICTICIAS.
+
+**📕 Simbología doctrinaria.** Ocho láminas sin carta ni coordenadas (marco,
+magnitud, armas, agrupación/FT, símbolos abreviados, obstáculos, tareas tácticas
+y consultas pendientes), 102 fichas. Cada ficha: denominación e imagen tal como
+la dibuja la Mesa, la referencia que la propia Mesa declara (documento,
+apartado, página y de dónde sale la cita) y su estado de verificación.
+**Ningún reglamento de simbología estuvo disponible**: ninguna ficha está
+verificada y no se redactó explicación doctrinaria. La «cruz negra» figura como
+no verificable, sin significado asignado.
+
+Qué se tocó en el compilado para conectarlo:
+- Estado `[acadMesa, setAcadMesa]`; `academico` en lo que se guarda (`Ud`, `BSe`)
+  y en lo que se abre (`mm`); un ejercicio con actividades no cuenta como vacío (`vS`).
+- Un efecto que le pasa los datos al módulo (`MesaAcademica.sincronizar`) y
+  `window.__mesaSimbolos` con los dibujos (`sb`, `eN`, `cb`, `VK`) y catálogos
+  (`pLe`, `fl`, `T1`, `Nm`, `zg`, `lP`, `tN`, `js`).
+- «🧩 Organización de la tarea»: no deja meter una pieza que ya está en otra
+  agrupación; muestra la marca «PURA»; «quedan N piezas sin repartir» pasa a
+  «N pieza(s) siguen con su unidad orgánica (no es obligatorio repartirlas)»; y
+  una pieza repetida ya no achica dos veces a su unidad (`Vd`).
+
+### En el fuente
+
+- Leaflet/espejo 3D: el `mando()` del espejo (doble toque, toque largo, sincronía
+  del zoom al tocar) y `pxVista` en las cercanías medidas en píxeles.
+- Plantilla situacional: pasarle `dibujando` y no dejarla interactiva mientras
+  se traza.
+- Estudio: estado `academico` guardado con el ejercicio, el efecto
+  `sincronizar`, el botón y `__mesaSimbolos`. `calcos/academico/` se puede
+  importar tal cual (o pasar a componentes React con la misma lógica del modelo).
+- Organización de la tarea: guardia de piezas repetidas, marca PURA, texto del pie
+  y conteo sin repetidos en `Vd`.
+
+### Cómo se comprobó
+
+- `cd calcos/pruebas && npm install && npm test`: además de las dos de antes,
+  `academico-modelo.js` (15 casos: organización existente, FT y pura juntas,
+  tipo vs. pertenencia, edición manual, repetidos, huérfanos, ids, actividades,
+  ejemplo ficticio; con `tN`/`js` reales del compilado), `simbologia-referencias.js`
+  (9 casos: cada ficha con referencia y estado, ninguna «verificada», las citas
+  están letra por letra en el código, la cruz negra no verificable) y
+  `reemplazos-compilado.js` (deshacer = compilado anterior, SHA-256).
+- `npm run e2e` (Chromium con Playwright, sin red: los tiles se generan en la
+  prueba). `e2e/plan-barreras-3d.js`, 14 casos: ratón en 3D y en 2D encima del
+  arco enemigo (alambrada, demolición, campo minado, posición defensiva), dedo
+  en 3D como Safari del iPad (doble toque y toque largo) y cierre del Área de
+  Operaciones en 3D. Con `index-4OsERrlJ.js` fallan 12 de 14 (andaban la
+  demolición con el dedo y cerrar el área tocando justo el primer vértice); con
+  éste pasan los 14. `e2e/academico.js`, 20 casos en
+  escritorio (1440×900) y teléfono (390×844): organización de antes con sus id,
+  FT y pura juntas, pertenencia, repetidos, actividades guardadas y vueltas a
+  abrir, panel de siempre con la marca PURA, sólo lectura para los puestos,
+  ejemplo ficticio, láminas y fichas, sin desborde horizontal, sin errores de JS.
+
+### Lo que falta
+
+- Los reglamentos de simbología (EAA-15-29 —al menos la Figura 6—, EAA-15-07 /
+  RC-02-15, RC-02-114 y RC-02-108) para verificar cada ficha, anotar la página y
+  redactar la explicación; y saber dónde apareció la «cruz negra».
+- No se pudo probar en un iPad real (no hay WebKit acá): el caso de Safari se
+  reprodujo en Chromium cortando el `dblclick` del doble toque.
+- La app de escritorio tiene que llevar también `calcos/academico/`.
+
 ## 2026-09-27 — H.T. 19 dice quién es cada OC/OD, y ninguna ficha enemiga en el lago (`index-4OsERrlJ.js`)
 
 Parte de `index-oeww4UiF.js`: trae todo lo de abajo y suma esto. Lo pidió Sergio.
