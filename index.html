@@ -5650,7 +5650,7 @@ body{
       <button class="quick-btn" onclick="goDocsInst('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(140,90,203,.22),rgba(107,75,168,.06));border-color:#8c5acb"><span class="qa-icon">📁</span><span class="qa-text"><strong>Documentos Institucionales</strong> (publicar / recibir — por ciclo, profesores, mando)</span></button>
       <button class="quick-btn" onclick="goEjTac('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(58,140,90,.22),rgba(44,107,75,.06));border-color:#3a8c5a"><span class="qa-icon">🗺️</span><span class="qa-text"><strong>Ejercicios Tácticos</strong> (publicar / recibir calcos KMZ para Google Earth)</span></button>
       <button class="quick-btn" onclick="location.href='calcos/'" style="background:linear-gradient(180deg,rgba(42,128,149,.22),rgba(31,95,107,.06));border-color:#2a8095"><span class="qa-icon">🧭</span><span class="qa-text"><strong>Generador de Calcos</strong> (planificar en el navegador, sin instalar nada)</span></button>
-      <button id="qa-btn-calcos-acceso" class="quick-btn" onclick="goCalcosAcceso('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(42,128,149,.14),rgba(31,95,107,.04));border-color:#1f5f6b"><span class="qa-icon">🔑</span><span class="qa-text"><strong>Acceso al Generador</strong> (habilitar por ciclo / paralelo / mención)</span></button>
+      <button id="qa-btn-calcos-acceso" class="quick-btn" onclick="goCalcosAcceso('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(42,128,149,.14),rgba(31,95,107,.04));border-color:#1f5f6b"><span class="qa-icon">🔑</span><span class="qa-text"><strong>Acceso al Generador</strong> (habilitar por curso / ciclo / mención / profesor)</span></button>
       <button id="qa-btn-calcos-prof" class="quick-btn" onclick="goCalcosProf('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(42,128,149,.22),rgba(31,95,107,.06));border-color:#2a8095"><span class="qa-icon">🗂️</span><span class="qa-text"><strong>Planeamientos</strong> (ver y calificar los trabajos de los Estados Mayores)</span></button>
       <button class="quick-btn" onclick="goWargame('screen-disc-panel')" style="background:linear-gradient(180deg,rgba(202,161,74,.2),rgba(160,120,40,.05));border-color:#caa14a"><span class="qa-icon">🎲</span><span class="qa-text"><strong>Juego de Guerra</strong> (wargame por turnos: árbitro y Estados Mayores)</span></button>
       <button class="quick-btn success" data-sac-hide="1" onclick="goRespaldo()"><span class="qa-icon">💾</span><span class="qa-text">Descargar respaldo ahora (JSON + .XLSX)</span></button>
@@ -7136,17 +7136,21 @@ body{
   </div>
 </section>
 
-<!-- Acceso al Generador de Calcos: C&T habilita por ciclo, paralelo,
-     mención o a todo el cuerpo docente. El botón del Generador sigue
-     visible para todos; al que no está habilitado le sale el aviso. -->
+<!-- Acceso al Generador de Calcos: C&T habilita por curso (ciclo +
+     paralelo), ciclo, mención, profesor por profesor o a todo el cuerpo
+     docente. El botón del Generador sigue visible para todos; al que no
+     está habilitado le sale el aviso. -->
 <section id="screen-calcos-acceso" class="screen">
   <div class="app-header">
     <button class="back-btn" onclick="showScreen(_CA_BACK||'screen-disc-panel')">←</button>
     <div class="header-crest"><svg><use href="#crest"/></svg></div>
-    <div class="header-text"><div class="header-title">🧭 Acceso al Generador de Calcos</div><div class="header-sub">Quién puede usarlo, por ciclo / paralelo / mención</div></div>
+    <div class="header-text"><div class="header-title">🧭 Acceso al Generador de Calcos</div><div class="header-sub">Quién puede usarlo, por curso / ciclo / mención / profesor</div></div>
   </div>
   <div class="menu-container">
     <div class="section-label">➕ Habilitar</div>
+    <div style="font-size:12px;color:var(--text-muted);line-height:1.5;margin:2px 0 6px">
+      Para una clase: tocá el <strong>curso</strong> (p. ej. 1ER CICLO · A) y los <strong>profesores</strong> que la dan. Entra quien esté hoy en ese curso, sean los que sean. Al terminar, «Quitar».
+    </div>
     <div id="ca-opciones"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
     <div class="section-label" style="margin-top:18px">✅ Habilitados actualmente</div>
     <div id="ca-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
@@ -23934,9 +23938,10 @@ async function _cpCalificar(id){
 }
 
 /* ===== ACCESO AL GENERADOR DE CALCOS (solo Ciencia y Tecnología) =====
-   Reglas por ciclo / paralelo / mención / cuerpo docente. Todo pasa por la
-   Edge Function calcos-datos: la tabla calcos_acceso no tiene políticas y el
-   navegador no la puede tocar. */
+   Reglas por curso (ciclo + paralelo, valor 'CICLO|PARALELO') / ciclo /
+   mención / persona / cuerpo docente. Todo pasa por la Edge Function
+   calcos-datos: la tabla calcos_acceso no tiene políticas y el navegador no
+   la puede tocar. */
 let _CA_BACK='screen-disc-panel';
 async function _caInvoke(accion, extra){
   const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
@@ -23961,31 +23966,48 @@ async function _caPintar(){
   if(!r.ok){ cajaOp.innerHTML='<div class="efm-no-data" style="color:#e08">'+_caEsc(r.error)+'</div>'; cajaLi.innerHTML=''; return; }
 
   const yaEsta=(tipo,valor)=>(r.reglas||[]).some(x=>x.tipo===tipo && (x.valor||'')===(valor||'') && x.activo);
+  const op=r.opciones||{};
+  const cnt=r.conteos||{};
+  const cuantos=(tipo,v)=>{ const k=(cnt[tipo]||{})[v]; return k?' <span style="opacity:.7">('+k+')</span>':''; };
+  const curso=v=>_caEsc(String(v).replace('|',' · '));
+  const profes=op.profesores||[];
+  const nombreProf=id=>{ const p=profes.find(x=>x.id===id); return _caEsc(p?p.nombre:id); };
   let h='';
-  const grupo=(titulo,tipo,valores)=>{
-    if(!valores.length) return '';
-    let s='<div style="margin:10px 0 4px;font-size:12px;color:var(--text-muted)">'+titulo+'</div><div style="display:flex;flex-wrap:wrap;gap:6px">';
+  const botones=(tipo,valores,etiqueta)=>{
+    let s='<div style="display:flex;flex-wrap:wrap;gap:6px">';
     for(const v of valores){
       const on=yaEsta(tipo,v);
       s+='<button class="quick-btn" style="flex:0 0 auto;padding:7px 12px;'+(on?'background:linear-gradient(180deg,rgba(58,140,90,.35),rgba(44,107,75,.12));border-color:#3a8c5a':'')+'" '+
          'onclick="_caToggle(\''+tipo+'\',\''+_caEsc(v).replace(/'/g,"\\'")+'\','+(on?'false':'true')+')">'+
-         (on?'✓ ':'')+_caEsc(v||'(todos)')+'</button>';
+         (on?'✓ ':'')+(etiqueta?etiqueta(v):_caEsc(v||'(todos)'))+cuantos(tipo,v)+'</button>';
     }
     return s+'</div>';
   };
-  h+=grupo('Ciclos','ciclo',r.opciones.ciclo||[]);
-  h+=grupo('Paralelos','paralelo',r.opciones.paralelo||[]);
-  h+=grupo('Menciones','mencion',r.opciones.mencion||[]);
-  h+=grupo('Cuerpo docente','profesores',['']);
+  const grupo=(titulo,tipo,valores,etiqueta)=>{
+    if(!valores.length) return '';
+    return '<div style="margin:10px 0 4px;font-size:12px;color:var(--text-muted)">'+titulo+'</div>'+botones(tipo,valores,etiqueta);
+  };
+  h+=grupo('Curso (ciclo + paralelo) — lo habitual para una clase','ciclo_paralelo',op.ciclo_paralelo||[],curso);
+  h+=grupo('Ciclo entero','ciclo',op.ciclo||[]);
+  h+=grupo('Menciones (todos los paralelos)','mencion',op.mencion||[]);
+  if(profes.length){
+    const nOn=profes.filter(p=>yaEsta('persona',p.id)).length;
+    h+='<details style="margin:10px 0 4px"'+(nOn?' open':'')+'><summary style="font-size:12px;color:var(--text-muted);cursor:pointer">'+
+       'Profesores del ejercicio, uno por uno'+(nOn?' — '+nOn+' habilitado'+(nOn>1?'s':''):'')+'</summary>'+
+       '<div style="margin-top:6px">'+botones('persona',profes.map(p=>p.id),nombreProf)+'</div></details>';
+  }
+  h+=grupo('Cuerpo docente (todos los profesores)','profesores',['']);
+  h+=grupo('Letra de paralelo en TODOS los ciclos (A = A del 1ro y del 2do)','paralelo',op.paralelo||[]);
   h+=grupo('TODA la escuela','todos',['']);
   cajaOp.innerHTML=h||'<div class="efm-no-data">Sin opciones</div>';
 
   const act=(r.reglas||[]).filter(x=>x.activo);
   if(!act.length){ cajaLi.innerHTML='<div class="efm-no-data" style="color:var(--text-muted)">Nadie habilitado todavía (además de Ciencia y Tecnología).</div>'; return; }
-  const etiqueta={todos:'TODA la escuela',profesores:'Cuerpo docente',ciclo:'Ciclo',paralelo:'Paralelo',mencion:'Mención',persona:'Persona'};
+  const etiqueta={todos:'TODA la escuela',profesores:'Cuerpo docente',ciclo:'Ciclo',paralelo:'Paralelo (todos los ciclos)',ciclo_paralelo:'Curso',mencion:'Mención',persona:'Persona'};
+  const valorDe=x=>x.tipo==='ciclo_paralelo'?curso(x.valor):x.tipo==='persona'?_caEsc(x.nombre||x.valor):_caEsc(x.valor);
   cajaLi.innerHTML=act.map(x=>
     '<div class="quick-btn" style="display:flex;justify-content:space-between;align-items:center;cursor:default">'+
-    '<span><strong>'+_caEsc(etiqueta[x.tipo]||x.tipo)+'</strong>'+(x.valor?' · '+_caEsc(x.valor):'')+'</span>'+
+    '<span><strong>'+_caEsc(etiqueta[x.tipo]||x.tipo)+'</strong>'+(x.valor?' · '+valorDe(x)+cuantos(x.tipo,x.valor):'')+'</span>'+
     '<button class="btn-mini" style="background:#7a2233;color:#fff;border:0;border-radius:6px;padding:4px 10px;cursor:pointer" onclick="_caQuitar('+x.id+')">Quitar</button>'+
     '</div>').join('');
 }
