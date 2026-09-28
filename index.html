@@ -6066,6 +6066,7 @@ body{
       Horarios de planta y de los dos ciclos, programa de la Facultad y notas de servicio
     </div>
     <button class="btn-secondary" style="width:100%;margin-top:12px" onclick="goHorarios()">📅 Horarios publicados</button>
+    <button id="plp-btn-calcos-acceso" class="btn-secondary" style="width:100%;margin-top:12px;display:none" onclick="goCalcosAcceso('screen-planif-panel')">🔑 Acceso al Generador de Calcos (habilitar curso / profesores)</button>
   </div>
 </section>
 
@@ -7136,7 +7137,7 @@ body{
   </div>
 </section>
 
-<!-- Acceso al Generador de Calcos: C&T habilita por curso (ciclo +
+<!-- Acceso al Generador de Calcos: C&T o Planificación habilitan por curso (ciclo +
      paralelo), ciclo, mención, profesor por profesor o a todo el cuerpo
      docente. El botón del Generador sigue visible para todos; al que no
      está habilitado le sale el aviso. -->
@@ -7155,7 +7156,7 @@ body{
     <div class="section-label" style="margin-top:18px">✅ Habilitados actualmente</div>
     <div id="ca-lista"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Cargando…</div></div>
     <div style="margin-top:14px;font-size:12px;color:var(--text-muted);line-height:1.5">
-      Ciencia y Tecnología entra siempre, aunque no figure en la lista.<br>
+      Ciencia y Tecnología y Planificación entran siempre, aunque no figuren en la lista.<br>
       El botón del Generador queda visible para todos: a quien no esté habilitado le aparece un aviso explicando que es solo para fines de ejercicios.
     </div>
   </div>
@@ -16553,6 +16554,8 @@ function renderDiscPanel(){
   try{ avOpcionesDocente('screen-disc-panel'); }catch(e){}  // v2.9.195
   // v2.9.197: la Carpeta de Clases va para TODOS (todos dan clases), no solo C&T.
   { const b = document.getElementById('qa-btn-carpeta-clases'); if(b) b.style.display = ''; }
+  // Acceso al Generador de Calcos: solo quien lo administra (C&T y Planificación).
+  { const b = document.getElementById('qa-btn-calcos-acceso'); if(b) b.style.display = puedeAdminCalcos() ? '' : 'none'; }
   // v2.9.292: Planificación Semanal — mismos roles que autoriza la EF planificacion-ops.
   { const b = document.getElementById('qa-btn-planificacion');
     if(b) b.style.display = esRolPlanificacion() ? '' : 'none'; }
@@ -23937,12 +23940,20 @@ async function _cpCalificar(id){
   else { av.textContent='✗ '+(r.error||'no se pudo guardar'); av.style.color='#e08'; }
 }
 
-/* ===== ACCESO AL GENERADOR DE CALCOS (solo Ciencia y Tecnología) =====
+/* ===== ACCESO AL GENERADOR DE CALCOS (C&T y Planificación) =====
    Reglas por curso (ciclo + paralelo, valor 'CICLO|PARALELO') / ciclo /
    mención / persona / cuerpo docente. Todo pasa por la Edge Function
    calcos-datos: la tabla calcos_acceso no tiene políticas y el navegador no
    la puede tocar. */
 let _CA_BACK='screen-disc-panel';
+// Misma regla que la Edge Function: rol principal o extra (doble función),
+// nunca un auxiliar. Solo decide si se ve el botón; la función vuelve a verificar.
+function puedeAdminCalcos(){
+  if(!currentUser || esAuxiliar()) return false;
+  const roles=[currentUser.rol].concat(Array.isArray(currentUser.roles)?currentUser.roles:[])
+    .map(r=>String(r||'').toLowerCase());
+  return roles.some(r=>['ciencia_tecnologia','jefe_planificacion'].includes(r));
+}
 async function _caInvoke(accion, extra){
   const tok=(typeof getTokenSesion==='function')?getTokenSesion():null;
   if(!tok) return {ok:false,error:'sin sesión'};
@@ -49174,6 +49185,7 @@ function renderPlanifPanel(){
   set('plp-initials',ini||'—');
   set('plp-rank',[ (currentUser&&currentUser.grado)||'', (currentUser&&currentUser.arma)||'' ].filter(Boolean).join(' · ')||'Sección Planificación');
   try{ avBotonCarpeta('screen-planif-panel'); }catch(e){}
+  { const b=document.getElementById('plp-btn-calcos-acceso'); if(b) b.style.display = puedeAdminCalcos() ? '' : 'none'; }
   // v2.9.307: DOBLE FUNCION. Quien tiene 'profesor' dentro de roles[] ademas de su
   // rol principal de seccion, puede pasar a su panel docente para sancionar.
   // Sin esto el login solo mira la columna 'rol' y nunca ve la segunda funcion.

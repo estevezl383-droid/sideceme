@@ -1,5 +1,5 @@
 // ============================================================
-// EDGE FUNCTION: calcos-datos   (v3 — acceso por curso exacto)
+// EDGE FUNCTION: calcos-datos   (v4 — curso exacto; C&T y Planificación)
 //
 // Sirve las capas geográficas del Generador de Calcos YA RECORTADAS
 // por el área de interés, y decide QUIÉN puede usarlo.
@@ -9,7 +9,7 @@
 //   - 'capas'    : inventario por país
 //   - 'permiso'  : ¿este usuario puede entrar? (lo consulta la app al abrir)
 //
-// Acciones de administración (SOLO Ciencia y Tecnología):
+// Acciones de administración (SOLO Ciencia y Tecnología y Planificación):
 //   - 'acceso_listar'  : reglas vigentes + valores disponibles para el panel
 //   - 'acceso_guardar' : alta/actualización de una regla
 //   - 'acceso_quitar'  : baja de una regla
@@ -41,9 +41,10 @@ const ok = (extra?: object) =>
 const err = (msg: string, status = 400, extra?: object) =>
   new Response(JSON.stringify({ ok: false, error: msg, ...extra }), { status, headers: corsHeaders });
 
-// Ciencia y Tecnología administra y entra siempre: no puede autoexcluirse
-// y quedarse sin forma de volver a habilitarse.
-const ADMINISTRAN = ["ciencia_tecnologia"];
+// Ciencia y Tecnología y Planificación administran y entran siempre: no
+// pueden autoexcluirse y quedarse sin forma de volver a habilitarse. Cuenta
+// el rol principal o uno extra en `roles` (doble función); los auxiliares no.
+const ADMINISTRAN = ["ciencia_tecnologia", "jefe_planificacion"];
 
 const TIPOS = ["todos", "profesores", "ciclo", "paralelo", "ciclo_paralelo", "mencion", "persona"];
 
@@ -53,10 +54,11 @@ const SEP = "|";
 const MENSAJE_SIN_ACCESO =
   "El Generador de Calcos está habilitado por Ciencia y Tecnología solo para " +
   "fines de ejercicios. Tu curso todavía no está habilitado. Si lo necesitás " +
-  "para una actividad, solicitalo a la Sección de Ciencia y Tecnología.";
+  "para una actividad, solicitalo a la Sección de Ciencia y Tecnología o a Planificación.";
 
 type Sesion = {
   id: string; tabla: "cursantes" | "profesores"; rol: string; nombre: string;
+  roles: string[]; auxiliar: boolean;
   ciclo: string; paralelo: string; mencion: string;
 };
 
@@ -70,11 +72,13 @@ async function validarSesion(token: string): Promise<Sesion | null> {
 
   if (s.usuario_tabla === "profesores") {
     const { data: p } = await sb.from("profesores")
-      .select("nombre_completo, rol, activo").eq("id", s.usuario_id).limit(1);
+      .select("nombre_completo, rol, roles, es_auxiliar, activo").eq("id", s.usuario_id).limit(1);
     if (!p || !p.length || p[0].activo === false) return null;
     return {
       id: s.usuario_id, tabla: "profesores", rol: p[0].rol || "",
-      nombre: p[0].nombre_completo || "", ciclo: "", paralelo: "", mencion: "",
+      nombre: p[0].nombre_completo || "",
+      roles: Array.isArray(p[0].roles) ? p[0].roles : [], auxiliar: p[0].es_auxiliar === true,
+      ciclo: "", paralelo: "", mencion: "",
     };
   }
   if (s.usuario_tabla === "cursantes") {
@@ -83,6 +87,7 @@ async function validarSesion(token: string): Promise<Sesion | null> {
     if (!c || !c.length || c[0].activo === false) return null;
     return {
       id: s.usuario_id, tabla: "cursantes", rol: "", nombre: c[0].nombre_completo || "",
+      roles: [], auxiliar: false,
       ciclo: c[0].ciclo || "", paralelo: c[0].paralelo || "", mencion: c[0].mencion || "",
     };
   }
@@ -92,10 +97,16 @@ async function validarSesion(token: string): Promise<Sesion | null> {
 // "Logística" y "LOGISTICA" tienen que coincidir: se comparan sin
 // tildes, sin espacios de sobra y en mayúsculas.
 const norm = (s: string) =>
-  (s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toUpperCase();
+  (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toUpperCase();
+
+function administra(rol: string, roles: unknown, auxiliar: boolean): boolean {
+  if (auxiliar) return false;
+  const todos = [rol, ...(Array.isArray(roles) ? roles : [])].map((r) => String(r || "").toLowerCase());
+  return todos.some((r) => ADMINISTRAN.includes(r));
+}
 
 function esAdmin(ses: Sesion): boolean {
-  return ses.tabla === "profesores" && ADMINISTRAN.includes(ses.rol);
+  return ses.tabla === "profesores" && administra(ses.rol, ses.roles, ses.auxiliar);
 }
 
 async function puedeUsar(ses: Sesion): Promise<boolean> {
@@ -168,10 +179,10 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  // ================= ADMINISTRACIÓN (solo C&T) =================
+  // ============ ADMINISTRACIÓN (solo C&T y Planificación) ============
   if (accion === "acceso_listar" || accion === "acceso_guardar" || accion === "acceso_quitar") {
     if (!esAdmin(ses))
-      return err("Solo Ciencia y Tecnología administra el acceso al Generador.", 403);
+      return err("Solo Ciencia y Tecnología o Planificación administran el acceso al Generador.", 403);
 
     if (accion === "acceso_listar") {
       const { data: reglas } = await sb.from("calcos_acceso")
@@ -209,11 +220,11 @@ Deno.serve(async (req: Request) => {
       const valores = (tipo: string) => Object.keys(conteos[tipo]).sort();
 
       // Profesores para habilitar uno por uno (los que dirigen el ejercicio).
-      // C&T no figura: entra siempre.
+      // Los que administran no figuran: entran siempre.
       const { data: profs } = await sb.from("profesores")
-        .select("id, nombre_completo, rol, activo").order("nombre_completo");
+        .select("id, nombre_completo, rol, roles, es_auxiliar, activo").order("nombre_completo");
       const profesores = (profs || [])
-        .filter((p: any) => p.activo !== false && !ADMINISTRAN.includes(p.rol))
+        .filter((p: any) => p.activo !== false && !administra(p.rol, p.roles, p.es_auxiliar === true))
         .map((p: any) => ({ id: p.id, nombre: p.nombre_completo || p.id, rol: p.rol || "" }));
 
       return ok({
