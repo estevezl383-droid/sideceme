@@ -1,0 +1,41 @@
+name: Validar conceptos entrelazados
+on:
+  pull_request:
+    paths:
+      - 'calcos/conceptos/**'
+      - 'calcos/assets/index-conceptos-20260928.js'
+      - 'calcos/pruebas/*conceptos*'
+      - 'calcos/pruebas/e2e/conceptos.cjs'
+      - '.github/workflows/conceptos.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verificar integración reversible y modelo
+        run: |
+          node calcos/pruebas/conceptos.cjs
+          node --check calcos/assets/index-conceptos-20260928.js
+      - name: Preparar navegador de prueba
+        run: |
+          npm install --prefix /tmp/prueba-conceptos playwright@1.51.1
+          node /tmp/prueba-conceptos/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Probar editor, guardado y Word en la aplicación
+        env:
+          PLAYWRIGHT_MODULE: /tmp/prueba-conceptos/node_modules/playwright
+        run: node calcos/pruebas/e2e/conceptos.cjs
+      - name: Validar estructura de los Word descargados
+        run: python3 calcos/pruebas/word-conceptos.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: revision-conceptos
+          path: calcos/pruebas/salidas-conceptos/
+          retention-days: 7

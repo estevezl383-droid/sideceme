@@ -5,12 +5,15 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
-## 2026-09-28 — 🔥 Plan de fuegos en la pestaña «Fuegos» del Tablero del G-3 (`index-BXOEzGCi.js`)
+## 2026-09-28 — 🔥 Plan de fuegos en la pestaña «Fuegos» del Tablero del G-3 (`index-nQKdqwIj.js`)
 
-Parte de `index-zhbwncsH.js`: trae todo lo de abajo y suma esto. Lo pidió Sergio.
+Parte de `index-conceptos-20260928.js` (la hoja gráfica de conceptos
+entrelazados, que a su vez parte de `index-zhbwncsH.js`; ver
+`calcos/conceptos/README.md`): trae todo eso y suma esto. Lo pidió Sergio.
 La lista EXACTA de reemplazos está en `calcos/pruebas/reemplazos-2026-09-28-fuegos.js`
 (13); `reemplazos-compilado.js` comprueba que deshaciéndolos se vuelve byte por
-byte a `index-zhbwncsH.js`.
+byte a `index-conceptos-20260928.js`, y de ahí (con la lista de
+`integrar-conceptos.cjs`) a `index-zhbwncsH.js` y hacia atrás.
 
 ### Qué pasaba
 

@@ -2,7 +2,8 @@
 // uno el anterior MÁS su lista de reemplazos, y nada más:
 //   index-4OsERrlJ.js + reemplazos-2026-09-27.js = index-sxnJI1Ur.js
 //   index-sxnJI1Ur.js + reemplazos-2026-09-28.js = index-zhbwncsH.js
-//   index-zhbwncsH.js + reemplazos-2026-09-28-fuegos.js = index-BXOEzGCi.js (el vigente)
+//   index-zhbwncsH.js + integrar-conceptos.cjs = index-conceptos-20260928.js
+//   index-conceptos-20260928.js + reemplazos-2026-09-28-fuegos.js = index-nQKdqwIj.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -18,7 +19,14 @@ const PASOS = [
   {
     lista: require('./reemplazos-2026-09-28-fuegos'),
     nombre: 'reemplazos-2026-09-28-fuegos',
-    // calcos/assets/index-zhbwncsH.js (commit d9230e6, antes de estos cambios).
+    // calcos/assets/index-conceptos-20260928.js (commit d8c94f4, antes de estos cambios).
+    anterior: '9a3b1d285b4a1e1e9196250f99c43f29c78c4a49a03fd4ca70073de3265ed7f7',
+  },
+  {
+    // Conceptos entrelazados (codex/conceptos-graficos-20260928): su lista vive en integrar-conceptos.cjs.
+    lista: require('./integrar-conceptos.cjs').cambios.map(([viejo, nuevo], i) => ({ nombre: `conceptos ${i + 1}`, viejo, nuevo, veces: 1 })),
+    nombre: 'integrar-conceptos',
+    // calcos/assets/index-zhbwncsH.js (commit d9230e6).
     anterior: 'ce16f09dcb0768f0436d2ddf723f327d5446bd69020309dc2569bc6d99f71872',
   },
   {
