@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.417</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.418</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -10476,21 +10476,26 @@ function _ncTipo(h){
   if(H.includes('PRACT')) return 'Práctica';
   return 'Otros';
 }
-function _ncDetalle(header, row, comps){
+function _ncDetalle(header, row, comps, nota){
   const g = {};
   for(let k=0; k<comps.length; k++){
     const j = comps[k], h = header[j], v = row[j];
     if(v == null || v === '') continue;
     const t = _ncTipo(h);
-    if(!g[t]) g[t] = { items:[], aporte:null };
+    if(!g[t]) g[t] = { items:[], pesos:[], pts:null };
     if(/%/.test(h)){
       // "FOR. 30%" → aporte 30 (el PESO de la evaluación, como en las notas ya
       // cargadas). La celda de esa columna trae el puntaje ya ponderado, que no
       // es lo que la ficha del alumno muestra; solo se usa si el encabezado no
       // dice el porcentaje.
       const peso = (String(h).match(/(\d+(?:[.,]\d+)?)\s*%/) || [])[1];
-      const n = peso != null ? Number(String(peso).replace(',','.')) : Number(v);
-      if(!isNaN(n)) g[t].aporte = peso != null ? n : ((g[t].aporte || 0) + n);
+      if(peso != null){
+        const n = Number(String(peso).replace(',','.'));
+        if(!isNaN(n)) g[t].pesos.push(n);
+      } else {
+        const n = Number(v);
+        if(!isNaN(n)) g[t].pts = (g[t].pts || 0) + n;
+      }
     } else {
       const n = Number(v);
       // La etiqueta va tal cual está en el Excel ("TRAB.", "FOR.", "SUM."),
@@ -10499,9 +10504,44 @@ function _ncDetalle(header, row, comps){
     }
   }
   const orden = ['Trabajo','Práctica','Formativa','Sumativa','Examen','Otros'];
-  const bloques = orden.filter(function(t){ return g[t] && (g[t].items.length || g[t].aporte != null); })
-    .map(function(t){ return { tipo:t, aporte: g[t].aporte != null ? _ncNum(g[t].aporte) : null, items:g[t].items }; });
-  return bloques.length ? { bloques:bloques } : null;
+  const tipos = orden.filter(function(t){ return g[t] && (g[t].items.length || g[t].pesos.length || g[t].pts != null); });
+  if(!tipos.length) return null;
+
+  // v2.9.418 — DOS TRABAJOS APORTAN 20, NO 10.
+  // Doctrina de Patriotas (1er ciclo, 2026 sem. 2) tiene TRAB. 1 y TRAB. 2, cada
+  // uno del 10%: el bloque Trabajo vale 20. Acá se tomaba UN solo "10%" (el
+  // segundo pisaba al primero) y las 125 notas quedaron "aporta 10": el desglose
+  // sumaba 90, no daba la nota final y el corrector no dejaba tocar ningún
+  // casillero. El peso del bloque puede venir de dos maneras en la planilla:
+  //   · una columna "%" por evaluación ("TRAB. 10%" dos veces) → se SUMAN;
+  //   · una sola columna "TRAB. 10%" que es el peso de CADA trabajo → × cantidad.
+  // No se adivina: se elige la lectura con la que el desglose da la nota final
+  // del Excel. UC. Menciones tiene cinco trabajos que valen 10 entre todos, y
+  // así lo confirma su nota final, así que ahí se queda en 10.
+  const aporteDe = function(t, forma){
+    const x = g[t];
+    if(!x.pesos.length) return x.pts;
+    if(forma === 'suma') return x.pesos.reduce(function(a,c){ return a+c; }, 0);
+    const uno = x.pesos[x.pesos.length-1];
+    return forma === 'porItem' ? uno * Math.max(1, x.items.length) : uno;
+  };
+  const armar = function(forma){
+    return tipos.map(function(t){
+      const ap = aporteDe(t, forma);
+      return { tipo:t, aporte: ap != null ? _ncNum(ap) : null, items:g[t].items };
+    });
+  };
+  const formas = ['suma','porItem','uno'].map(armar);
+  const notaN = Number(nota);
+  const sumaAp = function(bl){ return bl.reduce(function(t,b){ return t + (Number(b.aporte)||0); }, 0); };
+  const bloques =
+       (isFinite(notaN) && formas.find(function(bl){
+          const a = _ncSegunDesglose(bl, 'A');
+          return a !== null && Math.abs(a - notaN) < 0.01;
+        }))
+    || formas.find(function(bl){ return Math.abs(sumaAp(bl) - 100) < 0.5; })
+    || formas[0];
+  return { bloques:bloques };
 }
 
 /* ------------------- construir filas + revisión visual ------------------- */
@@ -10543,7 +10583,7 @@ function ncRevisar(){
       nota_final: _ncNum(nota),
       atributo: c.atr >= 0 ? String(row[c.atr] == null ? '' : row[c.atr]).trim() : '',
       om_materia: c.om >= 0 && row[c.om] != null && !isNaN(Number(row[c.om])) ? Math.trunc(Number(row[c.om])) : null,
-      detalle_json: _ncDetalle(header, row, comps)
+      detalle_json: _ncDetalle(header, row, comps, nota)
     });
   }
 
@@ -10592,6 +10632,28 @@ function ncDibujarRevision(){
     + (NC.sinMatch.length ? '<span class="nc-chip err">✖ '+NC.sinMatch.length+' filas no reconocidas</span>' : '')
     + (NC.avisos.length ? '<span class="nc-chip err">✖ '+NC.avisos.length+' observaciones</span>' : '')
     + '</div>';
+
+  // v2.9.418: cuánto aporta cada bloque, a la vista ANTES de guardar. Así el
+  // "Trabajo aporta 10" de una materia con dos trabajos se ve acá y no en la
+  // ficha del alumno. Se muestra la combinación que tiene la mayoría de filas.
+  const pesos = {};
+  NC.filas.forEach(function(f){
+    const bl = f.detalle_json && f.detalle_json.bloques;
+    if(!bl || !bl.some(function(b){ return b.aporte != null; })) return;
+    const k = bl.map(function(b){ return b.tipo + ' ' + (b.aporte == null ? '—' : String(+Number(b.aporte).toFixed(4))); }).join(' · ');
+    if(!pesos[k]) pesos[k] = { n:0, malas:0 };
+    pesos[k].n++;
+    // 'C' = con estos aportes el desglose no da la nota final del Excel.
+    if(_ncModo(bl, Number(f.nota_final)) === 'C') pesos[k].malas++;
+  });
+  const pesoTop = Object.keys(pesos).sort(function(a,b){ return pesos[b].n - pesos[a].n; })[0];
+  if(pesoTop){
+    const malas = Object.keys(pesos).reduce(function(t,k){ return t + pesos[k].malas; }, 0);
+    html += '<div style="margin:-4px 0 10px;font-size:11.5px;color:var(--text-secondary)">Aportes: <b>'+escapeHtml(pesoTop)+'</b>'
+      + (malas ? ' <span class="nc-chip warn">⚠ en '+malas+' fila(s) el desglose no da la nota final</span>'
+               : ' <span class="nc-chip ok">✔ el desglose da la nota final</span>')
+      + '</div>';
+  }
 
   if(!materia){
     html += '<div class="nc-chip warn" style="display:block;padding:8px 12px">Escribí el nombre de la materia para poder guardar.</div>';
