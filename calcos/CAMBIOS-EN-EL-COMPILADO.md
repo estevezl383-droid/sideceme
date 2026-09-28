@@ -5,6 +5,97 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-09-28 — Cuánto tardan los trabajos de ingeniería con la ingeniería que tenemos (`index-pB4lmorB.js`)
+
+Parte de `index-zhbwncsH.js`: trae todo lo de abajo y suma esto. El pedido:
+«proyectar cuánto tiempo costaría realizar esos trabajos considerando las fuerzas
+de ingeniería que tenemos, las que se plantearon en los documentos adjuntos del
+ejercicio». La lista EXACTA de reemplazos está en
+`calcos/pruebas/reemplazos-2026-09-28-ingenieria.js`.
+
+### Qué pasaba
+
+- El panel 🛡️ Defensa («⏱️ ESFUERZO DE INGENIERÍA») y la barra de abajo («PLAN
+  DE BARRERAS») calculaban con la casilla «Secciones al trabajo», que arrancaba
+  en **1** y no miraba ni los documentos del ejercicio ni el calco. En «ARMAS»
+  (2 zanjas antitanque de 3233 m y 1248 m y 8 bloqueos) decían «374 h de reloj
+  con 1 sección» y «15.6 días».
+- La OGO 01/35 adjunta a «ARMAS» (Organización de la tarea) da el **BATING.
+  MEC.-II «ROMÁN»**: Comp. Ing. Comb. «A» y «B», Comp. Ing. Eq. Pes., Comp. Ing.
+  Puentes, Comp. Mtto. Ing. y Comp. C y S.
+- El tablero del G-3 (pestaña ⏱️ Barreras) sí contaba la ingeniería, pero sólo la
+  del calco (la ficha sin nombre de «ARMAS», un regimiento = 9 secciones), así que
+  cada lugar decía otra cosa.
+- El panel hablaba de «jornadas de 10 h» y la barra de «días» de 24 h, sin decirlo.
+
+### Qué se hizo
+
+- **`fuerzaIngenieria(documentos, unidades, manual)`** (función nueva): lee la
+  Organización de la tarea de los «Documentos del ejercicio» —primero el de
+  categoría Orden, después medios y bases; nunca el Anexo de Inteligencia— tanto
+  en la tabla Markdown (el `.docx.md`) como en el texto plano del Word. Salta el
+  párrafo «Fuerzas enemigas» (ahí puede estar la ingeniería del enemigo). Separa:
+  - ingenieros de combate: construyen los obstáculos → **3 secciones por
+    compañía y 1 por sección** (la misma tabla por escalón que ya usaba la Mesa,
+    `qCe`, marcada ✎ estimación);
+  - equipo pesado: pone las máquinas (el «equipo mecánico» del cálculo);
+  - puentes, mantenimiento y comando/servicios: no construyen obstáculos.
+  - Si la orden sólo nombra el batallón, estima por su escalón. Si los documentos
+    no dicen nada, usa las fichas de ingeniería del calco; si tampoco hay, 1
+    sección supuesta y lo avisa.
+  - En «ARMAS»: **6 secciones** (180 hombres) → **62 h de trabajo = 6,2 jornadas
+    de 10 h (7 días de trabajo), o 2,6 días trabajando las 24 h con relevos**. Con
+    las máquinas de la Comp. Ing. Eq. Pes., unas 6 h.
+- La Mesa calcula esa fuerza una sola vez (`fuerzaIngMesa`) y la pasa a la barra,
+  al panel 🛡️ Defensa y al tablero del G-3 (y, por él, a las hojas que se siembran
+  del calco). «Secciones al trabajo» arranca vacía (`null`): lo que se escriba a
+  mano manda, y «↺ usar las de la orden» vuelve.
+- **Panel 🛡️ Defensa**: «🛠️ Con qué lo hacemos» (documento, unidad, compañía por
+  compañía y cuántas secciones construyen) y «⏱️ Cuánto tarda · apreciación»
+  (horas de trabajo, jornadas de 10 h y días de trabajo, días de 24 h con
+  relevos, la cuenta hombres-hora ÷ hombres, y con las máquinas si la orden da
+  equipo pesado).
+- **Barra de abajo**: título «PLAN DE BARRERAS · 62 h DE TRABAJO = 6,2 JORNADAS DE
+  10 h · CON 6 SECC. DE INGENIERÍA»; bloques nuevos «Ingeniería que tenemos» y
+  «Tiempo de trabajo · apreciación»; «Equipo mecánico» avisa si la orden da la
+  compañía de equipo pesado; «Los trabajos» dice con cuántas secciones son las
+  horas.
+- **Tablero del G-3 · ⏱️ Barreras**: calcula con la misma fuerza, muestra «Con qué
+  lo hacemos» y el tiempo en jornadas; el aviso «No hay ninguna unidad de
+  INGENIERÍA» sólo sale si tampoco la dan los documentos.
+- Un trabajo de menos de una hora se dice en minutos (con 6 secciones un bloqueo
+  es «1 min», no «0 h»).
+- No cambian los rendimientos (hombres-hora por metro, por mina o por obra), ni
+  lo que se guarda con el ejercicio.
+
+### En el fuente
+
+- Un módulo con `fuerzaIngenieria` y lo que usa (`ING_CLASE`, `ingTrozos`,
+  `leerIngenieriaDoc`, `ingTiempo`, `ingHoras`) y dos componentes
+  (`IngConQue`, `IngCuanto`) más `ingResumen` para la barra.
+- En la Mesa: `seccionesTrabajo` con `null` por defecto y
+  `useMemo(() => fuerzaIngenieria(documentos, unidades, seccionesTrabajo))`;
+  pasar `fuerza.secciones` y `fuerza` a la barra, al panel de Defensa y al
+  tablero del G-3 (y a `VCe` como `seccionesIng`).
+
+### Cómo se comprobó
+
+- `cd calcos/pruebas && npm ci && npm test`: `ingenieria-fuerza.js` (14 casos)
+  corre las funciones del compilado sobre la Organización de la tarea de la OGO
+  01/35 (`ogo-organizacion.js`, en Markdown y en texto de Word): el BATING. MEC.-II
+  con sus cinco compañías y 6 secciones, sin la ingeniería enemiga, sin contar dos
+  veces una compañía nombrada en una frase; la orden manda sobre la ficha del
+  calco; el Anexo de Inteligencia no cuenta; calco, supuesta y a mano; el plan de
+  «ARMAS» da 374 h con 1 sección (lo que mostraba la barra) y 62 h con las 6.
+  `reemplazos-compilado.js` deshace la cadena entera (SHA-256 en cada paso).
+- `node e2e/ingenieria-tiempo.js` (15 casos en Chromium): barra, panel 🛡️ Defensa,
+  corrección a mano y vuelta a la orden, tablero del G-3, sin orden (ficha del
+  calco: 9 secciones) y sin nada (1 supuesta), sin errores de JavaScript. Con
+  `index-zhbwncsH.js` fallan todos menos los de «sin errores». De
+  `plan-barreras-3d.js` se corrieron los 5 primeros casos (ratón en 3D y en 2D) y
+  pasaron; esa corrida, `academico.js` y `carga.js` se cortaron antes de terminar
+  para subir el cambio: hay que repetirlas (`npm run e2e`).
+
 ## 2026-09-28 — Un solo pedido de las capas al cambiar el área (`index-zhbwncsH.js`)
 
 Parte de `index-sxnJI1Ur.js`: trae todo lo de abajo y suma esto. Salió de
