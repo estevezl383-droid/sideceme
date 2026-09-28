@@ -5,6 +5,146 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-09-28 — 🔥 Plan de fuegos en la pestaña «Fuegos» del Tablero del G-3 (`index-nQKdqwIj.js`)
+
+Parte de `index-conceptos-20260928.js` (la hoja gráfica de conceptos
+entrelazados, que a su vez parte de `index-zhbwncsH.js`; ver
+`calcos/conceptos/README.md`): trae todo eso y suma esto. Lo pidió Sergio.
+La lista EXACTA de reemplazos está en `calcos/pruebas/reemplazos-2026-09-28-fuegos.js`
+(13); `reemplazos-compilado.js` comprueba que deshaciéndolos se vuelve byte por
+byte a `index-conceptos-20260928.js`, y de ahí (con la lista de
+`integrar-conceptos.cjs`) a `index-zhbwncsH.js` y hacia atrás.
+
+### Qué pasaba
+
+- En «🔥 Fuegos», «¿Qué blancos alcanzo hoy?» contaba sólo fichas sueltas. Las
+  piezas de artillería o de morteros metidas en una fuerza de tarea o agrupación
+  (🧩 Organización de la tarea) no aparecían: daba «0 piezas de apoyo», y no se
+  podía ver hasta dónde llegaban sus fuegos.
+- Con la pestaña de fuegos abierta, tocar la carta seleccionaba el Área de
+  Operaciones: aparecían sus puntos blancos para arrastrar y el cartel «arrastrá
+  los puntos para corregir». El AO cubre justo donde van los fuegos.
+- No había dónde marcar las concentraciones del plan de fuegos ni sus datos.
+
+### Qué se hizo
+
+El plan de fuegos es código legible APARTE del compilado, como el Estudio, en
+`calcos/fuegos/` (lo carga `calcos/index.html` antes del compilado):
+
+- `plan-fuegos.js` — modelo (sin DOM, se prueba en Node) y la vista.
+- `plan-fuegos.css` — mismo aspecto que el Tablero del G-3.
+
+**Modo fuegos.** Mientras la pestaña «🔥 Fuegos» está abierta, la carta está en
+el mismo `dibujando` que ya usan las herramientas de trazado (`gp`): ninguna capa
+(AO, CMOC, límites, plantilla enemiga…) toma el clic ni muestra sus puntos
+blancos, y al abrir la pestaña se deselecciona lo que estuviera seleccionado.
+Al salir de la pestaña todo vuelve a lo normal.
+
+**Medios de apoyo de fuego**, agrupados por organización:
+- las piezas de artillería, morteros y lanzacohetes de cada FT, agrupación o
+  unidad pura. Toman el sistema de armas de su unidad orgánica (una batería del
+  G.A. con obús M-101 tiene M-101) y, de entrada, la posición de la ficha
+  consolidada de la organización (o la de su unidad, si no se consolidó);
+- las fichas de artillería, morteros y lanzacohetes que siguen con su unidad;
+- las armas de apoyo orgánicas (morteros) de las FT y de las unidades de
+  maniobra, con el mismo cálculo que la Mesa (`eh` → influencia; «estimación»).
+
+Cada medio se MARCA (☐) para ver su alcance en la carta: círculo de su color con
+el rótulo (y el alcance mínimo punteado cuando el catálogo lo da: obús M-101
+2,1 km y LAR-160 12 km, de la misma cita de `p5`). El G-3 cambia el sistema de
+armas (catálogo `p5` de la Mesa, con su cita) y la POSICIÓN DE FUEGO: se arrastra
+en la carta o se ubica con «📍 Ubicar» (↺ vuelve a la ficha). Eso es el calco de
+posiciones: no mueve las fichas.
+
+**Concentraciones.** «🎯 Marcar concentraciones en la carta» y cada toque pone
+una (AB-010, AB-011…; `preclick`, como la Línea de vista, así se marca también
+encima de una ficha). Cruz negra (la marca del plan de blancos, según el docente)
+con su designación, y su forma: puntual, circular (radio), rectangular (largo ×
+ancho × orientación) o lineal. En **fucsia** si el medio asignado —o, sin asignar,
+ninguno— la alcanza, y dice cuánto tiene que acercarse (o alejarse, si quedó
+dentro del alcance mínimo) la pieza. Al arrastrar una posición de fuego las
+cruces cambian de color en vivo. Cada una lleva:
+- designación; coordenadas MGRS, UTM (WGS-84) y geográficas; cota (del relieve
+  de la Mesa, `w9.cota`, editable);
+- descripción del blanco; tipo de fuego (preparación, apoyo, contrapreparación,
+  protección final/barrera, contrabatería, interdicción, hostigamiento, humo,
+  iluminación); efecto (destruir, neutralizar, suprimir, enceguecer, iluminar);
+- medio que lo bate (con la distancia y si alcanza); ejecución (a pedido,
+  programado, prioritario), hora, fase/evento; munición, espoleta y volumen;
+  quién lo observa; propósito; observaciones.
+
+**Blancos enemigos del calco** (lo que era «¿Qué blancos alcanzo hoy?»), ahora
+contra todos los medios de apoyo de fuego: batible o fuera de alcance (fucsia,
+con cuánto hay que acercarse), un aro fucsia en la carta sobre los que no se
+alcanzan, y «🎯 Concentración sobre este blanco».
+
+Se guarda con el ejercicio en `planFuegos: { version: 1, medios: {id: {sistema,
+pos, ver}}, blancos: [...], verEnCarta }`. Las concentraciones quedan en la carta
+al cerrar la pestaña (se puede apagar). «⬇️ Lista de blancos (Word)» baja la
+lista de blancos y el calco de posiciones; la hoja «Matriz de ejecución de apoyo
+de fuegos» (F4·P7) se llena con las concentraciones al tocar «🌱 Traer del calco
+lo que falte».
+
+Los identificadores de los medios: `pieza:<id de la pieza>`, `ficha:<id>`,
+`organica:<id de la ficha>`. No se cambió nada de `orgTarea` ni de las fichas.
+
+### Qué se tocó en el compilado (13 reemplazos)
+
+- Estado `[planFuegos, setPlanFuegos]` y `[modoFuegos, setModoFuegos]`;
+  `planFuegos` en lo que se guarda (`Ud`, `BSe`) y en lo que se abre (`mm`); un
+  ejercicio con concentraciones no cuenta como vacío (`vS`).
+- `gp` (el `dibujando` de la carta) también es verdadero con `modoFuegos`.
+- Un efecto que le pasa los datos al módulo (`MesaFuegos.sincronizar`, con `Vd`
+  —las fichas como las ve el tablero— y `dn`) y `window.__mesaFuegos` con Leaflet
+  (`Rt`), catálogos (`p5`, `dK`, `mK`), cálculos (`eh`, `lP`, `dP`, `uP`, `js`,
+  `Xc`) y la cota (`w9.cota`).
+- `ILe` (pestaña Fuegos): si está el módulo, monta su panel (`pfMontar`, función
+  estable para el `ref`) en lugar de «¿Qué blancos alcanzo hoy?». Los dos cuadros
+  del reglamento de abajo quedan igual. Sin el módulo, se ve lo de antes.
+- Autollenado de la hoja `fuegos` (`l3e`): si el plan tiene concentraciones, usa
+  `MesaFuegos.filasMatriz()` (mismas columnas); si no, lo de antes.
+
+### En el fuente
+
+- Estado `planFuegos` guardado con el ejercicio, `modoFuegos` sumado al
+  `dibujando` de la carta, el efecto `sincronizar` y `__mesaFuegos`.
+- Pestaña Fuegos: montar el panel (o pasar `calcos/fuegos/` a componentes React
+  con la misma lógica del modelo; las capas Leaflet se pueden pasar tal cual).
+- Autollenado de la Matriz de ejecución de apoyo de fuegos con las concentraciones.
+
+### Cómo se comprobó
+
+- `cd calcos/pruebas && npm test`: `plan-fuegos-modelo.js` (16 casos con `eh`,
+  `p5`, `gK`, `mK` y la librería mgrs reales del compilado): la batería de la FT
+  con el obús de su G.A. y la posición de la FT; armas orgánicas; piezas
+  repetidas; sin posición; cambio de sistema y posición; dentro, fuera y alcance
+  mínimo; el asignado manda; mismo resultado que `gK` de la Mesa (más de 100
+  puntos); MGRS igual a la librería de la Mesa en más de 200 puntos (±1 m: esa
+  librería redondea distinto; la UTM propia coincide con la serie de Krüger de 6.º
+  orden a menos de 0,01 mm); numeración; edición; geometría; columnas de la
+  Matriz iguales a las de la hoja; Word. Y `reemplazos-compilado.js` con el paso
+  nuevo.
+- `npm run e2e`: `e2e/plan-fuegos.js`, 18 casos en Chromium con el ejercicio
+  ficticio `ejercicio-fuegos.js` (una FT con una batería de artillería
+  consolidada y dos fichas enemigas): sin la pestaña, tocar el AO lo selecciona
+  (control); con la pestaña, no, y se marcan concentraciones encima; la cercana
+  negra, la lejana fucsia; datos y coordenadas guardados; «📍 Ubicar» la acerca y
+  vuelve a negro; arrastrarla demasiado cerca (alcance mínimo) y más atrás; los
+  enemigos fuera de alcance; el Word; la Matriz; al salir de la pestaña el AO
+  vuelve a seleccionarse; se guarda y se vuelve a abrir; en 3D se ven y se marcan
+  sin activar el AO; en el teléfono no desborda. `plan-barreras-3d.js`,
+  `academico.js` y `carga.js` siguen pasando.
+
+### Lo que falta
+
+- Ningún reglamento de tiro ni de apoyo de fuegos estuvo a la vista: los tipos de
+  fuego, efectos y modos de ejecución son los términos de uso corriente (y los que
+  ya usa la Mesa en la MEAF y el Anexo de Apoyo de Fuegos), sin cita. Conviene que
+  el docente confirme la lista y los campos de la lista de blancos contra el
+  reglamento vigente.
+- Los alcances mínimos son sólo los dos que el catálogo trae como «de … a …».
+- La cota sale del relieve digital (Terrarium), no de la carta.
+
 ## 2026-09-28 — Un solo pedido de las capas al cambiar el área (`index-zhbwncsH.js`)
 
 Parte de `index-sxnJI1Ur.js`: trae todo lo de abajo y suma esto. Salió de
