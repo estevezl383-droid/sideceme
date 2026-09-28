@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.416</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.417</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -9557,10 +9557,17 @@ async function enterRole(role){
     renderEvalPanel();
     showScreen('screen-eval-panel');
   } else if(role==='jefe_planificacion'){
-    // v2.9.292: Sección Planificación → panel propio (si cayera al else vería
-    // "Panel en construcción", como le pasó a Evaluaciones antes de v2.9.189).
-    renderPlanifPanel();
-    showScreen('screen-planif-panel');
+    // v2.9.417: el Jefe de Planificación también es PROFESOR. Entra al panel
+    // completo del profesor (sanciones, horario, documentos, carpeta, quiz...)
+    // y arriba se le agregan las herramientas de la Sección (_plpEnProfPanel).
+    // Antes entraba a screen-planif-panel, que no tenía nada de lo del profesor.
+    // activeRole queda en 'jefe_planificacion' para no perder sus permisos.
+    if(!discData.loaded){
+      await _loadProfesorRapido();
+      loadDiscData(true).catch(()=>{});
+    }
+    renderProfPanel();
+    showScreen('screen-prof-panel');
   } else {
     renderGenericoPanel(role);
     showScreen('screen-panel-generico');
@@ -13450,7 +13457,7 @@ function volverDeHorarios(){
   } else {
     // Fallback: detectar rol
     if(esAdminPanel()) showScreen('screen-disc-panel');
-    else if(activeRole === 'profesor') showScreen('screen-prof-panel');
+    else if(activeRole === 'profesor' || activeRole === 'jefe_planificacion') showScreen('screen-prof-panel');
     else if(activeRole === 'ef') showScreen('screen-ef-panel');
     else if(currentUser && getSession() && getSession().tipo === 'cursante') showScreen('screen-cursante-home');
     else goHome();
@@ -42458,6 +42465,9 @@ function renderProfPanel(){
 
   // Renderizar listado inline de sanciones del profesor
   renderMisSancionesInline();
+
+  // v2.9.417: Jefe de Planificación = profesor + herramientas de la Sección.
+  try{ _plpEnProfPanel(); }catch(e){ console.warn('plp en panel profesor', e); }
 }
 
 /* ==================== LISTADO INLINE DE SANCIONES DEL PROFESOR ==================== */
@@ -45902,7 +45912,7 @@ async function verificarNotificaciones(){
 
       // 🔴 v2.9.62: PROFESOR (no admin) → puntito persistente con sanciones suyas SIN FIRMAR.
       // Antes solo se actualizaba al entrar al panel; ahora cada 45s en background.
-      if(activeRole === 'profesor' || activeRole === 'ef'){
+      if(activeRole === 'profesor' || activeRole === 'ef' || activeRole === 'jefe_planificacion'){
         try{
           const uid = currentUser.id;
           const {data:pend} = await sb.from('v_sanciones')
@@ -46586,6 +46596,7 @@ function goPlanificacion(){
 }
 function plVolver(){
   if(PLANIF.origen){ showScreen(PLANIF.origen); PLANIF.origen=null; }
+  else if(activeRole==='jefe_planificacion') showScreen('screen-prof-panel');   // v2.9.417
   else if(esAdminPanel()) showScreen('screen-disc-panel');
   else showScreen('screen-panel-generico');
 }
@@ -49168,6 +49179,31 @@ function renderPlanifPanel(){
       cont.appendChild(b);
     }
   }catch(e){ console.warn('plp doble funcion', e); }
+}
+
+// v2.9.417 — el Jefe de Planificación entra al PANEL DEL PROFESOR (tiene todo lo
+// del profesor: sancionar, horario, documentos, carpeta, quiz...) y acá se le
+// agrega arriba lo propio de la Sección. Si después entra otro usuario en la
+// misma pestaña, se quita y el panel vuelve a ser el del profesor común.
+function _plpEnProfPanel(){
+  const sec=document.getElementById('screen-prof-panel'); if(!sec) return;
+  const esJefe = (activeRole==='jefe_planificacion');
+  const tit=sec.querySelector('.app-header .header-title');
+  const sub=sec.querySelector('.app-header .header-sub');
+  if(tit) tit.textContent = esJefe ? 'Sección Planificación' : 'Panel del Profesor';
+  if(sub) sub.textContent = esJefe ? 'Profesor · Documentación semanal' : 'Registro de sanciones';
+  const viejo=document.getElementById('prof-btn-planif');
+  if(!esJefe){ if(viejo) viejo.remove(); return; }
+  const rk=document.getElementById('prof-rank');
+  if(rk) rk.textContent='Jefe Sección Planificación · Plantel docente';
+  if(viejo) return;
+  const hero=sec.querySelector('.prof-hero'); if(!hero) return;
+  const b=document.createElement('button');
+  b.id='prof-btn-planif'; b.className='btn-mega';
+  b.style.cssText='background:linear-gradient(180deg,#4ca36b,#2d7a4a);margin-bottom:8px;color:#fff';
+  b.onclick=function(){ goPlanificacion(); };
+  b.innerHTML='<span class="mega-icon">🗓️</span><span>Planificación semanal — horarios de planta y de los dos ciclos, programa de la Facultad y notas de servicio</span>';
+  hero.insertAdjacentElement('afterend', b);
 }
 
 
