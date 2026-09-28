@@ -21,7 +21,7 @@ export async function crearWordConceptos(valor, rasterizar = svgAPng) {
   for(const svg of laminasConceptos(valor)) {
     const data=await rasterizar(svg)
     secciones.push({ properties:{ page:{ size:{ width:12240,height:15840,orientation:PageOrientation.LANDSCAPE }, margin:{top:540,bottom:540,left:540,right:540} } },
-      children:[new Paragraph({ spacing:{before:0,after:0}, children:[new ImageRun({data,type:'png',transformation:{width:980,height:713},altText:{title:'Conceptos entrelazados',description:'Hoja gráfica. Editar los datos en SIDE-CEME.'}})] })] })
+      children:[new Paragraph({ spacing:{before:0,after:0}, children:[new ImageRun({data,type:'png',transformation:{width:980,height:713},altText:{id:secciones.length+1,name:`Conceptos entrelazados hoja ${secciones.length+1}`,title:'Conceptos entrelazados',description:'Hoja gráfica. Editar los datos en SIDE-CEME.'}})] })] })
   }
   return Packer.toBlob(new Document({sections:secciones}))
 }
