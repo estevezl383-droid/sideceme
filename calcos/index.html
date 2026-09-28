@@ -50,13 +50,22 @@
             url: 'https://ofsyiylhdrdiqtnbaovo.supabase.co',
             anonKey: 'sb_publishable_adOxDHyWfXOXDqC9lmnP7g_m4Sf4AIx',
             token: t,
+            // 🎓 Estudio: sólo el profesor edita la organización académica y
+            // las actividades (el cursante las ve). Es una guía de la pantalla,
+            // no un permiso: lo que se guarda lo controla el servidor.
+            esProfesor: !!t && !!lee('sideceme_token_p'),
           }
         } catch (e) {
           /* sin localStorage (modo privado): queda en modo archivos */
         }
       })()
     </script>
-    <script type="module" crossorigin src="./assets/index-4OsERrlJ.js"></script>
+    <!-- 🎓 Estudio doctrinario (material didáctico): código legible aparte del
+         compilado. Van antes del compilado para estar listos cuando la Mesa arranca. -->
+    <link rel="stylesheet" href="./academico/academico.css">
+    <script src="./academico/catalogo-simbologia.js" defer></script>
+    <script src="./academico/academico.js" defer></script>
+    <script type="module" crossorigin src="./assets/index-sxnJI1Ur.js"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-lHYAlTjN.css">
   </head>
   <body>
