@@ -3,7 +3,9 @@ on:
   pull_request:
     paths:
       - 'calcos/conceptos/**'
+      - 'calcos/index.html'
       - 'calcos/assets/index-conceptos-20260928.js'
+      - 'calcos/assets/index-6Gm5UQ97.js'
       - 'calcos/pruebas/*conceptos*'
       - 'calcos/pruebas/e2e/conceptos.cjs'
       - '.github/workflows/conceptos.yml'
@@ -13,21 +15,23 @@ permissions:
 jobs:
   verificar:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Verificar integración reversible y modelo
+      - name: Modelo, láminas, IA y cadena de compilados reversible
         run: |
+          npm ci --prefix calcos/pruebas
           node calcos/pruebas/conceptos.cjs
-          node --check calcos/assets/index-conceptos-20260928.js
+          node calcos/pruebas/reemplazos-compilado.js
+          node --check calcos/assets/index-6Gm5UQ97.js
       - name: Preparar navegador de prueba
         run: |
           npm install --prefix /tmp/prueba-conceptos playwright@1.51.1
           node /tmp/prueba-conceptos/node_modules/playwright/cli.js install --with-deps chromium
-      - name: Probar editor, guardado y Word en la aplicación
+      - name: Probar la hoja en la Mesa (armado, IA, láminas, Word, guardar)
         env:
           PLAYWRIGHT_MODULE: /tmp/prueba-conceptos/node_modules/playwright
         run: node calcos/pruebas/e2e/conceptos.cjs

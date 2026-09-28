@@ -3,7 +3,8 @@
 //   index-4OsERrlJ.js + reemplazos-2026-09-27.js = index-sxnJI1Ur.js
 //   index-sxnJI1Ur.js + reemplazos-2026-09-28.js = index-zhbwncsH.js
 //   index-zhbwncsH.js + integrar-conceptos.cjs = index-conceptos-20260928.js
-//   index-conceptos-20260928.js + reemplazos-2026-09-28-fuegos.js = index-nQKdqwIj.js (el vigente)
+//   index-conceptos-20260928.js + reemplazos-2026-09-28-fuegos.js = index-nQKdqwIj.js
+//   index-nQKdqwIj.js + reemplazos-2026-09-28-conceptos-ia.js = index-6Gm5UQ97.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -16,6 +17,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-09-28-conceptos-ia'),
+    nombre: 'reemplazos-2026-09-28-conceptos-ia',
+    // calcos/assets/index-nQKdqwIj.js (commit 849d876, antes de estos cambios).
+    anterior: '9fe40a76ac088eab81fdcaed6c65f75e401116d9b084c580c5e6906dc36e917b',
+  },
   {
     lista: require('./reemplazos-2026-09-28-fuegos'),
     nombre: 'reemplazos-2026-09-28-fuegos',
