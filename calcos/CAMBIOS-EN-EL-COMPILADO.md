@@ -5,6 +5,65 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-09-28 — Un solo pedido de las capas al cambiar el área (`index-zhbwncsH.js`)
+
+Parte de `index-sxnJI1Ur.js`: trae todo lo de abajo y suma esto. Salió de
+preparar el servidor para una clase con unos 45 alumnos generando calcos a la vez
+(`calcos/pruebas/carga.html`). La lista EXACTA de reemplazos está en
+`calcos/pruebas/reemplazos-2026-09-28.js`; `reemplazos-compilado.js` comprueba
+que deshaciéndolos se vuelve byte por byte a `index-sxnJI1Ur.js` (y, deshaciendo
+también los del 27, a `index-4OsERrlJ.js`).
+
+### El pedido doble
+
+- Cada vez que cambiaba el Área de Interés (por ejemplo, al abrir la BASE del G-3
+  con `?puesto=g2`), la Mesa mandaba a `calcos-datos` DOS pedidos `recortar`
+  iguales con las capas prendidas del tablero (`hidro_lineas` +
+  `poblaciones_puntos` por defecto), con unos 10 ms de diferencia. El servidor
+  procesaba los dos: con toda la clase abriendo la BASE a la vez, el doble de
+  trabajo justo al empezar.
+- Causa: el efecto que trae las capas prendidas depende de `[X,Ae,Ce]` (país,
+  área y el contador que versiona la caché `tt`, con clave `${pais}:${capa}:${Ce}`).
+  Otro efecto, con `[Ae]`, sube `Ce` cada vez que cambia el área. El primero
+  corría una vez por `Ae` y, un render después, otra por `Ce`. La limpieza
+  (`ot=!1`) descartaba el primer resultado, pero el `fetch` ya había salido.
+- En modo archivos (escritorio) pasaba lo mismo con los GeoJSON del disco: cada
+  capa prendida se leía dos veces al arrancar y tres al abrir una BASE.
+
+### Qué se tocó
+
+- Un `useRef` nuevo, `ceAnterior`, al lado de `tt`.
+- El efecto de `[Ae]` anota en `ceAnterior` el valor de `Ce` antes de subirlo.
+- El efecto de las capas prendidas no corre mientras `Ce` siga en ese valor:
+  corre una sola vez, un render después, ya con el contador nuevo. Lo que trae
+  queda en la caché con la clave nueva, así que ⚡ GENERAR CALCOS sigue sin volver
+  a pedir esas capas. Un cambio de país sin cambio de área corre como siempre.
+- No se usó un AbortController: el primer pedido ya salió cuando se cancela, y el
+  servidor lo procesa igual. Tampoco se sacó `Ce` de las dependencias: el pedido
+  quedaría guardado con la clave vieja y ⚡ GENERAR lo repetiría.
+
+### En el fuente
+
+- En el efecto que sube el contador: `ceAnterior.current = Ce` antes de
+  `setCe(c => c + 1)`. En el efecto de las capas prendidas, al principio:
+  `if (Ce === ceAnterior.current) return`. (Mejor todavía: derivar la versión de
+  la caché del área misma, sin un segundo render.)
+
+### Cómo se comprobó
+
+- `cd calcos/pruebas && npm ci && npm test`: `reemplazos-compilado.js` ahora
+  deshace la cadena entera (28 → `index-sxnJI1Ur.js`, 27 → `index-4OsERrlJ.js`,
+  SHA-256 en cada paso).
+- `npm run e2e`: `e2e/carga.js`, 6 casos en Chromium con `calcos-datos` simulado.
+  La Mesa real en modo servidor abre la BASE (un pedido), aprieta ⚡ GENERAR
+  CALCOS (una capa por pedido, sin repetir las dos del tablero) y cambia de país
+  sin cambiar el área (un pedido). En modo archivos, cada capa prendida se lee
+  una vez. La página de carga, con un alumno, repite exactamente la misma
+  secuencia que la Mesa. Con `COMPILADO=<index-sxnJI1Ur.js> node e2e/carga.js`
+  fallan 3 de 6: los dos de la Mesa (dos pedidos al abrir; tres lecturas por
+  capa) y la comparación con la página, que depende del primero. Con éste pasan
+  los 6. `plan-barreras-3d.js` (14) y `academico.js` (20) siguen pasando.
+
 ## 2026-09-27 — El plan de barreras se traza en 3D, y 🎓 Estudio doctrinario (`index-sxnJI1Ur.js`)
 
 Parte de `index-4OsERrlJ.js`: trae todo lo de abajo y suma esto. Lo pidió Sergio.

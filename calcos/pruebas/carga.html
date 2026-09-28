@@ -9,11 +9,9 @@
     Prueba de carga controlada de `calcos-datos` (el servidor del Generador).
 
     Simula N alumnos que abren la BASE del G-3 y aprietan ⚡ GENERAR CALCOS,
-    con los MISMOS pedidos que hace la Mesa (index-sxnJI1Ur.js):
+    con los MISMOS pedidos que hace la Mesa (index-zhbwncsH.js):
       - al abrir la BASE, la Mesa pide sola las capas prendidas del tablero
-        (por defecto hidro_lineas + poblaciones_puntos). Lo pide DOS VECES a
-        la vez: el efecto corre al cambiar el área y otra vez al cambiar su
-        contador (Ce), y el primer pedido no se cancela, sólo se descarta;
+        (por defecto hidro_lineas + poblaciones_puntos) en UN pedido;
       - ⚡ GENERAR CALCOS pide UNA capa por pedido, una tras otra, por cada
         país cuya caja toca el área (las que ya trajo al abrir no las repite).
     Cada alumno virtual hace sus pedidos en fila; los alumnos van en paralelo.
@@ -251,8 +249,7 @@ group by minuto order by minuto desc</pre>
     if (!aoi || !pais) return [];
     const excluida = (p, capa) => PAISES[p].excluidas.includes(capa);
     const alAbrir = CAPAS_AL_ABRIR.filter((c) => !excluida(pais, c));
-    // `copias: 2`: la Mesa lo manda dos veces a la vez (ver arriba).
-    const pedidos = alAbrir.length ? [{ pais, capas: alAbrir, copias: 2 }] : [];
+    const pedidos = alAbrir.length ? [{ pais, capas: alAbrir }] : [];
     if (escenario() === 'generar') {
       const paises = paisesDelArea();
       for (const capa of CAPAS_GENERAR) {
@@ -267,15 +264,13 @@ group by minuto order by minuto desc</pre>
   }
 
   const escenario = () => document.querySelector('input[name=escenario]:checked').value;
-  const pedidosDe = (plan) => plan.reduce((suma, p) => suma + (p.copias || 1), 0);
 
   function actualizarPlan() {
     const plan = planDeAlumno();
     const n = Number($('alumnos').value);
-    const cada = pedidosDe(plan);
     $('plan').textContent = plan.length
-      ? `Cada alumno hace ${cada} pedidos en fila (el de abrir la BASE va dos veces, como en la Mesa); ` +
-        `con ${n} alumno${n === 1 ? '' : 's'} son ${cada * n} pedidos.`
+      ? `Cada alumno hace ${plan.length} pedidos en fila; ` +
+        `con ${n} alumno${n === 1 ? '' : 's'} son ${plan.length * n} pedidos.`
       : 'Elegí primero el área.';
     $('btnEmpezar').disabled = !(habilitado && plan.length) || corriendo;
   }
@@ -324,14 +319,12 @@ group by minuto order by minuto desc</pre>
     const t0 = performance.now();
     for (const p of plan) {
       if (senal.aborted) return;
-      const copias = await Promise.all(Array.from({ length: p.copias || 1 }, () => pedir(p, senal)));
-      for (const r of copias) {
-        if (!r) return;
-        r.capa = p.capas.join('+'); r.pais = p.pais;
-        prueba.resultados.push(r);
-        a.hechos++;
-        if (!r.ok) a.errores++;
-      }
+      const r = await pedir(p, senal);
+      if (!r) return;
+      r.capa = p.capas.join('+'); r.pais = p.pais;
+      prueba.resultados.push(r);
+      a.hechos++;
+      if (!r.ok) a.errores++;
     }
     a.duracion = performance.now() - t0;
     a.estado = a.errores ? 'mal' : 'ok';
@@ -342,7 +335,7 @@ group by minuto order by minuto desc</pre>
     const n = Number($('alumnos').value);
     const escalonS = Number($('escalon').value);
     if (!plan.length) return;
-    const total = pedidosDe(plan) * n;
+    const total = plan.length * n;
     if (n >= 10 && !confirm(`Van ${total} pedidos de ${n} alumnos simulados al servidor de verdad ` +
         `(el mismo de todo SIDECEME). ¿Seguimos?`)) return;
 
@@ -409,7 +402,7 @@ group by minuto order by minuto desc</pre>
     $('estado').textContent = `${k.hechos} de ${prueba.total} pedidos · ${k.ok} bien · ${k.mal} con error · ` +
       `${mb(k.bytes)} bajados · ${fmt(pasado, 0)} s`;
     $('alumnosVista').innerHTML = prueba.alumnos.map((a) =>
-      `<span class="${a.estado === 'espera' ? '' : a.estado}" title="Alumno ${a.i + 1}: ${a.hechos}/${pedidosDe(prueba.plan)}` +
+      `<span class="${a.estado === 'espera' ? '' : a.estado}" title="Alumno ${a.i + 1}: ${a.hechos}/${prueba.plan.length}` +
       `${a.errores ? `, ${a.errores} con error` : ''}">${a.i + 1}</span>`).join('');
     const filas = [
       ['Cada pedido: hasta que responde el servidor', k.servidor, seg],
@@ -455,7 +448,7 @@ group by minuto order by minuto desc</pre>
       `Área: ${prueba.area}`,
       `Caja: ${prueba.caja.map((x) => x.toFixed(3)).join(', ')} · país de la BASE: ${prueba.pais}`,
       `Escenario: ${prueba.escenario === 'generar' ? 'abrir BASE + GENERAR CALCOS' : 'sólo abrir BASE'} · ` +
-        `${prueba.n} alumnos · arranque en ${$('escalon').value} s · ${pedidosDe(prueba.plan)} pedidos por alumno` +
+        `${prueba.n} alumnos · arranque en ${$('escalon').value} s · ${prueba.plan.length} pedidos por alumno` +
         (prueba.parada ? ' · PARADA A MANO' : ''),
       `Pedidos: ${k.hechos}/${prueba.total} · bien ${k.ok} · error ${k.mal} · bajado ${mb(k.bytes)} · ` +
         `respuesta más grande ${mb(k.maxRespuesta)}`,

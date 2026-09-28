@@ -2,7 +2,9 @@
 // servidor: `calcos-datos` y `calco-ops` se contestan acá.
 //   · la Mesa del EM de verdad (el compilado), en modo servidor, abre una BASE
 //     repartida y aprieta ⚡ GENERAR CALCOS: se anotan sus pedidos a
-//     calcos-datos, uno por uno (al abrir, el mismo pedido sale DOS veces);
+//     calcos-datos, uno por uno (al abrir, UN solo pedido con las capas
+//     prendidas; hasta index-sxnJI1Ur.js salía dos veces);
+//   · en modo archivos (escritorio), cada capa prendida se lee una sola vez;
 //   · la página de carga, con un alumno y la misma área, tiene que hacer
 //     EXACTAMENTE los mismos pedidos, en el mismo orden;
 //   · con varios alumnos: cuenta pedidos, errores y arma el resumen;
@@ -10,11 +12,13 @@
 //   · sin ser C&T / Planificación, no deja empezar.
 //
 //   cd calcos/pruebas && node e2e/carga.js
+//   COMPILADO=/ruta/a/otro-index.js node e2e/carga.js   (lo sirve en lugar del vigente)
 const assert = require('assert')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
 const { servir, cargarPlaywright } = require('./navegador')
+const { vigente } = require('../extraer')
 
 const COCHABAMBA = { type: 'Polygon', coordinates: [[[-66.5, -17.7], [-65.9, -17.7], [-65.9, -17.15], [-66.5, -17.15], [-66.5, -17.7]]] }
 // Orilla del Titicaca: toca Bolivia y Perú.
@@ -46,6 +50,13 @@ async function navegador({ administra = true, recortar } = {}) {
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } })
   const pedidos = []
+  if (process.env.COMPILADO) {
+    const cuerpo = fs.readFileSync(process.env.COMPILADO)
+    await ctx.route(`**/assets/${path.basename(vigente())}`, (r) => r.fulfill({ contentType: 'text/javascript; charset=utf-8', body: cuerpo }))
+  }
+  // Las capas que la Mesa lee del disco en modo archivos (escritorio).
+  const archivos = []
+  ctx.on('request', (req) => req.url().includes('/calcos/data/') && archivos.push(new URL(req.url()).pathname))
   await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, async (r) => {
     const u = r.request().url()
     if (u.includes('/functions/v1/calcos-datos')) {
@@ -79,7 +90,7 @@ async function navegador({ administra = true, recortar } = {}) {
     await browser.close()
     srv.close()
   }
-  return { pagina, pedidos, errores, cerrar }
+  return { pagina, pedidos, archivos, errores, cerrar }
 }
 
 // En la página de carga: la sesión de C&T ya está en el navegador.
@@ -105,12 +116,11 @@ async function esperarFin(page) {
       }
       const page = await nav.pagina('calcos/?puesto=g2', init)
       // Al abrir la BASE, la Mesa pide sola las capas prendidas del tablero,
-      // y lo pide dos veces: el efecto corre al cambiar el área y otra vez al
-      // cambiar su contador.
+      // en UN pedido (hasta index-sxnJI1Ur.js salían dos iguales).
       const t0 = Date.now()
-      while (nav.pedidos.length < 2 && Date.now() - t0 < 20000) await page.waitForTimeout(200)
-      await page.waitForTimeout(1500)
-      assert.deepStrictEqual(nav.pedidos, ['bolivia:hidro_lineas+poblaciones_puntos', 'bolivia:hidro_lineas+poblaciones_puntos'], 'pedidos al abrir la BASE')
+      while (!nav.pedidos.length && Date.now() - t0 < 20000) await page.waitForTimeout(200)
+      await page.waitForTimeout(2000)
+      assert.deepStrictEqual(nav.pedidos, ['bolivia:hidro_lineas+poblaciones_puntos'], 'pedidos al abrir la BASE')
 
       const boton = page.locator('button.btn-generar')
       if (!(await boton.count())) throw new Error('No aparece ⚡ GENERAR CALCOS')
@@ -123,9 +133,39 @@ async function esperarFin(page) {
       }
       secuenciaMesa = [...nav.pedidos]
       assert.ok(secuenciaMesa.length > 10, `la Mesa hizo ${secuenciaMesa.length} pedidos`)
-      assert.ok(secuenciaMesa.slice(2).every((p) => !p.includes('+')), 'GENERAR pide de a una capa')
+      assert.ok(secuenciaMesa.slice(1).every((p) => !p.includes('+')), 'GENERAR pide de a una capa')
+      // Lo que trajo al abrir quedó en la caché con el contador nuevo: no lo repite.
+      assert.deepStrictEqual(secuenciaMesa.slice(1).filter((p) => /^bolivia:(hidro_lineas|poblaciones_puntos)$/.test(p)), [])
       assert.ok(!secuenciaMesa.some((p) => p.includes('comunicaciones_huellas')), 'las huellas salen de OSM, no de calcos-datos')
+
+      // Cambiar de país sin cambiar el área: las capas prendidas se piden igual, una vez.
+      const antesPais = nav.pedidos.length
+      const paraguay = page.locator('.btn-pais', { hasText: 'Paraguay' })
+      if (!(await paraguay.count())) {
+        await page.locator('h2', { hasText: 'País' }).first().evaluate((h) => h.click())
+        await paraguay.first().waitFor({ state: 'attached', timeout: 5000 })
+      }
+      await paraguay.first().evaluate((b) => b.click())
+      await page.waitForTimeout(2000)
+      assert.deepStrictEqual(nav.pedidos.slice(antesPais), ['paraguay:hidro_lineas+poblaciones_puntos'], 'pedidos al cambiar de país')
       assert.deepStrictEqual(nav.errores, [])
+    } finally {
+      await nav.cerrar()
+    }
+  })
+
+  await caso('modo archivos (escritorio): al abrir la BASE cada capa prendida se lee una sola vez', async () => {
+    const nav = await navegador()
+    try {
+      // Sin SIDECEME_CALCOS la Mesa lee las capas del disco (calcos/data/…).
+      const init = { fn: (base) => localStorage.setItem('pmtd_base_repartida', JSON.stringify(base)), arg: BASE }
+      const page = await nav.pagina('calcos/?puesto=g2', init)
+      const t0 = Date.now()
+      while (nav.archivos.length < 2 && Date.now() - t0 < 20000) await page.waitForTimeout(200)
+      await page.waitForTimeout(2000)
+      // Hasta index-sxnJI1Ur.js: cada una tres veces (al arrancar, al cambiar el área y al subir el contador).
+      assert.deepStrictEqual([...nav.archivos].sort(), ['/calcos/data/bolivia/hidro_lineas.geojson', '/calcos/data/bolivia/poblaciones_puntos.geojson'])
+      assert.strictEqual(nav.pedidos.length, 0, 'en modo archivos no se le pide nada a calcos-datos')
     } finally {
       await nav.cerrar()
     }
@@ -200,7 +240,7 @@ async function esperarFin(page) {
       const peru = nav.pedidos.filter((p) => p.startsWith('peru:'))
       assert.strictEqual(peru.length, 19 - 7, 'Perú: las 19 capas menos las 7 militares')
       assert.ok(!peru.some((p) => p.includes('mil_')))
-      assert.strictEqual(nav.pedidos.length, 2 + 17 + 12)
+      assert.strictEqual(nav.pedidos.length, 1 + 17 + 12)
     } finally {
       fs.rmSync(archivo, { force: true })
       await nav.cerrar()
