@@ -1,20 +1,82 @@
-# Hoja gráfica de conceptos entrelazados
+# Hoja F2·P1 — Conceptos entrelazados
 
-Este módulo sustituye la presentación narrativa de F2·P1 por una hoja gráfica, con formulario de unidades, tarea, propósito, fases y relaciones declaradas por el usuario. Conserva las claves anteriores como antecedentes. Se guarda dentro de `g3.entrelazados`, mediante el guardado existente del ejercicio.
+Hoja de trabajo **gráfica** del PMTD 2017 (RO-01-02-06): el formato de la pág. 20 y
+el ejemplo de las págs. 21 y 22. Ubica a la unidad VERTICAL (los escalones de arriba)
+y HORIZONTALMENTE (maniobra, apoyo de combate y apoyo de servicio de combate), con
+la tarea (T) y el propósito (P) de cada unidad, por fase.
 
-Los datos se introducen y revisan en el formulario. No se deducen tareas ni relaciones tácticas. El Word contiene imágenes de las láminas; el contenido se edita en la aplicación y se vuelve a exportar. Los textos largos se conservan en continuaciones.
+La versión vigente está en **`v2/`**. Los archivos de esta carpeta (`modelo.js`,
+`editor.js`, `word.js`, `runtime.js`) son los de la versión anterior y se dejan
+intactos: los usa el compilado anterior (`index-nQKdqwIj.js`), así que un navegador
+que lo tenga en caché sigue funcionando y volver atrás es cambiar una línea de
+`calcos/index.html`.
 
-La integración parte exclusivamente de `index-zhbwncsH.js`, sin recompilar el ZIP antiguo. El archivo original se conserva. `../pruebas/integrar-conceptos.cjs` enumera todos los reemplazos y verifica la reversión exacta. El único cambio en `calcos/index.html` es la referencia al compilado integrado.
+## Qué hace (v2)
 
-`runtime.js` recibe React y los constructores de Word que ya incorpora la aplicación, antes del render inicial. No carga bibliotecas de terceros ni envía datos a servidores externos. `editor.js` es JavaScript legible generado desde el componente JSX; `modelo.js` comparte la composición entre vista y exportación.
+En el Tablero del G-3 → 📄 Documentos → «Analizar la misión» → F2·P1:
 
-Pruebas:
+0. **Nivel de la hoja** (lo elige el oficial):
+   - *Mi unidad y mis unidades subordinadas* (como el ejemplo del PMTD): arriba el
+     comando superior, debajo la unidad propia, en la fila sus unidades de maniobra
+     con OD / OC; después su apoyo de combate y su SPAC.
+   - *Mi unidad entre las adyacentes* (análisis de la orden superior): dos escalones
+     arriba, el superior inmediato y, en la fila, la unidad propia al centro con las
+     adyacentes.
+1. **🌱 La aplicación arma la hoja** con lo que ya tiene el ejercicio: la orden del
+   escalón superior (escalón superior, unidad, misión, fuerzas propias, intención),
+   la reexpresión de la misión (F2·P12), la 🧩 Organización de la tarea (OD / OC,
+   tarea táctica y propósito de cada FT o agrupación), las fichas propias del calco
+   (maniobra, apoyo, SPAC; el enemigo no entra; una unidad que dio parte de sus
+   elementos va con «(-)») y las fases del COA propio. Pone las relaciones por
+   defecto (la OD a la unidad propia, las OC a la OD, el apoyo a la OD…). «Traer lo
+   que falte» no pisa nada de lo escrito; «Rearmar todo» sí.
+2. **🤖 Trabajar esta hoja con IA**, como en las demás hojas: *Armar / sólo
+   completar* o *Completar y mejorar*. El pedido lleva el expediente completo del
+   ejercicio (incluidos los documentos aportados por el oficial), la doctrina de la
+   hoja con el ejemplo del PMTD, el nivel elegido y lo que ya hay escrito. Además:
+   - **tu idea para esta hoja** — va al final del pedido, donde más pesa;
+   - **orientaciones o información** propias de esta hoja: texto libre y archivos
+     `.docx`, `.txt` o `.md` adjuntos (el PDF va por «Documentos aportados»).
+   Se copia (o se abre Claude / ChatGPT / Gemini), se pega la respuesta y **✓ Aplicar**
+   la vuelca en la hoja: unidades, fases, T y P por fase, esfuerzo principal, fuegos
+   (TAREA, PROPÓSITO, PAF, EFECTO), ingeniería (PE, PT), SPAC y relaciones.
+3. **👁️ Ver la hoja · 📄 Word · 🖨️ Imprimir**: las láminas con la forma del ejemplo del
+   PMTD. El Word lleva una lámina por hoja carta apaisada (imagen de ~290 ppp).
+4. **✏️ Corregir a mano**: fases, cada unidad (denominación, magnitud, arma/símbolo,
+   rótulo, número, rol, unidad propia, T y P general o por fase) y las relaciones.
+
+Todo se guarda con el ejercicio en `g3.entrelazados` (esquema `conceptos-v2`). La
+hoja de la versión anterior (`conceptos-v1`) y el texto narrativo de antes se leen
+igual: el narrativo queda guardado, se muestra aparte y se le pasa a la IA.
+
+## Archivos (`v2/`)
+
+- `modelo.js` — esquema, lectura de lo guardado, armado automático y texto para el
+  expediente. Sin DOM.
+- `laminas.js` — las láminas SVG: maniobra (relación vertical y horizontal), apoyo de
+  combate, SPAC y continuaciones (si un texto no entra, sigue en otra hoja: no se
+  corta nada). Sin DOM.
+- `ia.js` — el pedido a la IA y la lectura de su respuesta (JSON). Sin DOM.
+- `editor.js` — la pantalla (JavaScript sin compilar; React llega por `runtime.js`).
+- `word.js` — el Word.
+- `runtime.js` — React, los constructores de Word, el encabezado de los pedidos a la
+  IA y el corrector de terminología de la Mesa, que el compilado le presta antes del
+  primer render.
+
+Si se cambian estos módulos, conviene publicarlos en una carpeta nueva (o con otro
+nombre) y apuntar el compilado ahí, por la misma razón que se hizo `v2/`: la caché.
+
+## Pruebas
 
 ```bash
-node calcos/pruebas/conceptos.cjs
-PLAYWRIGHT_MODULE=/ruta/a/playwright node calcos/pruebas/e2e/conceptos.cjs
+cd calcos/pruebas && npm ci
+node conceptos.cjs                  # modelo, láminas, IA (sin navegador)
+node reemplazos-compilado.js        # la cadena de compilados es reversible
+node e2e/conceptos.cjs              # la hoja en la Mesa real, escritorio y teléfono
+python3 word-conceptos.py           # estructura de los Word que bajó la prueba
 ```
 
-El workflow `Validar conceptos entrelazados` ejecuta las pruebas en Chromium en escritorio y móvil y conserva las capturas y los Word de muestra.
-
-Para revertir la integración, restaure en `calcos/index.html` la referencia a `./assets/index-zhbwncsH.js`. Los textos anteriores no se eliminan; la estructura nueva permanece almacenada y sólo la muestra el editor gráfico.
+`conceptos-ejemplo-pmtd.js` transcribe el ejemplo del PMTD (págs. 21-22) como datos
+de la hoja; `conceptos-ejercicio.js` es un ejercicio de División con unidades
+FICTICIAS y una respuesta de IA de ejemplo. Las capturas y los Word de las pruebas
+quedan en `pruebas/salidas-conceptos/` (no se versionan).

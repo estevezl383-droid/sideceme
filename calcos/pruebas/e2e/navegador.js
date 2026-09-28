@@ -101,12 +101,16 @@ async function abrir({ ancho = 1440, alto = 900, movil = false, consulta = '' } 
 }
 
 // Primer estado de React que cumpla `prueba` (recorre el árbol de fibras).
+// Se parte del árbol CONFIRMADO (`stateNode.current`): `__reactContainer…` guarda la
+// fibra raíz de cuando se creó la raíz, y React alterna entre dos fibras raíz en cada
+// confirmación; la mitad de las veces esa es la otra copia, con el estado de un render
+// anterior (p. ej. `orgTarea` todavía vacía después de abrir un ejercicio).
 async function estadoReact(page, prueba) {
   return page.evaluate((src) => {
     const f = new Function('v', `return (${src})(v)`)
     const root = document.getElementById('root')
     const k = Object.keys(root).find((x) => x.startsWith('__reactContainer'))
-    const pila = [root[k]]
+    const pila = [root[k]?.stateNode?.current || root[k]]
     const vistos = new Set()
     while (pila.length) {
       const n = pila.pop()
@@ -223,9 +227,54 @@ async function aPantalla(page, lista) {
   }, lista)
 }
 
+// Antes de apoyar el dedo en el 3D, la vista tiene que estar LISTA: sin cuadro
+// pendiente y con la GPU al día.
+//
+// Con relieve, el `touchstart` de MapLibre ubica el punto tocado leyendo la
+// profundidad de la GPU (`unproject` → `pointCoordinate` → `readPixels`), y esa
+// lectura espera a que la GPU termine lo que tenga en cola. Sin placa de video
+// (SwiftShader), después de cada redibujado eso bloquea ~1 s DENTRO del
+// `touchstart`. El toque largo de la Mesa (600 ms) ya arrancó para entonces, y
+// Chrome recién entrega el `touchend` al terminar: el temporizador vence primero
+// y un toque corto se toma por largo (termina la línea antes de tiempo, o el
+// punto no se pone). Con GPU esa lectura tarda milisegundos.
+//
+// «Lista» = MapLibre quieto y sin cuadro pedido, el espejo 3D sin reconstrucción
+// pendiente ni trazos «calientes» (el que se está dibujando se reconstruye 2,5 s
+// después: otro redibujado), y dos lecturas de profundidad seguidas en el punto
+// del gesto que vuelven en menos de 50 ms.
+async function listoParaElDedo(page, x, y, ms = 60000) {
+  const t0 = Date.now()
+  let seguidas = 0
+  let ult = null
+  for (;;) {
+    ult = await page.evaluate(
+      ([x, y]) => {
+        const m = window.__map3d
+        if (!m) return { sin3D: true }
+        const esp = window.__espejo3d
+        const pendiente = m.isMoving() || !m.loaded() || !!m._frameRequest || !!(esp && (esp.raf || (esp.caliente && esp.caliente.size)))
+        const r = m.getCanvas().getBoundingClientRect()
+        const t = performance.now()
+        try {
+          m.unproject([x - r.left, y - r.top])
+        } catch {}
+        return { pendiente, lectura: Math.round(performance.now() - t) }
+      },
+      [x, y],
+    )
+    if (ult.sin3D) return
+    seguidas = !ult.pendiente && ult.lectura < 50 ? seguidas + 1 : 0
+    if (seguidas >= 2) return
+    if (Date.now() - t0 > ms) throw new Error(`La vista 3D no quedó lista para el dedo en ${ms / 1000} s: ${JSON.stringify(ult)}`)
+    await page.waitForTimeout(100)
+  }
+}
+
 // Toques con la marca de tiempo que corresponde a un dedo real (en una máquina
 // sin GPU cada render tarda segundos y el segundo toque llegaría tarde).
 async function toques(page, x, y, { veces = 1, separacionMs = 90, duracionMs = 30 } = {}) {
+  await listoParaElDedo(page, x, y)
   const cdp = await page.context().newCDPSession(page)
   const t0 = Date.now() / 1000
   for (let i = 0; i < veces; i++) {
@@ -236,13 +285,17 @@ async function toques(page, x, y, { veces = 1, separacionMs = 90, duracionMs = 3
   await cdp.detach()
 }
 
-// Dedo apoyado y quieto `ms` milisegundos (toque largo).
+// Dedo apoyado y quieto al menos `ms` milisegundos (toque largo). Como una
+// persona, no lo levanta hasta que la Mesa registró la presión (`presionHecha`
+// del espejo 3D), por lenta que venga la máquina.
 async function toqueLargo(page, x, y, ms = 900) {
+  await listoParaElDedo(page, x, y)
   const cdp = await page.context().newCDPSession(page)
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y }] })
   await page.waitForTimeout(ms)
+  await page.waitForFunction(() => !window.__espejo3d || window.__espejo3d.presionHecha === true, null, { timeout: 30000, polling: 100 }).catch(() => {})
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
   await cdp.detach()
 }
 
-module.exports = { abrir, estadoReact, estadoOps, esperarCambio, sembrarYAbrir, leerGuardado, entrar3D, salir3D, aPantalla, toques, toqueLargo, RAIZ, servir, cargarPlaywright }
+module.exports = { abrir, estadoReact, estadoOps, esperarCambio, sembrarYAbrir, leerGuardado, entrar3D, salir3D, aPantalla, listoParaElDedo, toques, toqueLargo, RAIZ, servir, cargarPlaywright }

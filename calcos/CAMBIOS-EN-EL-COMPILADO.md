@@ -5,6 +5,86 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-09-28 — 🧩 Conceptos entrelazados: la hoja sale LLENA, con la forma del PMTD y con IA (`index-6Gm5UQ97.js`)
+
+Parte de `index-nQKdqwIj.js` (el plan de fuegos): trae todo eso y suma esto. Lo pidió
+Sergio. La lista EXACTA de reemplazos está en
+`calcos/pruebas/reemplazos-2026-09-28-conceptos-ia.js` (7); `reemplazos-compilado.js`
+comprueba que deshaciéndolos se vuelve byte por byte a `index-nQKdqwIj.js`.
+`construir-conceptos-ia.js` arma el compilado nuevo desde esa lista.
+
+### Qué pasaba
+
+- La hoja F2·P1 era un formulario gráfico VACÍO: no se llenaba con nada del
+  ejercicio (se le había sacado el «🌱 Traer del calco») y se le había quitado el
+  panel «🤖 Trabajar esta hoja con IA» (la prueba de entonces verificaba que no
+  estuviera). El Word salía con «SIN DATO» en todo.
+- Antes de eso, el Word de la hoja era un texto narrativo (A.- INTENCIÓN…, B.-
+  MISIÓN…), que no es la hoja de trabajo del PMTD: ésa es GRÁFICA (pág. 20, ejemplo
+  en las págs. 21-22).
+
+### Qué se hizo
+
+La hoja es código legible APARTE del compilado, en `calcos/conceptos/v2/` (ver
+`calcos/conceptos/README.md`). Los módulos de la versión anterior
+(`calcos/conceptos/*.js`) quedan intactos para el compilado anterior.
+
+- **Nivel de la hoja**: «mi unidad y mis subordinadas» (como el ejemplo del PMTD:
+  CE → Div-1 → regimientos) o «mi unidad entre las adyacentes» (análisis de la
+  orden superior).
+- **🌱 La aplicación la arma** con la orden del escalón superior, la reexpresión de
+  la misión, la 🧩 Organización de la tarea (OD / OC, tarea y propósito), las fichas
+  propias del calco y las fases del COA; con relaciones por defecto.
+- **🤖 IA** como en las demás hojas (mismo encabezado `Qq` y mismo corrector de
+  terminología `uU`), con el expediente entero, la doctrina y el ejemplo del PMTD,
+  el nivel, la idea del oficial al final y ORIENTACIONES O INFORMACIÓN propias de la
+  hoja (texto y archivos .docx / .txt / .md). La respuesta (JSON) se aplica a la
+  hoja: «sólo completar» no pisa lo escrito; «completar y mejorar» lo reescribe.
+- **Láminas** con la forma del ejemplo: cajas con magnitud, símbolo del arma, OD ☆ /
+  OC, esfuerzo principal (︽) por fase, T y P por fase debajo de cada unidad,
+  flechas llenas (directa) y discontinuas (indirecta), lámina de apoyo de combate
+  (TAREA / PROPÓSITO / PAF / EFECTO, PE / PT) y de SPAC, REFERENCIAS y fases.
+  Continuaciones cuando un texto no entra. Con la hoja vacía, el formato en blanco
+  de la pág. 20. **Word** carta apaisada, una lámina por hoja.
+
+### Qué se tocó en el compilado (7 reemplazos)
+
+- Los `import` de la hoja apuntan a `../conceptos/v2/` (editor, runtime, láminas,
+  modelo —`textoConceptos`— y Word).
+- `configurarConceptos` recibe además `useMemo`, `useRef`, `encabezadoIA: Qq` y
+  `corregirIA: uU`.
+- Tablero del G-3 (`wLe`): si la hoja es `conceptos`, monta el editor con
+  `ctx: {...I, unidades: t, orgTarea: a, g3: M, documentos: U?.documentos}` y
+  `onExpediente: j` (el mismo expediente de los demás pedidos a la IA).
+- `yU` (fuera del Tablero): el editor recibe la orden superior, los documentos y el g3.
+- `zle` (expediente): la hoja va como texto legible (`textoConceptos`).
+- `ED` (carpeta del G-3): las láminas llevan la unidad, el ejercicio y la clasificación.
+- La guía «¿Para qué es y cómo se llena?» de `entrelazados`.
+
+### En el fuente
+
+- La hoja `entrelazados` de tipo `conceptos` monta `v2/editor.js` con el contexto del
+  ejercicio y el expediente; o pasar `calcos/conceptos/v2/` a componentes (modelo,
+  láminas e IA no dependen de React).
+- `zle` / `ED` como arriba y la guía nueva.
+
+### Cómo se comprobó
+
+- `node conceptos.cjs` (11 casos): reversibilidad de la integración anterior; texto
+  narrativo y hoja v1 se leen; armado automático con un ejercicio de División
+  ficticio (superiores, OD de la organización de la tarea, «(-)», enemigo fuera,
+  fases, relaciones; «traer lo que falte» no pisa); láminas del ejemplo del PMTD
+  con todo su texto; formato en blanco; 12 unidades con textos largos sin perder
+  nada; pedido a la IA; respuesta aplicada (sin pisar, mejorar, relaciones por
+  nombre, una sola OD).
+- `node e2e/conceptos.cjs` en Chromium, escritorio y teléfono: guía nueva, armado,
+  pedido con expediente + idea + información + `.docx` adjunto, respuesta aplicada,
+  láminas, Word (validado con `word-conceptos.py`), guardar y reabrir; sin errores
+  de JavaScript.
+- `npm test` completo y los e2e `plan-fuegos.js`, `carga.js`, `plan-barreras-3d.js`
+  pasan. En `academico.js` falla «Se carga la organización que ya existía» también
+  con el compilado anterior (3 de 3 corridas): no viene de este cambio.
+
 ## 2026-09-28 — 🔥 Plan de fuegos en la pestaña «Fuegos» del Tablero del G-3 (`index-nQKdqwIj.js`)
 
 Parte de `index-conceptos-20260928.js` (la hoja gráfica de conceptos
