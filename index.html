@@ -49403,7 +49403,7 @@ function _plpEnProfPanel(){
 // ============================================================
 const PLP = { perfil:null, perfilTok:null, cal:null, vista:'planta', semanas:[], props:[],
   conBase:false, cacheKey:null, recargar:false, origen:null, pendientesN:0,
-  volverSiCancela:false, base:null };
+  volverSiCancela:false, base:null, zoom:0 };
 
 const _PLP_AUD = [['planta','Plantel docente'],['c1','1er Ciclo'],['c2','2do Ciclo']];
 const _PLP_EST = { pendiente:'PENDIENTE', aprobada:'APROBADA', rechazada:'RECHAZADA', retirada:'RETIRADA' };
@@ -49481,6 +49481,7 @@ function _plpMezclarBloque(k, bloque, props, cab){
   out.dias.forEach(function(d, idx){
     const ps=aprob.filter(function(p){ return p.fecha===d.iso; })
       .sort(function(a,b){ return _plpMin(a.desde)-_plpMin(b.desde); });
+    const psVis=ps.filter(function(p){ return !p.ocultar_base; });
     const seVan=mudanzas.filter(function(p){ return p.mueve.fecha===d.iso; });
     if(!ps.length && !seVan.length) return;
     let filas=Array.isArray(d.filas)?d.filas:[];
@@ -49500,7 +49501,7 @@ function _plpMezclarBloque(k, bloque, props, cab){
     }
     // Compatibilidad v2.9.375: una propuesta marcada 'efm' SIN `mueve` saca el
     // Entrenamiento Físico del día donde aterriza.
-    if(ps.some(function(p){ return p.tipo==='efm' && !p.mueve; })){
+    if(psVis.some(function(p){ return p.tipo==='efm' && !p.mueve; })){
       filas=filas.filter(function(f){ return !_plpEsFilaEfm(f); });
     }
     const res=[];
@@ -49508,7 +49509,7 @@ function _plpMezclarBloque(k, bloque, props, cab){
       const a=_plpMin(f.desde), b=_plpMin(f.hasta);
       if(f.fijo || a===null || b===null || b<=a){ res.push(f); return; }
       let segs=[[a,b]];
-      ps.forEach(function(p){
+      psVis.forEach(function(p){
         if(p.recortar===false) return;
         const pa=_plpMin(p.desde), pb=_plpMin(p.hasta), nx=[];
         segs.forEach(function(s){
@@ -49525,7 +49526,7 @@ function _plpMezclarBloque(k, bloque, props, cab){
         res.push(c);
       });
     });
-    ps.forEach(function(p){
+    psVis.forEach(function(p){
       const row=_plpFilaDeProp(k, p, cab, idx), pm=_plpMin(p.desde);
       let pos=res.length;
       for(let i=0;i<res.length;i++){
@@ -49616,11 +49617,10 @@ function _plpSinSemana(fecha){ return !_plpSemanaDe(fecha); }
 function _plpPuedeEditar(p){
   const u=PLP.perfil;
   if(!u || p.estado==='retirada') return false;
-  // v2.9.382 — REACOMODAR EL HORARIO: el Jefe de Estudios y los cinco con
-  // `puede_mover` (Baptista, Montecinos, Morales, Villarroel, Arce) mueven y
-  // estiran CUALQUIER actividad, no solo la propia. El resto, solo la suya y
-  // mientras la semana siga abierta.
-  if(u.aprobar || u.mover) return true;
+  // v2.9.420 — SOLO quienes tienen puede_mover (Morales, Villarroel y Arce)
+  // pueden modificar propuestas ajenas. El Jefe de Estudios aprueba/rechaza,
+  // pero no cambia el pedido de otra persona.
+  if(u.mover) return true;
   return !!(u.proponer && p.creado_por===u.id && _plpAbierta(_plpSemanaDe(p.fecha)));
 }
 
@@ -49658,6 +49658,27 @@ async function _plpBoton(){
 }
 
 // ---------- pantalla ----------
+
+function _plpAplicarZoom(){
+  const el=document.getElementById('plp-cal'); if(!el) return;
+  let st=document.getElementById('plp-zoom-css');
+  if(!st){
+    st=document.createElement('style'); st.id='plp-zoom-css';
+    st.textContent='#plp-cal.plp-zoom .fc-timegrid-slot{height:var(--plp-slot-h)!important}'
+      +'#plp-cal.plp-zoom .fc-timegrid-event{min-height:18px}';
+    document.head.appendChild(st);
+  }
+  const alturas=[0,26,34,44,56];
+  const z=Math.max(0,Math.min(4,PLP.zoom||0));
+  if(!z){ el.classList.remove('plp-zoom'); el.style.removeProperty('--plp-slot-h'); }
+  else { el.classList.add('plp-zoom'); el.style.setProperty('--plp-slot-h',alturas[z]+'px'); }
+}
+function plpZoom(delta){
+  if(delta===0) PLP.zoom=0;
+  else PLP.zoom=Math.max(0,Math.min(4,(PLP.zoom||0)+delta));
+  _plpAplicarZoom();
+}
+
 async function goPlanifCal(fecha){
   const act=document.querySelector('.screen.active');
   if(act && act.id!=='screen-planif-cal') PLP.origen=act.id;
@@ -49706,6 +49727,7 @@ async function goPlanifCal(fecha){
     eventDrop:_plpMovido, eventResize:_plpMovido
   });
   PLP.cal.render();
+  _plpAplicarZoom();
   _plpBarra();
 }
 function plpVolver(){
@@ -49780,13 +49802,14 @@ function _plpArmarEventos(){
             // v2.9.385 — el horario base se arrastra Y se estira, igual que las
             // actividades propias: mover y acortar generan una propuesta que dice de
             // dónde salió la fila (`mueve`), así el jsonb de la semana nunca se toca.
-            editable:true, startEditable:!!u.proponer, durationEditable:!!u.proponer,
+            editable:!!u.mover || (!!u.efm && _plpEsFilaEfm(f)), startEditable:!!u.mover || (!!u.efm && _plpEsFilaEfm(f)), durationEditable:!!u.mover || (!!u.efm && _plpEsFilaEfm(f)),
             extendedProps:{ tipo:'base', fila:f, cls:['plp-base'].concat(f.span?['plp-franja']:[]).concat(f._recortada?['plp-recortada']:[]) } });
         });
       });
     });
   }
   PLP.props.forEach(function(p){
+    if(p.ocultar_base) return;
     if(PLP.conBase && v!=='todas' && (p.audiencias||[]).indexOf(v)<0) return;
     // v2.9.378 — una actividad RECHAZADA queda en el calendario SOLO para quien la
     // pidió, para que sepa que no salió y por qué. Nadie más la ve, y al documento
@@ -49848,7 +49871,11 @@ function _plpBarra(){
   // cuando el día estaba lleno no había hueco donde arrastrar. Este botón siempre está.
   if(u.proponer) h+='<button class="btn-primary plp-add-gr" onclick="plpNuevaLibre()">➕ Agregar una actividad al horario</button>';
   // v2.9.385 — solo los que pueden reacomodar el horario
-  if(u.mover || u.aprobar) h+='<button class="plp-enc-gr" onclick="plpEncajarAbrir()">🔗 ENCAJAR EL DÍA — que nada quede encimado</button>';
+  if(u.mover) h+='<button class="plp-enc-gr" onclick="plpEncajarAbrir()">🔗 ENCAJAR EL DÍA — que nada quede encimado</button>';
+  h+='<span class="plp-zoom-ctl">🔎 ALTURA '
+    +'<button class="pl-add" onclick="plpZoom(-1)" title="Achicar">−</button>'
+    +'<button class="pl-add" onclick="plpZoom(0)" title="Volver al tamaño normal">NORMAL</button>'
+    +'<button class="pl-add" onclick="plpZoom(1)" title="Ampliar">＋</button></span>';
   h+='<button class="plp-prev-gr" onclick="plpVistaPrevia()">👁️ Vista previa — cómo sale impreso</button>';
   h+='<div class="plp-leyenda"><span class="plp-sw plp-sw-base"></span>Horario base'
     +'<span class="plp-sw plp-sw-pend"></span>🔴 Espera al Jefe de Estudios'
@@ -49891,7 +49918,7 @@ function _plpBarra(){
   if(u.proponer) h+='<div class="pl-hint">Hay <b>tres formas</b> de tocar el horario: el botón <b>➕ Agregar una actividad</b> de arriba; '
     +'tocar una casilla gris del horario base y elegir <b>poner una actividad adentro</b> (al principio, en el medio o al final); '
     +'o arrastrar sobre una hora vacía. '
-    +(u.aprobar||u.mover
+    +(u.mover
       ? 'Como podés <b>reacomodar el horario</b>, movés y estirás <b>cualquier</b> actividad, sea de quien sea: '
       : 'Las tuyas se ')
     +'<b>mueven</b> arrastrándolas y se <b>alargan o acortan</b> tirando de la '
@@ -49995,6 +50022,7 @@ function _plpBloquesDia(iso){
     });
   }
   PLP.props.forEach(function(p){
+    if(p.ocultar_base) return;
     if(p.fecha!==iso || p.estado==='rechazada' || p.estado==='retirada') return;
     if((p.audiencias||[]).indexOf(v)<0) return;
     const a=_plpMin(p.desde), z=_plpMin(p.hasta);
@@ -50031,7 +50059,7 @@ function _plpEncajarCalc(bl, modo){
 }
 function plpEncajarAbrir(iso){
   const u=PLP.perfil||{};
-  if(!u.mover && !u.aprobar) return;
+  if(!u.mover) return;
   const dias=[];
   PLP.semanas.forEach(function(s){
     const d=new Date(s.fecha_desde+'T12:00:00'), fin=new Date(s.fecha_hasta+'T12:00:00');
@@ -50044,8 +50072,148 @@ function plpEncajarAbrir(iso){
 }
 function plpEncajarDia(iso){ if(PLP.enc){ PLP.enc.iso=iso; _plpEncajarPintar(); } }
 function plpEncajarModo(m){ if(PLP.enc){ PLP.enc.modo=m; _plpEncajarPintar(); } }
+
+function _plpEncMay(v){ return String(v==null?'':v).trim().toLocaleUpperCase('es-BO'); }
+function _plpEncInputMay(el){
+  if(!el) return;
+  const a=el.selectionStart, b=el.selectionEnd;
+  el.value=String(el.value||'').toLocaleUpperCase('es-BO');
+  try{ el.setSelectionRange(a,b); }catch(_){}
+}
+function _plpEncActualizarLocal(p){
+  if(!p) return;
+  const i=PLP.props.findIndex(function(x){ return x.id===p.id; });
+  if(i>=0) PLP.props[i]=p; else PLP.props.push(p);
+  PLP.recargar=true;
+}
+function _plpEncManualPintar(){
+  const e=PLP.enc; if(!e) return;
+  const u=PLP.perfil||{}, bl=_plpBloquesDia(e.iso);
+  const nombre=function(x){ return _plDiaNombre(x)+' '+_plDiaNum(x); };
+  let h='<div class="plp-dlg-h">✏️ EDITAR EL DÍA — HORARIO INTEGRADO</div>'
+    +'<div class="pl-hint" style="margin:0 0 8px"><b>EDICIÓN DIRECTA:</b> cambie horas, texto, agregue o elimine filas. '
+    +'Las filas grises se modifican mediante una propuesta auditable: el horario base original no se destruye.</div>'
+    +'<label class="pl-full">Día<select class="pl-i" onchange="plpEncajarDia(this.value)">'
+    +e.dias.map(function(x){ return '<option value="'+x+'"'+(x===e.iso?' selected':'')+'>'+_plEsc(nombre(x))
+      +(e.conChoque.indexOf(x)>=0?'  ⚠️ HAY CASILLAS ENCIMADAS':'  ✅ SIN CHOQUES')+'</option>'; }).join('')
+    +'</select></label>'
+    +'<div class="plp-enc-modo">'
+    +'<button class="pl-tab" onclick="plpEncajarModo(\'recortar\')">✂️ RECORTAR</button>'
+    +'<button class="pl-tab" onclick="plpEncajarModo(\'correr\')">➡️ CORRER</button>'
+    +'<button class="pl-tab on" onclick="plpEncajarModo(\'manual\')">✏️ EDITAR A MANO</button>'
+    +'</div>'
+    +'<div class="plp-enc-t"><table><tr><th>TIPO</th><th>DESDE</th><th>HASTA</th><th>ACTIVIDAD</th><th>ACCIONES</th></tr>';
+  if(!bl.length) h+='<tr><td colspan="5"><div class="pl-hint">ESTE DÍA NO TIENE FILAS CON HORA.</div></td></tr>';
+  bl.forEach(function(x,i){
+    const puede=x.tipo==='base' ? !!u.mover : _plpPuedeEditar(x.p);
+    const dis=puede?'':' disabled';
+    h+='<tr>'
+      +'<td><b>'+(x.tipo==='base'?'▦ BASE':'🔵 PROPUESTA')+'</b>'
+      +(x.tipo==='prop'&&x.p&&x.p.creado_por_nombre?'<small>'+_plEsc(x.p.creado_por_nombre)+'</small>':'')+'</td>'
+      +'<td><input class="pl-i" style="min-width:72px" id="plp-em-d-'+i+'" value="'+_plEsc(_plpHHMM(x.a))+'" inputmode="numeric" maxlength="5"'+dis+'></td>'
+      +'<td><input class="pl-i" style="min-width:72px" id="plp-em-h-'+i+'" value="'+_plEsc(_plpHHMM(x.z))+'" inputmode="numeric" maxlength="5"'+dis+'></td>'
+      +'<td><textarea class="pl-i" id="plp-em-t-'+i+'" rows="2" oninput="_plpEncInputMay(this)"'+dis+'>'+_plEsc(_plpEncMay(x.txt))+'</textarea></td>'
+      +'<td>'+(puede?'<button class="btn-primary pl-b" onclick="plpEncManualGuardar('+i+')">💾 GUARDAR</button> '
+        +'<button class="pl-x plp-bw" onclick="plpEncManualEliminar('+i+')">🗑 ELIMINAR</button>':'🔒')+'</td>'
+      +'</tr>';
+  });
+  h+='</table></div>';
+  if(u.mover){
+    h+='<div class="pl-card" style="margin-top:10px"><div class="pl-card-h">＋ AGREGAR FILA</div>'
+      +'<div class="pl-grid2 plp-g3"><label>DESDE<input class="pl-i" id="plp-em-nd" value="08:00" inputmode="numeric" maxlength="5"></label>'
+      +'<label>HASTA<input class="pl-i" id="plp-em-nh" value="08:30" inputmode="numeric" maxlength="5"></label>'
+      +'<label class="pl-full">ACTIVIDAD<textarea class="pl-i" id="plp-em-nt" rows="2" oninput="_plpEncInputMay(this)" placeholder="NUEVA ACTIVIDAD"></textarea></label></div>'
+      +'<button class="btn-primary pl-b" onclick="plpEncManualNueva()">＋ AGREGAR FILA</button></div>';
+  }
+  h+='<div class="plp-btns"><span style="flex:1"></span><button class="pl-add" onclick="_plpCerrarModal()">CERRAR</button></div>'
+    +'<div id="plp-em-res"></div>';
+  _plpModal(h);
+}
+function _plpEncLeer(i){
+  const d=document.getElementById('plp-em-d-'+i), h=document.getElementById('plp-em-h-'+i), t=document.getElementById('plp-em-t-'+i);
+  return {desde:_plpNormHora(d?d.value:''), hasta:_plpNormHora(h?h.value:''), actividad:_plpEncMay(t?t.value:'')};
+}
+function _plpEncVal(c){
+  if(!c.actividad) return 'ESCRIBA LA ACTIVIDAD.';
+  if(!/^\\d{2}:\\d{2}$/.test(c.desde)||!/^\\d{2}:\\d{2}$/.test(c.hasta)) return 'COMPLETE LAS HORAS EN FORMATO HH:MM.';
+  if(c.hasta<=c.desde) return 'LA HORA DE FIN DEBE SER POSTERIOR A LA DE INICIO.';
+  return '';
+}
+async function plpEncManualGuardar(i){
+  const e=PLP.enc, u=PLP.perfil||{}, bl=_plpBloquesDia(e.iso), x=bl[i];
+  if(!e||!x) return;
+  const c=_plpEncLeer(i), mal=_plpEncVal(c); if(mal){ alert('⚠️ '+mal); return; }
+  let r;
+  if(x.tipo==='prop'){
+    if(!_plpPuedeEditar(x.p)){ alert('🔒 NO PUEDE MODIFICAR LA PROPUESTA DE OTRO USUARIO.'); return; }
+    r=await _plpInvoke('guardar',{id:x.p.id,version:x.p.version,campos:{
+      fecha:e.iso, desde:c.desde, hasta:c.hasta, actividad:c.actividad,
+      motivo:'AJUSTE MANUAL DEL HORARIO INTEGRADO'
+    }});
+  } else {
+    if(!u.mover){ alert('🔒 NO TIENE PERMISO PARA MODIFICAR EL HORARIO BASE.'); return; }
+    const f=x.fila||{};
+    r=await _plpInvoke('guardar',{campos:{
+      fecha:e.iso, desde:c.desde, hasta:c.hasta, actividad:c.actividad,
+      lugar:_plpEncMay(f.lugar||''), responsable:_plpEncMay(f.resp||''), asisten:_plpEncMay(f.asisten||'TODOS'),
+      uniforme:_plpEncMay(f.unif||''), audiencias:[x.v], recortar:false,
+      motivo:'AJUSTE MANUAL DEL HORARIO INTEGRADO',
+      tipo:_plpEsFilaEfm(f)?'efm':'normal',
+      mueve:{fecha:e.iso,desde:_plpHHMM(x.a),hasta:_plpHHMM(x.z),texto:_plpEncMay(x.txt)}
+    }});
+  }
+  if(!r||!r.ok){ alert('❌ '+((r&&r.error)||'NO SE PUDO GUARDAR')); return; }
+  _plpEncActualizarLocal(r.propuesta);
+  e.conChoque=e.dias.filter(function(d){ return _plpHayChoque(_plpBloquesDia(d)); });
+  _plpEncManualPintar();
+}
+async function plpEncManualEliminar(i){
+  const e=PLP.enc, u=PLP.perfil||{}, bl=_plpBloquesDia(e.iso), x=bl[i];
+  if(!e||!x) return;
+  if(!confirm('¿ELIMINAR «'+String(x.txt||'').slice(0,80).toLocaleUpperCase('es-BO')+'» DEL HORARIO?')) return;
+  let r;
+  if(x.tipo==='prop'){
+    if(!_plpPuedeEditar(x.p)){ alert('🔒 NO PUEDE ELIMINAR LA PROPUESTA DE OTRO USUARIO.'); return; }
+    r=await _plpInvoke('retirar',{id:x.p.id,version:x.p.version});
+    if(r&&r.ok) PLP.props=PLP.props.filter(function(p){ return p.id!==x.p.id; });
+  } else {
+    if(!u.mover){ alert('🔒 NO TIENE PERMISO PARA ELIMINAR FILAS DEL HORARIO BASE.'); return; }
+    const f=x.fila||{};
+    r=await _plpInvoke('guardar',{campos:{
+      fecha:e.iso, desde:_plpHHMM(x.a), hasta:_plpHHMM(x.z), actividad:_plpEncMay(x.txt),
+      lugar:_plpEncMay(f.lugar||''), responsable:_plpEncMay(f.resp||''), asisten:_plpEncMay(f.asisten||'TODOS'),
+      uniforme:_plpEncMay(f.unif||''), audiencias:[x.v], recortar:false, ocultar_base:true,
+      motivo:'ELIMINAR FILA DEL HORARIO INTEGRADO',
+      tipo:_plpEsFilaEfm(f)?'efm':'normal',
+      mueve:{fecha:e.iso,desde:_plpHHMM(x.a),hasta:_plpHHMM(x.z),texto:_plpEncMay(x.txt)}
+    }});
+    if(r&&r.ok) _plpEncActualizarLocal(r.propuesta);
+  }
+  if(!r||!r.ok){ alert('❌ '+((r&&r.error)||'NO SE PUDO ELIMINAR')); return; }
+  PLP.recargar=true;
+  e.conChoque=e.dias.filter(function(d){ return _plpHayChoque(_plpBloquesDia(d)); });
+  _plpEncManualPintar();
+}
+async function plpEncManualNueva(){
+  const e=PLP.enc, u=PLP.perfil||{}; if(!e||!u.mover) return;
+  const d=document.getElementById('plp-em-nd'), h=document.getElementById('plp-em-nh'), t=document.getElementById('plp-em-nt');
+  const c={desde:_plpNormHora(d?d.value:''),hasta:_plpNormHora(h?h.value:''),actividad:_plpEncMay(t?t.value:'')};
+  const mal=_plpEncVal(c); if(mal){ alert('⚠️ '+mal); return; }
+  const v=PLP.vista==='todas'?'planta':PLP.vista;
+  const r=await _plpInvoke('guardar',{campos:{
+    fecha:e.iso, desde:c.desde, hasta:c.hasta, actividad:c.actividad,
+    lugar:'', responsable:'', asisten:'TODOS', uniforme:'', audiencias:[v], recortar:false,
+    motivo:'NUEVA FILA AGREGADA DESDE EL EDITOR DEL HORARIO INTEGRADO', tipo:'normal'
+  }});
+  if(!r||!r.ok){ alert('❌ '+((r&&r.error)||'NO SE PUDO AGREGAR')); return; }
+  _plpEncActualizarLocal(r.propuesta);
+  e.conChoque=e.dias.filter(function(x){ return _plpHayChoque(_plpBloquesDia(x)); });
+  _plpEncManualPintar();
+}
+
 function _plpEncajarPintar(){
   const e=PLP.enc; if(!e) return;
+  if(e.modo==='manual'){ _plpEncManualPintar(); return; }
   const bl=_plpBloquesDia(e.iso);
   const r=_plpEncajarCalc(bl, e.modo);
   e.calc=r;
@@ -50062,6 +50230,7 @@ function _plpEncajarPintar(){
     +'<div class="plp-enc-modo">'
     +'<button class="pl-tab'+(e.modo==='recortar'?' on':'')+'" onclick="plpEncajarModo(\'recortar\')">✂️ Recortar — achica las casillas, el día NO se estira</button>'
     +'<button class="pl-tab'+(e.modo==='correr'?' on':'')+'" onclick="plpEncajarModo(\'correr\')">➡️ Correr — cada una conserva su duración y empuja a la siguiente</button>'
+    +'<button class="pl-tab'+(e.modo==='manual'?' on':'')+'" onclick="plpEncajarModo(\'manual\')">✏️ EDITAR A MANO — horas, texto, agregar o eliminar</button>'
     +'</div>';
   if(!bl.length){
     h+='<div class="plp-av plp-av-cer">Ese día no tiene casillas con hora.</div>';
@@ -50447,6 +50616,11 @@ function _plpForm(p, aviso){
   _plpModal(h);
   const dlg=document.getElementById('plp-dlg');
   dlg.oninput=dlg.onchange=function(e){
+    if(e.target && /^(plp-f-(actividad|lugar|responsable|asisten|uniforme|justif|motivo))$/.test(e.target.id||'')){
+      const a=e.target.selectionStart, b=e.target.selectionEnd;
+      e.target.value=String(e.target.value||'').toLocaleUpperCase('es-BO');
+      try{ e.target.setSelectionRange(a,b); }catch(_){}
+    }
     if(e.target && e.target.id!=='plp-f-motivo') _plpPintarConflictos();
     if(e.target && e.target.id==='plp-f-fecha') _plpRepCambio();
   };
@@ -50500,14 +50674,15 @@ function _plpCamposDe(p){
 }
 function _plpLeerForm(){
   const g=function(id){ const e=document.getElementById('plp-f-'+id); return e?String(e.value||'').trim():''; };
+  const may=function(v){ return String(v||'').trim().toLocaleUpperCase('es-BO'); };
   const aud=[]; document.querySelectorAll('.plp-f-aud').forEach(function(c){ if(c.checked) aud.push(c.value); });
   const rec=document.getElementById('plp-f-recortar');
   const efm=document.getElementById('plp-f-efm');
   const mv=(PLP.edit && PLP.edit.p && PLP.edit.p.mueve) || null;
-  return { fecha:g('fecha'), desde:_plpNormHora(g('desde')), hasta:_plpNormHora(g('hasta')), actividad:g('actividad'),
-    lugar:g('lugar'), responsable:g('responsable'), asisten:g('asisten'), uniforme:g('uniforme'),
+  return { fecha:g('fecha'), desde:_plpNormHora(g('desde')), hasta:_plpNormHora(g('hasta')), actividad:may(g('actividad')),
+    lugar:may(g('lugar')), responsable:may(g('responsable')), asisten:may(g('asisten')), uniforme:may(g('uniforme')),
     audiencias:aud.sort(), recortar:rec?rec.checked:true,
-    motivo:g('justif'),
+    motivo:may(g('justif')),
     // `mueve` no es un campo que se escriba: viene del arrastre y viaja con la ficha.
     mueve:mv,
     // Si lo que se está moviendo ES el Entrenamiento Físico, queda marcado como tal
@@ -50644,7 +50819,7 @@ async function _plpMovido(info){
     const f=ev.extendedProps.fila||{};
     const texto=String(f.act||f.uc||ev.title||'').trim();
     const viejo=info.oldEvent;
-    if(!u.proponer || !f.desde || !f.hasta || !viejo || !viejo.start){ info.revert(); return; }
+    if((!u.mover && !(u.efm && _plpEsFilaEfm(f))) || !f.desde || !f.hasta || !viejo || !viejo.start){ info.revert(); return; }
     if(_plpEsFilaEfm(f) && !u.efm){
       info.revert();
       alert('🏃 El ENTRENAMIENTO FÍSICO solo lo mueven sus encargados:\n\n· Tcnl. Aguirre\n· My. Linares\n· Tcnl. Fuentes\n\n(o el Jefe de Estudios).');
