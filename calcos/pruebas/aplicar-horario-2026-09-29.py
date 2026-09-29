@@ -46,7 +46,7 @@ s=s[:start]+fn+s[end:]
 print("OK mezcla ocultar_base")
 
 # Permisos: solo los tres puede_mover editan actividades ajenas.
-m=re.search(r"function _plpPuedeEditar\\(p\\)\\{.*?\\n\\}",s,re.S)
+m=re.search(r"function _plpPuedeEditar\(p\)\{.*?\n\}",s,re.S)
 if not m: raise SystemExit("permisos editar ajenas: función no encontrada")
 s=s[:m.start()]+"""function _plpPuedeEditar(p){
   const u=PLP.perfil;
