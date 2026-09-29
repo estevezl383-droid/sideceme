@@ -12200,9 +12200,20 @@ function _ncfRepintarNotas(){
 
 let notaFirmaState = { conf:null, sigCanvas:null, sigCtx:null, sigHasContent:false };
 
-function abrirFirmaNota(confId){
-  const conf = (notasConfCache||[]).find(function(c){ return String(c.id)===String(confId); });
-  if(!conf) return;
+let _notaFirmaSolicitud = 0;
+async function abrirFirmaNota(confId){
+  cerrarFirmaNota();
+  const solicitud = ++_notaFirmaSolicitud;
+  const r = await _ncfInvoke('consultar', { confirmacion_id: confId });
+  if(solicitud !== _notaFirmaSolicitud) return;
+  if(!r.ok || !r.confirmacion){
+    cerrarFirmaNota();
+    await cargarConformidadesCursante(true);
+    _ncfRepintarNotas();
+    alert(r.error || 'No se pudo verificar la nota vigente. Intentá nuevamente.');
+    return;
+  }
+  const conf = r.confirmacion;
   notaFirmaState = { conf:conf, sigCanvas:null, sigCtx:null, sigHasContent:false };
   let ov = document.getElementById('nota-firma-modal');
   if(!ov){ ov = document.createElement('div'); ov.id='nota-firma-modal'; ov.className='avm-overlay'; document.body.appendChild(ov); }
@@ -12242,6 +12253,7 @@ function _ncfToggleRechazo(){
 }
 
 function cerrarFirmaNota(){
+  ++_notaFirmaSolicitud;
   const ov = document.getElementById('nota-firma-modal');
   if(ov) ov.style.display = 'none';
 }
@@ -12286,8 +12298,12 @@ async function enviarConformidadNota(decision){
     : '¿Confirmás que NO estás de acuerdo con la nota ' + fmtNota(conf.nota_final) + ' de "' + conf.materia + '" por este motivo?\n\n"' + obs + '"\n\nEsto queda registrado con tu firma.';
   if(!confirm(pregunta)) return;
   const firma = notaFirmaState.sigCanvas.toDataURL('image/png');
-  const r = await _ncfInvoke('resolver', { confirmacion_id: conf.id, decision: decision, firma: firma, observacion: obs || null });
-  if(!r.ok){ alert(r.error || 'No se pudo guardar'); return; }
+  const r = await _ncfInvoke('resolver', { confirmacion_id: conf.id, decision: decision, firma: firma, observacion: obs || null,
+    nota_mostrada: fmtNota(conf.nota_final), publicado_en: conf.publicado_en });
+  if(!r.ok){
+    if(r.no_vigente){ cerrarFirmaNota(); await cargarConformidadesCursante(true); _ncfRepintarNotas(); }
+    alert(r.error || 'No se pudo guardar'); return;
+  }
   cerrarFirmaNota();
   await cargarConformidadesCursante(true);
   _ncfRepintarNotas();
