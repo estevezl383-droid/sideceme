@@ -4,7 +4,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const root = path.resolve(__dirname, "../..");
+const root = path.resolve(__dirname, "..");
 const src = path.join(root, "assets", "index-5bpBlYsz.js");
 const out = path.join(root, "assets", "index-ge-import-20260929.js");
 const index = path.join(root, "index.html");
