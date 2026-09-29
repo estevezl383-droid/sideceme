@@ -13,6 +13,18 @@ let s = fs.readFileSync(src, "utf8");
 
 const replacements = [
   [
+    'f.jsx("button",{className:"btn-cmoc-abrir",onClick:xa,title:VSe,style:{color:hf?"#3de1a0":void 0},children:v7()?hf?"🌍 Espejo activo":"🌍 Espejo GE":"🌍 Bajar KMZ"}),v7()&&f.jsx("button",{className:"btn-cmoc-abrir",onClick:po,title:"Actualizar Google Earth ahora mismo (forzar recarga)",children:"🔄 Refrescar GE"}),',
+    'f.jsx("button",{className:"btn-cmoc-abrir",onClick:xa,title:VSe,style:{color:hf?"#3de1a0":void 0},children:v7()?hf?"🌍 Espejo activo":"🌍 Espejo GE":"🌍 Bajar KMZ"}),v7()&&f.jsx("button",{className:"btn-cmoc-abrir",onClick:po,title:"Actualizar Google Earth ahora mismo (forzar recarga)",children:"🔄 Refrescar GE"}),f.jsx("button",{id:"sid-btn-complementar-ge",className:"btn-cmoc-abrir",onClick:()=>window.SIDECEME_IMPORTAR_GE?.importarDesdeUI?.(),title:"Agregar KML/KMZ de Google Earth a Comunicaciones, Poblaciones, Hidrográfico o Vegetación. No borra lo existente.",children:"📥 Complementar calcos"}),'
+  ],
+  [
+    'Qne="Unidades",YSe=4e3;',
+    'Qne="Unidades",YSe=1e3;'
+  ],
+  [
+    '<refreshInterval>10</refreshInterval>',
+    '<refreshInterval>2</refreshInterval>'
+  ],
+  [
     'cr={unidades:ha,ops:Pt,defensa:vi,tareas:ti,log:Ta,mesa:ni,picb:tu,g3:yi,personal:zd,ac:yh,fases:nu,ejercicios:Ol,ia:D0,impresion:lf,carta:_n,areaops:fs,influencia:Co},xi=',
     'cr={unidades:ha,ops:Pt,defensa:vi,tareas:ti,log:Ta,mesa:ni,picb:tu,g3:yi,personal:zd,ac:yh,fases:nu,ejercicios:Ol,ia:D0,impresion:lf,carta:_n,areaops:fs,influencia:Co};window.__SIDECEME_IMPORT_STATE={getResultados:()=>ne,setResultados:Ke,setDatosCapas:_e,setVisibles:oe,setError:he,setEstado:as};const xi='
   ],
