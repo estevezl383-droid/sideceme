@@ -5,7 +5,9 @@ el ejemplo de las págs. 21 y 22. Ubica a la unidad VERTICAL (los escalones de a
 y HORIZONTALMENTE (maniobra, apoyo de combate y apoyo de servicio de combate), con
 la tarea (T) y el propósito (P) de cada unidad, por fase.
 
-La versión vigente está en **`v3/`**. Las carpetas `v2/` y la raíz (`modelo.js`,
+La versión vigente está en **`v4/`** (la `v3/` con todas las unidades de las filas con
+flecha directa a la unidad propia; se publicó en carpeta nueva porque los navegadores
+seguían con la `v3/` en caché). Las carpetas `v3/`, `v2/` y la raíz (`modelo.js`,
 `editor.js`, `word.js`, `runtime.js`) son las versiones anteriores y se dejan intactas:
 las usan los compilados anteriores (`index-6Gm5UQ97.js`, `index-nQKdqwIj.js`), así que
 un navegador que tenga uno en caché sigue funcionando y volver atrás es cambiar una
@@ -71,7 +73,7 @@ Todo se guarda con el ejercicio en `g3.entrelazados` (esquema `conceptos-v3`, `e
 = `puras` | `ft` | `adyacentes`). Las hojas v2 (`superior2`/`superior1`, `enfoque`
 `subordinadas`) y v1 se leen igual.
 
-## Archivos (`v3/`)
+## Archivos (`v4/`, igual que `v3/`)
 
 - `modelo.js` — esquema, jerarquía, lectura de designaciones (RCB, RIM, RIAT, RAM, RAA,
   BATING, BAT. LOG., COMP. ICIA…), organización de la tarea, armado con las tres opciones,

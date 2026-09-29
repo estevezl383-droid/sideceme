@@ -5,6 +5,23 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-09-29 — Conceptos entrelazados v4: la hoja en carpeta nueva (`index-ucOhdPbL.js`)
+
+Parte de `index-nDtcWpLo.js` + `calcos/pruebas/reemplazos-2026-09-29-conceptos-v4.js`
+(1 reemplazo: los `import` de la hoja apuntan a `../conceptos/v4/`); lo arma
+`construir-conceptos-v4.js` y `reemplazos-compilado.js` lo deshace byte por byte.
+
+- Qué pasaba: se cambió `v3/modelo.js` en el mismo lugar (todas las unidades de las
+  filas con flecha directa a la unidad propia) y el docente siguió viendo la hoja sin
+  esas flechas: su navegador tenía los módulos de `v3/` en caché con la misma dirección.
+- Qué se hizo: `v4/` es la `v3/` actual, con una marca «Versión 4 (29-09)» en la
+  pantalla para saber que cargó la nueva. Compilado nuevo apuntado desde
+  `calcos/index.html`. `v3/` queda como estaba para el compilado anterior.
+- Cómo se comprobó: `conceptos.cjs` (20 casos, sobre `v4/`), `reemplazos-compilado.js`,
+  `e2e/conceptos.cjs` en Chromium (ahora comprueba que TODAS las unidades del caso del
+  docente tienen su relación directa con la División y que se ve la marca de versión) y
+  `word-conceptos.py`.
+
 ## 2026-09-29 — 🧩 Conceptos entrelazados v3: la cadena de mando y las dos opciones (`index-nDtcWpLo.js`)
 
 Parte de `index-6Gm5UQ97.js`: trae todo eso y suma esto. Lo pidió Sergio con el Word

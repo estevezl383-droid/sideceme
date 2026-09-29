@@ -7,6 +7,7 @@ on:
       - 'calcos/assets/index-conceptos-20260928.js'
       - 'calcos/assets/index-6Gm5UQ97.js'
       - 'calcos/assets/index-nDtcWpLo.js'
+      - 'calcos/assets/index-ucOhdPbL.js'
       - 'calcos/pruebas/*conceptos*'
       - 'calcos/pruebas/reemplazos-compilado.js'
       - 'calcos/pruebas/e2e/conceptos.cjs'
@@ -28,7 +29,7 @@ jobs:
           npm ci --prefix calcos/pruebas
           node calcos/pruebas/conceptos.cjs
           node calcos/pruebas/reemplazos-compilado.js
-          node --check calcos/assets/index-nDtcWpLo.js
+          node --check calcos/assets/index-ucOhdPbL.js
       - name: Preparar navegador de prueba
         run: |
           npm install --prefix /tmp/prueba-conceptos playwright@1.51.1
