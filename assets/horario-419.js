@@ -281,3 +281,46 @@
     e.saving=false;if(dlg)dlg.querySelectorAll('button,input,textarea,select').forEach(function(el){el.disabled=false;});_plpRecargar();if(!fallos.length)setTimeout(_plpCerrarModal,900);
   };
 })();
+
+/* v2.9.421 — duplicar actividades y planificación directa. */
+(function(){
+  'use strict';
+  function may(v){return String(v==null?'':v).toLocaleUpperCase('es-BO');}
+  function todo(p){return p&&p.desde==='00:00'&&p.hasta==='23:59';}
+  var abrir=_plpAbrir;
+  _plpAbrir=function(ev){
+    abrir(ev);
+    if(!(PLP.perfil||{}).proponer)return;
+    PLP.duplicarOrigen=ev;
+    var dlg=document.getElementById('plp-dlg');if(!dlg)return;
+    var b=document.createElement('button');b.className='btn-primary pl-b';b.type='button';b.textContent='📋 DUPLICAR ACTIVIDAD';b.onclick=plpDuplicarAbrir;dlg.appendChild(b);
+  };
+  window.plpDuplicarAbrir=function(){
+    var ev=PLP.duplicarOrigen;if(!ev)return;var x=ev.extendedProps||{},p=x.p||{},f=x.fila||{};
+    PLP.duplicar={actividad:may(p.actividad||ev.title),lugar:may(p.lugar||f.lugar||''),responsable:may(p.responsable||f.resp||''),asisten:may(p.asisten||f.asisten||'TODOS'),uniforme:may(p.uniforme||f.unif||''),audiencias:p.audiencias||[PLP.vista==='todas'?'planta':PLP.vista]};
+    var dia=_plpIso(ev.start),all=!!ev.allDay||todo(p),desde=p.desde||f.desde||'08:00',hasta=p.hasta||f.hasta||'09:00';
+    _plpModal('<div class="plp-dlg-h">📋 DUPLICAR ACTIVIDAD</div><div class="plp-dato-t">'+_plEsc(PLP.duplicar.actividad)+'</div><label class="pl-full">DÍA DE DESTINO<input class="pl-i" type="date" id="plp-dup-dia" value="'+dia+'"></label><label><input type="checkbox" id="plp-dup-todo" onchange="plpDuplicarTodo()"'+(all?' checked':'')+'> TODO EL DÍA</label><div id="plp-dup-horas"><label>DESDE<input class="pl-i" type="time" id="plp-dup-desde" value="'+desde+'"></label><label>HASTA<input class="pl-i" type="time" id="plp-dup-hasta" value="'+hasta+'"></label></div><label class="pl-full">MOTIVO<textarea class="pl-i" id="plp-dup-motivo" oninput="_plpMayInput(this)">DUPLICACIÓN DE ACTIVIDAD EN EL HORARIO.</textarea></label><div class="pl-hint">'+((PLP.perfil||{}).mover?'SE APLICA DIRECTAMENTE Y APARECE EN PLOMO.':'SE CREA UNA NUEVA SUGERENCIA PARA APROBACIÓN.')+'</div><div class="plp-btns"><button class="btn-primary pl-b" id="plp-dup-guardar" onclick="plpDuplicarGuardar()">DUPLICAR</button><button class="pl-add" onclick="_plpCerrarModal()">CANCELAR</button></div><div id="plp-dup-res"></div>');plpDuplicarTodo();
+  };
+  window.plpDuplicarTodo=function(){var all=document.getElementById('plp-dup-todo').checked;document.getElementById('plp-dup-horas').hidden=all;};
+  window.plpDuplicarGuardar=async function(){
+    var src=PLP.duplicar;if(!src||src.guardando)return;
+    var all=document.getElementById('plp-dup-todo').checked,c=Object.assign({},src,{fecha:document.getElementById('plp-dup-dia').value,desde:all?'00:00':document.getElementById('plp-dup-desde').value,hasta:all?'23:59':document.getElementById('plp-dup-hasta').value,motivo:may(document.getElementById('plp-dup-motivo').value),recortar:false});delete c.guardando;
+    var err=_plpValidar(c);if(err){alert(may(err));return;}
+    src.guardando=true;var b=document.getElementById('plp-dup-guardar');b.disabled=true;
+    try{var r=await _plpInvoke('guardar',{campos:c});if(!r||!r.ok){document.getElementById('plp-dup-res').textContent=may(r&&r.error||'NO SE PUDO DUPLICAR');return;}PLP.duplicar=null;_plpCerrarModal();_plpRecargar();}
+    finally{src.guardando=false;if(b.isConnected)b.disabled=false;}
+  };
+  var eventos=_plpArmarEventos;
+  _plpArmarEventos=function(){return eventos().map(function(ev){var x=ev.extendedProps||{},p=x.p;if(p&&todo(p)){ev.start=p.fecha;delete ev.end;ev.allDay=true;ev.editable=false;ev.startEditable=false;ev.durationEditable=false;}
+    if(p&&p.estado==='aprobada'&&['P030','P032','S002'].indexOf(p.actualizado_por)>=0){x.cls=(x.cls||[]).filter(function(c){return c!=='plp-aprobada'&&c!=='plp-pendiente';}).concat(['plp-planificacion-directa']);}
+    ev.title=may(ev.title);return ev;});};
+  var bloques=_plpBloquesDia;
+  _plpBloquesDia=function(iso){return bloques(iso).filter(function(x){return !todo(x.p);});};
+  var fila=_plpFilaDeProp;
+  _plpFilaDeProp=function(k,p,cab,idx){var f=fila(k,p,cab,idx);if(todo(p)){f.desde='';f.hasta='';f.span=true;}return f;};
+  var form=_plpForm;
+  _plpForm=function(p,aviso){form(p,aviso);if((PLP.perfil||{}).mover){var dlg=document.getElementById('plp-dlg');if(dlg)dlg.querySelectorAll('.plp-av').forEach(function(e){if(/hasta que|al aprobarse/i.test(e.textContent))e.textContent='LOS CAMBIOS DE PLANIFICACIÓN SE APLICAN DIRECTAMENTE AL GUARDAR.';});}};
+  var pintar=_plpEncajarPintar;
+  _plpEncajarPintar=function(){pintar();if((PLP.perfil||{}).mover){var d=document.getElementById('plp-dlg');if(d)d.querySelectorAll('.plp-av-pend').forEach(function(el){el.textContent='LOS CAMBIOS SE APLICAN DIRECTAMENTE Y QUEDAN EN PLOMO.';});}};
+  var vm=document.getElementById('version-marker');if(vm)vm.textContent='v2.9.421';
+})();

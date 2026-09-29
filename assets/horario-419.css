@@ -26,3 +26,7 @@
 .plp-enc-t th{position:sticky;top:0;background:#101b2c;z-index:1}
 .plp-dlg.plp-dlg-wide{max-width:1200px!important}
 .plp-enc-ops{min-width:210px}
+/* v2.9.421: planificación directa en plomo. */
+#plp-cal .fc-event.plp-planificacion-directa{background:#2f3a4a!important;border:1px solid #4d5b70!important;color:#dfe6ef!important}
+#plp-dup-horas{display:flex;gap:12px;margin:10px 0}
+#plp-dup-horas[hidden]{display:none}

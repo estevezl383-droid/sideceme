@@ -50547,7 +50547,7 @@ async function plpGuardar(){
   const c=_plpLeerForm(), e=_plpValidar(c);
   if(e){ alert('⚠️ '+e); return null; }
   const p=ed.p;
-  if(p.id && !(PLP.perfil||{}).aprobar && p.estado==='aprobada'
+  if(p.id && !(PLP.perfil||{}).aprobar && !(PLP.perfil||{}).mover && p.estado==='aprobada'
      && !confirm('Esta actividad ya está APROBADA.\n\nSi la cambiás vuelve a PENDIENTE hasta que el Jefe de Estudios la apruebe de nuevo. ¿Guardar igual?')) return null;
   // v2.9.387: si se marcó que se repite, se crea una actividad por cada fecha.
   if(!p.id){
@@ -59417,7 +59417,7 @@ window.eemEscritoAbrir=grupo=>{document.getElementById('eem-escrito-modal')?.rem
 
 </script>
 
-<link rel="stylesheet" href="assets/horario-419.css?v=2.9.420">
-<script src="assets/horario-419.js?v=2.9.420"></script>
+<link rel="stylesheet" href="assets/horario-419.css?v=2.9.421">
+<script src="assets/horario-419.js?v=2.9.421"></script>
 </body>
 </html>
