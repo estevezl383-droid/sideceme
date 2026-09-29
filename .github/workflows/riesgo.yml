@@ -1,0 +1,45 @@
+name: Validar matriz de administración del riesgo
+on:
+  pull_request:
+    paths:
+      - 'calcos/riesgo/**'
+      - 'calcos/index.html'
+      - 'calcos/assets/index-5bpBlYsz.js'
+      - 'calcos/pruebas/*riesgo*'
+      - 'calcos/pruebas/reemplazos-compilado.js'
+      - 'calcos/pruebas/e2e/riesgo.cjs'
+      - '.github/workflows/riesgo.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Modelo, Figura 6, hoja anterior, membrete, IA, Word y cadena de compilados reversible
+        run: |
+          npm ci --prefix calcos/pruebas
+          node calcos/pruebas/riesgo.cjs
+          node calcos/pruebas/reemplazos-compilado.js
+          node --check calcos/assets/index-5bpBlYsz.js
+      - name: Preparar navegador de prueba
+        run: |
+          npm install --prefix /tmp/prueba-riesgo playwright@1.51.1
+          node /tmp/prueba-riesgo/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Probar la matriz en la Mesa (hoja anterior, armado, IA, vista previa, Word, guardar, F6·P3)
+        env:
+          PLAYWRIGHT_MODULE: /tmp/prueba-riesgo/node_modules/playwright
+        run: node calcos/pruebas/e2e/riesgo.cjs
+      - name: Validar los Word descargados (formato militar)
+        run: python3 calcos/pruebas/word-riesgo.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: revision-matriz-riesgo
+          path: calcos/pruebas/salidas-riesgo/
+          retention-days: 7

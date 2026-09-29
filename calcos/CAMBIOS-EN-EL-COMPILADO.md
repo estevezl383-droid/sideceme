@@ -5,6 +5,82 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-09-29 — ⚠️ Matriz de administración del riesgo: la hoja de trabajo del RO-06-01-04 (`index-5bpBlYsz.js`)
+
+Parte de `index-ucOhdPbL.js`: trae todo eso y suma esto. Lo pidió Sergio con el Word de
+la F2·P7 que sacaba la Mesa. La lista EXACTA de reemplazos está en
+`calcos/pruebas/reemplazos-2026-09-29-riesgo.js` (14); `reemplazos-compilado.js`
+comprueba que deshaciéndolos se vuelve byte por byte a `index-ucOhdPbL.js`.
+`construir-riesgo.js` arma el compilado nuevo desde esa lista.
+
+### Qué pasaba
+
+- La F2·P7 «Matriz de administración del riesgo» era una hoja de RENGLONES (Peligro ·
+  Probabilidad · Severidad · Nivel inicial · Medida de control · Quién · Residual). El
+  Word salía como una lista «A.- Peligro identificado: … · Probabilidad: Alta [IA —
+  verificar] · …», en hoja vertical, SIN membrete táctico, con RESERVADO (el valor por
+  defecto de la Orden del escalón superior) y firmado «EL G-2 DE LA UNIDAD».
+- El formato es la HOJA DE TRABAJO del RO-06-01-04 «Administración del Riesgo»
+  (Anexo «B»; ejemplos en el Anexo «C»): una MATRIZ con A–D arriba, E–J por tarea y
+  obstáculo y K abajo; y la matriz de la Escuela (DIMEC-1) la numera 1–11, con SECRETO
+  arriba y abajo y «1 - 2» al pie.
+
+### Qué se hizo (código legible en `calcos/riesgo/v1/`, ver `calcos/riesgo/README.md`)
+
+- La hoja es una matriz: tareas con sus obstáculos; estimación con probabilidad (A–E) ×
+  severidad (I–IV) → nivel por la Figura 6 (lo calcula la Mesa); controles, residual y
+  cómo se implementan; K = el MAYOR residual, encerrado en un círculo.
+- Word propio (XML de Word a mano, sin la biblioteca del compilado, para poder dibujar
+  la elipse de K): carta apaisada, membrete táctico en Arial 10 negrilla (escalón
+  superior · unidad considerada con el PC y la hora · EMO/SEC-III · No. 001/clave),
+  SECRETO arriba y abajo, «PAGE - NUMPAGES» al pie, la matriz y la firma del Comandante.
+  Rótulos del reglamento (A–K) o de la Escuela (1–11).
+- 🌱 Armado con lo del ejercicio (misión, grupo fecha/hora y fecha de preparación de la
+  Línea Inicial de Tiempo, quién la prepara, tareas de la F2·P3), sin pisar.
+- 🤖 El mismo panel de IA de las demás hojas (`hU`), con un pedido propio: el
+  expediente entero (pedido con el COC calculado), lo que leyó la Mesa, el método del
+  RO-06-01-04 y la matriz con sus `id`. La respuesta (JSON) se aplica sin pisar o
+  reescribe («completar y mejorar»); lo de la IA queda marcado para revisar (no se imprime).
+- La hoja de antes (renglones) se lee sola como matriz, sin perder nada.
+- La F6·P3 del G-3 («Riesgo de la operación (actualización)») pasa a ser la MISMA
+  matriz, actualizada, con «📋 Partir de la matriz de la fase II».
+
+### Qué se tocó en el compilado (14 reemplazos)
+
+- Los `import` de `calcos/riesgo/v1/` y `configurarRiesgo(...)` (React, `hU`, `Qq`, `uU`, `MS`).
+- Las hojas `riesgo` (F2·P7) y `riesgoFinal` (F6·P3) pasan a `tipo:"riesgo"`
+  (`riesgoFinal` con `actualiza:"riesgo"`).
+- `KS`: el tipo `riesgo` no es una hoja de renglones (sin el panel genérico de IA).
+- Tablero del G-3 (`wLe`): sin los botones genéricos «Vista previa / Word» para ese
+  tipo; monta `SIDEditorRiesgo` con `{...I, unidades, orgTarea, g3, documentos}` y el
+  expediente. `yU` (fuera del Tablero) también.
+- `zle` (expediente), `ED` (carpeta del G-3: la matriz como tabla, sin repetir el
+  membrete) y `CD` (documentos con contenido) leen la matriz.
+- `sP`: lo que otros pedidos a la IA (`hojas_g3`) traen para la matriz se AGREGA a ella
+  (la función general la habría reemplazado por una lista).
+- La guía «¿Para qué es y cómo se llena?» de `riesgo` y de `riesgoFinal`.
+
+### En el fuente
+
+- Montar `calcos/riesgo/v1/editor.js` para el tipo `riesgo` (o pasar la carpeta a
+  componentes: modelo, IA y Word no dependen de React) y los ganchos de `zle`, `ED`,
+  `CD`, `KS` y `sP` de arriba; las dos definiciones de hoja y las dos guías.
+
+### Cómo se comprobó
+
+- `node riesgo.cjs` (16 casos): las 20 casillas de la Figura 6; palabras → letras; la
+  hoja de antes leída sin perder nada; texto guardado tal cual; membrete de la orden y
+  SECRETO; armado con la Línea de Tiempo real de la Mesa (`MS`); K; revisión; texto del
+  expediente; pedido; respuesta con el corrector real (`uU`); la fusión con la `sP`
+  real; el Word (apaisado, membrete Arial 10 negrilla, SECRETO, numeración, rótulos,
+  elipse, celdas combinadas) y la vista previa.
+- `node e2e/riesgo.cjs` en Chromium, escritorio y teléfono: guía nueva, hoja de antes
+  leída, armado, pedido con el expediente y el método, respuesta aplicada sin pisar,
+  vista previa, Word, guardar y reabrir, F6·P3. `word-riesgo.py` valida los Word (y
+  rechaza el Word viejo). Los Word se revisaron convertidos a PDF con LibreOffice.
+- `npm test` completo y los e2e `conceptos.cjs`, `plan-fuegos.js`, `academico.js`,
+  `carga.js` y `plan-barreras-3d.js` pasan con el compilado nuevo.
+
 ## 2026-09-29 — Conceptos entrelazados v4: la hoja en carpeta nueva (`index-ucOhdPbL.js`)
 
 Parte de `index-nDtcWpLo.js` + `calcos/pruebas/reemplazos-2026-09-29-conceptos-v4.js`
