@@ -1,5 +1,5 @@
 // ============================================================
-// EDGE FUNCTION: calco-espejo   (v4 — capas en su tabla, enlaces estables)
+// EDGE FUNCTION: calco-espejo   (v5 — espejo rapido, capas estables)
 //
 // El espejo en vivo con Google Earth. Es la unica funcion que se
 // atiende por GET y sin sesion: Google Earth no puede mandar cabeceras
@@ -9,11 +9,17 @@
 //   1. Se pide el enlace desde el Generador (calco-ops -> 'espejo').
 //   2. Baja UNA vez un .kml chiquito: el "control". No tiene datos,
 //      tiene enlaces de red que apuntan aca.
-//   3. Google Earth los sigue y los refresca cada 10 segundos. Cuando se
+//   3. Google Earth los sigue y los refresca cada 2 segundos. Cuando se
 //      publica un cambio, Google Earth lo muestra solo - tambien a distancia.
 //
 //   GET ?k=<clave>                -> el control (los enlaces de red)
 //   GET ?k=<clave>&parte=<capa>   -> el KML de esa capa, tal cual
+//
+// v5 (29-sep-2026) — ESPEJO RAPIDO.
+// El refresco baja de 10 s a 2 s. Ademas, cuando Google Earth pide una capa
+// por su nombre estable (el caso normal), ya no se consulta primero la lista
+// completa de capas: se va directo a esa fila. Eso elimina una consulta a
+// Supabase por capa y por refresco, sin cambiar el formato ni los enlaces.
 //
 // v4 (26-sep-2026) — "EL ESPEJO NO SE SINCRONIZA".
 // Las capas vivian dentro del payload del trabajo y el autoguardado las
@@ -50,7 +56,7 @@ const sb = createClient(
 );
 
 // Cada cuanto Google Earth vuelve a leer cada capa.
-const SEGUNDOS_REFRESCO = 10;
+const SEGUNDOS_REFRESCO = 2;
 
 // La direccion publica de esta misma funcion. NO se deduce de req.url.
 const YO = `${(Deno.env.get("SUPABASE_URL") || "").replace(/\/+$/, "")}/functions/v1/calco-espejo`;
@@ -119,21 +125,31 @@ Deno.serve(async (req: Request) => {
   if (!data || !data.length) return noHay("Este enlace de espejo ya no es valido");
   const calco = data[0];
 
-  // Las capas publicadas, en su orden.
-  const { data: filas } = await sb.from("calco_espejo_partes")
-    .select("clave, nombre, orden").eq("calco_id", calco.id).order("orden");
-  const capas = filas || [];
-
   // ---- Una capa: el KML tal cual lo genero el Generador ----
   if (parte !== null) {
-    // Enlaces viejos: parte=0, 1… (por numero de orden).
-    const cual = /^\d+$/.test(parte) ? capas[Number(parte)]?.clave : parte;
+    let cual = parte;
+
+    // Los enlaces actuales usan el nombre estable de la capa. En ese caso
+    // vamos directo a la fila y evitamos bajar antes la lista completa.
+    // Solo los enlaces antiguos parte=0,1,... necesitan resolver el indice.
+    if (/^\d+$/.test(parte)) {
+      const { data: antiguas } = await sb.from("calco_espejo_partes")
+        .select("clave, orden").eq("calco_id", calco.id).order("orden");
+      cual = (antiguas || [])[Number(parte)]?.clave || "";
+    }
+
     if (!cual) return noHay("Esa capa ya no esta en el espejo");
     const { data: k } = await sb.from("calco_espejo_partes")
       .select("kml").eq("calco_id", calco.id).eq("clave", cual).limit(1);
     if (!k || !k.length || !k[0].kml) return noHay("Esa capa ya no esta en el espejo");
     return new Response(k[0].kml, { headers: kmlHeaders });
   }
+
+  // Las capas publicadas, en su orden. Solo hacen falta al pedir el
+  // KML de control que contiene los NetworkLink.
+  const { data: filas } = await sb.from("calco_espejo_partes")
+    .select("clave, nombre, orden").eq("calco_id", calco.id).order("orden");
+  const capas = filas || [];
 
   // ---- El control: enlaces de red que Google Earth va a seguir ----
   // Para ubicar la camara alcanza con la primera capa chica (el area).
