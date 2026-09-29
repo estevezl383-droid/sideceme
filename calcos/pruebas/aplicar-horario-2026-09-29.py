@@ -46,17 +46,9 @@ s=s[:start]+fn+s[end:]
 print("OK mezcla ocultar_base")
 
 # Permisos: solo los tres puede_mover editan actividades ajenas.
-old="""function _plpPuedeEditar(p){
-  const u=PLP.perfil;
-  if(!u || p.estado==='retirada') return false;
-  // v2.9.382 — REACOMODAR EL HORARIO: el Jefe de Estudios y los cinco con
-  // \`puede_mover\` (Baptista, Montecinos, Morales, Villarroel, Arce) mueven y
-  // estiran CUALQUIER actividad, no solo la propia. El resto, solo la suya y
-  // mientras la semana siga abierta.
-  if(u.aprobar || u.mover) return true;
-  return !!(u.proponer && p.creado_por===u.id && _plpAbierta(_plpSemanaDe(p.fecha)));
-}"""
-new="""function _plpPuedeEditar(p){
+m=re.search(r"function _plpPuedeEditar\\(p\\)\\{.*?\\n\\}",s,re.S)
+if not m: raise SystemExit("permisos editar ajenas: función no encontrada")
+s=s[:m.start()]+"""function _plpPuedeEditar(p){
   const u=PLP.perfil;
   if(!u || p.estado==='retirada') return false;
   // v2.9.420 — SOLO quienes tienen puede_mover (Morales, Villarroel y Arce)
@@ -64,8 +56,8 @@ new="""function _plpPuedeEditar(p){
   // pero no cambia el pedido de otra persona.
   if(u.mover) return true;
   return !!(u.proponer && p.creado_por===u.id && _plpAbierta(_plpSemanaDe(p.fecha)));
-}"""
-one(old,new,"permisos editar ajenas")
+}"""+s[m.end():]
+print("OK permisos editar ajenas")
 
 # Filas grises: únicamente mover autorizados (o EFM para sus encargados).
 one(
