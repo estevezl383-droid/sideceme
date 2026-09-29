@@ -1,13 +1,17 @@
-// La hoja F2·P1 «Conceptos entrelazados» en la Mesa real (Chromium), con un ejercicio
-// de unidades FICTICIAS (conceptos-ejercicio.js), en escritorio y en teléfono:
-//   · la guía nueva y el panel de IA están (la versión anterior lo había sacado);
-//   · 🌱 la aplicación ARMA la hoja con la orden superior, la organización de la
-//     tarea, las fichas y las fases (no queda vacía);
+// La hoja F2·P1 «Conceptos entrelazados» (v3) en la Mesa real (Chromium), con un
+// ejercicio de unidades FICTICIAS (conceptos-ejercicio.js), en escritorio y en teléfono:
+//   · la guía y el panel de IA están;
+//   · 🧩 con la opción «FT / agrupaciones» la aplicación ARMA la hoja: la cadena de mando
+//     CTO → FF.TT.T.O. → CE → División y debajo las FT, con la orden superior, la
+//     organización de la tarea, las fichas y las fases;
 //   · el pedido a la IA lleva el expediente, el formato, el nivel, la idea del
 //     oficial, la información adicional y un .docx adjunto;
 //   · la respuesta de la IA se aplica (unidades, fases, relaciones);
 //   · se ven las láminas, baja el Word, se guarda con el ejercicio y se reabre;
-//   · el texto narrativo de antes sigue guardado.
+//   · el texto narrativo de antes sigue guardado;
+// y, en escritorio, el caso del docente (conceptos-divmec.js): 🪖 «Unidades puras» con
+// la DIVMEC-1 (XX) debajo del CE (XXX), sus 12 unidades debajo de ella, y una respuesta
+// de IA equivocada que la Mesa acomoda.
 // Sin servicios externos: la IA es una respuesta escrita en la prueba.
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -15,6 +19,7 @@ const path = require('node:path')
 const zlib = require('node:zlib')
 const { abrir, sembrarYAbrir, leerGuardado } = require('./navegador.js')
 const { ejercicioConceptos, respuestaIA } = require('../conceptos-ejercicio.js')
+const { ejercicioDivmec, respuestaIAEquivocada } = require('../conceptos-divmec.js')
 
 const out = path.resolve(__dirname, '../salidas-conceptos')
 fs.mkdirSync(out, { recursive: true })
@@ -102,14 +107,15 @@ async function guardar(page, nombre) {
       assert.ok(await page.getByText(/Te ubica VERTICAL y HORIZONTALMENTE/).count(), 'guía nueva')
       assert.ok(await page.getByText(/todavía vacía/).count(), 'hoja vacía')
 
-      // 🌱 La aplicación arma la hoja.
-      await page.getByRole('button', { name: '🌱 Armar la hoja con lo del ejercicio' }).click()
+      // 🧩 Opción «FT / agrupaciones»: con la hoja vacía, la aplicación la arma.
+      await page.getByRole('button', { name: /FT \/ agrupaciones tácticas/ }).click()
       await page.getByText(/unidad\(es\) puestas/).waitFor()
       let g = await hojaGuardada(page, datos.nombre, () => true, 10)
       const nombres = await page.evaluate(() => [...document.querySelectorAll('summary')].map((s) => s.textContent))
-      for (const n of ['I CUERPO DE EJÉRCITO (FICT.)', 'DIV.MEC.-1 (FICT.)', 'OD FT «GOLF»', 'RIM-1 «ALFA» (FICT.)', 'RA-1 «DELTA» (FICT.)', 'B.LOG.-1 «FOX» (FICT.)']) {
+      for (const n of ['Comando del Teatro de Operaciones (XXXXX)', '(XXXX)', 'I CUERPO DE EJÉRCITO (FICT.) (XXX)', 'DIV.MEC.-1 (FICT.) (XX) · PROPIA', 'OD FT «GOLF»', 'RIM-1 «ALFA» (FICT.)', 'RA-1 «DELTA» (FICT.)', 'B.LOG.-1 «FOX» (FICT.)']) {
         assert.ok(nombres.some((s) => s.includes(n)), `armada: falta ${n} en ${JSON.stringify(nombres)}`)
       }
+      assert.ok(await page.getByText(/Cadena de mando: .*\(XXXXX\) → .*\(XXXX\) → .*\(XXX\) → DIV\.MEC\.-1 \(FICT\.\) \(XX\)/).count(), 'la cadena de mando a la vista')
       assert.ok(await page.getByText(/3 de maniobra/).count() || (await page.getByText(/4 de maniobra/).count()), 'cuenta de maniobra')
       await page.screenshot({ path: path.join(out, `${tag}-armada.png`), fullPage: false })
 
@@ -122,7 +128,7 @@ async function guardar(page, nombre) {
       await page.getByRole('button', { name: /Ver el pedido/ }).waitFor({ timeout: 20000 })
       await page.getByRole('button', { name: /Ver el pedido/ }).click()
       const pedido = await page.getByRole('textbox', { name: 'Pedido a la IA' }).inputValue()
-      for (const t of ['EXPEDIENTE DEL EJERCICIO', 'F2·P1 — CONCEPTOS ENTRELAZADOS', 'Mi unidad y mis unidades subordinadas', 'INFORMACIÓN ADICIONAL DE PRUEBA.', 'ORIENTACIÓN DEL COMANDANTE (FICT.)', 'ANTECEDENTE SIN ALTERAR (FICT.)', '"unidades"', 'Orden de operaciones (FICT.)']) assert.ok(pedido.includes(t), `el pedido no trae «${t}»`)
+      for (const t of ['EXPEDIENTE DEL EJERCICIO', 'F2·P1 — CONCEPTOS ENTRELAZADOS', 'FT / agrupaciones tácticas', 'LA JERARQUÍA', 'LO QUE YA IDENTIFICÓ LA MESA', 'INFORMACIÓN ADICIONAL DE PRUEBA.', 'ORIENTACIÓN DEL COMANDANTE (FICT.)', 'ANTECEDENTE SIN ALTERAR (FICT.)', '"unidades"', 'Orden de operaciones (FICT.)']) assert.ok(pedido.includes(t), `el pedido no trae «${t}»`)
       assert.ok(pedido.trimEnd().endsWith('IDEA DEL OFICIAL: la OD la lleva la FT GOLF en la fase III.'), 'la idea va al final')
 
       // La respuesta de la IA se aplica.
@@ -147,9 +153,10 @@ async function guardar(page, nombre) {
 
       // Se guarda con el ejercicio y se reabre igual.
       await guardar(page, datos.nombre)
-      g = await hojaGuardada(page, datos.nombre, (e) => e?.esquema === 'conceptos-v2' && (e.unidades || []).some((u) => /COM\.-1/.test(u.nombre)))
+      g = await hojaGuardada(page, datos.nombre, (e) => e?.esquema === 'conceptos-v3' && (e.unidades || []).some((u) => /COM\.-1/.test(u.nombre)))
       const e = g.g3.entrelazados
-      assert.equal(e.esquema, 'conceptos-v2')
+      assert.equal(e.esquema, 'conceptos-v3')
+      assert.equal(e.enfoque, 'ft')
       assert.equal(e['MISIONES DE LAS UNIDADES ADYACENTES'], 'ANTECEDENTE SIN ALTERAR (FICT.)')
       assert.equal(e.orientaciones.idea, 'IDEA DEL OFICIAL: la OD la lleva la FT GOLF en la fase III.')
       assert.equal(e.orientaciones.adjuntos[0].nombre, 'orientaciones.docx')
@@ -158,7 +165,9 @@ async function guardar(page, nombre) {
       assert.equal(od.nombre, 'FT «GOLF»')
       assert.ok(od.fases.some((f) => f.fase === 'F3' && f.esfuerzo && /Contraataca/.test(f.tarea)))
       assert.ok(e.unidades.some((u) => u.grupo === 'spac' && /FOX/.test(u.nombre) && u.tarea === 'Abastece y evacúa.'))
-      assert.equal(e.unidades.filter((u) => u.grupo === 'superior1').length, 1)
+      assert.equal(e.unidades.filter((u) => u.propia).length, 1)
+      assert.equal(e.unidades.find((u) => u.propia).grupo, 'superior')
+      assert.deepEqual(e.unidades.filter((u) => u.grupo === 'superior').map((u) => u.magnitud), ['XXXXX', 'XXXX', 'XXX', 'XX'])
       assert.ok(e.relaciones.length >= 5)
       await page.reload()
       await page.waitForTimeout(2500)
@@ -175,6 +184,52 @@ async function guardar(page, nombre) {
     } finally {
       await a.cerrar()
     }
+  }
+
+  // El caso del docente: 🪖 «Unidades puras», la División arriba y sus unidades debajo.
+  const a = await abrir({ ancho: 1440, alto: 1000, consulta: '?puesto=g3' })
+  const { page } = a
+  page.on('dialog', (d) => d.accept())
+  const datos = ejercicioDivmec()
+  try {
+    await sembrarYAbrir(page, datos)
+    await irALaHoja(page)
+    await page.getByRole('button', { name: /Unidades puras/ }).click()
+    await page.getByText(/unidad\(es\) puestas/).waitFor()
+    assert.ok(await page.getByText(/Cadena de mando: Comando del Teatro de Operaciones \(XXXXX\) → Comando de las Fuerzas Terrestres del Teatro de Operaciones \(XXXX\) → I CUERPO DE EJÉRCITO \(XXX\) → DIVMEC-1 \(XX\)/).count(), 'cadena de mando del caso del docente')
+    const nombres = await page.evaluate(() => [...document.querySelectorAll('summary')].map((s) => s.textContent))
+    for (const n of ['DIVMEC-1 (XX) · PROPIA', 'RCB-1 «ALFA» (III)', 'RIAT-30 «ECO» (III)', 'RAA-6 «GOLF» (III)', 'COMP. ICIA.-I «KILO» (I)', 'Comp. Av. Ejto. «LIMA» (I)', 'BAT. LOG.-I «INDIA» (II)']) assert.ok(nombres.some((x) => x.includes(n)), `puras: falta ${n}`)
+    assert.ok(!nombres.some((x) => /DIVMEC-2|Comp\. Inf\. Mec/.test(x)), 'ni la adyacente ni la subunidad suelta')
+    // La IA que se equivoca como en el Word: la Mesa la acomoda y avisa.
+    await page.getByRole('textbox', { name: 'Respuesta de la IA' }).fill(JSON.stringify(respuestaIAEquivocada()))
+    await page.getByRole('button', { name: '✓ Aplicar a la hoja' }).click()
+    await page.getByText(/La Mesa acomodó/).waitFor()
+    await page.getByRole('button', { name: '👁️ Ver la hoja' }).click()
+    const velo = page.getByRole('dialog', { name: 'Hoja de conceptos entrelazados' })
+    await velo.waitFor()
+    const t = (await velo.locator('svg').first().textContent()) || ''
+    for (const x of ['XXXXX', 'CTO', 'XXXX', 'FF.TT.T.O.', 'XXX', 'CE', 'XX', 'DIVMEC-1', '(UNIDAD PROPIA)', 'RCB-1 «ALFA»', 'OD']) assert.ok(t.includes(x), `lámina sin «${x}»`)
+    await page.screenshot({ path: path.join(out, 'divmec-puras.png'), fullPage: false })
+    const descarga = page.waitForEvent('download')
+    await velo.getByRole('button', { name: '📄 Word' }).click()
+    await (await descarga).saveAs(path.join(out, 'divmec-puras.docx'))
+    await velo.getByRole('button', { name: '✕ Cerrar' }).click()
+    await guardar(page, datos.nombre)
+    const g = await hojaGuardada(page, datos.nombre, (e) => e?.esquema === 'conceptos-v3' && (e.unidades || []).some((u) => u.rol === 'OD'))
+    const e = g.g3.entrelazados
+    assert.equal(e.enfoque, 'puras')
+    assert.deepEqual(e.unidades.filter((u) => u.grupo === 'superior').map((u) => [u.magnitud, u.nombre]), [['XXXXX', 'Comando del Teatro de Operaciones'], ['XXXX', 'Comando de las Fuerzas Terrestres del Teatro de Operaciones'], ['XXX', 'I CUERPO DE EJÉRCITO'], ['XX', 'DIVMEC-1']])
+    assert.ok(e.unidades.find((u) => u.nombre === 'DIVMEC-1').propia)
+    assert.ok(!e.unidades.some((u) => u.grupo !== 'superior' && /DIV/.test(u.nombre)), 'ninguna división en las filas')
+    assert.deepEqual(a.errores, [])
+    console.log('OK caso del docente: unidades puras con la cadena CTO → FF.TT.T.O. → CE → DIVMEC-1, respuesta de IA equivocada acomodada, lámina, Word y guardado.')
+  } catch (e) {
+    console.error('ERRORES APP', a.errores)
+    fs.writeFileSync(path.join(out, 'fallo-divmec.txt'), await page.locator('body').innerText().catch(() => ''))
+    await page.screenshot({ path: path.join(out, 'fallo-divmec.png'), fullPage: true }).catch(() => {})
+    throw e
+  } finally {
+    await a.cerrar()
   }
 })().catch((e) => {
   console.error(e)
