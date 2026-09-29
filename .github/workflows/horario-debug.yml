@@ -7,49 +7,32 @@ permissions:
   contents: write
 jobs:
   inspect:
-    if: "!contains(github.event.head_commit.message, '[horario-debug-output]')"
+    if: "!contains(github.event.head_commit.message, '[horario-module-output]')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: chatgpt/horario-editor-20260929
-      - name: Inspect minified index around horario strings
+      - name: Extract horario module
         run: |
           python - <<'PY'
           from pathlib import Path
-          p=Path('index.html')
-          s=p.read_text(encoding='utf-8',errors='replace')
-          terms=[
-            'ENCAJAR EL DÍA','Encajar el día','encajar el día',
-            'SIN APROBAR','sin aprobar','RECORTAR','Recortar','CORRER','Correr',
-            'VISTA PREVIA','Vista previa','HORARIO INTEGRADO','Horario integrado',
-            'ACTIVIDADES ADMINISTRATIVAS Y ACADÉMICAS',
-            'A DISPOSICION DEL COMANDO','A DISPOSICIÓN DEL COMANDO',
-            'MOMENTO DE REFLEXION','MOMENTO DE REFLEXIÓN',
-            'REFLEXION INSTITUCIONAL','REFLEXIÓN INSTITUCIONAL',
-            'PLANIF_ROLES','jefe_planificacion','ciencia','tecnologia','tecnología'
-          ]
-          out=[]
-          out.append(f'LEN={len(s)}')
-          for term in terms:
-            start=0
-            n=0
-            while True:
-              i=s.find(term,start)
-              if i<0: break
-              n+=1
-              a=max(0,i-2500); b=min(len(s),i+5000)
-              out.append('\n'+'='*100)
-              out.append(f'TERM={term!r} HIT={n} POS={i}')
-              out.append(s[a:b])
-              start=i+1
-              if n>=8: break
-          Path('horario-debug.txt').write_text('\n'.join(out),encoding='utf-8')
+          s=Path('index.html').read_text(encoding='utf-8',errors='replace')
+          center=s.find('ENCAJAR EL DÍA')
+          if center < 0:
+            raise SystemExit('No se encontró ENCAJAR EL DÍA')
+          a=max(0,center-180000)
+          b=min(len(s),center+220000)
+          chunk=s[a:b]
+          Path('horario-module.txt').write_text(
+            f'INDEX_RANGE={a}:{b}\nCENTER={center}\n\n'+chunk,
+            encoding='utf-8'
+          )
           PY
-      - name: Commit debug report
+      - name: Commit module extract
         run: |
           git config user.name "ChatGPT"
           git config user.email "noreply@openai.com"
-          git add horario-debug.txt
-          git commit -m "Añade inspección temporal del horario [horario-debug-output]"
+          git add horario-module.txt
+          git commit -m "Extrae módulo de horario para edición [horario-module-output]"
           git push
