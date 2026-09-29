@@ -27,6 +27,9 @@ magnitud de cada escalón (como lo indicó el docente):
 La magnitud sale del nombre cuando el nombre lo dice sin dudas («Cuerpo de Ejército I»
 nunca sale con XX; «Fuerzas Terrestres del TO» es XXXX, no el TO). DEBAJO de la unidad
 propia (la última caja de la cadena) van las filas de maniobra, apoyo de combate y SPAC.
+Con «puras» y «FT», TODAS las unidades de las filas dependen directamente de la unidad
+propia: cada una lleva siempre su flecha llena (relación directa) hasta ella, además de
+las que tenga con la OD u otras; una hoja guardada sin esas flechas las toma al leerse.
 
 ## Qué hace (v3)
 
