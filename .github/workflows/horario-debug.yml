@@ -1,4 +1,4 @@
-name: horario-debug
+name: horario-patch
 on:
   push:
     branches:
@@ -6,33 +6,52 @@ on:
 permissions:
   contents: write
 jobs:
-  inspect:
-    if: "!contains(github.event.head_commit.message, '[horario-module-output]')"
+  patch:
+    if: "!contains(github.event.head_commit.message, '[horario-patch-output]')"
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           ref: chatgpt/horario-editor-20260929
-      - name: Extract horario module
+      - name: Apply horario patch
+        run: python calcos/pruebas/aplicar-horario-2026-09-29.py
+      - name: Sanity checks
         run: |
           python - <<'PY'
           from pathlib import Path
           s=Path('index.html').read_text(encoding='utf-8',errors='replace')
-          center=s.find('ENCAJAR EL DÍA')
-          if center < 0:
-            raise SystemExit('No se encontró ENCAJAR EL DÍA')
-          a=max(0,center-180000)
-          b=min(len(s),center+220000)
-          chunk=s[a:b]
-          Path('horario-module.txt').write_text(
-            f'INDEX_RANGE={a}:{b}\nCENTER={center}\n\n'+chunk,
-            encoding='utf-8'
-          )
+          must=[
+            "✏️ EDITAR A MANO — horas, texto, agregar o eliminar",
+            "function plpEncManualGuardar",
+            "function plpEncManualEliminar",
+            "function plpEncManualNueva",
+            "function plpZoom",
+            "if(p.ocultar_base) return;",
+            "if(u.mover) return true;"
+          ]
+          for x in must:
+            assert x in s, x
+          assert "if(u.mover || u.aprobar) h+='<button class=\"plp-enc-gr\"" not in s
+          print("sanity OK")
           PY
-      - name: Commit module extract
+      - name: Check inline JavaScript syntax
+        run: |
+          python - <<'PY'
+          import re
+          from pathlib import Path
+          s=Path('index.html').read_text(encoding='utf-8',errors='replace')
+          blocks=re.findall(r'<script(?:\s[^>]*)?>(.*?)</script>',s,re.S|re.I)
+          if not blocks:
+            raise SystemExit('No inline scripts found')
+          js=max(blocks,key=len)
+          Path('/tmp/sideceme-main.js').write_text(js,encoding='utf-8')
+          print('largest inline script chars',len(js))
+          PY
+          node --check /tmp/sideceme-main.js
+      - name: Commit patched index
         run: |
           git config user.name "ChatGPT"
           git config user.email "noreply@openai.com"
-          git add horario-module.txt
-          git commit -m "Extrae módulo de horario para edición [horario-module-output]"
+          git add index.html
+          git commit -m "Horario integrado: editor manual, zoom y permisos [horario-patch-output]"
           git push
