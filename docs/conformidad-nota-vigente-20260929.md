@@ -28,3 +28,6 @@ La proteccion del servidor tambien rechaza publicaciones obsoletas de clientes a
 
 ## Reversion
 El frontend anterior se conserva en el padre del commit y la Edge Function anterior en supabase/notas-confirmar/rollback-v3.ts. El trigger puede retirarse con DROP TRIGGER trg_conformidad_nota_vigente ON public.notas_confirmaciones. No se necesita restaurar notas ni firmas, porque no se cambiaron.
+
+## Aviso por publicacion para ambos ciclos
+El aviso enumera cada nota pendiente con materia, ciclo, semestre, gestion y nota. Cada boton conserva el ID de esa publicacion y abre su consulta vigente antes del canvas. Firmadas y objetadas no aparecen como pendientes. Se probaron ambos ciclos y ambos semestres, destino individual de varios pendientes, retiro al responder y continuidad de EFM. Las cargas historicas sin publicacion no se publicaron automaticamente.
