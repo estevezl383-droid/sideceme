@@ -40,11 +40,17 @@
       props=props||[];
       var borran=props.filter(function(p){return p.estado==='aprobada'&&p.ocultar_base&&p.mueve&&(p.audiencias||[]).indexOf(k)>=0;});
       var out=mez0(k,bloque,props.filter(function(p){return !p.ocultar_base;}),cab);
-      if(!out||!out.dias||!borran.length) return out;
+      if(!out||!out.dias)return out;
       out.dias.forEach(function(d){
         var bd=borran.filter(function(p){return p.mueve.fecha===d.iso;});
         if(bd.length) d.filas=(d.filas||[]).filter(function(f){
           return !bd.some(function(p){return _plpEsEsaFila(f,p.mueve);});
+        });
+        if(d.libre)d.libre=MAY(d.libre);
+        (d.filas||[]).forEach(function(f){
+          ['act','uc','modulo','codigo','lugar','asisten','resp','unif'].forEach(function(k){
+            if(f[k]!=null)f[k]=MAY(f[k]);
+          });
         });
       });
       return out;
