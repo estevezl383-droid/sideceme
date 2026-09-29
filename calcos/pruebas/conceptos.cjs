@@ -1,4 +1,4 @@
-// Hoja F2·P1 «Conceptos entrelazados» (calcos/conceptos/v3/), sin navegador:
+// Hoja F2·P1 «Conceptos entrelazados» (calcos/conceptos/v4/), sin navegador:
 //   · la integración anterior (integrar-conceptos.cjs) sigue siendo reversible;
 //   · se leen igual la hoja v1, la v2 y el formato narrativo;
 //   · la jerarquía: CTO XXXXX → FF.TT.T.O. XXXX → CE XXX → División XX → sus unidades;
@@ -33,11 +33,11 @@ const texto = (svg) => svg.replace(/<[^>]+>/g, ' ').replace(/&amp;/g, '&').repla
 const palabras = (t) => String(t).split(/\s+/).filter(Boolean)
 
 ;(async () => {
-  const url = (f) => pathToFileURL(path.join(raiz, 'conceptos', 'v3', f)).href
+  const url = (f) => pathToFileURL(path.join(raiz, 'conceptos', 'v4', f)).href
   const m = await import(url('modelo.js'))
   const l = await import(url('laminas.js'))
   const ia = await import(url('ia.js'))
-  console.log('\nConceptos entrelazados (calcos/conceptos/v3)\n')
+  console.log('\nConceptos entrelazados (calcos/conceptos/v4)\n')
 
   await caso('la integración anterior sigue siendo reversible (index-conceptos-20260928.js → index-zhbwncsH.js)', () => {
     const original = fs.readFileSync(path.join(raiz, 'assets/index-zhbwncsH.js'), 'utf8')
