@@ -186,9 +186,9 @@ function _plpEncManualPintar(){
       +(e.conChoque.indexOf(x)>=0?'  ⚠️ HAY CASILLAS ENCIMADAS':'  ✅ SIN CHOQUES')+'</option>'; }).join('')
     +'</select></label>'
     +'<div class="plp-enc-modo">'
-    +'<button class="pl-tab" onclick="plpEncajarModo(\\'recortar\\')">✂️ RECORTAR</button>'
-    +'<button class="pl-tab" onclick="plpEncajarModo(\\'correr\\')">➡️ CORRER</button>'
-    +'<button class="pl-tab on" onclick="plpEncajarModo(\\'manual\\')">✏️ EDITAR A MANO</button>'
+    +'<button class="pl-tab" onclick="plpEncajarModo(\'recortar\')">✂️ RECORTAR</button>'
+    +'<button class="pl-tab" onclick="plpEncajarModo(\'correr\')">➡️ CORRER</button>'
+    +'<button class="pl-tab on" onclick="plpEncajarModo(\'manual\')">✏️ EDITAR A MANO</button>'
     +'</div>'
     +'<div class="plp-enc-t"><table><tr><th>TIPO</th><th>DESDE</th><th>HASTA</th><th>ACTIVIDAD</th><th>ACCIONES</th></tr>';
   if(!bl.length) h+='<tr><td colspan="5"><div class="pl-hint">ESTE DÍA NO TIENE FILAS CON HORA.</div></td></tr>';
