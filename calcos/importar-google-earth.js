@@ -258,6 +258,35 @@
     return m;
   }
 
+
+  function preservarImportados(nuevo, anterior) {
+    const out = nuevo && typeof nuevo === "object" ? { ...nuevo } : {};
+    const imp = importedBySubcapa(anterior || {});
+    const porDestino = {};
+    for (const r of Object.values(anterior || {})) {
+      const fs = r && r.fc && Array.isArray(r.fc.features) ? r.fc.features : [];
+      for (const feat of fs) {
+        const dest = feat && feat.properties && feat.properties._sideceme_destino;
+        if (!dest || !(feat.properties && feat.properties._sideceme_ge)) continue;
+        (porDestino[dest] || (porDestino[dest] = [])).push(feat);
+      }
+    }
+    for (const [dest, fs] of Object.entries(porDestino)) {
+      const prev = out[dest] || { fc: { type: "FeatureCollection", features: [] }, total: 0, porCapa: {} };
+      const base = Array.isArray(prev.fc && prev.fc.features)
+        ? prev.fc.features.filter((x) => !(x && x.properties && x.properties._sideceme_ge))
+        : [];
+      const features = [...base, ...fs];
+      const porCapa = { ...(prev.porCapa || {}) };
+      for (const feat of fs) {
+        const k = feat._capaId || (feat.properties && feat.properties._sideceme_subcapa) || "google_earth";
+        porCapa[k] = (porCapa[k] || 0) + 1;
+      }
+      out[dest] = { ...prev, fc: { type: "FeatureCollection", features }, total: features.length, porCapa };
+    }
+    return out;
+  }
+
   function sumarDatosParaAnalisis(datos, resultados) {
     const out = { ...(datos || {}) };
     const imp = importedBySubcapa(resultados);
@@ -415,6 +444,7 @@
     parseKml,
     prepararImportacion,
     fusionarResultados,
+    preservarImportados,
     sumarDatosParaAnalisis,
     sumarAConsulta,
     importarDesdeUI
