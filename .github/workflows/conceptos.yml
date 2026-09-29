@@ -6,7 +6,9 @@ on:
       - 'calcos/index.html'
       - 'calcos/assets/index-conceptos-20260928.js'
       - 'calcos/assets/index-6Gm5UQ97.js'
+      - 'calcos/assets/index-nDtcWpLo.js'
       - 'calcos/pruebas/*conceptos*'
+      - 'calcos/pruebas/reemplazos-compilado.js'
       - 'calcos/pruebas/e2e/conceptos.cjs'
       - '.github/workflows/conceptos.yml'
   workflow_dispatch:
@@ -26,12 +28,12 @@ jobs:
           npm ci --prefix calcos/pruebas
           node calcos/pruebas/conceptos.cjs
           node calcos/pruebas/reemplazos-compilado.js
-          node --check calcos/assets/index-6Gm5UQ97.js
+          node --check calcos/assets/index-nDtcWpLo.js
       - name: Preparar navegador de prueba
         run: |
           npm install --prefix /tmp/prueba-conceptos playwright@1.51.1
           node /tmp/prueba-conceptos/node_modules/playwright/cli.js install --with-deps chromium
-      - name: Probar la hoja en la Mesa (armado, IA, láminas, Word, guardar)
+      - name: Probar la hoja en la Mesa (opciones, armado, IA, láminas, Word, guardar)
         env:
           PLAYWRIGHT_MODULE: /tmp/prueba-conceptos/node_modules/playwright
         run: node calcos/pruebas/e2e/conceptos.cjs

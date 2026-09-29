@@ -5,6 +5,68 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-09-29 — 🧩 Conceptos entrelazados v3: la cadena de mando y las dos opciones (`index-nDtcWpLo.js`)
+
+Parte de `index-6Gm5UQ97.js`: trae todo eso y suma esto. Lo pidió Sergio con el Word
+de la hoja que sacaba la v2. La lista EXACTA de reemplazos está en
+`calcos/pruebas/reemplazos-2026-09-29-conceptos-v3.js` (2); `reemplazos-compilado.js`
+comprueba que deshaciéndolos se vuelve byte por byte a `index-6Gm5UQ97.js`.
+`construir-conceptos-v3.js` arma el compilado nuevo desde esa lista.
+
+### Qué pasaba
+
+- La hoja tenía sólo DOS cajas arriba. En el Word del docente salían las «Fuerzas
+  Terrestres del Teatro de Operaciones» rotuladas «TO» con XXX, el CE con XX, la
+  DIV.MEC.-1 en la misma fila que sus regimientos y una «Unidad sin nombre» (X) marcada
+  como unidad propia: la «Unidad» de la Orden estaba vacía y el armado inventó el
+  escalón (el de las fichas más uno: regimiento → brigada).
+- El pedido a la IA no decía la jerarquía ni las magnitudes, ni qué hacer con otras
+  divisiones, ni cómo se identifican las relaciones; y lo que la IA devolvía se
+  aplicaba tal cual.
+- No había forma de elegir entre las unidades puras de la orden y las FT del oficial.
+
+### Qué se hizo (código legible en `calcos/conceptos/v3/`, ver su README)
+
+- **Jerarquía fija**: CTO XXXXX → FF.TT.T.O. XXXX → CE XXX → División XX → regimientos
+  III, batallones II, compañías I. La cadena de mando es de largo variable (hasta cinco
+  escalones en la lámina) y las filas van DEBAJO de la unidad propia.
+- **Tres opciones**: 🪖 unidades puras (lee el cuadro de la organización de la tarea de
+  la orden: cada columna es una unidad, sus subunidades no, «BAJO CONTROL»), 🧩 FT /
+  agrupaciones tácticas (las de 🧩 Organización de la tarea y lo que quedó con «(-)»),
+  ↔️ mi unidad entre las adyacentes.
+- **Unidad propia** de la Orden, de la misión o del OBJETO de una orden aportada; si no
+  está, la pantalla la pide (nunca más «Unidad sin nombre»).
+- **IA**: el pedido lleva la jerarquía, la opción, lo que ya identificó la Mesa, las
+  reglas de otras divisiones (adyacentes) y de relación directa / indirecta, y una
+  verificación final. La respuesta se aplica y después `acomodarJerarquia` pone cada
+  unidad en su escalón y avisa qué corrigió. El botón «🧹 Acomodar cada unidad en su
+  escalón» arregla una hoja ya guardada.
+
+### Qué se tocó en el compilado (2 reemplazos)
+
+- Los `import` de la hoja apuntan a `../conceptos/v3/`.
+- La guía «¿Para qué es y cómo se llena?» de `entrelazados` explica la cadena y las
+  opciones.
+
+### En el fuente
+
+- Montar `calcos/conceptos/v3/editor.js` (o pasar la carpeta a componentes: modelo,
+  láminas e IA no dependen de React) y la guía nueva.
+
+### Cómo se comprobó
+
+- `node conceptos.cjs` (19 casos): designaciones y magnitudes de las siglas de la casa;
+  la organización de la tarea del caso del docente (11 + 1 BAJO CONTROL, ninguna
+  subunidad; con dos divisiones no se adivina); las tres opciones con
+  `conceptos-divmec.js`; la IA equivocada como en el Word (sobre la hoja armada, vacía y
+  con «completar y mejorar») y la hoja v2 del Word acomodada; la lámina con la cadena de
+  arriba hacia abajo y la fila debajo de la División; el ejemplo del PMTD y los casos de
+  antes.
+- `node e2e/conceptos.cjs` en Chromium: escritorio y teléfono con la opción FT (armado,
+  pedido, respuesta, láminas, Word, guardar y reabrir) y el caso del docente con
+  «Unidades puras» (cadena, 12 unidades, IA equivocada acomodada, lámina, Word,
+  guardado). `word-conceptos.py` valida los tres Word. `npm test` completo pasa.
+
 ## 2026-09-28 — 🧩 Conceptos entrelazados: la hoja sale LLENA, con la forma del PMTD y con IA (`index-6Gm5UQ97.js`)
 
 Parte de `index-nQKdqwIj.js` (el plan de fuegos): trae todo eso y suma esto. Lo pidió
