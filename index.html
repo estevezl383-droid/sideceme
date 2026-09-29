@@ -12152,6 +12152,28 @@ let _homeSancPendCount = 0, _homeNotasPendCount = 0;
 function _actualizarBadgeAppTotal(){
   try{ actualizarBadgeApp(_homeSancPendCount + _homeNotasPendCount); }catch(e){}
 }
+// Cada enlace conserva el ID de su propia publicacion: valido para ambos ciclos.
+function _ncfHtmlAvisoPendientes(notas, efm){
+  const academicas = (notas || []).filter(c => c && c.estado === 'pendiente');
+  const fisicas = (efm || []).filter(c => c && c.estado === 'pendiente');
+  const total = academicas.length + fisicas.length;
+  if(!total) return '';
+  function fila(c, esEfm){
+    const accion = esEfm ? 'efmAbrirFirma(' + Number(c.id) + ')' : "abrirFirmaNota('" + escapeAttr(String(c.id)) + "')";
+    const materia = esEfm ? ('EFM · ' + _efmTipoTxt(c.tipo_evaluacion)) : c.materia;
+    const periodo = [c.ciclo, etiquetaSemAcad(c.ciclo, c.semestre), c.gestion].filter(Boolean).join(' · ');
+    return '<button type="button" onclick="' + accion + '" style="display:flex;align-items:center;gap:10px;width:100%;text-align:left;margin-top:9px;padding:12px;border:1px solid rgba(255,255,255,.4);border-radius:10px;background:rgba(0,0,0,.18);color:#fff;cursor:pointer">'
+      + '<span style="flex:1;min-width:0"><b style="display:block;font-size:14px;overflow-wrap:anywhere">' + escapeHtml(materia || 'NOTA PUBLICADA') + '</b>'
+      + '<span style="display:block;font-size:11px;color:#ffe0dd;margin-top:3px">' + escapeHtml(periodo) + '</span>'
+      + '<span style="display:block;font-size:12px;margin-top:4px">NOTA: ' + escapeHtml(fmtNota(c.nota_final)) + ' · VER Y FIRMAR</span></span>'
+      + '<span style="font-size:24px;flex-shrink:0" aria-hidden="true">›</span></button>';
+  }
+  return '<div style="margin:0 0 4px;padding:16px 18px;border:2px solid #ff5a4d;border-radius:14px;background:linear-gradient(135deg,#e01f1f,#7a0d0d);color:#fff;box-shadow:0 0 22px rgba(224,31,31,.6)">'
+    + '<b style="display:block;font-size:16px;letter-spacing:.3px">📝 TENÉS ' + total + ' NOTA' + (total>1?'S':'') + ' POR RECONOCER</b>'
+    + '<span style="display:block;font-size:12px;color:#ffe0dd;margin-top:4px">SELECCIONÁ LA NOTA QUE VAS A RECONOCER</span>'
+    + academicas.map(c => fila(c, false)).join('') + fisicas.map(c => fila(c, true)).join('') + '</div>';
+}
+
 async function actualizarAvisoNotasPendientes(){
   const _banNotas = document.getElementById('cur-notas-pendientes-banner');
   if(!_banNotas) return;
@@ -12161,21 +12183,7 @@ async function actualizarAvisoNotasPendientes(){
     const _notasPend = Object.values(notasConfMap||{}).filter(c => c && c.estado === 'pendiente');
     const _efmPend = Object.values(efmConfMap||{}).filter(c => c && c.estado === 'pendiente');
     _homeNotasPendCount = _notasPend.length + _efmPend.length;
-    const _primeraNota = _notasPend[0] || null;
-    const _primeraEfm = !_primeraNota ? (_efmPend[0] || null) : null;
-    const _onclickFirma = _primeraNota
-      ? `abrirFirmaNota('${escapeAttr(String(_primeraNota.id))}')`
-      : (_primeraEfm ? `efmAbrirFirma(${Number(_primeraEfm.id)})` : '');
-    _banNotas.innerHTML = (_homeNotasPendCount > 0 && _onclickFirma)
-      ? `<div onclick="${_onclickFirma}" role="button" style="cursor:pointer;margin:0 0 4px;padding:16px 18px;border:2px solid #ff5a4d;border-radius:14px;background:linear-gradient(135deg,#e01f1f,#7a0d0d);color:#fff;box-shadow:0 0 22px rgba(224,31,31,.6);animation:sancPulse 1.5s ease-in-out infinite;display:flex;align-items:center;gap:12px">
-          <span style="font-size:30px;line-height:1;flex-shrink:0">📝</span>
-          <span style="flex:1;min-width:0">
-            <b style="display:block;font-size:16px;letter-spacing:.3px">Tenés ${_homeNotasPendCount} nota${_homeNotasPendCount>1?'s':''} por reconocer</b>
-            <span style="font-size:13px;color:#ffe0dd">Tocá aquí para ver tu nota y firmarla →</span>
-          </span>
-          <span style="font-size:26px;flex-shrink:0;opacity:.9">›</span>
-        </div>`
-      : '';
+    _banNotas.innerHTML = _ncfHtmlAvisoPendientes(_notasPend, _efmPend);
   }catch(e){ /* silent */ }
   _actualizarBadgeAppTotal();
 }
