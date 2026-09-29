@@ -473,6 +473,19 @@ export function normalizarConceptos(valor) {
     .filter(esObj)
     .map((r) => ({ desde: limpio(r.desde), hasta: limpio(r.hasta), tipo: r.tipo === 'indirecta' ? 'indirecta' : 'directa' }))
     .filter((r, i, a) => ids.has(r.desde) && ids.has(r.hasta) && r.desde !== r.hasta && a.findIndex((x) => x.desde === r.desde && x.hasta === r.hasta) === i)
+  // Con «puras» y «FT», TODAS las unidades de las filas dependen directamente de la
+  // unidad propia: cada una lleva su flecha llena hasta ella (además de las que tenga
+  // con la OD u otras). Lo indicó el docente.
+  const enfoque = enfoqueValido(v.enfoque)
+  const propiaArriba = enfoque !== 'adyacentes' && unidades.find((u) => u.propia && u.grupo === 'superior')
+  if (propiaArriba) {
+    for (const u of unidades) {
+      if (u.grupo === 'superior' || u.propia) continue
+      const r = relaciones.find((x) => x.desde === u.id && x.hasta === propiaArriba.id)
+      if (r) r.tipo = 'directa'
+      else relaciones.push({ desde: u.id, hasta: propiaArriba.id, tipo: 'directa' })
+    }
+  }
   const o = esObj(v.orientaciones) ? v.orientaciones : {}
   const orientaciones = {
     idea: String(o.idea ?? '').slice(0, 8000),
@@ -482,7 +495,7 @@ export function normalizarConceptos(valor) {
       .map((a) => ({ nombre: limpio(a.nombre).slice(0, 120) || 'archivo', texto: String(a.texto ?? '').slice(0, 80000) }))
       .slice(0, 6),
   }
-  return { ...v, esquema: ESQUEMA, enfoque: enfoqueValido(v.enfoque), fases, unidades, relaciones, orientaciones }
+  return { ...v, esquema: ESQUEMA, enfoque, fases, unidades, relaciones, orientaciones }
 }
 
 // Los textos del formato narrativo de antes («INTENCIÓN DEL COMANDANTE SUPERIOR…»)

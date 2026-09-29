@@ -193,6 +193,23 @@ const palabras = (t) => String(t).split(/\s+/).filter(Boolean)
     assert.ok(rel(man[0], man[1]) && rel(man[2], man[1]), 'OC → OD')
   })
 
+  await caso('en «puras» y en «FT» TODAS las unidades tienen relación directa con la División (también en una hoja ya guardada)', () => {
+    for (const enfoque of ['puras', 'ft']) {
+      const { valor } = m.armarDesdeEjercicio(ejercicioDivmec(), { enfoque })
+      const div = valor.unidades.find((u) => u.propia)
+      const filas = valor.unidades.filter((u) => u.grupo !== 'superior')
+      assert.ok(filas.length > 5)
+      for (const u of filas) assert.ok(valor.relaciones.some((r) => r.desde === u.id && r.hasta === div.id && r.tipo === 'directa'), `${enfoque}: ${u.nombre} sin flecha directa a la División`)
+      if (enfoque === 'ft') assert.ok(valor.relaciones.some((r) => r.hasta === filas.find((u) => u.rol === 'OD').id), 'las OC siguen con la OD')
+    }
+    // Hoja guardada sin esas flechas (como la del docente): al leerla ya las tiene.
+    const v = m.normalizarConceptos({ enfoque: 'ft', unidades: [{ id: 'd', grupo: 'superior', propia: true, nombre: 'DIV.MEC.-1', magnitud: 'XX' }, { id: 'a', grupo: 'maniobra', nombre: 'FT VARGS', rol: 'OD' }, { id: 'b', grupo: 'maniobra', nombre: 'FT TORREZ', rol: 'OC1' }, { id: 'c', grupo: 'apoyo', nombre: 'RAM-2' }], relaciones: [{ desde: 'b', hasta: 'a' }, { desde: 'a', hasta: 'd', tipo: 'indirecta' }] })
+    assert.deepEqual(v.relaciones.filter((r) => r.hasta === 'd').map((r) => `${r.desde}:${r.tipo}`).sort(), ['a:directa', 'b:directa', 'c:directa'])
+    assert.ok(v.relaciones.some((r) => r.desde === 'b' && r.hasta === 'a'))
+    // Con «adyacentes» no se agregan.
+    assert.equal(m.normalizarConceptos({ enfoque: 'adyacentes', unidades: [{ id: 'c', grupo: 'superior', nombre: 'CE' }, { id: 'd', grupo: 'maniobra', propia: true, nombre: 'DIV-1' }] }).relaciones.length, 0)
+  })
+
   await caso('↔️ opción «adyacentes» con el caso del docente: la DIVMEC-1 al lado de la DIVMEC-2, debajo del CE', () => {
     const { valor } = m.armarDesdeEjercicio(ejercicioDivmec(), { enfoque: 'adyacentes' })
     assert.deepEqual(valor.unidades.filter((u) => u.grupo === 'superior').map((u) => u.magnitud), ['XXXXX', 'XXXX', 'XXX'])
