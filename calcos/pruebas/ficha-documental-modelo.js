@@ -1,0 +1,24 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+(async () => {
+  const src = fs.readFileSync(path.join(__dirname, '../fichas-instalacion/v1/modelo.js'), 'utf8');
+  const { esquemaRespuesta, leerRespuesta, generarPrompt, textoFicha } = await import('data:text/javascript;base64,' + Buffer.from(src).toString('base64'));
+  const u = { id: 'test-a', designacion: 'Instalación A', instalacion: 'pd_cl1' };
+  const datos = esquemaRespuesta(u.id); datos.funciones = ['Función documentada'];
+  const valido = JSON.stringify(datos);
+  assert.deepEqual(leerRespuesta('```json\n' + valido + '\n```', u.id), datos);
+  assert.throws(() => leerRespuesta(valido, 'test-b'), /otra instalación/);
+  assert.throws(() => leerRespuesta('{', u.id), /JSON/);
+  assert.throws(() => leerRespuesta(JSON.stringify({ ...datos, funciones: [{}] }), u.id), /funciones/);
+  assert.throws(() => leerRespuesta(JSON.stringify({ ...datos, fuentes: [{ documento: 'f' }] }), u.id), /fuente/);
+  assert.throws(() => leerRespuesta('x'.repeat(200001), u.id), /supera/);
+  const payload = '<img src=x onerror=alert(1)>';
+  assert.equal(leerRespuesta(payload, u.id, 'texto').textoLibre, payload);
+  const p = generarPrompt(u, { grupo: 'abast', nom: 'Puesto de Distribución', clases: ['I'] }, { indicaciones: 'Compara dos definiciones', fragmentos: 'Fuente X, apartado 2: definición.' });
+  assert(p.includes('Compara dos definiciones') && p.includes('Fuente X, apartado 2') && p.includes('"instalacionId": "test-a"'));
+  assert(!p.includes('lat') && !p.includes('lng'));
+  assert(p.includes('No elabores planes operativos'));
+  assert(textoFicha(u, {}, { resultadoIA: datos }).includes('Función documentada'));
+  console.log('✔ Validación de JSON, aislamiento por instalación, límite de tamaño, texto libre y prompt documental');
+})().catch(e => { console.error(e); process.exitCode = 1; });
