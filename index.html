@@ -8539,7 +8539,7 @@ function esAuxiliar(){ return !!(currentUser && currentUser.es_auxiliar===true);
 // nada. Se distingue del auxiliar común (es_auxiliar), que sí registra sanciones.
 function esSoloLectura(){ return !!(currentUser && currentUser.solo_lectura===true); }
 // Único lugar que decide si esta sesión puede REGISTRAR una sanción.
-function puedeSancionar(){ return !esSoloLectura(); }
+function puedeSancionar(){ return !!currentUser && String(currentUser.id)!=='S002' && !esSoloLectura(); }
 function esCT(){ return activeRole === 'ciencia_tecnologia' && !esAuxiliar(); }
 function esJefeSAC(){ return activeRole === 'jefe_sac'; }
 // Panel disciplina: todos los que usan screen-disc-panel (incluye jefe_sac para vista integral)
@@ -43208,7 +43208,7 @@ function goProfNuevaSancion(){
   // consultar la situación de disciplina e imprimir los reportes). El servidor lo
   // rechaza igual (sanciones-crear), esto es para no llevarlo a un formulario ciego.
   if(!puedeSancionar()){
-    alert('Tu cuenta es de AUXILIAR DE CONSULTA de la Sección Disciplina.\n\nPodés ver la situación de disciplina de cada cursante e imprimir los reportes, pero no registrar sanciones.');
+    alert('Su cuenta no tiene autorización para registrar sanciones.');
     return;
   }
   // Reset state
@@ -48297,15 +48297,15 @@ function _plDocPlanta(){
   let h=_plMembrete(
     ['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES',
      'ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO',
-     '“MCAL. ANDRÉS DE SANTA CRUZ”'],
+     '“MCAL. ANDRÉS DE SANTA CRUZ”','BOLIVIA'],
     [['SECCIÓN', c.seccion||'ACADÉMICA'],
      ['PERIODO', s.periodo||''],
      ['SEMANA',  _plOrdSemana(s.semana_num)]]);
   h+=_plTitulo('HORARIO DE ACTIVIDADES PARA EL PERSONAL DE PLANTA DE LA ECEME. '+_plRango());
 
   h+='<table style="'+_PL_TB+'">'
-    +'<colgroup><col style="width:11%"><col style="width:7%"><col style="width:7%"><col style="width:29%">'
-    +'<col style="width:12%"><col style="width:8%"><col style="width:14%"><col style="width:12%"></colgroup>'
+    +'<colgroup><col style="width:12%"><col style="width:7.3%"><col style="width:7.3%"><col style="width:21.2%">'
+    +'<col style="width:13.8%"><col style="width:12.1%"><col style="width:15.5%"><col style="width:10.8%"></colgroup>'
     +'<tr><th rowspan="2" style="'+_PL_TH+'">FECHA</th><th colspan="2" style="'+_PL_TH+'">HORAS</th>'
     +'<th rowspan="2" style="'+_PL_TH+'">ACTIVIDADES</th><th rowspan="2" style="'+_PL_TH+'">LUGAR</th>'
     +'<th rowspan="2" style="'+_PL_TH+'">ASISTEN</th><th rowspan="2" style="'+_PL_TH+'">RESPONSABLE</th>'
@@ -48371,8 +48371,8 @@ function _plDocCiclo(k){
   h+=_plTitulo('HORARIO SEMANAL '+_plRango());
 
   h+='<table style="'+_PL_TB+'">'
-    +'<colgroup><col style="width:10%"><col style="width:11%"><col style="width:14%"><col style="width:23%">'
-    +'<col style="width:11%"><col style="width:8%"><col style="width:9%"><col style="width:14%"></colgroup>'
+    +'<colgroup><col style="width:9.1%"><col style="width:7.8%"><col style="width:15.3%"><col style="width:31.2%">'
+    +'<col style="width:5.3%"><col style="width:7.3%"><col style="width:6.8%"><col style="width:17.2%"></colgroup>'
     +'<tr><th style="'+_PL_TH+'">FECHA</th><th style="'+_PL_TH+'">HORA</th><th style="'+_PL_TH+'">MÓDULO</th>'
     +'<th style="'+_PL_TH+'">UNIDAD DE COMPETENCIA</th><th style="'+_PL_TH+'">CÓDIGO</th>'
     +'<th style="'+_PL_TH+'">LUGAR</th><th style="'+_PL_TH+'">UNIFORME</th><th style="'+_PL_TH+'">RESPONSABLE</th></tr>';
@@ -49375,19 +49375,18 @@ function _plpEnProfPanel(){
   const tit=sec.querySelector('.app-header .header-title');
   const sub=sec.querySelector('.app-header .header-sub');
   if(tit) tit.textContent = esJefe ? 'Sección Planificación' : 'Panel del Profesor';
-  if(sub) sub.textContent = esJefe ? 'Profesor · Documentación semanal' : 'Registro de sanciones';
+  if(sub) sub.textContent = esJefe ? 'Planificación y documentación semanal' : 'Registro de sanciones';
+  const sanciona=puedeSancionar();
+  sec.querySelectorAll('[onclick="goProfNuevaSancion()"], .prof-mini-stats, .mis-sanciones-section').forEach(el=>el.style.display=sanciona?'':'none');
+  const hl=sec.querySelector('.prof-hero-label'),hs=sec.querySelector('.prof-hero-sub');
+  if(hl)hl.textContent=sanciona?'✍️ MODO PROFESOR':'🗓️ SECCIÓN PLANIFICACIÓN';
+  if(hs)hs.textContent=sanciona?'Registra una nueva sanción siguiendo el reglamento':'Organización del horario y documentación semanal';
   const viejo=document.getElementById('prof-btn-planif');
   if(!esJefe){ if(viejo) viejo.remove(); return; }
   const rk=document.getElementById('prof-rank');
-  if(rk) rk.textContent='Jefe Sección Planificación · Plantel docente';
-  if(viejo) return;
-  const hero=sec.querySelector('.prof-hero'); if(!hero) return;
-  const b=document.createElement('button');
-  b.id='prof-btn-planif'; b.className='btn-mega';
-  b.style.cssText='background:linear-gradient(180deg,#4ca36b,#2d7a4a);margin-bottom:8px;color:#fff';
-  b.onclick=function(){ goPlanificacion(); };
-  b.innerHTML='<span class="mega-icon">🗓️</span><span>Planificación semanal — horarios de planta y de los dos ciclos, programa de la Facultad y notas de servicio</span>';
-  hero.insertAdjacentElement('afterend', b);
+  if(rk) rk.textContent=puedeSancionar()?'Sección Planificación · Plantel docente':'Sección Planificación';
+  if(viejo)viejo.remove();
+
 }
 
 
@@ -59447,8 +59446,10 @@ window.eemEscritoAbrir=grupo=>{document.getElementById('eem-escrito-modal')?.rem
 
 <link rel="stylesheet" href="assets/horario-419.css?v=2.9.424">
 <script src="assets/horario-419.js?v=2.9.424"></script>
-<link rel="stylesheet" href="assets/horario-consolidado.css?v=2.9.424">
-<script src="assets/horario-consolidado.js?v=2.9.424"></script>
+<link rel="stylesheet" href="assets/horario-consolidado.css?v=2.9.425">
+<script src="assets/horario-documento.js?v=2.9.425"></script>
+<script src="assets/horario-consolidado.js?v=2.9.425"></script>
+<script src="assets/horario-publicado.js?v=2.9.425"></script>
 <script src="soporte.js?v=1"></script>
 </body>
 </html>
