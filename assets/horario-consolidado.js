@@ -2,7 +2,7 @@
 (function(){
   'use strict';
   const allowed=()=>['P030','P032','S002'].includes((PLP.perfil||{}).id);
-  const names={planta:'PERSONAL DE PLANTA',c1:'1ER CICLO',c2:'2DO CICLO'};
+  const names={todos:'TODOS — PLANTA Y AMBOS CICLOS',planta:'PERSONAL DE PLANTA',c1:'1ER CICLO',c2:'2DO CICLO'};
   const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   let current=null,busy=false;
   async function api(accion,extra){
@@ -15,8 +15,33 @@
   const orientation=()=>el('orientacion').value;
   function status(text){if(el('estado'))el('estado').textContent=text;}
   function toggle(value){busy=value;const dlg=el('dialog');if(dlg)dlg.querySelectorAll('button,select').forEach(b=>{if(!b.dataset.close)b.disabled=value;});}
-  function audiences(a){return a==='todos'?Object.keys(names):[a];}
+  function audiences(a){return a==='todos'?['planta','c1','c2']:[a];}
   function saveBlob(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);}
+  window._plcCalendarLinks=function(url){
+    const source=new URL(url);if(source.protocol!=='https:')throw Error('Enlace de calendario inválido.');
+    const apple=source.href.replace(/^https:/,'webcal:');
+    return {apple,google:'https://calendar.google.com/calendar/r?cid='+encodeURIComponent(apple)};
+  };
+  window._plcConnectCalendar=async function(provider,getLink,host,status){
+    // Abrir en el clic inicial evita que el navegador bloquee la ventana de Google.
+    const popup=provider==='google'?window.open('about:blank','_blank'):null;
+    if(popup)popup.opener=null;
+    try{
+      status('PREPARANDO SUSCRIPCIÓN…');
+      const {url}=await getLink(),links=window._plcCalendarLinks(url);
+      host.replaceChildren();
+      const a=document.createElement('a');a.href=links[provider];a.textContent='ABRIR '+(provider==='google'?'GOOGLE':'APPLE')+' Y CONFIRMAR SUSCRIPCIÓN';
+      if(provider==='google'){a.target='_blank';a.rel='noopener noreferrer';}
+      host.appendChild(a);
+      const note=document.createElement('p');note.textContent='Confirme la suscripción en el calendario elegido. Las semanas se actualizarán después de publicarse; la frecuencia depende de Google o Apple.';host.appendChild(note);
+      const details=document.createElement('details'),summary=document.createElement('summary');summary.textContent='SI NO SE ABRE: CONFIGURACIÓN MANUAL';details.appendChild(summary);
+      const input=document.createElement('input');input.readOnly=true;input.value=url;input.setAttribute('aria-label','Enlace de suscripción');details.appendChild(input);
+      const copy=document.createElement('button');copy.textContent='COPIAR ENLACE';copy.onclick=async()=>{try{await navigator.clipboard.writeText(url);status('Enlace copiado.');}catch(_){input.select();status('Seleccione y copie el enlace.');}};details.appendChild(copy);
+      const instructions=document.createElement('p');instructions.textContent='Google: en un navegador, Otros calendarios → + → Desde URL. Apple: Nueva suscripción a calendario.';details.appendChild(instructions);host.appendChild(details);
+      if(provider==='google'&&popup)popup.location.replace(links.google);else if(provider==='apple')a.click();
+      status('CONTINÚE EN '+(provider==='google'?'GOOGLE':'APPLE')+' PARA CONFIRMAR LA SUSCRIPCIÓN.');
+    }catch(e){if(popup)popup.close();throw e;}
+  };
   const docx=(record,aud,orient)=>window._plcFormatoDocx(record,aud,orient);
   window._plcDocx=docx;
   function html(record,aud){const old=PLANIF.sem,props=PLANIF.props;try{PLANIF.sem=record.datos;PLANIF.props={semId:record.datos.id,lista:[]};return audiences(aud).map((k,i)=>'<section class="plc-page-'+k+'"'+(i?' style="break-before:page;page-break-before:always"':'')+'>'+(k==='planta'?_plDocPlanta():_plDocCiclo(k))+'</section>').join('');}finally{PLANIF.sem=old;PLANIF.props=props;}}
@@ -30,7 +55,7 @@
     if(semanas.length!==1){alert('Abra una semana para consolidar su horario.');return;}
     current={sem:semanas[0],record:null};
     let dialog=el('dialog');if(!dialog){dialog=document.createElement('dialog');dialog.id='plc-dialog';dialog.className='plc-dialog';document.body.appendChild(dialog);}
-    dialog.innerHTML='<h2>SEMANA CONSOLIDADA</h2><p>Semana '+esc(current.sem.semana_num)+' · '+esc(current.sem.fecha_desde)+' al '+esc(current.sem.fecha_hasta)+'</p><p>Guarda una copia del horario base con las actividades aprobadas de planta y ambos ciclos. Cada consolidación conserva una nueva versión. Planificación puede seguir editando hasta el viernes o después de publicar. Las correcciones se guardan y se publican como una nueva versión.</p><div class="plc-options"><label>DESCARGAR / IMPRIMIR<select id="plc-audiencia"><option value="todos">TODOS LOS HORARIOS</option>'+Object.keys(names).map(k=>'<option value="'+k+'"'+(k===PLP.vista?' selected':'')+'>'+names[k]+'</option>').join('')+'</select></label><label>ORIENTACIÓN<select id="plc-orientacion"><option value="modelo">SEGÚN MODELO: PLANTA VERTICAL / CICLOS HORIZONTAL</option><option value="landscape">HORIZONTAL</option><option value="portrait">VERTICAL</option></select></label></div><div class="plc-actions"><button data-action="consolidar">GUARDAR Y DESCARGAR WORD</button><button data-action="word">DESCARGAR WORD GUARDADO</button><button data-action="print">IMPRIMIR VERSIÓN GUARDADA</button><button data-action="publicar">PUBLICAR PARA TODO EL PERSONAL</button></div><label>HISTORIAL DE ESTA SEMANA<select id="plc-version"><option>Cargando...</option></select></label><p id="plc-estado" role="status" aria-live="polite">Seleccione una versión o guarde una nueva consolidación.</p><hr><h3>SINCRONIZAR CALENDARIO</h3><p>El calendario se actualiza con la última versión publicada de cada semana. Es una suscripción de consulta; Google y Apple deciden cuándo refrescar los cambios.</p><label>HORARIO DEL CALENDARIO<select id="plc-cal-audiencia">'+Object.keys(names).map(k=>'<option value="'+k+'">'+names[k]+'</option>').join('')+'</select></label><div class="plc-actions"><button data-action="calendar">OBTENER ENLACE PARA GOOGLE / APPLE</button><button data-action="revoke">DESACTIVAR MI ENLACE</button></div><div id="plc-calendar"></div><div class="plc-actions"><button data-close="true">CERRAR</button></div>';
+    dialog.innerHTML='<h2>SEMANA CONSOLIDADA</h2><p>Semana '+esc(current.sem.semana_num)+' · '+esc(current.sem.fecha_desde)+' al '+esc(current.sem.fecha_hasta)+'</p><p>Guarda una copia del horario base con las actividades aprobadas de planta y ambos ciclos. Cada consolidación conserva una nueva versión. Planificación puede seguir editando hasta el viernes o después de publicar. Las correcciones se guardan y se publican como una nueva versión.</p><div class="plc-options"><label>DESCARGAR / IMPRIMIR<select id="plc-audiencia"><option value="todos">TODOS LOS HORARIOS</option>'+['planta','c1','c2'].map(k=>'<option value="'+k+'"'+(k===PLP.vista?' selected':'')+'>'+names[k]+'</option>').join('')+'</select></label><label>ORIENTACIÓN<select id="plc-orientacion"><option value="modelo">SEGÚN MODELO: PLANTA VERTICAL / CICLOS HORIZONTAL</option><option value="landscape">HORIZONTAL</option><option value="portrait">VERTICAL</option></select></label></div><div class="plc-actions"><button data-action="consolidar">GUARDAR Y DESCARGAR WORD</button><button data-action="word">DESCARGAR WORD GUARDADO</button><button data-action="print">IMPRIMIR VERSIÓN GUARDADA</button><button data-action="publicar">PUBLICAR PARA TODO EL PERSONAL</button></div><label>HISTORIAL DE ESTA SEMANA<select id="plc-version"><option>Cargando...</option></select></label><p id="plc-estado" role="status" aria-live="polite">Seleccione una versión o guarde una nueva consolidación.</p><hr><h3>SINCRONIZAR CALENDARIO</h3><p>El calendario se actualiza con la última versión publicada de cada semana. Es una suscripción de consulta; Google y Apple deciden cuándo refrescar los cambios.</p><label>HORARIO DEL CALENDARIO<select id="plc-cal-audiencia">'+Object.keys(names).map(k=>'<option value="'+k+'">'+names[k]+'</option>').join('')+'</select></label><div class="plc-actions"><button data-action="google">SINCRONIZAR CON GOOGLE</button><button data-action="apple">SINCRONIZAR CON APPLE</button><button data-action="revoke">DESACTIVAR MI ENLACE</button></div><div id="plc-calendar"></div><div class="plc-actions"><button data-close="true">CERRAR</button></div>';
     dialog.querySelector('[data-close]').onclick=()=>{if(!busy){dialog.close();current=null;}};
     dialog.oncancel=e=>{if(busy)e.preventDefault();else current=null;};
     dialog.querySelectorAll('[data-action]').forEach(b=>b.onclick=()=>act(b.dataset.action));
@@ -63,11 +88,8 @@
           const orient=orientation()==='modelo'?(selected()==='planta'?'portrait':'landscape'):orientation();
           printWindow.document.open();printWindow.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Semana consolidada #'+current.record.id+'</title><style>'+cssReporte(orient)+(orientation()==='modelo'?window._plcPrintModelCSS:'')+' @page{size:letter '+orient+';margin:'+(orient==='landscape'?'1cm 1.4cm 1cm 1cm':'2cm 2cm 2cm 3cm')+';} body{background:white!important;} thead{display:table-header-group;} </style></head><body>'+html(current.record,selected())+'</body></html>');printWindow.document.close();printWindow.focus();printWindow.print();
         }
-      }else if(action==='calendar'){
-        const r=await api('enlace',{audiencia:el('cal-audiencia').value});
-        el('calendar').innerHTML='<p>Enlace privado: quien lo tenga podrá consultar este horario. Puede desactivarlo aquí.</p><input id="plc-url" readonly aria-label="Enlace privado de calendario"><button id="plc-copy">COPIAR ENLACE</button><p><a id="plc-google" target="_blank" rel="noopener noreferrer">ABRIR GOOGLE CALENDAR</a> · <a id="plc-apple">SUSCRIBIR EN APPLE</a></p><p>Google: en el navegador, Otros calendarios → + → Desde URL; pegue el enlace. Apple: abra el enlace de suscripción o Calendario → Archivo → Nueva suscripción a calendario.</p>';
-        el('url').value=r.url;el('google').href='https://calendar.google.com/calendar/u/0/r/settings/addbyurl';el('apple').href=r.url.replace(/^https:/,'webcal:');
-        el('copy').onclick=async()=>{try{await navigator.clipboard.writeText(r.url);status('Enlace copiado.');}catch(_){el('url').select();status('Seleccione y copie el enlace.');}};
+      }else if(action==='google'||action==='apple'){
+        await window._plcConnectCalendar(action,()=>api('enlace',{audiencia:el('cal-audiencia').value}),el('calendar'),status);
       }else if(action==='revoke'){
         await api('revocar',{audiencia:el('cal-audiencia').value});el('calendar').replaceChildren();status('Su enlace de este horario está desactivado. Puede obtener uno nuevo.');
       }
@@ -75,5 +97,5 @@
   }
   const barra=_plpBarra;
   _plpBarra=function(){barra();const toolbar=document.getElementById('plp-barra');if(!toolbar||!allowed()||toolbar.querySelector('.plc-button'))return;const button=document.createElement('button');button.className='plp-prev-gr plc-button';button.textContent='CONSOLIDAR / WORD / PUBLICAR';button.onclick=plcAbrir;toolbar.appendChild(button);const archive=document.createElement('button');archive.className='plc-button';archive.textContent='ARCHIVO DE SEMANAS Y DOCUMENTACIÓN';archive.onclick=goPlanificacion;toolbar.appendChild(archive);};
-  const marker=document.getElementById('version-marker');if(marker)marker.textContent='v2.9.425';
+  const marker=document.getElementById('version-marker');if(marker)marker.textContent='v2.9.426';
 })();

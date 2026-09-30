@@ -10,7 +10,7 @@ async function cuenta(id:string,tabla:string){
   if(!["profesores","cursantes"].includes(tabla))return null;
   const {data,error}=await sb.from(tabla).select(tabla==="profesores"?"id,grado,nombre_completo,activo":"id,grado,nombre_completo,activo,ciclo").eq("id",id).maybeSingle();
   if(error||!data||data.activo===false)return null;
-  const audiencias=tabla==="profesores"?["planta","c1","c2"]:data.ciclo==="1ER CICLO"?["c1"]:data.ciclo==="2DO CICLO"?["c2"]:[];
+  const audiencias=tabla==="profesores"?["todos","planta","c1","c2"]:data.ciclo==="1ER CICLO"?["c1"]:data.ciclo==="2DO CICLO"?["c2"]:[];
   return {...data,tabla,audiencias,planifica:tabla==="profesores"&&ids.includes(id)};
 }
 async function validar(token:string){

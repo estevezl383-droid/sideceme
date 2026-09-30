@@ -148,22 +148,26 @@ function fold(line){let chunks=[],current='',bytes=0;for(const c of line){const 
 function hash(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}return(h>>>0).toString(16);}
 export function calendario(records,audience){
   const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//SIDE-CEME//Semana consolidada//ES','CALSCALE:GREGORIAN','METHOD:PUBLISH','X-WR-CALNAME:SIDE-CEME '+audience,'X-WR-TIMEZONE:America/La_Paz'];
+  const audiences=audience==='todos'?['planta','c1','c2']:[audience];
+  const labels={planta:'PLANTA',c1:'1ER CICLO',c2:'2DO CICLO'};
   for(const record of records){
     const sem=record.datos;
-    for(const day of sem.datos[audience]?.dias||[]){
+    for(const scope of audiences){
+    for(const day of sem.datos[scope]?.dias||[]){
       const rows=day.libre?[{act:day.libre,span:true}]:(day.filas||[]);
       const duplicates=new Map();
       for(const row of rows){
         const title=row.act||row.uc||row.modulo||'';if(!title)continue;
         const key=hash(day.iso+'|'+title+'|'+(row.codigo||''));const count=duplicates.get(key)||0;duplicates.set(key,count+1);
-        const uid=(row.prop?'p'+row.prop:key+'-'+count)+'-'+audience+'-'+sem.id+'@sideceme';
+        const uid=(row.prop?'p'+row.prop:key+'-'+count)+'-'+scope+'-'+sem.id+'@sideceme';
         const full=!(row.desde&&row.hasta);if(!full&&(_plpMin(row.desde)===null||_plpMin(row.hasta)<=_plpMin(row.desde)))continue;
         lines.push('BEGIN:VEVENT','UID:'+uid,'DTSTAMP:'+new Date(record.creado_en).toISOString().replace(/[-:]/g,'').replace(/\.\d{3}Z$/,'Z'),'SEQUENCE:'+record.id);
         if(full){const end=new Date(day.iso+'T12:00:00Z');end.setUTCDate(end.getUTCDate()+1);lines.push('DTSTART;VALUE=DATE:'+day.iso.replace(/-/g,''),'DTEND;VALUE=DATE:'+end.toISOString().slice(0,10).replace(/-/g,''));}
         else lines.push('DTSTART:'+utc(day.iso,row.desde),'DTEND:'+utc(day.iso,row.hasta));
-        lines.push('SUMMARY:'+esc(title),'LOCATION:'+esc(row.lugar),'DESCRIPTION:'+esc([row.modulo,row.codigo,row.asisten,row.resp,row.unif].filter(Boolean).join(' · ')),'END:VEVENT');
+        lines.push('SUMMARY:'+esc(audience==='todos'?'['+labels[scope]+'] '+title:title),'LOCATION:'+esc(row.lugar),'DESCRIPTION:'+esc([row.modulo,row.codigo,row.asisten,row.resp,row.unif].filter(Boolean).join(' · ')),'END:VEVENT');
       }
     }
+  }
   }
   lines.push('END:VCALENDAR');return lines.map(fold).join('\r\n')+'\r\n';
 }

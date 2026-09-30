@@ -67,3 +67,24 @@ test('official Word retains day merges, timed spans, activity columns and footer
  const c=browser();let files;c._zipStore=v=>{files=v;return new Blob([]);};const f=fixture();f.datos.planta.dias[0].filas.push({desde:'09:30',hasta:'10:00',act:'DESCANSO',span:true});f.datos.c1.dias[0].filas.push({desde:'07:30',hasta:'08:00',uc:'PARTE',act3:true,lugar:'PATIO'});c._plcDocx({datos:f},'todos','modelo');const xml=files.find(x=>x.name==='word/document.xml').str;assert.match(xml,/w:vMerge w:val="restart"/);assert.match(xml,/w:vMerge w:val="continue"/);assert.match(xml,/HORAS/);assert.match(xml,/09:30/);assert.match(xml,/w:gridSpan w:val="3"/);assert.match(xml,/w:gridSpan w:val="5"/);assert.ok(files.some(x=>x.name==='word/footer1.xml'&&x.str.includes('NUMPAGES')));
 });
 module.exports={fixture,browser};
+
+test('staff can subscribe to all schedules, students cannot mint or use a combined link',async()=>{
+ const staff=server('P009');assert.equal((await staff.call({accion:'enlace',audiencia:'todos'})).ok,true);
+ const student=server('A1','cursantes');assert.equal((await student.call({accion:'enlace',audiencia:'todos'})).status,403);
+ assert.equal((await student.call({accion:'revocar',audiencia:'todos'})).status,403);
+ assert.deepEqual((await student.call({accion:'publicados'})).audiencias,['c1']);
+ student.db.planif_calendario_enlaces.push({propietario:'A1',propietario_tabla:'cursantes',audiencia:'todos',activo:true,token:'a'.repeat(64)});
+ assert.equal((await student.feed('a'.repeat(64))).status,404);
+});
+test('combined calendar contains labeled events for all three audiences and preserves individual UIDs',()=>{
+ const f=fixture();for(const [i,k] of ['planta','c1','c2'].entries())f.datos[k].dias=[{iso:'2026-10-08',filas:[{desde:'08:00',hasta:'09:00',act:'ACTIVIDAD '+k,prop:900+i}]}];
+ const r={id:3,datos:f,creado_en:'2026-09-30T12:00:00Z'},ics=context.calendario([r],'todos');
+ assert.equal((ics.match(/BEGIN:VEVENT/g)||[]).length,3);
+ for(const [k,label] of [['planta','PLANTA'],['c1','1ER CICLO'],['c2','2DO CICLO']]){assert.ok(ics.includes('SUMMARY:['+label+'] ACTIVIDAD '+k));const uid=context.calendario([r],k).match(/UID:([^\r]+)/)[1];assert.ok(ics.includes('UID:'+uid));}
+});
+test('direct calendar destinations include the prepared subscription URL without manual copying',()=>{
+ const c=browser();c.URL=URL;const url='https://example.test/feed?token=a&scope=todos',links=c._plcCalendarLinks(url);
+ assert.equal(links.apple,'webcal://example.test/feed?token=a&scope=todos');
+ const google=new URL(links.google);assert.equal(google.hostname,'calendar.google.com');assert.equal(google.searchParams.get('cid'),links.apple);
+ assert.throws(()=>c._plcCalendarLinks('javascript:alert(1)'));
+});
