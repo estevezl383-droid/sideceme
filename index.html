@@ -13956,8 +13956,7 @@ async function confirmarSubirHorario(){
       activo: true,
       audiencia: audiencia
     };
-    const {error} = await sb.from('horarios_semanales').insert([registro]);
-    if(error) throw error;
+    await _regOps('horario_subir', {registro});
     alert('✓ Horario subido correctamente.');
     horariosData.loaded = false;
     goHorarios();
@@ -14121,8 +14120,7 @@ async function confirmarSubirPlanilla(){
       subido_en: new Date().toISOString(),
       activo: true
     };
-    const {error} = await sb.from('planillas_disciplina').insert([registro]);
-    if(error) throw error;
+    await _regOps('planilla_subir', {registro});
     alert('✓ Planilla subida correctamente.');
     planillasData.loaded = false;
     goPlanillas();
