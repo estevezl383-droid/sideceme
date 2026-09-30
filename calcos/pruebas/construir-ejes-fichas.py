@@ -1,0 +1,21 @@
+from pathlib import Path
+s=Path('calcos/assets/index-ejes-20260930.js').read_text()
+def replace(a,b):
+ global s
+ assert s.count(a)==1,(a[:80],s.count(a))
+ s=s.replace(a,b)
+replace('Kt=mt?"#1f6f8b":F1,nn=fa(dt.coords)','Kt=mt?"#00e5ff":"#ff8c00",nn=fa(dt.coords)')
+replace('borderLeftColor:Lt?"#1f6f8b":"#b01045"','borderLeftColor:Lt?"#00e5ff":"#ff8c00"')
+replace('color:Lt?"#6fc8e0":"#ff8fae"','color:Lt?"#00e5ff":"#ff8c00"')
+replace('function B1(t,e,{weight:n=4.5,dashArray:a=null,interactive:i=!1}={})','function B1(t,e,{weight:n=4.5,dashArray:a=null,interactive:i=!1,color:_trazoColor=hd}={})')
+replace('Rt.polyline(e,{color:hd,weight:n,dashArray:a,lineCap:"round",interactive:i})','Rt.polyline(e,{color:_trazoColor,weight:n,dashArray:a,lineCap:"round",interactive:i})')
+replace('B1(bn,Pn,{weight:3,dashArray:"5 5"})','B1(bn,Pn,{weight:3,dashArray:"5 5",color:t==="epa"?"#ff8c00":t==="epe"?"#00e5ff":hd})')
+replace('dibujando:s=!1,anillos:r={}}){const u=xu()', 'dibujando:s=!1,trazandoLinea:_lineaActiva=!1,anillos:r={}}){const u=xu()')
+replace('dibujando:tn,anillos:E}),f.jsx(fve','dibujando:tn,trazandoLinea:K==="epa"||K==="epe",anillos:E}),f.jsx(fve')
+replace('Rt.marker([x.lat,x.lng],{icon:M,interactive:!s,draggable:!s})','Rt.marker([x.lat,x.lng],{icon:M,interactive:!s||_lineaActiva,draggable:!s})')
+replace('I.on("click",B=>{s||(Rt.DomEvent.stop(B),j||(x.tipo==="instalacion"?void 0:o?.(x.id)))}),i&&', 'I.on("click",B=>{if(_lineaActiva){Rt.DomEvent.stop(B);window.dispatchEvent(new CustomEvent("sideceme:vertice-eje",{detail:{coords:[x.lng,x.lat]}}));return}s||(Rt.DomEvent.stop(B),j||(x.tipo==="instalacion"?void 0:o?.(x.id)))}),_lineaActiva&&I.on("dblclick",B=>{Rt.DomEvent.stop(B);window.dispatchEvent(new CustomEvent("sideceme:terminar-eje",{detail:{coords:[x.lng,x.lat]}}))}),i&&')
+replace('},[u,t,a,i,o,s,y,r]),null}function pve', '},[u,t,a,i,o,s,_lineaActiva,y,r]),null}function pve')
+replace('return;const bn=()=>jt(),Pn=pa=>{const Gn=pa.target;', 'return;const bn=pa=>{const _p=pa.detail?.coords;if((t==="epa"||t==="epe")&&Array.isArray(_p)&&_p.length===2&&_p.every(Number.isFinite))Ae(_q=>[..._q,[..._p]]);pa.type==="sideceme:vertice-eje"||jt()},Pn=pa=>{const Gn=pa.target;')
+replace('window.addEventListener(Gn,bn);window.addEventListener("keydown",Pn);return()=>{window.removeEventListener(Gn,bn);window.removeEventListener("keydown",Pn)}', 'window.addEventListener(Gn,bn);if(t==="epa"||t==="epe")window.addEventListener("sideceme:vertice-eje",bn);window.addEventListener("keydown",Pn);return()=>{window.removeEventListener(Gn,bn);window.removeEventListener("sideceme:vertice-eje",bn);window.removeEventListener("keydown",Pn)}')
+Path('calcos/assets/index-ejes-fichas-20260930.js').write_text(s)
+p=Path('calcos/index.html');p.write_text(p.read_text().replace('index-ejes-20260930.js','index-ejes-fichas-20260930.js'))
