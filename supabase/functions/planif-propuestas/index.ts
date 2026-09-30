@@ -23,6 +23,7 @@
 // una fila gris del horario mediante propuesta auditable.
 // v2.9.422: Jefe de Estudios puede corregir y aprobar propuestas ajenas;
 // avisos privados al solicitante basados en el historial.
+// v2.9.423: puede_aprobar habilita también mover, editor base y retiro ajeno.
 //
 // Valida token en 'sesiones'. JWT: OFF.
 // El trigger planif_prop_guard repite el control del cierre en la base.
@@ -101,7 +102,8 @@ async function validar(token: string): Promise<Perfil | null> {
     cierre: !!(e && e.puede_cierre) || planif,
     efm: !!(e && e.puede_efm) || !!(e && e.puede_aprobar),
     veTodo: !!(e && e.ve_todo) || planif || !!(e && e.puede_aprobar),
-    mover: !!(e && e.puede_mover),
+    // El Jefe de Estudios también reacomoda y retira el horario base.
+    mover: !!(e && (e.puede_mover || e.puede_aprobar)),
   };
 }
 
