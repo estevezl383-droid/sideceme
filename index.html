@@ -50282,7 +50282,7 @@ function _plpNueva(info){
   let desde='08:00', hasta='09:00';
   if(!info.allDay){ desde=_plpHora(info.start); hasta=_plpHora(info.end); if(hasta<=desde) hasta=_plpHHMM(_plpMin(desde)+30); }
   const s=_plpSemanaDe(fecha);
-  if(s && !u.aprobar && !_plpAbierta(s)){ alert('🔒 La semana '+s.semana_num+' ya está cerrada para las secciones desde el '+_plpFechaLarga(s.cierre)+'.\n\nPedí el cambio al Jefe de Estudios.'); return; }
+  if(s && !u.aprobar && !u.mover && !_plpAbierta(s)){ alert('🔒 La semana '+s.semana_num+' ya está cerrada para las secciones desde el '+_plpFechaLarga(s.cierre)+'.\n\nPedí el cambio al Jefe de Estudios.'); return; }
   const aud = PLP.vista==='todas' ? ['planta'] : [PLP.vista];
   _plpForm({ id:null, fecha:fecha, desde:desde, hasta:hasta, actividad:'', lugar:'', responsable:u.seccion?u.seccion+'.':'',
     asisten:'TODOS', uniforme:'', audiencias:aud, recortar:true, estado:null },
@@ -50340,7 +50340,7 @@ function plpNuevaLibre(){
   if(!iso && PLP.semanas.length) iso=PLP.semanas[0].fecha_desde;
   if(!iso) iso=_plpProximoLunes();
   const s=_plpSemanaDe(iso);
-  if(s && !u.aprobar && !_plpAbierta(s)){
+  if(s && !u.aprobar && !u.mover && !_plpAbierta(s)){
     alert('🔒 La semana '+s.semana_num+' ya está cerrada para las secciones desde el '+_plpFechaLarga(s.cierre)+'.\n\nPedí el cambio al Jefe de Estudios.');
     return;
   }
@@ -50373,7 +50373,7 @@ function plpMeterEnBase(donde){
   else                     ini=a+Math.round((z-a-largo)/2/5)*5;
   const s=_plpSemanaDe(b.iso);
   const u=PLP.perfil||{};
-  if(s && !u.aprobar && !_plpAbierta(s)){
+  if(s && !u.aprobar && !u.mover && !_plpAbierta(s)){
     alert('🔒 La semana '+s.semana_num+' ya está cerrada para las secciones desde el '+_plpFechaLarga(s.cierre)+'.\n\nPedí el cambio al Jefe de Estudios.');
     return;
   }
@@ -50685,7 +50685,7 @@ async function _plpMovido(info){
     if(_plpIso(destinoFin)!==_plpIso(ev.start)){ info.revert(); alert('La actividad tiene que empezar y terminar el mismo día.'); return; }
     const s=_plpSemanaDe(_plpIso(ev.start));
     if(!s){ info.revert(); alert('📭 Planificación todavía no creó la semana de esa fecha.'); return; }
-    if(!u.aprobar && !_plpAbierta(s)){
+    if(!u.aprobar && !u.mover && !_plpAbierta(s)){
       info.revert();
       alert('🔒 La semana '+s.semana_num+' ya está cerrada para las secciones desde el '+_plpFechaLarga(s.cierre)+'.');
       return;
@@ -59445,8 +59445,8 @@ window.eemEscritoAbrir=grupo=>{document.getElementById('eem-escrito-modal')?.rem
 
 </script>
 
-<link rel="stylesheet" href="assets/horario-419.css?v=2.9.421">
-<script src="assets/horario-419.js?v=2.9.421"></script>
+<link rel="stylesheet" href="assets/horario-419.css?v=2.9.422">
+<script src="assets/horario-419.js?v=2.9.422"></script>
 <script src="soporte.js?v=1"></script>
 </body>
 </html>
