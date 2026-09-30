@@ -61,7 +61,7 @@ test('cursantes read only their published cycle and cannot consolidate or publis
  s.db.cursantes[0].ciclo='2DO CICLO';const link=await s.feed('a'.repeat(64));assert.equal(link.status,404);
 });
 test('calendar excludes saved drafts and contains only published versions',async()=>{
- const s=server();await s.call({accion:'consolidar',semana_id:7});await s.call({accion:'enlace',audiencia:'c1'});assert.doesNotMatch(await(await s.feed('a'.repeat(64))).text(),/BEGIN:VEVENT/);
+ const s=server();await s.call({accion:'consolidar',semana_id:7});const r=await s.call({accion:'enlace',audiencia:'c1'});assert.equal(r.status,409);assert.match(r.error,/PUBLICAR PARA TODO EL PERSONAL/);assert.equal(s.db.planif_calendario_enlaces.length,0);
 });
 test('official Word retains day merges, timed spans, activity columns and footer',()=>{
  const c=browser();let files;c._zipStore=v=>{files=v;return new Blob([]);};const f=fixture();f.datos.planta.dias[0].filas.push({desde:'09:30',hasta:'10:00',act:'DESCANSO',span:true});f.datos.c1.dias[0].filas.push({desde:'07:30',hasta:'08:00',uc:'PARTE',act3:true,lugar:'PATIO'});c._plcDocx({datos:f},'todos','modelo');const xml=files.find(x=>x.name==='word/document.xml').str;assert.match(xml,/w:vMerge w:val="restart"/);assert.match(xml,/w:vMerge w:val="continue"/);assert.match(xml,/HORAS/);assert.match(xml,/09:30/);assert.match(xml,/w:gridSpan w:val="3"/);assert.match(xml,/w:gridSpan w:val="5"/);assert.ok(files.some(x=>x.name==='word/footer1.xml'&&x.str.includes('NUMPAGES')));
@@ -69,7 +69,7 @@ test('official Word retains day merges, timed spans, activity columns and footer
 module.exports={fixture,browser};
 
 test('staff can subscribe to all schedules, students cannot mint or use a combined link',async()=>{
- const staff=server('P009');assert.equal((await staff.call({accion:'enlace',audiencia:'todos'})).ok,true);
+ const staff=server('P009');staff.db.planif_consolidados.push({id:1,semana_id:7,datos:fixture(),creado_en:new Date().toISOString()});staff.db.planif_publicaciones.push({semana_id:7,consolidado_id:1});assert.equal((await staff.call({accion:'enlace',audiencia:'todos'})).ok,true);
  const student=server('A1','cursantes');assert.equal((await student.call({accion:'enlace',audiencia:'todos'})).status,403);
  assert.equal((await student.call({accion:'revocar',audiencia:'todos'})).status,403);
  assert.deepEqual((await student.call({accion:'publicados'})).audiencias,['c1']);

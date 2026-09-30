@@ -54,6 +54,8 @@ Deno.serve(async(req:Request)=>{
         check(await sb.from("planif_calendario_enlaces").update({activo:false}).eq("propietario",user.id).eq("propietario_tabla",user.tabla).eq("audiencia",body.audiencia).eq("activo",true));
         return json({ok:true});
       }
+      const records=await publicados();
+      if(!calendario(records,body.audiencia).includes('BEGIN:VEVENT'))return fail("No hay actividades publicadas para este horario. En SEMANA CONSOLIDADA, guarde la versión definitiva y pulse PUBLICAR PARA TODO EL PERSONAL antes de sincronizar.",409);
       let link=check(await sb.from("planif_calendario_enlaces").select("token").eq("propietario",user.id).eq("propietario_tabla",user.tabla).eq("audiencia",body.audiencia).eq("activo",true).maybeSingle());
       if(!link){
         const created=await sb.from("planif_calendario_enlaces").insert({propietario:user.id,propietario_tabla:user.tabla,audiencia:body.audiencia}).select("token").single();

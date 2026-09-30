@@ -8,7 +8,9 @@
   async function api(accion,extra){
     const token=getTokenSesion();if(!token)throw Error('Vuelva a iniciar sesión.');
     const {data,error}=await sb.functions.invoke('horario-consolidado',{body:{accion,token,...extra}});
-    if(error||!data||!data.ok)throw Error(data&&data.error||'No se pudo completar la operación.');return data;
+    let detail=data;
+    if(error?.context?.clone){try{detail=await error.context.clone().json();}catch(_){}}
+    if(error||!detail?.ok)throw Error(detail?.error||'No se pudo completar la operación. Intente nuevamente.');return detail;
   }
   const el=id=>document.getElementById('plc-'+id);
   const selected=()=>el('audiencia').value;
@@ -97,5 +99,5 @@
   }
   const barra=_plpBarra;
   _plpBarra=function(){barra();const toolbar=document.getElementById('plp-barra');if(!toolbar||!allowed()||toolbar.querySelector('.plc-button'))return;const button=document.createElement('button');button.className='plp-prev-gr plc-button';button.textContent='CONSOLIDAR / WORD / PUBLICAR';button.onclick=plcAbrir;toolbar.appendChild(button);const archive=document.createElement('button');archive.className='plc-button';archive.textContent='ARCHIVO DE SEMANAS Y DOCUMENTACIÓN';archive.onclick=goPlanificacion;toolbar.appendChild(archive);};
-  const marker=document.getElementById('version-marker');if(marker)marker.textContent='v2.9.426';
+  const marker=document.getElementById('version-marker');if(marker)marker.textContent='v2.9.427';
 })();
