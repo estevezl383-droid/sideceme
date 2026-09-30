@@ -25,7 +25,7 @@ const cors = {
   "Content-Type": "application/json",
 };
 
-const VERSION = "2.9.416";
+const VERSION = "2.9.416-seguridad-cargas";
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: cors });
@@ -60,7 +60,8 @@ async function leerUsuario(token: unknown): Promise<Usuario | { error: string; s
     .select("usuario_id, usuario_tabla, revocado, expira_en")
     .eq("token", token)
     .maybeSingle();
-  if (error || !ses || ses.revocado === true || new Date(ses.expira_en) < new Date()) {
+  const expira = Date.parse(ses?.expira_en || "");
+  if (error || !ses || ses.revocado === true || !Number.isFinite(expira) || expira <= Date.now()) {
     return { error: "Sesión no válida o expirada. Volvé a iniciar sesión.", status: 401 };
   }
   if (ses.usuario_tabla !== "profesores") return { error: "Solo el personal de la Escuela puede hacer esto.", status: 403 };
@@ -106,6 +107,45 @@ Deno.serve(async (req) => {
 
   try {
     switch (body.accion) {
+      case "horario_subir":
+      case "planilla_subir": {
+        const horario = body.accion === "horario_subir";
+        if (!(horario ? puedeHorarios(u) : puedePlanillas(u))) {
+          return err(u.soloLectura ? CONSULTA : "No tenés permiso para subir este documento.", 403);
+        }
+        const r = body.registro;
+        if (!r || typeof r !== "object" || Array.isArray(r)) return err("Registro inválido.");
+        if (typeof r.titulo !== "string" || !r.titulo.trim() || r.titulo.length > 10000 ||
+            typeof r.archivo_nombre !== "string" || !r.archivo_nombre.trim() || r.archivo_nombre.length > 1000 ||
+            typeof r.archivo_dataurl !== "string" || r.archivo_dataurl.length > 5600000) return err("Título o archivo inválido.");
+        const archivo = /^data:(application\/pdf|image\/jpeg|image\/png);base64,([A-Za-z0-9+/]*={0,2})$/.exec(r.archivo_dataurl);
+        if (!archivo || (horario && archivo[1] !== "application/pdf")) return err("Tipo de archivo no permitido.");
+        let bytes: number;
+        try { bytes = atob(archivo[2]).length; } catch { return err("Archivo inválido."); }
+        if (!bytes || bytes > 4 * 1024 * 1024) return err("El archivo debe tener como máximo 4 MB.");
+        const fecha = (value: unknown): string | null => {
+          if (value === null || value === undefined || value === "") return null;
+          if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(value + "T12:00:00Z")) || new Date(value + "T12:00:00Z").toISOString().slice(0, 10) !== value) throw new Error("Fecha inválida.");
+          return value;
+        };
+        let fechas: object;
+        try {
+          fechas = horario ? { semana_inicio: fecha(r.semana_inicio), semana_fin: fecha(r.semana_fin) } : { fecha_corte: fecha(r.fecha_corte) };
+        } catch { return err("Fecha inválida."); }
+        if (horario && !["todos", "planta", "1er_ciclo", "2do_ciclo"].includes(r.audiencia)) return err("Audiencia inválida.");
+        if (!horario && !["1er_ciclo", "2do_ciclo"].includes(r.ciclo)) return err("Ciclo inválido.");
+        const registro = {
+          ...fechas, titulo: r.titulo.trim(), archivo_nombre: r.archivo_nombre,
+          archivo_dataurl: r.archivo_dataurl, archivo_size_kb: Math.round(bytes / 1024),
+          subido_por: u.id, subido_por_nombre: u.nombre,
+          subido_en: new Date().toISOString(), activo: true,
+          ...(horario ? { descripcion: typeof r.descripcion === "string" ? r.descripcion : null, audiencia: r.audiencia } : { ciclo: r.ciclo }),
+        };
+        const { error } = await sb.from(horario ? "horarios_semanales" : "planillas_disciplina").insert(registro);
+        if (error) return err("No se pudo subir el documento: " + error.message, 500);
+        return ok();
+      }
+
       case "horario_eliminar": {
         if (!puedeHorarios(u)) {
           return err(u.soloLectura ? CONSULTA : "Solo Jefe Disciplina, Comandante o Jefe Estudios pueden eliminar horarios.", 403);
