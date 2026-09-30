@@ -34,8 +34,9 @@
       host.querySelector('[data-revoke]').onclick=async()=>{try{await api('revocar',{audiencia:aud});host.querySelector('[data-link]').replaceChildren();status('Enlace desactivado.');}catch(e){status(e.message);}};
     }catch(e){status(e.message);const b=document.createElement('button');b.textContent='REINTENTAR';b.onclick=plcPublicadosAbrir;dlg.querySelector('[data-controls]').appendChild(b);}
   };
+  const esCursante=()=>getSession()?.tipo==='cursante';
   function panel(){
-    if(!currentUser)return;
+    if(!currentUser||esCursante())return;
     const sc=document.querySelector('.screen.active');if(!sc)return;
     if(['P030','P032','S002'].includes(String(currentUser.id)))sc.querySelectorAll('[onclick="goPlanificacion()"]').forEach(b=>{if(!b.closest('#screen-planif-cal'))b.style.display='none';});
     const cont=sc.querySelector('.menu-container')||sc.querySelector('.disc-container');
@@ -44,6 +45,6 @@
     const old=cont.querySelector('[onclick="goHorarios()"]');if(old)old.insertAdjacentElement('beforebegin',b);else cont.appendChild(b);
   }
   const show=showScreen;showScreen=function(){const result=show.apply(this,arguments);panel();return result;};
-  const go=goHorarios;goHorarios=function(){const r=go.apply(this,arguments);const sc=document.getElementById('screen-horarios');if(sc&&!sc.querySelector('.plc-published-button')){const b=document.createElement('button');b.className='btn-mega plc-published-button';b.textContent='HORARIOS PUBLICADOS — CONSULTAR, WORD, IMPRIMIR Y CALENDARIO';b.onclick=plcPublicadosAbrir;(sc.querySelector('.menu-container')||sc.querySelector('.disc-container')||sc).appendChild(b);}return r;};
+  const go=goHorarios;goHorarios=function(){if(esCursante())return plcPublicadosAbrir();const r=go.apply(this,arguments);const sc=document.getElementById('screen-horarios');if(sc&&!sc.querySelector('.plc-published-button')){const b=document.createElement('button');b.className='btn-mega plc-published-button';b.textContent='HORARIOS PUBLICADOS — CONSULTAR, WORD, IMPRIMIR Y CALENDARIO';b.onclick=plcPublicadosAbrir;(sc.querySelector('.menu-container')||sc.querySelector('.disc-container')||sc).appendChild(b);}return r;};
   panel();
 })();

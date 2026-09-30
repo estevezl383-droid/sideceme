@@ -99,5 +99,5 @@
   }
   const barra=_plpBarra;
   _plpBarra=function(){barra();const toolbar=document.getElementById('plp-barra');if(!toolbar||!allowed()||toolbar.querySelector('.plc-button'))return;const button=document.createElement('button');button.className='plp-prev-gr plc-button';button.textContent='CONSOLIDAR / WORD / PUBLICAR';button.onclick=plcAbrir;toolbar.appendChild(button);const archive=document.createElement('button');archive.className='plc-button';archive.textContent='ARCHIVO DE SEMANAS Y DOCUMENTACIÓN';archive.onclick=goPlanificacion;toolbar.appendChild(archive);};
-  const marker=document.getElementById('version-marker');if(marker)marker.textContent='v2.9.427';
+  const marker=document.getElementById('version-marker');if(marker)marker.textContent='v2.9.428';
 })();
