@@ -29,7 +29,7 @@
   _plpPuedeEditar=function(p){
     var u=PLP.perfil||{};
     if(!u || !p || p.estado==='retirada') return false;
-    if(u.mover) return true;
+    if(u.mover || u.aprobar) return true;
     return !!(u.proponer && p.creado_por===u.id && _plpAbierta(_plpSemanaDe(p.fecha)));
   };
 
@@ -85,7 +85,7 @@
     };
   }
 
-  /* Jefe de Estudios aprueba/rechaza; no guarda cambios sobre ficha ajena. */
+  /* Jefe de Estudios corrige y aprueba la propuesta en un solo guardado. */
   if(typeof plpAprobar==='function'){
     plpAprobar=async function(){
       var ed=PLP.edit;if(!ed||!ed.p||!ed.p.id)return;
@@ -98,6 +98,7 @@
           var g=await _plpInvoke('guardar',{id:p.id,version:p.version,campos:c});
           if(!g||!g.ok){alert('❌ '+((g&&g.error)||'No se pudo guardar'));return;}
           p=g.propuesta||p;
+          if(p.estado==='aprobada'){PLP.volverSiCancela=false;_plpCerrarModal();_plpRecargar();return;}
         }
       }
       var r=await _plpInvoke('aprobar',{id:p.id,version:p.version});
@@ -312,7 +313,7 @@
   };
   var eventos=_plpArmarEventos;
   _plpArmarEventos=function(){return eventos().map(function(ev){var x=ev.extendedProps||{},p=x.p;if(p&&todo(p)){ev.start=p.fecha;delete ev.end;ev.allDay=true;ev.editable=false;ev.startEditable=false;ev.durationEditable=false;}
-    if(p&&p.estado==='aprobada'&&['P030','P032','S002'].indexOf(p.actualizado_por)>=0){x.cls=(x.cls||[]).filter(function(c){return c!=='plp-aprobada'&&c!=='plp-pendiente';}).concat(['plp-planificacion-directa']);}
+    if(p&&p.estado==='aprobada'&&['P030','P032','S002'].indexOf(p.creado_por)>=0){x.cls=(x.cls||[]).filter(function(c){return c!=='plp-aprobada'&&c!=='plp-pendiente';}).concat(['plp-planificacion-directa']);}
     ev.title=may(ev.title);return ev;});};
   var bloques=_plpBloquesDia;
   _plpBloquesDia=function(iso){return bloques(iso).filter(function(x){return !todo(x.p);});};
@@ -323,4 +324,88 @@
   var pintar=_plpEncajarPintar;
   _plpEncajarPintar=function(){pintar();if((PLP.perfil||{}).mover){var d=document.getElementById('plp-dlg');if(d)d.querySelectorAll('.plp-av-pend').forEach(function(el){el.textContent='LOS CAMBIOS SE APLICAN DIRECTAMENTE Y QUEDAN EN PLOMO.';});}};
   var vm=document.getElementById('version-marker');if(vm)vm.textContent='v2.9.421';
+})();
+
+/* v2.9.422 — revisión editable, planificación sin etiquetas y avisos propios. */
+(function(){
+  'use strict';
+  var editores=['P030','P032','S002'];
+  function directa(p){return !!(p&&p.estado==='aprobada'&&editores.indexOf(p.creado_por)>=0);}
+  window._plpEsDirecta=directa;
+  var contenido=_plpContenido;
+  _plpContenido=function(a){
+    if(directa((a.event.extendedProps||{}).p)){
+      var ev=a.event;
+      return contenido({timeText:a.timeText,event:{start:ev.start,end:ev.end,title:ev.title,extendedProps:{tipo:'base'}}});
+    }
+    return contenido(a);
+  };
+  var eventos=_plpArmarEventos;
+  _plpArmarEventos=function(){
+    var out=eventos();
+    out.forEach(function(ev){if(directa((ev.extendedProps||{}).p))ev.extendedProps.cls=['plp-base','plp-planificacion-directa'].concat(ev.allDay?['plp-franja']:[]);});
+    // Una duplicación de la misma banda de día completo se muestra una sola vez.
+    return out.filter(function(ev){return !(ev.allDay&&ev.extendedProps.tipo==='base'&&out.some(function(p){return p.allDay&&p.extendedProps.tipo==='prop'&&directa(p.extendedProps.p)&&p.start===ev.start&&_plpNormTxt(p.title)===_plpNormTxt(ev.title);}));});
+  };
+  var form=_plpForm;
+  _plpForm=function(p,aviso){
+    form(p,aviso);
+    var dlg=document.getElementById('plp-dlg');if(!dlg)return;
+    if(directa(p)){
+      dlg.querySelectorAll('.plp-quien,.plp-av-just').forEach(function(el){el.remove();});
+      var pill=dlg.querySelector('.plp-pill');if(pill)pill.textContent='HORARIO';
+    }
+    if((PLP.perfil||{}).mover){
+      dlg.querySelectorAll('button').forEach(function(b){if(b.getAttribute('onclick')==='plpGuardar()'&&!p.id)b.textContent='💾 GUARDAR EN EL HORARIO';});
+    }
+  };
+
+  var avisos=[],leidos=new Set(),usuario=null,busy=false,timer=null;
+  function key(){return 'sideceme_horario_avisos_'+usuario;}
+  function quitar(){document.querySelectorAll('.plp-alerta-personal').forEach(function(el){el.remove();});}
+  function pendientes(){return avisos.filter(function(a){return !leidos.has(String(a.id));});}
+  function pintar(){
+    quitar();var lista=pendientes();if(!lista.length)return;
+    var sc=document.querySelector('.screen.active');if(!sc)return;
+    var cont=sc.querySelector('.menu-container')||sc.querySelector('.disc-container');
+    if(!cont&&sc.id==='screen-planif-cal')cont=document.getElementById('plp-aviso');
+    if(!cont)return;
+    var b=document.createElement('button');b.type='button';b.className='plp-alerta-personal';
+    b.textContent='🔴 TIENES '+lista.length+' AVISO(S) SOBRE TU SOLICITUD DE HORARIO — REVISAR';
+    b.onclick=window.plpAvisosAbrir;cont.prepend(b);
+  }
+  window.plpAvisosActualizar=async function(){
+    if(busy||document.hidden)return;
+    var tok=getTokenSesion();if(!tok){quitar();usuario=null;return;}
+    busy=true;
+    try{
+      var perfil=await _plpPerfil();if(!perfil){quitar();return;}
+      if(usuario!==perfil.id){usuario=perfil.id;avisos=[];try{leidos=new Set(JSON.parse(localStorage.getItem(key())||'[]'));}catch(_){leidos=new Set();}}
+      var r=await _plpInvoke('avisos');if(getTokenSesion()!==tok)return;
+      if(r&&r.ok){avisos=r.avisos||[];pintar();}
+    }finally{busy=false;}
+  };
+  window.plpAvisosAbrir=function(){
+    var lista=pendientes();
+    _plpModal('<div class="plp-dlg-h">🔴 RESPUESTA A TU SOLICITUD DE HORARIO</div>'+lista.map(function(a){
+      var p=a.despues||{},ant=a.antes||{},cambio=ant.fecha!==p.fecha||ant.desde!==p.desde||ant.hasta!==p.hasta;
+      return '<div class="plp-av plp-av-err"><b>'+_plEsc(p.estado==='rechazada'?'❌ SOLICITUD RECHAZADA':(cambio?'⏰ HORARIO MODIFICADO Y APROBADO':'✅ SOLICITUD APROBADA'))+'</b><p>'+_plEsc(p.actividad)+'</p><p>'+_plEsc(p.fecha+' · '+p.desde+'–'+p.hasta)+'</p>'
+        +(cambio?'<p>ANTES: '+_plEsc(ant.fecha+' · '+ant.desde+'–'+ant.hasta)+'</p>':'')
+        +(p.motivo_rechazo?'<p>MOTIVO: '+_plEsc(p.motivo_rechazo)+'</p>':'')
+        +'<p>'+_plEsc(a.autoridad||'JEFATURA DE ESTUDIOS')+'</p><button class="pl-add" onclick="plpAvisoVer('+Number(a.id)+')">VER ACTIVIDAD</button> <button class="btn-primary pl-b" onclick="plpAvisoLeido('+Number(a.id)+')">ENTENDIDO</button></div>';
+    }).join('')+'<button class="pl-add" onclick="_plpCerrarModal()">CERRAR</button>');
+  };
+  window.plpAvisoVer=async function(id){
+    var a=avisos.find(function(x){return Number(x.id)===id;});if(!a)return;
+    await goPlanifCal(a.propuesta.fecha);_plpForm(a.propuesta);
+  };
+  window.plpAvisoLeido=function(id){
+    leidos.add(String(id));try{localStorage.setItem(key(),JSON.stringify(Array.from(leidos).slice(-500)));}catch(_){}
+    pintar();if(pendientes().length)plpAvisosAbrir();else _plpCerrarModal();
+  };
+  var boton=_plpBoton;
+  _plpBoton=async function(){await boton();await plpAvisosActualizar();if(!timer)timer=setInterval(plpAvisosActualizar,30000);};
+  var barra=_plpBarra;
+  _plpBarra=function(){barra();pintar();};
+  var vm=document.getElementById('version-marker');if(vm)vm.textContent='v2.9.422';
 })();

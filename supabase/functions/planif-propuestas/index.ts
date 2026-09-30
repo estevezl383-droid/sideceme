@@ -19,9 +19,10 @@
 // esa semana, la propuesta queda con semana_id NULL y se engancha sola cuando la
 // semana se crea (trigger trg_planif_enganchar). Todo se resuelve por `fecha`.
 // v2.9.419: puede_mover queda reservado a Morales, Villarroel y Arce (tabla
-// planif_editores). El Jefe de Estudios aprueba/rechaza, pero no edita propuestas
-// ajenas. Se normalizan textos a MAYUSCULAS y se admite ocultar_base para quitar
+// planif_editores). Se normalizan textos a MAYUSCULAS y se admite ocultar_base para quitar
 // una fila gris del horario mediante propuesta auditable.
+// v2.9.422: Jefe de Estudios puede corregir y aprobar propuestas ajenas;
+// avisos privados al solicitante basados en el historial.
 //
 // Valida token en 'sesiones'. JWT: OFF.
 // El trigger planif_prop_guard repite el control del cierre en la base.
@@ -178,6 +179,32 @@ Deno.serve(async (req: Request) => {
 
   if (accion === "perfil") return ok({ perfil: u });
 
+  // Avisos exclusivos del solicitante, derivados del historial auditado.
+  // No se confía en un ID de destinatario enviado por el cliente.
+  if (accion === "avisos") {
+    const { data: propias, error: ep } = await sb.from("planif_propuestas")
+      .select("*").eq("creado_por", u.id).neq("estado", "retirada");
+    if (ep) return err(ep.message, 500);
+    if (!propias?.length) return ok({ avisos: [] });
+    const desde = new Date(Date.now() - 30 * 86400e3).toISOString();
+    const { data: registros, error: el } = await sb.from("planif_propuestas_log")
+      .select("id,propuesta_id,usuario_id,usuario_nombre,accion,antes,despues,en")
+      .in("propuesta_id", propias.map((p: any) => p.id))
+      .neq("usuario_id", u.id).gte("en", desde)
+      .in("accion", ["aprobar", "rechazar", "modificar"])
+      .order("en", { ascending: false }).limit(200);
+    if (el) return err(el.message, 500);
+    const avisos = (registros || []).filter((r: any) =>
+      r.despues?.creado_por === u.id &&
+      ["aprobada", "rechazada"].includes(r.despues?.estado)
+    ).map((r: any) => ({
+      id: r.id, en: r.en, accion: r.accion, autoridad: r.usuario_nombre,
+      antes: r.antes, despues: r.despues,
+      propuesta: propias.find((p: any) => p.id === r.propuesta_id),
+    }));
+    return ok({ avisos });
+  }
+
   if (accion === "cargar") {
     const { desde, hasta, con_base } = body;
     if (!RE_FECHA.test(desde || "") || !RE_FECHA.test(hasta || "")) return err("Rango invalido");
@@ -234,7 +261,7 @@ Deno.serve(async (req: Request) => {
     if (c.mueve !== undefined) {
       const m = limpiarMueve(c.mueve);
       if (typeof m === "string") return err(m);
-      if (m && !u.mover && !(esEfm(m.texto) && u.efm)) {
+      if (m && !u.mover && !u.aprobar && !(esEfm(m.texto) && u.efm)) {
         return err("Solo los usuarios autorizados pueden reacomodar filas del horario base.", 403);
       }
       if (m && esEfm(m.texto) && !u.efm) {
@@ -294,7 +321,7 @@ Deno.serve(async (req: Request) => {
     if (!prev || prev.estado === "retirada") return err("La actividad ya no existe", 404);
     if (Number(body.version) !== prev.version) return err("Otro usuario modificó esta actividad recién. Recargá el calendario.", 409);
     const semPrev = prev.semana_id === null ? null : await semanaPorId(prev.semana_id);
-    if (!u.mover) {
+    if (!u.mover && !u.aprobar) {
       if (!u.proponer || prev.creado_por !== u.id) return err("Solo podés modificar las actividades de tu sección", 403);
       // Si todavia no hay semana creada (programada con antelacion) no hay plazo.
       if (prev.semana_id !== null && (!semPrev || !abierta(semPrev))) {
@@ -309,12 +336,12 @@ Deno.serve(async (req: Request) => {
     if (h <= d) return err("La hora de fin tiene que ser posterior a la de inicio.");
     if (fecha !== prev.fecha) {
       const semNueva = await semanaDeFecha(fecha);
-      if (semNueva && !u.mover && !abierta(semNueva)) {
+      if (semNueva && !u.mover && !u.aprobar && !abierta(semNueva)) {
         return err("La semana " + semNueva.semana_num + " ya está cerrada para las secciones.", 403);
       }
       cambios.semana_id = semNueva ? semNueva.id : null;
     }
-    if (u.mover) {
+    if (u.mover || u.aprobar) {
       Object.assign(cambios, { estado: "aprobada", aprobado_por: u.id, aprobado_por_nombre: u.nombre, aprobado_en: new Date().toISOString(), motivo_rechazo: null });
     } else if (!u.aprobar && prev.estado !== "pendiente") {
       Object.assign(cambios, { estado: "pendiente", aprobado_por: null, aprobado_por_nombre: null, aprobado_en: null, motivo_rechazo: null });
