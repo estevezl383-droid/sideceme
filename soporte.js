@@ -33,12 +33,49 @@
   logout = function () { if (state()) return finish(); return originalLogout(); };
   const bar = document.createElement('div');
   bar.id = 'sideceme-soporte-bar';
-  bar.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:99990;background:#7f1d1d;color:white;padding:12px;border-radius:10px;max-width:calc(100vw - 32px);box-shadow:0 3px 12px #0006;font:600 13px sans-serif';
+  bar.style.cssText = 'position:fixed;bottom:16px;right:16px;z-index:99990;width:40px;height:40px';
   const label = document.createElement('span');
+  label.style.cssText = 'position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap';
   const button = document.createElement('button');
   button.type = 'button';
-  button.style.cssText = 'margin-left:8px;padding:8px;border:0;border-radius:6px;cursor:pointer;font-weight:bold';
+  button.style.cssText = 'width:40px;height:40px;padding:0;border:1px solid #ffffff60;border-radius:7px;background:#7f1d1d;color:white;box-shadow:0 3px 12px #0006;cursor:grab;font-size:22px;touch-action:none;user-select:none';
   bar.append(label, button); document.body.append(bar);
+  const POSITION_KEY = 'sideceme_soporte_posicion';
+  let position = null, drag = null, suppressClick = false;
+  try {
+    const saved = JSON.parse(localStorage.getItem(POSITION_KEY) || 'null');
+    if (saved && Number.isFinite(saved.x) && Number.isFinite(saved.y)) position = saved;
+  } catch {}
+  function place(x, y) {
+    position = { x: Math.max(0, Math.min(x, Math.max(0, window.innerWidth - 40))), y: Math.max(0, Math.min(y, Math.max(0, window.innerHeight - 40))) };
+    bar.style.left = position.x + 'px'; bar.style.top = position.y + 'px';
+    bar.style.right = 'auto'; bar.style.bottom = 'auto';
+  }
+  if (position) place(position.x, position.y);
+  window.addEventListener('resize', () => { if (position) place(position.x, position.y); });
+  button.addEventListener('pointerdown', event => {
+    if (!event.isPrimary || event.button !== 0) return;
+    const rect = bar.getBoundingClientRect();
+    suppressClick = false;
+    drag = { id: event.pointerId, x: event.clientX, y: event.clientY, left: rect.left, top: rect.top, moved: false };
+    button.setPointerCapture(event.pointerId);
+  });
+  button.addEventListener('pointermove', event => {
+    if (!drag || drag.id !== event.pointerId) return;
+    const dx = event.clientX - drag.x, dy = event.clientY - drag.y;
+    if (!drag.moved && Math.hypot(dx, dy) < 5) return;
+    drag.moved = true; button.style.cursor = 'grabbing';
+    place(drag.left + dx, drag.top + dy);
+  });
+  function endDrag(event) {
+    if (!drag || drag.id !== event.pointerId) return;
+    suppressClick = drag.moved;
+    if (drag.moved) { try { localStorage.setItem(POSITION_KEY, JSON.stringify(position)); } catch {} }
+    drag = null; button.style.cursor = 'grab';
+  }
+  button.addEventListener('pointerup', endDrag);
+  button.addEventListener('pointercancel', endDrag);
+  button.addEventListener('lostpointercapture', endDrag);
   const dialog = document.createElement('dialog');
   dialog.style.cssText = 'max-width:420px;width:calc(100% - 40px);border:0;border-radius:12px;padding:24px';
   dialog.innerHTML = '<form><h3>ACCESO DE SOPORTE</h3><p>INGRESARÁS EN OTRA PESTAÑA COMO LA CUENTA SELECCIONADA. EL ACCESO QUEDARÁ REGISTRADO A TU NOMBRE.</p><label>TIPO DE CUENTA<select name="tabla" required style="display:block;width:100%;margin:8px 0 16px"><option value="cursantes">CURSANTE</option><option value="profesores">PERSONAL / PROFESOR</option></select></label><label>NOMBRE DE LA CUENTA DESTINO<input name="nombre" maxlength="120" autocomplete="off" placeholder="ESCRIBÍ NOMBRE O APELLIDO" style="display:block;width:100%;margin:8px 0"></label><p data-search-status aria-live="polite"></p><div data-results style="max-height:210px;overflow:auto"></div><p data-selected aria-live="polite"></p><input name="ci" type="hidden"><label>MOTIVO<input name="motivo" required minlength="5" maxlength="500" autocomplete="off" style="display:block;width:100%;margin:8px 0 16px"></label><label>TU CONTRASEÑA PERSONAL<input name="password" type="password" required autocomplete="off" style="display:block;width:100%;margin:8px 0 16px"></label><p role="alert" style="color:#991b1b"></p><button type="submit">INGRESAR</button> <button type="button" data-cancel>CANCELAR</button></form>';
@@ -132,12 +169,14 @@
       tab.close(); errorLabel.textContent = e.message;
     } finally { form.elements.password.value = ''; busy = false; form.querySelector('[type="submit"]').disabled = false; }
   };
-  button.onclick = () => { if (state()) finish(); else if (isOwner()) { dialog.showModal(); loadAccounts(); } };
+  button.onclick = event => { if (suppressClick && event?.detail !== 0) { suppressClick = false; return; } if (state()) finish(); else if (isOwner()) { dialog.showModal(); loadAccounts(); } };
   function refresh() {
     const support = state();
     bar.style.display = support || isOwner() ? 'block' : 'none';
     label.textContent = support ? 'SOPORTE: ' + support.nombre + ' — CI ' + support.ci : 'TU CUENTA DE SOPORTE';
-    button.textContent = support ? 'SALIR DE SOPORTE' : 'ABRIR SOPORTE';
+    button.textContent = support ? '↩' : '🛠';
+    const hint = (support ? label.textContent + ' — SALIR DE SOPORTE' : 'ABRIR TU CUENTA DE SOPORTE') + '. ARRASTRÁ PARA MOVER.';
+    button.title = hint; button.setAttribute('aria-label', hint);
     if (support && Date.parse(support.expira_en) <= Date.now() && !busy) {
       clearSupport(); currentUser = null; activeRole = null; selectedCargo = null;
       if (idleTimer) { clearTimeout(idleTimer); idleTimer = null; }
