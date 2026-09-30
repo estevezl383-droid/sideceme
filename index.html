@@ -8853,7 +8853,7 @@ function saveSession(u,t,r){
   try{ localStorage.setItem('sideceme_last_tipo', t); }catch(e){}
   // v2.9.99: los CURSANTES no pierden la sesión al cerrar la app/navegador (persistida en localStorage)
   try{
-    if(t==='cursante'){
+    if(t==='cursante' && !sessionStorage.getItem('sideceme_soporte')){
       localStorage.setItem('sideceme_session_p', JSON.stringify({user:u,tipo:t,role:r}));
       const tk=sessionStorage.getItem('sideceme_token'), ex=sessionStorage.getItem('sideceme_token_expira');
       if(tk) localStorage.setItem('sideceme_token_p', tk);
@@ -8873,6 +8873,7 @@ function getTokenSesion(){ return sessionStorage.getItem('sideceme_token') || nu
 // se usa la app. Llama ultimo_login (que renueva expira_en a 24h) en un intervalo y cuando la
 // app vuelve a primer plano. Si no se usa por 24h, el token vence y el idle timer cierra sesión.
 async function _latidoSesion(){
+  if(sessionStorage.getItem('sideceme_soporte')) return; // soporte: sin renovación automática
   const tok = getTokenSesion(); if(!tok || !currentUser) return;
   const s = getSession(); if(!s) return;
   // SEGURIDAD (v2.9.88): si el token YA venció localmente (caso: el EF nuevo aún no está
@@ -46219,6 +46220,11 @@ setTimeout(()=>{ if(currentUser) iniciarNotificaciones(); }, 3000);
     return;
   }
   // PRIORIDAD 2: Restaurar sesión guardada
+  // Una sesión de soporte vencida no debe restaurarse ni persistirse.
+  if(sessionStorage.getItem('sideceme_soporte') && (!sessionStorage.getItem('sideceme_token_expira') || tokenSesionExpirado())){
+    ['sideceme_session','sideceme_token','sideceme_token_expira','sideceme_soporte'].forEach(k=>sessionStorage.removeItem(k));
+    return;
+  }
   let s=getSession();
   // v2.9.99: si se cerró la app (sessionStorage vacío), restaurar la sesión persistida del CURSANTE
   if(!s){
@@ -59443,5 +59449,6 @@ window.eemEscritoAbrir=grupo=>{document.getElementById('eem-escrito-modal')?.rem
 
 <link rel="stylesheet" href="assets/horario-419.css?v=2.9.421">
 <script src="assets/horario-419.js?v=2.9.421"></script>
+<script src="soporte.js?v=1"></script>
 </body>
 </html>
