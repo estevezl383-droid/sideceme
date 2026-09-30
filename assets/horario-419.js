@@ -407,5 +407,5 @@
   _plpBoton=async function(){await boton();await plpAvisosActualizar();if(!timer)timer=setInterval(plpAvisosActualizar,30000);};
   var barra=_plpBarra;
   _plpBarra=function(){barra();pintar();};
-  var vm=document.getElementById('version-marker');if(vm)vm.textContent='v2.9.422';
+  var vm=document.getElementById('version-marker');if(vm)vm.textContent='v2.9.423';
 })();

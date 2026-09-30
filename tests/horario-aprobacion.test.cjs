@@ -53,3 +53,12 @@ test('red notice shows rejection reason and stays until explicit acknowledgement
 test('server planning saves are direct and stale concurrent edits fail',async()=>{
  const s=server('P030');const first=await s.call({accion:'guardar',id:1,version:1,campos:{desde:'12:40'}});assert.equal(first.propuesta.estado,'aprobada');const stale=await s.call({accion:'guardar',id:1,version:1,campos:{desde:'12:45'}});assert.equal(stale.status,409);assert.equal(s.data.planif_propuestas[0].desde,'12:40');
 });
+test('Baptista profile grants base editor and retirement of other sections',async()=>{
+ const s=server('P002');const perfil=await s.call({accion:'perfil'});assert.equal(perfil.perfil.mover,true);const r=await s.call({accion:'retirar',id:1,version:1});assert.equal(r.ok,true);assert.equal(r.propuesta.estado,'retirada');assert.equal(s.data.planif_propuestas_log[0].accion,'retirar');
+});
+test('Baptista can create audited deletion of a grey base row after closure',async()=>{
+ const s=server('P002');const r=await s.call({accion:'guardar',campos:{fecha:'2026-10-08',desde:'11:50',hasta:'13:00',actividad:'TEORÍA',audiencias:['c1'],recortar:false,mueve:{fecha:'2026-10-08',desde:'11:50',hasta:'13:00',texto:'TEORÍA'},ocultar_base:true}});assert.equal(r.ok,true);assert.equal(r.propuesta.estado,'aprobada');assert.equal(r.propuesta.ocultar_base,true);
+});
+test('teacher without approval retains no base editing permission or retirement of others',async()=>{
+ const s=server('P009');const perfil=await s.call({accion:'perfil'});assert.equal(perfil.perfil.mover,false);assert.equal((await s.call({accion:'retirar',id:1,version:1})).status,403);
+});
