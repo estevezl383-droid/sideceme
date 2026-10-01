@@ -8,6 +8,14 @@ Desde la hoja, pulse **Word (formato militar)**. Revise membrete, número propio
 
 El correlativo se guarda en `ops.documentosMilitares`, junto al ejercicio, por ejercicio y unidad considerada. La identidad incluye G, hoja, fase/paso, modelo y nivel. Reexportar conserva el correlativo y los campos revisados. Exportar no equivale a expedir una orden. Se mantiene el guardado existente del ejercicio; no se introduce un contador global de servidor ni una numeración concurrente entre copias independientes del ejercicio. Para conservarlo al trasladar el ejercicio, guarde/exporte el ejercicio después de generar sus documentos.
 
+## Completar el documento con IA
+
+El diálogo militar contiene **Completar documento con IA**. **Preparar prompt del documento** obtiene el expediente actual mediante el productor existente `Ju`: ejercicio, base documental, orden superior, calcos, medios, organización, hojas y fase activa. Incluye el contenido vigente y las rutas exactas del modelo de cada G. Copie el prompt a la IA, pegue el JSON completo y pulse **Incorporar respuesta al documento**. La aplicación organiza los apartados, conserva las tablas originales y guarda el borrador para la próxima apertura. El texto añadido se identifica con «IA — verificar» y sus fuentes. Los metadatos aportados por IA requieren fuentes y completan campos vacíos; deben revisarse en el diálogo.
+
+La unidad considerada se toma del contexto registrado; un valor vacío de una hoja no la borra. Cuando falte, se identifica una vez en el diálogo y se guarda por ejercicio en `ops.contextoDocumental`. Nunca se usa el nombre geográfico del área como unidad. El prompt no inventa decisiones ni datos faltantes; solicita resumir información documentada y marcar pendientes. La IA continúa mediante el flujo de copiar/pegar, sin una llamada automática a un proveedor externo.
+
+La matriz nativa de reconocimiento se conserva con sus siete columnas y se vincula automáticamente con las tareas de unidades subordinadas del modelo. Los destinos permanecen disponibles para revisión en un bloque desplegable.
+
 ## Asociación explícita
 
 | Ruta existente | Modelo | Nivel / origen |
@@ -36,6 +44,7 @@ Arial; Carta; márgenes 2/2/2/3 cm; SECRETO en encabezado y pie; campos PAGE y N
 - `python calcos/pruebas/construir-catalogo-militar.py <lectura del paquete>`: reconstruye el catálogo.
 - `node calcos/pruebas/formato-militar.cjs`: selección, identidad, vínculos y cinco Word con datos administrativos de prueba. Requiere docx del runtime o dependencia equivalente.
 - `TEST_DEPS=<node_modules con jsdom> node calcos/pruebas/formato-militar-ui.cjs`: diálogo, generación real, vista previa invocada, persistencia, reexportación, cancelación y protección de contenido sin correspondencia.
+- `node calcos/pruebas/formato-militar-ia.cjs`: unidad por ejercicio, matrices completas, prompt, rutas, fuentes y rechazo de respuestas de otra unidad.
 - `NODE_PATH=<node_modules con acorn> node calcos/pruebas/formato-militar-integracion.cjs`: ejecuta funciones extraídas del compilado y verifica reversibilidad byte por byte.
 
 Los cinco DOCX fueron renderizados en LibreOffice e inspeccionadas todas sus páginas: título largo de anexo/apéndice, tablas multipágina, seis niveles, firmas y paginación. Pasan las pruebas funcionales anteriores de autollenado, agua, estudio, simbología, fuegos, conceptos y riesgo. La prueba histórica `reemplazos-compilado.js` ya falla sobre la base anterior (no incluye integraciones posteriores de fichas/ejes); su fallo se comprobó también sin este cambio y se conserva sin silenciarlo. No se ejecutó una sesión completa de Chromium: no hay navegador instalado en este entorno. La prueba de vista previa en DOM comprueba generación y llamada, no equivalencia visual de docx-preview con Word.
