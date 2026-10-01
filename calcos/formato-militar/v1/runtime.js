@@ -2,7 +2,7 @@ import {integrarContexto,completarConfiguracion,contextoParaGuardar} from './con
 import {contextoDocumento,promptDocumento,leerRespuesta,leerMetadatos,contenidoIA} from './ia.js?v=integrado20261001';
 import {catalogo} from './catalogo.js';
 import {iniciales,registroHoja,registroDirecto,identidad,contenidos,sugerencias,aplicarPlantilla,validarPadre,normalizar,esDocumentoMilitar,etiquetaWord} from './modelo.js?v=integrado20261001';
-import {configurarWord,crearWord} from './word.js';
+import {configurarWord,crearWord} from './word.js?v=espaciado20261001';
 export {registroHoja,registroDirecto,esDocumentoMilitar,etiquetaWord};
 let lib,actual={};export function configurarMilitar(x){lib=x;configurarWord(x)}export function actualizarContexto(ctx){actual=ctx}
 const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
