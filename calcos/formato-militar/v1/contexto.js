@@ -53,13 +53,15 @@ export function integrarContexto(ctx,datos={},registro={}){
  return {...out,fuentesContexto:fuentes,datosIntegrados:datos};
 }
 export function completarConfiguracion(cfg,guardado,ctx){
- const campos={superior:ctx.unidadSuperior,lugar:ctx.lugar,fechaHora:ctx.fechaTactica||ctx.fechaHora,iniciales:ctx.inicialesElaborador||iniciales(ctx.autor)||'XYZ',jem:ctx.inicialesJem||'XYZ',inicialesAut:ctx.inicialesAut||'XYZ'};
+ const campos={superior:ctx.unidadSuperior,lugar:ctx.lugar,fechaHora:ctx.fechaTactica||ctx.fechaHora,iniciales:ctx.inicialesElaborador||iniciales(ctx.autor)||'XYZ',jem:ctx.inicialesJem||'XYZ',inicialesAut:ctx.inicialesElaborador||iniciales(ctx.autor)||'XYZ'};
  for(const [k,v] of Object.entries(campos)){const previo=guardado?.autollenado?.[k]?.valor;if(v&&(!cfg[k]||cfg[k]===previo))cfg[k]=v;}
  // La clave del elaborador pertenece al usuario que trabaja ahora, no al autor de otra orden.
  if(ctx.fuentesContexto?.autor?.fuente==='Usuario activo de SIDECEME')cfg.iniciales=campos.iniciales;
+ // El autenticador es el elaborador del documento.
+ cfg.inicialesAut=cfg.iniciales;
  if(!cfg.numero)cfg.numero='01';
  if(cfg.superior&&(!cfg.distribucion||cfg.distribucion.includes('[Unidad superior pendiente]')))cfg.distribucion=`Original: ${cfg.superior}\nCopia 1-12: UU. DEP.\nCopia 13: ARCHIVO`;
- const keys={superior:'unidadSuperior',lugar:'lugar',fechaHora:'fechaTactica',iniciales:'inicialesElaborador',jem:'inicialesJem'};
+ const keys={superior:'unidadSuperior',lugar:'lugar',fechaHora:'fechaTactica',iniciales:'inicialesElaborador',jem:'inicialesJem',inicialesAut:'inicialesElaborador'};
  cfg.autollenado=Object.fromEntries(Object.entries(keys).map(([k,c])=>[k,{valor:campos[k]||cfg[k],fuente:ctx.fuentesContexto?.[c]?.fuente||'Dato registrado del ejercicio'}]));
  return cfg;
 }

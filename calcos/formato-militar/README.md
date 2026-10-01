@@ -67,3 +67,7 @@ El alcance está limitado a `calcos/index.html`, nuevo asset, módulos de format
 Corrección de formato del 01-10-2026: los seis niveles de numeración se exportan sin subrayado; el texto de los subtítulos conserva su estilo. Los subtítulos y párrafos del cuerpo tienen 12 puntos de separación posterior. Los bloques de contenido sin título heredan la alineación del subtítulo contenedor y no agregan sangrías. Las hojas de trabajo conservan su exportador propio.
 
 Comprobación: `node calcos/pruebas/espaciado-militar.cjs` verifica el OOXML real de los seis niveles y las referencias de caché. `construir-espaciado-militar.py` reproduce el cambio de referencia del paquete vigente.
+
+Corrección de autenticación e importación del 01-10-2026: el autenticador usa las iniciales del elaborador, incluido el cambio de usuario activo. Se reconocen las abreviaturas UU. y los apartados opcionales del modelo sin eliminar datos. La importación acepta listas de apartados con ruta, texto y fuentes; una lista de filas de reconocimiento muestra un mensaje específico para utilizar el prompt del documento, manteniendo la matriz original.
+
+Prueba: `TEST_DEPS=<node_modules con jsdom> node calcos/pruebas/autenticador-militar.cjs` verifica identidad, asignación y descarga real de la preparatoria.
