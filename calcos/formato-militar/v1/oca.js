@@ -1,7 +1,7 @@
 // Presentación breve de los campos preliminares. Nunca modifica la hoja fuente.
 const limpiar=s=>String(s||'').replace(/\s+SIN DATO\s*[—–-]\s*verificar\.?\s*$/i,'').trim();
 const punto=s=>s&&!/[.!?]$/.test(s)?s+'.':s;
-function primeraFrase(s){return s.replace(/\b(DIV|MEC|BRIG|GRAL|No|Nro|Esc|Dpto|Prov|Tcnl|Cnl)\.(?=\s)/gi,'$1\uE000').split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÜÑ])/u)[0].replace(/\uE000/g,'.').trim()}
+function primeraFrase(s){return s.replace(/\b(DIV|MEC|BRIG|GRAL|No|Nro|Esc|Dpto|Prov|Tcnl|Cnl)\.(?=\s)/gi,'$1\uE000').replace(/\b(AO|AI|LF|LS|LC|LPR|ZR|PC|CG|UU|Ejto|Comp|Secc)\.(?=\s+[A-ZÁÉÍÓÚÜÑ][A-ZÁÉÍÓÚÜÑ0-9.\-]+(?:[\s,;:)]|$))/g,'$1\uE000').split(/(?<=[.!?])\s+(?=[A-ZÁÉÍÓÚÜÑ])/u)[0].replace(/\uE000/g,'.').trim()}
 function objeto(s,spec,cfg){
  s=limpiar(s);
  // Solo abreviar el preámbulo de emisión; los asuntos ya escritos se conservan.

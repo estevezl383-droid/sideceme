@@ -5,6 +5,75 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-01 — 🔭 Orden de Reconocimiento: la F2·P9 es la ORDEN completa, con la forma de la Escuela (`index-reconocimiento-20261001.js`)
+
+Parte de `index-oca-militar-20261001.js`: trae todo eso y suma esto. Lo pidió Sergio con
+el Word de la F2·P9 que sacaba la Mesa y el ejemplo de la Escuela «06. ORDEN DE
+RECONOCIMIENTO» (DIV.MEC.-2). La lista EXACTA de reemplazos está en
+`calcos/pruebas/reemplazos-2026-10-01-reconocimiento.js` (16); `construir-reconocimiento.js`
+arma el compilado y comprueba que deshaciéndolos se vuelve byte por byte al anterior
+(también lo comprueba `reemplazos-compilado.js`, como primer paso de la cadena).
+
+### Qué pasaba
+
+- La F2·P9 era una matriz de renglones (Órgano · Tarea · Área · Alcance · No antes de · No
+  después de · Dónde informa). El Word (formato militar) la metía entera como tabla en el
+  «modelo orden de reconocimiento» del paquete, con «Refuerzos y reducciones» y «Plan de
+  distribución»; todo lo demás salía «[Pendiente de elaboración]» y firmaba «EL G-3 DE LA
+  UNIDAD».
+
+### Qué se hizo (código legible en `calcos/reconocimiento/v1/`, ver `calcos/reconocimiento/README.md`)
+
+- La hoja es la ORDEN: OBJETO, CARTA y ANEXOS; el cuadro de ORGANIZACIÓN DE LA TAREA (una
+  columna por equipo, «EQ. ZULU», con sus elementos); I.- Situación; II.- Misión; III.-
+  Ejecución (A.- Plan: objetivo y método; B.- Tareas para los equipos: forma de llegar
+  a.- b.- c.-, «a.- Equipo ZULU. Obtener información referente a: - …», plazos; C.-
+  Instrucciones de coordinación); IV.- Apoyo de servicio; V.- Comando y comunicaciones;
+  la firma del Comandante y la distribución (original, Sec. III y una copia por equipo).
+- El Word es el del formato militar de la Mesa (el mismo membrete de los demás
+  documentos), con la estructura propia de la hoja (`estructuraPropia`), sin reacomodarla
+  en el modelo genérico.
+- 🌱 Traer del calco lo que falte (los órganos de reconocimiento con su alcance, la carta,
+  la referencia a la Orden Preparatoria), sin pisar.
+- 💡 Las ideas del oficial («cómo quiero el reconocimiento») van al pedido a la IA.
+- 🤖 El mismo panel de IA de las demás hojas (`hU`), con un pedido propio: expediente,
+  órganos del calco, doctrina, el ejemplo de la Escuela, las ideas y la orden con los
+  `id` de sus equipos. La respuesta (JSON) se aplica sin pisar o reescribe; lo de la IA
+  queda marcado para revisar (no se imprime).
+- La matriz de antes se lee sola: cada renglón es un equipo, sin perder nada.
+
+### Qué se tocó en el compilado (16 reemplazos)
+
+- Los `import` de `calcos/reconocimiento/v1/`, `vistaMilitar`/`mostrarDocx` del formato
+  militar y su nueva versión (`runtime.js?v=reco20261001`).
+- La hoja `ivr` pasa a `tipo:"reconocimiento"` (sin `cols` ni `autollena`: el editor
+  trae su propia siembra, con la misma `l3e`).
+- `KS`: no es una hoja de renglones (sin el panel genérico de IA).
+- Tablero del G-3 (`wLe`): sin los botones genéricos «Vista previa / Word»; monta
+  `SIDEditorReco` con `{...I, unidades, orgTarea, g3, documentos}` y el expediente. `yU`
+  (fuera del Tablero) también.
+- `zle` (expediente), `ED` (carpeta del G-3) y `CD` (documentos con contenido) leen la orden.
+- `sP`: lo que otros pedidos a la IA (`hojas_g3.ivr`) traen se AGREGA a la orden.
+- `Aoe` y `Coe`: cualquier otra salida a Word de la F2·P9 usa la misma orden.
+- La guía «¿Para qué es y cómo se llena?» de `ivr` y `configurarReconocimiento(...)`.
+
+### En el fuente
+
+- Montar `calcos/reconocimiento/v1/editor.js` para el tipo `reconocimiento` y los ganchos
+  de `zle`, `ED`, `CD`, `KS`, `sP`, `Aoe` y `Coe` de arriba; la definición de la hoja y su guía.
+
+### Cómo se comprobó
+
+- `node reconocimiento.cjs`: matriz de antes, siembra, firma y distribución, pedido,
+  respuesta (completar / mejorar), fusión con la `sP` real, estructura del ejemplo y el
+  Word (orden de los apartados, numeración, incisos, guiones, cuadro con bordes,
+  SECRETO, «PAGE - NUMPAGES»).
+- `node e2e/reconocimiento.cjs` en Chromium, escritorio y teléfono: guía, matriz de antes
+  leída, siembra, ideas, pedido, respuesta sin pisar, vista previa del Word real, Word
+  militar descargado, guardar y carpeta. Las pruebas del formato militar, de riesgo y de
+  conceptos siguen pasando (las que extraen funciones del compilado se actualizaron con
+  los nombres nuevos; la de la ruta de la F2·P9 comprueba ahora la orden).
+
 ## 2026-09-29 — ⚠️ Matriz de administración del riesgo: la hoja de trabajo del RO-06-01-04 (`index-5bpBlYsz.js`)
 
 Parte de `index-ucOhdPbL.js`: trae todo eso y suma esto. Lo pidió Sergio con el Word de
