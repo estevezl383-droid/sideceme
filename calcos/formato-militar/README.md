@@ -71,3 +71,9 @@ Corrección de autenticación e importación del 01-10-2026: el autenticador usa
 Prueba: `TEST_DEPS=<node_modules con jsdom> node calcos/pruebas/autenticador-militar.cjs` verifica identidad, asignación y descarga real de la preparatoria.
 
 Prueba de descarga directa: `NODE_PATH=<node_modules con acorn> TEST_DEPS=<node_modules con jsdom> node calcos/pruebas/exportacion-hoja.cjs` usa el productor real de las tres preparatorias, verifica todos los campos una sola vez en el OOXML y comprueba cero consultas de IA, conservación de contenido y correlativos.
+
+### OCA y distribución
+
+Objeto, Carta(s) y Anexos usan rótulos a 1 cm y contenido a 4 cm del margen de texto, con una línea de separación entre campos. El exportador presenta el asunto breve, la identificación/escala cartográfica y un anexo por línea; omite las explicaciones añadidas en estos tres campos. El asunto de emisión se abrevia con la unidad y el verbo inicial de su misión cuando están explícitos; no se cambia la hoja guardada. Los otros apartados conservan su contenido. Distribución empieza a 10,5 cm del margen de texto, con columnas alineadas para copia, dos puntos y destinatario.
+
+Verificación: `node calcos/pruebas/oca-militar.cjs` (admite una especificación JSON de entrada y una ruta DOCX de salida).
