@@ -26,7 +26,7 @@ reemplazar('f.jsx(rD,{...v})','f.jsx(SIDInicioEjercicio,{react:je,aporte:v,child
 # Identidad visible desde el nombre de ejercicio y disponible sin adjuntos.
 reemplazar('fontSize:12,fontWeight:700,color:"#fbbf24",marginBottom:4','fontSize:16,fontWeight:700,color:"#fbbf24",marginBottom:8')
 # Guardar un borrador sigue permitido; cerrar por X con documentos exige confirmar.
-reemplazar('f.jsx("button",{style:or.btnX,onClick:g,children:"✕"})','f.jsx("button",{style:or.btnX,onClick:()=>{if(v?.cargandoDocumentos||v?.documentos?.length&&!v?.unidadConsiderada?.confirmada){v.onPasoUnidad(true);B("COMPLETE SU UNIDAD CONSIDERADA ANTES DE CONTINUAR.");return;}g()},children:"✕"})')
+reemplazar('f.jsx("button",{style:or.btnX,onClick:g,children:"✕"})','f.jsx("button",{style:or.btnX,onClick:()=>{if(v?.cargandoDocumentos||!a&&v?.documentos?.length&&!v?.unidadConsiderada?.confirmada){v.onPasoUnidad(true);B("COMPLETE SU UNIDAD CONSIDERADA ANTES DE CONTINUAR.");return;}g()},children:"✕"})')
 salida=Path('calcos/assets/index-inicio-ejercicio-20261001.js');salida.write_text(s)
 Path('calcos/pruebas/reemplazos-inicio-ejercicio.json').write_text(json.dumps({'sha256Base':hashlib.sha256(base.read_bytes()).hexdigest(),'sha256Salida':hashlib.sha256(s.encode()).hexdigest(),'reemplazos':cambios},ensure_ascii=False))
 p=Path('calcos/index.html');h=p.read_text().replace('index-formato-militar-ia-20261001.js','index-inicio-ejercicio-20261001.js')
