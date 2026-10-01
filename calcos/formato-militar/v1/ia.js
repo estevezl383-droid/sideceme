@@ -13,6 +13,8 @@ export function promptDocumento({ctx,registro,cfg,spec,expediente,instruccion=''
 }
 export function leerRespuesta(texto,ctx,registro){
  const clean=String(texto).trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```$/,'');let data;try{data=JSON.parse(clean)}catch{throw Error('Pegue la respuesta completa en JSON válido.');}
+ if(!data||typeof data!=='object')throw Error('La respuesta debe ser un objeto JSON con ejercicio, unidad y apartados.');
+ if(Array.isArray(data)){if(data.some(a=>(a?.ejercicio!=null&&a.ejercicio!==ctx.ejercicio)||(a?.unidad!=null&&a.unidad!==ctx.unidad)))throw Error('La respuesta debe corresponder a la misma unidad y ejercicio.');if(data.every(a=>typeof a?.ruta==='string'&&typeof a?.texto==='string'))data={ejercicio:ctx.ejercicio,unidad:ctx.unidad,apartados:data};else if(data.some(a=>a&&typeof a==='object'&&Object.keys(a).some(k=>k==='Dónde informa'||k==='Órgano de reconocimiento')))throw Error('La respuesta pegada es una matriz de reconocimiento, no una respuesta para este documento. Use Preparar prompt del documento y pegue el JSON completo con ejercicio, unidad y apartados. La matriz existente del ejercicio se conserva.');else throw Error('La respuesta es una lista sin apartados del modelo. Use Preparar prompt del documento y pegue el JSON completo con ejercicio, unidad y apartados.');}
  if(data.ejercicio!==ctx.ejercicio||data.unidad!==ctx.unidad)throw Error('La respuesta debe corresponder a la misma unidad y ejercicio.');
  const rutas=new Set(catalogo[registro.plantilla]?.apartados.map(a=>a.ruta)||[]),seen=new Set();
  if(!Array.isArray(data.apartados)||!data.apartados.length||data.apartados.length>rutas.size)throw Error('La respuesta debe incluir apartados del modelo.');
