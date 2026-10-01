@@ -63,3 +63,7 @@ Los cinco DOCX fueron renderizados en LibreOffice e inspeccionadas todas sus pá
 ## Continuidad y reversión
 
 El alcance está limitado a `calcos/index.html`, nuevo asset, módulos de formato y pruebas. Para revertir, vuelva a cargar `index-ficha-documental-20260930.js` desde `calcos/index.html` y retire el CSS nuevo; los datos añadidos del ejercicio son compatibles y no deben borrarse. No hay cambios en notas, disciplina, horarios ni autenticación.
+
+Corrección de formato del 01-10-2026: los seis niveles de numeración se exportan sin subrayado; el texto de los subtítulos conserva su estilo. Los subtítulos y párrafos del cuerpo tienen 12 puntos de separación posterior. Los bloques de contenido sin título heredan la alineación del subtítulo contenedor y no agregan sangrías. Las hojas de trabajo conservan su exportador propio.
+
+Comprobación: `node calcos/pruebas/espaciado-militar.cjs` verifica el OOXML real de los seis niveles y las referencias de caché. `construir-espaciado-militar.py` reproduce el cambio de referencia del paquete vigente.
