@@ -20,6 +20,11 @@ const { vigente } = require('./extraer')
 const { cargarConDependencias } = require('./extraer-con-dependencias')
 const { ejercicioRiesgo, respuestaIA } = require('./riesgo-ejercicio.js')
 const raiz = path.resolve(__dirname, '..')
+// La orden de reconocimiento (F2·P9) también se junta en la misma función sP de la Mesa.
+const reconocimiento = async () => {
+  const r = await import(pathToFileURL(path.join(raiz, 'reconocimiento/v1/ia.js')).href)
+  return { SIDRecoFusionable: r.fusionable, SIDRecoFusionar: r.fusionarOrden }
+}
 const out = path.join(__dirname, 'salidas-riesgo')
 fs.mkdirSync(out, { recursive: true })
 
@@ -255,8 +260,8 @@ const textoXML = (x) => x.replace(/<w:tab\/>/g, '\t').replace(/<w:br\/>/g, '\n')
     assert.ok(/residual MÁS ALTO/.test(r.msg))
   })
 
-  await caso('lo que otros pedidos a la IA traen para la matriz se AGREGA (función sP real de la Mesa)', () => {
-    const f = cargarConDependencias(vigente(), ['sP'], (c) => c.sP({ a: [], b: {} }, { a: [{ x: 'y' }], b: { c: 'd', e: ['f'], g: { h: 'i' } } }), { SIDRiesgoFusionable: ia.fusionable, SIDRiesgoFusionar: ia.fusionarRiesgo })
+  await caso('lo que otros pedidos a la IA traen para la matriz se AGREGA (función sP real de la Mesa)', async () => {
+    const f = cargarConDependencias(vigente(), ['sP'], (c) => c.sP({ a: [], b: {} }, { a: [{ x: 'y' }], b: { c: 'd', e: ['f'], g: { h: 'i' } } }), { SIDRiesgoFusionable: ia.fusionable, SIDRiesgoFusionar: ia.fusionarRiesgo, ...(await reconocimiento()) })
     const matriz = m.serializar(m.armarDesdeEjercicio(null, ctx(), { lineaDeTiempo: mesa.MS }).valor)
     const { hojas, puestos } = f.sP({ riesgo: matriz, tareas: [{ Tarea: 'x' }] }, { riesgo: [{ 'Peligro identificado': 'Minas en el paso (FICT.)', Probabilidad: 'Media', Severidad: 'Alta', 'Medida de control': 'Desminado (FICT.)' }], tareas: [{ Tarea: 'y' }] })
     assert.equal(hojas.riesgo.esquema, 'riesgo-v1', 'sigue siendo la matriz')

@@ -26,7 +26,7 @@ Los borradores antiguos guardados en `ops.documentosMilitares` permanecen dispon
 
 | Ruta existente | Modelo | Nivel / origen |
 |---|---|---|
-| G-3 `ivr` F2·P9 | Orden de reconocimiento | Principal; matriz y campos vigentes |
+| G-3 `ivr` F2·P9 | Orden de reconocimiento (forma de la Escuela, `calcos/reconocimiento/v1`) | Principal; estructura propia de la hoja |
 | G-3 `prep1`, `prep2`, `prep3` | Preparatorias 1, 2 y 3 | Principal; formulario del paso |
 | G-3 `opord` | Orden de operaciones | Principal; formulario |
 | `aprecActiva`, `aprecOrientacion`, `aprecOps` | Apreciación de la sección correspondiente | Principal; ejercicio/calco vigente |
@@ -77,3 +77,9 @@ Prueba de descarga directa: `NODE_PATH=<node_modules con acorn> TEST_DEPS=<node_
 Objeto, Carta(s) y Anexos usan rótulos a 1 cm y contenido a 4 cm del margen de texto, con una línea de separación entre campos. El exportador presenta el asunto breve, la identificación/escala cartográfica y un anexo por línea; omite las explicaciones añadidas en estos tres campos. El asunto de emisión se abrevia con la unidad y el verbo inicial de su misión cuando están explícitos; no se cambia la hoja guardada. Los otros apartados conservan su contenido. Distribución empieza a 10,5 cm del margen de texto, con columnas alineadas para copia, dos puntos y destinatario.
 
 Verificación: `node calcos/pruebas/oca-militar.cjs` (admite una especificación JSON de entrada y una ruta DOCX de salida).
+
+### Orden de Reconocimiento y estructura propia (01-10-2026, versión `reco20261001`)
+
+La F2·P9 se arma en `calcos/reconocimiento/v1` y llega con `estructuraPropia: true`: se exporta tal cual (no pasa por `aplicarPlantilla` ni por la asignación de apartados del diálogo), con su número y su distribución. `word.js` admite, sin cambiar los demás documentos: `organizacion` (el cuadro de ORGANIZACIÓN DE LA TAREA después de OBJETO/CARTA/ANEXOS, en filas de hasta cuatro equipos, Arial 10, con bordes), nodos `item` (incisos numerados con la numeración de la Mesa, sin negrilla, estilos `MilitarInciso1..6`) y `vinetas` (guiones con sangría francesa debajo del texto). `runtime.js` exporta `vistaMilitar` (el mismo Word, sin descargar ni registrar) y `mostrarDocx`. El OBJETO breve ya no se corta en «AO.», «LF.», «PC.»… delante de un nombre en mayúsculas y el membrete no repite «CG.» si el puesto de mando ya lo trae.
+
+Verificación: `node calcos/pruebas/reconocimiento.cjs` y `node calcos/pruebas/e2e/reconocimiento.cjs`.
