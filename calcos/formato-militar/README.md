@@ -8,6 +8,14 @@ Desde la hoja, pulse **Word (formato militar)**. Revise membrete, número propio
 
 El correlativo se guarda en `ops.documentosMilitares`, junto al ejercicio, por ejercicio y unidad considerada. La identidad incluye G, hoja, fase/paso, modelo y nivel. Reexportar conserva el correlativo y los campos revisados. Exportar no equivale a expedir una orden. Se mantiene el guardado existente del ejercicio; no se introduce un contador global de servidor ni una numeración concurrente entre copias independientes del ejercicio. Para conservarlo al trasladar el ejercicio, guarde/exporte el ejercicio después de generar sus documentos.
 
+## Formatos propios y recuperación integrada
+
+La descarga usa el formato militar sólo para órdenes, preparatorias, guía inicial, apreciaciones, planes y anexos identificados. Línea inicial/actualizada de tiempo, programa general de planeamiento, matrices, conceptos entrelazados, misión reexpresada y cálculos auxiliares conservan sus productores y su formato propio. `SIDHojaWord` restaura literalmente el descargador nativo anterior; `Mx` decide por el registro explícito, sin convertir toda salida Word en plantilla militar. Los conceptos siguen usando su módulo independiente.
+
+Antes de mostrar el diálogo militar, `v1/contexto.js` recupera datos del estado vigente: identidad confirmada, membrete del documento cargado, localidad más cercana al PC propio ya colocado (con su fuente de poblaciones), línea de tiempo compartida/actualizada y nombre del usuario activo de SIDECEME. La fecha específica registrada para el documento tiene prioridad; si sólo existe la recepción de la orden, se muestra como **referencia inicial del ejercicio**, con su origen visible. No se usa el reloj del dispositivo para completar ese campo. Un dato ausente de iniciales utiliza **XYZ**; las del elaborador corresponden al usuario actual cuando existe sesión.
+
+El diálogo identifica el origen de cada campo, conserva correcciones manuales y oculta los campos de anexos mientras el documento sea principal. Los valores recuperados automáticamente se actualizan al cambiar sus fuentes; las correcciones manuales permanecen. La recuperación no escribe en las hojas, la línea de tiempo, las unidades ni las capas. El prompt recibe además el estado estructurado completo del ejercicio, incluidas las hojas y matrices ya trabajadas, datos de capas y resultados de los análisis.
+
 ## Completar el documento con IA
 
 El diálogo militar contiene **Completar documento con IA**. **Preparar prompt del documento** obtiene el expediente actual mediante el productor existente `Ju`: ejercicio, base documental, orden superior, calcos, medios, organización, hojas y fase activa. Incluye el contenido vigente y las rutas exactas del modelo de cada G. Copie el prompt a la IA, pegue el JSON completo y pulse **Incorporar respuesta al documento**. La aplicación organiza los apartados, conserva las tablas originales y guarda el borrador para la próxima apertura. El texto añadido se identifica con «IA — verificar» y sus fuentes. Los metadatos aportados por IA requieren fuentes y completan campos vacíos; deben revisarse en el diálogo.
@@ -30,7 +38,8 @@ La matriz nativa de reconocimiento se conserva con sus siete columnas y se vincu
 | `HNe` Ing., Com., ADA, Fuegos | Plan específico | Principal; productor de la especialidad |
 | `HNe` Art. | Apéndice de apoyo de fuegos | Apéndice; requiere padre registrado |
 | `a4e` logística, engaño, reconocimiento, movimiento, calco | Modelo específico | Contenido del productor actual |
-| G-5 anexo y hojas auxiliares sin modelo dedicado | Estructura nativa y formato común | Aviso explícito; no se sustituyen por otra clase |
+| G-5 anexo sin modelo dedicado | Estructura nativa con formato militar común | Documento militar identificado; no se sustituye por otro plan |
+| Línea de tiempo, programa, conceptos, matrices y cálculos auxiliares | Formato propio de cada hoja | Sin diálogo ni plantilla militar |
 
 `v1/catalogo.js` conserva fuentes y SHA-256 de sus lecturas; contiene 26 clases (las versiones Markdown y Word duplicadas no cuentan como clases nuevas). Las instrucciones numeradas del modelo se conservan como instrucciones, no como contenido elaborado; se usan rótulos descriptivos para sus conclusiones. La sección VI Log. del modelo de movimiento se conserva como variante explícita. El modelo de misión está incompleto y no se impone a la hoja de misión reexpresada.
 
@@ -40,6 +49,8 @@ Los campos que no coinciden de forma única requieren asignación explícita. Se
 
 Arial; Carta; márgenes 2/2/2/3 cm; SECRETO en encabezado y pie; campos PAGE y NUMPAGES; membrete 10 negrilla; título 16; cuerpo/OCA 12; estilos y numeración editables I.- A.- 1.- a.- 1) a). Títulos subordinados con tabulación y sangría francesa. Firma/autenticación/distribución en bloques. Calcos conservan orientación e imágenes proporcionalmente.
 
+- `python calcos/pruebas/construir-formatos-integrados.py`: construye desde la versión vigente de inicio de ejercicio, conservando sus mejoras, y registra un parche reversible.
+- `NODE_PATH=<node_modules con acorn> node calcos/pruebas/formatos-integrados.cjs`: recuperación CE-I/PC/Pucarani/tiempo/usuario/XYZ, conservación, separación de formatos y equivalencia exacta de la línea de tiempo con SVG y matrices.
 - `python calcos/pruebas/construir-formato-militar.py`: construye el nuevo compilado desde el original y registra reemplazos verificables.
 - `python calcos/pruebas/construir-catalogo-militar.py <lectura del paquete>`: reconstruye el catálogo.
 - `node calcos/pruebas/formato-militar.cjs`: selección, identidad, vínculos y cinco Word con datos administrativos de prueba. Requiere docx del runtime o dependencia equivalente.
