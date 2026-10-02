@@ -9,7 +9,8 @@
 //   index-nDtcWpLo.js + reemplazos-2026-09-29-conceptos-v4.js = index-ucOhdPbL.js
 //   index-ucOhdPbL.js + reemplazos-2026-09-29-riesgo.js = index-5bpBlYsz.js
 //   … (pasos de construir-*.py) …
-//   index-oca-militar-20261001.js + reemplazos-2026-10-01-reconocimiento.js = index-reconocimiento-20261001.js (el vigente)
+//   index-oca-militar-20261001.js + reemplazos-2026-10-01-reconocimiento.js = index-reconocimiento-20261001.js
+//   index-reconocimiento-20261001.js + reemplazos-2026-10-02-logistica.js = index-logistica-20261002.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -22,6 +23,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-02-logistica'),
+    nombre: 'reemplazos-2026-10-02-logistica',
+    // calcos/assets/index-reconocimiento-20261001.js (commit b595504, antes de estos cambios).
+    anterior: '14d4554f94f4414304039bf89dc5e6c9f22179b81a98ddf672f022155841443a',
+  },
   {
     lista: require('./reemplazos-2026-10-01-reconocimiento'),
     nombre: 'reemplazos-2026-10-01-reconocimiento',

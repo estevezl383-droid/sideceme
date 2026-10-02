@@ -5,6 +5,81 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-02 — 🚚 Logística del G-4: ASDI paso a paso, Apreciación de Logística con IA y Matriz de Sincronización (`index-logistica-20261002.js`)
+
+Parte de `index-reconocimiento-20261001.js`: trae todo eso y suma esto. Lo pidió Sergio
+con capturas del panel del G-4 y tres textos de la Escuela (UU. CMDO. LOG. 2022, Texto UU.
+CMDO. LOG. y Texto CLFFTTTO 2016). La lista EXACTA de reemplazos está en
+`calcos/pruebas/reemplazos-2026-10-02-logistica.js` (14); `construir-logistica.js` arma el
+compilado y comprueba que deshaciéndolos se vuelve byte por byte al anterior (también lo
+comprueba `reemplazos-compilado.js`, como primer paso de la cadena).
+
+### Qué pasaba
+
+- La F1·P3 «Apreciación Activa de LOGÍSTICA» (y la F2·P13) era una hoja «remite»: sólo
+  decía que se baja desde el botón de Apreciación, que sacaba una plantilla con casi todo
+  «[…]». No había IA ni lugar para las ideas del oficial.
+- La pestaña «▣ ASDI» trazaba y desplegaba, pero no explicaba qué diferencia hay entre el
+  ASDI y el ARCE ni cómo se elige el área (proponer, verificar los datos generales,
+  evaluar con los factores de la Escuela, elegir).
+- No existía la Matriz de Sincronización Logística.
+
+### Qué se hizo (código legible en `calcos/logistica/v1/`, ver `calcos/logistica/README.md`)
+
+- **🧭 Paso a paso** arriba de la pestaña ASDI: 1 entender (ASDI, ARCE, esquema en
+  profundidad, SEGAR, método), 2 proponer las áreas A, B… (trazadas con la herramienta de
+  siempre; quedan con su letra), 3 verificar tamaño, distancia de seguridad (desde la LPR
+  del AO), DMA, EPA y tonelaje, y **acostar las medidas en la carta**, 4 evaluar con la
+  matriz de la Escuela (lo medido, el oficial y la IA, conclusión y Word), 5 elegir y
+  desplegar el Batallón Logístico.
+- **F1·P3 / F2·P13 Apreciación de Situación de Logística**: tipo `aprecLog` (sólo en el
+  G-4; los demás campos siguen como estaban), con 🌱 calco y hojas, 💡 ideas, 🤖 IA (el
+  panel `hU`), vista previa y Word con el formato militar.
+- **F7·P2 Matriz de sincronización logística**: hoja nueva del G-4, tipo `matrizLog`, con
+  🌱, ideas, IA, Word apaisado y botones para trazar/ver en el calco.
+- En la carta, las áreas propuestas no elegidas van con línea discontinua y «ÁREA A
+  (PROPUESTA)».
+
+### Qué se tocó en el compilado (14 reemplazos)
+
+- Los `import` de `calcos/logistica/v1/` y `configurarLogistica(...)` (React, `hU`, `Qq`,
+  `uU`, `Mx`, `SIDMilHoja`, `SIDMilVista`, `SIDMilMostrar`, `Ni`, `Sc`, `Rt`).
+- `uN` (hojas del G-1/G-4/G-5/EME): en el G-4, `aprecActiva` y `aprecOrientacion` pasan a
+  `tipo:"aprecLog"` y la fase 7 suma `matrizSinc` (F7·P2, `tipo:"matrizLog"`).
+- `dN` («Mis hojas»): para esos tipos monta `SIDEditorLog` (con las hojas del G-4, el
+  expediente y el contexto) en lugar de los botones y el panel genéricos.
+- `Foe` y `mDe`: una hoja de logística cuenta si tiene texto (no por su `esquema`).
+- `KS`: no son hojas de renglones. `zle` (expediente): van como texto.
+- `yDe` (panel del G-4), pestaña ASDI: monta `SIDLogPaso` arriba (con `hojas`, `onHojas`,
+  el expediente, `ctxDoc`, la orden y el selector del área a desplegar).
+- Componente principal: un efecto que le pasa al módulo el calco vivo (`Lt`, `dn`, `Yn`,
+  `pn`, `_`, `ba`, `Hi`) y las acciones para acostar (`AC`, `Sn`, `Ep`, `Tr`, `tw`).
+- Carta 2D (`Rt.polygon` de `zonasLog`) y GeoJSON del 3D/exportación (`m2`): las áreas
+  propuestas con línea discontinua y su letra.
+
+### En el fuente
+
+- Montar `calcos/logistica/v1/editor.js` (`PasoAPaso` en la pestaña ASDI y el editor de
+  las hojas `aprecLog` / `matrizLog`), el efecto de sincronización y los ganchos de `uN`,
+  `dN`, `Foe`, `mDe`, `KS`, `zle` y de la carta de arriba. Modelo, análisis, IA y Word no
+  dependen de React.
+
+### Cómo se comprobó
+
+- `node logistica.cjs` (14 casos): datos de la Escuela y DMA, geometría, análisis del
+  calco (con y sin AO), sugerencias, evaluación y conclusión, apreciación y matriz
+  armadas sin pisar, pedidos y respuestas de IA (sin pisar al oficial ni lo impositivo),
+  Word (XML, casillas pintadas, SECRETO, apaisado), especificación militar y reemplazos.
+- `node e2e/logistica.cjs` en Chromium, escritorio y teléfono: los cinco pasos (en
+  escritorio las áreas A y B se TRAZAN en la carta con el botón del asistente), medidas
+  acostadas, evaluación con IA, Word, elegir; la apreciación (calco, evaluación, hojas,
+  ideas, IA, vista previa del Word militar y descarga), la F2·P13, la matriz (fases,
+  concepto, calco, amenaza, IA, Word), el avance de «Mis hojas» y el guardado; sin errores
+  de JavaScript. Las demás pruebas de Node siguen pasando; `reemplazos-compilado.js` pasa
+  el paso nuevo y conserva los 10 fallos históricos que ya tenía.
+- No hay LibreOffice Writer en el entorno: los Word se revisaron dibujados con
+  docx-preview (el mismo visor de la Mesa).
+
 ## 2026-10-01 — 🔭 Orden de Reconocimiento: la F2·P9 es la ORDEN completa, con la forma de la Escuela (`index-reconocimiento-20261001.js`)
 
 Parte de `index-oca-militar-20261001.js`: trae todo eso y suma esto. Lo pidió Sergio con
