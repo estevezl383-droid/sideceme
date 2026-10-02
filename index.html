@@ -11644,6 +11644,12 @@ async function nmControlCargar(){
   nmPintarAlarmas(al);
   if(!r.ok){ cont.innerHTML = '<div class="efm-no-data" style="color:#e87878">'+escapeHtml(r.error||'Error')+'</div>'; return; }
   NM.control = r.modulos || [];
+  // Los que pasaron de "con observaciones" a normal reciben su aviso.
+  if((r.liberados||[]).length){
+    const tok = getTokenSesion();
+    r.liberados.forEach(function(id){ sb.functions.invoke('push-ops',{ body:{ accion:'enviar', token:tok, destino_usuario_id:id, destino_tabla:'cursantes',
+      title:'SIDECEME — Promedio de módulo publicado', body:'Tu promedio de módulo ya está listo para revisar y firmar.', url:'./' }}).catch(function(){}); });
+  }
   if(!NM.control.length){ cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">Todavía no se cargó ningún módulo en este período.</div>'; return; }
   cont.innerHTML = NM.control.map(function(m, i){
     const c = m.conteo || {};
@@ -11654,7 +11660,7 @@ async function nmControlCargar(){
       + '<div style="margin-top:5px"><span class="nc-chip ok">🟢 '+(c.confirmada||0)+' firmaron</span>'
       + '<span class="nc-chip warn">⏳ '+(c.pendiente||0)+' sin responder</span>'
       + (c.rechazada?'<span class="nc-chip err">🟣 '+c.rechazada+' objetaron</span>':'')
-      + (c.retenida?'<span class="nc-chip err">🚨 '+c.retenida+' retenidos</span>':'')
+      + (c.retenida?'<span class="nc-chip err">🔴 '+c.retenida+' con observaciones</span>':'')
       + (todos?'<span class="nc-chip ok">✔ todos firmaron</span>':'')
       + '</div></div></div>';
   }).join('');
@@ -11685,7 +11691,7 @@ async function nmAtenderAlarma(id){
 }
 
 const _NM_EST = { confirmada:['#7ddba0','Firmó — de acuerdo'], pendiente:['#e8c46a','Publicado — sin responder'],
-  rechazada:['#d98aa0','No está de acuerdo'], retenida:['#e87878','RETENIDO — no se publicó'] };
+  rechazada:['#d98aa0','No está de acuerdo'], retenida:['#ff4d4d','🔴 CON OBSERVACIONES — no publicado hasta que se corrija y firme'] };
 async function nmVerModulo(i){
   const m = (NM.control || [])[i]; if(!m) return;
   showScreen('screen-mod-det');

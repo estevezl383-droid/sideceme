@@ -188,3 +188,22 @@ test('el evaluador de otro ciclo no puede cargar, y un cursante no puede usar ac
   assert.equal(c.ok, false);
   assert.equal(db.notas_modulo_alumnos.length, 0);
 });
+
+test('el alumno con observaciones pasa solo a normal cuando el evaluador corrige y el alumno firma', async () => {
+  const db = fixture(); const call = servidor(db);
+  await call({ accion: 'cargar_modulo', ...carga() });
+  let r = await call({ accion: 'control', token: 'aux', gestion: 2026, semestre: 2 });
+  assert.deepEqual(r.liberados, []);
+  // Corrección del evaluador: la nota queda igual a la planilla, pero aún sin firmar.
+  db.notas_academicas.find(x => x.cursante_id === 'C2' && x.materia === MATS[0]).nota_final = 93.32475;
+  const cf = db.notas_confirmaciones.find(x => x.cursante_id === 'C2' && x.materia === MATS[0]);
+  Object.assign(cf, { nota_final: 93.32475, estado: 'pendiente' });
+  r = await call({ accion: 'control', token: 'aux', gestion: 2026, semestre: 2 });
+  assert.deepEqual(r.liberados, []);
+  assert.equal(db.notas_modulo_alumnos.find(x => x.cursante_id === 'C2').estado, 'retenida');
+  cf.estado = 'confirmada';
+  r = await call({ accion: 'control', token: 'aux', gestion: 2026, semestre: 2 });
+  assert.deepEqual(r.liberados, ['C2']);
+  assert.equal(db.notas_modulo_alumnos.find(x => x.cursante_id === 'C2').estado, 'pendiente');
+  assert.ok(db.notas_modulo_alarmas.filter(a => a.cursante_id === 'C2').every(a => a.atendida_en));
+});

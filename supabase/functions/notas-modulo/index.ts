@@ -459,6 +459,34 @@ Deno.serve(async (req) => {
         const { data: mods, error } = await q.order("ciclo").order("modulo");
         if (error) return json({ ok: false, error: "No se pudo leer los módulos" }, 500);
         const salida: any[] = [];
+        const liberados: string[] = [];
+        // Re-verificación automática: el retenido cuya materia ya fue corregida
+        // por el evaluador y FIRMADA por el alumno pasa solo a publicado, y sus
+        // alarmas se cierran. Hasta entonces sigue en rojo, con observaciones.
+        for (const m of mods || []) {
+          const { data: ret } = await sb.from("notas_modulo_alumnos").select("id, cursante_id, promedio, notas")
+            .eq("modulo_id", m.id).eq("estado", "retenida");
+          if (!ret || !ret.length) continue;
+          const mats = (m.materias || []).map((x: any) => x.materia);
+          const { notas, confs } = await leerVigentes(m.gestion, m.semestre, m.ciclo, mats, ret.map((x: any) => x.cursante_id));
+          const ahora = new Date();
+          for (const x of ret) {
+            const f: Fila = { cursante_id: x.cursante_id, promedio: x.promedio, notas: {} };
+            for (const d of x.notas || []) f.notas[d.materia] = d.excel;
+            const ev = evaluarAlumno(f, mats, notas, confs);
+            if (!ev.ok) continue;
+            const { error } = await sb.from("notas_modulo_alumnos").update({
+              estado: "pendiente", motivo_retencion: null, notas: ev.detalle,
+              publicado_en: ahora.toISOString(), plazo_vence_en: new Date(ahora.getTime() + PLAZO_DEFECTO_H * 3600000).toISOString(),
+              actualizado_en: ahora.toISOString(),
+            }).eq("id", x.id).eq("estado", "retenida");
+            if (error) continue;
+            liberados.push(x.cursante_id);
+            await sb.from("notas_modulo_alarmas").update({ atendida_en: ahora.toISOString(), atendida_por: "Sistema (re-verificación)",
+              atendida_comentario: "La nota fue corregida y el alumno firmó su conformidad: el módulo se publicó." })
+              .eq("modulo_id", m.id).eq("cursante_id", x.cursante_id).is("atendida_en", null);
+          }
+        }
         for (const m of mods || []) {
           const { data: al } = await sb.from("notas_modulo_alumnos").select("estado").eq("modulo_id", m.id);
           const c: any = { retenida: 0, pendiente: 0, confirmada: 0, rechazada: 0 };
@@ -467,7 +495,7 @@ Deno.serve(async (req) => {
             .eq("modulo_id", m.id).is("atendida_en", null);
           salida.push({ ...m, conteo: c, total: (al || []).length, alarmas_abiertas: count || 0 });
         }
-        return json({ ok: true, modulos: salida });
+        return json({ ok: true, modulos: salida, liberados });
       }
 
       case "alumnos_modulo": {
