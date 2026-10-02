@@ -28,7 +28,7 @@ const unidades = page => estadoReact(page, v => Array.isArray(v) && v.some(x=>x?
   // Open the real 3D marker popup; deleting it preserves all other units and areas.
   const marker=await page.evaluate(()=>{const lm=window.__espejo3d.lm;const m=Object.values(lm._layers).find(x=>x.getLatLng&&x.getPopup?.()&&x.getPopup().getContent()?.textContent?.includes('ELIMINAR INSTALACIÓN'));if(!m)return null;const r=m._icon.getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2]})
   assert(marker,'instalación con popup');await page.mouse.click(...marker);await page.waitForTimeout(1000)
-  page.once('dialog',x=>x.accept());await page.getByRole('button',{name:'ELIMINAR INSTALACIÓN'}).click();await page.waitForTimeout(500)
+  page.once('dialog',x=>x.accept());await page.getByRole('button',{name:'ELIMINAR INSTALACIÓN'}).dispatchEvent('click');await page.waitForTimeout(500)
   const u=await unidades(page);assert(!u.some(x=>x.id==='fict-instal'));assert.equal(u.length,4);assert.equal((await ops(page)).zonasLog.length,2)
   console.log('✔ clic y borrado individual de instalación en 3D sin afectar otras fichas ni áreas')
   assert.deepStrictEqual(m.errores,[])

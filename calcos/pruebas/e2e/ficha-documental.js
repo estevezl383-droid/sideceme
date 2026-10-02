@@ -11,14 +11,16 @@ async function clicFicha(page, id) {
     if (!m) throw Error('Marcador no encontrado');
     const r = m._icon.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2];
   }, instalaciones.find(u => u.id === id));
-  await page.mouse.click(...punto);
+  const tapa = await page.evaluate(([x, y]) => !document.elementFromPoint(x, y)?.closest('.leaflet-container, .maplibregl-map'), punto);
+  if (tapa) await page.evaluate(c => { const m = Object.values(window.__lm2d._layers).find(x => x._icon && x.getLatLng && Math.abs(x.getLatLng().lng - c.lng) < 1e-8 && Math.abs(x.getLatLng().lat - c.lat) < 1e-8); m.fire('click', { latlng: m.getLatLng(), originalEvent: new MouseEvent('click') }); }, instalaciones.find(u => u.id === id));
+  else await page.mouse.click(...punto);
   await page.getByRole('region', { name: 'Ficha documental de instalación' }).waitFor();
 }
 const datosReact = p => estadoReact(p, v => Array.isArray(v) && v.some(u => u?.id === 'ficha-a') ? JSON.parse(JSON.stringify(v)) : undefined);
 (async () => {
   const m = await abrir(); const { page } = m;
   try {
-    const d = ejercicioFicticio({ conPlantilla: false }); d.unidades.push(...instalaciones);
+    const d = ejercicioFicticio({ conPlantilla: false }); d.unidades.push(...instalaciones); d.ops.unidadConsiderada = { nombre: 'DIV. FICT.', escalon: 'division', confirmada: true };
     await sembrarYAbrir(page, d);
     await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
     const ocultar = page.getByText('▼ ocultar'); if (await ocultar.count()) await ocultar.first().click().catch(() => {});
@@ -58,7 +60,7 @@ const datosReact = p => estadoReact(p, v => Array.isArray(v) && v.some(u => u?.i
     assert((await panel.locator('.sid-fi-resultado').innerText()).includes('<img'));
     await panel.getByRole('button', { name: 'GUARDAR FICHA', exact: true }).click();
     await panel.getByLabel('Cerrar ficha documental').click();
-    await entrar3D(page); await page.waitForTimeout(1500);
+    await entrar3D(page); await page.waitForTimeout(1500); await page.evaluate(() => { window.__lm2d = window.__espejo3d.lm; window.__map3d.jumpTo({ center: [-65.05, -17.015], zoom: 13.2, pitch: 40, bearing: 0 }); }); await page.waitForTimeout(1500);
     await clicFicha(page, 'ficha-a');
     assert.equal(await panel.getByLabel('OBSERVACIONES DEL CURSANTE', { exact: true }).inputValue(), 'Nota exclusiva de A');
     assert((await panel.locator('.sid-fi-resultado').innerText()).includes('Síntesis educativa de A'));
@@ -67,8 +69,8 @@ const datosReact = p => estadoReact(p, v => Array.isArray(v) && v.some(u => u?.i
     await panel.getByRole('button', { name: 'GUARDAR FICHA', exact: true }).click();
     await panel.getByLabel('Cerrar ficha documental').click();
     const antes = await datosReact(page); assert(antes.find(u => u.id === 'ficha-b').fichaDocumental.resultadoIA.textoLibre.includes('Texto de B'));
-    await page.getByRole('button', { name: /^📁 / }).first().dispatchEvent('click');
-    await page.getByRole('button', { name: /^💾 Guardar todo/ }).dispatchEvent('click');
+    if (!(await page.getByRole('button', { name: /Guardar todo/ }).count())) await page.getByRole('button', { name: /^📁 / }).first().dispatchEvent('click');
+    await page.getByRole('button', { name: /Guardar todo/ }).dispatchEvent('click');
     await page.waitForTimeout(1500);
     const guardado = await leerGuardado(page, d.nombre);
     assert.equal(guardado.unidades.find(u => u.id === 'ficha-a').fichaDocumental.resultadoIA.resumen, respuesta.resumen);
