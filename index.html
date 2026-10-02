@@ -14355,11 +14355,44 @@ function _efmConfHtml(ev){
     + '<button onclick="efmAbrirFirma('+Number(c.id)+')" style="background:linear-gradient(180deg,#e8c46a,#c49234);color:#2a1f0a;border:none;border-radius:8px;padding:7px 14px;font-size:11.5px;font-weight:700;cursor:pointer;width:100%">✍️ Ver mi nota y firmar</button></div>';
 }
 
+// Desglose de la evaluación para el modal de firma: cada prueba con su dato, nota y "nota más".
+function _efmDetalleFirmaHtml(ev){
+  const pruebas = [
+    ['Talla / Peso', [ev.talla, ev.peso].filter(Boolean).join(' · '), ev.nota_talla_peso, ev.nota_talla_peso_pon],
+    ['Natación', [ev.natacion_distancia, ev.natacion_tiempo].filter(Boolean).join(' · '), ev.natacion_nota, ev.natacion_nota_pon],
+    ['Abdominales', ev.abdominales_cant, ev.abdominales_nota, ev.abdominales_nota_pon],
+    ['Flexiones', ev.flexiones_cant, ev.flexiones_nota, ev.flexiones_nota_pon],
+    ['Barra (dominadas)', ev.barra_cant, ev.barra_nota, null],
+    ['Aeróbica', ev.aerobica_tiempo, ev.aerobica_nota, ev.aerobica_nota_pon]
+  ].filter(function(p){ return (p[1] != null && p[1] !== '') || (p[2] != null && p[2] !== ''); });
+  if(!pruebas.length && !ev.observaciones) return '';
+  const filas = pruebas.map(function(p){
+    const pon = (p[3] != null && p[3] !== '') ? '<span style="color:#7ddba0;margin-left:8px">+'+escapeHtml(p[3])+'</span>' : '';
+    return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-subtle);font-size:12.5px">'
+      + '<div><b>'+p[0]+'</b>'+(p[1] ? '<div style="font-size:11px;color:var(--text-muted)">'+escapeHtml(p[1])+'</div>' : '')+'</div>'
+      + '<div style="white-space:nowrap;text-align:right">'+escapeHtml(p[2]==null||p[2]===''?'—':p[2])+pon+'</div></div>';
+  }).join('');
+  return '<div style="margin:0 0 12px;padding:8px 10px;border:1px solid var(--border-subtle);border-radius:8px">'
+    + '<div style="font-size:11px;letter-spacing:.5px;color:var(--text-muted);margin-bottom:4px">DETALLE DE TU EVALUACIÓN'
+    + (ev.categoria ? ' · '+escapeHtml(ev.categoria) : '') + (ev.edad ? ' · EDAD '+escapeHtml(ev.edad) : '')+'</div>'
+    + filas
+    + (ev.observaciones ? '<div style="font-size:12px;margin-top:6px;color:var(--text-secondary)">📝 '+escapeHtml(ev.observaciones)+'</div>' : '')
+    + '</div>';
+}
+
 let efmFirma = { conf:null, cv:null, ctx:null, has:false };
-function efmAbrirFirma(confId){
+async function efmAbrirFirma(confId){
   const conf = Object.keys(efmConfMap).map(function(k){ return efmConfMap[k]; }).find(function(c){ return Number(c.id) === Number(confId); });
   if(!conf) return;
   efmFirma = { conf:conf, cv:null, ctx:null, has:false };
+  // El cursante tiene que ver TODO el extracto de su evaluación (flexiones, abdominales,
+  // natación, etc.) antes de firmar, no solo la nota final.
+  let detalleHtml = '';
+  try{
+    const evs = await cargarMisEvaluacionesEfm(true);
+    const ev = (evs || []).find(function(e){ return String(e.efm_id) === String(conf.efm_id); });
+    if(ev) detalleHtml = _efmDetalleFirmaHtml(ev);
+  }catch(e){}
   let ov = document.getElementById('efm-firma-modal');
   if(!ov){ ov = document.createElement('div'); ov.id='efm-firma-modal'; ov.className='avm-overlay'; document.body.appendChild(ov); }
   ov.onclick = efmCerrarFirma;
@@ -14367,6 +14400,7 @@ function efmAbrirFirma(confId){
     + '<h3 style="margin:0 0 4px">✍️ Conformidad de tu nota EFM</h3>'
     + '<div style="font-size:12.5px;color:var(--text-muted);margin-bottom:6px">'+escapeHtml(_efmTipoTxt(conf.tipo_evaluacion)+' · '+etiquetaSemAcad(conf.ciclo, conf.semestre)+' · '+(conf.gestion||''))+'</div>'
     + '<div style="font-size:22px;font-weight:700;color:var(--gold);font-family:var(--font-display);margin-bottom:12px">Nota final: '+escapeHtml(conf.nota_final==null?'—':conf.nota_final)+'</div>'
+    + detalleHtml
     + '<div class="papeleta-block"><div class="pb-title">Firmá con el dedo o el mouse</div>'
     + '<div class="sig-wrap"><canvas id="sig-canvas-efm" class="sig-canvas"></canvas></div>'
     + '<button type="button" class="btn-clear-sig" onclick="efmBorrarFirma()">🧹 Borrar firma</button></div>'
