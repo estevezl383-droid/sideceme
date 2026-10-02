@@ -4669,6 +4669,16 @@ body{
       <span>Cargar notas por materia (desde el Excel)</span>
     </button>
 
+    <button id="eval-btn-modulo" class="btn-mega" onclick="goModCarga()" style="background:linear-gradient(180deg,#2f7d6d,#145045);margin-bottom:8px">
+      <span class="mega-icon">🧩</span>
+      <span>Cargar notas por MÓDULO (desde el Excel)</span>
+    </button>
+
+    <button id="eval-btn-modctrl" class="btn-mega" onclick="goModControl()" style="background:linear-gradient(180deg,#9c6a2a,#6b4516);margin-bottom:8px">
+      <span class="mega-icon">🧩</span>
+      <span id="eval-btn-modctrl-txt">Módulos — publicación, firmas y alarmas</span>
+    </button>
+
     <button id="eval-btn-control" class="btn-mega" onclick="goNotasControl()" style="background:linear-gradient(180deg,#c49234,#8a6420);margin-bottom:8px">
       <span class="mega-icon">✅</span>
       <span>Control de carga — verificar materia por materia</span>
@@ -4822,6 +4832,79 @@ body{
   <div class="menu-container">
     <div id="nccd-cont"></div>
   </div>
+</section>
+
+<!-- v2.9.429 — CARGA POR MÓDULO: confirma las notas de materias ya reconocidas y
+     publica el promedio del módulo TAL CUAL viene en la planilla (sin redondear ni
+     recalcular). Edge Function notas-modulo. -->
+<section id="screen-mod-carga" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goAnyPanel()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">🧩 Cargar Notas por Módulo</div><div class="header-sub">Confirmación de materias ya reconocidas + promedio del módulo</div></div>
+  </div>
+  <div class="menu-container">
+    <div class="alert-banner blue"><div class="alert-emoji">🛡️</div><div class="alert-text"><div class="alert-desc">La planilla del módulo <strong>no cambia ninguna nota</strong>. Cada nota de materia se compara, <strong>exacta y sin redondear</strong>, con la ya cargada y reconocida por el alumno. El promedio se publica <strong>tal cual</strong> viene del Excel. Si una nota no coincide, o el alumno la objetó o no la firmó, <strong>a ese alumno no se le publica</strong> y se envía una alarma.</div></div></div>
+    <div class="sd-block">
+      <div class="sd-block-title">1 · Período</div>
+      <div class="ef-filtros" style="margin:0">
+        <select id="nm-gestion" onchange="nmPeriodoCambio()"></select>
+        <select id="nm-ciclo" onchange="nmPeriodoCambio()"></select>
+        <select id="nm-semestre" onchange="nmPeriodoCambio()"><option value="1">Semestre 1</option><option value="2">Semestre 2</option></select>
+      </div>
+      <div id="nm-periodo-info" style="font-size:12px;color:var(--text-muted);margin-top:10px">⏳ Cargando…</div>
+    </div>
+    <div class="sd-block">
+      <div class="sd-block-title">2 · Planilla del módulo</div>
+      <div class="field" style="margin-bottom:8px"><label>Archivo Excel (.xlsx / .xls)</label><input type="file" id="nm-file" accept=".xlsx,.xls,.xlsm" onchange="nmArchivo(this)"></div>
+      <div id="nm-file-info" style="font-size:12px;color:var(--text-muted);min-height:16px"></div>
+      <div class="field" id="nm-hoja-wrap" style="display:none;margin:12px 0 0"><label>Hoja del libro</label><select id="nm-hoja" onchange="nmAnalizarHoja(this.value)"></select></div>
+    </div>
+    <div id="nm-paso3" style="display:none">
+      <div class="sd-block">
+        <div class="sd-block-title">3 · Módulo y materias</div>
+        <div class="field" style="margin-bottom:10px"><label>Módulo (de la malla curricular)</label><select id="nm-modulo" onchange="nmModuloCambio()"></select></div>
+        <div id="nm-modulo-info" style="font-size:11.5px;color:var(--text-muted);margin-bottom:10px"></div>
+        <div class="field" style="margin-bottom:8px"><label>Columna de nombres</label><select id="nm-col-nombre" onchange="nmInvalidar()"></select></div>
+        <div class="field" style="margin-bottom:8px"><label>Columna del PROMEDIO del módulo</label><select id="nm-col-prom" onchange="nmInvalidar()"></select></div>
+        <div class="field" style="margin-bottom:12px"><label>Columna de atributo (opcional)</label><select id="nm-col-atrib" onchange="nmInvalidar()"></select></div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px"><b>Emparejá cada columna de materia del Excel con la materia ya cargada en el sistema.</b> Los nombres suelen estar escritos distinto: revisá cada uno.</div>
+        <div id="nm-mapeo"></div>
+      </div>
+      <button class="btn-secondary" id="nm-btn-revisar" onclick="nmRevisar()">🔎 Comparar con las notas del sistema</button>
+      <div class="sd-block" id="nm-revision-wrap" style="display:none">
+        <div class="sd-block-title">4 · Resultado de la comparación</div>
+        <div id="nm-revision"></div>
+      </div>
+      <button class="btn-primary" id="nm-btn-subir" onclick="nmSubir()" style="display:none">💾 Guardar y publicar el módulo</button>
+      <div id="nm-resultado" style="margin-top:14px"></div>
+    </div>
+  </div>
+</section>
+
+<section id="screen-mod-control" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="goAnyPanel()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">🧩 Módulos</div><div class="header-sub">Publicación, conformidad y alarmas</div></div>
+  </div>
+  <div class="menu-container">
+    <div class="ef-filtros" style="margin-top:0">
+      <select id="nmc-periodo" onchange="nmControlCargar()" style="flex:2;min-width:170px"></select>
+      <button class="btn-secondary" style="margin:0;width:auto;padding:10px 16px;flex:1;min-width:120px" onclick="nmControlCargar()">↻ Actualizar</button>
+    </div>
+    <div id="nmc-alarmas"></div>
+    <div id="nmc-cont"><div class="efm-no-data" style="color:var(--text-muted)">⏳ Consultando…</div></div>
+  </div>
+</section>
+
+<section id="screen-mod-det" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="showScreen('screen-mod-control')">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">Detalle del módulo</div><div class="header-sub" id="nmd-sub">—</div></div>
+  </div>
+  <div class="menu-container"><div id="nmd-cont"></div></div>
 </section>
 
 <!-- v2.9.369 — Cargas dadas de baja: lo que se sacó de la vista y cómo devolverlo -->
@@ -9788,6 +9871,7 @@ function drawCursantesEval(arr){
 function goEvalPanel(){
   renderEvalPanel();
   showScreen('screen-eval-panel');
+  try{ nmActualizarBotonAlarmas(); }catch(e){}
   mostrarBannerPushSiNecesario('banner-push-eval');
 }
 
@@ -10118,7 +10202,18 @@ function _ncBotonControl(screenId){
   // Los botones inyectados quedan pegados en el DOM entre sesiones de la misma
   // pesta\u00f1a: si el usuario ya no es evaluador hay que REMOVERLOS, no solo no crearlos.
   if(!_ncEsEvaluador()){ if(ya) ya.remove(); if(yaRep) yaRep.remove(); if(yaArch) yaArch.remove();
-    const rg=cont.querySelector('.nc-btn-registro'); if(rg) rg.remove(); return; }
+    const rg=cont.querySelector('.nc-btn-registro'); if(rg) rg.remove();
+    const nmb=cont.querySelector('.nm-btn-modulos'); if(nmb) nmb.remove(); return; }
+  // v2.9.429 — Módulos: publicación, firmas y ALARMAS de notas que no coinciden.
+  if(!cont.querySelector('.nm-btn-modulos')){
+    const mb=document.createElement('button');
+    mb.className='btn-mega nm-btn-modulos';
+    mb.style.cssText='background:linear-gradient(180deg,#9c6a2a,#6b4516);margin:0 0 8px;color:#fff';
+    mb.onclick=function(){ goModControl(); };
+    mb.innerHTML='<span class="mega-icon">\ud83e\udde9</span><span class="nm-btn-alarmas-txt">M\u00f3dulos \u2014 publicaci\u00f3n, firmas y alarmas</span>';
+    cont.insertBefore(mb, cont.firstElementChild);
+  }
+  try{ nmActualizarBotonAlarmas(); }catch(e){}
   // v2.9.369 — el archivo de bajas es solo del evaluador pleno: el auxiliar que
   // carga (Balderrama) no da de baja ni devuelve. Si dejó de serlo, se REMUEVE.
   if(!_ncPuedeDarBaja()){ if(yaArch) yaArch.remove(); }
@@ -11153,6 +11248,501 @@ async function ncFijarPlazo(idxC, idxM){
 }
 
 /* ============================================================================
+   v2.9.429 — CARGA POR MÓDULO (Sub. Sec. Evaluaciones)
+
+   La planilla del módulo trae la nota de cada materia y el PROMEDIO que ya
+   calculó la Sección. Acá NO se cambia ni se promedia nada: se compara cada
+   nota, exacta y sin redondear, con la ya cargada y reconocida por el alumno,
+   y se publica el promedio TAL CUAL. El que no coincide (o tiene la materia
+   objetada / sin firmar) queda retenido y sale una alarma al auxiliar que carga
+   y al evaluador del ciclo. Todo lo valida de nuevo la Edge Function
+   notas-modulo; el navegador solo lee el Excel.
+   ============================================================================ */
+const NM = { cat:null, wb:null, archivo:'', hoja:'', aoa:null, hr:-1, header:[],
+  matCols:[], revision:null, payload:null, ocupado:false, control:null };
+
+async function _nmInvoke(accion, extra){
+  const tok = (typeof getTokenSesion === 'function') ? getTokenSesion() : null;
+  if(!tok) return { ok:false, error:'Tu sesión no es válida. Volvé a entrar.' };
+  try{
+    const { data, error } = await sb.functions.invoke('notas-modulo', {
+      body: Object.assign({ accion:accion, token:tok }, extra || {})
+    });
+    if(error){
+      let cuerpo = null;
+      try{ if(error.context && typeof error.context.json === 'function') cuerpo = await error.context.json(); }catch(_){}
+      if(cuerpo) return Object.assign({ ok:false, error: cuerpo.error || error.message }, cuerpo);
+      return { ok:false, error: error.message || 'No se pudo contactar al servidor' };
+    }
+    return data || { ok:false, error:'El servidor no respondió' };
+  }catch(e){ return { ok:false, error: String((e && e.message) || e) }; }
+}
+
+// La nota tal cual: 4 decimales SIN redondear (93.32475 → "93.3247"), para que
+// en la revisión se vea exactamente qué difiere. El valor completo va en el title.
+function _nmNota(v){
+  if(v == null || v === '' || isNaN(Number(v))) return '—';
+  const s = String(Number(v));
+  const m = s.match(/^(-?\d+)(?:\.(\d+))?$/);
+  if(!m) return Number(v).toFixed(4);
+  return m[1] + '.' + ((m[2] || '') + '0000').slice(0, 4);
+}
+function _nmNotaHtml(v){
+  const full = (v == null || v === '') ? '' : String(v);
+  return '<span title="'+escapeAttr(full)+'">'+_nmNota(v)+'</span>';
+}
+
+async function goModCarga(){
+  if(!_ncPuede()){ alert('Tu cargo no habilita la carga de notas.'); return; }
+  showScreen('screen-mod-carga');
+  nmOlvidar();
+  const f = document.getElementById('nm-file'); if(f) f.value = '';
+  document.getElementById('nm-file-info').textContent = '';
+  document.getElementById('nm-resultado').innerHTML = '';
+  const info = document.getElementById('nm-periodo-info');
+  const cat = await ncCatalogo();
+  if(!cat){ info.innerHTML = '<span style="color:#e87878">No se pudo cargar la nómina de cursantes. Cerrá sesión y volvé a entrar.</span>'; return; }
+  const hoy = new Date().getFullYear();
+  const gs = new Set([hoy]);
+  (cat.periodos || []).forEach(function(p){ gs.add(Number(p.gestion)); });
+  const ult = (cat.periodos || [])[0] || { gestion: hoy, semestre: 1 };
+  document.getElementById('nm-gestion').innerHTML = [...gs].filter(function(g){ return g>=2000 && g<=2100; })
+    .sort(function(a,b){ return b-a; })
+    .map(function(g){ return '<option value="'+g+'"'+(g===Number(ult.gestion)?' selected':'')+'>Gestión '+g+'</option>'; }).join('');
+  document.getElementById('nm-semestre').value = String(ult.semestre || 1);
+  document.getElementById('nm-ciclo').innerHTML = Object.keys(NC.porCiclo).sort().map(function(k){
+    const nom = NC.porCiclo[k][0].ciclo; return '<option value="'+escapeAttr(nom)+'">'+escapeHtml(nom)+'</option>';
+  }).join('');
+  // El evaluador de ciclo solo opera su ciclo.
+  try{
+    const ec = cat.usuario && cat.usuario.evaluador_ciclo;
+    if(ec){ const v = ec === 2 ? '2DO CICLO' : '1ER CICLO'; document.getElementById('nm-ciclo').value = v; }
+  }catch(e){}
+  await nmPeriodoCambio();
+}
+
+function _nmPeriodo(){
+  return { gestion:Number(document.getElementById('nm-gestion').value),
+    semestre:Number(document.getElementById('nm-semestre').value),
+    ciclo:document.getElementById('nm-ciclo').value };
+}
+
+async function nmPeriodoCambio(){
+  const p = _nmPeriodo();
+  const info = document.getElementById('nm-periodo-info');
+  info.textContent = '⏳ Consultando módulos y materias cargadas…';
+  NM.cat = null;
+  const r = await _nmInvoke('catalogo', p);
+  if(!r.ok){ info.innerHTML = '<span style="color:#e87878">'+escapeHtml(r.error || 'No se pudo consultar')+'</span>'; return; }
+  NM.cat = r;
+  const n = (NC.porCiclo[_ncNorm(p.ciclo)] || []).length;
+  info.innerHTML = '👥 <strong>'+n+' cursantes activos</strong> en '+escapeHtml(p.ciclo)
+    + ' · '+(r.modulos||[]).length+' módulos en la malla · '+(r.materias_cargadas||[]).length+' materias ya cargadas en el período';
+  nmInvalidar();
+  if(NM.aoa) nmArmarMapeo();
+}
+
+function nmOlvidar(){
+  Object.assign(NM, { wb:null, archivo:'', hoja:'', aoa:null, hr:-1, header:[], matCols:[], revision:null, payload:null });
+  ['nm-paso3','nm-hoja-wrap'].forEach(function(id){ const e=document.getElementById(id); if(e) e.style.display='none'; });
+  nmInvalidar();
+}
+// Cualquier cambio de columnas/emparejado obliga a volver a comparar.
+function nmInvalidar(){
+  NM.revision = null; NM.payload = null;
+  const w = document.getElementById('nm-revision-wrap'); if(w) w.style.display = 'none';
+  const b = document.getElementById('nm-btn-subir'); if(b) b.style.display = 'none';
+}
+
+async function nmArchivo(input){
+  const f = input && input.files && input.files[0];
+  const info = document.getElementById('nm-file-info');
+  nmOlvidar();
+  document.getElementById('nm-resultado').innerHTML = '';
+  if(!f){ info.textContent = ''; return; }
+  info.textContent = '⏳ Leyendo el archivo…';
+  try{ await ensureXLSX(); }catch(e){}
+  if(typeof XLSX === 'undefined'){ info.innerHTML = '<span style="color:#e87878">No se pudo cargar el lector de Excel.</span>'; return; }
+  try{ NM.wb = XLSX.read(new Uint8Array(await f.arrayBuffer()), { type:'array' }); }
+  catch(err){ info.innerHTML = '<span style="color:#e87878">No se pudo abrir el archivo: '+escapeHtml(String(err && err.message || err))+'</span>'; return; }
+  if(!NM.wb || !NM.wb.SheetNames || !NM.wb.SheetNames.length){ info.innerHTML = '<span style="color:#e87878">El archivo no tiene hojas legibles.</span>'; return; }
+  NM.archivo = f.name;
+  info.innerHTML = '✅ <strong>'+escapeHtml(f.name)+'</strong> · '+NM.wb.SheetNames.length+' hoja(s)';
+  const sel = document.getElementById('nm-hoja');
+  sel.innerHTML = NM.wb.SheetNames.map(function(s){ return '<option value="'+escapeAttr(s)+'">'+escapeHtml(s)+'</option>'; }).join('');
+  document.getElementById('nm-hoja-wrap').style.display = NM.wb.SheetNames.length > 1 ? '' : 'none';
+  nmAnalizarHoja(NM.wb.SheetNames[0]);
+}
+
+const _NM_NO_MATERIA = /^(N|NO|NRO|N°|Nº|#|GRADO|GDO|ARMA|CURSO|PARALELO|CI|C\.I\.|PROMEDIO|ATRIB|ATRIBUTO|OBS|OBSERVACION|OBSERVACIONES|OM|O\.M\.|PUESTO)\.?$/;
+function nmAnalizarHoja(nombre){
+  nmInvalidar();
+  const ws = NM.wb && NM.wb.Sheets[nombre];
+  const p3 = document.getElementById('nm-paso3');
+  if(!ws){ p3.style.display='none'; document.getElementById('nm-file-info').innerHTML += '<br><span style="color:#e87878">La hoja no se pudo leer.</span>'; return; }
+  NM.hoja = nombre;
+  const aoa = XLSX.utils.sheet_to_json(ws, { header:1, raw:true, defval:null });
+  let hr = -1;
+  for(let i=0; i<Math.min(aoa.length, 25); i++){
+    if((aoa[i]||[]).some(function(c){ return c && /APELLID|NOMBRE/i.test(String(c)); })){ hr = i; break; }
+  }
+  if(hr < 0){ p3.style.display='none'; document.getElementById('nm-file-info').innerHTML += '<br><span style="color:#e87878">No encontré la fila de encabezados (APELLIDOS Y NOMBRES).</span>'; return; }
+  NM.aoa = aoa; NM.hr = hr;
+  NM.header = (aoa[hr]||[]).map(function(c){ return c == null ? '' : String(c).replace(/\s+/g,' ').trim(); });
+  // Título "PLANILLA DE NOTAS DEL MODULO "X"" → sugerencia de módulo.
+  NM.tituloModulo = '';
+  for(let i=0; i<hr; i++){
+    (aoa[i]||[]).forEach(function(c){
+      const m = c && String(c).match(/M[OÓ]DULO\s*["“”']?\s*([^"“”']+)/i);
+      if(m && !NM.tituloModulo) NM.tituloModulo = m[1].trim();
+    });
+  }
+  const H = NM.header;
+  const colNom = Math.max(0, H.findIndex(function(h){ return /APELLID|NOMBRE/i.test(h); }));
+  let colProm = -1; for(let j=H.length-1; j>=0; j--){ if(/PROMEDIO/i.test(H[j])){ colProm = j; break; } }
+  const colAtr = H.findIndex(function(h){ return /ATRIB/i.test(h); });
+  const opciones = function(sel, vacio){
+    return (vacio ? '<option value="">(ninguna)</option>' : '') + H.map(function(h,j){
+      return '<option value="'+j+'"'+(j===sel?' selected':'')+'>'+(j+1)+') '+escapeHtml(h || '(vacía)')+'</option>'; }).join('');
+  };
+  document.getElementById('nm-col-nombre').innerHTML = opciones(colNom, false);
+  document.getElementById('nm-col-prom').innerHTML = opciones(colProm, colProm < 0);
+  document.getElementById('nm-col-atrib').innerHTML = opciones(colAtr, true);
+  // Columnas de materia = las que están entre el nombre y el promedio, con
+  // encabezado y que no son GRADO/ARMA/N°… Su cantidad la da la planilla.
+  NM.matCols = [];
+  const fin = colProm >= 0 ? colProm : H.length;
+  for(let j=colNom+1; j<fin; j++){
+    const k = _ncNorm(H[j]);
+    if(!k || _NM_NO_MATERIA.test(k)) continue;
+    NM.matCols.push(j);
+  }
+  p3.style.display = '';
+  nmArmarMapeo();
+}
+
+// Similitud por palabras (sin tildes, sin números romanos/ordinales sueltos).
+function _nmSimil(a, b){
+  const ta = _ncTokens(a), tb = _ncTokens(b);
+  let c = 0; ta.forEach(function(t){ if(tb.has(t)) c++; });
+  return c;
+}
+
+function nmArmarMapeo(){
+  const mods = (NM.cat && NM.cat.modulos) || [];
+  const selM = document.getElementById('nm-modulo');
+  let mejor = '', best = 0;
+  mods.forEach(function(m){ const s = _nmSimil(NM.tituloModulo || '', m.modulo); if(s > best){ best = s; mejor = m.modulo; } });
+  if(NM.tituloModulo && _ncNorm(NM.tituloModulo) !== _ncNorm(mejor)){
+    // El título de la hoja manda solo si coincide de verdad; si no, que elija el operador.
+    const exacto = mods.find(function(m){ return _ncNorm(m.modulo) === _ncNorm(NM.tituloModulo); });
+    mejor = exacto ? exacto.modulo : (best >= 2 ? mejor : '');
+  }
+  selM.innerHTML = '<option value="">— elegí el módulo —</option>' + mods.map(function(m){
+    return '<option value="'+escapeAttr(m.modulo)+'"'+(m.modulo===mejor?' selected':'')+'>'+escapeHtml(m.modulo)+' ('+m.materias.length+' materias)</option>';
+  }).join('');
+  nmModuloCambio();
+}
+
+function nmModuloCambio(){
+  nmInvalidar();
+  const mod = document.getElementById('nm-modulo').value;
+  const m = ((NM.cat && NM.cat.modulos) || []).find(function(x){ return x.modulo === mod; });
+  const info = document.getElementById('nm-modulo-info');
+  if(m){
+    const n = NM.matCols.length;
+    info.innerHTML = 'Malla: <b>'+m.materias.length+'</b> materias ('+m.materias.map(escapeHtml).join(' · ')+'). Planilla: <b>'+n+'</b> columnas de materia.'
+      + (n !== m.materias.length ? ' <span class="nc-chip warn">⚠ la cantidad no coincide con la malla: revisá</span>' : ' <span class="nc-chip ok">✔ misma cantidad</span>');
+  } else info.textContent = NM.tituloModulo ? ('La planilla dice: "'+NM.tituloModulo+'". Elegí el módulo correspondiente.') : 'Elegí el módulo.';
+  const cargadas = ((NM.cat && NM.cat.materias_cargadas) || []).slice().sort(function(a,b){ return String(a.materia).localeCompare(String(b.materia)); });
+  const usadas = {};
+  document.getElementById('nm-mapeo').innerHTML = NM.matCols.map(function(j, i){
+    const h = NM.header[j];
+    // Sugerencia: la materia cargada más parecida; desempata la del mismo módulo.
+    let sug = '', bs = 0;
+    cargadas.forEach(function(c){
+      let s = _nmSimil(h, c.materia);
+      if(m && c.grupo && _ncNorm(c.grupo) === _ncNorm(m.modulo)) s += 0.5;
+      if(s > bs && !usadas[c.materia]){ bs = s; sug = c.materia; }
+    });
+    if(bs < 1.5) sug = '';
+    if(sug) usadas[sug] = true;
+    return '<div class="field" style="margin-bottom:8px"><label>Columna '+(j+1)+': <b>'+escapeHtml(h)+'</b></label>'
+      + '<select class="nm-map" data-col="'+j+'" onchange="nmInvalidar()"><option value="">— no es una materia / no usar —</option>'
+      + cargadas.map(function(c){
+          return '<option value="'+escapeAttr(c.materia)+'"'+(c.materia===sug?' selected':'')+'>'+escapeHtml(c.materia)+' · '+c.alumnos+' notas'+(c.grupo?' · '+escapeHtml(c.grupo):'')+'</option>';
+        }).join('') + '</select></div>';
+  }).join('') || '<div class="nc-chip err" style="display:block;padding:8px 12px">No encontré columnas de materia entre los nombres y el PROMEDIO.</div>';
+}
+
+function _nmArmarPayload(){
+  const p = _nmPeriodo();
+  const modulo = document.getElementById('nm-modulo').value;
+  if(!modulo) return { error:'Elegí el módulo.' };
+  const colNom = Number(document.getElementById('nm-col-nombre').value);
+  const vProm = document.getElementById('nm-col-prom').value;
+  if(vProm === '') return { error:'Elegí la columna del PROMEDIO.' };
+  const colProm = Number(vProm);
+  const vAtr = document.getElementById('nm-col-atrib').value;
+  const colAtr = vAtr === '' ? -1 : Number(vAtr);
+  const materias = [], vistas = {};
+  const sels = document.querySelectorAll('#nm-mapeo .nm-map');
+  for(let i=0; i<sels.length; i++){
+    const s = sels[i]; if(!s.value) continue;
+    if(vistas[s.value]) return { error:'La materia "'+s.value+'" está elegida para dos columnas.' };
+    vistas[s.value] = true;
+    materias.push({ col:Number(s.dataset.col), columna:NM.header[Number(s.dataset.col)], materia:s.value });
+  }
+  if(!materias.length) return { error:'Emparejá al menos una columna con su materia.' };
+  const filas = [], sinMatch = [], usados = {}, repetidos = [];
+  for(let i=NM.hr+1; i<NM.aoa.length; i++){
+    const row = NM.aoa[i] || [];
+    const nm = row[colNom];
+    if(!nm || String(nm).trim().split(/\s+/).length < 2) continue;
+    const m = _ncMatch(String(nm), p.ciclo);
+    if(!m.c){ sinMatch.push(String(nm).trim()); continue; }
+    if(usados[m.c.id]){ repetidos.push(m.c.nombre); continue; }
+    usados[m.c.id] = true;
+    const notas = {};
+    // El valor de la celda, tal cual: ni redondeo ni cálculo.
+    materias.forEach(function(x){ const v = row[x.col]; notas[x.materia] = (v == null || v === '') ? null : v; });
+    filas.push({ cursante_id:m.c.id, _excel:String(nm).trim(), _nombre:m.c.nombre,
+      promedio: row[colProm] == null ? null : row[colProm],
+      atributo: colAtr >= 0 && row[colAtr] != null ? String(row[colAtr]).trim() : null, notas:notas });
+  }
+  if(repetidos.length) return { error:'Alumnos repetidos en la planilla: '+repetidos.join(', ') };
+  return { payload: Object.assign({}, p, { modulo:modulo, archivo:NM.archivo, hoja:NM.hoja,
+    materias: materias.map(function(x){ return { columna:x.columna, materia:x.materia }; }),
+    filas: filas.map(function(f){ return { cursante_id:f.cursante_id, promedio:f.promedio, atributo:f.atributo, notas:f.notas }; }) }),
+    filas:filas, sinMatch:sinMatch, materias:materias };
+}
+
+const _NM_TIPO = { no_coincide:'No coincide', sin_nota:'Sin nota en el sistema', objetada:'Objetada por el alumno',
+  sin_firma:'Sin firma del alumno', cambio_al_firmar:'Cambió después de publicar' };
+
+async function nmRevisar(){
+  if(NM.ocupado) return;
+  const a = _nmArmarPayload();
+  if(a.error){ alert(a.error); return; }
+  const btn = document.getElementById('nm-btn-revisar');
+  NM.ocupado = true; btn.disabled = true; btn.textContent = '⏳ Comparando '+a.filas.length+' alumnos…';
+  const r = await _nmInvoke('revisar_modulo', a.payload);
+  NM.ocupado = false; btn.disabled = false; btn.textContent = '🔎 Comparar con las notas del sistema';
+  const wrap = document.getElementById('nm-revision-wrap'), cont = document.getElementById('nm-revision');
+  wrap.style.display = '';
+  if(!r.ok){
+    cont.innerHTML = '<div class="nc-chip err" style="display:block;padding:10px 12px">✖ '+escapeHtml(r.error||'Error')+'</div>'
+      + (Array.isArray(r.errores) ? '<div class="nc-lista-mini" style="color:#e87878;margin-top:8px">'+r.errores.map(function(e){ return '<div>· '+escapeHtml(e)+'</div>'; }).join('')+'</div>' : '');
+    document.getElementById('nm-btn-subir').style.display = 'none';
+    return;
+  }
+  NM.revision = r; NM.payload = a.payload;
+  const nomina = (NC.porCiclo[_ncNorm(a.payload.ciclo)] || []);
+  const faltan = nomina.filter(function(x){ return !a.filas.some(function(f){ return f.cursante_id === x.id; }); });
+  const res = r.resumen;
+  let h = '<div style="margin-bottom:10px">'
+    + '<span class="nc-chip ok">✔ '+res.publicables+' coinciden y se publican</span>'
+    + (res.retenidos ? '<span class="nc-chip err">✖ '+res.retenidos+' retenidos (alarma)</span>' : '')
+    + (a.sinMatch.length ? '<span class="nc-chip warn">⚠ '+a.sinMatch.length+' filas no reconocidas</span>' : '')
+    + (faltan.length ? '<span class="nc-chip warn">⚠ '+faltan.length+' del ciclo no están en la planilla</span>' : '')
+    + '</div>';
+  const malos = r.alumnos.filter(function(x){ return !x.ok; });
+  if(malos.length){
+    h += '<div class="sd-row" style="border:none;padding-top:0"><span class="lbl" style="color:#e87878">🚨 No se publican (se avisa al evaluador)</span></div>'
+      + '<div style="overflow-x:auto"><table class="nc-tab"><tr><th>Cursante</th><th>Materia</th><th>Planilla</th><th>Sistema</th><th>Problema</th></tr>'
+      + malos.map(function(x){
+          return x.problemas.map(function(pr, i){
+            const d = x.detalle.find(function(y){ return y.materia === pr.materia; }) || {};
+            return '<tr>'+(i===0?'<td rowspan="'+x.problemas.length+'">'+escapeHtml(x.nombre)+'</td>':'')
+              + '<td>'+escapeHtml(pr.materia || 'PROMEDIO')+'</td><td>'+_nmNotaHtml(d.excel)+'</td><td>'+_nmNotaHtml(d.sistema)+'</td>'
+              + '<td style="color:#e87878">'+escapeHtml(_NM_TIPO[pr.tipo]||pr.tipo)+'<div style="font-size:10.5px;color:var(--text-muted)">'+escapeHtml(pr.detalle||'')+'</div></td></tr>';
+          }).join('');
+        }).join('') + '</table></div>';
+  }
+  h += '<div class="sd-row" style="border:none;margin-top:10px"><span class="lbl">Todos los alumnos</span></div>'
+    + '<div style="overflow-x:auto"><table class="nc-tab"><tr><th>Cursante</th>'
+    + a.materias.map(function(m){ return '<th title="'+escapeAttr(m.materia)+'">'+escapeHtml(m.columna)+'</th>'; }).join('')
+    + '<th class="hl">Promedio (planilla)</th><th></th></tr>'
+    + r.alumnos.map(function(x){
+        return '<tr><td>'+escapeHtml(x.nombre)+'</td>'
+          + x.detalle.map(function(d){ return '<td style="color:'+(d.coincide?'inherit':'#e87878')+'">'+_nmNotaHtml(d.excel)+'</td>'; }).join('')
+          + '<td class="hl">'+_nmNotaHtml(x.promedio)+'</td><td>'+(x.ok?'✔':'🚨')+'</td></tr>';
+      }).join('') + '</table></div>'
+    + '<div style="font-size:11px;color:var(--text-muted);margin-top:6px">Las notas se muestran con 4 decimales sin redondear; pasá el dedo/mouse sobre una nota para ver el valor completo.</div>';
+  if(a.sinMatch.length) h += '<div class="nc-lista-mini" style="margin-top:8px">'+a.sinMatch.map(function(s){ return '<div>⚠ '+escapeHtml(s)+' — no está en la nómina</div>'; }).join('')+'</div>';
+  if(faltan.length) h += '<div class="nc-lista-mini" style="margin-top:8px">'+faltan.slice(0,40).map(function(x){ return '<div>· '+escapeHtml(x.nombre)+' — no figura en la planilla</div>'; }).join('')+'</div>';
+  cont.innerHTML = h;
+  const b = document.getElementById('nm-btn-subir');
+  b.style.display = res.publicables || res.retenidos ? '' : 'none';
+  b.textContent = '💾 Guardar: publicar '+res.publicables+(res.retenidos?' · retener '+res.retenidos+' y enviar alarma':'');
+}
+
+async function nmSubir(){
+  if(NM.ocupado || !NM.payload || !NM.revision) { alert('Primero compará con las notas del sistema.'); return; }
+  const res = NM.revision.resumen;
+  if(!confirm('Módulo "'+NM.payload.modulo+'"\n\n· Se publica el promedio a '+res.publicables+' alumno(s), tal cual la planilla.\n'
+    + (res.retenidos ? '· '+res.retenidos+' alumno(s) quedan RETENIDOS y se envía la alarma al evaluador del ciclo.\n' : '')
+    + '\nNo se modifica ninguna nota de materia. ¿Continuar?')) return;
+  const btn = document.getElementById('nm-btn-subir');
+  NM.ocupado = true; btn.disabled = true; btn.textContent = '⏳ Guardando…';
+  const r = await _nmInvoke('cargar_modulo', NM.payload);
+  NM.ocupado = false; btn.disabled = false;
+  const out = document.getElementById('nm-resultado');
+  if(!r.ok){
+    btn.textContent = '💾 Guardar y publicar el módulo';
+    out.innerHTML = '<div class="sd-block" style="border-color:rgba(232,120,120,.4)"><div class="sd-block-title" style="color:#e87878">✖ No se guardó nada</div>'
+      + '<div style="font-size:13px">'+escapeHtml(r.error||'Error')+'</div></div>';
+    return;
+  }
+  _nmAvisos(r, NM.payload);
+  document.getElementById('nm-paso3').style.display = 'none';
+  out.innerHTML = '<div class="sd-block" style="border-color:rgba(125,219,160,.4)"><div class="sd-block-title" style="color:#7ddba0">✔ Módulo guardado</div>'
+    + '<div class="sd-row"><span class="lbl">Módulo</span><span class="vl">'+escapeHtml(NM.payload.modulo)+'</span></div>'
+    + '<div class="sd-row"><span class="lbl">Publicados</span><span class="vl gold">'+r.publicados.length+'</span></div>'
+    + '<div class="sd-row"><span class="lbl">Retenidos</span><span class="vl" style="color:'+(r.resumen.retenidos?'#e87878':'inherit')+'">'+r.resumen.retenidos+'</span></div>'
+    + '<div class="sd-row"><span class="lbl">Firmas que siguen valiendo</span><span class="vl">'+r.sin_tocar+'</span></div>'
+    + '<div class="sd-row"><span class="lbl">Alarmas nuevas</span><span class="vl">'+r.alarmas_nuevas+'</span></div>'
+    + '<button class="btn-secondary" onclick="goModControl()">🧩 Ir al control de módulos</button>'
+    + '<button class="btn-secondary" onclick="goModCarga()">📥 Cargar otro módulo</button></div>';
+}
+
+// Push: a los alumnos publicados, y la alarma al auxiliar + evaluador del ciclo.
+function _nmAvisos(r, p){
+  const tok = (typeof getTokenSesion === 'function') ? getTokenSesion() : null;
+  if(!tok) return;
+  (r.publicados || []).forEach(function(id){
+    sb.functions.invoke('push-ops', { body:{ accion:'enviar', token:tok, destino_usuario_id:id, destino_tabla:'cursantes',
+      title:'SIDECEME — Promedio de módulo publicado', body:'Tu promedio de "'+p.modulo+'" está listo. Ábrelo, revísalo y fírmalo.', url:'./' }}).catch(function(){});
+  });
+  const yo = currentUser && String(currentUser.id);
+  (r.destinatarios || []).filter(function(id){ return String(id) !== yo; }).forEach(function(id){
+    sb.functions.invoke('push-ops', { body:{ accion:'enviar', token:tok, destino_usuario_id:id, destino_tabla:'profesores',
+      title:'🚨 SIDECEME — Alarma de notas de módulo', body:r.alarmas_nuevas+' nota(s) de "'+p.modulo+'" ('+p.ciclo+') no coinciden o no están reconocidas. Revisá Módulos → alarmas.', url:'./' }}).catch(function(){});
+  });
+}
+
+/* ------------------------- control de módulos ------------------------- */
+async function goModControl(){
+  if(!_ncPuede()){ alert('Tu cargo no habilita el control de notas.'); return; }
+  showScreen('screen-mod-control');
+  const cat = await ncCatalogo();
+  const sel = document.getElementById('nmc-periodo');
+  const per = (cat && cat.periodos) || [];
+  if(!sel.options.length) sel.innerHTML = per.map(function(p){
+    return '<option value="'+p.gestion+'|'+p.semestre+'">Gestión '+p.gestion+' · semestre '+p.semestre+'</option>'; }).join('')
+    || '<option value="'+new Date().getFullYear()+'|1">Gestión '+new Date().getFullYear()+'</option>';
+  await nmControlCargar();
+}
+
+async function nmControlCargar(){
+  const val = (document.getElementById('nmc-periodo').value || '').split('|');
+  const cont = document.getElementById('nmc-cont');
+  cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">⏳ Consultando…</div>';
+  const [r, al] = await Promise.all([
+    _nmInvoke('control', { gestion:Number(val[0]), semestre:Number(val[1]) }),
+    _nmInvoke('alarmas', { solo_abiertas:true }) ]);
+  nmPintarAlarmas(al);
+  if(!r.ok){ cont.innerHTML = '<div class="efm-no-data" style="color:#e87878">'+escapeHtml(r.error||'Error')+'</div>'; return; }
+  NM.control = r.modulos || [];
+  // Los que pasaron de "con observaciones" a normal reciben su aviso.
+  if((r.liberados||[]).length){
+    const tok = getTokenSesion();
+    r.liberados.forEach(function(id){ sb.functions.invoke('push-ops',{ body:{ accion:'enviar', token:tok, destino_usuario_id:id, destino_tabla:'cursantes',
+      title:'SIDECEME — Promedio de módulo publicado', body:'Tu promedio de módulo ya está listo para revisar y firmar.', url:'./' }}).catch(function(){}); });
+  }
+  if(!NM.control.length){ cont.innerHTML = '<div class="efm-no-data" style="color:var(--text-muted)">Todavía no se cargó ningún módulo en este período.</div>'; return; }
+  cont.innerHTML = NM.control.map(function(m, i){
+    const c = m.conteo || {};
+    const todos = m.total && c.confirmada === m.total;
+    return '<div class="nc-mat-row '+(m.alarmas_abiertas||c.retenida?'err':(todos?'ok':'warn'))+'" onclick="nmVerModulo('+i+')">'
+      + '<div style="min-width:0;flex:1"><div class="nc-mat-nom">'+escapeHtml(m.modulo)+'</div>'
+      + '<div class="nc-mat-meta">'+escapeHtml(m.ciclo)+' · '+(m.materias||[]).length+' materias · '+m.total+' alumnos · cargó '+escapeHtml(m.cargado_por||'—')+'</div>'
+      + '<div style="margin-top:5px"><span class="nc-chip ok">🟢 '+(c.confirmada||0)+' firmaron</span>'
+      + '<span class="nc-chip warn">⏳ '+(c.pendiente||0)+' sin responder</span>'
+      + (c.rechazada?'<span class="nc-chip err">🟣 '+c.rechazada+' objetaron</span>':'')
+      + (c.retenida?'<span class="nc-chip err">🔴 '+c.retenida+' con observaciones</span>':'')
+      + (todos?'<span class="nc-chip ok">✔ todos firmaron</span>':'')
+      + '</div></div></div>';
+  }).join('');
+}
+
+function nmPintarAlarmas(al){
+  const box = document.getElementById('nmc-alarmas');
+  if(!box) return;
+  const lista = (al && al.ok && al.alarmas) || [];
+  if(!lista.length){ box.innerHTML = '<div class="nc-chip ok" style="display:block;padding:8px 12px;margin-bottom:10px">✔ Sin alarmas abiertas</div>'; return; }
+  box.innerHTML = '<div class="sd-block" style="border-color:rgba(232,120,120,.55)"><div class="sd-block-title" style="color:#e87878">🚨 '+lista.length+' alarma(s) abierta(s)</div>'
+    + '<div style="font-size:11.5px;color:var(--text-muted);margin-bottom:8px">Una nota de la planilla del módulo no coincide con la cargada, o el alumno no la reconoció. Ese alumno no ve el promedio del módulo hasta que se arregle la nota (o la planilla) y se vuelva a cargar el módulo.</div>'
+    + lista.map(function(x){
+        return '<div style="padding:7px 0;border-top:1px solid var(--border-subtle)">'
+          + '<b>'+escapeHtml(x.nombre||x.cursante_id)+'</b> · '+escapeHtml(x.modulo)+' · <span style="color:#e87878">'+escapeHtml(_NM_TIPO[x.tipo]||x.tipo)+'</span>'
+          + '<div style="font-size:11.5px">'+escapeHtml(x.materia||'PROMEDIO')+(x.nota_excel||x.nota_sistema?' — planilla '+_nmNotaHtml(x.nota_excel)+' · sistema '+_nmNotaHtml(x.nota_sistema):'')+'</div>'
+          + '<div style="font-size:11px;color:var(--text-muted)">'+escapeHtml(x.detalle||'')+' · '+escapeHtml(new Date(x.creado_en).toLocaleString('es-BO'))+'</div>'
+          + '<button class="btn-secondary" style="margin:6px 0 0;width:auto;padding:6px 12px;font-size:12px" onclick="nmAtenderAlarma(\''+escapeAttr(x.id)+'\')">✔ Marcar atendida</button></div>';
+      }).join('') + '</div>';
+}
+
+async function nmAtenderAlarma(id){
+  const c = prompt('¿Qué se hizo con esta alarma? (queda registrado con tu nombre)\n\nMarcarla atendida NO publica el módulo: para eso hay que volver a cargar la planilla.');
+  if(c === null) return;
+  const r = await _nmInvoke('atender_alarma', { id:id, comentario:c });
+  if(!r.ok){ alert(r.error||'No se pudo registrar'); return; }
+  nmControlCargar();
+}
+
+const _NM_EST = { confirmada:['#7ddba0','Firmó — de acuerdo'], pendiente:['#e8c46a','Publicado — sin responder'],
+  rechazada:['#d98aa0','No está de acuerdo'], retenida:['#ff4d4d','🔴 CON OBSERVACIONES — no publicado hasta que se corrija y firme'] };
+async function nmVerModulo(i){
+  const m = (NM.control || [])[i]; if(!m) return;
+  showScreen('screen-mod-det');
+  document.getElementById('nmd-sub').textContent = m.modulo;
+  const cont = document.getElementById('nmd-cont');
+  cont.innerHTML = '<div class="efm-no-data">⏳ Consultando…</div>';
+  const r = await _nmInvoke('alumnos_modulo', { modulo_id:m.id });
+  if(!r.ok){ cont.innerHTML = '<div class="efm-no-data" style="color:#e87878">'+escapeHtml(r.error||'Error')+'</div>'; return; }
+  const mats = (r.modulo.materias || []);
+  cont.innerHTML = '<div class="sd-block"><div class="sd-block-title">🧩 '+escapeHtml(m.modulo)+'</div>'
+    + '<div class="sd-row"><span class="lbl">Período</span><span class="vl">'+escapeHtml(m.ciclo)+' · gestión '+m.gestion+' · semestre '+m.semestre+'</span></div>'
+    + '<div class="sd-row"><span class="lbl">Materias</span><span class="vl">'+mats.map(function(x){ return escapeHtml(x.materia); }).join(' · ')+'</span></div>'
+    + '<div class="sd-row"><span class="lbl">Planilla</span><span class="vl">'+escapeHtml(m.archivo||'—')+'</span></div>'
+    + '<div class="sd-row"><span class="lbl">Cargado por</span><span class="vl">'+escapeHtml(m.cargado_por||'—')+' · '+escapeHtml(new Date(m.actualizado_en).toLocaleString('es-BO'))+'</span></div>'
+    + '<div style="display:flex;gap:6px;align-items:center;margin-top:8px;flex-wrap:wrap"><span style="font-size:11.5px">Plazo (horas):</span>'
+    + '<input type="number" id="nmd-plazo" value="48" min="1" max="720" style="width:70px;padding:5px 8px;border-radius:6px;border:1px solid var(--border-subtle);background:var(--bg-elevated);color:var(--text-primary)">'
+    + '<button class="btn-secondary" style="margin:0;width:auto;padding:6px 12px" onclick="nmFijarPlazo(\''+escapeAttr(m.id)+'\')">⏱️ Aplicar a los pendientes</button></div></div>'
+    + '<div class="sd-block"><div class="sd-block-title">👥 Alumnos · '+r.alumnos.length+'</div>'
+    + r.alumnos.map(function(x){
+        const e = _NM_EST[x.estado] || ['#9aa3b8', x.estado];
+        const venc = x.estado==='pendiente' && x.plazo_vence_en && new Date(x.plazo_vence_en) < new Date();
+        return '<details style="padding:6px 0;border-top:1px solid var(--border-subtle)"><summary style="cursor:pointer">'
+          + '<span style="color:'+e[0]+'">●</span> '+escapeHtml(nombreConGrado(x))+' <span style="color:var(--text-muted)">— '+e[1]+(venc?' · plazo vencido':'')+'</span>'
+          + ' <b style="float:right;color:var(--gold)">'+_nmNotaHtml(x.promedio)+'</b></summary>'
+          + '<div style="font-size:12px;padding:6px 0 0 14px">'
+          + (x.notas||[]).map(function(d){ return '<div>'+escapeHtml(d.materia)+': '+_nmNotaHtml(d.excel)+(d.coincide?'':' <span style="color:#e87878">≠ sistema '+_nmNotaHtml(d.sistema)+'</span>')+'</div>'; }).join('')
+          + (x.motivo_retencion ? '<div style="color:#e87878;margin-top:4px">'+escapeHtml(x.motivo_retencion)+'</div>' : '')
+          + (x.observacion_cursante ? '<div style="color:#d98aa0;margin-top:4px">"'+escapeHtml(x.observacion_cursante)+'"</div>' : '')
+          + (x.confirmada_en ? '<div style="color:var(--text-muted)">Respondió el '+escapeHtml(new Date(x.confirmada_en).toLocaleString('es-BO'))+'</div>' : '')
+          + '</div></details>';
+      }).join('') + '</div>';
+}
+
+async function nmFijarPlazo(id){
+  const h = Number(document.getElementById('nmd-plazo').value);
+  if(!h || h <= 0){ alert('Poné un número de horas válido.'); return; }
+  const r = await _nmInvoke('fijar_plazo', { modulo_id:id, horas:h });
+  alert(r.ok ? ('Listo. Plazo actualizado para '+r.actualizadas+' alumno(s).') : (r.error||'No se pudo'));
+}
+
+// Contador de alarmas en el botón del panel (auxiliar y evaluadores).
+async function nmActualizarBotonAlarmas(){
+  if(!_ncPuede()) return;
+  const r = await _nmInvoke('alarmas', { solo_abiertas:true });
+  const n = (r && r.ok && r.alarmas) ? r.alarmas.length : 0;
+  document.querySelectorAll('.nm-btn-alarmas-txt, #eval-btn-modctrl-txt').forEach(function(el){
+    el.innerHTML = n ? ('🚨 Módulos — <b>'+n+' alarma'+(n>1?'s':'')+'</b> de notas que no coinciden') : 'Módulos — publicación, firmas y alarmas';
+  });
+}
+
+/* ============================================================================
    v2.9.369 — DESHACER UNA CARGA MAL SUBIDA · CORREGIR UNA NOTA OBSERVADA
 
    Por qué existe: el 7-sep-2026 el Sof. Balderrama subió mal "Menciones" y
@@ -12183,8 +12773,9 @@ async function actualizarAvisoNotasPendientes(){
     try{ await cargarConformidadesEfm(true); }catch(e){}
     const _notasPend = Object.values(notasConfMap||{}).filter(c => c && c.estado === 'pendiente');
     const _efmPend = Object.values(efmConfMap||{}).filter(c => c && c.estado === 'pendiente');
-    _homeNotasPendCount = _notasPend.length + _efmPend.length;
-    _banNotas.innerHTML = _ncfHtmlAvisoPendientes(_notasPend, _efmPend);
+    let _modsPend = []; try{ _modsPend = (await cargarModulosCursante(true)).filter(m => m.estado === 'pendiente'); }catch(e){}
+    _homeNotasPendCount = _notasPend.length + _efmPend.length + _modsPend.length;
+    _banNotas.innerHTML = _ncfHtmlAvisoPendientes(_notasPend, _efmPend) + _nmHtmlAvisoModulos(_modsPend);
   }catch(e){ /* silent */ }
   _actualizarBadgeAppTotal();
 }
@@ -12319,6 +12910,119 @@ async function enviarConformidadNota(decision){
   alert(decision === 'confirmar' ? '¡Gracias! Quedó registrada tu conformidad.' : 'Quedó registrada tu observación.');
 }
 
+// ====== v2.9.429 — MÓDULOS (lado del cursante): promedio del módulo, firma y detalle ======
+let nmModCache = null;
+async function cargarModulosCursante(force){
+  if(nmModCache && !force) return nmModCache;
+  const r = await _nmInvoke('mis_modulos');
+  nmModCache = (r && r.ok) ? (r.modulos || []) : [];
+  return nmModCache;
+}
+
+function htmlModulosCursante(mods){
+  if(!mods || !mods.length) return '';
+  const est = { pendiente:['#e87878','SIN FIRMAR — tocá para reconocer'], confirmada:['#7ddba0','Reconocido ✔'], rechazada:['#d98aa0','Objetado'] };
+  return '<div class="sd-block" style="border-color:rgba(212,175,55,.45)"><div class="sd-block-title">🧩 Promedio por módulo</div>'
+    + mods.map(function(m){
+        const e = est[m.estado] || ['#9aa3b8', m.estado];
+        return '<div style="padding:10px 0;border-top:1px solid var(--border-subtle)">'
+          + '<div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start">'
+          + '<div style="min-width:0"><div style="font-weight:700;overflow-wrap:anywhere">'+escapeHtml(m.modulo)+'</div>'
+          + '<div style="font-size:11px;color:var(--text-muted)">'+escapeHtml([m.ciclo, etiquetaSemAcad(m.ciclo, m.semestre), m.gestion].join(' · '))+'</div>'
+          + '<div style="font-size:11.5px;color:'+e[0]+';margin-top:3px">● '+e[1]+'</div></div>'
+          + '<div style="text-align:right"><div style="font-size:22px;font-weight:700;color:var(--gold)">'+fmtNota(m.promedio)+'</div>'
+          + '<div style="font-size:10.5px;color:var(--text-muted)">PROMEDIO'+(m.atributo?' · '+escapeHtml(m.atributo):'')+'</div></div></div>'
+          + '<div style="margin-top:6px">'+(m.notas||[]).map(function(d){
+              return '<div onclick="nmVerMateriaCursante(\''+escapeAttr(m.id)+'\',\''+escapeAttr(d.materia)+'\')" style="display:flex;justify-content:space-between;gap:8px;padding:6px 8px;margin-top:4px;border-radius:8px;background:rgba(255,255,255,.04);cursor:pointer;font-size:12.5px">'
+                + '<span style="overflow-wrap:anywhere">'+escapeHtml(d.materia)+' <span style="color:var(--gold)">›</span></span><b>'+fmtNota(d.excel)+'</b></div>';
+            }).join('')+'</div>'
+          + (m.estado === 'pendiente' ? '<button class="btn-papeleta primary" style="width:100%;margin-top:8px" onclick="abrirFirmaModulo(\''+escapeAttr(m.id)+'\')">✍️ Ver y firmar el promedio del módulo</button>' : '')
+          + (m.observacion_cursante ? '<div style="font-size:11.5px;color:#d98aa0;margin-top:6px">Tu observación: "'+escapeHtml(m.observacion_cursante)+'"</div>' : '')
+          + '</div>';
+      }).join('') + '</div>';
+}
+
+// Tocar una materia del módulo → su detalle (trabajos, formativas, sumativas).
+async function nmVerMateriaCursante(modId, materia){
+  const m = (nmModCache || []).find(function(x){ return x.id === modId; });
+  if(!m) return;
+  const notas = await cargarNotasAcademicas();
+  const fila = (notas || []).find(function(n){ return Number(n.gestion) === Number(m.gestion) && Number(n.semestre) === Number(m.semestre)
+    && n.ciclo === m.ciclo && n.materia === materia; });
+  let ov = document.getElementById('nm-mat-modal');
+  if(!ov){ ov = document.createElement('div'); ov.id = 'nm-mat-modal'; ov.className = 'avm-overlay'; document.body.appendChild(ov); }
+  ov.onclick = function(){ ov.style.display = 'none'; };
+  ov.innerHTML = '<div class="avm-box" onclick="event.stopPropagation()" style="max-height:88vh;overflow:auto">'
+    + '<h3 style="margin:0 0 4px">📘 '+escapeHtml(materia)+'</h3>'
+    + '<div style="font-size:12px;color:var(--text-muted);margin-bottom:8px">'+escapeHtml(m.modulo)+' · '+escapeHtml(etiquetaSemAcad(m.ciclo, m.semestre))+' · '+m.gestion+'</div>'
+    + (fila ? '<div style="font-size:20px;font-weight:700;color:var(--gold);margin-bottom:6px">Nota final: '+fmtNota(fila.nota_final)+'</div>' + htmlDetalleMateria(fila)
+            : '<div class="efm-no-data">No se encontró el detalle de esta materia.</div>')
+    + '<button type="button" style="margin-top:10px;background:none;border:none;color:var(--text-muted);font-size:12px;cursor:pointer" onclick="document.getElementById(\'nm-mat-modal\').style.display=\'none\'">Cerrar</button></div>';
+  ov.style.display = 'flex';
+}
+
+let _nmFirmaMod = null;
+async function abrirFirmaModulo(id){
+  cerrarFirmaNota();
+  const solicitud = ++_notaFirmaSolicitud;
+  const r = await _nmInvoke('consultar_modulo', { id:id });
+  if(solicitud !== _notaFirmaSolicitud) return;
+  if(!r.ok || !r.modulo){
+    await cargarModulosCursante(true); _ncfRepintarNotas();
+    alert(r.error || 'No se pudo verificar el módulo. Intentá nuevamente.'); return;
+  }
+  const m = r.modulo; _nmFirmaMod = m;
+  notaFirmaState = { conf:null, sigCanvas:null, sigCtx:null, sigHasContent:false };
+  let ov = document.getElementById('nota-firma-modal');
+  if(!ov){ ov = document.createElement('div'); ov.id='nota-firma-modal'; ov.className='avm-overlay'; document.body.appendChild(ov); }
+  ov.onclick = cerrarFirmaNota;
+  ov.innerHTML = '<div class="avm-box" onclick="event.stopPropagation()" style="max-height:88vh;overflow:auto">'
+    + '<h3 style="margin:0 0 4px">✍️ Conformidad del módulo</h3>'
+    + '<div style="font-size:12.5px;color:var(--text-muted);margin-bottom:6px">'+escapeHtml(m.modulo)+' · '+escapeHtml(etiquetaSemAcad(m.ciclo, m.semestre))+' · '+m.gestion+'</div>'
+    + (m.notas||[]).map(function(d){ return '<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:3px 0"><span>'+escapeHtml(d.materia)+'</span><b>'+fmtNota(d.excel)+'</b></div>'; }).join('')
+    + '<div style="font-size:22px;font-weight:700;color:var(--gold);margin:10px 0 12px">Promedio del módulo: '+fmtNota(m.promedio)+'</div>'
+    + '<div class="papeleta-block"><div class="pb-title">Firmá con el dedo o el mouse</div>'
+    + '<div class="sig-wrap"><canvas id="sig-canvas-nota" class="sig-canvas"></canvas></div>'
+    + '<button type="button" class="btn-clear-sig" onclick="clearSignatureNota()">🧹 Borrar firma</button></div>'
+    + '<div style="font-size:11px;color:var(--text-muted);margin:10px 0 4px">Motivo — obligatorio solo si NO estás de acuerdo:</div>'
+    + '<textarea id="nota-firma-obs" oninput="_ncfToggleRechazo()" placeholder="Escribí acá por qué no estás de acuerdo" style="width:100%;min-height:70px;margin:0 0 10px;padding:8px;border-radius:8px;border:1px solid var(--border-subtle);background:var(--bg-elevated);color:var(--text-primary);font-size:12.5px;box-sizing:border-box"></textarea>'
+    + '<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    + '<button class="btn-papeleta primary" style="flex:1" onclick="enviarConformidadModulo(\'confirmar\')">✅ Estoy de acuerdo — firmar</button>'
+    + '<button id="nota-firma-btn-rechazar" class="btn-papeleta" style="flex:1;background:#5a3040;opacity:.5;cursor:not-allowed" disabled onclick="enviarConformidadModulo(\'rechazar\')">❌ No estoy de acuerdo</button></div>'
+    + '<button type="button" style="margin-top:10px;background:none;border:none;color:var(--text-muted);font-size:12px;cursor:pointer" onclick="cerrarFirmaNota()">Cerrar</button></div>';
+  ov.style.display = 'flex';
+  setTimeout(initSignatureCanvasNota, 30);
+}
+
+async function enviarConformidadModulo(decision){
+  const m = _nmFirmaMod; if(!m) return;
+  if(!notaFirmaState.sigHasContent){ alert('Firmá en el recuadro antes de continuar.'); return; }
+  const obs = ((document.getElementById('nota-firma-obs') || {}).value || '').trim();
+  if(decision === 'rechazar' && obs.length < 5){ alert('Si no estás de acuerdo, tenés que explicar por qué.'); return; }
+  const pregunta = decision === 'confirmar'
+    ? '¿Confirmás que estás de acuerdo con el promedio '+fmtNota(m.promedio)+' del módulo "'+m.modulo+'"?'
+    : '¿Confirmás que NO estás de acuerdo con el promedio '+fmtNota(m.promedio)+' del módulo "'+m.modulo+'" por este motivo?\n\n"'+obs+'"';
+  if(!confirm(pregunta + '\n\nEsto queda registrado con tu firma.')) return;
+  const r = await _nmInvoke('resolver_modulo', { id:m.id, decision:decision, firma:notaFirmaState.sigCanvas.toDataURL('image/png'),
+    observacion: obs || null, promedio_mostrado: m.promedio });
+  cerrarFirmaNota();
+  await cargarModulosCursante(true);
+  _ncfRepintarNotas();
+  if(!r.ok){ alert(r.error || 'No se pudo guardar'); return; }
+  alert(decision === 'confirmar' ? '¡Gracias! Quedó registrada tu conformidad del módulo.' : 'Quedó registrada tu observación.');
+}
+
+function _nmHtmlAvisoModulos(mods){
+  const pend = (mods || []).filter(function(m){ return m.estado === 'pendiente'; });
+  if(!pend.length) return '';
+  return '<div style="margin:8px 0 4px;padding:14px 16px;border:2px solid #ff5a4d;border-radius:14px;background:linear-gradient(135deg,#e01f1f,#7a0d0d);color:#fff">'
+    + '<b style="display:block;font-size:15px">🧩 TENÉS '+pend.length+' PROMEDIO'+(pend.length>1?'S':'')+' DE MÓDULO POR RECONOCER</b>'
+    + pend.map(function(m){
+        return '<button type="button" onclick="abrirFirmaModulo(\''+escapeAttr(m.id)+'\')" style="display:flex;width:100%;text-align:left;margin-top:9px;padding:12px;border:1px solid rgba(255,255,255,.4);border-radius:10px;background:rgba(0,0,0,.18);color:#fff;cursor:pointer">'
+          + '<span style="flex:1"><b style="display:block;font-size:14px">'+escapeHtml(m.modulo)+'</b><span style="font-size:12px">PROMEDIO: '+fmtNota(m.promedio)+' · VER Y FIRMAR</span></span><span style="font-size:24px">›</span></button>';
+      }).join('') + '</div>';
+}
+
 async function renderCursanteAcademicasSection(){
   const cont = document.getElementById('cur-acad-content');
   if(!cont || !currentUser) return;
@@ -12331,7 +13035,8 @@ async function renderCursanteAcademicasSection(){
     }
     actualizarBadgesAcademicas(data);
     const grupos = agruparNotasPorPeriodo(data);
-    cont.innerHTML = grupos.map(g => htmlTarjetaAcademica(g)).join('');
+    let _mods = []; try{ _mods = await cargarModulosCursante(); }catch(e){}
+    cont.innerHTML = htmlModulosCursante(_mods) + grupos.map(g => htmlTarjetaAcademica(g)).join('');
   }catch(e){
     cont.innerHTML = '<div class="efm-no-data">⚠️ Error: '+(e.message||e)+'</div>';
   }
