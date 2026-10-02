@@ -18,6 +18,7 @@
 ## Despliegue (en este orden)
 1. Desplegar `supabase/functions/notas-ops/index.ts` con verify_jwt = false.
    Es compatible con la pantalla anterior (solo agrega un camino).
+   **Hecho el 02/10/2026: versión 11**, idéntica byte a byte a este archivo.
 2. Publicar `index.html`.
 
 ## Validación
