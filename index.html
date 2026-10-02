@@ -11284,8 +11284,8 @@ function _nmNota(v){
   if(v == null || v === '' || isNaN(Number(v))) return '—';
   const s = String(Number(v));
   const m = s.match(/^(-?\d+)(?:\.(\d+))?$/);
-  if(!m) return Number(v).toFixed(4);
-  return m[1] + '.' + ((m[2] || '') + '0000').slice(0, 4);
+  if(!m) return Number(v).toFixed(5);
+  return m[1] + '.' + ((m[2] || '') + '00000').slice(0, 5);
 }
 function _nmNotaHtml(v){
   const full = (v == null || v === '') ? '' : String(v);
@@ -11568,7 +11568,7 @@ async function nmRevisar(){
           + x.detalle.map(function(d){ return '<td style="color:'+(d.coincide?'inherit':'#e87878')+'">'+_nmNotaHtml(d.excel)+'</td>'; }).join('')
           + '<td class="hl">'+_nmNotaHtml(x.promedio)+'</td><td>'+(x.ok?'✔':'🚨')+'</td></tr>';
       }).join('') + '</table></div>'
-    + '<div style="font-size:11px;color:var(--text-muted);margin-top:6px">Las notas se muestran con 4 decimales sin redondear; pasá el dedo/mouse sobre una nota para ver el valor completo.</div>';
+    + '<div style="font-size:11px;color:var(--text-muted);margin-top:6px">Las notas se muestran con 5 decimales sin redondear; pasá el dedo/mouse sobre una nota para ver el valor completo.</div>';
   if(a.sinMatch.length) h += '<div class="nc-lista-mini" style="margin-top:8px">'+a.sinMatch.map(function(s){ return '<div>⚠ '+escapeHtml(s)+' — no está en la nómina</div>'; }).join('')+'</div>';
   if(faltan.length) h += '<div class="nc-lista-mini" style="margin-top:8px">'+faltan.slice(0,40).map(function(x){ return '<div>· '+escapeHtml(x.nombre)+' — no figura en la planilla</div>'; }).join('')+'</div>';
   cont.innerHTML = h;
@@ -12650,11 +12650,11 @@ function _esMateriaBloqueada(n, blocks){
   );
 }
 
-// Formatea una nota SIEMPRE con 4 decimales exactos (norma de la Escuela: nunca
-// menos de 4). Ej: 97.0851 → "97.0851" · 96 → "96.0000" · 79.042 → "79.0420"
+// v2.9.430: SIEMPRE con 5 decimales, igual que la planilla de la Sección, para
+// que el 4º decimal no se vea distinto por redondeo. Ej: 93.32475 → "93.32475" · 96 → "96.00000"
 function fmtNota(x){
   if(x==null || x==='' || isNaN(Number(x))) return '—';
-  return Number(x).toFixed(4);
+  return Number(x).toFixed(5);
 }
 
 async function cargarNotasAcademicas(){
