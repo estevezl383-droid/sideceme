@@ -55,6 +55,11 @@
 //     escribir el promedio a mano queda prohibido. Cada correccion deja un
 //     aviso PENDIENTE para el auxiliar que lleva la planilla, que responde con
 //     su conformidad: `correcciones_aviso` + `acusar_correccion`.
+//
+// v2.9.430 (2026-10-02): AJUSTE DE DECIMALES. `corregir_nota` acepta tambien
+//     `nota_final` cuando la nota tiene desglose, pero solo a menos de EPS_NOTA
+//     del promedio del desglose (la planilla publicada redondea distinto que el
+//     sistema). Queda en `cambios` como "NOTA FINAL · ajuste a mano".
 // ================================================================================
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -461,6 +466,28 @@ function recalcular(orig: any[], nuevos: any[], modo: "A" | "B", notaGuardada: n
   return { nota, bloques: salida };
 }
 
+// v2.9.430 — AJUSTE DE DECIMALES DE LA NOTA FINAL.
+// La planilla publicada redondea (94.0191) y el desglose da 94.01905: el
+// alumno ve dos numeros distintos y objeta. El evaluador puede escribir la
+// nota final a mano, pero SOLO como ajuste de redondeo: a menos de EPS_NOTA
+// del promedio del desglose. Con el mismo umbral de detectarModo la nota sigue
+// cuadrando con su desglose, asi que no se repite lo de C045. Para mover mas
+// que eso hay que corregir el casillero que corresponde.
+function validarAjusteFinal(n: number, segunDesglose: number | null): string | null {
+  if (n < 0 || n > 100) return "Nota fuera de 0-100 (" + n + ")";
+  if (segunDesglose === null) return "No se pudo calcular el promedio del desglose para validar el ajuste";
+  if (Math.abs(n - segunDesglose) >= EPS_NOTA) {
+    return "El promedio del desglose da " + limpiar(segunDesglose) + " y la nota escrita es " + n
+      + ". A mano solo se ajustan los decimales (diferencia menor a " + EPS_NOTA
+      + "). Para mover mas, corrija el casillero que corresponde.";
+  }
+  return null;
+}
+// Como queda en `cambios` (historial y aviso al auxiliar).
+function cambioAjusteFinal(antes: number, despues: number, segunDesglose: number) {
+  return { bloque: "NOTA FINAL", item: "ajuste a mano (el desglose da " + limpiar(segunDesglose) + ")", antes, despues };
+}
+
 // Que cambio exactamente, para el historial y para el aviso al auxiliar.
 function listarCambios(orig: any[], nuevos: any[]): any[] {
   const out: any[] = [];
@@ -494,7 +521,7 @@ Deno.serve(async (req) => {
         "publicar_confirmaciones", "estado_confirmaciones", "fijar_plazo",
         "borrar_carga", "cargas_archivadas", "restaurar_carga",
         "corregir_nota", "historial_correcciones",
-        "correcciones_aviso", "acusar_correccion"], version: "v2.9.370" });
+        "correcciones_aviso", "acusar_correccion"], version: "v2.9.430" });
   }
 
   const auth = await validarSesion(body.token);
@@ -1139,16 +1166,30 @@ Deno.serve(async (req) => {
           if ("error" in rec) return json({ ok: false, error: rec.error }, 400);
           notaNueva = rec.nota;
           detalleNuevo = { ...(nota.detalle_json || {}), bloques: rec.bloques };
-        } else {
-          // Camino viejo: escribir la nota final a mano. Solo cuando NO hay
-          // desglose con que reconstruirla. Si lo hay, se corrige el componente.
-          if (modo !== "C") {
-            return json({ ok: false, error: "Esta nota tiene desglose (" + bloquesOrig.map((b: any) => b.tipo).join(" · ")
-              + "). Corrija el componente que corresponde y la nota final se recalcula sola." }, 400);
+
+          // v2.9.430: ademas del casillero, el evaluador puede ajustar los
+          // decimales de la nota que resulta (opcional).
+          const finalPedida = num(body.nota_final);
+          if (finalPedida !== null && finalPedida !== notaNueva) {
+            const segun = notaSegunDesglose(rec.bloques, modo);
+            const errAj = validarAjusteFinal(finalPedida, segun);
+            if (errAj) return json({ ok: false, error: errAj }, 400);
+            cambios.push(cambioAjusteFinal(notaNueva, finalPedida, segun!));
+            notaNueva = finalPedida;
           }
+        } else {
+          // Escribir la nota final a mano. Sin desglose con que reconstruirla
+          // (modo C), cualquier valor de 0 a 100. Con desglose (v2.9.430),
+          // solo como ajuste de decimales: ver validarAjusteFinal.
           const n = num(body.nota_final);
           if (n === null) return json({ ok: false, error: "La nota corregida no es un numero" }, 400);
           if (n < 0 || n > 100) return json({ ok: false, error: "Nota fuera de 0-100 (" + n + ")" }, 400);
+          if (modo !== "C" && n !== notaVieja) {
+            const segun = notaSegunDesglose(bloquesOrig, modo);
+            const errAj = validarAjusteFinal(n, segun);
+            if (errAj) return json({ ok: false, error: errAj }, 400);
+            cambios = [cambioAjusteFinal(notaVieja, n, segun!)];
+          }
           notaNueva = n;
         }
 

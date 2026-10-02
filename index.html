@@ -11966,6 +11966,74 @@ function _ncNotaPrevia(orig, nuevos, modo, notaGuardada){
   return { nota: _ncLimpiar(notaGuardada + delta), delta: delta };
 }
 
+// v2.9.430 — AJUSTE DE DECIMALES DE LA NOTA FINAL. La planilla publicada
+// redondea (94.0191) y el desglose da 94.01905: el alumno ve dos números y
+// objeta. El evaluador puede escribir la nota final a mano, pero solo a menos
+// de este margen del promedio del desglose. Es el mismo EPS_NOTA de la EF: así
+// la nota sigue cuadrando con su desglose. Para mover más, se corrige el casillero.
+const NC_AJUSTE_MAX = 0.01;
+
+// Un número tal cual, sin rellenar con ceros (94, 92.0635), para la cuenta.
+function _ncCorto(x){
+  const n = Number(x);
+  return (x === null || x === undefined || !isFinite(n)) ? '—' : String(parseFloat(n.toFixed(5)));
+}
+
+// La cuenta del promedio, para que se vea de dónde sale la nota final.
+function _ncFormula(bloques, modo){
+  if(modo === 'A'){
+    return bloques.map(function(b){ return _ncCorto(_ncProm(b)) + ' × ' + _ncCorto(b.aporte) + '%'; }).join(' + ');
+  }
+  return 'suma de los puntos de cada bloque';
+}
+
+// Lo que da el desglose con los casilleros como están ahora. En modo B la EF
+// reescribe el aporte del bloque corregido, así que acá se aplica el delta
+// sobre lo que daba el desglose original: es la misma cuenta.
+function _ncPromedioNuevo(){
+  const c = NC._corr; if(!c) return null;
+  if(c.modo === 'A') return _ncSegunDesglose(c.nuevos, 'A');
+  const s = _ncSegunDesglose(c.bloques, c.modo); if(s === null) return null;
+  const p = _ncNotaPrevia(c.bloques, c.nuevos, c.modo, s);
+  return p.error ? null : p.nota;
+}
+
+// La nota final que se va a guardar: la que sale sola del desglose o, si el
+// evaluador la escribió, la suya (solo como ajuste de decimales).
+function _ncCorrFinal(){
+  const c = NC._corr;
+  const prev = _ncNotaPrevia(c.bloques, c.nuevos, c.modo, c.nota);
+  if(prev.error) return { error: prev.error };
+  const auto = prev.nota;
+  const el = document.getElementById('nc-corr-final');
+  const txt = el ? String(el.value).trim().replace(',', '.') : '';
+  if(!c.finalTocado || txt === '') return { nota: auto, auto: auto, manual: false };
+  const n = Number(txt);
+  if(!isFinite(n)) return { error: 'La nota final escrita no es un número.', auto: auto };
+  if(n < 0 || n > 100) return { error: 'La nota final tiene que estar entre 0 y 100.', auto: auto };
+  if(n === _ncLimpiar(auto)) return { nota: auto, auto: auto, manual: false };
+  const prom = _ncPromedioNuevo();
+  if(prom === null) return { error: 'No se pudo calcular el promedio del desglose.', auto: auto };
+  if(Math.abs(n - prom) >= NC_AJUSTE_MAX){
+    return { error: 'A mano solo se ajustan los decimales: el desglose da ' + fmtNota(prom)
+      + ' y la diferencia tiene que ser menor a ' + NC_AJUSTE_MAX + '. Para mover más, corregí el casillero que corresponde.', auto: auto };
+  }
+  return { nota: n, auto: auto, manual: true };
+}
+
+function _ncCorrFinalCambio(){
+  const c = NC._corr; if(!c) return;
+  c.finalTocado = true;
+  _ncCorrRefrescar();
+}
+
+// Vuelve a la nota que sale sola del desglose.
+function _ncCorrFinalAuto(){
+  const c = NC._corr; if(!c) return;
+  c.finalTocado = false;
+  _ncCorrRefrescar();
+}
+
 NC._corrFila = null;   // la fila completa que se está corrigiendo (con su desglose)
 NC._fichaNotas = {};   // v2.9.373: las notas de la ficha del cursante, por id
 
@@ -12010,7 +12078,8 @@ function ncCorregirNota(cursanteId, idxC, idxM, ctx){
     gestion: fila.gestion, semestre: fila.semestre, ciclo: ci.ciclo, materia: m.materia,
     nom: nom, bloques: bloques, nota: notaGuardada, modo: modo,
     alVolver: (ctx && typeof ctx.alVolver === 'function') ? ctx.alVolver : null,
-    nuevos: JSON.parse(JSON.stringify(bloques))
+    nuevos: JSON.parse(JSON.stringify(bloques)),
+    finalTocado: false     // v2.9.430: el evaluador escribió la nota final a mano
   };
 
   let ov = document.getElementById('nc-corr-modal');
@@ -12097,7 +12166,16 @@ function _ncCorrTablaHTML(){
 
   return '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-secondary);margin:12px 0 2px">Corregí el casillero que corresponde</div>'
     + filas
-    + '<div id="nc-corr-resumen" style="margin-top:10px;padding:11px 12px;border-radius:10px;border:1px solid var(--border-strong);background:var(--bg-deep)"></div>';
+    + '<div style="margin-top:10px;padding:11px 12px;border-radius:10px;border:1px solid var(--border-strong);background:var(--bg-deep)">'
+    + '<div id="nc-corr-resumen"></div>'
+    // v2.9.430: la nota final se puede escribir, como ajuste de decimales.
+    + '<div style="display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:9px;border-top:1px solid var(--border-subtle)">'
+    + '<span style="flex:1;min-width:0;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-secondary)">Nota final a guardar</span>'
+    + '<input id="nc-corr-final" type="number" step="any" min="0" max="100" oninput="_ncCorrFinalCambio()" '
+    + 'style="width:128px;flex:0 0 128px;text-align:right;background:var(--bg-deep);color:var(--text-primary);border:1px solid var(--border-subtle);border-radius:7px;padding:7px 8px;font-size:14.5px;font-weight:700;font-family:inherit">'
+    + '</div>'
+    + '<div id="nc-corr-final-aviso" style="margin-top:6px;font-size:11px;line-height:1.5;color:var(--text-muted)"></div>'
+    + '</div>';
 }
 
 // Cada tecla mueve la vista previa de la nota final.
@@ -12128,15 +12206,42 @@ function _ncCorrRefrescar(){
     cont.innerHTML = '<span style="color:#e87878;font-size:12.5px">⚠️ '+escapeHtml(prev.error)+'</span>';
     return;
   }
+  // v2.9.430: mientras no la escriba a mano, el casillero de la nota final
+  // sigue a los de arriba.
+  const elFinal = document.getElementById('nc-corr-final');
+  if(elFinal && !c.finalTocado) elFinal.value = String(_ncLimpiar(prev.nota));
+  const fin = _ncCorrFinal();
+  if(elFinal) elFinal.style.borderColor = fin.error ? '#e05a4d' : (fin.manual ? '#c9a227' : 'var(--border-subtle)');
+  const avisoFinal = document.getElementById('nc-corr-final-aviso');
+  if(avisoFinal){
+    avisoFinal.innerHTML = fin.error
+      ? '<span style="color:#e87878">⚠️ '+escapeHtml(fin.error)+'</span>'
+      : (fin.manual
+          ? '<span style="color:#f0d98a">✍️ Escrita a mano (ajuste de decimales). Lo que sale del desglose es <b>'+fmtNota(fin.auto)+'</b>.</span> '
+            + '<a href="#" onclick="_ncCorrFinalAuto();return false" style="color:var(--gold-light)">Volver a esa</a>'
+          : 'Sale sola del desglose. Si la planilla publicada la redondeó distinto (p. ej. 94.0191), escribila acá: '
+            + 'se admite solo un ajuste de decimales (menos de '+NC_AJUSTE_MAX+' de diferencia con el promedio).');
+  }
+  const nuevaNota = fin.error ? null : fin.nota;
   const cambios = _ncCambios();
-  const igual = !cambios.length;
-  const flecha = igual
-    ? '<span style="color:var(--text-muted)">sin cambios todavía</span>'
+  const igual = !cambios.length && (!fin.manual || fin.nota === c.nota);
+  const prom = _ncPromedioNuevo();
+  const flecha = fin.error
+    ? '<span style="color:#e87878">'+fmtNota(c.nota)+'</span> <span style="color:var(--text-muted);font-size:12px">→ revisá la nota escrita</span>'
+    : igual
+    ? '<span style="color:var(--text-muted);font-size:13px">sin cambios todavía</span>'
     : '<span style="color:#e87878">'+fmtNota(c.nota)+'</span>'
       + ' <span style="color:var(--text-muted)">→</span> '
-      + '<span style="color:#7ddba0;font-weight:700">'+fmtNota(prev.nota)+'</span>'
-      + ' <span style="color:var(--text-muted);font-size:12px">('+atributoCalificacion(prev.nota)+')</span>';
-  cont.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">'
+      + '<span style="color:#7ddba0;font-weight:700">'+fmtNota(nuevaNota)+'</span>'
+      + ' <span style="color:var(--text-muted);font-size:12px">('+atributoCalificacion(nuevaNota)+')</span>';
+  cont.innerHTML = '<div style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-secondary)">Promedio del desglose</div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:3px">'
+    + '<span style="font-size:12px;color:var(--text-secondary)">'+escapeHtml(_ncFormula(c.nuevos, c.modo))+' =</span>'
+    + '<span style="font-size:16px;font-weight:700;color:var(--text-primary)">'+fmtNota(prom)+'</span></div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:8px">'
+    + '<span style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-secondary)">Nota cargada hoy</span>'
+    + '<span style="font-size:14px">'+fmtNota(c.nota)+' <span style="color:var(--text-muted);font-size:12px">('+atributoCalificacion(c.nota)+')</span></span></div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:6px">'
     + '<span style="font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--text-secondary)">Nota final</span>'
     + '<span style="font-size:16px">'+flecha+'</span></div>'
     + (cambios.length
@@ -12208,14 +12313,22 @@ async function ncGuardarCorreccion(){
         + '\n\nRevisalo antes de guardar. Un casillero en blanco no es un cero.');
       return;
     }
+    const fin = _ncCorrFinal();
+    if(fin.error){ alert(fin.error); return; }
     const cambios = _ncCambios();
-    if(!cambios.length){ alert('No cambiaste ningún casillero.'); return; }
-    const prev = _ncNotaPrevia(c.bloques, c.nuevos, c.modo, c.nota);
-    if(prev.error){ alert(prev.error); return; }
-    cuerpo.bloques = c.nuevos;
-    cuerpo.atributo = atributoCalificacion(prev.nota);
-    resumen = cambios.map(function(x){ return x.bloque+' · '+x.item+': '+fmtNota(x.antes)+' → '+fmtNota(x.despues); }).join('\n')
-      + '\n\nNota final: ' + fmtNota(c.nota) + '  →  ' + fmtNota(prev.nota);
+    if(!cambios.length && (!fin.manual || fin.nota === c.nota)){ alert('No cambiaste ningún casillero ni la nota final.'); return; }
+    if(cambios.length){
+      cuerpo.bloques = c.nuevos;
+      if(fin.manual) cuerpo.nota_final = fin.nota;    // v2.9.430: casillero + ajuste de decimales
+    }else{
+      cuerpo.nota_final = fin.nota;                   // v2.9.430: solo el ajuste de decimales
+    }
+    cuerpo.atributo = atributoCalificacion(fin.nota);
+    resumen = (cambios.length
+        ? cambios.map(function(x){ return x.bloque+' · '+x.item+': '+fmtNota(x.antes)+' → '+fmtNota(x.despues); }).join('\n') + '\n\n'
+        : '')
+      + 'Nota final: ' + fmtNota(c.nota) + '  →  ' + fmtNota(fin.nota)
+      + (fin.manual ? '\n(escrita a mano: el desglose da ' + fmtNota(_ncPromedioNuevo()) + ')' : '');
   }
 
   if(!confirm('CONFIRMAR LA CORRECCIÓN\n\n' + c.nom + '\n' + c.materia + '\n\n' + resumen
