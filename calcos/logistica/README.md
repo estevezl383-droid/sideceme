@@ -44,13 +44,20 @@ Lo pidió Sergio el 02-10-2026 con capturas del panel del G-4 y tres textos de l
   el concepto por fase; «↔ Trazar el EPA/EPE en el calco» y «📍 Ver en la carta»; 💡 ideas;
   🤖 IA; **Word** apaisado con membrete, SECRETO, siglas y firma.
 
-La apreciación y la matriz van al **expediente** que reciben las demás hojas con IA.
+- **F7·P1 Anexo de Apoyo de Servicio de Combate**: organización de la tarea, I a IV con
+  el concepto de apoyo por fase, las funciones, las instrucciones de coordinación (EPA, EPE,
+  control de tránsito y SEGAR con el nivel de amenaza de la matriz). 🌱, ideas, IA y Word
+  militar (es un anexo: el cuadro de revisión pide su letra y la Orden; lo firma el
+  Comandante).
+
+La apreciación, la matriz y el anexo van al **expediente** que reciben las demás hojas con IA.
 
 Se guarda con el ejercicio en `hojasG.g4`:
 
 ```js
 evalAreas:        { esquema: 'eval-areas-v1', parametros: { td, tc, v, factor }, notas: { [aspecto]: { [claveDelÁrea]: { estado: 'si'|'no', por: 'oficial'|'ia', motivo } } }, conclusion, conclusionIA, elegida, ideas, tropas, tipoDivision }
 aprecActiva / aprecOrientacion: { esquema: 'aprec-log-v1', numero, objeto, cartas, anexos, campos: {…}, caps: [{ id, nombre, analisis: {…}, ventajas, desventajas }], ideas, firma, iaCampos }
+anexo:            { esquema: 'anexo-aspc-v1', numero, objeto, carta, apendices, campos: {…}, ideas, firma, iaCampos }
 matrizSinc:       { esquema: 'matriz-sinc-log-v1', numero, fases: [{ id, nombre, desde, hasta }], celdas: { [renglón]: { [fase]: texto } }, ideas, firma, iaCampos }
 ```
 

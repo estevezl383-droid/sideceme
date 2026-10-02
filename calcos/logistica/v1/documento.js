@@ -26,6 +26,9 @@ import {
   conclusionDe,
   firmaG4,
   unidadDe,
+  normalizarAnexo,
+  ARBOL_ANEXO,
+  TITULO_ANEXO,
 } from './modelo.js'
 
 export const PENDIENTE = '[Pendiente de elaboración]'
@@ -326,3 +329,29 @@ export function descargar(datos, nombre) {
   return blob
 }
 export const blobDe = (datos) => new Blob([datos], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' })
+
+// ─── ANEXO DE APOYO DE SERVICIO DE COMBATE ──────────────────────────────────────────
+export function especificacionAnexo(valor, { ctx = {} } = {}) {
+  const v = normalizarAnexo(valor)
+  const nodo = ([id, t, h]) => (h ? { titulo: t, texto: '', hijos: h.map(nodo) } : apartado(t, v.campos[id]))
+  const [org, ...resto] = ARBOL_ANEXO
+  const o = partir(v.campos.organizacion)
+  return {
+    titulo: TITULO_ANEXO,
+    numero: limpio(v.numero),
+    estructuraPropia: true,
+    modelo: 'Anexo de Apoyo de Servicio de Combate (G-4) — forma de la Mesa del Estado Mayor',
+    preliminares: [
+      { rotulo: 'OBJETO', texto: sinMarcaIA(v.objeto) },
+      { rotulo: 'CARTA', texto: sinMarcaIA(v.carta) },
+      { rotulo: 'APÉNDICES', texto: sinMarcaIA(v.apendices) },
+    ],
+    secciones: [{ titulo: org[1], texto: o.texto || (o.vinetas.length ? '' : PENDIENTE), hijos: [], ...(o.vinetas.length ? { vinetas: o.vinetas } : {}), sinNumero: true }, ...resto.map(nodo)],
+    firma: firmaG4(ctx, v.firma),
+  }
+}
+export function anexoHTML(valor, { ctx = {} } = {}) {
+  const s = especificacionAnexo(valor, { ctx })
+  const pre = s.preliminares.map((p) => `<div><b>${p.rotulo}:</b> ${ESC(p.texto) || `<i style="color:#888">${PENDIENTE}</i>`}</div>`).join('')
+  return `<div style="font-family:Arial,sans-serif;font-size:12px;color:#111"><h3 style="text-align:center;margin:4px 0">${ESC(s.titulo)}</h3>${pre}<hr>${nodosHTML(s.secciones)}<p style="text-align:center;margin-top:24px"><b>${ESC(s.firma)}</b></p></div>`
+}

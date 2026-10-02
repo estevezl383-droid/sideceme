@@ -28,6 +28,9 @@ import {
   textoASL,
   textoMatriz,
   nuevoId,
+  normalizarAnexo,
+  CAMPOS_ANEXO,
+  TITULO_ANEXO,
 } from './modelo.js'
 
 export const MODOS = [
@@ -401,3 +404,62 @@ export function otrasHojasG4({ evaluacion = null, analisis = null, asl = null, c
   return L.filter(Boolean).join('\n\n')
 }
 export { textoMatriz }
+
+// ════════════════════════════════════════════════════════════════════════════════════
+// ANEXO DE APOYO DE SERVICIO DE COMBATE (F7·P1)
+// ════════════════════════════════════════════════════════════════════════════════════
+export function pedidoAnexo(valor, { analisis = null, otras = '', expediente = '', ctx = {}, hoja = null, modo = 'completar', encabezado = '' } = {}) {
+  const v = normalizarAnexo(valor)
+  const mejorar = mejorarDe(modo)
+  const partes = []
+  base(partes, { encabezado, expediente, analisis: analisis?.areas?.length ? analisis : null, producto: `Tu producto es el ${TITULO_ANEXO} a la Orden General de Operaciones (hoja ${hoja?.num || 'F7·P1'} del PMTD) de ${unidadDe(ctx) || 'la unidad'}: OBJETO, CARTA y APÉNDICES; ORGANIZACIÓN DE LA TAREA; I.- SITUACIÓN, II.- MISIÓN, III.- EJECUCIÓN (A.- Logística: concepto de apoyo por fase y funciones; B.- Personal; C.- Asuntos Civiles; D.- Instrucciones de coordinación: EPA, EPE, control de tránsito y SEGAR) y IV.- COMANDO Y COMUNICACIONES.` })
+  if (limpio(otras)) partes.push(`# LO QUE YA RESOLVIÓ EL G-4 EN SUS OTRAS HOJAS (la apreciación, la evaluación del área y la matriz de sincronización)\n\n${otras}`)
+  partes.push(doctrinaParaIA({ conFactores: false, conMatriz: true }))
+  partes.push(`# EL ANEXO HOY\n\n\`\`\`json\n${JSON.stringify({ objeto: sinMarcaIA(v.objeto), carta: sinMarcaIA(v.carta), apendices: sinMarcaIA(v.apendices), campos: Object.fromEntries(CAMPOS_ANEXO.map((c) => [c.id, sinMarcaIA(v.campos[c.id])])) }, null, 1)}\n\`\`\``)
+  ideas(partes, v, 'cómo quiere el apoyo')
+  partes.push(mejorar ? '# TAREA — COMPLETAR Y MEJORAR EL ANEXO\n\nDevolvelo ENTERO, concreto y coherente con la matriz de sincronización y la apreciación. REEMPLAZA lo escrito.' : '# TAREA — COMPLETAR LO QUE FALTA\n\nDevolvé SOLAMENTE los apartados vacíos. Lo escrito no se toca.')
+  partes.push(`# CÓMO CONTESTAR
+
+Respondé ÚNICAMENTE con este JSON:
+
+\`\`\`json
+{ "objeto": "…", "carta": "…", "apendices": "…", "campos": {
+${CAMPOS_ANEXO.map((c) => `  "${c.id}": "…"`).join(',\n')}
+} }
+\`\`\`
+
+QUÉ VA EN CADA CLAVE:
+${CAMPOS_ANEXO.map((c) => `- "${c.id}": ${c.titulo}`).join('\n')}
+
+REGLAS:
+- "concepto": un renglón por FASE con el enfoque y la prioridad de apoyo («- Fase I: …»).
+- "segar": el nivel de amenaza (I, II o III) y la fuerza de reacción designada.
+- Listas con «- » al principio de cada renglón. Sin numerar los apartados.
+${REGLAS_COMUNES}`)
+  partes.push('# VERIFICACIÓN FINAL\n\n1. ¿El concepto de apoyo corresponde a las fases de la operación?\n2. ¿Los ejes, las instalaciones y el área son los del calco?\n3. ¿La SEGAR sale del nivel de amenaza de la matriz?\n4. ¿Seguiste las ideas del oficial?')
+  return { ok: true, prompt: partes.join('\n\n---\n\n'), modo: mejorar ? 'completar_mejorar' : 'completar' }
+}
+export function aplicarRespuestaAnexo(respuesta, valor, { modo = 'completar', corregir = null } = {}) {
+  let d = leerJSON(respuesta)
+  if (!esObj(d)) return noJSON
+  d = corregirCon(d, corregir)
+  const v = normalizarAnexo(valor)
+  const mejorar = mejorarDe(modo)
+  const ia = new Set(v.iaCampos)
+  let n = 0
+  const poner = (actual, nuevo, clave) => {
+    const t = textoIA(nuevo)
+    if (!t || (!mejorar && !vacio(actual))) return actual
+    ia.add(clave)
+    n++
+    return t
+  }
+  const objeto = poner(v.objeto, d.objeto, 'objeto')
+  const carta = poner(v.carta, d.carta, 'carta')
+  const apendices = poner(v.apendices, d.apendices, 'apendices')
+  const campos = { ...v.campos }
+  const dc = esObj(d.campos) ? d.campos : d
+  for (const c of CAMPOS_ANEXO) if (dc[c.id] != null) campos[c.id] = poner(campos[c.id], dc[c.id], `campo:${c.id}`)
+  if (!n) return { ok: false, error: 'No había nada vacío que la respuesta completara (lo escrito no se pisa).' }
+  return { ok: true, valor: { ...v, objeto, carta, apendices, campos, iaCampos: [...ia] }, n, msg: `${n} apartado(s) ${mejorar ? 'escritos' : 'completados'} por la IA. Quedan marcados 🤖: revisalos.` }
+}

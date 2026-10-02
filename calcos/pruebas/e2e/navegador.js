@@ -196,7 +196,7 @@ async function leerGuardado(page, nombre) {
 }
 
 async function entrar3D(page) {
-  await page.locator('.m3d-seg button', { hasText: '3D' }).click()
+  await page.locator('.m3d-seg button', { hasText: '3D' }).dispatchEvent('click')
   await page.waitForFunction(() => !!window.__espejo3d, null, { timeout: 60000 })
   await page.waitForTimeout(1500)
 }

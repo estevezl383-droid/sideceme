@@ -616,20 +616,139 @@ export const NIVELES = NIVELES_AMENAZA
 export { ENFOQUES, LETRAS }
 
 // ─── Para el compilado: las hojas de logística del G-4 ──────────────────────────────
-export const TIPOS_LOG = ['aprecLog', 'matrizLog']
+export const TIPOS_LOG = ['aprecLog', 'matrizLog', 'anexoLog']
 export const esHojaLog = (h) => !!h && TIPOS_LOG.includes(h.tipo)
 export function tieneHojaLog(h, v) {
   if (h?.tipo === 'aprecLog') return tieneASL(v)
   if (h?.tipo === 'matrizLog') return tieneMatriz(v)
+  if (h?.tipo === 'anexoLog') return tieneAnexo(v)
   return false
 }
 export function textoHojaLog(h, v) {
   if (h?.tipo === 'aprecLog') return textoASL(v)
   if (h?.tipo === 'matrizLog') return textoMatriz(v)
+  if (h?.tipo === 'anexoLog') return textoAnexo(v)
   return ''
 }
 // El nombre con el que el área figura en los documentos (la elegida, como ASDI/ARCE).
 export function nombreCalco(z, i = 0) {
   if (z?.propuesta && z?.elegida) return `${String(z.zona || 'asdi').toUpperCase()}${Number.isFinite(+z.division) ? ` ${+z.division}` : ''} (Área ${z.propuesta}, elegida)`
   return nombreArea(z, i)
+}
+
+// ════════════════════════════════════════════════════════════════════════════════════
+// ANEXO DE APOYO DE SERVICIO DE COMBATE (F7·P1 del G-4)
+// ════════════════════════════════════════════════════════════════════════════════════
+export const ESQ_ANEXO = 'anexo-aspc-v1'
+export const TITULO_ANEXO = 'ANEXO (APOYO DE SERVICIO DE COMBATE)'
+export const ARBOL_ANEXO = [
+  ['ORG', 'ORGANIZACIÓN DE LA TAREA.', [['organizacion', 'Organización de la tarea.']]],
+  ['I', 'SITUACIÓN.', [
+    ['A', 'Fuerzas enemigas.', [['terreno', 'Terreno.'], ['meteo', 'Condiciones meteorológicas.'], ['capEnemigo', 'Capacidades logísticas del enemigo.']]],
+    ['propias', 'Fuerzas propias.'],
+    ['hipotesisA', 'Hipótesis.'],
+  ]],
+  ['II', 'MISIÓN.', [['misionA', 'Misión.']]],
+  ['III', 'EJECUCIÓN.', [
+    ['A', 'Logística.', [['concepto', 'Concepto de apoyo.'], ['abastecimiento', 'Abastecimiento.'], ['mantenimientoA', 'Mantenimiento.'], ['evacuacionA', 'Evacuación y hospitalización.'], ['transporteA', 'Transporte.']]],
+    ['personal', 'Personal.'],
+    ['asuntosCiviles', 'Asuntos Civiles.'],
+    ['D', 'Instrucciones de coordinación.', [['epa', 'Eje Principal de Abastecimiento (EPA).'], ['epe', 'Eje Principal de Evacuación (EPE).'], ['transito', 'Control de tránsito.'], ['segar', 'Seguridad del área de retaguardia.']]],
+  ]],
+  ['IV', 'COMANDO Y COMUNICACIONES.', [['comandoA', 'Comando.'], ['comunicacionesA', 'Comunicaciones.']]],
+]
+export const CAMPOS_ANEXO = []
+;(function recorrer(ns) {
+  for (const [id, t, h] of ns) h ? recorrer(h) : CAMPOS_ANEXO.push({ id, titulo: t })
+})(ARBOL_ANEXO)
+
+export function normalizarAnexo(valor) {
+  const o = esObj(valor) ? valor : {}
+  return {
+    esquema: ESQ_ANEXO,
+    numero: limpio(o.numero),
+    objeto: texto(o.objeto),
+    carta: texto(o.carta),
+    apendices: texto(o.apendices),
+    campos: Object.fromEntries(CAMPOS_ANEXO.map((c) => [c.id, texto(o.campos?.[c.id])])),
+    ideas: texto(o.ideas),
+    firma: limpio(o.firma),
+    iaCampos: Array.isArray(o.iaCampos) ? [...new Set(o.iaCampos.map(String))] : [],
+  }
+}
+export const esAnexo = (v) => esObj(v) && v.esquema === ESQ_ANEXO
+export const tieneAnexo = (v) => esAnexo(v) && (Object.values(normalizarAnexo(v).campos).some(limpio) || !!limpio(v.objeto))
+
+// Lo que la Mesa puede escribir sola en el anexo: el calco, el concepto por fase, la
+// matriz de sincronización y la apreciación de logística.
+export function propuestasAnexo(ctx = {}) {
+  const P = {}
+  const calco = ctx.calco || {}
+  const ops = calco.ops || {}
+  const g4 = ctx.hojasG4 || {}
+  const fun = instalacionesPorFuncion(calco.unidades, ctx.catalogo)
+  const lista2 = (nom) => (fun.find((f) => f.nom === nom)?.items || []).map((x) => `${x.nombre} (${coordenada(x.p)})`).join('; ')
+  const areas = areasTexto(ops)
+  const orgs = [areas && `Áreas: ${areas}.`, ...fun.filter((f) => f.items.length).map((f) => `${f.nom}: ${f.items.map((x) => x.nombre).join(', ')}.`)].filter(Boolean)
+  if (orgs.length) P.organizacion = orgs.join('\n')
+  if (limpio(calco.misionLog)) P.misionA = texto(calco.misionLog)
+  const concepto = Array.isArray(calco.conceptoApoyo) ? calco.conceptoApoyo : []
+  const fases = calco.fasesCOA?.propio || []
+  const cc = concepto.map((c, i) => (esObj(c) && ((c.enfoque || []).length || limpio(c.prioridad)) ? `- Fase ${romano(i + 1)}${limpio(c.nombre || fases[i]?.nombre) ? ` (${limpio(c.nombre || fases[i]?.nombre)})` : ''}: enfoque de apoyo en ${(c.enfoque || []).map(nombreEnfoque).join(', ') || '[definir]'}; prioridad de apoyo: ${limpio(c.prioridad) || '[definir]'}.` : '')).filter(Boolean)
+  if (cc.length) P.concepto = cc.join('\n')
+  const abast = lista2('Abastecimientos')
+  if (abast) P.abastecimiento = `Instalaciones: ${abast}.`
+  const mant = lista2('Mantenimiento')
+  if (mant) P.mantenimientoA = `Instalaciones: ${mant}.`
+  const san = lista2('Evacuación y hospitalización')
+  if (san) P.evacuacionA = `Instalaciones: ${san}. Evacuación por el EPE.`
+  const tr = lista2('Transportes')
+  if (tr) P.transporteA = `Instalaciones: ${tr}.`
+  const pers = lista2('Personal')
+  if (pers) P.personal = `Instalaciones: ${pers}.`
+  const epa = ejesTexto(ops, 'epa', 'EPA')
+  if (epa) P.epa = `${epa}.`
+  const epe = ejesTexto(ops, 'epe', 'EPE')
+  if (epe) P.epe = `${epe}.`
+  // De la matriz de sincronización: el nivel de amenaza por fase → SEGAR.
+  const m = esMatrizLog(g4.matrizSinc) ? normalizarMatriz(g4.matrizSinc) : null
+  if (m) {
+    const am = m.fases.map((f) => (limpio(m.celdas.amenaza?.[f.id]) ? `- ${f.nombre.split(' — ')[0]}: ${sinMarcaIA(m.celdas.amenaza[f.id]).split('\n')[0]}` : '')).filter(Boolean)
+    if (am.length) P.segar = `Nivel de amenaza previsto en el área de retaguardia (Matriz de sincronización logística):\n${am.join('\n')}`
+    const t = m.fases.map((f) => (limpio(m.celdas.transporte?.[f.id]) ? `- ${f.nombre.split(' — ')[0]}: ${sinMarcaIA(m.celdas.transporte[f.id]).replace(/\n/g, ' ')}` : '')).filter(Boolean)
+    if (t.length) P.transito = t.join('\n')
+  }
+  // De la apreciación: hipótesis.
+  const asl = esASL(g4.aprecOrientacion) ? normalizarASL(g4.aprecOrientacion) : esASL(g4.aprecActiva) ? normalizarASL(g4.aprecActiva) : null
+  if (asl && limpio(asl.campos.hipotesis)) P.hipotesisA = asl.campos.hipotesis
+  return P
+}
+export function armarAnexo(valor, ctx = {}) {
+  const v = normalizarAnexo(valor)
+  const P = propuestasAnexo(ctx)
+  const cambios = []
+  const campos = { ...v.campos }
+  for (const c of CAMPOS_ANEXO) if (P[c.id] && vacio(campos[c.id])) (campos[c.id] = P[c.id]), cambios.push(c.titulo.replace(/\.$/, ''))
+  let { objeto, carta, apendices } = v
+  const unidad = unidadDe(ctx)
+  if (vacio(objeto)) (objeto = `Establecer el apoyo de servicio de combate ${unidad ? `${articuloDe(unidad)} ${unidad} ` : ''}para la operación.`), cambios.push('OBJETO')
+  if (vacio(carta) && limpio(ctx.ordenSup?.carta)) (carta = limpio(ctx.ordenSup.carta)), cambios.push('CARTA')
+  if (vacio(apendices)) (apendices = ['1 Calco de apoyo logístico (ejes de abastecimiento y evacuación, unidades e instalaciones logísticas).', esMatrizLog(ctx.hojasG4?.matrizSinc) ? '2 Matriz de sincronización logística.' : ''].filter(Boolean).join('\n')), cambios.push('APÉNDICES')
+  return { valor: { ...v, objeto, carta, apendices, campos }, cambios }
+}
+export function revisarAnexo(valor) {
+  const v = normalizarAnexo(valor)
+  const R = []
+  const falta = (id, txt, tipo = 'aviso') => vacio(v.campos[id]) && R.push({ tipo, txt })
+  falta('misionA', 'II.- Falta la MISIÓN (quién, qué, cuándo, dónde y para qué).', 'err')
+  falta('concepto', 'III.- A.- 1.- Falta el concepto de apoyo por fase (pestaña 🎬 Concepto).', 'err')
+  falta('epa', 'III.- D.- 1.- Falta el EPA (trazalo en el calco).')
+  falta('epe', 'III.- D.- 2.- Falta el EPE (trazalo en el calco).')
+  falta('segar', 'III.- D.- 4.- Falta el nivel de amenaza y la fuerza de reacción (SEGAR).')
+  return R
+}
+export function textoAnexo(valor) {
+  const v = normalizarAnexo(valor)
+  if (!tieneAnexo(v)) return ''
+  return [TITULO_ANEXO, ...CAMPOS_ANEXO.filter((c) => !vacio(v.campos[c.id])).map((c) => `${c.titulo} ${sinMarcaIA(v.campos[c.id])}`)].join('\n')
 }

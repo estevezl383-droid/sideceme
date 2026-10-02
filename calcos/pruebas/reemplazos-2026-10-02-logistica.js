@@ -10,7 +10,8 @@
 //     verificar los datos generales de planeamiento, evaluar con la matriz de factores,
 //     elegir y desplegar), todo medido sobre el calco y acostado en la carta;
 //   · la MATRIZ DE SINCRONIZACIÓN LOGÍSTICA (lámina de la Escuela) es el producto final
-//     del G-4: hoja nueva F7·P2.
+//     del G-4: hoja nueva F7·P2;
+//   · el F7·P1 Anexo de Apoyo de Servicio de Combate del G-4 también se trabaja en la hoja.
 //
 // Es la lista EXACTA: cada «viejo» se buscó en el compilado anterior (tenía que aparecer
 // «veces» veces) y se cambió por «nuevo». construir-logistica.js arma el compilado y
@@ -47,7 +48,7 @@ module.exports = [
     viejo:
       'hojas:[{id:"anexo",num:"F7·P1",nom:`Anexo de ${e} a la Orden General de Operaciones`,tipo:"remite",entrega:"SE DIFUNDE con la Orden",nota:"La app ya escribe este anexo con lo que hay en el calco y en las hojas: se baja desde el botón de Anexo de este panel. Revisalo antes de firmarlo."}]',
     nuevo:
-      'hojas:[{id:"anexo",num:"F7·P1",nom:`Anexo de ${e} a la Orden General de Operaciones`,tipo:"remite",entrega:"SE DIFUNDE con la Orden",nota:"La app ya escribe este anexo con lo que hay en el calco y en las hojas: se baja desde el botón de Anexo de este panel. Revisalo antes de firmarlo."},...t.id==="g4"?[{id:"matrizSinc",num:"F7·P2",nom:"Matriz de sincronización logística",tipo:"matrizLog",entrega:"SE DIFUNDE con la Orden · producto final del G-4",nota:"Sincroniza cada función logística con cada fase de la operación (desde — hasta), con la forma de la lámina de la Escuela: secciones de la Zona de Etapas, enfoque y prioridad de apoyo, abastecimiento (centros, EPA/ESA), evacuación y hospitalización (hospitales, norma, PA, EPE/ESE), transporte, mantenimiento, recuperación y nivel de amenaza en el área de retaguardia. Se llena con el calco y con el concepto de apoyo por fase, con tus ideas y con IA, y se acuesta sobre el calco."}]:[]]',
+      'hojas:[{id:"anexo",num:"F7·P1",nom:`Anexo de ${e} a la Orden General de Operaciones`,tipo:t.id==="g4"?"anexoLog":"remite",entrega:"SE DIFUNDE con la Orden",nota:t.id==="g4"?"El Anexo de Apoyo de Servicio de Combate se trabaja acá: 🌱 trae el calco, el concepto por fase, la Matriz de sincronización (SEGAR) y la Apreciación; 💡 tus ideas; 🤖 la IA; y sale en Word con el formato militar (el cuadro de revisión pide la letra del anexo y la Orden). Revisalo antes de firmarlo.":"La app ya escribe este anexo con lo que hay en el calco y en las hojas: se baja desde el botón de Anexo de este panel. Revisalo antes de firmarlo."},...t.id==="g4"?[{id:"matrizSinc",num:"F7·P2",nom:"Matriz de sincronización logística",tipo:"matrizLog",entrega:"SE DIFUNDE con la Orden · producto final del G-4",nota:"Sincroniza cada función logística con cada fase de la operación (desde — hasta), con la forma de la lámina de la Escuela: secciones de la Zona de Etapas, enfoque y prioridad de apoyo, abastecimiento (centros, EPA/ESA), evacuación y hospitalización (hospitales, norma, PA, EPE/ESE), transporte, mantenimiento, recuperación y nivel de amenaza en el área de retaguardia. Se llena con el calco y con el concepto de apoyo por fase, con tus ideas y con IA, y se acuesta sobre el calco."}]:[]]',
     veces: 1,
   },
   {
@@ -71,7 +72,7 @@ module.exports = [
   {
     nombre: 'Logística · no son hojas de renglones para el panel genérico de IA',
     viejo: '["tiempo","remite","lineaTiempo","conceptos","riesgo","reconocimiento"].includes(t.tipo)',
-    nuevo: '["tiempo","remite","lineaTiempo","conceptos","riesgo","reconocimiento","aprecLog","matrizLog"].includes(t.tipo)',
+    nuevo: '["tiempo","remite","lineaTiempo","conceptos","riesgo","reconocimiento","aprecLog","matrizLog","anexoLog"].includes(t.tipo)',
     veces: 1,
   },
   {

@@ -37,6 +37,9 @@ comprueba `reemplazos-compilado.js`, como primer paso de la cadena).
   panel `hU`), vista previa y Word con el formato militar.
 - **F7·P2 Matriz de sincronización logística**: hoja nueva del G-4, tipo `matrizLog`, con
   🌱, ideas, IA, Word apaisado y botones para trazar/ver en el calco.
+- **F7·P1 Anexo de Apoyo de Servicio de Combate** del G-4: tipo `anexoLog`, con 🌱 (calco,
+  concepto por fase, SEGAR de la matriz, hipótesis de la apreciación), ideas, IA y Word
+  militar (nivel anexo: el cuadro de revisión pide letra y Orden).
 - En la carta, las áreas propuestas no elegidas van con línea discontinua y «ÁREA A
   (PROPUESTA)».
 
@@ -75,7 +78,10 @@ comprueba `reemplazos-compilado.js`, como primer paso de la cadena).
   acostadas, evaluación con IA, Word, elegir; la apreciación (calco, evaluación, hojas,
   ideas, IA, vista previa del Word militar y descarga), la F2·P13, la matriz (fases,
   concepto, calco, amenaza, IA, Word), el avance de «Mis hojas» y el guardado; sin errores
-  de JavaScript. Las demás pruebas de Node siguen pasando; `reemplazos-compilado.js` pasa
+  de JavaScript. Las demás pruebas de Node siguen pasando. Las e2e de riesgo, conceptos,
+  ASDI y ficha documental fallaban ANTES de este cambio (sus ejercicios de prueba no tenían
+  la «unidad considerada» que la Mesa exige desde el 01-10, y el panel de la ficha o del
+  ejercicio tapaba botones): se corrigieron las pruebas y ahora pasan las 12 e2e; `reemplazos-compilado.js` pasa
   el paso nuevo y conserva los 10 fallos históricos que ya tenía.
 - No hay LibreOffice Writer en el entorno: los Word se revisaron dibujados con
   docx-preview (el mismo visor de la Mesa).

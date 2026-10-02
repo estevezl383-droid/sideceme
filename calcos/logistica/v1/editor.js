@@ -38,9 +38,15 @@ import {
   nuevaFase,
   TITULO_MATRIZ,
   unidadDe,
+  normalizarAnexo,
+  armarAnexo,
+  revisarAnexo,
+  ARBOL_ANEXO,
+  CAMPOS_ANEXO,
+  TITULO_ANEXO,
 } from './modelo.js'
-import { MODOS, pedidoEval, aplicarRespuestaEval, pedidoASL, aplicarRespuestaASL, pedidoMatriz, aplicarRespuestaMatriz, otrasHojasG4 } from './ia.js'
-import { especificacionASL, aslHTML, crearWordMatriz, crearWordEvaluacion, matrizHTML, descargar, blobDe } from './documento.js'
+import { MODOS, pedidoEval, aplicarRespuestaEval, pedidoASL, aplicarRespuestaASL, pedidoMatriz, aplicarRespuestaMatriz, otrasHojasG4, pedidoAnexo, aplicarRespuestaAnexo, textoMatriz } from './ia.js'
+import { especificacionASL, aslHTML, especificacionAnexo, anexoHTML, crearWordMatriz, crearWordEvaluacion, matrizHTML, descargar, blobDe } from './documento.js'
 import { useState, useEffect, jsx, jsxs, panelIA, encabezadoIA, corregirIA, wordMilitar, registroMilitar, vistaMilitar, mostrarDocx, catalogo, useCalco, accion, verEnCarta, mostrarMedidas, ocultarMedidas, medidasVisibles } from './runtime.js'
 
 function h(tipo, props, ...hijos) {
@@ -517,6 +523,7 @@ export function PasoAPaso({ hojas = {}, onHojas, onExpediente, ctxDoc = {}, orde
 // ════════════════════════════════════════════════════════════════════════════════════
 export default function EditorHojaLog(props) {
   if (props?.hoja?.tipo === 'matrizLog') return h(EditorMatriz, props)
+  if (props?.hoja?.tipo === 'anexoLog') return h(EditorAnexo, props)
   return h(EditorASL, props)
 }
 
@@ -740,5 +747,64 @@ function EditorMatriz({ hoja = null, valor, onValor, hojas = {}, onExpediente = 
       ),
     h('button', { style: E.btn, onClick: () => abrirVisor({ titulo: TITULO_MATRIZ, html: matrizHTML(v) }) }, '🔍 Ver la matriz completa (todas las fases)'),
     h(Revision, { items: revisarMatriz(v) }),
+  )
+}
+
+// ─── ANEXO DE APOYO DE SERVICIO DE COMBATE (F7·P1) ──────────────────────────────────
+function EditorAnexo({ hoja = null, valor, onValor, hojas = {}, onExpediente = null, ctxDoc = {} }) {
+  const calco = useCalco()
+  const v = normalizarAnexo(valor)
+  const ev = normalizarEval(hojas?.[CLAVE_EVAL])
+  const an = analizarCalco(calco, ev.parametros)
+  const ctx = contexto({ calco, analisis: an, ev, hojas, ctxDoc })
+  const [msg, setMsg] = useState(null)
+  const ia = new Set(v.iaCampos)
+  const nombre = `${String(hoja?.num || 'F7P1').replace(/[^A-Za-z0-9]+/g, '')}_Anexo_Apoyo_de_Servicio_de_Combate`
+  const guardar = (nv) => onValor?.(normalizarAnexo(nv))
+  const setC = (k, x) => guardar({ ...v, campos: { ...v.campos, [k]: x } })
+  const revisado = (k) => guardar({ ...v, iaCampos: v.iaCampos.filter((x) => x !== k) })
+  const ctxWord = { ...ctxDoc, g: 'g4', seccion: 'E. M. G-4', firma: 'EL G-4' }
+  const registro = () => registroMilitar()?.({ id: 'anexoF7P1', num: hoja?.num || 'F7·P1' }, ctxWord) || null
+  const word = async () => {
+    const W = wordMilitar()
+    if (!W) return 'El formato militar no está disponible en esta versión de la Mesa.'
+    try {
+      const r = await W(especificacionAnexo(v, { ctx }), nombre, { ctx: ctxWord, registro: registro() })
+      return r ? `✓ Word descargado: ${nombre}.docx` : 'No se descargó el Word (se canceló el cuadro de revisión).'
+    } catch (e) {
+      return `No se pudo generar el Word: ${e?.message || e}`
+    }
+  }
+  const armar = () => {
+    const r = armarAnexo(v, ctx)
+    if (!r.cambios.length) return setMsg({ tipo: 'aviso', txt: 'No había nada nuevo que traer (no se pisa lo escrito).' })
+    guardar(r.valor)
+    setMsg({ tipo: 'ok', txt: `🌱 Se trajo: ${r.cambios.join(' · ')}.` })
+  }
+  const Panel = panelIA()
+  const otras = () => [otrasHojasG4({ evaluacion: ev, analisis: an, asl: hojas?.aprecOrientacion || hojas?.aprecActiva, ctx }), hojas?.matrizSinc ? textoMatriz(hojas.matrizSinc) : ''].filter(Boolean).join('\n\n')
+  const onPedido = async (modo) => pedidoAnexo(v, { analisis: an, otras: otras(), expediente: await expedienteDe(onExpediente), ctx, hoja, modo, encabezado: encabezadoIA() })
+  const onAplicar = (texto, modo) => {
+    const r = aplicarRespuestaAnexo(texto, v, { modo, corregir: corregirIA() })
+    if (!r.ok) return r
+    guardar(r.valor)
+    return { ok: true, msg: r.msg }
+  }
+  const campo = (id, t, num) => h(Texto, { key: id, rot: t, num, valor: v.campos[id], onCambio: (x) => setC(id, x), ia: ia.has(`campo:${id}`), onRevisado: () => revisado(`campo:${id}`) })
+  const LET = 'ABCDEFGHIJ'
+  return h(
+    'div',
+    { style: E.raiz, 'data-hoja': 'anexo-aspc' },
+    h('div', { style: E.caja }, h('div', { style: E.sub }, `${hoja?.num || 'F7·P1'} ${TITULO_ANEXO}`), h('div', { style: E.fila }, h('button', { style: E.btn, onClick: () => abrirVisor({ titulo: TITULO_ANEXO, html: anexoHTML(v, { ctx }), botones: [{ texto: '📄 Word (formato militar)', principal: true, accion: word }] }) }, '👁️ Vista previa'), h('button', { style: E.btnPrin, onClick: async () => setMsg({ tipo: 'ok', txt: await word() }) }, '📄 Word (formato militar)')), h('div', { style: E.ayuda }, 'Sale con el formato militar de la Mesa. Es un ANEXO: el cuadro de revisión pide su letra («D») y la Orden a la que pertenece.')),
+    h(Msg, { msg }),
+    h('div', { style: E.caja }, h('div', { style: E.sub }, '1 · Lo que ya tiene el ejercicio'), h('button', { style: E.btn, onClick: armar }, '🌱 Traer del calco y de mis hojas lo que falte'), h('div', { style: E.ayuda }, 'Trae del calco las áreas, las instalaciones por función y los ejes; del concepto, el apoyo por fase; de la Matriz de sincronización, el nivel de amenaza (SEGAR) y el transporte; de la Apreciación, las hipótesis. No pisa lo escrito.')),
+    h('div', { style: E.caja }, h('div', { style: E.sub }, '2 · 💡 Mis ideas (cómo quiero el apoyo)'), h('textarea', { style: E.area, rows: filasDe(v.ideas, 3), value: v.ideas, placeholder: 'Ej.: «Distribución a domicilio de Cl V en la fase II» · «Fuerza de reacción: la Cía. PM».', onChange: (e) => guardar({ ...v, ideas: e.target.value }) })),
+    Panel && h(Panel, { titulo: '🤖 Trabajar esta hoja con IA', nota: 'Le manda el expediente, lo que midió la Mesa, la apreciación, la evaluación del área, la matriz de sincronización, la doctrina y TUS IDEAS. Devuelve el anexo completo.', color: AMBAR, modos: MODOS, onPedido, onAplicar }),
+    h(BloqueAcostar, { calco }),
+    h('div', { style: E.caja }, h(Texto, { rot: 'OBJETO', valor: v.objeto, min: 1, onCambio: (x) => guardar({ ...v, objeto: x }), ia: ia.has('objeto'), onRevisado: () => revisado('objeto') }), h(Texto, { rot: 'CARTA', valor: v.carta, min: 1, onCambio: (x) => guardar({ ...v, carta: x }), ia: ia.has('carta'), onRevisado: () => revisado('carta') }), h(Texto, { rot: 'APÉNDICES (uno por renglón)', valor: v.apendices, min: 1, onCambio: (x) => guardar({ ...v, apendices: x }), ia: ia.has('apendices'), onRevisado: () => revisado('apendices') })),
+    ARBOL_ANEXO.map(([id, t, hs]) =>
+      h('div', { key: id, style: E.caja }, h('div', { style: E.parrafo }, id === 'ORG' ? t : `${id}.- ${t}`), hs.map(([cid, ct, sub], j) => (sub ? h('div', { key: cid, style: E.tarjeta }, h('div', { style: E.rot }, h('span', { style: E.numRot }, `${LET[j]}.-`), ct), sub.map(([sid, st], k) => campo(sid, st, `${k + 1}.-`))) : campo(cid, ct, id === 'ORG' || id === 'II' ? '' : `${LET[j]}.-`)))),
+    ),
+    h(Revision, { items: revisarAnexo(v) }),
   )
 }

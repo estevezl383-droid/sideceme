@@ -213,6 +213,25 @@ const caso = (nom, f) => casos.push({ nom, f })
     assert.ok(!JSON.stringify(s).includes('🤖'))
   })
 
+  caso('Anexo F7·P1: 🌱 con el calco, el concepto y la matriz (SEGAR); IA sin pisar; especificación militar', () => {
+    const r = M.armarAnexo({}, { ...ctx, hojasG4: { ...ex.hojasG.g4, matrizSinc: mz, aprecActiva: asl } })
+    const v = r.valor
+    assert.match(v.campos.concepto, /Fase I \(OCUPACIÓN \(FICT\.\)\): enfoque de apoyo en Abastecimiento Clase IV/)
+    assert.match(v.campos.segar, /Nivel II/)
+    assert.match(v.campos.epa, /EPA: 60 km/)
+    assert.match(v.campos.misionA, /DIV\.MEC\.-1/)
+    assert.match(v.apendices, /Matriz de sincronización logística/)
+    assert.equal(M.tieneHojaLog({ tipo: 'anexoLog' }, v), true)
+    const p = I.pedidoAnexo(v, { analisis: an, otras: 'OTRAS', expediente: 'EXP', ctx })
+    assert.ok(p.prompt.includes('ANEXO (APOYO DE SERVICIO DE COMBATE)') && p.prompt.includes('OTRAS'))
+    const a = I.aplicarRespuestaAnexo(JSON.stringify({ campos: { personal: 'Reemplazos por el PRR (FICT.).', misionA: 'NO debe pisar' } }), v, {})
+    assert.equal(a.valor.campos.personal, 'Reemplazos por el PRR (FICT.).')
+    assert.doesNotMatch(a.valor.campos.misionA, /NO debe pisar/)
+    const s = W.especificacionAnexo(a.valor, { ctx })
+    assert.deepEqual(s.secciones.map((x) => x.titulo), ['ORGANIZACIÓN DE LA TAREA.', 'SITUACIÓN.', 'MISIÓN.', 'EJECUCIÓN.', 'COMANDO Y COMUNICACIONES.'])
+    assert.equal(s.firma, 'EL G-4 DE LA DIV.MEC.-1 (FICT.)')
+  })
+
   caso('Reemplazos del compilado: cada uno una vez y reversibles; el compilado vigente los tiene', () => {
     const lista = require('./reemplazos-2026-10-02-logistica.js')
     const base = fs.readFileSync(path.join(__dirname, '..', 'assets', 'index-reconocimiento-20261001.js'), 'utf8')
