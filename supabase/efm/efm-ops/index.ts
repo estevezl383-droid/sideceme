@@ -56,6 +56,7 @@ const CAMPOS = [
   "flexiones_cant", "flexiones_nota", "flexiones_nota_pon",
   "barra_cant", "barra_nota",
   "aerobica_tiempo", "aerobica_nota", "aerobica_nota_pon",
+  "talla_peso_obs", "natacion_obs", "abdominales_obs", "flexiones_obs", "barra_obs", "aerobica_obs",
   "nota_final", "observaciones",
 ];
 // Notas: si vienen, tienen que ser un número entre 0 y 100.
@@ -149,7 +150,7 @@ function limpiarValores(src: any, parcial: boolean): { v: Record<string, string 
   const v: Record<string, string | null> = {};
   for (const c of CAMPOS) {
     if (parcial && !(c in (src || {}))) continue;
-    const s = txt(src?.[c], c === "observaciones" ? 500 : 40);
+    const s = txt(src?.[c], (c === "observaciones" || c.endsWith("_obs")) ? 500 : 40);
     if (s !== null && CAMPOS_NOTA.includes(c)) {
       const n = Number(s.replace(",", "."));
       if (!Number.isFinite(n) || n < 0 || n > 100) return { error: `"${c}" no es una nota valida (${s})` };

@@ -13475,12 +13475,12 @@ function htmlTarjetaEvaluacionFisica(ev, conEditar){
   const atributo = atributoCalificacion(Number(nota)||0);
   // v2.9.81: cada prueba muestra su nota cruda + la "nota más" (ponderada) que SUMA al total.
   const pruebas = [
-    {nombre:'Talla / Peso', cant: [ev.talla, ev.peso].filter(Boolean).join(' · '), nota: ev.nota_talla_peso, pon: ev.nota_talla_peso_pon},
-    {nombre:'Natación', cant: [ev.natacion_distancia, ev.natacion_tiempo].filter(Boolean).join(' · '), nota: ev.natacion_nota, pon: ev.natacion_nota_pon},
-    {nombre:'Abdominales', cant: ev.abdominales_cant, nota: ev.abdominales_nota, pon: ev.abdominales_nota_pon},
-    {nombre:'Flexiones', cant: ev.flexiones_cant, nota: ev.flexiones_nota, pon: ev.flexiones_nota_pon},
-    {nombre:'Barra (dominadas)', cant: ev.barra_cant, nota: ev.barra_nota, pon: null},
-    {nombre:'Aeróbica', cant: ev.aerobica_tiempo, nota: ev.aerobica_nota, pon: ev.aerobica_nota_pon}
+    {nombre:'Talla / Peso', cant: [ev.talla, ev.peso].filter(Boolean).join(' · '), nota: ev.nota_talla_peso, pon: ev.nota_talla_peso_pon, obs: ev.talla_peso_obs},
+    {nombre:'Natación', cant: [ev.natacion_distancia, ev.natacion_tiempo].filter(Boolean).join(' · '), nota: ev.natacion_nota, pon: ev.natacion_nota_pon, obs: ev.natacion_obs},
+    {nombre:'Abdominales', cant: ev.abdominales_cant, nota: ev.abdominales_nota, pon: ev.abdominales_nota_pon, obs: ev.abdominales_obs},
+    {nombre:'Flexiones', cant: ev.flexiones_cant, nota: ev.flexiones_nota, pon: ev.flexiones_nota_pon, obs: ev.flexiones_obs},
+    {nombre:'Barra (dominadas)', cant: ev.barra_cant, nota: ev.barra_nota, pon: null, obs: ev.barra_obs},
+    {nombre:'Aeróbica', cant: ev.aerobica_tiempo, nota: ev.aerobica_nota, pon: ev.aerobica_nota_pon, obs: ev.aerobica_obs}
   ];
   const tienePon = v => v!=null && v!=='';
   const hayPon = pruebas.some(p => tienePon(p.pon));
@@ -13518,6 +13518,7 @@ function htmlTarjetaEvaluacionFisica(ev, conEditar){
             <div>
               <div class="efm-prueba-nombre">${p.nombre}</div>
               ${p.cant ? `<div class="efm-prueba-cant">${p.cant}</div>` : ''}
+              ${p.obs ? `<div class="efm-prueba-cant" style="color:#7a4a00;font-family:inherit">📝 ${escapeHtml(p.obs)}</div>` : ''}
             </div>
             <div class="efm-prueba-nota">${p.nota||'—'}</div>
             ${tienePon(p.pon) ? `<div class="efm-prueba-pon">+${p.pon}</div>` : `<div class="efm-prueba-pon-x"></div>`}
@@ -14217,17 +14218,22 @@ function efmPintarDetalle(){
 }
 
 const _EFM_CAMPOS_FORM = [
-  ['edad','Edad'],['talla','Talla'],['peso','Peso'],['nota_talla_peso','Talla/Peso · nota'],['nota_talla_peso_pon','Talla/Peso · nota más'],
-  ['natacion_distancia','Natación · distancia'],['natacion_tiempo','Natación · tiempo'],['natacion_nota','Natación · nota'],['natacion_nota_pon','Natación · nota más'],
-  ['barra_cant','Barra · cantidad'],['barra_nota','Barra · nota'],
-  ['abdominales_cant','Abdominales · cantidad'],['abdominales_nota','Abdominales · nota'],['abdominales_nota_pon','Abdominales · nota más'],
-  ['flexiones_cant','Flexiones · cantidad'],['flexiones_nota','Flexiones · nota'],['flexiones_nota_pon','Flexiones · nota más'],
-  ['aerobica_tiempo','Aeróbica · tiempo'],['aerobica_nota','Aeróbica · nota'],['aerobica_nota_pon','Aeróbica · nota más'],
+  ['edad','Edad'],['talla','Talla'],['peso','Peso'],['nota_talla_peso','Talla/Peso · nota'],['nota_talla_peso_pon','Talla/Peso · nota más'],['talla_peso_obs','Talla/Peso · observación'],
+  ['natacion_distancia','Natación · distancia'],['natacion_tiempo','Natación · tiempo'],['natacion_nota','Natación · nota'],['natacion_nota_pon','Natación · nota más'],['natacion_obs','Natación · observación'],
+  ['barra_cant','Barra · cantidad'],['barra_nota','Barra · nota'],['barra_obs','Barra · observación'],
+  ['abdominales_cant','Abdominales · cantidad'],['abdominales_nota','Abdominales · nota'],['abdominales_nota_pon','Abdominales · nota más'],['abdominales_obs','Abdominales · observación'],
+  ['flexiones_cant','Flexiones · cantidad'],['flexiones_nota','Flexiones · nota'],['flexiones_nota_pon','Flexiones · nota más'],['flexiones_obs','Flexiones · observación'],
+  ['aerobica_tiempo','Aeróbica · tiempo'],['aerobica_nota','Aeróbica · nota'],['aerobica_nota_pon','Aeróbica · nota más'],['aerobica_obs','Aeróbica · observación'],
   ['nota_final','NOTA FINAL'],['observaciones','Observaciones']
 ];
 function _efmCampoVisible(f, k){
   if(f[k] != null && f[k] !== '') return true;
   if(k === 'nota_final' || k === 'observaciones' || k === 'edad') return true;
+  if(/_obs$/.test(k)){
+    const base = k.replace('_obs','');
+    const ref = base === 'talla_peso' ? 'nota_talla_peso' : base + '_nota';
+    return _efmCampoVisible(f, ref);
+  }
   const exc = f.categoria === 'EXCELENCIA';
   if(exc) return !(k === 'talla' || k === 'peso' || k.indexOf('talla_peso') >= 0 || /_pon$/.test(k));
   return k.indexOf('barra_') !== 0;
@@ -14358,18 +14364,18 @@ function _efmConfHtml(ev){
 // Desglose de la evaluación para el modal de firma: cada prueba con su dato, nota y "nota más".
 function _efmDetalleFirmaHtml(ev){
   const pruebas = [
-    ['Talla / Peso', [ev.talla, ev.peso].filter(Boolean).join(' · '), ev.nota_talla_peso, ev.nota_talla_peso_pon],
-    ['Natación', [ev.natacion_distancia, ev.natacion_tiempo].filter(Boolean).join(' · '), ev.natacion_nota, ev.natacion_nota_pon],
-    ['Abdominales', ev.abdominales_cant, ev.abdominales_nota, ev.abdominales_nota_pon],
-    ['Flexiones', ev.flexiones_cant, ev.flexiones_nota, ev.flexiones_nota_pon],
-    ['Barra (dominadas)', ev.barra_cant, ev.barra_nota, null],
-    ['Aeróbica', ev.aerobica_tiempo, ev.aerobica_nota, ev.aerobica_nota_pon]
+    ['Talla / Peso', [ev.talla, ev.peso].filter(Boolean).join(' · '), ev.nota_talla_peso, ev.nota_talla_peso_pon, ev.talla_peso_obs],
+    ['Natación', [ev.natacion_distancia, ev.natacion_tiempo].filter(Boolean).join(' · '), ev.natacion_nota, ev.natacion_nota_pon, ev.natacion_obs],
+    ['Abdominales', ev.abdominales_cant, ev.abdominales_nota, ev.abdominales_nota_pon, ev.abdominales_obs],
+    ['Flexiones', ev.flexiones_cant, ev.flexiones_nota, ev.flexiones_nota_pon, ev.flexiones_obs],
+    ['Barra (dominadas)', ev.barra_cant, ev.barra_nota, null, ev.barra_obs],
+    ['Aeróbica', ev.aerobica_tiempo, ev.aerobica_nota, ev.aerobica_nota_pon, ev.aerobica_obs]
   ].filter(function(p){ return (p[1] != null && p[1] !== '') || (p[2] != null && p[2] !== ''); });
   if(!pruebas.length && !ev.observaciones) return '';
   const filas = pruebas.map(function(p){
     const pon = (p[3] != null && p[3] !== '') ? '<span style="color:#7ddba0;margin-left:8px">+'+escapeHtml(p[3])+'</span>' : '';
     return '<div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--border-subtle);font-size:12.5px">'
-      + '<div><b>'+p[0]+'</b>'+(p[1] ? '<div style="font-size:11px;color:var(--text-muted)">'+escapeHtml(p[1])+'</div>' : '')+'</div>'
+      + '<div><b>'+p[0]+'</b>'+(p[1] ? '<div style="font-size:11px;color:var(--text-muted)">'+escapeHtml(p[1])+'</div>' : '')+(p[4] ? '<div style="font-size:11px;color:#f4d574">📝 '+escapeHtml(p[4])+'</div>' : '')+'</div>'
       + '<div style="white-space:nowrap;text-align:right">'+escapeHtml(p[2]==null||p[2]===''?'—':p[2])+pon+'</div></div>';
   }).join('');
   return '<div style="margin:0 0 12px;padding:8px 10px;border:1px solid var(--border-subtle);border-radius:8px">'
