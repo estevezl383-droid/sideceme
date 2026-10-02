@@ -4517,6 +4517,11 @@ body{
       </div>
     </div>
 
+    <button class="btn-mega" onclick="goEfmReportes()" style="background:linear-gradient(180deg,#2b6d8c,#1a4460);color:#fff;margin-bottom:8px">
+      <span class="mega-icon">📊</span>
+      <span>Reportes de notas — planillas EFM por ciclo y paralelo</span>
+    </button>
+
     <button class="btn-mega" onclick="goProfNuevaSancion()" style="margin-bottom:8px">
       <span class="mega-icon">📝</span>
       <span>Registrar nueva sanción</span>
@@ -4982,6 +4987,32 @@ body{
       <div class="rc-buttons" style="grid-template-columns:repeat(2,1fr)">
         <button class="rc-btn rc-btn-word" onclick="nrepIndividual('word')">📝 Word</button>
         <button class="rc-btn rc-btn-pdf"  onclick="nrepIndividual('pdf')">📄 PDF</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PLANILLAS DE ENTRENAMIENTO FÍSICO (Sección EF + evaluadores de ciclo) -->
+<section id="screen-efm-reportes" class="screen">
+  <div class="app-header">
+    <button class="back-btn" onclick="efrVolver()">←</button>
+    <div class="header-crest"><svg><use href="#crest"/></svg></div>
+    <div class="header-text"><div class="header-title">🏃 Planillas de Entrenamiento Físico</div><div class="header-sub" id="efr-sub">Notas EFM con reconocimiento del cursante</div></div>
+  </div>
+  <div class="menu-container">
+    <div class="reporte-card">
+      <div class="rc-title">📋 Planilla de calificaciones EFM</div>
+      <div class="rc-desc">Una hoja por paralelo con talla/peso, natación, abdominales, flexiones, barra y aeróbica (dato y nota), la nota final, las observaciones por prueba y el reconocimiento de cada cursante. Firma el Jefe de Entrenamiento Físico.</div>
+      <div class="rc-filters">
+        <select id="efr-eval" onchange="efrPintarInfo()"></select>
+        <select id="efr-ciclo" onchange="efrCambioCiclo()"><option value="todos">Todos los ciclos</option><option value="1ER CICLO">1er ciclo</option><option value="2DO CICLO">2do ciclo</option></select>
+        <select id="efr-paralelo" onchange="efrPintarInfo()"><option value="todos">Todos los paralelos</option></select>
+      </div>
+      <div id="efr-info" style="font-size:11.5px;color:var(--text-muted);margin:0 4px 10px"></div>
+      <div class="rc-buttons">
+        <button class="rc-btn rc-btn-word"  onclick="efrGenerar('word')">📝 Word</button>
+        <button class="rc-btn rc-btn-pdf"   onclick="efrGenerar('pdf')">📄 PDF</button>
+        <button class="rc-btn rc-btn-excel" onclick="efrGenerar('excel')">📊 Excel</button>
       </div>
     </div>
   </div>
@@ -10256,6 +10287,15 @@ function _ncBotonControl(screenId){
     r.innerHTML='<span class="mega-icon">\ud83d\udcca</span><span>Reportes de notas \u2014 planillas por unidad acad\u00e9mica y boletas</span>';
     const ref=cont.querySelector('.nc-btn-control');
     cont.insertBefore(r, ref ? ref.nextSibling : cont.firstElementChild);
+  }
+  if(!cont.querySelector('.nc-btn-efm')){
+    const e=document.createElement('button');
+    e.className='btn-mega nc-btn-efm';
+    e.style.cssText='background:linear-gradient(180deg,#2d6a4f,#1b4332);margin:0 0 8px;color:#fff';
+    e.onclick=function(){ goEfmReportes(); };
+    e.innerHTML='<span class="mega-icon">\ud83c\udfc3</span><span>Planilla de Entrenamiento F\u00edsico (EFM) \u2014 notas y reconocimientos</span>';
+    const rr=cont.querySelector('.nc-btn-reportes');
+    cont.insertBefore(e, rr ? rr.nextSibling : cont.firstElementChild);
   }
 }
 function _ncEsEvaluador(){
@@ -21091,6 +21131,251 @@ function nrepIndividual(formato){
   }catch(e){
     console.error('boleta', e);
     alert('Hubo un error generando la boleta: '+(e.message||e));
+  }
+}
+
+
+/* ============================================================================
+   PLANILLAS DE ENTRENAMIENTO FÍSICO (EFM)
+   Tcnl. Aguirre y My. Linares (sub_ef) ven todos los ciclos; Ortiz (1er) y Soto
+   (2do) solo el suyo. Misma maquinaria que la planilla académica: membrete,
+   firmas y exportación Word/PDF/Excel. Firma el Jefe de Entrenamiento Físico.
+   ============================================================================ */
+const EFR = { filas:[], cicloFijo:null, origen:null };
+const _EFR_PRUEBAS = [
+  { k:'tp',  nom:'TALLA / PESO', dato:function(e){ return [e.talla,e.peso].filter(Boolean).join(' / '); }, nota:'nota_talla_peso', pon:'nota_talla_peso_pon', obs:'talla_peso_obs' },
+  { k:'nat', nom:'NATACIÓN',     dato:function(e){ return [e.natacion_distancia,e.natacion_tiempo].filter(Boolean).join(' · '); }, nota:'natacion_nota', pon:'natacion_nota_pon', obs:'natacion_obs' },
+  { k:'bar', nom:'BARRA',        dato:function(e){ return e.barra_cant; }, nota:'barra_nota', pon:null, obs:'barra_obs' },
+  { k:'abd', nom:'ABDOMINALES',  dato:function(e){ return e.abdominales_cant; }, nota:'abdominales_nota', pon:'abdominales_nota_pon', obs:'abdominales_obs' },
+  { k:'fle', nom:'FLEXIONES',    dato:function(e){ return e.flexiones_cant; }, nota:'flexiones_nota', pon:'flexiones_nota_pon', obs:'flexiones_obs' },
+  { k:'aer', nom:'AERÓBICA',     dato:function(e){ return e.aerobica_tiempo; }, nota:'aerobica_nota', pon:'aerobica_nota_pon', obs:'aerobica_obs' }
+];
+const _EFR_CONF = { confirmada:'CONFORMIDAD', rechazada:'NO CONFORMIDAD', pendiente:'SIN RECONOCIMIENTO' };
+
+function _efrTipoTxt(t){ t = String(t||'').toUpperCase(); return t==='DIAGNOSTICA' ? 'DIAGNÓSTICA' : t; }
+function _efrEvalKey(e){ return [e.gestion||'', e.semestre||'', e.tipo_evaluacion||''].join('|'); }
+function _efrEvalTxt(e){
+  const sem = e.semestre ? (e.semestre+'° SEMESTRE') : 'HISTÓRICA';
+  return _efrTipoTxt(e.tipo_evaluacion)+' · '+sem+(e.gestion?(' · '+e.gestion):'');
+}
+
+function _efrJefeEf(){
+  const def = { nombre:'Tcnl. Danilo Hector Aguirre Clavel', cargo:'JEFE DE ENTRENAMIENTO FÍSICO DE LA ECEME.' };
+  try{
+    const p = (discData.profesores||[]).find(function(x){ return String(x.id)==='P019' && x.nombre_completo; });
+    if(p) return { nombre:((p.grado?p.grado+' ':'')+p.nombre_completo).trim(), cargo:def.cargo };
+  }catch(_){}
+  return def;
+}
+function _efrFirmas(){
+  const j = _efrJefeEf();
+  return htmlFirmasReporte()
+    .replace(escapeHtml(FIRMA_JEFE_DISCIPLINA.nombre), escapeHtml(j.nombre))
+    .replace(escapeHtml(FIRMA_JEFE_DISCIPLINA.cargo),  escapeHtml(j.cargo));
+}
+
+async function goEfmReportes(){
+  const active = document.querySelector('.screen.active');
+  if(active && active.id !== 'screen-efm-reportes') EFR.origen = active.id;
+  showScreen('screen-efm-reportes');
+  if(!discData.loaded){ try{ await loadDiscData(); }catch(e){} }
+  const info = document.getElementById('efr-info');
+  if(info) info.textContent = '⏳ Cargando notas EFM…';
+  const r = await _efmInvoke('reporte_datos');
+  if(!r.ok){ if(info) info.textContent = '❌ ' + (r.error || 'No se pudieron leer las notas EFM'); return; }
+  EFR.filas = (r.evaluaciones || []).filter(function(e){ return e.nota_final != null && e.nota_final !== ''; });
+  EFR.cicloFijo = r.ciclo_fijo || null;
+  // evaluaciones disponibles, la más reciente primero
+  const vistas = new Map();
+  EFR.filas.forEach(function(e){ const k=_efrEvalKey(e); if(!vistas.has(k)) vistas.set(k, e); });
+  const lista = [...vistas.values()].sort(function(a,b){
+    return (Number(b.gestion)||0)-(Number(a.gestion)||0) || (Number(b.semestre)||0)-(Number(a.semestre)||0)
+      || String(a.tipo_evaluacion).localeCompare(String(b.tipo_evaluacion));
+  });
+  const sel = document.getElementById('efr-eval');
+  sel.innerHTML = lista.map(function(e){ return '<option value="'+escapeAttr(_efrEvalKey(e))+'">'+escapeHtml(_efrEvalTxt(e))+'</option>'; }).join('')
+    || '<option value="">Sin evaluaciones EFM publicadas</option>';
+  const cSel = document.getElementById('efr-ciclo');
+  if(EFR.cicloFijo){ cSel.value = EFR.cicloFijo; cSel.disabled = true; } else { cSel.disabled = false; }
+  const sub = document.getElementById('efr-sub');
+  if(sub) sub.textContent = EFR.cicloFijo ? ('Notas EFM · '+EFR.cicloFijo) : 'Notas EFM con reconocimiento del cursante';
+  efrCambioCiclo();
+}
+function efrVolver(){
+  if(EFR.origen && document.getElementById(EFR.origen)) showScreen(EFR.origen);
+  else if(typeof goAnyPanel === 'function') goAnyPanel(); else goHome();
+}
+function _efrFiltradas(){
+  const key = (document.getElementById('efr-eval')||{}).value;
+  const ciclo = (document.getElementById('efr-ciclo')||{}).value || 'todos';
+  const para = (document.getElementById('efr-paralelo')||{}).value || 'todos';
+  return EFR.filas.filter(function(e){
+    if(_efrEvalKey(e) !== key) return false;
+    if(ciclo !== 'todos' && e.ciclo !== ciclo) return false;
+    if(para !== 'todos' && (e.paralelo||'') !== para) return false;
+    return e.activo !== 'False';
+  });
+}
+function efrCambioCiclo(){
+  const key = (document.getElementById('efr-eval')||{}).value;
+  const ciclo = (document.getElementById('efr-ciclo')||{}).value || 'todos';
+  const paras = [...new Set(EFR.filas.filter(function(e){ return _efrEvalKey(e)===key && (ciclo==='todos' || e.ciclo===ciclo); })
+    .map(function(e){ return e.paralelo; }).filter(Boolean))].sort();
+  const sp = document.getElementById('efr-paralelo');
+  sp.innerHTML = '<option value="todos">Todos los paralelos</option>'
+    + paras.map(function(p){ return '<option value="'+escapeAttr(p)+'">Paralelo "'+escapeHtml(p)+'"</option>'; }).join('');
+  efrPintarInfo();
+}
+function efrPintarInfo(){
+  const box = document.getElementById('efr-info'); if(!box) return;
+  const f = _efrFiltradas();
+  if(!f.length){ box.textContent = 'No hay notas para ese filtro.'; return; }
+  const n = function(est){ return f.filter(function(e){ return e.conformidad_estado===est; }).length; };
+  const sin = f.filter(function(e){ return !e.conformidad_estado; }).length;
+  box.innerHTML = f.length+' cursantes con nota<br>🟢 '+n('confirmada')+' con conformidad · 🟣 '+n('rechazada')+' sin conformidad · 🔴 '+n('pendiente')+' sin reconocer'
+    + (sin ? ' · ⚪ '+sin+' históricas (sin reconocimiento)' : '');
+}
+
+// Agrupa por ciclo + paralelo, ordenado por apellido.
+function _efrGrupos(filas){
+  const grupos = new Map();
+  filas.forEach(function(e){
+    const cur = { id:e.cursante_id, nombre_completo:e.nombre_completo, grado:e.grado, arma:e.arma, ciclo:e.ciclo, paralelo:e.paralelo };
+    const k = (e.ciclo||'—')+'||'+(e.paralelo||'');
+    if(!grupos.has(k)) grupos.set(k, { ciclo:e.ciclo||'', paralelo:e.paralelo||'', items:[] });
+    grupos.get(k).items.push({ cur:cur, ev:e });
+  });
+  const gs = [...grupos.values()];
+  gs.forEach(function(g){ g.items.sort(function(a,b){ return claveApellido(a.cur).localeCompare(claveApellido(b.cur),'es'); }); });
+  gs.sort(function(a,b){ return String(a.ciclo).localeCompare(String(b.ciclo),'es') || String(a.paralelo).localeCompare(String(b.paralelo),'es'); });
+  return gs;
+}
+// Solo las pruebas que alguien tiene cargadas (la barra es de Excelencia).
+function _efrColumnas(filas){
+  return _EFR_PRUEBAS.filter(function(p){
+    return filas.some(function(e){ return (e[p.nota]!=null && e[p.nota]!=='') || (p.dato(e)!=null && p.dato(e)!==''); });
+  });
+}
+function _efrObsTexto(e){
+  const partes = [];
+  _EFR_PRUEBAS.forEach(function(p){ if(e[p.obs]) partes.push(p.nom.charAt(0)+p.nom.slice(1).toLowerCase()+': '+e[p.obs]); });
+  if(e.observaciones) partes.push(e.observaciones);
+  return partes;
+}
+function _efrConfTxt(e){ return _EFR_CONF[e.conformidad_estado] || ''; }
+function _efrTitulo(ev){
+  return 'EVALUACIÓN DE FÍSICO MILITAR — '+_efrTipoTxt(ev.tipo_evaluacion)+(ev.semestre?(' · '+ev.semestre+'° SEMESTRE'):'')+(ev.gestion?(' · '+ev.gestion):'');
+}
+
+function htmlCuerpoPlanillaEfm(filas){
+  const hoy = new Date();
+  const fechaTxt = hoy.getDate()+' '+MESES_ESPANOL[hoy.getMonth()]+' DE '+hoy.getFullYear();
+  const gs = _efrGrupos(filas);
+  const enc = htmlEncabezadoReporte('landscape').replace('Sistema Informático de Disciplina','Sistema Informático de Evaluaciones');
+  if(!gs.length) return enc+'<p style="text-align:center;font-style:italic;padding:30pt 0">Sin cursantes para el filtro seleccionado.</p>';
+  return gs.map(function(g, gi){
+    const cols = _efrColumnas(g.items.map(function(o){ return o.ev; }));
+    const anchoP = Math.floor(52 / Math.max(1, cols.length));
+    const th = cols.map(function(p){ return '<th style="width:'+anchoP+'%">'+p.nom+'<br><span style="font-weight:400;font-size:7pt">dato · nota</span></th>'; }).join('');
+    const trs = g.items.map(function(o, i){
+      const e = o.ev;
+      const tds = cols.map(function(p){
+        const d = p.dato(e), n = e[p.nota];
+        const pon = (p.pon && e[p.pon]!=null && e[p.pon]!=='') ? ' <span style="font-size:7pt">(+'+escapeHtml(e[p.pon])+')</span>' : '';
+        return '<td class="num" style="font-size:8pt">'+(d?escapeHtml(d)+'<br>':'')+'<b>'+(n==null||n===''?'—':escapeHtml(n))+'</b>'+pon+'</td>';
+      }).join('');
+      const obs = _efrObsTexto(e).map(function(t){ return escapeHtml(t); }).join('<br>');
+      const conf = _efrConfTxt(e);
+      return '<tr><td class="num">'+(i+1)+'</td>'
+        + '<td class="left" style="font-size:8pt">'+escapeHtml(gradoApellidosNombres(o.cur))+'</td>'
+        + '<td class="num" style="font-size:8pt">'+escapeHtml(e.edad||'—')+'</td>'
+        + tds
+        + '<td class="num"><b>'+escapeHtml(e.nota_final)+'</b></td>'
+        + '<td class="left" style="font-size:7.5pt">'+(obs?obs+'<br>':'')+'<b>'+escapeHtml(conf)+'</b></td></tr>';
+    }).join('');
+    const paraDisp = g.paralelo ? (', PARALELO "'+escapeHtml(g.paralelo)+'"') : '';
+    const ev0 = g.items[0].ev;
+    return '<div'+(gi>0?' style="page-break-before:always"':'')+'>'
+      + enc
+      + '<h1 class="titulo-rep">PLANILLA DE CALIFICACIONES DE ENTRENAMIENTO FÍSICO MILITAR DE LOS OO.SUP.CC.</h1>'
+      + '<h2 class="subtitulo-rep" style="font-size:10pt">'+escapeHtml(_efrTitulo(ev0))+'</h2>'
+      + '<h2 class="subtitulo-rep">'+escapeHtml(formatCicloMayuscula(g.ciclo))+paraDisp+' — '+fechaTxt+'</h2>'
+      + '<table class="main-table"><thead><tr>'
+      +   '<th style="width:4%">N°</th><th style="width:22%">GRADO, APELLIDOS Y NOMBRES</th><th style="width:4%">EDAD</th>'
+      +   th
+      +   '<th style="width:6%">NOTA FINAL</th><th style="width:12%">OBSERVACIONES</th>'
+      + '</tr></thead><tbody>'+trs+'</tbody></table>'
+      + _efrFirmas()
+      + '</div>';
+  }).join('');
+}
+
+function exportarExcelPlanillaEfm(filas, filename){
+  if(typeof XLSX === 'undefined'){ alert('La librería de Excel no cargó.'); return false; }
+  const gs = _efrGrupos(filas);
+  if(!gs.length){ alert('Sin cursantes para el filtro seleccionado.'); return false; }
+  const hoy = new Date();
+  const fechaTxt = hoy.getDate()+' '+MESES_ESPANOL[hoy.getMonth()]+' DE '+hoy.getFullYear();
+  const j = _efrJefeEf();
+  const wb = XLSX.utils.book_new(), usados = new Set();
+  gs.forEach(function(g){
+    const cols = _efrColumnas(g.items.map(function(o){ return o.ev; }));
+    const aoa = [
+      ['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES'],
+      ['ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO "MCAL. ANDRÉS DE SANTA CRUZ" — BOLIVIA'],
+      ['PLANILLA DE CALIFICACIONES DE ENTRENAMIENTO FÍSICO MILITAR DE LOS OO.SUP.CC.'],
+      [_efrTitulo(g.items[0].ev)],
+      [formatCicloMayuscula(g.ciclo)+(g.paralelo?', PARALELO "'+g.paralelo+'"':'')+' — '+fechaTxt],
+      []
+    ];
+    const head = ['N°','GRADO, APELLIDOS Y NOMBRES','EDAD'];
+    cols.forEach(function(p){ head.push(p.nom+' · dato', p.nom+' · nota', p.nom+' · nota más', p.nom+' · observación'); });
+    head.push('NOTA FINAL','OBSERVACIONES','RECONOCIMIENTO');
+    aoa.push(head);
+    g.items.forEach(function(o,i){
+      const e = o.ev, row = [i+1, gradoApellidosNombres(o.cur), e.edad||''];
+      cols.forEach(function(p){
+        row.push(p.dato(e)||'', e[p.nota]==null?'':Number(e[p.nota]), (p.pon && e[p.pon]!=null)?Number(e[p.pon]):'', e[p.obs]||'');
+      });
+      row.push(Number(e.nota_final), e.observaciones||'', _efrConfTxt(e));
+      aoa.push(row);
+    });
+    aoa.push([]); aoa.push([]);
+    aoa.push(['', j.nombre, '', '', FIRMA_JEFE_SAC.nombre]);
+    aoa.push(['', j.cargo,  '', '', FIRMA_JEFE_SAC.cargo]);
+    aoa.push([]);
+    aoa.push(['', FIRMA_JEFE_ESTUDIOS.nombre]); aoa.push(['', FIRMA_JEFE_ESTUDIOS.cargo]);
+    aoa.push([]);
+    aoa.push(['', FIRMA_COMANDANTE.nombre]); aoa.push(['', FIRMA_COMANDANTE.cargo]);
+    aoa.push([REFERENCIA_REPORTE]);
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{wch:5},{wch:44},{wch:6}].concat(cols.reduce(function(a){ return a.concat([{wch:14},{wch:8},{wch:9},{wch:24}]); }, [])).concat([{wch:11},{wch:30},{wch:22}]);
+    let base = ('EFM '+(g.ciclo||'').slice(0,3)+' P'+(g.paralelo||'-')).slice(0,31).replace(/[\\\/\?\*\[\]:]/g,'-');
+    let nm = base, k = 2;
+    while(usados.has(nm)){ nm = (base+' '+k).slice(0,31); k++; }
+    usados.add(nm);
+    XLSX.utils.book_append_sheet(wb, ws, nm);
+  });
+  XLSX.writeFile(wb, filename+'.xlsx');
+  return true;
+}
+
+function efrGenerar(formato){
+  const filas = _efrFiltradas();
+  if(!filas.length){ alert('No hay notas EFM para ese filtro.'); return; }
+  const para = (document.getElementById('efr-paralelo')||{}).value || 'todos';
+  const ciclo = (document.getElementById('efr-ciclo')||{}).value || 'todos';
+  const filename = 'PlanillaEFM_'+_efrTipoTxt(filas[0].tipo_evaluacion).replace(/[^A-Za-z]/g,'')+'_'
+    +(filas[0].gestion||'')+'S'+(filas[0].semestre||'')+'_'
+    +(ciclo==='todos'?'todosCiclos':ciclo.slice(0,3))+'_'+(para==='todos'?'todosParalelos':('Paralelo'+String(para).replace(/[^a-zA-Z0-9]/g,'')))
+    +'_'+new Date().toISOString().slice(0,10);
+  try{
+    if(formato==='word')       exportarComoWord(htmlCuerpoPlanillaEfm(filas), filename, 'landscape');
+    else if(formato==='pdf')   exportarComoPDF(htmlCuerpoPlanillaEfm(filas), filename, 'landscape');
+    else if(formato==='excel') exportarExcelPlanillaEfm(filas, filename);
+  }catch(e){
+    console.error('planilla EFM', e);
+    alert('Hubo un error generando la planilla: '+(e.message||e));
   }
 }
 
