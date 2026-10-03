@@ -63,6 +63,13 @@ matrizSinc:       { esquema: 'matriz-sinc-log-v1', numero, fases: [{ id, nombre,
 
 y en el calco, en cada área de `ops.zonasLog`: `propuesta: 'A'` y `elegida: true`.
 
+## Tablero G-4 de la instalación y propuesta del ASDI con la PICB (03-10-2026)
+
+Tocar una instalación muestra a quién apoya (también una FT), cuánta gente y vehículos,
+cuánto consume en la operación, cuántos vehículos y viajes hacen falta y cada cuánto, en
+gráficos (📊 Tablero G-4); y en el paso 2 del ASDI la Mesa propone las áreas A, B y C con el
+CMOC. Detalle en `calcos/pruebas/TABLERO-G4-2026-10-03.md`.
+
 ## Archivos (`v1/`)
 
 - `doctrina.js` — los datos y definiciones de los tres textos, con la cita de cada uno.
@@ -72,6 +79,9 @@ y en el calco, en cada área de `ops.zonasLog`: `propuesta: 'A'` y `elegida: tru
 - `ia.js` — los pedidos a la IA y la aplicación de sus respuestas.
 - `documento.js` — la apreciación para el formato militar y los Word apaisados (con el
   Word propio de `riesgo/v1/docx.js`, que permite pintar las casillas).
+- `planeamiento.js` — perfiles de las unidades (y de una FT por sus piezas), consumos por clase según la operación, a quién apoya cada instalación, ciclo, viajes, flota y frecuencia (factores de referencia editables).
+- `asdi-picb.js` — la propuesta del ASDI / ARCE con la PICB (CMOC) y el calco; `propuesta.js` su pantalla (paso 2).
+- `graficos.js` — los gráficos del G-4 (barras, íconos de vehículos, ciclo de la jornada, dona, croquis, embudo) y la imagen PNG.
 - `editor.js`, `runtime.js` — las pantallas y el puente con la Mesa (React, el panel de IA
   `hU`, el formato militar, el catálogo `Ni`, la coordenada `Sc`, Leaflet y el calco vivo
   con las acciones para acostar).

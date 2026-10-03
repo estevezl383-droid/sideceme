@@ -239,10 +239,14 @@ const caso = (nom, f) => casos.push({ nom, f })
     // el que carga calcos/index.html (el de logística o uno armado encima, que los conserva)
     const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8')
     const vigente = fs.readFileSync(path.join(__dirname, '..', html.match(/\.\/(assets\/index-[\w-]+\.js)/)[1]), 'utf8')
+    // Los pasos posteriores de la cadena que retocan lo de logística (el tablero G-4 le suma
+    // el CMOC, agregar áreas y createPortal): el vigente tiene lo de logística CON esos retoques.
+    const posteriores = require('./reemplazos-2026-10-03-tablero-g4.js')
+    const conRetoques = (t) => posteriores.reduce((x, r2) => x.split(r2.viejo).join(r2.nuevo), t)
     for (const r of lista) {
       assert.equal(base.split(r.viejo).length - 1, r.veces, r.nombre)
       assert.ok(vig.includes(r.nuevo), r.nombre)
-      assert.ok(vigente.includes(r.nuevo), `el compilado vigente conserva: ${r.nombre}`)
+      assert.ok(vigente.includes(conRetoques(r.nuevo)), `el compilado vigente conserva: ${r.nombre}`)
     }
   })
 

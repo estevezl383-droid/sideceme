@@ -47,6 +47,7 @@ import {
 } from './modelo.js'
 import { MODOS, pedidoEval, aplicarRespuestaEval, pedidoASL, aplicarRespuestaASL, pedidoMatriz, aplicarRespuestaMatriz, otrasHojasG4, pedidoAnexo, aplicarRespuestaAnexo, textoMatriz } from './ia.js'
 import { especificacionASL, aslHTML, especificacionAnexo, anexoHTML, crearWordMatriz, crearWordEvaluacion, matrizHTML, descargar, blobDe } from './documento.js'
+import { PropuestaPICB } from './propuesta.js'
 import { useState, useEffect, jsx, jsxs, panelIA, encabezadoIA, corregirIA, wordMilitar, registroMilitar, vistaMilitar, mostrarDocx, catalogo, useCalco, accion, verEnCarta, mostrarMedidas, ocultarMedidas, medidasVisibles } from './runtime.js'
 
 function h(tipo, props, ...hijos) {
@@ -344,6 +345,8 @@ export function PasoAPaso({ hojas = {}, onHojas, onExpediente, ctxDoc = {}, orde
         h('button', { style: { ...E.chip, ...(nivel === 'arce' ? E.chipOn : {}) }, onClick: () => setNivel('arce') }, 'ARCE — soy G-4 de un Cuerpo de Ejército'),
       ),
       h('div', { style: E.ayuda }, nivel === 'asdi' ? 'Cada área: 6 a 9 km², a 12 km o más de la LC/LPR. El ARCE lo fija el CE: si lo tenés, trazalo como referencia (sin letra) y la Mesa mide la distancia de cada propuesta al escalón superior.' : 'Cada área: 9 a 12 km², a 25 km o más de la LC/LPR.'),
+      h(PropuestaPICB, { nivel, parametros: ev.parametros, onExpediente, onLlevadas: () => setMsg({ tipo: 'ok', txt: '▣ Áreas de la propuesta en el calco. Pasá al paso 3: la Mesa ya las midió.' }) }),
+      h('div', { style: E.sub }, 'O trazalas vos sobre el terreno'),
       h(
         'div',
         { style: E.fila },

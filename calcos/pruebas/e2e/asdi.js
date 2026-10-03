@@ -17,7 +17,12 @@ const unidades = page => estadoReact(page, v => Array.isArray(v) && v.some(x=>x?
    if(vista==='2d')await salir3D(page);else await entrar3D(page)
    await page.getByRole('button',{name:/G-4 LOGÍSTICA/i}).first().dispatchEvent('click')
    await page.getByRole('button',{name:/Trazar el ASDI/i}).click()
-   const pts=await aPantalla(page,[[-65.072,-17.01],[-65.063,-17.01],[-65.063,-17.021],[-65.072,-17.021]])
+   // El segundo ASDI (en 3D) va al lado del primero: desde el cambio de «editar las figuras
+   // como en Google Earth» (2026-10-03), un clic sobre el BORDE de un área ya dibujada la
+   // selecciona aunque haya una herramienta encendida (Alt + clic atraviesa la figura). Si se
+   // trazara exactamente encima, el primer clic elegiría el área anterior en vez de empezar.
+   const dx=vista==='3d'?0.02:0
+   const pts=await aPantalla(page,[[-65.072+dx,-17.01],[-65.063+dx,-17.01],[-65.063+dx,-17.021],[-65.072+dx,-17.021]])
    for(const [x,y] of pts){await page.mouse.click(x,y);await page.waitForTimeout(300)}
    if(vista==='3d'&&process.env.ASDI_CIERRE==='doble')await page.mouse.dblclick(...pts.at(-1));else await page.getByRole('button',{name:'✓ CERRAR ÁREA',exact:true}).click()
    await page.waitForTimeout(800)

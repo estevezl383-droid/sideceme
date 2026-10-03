@@ -26,6 +26,8 @@ export const jsx = (...a) => entorno.jsx(...a)
 export const jsxs = (...a) => entorno.jsxs(...a)
 const fn = (k) => (typeof entorno[k] === 'function' ? entorno[k] : null)
 export const panelIA = () => entorno.PanelIA || null
+// Un elemento de React montado en <body> (si la Mesa presta createPortal); si no, en el lugar.
+export const enBody = (el) => (typeof entorno.portal === 'function' && typeof document !== 'undefined' ? entorno.portal(el, document.body) : el)
 export const encabezadoIA = () => entorno.encabezadoIA || ''
 export const corregirIA = () => fn('corregirIA')
 export const wordMilitar = () => fn('wordMilitar')
@@ -35,13 +37,14 @@ export const mostrarDocx = () => fn('mostrarDocx')
 export const catalogo = () => fn('catalogo')
 
 // ─── El calco vivo ──────────────────────────────────────────────────────────────────
-let calco = { ops: {}, unidades: [], fasesCOA: {}, conceptoApoyo: [], misionLog: '', herramienta: null, zonaLogTipo: 'asdi' }
+let calco = { ops: {}, unidades: [], cmoc: {}, fasesCOA: {}, conceptoApoyo: [], misionLog: '', herramienta: null, zonaLogTipo: 'asdi' }
 let acciones = {}
 const subs = new Set()
 export function sincronizarLogistica(d = {}) {
   calco = {
     ops: d.ops || {},
     unidades: Array.isArray(d.unidades) ? d.unidades : [],
+    cmoc: d.cmoc && typeof d.cmoc === 'object' ? d.cmoc : {},
     fasesCOA: d.fasesCOA || {},
     conceptoApoyo: Array.isArray(d.conceptoApoyo) ? d.conceptoApoyo : [],
     misionLog: d.misionLog || '',
@@ -49,6 +52,7 @@ export function sincronizarLogistica(d = {}) {
     zonaLogTipo: d.zonaLogTipo || 'asdi',
   }
   acciones = d.acciones || {}
+  if (typeof d.portal === 'function') entorno.portal = d.portal
   for (const f of [...subs]) {
     try {
       f()
@@ -138,3 +142,61 @@ export function mostrarMedidas(analisis) {
   return true
 }
 const fmtKm2 = (x) => `${(Math.round(x * 10) / 10).toLocaleString('es')} km²`
+
+// ─── Tablero de la instalación: los flujos de apoyo acostados en la carta ──────────
+// Una flecha de la instalación a cada unidad apoyada, con el grosor por las t/día y el
+// rótulo «t/día · km · viajes».
+let capaFlujos = null
+export const flujosVisibles = () => !!capaFlujos
+export function ocultarFlujos() {
+  try {
+    capaFlujos?.remove()
+  } catch {}
+  capaFlujos = null
+}
+const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+export function mostrarFlujos(origen, destinos = []) {
+  ocultarFlujos()
+  const L = entorno.leaflet
+  const m = mapa()
+  if (!L || !m || !origen || !destinos.length) return false
+  const g = L.layerGroup()
+  const max = Math.max(1e-9, ...destinos.map((d) => d.peso || 0))
+  for (const d of destinos) {
+    if (!d.p) continue
+    const w = 2 + (6 * (d.peso || 0)) / max
+    L.polyline([[origen[1], origen[0]], [d.p[1], d.p[0]]], { color: d.color || '#ffb020', weight: w, opacity: 0.9, interactive: false }).addTo(g)
+    const mid = [(origen[1] + d.p[1]) / 2, (origen[0] + d.p[0]) / 2]
+    L.marker(mid, { interactive: false, icon: L.divIcon({ className: '', html: `<div style="white-space:nowrap;font:700 11px Arial;color:#1b1405;background:#ffc278;border:1px solid #1b1405;border-radius:4px;padding:1px 5px;transform:translate(-50%,-50%);display:inline-block">${esc(d.rot)}</div>`, iconSize: [0, 0] }) }).addTo(g)
+  }
+  g.addTo(m)
+  capaFlujos = g
+  verEnCarta([[origen], destinos.map((d) => d.p).filter(Boolean)])
+  return true
+}
+
+// ─── Propuesta del ASDI con la PICB: las áreas A, B, C acostadas en la carta ────────
+let capaPropuesta = null
+export const propuestaVisible = () => !!capaPropuesta
+export function ocultarPropuesta() {
+  try {
+    capaPropuesta?.remove()
+  } catch {}
+  capaPropuesta = null
+}
+export function mostrarPropuesta(pr, colores = {}) {
+  ocultarPropuesta()
+  const L = entorno.leaflet
+  const m = mapa()
+  if (!L || !m || !pr?.candidatos?.length) return false
+  const g = L.layerGroup()
+  for (const c of pr.candidatos) {
+    const color = colores[c.letra] || '#ffb020'
+    L.polygon(c.coords.map(([x, y]) => [y, x]), { color, weight: 3, dashArray: '8 5', fillColor: color, fillOpacity: 0.18, interactive: false }).addTo(g)
+    L.marker([c.centro[1], c.centro[0]], { interactive: false, icon: L.divIcon({ className: '', html: `<div style="white-space:nowrap;font:800 13px Arial;color:#fff;background:${color};border:2px solid #0b111a;border-radius:5px;padding:2px 6px;transform:translate(-50%,-50%);display:inline-block">ÁREA ${esc(c.letra)} · ${Math.round(c.total * 100)}</div>`, iconSize: [0, 0] }) }).addTo(g)
+  }
+  g.addTo(m)
+  capaPropuesta = g
+  verEnCarta(pr.candidatos.map((c) => c.coords))
+  return true
+}
