@@ -38,7 +38,16 @@ async function textoDocx(ruta) {
   const xs = await Promise.all(Object.keys(z.files).filter((n) => /^word\/(document|header\d*|footer\d*)\.xml$/.test(n)).map((n) => z.file(n).async('string')))
   return xs.join('\n')
 }
-const soloTexto = (xml) => xml.replace(/<w:tab\/>/g, '\t').replace(/<\/w:p>/g, '\n').replace(/<[^>]+>/g, '')
+const soloTexto = (xml) =>
+  xml
+    .replace(/<w:tab\/>/g, '\t')
+    .replace(/<\/w:p>/g, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
 // Los cuadros de la Mesa (el membrete y la autenticación del formato militar también son tablas).
 const cuadros = (xml) => xml.split('<w:tbl>').slice(1).map((t) => soloTexto(t.split('</w:tbl>')[0]).replace(/\n+/g, ' | '))
 function conCuadros(xml) {
