@@ -11,7 +11,8 @@
 //   … (pasos de construir-*.py) …
 //   index-oca-militar-20261001.js + reemplazos-2026-10-01-reconocimiento.js = index-reconocimiento-20261001.js
 //   index-reconocimiento-20261001.js + reemplazos-2026-10-02-logistica.js = index-logistica-20261002.js
-//   index-logistica-20261002.js + reemplazos-2026-10-03-estado-mayor.js = index-personal-20261003.js (el vigente)
+//   index-logistica-20261002.js + reemplazos-2026-10-03-estado-mayor.js = index-personal-20261003.js
+//   index-personal-20261003.js + reemplazos-2026-10-03-lector.js = index-lector-20261003.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -24,6 +25,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-03-lector'),
+    nombre: 'reemplazos-2026-10-03-lector',
+    // calcos/assets/index-personal-20261003.js (merge f3fd423, antes de estos cambios).
+    anterior: '7e516566aad27315745a4a86f8025097c2ddc796e5be12e83a0a4b0d3189c540',
+  },
   {
     lista: require('./reemplazos-2026-10-03-estado-mayor'),
     nombre: 'reemplazos-2026-10-03-estado-mayor',

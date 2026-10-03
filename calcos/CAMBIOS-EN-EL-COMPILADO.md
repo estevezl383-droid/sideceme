@@ -5,6 +5,56 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-03 (2) — 🤖 La respuesta de la IA se reconoce aunque no venga en JSON (`index-lector-20261003.js`)
+
+Parte de `index-personal-20261003.js`: trae todo eso y suma esto. Lo pidió Sergio con
+capturas de la F2·P13 del G-1: pegó la respuesta de la IA («Completar y mejorar») y la Mesa
+dijo «No se encontró un JSON válido»; la IA había escrito el DOCUMENTO (Markdown, «**A.-
+…**», listas numeradas) en vez del bloque JSON. La lista EXACTA de reemplazos está en
+`calcos/pruebas/reemplazos-2026-10-03-lector.js` (2); `construir-lector.js` arma el
+compilado y comprueba que deshaciéndolos se vuelve byte por byte al anterior (también lo
+comprueba `reemplazos-compilado.js`, como primer paso de la cadena).
+
+### Qué se hizo (código legible en `calcos/estado-mayor/v2/`, ver `calcos/estado-mayor/README.md`)
+
+- `lector.js`: lee la respuesta como venga — JSON; JSON reparado (saltos de línea crudos,
+  comas de más, comillas tipográficas); fragmentos de un JSON cortado; el documento escrito,
+  repartido por los títulos del formato en orden, con los CAP y las fases por su número y
+  un «B.-» sin título por su lugar. En las hojas de siempre: tabla de Markdown, dos listas,
+  «Casilla: texto».
+- El pedido de los documentos termina con «FORMATO DE TU RESPUESTA»; el de las hojas del
+  G-1 lo lleva antes de «CÓMO CONTESTAR».
+- Los CAP de la respuesta se reconocen también por su número («CAP N° 1»), así no se
+  duplican cuando la IA no devuelve su `id`.
+- El motor pasa a la carpeta `v2/` (el navegador guarda los módulos); `v1/` queda para el
+  compilado anterior.
+
+### Qué se tocó en el compilado (2 reemplazos)
+
+- Los `import` del motor: `../estado-mayor/v1/` → `../estado-mayor/v2/`, y `rescatarHoja`
+  (`SIDEMRescatar`).
+- `dU` (la respuesta de la IA de las hojas de trabajo de siempre, de TODAS las secciones):
+  si no hay JSON, `SIDEMRescatar(i,e,KS(e,a,n))` antes de dar el error (que ahora dice qué
+  hacer).
+
+### En el fuente
+
+- En `dU`, antes del error de «no hay JSON», llamar a `rescatarHoja` de
+  `calcos/estado-mayor/v2/registro.js`; montar el motor desde `v2`.
+
+### Cómo se comprobó
+
+- `node estado-mayor.cjs` (31 casos): suma la respuesta escrita como documento
+  (`respuesta-prosa-personal.md`: cada apartado, los dos CAP sin duplicar, las fases, las
+  ventajas, las recomendaciones numeradas, sin negritas; «Sólo completar» no pisa), el JSON
+  con saltos de línea crudos, comas de más y comillas tipográficas, el JSON cortado, el
+  error sin JSON ni títulos, el «FORMATO DE TU RESPUESTA» al final del pedido, las hojas de
+  siempre con tabla, listas y casillas, y el `dU` REAL del compilado vigente con la tabla.
+- `node e2e/personal.cjs` en Chromium, escritorio y teléfono: además de lo anterior, en la
+  F2·P13 «Completar y mejorar» con la respuesta escrita (entra apartado por apartado, dos
+  CAP) y en la F2·P3 una tabla de Markdown. Las demás e2e y pruebas de Node siguen pasando;
+  `reemplazos-compilado.js` pasa los pasos nuevos y conserva los 10 fallos históricos.
+
 ## 2026-10-03 — 👥 G-1 Personal: todas sus hojas se trabajan con guía, 🌱 calco, IA y Word militar (`index-personal-20261003.js`)
 
 Parte de `index-logistica-20261002.js`: trae todo eso y suma esto. Lo pidió Sergio con

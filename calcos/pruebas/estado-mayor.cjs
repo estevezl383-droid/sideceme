@@ -1,4 +1,4 @@
-// Pruebas del motor de documentos de Estado Mayor (calcos/estado-mayor/v1) con el G-1:
+// Pruebas del motor de documentos de Estado Mayor (calcos/estado-mayor/v2) con el G-1:
 //   · la FORMA: la Apreciación y el Anexo de Personal tienen todos los apartados de los
 //     modelos de la Escuela que están en el catálogo del formato militar, en orden;
 //   · el MOTOR: normalizar, 🌱 sin pisar, partir de la F1·P3, revisión, texto, Word
@@ -25,10 +25,10 @@ const casos = []
 const caso = (nombre, f) => casos.push([nombre, f])
 
 ;(async () => {
-  const M = await import(url('estado-mayor/v1/motor.js'))
-  const G = await import(url('estado-mayor/v1/campos/g1.js'))
-  const R = await import(url('estado-mayor/v1/registro.js'))
-  const RT = await import(url('estado-mayor/v1/runtime.js'))
+  const M = await import(url('estado-mayor/v2/motor.js'))
+  const G = await import(url('estado-mayor/v2/campos/g1.js'))
+  const R = await import(url('estado-mayor/v2/registro.js'))
+  const RT = await import(url('estado-mayor/v2/runtime.js'))
   const { catalogo } = await import(url('formato-militar/v1/catalogo.js'))
   const G1 = G.default
   const { APREC, ANEXO } = G
@@ -248,6 +248,102 @@ const caso = (nombre, f) => casos.push([nombre, f])
     assert.match(t, /Partes e informes\. Parte diario/)
   })
 
+  // ── EL LECTOR: la IA no contestó en JSON ──────────────────────────────────────────
+  const L = await import(url('estado-mayor/v2/lector.js'))
+  const prosa = fs.readFileSync(path.join(__dirname, 'respuesta-prosa-personal.md'), 'utf8')
+  caso('la IA escribió el DOCUMENTO (Markdown, I.- A.- 1.-, negritas, listas): cada parte cae en su apartado', () => {
+    const base = M.armar(APREC, {}, G.propuestasAprec(ctx())).valor
+    const r = M.aplicarRespuesta(APREC, prosa, base, { modo: 'completar_mejorar' })
+    assert.ok(r.ok, r.error)
+    assert.equal(r.como, 'documento')
+    assert.match(r.msg, /se leyó el documento por sus títulos/)
+    const c = r.valor.campos
+    assert.equal(c.tareasEsp, '- Evacuar los PP.GG. hasta el DPG del CE.')
+    assert.equal(c.tareasImp, '1. Solicitar reemplazos.\n2. Coordinar la evacuación con el G-4.')
+    assert.equal(c.limitaciones, 'No emplear mano de obra civil al norte del río Z.')
+    assert.match(c.mision, /^El G-1 de la DIV.MEC.-1 mantiene/)
+    assert.equal(c.refuerzosPropios, 'Sin refuerzos asignados.', 'Refuerzos de la situación propia')
+    assert.equal(c.refuerzos, 'Una compañía de PM del CE.', 'Refuerzos del mantenimiento del efectivo')
+    assert.equal(c.factibilidad, 'La operación PUEDE ser apoyada desde el punto de vista del personal.', '«A.-» sin título: por su orden')
+    assert.equal(c.mejorCap, 'El CAP N° 1 es el mejor apoyado.')
+    assert.match(c.problemas, /3\. INSTRUIR a los comandantes de unidad/)
+    assert.ok(!/\*\*/.test(JSON.stringify(c)), 'sin las negritas de Markdown')
+    assert.equal(r.valor.caps.length, 2, 'los dos CAP, sin duplicar')
+    const [c1, c2] = r.valor.caps
+    assert.equal(c1.id, base.caps[0].id, 'el CAP N° 1 es el mismo (por su número)')
+    assert.equal(c1.fases[0].valores.mantenimiento, 'Bajas previstas 957 (14,9 %).')
+    assert.equal(c1.fases[0].valores.administracion, '120 PP.GG. previstos.')
+    assert.equal(c1.fases[1].valores.mantenimiento, '443 bajas.')
+    assert.equal(c1.ventajas, 'Un solo EPE.')
+    assert.equal(c2.desventajas, 'dos rutas de evacuación.')
+    assert.equal(c2.fases[0].valores.mantenimiento, '700 bajas.')
+  })
+  caso('«Sólo completar» con el documento escrito tampoco pisa', () => {
+    const base = M.armar(APREC, {}, G.propuestasAprec(ctx())).valor
+    const r = M.aplicarRespuesta(APREC, prosa, base, { modo: 'completar' })
+    assert.ok(r.ok, r.error)
+    assert.equal(r.valor.campos.objeto, base.campos.objeto)
+    assert.equal(r.valor.campos.mision, base.campos.mision)
+    assert.equal(r.valor.campos.terrenoCCMM, 'el frío nocturno eleva las pérdidas fuera de combate.')
+  })
+  caso('JSON con saltos de línea dentro de los textos, comas de más y comillas tipográficas', () => {
+    const j = 'Claro, acá va:\n```json\n{ "campos": { "mision": "Renglón 1\nRenglón 2 con “comillas”", "partes": "Parte a las 1800", }, }\n```\nEspero que sirva.'
+    const r = M.aplicarRespuesta(ANEXO, j, {}, { modo: 'completar' })
+    assert.ok(r.ok, r.error)
+    assert.equal(r.como, 'json-reparado')
+    assert.equal(r.valor.campos.mision, 'Renglón 1\nRenglón 2 con “comillas”')
+    const q = M.aplicarRespuesta(ANEXO, '{ “campos”: { “partes”: “Diario” } }', {}, {})
+    assert.ok(q.ok, q.error)
+    assert.equal(q.valor.campos.partes, 'Diario')
+  })
+  caso('JSON cortado por el largo: se toma lo que se pueda leer', () => {
+    const r = M.aplicarRespuesta(ANEXO, '```json\n{ "campos": { "partes": "Parte diario (FICT.).", "comando": "PC en PUEBLO-X", "comunicaciones": "IOC N', {}, {})
+    assert.ok(r.ok, r.error)
+    assert.equal(r.como, 'fragmentos')
+    assert.equal(r.valor.campos.partes, 'Parte diario (FICT.).')
+    assert.equal(r.valor.campos.comando, 'PC en PUEBLO-X')
+    assert.match(r.msg, /venía cortado/)
+  })
+  caso('una respuesta sin JSON ni títulos da un error que dice qué hacer', () => {
+    const r = M.aplicarRespuesta(APREC, 'Lo siento, no puedo ayudar con eso.', {}, {})
+    assert.equal(r.ok, false)
+    assert.match(r.error, /No se reconoció la respuesta/)
+  })
+  caso('el pedido termina diciendo cómo contestar (y que el documento escrito también se lee)', () => {
+    const p = M.pedido(APREC, {}, { seccion: 'X', producto: 'Y' })
+    const i = p.prompt.lastIndexOf('# FORMATO DE TU RESPUESTA')
+    assert.ok(i > p.prompt.lastIndexOf('# CÓMO CONTESTAR'), 'va al final')
+    assert.match(p.prompt.slice(i), /SÓLO el bloque de código ```json/)
+    assert.match(p.prompt.slice(i), /MISMOS títulos y la MISMA numeración/)
+  })
+  caso('hojas de siempre sin JSON: tabla de Markdown, dos listas y «Casilla: texto»', () => {
+    const cols = ['Tarea', 'Tipo', 'De dónde sale', 'Quién la ejecuta']
+    const tabla = 'Acá están:\n\n| **Tarea** | Tipo | De dónde sale | Quién la ejecuta |\n|---|---|---|---|\n| Evacuar PP.GG. | Implícita | ECEM 15-08 | PM |\n| Solicitar reemplazos | Específica | Orden N° 3 | G-1 |\n'
+    assert.deepEqual(L.rescatarHoja(tabla, { cols }, { forma: 'filas', cols }), [
+      { Tarea: 'Evacuar PP.GG.', Tipo: 'Implícita', 'De dónde sale': 'ECEM 15-08', 'Quién la ejecuta': 'PM' },
+      { Tarea: 'Solicitar reemplazos', Tipo: 'Específica', 'De dónde sale': 'Orden N° 3', 'Quién la ejecuta': 'G-1' },
+    ])
+    const dl = '**🔵 HECHOS (verificados)**\n- El CE asigna 300 reemplazos.\n- Hay tres fases.\n\n**🟡 SUPOSICIONES (a confirmar)**\n1. Los reemplazos llegan el D+1.\n'
+    assert.deepEqual(L.rescatarHoja(dl, { cols: ['🔵 HECHOS (verificados)', '🟡 SUPOSICIONES (a confirmar)'] }, { forma: 'dosListas' }), { a: ['El CE asigna 300 reemplazos.', 'Hay tres fases.'], b: ['Los reemplazos llegan el D+1.'] })
+    const claves = ['Lo que este campo APORTA a la potencia propia', 'Conclusión para el planeamiento'].map((k) => ({ k, rot: k, tipo: 'texto' }))
+    const ob = '**Lo que este campo APORTA a la potencia propia:** 6.446 hombres.\n**Conclusión para el planeamiento:**\nSe sostiene con reemplazos.'
+    assert.deepEqual(L.rescatarHoja(ob, {}, { forma: 'objeto', claves }), { 'Lo que este campo APORTA a la potencia propia': '6.446 hombres.', 'Conclusión para el planeamiento': 'Se sostiene con reemplazos.' })
+    assert.deepEqual(L.rescatarHoja('[{"Tarea": "A\nB"}]', { cols }, { forma: 'filas', cols }), [{ Tarea: 'A\nB' }], 'JSON con salto crudo')
+    assert.equal(L.rescatarHoja('nada', { cols }, { forma: 'filas', cols }), null)
+  })
+  caso('el gancho en dU del compilado vigente: una tabla de Markdown entra en la hoja de renglones', () => {
+    const html = fs.readFileSync(path.join(RAIZ, 'index.html'), 'utf8')
+    const vig = path.join(RAIZ, html.match(/\.\/(assets\/index-[\w-]+\.js)/)[1])
+    const ctxDU = cargarConDependencias(vig, ['dU'], (c) => c.dU('[{"Tarea":"x"}]', { id: 'tareas', tipo: 'filas', cols: ['Tarea'] }), { SIDEMRescatar: R.rescatarHoja, SIDLogEs: () => false })
+    const hoja = { id: 'tareas', tipo: 'filas', cols: ['Tarea', 'Tipo', 'De dónde sale', 'Quién la ejecuta'] }
+    const r = ctxDU.dU('| Tarea | Tipo |\n|---|---|\n| Evacuar PP.GG. | Implícita |', hoja)
+    assert.ok(r.ok, r.error)
+    assert.deepEqual(JSON.parse(JSON.stringify(r.datos)), [{ Tarea: 'Evacuar PP.GG.', Tipo: 'Implícita' }])
+    const e = ctxDU.dU('Lo siento.', hoja)
+    assert.equal(e.ok, false)
+    assert.match(e.error, /No se reconoció la respuesta/)
+  })
+
   // ── LAS HOJAS DE TRABAJO DE SIEMPRE ───────────────────────────────────────────────
   const hoja = (id, tipo, extra = {}) => ({ id, tipo, ...extra })
   caso('las hojas del G-1 tienen guía y la IA la recibe con la doctrina', () => {
@@ -317,7 +413,8 @@ const caso = (nombre, f) => casos.push([nombre, f])
     // el que carga calcos/index.html (éste o uno armado encima, que los conserva)
     const html = fs.readFileSync(path.join(RAIZ, 'index.html'), 'utf8')
     const vigente = fs.readFileSync(path.join(RAIZ, html.match(/\.\/(assets\/index-[\w-]+\.js)/)[1]), 'utf8')
-    for (const r of lista) assert.ok(vigente.includes(r.nuevo), `el compilado vigente conserva: ${r.nombre}`)
+    // (los imports de la v1 los cambió la lista del lector a la v2: ésos los verifica la cadena)
+    for (const r of lista) if (!r.nuevo.includes('../estado-mayor/v1/')) assert.ok(vigente.includes(r.nuevo), `el compilado vigente conserva: ${r.nombre}`)
   })
   caso('ningún gancho cae DENTRO de lo que insertaron las listas anteriores (el G-4 y los demás quedan enteros)', () => {
     const viejo = fs.readFileSync(compilado, 'utf8')

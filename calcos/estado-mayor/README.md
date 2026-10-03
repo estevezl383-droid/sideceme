@@ -54,10 +54,32 @@ los modelos de la Escuela), **el formato del documento** (cada apartado con su n
 instrucción del modelo y la clave del JSON), el documento como está, **las ideas del
 oficial** (al final, donde más pesa), la tarea, cómo contestar y la verificación final.
 
+## Si la IA no contesta en JSON (03-10-2026, `v2/lector.js`)
+
+Sergio pegó en la F2·P13 la respuesta de la IA y la Mesa dijo «No se encontró un JSON
+válido»: la IA había escrito el DOCUMENTO (títulos en Markdown, «**A.- …**», listas
+numeradas) en vez del bloque JSON. Ahora:
+
+- **El pedido termina con «FORMATO DE TU RESPUESTA»** (lo último que lee la IA): sólo el
+  bloque ```json, los saltos de línea como `\n`, qué hacer si no entra entero, y que si no
+  puede contestar en JSON escriba el documento con los MISMOS títulos y numeración.
+- **La Mesa lee la respuesta como venga**, en este orden: el JSON tal cual; el JSON
+  **reparado** (saltos de línea crudos dentro de los textos, comas de más, comillas
+  tipográficas); los **fragmentos** de un JSON cortado por el largo; y el **documento
+  escrito**, que se reparte por los títulos del formato (en orden, así «Refuerzos.» de la
+  situación propia no se confunde con el del mantenimiento del efectivo), los CAP y las
+  fases por su número («CAP N° 1», «Fase I»), un «B.-» sin título por su lugar, y lo demás
+  como texto del apartado (sin las negritas). El mensaje dice cómo se leyó, para revisar.
+- **Las hojas de trabajo de siempre de TODAS las secciones** (el `dU` del compilado):
+  antes de dar el error prueban el JSON reparado, la **tabla de Markdown** (renglones), las
+  **dos listas** debajo de sus títulos y «**Casilla: texto**».
+- El motor pasó a `v2/` (carpeta nueva para que el navegador baje los módulos nuevos);
+  `v1/` queda para el compilado anterior.
+
 ## Cómo está hecho
 
 ```
-estado-mayor/v1/
+estado-mayor/v2/   (v1/ es la versión anterior, la del compilado index-personal-20261003.js)
   motor.js        el documento genérico: árbol del modelo, normalizar, 🌱 sin pisar, partir de,
                   revisión, texto, especificación del Word militar (numeración I.- A.- 1.- a.-,
                   CAP y fases, cuadros), HTML, pedido y respuesta de la IA
@@ -66,6 +88,8 @@ estado-mayor/v1/
                   textoDocumento, guiaIA, pedidoHoja, sembrarHoja
   runtime.js      lo que presta la Mesa (React, hU, Qq, uU, Mx, Ni, Sc, iC, voe) y el calco vivo
   editor.js       <EditorDocumento> y <AyudaHoja> (guía y 🌱 de las hojas de siempre)
+  lector.js       lee la respuesta de la IA: JSON, JSON reparado, fragmentos, el documento
+                  escrito por sus títulos; y en las hojas de siempre, tabla, listas y casillas
   campos/g1.js    TODO lo del G-1: los dos documentos (copian el catálogo), doctrina, lo que
                   sabe del calco, lo que trae 🌱, las guías y semillas de las hojas de trabajo
 ```
@@ -80,7 +104,7 @@ anexo: { esquema: 'anexo-personal-v1', numero, campos: { objeto, carta, apendice
 ### Para sumar otra sección (G-5, EME…)
 
 Escribir `campos/<g>.js` con la forma de `campos/g1.js` y agregarla a `CAMPOS` en
-`registro.js`. Los ganchos del compilado son genéricos: **no hace falta otro compilado**
+`registro.js` (en una carpeta de versión nueva, `v3/`, copia de `v2/`). Los ganchos del compilado son genéricos: **no hace falta otro compilado**
 salvo para versionar la carpeta (ver el skill `.claude/skills/habilitar-hojas-seccion/`).
 
 ## Qué es de la doctrina y qué es criterio de la Mesa
@@ -102,11 +126,13 @@ salvo para versionar la carpeta (ver el skill `.claude/skills/habilitar-hojas-se
 
 ```bash
 cd calcos/pruebas
-node estado-mayor.cjs           # forma vs catálogo, motor, G-1 con la cuenta REAL de bajas, IA, hojas, reemplazos
-node e2e/personal.cjs           # la Mesa real en Chromium, escritorio y teléfono
-node construir-estado-mayor.js  # vuelve a armar el compilado (y comprueba que es reversible)
+node estado-mayor.cjs           # forma vs catálogo, motor, G-1 con la cuenta REAL de bajas, IA, lector, hojas, reemplazos
+node e2e/personal.cjs           # la Mesa real en Chromium, escritorio y teléfono (también con la respuesta escrita, no JSON)
+node construir-estado-mayor.js  # arma index-personal-20261003.js (y comprueba que es reversible)
+node construir-lector.js        # arma index-lector-20261003.js encima (el vigente)
 ```
 
 `personal-ejemplo.js` tiene un ejercicio FICTICIO (División en la ofensiva, tres fases) y
-respuestas de IA de ejemplo. Las capturas y los Word de la prueba quedan en
+respuestas de IA de ejemplo; `respuesta-prosa-personal.md`, una respuesta escrita como
+documento (como la que mostró Sergio). Las capturas y los Word de la prueba quedan en
 `pruebas/salidas-personal/` (no se versionan).
