@@ -236,11 +236,14 @@ const caso = (nom, f) => casos.push({ nom, f })
     const lista = require('./reemplazos-2026-10-02-logistica.js')
     const base = fs.readFileSync(path.join(__dirname, '..', 'assets', 'index-reconocimiento-20261001.js'), 'utf8')
     const vig = fs.readFileSync(path.join(__dirname, '..', 'assets', 'index-logistica-20261002.js'), 'utf8')
+    // el que carga calcos/index.html (el de logística o uno armado encima, que los conserva)
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8')
+    const vigente = fs.readFileSync(path.join(__dirname, '..', html.match(/\.\/(assets\/index-[\w-]+\.js)/)[1]), 'utf8')
     for (const r of lista) {
       assert.equal(base.split(r.viejo).length - 1, r.veces, r.nombre)
       assert.ok(vig.includes(r.nuevo), r.nombre)
+      assert.ok(vigente.includes(r.nuevo), `el compilado vigente conserva: ${r.nombre}`)
     }
-    assert.match(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8'), /index-logistica-20261002\.js/)
   })
 
   let fallos = 0
