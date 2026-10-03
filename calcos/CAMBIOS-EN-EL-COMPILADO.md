@@ -5,6 +5,40 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-03 (4) — 📍 Las coordenadas acarrean los segundos: no más «60"» (`index-coordenadas-20261003.js`)
+
+Parte de `index-g5-20261003.js`: trae todo eso y suma esto. Al mirar los Word del G-5
+apareció «68°20'60"O»; `Sc` (la coordenada en grados, minutos y segundos que la Mesa escribe
+en los documentos, los Word, los paneles y los pedidos a la IA) redondeaba los segundos sin
+acarrear al minuto, ni el minuto al grado. La lista EXACTA está en
+`calcos/pruebas/reemplazos-2026-10-03-coordenadas.js` (1); `construir-coordenadas.js` arma el
+compilado y comprueba que deshaciéndolo se vuelve byte por byte al anterior (también lo
+comprueba `reemplazos-compilado.js`, como primer paso de la cadena).
+
+### Qué se tocó en el compilado (1 reemplazo)
+
+- `Sc`: redondea primero a segundos TOTALES (`Math.round(Math.abs(a)*3600)`) y recién
+  después parte en grados, minutos y segundos. -68,35 sale «68°21'00"O»; lo que ya salía
+  bien no cambia. Es la única copia de esa cuenta en el compilado (el plan de fuegos tiene
+  la suya en `calcos/fuegos/plan-fuegos.js` y ya acarreaba).
+
+### En el fuente
+
+- La misma cuenta en la función que da la coordenada en grados, minutos y segundos.
+
+### Cómo se comprobó
+
+- `node coordenadas.cjs`: con la función TEXTUAL del compilado, el caso de los Word
+  (-68,35; el compilado anterior escribía «68°20'60"O»), el acarreo del minuto al grado,
+  una grilla fina alrededor de cada segundo (±0,4") en varios grados y 20.000 coordenadas
+  al azar: ninguna con «60"» ni «60'», y cada una leída de vuelta queda a medio segundo. La
+  misma grilla encuentra el fallo en el compilado anterior. El reemplazo aparece una vez, se
+  deshace byte por byte y no cae dentro de lo que insertaron las listas anteriores.
+- `node e2e/g5.cjs`: el Word del Anexo de AC/GM trae «17°00'00"S 68°21'00"O» para el PC de
+  AC/GM y ninguna coordenada con 60. Las demás pruebas de Node y las e2e de G-1, logística,
+  reconocimiento, riesgo y conceptos siguen pasando; `reemplazos-compilado.js` pasa el paso
+  nuevo y conserva los 10 fallos históricos.
+
 ## 2026-10-03 (3) — 🏛️ G-5 Asuntos Civiles / GM: todas sus hojas se trabajan con guía, 🌱 calco, IA y Word militar (`index-g5-20261003.js`)
 
 Parte de `index-lector-20261003.js`: trae todo eso y suma esto. Lo pidió Sergio con

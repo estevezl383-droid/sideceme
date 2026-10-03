@@ -243,6 +243,9 @@ const PROSA = fs.readFileSync(path.join(__dirname, '..', 'respuesta-prosa-g5.md'
         assert.ok(xAx.includes(t), `el Word del anexo no trae «${t}»`)
       conCuadros(xAxXml)
       assert.ok(!/🤖|🏥|🚸/.test(xAx), 'sin emojis en el Word')
+      // las coordenadas acarrean los segundos (el PC de AC/GM está en -68,35: «68°21'00"O»)
+      assert.ok(xAx.includes('17°00\'00"S 68°21\'00"O'), 'la coordenada del PC de AC/GM')
+      assert.ok(!/\d°\d{2}'60"|°60'/.test(xAx), 'ninguna coordenada con 60')
 
       // ── El avance y el guardado ──
       await volver()
