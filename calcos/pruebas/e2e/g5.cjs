@@ -143,6 +143,31 @@ const PROSA = fs.readFileSync(path.join(__dirname, '..', 'respuesta-prosa-g5.md'
       assert.ok(vs.includes('El LDS funciona en el Coliseo PUEBLO-Z (FICT.)'), 'la tabla de Markdown entró como renglón')
       await volver()
 
+      // ── F2·P3 Tareas con «Completar y mejorar» y una indicación (la captura de Sergio):
+      //    el pedido termina con el formato y el recordatorio; la respuesta en PÁRRAFOS y
+      //    la tabla COPIADA DE LA PANTALLA (tabuladores) entran igual ──
+      await clic(panel.getByRole('button', { name: /F2·P3.*Tareas específicas/ }))
+      await panel.locator('[data-em="ayuda-hoja"]').waitFor()
+      await clic(panel.getByRole('button', { name: '🤖 Trabajar esta hoja con IA' }))
+      await clic(panel.getByRole('button', { name: 'Completar y mejorar' }))
+      await panel.locator('textarea[placeholder^="Ej.: «Trabajá sólo"]').fill('Escribilo para exponer en 3 minutos')
+      const pm = await pedidoIA(panel)
+      const [iC, iF, iI, iR] = ['# CÓMO CONTESTAR', '# FORMATO DE TU RESPUESTA', '# INDICACIÓN DEL OFICIAL', '# EL FORMATO DE TU RESPUESTA NO CAMBIA'].map((t) => pm.lastIndexOf(t))
+      assert.ok(iC > 0 && iF > iC && iI > iF && iR > iI, `orden del final del pedido: ${[iC, iF, iI, iR]}`)
+      assert.ok(pm.slice(iF).includes('| Tarea | Tipo | De dónde sale | Quién la ejecuta |'), 'la cabecera exacta de la tabla')
+      assert.ok(pm.endsWith('ese estilo va DENTRO de los textos.'), 'lo último es el recordatorio')
+      const COLA = 'Permite la obtención de información local oportuna, neutraliza posibles infiltraciones en el área de servicios y consolida el control gubernamental de la retaguardia. SIN DATO – verificar nombres de autoridades originarias designadas.'
+      await aplicarIA(panel, `Claro, mi Coronel. Las tareas para exponer:\n\n**1. Establecer el enlace con las autoridades originarias de PUEBLO-X (Implícita).**\n${COLA}\n\n**2. Mantener el orden público en PUEBLO-X durante la ruptura (Esencial).**\nSin él, la población interfiere con el ataque.`)
+      await esperar(page, async () => (await vals(panel)).join('\n').includes('designadas.'))
+      vs = (await vals(panel)).join('\n')
+      assert.ok(vs.includes('Establecer el enlace con las autoridades originarias de PUEBLO-X. Permite la obtención'), 'la respuesta en párrafos entró')
+      assert.ok(!(await panel.getByText(/No se reconoció la respuesta/).count()), 'sin el error de la captura')
+      await clic(panel.getByRole('button', { name: 'Sólo completar' }))
+      await aplicarIA(panel, 'Tarea\tTipo\tDe dónde sale\tQuién la ejecuta\nHabilitar el segundo LDS en el Coliseo PUEBLO-Z (FICT.)\tImplícita\tPrevisión de evacuación\tSección de AC')
+      await esperar(page, async () => (await vals(panel)).join('\n').includes('Habilitar el segundo LDS en el Coliseo PUEBLO-Z (FICT.)'))
+      assert.ok((await vals(panel)).join('\n').includes('Habilitar el segundo LDS en el Coliseo PUEBLO-Z (FICT.)'), 'la tabla copiada de la pantalla entró')
+      await volver()
+
       // ── F1·P3 Apreciación de Situación de AC/GM ──
       await clic(panel.getByRole('button', { name: /F1·P3.*Apreciación Activa de AC\/GM/ }))
       const ap = panel.locator('[data-em-doc="aprecActiva"]')
@@ -158,7 +183,8 @@ const PROSA = fs.readFileSync(path.join(__dirname, '..', 'respuesta-prosa-g5.md'
       await clic(ap.getByRole('button', { name: '🌱 Traer del calco y de mis hojas lo que falte' }))
       await ap.getByText(/Se trajo:/).waitFor()
       vs = (await vals(ap)).join('\n')
-      for (const t of ['Mantener el orden público en PUEBLO-X durante la ruptura (FICT.)', 'No emplear mano de obra civil al norte del río Z (FICT.)', 'La población no interfiere con el ataque nocturno (FICT.)', 'El G-5 de la DIV.MEC.-1 (FICT.) mantiene el orden público', '12.600 habitantes en 4 centro(s) poblado(s)', '3780 personas', 'Faltan 23 albergue(s)', 'EXPLOTABLE 13, PROTEGIDO 3, NEGADO 2', 'Hospital PUEBLO-X (FICT.)', 'BRIG. BL. ROJA (FICT.)', 'Fase I — RUPTURA (FICT.)', 'El LDS funciona en el Coliseo PUEBLO-Z (FICT.)', 'CAP N° 1 — ataque por el norte (FICT.)', 'Un solo eje humanitario (FICT.).', 'Sí, evacuando el D-1 (FICT.).', 'Especial PUEBLO-X (FICT.)'])
+      // (la F2·P3 la reescribió la IA con «Completar y mejorar»: la tarea esencial es la suya)
+      for (const t of ['Mantener el orden público en PUEBLO-X durante la ruptura. Sin él, la población interfiere con el ataque.', 'No emplear mano de obra civil al norte del río Z (FICT.)', 'La población no interfiere con el ataque nocturno (FICT.)', 'El G-5 de la DIV.MEC.-1 (FICT.) mantiene el orden público', '12.600 habitantes en 4 centro(s) poblado(s)', '3780 personas', 'Faltan 23 albergue(s)', 'EXPLOTABLE 13, PROTEGIDO 3, NEGADO 2', 'Hospital PUEBLO-X (FICT.)', 'BRIG. BL. ROJA (FICT.)', 'Fase I — RUPTURA (FICT.)', 'El LDS funciona en el Coliseo PUEBLO-Z (FICT.)', 'CAP N° 1 — ataque por el norte (FICT.)', 'Un solo eje humanitario (FICT.).', 'Sí, evacuando el D-1 (FICT.).', 'Especial PUEBLO-X (FICT.)'])
         assert.ok(vs.includes(t), `apreciación armada: falta «${t}»`)
       await ap.locator('textarea[placeholder^="Ej.: «Lo crítico es la evacuación"]').fill('Lo crítico es la evacuación de PUEBLO-X en la fase I. Prefiero el CAP N° 1 (FICT.).')
       await clic(ap.getByRole('button', { name: '🤖 Trabajar esta hoja con IA' }))

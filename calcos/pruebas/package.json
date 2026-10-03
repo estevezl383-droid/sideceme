@@ -3,7 +3,7 @@
   "private": true,
   "description": "Pruebas sobre el compilado de la Mesa del EM (calcos/assets) y los módulos de estudio (calcos/academico), del plan de fuegos (calcos/fuegos), de la hoja de conceptos entrelazados (calcos/conceptos), de la matriz de administración del riesgo (calcos/riesgo), de la orden de reconocimiento (calcos/reconocimiento), de la logística del G-4 (calcos/logistica) y del motor de documentos de Estado Mayor con el G-1 y el G-5 (calcos/estado-mayor). e2e: Chromium con Playwright.",
   "scripts": {
-    "test": "node ht19-autollenado.js && node fichas-fuera-del-agua.js && node academico-modelo.js && node simbologia-referencias.js && node plan-fuegos-modelo.js && node conceptos.cjs && node riesgo.cjs && node reconocimiento.cjs && node logistica.cjs && node estado-mayor.cjs && node estado-mayor-g5.cjs && node coordenadas.cjs && node reemplazos-compilado.js",
+    "test": "node ht19-autollenado.js && node fichas-fuera-del-agua.js && node academico-modelo.js && node simbologia-referencias.js && node plan-fuegos-modelo.js && node conceptos.cjs && node riesgo.cjs && node reconocimiento.cjs && node logistica.cjs && node estado-mayor.cjs && node estado-mayor-g5.cjs && node coordenadas.cjs && node respuestas-hojas.cjs && node reemplazos-compilado.js",
     "e2e": "node e2e/plan-barreras-3d.js && node e2e/academico.js && node e2e/carga.js && node e2e/plan-fuegos.js && node e2e/conceptos.cjs && node e2e/riesgo.cjs && node e2e/reconocimiento.cjs && node e2e/logistica.cjs && node e2e/personal.cjs && node e2e/g5.cjs"
   },
   "devDependencies": {

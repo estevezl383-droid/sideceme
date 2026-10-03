@@ -104,6 +104,24 @@ bajaban hechos». Se hizo con el skill `.claude/skills/habilitar-hojas-seccion/`
   por defecto) son las del panel y son editables. Los 500 m para decir que un eje
   humanitario «se monta» sobre el EPA son criterio de la Mesa.
 
+## Las hojas de trabajo: el formato al final y la Mesa lee lo que venga (03-10-2026, `v4/`)
+
+Sergio mostró la F2·P3 del G-5 con «Completar y mejorar»: «No se reconoció la respuesta» (y
+dijo que era recurrente). La indicación del oficial iba DESPUÉS de «CÓMO CONTESTAR» y la IA
+redactaba la hoja. Ahora, para TODAS las secciones:
+
+- el pedido de cada hoja de trabajo TERMINA con «FORMATO DE TU RESPUESTA» (`pedidoHoja` →
+  `formatoHoja`): el bloque ```json, el estilo va dentro de los textos, y si no puede, la tabla
+  con su cabecera exacta; si hay indicación, después va «EL FORMATO DE TU RESPUESTA NO CAMBIA»
+  (`cierreIndicacion`, desde `Boe` del compilado);
+- `lector.js` lee también la tabla copiada de la pantalla (tabuladores), los renglones
+  rotulados, las listas numeradas o por tipo, «(Implícita)», el título con su párrafo, el
+  JSON cortado y, como último recurso, los párrafos; y en el JSON, los renglones en otra
+  clave, las columnas con otro nombre (`columnaDe`: «Fuente» → «De dónde sale»), las dos
+  listas con sus nombres y las casillas con la clave aproximada (lo llama `dU`).
+
+Prueba: `node respuestas-hojas.cjs` (con `cU`, `Boe` y `dU` reales del compilado).
+
 ## Si la IA no contesta en JSON (03-10-2026, `v2/lector.js`)
 
 Sergio pegó en la F2·P13 la respuesta de la IA y la Mesa dijo «No se encontró un JSON
@@ -129,7 +147,7 @@ numeradas) en vez del bloque JSON. Ahora:
 ## Cómo está hecho
 
 ```
-estado-mayor/v3/   (la vigente; v2/ es la del compilado index-lector-20261003.js, v1/ la de index-personal)
+estado-mayor/v4/   (la vigente; v3/ es la de index-g5 e index-coordenadas, v2/ la de index-lector, v1/ la de index-personal)
   motor.js        el documento genérico: árbol del modelo, normalizar, 🌱 sin pisar, partir de,
                   revisión, texto, especificación del Word militar (numeración I.- A.- 1.- a.-,
                   CAP y fases, cuadros), HTML, pedido y respuesta de la IA
@@ -180,7 +198,7 @@ anexo: { esquema: 'anexo-acgm-v1', numero, campos: { objeto, carta, apendice, or
 ### Para sumar otra sección (G-5, EME…)
 
 Escribir `campos/<g>.js` con la forma de `campos/g1.js` (o `g5.js`) y agregarla a `CAMPOS`
-en `registro.js` (en una carpeta de versión nueva, `v4/`, copia de `v3/`). Los ganchos del compilado son genéricos: **no hace falta otro compilado**
+en `registro.js` (en una carpeta de versión nueva, `v5/`, copia de `v4/`). Los ganchos del compilado son genéricos: **no hace falta otro compilado**
 salvo para versionar la carpeta (ver el skill `.claude/skills/habilitar-hojas-seccion/`).
 
 ## Qué es de la doctrina y qué es criterio de la Mesa
@@ -208,7 +226,9 @@ node e2e/personal.cjs           # la Mesa real en Chromium, escritorio y teléfo
 node e2e/g5.cjs                 # ídem G-5: las capas puestas en el estado de la Mesa llegan al panel y al motor
 node construir-estado-mayor.js  # arma index-personal-20261003.js (y comprueba que es reversible)
 node construir-lector.js        # arma index-lector-20261003.js encima
-node construir-g5.js            # arma index-g5-20261003.js encima (luego construir-coordenadas.js arma el vigente)
+node construir-g5.js            # arma index-g5-20261003.js encima (luego construir-coordenadas.js y
+                                # construir-respuestas.js, que arma el vigente)
+node respuestas-hojas.cjs       # el final del pedido y las respuestas de las hojas de trabajo (cU, Boe y dU reales)
 ```
 
 `personal-ejemplo.js` tiene un ejercicio FICTICIO (División en la ofensiva, tres fases) y

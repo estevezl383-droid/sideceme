@@ -339,7 +339,7 @@ const caso = (nombre, f) => casos.push([nombre, f])
   caso('el gancho en dU del compilado vigente: una tabla de Markdown entra en la hoja de renglones', () => {
     const html = fs.readFileSync(path.join(RAIZ, 'index.html'), 'utf8')
     const vig = path.join(RAIZ, html.match(/\.\/(assets\/index-[\w-]+\.js)/)[1])
-    const ctxDU = cargarConDependencias(vig, ['dU'], (c) => c.dU('[{"Tarea":"x"}]', { id: 'tareas', tipo: 'filas', cols: ['Tarea'] }), { SIDEMRescatar: R.rescatarHoja, SIDLogEs: () => false })
+    const ctxDU = cargarConDependencias(vig, ['dU'], (c) => c.dU('[{"Tarea":"x"}]', { id: 'tareas', tipo: 'filas', cols: ['Tarea'] }), { SIDEMRescatar: R.rescatarHoja, SIDLogEs: () => false, SIDEMCelda: R.celdaFila || ((q, c) => q[c]), SIDEMFilasDe: R.filasDeRespuesta || (() => null), SIDEMListas: R.listasDe || ((g) => ({ a: g.a || [], b: g.b || [] })), SIDEMClave: R.claveCasilla || (() => undefined) })
     const hoja = { id: 'tareas', tipo: 'filas', cols: ['Tarea', 'Tipo', 'De dónde sale', 'Quién la ejecuta'] }
     const r = ctxDU.dU('| Tarea | Tipo |\n|---|---|\n| Evacuar PP.GG. | Implícita |', hoja)
     assert.ok(r.ok, r.error)
@@ -390,7 +390,11 @@ const caso = (nombre, f) => casos.push([nombre, f])
     const r = R.pedidoHoja('g1', { id: 'tareas' }, { ok: true, prompt: 'A\n\n---\n\n# CÓMO CONTESTAR\n\nJSON' })
     const i = r.prompt.indexOf('# CÓMO CONTESTAR')
     for (const t of ['LO QUE LA MESA YA CALCULÓ Y TIENE EN EL CALCO PARA G-1 PERSONAL', 'APRECIACIÓN DE BAJAS POR FASE', 'LO QUE YA ENTREGARON LAS OTRAS SECCIONES', 'DOCTRINA Y REGLAMENTOS DEL CAMPO']) assert.ok(r.prompt.indexOf(t) >= 0 && r.prompt.indexOf(t) < i, `pedido de hoja: «${t}»`)
-    assert.equal(R.pedidoHoja('g4', { id: 'tareas' }, { ok: true, prompt: 'X' }).prompt, 'X', 'el G-4 no cambia')
+    // el G-4 no recibe lo del G-1: sólo, al final, cómo contestar (v4: para TODAS las secciones)
+    const g4 = R.pedidoHoja('g4', { id: 'tareas', cols: ['Tarea', 'Tipo'] }, { ok: true, prompt: 'X', forma: 'filas' }).prompt
+    assert.ok(g4.startsWith('X\n\n---\n\n# FORMATO DE TU RESPUESTA'), 'el G-4 sólo suma el formato al final')
+    assert.ok(!g4.includes('DOCTRINA') && !g4.includes('LO QUE LA MESA YA CALCULÓ'))
+    assert.ok(g4.includes('| Tarea | Tipo |'))
   })
 
   // ── EL REGISTRO Y EL COMPILADO ────────────────────────────────────────────────────

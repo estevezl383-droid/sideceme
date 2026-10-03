@@ -10,7 +10,7 @@ del 03-10 de `calcos/CAMBIOS-EN-EL-COMPILADO.md`). Desde esos compilados
 (`index-personal-20261003.js` y, encima, `index-lector-20261003.js`) los ganchos de la Mesa
 son GENÉRICOS: para otra sección **no hay que volver a tocar el compilado para que
 funcione** — se escribe `calcos/estado-mayor/vN/campos/<g>.js`, se registra, y se versiona
-la carpeta. La versión vigente es la carpeta que importa el compilado vigente (hoy `v3`).
+la carpeta. La versión vigente es la carpeta que importa el compilado vigente (hoy `v4`).
 
 El **G-5** se hizo el 03-10-2026 con este skill (`v3/campos/g5.js`, entrada «2026-10-03 (3)»
 de `CAMBIOS-EN-EL-COMPILADO.md`): es el segundo modelo, y el que hay que mirar si la sección
@@ -69,7 +69,7 @@ node .claude/skills/habilitar-hojas-seccion/scripts/ver-modelo.mjs aprec-acgm # 
 ## Paso 1 — Versionar la carpeta
 
 El navegador guarda los módulos: el repo versiona por carpeta (como `conceptos/v2…v4`).
-Copiá la carpeta vigente (hoy `calcos/estado-mayor/v3`) a la siguiente libre (`v4`) y
+Copiá la carpeta vigente (hoy `calcos/estado-mayor/v4`) a la siguiente libre (`v5`) y
 trabajá en la copia. No cambies la vigente (la usa el compilado publicado).
 
 ## Paso 2 — Escribir `campos/<g>.js` (copiar la forma de `campos/g1.js`)
@@ -133,9 +133,10 @@ siguen como estaban y suman 📘/🌱 si tienen `guias`/`semillas`.
 ## Paso 4 — El compilado (sólo para apuntar a la carpeta nueva)
 
 Nueva lista `calcos/pruebas/reemplazos-AAAA-MM-DD-<g>.js` (copiar la forma de
-`reemplazos-2026-10-03-g5.js`, que hizo esto de v2 a v3) que cambie la línea de imports del
-motor de `"../estado-mayor/v3/` a `"../estado-mayor/v4/` (son 3 imports: editor, runtime y
-registro; contalos con `split().length - 1`), y un `construir-<g>.js` como `construir-g5.js`
+`reemplazos-2026-10-03-respuestas.js`, que hizo esto de v3 a v4) que cambie la línea de
+imports del motor de `"../estado-mayor/v4/` a `"../estado-mayor/v5/` (son 3 imports: editor,
+runtime y registro; contalos con `split().length - 1`), y un `construir-<g>.js` como
+`construir-respuestas.js`
 (ANTERIOR = el compilado vigente, NUEVO = `index-<g>-AAAAMMDD.js`). Si la sección necesita
 funciones o estado de la Mesa que el motor no tiene: un `configurarEM({...})` más antes de
 `t6.createRoot(` (desde la v3, configurarEM SUMA) y un efecto nuevo con
@@ -172,7 +173,8 @@ Reglas de siempre:
    documento (🌱, ideas, pedido, respuesta, vista previa, Word descargado y leído), avance,
    guardado y `a.errores` vacío.
 4. Sumá las dos al `package.json` de `calcos/pruebas` y corré TODAS: `node <cada>.cjs` y las
-   e2e de logística, reconocimiento, riesgo, conceptos, personal y g5.
+   e2e de logística, reconocimiento, riesgo, conceptos, personal y g5 (y `respuestas-hojas.cjs`:
+   el pedido de las hojas de TODAS las secciones termina con el formato).
 5. **Mirá el Word**: `node .claude/skills/habilitar-hojas-seccion/scripts/ver-docx.cjs
    salida.docx captura.png "TEXTO"` y leé la captura (membrete, SECRETO, numeración, cuadros,
    firma, sin emojis ni marcas de la IA).
