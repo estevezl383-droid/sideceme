@@ -15,7 +15,8 @@
 //   index-personal-20261003.js + reemplazos-2026-10-03-lector.js = index-lector-20261003.js
 //   index-lector-20261003.js + reemplazos-2026-10-03-g5.js = index-g5-20261003.js
 //   index-g5-20261003.js + reemplazos-2026-10-03-coordenadas.js = index-coordenadas-20261003.js
-//   index-coordenadas-20261003.js + reemplazos-2026-10-03-respuestas.js = index-respuestas-20261003.js (el vigente)
+//   index-coordenadas-20261003.js + reemplazos-2026-10-03-respuestas.js = index-respuestas-20261003.js
+//   index-respuestas-20261003.js + reemplazos-2026-10-03-trazos.js = index-trazos-20261003.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -24,10 +25,17 @@
 const assert = require('assert')
 const crypto = require('crypto')
 const fs = require('fs')
+const path = require('path')
 const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-03-trazos'),
+    nombre: 'reemplazos-2026-10-03-trazos',
+    // calcos/assets/index-respuestas-20261003.js (merge 2e56d33, antes de estos cambios).
+    anterior: '82d368c7e428fe8e4a6f31e262f77dab26eb9c73585fbbbfe089fcfb30de393d',
+  },
   {
     lista: require('./reemplazos-2026-10-03-respuestas'),
     nombre: 'reemplazos-2026-10-03-respuestas',
@@ -75,6 +83,10 @@ const PASOS = [
   {
     lista: require('./reemplazos-2026-09-29-riesgo'),
     nombre: 'reemplazos-2026-09-29-riesgo',
+    // Entre index-oca-militar-20261001.js y éste hay pasos de construir-*.py (formato militar,
+    // fichas, ejes, ASDI, importador GE…) que no están en esta cadena: se retoma desde el
+    // compilado guardado y se sigue comprobando hacia atrás desde ahí.
+    desde: 'index-5bpBlYsz.js',
     // calcos/assets/index-ucOhdPbL.js (commit 1fcdfb0, antes de estos cambios).
     anterior: 'b9c3a174f6cb93b9a42100fefb671a179308851f270db1481669e299c607b346',
   },
@@ -139,6 +151,7 @@ function caso(nombre, fn) {
 }
 
 for (const paso of PASOS) {
+  if (paso.desde) src = fs.readFileSync(path.join(__dirname, '..', 'assets', paso.desde), 'utf8')
   caso(`${paso.nombre}: cada reemplazo está en el compilado las veces previstas`, () => {
     const mal = paso.lista.filter((p) => src.split(p.nuevo).length - 1 !== p.veces).map((p) => p.nombre)
     assert.deepStrictEqual(mal, [])
