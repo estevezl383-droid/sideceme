@@ -5,6 +5,46 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-03 (8) — 📊 Tablero G-4 de la instalación y 🎯 propuesta del ASDI con la PICB (`index-tablero-g4-20261003.js`)
+
+Parte de `index-edicion-20261003.js`: trae todo eso y suma esto. Lo pidió Sergio: la ficha de
+la instalación era puro texto; quiere ver a qué unidades apoya (la FT TORREZ), cuánta gente y
+vehículos, cuánto consumen en la defensa (munición incluida), cuántos vehículos y con qué
+frecuencia, en gráficos y números; y que la Mesa proponga dónde va el ASDI con la PICB. La
+lista EXACTA está en `calcos/pruebas/reemplazos-2026-10-03-tablero-g4.js` (4);
+`construir-tablero-g4.js` arma el compilado y comprueba que deshaciéndolos se vuelve byte por
+byte al anterior (también lo comprueba `reemplazos-compilado.js`, como primer paso de la cadena).
+
+### Qué se tocó en el compilado (4 reemplazos)
+
+- `import SIDFichaInstalacion` apunta a `../fichas-instalacion/v2/tablero.js` (el tablero) en
+  vez de la ficha documental v1 (mismas props).
+- `SIDLogSync` recibe además `cmoc: Jt`, la acción `agregarOps: xm` (agregar un área al calco
+  como si se trazara, con su magnitud) y `portal: Ife.createPortal` (la propuesta «en grande»
+  va en `<body>`: el panel del G-4 recorta lo `position: fixed`). Dependencias `+ Jt, xm`.
+- El globo de la instalación: el botón dice «📊 ABRIR TABLERO G-4» y lleva un `<div>` que se
+  llena al abrirse (`popupopen` → `window.SIDResumenInst(id, div)`, lo define el tablero).
+- El clic en la instalación manda `sideceme:instalacion-tocada` en vez de abrir la ficha: en
+  2D se ve el globo; el tablero lo abre su botón (o, si ya está abierto o se está en 3D, el
+  tablero pasa directo a esa instalación).
+
+### En el fuente
+
+- `planeamiento.js`, `asdi-picb.js` y `graficos.js` no tocan React ni Leaflet: van tal cual.
+- El tablero recibe React por props (como la v1) y lee el calco con `useCalco()` del módulo de
+  logística; en el fuente conviene pasarle `ops` y `cmoc` por props.
+
+### Cómo se comprobó
+
+- `node tablero-g4.cjs` (13) y `npm test` entero.
+- `node e2e/tablero-g4.cjs` (escritorio y teléfono, Chromium; 3D en escritorio), `e2e/logistica.cjs`,
+  `e2e/ejes.js`, `e2e/ejes-fichas.js`. `e2e/asdi.js` falla en 3D también sobre el compilado
+  anterior (no es de este cambio).
+
+### Lo que falta
+
+- No se probó en un iPad real; en Safari la imagen puede bajar como `.svg`.
+
 ## 2026-10-03 (7) — ✏️ Las figuras se editan como en Google Earth (`index-edicion-20261003.js`)
 
 Parte de `index-trazos-20261003.js`: trae todo eso y suma esto. Lo pidió Sergio, harto de que
