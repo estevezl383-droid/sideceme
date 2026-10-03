@@ -5,6 +5,90 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-03 (6) — ✏️ Los trazos terminan: clic otra vez en el último punto, Enter o «✓ TERMINAR» (`index-trazos-20261003.js`)
+
+Parte de `index-respuestas-20261003.js`: trae todo eso y suma esto. Lo pidió Sergio con una
+captura del Área de Operaciones («Doble clic = el frente es éste» y el frente seguía sumando
+vértices) y dijo que pasaba en TODAS las secciones: la Línea de Extraviados y la de reunión
+del G-1, el eje humanitario del G-5, los ejes de abastecimiento y las áreas. La lista EXACTA
+está en `calcos/pruebas/reemplazos-2026-10-03-trazos.js` (13); `construir-trazos.js` arma el
+compilado y comprueba que deshaciéndolos se vuelve byte por byte al anterior (también lo
+comprueba `reemplazos-compilado.js`, como primer paso de la cadena).
+
+### Qué pasaba
+
+- Todos los trazos de la Mesa (`Ave`: Área de Operaciones, límites y líneas, obstáculos,
+  Línea de Extraviados y de PP.GG., eje humanitario, EPA/EPE, ASDI) y los del CMOC del G-2
+  (`cve`) terminaban SÓLO con el evento `dblclick` del navegador.
+- Safari del iPad / iPhone no manda `dblclick` después de un doble toque. En 3D la Mesa lo
+  arma desde el 27-09 (`mando` del espejo 3D); en la carta 2D quedaba la simulación de
+  Leaflet, que tampoco lo arma (descarta el segundo toque si viene con `detail` 2 y pide los
+  dos toques en menos de 200 ms). Reproducido en Chromium cortando el `dblclick` del doble
+  toque, como en la prueba del 27-09: en 2D el trazo NO terminaba nunca, ni con toques de
+  120 ms.
+- Un doble clic más lento que el del sistema son dos clics: dos vértices más, y el trazo
+  siguiente se pegaba al anterior (la e2e nueva lo muestra: «extraviados:5» en vez de 2).
+- En 3D el doble clic se pierde si algo vuelve a prender el zoom por doble clic de la carta
+  escondida (el CMOC lo prende al montarse): el espejo sólo lo reenvía con ese zoom apagado.
+
+### Qué se tocó en el compilado (13 reemplazos)
+
+- Ayudantes a nivel del módulo, antes de `Ave`: `SIDEsToque` (dedo o lápiz: `pointerType`,
+  `sourceCapabilities` o un `touchstart` en el último 1,2 s), `SIDCercaUltimo` (el clic cayó a
+  ≤ 12 px del último punto con el ratón, ≤ 30 px con el dedo, medido con `pxVista`: en la
+  vista que se mira, 2D o 3D), `SIDSinRepetidos` y `SIDBarraTrazo` (la barra, en `<body>`,
+  fija abajo al centro, máx. 560 px, para que se vea en 2D y en 3D).
+- `Ave`:
+  - Clic (o toque) OTRA VEZ SOBRE EL ÚLTIMO PUNTO = terminar (`SIDTermina`). En el frente del
+    Área de Operaciones es «el frente es éste»; en el contorno, cerrar como el doble clic. No
+    cuenta el primer vértice del Área de Operaciones ni del ASDI (ésos cierran como antes).
+    Si faltan vértices no agrega uno repetido: avisa «MARCÁ AL MENOS…».
+  - El clic que llega hasta 450 ms después de terminar (el segundo del mismo doble clic) no
+    empieza otro trazo, y el `dblclick` que llega hasta 900 ms después no termina dos veces.
+  - Enter = terminar y Esc = cancelar en todos los trazos (el ASDI y los ejes ya los tenían).
+  - La barra «✓ TERMINAR TRAZO / ↶ BORRAR ÚLTIMO / ✕ CANCELAR» mientras hay un trazo empezado
+    («✓ EL FRENTE ES ÉSTE» y después «✓ CERRAR EL ÁREA» en el Área de Operaciones; «✓ CERRAR
+    ÁREA» en los obstáculos de área), con el aviso si falta algo. «↶ BORRAR ÚLTIMO» en el
+    contorno sin vértices vuelve al frente. El ASDI y los ejes del G-4 no la llevan: ya
+    tienen sus botones en el panel desde el 30-09 (y la e2e de ellos los busca por nombre).
+  - Mientras se traza, el zoom por doble clic de la carta queda apagado aunque otra parte lo
+    vuelva a prender (después de cada render y en cada clic).
+- `cve` (CMOC): los puntos en una referencia (como el ASDI), clic otra vez sobre el último
+  punto = terminar (avenida y corredor ≥ 2 puntos; restringido, sev. restringido y área de
+  empeño ≥ 3; terreno defensivo ≥ 1), Enter, la barra y el mismo cuidado con el doble clic.
+- Textos: el rótulo del Área de Operaciones («Doble clic o Enter = el frente es éste», «doble
+  clic o Enter = cerrar») y las siete ayudas «Clic = vértice · doble clic = terminar.» de los
+  paneles → «… para terminar: doble clic, Enter o clic otra vez en el último punto.».
+
+### En el fuente
+
+- En el componente de los trazos de la Mesa (`Ave`) y en el del CMOC (`cve`): lo mismo. Los
+  ayudantes pueden ir a un módulo propio; la barra puede pasar a un componente React con un
+  portal a `<body>` (tiene que verse también con el 3D abierto).
+
+### Cómo se comprobó
+
+- `node e2e/trazos.cjs` (16 casos, Chromium): en 2D y en 3D con el ratón, el Área de
+  Operaciones (doble clic = el frente, doble clic = cerrar el contorno, con la barra de cada
+  paso), la Línea de Extraviados del G-1 con un doble clic LENTO (900 ms) y con un doble clic
+  justo sobre el último vértice (termina una vez y no empieza otra), el eje humanitario del
+  G-5 con Enter, una alambrada con «↶ BORRAR ÚLTIMO» y «✓ TERMINAR TRAZO» de la barra y Esc,
+  y una avenida del CMOC con dos clics en el último punto; con el dedo como Safari (sin
+  `dblclick`), en 2D y en 3D, una alambrada con doble toque de 300 ms y el frente del Área de
+  Operaciones con doble toque. Con `COMPILADO=…/index-respuestas-20261003.js` fallan los 8
+  casos de 2D (ratón y dedo); con éste pasan los 16.
+- Las e2e de trazado de antes siguen pasando con éste: `plan-barreras-3d.js` (14),
+  `ejes.js`, `ejes-fichas.js` y `asdi.js`. Las demás pruebas de Node pasan;
+  `reemplazos-compilado.js` pasa el paso nuevo y conserva los 10 fallos históricos.
+- La barra en 390 px de ancho: entra sin desborde horizontal.
+
+### Lo que falta
+
+- No se pudo probar en un iPad real (no hay WebKit acá): el caso de Safari se reprodujo en
+  Chromium cortando el `dblclick` del doble toque, como el 27-09.
+- En el teléfono (390 px) los botones de la barra superior tapan casi toda la carta: se
+  puede trazar poco. Es de antes y no se tocó acá.
+
 ## 2026-10-03 (5) — 🤖 Las hojas de trabajo: la IA contesta en el formato y la Mesa lee lo que venga (`index-respuestas-20261003.js`)
 
 Parte de `index-coordenadas-20261003.js`: trae todo eso y suma esto. Lo pidió Sergio con
