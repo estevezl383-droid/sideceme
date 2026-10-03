@@ -535,7 +535,11 @@ const caso = (nombre, f) => casos.push([nombre, f])
   caso('pedido de una hoja de trabajo: suma lo calculado, lo entregado y la doctrina antes de «CÓMO CONTESTAR»', () => {
     const r = R.pedidoHoja('g5', hoja('temas'), { ok: true, prompt: 'A\n\n---\n\n# CÓMO CONTESTAR\n\nJSON' })
     const i = r.prompt.indexOf('# CÓMO CONTESTAR')
-    for (const t of ['LO QUE LA MESA YA CALCULÓ Y TIENE EN EL CALCO PARA G-5 ASUNTOS CIVILES / GM', 'POBLACIÓN', 'EVACUACIÓN', 'LO QUE YA ENTREGARON LAS OTRAS SECCIONES', 'DOCTRINA Y REGLAMENTOS DEL CAMPO (G-5 Asuntos Civiles / GM)', 'FORMATO DE TU RESPUESTA']) assert.ok(r.prompt.indexOf(t) >= 0 && r.prompt.indexOf(t) < i, `pedido de hoja: «${t}»`)
+    for (const t of ['LO QUE LA MESA YA CALCULÓ Y TIENE EN EL CALCO PARA G-5 ASUNTOS CIVILES / GM', 'POBLACIÓN', 'EVACUACIÓN', 'LO QUE YA ENTREGARON LAS OTRAS SECCIONES', 'DOCTRINA Y REGLAMENTOS DEL CAMPO (G-5 Asuntos Civiles / GM)']) assert.ok(r.prompt.indexOf(t) >= 0 && r.prompt.indexOf(t) < i, `pedido de hoja: «${t}»`)
+    // (v4) cómo contestar va AL FINAL, con la cabecera exacta de la tabla
+    const f = r.prompt.lastIndexOf('# FORMATO DE TU RESPUESTA')
+    assert.ok(f > i, 'el formato va después de «CÓMO CONTESTAR»')
+    assert.ok(r.prompt.slice(f).includes('| Tema o mensaje | A quién va dirigido | Por qué medio | Cuándo |'))
     const g = R.guiaIA('g5', hoja('temas'))
     assert.match(g.para, /SE DIFUNDE/)
   })

@@ -5,6 +5,70 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-03 (5) — 🤖 Las hojas de trabajo: la IA contesta en el formato y la Mesa lee lo que venga (`index-respuestas-20261003.js`)
+
+Parte de `index-coordenadas-20261003.js`: trae todo eso y suma esto. Lo pidió Sergio con
+una captura de la F2·P3 del G-5 («Completar y mejorar»): «No se reconoció la respuesta: no
+trae un JSON válido ni la hoja escrita…», y dijo que el error era RECURRENTE. La lista EXACTA
+está en `calcos/pruebas/reemplazos-2026-10-03-respuestas.js` (6); `construir-respuestas.js`
+arma el compilado y comprueba que deshaciéndolos se vuelve byte por byte al anterior (también
+lo comprueba `reemplazos-compilado.js`, como primer paso de la cadena).
+
+### Qué pasaba
+
+- El pedido de las hojas de trabajo (`cU`, el de TODAS las secciones) terminaba con «CÓMO
+  CONTESTAR» y el JSON; pero si el oficial escribía «Tu indicación para esta hoja», `Boe` la
+  pegaba DESPUÉS («es lo último que leés… tiene prioridad sobre cualquier criterio propio»),
+  y en «Completar y mejorar» el pedido insiste en «reescribilo como producto de Estado Mayor…
+  agregá el efecto». La IA redactaba la hoja en párrafos.
+- `dU` sólo leía el JSON con las claves exactas y, desde el lector, la tabla de Markdown. Una
+  tabla COPIADA DE LA PANTALLA de la IA (sale con tabuladores), renglones rotulados, una lista
+  numerada, un JSON cortado o `{ "tareas": […] }` daban el error.
+
+### Qué se hizo (código legible en `calcos/estado-mayor/v4/`)
+
+- `pedidoHoja` deja «FORMATO DE TU RESPUESTA» AL FINAL del pedido de las hojas de TODAS las
+  secciones: sólo el bloque ```json; lo que se pida sobre el estilo («para exponer», más
+  corto) va DENTRO de los textos; y si no puede, la TABLA con su cabecera exacta para copiar
+  (o las dos listas / «Casilla: texto»).
+- Si hay indicación del oficial, después de ella: «EL FORMATO DE TU RESPUESTA NO CAMBIA» (la
+  indicación cambia el estilo, no el formato). Vale también para los documentos.
+- `lector.js` lee, en las hojas de renglones: la tabla de Markdown con nombres de columna
+  aproximados; cada `{ … }` de un JSON cortado; la tabla copiada de la pantalla (con y sin
+  cabecera); los renglones rotulados («**Tipo:** Implícita», «Fuente:», «Responsable:»); los
+  títulos numerados con viñetas; las listas agrupadas por tipo («Tareas específicas») con
+  « — » entre columnas; «(Implícita)» entre paréntesis; el título con su párrafo debajo (como
+  la captura); y, como último recurso, cada párrafo con contenido. Una negativa («Lo siento,
+  no puedo…») sigue dando el error. En dos listas: «- Hecho: …» y `{ "hechos": […] }`. En
+  casillas: «Casilla<TAB>texto», la tabla «Casilla | Texto» y la clave sin tildes.
+
+### Qué se tocó en el compilado (6 reemplazos)
+
+- Los `import` del motor: `../estado-mayor/v3/` → `../estado-mayor/v4/`, y `cierreIndicacion`,
+  `filasDeRespuesta`, `celdaFila`, `listasDe`, `claveCasilla`.
+- `Boe` → `SIDEMIndicacion(SIDBoe0(t,e),e)` (el `Boe` de antes queda entero como `SIDBoe0`).
+- `dU`: los renglones en otra clave (`SIDEMFilasDe`), las columnas con otro nombre
+  (`SIDEMCelda`), las dos listas con sus nombres (`SIDEMListas`), las casillas con la clave
+  aproximada (`SIDEMClave`).
+
+### En el fuente
+
+- Lo mismo en `Boe` y `dU`; `pedidoHoja` y `rescatarHoja` de `calcos/estado-mayor/v4/registro.js`.
+
+### Cómo se comprobó
+
+- `node respuestas-hojas.cjs` (18 casos) con `cU`, `Boe` y `dU` REALES del compilado: el
+  final del pedido (formato con la cabecera exacta; formato → indicación → recordatorio; una
+  hoja del G-2; una de casillas) y cada forma de respuesta de arriba, incluida la de la
+  captura; lo que ya entraba sigue entrando igual.
+- `node e2e/g5.cjs` en Chromium, escritorio y teléfono: la F2·P3 con «Completar y mejorar» y
+  la indicación «Escribilo para exponer en 3 minutos» → el pedido termina en ese orden; la
+  respuesta en párrafos y la tabla copiada de la pantalla entran, sin el error.
+- `estado-mayor.cjs` y `estado-mayor-g5.cjs` (ahora el formato va al final, también en el
+  G-4), las demás pruebas de Node y las e2e de G-1, logística, reconocimiento, riesgo y
+  conceptos; `reemplazos-compilado.js` pasa el paso nuevo y conserva los 10 fallos
+  históricos.
+
 ## 2026-10-03 (4) — 📍 Las coordenadas acarrean los segundos: no más «60"» (`index-coordenadas-20261003.js`)
 
 Parte de `index-g5-20261003.js`: trae todo eso y suma esto. Al mirar los Word del G-5
