@@ -38,8 +38,11 @@ byte al anterior (también lo comprueba `reemplazos-compilado.js`, como primer p
 
 - `node tablero-g4.cjs` (13) y `npm test` entero.
 - `node e2e/tablero-g4.cjs` (escritorio y teléfono, Chromium; 3D en escritorio), `e2e/logistica.cjs`,
-  `e2e/ejes.js`, `e2e/ejes-fichas.js`. `e2e/asdi.js` falla en 3D también sobre el compilado
-  anterior (no es de este cambio).
+  `e2e/ejes.js`, `e2e/ejes-fichas.js`, `e2e/asdi.js`, `e2e/edicion.cjs`, `e2e/trazos.cjs`,
+  `e2e/conceptos.cjs` y `e2e/riesgo.cjs`.
+- `e2e/asdi.js` fallaba en 3D desde el paso (7): trazaba el segundo ASDI encima del primero y
+  el primer clic, sobre el borde, seleccionaba el área vieja (es lo que pide el paso 7; Alt +
+  clic atraviesa). La prueba ahora traza el segundo al lado; la Mesa no cambió por esto.
 
 ### Lo que falta
 
