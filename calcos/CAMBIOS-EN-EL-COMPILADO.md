@@ -5,6 +5,80 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-03 — 👥 G-1 Personal: todas sus hojas se trabajan con guía, 🌱 calco, IA y Word militar (`index-personal-20261003.js`)
+
+Parte de `index-logistica-20261002.js`: trae todo eso y suma esto. Lo pidió Sergio con
+capturas del panel del G-1 y de las hojas del G-2 y el G-3 como ejemplo. La lista EXACTA de
+reemplazos está en `calcos/pruebas/reemplazos-2026-10-03-estado-mayor.js` (11);
+`construir-estado-mayor.js` arma el compilado y comprueba que deshaciéndolos se vuelve byte
+por byte al anterior (también lo comprueba `reemplazos-compilado.js`, como primer paso de la
+cadena). Ninguna inserción cae dentro de lo que insertaron las listas anteriores (lo
+comprueba `estado-mayor.cjs` con los 123 textos de antes).
+
+### Qué pasaba
+
+- La F1·P3 «Apreciación Activa de PERSONAL», la F2·P13 y el F7·P1 Anexo de Personal eran
+  hojas «remite»: «se baja desde el botón de Apreciación», con casi todo «[…]». No había IA,
+  ni lugar para las ideas del oficial, ni la forma del modelo de la Escuela.
+- Las hojas de trabajo del G-1 (F2·P3, F2·P5, F2·P6, F2·P8, F3·P1, F5·P1, F6·P3) tenían IA
+  pero no la guía «¿Para qué es y cómo se llena?» ni «🌱 Traer del calco lo que falte», y su
+  pedido no llevaba lo que la Mesa calculó para el G-1 (las bajas por fase) ni su doctrina.
+
+### Qué se hizo (código legible en `calcos/estado-mayor/v1/`, ver `calcos/estado-mayor/README.md`)
+
+- Un **motor genérico** de documentos de Estado Mayor (`motor.js`, `registro.js`,
+  `editor.js`, `runtime.js`) y la configuración del G-1 (`campos/g1.js`): la Apreciación de
+  Situación de Personal y el Anexo de Personal con la forma EXACTA de los modelos
+  `aprec-personal` y `plan-personal` del catálogo del formato militar; 📘 guía, 🔎 lo que
+  entregaron las otras secciones, 🌱 calco y hojas, 💡 ideas, 🤖 IA (el panel `hU`) con el
+  expediente completo, lo calculado, la doctrina y el formato del documento, 👁️ vista previa
+  y 📄 Word militar (el anexo con el cuadro de bajas por fase).
+- Las hojas de trabajo de siempre del G-1: guía y 🌱 arriba (`AyudaHoja`), y su pedido a la
+  IA con la guía (`ayuda` de `cU`) y lo calculado, lo entregado y la doctrina antes de
+  «CÓMO CONTESTAR».
+- Para el G-5 (o el EME) basta escribir `campos/<g>.js` y registrarlo: los ganchos ya son
+  genéricos (skill `.claude/skills/habilitar-hojas-seccion/`).
+
+### Qué se tocó en el compilado (11 reemplazos)
+
+- Los `import` de `calcos/estado-mayor/v1/` y `configurarEM(...)` (React, `hU`, `Qq`, `uU`,
+  `Mx`, `SIDMilHoja`, `SIDMilVista`, `SIDMilMostrar`, `Ni`, `Sc`, `iC`, `voe`).
+- `uN` pasa por el registro (`SIDEMFases`): en el G-1, `aprecActiva`, `aprecOrientacion` y
+  `anexo` pasan a `tipo:"docEM"` (los demás campos siguen como estaban).
+- `dN` («Mis hojas»): para `docEM` monta `SIDEditorEM`; en las demás hojas, `SIDEMAyuda`
+  (guía y 🌱) debajo de la nota; el pedido de la IA pasa por `SIDEMPedido` con la guía.
+- `KS`: un `docEM` no es hoja de renglones. `Foe` y `mDe`: cuenta si tiene texto (no por su
+  `esquema`). `zle` (expediente): va como texto.
+- Componente principal: un efecto que le pasa al motor el calco vivo (`Lt`, `dn`, `Yn`, `Xr`,
+  `pn`, `_`, `ho`, `Rr`, `uc`, `Tn`, `Kr`, `Ya`, `$i`) y las acciones (`Ep`, `ur`).
+
+### En el fuente
+
+- Montar `calcos/estado-mayor/v1/editor.js` (`EditorDocumento` para el tipo `docEM`,
+  `AyudaHoja` en las demás hojas de «Mis hojas»), el registro en las hojas de `uN`, el efecto
+  de sincronización y los ganchos de `dN`, `KS`, `Foe`, `mDe` y `zle`. Modelo, IA y Word no
+  dependen de React.
+
+### Cómo se comprobó
+
+- `node estado-mayor.cjs` (23 casos): la forma de los dos documentos contra el catálogo,
+  apartado por apartado; el motor (sin pisar, partir de, revisión, Word con la numeración y
+  los CAP por fase, HTML); el G-1 con un ejercicio FICTICIO y la cuenta REAL de bajas sacada
+  del compilado (`iC`); pedido y respuesta de la IA (sólo completar no pisa; mejorar
+  reescribe; CAP por nombre; fases); guías y 🌱 de las hojas de trabajo sin duplicar; el
+  registro; los reemplazos y que los de antes quedan enteros.
+- `node e2e/personal.cjs` en Chromium, escritorio y teléfono: F2·P3 (guía, 🌱, IA con lo
+  calculado y la doctrina), Apreciación (🌱, ideas, pedido con el expediente y los documentos
+  aportados, respuesta sin pisar, vista previa del Word real, Word militar descargado y
+  leído), F2·P13, Anexo (🌱, IA, Word de anexo con el cuadro de bajas), avance y guardado;
+  sin errores de JavaScript. Las e2e del G-4, reconocimiento, riesgo y conceptos siguen
+  pasando; `reemplazos-compilado.js` pasa los dos pasos nuevos y conserva los 10 fallos
+  históricos que ya tenía. `logistica.cjs` comprobaba que `calcos/index.html` cargara
+  justo el compilado del 02-10: ahora comprueba que el compilado vigente conserva sus
+  reemplazos.
+- No hay LibreOffice Writer en el entorno: los Word se revisaron dibujados con docx-preview
+  (el mismo visor de la Mesa).
+
 ## 2026-10-02 — 🚚 Logística del G-4: ASDI paso a paso, Apreciación de Logística con IA y Matriz de Sincronización (`index-logistica-20261002.js`)
 
 Parte de `index-reconocimiento-20261001.js`: trae todo eso y suma esto. Lo pidió Sergio

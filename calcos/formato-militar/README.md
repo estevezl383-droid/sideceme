@@ -31,6 +31,8 @@ Los borradores antiguos guardados en `ops.documentosMilitares` permanecen dispon
 | G-3 `opord` | Orden de operaciones | Principal; formulario |
 | `aprecActiva`, `aprecOrientacion`, `aprecOps` | Apreciación de la sección correspondiente | Principal; ejercicio/calco vigente |
 | G-1 `anexoF7P1`, `mNe` | Plan de personal | Anexo; productor existente de personal |
+| G-1 `aprecActiva`, `aprecOrientacion` (Mis hojas, `calcos/estado-mayor/v1`) | Apreciación de personal (forma del modelo, `estructuraPropia`) | Principal; se trabaja en la hoja (🌱, IA) |
+| G-1 `anexo` F7·P1 (Mis hojas, `calcos/estado-mayor/v1`) | Plan de personal (forma del modelo, `estructuraPropia`, cuadro de bajas) | Anexo (`anexoF7P1`); se trabaja en la hoja (🌱, IA) |
 | G-4 `anexoF7P1`, `dDe` | Plan de apoyo de servicio de combate | Anexo; el productor contiene personal/logística/ACGM, no sólo abastecimientos |
 | `NNe` G-1 a G-5, Art., Ing., Com., ADA | Apreciación específica | Principal; productor actual por especialidad |
 | `HNe` Ing., Com., ADA, Fuegos | Plan específico | Principal; productor de la especialidad |
