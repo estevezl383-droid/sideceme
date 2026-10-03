@@ -208,7 +208,7 @@ node e2e/personal.cjs           # la Mesa real en Chromium, escritorio y teléfo
 node e2e/g5.cjs                 # ídem G-5: las capas puestas en el estado de la Mesa llegan al panel y al motor
 node construir-estado-mayor.js  # arma index-personal-20261003.js (y comprueba que es reversible)
 node construir-lector.js        # arma index-lector-20261003.js encima
-node construir-g5.js            # arma index-g5-20261003.js encima (el vigente)
+node construir-g5.js            # arma index-g5-20261003.js encima (luego construir-coordenadas.js arma el vigente)
 ```
 
 `personal-ejemplo.js` tiene un ejercicio FICTICIO (División en la ofensiva, tres fases) y

@@ -38,7 +38,16 @@ async function textoDocx(ruta) {
   const xs = await Promise.all(Object.keys(z.files).filter((n) => /^word\/(document|header\d*|footer\d*)\.xml$/.test(n)).map((n) => z.file(n).async('string')))
   return xs.join('\n')
 }
-const soloTexto = (xml) => xml.replace(/<w:tab\/>/g, '\t').replace(/<\/w:p>/g, '\n').replace(/<[^>]+>/g, '')
+const soloTexto = (xml) =>
+  xml
+    .replace(/<w:tab\/>/g, '\t')
+    .replace(/<\/w:p>/g, '\n')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&apos;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&amp;/g, '&')
 // Los cuadros de la Mesa (el membrete y la autenticación del formato militar también son tablas).
 const cuadros = (xml) => xml.split('<w:tbl>').slice(1).map((t) => soloTexto(t.split('</w:tbl>')[0]).replace(/\n+/g, ' | '))
 function conCuadros(xml) {
@@ -243,6 +252,9 @@ const PROSA = fs.readFileSync(path.join(__dirname, '..', 'respuesta-prosa-g5.md'
         assert.ok(xAx.includes(t), `el Word del anexo no trae «${t}»`)
       conCuadros(xAxXml)
       assert.ok(!/🤖|🏥|🚸/.test(xAx), 'sin emojis en el Word')
+      // las coordenadas acarrean los segundos (el PC de AC/GM está en -68,35: «68°21'00"O»)
+      assert.ok(xAx.includes('17°00\'00"S 68°21\'00"O'), 'la coordenada del PC de AC/GM')
+      assert.ok(!/\d°\d{2}'60"|°60'/.test(xAx), 'ninguna coordenada con 60')
 
       // ── El avance y el guardado ──
       await volver()
