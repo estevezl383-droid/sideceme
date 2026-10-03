@@ -25,6 +25,7 @@
 const assert = require('assert')
 const crypto = require('crypto')
 const fs = require('fs')
+const path = require('path')
 const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
@@ -82,6 +83,10 @@ const PASOS = [
   {
     lista: require('./reemplazos-2026-09-29-riesgo'),
     nombre: 'reemplazos-2026-09-29-riesgo',
+    // Entre index-oca-militar-20261001.js y éste hay pasos de construir-*.py (formato militar,
+    // fichas, ejes, ASDI, importador GE…) que no están en esta cadena: se retoma desde el
+    // compilado guardado y se sigue comprobando hacia atrás desde ahí.
+    desde: 'index-5bpBlYsz.js',
     // calcos/assets/index-ucOhdPbL.js (commit 1fcdfb0, antes de estos cambios).
     anterior: 'b9c3a174f6cb93b9a42100fefb671a179308851f270db1481669e299c607b346',
   },
@@ -146,6 +151,7 @@ function caso(nombre, fn) {
 }
 
 for (const paso of PASOS) {
+  if (paso.desde) src = fs.readFileSync(path.join(__dirname, '..', 'assets', paso.desde), 'utf8')
   caso(`${paso.nombre}: cada reemplazo está en el compilado las veces previstas`, () => {
     const mal = paso.lista.filter((p) => src.split(p.nuevo).length - 1 !== p.veces).map((p) => p.nombre)
     assert.deepStrictEqual(mal, [])

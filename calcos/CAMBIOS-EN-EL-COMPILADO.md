@@ -105,8 +105,11 @@ comprueba `reemplazos-compilado.js`, como primer paso de la cadena).
   de este arreglo (commit 173f25f) fallan 7 de los 11 de 2D con el ratón: son los defectos que
   encontró una revisión adversarial (12 confirmados, todos corregidos acá).
 - Las e2e de trazado de antes siguen pasando con éste: `plan-barreras-3d.js` (14),
-  `ejes.js`, `ejes-fichas.js` y `asdi.js`. Las demás pruebas de Node pasan;
-  `reemplazos-compilado.js` pasa el paso nuevo y conserva los 10 fallos históricos.
+  `ejes.js`, `ejes-fichas.js` y `asdi.js`. Las demás pruebas de Node pasan.
+- `reemplazos-compilado.js` pasa ENTERO. Además del paso nuevo, ahora retoma la cadena desde
+  `index-5bpBlYsz.js` (campo `desde`) donde están los pasos de `construir-*.py` que no figuran
+  en ella; así dejan de fallar los 10 casos históricos que tenían en rojo «Validar conceptos
+  entrelazados» y «Validar matriz de administración del riesgo» desde el PR #55.
 - La barra en 390 px de ancho: entra sin desborde horizontal.
 
 ### Lo que falta
