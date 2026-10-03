@@ -42,9 +42,11 @@ async function pedidoIA(scope) {
   return scope.locator('textarea[readonly]').inputValue()
 }
 async function aplicarIA(scope, json) {
-  await scope.locator('textarea[placeholder^="Pegá acá la respuesta"]').fill('```json\n' + JSON.stringify(json) + '\n```')
+  await scope.locator('textarea[placeholder^="Pegá acá la respuesta"]').fill(typeof json === 'string' ? json : '```json\n' + JSON.stringify(json) + '\n```')
   await clic(scope.getByRole('button', { name: '✓ Aplicar' }))
 }
+// La respuesta que la IA da a veces: el DOCUMENTO escrito (Markdown), no el JSON.
+const PROSA = fs.readFileSync(path.join(__dirname, '..', 'respuesta-prosa-personal.md'), 'utf8')
 
 ;(async () => {
   for (const movil of [false, true]) {
@@ -82,13 +84,18 @@ async function aplicarIA(scope, json) {
       await ayuda.getByText(/No había nada nuevo/).waitFor()
       await clic(panel.getByRole('button', { name: '🤖 Trabajar esta hoja con IA' }))
       const pt = await pedidoIA(panel)
-      for (const t of ['Sos OFICIAL DE ESTADO MAYOR', 'EXPEDIENTE DEL EJERCICIO', 'DOCUMENTOS APORTADOS POR EL OFICIAL', 'Anexo de Personal del CE (FICT.)', 'PARA QUÉ SIRVE ESTA HOJA', 'campo de PERSONAL (G-1)', 'LO QUE LA MESA YA CALCULÓ Y TIENE EN EL CALCO PARA G-1 PERSONAL', 'APRECIACIÓN DE BAJAS POR FASE', 'DOCTRINA Y REGLAMENTOS DEL CAMPO', 'ECEM 15-08', '# CÓMO CONTESTAR'])
+      for (const t of ['Sos OFICIAL DE ESTADO MAYOR', 'EXPEDIENTE DEL EJERCICIO', 'DOCUMENTOS APORTADOS POR EL OFICIAL', 'Anexo de Personal del CE (FICT.)', 'PARA QUÉ SIRVE ESTA HOJA', 'campo de PERSONAL (G-1)', 'LO QUE LA MESA YA CALCULÓ Y TIENE EN EL CALCO PARA G-1 PERSONAL', 'APRECIACIÓN DE BAJAS POR FASE', 'DOCTRINA Y REGLAMENTOS DEL CAMPO', 'ECEM 15-08', 'FORMATO DE TU RESPUESTA', 'TABLA de Markdown', '# CÓMO CONTESTAR'])
         assert.ok(pt.includes(t), `pedido de la F2·P3: falta «${t}»`)
       assert.ok(pt.indexOf('DOCTRINA Y REGLAMENTOS DEL CAMPO') < pt.indexOf('# CÓMO CONTESTAR'), 'la doctrina va antes de cómo contestar')
       await aplicarIA(panel, respuestaTareas())
       await panel.getByText(/agregadas/).waitFor()
       vs = (await vals(panel)).join('\n')
       assert.ok(vs.includes('Registrar las sepulturas de la fase de ruptura (FICT.)'), 'la IA agregó su renglón')
+      // la IA contesta con una TABLA de Markdown en vez del JSON: entra igual
+      await aplicarIA(panel, 'Acá van las tareas:\n\n| **Tarea** | Tipo | De dónde sale | Quién la ejecuta |\n|---|---|---|---|\n| Habilitar el Puesto de Reunión de Reemplazos (FICT.) | Implícita | Calco | G-1 |\n')
+      await esperar(page, async () => (await vals(panel)).join('\n').includes('Habilitar el Puesto de Reunión de Reemplazos (FICT.)'))
+      vs = (await vals(panel)).join('\n')
+      assert.ok(vs.includes('Habilitar el Puesto de Reunión de Reemplazos (FICT.)'), 'la tabla de Markdown entró como renglón')
       await volver()
 
       // ── F1·P3 Apreciación de Situación de Personal ──
@@ -146,6 +153,19 @@ async function aplicarIA(scope, json) {
       await clic(ap2.getByRole('button', { name: '📋 Partir de la F1·P3 (sin pisar)' }))
       vs = (await vals(ap2)).join('\n')
       assert.ok(vs.includes('es el mejor apoyado: un solo EPE para heridos y PP.GG.'), 'la F2·P13 parte de la F1·P3')
+      // «Completar y mejorar»: la IA escribe el DOCUMENTO (no el JSON) y la Mesa lo lee por sus títulos
+      await clic(ap2.getByRole('button', { name: '🤖 Trabajar esta hoja con IA' }))
+      await clic(ap2.getByRole('button', { name: 'Completar y mejorar' }))
+      const p13 = await pedidoIA(ap2)
+      assert.ok(p13.includes('# FORMATO DE TU RESPUESTA'), 'el pedido dice cómo contestar')
+      await aplicarIA(ap2, PROSA)
+      await ap2.getByText(/se leyó el documento por sus títulos/).waitFor({ timeout: 10000 })
+      vs = (await vals(ap2)).join('\n')
+      for (const t of ['El G-1 de la DIV.MEC.-1 mantiene el efectivo de combate desde el D-2', 'La operación PUEDE ser apoyada desde el punto de vista del personal.', '3. INSTRUIR a los comandantes de unidad', 'Bajas previstas 957 (14,9 %).', '120 PP.GG. previstos.', 'dos rutas de evacuación.'])
+        assert.ok(vs.includes(t), `la respuesta escrita no entró: falta «${t}»`)
+      assert.equal(await ap2.locator('[data-cap]').count(), 2, 'los dos CAP, sin duplicar')
+      const campos13 = (await ap2.locator('textarea:not([readonly]), input').evaluateAll((xs) => xs.map((x) => x.value))).join('\n')
+      assert.ok(!campos13.includes('**'), 'sin las negritas de Markdown en los apartados')
 
       // ── F7·P1 Anexo de Personal ──
       await volver()
@@ -195,7 +215,7 @@ async function aplicarIA(scope, json) {
       assert.ok(g.hojasG.g1.aprecActiva.caps[0].fases.length === 3, 'las tres fases del CAP')
       assert.ok(g.hojasG.g1.tareas.length >= 6, 'las tareas sembradas y de la IA')
       assert.deepEqual(a.errores, [])
-      console.log(`OK ${movil ? 'teléfono' : 'escritorio'}: F2·P3 (guía, 🌱 sin duplicar, IA con lo calculado y la doctrina), Apreciación de Personal (🌱, ideas, IA con el expediente y el formato del modelo, sin pisar, vista previa y Word militar), F2·P13, Anexo de Personal (🌱, IA, Word de anexo con el cuadro de bajas), avance y guardado.`)
+      console.log(`OK ${movil ? 'teléfono' : 'escritorio'}: F2·P3 (guía, 🌱 sin duplicar, IA con lo calculado y la doctrina), Apreciación de Personal (🌱, ideas, IA con el expediente y el formato del modelo, sin pisar, vista previa y Word militar), F2·P13 (con la respuesta de la IA escrita como documento, no JSON), Anexo de Personal (🌱, IA, Word de anexo con el cuadro de bajas), tabla de Markdown en la F2·P3, avance y guardado.`)
     } catch (e) {
       console.error('ERRORES APP', a.errores)
       fs.writeFileSync(path.join(out, `fallo-${tag}.txt`), await page.locator('body').innerText().catch(() => ''))

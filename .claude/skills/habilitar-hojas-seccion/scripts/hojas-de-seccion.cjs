@@ -20,7 +20,9 @@ if (!ctx.Nx[g]) throw new Error(`No existe la sección «${g}». Hay: ${Object.k
   // Lo que el motor de calcos/estado-mayor ya registró para esta sección (si existe).
   let R = null
   try {
-    R = await import(require('url').pathToFileURL(path.join(raiz, 'calcos/estado-mayor/v1/registro.js')).href)
+    // la carpeta del motor que importa el compilado vigente (v1, v2…)
+    const v = (require('fs').readFileSync(ruta, 'utf8').match(/"\.\.\/estado-mayor\/(v\d+)\/registro\.js"/) || [])[1] || 'v2'
+    R = await import(require('url').pathToFileURL(path.join(raiz, `calcos/estado-mayor/${v}/registro.js`)).href)
   } catch {}
   const fases = R ? R.fasesConDocumentos(ctx.Nx[g], ctx.SIDuN0(ctx.Nx[g])) : ctx.SIDuN0(ctx.Nx[g])
   console.log(`Compilado: ${path.basename(ruta)} · ${ctx.Nx[g].nom} · en el motor: ${R && R.CAMPOS[g] ? 'SÍ (campos/' + g + '.js)' : 'NO'}`)

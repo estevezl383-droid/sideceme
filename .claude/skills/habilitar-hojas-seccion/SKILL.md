@@ -5,11 +5,18 @@ description: Habilita TODAS las hojas y documentos de una sección del Estado Ma
 
 # Habilitar las hojas de una sección del Estado Mayor (motor `calcos/estado-mayor`)
 
-El 03-10-2026 se hizo para el **G-1** (ver `calcos/estado-mayor/README.md` y la entrada
-del 03-10 de `calcos/CAMBIOS-EN-EL-COMPILADO.md`). Desde ese compilado
-(`index-personal-20261003.js`) los ganchos de la Mesa son GENÉRICOS: para otra sección
-**no hay que volver a tocar el compilado para que funcione** — se escribe
-`calcos/estado-mayor/vN/campos/<g>.js`, se registra, y se versiona la carpeta.
+El 03-10-2026 se hizo para el **G-1** (ver `calcos/estado-mayor/README.md` y las entradas
+del 03-10 de `calcos/CAMBIOS-EN-EL-COMPILADO.md`). Desde esos compilados
+(`index-personal-20261003.js` y, encima, `index-lector-20261003.js`) los ganchos de la Mesa
+son GENÉRICOS: para otra sección **no hay que volver a tocar el compilado para que
+funcione** — se escribe `calcos/estado-mayor/vN/campos/<g>.js`, se registra, y se versiona
+la carpeta. La versión vigente es la carpeta que importa el compilado vigente (hoy `v2`).
+
+**La IA no siempre contesta en JSON** (a veces escribe el documento en Markdown). Eso ya lo
+resuelve `lector.js` del motor para TODOS los documentos registrados y, en el compilado, para
+las hojas de trabajo de siempre de todas las secciones: no hace falta nada por sección.
+Pero la prueba de la sección nueva TIENE que pegar una respuesta escrita como documento
+(como `calcos/pruebas/respuesta-prosa-personal.md`) y comprobar que cae en sus apartados.
 
 Lo que el usuario quiere, en sus palabras: «que lo habilites para todos los documentos de
 acuerdo al formato del documento correspondiente… no te equivoques… la IA es para rellenar
@@ -54,8 +61,8 @@ node .claude/skills/habilitar-hojas-seccion/scripts/ver-modelo.mjs aprec-acgm # 
 ## Paso 1 — Versionar la carpeta
 
 El navegador guarda los módulos: el repo versiona por carpeta (como `conceptos/v2…v4`).
-Copiá `calcos/estado-mayor/v1` → `calcos/estado-mayor/v2` (o la siguiente libre) y trabajá
-en la copia. No cambies `v1` (lo usa el compilado publicado).
+Copiá la carpeta vigente (hoy `calcos/estado-mayor/v2`) a la siguiente libre (`v3`) y
+trabajá en la copia. No cambies la vigente (la usa el compilado publicado).
 
 ## Paso 2 — Escribir `campos/<g>.js` (copiar la forma de `campos/g1.js`)
 
@@ -118,14 +125,16 @@ siguen como estaban y suman 📘/🌱 si tienen `guias`/`semillas`.
 ## Paso 4 — El compilado (sólo para apuntar a la carpeta nueva)
 
 Nueva lista `calcos/pruebas/reemplazos-AAAA-MM-DD-<g>.js` (copiar la forma de
-`reemplazos-2026-10-03-estado-mayor.js`) con UN reemplazo por cada import que diga
-`"../estado-mayor/v1/` → `"../estado-mayor/v2/` (son 3: editor, runtime y registro; contalos
-con `split().length - 1`), y un `construir-<g>.js` como `construir-estado-mayor.js`
-(ANTERIOR = el compilado vigente, NUEVO = `index-<g>-AAAAMMDD.js`). Reglas de siempre:
+`reemplazos-2026-10-03-lector.js`, que hizo justo esto de v1 a v2) que cambie la línea de
+imports del motor de `"../estado-mayor/v2/` a `"../estado-mayor/v3/` (son 3 imports:
+editor, runtime y registro; contalos con `split().length - 1`), y un `construir-<g>.js` como
+`construir-lector.js` (ANTERIOR = el compilado vigente, NUEVO = `index-<g>-AAAAMMDD.js`).
+Reglas de siempre:
 
 - Cada `viejo` aparece exactamente `veces` veces; deshaciendo se vuelve byte por byte.
 - **Ninguna inserción dentro de lo que insertaron listas anteriores** (la prueba
-  «ningún gancho cae DENTRO…» de `estado-mayor.cjs` lo verifica: copiala).
+  «ningún gancho cae DENTRO…» de `estado-mayor.cjs` lo verifica: copiala). La única
+  excepción es el cambio de versión de la carpeta en los imports.
 - Sumá el paso al principio de `PASOS` en `reemplazos-compilado.js` con el SHA-256 del
   compilado anterior (`sha256sum`). Tiene que seguir dando los mismos 10 fallos históricos.
 - `logistica.cjs` y `estado-mayor.cjs` comprueban «el compilado vigente»: si alguna prueba
@@ -139,8 +148,9 @@ con `split().length - 1`), y un `construir-<g>.js` como `construir-estado-mayor.
 2. `calcos/pruebas/estado-mayor-<g>.cjs` (copiar `estado-mayor.cjs`): la forma contra el
    catálogo **apartado por apartado** (la función `fiel`), el 🌱 con las funciones REALES del
    compilado (`cargarConDependencias`), el pedido (expediente, documentos aportados, datos,
-   doctrina, formato, ideas, JSON) y la respuesta (sólo completar no pisa; mejorar
-   reescribe), guías y semillas de TODAS las hojas, el registro y los reemplazos.
+   doctrina, formato, ideas, JSON, «FORMATO DE TU RESPUESTA») y la respuesta (sólo completar
+   no pisa; mejorar reescribe; también ESCRITA como documento, sin JSON, y con el JSON
+   roto o cortado), guías y semillas de TODAS las hojas, el registro y los reemplazos.
 3. `calcos/pruebas/e2e/<g>.cjs` (copiar `e2e/personal.cjs`): escritorio y teléfono, abrir el
    panel de la sección → «📋 Mis hojas», una hoja de siempre (guía, 🌱, pedido), cada
    documento (🌱, ideas, pedido, respuesta, vista previa, Word descargado y leído), avance,
