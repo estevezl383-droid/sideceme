@@ -5,6 +5,85 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-03 (3) — 🏛️ G-5 Asuntos Civiles / GM: todas sus hojas se trabajan con guía, 🌱 calco, IA y Word militar (`index-g5-20261003.js`)
+
+Parte de `index-lector-20261003.js`: trae todo eso y suma esto. Lo pidió Sergio con
+capturas del panel del G-5 («🏛️ Asuntos Civiles — G-5 → 📋 Mis hojas»): la F1·P3
+Apreciación Activa de AC/GM, la F2·P13 y el F7·P1 Anexo de AC/GM decían «se baja hecha».
+Se hizo con el skill `.claude/skills/habilitar-hojas-seccion/`. La lista EXACTA de
+reemplazos está en `calcos/pruebas/reemplazos-2026-10-03-g5.js` (3); `construir-g5.js` arma
+el compilado y comprueba que deshaciéndolos se vuelve byte por byte al anterior (también lo
+comprueba `reemplazos-compilado.js`, como primer paso de la cadena). Ninguna inserción cae
+dentro de lo que insertaron las listas anteriores, salvo el cambio de versión de la carpeta
+del motor en los `import` (lo comprueba `estado-mayor-g5.cjs` con todas las listas).
+
+### Qué pasaba
+
+- La Apreciación de AC/GM (F1·P3 y F2·P13) y el Anexo de AC/GM (F7·P1) eran hojas «remite»:
+  sin IA, sin ideas del oficial, sin la forma del modelo de la Escuela.
+- Las hojas de trabajo del G-5 (F2·P3, F2·P5, F2·P6, F2·P8, F2·P11, F3·P1, F5·P1, F6·P3)
+  tenían IA pero no la guía ni «🌱 Traer del calco lo que falte», y su pedido no llevaba lo
+  que calcula el panel del G-5 (población, recursos clasificados, evacuación) ni su doctrina.
+- El motor no recibía las CAPAS cargadas: sin ellas no hay inventario de recursos ni
+  población (salen de «Centros poblados» e «Infraestructura»).
+
+### Qué se hizo (código legible en `calcos/estado-mayor/v3/`, ver `calcos/estado-mayor/README.md`)
+
+- `campos/g5.js`: la **Apreciación de Situación de AC/GM** con la forma EXACTA del modelo de
+  la Escuela que ya está en el catálogo (`aprec-acgm`): 89 apartados en orden y al mismo
+  nivel; las instrucciones del modelo quedan literales como ayuda con un rótulo
+  descriptivo; el ANÁLISIS es por FUNCIÓN (como el modelo) y los CAP aparecen en la
+  COMPARACIÓN. El **Anexo de AC/GM**: la Escuela no tiene modelo de anexo del G-5 en el
+  catálogo; por pedido de Sergio («ya había formatos cargados por cada sección con membrete
+  con OCA») sale con la estructura del Anexo de AC/GM que ya bajaba la Mesa (`fNe`) y el
+  formato militar común (membrete, OCA, letra del anexo, Orden, autenticación).
+- La doctrina (el modelo, la secuencia de planeamiento de AC/GM del panel del G-5, el DICA
+  —IV Convenio de Ginebra, La Haya 1954, Protocolo I arts. 53, 54 y 56—, el PMTD), lo que
+  calcula la Mesa con SUS cuentas (inventario `rC`, población `mP`, evacuación `fN`,
+  descarga al G-4 `SDe`), los ejes humanitarios y cuánto se montan sobre el EPA, las
+  instalaciones de AC/GM, los bienes protegidos, lo que entregaron la Orden, el G-1, el G-2,
+  el G-3 y el G-4; la guía y la 🌱 de las once hojas.
+- Motor v3: un apartado puede tener texto PROPIO y subapartados («B.- Fuerzas propias.»);
+  los CAP se nombran y agregan en la comparación cuando el documento no analiza por CAP;
+  `configurarEM` SUMA lo que recibe; `sincronizarExtraEM({ capas })`; `registroWord` saca
+  con el formato militar común un documento sin modelo dedicado; el lector reconoce la
+  instrucción del modelo repetida como título y «- Ventajas: …» en viñeta.
+
+### Qué se tocó en el compilado (3 reemplazos)
+
+- Los `import` del motor: `../estado-mayor/v2/` → `../estado-mayor/v3/`, y
+  `sincronizarExtraEM` (`SIDEMExtra`).
+- Antes de montar la app: `configurarEM({inventarioAC:rC,poblacionAC:mP,evacuacionAC:fN,descargaAC:SDe,estadosAC:LU})`.
+- En `Sze`, un efecto nuevo: `SIDEMcapas=je.useEffect(()=>{SIDEMExtra({capas:ve})},[ve])` (las
+  mismas capas `ve` que recibe el panel del G-5).
+
+### En el fuente
+
+- Montar el motor desde `v3`; llamar a `configurarEM` con esas cinco funciones del panel
+  del G-5 y pasarle las capas cargadas con `sincronizarExtraEM` cada vez que cambian.
+
+### Cómo se comprobó
+
+- `node estado-mayor-g5.cjs` (30 casos): la forma contra el catálogo apartado por apartado
+  y nivel por nivel (y contra los títulos del anexo REAL de la Mesa, `fNe`); el motor v3; el
+  G-5 con un ejercicio ficticio (`g5-ejemplo.js`) y las funciones REALES del compilado
+  (inventario 18, 12.600 habitantes, 3780 evacuados, faltan 23 albergues, 11,8 km del eje
+  humanitario sobre el EPA); el pedido; la respuesta en JSON (no pisa, CAP nuevo), ESCRITA
+  como documento (`respuesta-prosa-g5.md` y el anexo), con el JSON roto y cortado; la guía y
+  la 🌱 de las once hojas; el registro con las hojas REALES del compilado; los reemplazos.
+- `node estado-mayor.cjs` (31 casos) ahora prueba el G-1 sobre la carpeta que importa el
+  compilado vigente (v3).
+- `node e2e/g5.cjs` en Chromium, escritorio y teléfono: las capas puestas en el estado de la
+  Mesa llegan al panel y al motor; F2·P11 (guía, 🌱, IA, tabla de Markdown); Apreciación
+  (🌱, ideas, IA, CAP nuevo, vista previa y Word con sus dos cuadros); F2·P13 (respuesta
+  escrita como documento); Anexo (🌱, IA, Word de anexo «ANEXO “I” (Asuntos Civiles y
+  Gobierno Militar) A LA ORDEN GENERAL DE OPERACIONES No. 3» con sus cuadros); avance (7 de
+  11), guardado y sin errores de JavaScript. Los Word se miraron como imagen (membrete,
+  SECRETO, numeración, cuadros, firma y autenticación, sin emojis ni marcas de la IA).
+- `node e2e/personal.cjs` (el G-1 sobre v3) y las e2e de logística, reconocimiento, riesgo y
+  conceptos; las demás pruebas de Node; `reemplazos-compilado.js` pasa el paso nuevo y
+  conserva los 10 fallos históricos. No hay LibreOffice: el Word se mira con docx-preview.
+
 ## 2026-10-03 (2) — 🤖 La respuesta de la IA se reconoce aunque no venga en JSON (`index-lector-20261003.js`)
 
 Parte de `index-personal-20261003.js`: trae todo eso y suma esto. Lo pidió Sergio con

@@ -1,4 +1,4 @@
-# Motor de documentos de Estado Mayor — «📋 Mis hojas» del G-1 (y del G-5, EME… cuando se sumen)
+# Motor de documentos de Estado Mayor — «📋 Mis hojas» del G-1 y del G-5 (y del EME cuando se sume)
 
 Lo pidió Sergio el 03-10-2026 con capturas del panel del G-1: la **F1·P3 Apreciación Activa
 de PERSONAL** sólo decía «se baja desde el botón de Apreciación» y el Word salía con casi
@@ -54,6 +54,56 @@ los modelos de la Escuela), **el formato del documento** (cada apartado con su n
 instrucción del modelo y la clave del JSON), el documento como está, **las ideas del
 oficial** (al final, donde más pesa), la tarea, cómo contestar y la verificación final.
 
+## En la Mesa: 🏛️ G-5 AC/GM → 📋 Mis hojas (03-10-2026, `v3/campos/g5.js`)
+
+Lo pidió Sergio con capturas del panel del G-5: la Apreciación de AC/GM y el Anexo «se
+bajaban hechos». Se hizo con el skill `.claude/skills/habilitar-hojas-seccion/`.
+
+| Hoja | Qué es ahora |
+|---|---|
+| **F1·P3 Apreciación de Situación de AC/GM** | Documento con la forma EXACTA del modelo de la Escuela (`aprec-acgm` del catálogo, 89 apartados, mismo orden y nivel): OBJETO, CARTA, ANEXOS; I.- MISIÓN; II.- SITUACIÓN Y CONSIDERACIONES DE AC/GM (inteligencia —CC.MM., terreno con sus efectos, POBLACIÓN con disponibilidad local, refugiados y evacuados, daños a la economía, gobierno civil, estado sanitario, abastecimientos—, situación enemiga, táctica, de personal, de AC, hipótesis); III.- ANÁLISIS **función por función** (unidades de AC, gobierno, economía política, instalaciones públicas, funciones especiales); IV.- COMPARACIÓN (problemas, cursos de acción de AC/GM, ventajas y desventajas de cada CAP); V.- CONCLUSIONES Y RECOMENDACIONES. En el Word, el cuadro de recursos clasificados y el de evacuación |
+| **F2·P13** la misma, actualizada | Igual, con «📋 Partir de la F1·P3 (sin pisar)» |
+| **F7·P1 Anexo de AC/GM** | La Escuela **no tiene modelo de anexo del G-5** en el catálogo: sale con la estructura del Anexo de AC/GM que ya bajaba la Mesa (`fNe`: Organización de la Tarea; I.- SITUACIÓN —fuerzas enemigas, fuerzas propias con la población, su actitud, autoridades y recursos, hipótesis—; II.- MISIÓN; III.- EJECUCIÓN —concepto de apoyo con la evacuación, los ejes humanitarios y las instalaciones; tareas a los equipos de Gobierno, Economía, SS.PP.EE. y Servicios Especiales; instrucciones de coordinación—; IV.- APOYO DE SERVICIO; V.- COMANDO Y COMUNICACIONES) y el **formato militar común** (membrete, OCA, letra del anexo y Orden, autenticación). Con los cuadros de recursos y de evacuación |
+| F2·P3, F2·P5, F2·P6, F2·P8, **F2·P11**, F3·P1, F5·P1, F6·P3 | Las hojas de trabajo de siempre suman **📘 la guía del G-5** y **🌱 Traer del calco lo que falte**; su pedido a la IA lleva lo que calculó la Mesa para el G-5, lo que entregaron las otras secciones y la doctrina |
+
+### Qué trae 🌱 (con las MISMAS cuentas del panel del G-5)
+
+- **Población** (`mP`): habitantes y centros poblados, con el Censo 2024 o la referencia por
+  tipo de lugar.
+- **Recursos del área** (`rC`) con la **clasificación del G-5** (EXPLOTABLE / PROTEGIDO /
+  NEGADO; si no la tocó, la sugerida): por categoría, con sus nombres; lo que se **descarga
+  al G-4** (`SDe`); para cada función del análisis, lo que la Mesa identificó (tribunales,
+  alcaldías, bancos, escuelas que son albergues, mercados, tanques de agua, radios,
+  terminales, templos…).
+- **Evacuación** (`fN`, con los valores del panel «🚸 Evacuación»): evacuados, agua,
+  raciones, albergues (y cuántos faltan), viajes.
+- **Ejes humanitarios** y cuántos km se **montan sobre el EPA** (a menos de 500 m); las
+  **instalaciones de AC/GM** (PC, PRE, CCE, LDS, ayuda humanitaria) y los **bienes que no se
+  baten**; los problemas que mide la Mesa.
+- Las fichas, las fases del COA, la **Orden superior**, el CAE del G-2, las instalaciones de
+  personal y el personal civil del G-1, el EPA/EPE, las instalaciones logísticas y la
+  prioridad por fase del G-4; de las hojas del G-5, tareas, limitaciones, suposiciones,
+  temas y ventajas y desventajas de cada CAP; el anexo toma la misión, las hipótesis y el
+  mejor curso de acción de AC/GM de la apreciación.
+
+### Qué es de la doctrina y qué es criterio de la Mesa (G-5)
+
+- La forma de la Apreciación es la del modelo de la Escuela (la prueba lo comprueba
+  apartado por apartado y nivel por nivel). El catálogo trae dos conclusiones como
+  «Conclusión pendiente» con la instrucción aparte: quedan con rótulo descriptivo y la
+  instrucción literal. El ANÁLISIS es por función porque así es el modelo («necesidades,
+  disponibilidades, limitaciones y recomendaciones» es el criterio que ya usaba la Mesa).
+- La forma del Anexo NO es un modelo de la Escuela: es la del anexo que ya bajaba la Mesa
+  (así lo pidió Sergio). Si la Escuela da el modelo, hay que pasarlo al catálogo y al anexo.
+- La doctrina citada: el modelo; la secuencia de planeamiento de AC/GM que ya usaba el
+  panel del G-5 («el texto»: pasos 2 a 5, medios civiles primero, el eje humanitario fuera
+  del EPA, bienes que no se baten); el DICA (IV Convenio de Ginebra, La Haya 1954,
+  Protocolo I arts. 53, 54 y 56); el PMTD.
+- Las referencias de planeamiento (20 L de agua y 1 ración por persona y día, 150 por
+  albergue, 40 plazas por medio de transporte, 5.000 L por fuente explotable, 30 % y 3 días
+  por defecto) son las del panel y son editables. Los 500 m para decir que un eje
+  humanitario «se monta» sobre el EPA son criterio de la Mesa.
+
 ## Si la IA no contesta en JSON (03-10-2026, `v2/lector.js`)
 
 Sergio pegó en la F2·P13 la respuesta de la IA y la Mesa dijo «No se encontró un JSON
@@ -79,19 +129,21 @@ numeradas) en vez del bloque JSON. Ahora:
 ## Cómo está hecho
 
 ```
-estado-mayor/v2/   (v1/ es la versión anterior, la del compilado index-personal-20261003.js)
+estado-mayor/v3/   (la vigente; v2/ es la del compilado index-lector-20261003.js, v1/ la de index-personal)
   motor.js        el documento genérico: árbol del modelo, normalizar, 🌱 sin pisar, partir de,
                   revisión, texto, especificación del Word militar (numeración I.- A.- 1.- a.-,
                   CAP y fases, cuadros), HTML, pedido y respuesta de la IA
-  registro.js     las secciones registradas (CAMPOS = { g1 }) y los GANCHOS que llama el
+  registro.js     las secciones registradas (CAMPOS = { g1, g5 }) y los GANCHOS que llama el
                   compilado: uN (las hojas pasan a tipo «docEM»), esDocumento, tieneDocumento,
                   textoDocumento, guiaIA, pedidoHoja, sembrarHoja
-  runtime.js      lo que presta la Mesa (React, hU, Qq, uU, Mx, Ni, Sc, iC, voe) y el calco vivo
+  runtime.js      lo que presta la Mesa (React, hU, Qq, uU, Mx, Ni, Sc, iC, voe; y para el G-5 rC,
+                  mP, fN, SDe, LU), el calco vivo y las capas cargadas (sincronizarExtraEM)
   editor.js       <EditorDocumento> y <AyudaHoja> (guía y 🌱 de las hojas de siempre)
   lector.js       lee la respuesta de la IA: JSON, JSON reparado, fragmentos, el documento
                   escrito por sus títulos; y en las hojas de siempre, tabla, listas y casillas
   campos/g1.js    TODO lo del G-1: los dos documentos (copian el catálogo), doctrina, lo que
                   sabe del calco, lo que trae 🌱, las guías y semillas de las hojas de trabajo
+  campos/g5.js    TODO lo del G-5, con la misma forma
 ```
 
 Se guarda con el ejercicio en `hojasG.g1`:
@@ -101,10 +153,34 @@ aprecActiva / aprecOrientacion: { esquema: 'aprec-personal-v1', numero, campos: 
 anexo: { esquema: 'anexo-personal-v1', numero, campos: { objeto, carta, apendice, fuerzasPropias, …, comunicaciones }, ideas, firma, iaCampos }
 ```
 
+y en `hojasG.g5`:
+
+```js
+aprecActiva / aprecOrientacion: { esquema: 'aprec-acgm-v1', numero, campos: { objeto, carta, anexos, tareasEsp, …, recomendaciones }, caps: [{ id, nombre, valores: {}, fases: [], ventajas, desventajas }], ideas, firma, iaCampos }
+anexo: { esquema: 'anexo-acgm-v1', numero, campos: { objeto, carta, apendice, orgTarea, enemigo, fuerzasPropias, actitud, …, comunicaciones }, ideas, firma, iaCampos }
+```
+
+### Lo que sumó la v3 (para el G-5)
+
+- Un apartado puede tener **texto propio y subapartados** (`{ id, t, hijos }`): el texto va
+  debajo del título, antes de los subapartados (en el editor, el Word, la vista previa, el
+  pedido y el lector).
+- Si el documento **no analiza por CAP**, los CAP se nombran, se agregan y se quitan en la
+  COMPARACIÓN (`{ ventajas: true }`), sin fases.
+- `configurarEM` **suma** lo que recibe (el compilado lo llama dos veces);
+  `sincronizarExtraEM({ capas })` pasa las capas cargadas; el contexto da
+  `inventarioAC()`/`poblacionAC()` (una cuenta por juego de capas), `evacuacionAC`,
+  `descargaAC` y `estadosAC`.
+- `registroWord(doc, r)`: con `registro.militar`, un documento sin modelo dedicado sale con
+  el formato militar común.
+- El lector reconoce la instrucción del modelo repetida como título («2) Estimar el número
+  de refugiados… del área. 3.780») y «- Ventajas: …» en viñeta debajo de cada CAP.
+- `cfg.sinNadaHoja`: el aviso del 🌱 de las hojas de trabajo de cada sección.
+
 ### Para sumar otra sección (G-5, EME…)
 
-Escribir `campos/<g>.js` con la forma de `campos/g1.js` y agregarla a `CAMPOS` en
-`registro.js` (en una carpeta de versión nueva, `v3/`, copia de `v2/`). Los ganchos del compilado son genéricos: **no hace falta otro compilado**
+Escribir `campos/<g>.js` con la forma de `campos/g1.js` (o `g5.js`) y agregarla a `CAMPOS`
+en `registro.js` (en una carpeta de versión nueva, `v4/`, copia de `v3/`). Los ganchos del compilado son genéricos: **no hace falta otro compilado**
 salvo para versionar la carpeta (ver el skill `.claude/skills/habilitar-hojas-seccion/`).
 
 ## Qué es de la doctrina y qué es criterio de la Mesa
@@ -127,12 +203,17 @@ salvo para versionar la carpeta (ver el skill `.claude/skills/habilitar-hojas-se
 ```bash
 cd calcos/pruebas
 node estado-mayor.cjs           # forma vs catálogo, motor, G-1 con la cuenta REAL de bajas, IA, lector, hojas, reemplazos
+node estado-mayor-g5.cjs        # lo mismo del G-5, con las cuentas REALES del panel del G-5 (rC, mP, fN, SDe) y el anexo fNe
 node e2e/personal.cjs           # la Mesa real en Chromium, escritorio y teléfono (también con la respuesta escrita, no JSON)
+node e2e/g5.cjs                 # ídem G-5: las capas puestas en el estado de la Mesa llegan al panel y al motor
 node construir-estado-mayor.js  # arma index-personal-20261003.js (y comprueba que es reversible)
-node construir-lector.js        # arma index-lector-20261003.js encima (el vigente)
+node construir-lector.js        # arma index-lector-20261003.js encima
+node construir-g5.js            # arma index-g5-20261003.js encima (el vigente)
 ```
 
 `personal-ejemplo.js` tiene un ejercicio FICTICIO (División en la ofensiva, tres fases) y
 respuestas de IA de ejemplo; `respuesta-prosa-personal.md`, una respuesta escrita como
-documento (como la que mostró Sergio). Las capturas y los Word de la prueba quedan en
-`pruebas/salidas-personal/` (no se versionan).
+documento (como la que mostró Sergio). `g5-ejemplo.js` (capas de población e
+infraestructura, clasificación, evacuación, un eje humanitario que se monta sobre el EPA) y
+`respuesta-prosa-g5.md`, lo mismo para el G-5. Las capturas y los Word de la prueba quedan
+en `pruebas/salidas-personal/` y `pruebas/salidas-g5/` (no se versionan).

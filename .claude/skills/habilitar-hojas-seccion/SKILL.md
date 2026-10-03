@@ -10,7 +10,13 @@ del 03-10 de `calcos/CAMBIOS-EN-EL-COMPILADO.md`). Desde esos compilados
 (`index-personal-20261003.js` y, encima, `index-lector-20261003.js`) los ganchos de la Mesa
 son GENÉRICOS: para otra sección **no hay que volver a tocar el compilado para que
 funcione** — se escribe `calcos/estado-mayor/vN/campos/<g>.js`, se registra, y se versiona
-la carpeta. La versión vigente es la carpeta que importa el compilado vigente (hoy `v2`).
+la carpeta. La versión vigente es la carpeta que importa el compilado vigente (hoy `v3`).
+
+El **G-5** se hizo el 03-10-2026 con este skill (`v3/campos/g5.js`, entrada «2026-10-03 (3)»
+de `CAMBIOS-EN-EL-COMPILADO.md`): es el segundo modelo, y el que hay que mirar si la sección
+necesita algo del calco que el motor no recibía (el G-5 necesitó las CAPAS y las cuentas de
+su panel: `reemplazos-2026-10-03-g5.js`), si su modelo analiza por FUNCIÓN y no por CAP, o
+si tiene un apartado con texto propio Y subapartados.
 
 **La IA no siempre contesta en JSON** (a veces escribe el documento en Markdown). Eso ya lo
 resuelve `lector.js` del motor para TODOS los documentos registrados y, en el compilado, para
@@ -44,11 +50,13 @@ node .claude/skills/habilitar-hojas-seccion/scripts/ver-modelo.mjs aprec-acgm # 
 
 - La apreciación de cada sección: `registroHoja` (formato-militar/v1/modelo.js) ya asocia
   `aprecActiva`/`aprecOrientacion` → `aprec-personal` (g1), `aprec-acgm` (g5)…; el anexo
-  `anexoF7P1` → `plan-personal` (g1), `plan-aspc` (g4). **El G-5 NO tiene modelo de anexo
-  en el catálogo** («G-5 anexo sin modelo dedicado» en `calcos/formato-militar/README.md`):
-  pedile al usuario el modelo de la Escuela (Word/PDF) antes de armar ese documento; no lo
-  inventes. Mientras tanto se puede dejar el anexo como estaba (`remite`) y habilitar el
-  resto.
+  `anexoF7P1` → `plan-personal` (g1), `plan-aspc` (g4). Si la sección NO tiene modelo de
+  anexo en el catálogo (el G-5 no lo tenía): no lo inventes. Para el G-5, Sergio dijo que se
+  use lo que ya estaba cargado («ya había formatos cargados por cada sección con membrete
+  con OCA»): la estructura del anexo que ya bajaba la Mesa (su productor, `fNe`) con el
+  formato militar común (`registro: { id: 'anexoF7P1', militar: true }`; la prueba compara
+  la forma con los títulos que produce ese productor). Si la sección tampoco tiene productor
+  propio, pedile el modelo de la Escuela.
 - Lo que la Mesa ya sabe de la sección está en el compilado vigente (el que carga
   `calcos/index.html`). Buscá su panel y sus productores con el índice AST de
   `calcos/pruebas/extraer.js` (por ejemplo, para el G-5: el panel `CDe` «Asuntos Civiles»,
@@ -61,7 +69,7 @@ node .claude/skills/habilitar-hojas-seccion/scripts/ver-modelo.mjs aprec-acgm # 
 ## Paso 1 — Versionar la carpeta
 
 El navegador guarda los módulos: el repo versiona por carpeta (como `conceptos/v2…v4`).
-Copiá la carpeta vigente (hoy `calcos/estado-mayor/v2`) a la siguiente libre (`v3`) y
+Copiá la carpeta vigente (hoy `calcos/estado-mayor/v3`) a la siguiente libre (`v4`) y
 trabajá en la copia. No cambies la vigente (la usa el compilado publicado).
 
 ## Paso 2 — Escribir `campos/<g>.js` (copiar la forma de `campos/g1.js`)
@@ -118,17 +126,21 @@ Lo que tiene que exportar por defecto (ver `campos/g1.js`, que está comentado):
 
 ## Paso 3 — Registrar
 
-En `vN/registro.js`: `import G5 from './campos/g5.js'` y `CAMPOS = { g1: G1, g5: G5 }`.
+En `vN/registro.js`: `import EME from './campos/eme.js'` y `CAMPOS = { g1: G1, g5: G5, eme: EME }`.
 `fasesConDocumentos` convierte en `docEM` las hojas que estén en `documentos`; las demás
 siguen como estaban y suman 📘/🌱 si tienen `guias`/`semillas`.
 
 ## Paso 4 — El compilado (sólo para apuntar a la carpeta nueva)
 
 Nueva lista `calcos/pruebas/reemplazos-AAAA-MM-DD-<g>.js` (copiar la forma de
-`reemplazos-2026-10-03-lector.js`, que hizo justo esto de v1 a v2) que cambie la línea de
-imports del motor de `"../estado-mayor/v2/` a `"../estado-mayor/v3/` (son 3 imports:
-editor, runtime y registro; contalos con `split().length - 1`), y un `construir-<g>.js` como
-`construir-lector.js` (ANTERIOR = el compilado vigente, NUEVO = `index-<g>-AAAAMMDD.js`).
+`reemplazos-2026-10-03-g5.js`, que hizo esto de v2 a v3) que cambie la línea de imports del
+motor de `"../estado-mayor/v3/` a `"../estado-mayor/v4/` (son 3 imports: editor, runtime y
+registro; contalos con `split().length - 1`), y un `construir-<g>.js` como `construir-g5.js`
+(ANTERIOR = el compilado vigente, NUEVO = `index-<g>-AAAAMMDD.js`). Si la sección necesita
+funciones o estado de la Mesa que el motor no tiene: un `configurarEM({...})` más antes de
+`t6.createRoot(` (desde la v3, configurarEM SUMA) y un efecto nuevo con
+`sincronizarExtraEM` (como el de las capas del G-5), nunca dentro de lo que insertaron listas
+anteriores.
 Reglas de siempre:
 
 - Cada `viejo` aparece exactamente `veces` veces; deshaciendo se vuelve byte por byte.
@@ -142,21 +154,25 @@ Reglas de siempre:
 
 ## Paso 5 — Probar (no se termina sin esto)
 
+0. `estado-mayor.cjs` (G-1) y `estado-mayor-g5.cjs` ya prueban la carpeta que importa el
+   compilado vigente: tienen que seguir pasando con la carpeta nueva.
 1. `calcos/pruebas/<g>-ejemplo.js`: un ejercicio FICTICIO (todo con «(FICT.)») con lo que
    la sección toma del calco, la Orden con tareas/limitaciones, un documento aportado, hojas
    ya trabajadas y respuestas de IA de ejemplo (incluí textos «que NO debe pisar»).
-2. `calcos/pruebas/estado-mayor-<g>.cjs` (copiar `estado-mayor.cjs`): la forma contra el
+2. `calcos/pruebas/estado-mayor-<g>.cjs` (copiar `estado-mayor-g5.cjs`, que también compara
+   el NIVEL de cada apartado y lee las hojas REALES del compilado): la forma contra el
    catálogo **apartado por apartado** (la función `fiel`), el 🌱 con las funciones REALES del
    compilado (`cargarConDependencias`), el pedido (expediente, documentos aportados, datos,
    doctrina, formato, ideas, JSON, «FORMATO DE TU RESPUESTA») y la respuesta (sólo completar
    no pisa; mejorar reescribe; también ESCRITA como documento, sin JSON, y con el JSON
    roto o cortado), guías y semillas de TODAS las hojas, el registro y los reemplazos.
-3. `calcos/pruebas/e2e/<g>.cjs` (copiar `e2e/personal.cjs`): escritorio y teléfono, abrir el
+3. `calcos/pruebas/e2e/<g>.cjs` (copiar `e2e/g5.cjs`; si la sección usa capas, ponelas en
+   el estado de la Mesa como `ponerCapas` de esa prueba: sin red no se descargan): escritorio y teléfono, abrir el
    panel de la sección → «📋 Mis hojas», una hoja de siempre (guía, 🌱, pedido), cada
    documento (🌱, ideas, pedido, respuesta, vista previa, Word descargado y leído), avance,
    guardado y `a.errores` vacío.
 4. Sumá las dos al `package.json` de `calcos/pruebas` y corré TODAS: `node <cada>.cjs` y las
-   e2e de logística, reconocimiento, riesgo, conceptos y personal.
+   e2e de logística, reconocimiento, riesgo, conceptos, personal y g5.
 5. **Mirá el Word**: `node .claude/skills/habilitar-hojas-seccion/scripts/ver-docx.cjs
    salida.docx captura.png "TEXTO"` y leé la captura (membrete, SECRETO, numeración, cuadros,
    firma, sin emojis ni marcas de la IA).
