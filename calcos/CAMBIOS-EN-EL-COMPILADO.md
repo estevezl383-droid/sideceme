@@ -5,6 +5,102 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-03 (7) — ✏️ Las figuras se editan como en Google Earth (`index-edicion-20261003.js`)
+
+Parte de `index-trazos-20261003.js`: trae todo eso y suma esto. Lo pidió Sergio, harto de que
+el Área de Operaciones «ya no funciona cuando dibujo»: poder tocar una línea o un área ya
+dibujada, agregarle o quitarle puntos y borrar un punto o toda la figura, y que el clic derecho
+mientras se traza el frente borre sólo el último punto. La lista EXACTA está en
+`calcos/pruebas/reemplazos-2026-10-03-edicion.js` (52); `construir-edicion.js` arma el compilado
+y comprueba que deshaciéndolos se vuelve byte por byte al anterior (también lo comprueba
+`reemplazos-compilado.js`, como primer paso de la cadena).
+
+### Qué pasaba
+
+- Con una herramienta de línea o de área encendida (y se quedan encendidas) `dibujando` era
+  verdadero y NINGUNA figura respondía al clic: no se podía editar ni borrar la línea recién
+  dibujada. Había que apagar la herramienta.
+- `VN` (mover vértice) sólo conocía límites, zonas, sectores, ejes, líneas del EM, flechas y
+  obstáculos, y `GN` (borrar) tampoco tenía `areaOps`: el Área de Operaciones no se podía mover
+  ni borrar (el clic derecho preguntaba «¿Borrar el Área de Operaciones?» y no hacía nada).
+- El clic derecho mientras se trazaba el FRENTE del Área de Operaciones llamaba `Te(null),ge([]),
+  Ae([])`: borraba TODOS los puntos. En las demás líneas el clic derecho TERMINABA el trazo.
+- Las manijas sólo movían vértices (no había cómo agregar o quitar uno) y el clic derecho
+  borraba la figura entera tras un `window.confirm`.
+- Al borrar un límite con magnitud quedaba la marca flotando (`limite-N`) y las demás se corrían.
+- Los polígonos eran tocables en todo su relleno: con una herramienta encendida, el primer
+  clic de una línea trazada ADENTRO de un área habría elegido el área.
+
+### Qué se hizo
+
+- Ayudantes a nivel del módulo (antes de `Ave`): `SIDEditaVertices(ops, cat, idx, acc)` —lógica
+  pura: mover, agregar (después del vértice i; en un área el último tramo cierra al primero) y
+  borrar (mínimo 2 puntos en una línea y 3 en un área; si no se puede devuelve las MISMAS ops)—,
+  `SIDAjustaAO` (el frente es siempre el principio de la lista de vértices: al agregar o borrar
+  uno del frente crece o achica; frente, profundidad y azimut se recalculan), `SIDMenuFigura` /
+  `SIDMenuDe` (el menú de clic derecho), `SIDManijas` (manijas de vértice y ⚪ de punto medio),
+  `SIDBorde` (el borde de un área como línea tocable), `SIDResalte` (halo) y el CSS de la manito.
+- `Ave`: las líneas y áreas editables (límites, Área de Operaciones, Área de Influencia, áreas y
+  sectores logísticos, ejes, líneas del EM, flechas, obstáculos) son tocables aunque haya una
+  herramienta encendida **mientras no haya un trazo en curso** (`SIDed`). Un clic las selecciona:
+  halo celeste, manijas arrastrables en cada vértice y un ⚪ en el medio de cada tramo (clic o
+  arrastre = agregar un punto). Con **Alt (Opción) + clic** el clic atraviesa la figura (para
+  empezar un trazo encima de otra; con Mayús no: MapLibre lo usa para el zoom por recuadro). Sólo el **borde** de las áreas se toca. Esc suelta la figura.
+- `yo` (clic derecho en TODAS las figuras, también las del CMOC): ya no es un `window.confirm`;
+  abre el menú «📍 Borrar este punto» (o «el punto más cercano», marcado con un aro rojo; apagado
+  si ya no se puede) / «🗑 Borrar toda la figura» / «✕ Cancelar». Clic derecho sobre una manija
+  (vértice o ⚪) abre el mismo menú.
+- Clic derecho **mientras se traza** = `deshacer` (el de «↶ BORRAR ÚLTIMO»): en el frente saca el
+  último punto y vuelve al anterior; en el contorno saca el último vértice y, sin vértices, reabre
+  el frente. En las demás líneas ya no termina el trazo (terminar: doble clic, Enter o la barra).
+- Mesa: `VN` pasa por `SIDEditaVertices` (ahora también el Área de Operaciones y el Área de
+  Influencia), `SIDAV`/`SIDBV` agregan y borran un vértice, `GN` borra el Área de Operaciones, el
+  Área de Influencia y la marca de magnitud de un límite (y renumera las demás).
+- **Área de Influencia**: la dibuja el oficial (`ops.influenciaTrazada = {coords}`, herramienta
+  `influencia` en el panel «◌ Á. Influencia» → «✏️ Dibujar el Área de Influencia»). Se edita como
+  cualquier figura. La app ya no la dibuja sola; el cálculo por el alcance del arma enemiga queda
+  como referencia plegada en el panel. El Área de Interés se establece a partir de la que se
+  trazó (si no, del Área de Operaciones), la H.T. 2 y el expediente para la IA usan la trazada.
+- **Borde del Área de Interés**: botón «▣ Borde Á. Interés» en la barra (junto a «📐 Área de
+  Interés»); apaga y prende `verCapa.areaInteres`, que ya mandaba en 2D y en 3D.
+- **Panel del Área de Operaciones**: se sacaron «Es el sector que viene en la Orden…», el cuadro
+  «Textual del reglamento / Estimación» y «Cómo se traza, en dos tiempos»; el bloque del Área de
+  Influencia calculada; y el aviso de arriba quedó en una línea.
+- **«Magnitud que se va a colocar»** (y «Magnitud del límite» / «Qué escalón marca» de Medidas):
+  con un Área de Operaciones trazada sólo ofrece el escalón que le toca por su frente
+  (`SIDEscalonesAO`: el de su banda, o los dos vecinos si queda entre dos), y se acomoda sola al
+  cambiar el área. Sin Área de Operaciones sigue libre.
+- 3D: el cursor sobre una figura editable es la manito (`grab`), no el dedo.
+
+### En el fuente
+
+- Los ayudantes pueden ir a un módulo propio (`SIDEditaVertices` y `SIDEscalonesAO` no tocan
+  React ni Leaflet). `Ua` es el que arma la selección dentro del efecto de `Ave`; `yo` es global.
+- `SIDEd` es un registro de módulo (`agregarV`, `borrarV`, `deseleccionar`) que la Mesa y `Ave`
+  llenan en cada render; en el fuente conviene pasarlos por props.
+
+### Cómo se comprobó
+
+- `node edicion-figuras.cjs` (17): la lógica pura sobre las funciones TEXTUALES del compilado.
+- `node e2e/edicion.cjs` (9, en 2D y en 3D, Chromium): la línea sin magnitud con la herramienta
+  encendida (se toca, se agrega con ⚪, se arrastra un vértice, clic derecho = borrar este punto,
+  borrar toda la figura); el Área de Operaciones del ejercicio (se toca el borde, un clic adentro
+  no la selecciona, no se puede dejar de ser triángulo, ⚪ agrega un vértice, se arrastra uno y
+  cambia la profundidad, se borra entera; el cursor es `grab`); clic derecho en el frente (borra
+  sólo el último punto, y sin contorno vuelve al frente); el panel sin las explicaciones y con una
+  sola magnitud para un frente de Cuerpo de Ejército; el Área de Influencia (se dibuja, se toca,
+  se borra); el borde del Área de Interés; y Alt + clic.
+- `reemplazos-compilado.js` pasa ENTERO con el paso nuevo. NO se volvió a correr entera la regresión de `e2e/trazos.cjs`, `plan-barreras-3d.js`, `ejes.js`, `ejes-fichas.js` y `asdi.js` sobre este compilado (la de `trazos.cjs` en 2D pasó con la primera versión de los cambios): correrlas antes de publicar.
+
+### Lo que falta
+
+- No se probó en un iPad real ni con el dedo: el menú de clic derecho en el 3D sale con una
+  pulsación larga (como ya salía el borrado), pero la edición con el dedo no tiene prueba.
+- «Magnitud que se va a colocar»: se entendió como «la marca del límite es del escalón del Área
+  de Operaciones». Si lo que se quería es que el TRAZO del área no pueda ser más chico ni más
+  grande que el escalón elegido (rechazar vértices fuera de la banda de frente y de fondo), es otro
+  cambio y hay que pedirlo.
+
 ## 2026-10-03 (6) — ✏️ Los trazos terminan: clic otra vez en el último punto, Enter o «✓ TERMINAR» (`index-trazos-20261003.js`)
 
 Parte de `index-respuestas-20261003.js`: trae todo eso y suma esto. Lo pidió Sergio con una
