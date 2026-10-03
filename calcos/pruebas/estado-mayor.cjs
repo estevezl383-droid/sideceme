@@ -1,4 +1,5 @@
-// Pruebas del motor de documentos de Estado Mayor (calcos/estado-mayor/v2) con el G-1:
+// Pruebas del motor de documentos de Estado Mayor (calcos/estado-mayor/vN, la carpeta que
+// importa el compilado vigente: hoy v3) con el G-1:
 //   · la FORMA: la Apreciación y el Anexo de Personal tienen todos los apartados de los
 //     modelos de la Escuela que están en el catálogo del formato militar, en orden;
 //   · el MOTOR: normalizar, 🌱 sin pisar, partir de la F1·P3, revisión, texto, Word
@@ -25,10 +26,14 @@ const casos = []
 const caso = (nombre, f) => casos.push([nombre, f])
 
 ;(async () => {
-  const M = await import(url('estado-mayor/v2/motor.js'))
-  const G = await import(url('estado-mayor/v2/campos/g1.js'))
-  const R = await import(url('estado-mayor/v2/registro.js'))
-  const RT = await import(url('estado-mayor/v2/runtime.js'))
+  // la carpeta del motor que importa el compilado que carga calcos/index.html
+  const vig0 = path.join(RAIZ, fs.readFileSync(path.join(RAIZ, 'index.html'), 'utf8').match(/\.\/(assets\/index-[\w-]+\.js)/)[1])
+  const V = (fs.readFileSync(vig0, 'utf8').match(/"\.\.\/estado-mayor\/(v\d+)\/registro\.js"/) || [])[1] || 'v2'
+  console.log(`motor: calcos/estado-mayor/${V}`)
+  const M = await import(url(`estado-mayor/${V}/motor.js`))
+  const G = await import(url(`estado-mayor/${V}/campos/g1.js`))
+  const R = await import(url(`estado-mayor/${V}/registro.js`))
+  const RT = await import(url(`estado-mayor/${V}/runtime.js`))
   const { catalogo } = await import(url('formato-militar/v1/catalogo.js'))
   const G1 = G.default
   const { APREC, ANEXO } = G
@@ -249,7 +254,7 @@ const caso = (nombre, f) => casos.push([nombre, f])
   })
 
   // ── EL LECTOR: la IA no contestó en JSON ──────────────────────────────────────────
-  const L = await import(url('estado-mayor/v2/lector.js'))
+  const L = await import(url(`estado-mayor/${V}/lector.js`))
   const prosa = fs.readFileSync(path.join(__dirname, 'respuesta-prosa-personal.md'), 'utf8')
   caso('la IA escribió el DOCUMENTO (Markdown, I.- A.- 1.-, negritas, listas): cada parte cae en su apartado', () => {
     const base = M.armar(APREC, {}, G.propuestasAprec(ctx())).valor
@@ -413,8 +418,8 @@ const caso = (nombre, f) => casos.push([nombre, f])
     // el que carga calcos/index.html (éste o uno armado encima, que los conserva)
     const html = fs.readFileSync(path.join(RAIZ, 'index.html'), 'utf8')
     const vigente = fs.readFileSync(path.join(RAIZ, html.match(/\.\/(assets\/index-[\w-]+\.js)/)[1]), 'utf8')
-    // (los imports de la v1 los cambió la lista del lector a la v2: ésos los verifica la cadena)
-    for (const r of lista) if (!r.nuevo.includes('../estado-mayor/v1/')) assert.ok(vigente.includes(r.nuevo), `el compilado vigente conserva: ${r.nombre}`)
+    // (los imports de la carpeta del motor los cambian las listas siguientes —v2, v3…—: ésos los verifica la cadena)
+    for (const r of lista) if (!/\.\.\/estado-mayor\/v\d\//.test(r.nuevo)) assert.ok(vigente.includes(r.nuevo), `el compilado vigente conserva: ${r.nombre}`)
   })
   caso('ningún gancho cae DENTRO de lo que insertaron las listas anteriores (el G-4 y los demás quedan enteros)', () => {
     const viejo = fs.readFileSync(compilado, 'utf8')

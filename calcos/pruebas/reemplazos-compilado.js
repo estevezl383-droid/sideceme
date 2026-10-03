@@ -12,7 +12,8 @@
 //   index-oca-militar-20261001.js + reemplazos-2026-10-01-reconocimiento.js = index-reconocimiento-20261001.js
 //   index-reconocimiento-20261001.js + reemplazos-2026-10-02-logistica.js = index-logistica-20261002.js
 //   index-logistica-20261002.js + reemplazos-2026-10-03-estado-mayor.js = index-personal-20261003.js
-//   index-personal-20261003.js + reemplazos-2026-10-03-lector.js = index-lector-20261003.js (el vigente)
+//   index-personal-20261003.js + reemplazos-2026-10-03-lector.js = index-lector-20261003.js
+//   index-lector-20261003.js + reemplazos-2026-10-03-g5.js = index-g5-20261003.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -25,6 +26,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-03-g5'),
+    nombre: 'reemplazos-2026-10-03-g5',
+    // calcos/assets/index-lector-20261003.js (merge 79e5252, antes de estos cambios).
+    anterior: '3fef83ee731be3471b9acae79feac08c7fad4690be7eaf4302609ec970dbf245',
+  },
   {
     lista: require('./reemplazos-2026-10-03-lector'),
     nombre: 'reemplazos-2026-10-03-lector',
