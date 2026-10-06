@@ -5,6 +5,28 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-06 (2) — PRC: la tarea y el formato también AL PRINCIPIO del pedido (sin cambiar el compilado)
+
+Sergio pegó la respuesta entera de Gemini: un análisis METT-TC/OCOKA y «Conclusiones y
+decisiones de Estado Mayor» del expediente, sin ninguna fila de la hoja, y otra vez «¿Desea
+que profundicemos…?». Con un expediente largo, Gemini (sobre todo cuando convierte lo pegado en
+un archivo adjunto) lee el principio —el rol de oficial del G-3 y la Orden— y «analiza el
+documento»: la tarea y el formato estaban recién al final.
+
+- `estado-mayor/v5/prc.js`: el pedido de la PRC EMPIEZA con «Sos OFICIAL DE ESTADO MAYOR… ESTO
+  ES UN PEDIDO, NO UN DOCUMENTO PARA ANALIZAR NI RESUMIR», «TU ÚNICA TAREA» (el cuadro, el
+  JSON, lo que NO hay que escribir: análisis METT-TC u OCOKA, conclusiones, la Orden, anexos,
+  la matriz, preguntas); el expediente va entre «===== INICIO / FIN DEL EXPEDIENTE =====» como
+  DATOS; al final, después del formato, «ANTES DE ENVIAR, revisá…». Lo demás del pedido no
+  cambió.
+- `errorRespuesta`: una respuesta LARGA que no se pudo leer dice «La IA no escribió esta hoja:
+  escribió otra cosa…» y las dos causas (chat que venía hablando de otra cosa → chat nuevo;
+  pedido convertido en archivo → escribir debajo «Cumplí el pedido del archivo: contestá SÓLO
+  con el bloque JSON del final»). Vale para todas las hojas.
+- El compilado no cambió (los módulos de `v5/` se bajan de nuevo cuando vence su caché).
+- `prc.cjs` (19) y `e2e/prc.cjs` (escritorio y teléfono, con la respuesta fuera de tema de
+  `prc-ejemplo.js`) pasan; `npm test` entero.
+
 ## 2026-10-06 — ⚔️ F3·P1 Potencia Relativa de Combate con el formato de la Escuela (`index-prc-20261006.js`)
 
 Parte de `index-tablero-g4-20261003.js`: trae todo eso y suma esto. Lo pidió Sergio con una
