@@ -5,6 +5,82 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-06 (3) — 🧭 F3·P3 Formación inicial de las fuerzas, en orden y sobre el terreno (`index-organizacion-20261006.js`)
+
+Parte de `index-prc-20261006.js`: trae todo eso y suma esto. Lo pidió Sergio con capturas de la
+F3·P3 «Organización inicial de las fuerzas», del calco de la Mesa, del calco de la Escuela (las
+tareas con OD / OC 1 / OC 2 / OC 3 y los triángulos al lado), de la Organización de la Tarea en
+forma gráfica y del panel 🧩: el ejercicio se había hecho fuera de orden y quería que la hoja
+lleve el orden de la doctrina («3.- Formación inicial de las fuerzas»): con el CAE más probable y
+los objetivos, las tareas tácticas en la carta; su operación (OD, OC…); las unidades genéricas
+(triángulos y cuadrados) de lo que tiene, sobre el terreno; la forma gráfica; y recién ahí la
+Organización de la Tarea. La lista EXACTA está en
+`calcos/pruebas/reemplazos-2026-10-06-organizacion.js` (11); `construir-organizacion.js` arma el
+compilado y comprueba que deshaciéndolos se vuelve byte por byte al anterior (también lo
+comprueba `reemplazos-compilado.js`, como primer paso de la cadena).
+
+### Qué pasaba
+
+- La hoja era un cuadro de cuatro columnas sin la carta, sin proporciones calculadas y sin
+  vínculo con la Organización de la Tarea; 🌱 la llenaba con cada unidad con su NOMBRE (lo
+  contrario de la doctrina: unidades genéricas, sin nombres propios todavía).
+- Las tareas tácticas de la carta no tenían operación (OD / OC) ni sabían con qué se cumplían.
+- Al consolidar en el panel 🧩, las fichas iban al centro de la vista, no al terreno.
+
+### Qué se tocó en el compilado (11 reemplazos)
+
+- `import` del módulo nuevo (`calcos/organizacion/v1`: `editor.js`, `runtime.js`, `carta.js`),
+  justo después de los de la logística (sin partir lo que insertaron otras listas).
+- La hoja `organizacion` (F3·P3): «Formación inicial de las fuerzas», las columnas
+  «Operación · Agrupación / unidad genérica · Tarea que cumple · Enemigo en su sector ·
+  Proporción requerida… · Relación de comando», nota nueva. La guía 📘: la doctrina.
+- 🌱 `l3e` caso `organizacion` → `SIDOIFilas` (el cuadro sale de la carta; sin tareas con
+  operación no inventa nada).
+- `wLe` (Tablero del G-3): para la F3·P3, `SIDEditorOrgInicial` (los pasos) y debajo el cuadro de
+  siempre (`yU`); `onG3` con función (sin pisar cambios seguidos).
+- `Sze`: el estado `modoOI` (mientras se coloca una tarea tocando la carta la Mesa está
+  «dibujando»: `dibujando:gp||modoOI`); al Tablero del G-3 le llegan `cmoc` y `SIDdn` (las
+  unidades SIN descontar las piezas consolidadas: con las descontadas los id de las piezas no
+  coinciden con los del panel 🧩); el efecto `SIDOISync` (la capa de la carta y lo que necesita
+  para cambiar el calco: `setOps`, `setG3`, deshacer, `setOrgTarea`, `setUnidades`, `irA`).
+- `_a` (consolidar en el panel 🧩): la ficha de una agrupación que salió de la F3·P3 va junto a
+  su tarea (`SIDOIPos`); las demás, como siempre.
+- `SIDOIConfig`: React, `eN`, `cb`, `tN`, `js`, `lP`, `zg` y Leaflet, antes del primer render.
+
+### En el fuente
+
+- `calcos/organizacion/v1/` no toca React del compilado más que por `runtime.js`. Ver
+  `calcos/organizacion/README.md` (los pasos, dónde se guarda cada cosa, qué es doctrina y qué
+  es criterio de la Mesa).
+- En el fuente de la Mesa: la hoja, la guía y el caso de `l3e`; la rama de `wLe`; `modoOI`,
+  `cmoc`/`SIDdn` y el efecto en `Sze`; la posición en `_a`; la configuración del módulo.
+
+### Cómo se comprobó
+
+- `node organizacion.cjs` (10): con `tN`, `lP`, `js`, `zg` y `l3e` REALES del compilado; las
+  proporciones y la propuesta según la operación; los escalones y las genéricas del enemigo; el
+  balance (la OD primero, lo requerido, lo que sobra, la deficiencia); el reparto y mover piezas
+  (una pieza en un solo lugar); el cuadro y la forma gráfica con «bajo control»; la
+  Organización de la Tarea (crea, reusa la de la misma operación con su nombre y su propósito,
+  no duplica, no repite piezas, actualiza las fichas consolidadas); partir de lo ya armado;
+  🌱; los reemplazos, y que ninguno parte lo que insertaron las 258 entradas de las listas
+  anteriores.
+- `node e2e/organizacion.cjs` (Chromium): en escritorio, los siete pasos tocando la carta (OD,
+  OC 1, OC 2, OC 3), el reparto, los rótulos en la carta y en el 3D, la forma gráfica, el panel
+  🧩 con las agrupaciones hechas, la ficha de la OD junto a su tarea, el cuadro y el guardado;
+  en el teléfono, la hoja sin desborde y «⬅️ Partir de lo que ya armé» con la Organización de
+  la Tarea armada antes (como en la captura) y el cuadro viejo.
+- `npm test` entero. Las e2e de la PRC, el plan de fuegos, el estudio, el reconocimiento y el
+  tablero del G-4 con este compilado.
+
+### Lo que falta
+
+- En el teléfono la carta queda tapada por las barras de la Mesa: se colocan las tareas en una
+  pantalla más grande (o se parte de la Organización de la Tarea).
+- El Word de la hoja lleva el cuadro, no la forma gráfica (ésta se imprime con «🖨️ Ver para
+  imprimir»).
+- No se probó en un iPad ni con un ejercicio real.
+
 ## 2026-10-06 (2) — PRC: la tarea y el formato también AL PRINCIPIO del pedido (sin cambiar el compilado)
 
 Sergio pegó la respuesta entera de Gemini: un análisis METT-TC/OCOKA y «Conclusiones y
