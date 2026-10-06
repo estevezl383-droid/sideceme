@@ -28,6 +28,50 @@ const P = {
   frente: [[-65.093, -17.006], [-65.093, -17.016], [-65.093, -17.026]],
   contorno: [-65.08, -17.016],
   linea: [[-65.095, -17.025], [-65.085, -17.03], [-65.075, -17.025]],
+  // El segundo Área de Operaciones, ADENTRO del primero y lejos de su borde.
+  frente2: [[-65.087, -17.009], [-65.087, -17.019]],
+  contorno2: [-65.075, -17.014],
+}
+// Desde la edición de figuras (03-10-2026), con una herramienta encendida y sin trazo en curso,
+// tocar una figura ya dibujada la ELIGE (para editarla) en vez de empezar otro trazo encima
+// (Alt + clic la atraviesa). Por eso cada trazo de la prueba va en su propio lugar, al este del
+// Área de Operaciones, sobre la carta libre y lejos de las fichas y de los trazos anteriores
+// (antes todos iban sobre los mismos tres puntos). Se eligen en la pantalla: así sirve igual
+// en 2D y en el 3D inclinado.
+async function lugaresParaTrazos(page, n, usados = []) {
+  const cand = []
+  for (let lat = -16.982; lat >= -17.055; lat -= 0.003)
+    for (let lng = -65.124; lng <= -65.0; lng += 0.006) {
+      // Ni encima ni al lado del borde de las Áreas de Operaciones de los dos primeros casos.
+      const ao = [-65.093 - 0.004, -17.026 - 0.004, -65.075 + 0.004, -17.006 + 0.004]
+      if (lng + 0.012 > ao[0] && lng < ao[2] && lat > ao[1] && lat - 0.003 < ao[3]) continue
+      cand.push([[lng, lat], [lng + 0.006, lat - 0.003], [lng + 0.012, lat]])
+    }
+  const plano = await aPantalla(page, cand.flat())
+  const pant = cand.map((_, i) => plano.slice(3 * i, 3 * i + 3))
+  const libres = await page.evaluate((L) => {
+    const libre = (x, y) => {
+      // Ni pegado arriba (en el 3D inclinado es el horizonte) ni abajo (la barra del trazo).
+      if (x < 8 || y < innerHeight * 0.15 || x > innerWidth - 8 || y > innerHeight * 0.8) return false
+      const el = document.elementFromPoint(x, y)
+      // La carta misma (una tesela o el lienzo), no un botón ni un rótulo puesto encima.
+      return !!el && !!(el.closest('.maplibregl-canvas-container') || (el.closest('.leaflet-pane') && !el.closest('.leaflet-marker-pane, .leaflet-tooltip-pane, .leaflet-popup-pane'))) && !el.closest('.leaflet-marker-icon, .m3d-mk, aside, .panel, .barra-trazo, .leaflet-control, button')
+    }
+    // Lejos (45 px) de fichas, rótulos y botones: el punto y su alrededor.
+    const D = [[0, 0], [45, 0], [-45, 0], [0, 45], [0, -45], [32, 32], [-32, 32], [32, -32], [-32, -32]]
+    return L.map((pts) => pts.every(([x, y]) => D.every(([dx, dy]) => libre(x + dx, y + dy))))
+  }, pant)
+  const caja = (pts) => [Math.min(...pts.map((p) => p[0])), Math.min(...pts.map((p) => p[1])), Math.max(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[1]))]
+  const elegidos = []
+  for (let i = 0; i < pant.length && elegidos.length < n; i++) {
+    if (!libres[i]) continue
+    const b = caja(pant[i])
+    if ([...usados, ...elegidos].some((e) => { const o = caja(e); return !(b[0] > o[2] + 40 || o[0] > b[2] + 40 || b[1] > o[3] + 40 || o[1] > b[3] + 40) })) continue
+    elegidos.push(pant[i])
+    if (process.env.DEPURAR) console.log('lugar', usados.length + elegidos.length, JSON.stringify(cand[i][0]), JSON.stringify(pant[i]))
+  }
+  assert.strictEqual(elegidos.length, n, `no hay lugar libre para ${n} trazo(s) más en la carta`)
+  return elegidos
 }
 
 // Lo trazado (ops y CMOC) y la barra de abajo.
@@ -79,7 +123,8 @@ async function caso(nombre, fn) {
 }
 
 async function preparar({ vista = '2d', movil = false, comoSafari = false } = {}) {
-  const m = await abrir(movil ? { ancho: 1280, alto: 900, movil: true } : {})
+  // Una pantalla grande: cada trazo va en su propio lugar libre (ver lugaresParaTrazos).
+  const m = await abrir(movil ? { ancho: 1280, alto: 900, movil: true } : { ancho: 1920, alto: 1200 })
   const { page } = m
   if (process.env.COMPILADO) {
     const cuerpo = fs.readFileSync(process.env.COMPILADO)
@@ -125,6 +170,9 @@ async function sobreLaCarta(page, puntos) {
       L.filter(([x, y]) => {
         const el = document.elementFromPoint(x, y)
         return !el || !(el.closest('.maplibregl-canvas-container') || el.closest('.leaflet-container')) || el.closest('.leaflet-marker-icon, .m3d-mk, aside, .panel, .barra-trazo')
+      }).map(([x, y]) => {
+        const el = document.elementFromPoint(x, y)
+        return [x, y, el ? (el.className && el.className.baseVal !== undefined ? el.className.baseVal : el.className) || el.tagName : null]
       }),
     puntos,
   )
@@ -190,8 +238,18 @@ async function conRaton(vista) {
   try {
     const fr = await aPantalla(page, P.frente)
     const [co] = await aPantalla(page, [P.contorno])
+    const fr2 = await aPantalla(page, P.frente2)
+    const [co2] = await aPantalla(page, [P.contorno2])
     const li = await aPantalla(page, P.linea)
-    await sobreLaCarta(page, [...fr, co, ...li])
+    await sobreLaCarta(page, [...fr, co, ...fr2, co2, ...li])
+    // El lugar de cada trazo se elige cuando le toca (con lo que ya se dibujó a la vista); el de
+    // un trazo que no guarda nada (Esc, «Terreno clave») vuelve a quedar libre.
+    const usados = [li]
+    const lugar = async (guarda = true) => {
+      const [p] = await lugaresParaTrazos(page, 1, usados)
+      if (guarda) usados.push(p)
+      return p
+    }
 
     await caso(`${V} · ratón · Área de Operaciones: doble clic = «el frente es éste», y el doble clic cierra el contorno`, async () => {
       await herramientaAO(page)
@@ -220,13 +278,13 @@ async function conRaton(vista) {
 
     await caso(`${V} · ratón · Área de Operaciones: un vértice de contorno puesto antes y un clic otra vez sobre él cierra con ESE vértice (como «✓ CERRAR EL ÁREA»)`, async () => {
       await herramientaAO(page)
-      await page.mouse.click(...fr[0])
+      await page.mouse.click(...fr2[0])
       await page.waitForTimeout(500)
-      await page.mouse.dblclick(...fr[1])
+      await page.mouse.dblclick(...fr2[1])
       await page.waitForTimeout(1500)
-      await page.mouse.click(...co)
+      await page.mouse.click(...co2)
       await page.waitForTimeout(1000) // otro gesto, no un doble clic
-      await page.mouse.click(...co)
+      await page.mouse.click(...co2)
       const d = await esperar(page, estado, (e) => e.frente === 2)
       assert.deepStrictEqual([d.frente, d.area], [2, 3], `se esperaba el polígono frente (2) + vértice (1): ${JSON.stringify(d)}`)
       await cerrarPaneles(page)
@@ -250,11 +308,12 @@ async function conRaton(vista) {
 
     await caso(`${V} · ratón · Línea de Extraviados (G-1): doble clic justo sobre el último vértice termina UNA vez y no empieza otra`, async () => {
       const antes = await estado(page)
-      await page.mouse.click(...li[0])
+      const T2 = await lugar()
+      await page.mouse.click(...T2[0])
       await page.waitForTimeout(500)
-      await page.mouse.click(...li[1])
+      await page.mouse.click(...T2[1])
       await page.waitForTimeout(500)
-      await page.mouse.dblclick(...li[1])
+      await page.mouse.dblclick(...T2[1])
       const d = await esperar(page, estado, (e) => e.lineasEM.length > antes.lineasEM.length)
       assert.deepStrictEqual(d.lineasEM, [...antes.lineasEM, 'extraviados:2'])
       await page.waitForTimeout(1000)
@@ -263,13 +322,14 @@ async function conRaton(vista) {
 
     await caso(`${V} · ratón · Línea de Extraviados (G-1): doble clic del sistema lento (480 ms) sobre el último vértice no deja un trazo fantasma`, async () => {
       const antes = await estado(page)
-      await page.mouse.click(...li[0])
+      const T3 = await lugar()
+      await page.mouse.click(...T3[0])
       await page.waitForTimeout(500)
-      await page.mouse.click(...li[1])
+      await page.mouse.click(...T3[1])
       await page.waitForTimeout(500)
-      await clicSistema(page, ...li[1], 1)
+      await clicSistema(page, ...T3[1], 1)
       await page.waitForTimeout(480)
-      await clicSistema(page, ...li[1], 2) // el segundo clic del doble clic (y su dblclick)
+      await clicSistema(page, ...T3[1], 2) // el segundo clic del doble clic (y su dblclick)
       const d = await esperar(page, estado, (e) => e.lineasEM.length > antes.lineasEM.length)
       assert.deepStrictEqual(d.lineasEM, [...antes.lineasEM, 'extraviados:2'])
       await page.waitForTimeout(1200)
@@ -280,7 +340,8 @@ async function conRaton(vista) {
     await caso(`${V} · ratón · eje humanitario (G-5): Enter termina`, async () => {
       await herramientaG5(page)
       const antes = await estado(page)
-      for (const p of li) {
+      const T4 = await lugar()
+      for (const p of T4) {
         await page.mouse.click(...p)
         await page.waitForTimeout(500)
       }
@@ -293,7 +354,10 @@ async function conRaton(vista) {
     await caso(`${V} · ratón · obstáculo: «↶ BORRAR ÚLTIMO» y «✓ TERMINAR TRAZO» de la barra; Esc cancela`, async () => {
       await herramientaAlambrada(page)
       const antes = await estado(page)
-      for (const p of li) {
+      const T5 = await lugar()
+      const T6 = await lugar()
+      const T7 = await lugar(false)
+      for (const p of T5) {
         await page.mouse.click(...p)
         await page.waitForTimeout(500)
       }
@@ -302,16 +366,16 @@ async function conRaton(vista) {
       await page.keyboard.press('Enter') // con el foco donde estaba: termina, no vuelve a borrar
       let d = await esperar(page, estado, (e) => e.obstaculos.length > antes.obstaculos.length)
       assert.deepStrictEqual(d.obstaculos, [...antes.obstaculos, 'alambre_simple:2'], 'Enter después de «↶ BORRAR ÚLTIMO»')
-      await page.mouse.click(...li[0]) // enseguida: después de Enter no hay guarda
+      await page.mouse.click(...T6[0]) // enseguida: después de Enter no hay guarda
       await page.waitForTimeout(500)
-      await page.mouse.click(...li[1])
+      await page.mouse.click(...T6[1])
       await page.waitForTimeout(500)
       await page.locator('.barra-trazo button', { hasText: 'TERMINAR TRAZO' }).click()
       d = await esperar(page, estado, (e) => e.obstaculos.length > antes.obstaculos.length + 1)
       assert.deepStrictEqual(d.obstaculos, [...antes.obstaculos, 'alambre_simple:2', 'alambre_simple:2'], '«✓ TERMINAR TRAZO»')
-      await page.mouse.click(...li[0])
+      await page.mouse.click(...T7[0])
       await page.waitForTimeout(500)
-      await page.mouse.click(...li[1])
+      await page.mouse.click(...T7[1])
       await page.waitForTimeout(500)
       await page.keyboard.press('Escape')
       await page.waitForTimeout(600)
@@ -323,13 +387,14 @@ async function conRaton(vista) {
     await caso(`${V} · ratón · campo minado (área): un doble clic con 2 vértices avisa y NO borra el trazo; con el tercero, Enter lo cierra`, async () => {
       await herramientaCampoMinado(page)
       const antes = await estado(page)
-      await page.mouse.click(...li[0])
+      const T8 = await lugar()
+      await page.mouse.click(...T8[0])
       await page.waitForTimeout(500)
-      await page.mouse.dblclick(...li[1])
+      await page.mouse.dblclick(...T8[1])
       await page.waitForTimeout(1500)
       assert.match(await aviso(page), /TRES VÉRTICES/, 'falta el aviso')
       assert.deepStrictEqual((await estado(page)).obstaculos, antes.obstaculos, 'guardó un área de 2 vértices')
-      await page.mouse.click(...li[2])
+      await page.mouse.click(...T8[2])
       await page.waitForTimeout(500)
       await page.keyboard.press('Enter')
       const d = await esperar(page, estado, (e) => e.obstaculos.length > antes.obstaculos.length)
@@ -344,12 +409,13 @@ async function conRaton(vista) {
       await clic(page.getByRole('button', { name: /^➤\s*Avenida$/ }))
       await page.waitForTimeout(800)
       const antes = (await cmoc(page)) || []
-      for (const p of li) {
+      const T9 = await lugar()
+      for (const p of T9) {
         await page.mouse.click(...p)
         await page.waitForTimeout(500)
       }
       await page.waitForTimeout(500)
-      await page.mouse.click(...li[2])
+      await page.mouse.click(...T9[2])
       const d = await esperar(page, cmoc, (a) => (a || []).length > antes.length)
       assert.deepStrictEqual(d, [...antes, 3])
       await page.waitForTimeout(800)
@@ -360,9 +426,10 @@ async function conRaton(vista) {
 
     await caso(`${V} · ratón · CMOC: cambiar a «Terreno clave» con una avenida empezada y apretar Enter no rompe la Mesa`, async () => {
       const antes = (await cmoc(page)) || []
-      await page.mouse.click(...li[0])
+      const T7 = await lugar(false)
+      await page.mouse.click(...T7[0])
       await page.waitForTimeout(500)
-      await page.mouse.click(...li[1])
+      await page.mouse.click(...T7[1])
       await page.waitForTimeout(500)
       await clic(page.getByRole('button', { name: /^Ⓒ\s*Terreno clave$/ }).first())
       await page.waitForTimeout(800)
@@ -377,13 +444,14 @@ async function conRaton(vista) {
       await clic(page.getByRole('button', { name: /^▨\s*Restringido$/ }))
       await page.waitForTimeout(800)
       const antes = await restringidos(page)
-      await page.mouse.click(...li[0])
+      const T7 = await lugar()
+      await page.mouse.click(...T7[0])
       await page.waitForTimeout(500)
-      await page.mouse.click(li[0][0] + 8, li[0][1])
+      await page.mouse.click(T7[0][0] + 8, T7[0][1])
       await page.waitForTimeout(500)
-      await page.mouse.click(...li[2])
+      await page.mouse.click(...T7[2])
       await page.waitForTimeout(700)
-      await page.mouse.click(...li[2])
+      await page.mouse.click(...T7[2])
       const d = await esperar(page, restringidos, (n) => n > antes)
       assert.strictEqual(d, antes + 1, 'el área restringida no se cerró (¿se tragó el vértice cercano?)')
     })

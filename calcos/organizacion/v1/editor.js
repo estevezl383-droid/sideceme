@@ -40,13 +40,14 @@ import {
   avenidas,
   misionReexpresada,
   cantidad,
+  genericas,
   fmtDist,
   esPropia,
   marcaDe,
 } from './modelo.js'
 import { graficaHTML, abrirParaImprimir } from './grafica.js'
 import { useState, useEffect, useMemo, jsx, jsxs, simb, svgPieza, svgTarea, catalogoTareas } from './runtime.js'
-import { datosPuente, editorAbierto, colocar, cancelarColocar } from './carta.js'
+import { datosPuente, editorAbierto, colocar, cancelarColocar, centroVista } from './carta.js'
 
 function h(tipo, props, ...hijos) {
   const { key, ...p } = props || {}
@@ -172,20 +173,37 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
         return t
       }),
     )
-  const colocarNueva = () => {
+  // Dónde se puede poner una tarea SIN tocar la carta (en el teléfono la carta queda tapada):
+  // en un objetivo del enemigo o en el centro de lo que se ve; después se arrastra.
+  // (el centro de la vista se lee al tocar: la carta se pudo mover desde que se dibujó la hoja)
+  const destinos = () => [...objetivos.map((o, i) => ({ clave: `ob${i}`, nom: `🎯 en ${o.etiqueta || `Obj. ${i + 1}`}`, centro: () => o.centro })), { clave: 'vista', nom: '⊕ en el centro de la vista', centro: centroVista }]
+  const conDestino = (d, f) => {
+    const c = d.centro()
+    if (c) f(c)
+    else aviso('info', 'La carta todavía no está lista.')
+  }
+  const ponerNueva = (centro) => {
     const op = operacionDe(nueva.operacion)
     const nom = simb.nombreTarea(nueva.tarea)
     const escalon = nueva.escalon || bal.agrupacionEscalon
-    const ok = colocar({
-      texto: `Tocá la carta donde va «${nom}»${op ? ` (${op.corto})` : ''}: sobre el terreno, frente al enemigo de su sector.`,
-      al: (centro) => {
-        P.marcar?.()
-        const t = { centro, tarea: nueva.tarea, escalon, rot: 0, escala: 1, oi: { id: nuevoId(), operacion: nueva.operacion || '', texto: '', enemigos: sugerirEnemigos({ centro, escalon }, unidades), proporcion: '' } }
-        P.setOps?.((o) => ({ ...o, tareas: [...(o.tareas || []).map((x) => (nueva.operacion && nueva.operacion !== 'sost' && oiDe(x).operacion === nueva.operacion ? { ...x, oi: { ...oiDe(x), operacion: '' } } : x)), t] }))
-        setNueva((v) => ({ ...v, operacion: proximaOperacion({ tareas: [...(ops.tareas || []), t] }) }))
-        aviso('ok', `📍 «${nom}» quedó en la carta${op ? ` como ${op.corto}` : ''}. Seguí con la próxima, o pasá al paso ③.`)
-      },
-    })
+    P.marcar?.()
+    const t = { centro, tarea: nueva.tarea, escalon, rot: 0, escala: 1, oi: { id: nuevoId(), operacion: nueva.operacion || '', texto: '', enemigos: sugerirEnemigos({ centro, escalon }, unidades), proporcion: '' } }
+    P.setOps?.((o) => ({ ...o, tareas: [...(o.tareas || []).map((x) => (nueva.operacion && nueva.operacion !== 'sost' && oiDe(x).operacion === nueva.operacion ? { ...x, oi: { ...oiDe(x), operacion: '' } } : x)), t] }))
+    setNueva((v) => ({ ...v, operacion: proximaOperacion({ tareas: [...(ops.tareas || []), t] }) }))
+    aviso('ok', `📍 «${nom}» quedó en la carta${op ? ` como ${op.corto}` : ''}. Si no quedó justo en su lugar, arrastrá su símbolo (o «📍 Mover»). Seguí con la próxima, o pasá al paso ③.`)
+  }
+  const colocarNueva = () => {
+    const op = operacionDe(nueva.operacion)
+    const nom = simb.nombreTarea(nueva.tarea)
+    const ok = colocar({ texto: `Tocá la carta donde va «${nom}»${op ? ` (${op.corto})` : ''}: sobre el terreno, frente al enemigo de su sector.`, al: ponerNueva })
+    if (ok) aviso('info', '📍 Tocá la carta donde va la tarea (Esc cancela).')
+  }
+  const moverA = (id, centro) => {
+    P.marcar?.()
+    cambiarTareas((ts) => ts.map((x) => (oiDe(x).id === id ? { ...x, centro: [centro[0], centro[1]] } : x)))
+  }
+  const moverTocando = (id) => {
+    const ok = colocar({ texto: 'Tocá la carta donde va ahora esta tarea.', al: (c) => (moverA(id, c), aviso('ok', '📍 La tarea quedó en su nuevo lugar.')) })
     if (ok) aviso('info', '📍 Tocá la carta donde va la tarea (Esc cancela).')
   }
   const quitarTarea = (id) => {
@@ -296,6 +314,7 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
       op && h('label', { style: { display: 'flex', gap: 5, alignItems: 'center' } }, h('b', { style: { color: op.color } }, 'T:'), h('input', { style: E.campo, value: oi.texto || '', placeholder: sug, onChange: (e) => cambiarOI(oi.id, { texto: e.target.value }), 'aria-label': `Texto de la tarea ${op.corto}` })),
       op && !oi.texto && h('button', { style: { ...E.btnChico, alignSelf: 'flex-start' }, onClick: () => cambiarOI(oi.id, { texto: sug }) }, `✍️ Usar «${sug.length > 60 ? sug.slice(0, 60) + '…' : sug}»`),
       !op && h('div', { style: E.ayuda }, 'Sin operación: no entra en la organización inicial (puede ser una tarea del análisis de la misión).'),
+      op && h('div', { style: E.fila }, h('button', { style: E.btnChico, onClick: () => moverTocando(oi.id), title: 'Tocar la carta donde va' }, '📍 Mover'), ...destinos().map((d) => h('button', { key: d.clave, style: E.btnChico, onClick: () => conDestino(d, (c) => moverA(oi.id, c)), title: 'Llevarla ahí (después se arrastra)' }, d.nom.replace(/^(🎯|⊕) en /, '→ ')))),
     )
   }
   const ordenadas = [...bal.tareas.map((x) => x.t), ...sinOperacion]
@@ -310,6 +329,7 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
       h('div', { style: E.fila }, selTarea(nueva.tarea, (v) => setNueva((n) => ({ ...n, tarea: v }))), h('select', { style: E.sel, value: nueva.escalon || bal.agrupacionEscalon, onChange: (e) => setNueva((n) => ({ ...n, escalon: e.target.value })), 'aria-label': 'Magnitud del símbolo' }, ...ESCALONES.slice(2, 8).map((e) => h('option', { key: e, value: e }, `${marcaDe(e)} ${cantidad(1, e).replace(/^1 /, '')}`)))),
       opChips(nueva.operacion, (v) => setNueva((n) => ({ ...n, operacion: v }))),
       h('button', { style: E.btnPrin, onClick: colocarNueva }, '📍 Colocarla en la carta'),
+      h('div', { style: E.fila }, h('span', { style: E.ayuda }, 'o ponela directamente:'), ...destinos().map((d) => h('button', { key: d.clave, style: E.btnChico, onClick: () => conDestino(d, ponerNueva) }, d.nom))),
     ),
     ...ordenadas.map(tarjetaTarea),
     !tareasCalco.length && h('div', { style: E.aviso }, 'Todavía no hay tareas tácticas en la carta. Empezá por la OD.'),
@@ -350,14 +370,14 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
         h('input', { type: 'number', min: 0, step: 1, style: { ...E.campo, width: 60 }, value: man.n ?? '', onChange: (e) => cambiarOI(oi.id, { enemigoManual: { ...man, n: e.target.value === '' ? '' : Math.max(0, Number(e.target.value)), escalon: man.escalon || 'batallon' } }), 'aria-label': 'Cantidad de unidades enemigas' }),
         h('select', { style: E.sel, value: man.escalon || 'batallon', onChange: (e) => cambiarOI(oi.id, { enemigoManual: { ...man, escalon: e.target.value } }) }, ...ESCALONES.slice(2, 8).map((e) => h('option', { key: e, value: e }, cantidad(2, e).replace(/^2 /, '')))),
       ),
-      h('div', { style: { fontSize: 11.5 } }, h('b', null, 'Enemigo en el sector: '), x.enemigo.gen > 0 ? `≈ ${cantidad(x.enemigo.gen, bal.G)} genéricas de maniobra` : 'ninguno', x.enemigo.apoyo.length ? ` (más ${x.enemigo.apoyo.length} de apoyo, que no entran en la proporción)` : ''),
+      h('div', { style: { fontSize: 11.5 } }, h('b', null, 'Enemigo en el sector: '), x.enemigo.gen > 0 ? `≈ ${genericas(x.enemigo.gen, bal.G)} de maniobra` : 'ninguno', x.enemigo.apoyo.length ? ` (más ${x.enemigo.apoyo.length} de apoyo, que no entran en la proporción)` : ''),
       h('div', { style: E.rot }, 'Proporción requerida (propias : enemigas)'),
       h('select', { style: E.sel, value: x.prop.id, onChange: (e) => cambiarOI(oi.id, { proporcion: e.target.value }), 'aria-label': `Proporción ${x.op.corto}` }, ...PROPORCIONES.map((p) => h('option', { key: p.id, value: p.id }, `${p.id} — ${p.nom}`))),
       h('div', { style: E.ayuda }, `La Mesa propone ${x.propSugerida.id}: ${x.propSugerida.por}`),
       h(
         'div',
         { style: x.nivel === 'sin-enemigo' ? E.aviso : E.bien },
-        x.nivel === 'sin-enemigo' ? 'Sin enemigo en el sector: no hay proporción que calcular (tildá el enemigo o escribilo).' : h('span', null, 'Hacen falta ', h('b', null, cantidad(x.requeridas, bal.G)), ` genéricas de maniobra (${n1(x.enemigo.gen)} × ${x.prop.amigo}/${x.prop.enemigo}).`),
+        x.nivel === 'sin-enemigo' ? 'Sin enemigo en el sector: no hay proporción que calcular (tildá el enemigo o escribilo).' : h('span', null, x.requeridas === 1 ? 'Hace falta ' : 'Hacen falta ', h('b', null, genericas(x.requeridas, bal.G)), ` de maniobra (${n1(x.enemigo.gen)} × ${x.prop.amigo}/${x.prop.enemigo}).`),
       ),
     )
   }
@@ -385,7 +405,7 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
     Paso,
     { n: 4, titulo: 'Las unidades genéricas: con qué se cumple cada tarea', ok: listo[4], abierto: abiertos[4], onAbrir: () => abrir(4) },
     h('div', { style: E.doctrina }, `Se dispone hasta DOS NIVELES INFERIORES con unidades GENÉRICAS de maniobra (acá: ${cantidad(2, bal.G).replace(/^2 /, '')}), sin tomar en cuenta todavía un tipo específico; después se suman los multiplicadores de combate. No se asignan misiones a unidades designadas: sólo se cuenta con qué se dispone. Si lo dispuesto es MENOS que lo disponible, lo demás va a una agrupación aparte; si es MÁS, la deficiencia es un posible requerimiento de recursos adicionales.`),
-    h('div', { style: E.fila }, h('b', null, `Disponibles: ${cantidad(bal.totalManiobra, bal.G)} genéricas de maniobra`), h('span', null, `· requeridas: ${n1(bal.totalRequerido)}`), bal.deficiencia > 0 ? h('span', { style: E.falta }, `· FALTAN ${n1(bal.deficiencia)}`) : bal.tareas.length ? h('span', { style: E.ok }, `· sobran ${n1(bal.sobrante)}`) : null),
+    h('div', { style: E.fila }, h('b', null, `Disponibles: ${genericas(bal.totalManiobra, bal.G)} de maniobra`), h('span', null, `· requeridas: ${n1(bal.totalRequerido)}`), bal.deficiencia > 0 ? h('span', { style: E.falta }, `· FALTAN ${n1(bal.deficiencia)}`) : bal.tareas.length ? h('span', { style: E.ok }, `· sobran ${n1(bal.sobrante)}`) : null),
     h('div', { style: E.fila }, h('button', { style: E.btnPrin, onClick: repartir, disabled: !bal.tareas.length }, '⚡ Proponer el reparto (la OD primero)'), h('button', { style: E.btn, onClick: vaciar }, '🧹 Vaciar el reparto')),
     h('div', { style: E.rot }, 'Lo que tengo (tocá una tarea y después las piezas)'),
     !madres.length && h('div', { style: E.aviso }, 'No hay unidades propias en el calco. Colocalas en 🪖 Unidades y volvé: acá aparecen disgregadas en sus piezas genéricas.'),

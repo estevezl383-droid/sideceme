@@ -126,6 +126,13 @@ const NOMBRES = {
 export const MARCAS = { equipo: 'Ø', escuadra: '●', seccion: '●●●', compania: 'I', batallon: 'II', regimiento: 'III', brigada: 'X', division: 'XX', cuerpo: 'XXX', ejercito: 'XXXX' }
 export const marcaDe = (e) => MARCAS[escalonNormal(e)] || ''
 const redondo = (n) => (Math.abs(n - Math.round(n)) < 1e-9 ? String(Math.round(n)) : n.toFixed(1).replace('.', ','))
+const MASCULINOS = ['equipo', 'batallon', 'regimiento', 'cuerpo', 'ejercito']
+// «2 compañías genéricas», «1 compañía genérica», «3 batallones genéricos».
+export function genericas(n, escalon) {
+  const m = MASCULINOS.includes(escalonNormal(escalon))
+  const uno = Math.abs(n - 1) < 1e-9
+  return `${cantidad(n, escalon)} ${m ? (uno ? 'genérico' : 'genéricos') : uno ? 'genérica' : 'genéricas'}`
+}
 export function cantidad(n, escalon, { corto = false } = {}) {
   const k = NOMBRES[escalonNormal(escalon)] || ['unidad', 'unidades', 'U.']
   if (corto) return `${redondo(n)} ${k[2]}`
@@ -380,7 +387,7 @@ const descEnemigo = (x, G, simb) => {
   const partes = x.enemigo.maniobra.map((u) => simb.rotulo(u))
   if (x.enemigo.manual) partes.push(cantidad(x.enemigo.manual.n, x.enemigo.manual.escalon))
   if (!partes.length) return 'Sin enemigo ubicado en su sector.'
-  return `${unirNombres(partes)} (≈ ${cantidad(x.enemigo.gen, G)} genéricas)${x.enemigo.apoyo.length ? `; con el apoyo de ${unirNombres(x.enemigo.apoyo.map((u) => simb.rotulo(u)))}` : ''}.`
+  return `${unirNombres(partes)} (≈ ${genericas(x.enemigo.gen, G)})${x.enemigo.apoyo.length ? `; con el apoyo de ${unirNombres(x.enemigo.apoyo.map((u) => simb.rotulo(u)))}` : ''}.`
 }
 
 // ─── El cuadro de la hoja (lo que va al Word y a la IA) ─────────────────────────────
@@ -399,7 +406,7 @@ export function filasCuadro({ ops, g3, unidades }, simb) {
     filas.push({
       Operación: `${x.op.corto} — ${x.op.nom}`,
       'Agrupación / unidad genérica': man.length || apo.length
-        ? [man.length ? `${cantidad(x.dispuestas, G)} genéricas de maniobra (${resumenPiezas(man, G, simb).join(', ')})` : 'Sin unidades de maniobra', apo.length ? `con ${resumenPiezas(apo, G, simb).join(', ')}` : ''].filter(Boolean).join(' ')
+        ? [man.length ? `${genericas(x.dispuestas, G)} de maniobra (${resumenPiezas(man, G, simb).join(', ')})` : 'Sin unidades de maniobra', apo.length ? `con ${resumenPiezas(apo, G, simb).join(', ')}` : ''].filter(Boolean).join(' ')
         : 'Sin unidades dispuestas todavía.',
       'Tarea que cumple': `${simb.nombreTarea(x.t.tarea)} — T: ${texto}`,
       'Enemigo en su sector': descEnemigo(x, G, simb),
@@ -414,7 +421,7 @@ export function filasCuadro({ ops, g3, unidades }, simb) {
     const peso = b.reserva.reduce((s, p) => s + pesoPieza(p, G), 0)
     filas.push({
       Operación: `${RESERVA.corto} — Agrupación aparte (reserva)`,
-      'Agrupación / unidad genérica': `${peso ? `${cantidad(peso, G)} genéricas de maniobra` : 'Piezas'} (${resumenPiezas(b.reserva, G, simb).join(', ')})`,
+      'Agrupación / unidad genérica': `${peso ? `${genericas(peso, G)} de maniobra` : 'Piezas'} (${resumenPiezas(b.reserva, G, simb).join(', ')})`,
       'Tarea que cumple': 'Lo que sobra después de cubrir las tareas: se usa al desarrollar el esquema de maniobra.',
       'Enemigo en su sector': '—',
       'Proporción requerida frente al enemigo en su sector': '—',
@@ -434,7 +441,7 @@ export function filasCuadro({ ops, g3, unidades }, simb) {
   if (b.deficiencia > 0)
     filas.push({
       Operación: 'DEFICIENCIA',
-      'Agrupación / unidad genérica': `Faltan ${cantidad(b.deficiencia, G)} genéricas de maniobra (requeridas ${redondo(b.totalRequerido)}, disponibles ${redondo(b.totalManiobra)}).`,
+      'Agrupación / unidad genérica': `Faltan ${genericas(b.deficiencia, G)} de maniobra (requeridas ${redondo(b.totalRequerido)}, disponibles ${redondo(b.totalManiobra)}).`,
       'Tarea que cumple': 'Posible requerimiento de recursos adicionales al escalón superior.',
       'Enemigo en su sector': '—',
       'Proporción requerida frente al enemigo en su sector': '—',
@@ -581,7 +588,7 @@ export function revisar(bal, { picb, ops, cmoc, g3, ordenSup }) {
   if (!bal.tareas.length) avisos.push({ paso: 2, txt: 'Ninguna tarea táctica de la carta tiene operación (OD / OC).' })
   else if (!bal.tareas.some((x) => x.op.id === 'od')) avisos.push({ paso: 2, txt: 'Falta la OPERACIÓN DECISIVA: es la primera que se dispone, en el punto decisivo.' })
   for (const x of bal.tareas) if (x.nivel === 'sin-enemigo') avisos.push({ paso: 3, txt: `${x.op.corto}: sin enemigo en su sector (la proporción no se puede calcular).` })
-  for (const x of bal.tareas) if (x.nivel === 'falta') avisos.push({ paso: 4, txt: `${x.op.corto}: faltan ${redondo(x.falta)} unidad(es) genérica(s) para llegar a ${x.prop.id}.` })
+  for (const x of bal.tareas) if (x.nivel === 'falta') avisos.push({ paso: 4, txt: `${x.op.corto}: faltan ${genericas(x.falta, bal.G)} para llegar a ${x.prop.id}.` })
   if (bal.libresManiobra.length) avisos.push({ paso: 4, txt: `Quedan ${bal.libresManiobra.length} pieza(s) de maniobra sin repartir: van a la reserva (agrupación aparte).` })
   if (bal.deficiencia > 0) avisos.push({ paso: 4, txt: `Lo requerido supera lo disponible en ${redondo(bal.deficiencia)}: es un posible requerimiento de recursos adicionales.` })
   return avisos

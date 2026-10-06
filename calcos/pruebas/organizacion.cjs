@@ -85,6 +85,9 @@ const caso = (nombre, f) => casos.push([nombre, f])
     assert.equal(m.cantidad(2, 'compania'), '2 compañías')
     assert.equal(m.cantidad(1, 'batallon'), '1 batallón')
     assert.equal(m.cantidad(1.5, 'compania', { corto: true }), '1,5 Cía.')
+    assert.equal(m.genericas(1, 'compania'), '1 compañía genérica')
+    assert.equal(m.genericas(6, 'compania'), '6 compañías genéricas')
+    assert.equal(m.genericas(3, 'batallon'), '3 batallones genéricos')
     // Las piezas de la Mesa: un regimiento se disgrega en 9 compañías.
     const piezas = m.piezasPropias(ej.unidades, simb)
     assert.equal(piezas.filter((p) => p.de === 'p-cab').length, 9)
@@ -251,6 +254,38 @@ const caso = (nombre, f) => casos.push([nombre, f])
     assert.equal(filas.length, 5, 'OD, OC 1, OC 2, OC 3 y bajo control (sin reserva todavía)')
     assert.equal(filas[0].Operación, 'OD — Operación Decisiva (esfuerzo principal)')
     assert.deepEqual(l3e.l3e('organizacion', { ops: ej.ops, g3: {}, unidades: ej.unidades }), [], 'sin OD/OC no hay cuadro: el aviso de la Mesa dice qué hacer')
+  })
+
+  caso('el Word de la hoja: el cuadro como tabla apaisada y la forma gráfica como SVG puro (imagen); la vista previa la lleva', async () => {
+    require_runtime.configurarOrgInicial({ tN: mesa.tN, js: mesa.js, lP: mesa.lP, zg: mesa.zg, eN: mesa.eN, cb: mesa.cb })
+    const doc = await import('../organizacion/v1/documento.js')
+    const ops = conTareas()
+    const b = m.balance({ ops, g3: {}, unidades: ej.unidades }, simb)
+    const r = m.proponerReparto(b)
+    const ops2 = { ...ops, tareas: ops.tareas.map((t) => (t.oi && r.tareas[t.oi.id] ? { ...t, oi: { ...t.oi, piezas: r.tareas[t.oi.id] } } : t)) }
+    const g3 = { organizacionInicial: { reserva: { piezas: r.reserva } } }
+    const ctx = { ops: ops2, SIDdn: ej.unidades, unidades: [], orgTarea: [{ id: 'ag-x', nombre: 'VARGAS', operacion: 'od' }] }
+    const filas = m.filasCuadro({ ops: ops2, g3, unidades: ej.unidades }, simb)
+    const spec = doc.especificacionWord({ titulo: 'FORMACIÓN INICIAL DE LAS FUERZAS', secciones: [{ texto: 'renglones' }] }, filas, ctx, g3, [{ texto: 'renglones' }])
+    assert.equal(spec.orientacion, 'apaisada')
+    assert.deepEqual(spec.secciones.map((x) => x.titulo), ['CUADRO DE LA FORMACIÓN INICIAL', doc.TITULO_GRAFICA])
+    const tabla = spec.secciones[0].tabla
+    assert.deepEqual(tabla.cabecera, m.COLUMNAS.map((c) => c.toUpperCase()))
+    assert.equal(tabla.filas.length, filas.length)
+    assert.equal(tabla.filas[0][0], 'OD — Operación Decisiva (esfuerzo principal)')
+    const svg = spec.secciones[1].svg
+    assert.match(svg, /^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg" viewBox="0 0 706 \d+"/, 'el viewBox va primero (la Mesa saca la proporción de ahí)')
+    assert.ok(!/foreignObject|<div|style=/.test(svg), 'sin HTML ni CSS: se puede pasar a imagen en cualquier navegador')
+    for (const t of ['OPERACIÓN DECISIVA', 'OPERACIÓN DE CONFIGURACIÓN 3', 'BAJO CONTROL', 'RESERVA', 'RA-1 «LANZA»', '>II<', '>III<']) assert.ok(svg.includes(t.replace('«', '«')), `el SVG no trae «${t}»`)
+    assert.ok((svg.match(/<svg /g) || []).length > 20, 'con los símbolos de las piezas adentro')
+    // Sin renglones en el cuadro, lo de antes y la forma gráfica.
+    const sin = doc.seccionesWord([], ctx, g3, [{ texto: 'antes' }])
+    assert.deepEqual(sin.map((x) => x.texto || x.titulo), ['antes', doc.TITULO_GRAFICA])
+    // La vista previa: la imagen antes del pie, y sólo en la F3·P3.
+    const html = '<html><body><h1>X</h1><table></table><p class="pie">EL G-3</p></body></html>'
+    const previa = doc.previaConGrafica({ id: 'organizacion' }, html, ctx, g3)
+    assert.ok(previa.indexOf('data:image/svg+xml;base64,') > 0 && previa.indexOf('data:image/svg+xml;base64,') < previa.indexOf('<p class="pie">'))
+    assert.equal(doc.previaConGrafica({ id: 'potencia' }, html, ctx, g3), html)
   })
 
   caso('los reemplazos del compilado: cada uno una vez, y se vuelve byte por byte al anterior', () => {

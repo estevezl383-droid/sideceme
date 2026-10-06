@@ -45,23 +45,41 @@ function bloqueHTML({ corto, color, texto, piezas, pie, arrastrable }) {
 ${pie ? `<div style="font-size:9.5px;color:#333;margin-top:1px">${esc(pie)}</div>` : ''}</div>`
 }
 
-function dibujar() {
+// Lo que se dibujó la última vez: si nada de eso cambió, la capa queda como está (la carta no
+// se toca en cada cambio del calco: cada trazo, cada vértice).
+let firma = ''
+function quitarCapa() {
   if (capa) {
     try {
       capa.remove()
     } catch {}
     capa = null
   }
+  firma = ''
+}
+const hayAlgo = (p) => !!p && ((p.ops?.tareas || []).some((t) => t && t.oi && t.oi.operacion) || ((p.g3?.[CLAVE_FLUJO] || {}).reserva?.piezas || []).length > 0)
+
+function dibujar() {
   const L = leaflet()
   const m = mapa()
-  if (!L || !m || !puente) return
+  // Sin tareas con operación ni reserva no hay nada que dibujar (lo más común: no cuesta nada).
+  if (!L || !m || !hayAlgo(puente)) return quitarCapa()
   let b
   try {
     b = balance({ ops: puente.ops || {}, g3: puente.g3 || {}, unidades: puente.unidades || [] }, simb)
   } catch {
-    return
+    return quitarCapa()
   }
-  if (!b.flujo.verEnCarta) return
+  if (!b.flujo.verEnCarta) return quitarCapa()
+  const nueva = JSON.stringify([
+    editor > 0,
+    b.tareas.map((x) => [x.oi.id, x.t.centro, x.t.tarea, x.oi.texto, x.oi.desp, x.op.id, x.prop.id, x.requeridas, x.dispuestas, x.nivel, x.piezas.map((p) => p.id), [...x.enemigo.maniobra, ...x.enemigo.apoyo].map((u) => [u.lat, u.lng])]),
+    b.reserva.map((p) => p.id),
+    b.flujo.reserva.pos,
+    b.flujo.reserva.pos ? null : posicionReserva(b),
+  ])
+  if (capa && capa._map === m && nueva === firma) return
+  quitarCapa()
   const abierta = editor > 0
   const g = L.layerGroup()
   const G = b.G
@@ -125,6 +143,7 @@ function dibujar() {
   }
   g.addTo(m)
   capa = g
+  firma = nueva
 }
 
 // Dónde va la reserva si nadie la movió: a retaguardia, en el centro de las unidades propias.
@@ -149,6 +168,18 @@ export function posicionAgrupacion(ag) {
     if (pos) return { lat: pos[1], lng: pos[0] }
   }
   return null
+}
+
+// El centro de lo que se ve en la carta (para poner una tarea sin tocarla).
+export function centroVista() {
+  const m = mapa()
+  if (!m) return null
+  try {
+    const c = m.getCenter()
+    return [r6(c.lng), r6(c.lat)]
+  } catch {
+    return null
+  }
 }
 
 // ─── Colocar una tarea tocando la carta ─────────────────────────────────────────────

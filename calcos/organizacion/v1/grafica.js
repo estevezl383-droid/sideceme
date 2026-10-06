@@ -52,3 +52,100 @@ export function abrirParaImprimir(forma, { titulo = 'Organización de la Tarea (
 <p><button onclick="print()">🖨️ Imprimir</button></p></body></html>`)
   w.document.close()
 }
+
+// ─── La misma forma gráfica como SVG puro (sin HTML adentro), para el Word y la vista previa ───
+// El Word la convierte en imagen (la Mesa dibuja el SVG en un canvas): por eso no lleva
+// foreignObject ni CSS, sólo rectángulos, textos y los SVG de las piezas.
+const ANCHO_COL = 330
+const SEP = 22
+const MARGEN = 12
+const PIEZA = [32, 19]
+const xml = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c])
+function partir(texto, max) {
+  const out = []
+  let linea = ''
+  for (const p of String(texto || '').split(/\s+/).filter(Boolean)) {
+    if ((linea + ' ' + p).trim().length > max && linea) {
+      out.push(linea)
+      linea = p
+    } else linea = (linea + ' ' + p).trim()
+  }
+  if (linea) out.push(linea)
+  return out
+}
+const texto = (x, y, t, { tam = 12, negrita = false, ancla = 'start' } = {}) =>
+  `<text x="${x}" y="${y}" font-family="Arial, Helvetica, sans-serif" font-size="${tam}"${negrita ? ' font-weight="bold"' : ''} text-anchor="${ancla}" fill="#000">${xml(t)}</text>`
+const pieza = (x, y, simbolo, ancho = PIEZA[0]) => `<g transform="translate(${x},${y})">${svgPieza(simbolo, ancho, '#000')}</g>`
+
+// Una caja (agrupación o reserva) con la marca del escalón arriba y el nombre al costado.
+function cajaSVG(x0, y0, { escalon, piezas = [], nombre = '' }) {
+  const marca = marcaDe(escalon)
+  const porFila = 5
+  const filas = Math.max(1, Math.ceil(piezas.length / porFila))
+  const bw = 12 + Math.min(porFila, Math.max(piezas.length, 4)) * (PIEZA[0] + 4)
+  const bh = 10 + filas * (PIEZA[1] + 6)
+  const nombreL = partir(nombre, 15).slice(0, 3)
+  const total = bw + (nombreL.length ? 8 + 112 : 0)
+  const bx = x0 + Math.max(0, (ANCHO_COL - total) / 2)
+  const by = y0 + (marca ? 16 : 0)
+  const partes = []
+  if (marca) {
+    const tw = 12 + marca.length * 8
+    partes.push(`<rect x="${bx + bw / 2 - tw / 2}" y="${y0}" width="${tw}" height="16" fill="#fff" stroke="#000" stroke-width="2"/>`, texto(bx + bw / 2, y0 + 12.5, marca, { tam: 11, negrita: true, ancla: 'middle' }))
+  }
+  partes.push(`<rect x="${bx}" y="${by}" width="${bw}" height="${bh}" fill="#fff" stroke="#000" stroke-width="2"/>`)
+  if (!piezas.length) partes.push(texto(bx + bw / 2, by + bh / 2 + 4, 'sin unidades', { tam: 10, ancla: 'middle' }))
+  piezas.forEach((p, i) => {
+    const fila = Math.floor(i / porFila)
+    const enFila = Math.min(porFila, piezas.length - fila * porFila)
+    const ancho = enFila * (PIEZA[0] + 4) - 4
+    partes.push(pieza(bx + (bw - ancho) / 2 + (i % porFila) * (PIEZA[0] + 4), by + 8 + fila * (PIEZA[1] + 6), p.simbolo))
+  })
+  nombreL.forEach((l, i) => partes.push(texto(bx + bw + 8, by + bh / 2 + 4 + (i - (nombreL.length - 1) / 2) * 14, l, { tam: 12, negrita: true })))
+  return { svg: partes.join(''), alto: (by - y0) + bh }
+}
+// Una unidad entera bajo control: su símbolo con la marca del escalón encima.
+function unidadSVG(x0, y0, { escalon, simbolo, nombre }) {
+  const marca = marcaDe(escalon)
+  const w = 58
+  const nombreL = partir(nombre, 18).slice(0, 3)
+  const total = w + 8 + 130
+  const bx = x0 + Math.max(0, (ANCHO_COL - total) / 2)
+  const partes = []
+  if (marca) partes.push(texto(bx + w / 2, y0 + 11, marca, { tam: 11, negrita: true, ancla: 'middle' }))
+  partes.push(pieza(bx, y0 + (marca ? 14 : 0), simbolo, w))
+  const h = (marca ? 14 : 0) + Math.round(w * 0.6)
+  nombreL.forEach((l, i) => partes.push(texto(bx + w + 8, y0 + h / 2 + 8 + (i - (nombreL.length - 1) / 2) * 14, l, { tam: 12, negrita: true })))
+  return { svg: partes.join(''), alto: h }
+}
+function bloqueSVG(x0, y0, b) {
+  const partes = [texto(x0 + ANCHO_COL / 2, y0 + 15, b.titulo, { tam: 14, negrita: true, ancla: 'middle' })]
+  let y = y0 + 26
+  for (const it of b.items) {
+    const r = it.simbolo ? unidadSVG(x0, y, it) : cajaSVG(x0, y, it)
+    partes.push(r.svg)
+    y += r.alto + 4
+    if (it.tarea) {
+      partes.push(texto(x0 + ANCHO_COL / 2, y + 10, `Tarea: ${it.tarea}`, { tam: 10.5, ancla: 'middle' }))
+      y += 14
+    }
+    y += 8
+  }
+  return { svg: partes.join(''), alto: y - y0 }
+}
+export function graficaSVG(forma) {
+  const bloques = forma.cajas.map((c) => ({ titulo: c.titulo, items: [{ escalon: c.escalon, piezas: c.piezas, nombre: c.nombre || '……………', tarea: c.tarea }] }))
+  if (forma.bajo.length) bloques.push({ titulo: 'BAJO CONTROL', items: forma.bajo.map((c) => (c.simbolo ? { escalon: c.escalon, simbolo: c.simbolo, nombre: c.nombre } : { escalon: c.escalon, piezas: c.piezas, nombre: c.nombre })) })
+  if (!bloques.length) return ''
+  const partes = []
+  let y = MARGEN
+  for (let i = 0; i < bloques.length; i += 2) {
+    const a = bloqueSVG(MARGEN, y, bloques[i])
+    const b = bloques[i + 1] ? bloqueSVG(MARGEN + ANCHO_COL + SEP, y, bloques[i + 1]) : { svg: '', alto: 0 }
+    partes.push(a.svg, b.svg)
+    y += Math.max(a.alto, b.alto) + 14
+  }
+  const W = MARGEN * 2 + ANCHO_COL * 2 + SEP
+  const H = Math.ceil(y + MARGEN - 14)
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}"><rect x="0" y="0" width="${W}" height="${H}" fill="#fff"/>${partes.join('')}</svg>`
+}

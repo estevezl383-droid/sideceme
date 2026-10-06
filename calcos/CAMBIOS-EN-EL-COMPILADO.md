@@ -15,7 +15,7 @@ lleve el orden de la doctrina («3.- Formación inicial de las fuerzas»): con e
 los objetivos, las tareas tácticas en la carta; su operación (OD, OC…); las unidades genéricas
 (triángulos y cuadrados) de lo que tiene, sobre el terreno; la forma gráfica; y recién ahí la
 Organización de la Tarea. La lista EXACTA está en
-`calcos/pruebas/reemplazos-2026-10-06-organizacion.js` (11); `construir-organizacion.js` arma el
+`calcos/pruebas/reemplazos-2026-10-06-organizacion.js` (13); `construir-organizacion.js` arma el
 compilado y comprueba que deshaciéndolos se vuelve byte por byte al anterior (también lo
 comprueba `reemplazos-compilado.js`, como primer paso de la cadena).
 
@@ -27,7 +27,7 @@ comprueba `reemplazos-compilado.js`, como primer paso de la cadena).
 - Las tareas tácticas de la carta no tenían operación (OD / OC) ni sabían con qué se cumplían.
 - Al consolidar en el panel 🧩, las fichas iban al centro de la vista, no al terreno.
 
-### Qué se tocó en el compilado (11 reemplazos)
+### Qué se tocó en el compilado (13 reemplazos)
 
 - `import` del módulo nuevo (`calcos/organizacion/v1`: `editor.js`, `runtime.js`, `carta.js`),
   justo después de los de la logística (sin partir lo que insertaron otras listas).
@@ -45,7 +45,12 @@ comprueba `reemplazos-compilado.js`, como primer paso de la cadena).
   para cambiar el calco: `setOps`, `setG3`, deshacer, `setOrgTarea`, `setUnidades`, `irA`).
 - `_a` (consolidar en el panel 🧩): la ficha de una agrupación que salió de la F3·P3 va junto a
   su tarea (`SIDOIPos`); las demás, como siempre.
-- `SIDOIConfig`: React, `eN`, `cb`, `tN`, `js`, `lP`, `zg` y Leaflet, antes del primer render.
+- `SIDOIConfig`: React, `eN`, `cb`, `tN`, `js`, `lP`, `zg` y Leaflet, antes del primer render
+  (justo antes del `configurarEM` del G-5, sin partirlo).
+- `Aoe` («📄 Word (hoja de trabajo)»): para la F3·P3, `SIDOIWord` — apaisado, el cuadro como
+  TABLA (antes, como en todas las hojas «filas», salía en renglones de texto) y la
+  Organización de la Tarea en forma gráfica (un SVG que `preparar` convierte en imagen).
+- `wLe` (👁️ Vista previa): `SIDOIPrevia` pone la forma gráfica debajo del cuadro.
 
 ### En el fuente
 
@@ -73,13 +78,37 @@ comprueba `reemplazos-compilado.js`, como primer paso de la cadena).
 - `npm test` entero. Las e2e de la PRC, el plan de fuegos, el estudio, el reconocimiento y el
   tablero del G-4 con este compilado.
 
+### Segunda vuelta (lo que faltaba)
+
+- **Sin tocar la carta**: en el teléfono la carta queda tapada por las barras de la Mesa. La
+  tarea nueva se pone «🎯 en Oa / Ob…» o «⊕ en el centro de la vista»; cada tarea tiene
+  «📍 Mover» y «→ Oa / → el centro de la vista». En una pantalla angosta (tableta parada), al
+  tocar la carta el panel se esconde y vuelve solo.
+- **El Word y la vista previa** llevan la forma gráfica (y el cuadro como tabla, apaisado).
+- **«2 compañías genéricas», «1 compañía genérica», «3 batallones genéricos»** (concordancia).
+- **La capa de la carta** ya no se rehace en cada cambio del calco: sólo si cambió lo que
+  dibuja (y sin tareas con operación no agrega nada a la carta).
+- **Pruebas que fallaban desde la edición de figuras (03-10-2026)**, con este compilado y con
+  el anterior (se comprobó: con `index-trazos-20261003.js` pasaban, con
+  `index-edicion-20261003.js` ya no). No era la Mesa: las pruebas no se habían puesto al día
+  con lo que esa vuelta cambió A PROPÓSITO:
+  - `e2e/plan-fuegos.js`: un área se elige tocando su BORDE (no el relleno) y el rótulo dice
+    «✋ Arrastrá un punto…». Ahora toca el borde.
+  - `e2e/trazos.cjs` (15 casos): con una herramienta encendida y sin trazo en curso, tocar una
+    figura ya dibujada la ELIGE (Alt + clic la atraviesa); la prueba trazaba todo encima de lo
+    anterior, sobre los mismos tres puntos. Ahora cada trazo va en su propio lugar libre de la
+    carta (elegido en la pantalla, en 2D y en el 3D inclinado) y en una pantalla más grande.
+  - `e2e/plan-barreras-3d.js`: el toque largo (el clic derecho del dedo) ya no TERMINA la línea:
+    borra el último punto. La prueba ahora comprueba eso y termina con el doble toque, en un
+    lugar libre (no encima de la alambrada del caso anterior).
+  - `e2e/tablero-g4.cjs`: a veces el globo de la instalación se cerraba solo (la Mesa se volvía
+    a dibujar) y la prueba esperaba 30 s el botón; ahora vuelve a tocar la instalación.
+- Probado en un iPad parado (820×1180) y acostado (1180×820) con el dedo.
+
 ### Lo que falta
 
-- En el teléfono la carta queda tapada por las barras de la Mesa: se colocan las tareas en una
-  pantalla más grande (o se parte de la Organización de la Tarea).
-- El Word de la hoja lleva el cuadro, no la forma gráfica (ésta se imprime con «🖨️ Ver para
-  imprimir»).
-- No se probó en un iPad ni con un ejercicio real.
+- No se probó con un ejercicio real ni en un iPad de verdad (sí en Chromium con su tamaño y
+  con toque).
 
 ## 2026-10-06 (2) — PRC: la tarea y el formato también AL PRINCIPIO del pedido (sin cambiar el compilado)
 
@@ -136,7 +165,7 @@ comprueba `reemplazos-compilado.js`, como primer paso de la cadena).
 - En la Mesa, el primer casillero de cada fila de una hoja «tabla» no tenía ni rótulo ni
   placeholder: «Fuerzas enemigas» quedaba sin nombre.
 
-### Qué se tocó en el compilado (11 reemplazos)
+### Qué se tocó en el compilado (13 reemplazos)
 
 - Los tres `import` del motor pasan a `../estado-mayor/v5/` y el de `registro.js` presta además
   `pedidoG3`, `tablaDeRespuesta`, `migrarG3`, `errorRespuesta` y `wordPRC`.
@@ -709,7 +738,7 @@ comprueba `estado-mayor.cjs` con los 123 textos de antes).
 - Para el G-5 (o el EME) basta escribir `campos/<g>.js` y registrarlo: los ganchos ya son
   genéricos (skill `.claude/skills/habilitar-hojas-seccion/`).
 
-### Qué se tocó en el compilado (11 reemplazos)
+### Qué se tocó en el compilado (13 reemplazos)
 
 - Los `import` de `calcos/estado-mayor/v1/` y `configurarEM(...)` (React, `hU`, `Qq`, `uU`,
   `Mx`, `SIDMilHoja`, `SIDMilVista`, `SIDMilMostrar`, `Ni`, `Sc`, `iC`, `voe`).

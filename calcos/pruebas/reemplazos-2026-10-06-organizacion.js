@@ -26,7 +26,7 @@ module.exports = [
     nombre: 'F3·P3 · el módulo de la formación inicial (calcos/organizacion/v1): la pantalla de la hoja, la capa de la carta y el cuadro',
     viejo: 'import {esHojaLog as SIDLogEs,tieneHojaLog as SIDLogTiene,textoHojaLog as SIDLogTexto} from "../logistica/v1/modelo.js";',
     nuevo:
-      'import {esHojaLog as SIDLogEs,tieneHojaLog as SIDLogTiene,textoHojaLog as SIDLogTexto} from "../logistica/v1/modelo.js";import SIDEditorOrgInicial from "../organizacion/v1/editor.js";import {configurarOrgInicial as SIDOIConfig,filasDeLaHoja as SIDOIFilas} from "../organizacion/v1/runtime.js";import {sincronizarCarta as SIDOISync,posicionAgrupacion as SIDOIPos} from "../organizacion/v1/carta.js";',
+      'import {esHojaLog as SIDLogEs,tieneHojaLog as SIDLogTiene,textoHojaLog as SIDLogTexto} from "../logistica/v1/modelo.js";import SIDEditorOrgInicial from "../organizacion/v1/editor.js";import {configurarOrgInicial as SIDOIConfig,filasDeLaHoja as SIDOIFilas} from "../organizacion/v1/runtime.js";import {sincronizarCarta as SIDOISync,posicionAgrupacion as SIDOIPos} from "../organizacion/v1/carta.js";import {especificacionWord as SIDOIWord,previaConGrafica as SIDOIPrevia} from "../organizacion/v1/documento.js";',
     veces: 1,
   },
   {
@@ -95,6 +95,18 @@ module.exports = [
     nombre: 'F3·P3 · el módulo recibe React, los símbolos de la Mesa (piezas y tareas), cómo se disgrega cada unidad y Leaflet',
     viejo: 'configurarEM({inventarioAC:rC,poblacionAC:mP,evacuacionAC:fN,descargaAC:SDe,estadosAC:LU});',
     nuevo: 'SIDOIConfig({jsx:f.jsx,jsxs:f.jsxs,useState:je.useState,useEffect:je.useEffect,useMemo:je.useMemo,eN,cb,tN,js,lP,zg,leaflet:Rt});configurarEM({inventarioAC:rC,poblacionAC:mP,evacuacionAC:fN,descargaAC:SDe,estadosAC:LU});',
+    veces: 1,
+  },
+  {
+    nombre: 'F3·P3 · «📄 Word (hoja de trabajo)»: el cuadro como TABLA (apaisada) y la Organización de la Tarea en forma gráfica (imagen), no renglones de texto',
+    viejo: 'return await Mx(s,r,{ctx:n,registro:SIDMilHoja(i,n)}),!0}',
+    nuevo: 'return await Mx(i.id==="organizacion"?SIDOIWord(s,e,n,a,o)||s:s,r,{ctx:n,registro:SIDMilHoja(i,n)}),!0}',
+    veces: 1,
+  },
+  {
+    nombre: 'F3·P3 · 👁️ Vista previa: la forma gráfica debajo del cuadro',
+    viejo: '_e({html:use(Ke,M[Ke.id],ne,!0)',
+    nuevo: '_e({html:SIDOIPrevia(Ke,use(Ke,M[Ke.id],ne,!0),I,M)',
     veces: 1,
   },
 ]

@@ -46,6 +46,8 @@ async function caso(nombre, fn) {
 // Con el encuadre de la prueba ninguno cae debajo de una ficha ni de un panel.
 const P = {
   enAO: [-65.09, -16.99], // dentro del Área de Operaciones (y del arco enemigo), lejos de las fichas
+  // Desde la edición de figuras (03-10-2026) un área se elige tocando su BORDE, no su relleno.
+  bordeAO: [-65.1, -17.015], // en el borde oeste del Área de Operaciones
   cerca: [-65.06, -16.995], // a unos 4 km de la batería de la FT: la alcanza
   lejos: [-65.2, -16.8], // a unos 30 km de toda la artillería propia: fuera de alcance
   nuevaPos: [-65.12, -16.92], // posición de fuego adelantada desde la que sí llega (a unos 16 km)
@@ -55,7 +57,8 @@ const P = {
 
 // El plan que la Mesa le pasó al módulo (después de cada cambio de React).
 const planFuegos = (page) => page.evaluate(() => window.MesaFuegos && window.MesaFuegos.plan)
-const tooltipsAO = (page) => page.evaluate(() => [...document.querySelectorAll('.tt-medida')].filter((t) => /arrastrá los puntos/.test(t.textContent)).length)
+// El rótulo de la figura seleccionada (desde el 03-10-2026 dice «✋ Arrastrá un punto para moverlo…»).
+const tooltipsAO = (page) => page.evaluate(() => [...document.querySelectorAll('.tt-medida')].filter((t) => /arrastrá (los puntos|un punto)/i.test(t.textContent)).length)
 const fucsias = (page) => page.locator('.pf-marca.pf-fuera').count()
 
 async function esperar(page, leer, cumple, ms = 20000) {
@@ -100,7 +103,7 @@ async function escritorio() {
 
     await caso('Sin la pestaña de fuegos, tocar el Área de Operaciones la selecciona (control de la prueba)', async () => {
       await abrirTablero(page, '🎯 Unidades')
-      await clicCarta(page, P.enAO)
+      await clicCarta(page, P.bordeAO)
       assert.ok((await tooltipsAO(page)) > 0, 'no se seleccionó el Área de Operaciones: la prueba no mide nada')
       assert.ok((await page.locator('.leaflet-marker-draggable').count()) > 0, 'sin los puntos para arrastrar')
     })
@@ -125,7 +128,7 @@ async function escritorio() {
     })
 
     await caso('Con la pestaña abierta, tocar el Área de Operaciones no la activa', async () => {
-      await clicCarta(page, P.enAO)
+      await clicCarta(page, P.bordeAO)
       assert.strictEqual(await tooltipsAO(page), 0, 'se activó el Área de Operaciones')
       const p = await planFuegos(page)
       assert.ok(!p || !p.blancos.length, 'marcó una concentración sin pedirlo')
@@ -268,7 +271,7 @@ async function escritorio() {
       assert.strictEqual(await page.locator('.pf-pos.leaflet-marker-draggable').count(), 0, 'quedaron las posiciones de fuego arrastrables')
       assert.strictEqual(await page.locator('.pf-pos').count(), 1, 'sólo queda la posición de la pieza con el alcance marcado')
       assert.strictEqual(await page.locator('.pf-marca').count(), 2, 'las concentraciones tienen que quedar en la carta')
-      await clicCarta(page, P.enAO)
+      await clicCarta(page, P.bordeAO)
       assert.ok((await tooltipsAO(page)) > 0, 'el Área de Operaciones ya no se selecciona')
     })
 

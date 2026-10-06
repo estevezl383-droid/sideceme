@@ -53,7 +53,7 @@ const estadoOps = (page) =>
   })
 // Toca la carta en [lng, lat]: busca un lugar de la carta que se vea (en el teléfono los
 // paneles tapan casi todo), corre la carta para que ese punto caiga ahí y toca.
-async function tocarCarta(page, lng, lat) {
+async function tocarCarta(page, lng, lat, { toque = false } = {}) {
   const [x, y] = await page.evaluate(
     ([lng, lat]) => {
       const m = window.__mapa2d
@@ -63,7 +63,7 @@ async function tocarCarta(page, lng, lat) {
       // Un punto donde se ve la carta misma (una tesela), lejos de los bordes de lo que la tapa.
       const ve = (px, py) => {
         const el = document.elementFromPoint(px, py)
-        return !!el && cont.contains(el) && (el === cont || el.classList.contains('leaflet-tile') || !!el.closest('.leaflet-tile-pane'))
+        return !!el && cont.contains(el) && (el === cont || (!!el.closest('.leaflet-pane') && !el.closest('.leaflet-marker-pane, .leaflet-tooltip-pane, .leaflet-popup-pane, .leaflet-shadow-pane')))
       }
       for (let fy = 0.5; fy > 0.02 && !libre; fy -= 0.02)
         for (let fx = 0.5; fx > 0.04 && !libre; fx -= 0.04)
@@ -84,7 +84,8 @@ async function tocarCarta(page, lng, lat) {
     [lng, lat],
   )
   await page.waitForTimeout(300)
-  await page.mouse.click(x, y)
+  if (toque) await page.touchscreen.tap(x, y)
+  else await page.mouse.click(x, y)
   await page.waitForTimeout(500)
 }
 const editor = (page) => page.locator('.oi-editor')
@@ -249,8 +250,10 @@ const paso = (page, n) => page.locator(`#oi-paso-${n}`)
       // La vista previa y el Word de la hoja traen el cuadro nuevo.
       await page.getByRole('button', { name: '👁️ Vista previa' }).dispatchEvent('click')
       const previa = await page.frameLocator('iframe[title="vista previa"]').locator('body').innerText()
-      for (const t of ['FORMACIÓN INICIAL DE LAS FUERZAS', 'OPERACIÓN', 'ENEMIGO EN SU SECTOR', 'OD — OPERACIÓN DECISIVA (ESFUERZO PRINCIPAL)', 'BLOQUEAR — T: BLOQUEAR A LAS UNIDADES MECANIZADAS Y BLINDADAS DE LA FT-43'])
+      for (const t of ['FORMACIÓN INICIAL DE LAS FUERZAS', 'OPERACIÓN', 'ENEMIGO EN SU SECTOR', 'OD — OPERACIÓN DECISIVA (ESFUERZO PRINCIPAL)', 'BLOQUEAR — T: BLOQUEAR A LAS UNIDADES MECANIZADAS Y BLINDADAS DE LA FT-43', 'ORGANIZACIÓN DE LA TAREA (FORMA GRÁFICA)'])
         assert.ok(previa.toUpperCase().includes(t), `la vista previa no trae «${t}»`)
+      const img = await page.frameLocator('iframe[title="vista previa"]').locator('img[alt="ORGANIZACIÓN DE LA TAREA (FORMA GRÁFICA)"]').evaluate((i) => ({ w: i.naturalWidth, src: i.src.slice(0, 25) }))
+      assert.ok(img.w > 600 && img.src === 'data:image/svg+xml;base64', 'la forma gráfica se ve en la vista previa: ' + JSON.stringify(img))
       await page.getByRole('button', { name: '← Volver' }).dispatchEvent('click')
       await page.locator('.oi-editor').waitFor({ timeout: 5000 })
       const descarga = page.waitForEvent('download', { timeout: 20000 })
@@ -259,7 +262,12 @@ const paso = (page, n) => page.locator(`#oi-paso-${n}`)
       const archivo = path.join(out, `${tag}-${dl.suggestedFilename()}`)
       await dl.saveAs(archivo)
       const xml = require('node:child_process').execFileSync('unzip', ['-p', archivo, 'word/document.xml'], { encoding: 'utf8' })
-      assert.ok(/Operación Decisiva/.test(xml) && /Enemigo en su sector/i.test(xml), 'el Word de la hoja con el cuadro nuevo')
+      assert.ok(/Operación Decisiva/.test(xml) && /ENEMIGO EN SU SECTOR/.test(xml), 'el Word de la hoja con el cuadro nuevo')
+      assert.ok(xml.includes('<w:tbl>') || xml.includes('<w:tbl '), 'el cuadro es una TABLA, no renglones de texto')
+      assert.ok(/w:orient="landscape"/.test(xml), 'apaisado')
+      assert.ok(xml.includes('ORGANIZACIÓN DE LA TAREA (FORMA GRÁFICA)'), 'con el título de la forma gráfica')
+      const medios = require('node:child_process').execFileSync('unzip', ['-l', archivo], { encoding: 'utf8' })
+      assert.ok(/word\/media\/[^\s]+\.png/.test(medios), 'la forma gráfica va como imagen en el Word: ' + medios)
 
       // ⑤ en 3D: los rótulos se copian a la vista 3D.
       if (!movil) {
@@ -294,6 +302,8 @@ const paso = (page, n) => page.locator(`#oi-paso-${n}`)
     await a.cerrar()
   }
   await telefono()
+  await tableta({ ancho: 820, alto: 1180, nombre: 'ipad-vertical' })
+  await tableta({ ancho: 1180, alto: 820, nombre: 'ipad-horizontal' })
 })().catch((e) => {
   console.error(e)
   process.exit(1)
@@ -337,6 +347,20 @@ async function telefono() {
       ['atacar_fuego', 'od', 'ag-od', 4],
       ['seguir_asumir', 'oc2', 'ag-oc2', 0],
     ])
+    // En el teléfono la carta no se puede tocar: la OC 3 se pone directamente en el objetivo Oa.
+    await page.locator('.oi-nueva').getByRole('combobox', { name: 'Tarea táctica' }).selectOption('atacar_fuego')
+    await page.locator('.oi-nueva').getByRole('button', { name: 'OC 3', exact: true }).dispatchEvent('click')
+    await page.locator('.oi-nueva').getByRole('button', { name: '🎯 en Oa' }).dispatchEvent('click')
+    await page.waitForTimeout(300)
+    st = await estadoOps(page)
+    const oc3 = st.tareas.find((t) => t.oi?.operacion === 'oc3')
+    assert.ok(oc3 && oc3.tarea === 'atacar_fuego' && oc3.centro[0] === -68.3 && oc3.centro[1] === -16.86, 'la OC 3 en el objetivo Oa: ' + JSON.stringify(oc3 && oc3.centro))
+    assert.deepEqual(oc3.oi.enemigos, [], 'nadie dentro de su sector (6 km de Oa): no se inventa enemigo')
+    // «→ Ob» la lleva al otro objetivo.
+    await page.locator('.oi-editor').getByRole('button', { name: '→ Ob' }).last().dispatchEvent('click')
+    await page.waitForTimeout(300)
+    st = await estadoOps(page)
+    assert.deepEqual(st.tareas.find((t) => t.oi?.operacion === 'oc3').centro, [-68.27, -16.93])
     // ③ El enemigo de la OD por cercanía.
     await page.locator('.oi-proporcion[data-op="od"]').getByRole('button', { name: '✨ Proponer por cercanía' }).dispatchEvent('click')
     await page.waitForTimeout(300)
@@ -348,6 +372,7 @@ async function telefono() {
       ['ag-oc1', 'FT TORREZ', 'oc1', 3],
       ['ag-od', 'FT VARGS', 'od', 4],
       ['ag-oc2', 'FT LANZA', 'oc2', 0],
+      [st.org[3].id, '', 'oc3', 0],
     ])
     assert.equal(st.org[0].proposito, 'CON EL PROPOSITO DE DETENER EL AVANCE DE ROJO')
     await page.screenshot({ path: path.join(out, 'movil-organizacion-tarea.png') })
@@ -365,6 +390,68 @@ async function telefono() {
     console.error('ERRORES APP', a.errores)
     console.error('DIÁLOGOS', dialogos)
     await page.screenshot({ path: path.join(out, 'movil-ERROR.png') }).catch(() => {})
+    await a.cerrar()
+    throw e
+  }
+  await a.cerrar()
+}
+
+// En un iPad (con el dedo), parado y acostado: la OD se coloca tocando la carta (parado, el
+// panel se esconde mientras se elige el lugar), la OC 1 directamente en el objetivo Ob, el
+// reparto y el paso a la Organización de la Tarea; la hoja entra sin desborde.
+async function tableta({ ancho, alto, nombre }) {
+  const a = await abrir({ ancho, alto, movil: true, consulta: '?puesto=g3' })
+  const { page } = a
+  const dialogos = []
+  page.on('dialog', (d) => (dialogos.push(d.message()), d.accept()))
+  const datos = ejercicioOrganizacion()
+  try {
+    await sembrarYAbrir(page, datos)
+    await irALaHoja(page)
+    const ocultar = page.getByText('▼ ocultar')
+    if (await ocultar.count()) await ocultar.first().dispatchEvent('click')
+    const d = await page.evaluate(() => {
+      const el = document.querySelector('.oi-editor')
+      return { sw: el.scrollWidth, cw: el.clientWidth }
+    })
+    assert.ok(d.sw <= d.cw + 1, `la hoja desborda en el ${nombre}: ` + JSON.stringify(d))
+    await page.evaluate(() => window.__mapa2d.setView([-16.85, -68.31], 11, { animate: false }))
+    await page.waitForTimeout(500)
+    const nueva = page.locator('.oi-nueva')
+    await nueva.getByRole('combobox', { name: 'Tarea táctica' }).selectOption('bloquear')
+    await nueva.getByRole('button', { name: 'OD', exact: true }).dispatchEvent('click')
+    await nueva.getByRole('button', { name: '📍 Colocarla en la carta' }).dispatchEvent('click')
+    await page.locator('.oi-cartel').waitFor({ timeout: 5000 })
+    if (ancho < 900) assert.equal(await page.locator('.oi-editor').evaluate((el) => getComputedStyle(el).visibility), 'hidden', 'parado, el panel se esconde para elegir el lugar')
+    await tocarCarta(page, -68.3, -16.83, { toque: true })
+    await page.locator('.oi-cartel').waitFor({ state: 'detached', timeout: 5000 })
+    assert.equal(await page.locator('.oi-editor').evaluate((el) => getComputedStyle(el).visibility), 'visible', 'el panel vuelve')
+    let st = await estadoOps(page)
+    const od = st.tareas.find((t) => t.oi?.operacion === 'od')
+    assert.ok(od && Math.abs(od.centro[0] + 68.3) < 0.01 && Math.abs(od.centro[1] + 16.83) < 0.01, `la OD donde se tocó: ${od && od.centro}`)
+    await nueva.getByRole('combobox', { name: 'Tarea táctica' }).selectOption('mantener')
+    await nueva.getByRole('button', { name: 'OC 1', exact: true }).dispatchEvent('click')
+    await nueva.getByRole('button', { name: '🎯 en Ob' }).dispatchEvent('click')
+    await page.waitForTimeout(300)
+    await paso(page, 4).getByRole('button', { name: '⚡ Proponer el reparto (la OD primero)' }).dispatchEvent('click')
+    await page.waitForTimeout(300)
+    await paso(page, 7).getByRole('button', { name: '🧩 Pasar a la Organización de la Tarea' }).dispatchEvent('click')
+    await page.getByText('🧩 ORGANIZACIÓN DE LA TAREA').waitFor({ timeout: 5000 })
+    st = await estadoOps(page)
+    assert.deepEqual(st.org.filter((x) => x.operacion !== 'reserva').map((x) => [x.operacion, x.tarea]), [
+      ['od', 'bloquear'],
+      ['oc1', 'mantener'],
+    ])
+    assert.equal(st.org[0].piezas.length, 2)
+    await page.screenshot({ path: path.join(out, `${nombre}-organizacion-tarea.png`) })
+    await page.getByRole('button', { name: '✕ Cerrar' }).dispatchEvent('click')
+    await page.screenshot({ path: path.join(out, `${nombre}-hoja.png`) })
+    assert.deepEqual(a.errores, [])
+    console.log(`OK ${nombre}: la hoja sin desborde; la OD tocando la carta con el dedo${ancho < 900 ? ' (el panel se esconde y vuelve)' : ''}; la OC 1 en el objetivo Ob; reparto y Organización de la Tarea.`)
+  } catch (e) {
+    console.error('ERRORES APP', a.errores)
+    console.error('DIÁLOGOS', dialogos)
+    await page.screenshot({ path: path.join(out, `${nombre}-ERROR.png`) }).catch(() => {})
     await a.cerrar()
     throw e
   }

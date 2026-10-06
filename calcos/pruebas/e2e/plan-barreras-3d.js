@@ -8,7 +8,7 @@
 //
 // Tarda unos minutos: sin placa de video, cada render del 3D tarda segundos.
 const assert = require('assert')
-const { abrir, estadoOps, esperarCambio, sembrarYAbrir, entrar3D, salir3D, aPantalla, toques, toqueLargo } = require('./navegador')
+const { abrir, estadoOps, estadoReact, esperarCambio, sembrarYAbrir, entrar3D, salir3D, aPantalla, toques, toqueLargo } = require('./navegador')
 const { ejercicioFicticio } = require('../ejercicio-ficticio')
 
 // Puntos dentro del arco de la plantilla (y del Área de Operaciones).
@@ -17,6 +17,27 @@ const P = {
   punto: [-65.07, -17.03],
   area: [[-65.075, -17.02], [-65.055, -17.02], [-65.065, -17.034]],
   posdef: [-65.04, -17.01],
+}
+
+// Un lugar libre para una línea de tres puntos (en la pantalla): sobre la carta misma, lejos de
+// fichas, botones y paneles, y de los puntos `lejos` (lo ya trazado).
+async function lugarLibre(page, lejos) {
+  const cand = []
+  for (let lat = -16.99; lat >= -17.05; lat -= 0.003) for (let lng = -65.1; lng <= -65.0; lng += 0.005) cand.push([[lng, lat], [lng + 0.006, lat - 0.003], [lng + 0.012, lat]])
+  const plano = await aPantalla(page, cand.flat())
+  const pant = cand.map((_, i) => plano.slice(3 * i, 3 * i + 3))
+  const ok = await page.evaluate(([L, lejos]) => {
+    const libre = (x, y) => {
+      if (x < 8 || y < innerHeight * 0.15 || x > innerWidth - 8 || y > innerHeight * 0.8) return false
+      const el = document.elementFromPoint(x, y)
+      return !!el && !!el.closest('.maplibregl-canvas-container') && !el.closest('.m3d-mk, aside, .panel, button')
+    }
+    const D = [[0, 0], [40, 0], [-40, 0], [0, 40], [0, -40]]
+    return L.map((pts) => pts.every(([x, y]) => D.every(([dx, dy]) => libre(x + dx, y + dy))) && pts.every(([x, y]) => lejos.every(([a, b]) => Math.hypot(x - a, y - b) > 70)))
+  }, [pant, lejos])
+  const i = ok.indexOf(true)
+  assert.ok(i >= 0, 'no hay lugar libre en la carta para otra línea')
+  return pant[i]
 }
 
 // Cada punto tiene que caer sobre la carta (no sobre un panel ni una ficha).
@@ -163,15 +184,25 @@ async function conDedo() {
       assert.strictEqual(d.obstaculos, e.obstaculos + 1, `obstáculos: ${e.obstaculos} → ${d.obstaculos}`)
       e = d
     })
-    await caso('3D · dedo · el toque largo termina la línea (como el clic derecho)', async () => {
+    // Desde la edición de figuras (03-10-2026) el clic derecho mientras se traza BORRA EL
+    // ÚLTIMO PUNTO (el «↶ BORRAR ÚLTIMO») y ya no termina la línea; el toque largo es el clic
+    // derecho del dedo. La línea se termina con el doble toque, Enter o «✓ TERMINAR».
+    await caso('3D · dedo · el toque largo borra el último punto (como el clic derecho) y el doble toque termina', async () => {
       await herramienta(page, /AL 2 · Alambrada doble/, true)
-      await toques(page, ...l0)
+      // Otra línea, lejos de lo ya trazado: desde el 03-10-2026 tocar una figura ya dibujada la elige.
+      const [m0, m1, m2] = await lugarLibre(page, pts)
+      await toques(page, ...m0)
       await page.waitForTimeout(600)
-      await toques(page, ...l1)
+      await toques(page, ...m1)
       await page.waitForTimeout(600)
-      await toqueLargo(page, ...l2)
+      await toqueLargo(page, ...m2)
+      await page.waitForTimeout(1500)
+      assert.strictEqual((await estadoOps(page)).obstaculos, e.obstaculos, 'el toque largo terminó la línea')
+      await toques(page, ...m2, { veces: 2 })
       const d = await esperarCambio(page, estadoOps, e)
       assert.strictEqual(d.obstaculos, e.obstaculos + 1, `obstáculos: ${e.obstaculos} → ${d.obstaculos}`)
+      const puntos = await estadoReact(page, (v) => (v && !Array.isArray(v) && Array.isArray(v.obstaculos) && Array.isArray(v.limites) && v.obstaculos.length ? (v.obstaculos[v.obstaculos.length - 1].coords || []).length : undefined))
+      assert.strictEqual(puntos, 2, 'la alambrada tiene que quedar con el primer punto y el último (el del medio se borró)')
       e = d
     })
     assert.deepStrictEqual(errores, [], 'errores de JavaScript: ' + errores.join(' | '))
