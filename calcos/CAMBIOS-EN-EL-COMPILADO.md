@@ -5,6 +5,98 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-06 — ⚔️ F3·P1 Potencia Relativa de Combate con el formato de la Escuela (`index-prc-20261006.js`)
+
+Parte de `index-tablero-g4-20261003.js`: trae todo eso y suma esto. Lo pidió Sergio con una
+captura de la F3·P1 del G-3: «Completar y mejorar» con la indicación de las fases («ocupación de
+la defensa, otra fase de desorganización, otra de canalización y finalmente una de canalización
+y destrucción»); la IA contestó con una Orden General de Operaciones y una matriz de
+sincronización, cerró con «¿Desea que profundicemos…?», y al pegar ese final la Mesa dijo «No se
+reconoció la respuesta». Mandó el modelo de la Escuela (`01._HT._POTENCIA_RELATIVA_DE_COMBATE_1.docx`),
+un ejemplo llenado y el texto doctrinario (Pasos 1, 2 y 3), y pidió que la hoja tenga ese formato
+y que la Mesa arme un pedido que saque una buena respuesta con los documentos y los calcos. La
+lista EXACTA está en `calcos/pruebas/reemplazos-2026-10-06-prc.js` (11); `construir-prc.js` arma
+el compilado y comprueba que deshaciéndolos se vuelve byte por byte al anterior (también lo
+comprueba `reemplazos-compilado.js`, como primer paso de la cadena).
+
+### Qué pasaba
+
+- **La hoja no era la de la Escuela**: «Sistema operativo / PROPIAS / ENEMIGO / Relación y
+  deducción» con ocho sistemas operativos (maniobra, apoyo de fuegos, defensa antiaérea,
+  movilidad…), sin la columna de las TTP y sin el método (puntos fuertes y débiles →
+  deducciones → TTP). La guía hablaba de «sistema por sistema» y de la relación numérica.
+- **El pedido** no traía la doctrina de la PRC, pedía casillas con claves como
+  «MANIOBRA|ENEMIGO», llevaba «BUSCÁ EN LA WEB» (que para un enemigo supuesto no sirve) y, en el
+  G-3, no terminaba con «FORMATO DE TU RESPUESTA» (la v4 lo puso en las hojas de las secciones;
+  el panel del G-3 arma su pedido aparte y había quedado afuera). Lo último y más concreto que
+  leía la IA era la indicación de las fases: escribió la operación entera.
+- **La respuesta**: una hoja «tabla» se leía como casillas sueltas. Si la IA contestaba con la
+  tabla, todas las columnas caían en la primera (o nada); un JSON por fila
+  (`{ "MANIOBRA": { … } }`) escribía «[object Object]».
+- **El error** no decía que lo pegado era sólo la pregunta final de la IA.
+- **«📄 Word (hoja de trabajo)»** salía como renglones «MANIOBRA — PROPIAS: …», no como el cuadro.
+- En la Mesa, el primer casillero de cada fila de una hoja «tabla» no tenía ni rótulo ni
+  placeholder: «Fuerzas enemigas» quedaba sin nombre.
+
+### Qué se tocó en el compilado (11 reemplazos)
+
+- Los tres `import` del motor pasan a `../estado-mayor/v5/` y el de `registro.js` presta además
+  `pedidoG3`, `tablaDeRespuesta`, `migrarG3`, `errorRespuesta` y `wordPRC`.
+- La hoja `potencia` del G-3 (`ev`): columnas «Potencia de combate · Fuerzas enemigas · Fuerzas
+  propias · Deducciones · Tácticas, técnicas y procedimientos (TTP.)», filas «MANIOBRA · POTENCIA
+  DE FUEGO · PROTECCIÓN · LIDERAZGO · INFORMACIÓN E INTELIGENCIA» (las del .docx), nota nueva.
+- La guía `potencia` (la de `ese`): la de `prc.js` (los Pasos 1, 2 y 3).
+- 🌱 `l3e` caso `potencia`: unidades enemigas y propias con sus nombres, la relación de fuerzas
+  y el avance (EAA-15-25), el apoyo de fuegos de cada bando con su mayor alcance y quién supera a
+  quién, el plan de barreras y la ingeniería, el reconocimiento de cada bando — en las claves
+  nuevas.
+- `wLe` (panel del G-3): `onPedido` pasa por `SIDEMPedidoG3` (con el expediente, el modo, la
+  semilla de 🌱 y lo del G-2); la prop `g3` pasa por `SIDEMMigrarG3` (lo escrito con la forma
+  vieja se ve y se guarda con la nueva); «🔎 Lo que entregó el G-2» también en la PRC.
+- `dU`: después de leer el JSON, `g=SIDEMTabla(g,e)` (una hoja «tabla», venga como venga, a sus
+  casillas). Lo que no es JSON lo lee `rescatarHoja` del motor (la tabla, la copiada de la
+  pantalla, los títulos por fila).
+- `hU` («✓ Aplicar», todas las hojas y documentos): el error pasa por `SIDEMError` con lo pegado.
+- `Aoe`: `potencia` → `SIDEMWordPRC` (el .docx de la Escuela).
+- El editor de las hojas «tabla»: el nombre de la columna arriba de cada casillero (y el
+  placeholder en el primero).
+
+### En el fuente
+
+- `calcos/estado-mayor/v5/prc.js` no toca React: la hoja, la guía, el pedido, la migración, el
+  aviso y el Word (`docxPRC` arma el .docx con XML y un ZIP sin comprimir; `bajarWordPRC` lo baja).
+- `lector.js` (v5): `leerTablaHoja` y `normalizarTabla` sirven para cualquier hoja «tabla».
+- En el fuente de la Mesa: la hoja y la guía de `potencia`, el caso de `l3e`, los ganchos de
+  `wLe`, `dU`, `hU` y `Aoe`, y los rótulos del editor de las hojas «tabla».
+
+### Cómo se comprobó
+
+- `node prc.cjs` (18): con `VM`, `ese`, `l3e`, `cU`, `dU`, `Boe`, `sP`, `KS` y `Aoe` REALES del
+  compilado; la hoja y la guía, la migración, 🌱, el pedido (expediente, calco, G-2, aportes,
+  doctrina, columnas, fases, ejemplo, «qué no hacer», el formato al final y después la
+  indicación), sólo completar, las demás hojas del G-3 con el formato al final, la respuesta en
+  JSON por fila / en lista / plano / tabla de Markdown / tabla copiada / por títulos, sólo
+  completar no pisa, el error con lo pegado de la captura, el Word (partes del ZIP, carta
+  apaisada, márgenes, título, cabecera, anchos del modelo, sin la marca de la IA, pie), los
+  reemplazos y que ningún gancho cae dentro de lo que insertaron las listas anteriores.
+- `node e2e/prc.cjs` (Chromium, escritorio y teléfono): la hoja y la guía, lo viejo migrado, 🌱,
+  el pedido con «Completar y mejorar» y la indicación de las fases, lo pegado de la captura (el
+  aviso), la respuesta (20 celdas), la vista previa, el Word bajado de la Mesa y el guardado.
+- El Word se miró con `ver-docx.cjs` (docx-preview) al lado del .docx de la Escuela: igual. En el
+  entorno LibreOffice no abre ningún .docx (tampoco el de la Escuela): no se probó con Word ni
+  con LibreOffice.
+- `npm test` entero. `tablero-g4.cjs` fijaba el nombre del compilado vigente: ahora comprueba
+  que el vigente trae sus cambios. `estado-mayor.cjs` y `respuestas-hojas.cjs` pasan el gancho
+  nuevo de `dU`. Las e2e de `personal`, `g5`, `riesgo`, `reconocimiento` y `conceptos` pasan
+  con este compilado (escritorio y teléfono).
+
+### Lo que falta
+
+- Las hojas «Aporte de G-x a la potencia relativa de combate» de las otras secciones quedaron
+  como estaban (van al pedido de la PRC). Si la Escuela quiere que cada sección llene también el
+  cuadro de cinco columnas, es otro cambio.
+- No se probó con una IA real ni en un iPad.
+
 ## 2026-10-03 (8) — 📊 Tablero G-4 de la instalación y 🎯 propuesta del ASDI con la PICB (`index-tablero-g4-20261003.js`)
 
 Parte de `index-edicion-20261003.js`: trae todo eso y suma esto. Lo pidió Sergio: la ficha de

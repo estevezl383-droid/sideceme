@@ -35,7 +35,7 @@ const caso = (nombre, f) => casos.push([nombre, f])
   const L = await import('file://' + path.join(RAIZ, `estado-mayor/${V}/lector.js`))
   const RT = await import('file://' + path.join(RAIZ, `estado-mayor/${V}/runtime.js`))
   RT.sincronizarEM({})
-  const ganchos = { SIDEMEs: R.esDocumento, SIDEMTexto: R.textoDocumento, SIDEMTiene: R.tieneDocumento, SIDLogTexto: () => '', SIDLogTiene: () => false, SIDEMRescatar: R.rescatarHoja, SIDLogEs: () => false, SIDEMCelda: R.celdaFila, SIDEMFilasDe: R.filasDeRespuesta, SIDEMListas: R.listasDe, SIDEMClave: R.claveCasilla, SIDEMIndicacion: R.cierreIndicacion, SIDEMPedido: R.pedidoHoja }
+  const ganchos = { SIDEMEs: R.esDocumento, SIDEMTexto: R.textoDocumento, SIDEMTiene: R.tieneDocumento, SIDLogTexto: () => '', SIDLogTiene: () => false, SIDEMRescatar: R.rescatarHoja, SIDLogEs: () => false, SIDEMCelda: R.celdaFila, SIDEMFilasDe: R.filasDeRespuesta, SIDEMListas: R.listasDe, SIDEMClave: R.claveCasilla, SIDEMIndicacion: R.cierreIndicacion, SIDEMPedido: R.pedidoHoja, SIDEMTabla: R.tablaDeRespuesta || ((g) => g) }
   const { SIDuN0, Nx } = cargar(VIG, ['SIDuN0', 'Nx'])
   const hojaDe = (g, id) => JSON.parse(JSON.stringify(SIDuN0(Nx[g]).flatMap((f) => f.hojas).find((h) => h.id === id)))
   const TAREAS = hojaDe('g5', 'tareas')
