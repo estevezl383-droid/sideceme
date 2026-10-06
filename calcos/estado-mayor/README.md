@@ -1,4 +1,4 @@
-# Motor de documentos de Estado Mayor — «📋 Mis hojas» del G-1 y del G-5 (y del EME cuando se sume)
+# Motor de documentos de Estado Mayor — «📋 Mis hojas» del G-1 y del G-5 (y del EME cuando se sume), y la F3·P1 Potencia Relativa de Combate del G-3
 
 Lo pidió Sergio el 03-10-2026 con capturas del panel del G-1: la **F1·P3 Apreciación Activa
 de PERSONAL** sólo decía «se baja desde el botón de Apreciación» y el Word salía con casi
@@ -104,6 +104,59 @@ bajaban hechos». Se hizo con el skill `.claude/skills/habilitar-hojas-seccion/`
   por defecto) son las del panel y son editables. Los 500 m para decir que un eje
   humanitario «se monta» sobre el EPA son criterio de la Mesa.
 
+## En la Mesa: ⚔️ G-3 → F3·P1 Potencia Relativa de Combate (06-10-2026, `v5/prc.js`)
+
+Sergio mandó una captura de la hoja («Completar y mejorar», con la indicación «ocupación de la
+defensa, otra fase de desorganización, otra de canalización y finalmente una de canalización y
+destrucción»): la IA contestó con una Orden General de Operaciones y una matriz de
+sincronización y cerró con «¿Desea que profundicemos…?»; al pegar ese final, la Mesa dijo «No
+se reconoció la respuesta». Adjuntó el modelo de la Escuela
+(`01._HT._POTENCIA_RELATIVA_DE_COMBATE_1.docx`), un ejemplo llenado y el texto doctrinario.
+
+**Qué estaba mal**
+
+| | Antes | Ahora |
+|---|---|---|
+| La hoja | «Sistema operativo / PROPIAS / ENEMIGO / Relación y deducción», ocho sistemas operativos, sin TTP | La del .docx: **POTENCIA DE COMBATE · FUERZAS ENEMIGAS · FUERZAS PROPIAS · DEDUCCIONES · TÁCTICAS, TÉCNICAS Y PROCEDIMIENTOS (TTP.)** × **MANIOBRA · POTENCIA DE FUEGO · PROTECCIÓN · LIDERAZGO · INFORMACIÓN E INTELIGENCIA**; cada casillero con el nombre de su columna |
+| La guía 📘 | «compara sistema por sistema», la relación numérica | Los Pasos 1, 2 y 3: puntos fuertes (+) y débiles (-), deducciones, TTP |
+| El pedido | Sin la doctrina de la PRC; casillas «MANIOBRA\|ENEMIGO»; «BUSCÁ EN LA WEB»; en el G-3 no terminaba con el formato, y lo último y más concreto era la indicación de las fases | Ver abajo |
+| La respuesta | Una hoja «tabla» se leía como casillas sueltas: la tabla de la IA no entraba | Se lee por fila y por columna (JSON por fila, en lista, plano; la tabla de Markdown, la copiada de la pantalla, los títulos por fila) |
+| El error | «No se reconoció…» aunque lo pegado fuera sólo la pregunta final | Dice que es el final de la respuesta y cómo copiarla entera (en TODAS las hojas) |
+| Word (hoja de trabajo) | Renglones de texto | El .docx de la Escuela: carta apaisada, Arial 12, el título, el cuadro con los anchos del modelo, «+»/«-» con sangría francesa, pie «N - M», sin la marca de la IA |
+
+**El pedido de la PRC** (`pedidoPRC`, en este orden; lo último es lo que más pesa): el
+encabezado de la Mesa · el EXPEDIENTE completo (la Orden, los documentos aportados con su texto,
+el calco, el CMOC, la PICB, las hojas) · lo que la Mesa contó con las fichas (🌱) · lo que
+entregó el G-2 (CAE más probable y más peligroso, su misión y maniobra) · los aportes de cada
+sección (su F3·P1 «Aporte de … a la potencia relativa») · la hoja · **la doctrina de la Escuela,
+tal cual** · cómo se llena cada columna y qué mira cada fila · **qué hacer con las FASES** (la
+hoja sigue siendo una; la fase va al principio del renglón en Deducciones y TTP) · el ejemplo de
+la Escuela («NO lo copies») · lo que hay escrito · la tarea (sólo las celdas vacías, o las 20) ·
+qué NO hacer (otro documento, cerrar con preguntas, inventar, «[IA — verificar]») · el FORMATO:
+el JSON por fila (`"MANIOBRA": { "enemigas", "propias", "deducciones", "ttp" }`) y, si no, la
+tabla con la cabecera exacta. Después, la indicación del oficial y el recordatorio de que el
+formato no cambia (`Boe`). Las demás hojas del G-3 suman al final «FORMATO DE TU RESPUESTA»,
+como las de las otras secciones desde la v4.
+
+**🌱** (`l3e`, en el compilado): unidades enemigas y propias del calco con sus nombres, la
+relación de fuerzas y el avance por hora (EAA-15-25), el apoyo de fuegos de cada bando con su
+mayor alcance (y quién supera a quién), el plan de barreras y la ingeniería, el reconocimiento
+de cada bando. Liderazgo no sale del calco.
+
+**Lo escrito con la forma vieja** pasa a la nueva al abrir el panel del G-3 (`migrarG3`), sin
+perder nada: PROPIAS → Fuerzas propias, ENEMIGO → Fuerzas enemigas, Relación y deducción →
+Deducciones; Apoyo de fuegos → Potencia de fuego; Defensa antiaérea, Movilidad / contramovilidad
+/ supervivencia y Apoyo de servicio de combate → Protección; Inteligencia → Información e
+inteligencia; Comando y control y Factores intangibles → Liderazgo (con el nombre del sistema
+adelante cuando cambia de fila).
+
+**Qué es doctrina y qué es criterio de la Mesa.** La forma de la hoja es la del .docx de la
+Escuela; los Pasos 1, 2 y 3 y la definición van al pedido tal cual los mandó Sergio; el ejemplo
+es el que mandó (va «sólo como forma»). Lo que mira cada fila (`QUE_MIRA`), los «entre 2 y 6
+puntos por celda» y el «Fase …:» al principio del renglón son criterio de la Mesa. Las hojas
+«Aporte de G-x a la potencia relativa» de las otras secciones no cambiaron: van al pedido de la
+PRC.
+
 ## Las hojas de trabajo: el formato al final y la Mesa lee lo que venga (03-10-2026, `v4/`)
 
 Sergio mostró la F2·P3 del G-5 con «Completar y mejorar»: «No se reconoció la respuesta» (y
@@ -147,7 +200,7 @@ numeradas) en vez del bloque JSON. Ahora:
 ## Cómo está hecho
 
 ```
-estado-mayor/v4/   (la vigente; v3/ es la de index-g5 e index-coordenadas, v2/ la de index-lector, v1/ la de index-personal)
+estado-mayor/v5/   (la vigente; v4/ es la de index-respuestas … index-tablero-g4, v3/ la de index-g5 e index-coordenadas, v2/ la de index-lector, v1/ la de index-personal)
   motor.js        el documento genérico: árbol del modelo, normalizar, 🌱 sin pisar, partir de,
                   revisión, texto, especificación del Word militar (numeración I.- A.- 1.- a.-,
                   CAP y fases, cuadros), HTML, pedido y respuesta de la IA
@@ -162,6 +215,9 @@ estado-mayor/v4/   (la vigente; v3/ es la de index-g5 e index-coordenadas, v2/ l
   campos/g1.js    TODO lo del G-1: los dos documentos (copian el catálogo), doctrina, lo que
                   sabe del calco, lo que trae 🌱, las guías y semillas de las hojas de trabajo
   campos/g5.js    TODO lo del G-5, con la misma forma
+  prc.js          (v5) la F3·P1 Potencia Relativa de Combate del G-3: la hoja del .docx, la
+                  guía, el pedido, la migración de la forma vieja, el aviso cuando se pega sólo
+                  el final de la respuesta y el Word (un .docx armado acá, sin bibliotecas)
 ```
 
 Se guarda con el ejercicio en `hojasG.g1`:
@@ -198,7 +254,7 @@ anexo: { esquema: 'anexo-acgm-v1', numero, campos: { objeto, carta, apendice, or
 ### Para sumar otra sección (G-5, EME…)
 
 Escribir `campos/<g>.js` con la forma de `campos/g1.js` (o `g5.js`) y agregarla a `CAMPOS`
-en `registro.js` (en una carpeta de versión nueva, `v5/`, copia de `v4/`). Los ganchos del compilado son genéricos: **no hace falta otro compilado**
+en `registro.js` (en una carpeta de versión nueva, `v6/`, copia de `v5/`). Los ganchos del compilado son genéricos: **no hace falta otro compilado**
 salvo para versionar la carpeta (ver el skill `.claude/skills/habilitar-hojas-seccion/`).
 
 ## Qué es de la doctrina y qué es criterio de la Mesa
@@ -229,6 +285,9 @@ node construir-lector.js        # arma index-lector-20261003.js encima
 node construir-g5.js            # arma index-g5-20261003.js encima (luego construir-coordenadas.js y
                                 # construir-respuestas.js, que arma el vigente)
 node respuestas-hojas.cjs       # el final del pedido y las respuestas de las hojas de trabajo (cU, Boe y dU reales)
+node prc.cjs                    # la PRC del G-3: hoja, guía, migración, 🌱 (l3e real), pedido (cU, Boe), respuesta (dU, sP), error, Word
+node e2e/prc.cjs                # la PRC en la Mesa real, escritorio y teléfono (prc-ejemplo.js; salidas en pruebas/salidas-prc/)
+node construir-prc.js           # arma index-prc-20261006.js (el vigente) encima de index-tablero-g4-20261003.js
 ```
 
 `personal-ejemplo.js` tiene un ejercicio FICTICIO (División en la ofensiva, tres fases) y

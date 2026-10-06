@@ -339,7 +339,7 @@ const caso = (nombre, f) => casos.push([nombre, f])
   caso('el gancho en dU del compilado vigente: una tabla de Markdown entra en la hoja de renglones', () => {
     const html = fs.readFileSync(path.join(RAIZ, 'index.html'), 'utf8')
     const vig = path.join(RAIZ, html.match(/\.\/(assets\/index-[\w-]+\.js)/)[1])
-    const ctxDU = cargarConDependencias(vig, ['dU'], (c) => c.dU('[{"Tarea":"x"}]', { id: 'tareas', tipo: 'filas', cols: ['Tarea'] }), { SIDEMRescatar: R.rescatarHoja, SIDLogEs: () => false, SIDEMCelda: R.celdaFila || ((q, c) => q[c]), SIDEMFilasDe: R.filasDeRespuesta || (() => null), SIDEMListas: R.listasDe || ((g) => ({ a: g.a || [], b: g.b || [] })), SIDEMClave: R.claveCasilla || (() => undefined) })
+    const ctxDU = cargarConDependencias(vig, ['dU'], (c) => c.dU('[{"Tarea":"x"}]', { id: 'tareas', tipo: 'filas', cols: ['Tarea'] }), { SIDEMRescatar: R.rescatarHoja, SIDLogEs: () => false, SIDEMCelda: R.celdaFila || ((q, c) => q[c]), SIDEMFilasDe: R.filasDeRespuesta || (() => null), SIDEMListas: R.listasDe || ((g) => ({ a: g.a || [], b: g.b || [] })), SIDEMClave: R.claveCasilla || (() => undefined), SIDEMTabla: R.tablaDeRespuesta || ((g) => g) })
     const hoja = { id: 'tareas', tipo: 'filas', cols: ['Tarea', 'Tipo', 'De dónde sale', 'Quién la ejecuta'] }
     const r = ctxDU.dU('| Tarea | Tipo |\n|---|---|\n| Evacuar PP.GG. | Implícita |', hoja)
     assert.ok(r.ok, r.error)

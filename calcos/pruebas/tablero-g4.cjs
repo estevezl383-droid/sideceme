@@ -245,7 +245,10 @@ const caso = (nom, f) => casos.push({ nom, f })
       x = x.split(r.viejo).join(r.nuevo)
     }
     assert.equal(x, nue)
-    assert.ok(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8').includes('index-tablero-g4-20261003.js'))
+    // el compilado vigente (el que carga calcos/index.html) trae estos cambios enteros
+    const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8')
+    const vig = fs.readFileSync(path.join(__dirname, '..', html.match(/\.\/(assets\/index-[\w-]+\.js)/)[1]), 'utf8')
+    for (const r of lista) assert.ok(vig.includes(r.nuevo), `el vigente no trae «${r.nombre}»`)
     assert.ok(fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8').includes('fichas-instalacion/v2/estilo.css'))
     assert.ok(D.OPERACIONES.find((o) => o.id === 'defensa').clases.includes('Cl IV y V'))
   })
