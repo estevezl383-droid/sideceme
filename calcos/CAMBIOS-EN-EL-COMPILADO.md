@@ -5,6 +5,111 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-06 (3) — 🧭 F3·P3 Formación inicial de las fuerzas, en orden y sobre el terreno (`index-organizacion-20261006.js`)
+
+Parte de `index-prc-20261006.js`: trae todo eso y suma esto. Lo pidió Sergio con capturas de la
+F3·P3 «Organización inicial de las fuerzas», del calco de la Mesa, del calco de la Escuela (las
+tareas con OD / OC 1 / OC 2 / OC 3 y los triángulos al lado), de la Organización de la Tarea en
+forma gráfica y del panel 🧩: el ejercicio se había hecho fuera de orden y quería que la hoja
+lleve el orden de la doctrina («3.- Formación inicial de las fuerzas»): con el CAE más probable y
+los objetivos, las tareas tácticas en la carta; su operación (OD, OC…); las unidades genéricas
+(triángulos y cuadrados) de lo que tiene, sobre el terreno; la forma gráfica; y recién ahí la
+Organización de la Tarea. La lista EXACTA está en
+`calcos/pruebas/reemplazos-2026-10-06-organizacion.js` (13); `construir-organizacion.js` arma el
+compilado y comprueba que deshaciéndolos se vuelve byte por byte al anterior (también lo
+comprueba `reemplazos-compilado.js`, como primer paso de la cadena).
+
+### Qué pasaba
+
+- La hoja era un cuadro de cuatro columnas sin la carta, sin proporciones calculadas y sin
+  vínculo con la Organización de la Tarea; 🌱 la llenaba con cada unidad con su NOMBRE (lo
+  contrario de la doctrina: unidades genéricas, sin nombres propios todavía).
+- Las tareas tácticas de la carta no tenían operación (OD / OC) ni sabían con qué se cumplían.
+- Al consolidar en el panel 🧩, las fichas iban al centro de la vista, no al terreno.
+
+### Qué se tocó en el compilado (13 reemplazos)
+
+- `import` del módulo nuevo (`calcos/organizacion/v1`: `editor.js`, `runtime.js`, `carta.js`),
+  justo después de los de la logística (sin partir lo que insertaron otras listas).
+- La hoja `organizacion` (F3·P3): «Formación inicial de las fuerzas», las columnas
+  «Operación · Agrupación / unidad genérica · Tarea que cumple · Enemigo en su sector ·
+  Proporción requerida… · Relación de comando», nota nueva. La guía 📘: la doctrina.
+- 🌱 `l3e` caso `organizacion` → `SIDOIFilas` (el cuadro sale de la carta; sin tareas con
+  operación no inventa nada).
+- `wLe` (Tablero del G-3): para la F3·P3, `SIDEditorOrgInicial` (los pasos) y debajo el cuadro de
+  siempre (`yU`); `onG3` con función (sin pisar cambios seguidos).
+- `Sze`: el estado `modoOI` (mientras se coloca una tarea tocando la carta la Mesa está
+  «dibujando»: `dibujando:gp||modoOI`); al Tablero del G-3 le llegan `cmoc` y `SIDdn` (las
+  unidades SIN descontar las piezas consolidadas: con las descontadas los id de las piezas no
+  coinciden con los del panel 🧩); el efecto `SIDOISync` (la capa de la carta y lo que necesita
+  para cambiar el calco: `setOps`, `setG3`, deshacer, `setOrgTarea`, `setUnidades`, `irA`).
+- `_a` (consolidar en el panel 🧩): la ficha de una agrupación que salió de la F3·P3 va junto a
+  su tarea (`SIDOIPos`); las demás, como siempre.
+- `SIDOIConfig`: React, `eN`, `cb`, `tN`, `js`, `lP`, `zg` y Leaflet, antes del primer render
+  (justo antes del `configurarEM` del G-5, sin partirlo).
+- `Aoe` («📄 Word (hoja de trabajo)»): para la F3·P3, `SIDOIWord` — apaisado, el cuadro como
+  TABLA (antes, como en todas las hojas «filas», salía en renglones de texto) y la
+  Organización de la Tarea en forma gráfica (un SVG que `preparar` convierte en imagen).
+- `wLe` (👁️ Vista previa): `SIDOIPrevia` pone la forma gráfica debajo del cuadro.
+
+### En el fuente
+
+- `calcos/organizacion/v1/` no toca React del compilado más que por `runtime.js`. Ver
+  `calcos/organizacion/README.md` (los pasos, dónde se guarda cada cosa, qué es doctrina y qué
+  es criterio de la Mesa).
+- En el fuente de la Mesa: la hoja, la guía y el caso de `l3e`; la rama de `wLe`; `modoOI`,
+  `cmoc`/`SIDdn` y el efecto en `Sze`; la posición en `_a`; la configuración del módulo.
+
+### Cómo se comprobó
+
+- `node organizacion.cjs` (10): con `tN`, `lP`, `js`, `zg` y `l3e` REALES del compilado; las
+  proporciones y la propuesta según la operación; los escalones y las genéricas del enemigo; el
+  balance (la OD primero, lo requerido, lo que sobra, la deficiencia); el reparto y mover piezas
+  (una pieza en un solo lugar); el cuadro y la forma gráfica con «bajo control»; la
+  Organización de la Tarea (crea, reusa la de la misma operación con su nombre y su propósito,
+  no duplica, no repite piezas, actualiza las fichas consolidadas); partir de lo ya armado;
+  🌱; los reemplazos, y que ninguno parte lo que insertaron las 258 entradas de las listas
+  anteriores.
+- `node e2e/organizacion.cjs` (Chromium): en escritorio, los siete pasos tocando la carta (OD,
+  OC 1, OC 2, OC 3), el reparto, los rótulos en la carta y en el 3D, la forma gráfica, el panel
+  🧩 con las agrupaciones hechas, la ficha de la OD junto a su tarea, el cuadro y el guardado;
+  en el teléfono, la hoja sin desborde y «⬅️ Partir de lo que ya armé» con la Organización de
+  la Tarea armada antes (como en la captura) y el cuadro viejo.
+- `npm test` entero. Las e2e de la PRC, el plan de fuegos, el estudio, el reconocimiento y el
+  tablero del G-4 con este compilado.
+
+### Segunda vuelta (lo que faltaba)
+
+- **Sin tocar la carta**: en el teléfono la carta queda tapada por las barras de la Mesa. La
+  tarea nueva se pone «🎯 en Oa / Ob…» o «⊕ en el centro de la vista»; cada tarea tiene
+  «📍 Mover» y «→ Oa / → el centro de la vista». En una pantalla angosta (tableta parada), al
+  tocar la carta el panel se esconde y vuelve solo.
+- **El Word y la vista previa** llevan la forma gráfica (y el cuadro como tabla, apaisado).
+- **«2 compañías genéricas», «1 compañía genérica», «3 batallones genéricos»** (concordancia).
+- **La capa de la carta** ya no se rehace en cada cambio del calco: sólo si cambió lo que
+  dibuja (y sin tareas con operación no agrega nada a la carta).
+- **Pruebas que fallaban desde la edición de figuras (03-10-2026)**, con este compilado y con
+  el anterior (se comprobó: con `index-trazos-20261003.js` pasaban, con
+  `index-edicion-20261003.js` ya no). No era la Mesa: las pruebas no se habían puesto al día
+  con lo que esa vuelta cambió A PROPÓSITO:
+  - `e2e/plan-fuegos.js`: un área se elige tocando su BORDE (no el relleno) y el rótulo dice
+    «✋ Arrastrá un punto…». Ahora toca el borde.
+  - `e2e/trazos.cjs` (15 casos): con una herramienta encendida y sin trazo en curso, tocar una
+    figura ya dibujada la ELIGE (Alt + clic la atraviesa); la prueba trazaba todo encima de lo
+    anterior, sobre los mismos tres puntos. Ahora cada trazo va en su propio lugar libre de la
+    carta (elegido en la pantalla, en 2D y en el 3D inclinado) y en una pantalla más grande.
+  - `e2e/plan-barreras-3d.js`: el toque largo (el clic derecho del dedo) ya no TERMINA la línea:
+    borra el último punto. La prueba ahora comprueba eso y termina con el doble toque, en un
+    lugar libre (no encima de la alambrada del caso anterior).
+  - `e2e/tablero-g4.cjs`: a veces el globo de la instalación se cerraba solo (la Mesa se volvía
+    a dibujar) y la prueba esperaba 30 s el botón; ahora vuelve a tocar la instalación.
+- Probado en un iPad parado (820×1180) y acostado (1180×820) con el dedo.
+
+### Lo que falta
+
+- No se probó con un ejercicio real ni en un iPad de verdad (sí en Chromium con su tamaño y
+  con toque).
+
 ## 2026-10-06 (2) — PRC: la tarea y el formato también AL PRINCIPIO del pedido (sin cambiar el compilado)
 
 Sergio pegó la respuesta entera de Gemini: un análisis METT-TC/OCOKA y «Conclusiones y
@@ -60,7 +165,7 @@ comprueba `reemplazos-compilado.js`, como primer paso de la cadena).
 - En la Mesa, el primer casillero de cada fila de una hoja «tabla» no tenía ni rótulo ni
   placeholder: «Fuerzas enemigas» quedaba sin nombre.
 
-### Qué se tocó en el compilado (11 reemplazos)
+### Qué se tocó en el compilado (13 reemplazos)
 
 - Los tres `import` del motor pasan a `../estado-mayor/v5/` y el de `registro.js` presta además
   `pedidoG3`, `tablaDeRespuesta`, `migrarG3`, `errorRespuesta` y `wordPRC`.
@@ -633,7 +738,7 @@ comprueba `estado-mayor.cjs` con los 123 textos de antes).
 - Para el G-5 (o el EME) basta escribir `campos/<g>.js` y registrarlo: los ganchos ya son
   genéricos (skill `.claude/skills/habilitar-hojas-seccion/`).
 
-### Qué se tocó en el compilado (11 reemplazos)
+### Qué se tocó en el compilado (13 reemplazos)
 
 - Los `import` de `calcos/estado-mayor/v1/` y `configurarEM(...)` (React, `hU`, `Qq`, `uU`,
   `Mx`, `SIDMilHoja`, `SIDMilVista`, `SIDMilMostrar`, `Ni`, `Sc`, `iC`, `voe`).

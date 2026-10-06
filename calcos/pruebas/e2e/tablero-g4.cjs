@@ -67,7 +67,17 @@ const kpi = async (page, rot) => {
         await page.screenshot({ path: path.join(out, `${tag}-globo.png`) })
         for (const t of ['PUESTO DE DISTRIBUCIÓN CLASE V AVANZADO', 'Apoya a 1 unidad(es)', 'FT «TORREZ»', '846', 'hombres', '58', 'vehículos', 'camión', 'cada 24 h', '📊 ABRIR TABLERO G-4', 'ELIMINAR INSTALACIÓN']) assert.ok(tg.toLowerCase().includes(t.toLowerCase()), `el globo no dice «${t}»: ${tg}`)
         assert.equal(await tablero(page).count(), 0, 'tocar la instalación sólo abre el globo')
-        await page.locator('.leaflet-popup').getByRole('button', { name: '📊 ABRIR TABLERO G-4' }).click()
+        // El globo puede cerrarse solo si la Mesa se vuelve a dibujar justo entonces (el
+        // autoguardado): se vuelve a tocar la instalación (antes esperaba 30 s y fallaba).
+        for (let i = 0; i < 3 && !(await tablero(page).count()); i++) {
+          const b = page.locator('.leaflet-popup').getByRole('button', { name: '📊 ABRIR TABLERO G-4' })
+          if (!(await b.count())) {
+            await page.mouse.click(x, y)
+            await page.waitForTimeout(800)
+          }
+          if (await b.count()) await b.first().dispatchEvent('click')
+          await page.waitForTimeout(600)
+        }
         await tablero(page).waitFor({ timeout: 8000 })
         await page.keyboard.press('Escape')
       } else {
