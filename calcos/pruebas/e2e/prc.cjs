@@ -15,7 +15,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const { execFileSync } = require('node:child_process')
 const { abrir, sembrarYAbrir, leerGuardado } = require('./navegador.js')
-const { ejercicioPRC, PEGADO_CAPTURA, INDICACION, RESPUESTA_JSON } = require('../prc-ejemplo.js')
+const { ejercicioPRC, PEGADO_CAPTURA, RESPUESTA_FUERA_DE_TEMA, INDICACION, RESPUESTA_JSON } = require('../prc-ejemplo.js')
 
 const out = path.resolve(__dirname, '../salidas-prc')
 fs.mkdirSync(out, { recursive: true })
@@ -80,7 +80,8 @@ const guardado = async (page, nombre, cond, ms = 8000) => {
       await page.getByRole('button', { name: /Ver el pedido/ }).waitFor({ timeout: 30000 })
       await page.getByRole('button', { name: /Ver el pedido/ }).dispatchEvent('click')
       const pedido = await page.locator('textarea[readonly]').inputValue()
-      for (const t of ['Sos OFICIAL DE ESTADO MAYOR', 'EXPEDIENTE DEL EJERCICIO — MESA DEL ESTADO MAYOR', 'Orden de operaciones (FICT.)', 'Unidades enemigas en el calco: 5', '1) Paso 1. La PRC. emplea la dinámica de la potencia de combate', '3) Paso 3.', '| Maniobra | +Velocidad en la carretera.', 'No termines con preguntas', '"INFORMACIÓN E INTELIGENCIA": {', '| Potencia de combate | Fuerzas enemigas | Fuerzas propias | Deducciones | Tácticas, técnicas y procedimientos (TTP.) |'])
+      assert.ok(pedido.startsWith('Sos OFICIAL DE ESTADO MAYOR del Ejército de Bolivia (ECEME), en la sección G-3. ESTO ES UN PEDIDO'), 'lo primero es la tarea')
+      for (const t of ['# TU ÚNICA TAREA', '===== INICIO DEL EXPEDIENTE =====', 'EXPEDIENTE DEL EJERCICIO — MESA DEL ESTADO MAYOR', 'Orden de operaciones (FICT.)', 'Unidades enemigas en el calco: 5', '1) Paso 1. La PRC. emplea la dinámica de la potencia de combate', '3) Paso 3.', '| Maniobra | +Velocidad en la carretera.', 'No termines con preguntas', '"INFORMACIÓN E INTELIGENCIA": {', '| Potencia de combate | Fuerzas enemigas | Fuerzas propias | Deducciones | Tácticas, técnicas y procedimientos (TTP.) |'])
         assert.ok(pedido.includes(t), `el pedido no trae «${t}»`)
       assert.ok(pedido.indexOf(INDICACION) > pedido.indexOf('# CÓMO CONTESTAR — FORMATO DE TU RESPUESTA'), 'la indicación después del formato')
       assert.ok(pedido.trimEnd().endsWith('Si te pide un texto «para exponer», ese estilo va DENTRO de los textos.'), 'cierra con el recordatorio del formato')
@@ -92,6 +93,11 @@ const guardado = async (page, nombre, cond, ms = 8000) => {
       await page.getByRole('button', { name: '✓ Aplicar' }).dispatchEvent('click')
       await page.getByText(/Lo que pegaste es sólo el FINAL de la respuesta de la IA/).waitFor({ timeout: 5000 })
       await page.screenshot({ path: path.join(out, `${tag}-error.png`) })
+
+      // Una respuesta larga que no es la hoja (un análisis METT-TC del expediente).
+      await caja.fill(RESPUESTA_FUERA_DE_TEMA)
+      await page.getByRole('button', { name: '✓ Aplicar' }).dispatchEvent('click')
+      await page.getByText(/La IA no escribió esta hoja: escribió otra cosa/).waitFor({ timeout: 5000 })
 
       // La respuesta entera.
       await caja.fill(RESPUESTA_JSON)

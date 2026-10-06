@@ -37,7 +37,7 @@ const casos = []
 const caso = (nombre, f) => casos.push([nombre, f])
 const plano = (x) => JSON.parse(JSON.stringify(x))
 
-const { UNIDADES, VIEJA, PEGADO_CAPTURA, INDICACION, RESPUESTA_JSON, CABECERA } = require('./prc-ejemplo.js')
+const { UNIDADES, VIEJA, PEGADO_CAPTURA, RESPUESTA_FUERA_DE_TEMA, INDICACION, RESPUESTA_JSON, CABECERA } = require('./prc-ejemplo.js')
 
 ;(async () => {
   console.log(`compilado: ${path.basename(VIG)} · motor: calcos/estado-mayor/${V}`)
@@ -130,7 +130,16 @@ const { UNIDADES, VIEJA, PEGADO_CAPTURA, INDICACION, RESPUESTA_JSON, CABECERA } 
     const r = pedir({}, 'completar_mejorar')
     assert.ok(r.ok, r.error)
     const p = r.prompt
-    assert.match(p, /^CONTEXTO — ESTO ES UN EJERCICIO ACADÉMICO/)
+    // lo PRIMERO es la tarea y el formato (Gemini analizaba el expediente y no hacía la hoja)
+    assert.match(p, /^Sos OFICIAL DE ESTADO MAYOR del Ejército de Bolivia \(ECEME\), en la sección G-3\. ESTO ES UN PEDIDO, NO UN DOCUMENTO PARA ANALIZAR NI RESUMIR\./)
+    const tarea = p.indexOf('# TU ÚNICA TAREA')
+    assert.ok(tarea > 0 && tarea < p.indexOf('===== INICIO DEL EXPEDIENTE ====='), 'la tarea antes del expediente')
+    assert.ok(p.slice(tarea, tarea + 1500).includes('NO escribas: análisis METT-TC u OCOKA, «conclusiones y decisiones», la Orden de Operaciones'))
+    assert.ok(p.includes('CONTEXTO — ESTO ES UN EJERCICIO ACADÉMICO'), 'el encabezado de la Mesa sigue')
+    const ini = p.indexOf('===== INICIO DEL EXPEDIENTE =====')
+    const fin = p.indexOf('===== FIN DEL EXPEDIENTE')
+    assert.ok(ini > 0 && fin > ini && p.slice(ini, fin).includes('Documento aportado: «Estudio del enemigo mecanizado»'), 'el expediente entre marcas')
+    assert.ok(fin < p.indexOf('# LA DOCTRINA'))
     assert.ok(p.includes('Documento aportado: «Estudio del enemigo mecanizado»'))
     assert.ok(p.includes('# LO QUE LA MESA YA CONTÓ CON LAS FICHAS DEL CALCO'))
     assert.ok(p.includes('- MANIOBRA › Fuerzas enemigas: Unidades enemigas en el calco: 5'))
@@ -153,7 +162,7 @@ const { UNIDADES, VIEJA, PEGADO_CAPTURA, INDICACION, RESPUESTA_JSON, CABECERA } 
     const i = r.prompt.lastIndexOf('# CÓMO CONTESTAR — FORMATO DE TU RESPUESTA')
     assert.ok(i > r.prompt.lastIndexOf('# LA DOCTRINA') && i > r.prompt.lastIndexOf('# QUÉ NO HACER'))
     const fin = r.prompt.slice(i)
-    for (const t of ['```json', '"MANIOBRA": {', '"enemigas":', '"ttp":', '"INFORMACIÓN E INTELIGENCIA": {', CABECERA, '|---|---|---|---|---|', '| LIDERAZGO | +…<br>-…', 'Nada antes ni después'])
+    for (const t of ['```json', '"MANIOBRA": {', '"enemigas":', '"ttp":', '"INFORMACIÓN E INTELIGENCIA": {', CABECERA, '|---|---|---|---|---|', '| LIDERAZGO | +…<br>-…', 'Nada antes ni después', 'ANTES DE ENVIAR, revisá: ¿tu respuesta empieza con ```json?'])
       assert.ok(fin.includes(t), `final del pedido: falta «${t}»`)
     const f = r.final
     assert.ok(f.indexOf(INDICACION) > f.indexOf(CABECERA), 'la indicación va después del formato')
@@ -253,6 +262,13 @@ const { UNIDADES, VIEJA, PEGADO_CAPTURA, INDICACION, RESPUESTA_JSON, CABECERA } 
     assert.match(R.errorRespuesta('X.', 'Listo'), /muy corto/)
     assert.doesNotMatch(R.errorRespuesta('X.', 'No puedo completar esta hoja sin más datos.'), /FINAL de la respuesta/, 'una negativa no es la pregunta final')
     assert.match(R.errorRespuesta('X.', 'Si necesitás, puedo preparar también la matriz de sincronización.'), /FINAL de la respuesta/)
+    // la respuesta LARGA de Gemini que no tenía ninguna fila (segundo intento de Sergio)
+    const r2 = leer(RESPUESTA_FUERA_DE_TEMA)
+    assert.equal(r2.ok, false)
+    const e2 = R.errorRespuesta(r2.error, RESPUESTA_FUERA_DE_TEMA)
+    assert.match(e2, /^La IA no escribió esta hoja: escribió otra cosa \(un análisis, conclusiones, una Orden…\) y cerró ofreciendo seguir\./)
+    assert.match(e2, /chat NUEVO/)
+    assert.match(e2, /«Cumplí el pedido del archivo: contestá SÓLO con el bloque JSON del final»/)
     assert.ok(fs.readFileSync(VIG, 'utf8').includes('S({tipo:"err",txt:SIDEMError(pe?.error||"No se pudo usar esa respuesta.",v)})'), 'el panel de la IA usa el aviso')
   })
 

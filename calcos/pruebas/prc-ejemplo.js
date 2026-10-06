@@ -30,6 +30,24 @@ const VIEJA = {
 }
 // Lo que pegó Sergio (captura): sólo la última línea de la respuesta de Gemini.
 const PEGADO_CAPTURA = '¿Desea que profundicemos en la redacción de algún anexo específico de la Orden General de Operaciones o en el desarrollo detallado de la Matriz de Sincronización para el contraataque en el Área de Empeño VULCAN?'
+// Lo que contestó Gemini en el segundo intento de Sergio (06-10-2026), con nombres
+// FICTICIOS: un análisis METT-TC/OCOKA y «Conclusiones y decisiones», sin ninguna fila de la
+// hoja, y la pregunta del final.
+const RESPUESTA_FUERA_DE_TEMA = `De acuerdo al ejercicio académico de la ECEME, y bajo el rol de Oficial de Estado Mayor de la sección G-3 (Operaciones) de la DIV.MEC.-1 (FICT.), se presenta el análisis y producto correspondiente al planeamiento de la operación defensiva.
+1. Análisis de Factores de Estado Mayor (METT-TC) y OCOKA
+
+* Misión y Propósito: La DIV.MEC.-1 (FICT.) ejecuta una operación defensiva en ambiente de llanura y valle a partir del día D (0500) al D+2 (1800).
+* Enemigo: La División Acorazada (FICT.) ataca bajo el Curso de Acción Más Probable (CAE-1: Ataque de Envolvimiento), apoyada por artillería de 155 mm (23 km de alcance).
+* Terreno y Meteorología (OCOKA):
+   * Observación y Campos de Tiro: Las elevaciones dominantes del Cerro X (FICT.) permiten la observación de largo alcance sobre el Área de Empeño VULCAN.
+   * Meteorología: Estación seca, cielo despejado.
+
+2. Conclusiones y Decisiones de Estado Mayor
+
+* Reubicación del ASDI: Se determina la reubicación del Área de Servicios de la División a una distancia superior a los 12 km a retaguardia de la LPR.
+* Sincronización del Contraataque: La defensa se estructurará en cuatro fases (Preparación, Defensa y Desorganización, Canalización, y Destrucción en el Área de Empeño VULCAN).
+
+¿Desea que profundicemos en la redacción de algún anexo específico de la Orden General de Operaciones o en el desarrollo detallado de la Matriz de Sincronización del contraataque en el Área de Empeño VULCAN?`
 const INDICACION = 'OCUPACIÓN DE LA DEFENSA, OTRA FASE DE DESORGANIZACIÓN, OTRA DE CANALIZACIÓN Y FINALMENTE UNA DE CANALIZACIÓN Y DESTRUCCIÓN.'
 const fila = (e, p, d, t) => ({ enemigas: e, propias: p, deducciones: d, ttp: t })
 const RESPUESTA_JSON = `Acá va la hoja:
@@ -62,4 +80,4 @@ function ejercicioPRC() {
   return e
 }
 
-module.exports = { UNIDADES, VIEJA, PEGADO_CAPTURA, INDICACION, RESPUESTA_JSON, CABECERA, ejercicioPRC }
+module.exports = { UNIDADES, VIEJA, PEGADO_CAPTURA, RESPUESTA_FUERA_DE_TEMA, INDICACION, RESPUESTA_JSON, CABECERA, ejercicioPRC }

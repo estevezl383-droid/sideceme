@@ -124,9 +124,11 @@ se reconoció la respuesta». Adjuntó el modelo de la Escuela
 | El error | «No se reconoció…» aunque lo pegado fuera sólo la pregunta final | Dice que es el final de la respuesta y cómo copiarla entera (en TODAS las hojas) |
 | Word (hoja de trabajo) | Renglones de texto | El .docx de la Escuela: carta apaisada, Arial 12, el título, el cuadro con los anchos del modelo, «+»/«-» con sangría francesa, pie «N - M», sin la marca de la IA |
 
-**El pedido de la PRC** (`pedidoPRC`, en este orden; lo último es lo que más pesa): el
-encabezado de la Mesa · el EXPEDIENTE completo (la Orden, los documentos aportados con su texto,
-el calco, el CMOC, la PICB, las hojas) · lo que la Mesa contó con las fichas (🌱) · lo que
+**El pedido de la PRC** (`pedidoPRC`, en este orden; lo último es lo que más pesa): PRIMERO
+la tarea y el formato en pocas líneas («ESTO ES UN PEDIDO, NO UN DOCUMENTO PARA ANALIZAR»,
+«TU ÚNICA TAREA», lo que NO hay que escribir — Gemini analizaba el expediente y no hacía la
+hoja) · el encabezado de la Mesa · el EXPEDIENTE completo (la Orden, los documentos aportados con su texto,
+el calco, el CMOC, la PICB, las hojas), entre marcas de INICIO y FIN, como datos · lo que la Mesa contó con las fichas (🌱) · lo que
 entregó el G-2 (CAE más probable y más peligroso, su misión y maniobra) · los aportes de cada
 sección (su F3·P1 «Aporte de … a la potencia relativa») · la hoja · **la doctrina de la Escuela,
 tal cual** · cómo se llena cada columna y qué mira cada fila · **qué hacer con las FASES** (la
@@ -134,7 +136,7 @@ hoja sigue siendo una; la fase va al principio del renglón en Deducciones y TTP
 la Escuela («NO lo copies») · lo que hay escrito · la tarea (sólo las celdas vacías, o las 20) ·
 qué NO hacer (otro documento, cerrar con preguntas, inventar, «[IA — verificar]») · el FORMATO:
 el JSON por fila (`"MANIOBRA": { "enemigas", "propias", "deducciones", "ttp" }`) y, si no, la
-tabla con la cabecera exacta. Después, la indicación del oficial y el recordatorio de que el
+tabla con la cabecera exacta, y «ANTES DE ENVIAR, revisá…». Después, la indicación del oficial y el recordatorio de que el
 formato no cambia (`Boe`). Las demás hojas del G-3 suman al final «FORMATO DE TU RESPUESTA»,
 como las de las otras secciones desde la v4.
 
