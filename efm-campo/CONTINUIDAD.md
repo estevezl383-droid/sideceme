@@ -75,3 +75,12 @@ Las designaciones individuales de evaluadores continúan pendientes; el piloto c
 - Fallo conserva alumno, marca y UUID, sin avanzar. Reintento confirmado avanza. Cambio de estación muestra solo sus registros. Aeróbica mantiene series/llegadas.
 - Caché versionada v3 en launcher, módulo y CSS. Sin cambios en servidor, base de datos, permisos o notas oficiales.
 - Validación: 13 casos UI, 15 baremos, 14 acceso y 15 soporte; integración DOM de fallo/reintento, avance, fin de lista, corrección y cambio de estación. Chromium no se pudo descargar: no afirmar validación visual ni sonora en iPhone.
+
+## Actualización 7 de octubre: cronómetro de aeróbica
+
+- Esfera circular ECEME, segmentos LED gruesos verde neón, centésimas y pequeño corredor SVG. Sin LAP ni corazón.
+- Pulsador rojo ovalado con relieve, ancho completo y altura mínima 136 px en móvil. Pointerdown captura el tiempo; click solo activa por teclado/asistencia para no duplicar la llegada.
+- Capturar no reconstruye la interfaz ni reemplaza el pulsador: mantiene posición y destino para llegadas rápidas. Actualiza número, confirmación y filas, con respaldo local de la serie y vibración breve cuando está disponible.
+- Usa grado y arma reales de cursantes (MY. INF., MY. CAB. y las demás). Endpoint cargar incorpora arma; sin modificaciones de registros, notas o permisos.
+- Caché v5 para soporte, launcher, módulo UI, app y CSS.
+- Verificación: UI/bares/acceso y regresión DOM del registro; tres pulsaciones simuladas separadas por 20 ms mantienen las tres marcas y el mismo botón, sin doble registro por click. Guardado, exclusión de asignados y recuperación comprobados. Validación visual/ergonómica en teléfono pendiente: Chromium local no está disponible.

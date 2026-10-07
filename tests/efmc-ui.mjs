@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {digital,nacimiento,sexoInicial,siguiente} from '../efm-campo/ui.mjs';
+import {digital,nacimiento,sexoInicial,siguiente,gradoArma} from '../efm-campo/ui.mjs';
 assert.equal(nacimiento('1988-10-01'),'01-OCT-88');
 assert.equal(nacimiento(null),'PENDIENTE');
 assert.equal(sexoInicial({id:'1',nombre_completo:'ALYSON MANU SALGUERO'}),'F');
@@ -16,3 +16,9 @@ assert.equal(siguiente(list,records,'3','flexiones').id,'2');
 assert.equal(siguiente(list,list.map(c=>({cursante_id:c.id,prueba:'flexiones'})),'1','flexiones'),null);
 assert.equal((digital('00:00').match(/seg [abcdefg] on/g)||[]).length,24);
 console.log('13 verificaciones del marcador, fecha, selección de sexo y siguiente cursante: OK');
+
+assert.equal(gradoArma({grado:'My.',arma:'Inf.'}),'MY. INF.');
+assert.equal(gradoArma({grado:'My.',arma:'Cab.'}),'MY. CAB.');
+assert.equal(gradoArma({grado:'My. Inf.',arma:'Inf.'}),'MY. INF.');
+assert.equal((digital('12:34.56').match(/efmc-dot/g)||[]).length,1);
+console.log('4 verificaciones de grado, arma y centésimas: OK');

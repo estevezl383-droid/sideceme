@@ -12,8 +12,8 @@
  async function abrir(){
   if(loading||open||!owner())return;loading=true;
   try{
-   if(!document.getElementById('efmc-style')){const s=document.createElement('link');s.id='efmc-style';s.rel='stylesheet';s.href='efm-campo/style.css?v=3';document.head.append(s);}
-   const app=await import('./app.mjs?v=4');open=true;await app.abrir({invoke,owner:'P030',authorized:owner,onClose:()=>{open=false;}});
+   if(!document.getElementById('efmc-style')){const s=document.createElement('link');s.id='efmc-style';s.rel='stylesheet';s.href='efm-campo/style.css?v=5';document.head.append(s);}
+   const app=await import('./app.mjs?v=5');open=true;await app.abrir({invoke,owner:'P030',authorized:owner,onClose:()=>{open=false;}});
   }catch(e){alert(e.message);}finally{loading=false;}
  }
  function refresh(){

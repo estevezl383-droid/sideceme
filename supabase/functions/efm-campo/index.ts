@@ -16,7 +16,7 @@ Deno.serve(async(req:Request)=>{
   const {data:actor,error:ae}=await sb.from('profesores').select('activo').eq('id','P030').eq('ci','4889191').single();
   if(ae||actor?.activo!==true)return reply(403,{ok:false,error:'CUENTA NO HABILITADA'});
   if(b.accion==='cargar'){
-   const [c,p,r]=await Promise.all([sb.from('cursantes').select('id,nombre_completo,ciclo,grado,paralelo').eq('activo',true).order('nombre_completo'),sb.from('efmc_perfiles').select('*'),sb.from('efmc_registros').select('*').eq('fecha',b.fecha).order('creado_en',{ascending:false}).limit(2000)]);
+   const [c,p,r]=await Promise.all([sb.from('cursantes').select('id,nombre_completo,ciclo,grado,arma,paralelo').eq('activo',true).order('nombre_completo'),sb.from('efmc_perfiles').select('*'),sb.from('efmc_registros').select('*').eq('fecha',b.fecha).order('creado_en',{ascending:false}).limit(2000)]);
    if(c.error||p.error||r.error)throw c.error||p.error||r.error;
    const paths=p.data.filter((x:any)=>x.foto_path).map((x:any)=>x.foto_path);
    const signed=paths.length?await sb.storage.from('efm-retratos').createSignedUrls(paths,1800):{data:[]};

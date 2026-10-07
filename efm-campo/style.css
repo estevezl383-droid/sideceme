@@ -95,3 +95,33 @@
 @media(prefers-reduced-motion:reduce){#efmc *{scroll-behavior:auto!important}}
 
 #efmc .efmc-digital .efmc-digit,#efmc .efmc-digital .efmc-colon{font-size:inherit;color:inherit;letter-spacing:0}
+/* Cronómetro circular y pulsador de llegada ECEME. */
+#efmc .efmc-dot{width:.12em;height:.12em;align-self:flex-end;margin-bottom:.025em;border-radius:50%;background:currentColor;flex:none}
+#efmc .efmc-race-console{max-width:580px;margin:28px auto 12px;text-align:center}
+#efmc .efmc-stopwatch{position:relative;width:min(100%,420px);aspect-ratio:1;margin:0 auto 22px;border-radius:50%;padding:17px;background:linear-gradient(145deg,#55737a 0%,#101e29 26%,#040a10 62%,#38595f 100%);border:2px solid #638389;box-shadow:0 14px 24px #0008,inset 0 2px 2px #e0fff34d,0 0 30px #45ffcf12;container-type:inline-size}
+#efmc .efmc-stopwatch::before{content:'';position:absolute;inset:9px;border-radius:50%;border:3px solid #192f39;box-shadow:inset 0 0 3px #c0ffe355;pointer-events:none}
+#efmc .efmc-watch-face{width:100%;height:100%;border-radius:50%;background:radial-gradient(ellipse at 45% 25%,#173643,#020c14 72%);border:2px solid #4dd9bd88;box-shadow:inset 0 0 30px #0008,0 0 14px #65ffcd26;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;overflow:hidden}
+#efmc .efmc-watch-brand{color:#f1fff9;font-size:27px;font-weight:900;letter-spacing:.16em;line-height:1}
+#efmc .efmc-watch-brand>span{display:block;color:#8faeb8;font-size:8px;letter-spacing:.12em;margin-top:8px}
+#efmc .efmc-running{display:flex;align-items:center;gap:7px;color:#7dffcf;font-size:10px;font-weight:700;letter-spacing:.06em}
+#efmc #efmc-race-time{font-size:clamp(40px,18cqw,76px);color:#8affdb;margin:8px 0;line-height:1;letter-spacing:0;width:100%;display:flex;justify-content:center}
+#efmc #efmc-race-time .efmc-digital{gap:.075em;filter:drop-shadow(0 0 2px #9dffe4) drop-shadow(0 0 8px #3fffbd80)}
+#efmc #efmc-race-time .seg.a,#efmc #efmc-race-time .seg.g,#efmc #efmc-race-time .seg.d{height:13%}
+#efmc #efmc-race-time .seg.b,#efmc #efmc-race-time .seg.c,#efmc #efmc-race-time .seg.e,#efmc #efmc-race-time .seg.f{width:21%}
+#efmc #efmc-race-time .seg.g{top:43.5%}
+#efmc #efmc-race-state{color:#b3e4d6;font-size:9px;font-weight:700;letter-spacing:.1em}
+#efmc .efmc-watch-unit{font-size:7px;color:#749aa7;letter-spacing:.04em}
+#efmc .efmc-race-controls{display:flex;justify-content:center;gap:10px;margin:12px 0 24px;flex-wrap:wrap}
+#efmc .efmc-race-controls button{min-height:52px;font-size:12px}
+#efmc .efmc-race-controls [data-action=race-start]{background:linear-gradient(#254e4b,#143231);border-color:#67d7bd;color:#b0ffe1}
+#efmc button.efmc-arrival{position:relative;isolation:isolate;width:100%;min-height:142px;border-radius:999px;border:7px solid #263742;background:radial-gradient(ellipse at 50% 0%,#ff9a88 0%,#ff514b 28%,#d81d2b 65%,#a71020 100%);box-shadow:0 10px 0 #050c13,0 14px 0 #40505a,0 22px 28px #0007,inset 0 3px 2px #fff9,inset 0 -8px 8px #72061d80;color:#fff5ef;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:18px 12px;touch-action:manipulation;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+#efmc button.efmc-arrival:hover:not(:disabled){background:radial-gradient(ellipse at 50% 0%,#ffb09b,#ff6052 28%,#ea2233 65%,#b01022)}
+#efmc button.efmc-arrival:active:not(:disabled){box-shadow:0 5px 0 #050c13,0 9px 0 #40505a,0 14px 20px #0007,inset 0 2px 10px #78051b80;filter:brightness(1.1)}
+#efmc button.efmc-arrival:focus-visible{outline:3px solid #a0ffdf;outline-offset:6px}
+#efmc .efmc-arrival>svg{width:28px;height:28px}
+#efmc .efmc-arrival>span{font-size:clamp(17px,4.8vw,25px);font-weight:900;letter-spacing:.03em;line-height:1.2;text-shadow:0 2px 1px #65071977}
+#efmc .efmc-arrival small{color:#ffe6e0;font-size:9px;font-weight:700;letter-spacing:.08em}
+#efmc button.efmc-arrival:disabled{opacity:.65}
+#efmc .efmc-arrival-feedback{min-height:18px;margin:26px 0 0;font-size:11px;color:#93ffdb;font-weight:700}
+#efmc .efmc-group label span b{display:block;color:#a5fbe0;font-size:11px;margin-bottom:4px}
+@media(max-width:420px){#efmc .efmc-race{padding:14px}#efmc .efmc-stopwatch{padding:14px}#efmc .efmc-watch-face{gap:9px}#efmc .efmc-watch-brand{font-size:22px}#efmc .efmc-race-controls{gap:7px}#efmc .efmc-race-controls button{font-size:10px;padding:12px}#efmc button.efmc-arrival{min-height:136px;border-width:6px}}
