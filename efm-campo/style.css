@@ -125,3 +125,5 @@
 #efmc .efmc-arrival-feedback{min-height:18px;margin:26px 0 0;font-size:11px;color:#93ffdb;font-weight:700}
 #efmc .efmc-group label span b{display:block;color:#a5fbe0;font-size:11px;margin-bottom:4px}
 @media(max-width:420px){#efmc .efmc-race{padding:14px}#efmc .efmc-stopwatch{padding:14px}#efmc .efmc-watch-face{gap:9px}#efmc .efmc-watch-brand{font-size:22px}#efmc .efmc-race-controls{gap:7px}#efmc .efmc-race-controls button{font-size:10px;padding:12px}#efmc button.efmc-arrival{min-height:136px;border-width:6px}}
+
+#efmc .efmc-group-actions{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}#efmc .efmc-group-actions button{flex:1;min-height:48px}#efmc .efmc-group-actions [data-action=group-all]{background:#194c43;border-color:#63dfbc;color:#adffe3}

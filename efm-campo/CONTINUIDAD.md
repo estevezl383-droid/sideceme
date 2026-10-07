@@ -84,3 +84,7 @@ Las designaciones individuales de evaluadores continúan pendientes; el piloto c
 - Usa grado y arma reales de cursantes (MY. INF., MY. CAB. y las demás). Endpoint cargar incorpora arma; sin modificaciones de registros, notas o permisos.
 - Caché v5 para soporte, launcher, módulo UI, app y CSS.
 - Verificación: UI/bares/acceso y regresión DOM del registro; tres pulsaciones simuladas separadas por 20 ms mantienen las tres marcas y el mismo botón, sin doble registro por click. Guardado, exclusión de asignados y recuperación comprobados. Validación visual/ergonómica en teléfono pendiente: Chromium local no está disponible.
+
+## Selección rápida de grupo (7 de octubre)
+
+Botones SELECCIONAR TODOS (cantidad de lista visible) y QUITAR SELECCIÓN encima de las fotos. Selección masiva usa la lista visible del ciclo actual, sin duplicados, y respalda el borrador. Selección individual sigue disponible. Botones y handlers bloqueados durante la serie y cuando ya tiene llegadas. Versiones app/CSS/launcher v6. Organización por jefe de entrenamiento pendiente para próxima fase.
