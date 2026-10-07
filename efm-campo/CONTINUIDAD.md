@@ -13,8 +13,8 @@ Piloto solicitado por Tcnl. Sergio Morales para probar las estaciones antes de h
 - Servidor `efm-campo` desplegado en proyecto Supabase SIDECEME-V2. Usa la sesión propia del sistema, no Supabase Auth; verify_jwt=false porque comprueba esa sesión en el servidor.
 - Tablas nuevas `efmc_perfiles` y `efmc_registros`, RLS activa, sin acceso directo anon/authenticated. Datos oficiales no se modifican. Cada corrección agrega una fila; UUID evita duplicar un reintento.
 - 116 fechas de nacimiento coincidieron exactamente con la nómina. Cuatro entradas necesitan revisión de identidad. No inferir sexo por nombres: seleccionar tabla en el piloto.
-- 221 retratos optimizados a WebP (360 × 480 máximo), total 2.430.698 bytes. 201 correspondencias exactas con alumnos; 20 archivos requieren revisión.
-- Transferencia de fotos pendiente: auto-review rechazó el envío por exigir confirmación del destino. Proyecto identificado mediante configuración de la aplicación. No reintentar hasta resolver el bloqueo. La función temporal efm-retratos-import quedó cerrada (HTTP 410 y JWT requerido).
+- 206 retratos cargados y vinculados: 112 primer ciclo, 94 segundo ciclo. WebP máximo 300 × 400, 1.367.162 bytes en total. Quedan 15 archivos dudosos sin asignar.
+- Transferencia completada tras autorización expresa de Sergio el 7 de octubre. Bucket efm-retratos privado, retratos enlazados a efmc_perfiles. El importador temporal quedó cerrado (HTTP 410, JWT requerido).
 
 ## Baremos y límites
 
@@ -48,3 +48,19 @@ Los adjuntos originales y retratos optimizados se preservan en el paquete de con
 ## Verificación completada
 
 15 casos de baremos, 14 casos de acceso/validación, 15 pruebas existentes de soporte. E2E móvil (390 × 844) verificó teclado, reintento conservando UUID, hoja individual, temporizador, captura y asignación de llegadas, exclusión de alumnos ya asignados y recuperación tras recarga. Endpoint desplegado respondió HTTP 401 ante sesión inválida. RLS y revocación de permisos directos confirmadas por SQL. La alarma sonora requiere prueba física en el teléfono de Morales.
+
+## Actualización 7 de octubre: diseño del evaluador
+
+- Ficha con retrato destacado, nacimiento y edad cumplida al evaluar. Masculino por defecto cuando el perfil no tiene sexo, conservando F y permitiendo cambiar la tabla.
+- Fecha/ciclo en cuadrícula móvil sin superposición. El ciclo queda ligado al cursante seleccionado.
+- Temporizador circular de 120 segundos; cuenta regresiva en verde, ámbar en últimos 30 segundos y rojo en últimos 10. El círculo y la cifra se actualizan juntos al pausar, continuar y finalizar.
+- Alarma WAV con reproducción HTMLAudio activada desde el toque del usuario; WebAudio de respaldo y aviso visible al finalizar. Verificar sonido físicamente en iPhone.
+- 206 retratos identificados por coincidencias claras del nombre y ciclo, comprimidos a máximo 300 × 400 WebP, 1.367.162 bytes en conjunto. 15 archivos con nombres dudosos sin asignar.
+- El bloqueo inicial de auto-review se resolvió mediante autorización expresa de Sergio. Transferencia completada y verificada por cantidad, bytes y unión entre perfiles y objetos almacenados; importador cerrado.
+- Sigue siendo piloto personal exclusivo de Morales. Designaciones por profesor/prueba/ciclo y su autorización en servidor pendientes: no afirmar que están activas.
+
+## Autorización y publicación
+
+El 7 de octubre Sergio autorizó expresamente publicar las mejoras y cargar los 206 retratos identificados en el almacenamiento privado de SIDECEME-V2 (ofsyiylhdrdiqtnbaovo). La versión 8a80814 fue desplegada con éxito mediante GitHub Pages; se verificó el temporizador circular en el archivo servido. Carga completada: 206 objetos, 1.367.162 bytes. Verificada unión con efmc_perfiles y cursantes: 112 del primer ciclo y 94 del segundo. Se conservan 15 archivos dudosos sin asignar.
+
+Las designaciones individuales de evaluadores continúan pendientes; el piloto conserva su acceso exclusivo a Morales.
