@@ -46,3 +46,50 @@
  #efmc nav{padding-top:14px}
  #efmc .efmc-banner{font-size:10px;line-height:1.6}
 }
+/* Marcador deportivo: segmentos LED locales, sin fuentes externas. */
+#efmc .efmc-digital{display:inline-flex;align-items:center;gap:.1em;font-size:inherit;color:inherit;filter:drop-shadow(0 0 3px currentColor) drop-shadow(0 0 10px #37ffd56b)}
+#efmc .efmc-digit{display:inline-block;position:relative;width:.52em;height:.9em;flex:none}
+#efmc .seg{position:absolute;background:currentColor;opacity:.055;border-radius:2px}
+#efmc .seg.on{opacity:1}
+#efmc .seg.a,#efmc .seg.g,#efmc .seg.d{width:76%;height:10%;left:12%;clip-path:polygon(10% 0,90% 0,100% 50%,90% 100%,10% 100%,0 50%)}
+#efmc .seg.a{top:0}#efmc .seg.g{top:45%}#efmc .seg.d{bottom:0}
+#efmc .seg.b,#efmc .seg.c,#efmc .seg.e,#efmc .seg.f{height:40%;width:16%;clip-path:polygon(50% 0,100% 10%,100% 90%,50% 100%,0 90%,0 10%)}
+#efmc .seg.b{right:0;top:5%}#efmc .seg.c{right:0;bottom:5%}#efmc .seg.f{left:0;top:5%}#efmc .seg.e{left:0;bottom:5%}
+#efmc .efmc-colon{display:flex;flex-direction:column;justify-content:space-evenly;align-items:center;width:.15em;height:.7em}
+#efmc .efmc-colon i{width:.09em;height:.09em;border-radius:50%;background:currentColor}
+#efmc .efmc-ring output{font-size:56px;color:var(--ring-color);margin:14px 0}
+#efmc .efmc-ring .efmc-digital{font-size:inherit;color:inherit;letter-spacing:0}
+#efmc .efmc-ring{width:260px;height:260px;box-shadow:0 0 26px #35ffc93b,inset 0 0 12px #65ffc969;background:conic-gradient(var(--ring-color) var(--remaining),#183541 0)}
+#efmc .efmc-ring>div{background:radial-gradient(circle at center,#102f3e,#040e18)}
+#efmc .efmc-timer{background:radial-gradient(ellipse at top,#163c4d,#07131e)!important;box-shadow:inset 0 1px 0 #5bf5cd33,0 10px 30px #0004}
+#efmc .efmc-entry output{color:#a5ffdf;font-size:70px;line-height:1.2}
+#efmc .efmc-pad button{color:#b9fff1;background:linear-gradient(#20475a,#102a3a);border-color:#3d7381;font-size:30px;text-shadow:0 0 7px #4dffd580;box-shadow:inset 0 1px 0 #8affdf33}
+#efmc .efmc-primary{background:linear-gradient(105deg,#79ffd0,#3dcddd)!important;box-shadow:0 0 20px #42ffca30;letter-spacing:.04em}
+#efmc .efmc-person{align-items:flex-start;border-color:#429b9d;background:linear-gradient(135deg,#164652,#091d30);box-shadow:0 0 22px #45ffc412}
+#efmc .efmc-person img,#efmc .efmc-person>.efmc-avatar{width:148px;height:198px;object-fit:cover;object-position:top;border-color:#87ffe1;box-shadow:0 0 16px #53ffbf4d}
+#efmc .efmc-biometrics{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+#efmc .efmc-biometrics span{display:block;font-size:10px;color:#9ac3d1}
+#efmc .efmc-biometrics b{display:block;color:#f0fff9;font-size:12px;margin-top:3px}
+#efmc .efmc-completed{display:grid;gap:12px;margin-bottom:20px}
+#efmc .efmc-completed-card{display:flex;gap:16px;align-items:center;padding:14px;border:1px solid #2f696b;border-radius:14px;background:linear-gradient(120deg,#123b41,#0b2230)}
+#efmc .efmc-completed-card img,#efmc .efmc-completed-card>.efmc-avatar{width:82px;height:110px;object-fit:cover;object-position:top;border:1px solid #80fbd0;border-radius:9px;flex-shrink:0}
+#efmc .efmc-completed-card>div{min-width:0}
+#efmc .efmc-completed-card h3{margin:4px 0;font-size:15px}
+#efmc .efmc-completed-card p{font-size:10px;color:#b1ccd4;margin:5px 0;line-height:1.5}
+#efmc .efmc-completed-card strong{display:block;font-size:16px;color:#96ffe0}
+#efmc .efmc-completed-card button{font-size:10px;padding:5px 8px;min-height:30px;margin-top:3px}
+#efmc #efmc-active{scroll-margin-top:16px}
+@media(max-width:720px){
+ #efmc .efmc-person{gap:12px;padding:12px;flex-wrap:wrap}
+ #efmc .efmc-person img,#efmc .efmc-person>.efmc-avatar{width:112px;height:150px}
+ #efmc .efmc-person>div{flex:1;min-width:120px}
+ #efmc .efmc-person h2{font-size:17px;overflow-wrap:anywhere}
+ #efmc .efmc-biometrics{grid-template-columns:1fr;gap:7px;margin-top:10px}
+ #efmc .efmc-biometrics span{font-size:9px}#efmc .efmc-biometrics b{font-size:11px}
+ #efmc .efmc-ring{width:min(248px,100%);height:auto;aspect-ratio:1}
+ #efmc .efmc-ring>div{aspect-ratio:1}
+ #efmc .efmc-ring output{font-size:52px}
+ #efmc .efmc-entry output{font-size:66px}
+ #efmc .efmc-completed-card{gap:12px;padding:12px}
+}
+@media(prefers-reduced-motion:reduce){#efmc *{scroll-behavior:auto!important}}

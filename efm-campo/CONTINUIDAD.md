@@ -64,3 +64,14 @@ Los adjuntos originales y retratos optimizados se preservan en el paquete de con
 El 7 de octubre Sergio autorizó expresamente publicar las mejoras y cargar los 206 retratos identificados en el almacenamiento privado de SIDECEME-V2 (ofsyiylhdrdiqtnbaovo). La versión 8a80814 fue desplegada con éxito mediante GitHub Pages; se verificó el temporizador circular en el archivo servido. Carga completada: 206 objetos, 1.367.162 bytes. Verificada unión con efmc_perfiles y cursantes: 112 del primer ciclo y 94 del segundo. Se conservan 15 archivos dudosos sin asignar.
 
 Las designaciones individuales de evaluadores continúan pendientes; el piloto conserva su acceso exclusivo a Morales.
+
+## Actualización 7 de octubre: marcador LED y avance de cursantes
+
+- Marcador de siete segmentos CSS con brillo neón; no descarga fuentes. Círculo consumible verde/ámbar/rojo con cifras accesibles.
+- Bocina deportiva local de tres ráfagas (`bocina.wav`, 3,4 s, mono 22.050 Hz), activada por toque y respaldo WebAudio. Comprobar potencia efectiva en iPhone con su volumen y altavoz.
+- Foto principal ampliada: 112 × 150 móvil / 148 × 198 escritorio. Ficha reúne edad, nacimiento `01-OCT-88`, sexo, peso y estatura. Peso/estatura figuran pendientes cuando el endpoint no aporta valores; esta actualización no incorpora su captura ni altera el cálculo de peso–talla.
+- Sexo inicial usa selecciones registradas/perfil; Alyson Manu Salguero se inicia en femenino por identificación explícita de Sergio. No se clasifica por foto. Selector manual disponible; selección confirmada al guardar prevalece durante la sesión.
+- Guardado confirmado: foto/datos/marca/nota quedan en ficha compacta y se abre siguiente cursante sin marca de esa prueba, según relación nominal filtrada/ciclo. Fin de lista conserva resúmenes. Revisión/corrección mantiene historial.
+- Fallo conserva alumno, marca y UUID, sin avanzar. Reintento confirmado avanza. Cambio de estación muestra solo sus registros. Aeróbica mantiene series/llegadas.
+- Caché versionada v3 en launcher, módulo y CSS. Sin cambios en servidor, base de datos, permisos o notas oficiales.
+- Validación: 13 casos UI, 15 baremos, 14 acceso y 15 soporte; integración DOM de fallo/reintento, avance, fin de lista, corrección y cambio de estación. Chromium no se pudo descargar: no afirmar validación visual ni sonora en iPhone.

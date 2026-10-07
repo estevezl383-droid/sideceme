@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {digital,nacimiento,sexoInicial,siguiente} from '../efm-campo/ui.mjs';
+assert.equal(nacimiento('1988-10-01'),'01-OCT-88');
+assert.equal(nacimiento(null),'PENDIENTE');
+assert.equal(sexoInicial({id:'1',nombre_completo:'ALYSON MANU SALGUERO'}),'F');
+assert.equal(sexoInicial({id:'2',sexo:'F'}),'F');
+assert.equal(sexoInicial({id:'1',nombre_completo:'ALYSON MANU SALGUERO'},[{cursante_id:'1',sexo:'M'}]),'F');
+assert.equal(sexoInicial({id:'1',nombre_completo:'ALYSON MANU SALGUERO',sexo:'M',sexoConfirmado:true}),'M');
+assert.equal(sexoInicial({id:'2'},[{cursante_id:'2',sexo:'F'}]),'F');
+assert.equal(sexoInicial({id:'2'}),'M');
+const list=[{id:'1'},{id:'2'},{id:'3'}];
+const records=[{cursante_id:'1',prueba:'flexiones'},{cursante_id:'2',prueba:'abdominales'}];
+assert.equal(siguiente(list,records,'1','flexiones').id,'2');
+assert.equal(siguiente(list,[...records,{cursante_id:'2',prueba:'flexiones'}],'1','flexiones').id,'3');
+assert.equal(siguiente(list,records,'3','flexiones').id,'2');
+assert.equal(siguiente(list,list.map(c=>({cursante_id:c.id,prueba:'flexiones'})),'1','flexiones'),null);
+assert.equal((digital('00:00').match(/seg [abcdefg] on/g)||[]).length,24);
+console.log('13 verificaciones del marcador, fecha, selección de sexo y siguiente cursante: OK');
