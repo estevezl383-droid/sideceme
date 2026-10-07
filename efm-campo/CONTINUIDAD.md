@@ -88,3 +88,14 @@ Las designaciones individuales de evaluadores continúan pendientes; el piloto c
 ## Selección rápida de grupo (7 de octubre)
 
 Botones SELECCIONAR TODOS (cantidad de lista visible) y QUITAR SELECCIÓN encima de las fotos. Selección masiva usa la lista visible del ciclo actual, sin duplicados, y respalda el borrador. Selección individual sigue disponible. Botones y handlers bloqueados durante la serie y cuando ya tiene llegadas. Versiones app/CSS/launcher v6. Organización por jefe de entrenamiento pendiente para próxima fase.
+
+
+## Actualización 7 de octubre: hojas y talla-peso
+
+- Primera estación TALLA / PESO: captura conjunta de kg y metros, admite coma decimal. Guardado con historial, UUID idempotente y reintentos que conservan las dos medidas y la nota. Los datos van en calculo JSON de efmc_registros; la migración 002 solo amplía el CHECK de prueba.
+- El Anexo D reenviado es idéntico al anterior y NO contiene baremo de talla-peso. No inferirlo a partir de las notas 0/100 del Excel. Nota opcional ingresada por evaluador, origen registrado como evaluador, aporte nota × 0,29. Sin nota validada: pendiente. Cálculo automático pendiente de recibir tabla/fórmula institucional.
+- Hoja individual replegada por defecto: tocar foto/nombre abre notas. Consolidado por ciclo y curso, cantidad completa y final automático cuando las cinco notas existen. Ceros válidos, pendientes no se convierten en cero. Usa última corrección y fecha de evaluación. Barras sigue siendo requisito, sin modificar suma ordinaria.
+- Descargas reales .xlsx/.docx/.pdf: individual, matriz de curso y todas las hojas individuales del curso. Excel contiene valores sin enlaces externos. Word individual usa estructura sanitizada del modelo adjunto (sin identidad ni foto del ejemplo); inserta retrato privado al generar. PDF horizontal con foto, notas, medicina, firma/huella y firmas.
+- Firmantes configurables para cinco estaciones, jefe de curso/EFM/SAC/Estudios y comandante. Son nombres y espacios de firma/sello, no firmas electrónicas. Valoración médica conserva espacios del modelo, sin inventar resultados médicos.
+- Piloto sigue exclusivo Morales; designaciones de jefes/evaluadores pendientes. No presentar estas descargas como habilitadas para otros usuarios. No se escriben notas oficiales.
+- Verificación: regresiones de baremos/UI/acceso/soporte; cálculo y faltantes; integración DOM de captura/reintento/filtro/hoja; nueve exportaciones con 30 cursantes ficticios; Excel reabierto y OOXML validado; PDF individual y matriz renderizados. Chromium y LibreOffice no disponibles: falta inspección de Word en aplicación nativa y prueba en teléfono.
