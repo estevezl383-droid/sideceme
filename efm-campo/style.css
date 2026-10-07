@@ -93,3 +93,5 @@
  #efmc .efmc-completed-card{gap:12px;padding:12px}
 }
 @media(prefers-reduced-motion:reduce){#efmc *{scroll-behavior:auto!important}}
+
+#efmc .efmc-digital .efmc-digit,#efmc .efmc-digital .efmc-colon{font-size:inherit;color:inherit;letter-spacing:0}
