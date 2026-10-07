@@ -55,7 +55,7 @@ export async function abrir({invoke,onClose,owner,authorized=()=>true}){
   root.querySelectorAll('[data-lap]').forEach(e=>e.onchange=()=>{run.laps[+e.dataset.lap].cursante=e.value;saveDraft();render();});
   root.querySelectorAll('[data-save-lap]').forEach(e=>e.onclick=async()=>{
    const l=run.laps[+e.dataset.saveLap],c=roster.find(x=>x.id===l.cursante);if(!c)return;
-   selected=c.id;birth=c.fecha_nacimiento||birth;sex=c.sexo||'';
+   selected=c.id;birth=c.fecha_nacimiento||'';sex=c.sexo||'';
    if(!birth||!sex){const dlg=document.createElement('dialog');dlg.className='efmc-dialog';dlg.innerHTML=`<form><h3>${esc(c.nombre_completo)}</h3><label>NACIMIENTO<input name="birth" type="date" value="${esc(birth)}" required></label><label>TABLA<select name="sex" required><option value="">SELECCIONAR</option><option value="M">MASCULINA</option><option value="F">FEMENINA</option></select></label><button type="submit">CONFIRMAR Y GUARDAR</button><button type="button">CANCELAR</button></form>`;root.append(dlg);dlg.showModal();dlg.querySelector('[type=button]').onclick=()=>dlg.remove();dlg.querySelector('form').onsubmit=async ev=>{ev.preventDefault();birth=dlg.querySelector('[name=birth]').value;sex=dlg.querySelector('[name=sex]').value;dlg.remove();await saveLap(l,c);};return;}
    await saveLap(l,c);
   });
