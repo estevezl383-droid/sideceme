@@ -1,3 +1,4 @@
+import {validarNacimiento} from './perfil.mjs';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
 import {calificar,edad} from './baremos.mjs';
 import {validarMedidas,calificarMedidas} from './medidas.mjs';
@@ -24,8 +25,16 @@ Deno.serve(async(req:Request)=>{
    const urls=new Map((signed.data||[]).map((x:any)=>[x.path,x.signedUrl]));
    return reply(200,{ok:true,cursantes:c.data.map((x:any)=>{const pp=p.data.find((y:any)=>y.cursante_id===x.id)||{};return {...x,...pp,foto:urls.get(pp.foto_path)||null};}),registros:r.data});
   }
+  if(b.accion==='guardar_datos'){
+   if(!['M','F'].includes(b.sexo)||edad(b.fecha,b.fecha)===null||validarNacimiento(b.nacimiento,b.fecha))return reply(400,{ok:false,error:'REVISAR FECHA COMPLETA Y SEXO'});
+   const {data:c,error:ce}=await sb.from('cursantes').select('id').eq('id',b.cursante_id).eq('activo',true).maybeSingle();
+   if(ce||!c)return reply(400,{ok:false,error:'CURSANTE NO VÁLIDO'});
+   // Partial upsert preserves photo_path and source provenance on existing profiles.
+   const {data:perfil,error:pe}=await sb.from('efmc_perfiles').upsert({cursante_id:c.id,fecha_nacimiento:b.nacimiento,sexo:b.sexo,actualizado_en:new Date().toISOString()},{onConflict:'cursante_id'}).select().single();
+   if(pe)throw pe;return reply(200,{ok:true,perfil});
+  }
   if(b.accion==='registrar'){
-   if(!/^[0-9a-f-]{36}$/i.test(b.id)||typeof b.valor!=='number'||!Number.isFinite(b.valor)||b.valor<0||b.valor>10000||!['flexiones','abdominales','aerobica','natacion','barras','talla_peso'].includes(b.prueba)||!['M','F'].includes(b.sexo)||!/^\d{4}-\d{2}-\d{2}$/.test(b.fecha)||edad(b.fecha,b.fecha)===null||edad(b.nacimiento,b.fecha)===null)return reply(400,{ok:false,error:'REVISAR MARCA, FECHAS Y TABLA'});
+   if(!/^[0-9a-f-]{36}$/i.test(b.id)||typeof b.valor!=='number'||!Number.isFinite(b.valor)||b.valor<0||b.valor>10000||!['flexiones','abdominales','aerobica','natacion','barras','talla_peso'].includes(b.prueba)||!['M','F'].includes(b.sexo)||!/^\d{4}-\d{2}-\d{2}$/.test(b.fecha)||edad(b.fecha,b.fecha)===null||validarNacimiento(b.nacimiento,b.fecha))return reply(400,{ok:false,error:'REVISAR MARCA, FECHAS Y TABLA'});
    if(b.prueba==='talla_peso'&&(validarMedidas(b.valor,b.talla)))return reply(400,{ok:false,error:validarMedidas(b.valor,b.talla)});
    if(b.prueba!=='aerobica'&&b.prueba!=='talla_peso'&&!Number.isInteger(b.valor))return reply(400,{ok:false,error:'USAR UN NÚMERO ENTERO'});
    const {data:c,error:ce}=await sb.from('cursantes').select('id').eq('id',b.cursante_id).eq('activo',true).maybeSingle();

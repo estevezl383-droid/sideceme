@@ -107,3 +107,11 @@ Botones SELECCIONAR TODOS (cantidad de lista visible) y QUITAR SELECCIÓN encima
 - 99 identidades de segundo ciclo coinciden con RRNN; 97 fechas válidas cargadas en efmc_perfiles, conservando fotos, sexo y fechas existentes. Dos fechas malformadas/incompatibles pendientes de corrección; no se publican nombres/fechas en este repositorio público. Edad calculada a la fecha de evaluación.
 - Historial previo no recalculado: revisar/corregir los registros anteriores de talla-peso con nuevas mediciones para obtener el baremo automático. Se conserva aislamiento piloto P030 y ninguna escritura en notas oficiales.
 - Pruebas: 2880 comprobaciones de filas/grupos/límites más cumpleaños y celdas cotejadas con fuente; prueba de servidor contra manipulación, reintentos y conflictos; regresiones de acceso, informes y resto de baremos. Caché: launcher/app/medidas y soporte/index versión 8.
+
+
+## Actualización 07-OCT-2026: corrección de fecha persistente
+- Editor DD/MM/AAAA de texto con botón GUARDAR DATOS. No reconstruye la ficha al escribir cada dígito; conserva borrador y apertura al validar/fallar. Año completo obligatorio y edad adulta (20–100) validada también al registrar en servidor. Evita aceptar años parciales como 0001.
+- Endpoint guardar_datos guarda nacimiento y sexo en efmc_perfiles con validación de sesión/propietario y cursante activo. Upsert parcial conserva retrato y fuente; no modifica registros históricos ni sus notas.
+- Perfil corregido prevalece frente a datos históricos al abrir ficha, completar y exportar hojas. Corrección guardada permanece al cambiar estación o recargar; si hay borrador sin guardar se impide registrar una prueba.
+- Se corrigió una fecha del segundo ciclo por confirmación de Sergio. No se publican nombres o fechas personales en el repositorio público. 99/99 fechas completas.
+- Pruebas perfil: edición completa, rechazo año parcial, persistencia, preservación de foto/fuente y prioridad de corrección. Regresiones servidor/talla-peso/acceso/UI/informes/soporte pasan. Cache de soporte/launcher/app/ui/informes/descargas/perfil versión 9.

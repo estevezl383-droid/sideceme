@@ -8,6 +8,7 @@ export function sexoInicial(c,records=[]){
  const previous=records.find(r=>r.cursante_id===c.id&&['M','F'].includes(r.sexo));
  if(c.sexoConfirmado)return c.sexo;
  if(c.nombre_completo?.trim().toUpperCase()==='ALYSON MANU SALGUERO')return 'F';
+ if(['M','F'].includes(c.sexo))return c.sexo;
  if(previous)return previous.sexo;
  return ['M','F'].includes(c.sexo)?c.sexo:'M';
 }

@@ -1,3 +1,4 @@
+import {validarNacimiento} from '../efm-campo/perfil.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -6,7 +7,7 @@ import {calificar,edad} from '../efm-campo/baremos.mjs';
 let handler,session,activo=true;
 const sb={from(table){return {select(){return this;},eq(){return this;},maybeSingle(){return Promise.resolve({data:session,error:null});},single(){return Promise.resolve({data:{activo},error:null});}};}};
 let source=fs.readFileSync(new URL('../supabase/functions/efm-campo/index.ts',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/:number|:any|:Request/g,'');
-vm.runInNewContext(source,{createClient:()=>sb,calificar,edad,validarMedidas,calificarMedidas,console,Response,Date,Number,Deno:{env:{get:()=>''},serve:fn=>handler=fn}});
+vm.runInNewContext(source,{createClient:()=>sb,validarNacimiento,calificar,edad,validarMedidas,calificarMedidas,console,Response,Date,Number,Deno:{env:{get:()=>''},serve:fn=>handler=fn}});
 const call=body=>handler({method:'POST',json:async()=>body});
 const owner={usuario_id:'P030',usuario_ci:'4889191',usuario_tabla:'profesores',revocado:false,es_master:false,expira_en:new Date(Date.now()+3600000).toISOString(),soporte_actor_id:null,soporte_actor_ci:null};
 assert.equal((await call({accion:'cargar'})).status,401);

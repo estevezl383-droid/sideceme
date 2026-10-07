@@ -1,6 +1,6 @@
-import {PRUEBAS,datosHoja,valoresHoja,marca} from './informes.mjs';
+import {PRUEBAS,datosHoja,valoresHoja,marca} from './informes.mjs?v=9';
 import {edad} from './baremos.mjs';
-import {gradoArma} from './ui.mjs';
+import {gradoArma} from './ui.mjs?v=9';
 const xml=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 const membrete=['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES','ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO','“MCAL. ANDRÉS DE SANTA CRUZ”','BOLIVIA'];
 const roles=['EVALUADOR TALLA-PESO','EVALUADOR NATACIÓN','EVALUADOR ABDOMINALES','EVALUADOR FLEXIONES EN SUELO','EVALUADOR AERÓBICA 3.200 M'];
