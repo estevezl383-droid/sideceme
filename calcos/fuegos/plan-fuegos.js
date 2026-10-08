@@ -1252,6 +1252,13 @@ tr.fuera td { color: #b000b0; }
 
   // ─── Lo que llama la Mesa ───
   function sincronizar(p) {
+    if (puente && p && puente.ejercicio !== p.ejercicio) {
+      terminar(false)
+      vista.sel = null
+      vista.borrador = {}
+      ultimoToque = null
+      modoPedido = false
+    }
     puente = p || null
     if (puente && puente.setModo && !!puente.modo !== modoPedido) pedirModo(modoPedido)
     if (vista.sel && !planActual().blancos.some((b) => b.id === vista.sel) && !pendienteSel()) vista.sel = null

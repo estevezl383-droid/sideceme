@@ -35,6 +35,11 @@ const { vigente } = require('./extraer')
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
   {
+    lista: require('./reemplazos-2026-10-08-areas'),
+    nombre: 'reemplazos-2026-10-08-areas',
+    anterior: 'a4ae6daa68fb5c8dc5faa2300f599e4130f05870919faeadf3bc24c5e46d93b3',
+  },
+  {
     lista: require('./reemplazos-2026-10-06-organizacion'),
     nombre: 'reemplazos-2026-10-06-organizacion',
     // calcos/assets/index-prc-20261006.js (merge fa2e89f, antes de estos cambios).
