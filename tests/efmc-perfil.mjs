@@ -1,3 +1,4 @@
+import * as organizacion from '../efm-campo/organizacion.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -16,7 +17,7 @@ let handler,writes=0,profile={cursante_id:'TEST',foto_path:'foto.webp',fuente:'R
 const owner={usuario_id:'P030',usuario_ci:'4889191',usuario_tabla:'profesores',revocado:false,es_master:false,expira_en:new Date(Date.now()+3600000).toISOString(),soporte_actor_id:null,soporte_actor_ci:null};
 const sb={from(table){return {select(){return this;},eq(_,v){if(_==='id')this.id=v;return this;},upsert(p){writes++;profile={...profile,...p};return this;},maybeSingle(){return Promise.resolve({data:table==='sesiones'?owner:this.id==='TEST'?{id:'TEST'}:null,error:null});},single(){return Promise.resolve({data:table==='profesores'?{activo:true}:profile,error:null});}};}};
 const source=fs.readFileSync(new URL('../supabase/functions/efm-campo/index.ts',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/:number|:any|:Request/g,'');
-vm.runInNewContext(source,{createClient:()=>sb,validarNacimiento,calificar,edad,calificarMedidas,validarMedidas,console,Response,Date,Number,Deno:{env:{get:()=>''},serve:fn=>handler=fn}});
+vm.runInNewContext(source,{...organizacion,createClient:()=>sb,validarNacimiento,calificar,edad,calificarMedidas,validarMedidas,console,Response,Date,Number,Deno:{env:{get:()=>''},serve:fn=>handler=fn}});
 const body={accion:'guardar_datos',token:'test',cursante_id:'TEST',nacimiento:'1979-01-04',sexo:'M',fecha:dia},call=b=>handler({method:'POST',json:async()=>b});
 let response=await call(body);assert.equal(response.status,200);let data=await response.json();assert.equal(data.perfil.fecha_nacimiento,'1979-01-04');assert.equal(data.perfil.foto_path,'foto.webp');assert.equal(data.perfil.fuente,'RRNN');assert.equal(writes,1);
 for(const delta of [{nacimiento:'0001-01-03'},{nacimiento:null},{sexo:'X'},{cursante_id:'OTHER'},{fecha:'2026-02-30'}])assert.equal((await call({...body,...delta})).status,400);

@@ -1,4 +1,4 @@
-import {PRUEBAS,datosHoja,valoresHoja,marca,evaluador} from './informes.mjs?v=10';
+import {PRUEBAS,datosHoja,valoresHoja,marca,evaluador,novedadesHoja} from './informes.mjs?v=11';
 import {edad} from './baremos.mjs';
 import {gradoArma} from './ui.mjs?v=10';
 const xml=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
@@ -25,7 +25,7 @@ async function word(list,config,scope){
   const widths=[360,850,2700,400,...Array(17).fill(590)];
   body=membrete.map(x=>p(x,18,true)).join('')+p('MATRIZ DE LA EVALUACIÓN FÍSICA MILITAR · '+list[0].c.ciclo,22,true)+p(`FECHA: ${list[0].fecha} · CURSO: ${config.cursoLabel||'TODOS'} · ${list.filter(s=>s.final!=null).length}/${list.length} COMPLETOS · REGISTROS DE PRUEBA`)+table([headers,...list.map(matriz)],widths)+firmaWord(config);
  }else{
-  for(let i=0;i<list.length;i++){const s=list[i],values=datosHoja(s,config);if(s.final==null)values.v16='S/R';let filled=original.replace(/\{\{(\w+)\}\}/g,(_,k)=>xml(values[k]??''));let b=filled.match(/<w:body>([\s\S]*?)<w:sectPr/)[1];const pic=await portrait(s.c);
+  for(let i=0;i<list.length;i++){const s=list[i],values=datosHoja(s,config);if(s.final==null)values.v16='S/R';let filled=original.replace(/\{\{(\w+)\}\}/g,(_,k)=>xml(values[k]??''));if(novedadesHoja(s)){filled=filled.replace(/<w:tc\b[^>]*>[\s\S]*?<\/w:tc>/g,cell=>cell.includes('<w:t>OBSERVACIONES</w:t>')?cell.replace(/<w:t>[.…]+<\/w:t>/, '<w:t>'+xml(novedadesHoja(s))+'</w:t>'):cell);}let b=filled.match(/<w:body>([\s\S]*?)<w:sectPr/)[1];const pic=await portrait(s.c);
    if(pic){const rid='efmPhoto'+i;pictures.push({rid,name:`foto${i}.jpeg`,bytes:unbase(pic)});b=b.replace(/r:embed="rId\d+"/g,`r:embed="${rid}"`).replace(/wp:docPr id="\d+"/g,`wp:docPr id="${i+1}"`);}else{b=b.replace(/<w:drawing>[\s\S]*?<\/w:drawing>/g,'');}
    body+=(i?'<w:p><w:r><w:br w:type="page"/></w:r></w:p>':'')+b;
   }
@@ -43,7 +43,7 @@ async function excel(list,config,scope){
  const groups=scope==='hojas'?list.map(s=>[s]):[list];
  groups.forEach((group,idx)=>{
   const rows=[...membrete.map(x=>[x]),[],['MATRIZ DE LA EVALUACIÓN FÍSICA MILITAR'],[`FECHA: ${group[0].fecha} · ${group[0].c.ciclo} · CURSO: ${config.cursoLabel||group[0].c.paralelo||'TODOS'} · REGISTROS DE PRUEBA`],[],headers,...group.map(matriz),[],...signatures(group.length===1?{...config,...Object.fromEntries(Object.keys(PRUEBAS).map(p=>[p,evaluador(group[0],p)]))}:config).map(([name,role])=>['________________________',name,role])];
-  if(group.length===1){const s=group[0],d=datosHoja(s,config);rows.push([],['FECHA DE NACIMIENTO',d.nacimiento,'CI',d.ci,'SEXO',d.sexo],['FIRMA DEL EVALUADO','________________________','HUELLA DIGITAL','________________________'],['VALORACIÓN MÉDICA','APTO / NO APTO'],['PRESIÓN ARTERIAL',''],['SATURACIÓN',''],['PULSO',''],['SELLO Y FIRMA ENFERMERA (O)','________________________'],['SELLO Y FIRMA MÉDICO S.O.','________________________'],['OBSERVACIONES','']);}
+  if(group.length===1){const s=group[0],d=datosHoja(s,config);rows.push([],['FECHA DE NACIMIENTO',d.nacimiento,'CI',d.ci,'SEXO',d.sexo],['FIRMA DEL EVALUADO','________________________','HUELLA DIGITAL','________________________'],['VALORACIÓN MÉDICA','APTO / NO APTO'],['PRESIÓN ARTERIAL',''],['SATURACIÓN',''],['PULSO',''],['SELLO Y FIRMA ENFERMERA (O)','________________________'],['SELLO Y FIRMA MÉDICO S.O.','________________________'],['GRUPO',s.organizacion?.grupo||''],['OBSERVACIONES',novedadesHoja(s)]);}
   const ws=X.utils.aoa_to_sheet(rows);ws['!cols']=headers.map((_,i)=>({wch:i===2?38:i===1?13:i===3?8:11}));ws['!merges']=[0,1,2,3,5,6].map(r=>({s:{r,c:0},e:{r,c:20}}));ws['!rows']=rows.map((r,i)=>({hpt:i===8?40:24}));ws['!autofilter']={ref:`A9:U${9+group.length}`};
   for(const k of Object.keys(ws)){if(k[0]==='!')continue;const cell=ws[k],pos=X.utils.decode_cell(k);cell.s={font:{name:'Arial',sz:10,bold:pos.r<9},alignment:{vertical:'center',wrapText:true},border:{bottom:{style:'thin',color:{rgb:'BBBBBB'}}}};if(pos.r===8)cell.s.fill={fgColor:{rgb:'D9E9E5'}};if(cell.t==='n')cell.z='0.00';}
   X.utils.book_append_sheet(wb,ws,scope==='hojas'?`${idx+1} ${group[0].c.id}`.slice(0,31).replace(/[\\/?*\[\]:]/g,'_'):'EVALUACIÓN');
@@ -67,7 +67,7 @@ async function pdf(list,config,scope){
    const sub=['PESO KG','TALLA M','NOTA','29 %','DIST. M','NOTA','11 %','CANT.','NOTA','20 %','CANT.','NOTA','20 %','TIEMPO','NOTA','20 %','100 %','',''];x=20;sub.forEach((v,i)=>{cell(doc,v,x,209,widths[i],30,6,true);x+=widths[i];});x=20;[...valoresHoja(s),'',''].forEach((v,i)=>{cell(doc,v,x,239,widths[i],36,6);x+=widths[i];});
    cell(doc,'PRESIÓN ARTERIAL: __________________\n\nSATURACIÓN: _______________________\n\nPULSO: _____________________________',20,275,200,125,8);
    cell(doc,'VALORACIÓN MÉDICA DE APTITUD FÍSICA\n\nAPTO [  ]     NO APTO [  ]\n\nFECHA: ______________________',220,275,265,125,9,true);
-   cell(doc,'OBSERVACIONES\n\n________________________________________\n\n________________________________________\n\n________________________________________',485,275,287,125,8);
+   cell(doc,'OBSERVACIONES\n\n'+(novedadesHoja(s)||'________________________________________'),485,275,287,125,8);
    cell(doc,'SELLO Y FIRMA ENFERMERA (O)\n\n____________________________',20,400,200,64,8);cell(doc,'SELLO Y FIRMA MÉDICO S.O.\n\n____________________________',220,400,265,64,8);cell(doc,'',485,400,287,64,8);signaturePDF(doc,{...config,...Object.fromEntries(Object.keys(PRUEBAS).map(p=>[p,evaluador(s,p)]))},500);
   }
  }
