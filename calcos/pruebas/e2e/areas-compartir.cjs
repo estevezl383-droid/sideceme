@@ -6,12 +6,12 @@ const { ejercicioFicticio } = require('../ejercicio-ficticio')
   origen.planFuegos = { blancos: [{ id: 'propio', lng: 1, lat: 1 }] }
   const calcos = [{ id: 'origen', nombre: origen.nombre, payload: origen },
     { id: 'destino', nombre: 'Destino de prueba', payload: { ...origen, nombre: 'Destino de prueba', ops: { ...origen.ops, areaOps: null }, planFuegos: null } }]
-  const envios = []
+  const envios = [], peticiones = []
   const { page, errores, cerrar } = await abrir({ preparar: async (page,url) => {
     await page.addInitScript(url => { window.SIDECEME_CALCOS = { url, token: 'sesion-ficticia' } }, new URL(url).origin)
     await page.route('**/functions/v1/calcos-datos', r => r.fulfill({ json: { ok: true, permitido: true, capas: {} } }))
     await page.route('**/functions/v1/calco-ops', async route => {
-      const b = route.request().postDataJSON(); const c = calcos.find(c => c.id === b.calco_id)
+      const b = route.request().postDataJSON(); peticiones.push({accion:b.accion,calco_id:b.calco_id,nombre:b.nombre}); const c = calcos.find(c => c.id === b.calco_id)
       let r = { ok: true }
       switch (b.accion) {
         case 'mis_calcos': r.calcos = calcos.map(c => ({ id: c.id, nombre: c.nombre })); break
@@ -33,8 +33,9 @@ const { ejercicioFicticio } = require('../ejercicio-ficticio')
   const abrirCalco = async nombre => {
     await page.locator('button[title="Crear, abrir y guardar ejercicios"]').first().dispatchEvent('click')
     await page.getByRole('button', { name: 'Abrir guardados' }).dispatchEvent('click')
-    const fila = page.locator('div', { hasText: nombre }).filter({ has: page.getByRole('button', { name: 'Abrir' }) }).last()
+    const fila = page.locator('span', { hasText: nombre }).locator('..').filter({ has: page.getByRole('button', { name: 'Abrir', exact: true }) }).last()
     await fila.getByRole('button', { name: 'Abrir' }).dispatchEvent('click')
+    await page.waitForFunction(nombre => [...document.querySelectorAll('button[title="Crear, abrir y guardar ejercicios"]')].some(b => b.textContent.includes(nombre)), nombre)
     await page.waitForTimeout(1000)
   }
   try {
@@ -67,5 +68,5 @@ const { ejercicioFicticio } = require('../ejercicio-ficticio')
     assert.equal(calcos[0].payload.planFuegos.blancos.length, 1)
     assert.deepEqual(errores, [])
     console.log('E2E nube: nombrar, guardar, enviar selección y recibir en destino; sin pisar datos ni arrastrar fuegos.')
-  } finally { await cerrar() }
+  } catch(e) { console.error('DIAGNOSTICO', await page.getByRole('region', { name: 'Áreas del ejercicio' }).innerText(),peticiones,errores); throw e } finally { await cerrar() }
 })().catch(e => { console.error(e); process.exitCode = 1 })
