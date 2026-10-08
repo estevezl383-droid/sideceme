@@ -14,7 +14,7 @@ const { ejercicioFicticio } = require('../ejercicio-ficticio')
     await panel.getByLabel('Nombre del área').fill('Área original conservada')
     await panel.locator('input[type=checkbox]').check()
     const descarga = page.waitForEvent('download')
-    await panel.getByRole('button', { name: 'Compartir áreas seleccionadas' }).click()
+    await panel.getByRole('button', { name: 'Descargar copia JSON de las áreas' }).click()
     const d = await descarga
     const ruta = await d.path()
     const bytes = require('fs').readFileSync(ruta)

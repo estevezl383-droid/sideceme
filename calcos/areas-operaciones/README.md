@@ -22,11 +22,19 @@ su propio `planFuegos`. No es evidencia de corrupción de toda la base de datos.
 - En la carta 2D, las otras áreas aparecen punteadas y rotuladas; se seleccionan
   en el panel para editarlas. El análisis existente sigue usando el área activa.
   No se modifica el motor 3D: allí sigue mostrándose el área activa.
-- Compartir exporta exclusivamente las áreas marcadas a `areas_operaciones.json`.
-  En el ejercicio de destino, **Importar áreas compartidas** las añade sin
-  transferir fuegos, fichas, notas, documentos o tareas del origen.
-  Después se reparte la BASE mediante el flujo existente. No asigna nuevos
-  permisos de alumnos ni envía enlaces automáticamente.
+- **Compartir en la aplicación / Recibidos** usa una bandeja en `calco_compartidos`.
+  El docente guarda el origen, pone nombre al envío, marca áreas y elige un
+  ejercicio personal propio o un grupo activo. El paquete contiene nombres y
+  contornos, y opcionalmente unidad, operación, documentos e indicaciones.
+  `planFuegos`, respuestas, notas y las demás capas nunca se copian.
+  El receptor incorpora al ejercicio abierto; no se reemplaza el payload del
+  destino al enviar. `ops.entregasAreas` evita incorporar dos veces el mismo
+  envío. Los documentos se añaden con identidad propia; los previos se conservan.
+  La copia JSON de áreas sigue disponible como respaldo opcional.
+- Las tres acciones `areas_destinos`, `areas_enviar`, `areas_recibidos` pasan por
+  la sesión SIDECEME existente y verifican origen/destino en el servidor.
+  Las tablas nuevas tienen RLS y acceso exclusivo por service_role; no se usa
+  service_role en el navegador. Los cursantes leen solo su grupo y ejercicio.
 - Crear/limpiar ejercicio limpia plan, estado académico y modos de captura.
   Abrir un ejercicio carga su plan; importar una BASE limpia el plan previo,
   porque el contrato BASE no incluye fuegos.
@@ -35,9 +43,14 @@ su propio `planFuegos`. No es evidencia de corrupción de toda la base de datos.
 
 ## Alcance de datos existentes
 
-No se ha modificado ningún registro de producción. Un ejercicio ya guardado con
-blancos heredados requiere que el docente confirme cuáles son ajenos; no hay
-proveniencia suficiente para eliminarlos automáticamente sin riesgo.
+DIAMANTE (propietario verificado P030, Sergio Morales) contiene 14 blancos
+AB-010–AB-023 cuyo plan es idéntico al de ARMAS y cuyos identificadores fueron
+creados antes que DIAMANTE. La limpieza confirmada se limita a esos IDs en
+ese calco. Antes de limpiar se guarda el payload entero en `calco_versiones`.
+`calco_blancos_excluidos` impide que el autoguardado de una pestaña antigua
+reintroduzca los mismos IDs en DIAMANTE. No afecta otros ejercicios ni nuevos
+registros de DIAMANTE. Para restaurar el respaldo, quitar primero esas
+exclusiones y recuperar la versión; no borrar los respaldos.
 Una sola área antigua abre sin migración destructiva. No es posible recuperar
 áreas previamente reemplazadas salvo desde respaldos.
 
@@ -53,10 +66,12 @@ Pruebas:
 ```bash
 npm ci --prefix calcos/pruebas
 node calcos/pruebas/areas-operaciones.mjs
+node calcos/pruebas/areas-compartir.mjs
 node calcos/pruebas/edicion-figuras.cjs
 node calcos/pruebas/plan-fuegos-modelo.js
 node calcos/pruebas/reemplazos-compilado.js
 node calcos/pruebas/e2e/areas-aislamiento.cjs
+node calcos/pruebas/e2e/areas-compartir.cjs
 ```
 
 Validación: modelos, edición y cadena reversible pasan. La prueba en Chromium
@@ -70,3 +85,15 @@ publicado otros cambios. Integrar la rama mediante PR, sin force-push ni
 reemplazar una versión posterior del compilado. Reversión: restaurar las
 referencias anteriores de `calcos/index.html` y el módulo de fuegos. No abrir y
 guardar un ejercicio con varias áreas usando versiones anteriores del editor.
+
+## Despliegue del servidor
+
+Fuente conservada en `supabase/espejo-ge/calco-ops/`. El entrypoint solo agrega
+el import y la llamada al despachador; los flujos anteriores quedan intactos.
+Para desplegar, incluir `index.ts`, `compartir.mjs`, `compartir-modelo.mjs` y
+`modelo.mjs`. En la copia de despliegue, cambiar el import del despachador
+a `./compartir-modelo.mjs` (en el repo usa la ruta del módulo frontend).
+Aplicar primero la migración `20261008160528_calco_compartidos.sql`.
+JWT permanece OFF porque la función valida las sesiones institucionales.
+No se generan nuevos grupos ni se envía contenido real a destinatarios
+sin selección expresa del docente.

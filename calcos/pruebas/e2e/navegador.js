@@ -72,7 +72,7 @@ function pngLiso([r, g, b]) {
 const TILE_CARTA = pngLiso([92, 104, 72])
 const TILE_DEM = pngLiso([128, 14, 0]) // terrarium: 128·256 + 14 − 32768 = 3598 m (plano)
 
-async function abrir({ ancho = 1440, alto = 900, movil = false, consulta = '' } = {}) {
+async function abrir({ ancho = 1440, alto = 900, movil = false, consulta = '', preparar } = {}) {
   const { chromium } = cargarPlaywright()
   const { srv, url } = await servir()
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
@@ -89,6 +89,7 @@ async function abrir({ ancho = 1440, alto = 900, movil = false, consulta = '' } 
     if (/\/\d+\/\d+\/\d+(\.png|\.jpe?g)?(\?|$)|tile|lyrs=/i.test(u)) return r.fulfill({ status: 200, contentType: 'image/png', body: TILE_CARTA })
     return r.abort()
   })
+  if (preparar) await preparar(page, url)
   await page.goto(url + consulta, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
   const ok = page.getByRole('button', { name: /entendido/i })

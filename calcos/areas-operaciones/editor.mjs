@@ -1,6 +1,7 @@
 import { listarAreas, seleccionarArea, editarArea, paqueteAreas, importarAreas } from './modelo.mjs'
+import Compartir from './compartir-editor.mjs'
 
-export default function Areas({ react: R, ops, onOps, ejercicio, onDeshacer }) {
+export default function Areas({ react: R, ops, onOps, ejercicio, onDeshacer, nube }) {
   const h = R.createElement, [seleccion, setSeleccion] = R.useState([]), [error, setError] = R.useState('')
   const archivo = R.useRef(null)
   const actual = R.useRef(ejercicio)
@@ -29,9 +30,10 @@ export default function Areas({ react: R, ops, onOps, ejercicio, onDeshacer }) {
         ...[['nombre', 'Nombre del área'], ['unidad', 'Unidad responsable'], ['operacion', 'Operación asignada']].map(([k, etiqueta]) => h('label', { key: k }, etiqueta,
           h('input', { style: estilo, value: a[k] || '', maxLength: 160, onChange: e => cambiar(prev => editarArea(prev, a.id, { [k]: e.target.value })) })))))),
     h('small', null, 'Seleccione un área para editarla. Las otras permanecen en la carta.'),
-    h('button', { type: 'button', style: botones, disabled: !seleccionActual.length, onClick: descargar }, 'Compartir áreas seleccionadas'),
+    h(Compartir, { react: R, nube, ids: seleccionActual, ops, ejercicio }),
+    h('button', { type: 'button', style: botones, disabled: !seleccionActual.length, onClick: descargar }, 'Descargar copia JSON de las áreas'),
     h('button', { type: 'button', style: botones, onClick: () => archivo.current?.click() }, 'Importar áreas compartidas'),
-    h('small', null, 'Abra el ejercicio de destino e importe el archivo; después reparta su BASE a los cursantes.'),
+    h('small', null, 'El archivo JSON es una copia opcional. Para compartir dentro de SIDE-CEME use el botón superior.'),
     h('input', { ref: archivo, type: 'file', accept: '.json,application/json', hidden: true, onChange: async e => {
       const file = e.target.files?.[0]; e.target.value = ''; if (!file) return
       const destino = ejercicio

@@ -3,10 +3,13 @@ on:
   pull_request:
     paths:
       - 'calcos/areas-operaciones/**'
+      - 'supabase/espejo-ge/calco-ops/**'
+      - 'supabase/migrations/*calco_compartidos*'
       - 'calcos/assets/index-areas-20261008.js'
       - 'calcos/fuegos/plan-fuegos.js'
       - 'calcos/pruebas/*areas*'
       - 'calcos/pruebas/e2e/areas-aislamiento.cjs'
+      - 'calcos/pruebas/e2e/areas-compartir.cjs'
       - '.github/workflows/areas-aislamiento.yml'
   workflow_dispatch:
 permissions:
@@ -26,6 +29,7 @@ jobs:
           node --check calcos/areas-operaciones/editor.mjs
           node --check calcos/assets/index-areas-20261008.js
           node calcos/pruebas/areas-operaciones.mjs
+          node calcos/pruebas/areas-compartir.mjs
           node calcos/pruebas/edicion-figuras.cjs
           node calcos/pruebas/plan-fuegos-modelo.js
           node calcos/pruebas/reemplazos-compilado.js
@@ -36,4 +40,6 @@ jobs:
       - name: Crear ejercicio vacío y conservar origen
         env:
           PLAYWRIGHT_MODULE: /tmp/prueba-areas/node_modules/playwright
-        run: node calcos/pruebas/e2e/areas-aislamiento.cjs
+        run: |
+          node calcos/pruebas/e2e/areas-aislamiento.cjs
+          node calcos/pruebas/e2e/areas-compartir.cjs
