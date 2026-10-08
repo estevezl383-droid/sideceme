@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.430</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.431</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -35381,7 +35381,12 @@ function _wgAnimarDisparos(impactos, trazas, segundosMarcha=22){
   for(const im of base){
     const n=Math.max(1, WG_SALVA[im.arma]||4);
     const hueco=(WG_RAFAGA_MS-WG_VUELO_MS)/Math.max(1,n-1);
-    const espera=Math.max(llegadaMs(im.desde), llegadaMs([im.lng,im.lat]));   // v2.9.430
+    // v2.9.431: si el motor resolvió el tiro a una hora de la matriz (H+x),
+    // el proyectil sale a esa hora en la misma escala de la marcha; si no, como
+    // antes: cuando llegan los que marchan hasta ahí.
+    const espera = (im.hora!=null && Number.isFinite(Number(im.hora)))
+      ? (Math.min(Number(im.hora), maxH)/maxH)*segundosMarcha*1000
+      : Math.max(llegadaMs(im.desde), llegadaMs([im.lng,im.lat]));   // v2.9.430
     const demora=espera+(im.respuesta?RETARDO_RESPUESTA:0);
     for(let i=0;i<n;i++){
       // Dispersión determinista (sin azar: el motor es determinista y las
@@ -40581,6 +40586,28 @@ function _wgFusionarTrazas(trazas){
   }
   return [...por.values()];
 }
+// ============================================================
+// v2.9.431 — LA FICHA NO VUELVE A «A» CUANDO TERMINA LA MARCHA.
+// Sergio: «la muevo de A hacia B, se desplaza bien a B, pero por un segundo o
+// dos vuelve a su posición A y luego vuelve a su posición B».
+// Era esto, y pasaba SIEMPRE: al terminar la película se repintaba el tablero
+// («devolver las fichas a su posición final») leyendo `WG.estado`… que todavía
+// tenía las posiciones DE SALIDA, porque el estado nuevo se pide al servidor
+// recién después (`wgEstado`, un segundo o dos de red). Así que la ficha se
+// recreaba en A, y cuando llegaba el estado saltaba otra vez a B.
+// Ahora, antes de repintar, se asienta en `WG.estado` el punto final de cada
+// traza (el mismo que va a confirmar el servidor): se repinta ya en B.
+// ============================================================
+function _wgAsentarTrazas(trazas){
+  const us=(WG.estado&&WG.estado.unidades)||[];
+  for(const t of (trazas||[])){
+    if(!t || !Array.isArray(t.ruta) || !t.ruta.length) continue;
+    const fin=t.ruta[t.ruta.length-1];
+    if(!Array.isArray(fin) || !Number.isFinite(fin[0]) || !Number.isFinite(fin[1])) continue;
+    const u=us.find(x=>String(x.id)===String(t.id));
+    if(u){ u.lng=fin[0]; u.lat=fin[1]; }
+  }
+}
 async function wgReplay(trazas, segundos=22){
   if(!WG.map||!trazas||!trazas.length) return;
   trazas=_wgFusionarTrazas(trazas);
@@ -40859,6 +40886,7 @@ async function wgReplay(trazas, segundos=22){
     WG.map3d.getSource('wg-humo').setData({type:'FeatureCollection',features:[]}); }catch(_e){}
   // v2.9.430: primero se baja la bandera; si no, `_wg3dDatos` se postergaría
   // a sí mismo. Y si algún refresco quedó esperando, se repinta ahora.
+  _wgAsentarTrazas(trazas);   // v2.9.431: el repintado ya las pone en B, no en A
   WG.replayando=false;
   if(WG.map3d) _wg3dDatos(); // devolver las fichas a su posición final
   if(WG._renderPend){ _wgRender(); if(WG.map3d) _wg3dDatos(); }
@@ -41370,6 +41398,7 @@ async function _wgColocarEn(latlng){
     poder_max:Number(document.getElementById('wg-u-poder').value)||12, lat:latlng.lat, lng:latlng.lng };
   const r=await _wgInvoke('agregar_unidad',{ partida_id:WG.partidaId, unidad:u });
   if(!r.ok){ alert('No se pudo colocar: '+r.error); return; }
+  if(r.aviso) _wgAviso('⚠️ '+_rgEsc(r.aviso), 9000);   // v2.9.431: cayó en terreno que no cruza
   await wgEstado();
 }
 async function wgIniciar(btn){
