@@ -24,7 +24,7 @@ function cargarPlaywright() {
   throw new Error('Falta Playwright: npm install --no-save playwright (o PLAYWRIGHT_MODULE=/ruta/a/playwright)')
 }
 
-const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.kml': 'application/vnd.google-earth.kml+xml' }
+const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.kml': 'application/vnd.google-earth.kml+xml' }
 
 function servir() {
   return new Promise((ok) => {
