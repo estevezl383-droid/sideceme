@@ -11,7 +11,7 @@ module.exports = [
   r('Borrar solamente el área activa', 'if(Ee==="areaOps"||Ee==="influenciaTrazada")Sn(Qt=>({...Qt,[Ee]:null}));', 'if(Ee==="areaOps")Sn(Qt=>SIDBorrarAO(Qt));else if(Ee==="influenciaTrazada")Sn(Qt=>({...Qt,[Ee]:null}));'),
   r('Propiedades del panel', 'function _Ce({tipo:t,', 'function _Ce({SIDops,SIDonOps,SIDejercicio,SIDdeshacer,tipo:t,'),
   r('Gestor de áreas en el panel', 'f.jsx("div",{style:eu.estado,children:T}),f.jsx(Eae,', 'f.jsx("div",{style:eu.estado,children:T}),f.jsx(SIDAreasEditor,{react:je,ops:SIDops,onOps:SIDonOps,ejercicio:SIDejercicio,onDeshacer:SIDdeshacer}),f.jsx(Eae,'),
-  r('Conectar gestor al estado y a deshacer', 'f.jsx(_Ce,{areaInfluencia:zl,', 'f.jsx(_Ce,{SIDops:Lt,SIDonOps:Sn,SIDejercicio:wn,SIDdeshacer:la,areaInfluencia:zl,'),
+  r('Conectar gestor al estado y a deshacer', 'f.jsx(_Ce,{areaInfluencia:zl,', 'f.jsx(_Ce,{SIDops:Lt,SIDonOps:next=>{if(ll){Nl();return}if(Bn){he("🔒 Ejercicio finalizado: duplíquelo para editar.");return}Sn(next)},SIDejercicio:wn,SIDdeshacer:()=>{if(!ll&&!Bn)la()},areaInfluencia:zl,'),
   r('Instrucción para trazar sin reemplazo', '✏️ Vas a trazar OTRA Área de Operaciones: reemplaza a la que ya hay. PASO 1: marcá el FRENTE.', '✏️ Vas a agregar OTRA Área de Operaciones. Las anteriores se conservan. PASO 1: marcá el FRENTE.'),
   r('Etiqueta del botón', '"▧ Trazar el Área ",E?"(de nuevo)":""', '"▧ Trazar el Área ",E?"(agregar otra)":""'),
   r('Mostrar las áreas conservadas en 2D', 'if(((Gn=(pa=T.areaOps)', 'SIDOtrasAO(Rt,_n,T,Ra);if(((Gn=(pa=T.areaOps)'),

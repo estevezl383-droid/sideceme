@@ -17,6 +17,8 @@ su propio `planFuegos`. No es evidencia de corrupción de toda la base de datos.
   versión activa para conservar sus últimas ediciones de vértices.
 - Cada trazado añade un área. Cambiar de selección conserva la anterior.
   El menú de borrado elimina solamente la activa y selecciona otra si queda alguna.
+- El gestor respeta el candado de la BASE cuando pertenece a otro puesto y
+  bloquea cambios en ejercicios finalizados.
 - En la carta 2D, las otras áreas aparecen punteadas y rotuladas; se seleccionan
   en el panel para editarlas. El análisis existente sigue usando el área activa.
   No se modifica el motor 3D: allí sigue mostrándose el área activa.
@@ -56,6 +58,12 @@ node calcos/pruebas/plan-fuegos-modelo.js
 node calcos/pruebas/reemplazos-compilado.js
 node calcos/pruebas/e2e/areas-aislamiento.cjs
 ```
+
+Validación: modelos, edición y cadena reversible pasan. La prueba en Chromium
+de GitHub Actions confirmó exportación/importación aditiva, plan vacío en nuevo
+ejercicio, conservación y reapertura del plan original, y ausencia de errores JS.
+El servidor de prueba incluye MIME para `.mjs` y ubica el botón de ejercicios
+por su título estable, porque su nombre visible cambia al abrir un ejercicio.
 
 Antes de integrar, comprobar el HEAD actual de `main`: Claude puede haber
 publicado otros cambios. Integrar la rama mediante PR, sin force-push ni
