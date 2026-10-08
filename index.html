@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.418</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.430</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -34520,6 +34520,10 @@ async function _wgSyncTick(){
       { partida_id:WG.partidaId, clave_acceso:WG.clave }, _wgVueloParaServidor()));
     if(!p.ok){ console.warn('pulso:', p.error); return; }   // silencioso: es un sondeo
     if(WG.maqueta) _wgLatido(true);   // v2.9.326: llegó dato, la proyección late
+    // v2.9.430: mientras el pulso viajaba pudo llegar el aviso del canal y
+    // arrancar la película. Si es así, este tic no toca nada: el tablero lo
+    // pone al día quien está animando.
+    if(_wgAnimando()) return;
     const ahora=Number(p.turno_actual);
     if(antes==null || !Number.isFinite(ahora) || ahora===Number(antes)){
       await _wgNovedadesInt(p.vistos);   // v2.9.285: ¿el CW 40 descubrió algo?
@@ -34541,6 +34545,19 @@ async function _wgSyncTick(){
       if(WG._syncVueltas >= 6 || WG._syncRepasoYa){
         WG._syncVueltas = 0; WG._syncRepasoYa = false;
         await wgEstado(true); _wgRender(); if(WG.map3d) _wg3dDatos();
+        // v2.9.430 — EL REPASO PISABA LA PELÍCULA. Si el turno corrió entre el
+        // pulso y este `estado`, el tablero ya quedó en las posiciones FINALES.
+        // Si después se reprodujera ese turno, las fichas saltarían al punto
+        // de salida y marcharían de nuevo («la unidad vuelve a un lugar»). Se
+        // anota como visto y se avisa que lea la bitácora: tablero al día, sin
+        // ficha que retroceda.
+        const desp=_wgTurnoActual();
+        if(desp!=null && antes!=null && Number(desp)>Number(antes)
+           && Number(WG._turnoVisto||0)<Number(desp)-1 && !_wgAnimando()){
+          WG._turnoVisto=Number(desp)-1; WG.ordenes={}; _wgActualizarContadorOrdenes();
+          await wgHistorial();
+          _wgAviso(`⚔️ <b>Se resolvió el turno ${antes}.</b> El tablero ya está al día — mirá la <b>bitácora</b>.`, 5000);
+        }
       }
       return;
     }
@@ -34617,22 +34634,28 @@ async function _wgNovedadesInt(vistos){
 // sin película, o vino por sondeo), se pide guardada como siempre.
 async function _wgReproducirTurno(turno, datos){
   let trazas=[], impactos=[], entregas=[];
+  // v2.9.430 — SE ANOTA «YA LO VI» ANTES DEL PRIMER `await`. Si el aviso del
+  // canal llegaba sin película (mensaje pesado) esta función se iba a pedir el
+  // replay al servidor y, mientras esperaba, el sondeo veía el turno nuevo con
+  // `_turnoVisto` todavía viejo y arrancaba OTRA reproducción del mismo turno:
+  // la ficha corría su tramo dos veces y «chispeaba» entre las dos películas.
+  WG.ultimoTurno=turno;
+  WG._turnoVisto=turno;
   if(datos && (Array.isArray(datos.trazas) || Array.isArray(datos.impactos))){
     trazas=datos.trazas||[]; impactos=datos.impactos||[]; entregas=datos.entregas||[];
   }else{
     const r=await _wgInvoke('replay',{ partida_id:WG.partidaId, clave_acceso:WG.clave, turno });
     trazas=(r.ok && r.trazas)||[]; impactos=(r.ok && r.impactos)||[]; entregas=(r.ok && r.entregas)||[];
   }
-  WG.ultimoTurno=turno;                        // para destacarlo en la bitácora
-  WG._turnoVisto=turno;                        // v2.9.309: este turno ya se vio acá
   _wgApagarViejos(turno);
   if(trazas.length || impactos.length || entregas.length){
     WG.replayando=true;
     try{
       // Movimiento y fuego A LA VEZ, igual que en el turno real.
+      // v2.9.430: el fuego espera a que LLEGUEN los que marchan (ver _wgAnimarDisparos).
       await Promise.all([
         trazas.length ? wgReplay(trazas) : Promise.resolve(),
-        _wgAnimarDisparos(impactos),
+        _wgAnimarDisparos(impactos, trazas),
       ]);
     } finally { WG.replayando=false; }
     _wgEncender(impactos, turno);
@@ -35317,12 +35340,37 @@ function _wgCapaEfectos(){
  * Anima TODOS los disparos del turno a la vez y resuelve cuando terminaron.
  * `impactos` viene en la respuesta de `resolver_turno`.
  */
-function _wgAnimarDisparos(impactos){
+// ============================================================
+// v2.9.430 — «UNA UNIDAD EMPIEZA A DISPARAR ANTES DE QUE LLEGUE LA OTRA».
+// El motor resuelve PRIMERO toda la marcha y DESPUÉS el fuego, con las unidades
+// ya en su posición final: por eso `desde` y el blanco de cada impacto son
+// posiciones de LLEGADA. Pero la película tiraba todos los proyectiles desde el
+// segundo cero, mientras las fichas todavía iban por la ruta: el tiro salía de
+// un punto vacío hacia otro punto vacío y la unidad «disparaba antes de llegar».
+// Ahora cada empeño espera a que lleguen la unidad que tira y la que recibe
+// (si marcharon este turno); el fuego que no depende de ninguna marcha —la
+// artillería batiendo un punto, dos unidades que no se movieron— sale enseguida,
+// como antes.
+// ============================================================
+function _wgAnimarDisparos(impactos, trazas, segundosMarcha=22){
   const base=(impactos||[]).filter(im=>Array.isArray(im.desde)
     && Number.isFinite(im.lng) && Number.isFinite(im.lat));
   if(!base.length) return Promise.resolve();
   const capa=_wgCapaEfectos();
   if(!capa) return Promise.resolve();
+  const marcha=_wgFusionarTrazas(trazas||[]).filter(t=>t.km>0 && t.ruta.length>1);
+  const maxH=Math.max(...marcha.map(_wgFinMarcha),0.0001);
+  // ¿Cuánto tarda en LLEGAR a `pt` alguna unidad que marcha hasta ahí? (0 si ninguna)
+  const llegadaMs=(pt)=>{
+    let ms=0;
+    if(!Array.isArray(pt) || !Number.isFinite(pt[0]) || !Number.isFinite(pt[1])) return 0;
+    for(const t of marcha){
+      const fin=t.ruta[t.ruta.length-1];
+      let d=Infinity; try{ d=_wgHav(fin, pt); }catch(_e){}
+      if(d<0.06) ms=Math.max(ms, (_wgFinMarcha(t)/maxH)*segundosMarcha*1000 + 250);
+    }
+    return ms;
+  };
   // Se arma la lista de PROYECTILES: cada empeño tira su serie, escalonada en
   // el tiempo. Cada tiro cae con algo de dispersión, como en el terreno real.
   const tiros=[];
@@ -35333,7 +35381,8 @@ function _wgAnimarDisparos(impactos){
   for(const im of base){
     const n=Math.max(1, WG_SALVA[im.arma]||4);
     const hueco=(WG_RAFAGA_MS-WG_VUELO_MS)/Math.max(1,n-1);
-    const demora=im.respuesta?RETARDO_RESPUESTA:0;
+    const espera=Math.max(llegadaMs(im.desde), llegadaMs([im.lng,im.lat]));   // v2.9.430
+    const demora=espera+(im.respuesta?RETARDO_RESPUESTA:0);
     for(let i=0;i<n;i++){
       // Dispersión determinista (sin azar: el motor es determinista y las
       // repeticiones tienen que verse iguales).
@@ -35966,6 +36015,7 @@ function _wg3dControlesGoogleEarth(map){
 // Vuelca en el mapa 3D el terreno, las órdenes y las fichas del estado actual.
 function _wg3dDatos(){
   const map=WG.map3d; if(!map||!map.getSource) return;
+  if(WG.replayando && _wgAnimando()){ WG._renderPend=true; return; }   // v2.9.430
   try{
     const s1=map.getSource('wg-terr'); if(s1) s1.setData(_wg3dTerrenoFC());
     // v2.9.218: la MISMA lista que pinta el 2D. Si mañana se agrega una figura
@@ -39754,6 +39804,14 @@ function _wg3dOverlayFC(D){
 
 function _wgRender(){
   if(!WG.map||!WG.capa) return;
+  // v2.9.430 — NO SE REPINTA EN MEDIO DE UNA MARCHA. Un refresco de estado que
+  // cae durante el replay (sondeo, repaso, envío de órdenes, civil) borraba
+  // todas las fichas y las volvía a crear en su posición FINAL; al cuadro
+  // siguiente el replay las agarraba de nuevo y las devolvía a la ruta. Eso es
+  // el «chispeo» y el «desaparece de repente». Se posterga: quien termina la
+  // película repinta (y `_wgAnimando` destraba si la bandera quedó muerta).
+  if(WG.replayando && _wgAnimando()){ WG._renderPend=true; return; }
+  WG._renderPend=false;
   WG.capa.clearLayers();
   const e=WG.estado; if(!e) return;
   // El TERRENO vive en su propia capa (v2.9.201): un escenario importado del
@@ -40343,8 +40401,19 @@ function _wgPuedeOrdenar(){
 }
 function _wgActualizarContadorOrdenes(){ const n=Object.keys(WG.ordenes).length; const el=document.getElementById('wg-nord'); if(el) el.textContent=n; }
 async function wgEnviarOrdenes(btn){
+  // v2.9.430 — UN ENVÍO A LA VEZ. Dos toques seguidos (o «Órdenes listas» y
+  // «Jugar turno» casi juntos) mandaban las MISMAS órdenes dos veces, con 20 ms
+  // de diferencia; el servidor las guardaba repetidas y el motor movía la unidad
+  // una vez detrás de la otra: aparecía al doble de distancia o «volvía» a un
+  // punto. En la base quedaron turnos con 2 y 3 órdenes para la misma unidad.
+  if(WG._enviando){ _wgAviso('⏳ Las órdenes ya se están enviando…', 1800); return; }
   const ids=Object.keys(WG.ordenes); if(!ids.length){ alert('No hay órdenes para enviar.'); return; }
   if(btn) btn.disabled=true;
+  WG._enviando=true;
+  try{ await _wgEnviarOrdenesLote(ids, btn); }
+  finally{ WG._enviando=false; if(btn) btn.disabled=false; }
+}
+async function _wgEnviarOrdenesLote(ids, btn){
   let okc=0; const fallos=[];
   for(const uid of ids){
     const o=WG.ordenes[uid];
@@ -40419,7 +40488,7 @@ async function wgResolver(btn){
   try{
     await Promise.all([
       trazas.length ? wgReplay(trazas) : Promise.resolve(),
-      _wgAnimarDisparos(impactos),
+      _wgAnimarDisparos(impactos, trazas),   // v2.9.430: el fuego espera a que lleguen
     ]);
   } finally { WG.replayando=false; }
   _wgEncender(impactos, r.turno_resuelto);
@@ -40433,12 +40502,18 @@ async function wgResolver(btn){
 
 // v2.9.216 — UN SOLO PASO: manda las órdenes y resuelve el turno.
 async function wgJugar(btn){
-  if(WG.replayando) return;
-  const n=Object.keys(WG.ordenes).length;
-  if(n){ await wgEnviarOrdenes(null); }
-  const trazas=await wgResolver(btn);
-  _wgAvanzarRutas(trazas);    // recorta los puntos de paso que el motor consumió
-  _wgActualizarContadorOrdenes(); _wgRender();
+  // v2.9.430: un solo «Jugar turno» en vuelo. Sin esto, el doble toque mandaba
+  // las órdenes dos veces y pedía resolver dos veces.
+  if(WG.replayando || WG._accion || WG._jugando) return;
+  WG._jugando=true;
+  if(btn) btn.disabled=true;
+  try{
+    const n=Object.keys(WG.ordenes).length;
+    if(n){ await wgEnviarOrdenes(null); }
+    const trazas=await wgResolver(btn);
+    _wgAvanzarRutas(trazas);    // recorta los puntos de paso que el motor consumió
+    _wgActualizarContadorOrdenes(); _wgRender();
+  } finally { WG._jugando=false; if(btn) btn.disabled=false; }
 }
 // ============================================================
 // v2.9.203 — REPLAY DEL TURNO. Reproduce el desplazamiento de cada unidad
@@ -40478,8 +40553,38 @@ function _wgSuaveMarcha(f){
 // v2.9.222 — MARCHA MODERADA. A 6 s el desplazamiento parecía un deslizamiento
 // de fichas; a 14 s se lee como una marcha y da tiempo a mirar por dónde va.
 // v2.9.229: de 14 a 22 s. Sergio: «ralentizar el movimiento de las unidades».
+// v2.9.430 — CUÁNDO ARRANCA Y CUÁNDO TERMINA CADA MARCHA. El motor manda
+// `inicio` (H+1, H+1.5… de la matriz de sincronización) y `horas` usadas, pero
+// el replay ignoraba `inicio`: todas salían en el segundo cero y la que debía
+// arrancar a H+1 terminaba a mitad de la película. Ahora la escala de tiempo
+// es la misma que la del motor.
+function _wgFinMarcha(t){ return (Number(t&&t.inicio)||0) + (Number(t&&t.horas)||0); }
+function _wgFaseMarcha(t, horaSim){
+  const h=Number(t&&t.horas)||0; if(!(h>0)) return 1;
+  return Math.max(0, Math.min(1, (horaSim-(Number(t.inicio)||0))/h));
+}
+// Si un turno trae DOS trazas de la misma unidad (pasó: órdenes duplicadas por
+// un doble envío), el motor la movió una detrás de la otra. Animarlas por
+// separado hacía que la ficha saltara entre dos rutas en cada cuadro. Se
+// encadenan: una sola marcha, ruta seguida, tiempos sumados.
+function _wgFusionarTrazas(trazas){
+  const por=new Map();
+  for(const t of (trazas||[])){
+    if(!t || !Array.isArray(t.ruta) || !t.ruta.length) continue;
+    const k=String(t.id), prev=por.get(k);
+    if(!prev){ por.set(k, Object.assign({}, t, { ruta:t.ruta.slice() })); continue; }
+    prev.ruta=prev.ruta.concat(t.ruta.slice(1));
+    prev.horas=(Number(prev.horas)||0)+(Number(t.horas)||0);
+    prev.km=(Number(prev.km)||0)+(Number(t.km)||0);
+    prev.llego=!!t.llego; prev.detenida=!!t.detenida; prev.destino=t.destino||prev.destino;
+    prev.consumidos=(Number(prev.consumidos)||0)+(Number(t.consumidos)||0);
+  }
+  return [...por.values()];
+}
 async function wgReplay(trazas, segundos=22){
   if(!WG.map||!trazas||!trazas.length) return;
+  trazas=_wgFusionarTrazas(trazas);
+  if(!trazas.length) return;
   WG.replayando=true;
   const capa=L.layerGroup().addTo(WG.map);
   // ============================================================
@@ -40506,7 +40611,7 @@ async function wgReplay(trazas, segundos=22){
       if(l.__uid!=null && l.setLatLng) fichas[String(l.__uid)]=l; }); }catch(_e){}
   };
   _indexar();
-  const maxH=Math.max(...trazas.map(t=>t.horas||0),0.0001);
+  const maxH=Math.max(...trazas.map(_wgFinMarcha),0.0001);   // v2.9.430: inicio + horas
   const cartel=document.getElementById('wg-ayuda');
   const antes=cartel?cartel.innerHTML:'';
   // v2.9.261: el marcador del replay tiene que verse aunque la ayuda esté cerrada.
@@ -40573,20 +40678,20 @@ async function wgReplay(trazas, segundos=22){
       // si marchan diez a la vez eso serían cientos de elementos vivos y el
       // mapa se arrastra — que es el problema que se arregló en la v2.9.265 y no
       // hay que reintroducir por el otro lado. Se mide una sola vez por cuadro.
-      const enMarcha=piezas.reduce((n,p)=>
-        n + (((p.t.horas>0?Math.min(1,horaSim/p.t.horas):1)<1 && p.t.km>0)?1:0), 0);
+      const enMarcha=piezas.reduce((n,p)=>{
+        const fl=_wgFaseMarcha(p.t,horaSim); return n + ((fl>0 && fl<1 && p.t.km>0)?1:0); }, 0);
       const porTanda = enMarcha<=3 ? 3 : (enMarcha<=6 ? 2 : 1);
       for(const p of piezas){
         // Cada unidad avanza según SU tiempo: si usó la mitad del turno,
         // termina su recorrido a la mitad de la animación.
-        const fLin=(p.t.horas>0)?Math.min(1,horaSim/p.t.horas):1;
+        const fLin=_wgFaseMarcha(p.t,horaSim);   // v2.9.430: respeta `inicio`
         // v2.9.323 — arranque y frenada + un temblor de motor mínimo, para que
         // el paso no sea de metrónomo. El temblor es ±0,15 % del recorrido: se
         // siente y no altera dónde está la unidad.
         const f=Math.max(0,Math.min(1,
           _wgSuaveMarcha(fLin) + (fLin>0&&fLin<1 ? Math.sin(ahora/240+p.desf)*0.0015 : 0)));
         const pos=_wgInterp(p.t.ruta,f); if(!pos) continue;
-        const anda = fLin<1 && p.t.km>0;
+        const anda = fLin>0 && fLin<1 && p.t.km>0;   // v2.9.430: quieta hasta su H+
         // Rumbo de marcha: hace falta para tirar el polvo HACIA ATRÁS y para
         // abrir la columna a lo ancho.
         const ade=_wgInterp(p.t.ruta, Math.min(1,f+0.02)) || pos;
@@ -40717,7 +40822,7 @@ async function wgReplay(trazas, segundos=22){
           // v2.9.323: la cámara sigue la posición SUAVIZADA, la misma que la
           // ficha. Si siguiera la lineal, el encuadre iría medio paso adelantado
           // en el arranque y medio atrasado en la frenada.
-          const f=_wgSuaveMarcha((p.t.horas>0)?Math.min(1,horaSim/p.t.horas):1);
+          const f=_wgSuaveMarcha(_wgFaseMarcha(p.t,horaSim));
           const pos=_wgInterp(p.t.ruta,f);
           if(pos){
             if(!ultimoCam){
@@ -40752,9 +40857,12 @@ async function wgReplay(trazas, segundos=22){
   try{ WG.map.removeLayer(capa); }catch(_e){}
   if(WG.map3d) try{ WG.map3d.getSource('wg-replay').setData({type:'FeatureCollection',features:[]});
     WG.map3d.getSource('wg-humo').setData({type:'FeatureCollection',features:[]}); }catch(_e){}
-  if(WG.map3d) _wg3dDatos(); // devolver las fichas a su posición final
-  if(cartel){ cartel.innerHTML=antes; if(!WG.ayudaFija) cartel.classList.remove('mostrar'); }
+  // v2.9.430: primero se baja la bandera; si no, `_wg3dDatos` se postergaría
+  // a sí mismo. Y si algún refresco quedó esperando, se repinta ahora.
   WG.replayando=false;
+  if(WG.map3d) _wg3dDatos(); // devolver las fichas a su posición final
+  if(WG._renderPend){ _wgRender(); if(WG.map3d) _wg3dDatos(); }
+  if(cartel){ cartel.innerHTML=antes; if(!WG.ayudaFija) cartel.classList.remove('mostrar'); }
   // ============================================================
   // v2.9.271 — Y VUELVE A LA PANORÁMICA, FLUIDO, EN LA MISMA TOMA.
   // Sergio: «la cámara del dron va en fluido haciendo el zoom y se va a la
@@ -40954,7 +41062,7 @@ function _wg3dReplayPaso(piezas, horaSim, humo, ahora){
   for(const p of piezas){
     // v2.9.323: el mismo arranque y la misma frenada que en 2D — las dos vistas
     // muestran el mismo movimiento.
-    const fLin=(p.t.horas>0)?Math.min(1,horaSim/p.t.horas):1;
+    const fLin=_wgFaseMarcha(p.t,horaSim);   // v2.9.430: respeta `inicio`
     const f=_wgSuaveMarcha(fLin);
     // La ficha va viajando sobre el relieve mientras dura el replay.
     const pos=_wgInterp(p.t.ruta,f);
