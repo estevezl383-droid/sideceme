@@ -13,8 +13,8 @@
  async function abrir(){
   if(loading||open||!owner())return;loading=true;
   try{
-   if(!document.getElementById('efmc-style')){const s=document.createElement('link');s.id='efmc-style';s.rel='stylesheet';s.href='efm-campo/style.css?v=11';document.head.append(s);}
-   const app=await import('./app.mjs?v=11');open=true;const id=allowedId;await app.abrir({invoke,owner:id,authorized:()=>owner()&&allowedId===id,onClose:()=>{open=false;}});
+   if(!document.getElementById('efmc-style')){const s=document.createElement('link');s.id='efmc-style';s.rel='stylesheet';s.href='efm-campo/style.css?v=12';document.head.append(s);}
+   const app=await import('./app.mjs?v=12');open=true;const id=allowedId;await app.abrir({invoke,owner:id,authorized:()=>owner()&&allowedId===id,onClose:()=>{open=false;}});
   }catch(e){alert(e.message);}finally{loading=false;}
  }
  async function refresh(){
