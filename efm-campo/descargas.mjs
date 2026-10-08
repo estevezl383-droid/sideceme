@@ -31,6 +31,7 @@ async function word(list,config,scope){
   }
  }
  const prefix=original.slice(0,original.indexOf('<w:body>')+8),section=original.slice(original.indexOf('<w:sectPr'));
+ let drawingId=0;body=body.replace(/wp:docPr id="\d+"/g,()=>`wp:docPr id="${++drawingId}"`);
  parts['word/document.xml']=prefix+body+section;
  parts['word/_rels/document.xml.rels']=parts['word/_rels/document.xml.rels'].replace(/<Relationship[^>]+Type="[^"]*\/image"[^>]*\/>/g,'').replace('</Relationships>',pictures.map(p=>`<Relationship Id="${p.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${p.name}"/>`).join('')+'</Relationships>');
  for(const p of pictures)parts['word/media/'+p.name]=p.bytes;
