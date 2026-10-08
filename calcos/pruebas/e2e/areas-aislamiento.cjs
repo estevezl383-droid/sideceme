@@ -6,7 +6,7 @@ const { ejercicioFicticio } = require('../ejercicio-ficticio')
   try {
     const a = ejercicioFicticio({ conPlantilla: false })
     a.nombre = 'Origen de prueba'
-    a.planFuegos = { blancos: [{ id: 'ab-prueba', designacion: 'AB-PRUEBA', centro: [-65.05, -17] }] }
+    a.planFuegos = { blancos: [{ id: 'ab-prueba', designacion: 'AB-PRUEBA', lng: -65.05, lat: -17 }] }
     await sembrarYAbrir(page, a)
     assert.equal(await page.evaluate(() => window.MesaFuegos.plan.blancos.length), 1)
     await page.getByRole('button', { name: /ÁREA DE OPS/i }).first().dispatchEvent('click')
