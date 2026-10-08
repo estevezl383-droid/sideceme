@@ -170,7 +170,7 @@ async function sembrarYAbrir(page, datos) {
     })
   }, datos)
   // dispatchEvent: en el teléfono el tablero de la Mesa tapa parte de la barra.
-  await page.getByRole('button', { name: /^📁 Ejercicio/i }).first().dispatchEvent('click')
+  await page.locator('button[title="Crear, abrir y guardar ejercicios"]').first().dispatchEvent('click')
   await page.getByRole('button', { name: 'Abrir guardados' }).dispatchEvent('click')
   await page.waitForTimeout(600)
   const fila = page.locator('div', { hasText: datos.nombre }).filter({ has: page.getByRole('button', { name: 'Abrir' }) }).last()
