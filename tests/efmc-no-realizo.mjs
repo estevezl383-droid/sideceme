@@ -1,3 +1,4 @@
+import * as organizacion from '../efm-campo/organizacion.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -10,7 +11,7 @@ const owner={usuario_id:'P030',usuario_ci:'4889191',usuario_tabla:'profesores',r
 const actor={activo:true,grado:'TCNL. DEM.',especialidad:'DEM.',nombre_completo:'EVALUADOR AUTENTICADO'};
 const sb={from(table){return {select(){return this;},eq(){return this;},insert(row){attempt=row;return this;},maybeSingle(){return Promise.resolve({data:table==='sesiones'?owner:{id:'TEST'}});},single(){if(table==='profesores')return Promise.resolve({data:actor});if(attempt){const row=attempt;attempt=null;if(stored)return Promise.resolve({error:{code:'23505'}});stored=row;return Promise.resolve({data:row});}return Promise.resolve({data:stored});}};}};
 const source=fs.readFileSync(new URL('../supabase/functions/efm-campo/index.ts',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/:number|:any|:Request/g,'');
-vm.runInNewContext(source,{createClient:()=>sb,validarNacimiento,calificar,edad,calificarMedidas,validarMedidas,console,Response,Date,Number,Deno:{env:{get:()=>''},serve:fn=>handler=fn}});
+vm.runInNewContext(source,{...organizacion,createClient:()=>sb,validarNacimiento,calificar,edad,calificarMedidas,validarMedidas,console,Response,Date,Number,Deno:{env:{get:()=>''},serve:fn=>handler=fn}});
 const body={token:'test',accion:'registrar',id:'11111111-1111-1111-1111-111111111111',cursante_id:'TEST',prueba:'talla_peso',fecha:'2026-10-07',valor:0,sexo:'M',nacimiento:'1986-01-01',no_realizo:true,evaluador_nombre:'NOMBRE FALSIFICADO',nota:100};
 const call=b=>handler({method:'POST',json:async()=>b});
 for(const prueba of ['talla_peso','natacion','flexiones','abdominales','aerobica','barras']){
