@@ -1,6 +1,6 @@
-import {PRUEBAS,datosHoja,valoresHoja,marca} from './informes.mjs?v=9';
+import {PRUEBAS,datosHoja,valoresHoja,marca,evaluador} from './informes.mjs?v=10';
 import {edad} from './baremos.mjs';
-import {gradoArma} from './ui.mjs?v=9';
+import {gradoArma} from './ui.mjs?v=10';
 const xml=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 const membrete=['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES','ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO','“MCAL. ANDRÉS DE SANTA CRUZ”','BOLIVIA'];
 const roles=['EVALUADOR TALLA-PESO','EVALUADOR NATACIÓN','EVALUADOR ABDOMINALES','EVALUADOR FLEXIONES EN SUELO','EVALUADOR AERÓBICA 3.200 M'];
@@ -20,14 +20,14 @@ function p(s,size=18,bold=false){return `<w:p><w:pPr><w:spacing w:before="0" w:a
 function table(rows,widths){return `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto"/><w:tblLayout w:type="fixed"/><w:tblBorders>${['top','left','bottom','right','insideH','insideV'].map(x=>`<w:${x} w:val="single" w:sz="4" w:color="000000"/>`).join('')}</w:tblBorders></w:tblPr><w:tblGrid>${widths.map(w=>`<w:gridCol w:w="${w}"/>`).join('')}</w:tblGrid>${rows.map((r,i)=>`<w:tr><w:trPr><w:cantSplit/>${i===0?'<w:tblHeader/>':''}</w:trPr>${r.map((v,j)=>`<w:tc><w:tcPr><w:tcW w:w="${widths[j]}" w:type="dxa"/></w:tcPr>${p(v,14,i===0)}</w:tc>`).join('')}</w:tr>`).join('')}</w:tbl>`;}
 function firmaWord(config){return p('')+table(roles.map((r,i)=>[config[Object.keys(PRUEBAS)[i]]||'',r]).reduce((a,r,i)=>{a[0][i]=r[0]+'\n________________________';a[1][i]=r[1];return a;},[[],[]]),Array(5).fill(2900))+p('________________________     JEFE DE CURSO: '+(config.jefe_curso||''))+p('________________________     JEFE DE ENTRENAMIENTO FÍSICO: '+(config.jefe_efm||''))+p('________________________     JEFE DE LA SAC.: '+(config.jefe_sac||''))+p('________________________     JEFE DE ESTUDIOS: '+(config.jefe_estudios||''))+p('________________________     COMANDANTE DE LA ECEME.: '+(config.comandante||''));}
 async function word(list,config,scope){
- const response=await fetch(new URL('./modelo-hoja.json?v=7',import.meta.url));if(!response.ok)throw Error('NO SE PUDO CARGAR EL MODELO WORD.');const parts=await response.json();const original=parts['word/document.xml'];let body='',pictures=[];
+ const response=await fetch(new URL('./modelo-hoja.json?v=10',import.meta.url));if(!response.ok)throw Error('NO SE PUDO CARGAR EL MODELO WORD.');const parts=await response.json();const original=parts['word/document.xml'];let body='',pictures=[];
  if(scope==='curso'){
   const widths=[360,850,2700,400,...Array(17).fill(590)];
   body=membrete.map(x=>p(x,18,true)).join('')+p('MATRIZ DE LA EVALUACIÓN FÍSICA MILITAR · '+list[0].c.ciclo,22,true)+p(`FECHA: ${list[0].fecha} · CURSO: ${config.cursoLabel||'TODOS'} · ${list.filter(s=>s.final!=null).length}/${list.length} COMPLETOS · REGISTROS DE PRUEBA`)+table([headers,...list.map(matriz)],widths)+firmaWord(config);
  }else{
-  for(let i=0;i<list.length;i++){const s=list[i],values=datosHoja(s,config);let filled=original.replace(/\{\{(\w+)\}\}/g,(_,k)=>xml(values[k]??''));let b=filled.match(/<w:body>([\s\S]*?)<w:sectPr/)[1];const pic=await portrait(s.c);
+  for(let i=0;i<list.length;i++){const s=list[i],values=datosHoja(s,config);if(s.final==null)values.v16='S/R';let filled=original.replace(/\{\{(\w+)\}\}/g,(_,k)=>xml(values[k]??''));let b=filled.match(/<w:body>([\s\S]*?)<w:sectPr/)[1];const pic=await portrait(s.c);
    if(pic){const rid='efmPhoto'+i;pictures.push({rid,name:`foto${i}.jpeg`,bytes:unbase(pic)});b=b.replace(/r:embed="rId\d+"/g,`r:embed="${rid}"`).replace(/wp:docPr id="\d+"/g,`wp:docPr id="${i+1}"`);}else{b=b.replace(/<w:drawing>[\s\S]*?<\/w:drawing>/g,'');}
-   body+=(i?'<w:p><w:r><w:br w:type="page"/></w:r></w:p>':'')+p(`FECHA DE EVALUACIÓN: ${s.fecha} · REGISTROS DE PRUEBA · ${s.completos}/5 NOTAS CARGADAS`,16)+b;
+   body+=(i?'<w:p><w:r><w:br w:type="page"/></w:r></w:p>':'')+b;
   }
  }
  const prefix=original.slice(0,original.indexOf('<w:body>')+8),section=original.slice(original.indexOf('<w:sectPr'));
@@ -41,7 +41,7 @@ async function excel(list,config,scope){
  if(typeof globalThis.ensureXLSX!=='function')throw Error('GENERADOR EXCEL NO DISPONIBLE.');await globalThis.ensureXLSX();const X=globalThis.XLSX,wb=X.utils.book_new();
  const groups=scope==='hojas'?list.map(s=>[s]):[list];
  groups.forEach((group,idx)=>{
-  const rows=[...membrete.map(x=>[x]),[],['MATRIZ DE LA EVALUACIÓN FÍSICA MILITAR'],[`FECHA: ${group[0].fecha} · ${group[0].c.ciclo} · CURSO: ${config.cursoLabel||group[0].c.paralelo||'TODOS'} · REGISTROS DE PRUEBA`],[],headers,...group.map(matriz),[],...signatures(config).map(([name,role])=>['________________________',name,role])];
+  const rows=[...membrete.map(x=>[x]),[],['MATRIZ DE LA EVALUACIÓN FÍSICA MILITAR'],[`FECHA: ${group[0].fecha} · ${group[0].c.ciclo} · CURSO: ${config.cursoLabel||group[0].c.paralelo||'TODOS'} · REGISTROS DE PRUEBA`],[],headers,...group.map(matriz),[],...signatures(group.length===1?{...config,...Object.fromEntries(Object.keys(PRUEBAS).map(p=>[p,evaluador(group[0],p)]))}:config).map(([name,role])=>['________________________',name,role])];
   if(group.length===1){const s=group[0],d=datosHoja(s,config);rows.push([],['FECHA DE NACIMIENTO',d.nacimiento,'CI',d.ci,'SEXO',d.sexo],['FIRMA DEL EVALUADO','________________________','HUELLA DIGITAL','________________________'],['VALORACIÓN MÉDICA','APTO / NO APTO'],['PRESIÓN ARTERIAL',''],['SATURACIÓN',''],['PULSO',''],['SELLO Y FIRMA ENFERMERA (O)','________________________'],['SELLO Y FIRMA MÉDICO S.O.','________________________'],['OBSERVACIONES','']);}
   const ws=X.utils.aoa_to_sheet(rows);ws['!cols']=headers.map((_,i)=>({wch:i===2?38:i===1?13:i===3?8:11}));ws['!merges']=[0,1,2,3,5,6].map(r=>({s:{r,c:0},e:{r,c:20}}));ws['!rows']=rows.map((r,i)=>({hpt:i===8?40:24}));ws['!autofilter']={ref:`A9:U${9+group.length}`};
   for(const k of Object.keys(ws)){if(k[0]==='!')continue;const cell=ws[k],pos=X.utils.decode_cell(k);cell.s={font:{name:'Arial',sz:10,bold:pos.r<9},alignment:{vertical:'center',wrapText:true},border:{bottom:{style:'thin',color:{rgb:'BBBBBB'}}}};if(pos.r===8)cell.s.fill={fgColor:{rgb:'D9E9E5'}};if(cell.t==='n')cell.z='0.00';}
@@ -67,7 +67,7 @@ async function pdf(list,config,scope){
    cell(doc,'PRESIÓN ARTERIAL: __________________\n\nSATURACIÓN: _______________________\n\nPULSO: _____________________________',20,275,200,125,8);
    cell(doc,'VALORACIÓN MÉDICA DE APTITUD FÍSICA\n\nAPTO [  ]     NO APTO [  ]\n\nFECHA: ______________________',220,275,265,125,9,true);
    cell(doc,'OBSERVACIONES\n\n________________________________________\n\n________________________________________\n\n________________________________________',485,275,287,125,8);
-   cell(doc,'SELLO Y FIRMA ENFERMERA (O)\n\n____________________________',20,400,200,64,8);cell(doc,'SELLO Y FIRMA MÉDICO S.O.\n\n____________________________',220,400,265,64,8);cell(doc,'',485,400,287,64,8);signaturePDF(doc,config,500);
+   cell(doc,'SELLO Y FIRMA ENFERMERA (O)\n\n____________________________',20,400,200,64,8);cell(doc,'SELLO Y FIRMA MÉDICO S.O.\n\n____________________________',220,400,265,64,8);cell(doc,'',485,400,287,64,8);signaturePDF(doc,{...config,...Object.fromEntries(Object.keys(PRUEBAS).map(p=>[p,evaluador(s,p)]))},500);
   }
  }
  const count=doc.getNumberOfPages();for(let i=1;i<=count;i++){doc.setPage(i);doc.setFontSize(7);doc.setFont('helvetica','normal');doc.text(`${i} / ${count}`,748,602);}

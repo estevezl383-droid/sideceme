@@ -1,5 +1,6 @@
 const segments=['abcdef','bc','abdeg','abcdg','bcfg','acdfg','acdefg','abc','abcdefg','abcdfg'];
 export function digital(text){return `<span class="efmc-digital" role="img" aria-label="${text}">${[...String(text)].map(c=>c===':'?'<span class="efmc-colon" aria-hidden="true"><i></i><i></i></span>':c==='.'?'<span class="efmc-dot" aria-hidden="true"></span>':c==='—'?'<span class="efmc-digit" aria-hidden="true"><i class="seg g on"></i></span>':`<span class="efmc-digit" aria-hidden="true">${[...'abcdefg'].map(seg=>`<i class="seg ${seg}${segments[Number(c)]?.includes(seg)?' on':''}"></i>`).join('')}</span>`).join('')}</span>`;}
+export function fechaEvaluacion(value){const short=nacimiento(value);return short==='PENDIENTE'?short:short.slice(0,-2)+value.slice(0,4);}
 export function nacimiento(value){if(!/^\d{4}-\d{2}-\d{2}$/.test(value||''))return 'PENDIENTE';const [y,m,d]=value.split('-');return `${d}-${['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'][Number(m)-1]}-${y.slice(-2)}`;}
 export function sexoInicial(c,records=[]){
  if(!c)return 'M';
