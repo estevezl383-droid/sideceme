@@ -49,15 +49,28 @@ export function importarAreas(ops, paquete) {
     ...a, origen: { ejercicio: String(paquete.ejercicioOrigen || ''), areaId: String(a.id || '') }
   }), ops)
 }
-export function dibujarOtrasAreas(L, capa, ops, visible) {
+// Rótulo compartido por el área activa y las conservadas; textContent evita HTML del nombre.
+export function rotuloArea(area, color = '#111111', escala = 1) {
+  const div = document.createElement('div')
+  div.style.cssText = `color:${color};font:700 ${Math.max(9, 14 * escala).toFixed(1)}px/1.15 Arial;text-align:center;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff`
+  for (const texto of ['ÁREA DE', 'OPERACIONES', area.nombre || 'Área sin nombre']) {
+    const linea = document.createElement('div')
+    linea.textContent = texto
+    div.appendChild(linea)
+  }
+  return div.outerHTML
+}
+export function dibujarOtrasAreas(L, capa, ops, visible, color = '#111111', escala = 1) {
   if (!visible) return
   const id = ops.areaOps?.id || 'ao-original'
   for (const a of listarAreas(ops).filter(a => a.id !== id)) {
     const p = L.polygon(a.coords.map(c => [c[1], c[0]]), {
-      color: '#8fa2bd', weight: 3, dashArray: '8 6', fillOpacity: .02, interactive: false
+      color, weight: 4, fillColor: color, fillOpacity: .03, interactive: false
     }).addTo(capa)
-    const texto = document.createElement('span')
-    texto.textContent = [a.nombre, a.unidad, a.operacion].filter(Boolean).join(' · ')
-    p.bindTooltip(texto, { permanent: true, direction: 'center' })
+    L.marker(p.getBounds().getCenter(), {
+      interactive: false,
+      icon: L.divIcon({ className: 'zona-log', html: rotuloArea(a, color, escala),
+        iconSize: [180, 60], iconAnchor: [90, 30] })
+    }).addTo(capa)
   }
 }
