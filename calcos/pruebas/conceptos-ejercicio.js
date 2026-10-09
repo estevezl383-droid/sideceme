@@ -36,7 +36,7 @@ function ejercicioConceptos() {
       // Formato narrativo de antes: tiene que seguir guardado y pasarse a la IA.
       entrelazados: { 'MISIONES DE LAS UNIDADES ADYACENTES': 'ANTECEDENTE SIN ALTERAR (FICT.)' },
     },
-    ops: { limites: [], coordinacion: [], pasaje: [], tareas: [], zonasLog: [], sectoresLog: [], ejesLog: [], lineasEM: [], magnitudes: [], flechasZona: [], obstaculos: [], posDef: [], ains: [], objetivos: [], maniobra: [], areaOps: { tipo: 'defensiva', coords: [[-68.5, -16.8], [-68.1, -16.8], [-68.1, -17.0], [-68.5, -17.0]] } },
+    ops: { limites: [], coordinacion: [], pasaje: [], tareas: [], zonasLog: [], sectoresLog: [], ejesLog: [], lineasEM: [], magnitudes: [], flechasZona: [], obstaculos: [], posDef: [], ains: [], objetivos: [], maniobra: [], unidadConsiderada: { nombre: 'DIV.MEC.-1 (FICT.)', escalon: 'division', confirmada: true }, areaOps: { tipo: 'defensiva', coords: [[-68.5, -16.8], [-68.1, -16.8], [-68.1, -17.0], [-68.5, -17.0]] } },
   }
 }
 

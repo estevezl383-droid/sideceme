@@ -1,0 +1,23 @@
+import * as organizacion from '../efm-campo/organizacion.mjs';
+import {validarNacimiento} from '../efm-campo/perfil.mjs';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import vm from 'node:vm';
+import {validarMedidas,calificarMedidas} from '../efm-campo/medidas.mjs';
+import {calificar,edad} from '../efm-campo/baremos.mjs';
+let handler,session,activo=true;
+const sb={from(table){return {select(){return this;},eq(k,v){this[k]=v;return this;},maybeSingle(){return Promise.resolve({data:session,error:null});},single(){return Promise.resolve({data:this.id==='P030'&&this.ci==='4889191'?{activo}:null,error:null});}};}};
+let source=fs.readFileSync(new URL('../supabase/functions/efm-campo/index.ts',import.meta.url),'utf8').replace(/^import .*;\n/gm,'').replace(/:number|:any|:Request/g,'');
+vm.runInNewContext(source,{...organizacion,createClient:()=>sb,validarNacimiento,calificar,edad,validarMedidas,calificarMedidas,console,Response,Date,Number,Deno:{env:{get:()=>''},serve:fn=>handler=fn}});
+const call=body=>handler({method:'POST',json:async()=>body});
+const owner={usuario_id:'P030',usuario_ci:'4889191',usuario_tabla:'profesores',revocado:false,es_master:false,expira_en:new Date(Date.now()+3600000).toISOString(),soporte_actor_id:null,soporte_actor_ci:null};
+assert.equal((await call({accion:'acceso'})).status,401);
+session=null;assert.equal((await call({token:'test',accion:'acceso'})).status,401);
+for(const change of [{usuario_id:'P031'},{usuario_ci:'OTRO'},{usuario_tabla:'cursantes'},{es_master:true},{soporte_actor_id:'P030'},{soporte_actor_ci:'4889191'}]){session={...owner,...change};assert.equal((await call({token:'test',accion:'acceso'})).status,403);}
+session={...owner,revocado:true};assert.equal((await call({token:'test',accion:'acceso'})).status,401);
+session={...owner,expira_en:'FECHA INVALIDA'};assert.equal((await call({token:'test',accion:'acceso'})).status,401);
+session={...owner,expira_en:'2020-01-01T00:00:00Z'};assert.equal((await call({token:'test',accion:'acceso'})).status,401);
+session=owner;activo=false;assert.equal((await call({token:'test',accion:'acceso'})).status,403);
+activo=true;assert.equal((await call({token:'test',accion:'registrar',valor:50})).status,400);
+assert.equal((await call({token:'test',accion:'otra'})).status,400);
+console.log('14 verificaciones de acceso y validación: OK');

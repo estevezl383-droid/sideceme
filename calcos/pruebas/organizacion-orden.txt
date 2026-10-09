@@ -1,0 +1,68 @@
+ORGANIZACIÓN DE LA TAREA
+RCB-1 "CALAMA"
+Edrón. Tq. "A"
+Edrón. Tq. "B"
+Edrón. Tq. "C"
+ERM "D"
+Edrón. C y S
+RCB-2 "TARAPACÁ"
+ERM "A"
+ERM "B"
+ERM "C"
+Edrón. C y S
+RIM-8 "AYACUCHO"
+Comp. Inf. Mec. "A"
+Comp. Inf. Mec. "B"
+Comp. Inf. Mec. "C"
+Comp. Inf. Ap. "D"
+Comp. C y S
+RIM-23 "MAX TOLEDO"
+Comp. Inf. Mec. "A"
+Comp. Inf. Mec. "B"
+Comp. Inf. Mec. "C"
+Comp. Inf. Ap. "D"
+Comp. C y S
+RIAT-30 "MURILLO"
+Comp. Inf. AT. "A"
+Comp. Inf. AT. "B"
+Comp. Inf. AT. "C"
+Comp. Inf. AT. "D"
+Comp. C y S
+RAM-2 "BOLIVAR"
+Bat. Art. Mec. "A"
+Bat. Art. Mec. "B"
+Bat. Art. Mec. "C"
+Bat. Cmdo.
+Bat. C y S
+RAA-6 "BILBAO RIOJA"
+Bat. AA. "A"
+Bat. AA. "B"
+Bat. AA. "C"
+Bat. Cmdo.
+Bat. C y S
+BATING. MEC.- II "ROMAN"
+Comp. Ing. Comb. "A"
+Comp. Ing. Comb. "B"
+Comp. Eq. Pes.
+Comp. Puentes
+Comp. Mtto. Ing.
+Comp. C y S
+BAT. LOG. - I "HEROICAS RABONAS"
+Comp. Abtto.
+Comp. Mtto.
+Comp. Transp.
+Comp. San.
+Comp. C y S
+BAT. COM. MEC.- I "VIDAURRE"
+Comp. Telecom. "A"
+Comp. Telecom. "B"
+Comp. Telecom. "C"
+Comp. Radares
+Comp. C y S
+COMP. ICIA.- I "USTARIZ"
+Secc. ICIA. Hum.
+Secc. ICIA. Ae.
+Secc. ICIA. Elect.
+Secc. C y S
+BAJO CONTROL
+Comp. Av. Ejto. "Cnl. Lopez"

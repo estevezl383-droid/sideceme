@@ -1,0 +1,32 @@
+[
+  {
+    "nombre": "importar dibujo",
+    "viejo": "import SIDAreasEditor",
+    "nuevo": "import {dibujarApoyo as SIDApoyo,anchoNumero as SIDAnchoNumero} from \"../unidades/simbolos-apoyo.mjs\";\nimport SIDAreasEditor",
+    "veces": 1
+  },
+  {
+    "nombre": "símbolo azul",
+    "viejo": "Zfe(G,t.arma,Z,pe,ve,_e,i),G.restore()",
+    "nuevo": "(a.id===\"propias\"&&s===\"unidad\"&&SIDApoyo(G,t,Z,pe,ve,_e,i))||Zfe(G,t.arma,Z,pe,ve,_e,i),G.restore()",
+    "veces": 1
+  },
+  {
+    "nombre": "ancho número",
+    "viejo": "I=h+S*2,j=E+x+y+T+M",
+    "nuevo": "I=h+S*2+SIDAnchoNumero(document.createElement(\"canvas\").getContext(\"2d\"),t),j=E+x+y+T+M",
+    "veces": 1
+  },
+  {
+    "nombre": "número lateral",
+    "viejo": "const X=o?Xfe:1;return{url:U.toDataURL",
+    "nuevo": "a.id===\"propias\"&&s===\"unidad\"&&t.numeroUnidad&&(G.save(),G.fillStyle=i,G.font=\"bold 12px Arial, sans-serif\",G.textAlign=\"left\",G.textBaseline=\"middle\",G.fillText(String(t.numeroUnidad).trim(),te+h+5,K),G.restore());const X=o?Xfe:1;return{url:U.toDataURL",
+    "veces": 1
+  },
+  {
+    "nombre": "opciones azul",
+    "viejo": "f.jsxs(\"label\",{style:wr.lbl,children:[\"Designación (opcional)\"",
+    "nuevo": "e.bando===\"propias\"&&!T&&f.jsxs(f.Fragment,{children:[f.jsx(\"div\",{style:{fontSize:12,color:\"#9fbfff\"},children:\"Apoyo: elija Morteros, Ametralladoras, Lanzacohetes o Antitanque en Arma / servicio y su escalón.\"}),f.jsxs(\"label\",{style:wr.lbl,children:[\"Número lateral de unidad (opcional)\",f.jsx(\"input\",{value:e.numeroUnidad||\"\",maxLength:12,onChange:G=>x(\"numeroUnidad\",G.target.value),placeholder:\"Ej. 90 / 100\",style:wr.inp})]}),[\"ametralladoras\",\"morteros\",\"antitanque\",\"lanzacohetes\"].includes(e.arma)&&f.jsxs(\"label\",{style:wr.lbl,children:[f.jsx(\"input\",{type:\"checkbox\",checked:!!e.circuloSimbolo,onChange:G=>x(\"circuloSimbolo\",G.target.checked)}),\" Círculo interior (según modelo) \"]}),f.jsxs(\"label\",{style:wr.lbl,children:[\"Texto dentro del símbolo (opcional)\",f.jsx(\"input\",{value:e.textoSimbolo||\"\",maxLength:18,onChange:G=>x(\"textoSimbolo\",G.target.value),placeholder:\"Ej. SAT.MONT.\",style:wr.inp})]})]}),f.jsxs(\"label\",{style:wr.lbl,children:[\"Designación (opcional)\"",
+    "veces": 1
+  }
+]

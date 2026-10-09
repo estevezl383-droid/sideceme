@@ -1,0 +1,45 @@
+name: Áreas y aislamiento de ejercicios
+on:
+  pull_request:
+    paths:
+      - 'calcos/areas-operaciones/**'
+      - 'supabase/espejo-ge/calco-ops/**'
+      - 'supabase/migrations/*calco_compartidos*'
+      - 'calcos/assets/index-areas-20261009.js'
+      - 'calcos/fuegos/plan-fuegos.js'
+      - 'calcos/pruebas/*areas*'
+      - 'calcos/pruebas/e2e/areas-aislamiento.cjs'
+      - 'calcos/pruebas/e2e/areas-compartir.cjs'
+      - '.github/workflows/areas-aislamiento.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Modelo, compatibilidad y reversibilidad
+        run: |
+          npm ci --prefix calcos/pruebas
+          node --check calcos/areas-operaciones/editor.mjs
+          node --check calcos/assets/index-areas-20261009.js
+          node calcos/pruebas/areas-operaciones.mjs
+          node calcos/pruebas/areas-compartir.mjs
+          node calcos/pruebas/edicion-figuras.cjs
+          node calcos/pruebas/plan-fuegos-modelo.js
+          node calcos/pruebas/reemplazos-compilado.js
+      - name: Preparar navegador
+        run: |
+          npm install --prefix /tmp/prueba-areas playwright@1.51.1
+          node /tmp/prueba-areas/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Crear ejercicio vacío y conservar origen
+        env:
+          PLAYWRIGHT_MODULE: /tmp/prueba-areas/node_modules/playwright
+        run: |
+          node calcos/pruebas/e2e/areas-aislamiento.cjs
+          node calcos/pruebas/e2e/areas-compartir.cjs

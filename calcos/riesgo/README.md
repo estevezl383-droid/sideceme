@@ -111,3 +111,7 @@ python3 word-riesgo.py           # los Word que bajaron las pruebas: formato mil
 `riesgo-ejercicio.js` es un ejercicio de División con unidades y lugares FICTICIOS, la
 F2·P7 guardada con el formato de antes y una respuesta de IA de ejemplo. Los Word y las
 capturas quedan en `pruebas/salidas-riesgo/` (no se versionan).
+
+## v2 (09-10-2026)
+
+`v2/` es la `v1/` con el membrete táctico común (`calcos/membrete/v1`): el escalón superior es la unidad que expidió la Orden, la unidad considerada (RCB-1 por defecto) con su CG y la hora de la Línea de Tiempo, EMO/SEC-III y el correlativo del G-3 con las iniciales del usuario; «CG.» debajo de la R de SECRETO y la firma del Comandante de la unidad considerada. `v1/` queda como estaba (lo prueba `riesgo.cjs`).

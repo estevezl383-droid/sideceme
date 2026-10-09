@@ -24,7 +24,7 @@ function cargarPlaywright() {
   throw new Error('Falta Playwright: npm install --no-save playwright (o PLAYWRIGHT_MODULE=/ruta/a/playwright)')
 }
 
-const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.kml': 'application/vnd.google-earth.kml+xml' }
+const TIPOS = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.kml': 'application/vnd.google-earth.kml+xml' }
 
 function servir() {
   return new Promise((ok) => {
@@ -72,7 +72,7 @@ function pngLiso([r, g, b]) {
 const TILE_CARTA = pngLiso([92, 104, 72])
 const TILE_DEM = pngLiso([128, 14, 0]) // terrarium: 128·256 + 14 − 32768 = 3598 m (plano)
 
-async function abrir({ ancho = 1440, alto = 900, movil = false, consulta = '' } = {}) {
+async function abrir({ ancho = 1440, alto = 900, movil = false, consulta = '', preparar } = {}) {
   const { chromium } = cargarPlaywright()
   const { srv, url } = await servir()
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
@@ -89,6 +89,7 @@ async function abrir({ ancho = 1440, alto = 900, movil = false, consulta = '' } 
     if (/\/\d+\/\d+\/\d+(\.png|\.jpe?g)?(\?|$)|tile|lyrs=/i.test(u)) return r.fulfill({ status: 200, contentType: 'image/png', body: TILE_CARTA })
     return r.abort()
   })
+  if (preparar) await preparar(page, url)
   await page.goto(url + consulta, { waitUntil: 'domcontentloaded' })
   await page.waitForTimeout(2500)
   const ok = page.getByRole('button', { name: /entendido/i })
@@ -170,7 +171,7 @@ async function sembrarYAbrir(page, datos) {
     })
   }, datos)
   // dispatchEvent: en el teléfono el tablero de la Mesa tapa parte de la barra.
-  await page.getByRole('button', { name: /^📁 Ejercicio/i }).first().dispatchEvent('click')
+  await page.locator('button[title="Crear, abrir y guardar ejercicios"]').first().dispatchEvent('click')
   await page.getByRole('button', { name: 'Abrir guardados' }).dispatchEvent('click')
   await page.waitForTimeout(600)
   const fila = page.locator('div', { hasText: datos.nombre }).filter({ has: page.getByRole('button', { name: 'Abrir' }) }).last()
@@ -196,7 +197,7 @@ async function leerGuardado(page, nombre) {
 }
 
 async function entrar3D(page) {
-  await page.locator('.m3d-seg button', { hasText: '3D' }).click()
+  await page.locator('.m3d-seg button', { hasText: '3D' }).dispatchEvent('click')
   await page.waitForFunction(() => !!window.__espejo3d, null, { timeout: 60000 })
   await page.waitForTimeout(1500)
 }

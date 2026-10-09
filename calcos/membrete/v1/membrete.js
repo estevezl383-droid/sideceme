@@ -59,6 +59,7 @@ export const DOCUMENTOS_MILITARES = [
   { id: 'aprecActivas', fase: 1, nom: 'Evaluación inicial (apreciaciones activas)' },
   { id: 'aprecOps', fase: 1, nom: 'Evaluación inicial (apreciación activa de Operaciones)' },
   { id: 'aprecCmte', fase: 1, nom: 'Evaluación inicial (apreciación activa del Comandante)' },
+  { id: 'aprecActiva', fase: 1, nom: 'Evaluación inicial (apreciación activa de la sección)' },
   { id: 'lineaTiempo', fase: 1, nom: 'Asignación del tiempo disponible (Línea Inicial de Tiempo)' },
   { id: 'progPlaneamiento', fase: 1, nom: 'Asignación del tiempo disponible (Programa General de Planeamiento)' },
   { id: 'guiaInicial', fase: 1, nom: 'Guía Inicial del Comandante' },
@@ -70,6 +71,7 @@ export const DOCUMENTOS_MILITARES = [
   { id: 'pbi', fase: 2, nom: 'Plan de búsqueda de información' },
   { id: 'ordenes', fase: 2, nom: 'Órdenes y pedidos de reunión de información' },
   { id: 'ivr', fase: 2, nom: 'Orden de Reconocimiento' },
+  { id: 'aprecOrientacion', fase: 2, nom: 'Apreciación de la sección (actualizada)' },
   { id: 'orientacionEM', fase: 2, nom: 'Orientación del análisis de la misión' },
   { id: 'intencion', fase: 2, nom: 'Intención Inicial del Comandante' },
   { id: 'guiaPlanificacion', fase: 2, nom: 'Guía de Planificación del Comandante' },
@@ -87,6 +89,7 @@ export const DOCUMENTOS_MILITARES = [
   // Fase VII — Producción de la orden
   { id: 'opord', fase: 7, nom: 'Orden General de Operaciones' },
   { id: 'anexo', fase: 7, nom: 'Anexo a la Orden General de Operaciones' },
+  { id: 'anexoF7P1', fase: 7, nom: 'Anexo a la Orden General de Operaciones (plan de la sección)' },
 ]
 const POR_ID = new Map(DOCUMENTOS_MILITARES.map((d, i) => [d.id, { ...d, orden: i }]))
 export const esDocumentoMilitar = (id) => POR_ID.has(String(id || ''))
@@ -208,7 +211,7 @@ export function correlativo(seccion, hojaId, e = estado) {
 export const numeroConClave = (n, clave) => `${String(n).padStart(3, '0')}${clave ? `/${clave}` : ''}`
 
 // ─── Dónde está la unidad considerada: el pueblo más cercano a su ficha ─────────
-const esPropia = (u) => !!u && (u.tipo || 'unidad') === 'unidad' && !/enem|rojo|amenaza/i.test(String(u.bando || '')) && Number.isFinite(u.lat) && Number.isFinite(u.lng)
+const esPropia = (u) => !!u && ['unidad', 'pc'].includes(u.tipo || 'unidad') && !/enem|rojo|amenaza/i.test(String(u.bando || '')) && Number.isFinite(u.lat) && Number.isFinite(u.lng)
 function rotuloDe(u) {
   const r = typeof entorno.rotular === 'function' ? entorno.rotular : null
   const out = []
@@ -223,8 +226,14 @@ function rotuloDe(u) {
 export function fichaDeUnidad(nombre, unidades = estado.unidades || []) {
   const k = claveUnidad(nombre)
   if (!k) return null
-  const propias = (unidades || []).filter(esPropia)
-  return propias.find((u) => rotuloDe(u).some((r) => claveUnidad(r) === k)) || propias.find((u) => rotuloDe(u).some((r) => claveUnidad(r).startsWith(k) && !/^\d/.test(claveUnidad(r).slice(k.length)))) || null
+  // Primero el puesto de comando de la unidad (si se colocó), después su ficha.
+  const todas = (unidades || []).filter(esPropia)
+  const pcs = todas.filter((u) => u.tipo === 'pc')
+  const unid = todas.filter((u) => u.tipo !== 'pc')
+  const de = (propias) => propias.find((u) => rotuloDe(u).some((r) => claveUnidad(r) === k)) || propias.find((u) => rotuloDe(u).some((r) => claveUnidad(r).startsWith(k) && !/^\d/.test(claveUnidad(r).slice(k.length)))) || null
+  // El PC suele rotularse «PC RCB-1» / «PC/RCB-1».
+  const enPC = pcs.find((u) => rotuloDe(u).some((r) => { const c = claveUnidad(r), i = c.indexOf(k); return i >= 0 && !/^\d/.test(c.slice(i + k.length)) }))
+  return de(pcs) || enPC || de(unid)
 }
 const nombreLugar = (f) => {
   const p = f?.properties || {}
@@ -380,7 +389,7 @@ export function html(c, op = {}) {
 }
 
 // Para el compilado (sin import) y los módulos de la Mesa.
-const API = { UNIDAD_CONSIDERADA_POR_DEFECTO, DOCUMENTOS_MILITARES, configurar, sincronizar, estadoActual, esDocumentoMilitar, seccionEMO, iniciales, claveRedactor, correlativo, expedidos, lugarMasCercano, fichaDeUnidad, puestoDeLaUnidad, horaTactica, momentoDelDocumento, unidadConsiderada, campos, lineas, lineasTexto, tabulacion, porcentajeTab, html, ANCHO_VERTICAL, ANCHO_APAISADA }
+const API = { UNIDAD_CONSIDERADA_POR_DEFECTO, CG_SIN_LUGAR, DOCUMENTOS_MILITARES, configurar, sincronizar, estadoActual, esDocumentoMilitar, seccionEMO, iniciales, claveRedactor, correlativo, expedidos, lugarMasCercano, fichaDeUnidad, puestoDeLaUnidad, horaTactica, momentoDelDocumento, unidadConsiderada, campos, lineas, lineasTexto, tabulacion, porcentajeTab, html, ANCHO_VERTICAL, ANCHO_APAISADA }
 try {
   globalThis.SIDMembrete = API
 } catch {

@@ -1,5 +1,6 @@
 // Reemplazos hechos el 2026-09-29 (cuarto paso del día) sobre el compilado de la Mesa
-// del EM (calcos/assets/index-5bpBlYsz.js → el que carga hoy calcos/index.html).
+// del EM (calcos/assets/index-unidades-20261009.js → index-membrete-20261009.js, el que
+// carga hoy calcos/index.html).
 // Los pidió Sergio: TODOS los documentos militares del PMTD llevan el membrete táctico
 // en Arial 10 negrilla, con el «CG. LUGAR HORA» debajo de la R de SECRETO:
 //
@@ -87,6 +88,12 @@ module.exports = [
     nombre: "Membrete · quiénes somos (unidad considerada) y su CG",
     viejo: "f.jsxs(\"div\",{style:Cn.pista,children:[\"Estos tres arman el \",f.jsx(\"b\",{children:\"membrete\"}),\" y la clasificación de TODOS los documentos que bajan los G en formato militar.\"]})",
     nuevo: "f.jsxs(\"div\",{style:Cn.fila2,children:[f.jsxs(\"label\",{style:Cn.campoCol,children:[f.jsx(\"span\",{children:\"Unidad considerada (quiénes somos)\"}),f.jsx(\"input\",{style:Cn.inp,value:B.unidadPropia||\"\",placeholder:SIDMembrete.UNIDAD_CONSIDERADA_POR_DEFECTO,onChange:qe=>U?.(\"unidadPropia\",qe.target.value.toUpperCase())})]}),f.jsxs(\"label\",{style:Cn.campoCol,children:[f.jsx(\"span\",{children:\"CG de la unidad considerada\"}),f.jsx(\"input\",{style:Cn.inp,value:B.puestoPropio||\"\",placeholder:\"vacío = pueblo más cercano a su ficha\",onChange:qe=>U?.(\"puestoPropio\",qe.target.value.toUpperCase())})]})]}),f.jsxs(\"div\",{style:Cn.pista,children:[\"Arman el \",f.jsx(\"b\",{children:\"membrete táctico\"}),\" de TODOS los documentos militares: escalón superior (la unidad que expide la Orden), unidad considerada con su CG y la hora táctica de la Línea de Tiempo, EMO/SEC de la pestaña y el número correlativo de la sección con las iniciales del redactor. Sin unidad considerada se toma la \",SIDMembrete.UNIDAD_CONSIDERADA_POR_DEFECTO,\".\"]})",
+    veces: 1,
+  },
+  {
+    nombre: "Membrete · el formato militar (calcos/formato-militar/v1) con el membrete táctico: runtime.js nuevo (caché)",
+    viejo: "formato-militar/v1/runtime.js?v=reco20261001",
+    nuevo: "formato-militar/v1/runtime.js?v=membrete20261009",
     veces: 1,
   },
 ]

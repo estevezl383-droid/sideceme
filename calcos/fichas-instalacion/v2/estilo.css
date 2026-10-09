@@ -1,0 +1,57 @@
+/* Tablero G-4 de la instalación (se apoya en .sid-fi de v1/estilo.css). */
+.sid-fi.sid-tg{max-height:76vh;font-size:12px}
+.sid-fi.sid-tg.sid-fi-min{max-height:100px}
+.sid-tg-cuerpo{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.sid-tg-sub{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;padding:8px 14px;background:#1a2a3c;border-bottom:1px solid #34495f}
+.sid-tg-ident{display:flex;flex-direction:column;gap:1px;min-width:0}
+.sid-tg-ident b{font-size:14px;color:#fff}
+.sid-tg-ident span{font-size:11px;color:#a9b9cc}
+.sid-tg-controles{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.sid-tg-controles label{display:inline-flex;gap:5px;align-items:center;font-size:10.5px;color:#a9b9cc;text-transform:uppercase;letter-spacing:.04em}
+.sid-tg-controles select{text-transform:none;font-size:12px;padding:5px 6px;max-width:220px}
+.sid-tg-controles button{padding:6px 9px}
+.sid-tg-pest{flex:0 0 auto;display:flex;gap:2px;padding:6px 10px 0;background:#17212e;border-bottom:1px solid #34495f;overflow-x:auto}
+.sid-fi .sid-tg-pest button{background:transparent;border:1px solid transparent;border-bottom:0;border-radius:6px 6px 0 0;color:#a9b9cc;padding:7px 12px;font-weight:600;white-space:nowrap}
+.sid-fi .sid-tg-pest button.on{background:#213349;border-color:#405568;color:#ffc278}
+.sid-tg-aviso{flex:0 0 auto;display:flex;gap:8px;align-items:center;justify-content:space-between;margin:8px 14px 0;padding:6px 9px;background:#12291d;border:1px solid #2f6b46;color:#9fe0c0;border-radius:6px;font-size:11.5px}
+.sid-fi .sid-tg-aviso button{padding:2px 6px;background:transparent;border-color:#2f6b46}
+.sid-tg-pagina{flex:1 1 auto;overflow:auto;overscroll-behavior:contain;padding:10px 14px 16px;min-height:0}
+.sid-tg-tablero{display:flex;flex-direction:column;gap:10px}
+.sid-tg-grilla{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:10px;align-items:start}
+.sid-tg-apoya,.sid-tg-chips,.sid-tg-fila{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.sid-tg-chip{display:inline-flex;align-items:center;gap:3px;background:#0e1826;border:1px solid #3a516b;color:#dfeaf3;border-radius:14px;padding:3px 10px;font-size:11.5px}
+.sid-tg-chip.ft{border-color:#ffc278;color:#ffe3a0}
+.sid-tg-chip.mal{border-color:#d03b3b;color:#ffb4b4}
+.sid-fi .sid-tg-chip.boton{cursor:pointer;border-radius:14px;padding:4px 10px}
+.sid-fi .sid-tg-chip.boton.on{background:#ffc278;color:#1b1405;border-color:#ffc278;font-weight:700}
+.sid-fi .sid-tg-link{background:transparent;border:0;color:#ffc278;padding:2px 4px;text-decoration:underline;cursor:pointer}
+.sid-tg-suave{font-size:11px;color:#a9b9cc}
+.sid-tg-subtit{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#a7d8ff;margin:8px 0 2px}
+.sid-tg-alertas{display:flex;flex-direction:column;gap:3px;background:#2a1416;border:1px solid #6b2f35;color:#f0b0b6;border-radius:6px;padding:6px 9px;font-size:11.5px}
+.sid-tg-fuente{font-size:10px;color:#7f8ea6;font-style:italic}
+.sid-tg-disponibles{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:11px;color:#a9b9cc;border-top:1px dashed #34495f;padding-top:7px}
+.sid-tg-disponibles input,.sid-tg-nums input{width:74px;background:#0f1b28;color:#fff;border:1px solid #617b94;border-radius:4px;padding:4px 5px;font:12px system-ui}
+.sid-tg-nums input.cambiado{border-color:#ffc278;background:#3a2a10}
+.sid-tg-tabla summary{cursor:pointer;color:#ffc278;font-weight:700;font-size:11px}
+.sid-tg-tabla table{border-collapse:collapse;font-size:11px;margin-top:6px;min-width:100%}
+.sid-tg-tabla th,.sid-tg-tabla td{border:1px solid #34495f;padding:3px 6px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.sid-tg-tabla th{background:#1a2436;color:#cfe0ea;text-align:center}
+.sid-tg-tabla td:first-child{text-align:left}
+.sid-tg-tabla td.on{color:#ffc278;font-weight:700}
+.sid-tg-unidades,.sid-tg-factores,.sid-tg-docs{display:flex;flex-direction:column;gap:8px}
+.sid-tg-unidad{background:#101a27;border:1px solid #2e4057;border-radius:8px;padding:9px 10px;display:flex;flex-direction:column;gap:7px}
+.sid-tg-etq{font-size:10.5px;border-radius:10px;padding:1px 8px}
+.sid-tg-etq.alerta{color:#fab219;border:1px solid #fab219}
+.sid-tg-etq.bien{color:#5fd35f;border:1px solid #0ca30c}
+.sid-tg-comp{display:flex;gap:2px;height:20px;border-radius:4px;overflow:hidden}
+.sid-tg-comp span{display:flex;align-items:center;padding:0 6px;font-size:10px;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;text-shadow:0 0 2px #000}
+.sid-tg-nums{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px 10px}
+.sid-tg-nums label{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11px;color:#cfdbe8;background:rgba(255,255,255,.03);border-radius:5px;padding:3px 6px}
+.sid-tg-ia{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:14px}
+.sid-tg-ia-col{display:flex;flex-direction:column;gap:6px;min-width:0}
+.sid-tg-ia-resumen{background:#243c50;border-left:3px solid #ffc278;padding:9px 10px;font-size:12.5px;line-height:1.5;white-space:pre-wrap}
+.sid-tg-ia-bloque{background:#101a27;border:1px solid #2e4057;border-radius:8px;padding:6px 10px}
+.sid-tg-ia-bloque.riesgo{border-color:#6b2f35}
+.sid-tg-ia-bloque.ajustes{border-color:#ffc278}
+.sid-tg-ia-bloque ul{margin:4px 0;padding-left:18px}
+@media(max-width:760px){.sid-fi.sid-tg{max-height:82vh}.sid-tg-grilla{grid-template-columns:minmax(0,1fr)}.sid-tg-ia{grid-template-columns:minmax(0,1fr)}.sid-tg-sub{padding:7px 8px}.sid-tg-pagina{padding:8px}.sid-tg-controles select{max-width:150px}.sid-tg-nums{grid-template-columns:minmax(0,1fr)}}

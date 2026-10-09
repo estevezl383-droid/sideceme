@@ -24,6 +24,8 @@ function cargar(ruta, nombres, globales = {}) {
       }
     }
   }
+  // SIDMembrete no es del compilado: lo importa de calcos/membrete/v1 (membrete táctico).
+  if (quiero.delete('SIDMembrete') && !('SIDMembrete' in globales)) globales = { ...globales, SIDMembrete: require('../membrete/v1/membrete.js').default }
   if (quiero.size) throw new Error(`No están en ${ruta}: ${[...quiero].join(', ')}`)
   const ctx = { ...globales }
   vm.createContext(ctx)

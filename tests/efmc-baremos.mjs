@@ -1,0 +1,18 @@
+import assert from 'node:assert/strict';
+import {calificar,edad} from '../efm-campo/baremos.mjs';
+const d='2026-10-06';
+assert.equal(edad('1984-10-07',d),41);assert.equal(edad('1984-10-06',d),42);assert.equal(edad('1984-02-30',d),null);
+assert.equal(calificar('flexiones',50,'M','1984-01-01',d).nota,100);
+assert.equal(calificar('flexiones',21,'M','1984-01-01',d).nota,71);
+assert.equal(calificar('abdominales',11,'F','1987-01-01',d).nota,71);
+assert.equal(calificar('flexiones',0,'F','1987-01-01',d).nota,null);
+assert.equal(calificar('natacion',36,'M','1984-01-01',d).nota,72);
+assert.equal(calificar('natacion',71,'F','1992-01-01',d).nota,71);
+assert.equal(calificar('aerobica',1390,'M','1984-01-01',d).nota,71);
+assert.equal(calificar('aerobica',1420,'F','1984-01-01',d).nota,71);
+assert.equal(calificar('aerobica',1391,'M','1984-01-01',d).nota,null);
+assert.equal(calificar('barras',7,'M','1984-01-01',d).requisito,7);
+assert.equal(calificar('barras',6,'F','1987-01-01',d).requisito,6);
+assert.equal(calificar('barras',6,'F','1987-01-01',d).nota,null);
+assert.equal(calificar('flexiones',55,'','1987-01-01',d).nota,null);
+console.log('15 verificaciones de celdas y límites: OK');

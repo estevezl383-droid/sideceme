@@ -1,10 +1,10 @@
 {
   "name": "pruebas-mesa-em",
   "private": true,
-  "description": "Pruebas sobre el compilado de la Mesa del EM (calcos/assets) y los módulos de estudio (calcos/academico), del plan de fuegos (calcos/fuegos), de la hoja de conceptos entrelazados (calcos/conceptos) y de la matriz de administración del riesgo (calcos/riesgo). e2e: Chromium con Playwright.",
+  "description": "Pruebas sobre el compilado de la Mesa del EM (calcos/assets) y los módulos de estudio (calcos/academico), del plan de fuegos (calcos/fuegos), de la hoja de conceptos entrelazados (calcos/conceptos), de la matriz de administración del riesgo (calcos/riesgo), de la orden de reconocimiento (calcos/reconocimiento), de la logística del G-4 y su tablero por instalación (calcos/logistica, calcos/fichas-instalacion) y del motor de documentos de Estado Mayor con el G-1, el G-5 y la Potencia Relativa de Combate del G-3 (calcos/estado-mayor) y de la Formación inicial de las fuerzas del G-3 (calcos/organizacion). e2e: Chromium con Playwright.",
   "scripts": {
-    "test": "node ht19-autollenado.js && node fichas-fuera-del-agua.js && node academico-modelo.js && node simbologia-referencias.js && node plan-fuegos-modelo.js && node conceptos.cjs && node riesgo.cjs && node reemplazos-compilado.js",
-    "e2e": "node e2e/plan-barreras-3d.js && node e2e/academico.js && node e2e/carga.js && node e2e/plan-fuegos.js && node e2e/conceptos.cjs && node e2e/riesgo.cjs"
+    "test": "node ht19-autollenado.js && node fichas-fuera-del-agua.js && node academico-modelo.js && node simbologia-referencias.js && node plan-fuegos-modelo.js && node conceptos.cjs && node riesgo.cjs && node reconocimiento.cjs && node logistica.cjs && node tablero-g4.cjs && node estado-mayor.cjs && node estado-mayor-g5.cjs && node coordenadas.cjs && node respuestas-hojas.cjs && node prc.cjs && node organizacion.cjs && node edicion-figuras.cjs && node membrete.cjs && node reemplazos-compilado.js",
+    "e2e": "node e2e/plan-barreras-3d.js && node e2e/trazos.cjs && node e2e/edicion.cjs && node e2e/academico.js && node e2e/carga.js && node e2e/plan-fuegos.js && node e2e/conceptos.cjs && node e2e/riesgo.cjs && node e2e/reconocimiento.cjs && node e2e/logistica.cjs && node e2e/tablero-g4.cjs && node e2e/personal.cjs && node e2e/g5.cjs && node e2e/prc.cjs && node e2e/organizacion.cjs && node e2e/membrete.cjs"
   },
   "devDependencies": {
     "acorn": "^8.15.0"

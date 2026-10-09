@@ -56,6 +56,7 @@ const CAMPOS = [
   "flexiones_cant", "flexiones_nota", "flexiones_nota_pon",
   "barra_cant", "barra_nota",
   "aerobica_tiempo", "aerobica_nota", "aerobica_nota_pon",
+  "talla_peso_obs", "natacion_obs", "abdominales_obs", "flexiones_obs", "barra_obs", "aerobica_obs",
   "nota_final", "observaciones",
 ];
 // Notas: si vienen, tienen que ser un número entre 0 y 100.
@@ -149,7 +150,7 @@ function limpiarValores(src: any, parcial: boolean): { v: Record<string, string 
   const v: Record<string, string | null> = {};
   for (const c of CAMPOS) {
     if (parcial && !(c in (src || {}))) continue;
-    const s = txt(src?.[c], c === "observaciones" ? 500 : 40);
+    const s = txt(src?.[c], (c === "observaciones" || c.endsWith("_obs")) ? 500 : 40);
     if (s !== null && CAMPOS_NOTA.includes(c)) {
       const n = Number(s.replace(",", "."));
       if (!Number.isFinite(n) || n < 0 || n > 100) return { error: `"${c}" no es una nota valida (${s})` };
@@ -299,6 +300,29 @@ Deno.serve(async (req) => {
         .order("tipo_evaluacion", { ascending: true });
       if (error) return json({ ok: false, error: "No se pudo leer las notas EFM" }, 500);
       return json({ ok: true, evaluaciones: sinPassword(data || []) });
+    }
+
+    // ===================== PLANILLAS EFM (Sección EF + evaluadores de ciclo) =====================
+    // Tcnl. Aguirre y My. Linares (sub_ef) ven todo; el evaluador de ciclo (Ortiz 1er, Soto 2do)
+    // solo su ciclo. Entrega las notas ya publicadas (o históricas) con el estado de conformidad.
+    if (body.accion === "reporte_datos") {
+      const { data: p } = await sb.from("profesores")
+        .select("id, rol, roles, evaluador_ciclo, activo").eq("id", ses.usuario_id).maybeSingle();
+      if (!p || p.activo === false) return json({ ok: false, error: "Usuario inactivo" }, 403);
+      const rs = [p.rol, ...(Array.isArray(p.roles) ? p.roles : [])].map((x: any) => String(x || "").toLowerCase());
+      const esEf = rs.includes(ROL_EF);
+      const cicloEv = Number(p.evaluador_ciclo) === 1 ? "1ER CICLO" : Number(p.evaluador_ciclo) === 2 ? "2DO CICLO" : null;
+      if (!esEf && !cicloEv) return json({ ok: false, error: "No tenes permiso para las planillas EFM" }, 403);
+      let q = sb.from("evaluaciones_fisicas").select("*").or("publicado.is.null,publicado.eq.true").limit(5000);
+      if (!esEf && cicloEv) q = q.eq("ciclo", cicloEv);
+      const { data, error } = await q;
+      if (error) return json({ ok: false, error: "No se pudo leer las notas EFM" }, 500);
+      const filas = sinPassword(data || []);
+      const est = await contarConformidades(filas.map((r: any) => r.efm_id).filter((x: any) => x != null));
+      return json({
+        ok: true, ciclo_fijo: esEf ? null : cicloEv,
+        evaluaciones: filas.map((r: any) => ({ ...r, conformidad_estado: est[String(r.efm_id)] || null })),
+      });
     }
 
     // ============================ LADO DE LA SECCIÓN EF ============================

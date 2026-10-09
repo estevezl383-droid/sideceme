@@ -97,6 +97,11 @@ const LINEA = { recepcion: 'D-15 (2000)', inicioOperacion: 'D (0500)', finOperac
     assert.match(c.fuentes.cg, /falta/)
   })
 
+  await caso('El puesto de comando del RCB-1 (si se colocó) manda sobre la ficha de la unidad', () => {
+    preparar({ unidades: [...UNIDADES, { id: 'pc', bando: 'propias', tipo: 'pc', designacion: 'PC RCB-1', lat: -16.651, lng: -68.301 }] })
+    assert.equal(M.campos({ hoja: 'alerta' }).cg, 'CG. VIACHA')
+  })
+
   await caso('Si la unidad considerada es la que expidió la Orden: su escalón superior y su CG de la Orden', () => {
     preparar({ ordenSup: { ...ORDEN, unidadPropia: 'DIV.MEC.-1' } })
     const c = M.campos({ seccion: 'E. M. G-2', hoja: 'pbi' })

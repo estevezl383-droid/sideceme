@@ -1,0 +1,34 @@
+/* SIDE-CEME v2.9.419 — ajustes del HORARIO INTEGRADO */
+#plp-cal .fc-timegrid-slot{height:var(--plp-slot-h,2.05em)!important}
+.plp-dlg.plp-dlg-wide{max-width:1040px!important}
+.plp-enc-t .plp-enc-hora{width:72px;min-width:72px;padding:5px 6px;text-align:center;font-weight:800}
+.plp-enc-t .plp-enc-act{min-width:230px;width:100%;padding:5px 7px;text-transform:uppercase;font-weight:700}
+.plp-enc-ops{white-space:nowrap;min-width:148px}
+.plp-enc-ops button{min-width:34px;margin:0 2px 3px 0;padding:4px 6px;border-radius:6px;border:1px solid var(--border-subtle);background:rgba(255,255,255,.06);color:var(--text-primary);cursor:pointer;font-family:inherit;font-size:11px;font-weight:800}
+.plp-enc-ops button:hover{border-color:var(--gold);background:rgba(212,175,55,.18)}
+.plp-enc-del td{opacity:.48;text-decoration:line-through}
+.plp-enc-new td{background:rgba(30,91,184,.13)}
+.plp-enc-add{display:block;width:100%;margin:7px 0 9px;padding:8px 10px;border-radius:8px;border:1px dashed #82b1ff;background:rgba(30,91,184,.12);color:#dceaff;cursor:pointer;font-weight:800}
+.plp-zoom{display:flex;align-items:center;justify-content:flex-end;gap:6px;margin:-2px 0 8px;font-size:11px;color:var(--text-muted)}
+.plp-zoom button{width:32px;height:28px;padding:0;border:1px solid var(--border-subtle);border-radius:7px;background:rgba(255,255,255,.06);color:var(--text-primary);cursor:pointer;font-size:18px;line-height:1}
+.plp-zoom button:hover{border-color:var(--gold);background:rgba(212,175,55,.18)}
+#screen-planif-cal .plp-dlg input:not([type="date"]):not([type="checkbox"]),
+#screen-planif-cal .plp-dlg textarea{text-transform:uppercase}
+@media(max-width:720px){.plp-dlg.plp-dlg-wide{max-width:100%!important}.plp-enc-t .plp-enc-act{min-width:180px}}
+
+/* v2.9.420: contenido legible, sin invadir la actividad siguiente. */
+#plp-cal .fc-timegrid-event .fc-event-main{overflow:hidden}
+#plp-cal .fc-event.plp-prop .plp-ev{padding:3px 4px}
+#plp-cal .fc-event.plp-prop .plp-ev-h{padding-right:0}
+#plp-cal,#plp-modal{text-transform:uppercase}
+.plp-zoom button.plp-zoom-label{width:auto;padding:0 9px;font-size:11px}
+.plp-enc-t{overflow:auto;max-height:62vh}
+.plp-enc-t th{position:sticky;top:0;background:#101b2c;z-index:1}
+.plp-dlg.plp-dlg-wide{max-width:1200px!important}
+.plp-enc-ops{min-width:210px}
+/* v2.9.421: planificación directa en plomo. */
+#plp-cal .fc-event.plp-planificacion-directa{background:#2f3a4a!important;border:1px solid #4d5b70!important;color:#dfe6ef!important}
+#plp-dup-horas{display:flex;gap:12px;margin:10px 0}
+#plp-dup-horas[hidden]{display:none}
+/* Aviso persistente en el panel del solicitante. */
+.plp-alerta-personal{display:block;width:100%;margin:0 0 14px;padding:22px 16px;border:3px solid #ff7777;border-radius:14px;background:#b91c1c;color:#fff;font-family:inherit;font-weight:900;font-size:clamp(18px,2.4vw,26px);line-height:1.35;text-align:center;cursor:pointer;box-shadow:0 0 20px #b91c1c66}
