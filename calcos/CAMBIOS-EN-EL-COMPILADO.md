@@ -5,6 +5,21 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-09 — «Somos la DIV.MEC.-1»: la unidad considerada es la de la Orden (`index-divmec-20261009.js`)
+
+Parte de `index-membrete-20261009.js` + `pruebas/reemplazos-2026-10-09-divmec.js` (4
+reemplazos; `construir-divmec.js`; `reemplazos-compilado.js` lo deshace byte por byte).
+
+- **Qué pasaba**: el membrete tomaba RCB-1 como unidad considerada por defecto y ponía a la
+  DIV.MEC.-1 de la Orden como escalón superior. El docente aclaró: somos la DIV.MEC.-1.
+- **Qué se hizo**: el campo de la Orden vuelve a ser «Unidad considerada (quiénes somos)» y
+  el compilado se la pasa al membrete (`sincronizar({unidadPropia})`): CE-I / DIV.MEC.-1 CG.
+  VIACHA (hora de la Línea de Tiempo) / EMO/SEC / No. correlativo/iniciales, y la firma del
+  Comandante de la DIV.MEC.-1. El campo nuevo queda como «Otra unidad considerada (vacío =
+  la de arriba)». `calcos/membrete/v1` no cambia.
+- **Cómo se comprobó**: `reemplazos-compilado.js`, `membrete.cjs` y los e2e `membrete`,
+  `riesgo` y `reconocimiento` (escritorio y teléfono) con la DIV.MEC.-1.
+
 ## 2026-10-09 — Membrete táctico en todos los documentos militares (`index-membrete-20261009.js`)
 
 Parte de `index-unidades-20261009.js` + `pruebas/reemplazos-2026-09-29-membrete.js` (13

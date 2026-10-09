@@ -5,8 +5,8 @@ debajo de la clasificación y en **Arial 10 negrilla**:
 
 ```
                                    SECRETO
-DIV.MEC.-1                                    ← escalón superior: la unidad que expidió la Orden
-RCB-1                     CG. VIACHA D-15 (2300)   ← unidad considerada · CG · hora táctica
+CE-I                                          ← escalón superior
+DIV.MEC.-1                CG. VIACHA D-15 (2300)   ← unidad considerada · CG · hora táctica
 EMO/SEC-III                                   ← Estado Mayor Operativo / sección que lo elabora
 No. 001/SMM                                   ← correlativo de la sección / iniciales del usuario
 ```
@@ -14,12 +14,12 @@ No. 001/SMM                                   ← correlativo de la sección / i
 - **«CG. …» empieza debajo de la R de SECRETO** (la 4.ª letra de la clasificación,
   centrada en el encabezado en Arial 12 negrilla): en hoja carta vertical, a 4617 twips
   del margen izquierdo (`tabulacion()`).
-- **Unidad considerada** («quiénes somos»): la que se escribe en la Orden del escalón
-  superior («Unidad considerada (quiénes somos)», `ordenSup.unidadPropia`). Si no hay,
-  **RCB-1** (por ahora, como pidió el docente). La «unidad» de la Orden es la que la
-  **expidió**: es nuestro escalón superior. Si la unidad considerada es la misma que la
-  expidió, el superior es el «Escalón superior» de la Orden.
-- **CG**: «CG de la unidad considerada» si se escribió en la Orden; si no, el **pueblo más
+- **Unidad considerada** («quiénes somos»): la «Unidad considerada (quiénes somos)» de la
+  Orden del escalón superior (en el ejercicio de la Escuela, **DIV.MEC.-1**); su escalón
+  superior es el «Escalón superior» de la Orden (CE-I) y su CG el «Puesto de Mando» (CG.
+  VIACHA). Si se escribe **«Otra unidad considerada»** (p. ej. RCB-1), la de la Orden pasa a
+  ser su escalón superior y el CG se busca en el calco (abajo). Sin ningún dato, RCB-1.
+- **CG** (cuando la unidad considerada es otra): «CG de la unidad considerada» si se escribió en la Orden; si no, el **pueblo más
   cercano** a su puesto de comando (ficha `pc` «PC RCB-1») o a su ficha en el calco, en
   MAYÚSCULAS. Sin ficha queda `CG. ……………` para llenar a mano.
 - **Hora táctica** (día D) de **este** documento en la Línea Inicial de Tiempo del paso 1:

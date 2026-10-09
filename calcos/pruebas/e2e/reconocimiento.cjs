@@ -127,9 +127,8 @@ async function capturaEditor(page, archivo) {
       await velo.waitFor()
       await velo.locator('section.docx').first().waitFor({ timeout: 30000 })
       const hoja = await velo.innerText()
-      // Membrete táctico (calcos/membrete/v1): la DIV.MEC.-1 que expidió la Orden es el superior
-      // de la unidad considerada (RCB-1 por defecto).
-      for (const t of ['SECRETO', 'DIV.MEC.-1 (FICT.)', 'RCB-1', 'EMO/SEC-III', 'ORDEN DE RECONOCIMIENTO No. 01', 'OBJETO', 'CARTA', 'ANEXOS', 'ORGANIZACIÓN DE LA TAREA:', 'EQ. ZULU', 'EQ. TANGO', 'EQ. VICTOR', 'SITUACIÓN.', 'Enemiga.', 'MISIÓN.', 'EJECUCIÓN.', 'Plan de Reconocimiento.', 'Tareas para los equipos de reconocimiento.', 'Equipo ZULU.', 'Obtener información referente a:', 'Plazos en tiempo.', 'Instrucciones de coordinación.', 'APOYO DE SERVICIO.', 'COMANDO Y COMUNICACIONES.', 'EL COMANDANTE DE LA DIV.MEC.-1 (FICT.)', 'Autenticación:', 'Distribución:'])
+      // Membrete táctico (calcos/membrete/v1): somos la DIV.MEC.-1 (la unidad considerada de la Orden).
+      for (const t of ['SECRETO', 'I CUERPO DE EJÉRCITO (FICT.)', 'DIV.MEC.-1 (FICT.)', 'EMO/SEC-III', 'ORDEN DE RECONOCIMIENTO No. 01', 'OBJETO', 'CARTA', 'ANEXOS', 'ORGANIZACIÓN DE LA TAREA:', 'EQ. ZULU', 'EQ. TANGO', 'EQ. VICTOR', 'SITUACIÓN.', 'Enemiga.', 'MISIÓN.', 'EJECUCIÓN.', 'Plan de Reconocimiento.', 'Tareas para los equipos de reconocimiento.', 'Equipo ZULU.', 'Obtener información referente a:', 'Plazos en tiempo.', 'Instrucciones de coordinación.', 'APOYO DE SERVICIO.', 'COMANDO Y COMUNICACIONES.', 'EL COMANDANTE DE LA DIV.MEC.-1 (FICT.)', 'Autenticación:', 'Distribución:'])
         assert.ok(hoja.includes(t), `la vista previa no trae «${t}»`)
       assert.ok(!/\[IA\s*[—–-]\s*verificar\]|🤖/.test(hoja), 'la vista previa no trae marcas de la IA')
       assert.ok(!hoja.includes('EL G-3 DE LA UNIDAD'), 'firma el Comandante, no el G-3')
