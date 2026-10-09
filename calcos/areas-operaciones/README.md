@@ -97,3 +97,12 @@ Aplicar primero la migración `20261008160528_calco_compartidos.sql`.
 JWT permanece OFF porque la función valida las sesiones institucionales.
 No se generan nuevos grupos ni se envía contenido real a destinatarios
 sin selección expresa del docente.
+
+## Frentes y profundidades (09-OCT-2026)
+
+`node calcos/pruebas/construir-frentes.js` aplica 4 sustituciones reversibles a
+`index-areas-20261008.js` y genera `index-areas-20261009.js` (lista en
+`calcos/pruebas/reemplazos-2026-10-09-frentes.js`). Cuadro PMTD 2017 Tabla 45 con
+valores fijos por terreno (llano/altiplano ×1,0; valle/montaña frente ×0,7; selva
+frente ×0,5 y profundidad ×0,7), retrógradas = defensiva ×2 frente, ×1,5 profundidad.
+Las claves de ambiente guardadas (`llano`, `altiplano`, `montana`, `selva`) no cambian.
