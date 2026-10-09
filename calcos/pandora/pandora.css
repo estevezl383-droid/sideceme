@@ -196,14 +196,14 @@ body.sid-pandora .botones-mapa [data-sid-g=mando][data-sid-i="6"]{width:114px;ri
    Para volver a paneles sólidos basta borrar este bloque. */
 body.sid-pandora{
   --pd-vidrio:
-    linear-gradient(120deg,rgba(255,255,255,.10) 0%,rgba(255,255,255,.03) 35%,rgba(255,255,255,0) 55%,rgba(255,255,255,.03) 100%),
-    linear-gradient(160deg,rgba(36,112,142,.58) 0%,rgba(12,52,74,.38) 55%,rgba(10,44,64,.20) 100%);
+    linear-gradient(125deg,rgba(255,255,255,.07) 0%,rgba(255,255,255,.015) 32%,rgba(255,255,255,0) 55%),
+    linear-gradient(160deg,rgba(5,20,32,.90) 0%,rgba(4,16,26,.80) 55%,rgba(4,14,22,.68) 100%);
   --pd-vidrio-fuerte:
-    linear-gradient(120deg,rgba(255,255,255,.10) 0%,rgba(255,255,255,.03) 35%,rgba(255,255,255,0) 55%,rgba(255,255,255,.03) 100%),
-    linear-gradient(160deg,rgba(36,112,142,.58) 0%,rgba(12,52,74,.38) 55%,rgba(10,44,64,.20) 100%);
-  --pd-borde-vidrio:rgba(200,248,255,.42);
-  --pd-brillo:inset 0 1px 0 rgba(255,255,255,.55),inset 1px 0 0 rgba(255,255,255,.18),inset 0 0 0 1px rgba(255,255,255,.06),inset 0 -24px 40px rgba(70,240,208,.06);
-  --pd-blur:blur(18px) saturate(1.4);
+    linear-gradient(125deg,rgba(255,255,255,.07) 0%,rgba(255,255,255,.015) 32%,rgba(255,255,255,0) 55%),
+    linear-gradient(160deg,rgba(5,20,32,.92) 0%,rgba(4,16,26,.84) 55%,rgba(4,14,22,.74) 100%);
+  --pd-borde-vidrio:rgba(150,235,240,.26);
+  --pd-brillo:inset 0 1px 0 rgba(255,255,255,.22),inset 1px 0 0 rgba(255,255,255,.07),inset 0 0 0 1px rgba(255,255,255,.03);
+  --pd-blur:blur(16px) saturate(1.3);
 }
 body.sid-pandora .panel{
   background:var(--pd-vidrio-fuerte),radial-gradient(circle at 20% 90%,rgba(120,70,255,.14),transparent 50%);
@@ -212,7 +212,7 @@ body.sid-pandora .panel{
 }
 body.sid-pandora .panel .bloque,
 body.sid-pandora .bloque-ver>.ver-bloque{
-  background:linear-gradient(150deg,rgba(255,255,255,.05),rgba(255,255,255,.015) 60%,rgba(255,255,255,0));
+  background:linear-gradient(150deg,rgba(255,255,255,.04),rgba(255,255,255,.01) 60%,rgba(255,255,255,0));
   border-color:var(--pd-borde-vidrio);
   box-shadow:var(--pd-brillo),0 6px 20px rgba(0,0,0,.25);
 }
@@ -243,7 +243,7 @@ body.sid-pandora .botones-mapa .btn-cmoc-abrir,
 body.sid-pandora #sid-pd-tab .fich,
 body.sid-pandora #sid-pd-tab .tarj,
 body.sid-pandora .sid-pd-cap .tg{
-  background:linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,.02));
+  background:linear-gradient(160deg,rgba(255,255,255,.07),rgba(255,255,255,.015));
   -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
   box-shadow:inset 0 1px 0 rgba(255,255,255,.18);
 }
