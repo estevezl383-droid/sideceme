@@ -485,8 +485,8 @@
       PRESETS.forEach(function (p) {
         var esProf = window.SIDECEME_CALCOS && window.SIDECEME_CALCOS.esProfesor
         var local = location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1'
-        if (nom.indexOf(p.clave) >= 0) cargarPreset(p, true)
-        else if (esProf || local) cargarPreset(p, false)   // el profesor lo tiene a mano, apagado
+        // Siempre a mano en el tablero; encendido si el ejercicio abierto se llama así.
+        cargarPreset(p, nom.indexOf(p.clave) >= 0 || !!(esProf || local))
       })
     } catch (e) { /* agregado: si falla, la Mesa sigue igual */ }
   }
