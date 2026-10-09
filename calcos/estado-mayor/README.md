@@ -298,3 +298,32 @@ documento (como la que mostró Sergio). `g5-ejemplo.js` (capas de población e
 infraestructura, clasificación, evacuación, un eje humanitario que se monta sobre el EPA) y
 `respuesta-prosa-g5.md`, lo mismo para el G-5. Las capturas y los Word de la prueba quedan
 en `pruebas/salidas-personal/` y `pruebas/salidas-g5/` (no se versionan).
+
+## En la Mesa: ⭐ Comandante y 🎖️ Jefe de Estado Mayor (09-10-2026, `v6/campos/cmte.js`, `jem.js`, `mando.js`)
+
+Lo pidió Sergio con capturas de los dos paneles. Las hojas del Comandante y del JEM se alimentan de todo
+lo que ya hizo el Estado Mayor y se sincronizan entre sí y con el tablero del G-3. No tienen modelo de la
+Escuela en el catálogo (son los cuadros del PMTD): conservan su forma (campos, filas) y su Word de hoja.
+
+| Hoja | Qué es ahora |
+|---|---|
+| **Cmte. F1·P3** Apreciación activa | campos; 🌱 con la Orden superior, la CAE y los vacíos del G-2, las prohibiciones y el concepto del G-3 |
+| **Cmte. F1·P6** Guía Inicial | la del tablero del G-3 (siete partes, Word militar, **los mismos datos**); 🌱 con la asignación del tiempo de la Línea Inicial de Tiempo (`l3e`) |
+| **Cmte. F2·P1** Conceptos Entrelazados | **la misma hoja** del tablero del G-3 (`entrelazados`) |
+| **Cmte. F2·P8** Prioridad a los RCIC. | 🌱 con los RCIC. de G-1, G-3, G-4, G-5 y los vacíos del G-2, con quién los propone |
+| **Cmte. F2·P14** Intención | 🌱 propósito (misión reexpresada u orden superior), tareas clave (esenciales del G-3), estado final (concepto del G-3) |
+| **Cmte. F2·P15 / F6·P2** Guía de Planificación y Final | un renglón por sección; el G-2 con lo que debe cubrir; plazos del Programa General; estado de la apreciación de cada una |
+| **Cmte. F3·P8** Selección de CAP | los CAP del G-3 y de las ventajas y desventajas de las secciones |
+| **Cmte. F6·P1** Decisión | el CAP que pasó al juego y la recomendación del rol de exposiciones del JEM |
+| **Cmte. F7·P2** Revisión de las órdenes | cuadro de control: Orden Preparatoria 1–3, Orden General y el anexo de cada sección, con su estado |
+| **JEM F2·P10** Línea de tiempo actualizada | los diez eventos del Programa General con responsable y plazos |
+| **JEM F2·P13** Orientación del EM | un renglón por expositor y el estado de su apreciación |
+| **JEM F2·P16** Normas de evaluación | cumplir la intención (Cmte.), las pruebas de validez de un CAP y las de la matriz de decisión |
+| **JEM F4·P1** Libreto | los CAP que el Comandante dejó pasar, la técnica y los eventos críticos del G-3 |
+| **JEM F5·P3** Rol de exposiciones | un renglón por sección con su recomendación (F5·P1) |
+| JEM F1·P5 Línea Inicial de Tiempo y Programa General | siguen compartidos con el G-3; F4·P6 matriz en blanco: sigue «se baja hecha» (es en blanco a propósito) |
+
+- **IA**: el pedido suma lo que la Mesa no manda al expediente (las hojas del Comandante y del JEM) y lo que
+  hizo cada sección, lo que calculó la Mesa y la doctrina; y las demás secciones reciben «LO QUE ORDENÓ EL
+  COMANDANTE Y DISPUSO EL JEM».
+- **Menos texto**: ver la entrada del 09-10-2026 (2) de `CAMBIOS-EN-EL-COMPILADO.md`.

@@ -322,8 +322,10 @@ const { UNIDADES, VIEJA, PEGADO_CAPTURA, RESPUESTA_FUERA_DE_TEMA, INDICACION, RE
     for (const r of [...lista].reverse()) x = x.split(r.nuevo).join(r.viejo)
     assert.equal(x, ant)
     const vig = fs.readFileSync(VIG, 'utf8')
-    for (const r of lista) assert.ok(vig.includes(r.nuevo), r.nombre)
-    assert.equal(vig.split('"../estado-mayor/v5/').length - 1, 3)
+    // (el motor de documentos puede haber pasado a una carpeta más nueva: sólo cambia la versión de los imports)
+    const VV = (vig.match(/"\.\.\/estado-mayor\/(v\d+)\/registro\.js"/) || [])[1]
+    for (const r of lista) assert.ok(vig.includes(r.nuevo.split('estado-mayor/v5/').join(`estado-mayor/${VV}/`)), r.nombre)
+    assert.equal(vig.split(`"../estado-mayor/${VV}/`).length - 1, 3)
   })
   caso('ningún gancho cae DENTRO de lo que insertaron las listas anteriores (salvo la versión de la carpeta del motor)', () => {
     const viejo = fs.readFileSync(ANTERIOR, 'utf8')

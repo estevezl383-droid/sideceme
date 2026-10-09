@@ -223,7 +223,7 @@ async function guardar(page, nombre) {
     assert.ok(!e.unidades.some((u) => u.grupo !== 'superior' && /DIV/.test(u.nombre)), 'ninguna división en las filas')
     const div = e.unidades.find((u) => u.propia)
     for (const u of e.unidades.filter((x) => x.grupo !== 'superior')) assert.ok(e.relaciones.some((r) => r.desde === u.id && r.hasta === div.id && r.tipo === 'directa'), `${u.nombre} sin flecha directa a la División`)
-    assert.ok(await page.getByText(/Versión 4 \(29-09\)/).count(), 'la pantalla dice la versión')
+    assert.equal(await page.getByText(/Versión 4 \(29-09\)/).count(), 0, 'la pantalla ya no explica la versión: menos texto')
     assert.deepEqual(a.errores, [])
     console.log('OK caso del docente: unidades puras con la cadena CTO → FF.TT.T.O. → CE → DIVMEC-1, respuesta de IA equivocada acomodada, lámina, Word y guardado.')
   } catch (e) {

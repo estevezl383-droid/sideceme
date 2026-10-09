@@ -10,7 +10,7 @@ del 03-10 de `calcos/CAMBIOS-EN-EL-COMPILADO.md`). Desde esos compilados
 (`index-personal-20261003.js` y, encima, `index-lector-20261003.js`) los ganchos de la Mesa
 son GENÉRICOS: para otra sección **no hay que volver a tocar el compilado para que
 funcione** — se escribe `calcos/estado-mayor/vN/campos/<g>.js`, se registra, y se versiona
-la carpeta. La versión vigente es la carpeta que importa el compilado vigente (hoy `v5`, que sumó la
+la carpeta. La versión vigente es la carpeta que importa el compilado vigente (hoy `v6`: sumó el Comandante y el JEM; la `v5` sumó la
 Potencia Relativa de Combate del G-3: `v5/prc.js`).
 
 El **G-5** se hizo el 03-10-2026 con este skill (`v3/campos/g5.js`, entrada «2026-10-03 (3)»
@@ -18,6 +18,14 @@ de `CAMBIOS-EN-EL-COMPILADO.md`): es el segundo modelo, y el que hay que mirar s
 necesita algo del calco que el motor no recibía (el G-5 necesitó las CAPAS y las cuentas de
 su panel: `reemplazos-2026-10-03-g5.js`), si su modelo analiza por FUNCIÓN y no por CAP, o
 si tiene un apartado con texto propio Y subapartados.
+
+El **Comandante y el JEM** se hicieron el 09-10-2026 (`v6/campos/cmte.js`, `jem.js` y `mando.js`, entrada
+«2026-10-09 (2)» de `CAMBIOS-EN-EL-COMPILADO.md`): no tienen modelo de la Escuela, no son `Nx` (su panel es
+`wDe`/`PLe`/`OLe`) y sus hojas son de trabajo (campos y filas) con 🌱 que lee lo que ya hizo cada sección
+(`mando.js`); lo que comparten con el G-3 (`compartida: 'g3'`) es el MISMO dato. La Mesa no manda al
+expediente las hojas de estos dos puestos: `registro.js` (`conMando`) se las pasa a las demás secciones.
+Desde la v6 la guía 📘 viene plegada y las instrucciones del modelo van en el placeholder de cada casilla
+(menos texto en pantalla: el usuario no quiere explicaciones, sólo herramientas).
 
 **La IA no siempre contesta en JSON** (a veces escribe el documento en Markdown). Eso ya lo
 resuelve `lector.js` del motor para TODOS los documentos registrados y, en el compilado, para
@@ -70,7 +78,7 @@ node .claude/skills/habilitar-hojas-seccion/scripts/ver-modelo.mjs aprec-acgm # 
 ## Paso 1 — Versionar la carpeta
 
 El navegador guarda los módulos: el repo versiona por carpeta (como `conceptos/v2…v4`).
-Copiá la carpeta vigente (hoy `calcos/estado-mayor/v5`) a la siguiente libre (`v6`) y
+Copiá la carpeta vigente (hoy `calcos/estado-mayor/v6`) a la siguiente libre (`v7`) y
 trabajá en la copia. No cambies la vigente (la usa el compilado publicado).
 
 ## Paso 2 — Escribir `campos/<g>.js` (copiar la forma de `campos/g1.js`)

@@ -73,6 +73,7 @@ const PROSA = fs.readFileSync(path.join(__dirname, '..', 'respuesta-prosa-person
       await clic(panel.getByRole('button', { name: /F2·P3.*Tareas específicas/ }))
       const ayuda = panel.locator('[data-em="ayuda-hoja"]')
       await ayuda.waitFor()
+      await clic(ayuda.getByRole('button', { name: /¿Para qué es y cómo se llena\?/ })) // la guía viene plegada
       const ta = await ayuda.innerText()
       for (const t of ['¿Para qué es y cómo se llena?', 'campo de personal', 'ESPECÍFICA', 'Ejemplo:']) assert.ok(ta.includes(t), `guía de la F2·P3: falta «${t}»`)
       await clic(ayuda.getByRole('button', { name: '🌱 Traer del calco lo que falte' }))

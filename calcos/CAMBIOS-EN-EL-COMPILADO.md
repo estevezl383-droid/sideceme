@@ -5,6 +5,98 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-09 (2) — ⭐ Comandante y 🎖️ JEM: hojas con 🌱, IA con todo lo del Estado Mayor y sincronizadas; menos texto (`index-cmte-jem-20261009.js`)
+
+Parte de `index-areas-20261009.js`: trae todo eso y suma esto. Lo pidió Sergio con capturas de los
+paneles del Comandante y del Jefe de Estado Mayor: las hojas no llenaban nada (ni siquiera lo que ya
+había hecho el resto del Estado Mayor), la F2·P1, la F7·P2 y la F4·P6 «se bajaban hechas», no tenían el
+🌱 ni la IA con el expediente que sí tienen las demás secciones, lo que hacía el Estado Mayor no se
+sincronizaba con las hojas del Comandante (los Conceptos Entrelazados, la Guía Inicial) y el panel
+estaba lleno de texto que explica qué son las hojas. La lista EXACTA está en
+`calcos/pruebas/reemplazos-2026-10-09-cmte-jem.js` (27); `construir-cmte-jem.js` arma el compilado y
+comprueba que deshaciéndolos se vuelve byte por byte al anterior (también lo comprueba
+`reemplazos-compilado.js`, como primer paso de la cadena).
+
+### Qué pasaba
+
+- Los paneles del Comandante y del JEM (`wDe` → `dN` con `hse`) no pasaban por el motor de
+  `calcos/estado-mayor`: sin 🌱, sin guía, sin lo calculado, sin lo que entregaron las otras secciones.
+- La Guía Inicial del Comandante (F1·P6) era una tabla «Área / Guía / Para cuándo» que no existe en el
+  PMTD: el tablero del G-3 ya tiene la de siete partes (I.- Método … VII.- Otros) con su Word militar.
+- Los Conceptos Entrelazados (F2·P1) «se bajaban hechos» desde un botón: no se podía trabajar ni se
+  veía lo que ya habían puesto el G-3 y el resto del Estado Mayor en el tablero.
+- La Mesa NO manda al expediente las hojas del Comandante ni las del JEM (`_6e` sólo lleva `hojasG1…5`):
+  la IA de cada uno no veía lo del otro, y la de las demás secciones no veía la Intención ni las guías.
+
+### Qué se hizo (en `calcos/estado-mayor/v6`)
+
+- `campos/cmte.js` y `campos/jem.js` (registrados en `registro.js`): 🌱 en TODAS las hojas, la guía para
+  la IA (no se muestra), lo que calculó la Mesa, lo que entregaron las demás secciones y la doctrina.
+  `campos/mando.js` lee lo que ya hizo cada sección (G-1, G-4, G-5, EME. en `hojasG`; el G-2 en la PICB; el
+  G-3 en su tablero) y lo vuelca como texto.
+- Sincronía: la Guía Inicial y los Conceptos Entrelazados del Comandante SON los del tablero del G-3
+  (`compartida: 'g3'`: los mismos datos). Los RCIC. de G-1, G-3, G-4, G-5 y los vacíos del G-2 llegan a la
+  prioridad del Comandante; la selección de CAP del Comandante al libreto del JEM; el rol de exposiciones
+  del JEM a la decisión del Comandante; la Línea Inicial de Tiempo a la Guía Inicial, a la línea de
+  tiempo actualizada y a la guía final; la F7·P2 es un cuadro de control (orden, responsable, estado,
+  revisión) armado con lo que tiene cada sección.
+- `registro.js` (`conMando`): el pedido de la IA de TODAS las demás secciones (G-1, G-5, las sin registro
+  —G-4, EME.— y el G-3) suma «LO QUE ORDENÓ EL COMANDANTE Y DISPUSO EL JEM», antes de «CÓMO CONTESTAR».
+- Menos texto: el panel de hojas no explica qué son (introducción, nota de cada hoja, pie «Fuente del
+  reparto», «Este documento reúne…»); el panel de IA no explica lo que hace (nota, descripción del modo,
+  aviso de la indicación, pie; quedan de ayuda emergente en el botón); las casillas de las hojas de campos
+  llevan su ayuda como texto de ayuda (placeholder y título); la guía 📘 viene plegada; los editores del
+  motor sacaron las líneas explicativas (la instrucción literal del modelo va en la casilla); los
+  Conceptos Entrelazados (`calcos/conceptos/v5`) y la Formación inicial de las fuerzas
+  (`calcos/organizacion/v2`) sacaron sus párrafos explicativos.
+
+### Qué se tocó en el compilado (27 reemplazos)
+
+- Los `import` del motor pasan de `estado-mayor/v5` a `v6`; los de los Conceptos Entrelazados, de
+  `conceptos/v4` a `v5`; los de la Organización inicial, de `organizacion/v1` a `v2`.
+- `PLe` (panel del Comandante): la F1·P6 es `ev` «guiaInicial» con `compartida: 'g3'`; la F2·P1 es `ev`
+  «entrelazados» (tipo `conceptos`, `compartida: 'g3'`); la F7·P2 pasa de `remite` a `filas`.
+- `configurarEM({ semillaG3: l3e, plazosPrograma: HD, responsablesPrograma: WD, eventosPrograma: Pie })`
+  antes de `wDe` (el autollenado del G-3 y el Programa General de Planeamiento).
+- `dN`, `hU`, `wLe` (nota de cada hoja del G-3), el tablero del G-2 (`nt.nota`) y `yU` (ayuda de cada
+  casilla): lo que explicaba queda apagado con `!1&&` (no se borra: se deshace byte por byte) o con
+  `display:"none"` en `Wr.nota`.
+
+### Qué NO se hizo
+
+- Ninguna hoja del Comandante ni del JEM tiene MODELO de la Escuela en el catálogo del formato militar
+  (`calcos/formato-militar/v1/catalogo.js`): son los cuadros del PMTD (Visión Horizontal). No se inventó
+  ninguno; se trabajan con su forma (campos, filas) y su Word de hoja. La Guía Inicial sale con el
+  formato militar de siempre (es la del G-3). Si la Escuela da el modelo de la Intención, de la Guía de
+  Planificación o de la Decisión, hay que sumarlo al catálogo y a `campos/cmte.js`.
+- Los datos que el Comandante tenía guardados en la tabla vieja de la Guía Inicial (`hojasG.cmte.guiaInicial`,
+  filas) quedan en el ejercicio pero ya no se ven: la hoja nueva lee `g3.guiaInicial`.
+- Siguen con algo de texto explicativo propio los editores de riesgo, reconocimiento y logística (y los
+  tableros del G-2 y G-3 salvo la nota de cada hoja): van por módulos aparte (`calcos/riesgo`,
+  `calcos/reconocimiento`, `calcos/logistica`).
+- Los Conceptos Entrelazados vistos desde el Comandante no reciben el expediente completo en su IA (el
+  tablero del G-3 sí): reciben la orden superior, los documentos aportados y el tablero (como en el panel
+  fuera del Tablero).
+
+### En el fuente
+
+- La hoja `guiaInicial` / `entrelazados` en `PLe`, la F7·P2, el `configurarEM` y los `!1&&` de `dN`,
+  `hU`, `wLe`, el tablero del G-2 y `yU`; `Wr.nota`.
+
+### Cómo se comprobó
+
+- `node calcos/pruebas/estado-mayor-mando.cjs` (21 casos): las hojas REALES del compilado (`PLe`,
+  `OLe`), 🌱 con las funciones REALES (`l3e`, `HD`, `WD`, `Pie`, `voe`), sin pisar ni duplicar, el pedido
+  de la IA (lo del JEM y las secciones, lo calculado, la doctrina, el formato) y lo que reciben las demás
+  secciones, el compilado.
+- `node calcos/pruebas/e2e/mando.cjs` (Chromium, escritorio y teléfono): los dos paneles, sin texto
+  explicativo, la Guía Inicial (🌱, IA, Word militar leído), los Conceptos Entrelazados con lo del G-3,
+  prioridad de RCIC., selección, decisión, cuadro de revisión, línea de tiempo, libreto, normas y rol; sin
+  errores de JavaScript.
+- Pasan `estado-mayor.cjs`, `estado-mayor-g5.cjs`, `prc.cjs` (se adaptó para aceptar la carpeta más nueva
+  del motor), `reemplazos-compilado.js` y los e2e de personal y G-5 (la guía viene plegada y las
+  instrucciones del modelo van en el placeholder).
+
 ## 2026-10-06 (3) — 🧭 F3·P3 Formación inicial de las fuerzas, en orden y sobre el terreno (`index-organizacion-20261006.js`)
 
 Parte de `index-prc-20261006.js`: trae todo eso y suma esto. Lo pidió Sergio con capturas de la

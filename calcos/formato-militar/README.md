@@ -41,6 +41,8 @@ Los borradores antiguos guardados en `ops.documentosMilitares` permanecen dispon
 | `HNe` Art. | Apéndice de apoyo de fuegos | Apéndice; requiere padre registrado |
 | `a4e` logística, engaño, reconocimiento, movimiento, calco | Modelo específico | Contenido del productor actual |
 | G-5 anexo sin modelo dedicado | Estructura nativa con formato militar común | Documento militar identificado; no se sustituye por otro plan |
+| Comandante `guiaInicial` F1·P6 (Mis hojas, `calcos/estado-mayor/v6`) | La misma Guía Inicial del G-3 (`guiaInicial`, siete partes; datos compartidos `g3.guiaInicial`) | Principal; formato militar de siempre |
+| Comandante y JEM: resto de hojas (Mis hojas, `calcos/estado-mayor/v6`) | Sin modelo de la Escuela en el catálogo: cuadro del PMTD con su Word de hoja | No se inventa plantilla |
 | Línea de tiempo, programa, conceptos, matrices y cálculos auxiliares | Formato propio de cada hoja | Sin diálogo ni plantilla militar |
 
 `v1/catalogo.js` conserva fuentes y SHA-256 de sus lecturas; contiene 26 clases (las versiones Markdown y Word duplicadas no cuentan como clases nuevas). Las instrucciones numeradas del modelo se conservan como instrucciones, no como contenido elaborado; se usan rótulos descriptivos para sus conclusiones. La sección VI Log. del modelo de movimiento se conserva como variante explícita. El modelo de misión está incompleto y no se impone a la hoja de misión reexpresada.

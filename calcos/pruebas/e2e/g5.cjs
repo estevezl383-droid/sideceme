@@ -123,6 +123,7 @@ const PROSA = fs.readFileSync(path.join(__dirname, '..', 'respuesta-prosa-g5.md'
       await clic(panel.getByRole('button', { name: /F2·P11.*Temas y mensajes/ }))
       const ayuda = panel.locator('[data-em="ayuda-hoja"]')
       await ayuda.waitFor()
+      await clic(ayuda.getByRole('button', { name: /¿Para qué es y cómo se llena\?/ })) // la guía viene plegada
       const ta = await ayuda.innerText()
       for (const t of ['¿Para qué es y cómo se llena?', 'SE DIFUNDE', 'intención del Comandante', 'Ejemplo:']) assert.ok(ta.includes(t), `guía de la F2·P11: falta «${t}»`)
       await clic(ayuda.getByRole('button', { name: '🌱 Traer del calco lo que falte' }))
@@ -173,7 +174,8 @@ const PROSA = fs.readFileSync(path.join(__dirname, '..', 'respuesta-prosa-g5.md'
       const ap = panel.locator('[data-em-doc="aprecActiva"]')
       await ap.waitFor({ timeout: 15000 })
       assert.equal(await page.getByText('Este documento reúne los datos vigentes del ejercicio.').count(), 0, 'ya no es una hoja que «se baja hecha»')
-      const cab = await ap.innerText()
+      // las instrucciones del modelo van de texto de ayuda en cada casilla (placeholder y título): menos texto en pantalla
+      const cab = (await ap.innerText()) + '\n' + (await ap.locator('textarea').evaluateAll((xs) => xs.map((x) => `${x.placeholder} ${x.title}`).join('\n')))
       for (const t of ['APRECIACIÓN DE SITUACIÓN DE AC/GM', 'I.- MISIÓN.', 'II.- SITUACIÓN Y CONSIDERACIONES DE AC/GM.', 'III.- ANÁLISIS.', 'IV.- COMPARACIÓN.', 'V.- CONCLUSIONES Y RECOMENDACIONES.', 'Situación de Inteligencia (Ver ASI.)', 'Población.', 'Número estimado de refugiados', 'Estimar el número de refugiados', 'Funciones especiales.', 'Ventajas y desventajas de cada CAP.', '✓ 18 recurso(s) del área (3 clasificados por el G-5)', '✓ 12.600 hab.', '✓ 3780 a evacuar', 'sobre el EPA', '+ Agregar curso de acción propio'])
         assert.ok(cab.includes(t), `editor de la apreciación: falta «${t}»`)
       assert.ok(await ap.getByRole('button', { name: '➡️ Trazar el eje humanitario' }).count(), 'el botón para acostar el eje humanitario')
@@ -248,7 +250,7 @@ const PROSA = fs.readFileSync(path.join(__dirname, '..', 'respuesta-prosa-g5.md'
       const ax = panel.locator('[data-em-doc="anexo"]')
       await ax.waitFor()
       const cx = await ax.innerText()
-      for (const t of ['Organización de la Tarea.', 'I.- SITUACIÓN.', 'Fuerzas propias.', 'Actitud de la población.', 'III.- EJECUCIÓN.', 'Concepto de Apoyo.', 'Tareas para los Equipos Funcionales.', 'V.- COMANDO Y COMUNICACIONES.', 'Es un ANEXO']) assert.ok(cx.includes(t), `editor del anexo: falta «${t}»`)
+      for (const t of ['Organización de la Tarea.', 'I.- SITUACIÓN.', 'Fuerzas propias.', 'Actitud de la población.', 'III.- EJECUCIÓN.', 'Concepto de Apoyo.', 'Tareas para los Equipos Funcionales.', 'V.- COMANDO Y COMUNICACIONES.']) assert.ok(cx.includes(t), `editor del anexo: falta «${t}»`)
       await clic(ax.getByRole('button', { name: '🌱 Traer del calco y de mis hojas lo que falte' }))
       await ax.getByText(/Se trajo:/).waitFor()
       const va = (await vals(ax)).join('\n')

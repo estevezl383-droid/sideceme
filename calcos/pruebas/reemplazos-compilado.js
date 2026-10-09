@@ -20,7 +20,8 @@
 //   index-trazos-20261003.js + reemplazos-2026-10-03-edicion.js = index-edicion-20261003.js
 //   index-edicion-20261003.js + reemplazos-2026-10-03-tablero-g4.js = index-tablero-g4-20261003.js
 //   index-tablero-g4-20261003.js + reemplazos-2026-10-06-prc.js = index-prc-20261006.js
-//   index-prc-20261006.js + reemplazos-2026-10-06-organizacion.js = index-organizacion-20261006.js (el vigente)
+//   index-prc-20261006.js + reemplazos-2026-10-06-organizacion.js = index-organizacion-20261006.js
+//   … (areas, frentes) … index-areas-20261009.js + reemplazos-2026-10-09-cmte-jem.js = index-cmte-jem-20261009.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -34,6 +35,11 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-09-cmte-jem'),
+    nombre: 'reemplazos-2026-10-09-cmte-jem',
+    anterior: 'e8d83db4e9a7257f267c32ce0cad1949ddb92571208ea78cf338fdf28623a5a0',
+  },
   {
     lista: require('./reemplazos-2026-10-09-frentes'),
     nombre: 'reemplazos-2026-10-09-frentes',
