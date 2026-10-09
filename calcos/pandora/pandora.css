@@ -256,3 +256,19 @@ body.sid-pandora .sid-pd-cap.on .tg{box-shadow:inset 0 1px 0 rgba(255,255,255,.1
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
   body.sid-pandora{--pd-vidrio:linear-gradient(160deg,rgba(8,36,52,.9),rgba(6,28,40,.78));--pd-vidrio-fuerte:var(--pd-vidrio)}
 }
+
+/* ---------- panel izquierdo flotando sobre el mapa (para que el vidrio deje ver el mapa) ----------
+   El mapa ocupa toda la pantalla y el panel va encima. Los controles del mapa que estaban
+   pegados a la izquierda se corren para no quedar tapados. Solo en pantalla ancha. */
+@media (min-width:821px){
+  body.sid-pandora .panel{
+    position:absolute;left:0;top:43px;bottom:0;z-index:1002;
+    width:312px;min-width:312px;max-height:none;
+    background:var(--pd-vidrio-fuerte);
+  }
+  body.sid-pandora .panel:before,body.sid-pandora .panel:after{display:none}
+  body.sid-pandora .con-puesto .botones-mapa,body.sid-pandora .botones-mapa{left:372px}
+  body.sid-pandora .leaflet-left .leaflet-control{margin-left:322px}
+  body.sid-pandora .contenedor-mapa>button[style*="1150"]{left:326px !important}
+  body.sid-pandora .maplibregl-ctrl-top-left,body.sid-pandora .maplibregl-ctrl-bottom-left{left:312px}
+}
