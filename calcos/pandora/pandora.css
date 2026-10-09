@@ -196,14 +196,14 @@ body.sid-pandora .botones-mapa [data-sid-g=mando][data-sid-i="6"]{width:114px;ri
    Para volver a paneles sólidos basta borrar este bloque. */
 body.sid-pandora{
   --pd-vidrio:
-    linear-gradient(120deg,rgba(255,255,255,.20) 0%,rgba(255,255,255,.05) 35%,rgba(255,255,255,0) 55%,rgba(255,255,255,.06) 100%),
+    linear-gradient(120deg,rgba(255,255,255,.10) 0%,rgba(255,255,255,.03) 35%,rgba(255,255,255,0) 55%,rgba(255,255,255,.03) 100%),
     linear-gradient(160deg,rgba(36,112,142,.58) 0%,rgba(12,52,74,.38) 55%,rgba(10,44,64,.20) 100%);
   --pd-vidrio-fuerte:
-    linear-gradient(120deg,rgba(255,255,255,.20) 0%,rgba(255,255,255,.05) 35%,rgba(255,255,255,0) 55%,rgba(255,255,255,.06) 100%),
-    linear-gradient(160deg,rgba(24,84,112,.76) 0%,rgba(8,42,60,.56) 55%,rgba(8,36,52,.34) 100%);
+    linear-gradient(120deg,rgba(255,255,255,.10) 0%,rgba(255,255,255,.03) 35%,rgba(255,255,255,0) 55%,rgba(255,255,255,.03) 100%),
+    linear-gradient(160deg,rgba(36,112,142,.58) 0%,rgba(12,52,74,.38) 55%,rgba(10,44,64,.20) 100%);
   --pd-borde-vidrio:rgba(200,248,255,.42);
   --pd-brillo:inset 0 1px 0 rgba(255,255,255,.55),inset 1px 0 0 rgba(255,255,255,.18),inset 0 0 0 1px rgba(255,255,255,.06),inset 0 -24px 40px rgba(70,240,208,.06);
-  --pd-blur:blur(18px) saturate(1.7) brightness(1.08);
+  --pd-blur:blur(18px) saturate(1.4);
 }
 body.sid-pandora .panel{
   background:var(--pd-vidrio-fuerte),radial-gradient(circle at 20% 90%,rgba(120,70,255,.14),transparent 50%);
@@ -212,7 +212,7 @@ body.sid-pandora .panel{
 }
 body.sid-pandora .panel .bloque,
 body.sid-pandora .bloque-ver>.ver-bloque{
-  background:linear-gradient(150deg,rgba(255,255,255,.12),rgba(255,255,255,.03) 60%,rgba(255,255,255,.01));
+  background:linear-gradient(150deg,rgba(255,255,255,.05),rgba(255,255,255,.015) 60%,rgba(255,255,255,0));
   border-color:var(--pd-borde-vidrio);
   box-shadow:var(--pd-brillo),0 6px 20px rgba(0,0,0,.25);
 }
@@ -223,8 +223,6 @@ body.sid-pandora .bloque-ver>.ver-bloque{
 body.sid-pandora .bloque-ver>.ver-bloque:nth-of-type(2){
   box-shadow:var(--pd-brillo),0 0 24px color-mix(in srgb,var(--gc) 30%,transparent),inset 0 0 18px color-mix(in srgb,var(--gc) 9%,transparent);
 }
-body.sid-pandora .con-puesto .botones-mapa,
-body.sid-pandora .botones-mapa,
 body.sid-pandora #sid-pd-der,
 body.sid-pandora .leyenda,
 body.sid-pandora #sid-pd-tab,
@@ -271,4 +269,17 @@ body.sid-pandora .sid-pd-cap.on .tg{box-shadow:inset 0 1px 0 rgba(255,255,255,.1
   body.sid-pandora .leaflet-left .leaflet-control{margin-left:322px}
   body.sid-pandora .contenedor-mapa>button[style*="1150"]{left:326px !important}
   body.sid-pandora .maplibregl-ctrl-top-left,body.sid-pandora .maplibregl-ctrl-bottom-left{left:312px}
+}
+
+/* La barra de herramientas es el padre de los botones G-1…G-5 (position:fixed). Un backdrop-filter
+   en ella los convertiría en hijos de la barra y se irían de lugar; por eso su vidrio va en un
+   ::before aparte (el padre queda sin filtro). */
+body.sid-pandora .con-puesto .botones-mapa,body.sid-pandora .botones-mapa{
+  background:transparent !important;isolation:isolate;
+  border-color:var(--pd-borde-vidrio) !important;
+  box-shadow:var(--pd-brillo),0 0 24px rgba(70,240,208,.10),0 10px 30px rgba(0,0,0,.35) !important;
+}
+body.sid-pandora .botones-mapa::before{
+  content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;
+  background:var(--pd-vidrio);-webkit-backdrop-filter:var(--pd-blur);backdrop-filter:var(--pd-blur);
 }
