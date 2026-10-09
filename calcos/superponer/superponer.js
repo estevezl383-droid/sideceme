@@ -1,6 +1,8 @@
 /*
  * 🧩 Superponer — tablero de capas superpuestas de la Mesa del EM.
  *
+ * Funciona en la carta 2D (Leaflet) y en la vista 3D (MapLibre).
+ *
  * Código aparte del compilado (como el Despliegue del TO y el Plan de fuegos).
  * NO toca el ejercicio: no guarda nada en él, no borra nada y no cambia las
  * fichas. Dibuja encima de la carta 2D lo que se cargue y lo deja activar y
@@ -93,6 +95,7 @@
 
   // ---------- dibujo ----------
   function dibujar(c) {
+    if (!mapa) { actualizar3D(); return }
     var L = window.L
     if (c.lg) { try { mapa.removeLayer(c.lg) } catch (e) {} }
     c.lg = L.layerGroup()
@@ -127,9 +130,123 @@
       if (g.visible) lg.addTo(c.lg)
     })
     if (c.visible) c.lg.addTo(mapa)
+    actualizar3D()
   }
   function redibujarTodo() { capas.forEach(function (c) { if (mapa) dibujar(c) }) ; claseRotulos() }
   function claseRotulos() { document.documentElement.classList.toggle('sidsup-sinrot', !mostrarRotulos()) }
+
+  // ---------- vista 3D (MapLibre, window.__map3d) ----------
+  // Las áreas, frentes y traslados van como capas de la vista 3D (se pegan al relieve);
+  // las unidades y los rótulos van como fichas HTML que siguen a la cámara.
+  var v3 = { map: null, cont: null, marcas: [], pend: true }
+  function geojson3D() {
+    var fs = []
+    capas.forEach(function (c) {
+      if (!c.visible) return
+      c.grupos.forEach(function (g) {
+        if (!g.visible) return
+        ;(g.elementos || []).forEach(function (el) {
+          var col = el.color || '#4f9cf0', sw = function (p) { return [p[1], p[0]] }
+          if (el.tipo === 'area' && el.coords && el.coords.length > 2) {
+            var ring = el.coords.map(sw); ring.push(ring[0])
+            fs.push({ type: 'Feature', properties: { k: 'area', col: col, op: c.opac }, geometry: { type: 'Polygon', coordinates: [ring] } })
+            if (el.frente && el.frente.length > 1) fs.push({ type: 'Feature', properties: { k: 'frente', col: '#e0443a', op: c.opac }, geometry: { type: 'LineString', coordinates: el.frente.map(sw) } })
+          } else if (el.tipo === 'linea' && el.coords && el.coords.length > 1) {
+            fs.push({ type: 'Feature', properties: { k: 'linea', col: col, op: c.opac }, geometry: { type: 'LineString', coordinates: el.coords.map(sw) } })
+          }
+        })
+      })
+    })
+    return { type: 'FeatureCollection', features: fs }
+  }
+  function capas3D() {
+    var m = v3.map
+    if (!m || !m.getStyle || !m.getStyle()) return false
+    var datos = geojson3D()
+    var src = m.getSource('sidsup3')
+    if (!src) {
+      m.addSource('sidsup3', { type: 'geojson', data: datos })
+      m.addLayer({ id: 'sidsup3-fill', type: 'fill', source: 'sidsup3', filter: ['==', ['get', 'k'], 'area'],
+        paint: { 'fill-color': ['get', 'col'], 'fill-opacity': ['*', 0.25, ['get', 'op']] } })
+      m.addLayer({ id: 'sidsup3-borde', type: 'line', source: 'sidsup3', filter: ['==', ['get', 'k'], 'area'],
+        paint: { 'line-color': ['get', 'col'], 'line-width': 2.5, 'line-opacity': ['get', 'op'], 'line-dasharray': [3, 2] } })
+      m.addLayer({ id: 'sidsup3-frente', type: 'line', source: 'sidsup3', filter: ['==', ['get', 'k'], 'frente'],
+        layout: { 'line-cap': 'round' }, paint: { 'line-color': '#e0443a', 'line-width': 5, 'line-opacity': ['get', 'op'] } })
+      m.addLayer({ id: 'sidsup3-linea', type: 'line', source: 'sidsup3', filter: ['==', ['get', 'k'], 'linea'],
+        paint: { 'line-color': ['get', 'col'], 'line-width': 2.5, 'line-opacity': ['*', 0.85, ['get', 'op']], 'line-dasharray': [3, 2] } })
+    } else src.setData(datos)
+    return true
+  }
+  function marcas3D() {
+    if (!v3.cont || !v3.map) return
+    v3.cont.innerHTML = ''; v3.marcas = []
+    var z = v3.map.getZoom(), comp = conf.compacto && z < ZOOM_DETALLE
+    var e = comp ? Math.max(0.8, conf.escala * 0.6) : conf.escala
+    capas.forEach(function (c) {
+      if (!c.visible) return
+      c.grupos.forEach(function (g) {
+        if (!g.visible) return
+        ;(g.elementos || []).forEach(function (el) {
+          var div = document.createElement('div'), pos
+          if (el.tipo === 'unidad' && el.ll) {
+            var s = simbolo(el.simbolo || 'inf', el.escalon || '', el.color || '#4f9cf0', e)
+            div.className = 'sidsup3-u'
+            div.style.opacity = c.opac
+            div.innerHTML = s.svg + (el.rotulo ? '<div class="sidsup-lbl3" style="left:' + (s.w + 3) + 'px;top:' + (s.top - 1) + 'px"><b>' + esc(el.rotulo) + '</b>' + (el.sub ? '<span>' + esc(el.sub) + '</span>' : '') + '</div>' : '')
+            if (el.info) div.title = el.info
+            pos = { ll: [el.ll[1], el.ll[0]], dx: -s.w / 2, dy: -(s.top + (s.h - s.top) / 2) }
+          } else if (el.tipo === 'area' && el.rotulo && el.coords && el.coords.length > 2) {
+            var sur = Infinity, oeste = Infinity
+            el.coords.forEach(function (p) { sur = Math.min(sur, p[0]); oeste = Math.min(oeste, p[1]) })
+            div.className = 'sidsup3-ao'
+            div.style.opacity = c.opac
+            div.innerHTML = '<b>' + esc(el.rotulo) + '</b>' + (el.sub ? '<span>' + esc(el.sub) + '</span>' : '')
+            pos = { ll: [oeste, sur], dx: 4, dy: 6 }
+          } else return
+          v3.cont.appendChild(div)
+          v3.marcas.push({ el: div, p: pos })
+        })
+      })
+    })
+    v3.comp = comp
+    ubicar3D()
+  }
+  function ubicar3D() {
+    var m = v3.map
+    if (!m || !v3.cont) return
+    var W = v3.cont.clientWidth, H = v3.cont.clientHeight
+    v3.cont.classList.toggle('sinrot', conf.rotulos === 'no' || (conf.rotulos === 'auto' && m.getZoom() < ZOOM_DETALLE))
+    for (var i = 0; i < v3.marcas.length; i++) {
+      var k = v3.marcas[i], pt
+      try { pt = m.project(k.p.ll) } catch (e) { pt = null }
+      if (!pt || !isFinite(pt.x) || pt.x < -200 || pt.y < -200 || pt.x > W + 200 || pt.y > H + 200) { k.el.style.display = 'none'; continue }
+      k.el.style.display = ''
+      k.el.style.transform = 'translate(' + Math.round(pt.x + k.p.dx) + 'px,' + Math.round(pt.y + k.p.dy) + 'px)'
+    }
+    var comp = conf.compacto && m.getZoom() < ZOOM_DETALLE
+    if (comp !== v3.comp) marcas3D()
+  }
+  function preparar3D(m) {
+    v3.map = m
+    v3.cont = document.createElement('div')
+    v3.cont.className = 'sidsup3d'
+    m.getContainer().appendChild(v3.cont)
+    m.on('render', ubicar3D)
+    m.on('styledata', function () { v3.pend = true })
+    v3.pend = true
+    actualizar3D()
+  }
+  function actualizar3D() {
+    if (!v3.map) return
+    try { if (capas3D()) v3.pend = false } catch (e) { v3.pend = true }
+    marcas3D()
+  }
+  function revisar3D() {
+    var m = window.__map3d
+    if (m && m !== v3.map) preparar3D(m)
+    else if (!m && v3.map) { v3.map = null; if (v3.cont) v3.cont.remove(); v3.cont = null; v3.marcas = [] }
+    else if (v3.map && (v3.pend || !v3.map.getSource('sidsup3'))) { try { if (capas3D()) v3.pend = false } catch (e) {} }
+  }
 
   // ---------- lectura de archivos ----------
   function normalizar(j, nombreArchivo) {
@@ -226,13 +343,15 @@
   }
 
   function zoomA(c) {
-    if (!mapa) return
+    if (!mapa && !v3.map) return
     var b = null
     c.grupos.forEach(function (g) { if (!g.visible) return; (g.elementos || []).forEach(function (el) {
       var pts = el.ll ? [el.ll] : (el.coords || [])
       pts.forEach(function (p) { b = b ? b.extend(p) : window.L.latLngBounds([p, p]) })
     }) })
-    if (b) mapa.fitBounds(b.pad(0.12), { maxZoom: 11 })
+    if (!b) return
+    if (mapa) mapa.fitBounds(b.pad(0.12), { maxZoom: 11 })
+    if (v3.map) { try { var p = b.pad(0.12); v3.map.fitBounds([[p.getWest(), p.getSouth()], [p.getEast(), p.getNorth()]], { maxZoom: 11, duration: 800 }) } catch (e) {} }
   }
 
   // ---------- interfaz ----------
@@ -295,21 +414,22 @@
       if (a === 'cerrar') abrir(false)
       if (a === 'cargar') input.click()
       if (a === 'zoom' && c) zoomA(c)
-      if (a === 'quitar' && c) { if (c.lg) mapa.removeLayer(c.lg); capas = capas.filter(function (x) { return x !== c }); if (c.preset) quitados[c.preset] = true; guardar(); pintar() }
+      if (a === 'quitar' && c) { if (c.lg) mapa.removeLayer(c.lg); capas = capas.filter(function (x) { return x !== c }); if (c.preset) quitados[c.preset] = true; guardar(); pintar(); actualizar3D() }
     })
     tab.addEventListener('change', function (e) {
       var t = e.target, a = t.getAttribute('data-a'), cel = t.closest('[data-c]'), c = cel && capas.filter(function (x) { return x.id === cel.getAttribute('data-c') })[0]
-      if (a === 'ver' && c) { c.visible = t.checked; if (c.lg) { c.visible ? c.lg.addTo(mapa) : mapa.removeLayer(c.lg) } cel.classList.toggle('off', !c.visible) }
+      if (a === 'ver' && c) { c.visible = t.checked; if (c.lg) { c.visible ? c.lg.addTo(mapa) : mapa.removeLayer(c.lg) } cel.classList.toggle('off', !c.visible); actualizar3D() }
       if (a === 'grupo' && c) {
         var g = c.grupos.filter(function (x) { return x.id === t.getAttribute('data-g') })[0]
         g.visible = t.checked
         var lg = c.capasGrupo && c.capasGrupo[g.id]
         if (lg) { g.visible ? lg.addTo(c.lg) : c.lg.removeLayer(lg) }
+        actualizar3D()
       }
       if (a === 'opac' && c) { c.opac = +t.value; dibujar(c) }
-      if (a === 'escala') { conf.escala = +t.value; redibujarTodo(); pintar() }
-      if (a === 'rot') { conf.rotulos = t.value; claseRotulos() }
-      if (a === 'comp') { conf.compacto = t.checked; ultimoCompacto = null; alZoom() }
+      if (a === 'escala') { conf.escala = +t.value; redibujarTodo(); marcas3D(); pintar() }
+      if (a === 'rot') { conf.rotulos = t.value; claseRotulos(); ubicar3D() }
+      if (a === 'comp') { conf.compacto = t.checked; ultimoCompacto = null; alZoom(); marcas3D() }
       guardar()
     })
     tab.addEventListener('input', function (e) {
@@ -358,7 +478,8 @@
     try {
       var m = window.__mapa2d
       if (m && m !== mapa && window.L) prepararMapa(m)
-      if (btn) btn.hidden = !mapa
+      revisar3D()
+      if (btn) btn.hidden = !mapa && !v3.map
       engancharEjercicios()
       var nom = nombreEjercicio()
       PRESETS.forEach(function (p) {
