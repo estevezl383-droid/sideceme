@@ -31,7 +31,8 @@ const NOMBRES = [
   'SIDEditaVertices', 'SIDAjustaAO', 'SIDMinimo', 'SIDMagSinLimite', 'SIDMagSinZona', 'SIDEscalonesAO', 'SIDOpEsc', 'SIDCLAVES',
   'Nm', 'zK', 'fF', 'pF', 'w5', 'QI', 'JI', 'LK', 'jK', 'dF', 'ah', 'hF', '_5', 'Uye', 'bb', 'oF', 'lF', 'uF', 'cF',
 ]
-const C = cargar(vigente(), NOMBRES.concat(['sF', 'PK']), { Rt: {} })
+// SIDdT y SIDkm: el cuadro de frentes y profundidades del PMTD 2017 (reemplazos-2026-10-09-frentes).
+const C = cargar(vigente(), NOMBRES.concat(['sF', 'PK', 'SIDdT', 'SIDkm']), { Rt: {} })
 // Lo que sale del compilado se crea en otro «reino» de Node: se compara como JSON.
 const J = (x) => (x === undefined ? undefined : JSON.parse(JSON.stringify(x)))
 const { SIDEditaVertices: ed, SIDMagSinLimite: sinLimite, SIDMagSinZona: sinZona, SIDEscalonesAO: escalones, SIDOpEsc: opEsc } = C

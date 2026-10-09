@@ -6,14 +6,16 @@
 //   ① Lo que se considera: la misión reexpresada y la intención del Comandante superior,
 //      las avenidas de aproximación y los cursos de acción del enemigo (del más probable
 //      al más peligroso) con sus objetivos.
-//   ② Las TAREAS TÁCTICAS en la carta (ops.tareas del calco) y a cada una su operación:
-//      OD (operación decisiva, el esfuerzo principal, en el punto decisivo) y OC 1, OC 2…
-//      (operaciones de configuración, los esfuerzos secundarios); con su «T: …».
-//   ③ Para CADA tarea, empezando por la OD, la PROPORCIÓN requerida frente al enemigo
-//      ubicado en ese sector → cuántas unidades genéricas hacen falta.
-//   ④ Las UNIDADES GENÉRICAS (los triángulos y cuadrados de la Figura 6 del EAA-15-29),
-//      dos niveles abajo, de lo que hay: lo que sobra va a una agrupación aparte (la
-//      reserva); lo que falta es un requerimiento de recursos adicionales.
+//   ② Las TAREAS TÁCTICAS en la carta (ops.tareas del calco): varias, cada una con su
+//      orientación y su «T: …».
+//   ③ Las FUERZAS de cada tarea: para cada una, la PROPORCIÓN requerida frente al enemigo
+//      ubicado en ese sector → cuántas unidades genéricas hacen falta; y las UNIDADES
+//      GENÉRICAS (los triángulos y cuadrados de la Figura 6 del EAA-15-29, dos niveles
+//      abajo) de lo que hay, por tipo y cantidad (infantería, caballería, ingeniería,
+//      comunicaciones…): quedan junto a su tarea en la carta. Lo que sobra va a una
+//      agrupación aparte (la reserva); lo que falta es un requerimiento.
+//   ④ Recién entonces, cuál es la OD (operación decisiva, el esfuerzo principal, en el punto
+//      decisivo) y cuáles las OC 1, OC 2… (operaciones de configuración).
 //   ⑤ La forma gráfica de la organización (cajas por operación y «bajo control»).
 //   ⑥ La Organización de la Tarea (el panel 🧩 de siempre): las agrupaciones salen de
 //      acá con su operación, su tarea y sus piezas; ahí se les pone el nombre y el
@@ -38,9 +40,15 @@ export const OPERACIONES = [
   { id: 'oc1', corto: 'OC 1', nom: 'Operación de Configuración 1 (esfuerzo secundario)', titulo: 'OPERACIÓN DE CONFIGURACIÓN 1', color: '#5c9dff' },
   { id: 'oc2', corto: 'OC 2', nom: 'Operación de Configuración 2 (esfuerzo secundario)', titulo: 'OPERACIÓN DE CONFIGURACIÓN 2', color: '#5c9dff' },
   { id: 'oc3', corto: 'OC 3', nom: 'Operación de Configuración 3 (esfuerzo secundario)', titulo: 'OPERACIÓN DE CONFIGURACIÓN 3', color: '#5c9dff' },
+  { id: 'oc4', corto: 'OC 4', nom: 'Operación de Configuración 4 (esfuerzo secundario)', titulo: 'OPERACIÓN DE CONFIGURACIÓN 4', color: '#5c9dff' },
+  { id: 'oc5', corto: 'OC 5', nom: 'Operación de Configuración 5 (esfuerzo secundario)', titulo: 'OPERACIÓN DE CONFIGURACIÓN 5', color: '#5c9dff' },
   { id: 'sost', corto: 'SOST', nom: 'Operación de Sostenimiento', titulo: 'OPERACIÓN DE SOSTENIMIENTO', color: '#7dffb0' },
 ]
 export const RESERVA = { id: 'reserva', corto: 'RES', nom: 'Reserva (lo que sobra)', titulo: 'RESERVA', color: '#c69cff' }
+// Una tarea que todavía no se designó (OD / OC): entra igual en la organización.
+export const SIN_DESIGNAR = { id: '', corto: 'T', nom: 'Sin designar todavía (OD / OC)', titulo: 'TAREA SIN DESIGNAR', color: '#9fb0c8' }
+// La que no entra en la organización (p. ej. una tarea del análisis de la misión).
+export const FUERA = 'fuera'
 export const operacionDe = (id) => OPERACIONES.find((o) => o.id === id) || (id === 'reserva' ? RESERVA : null)
 const ordenOp = (id) => {
   const i = OPERACIONES.findIndex((o) => o.id === id)
@@ -217,19 +225,21 @@ export function flujoNormal(f) {
 export const oiDe = (t) => (t && t.oi && typeof t.oi === 'object' ? t.oi : {})
 export const nuevoId = (pre = 'oi') => `${pre}-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
 
-// Las tareas del calco que entran en la organización (con operación), en el orden de la
-// doctrina: la OD primero y después las OC.
-export function tareasConOperacion(ops) {
-  return (ops?.tareas || [])
-    .map((t, i) => ({ t, i }))
-    .filter(({ t }) => t?.centro && operacionDe(oiDe(t).operacion) && oiDe(t).operacion !== 'reserva')
-    .sort((a, b) => ordenOp(oiDe(a.t).operacion) - ordenOp(oiDe(b.t).operacion) || a.i - b.i)
+// Las tareas del calco que entran en la organización: TODAS (designadas o no), menos las que
+// se marcaron «no entra». Primero las designadas, en el orden de la doctrina (la OD, después
+// las OC); después las que faltan designar, en el orden en que se pusieron. `n` es el número
+// de la tarea en ese orden de colocación (T1, T2…), para nombrarla antes de designarla.
+export function tareasDeLaOrganizacion(ops) {
+  const lista = (ops?.tareas || []).map((t, i) => ({ t, i })).filter(({ t }) => t?.centro && oiDe(t).operacion !== FUERA && oiDe(t).operacion !== 'reserva')
+  lista.forEach((x, k) => (x.n = k + 1))
+  return lista.sort((a, b) => ordenOp(oiDe(a.t).operacion) - ordenOp(oiDe(b.t).operacion) || a.i - b.i)
 }
-// La próxima operación libre para una tarea nueva: la OD si no hay, después OC 1, OC 2…
+export const tareasConOperacion = tareasDeLaOrganizacion
+// La próxima operación libre (para designar en orden): la OD si no hay, después OC 1, OC 2…
 export function proximaOperacion(ops) {
   const usadas = new Set((ops?.tareas || []).map((t) => oiDe(t).operacion).filter(Boolean))
   for (const o of OPERACIONES) if (o.id !== 'sost' && !usadas.has(o.id)) return o.id
-  return 'oc3'
+  return ''
 }
 
 // ─── El enemigo de cada sector, la proporción y lo que se requiere ──────────────────
@@ -279,9 +289,10 @@ export function balance({ ops, g3, unidades }, simb) {
     }
     return out
   }
-  const tareas = tareasConOperacion(ops).map(({ t, i }) => {
+  const tareas = tareasDeLaOrganizacion(ops).map(({ t, i, n }) => {
     const oi = oiDe(t)
-    const op = operacionDe(oi.operacion)
+    const designada = operacionDe(oi.operacion)
+    const op = designada || { ...SIN_DESIGNAR, corto: `T${n}` }
     const sug = proporcionSugerida(t.tarea, tipoOp)
     const prop = proporcionDe(oi.proporcion) || proporcionDe(sug.id)
     const enemigo = enemigoDelSector(t, unidades, G, simb)
@@ -289,7 +300,7 @@ export function balance({ ops, g3, unidades }, simb) {
     const asignadas = vigentes(oi.piezas)
     const disp = asignadas.reduce((s, p) => s + pesoPieza(p, G), 0)
     const nivel = !(enemigo.gen > 0) ? 'sin-enemigo' : disp + 1e-9 >= req ? (disp > req + 1e-9 ? 'sobra' : 'ok') : 'falta'
-    return { t, i, oi, op, prop, propSugerida: sug, enemigo, requeridas: req, piezas: asignadas, dispuestas: disp, falta: Math.max(0, req - disp), sobra: Math.max(0, disp - req), nivel }
+    return { t, i, n, oi, op, designada: !!designada, prop, propSugerida: sug, enemigo, requeridas: req, piezas: asignadas, dispuestas: disp, falta: Math.max(0, req - disp), sobra: Math.max(0, disp - req), nivel }
   })
   const reserva = vigentes(flujo.reserva.piezas)
   const libres = piezas.filter((p) => !usadas.has(p.id))
@@ -362,13 +373,23 @@ export function moverPieza({ ops, flujo }, pieza, destino) {
 
 // ─── Textos ──────────────────────────────────────────────────────────────────────────
 const unirNombres = (xs) => (xs.length <= 1 ? xs.join('') : `${xs.slice(0, -1).join(', ')} y ${xs[xs.length - 1]}`)
+// Las tareas cuyo objeto es el ENEMIGO (el «T:» nombra al enemigo de su sector); las del
+// terreno nombran el objetivo; las de movimiento de las tropas propias (seguir y asumir,
+// sobrepasar…) no nombran al enemigo: su objeto es una fuerza propia o un lugar.
+const OBJETO_ENEMIGO = ['atacar_fuego', 'reducir', 'contrareconocer', 'destruir', 'derrotar', 'limpiar']
+const CAT_LOCAL = { bloquear: 'enemigo', canalizar: 'enemigo', contener: 'enemigo', derrotar: 'enemigo', destruir: 'enemigo', desorganizar: 'enemigo', fijar: 'enemigo', interdictar: 'enemigo', aislar: 'enemigo', neutralizar: 'enemigo', suprimir: 'enemigo', desviar: 'enemigo', controlar: 'terreno', ocupar: 'terreno', mantener: 'terreno', asegurar: 'terreno', conquistar: 'terreno' }
 export function textoSugerido(tarea, { unidades, objetivos }, simb) {
   const nom = simb.nombreTarea(tarea?.tarea) || 'Tarea'
-  const ids = new Set(oiDe(tarea).enemigos || [])
-  const en = unidadesEnemigas(unidades).filter((u) => ids.has(u.id)).map((u) => simb.rotulo(u))
+  const cat = (simb.catTarea && simb.catTarea(tarea?.tarea)) || CAT_LOCAL[tarea?.tarea] || 'amigas'
   const ob = tarea?.centro ? objetivoCercano(tarea.centro, objetivos) : null
-  const donde = ob && ob.d <= radioSector(tarea.escalon) * 1.5 && ob.o.etiqueta ? ` en el objetivo «${ob.o.etiqueta}»` : ''
-  return `${nom}${en.length ? ` a ${unirNombres(en)}` : ''}${donde}`
+  const cerca = ob && ob.d <= radioSector(tarea.escalon) * 1.5 && ob.o.etiqueta ? ob.o.etiqueta : ''
+  if (cat === 'enemigo' || OBJETO_ENEMIGO.includes(tarea?.tarea)) {
+    const ids = new Set(oiDe(tarea).enemigos || [])
+    const en = unidadesEnemigas(unidades).filter((u) => ids.has(u.id)).map((u) => simb.rotulo(u))
+    return `${nom}${en.length ? ` a ${unirNombres(en)}` : ' al enemigo'}${cerca ? ` en el objetivo «${cerca}»` : ''}`
+  }
+  if (cat === 'terreno') return `${nom} ${cerca ? `el objetivo «${cerca}»` : 'las elevaciones en Coord (……)'}`
+  return `${nom} a …`
 }
 export function resumenPiezas(piezas, G, simb) {
   const cuenta = new Map()
@@ -404,7 +425,7 @@ export function filasCuadro({ ops, g3, unidades }, simb) {
     const apo = x.piezas.filter((p) => !esManiobra(p))
     const texto = String(x.oi.texto || '').trim() || textoSugerido(x.t, { unidades, objetivos: ops?.objetivos }, simb)
     filas.push({
-      Operación: `${x.op.corto} — ${x.op.nom}`,
+      Operación: x.designada ? `${x.op.corto} — ${x.op.nom}` : `${x.op.corto} — sin designar todavía (OD / OC)`,
       'Agrupación / unidad genérica': man.length || apo.length
         ? [man.length ? `${genericas(x.dispuestas, G)} de maniobra (${resumenPiezas(man, G, simb).join(', ')})` : 'Sin unidades de maniobra', apo.length ? `con ${resumenPiezas(apo, G, simb).join(', ')}` : ''].filter(Boolean).join(' ')
         : 'Sin unidades dispuestas todavía.',
@@ -473,7 +494,7 @@ export function formaGrafica(bal, { unidades, orgTarea }, simb) {
   const nombreAg = (agId) => String(((orgTarea || []).find((a) => a.id === agId) || {}).nombre || '').trim()
   const cajas = bal.tareas.map((x) => ({
     clave: x.oi.id,
-    titulo: x.op.titulo,
+    titulo: x.designada ? x.op.titulo : `TAREA ${x.n} (SIN DESIGNAR)`,
     corto: x.op.corto,
     color: x.op.color,
     escalon: bal.agrupacionEscalon,
@@ -501,7 +522,7 @@ export function sincronizarOrganizacion({ ops, flujo, orgTarea }, bal) {
   const actualizadas = []
   const enlazar = (agIdPrevio, operacion, datos) => {
     let ag = agIdPrevio ? org.find((a) => a.id === agIdPrevio) : null
-    if (!ag) ag = org.find((a) => a.operacion === operacion && !tomadas.has(a.id) && !Object.values(vinculos).includes(a.id) && !esVinculada(a.id))
+    if (!ag && operacion) ag = org.find((a) => a.operacion === operacion && !tomadas.has(a.id) && !Object.values(vinculos).includes(a.id) && !esVinculada(a.id))
     if (ag) {
       Object.assign(ag, datos)
       actualizadas.push(ag.id)
@@ -517,6 +538,7 @@ export function sincronizarOrganizacion({ ops, flujo, orgTarea }, bal) {
   const vinculadasEnOps = new Set((ops?.tareas || []).map((t) => oiDe(t).agId).filter(Boolean))
   const esVinculada = (id) => vinculadasEnOps.has(id) || id === f.reserva.agId
   for (const x of bal.tareas) vinculos[x.oi.id] = enlazar(x.oi.agId, x.op.id, { operacion: x.op.id, tarea: x.t.tarea, piezas: x.piezas.map(sinGrupo) })
+  // (una tarea sin designar no reusa ninguna agrupación «por operación»: sólo la suya)
   let reservaAgId = f.reserva.agId
   if (bal.reserva.length) reservaAgId = enlazar(f.reserva.agId, 'reserva', { operacion: 'reserva', piezas: bal.reserva.map(sinGrupo) })
   // Un elemento pertenece a una sola organización.
@@ -585,12 +607,16 @@ export function revisar(bal, { picb, ops, cmoc, g3, ordenSup }) {
   if (!(ops?.objetivos || []).length) avisos.push({ paso: 1, txt: 'No hay objetivos del enemigo en el calco (H.T. 16).' })
   if (!avenidas(cmoc).total) avisos.push({ paso: 1, txt: 'No hay avenidas de aproximación en el calco.' })
   if (!misionReexpresada(g3, ordenSup)) avisos.push({ paso: 1, txt: 'Falta la misión reexpresada (F2·P12).' })
-  if (!bal.tareas.length) avisos.push({ paso: 2, txt: 'Ninguna tarea táctica de la carta tiene operación (OD / OC).' })
-  else if (!bal.tareas.some((x) => x.op.id === 'od')) avisos.push({ paso: 2, txt: 'Falta la OPERACIÓN DECISIVA: es la primera que se dispone, en el punto decisivo.' })
+  if (!bal.tareas.length) avisos.push({ paso: 2, txt: 'No hay tareas tácticas en la carta para la organización.' })
   for (const x of bal.tareas) if (x.nivel === 'sin-enemigo') avisos.push({ paso: 3, txt: `${x.op.corto}: sin enemigo en su sector (la proporción no se puede calcular).` })
-  for (const x of bal.tareas) if (x.nivel === 'falta') avisos.push({ paso: 4, txt: `${x.op.corto}: faltan ${genericas(x.falta, bal.G)} para llegar a ${x.prop.id}.` })
-  if (bal.libresManiobra.length) avisos.push({ paso: 4, txt: `Quedan ${bal.libresManiobra.length} pieza(s) de maniobra sin repartir: van a la reserva (agrupación aparte).` })
-  if (bal.deficiencia > 0) avisos.push({ paso: 4, txt: `Lo requerido supera lo disponible en ${redondo(bal.deficiencia)}: es un posible requerimiento de recursos adicionales.` })
+  for (const x of bal.tareas) if (x.nivel === 'falta') avisos.push({ paso: 3, txt: `${x.op.corto}: faltan ${genericas(x.falta, bal.G)} para llegar a ${x.prop.id}.` })
+  const sinDesignar = bal.tareas.filter((x) => !x.designada).length
+  if (sinDesignar) avisos.push({ paso: 4, txt: `${sinDesignar} tarea(s) sin designar todavía (OD / OC).` })
+  if (bal.tareas.length && !bal.tareas.some((x) => x.op.id === 'od')) avisos.push({ paso: 4, txt: 'Falta la OPERACIÓN DECISIVA: el esfuerzo principal, en el punto decisivo.' })
+  const ods = bal.tareas.filter((x) => x.op.id === 'od').length
+  if (ods > 1) avisos.push({ paso: 4, txt: `Hay ${ods} tareas como OD: si no las cumple la misma agrupación, una de ellas es una OC.` })
+  if (bal.libresManiobra.length) avisos.push({ paso: 3, txt: `Quedan ${bal.libresManiobra.length} pieza(s) de maniobra sin repartir: van a la reserva (agrupación aparte).` })
+  if (bal.deficiencia > 0) avisos.push({ paso: 3, txt: `Lo requerido supera lo disponible en ${redondo(bal.deficiencia)}: es un posible requerimiento de recursos adicionales.` })
   return avisos
 }
 
@@ -610,4 +636,157 @@ export function avenidas(cmoc) {
 export function misionReexpresada(g3, ordenSup) {
   const m = (g3 && g3.mision) || {}
   return String(m['ENUNCIADO COMPLETO DE LA MISIÓN'] || '').trim() || String((ordenSup && ordenSup.mision) || '').trim()
+}
+
+// ─── Las fuerzas de una tarea por TIPO y CANTIDAD (infantería, caballería, ingeniería…) ──
+// Los tipos de pieza que hay (de todas las unidades propias), con las libres de cada uno.
+export function tiposDisponibles(bal, simb) {
+  const tipos = new Map()
+  for (const p of bal.piezas) {
+    if (!tipos.has(p.simbolo)) tipos.set(p.simbolo, { simbolo: p.simbolo, nom: simb.nomDe ? simb.nomDe(p.simbolo) : simb.cortoDe(p.simbolo), corto: simb.cortoDe(p.simbolo), grupo: p.grupo, total: 0, libres: [] })
+    tipos.get(p.simbolo).total++
+  }
+  const libres = new Set(bal.libres.map((p) => p.id))
+  for (const p of bal.piezas) if (libres.has(p.id)) tipos.get(p.simbolo).libres.push(p)
+  const orden = { maniobra: 0, apoyo: 1, aviacion: 2, servicios: 3 }
+  return [...tipos.values()].sort((a, b) => (orden[a.grupo] ?? 9) - (orden[b.grupo] ?? 9) || a.nom.localeCompare(b.nom))
+}
+// La pieza libre de ese tipo que conviene agregarle a la tarea: de una unidad que ya le da
+// algo (para no partir las unidades) o, si no, de la que tiene más libres de ese tipo.
+export function piezaParaAgregar(bal, x, simbolo) {
+  const libres = bal.libres.filter((p) => p.simbolo === simbolo)
+  if (!libres.length) return null
+  const madres = new Set((x?.piezas || []).map((p) => p.de))
+  const misma = libres.find((p) => madres.has(p.de))
+  if (misma) return misma
+  const cuenta = {}
+  for (const p of libres) cuenta[p.de] = (cuenta[p.de] || 0) + 1
+  const mayor = Object.keys(cuenta).sort((a, b) => cuenta[b] - cuenta[a])[0]
+  return libres.find((p) => String(p.de) === mayor) || libres[0]
+}
+export function piezaParaQuitar(x, simbolo) {
+  const de = (x?.piezas || []).filter((p) => p.simbolo === simbolo)
+  return de.length ? de[de.length - 1] : null
+}
+// De qué unidades salen las piezas de una tarea: «RIM-8 «AYACUCHO»: 2 Cía.».
+export function origenDePiezas(piezas, unidades, simb) {
+  const porMadre = new Map()
+  for (const p of piezas || []) porMadre.set(p.de, [...(porMadre.get(p.de) || []), p])
+  const out = []
+  for (const [de, ps] of porMadre) {
+    const u = (unidades || []).find((x) => x && x.id === de)
+    out.push({ de, nombre: u ? simb.rotulo(u) : String(ps[0].madre || de), cantidad: cantidad(ps.length, escalonNormal(ps[0].escalon) || 'compania', { corto: true }) })
+  }
+  return out
+}
+
+// ─── Las unidades de la Orden (el orden de batalla / la organización de la tarea) ──────
+// Lee de un texto (el de un documento del ejercicio o lo que se pegue) las unidades como
+// «RCB-1 "CALAMA"», «RIM-8 "AYACUCHO"», «BATING. MEC.- II "ROMAN"», «BAT. LOG. - I
+// "HEROICAS RABONAS"», «COMP. ICIA. - I "USTARIZ"», «Comp. Av. Ejto. "Cnl. Lopez"», con el
+// arma y el escalón que dice su sigla, y cuántas subunidades de combate tiene si las lista
+// debajo (sin la de comando ni la de C y S). Lo que no se pueda saber queda para revisar.
+const COMILLAS = /[“”«»„‟"]/g
+const SUBUNIDAD = /^(comp\.?|c[ií]a\.?|edr[oó]n\.?|erm\.?|esc\.?|bat\.?|secc\.?|btr[ií]a\.?)\s/i
+const NO_COMBATE = /c\s*y\s*s|cmdo|comando|plana mayor/i
+function clasificar(designacion, subunidades = []) {
+  const toks = designacion.toUpperCase().replace(/[“”"]/g, '').split(/[\s.\-]+/).filter(Boolean).filter((t) => !/^(\d+|[IVXL]+)$/.test(t))
+  const t0 = toks[0] || ''
+  const todo = toks.join(' ')
+  const sub = subunidades.join(' ').toUpperCase()
+  let escalon = 'batallon'
+  let arma = ''
+  let duda = ''
+  if (/^R[A-Z]{0,5}$/.test(t0)) {
+    escalon = 'regimiento'
+    const r = t0.slice(1)
+    // «AT» en la infantería: la Mesa llama «INF AT» a la aerotransportada (sus compañías son de
+    // infantería: «Comp. Inf. AT.»); si fuera antitanque, se cambia el arma al revisar.
+    if (/^IAT/.test(r)) (arma = 'aerotransportada'), (duda = 'RIAT: ¿infantería aerotransportada («INF AT») o antitanque? Revisá el arma.')
+    else if (/^I/.test(r)) arma = /^IM(?!T)/.test(r) ? 'mecanizada' : /^IMT|^IMOT/.test(r) ? 'motorizada' : /^IA|^IAN|^IMN/.test(r) ? 'andina' : /^IS/.test(r) ? 'selva' : 'infanteria'
+    else if (/^C/.test(r)) arma = /TQ/.test(sub) ? 'blindada' : /^CM/.test(r) || (/ERM/.test(sub) && !/TQ/.test(sub)) ? 'cabmec' : 'caballeria'
+    else if (/^AA/.test(r)) arma = 'antiaerea'
+    else if (/^A/.test(r)) arma = 'artilleria'
+    else if (/^ING/.test(r)) arma = 'ingenieria'
+    else if (/^COM/.test(r)) arma = 'comunicaciones'
+    else if (/^LOG/.test(r)) arma = 'logistica'
+    else if (/^B/.test(r)) arma = 'blindada'
+  } else {
+    if (/^(COMP|CIA|CÍA|C)$/.test(t0)) escalon = 'compania'
+    else if (/^(ESC|EDRON|EDRÓN)$/.test(t0)) escalon = 'compania'
+    else if (/^SECC$/.test(t0)) escalon = 'seccion'
+    else if (/^G/.test(t0)) escalon = 'batallon'
+    if (/ING/.test(todo)) arma = 'ingenieria'
+    else if (/LOG/.test(todo)) arma = 'logistica'
+    else if (/\bCOM\b|TELECOM/.test(todo)) arma = 'comunicaciones'
+    else if (/ICIA|INTEL|INT\b/.test(todo)) arma = 'inteligencia'
+    else if (/\bAV\b|AVIAC|HEL/.test(todo)) arma = 'aviacion'
+    else if (/^GAA|\bAA\b|ANTIA/.test(todo)) arma = 'antiaerea'
+    else if (/^GA|ART/.test(todo)) arma = 'artilleria'
+    else if (/SAN/.test(todo)) arma = 'sanidad'
+    else if (/\bPM\b|POLIC/.test(todo)) arma = 'policiamilitar'
+    else if (/MEC/.test(todo) && /INF/.test(todo)) arma = 'mecanizada'
+    else if (/INF/.test(todo)) arma = 'infanteria'
+    else if (/CAB|ERM|TQ/.test(todo)) arma = 'caballeria'
+  }
+  return { escalon, arma, duda }
+}
+export function leerOrdenDeBatalla(texto) {
+  const lineas = String(texto || '').replace(COMILLAS, '"').split(/\r?\n|\t/).map((l) => l.replace(/\s+/g, ' ').trim()).filter(Boolean)
+  const cab = /^([A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñ.\s-]{0,26}?(?:[-\s]*(?:\d+|[IVXL]+))?)\s*"([^"]{2,40})"\s*$/
+  const encontradas = []
+  let actual = null
+  let seguidas = 0
+  for (const l of lineas) {
+    const m = cab.exec(l)
+    const esCab = m && !/^[A-Z]$/.test(m[2].trim()) && /^(R[A-Z]{0,5}\b|BAT|B[A-Z]{2,5}\b|G[A-Z]{1,3}\b|COMP|C[IÍ]A|ESC|EDR|SECC)/i.test(m[1].trim()) && !(SUBUNIDAD.test(m[1].trim() + ' ') && /^[A-Z]$/.test(m[2].trim()))
+    if (esCab) {
+      const designacion = `${m[1].trim().replace(/\s+/g, ' ')} «${m[2].trim()}»`
+      if (!encontradas.some((u) => u.designacion === designacion)) {
+        actual = { designacion, subunidades: [] }
+        encontradas.push(actual)
+      } else actual = null
+      seguidas++
+      continue
+    }
+    // Varias cabeceras seguidas (una fila de la tabla): las subunidades de abajo no se pueden
+    // repartir con seguridad entre ellas.
+    if (seguidas > 1) {
+      for (const u of encontradas.slice(-seguidas)) u.mezcladas = true
+    }
+    seguidas = 0
+    if (actual && !actual.mezcladas && SUBUNIDAD.test(l + ' ')) actual.subunidades.push(l)
+  }
+  return encontradas.map((u) => {
+    const { escalon, arma, duda } = clasificar(u.designacion, u.subunidades)
+    const combate = u.mezcladas ? [] : u.subunidades.filter((x) => !NO_COMBATE.test(x))
+    // De qué escalón son sus piezas, por lo que dice su cuadro: «Comp.», «Edrón.», «Bat.»
+    // (batería) son compañías; «Secc.», secciones.
+    const escalonPiezas = combate.length ? (combate.every((x) => /^secc/i.test(x)) ? 'seccion' : 'compania') : ''
+    const nota = duda || (!arma ? 'No pude saber el arma por la sigla: elegila.' : !combate.length ? 'No encontré sus subunidades: revisá cuántas piezas son.' : '')
+    return { designacion: u.designacion, arma: arma || 'infanteria', escalon, piezas: combate.length || 3, subunidades: u.mezcladas ? [] : u.subunidades, escalonPiezas, revisar: !!nota, nota }
+  })
+}
+// Dónde van las fichas nuevas: en filas, a partir de `base` ([lng, lat]), hacia el sur.
+export function ubicarNuevas(lista, base, { porFila = 4, paso = 0.012 } = {}) {
+  return lista.map((u, i) => ({ ...u, lng: Math.round((base[0] + (i % porFila) * paso) * 1e6) / 1e6, lat: Math.round((base[1] - Math.floor(i / porFila) * paso) * 1e6) / 1e6 }))
+}
+
+// ¿Ya está en el calco? Por la sigla («RIM-8» = «RIM 8» = «rim8») o por el nombre entre
+// comillas («AYACUCHO»), contra la designación de las fichas propias.
+const sinAcentos = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '')
+export function claveUnidad(designacion) {
+  const s = sinAcentos(designacion).toUpperCase().replace(/[“”«»„‟"']/g, '"')
+  const [sigla, nombre = ''] = s.split('"')
+  return { sigla: sigla.replace(/[^A-Z0-9]/g, ''), nombre: nombre.replace(/[^A-Z0-9]/g, '') }
+}
+export function yaEnElCalco(u, unidades) {
+  const a = claveUnidad(u.designacion)
+  return (unidades || []).some((x) => {
+    if (!esPropia(x)) return false
+    const d = sinAcentos(x.designacion).toUpperCase()
+    const b = claveUnidad(x.designacion)
+    const plano = d.replace(/[^A-Z0-9]/g, '')
+    return (a.sigla && (b.sigla === a.sigla || (plano.startsWith(a.sigla) && !/^\d/.test(plano.slice(a.sigla.length))))) || (a.nombre.length >= 4 && plano.includes(a.nombre))
+  })
 }

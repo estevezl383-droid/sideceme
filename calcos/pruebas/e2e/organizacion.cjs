@@ -1,10 +1,13 @@
 // F3·P3 — FORMACIÓN INICIAL DE LAS FUERZAS del G-3 en la Mesa real (Chromium), con un
-// ejercicio FICTICIO como el calco de la Escuela (organizacion-ejemplo.js), en escritorio y
-// en teléfono, EN ORDEN:
-//   ① lo que se considera: la misión, la intención, las avenidas, el CAE y los objetivos;
-//   ② las tareas tácticas tocando la carta, con su operación (OD, OC 1, OC 2, OC 3) y su «T:»;
-//   ③ la proporción de cada una frente al enemigo de su sector;
-//   ④ las unidades genéricas: el reparto propuesto, a mano, lo que sobra a la reserva;
+// ejercicio FICTICIO como el calco de la Escuela (organizacion-ejemplo.js), en escritorio,
+// teléfono e iPad, EN ORDEN (como lo pidió Sergio el 06-10-2026):
+//   ① lo que se considera: la misión, la intención, las avenidas, el CAE, los objetivos y
+//      las unidades con que se cuenta (y traer de la Orden las que faltan: la infantería);
+//   ② VARIAS tareas tácticas tocando la carta, todavía sin OD/OC, cada una ORIENTADA (⇄ al
+//      otro lado, ↻ 15°), con su «T:»; la del análisis de la misión, «🚫 No entra»;
+//   ③ las fuerzas de cada tarea: la proporción y cuántas de cada TIPO (+ / −), el reparto
+//      propuesto, lo que sobra a la reserva;
+//   ④ recién ahí la OD y las OC (la propuesta de la Mesa y el oficial que la corrige);
 //   ⑤ en la carta: el rótulo y los triángulos junto a cada tarea (y en el 3D);
 //   ⑥ la forma gráfica;
 //   ⑦ a la Organización de la Tarea (el panel 🧩 se abre con las agrupaciones hechas) y al
@@ -112,70 +115,128 @@ const paso = (page, n) => page.locator(`#oi-paso-${n}`)
       assert.ok(guia.includes('② Las TAREAS TÁCTICAS van en la carta, sobre el terreno'), 'la guía 📘 con la doctrina')
       assert.ok(!guia.includes('Identificá primero las unidades genéricas (dos batallones mecanizados'), 'la guía vieja')
 
-      // ② Las tareas: OD, OC 1, OC 2, OC 3 tocando la carta (como el calco de la Escuela).
+      // ② Las tareas: VARIAS, tocando la carta, todavía sin OD/OC, cada una orientada.
       if (movil) {
         await page.getByRole('button', { name: /¿Para qué es y cómo se llena\?/ }).dispatchEvent('click')
         // En el teléfono el tablero «Mi dispositivo» tapa la carta: se esconde, como haría el oficial.
         const ocultar = page.getByText('▼ ocultar')
         if (await ocultar.count()) await ocultar.first().dispatchEvent('click')
       }
+      // La tarea que ya estaba (la del análisis de la misión) entra como T1: «🚫 No entra».
+      assert.ok(texto.includes('Las unidades con que cuento (en el calco):'), '① las unidades con que cuento')
+      await page.locator('.oi-tarea[data-n="1"]').getByRole('button', { name: '🚫 No entra' }).dispatchEvent('click')
+      await page.waitForTimeout(300)
+      assert.ok((await paso(page, 2).innerText()).includes('↩ Controlar'), 'queda a mano para que vuelva a entrar')
       await page.evaluate(() => window.__mapa2d.setView([-16.85, -68.31], 11, { animate: false }))
       await page.waitForTimeout(600)
-      const poner = async (tarea, op, [lng, lat]) => {
-        const nueva = page.locator('.oi-nueva')
+      const nueva = page.locator('.oi-nueva')
+      const poner = async (tarea, [lng, lat], rot = 0) => {
         await nueva.getByRole('combobox', { name: 'Tarea táctica' }).selectOption(tarea)
-        await nueva.getByRole('button', { name: op, exact: true }).dispatchEvent('click')
+        await nueva.getByRole('spinbutton', { name: 'Grados la nueva tarea' }).fill(String(rot))
         await nueva.getByRole('button', { name: '📍 Colocarla en la carta' }).dispatchEvent('click')
         await page.locator('.oi-cartel').waitFor({ timeout: 5000 })
         await tocarCarta(page, lng, lat)
         await page.locator('.oi-cartel').waitFor({ state: 'detached', timeout: 5000 })
       }
-      await poner('bloquear', 'OD', [-68.3, -16.83])
-      await poner('mantener', 'OC 1', [-68.22, -16.88])
-      await poner('ocupar', 'OC 2', [-68.42, -16.86])
-      await poner('atacar_fuego', 'OC 3', [-68.35, -16.81])
+      await poner('bloquear', [-68.3, -16.83])
+      assert.ok((await nueva.innerText()).toUpperCase().includes('➕ OTRA TAREA TÁCTICA (LA T2)'), 'queda lista para la próxima')
+      await poner('mantener', [-68.22, -16.88])
+      // «⇄ Al otro lado» antes de colocarla: que apunte al revés.
+      await nueva.getByRole('combobox', { name: 'Tarea táctica' }).selectOption('ocupar')
+      await nueva.getByRole('button', { name: 'Al otro lado la nueva tarea' }).dispatchEvent('click')
+      assert.equal(await nueva.getByRole('spinbutton', { name: 'Grados la nueva tarea' }).inputValue(), '180')
+      await nueva.getByRole('button', { name: '📍 Colocarla en la carta' }).dispatchEvent('click')
+      await page.locator('.oi-cartel').waitFor({ timeout: 5000 })
+      await tocarCarta(page, -68.42, -16.86)
+      await page.locator('.oi-cartel').waitFor({ state: 'detached', timeout: 5000 })
+      await poner('atacar_fuego', [-68.35, -16.81])
       let st = await estadoOps(page)
-      const conOp = st.tareas.filter((t) => t.oi && t.oi.operacion)
-      assert.deepEqual(conOp.map((t) => [t.tarea, t.oi.operacion]), [
+      const entran = () => st.tareas.filter((t) => t.oi && t.oi.operacion !== 'fuera')
+      assert.deepEqual(entran().map((t) => [t.tarea, t.oi.operacion, t.rot]), [
+        ['bloquear', '', 0],
+        ['mantener', '', 0],
+        ['ocupar', '', 180],
+        ['atacar_fuego', '', 0],
+      ], 'cuatro tareas, sin designar todavía, la tercera apuntando al otro lado')
+      const bloq = entran()[0]
+      assert.ok(Math.abs(bloq.centro[0] + 68.3) < 0.01 && Math.abs(bloq.centro[1] + 16.83) < 0.01, `la T1 quedó donde se tocó: ${bloq.centro}`)
+      assert.deepEqual(bloq.oi.enemigos.sort(), ['e-bim1', 'e-bim2'], 'propone el enemigo de su sector')
+      assert.ok(await page.evaluate(() => document.querySelector('.leaflet-marker-pane').innerHTML.includes('rotate(180 50 50)')), 'en la carta, el símbolo girado')
+      // Cambiar la orientación de una ya puesta: la T2, dos veces «↻ 15°»; y la T3 vuelve con «⇄».
+      await page.locator('.oi-tarea[data-n="2"]').getByRole('button', { name: 'Girar a la derecha T2' }).dispatchEvent('click')
+      await page.waitForTimeout(150)
+      await page.locator('.oi-tarea[data-n="2"]').getByRole('button', { name: 'Girar a la derecha T2' }).dispatchEvent('click')
+      await page.locator('.oi-tarea[data-n="3"]').getByRole('button', { name: 'Al otro lado T3' }).dispatchEvent('click')
+      await page.waitForTimeout(300)
+      st = await estadoOps(page)
+      assert.deepEqual(entran().map((t) => t.rot), [0, 30, 0, 0])
+      await page.locator('.oi-tarea[data-n="3"]').getByRole('button', { name: 'Al otro lado T3' }).dispatchEvent('click')
+      // El «T:» de la T1.
+      await page.locator('.oi-tarea[data-n="1"]').getByRole('textbox', { name: 'Texto de la tarea T1' }).fill('Bloquear a las unidades mecanizadas y blindadas de la FT-43')
+      texto = await editor(page).innerText()
+      assert.ok(/✅ 2/.test(texto), 'paso ② listo: hay tareas')
+      assert.ok(/○ 4/.test(texto), 'falta designar (paso ④)')
+      await paso(page, 2).screenshot({ path: path.join(out, `${tag}-paso2.png`) })
+
+      // ③ Las fuerzas: la proporción y CUÁNTAS de cada tipo, tarea por tarea.
+      const t1 = page.locator('.oi-fuerzas[data-n="1"]')
+      let f1 = await t1.innerText()
+      assert.ok(f1.includes('0 de 2 compañías de maniobra (1:3) — faltan 2'), f1)
+      assert.ok(f1.includes('la Mesa propone 1:3'), 'la propuesta con su porqué')
+      await t1.getByRole('button', { name: 'Agregar Caballería Blindada' }).dispatchEvent('click')
+      await page.waitForTimeout(200)
+      await t1.getByRole('button', { name: 'Agregar Caballería Blindada' }).dispatchEvent('click')
+      await page.waitForTimeout(200)
+      await t1.getByRole('button', { name: 'Agregar Ingenieros' }).dispatchEvent('click')
+      await page.waitForTimeout(300)
+      f1 = await t1.innerText()
+      assert.ok(f1.includes('2 de 2 compañías de maniobra (1:3) ✓'), f1)
+      assert.ok(/Salen de: RC-4 «VARGAS» \(FICT\.\) \(2 Cía\.\) · BING-2 «AGUIRRE» \(FICT\.\) \(1 Cía\.\)/.test(f1), f1)
+      await t1.getByRole('button', { name: 'Quitar Ingenieros' }).dispatchEvent('click')
+      await page.waitForTimeout(300)
+      st = await estadoOps(page)
+      assert.deepEqual(entran()[0].oi.piezas.map((p) => p.simbolo), ['cab_blindada', 'cab_blindada'])
+      // La T4 (atacar con fuego) la cambia el oficial a 1:1; la T2 no tiene enemigo cerca: a mano.
+      await page.locator('.oi-fuerzas[data-n="4"]').getByRole('combobox', { name: 'Proporción T4' }).selectOption('1:1')
+      await page.locator('.oi-fuerzas[data-n="2"]').getByRole('spinbutton', { name: 'Cantidad de unidades enemigas' }).fill('1')
+      await page.waitForTimeout(300)
+      await t1.screenshot({ path: path.join(out, `${tag}-paso3-t1.png`) })
+      await paso(page, 3).getByRole('button', { name: '⚡ Proponer el reparto de la maniobra' }).dispatchEvent('click')
+      await page.waitForTimeout(400)
+      st = await estadoOps(page)
+      assert.deepEqual(entran().map((t) => t.oi.piezas.length), [2, 1, 1, 6], 'a cada una lo que le faltaba (la T4, 1:1 frente a dos batallones: 6); la T1 ya estaba')
+      const p3 = await paso(page, 3).innerText()
+      assert.ok(p3.includes('Disponibles: 18 compañías genéricas de maniobra'), p3.slice(0, 900))
+      assert.ok(p3.includes('Reserva') || p3.includes('reserva'), 'la reserva')
+      assert.ok((await page.locator('.oi-fuerzas[data-op="reserva"] .oi-tipo').count()) > 0, 'la reserva también con sus tipos')
+      await paso(page, 3).screenshot({ path: path.join(out, `${tag}-paso3.png`) })
+
+      // ④ Recién ahora: cuál es la OD y cuáles las OC.
+      await paso(page, 4).getByRole('button', { name: /✨ Proponer/ }).dispatchEvent('click')
+      await page.waitForTimeout(300)
+      st = await estadoOps(page)
+      assert.deepEqual(entran().map((t) => t.oi.operacion), ['oc1', 'oc2', 'oc3', 'od'], 'la propuesta: la OD donde más fuerzas hay (la T4, con 6)')
+      // El oficial la corrige: la OD es el bloqueo (se intercambian).
+      const designar = async (n, op) => {
+        await page.locator(`.oi-designar[data-n="${n}"]`).getByRole('button', { name: new RegExp(`^${op}( \\(T\\d\\))?$`) }).dispatchEvent('click')
+        await page.waitForTimeout(250)
+      }
+      await designar(1, 'OD')
+      assert.ok((await editor(page).innerText()).includes('🔁 OD pasó a T1; T4 quedó como OC 1.'))
+      await designar(4, 'OC 3')
+      await designar(2, 'OC 1')
+      st = await estadoOps(page)
+      assert.deepEqual(entran().map((t) => [t.tarea, t.oi.operacion]), [
         ['bloquear', 'od'],
         ['mantener', 'oc1'],
         ['ocupar', 'oc2'],
         ['atacar_fuego', 'oc3'],
       ])
-      assert.ok(Math.abs(conOp[0].centro[0] + 68.3) < 0.01 && Math.abs(conOp[0].centro[1] + 16.83) < 0.01, `la OD quedó donde se tocó: ${conOp[0].centro}`)
-      assert.deepEqual(conOp[0].oi.enemigos.sort(), ['e-bim1', 'e-bim2'], 'propone el enemigo de su sector')
-      assert.ok(st.tareas[0].oi && st.tareas[0].oi.id && !st.tareas[0].oi.operacion, 'la tarea del análisis de la misión, con id y sin operación')
-      // El «T:» de la OD.
-      await paso(page, 2).getByRole('textbox', { name: 'Texto de la tarea OD' }).fill('Bloquear a las unidades mecanizadas y blindadas de la FT-43')
-      // Cambiar la OC 2 a OD le saca la OD a la otra… y se vuelve atrás.
       texto = await editor(page).innerText()
-      assert.ok(/✅ 2/.test(texto), 'paso ② listo con la OD')
-
-      await paso(page, 2).screenshot({ path: path.join(out, `${tag}-paso2.png`) })
-      // ③ La proporción: la OD 1:3 frente a 2 batallones mecanizados (6 Cía.) → 2 Cía.
-      const p3 = await paso(page, 3).innerText()
-      assert.ok(p3.includes('Hacen falta 2 compañías genéricas de maniobra (6 × 1/3).'), p3.slice(0, 1500))
-      assert.ok(p3.includes('La Mesa propone 1:3'), 'la propuesta con su porqué')
-      // La OC 3 (atacar con fuego) la cambia el oficial a 1:1.
-      await paso(page, 3).getByRole('combobox', { name: 'Proporción OC 3' }).selectOption('1:1')
-      // La OC 1 no tiene enemigo cerca: se escribe a mano (1 compañía).
-      const oc1 = page.locator('.oi-proporcion[data-op="oc1"]')
-      await oc1.getByRole('spinbutton', { name: 'Cantidad de unidades enemigas' }).fill('1')
-      await page.waitForTimeout(300)
-
-      await page.locator('.oi-proporcion[data-op="od"]').screenshot({ path: path.join(out, `${tag}-paso3-od.png`) })
-      // ④ Las unidades genéricas: propuesta, lo que sobra a la reserva.
-      await paso(page, 4).getByRole('button', { name: '⚡ Proponer el reparto (la OD primero)' }).dispatchEvent('click')
-      await page.waitForTimeout(400)
-      st = await estadoOps(page)
-      const od = st.tareas.find((t) => t.oi?.operacion === 'od')
-      assert.equal(od.oi.piezas.length, 2, 'la OD con dos compañías genéricas')
-      const p4 = await paso(page, 4).innerText()
-      assert.ok(p4.includes('Disponibles: 18 compañías genéricas de maniobra'), p4.slice(0, 600))
-      assert.ok(/2 de 2 compañías \(1:3\) ✓/.test(p4), 'la OD cubierta: ' + p4.slice(0, 2500))
-      // A mano: una pieza de la reserva a la OC 1 (tocar la OC 1 y después la pieza libre).
-      await paso(page, 4).getByRole('button', { name: '🧹 Vaciar el reparto' }).count()
+      assert.ok(/✅ 4/.test(texto) && texto.includes('✅ Todas designadas, con una sola OD.'), 'paso ④ listo')
       await paso(page, 4).screenshot({ path: path.join(out, `${tag}-paso4.png`) })
+      const od = entran()[0]
+      assert.equal(od.oi.piezas.length, 2, 'la OD con dos compañías genéricas')
 
       // ⑤ En la carta: los rótulos con OD / OC y los triángulos.
       const rotulos = await page.locator('.oi-bloque').allInnerTexts()
@@ -206,7 +267,7 @@ const paso = (page, n) => page.locator(`#oi-paso-${n}`)
         ['reserva', ''],
       ])
       assert.equal(st.org[0].piezas.length, 2)
-      assert.ok(st.tareas.filter((t) => t.oi?.operacion).every((t) => t.oi.agId), 'cada tarea vinculada a su agrupación')
+      assert.ok(st.tareas.filter((t) => t.oi?.operacion && t.oi.operacion !== 'fuera').every((t) => t.oi.agId), 'cada tarea vinculada a su agrupación')
       await page.screenshot({ path: path.join(out, `${tag}-organizacion-tarea.png`) })
       // Ahí se le pone el nombre a la OD y se llevan al calco: la ficha va junto a su tarea.
       await page.getByPlaceholder('Nombre (ej. FT «VARGAS»)').first().fill('VARGAS')
@@ -291,7 +352,7 @@ const paso = (page, n) => page.locator(`#oi-paso-${n}`)
       assert.equal(g.g3.organizacion[0].Operación, 'OD — Operación Decisiva (esfuerzo principal)')
       assert.ok(g.orgTarea.some((x) => x.nombre === 'VARGAS' && x.operacion === 'od'))
       assert.deepEqual(a.errores, [])
-      console.log(`OK ${movil ? 'teléfono' : 'escritorio'}: ① lo que se considera, ② cuatro tareas tocando la carta con OD/OC, ③ proporciones, ④ reparto y reserva, ⑤ rótulos y triángulos en la carta${movil ? '' : ' (y en el 3D)'}, ⑥ forma gráfica, ⑦ Organización de la Tarea y cuadro, guardado.`)
+      console.log(`OK ${movil ? 'teléfono' : 'escritorio'}: ① lo que se considera, ② cuatro tareas tocando la carta, orientadas, sin OD/OC, ③ las fuerzas por tipo (+/−), proporciones, reparto y reserva, ④ la OD y las OC al final (propuesta y corregida), ⑤ rótulos y triángulos en la carta${movil ? '' : ' (y en el 3D)'}, ⑥ forma gráfica, ⑦ Organización de la Tarea y cuadro, guardado.`)
     } catch (e) {
       console.error('ERRORES APP', a.errores)
       console.error('DIÁLOGOS', dialogos)
@@ -301,6 +362,7 @@ const paso = (page, n) => page.locator(`#oi-paso-${n}`)
     }
     await a.cerrar()
   }
+  await traerDeLaOrden()
   await telefono()
   await tableta({ ancho: 820, alto: 1180, nombre: 'ipad-vertical' })
   await tableta({ ancho: 1180, alto: 820, nombre: 'ipad-horizontal' })
@@ -337,32 +399,38 @@ async function telefono() {
     })
     assert.ok(d.sw <= d.cw + 1, 'la hoja desborda en el teléfono: ' + JSON.stringify(d))
     await page.screenshot({ path: path.join(out, 'movil-hoja.png') })
+    // La tarea del análisis de la misión no entra.
+    await page.locator('.oi-tarea[data-n="1"]').getByRole('button', { name: '🚫 No entra' }).dispatchEvent('click')
+    await page.waitForTimeout(300)
     // ⬅️ Partir de lo que ya armé: las tres agrupaciones pasan a la carta como tareas.
     await paso(page, 2).getByRole('button', { name: '⬅️ Partir de lo que ya armé' }).dispatchEvent('click')
     await page.waitForTimeout(400)
     let st = await estadoOps(page)
-    const conOp = st.tareas.filter((t) => t.oi && t.oi.operacion)
+    const conOp = st.tareas.filter((t) => t.oi && t.oi.operacion && t.oi.operacion !== 'fuera')
     assert.deepEqual(conOp.map((t) => [t.tarea, t.oi.operacion, t.oi.agId, t.oi.piezas.length]), [
       ['apoyar_fuego', 'oc1', 'ag-oc1', 3],
       ['atacar_fuego', 'od', 'ag-od', 4],
       ['seguir_asumir', 'oc2', 'ag-oc2', 0],
     ])
-    // En el teléfono la carta no se puede tocar: la OC 3 se pone directamente en el objetivo Oa.
+    // En el teléfono la carta no se puede tocar: otra tarea, directamente en el objetivo Oa,
+    // apuntando al otro lado.
     await page.locator('.oi-nueva').getByRole('combobox', { name: 'Tarea táctica' }).selectOption('atacar_fuego')
-    await page.locator('.oi-nueva').getByRole('button', { name: 'OC 3', exact: true }).dispatchEvent('click')
+    await page.locator('.oi-nueva').getByRole('button', { name: 'Al otro lado la nueva tarea' }).dispatchEvent('click')
     await page.locator('.oi-nueva').getByRole('button', { name: '🎯 en Oa' }).dispatchEvent('click')
     await page.waitForTimeout(300)
     st = await estadoOps(page)
-    const oc3 = st.tareas.find((t) => t.oi?.operacion === 'oc3')
-    assert.ok(oc3 && oc3.tarea === 'atacar_fuego' && oc3.centro[0] === -68.3 && oc3.centro[1] === -16.86, 'la OC 3 en el objetivo Oa: ' + JSON.stringify(oc3 && oc3.centro))
-    assert.deepEqual(oc3.oi.enemigos, [], 'nadie dentro de su sector (6 km de Oa): no se inventa enemigo')
+    const nueva = st.tareas[st.tareas.length - 1]
+    assert.ok(nueva.tarea === 'atacar_fuego' && nueva.centro[0] === -68.3 && nueva.centro[1] === -16.86 && nueva.rot === 180 && nueva.oi.operacion === '', 'la T4 en el objetivo Oa, al revés y sin designar: ' + JSON.stringify(nueva))
+    assert.deepEqual(nueva.oi.enemigos, [], 'nadie dentro de su sector (6 km de Oa): no se inventa enemigo')
     // «→ Ob» la lleva al otro objetivo.
-    await page.locator('.oi-editor').getByRole('button', { name: '→ Ob' }).last().dispatchEvent('click')
+    await page.locator('.oi-tarea[data-n="4"]').getByRole('button', { name: '→ Ob' }).dispatchEvent('click')
     await page.waitForTimeout(300)
     st = await estadoOps(page)
-    assert.deepEqual(st.tareas.find((t) => t.oi?.operacion === 'oc3').centro, [-68.27, -16.93])
-    // ③ El enemigo de la OD por cercanía.
-    await page.locator('.oi-proporcion[data-op="od"]').getByRole('button', { name: '✨ Proponer por cercanía' }).dispatchEvent('click')
+    assert.deepEqual(st.tareas[st.tareas.length - 1].centro, [-68.27, -16.93])
+    // ③ El enemigo de la OD por cercanía; ④ la nueva es la OC 3.
+    await page.locator('.oi-fuerzas[data-op="od"]').getByRole('button', { name: '✨ Proponer por cercanía' }).dispatchEvent('click')
+    await page.waitForTimeout(300)
+    await page.locator('.oi-designar[data-n="4"]').getByRole('button', { name: 'OC 3', exact: true }).dispatchEvent('click')
     await page.waitForTimeout(300)
     // ⑦ A la Organización de la Tarea: las MISMAS agrupaciones (con su nombre y su propósito), sin duplicar.
     await paso(page, 7).getByRole('button', { name: '🧩 Pasar a la Organización de la Tarea' }).dispatchEvent('click')
@@ -385,7 +453,7 @@ async function telefono() {
     assert.ok(valores.includes('OD — Operación Decisiva (esfuerzo principal)'))
     assert.ok(!valores.includes('FT VARGS'), 'el cuadro viejo se reemplazó')
     assert.deepEqual(a.errores, [])
-    console.log('OK teléfono: la hoja entra sin desborde; ⬅️ partir de la Organización de la Tarea armada antes (fuera de orden); las mismas agrupaciones, sin duplicar; el cuadro viejo se reemplaza preguntando.')
+    console.log('OK teléfono: la hoja entra sin desborde; ⬅️ partir de la Organización de la Tarea armada antes (fuera de orden); una tarea más en el objetivo, al revés, designada OC 3; las mismas agrupaciones, sin duplicar; el cuadro viejo se reemplaza preguntando.')
   } catch (e) {
     console.error('ERRORES APP', a.errores)
     console.error('DIÁLOGOS', dialogos)
@@ -417,9 +485,10 @@ async function tableta({ ancho, alto, nombre }) {
     assert.ok(d.sw <= d.cw + 1, `la hoja desborda en el ${nombre}: ` + JSON.stringify(d))
     await page.evaluate(() => window.__mapa2d.setView([-16.85, -68.31], 11, { animate: false }))
     await page.waitForTimeout(500)
+    await page.locator('.oi-tarea[data-n="1"]').getByRole('button', { name: '🚫 No entra' }).dispatchEvent('click')
+    await page.waitForTimeout(300)
     const nueva = page.locator('.oi-nueva')
     await nueva.getByRole('combobox', { name: 'Tarea táctica' }).selectOption('bloquear')
-    await nueva.getByRole('button', { name: 'OD', exact: true }).dispatchEvent('click')
     await nueva.getByRole('button', { name: '📍 Colocarla en la carta' }).dispatchEvent('click')
     await page.locator('.oi-cartel').waitFor({ timeout: 5000 })
     if (ancho < 900) assert.equal(await page.locator('.oi-editor').evaluate((el) => getComputedStyle(el).visibility), 'hidden', 'parado, el panel se esconde para elegir el lugar')
@@ -427,14 +496,23 @@ async function tableta({ ancho, alto, nombre }) {
     await page.locator('.oi-cartel').waitFor({ state: 'detached', timeout: 5000 })
     assert.equal(await page.locator('.oi-editor').evaluate((el) => getComputedStyle(el).visibility), 'visible', 'el panel vuelve')
     let st = await estadoOps(page)
-    const od = st.tareas.find((t) => t.oi?.operacion === 'od')
-    assert.ok(od && Math.abs(od.centro[0] + 68.3) < 0.01 && Math.abs(od.centro[1] + 16.83) < 0.01, `la OD donde se tocó: ${od && od.centro}`)
+    const t1 = st.tareas.find((t) => t.tarea === 'bloquear')
+    assert.ok(t1 && Math.abs(t1.centro[0] + 68.3) < 0.01 && Math.abs(t1.centro[1] + 16.83) < 0.01, `la T1 donde se tocó: ${t1 && t1.centro}`)
     await nueva.getByRole('combobox', { name: 'Tarea táctica' }).selectOption('mantener')
-    await nueva.getByRole('button', { name: 'OC 1', exact: true }).dispatchEvent('click')
     await nueva.getByRole('button', { name: '🎯 en Ob' }).dispatchEvent('click')
     await page.waitForTimeout(300)
-    await paso(page, 4).getByRole('button', { name: '⚡ Proponer el reparto (la OD primero)' }).dispatchEvent('click')
+    // Con el dedo: la orientación de la T2 y una compañía de caballería a la T1.
+    await page.locator('.oi-tarea[data-n="2"]').getByRole('button', { name: 'Girar 90 grados T2' }).tap()
+    await page.locator('.oi-fuerzas[data-n="1"]').getByRole('button', { name: 'Agregar Caballería Blindada' }).tap()
     await page.waitForTimeout(300)
+    await paso(page, 3).getByRole('button', { name: '⚡ Proponer el reparto de la maniobra' }).dispatchEvent('click')
+    await page.waitForTimeout(300)
+    await page.locator('.oi-designar[data-n="1"]').getByRole('button', { name: 'OD', exact: true }).tap()
+    await page.waitForTimeout(200)
+    await page.locator('.oi-designar[data-n="2"]').getByRole('button', { name: 'OC 1', exact: true }).tap()
+    await page.waitForTimeout(300)
+    st = await estadoOps(page)
+    assert.equal(st.tareas.find((t) => t.tarea === 'mantener').rot, 90)
     await paso(page, 7).getByRole('button', { name: '🧩 Pasar a la Organización de la Tarea' }).dispatchEvent('click')
     await page.getByText('🧩 ORGANIZACIÓN DE LA TAREA').waitFor({ timeout: 5000 })
     st = await estadoOps(page)
@@ -447,11 +525,95 @@ async function tableta({ ancho, alto, nombre }) {
     await page.getByRole('button', { name: '✕ Cerrar' }).dispatchEvent('click')
     await page.screenshot({ path: path.join(out, `${nombre}-hoja.png`) })
     assert.deepEqual(a.errores, [])
-    console.log(`OK ${nombre}: la hoja sin desborde; la OD tocando la carta con el dedo${ancho < 900 ? ' (el panel se esconde y vuelve)' : ''}; la OC 1 en el objetivo Ob; reparto y Organización de la Tarea.`)
+    console.log(`OK ${nombre}: la hoja sin desborde; una tarea tocando la carta con el dedo${ancho < 900 ? ' (el panel se esconde y vuelve)' : ''} y otra en el objetivo Ob; orientación, fuerzas (+), reparto, OD y OC 1 con el dedo; Organización de la Tarea.`)
   } catch (e) {
     console.error('ERRORES APP', a.errores)
     console.error('DIÁLOGOS', dialogos)
     await page.screenshot({ path: path.join(out, `${nombre}-ERROR.png`) }).catch(() => {})
+    await a.cerrar()
+    throw e
+  }
+  await a.cerrar()
+}
+
+// La Orden trae la infantería (RIM-8 «AYACUCHO», RIM-23 «MAX TOLEDO»…) que no estaba en el
+// calco: «📄 Traer las unidades de la Orden» lee el cuadro de la organización de un documento
+// del ejercicio, se revisa y quedan en la carta como fichas; ya se pueden repartir.
+async function traerDeLaOrden() {
+  const a = await abrir({ ancho: 1440, alto: 1000, movil: false, consulta: '?puesto=g3' })
+  const { page } = a
+  const dialogos = []
+  page.on('dialog', (d) => (dialogos.push(d.message()), d.accept()))
+  const datos = ejercicioOrganizacion()
+  datos.documentos = [{ nombre: 'Orden de Operaciones N° 1 (FICT.).pdf', tipo: 'pdf', mime: 'application/pdf', categoria: 'orden', texto: fs.readFileSync(path.join(__dirname, '..', 'organizacion-orden.txt'), 'utf8'), base64: null, paginas: 3 }]
+  const unidadesDe = () =>
+    page.evaluate(() => {
+      const root = document.getElementById('root')
+      const k = Object.keys(root).find((x) => x.startsWith('__reactContainer'))
+      const pila = [root[k]?.stateNode?.current || root[k]]
+      const vistos = new Set()
+      while (pila.length) {
+        const n = pila.pop()
+        if (!n || vistos.has(n)) continue
+        vistos.add(n)
+        for (let h = n.memoizedState, i = 0; h && typeof h === 'object' && i < 500; i++, h = h.next) {
+          const v = h.memoizedState
+          if (Array.isArray(v) && v.length && v.every((u) => u && typeof u === 'object' && 'bando' in u && 'lat' in u)) return v
+        }
+        if (n.child) pila.push(n.child)
+        if (n.sibling) pila.push(n.sibling)
+      }
+      return []
+    })
+  try {
+    await sembrarYAbrir(page, datos)
+    await irALaHoja(page)
+    const antes = (await unidadesDe()).length
+    await paso(page, 1).getByRole('button', { name: /Traerla de la Orden/ }).dispatchEvent('click')
+    await page.locator('.oi-traer').waitFor({ timeout: 5000 })
+    await page.locator('.oi-traer').getByRole('button', { name: /Orden de Operaciones N° 1/ }).dispatchEvent('click')
+    await page.waitForTimeout(300)
+    const filas = page.locator('.oi-traer .oi-traida')
+    assert.equal(await filas.count(), 12)
+    const t = await page.locator('.oi-traer').innerText()
+    assert.ok(t.includes('⚠️ RIAT: ¿infantería aerotransportada') && t.includes('⚠️ No encontré sus subunidades'), 'lo dudoso (RIAT-30, la aviación) se marca')
+    assert.equal(await page.locator('.oi-traer').getByRole('combobox', { name: 'Arma de RIM-8 «AYACUCHO»' }).inputValue(), 'mecanizada')
+    assert.equal(await page.locator('.oi-traer').getByRole('combobox', { name: 'Arma de COMP. ICIA.- I «USTARIZ»' }).inputValue(), 'inteligencia')
+    // La aviación queda afuera (está BAJO CONTROL de la Orden: el oficial la destilda).
+    await page.locator('.oi-traer').getByRole('checkbox', { name: 'Traer Comp. Av. Ejto. «Cnl. Lopez»' }).dispatchEvent('click')
+    await page.locator('.oi-traer').screenshot({ path: path.join(out, 'orden-traer.png') })
+    await page.locator('.oi-traer').getByRole('button', { name: '🪖 Ponerlas en la carta (11)' }).dispatchEvent('click')
+    await page.waitForTimeout(600)
+    const us = await unidadesDe()
+    assert.equal(us.length, antes + 11)
+    const rim8 = us.find((u) => u.designacion === 'RIM-8 «AYACUCHO»')
+    assert.deepEqual([rim8.bando, rim8.tipo, rim8.arma, rim8.escalon, rim8.piezas, rim8.escalonPiezas], ['propias', 'unidad', 'mecanizada', 'regimiento', 4, 'compania'])
+    assert.ok(Number.isFinite(rim8.lat) && Number.isFinite(rim8.lng))
+    const p3 = await paso(page, 3).innerText()
+    assert.ok(/INF MEC 8\/8/.test(p3), 'las 8 compañías de infantería mecanizada (RIM-8 y RIM-23): ' + p3.slice(0, 800))
+    assert.ok(/ICIA 3\/3/.test(p3) && /ADA 3\/3/.test(p3), 'la inteligencia y la antiaérea con su pieza')
+    // Una tarea, y la infantería mecanizada a ella.
+    await page.locator('.oi-nueva').getByRole('button', { name: '🎯 en Oa' }).dispatchEvent('click')
+    await page.waitForTimeout(300)
+    const tN = await page.locator('.oi-fuerzas').first().getAttribute('data-n')
+    const tarj = page.locator(`.oi-fuerzas[data-n="${tN}"]`)
+    await tarj.getByRole('button', { name: 'Agregar Infantería mecanizada' }).dispatchEvent('click')
+    await page.waitForTimeout(300)
+    assert.ok(/Salen de: RIM-8 «AYACUCHO» \(1 Cía\.\)|Salen de: RIM-23 «MAX TOLEDO» \(1 Cía\.\)/.test(await tarj.innerText()), await tarj.innerText())
+    // Las fichas nuevas se ven en la carta, sin errores.
+    await page.screenshot({ path: path.join(out, 'orden-carta.png') })
+    // Si se vuelve a leer, las que ya están en el calco vienen destildadas.
+    await paso(page, 3).getByRole('button', { name: /Traerla de la Orden/ }).dispatchEvent('click')
+    await page.locator('.oi-traer').getByRole('button', { name: /Orden de Operaciones N° 1/ }).dispatchEvent('click')
+    await page.waitForTimeout(300)
+    assert.ok((await page.locator('.oi-traer').innerText()).includes('ya en el calco'))
+    assert.ok(await page.locator('.oi-traer').getByRole('button', { name: '🪖 Ponerlas en la carta (1)' }).count(), 'sólo la que no se trajo')
+    assert.deepEqual(a.errores, [])
+    console.log('OK la Orden: el cuadro de la organización de un documento → 12 unidades (la infantería RIM-8 y RIM-23 entre ellas), revisadas y en la carta; ya se reparten (INF MEC); al volver a leer, las ya traídas no se repiten.')
+  } catch (e) {
+    console.error('ERRORES APP', a.errores)
+    console.error('DIÁLOGOS', dialogos)
+    await page.screenshot({ path: path.join(out, 'orden-ERROR.png') }).catch(() => {})
     await a.cerrar()
     throw e
   }

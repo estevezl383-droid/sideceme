@@ -45,10 +45,11 @@ const caso = (nombre, f) => casos.push([nombre, f])
   const ej = ejercicioOrganizacion()
   const tarea = (tareaId, operacion, centro, extra = {}) => ({ centro, tarea: tareaId, escalon: 'batallon', rot: 0, escala: 1, oi: { id: `oi-${operacion || tareaId}`, operacion, ...extra } })
   // Como el calco de la Escuela: OD bloquear frente a la FT-43; OC 1 mantener; OC 2 ocupar; OC 3 atacar con fuego.
+  // La tarea que ya estaba (la del análisis de la misión) se marcó «🚫 No entra».
   const conTareas = (extraOD = {}) => ({
     ...ej.ops,
     tareas: [
-      ...ej.ops.tareas,
+      ...ej.ops.tareas.map((t) => ({ ...t, oi: { id: 'oi-previa', operacion: m.FUERA } })),
       tarea('ocupar', 'oc2', [-68.42, -16.86], { enemigos: ['e-bt'] }),
       tarea('bloquear', 'od', [-68.3, -16.84], { enemigos: ['e-bim1', 'e-bim2'], ...extraOD }),
       tarea('mantener', 'oc1', [-68.22, -16.88], { enemigos: [] }),
@@ -175,7 +176,8 @@ const caso = (nombre, f) => casos.push([nombre, f])
     assert.match(filas[0]['Enemigo en su sector'], /^BIM-431 \(FICT\.\) y BIM-432 \(FICT\.\) \(≈ 6 compañías genéricas\)\.$/)
     assert.match(filas[0]['Proporción requerida frente al enemigo en su sector'], /^1:3 \(defender una posición preparada o fortificada\) → se requieren 2 compañías; dispuestas 2 ✓\.$/)
     assert.match(filas[1]['Proporción requerida frente al enemigo en su sector'], /sin enemigo en el sector/)
-    assert.match(filas[2]['Tarea que cumple'], /^Ocupar — T: Ocupar a BT-433 \(FICT\.\)/)
+    assert.match(filas[2]['Tarea que cumple'], /^Ocupar — T: Ocupar las elevaciones en Coord/, 'una tarea sobre el terreno nombra el lugar, no al enemigo')
+    assert.match(filas[2]['Enemigo en su sector'], /^BT-433 \(FICT\.\)/)
     assert.match(filas[5]['Agrupación / unidad genérica'], /RA-1 «LANZA» \(FICT\.\).*BLOG-2 \(FICT\.\)/)
     // Sin unidades de maniobra suficientes: el renglón de la deficiencia.
     const sinCab = ej.unidades.filter((u) => u.id !== 'p-cab' && u.id !== 'p-and')
@@ -253,7 +255,133 @@ const caso = (nombre, f) => casos.push([nombre, f])
     const filas = l3e.l3e('organizacion', { ops: conTareas(), g3: {}, unidades: [], SIDdn: ej.unidades })
     assert.equal(filas.length, 5, 'OD, OC 1, OC 2, OC 3 y bajo control (sin reserva todavía)')
     assert.equal(filas[0].Operación, 'OD — Operación Decisiva (esfuerzo principal)')
-    assert.deepEqual(l3e.l3e('organizacion', { ops: ej.ops, g3: {}, unidades: ej.unidades }), [], 'sin OD/OC no hay cuadro: el aviso de la Mesa dice qué hacer')
+    assert.deepEqual(l3e.l3e('organizacion', { ops: { ...ej.ops, tareas: [] }, g3: {}, unidades: ej.unidades }), [], 'sin tareas no hay cuadro: el aviso de la Mesa dice qué hacer')
+    const sinDesignar = l3e.l3e('organizacion', { ops: ej.ops, g3: {}, unidades: ej.unidades })
+    assert.equal(sinDesignar[0].Operación, 'T1 — sin designar todavía (OD / OC)', 'la tarea de la carta entra, aunque falte designarla')
+    assert.ok(!sinDesignar.some((f) => /«/.test(f['Agrupación / unidad genérica']) && f.Operación !== 'Bajo control del comando'), 'no inventa agrupaciones con nombre')
+  })
+
+  caso('varias tareas, cada una con su orientación; las fuerzas después; la OD y las OC al final', () => {
+    // Como lo pidió Sergio: se colocan varias tareas (todavía sin OD/OC), se les dan las fuerzas
+    // y recién después se designa cuál es la OD, cuál la OC 1…
+    const sin = (tareaId, centro, extra = {}) => ({ centro, tarea: tareaId, escalon: 'batallon', rot: extra.rot || 0, escala: 1, oi: { id: `oi-${tareaId}`, operacion: '', enemigos: extra.enemigos || [] } })
+    const ops = {
+      ...ej.ops,
+      tareas: [
+        { ...ej.ops.tareas[0] },
+        sin('bloquear', [-68.3, -16.84], { enemigos: ['e-bim1', 'e-bim2'] }),
+        sin('seguir_asumir', [-68.35, -16.9], { rot: 180 }),
+        sin('ocupar', [-68.42, -16.86], { enemigos: ['e-bt'] }),
+      ],
+    }
+    const b = m.balance({ ops, g3: {}, unidades: ej.unidades }, simb)
+    assert.deepEqual(b.tareas.map((x) => [x.op.corto, x.designada, x.t.tarea]), [
+      ['T1', false, 'controlar'],
+      ['T2', false, 'bloquear'],
+      ['T3', false, 'seguir_asumir'],
+      ['T4', false, 'ocupar'],
+    ], 'todas entran, numeradas en el orden en que se pusieron (la que no tenía «oi» también)')
+    assert.equal(b.tareas[2].t.rot, 180, 'cada tarea guarda su orientación')
+    const av = m.revisar(b, { picb: ej.picb, ops, cmoc: ej.cmoc, g3: ej.g3, ordenSup: ej.ordenSup })
+    assert.ok(av.some((a) => a.paso === 4 && /4 tarea\(s\) sin designar/.test(a.txt)))
+    assert.ok(av.some((a) => a.paso === 4 && /Falta la OPERACIÓN DECISIVA/.test(a.txt)))
+    const filas = m.filasCuadro({ ops, g3: {}, unidades: ej.unidades }, simb)
+    assert.equal(filas[1].Operación, 'T2 — sin designar todavía (OD / OC)')
+    const forma = m.formaGrafica(b, { unidades: ej.unidades, orgTarea: [] }, simb)
+    assert.equal(forma.cajas[1].titulo, 'TAREA 2 (SIN DESIGNAR)')
+    // «🚫 No entra»: la del análisis de la misión sale de la organización.
+    const fuera = { ...ops, tareas: ops.tareas.map((t, i) => (i === 0 ? { ...t, oi: { id: 'oi-x', operacion: m.FUERA } } : t)) }
+    assert.deepEqual(m.balance({ ops: fuera, g3: {}, unidades: ej.unidades }, simb).tareas.map((x) => x.op.corto), ['T1', 'T2', 'T3'], 'el número es el del orden de las que entran')
+    // Designar después: la OD primero, las OC en orden; las sin designar quedan al final.
+    const des = { ...fuera, tareas: fuera.tareas.map((t) => (t.oi.id === 'oi-ocupar' ? { ...t, oi: { ...t.oi, operacion: 'od' } } : t.oi.id === 'oi-bloquear' ? { ...t, oi: { ...t.oi, operacion: 'oc1' } } : t)) }
+    const bd = m.balance({ ops: des, g3: {}, unidades: ej.unidades }, simb)
+    assert.deepEqual(bd.tareas.map((x) => x.op.corto), ['OD', 'OC 1', 'T2'])
+    assert.equal(m.proximaOperacion(des), 'oc2')
+    assert.deepEqual(m.OPERACIONES.map((o) => o.id), ['od', 'oc1', 'oc2', 'oc3', 'oc4', 'oc5', 'sost'], 'hasta la OC 5')
+    // El «T:» que propone la Mesa, según la tarea.
+    assert.equal(m.textoSugerido(ops.tareas[1], { unidades: ej.unidades, objetivos: ej.ops.objetivos }, simb), 'Bloquear a BIM-431 (FICT.) y BIM-432 (FICT.) en el objetivo «Oa»')
+    assert.match(m.textoSugerido(ops.tareas[2], { unidades: ej.unidades, objetivos: [] }, simb), /^Seguir y Asumir a …$/, 'las de movimiento propio no nombran al enemigo')
+  })
+
+  caso('las fuerzas de cada tarea por TIPO y cantidad (infantería, caballería, ingeniería, comunicaciones…)', () => {
+    const ops = conTareas()
+    const s2 = { ...simb, nomDe: (x) => mesa.lP(x)?.nom || '' }
+    const b = m.balance({ ops, g3: {}, unidades: ej.unidades }, s2)
+    const tipos = m.tiposDisponibles(b, s2)
+    assert.deepEqual(tipos.map((t) => [t.simbolo, t.grupo, t.total, t.libres.length]), [
+      ['cab_blindada', 'maniobra', 9, 9],
+      ['inf_montania', 'maniobra', 9, 9],
+      ['artilleria', 'apoyo', 9, 9],
+      ['ingenieros', 'apoyo', 9, 9],
+      ['logistica', 'servicios', 9, 9],
+      ['comunicaciones', 'servicios', 9, 9],
+    ], 'primero la maniobra, después los apoyos y los servicios')
+    assert.equal(tipos[1].nom, 'Infantería de montaña')
+    // «+» a la OD: una de caballería; otra «+» sale de la misma unidad.
+    const od = b.tareas[0]
+    const p1 = m.piezaParaAgregar(b, od, 'cab_blindada')
+    let o2 = m.moverPieza({ ops, flujo: {} }, p1, od.oi.id).ops
+    let b2 = m.balance({ ops: o2, g3: {}, unidades: ej.unidades }, s2)
+    const p2 = m.piezaParaAgregar(b2, b2.tareas[0], 'cab_blindada')
+    assert.equal(p2.de, p1.de)
+    assert.notEqual(p2.id, p1.id)
+    o2 = m.moverPieza({ ops: o2, flujo: {} }, p2, od.oi.id).ops
+    const ing = m.piezaParaAgregar(m.balance({ ops: o2, g3: {}, unidades: ej.unidades }, s2), b2.tareas[0], 'ingenieros')
+    o2 = m.moverPieza({ ops: o2, flujo: {} }, ing, od.oi.id).ops
+    b2 = m.balance({ ops: o2, g3: {}, unidades: ej.unidades }, s2)
+    assert.deepEqual(b2.tareas[0].piezas.map((p) => p.simbolo), ['cab_blindada', 'cab_blindada', 'ingenieros'])
+    assert.equal(b2.tareas[0].dispuestas, 2, 'la ingeniería no entra en la proporción')
+    assert.equal(b2.tareas[0].nivel, 'ok')
+    assert.deepEqual(m.tiposDisponibles(b2, s2).find((t) => t.simbolo === 'cab_blindada').libres.length, 7)
+    assert.deepEqual(m.origenDePiezas(b2.tareas[0].piezas, ej.unidades, s2).map((r) => [r.nombre, r.cantidad]), [
+      ['RC-4 «VARGAS» (FICT.)', '2 Cía.'],
+      ['BING-2 «AGUIRRE» (FICT.)', '1 Cía.'],
+    ])
+    // «−»: sale la última de ese tipo.
+    assert.equal(m.piezaParaQuitar(b2.tareas[0], 'cab_blindada').id, p2.id)
+    assert.equal(m.piezaParaQuitar(b2.tareas[0], 'artilleria'), null)
+  })
+
+  caso('las unidades de la Orden: RIM-8 «AYACUCHO», RIM-23 «MAX TOLEDO»… (la infantería que faltaba en el calco)', () => {
+    const texto = fs.readFileSync(path.join(__dirname, 'organizacion-orden.txt'), 'utf8')
+    const lista = m.leerOrdenDeBatalla(texto)
+    assert.deepEqual(lista.map((u) => [u.designacion, u.arma, u.escalon, u.piezas]), [
+      ['RCB-1 «CALAMA»', 'blindada', 'regimiento', 4],
+      ['RCB-2 «TARAPACÁ»', 'cabmec', 'regimiento', 3],
+      ['RIM-8 «AYACUCHO»', 'mecanizada', 'regimiento', 4],
+      ['RIM-23 «MAX TOLEDO»', 'mecanizada', 'regimiento', 4],
+      ['RIAT-30 «MURILLO»', 'aerotransportada', 'regimiento', 4],
+      ['RAM-2 «BOLIVAR»', 'artilleria', 'regimiento', 3],
+      ['RAA-6 «BILBAO RIOJA»', 'antiaerea', 'regimiento', 3],
+      ['BATING. MEC.- II «ROMAN»', 'ingenieria', 'batallon', 5],
+      ['BAT. LOG. - I «HEROICAS RABONAS»', 'logistica', 'batallon', 4],
+      ['BAT. COM. MEC.- I «VIDAURRE»', 'comunicaciones', 'batallon', 4],
+      ['COMP. ICIA.- I «USTARIZ»', 'inteligencia', 'compania', 3],
+      ['Comp. Av. Ejto. «Cnl. Lopez»', 'aviacion', 'compania', 3],
+    ])
+    assert.deepEqual(lista.filter((u) => u.revisar).map((u) => u.designacion), ['RIAT-30 «MURILLO»', 'Comp. Av. Ejto. «Cnl. Lopez»'], 'lo dudoso se marca para revisar')
+    assert.deepEqual([lista[7].escalonPiezas, lista[10].escalonPiezas], ['compania', 'seccion'])
+    // Una fila de la tabla (varias cabeceras seguidas): las subunidades no se reparten a ciegas.
+    const fila = m.leerOrdenDeBatalla('RCB-1 "CALAMA"\tRCB-2 "TARAPACÁ"\tRIM-8 "AYACUCHO"\nEdrón. Tq. "A"\tERM "A"\tComp. Inf. Mec. "A"')
+    assert.deepEqual(fila.map((u) => [u.piezas, u.revisar]), [[3, true], [3, true], [3, true]])
+    // Las que ya están en el calco no se repiten.
+    const calco = [{ id: 'a', tipo: 'unidad', bando: 'propias', designacion: 'RIM-8 AYACUCHO' }, { id: 'b', tipo: 'unidad', bando: 'propias', designacion: 'RCB 1' }]
+    assert.deepEqual(lista.filter((u) => m.yaEnElCalco(u, calco)).map((u) => u.designacion), ['RCB-1 «CALAMA»', 'RIM-8 «AYACUCHO»'])
+    assert.equal(m.yaEnElCalco({ designacion: 'RIM-8 «X»' }, [{ tipo: 'unidad', bando: 'propias', designacion: 'RIM-81' }]), false)
+    // Las fichas, en filas a partir del centro de la vista.
+    const pos = m.ubicarNuevas([{}, {}, {}, {}, {}], [-68, -16.5])
+    assert.deepEqual(pos.map((p) => [p.lng, p.lat]), [[-68, -16.5], [-67.988, -16.5], [-67.976, -16.5], [-67.964, -16.5], [-68, -16.512]])
+    // Con las piezas REALES de la Mesa: la infantería mecanizada es maniobra; la antiaérea y la
+    // inteligencia tienen su pieza (antes la antiaérea salía como infantería).
+    const fichas = lista.map((u, i) => ({ id: `o${i}`, tipo: 'unidad', bando: 'propias', designacion: u.designacion, arma: u.arma, escalon: u.escalon, piezas: u.piezas, escalonPiezas: u.escalonPiezas }))
+    const pz = (i) => simb.piezasDe(fichas[i])
+    assert.deepEqual([pz(2).length, pz(2)[0].simbolo, mesa.lP(pz(2)[0].simbolo).grupo, pz(2)[0].escalon], [4, 'inf_mecanizada', 'maniobra', 'compania'])
+    assert.equal(pz(6)[0].simbolo, 'ada')
+    assert.deepEqual([pz(10)[0].simbolo, mesa.lP('inteligencia').corto, pz(10)[0].escalon], ['inteligencia', 'ICIA', 'seccion'])
+    assert.equal(pz(7)[0].escalon, 'compania', 'el BATING tiene compañías (escalonPiezas), no secciones')
+    const b = m.balance({ ops: { tareas: [] }, g3: {}, unidades: fichas }, simb)
+    assert.equal(b.G, 'compania')
+    assert.equal(b.totalManiobra, 19, 'RCB-1 4 + RCB-2 3 + RIM-8 4 + RIM-23 4 + RIAT-30 4 compañías de maniobra')
   })
 
   caso('el Word de la hoja: el cuadro como tabla apaisada y la forma gráfica como SVG puro (imagen); la vista previa la lleva', async () => {

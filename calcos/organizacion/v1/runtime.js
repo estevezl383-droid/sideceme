@@ -22,7 +22,11 @@ export const simb = {
   cortoDe: (s) => (entorno.lP && entorno.lP(s)?.corto) || '',
   rotulo: (u) => (entorno.js ? entorno.js(u) : String(u?.designacion || 'Unidad')),
   nombreTarea: (id) => (entorno.zg || []).find((t) => t.id === id)?.nombre || id || '',
+  catTarea: (id) => (entorno.zg || []).find((t) => t.id === id)?.cat || '',
+  nomDe: (s) => (entorno.lP && entorno.lP(s)?.nom) || '',
 }
+// Las armas de la ficha de unidad (para las unidades que se traen de la Orden).
+export const armas = () => entorno.T1 || []
 export const svgPieza = (simbolo, tam = 40, color = '#000') => (entorno.eN ? entorno.eN(simbolo, tam, color) : '')
 export const svgTarea = (id, tam = 40, color = '#000', rot = 0) => (entorno.cb ? entorno.cb(id, tam, color, rot) : '')
 export const catalogoTareas = () => entorno.zg || []
