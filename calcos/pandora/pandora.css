@@ -188,3 +188,71 @@ body.sid-pandora .sid-pd-cap .pop input{accent-color:var(--pd-acc);margin:0}
 /* los botones G-3 y G-4 dejan lugar al menú chico */
 body.sid-pandora .botones-mapa [data-sid-g=mando][data-sid-i="5"],
 body.sid-pandora .botones-mapa [data-sid-g=mando][data-sid-i="6"]{width:114px;right:86px;padding-inline:7px;font-size:10.5px;letter-spacing:.02em}
+
+/* ---------- efecto vidrio (pedido de Sergio) ----------
+   Los paneles son vidrio: más opacos arriba‑izquierda y cada vez más transparentes
+   hacia abajo‑derecha, con el mapa desenfocado detrás, un brillo diagonal suave y un
+   canto de luz arriba. Los botones activos siguen luminosos como antes.
+   Para volver a paneles sólidos basta borrar este bloque. */
+body.sid-pandora{
+  --pd-vidrio:
+    linear-gradient(115deg,rgba(255,255,255,.13) 0%,rgba(255,255,255,.03) 38%,rgba(255,255,255,0) 60%),
+    linear-gradient(160deg,rgba(8,36,52,.78) 0%,rgba(6,28,40,.52) 55%,rgba(6,28,40,.30) 100%);
+  --pd-vidrio-fuerte:
+    linear-gradient(115deg,rgba(255,255,255,.15) 0%,rgba(255,255,255,.03) 40%,rgba(255,255,255,0) 62%),
+    linear-gradient(160deg,rgba(8,36,52,.84) 0%,rgba(6,28,40,.62) 60%,rgba(6,28,40,.42) 100%);
+  --pd-borde-vidrio:rgba(190,250,255,.22);
+  --pd-brillo:inset 0 1px 0 rgba(255,255,255,.28),inset 0 0 0 1px rgba(255,255,255,.04),inset 0 -18px 30px rgba(70,240,208,.04);
+  --pd-blur:blur(14px) saturate(1.5);
+}
+body.sid-pandora .panel{
+  background:var(--pd-vidrio-fuerte),radial-gradient(circle at 20% 90%,rgba(120,70,255,.14),transparent 50%);
+  -webkit-backdrop-filter:var(--pd-blur);backdrop-filter:var(--pd-blur);
+  border-right:1px solid var(--pd-borde-vidrio);box-shadow:inset -1px 0 0 rgba(255,255,255,.08),8px 0 30px rgba(0,0,0,.3);
+}
+body.sid-pandora .panel .bloque,
+body.sid-pandora .bloque-ver>.ver-bloque{
+  background:var(--pd-vidrio);-webkit-backdrop-filter:var(--pd-blur);backdrop-filter:var(--pd-blur);
+  border-color:var(--pd-borde-vidrio);
+  box-shadow:var(--pd-brillo),0 6px 20px rgba(0,0,0,.25);
+}
+body.sid-pandora .bloque-ver>.ver-bloque{
+  border-color:color-mix(in srgb,var(--gc) 38%,rgba(190,250,255,.2));
+  box-shadow:var(--pd-brillo),0 0 18px color-mix(in srgb,var(--gc) 14%,transparent),0 6px 20px rgba(0,0,0,.25);
+}
+body.sid-pandora .bloque-ver>.ver-bloque:nth-of-type(2){
+  box-shadow:var(--pd-brillo),0 0 24px color-mix(in srgb,var(--gc) 30%,transparent),inset 0 0 18px color-mix(in srgb,var(--gc) 9%,transparent);
+}
+body.sid-pandora .con-puesto .botones-mapa,
+body.sid-pandora .botones-mapa,
+body.sid-pandora #sid-pd-der,
+body.sid-pandora .leyenda,
+body.sid-pandora #sid-pd-tab,
+body.sid-pandora .contenedor-mapa>div[style*="1150"],
+body.sid-pandora .contenedor-mapa>div.sid-pd-tablero,
+body.sid-pandora .contenedor-mapa>button[style*="1150"]{
+  background:var(--pd-vidrio) !important;
+  -webkit-backdrop-filter:var(--pd-blur);backdrop-filter:var(--pd-blur);
+  border-color:var(--pd-borde-vidrio) !important;
+  box-shadow:var(--pd-brillo),0 0 24px rgba(70,240,208,.10),0 10px 30px rgba(0,0,0,.35) !important;
+}
+body.sid-pandora .sid-pd-cap .pop{
+  background:var(--pd-vidrio-fuerte);-webkit-backdrop-filter:var(--pd-blur);backdrop-filter:var(--pd-blur);
+  border-color:var(--pd-borde-vidrio);box-shadow:var(--pd-brillo),0 0 18px rgba(70,240,208,.2);
+}
+/* lo de adentro también es vidrio: más transparente, para que se note la profundidad */
+body.sid-pandora .botones-mapa .btn-cmoc-abrir,
+body.sid-pandora #sid-pd-tab .fich,
+body.sid-pandora #sid-pd-tab .tarj,
+body.sid-pandora .sid-pd-cap .tg{
+  background:linear-gradient(160deg,rgba(255,255,255,.10),rgba(255,255,255,.02));
+  -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.18);
+}
+body.sid-pandora .botones-mapa .btn-cmoc-abrir:hover{box-shadow:inset 0 1px 0 rgba(255,255,255,.22),0 0 14px rgba(70,240,208,.3)}
+body.sid-pandora #sid-pd-tab .fich[aria-selected=true]{box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 0 14px color-mix(in srgb,var(--fc) 35%,transparent)}
+body.sid-pandora .sid-pd-cap.on .tg{box-shadow:inset 0 1px 0 rgba(255,255,255,.18),0 0 10px rgba(70,240,208,.3)}
+/* si el navegador no sabe desenfocar, un fondo más firme para que se lea */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  body.sid-pandora{--pd-vidrio:linear-gradient(160deg,rgba(8,36,52,.9),rgba(6,28,40,.78));--pd-vidrio-fuerte:var(--pd-vidrio)}
+}
