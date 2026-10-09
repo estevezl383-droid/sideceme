@@ -39,7 +39,7 @@
       localStorage.setItem(KEY, JSON.stringify({
         conf: conf,
         capas: capas.map(function (c) {
-          return { id: c.id, nombre: c.nombre, visible: c.visible, opac: c.opac, preset: c.preset || null,
+          return { id: c.id, nombre: c.nombre, visible: c.visible, opac: c.opac, relleno: c.relleno, preset: c.preset || null,
             grupos: c.grupos.map(function (g) { return { id: g.id, nombre: g.nombre, visible: g.visible, elementos: c.preset ? [] : g.elementos } }) }
         })
       }))
@@ -93,6 +93,10 @@
     if (c !== ultimoCompacto) { ultimoCompacto = c; capas.forEach(function (x) { if (mapa) dibujar(x) }) }
   }
 
+  // Relleno de las AO: negro, con su propia transparencia (0 = sólo el borde).
+  function rellenoAO(c) { return c.relleno == null ? 0.15 : c.relleno }
+  function tieneAreas(c) { return c.grupos.some(function (g) { return (g.elementos || []).some(function (el) { return el.tipo === 'area' }) }) }
+
   // ---------- dibujo ----------
   function dibujar(c) {
     if (!mapa) { actualizar3D(); return }
@@ -106,7 +110,7 @@
       ;(g.elementos || []).forEach(function (el) {
         var col = el.color || '#4f9cf0'
         if (el.tipo === 'area' && el.coords && el.coords.length > 2) {
-          L.polygon(el.coords, { color: col, weight: 2.5, dashArray: '7 5', fillColor: col, fillOpacity: 0.22 * c.opac, opacity: c.opac, interactive: true, pane: 'sidSupArea' })
+          L.polygon(el.coords, { color: '#000', weight: 3, fillColor: '#000', fillOpacity: rellenoAO(c), opacity: c.opac, interactive: true, pane: 'sidSupArea' })
             .bindTooltip('<b>' + esc(el.rotulo || '') + '</b>' + (el.sub ? '<br>' + esc(el.sub) : ''), { sticky: true }).addTo(lg)
           if (el.frente && el.frente.length > 1) L.polyline(el.frente, { color: '#e0443a', weight: 5, opacity: c.opac, pane: 'sidSupArea', interactive: false }).addTo(lg)
           if (el.rotulo) {
@@ -149,7 +153,7 @@
           var col = el.color || '#4f9cf0', sw = function (p) { return [p[1], p[0]] }
           if (el.tipo === 'area' && el.coords && el.coords.length > 2) {
             var ring = el.coords.map(sw); ring.push(ring[0])
-            fs.push({ type: 'Feature', properties: { k: 'area', col: col, op: c.opac }, geometry: { type: 'Polygon', coordinates: [ring] } })
+            fs.push({ type: 'Feature', properties: { k: 'area', col: '#000000', op: c.opac, rel: rellenoAO(c) }, geometry: { type: 'Polygon', coordinates: [ring] } })
             if (el.frente && el.frente.length > 1) fs.push({ type: 'Feature', properties: { k: 'frente', col: '#e0443a', op: c.opac }, geometry: { type: 'LineString', coordinates: el.frente.map(sw) } })
           } else if (el.tipo === 'linea' && el.coords && el.coords.length > 1) {
             fs.push({ type: 'Feature', properties: { k: 'linea', col: col, op: c.opac }, geometry: { type: 'LineString', coordinates: el.coords.map(sw) } })
@@ -167,9 +171,9 @@
     if (!src) {
       m.addSource('sidsup3', { type: 'geojson', data: datos })
       m.addLayer({ id: 'sidsup3-fill', type: 'fill', source: 'sidsup3', filter: ['==', ['get', 'k'], 'area'],
-        paint: { 'fill-color': ['get', 'col'], 'fill-opacity': ['*', 0.25, ['get', 'op']] } })
+        paint: { 'fill-color': '#000000', 'fill-opacity': ['get', 'rel'] } })
       m.addLayer({ id: 'sidsup3-borde', type: 'line', source: 'sidsup3', filter: ['==', ['get', 'k'], 'area'],
-        paint: { 'line-color': ['get', 'col'], 'line-width': 2.5, 'line-opacity': ['get', 'op'], 'line-dasharray': [3, 2] } })
+        paint: { 'line-color': '#000000', 'line-width': 3, 'line-opacity': ['get', 'op'] } })
       m.addLayer({ id: 'sidsup3-frente', type: 'line', source: 'sidsup3', filter: ['==', ['get', 'k'], 'frente'],
         layout: { 'line-cap': 'round' }, paint: { 'line-color': '#e0443a', 'line-width': 5, 'line-opacity': ['get', 'op'] } })
       m.addLayer({ id: 'sidsup3-linea', type: 'line', source: 'sidsup3', filter: ['==', ['get', 'k'], 'linea'],
@@ -335,6 +339,7 @@
       var c = agregar(n, { preset: p.clave, visible: guard ? guard.visible : visible })
       if (guard) {
         c.opac = guard.opac || 1
+        if (guard.relleno != null) c.relleno = guard.relleno
         c.grupos.forEach(function (g) { var gg = (guard.grupos || []).filter(function (x) { return x.id === g.id })[0]; if (gg) g.visible = gg.visible })
         if (mapa) dibujar(c)
         pintar()
@@ -373,7 +378,8 @@
         '<div class="sidsup-gs">' + c.grupos.map(function (g) {
           return '<label><input type="checkbox" data-a="grupo" data-g="' + esc(g.id) + '"' + (g.visible ? ' checked' : '') + '> ' + esc(g.nombre) + '</label>'
         }).join('') + '</div>' +
-        '<label class="sidsup-op">Opacidad <input type="range" min="0.2" max="1" step="0.1" value="' + c.opac + '" data-a="opac"></label></div>'
+        (tieneAreas(c) ? '<label class="sidsup-op">Relleno de las AO <input type="range" min="0" max="0.7" step="0.05" value="' + rellenoAO(c) + '" data-a="relleno"> <span>' + Math.round(rellenoAO(c) * 100) + ' %</span></label>' : '') +
+        '<label class="sidsup-op">Opacidad general <input type="range" min="0.2" max="1" step="0.1" value="' + c.opac + '" data-a="opac"></label></div>'
     })
     tab.querySelector('.sidsup-lista').innerHTML = h
     tab.querySelector('[data-a="escala"]').value = conf.escala
@@ -401,7 +407,8 @@
       '<div class="sidsup-bd">' +
       '<button type="button" class="sidsup-cargar" data-a="cargar">➕ Superponer un archivo (JSON / GeoJSON)</button>' +
       '<p class="sidsup-ayuda"><b>Superponer</b> sólo muestra el archivo encima de la carta: no se guarda en el ejercicio ni borra nada. <b>Integrar capa</b> (en 📁 Ejercicio) sí lo mete al ejercicio.</p>' +
-      '<div class="sidsup-cf"><label>Tamaño de símbolos <input type="range" min="1" max="2" step="0.1" data-a="escala"> <span class="sidsup-esc"></span></label>' +
+      '<div class="sidsup-cf"><label>Tamaño de las fichas <input type="range" min="1" max="2" step="0.1" data-a="escala"> <span class="sidsup-esc"></span></label>' +
+      '<p class="sidsup-nota">El tamaño vale también para las fichas de la Mesa (se aplica al mover el zoom).</p>' +
       '<label><input type="checkbox" data-a="comp"> Achicar al ver todo el TO (sin congestión)</label>' +
       '<label>Rótulos <select data-a="rot"><option value="auto">Automático (al acercar)</option><option value="si">Siempre</option><option value="no">Ocultos</option></select></label></div>' +
       '<div class="sidsup-lista"></div></div>'
@@ -427,12 +434,14 @@
         actualizar3D()
       }
       if (a === 'opac' && c) { c.opac = +t.value; dibujar(c) }
-      if (a === 'escala') { conf.escala = +t.value; redibujarTodo(); marcas3D(); pintar() }
+      if (a === 'relleno' && c) { c.relleno = +t.value; dibujar(c) }
+      if (a === 'escala') { conf.escala = +t.value; window.SIDEscalaFichas = conf.escala; redibujarTodo(); marcas3D(); pintar() }
       if (a === 'rot') { conf.rotulos = t.value; claseRotulos(); ubicar3D() }
       if (a === 'comp') { conf.compacto = t.checked; ultimoCompacto = null; alZoom(); marcas3D() }
       guardar()
     })
     tab.addEventListener('input', function (e) {
+      if (e.target.getAttribute('data-a') === 'relleno') { var sp = e.target.parentElement.querySelector('span'); if (sp) sp.textContent = Math.round(+e.target.value * 100) + ' %' }
       if (e.target.getAttribute('data-a') === 'escala') tab.querySelector('.sidsup-esc').textContent = Math.round(+e.target.value * 100) + ' %'
     })
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && abierto) abrir(false) })
@@ -495,8 +504,9 @@
     var g = leerGuardado()
     if (g) {
       if (g.conf) { conf.escala = +g.conf.escala || 1.5; conf.rotulos = g.conf.rotulos || 'auto'; conf.compacto = g.conf.compacto !== false }
-      ;(g.capas || []).forEach(function (c) { if (!c.preset) capas.push({ id: c.id, nombre: c.nombre, visible: c.visible, opac: c.opac || 1, grupos: c.grupos || [] }) })
+      ;(g.capas || []).forEach(function (c) { if (!c.preset) capas.push({ id: c.id, nombre: c.nombre, visible: c.visible, opac: c.opac || 1, relleno: c.relleno, grupos: c.grupos || [] }) })
     }
+    window.SIDEscalaFichas = conf.escala   // el compilado agranda también las fichas de la Mesa con este factor
     crearUI()
     revisar()
     setInterval(revisar, 1500)

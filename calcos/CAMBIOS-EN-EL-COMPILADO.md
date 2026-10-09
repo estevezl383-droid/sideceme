@@ -5,6 +5,18 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-09 — Fichas de la Mesa +50 % (`index-fichas-20261009.js`)
+
+Parte de `index-divmec-20261009.js` + `pruebas/reemplazos-2026-10-09-fichas.js` (2 reemplazos;
+`construir-fichas.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio: las
+fichas salían muy chicas y deben verse como las del tablero 🧩 Superponer.
+
+- **Qué se hizo**: el tamaño en pantalla de cada ficha se multiplica por `window.SIDEscalaFichas`
+  (1.5 por defecto; lo cambia el deslizador «Tamaño de las fichas» del tablero 🧩). Carta 2D y
+  vista 3D. No cambia el dibujo, los datos ni el KMZ.
+- **Cómo se comprobó**: `reemplazos-compilado.js` (todos los pasos), la Mesa local en Chromium sin
+  errores de consola.
+
 ## 2026-10-09 — «Somos la DIV.MEC.-1»: la unidad considerada es la de la Orden (`index-divmec-20261009.js`)
 
 Parte de `index-membrete-20261009.js` + `pruebas/reemplazos-2026-10-09-divmec.js` (4
