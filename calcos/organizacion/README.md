@@ -13,6 +13,12 @@ el de la doctrina («3.- Formación inicial de las fuerzas»):
    corresponden, **sobre el terreno**, como en el calco de la Escuela;
 4. llegar a la **forma gráfica** y recién ahí a la **Organización de la Tarea**.
 
+El 09-10-2026 lo afinó: **varias** tareas, cada una con su **orientación** («que apunte al otro
+lado»); después, a cada tarea **la cantidad de fuerzas de cada tipo** (caballería,
+comunicaciones, ingeniería…), que quedan cerca de su tarea; **recién después** cuál es la OD y
+cuáles las OC; y la **infantería** de la Orden (RIM-8, RIM-23…) que no aparecía: «📄 Traer las
+unidades de la Orden».
+
 ## En la Mesa
 
 Tablero del G-3 → 📄 Documentos → «Desarrollar los cursos de acción» → **F3·P3 Formación
@@ -22,10 +28,10 @@ doctrina de la formación inicial), 👁️ Vista previa, ⬇️ Word, 📄 Word
 
 | Paso | Qué se hace |
 |---|---|
-| ① Lo que se considera | La misión reexpresada (F2·P12) y la intención del Cmte. superior; las avenidas de aproximación (CMOC); el CAE **más probable** y el **más peligroso** del G-2 (H.T. 18) con su misión; los **objetivos del enemigo** (H.T. 16, con 🎯 para ir a cada uno) y el esquema de maniobra; el dispositivo enemigo. Recuerda la situación de engaño. |
-| ② Las tareas tácticas en el terreno | «➕ Nueva tarea táctica»: la tarea (sobre el enemigo / el terreno / acciones propias), la magnitud del símbolo y la operación (la próxima libre: la **OD** primero) → **📍 Colocarla en la carta** y se toca el lugar (en una pantalla angosta el panel se esconde mientras se elige y vuelve solo). **Sin tocar la carta** (en el teléfono queda tapada por las barras de la Mesa): «🎯 en Oa», «🎯 en Ob»… o «⊕ en el centro de la vista», y después se arrastra el símbolo. Cada tarea ya puesta tiene «📍 Mover» y «→ Oa / → Ob / → el centro de la vista». Cada tarea de la carta tiene sus botones **OD · OC 1 · OC 2 · OC 3 · SOST · —** (la OD y cada OC son una sola), su **«T: …»** (la Mesa propone uno con el enemigo y el objetivo), 🎯 Ir y 🗑️. Las tareas sin operación (las del análisis de la misión) no entran. Si ya había agrupaciones armadas en la Organización de la Tarea: **⬅️ Partir de lo que ya armé** (pasan a la carta como tareas, junto a su ficha). |
-| ③ La proporción | Para CADA tarea, desde la OD: el **enemigo ubicado en su sector** (las fichas enemigas cercanas, con su distancia; «✨ Proponer por cercanía»; o escrito a mano: «2 batallones»), cuántas **unidades genéricas** son, la **proporción** (3:1, 2,5:1, 1:1, 1:2,5, 1:3, 1:6; la Mesa propone una con su porqué) y **cuántas hacen falta**. |
-| ④ Las unidades genéricas | «Lo que tengo»: cada unidad propia disgregada **dos niveles abajo** (las mismas piezas del panel 🧩). Se toca la tarea y después las piezas; o **⚡ Proponer el reparto** (la OD primero, sin partir las unidades). Cada tarea dice «2 de 2 compañías (1:3) ✓» o lo que falta, y su relación de comando. Lo que **sobra** va a la **agrupación aparte (reserva)**; si lo requerido supera lo disponible, la **deficiencia** se avisa como requerimiento de recursos adicionales. |
+| ① Lo que se considera | La misión reexpresada (F2·P12) y la intención del Cmte. superior; las avenidas de aproximación (CMOC); el CAE **más probable** y el **más peligroso** del G-2 (H.T. 18) con su misión; los **objetivos del enemigo** (H.T. 16, con 🎯 para ir a cada uno) y el esquema de maniobra; el dispositivo enemigo; **las unidades con que cuento** (las del calco) y «📄 ¿Falta alguna? Traerla de la Orden». Recuerda la situación de engaño. |
+| ② Las tareas tácticas en el terreno | **Todas las que hagan falta**, todavía SIN operación (se llaman **T1, T2…**). «➕ Nueva / Otra tarea táctica»: la tarea, la magnitud del símbolo y la **orientación** («↺ 15°», «↻ 15°», «↻ 90°», «⇄ Al otro lado» o los grados, con el símbolo girado a la vista) → **📍 Colocarla en la carta** y se toca el lugar (en una pantalla angosta el panel se esconde mientras se elige y vuelve solo). **Sin tocar la carta**: «🎯 en Oa», «🎯 en Ob»… o «⊕ en el centro de la vista», y después se arrastra. Cada tarea ya puesta: su orientación, su **«T: …»** (la Mesa propone uno según la tarea: las que son sobre el enemigo lo nombran; las del terreno, el objetivo; las de movimiento propio, «a …»), «📍 Mover», «→ Oa / → Ob / → el centro de la vista», 🎯 Ir, 🗑️ y **«🚫 No entra»** (la del análisis de la misión; «↩» la vuelve a poner). Si ya había agrupaciones armadas en la Organización de la Tarea: **⬅️ Partir de lo que ya armé**. |
+| ③ Las fuerzas de cada tarea | Para CADA tarea: el **enemigo ubicado en su sector** (las fichas enemigas cercanas, con su distancia; «✨ Proponer por cercanía»; o escrito a mano), la **proporción** (3:1, 2,5:1, 1:1, 1:2,5, 1:3, 1:6; la Mesa propone una con su porqué) y **cuántas de cada tipo**: caballería, infantería, artillería, ingeniería, comunicaciones, logística… con **«−» y «+»** (las piezas son las de cada unidad disgregada **dos niveles abajo**, las mismas del panel 🧩; «+» elige una de la misma unidad, para no partirlas) y «Salen de: RIM-8 «AYACUCHO» (2 Cía.)…». Cada tarea dice «2 de 2 compañías de maniobra (1:3) ✓» o lo que falta, y su relación de comando. **⚡ Proponer el reparto de la maniobra** completa lo que falta. Lo que **sobra** va a la **agrupación aparte (reserva)**, con sus propios «−/+»; si lo requerido supera lo disponible, la **deficiencia** se avisa como requerimiento de recursos adicionales. Arriba, «Las unidades con que cuento» por tipo (libres / total), y si falta la infantería, el aviso. |
+| ④ La OD y las OC | Recién ahora: en cada tarea, **OD · OC 1 … OC 5 · SOST · —**. Si la operación ya la tiene otra tarea, **se intercambian**. «✨ Proponer»: la OD donde más fuerzas hay; las demás, OC 1, OC 2… en el orden en que se colocaron. ✅ cuando están todas y hay una sola OD. |
 | ⑤ En la carta | Junto a cada tarea, su rótulo **«OD · T: …»** con los triángulos y cuadrados que la cumplen y «1:3 · 2 de 2 Cía. ✓»; la reserva aparte (a retaguardia, en el centro de las unidades propias). Con la hoja abierta los rótulos se arrastran (se guarda dónde) y una línea de puntos va al enemigo de su sector. Se ve también en el 3D. Se apaga con la casilla. |
 | ⑥ La forma gráfica | Las cajas **OPERACIÓN DECISIVA · OPERACIÓN DE CONFIGURACIÓN 1…** con la marca del escalón (II), las piezas adentro, el nombre al costado y la tarea; **BAJO CONTROL** con la reserva y las unidades que no se repartieron (su símbolo con III, II…). 🖨️ Ver para imprimir. También va en la **👁️ Vista previa** y en el **📄 Word (hoja de trabajo)** como imagen. |
 | ⑦ La Organización de la Tarea y el cuadro | **🧩 Pasar a la Organización de la Tarea**: cada tarea es una agrupación con su operación, su tarea y sus piezas (la que ya estaba vinculada, o la de la misma operación que nadie usa —así se aprovecha lo armado antes, con su nombre y su propósito—, o una nueva); la reserva, otra; una pieza nunca queda en dos. Se abre el panel 🧩: ahí se les pone el **nombre** y el **propósito** y se llevan al calco — **la ficha va junto a su tarea**, sobre el terreno. **📋 Pasar al cuadro de la hoja**: el cuadro (lo que va al Word y a la IA), preguntando antes de reemplazar uno escrito. |
@@ -42,7 +48,8 @@ contrario de la doctrina); sin tareas con operación no inventa nada y la Mesa d
 
 ## Dónde se guarda
 
-- Cada tarea táctica del calco (`ops.tareas[i]`) lleva `oi`: `id`, `operacion`, `texto`
+- Cada tarea táctica del calco (`ops.tareas[i]`, con su `rot` en grados) lleva `oi`: `id`,
+  `operacion` (`''` sin designar, `'fuera'` si no entra), `texto`
   («T:»), `enemigos` (ids de las fichas), `enemigoManual` (`{ n, escalon }`), `proporcion`,
   `piezas`, `relacion`, `desp` (dónde va su rótulo, respecto de la tarea) y `agId` (la
   agrupación de la Organización de la Tarea). Viaja con la tarea: el KMZ, las fases, deshacer.
@@ -82,9 +89,12 @@ contrario de la doctrina); sin tareas con operación no inventa nada y la Mesa d
 - `node calcos/pruebas/organizacion.cjs` — el modelo con las funciones reales del compilado,
   🌱 (`l3e`), los reemplazos (reversibles y sin partir los de las listas anteriores).
 - `node calcos/pruebas/e2e/organizacion.cjs` — Chromium: en escritorio, los siete pasos
-  tocando la carta, el panel 🧩, la ficha junto a su tarea, la vista previa y el Word (tabla,
+  tocando la carta (cuatro tareas sin designar, una girada «⇄ al otro lado» y otra «↻ 15°»;
+  las fuerzas con «+/−»; la OD propuesta y corregida, intercambiando), el panel 🧩, la ficha junto a su tarea, la vista previa y el Word (tabla,
   apaisado, la forma gráfica como imagen), el 3D y el guardado; en el teléfono (donde la
   carta queda tapada por las barras de la Mesa), que la hoja entra sin desborde, «⬅️ Partir
   de lo que ya armé» con la Organización de la Tarea armada antes y el cuadro viejo, y una
   tarea puesta en el objetivo sin tocar la carta; en un iPad parado y acostado (con el dedo),
-  la OD tocando la carta, la OC 1 en el objetivo, el reparto y el panel 🧩.
+  una tarea tocando la carta y otra en el objetivo, la orientación, las fuerzas, la OD y la OC 1
+  con el dedo, y el panel 🧩; y «📄 Traer las unidades de la Orden» desde un documento del
+  ejercicio (`organizacion-orden.txt`: el cuadro de la organización de la Orden de las capturas).

@@ -105,10 +105,57 @@ comprueba `reemplazos-compilado.js`, como primer paso de la cadena).
     a dibujar) y la prueba esperaba 30 s el botón; ahora vuelve a tocar la instalación.
 - Probado en un iPad parado (820×1180) y acostado (1180×820) con el dedo.
 
+### Tercera vuelta (09-10-2026): varias tareas, orientadas; las fuerzas por tipo; la OD y las OC al final
+
+Sergio, con capturas del calco (una «Seguir y asumir» que tenía que apuntar al otro lado), de
+la tarjeta de la tarea y del cuadro de la organización de la Orden (RCB-1 «CALAMA», RCB-2,
+RIM-8 «AYACUCHO», RIM-23 «MAX TOLEDO», RIAT-30, RAM-2, RAA-6, BATING., BAT. LOG., BAT. COM.,
+COMP. ICIA., la Comp. Av. Ejto. bajo control):
+
+- **La orientación de cada tarea**: «↺ 15°», «↻ 15°», «↻ 90°», «⇄ Al otro lado» y los grados,
+  en la tarea nueva (antes de colocarla) y en cada una ya puesta; el símbolo gira en la carta
+  (y en el 3D y el KMZ, que ya usaban `rot`).
+- **Varias tareas tácticas**: se colocan todas las que hagan falta («➕ Otra tarea táctica (la
+  T2)»), SIN operación todavía: se llaman T1, T2… (en la carta, con su rótulo gris). La que ya
+  estaba en el calco (la del análisis de la misión) entra también; «🚫 No entra» la saca y
+  «↩» la vuelve a poner.
+- **③ Las fuerzas de cada tarea**: el enemigo de su sector, la proporción y **cuántas de cada
+  tipo** —caballería, infantería, artillería, ingeniería, comunicaciones, logística…— con
+  «−» y «+» (la Mesa elige la pieza de la misma unidad, para no partirlas) y de qué unidad
+  salen; quedan junto a su tarea en la carta. La reserva, igual. «⚡ Proponer el reparto de la
+  maniobra» completa lo que falta para la proporción.
+- **④ Recién entonces la OD y las OC** (hasta la OC 5, y SOST): botones en cada tarea; si la
+  operación ya la tiene otra, se intercambian («🔁 OD pasó a T1; T4 quedó como OC 1»). «✨
+  Proponer»: la OD donde más fuerzas hay y las demás OC en el orden en que se colocaron. La
+  Organización de la Tarea pide que estén todas designadas.
+- **«📄 Traer las unidades de la Orden»** (pasos ① y ③): lee el cuadro de la organización de
+  un documento del ejercicio (o lo que se pegue): la sigla, el nombre entre comillas, el arma y
+  el escalón por la sigla (RIM = infantería mecanizada, RCB con Tq = blindada, RAA =
+  antiaérea, BATING = ingeniería, COMP. ICIA = inteligencia…) y cuántas subunidades de combate
+  tiene (sin la de comando ni la de C y S). Se revisa (lo dudoso dice ⚠️: el RIAT, ¿aerotrans-
+  portado o antitanque?) y quedan como fichas en la carta, sin repetir las que ya están. Si no
+  hay infantería en el calco, la Mesa lo avisa.
+- Compilado (`reemplazos-2026-10-06-organizacion.js`, mismo `index-organizacion-20261006.js`):
+  OC 4 y OC 5; la artillería **antiaérea se disgregaba como INFANTERÍA** (no tenía pieza) →
+  ADA; la pieza y el arma **Inteligencia** (ICIA); `escalonPiezas` (el BAT. LOG. o el BATING. de
+  la Orden tienen compañías, no secciones); los documentos del ejercicio llegan a la hoja.
+- Como después se armaron las áreas (`index-areas-20261008.js`) y los frentes
+  (`index-areas-20261009.js`, el vigente) ENCIMA de este compilado, se rehicieron con sus mismas
+  listas (`construir-organizacion.js` ahora lo hace solo) y se actualizaron sus «anterior» en
+  `reemplazos-compilado.js`; `calcos/index.html` sigue cargando `index-areas-20261009.js` (con
+  `?v=frentes-f3p3-20261009`, para que el navegador no use el de antes).
+- `edicion-figuras.cjs` no arrancaba desde los frentes (`SIDdT is not defined`): ahora carga
+  `SIDdT` y `SIDkm`. Queda un caso de los frentes que no es de esta hoja: con el cuadro nuevo,
+  un Área de 10,6 km de frente en defensiva ofrece División y Cuerpo (la prueba espera sólo
+  Cuerpo).
+
 ### Lo que falta
 
 - No se probó con un ejercicio real ni en un iPad de verdad (sí en Chromium con su tamaño y
   con toque).
+- La lectura del cuadro de la Orden depende de cómo salga el texto del PDF o del Word: si las
+  columnas salen mezcladas, las subunidades no se reparten (cada unidad queda con 3 piezas y
+  ⚠️ para revisar).
 
 ## 2026-10-06 (2) — PRC: la tarea y el formato también AL PRINCIPIO del pedido (sin cambiar el compilado)
 

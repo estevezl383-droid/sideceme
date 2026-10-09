@@ -57,7 +57,10 @@ function quitarCapa() {
   }
   firma = ''
 }
-const hayAlgo = (p) => !!p && ((p.ops?.tareas || []).some((t) => t && t.oi && t.oi.operacion) || ((p.g3?.[CLAVE_FLUJO] || {}).reserva?.piezas || []).length > 0)
+// Una tarea va a la capa cuando ya tiene su operación o sus fuerzas; mientras la hoja está
+// abierta, todas las que entran en la organización (aunque falte designarlas: «T1», «T2»…).
+const enLaCapa = (oi) => !!oi && !!oi.id && oi.operacion !== 'fuera' && oi.operacion !== 'reserva' && (!!oi.operacion || (oi.piezas || []).length > 0 || editor > 0)
+const hayAlgo = (p) => !!p && ((p.ops?.tareas || []).some((t) => t && enLaCapa(t.oi)) || ((p.g3?.[CLAVE_FLUJO] || {}).reserva?.piezas || []).length > 0)
 
 function dibujar() {
   const L = leaflet()
@@ -73,7 +76,7 @@ function dibujar() {
   if (!b.flujo.verEnCarta) return quitarCapa()
   const nueva = JSON.stringify([
     editor > 0,
-    b.tareas.map((x) => [x.oi.id, x.t.centro, x.t.tarea, x.oi.texto, x.oi.desp, x.op.id, x.prop.id, x.requeridas, x.dispuestas, x.nivel, x.piezas.map((p) => p.id), [...x.enemigo.maniobra, ...x.enemigo.apoyo].map((u) => [u.lat, u.lng])]),
+    b.tareas.filter((x) => enLaCapa(x.oi)).map((x) => [x.oi.id, x.t.centro, x.t.tarea, x.oi.texto, x.oi.desp, x.op.id, x.prop.id, x.requeridas, x.dispuestas, x.nivel, x.piezas.map((p) => p.id), [...x.enemigo.maniobra, ...x.enemigo.apoyo].map((u) => [u.lat, u.lng])]),
     b.reserva.map((p) => p.id),
     b.flujo.reserva.pos,
     b.flujo.reserva.pos ? null : posicionReserva(b),
@@ -84,6 +87,7 @@ function dibujar() {
   const g = L.layerGroup()
   const G = b.G
   for (const x of b.tareas) {
+    if (!enLaCapa(x.oi)) continue
     const c = x.t.centro
     const desp = Array.isArray(x.oi.desp) && x.oi.desp.length === 2 ? x.oi.desp : null
     const pos = desp ? [c[0] + desp[0], c[1] + desp[1]] : c

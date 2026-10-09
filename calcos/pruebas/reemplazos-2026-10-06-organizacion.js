@@ -15,6 +15,10 @@
 // la carta, sin proporciones y sin vínculo con la Organización de la Tarea.
 // Todo lo nuevo está en calcos/organizacion/v1 (modelo.js, carta.js, editor.js, grafica.js,
 // runtime.js).
+// El 09-10-2026 (varias tareas orientadas, las fuerzas por tipo, la OD y las OC al final, las
+// unidades de la Orden) se sumaron al final: OC 4 y OC 5, la pieza de la antiaérea (salía como
+// infantería) y la de inteligencia, el arma «Inteligencia», `escalonPiezas` y los documentos
+// del ejercicio para la hoja.
 //
 // Ninguna inserción parte lo que insertaron las listas anteriores (SIDOIConfig va justo ANTES del
 // configurarEM del G-5, que queda entero; organizacion.cjs lo comprueba con todas las listas).
@@ -57,7 +61,7 @@ module.exports = [
     viejo:
       ':f.jsx(yU,{hoja:Ke,valor:M[Ke.id],onValor:at=>Ge(Ke.id,at),ordenSup:I.ordenSup||{},documentos:U?.documentos||[],g3:M})]})}if(K){',
     nuevo:
-      ':Ke.id==="organizacion"?f.jsxs(f.Fragment,{children:[f.jsx(SIDEditorOrgInicial,{hoja:Ke,ctx:{...I,unidades:t,orgTarea:a,g3:M},onG3:SIDp=>T?.(SIDv=>({...SIDv,...(typeof SIDp==="function"?SIDp(SIDv):SIDp)})),onAbrirOrgTarea:i}),f.jsx("div",{style:At.nota,children:"📋 El cuadro de la hoja — lo que va a la vista previa, al Word y a la IA (se arma con «Pasar al cuadro de la hoja» o con 🌱):"}),f.jsx(yU,{hoja:Ke,valor:M[Ke.id],onValor:at=>Ge(Ke.id,at),ordenSup:I.ordenSup||{},documentos:U?.documentos||[],g3:M})]}):f.jsx(yU,{hoja:Ke,valor:M[Ke.id],onValor:at=>Ge(Ke.id,at),ordenSup:I.ordenSup||{},documentos:U?.documentos||[],g3:M})]})}if(K){',
+      ':Ke.id==="organizacion"?f.jsxs(f.Fragment,{children:[f.jsx(SIDEditorOrgInicial,{hoja:Ke,ctx:{...I,unidades:t,orgTarea:a,g3:M,documentos:U?.documentos||[]},onG3:SIDp=>T?.(SIDv=>({...SIDv,...(typeof SIDp==="function"?SIDp(SIDv):SIDp)})),onAbrirOrgTarea:i}),f.jsx("div",{style:At.nota,children:"📋 El cuadro de la hoja — lo que va a la vista previa, al Word y a la IA (se arma con «Pasar al cuadro de la hoja» o con 🌱):"}),f.jsx(yU,{hoja:Ke,valor:M[Ke.id],onValor:at=>Ge(Ke.id,at),ordenSup:I.ordenSup||{},documentos:U?.documentos||[],g3:M})]}):f.jsx(yU,{hoja:Ke,valor:M[Ke.id],onValor:at=>Ge(Ke.id,at),ordenSup:I.ordenSup||{},documentos:U?.documentos||[],g3:M})]})}if(K){',
     veces: 1,
   },
   {
@@ -94,7 +98,7 @@ module.exports = [
   {
     nombre: 'F3·P3 · el módulo recibe React, los símbolos de la Mesa (piezas y tareas), cómo se disgrega cada unidad y Leaflet',
     viejo: 'configurarEM({inventarioAC:rC,poblacionAC:mP,evacuacionAC:fN,descargaAC:SDe,estadosAC:LU});',
-    nuevo: 'SIDOIConfig({jsx:f.jsx,jsxs:f.jsxs,useState:je.useState,useEffect:je.useEffect,useMemo:je.useMemo,eN,cb,tN,js,lP,zg,leaflet:Rt});configurarEM({inventarioAC:rC,poblacionAC:mP,evacuacionAC:fN,descargaAC:SDe,estadosAC:LU});',
+    nuevo: 'SIDOIConfig({jsx:f.jsx,jsxs:f.jsxs,useState:je.useState,useEffect:je.useEffect,useMemo:je.useMemo,eN,cb,tN,js,lP,zg,T1,leaflet:Rt});configurarEM({inventarioAC:rC,poblacionAC:mP,evacuacionAC:fN,descargaAC:SDe,estadosAC:LU});',
     veces: 1,
   },
   {
@@ -107,6 +111,36 @@ module.exports = [
     nombre: 'F3·P3 · 👁️ Vista previa: la forma gráfica debajo del cuadro',
     viejo: '_e({html:use(Ke,M[Ke.id],ne,!0)',
     nuevo: '_e({html:SIDOIPrevia(Ke,use(Ke,M[Ke.id],ne,!0),I,M)',
+    veces: 1,
+  },
+  {
+    nombre: 'F3·P3 · OC 4 y OC 5 (la Organización de la Tarea también las conoce: las tareas de la formación inicial pueden ser más de cuatro)',
+    viejo: '{id:"oc3",nom:"Operación de Configuración 3",corto:"OC 3",color:"#5c9dff"},',
+    nuevo: '{id:"oc3",nom:"Operación de Configuración 3",corto:"OC 3",color:"#5c9dff"},{id:"oc4",nom:"Operación de Configuración 4",corto:"OC 4",color:"#5c9dff"},{id:"oc5",nom:"Operación de Configuración 5",corto:"OC 5",color:"#5c9dff"},',
+    veces: 1,
+  },
+  {
+    nombre: 'Piezas genéricas · la artillería antiaérea se disgregaba como INFANTERÍA (no tenía pieza) y la inteligencia también: ahora ADA e ICIA',
+    viejo: 'comunicaciones:"comunicaciones"},nse=t=>fLe[t]||"infanteria"',
+    nuevo: 'comunicaciones:"comunicaciones",antiaerea:"ada",inteligencia:"inteligencia"},nse=t=>fLe[t]||"infanteria"',
+    veces: 1,
+  },
+  {
+    nombre: 'Piezas genéricas · la pieza de INTELIGENCIA (la compañía de inteligencia: ICIA), entre las de apoyo',
+    viejo: `stroke-width="4"/>'}],lP=t=>pLe.find(e=>e.id===t)||null`,
+    nuevo: `stroke-width="4"/>'},{id:"inteligencia",nom:"Inteligencia",corto:"ICIA",grupo:"apoyo",arma:"inteligencia",svg:mh(!1)+QD("ICIA",15)}],lP=t=>pLe.find(e=>e.id===t)||null`,
+    veces: 1,
+  },
+  {
+    nombre: 'Ficha de unidad · el arma «Inteligencia» (la COMP. ICIA. de la Orden)',
+    viejo: '{id:"lanzacohetes",nombre:"Lanzacohetes"},{id:"ninguna",nombre:"(sin arma)"}]',
+    nuevo: '{id:"lanzacohetes",nombre:"Lanzacohetes"},{id:"inteligencia",nombre:"Inteligencia"},{id:"ninguna",nombre:"(sin arma)"}]',
+    veces: 1,
+  },
+  {
+    nombre: 'Piezas genéricas · una unidad puede decir de qué escalón son sus piezas (escalonPiezas): el BAT. LOG. o el BATING. de la Orden tienen COMPAÑÍAS, no secciones',
+    viejo: 'function tN(t,e=""){if(!t)return[];const n=xU(t.escalon||"regimiento")',
+    nuevo: 'function tN(t,e=""){if(!t)return[];const n=t.escalonPiezas||xU(t.escalon||"regimiento")',
     veces: 1,
   },
 ]

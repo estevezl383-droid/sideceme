@@ -20,7 +20,9 @@
 //   index-trazos-20261003.js + reemplazos-2026-10-03-edicion.js = index-edicion-20261003.js
 //   index-edicion-20261003.js + reemplazos-2026-10-03-tablero-g4.js = index-tablero-g4-20261003.js
 //   index-tablero-g4-20261003.js + reemplazos-2026-10-06-prc.js = index-prc-20261006.js
-//   index-prc-20261006.js + reemplazos-2026-10-06-organizacion.js = index-organizacion-20261006.js (el vigente)
+//   index-prc-20261006.js + reemplazos-2026-10-06-organizacion.js = index-organizacion-20261006.js
+//   index-organizacion-20261006.js + reemplazos-2026-10-08-areas.js = index-areas-20261008.js
+//   index-areas-20261008.js + reemplazos-2026-10-09-frentes.js = index-areas-20261009.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -37,12 +39,15 @@ const PASOS = [
   {
     lista: require('./reemplazos-2026-10-09-frentes'),
     nombre: 'reemplazos-2026-10-09-frentes',
-    anterior: '43436e538671042cf5772dce16b1ca8896ddbc64e196bb91f3c02d15d40f4bc9',
+    // calcos/assets/index-areas-20261008.js (rehecho el 09-10-2026 sobre el index-organizacion
+    // con la tercera vuelta de la F3·P3).
+    anterior: 'fb8b33ed4f243799391b80da6641e9ad3a1e15cf209be266c6ee948d731a0638',
   },
   {
     lista: require('./reemplazos-2026-10-08-areas'),
     nombre: 'reemplazos-2026-10-08-areas',
-    anterior: 'a4ae6daa68fb5c8dc5faa2300f599e4130f05870919faeadf3bc24c5e46d93b3',
+    // calcos/assets/index-organizacion-20261006.js con la tercera vuelta de la F3·P3 (09-10-2026).
+    anterior: '23d336b7801547dd3de4dce8bae6f64176adcbc96c600aff9a39abd0bd5b9372',
   },
   {
     lista: require('./reemplazos-2026-10-06-organizacion'),
