@@ -1,0 +1,58 @@
+/* 🧩 Superponer — tablero de capas superpuestas (código aparte del compilado). */
+.sidsup-btn{position:fixed;right:0;top:24%;z-index:1490;writing-mode:vertical-rl;transform:rotate(180deg);
+  background:#1b222b;color:#e7c46a;border:1px solid #8a6d1f;border-left:0;border-radius:0 8px 8px 0;
+  font:700 12px/1 Arial,sans-serif;letter-spacing:.12em;padding:14px 8px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.4)}
+.sidsup-btn:hover,.sidsup-btn:focus-visible,.sidsup-btn[aria-expanded="true"]{background:#262f3a;outline:2px solid #e7c46a;outline-offset:1px}
+.sidsup{position:fixed;right:44px;top:120px;z-index:1495;width:min(340px,calc(100vw - 60px));max-height:calc(100vh - 160px);
+  display:flex;flex-direction:column;background:#121920;color:#e4e8ec;border:1px solid #8a6d1f;border-radius:10px;
+  box-shadow:0 10px 30px rgba(0,0,0,.55);font:13px/1.4 Arial,Helvetica,sans-serif}
+.sidsup[hidden]{display:none}
+.sidsup *{box-sizing:border-box}
+.sidsup-hd{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #26313c;color:#e7c46a;letter-spacing:.06em}
+.sidsup-x{background:transparent;border:1px solid #3a4652;color:#cfd6dc;border-radius:6px;padding:2px 8px;cursor:pointer}
+.sidsup-bd{overflow:auto;padding:10px 12px;display:grid;gap:10px}
+.sidsup-cargar{width:100%;padding:9px;border-radius:7px;border:1px dashed #4f9cf0;background:#16212c;color:#9cc8ff;font:700 13px Arial,sans-serif;cursor:pointer}
+.sidsup-cargar:hover{background:#1c2a38}
+.sidsup-ayuda{margin:0;font-size:12px;color:#aeb8c1}
+.sidsup-ayuda b{color:#e7c46a}
+.sidsup-cf{display:grid;gap:6px;padding:8px;border:1px solid #26313c;border-radius:7px;background:#161e26}
+.sidsup-cf label{display:flex;align-items:center;gap:8px;font-size:12.5px}
+.sidsup-cf input[type=range]{flex:1;accent-color:#e7c46a}
+.sidsup-cf select{flex:1;background:#0f151b;color:#e4e8ec;border:1px solid #3a4652;border-radius:5px;padding:3px}
+.sidsup-esc{min-width:44px;text-align:right;color:#e7c46a;font-weight:700}
+.sidsup-vacio{margin:0;color:#7f8c97;font-size:12.5px}
+.sidsup-capa{border:1px solid #2b3742;border-left:4px solid #e7c46a;border-radius:7px;padding:8px;background:#19222b}
+.sidsup-capa.off{border-left-color:#3a4652;opacity:.7}
+.sidsup-ch{display:flex;align-items:center;gap:8px}
+.sidsup-ch b{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sidsup-ch button{background:transparent;border:1px solid #3a4652;color:#cfd6dc;border-radius:5px;padding:2px 6px;cursor:pointer}
+.sidsup-ch button:hover{border-color:#e7c46a}
+.sidsup-sw{position:relative;width:34px;height:18px;flex:none}
+.sidsup-sw input{opacity:0;position:absolute;inset:0;margin:0;cursor:pointer;z-index:1}
+.sidsup-sw span{position:absolute;inset:0;background:#3a4652;border-radius:9px;transition:background .15s}
+.sidsup-sw span:after{content:"";position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#fff;transition:transform .15s}
+.sidsup-sw input:checked+span{background:#b8913a}
+.sidsup-sw input:checked+span:after{transform:translateX(16px)}
+.sidsup-sw input:focus-visible+span{outline:2px solid #e7c46a;outline-offset:2px}
+.sidsup-gs{display:grid;gap:3px;margin:7px 0 4px 4px}
+.sidsup-gs label{display:flex;gap:6px;align-items:center;font-size:12.5px;cursor:pointer}
+.sidsup-gs input{accent-color:#e7c46a}
+.sidsup-op{display:flex;gap:8px;align-items:center;font-size:11.5px;color:#aeb8c1}
+.sidsup-op input{flex:1;accent-color:#e7c46a}
+/* sobre la carta */
+.sidsup-u,.sidsup-ao{background:none!important;border:0!important}
+.sidsup-u>div{position:relative}
+.sidsup-u svg{display:block;overflow:visible;filter:drop-shadow(0 1px 2px rgba(0,0,0,.55))}
+.sidsup-lbl{position:absolute;white-space:nowrap;pointer-events:none;font:700 12px/1.15 Arial,sans-serif;color:#fff;
+  text-shadow:0 0 3px #000,0 0 3px #000,0 1px 2px #000}
+.sidsup-lbl span{display:block;font-weight:400;font-size:10.5px;color:#d7dde3}
+.sidsup-ao div{white-space:nowrap;font:700 13px/1.15 Arial,sans-serif;color:#9cc8ff;text-shadow:0 0 3px #000,0 0 3px #000,0 1px 2px #000;letter-spacing:.04em}
+.sidsup-ao span{display:block;font-weight:400;font-size:11px;color:#e4e8ec}
+.sidsup-sinrot .sidsup-lbl,.sidsup-sinrot .sidsup-ao{display:none}
+.sidsup-tt{max-width:340px;white-space:normal}
+.sidsup-aviso{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:2000;background:#3a1c1a;color:#ffd9d2;border:1px solid #e0443a;border-radius:8px;padding:10px 14px;font:13px Arial,sans-serif;max-width:90vw}
+/* dentro de 📁 Ejercicios */
+.sidsup-ej{margin:8px 0 4px}
+.sidsup-ej button{width:100%;padding:10px;border-radius:8px;border:1px dashed #e7c46a;background:rgba(231,196,106,.08);color:#e7c46a;font:700 15px Arial,sans-serif;cursor:pointer}
+.sidsup-ej button:hover{background:rgba(231,196,106,.16)}
+.sidsup-ej p{margin:6px 0 0;font-size:13.5px;color:#c9d1d8;line-height:1.4}

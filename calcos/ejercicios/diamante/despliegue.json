@@ -1,72 +1,339 @@
 {
-  "ejercicio": "DIAMANTE",
-  "coincide": ["DIAMANTE"],
-  "titulo": "Despliegue inicial del CTO «ESCARLATA» · D-30",
-  "amenaza": "El mayor poder de SATURNO es su Fuerza Aérea. Si la emplea libremente desde D, apoya su ofensiva terrestre y cierra los vacíos entre nuestros CE con fuegos aéreos.",
-  "mando": [
-    {"sigla": "CTO «ESCARLATA»", "pc": "Oruro", "txt": "Conduce la defensa del TO. Retiene la DIV. SANT «CÓNDOR» (drones) y la Agrup. IM «Titicaca» como su reserva."},
-    {"sigla": "CATO (FAB)", "pc": "Cochabamba", "txt": "En apoyo al CTO. II Brigada Aérea (K-8W), helicópteros Super Puma y H-425, transporte C-130."},
-    {"sigla": "CNTO (Armada)", "pc": "San Pedro de Tiquina", "txt": "Cuarto Distrito Naval «Titicaca»: control del lago y del flanco norte del CE-I."},
-    {"sigla": "FF.TT.TO.", "pc": "Challapata", "txt": "Cuatro CE de tres divisiones cada uno y su propia reserva (DIV MEC-1, RIAEROTRANS-18, FF.EE.)."}
-  ],
-  "ce": [
-    {"id": "CE-I", "ao": "TAMBO QUEMADO", "pc": "Curahuara de Carangas", "frente": 26.9, "prof": 20.9,
-     "eje": "Arica – Tambo Quemado – Patacamaya – La Paz. Es el eje más corto a la sede de gobierno.",
-     "divs": [
-      {"id": "DIV-2", "de": "Oruro", "km": 139, "arma": "inf", "u": ["BAT. C y S - II", "RI-21 «Illimani»", "RI-22 «Mejillones»", "RIA-25 «Tocopilla»", "RA-1 «My. Gral. Camacho»", "BAT. ING. - VII «Sajama»"]},
-      {"id": "DIV-1", "de": "Cobija", "km": 758, "arma": "inf", "u": ["BAT. C y S - I", "RI-35 «Bruno Racua»", "RI-36 «Santos Pariamo»", "BAT. ING. - VI «Riosinho»", "BAT. PM - IV «Sldo. Siles»"]},
-      {"id": "DIV-6", "de": "Trinidad", "km": 503, "arma": "inf", "u": ["BAT. C y S - VI", "RI-17 «Independencia»", "RI-29 «Cap. Echeverría»", "RC-2 «Mcal. Ballivián»"]}]},
-    {"id": "CE-II", "ao": "PISIGA", "pc": "Huachacalla", "frente": 27.0, "prof": 22.6,
-     "eje": "Iquique – Pisiga – Huachacalla – Oruro.",
-     "divs": [
-      {"id": "DIV-7", "de": "Cochabamba", "km": 271, "arma": "inf", "u": ["BAT. C y S - VII", "RI-26 «Mcal. Azurduy»", "RI-2 «Mcal. Sucre»", "RAA-7 «Tumusla»", "BAT. ING. - V «Tcnl. Ovando»", "RPM-3 «Gral. E. Arze»"], "nota": "El RIAEROTRANS-18 pasa a la reserva de las FF.TT.TO."},
-      {"id": "DIV-9", "de": "Chapare", "km": 362, "arma": "inf", "u": ["BAT. C y S - IX", "RI-31 «Cnl. Ríos»", "RI-33 «Cnl. Cabrera»", "RPM-5 «Cnl. Murguía»"]},
-      {"id": "DIV-11", "de": "Toledo (se forma)", "km": 112, "arma": "mov", "u": ["BAT. C y S - XII", "RI-111 (Mov.)", "RI-112 (Mov.)", "RI-113 (Mov.)"], "nota": "Movilizada desde D-30; lista en D-10. Menor poder de combate."}]},
-    {"id": "CE-III", "ao": "OLLAGÜE", "pc": "Colcha «K»", "frente": 26.9, "prof": 21.6,
-     "eje": "Calama – Ollagüe – Uyuni.",
-     "divs": [
-      {"id": "DIV-10", "de": "Tupiza", "km": 216, "arma": "inf", "u": ["BAT. C y S - X", "RI-3 «Gral. Pérez»", "RI-4 «Loa»", "RI-27 «Antofagasta»", "RC-7 «Chichas»"]},
-      {"id": "DIV-8", "de": "Santa Cruz", "km": 574, "arma": "inf", "u": ["BAT. C y S - VIII", "RI-7 «Gral. Marzana»", "RI-10 «Gral. Warnes»", "RAA-8 «Tcnl. Aguirre»", "RC-10 «Gral. Mercado»", "RPM-2 «Tte. Amezaga»"]},
-      {"id": "DIV-12", "de": "Uyuni (se forma)", "km": 92, "arma": "mov", "u": ["BAT. C y S - XIII", "RI-121 (Mov.)", "RI-122 (Mov.)", "RI-123 (Mov.)"], "nota": "Movilizada desde D-30; lista en D-10. Menor poder de combate."}]},
-    {"id": "CE-IV", "ao": "HITO CAJÓN", "pc": "Quetena Chico", "frente": 27.4, "prof": 21.6,
-     "eje": "San Pedro de Atacama – Hito Cajón – Sud Lípez – Tupiza.",
-     "divs": [
-      {"id": "DIV-3", "de": "Villamontes", "km": 413, "arma": "inf", "u": ["BAT. C y S - III", "RI-5 «Gral. Campero»", "RI-20 «Tcnl. Padilla»", "RC-3 «Aroma»", "RA-3 «Pisagua»", "BAT. ING. - I «Cnl. Méndez»"]},
-      {"id": "DIV-4", "de": "Camiri", "km": 462, "arma": "inf", "u": ["BAT. C y S - IV", "RI-6 «Dr. Campos»", "RI-11 «Boquerón»", "RC-1 «Cnl. Avaroa»", "RA-4 «Tte. Bullain»"]},
-      {"id": "DIV-5", "de": "Roboré", "km": 899, "arma": "inf", "u": ["BAT. C y S - V", "RI-13 «Gral. Montes»", "RI-14 «Florida»", "RI-15 «Junín»", "RC-6 «Cap. Castrillo»", "RA-5 «My. Vergara Paz»", "BAT. ING. - III «Gral. Pando»"]}]}
-  ],
-  "drones": {
-    "nombre": "DIV. SANT «CÓNDOR»",
-    "largo": "División de Sistemas Aéreos No Tripulados «CÓNDOR»",
-    "dep": "Directa del CTO · PC Oruro",
-    "mision": "Desde D-H, en una operación tipo «Rising Lion» combinada con el CATO, neutralizar en tierra el poder aéreo de SATURNO —bases aéreas, radares, defensa antiaérea, combustible y puestos de comando— antes de que pueda apoyar su ofensiva; después, vigilar y batir los vacíos entre los CE.",
-    "u": [
-      ["Cmdo. y Cía. C y S", "Mando, comunicaciones y enlace con el CATO."],
-      ["Centro de Fusión de Inteligencia y Blancos", "Elabora la lista de blancos y evalúa los daños."],
-      ["Rgto. de Reconocimiento UAV-1", "Vigilancia de largo alcance sobre las bases y el despliegue de SATURNO."],
-      ["Rgto. de Ataque de Precisión UAV-2", "Municiones merodeadoras de largo alcance contra blancos profundos."],
-      ["Rgto. de Drones Tácticos UAV-3", "Escuadrones que el CTO puede asignar a los CE en el combate próximo."],
-      ["Bat. de Operaciones Especiales con Drones", "Equipos infiltrados antes de D que atacan desde cerca radares y defensa antiaérea (concepto «Rising Lion»)."],
-      ["Bat. de Guerra Electrónica y Antidrones", "Protege nuestras bases y PC de los drones enemigos."],
-      ["Bat. Logístico y de Mantenimiento SANT", "Abastece, repara y repone aeronaves."]
-    ],
-    "decide": "El CTO decide: los blancos y su prioridad, el momento (D-H), qué se coordina con el CATO y cuándo pasa el UAV-3 a apoyar a los CE."
+ "ejercicio": "DIAMANTE",
+ "coincide": [
+  "DIAMANTE"
+ ],
+ "titulo": "Despliegue inicial del CTO «ESCARLATA» · D-30",
+ "amenaza": "El mayor poder de SATURNO es su Fuerza Aérea. Si la emplea libremente desde D, apoya su ofensiva terrestre y cierra los vacíos entre nuestros CE con fuegos aéreos.",
+ "mando": [
+  {
+   "sigla": "CTO «ESCARLATA»",
+   "pc": "Oruro",
+   "txt": "Conduce la defensa del TO. Retiene la DIV. SANT «CÓNDOR» (drones) y la Agrup. IM «Titicaca» como su reserva."
   },
-  "reservas": [
-    {"tipo": "cto", "t": "Reserva del CTO · Agrup. IM «Titicaca»", "d": "Bat. IM Mec. VI «Independencia» (Chua Cocani), Bat. PM Naval N° 4 y GRIN. Equivale a una brigada ligera."},
-    {"tipo": "cto", "t": "Arma del CTO · DIV. SANT «CÓNDOR»", "d": "División de drones (ver pestaña «Drones»)."},
-    {"tipo": "ffto", "t": "Reserva de las FF.TT.TO. · DIV MEC-1", "d": "RIM-8, RIM-23, RIM-30, RCB-1, RCB-2, RCM-4, RCM-5, RAM-2, RAAM-6, BAT. ING. - II. Zona de reunión inicial: Caracollo."},
-    {"tipo": "ffto", "t": "Reserva aeromóvil", "d": "RIAEROTRANS-18 «Victoria» (Tolata) con el GCAE-1 y el GATE-I del Comando de Aviación del Ejército."},
-    {"tipo": "ffto", "t": "Fuerzas Especiales, apoyo y logística", "d": "RS-1, RS-2, RS-3 y Cía. FF.EE. F-10 · BIM (CIE-297, 298, 299, CIRT) · Bat. Com. I · COMANLOG."},
-    {"tipo": "fuera", "t": "Fuera del TO", "d": "RI-1 «Colorados» y RPM-1: seguridad de la sede de gobierno."}
+  {
+   "sigla": "CATO (FAB)",
+   "pc": "Cochabamba",
+   "txt": "En apoyo al CTO. II Brigada Aérea (K-8W), helicópteros Super Puma y H-425, transporte C-130."
+  },
+  {
+   "sigla": "CNTO (Armada)",
+   "pc": "San Pedro de Tiquina",
+   "txt": "Cuarto Distrito Naval «Titicaca»: control del lago y del flanco norte del CE-I."
+  },
+  {
+   "sigla": "FF.TT.TO.",
+   "pc": "Challapata",
+   "txt": "Cuatro CE de tres divisiones cada uno —una mecanizada en cada CE— y su propia reserva (DIV MEC-1, RIAEROTRANS-18, FF.EE.)."
+  }
+ ],
+ "ce": [
+  {
+   "id": "CE-I",
+   "ao": "TAMBO QUEMADO",
+   "pc": "Curahuara de Carangas",
+   "frente": 26.9,
+   "prof": 20.9,
+   "eje": "Arica – Tambo Quemado – Patacamaya – La Paz. Es el eje más corto a la sede de gobierno.",
+   "divs": [
+    {
+     "id": "DIV MEC-2",
+     "de": "Oruro",
+     "km": 139,
+     "arma": "mec",
+     "u": [
+      "BAT. C y S - II",
+      "RIM-21 «Illimani»",
+      "RIM-22 «Mejillones»",
+      "RIA-25 «Tocopilla»",
+      "RAM-1 «My. Gral. Camacho»",
+      "BAT. ING. - VII «Sajama»"
+     ],
+     "nota": "Se mecaniza para el ejercicio: es la más cercana al AO y está sobre el eje principal a La Paz. El RIA-25 queda como infantería andina."
+    },
+    {
+     "id": "DIV-1",
+     "de": "Cobija",
+     "km": 758,
+     "arma": "inf",
+     "u": [
+      "BAT. C y S - I",
+      "RI-35 «Bruno Racua»",
+      "RI-36 «Santos Pariamo»",
+      "BAT. ING. - VI «Riosinho»",
+      "BAT. PM - IV «Sldo. Siles»"
+     ]
+    },
+    {
+     "id": "DIV-6",
+     "de": "Trinidad",
+     "km": 503,
+     "arma": "inf",
+     "u": [
+      "BAT. C y S - VI",
+      "RI-17 «Independencia»",
+      "RI-29 «Cap. Echeverría»",
+      "RC-2 «Mcal. Ballivián»"
+     ]
+    }
+   ]
+  },
+  {
+   "id": "CE-II",
+   "ao": "PISIGA",
+   "pc": "Huachacalla",
+   "frente": 27.0,
+   "prof": 22.6,
+   "eje": "Iquique – Pisiga – Huachacalla – Oruro.",
+   "divs": [
+    {
+     "id": "DIV MEC-7",
+     "de": "Cochabamba",
+     "km": 271,
+     "arma": "mec",
+     "u": [
+      "BAT. C y S - VII",
+      "RIM-26 «Mcal. Azurduy»",
+      "RIM-2 «Mcal. Sucre»",
+      "RAAM-7 «Tumusla»",
+      "BAT. ING. - V «Tcnl. Ovando»",
+      "RPM-3 «Gral. E. Arze»"
+     ],
+     "nota": "Se mecaniza para el ejercicio: es la de mayor apoyo de combate del CE. El RIAEROTRANS-18 pasa a la reserva de las FF.TT.TO."
+    },
+    {
+     "id": "DIV-9",
+     "de": "Chapare",
+     "km": 362,
+     "arma": "inf",
+     "u": [
+      "BAT. C y S - IX",
+      "RI-31 «Cnl. Ríos»",
+      "RI-33 «Cnl. Cabrera»",
+      "RPM-5 «Cnl. Murguía»"
+     ]
+    },
+    {
+     "id": "DIV-11",
+     "de": "Toledo (se forma)",
+     "km": 112,
+     "arma": "mov",
+     "u": [
+      "BAT. C y S - XII",
+      "RI-111 (Mov.)",
+      "RI-112 (Mov.)",
+      "RI-113 (Mov.)"
+     ],
+     "nota": "Movilizada desde D-30; lista en D-10. Menor poder de combate."
+    }
+   ]
+  },
+  {
+   "id": "CE-III",
+   "ao": "OLLAGÜE",
+   "pc": "Colcha «K»",
+   "frente": 26.9,
+   "prof": 21.6,
+   "eje": "Calama – Ollagüe – Uyuni.",
+   "divs": [
+    {
+     "id": "DIV MEC-10",
+     "de": "Tupiza",
+     "km": 216,
+     "arma": "mec",
+     "u": [
+      "BAT. C y S - X",
+      "RIM-3 «Gral. Pérez»",
+      "RIM-4 «Loa»",
+      "RIM-27 «Antofagasta»",
+      "RCM-7 «Chichas»"
+     ],
+     "nota": "Se mecaniza para el ejercicio: es la más cercana al AO y la primera en llegar."
+    },
+    {
+     "id": "DIV-8",
+     "de": "Santa Cruz",
+     "km": 574,
+     "arma": "inf",
+     "u": [
+      "BAT. C y S - VIII",
+      "RI-7 «Gral. Marzana»",
+      "RI-10 «Gral. Warnes»",
+      "RAA-8 «Tcnl. Aguirre»",
+      "RC-10 «Gral. Mercado»",
+      "RPM-2 «Tte. Amezaga»"
+     ]
+    },
+    {
+     "id": "DIV-12",
+     "de": "Uyuni (se forma)",
+     "km": 92,
+     "arma": "mov",
+     "u": [
+      "BAT. C y S - XIII",
+      "RI-121 (Mov.)",
+      "RI-122 (Mov.)",
+      "RI-123 (Mov.)"
+     ],
+     "nota": "Movilizada desde D-30; lista en D-10. Menor poder de combate."
+    }
+   ]
+  },
+  {
+   "id": "CE-IV",
+   "ao": "HITO CAJÓN",
+   "pc": "Quetena Chico",
+   "frente": 27.4,
+   "prof": 21.6,
+   "eje": "San Pedro de Atacama – Hito Cajón – Sud Lípez – Tupiza.",
+   "divs": [
+    {
+     "id": "DIV MEC-3",
+     "de": "Villamontes",
+     "km": 413,
+     "arma": "mec",
+     "u": [
+      "BAT. C y S - III",
+      "RIM-5 «Gral. Campero»",
+      "RIM-20 «Tcnl. Padilla»",
+      "RCM-3 «Aroma»",
+      "RAM-3 «Pisagua»",
+      "BAT. ING. - I «Cnl. Méndez»"
+     ],
+     "nota": "Se mecaniza para el ejercicio: es la más completa del CE (caballería, artillería e ingeniería)."
+    },
+    {
+     "id": "DIV-4",
+     "de": "Camiri",
+     "km": 462,
+     "arma": "inf",
+     "u": [
+      "BAT. C y S - IV",
+      "RI-6 «Dr. Campos»",
+      "RI-11 «Boquerón»",
+      "RC-1 «Cnl. Avaroa»",
+      "RA-4 «Tte. Bullain»"
+     ]
+    },
+    {
+     "id": "DIV-5",
+     "de": "Roboré",
+     "km": 899,
+     "arma": "inf",
+     "u": [
+      "BAT. C y S - V",
+      "RI-13 «Gral. Montes»",
+      "RI-14 «Florida»",
+      "RI-15 «Junín»",
+      "RC-6 «Cap. Castrillo»",
+      "RA-5 «My. Vergara Paz»",
+      "BAT. ING. - III «Gral. Pando»"
+     ]
+    }
+   ]
+  }
+ ],
+ "drones": {
+  "nombre": "DIV. SANT «CÓNDOR»",
+  "largo": "División de Sistemas Aéreos No Tripulados «CÓNDOR»",
+  "dep": "Directa del CTO · PC Oruro",
+  "mision": "Desde D-H, en una operación tipo «Rising Lion» combinada con el CATO, neutralizar en tierra el poder aéreo de SATURNO —bases aéreas, radares, defensa antiaérea, combustible y puestos de comando— antes de que pueda apoyar su ofensiva; después, vigilar y batir los vacíos entre los CE.",
+  "u": [
+   [
+    "Cmdo. y Cía. C y S",
+    "Mando, comunicaciones y enlace con el CATO."
+   ],
+   [
+    "Centro de Fusión de Inteligencia y Blancos",
+    "Elabora la lista de blancos y evalúa los daños."
+   ],
+   [
+    "Rgto. de Reconocimiento UAV-1",
+    "Vigilancia de largo alcance sobre las bases y el despliegue de SATURNO."
+   ],
+   [
+    "Rgto. de Ataque de Precisión UAV-2",
+    "Municiones merodeadoras de largo alcance contra blancos profundos."
+   ],
+   [
+    "Rgto. de Drones Tácticos UAV-3",
+    "Escuadrones que el CTO puede asignar a los CE en el combate próximo."
+   ],
+   [
+    "Bat. de Operaciones Especiales con Drones",
+    "Equipos infiltrados antes de D que atacan desde cerca radares y defensa antiaérea (concepto «Rising Lion»)."
+   ],
+   [
+    "Bat. de Guerra Electrónica y Antidrones",
+    "Protege nuestras bases y PC de los drones enemigos."
+   ],
+   [
+    "Bat. Logístico y de Mantenimiento SANT",
+    "Abastece, repara y repone aeronaves."
+   ]
   ],
-  "crono": [
-    ["D-30", "Orden de alistamiento del CTO y decreto de movilización. Inicio de traslados."],
-    ["D-30 a D-15", "Traslado de las GU lejanas: DIV-1, DIV-6, DIV-5, DIV-8, DIV-3 y DIV-4. Apoyo de C-130 y Bat. Trans."],
-    ["D-30 a D-10", "Movilización e instrucción de la DIV-11 (Toledo) y la DIV-12 (Uyuni). En D-10 pasan al CE-II y al CE-III."],
-    ["D-25 a D-1", "Organización del terreno: posiciones defensivas y obstáculos. El tiempo de cada obra lo calcula SIDECEME."],
-    ["D-10 a D-1", "La DIV. SANT infiltra sus equipos y fija los blancos con el CATO."],
-    ["D-3", "Ocupación final de posiciones. Reservas en sus zonas de reunión."],
-    ["D", "Inicio de la ofensiva de SATURNO."]
+  "decide": "El CTO decide: los blancos y su prioridad, el momento (D-H), qué se coordina con el CATO y cuándo pasa el UAV-3 a apoyar a los CE."
+ },
+ "reservas": [
+  {
+   "tipo": "cto",
+   "t": "Reserva del CTO · Agrup. IM «Titicaca»",
+   "d": "Bat. IM Mec. VI «Independencia» (Chua Cocani), Bat. PM Naval N° 4 y GRIN. Equivale a una brigada ligera."
+  },
+  {
+   "tipo": "cto",
+   "t": "Arma del CTO · DIV. SANT «CÓNDOR»",
+   "d": "División de drones (ver pestaña «Drones»)."
+  },
+  {
+   "tipo": "ffto",
+   "t": "Reserva de las FF.TT.TO. · DIV MEC-1",
+   "d": "RIM-8, RIM-23, RIM-30, RCB-1, RCB-2, RCM-4, RCM-5, RAM-2, RAAM-6, BAT. ING. - II. Zona de reunión inicial: Caracollo."
+  },
+  {
+   "tipo": "ffto",
+   "t": "Reserva aeromóvil",
+   "d": "RIAEROTRANS-18 «Victoria» (Tolata) con el GCAE-1 y el GATE-I del Comando de Aviación del Ejército."
+  },
+  {
+   "tipo": "ffto",
+   "t": "Fuerzas Especiales, apoyo y logística",
+   "d": "RS-1, RS-2, RS-3 y Cía. FF.EE. F-10 · BIM (CIE-297, 298, 299, CIRT) · Bat. Com. I · COMANLOG."
+  },
+  {
+   "tipo": "fuera",
+   "t": "Fuera del TO",
+   "d": "RI-1 «Colorados» y RPM-1: seguridad de la sede de gobierno."
+  }
+ ],
+ "crono": [
+  [
+   "D-30",
+   "Orden de alistamiento del CTO y decreto de movilización. Inicio de traslados."
+  ],
+  [
+   "D-30 a D-15",
+   "Traslado de las GU lejanas: DIV-1, DIV-6, DIV-5, DIV-8, DIV-3 y DIV-4. Apoyo de C-130 y Bat. Trans."
+  ],
+  [
+   "D-30 a D-10",
+   "Movilización e instrucción de la DIV-11 (Toledo) y la DIV-12 (Uyuni). En D-10 pasan al CE-II y al CE-III."
+  ],
+  [
+   "D-25 a D-1",
+   "Organización del terreno: posiciones defensivas y obstáculos. El tiempo de cada obra lo calcula SIDECEME."
+  ],
+  [
+   "D-10 a D-1",
+   "La DIV. SANT infiltra sus equipos y fija los blancos con el CATO."
+  ],
+  [
+   "D-3",
+   "Ocupación final de posiciones. Reservas en sus zonas de reunión."
+  ],
+  [
+   "D",
+   "Inicio de la ofensiva de SATURNO."
   ]
+ ]
 }

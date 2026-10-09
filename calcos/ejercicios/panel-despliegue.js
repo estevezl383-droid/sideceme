@@ -14,7 +14,7 @@
  */
 (function () {
   'use strict'
-  var EJERCICIOS = [{ clave: 'DIAMANTE', archivo: './ejercicios/diamante/despliegue.json?v=20261009b' }]
+  var EJERCICIOS = [{ clave: 'DIAMANTE', archivo: './ejercicios/diamante/despliegue.json?v=20261009c' }]
   var datos = null, activo = null, tab = null, panel = null, pestana = 'mando'
 
   function esc(s) {
