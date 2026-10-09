@@ -166,3 +166,25 @@ body.sid-pandora #sid-pd-tab.abierto{max-height:300px}
 #sid-pd-tab .ir:hover{filter:brightness(1.12)}
 @media (prefers-reduced-motion:reduce){#sid-pd-tab{transition:none}}
 #sid-pd-tab:not(.abierto) .subs{display:none}
+
+/* ---------- capas que viven en el G-3 y el G-4 (capas-g.js) ---------- */
+body.sid-pandora .bloque-ver .ver-chip[data-sid-capa]{display:none}
+.sid-pd-cap{display:none}
+body.sid-pandora .sid-pd-cap{display:block;position:fixed;z-index:1001;right:52px;width:26px;
+  top:calc(62px + 14px + var(--pd-i,0)*38px + 16px)}
+body.sid-pandora .sid-pd-cap[data-i="5"]{--pd-i:5}
+body.sid-pandora .sid-pd-cap[data-i="6"]{--pd-i:6}
+body.sid-pandora .sid-pd-cap .tg{width:26px;height:30px;padding:0;font:700 12px/1 var(--pd-font);color:var(--pd-mute);cursor:pointer;
+  background:var(--pd-glass2);border:1px solid var(--pd-edge);border-radius:var(--pd-rs)}
+body.sid-pandora .sid-pd-cap.on .tg{color:var(--pd-acc);border-color:var(--pd-edge2);box-shadow:0 0 10px rgba(70,240,208,.3)}
+body.sid-pandora .sid-pd-cap .tg:hover{color:#fff;border-color:var(--pd-edge2)}
+body.sid-pandora .sid-pd-cap .tg:focus-visible,body.sid-pandora .sid-pd-cap input:focus-visible{outline:2px solid var(--pd-acc);outline-offset:1px}
+body.sid-pandora .sid-pd-cap .pop{position:absolute;right:calc(100% + 148px);top:0;display:flex;align-items:center;gap:8px;white-space:nowrap;
+  padding:6px 12px;border:1px solid var(--pd-edge2);border-radius:var(--pd-rs);background:rgba(4,17,26,.96);
+  font:600 13px var(--pd-font);color:var(--pd-fg);cursor:pointer;box-shadow:0 0 18px rgba(70,240,208,.2)}
+body.sid-pandora .sid-pd-cap .pop[hidden]{display:none}
+body.sid-pandora .sid-pd-cap .pop b{font:11px var(--pd-mono);color:var(--pd-mute);font-weight:400}
+body.sid-pandora .sid-pd-cap .pop input{accent-color:var(--pd-acc);margin:0}
+/* los botones G-3 y G-4 dejan lugar al menú chico */
+body.sid-pandora .botones-mapa [data-sid-g=mando][data-sid-i="5"],
+body.sid-pandora .botones-mapa [data-sid-g=mando][data-sid-i="6"]{width:114px;right:86px;padding-inline:7px;font-size:10.5px;letter-spacing:.02em}
