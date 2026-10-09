@@ -22,7 +22,9 @@
 //   index-tablero-g4-20261003.js + reemplazos-2026-10-06-prc.js = index-prc-20261006.js
 //   index-prc-20261006.js + reemplazos-2026-10-06-organizacion.js = index-organizacion-20261006.js
 //   index-organizacion-20261006.js + reemplazos-2026-10-08-areas.js = index-areas-20261008.js
-//   index-areas-20261008.js + reemplazos-2026-10-09-frentes.js = index-areas-20261009.js (el vigente)
+//   index-areas-20261008.js + reemplazos-2026-10-09-frentes.js = index-areas-20261009.js
+//   … + reemplazos-2026-10-09-unidades.json = index-unidades-20261009.js
+//   index-unidades-20261009.js + reemplazos-2026-09-29-membrete.js = index-membrete-20261009.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -36,6 +38,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-09-29-membrete'),
+    nombre: 'reemplazos-2026-09-29-membrete',
+    // calcos/assets/index-unidades-20261009.js (antes del membrete táctico).
+    anterior: 'd098a722d0bae97ad06495194e7687e5fd71906c51502782c1e90ab3ba2588d7',
+  },
   {lista: require('./reemplazos-2026-10-09-unidades.json'), nombre: 'reemplazos-2026-10-09-unidades', anterior: '333e0751443ed1638b69ffa8a2037d4d72beb114e1c24404a734c0c5825237b2'},
   {
     lista: require('./reemplazos-2026-10-09-frentes'),

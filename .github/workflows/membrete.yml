@@ -1,0 +1,45 @@
+name: Validar membrete táctico de los documentos militares
+on:
+  pull_request:
+    paths:
+      - 'calcos/membrete/**'
+      - 'calcos/formato-militar/**'
+      - 'calcos/riesgo/v2/**'
+      - 'calcos/index.html'
+      - 'calcos/assets/index-membrete-20261009.js'
+      - 'calcos/pruebas/*membrete*'
+      - 'calcos/pruebas/e2e/membrete.cjs'
+      - 'calcos/pruebas/reemplazos-compilado.js'
+      - '.github/workflows/membrete.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Reglas del membrete y cadena de compilados reversible
+        run: |
+          npm ci --prefix calcos/pruebas
+          node calcos/pruebas/membrete.cjs
+          node calcos/pruebas/reemplazos-compilado.js
+          node --check calcos/assets/index-membrete-20261009.js
+      - name: Preparar navegador de prueba
+        run: |
+          npm install --prefix /tmp/prueba-membrete playwright@1.51.1
+          node /tmp/prueba-membrete/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Word real de la Orden Preparatoria N° 1 con el membrete (escritorio y teléfono)
+        env:
+          PLAYWRIGHT_MODULE: /tmp/prueba-membrete/node_modules/playwright
+        run: node calcos/pruebas/e2e/membrete.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: revision-membrete
+          path: calcos/pruebas/salidas-membrete/
+          retention-days: 7

@@ -93,12 +93,15 @@ async function capturaEditor(page, archivo) {
       await editor(page).getByRole('button', { name: '🌱 Armar con lo del ejercicio' }).click()
       await editor(page).getByText(/Se trajo del ejercicio/).waitFor()
       const valores = await editor(page).locator('textarea, input').evaluateAll((xs) => xs.map((x) => x.value))
-      for (const t of ['La DIV.MEC.-1 (FICT.) defiende y fija a las fuerzas enemigas a partir del D (0500) hasta el D+1 (1800) en el AO. PUEBLO-X (FICT.).', 'D (0500)', 'D+1 (1800)', 'D-6 (0600)', 'My. PRUEBA (FICT.), G-3 DE LA DIV.MEC.-1 (FICT.)', 'Defender el AO. PUEBLO-X (FICT.)', 'Ocupar y organizar la posición defensiva', 'Fijar a la brigada enemiga (FICT.)', 'Evacuar a la población civil del AO'])
+      for (const t of ['La DIV.MEC.-1 (FICT.) defiende y fija a las fuerzas enemigas a partir del D (0500) hasta el D+1 (1800) en el AO. PUEBLO-X (FICT.).', 'D (0500)', 'D+1 (1800)', 'D-6 (0600)', 'My. PRUEBA (FICT.), G-3 DEL RCB-1', 'Defender el AO. PUEBLO-X (FICT.)', 'Ocupar y organizar la posición defensiva', 'Fijar a la brigada enemiga (FICT.)', 'Evacuar a la población civil del AO'])
         assert.ok(valores.includes(t), `armada: falta «${t}»`)
 
-      // El membrete: sale de la Orden del escalón superior, con SECRETO.
+      // El membrete táctico (calcos/membrete/v1): la DIV.MEC.-1 que expidió la Orden es el
+      // escalón superior de la unidad considerada (RCB-1, por defecto); la hora es la de la
+      // Línea de Tiempo (fin del análisis de la misión) y el número el 002 del G-3 (su 001
+      // es la Línea de Tiempo). Sin ficha del RCB-1 en el calco, el CG queda para llenar.
       const memb = await editor(page).locator('div', { hasText: /^SECRETO/ }).first().innerText()
-      for (const t of ['SECRETO', 'I CUERPO DE EJÉRCITO (FICT.)', 'DIV.MEC.-1 (FICT.)', 'CG. PUEBLO-X D-15 (2300)', 'EMO/SEC-III', 'No. 001/XYZ']) assert.ok(memb.includes(t), `membrete sin «${t}»: ${memb}`)
+      for (const t of ['SECRETO', 'DIV.MEC.-1 (FICT.)', 'RCB-1', 'CG. …………… D-6 (0600)', 'EMO/SEC-III', 'No. 002/XYZ']) assert.ok(memb.includes(t), `membrete sin «${t}»: ${memb}`)
       await capturaEditor(page, path.join(out, `${tag}-armada.png`))
 
       // 🤖 El pedido a la IA.
@@ -133,7 +136,7 @@ async function capturaEditor(page, archivo) {
       await velo.waitFor()
       const marco = velo.frameLocator('iframe')
       const hoja = await marco.locator('body').innerText()
-      for (const t of ['SECRETO', 'I CUERPO DE EJÉRCITO (FICT.)', 'CG. PUEBLO-X D-15 (2300)', 'EMO/SEC-III', 'No. 001/XYZ', 'MATRIZ DE ADMINISTRACIÓN DEL RIESGO', '1. MISIÓN O TAREA', '5. TAREA', '10. Implementar controles (como)', '11. DETERMINAR EL NIVEL DE RIESGO GLOBAL', 'RECONOCIMIENTOS EN EL TERRENO (FICT.)', 'EL COMANDANTE DE LA DIV.MEC.-1 (FICT.)'])
+      for (const t of ['SECRETO', 'DIV.MEC.-1 (FICT.)', 'CG. …………… D-6 (0600)', 'EMO/SEC-III', 'No. 002/XYZ', 'MATRIZ DE ADMINISTRACIÓN DEL RIESGO', '1. MISIÓN O TAREA', '5. TAREA', '10. Implementar controles (como)', '11. DETERMINAR EL NIVEL DE RIESGO GLOBAL', 'RECONOCIMIENTOS EN EL TERRENO (FICT.)', 'EL COMANDANTE DEL RCB-1'])
         assert.ok(hoja.includes(t), `la vista previa no trae «${t}»`)
       assert.ok(!/\[IA\s*[—–-]\s*verificar\]/.test(hoja), 'la vista previa no trae marcas de la IA')
       assert.equal(await marco.locator('span[style*="border-radius:50%"]').count(), 1, 'un solo nivel encerrado en un círculo')

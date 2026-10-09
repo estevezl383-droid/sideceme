@@ -5,6 +5,37 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-09 — Membrete táctico en todos los documentos militares (`index-membrete-20261009.js`)
+
+Parte de `index-unidades-20261009.js` + `pruebas/reemplazos-2026-09-29-membrete.js` (13
+reemplazos; `construir-membrete.js` lo arma y `reemplazos-compilado.js` lo deshace byte
+por byte). Lo pidió Sergio. Código legible en `calcos/membrete/v1/` (ver su README).
+
+- **Qué pasaba**: el membrete copiaba el de la Orden recibida (CE-I / DIV.MEC.-1 CG. VIACHA
+  D-15 (2300)), con «Nº», en 12 puntos, y el CG a una tabulación fija; el número era el de la
+  Orden o una serie 001/101/201 por G; las hojas de trabajo también llevaban membrete. En el
+  formato militar (`calcos/formato-militar/v1`) el superior era el «Escalón superior» de la
+  Orden, la unidad la que la expidió, la hora siempre la recepción y el correlativo uno solo
+  por unidad.
+- **Qué se hizo**: DIV.MEC.-1 (la unidad que expidió la Orden) / RCB-1 (unidad considerada;
+  por defecto, hasta que se elija al cargar el escenario) con «CG. PUEBLO» (el más cercano a
+  su PC o ficha) y la hora táctica del documento en la Línea de Tiempo / EMO/SEC de la
+  pestaña / No. correlativo de la sección con las iniciales del usuario. Arial 10 negrilla,
+  «CG.» debajo de la R de SECRETO. Las hojas de trabajo, sin membrete. La Orden del escalón
+  superior tiene dos campos nuevos: «Unidad considerada (quiénes somos)» y «CG de la unidad
+  considerada»; su «Unidad considerada» de antes pasa a llamarse «Unidad que expide la Orden».
+- **En el compilado**: `_ie`, `Ex` (HTML), `W5e` (Arial 10 y tabulación), `rP` (sólo
+  documentos militares), `f3e` y el Tablero del G-3 (EMO/SEC-III) usan `SIDMembrete`; un
+  efecto le pasa el ejercicio; la matriz de riesgo pasa a `calcos/riesgo/v2/`; el formato
+  militar carga `runtime.js?v=membrete20261009` (que toma los campos de `SIDMembrete` y no
+  repite el correlativo dentro de la sección).
+- **Cómo se comprobó**: `membrete.cjs` (14 casos), `e2e/membrete.cjs` (Word real de la O.
+  Preparatoria N° 1 en escritorio y teléfono), `e2e/riesgo.cjs` (expectativas del membrete
+  nuevo), `formatos-integrados.cjs` (la Línea de Tiempo es igual al original salvo el
+  membrete), `formato-militar*.cjs`, `exportacion-hoja.cjs`, `autenticador-militar.cjs` y
+  `npm test`. `edicion-figuras.cjs`, `oca-militar.cjs` y `espaciado-militar.cjs` ya fallaban
+  en `main` antes de este cambio.
+
 ## 2026-10-09 — Unidades azules: símbolos de apoyo
 
 `index-unidades-20261009.js` conserva el compilado anterior y añade cinco cambios
