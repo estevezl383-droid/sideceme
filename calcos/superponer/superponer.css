@@ -56,3 +56,13 @@
 .sidsup-ej button{width:100%;padding:10px;border-radius:8px;border:1px dashed #e7c46a;background:rgba(231,196,106,.08);color:#e7c46a;font:700 15px Arial,sans-serif;cursor:pointer}
 .sidsup-ej button:hover{background:rgba(231,196,106,.16)}
 .sidsup-ej p{margin:6px 0 0;font-size:13.5px;color:#c9d1d8;line-height:1.4}
+/* vista 3D */
+.sidsup3d{position:absolute;inset:0;pointer-events:none;z-index:3;overflow:hidden}
+.sidsup3-u,.sidsup3-ao{position:absolute;left:0;top:0;will-change:transform}
+.sidsup3-u{pointer-events:auto;cursor:help}
+.sidsup3-u svg{display:block;overflow:visible;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
+.sidsup-lbl3{position:absolute;white-space:nowrap;pointer-events:none;font:700 12px/1.15 Arial,sans-serif;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000,0 1px 2px #000}
+.sidsup-lbl3 span{display:block;font-weight:400;font-size:10.5px;color:#d7dde3}
+.sidsup3-ao{white-space:nowrap;font:700 13px/1.15 Arial,sans-serif;color:#9cc8ff;text-shadow:0 0 3px #000,0 0 3px #000,0 1px 2px #000;letter-spacing:.04em}
+.sidsup3-ao span{display:block;font-weight:400;font-size:11px;color:#e4e8ec}
+.sidsup3d.sinrot .sidsup-lbl3,.sidsup3d.sinrot .sidsup3-ao{display:none}
