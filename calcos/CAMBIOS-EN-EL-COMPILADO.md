@@ -5,6 +5,28 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-09 — Unidades azules: símbolos de apoyo
+
+`index-unidades-20261009.js` conserva el compilado anterior y añade cinco cambios
+reversibles (`pruebas/reemplazos-2026-10-09-unidades.json`). Dibujo legible en
+`unidades/simbolos-apoyo.mjs`, según capturas del docente del 08-OCT-2026:
+ametralladora (flecha), mortero (flecha con óvalo inferior), antitanque / LC
+(flecha con apoyo abierto). Los escalones existentes permiten sección, compañía,
+batallón y regimiento. Sólo cambia el dibujo de unidades propias; enemigo y
+servicios mantienen su renderer. Número lateral opcional, círculo interior
+opcional y texto interior opcional (p. ej. SAT.MONT.) se guardan en cada ficha
+como `numeroUnidad`, `circuloSimbolo` y `textoSimbolo`. El texto sustituye el
+símbolo interior. Las capturas no se atribuyen a un reglamento no proporcionado.
+El renderer común se usa en carta 2D, 3D y KMZ. Si se recompila desde el fuente
+externo, trasladar esos campos, controles y dibujo.
+
+Validación: sintaxis; 16 combinaciones arma/escalón en `unidades-apoyo.cjs`,
+comparación de dibujo idéntico para enemigo y unidades no afectadas, texto
+y número lateral; dibujo real con Canvas; reversibilidad completa. La batería
+general pasa hasta edición de figuras, donde falla el caso de escalones AO
+(división/cuerpo): mismo fallo confirmado sobre el compilado anterior.
+No se pudo ejecutar navegador completo porque Chromium no estuvo disponible.
+
 ## 2026-10-06 (3) — 🧭 F3·P3 Formación inicial de las fuerzas, en orden y sobre el terreno (`index-organizacion-20261006.js`)
 
 Parte de `index-prc-20261006.js`: trae todo eso y suma esto. Lo pidió Sergio con capturas de la
