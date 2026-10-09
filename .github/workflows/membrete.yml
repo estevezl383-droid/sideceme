@@ -6,7 +6,7 @@ on:
       - 'calcos/formato-militar/**'
       - 'calcos/riesgo/v2/**'
       - 'calcos/index.html'
-      - 'calcos/assets/index-membrete-20261009.js'
+      - 'calcos/assets/index-divmec-20261009.js'
       - 'calcos/pruebas/*membrete*'
       - 'calcos/pruebas/e2e/membrete.cjs'
       - 'calcos/pruebas/reemplazos-compilado.js'
@@ -28,7 +28,7 @@ jobs:
           npm ci --prefix calcos/pruebas
           node calcos/pruebas/membrete.cjs
           node calcos/pruebas/reemplazos-compilado.js
-          node --check calcos/assets/index-membrete-20261009.js
+          node --check calcos/assets/index-divmec-20261009.js
       - name: Preparar navegador de prueba
         run: |
           npm install --prefix /tmp/prueba-membrete playwright@1.51.1
