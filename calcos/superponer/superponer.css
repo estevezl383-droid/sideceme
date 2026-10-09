@@ -46,7 +46,7 @@
 .sidsup-lbl{position:absolute;white-space:nowrap;pointer-events:none;font:700 12px/1.15 Arial,sans-serif;color:#fff;
   text-shadow:0 0 3px #000,0 0 3px #000,0 1px 2px #000}
 .sidsup-lbl span{display:block;font-weight:400;font-size:10.5px;color:#d7dde3}
-.sidsup-ao div{white-space:nowrap;font:700 13px/1.15 Arial,sans-serif;color:#9cc8ff;text-shadow:0 0 3px #000,0 0 3px #000,0 1px 2px #000;letter-spacing:.04em}
+.sidsup-ao div{white-space:nowrap;font:700 13px/1.15 Arial,sans-serif;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000,0 1px 2px #000;letter-spacing:.04em}
 .sidsup-ao span{display:block;font-weight:400;font-size:11px;color:#e4e8ec}
 .sidsup-sinrot .sidsup-lbl,.sidsup-sinrot .sidsup-ao{display:none}
 .sidsup-tt{max-width:340px;white-space:normal}
@@ -63,6 +63,8 @@
 .sidsup3-u svg{display:block;overflow:visible;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
 .sidsup-lbl3{position:absolute;white-space:nowrap;pointer-events:none;font:700 12px/1.15 Arial,sans-serif;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000,0 1px 2px #000}
 .sidsup-lbl3 span{display:block;font-weight:400;font-size:10.5px;color:#d7dde3}
-.sidsup3-ao{white-space:nowrap;font:700 13px/1.15 Arial,sans-serif;color:#9cc8ff;text-shadow:0 0 3px #000,0 0 3px #000,0 1px 2px #000;letter-spacing:.04em}
+.sidsup3-ao{white-space:nowrap;font:700 13px/1.15 Arial,sans-serif;color:#fff;text-shadow:0 0 3px #000,0 0 3px #000,0 1px 2px #000;letter-spacing:.04em}
 .sidsup3-ao span{display:block;font-weight:400;font-size:11px;color:#e4e8ec}
 .sidsup3d.sinrot .sidsup-lbl3,.sidsup3d.sinrot .sidsup3-ao{display:none}
+.sidsup-op span{min-width:34px;text-align:right;color:#e7c46a;font-weight:700}
+.sidsup-nota{margin:0;font-size:11px;color:#7f8c97}
