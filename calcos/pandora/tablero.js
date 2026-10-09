@@ -46,11 +46,10 @@
         { k: 'Unidades', t: 'Unidades propias', d: 'Colocá y editá tus unidades: tipo, escalón, arma o servicio, número lateral y símbolo.', b: 'Abrir Unidades',
           f: function () { return abrir(/UNIDADES/i, /^Propias/i) }, n: function () { var n = unidadesMias(); return n == null ? '' : n + ' unidad(es) en el ejercicio' } },
         { k: 'Tareas', t: 'Tareas', d: 'Tareas tácticas de tus unidades y su organización.', b: 'Abrir Tareas', f: function () { return abrir(/TAREAS/i) } },
-        { k: 'C.A. por fases', t: 'Curso de acción propio, por fases', d: 'Armá tu curso de acción fase por fase. Cada fase guarda la posición de las fichas.', b: 'Abrir C.A. por fases', f: function () { return abrir(/C\.A\. POR FASES/i) } },
+        { k: 'C.A. por fases', t: 'Curso de acción propio, por fases', d: 'Armá tu curso de acción y sus fases. Cada fase guarda la posición de las fichas.', b: 'Abrir C.A. por fases', f: function () { return abrir(/C\.A\. POR FASES/i) } },
         { k: 'Plan de fuegos', t: 'Plan de fuegos', d: 'Blancos, medios y fases del apoyo de fuegos (tablero del G-3).', b: 'Abrir Plan de fuegos',
           f: function () { return abrir(/G-3/i, /^\W*Fuegos/i) }, n: function () { var n = blancosFuego(); return n == null ? '' : n + ' blanco(s) en el plan' } },
-        { k: 'Plan de barreras de ingeniería', t: 'Plan de barreras de ingeniería', d: 'Alambradas, campos minados y posiciones defensivas, con el tiempo y la gente que hacen falta.', b: 'Abrir Defensa', f: function () { return abrir(/DEFENSA/i) } },
-        { k: 'Fases', t: 'Fases', d: 'Las fases se arman dentro del C.A. por fases; acá se abre el mismo panel.', b: 'Abrir fases', f: function () { return abrir(/C\.A\. POR FASES/i) } }
+        { k: 'Plan de barreras de ingeniería', t: 'Plan de barreras de ingeniería', d: 'Alambradas, campos minados y posiciones defensivas, con el tiempo y la gente que hacen falta.', b: 'Abrir Defensa', f: function () { return abrir(/DEFENSA/i) } }
       ]
     },
     ene: {
@@ -58,8 +57,7 @@
       subs: [
         { k: 'Unidades', t: 'Unidades enemigas', d: 'Colocá las unidades del enemigo (rojo): tipo, escalón, arma y símbolo.', b: 'Abrir Unidades enemigas', f: function () { return abrir(/UNIDADES/i, /^Enemigo/i) } },
         { k: 'Tareas', t: 'Tareas', d: 'Tareas del enemigo y su organización.', b: 'Abrir Tareas', f: function () { return abrir(/TAREAS/i) } },
-        { k: 'C.A. por fases', t: 'Cursos de acción del enemigo, por fases', d: 'El más probable y el más peligroso, dibujados fase por fase.', b: 'Abrir C.A. por fases', f: function () { return abrir(/C\.A\. POR FASES/i) } },
-        { k: 'Fases', t: 'Fases', d: 'Las fases se arman dentro del C.A. por fases; acá se abre el mismo panel.', b: 'Abrir fases', f: function () { return abrir(/C\.A\. POR FASES/i) } },
+        { k: 'C.A. por fases', t: 'Cursos de acción del enemigo, por fases', d: 'El más probable y el más peligroso, con sus fases.', b: 'Abrir C.A. por fases', f: function () { return abrir(/C\.A\. POR FASES/i) } },
         { k: 'Todo lo referente', t: 'Todo lo referente al enemigo', d: 'Inteligencia: lo que se sabe del enemigo y sus productos (tablero del G-2).', b: 'Abrir G-2 Inteligencia', f: function () { return abrir(/G-2/i) } }
       ]
     }
