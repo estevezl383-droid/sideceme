@@ -36,6 +36,7 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {lista: require('./reemplazos-2026-10-09-unidades.json'), nombre: 'reemplazos-2026-10-09-unidades', anterior: '333e0751443ed1638b69ffa8a2037d4d72beb114e1c24404a734c0c5825237b2'},
   {
     lista: require('./reemplazos-2026-10-09-frentes'),
     nombre: 'reemplazos-2026-10-09-frentes',
