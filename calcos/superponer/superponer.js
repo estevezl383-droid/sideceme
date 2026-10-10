@@ -22,7 +22,8 @@
  */
 (function () {
   'use strict'
-  var PRESETS = [{ clave: 'DIAMANTE', nombre: 'DIAMANTE · Despliegue D-30', archivo: './ejercicios/diamante/superposicion.json?v=20261009d' }]
+  // Ninguna capa viene fija: todo lo que se ve lo carga el usuario desde su computadora (o lo quita con ✕).
+  var PRESETS = []
   var KEY = 'sid_superponer_v1'
   var capas = []          // {id, nombre, origen, visible, opac, grupos:[{id,nombre,visible,elementos}], lg, preset}
   var conf = { escala: 1.5, rotulos: 'auto', compacto: true }
@@ -405,7 +406,8 @@
     tab.className = 'sidsup'; tab.hidden = true; tab.setAttribute('aria-label', 'Tablero de capas superpuestas')
     tab.innerHTML = '<div class="sidsup-hd"><b>🧩 TABLERO · SUPERPONER</b><button type="button" class="sidsup-x" data-a="cerrar" aria-label="Cerrar">✕</button></div>' +
       '<div class="sidsup-bd">' +
-      '<button type="button" class="sidsup-cargar" data-a="cargar">➕ Superponer un archivo (JSON / GeoJSON)</button>' +
+      '<button type="button" class="sidsup-cargar" data-a="cargar">💻 Abrir archivo de la computadora (JSON / GeoJSON)</button>' +
+      '<button type="button" class="sidsup-cargar" data-a="quitartodo">🗑️ Quitar todas las capas</button>' +
       '<p class="sidsup-ayuda"><b>Superponer</b> sólo muestra el archivo encima de la carta: no se guarda en el ejercicio ni borra nada. <b>Integrar capa</b> (en 📁 Ejercicio) sí lo mete al ejercicio.</p>' +
       '<div class="sidsup-cf"><label>Tamaño de las fichas <input type="range" min="1" max="2" step="0.1" data-a="escala"> <span class="sidsup-esc"></span></label>' +
       '<p class="sidsup-nota">El tamaño vale también para las fichas de la Mesa (se aplica al mover el zoom).</p>' +
@@ -421,6 +423,7 @@
       if (a === 'cerrar') abrir(false)
       if (a === 'cargar') input.click()
       if (a === 'zoom' && c) zoomA(c)
+      if (a === 'quitartodo') { capas.forEach(function (x) { if (x.lg && mapa) mapa.removeLayer(x.lg) }); capas = []; guardar(); pintar(); actualizar3D() }
       if (a === 'quitar' && c) { if (c.lg) mapa.removeLayer(c.lg); capas = capas.filter(function (x) { return x !== c }); if (c.preset) quitados[c.preset] = true; guardar(); pintar(); actualizar3D() }
     })
     tab.addEventListener('change', function (e) {
@@ -515,7 +518,7 @@
     var g = leerGuardado()
     if (g) {
       if (g.conf) { conf.escala = +g.conf.escala || 1.5; conf.rotulos = g.conf.rotulos || 'auto'; conf.compacto = g.conf.compacto !== false }
-      ;(g.capas || []).forEach(function (c) { if (!c.preset) capas.push({ id: c.id, nombre: c.nombre, visible: c.visible, opac: c.opac || 1, relleno: c.relleno, grupos: c.grupos || [] }) })
+      ;(g.capas || []).forEach(function (c) { if (!c.preset && !/^DIAMANTE · Despliegue D-30$/.test(c.nombre || '')) capas.push({ id: c.id, nombre: c.nombre, visible: c.visible, opac: c.opac || 1, relleno: c.relleno, grupos: c.grupos || [] }) })
     }
     window.SIDEscalaFichas = conf.escala   // el compilado agranda también las fichas de la Mesa con este factor
     crearUI()
