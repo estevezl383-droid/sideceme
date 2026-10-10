@@ -268,6 +268,8 @@ body.sid-pandora .sid-pd-cap.on .tg{box-shadow:inset 0 1px 0 rgba(255,255,255,.1
   body.sid-pandora .con-puesto .botones-mapa,body.sid-pandora .botones-mapa{left:372px}
   body.sid-pandora .leaflet-left .leaflet-control{margin-left:322px}
   body.sid-pandora .contenedor-mapa>button[style*="1150"]{left:326px !important}
+  /* desplegado, tampoco tapa el panel de la izquierda (los paneles no se cruzan, 10-10-2026) */
+  body.sid-pandora .contenedor-mapa>div[style*="1150"]{left:326px !important}
   body.sid-pandora .maplibregl-ctrl-top-left,body.sid-pandora .maplibregl-ctrl-bottom-left{left:312px}
 }
 
@@ -282,4 +284,14 @@ body.sid-pandora .con-puesto .botones-mapa,body.sid-pandora .botones-mapa{
 body.sid-pandora .botones-mapa::before{
   content:"";position:absolute;inset:0;z-index:-1;border-radius:inherit;pointer-events:none;
   background:var(--pd-vidrio);-webkit-backdrop-filter:var(--pd-blur);backdrop-filter:var(--pd-blur);
+}
+
+/* Con un tablero abierto a la derecha (Unidades, Área de Ops, Mesa EM, Defensa…) la Mesa le deja
+   lugar a la barra (.con-tablero), pero esta piel la estiraba igual hasta 214 px del borde y la
+   punta derecha quedaba DEBAJO del tablero: botones a los que no se llegaba. Los paneles no se
+   deben cruzar (pedido de Sergio, 10-10-2026): la barra termina antes del tablero abierto
+   (pandora.js lo mide en --sid-pd-tablero; si no hay ninguno a la derecha, queda como estaba)
+   y se acomoda en más filas. */
+@media (min-width:821px){
+  body.sid-pandora .con-puesto .botones-mapa.con-tablero,body.sid-pandora .botones-mapa.con-tablero{right:var(--sid-pd-tablero,214px)}
 }

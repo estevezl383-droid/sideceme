@@ -1,0 +1,12 @@
+/* 💾 Sello del autoguardado (autoguardado.mjs): es un botón, tocarlo guarda todo en ese momento.
+   El aspecto base (.sello-guardado) viene del compilado; acá sólo lo de botón y el color de cada estado. */
+button.sello-guardado{cursor:pointer;margin:0;font-variant-numeric:tabular-nums;transition:border-color .15s,box-shadow .15s,color .15s}
+button.sello-guardado:hover:not(:disabled){border-color:#3de1a0;box-shadow:0 0 10px rgba(61,225,160,.35);color:#c9ffe6}
+button.sello-guardado:focus-visible{outline:2px solid #3de1a0;outline-offset:1px}
+button.sello-guardado:disabled{cursor:default;opacity:.8}
+.sello-guardado[data-estado="pendiente"]{color:#ffd56b;border-color:rgba(255,213,107,.55);background:rgba(255,213,107,.10)}
+.sello-guardado[data-estado="guardando"]{color:#8fe3ff;border-color:rgba(143,227,255,.5);background:rgba(143,227,255,.10)}
+.sello-guardado[data-estado="error"]{color:#ffb3b3;border-color:#ff6b6b;background:rgba(255,107,107,.16);box-shadow:0 0 10px rgba(255,107,107,.35)}
+/* La caja no ocupa lugar: el botón queda donde estaba el sello, y la piel Pandora (que reparte los
+   botones hijos directos de la barra por su texto) no lo mueve. */
+.sid-sello-caja{display:contents}
