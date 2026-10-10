@@ -1,0 +1,3 @@
+Expediente del Ejercicio ARMAS recibido y procesado en la sección G-3 (Operaciones). Comprendida la misión de la DIV.MEC.-1: ejecutar una Defensa Móvil para canalizar a la 1ra Brigada Acorazada enemiga hacia el AE VULCAN y destruirla con la Fuerza de Golpe.
+El documento de la OGO 01-35 se cortó en la descripción de la maniobra de la Fase III (tarea del RIAT-30 "MURILLO").
+Faltan completar 16 hojas de trabajo del G-3 (desde la F3·P5 hasta la F7·P3) y una de Inteligencia (H.T. 3). Indique cuál es el producto de Estado Mayor específico, hoja de trabajo o análisis que debo elaborar para continuar con el Proceso Militar de Toma de Decisiones, o proporcione el resto del expediente si requiere un análisis integral.

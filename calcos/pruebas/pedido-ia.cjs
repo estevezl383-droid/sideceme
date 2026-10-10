@@ -174,6 +174,63 @@ const url = (p) => 'file://' + path.join(RAIZ, p)
     assert.ok(e.recortado && e.texto.length <= 52000, `${e.texto.length}`)
   })
 
+  // (10-10-2026, segunda captura) La OGO entró DOS veces (….docx.md rotulada ORDEN y ….docx sin
+  // categoría) y el apartado 13 cedía primero: con «Normal» la Orden quedaba en un párrafo.
+  const OGO = Array.from({ length: 60 }, (_, i) => `Párrafo ${i + 1} de la OGO 01-35 (FICT.): el RIAT-30 «MURILLO» (OC3) defiende y bloquea con sus fuegos de antitanque. ${'Maniobra de la Fase. '.repeat(16)}`).join('\n')
+  const ejercicioOGO = {
+    ...ejercicio,
+    ordenSup: { unidad: 'DIV.MEC.-1' }, // como el de Sergio: la Orden sólo está en el documento
+    documentos: [
+      // el .md trae sus propios títulos, como el de Sergio («## Tabla 1»): no son apartados
+      { nombre: '1.- OGO 01-35 (PICB).docx.md', categoria: 'orden', texto: `# 1.- OGO 01-35 (PICB)\n> Fuente: \`1.- OGO 01-35 (PICB).docx\`\n### MANIOBRA\n${OGO}\n## Tabla 1\n| RCB-1 «CALAMA» | RCB-2 «TARAPACÁ» |\n| --- | --- |\n| Edrón. Tq. «A» | ERM. «A» |` },
+      { nombre: '1.- OGO 01-35 (PICB).docx', categoria: 'otro', texto: OGO },
+      { nombre: 'APUNTES DEL CURSO (FICT.)', categoria: 'otro', texto: doc('APUNTES', 600) },
+    ],
+  }
+  const apartado = (p, n) => {
+    const i = p.indexOf(`\n## ${n} ·`)
+    const m = /\n## \d+(?: bis)? · (?!DOCUMENTOS APORTADOS POR EL OFICIAL \(continúa\))/.exec(p.slice(i + 5))
+    return p.slice(i, m ? i + 5 + m.index : p.length)
+  }
+  const parrafosOGO = (t) => new Set([...t.matchAll(/Párrafo (\d+) de la OGO/g)].map((m) => m[1])).size
+  caso('la OGO aportada dos veces (.docx y .docx.md) va UNA sola vez, en todos los tamaños', () => {
+    const exp = mesa._6e(ejercicioOGO).md
+    assert.equal((apartado(exp, 13).match(/Párrafo 1 de la OGO/g) || []).length, 2, 'el expediente de la Mesa la trae dos veces')
+    const d = P.depurarDocumentos(exp)
+    const s13 = apartado(d, 13)
+    assert.equal((s13.match(/Párrafo 1 de la OGO/g) || []).length, 1)
+    assert.ok(s13.includes('### 1.- OGO 01-35 (PICB).docx\n_(Es el mismo documento que «1.- OGO 01-35 (PICB).docx.md»: va una sola vez.)_'), 'queda la rotulada ORDEN')
+    assert.ok(s13.includes('es una ORDEN') && s13.includes('APUNTES — párrafo 600.'), 'lo demás queda igual')
+    assert.ok(s13.includes('## Tabla 1\n| RCB-1 «CALAMA»') && s13.includes('### MANIOBRA\nPárrafo 1 de la OGO'), 'los títulos de adentro del .md quedan en su lugar')
+    // un documento distinto con el mismo nombre no se toca
+    const otro = { ...ejercicioOGO, documentos: [ejercicioOGO.documentos[0], { ...ejercicioOGO.documentos[1], texto: doc('OTRA COSA', 60) }] }
+    const e2 = mesa._6e(otro).md
+    assert.equal(P.depurarDocumentos(e2), e2)
+  })
+  caso('la ORDEN aportada como documento cede con las hojas del EM, no primero: con «Normal» entra entera', () => {
+    // las hojas del G-2 largas, como las de Sergio (H.T. 13, H.T. 19…)
+    const exp = mesa._6e(ejercicioOGO).md
+    const largo = Array.from({ length: 80 }, (_, i) => `- **H.T. ${i + 1} — Hoja del G-2 (FICT.)**\n\n  - ${'Texto de la hoja con su efecto sobre la operación. '.repeat(18)}`).join('\n\n')
+    const conPICB = exp.replace(/(\n## 10 · [^\n]*\n)/, `$1${largo}\n`)
+    const pedido = (t) => {
+      P.elegirTamano(t)
+      const r = R.pedidoHoja('cmte', HOJA, mesa.cU(HOJA, {}, { expediente: conPICB, modo: 'completar_mejorar', seccion: 'COMANDO' }))
+      return mesa.Boe(r.prompt, INDICACION)
+    }
+    const n = pedido('normal')
+    assert.ok(n.length <= 120000, `${n.length}`)
+    assert.equal(parrafosOGO(apartado(n, 13)), 60, 'la Orden entera')
+    assert.ok(apartado(n, 13).includes('## Tabla 1\n| RCB-1 «CALAMA»'), 'con su tabla')
+    assert.ok(apartado(n, 13).includes('es una ORDEN'))
+    assert.ok(n.includes('## 13 · DOCUMENTOS APORTADOS POR EL OFICIAL (continúa)'), 'los demás documentos, aparte')
+    assert.ok(!n.includes('APUNTES — párrafo 600.'), 'el documento largo sin categoría es el que cede')
+    assert.ok(apartado(n, 10).includes('H.T. 80 — Hoja del G-2'), 'las hojas del G-2 siguen todas')
+    const c = pedido('corto')
+    assert.ok(c.length <= 60000, `${c.length}`)
+    assert.ok(parrafosOGO(apartado(c, 13)) >= 30, `«Corto»: ${parrafosOGO(apartado(c, 13))} párrafos de la Orden`)
+    P.elegirTamano('normal')
+  })
+
   // ── LA RESPUESTA ──────────────────────────────────────────────────────────────────
   const leer = (t) => mesa.dU(t, HOJA, {}, {})
   caso('la respuesta de Sergio «se cortó… ¿cuál es el producto?»: dice que el pedido no llegó entero y qué hacer', () => {
@@ -184,6 +241,12 @@ const url = (p) => 'file://' + path.join(RAIZ, p)
     assert.match(m, /La IA NO hizo la hoja: avisa que el texto le llegó cortado/)
     assert.match(m, /«Normal»[\s\S]*«Corto»[\s\S]*chat NUEVO/)
     assert.ok(!/sólo el FINAL de la respuesta/.test(m), 'no es «el final de la respuesta»')
+  })
+  caso('la respuesta de Gemini del 10-10 («la OGO se cortó en la Fase III… indique cuál es el producto»): el mismo aviso', () => {
+    const t = fs.readFileSync(path.join(__dirname, 'respuesta-cortada-gemini-ogo.md'), 'utf8')
+    const r = leer(t)
+    assert.equal(r.ok, false)
+    assert.match(R.errorRespuesta(r.error, t), /La IA NO hizo la hoja: avisa que el texto le llegó cortado[\s\S]*chat NUEVO/)
   })
   caso('la respuesta en prosa («Want me to…?»): no se mete en las casillas y dice qué pasó', () => {
     const t = fs.readFileSync(path.join(__dirname, 'respuesta-prosa-comandante.md'), 'utf8')
