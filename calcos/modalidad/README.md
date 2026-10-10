@@ -15,6 +15,7 @@ React, no guarda nada en el ejercicio y se puede quitar sacando tres líneas del
 |---|---|
 | `catalogo.js` | Las **7 fases con sus pasos en orden** (hoja «PMTD 2020» de la Visión Horizontal; 7·17·8·8·3·4·3 pasos), con el documento que sale, el responsable y **dónde se abre en la Mesa** (sección + número de hoja, o herramienta). Más los **10 pasos del profesor** (cada uno con su pedido a la IA), los **escalones** (FF.TT.→CE, CE→DIV, DIV→BRIG, BRIG→Unidades), los **focos** (qué G entrena el ejercicio), los **anexos de la OGO** y las **organizaciones tipo** (FF.TT., C.E., D.I., D. Mec., Brigada, COE). Se carga en el navegador y en Node. |
 | `ia-profesor.js` | **La IA del profesor** (puro, se prueba en Node): `armarPedido(paso, ctx)` arma el pedido de cada paso con el escalón, el foco y el ejercicio recortado (la Orden escrita, las fichas, el CMOC, los documentos adjuntos); el del paso 5 pide la **OGO completa con todos sus anexos**. `fichasDeOrganizacion` y `fichasDeJSON` arman las fichas (la forma de `academico.js`) de una organización tipo o del bloque ```json que devuelve la IA. |
+| `biblioteca.js` | **📚 La biblioteca del profesor** (puro, se prueba en Node con `jszip.min.js`): lee un Word (.docx) con sus párrafos y TABLAS; reconoce el **COE** (la tabla «CLASE \| CMDO. \| RCB-1 \| … \| TOTAL» con PERSONAL · ARMAMENTO · VEHÍCULOS · EQUIPO ESPECIAL) y devuelve la División con cada unidad, su efectivo, armamento y vehículos; da el arma y el escalón de la Mesa por la sigla (RCB, RIM, RIAT, RAM, BAT. AA, BATING, BAT. COM, BAT. LOG, COMP. ICIA, ERM, RI, RAC…); arma las fichas de un COE y el resumen para la IA. |
 | `modalidad.js` | El selector **🎖️ Mesa · 🎓 Aprendizaje · 🧑‍🏫 Profesor** y el tablero de la derecha. |
 | `modalidad.css` | Los estilos; con Pandora y una modalidad que no sea «Mesa», **esconde la columna CMTE./JEM./G-1…G-5** (el tablero ocupa su lugar y aprieta esos botones por el alumno). |
 
@@ -51,6 +52,26 @@ queda marcado). Los demás pedidos: la idea del ejercicio, los límites del AO/A
 los calcos, el CMOC con las avenidas calificadas, el orden de batalla de los dos bandos (con un
 bloque ```json de fichas para pegar), los CAE por fases, las situaciones general y particular,
 la pauta de corrección con rúbrica y las instrucciones para los alumnos.
+
+**📚 Mis documentos: COE, organización, armamento (10-10-2026).** Lo pidió Sergio con los
+Word del Tema Base «DIAMANTE»: «que en la aplicación pueda cargar en formato Word estos docs,
+así los COE y la organización de cada división… donde se necesite lo puedo cargar». Arriba del
+tablero del profesor, **📚 Mis documentos** → **📤 Cargar Word, PDF o .zip** (varios a la vez;
+un .zip se abre y se lee cada Word o PDF de adentro). Cada documento queda con su **tipo**
+(COE · Organización · Armamento · Inteligencia · Reglamento · Otro, adivinado por el nombre y el
+texto, se cambia), su **bando** (AZUL / ROJO: «RAGNAR», «enemigo»… lo pone en ROJO) y la casilla
+**IA**. Un **COE** se reconoce solo y muestra «🪖 DIV MEC-1 · 13 unidades · 3.805 H»: **➕ A la
+carta** pone el Cmdo. de la División y sus unidades (sin la Comp. C y S) con su arma y su
+escalón, la maniobra adelante, los apoyos en el medio y los servicios atrás (ROJO espejado);
+**➕ Todos los COE a la carta** las pone una al lado de la otra (a 60 km). En el paso 6 también
+está **«Desde mis COE»** con la lista de Divisiones. **Todo lo marcado «IA» entra en TODOS los
+pedidos a la IA** («Biblioteca del profesor»: los COE resumidos enteros con efectivos,
+armamento y vehículos por unidad; lo demás recortado en partes iguales, la doctrina al final),
+y la OGO y el orden de batalla tienen la regla de **usar esas unidades y esos apéndices en vez
+de inventarlos**. Queda en el IndexedDB «sid-biblioteca» de ESE navegador: sirve para todos los
+ejercicios, pero no viaja a otro equipo (hay que cargarlos allá también). Los PDF se leen con
+el lector de la Mesa (pdf.js); un PDF escaneado no tiene texto y lo avisa. De cada documento se
+guardan hasta 400 mil caracteres (un reglamento como el RDO-20001 se recorta y lo dice).
 
 **Insertar unidades de una vez (paso 6).** «Ya tengo COE, divisiones de AZUL o Cuerpos de
 Ejército directo para insertar»: se elige la organización tipo (FF.TT. con 3 C.E. · Cuerpo de
@@ -92,6 +113,11 @@ ficha por ficha en 🪖 Unidades.
   compilado** (cada uno una sola hoja, en el catálogo de su sección), herramientas y secciones
   con botón real (el editor CMOC incluido), los 10 pasos del profesor en orden con su pedido a
   la IA, los focos, los 8 anexos, sintaxis de los módulos y el `index.html`.
+- `node calcos/pruebas/biblioteca.cjs`: con dos COE REALES del Tema Base «DIAMANTE»
+  (`pruebas/fixtures/coe-div-mec-1.docx`, `coe-div-1.docx`): las 13 y 14 unidades con sus
+  efectivos (suman el total del COE), armamento, vehículos y equipo; el arma y el escalón de
+  cada sigla; las fichas (AZUL y ROJO, armas y escalones del compilado); tipo y bando de los
+  documentos; el recorte; el resumen y el pedido de la OGO con la biblioteca.
 - `node calcos/pruebas/ia-profesor.cjs`: las armas y escalones de las organizaciones son los
   del compilado; las fichas de un C.E. AZUL y una D.I. ROJO (forma, número, espejado, ids);
   el JSON de la IA (bandos sueltos, arma/escalón inexistentes, sin lat/lng); el pedido de la
@@ -104,6 +130,8 @@ ficha por ficha en 🪖 Unidades.
   Profesor con los 10 pasos, el escalón, el foco, los 10 botones de IA, el pedido de la OGO con
   sus anexos y el foco elegido, y las 6 organizaciones; en escritorio, con un ejercicio sembrado
   y abierto: el pedido lleva su nombre, su Orden y sus fichas, «➕ Insertar» mete una D.I. ROJO
-  (10 fichas) en el calco y «📥 Pegar fichas de la IA» una más; vuelta a «Mesa»; sin errores de
-  consola.
+  (10 fichas) en el calco y «📥 Pegar fichas de la IA» una más; 📚 se carga un .zip con los dos
+  COE y un .txt (3 documentos), «➕ A la carta» mete la DIV MEC-1 (12 fichas), el pedido de la
+  OGO lleva los dos COE y el texto, y la biblioteca sigue ahí después de recargar; vuelta a
+  «Mesa»; sin errores de consola.
   Capturas en `calcos/pruebas/salidas-modalidad/`.

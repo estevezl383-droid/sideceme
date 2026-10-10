@@ -17,7 +17,7 @@
    ejercicio). El catálogo está en catalogo.js. Con «Mesa completa» no cambia nada. */
 (function () {
   'use strict'
-  var CAT = window.SIDModalidadCatalogo, IA = window.SIDIAProfesor
+  var CAT = window.SIDModalidadCatalogo, IA = window.SIDIAProfesor, BIB = window.SIDBiblioteca
   if (!CAT) return
   var K_MODO = 'sid_modalidad', K_HECHO = 'sid_mod_hecho', K_FASE = 'sid_mod_fase', K_ESC = 'sid_mod_escalon', K_PLEGADO = 'sid_mod_plegado', K_FOCO = 'sid_mod_foco'
   var MODOS = [
@@ -27,6 +27,7 @@
   ]
   var body = document.body
   var modo = 'mesa', hecho = {}, fase = 1, escalon = 'ce', plegado = false, panel = null, sel = null, firma = ''
+  var biblio = [], verBiblio = false, bibVer = 0, bibVista = '' // la biblioteca del profesor (IndexedDB «sid-biblioteca»)
   var foco = 'pmtd', iaPaso = 0, iaTexto = '', aviso = {}, puente = null // puente: lo último que la Mesa le mandó a MesaAcademica.sincronizar (ejercicio, fichas, centro, agregarUnidades)
 
   function lee(k, d) { try { var v = localStorage.getItem(k); return v == null ? d : v } catch (e) { return d } }
@@ -186,7 +187,7 @@
     return leerEjercicio(nombre).then(function (ej) {
       if (!ej && puente && puente.ejercicio && typeof puente.ejercicio === 'object') ej = puente.ejercicio
       if (!ej && nombre) ej = { nombre: nombre }
-      return IA.armarPedido(p, { escalon: escalonDe(escalon), foco: focoDe(foco), ejercicio: ej, unidades: puente && puente.unidades, centro: centroMesa() })
+      return IA.armarPedido(p, { escalon: escalonDe(escalon), foco: focoDe(foco), ejercicio: ej, unidades: puente && puente.unidades, centro: centroMesa(), biblioteca: biblio })
     })
   }
   function copiar(texto) {
@@ -233,14 +234,131 @@
       '<button type="button" class="chico" data-a="org-pegar" aria-expanded="' + (aviso.pegar ? 'true' : 'false') + '">📥 Pegar fichas de la IA (JSON)</button></div>' +
       (aviso.pegar ? '<textarea data-org-json rows="4" placeholder="Pegá acá el bloque ```json que devolvió la IA (designacion, bando, arma, escalon, lat, lng)"></textarea><div class="org-fila"><button type="button" class="ir" data-a="org-pegar-ok"' + (puede ? '' : ' disabled') + '>➕ Insertar esas fichas</button></div>' : '') +
       (aviso.org ? '<div class="ia-aviso">' + esc(aviso.org) + '</div>' : '') +
-      '<div class="org-nota">Son organizaciones genéricas de escuela; se ajustan ficha por ficha en 🪖 Unidades. ROJO se dibuja espejado (viene del otro lado).</div></div>'
+      '<div class="org-nota">Son organizaciones genéricas de escuela; se ajustan ficha por ficha en 🪖 Unidades. ROJO se dibuja espejado (viene del otro lado).</div>' +
+      (BIB ? '<div class="org-tit">Desde mis COE</div>' + (biblio.some(function (d) { return d.coe }) ?
+        '<div class="org-fila"><select data-bib-coe>' + biblio.filter(function (d) { return d.coe }).map(function (d) { return '<option value="' + esc(d.id) + '">' + esc(d.coe.division) + ' (' + (d.bando === 'enemigas' ? 'ROJO' : 'AZUL') + ', ' + d.coe.unidades.length + ' u.)</option>' }).join('') + '</select>' +
+        '<button type="button" class="ir" data-a="bib-insertar-sel"' + (puede ? '' : ' disabled') + '>➕ Insertar</button></div>' + (aviso.bib && /fichas insertadas|puente/.test(aviso.bib) ? '<div class="ia-aviso">' + esc(aviso.bib) + '</div>' : '')
+        : '<div class="org-fila"><button type="button" class="chico" data-a="bib">📚 Cargar mis COE (Word o .zip)</button></div>') : '') + '</div>'
   }
-  function insertarFichas(fichas, de) {
-    if (!puente || !puente.agregarUnidades) { aviso.org = 'La Mesa no mandó el puente de las fichas: abrí un ejercicio.'; return }
-    if (!fichas.length) { aviso.org = 'No hay fichas para insertar.'; return }
+  function insertarFichas(fichas, de, clave) {
+    clave = clave || 'org'
+    if (!puente || !puente.agregarUnidades) { aviso[clave] = 'La Mesa no mandó el puente de las fichas: abrí un ejercicio.'; return }
+    if (!fichas.length) { aviso[clave] = 'No hay fichas para insertar.'; return }
     puente.agregarUnidades(fichas)
     puente = Object.assign({}, puente, { unidades: (puente.unidades || []).concat(fichas) })
-    aviso.org = '✓ ' + fichas.length + ' fichas insertadas (' + de + '). Ajustalas en 🪖 Unidades; con ⟲ Deshacer de la Mesa se quitan.'
+    aviso[clave] = '✓ ' + fichas.length + ' fichas insertadas (' + de + '). Ajustalas en 🪖 Unidades; con ⟲ Deshacer de la Mesa se quitan.'
+  }
+
+  // ---------- 📚 la biblioteca del profesor ----------
+  // Los documentos propios (COE, organización, armamento, reglamentos) quedan en el IndexedDB
+  // «sid-biblioteca» de ESTE navegador: se cargan una vez y sirven para todos los ejercicios.
+  function bibDB() {
+    return new Promise(function (ok, no) {
+      try {
+        var r = indexedDB.open('sid-biblioteca', 1)
+        r.onupgradeneeded = function () { if (!r.result.objectStoreNames.contains('docs')) r.result.createObjectStore('docs', { keyPath: 'id' }) }
+        r.onsuccess = function () { ok(r.result) }
+        r.onerror = function () { no(r.error) }
+      } catch (e) { no(e) }
+    })
+  }
+  function bibOp(modo_, f) {
+    return bibDB().then(function (db) {
+      return new Promise(function (ok, no) {
+        var tx = db.transaction('docs', modo_), st = tx.objectStore('docs'), res = f(st)
+        tx.oncomplete = function () { db.close(); ok(res && 'result' in res ? res.result : undefined) }
+        tx.onerror = function () { db.close(); no(tx.error) }
+      })
+    })
+  }
+  function bibCargar() {
+    if (!window.indexedDB) return Promise.resolve()
+    return bibOp('readonly', function (st) { return st.getAll() }).then(function (ds) {
+      biblio = (ds || []).sort(function (a, b) { return String(a.cargado).localeCompare(String(b.cargado)) }); bibVer++; pintar(true)
+    }, function () {})
+  }
+  function bibGuardar(d) { return bibOp('readwrite', function (st) { st.put(d) }) }
+  function bibBorrar(id) { return bibOp('readwrite', function (st) { st.delete(id) }) }
+  function bibDoc(id) { for (var i = 0; i < biblio.length; i++) if (biblio[i].id === id) return biblio[i]; return null }
+
+  function cargarScript(src) {
+    return new Promise(function (ok, no) { var sc = document.createElement('script'); sc.src = src; sc.onload = ok; sc.onerror = function () { no(new Error('No se pudo cargar ' + src)) }; document.head.appendChild(sc) })
+  }
+  function conJSZip() { return window.JSZip ? Promise.resolve(window.JSZip) : cargarScript('../jszip.min.js').then(function () { return window.JSZip }) }
+  function textoPDF(buf) {
+    var P = window.pdfjsLib
+    if (!P || !P.getDocument) return Promise.reject(new Error('el lector de PDF de la Mesa no está cargado'))
+    try { if (P.GlobalWorkerOptions && !P.GlobalWorkerOptions.workerSrc) P.GlobalWorkerOptions.workerSrc = new URL('./assets/pdf.worker.min-CrMmvqMo.mjs', location.href).href } catch (e) {}
+    return P.getDocument({ data: new Uint8Array(buf) }).promise.then(function (pdf) {
+      var paginas = [], i = 1
+      function sig() {
+        if (i > pdf.numPages) return paginas.join('\n\n')
+        var n = i++
+        return pdf.getPage(n).then(function (pg) { return pg.getTextContent() }).then(function (tc) { paginas.push('[Página ' + n + '] ' + tc.items.map(function (it) { return it.str }).join(' ')) }).then(sig)
+      }
+      return sig()
+    })
+  }
+  // Un archivo → uno o varios documentos de la biblioteca (un .zip trae varios).
+  function leerArchivo(nombre, buf, J) {
+    var n = nombre.toLowerCase()
+    if (/\.zip$/.test(n)) {
+      return J.loadAsync(buf).then(function (z) {
+        var ents = Object.keys(z.files).filter(function (k) { return !z.files[k].dir && !/__MACOSX|(^|\/)\./.test(k) && /\.(docx|pdf|txt|md)$/i.test(k) }).sort()
+        return ents.reduce(function (pr, k) {
+          return pr.then(function (acc) { return z.file(k).async('arraybuffer').then(function (b) { return leerArchivo(k.split('/').pop(), b, J) }).then(function (ds) { return acc.concat(ds) }) })
+        }, Promise.resolve([]))
+      })
+    }
+    if (/\.docx$/.test(n)) return BIB.leerDocx(buf, J).then(function (d) { return [BIB.documento(nombre.replace(/\.docx$/i, ''), { texto: d.texto, coe: BIB.leerCOE(d) })] })
+    if (/\.pdf$/.test(n)) return textoPDF(buf).then(function (t) { return [BIB.documento(nombre.replace(/\.pdf$/i, ''), { texto: t })] }, function (e) { return [BIB.documento(nombre.replace(/\.pdf$/i, ''), { texto: '(No se pudo leer el texto del PDF: ' + e.message + '. Si es un escaneo, pasalo a Word.)' })] })
+    if (/\.(txt|md|csv)$/.test(n)) return Promise.resolve([BIB.documento(nombre.replace(/\.\w+$/, ''), { texto: new TextDecoder('utf-8').decode(buf) })])
+    if (/\.doc$/.test(n)) return Promise.reject(new Error(nombre + ': es un Word viejo (.doc). Abrilo en Word y «Guardar como» .docx.'))
+    return Promise.reject(new Error(nombre + ': formato no soportado (Word .docx, PDF, .zip o texto).'))
+  }
+  function bibSubir(files) {
+    if (!BIB) return
+    aviso.bib = '⏳ Leyendo ' + files.length + ' archivo(s)…'; pintar(true)
+    var nuevos = [], errores = []
+    conJSZip().then(function (J) {
+      return Array.prototype.reduce.call(files, function (pr, f) {
+        return pr.then(function () { return f.arrayBuffer() }).then(function (b) { return leerArchivo(f.name, b, J) }).then(function (ds) { nuevos = nuevos.concat(ds) }, function (e) { errores.push(e && e.message ? e.message : String(e)) })
+      }, Promise.resolve())
+    }).then(function () {
+      return nuevos.reduce(function (pr, d) { return pr.then(function () { return bibGuardar(d) }) }, Promise.resolve())
+    }).then(function () {
+      var coes = nuevos.filter(function (d) { return d.coe }).length
+      aviso.bib = (nuevos.length ? '✓ ' + nuevos.length + ' documento(s) en la biblioteca' + (coes ? ' (' + coes + ' COE con sus unidades)' : '') + '.' : '') + (errores.length ? ' ⚠️ ' + errores.join(' · ') : '')
+      return bibCargar()
+    }).catch(function (e) { aviso.bib = '⚠️ ' + (e && e.message ? e.message : e); pintar(true) })
+  }
+  function htmlBiblioteca() {
+    var coes = biblio.filter(function (d) { return d.coe })
+    var h = '<section class="bib"><div class="bib-cab"><b>📚 Mis documentos</b><span>COE de cada División, organización y armamento (propios o del enemigo), reglamentos. Se cargan una vez y sirven para todos los ejercicios: los COE se insertan en la carta y todo entra en los pedidos a la IA.</span></div>' +
+      '<label class="ir bib-subir">📤 Cargar Word, PDF o .zip<input type="file" data-bib-archivo multiple accept=".docx,.pdf,.zip,.txt,.md,.csv" hidden></label>' +
+      (aviso.bib ? '<div class="ia-aviso">' + esc(aviso.bib) + '</div>' : '')
+    if (!biblio.length) return h + '<p class="bib-vacia">Todavía no cargaste nada. Probá con el .zip de los COE: cada Word queda como una División con sus unidades.</p></section>'
+    h += '<ul class="bib-lista">' + biblio.map(function (d) {
+      return '<li data-bib="' + esc(d.id) + '"><div class="bib-nom">' + esc(d.nombre) + (d.recortado ? ' <small>(guardados ' + Math.round(d.texto.length / 1000) + ' mil de ' + Math.round(d.recortado / 1000) + ' mil caracteres)</small>' : '') + '</div>' +
+        (d.coe ? '<div class="bib-coe">🪖 ' + esc(d.coe.division) + ' · ' + d.coe.unidades.length + ' unidades · ' + (d.coe.efectivo || '?').toLocaleString('es') + ' H</div>' : '') +
+        '<div class="org-fila"><select data-bib-tipo aria-label="Tipo de documento">' + BIB.TIPOS.map(function (t) { return '<option value="' + t.id + '"' + (t.id === d.tipo ? ' selected' : '') + '>' + esc(t.nom) + '</option>' }).join('') + '</select>' +
+        '<select data-bib-bando aria-label="Bando"><option value="propias"' + (d.bando !== 'enemigas' ? ' selected' : '') + '>🔵 AZUL</option><option value="enemigas"' + (d.bando === 'enemigas' ? ' selected' : '') + '>🔴 ROJO</option></select>' +
+        '<label title="Entra en los pedidos a la IA"><input type="checkbox" data-bib-ia' + (d.enIA !== false ? ' checked' : '') + '> IA</label></div>' +
+        '<div class="org-fila">' + (d.coe ? '<button type="button" class="ir" data-a="bib-insertar">➕ A la carta</button>' : '') +
+        '<button type="button" class="chico" data-a="bib-ver">' + (bibVista === d.id ? 'Ocultar' : '👁️ Ver') + '</button><button type="button" class="chico" data-a="bib-borrar">🗑️</button></div>' +
+        (bibVista === d.id ? '<textarea readonly rows="8">' + esc(d.coe ? BIB.resumenCOE(d.coe) : d.texto.slice(0, 20000)) + '</textarea>' : '') + '</li>'
+    }).join('') + '</ul>'
+    if (coes.length > 1) h += '<div class="org-fila"><button type="button" class="ir" data-a="bib-insertar-todos">➕ Todos los COE a la carta (' + coes.length + ' Divisiones, una al lado de la otra)</button></div>'
+    return h + '</section>'
+  }
+  function insertarCOE(docs) {
+    var c = centroMesa() || { lat: -16.5, lng: -64.5 }, todas = [], ancho = 60 // km entre Divisiones
+    docs.forEach(function (d, i) {
+      var dx = (i - (docs.length - 1) / 2) * ancho
+      var ce = { lat: c.lat, lng: c.lng + dx / (111.32 * Math.max(0.2, Math.cos(c.lat * Math.PI / 180))) }
+      todas = todas.concat(BIB.fichasDeCOE(d.coe, { bando: d.bando, centro: ce }))
+    })
+    insertarFichas(todas, docs.length === 1 ? 'COE de la ' + docs[0].coe.division : docs.length + ' COE', 'bib')
   }
 
   // ---------- dibujo ----------
@@ -293,14 +411,15 @@
   function htmlProfesor() {
     var F = { id: 'P', pasos: CAT.PROFESOR }, a = avance(F), E = escalonDe(escalon)
     return '<div class="cab-tab"><h2>🧑‍🏫 Armar el ejercicio</h2><p>Vos sos el <b>' + esc(E.profesor) + '</b>: escribís la Orden del escalón superior y armás el tablero que reciben tus alumnos (<b>' + esc(E.alumnos) + '</b>). Los pasos van en el orden en que la Mesa los necesita.</p>' +
-      '<div class="total"><span class="barra"><i style="width:' + Math.round(100 * a.h / a.t) + '%"></i></span><b>' + a.h + ' / ' + a.t + ' pasos</b></div></div>' +
+      '<div class="total"><span class="barra"><i style="width:' + Math.round(100 * a.h / a.t) + '%"></i></span><b>' + a.h + ' / ' + a.t + ' pasos</b></div>' +
+      (BIB ? '<button type="button" class="bib-btn" data-a="bib" aria-expanded="' + verBiblio + '">📚 Mis documentos: COE, organización, armamento' + (biblio.length ? ' · ' + biblio.length : '') + (verBiblio ? ' ▴' : ' ▸') + '</button>' + (verBiblio ? htmlBiblioteca() : '') : '') + '</div>' +
       '<ol class="pasos prof">' + CAT.PROFESOR.map(function (p) { return paso(F, p) }).join('') + '</ol>' +
       '<div class="pie"><div class="secs">Tableros de cada sección: ' + Object.keys(CAT.SECCIONES).map(function (s) { return '<button type="button" class="ir sec-ir" data-sec="' + s + '" style="--sc:' + CAT.SECCIONES[s].color + '">' + esc(CAT.SECCIONES[s].corto) + '</button>' }).join('') + '</div>' +
       '<button type="button" class="chico" data-a="reiniciar">Reiniciar lo marcado</button></div>'
   }
   function pintar(forzar) {
     if (!panel) return
-    var f = [modo, fase, escalon, foco, plegado, iaPaso, JSON.stringify(hecho), JSON.stringify(aviso), !!(puente && puente.agregarUnidades)].join('|')
+    var f = [modo, fase, escalon, foco, plegado, iaPaso, JSON.stringify(hecho), JSON.stringify(aviso), !!(puente && puente.agregarUnidades), verBiblio, bibVer, bibVista].join('|')
     if (!forzar && f === firma) return
     firma = f
     panel.hidden = modo === 'mesa'
@@ -331,6 +450,15 @@
       if (!pa) return
       if (acc === 'ia-bajar') { bajar(nombreArchivo(pa), iaTexto); aviso['ia' + pa.n] = '⬇️ Bajado: adjuntalo a la IA con la orden de cumplirlo.'; pintar(true); return }
       if (acc === 'ia-copiar') { copiar(iaTexto).then(function () { aviso['ia' + pa.n] = '📋 Pedido copiado (' + iaTexto.length.toLocaleString('es') + ' caracteres): pegalo en la IA.'; pintar(true) }, function () { aviso['ia' + pa.n] = 'No se pudo copiar: seleccioná el texto y copialo a mano.'; pintar(true) }); return }
+    }
+    if (a && a.getAttribute('data-a') === 'bib') { verBiblio = !verBiblio; if (verBiblio) { plegado = false; var cu = panel.querySelector('.cuerpo'); if (cu) cu.scrollTop = 0 } pintar(true); return }
+    if (a && /^bib-/.test(a.getAttribute('data-a'))) {
+      var ab_ = a.getAttribute('data-a'), li_ = a.closest('[data-bib]'), d_ = li_ && bibDoc(li_.getAttribute('data-bib'))
+      if (ab_ === 'bib-ver' && d_) { bibVista = bibVista === d_.id ? '' : d_.id; pintar(true); return }
+      if (ab_ === 'bib-borrar' && d_) { if (window.confirm('¿Sacar «' + d_.nombre + '» de la biblioteca? (las fichas ya insertadas en la carta no se tocan)')) bibBorrar(d_.id).then(bibCargar); return }
+      if (ab_ === 'bib-insertar' && d_ && d_.coe) { insertarCOE([d_]); pintar(true); return }
+      if (ab_ === 'bib-insertar-todos') { insertarCOE(biblio.filter(function (d) { return d.coe })); pintar(true); return }
+      if (ab_ === 'bib-insertar-sel') { var sc_ = panel.querySelector('select[data-bib-coe]'), dd = sc_ && bibDoc(sc_.value); if (dd) insertarCOE([dd]); pintar(true); return }
     }
     if (a && /^org-/.test(a.getAttribute('data-a'))) {
       var ao = a.getAttribute('data-a')
@@ -380,7 +508,12 @@
     var t = e.target
     if (t.matches && t.matches('input[type=checkbox][data-f]')) { marcar(t.getAttribute('data-f') === 'P' ? 'P' : +t.getAttribute('data-f'), +t.getAttribute('data-n'), t.checked); pintar(true); return }
     if (t.matches && t.matches('select[data-escalon]')) { escalon = t.value; guarda(K_ESC, escalon); iaPaso = 0; pintar(true); return }
-    if (t.matches && t.matches('select[data-foco]')) { foco = t.value; guarda(K_FOCO, foco); iaPaso = 0; pintar(true) }
+    if (t.matches && t.matches('select[data-foco]')) { foco = t.value; guarda(K_FOCO, foco); iaPaso = 0; pintar(true); return }
+    if (t.matches && t.matches('input[data-bib-archivo]')) { if (t.files && t.files.length) bibSubir(Array.prototype.slice.call(t.files)); return }
+    var li = t.closest && t.closest('[data-bib]'), d = li && bibDoc(li.getAttribute('data-bib'))
+    if (d && t.matches('select[data-bib-tipo]')) { d.tipo = t.value; bibGuardar(d).then(bibCargar); return }
+    if (d && t.matches('select[data-bib-bando]')) { d.bando = t.value; bibGuardar(d).then(bibCargar); return }
+    if (d && t.matches('input[data-bib-ia]')) { d.enIA = t.checked; bibGuardar(d).then(bibCargar) }
   }
 
   // ---------- armado ----------
@@ -402,6 +535,7 @@
     body.setAttribute('data-sid-modo', modo)
     engancharPuente()
     pintar(true)
+    bibCargar()
   }
   cargar()
   engancharPuente()
@@ -410,6 +544,7 @@
   window.SIDModalidad = {
     get modo() { return modo }, poner: ponerModo, abrir: abrir, catalogo: CAT,
     get panel() { return panel }, get hecho() { return hecho },
-    get foco() { return foco }, get puente() { return puente }, armarPedido: armarPedido, leerEjercicio: leerEjercicio
+    get foco() { return foco }, get puente() { return puente }, armarPedido: armarPedido, leerEjercicio: leerEjercicio,
+    get biblioteca() { return biblio }, subir: bibSubir, recargarBiblioteca: bibCargar
   }
 })()

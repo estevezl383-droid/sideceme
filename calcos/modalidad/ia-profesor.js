@@ -13,9 +13,9 @@
    que el alumno planifique… y la opción de ya tengo COE, divisiones de AZUL o Cuerpos de
    Ejército directo para insertar». */
 (function (raiz, fabrica) {
-  if (typeof module === 'object' && module.exports) module.exports = fabrica(require('./catalogo.js'))
-  else raiz.SIDIAProfesor = fabrica(raiz.SIDModalidadCatalogo)
-})(typeof window !== 'undefined' ? window : this, function (CAT) {
+  if (typeof module === 'object' && module.exports) module.exports = fabrica(require('./catalogo.js'), require('./biblioteca.js'))
+  else raiz.SIDIAProfesor = fabrica(raiz.SIDModalidadCatalogo, raiz.SIDBiblioteca)
+})(typeof window !== 'undefined' ? window : this, function (CAT, BIB) {
   'use strict'
 
   // Los catálogos de la Mesa (compilado): el id es el que llevan las fichas.
@@ -111,7 +111,10 @@
     if (ej.fasesCOA) partes.push(bloqueJSON('Cursos de acción por fases', ej.fasesCOA, 12000))
     var docs = (ej.documentos || []).filter(Boolean)
     if (docs.length) partes.push('\n### Documentos adjuntos al ejercicio\n' + docs.map(function (d) { return '#### ' + limpia(d.nombre || d.titulo || 'Documento') + '\n' + recorta(limpia(d.texto || d.contenido || ''), 6000) }).join('\n\n'))
-    return recorta(partes.filter(Boolean).join('\n'), ctx.limite || LIMITE_EXPEDIENTE)
+    var txt = recorta(partes.filter(Boolean).join('\n'), ctx.limite || LIMITE_EXPEDIENTE)
+    // La biblioteca del profesor va aparte (con su propio espacio): los COE resumidos enteros.
+    var bib = BIB && ctx.biblioteca && ctx.biblioteca.length ? BIB.resumen(ctx.biblioteca, ctx.limiteBiblioteca || 40000) : ''
+    return txt + (bib ? '\n\n### Biblioteca del profesor (COE, organización, armamento, doctrina): USALA como fuente\n' + bib : '')
   }
 
   // ─── Los pedidos ───────────────────────────────────────────────────────────────────
@@ -148,6 +151,7 @@
       ]) + '\nFirma del Comandante, autenticación, anexos, distribución.\n\n' +
       '### Los anexos (TODOS, cada uno completo y en su propio formato de anexo, con sus apéndices si corresponde)\n' + enumera(anexos) + '\n\n' +
       '### Reglas\n' +
+      '- Si hay BIBLIOTECA DEL PROFESOR (al final del contexto): la ORGANIZACIÓN DE LA TAREA, las agregaciones y segregaciones y los efectivos salen de SUS COE (designaciones, efectivos, armamento y vehículos tal cual); el enemigo, su organización y su armamento, de los apéndices de organización y armamento del enemigo; citalos como apéndices de los anexos en vez de inventarlos.\n' +
       '- Los datos tienen que ser de ESTE ejercicio: el terreno del Área de Interés y del CMOC (avenidas de aproximación, terreno clave), las fichas de la carta (usá sus designaciones), la Orden escrita en la Mesa si ya hay algo. Coordenadas, líneas y objetivos con nombre y ubicación.\n' +
       '- Escalón coherente: el ' + E.profesor + ' escribe; la unidad de los alumnos recibe tareas de su nivel, con subordinados dos niveles abajo nombrados.\n' +
       '- Fechas y horas en D/H (D-5, D, D+2; H-2, H+6). Si el ejercicio no tiene calendario, dejá D y H sin fecha.\n' +
