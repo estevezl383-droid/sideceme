@@ -106,3 +106,52 @@ sin selección expresa del docente.
 valores fijos por terreno (llano/altiplano ×1,0; valle/montaña frente ×0,7; selva
 frente ×0,5 y profundidad ×0,7), retrógradas = defensiva ×2 frente, ×1,5 profundidad.
 Las claves de ambiente guardadas (`llano`, `altiplano`, `montana`, `selva`) no cambian.
+
+## ✂️ Repartir el área con el lazo y entregar lo que está dentro (10-OCT-2026)
+
+Lo pidió Sergio (Profesor): trazó el Área de Operaciones de la FF.TT.T.O., la dividió en
+Cuerpos con límites y quería entregarle a cada escalón subordinado SU área, con todo lo que
+tiene dentro, sin redibujar dos áreas con bordes que encajen.
+
+- **Lazo** (`lazo.mjs`): botón «✂️ Seleccionar con lazo» en «Áreas del ejercicio». Una capa
+  transparente tapa la carta 2D (z 690, debajo de los controles); se arrastra a mano alzada
+  con mouse, dedo o lápiz y al soltar se cierra. Un toque sin arrastrar elige la zona de
+  abajo. La rueda sigue acercando; Esc o «Cancelar» lo apagan. Elegir otra herramienta de
+  dibujo lo apaga, y el lazo apaga la herramienta activa. En 3D no hay lazo (avisa).
+- **Recorte** (`recorte.mjs` → `repartir`): el área se corta por TODOS los límites trazados
+  (menos las flechas) y por el contorno de las otras áreas, como un grafo plano; se queda con
+  las caras que el lazo encierra en más de la mitad (o la del toque) y las une. El borde
+  nuevo usa los mismos vértices de los límites: dos Cuerpos vecinos encajan sin huecos. Un
+  límite que se queda corto o se pasa del borde hasta el 3 % del tamaño del área (150 m–5 km)
+  se cierra solo. El área a repartir es la que contiene el toque o la que más tapa el lazo;
+  entre parecidas, la más chica (así un Cuerpo se reparte en Divisiones). Si nada divide el
+  área, corta por el lazo mismo y lo avisa. `recortarArea` (modelo) la agrega activa, con
+  nombre por magnitud (CE-I, CE-II… según «Magnitud que se va a colocar»), la operación y el
+  tipo del área madre. DESHACER la quita.
+- **Qué se entrega** (`contenidoDeAreas`): con «Todo lo que está dentro» marcado (por
+  defecto), el paquete lleva `contenido: { ops, unidades }`: los límites que bordean o cruzan
+  el área (completos), puntos de coordinación y de pasaje (también los del borde), marcas
+  (las de un límite lo siguen y se renumeran), tareas, obstáculos, posiciones, objetivos,
+  A.I.N., zonas/sectores/ejes logísticos, flechas y las fichas de adentro (las enemigas, si
+  está marcado). Un límite que sólo toca el área con la punta (el que separa a los dos
+  vecinos) no va. Los límites y marcas del borde de un escalón MAYOR que el del área (los de
+  la FF.TT.T.O.) no van; el escalón del área se deduce del menor límite con magnitud que la
+  bordea, no de lo elegido en el panel. Planes de fuegos, respuestas, notas y CMOC nunca van.
+- **Recibir**: «Importar áreas compartidas» y «Incorporar al ejercicio» suman el área, las
+  capas (`sumarContenido`, valida cada elemento) y las fichas con id nuevo
+  (`fichasDelPaquete`; por la bandeja, una sola vez por envío con `recibirUnidades`).
+- **Servidor**: `construirPaquete` arma `contenido` sólo si `opciones.contenido`; un cliente
+  viejo sigue recibiendo sólo contornos. Desplegar `calco-ops` con `index.ts`,
+  `compartir.mjs`, `compartir-modelo.mjs`, `modelo.mjs` y `recorte.mjs`, con los imports
+  aplanados (`./compartir-modelo.mjs`) y sin `?v=`.
+- **Caché**: el compilado y los módulos se importan con `?v=lazo20261010`, para que un
+  navegador no mezcle un `editor.mjs` nuevo con un `modelo.mjs` viejo.
+- **Compilado**: `node calcos/pruebas/construir-lazo.js` (6 reemplazos en
+  `reemplazos-2026-10-10-lazo.js`) genera `index-lazo-20261010.js`: el panel recibe las
+  fichas (`SIDunidades`/`SIDonUnidades`, con los candados de ops), la magnitud y la
+  herramienta activa.
+
+Pruebas: `node calcos/pruebas/areas-lazo.mjs` (zonas exactas sin huecos, lazo tosco y libre,
+Cuerpo → Divisiones, contenido, paquete, importación y servidor) y
+`node calcos/pruebas/e2e/areas-lazo.cjs` (la Mesa en Chromium: lazo con el mouse, toque,
+entrega JSON e importación con fichas; capturas en `pruebas/salidas-lazo/`).

@@ -5,6 +5,22 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-10 — ✂️ Repartir el Área de Operaciones con el lazo (`index-lazo-20261010.js`)
+
+Parte de `index-pedido-20261010.js` + `pruebas/reemplazos-2026-10-10-lazo.js` (6 reemplazos;
+`construir-lazo.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio
+(Profesor): repartir el área de la FF.TT.T.O. en Cuerpos sin redibujarla y entregarle a cada
+escalón subordinado SU área con todo lo que tiene dentro.
+
+- **Qué se hizo**: el lazo, el recorte y el contenido están en `calcos/areas-operaciones`
+  (`lazo.mjs`, `recorte.mjs`; ver su README). En el compilado: el panel ▧ Área de
+  Operaciones (`_Ce`) recibe las fichas (`SIDunidades`, y `SIDonUnidades` con los mismos
+  candados que ops) y le pasa al editor de áreas la magnitud elegida y la herramienta activa;
+  los tres imports de `areas-operaciones` llevan `?v=lazo20261010`.
+- **Cómo se comprobó**: `areas-lazo.mjs`, `e2e/areas-lazo.cjs` (la Mesa real en Chromium),
+  `areas-operaciones.mjs`, `areas-compartir.mjs`, `e2e/areas-compartir.cjs`,
+  `e2e/areas-aislamiento.cjs` y `reemplazos-compilado.js`.
+
 ## 2026-10-10 — El pedido a la IA con la tarea AL PRINCIPIO y el expediente recortado (`index-pedido-20261010.js`)
 
 Parte de `index-fichas-20261009.js` + `pruebas/reemplazos-2026-10-10-pedido.js` (14 reemplazos;
