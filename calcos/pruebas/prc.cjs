@@ -322,8 +322,10 @@ const { UNIDADES, VIEJA, PEGADO_CAPTURA, RESPUESTA_FUERA_DE_TEMA, INDICACION, RE
     for (const r of [...lista].reverse()) x = x.split(r.nuevo).join(r.viejo)
     assert.equal(x, ant)
     const vig = fs.readFileSync(VIG, 'utf8')
-    for (const r of lista) assert.ok(vig.includes(r.nuevo), r.nombre)
-    assert.equal(vig.split('"../estado-mayor/v5/').length - 1, 3)
+    // (10-10-2026) el vigente puede tener el motor en una carpeta posterior (v6: el pedido)
+    for (const r of lista) if (!/\.\.\/estado-mayor\/v\d\//.test(r.nuevo)) assert.ok(vig.includes(r.nuevo), r.nombre)
+    assert.equal((nue.match(/"\.\.\/estado-mayor\/v5\//g) || []).length, 3, 'los 3 imports del motor van a la v5')
+    assert.equal((vig.match(/"\.\.\/estado-mayor\/v\d+\//g) || []).length, 3, 'el vigente importa el motor 3 veces')
   })
   caso('ningún gancho cae DENTRO de lo que insertaron las listas anteriores (salvo la versión de la carpeta del motor)', () => {
     const viejo = fs.readFileSync(ANTERIOR, 'utf8')

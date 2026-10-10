@@ -104,6 +104,40 @@ bajaban hechos». Se hizo con el skill `.claude/skills/habilitar-hojas-seccion/`
   por defecto) son las del panel y son editables. Los 500 m para decir que un eje
   humanitario «se monta» sobre el EPA son criterio de la Mesa.
 
+## El pedido a la IA: la tarea AL PRINCIPIO y el expediente recortado (10-10-2026, `v6/pedido.js`)
+
+Sergio mandó capturas de la F1·P3 Apreciación Activa del Comandante («Completar y mejorar», con
+la indicación «todo en base a la fase I de los otros miembros del estado mayor»): «Pedido copiado
+(456.419 caracteres)», y la IA contestó «La información se cortó detallando la maniobra del
+RIAT-30… ¿Cuál es el producto de Estado Mayor que requiere que elabore?», u otro documento en
+prosa que cerraba con «Want me to generate…?». Y los Word salían con «[IA — verificar]».
+
+**Qué estaba mal**: el pedido de TODAS las hojas (cU, el motor, el riesgo, la logística…) ponía
+el expediente entero adelante —con los documentos aportados, cientos de miles de caracteres— y
+la tarea, el JSON y la indicación del oficial recién al final. ChatGPT y Gemini cortan un texto
+así y la IA nunca veía qué hoja llenar. Además, el expediente no traía las hojas del Comandante
+ni del JEM: la IA de ninguna sección veía la apreciación, la guía ni la intención del Comandante.
+
+**Ahora** (`cierreIndicacion` → `armarPedidoFinal`, lo último antes de copiar o bajar el pedido,
+para todas las hojas y documentos del panel «🤖 Trabajar esta hoja con IA»):
+
+| | |
+|---|---|
+| Lo primero | «# PEDIDO DE TRABAJO PARA LA IA — LEÉ ESTO PRIMERO»: qué hoja (`hojaDelPedido`), la tarea, el bloque ```json de «CÓMO CONTESTAR» con sus claves exactas (`jsonDelPedido`), qué NO escribir (análisis sueltos, otra Orden, preguntas), «si el texto te llega CORTADO, contestá IGUAL» y la indicación del oficial. La PRC ya traía su tarea arriba: no se le pone otra |
+| El expediente | Se recorta al tamaño elegido (`compactarExpediente`), sin sacar ningún apartado: ceden primero 4 (terreno), 7 (calco) y 13 (documentos aportados), después los demás y lo último 0, 1, 2, 5, 9, 10, 11, 11 bis y 12 (la orientación, la Orden, la situación, las fases y las hojas del EM). Adentro se reparte parejo por documento, por hoja y por párrafo: lo que cede es el final de lo más largo. Arriba del expediente y en cada apartado recortado, cuánto quedó |
+| El final | Lo de siempre: CÓMO CONTESTAR, FORMATO DE TU RESPUESTA, la indicación y el recordatorio |
+| El tamaño | En el panel: **Corto** (60 mil caracteres, ChatGPT o Gemini gratis) · **Normal** (120 mil, por defecto) · **Completo** (sin recortar, para Claude o Gemini pagos). Se recuerda en el navegador. «Pedido copiado» dice cuánto se recortó |
+| El error | Si la IA dice que el texto se cortó o pregunta qué producto se quiere (`NO_RECIBIO`), el aviso lo dice y pide «Normal»/«Corto» y un chat nuevo (antes decía que era «el final de la respuesta») |
+| El Word | `sinMarcaWord`: lo que baja `Mx` (el militar y el de la hoja con membrete, como la F1·P3 del Comandante) sale sin «[IA — verificar]» |
+
+Del compilado (`reemplazos-2026-10-10-pedido.js`): el selector y el aviso en `hU`, las hojas del
+Comandante y del JEM en el expediente (`w6e` con `hse`), `Mx` y la Guía Inicial sin la hora
+repetida (`h3e`). Los 120 y 60 mil caracteres son criterio de la Mesa (≈ 35 y 17 mil tokens).
+
+Prueba: `node pedido-ia.cjs` (con un expediente REAL de 478 mil caracteres hecho con `_6e` y las
+dos respuestas de Sergio: `respuesta-cortada-comandante.md`, `respuesta-prosa-comandante.md`) y
+`node e2e/pedido-cmte.cjs` (la Mesa real, escritorio y teléfono; salidas en `pruebas/salidas-pedido/`).
+
 ## En la Mesa: ⚔️ G-3 → F3·P1 Potencia Relativa de Combate (06-10-2026, `v5/prc.js`)
 
 Sergio mandó una captura de la hoja («Completar y mejorar», con la indicación «ocupación de la
@@ -202,7 +236,7 @@ numeradas) en vez del bloque JSON. Ahora:
 ## Cómo está hecho
 
 ```
-estado-mayor/v5/   (la vigente; v4/ es la de index-respuestas … index-tablero-g4, v3/ la de index-g5 e index-coordenadas, v2/ la de index-lector, v1/ la de index-personal)
+estado-mayor/v6/   (la vigente, desde index-pedido-20261010; v5/ es la de index-prc … index-fichas, v4/ la de index-respuestas … index-tablero-g4, v3/ la de index-g5 e index-coordenadas, v2/ la de index-lector, v1/ la de index-personal)
   motor.js        el documento genérico: árbol del modelo, normalizar, 🌱 sin pisar, partir de,
                   revisión, texto, especificación del Word militar (numeración I.- A.- 1.- a.-,
                   CAP y fases, cuadros), HTML, pedido y respuesta de la IA
@@ -217,6 +251,8 @@ estado-mayor/v5/   (la vigente; v4/ es la de index-respuestas … index-tablero-
   campos/g1.js    TODO lo del G-1: los dos documentos (copian el catálogo), doctrina, lo que
                   sabe del calco, lo que trae 🌱, las guías y semillas de las hojas de trabajo
   campos/g5.js    TODO lo del G-5, con la misma forma
+  pedido.js       (v6) el pedido final a la IA: la tarea, el JSON y la indicación al principio,
+                  el expediente recortado al tamaño elegido (Corto / Normal / Completo)
   prc.js          (v5) la F3·P1 Potencia Relativa de Combate del G-3: la hoja del .docx, la
                   guía, el pedido, la migración de la forma vieja, el aviso cuando se pega sólo
                   el final de la respuesta y el Word (un .docx armado acá, sin bibliotecas)
@@ -256,7 +292,7 @@ anexo: { esquema: 'anexo-acgm-v1', numero, campos: { objeto, carta, apendice, or
 ### Para sumar otra sección (G-5, EME…)
 
 Escribir `campos/<g>.js` con la forma de `campos/g1.js` (o `g5.js`) y agregarla a `CAMPOS`
-en `registro.js` (en una carpeta de versión nueva, `v6/`, copia de `v5/`). Los ganchos del compilado son genéricos: **no hace falta otro compilado**
+en `registro.js` (en una carpeta de versión nueva, `v7/`, copia de `v6/`). Los ganchos del compilado son genéricos: **no hace falta otro compilado**
 salvo para versionar la carpeta (ver el skill `.claude/skills/habilitar-hojas-seccion/`).
 
 ## Qué es de la doctrina y qué es criterio de la Mesa
@@ -289,7 +325,10 @@ node construir-g5.js            # arma index-g5-20261003.js encima (luego constr
 node respuestas-hojas.cjs       # el final del pedido y las respuestas de las hojas de trabajo (cU, Boe y dU reales)
 node prc.cjs                    # la PRC del G-3: hoja, guía, migración, 🌱 (l3e real), pedido (cU, Boe), respuesta (dU, sP), error, Word
 node e2e/prc.cjs                # la PRC en la Mesa real, escritorio y teléfono (prc-ejemplo.js; salidas en pruebas/salidas-prc/)
-node construir-prc.js           # arma index-prc-20261006.js (el vigente) encima de index-tablero-g4-20261003.js
+node construir-prc.js           # arma index-prc-20261006.js encima de index-tablero-g4-20261003.js
+node pedido-ia.cjs              # el pedido con la tarea arriba y el expediente recortado, las respuestas de Sergio, el Word sin la marca
+node e2e/pedido-cmte.cjs        # la F1·P3 del Comandante en la Mesa real, escritorio y teléfono
+node construir-pedido.js        # arma index-pedido-20261010.js (el vigente) encima de index-fichas-20261009.js
 ```
 
 `personal-ejemplo.js` tiene un ejercicio FICTICIO (División en la ofensiva, tres fases) y

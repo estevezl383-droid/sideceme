@@ -10,7 +10,8 @@ del 03-10 de `calcos/CAMBIOS-EN-EL-COMPILADO.md`). Desde esos compilados
 (`index-personal-20261003.js` y, encima, `index-lector-20261003.js`) los ganchos de la Mesa
 son GENÉRICOS: para otra sección **no hay que volver a tocar el compilado para que
 funcione** — se escribe `calcos/estado-mayor/vN/campos/<g>.js`, se registra, y se versiona
-la carpeta. La versión vigente es la carpeta que importa el compilado vigente (hoy `v5`, que sumó la
+la carpeta. La versión vigente es la carpeta que importa el compilado vigente (hoy `v6`, que sumó el
+pedido con la tarea al principio y el expediente recortado: `v6/pedido.js`; la `v5` sumó la
 Potencia Relativa de Combate del G-3: `v5/prc.js`).
 
 El **G-5** se hizo el 03-10-2026 con este skill (`v3/campos/g5.js`, entrada «2026-10-03 (3)»
@@ -70,7 +71,7 @@ node .claude/skills/habilitar-hojas-seccion/scripts/ver-modelo.mjs aprec-acgm # 
 ## Paso 1 — Versionar la carpeta
 
 El navegador guarda los módulos: el repo versiona por carpeta (como `conceptos/v2…v4`).
-Copiá la carpeta vigente (hoy `calcos/estado-mayor/v5`) a la siguiente libre (`v6`) y
+Copiá la carpeta vigente (hoy `calcos/estado-mayor/v6`) a la siguiente libre (`v7`) y
 trabajá en la copia. No cambies la vigente (la usa el compilado publicado).
 
 ## Paso 2 — Escribir `campos/<g>.js` (copiar la forma de `campos/g1.js`)
@@ -135,7 +136,7 @@ siguen como estaban y suman 📘/🌱 si tienen `guias`/`semillas`.
 
 Nueva lista `calcos/pruebas/reemplazos-AAAA-MM-DD-<g>.js` (copiar la forma de
 `reemplazos-2026-10-03-respuestas.js`, que hizo esto de v3 a v4) que cambie la línea de
-imports del motor de `"../estado-mayor/v5/` a `"../estado-mayor/v6/` (son 3 imports: editor,
+imports del motor de `"../estado-mayor/v6/` a `"../estado-mayor/v7/` (son 3 imports: editor,
 runtime y registro; contalos con `split().length - 1`), y un `construir-<g>.js` como
 `construir-respuestas.js`
 (ANTERIOR = el compilado vigente, NUEVO = `index-<g>-AAAAMMDD.js`). Si la sección necesita
