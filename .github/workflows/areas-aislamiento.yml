@@ -6,10 +6,12 @@ on:
       - 'supabase/espejo-ge/calco-ops/**'
       - 'supabase/migrations/*calco_compartidos*'
       - 'calcos/assets/index-areas-20261009.js'
+      - 'calcos/assets/index-lazo-20261010.js'
       - 'calcos/fuegos/plan-fuegos.js'
       - 'calcos/pruebas/*areas*'
       - 'calcos/pruebas/e2e/areas-aislamiento.cjs'
       - 'calcos/pruebas/e2e/areas-compartir.cjs'
+      - 'calcos/pruebas/e2e/areas-lazo.cjs'
       - '.github/workflows/areas-aislamiento.yml'
   workflow_dispatch:
 permissions:
@@ -28,8 +30,10 @@ jobs:
           npm ci --prefix calcos/pruebas
           node --check calcos/areas-operaciones/editor.mjs
           node --check calcos/assets/index-areas-20261009.js
+          node --check calcos/assets/index-lazo-20261010.js
           node calcos/pruebas/areas-operaciones.mjs
           node calcos/pruebas/areas-compartir.mjs
+          node calcos/pruebas/areas-lazo.mjs
           node calcos/pruebas/edicion-figuras.cjs
           node calcos/pruebas/plan-fuegos-modelo.js
           node calcos/pruebas/reemplazos-compilado.js
@@ -43,3 +47,10 @@ jobs:
         run: |
           node calcos/pruebas/e2e/areas-aislamiento.cjs
           node calcos/pruebas/e2e/areas-compartir.cjs
+          node calcos/pruebas/e2e/areas-lazo.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: revision-lazo
+          path: calcos/pruebas/salidas-lazo/
+          retention-days: 7
