@@ -36,6 +36,14 @@ Lo que se guarda es lo mismo de siempre (la foto del ejercicio que arma la Mesa,
 el candado que no deja pisar un ejercicio con trabajo con una pantalla en blanco). No cambia el
 servidor ni el formato del ejercicio.
 
+### El ejercicio para los módulos de afuera (10-10-2026)
+
+`usarAutoguardado` deja en `window.SIDMesaEjercicio` (`nombre()`, `foto()`) la misma foto que se
+guarda, tal como está en la pantalla. La usa el tablero del profesor (`calcos/modalidad`) para
+armar los pedidos a la IA con el CMOC, la Orden y el Área de Interés: con la Mesa publicada el
+ejercicio va a SIDECEME y en el IndexedDB del navegador sólo queda una copia de respaldo. Es de
+sólo lectura (la foto comparte objetos con el estado de React).
+
 ### Lo que NO se guarda en el ejercicio (como antes)
 
 Los pasos marcados del tablero 🎓/🧑‍🏫 (quedan en ese navegador), lo superpuesto con 🧩 Superponer,

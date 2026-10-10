@@ -208,6 +208,16 @@ export function usarAutoguardado(R, op) {
       }),
     [],
   )
+  // El ejercicio TAL COMO ESTÁ en la Mesa, para los módulos de afuera que lo leen (el tablero del
+  // profesor arma con él los pedidos a la IA). Con la Mesa publicada el ejercicio se guarda en
+  // SIDECEME, no en el IndexedDB: sin esto el pedido salía sin el CMOC, la Orden ni el Área de
+  // Interés (10-10-2026). Sólo lectura: la foto comparte objetos con el estado de React.
+  R.useEffect(() => {
+    window.SIDMesaEjercicio = {
+      nombre: () => ref.current.nombre || '',
+      foto: () => (ref.current.nombre ? ref.current.foto() : null),
+    }
+  }, [])
   R.useEffect(() => {
     motor.activar(op.activo)
   }, [op.activo])

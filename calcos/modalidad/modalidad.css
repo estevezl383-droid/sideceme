@@ -117,3 +117,25 @@ body[data-sid-mod-col] .sdp{right:var(--sid-mod-col) !important}
 #sid-mod-panel .bib-nom small{font-weight:400;color:#8fb0b8}
 #sid-mod-panel .bib-coe{color:#46f0d0;margin-top:2px}
 #sid-mod-panel .bib select{font:inherit;font-size:11px;color:#e4f4f6;background:#0c2a38;border:1px solid rgba(70,240,208,.4);border-radius:6px;padding:2px 4px;max-width:100%}
+
+/* 📥 La respuesta de la IA (en cada «🤖 IA») y 📕 la carpeta del profesor */
+#sid-mod-panel .ia-resp{margin-top:8px;padding-top:7px;border-top:1px dashed rgba(167,139,250,.5)}
+#sid-mod-panel .ia-resp-tit{display:flex;flex-direction:column;gap:2px;margin-bottom:5px;font-weight:700;color:#fde68a}
+#sid-mod-panel .ia-resp-tit span{font-weight:400;font-size:11px;color:#d9d0f0}
+#sid-mod-panel .ia-resp textarea{border-color:rgba(251,191,36,.45)}
+#sid-mod-panel .ia-resp .ia-acc{margin:6px 0 0}
+#sid-mod-panel .ia-resp select{font:inherit;font-size:11px;color:#e4f4f6;background:#0c2a38;border:1px solid rgba(70,240,208,.4);border-radius:6px;padding:3px 4px;max-width:100%}
+#sid-mod-panel .ia-guardada{margin-top:4px;font-size:11px;color:#fcd34d}
+#sid-mod-panel .car-btn{display:block;width:100%;margin-top:4px;font:600 12px/1.2 inherit;text-align:left;color:#fecaca;background:rgba(127,29,29,.3);border:1px solid #f87171;border-radius:8px;padding:7px 10px;cursor:pointer}
+#sid-mod-panel .car-btn:hover,#sid-mod-panel .car-btn[aria-expanded="true"]{color:#2a0606;background:#fca5a5}
+#sid-mod-panel .car{margin-top:6px;padding:8px;border:1px solid rgba(248,113,113,.5);border-radius:9px;background:rgba(40,8,8,.45);font-size:12px}
+#sid-mod-panel .car-lista{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+#sid-mod-panel .car-lista li{padding:6px;border-radius:7px;background:rgba(4,17,26,.6);border:1px solid rgba(255,255,255,.08)}
+#sid-mod-panel .car .bib-cab b{color:#fca5a5}
+#sid-mod-panel .car-subir{display:inline-block;--sc:#fbbf24}
+#sid-mod-panel .car .ir[disabled]{opacity:.45;cursor:not-allowed}
+#sid-mod-panel .car-meta{margin-top:2px;font-size:11px;color:#b9d2d8}
+#sid-mod-panel .car-notas{margin-top:8px}
+#sid-mod-panel .car-nota{margin:5px 0 0;padding:6px;border-radius:7px;background:rgba(4,17,26,.6);border-left:3px solid #f87171}
+#sid-mod-panel .car-nota b{display:block;margin-bottom:3px;color:#fca5a5}
+#sid-mod-panel .car-txt{white-space:pre-wrap;word-break:break-word;font-size:11.5px;color:#e4f4f6;max-height:220px;overflow:auto}
