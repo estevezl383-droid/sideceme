@@ -11,6 +11,10 @@ on:
       - 'calcos/pruebas/autoguardado.mjs'
       - 'calcos/pruebas/*guardado*'
       - 'calcos/pruebas/modalidad.cjs'
+      - 'calcos/pruebas/ia-profesor.cjs'
+      - 'calcos/pruebas/carpeta-profesor.cjs'
+      - 'calcos/pruebas/respuesta-cmoc-profesor.md'
+      - 'calcos/pruebas/e2e/carpeta-profesor.cjs'
       - 'calcos/pruebas/e2e/autoguardado.cjs'
       - 'calcos/pruebas/e2e/paneles-sin-cruce.cjs'
       - 'calcos/pruebas/e2e/modalidad.cjs'
@@ -34,9 +38,12 @@ jobs:
           npm ci --prefix calcos/pruebas
           node --check calcos/assets/index-guardado-20261010.js
           node --check calcos/modalidad/modalidad.js
+          node --check calcos/modalidad/carpeta.js
           node --check calcos/version/aviso-version.js
           node calcos/pruebas/autoguardado.mjs
           node calcos/pruebas/modalidad.cjs
+          node calcos/pruebas/ia-profesor.cjs
+          node calcos/pruebas/carpeta-profesor.cjs
           node calcos/pruebas/reemplazos-compilado.js
       - name: Preparar navegador
         run: |
@@ -49,6 +56,7 @@ jobs:
           node calcos/pruebas/e2e/autoguardado.cjs
           node calcos/pruebas/e2e/paneles-sin-cruce.cjs
           node calcos/pruebas/e2e/modalidad.cjs
+          node calcos/pruebas/e2e/carpeta-profesor.cjs
           node calcos/pruebas/e2e/aviso-version.cjs
       - uses: actions/upload-artifact@v4
         if: always()
@@ -57,4 +65,5 @@ jobs:
           path: |
             calcos/pruebas/salidas-guardado/
             calcos/pruebas/salidas-paneles/
+            calcos/pruebas/salidas-carpeta/
           retention-days: 7

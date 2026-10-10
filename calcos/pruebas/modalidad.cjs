@@ -93,6 +93,10 @@ assert.equal(CAT.ANEXOS_OGO.length, 8)
 CAT.ANEXOS_OGO.forEach((a) => assert.ok(CAT.SECCIONES[a.sec]))
 assert.match(html, /modalidad\/ia-profesor\.js/)
 new vm.Script(fs.readFileSync(path.join(RAIZ, 'modalidad/ia-profesor.js'), 'utf8'))
+// la carpeta del profesor se carga ANTES de la IA (ia-profesor.js la usa) y de modalidad.js
+assert.ok(html.indexOf('modalidad/carpeta.js') > 0 && html.indexOf('modalidad/carpeta.js') < html.indexOf('modalidad/ia-profesor.js'), 'carpeta.js antes de ia-profesor.js')
+new vm.Script(fs.readFileSync(path.join(RAIZ, 'modalidad/carpeta.js'), 'utf8'))
+CAT.PROFESOR.forEach((p) => assert.ok(p.carpeta == null || p.carpeta === 'solucion' || p.carpeta === 'alumnos', `paso ${p.n}: destino en la carpeta`))
 assert.equal(CAT.ESCALONES.length, 4)
 assert.deepEqual(CAT.ESCALONES.map((e) => e.id), ['fftt', 'ce', 'div', 'brig'])
 

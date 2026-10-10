@@ -15,6 +15,7 @@ React, no guarda nada en el ejercicio y se puede quitar sacando tres líneas del
 |---|---|
 | `catalogo.js` | Las **7 fases con sus pasos en orden** (hoja «PMTD 2020» de la Visión Horizontal; 7·17·8·8·3·4·3 pasos), con el documento que sale, el responsable y **dónde se abre en la Mesa** (sección + número de hoja, o herramienta). Más los **10 pasos del profesor** (cada uno con su pedido a la IA), los **escalones** (FF.TT.→CE, CE→DIV, DIV→BRIG, BRIG→Unidades), los **focos** (qué G entrena el ejercicio), los **anexos de la OGO** y las **organizaciones tipo** (FF.TT., C.E., D.I., D. Mec., Brigada, COE). Se carga en el navegador y en Node. |
 | `ia-profesor.js` | **La IA del profesor** (puro, se prueba en Node): `armarPedido(paso, ctx)` arma el pedido de cada paso con el escalón, el foco y el ejercicio recortado (la Orden escrita, las fichas, el CMOC, los documentos adjuntos); el del paso 5 pide la **OGO completa con todos sus anexos**. `fichasDeOrganizacion` y `fichasDeJSON` arman las fichas (la forma de `academico.js`) de una organización tipo o del bloque ```json que devuelve la IA. |
+| `carpeta.js` | **📕 La carpeta del profesor** (pura, se prueba en Node): las respuestas de la IA de cada paso, lo «PARA EL PROFESOR» que se va sumando, lo que es solución y lo que va a los alumnos, el bloque para los pedidos que siguen y el .md para bajarla y volver a cargarla. |
 | `biblioteca.js` | **📚 La biblioteca del profesor** (puro, se prueba en Node con `jszip.min.js`): lee un Word (.docx) con sus párrafos y TABLAS; reconoce el **COE** (la tabla «CLASE \| CMDO. \| RCB-1 \| … \| TOTAL» con PERSONAL · ARMAMENTO · VEHÍCULOS · EQUIPO ESPECIAL) y devuelve la División con cada unidad, su efectivo, armamento y vehículos; da el arma y el escalón de la Mesa por la sigla (RCB, RIM, RIAT, RAM, BAT. AA, BATING, BAT. COM, BAT. LOG, COMP. ICIA, ERM, RI, RAC…); arma las fichas de un COE y el resumen para la IA. |
 | `modalidad.js` | El selector **🎖️ Mesa · 🎓 Aprendizaje · 🧑‍🏫 Profesor** y el tablero de la derecha. |
 | `modalidad.css` | Los estilos; con Pandora y una modalidad que no sea «Mesa», **esconde la columna CMTE./JEM./G-1…G-5** (el tablero ocupa su lugar y aprieta esos botones por el alumno). |
@@ -73,6 +74,54 @@ ejercicios, pero no viaja a otro equipo (hay que cargarlos allá también). Los 
 el lector de la Mesa (pdf.js); un PDF escaneado no tiene texto y lo avisa. De cada documento se
 guardan hasta 400 mil caracteres (un reglamento como el RDO-20001 se recorta y lo dice).
 
+**📕 La carpeta del profesor y el CMOC en el pedido (10-10-2026).** Lo pidió Sergio con la captura
+del paso 4: el pedido del CMOC salía con **3081 caracteres** —sin los corredores, caminos y avenidas
+que había dibujado— y, cuando la IA le devolvió el análisis, «no hay dónde pegar el resultado… debe
+ir registrado en algún lado, ya que servirá para los cursos de acción o el anexo de inteligencia… y
+si hay algo para el profesor, que se vaya sumando para que el profesor vaya solucionando».
+- **Por qué salía vacío.** El tablero buscaba el ejercicio en el IndexedDB «calcos» con su nombre;
+  con la Mesa publicada el ejercicio se guarda en SIDECEME y en el navegador sólo queda una copia de
+  respaldo («<nombre>__anterior», de hasta 2 min atrás). El pedido salía sólo con las fichas (que
+  vienen por el puente). Ahora se lee **la Mesa tal como está**: el autoguardado deja
+  `window.SIDMesaEjercicio` (`calcos/guardado/v1/autoguardado.mjs`, sólo lectura); si no está, el
+  IndexedDB con su nombre y, por último, la copia de respaldo (el pedido dice de dónde lo leyó).
+- **El CMOC en texto.** Antes iba como JSON crudo recortado a 15 mil caracteres: las áreas
+  restringidas (cientos de vértices) se comían el espacio antes de llegar a los corredores y las
+  avenidas. Ahora va `resumenTerreno` (en `ia-profesor.js`), ANTES de la Orden: cada corredor (escalón
+  y su ancho, bando, si va sobre caminos y cuál, de dónde a dónde, por dónde pasa, km), cada avenida
+  (eje, ancho dibujado), el terreno clave, las áreas restringidas y severamente restringidas (las
+  dibujadas a mano primero, después las más grandes, con superficie y centro), lo defendible, las
+  áreas de empeñamiento, los desplazamientos, los obstáculos, los objetivos y el Área de Operaciones;
+  todo en **lat, lng**. El pedido del paso 4 manda **partir de lo dibujado**: nombrar cada elemento,
+  calificarlo, decir qué no corresponde y completar lo que falte.
+- **📥 La respuesta de la IA.** Dentro de cada «🤖 IA», debajo del pedido: se pega lo que contestó la
+  IA y **💾 Guardar en la carpeta**. Una respuesta por paso (guardar otra vez la reemplaza; 🗑️ la
+  saca). El botón del paso muestra **📕✓**.
+- **🔒 Solución o 📤 para los alumnos.** Cada pedido le pide a la IA una primera línea «DESTINO: …»;
+  con eso (o con lo que diga el texto: «solución del profesor», «no debe entregarse a los alumnos»)
+  la carpeta lo clasifica, y el profesor lo cambia. Fijos: la idea del ejercicio (1), los cursos de
+  acción del enemigo (7) y la pauta (9) son solución; la OGO (5), la situación (8) y las
+  instrucciones (10) van a los alumnos.
+- **Entra en los pedidos que siguen.** Lo guardado va en todos los pedidos de los OTROS pasos
+  («CARPETA DEL PROFESOR… es la BASE de este pedido», con su propio espacio de 45 mil caracteres
+  repartido entre los pasos). La OGO toma del CMOC guardado el párrafo 1.a y el **Anexo A
+  (Inteligencia)** a nivel del superior, sin darle al alumno lo que tiene que producir él; los
+  **cursos de acción del enemigo** (7) salen de esas avenidas con sus nombres; la **pauta de
+  corrección** (9) toma la solución y lo «PARA EL PROFESOR» de cada paso.
+- **📕 Carpeta del profesor** (arriba del tablero, al lado de 📚): los pasos guardados (👁️ Ver, Ir al
+  paso ▸) y **🧑‍🏫 Para el profesor (se va sumando)**: la sección «PARA EL PROFESOR» de cada respuesta,
+  en orden. **⬇️ Bajar la carpeta (.md)**: tres partes (1 Para el profesor · 2 🔒 Solución · 3 📤 Lo que
+  va a los alumnos) y, en un comentario invisible al final, los datos para **📤 Cargarla** en otro
+  equipo (se suma a la del ejercicio abierto; de cada paso queda la respuesta más nueva).
+- **Dónde queda.** En el IndexedDB «sid-profesor» de ESE navegador, una carpeta por ejercicio (por su
+  nombre), **NO en el ejercicio**: el ejercicio se reparte a los alumnos y la solución del profesor no
+  tiene que viajar con él (la prueba lo comprueba en lo que se manda a SIDECEME). Para llevarla a otro
+  equipo, bajarla y cargarla allá. Sin ejercicio abierto no se guarda (lo pegado queda en el cuadro).
+- `carpeta.js` es puro (se prueba en Node): `separar` (el documento y lo «PARA EL PROFESOR»: un
+  título «#», en negrita, en MAYÚSCULAS o solo en su línea; una oración que empieza «Para el
+  profesor…» no cuenta), `destinoDe`, `poner`/`quitar`/`cambiarDestino`, `notasProfesor`,
+  `paraPedido`, `markdown`/`leerMarkdown`, `juntar`.
+
 **Insertar unidades de una vez (paso 6).** «Ya tengo COE, divisiones de AZUL o Cuerpos de
 Ejército directo para insertar»: se elige la organización tipo (FF.TT. con 3 C.E. · Cuerpo de
 Ejército con 3 Divisiones · División de Infantería · División Mecanizada · Brigada · COE), el
@@ -119,14 +168,16 @@ puede tocar.
   navegador**: no viajan con el ejercicio ni se ven desde otro equipo. Las hojas de verdad siguen
   en el ejercicio, como siempre.
 - **La IA no se llama desde la Mesa**: el tablero arma el PEDIDO (el texto) y el profesor lo
-  pega en la IA que use; lo que la IA conteste se pega a mano en «Mesa · Preparación», en los
-  documentos del ejercicio o, las fichas, con «📥 Pegar fichas de la IA». No se gasta nada en
-  llamadas.
+  pega en la IA que use; lo que la IA conteste se pega en «📥 La respuesta de la IA» del mismo paso
+  (queda en la 📕 carpeta del profesor) y, si va al ejercicio, a mano en «Mesa · Preparación», en
+  los documentos del ejercicio o, las fichas, con «📥 Pegar fichas de la IA». No se gasta nada en
+  llamadas. La carpeta NO dibuja en la carta: las coordenadas del CMOC que devuelve la IA se
+  trazan a mano en el 🪖 editor CMOC.
 - El compilado manda por `MesaAcademica.sincronizar` el NOMBRE del ejercicio abierto, las fichas
   y el centro de la vista; los datos del ejercicio (la Orden escrita, el CMOC, las fases, los
-  documentos) se leen del IndexedDB «calcos», donde la Mesa lo autoguarda cada pocos segundos
-  (se lee sin crear nada; si recién escribiste algo, esperá unos segundos y volvé a armar el
-  pedido). Si no hay ejercicio abierto, el pedido sale sin contexto y lo dice.
+  documentos) se leen de la Mesa tal como está (`window.SIDMesaEjercicio`, del autoguardado) o,
+  si no, del IndexedDB «calcos» (ver «📕 La carpeta del profesor y el CMOC en el pedido»). Si no
+  hay ejercicio abierto, el pedido sale sin contexto y lo dice.
 - El **escalón del profesor es una guía**, no un motor: no cambia lo que dibuja ni calcula la Mesa
   (eso lo decide la Orden que escribe el profesor y las unidades que coloca).
 - Cuando la hoja no existe en esta Mesa (p. ej. la PICB del G-2 no es una «hoja», es su panel),
@@ -140,13 +191,26 @@ puede tocar.
   compilado** (cada uno una sola hoja, en el catálogo de su sección), herramientas y secciones
   con botón real (el editor CMOC incluido), los 10 pasos del profesor en orden con su pedido a
   la IA, los focos, los 8 anexos, sintaxis de los módulos y el `index.html`.
+- `node calcos/pruebas/carpeta-profesor.cjs`: con la respuesta REAL del CMOC que pegó Sergio
+  (`pruebas/respuesta-cmoc-profesor.md`): separa «PARA EL PROFESOR» (y no corta una oración que
+  empieza así), reconoce que es solución, guarda/reemplaza/saca, suma las notas, arma el bloque de
+  los pedidos repartiendo el espacio y el .md va y vuelve igual (aunque el texto traiga «-->»).
+- `node calcos/pruebas/e2e/carpeta-profesor.cjs` (la Mesa real en Chromium, como está publicada,
+  con el SIDECEME de mentira): el pedido del paso 4 lleva el CMOC dibujado (corredor sobre caminos,
+  avenidas, terreno clave, área a mano) leído de la Mesa abierta; se pega y guarda la respuesta real
+  (🔒 solución, 📕✓); sigue ahí después de recargar; entra en el pedido de la OGO y no en el del
+  paso 4; se baja el .md, se saca y se vuelve a cargar; **lo que se guarda en SIDECEME no lleva nada
+  de la carpeta**; sin errores de consola. Capturas en `pruebas/salidas-carpeta/`.
 - `node calcos/pruebas/biblioteca.cjs`: con dos COE REALES del Tema Base «DIAMANTE»
   (`pruebas/fixtures/coe-div-mec-1.docx`, `coe-div-1.docx`): las 13 y 14 unidades con sus
   efectivos (suman el total del COE), armamento, vehículos y equipo; el arma y el escalón de
   cada sigla; las fichas (AZUL y ROJO, armas y escalones del compilado); tipo y bando de los
   documentos; el recorte; el resumen y el pedido de la OGO con la biblioteca.
-- `node calcos/pruebas/ia-profesor.cjs`: las armas y escalones de las organizaciones son los
-  del compilado; las fichas de un C.E. AZUL y una D.I. ROJO (forma, número, espejado, ids);
+- `node calcos/pruebas/ia-profesor.cjs`: el terreno dibujado en texto (30 áreas de 400 vértices
+  no inflan el pedido; la dibujada a mano va primero; corredor, avenida con su ancho, terreno
+  clave, desplazamiento, obstáculo, Área de Operaciones e Interés en lat, lng) antes de la Orden;
+  la carpeta entra en la OGO (con la regla del Anexo A) y en los CAE, no en su propio paso; las
+  armas y escalones de las organizaciones son los del compilado; las fichas de un C.E. AZUL y una D.I. ROJO (forma, número, espejado, ids);
   el JSON de la IA (bandos sueltos, arma/escalón inexistentes, sin lat/lng); el pedido de la
   OGO con los 8 anexos y el anexo del foco marcado (y ninguno con el PMTD completo), el contexto
   del ejercicio y su recorte; un pedido por paso; sin ejercicio sale igual.

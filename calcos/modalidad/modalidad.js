@@ -12,12 +12,15 @@
      Orden saca la OGO completa con sus anexos. En «Unidades» se inserta de una vez una
      organización tipo (FF.TT., C.E., División, Brigada, COE) de AZUL o de ROJO, o se pegan las
      fichas que devolvió la IA. Las fichas entran por el mismo puente que usa academico.js
-     (MesaAcademica.sincronizar → agregarUnidades): no se toca el compilado.
-   Lo marcado, el escalón y el foco quedan en localStorage de ESTE navegador (no viajan con el
-   ejercicio). El catálogo está en catalogo.js. Con «Mesa completa» no cambia nada. */
+     (MesaAcademica.sincronizar → agregarUnidades): no se toca el compilado. Debajo de cada pedido,
+     «📥 La respuesta de la IA»: lo que contestó se guarda en la 📕 carpeta del profesor (carpeta.js)
+     y entra en los pedidos de los pasos que siguen.
+   Lo marcado, el escalón y el foco quedan en localStorage de ESTE navegador; la biblioteca y la
+   carpeta, en su IndexedDB (no viajan con el ejercicio). El catálogo está en catalogo.js. Con
+   «Mesa completa» no cambia nada. */
 (function () {
   'use strict'
-  var CAT = window.SIDModalidadCatalogo, IA = window.SIDIAProfesor, BIB = window.SIDBiblioteca
+  var CAT = window.SIDModalidadCatalogo, IA = window.SIDIAProfesor, BIB = window.SIDBiblioteca, CARP = window.SIDCarpetaProfesor
   if (!CAT) return
   var K_MODO = 'sid_modalidad', K_HECHO = 'sid_mod_hecho', K_FASE = 'sid_mod_fase', K_ESC = 'sid_mod_escalon', K_PLEGADO = 'sid_mod_plegado', K_FOCO = 'sid_mod_foco'
   var MODOS = [
@@ -33,6 +36,8 @@
   var tapado = false, abiertoIgual = false
   var biblio = [], verBiblio = false, bibVer = 0, bibVista = '' // la biblioteca del profesor (IndexedDB «sid-biblioteca»)
   var foco = 'pmtd', iaPaso = 0, iaTexto = '', aviso = {}, puente = null // puente: lo último que la Mesa le mandó a MesaAcademica.sincronizar (ejercicio, fichas, centro, agregarUnidades)
+  // 📕 la carpeta del profesor del ejercicio abierto (IndexedDB «sid-profesor»): las respuestas de la IA de cada paso
+  var carpeta = CARP ? CARP.vacia('') : null, carpetaDe = null, verCarpeta = false, carVer = 0, carVista = 0, borrador = {}
 
   function lee(k, d) { try { var v = localStorage.getItem(k); return v == null ? d : v } catch (e) { return d } }
   function guarda(k, v) { try { localStorage.setItem(k, v) } catch (e) {} }
@@ -137,12 +142,13 @@
     var MA = window.MesaAcademica
     if (!MA || MA.__sidModalidad) return
     var orig = MA.sincronizar
-    MA.sincronizar = function (p) { puente = p || null; return orig.apply(this, arguments) }
+    MA.sincronizar = function (p) { puente = p || null; setTimeout(carRevisar, 0); return orig.apply(this, arguments) }
     MA.__sidModalidad = true
   }
   function centroMesa() { try { var c = puente && (typeof puente.centro === 'function' ? puente.centro() : puente.centro); return c && isFinite(c.lat) ? c : null } catch (e) { return null } }
   function ponerModo(m) {
     modo = m; guarda(K_MODO, m)
+    var cu = panel && panel.querySelector('.cuerpo'); if (cu) cu.scrollTop = 0 // otra modalidad: desde arriba
     body.setAttribute('data-sid-modo', m)
     if (sel) sel.querySelectorAll('button').forEach(function (b) { b.setAttribute('aria-pressed', b.getAttribute('data-m') === m) })
     pintar(true)
@@ -157,11 +163,18 @@
   function pasoProfesor(n) { for (var i = 0; i < CAT.PROFESOR.length; i++) if (CAT.PROFESOR[i].n === n) return CAT.PROFESOR[i]; return null }
 
   // ---------- la IA del profesor ----------
-  // El compilado manda por el puente el NOMBRE del ejercicio abierto (no sus datos); los datos
-  // (la Orden escrita, el CMOC, las fases, los documentos) están en el IndexedDB «calcos»,
-  // donde la Mesa guarda el ejercicio solo cada pocos segundos. Se lee de ahí, sin crear nada:
-  // si la base no existe todavía, el pedido sale sin contexto y lo dice.
-  function leerEjercicio(nombre) {
+  // El compilado manda por el puente el NOMBRE del ejercicio abierto (no sus datos). Los datos (la
+  // Orden escrita, el CMOC, las fases, los documentos) se buscan, en este orden:
+  //  1° tal como están en la Mesa: window.SIDMesaEjercicio, que deja el autoguardado
+  //     (calcos/guardado/v1/autoguardado.mjs); trae hasta lo que todavía no se guardó;
+  //  2° el IndexedDB «calcos» con su nombre: la Mesa sin SIDECEME (escritorio, desarrollo) guarda ahí;
+  //  3° la copia de respaldo «<nombre>__anterior» del mismo IndexedDB: con la Mesa publicada el
+  //     ejercicio se guarda en SIDECEME y en el navegador sólo queda esa copia (de hasta 2 min atrás).
+  // Hasta el 10-10-2026 sólo se probaba el 2°: con la Mesa publicada el pedido salía sin el CMOC
+  // dibujado, sin la Orden y sin el Área de Interés (sólo con las fichas). Se lee sin crear nada.
+  function nombreGuardado(t) { return String(t || '').trim().replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').slice(0, 80) } // como lo guarda la Mesa
+  function hora(iso) { var d = new Date(iso); return isNaN(d) ? '' : d.toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' }) }
+  function leerIDB(nombre) {
     return new Promise(function (ok) {
       if (!nombre || typeof nombre !== 'string' || !window.indexedDB) return ok(null)
       var abrir_ = function () {
@@ -172,9 +185,17 @@
             var db = r.result
             try {
               if (!db.objectStoreNames.contains('ejercicios')) { db.close(); return ok(null) }
-              var g = db.transaction('ejercicios', 'readonly').objectStore('ejercicios').get(nombre)
-              g.onsuccess = function () { var v = g.result, d = v && (v.datos || v); db.close(); if (d && typeof d === 'object') d.nombre = d.nombre || nombre; ok(d && typeof d === 'object' ? d : null) }
-              g.onerror = function () { db.close(); ok(null) }
+              var st = db.transaction('ejercicios', 'readonly').objectStore('ejercicios'), claves = [nombre, nombreGuardado(nombre), nombreGuardado(nombre) + '__anterior'], i = 0
+              var sig = function () {
+                if (i >= claves.length) { db.close(); return ok(null) }
+                var k = claves[i++], g = st.get(k)
+                g.onsuccess = function () {
+                  var v = g.result, d = v && (v.datos || v)
+                  if (d && typeof d === 'object') { db.close(); ok({ datos: d, fuente: /__anterior$/.test(k) ? 'la copia de respaldo del navegador' + (v.guardadoEn ? ' de las ' + hora(v.guardadoEn) : '') + ' (lo dibujado en los últimos minutos puede faltar)' : 'el ejercicio guardado en este navegador' }) } else sig()
+                }
+                g.onerror = sig
+              }
+              sig()
             } catch (e) { db.close(); ok(null) }
           }
           r.onerror = function () { ok(null) }
@@ -185,13 +206,28 @@
       else abrir_()
     })
   }
+  function nombreEj() {
+    var n = puente && (typeof puente.ejercicio === 'string' ? puente.ejercicio : puente.ejercicio && puente.ejercicio.nombre)
+    if (!n) try { n = window.SIDMesaEjercicio && window.SIDMesaEjercicio.nombre() } catch (e) {}
+    return n || ''
+  }
+  // → { datos, fuente } o null
+  function leerEjercicio(nombre) {
+    var M = window.SIDMesaEjercicio
+    try {
+      var f = M && M.foto && (!nombre || M.nombre() === nombre) ? M.foto() : null
+      if (f && typeof f === 'object') return Promise.resolve({ datos: Object.assign({}, f, { nombre: f.nombre || nombre }), fuente: 'la Mesa abierta, tal como está ahora' })
+    } catch (e) {}
+    return leerIDB(nombre).then(function (r) { return r && { datos: Object.assign({}, r.datos, { nombre: r.datos.nombre || nombre }), fuente: r.fuente } })
+  }
   function armarPedido(p) {
     if (!IA) return Promise.resolve('')
-    var nombre = puente && (typeof puente.ejercicio === 'string' ? puente.ejercicio : puente.ejercicio && puente.ejercicio.nombre)
-    return leerEjercicio(nombre).then(function (ej) {
+    var nombre = nombreEj()
+    return leerEjercicio(nombre).then(function (r) {
+      var ej = r && r.datos
       if (!ej && puente && puente.ejercicio && typeof puente.ejercicio === 'object') ej = puente.ejercicio
       if (!ej && nombre) ej = { nombre: nombre }
-      return IA.armarPedido(p, { escalon: escalonDe(escalon), foco: focoDe(foco), ejercicio: ej, unidades: puente && puente.unidades, centro: centroMesa(), biblioteca: biblio })
+      return IA.armarPedido(p, { escalon: escalonDe(escalon), foco: focoDe(foco), ejercicio: ej, fuente: r ? r.fuente : '', unidades: puente && puente.unidades, centro: centroMesa(), biblioteca: biblio, carpeta: carpeta })
     })
   }
   function copiar(texto) {
@@ -209,16 +245,16 @@
   }
   function nombreArchivo(p) { return 'pedido-ia-profesor-' + p.n + '-' + p.nom.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) + '.md' }
   function htmlIA(p) {
-    var ia = p.ia || {}, abierto = iaPaso === p.n
+    var ia = p.ia || {}, abierto = iaPaso === p.n, guardada = CARP && carpeta && carpeta.pasos && carpeta.pasos[p.n]
     var h = '<div class="ia' + (p.ogo ? ' ogo' : '') + '">' +
       '<button type="button" class="ia-btn" data-ia-paso="' + p.n + '" aria-expanded="' + abierto + '" title="Arma el pedido a la IA con lo que ya hay en el ejercicio (escalón, campo que se entrena, Orden, fichas, documentos). Se copia o se baja y se le da a ChatGPT, Gemini o Claude.">' +
-      (p.ogo ? '🤖 OGO con todos sus anexos (IA)' : '🤖 IA: ' + esc(ia.tit || p.nom)) + (abierto ? ' ▴' : ' ▸') + '</button>'
+      (p.ogo ? '🤖 OGO con todos sus anexos (IA)' : '🤖 IA: ' + esc(ia.tit || p.nom)) + (guardada ? ' · 📕✓' : '') + (abierto ? ' ▴' : ' ▸') + '</button>'
     if (abierto) {
-      var n = iaTexto.length
+      var n = iaTexto.length, otros = CARP ? CARP.lista(carpeta).filter(function (g) { return g.n !== p.n }).map(function (g) { return g.n }) : []
       h += '<div class="ia-caja"><p class="ia-ayuda">' + (p.ogo ? 'Pide la <b>Orden General de Operaciones</b> del ' + esc(escalonDe(escalon).profesor) + ' con TODOS sus anexos (' + CAT.ANEXOS_OGO.map(function (a) { return a.letra }).join(', ') + '), completa en todo salvo en lo que entrena: <b>' + esc(focoDe(foco).nom) + '</b>. ' : esc(ia.pide ? ia.pide.split('.')[0] + '.' : '')) +
-        'Copialo y pegalo en ChatGPT, Gemini o Claude (' + n.toLocaleString('es') + ' caracteres' + (n > 120000 ? '; es largo: si la IA lo corta, usá Claude o Gemini pagos' : '') + ').' + (!puente ? ' <b>La Mesa todavía no mandó el ejercicio</b> (abrí uno): el pedido va sin contexto.' : '') + '</p>' +
+        'Copialo y pegalo en ChatGPT, Gemini o Claude (' + n.toLocaleString('es') + ' caracteres' + (n > 120000 ? '; es largo: si la IA lo corta, usá Claude o Gemini pagos' : '') + ').' + (otros.length ? ' Lleva lo guardado en la 📕 carpeta (paso' + (otros.length > 1 ? 's ' : ' ') + otros.join(', ') + ').' : '') + (!puente ? ' <b>La Mesa todavía no mandó el ejercicio</b> (abrí uno): el pedido va sin contexto.' : '') + '</p>' +
         '<div class="ia-acc"><button type="button" class="ir" data-a="ia-copiar">📋 Copiar el pedido</button><button type="button" class="ir" data-a="ia-bajar">⬇️ Bajar .md</button><button type="button" class="chico" data-a="ia-cerrar">Cerrar</button>' + (aviso['ia' + p.n] ? '<span class="ia-aviso">' + esc(aviso['ia' + p.n]) + '</span>' : '') + '</div>' +
-        '<textarea data-ia readonly rows="8" aria-label="Pedido a la IA">' + esc(iaTexto) + '</textarea></div>'
+        '<textarea data-ia readonly rows="8" aria-label="Pedido a la IA">' + esc(iaTexto) + '</textarea>' + htmlRespuesta(p) + '</div>'
     }
     return h + '</div>'
   }
@@ -256,25 +292,23 @@
   // ---------- 📚 la biblioteca del profesor ----------
   // Los documentos propios (COE, organización, armamento, reglamentos) quedan en el IndexedDB
   // «sid-biblioteca» de ESTE navegador: se cargan una vez y sirven para todos los ejercicios.
-  function bibDB() {
+  function dbOp(base, almacen, clave, modo_, f) {
     return new Promise(function (ok, no) {
       try {
-        var r = indexedDB.open('sid-biblioteca', 1)
-        r.onupgradeneeded = function () { if (!r.result.objectStoreNames.contains('docs')) r.result.createObjectStore('docs', { keyPath: 'id' }) }
+        var r = indexedDB.open(base, 1)
+        r.onupgradeneeded = function () { if (!r.result.objectStoreNames.contains(almacen)) r.result.createObjectStore(almacen, { keyPath: clave }) }
         r.onsuccess = function () { ok(r.result) }
         r.onerror = function () { no(r.error) }
       } catch (e) { no(e) }
-    })
-  }
-  function bibOp(modo_, f) {
-    return bibDB().then(function (db) {
+    }).then(function (db) {
       return new Promise(function (ok, no) {
-        var tx = db.transaction('docs', modo_), st = tx.objectStore('docs'), res = f(st)
+        var tx = db.transaction(almacen, modo_), st = tx.objectStore(almacen), res = f(st)
         tx.oncomplete = function () { db.close(); ok(res && 'result' in res ? res.result : undefined) }
         tx.onerror = function () { db.close(); no(tx.error) }
       })
     })
   }
+  function bibOp(modo_, f) { return dbOp('sid-biblioteca', 'docs', 'id', modo_, f) }
   function bibCargar() {
     if (!window.indexedDB) return Promise.resolve()
     return bibOp('readonly', function (st) { return st.getAll() }).then(function (ds) {
@@ -365,6 +399,92 @@
     insertarFichas(todas, docs.length === 1 ? 'COE de la ' + docs[0].coe.division : docs.length + ' COE', 'bib')
   }
 
+  // ---------- 📕 la carpeta del profesor ----------
+  // Lo pidió Sergio (10-10-2026) con la captura del paso 4: la IA le devolvió el CMOC y «no hay
+  // dónde pegar el resultado… debe ir registrado en algún lado, ya que servirá para los cursos de
+  // acción o el anexo de inteligencia… y si hay algo para el profesor, que se vaya sumando». En cada
+  // «🤖 IA» se pega la respuesta y se guarda en la carpeta del ejercicio (carpeta.js): entra en los
+  // pedidos de los pasos que siguen y lo «PARA EL PROFESOR» se va sumando. Queda en el IndexedDB
+  // «sid-profesor» de ESTE navegador, NO en el ejercicio: el ejercicio se reparte a los alumnos y la
+  // solución del profesor no tiene que viajar con él. Para llevarla a otro equipo: ⬇️ Bajar / 📤 Cargar.
+  function claveCarpeta() { return nombreGuardado(nombreEj()) }
+  function carOp(modo_, f) { return dbOp('sid-profesor', 'carpetas', 'ejercicio', modo_, f) }
+  // Mientras se lee la carpeta del ejercicio recién abierto, `carpeta` es una vacía marcada
+  // «cargando»: no se guarda nada encima (pisaría la de verdad).
+  function carCargar() {
+    var k = claveCarpeta()
+    carpetaDe = k
+    if (!CARP) return Promise.resolve()
+    if (!carpeta || carpeta.ejercicio !== k) { carpeta = CARP.vacia(k); carpeta.cargando = !!(k && window.indexedDB); carVer++ }
+    if (!k || !window.indexedDB) { carpeta = CARP.vacia(k); carVer++; pintar(true); return Promise.resolve() }
+    return carOp('readonly', function (st) { return st.get(k) }).then(function (c) {
+      if (carpetaDe !== k) return
+      carpeta = c && c.pasos ? c : CARP.vacia(k); carVer++; pintar(true)
+    }, function () { if (carpetaDe === k) { carpeta = CARP.vacia(k); carVer++; pintar(true) } })
+  }
+  function carRevisar() { if (CARP && carpetaDe !== claveCarpeta()) carCargar() }
+  function carGuardar(c) {
+    carpeta = c; carVer++
+    if (!window.indexedDB) return Promise.reject(new Error('este navegador no deja guardar (¿ventana privada?)'))
+    return carOp('readwrite', function (st) { st.put(c) })
+  }
+  // lo pegado y todavía no guardado, por ejercicio y paso (se rearma el tablero y no se pierde)
+  function bk(n) { return claveCarpeta() + '|' + n }
+  function guardarRespuesta(p) {
+    var ta = panel.querySelector('textarea[data-ia-resp="' + p.n + '"]'), txt = ta ? ta.value : borrador[bk(p.n)] || ''
+    var k = claveCarpeta(), clave_ = 'resp' + p.n
+    if (!String(txt).trim()) { aviso[clave_] = 'Pegá primero la respuesta de la IA en el cuadro.'; return pintar(true) }
+    if (!k) { borrador[bk(p.n)] = txt; aviso[clave_] = '⚠️ Abrí (o creá) el ejercicio en la Mesa: la carpeta va con el nombre del ejercicio. Lo pegado queda acá mientras tanto.'; return pintar(true) }
+    if (carpeta.cargando || carpeta.ejercicio !== k) { borrador[bk(p.n)] = txt; aviso[clave_] = '⏳ Cargando la carpeta del ejercicio… tocá «💾 Guardar» otra vez.'; carRevisar(); return pintar(true) }
+    var c = CARP.poner(carpeta, p, txt), g = c.pasos[p.n]
+    c.ejercicio = k
+    delete borrador[bk(p.n)]
+    aviso[clave_] = '⏳ Guardando…'
+    carGuardar(c).then(function () {
+      var notas = CARP.separar(g.texto).profesor
+      aviso[clave_] = '✓ Guardada en la 📕 carpeta (' + (g.destino === 'solucion' ? '🔒 solución del profesor' : '📤 va a los alumnos') + ')' + (notas ? '; lo «PARA EL PROFESOR» se sumó a la carpeta' : '') + '. Entra en los pedidos de los pasos que siguen.'
+      pintar(true)
+    }, function (e) { aviso[clave_] = '⚠️ No se pudo guardar: ' + (e && e.message ? e.message : e) + '. Copiá el texto para no perderlo.'; pintar(true) })
+    pintar(true)
+  }
+  function nombreArchivoCarpeta() { return 'carpeta-profesor-' + (carpeta.ejercicio || 'ejercicio').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 50) + '.md' }
+  function cargarCarpeta(file) {
+    var k = claveCarpeta()
+    if (!k) { aviso.car = '⚠️ Abrí primero el ejercicio en la Mesa: la carpeta se suma a la de ESE ejercicio.'; return pintar(true) }
+    if (carpeta.cargando || carpeta.ejercicio !== k) { aviso.car = '⏳ Cargando la carpeta del ejercicio… probá otra vez.'; carRevisar(); return pintar(true) }
+    file.text().then(function (t) {
+      var c = CARP.leerMarkdown(t)
+      if (c.ejercicio && c.ejercicio !== k && !window.confirm('Esa carpeta es del ejercicio «' + c.ejercicio + '» y tenés abierto «' + k + '». ¿Sumarla a «' + k + '»?')) { aviso.car = 'No se cargó nada.'; return pintar(true) }
+      var j = CARP.juntar(carpeta, c); j.ejercicio = k
+      return carGuardar(j).then(function () { aviso.car = '✓ Cargada: ' + CARP.cuantos(c) + ' paso(s) (de cada paso queda la respuesta más nueva).'; pintar(true) })
+    }).catch(function (e) { aviso.car = '⚠️ ' + (e && e.message ? e.message : e); pintar(true) })
+  }
+  function htmlRespuesta(p) {
+    if (!CARP) return ''
+    var g = carpeta && carpeta.pasos && carpeta.pasos[p.n], b = borrador[bk(p.n)], val = b != null ? b : g ? g.texto : ''
+    return '<div class="ia-resp"><div class="ia-resp-tit">📥 La respuesta de la IA<span>Pegala acá y guardala: queda en la 📕 carpeta del profesor de este ejercicio y entra en los pedidos de los pasos que siguen' + (p.n === 4 ? ' (la OGO y su Anexo A de Inteligencia, los cursos de acción del enemigo, la pauta de corrección)' : '') + '; lo «PARA EL PROFESOR» se va sumando en la carpeta.</span></div>' +
+      '<textarea data-ia-resp="' + p.n + '" rows="7" placeholder="Pegá acá TODO lo que te contestó la IA (con «PARA EL PROFESOR» incluido)">' + esc(val) + '</textarea>' +
+      '<div class="ia-acc"><button type="button" class="ir" data-a="ia-guardar">💾 Guardar en la carpeta</button>' +
+      (g ? '<select data-ia-destino aria-label="A quién va este documento">' + Object.keys(CARP.DESTINOS).map(function (d) { return '<option value="' + d + '"' + (g.destino === d ? ' selected' : '') + '>' + esc(CARP.DESTINOS[d].nom) + '</option>' }).join('') + '</select>' +
+        '<button type="button" class="chico" data-a="ia-quitar" title="Sacar esta respuesta de la carpeta">🗑️</button>' : '') + '</div>' +
+      (g ? '<div class="ia-guardada">📕 Guardada el ' + esc(CARP.fecha(g.guardado)) + ' · ' + g.texto.length.toLocaleString('es') + ' caracteres</div>' : '') +
+      (aviso['resp' + p.n] ? '<div class="ia-aviso">' + esc(aviso['resp' + p.n]) + '</div>' : '') + '</div>'
+  }
+  function htmlCarpeta() {
+    var ps = CARP.lista(carpeta), notas = CARP.notasProfesor(carpeta), nom = carpeta.ejercicio
+    var h = '<section class="car"><div class="bib-cab"><b>📕 Carpeta del profesor' + (nom ? ' — ' + esc(nom) : '') + '</b><span>Las respuestas de la IA que guardaste en cada paso. Entran en los pedidos de los pasos que siguen y lo «PARA EL PROFESOR» se va sumando abajo. Queda en ESTE navegador, aparte del ejercicio (no viaja a los alumnos): bajala para tenerla en papel o llevarla a otro equipo.</span></div>' +
+      '<div class="org-fila"><button type="button" class="ir" data-a="car-bajar"' + (ps.length ? '' : ' disabled') + '>⬇️ Bajar la carpeta (.md)</button><label class="ir car-subir">📤 Cargar una carpeta<input type="file" data-car-archivo accept=".md,.txt,text/markdown,text/plain" hidden></label></div>' +
+      (aviso.car ? '<div class="ia-aviso">' + esc(aviso.car) + '</div>' : '')
+    if (!nom) h += '<p class="bib-vacia">Abrí (o creá) el ejercicio en la Mesa: cada ejercicio tiene su carpeta.</p>'
+    if (!ps.length) return h + '<p class="bib-vacia">Todavía no guardaste ninguna respuesta. En cada paso: 🤖 IA → 📋 Copiar el pedido → pegalo en la IA → pegá lo que contestó en «📥 La respuesta de la IA» → 💾 Guardar.</p></section>'
+    h += '<ul class="car-lista">' + ps.map(function (g) {
+      return '<li data-car="' + g.n + '"><div class="bib-nom">Paso ' + g.n + ' · ' + esc(g.tit) + '</div><div class="car-meta">' + (g.destino === 'solucion' ? '🔒 Solución del profesor' : '📤 Va a los alumnos') + ' · ' + esc(CARP.fecha(g.guardado)) + ' · ' + g.texto.length.toLocaleString('es') + ' caracteres</div>' +
+        '<div class="org-fila"><button type="button" class="chico" data-a="car-ver">' + (carVista === g.n ? 'Ocultar' : '👁️ Ver') + '</button><button type="button" class="chico" data-a="car-ir">Ir al paso ▸</button></div>' +
+        (carVista === g.n ? '<textarea readonly rows="10" aria-label="Respuesta guardada">' + esc(g.texto) + '</textarea>' : '') + '</li>'
+    }).join('') + '</ul>'
+    return h + '<div class="car-notas"><div class="org-tit">🧑‍🏫 Para el profesor (se va sumando)</div>' + (notas.length ? notas.map(function (x) { return '<div class="car-nota"><b>Paso ' + x.n + ' · ' + esc(x.tit) + '</b><div class="car-txt">' + esc(x.texto) + '</div></div>' }).join('') : '<p class="bib-vacia">Ninguna respuesta trajo todavía la sección «PARA EL PROFESOR».</p>') + '</div></section>'
+  }
+
   // ---------- dibujo ----------
   function chips(resp) {
     return (resp || []).map(function (s) { var S = CAT.SECCIONES[s]; return S ? '<span class="sec" style="--sc:' + S.color + '" title="' + esc(S.nom) + '">' + esc(S.corto) + '</span>' : '' }).join('')
@@ -416,7 +536,8 @@
     var F = { id: 'P', pasos: CAT.PROFESOR }, a = avance(F), E = escalonDe(escalon)
     return '<div class="cab-tab"><h2>🧑‍🏫 Armar el ejercicio</h2><p>Vos sos el <b>' + esc(E.profesor) + '</b>: escribís la Orden del escalón superior y armás el tablero que reciben tus alumnos (<b>' + esc(E.alumnos) + '</b>). Los pasos van en el orden en que la Mesa los necesita.</p>' +
       '<div class="total"><span class="barra"><i style="width:' + Math.round(100 * a.h / a.t) + '%"></i></span><b>' + a.h + ' / ' + a.t + ' pasos</b></div>' +
-      (BIB ? '<button type="button" class="bib-btn" data-a="bib" aria-expanded="' + verBiblio + '">📚 Mis documentos: COE, organización, armamento' + (biblio.length ? ' · ' + biblio.length : '') + (verBiblio ? ' ▴' : ' ▸') + '</button>' + (verBiblio ? htmlBiblioteca() : '') : '') + '</div>' +
+      (BIB ? '<button type="button" class="bib-btn" data-a="bib" aria-expanded="' + verBiblio + '">📚 Mis documentos: COE, organización, armamento' + (biblio.length ? ' · ' + biblio.length : '') + (verBiblio ? ' ▴' : ' ▸') + '</button>' + (verBiblio ? htmlBiblioteca() : '') : '') +
+      (CARP ? '<button type="button" class="car-btn" data-a="car" aria-expanded="' + verCarpeta + '">📕 Carpeta del profesor: lo que ya resolviste con la IA' + (CARP.cuantos(carpeta) ? ' · ' + CARP.cuantos(carpeta) : '') + (verCarpeta ? ' ▴' : ' ▸') + '</button>' + (verCarpeta ? htmlCarpeta() : '') : '') + '</div>' +
       '<ol class="pasos prof">' + CAT.PROFESOR.map(function (p) { return paso(F, p) }).join('') + '</ol>' +
       '<div class="pie"><div class="secs">Tableros de cada sección: ' + Object.keys(CAT.SECCIONES).map(function (s) { return '<button type="button" class="ir sec-ir" data-sec="' + s + '" style="--sc:' + CAT.SECCIONES[s].color + '">' + esc(CAT.SECCIONES[s].corto) + '</button>' }).join('') + '</div>' +
       '<button type="button" class="chico" data-a="reiniciar">Reiniciar lo marcado</button></div>'
@@ -425,14 +546,16 @@
   function pintar(forzar) {
     if (!panel) return
     var pl = cerrado()
-    var f = [modo, fase, escalon, foco, pl, iaPaso, JSON.stringify(hecho), JSON.stringify(aviso), !!(puente && puente.agregarUnidades), verBiblio, bibVer, bibVista].join('|')
+    var f = [modo, fase, escalon, foco, pl, iaPaso, JSON.stringify(hecho), JSON.stringify(aviso), !!(puente && puente.agregarUnidades), verBiblio, bibVer, bibVista, verCarpeta, carVer, carVista].join('|')
     if (!forzar && f === firma) return
     firma = f
     panel.hidden = modo === 'mesa'
     panel.className = pl ? 'plegado' : ''
     if (modo !== 'mesa') {
+      var cu0 = panel.querySelector('.cuerpo'), arriba_ = cu0 ? cu0.scrollTop : 0 // que no salte arriba al tocar algo
       panel.innerHTML = '<button type="button" class="asa" data-a="asa" aria-expanded="' + !pl + '" title="' + (pl ? 'Desplegar el tablero' : 'Plegar el tablero para ver la carta') + '">' + (pl ? (modo === 'profesor' ? '🧑‍🏫 Pasos ◂' : '🎓 Fases ◂') : '▸ Plegar') + '</button>' +
         '<div class="cuerpo">' + (modo === 'profesor' ? htmlProfesor() : htmlAprendizaje()) + '</div>'
+      var cu1 = panel.querySelector('.cuerpo'); if (cu1 && arriba_) cu1.scrollTop = arriba_
     }
     acomodar()
   }
@@ -544,7 +667,28 @@
       if (acc === 'ia-cerrar') { iaPaso = 0; pintar(true); return }
       if (!pa) return
       if (acc === 'ia-bajar') { bajar(nombreArchivo(pa), iaTexto); aviso['ia' + pa.n] = '⬇️ Bajado: adjuntalo a la IA con la orden de cumplirlo.'; pintar(true); return }
+      if (acc === 'ia-guardar') { guardarRespuesta(pa); return }
+      if (acc === 'ia-quitar') {
+        if (!window.confirm('¿Sacar de la carpeta la respuesta guardada del paso ' + pa.n + '?')) return
+        borrador[bk(pa.n)] = ''; delete aviso['resp' + pa.n]
+        carGuardar(CARP.quitar(carpeta, pa.n)).then(function () { aviso['resp' + pa.n] = 'Se sacó de la carpeta.'; pintar(true) }, function () {})
+        pintar(true); return
+      }
       if (acc === 'ia-copiar') { copiar(iaTexto).then(function () { aviso['ia' + pa.n] = '📋 Pedido copiado (' + iaTexto.length.toLocaleString('es') + ' caracteres): pegalo en la IA.'; pintar(true) }, function () { aviso['ia' + pa.n] = 'No se pudo copiar: seleccioná el texto y copialo a mano.'; pintar(true) }); return }
+    }
+    if (a && a.getAttribute('data-a') === 'car') { verCarpeta = !verCarpeta; if (verCarpeta) { plegado = false; carRevisar() } pintar(true); return }
+    if (a && /^car-/.test(a.getAttribute('data-a'))) {
+      var ac = a.getAttribute('data-a'), lc = a.closest('[data-car]'), nc = lc ? +lc.getAttribute('data-car') : 0
+      if (ac === 'car-bajar') { var E_ = escalonDe(escalon); bajar(nombreArchivoCarpeta(), CARP.markdown(carpeta, { escalon: E_.profesor, alumnos: E_.alumnos, foco: focoDe(foco).nom })); aviso.car = '⬇️ Bajada. Para llevarla a otro equipo: 📤 Cargar una carpeta, con el ejercicio abierto.'; pintar(true); return }
+      if (ac === 'car-ver' && nc) { carVista = carVista === nc ? 0 : nc; pintar(true); return }
+      if (ac === 'car-ir' && nc) {
+        var pp_ = pasoProfesor(nc); if (!pp_) return
+        iaPaso = nc; iaTexto = '… armando el pedido con el ejercicio de la Mesa'; verCarpeta = false
+        armarPedido(pp_).then(function (txt) { if (iaPaso === nc) { iaTexto = txt; pintar(true) } })
+        pintar(true)
+        var li_ = panel.querySelector('[data-paso="P.' + nc + '"]'); if (li_) li_.scrollIntoView({ block: 'start' })
+        return
+      }
     }
     if (a && a.getAttribute('data-a') === 'bib') { verBiblio = !verBiblio; if (verBiblio) { plegado = false; var cu = panel.querySelector('.cuerpo'); if (cu) cu.scrollTop = 0 } pintar(true); return }
     if (a && /^bib-/.test(a.getAttribute('data-a'))) {
@@ -606,6 +750,8 @@
     if (t.matches && t.matches('input[type=checkbox][data-f]')) { marcar(t.getAttribute('data-f') === 'P' ? 'P' : +t.getAttribute('data-f'), +t.getAttribute('data-n'), t.checked); pintar(true); return }
     if (t.matches && t.matches('select[data-escalon]')) { escalon = t.value; guarda(K_ESC, escalon); iaPaso = 0; pintar(true); return }
     if (t.matches && t.matches('select[data-foco]')) { foco = t.value; guarda(K_FOCO, foco); iaPaso = 0; pintar(true); return }
+    if (t.matches && t.matches('select[data-ia-destino]') && CARP) { var pd = pasoProfesor(iaPaso); if (pd) carGuardar(CARP.cambiarDestino(carpeta, pd.n, t.value)).then(function () { pintar(true) }, function () {}); return }
+    if (t.matches && t.matches('input[data-car-archivo]')) { if (t.files && t.files[0]) cargarCarpeta(t.files[0]); t.value = ''; return }
     if (t.matches && t.matches('input[data-bib-archivo]')) { if (t.files && t.files.length) bibSubir(Array.prototype.slice.call(t.files)); return }
     var li = t.closest && t.closest('[data-bib]'), d = li && bibDoc(li.getAttribute('data-bib'))
     if (d && t.matches('select[data-bib-tipo]')) { d.tipo = t.value; bibGuardar(d).then(bibCargar); return }
@@ -628,6 +774,7 @@
     panel.setAttribute('aria-label', 'Tablero de la modalidad')
     panel.addEventListener('click', onClic)
     panel.addEventListener('change', onCambio)
+    panel.addEventListener('input', function (e) { var t = e.target; if (t.matches && t.matches('textarea[data-ia-resp]')) borrador[bk(+t.getAttribute('data-ia-resp'))] = t.value })
     document.body.appendChild(panel)
     body.setAttribute('data-sid-modo', modo)
     engancharPuente()
@@ -637,6 +784,7 @@
     setInterval(function () { if (modo !== 'mesa') acomodar() }, 400)
     window.addEventListener('resize', acomodar)
     bibCargar()
+    carCargar()
   }
   cargar()
   engancharPuente()
@@ -646,6 +794,7 @@
     get modo() { return modo }, poner: ponerModo, abrir: abrir, catalogo: CAT,
     get panel() { return panel }, get hecho() { return hecho }, get tapado() { return tapado }, acomodar: acomodar,
     get foco() { return foco }, get puente() { return puente }, armarPedido: armarPedido, leerEjercicio: leerEjercicio,
-    get biblioteca() { return biblio }, subir: bibSubir, recargarBiblioteca: bibCargar
+    get biblioteca() { return biblio }, subir: bibSubir, recargarBiblioteca: bibCargar,
+    get carpeta() { return carpeta }, recargarCarpeta: carCargar
   }
 })()
