@@ -28,9 +28,10 @@ const P = {
   frente: [[-65.093, -17.006], [-65.093, -17.016], [-65.093, -17.026]],
   contorno: [-65.08, -17.016],
   linea: [[-65.095, -17.025], [-65.085, -17.03], [-65.075, -17.025]],
-  // El segundo Área de Operaciones, ADENTRO del primero y lejos de su borde.
+  // El segundo Área de Operaciones, ADENTRO del primero y lejos de su borde. El vértice de
+  // contorno va al sur de «ALFA»: desde que las fichas se ven +50 % (09-10-2026) la tapaba.
   frente2: [[-65.087, -17.009], [-65.087, -17.019]],
-  contorno2: [-65.075, -17.014],
+  contorno2: [-65.075, -17.019],
 }
 // Desde la edición de figuras (03-10-2026), con una herramienta encendida y sin trazo en curso,
 // tocar una figura ya dibujada la ELIGE (para editarla) en vez de empezar otro trazo encima
@@ -154,10 +155,12 @@ async function preparar({ vista = '2d', movil = false, comoSafari = false } = {}
   if (await ocultar.count()) await ocultar.first().click().catch(() => {})
   // El encuadre se hace desde el 3D, que expone su mapa y el de Leaflet.
   await entrar3D(page)
-  await page.evaluate((v) => {
+  // En la pantalla más angosta del iPad el panel de la izquierda tapa el oeste de la carta (en el
+  // 3D inclinado, la punta oeste de la línea): se corre el centro 0,01° al oeste (~67 px).
+  await page.evaluate(([v, lng]) => {
     window.__lm2d = window.__espejo3d.lm
-    window.__map3d.jumpTo({ center: [-65.07, -17.015], zoom: 13.2, pitch: v === '3d' ? 30 : 0, bearing: 0 })
-  }, vista)
+    window.__map3d.jumpTo({ center: [lng, -17.015], zoom: 13.2, pitch: v === '3d' ? 30 : 0, bearing: 0 })
+  }, [vista, movil ? -65.08 : -65.07])
   await page.waitForTimeout(3000)
   if (vista === '2d') await salir3D(page)
   return m

@@ -27,7 +27,7 @@ const PX = {
   linea: [[410, 500], [480, 560], [550, 500]],
   frente: [[790, 400], [790, 480], [790, 560]],
   influencia: [[410, 270], [530, 270], [470, 350]],
-  frenteCuerpo: [[500, 150], [500, 760]],
+  frenteCuerpo: [[500, 275], [500, 760]], // debajo de la barra de botones (que llega a y ≈ 250)
   contorno: [570, 455],
   zona: [[400, 600], [540, 600], [540, 720], [400, 720]],
   mina: [[400, 600], [540, 600], [470, 720]],
@@ -65,9 +65,11 @@ const cercano = (lista, [x, y]) => lista.reduce((m, p) => (!m || Math.hypot(p[0]
 const clic = (loc) => loc.dispatchEvent('click')
 const cursor = (page) => page.evaluate(() => (window.__map3d ? window.__map3d.getCanvas().style.cursor : (document.querySelector('.leaflet-container canvas.leaflet-interactive') ? getComputedStyle(document.querySelector('.leaflet-container canvas.leaflet-interactive')).cursor : 'sin-hover')))
 const bordeAI = (page) => page.evaluate(() => Object.values(window.__lm2d._layers).filter((l) => l.options && l.options.color === '#ff2222').length)
+// El desplegable «Magnitud que se va a colocar» (no el «Magnitud del área» de la lista de áreas).
 const opcionesEscalon = (page) =>
   page.evaluate(() => {
-    const s = [...document.querySelectorAll('select')].find((x) => /Cuerpo de Ejército|División|Brigada/.test(x.textContent) && /Equipo|Cuerpo/.test(x.textContent) && !/Altiplano|Defensa/.test(x.textContent))
+    const l = [...document.querySelectorAll('label')].find((x) => /^Magnitud que se va a colocar/.test(x.textContent.trim()))
+    const s = l && l.querySelector('select')
     return s ? [...s.options].map((o) => o.textContent) : null
   })
 
@@ -155,6 +157,20 @@ async function sobreLaCarta(page, puntos) {
     puntos,
   )
   assert.deepStrictEqual(tapados, [], 'puntos de la prueba tapados por la interfaz: ' + JSON.stringify(tapados))
+}
+
+// El primero de los candidatos que cae sobre la carta, sin ficha ni panel encima.
+async function libre(page, candidatos) {
+  const p = await page.evaluate(
+    (L) =>
+      L.find(([x, y]) => {
+        const el = document.elementFromPoint(x, y)
+        return el && (el.closest('.maplibregl-canvas-container') || el.closest('.leaflet-container')) && !el.closest('.leaflet-marker-icon, .m3d-mk, aside, .panel, .barra-trazo')
+      }),
+    candidatos,
+  )
+  assert.ok(p, 'no hay un punto libre de fichas y paneles entre ' + JSON.stringify(candidatos))
+  return p
 }
 
 // Abrir el panel enciende la herramienta del Área de Operaciones (no hay que apretar «Trazar el Área»).
@@ -268,8 +284,10 @@ async function vista(v) {
       await asentar(page)
       let mj = await manijas(page)
       assert.deepStrictEqual([mj.vert.length, mj.mitad.length], [4, 4], 'manijas del Área de Operaciones: ' + JSON.stringify(mj))
-      // un clic DENTRO del área (lejos del borde) no la selecciona: sirve para trazar adentro
-      await page.mouse.click(oeste[0] + 120, oeste[1])
+      // un clic DENTRO del área (lejos del borde) no la selecciona: sirve para trazar adentro.
+      // Se busca un lugar libre: las fichas (+50 % desde el 09-10-2026) tapan buena parte del área.
+      const adentro = await libre(page, [[120, 0], [120, -90], [120, 90], [180, -140], [60, -150], [200, 60]].map(([dx, dy]) => [oeste[0] + dx, oeste[1] + dy]))
+      await page.mouse.click(...adentro)
       await asentar(page)
       assert.deepStrictEqual(await manijas(page), { vert: [], mitad: [] }, 'el clic adentro del área no la soltó')
       await page.mouse.click(...oeste)
@@ -358,6 +376,17 @@ async function vista(v) {
       const [a, b] = PX.frenteCuerpo
       const c = PX.contorno
       await cerrarPaneles(page)
+      // En 2D la carta está más cerca que en 3D: se aleja un paso y medio para que el mismo trazo
+      // mida un frente de Cuerpo (~25 km), y al final se vuelve al zoom de antes.
+      const zoomAntes = await page.evaluate(() => {
+        const m = !window.__map3d && window.__mapa2d
+        if (!m) return null
+        const z = m.getZoom()
+        m.setZoom(z - 1.5, { animate: false })
+        return z
+      })
+      await page.waitForTimeout(800)
+      await sobreLaCarta(page, [a, b, c])
       await abrirPanelAO(page)
       await page.mouse.click(...a)
       await page.waitForTimeout(500)
@@ -365,12 +394,18 @@ async function vista(v) {
       await page.waitForTimeout(1500)
       await page.mouse.dblclick(...c)
       const d = await esperar(page, ops, (e) => e.areaOps && e.areaOps.frenteM > 9000)
+      if (zoomAntes != null) await page.evaluate((z) => window.__mapa2d.setZoom(z, { animate: false }), zoomAntes)
       assert.ok(d.areaOps && d.areaOps.frenteM > 9000, 'no se guardó el Área de Operaciones nueva: ' + JSON.stringify(d.areaOps))
       await abrirPanelAO(page)
       const cuerpo = await opcionesEscalon(page)
       const txt = await page.evaluate(() => document.body.innerText)
       for (const viejo of ['Textual del reglamento', 'Cómo se traza, en dos tiempos', 'Es el sector que viene en la Orden']) assert.ok(!txt.includes(viejo), `el panel todavía explica: «${viejo}»`)
-      assert.deepStrictEqual(cuerpo, ['Cuerpo de Ejército'], 'un frente de Cuerpo de Ejército sólo puede llevar la magnitud de un Cuerpo de Ejército')
+      // PMTD 2017 Tabla 45 (reemplazos-2026-10-09-frentes), defensiva en llanura: División de 6 a
+      // 9 km de frente y Cuerpo de 18 a 27 km; entre los dos ofrece los dos. El largo en km del
+      // frente trazado depende del zoom de la carta, así que se compara con lo que midió la Mesa.
+      const km = d.areaOps.frenteM / 1000
+      const esperado = km >= 18 ? ['Cuerpo de Ejército'] : ['División', 'Cuerpo de Ejército']
+      assert.deepStrictEqual(cuerpo, esperado, `un frente de ${km.toFixed(1)} km sólo puede llevar la magnitud que le da el cuadro`)
       await cerrarPaneles(page)
     }, page)
 

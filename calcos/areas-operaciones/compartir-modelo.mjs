@@ -1,10 +1,14 @@
-import { paqueteAreas, importarAreas } from './modelo.mjs'
+import { paqueteAreas, importarAreas } from './modelo.mjs?v=lazo20261010'
+import { fichasDelPaquete } from './recorte.mjs?v=lazo20261010'
 
 export function construirPaquete(payload, ids, opciones = {}) {
-  const p = paqueteAreas(payload.ops || {}, ids, payload.nombre)
+  // opciones.contenido: también lo que está dentro de las áreas (límites, puntos,
+  // marcas, tareas y fichas; las enemigas sólo si opciones.enemigo no es false).
+  const p = paqueteAreas(payload.ops || {}, ids, payload.nombre,
+    opciones.contenido ? { unidades: Array.isArray(payload.unidades) ? payload.unidades : [], enemigo: opciones.enemigo !== false } : null)
   // Lista permitida: nunca copia planes, respuestas ni otras capas por accidente.
   p.areas = p.areas.map(a => Object.fromEntries(
-    ['id', 'nombre', 'coords', ...(opciones.unidad ? ['unidad'] : []), ...(opciones.operacion ? ['operacion'] : [])]
+    ['id', 'nombre', 'coords', 'escalon', ...(opciones.unidad ? ['unidad'] : []), ...(opciones.operacion ? ['operacion', 'tipo', 'modalidad', 'ambiente'] : [])]
       .filter(k => a[k] !== undefined).map(k => [k, a[k]])))
   p.documentos = opciones.documentos && Array.isArray(payload.documentos) ? payload.documentos : []
   p.indicaciones = String(opciones.indicaciones || '').slice(0, 4000)
@@ -20,6 +24,13 @@ export function recibirPaquete(ops, envio) {
     id: envio.id, nombre: envio.nombre, origen: envio.paquete.ejercicioOrigen,
     indicaciones: envio.paquete.indicaciones || '', recibidoEn: new Date().toISOString()
   }] }
+}
+// Las fichas del envío, una sola vez por envío (las marca con su id).
+export function recibirUnidades(unidades, envio) {
+  const previas = Array.isArray(unidades) ? unidades : []
+  if (!envio?.id || previas.some(u => u?.envioAreas === envio.id)) return previas
+  const nuevas = fichasDelPaquete(envio.paquete, envio.id)
+  return nuevas.length ? [...previas, ...nuevas] : previas
 }
 export function recibirDocumentos(documentos, envio) {
   const p = envio.paquete
