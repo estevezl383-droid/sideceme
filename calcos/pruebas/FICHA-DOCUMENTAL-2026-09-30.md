@@ -1,5 +1,11 @@
 # Ficha documental por instalación
 
+> **Desde el 03-10-2026** tocar una instalación abre el **Tablero G-4** (`fichas-instalacion/v2`,
+> ver `TABLERO-G4-2026-10-03.md`): lo de esta ficha quedó en sus pestañas 📚 Documentos (adjuntar,
+> texto extraído, fragmentos, observaciones; la respuesta de la ficha de texto vieja sigue a la
+> vista) y 🤖 IA (pedido, respuesta JSON o texto libre, revisión). `e2e/ficha-documental.js` prueba
+> eso en el tablero (10-10-2026). Lo de abajo describe la ficha v1 original.
+
 El clic normal sobre una instalación abre un panel inferior independiente. El popup conserva la eliminación individual y agrega «ABRIR FICHA DOCUMENTAL». Durante el dibujo de EPA/EPE, el clic sigue agregando vértices y el doble clic termina el eje; no abre este panel.
 
 El panel permite cambiar de instalación, consultar textos de los documentos ya adjuntos al ejercicio, agregar documentos mediante el lector existente, seleccionar fragmentos con sus referencias y escribir observaciones y preguntas de estudio. Genera un prompt de explicación y comparación documental, sin llamadas automáticas a IA. La respuesta se pega como JSON estructurado o, mediante elección explícita, texto libre. El contenido se muestra como texto seguro y pendiente de revisión; sólo el usuario puede marcarlo revisado.

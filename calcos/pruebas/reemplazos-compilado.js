@@ -28,7 +28,8 @@
 //   index-membrete-20261009.js + reemplazos-2026-10-09-divmec.js = index-divmec-20261009.js
 //   index-divmec-20261009.js + reemplazos-2026-10-09-fichas.js = index-fichas-20261009.js
 //   index-fichas-20261009.js + reemplazos-2026-10-10-pedido.js = index-pedido-20261010.js
-//   index-pedido-20261010.js + reemplazos-2026-10-10-lazo.js = index-lazo-20261010.js (el vigente)
+//   index-pedido-20261010.js + reemplazos-2026-10-10-lazo.js = index-lazo-20261010.js
+//   index-lazo-20261010.js + reemplazos-2026-10-10-guardado.js = index-guardado-20261010.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -42,6 +43,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-10-guardado'),
+    nombre: 'reemplazos-2026-10-10-guardado',
+    // calcos/assets/index-lazo-20261010.js (antes del autoguardado con sello que se toca).
+    anterior: '8e31a3d09ef53aee124975cd729922e5fb30b4f7cb5aa0bdd0206bd966e10f51',
+  },
   {
     lista: require('./reemplazos-2026-10-10-lazo'),
     nombre: 'reemplazos-2026-10-10-lazo',

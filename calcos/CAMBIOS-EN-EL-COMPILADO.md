@@ -5,6 +5,32 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-10 — 💾 Autoguardado con sello que se toca (`index-guardado-20261010.js`)
+
+Parte de `index-lazo-20261010.js` + `pruebas/reemplazos-2026-10-10-guardado.js` (3 reemplazos;
+`construir-guardado.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio
+con una captura del sello «💾 guardado 10:34 a. m.»: «parece que no autoguarda» y que tocarlo
+guarde todo en ese momento.
+
+- **Qué pasaba**: el autoguardado guardaba (los registros de `calco-ops` lo muestran), pero el
+  sello sólo decía hora y minuto, no avisaba de lo pendiente ni de un guardado fallido y no se
+  podía tocar; lo cambiado justo antes de cerrar la pestaña se perdía.
+- **Qué se hizo**: el temporizador del autoguardado (`je.useEffect(…,[wn,Bn,Ud])` de `Sze`)
+  pasa al módulo legible `calcos/guardado/v1/autoguardado.mjs` (`usarAutoguardado`, ver
+  `calcos/guardado/README.md`), con la misma foto (`Ud`), el mismo `og.guardar` y el mismo `ys`;
+  el sello pasa a ser un botón (`sello`) dentro de una caja con `display:contents` para que la
+  piel Pandora no lo reparta entre los botones de la barra. Se importa con `?v=guardado20261010`.
+- **Cómo se comprobó**: `autoguardado.mjs` (motor, 14 casos), `e2e/autoguardado.cjs` (la Mesa
+  real en Chromium con un SIDECEME de mentira), `reemplazos-compilado.js`, `npm test` y las e2e
+  del aviso de versión, la modalidad, los paneles sin cruce, áreas (aislamiento, lazo,
+  compartir), conceptos, riesgo, edición, ficha documental, membrete y pedido.
+- **Junto con esto (fuera del compilado)**: el tablero «🧑‍🏫 Armar el ejercicio» ya no se cruza
+  con la barra ni con lo de abajo (`calcos/modalidad`, ver su README); con la piel Pandora la
+  barra termina antes del tablero abierto a la derecha y el tablero de abajo no tapa el panel de
+  la izquierda (`calcos/pandora`). `e2e/edicion.cjs` traza debajo de la barra (que ahora baja una
+  o dos filas con un tablero abierto) y `e2e/ficha-documental.js` prueba lo documental en el
+  tablero G-4 v2, que reemplazó a la ficha v1 el 03-10-2026 (la prueba vieja vencía el tiempo).
+
 ## 2026-10-10 — ✂️ Repartir el Área de Operaciones con el lazo (`index-lazo-20261010.js`)
 
 Parte de `index-pedido-20261010.js` + `pruebas/reemplazos-2026-10-10-lazo.js` (6 reemplazos;

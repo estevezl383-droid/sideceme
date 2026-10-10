@@ -26,8 +26,8 @@ const SALIDAS = path.join(__dirname, '..', 'salidas-edicion')
 const PX = {
   linea: [[410, 500], [480, 560], [550, 500]],
   frente: [[790, 400], [790, 480], [790, 560]],
-  influencia: [[410, 270], [530, 270], [470, 350]],
-  frenteCuerpo: [[500, 275], [500, 760]], // debajo de la barra de botones (que llega a y ≈ 250)
+  influencia: [[410, 270], [530, 270], [470, 350]], // con el cuadro abierto, más abajo: ver el caso
+  frenteCuerpo: [[500, 275], [500, 760]], // debajo de la barra de botones (y ≈ 250; con el panel abierto, más abajo: ver el caso)
   contorno: [570, 455],
   zona: [[400, 600], [540, 600], [540, 720], [400, 720]],
   mina: [[400, 600], [540, 600], [470, 720]],
@@ -373,7 +373,7 @@ async function vista(v) {
 
     await caso(`${V} · «Magnitud que se va a colocar» y el panel del Área de Operaciones`, async () => {
       // se traza un Área de Operaciones nueva con un frente de Cuerpo de Ejército
-      const [a, b] = PX.frenteCuerpo
+      let [a, b] = PX.frenteCuerpo
       const c = PX.contorno
       await cerrarPaneles(page)
       // En 2D la carta está más cerca que en 3D: se aleja un paso y medio para que el mismo trazo
@@ -386,8 +386,26 @@ async function vista(v) {
         return z
       })
       await page.waitForTimeout(800)
-      await sobreLaCarta(page, [a, b, c])
+      // Con el panel abierto la barra termina antes del panel (los paneles no se cruzan,
+      // 10-10-2026) y baja una o dos filas según los botones que haya: el frente empieza debajo.
       await abrirPanelAO(page)
+      const barraAbajo = await page.evaluate(() => Math.round(document.querySelector('.botones-mapa').getBoundingClientRect().bottom))
+      a = [a[0], Math.max(a[1], barraAbajo + 20)]
+      // Si así el frente quedó más corto en la pantalla, se aleja la carta en proporción para que
+      // mida en el terreno lo mismo que siempre (y al final se vuelve al zoom de antes).
+      const alejar = Math.log2((PX.frenteCuerpo[1][1] - PX.frenteCuerpo[0][1]) / (b[1] - a[1]))
+      const zoom3DAntes =
+        alejar > 0
+          ? await page.evaluate((dz) => {
+              const m3 = window.__map3d
+              if (!m3) return window.__mapa2d.setZoom(window.__mapa2d.getZoom() - dz, { animate: false }), null
+              const z = m3.getZoom()
+              m3.jumpTo({ zoom: z - dz })
+              return z
+            }, alejar)
+          : null
+      if (alejar > 0) await page.waitForTimeout(1500)
+      await sobreLaCarta(page, [a, b, c])
       await page.mouse.click(...a)
       await page.waitForTimeout(500)
       await page.mouse.dblclick(...b)
@@ -395,6 +413,7 @@ async function vista(v) {
       await page.mouse.dblclick(...c)
       const d = await esperar(page, ops, (e) => e.areaOps && e.areaOps.frenteM > 9000)
       if (zoomAntes != null) await page.evaluate((z) => window.__mapa2d.setZoom(z, { animate: false }), zoomAntes)
+      if (zoom3DAntes != null) await page.evaluate((z) => window.__map3d.jumpTo({ zoom: z }), zoom3DAntes)
       assert.ok(d.areaOps && d.areaOps.frenteM > 9000, 'no se guardó el Área de Operaciones nueva: ' + JSON.stringify(d.areaOps))
       await abrirPanelAO(page)
       const cuerpo = await opcionesEscalon(page)
@@ -410,10 +429,14 @@ async function vista(v) {
     }, page)
 
     await caso(`${V} · Área de Influencia: la dibuja el oficial, se edita y se borra`, async () => {
-      const inf = PX.influencia
-      await sobreLaCarta(page, inf)
       await clic(page.getByRole('button', { name: /Á\. INFLUENCIA/i }).first())
       await page.waitForTimeout(1000)
+      // Con el cuadro abierto la barra termina antes del cuadro (los paneles no se cruzan,
+      // 10-10-2026) y baja una o dos filas: el triángulo va debajo de la barra.
+      const barraAbajo = await page.evaluate(() => Math.round(document.querySelector('.botones-mapa').getBoundingClientRect().bottom))
+      const dy = Math.max(0, barraAbajo + 20 - PX.influencia[0][1])
+      const inf = PX.influencia.map(([x, y]) => [x, y + dy])
+      await sobreLaCarta(page, inf)
       assert.deepStrictEqual((await ops(page)).influencia, null)
       await clic(page.getByRole('button', { name: /Dibujar el Área de Influencia/ }))
       await page.waitForTimeout(600)

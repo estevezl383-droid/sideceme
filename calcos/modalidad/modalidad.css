@@ -74,3 +74,10 @@ body.sid-pandora:not([data-sid-modo="mesa"]) .sid-pd-cap{display:none !important
   #sid-mod-panel{left:8px;right:8px;top:auto;bottom:92px;width:auto;max-height:55vh}
   #sid-mod-panel.plegado{left:auto;bottom:140px}
 }
+
+/* Sin lugar para el tablero entre la barra de arriba y lo apoyado abajo (pantalla de portátil con
+   «Mesa · Preparación» desplegado): lo de abajo termina antes de la columna del tablero
+   (modalidad.js pone data-sid-mod-col y --sid-mod-col en el <body>). Así no se cruzan. */
+body[data-sid-mod-col] .contenedor-mapa>div[style*="1150"],
+body[data-sid-mod-col] #sid-pd-tab,
+body[data-sid-mod-col] .sdp{right:var(--sid-mod-col) !important}

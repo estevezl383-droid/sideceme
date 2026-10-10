@@ -44,9 +44,17 @@
       .join('\n'),
   )
 
+  // El sello del autoguardado (guardado/v1/autoguardado.mjs) dice su estado en data-estado.
+  // Con cambios pendientes, tocarlo los guarda ya; recargar espera a que termine.
   function guardando() {
     var s = document.querySelector('.sello-guardado')
-    return !!s && /guardando/i.test(s.textContent || '')
+    if (!s) return false
+    var e = s.getAttribute('data-estado')
+    if (e === 'pendiente') {
+      s.click()
+      return true
+    }
+    return e === 'guardando' || /guardando/i.test(s.textContent || '')
   }
 
   function recargar(boton) {
