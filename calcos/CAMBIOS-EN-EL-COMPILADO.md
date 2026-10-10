@@ -5,6 +5,32 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-10 — El pedido a la IA con la tarea AL PRINCIPIO y el expediente recortado (`index-pedido-20261010.js`)
+
+Parte de `index-fichas-20261009.js` + `pruebas/reemplazos-2026-10-10-pedido.js` (14 reemplazos;
+`construir-pedido.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con
+capturas de la F1·P3 Apreciación Activa del Comandante y los Word de la F1·P3 y la Guía Inicial.
+
+- **Qué pasaba**: «Pedido copiado (456.419 caracteres)»: el EXPEDIENTE entero iba adelante y la
+  tarea, el JSON y la indicación del oficial al final. ChatGPT y Gemini cortaban el texto y la
+  IA contestaba «La información se cortó… ¿Cuál es el producto que requiere?» o escribía otro
+  documento en prosa («Want me to…?»). El expediente no traía las hojas del Comandante ni del
+  JEM. El Word de la F1·P3 salía con «[IA — verificar]» en cada párrafo y la Guía Inicial con
+  «D-15 (2300) — D-15 (2300)» cuando el ejercicio no tiene calendario.
+- **Qué se hizo**: el motor pasa a `calcos/estado-mayor/v6` (`pedido.js`, ver su README): el
+  pedido EMPIEZA con la tarea, el bloque JSON exacto y la indicación, y el expediente se recorta
+  al tamaño que se elige en el panel de la IA (**Corto** 60 mil · **Normal** 120 mil, el de
+  siempre · **Completo**), apartado por apartado y sin sacar ninguno. En el compilado: el
+  selector de tamaño y el aviso del recorte en `hU`; la indicación «va al principio y al
+  final»; con qué empieza el pedido; el pedido descargado se adjunta con la orden de cumplirlo;
+  `w6e` suma las hojas del Comandante y del JEM (`hse`) al apartado 11 bis del expediente; `Mx`
+  saca «[IA — verificar]» de lo que baja (el militar y la hoja con membrete); `h3e` no repite la
+  hora cuando es la misma.
+- **Cómo se comprobó**: `pedido-ia.cjs` (15 casos, con un expediente REAL de 478 mil caracteres
+  hecho con `_6e`, y las dos respuestas de Sergio), `e2e/pedido-cmte.cjs` (la Mesa real en
+  escritorio y teléfono), `reemplazos-compilado.js`, `npm test` y las e2e del G-1, G-5, PRC,
+  riesgo, reconocimiento, logística y membrete.
+
 ## 2026-10-09 — Fichas de la Mesa +50 % (`index-fichas-20261009.js`)
 
 Parte de `index-divmec-20261009.js` + `pruebas/reemplazos-2026-10-09-fichas.js` (2 reemplazos;
