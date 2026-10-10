@@ -27,7 +27,7 @@
   var capas = []          // {id, nombre, origen, visible, opac, grupos:[{id,nombre,visible,elementos}], lg, preset}
   var conf = { escala: 1.5, rotulos: 'auto', compacto: true }
   var ZOOM_DETALLE = 8, ultimoCompacto = null
-  var mapa = null, btn = null, tab = null, input = null, abierto = false, quitados = {}
+  var ultimoNombre = '', mapa = null, btn = null, tab = null, input = null, abierto = false, quitados = {}
 
   function esc(s) {
     return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
@@ -492,11 +492,22 @@
       engancharEjercicios()
       var nom = nombreEjercicio()
       PRESETS.forEach(function (p) {
-        var esProf = window.SIDECEME_CALCOS && window.SIDECEME_CALCOS.esProfesor
-        var local = location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1'
-        // Siempre a mano en el tablero; encendido si el ejercicio abierto se llama así.
-        cargarPreset(p, nom.indexOf(p.clave) >= 0 || !!(esProf || local))
+        // Una capa de ejercicio (p. ej. DIAMANTE) sólo se enciende sola en SU ejercicio.
+        // Antes también se encendía para el Profesor o en local, y quedaba pegada en
+        // cualquier ejercicio nuevo. Sigue disponible a mano en el tablero.
+        var coincide = nom.indexOf(p.clave) >= 0
+        cargarPreset(p, coincide)
+        // Al cambiar de ejercicio: se enciende en el suyo y se apaga en los demás.
+        if (nom && nom !== ultimoNombre) {
+          capas.forEach(function (c) {
+            if (c.preset !== p.clave || c.visible === coincide) return
+            c.visible = coincide
+            if (c.lg && mapa) { coincide ? c.lg.addTo(mapa) : mapa.removeLayer(c.lg) }
+          })
+          guardar(); pintar(); actualizar3D()
+        }
       })
+      if (nom) ultimoNombre = nom
     } catch (e) { /* agregado: si falla, la Mesa sigue igual */ }
   }
 
