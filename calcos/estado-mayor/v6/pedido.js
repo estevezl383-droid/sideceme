@@ -88,6 +88,10 @@ const NIVEL = [
   [/^## (4|7|13) ·/, 'C'],
 ]
 const nivelDe = (s) => (NIVEL.find(([re]) => re.test(s)) || [null, 'B'])[1]
+// Los apartados del expediente son «## N · TÍTULO» (Td del compilado: 0 a 15 y «11 bis»). Un
+// documento aportado convertido a .md trae sus propios títulos («## Tabla 1», «### …»): ésos NO
+// abren un apartado (el 10-10 la OGO de Sergio partía el 13 en «## Tabla 1»).
+const APARTADO = /\n(?=## \d+(?: bis)? · )/
 const MINIMO_APARTADO = 1200
 // Cómo se parte un bloque para repartir el espacio: por documento (### …), por hoja
 // («- **F1·P3 — …**»), por párrafo y por renglón.
@@ -150,13 +154,97 @@ export function compactarBloque(t, n) {
   return cortarTexto(t, n)
 }
 
+// ─── Los documentos aportados (apartado 13) ─────────────────────────────────────────
+// (10-10-2026, segunda captura de Sergio: Gemini otra vez «la OGO 01-35 se cortó en la Fase III
+// (RIAT-30 "MURILLO")… indique cuál es el producto».) La Mesa arma cada documento como
+// «### nombre» + «_rótulo de su categoría_» + el texto (Y4e del compilado). En ese ejercicio la
+// OGO entró DOS veces —«….docx.md» (rotulada ORDEN) y «….docx» (sin categoría)— y, como todo el
+// apartado 13 cedía primero, con «Normal» la Orden quedaba en un párrafo de sesenta mientras las
+// hojas del G-2 entraban enteras. Ahora:
+//   · un documento repetido (mismo nombre con o sin «.md» y el mismo texto) va una sola vez;
+//   · la ORDEN y las BASES del ejercicio («lo que dispone se cumple», «lo que digan MANDA») ceden
+//     junto con las hojas del Estado Mayor (nivel A), el anexo de inteligencia y los medios en
+//     el B, y los demás documentos, como antes, primero (C).
+const TITULO_DOCS = /^## 13 ·/
+const ROTULO_A = /^_(ORDEN DE OPERACIONES|BASES DEL EJERCICIO)\b/
+const ROTULO_B = /^_(ANEXO DE INTELIGENCIA|MEDIOS DISPONIBLES)\b/
+const ORDEN_NIVEL = { A: 0, B: 1, C: 2 }
+// Dónde empieza un documento: «### nombre» y, en el renglón siguiente, el rótulo de su categoría
+// (Tle del compilado). Un «### …» dentro del texto de un documento no lo parte.
+const ROTULOS = '_(?:BASES DEL EJERCICIO|ORDEN DE OPERACIONES|ANEXO DE INTELIGENCIA|MEDIOS DISPONIBLES|Documento aportado por el oficial)'
+const DOCUMENTO = new RegExp(`\\n(?=### [^\\n]*\\n${ROTULOS})`)
+const INICIO_DOC = new RegExp(`^### [^\\n]*\\n${ROTULOS}`)
+
+// Parte el apartado 13 en su título, lo que va antes del primer documento y los documentos.
+function documentosDe(t) {
+  const k = t.indexOf('\n')
+  const titulo = k > 0 ? t.slice(0, k) : t
+  const piezas = (k > 0 ? t.slice(k + 1) : '').split(DOCUMENTO)
+  const intro = INICIO_DOC.test(piezas[0]) ? '' : piezas.shift()
+  const docs = piezas.map((d) => {
+    const nombre = d.slice(4, (d.indexOf('\n') + 1 || d.length + 1) - 1).trim()
+    const rotulo = (d.split('\n')[1] || '').trim()
+    return { d, nombre, nivel: ROTULO_A.test(rotulo) ? 'A' : ROTULO_B.test(rotulo) ? 'B' : 'C' }
+  })
+  return { titulo, intro, docs }
+}
+const baseNombre = (n) => n.replace(/\.md$/i, '').trim().toLowerCase()
+const plano = (s) => s.toLowerCase().normalize('NFD').replace(/[^a-z0-9ñ]+/g, ' ').trim()
+// ¿El texto de `a` está en `b`? Los renglones largos de `a` (hasta 40), casi todos en `b`. Las
+// tablas cambian de forma entre el .docx y el .md: por eso se mira renglón por renglón.
+function mismoTexto(a, b) {
+  const enB = ` ${plano(b)} `
+  const muestras = a.split('\n').slice(2).map(plano).filter((x) => x.length >= 50)
+  const m = muestras.filter((_, i) => i % Math.max(1, Math.ceil(muestras.length / 40)) === 0)
+  if (m.length < 3) return false
+  return m.filter((x) => enB.includes(` ${x} `)).length / m.length >= 0.8
+}
+export function depurarDocumentos(md) {
+  md = String(md ?? '')
+  const partes = md.split(APARTADO)
+  const i = partes.findIndex((t) => TITULO_DOCS.test(t))
+  if (i < 0) return md
+  const { titulo, intro, docs } = documentosDe(partes[i])
+  if (docs.length < 2) return md
+  let cambio = false
+  for (const x of docs) {
+    if (x.repetido) continue
+    for (const y of docs) {
+      if (y === x || y.repetido || baseNombre(y.nombre) !== baseNombre(x.nombre)) continue
+      // queda el de categoría más alta; a igual categoría, el .md (trae las tablas armadas)
+      const quedaX = ORDEN_NIVEL[x.nivel] < ORDEN_NIVEL[y.nivel] || (x.nivel === y.nivel && /\.md$/i.test(x.nombre))
+      const [queda, va] = quedaX ? [x, y] : [y, x]
+      if (!mismoTexto(va.d, queda.d)) continue
+      va.repetido = true
+      va.d = `### ${va.nombre}\n_(Es el mismo documento que «${queda.nombre}»: va una sola vez.)_`
+      cambio = true
+      if (va === x) break
+    }
+  }
+  if (!cambio) return md
+  partes[i] = [titulo, ...(intro ? [intro] : []), ...docs.map((x) => x.d)].join('\n')
+  return partes.join('\n')
+}
+// El apartado 13 se reparte en un apartado por nivel (la Orden y las Bases, A; el anexo de
+// inteligencia y los medios, B; los demás, C). El primero conserva el título; los otros dicen
+// «(continúa)». Si todos sus documentos son del mismo nivel, queda entero en ese nivel.
+function partirDocumentos(t) {
+  const { titulo, intro, docs } = documentosDe(t)
+  const niveles = ['A', 'B', 'C'].filter((n) => docs.some((x) => x.nivel === n))
+  if (niveles.length < 2) return [{ t, nivel: niveles[0] || 'C' }]
+  return niveles.map((n, k) => ({
+    t: [k ? `${titulo} (continúa)` : titulo, ...(k === 0 && intro ? [intro] : []), ...docs.filter((x) => x.nivel === n).map((x) => x.d)].join('\n'),
+    nivel: n,
+  }))
+}
+
 // El expediente al presupuesto: los apartados de nivel C ceden primero, después B y A.
 export function compactarExpediente(md, presupuesto) {
   md = String(md ?? '')
   if (!(presupuesto < md.length)) return { texto: md, recortado: false }
-  const partes = md.split(/\n(?=## \S)/)
+  const partes = md.split(APARTADO)
   const cab = partes.shift()
-  const ap = partes.map((t) => ({ t, nivel: nivelDe(t), orig: t.length }))
+  const ap = partes.flatMap((t) => (TITULO_DOCS.test(t) ? partirDocumentos(t) : [{ t, nivel: nivelDe(t) }])).map((x) => ({ ...x, orig: x.t.length }))
   const total = () => cab.length + ap.reduce((s, x) => s + x.t.length + 1, 0)
   for (const nivel of ['C', 'B', 'A']) {
     const exceso = total() - presupuesto
@@ -238,11 +326,13 @@ export function armarPedidoFinal(p, indicacion = '', { tamano = tamanoPedido() }
   let exp = null
   const u = ubicarExpediente(p)
   if (u) {
-    const md = p.slice(u.i, u.f)
+    const original = p.slice(u.i, u.f)
+    // un documento aportado dos veces (el .docx y su .md) va una sola vez, en todos los tamaños
+    const md = depurarDocumentos(original)
     // la PRC ya empieza con su tarea («ESTO ES UN PEDIDO…»): no se le pone otra
     const ya = p.startsWith(TITULO_PEDIDO) || /ESTO ES UN PEDIDO/.test(p.slice(0, 2000))
     const cab = ya ? '' : encabezado(p, indicacion)
-    const resto = p.length - md.length + (cab ? cab.length + 7 : 0)
+    const resto = p.length - original.length + (cab ? cab.length + 7 : 0)
     const limite = limiteDe(tamano)
     // 600 de margen para el aviso del recorte; si igual se pasa (las notas de cada apartado),
     // se vuelve a recortar con lo que sobró
@@ -256,10 +346,10 @@ export function armarPedidoFinal(p, indicacion = '', { tamano = tamanoPedido() }
     const despues = r.texto.length
     if (r.recortado) {
       const k = texto.indexOf('\n')
-      const aviso = `\n\n> Este expediente va RECORTADO (de ${miles(md.length)} a ${miles(despues)} caracteres) para que el pedido te llegue entero. Están todos sus apartados; los largos (documentos aportados, terreno, calco) van resumidos. Lo que no está acá no lo inventes: «SIN DATO — verificar».`
+      const aviso = `\n\n> Este expediente va RECORTADO (de ${miles(original.length)} a ${miles(despues)} caracteres) para que el pedido te llegue entero. Están todos sus apartados; los largos (terreno, calco, documentos aportados) van resumidos; la Orden y las Bases, lo último. Lo que no está acá no lo inventes: «SIN DATO — verificar».`
       texto = k > 0 ? `${texto.slice(0, k)}${aviso}${texto.slice(k)}` : `${texto}${aviso}`
     }
-    exp = { expedienteAntes: md.length, expedienteDespues: despues, recortado: r.recortado }
+    exp = { expedienteAntes: original.length, expedienteDespues: despues, recortado: r.recortado }
     cuerpo = `${p.slice(0, u.i)}${texto}${p.slice(u.f)}`
     if (cab) cuerpo = `${cab}\n\n---\n\n${cuerpo}`
   } else if (!p.startsWith(TITULO_PEDIDO) && jsonDelPedido(p) && p.length > 20000) {

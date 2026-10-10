@@ -124,7 +124,7 @@ para todas las hojas y documentos del panel «🤖 Trabajar esta hoja con IA»):
 | | |
 |---|---|
 | Lo primero | «# PEDIDO DE TRABAJO PARA LA IA — LEÉ ESTO PRIMERO»: qué hoja (`hojaDelPedido`), la tarea, el bloque ```json de «CÓMO CONTESTAR» con sus claves exactas (`jsonDelPedido`), qué NO escribir (análisis sueltos, otra Orden, preguntas), «si el texto te llega CORTADO, contestá IGUAL» y la indicación del oficial. La PRC ya traía su tarea arriba: no se le pone otra |
-| El expediente | Se recorta al tamaño elegido (`compactarExpediente`), sin sacar ningún apartado: ceden primero 4 (terreno), 7 (calco) y 13 (documentos aportados), después los demás y lo último 0, 1, 2, 5, 9, 10, 11, 11 bis y 12 (la orientación, la Orden, la situación, las fases y las hojas del EM). Adentro se reparte parejo por documento, por hoja y por párrafo: lo que cede es el final de lo más largo. Arriba del expediente y en cada apartado recortado, cuánto quedó |
+| El expediente | Se recorta al tamaño elegido (`compactarExpediente`), sin sacar ningún apartado: ceden primero 4 (terreno), 7 (calco) y 13 (documentos aportados, salvo la Orden y las Bases: ver abajo), después los demás y lo último 0, 1, 2, 5, 9, 10, 11, 11 bis y 12 (la orientación, la Orden, la situación, las fases y las hojas del EM). Adentro se reparte parejo por documento, por hoja y por párrafo: lo que cede es el final de lo más largo. Arriba del expediente y en cada apartado recortado, cuánto quedó |
 | El final | Lo de siempre: CÓMO CONTESTAR, FORMATO DE TU RESPUESTA, la indicación y el recordatorio |
 | El tamaño | En el panel: **Corto** (60 mil caracteres, ChatGPT o Gemini gratis) · **Normal** (120 mil, por defecto) · **Completo** (sin recortar, para Claude o Gemini pagos). Se recuerda en el navegador. «Pedido copiado» dice cuánto se recortó |
 | El error | Si la IA dice que el texto se cortó o pregunta qué producto se quiere (`NO_RECIBIO`), el aviso lo dice y pide «Normal»/«Corto» y un chat nuevo (antes decía que era «el final de la respuesta») |
@@ -137,6 +137,37 @@ repetida (`h3e`). Los 120 y 60 mil caracteres son criterio de la Mesa (≈ 35 y 
 Prueba: `node pedido-ia.cjs` (con un expediente REAL de 478 mil caracteres hecho con `_6e` y las
 dos respuestas de Sergio: `respuesta-cortada-comandante.md`, `respuesta-prosa-comandante.md`) y
 `node e2e/pedido-cmte.cjs` (la Mesa real, escritorio y teléfono; salidas en `pruebas/salidas-pedido/`).
+
+### La Orden aportada no cede primero, y un documento repetido va una sola vez (10-10-2026, segunda captura)
+
+Una hora después de publicado lo de arriba, Sergio volvió con la misma F1·P3: Gemini contestó
+«El documento de la OGO 01-35 se cortó en la descripción de la maniobra de la Fase III (tarea del
+RIAT-30 "MURILLO")… Indique cuál es el producto de Estado Mayor específico… que debo elaborar».
+
+**Qué pasaba**: dos cosas.
+
+1. Su pestaña de la Mesa estaba abierta desde ANTES de publicarse el arreglo y seguía con el
+   programa viejo (el pedido empezaba con «CONTEXTO…», no traía el selector de tamaño). Para que
+   no vuelva a pasar, la Mesa avisa cuando hay una versión nueva: `calcos/version/` (ver su README).
+2. Aun con el arreglo, su expediente perdía la Orden: la OGO entró DOS veces en el apartado 13
+   (`….docx.md`, rotulada ORDEN, y `….docx`, sin categoría) y todo el apartado 13 cedía primero.
+   Con «Normal», la Orden quedaba en un párrafo de sesenta mientras las hojas del G-2 entraban
+   con 35 mil caracteres. El apartado 1 sólo decía «Unidad considerada: DIV.MEC.-1»: la misión,
+   la intención y el concepto de la operación estaban SÓLO en ese documento.
+
+**Ahora** (`pedido.js`):
+
+| | |
+|---|---|
+| `depurarDocumentos` | Un documento con el mismo nombre (con o sin `.md`) y el mismo texto (≥ 80 % de sus renglones largos; las tablas cambian de forma entre el .docx y el .md) va una sola vez, en todos los tamaños. Queda el de categoría más alta y, a igual categoría, el `.md`. En el lugar del otro: «_(Es el mismo documento que «…»: va una sola vez.)_» |
+| Los títulos de adentro de un documento | Un documento convertido a .md trae sus propios «## Tabla 1» y «### …»: antes partían el expediente como si fueran apartados (la segunda copia de la OGO quedaba fuera del 13). Ahora un apartado es sólo «## N · TÍTULO» (`APARTADO`) y un documento empieza con «### nombre» + el rótulo de su categoría (`DOCUMENTO`) |
+| El apartado 13 por categoría | La ORDEN y las BASES del ejercicio ceden junto con las hojas del Estado Mayor (nivel A); el anexo de inteligencia y los medios, con el nivel B; los demás documentos, primero (C), como antes. Si hay de más de un nivel, el 13 se parte: el primero conserva el título y los otros dicen «(continúa)» |
+
+Con un expediente como el de Sergio (253 mil caracteres): «Normal» lleva la OGO entera (60 de
+60 párrafos) y una sola vez; las hojas del G-2 bajan de 35 a 27 mil caracteres.
+
+Prueba: `node pedido-ia.cjs` (casos «la OGO aportada dos veces…» y «la ORDEN aportada como
+documento cede con las hojas del EM…», y la respuesta de Gemini `respuesta-cortada-gemini-ogo.md`).
 
 ## En la Mesa: ⚔️ G-3 → F3·P1 Potencia Relativa de Combate (06-10-2026, `v5/prc.js`)
 
