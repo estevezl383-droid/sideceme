@@ -27,6 +27,10 @@
   ]
   var body = document.body
   var modo = 'mesa', hecho = {}, fase = 1, escalon = 'ce', plegado = false, panel = null, sel = null, firma = ''
+  // tapado: un tablero de la Mesa (Unidades, Área de Ops, Mesa EM…) o el de Superponer ocupa la
+  // columna derecha; el tablero se pliega solo mientras tanto. abiertoIgual: lo abrió el usuario
+  // igual (se corre a la izquierda de ese tablero).
+  var tapado = false, abiertoIgual = false
   var biblio = [], verBiblio = false, bibVer = 0, bibVista = '' // la biblioteca del profesor (IndexedDB «sid-biblioteca»)
   var foco = 'pmtd', iaPaso = 0, iaTexto = '', aviso = {}, puente = null // puente: lo último que la Mesa le mandó a MesaAcademica.sincronizar (ejercicio, fichas, centro, agregarUnidades)
 
@@ -417,23 +421,114 @@
       '<div class="pie"><div class="secs">Tableros de cada sección: ' + Object.keys(CAT.SECCIONES).map(function (s) { return '<button type="button" class="ir sec-ir" data-sec="' + s + '" style="--sc:' + CAT.SECCIONES[s].color + '">' + esc(CAT.SECCIONES[s].corto) + '</button>' }).join('') + '</div>' +
       '<button type="button" class="chico" data-a="reiniciar">Reiniciar lo marcado</button></div>'
   }
+  function cerrado() { return plegado || (tapado && !abiertoIgual) }
   function pintar(forzar) {
     if (!panel) return
-    var f = [modo, fase, escalon, foco, plegado, iaPaso, JSON.stringify(hecho), JSON.stringify(aviso), !!(puente && puente.agregarUnidades), verBiblio, bibVer, bibVista].join('|')
+    var pl = cerrado()
+    var f = [modo, fase, escalon, foco, pl, iaPaso, JSON.stringify(hecho), JSON.stringify(aviso), !!(puente && puente.agregarUnidades), verBiblio, bibVer, bibVista].join('|')
     if (!forzar && f === firma) return
     firma = f
     panel.hidden = modo === 'mesa'
-    panel.className = plegado ? 'plegado' : ''
-    if (modo === 'mesa') return
-    panel.innerHTML = '<button type="button" class="asa" data-a="asa" aria-expanded="' + !plegado + '" title="' + (plegado ? 'Desplegar el tablero' : 'Plegar el tablero para ver la carta') + '">' + (plegado ? (modo === 'profesor' ? '🧑‍🏫 Pasos ◂' : '🎓 Fases ◂') : '▸ Plegar') + '</button>' +
-      '<div class="cuerpo">' + (modo === 'profesor' ? htmlProfesor() : htmlAprendizaje()) + '</div>'
+    panel.className = pl ? 'plegado' : ''
+    if (modo !== 'mesa') {
+      panel.innerHTML = '<button type="button" class="asa" data-a="asa" aria-expanded="' + !pl + '" title="' + (pl ? 'Desplegar el tablero' : 'Plegar el tablero para ver la carta') + '">' + (pl ? (modo === 'profesor' ? '🧑‍🏫 Pasos ◂' : '🎓 Fases ◂') : '▸ Plegar') + '</button>' +
+        '<div class="cuerpo">' + (modo === 'profesor' ? htmlProfesor() : htmlAprendizaje()) + '</div>'
+    }
+    acomodar()
+  }
+
+  // ---------- lugar en la pantalla: que no se cruce con nada ----------
+  // Lo pidió Sergio (10-10-2026) con capturas: el tablero tapaba la punta derecha de la barra de
+  // herramientas (arriba) y el tablero «Mesa · Preparación» le quedaba encima (abajo); había botones
+  // a los que no se llegaba. Ahora va ENTRE la barra de arriba y lo que esté apoyado abajo (Mesa ·
+  // Preparación, Fichas, Despliegue del TO, la leyenda); si ahí no entra, lo de abajo se angosta y le
+  // deja la columna; y se pliega solo mientras un tablero de la Mesa ocupa la columna derecha.
+  // Sólo en pantalla ancha: en el teléfono sigue abajo, como estaba.
+  var HUECO = 8, ALTO_MIN = 240, DER = 44, ARRIBA = 62, ABAJO = 60
+  function caja(el) {
+    if (!el || el === panel || el === sel || el.nodeType !== 1 || /^(SCRIPT|STYLE|LINK)$/.test(el.tagName)) return null
+    var cs = getComputedStyle(el)
+    if ((cs.position !== 'absolute' && cs.position !== 'fixed') || cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) return null
+    var r = el.getBoundingClientRect()
+    return r.width > 0 && r.height > 0 ? { r: r, z: parseInt(cs.zIndex, 10) || 0 } : null
+  }
+  // lo que flota sobre la carta: hijos del <body> y de la carta de la Mesa
+  function flotantes() {
+    var l = Array.prototype.slice.call(body.children)
+    var m = document.querySelector('.contenedor-mapa')
+    if (m) l = l.concat(Array.prototype.slice.call(m.children))
+    return l.map(caja).filter(Boolean)
+  }
+  // Sin lugar entre la barra y lo de abajo: lo apoyado abajo (Mesa · Preparación, Fichas, Despliegue)
+  // termina antes de la columna del tablero (modalidad.css, body[data-sid-mod-col]).
+  function columna(px) {
+    var v = px ? String(px) : null
+    if (body.getAttribute('data-sid-mod-col') === v) return
+    if (v) { body.setAttribute('data-sid-mod-col', v); body.style.setProperty('--sid-mod-col', v + 'px') }
+    else { body.removeAttribute('data-sid-mod-col'); body.style.removeProperty('--sid-mod-col') }
+  }
+  function acomodar() {
+    if (!panel) return
+    var W = window.innerWidth, H = window.innerHeight, ancha = W > 820
+    var fl = modo === 'mesa' || !ancha ? [] : flotantes()
+    // ¿un tablero ocupa la columna derecha? (arriba, alto, de la mitad derecha, por encima de la carta)
+    var izq = W
+    fl.forEach(function (c) { var r = c.r; if (c.z >= 1100 && r.left > W * 0.5 && r.top < H * 0.3 && r.height > 150 && r.width > 200) izq = Math.min(izq, r.left) })
+    var t = izq < W
+    if (t !== tapado) { tapado = t; if (!t) abiertoIgual = false; return pintar(true) }
+    var s = panel.style
+    var poner = function (v) { for (var k in v) if (s[k] !== v[k]) s[k] = v[k] }
+    var libre = { top: '', bottom: '', right: '', zIndex: '' }
+    if (panel.hidden || !ancha || (cerrado() && !tapado)) { columna(0); return poner(libre) }
+    // el borde de arriba (debajo de la barra) y el de abajo (encima de lo apoyado abajo) en la columna x0–x1
+    var bordes = function (x0, x1) {
+      var cruza = function (r) { return r.right > x0 + 1 && r.left < x1 - 1 }
+      var arriba = ARRIBA, abajo = H - ABAJO
+      flotantes().forEach(function (c) {
+        var r = c.r
+        if (!cruza(r)) return
+        // arriba: la barra de herramientas y lo chico apoyado arriba (p. ej. el cuadro del Área de Influencia)
+        if (r.top < H * 0.3 && r.bottom < H * 0.6) arriba = Math.max(arriba, Math.round(r.bottom + HUECO))
+        // abajo: Mesa · Preparación, Fichas, Despliegue del TO, la leyenda
+        else if (r.top > H * 0.3 && r.bottom > H - 90) abajo = Math.min(abajo, Math.round(r.top - HUECO))
+      })
+      return { arriba: arriba, abajo: abajo }
+    }
+    if (cerrado()) { // plegado mientras un tablero ocupa la derecha: la pestaña, pegada a ese tablero y debajo de la barra
+      var w = panel.offsetWidth, h = panel.offsetHeight
+      columna(0)
+      var b = bordes(izq - w, izq)
+      if (b.abajo - b.arriba < h) { columna(Math.round(W - izq + w + HUECO)); b = bordes(izq - w, izq) } // lo de abajo le deja lugar
+      if (b.abajo - b.arriba < h) columna(0)
+      return poner(b.abajo - b.arriba >= h ? { top: b.arriba + 'px', bottom: 'auto', right: Math.round(W - izq) + 'px', zIndex: '' } : libre)
+    }
+    var der = tapado ? Math.max(DER, Math.round(W - izq + HUECO)) : DER
+    var x1 = W - der, x0 = x1 - panel.offsetWidth
+    if (tapado) { // al costado del tablero sólo si entra sin pisar el panel de la izquierda; si no, plegado
+      var lp = document.querySelector('.panel'), m = document.querySelector('.contenedor-mapa')
+      var lpr = lp && lp.getBoundingClientRect(), limite = Math.max(m ? m.getBoundingClientRect().left : 0, lpr && lpr.width ? lpr.right : 0)
+      if (x0 < limite + HUECO) { abiertoIgual = false; return pintar(true) }
+    }
+    // 1° entre la barra y lo de abajo; 2° si no entra, lo de abajo se angosta y deja libre la columna;
+    // 3° si ni así entra (pantalla muy baja), queda encima de lo de abajo
+    columna(0)
+    var B = bordes(x0, x1), z = ''
+    if (B.abajo - B.arriba < ALTO_MIN) { columna(Math.round(W - x0 + HUECO)); B = bordes(x0, x1) }
+    if (B.abajo - B.arriba < ALTO_MIN) { B.abajo = H - ABAJO; z = '1160' }
+    poner({ top: B.arriba + 'px', bottom: H - B.abajo + 'px', right: der + 'px', zIndex: z })
   }
 
   // ---------- eventos ----------
   function onClic(e) {
     var t = e.target
     var a = t.closest && t.closest('[data-a]')
-    if (a && a.getAttribute('data-a') === 'asa') { plegado = !plegado; guarda(K_PLEGADO, plegado ? '1' : '0'); pintar(true); return }
+    if (a && a.getAttribute('data-a') === 'asa') {
+      if (cerrado()) { // desplegar: si lo plegó el usuario, se recuerda; si está tapado, se abre igual (al costado)
+        if (plegado) { plegado = false; guarda(K_PLEGADO, '0') }
+        if (tapado) abiertoIgual = true
+      } else { plegado = true; abiertoIgual = false; guarda(K_PLEGADO, '1') }
+      pintar(true); return
+    }
     var ib = t.closest && t.closest('[data-ia-paso]')
     if (ib) {
       var pn = +ib.getAttribute('data-ia-paso')
@@ -500,7 +595,9 @@
     b.classList.add('yendo')
     abrir(ref).then(function (ok) {
       b.classList.remove('yendo')
-      if (ok === true) { plegado = true; guarda(K_PLEGADO, '1'); pintar(true) } // el panel real quedó abierto en su lugar: el tablero se pliega al borde
+      // El panel real quedó abierto en su lugar: el tablero se pliega al borde. Si lo que se abrió es un
+      // tablero de la columna derecha, se pliega solo mientras esté abierto y vuelve al cerrarlo.
+      if (ok === true) { abiertoIgual = false; acomodar(); if (!tapado) { plegado = true; guarda(K_PLEGADO, '1') } pintar(true) }
       else { var r = b.textContent; b.textContent = ok === 'calcos' ? 'Primero ⚡ Generar calcos' : 'No está en esta Mesa'; b.classList.add('no'); setTimeout(function () { b.textContent = r; b.classList.remove('no') }, 2200) }
     })
   }
@@ -535,6 +632,10 @@
     body.setAttribute('data-sid-modo', modo)
     engancharPuente()
     pintar(true)
+    // la barra se acomoda en filas, el tablero de abajo se abre y se cierra, los tableros de la
+    // derecha van y vienen: se revisa seguido (es barato) y al cambiar el tamaño de la ventana
+    setInterval(function () { if (modo !== 'mesa') acomodar() }, 400)
+    window.addEventListener('resize', acomodar)
     bibCargar()
   }
   cargar()
@@ -543,7 +644,7 @@
 
   window.SIDModalidad = {
     get modo() { return modo }, poner: ponerModo, abrir: abrir, catalogo: CAT,
-    get panel() { return panel }, get hecho() { return hecho },
+    get panel() { return panel }, get hecho() { return hecho }, get tapado() { return tapado }, acomodar: acomodar,
     get foco() { return foco }, get puente() { return puente }, armarPedido: armarPedido, leerEjercicio: leerEjercicio,
     get biblioteca() { return biblio }, subir: bibSubir, recargarBiblioteca: bibCargar
   }

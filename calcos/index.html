@@ -82,9 +82,12 @@
     <!-- 🔄 Aviso de versión nueva: si se publica otro compilado (u otro ?v= de estos scripts)
          con la Mesa abierta, avisa que hay que recargar. Va ANTES del compilado: toma la foto
          de los <script> de esta página antes de que el compilado agregue los suyos. -->
-    <script src="./version/aviso-version.js?v=20261010" defer></script>
-    <script type="module" crossorigin src="./assets/index-lazo-20261010.js?v=lazo-20261010"></script>
+    <script src="./version/aviso-version.js?v=20261010b" defer></script>
+    <script type="module" crossorigin src="./assets/index-guardado-20261010.js?v=guardado-20261010"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-lHYAlTjN.css">
+    <!-- 💾 Sello del autoguardado: es un botón (tocarlo guarda todo ya) y dice si hay algo sin guardar
+         o si falló. La lógica está en guardado/v1/autoguardado.mjs (la importa el compilado). -->
+    <link rel="stylesheet" href="./guardado/v1/guardado.css?v=20261010">
     <link rel="stylesheet" href="./fichas-instalacion/v1/estilo.css">
     <link rel="stylesheet" href="./fichas-instalacion/v2/estilo.css">
     <link rel="stylesheet" href="./formato-militar/v1/estilo.css">
@@ -92,18 +95,18 @@
     <!-- 🌌 Piel «Pandora» de la pantalla de calcos: capa visual aparte del compilado (no lo modifica).
          Se apaga con el botón «Vista clásica» (abajo a la izquierda del mapa). -->
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Exo+2:wght@400;500;600;700&family=Share+Tech+Mono&display=swap">
-    <link rel="stylesheet" href="./pandora/pandora.css?v=20261009h">
-    <script src="./pandora/pandora.js?v=20261009" defer></script>
+    <link rel="stylesheet" href="./pandora/pandora.css?v=20261010c">
+    <script src="./pandora/pandora.js?v=20261010" defer></script>
     <script src="./pandora/tablero.js?v=20261009" defer></script>
     <script src="./pandora/capas-g.js?v=20261009" defer></script>
     <!-- 🎓 Modalidad (Mesa · Aprendizaje · Profesor): selector arriba y tablero por fases a la derecha.
          Código aparte del compilado; no guarda nada en el ejercicio. Va después de Pandora porque
          con esa piel reemplaza la columna CMTE./JEM./G-1…G-5. -->
-    <link rel="stylesheet" href="./modalidad/modalidad.css?v=20261010c">
-    <script src="./modalidad/catalogo.js?v=20261010c" defer></script>
-    <script src="./modalidad/biblioteca.js?v=20261010c" defer></script>
-    <script src="./modalidad/ia-profesor.js?v=20261010c" defer></script>
-    <script src="./modalidad/modalidad.js?v=20261010c" defer></script>
+    <link rel="stylesheet" href="./modalidad/modalidad.css?v=20261010d">
+    <script src="./modalidad/catalogo.js?v=20261010d" defer></script>
+    <script src="./modalidad/biblioteca.js?v=20261010d" defer></script>
+    <script src="./modalidad/ia-profesor.js?v=20261010d" defer></script>
+    <script src="./modalidad/modalidad.js?v=20261010d" defer></script>
   </head>
   <body>
     <div id="root"></div>

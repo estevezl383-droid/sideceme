@@ -84,6 +84,33 @@ escalones que no existen se normalizan; las que vienen sin lat/lng se ponen junt
 Son organizaciones genéricas de escuela, no la orgánica real de ningún ejército: se ajustan
 ficha por ficha en 🪖 Unidades.
 
+### Sin cruzarse con los otros paneles (10-10-2026)
+Lo pidió Sergio con capturas en modo Profesor: el tablero tapaba la punta derecha de la barra de
+herramientas y el tablero «Mesa · Preparación» le quedaba encima; había botones a los que no se
+llegaba. Ahora (pantalla ancha; en el teléfono sigue abajo, como estaba):
+- el tablero va **entre la barra de arriba y lo que esté apoyado abajo** (Mesa · Preparación,
+  Fichas, Despliegue del TO, la leyenda): se achica lo que haga falta y lo de adentro se desplaza.
+  Se revisa cada 0,4 s (la barra cambia de filas, el tablero de abajo se abre y se cierra);
+- si ahí no entra (portátil de 1280 × 800 con «Mesa · Preparación» desplegado), lo de abajo se
+  angosta y le deja libre la columna (`body[data-sid-mod-col]` en `modalidad.css`). Sólo si ni así
+  entra (pantalla muy baja) queda encima de lo de abajo, que se puede ocultar;
+- mientras un tablero de la Mesa ocupa la columna derecha (Unidades, Área de Ops, Mesa EM,
+  Defensa… o el de 🧩 Superponer) **se pliega solo**, con la pestaña pegada al costado de ese
+  tablero; al cerrarlo, vuelve. Si se lo despliega igual, va a la izquierda de ese tablero (si
+  entra sin pisar el panel de la izquierda);
+- con la piel Pandora, la barra de herramientas termina antes del tablero abierto a la derecha
+  (antes quedaba debajo y sus botones de la punta no se podían tocar): `pandora.js` mide el
+  tablero (`--sid-pd-tablero`) y `pandora.css` angosta la barra (`.botones-mapa.con-tablero`),
+  que baja una o dos filas. Por eso `e2e/edicion.cjs` traza el Área de Influencia y el frente de
+  Cuerpo debajo de la barra (la mide con el panel abierto);
+- también con Pandora, el tablero de abajo desplegado empieza después del panel de la izquierda
+  (como ya lo hacía plegado) y no lo tapa; si el tablero de los pasos plegado no entra al costado
+  de un tablero de la derecha, lo de abajo le deja lugar igual que al desplegado.
+
+Prueba: `node calcos/pruebas/e2e/paneles-sin-cruce.cjs` (2000 × 1290, 1440 × 900 y 1280 × 800;
+capturas en `pruebas/salidas-paneles/`): nada se cruza, cada botón del tablero y de la barra se
+puede tocar.
+
 ### Lo que es criterio de la Mesa y lo que NO hace (para ser honestos)
 - Las fases, los pasos, los documentos y los responsables son los de la **Visión Horizontal 2020**
   (hoja «PMTD 2020»); los «qué es» de cada fase resumen el texto PMTD 2017. Dónde se abre cada

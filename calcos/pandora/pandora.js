@@ -60,12 +60,31 @@
     })
   }
 
+  // Con un tablero abierto a la derecha (Unidades, Área de Ops, Mesa EM…; la barra lleva .con-tablero)
+  // la barra termina antes de ese tablero y no queda debajo (pandora.css usa --sid-pd-tablero). Se
+  // mide el tablero abierto para angostarla sólo lo justo. (Sergio, 10-10-2026: los paneles no se cruzan.)
+  function barraLibre() {
+    var m = document.querySelector('.contenedor-mapa')
+    var W = window.innerWidth, H = window.innerHeight, izq = W
+    if (m) for (var i = 0; i < m.children.length; i++) {
+      var el = m.children[i], cs = getComputedStyle(el)
+      if (cs.position !== 'absolute' || cs.display === 'none' || (parseInt(cs.zIndex, 10) || 0) < 1200) continue
+      var r = el.getBoundingClientRect()
+      if (r.width > 200 && r.height > 60 && r.left > W * 0.5 && r.top < H * 0.3) izq = Math.min(izq, r.left)
+    }
+    var v = izq < W ? Math.round(W - izq + 12) + 'px' : ''
+    if (body.style.getPropertyValue('--sid-pd-tablero') === v) return
+    if (v) body.style.setProperty('--sid-pd-tablero', v)
+    else body.style.removeProperty('--sid-pd-tablero')
+  }
+
   var pendiente = false
   function programar() {
     if (pendiente) return
     pendiente = true
-    requestAnimationFrame(function () { pendiente = false; clasificar() })
+    requestAnimationFrame(function () { pendiente = false; clasificar(); barraLibre() })
   }
+  window.addEventListener('resize', programar)
   new MutationObserver(programar).observe(document.body, { childList: true, subtree: true })
 
   // El tablero de abajo (Mesa · Preparación) empieza recogido: se abre con su botón cuando se necesita.

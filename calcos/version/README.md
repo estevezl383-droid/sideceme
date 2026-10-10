@@ -16,7 +16,8 @@ otra vez «se cortó… indique cuál es el producto» y parecía que el arreglo
 - Cada 5 minutos, y cada vez que se vuelve a la pestaña (como mucho una vez por minuto), baja
   `calcos/index.html` sin caché y compara sus `<script src>`.
 - Si cambiaron, muestra arriba la franja «🔄 Hay una versión nueva de la Mesa…» con
-  **Recargar ahora** (espera a que termine «💾 guardando…», el autoguardado de la Mesa) y
+  **Recargar ahora** (espera a que termine «💾 guardando…», el autoguardado de la Mesa; si el
+  sello dice que hay algo sin guardar —`data-estado="pendiente"`—, primero lo guarda) y
   **Más tarde** (la pospone 30 minutos).
 - No hace nada en `file://` (la app de escritorio), sin red, o si lo que baja no tiene scripts
   (una página de error del servidor). No toca el ejercicio ni guarda nada.
