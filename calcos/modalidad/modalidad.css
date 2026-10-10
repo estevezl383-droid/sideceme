@@ -81,3 +81,39 @@ body.sid-pandora:not([data-sid-modo="mesa"]) .sid-pd-cap{display:none !important
 body[data-sid-mod-col] .contenedor-mapa>div[style*="1150"],
 body[data-sid-mod-col] #sid-pd-tab,
 body[data-sid-mod-col] .sdp{right:var(--sid-mod-col) !important}
+
+/* El profesor: el foco (qué G entrena), el pedido a la IA de cada paso y las organizaciones tipo */
+#sid-mod-panel .foco{margin:6px 0 0 25px;font-size:12px}
+#sid-mod-panel .foco-nota{margin-top:4px;color:#b9d2d8}
+#sid-mod-panel .foco select{font:inherit;color:#e4f4f6;background:#0c2a38;border:1px solid rgba(70,240,208,.4);border-radius:6px;padding:3px 5px;max-width:100%}
+#sid-mod-panel .ia{margin:6px 0 0 25px}
+#sid-mod-panel .ia-btn{font:600 11px/1.2 inherit;color:#e9d5ff;background:rgba(88,28,135,.35);border:1px solid #a78bfa;border-radius:7px;padding:5px 8px;cursor:pointer;text-align:left}
+#sid-mod-panel .ia-btn:hover,#sid-mod-panel .ia-btn[aria-expanded="true"]{color:#1e0a3a;background:#c4b5fd}
+#sid-mod-panel .ia.ogo .ia-btn{font-size:12px;padding:7px 10px;color:#fff;background:linear-gradient(90deg,rgba(124,58,237,.75),rgba(70,240,208,.45));border-color:#c4b5fd;box-shadow:0 0 12px rgba(167,139,250,.4)}
+#sid-mod-panel .ia-caja{margin-top:6px;padding:7px;border:1px solid rgba(167,139,250,.5);border-radius:8px;background:rgba(30,10,58,.45)}
+#sid-mod-panel .ia-ayuda{margin:0 0 6px;font-size:11.5px;color:#d9d0f0}
+#sid-mod-panel .ia-acc{display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-bottom:6px}
+#sid-mod-panel .ia-aviso{font-size:11px;color:#46f0d0}
+#sid-mod-panel textarea{width:100%;box-sizing:border-box;font:11px/1.35 'Share Tech Mono',ui-monospace,monospace;color:#e4f4f6;background:rgba(4,17,26,.8);border:1px solid rgba(255,255,255,.15);border-radius:6px;padding:6px;resize:vertical}
+#sid-mod-panel .org{margin:6px 0 0 25px;padding:7px;border:1px solid rgba(70,240,208,.3);border-radius:8px;background:rgba(14,52,66,.35);font-size:12px}
+#sid-mod-panel .org-tit{font-weight:700;color:#46f0d0;margin-bottom:4px}
+#sid-mod-panel .org-fila{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0}
+#sid-mod-panel .org select,#sid-mod-panel .org input[type=text]{font:inherit;color:#e4f4f6;background:#0c2a38;border:1px solid rgba(70,240,208,.4);border-radius:6px;padding:3px 5px;max-width:100%}
+#sid-mod-panel .org input[type=radio]{accent-color:#46f0d0}
+#sid-mod-panel .org .ir[disabled]{opacity:.45;cursor:not-allowed}
+#sid-mod-panel .org-nota{margin-top:4px;font-size:11px;color:#8fb0b8}
+
+/* 📚 La biblioteca del profesor */
+#sid-mod-panel .bib-btn{display:block;width:100%;margin-top:4px;font:600 12px/1.2 inherit;text-align:left;color:#fde68a;background:rgba(120,80,10,.3);border:1px solid #fbbf24;border-radius:8px;padding:7px 10px;cursor:pointer}
+#sid-mod-panel .bib-btn:hover,#sid-mod-panel .bib-btn[aria-expanded="true"]{color:#1f1400;background:#fcd34d}
+#sid-mod-panel .bib{margin-top:6px;padding:8px;border:1px solid rgba(251,191,36,.5);border-radius:9px;background:rgba(40,28,4,.45);font-size:12px}
+#sid-mod-panel .bib-cab{display:flex;flex-direction:column;gap:3px;margin-bottom:6px;color:#e9dcb6}
+#sid-mod-panel .bib-cab b{color:#fcd34d}
+#sid-mod-panel .bib-subir{display:inline-block;--sc:#fbbf24;margin-bottom:6px}
+#sid-mod-panel .bib-vacia{margin:4px 0 0;color:#b9a77a}
+#sid-mod-panel .bib-lista{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+#sid-mod-panel .bib-lista li{padding:6px;border-radius:7px;background:rgba(4,17,26,.6);border:1px solid rgba(255,255,255,.08)}
+#sid-mod-panel .bib-nom{font-weight:600;word-break:break-word}
+#sid-mod-panel .bib-nom small{font-weight:400;color:#8fb0b8}
+#sid-mod-panel .bib-coe{color:#46f0d0;margin-top:2px}
+#sid-mod-panel .bib select{font:inherit;font-size:11px;color:#e4f4f6;background:#0c2a38;border:1px solid rgba(70,240,208,.4);border-radius:6px;padding:2px 4px;max-width:100%}

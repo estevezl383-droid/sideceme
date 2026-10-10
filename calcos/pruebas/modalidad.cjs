@@ -75,8 +75,24 @@ for (const [k, S] of Object.entries(CAT.SECCIONES)) {
   if (S.pestana) assert.ok(textos.some((t) => S.pestana.test(t)), `sección ${k} tiene pestaña ${S.pestana}`)
 }
 
-CAT.PROFESOR.forEach((p, i) => assert.equal(p.n, i + 1))
+CAT.PROFESOR.forEach((p, i) => {
+  assert.equal(p.n, i + 1)
+  assert.ok(p.ia && p.ia.tit && (p.ia.pide || p.ogo), `paso ${p.n} del profesor con su pedido a la IA`)
+  ;(p.abrir || []).forEach((a) => { if (a.h) assert.ok(CAT.HERRAMIENTAS[a.h], `herramienta ${a.h}`); else assert.ok(CAT.SECCIONES[a.s]) })
+})
+assert.equal(CAT.PROFESOR.length, 10)
 assert.ok(CAT.PROFESOR.some((p) => p.escalon))
+assert.ok(/CMOC/.test(CAT.PROFESOR[3].nom) && /calcos/i.test(CAT.PROFESOR[2].nom), 'el CMOC va después de los calcos')
+assert.deepEqual(CAT.PROFESOR[3].abrir.map((a) => a.h), ['cmoc', 'analisisIA'])
+assert.equal(CAT.PROFESOR.filter((p) => p.ogo).length, 1, 'un solo paso saca la OGO con anexos')
+assert.ok(CAT.PROFESOR.find((p) => p.organizaciones), 'el paso de unidades inserta organizaciones')
+assert.ok(/btn-cmoc-abrir/.test(js) && /"🪖 CMOC"/.test(js), 'el editor CMOC tiene su botón en el compilado')
+assert.deepEqual(CAT.FOCOS.map((f) => f.id), ['pmtd', 'g1', 'g2', 'g3', 'g4', 'g5'])
+CAT.FOCOS.forEach((f) => { assert.ok(f.nom && f.pide && f.deja, `foco ${f.id}`); f.secs.forEach((s) => assert.ok(CAT.SECCIONES[s])) })
+assert.equal(CAT.ANEXOS_OGO.length, 8)
+CAT.ANEXOS_OGO.forEach((a) => assert.ok(CAT.SECCIONES[a.sec]))
+assert.match(html, /modalidad\/ia-profesor\.js/)
+new vm.Script(fs.readFileSync(path.join(RAIZ, 'modalidad/ia-profesor.js'), 'utf8'))
 assert.equal(CAT.ESCALONES.length, 4)
 assert.deepEqual(CAT.ESCALONES.map((e) => e.id), ['fftt', 'ce', 'div', 'brig'])
 

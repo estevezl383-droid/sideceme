@@ -6,7 +6,9 @@
      dónde se abre (sección + número de hoja). Es lo que ve el ALUMNO en la modalidad
      Aprendizaje: un solo oficial hace todo el PMTD, paso a paso.
    · PROFESOR: los pasos para ARMAR un ejercicio, en orden, con la herramienta real de la Mesa
-     que abre cada uno. Es lo que ve el PROFESOR en su modalidad.
+     que abre cada uno y el pedido a la IA de cada paso. Es lo que ve el PROFESOR en su modalidad.
+   · FOCOS (qué G entrena el ejercicio), ANEXOS_OGO (con qué anexos sale la Orden del superior)
+     y ORGANIZACIONES (FF.TT., C.E., División, Brigada, COE tipo para insertar de una vez).
    Las hojas citadas (num + nom) existen en el compilado: la prueba calcos/pruebas/modalidad.cjs
    lo comprueba contra el compilado publicado, para que ningún «Abrir» quede apuntando al aire.
    Se carga en el navegador (window.SIDModalidadCatalogo) y en Node (module.exports). */
@@ -32,11 +34,13 @@
 
   // Herramientas de la Mesa que no son hojas (botones de la barra de arriba, del panel de la
   // izquierda o de la cinta de arriba). `donde`: 'barra' (.botones-mapa), 'panel' (izquierda),
-  // 'cinta' (cualquier botón de la página).
+  // 'cmoc' (los botones .btn-cmoc-abrir del panel de la izquierda: el editor CMOC y el Análisis
+  // IA aparecen recién cuando hay calcos generados), 'cinta' (cualquier botón de la página).
   var HERRAMIENTAS = {
     areaOps: { nom: 'Área de Operaciones', boton: /ÁREA DE OPS/i, donde: 'barra' },
     areaInteres: { nom: 'Área de Interés', boton: /ÁREA DE INTERÉS/i, donde: 'barra' },
     generarCalcos: { nom: '⚡ Generar calcos', boton: /Generar calcos/i, donde: 'panel' },
+    cmoc: { nom: '🪖 CMOC (editor del terreno)', boton: /^\W*CMOC$/i, donde: 'cmoc' },
     unidades: { nom: 'Unidades', boton: /^\W*UNIDADES$/i, donde: 'barra' },
     tareas: { nom: 'Tareas', boton: /^\W*TAREAS$/i, donde: 'barra' },
     caFases: { nom: 'C.A. por fases', boton: /C\.A\. POR FASES/i, donde: 'barra' },
@@ -44,7 +48,7 @@
     mesaEM: { nom: 'Mesa EM (Orden del escalón superior)', boton: /MESA EM|Mesa ·/i, donde: 'barra' },
     ejercicio: { nom: 'Ejercicio (documentos del ejercicio)', boton: /^\W*EJERCICIO$/i, donde: 'barra' },
     estudio: { nom: 'Estudio doctrinario', boton: /^\W*ESTUDIO$/i, donde: 'barra' },
-    analisisIA: { nom: 'Análisis IA', boton: /ANÁLISIS IA/i, donde: 'barra' },
+    analisisIA: { nom: '🧠 Análisis IA del terreno', boton: /ANÁLISIS IA/i, donde: 'cmoc' },
     enlaces: { nom: 'Los 5 enlaces', boton: /LOS 5 ENLACES|Ver los 5 enlaces/i, donde: 'cinta' }
   }
 
@@ -160,17 +164,110 @@
   // Los pasos para ARMAR el ejercicio (modalidad Profesor), en el orden en que la Mesa los
   // necesita: el mismo orden del tablero «Mesa · Preparación del ejercicio», más el principio
   // (quién soy y para quién) y el final (los documentos y el reparto).
-  var PROFESOR = [
-    { n: 1, nom: '¿Quién soy y para quién armo el ejercicio?', que: 'Elegí tu escalón: vos sos el Comandante del escalón SUPERIOR y escribís la Orden que reciben tus alumnos, que son los Comandantes del escalón de abajo. Eso define a qué nivel se dibuja todo lo demás.', escalon: true },
-    { n: 2, nom: 'Área de Operaciones y Área de Interés', que: 'Dibujá el Área de Operaciones que les asignás a los alumnos y, más grande, el Área de Interés (sobre esa se hace el análisis del terreno).', abrir: [T('areaOps'), T('areaInteres')] },
-    { n: 3, nom: 'Generar los calcos del terreno', que: 'Con el Área de Interés cargada, ⚡ Generar calcos: hidrografía, elevaciones, comunicaciones, poblaciones, vegetación. Es la base que reciben todos.', abrir: [T('generarCalcos')] },
-    { n: 4, nom: 'Orden del escalón superior', que: 'Escribí la Orden que vos, como Comandante superior, le das a la unidad de los alumnos: misión, intención, tareas, limitaciones, carta, PC. Está en el tablero «Mesa · Preparación» (abajo).', abrir: [T('mesaEM')] },
-    { n: 5, nom: 'Unidades propias y enemigas', que: 'Colocá las fichas: las unidades de los alumnos (propias) y el enemigo con su escalón real.', abrir: [T('unidades'), T('tareas')] },
-    { n: 6, nom: 'Situación enemiga por fases', que: 'Los cursos de acción del enemigo (el más probable y el más peligroso) por fases, y el plan de barreras si lo hay. Es lo que el G-2 de los alumnos va a tener que descubrir.', abrir: [T('caFases'), T('defensa')] },
-    { n: 7, nom: 'Documentos del ejercicio', que: 'Adjuntá la situación general, la particular, los anexos y la doctrina que la IA y los alumnos van a leer.', abrir: [T('ejercicio')] },
-    { n: 8, nom: 'Revisar los tableros de cada sección', que: 'Los botones CMTE., JEM., G-1 a G-5 y EME. te dejan mirar y corregir lo que va haciendo cada campo.', abrir: [{ s: 'g2' }, { s: 'g3' }] },
-    { n: 9, nom: 'Repartir el ejercicio', que: 'Cada oficial entra por SU enlace (?puesto=g2…) y ve sólo lo suyo. En la modalidad Aprendizaje, un alumno solo entra sin puesto y hace todo el PMTD.', abrir: [T('enlaces')] }
+  // Qué campo del Estado Mayor entrena el ejercicio: la OGO y sus anexos salen COMPLETOS en lo
+  // demás y dejan el TRABAJO al alumno en ese campo (es lo que la IA tiene que respetar).
+  var FOCOS = [
+    { id: 'pmtd', nom: 'PMTD completo (todas las secciones)', secs: ['cmte', 'jem', 'g1', 'g2', 'g3', 'g4', 'g5', 'eme'], deja: 'todo el PMTD: cada sección hace lo suyo',
+      pide: 'el PMTD entero: cada sección arma lo suyo. La OGO del escalón superior sale completa, con todos sus anexos, y los alumnos planifican su propia operación desde cero.' },
+    { id: 'g1', nom: 'G-1 · Personal', secs: ['g1'], deja: 'la apreciación de personal, el cálculo de bajas por fase y el Anexo de Personal',
+      pide: 'el PERSONAL: el Anexo de Personal del superior trae la situación de efectivos, bajas previstas, reemplazos, prisioneros, moral y disciplina, servicios de personal y administración, con DATOS concretos (porcentajes de efectivos por unidad, flujo de reemplazos, capacidad de evacuación), y deja al alumno la apreciación de personal, el cálculo de bajas por fase y el Anexo de Personal de su propia Orden.' },
+    { id: 'g2', nom: 'G-2 · Inteligencia', secs: ['g2'], deja: 'la PICB entera: CMOC, clima, amenaza, los CAE y la plantilla de eventos',
+      pide: 'la INTELIGENCIA: el Anexo de Inteligencia del superior trae la situación enemiga tal como la conoce el escalón superior (orden de batalla, dispositivo conocido, capacidades, vulnerabilidades, pero NO los cursos de acción del enemigo resueltos), los EEI/RCIC del superior y los medios de reunión asignados; deja al alumno la PICB entera: terreno (CMOC), clima, evaluación de la amenaza, cursos de acción enemigos más probable y más peligroso y plantilla de eventos.' },
+    { id: 'g3', nom: 'G-3 · Operaciones', secs: ['g3'], deja: 'el análisis de la misión, los CAP, el Juego de Guerra, la decisión y su Orden con el calco',
+      pide: 'las OPERACIONES: la OGO del superior trae misión, intención, concepto de la operación, tareas a las unidades subordinadas, medidas de coordinación y el calco de operaciones del superior; deja al alumno el análisis de la misión, los cursos de acción propios, el Juego de Guerra, la decisión y SU Orden de Operaciones con el calco de operaciones.' },
+    { id: 'g4', nom: 'G-4 · Logística', secs: ['g4'], deja: 'la apreciación logística, las necesidades por fase, el Anexo de Logística y el calco logístico',
+      pide: 'la LOGÍSTICA: el Anexo de Logística / Apoyo de Servicio de Combate del superior trae las instalaciones logísticas del superior, rutas principales de abastecimiento, niveles de abastecimiento por clase, dotaciones, mantenimiento, evacuación sanitaria y transporte, con DATOS concretos (toneladas, días de abastecimiento, capacidades), y deja al alumno la apreciación logística, el cálculo de necesidades por fase, el Anexo de Logística de su Orden y el calco logístico.' },
+    { id: 'g5', nom: 'G-5 · Asuntos Civiles / Gobierno Militar', secs: ['g5'], deja: 'la apreciación de asuntos civiles, los temas y mensajes y el Anexo de Asuntos Civiles',
+      pide: 'los ASUNTOS CIVILES: el Anexo de Asuntos Civiles del superior trae la situación de la población (localidades, desplazados, autoridades, recursos locales, infraestructura crítica, organismos y ONG presentes), las reglas de relación con la población y las limitaciones del superior; deja al alumno la apreciación de asuntos civiles, los temas y mensajes de información, el Anexo de Asuntos Civiles de su Orden y la coordinación civil-militar por fase.' }
   ]
 
-  return { SECCIONES: SECCIONES, HERRAMIENTAS: HERRAMIENTAS, FASES: FASES, PROFESOR: PROFESOR, ESCALONES: ESCALONES }
+  // Los anexos con que sale la OGO del escalón superior y qué sección la recibe. Las letras son
+  // las usuales en la Escuela; si el reglamento vigente las ordena distinto, el profesor las
+  // cambia en el pedido (la IA las respeta tal como se las dan).
+  var ANEXOS_OGO = [
+    { letra: 'A', nom: 'Inteligencia (con el calco de situación enemiga)', sec: 'g2' },
+    { letra: 'B', nom: 'Operaciones (calco de operaciones del superior, organización de la tarea)', sec: 'g3' },
+    { letra: 'C', nom: 'Apoyo de fuegos', sec: 'g3' },
+    { letra: 'D', nom: 'Logística / Apoyo de Servicio de Combate (con el calco logístico)', sec: 'g4' },
+    { letra: 'E', nom: 'Personal', sec: 'g1' },
+    { letra: 'F', nom: 'Asuntos Civiles / Gobierno Militar', sec: 'g5' },
+    { letra: 'G', nom: 'Comunicaciones (con la carta de comunicaciones)', sec: 'eme' },
+    { letra: 'H', nom: 'Ingenieros (plan de barreras y obstáculos del superior)', sec: 'eme' }
+  ]
+
+  // Organizaciones TIPO para insertar de una vez en la carta (paso «Unidades»): cada pieza con
+  // su designación (el %N es el número que escribe el profesor), el arma y el escalón del
+  // catálogo de la Mesa, y dónde va respecto del centro (en km: x al este, y al norte). Son
+  // ORGANIZACIONES GENÉRICAS de escuela, no la orgánica real de ningún ejército; el profesor
+  // las ajusta ficha por ficha en 🪖 Unidades después de insertarlas.
+  var ORGANIZACIONES = [
+    { id: 'fftt', nom: 'FF.TT. (teatro de operaciones) · 3 Cuerpos de Ejército', escalon: 'ejercito', piezas: [
+      { d: 'Cmdo. FF.TT. «%N»', arma: 'infanteria', esc: 'ejercito', x: 0, y: -40 },
+      { d: 'C.E. 1', arma: 'infanteria', esc: 'cuerpo', x: -60, y: 0 }, { d: 'C.E. 2', arma: 'infanteria', esc: 'cuerpo', x: 0, y: 0 }, { d: 'C.E. 3', arma: 'infanteria', esc: 'cuerpo', x: 60, y: 0 },
+      { d: 'Br. Art. FF.TT.', arma: 'artilleria', esc: 'brigada', x: -25, y: -30 }, { d: 'Br. Ing. FF.TT.', arma: 'ingenieria', esc: 'brigada', x: 25, y: -30 },
+      { d: 'Br. Av. Ej. FF.TT.', arma: 'aviacion', esc: 'brigada', x: 0, y: -55 }, { d: 'Br. Log. FF.TT.', arma: 'logistica', esc: 'brigada', x: 0, y: -75 } ] },
+    { id: 'ce', nom: 'Cuerpo de Ejército · 3 Divisiones', escalon: 'cuerpo', piezas: [
+      { d: 'Cmdo. C.E. %N', arma: 'infanteria', esc: 'cuerpo', x: 0, y: -25 },
+      { d: 'D.I. %N1', arma: 'infanteria', esc: 'division', x: -30, y: 0 }, { d: 'D.I. %N2', arma: 'infanteria', esc: 'division', x: 0, y: 0 }, { d: 'D. Mec. %N3', arma: 'mecanizada', esc: 'division', x: 30, y: 0 },
+      { d: 'Br. Bl. C.E. %N', arma: 'blindada', esc: 'brigada', x: 0, y: -12 },
+      { d: 'Agr. Art. C.E. %N', arma: 'artilleria', esc: 'brigada', x: -15, y: -18 }, { d: 'Agr. Ing. C.E. %N', arma: 'ingenieria', esc: 'brigada', x: 15, y: -18 },
+      { d: 'B. Com. C.E. %N', arma: 'comunicaciones', esc: 'batallon', x: -6, y: -30 }, { d: 'G. D.A.A. C.E. %N', arma: 'antiaerea', esc: 'regimiento', x: 6, y: -30 },
+      { d: 'Agr. Log. C.E. %N', arma: 'logistica', esc: 'brigada', x: 0, y: -40 } ] },
+    { id: 'di', nom: 'División de Infantería · 3 Brigadas', escalon: 'division', piezas: [
+      { d: 'Cmdo. D.I. %N', arma: 'infanteria', esc: 'division', x: 0, y: -12 },
+      { d: 'Br. I. %N1', arma: 'infanteria', esc: 'brigada', x: -14, y: 0 }, { d: 'Br. I. %N2', arma: 'infanteria', esc: 'brigada', x: 0, y: 0 }, { d: 'Br. I. Mot. %N3', arma: 'motorizada', esc: 'brigada', x: 14, y: 0 },
+      { d: 'R.C. %N', arma: 'caballeria', esc: 'regimiento', x: 0, y: 8 },
+      { d: 'R.A. %N', arma: 'artilleria', esc: 'regimiento', x: -7, y: -8 }, { d: 'B. Ing. %N', arma: 'ingenieria', esc: 'batallon', x: 7, y: -8 },
+      { d: 'B. Com. %N', arma: 'comunicaciones', esc: 'batallon', x: -4, y: -17 }, { d: 'G. D.A.A. %N', arma: 'antiaerea', esc: 'batallon', x: 4, y: -17 },
+      { d: 'B. Log. %N', arma: 'logistica', esc: 'batallon', x: 0, y: -22 } ] },
+    { id: 'dmec', nom: 'División Mecanizada · 2 Br. Mec. + 1 Br. Bl.', escalon: 'division', piezas: [
+      { d: 'Cmdo. D. Mec. %N', arma: 'mecanizada', esc: 'division', x: 0, y: -12 },
+      { d: 'Br. Mec. %N1', arma: 'mecanizada', esc: 'brigada', x: -14, y: 0 }, { d: 'Br. Mec. %N2', arma: 'mecanizada', esc: 'brigada', x: 14, y: 0 }, { d: 'Br. Bl. %N3', arma: 'blindada', esc: 'brigada', x: 0, y: -4 },
+      { d: 'R.C. Mec. %N', arma: 'cabmec', esc: 'regimiento', x: 0, y: 8 },
+      { d: 'R.A. Aut. %N', arma: 'artilleria', esc: 'regimiento', x: -7, y: -8 }, { d: 'B. Ing. Mec. %N', arma: 'ingenieria', esc: 'batallon', x: 7, y: -8 },
+      { d: 'B. Com. %N', arma: 'comunicaciones', esc: 'batallon', x: -4, y: -17 }, { d: 'G. D.A.A. %N', arma: 'antiaerea', esc: 'batallon', x: 4, y: -17 },
+      { d: 'B. Log. %N', arma: 'logistica', esc: 'batallon', x: 0, y: -22 } ] },
+    { id: 'brig', nom: 'Brigada · 3 unidades de maniobra', escalon: 'brigada', piezas: [
+      { d: 'Cmdo. Br. %N', arma: 'infanteria', esc: 'brigada', x: 0, y: -5 },
+      { d: 'R.I. %N1', arma: 'infanteria', esc: 'regimiento', x: -6, y: 0 }, { d: 'R.I. %N2', arma: 'infanteria', esc: 'regimiento', x: 0, y: 0 }, { d: 'R.I. Mec. %N3', arma: 'mecanizada', esc: 'regimiento', x: 6, y: 0 },
+      { d: 'Esc. C. %N', arma: 'caballeria', esc: 'compania', x: 0, y: 3.5 },
+      { d: 'G.A. %N', arma: 'artilleria', esc: 'batallon', x: -3, y: -3.5 }, { d: 'Cía. Ing. %N', arma: 'ingenieria', esc: 'compania', x: 3, y: -3.5 },
+      { d: 'Cía. Com. %N', arma: 'comunicaciones', esc: 'compania', x: -2, y: -8 }, { d: 'Cía. Log. %N', arma: 'logistica', esc: 'compania', x: 2, y: -8 } ] },
+    { id: 'coe', nom: 'COE · Comando de Operaciones Especiales', escalon: 'brigada', piezas: [
+      { d: 'Cmdo. COE %N', arma: 'infanteria', esc: 'brigada', x: 0, y: -5 },
+      { d: 'R. F.E. %N1', arma: 'infanteria', esc: 'regimiento', x: -6, y: 0 }, { d: 'R. F.E. %N2', arma: 'infanteria', esc: 'regimiento', x: 6, y: 0 },
+      { d: 'B. Aerotr. %N', arma: 'aerotransportada', esc: 'batallon', x: 0, y: 0 },
+      { d: 'B. As. Aéreo %N', arma: 'aviacion', esc: 'batallon', x: 0, y: -10 },
+      { d: 'Cía. Com. COE %N', arma: 'comunicaciones', esc: 'compania', x: -3, y: -8 }, { d: 'Cía. Intel. COE %N', arma: 'inteligencia', esc: 'compania', x: 3, y: -8 } ] }
+  ]
+
+  // Los pasos para ARMAR el ejercicio (modalidad Profesor), en el orden en que la Mesa los
+  // necesita: el mismo orden del tablero «Mesa · Preparación del ejercicio», más el principio
+  // (quién soy, para quién y qué G entreno) y el final (los documentos y el reparto). Cada paso
+  // tiene su pedido a la IA (`ia`: qué se le pide; ia-profesor.js arma el texto con el
+  // ejercicio) y el 4 (Orden) es el que saca la OGO completa con sus anexos.
+  var PROFESOR = [
+    { n: 1, nom: '¿Quién soy, para quién y qué entreno?', que: 'Elegí tu escalón: vos sos el Comandante del escalón SUPERIOR y escribís la Orden que reciben tus alumnos, que son los Comandantes del escalón de abajo. Y elegí qué campo entrena el ejercicio (G-1 a G-5 o el PMTD completo): la OGO y sus anexos salen completos en lo demás y dejan el trabajo en ese campo.', escalon: true,
+      ia: { tit: 'Idea del ejercicio', pide: 'Proponé la IDEA GENERAL del ejercicio: tema táctico, tipo de operación (ofensiva / defensiva / retrógrada), enemigo genérico, qué decisión tiene que tomar el alumno y qué productos se le van a corregir según el campo que entrena. En media carilla, y una lista de 5 objetivos de aprendizaje medibles.' } },
+    { n: 2, nom: 'Área de Operaciones y Área de Interés', que: 'Dibujá el Área de Operaciones que les asignás a los alumnos y, más grande, el Área de Interés (sobre esa se hace el análisis del terreno).', abrir: [T('areaOps'), T('areaInteres')],
+      ia: { tit: 'Área de Operaciones e Interés', pide: 'Con el terreno del ejercicio, proponé los LÍMITES del Área de Operaciones de la unidad de los alumnos (límites laterales, línea de partida / borde anterior, límite de retaguardia, profundidad) y del Área de Interés, con los accidentes del terreno que los definen (ríos, cordones, rutas, localidades) y sus coordenadas aproximadas. Justificá cada límite con la doctrina del escalón.' } },
+    { n: 3, nom: 'Generar los calcos del terreno', que: 'Con el Área de Interés cargada, ⚡ Generar calcos: hidrografía, elevaciones, comunicaciones, poblaciones, vegetación. Es la base que reciben todos.', abrir: [T('generarCalcos')],
+      ia: { tit: 'Calcos del terreno', pide: 'Hacé el ANÁLISIS DESCRIPTIVO del terreno del Área de Interés por calco: hidrografía (cursos de agua, ancho, vadeabilidad, puentes), relieve (alturas dominantes, pendientes, observación y campos de tiro), comunicaciones (rutas, capacidad, puntos críticos), poblaciones (tamaño, infraestructura) y vegetación (cubierta y encubrimiento). Un cuadro por calco y, al final, qué le falta al profesor completar a mano.' } },
+    { n: 4, nom: 'CMOC: avenidas de aproximación y terreno clave', que: 'Sobre los calcos, el CMOC (Calco de Modificaciones y Obstáculos Combinados): terreno restringido y severamente restringido, corredores de movilidad, AVENIDAS DE APROXIMACIÓN (propias y enemigas, terrestres y aéreas), terreno clave y decisivo, obstáculos. Es lo que el G-2 de los alumnos tiene que llegar a producir; el profesor lo arma primero para saber a dónde apunta el ejercicio. Hay que haber generado los calcos antes.', abrir: [T('cmoc'), T('analisisIA')],
+      ia: { tit: 'CMOC (análisis del terreno)', pide: 'Hacé el CMOC del Área de Interés: 1) terreno RESTRINGIDO y SEVERAMENTE RESTRINGIDO para la unidad y la época; 2) CORREDORES DE MOVILIDAD por escalón (dos niveles abajo de la unidad de los alumnos); 3) AVENIDAS DE APROXIMACIÓN (2 a 4) del escalón de los alumnos, propias y enemigas, cada una con su nombre, los corredores que agrupa, ancho, longitud, capacidad (qué escalón soporta), terreno restringido que la limita, observación, campos de tiro, cubierta y encubrimiento, obstáculos, y una CALIFICACIÓN con los cinco factores (OCOKA / OCECA); 4) avenidas aéreas; 5) TERRENO CLAVE y DECISIVO con el porqué; 6) OBSTÁCULOS existentes. Con coordenadas aproximadas, para dibujarlo en el editor CMOC de la Mesa. Si el ejercicio entrena al G-2, este análisis es la SOLUCIÓN DEL PROFESOR y no va a los alumnos.' } },
+    { n: 5, nom: 'Orden del escalón superior (OGO con anexos)', que: 'Escribí la Orden que vos, como Comandante superior, le das a la unidad de los alumnos: misión, intención, tareas, limitaciones, carta, PC. Está en el tablero «Mesa · Preparación» (abajo). 🤖 La IA te arma la OGO COMPLETA con todos sus anexos según el campo que entrena el ejercicio.', abrir: [T('mesaEM')], ogo: true,
+      ia: { tit: 'OGO del escalón superior con todos sus anexos', pide: '' } },
+    { n: 6, nom: 'Unidades propias y enemigas', que: 'Colocá las fichas: las unidades de los alumnos (propias) y el enemigo con su escalón real. Podés INSERTAR DE UNA VEZ una organización tipo (FF.TT., Cuerpo de Ejército, División, Brigada, COE) de AZUL o de ROJO y después ajustarla ficha por ficha, o pegar las fichas que te proponga la IA.', abrir: [T('unidades'), T('tareas')], organizaciones: true,
+      ia: { tit: 'Orden de batalla de los dos bandos', pide: 'Proponé el ORDEN DE BATALLA de los dos bandos para este ejercicio (si hay COE u organizaciones en la BIBLIOTECA DEL PROFESOR, usá ESAS unidades con sus designaciones y efectivos, no inventes otras): AZUL (la unidad de los alumnos con sus subordinados dos niveles abajo, refuerzos y reducciones) y ROJO (el enemigo con el escalón que la doctrina asigna frente a la unidad de los alumnos, su dispositivo inicial y sus reservas). Para cada unidad: designación, arma, escalón, bando y dónde está (lat, lng) sobre el terreno del ejercicio, coherente con las avenidas de aproximación. Devolvé ADEMÁS un bloque ```json con la lista de fichas en el formato que te doy en FORMATO DE LAS FICHAS, para pegarlo en la Mesa.' } },
+    { n: 7, nom: 'Situación enemiga por fases', que: 'Los cursos de acción del enemigo (el más probable y el más peligroso) por fases, y el plan de barreras si lo hay. Es lo que el G-2 de los alumnos va a tener que descubrir.', abrir: [T('caFases'), T('defensa')],
+      ia: { tit: 'Cursos de acción del enemigo por fases', pide: 'Desarrollá los dos CURSOS DE ACCIÓN DEL ENEMIGO (el más probable y el más peligroso) sobre las avenidas de aproximación del CMOC, por FASES (3 a 4), cada fase con: el objetivo del enemigo, el dispositivo (qué unidad por dónde), los tiempos (D/H), los puntos de decisión del enemigo, las áreas de interés designadas y los indicadores que los alumnos deberían reunir. Si el enemigo defiende, su plan de barreras (obstáculos, fuegos, reservas). Es la SOLUCIÓN DEL PROFESOR: no va a los alumnos, se usa para corregirlos.' } },
+    { n: 8, nom: 'Documentos del ejercicio', que: 'Adjuntá la situación general, la particular, los anexos y la doctrina que la IA y los alumnos van a leer. Lo que ya tenés (COE, organización y armamento del enemigo, reglamentos) va en 📚 Mis documentos, arriba de este tablero: se carga una vez y entra en todos los pedidos.', abrir: [T('ejercicio')],
+      ia: { tit: 'Situación general y particular', pide: 'Escribí la SITUACIÓN GENERAL (el conflicto, los países o fuerzas ficticias, el teatro, lo que pasó hasta D-30, las fuerzas en presencia en el teatro) y la SITUACIÓN PARTICULAR (lo que ve la unidad de los alumnos: su situación a D-5, el enemigo que tiene enfrente, los vecinos, lo que recibió del superior hasta ahora), listas para adjuntar al ejercicio como documentos. Coherentes con la OGO y con el campo que entrena el ejercicio.' } },
+    { n: 9, nom: 'Revisar los tableros de cada sección', que: 'Los botones CMTE., JEM., G-1 a G-5 y EME. te dejan mirar y corregir lo que va haciendo cada campo.', abrir: [{ s: 'g2' }, { s: 'g3' }],
+      ia: { tit: 'Pauta de corrección', pide: 'Armá la PAUTA DE CORRECCIÓN del ejercicio para el campo que entrena: qué productos tiene que entregar el alumno (por fase del PMTD), qué debe contener cada uno para estar bien hecho, los errores típicos que hay que buscar y una rúbrica (criterio · puntaje · evidencia) que sume 100 puntos. Incluí la SOLUCIÓN ESPERADA en una columna aparte para el profesor.' } },
+    { n: 10, nom: 'Repartir el ejercicio', que: 'Cada oficial entra por SU enlace (?puesto=g2…) y ve sólo lo suyo. En la modalidad Aprendizaje, un alumno solo entra sin puesto y hace todo el PMTD.', abrir: [T('enlaces')],
+      ia: { tit: 'Instrucciones para los alumnos', pide: 'Redactá las INSTRUCCIONES DEL EJERCICIO para los alumnos: situación de partida, qué rol ocupan, qué reciben (la OGO con qué anexos), qué tienen que producir y cuándo (cronograma por fase del PMTD con horas), cómo entran a la Mesa (su enlace y su puesto), qué pueden consultar y qué no, y cómo se los va a evaluar. En una carilla, en el tono de la Escuela.' } }
+  ]
+
+  return { SECCIONES: SECCIONES, HERRAMIENTAS: HERRAMIENTAS, FASES: FASES, PROFESOR: PROFESOR, ESCALONES: ESCALONES, FOCOS: FOCOS, ANEXOS_OGO: ANEXOS_OGO, ORGANIZACIONES: ORGANIZACIONES }
 })
