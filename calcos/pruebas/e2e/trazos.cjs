@@ -155,10 +155,12 @@ async function preparar({ vista = '2d', movil = false, comoSafari = false } = {}
   if (await ocultar.count()) await ocultar.first().click().catch(() => {})
   // El encuadre se hace desde el 3D, que expone su mapa y el de Leaflet.
   await entrar3D(page)
-  await page.evaluate((v) => {
+  // En la pantalla más angosta del iPad el panel de la izquierda tapa el oeste de la carta (en el
+  // 3D inclinado, la punta oeste de la línea): se corre el centro 0,01° al oeste (~67 px).
+  await page.evaluate(([v, lng]) => {
     window.__lm2d = window.__espejo3d.lm
-    window.__map3d.jumpTo({ center: [-65.07, -17.015], zoom: 13.2, pitch: v === '3d' ? 30 : 0, bearing: 0 })
-  }, vista)
+    window.__map3d.jumpTo({ center: [lng, -17.015], zoom: 13.2, pitch: v === '3d' ? 30 : 0, bearing: 0 })
+  }, [vista, movil ? -65.08 : -65.07])
   await page.waitForTimeout(3000)
   if (vista === '2d') await salir3D(page)
   return m
