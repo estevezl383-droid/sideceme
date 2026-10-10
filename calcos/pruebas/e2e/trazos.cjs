@@ -28,9 +28,10 @@ const P = {
   frente: [[-65.093, -17.006], [-65.093, -17.016], [-65.093, -17.026]],
   contorno: [-65.08, -17.016],
   linea: [[-65.095, -17.025], [-65.085, -17.03], [-65.075, -17.025]],
-  // El segundo Área de Operaciones, ADENTRO del primero y lejos de su borde.
+  // El segundo Área de Operaciones, ADENTRO del primero y lejos de su borde. El vértice de
+  // contorno va al sur de «ALFA»: desde que las fichas se ven +50 % (09-10-2026) la tapaba.
   frente2: [[-65.087, -17.009], [-65.087, -17.019]],
-  contorno2: [-65.075, -17.014],
+  contorno2: [-65.075, -17.019],
 }
 // Desde la edición de figuras (03-10-2026), con una herramienta encendida y sin trazo en curso,
 // tocar una figura ya dibujada la ELIGE (para editarla) en vez de empezar otro trazo encima

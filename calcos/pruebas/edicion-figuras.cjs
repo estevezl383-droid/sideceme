@@ -171,9 +171,14 @@ caso('borrar un área logística: se van las marcas que armó con ella', () => {
 
 caso('«Magnitud que se va a colocar»: con un Área de Operaciones sólo el escalón que le toca', () => {
   const lista = [{ id: 'equipo' }, { id: 'compania' }, { id: 'regimiento' }, { id: 'brigada' }, { id: 'division' }, { id: 'cuerpo' }, { id: 'ejercito' }]
-  const cuerpo = ao() // 10,6 km de frente en defensiva, llanura → Cuerpo de Ejército
+  // PMTD 2017 Tabla 45 (reemplazos-2026-10-09-frentes): en defensiva y llanura la División
+  // va de 6 a 9 km de frente y el Cuerpo de 18 a 27 km.
+  const cuerpo = { ...ao(), frenteM: 20000 } // 20 km de frente en defensiva, llanura → Cuerpo de Ejército
   assert.deepEqual(J(escalones(cuerpo)), ['cuerpo'])
   assert.deepEqual(J(opEsc(lista, cuerpo)).map((x) => x.id), ['cuerpo'])
+  const entre = ao() // 10,6 km: entre la División y el Cuerpo → ofrece los dos
+  assert.deepEqual(J(escalones(entre)), ['division', 'cuerpo'])
+  assert.deepEqual(J(opEsc(lista, entre)).map((x) => x.id), ['division', 'cuerpo'])
   assert.deepEqual(J(escalones({ ...cuerpo, frenteM: 7000 })), ['division'])
   assert.deepEqual(J(escalones({ ...cuerpo, frenteM: 2000 })), ['regimiento'])
   assert.deepEqual(J(escalones({ ...cuerpo, tipo: 'ofensiva', frenteM: 2000 })), ['brigada'])
