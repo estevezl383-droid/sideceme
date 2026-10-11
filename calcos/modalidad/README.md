@@ -17,6 +17,9 @@ React, no guarda nada en el ejercicio y se puede quitar sacando tres líneas del
 | `ia-profesor.js` | **La IA del profesor** (puro, se prueba en Node): `armarPedido(paso, ctx)` arma el pedido de cada paso con el escalón, el foco y el ejercicio recortado (la Orden escrita, las fichas, el CMOC, los documentos adjuntos); el del paso 5 pide **lo esencial de la Orden** (los campos de «Mesa · Preparación»). `fichasDeOrganizacion` y `fichasDeJSON` arman las fichas (la forma de `academico.js`) de una organización tipo o del bloque ```json que devuelve la IA. |
 | `ogo-modelos.js` | **📜 Los modelos de la OGO y sus anexos** (datos): la Orden de Operaciones, el Calco, los planes de Inteligencia, Apoyo de Fuegos (y el apéndice de Fuegos de Artillería), Ingeniería, Defensa Antiaérea, Comunicaciones, Logística, Personal, AC/GM, Apoyo de Servicio de Combate y Engaño, cada uno con su **modelo de la Escuela** (los párrafos con su numeración y lo que tiene que decir cada uno, del .zip «MODELOS DE CONTENIDO DE DOCUMENTOS»), su sección, su autenticador y los apartados que revisa `ogo.js`. |
 | `ogo.js` | **📜 La OGO completa** (puro, se prueba en Node): el pedido de cada documento, la revisión contra su modelo, lo que contestó la IA pasado a la forma del Word militar de la Mesa (`formato-militar/v1/word.js`), el .md de ida y vuelta y los documentos para el ejercicio. |
+| `ogo-mesa.js` | **📍 Lo que la OGO lee de la Mesa** (puro): quién expide (el «¿Quién soy?» del inicio), su escalón superior (FF.TT.T.O. → **CTO**), los alumnos (las fichas del escalón de abajo), el **CG por la población más cercana** a su PC (capa «Centros poblados» de los calcos), el reconocimiento de designaciones («I CUERPO DE EJÉRCITO (I CE)» = «CE-I»), las unidades de la organización de la tarea, las que faltan en la carta y dónde ponerlas. |
+| `ogo-coherencia.js` | **🔎 La revisión de coherencia** (puro): UN pedido con todos los documentos, leer la respuesta consolidada (en partes), aplicarla y volver atrás; **📍 las unidades por ubicar** con ✓ Aceptar (la ficha y los documentos sin «(supuesto)»). |
+| `ogo-calco.js` | **🗺️ El Anexo A como gráfico** (puro: arma un SVG): el Área de Operaciones, los límites con su magnitud, las medidas, las fichas propias con su símbolo, los PC y las **dos cruces de amarre** sobre la cuadrícula UTM con sus coordenadas; el navegador lo pasa a PNG para el Word. |
 | `carpeta.js` | **📕 La carpeta del profesor** (pura, se prueba en Node): las respuestas de la IA de cada paso, lo «PARA EL PROFESOR» que se va sumando, lo que es solución y lo que va a los alumnos, el bloque para los pedidos que siguen y el .md para bajarla y volver a cargarla. |
 | `biblioteca.js` | **📚 La biblioteca del profesor** (puro, se prueba en Node con `jszip.min.js`): lee un Word (.docx) con sus párrafos y TABLAS; reconoce el **COE** (la tabla «CLASE \| CMDO. \| RCB-1 \| … \| TOTAL» con PERSONAL · ARMAMENTO · VEHÍCULOS · EQUIPO ESPECIAL) y devuelve la División con cada unidad, su efectivo, armamento y vehículos; da el arma y el escalón de la Mesa por la sigla (RCB, RIM, RIAT, RAM, BAT. AA, BATING, BAT. COM, BAT. LOG, COMP. ICIA, ERM, RI, RAC…); arma las fichas de un COE y el resumen para la IA. |
 | `modalidad.js` | El selector **🎖️ Mesa · 🎓 Aprendizaje · 🧑‍🏫 Profesor** y el tablero de la derecha. |
@@ -31,6 +34,11 @@ botón **«Siguiente: F2·P3 ▸»** (el primer paso sin marcar). Al abrir una h
 a una pestaña vertical en el borde derecho (como Superponer) y se vuelve a abrir desde ahí.
 
 ### 🧑‍🏫 Profesor
+**Desde el 11-10-2026 son 13 pasos:** … 10 📜 OGO completa con sus anexos · **11 🔎 Revisión de coherencia:
+documentos consolidados** · **12 📍 Unidades que faltan en la carta** · **13 📤 Repartir el ejercicio** (ver
+«🔎 La OGO sin contradicciones, las unidades que faltan, el calco gráfico y el reparto», abajo). Las claves
+`n` nuevas son 12 y 13; «Repartir» conserva su `n: 10` (se muestra como 13).
+
 Tablero «Armar el ejercicio»: 1 ¿quién soy, para quién y qué entreno? (el **escalón**: muestra
 quiénes son los alumnos y qué Orden se escribe; y el **foco**: G-1 · G-2 · G-3 · G-4 · G-5 o el
 PMTD completo) · 2 Área de Operaciones y de Interés · 3 Generar calcos · **4 CMOC** (avenidas de
@@ -41,6 +49,81 @@ del ejercicio · 9 Revisar los tableros de cada sección (los ocho botones) · *
 sus anexos** · 11 Repartir (Los 5 enlaces). El mismo orden del tablero «Mesa · Preparación».
 (Lo marcado y la carpeta se guardan por la clave `n` de cada paso: la OGO es `n: 11` y se muestra
 como 10; «Repartir» sigue siendo `n: 10` y se muestra como 11, así no se mezcla lo ya guardado.)
+
+**🔎 La OGO sin contradicciones, las unidades que faltan, el calco gráfico y el reparto (11-10-2026, tarde).**
+Lo pidió Sergio con capturas del paso 10 y del Word del Anexo A, el calco de la Escuela (RI-13 «MONTES») y
+la organización de la tarea con unidades «(supuesto)»: «antes del paso 11 una revisión de todos los
+documentos que arregle contradicciones o incoherencias… que se conviertan en documentos sólidos»; «generame
+esas unidades y su ubicación, y que me salga un panel que diga aceptar»; «el calco es un gráfico, no es
+texto… el Área de Operaciones, las unidades, las dos cruces de amarre con sus coordenadas»; «siempre que se
+habla de FF.TT.T.O. el escalón superior es el CTO… la unidad considerada ya te dije al inicio… el CG tiene el
+nombre de la población más cercana… No. 002/XYZ… APÉNDICES: S/A.»; y «compartir a los alumnos por ciclo o por
+paralelo, siempre con el JSON, y con mi tijerita compartirles sólo la parte que seleccione».
+- **El membrete** (`ogo-mesa.js` + `ogo.js · completarConfig/cfgWord`): lo vacío de «🧾 Datos de la Orden»
+  se completa con la Mesa (y dice de dónde salió): **quien expide** es el «¿Quién soy?» del inicio del
+  ejercicio cuando es del escalón del profesor (o si «Mesa · Preparación» no nombra otro escalón superior, o
+  nombra el suyo); si no, el «Escalón superior» de «Mesa · Preparación» (y el «¿Quién soy?» son los alumnos).
+  El **escalón superior de las FF.TT.T.O. es el CTO**. Los **alumnos**, las fichas propias del escalón de
+  abajo («CE-I, CE-II y CE-III»). El **CG**, la población más cercana a la ficha (o al PC) de quien expide,
+  de la capa «Centros poblados» de los calcos (hasta 60 km). La **fecha** la fija la IA: cada pedido le dice
+  la de la OGO o, si no hay, que la escriba en la primera línea («FECHA Y HORA: D-60 (0800)»); esa línea va
+  al membrete de todos los documentos (`est.auto.fechaHora`, la de la Orden manda) y no al cuerpo. Sin
+  iniciales, **«No. 002/XYZ.»** (el correlativo es el del documento en su sección: la Orden es la 001 del
+  EMO/SEC-III y el calco la 002). Sin apéndices, **«APÉNDICES : S/A.»** (también si la IA escribió «Sin
+  novedad.»). Firma «EL COMANDANTE DE LAS FF.TT.T.O.»; distribución «Original: CTO». El Word queda:
+  `CTO` / `FF.TT.T.O.  CG. Tunapa. D-60 (0800)` / `EMO/SEC-III` / `No. 002/XYZ.`. Cada pedido lleva además
+  la población más cercana a cada ficha propia y las del Área de Operaciones, con la regla de nombrar PC,
+  CG e instalaciones por la población más cercana, y la de marcar «(supuesto)» la unidad que no esté en la
+  carta (la Mesa se la ofrece al profesor para colocarla).
+- **El Anexo A es un GRÁFICO** (`ogo-calco.js`): el Word del calco lleva la imagen de lo dibujado en la Mesa
+  —el Área de Operaciones de quien expide (la MÁS GRANDE de las áreas; las cortadas con la tijera van
+  punteadas), los límites con su magnitud (XXX…), las líneas, zonas, objetivos y puntos de las medidas, las
+  fichas PROPIAS con su marco, su arma y su escalón (el enemigo va en el Anexo de Inteligencia), los PC con
+  su asta— y las **dos cruces de amarre** (noroeste y sudeste) sobre la cuadrícula UTM (10 km para un
+  Teatro), con los dos dígitos principales al lado de cada brazo, como en el calco de la Escuela, y al pie la
+  coordenada entera (UTM y geográfica) y la escala gráfica. Sin texto «REFERENCIAS DEL CALCO»: la IA las
+  sigue escribiendo para controlar que todo lo que nombra la Orden esté dibujado. Sin escribir, el calco
+  igual sale (🗺️ gráfico de la Mesa): el OBJETO y la CARTA los pone la Mesa. Un calco alto se achica para
+  entrar en la hoja.
+- **Paso 11 · 🔎 Revisión de coherencia** (`ogo-coherencia.js · pedido`): UN pedido con TODOS los documentos
+  escritos (cada uno con su marca `=== DOCUMENTO: id · título ===`), los datos fijos del membrete, la lista
+  de chequeo (misma misión, fases y fechas, misma organización de la tarea y designaciones, mismas letras,
+  mismas coordenadas dentro del Área de Operaciones, PC por la población más cercana, apoyos que sostienen
+  la maniobra, tiempos que encajan, escalón, sin vacíos, ninguna unidad «(supuesto)»), las fichas de la carta
+  con su población más cercana, las unidades que nombran los documentos y no están en la carta, las
+  poblaciones y el contexto de siempre. La IA contesta `=== REVISIÓN ===` (lo que corrigió),
+  `=== DATOS ===` (```json con la fecha, las unidades que faltan con su ubicación y las medidas) y cada
+  documento consolidado. **💾 Aplicar** reemplaza cada documento (el anterior queda: **↶ Volver a lo
+  anterior**); si la IA cortó («SIGUE: …»), **🤖 Pedido para seguir** pide sólo los que faltan, en la misma
+  conversación; lo pegado puede ir en varias partes, una debajo de la otra. Un documento que no es de la
+  OGO se avisa y no se toca.
+- **Paso 12 · 📍 Unidades que faltan en la carta** (`porUbicar` / `aceptar`): las de los DATOS de la IA y las
+  de la organización de la tarea de la Orden («GALM-1 (OPCON…)», «BATALLÓN LOGÍSTICO DE FF.TT.: Orgánico
+  (supuesto)»…) que no están entre las fichas propias (ni quien expide, ni el enemigo), cada una con su
+  ubicación —la de la IA o la que sugiere la Mesa: lo logístico y la aviación detrás del PC, ingenieros y
+  comunicaciones a su costado, la artillería entre el PC y el enemigo, la maniobra adelante, siempre dentro
+  del Área de Operaciones— y la **población más cercana**. **✓ Aceptar** (o ✓ Aceptar todas) la pone en la
+  carta por el puente (`agregarUnidades`; el ↶ Deshacer de la barra la quita) y saca el «(supuesto)» de las
+  líneas de los documentos que la nombran; **✕ No colocar** (↺ la vuelve a ofrecer). Al aplicar la
+  coherencia, si hay unidades para colocar, el tablero baja a este paso.
+- **Paso 13 · 📤 Repartir**: 1) los documentos consolidados (se eligen) con **⬇️ Word (.zip) con el JSON**,
+  **⬇️ JSON del ejercicio** y **📎 Adjuntar al ejercicio** (el Anexo A va como la IMAGEN del calco); 2) qué
+  parte del ejercicio va: las áreas, con la **seleccionada en la Mesa** marcada (la que se acaba de cortar con
+  la **✂️ tijera / lazo**; si se corta otra, pasa a ser ésa; lo elegido queda en el navegador), «✂️ Elegir
+  otra parte con la tijera» abre ▧ ÁREA DE OPS, y lo de adentro (límites, medidas, fichas; el enemigo si se
+  marca); 3) **a quién**: «👥 Ver a quién» trae de SIDECEME los destinos **por ciclo** («Todo el 1ER CICLO»),
+  **por paralelo** («1ER CICLO · Paralelo A») y los Estados Mayores; nombre del envío e indicaciones (las del
+  paso 13 de la carpeta, si están) y **📤 Enviar a los alumnos**. Va por calco-ops (`areas_destinos`,
+  `ejercicio_enviar`: la Mesa del profesor tal como está, sin esperar al autoguardado; ver
+  `areas-operaciones/README.md`); el cursante lo recibe en su Mesa en ▧ ÁREA DE OPS → «Compartir en la
+  aplicación / Recibidos» → «Incorporar al ejercicio». El JSON es el paquete de áreas de la Mesa
+  (`sideceme-areas-operaciones`), con los documentos: se abre con «Importar áreas compartidas».
+- Queda en el IndexedDB «sid-profesor-ogo» (como la OGO): la revisión (`coherencia`), lo colocado
+  (`colocadas`) y lo descartado; viaja en el .md de la OGO.
+- Lo que NO hace: no llama a la IA; no dibuja en la carta las MEDIDAS que trae la IA (las lista en los DATOS
+  para dibujarlas a mano en ⚫ MEDIDAS: el puente sólo coloca fichas); la ubicación sugerida por la Mesa es una
+  regla de distancia, no un análisis del terreno (se ajusta en 🪖 Unidades); el envío por ciclo/paralelo
+  necesita la versión nueva de calco-ops publicada (mientras tanto, el tablero lo avisa y queda el ⬇️ JSON).
 
 **📜 La OGO completa con sus anexos (11-10-2026).** Lo pidió Sergio con el .zip «MODELOS DE
 CONTENIDO DE DOCUMENTOS» (la Orden de Operaciones y los planes de apoyo de la Escuela): «cuando
@@ -242,6 +325,24 @@ puede tocar.
   `HERRAMIENTAS` en `catalogo.js` (la prueba avisa).
 
 ## Cómo se comprobó
+- `node calcos/pruebas/ogo-coherencia.cjs` (11-10-2026, tarde): las designaciones («I CUERPO DE EJÉRCITO (I CE)» =
+  «CE-I», GALM-1 por su sigla), la capa de poblaciones y la más cercana, el Área de Operaciones más grande,
+  quién expide (FF.TT.T.O. · CTO · CE-I, CE-II y CE-III · Tunapa) en sus tres casos, las unidades de la
+  organización de la tarea (OPCON, «(supuesto)»), las que faltan y la ubicación sugerida (dentro del área,
+  lo logístico detrás del PC, la artillería hacia el enemigo), la fecha que fija la IA, el membrete del Word
+  (`No. 002/XYZ.`, `S/A.`, la imagen en lugar de las referencias), el pedido de coherencia, leer la respuesta
+  (`fixtures/ogo-consolidado-ia.md`: marcas adornadas, «SIGUE», un anexo que no es de la OGO), aplicar en
+  dos partes, volver atrás, el pedido para seguir, ✓ Aceptar / ✕ No colocar, el .md de ida y vuelta, UTM, el
+  dibujo del calco (sin el enemigo, con las dos cruces) y el Word del Anexo A con la imagen.
+- `node calcos/pruebas/e2e/ogo-coherencia.cjs` (la Mesa real en Chromium, con el SIDECEME de mentira): los
+  pasos 10–13, el pedido con FF.TT.T.O./Tunapa/CTO, la fecha D-60, el Word del Anexo A (membrete de la
+  imagen 5, imagen del calco), la coherencia aplicada, las unidades con ✓ Aceptar (la ficha entra en la
+  carta, el «(supuesto)» se va, ✕ y ↺, ✓ Aceptar todas, el PC alterno como PC), el calco que ahora las
+  dibuja, el JSON de la parte cortada con la tijera (sólo lo de adentro) y el envío a «1ER CICLO · Paralelo
+  A»; sin errores de consola. Capturas y los Word en `pruebas/salidas-coherencia/`.
+- `node calcos/pruebas/areas-compartir.mjs`: el servidor con los destinos por ciclo y paralelo (sólo cursantes
+  activos), `ejercicio_enviar` con la Mesa del profesor, los documentos elegidos y lo que recibe cada
+  cursante (lo de su paralelo y lo de todo su ciclo, no lo de otro).
 - `node calcos/pruebas/ogo.cjs`: los 13 documentos con su modelo (los del paquete de la Escuela), las
   letras y los títulos (A LA ORDEN / AL PLAN / el apéndice al anexo), los datos de «Mesa ·
   Preparación» que llenan lo vacío sin pisar, el pedido de cada documento (modelo, reglas, lo ya

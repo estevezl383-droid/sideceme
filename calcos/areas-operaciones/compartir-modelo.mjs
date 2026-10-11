@@ -10,11 +10,19 @@ export function construirPaquete(payload, ids, opciones = {}) {
   p.areas = p.areas.map(a => Object.fromEntries(
     ['id', 'nombre', 'coords', 'escalon', ...(opciones.unidad ? ['unidad'] : []), ...(opciones.operacion ? ['operacion', 'tipo', 'modalidad', 'ambiente'] : [])]
       .filter(k => a[k] !== undefined).map(k => [k, a[k]])))
-  p.documentos = opciones.documentos && Array.isArray(payload.documentos) ? payload.documentos : []
+  p.documentos = opciones.documentos && Array.isArray(payload.documentos) ? documentosDe(payload.documentos, opciones.documentosNombres) : []
   p.indicaciones = String(opciones.indicaciones || '').slice(0, 4000)
   p.formato = 'SIDE-CEME editable'
   if (new TextEncoder().encode(JSON.stringify(p)).length > 2000000) throw new Error('El envío supera 2 MB. Comparta menos documentos.')
   return p
+}
+// Los documentos que viajan: sólo los campos que la Mesa usa (texto o imagen), y si se eligieron
+// por nombre (la OGO consolidada del profesor), sólo esos.
+const CAMPOS_DOC = ['nombre', 'mime', 'tipo', 'texto', 'base64', 'paginas', 'categoria']
+function documentosDe(documentos, nombres) {
+  const elegidos = Array.isArray(nombres) ? new Set(nombres.map(String)) : null
+  return documentos.filter(d => d && typeof d === 'object' && typeof d.nombre === 'string' && (!elegidos || elegidos.has(d.nombre)))
+    .map(d => Object.fromEntries(CAMPOS_DOC.filter(k => d[k] !== undefined && d[k] !== null).map(k => [k, typeof d[k] === 'number' ? d[k] : String(d[k])])))
 }
 export function recibirPaquete(ops, envio) {
   if (!envio?.id || !envio.paquete) throw new Error('Envío inválido.')
