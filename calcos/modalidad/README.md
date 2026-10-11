@@ -13,8 +13,10 @@ React, no guarda nada en el ejercicio y se puede quitar sacando tres líneas del
 
 | Archivo | Qué es |
 |---|---|
-| `catalogo.js` | Las **7 fases con sus pasos en orden** (hoja «PMTD 2020» de la Visión Horizontal; 7·17·8·8·3·4·3 pasos), con el documento que sale, el responsable y **dónde se abre en la Mesa** (sección + número de hoja, o herramienta). Más los **10 pasos del profesor** (cada uno con su pedido a la IA), los **escalones** (FF.TT.→CE, CE→DIV, DIV→BRIG, BRIG→Unidades), los **focos** (qué G entrena el ejercicio), los **anexos de la OGO** y las **organizaciones tipo** (FF.TT., C.E., D.I., D. Mec., Brigada, COE). Se carga en el navegador y en Node. |
-| `ia-profesor.js` | **La IA del profesor** (puro, se prueba en Node): `armarPedido(paso, ctx)` arma el pedido de cada paso con el escalón, el foco y el ejercicio recortado (la Orden escrita, las fichas, el CMOC, los documentos adjuntos); el del paso 5 pide la **OGO completa con todos sus anexos**. `fichasDeOrganizacion` y `fichasDeJSON` arman las fichas (la forma de `academico.js`) de una organización tipo o del bloque ```json que devuelve la IA. |
+| `catalogo.js` | Las **7 fases con sus pasos en orden** (hoja «PMTD 2020» de la Visión Horizontal; 7·17·8·8·3·4·3 pasos), con el documento que sale, el responsable y **dónde se abre en la Mesa** (sección + número de hoja, o herramienta). Más los **11 pasos del profesor** (cada uno con su pedido a la IA; el de la OGO, uno por documento), los **escalones** (FF.TT.→CE, CE→DIV, DIV→BRIG, BRIG→Unidades), los **focos** (qué G entrena el ejercicio) y las **organizaciones tipo** (FF.TT., C.E., D.I., D. Mec., Brigada, COE). Se carga en el navegador y en Node. |
+| `ia-profesor.js` | **La IA del profesor** (puro, se prueba en Node): `armarPedido(paso, ctx)` arma el pedido de cada paso con el escalón, el foco y el ejercicio recortado (la Orden escrita, las fichas, el CMOC, los documentos adjuntos); el del paso 5 pide **lo esencial de la Orden** (los campos de «Mesa · Preparación»). `fichasDeOrganizacion` y `fichasDeJSON` arman las fichas (la forma de `academico.js`) de una organización tipo o del bloque ```json que devuelve la IA. |
+| `ogo-modelos.js` | **📜 Los modelos de la OGO y sus anexos** (datos): la Orden de Operaciones, el Calco, los planes de Inteligencia, Apoyo de Fuegos (y el apéndice de Fuegos de Artillería), Ingeniería, Defensa Antiaérea, Comunicaciones, Logística, Personal, AC/GM, Apoyo de Servicio de Combate y Engaño, cada uno con su **modelo de la Escuela** (los párrafos con su numeración y lo que tiene que decir cada uno, del .zip «MODELOS DE CONTENIDO DE DOCUMENTOS»), su sección, su autenticador y los apartados que revisa `ogo.js`. |
+| `ogo.js` | **📜 La OGO completa** (puro, se prueba en Node): el pedido de cada documento, la revisión contra su modelo, lo que contestó la IA pasado a la forma del Word militar de la Mesa (`formato-militar/v1/word.js`), el .md de ida y vuelta y los documentos para el ejercicio. |
 | `carpeta.js` | **📕 La carpeta del profesor** (pura, se prueba en Node): las respuestas de la IA de cada paso, lo «PARA EL PROFESOR» que se va sumando, lo que es solución y lo que va a los alumnos, el bloque para los pedidos que siguen y el .md para bajarla y volver a cargarla. |
 | `biblioteca.js` | **📚 La biblioteca del profesor** (puro, se prueba en Node con `jszip.min.js`): lee un Word (.docx) con sus párrafos y TABLAS; reconoce el **COE** (la tabla «CLASE \| CMDO. \| RCB-1 \| … \| TOTAL» con PERSONAL · ARMAMENTO · VEHÍCULOS · EQUIPO ESPECIAL) y devuelve la División con cada unidad, su efectivo, armamento y vehículos; da el arma y el escalón de la Mesa por la sigla (RCB, RIM, RIAT, RAM, BAT. AA, BATING, BAT. COM, BAT. LOG, COMP. ICIA, ERM, RI, RAC…); arma las fichas de un COE y el resumen para la IA. |
 | `modalidad.js` | El selector **🎖️ Mesa · 🎓 Aprendizaje · 🧑‍🏫 Profesor** y el tablero de la derecha. |
@@ -33,10 +35,64 @@ Tablero «Armar el ejercicio»: 1 ¿quién soy, para quién y qué entreno? (el 
 quiénes son los alumnos y qué Orden se escribe; y el **foco**: G-1 · G-2 · G-3 · G-4 · G-5 o el
 PMTD completo) · 2 Área de Operaciones y de Interés · 3 Generar calcos · **4 CMOC** (avenidas de
 aproximación, corredores, terreno clave, obstáculos: abre el 🪖 editor CMOC y el 🧠 Análisis IA
-del terreno; si no hay calcos avisa «Primero ⚡ Generar calcos») · 5 Orden del escalón superior
-(Mesa EM) · 6 Unidades y Tareas · 7 Situación enemiga por fases y Defensa · 8 Documentos del
-ejercicio · 9 Revisar los tableros de cada sección (los ocho botones) · 10 Repartir (Los 5
-enlaces). El mismo orden del tablero «Mesa · Preparación».
+del terreno; si no hay calcos avisa «Primero ⚡ Generar calcos») · 5 Orden del escalón superior:
+lo esencial (Mesa EM) · 6 Unidades y Tareas · 7 Situación enemiga por fases y Defensa · 8 Documentos
+del ejercicio · 9 Revisar los tableros de cada sección (los ocho botones) · **10 📜 OGO completa con
+sus anexos** · 11 Repartir (Los 5 enlaces). El mismo orden del tablero «Mesa · Preparación».
+(Lo marcado y la carpeta se guardan por la clave `n` de cada paso: la OGO es `n: 11` y se muestra
+como 10; «Repartir» sigue siendo `n: 10` y se muestra como 11, así no se mezcla lo ya guardado.)
+
+**📜 La OGO completa con sus anexos (11-10-2026).** Lo pidió Sergio con el .zip «MODELOS DE
+CONTENIDO DE DOCUMENTOS» (la Orden de Operaciones y los planes de apoyo de la Escuela): «cuando
+termine todos esos pasos, en conjunción con la Mesa de planeamiento, con todo lo que se construyó,
+salga una OGO completa con sus planes de apoyo para darles a los alumnos… los formatos ya funcionan,
+pero el contenido que deben tener los documentos es éste… no quiero ser objeto de observaciones y
+críticas con órdenes mal hechas o incompletas». Antes el paso 5 pedía la OGO con 8 anexos en UN
+solo pedido, antes de tener las unidades, el enemigo y los documentos, con un formato genérico (las
+letras no eran las de los modelos) y la IA la devolvía cortada.
+- **El paso 10** (también **📜 OGO completa con sus anexos** arriba del tablero, al lado de 📚 y 📕):
+  🧾 **Datos de la Orden y del membrete** (Orden o Plan, N°, unidad que expide, su escalón superior,
+  la unidad de los alumnos, CG, fecha-hora, carta, iniciales del elaborador y del JEM, firma,
+  distribución, leyenda de enseñanza: lo vacío sale de «Mesa · Preparación»), y la lista de los
+  documentos: la Orden y los anexos, que se eligen (por defecto: Calco, Inteligencia, Apoyo de
+  Fuegos, Ingeniería, Defensa Antiaérea, Comunicaciones, Logística, Personal y AC/GM; a elección:
+  el apéndice de Fuegos de Artillería, el Plan de Apoyo de Servicio de Combate —el de los tres
+  campos en uno— y el de Engaño). Las letras son las de los modelos (**A** Calco, **B** Inteligencia,
+  **C** Apoyo de Fuegos) y las demás seguidas; se cambian a mano si el reglamento las ordena distinto.
+  ⭐ marca el documento del campo que entrena el ejercicio.
+- **🤖 Pedido de cada documento**: el modelo de la Escuela de ESE documento (sus párrafos y lo que
+  tiene que decir cada uno), las reglas para que no tenga observaciones (ningún apartado vacío ni
+  «……», datos de este ejercicio, la biblioteca adecuada al ejercicio, coherente con lo ya escrito,
+  escalón, Orden sin hipótesis / Plan con hipótesis), cómo contestar (sin membrete ni firma, el
+  encabezado OBJETO/CARTA/ANEXOS, la organización de la tarea en líneas «AGRUPACIÓN: unidad; unidad»,
+  cada apartado en su línea con su numeración), **lo ya escrito de la OGO** (la Orden entera y el
+  comienzo de los otros anexos), la organización de la tarea de la Mesa y el contexto de siempre
+  (terreno dibujado, fichas, la Orden de «Mesa · Preparación», documentos, 📚 biblioteca y 📕 carpeta).
+  En el documento del campo que se entrena: completo y detallado en lo que el superior da (cifras,
+  instalaciones, capacidades), sin resolverle al alumno lo suyo.
+- **📥 Lo que contestó la IA → 💾 Guardar y revisar**: queda por ejercicio en el IndexedDB
+  «sid-profesor-ogo» de ESE navegador (como la carpeta: NO en el ejercicio). **✅ La revisión** contra
+  el modelo dice, por documento: los apartados que faltan, los vacíos (un título sin nada debajo),
+  las marcas sin llenar («……», «[completar]», «XXX»), si vino cortada («SIGUE:»), los «(supuesto)»
+  para confirmar; en la Orden, además: los anexos que no nombra en ANEXOS, la misión sin el para qué
+  o sin el cuándo, la unidad de los alumnos que no aparece en las tareas, las «Hipótesis» en una Orden
+  y la organización de la tarea que no vino en líneas. **🤖 Pedido de corrección**: le dice a la IA
+  qué le falta y le pide el documento completo corregido (con la Orden ya escrita).
+- **✅ Revisar todo**: cuántos documentos están sin observaciones, los que faltan escribir, los datos
+  del membrete que faltan y lo que falta dibujar en la carta (Área de Operaciones, límites, fichas
+  propias y enemigas).
+- **⬇️ Word** (de cada documento) y **⬇️ Todo en Word (.zip)**: el formato militar de la Mesa, el
+  MISMO `formato-militar/v1/word.js` de todos los documentos (membrete con la sección y el correlativo
+  de cada uno, título —«ANEXO “B” (Plan de Inteligencia / Inteligencia) A LA ORDEN DE OPERACIONES No.
+  01»—, OBJETO/CARTA/ANEXOS, el cuadro de la organización de la tarea, I.- A.- 1.- a.- 1) a), firma,
+  autenticación del G que corresponde y distribución). Lo «PARA EL PROFESOR» no va. El .zip lleva
+  además el .md con todo. **⬇️ Todo (.md)** / **📤 Cargar (.md)**: para llevar la OGO a otro equipo.
+- **📎 Adjuntar al ejercicio**: los documentos escritos van a los documentos del ejercicio (la
+  Orden como «orden», el de Inteligencia como «anexoicia»), sin lo del profesor; los ven los alumnos y
+  se guardan en SIDECEME con el ejercicio. Adjuntar otra vez los reemplaza.
+- Lo que NO hace: no llama a la IA (como los otros pasos: se copia el pedido y se pega la respuesta);
+  la revisión mira la FORMA y lo que el modelo exige, no juzga si la táctica es buena; el calco del
+  Anexo A es lo dibujado en la Mesa (el anexo trae sus referencias, no la imagen).
 
 **🤖 La IA en cada paso (10-10-2026).** Lo pidió Sergio: «en todas las partes debe haber opción
 a trabajar con IA para generar el prompt adecuado… para el profesor debe salir una OGO con todos
@@ -44,12 +100,11 @@ sus anexos para que el alumno planifique». Cada paso tiene un botón **🤖 IA:
 pedido con lo que ya hay en la Mesa (el escalón, el foco, la Orden escrita en «Mesa ·
 Preparación», las fichas de la carta, el CMOC, las fases, los documentos adjuntos, recortado a
 ≈ 90 mil caracteres) y lo muestra para **📋 Copiar** o **⬇️ Bajar .md** y dárselo a ChatGPT,
-Gemini o Claude. El del paso 5, **«🤖 OGO con todos sus anexos (IA)»**, pide la Orden General de
-Operaciones del escalón del profesor con los 8 anexos (A Inteligencia · B Operaciones · C Apoyo
-de fuegos · D Logística · E Personal · F Asuntos Civiles · G Comunicaciones · H Ingenieros),
-completa en todo salvo en el campo que entrena el ejercicio: ahí la IA completa lo que el
-superior sabe y **deja el trabajo al alumno** (la regla va en el pedido y el anexo de ese campo
-queda marcado). Los demás pedidos: la idea del ejercicio, los límites del AO/AI, el análisis de
+Gemini o Claude. (Hasta el 11-10-2026 el del paso 5 pedía la OGO con 8 anexos en un solo pedido;
+ahora pide lo esencial de la Orden y la OGO completa sale en el paso 10, documento por documento:
+ver «📜 La OGO completa con sus anexos».) La regla de siempre: completa en todo salvo en el campo
+que entrena el ejercicio; ahí la IA completa lo que el superior sabe y **deja el trabajo al
+alumno**. Los demás pedidos: la idea del ejercicio, los límites del AO/AI, el análisis de
 los calcos, el CMOC con las avenidas calificadas, el orden de batalla de los dos bandos (con un
 bloque ```json de fichas para pegar), los CAE por fases, las situaciones general y particular,
 la pauta de corrección con rúbrica y las instrucciones para los alumnos.
@@ -127,7 +182,7 @@ Ejército directo para insertar»: se elige la organización tipo (FF.TT. con 3 
 Ejército con 3 Divisiones · División de Infantería · División Mecanizada · Brigada · COE), el
 bando (🔵 AZUL / 🔴 ROJO, que se dibuja espejado) y el número, y **➕ Insertar en el centro de la
 vista** pone las fichas en la carta (entran por el mismo puente que usa `academico.js`:
-`MesaAcademica.sincronizar → agregarUnidades`; ⟲ Deshacer de la Mesa las quita). **📥 Pegar
+`MesaAcademica.sincronizar → agregarUnidades`; el ↶ Deshacer de la barra las quita —desde el 11-10-2026: antes no las quitaba, ver `CAMBIOS-EN-EL-COMPILADO.md`—). **📥 Pegar
 fichas de la IA (JSON)** inserta el bloque que devolvió la IA (bandos sueltos y armas o
 escalones que no existen se normalizan; las que vienen sin lat/lng se ponen junto al centro).
 Son organizaciones genéricas de escuela, no la orgánica real de ningún ejército: se ajustan
@@ -187,10 +242,24 @@ puede tocar.
   `HERRAMIENTAS` en `catalogo.js` (la prueba avisa).
 
 ## Cómo se comprobó
+- `node calcos/pruebas/ogo.cjs`: los 13 documentos con su modelo (los del paquete de la Escuela), las
+  letras y los títulos (A LA ORDEN / AL PLAN / el apéndice al anexo), los datos de «Mesa ·
+  Preparación» que llenan lo vacío sin pisar, el pedido de cada documento (modelo, reglas, lo ya
+  escrito, organización de la tarea, contexto, carpeta, biblioteca, el campo que se entrena), la
+  revisión con una Orden completa (`fixtures/ogo-respuesta-ia.md`: sin faltas) y un anexo incompleto
+  (`fixtures/ogo-anexo-icia-incompleto.md`: falta, vacío, marcas, cortado), la Orden con faltas
+  (anexo sin nombrar, misión sin para qué ni cuándo, sin la unidad de los alumnos, hipótesis en una
+  Orden, organización en prosa), el Word armado con `word.js` y la librería docx y leído, el .md de
+  ida y vuelta y los documentos para el ejercicio.
+- `node calcos/pruebas/e2e/ogo.cjs` (la Mesa real en Chromium con el SIDECEME de mentira): el paso 10,
+  el pedido con la Mesa, la Orden completa ✓, el anexo con observaciones y su pedido de corrección,
+  el Word y el .zip, ✅ Revisar todo, los datos del membrete, 📎 al ejercicio (y SIDECEME lo guarda
+  sin lo del profesor), y todo sigue después de recargar. Capturas en `pruebas/salidas-ogo/`.
 - `node calcos/pruebas/modalidad.cjs`: 7 fases, 50 pasos, **96 «Abrir» que existen en el
   compilado** (cada uno una sola hoja, en el catálogo de su sección), herramientas y secciones
-  con botón real (el editor CMOC incluido), los 10 pasos del profesor en orden con su pedido a
-  la IA, los focos, los 8 anexos, sintaxis de los módulos y el `index.html`.
+  con botón real (el editor CMOC incluido), los 11 pasos del profesor en orden con su pedido a
+  la IA (la OGO al final, con su clave `n` propia), los focos, la sección de cada documento de la
+  OGO, sintaxis de los módulos y el orden de los `<script>` en el `index.html`.
 - `node calcos/pruebas/carpeta-profesor.cjs`: con la respuesta REAL del CMOC que pegó Sergio
   (`pruebas/respuesta-cmoc-profesor.md`): separa «PARA EL PROFESOR» (y no corta una oración que
   empieza así), reconoce que es solución, guarda/reemplaza/saca, suma las notas, arma el bloque de
@@ -198,8 +267,8 @@ puede tocar.
 - `node calcos/pruebas/e2e/carpeta-profesor.cjs` (la Mesa real en Chromium, como está publicada,
   con el SIDECEME de mentira): el pedido del paso 4 lleva el CMOC dibujado (corredor sobre caminos,
   avenidas, terreno clave, área a mano) leído de la Mesa abierta; se pega y guarda la respuesta real
-  (🔒 solución, 📕✓); sigue ahí después de recargar; entra en el pedido de la OGO y no en el del
-  paso 4; se baja el .md, se saca y se vuelve a cargar; **lo que se guarda en SIDECEME no lleva nada
+  (🔒 solución, 📕✓); sigue ahí después de recargar; entra en el pedido del paso 5 y en el del
+  Anexo de Inteligencia de la OGO, y no en el del paso 4; se baja el .md, se saca y se vuelve a cargar; **lo que se guarda en SIDECEME no lleva nada
   de la carpeta**; sin errores de consola. Capturas en `pruebas/salidas-carpeta/`.
 - `node calcos/pruebas/biblioteca.cjs`: con dos COE REALES del Tema Base «DIAMANTE»
   (`pruebas/fixtures/coe-div-mec-1.docx`, `coe-div-1.docx`): las 13 y 14 unidades con sus
@@ -209,20 +278,21 @@ puede tocar.
 - `node calcos/pruebas/ia-profesor.cjs`: el terreno dibujado en texto (30 áreas de 400 vértices
   no inflan el pedido; la dibujada a mano va primero; corredor, avenida con su ancho, terreno
   clave, desplazamiento, obstáculo, Área de Operaciones e Interés en lat, lng) antes de la Orden;
-  la carpeta entra en la OGO (con la regla del Anexo A) y en los CAE, no en su propio paso; las
+  la carpeta entra en lo esencial de la Orden y en los CAE, no en su propio paso; las
   armas y escalones de las organizaciones son los del compilado; las fichas de un C.E. AZUL y una D.I. ROJO (forma, número, espejado, ids);
-  el JSON de la IA (bandos sueltos, arma/escalón inexistentes, sin lat/lng); el pedido de la
-  OGO con los 8 anexos y el anexo del foco marcado (y ninguno con el PMTD completo), el contexto
-  del ejercicio y su recorte; un pedido por paso; sin ejercicio sale igual.
+  el JSON de la IA (bandos sueltos, arma/escalón inexistentes, sin lat/lng); el pedido de lo
+  esencial de la Orden (los campos de «Mesa · Preparación»), el contexto del ejercicio y su recorte;
+  un pedido por paso (la OGO completa la prueba `ogo.cjs`); sin ejercicio sale igual.
 - `node calcos/pruebas/e2e/modalidad.cjs` (la Mesa real en Chromium, escritorio y teléfono):
   selector; Aprendizaje con las 7 fases y la columna de la derecha escondida; «Abrir» de la
   F1·P6 abre la Guía Inicial del Cmte., la F2·P3 las Tareas de Personal del G-1 (📋 Mis hojas)
   y la F1·P1 la Orden de Alerta del G-3 (📄 Documentos); lo marcado queda después de recargar;
-  Profesor con los 10 pasos, el escalón, el foco, los 10 botones de IA, el pedido de la OGO con
-  sus anexos y el foco elegido, y las 6 organizaciones; en escritorio, con un ejercicio sembrado
+  Profesor con los 11 pasos (numerados en orden), el escalón, el foco, los 10 botones de IA, los 13
+  documentos de la OGO con el pedido de la Orden (modelo de la Escuela, anexos, foco) y el del Anexo
+  de Inteligencia (campo que se entrena), y las 6 organizaciones; en escritorio, con un ejercicio sembrado
   y abierto: el pedido lleva su nombre, su Orden y sus fichas, «➕ Insertar» mete una D.I. ROJO
   (10 fichas) en el calco y «📥 Pegar fichas de la IA» una más; 📚 se carga un .zip con los dos
   COE y un .txt (3 documentos), «➕ A la carta» mete la DIV MEC-1 (12 fichas), el pedido de la
-  OGO lleva los dos COE y el texto, y la biblioteca sigue ahí después de recargar; vuelta a
+  OGO (la Orden) lleva los dos COE y el texto, y la biblioteca sigue ahí después de recargar; vuelta a
   «Mesa»; sin errores de consola.
   Capturas en `calcos/pruebas/salidas-modalidad/`.

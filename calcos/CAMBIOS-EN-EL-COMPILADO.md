@@ -5,6 +5,38 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-11 — ↶ El deshacer también devuelve las fichas (`index-deshacer-20261011.js`)
+
+Parte de `index-guardado-20261010.js` + `pruebas/reemplazos-2026-10-11-deshacer.js` (10 reemplazos;
+`construir-deshacer.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con
+una captura de la barra: «ese botón de DESHACER no funciona: sin querer le di en limpiar unidades y
+ya no pude deshacer esa acción, mis unidades se perdieron».
+
+- **Qué pasaba**: la pila del «↶ Deshacer» (`Ia`) guardaba sólo fotos del calco (`Lt`, las ops). Las
+  fichas (`dn`) no entraban nunca: el «Limpiar» del tablero 🪖 Unidades hacía `Ra([])` sin preguntar
+  y el botón seguía gris. Además la pila no se vaciaba al abrir otro ejercicio ni al cambiar de fase:
+  un deshacer podía traer el calco de OTRO ejercicio o de otra fase.
+- **Qué se hizo**: la misma pila guarda también la foto de las fichas (`{__SIDunidades: […]}`,
+  `SIDlaU`) antes de colocar, mover, borrar una ficha, borrar todas, insertar (organizaciones tipo,
+  COE, fichas de la IA, Estudio: `agregarUnidades`), lo que entrega el lazo del Área de Operaciones
+  y consolidar agrupaciones; `Mg` devuelve lo que corresponda y la barra dice qué deshizo. «Limpiar»
+  pasa a «🗑 Borrar todas las fichas» y pregunta antes. La pila se vacía al abrir, crear o quitar un
+  ejercicio (`wn`) y al cambiar de fase (`yt`).
+- **Para la 📜 OGO del profesor** (`calcos/modalidad/ogo.js`, ver su README): las clases de la
+  librería docx que el compilado le pasa a `formato-militar` quedan también en `window.SIDMilLib`
+  (el Word de la OGO sale con el MISMO `word.js`), y el puente de `MesaAcademica.sincronizar` lleva
+  `agregarDocumentos` (📎 Adjuntar al ejercicio: suma documentos de texto con su categoría; uno con
+  el mismo nombre se reemplaza). En `formato-militar/v1/word.js` el título de un anexo dice «AL PLAN
+  DE OPERACIONES» (antes «A LA PLAN…»); con una Orden sigue «A LA ORDEN…».
+- **Cómo se comprobó**: `e2e/deshacer.cjs` (la Mesa real: borrar todas pregunta, cancelar no borra,
+  deshacer devuelve las 4 fichas iguales y SIDECEME las vuelve a guardar, insertar una FF.TT. se
+  deshace, al abrir otro ejercicio la pila se vacía), `reemplazos-compilado.js`, `npm test`, `ogo.cjs`,
+  `e2e/ogo.cjs` y las e2e de autoguardado, paneles, aviso de versión, modalidad, carpeta, lazo,
+  áreas, Estudio, organización y membrete.
+- **Si se recompila desde el fuente**: llevar la pila con las fichas (`SIDlaU` en cada cambio de
+  fichas, `Mg` con `__SIDunidades`, el vaciado con `[wn, yt]`), la confirmación de «Borrar todas las
+  fichas», `window.SIDMilLib` y `agregarDocumentos` en el puente.
+
 ## 2026-10-10 — 💾 Autoguardado con sello que se toca (`index-guardado-20261010.js`)
 
 Parte de `index-lazo-20261010.js` + `pruebas/reemplazos-2026-10-10-guardado.js` (3 reemplazos;

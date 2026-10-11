@@ -7,8 +7,8 @@
      Aprendizaje: un solo oficial hace todo el PMTD, paso a paso.
    · PROFESOR: los pasos para ARMAR un ejercicio, en orden, con la herramienta real de la Mesa
      que abre cada uno y el pedido a la IA de cada paso. Es lo que ve el PROFESOR en su modalidad.
-   · FOCOS (qué G entrena el ejercicio), ANEXOS_OGO (con qué anexos sale la Orden del superior)
-     y ORGANIZACIONES (FF.TT., C.E., División, Brigada, COE tipo para insertar de una vez).
+   · FOCOS (qué G entrena el ejercicio) y ORGANIZACIONES (FF.TT., C.E., División, Brigada, COE
+     tipo para insertar de una vez). Los anexos de la OGO y sus modelos están en ogo-modelos.js.
    Las hojas citadas (num + nom) existen en el compilado: la prueba calcos/pruebas/modalidad.cjs
    lo comprueba contra el compilado publicado, para que ningún «Abrir» quede apuntando al aire.
    Se carga en el navegador (window.SIDModalidadCatalogo) y en Node (module.exports). */
@@ -181,20 +181,6 @@
       pide: 'los ASUNTOS CIVILES: el Anexo de Asuntos Civiles del superior trae la situación de la población (localidades, desplazados, autoridades, recursos locales, infraestructura crítica, organismos y ONG presentes), las reglas de relación con la población y las limitaciones del superior; deja al alumno la apreciación de asuntos civiles, los temas y mensajes de información, el Anexo de Asuntos Civiles de su Orden y la coordinación civil-militar por fase.' }
   ]
 
-  // Los anexos con que sale la OGO del escalón superior y qué sección la recibe. Las letras son
-  // las usuales en la Escuela; si el reglamento vigente las ordena distinto, el profesor las
-  // cambia en el pedido (la IA las respeta tal como se las dan).
-  var ANEXOS_OGO = [
-    { letra: 'A', nom: 'Inteligencia (con el calco de situación enemiga)', sec: 'g2' },
-    { letra: 'B', nom: 'Operaciones (calco de operaciones del superior, organización de la tarea)', sec: 'g3' },
-    { letra: 'C', nom: 'Apoyo de fuegos', sec: 'g3' },
-    { letra: 'D', nom: 'Logística / Apoyo de Servicio de Combate (con el calco logístico)', sec: 'g4' },
-    { letra: 'E', nom: 'Personal', sec: 'g1' },
-    { letra: 'F', nom: 'Asuntos Civiles / Gobierno Militar', sec: 'g5' },
-    { letra: 'G', nom: 'Comunicaciones (con la carta de comunicaciones)', sec: 'eme' },
-    { letra: 'H', nom: 'Ingenieros (plan de barreras y obstáculos del superior)', sec: 'eme' }
-  ]
-
   // Organizaciones TIPO para insertar de una vez en la carta (paso «Unidades»): cada pieza con
   // su designación (el %N es el número que escribe el profesor), el arma y el escalón del
   // catálogo de la Mesa, y dónde va respecto del centro (en km: x al este, y al norte). Son
@@ -245,7 +231,10 @@
   // necesita: el mismo orden del tablero «Mesa · Preparación del ejercicio», más el principio
   // (quién soy, para quién y qué G entreno) y el final (los documentos y el reparto). Cada paso
   // tiene su pedido a la IA (`ia`: qué se le pide; ia-profesor.js arma el texto con el
-  // ejercicio) y el 4 (Orden) es el que saca la OGO completa con sus anexos.
+  // ejercicio). La OGO COMPLETA con sus anexos sale al FINAL (`ogoFinal`, ogo.js), con todo lo que
+  // ya se armó: documento por documento, sobre los modelos de la Escuela, revisada y en Word.
+  // `n` es la clave de lo guardado (lo marcado, la carpeta) y no cambia; `ver` es el número que se
+  // muestra (el paso de la OGO, agregado el 11-10-2026, va antes de «Repartir»).
   var PROFESOR = [
     { n: 1, carpeta: 'solucion', nom: '¿Quién soy, para quién y qué entreno?', que: 'Elegí tu escalón: vos sos el Comandante del escalón SUPERIOR y escribís la Orden que reciben tus alumnos, que son los Comandantes del escalón de abajo. Y elegí qué campo entrena el ejercicio (G-1 a G-5 o el PMTD completo): la OGO y sus anexos salen completos en lo demás y dejan el trabajo en ese campo.', escalon: true,
       ia: { tit: 'Idea del ejercicio', pide: 'Proponé la IDEA GENERAL del ejercicio: tema táctico, tipo de operación (ofensiva / defensiva / retrógrada), enemigo genérico, qué decisión tiene que tomar el alumno y qué productos se le van a corregir según el campo que entrena. En media carilla, y una lista de 5 objetivos de aprendizaje medibles.' } },
@@ -255,8 +244,8 @@
       ia: { tit: 'Calcos del terreno', pide: 'Hacé el ANÁLISIS DESCRIPTIVO del terreno del Área de Interés por calco: hidrografía (cursos de agua, ancho, vadeabilidad, puentes), relieve (alturas dominantes, pendientes, observación y campos de tiro), comunicaciones (rutas, capacidad, puntos críticos), poblaciones (tamaño, infraestructura) y vegetación (cubierta y encubrimiento). Un cuadro por calco y, al final, qué le falta al profesor completar a mano.' } },
     { n: 4, nom: 'CMOC: avenidas de aproximación y terreno clave', que: 'Sobre los calcos, el CMOC (Calco de Modificaciones y Obstáculos Combinados): terreno restringido y severamente restringido, corredores de movilidad, AVENIDAS DE APROXIMACIÓN (propias y enemigas, terrestres y aéreas), terreno clave y decisivo, obstáculos. Es lo que el G-2 de los alumnos tiene que llegar a producir; el profesor lo arma primero para saber a dónde apunta el ejercicio. Hay que haber generado los calcos antes.', abrir: [T('cmoc'), T('analisisIA')],
       ia: { tit: 'CMOC (análisis del terreno)', pide: 'Hacé el CMOC del Área de Interés: 1) terreno RESTRINGIDO y SEVERAMENTE RESTRINGIDO para la unidad y la época; 2) CORREDORES DE MOVILIDAD por escalón (dos niveles abajo de la unidad de los alumnos); 3) AVENIDAS DE APROXIMACIÓN (2 a 4) del escalón de los alumnos, propias y enemigas, cada una con su nombre, los corredores que agrupa, ancho, longitud, capacidad (qué escalón soporta), terreno restringido que la limita, observación, campos de tiro, cubierta y encubrimiento, obstáculos, y una CALIFICACIÓN con los cinco factores (OCOKA / OCECA); 4) avenidas aéreas; 5) TERRENO CLAVE y DECISIVO con el porqué; 6) OBSTÁCULOS existentes. PARTÍ DE LO QUE EL PROFESOR YA DIBUJÓ en la Mesa (en el contexto, «Terreno dibujado en la Mesa»: las áreas restringidas, los corredores —los que van sobre caminos dicen cuál—, las avenidas, el terreno clave, los obstáculos y los desplazamientos, con sus coordenadas): usá esos elementos, ponele nombre a cada uno, calificalos, decí cuál no corresponde y por qué, y agregá lo que falte. Con coordenadas aproximadas (lat, lng), para dibujarlo en el editor CMOC de la Mesa. Si el ejercicio entrena al G-2 o el PMTD completo, este análisis es la SOLUCIÓN DEL PROFESOR y no va a los alumnos.' } },
-    { n: 5, carpeta: 'alumnos', nom: 'Orden del escalón superior (OGO con anexos)', que: 'Escribí la Orden que vos, como Comandante superior, le das a la unidad de los alumnos: misión, intención, tareas, limitaciones, carta, PC. Está en el tablero «Mesa · Preparación» (abajo). 🤖 La IA te arma la OGO COMPLETA con todos sus anexos según el campo que entrena el ejercicio.', abrir: [T('mesaEM')], ogo: true,
-      ia: { tit: 'OGO del escalón superior con todos sus anexos', pide: '' } },
+    { n: 5, carpeta: 'alumnos', nom: 'Orden del escalón superior: lo esencial', que: 'Escribí lo esencial de la Orden que vos, como Comandante superior, le das a la unidad de los alumnos (N° de la Orden, escalón superior, unidad considerada, puesto de mando, enemigo, propias, misión, intención, límite posterior, prioridad de apoyo, vigencia) en el tablero «Mesa · Preparación» (abajo): la Mesa y los alumnos lo leen de ahí. La OGO COMPLETA con todos sus anexos sale al final (paso 10), con las unidades, el enemigo y los documentos ya puestos.', abrir: [T('mesaEM')],
+      ia: { tit: 'Lo esencial de la Orden del superior', pide: 'Proponé lo ESENCIAL de la Orden que el profesor escribe en el tablero «Mesa · Preparación» (la Orden del escalón superior que reciben los alumnos), campo por campo y con estos mismos nombres: Escalón superior (quién expide: el profesor) · N° de la Orden · Unidad considerada (los alumnos) · Puesto de Mando · Clave del redactor · Fuerzas enemigas (I.A) · Fuerzas propias y adyacentes (I.B) · Misión (II) · Intención del Comandante (III) · Límite posterior (III.C.3) · Prioridad de apoyo (IV.A) · Vigencia; y, aparte, la Carta, la Organización de la tarea y el Concepto de la operación por fases. Con datos de ESTE ejercicio (el terreno del CMOC, las fichas de la carta, la biblioteca del profesor): la misión con quién, qué, cuándo, dónde y PARA QUÉ; la intención con propósito, tareas clave y estado final. Es la base de la OGO completa con sus anexos, que se arma en el paso 10.' } },
     { n: 6, nom: 'Unidades propias y enemigas', que: 'Colocá las fichas: las unidades de los alumnos (propias) y el enemigo con su escalón real. Podés INSERTAR DE UNA VEZ una organización tipo (FF.TT., Cuerpo de Ejército, División, Brigada, COE) de AZUL o de ROJO y después ajustarla ficha por ficha, o pegar las fichas que te proponga la IA.', abrir: [T('unidades'), T('tareas')], organizaciones: true,
       ia: { tit: 'Orden de batalla de los dos bandos', pide: 'Proponé el ORDEN DE BATALLA de los dos bandos para este ejercicio (si hay COE u organizaciones en la BIBLIOTECA DEL PROFESOR, usá ESAS unidades con sus designaciones y efectivos, no inventes otras): AZUL (la unidad de los alumnos con sus subordinados dos niveles abajo, refuerzos y reducciones) y ROJO (el enemigo con el escalón que la doctrina asigna frente a la unidad de los alumnos, su dispositivo inicial y sus reservas). Para cada unidad: designación, arma, escalón, bando y dónde está (lat, lng) sobre el terreno del ejercicio, coherente con las avenidas de aproximación. Devolvé ADEMÁS un bloque ```json con la lista de fichas en el formato que te doy en FORMATO DE LAS FICHAS, para pegarlo en la Mesa.' } },
     { n: 7, carpeta: 'solucion', nom: 'Situación enemiga por fases', que: 'Los cursos de acción del enemigo (el más probable y el más peligroso) por fases, y el plan de barreras si lo hay. Es lo que el G-2 de los alumnos va a tener que descubrir.', abrir: [T('caFases'), T('defensa')],
@@ -265,9 +254,10 @@
       ia: { tit: 'Situación general y particular', pide: 'Escribí la SITUACIÓN GENERAL (el conflicto, los países o fuerzas ficticias, el teatro, lo que pasó hasta D-30, las fuerzas en presencia en el teatro) y la SITUACIÓN PARTICULAR (lo que ve la unidad de los alumnos: su situación a D-5, el enemigo que tiene enfrente, los vecinos, lo que recibió del superior hasta ahora), listas para adjuntar al ejercicio como documentos. Coherentes con la OGO y con el campo que entrena el ejercicio.' } },
     { n: 9, carpeta: 'solucion', nom: 'Revisar los tableros de cada sección', que: 'Los botones CMTE., JEM., G-1 a G-5 y EME. te dejan mirar y corregir lo que va haciendo cada campo.', abrir: [{ s: 'g2' }, { s: 'g3' }],
       ia: { tit: 'Pauta de corrección', pide: 'Armá la PAUTA DE CORRECCIÓN del ejercicio para el campo que entrena: qué productos tiene que entregar el alumno (por fase del PMTD), qué debe contener cada uno para estar bien hecho, los errores típicos que hay que buscar y una rúbrica (criterio · puntaje · evidencia) que sume 100 puntos. Incluí la SOLUCIÓN ESPERADA en una columna aparte para el profesor: sacala de la CARPETA DEL PROFESOR (lo marcado «🔒 SOLUCIÓN DEL PROFESOR» y lo «PARA EL PROFESOR» de cada paso, con sus puntos críticos a evaluar).' } },
-    { n: 10, carpeta: 'alumnos', nom: 'Repartir el ejercicio', que: 'Cada oficial entra por SU enlace (?puesto=g2…) y ve sólo lo suyo. En la modalidad Aprendizaje, un alumno solo entra sin puesto y hace todo el PMTD.', abrir: [T('enlaces')],
+    { n: 11, ver: 10, carpeta: 'alumnos', nom: 'OGO completa con sus anexos (para los alumnos)', que: 'Con TODO lo que ya armaste (el área, los calcos, el CMOC, la Orden de «Mesa · Preparación», las fichas, el enemigo por fases, los documentos, tu 📚 biblioteca y tu 📕 carpeta) la IA escribe la OGO documento por documento, cada uno sobre el MODELO DE LA ESCUELA (la Orden y sus anexos: calco, inteligencia, apoyo de fuegos, ingeniería, defensa antiaérea, comunicaciones, logística, personal, AC/GM…). ✅ Revisar te dice qué le falta a cada uno para no tener observaciones; después se baja en Word con el formato militar y se adjunta al ejercicio para los alumnos.', abrir: [T('mesaEM')], ogoFinal: true },
+    { n: 10, ver: 11, carpeta: 'alumnos', nom: 'Repartir el ejercicio', que: 'Cada oficial entra por SU enlace (?puesto=g2…) y ve sólo lo suyo. En la modalidad Aprendizaje, un alumno solo entra sin puesto y hace todo el PMTD.', abrir: [T('enlaces')],
       ia: { tit: 'Instrucciones para los alumnos', pide: 'Redactá las INSTRUCCIONES DEL EJERCICIO para los alumnos: situación de partida, qué rol ocupan, qué reciben (la OGO con qué anexos), qué tienen que producir y cuándo (cronograma por fase del PMTD con horas), cómo entran a la Mesa (su enlace y su puesto), qué pueden consultar y qué no, y cómo se los va a evaluar. En una carilla, en el tono de la Escuela.' } }
   ]
 
-  return { SECCIONES: SECCIONES, HERRAMIENTAS: HERRAMIENTAS, FASES: FASES, PROFESOR: PROFESOR, ESCALONES: ESCALONES, FOCOS: FOCOS, ANEXOS_OGO: ANEXOS_OGO, ORGANIZACIONES: ORGANIZACIONES }
+  return { SECCIONES: SECCIONES, HERRAMIENTAS: HERRAMIENTAS, FASES: FASES, PROFESOR: PROFESOR, ESCALONES: ESCALONES, FOCOS: FOCOS, ORGANIZACIONES: ORGANIZACIONES }
 })

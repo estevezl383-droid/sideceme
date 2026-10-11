@@ -1,8 +1,8 @@
 /* La IA y las fichas del PROFESOR (modalidad Profesor de la Mesa del EM). Código aparte del
    compilado, sin React. Dos cosas, puras (se prueban en Node):
-   · armarPedido(paso, ctx): el PEDIDO A LA IA de cada paso del tablero del profesor. El del
-     paso «Orden del escalón superior» pide la OGO COMPLETA con todos sus anexos; los demás,
-     lo suyo (CMOC, orden de batalla, CAE por fases, situaciones, pauta de corrección…). Todos
+   · armarPedido(paso, ctx): el PEDIDO A LA IA de cada paso del tablero del profesor (lo esencial
+     de la Orden, CMOC, orden de batalla, CAE por fases, situaciones, pauta de corrección…). La OGO
+     COMPLETA con sus anexos, documento por documento, la arma ogo.js (el paso final). Todos
      llevan el escalón (quién soy / quiénes son mis alumnos), el FOCO (qué G entrena el
      ejercicio: la IA deja el trabajo ahí y completa lo demás), el ejercicio recortado con el
      terreno dibujado en texto (resumenTerreno) y la CARPETA DEL PROFESOR (lo que ya resolvió con
@@ -261,7 +261,7 @@
     return '# PEDIDO DE TRABAJO PARA LA IA — LEÉ ESTO PRIMERO\n\n' +
       'Sos el Estado Mayor de un **' + E.profesor + '** (escalón SUPERIOR) que arma un EJERCICIO DE ESCUELA para sus alumnos, que son **' + E.alumnos + '**. ' +
       'Lo que escribís es lo que el profesor les da a los alumnos (o lo que guarda como solución para corregirlos: el pedido dice cuál).\n\n' +
-      '**Paso del armado:** ' + paso.n + ' · ' + paso.nom + '\n' +
+      '**Paso del armado:** ' + (paso.ver || paso.n) + ' · ' + paso.nom + '\n' +
       '**Qué entrena el ejercicio:** ' + F.nom + ' — ' + F.pide + '\n' +
       '**Regla de oro:** completá TODO lo que no es del campo que se entrena, con datos concretos y coherentes entre sí; en el campo que se entrena dejá el TRABAJO al alumno (no le resuelvas su apreciación, su anexo ni su decisión). Si algo del contexto falta, inventalo verosímil, de ESTE terreno y de ESTE escalón, y marcalo con «(supuesto)». Si el texto te llega cortado, contestá igual con lo que tengas.\n' +
       '**Lo que ya hay:** el terreno que el profesor dibujó en la Mesa (CMOC) y su CARPETA (lo que ya resolvió con la IA en los otros pasos, al final del contexto) mandan: usalos y no los contradigas.\n\n'
@@ -270,35 +270,6 @@
     return '## FORMATO DE LAS FICHAS (para pegarlas en la Mesa)\nUn bloque ```json con una LISTA de objetos, uno por unidad:\n' +
       '```json\n[{"designacion":"D.I. 11","bando":"propias","arma":"infanteria","escalon":"division","lat":-16.51,"lng":-64.49}]\n```\n' +
       '- `bando`: "propias" (AZUL) o "enemigas" (ROJO).\n- `arma`: uno de ' + ARMAS.join(', ') + '.\n- `escalon`: uno de ' + ESCALONES.join(', ') + '.\n- `lat`/`lng` en grados decimales, sobre el terreno del ejercicio.\n\n'
-  }
-  function pedidoOGO(ctx) {
-    var E = ctx.escalon, F = ctx.foco
-    var anexos = CAT.ANEXOS_OGO.map(function (a) {
-      var S = CAT.SECCIONES[a.sec], entrena = F.secs.indexOf(a.sec) >= 0 && F.id !== 'pmtd'
-      return 'Anexo ' + a.letra + ' — ' + a.nom + ' (lo recibe el ' + S.corto + ')' + (entrena ? ' ← ES EL CAMPO QUE SE ENTRENA: completo en lo que el superior sabe, SIN resolver lo que el alumno tiene que producir' : '')
-    })
-    return '## LA TAREA: la ORDEN GENERAL DE OPERACIONES (OGO) del ' + E.profesor + ' a la unidad de los alumnos, COMPLETA, con TODOS sus anexos\n\n' +
-      'Es la **' + E.orden + '**. La reciben los alumnos (' + E.alumnos + ') y con ella hacen el PMTD completo (recibir la misión, analizar la misión, desarrollar los CAP, Juego de Guerra, comparar, decidir, elaborar su propia orden).\n\n' +
-      '### Formato de la OGO (formato militar de la Escuela)\n' +
-      'Encabezado (clasificación, copia N° de, unidad, lugar/PC, grupo fecha-hora, N° de orden, referencias: cartas y escala, huso horario), ORGANIZACIÓN DE LA TAREA (del escalón del profesor, con los alumnos adentro), y los cinco párrafos:\n' +
-      enumera([
-        'SITUACIÓN: a. Fuerzas enemigas (orden de batalla, dispositivo, capacidades, lo que sabe el superior; remite al Anexo A). b. Fuerzas amigas (misión e intención DOS escalones arriba, unidades vecinas y de apoyo con sus misiones). c. Agregaciones y segregaciones (refuerzos y reducciones de la unidad de los alumnos, con la hora en que rigen). d. Supuestos.',
-        'MISIÓN: la misión de la unidad del PROFESOR (quién, qué, cuándo, dónde, para qué).',
-        'EJECUCIÓN: a. Intención del Comandante (propósito, tareas clave, estado final). b. Concepto de la operación (esquema de maniobra por fases, operación decisiva y de configuración, fuegos, reconocimiento, ingenieros). c. Tareas a las unidades subordinadas: UNA por unidad, la de los alumnos con todo detalle (misión, límites, objetivos, medidas de coordinación, apoyos recibidos), las vecinas en una línea. d. Instrucciones de coordinación (hora de inicio, líneas y medidas de control, RCIC del superior, administración del riesgo, reglas de empeñamiento).',
-        'APOYO DE SERVICIO DE COMBATE / LOGÍSTICA: concepto del apoyo, instalaciones, rutas, clases de abastecimiento, sanidad, mantenimiento, transporte (remite al Anexo D).',
-        'COMANDO Y COMUNICACIONES: puestos comando (ubicación y desplazamientos), sucesión de comando, instrucciones de comunicaciones (remite al Anexo G).'
-      ]) + '\nFirma del Comandante, autenticación, anexos, distribución.\n\n' +
-      '### Los anexos (TODOS, cada uno completo y en su propio formato de anexo, con sus apéndices si corresponde)\n' + enumera(anexos) + '\n\n' +
-      '### Reglas\n' +
-      '- Si hay BIBLIOTECA DEL PROFESOR (al final del contexto): la ORGANIZACIÓN DE LA TAREA, las agregaciones y segregaciones y los efectivos salen de SUS COE (designaciones, efectivos, armamento y vehículos tal cual); el enemigo, su organización y su armamento, de los apéndices de organización y armamento del enemigo; citalos como apéndices de los anexos en vez de inventarlos.\n' +
-      '- Los datos tienen que ser de ESTE ejercicio: el terreno del Área de Interés y del CMOC (avenidas de aproximación, terreno clave), las fichas de la carta (usá sus designaciones), la Orden escrita en la Mesa si ya hay algo. Coordenadas, líneas y objetivos con nombre y ubicación.\n' +
-      '- Si la CARPETA DEL PROFESOR trae el CMOC (paso 4), el párrafo 1.a y el Anexo A (Inteligencia) toman de ahí el terreno, las avenidas de aproximación y el terreno clave con sus mismos nombres, A NIVEL DEL SUPERIOR; si trae los cursos de acción del enemigo (paso 7), el Anexo A da lo que el superior sabe del enemigo sin decirle al alumno cuál es el más probable. Si el ejercicio entrena el G-2 o el PMTD completo, NO le des al alumno la calificación de las avenidas ni el terreno decisivo de SU nivel: eso lo tiene que producir él.\n' +
-      '- Escalón coherente: el ' + E.profesor + ' escribe; la unidad de los alumnos recibe tareas de su nivel, con subordinados dos niveles abajo nombrados.\n' +
-      '- Fechas y horas en D/H (D-5, D, D+2; H-2, H+6). Si el ejercicio no tiene calendario, dejá D y H sin fecha.\n' +
-      '- ' + F.pide + '\n' +
-      '- No escribas el plan de los alumnos ni sus apreciaciones: eso es lo que van a hacer con esta Orden.\n\n' +
-      '### Cómo contestar\n' +
-      'En Markdown, en español militar, voseo no (es un documento). Primero la OGO entera; después cada anexo con su letra y título como encabezado de nivel 2; al final una sección «## PARA EL PROFESOR» con: 1) qué debe producir el alumno con esta Orden (por fase del PMTD, según el campo que entrena); 2) qué quedó deliberadamente sin resolver para él; 3) una lista de supuestos que inventaste para que el profesor los confirme. Si no entra todo en una respuesta, terminá el documento actual y decí «SIGUE: Anexo X» para que te pidan el resto.\n\n'
   }
   // La primera línea dice a quién va el documento: la carpeta del profesor lo separa con eso.
   function destino(paso) {
@@ -319,9 +290,9 @@
     ctx.escalon = ctx.escalon || CAT.ESCALONES[1]
     ctx.foco = ctx.foco || CAT.FOCOS[0]
     ctx.paso = paso.n
-    return cabecera(paso, ctx) + (paso.ogo ? pedidoOGO(ctx) : pedidoPaso(paso, ctx)) +
+    return cabecera(paso, ctx) + pedidoPaso(paso, ctx) +
       '---\n\n# CONTEXTO DEL EJERCICIO (lo que ya hay en la Mesa)\n\n' + contexto(ctx) + '\n\n---\n' +
-      'RECORDATORIO: ' + (paso.ogo ? 'la OGO completa con TODOS sus anexos, ' : ia(paso) + ', ') + 'para un ' + ctx.escalon.profesor + ' cuyos alumnos son ' + ctx.escalon.alumnos + '; el ejercicio entrena ' + ctx.foco.nom + '.\n'
+      'RECORDATORIO: ' + ia(paso) + ', para un ' + ctx.escalon.profesor + ' cuyos alumnos son ' + ctx.escalon.alumnos + '; el ejercicio entrena ' + ctx.foco.nom + '.\n'
   }
   function ia(paso) { return (paso.ia && paso.ia.tit) || paso.nom }
 

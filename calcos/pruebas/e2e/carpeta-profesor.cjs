@@ -8,7 +8,8 @@
 //     de respaldo del navegador (con SIDECEME el ejercicio no está en el IndexedDB con su nombre);
 //   · se pega la respuesta real de la IA (pruebas/respuesta-cmoc-profesor.md) y se guarda: queda
 //     como 🔒 solución del profesor y lo «PARA EL PROFESOR» se suma a la carpeta;
-//   · queda después de recargar; entra en el pedido de la OGO (paso 5) y no en el del paso 4;
+//   · queda después de recargar; entra en el pedido del paso 5 y en el de cada documento de la OGO
+//     (el Anexo de Inteligencia), y no en el del paso 4;
 //   · ⬇️ Bajar la carpeta (.md) y 📤 Cargarla de nuevo después de sacarla;
 //   · la carpeta NO viaja en el ejercicio que se guarda en SIDECEME (lo reciben los alumnos);
 //   · sin errores de consola.
@@ -100,13 +101,20 @@ const RESPUESTA = fs.readFileSync(path.join(__dirname, '../respuesta-cmoc-profes
     await page.locator(`${PANEL} .car-notas`).scrollIntoViewIfNeeded()
     await page.screenshot({ path: path.join(out, '3-carpeta.png') })
 
-    // 5) entra en el pedido de la OGO (paso 5), con su regla para el Anexo A; no en el del paso 4
+    // 5) entra en el pedido de lo esencial de la Orden (paso 5) y en el de cada documento de la OGO
+    //    (el Anexo de Inteligencia, con su regla para el CMOC); no en el del paso 4
     t = await pedido(5)
     assert.match(t, /### CARPETA DEL PROFESOR/)
     assert.match(t, /#### Paso 4 · CMOC: avenidas de aproximación y terreno clave \(🔒 SOLUCIÓN DEL PROFESOR · guardado /)
     assert.match(t, /AA-E 2 "SUR"/, 'con lo que contestó la IA')
-    assert.match(t, /el párrafo 1\.a y el Anexo A \(Inteligencia\) toman de ahí/)
-    assert.match(await page.locator(`${PANEL} .ia.ogo .ia-ayuda`).innerText(), /Lleva lo guardado en la 📕 carpeta \(paso 4\)/)
+    assert.match(await page.locator(`${PANEL} [data-paso="P.5"] .ia-ayuda`).innerText(), /Lleva lo guardado en la 📕 carpeta \(paso 4\)/)
+    await page.locator(`${PANEL} [data-ogo-doc="icia"] [data-a="ogo-pedido"]`).dispatchEvent('click')
+    await page.waitForFunction(() => /CONTEXTO DEL EJERCICIO/.test(document.querySelector('#sid-mod-panel textarea[data-ogo-pedido]')?.value || ''), null, { timeout: 8000 })
+    const tIcia = await page.locator(`${PANEL} textarea[data-ogo-pedido]`).inputValue()
+    assert.match(tIcia, /ANEXO “B” \(Plan de Inteligencia \/ Inteligencia\)/)
+    assert.match(tIcia, /#### Paso 4 · CMOC[\s\S]*AA-E 2 "SUR"/, 'el anexo de inteligencia lleva el CMOC de la carpeta')
+    assert.match(tIcia, /Si la CARPETA DEL PROFESOR trae el CMOC \(paso 4\)/)
+    await page.locator(`${PANEL} [data-a="ogo-cerrar"]`).dispatchEvent('click')
     t = await pedido(4)
     assert.doesNotMatch(t, /### CARPETA DEL PROFESOR/, 'el paso 4 no se lleva su propia respuesta')
     assert.equal(await page.locator(`${PANEL} textarea[data-ia-resp="4"]`).inputValue(), RESPUESTA.trim(), 'la respuesta guardada vuelve al cuadro')
