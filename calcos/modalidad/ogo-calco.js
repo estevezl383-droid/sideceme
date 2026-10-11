@@ -147,14 +147,28 @@
     var XY = function (p) { var q = P(p); return [X(q[0]), Y(q[1])] }
     var ruta = function (cs, cerrar) { return cs.map(function (p, i) { var q = XY(p); return (i ? 'L' : 'M') + q[0] + ' ' + q[1] }).join('') + (cerrar ? 'Z' : '') }
     var svg = []
+    // las fichas propias que entran (sus símbolos ocupan lugar: los nombres de las áreas y de las
+    // medidas se corren para no pisarlos, y los rótulos de las fichas no pisan esos nombres)
+    var puestas = fichas.map(function (u) { var q = P([+u.lng, +u.lat]); return q[0] < e0 || q[0] > e1 || q[1] < m0 || q[1] > m1 ? null : { u: u, x: X(q[0]), y: Y(q[1]) } }).filter(Boolean)
+    var ocupado = puestas.map(function (f) { return cajaSimbolo(f.u, f.x, f.y) })
+    var libre = function (x, y, t, tam) {
+      var w = Math.max(16, esc(t).length * tam * 0.62) + 6, caja = function (c) { return [c[0] - w / 2, c[1] - tam, c[0] + w / 2, c[1] + 4] }
+      var cand = [[x, y], [x, y - 24], [x, y + 24], [x - w * 0.7, y], [x + w * 0.7, y], [x, y - 48], [x, y + 48], [x - w * 0.7, y - 24], [x + w * 0.7, y + 24]]
+      var el = cand.filter(function (c) { var b = caja(c); return b[0] > 2 && b[2] < W - 2 && b[1] > 2 && b[3] < H - PIE - 2 && !ocupado.some(function (o) { return pisa(o, b) }) })[0] || cand[0]
+      ocupado.push(caja(el))
+      return el
+    }
     // las áreas
-    otras.forEach(function (a) { svg.push('<path d="' + ruta(coords(a), true) + '" fill="none" stroke="#000" stroke-width="1.6" stroke-dasharray="10 6"/>'); var c = XY(centro(coords(a))); if (rotulo(a)) svg.push(texto(c[0], c[1], rotulo(a), 13)); cuenta.areas++ })
+    otras.forEach(function (a) { svg.push('<path d="' + ruta(coords(a), true) + '" fill="none" stroke="#000" stroke-width="1.6" stroke-dasharray="10 6"/>'); var c = XY(centro(coords(a))); if (rotulo(a)) { var p = libre(c[0], c[1], rotulo(a), 13); svg.push(texto(p[0], p[1], rotulo(a), 13)) } cuenta.areas++ })
     if (an) { svg.push('<path d="' + ruta(an, true) + '" fill="none" stroke="#000" stroke-width="3.4"/>'); cuenta.areas++ }
     ;['zonasLog', 'sectoresLog'].forEach(function (k) { (o[k] || []).forEach(function (z) { var cs = coords(z); if (cs.length < 3) return; svg.push('<path d="' + ruta(cs, true) + '" fill="none" stroke="#000" stroke-width="1.4" stroke-dasharray="4 4"/>'); var c = XY(centro(cs)); if (rotulo(z)) svg.push(texto(c[0], c[1], rotulo(z).toUpperCase(), 12)); cuenta.zonas++ }) })
     // los límites, con su magnitud
     ;(o.limites || []).forEach(function (l, i) {
       var cs = coords(l); if (cs.length < 2) return
-      svg.push('<path d="' + ruta(cs) + '" fill="none" stroke="#000" stroke-width="2.6"/>'); cuenta.limites++
+      var u = cs[cs.length - 1], cerrada = cs.length > 3 && u[0] === cs[0][0] && u[1] === cs[0][1]
+      svg.push('<path d="' + ruta(cs, cerrada) + '" fill="none" stroke="#000" stroke-width="' + (l.tipo === 'simple' || l.tipo === 'punteada' ? '2' : '2.6') + '"' + (l.tipo === 'punteada' ? ' stroke-dasharray="8 5"' : '') + '/>'); cuenta.limites++
+      // una línea o un área con nombre (LF ALFA, AE-1: las medidas de la IA) lleva su nombre
+      if (l.nombre) { var cn = XY(cerrada ? centro(cs.slice(0, -1)) : medio(cs)), tn = String(l.nombre).toUpperCase() + (MARCA[l.escalon] && (l.tipo || 'magnitud') === 'magnitud' ? ' ' + MARCA[l.escalon] : ''), pn = libre(cn[0], cn[1] - (cerrada ? 0 : 10), tn, 12); svg.push(texto(pn[0], pn[1], tn, 12, true)); return }
       var conMarca = (o.magnitudes || []).some(function (m) { return m && m.origen === 'limite-' + i })
       if (!conMarca && MARCA[l.escalon]) { var c = XY(medio(cs)); svg.push(texto(c[0], c[1], (rotulo(l) && !/^(limite|magnitud)$/i.test(rotulo(l)) ? rotulo(l).toUpperCase() + ' ' : '') + MARCA[l.escalon], 13, true)) }
     })
@@ -163,11 +177,9 @@
     ;['lineasEM', 'ejesLog', 'flechasZona'].forEach(function (k) { (o[k] || []).forEach(function (l) { var cs = coords(l); if (cs.length < 2) return; svg.push('<path d="' + ruta(cs) + '" fill="none" stroke="#000" stroke-width="1.8"' + (k === 'ejesLog' ? ' stroke-dasharray="12 5"' : '') + '/>'); if (rotulo(l)) { var c = XY(cs[0]); svg.push(texto(c[0], c[1] - 8, rotulo(l).toUpperCase(), 12)) } cuenta.lineas++ }) })
     ;(o.maniobra || []).forEach(function (a) { var cs = coords(a); if (cs.length < 3) return; svg.push('<path d="' + ruta(cs, true) + '" fill="none" stroke="#000" stroke-width="1.8"/>'); cuenta.lineas++ })
     // objetivos y puntos
-    ;(o.objetivos || []).forEach(function (x) { if (!x || !par(x.centro)) return; var c = XY(x.centro); svg.push('<ellipse cx="' + c[0] + '" cy="' + c[1] + '" rx="22" ry="14" fill="none" stroke="#000" stroke-width="2"/>' + texto(c[0], c[1] + 4, 'OBJ ' + (rotulo(x) || '').toUpperCase(), 11)); cuenta.puntos++ })
-    ;['coordinacion', 'pasaje', 'posDef', 'ains'].forEach(function (k) { (o[k] || []).forEach(function (x) { if (!x || !par(x.centro)) return; var c = XY(x.centro); svg.push(k === 'pasaje' ? '<rect x="' + (c[0] - 6) + '" y="' + (c[1] - 6) + '" width="12" height="12" fill="none" stroke="#000" stroke-width="1.6"/>' : '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="6" fill="none" stroke="#000" stroke-width="1.6"/>'); if (rotulo(x)) svg.push('<text x="' + (c[0] + 9) + '" y="' + (c[1] - 6) + '" font-size="11">' + esc(rotulo(x).toUpperCase()) + '</text>'); cuenta.puntos++ }) })
+    ;(o.objetivos || []).forEach(function (x) { if (!x || !par(x.centro)) return; var c = XY(x.centro); ocupado.push([c[0] - 22, c[1] - 14, c[0] + 22, c[1] + 14]); svg.push('<ellipse cx="' + c[0] + '" cy="' + c[1] + '" rx="22" ry="14" fill="none" stroke="#000" stroke-width="2"/>' + texto(c[0], c[1] + 4, (/^OBJ/i.test(rotulo(x)) ? '' : 'OBJ ') + (rotulo(x) || '').toUpperCase(), 11)); cuenta.puntos++ })
+    ;['coordinacion', 'pasaje', 'posDef', 'ains'].forEach(function (k) { (o[k] || []).forEach(function (x) { if (!x || !par(x.centro)) return; var c = XY(x.centro); svg.push(k === 'pasaje' ? '<rect x="' + (c[0] - 6) + '" y="' + (c[1] - 6) + '" width="12" height="12" fill="none" stroke="#000" stroke-width="1.6"/>' : '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="6" fill="none" stroke="#000" stroke-width="1.6"/>'); ocupado.push([c[0] - 7, c[1] - 7, c[0] + 7, c[1] + 7]); if (rotulo(x)) { svg.push('<text x="' + (c[0] + 9) + '" y="' + (c[1] - 6) + '" font-size="11">' + esc(rotulo(x).toUpperCase()) + '</text>'); ocupado.push([c[0] + 9, c[1] - 16, c[0] + 9 + rotulo(x).length * 6.8, c[1] - 3]) } cuenta.puntos++ }) })
     // las fichas propias
-    var puestas = fichas.map(function (u) { var q = P([+u.lng, +u.lat]); return q[0] < e0 || q[0] > e1 || q[1] < m0 || q[1] > m1 ? null : { u: u, x: X(q[0]), y: Y(q[1]) } }).filter(Boolean)
-    var ocupado = puestas.map(function (f) { return cajaSimbolo(f.u, f.x, f.y) })
     puestas.forEach(function (f) { svg.push(simbolo(f.u, f.x, f.y)); if (f.u.tipo === 'pc') cuenta.pc++; else cuenta.fichas++ })
     puestas.forEach(function (f) { svg.push(rotular(f.u, f.x, f.y, ocupado, W, H - PIE)) })
     if (!cuenta.fichas && !cuenta.pc) avisos.push('En la carta no hay fichas PROPIAS dentro del área: el calco sale sin unidades.')

@@ -178,11 +178,14 @@ que yo seleccione».
   reemplaza la regla de destino (`calco_compartidos_check` → `calco_compartidos_destino_check`, con la
   tercera forma) y un índice. No borra nada.
 
-**Para publicarlo** (en este orden): 1) aplicar la migración; 2) desplegar `calco-ops` con `index.ts`
-(sin cambios), `compartir.mjs`, `compartir-modelo.mjs`, `modelo.mjs` y `recorte.mjs`, con los imports
-aplanados (`./compartir-modelo.mjs`, `./modelo.mjs`, `./recorte.mjs`, sin `?v=`), JWT OFF como está.
-Mientras no se publique, el tablero del profesor avisa que el servidor no ofrece ciclos/paralelos y
-queda el ⬇️ JSON del ejercicio.
+**Publicado el 11-10-2026** (con el permiso de Sergio): 1) la migración aplicada en SIDECEME-V2
+(`20261011150000_calco_compartidos_ciclo`; no borró nada: los envíos anteriores siguen con su destino);
+2) `calco-ops` **v9** desplegada con `index.ts` (sin cambios), `compartir.mjs`, `compartir-modelo.mjs`,
+`modelo.mjs` y `recorte.mjs`, con los imports aplanados (`./compartir-modelo.mjs`, `./modelo.mjs`,
+`./recorte.mjs`, sin `?v=`), JWT OFF como estaba. Se comprobó que los archivos desplegados son, byte por
+byte (SHA-256), los de este repositorio con esos imports, y la regla nueva de destino con una transacción
+que se deshizo (ROLLBACK): un envío por ciclo (y por paralelo) entra; uno con paralelo y sin ciclo se rechaza; no quedó ninguna fila de prueba. Si se vuelve a desplegar, igual:
+los mismos cinco archivos con los imports aplanados.
 
 Prueba: `node calcos/pruebas/areas-compartir.mjs` (destinos, envío por paralelo, documentos elegidos,
 lo de adentro desde la Mesa del profesor, un cursante no envía, qué recibe cada cursante).

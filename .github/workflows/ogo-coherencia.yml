@@ -34,7 +34,7 @@ jobs:
         env:
           DOCX_MODULE: /tmp/prueba-ogo/node_modules/docx
         run: |
-          for f in ogo-mesa ogo ogo-coherencia ogo-calco modalidad catalogo; do node --check calcos/modalidad/$f.js; done
+          for f in ogo-mesa ogo-terreno ogo ogo-coherencia ogo-calco modalidad catalogo; do node --check calcos/modalidad/$f.js; done
           node calcos/pruebas/ogo-coherencia.cjs
           node calcos/pruebas/ogo.cjs
           node calcos/pruebas/modalidad.cjs

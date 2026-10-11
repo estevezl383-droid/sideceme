@@ -285,11 +285,14 @@
   // La ficha para la Mesa (la forma de academico.js / ia-profesor.js).
   var ARMAS = ['infanteria', 'mecanizada', 'motorizada', 'andina', 'selva', 'caballeria', 'cabmec', 'artilleria', 'antiaerea', 'ingenieria', 'comunicaciones', 'blindada', 'aerotransportada', 'aviacion', 'logistica', 'intendencia', 'materialbelico', 'sanidad', 'transporte', 'mantenimiento', 'veterinaria', 'policiamilitar', 'antitanque', 'morteros', 'ametralladoras', 'lanzacohetes', 'inteligencia', 'ninguna']
   var ESCALONES = ['escuadra', 'seccion', 'compania', 'batallon', 'regimiento', 'brigada', 'division', 'cuerpo', 'ejercito']
+  // La Mesa pone la designación (y los nombres de las medidas) tal cual en el HTML de la carta: lo que
+  // escribió la IA entra sin < > & " ' `.
+  var SIN_HTML = /[<>&"'`]/g
   function ficha(u, ahora) {
     var pc = u.tipo === 'pc'
     return {
       id: 'ogo-' + (ahora || Date.now()) + '-' + Math.random().toString(36).slice(2, 7), bando: 'propias', tipo: pc ? 'pc' : 'unidad',
-      designacion: una(u.designacion) || 'Unidad', arma: pc ? 'ninguna' : ARMAS.indexOf(u.arma) >= 0 ? u.arma : 'infanteria',
+      designacion: una(u.designacion).replace(SIN_HTML, '') || 'Unidad', arma: pc ? 'ninguna' : ARMAS.indexOf(u.arma) >= 0 ? u.arma : 'infanteria',
       escalon: ESCALONES.indexOf(u.escalon) >= 0 ? u.escalon : 'batallon', lat: r6(+u.lat), lng: r6(+u.lng), piezas: 3, origen: 'ogo-profesor'
     }
   }
@@ -312,6 +315,6 @@
     una: una, rasgos: rasgos, mismaUnidad: mismaUnidad, nivelDe: nivelDe, superiorDe: superiorDe, poblaciones: poblaciones, masCercana: masCercana,
     poblacionesParaPedido: poblacionesParaPedido, anillo: anillo, areaMayor: areaMayor, areas: areas, dentro: dentro, fichaDe: fichaDe, identidad: identidad, abreviar: abreviar, sigla: sigla,
     unidadesDeOrganizacion: unidadesDeOrganizacion, faltantes: faltantes, sugerir: sugerir, ficha: ficha, quitarSupuesto: quitarSupuesto, km: km,
-    ARMAS: ARMAS, ESCALONES: ESCALONES, ESC_FICHA: ESC_FICHA
+    ARMAS: ARMAS, ESCALONES: ESCALONES, SIN_HTML: SIN_HTML, ESC_FICHA: ESC_FICHA
   }
 })

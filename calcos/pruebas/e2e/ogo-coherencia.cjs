@@ -6,6 +6,9 @@
 //   · paso 11: el pedido de coherencia lleva TODOS los documentos, el CTO, Tunapa y las unidades que
 //     faltan; se pega la respuesta consolidada (fixtures/ogo-consolidado-ia.md) y reemplaza los documentos;
 //   · paso 12: las unidades que faltan con ✓ Aceptar: la ficha entra en la carta y el «(supuesto)» se va;
+//     la ubicación la busca el TERRENO (carretera, lago) y la de la IA que cae en un lago se cambia;
+//     las medidas de la IA (LF ALFA, AE-1, OBJ 1, PC 2) con ✓ Dibujar entran a la carta, con su nombre,
+//     al calco del Anexo A, y ↶ Deshacer las quita;
 //   · paso 13: ⬇️ JSON del ejercicio (sólo la parte elegida con la tijera) y 📤 envío por ciclo/paralelo
 //     (calco-ops: areas_destinos / ejercicio_enviar) con los documentos y el calco como imagen;
 //   · sin errores de consola.
@@ -24,6 +27,8 @@ const ORG = 'ORGANIZACIÓN DE LA TAREA:\nI CUERPO DE EJÉRCITO (I CE): Orgánico
 const ORDEN = fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'ogo-respuesta-ia.md'), 'utf8').replace(/ORGANIZACIÓN DE LA TAREA:[\s\S]*?\n\nI\.- SITUACIÓN/, ORG + '\nI.- SITUACIÓN')
 const CONS = fs.readFileSync(path.join(__dirname, '..', 'fixtures', 'ogo-consolidado-ia.md'), 'utf8').replace('{{ORDEN}}', ORDEN)
 
+const RUTA = [[-68.33, -18.95], [-68.52, -18.87], [-68.62, -18.63], [-68.9, -18.45]]
+const LAGO = [[-68.47, -18.72], [-68.43, -18.72], [-68.43, -18.68], [-68.47, -18.68]]
 function unidad(id, designacion, arma, escalon, lat, lng, extra) { return Object.assign({ id, bando: 'propias', tipo: 'unidad', designacion, arma, escalon, lat, lng, piezas: 3 }, extra || {}) }
 function ejercicio() {
   const ao = [[-69.25, -18.35], [-68.32, -18.40], [-68.30, -19.05], [-69.10, -19.10], [-69.28, -18.80]]
@@ -44,7 +49,10 @@ function ejercicio() {
       areaOps: { id: 'ao-ce1', nombre: 'CE-I', coords: ce1, tipo: 'defensiva', ambiente: 'altiplano' }, // la que se cortó con la tijera
     },
     ordenSup: { unidad: 'FF.TT.T.O.', numero: '01' },
-    resultados: { poblaciones_puntos: { fc: { type: 'FeatureCollection', features: [pob('Tunapa', -68.53, -18.87, 'hamlet', 131), pob('Sabaya', -68.62, -18.63, 'town', 900), pob('Pagador', -68.46, -18.69, 'village', 300), pob('Negrillos', -68.42, -18.89, 'village', 250)] } } },
+    resultados: { poblaciones_puntos: { fc: { type: 'FeatureCollection', features: [pob('Tunapa', -68.53, -18.87, 'hamlet', 131), pob('Sabaya', -68.62, -18.63, 'town', 900), pob('Pagador', -68.46, -18.69, 'village', 300), pob('Negrillos', -68.42, -18.89, 'village', 250)] } },
+      // el terreno: una carretera y un lago justo donde la IA puso el PC alterno
+      comunicaciones_vias: { fc: { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'LineString', coordinates: RUTA }, properties: { fclass: 'primary' } }] } },
+      hidro_poligonos: { fc: { type: 'FeatureCollection', features: [{ type: 'Feature', geometry: { type: 'Polygon', coordinates: [LAGO.concat([LAGO[0]])] }, properties: { fclass: 'water' } }] } } },
   }
 }
 
@@ -153,7 +161,7 @@ function ejercicio() {
 
     // ── paso 12: las unidades que faltan, con ✓ Aceptar ──
     const ubi = `${PANEL} #sid-ubi`
-    const nombres = await page.locator(`${ubi} .ubi-it .ubi-nom b`).allInnerTexts()
+    const nombres = await page.locator(`${ubi} .ubi-it:not([data-med]) .ubi-nom b`).allInnerTexts()
     assert.deepEqual(nombres.slice(0, 3), ['BAT. LOG. FF.TT.', 'GALM-1', 'PC ALTERNO FF.TT.T.O.'], 'primero las de la IA (con su ubicación)')
     assert.ok(nombres.includes('AGR. ART. FF.TT.') && nombres.includes('AGR. ING. FF.TT.') && nombres.includes('BAT. AV. EJTO. 1'), 'y las de la organización de la tarea')
     assert.ok(!nombres.some((n) => /^(VI EJ.*|CE-?I+|I+ CE|FF\.TT\.T\.O\.)$/.test(n)), 'ni el enemigo, ni los Cuerpos, ni quien expide: ' + nombres.join(' · '))
@@ -162,7 +170,12 @@ function ejercicio() {
     assert.match(t1, /estaba «\(supuesto\)»[\s\S]*cerca de TUNAPA \(Caserío, [\d,]+ km\) · -18\.8850, -68\.4900 · ubicación de la IA/)
     assert.doesNotMatch(t1, /fuera del Área/, 'dentro del Área de Operaciones de las FF.TT.T.O. (no del pedazo del CE-I)')
     const agr = page.locator(`${ubi} .ubi-it`, { hasText: 'AGR. ART. FF.TT.' })
-    assert.match(await agr.innerText(), /sugerida por la Mesa/)
+    const ta = await agr.innerText()
+    assert.match(ta, /buscada en el terreno[\s\S]*🧭 .*del enemigo/, 'la ubicación sale del terreno, con el porqué: ' + ta)
+    const pca = await page.locator(`${ubi} .ubi-it`, { hasText: 'PC ALTERNO FF.TT.T.O.' }).innerText()
+    assert.match(pca, /buscada en el terreno[\s\S]*↪ Se cambió: la de la IA \(-18\.7, -68\.45\) caía en un lago o humedal/, 'la de la IA en el lago se cambia: ' + pca)
+    const log2 = await page.locator(`${ubi} .ubi-it`, { hasText: 'BAT. AV. EJTO. 1' }).innerText()
+    assert.match(log2, /🧭 /)
     await foto('3-unidades')
     const antes = (await fichas()).length
     await log1.locator('[data-a="ubi-aceptar"]').dispatchEvent('click')
@@ -182,15 +195,48 @@ function ejercicio() {
     await page.locator(`${ubi} [data-a="ubi-volver"]`).dispatchEvent('click')
     await page.waitForFunction(() => [...document.querySelectorAll('#sid-ubi .ubi-it b')].some((b) => b.textContent === 'BAT. AV. EJTO. 1'), null, { timeout: 4000 })
     // ✓ Aceptar todas
-    const pend = await page.locator(`${ubi} .ubi-it`).count()
+    const pend = await page.locator(`${ubi} .ubi-it:not([data-med])`).count()
     await page.locator(`${ubi} [data-a="ubi-todas"]`).dispatchEvent('click')
     await page.waitForFunction((n) => window.SIDMesaEjercicio.foto().unidades.length === n, antes + 1 + pend, { timeout: 5000 })
     await page.waitForTimeout(500)
-    assert.equal(await page.locator(`${ubi} .ubi-it`).count(), 0)
+    assert.equal(await page.locator(`${ubi} .ubi-it:not([data-med])`).count(), 0)
     assert.match(await page.locator(ubi).innerText(), /Todas las unidades que nombran los documentos están en la carta/)
     const fs2 = await fichas()
     assert.ok(fs2.some((f) => f.d === 'PC ALTERNO FF.TT.T.O.' && f.t === 'pc'), 'el PC alterno entra como PC')
+    const pcAlt = fs2.find((f) => f.d === 'PC ALTERNO FF.TT.T.O.')
+    assert.ok(!(pcAlt.lng > LAGO[0][0] && pcAlt.lng < LAGO[1][0] && pcAlt.lat > LAGO[0][1] && pcAlt.lat < LAGO[2][1]), 'el PC alterno no quedó en el lago')
     await foto('4-unidades-colocadas')
+
+    // las medidas de la IA: ✓ Dibujar (con nombre en la carta), ✓ Dibujar todas, ↶ Deshacer
+    const meds = await page.locator(`${ubi} [data-med] .ubi-nom b`).allInnerTexts()
+    assert.deepEqual(meds, ['LF ALFA', 'AE-1', 'OBJ 1', 'PC 2'])
+    const ops = () => page.evaluate(() => { const o = window.SIDMesaEjercicio.foto().ops || {}; return { lim: (o.limites || []).map((l) => [l.nombre || '', l.tipo, l.coords.length]), obj: (o.objetivos || []).map((x) => x.etiqueta), coo: (o.coordinacion || []).map((x) => x.nombre || '') } })
+    const ops0 = await ops()
+    await page.locator(`${ubi} [data-med]`, { hasText: 'LF ALFA' }).locator('[data-a="med-aceptar"]').dispatchEvent('click')
+    await page.waitForFunction(() => (window.SIDMesaEjercicio.foto().ops.limites || []).some((l) => l.nombre === 'LF ALFA'), null, { timeout: 5000 })
+    let ops1 = await ops()
+    assert.deepEqual(ops1.lim.slice(-1), [['LF ALFA', 'simple', 2]])
+    await page.waitForFunction(() => [...document.querySelectorAll('.leaflet-marker-pane div')].some((d) => d.textContent === 'LF ALFA'), null, { timeout: 5000 })
+    await page.waitForFunction(() => /LF ALFA dibujada/.test(document.querySelector('#sid-ubi')?.innerText || ''), null, { timeout: 5000 })
+    assert.equal(await page.locator(`${ubi} [data-med]`).count(), 3, 'ya no se ofrece')
+    await page.locator(`${ubi} [data-a="med-todas"]`).dispatchEvent('click')
+    await page.waitForFunction(() => (window.SIDMesaEjercicio.foto().ops.coordinacion || []).some((x) => x.nombre === 'PC 2'), null, { timeout: 5000 })
+    ops1 = await ops()
+    assert.deepEqual(ops1.lim.slice(-2), [['LF ALFA', 'simple', 2], ['AE-1', 'punteada', 5]], 'el área (4 vértices, cerrada), punteada')
+    assert.deepEqual([ops1.obj.slice(-1), ops1.coo.slice(-1)], [['OBJ 1'], ['PC 2']])
+    await page.waitForFunction(() => ['AE-1', 'PC 2', 'OBJ 1'].every((n) => [...document.querySelectorAll('.leaflet-marker-pane div')].some((d) => d.textContent === n)), null, { timeout: 5000 })
+    await page.waitForTimeout(400)
+    assert.match(await page.locator(ubi).innerText(), /Las medidas que nombran los documentos están dibujadas[\s\S]*✓ Dibujadas: LF ALFA · AE-1 · OBJ 1 · PC 2/)
+    await foto('4b-medidas-dibujadas')
+    // ↶ Deshacer de la barra: quita la última tanda (las tres de «Dibujar todas»)
+    await page.locator('.botones-mapa > button.btn-deshacer').first().dispatchEvent('click')
+    await page.waitForFunction(() => !(window.SIDMesaEjercicio.foto().ops.coordinacion || []).some((x) => x.nombre === 'PC 2'), null, { timeout: 5000 })
+    const ops2 = await ops()
+    assert.deepEqual(ops2.lim, ops0.lim.concat([['LF ALFA', 'simple', 2]]), '↶ Deshacer quitó la tanda; LF ALFA queda')
+    // el panel las vuelve a ofrecer (lo que manda es la carta) y se dibujan de nuevo, para el calco
+    await page.waitForFunction(() => document.querySelectorAll('#sid-ubi [data-med]').length === 3, null, { timeout: 5000 })
+    await page.locator(`${ubi} [data-a="med-todas"]`).dispatchEvent('click')
+    await page.waitForFunction(() => (window.SIDMesaEjercicio.foto().ops.coordinacion || []).some((x) => x.nombre === 'PC 2'), null, { timeout: 5000 })
 
     // el calco ahora las dibuja (la Mesa las tiene)
     w = await bajar(`${doc('calco')} [data-a="ogo-word"]`)
@@ -202,6 +248,7 @@ function ejercicio() {
     fs.writeFileSync(path.join(SALIDAS, 'calco.png'), png2)
     const dib2 = await page.evaluate(() => window.SIDOgoCalco.dibujo(window.SIDMesaEjercicio.foto()))
     assert.ok(dib2.cuenta.fichas >= 9 && dib2.cuenta.pc === 1, 'el calco dibuja las colocadas (' + JSON.stringify(dib2.cuenta) + ')')
+    for (const n of ['LF ALFA', 'AE-1', 'OBJ 1', 'PC 2']) assert.ok(dib2.svg.includes('>' + n + '<'), 'el calco rotula ' + n)
 
     // ── paso 13: repartir ──
     const repSel = `${PANEL} #sid-rep`

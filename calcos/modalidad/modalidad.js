@@ -149,7 +149,7 @@
     var MA = window.MesaAcademica
     if (!MA || MA.__sidModalidad) return
     var orig = MA.sincronizar
-    MA.sincronizar = function (p) { puente = p || null; setTimeout(function () { carRevisar(); ogoRevisarCarga() }, 0); return orig.apply(this, arguments) }
+    MA.sincronizar = function (p) { puente = p || null; setTimeout(function () { carRevisar(); ogoRevisarCarga(); ubiRevisar() }, 0); return orig.apply(this, arguments) }
     MA.__sidModalidad = true
   }
   function centroMesa() { try { var c = puente && (typeof puente.centro === 'function' ? puente.centro() : puente.centro); return c && isFinite(c.lat) ? c : null } catch (e) { return null } }
@@ -772,7 +772,8 @@
         (e.datos && e.datos.membrete && e.datos.membrete.fechaHora ? '<p class="ogo-nota">📅 Fecha de la OGO: <b>' + esc(e.datos.membrete.fechaHora) + '</b> (va al membrete de todos los documentos)</p>' : '') +
         (e.revision ? '<details class="coh-rev"><summary>🔎 Lo que corrigió la IA</summary><div class="car-txt">' + esc(e.revision) + '</div></details>' : '') + '</div>'
       var n = COH.porUbicar(ogo, ejSync() || {}, { escalon: escalon }).filter(function (x) { return x.estado === 'pendiente' }).length
-      if (n) h += '<button type="button" class="ir coh-ubi" data-a="ubi-ir">📍 ' + n + ' unidad' + (n > 1 ? 'es' : '') + ' para colocar en la carta (paso 12) ▸</button>'
+      var nm = COH.medidasPorDibujar(ogo, ejSync() || {}).filter(function (x) { return x.estado === 'pendiente' }).length
+      if (n || nm) h += '<button type="button" class="ir coh-ubi" data-a="ubi-ir">📍 ' + [n ? n + ' unidad' + (n > 1 ? 'es' : '') + ' para colocar' : '', nm ? nm + ' medida' + (nm > 1 ? 's' : '') + ' para dibujar' : ''].filter(Boolean).join(' y ') + ' (paso 12) ▸</button>'
     }
     return h + (aviso.coh ? '<div class="ia-aviso">' + esc(aviso.coh) + '</div>' : '') + '</div>'
   }
@@ -817,27 +818,84 @@
   // ════════ 📍 Paso 12: las unidades que faltan en la carta (✓ Aceptar) ════════
   function kmTxt(x) { return x.toFixed(1).replace('.', ',') }
   function ll4(x) { return (Math.round(x * 1e4) / 1e4).toFixed(4) }
+  // Si la carta cambia por fuera del panel (↶ Deshacer, 🗑️ en 🪖 Unidades o ⚫ MEDIDAS), el paso 12 se
+  // vuelve a pintar solo: lo que manda es la carta. Sólo ese bloque (no tiene campos que se escriban).
+  var ubiFirma = '', ubiT = 0
+  function firmaCarta(ej) {
+    var o = (ej && ej.ops) || {}, nom = function (x) { return x && (x.nombre || x.etiqueta) || '' }
+    return [(ej && ej.unidades || []).map(function (u) { return u.designacion }).join('|'), (o.limites || []).map(nom).join('|'), (o.objetivos || []).map(nom).join('|'), (o.coordinacion || []).map(nom).join('|')].join('#')
+  }
+  function ubiRevisar() {
+    clearTimeout(ubiT)
+    ubiT = setTimeout(function () {
+      if (modo !== 'profesor') return
+      var viejo = panel && panel.querySelector('#sid-ubi'), ej = viejo && COH ? ejSync() : null
+      if (!ej) return
+      var f = firmaCarta(ej)
+      if (f === ubiFirma) return
+      var d = document.createElement('div'); d.innerHTML = htmlPorUbicar()
+      if (d.firstChild) viejo.parentNode.replaceChild(d.firstChild, viejo)
+    }, 250)
+  }
   function htmlPorUbicar() {
     if (!COH) return ''
     var ej = ejSync()
     if (!ej) return '<div class="ubi" id="sid-ubi"><p class="ogo-nota">Abrí el ejercicio en la Mesa.</p></div>'
+    ubiFirma = firmaCarta(ej)
     var items = COH.porUbicar(ogo, ej, { escalon: escalon })
     var pend = items.filter(function (x) { return x.estado === 'pendiente' }), col = items.filter(function (x) { return x.estado === 'colocada' }), desc = items.filter(function (x) { return x.estado === 'descartada' }), ya = items.filter(function (x) { return x.estado === 'en la carta' })
     var h = '<div class="ubi" id="sid-ubi">'
     if (!items.length) h += '<p class="ogo-nota">Todavía no hay unidades para revisar: escribí la Orden con su organización de la tarea (paso 10) y hacé la revisión de coherencia (paso 11).</p>'
     else if (!pend.length) h += '<p class="ogo-ok">✓ Todas las unidades que nombran los documentos están en la carta.</p>'
-    else h += '<p class="ogo-ayuda">Las que nombran los documentos y <b>no están en la carta</b>. <b>✓ Aceptar</b> la coloca donde dice (la ubicación de la IA o la que sugiere la Mesa) y saca el «(supuesto)» de los documentos. Después la movés en 🪖 Unidades si hace falta.</p>'
+    else h += '<p class="ogo-ayuda">Las que nombran los documentos y <b>no están en la carta</b>. <b>✓ Aceptar</b> la coloca donde dice (la de la IA, si el terreno no la objeta, o la que la Mesa busca en el terreno: caminos, poblaciones, CMOC, agua, enemigo) y saca el «(supuesto)» de los documentos. Después la movés en 🪖 Unidades si hace falta.</p>'
     if (pend.length) h += '<ul class="ubi-lista">' + pend.map(function (x) {
       var u = x.u
       return '<li class="ubi-it" data-ubi="' + esc(x.clave) + '"><div class="ubi-nom">' + (u.tipo === 'pc' ? '🚩' : '🪖') + ' <b>' + esc(u.designacion) + '</b> <small>' + esc((u.tipo === 'pc' ? 'puesto comando' : u.arma) + ' · ' + u.escalon) + '</small>' + (u.supuesto ? ' <span class="ogo-entrena">estaba «(supuesto)»</span>' : '') + (u.relacion ? ' <small>· ' + esc(u.relacion) + '</small>' : '') + '</div>' +
-        (x.lat != null ? '<div class="ubi-lug">📍 ' + (x.poblacion ? 'cerca de <b>' + esc(x.poblacion.nombre.toUpperCase()) + '</b> (' + esc(x.poblacion.tipo || 'población') + ', ' + kmTxt(x.poblacion.km) + ' km)' : 'sin población cercana') + ' · ' + ll4(x.lat) + ', ' + ll4(x.lng) + ' · <i>' + (x.de === 'la IA' ? 'ubicación de la IA' : 'sugerida por la Mesa') + '</i>' + (x.dentro === false ? ' · <b class="ubi-fuera">⚠️ fuera del Área de Operaciones</b>' : '') + '</div>' : '<div class="ubi-lug">⚠️ Sin ubicación: trazá el Área de Operaciones o colocala a mano.</div>') +
+        (x.lat != null ? '<div class="ubi-lug">📍 ' + (x.poblacion ? 'cerca de <b>' + esc(x.poblacion.nombre.toUpperCase()) + '</b> (' + esc(x.poblacion.tipo || 'población') + ', ' + kmTxt(x.poblacion.km) + ' km)' : 'sin población cercana') + ' · ' + ll4(x.lat) + ', ' + ll4(x.lng) + ' · <i>' + (x.de === 'la IA' ? 'ubicación de la IA' : x.de === 'el terreno' ? 'buscada en el terreno' : 'sugerida por la Mesa') + '</i>' + (x.dentro === false ? ' · <b class="ubi-fuera">⚠️ fuera del Área de Operaciones</b>' : '') + '</div>' : '<div class="ubi-lug">⚠️ Sin ubicación: trazá el Área de Operaciones o colocala a mano.</div>') +
+        (x.porque.length ? '<div class="ubi-pq">🧭 ' + esc(x.porque.join(' · ')) + '</div>' : '') + (x.reemplaza ? '<div class="ubi-pq">↪ Se cambió: ' + esc(x.reemplaza) + '.</div>' : '') +
+        (x.graves.length ? '<div class="ubi-pq ubi-fuera">⚠️ ' + esc(x.graves.join(' · ')) + '</div>' : '') + (x.notas.length ? '<div class="ubi-pq">ℹ️ ' + esc(x.notas.join(' · ')) + '</div>' : '') +
         (u.porque ? '<div class="ubi-pq">' + esc(u.porque) + '</div>' : '') + (u.de ? '<div class="ubi-pq">de ' + esc(u.de) + '</div>' : '') +
         '<div class="ia-acc"><button type="button" class="ir ubi-ok" data-a="ubi-aceptar"' + (x.lat == null ? ' disabled' : '') + '>✓ Aceptar</button><button type="button" class="chico" data-a="ubi-descartar" title="No colocarla (ya está con otro nombre, o no va)">✕ No colocar</button></div></li>'
     }).join('') + '</ul>' + (pend.length > 1 ? '<div class="ia-acc"><button type="button" class="ir ubi-ok" data-a="ubi-todas">✓ Aceptar todas (' + pend.length + ')</button></div>' : '')
     if (col.length) h += '<p class="ogo-nota">✓ Colocadas: ' + col.map(function (x) { return esc(x.u.designacion) + (x.colocada && x.colocada.poblacion ? ' (' + esc(x.colocada.poblacion) + ')' : '') }).join(' · ') + '</p>'
     if (ya.length) h += '<p class="ogo-nota">Ya en la carta: ' + ya.map(function (x) { return esc(x.u.designacion) }).join(' · ') + '</p>'
     if (desc.length) h += '<p class="ogo-nota">✕ Sin colocar: ' + desc.map(function (x) { return esc(x.u.designacion) + ' <button type="button" class="chico" data-a="ubi-volver" data-ubi-k="' + esc(x.clave) + '" title="Volver a ofrecerla">↺</button>' }).join(' · ') + '</p>'
-    return h + (aviso.ubi ? '<div class="ia-aviso">' + esc(aviso.ubi) + '</div>' : '') + '</div>'
+    h += (aviso.ubi ? '<div class="ia-aviso">' + esc(aviso.ubi) + '</div>' : '') + htmlMedidas(ej)
+    return h + '</div>'
+  }
+  // 📐 Las medidas de coordinación y control de la IA (los DATOS de la coherencia): ✓ Dibujar las pone en
+  // la carta por el puente `agregarOps` (index-medidas-20261011.js), con su nombre y ↶ Deshacer.
+  var TIPO_MED = { 'línea': '─ línea', 'área': '⬚ área', objetivo: '◎ objetivo', punto: '⊗ punto' }
+  function htmlMedidas(ej) {
+    var ms = COH.medidasPorDibujar(ogo, ej), pend = ms.filter(function (x) { return x.estado === 'pendiente' })
+    var hechas = ms.filter(function (x) { return x.estado === 'dibujada' }), ya = ms.filter(function (x) { return x.estado === 'en la carta' }), desc = ms.filter(function (x) { return x.estado === 'descartada' })
+    var h = '<div class="org-tit ubi-med-tit">📐 Medidas de coordinación y control</div>'
+    if (!ms.length) return h + '<p class="ogo-nota">La revisión de coherencia (paso 11) no trajo medidas con coordenadas en los DATOS.</p>'
+    if (!pend.length) h += '<p class="ogo-ok">✓ Las medidas que nombran los documentos están dibujadas en la carta.</p>'
+    else h += '<p class="ogo-ayuda"><b>✓ Dibujar</b> la pone en la carta con su nombre (y en el calco del Anexo A). Después la ajustás en ⚫ MEDIDAS; «↶ Deshacer» de la barra la quita.</p><ul class="ubi-lista">' + pend.map(function (x) {
+      var el = x.op.el, n = el.coords ? el.coords.length - (x.op.tipo === 'área' ? 1 : 0) : 1, p = el.centro || el.coords[0]
+      return '<li class="ubi-it" data-med="' + esc(x.clave) + '"><div class="ubi-nom">📐 <b>' + esc(el.nombre || el.etiqueta) + '</b> <small>' + esc(TIPO_MED[x.op.tipo] || x.op.tipo) + (el.coords ? ' · ' + n + ' puntos' : '') + (el.escalon ? ' · ' + esc(el.escalon) : '') + '</small></div>' +
+        '<div class="ubi-lug">📍 ' + ll4(p[1]) + ', ' + ll4(p[0]) + (el.coords ? ' …' : '') + (x.dentro === false ? ' · <b class="ubi-fuera">⚠️ fuera del Área de Operaciones</b>' : '') + '</div>' +
+        '<div class="ia-acc"><button type="button" class="ir ubi-ok" data-a="med-aceptar">✓ Dibujar</button><button type="button" class="chico" data-a="med-descartar" title="No dibujarla">✕ No dibujar</button></div></li>'
+    }).join('') + '</ul>' + (pend.length > 1 ? '<div class="ia-acc"><button type="button" class="ir ubi-ok" data-a="med-todas">✓ Dibujar todas (' + pend.length + ')</button></div>' : '')
+    if (hechas.length) h += '<p class="ogo-nota">✓ Dibujadas: ' + hechas.map(function (x) { return esc(x.op.el.nombre || x.op.el.etiqueta) }).join(' · ') + '</p>'
+    if (ya.length) h += '<p class="ogo-nota">Ya en la carta: ' + ya.map(function (x) { return esc(x.op.el.nombre || x.op.el.etiqueta) }).join(' · ') + '</p>'
+    if (desc.length) h += '<p class="ogo-nota">✕ Sin dibujar: ' + desc.map(function (x) { return esc(x.op.el.nombre || x.op.el.etiqueta) + ' <button type="button" class="chico" data-a="med-volver" data-med-k="' + esc(x.clave) + '" title="Volver a ofrecerla">↺</button>' }).join(' · ') + '</p>'
+    return h + (aviso.med ? '<div class="ia-aviso">' + esc(aviso.med) + '</div>' : '')
+  }
+  function medAccion(acc, clave_) {
+    var ej = ejSync() || {}, items = COH.medidasPorDibujar(ogo, ej), it = items.filter(function (x) { return x.clave === clave_ })[0]
+    if (acc === 'med-descartar' && it) { ogoGuardar(COH.descartarMedida(ogo, it)).then(function () { pintar(true) }, function () {}); return }
+    if (acc === 'med-volver' && it) { ogoGuardar(COH.descartarMedida(ogo, it, false)).then(function () { pintar(true) }, function () {}); return }
+    var lista = acc === 'med-todas' ? items.filter(function (x) { return x.estado === 'pendiente' }) : acc === 'med-aceptar' && it ? [it] : []
+    if (!lista.length) return
+    if (!puente || !puente.agregarOps) { aviso.med = '⚠️ Esta Mesa todavía no sabe dibujar las medidas de la IA: recargá la página (Ctrl+F5) con el ejercicio abierto.'; return pintar(true) }
+    var r = COH.aceptarMedidas(ogo, lista)
+    if (puente.agregarOps(r.capas) === false) { aviso.med = '⚠️ La Mesa no dejó dibujar (ejercicio bloqueado o finalizado).'; return pintar(true) }
+    ogoGuardar(r.est).then(function () {
+      aviso.med = '✓ ' + (lista.length === 1 ? (lista[0].op.el.nombre || lista[0].op.el.etiqueta) + ' dibujada' : lista.length + ' medidas dibujadas') + ' en la carta (y en el calco). ↶ Deshacer (barra) las quita.'
+      setTimeout(function () { pintar(true) }, 300)
+    }, function (e) { aviso.med = '⚠️ ' + (e && e.message ? e.message : e); pintar(true) })
   }
   function ubiAccion(acc, clave_) {
     var ej = ejSync() || {}, items = COH.porUbicar(ogo, ej, { escalon: escalon })
@@ -1184,6 +1242,7 @@
     }
     if (a && /^ogo-/.test(a.getAttribute('data-a')) && OGO) { var od = a.closest('[data-ogo-doc]'); ogoAccion(a.getAttribute('data-a'), od ? od.getAttribute('data-ogo-doc') : ogoAbierto); return }
     if (a && /^coh-/.test(a.getAttribute('data-a')) && COH) { cohAccion(a.getAttribute('data-a')); return }
+    if (a && /^med-/.test(a.getAttribute('data-a')) && COH) { var mi = a.closest('[data-med]'); medAccion(a.getAttribute('data-a'), a.getAttribute('data-med-k') || (mi ? mi.getAttribute('data-med') : '')); return }
     if (a && /^ubi-/.test(a.getAttribute('data-a')) && COH) { var ui = a.closest('[data-ubi]'); ubiAccion(a.getAttribute('data-a'), a.getAttribute('data-ubi-k') || (ui ? ui.getAttribute('data-ubi') : '')); return }
     if (a && /^rep-/.test(a.getAttribute('data-a')) && OGO) { repAccion(a.getAttribute('data-a'), a); return }
     if (a && a.getAttribute('data-a') === 'car') { verCarpeta = !verCarpeta; if (verCarpeta) { plegado = false; carRevisar() } pintar(true); return }
@@ -1327,6 +1386,10 @@
       if (t.matches && t.matches('textarea[data-rep-ind]')) rep.ind = t.value
     })
     document.body.appendChild(panel)
+    // las medidas y las fichas que se quitan en la Mesa (↶ Deshacer, 🗑️) no pasan por el puente: el
+    // paso 12 vuelve a mirar la carta después de un clic en la Mesa y al volver al tablero
+    document.addEventListener('click', function (e) { if (!panel.contains(e.target)) ubiRevisar() }, true)
+    panel.addEventListener('pointerenter', ubiRevisar)
     body.setAttribute('data-sid-modo', modo)
     engancharPuente()
     pintar(true)

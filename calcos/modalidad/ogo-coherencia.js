@@ -19,9 +19,9 @@
      cae dentro del Área de Operaciones; aceptar(est, item) → la ficha y los documentos sin «(supuesto)»
      para esa unidad; descartar(est, item). */
 (function (raiz, fabrica) {
-  if (typeof module === 'object' && module.exports) module.exports = fabrica(require('./ogo.js'), require('./ogo-mesa.js'), require('./ia-profesor.js'))
-  else raiz.SIDOgoCoherencia = fabrica(raiz.SIDOgo, raiz.SIDOgoMesa, raiz.SIDIAProfesor)
-})(typeof window !== 'undefined' ? window : this, function (OGO, MESA, IA) {
+  if (typeof module === 'object' && module.exports) module.exports = fabrica(require('./ogo.js'), require('./ogo-mesa.js'), require('./ia-profesor.js'), require('./ogo-terreno.js'))
+  else raiz.SIDOgoCoherencia = fabrica(raiz.SIDOgo, raiz.SIDOgoMesa, raiz.SIDIAProfesor, raiz.SIDOgoTerreno)
+})(typeof window !== 'undefined' ? window : this, function (OGO, MESA, IA, TER) {
   'use strict'
   if (!OGO || !MESA) return null
 
@@ -82,9 +82,9 @@
       '## CÓMO CONTESTAR (la Mesa separa lo que contestes por estas marcas: escribilas EXACTAMENTE así, cada una sola en su línea)\n' +
       '1. `=== REVISIÓN ===` y debajo una lista numerada de cada contradicción o incoherencia que encontraste: en qué documentos estaba y cómo la resolviste.\n' +
       '2. `=== DATOS ===` y debajo UN bloque ```json así:\n' +
-      '```json\n{"membrete": {"fechaHora": "D-60 (0800)"},\n "unidades": [{"designacion": "BAT. LOG. FF.TT.", "bando": "propias", "tipo": "unidad", "arma": "logistica", "escalon": "batallon", "lat": -18.86, "lng": -68.52, "poblacion": "TUNAPA", "porque": "Detrás del PC, sobre la RPA, fuera del alcance de la artillería enemiga"}],\n "medidas": [{"nombre": "LF ALFA", "tipo": "linea", "coords": [[-18.60, -68.80], [-18.75, -68.80]]}]}\n```\n' +
+      '```json\n{"membrete": {"fechaHora": "D-60 (0800)"},\n "unidades": [{"designacion": "BAT. LOG. FF.TT.", "bando": "propias", "tipo": "unidad", "arma": "logistica", "escalon": "batallon", "lat": -18.86, "lng": -68.52, "poblacion": "TUNAPA", "porque": "Detrás del PC, sobre la RPA, fuera del alcance de la artillería enemiga"}],\n "medidas": [{"nombre": "LF ALFA", "tipo": "linea", "coords": [[-18.60, -68.80], [-18.75, -68.80]]}, {"nombre": "AE-1", "tipo": "area", "coords": [[-18.66, -68.74], [-18.66, -68.69], [-18.71, -68.69], [-18.71, -68.74]]}, {"nombre": "OBJ 1", "tipo": "objetivo", "lat": -18.55, "lng": -68.95}, {"nombre": "PC 2", "tipo": "punto", "lat": -18.70, "lng": -68.62}]}\n```\n' +
       '   - `unidades`: SOLO las que NO están entre las fichas de la carta (lista «Fichas en la carta» abajo) y que los documentos nombran: las de la organización de la tarea, los PC (alterno incluido, con "tipo": "pc") y las instalaciones con unidad. `arma`: ' + MESA.ARMAS.join(', ') + '. `escalon`: ' + MESA.ESCALONES.join(', ') + '. Coordenadas en grados decimales, DENTRO del Área de Operaciones y IGUALES a las que escribís en los documentos.\n' +
-      '   - `medidas`: las medidas de coordinación y control que nombran los documentos (líneas de fase, áreas de empeñamiento, objetivos, puntos de control…) con sus coordenadas [lat, lng], para que el profesor las dibuje.\n' +
+      '   - `medidas`: TODAS las medidas de coordinación y control que nombran los documentos, con el MISMO nombre y las MISMAS coordenadas que en los documentos, DENTRO del Área de Operaciones. `tipo`: "linea" (línea de fase, LCAF / FSCL, línea de control, LPR, límite: `coords` con 2 o más puntos [lat, lng]; un límite entre unidades lleva además `escalon`), "area" (área de empeñamiento, zona de reunión, área de reserva, área de apoyo logístico: `coords` con el contorno, 3 o más puntos [lat, lng]), "objetivo" (`lat`, `lng`; "final": true si es el objetivo final) o "punto" (punto de control, de coordinación, de contacto, de pasaje: `lat`, `lng`). La Mesa las DIBUJA en la carta (y en el calco) cuando el profesor las acepta.\n' +
       '3. Después, CADA documento empezando con su marca y su texto completo debajo, en este orden:\n' + todos.map(function (d) { return '   ' + marca(d, est) }).join('\n') + '\n' +
       '   Debajo de cada marca, el documento como antes: empezá con OBJETO:, CARTA:, ANEXOS: / APÉNDICES: (sin apéndices: «APÉNDICES: S/A.»), la ORGANIZACIÓN DE LA TAREA en líneas «AGRUPACIÓN: unidad; unidad» y cada apartado en su línea con su numeración militar (I.- A.- 1.- a.- 1) a)). Sin membrete, sin título, sin firma, sin autenticación ni distribución: los pone la Mesa. Al final de cada documento, «## PARA EL PROFESOR» si hay algo que el profesor tiene que revisar.\n' +
       '4. Si no te entra todo en una respuesta, cortá al TERMINAR un documento y escribí en su línea «SIGUE: <id del documento que sigue>»; el profesor te pide el resto y lo pega debajo.\n\n'
@@ -223,6 +223,7 @@
     return r
   }
   function clave(u) { return MESA.rasgos(u.designacion).k || una(u.designacion).toUpperCase() }
+  function ll(lat, lng) { return f4(+lat) + ', ' + f4(+lng) }
   // → [{ clave, u, lat, lng, de: 'la IA' | 'la Mesa', poblacion, dentro, estado: pendiente | colocada | descartada }]
   function porUbicar(est, ej, op) {
     op = op || {}; est = est || OGO.vacio(''); ej = ej || {}
@@ -241,15 +242,26 @@
     // quien expide y sus alumnos no se «colocan» desde acá (ya están o son el ejercicio)
     lista = lista.filter(function (u) { return !(c.unidad && MESA.mismaUnidad(u.designacion, c.unidad)) && !(ident.unidad && MESA.mismaUnidad(u.designacion, ident.unidad)) })
     var falta = MESA.faltantes(lista, ej.unidades), pobs = MESA.poblaciones(ej), an = MESA.anillo(ej), col = est.colocadas || {}, desc = est.descartadas || {}
-    var porRol = {}
+    // Dónde: la de la IA si el terreno no la objeta; si no hay, o cae en el agua, en terreno severamente
+    // restringido, fuera del área o al alcance directo del enemigo, la que busca el TERRENO (ogo-terreno.js:
+    // caminos, poblaciones, CMOC, agua, enemigo, según el tipo de unidad). Sin Área de Operaciones, la
+    // regla de distancias de antes. Las ya sugeridas se apartan entre sí (`ocupados`).
+    var porRol = {}, ocupados = []
     var items = lista.map(function (u) {
-      var k = clave(u), esta = falta.indexOf(u) < 0
+      var k = clave(u), esta = falta.indexOf(u) < 0, est_ = col[k] ? 'colocada' : esta ? 'en la carta' : desc[k] ? 'descartada' : 'pendiente'
       var rol = u.arma + '|' + (/cuerpo|division|brigada/.test(u.escalon) ? 'm' : ''), i = porRol[rol] = (porRol[rol] == null ? 0 : porRol[rol] + 1)
-      var p = isFinite(u.lat) ? { lat: u.lat, lng: u.lng, de: 'la IA' } : MESA.sugerir(u, ej, ident, i)
+      var p = null, terreno = function () { var t = TER && est_ === 'pendiente' ? TER.ubicar(u, ej, ident, { ocupados: ocupados }) : null; return t ? { lat: t.lat, lng: t.lng, de: 'el terreno', porque: t.porque } : null }
+      if (isFinite(u.lat)) {
+        p = { lat: u.lat, lng: u.lng, de: 'la IA' }
+        var rv = TER && est_ === 'pendiente' ? TER.revisar(u, u.lat, u.lng, ej, ident) : { graves: [], notas: [] }
+        if (rv.graves.length) { var t = terreno(); if (t) { t.reemplaza = 'la de la IA (' + ll(u.lat, u.lng) + ') caía ' + rv.graves.join(' y '); p = t } else p.graves = rv.graves }
+        else p.notas = rv.notas
+      } else p = terreno() || MESA.sugerir(u, ej, ident, i)
       if (p && !p.de) p.de = 'la Mesa'
+      if (p && est_ === 'pendiente') ocupados.push([p.lng, p.lat])
       var pob = p ? MESA.masCercana(pobs, p.lat, p.lng) : null
-      return { clave: k, u: u, lat: p ? p.lat : null, lng: p ? p.lng : null, de: p ? p.de : '', poblacion: pob, dentro: p && an ? MESA.dentro([p.lng, p.lat], an) : null,
-        estado: col[k] ? 'colocada' : esta ? 'en la carta' : desc[k] ? 'descartada' : 'pendiente', colocada: col[k] || null }
+      return { clave: k, u: u, lat: p ? p.lat : null, lng: p ? p.lng : null, de: p ? p.de : '', porque: (p && p.porque) || [], reemplaza: p && p.reemplaza || '', notas: (p && p.notas) || [], graves: (p && p.graves) || [],
+        poblacion: pob, dentro: p && an ? MESA.dentro([p.lng, p.lat], an) : null, estado: est_, colocada: col[k] || null }
     })
     return items
   }
@@ -275,5 +287,88 @@
     return n
   }
 
-  return { CHEQUEO: CHEQUEO, pedido: pedido, leer: leer, aplicar: aplicar, deshacer: deshacer, estado: estado, pedidoSeguir: pedidoSeguir, porUbicar: porUbicar, aceptar: aceptar, descartar: descartar, idDe: idDe }
+  // ─── Las medidas de coordinación y control de la IA, dibujadas en la carta ─────────
+  // Lo pidió Sergio (11-10-2026): «las medidas que trae la IA aparecen listadas, pero se dibujan a
+  // mano… ARREGLA ESTO». Cada medida de los DATOS pasa a una capa del calco de la Mesa (ops), con la
+  // forma que usa la Mesa cuando se traza a mano: una línea (LF, LCAF, límite) → `limites` (simple o
+  // con magnitud) con su `nombre`; un área (AE, zona de reunión) → `limites` punteado y cerrado con su
+  // `nombre`; un objetivo → `objetivos` {centro, clase, etiqueta}; un punto → `coordinacion` con su
+  // `nombre`. La Mesa (index-medidas-20261011.js) rotula los límites y los puntos con nombre y las
+  // suma con el puente `agregarOps` (con ↶ Deshacer). Coordenadas de la IA en [lat, lng] (como se le
+  // pide); si vinieran al revés, se elige el orden que cae dentro del Área de Operaciones.
+  function normNom(t) { return una(t).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Z0-9]+/g, '') }
+  function parLL(p) { return Array.isArray(p) && p.length >= 2 && isFinite(+p[0]) && isFinite(+p[1]) && p[0] !== null && p[1] !== null ? [+p[0], +p[1]] : null }
+  function puntosDe(m, an) {
+    if (m.lat != null && m.lng != null && isFinite(+m.lat) && isFinite(+m.lng)) return [[+m.lng, +m.lat]]
+    var crudos = (Array.isArray(m.coords) ? m.coords : Array.isArray(m.centro) ? [m.centro] : []).map(parLL).filter(Boolean)
+    if (!crudos.length) return []
+    var comoLatLng = crudos.map(function (p) { return [p[1], p[0]] }), comoLngLat = crudos
+    var valido = function (ps) { return ps.every(function (p) { return Math.abs(p[1]) <= 90 && Math.abs(p[0]) <= 180 }) }
+    if (!valido(comoLatLng)) return valido(comoLngLat) ? comoLngLat : []
+    if (!an || !valido(comoLngLat)) return comoLatLng
+    var adentro = function (ps) { return ps.filter(function (p) { return MESA.dentro(p, an) }).length }
+    return adentro(comoLngLat) > adentro(comoLatLng) ? comoLngLat : comoLatLng
+  }
+  function centroDe(ps) { return [ps.reduce(function (s, p) { return s + p[0] }, 0) / ps.length, ps.reduce(function (s, p) { return s + p[1] }, 0) / ps.length] }
+  var R6 = function (x) { return Math.round(x * 1e6) / 1e6 }
+  // la Mesa pone el nombre y la descripción tal cual en el HTML de la carta (lo escribió la IA)
+  var SIN_HTML = /[<>&"'`]/g
+  // → { capa, el, tipo: 'línea' | 'área' | 'objetivo' | 'punto' } o null
+  function medidaAOps(m, ej) {
+    if (!m || typeof m !== 'object') return null
+    var nombre = una(m.nombre || m.etiqueta || m.nom).replace(SIN_HTML, '').toUpperCase().slice(0, 60), tipo = una(m.tipo).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    var ps = puntosDe(m, MESA.anillo(ej || {})).slice(0, 400).map(function (p) { return [R6(p[0]), R6(p[1])] })
+    if (!ps.length || !nombre) return null
+    var esObj = /objetivo/.test(tipo) || /^OBJ\b/.test(nombre)
+    if (ps.length === 1 || /punto|objetivo/.test(tipo)) {
+      var c = ps.length === 1 ? ps[0] : centroDe(ps)
+      if (esObj) return { capa: 'objetivos', tipo: 'objetivo', el: { centro: c, clase: m.final === true || /final/i.test(tipo + ' ' + nombre) ? 'final' : 'intermedio', etiqueta: nombre, nom: una(m.descripcion || m.porque || '').replace(SIN_HTML, '').slice(0, 160), origen: 'ogo-ia' } }
+      return { capa: 'coordinacion', tipo: 'punto', el: { centro: c, nombre: nombre, origen: 'ogo-ia' } }
+    }
+    var u = ps[ps.length - 1], cerrada = ps.length > 3 && u[0] === ps[0][0] && u[1] === ps[0][1]
+    if (/area|zona|poligono|sector|contorno/.test(tipo) || cerrada) {
+      if (ps.length < 3) return null
+      return { capa: 'limites', tipo: 'área', el: { coords: cerrada ? ps : ps.concat([ps[0]]), tipo: 'punteada', nombre: nombre, origen: 'ogo-ia' } }
+    }
+    var esc = una(m.escalon).toLowerCase()
+    if (/limite/.test(tipo) && MESA.ESCALONES.indexOf(esc) >= 0) return { capa: 'limites', tipo: 'línea', el: { coords: ps, escalon: esc, tipo: 'magnitud', nombre: nombre, origen: 'ogo-ia' } }
+    return { capa: 'limites', tipo: 'línea', el: { coords: ps, tipo: 'simple', nombre: nombre, origen: 'ogo-ia' } }
+  }
+  // Lo que ya tiene nombre en la carta (para no dibujar dos veces la misma medida).
+  function nombresEnCarta(ej) {
+    var o = (ej && ej.ops) || {}, n = {}
+    ;(o.limites || []).forEach(function (l) { if (l && l.nombre) n[normNom(l.nombre)] = 1 })
+    ;(o.coordinacion || []).concat(o.pasaje || []).forEach(function (x) { if (x && (x.nombre || x.etiqueta)) n[normNom(x.nombre || x.etiqueta)] = 1 })
+    ;(o.objetivos || []).forEach(function (x) { if (x && x.etiqueta) n[normNom(x.etiqueta)] = 1 })
+    return n
+  }
+  // → [{ clave, m, op: {capa, el, tipo}, dentro, estado: pendiente | dibujada | en la carta | descartada }]
+  function medidasPorDibujar(est, ej) {
+    est = est || OGO.vacio(''); ej = ej || {}
+    var datos = est.coherencia && est.coherencia.datos, hechas = est.medidasDibujadas || {}, desc = est.medidasDescartadas || {}, ya = nombresEnCarta(ej), an = MESA.anillo(ej)
+    return listaDe(datos && datos.medidas).map(function (m) {
+      var op = medidaAOps(m, ej), k = normNom(m.nombre || m.etiqueta || m.nom)
+      if (!op || !k) return null
+      var pts = op.el.centro ? [op.el.centro] : op.el.coords
+      return { clave: k, m: m, op: op, dentro: an ? pts.some(function (p) { return MESA.dentro(p, an) }) : null,
+        // lo que manda es la carta: si se dibujó y después se quitó (↶ Deshacer, 🗑️), se vuelve a ofrecer
+        estado: ya[k] ? (hechas[k] ? 'dibujada' : 'en la carta') : desc[k] ? 'descartada' : 'pendiente' }
+    }).filter(Boolean)
+  }
+  // Aceptar: las capas para el puente (agregarOps) y la medida marcada como dibujada.
+  function aceptarMedidas(est, items, ahora) {
+    ahora = ahora || new Date().toISOString()
+    var capas = {}, n = Object.assign({}, est, { medidasDibujadas: Object.assign({}, est.medidasDibujadas), actualizado: ahora })
+    ;(items || []).forEach(function (it) { (capas[it.op.capa] = capas[it.op.capa] || []).push(it.op.el); n.medidasDibujadas[it.clave] = { nombre: it.op.el.nombre || it.op.el.etiqueta, capa: it.op.capa, cuando: ahora } })
+    if (n.medidasDescartadas) { n.medidasDescartadas = Object.assign({}, n.medidasDescartadas); (items || []).forEach(function (it) { delete n.medidasDescartadas[it.clave] }) }
+    return { est: n, capas: capas }
+  }
+  function descartarMedida(est, item, si) {
+    var n = Object.assign({}, est, { medidasDescartadas: Object.assign({}, est.medidasDescartadas), actualizado: new Date().toISOString() })
+    if (si === false) delete n.medidasDescartadas[item.clave]; else n.medidasDescartadas[item.clave] = true
+    return n
+  }
+
+  return { CHEQUEO: CHEQUEO, pedido: pedido, leer: leer, aplicar: aplicar, deshacer: deshacer, estado: estado, pedidoSeguir: pedidoSeguir, porUbicar: porUbicar, aceptar: aceptar, descartar: descartar, idDe: idDe,
+    medidaAOps: medidaAOps, medidasPorDibujar: medidasPorDibujar, aceptarMedidas: aceptarMedidas, descartarMedida: descartarMedida }
 })

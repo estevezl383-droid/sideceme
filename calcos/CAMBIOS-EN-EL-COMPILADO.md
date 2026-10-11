@@ -5,6 +5,33 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-11 (tarde) — 📐 Las medidas de la IA se dibujan solas (`index-medidas-20261011.js`)
+
+Parte de `index-deshacer-20261011.js` + `pruebas/reemplazos-2026-10-11-medidas.js` (3 reemplazos;
+`construir-medidas.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio: «las
+medidas de coordinación que trae la IA (líneas de fase, áreas de empeñamiento) aparecen listadas, pero se
+dibujan a mano. La Mesa sólo me deja colocar fichas… ARREGLA ESTO».
+
+- **Qué pasaba**: el tablero del profesor (`calcos/modalidad`, código aparte) sólo podía COLOCAR FICHAS
+  por el puente de `MesaAcademica.sincronizar` (`agregarUnidades`). Y un límite o un punto de
+  coordinación de la Mesa no muestra nombre: aunque se trazara «LF ALFA», en la carta no se leía.
+- **Qué se hizo**: el puente lleva `agregarOps(capas)`: suma al calco (`Sn`, las ops) lo que llega en
+  `limites`, `coordinacion`, `objetivos`, `pasaje` y `magnitudes`, con la foto del ↶ Deshacer antes
+  (`la()`), y respeta los candados de siempre (BASE de otro puesto: `Nl()`; ejercicio finalizado: el aviso
+  de siempre); devuelve `true` si lo sumó (el efecto agrega `ll` y `Bn` a sus dependencias). La carta 2D
+  rotula un límite o una línea que traiga `nombre` (en la mitad del trazo, o en el centro si es un
+  contorno cerrado) y un punto de coordinación con `nombre`; el texto va escapado. Lo que ya estaba
+  dibujado (sin `nombre`) se ve igual que antes.
+- **Ojo (no cambiado)**: el rótulo de un OBJETIVO (`dt.etiqueta`) y su `nom` el compilado los pone SIN
+  escapar en el HTML del mapa; por eso el tablero limpia `< > & " ' \`` de lo que escribió la IA antes de
+  mandarlo (`ogo-coherencia.js`, `ogo-mesa.js`).
+- **Cómo se comprobó**: `e2e/ogo-coherencia.cjs` (✓ Dibujar LF ALFA: entra a `ops.limites` con su nombre
+  y se lee en la carta; ✓ Dibujar todas: AE-1 punteada y cerrada, OBJ 1, PC 2, con sus rótulos; ↶ Deshacer
+  quita la tanda), `reemplazos-compilado.js`, `npm test` y las e2e de deshacer, modalidad, carpeta, OGO,
+  lazo, áreas, paneles, aviso de versión, autoguardado, membrete, edición y trazos.
+- **Si se recompila desde el fuente**: llevar `agregarOps` al puente (con `la()`, `Nl()`/`Bn` y las
+  dependencias `ll`, `Bn`) y los rótulos de `nombre` en límites y puntos de coordinación.
+
 ## 2026-10-11 — ↶ El deshacer también devuelve las fichas (`index-deshacer-20261011.js`)
 
 Parte de `index-guardado-20261010.js` + `pruebas/reemplazos-2026-10-11-deshacer.js` (10 reemplazos;

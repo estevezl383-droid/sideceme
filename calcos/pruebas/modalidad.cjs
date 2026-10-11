@@ -96,10 +96,11 @@ assert.deepEqual(CAT.FOCOS.map((f) => f.id), ['pmtd', 'g1', 'g2', 'g3', 'g4', 'g
 CAT.FOCOS.forEach((f) => { assert.ok(f.nom && f.pide && f.deja, `foco ${f.id}`); f.secs.forEach((s) => assert.ok(CAT.SECCIONES[s])) })
 const MODS = require('../modalidad/ogo-modelos.js')
 MODS.DOCS.forEach((d) => assert.ok(CAT.SECCIONES[d.sec], `documento ${d.id}: sección ${d.sec}`))
-for (const f of ['ogo-modelos.js', 'ogo-mesa.js', 'ogo.js', 'ogo-coherencia.js', 'ogo-calco.js']) { assert.match(html, new RegExp('modalidad/' + f.replace('.', '\\.'))); new vm.Script(fs.readFileSync(path.join(RAIZ, 'modalidad', f), 'utf8')) }
+for (const f of ['ogo-modelos.js', 'ogo-mesa.js', 'ogo.js', 'ogo-terreno.js', 'ogo-coherencia.js', 'ogo-calco.js']) { assert.match(html, new RegExp('modalidad/' + f.replace('.', '\\.'))); new vm.Script(fs.readFileSync(path.join(RAIZ, 'modalidad', f), 'utf8')) }
 assert.ok(html.indexOf('modalidad/ia-profesor.js') < html.indexOf('modalidad/ogo.js') && html.indexOf('modalidad/ogo.js') < html.indexOf('modalidad/modalidad.js'), 'ogo.js después de ia-profesor.js y antes de modalidad.js')
 assert.ok(html.indexOf('modalidad/ogo-mesa.js') < html.indexOf('modalidad/ogo.js'), 'ogo-mesa.js antes de ogo.js (lo usa)')
 assert.ok(html.indexOf('modalidad/ogo.js') < html.indexOf('modalidad/ogo-coherencia.js') && html.indexOf('modalidad/ogo-calco.js') < html.indexOf('modalidad/modalidad.js') && html.indexOf('modalidad/ogo-coherencia.js') < html.indexOf('modalidad/modalidad.js'), 'coherencia y calco después de ogo.js y antes de modalidad.js')
+assert.ok(html.indexOf('modalidad/ogo-mesa.js') < html.indexOf('modalidad/ogo-terreno.js') && html.indexOf('modalidad/ogo-terreno.js') < html.indexOf('modalidad/ogo-coherencia.js'), 'el terreno, antes de la coherencia (que lo usa)')
 assert.match(html, /modalidad\/ia-profesor\.js/)
 new vm.Script(fs.readFileSync(path.join(RAIZ, 'modalidad/ia-profesor.js'), 'utf8'))
 // la carpeta del profesor se carga ANTES de la IA (ia-profesor.js la usa) y de modalidad.js

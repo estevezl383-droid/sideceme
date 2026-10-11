@@ -151,7 +151,7 @@ const ej = {
   assert.deepEqual(['BAT. LOG. FF.TT.', 'I CE', 'AGR. ART. FF.TT.'].map((k) => de[k].estado), ['pendiente', 'en la carta', 'pendiente'])
   assert.deepEqual([de['BAT. LOG. FF.TT.'].lat, de['BAT. LOG. FF.TT.'].de, de['BAT. LOG. FF.TT.'].poblacion.nombre, de['BAT. LOG. FF.TT.'].dentro, de['BAT. LOG. FF.TT.'].u.supuesto], [-18.885, 'la IA', 'Tunapa', true, true])
   assert.equal(de['GALM-1'].u.relacion, 'OPCON a partir D-2 1200', 'lo de la organización de la tarea se suma a lo de la IA')
-  assert.equal(de['PC ALTERNO FF.TT.T.O.'].u.tipo, 'pc'); assert.equal(de['AGR. ART. FF.TT.'].de, 'la Mesa')
+  assert.equal(de['PC ALTERNO FF.TT.T.O.'].u.tipo, 'pc'); assert.equal(de['AGR. ART. FF.TT.'].de, 'el terreno'); assert.ok(de['AGR. ART. FF.TT.'].porque.length, 'con el porqué')
   const ac = C.aceptar(ap.est, de['BAT. LOG. FF.TT.'], '2026-10-11T13:00:00Z')
   assert.deepEqual([ac.ficha.designacion, ac.ficha.bando, ac.ficha.tipo, ac.ficha.arma, ac.ficha.escalon, ac.ficha.lat, ac.ficha.lng, ac.ficha.origen], ['BAT. LOG. FF.TT.', 'propias', 'unidad', 'logistica', 'batallon', -18.885, -68.49, 'ogo-profesor'])
   assert.equal(ac.cambios, 2); assert.match(ac.est.docs.ogo.texto, /BATALLÓN LOGÍSTICO DE FF\.TT\.: Orgánico\n/); assert.match(ac.est.docs.calco.texto, /BAT\. LOG\. FF\.TT\. en -18\.885, -68\.49\.$/m)
@@ -167,6 +167,77 @@ const ej = {
   // la OGO con la coherencia va y vuelve en el .md
   const md = O.leerMarkdown(O.markdown(ac.est))
   assert.deepEqual([md.auto.fechaHora, Object.keys(md.colocadas).length, md.coherencia.docs.length, !!md.docs.ogo.consolidado], ['D-60 (0800)', 1, 3, true])
+
+  // ── ogo-terreno.js: la ubicación sale del terreno (Sergio: «no una regla de distancias») ──
+  const T = require('../modalidad/ogo-terreno.js')
+  const linea = (cs) => ({ type: 'Feature', geometry: { type: 'LineString', coordinates: cs }, properties: {} })
+  const poli = (cs) => ({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [cs.concat([cs[0]])] }, properties: {} })
+  const cuadro = (lng, lat, r) => [[lng - r, lat - r], [lng + r, lat - r], [lng + r, lat + r], [lng - r, lat + r]]
+  const RUTA = [[-68.33, -18.95], [-68.62, -18.80], [-68.90, -18.60], [-69.20, -18.45]]
+  const LAGO = cuadro(-68.45, -18.95, 0.03), SEVERO = cuadro(-68.66, -18.72, 0.06)
+  const ejT = { ...ej, unidades: ej.unidades.slice(),
+    cmoc: { severo: [poli(SEVERO)], restringido: [{ coords: cuadro(-68.85, -18.92, 0.05) }], avenidas: [{ bando: 'enemigo', nombre: 'NORTE', coords: [[-69.1, -18.5], [-68.75, -18.62]] }] },
+    resultados: { ...ej.resultados, comunicaciones_vias: { fc: { type: 'FeatureCollection', features: [linea(RUTA)] } }, hidro_poligonos: { fc: { type: 'FeatureCollection', features: [poli(LAGO)] } },
+      comunicaciones_aero: { fc: { type: 'FeatureCollection', features: [poli(cuadro(-68.38, -19.0, 0.01))] } } } }
+  const idT = M.identidad(ejT, 'fftt'), en = [-69.1, -18.5], pcT = [-68.52, -18.865]
+  const idx = T.indice(ejT)
+  assert.ok(idx.cands.length > 500, 'una rejilla de ' + idx.cands.length + ' puntos dentro del área')
+  assert.deepEqual([idx.fuentes.carreteras > 100, idx.fuentes.agua, idx.fuentes.severo, idx.fuentes.restringido, idx.fuentes.avenidasEnemigas, idx.fuentes.aerodromos], [true, 1, 1, 1, 1, 1])
+  const dRuta = (p) => Math.min(...RUTA.slice(1).map((b, i) => { const a = RUTA[i], P = (q) => [(q[0] + 68.6) * 105.4, (q[1] + 18.7) * 110.57], A = P(a), B = P(b), Q = P([p.lng, p.lat]), dx = B[0] - A[0], dy = B[1] - A[1], t = Math.max(0, Math.min(1, ((Q[0] - A[0]) * dx + (Q[1] - A[1]) * dy) / (dx * dx + dy * dy))); return Math.hypot(Q[0] - A[0] - t * dx, Q[1] - A[1] - t * dy) }))
+  const km = (p, q) => M.km([p.lng, p.lat], q)
+  const enCuadro = (p, c) => p.lng > c[0][0] && p.lng < c[1][0] && p.lat > c[0][1] && p.lat < c[2][1]
+  const log = T.ubicar({ designacion: 'BAT. LOG. FF.TT.', arma: 'logistica', escalon: 'batallon' }, ejT, idT)
+  assert.ok(dRuta(log) < 3, 'lo logístico, junto a la carretera (' + dRuta(log).toFixed(1) + ' km)')
+  assert.ok(km(log, en) >= 35, 'fuera del alcance de la artillería enemiga (' + km(log, en).toFixed(1) + ' km)')
+  assert.ok(km(log, en) > M.km(pcT, en) - 3, 'detrás del PC (respecto del enemigo)')
+  assert.ok(!enCuadro(log, LAGO) && !enCuadro(log, SEVERO), 'ni en el lago ni en el terreno severamente restringido')
+  assert.match(log.porque.join(' · '), /detrás del PC[\s\S]*del enemigo \(fuera del alcance de su artillería\)[\s\S]*de una carretera/)
+  const art = T.ubicar({ designacion: 'AGR. ART. FF.TT.', arma: 'artilleria', escalon: 'brigada' }, ejT, idT)
+  assert.ok(km(art, en) >= 11 && km(art, en) <= 31, 'la artillería, al alcance del frente y fuera del fuego directo (' + km(art, en).toFixed(1) + ' km)')
+  assert.ok(km(art, en) < km(log, en), 'más adelante que lo logístico')
+  const av = T.ubicar({ designacion: 'BAT. AV. EJTO. 1', arma: 'aviacion', escalon: 'batallon' }, ejT, idT)
+  assert.ok(km(av, [-68.38, -19.0]) < 15 && km(av, en) >= 40, 'la aviación, junto al aeródromo y atrás')
+  const man = T.ubicar({ designacion: 'CE-IV', arma: 'infanteria', escalon: 'cuerpo' }, ejT, idT)
+  assert.match(man.porque.join(' '), /sobre una avenida de aproximación del enemigo/, 'la maniobra, sobre la avenida que tiene que cerrar')
+  assert.ok(!enCuadro(man, SEVERO))
+  const otra = T.ubicar({ designacion: 'BAT. LOG. 2', arma: 'logistica', escalon: 'batallon' }, ejT, idT, { ocupados: [[log.lng, log.lat]] })
+  assert.ok(km(otra, [log.lng, log.lat]) >= 2.5, 'dos del mismo tipo, separadas')
+  // la de la IA: lo que el terreno objeta
+  assert.deepEqual(T.revisar({ arma: 'logistica', escalon: 'batallon' }, -18.95, -68.45, ejT, idT).graves, ['en un lago o humedal'])
+  assert.match(T.revisar({ arma: 'logistica', escalon: 'batallon' }, -18.52, -69.05, ejT, idT).graves.join(), /al alcance de su fuego/)
+  assert.deepEqual(T.revisar({ arma: 'logistica', escalon: 'batallon' }, log.lat, log.lng, ejT, idT).graves, [])
+  // en el panel: la de la IA en el lago se cambia por la del terreno, y se dice por qué
+  const enLago = C.aplicar(c, C.leer('=== DATOS ===\n```json\n{"unidades":[{"designacion":"BAT. LOG. FF.TT.","arma":"logistica","escalon":"batallon","lat":-18.95,"lng":-68.45}]}\n```', c)).est
+  const xl = C.porUbicar(enLago, ejT, { escalon: 'fftt' }).find((x) => x.u.designacion === 'BAT. LOG. FF.TT.')
+  assert.equal(xl.de, 'el terreno'); assert.match(xl.reemplaza, /la de la IA \(-18\.95, -68\.45\) caía en un lago o humedal/)
+  const pend = C.porUbicar(enLago, ejT, { escalon: 'fftt' }).filter((x) => x.estado === 'pendiente')
+  for (let i = 0; i < pend.length; i++) for (let j = i + 1; j < pend.length; j++) assert.ok(M.km([pend[i].lng, pend[i].lat], [pend[j].lng, pend[j].lat]) > 1.5, 'las sugeridas no se enciman: ' + pend[i].u.designacion + ' / ' + pend[j].u.designacion)
+
+  // ── las medidas de la IA, a las capas de la Mesa ──
+  const meds = C.medidasPorDibujar(ap.est, { ...ej, ops: { ...ej.ops, limites: [...ej.ops.limites] } })
+  assert.deepEqual(meds.map((x) => [x.op.el.nombre || x.op.el.etiqueta, x.op.capa, x.op.el.tipo || x.op.el.clase, x.estado]),
+    [['LF ALFA', 'limites', 'simple', 'pendiente'], ['AE-1', 'limites', 'punteada', 'pendiente'], ['OBJ 1', 'objetivos', 'intermedio', 'pendiente'], ['PC 2', 'coordinacion', undefined, 'pendiente']])
+  assert.deepEqual(meds[0].op.el.coords, [[-68.8, -18.6], [-68.8, -18.75]], '[lat, lng] de la IA → [lng, lat] de la Mesa')
+  for (const [m, capa, forma] of [[{ nombre: 'AE-1', tipo: 'area', coords: [[-18.66, -68.74], [-18.66, -68.69], [-18.71, -68.69]] }, 'limites', 'punteada'], [{ nombre: 'OBJ 1', tipo: 'objetivo', lat: -18.55, lng: -68.95 }, 'objetivos', 'intermedio'],
+    [{ nombre: 'PC 2', tipo: 'punto', lat: -18.7, lng: -68.62 }, 'coordinacion', undefined], [{ nombre: 'LÍMITE CE-I / CE-II', tipo: 'limite', escalon: 'cuerpo', coords: [[-18.665, -69.2], [-18.665, -68.4]] }, 'limites', 'magnitud'],
+    [{ nombre: 'LF BRAVO', tipo: 'linea', coords: [[-68.7, -18.5], [-68.7, -18.8]] }, 'limites', 'simple']]) {
+    const o = C.medidaAOps(m, ej)
+    assert.equal(o.capa, capa, m.nombre); assert.equal(o.el.tipo || o.el.clase, forma || undefined, m.nombre)
+  }
+  assert.deepEqual(C.medidaAOps({ nombre: 'LF BRAVO', tipo: 'linea', coords: [[-68.7, -18.5], [-68.7, -18.8]] }, ej).el.coords[0], [-68.7, -18.5], 'si vinieron al revés, el orden que cae dentro del área')
+  assert.deepEqual(C.medidaAOps({ nombre: 'AE-1', tipo: 'area', coords: [[-18.66, -68.74], [-18.66, -68.69], [-18.71, -68.69]] }, ej).el.coords.length, 4, 'el área se cierra')
+  assert.equal(C.medidaAOps({ nombre: '', tipo: 'linea', coords: [[1, 2], [3, 4]] }, ej), null, 'sin nombre no')
+  const am = C.aceptarMedidas(ap.est, meds.slice(0, 1))
+  assert.deepEqual(Object.keys(am.capas), ['limites']); assert.equal(am.capas.limites[0].nombre, 'LF ALFA')
+  const ejLF = { ...ej, ops: { ...ej.ops, limites: ej.ops.limites.concat(am.capas.limites) } }
+  assert.deepEqual(C.medidasPorDibujar(am.est, ejLF).map((x) => x.estado), ['dibujada', 'pendiente', 'pendiente', 'pendiente'])
+  assert.equal(C.medidasPorDibujar(am.est, ej)[0].estado, 'pendiente', 'si se quitó de la carta (↶ Deshacer), se vuelve a ofrecer')
+  assert.deepEqual(Object.keys(C.aceptarMedidas(ap.est, meds).capas), ['limites', 'objetivos', 'coordinacion'])
+  // lo que escribió la IA va al HTML de la carta: sin < > & " ' `
+  const mala = C.medidaAOps({ nombre: 'LF <img src=x onerror=alert(1)>', tipo: 'objetivo', descripcion: '"><script>x</script>', lat: -18.6, lng: -68.8 }, ej)
+  assert.doesNotMatch(mala.el.etiqueta + mala.el.nom, /[<>&"'`]/); assert.equal(M.ficha({ designacion: 'BAT <b>X</b>', lat: -18.6, lng: -68.8 }).designacion, 'BAT bX/b')
+  assert.equal(C.medidasPorDibujar(ap.est, { ...ej, ops: { ...ej.ops, limites: [{ coords: [[0, 0], [1, 1]], nombre: 'LF Alfa' }] } })[0].estado, 'en la carta', 'una con el mismo nombre ya está')
+  assert.equal(C.medidasPorDibujar(C.descartarMedida(ap.est, meds[0]), ej)[0].estado, 'descartada')
 
   // ── ogo-calco.js ──
   const t = K.utm(-18.865, -68.52)
@@ -187,6 +258,8 @@ const ej = {
   assert.match(K.dibujo({ ops: {}, unidades: ej.unidades }).avisos[0], /No hay ÁREA DE OPERACIONES/)
   assert.deepEqual(K.paraWord({ ancho: 1100, alto: 2200 }), { ancho: 320, alto: 640 }, 'un calco alto se achica para entrar en la hoja')
   assert.deepEqual(K.paraWord({ ancho: 1100, alto: 900 }), { ancho: 1100, alto: 900 })
+  const dm = K.dibujo({ ...ej, ops: { ...ej.ops, limites: ej.ops.limites.concat(Object.values(am.capas.limites), [C.medidaAOps({ nombre: 'AE-1', tipo: 'area', coords: [[-18.66, -68.74], [-18.66, -68.69], [-18.71, -68.69]] }, ej).el]), objetivos: [C.medidaAOps({ nombre: 'OBJ 1', tipo: 'objetivo', lat: -18.55, lng: -68.95 }, ej).el] } })
+  assert.match(dm.svg, />LF ALFA</, 'el calco rotula las líneas de la IA'); assert.match(dm.svg, />AE-1</); assert.match(dm.svg, /stroke-dasharray="8 5"/, 'el área, punteada'); assert.match(dm.svg, />OBJ 1</); assert.doesNotMatch(dm.svg, /OBJ OBJ/)
 
   // el Word del Anexo A, con la librería docx (si está)
   const docx = docxModule()

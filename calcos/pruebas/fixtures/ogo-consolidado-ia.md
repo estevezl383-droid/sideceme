@@ -16,7 +16,12 @@ Acá tiene la revisión de coherencia y los documentos consolidados.
     { "designacion": "PC ALTERNO FF.TT.T.O.", "tipo": "pc", "arma": "ninguna", "escalon": "ejercito", "lat": -18.7, "lng": -68.45 },
     { "designacion": "VI EJ. (ROJO)", "bando": "enemigas", "arma": "mecanizada", "escalon": "ejercito", "lat": -18.5, "lng": -69.0 }
   ],
-  "medidas": [ { "nombre": "LF ALFA", "tipo": "linea", "coords": [[-18.6, -68.8], [-18.75, -68.8]] } ]
+  "medidas": [
+    { "nombre": "LF ALFA", "tipo": "linea", "coords": [[-18.6, -68.8], [-18.75, -68.8]] },
+    { "nombre": "AE-1", "tipo": "area", "coords": [[-18.66, -68.74], [-18.66, -68.69], [-18.71, -68.69], [-18.71, -68.74]] },
+    { "nombre": "OBJ 1", "tipo": "objetivo", "lat": -18.55, "lng": -68.95 },
+    { "nombre": "PC 2", "tipo": "punto", "lat": -18.70, "lng": -68.62 }
+  ]
 }
 ```
 

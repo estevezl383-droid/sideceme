@@ -13,12 +13,13 @@ React, no guarda nada en el ejercicio y se puede quitar sacando tres líneas del
 
 | Archivo | Qué es |
 |---|---|
-| `catalogo.js` | Las **7 fases con sus pasos en orden** (hoja «PMTD 2020» de la Visión Horizontal; 7·17·8·8·3·4·3 pasos), con el documento que sale, el responsable y **dónde se abre en la Mesa** (sección + número de hoja, o herramienta). Más los **11 pasos del profesor** (cada uno con su pedido a la IA; el de la OGO, uno por documento), los **escalones** (FF.TT.→CE, CE→DIV, DIV→BRIG, BRIG→Unidades), los **focos** (qué G entrena el ejercicio) y las **organizaciones tipo** (FF.TT., C.E., D.I., D. Mec., Brigada, COE). Se carga en el navegador y en Node. |
+| `catalogo.js` | Las **7 fases con sus pasos en orden** (hoja «PMTD 2020» de la Visión Horizontal; 7·17·8·8·3·4·3 pasos), con el documento que sale, el responsable y **dónde se abre en la Mesa** (sección + número de hoja, o herramienta). Más los **13 pasos del profesor** (cada uno con su pedido a la IA; el de la OGO, uno por documento), los **escalones** (FF.TT.→CE, CE→DIV, DIV→BRIG, BRIG→Unidades), los **focos** (qué G entrena el ejercicio) y las **organizaciones tipo** (FF.TT., C.E., D.I., D. Mec., Brigada, COE). Se carga en el navegador y en Node. |
 | `ia-profesor.js` | **La IA del profesor** (puro, se prueba en Node): `armarPedido(paso, ctx)` arma el pedido de cada paso con el escalón, el foco y el ejercicio recortado (la Orden escrita, las fichas, el CMOC, los documentos adjuntos); el del paso 5 pide **lo esencial de la Orden** (los campos de «Mesa · Preparación»). `fichasDeOrganizacion` y `fichasDeJSON` arman las fichas (la forma de `academico.js`) de una organización tipo o del bloque ```json que devuelve la IA. |
 | `ogo-modelos.js` | **📜 Los modelos de la OGO y sus anexos** (datos): la Orden de Operaciones, el Calco, los planes de Inteligencia, Apoyo de Fuegos (y el apéndice de Fuegos de Artillería), Ingeniería, Defensa Antiaérea, Comunicaciones, Logística, Personal, AC/GM, Apoyo de Servicio de Combate y Engaño, cada uno con su **modelo de la Escuela** (los párrafos con su numeración y lo que tiene que decir cada uno, del .zip «MODELOS DE CONTENIDO DE DOCUMENTOS»), su sección, su autenticador y los apartados que revisa `ogo.js`. |
 | `ogo.js` | **📜 La OGO completa** (puro, se prueba en Node): el pedido de cada documento, la revisión contra su modelo, lo que contestó la IA pasado a la forma del Word militar de la Mesa (`formato-militar/v1/word.js`), el .md de ida y vuelta y los documentos para el ejercicio. |
 | `ogo-mesa.js` | **📍 Lo que la OGO lee de la Mesa** (puro): quién expide (el «¿Quién soy?» del inicio), su escalón superior (FF.TT.T.O. → **CTO**), los alumnos (las fichas del escalón de abajo), el **CG por la población más cercana** a su PC (capa «Centros poblados» de los calcos), el reconocimiento de designaciones («I CUERPO DE EJÉRCITO (I CE)» = «CE-I»), las unidades de la organización de la tarea, las que faltan en la carta y dónde ponerlas. |
-| `ogo-coherencia.js` | **🔎 La revisión de coherencia** (puro): UN pedido con todos los documentos, leer la respuesta consolidada (en partes), aplicarla y volver atrás; **📍 las unidades por ubicar** con ✓ Aceptar (la ficha y los documentos sin «(supuesto)»). |
+| `ogo-terreno.js` | **🧭 Dónde poner una unidad, mirando el terreno** (puro): una rejilla de ~1100 puntos dentro del Área de Operaciones calificada con las capas de los calcos (carreteras, caminos, ríos y lagos, poblaciones, aeródromos, cimas), el CMOC (restringido, severamente restringido, avenidas del enemigo), el PC y el enemigo, según lo que pide cada tipo de unidad; dice el porqué y objeta una ubicación (la de la IA) en el agua o al alcance del enemigo. |
+| `ogo-coherencia.js` | **🔎 La revisión de coherencia** (puro): UN pedido con todos los documentos, leer la respuesta consolidada (en partes), aplicarla y volver atrás; **📍 las unidades por ubicar** con ✓ Aceptar (la ficha y los documentos sin «(supuesto)») y **📐 las medidas de la IA** con ✓ Dibujar (a las capas de la Mesa). |
 | `ogo-calco.js` | **🗺️ El Anexo A como gráfico** (puro: arma un SVG): el Área de Operaciones, los límites con su magnitud, las medidas, las fichas propias con su símbolo, los PC y las **dos cruces de amarre** sobre la cuadrícula UTM con sus coordenadas; el navegador lo pasa a PNG para el Word. |
 | `carpeta.js` | **📕 La carpeta del profesor** (pura, se prueba en Node): las respuestas de la IA de cada paso, lo «PARA EL PROFESOR» que se va sumando, lo que es solución y lo que va a los alumnos, el bloque para los pedidos que siguen y el .md para bajarla y volver a cargarla. |
 | `biblioteca.js` | **📚 La biblioteca del profesor** (puro, se prueba en Node con `jszip.min.js`): lee un Word (.docx) con sus párrafos y TABLAS; reconoce el **COE** (la tabla «CLASE \| CMDO. \| RCB-1 \| … \| TOTAL» con PERSONAL · ARMAMENTO · VEHÍCULOS · EQUIPO ESPECIAL) y devuelve la División con cada unidad, su efectivo, armamento y vehículos; da el arma y el escalón de la Mesa por la sigla (RCB, RIM, RIAT, RAM, BAT. AA, BATING, BAT. COM, BAT. LOG, COMP. ICIA, ERM, RI, RAC…); arma las fichas de un COE y el resumen para la IA. |
@@ -100,12 +101,33 @@ paralelo, siempre con el JSON, y con mi tijerita compartirles sólo la parte que
 - **Paso 12 · 📍 Unidades que faltan en la carta** (`porUbicar` / `aceptar`): las de los DATOS de la IA y las
   de la organización de la tarea de la Orden («GALM-1 (OPCON…)», «BATALLÓN LOGÍSTICO DE FF.TT.: Orgánico
   (supuesto)»…) que no están entre las fichas propias (ni quien expide, ni el enemigo), cada una con su
-  ubicación —la de la IA o la que sugiere la Mesa: lo logístico y la aviación detrás del PC, ingenieros y
-  comunicaciones a su costado, la artillería entre el PC y el enemigo, la maniobra adelante, siempre dentro
-  del Área de Operaciones— y la **población más cercana**. **✓ Aceptar** (o ✓ Aceptar todas) la pone en la
+  ubicación y la **población más cercana**. La ubicación (desde el 11-10-2026, tarde, `ogo-terreno.js`)
+  **sale del terreno**, no de una distancia fija al PC: lo logístico detrás del PC, fuera del alcance de la
+  artillería enemiga (≥ 35 km), junto a una carretera y a una población; la aviación atrás, en terreno
+  llano, junto a un aeródromo; la artillería al alcance del frente (12–30 km del enemigo) y fuera de las
+  poblaciones, los lanzadores más atrás; ingenieros, comunicaciones (en altura), antiaérea y PC alterno
+  cerca del PC y de los caminos; la maniobra adelante, sobre las avenidas del enemigo que tiene que
+  cerrar; la reserva en profundidad. **Nunca** en un lago o humedal ni en terreno severamente
+  restringido, y separadas entre sí (dos sugeridas no quedan a menos de ~1,5 km). Cada una dice
+  **🧭 por qué** («detrás del PC · a 42 km del enemigo (fuera del alcance de su artillería) · a 0,8 km de
+  una carretera · junto a SABAYA»). La de la IA se respeta, salvo que el terreno la objete: si cae en el
+  agua, en terreno severamente restringido o a tiro directo del enemigo, se cambia por la del terreno y
+  lo dice (**↪ Se cambió: la de la IA (…) caía en un lago o humedal**); si sólo es discutible (terreno
+  restringido, sobre una avenida del enemigo) queda y se avisa (ℹ️). Sin capas de terreno ni CMOC, el
+  análisis usa lo que haya (el PC, el enemigo, las poblaciones); sin Área de Operaciones, la regla de antes. **✓ Aceptar** (o ✓ Aceptar todas) la pone en la
   carta por el puente (`agregarUnidades`; el ↶ Deshacer de la barra la quita) y saca el «(supuesto)» de las
   líneas de los documentos que la nombran; **✕ No colocar** (↺ la vuelve a ofrecer). Al aplicar la
   coherencia, si hay unidades para colocar, el tablero baja a este paso.
+- **📐 Medidas de coordinación y control** (mismo paso, `medidasPorDibujar` / `aceptarMedidas`): las que la IA
+  trae en los DATOS (`"medidas"`: líneas de fase, límites, áreas de empeñamiento, objetivos, puntos) con
+  **✓ Dibujar** (o ✓ Dibujar todas) entran a la carta por el puente nuevo `agregarOps`
+  (`index-medidas-20261011.js`, ver `CAMBIOS-EN-EL-COMPILADO.md`): una línea a ⚫ límites (simple; un
+  «límite» con escalón, con su magnitud), un área a límites punteada y cerrada, un objetivo a objetivos, un
+  punto a coordinación, **con su nombre** en la carta 2D y en el calco del Anexo A. Las coordenadas que la IA
+  pone como [lat, lng] (o al revés) se ordenan solas (las que caen dentro del Área de Operaciones). El ↶
+  Deshacer de la barra las quita y el paso las vuelve a ofrecer (lo que manda es la carta: una medida con el
+  mismo nombre ya dibujada no se ofrece). **✕ No dibujar** (↺ la vuelve a ofrecer). Los nombres y
+  descripciones que escribió la IA entran sin `< > & " ' \``.
 - **Paso 13 · 📤 Repartir**: 1) los documentos consolidados (se eligen) con **⬇️ Word (.zip) con el JSON**,
   **⬇️ JSON del ejercicio** y **📎 Adjuntar al ejercicio** (el Anexo A va como la IMAGEN del calco); 2) qué
   parte del ejercicio va: las áreas, con la **seleccionada en la Mesa** marcada (la que se acaba de cortar con
@@ -120,10 +142,10 @@ paralelo, siempre con el JSON, y con mi tijerita compartirles sólo la parte que
   (`sideceme-areas-operaciones`), con los documentos: se abre con «Importar áreas compartidas».
 - Queda en el IndexedDB «sid-profesor-ogo» (como la OGO): la revisión (`coherencia`), lo colocado
   (`colocadas`) y lo descartado; viaja en el .md de la OGO.
-- Lo que NO hace: no llama a la IA; no dibuja en la carta las MEDIDAS que trae la IA (las lista en los DATOS
-  para dibujarlas a mano en ⚫ MEDIDAS: el puente sólo coloca fichas); la ubicación sugerida por la Mesa es una
-  regla de distancia, no un análisis del terreno (se ajusta en 🪖 Unidades); el envío por ciclo/paralelo
-  necesita la versión nueva de calco-ops publicada (mientras tanto, el tablero lo avisa y queda el ⬇️ JSON).
+- Lo que NO hace: no llama a la IA. La ubicación del terreno es una **sugerencia de escuela** con lo que la
+  Mesa tiene (las capas generadas y el CMOC del ejercicio; sin relieve fino, sin alcances reales de cada
+  sistema de armas, sin la maniobra de la Orden en texto): el profesor la acepta o la mueve en 🪖 Unidades.
+  El envío por ciclo/paralelo está publicado desde el 11-10-2026 (migración aplicada y `calco-ops` v9).
 
 **📜 La OGO completa con sus anexos (11-10-2026).** Lo pidió Sergio con el .zip «MODELOS DE
 CONTENIDO DE DOCUMENTOS» (la Orden de Operaciones y los planes de apoyo de la Escuela): «cuando
@@ -333,12 +355,23 @@ puede tocar.
   (`No. 002/XYZ.`, `S/A.`, la imagen en lugar de las referencias), el pedido de coherencia, leer la respuesta
   (`fixtures/ogo-consolidado-ia.md`: marcas adornadas, «SIGUE», un anexo que no es de la OGO), aplicar en
   dos partes, volver atrás, el pedido para seguir, ✓ Aceptar / ✕ No colocar, el .md de ida y vuelta, UTM, el
-  dibujo del calco (sin el enemigo, con las dos cruces) y el Word del Anexo A con la imagen.
+  dibujo del calco (sin el enemigo, con las dos cruces) y el Word del Anexo A con la imagen. Y el **terreno**
+  (`ogo-terreno.js`, con una carretera, un lago, un área severamente restringida, una avenida del enemigo y
+  un aeródromo): lo logístico a < 3 km de la carretera, a ≥ 35 km del enemigo, detrás del PC, ni en el lago
+  ni en lo severo, con su porqué; la artillería a 11–31 km del enemigo y más adelante que lo logístico; la
+  aviación junto al aeródromo; la maniobra sobre la avenida; dos del mismo tipo separadas; lo que objeta de
+  una ubicación de la IA (en el lago, al alcance del fuego) y el cambio en el panel. Y las **medidas**: las
+  cuatro formas (línea, límite con magnitud, área cerrada, objetivo, punto), el orden [lat, lng], las ya
+  dibujadas o con el mismo nombre en la carta, la vuelta a ofrecer si se quitaron, sin HTML, y el calco con
+  sus nombres (el área punteada) sin que los rótulos se pisen.
 - `node calcos/pruebas/e2e/ogo-coherencia.cjs` (la Mesa real en Chromium, con el SIDECEME de mentira): los
   pasos 10–13, el pedido con FF.TT.T.O./Tunapa/CTO, la fecha D-60, el Word del Anexo A (membrete de la
   imagen 5, imagen del calco), la coherencia aplicada, las unidades con ✓ Aceptar (la ficha entra en la
-  carta, el «(supuesto)» se va, ✕ y ↺, ✓ Aceptar todas, el PC alterno como PC), el calco que ahora las
-  dibuja, el JSON de la parte cortada con la tijera (sólo lo de adentro) y el envío a «1ER CICLO · Paralelo
+  carta, el «(supuesto)» se va, ✕ y ↺, ✓ Aceptar todas, el PC alterno como PC), **la ubicación del terreno**
+  (con una carretera y un lago: «buscada en el terreno» con su 🧭 porqué, el PC alterno que la IA puso en el
+  lago se cambia y no queda en el agua), **las medidas** (✓ Dibujar LF ALFA: entra a la carta con su nombre
+  visible; ✓ Dibujar todas: AE-1 punteada y cerrada, OBJ 1, PC 2; ↶ Deshacer las quita y el paso las vuelve a
+  ofrecer), el calco que ahora dibuja las fichas y las medidas con su nombre, el JSON de la parte cortada con la tijera (sólo lo de adentro) y el envío a «1ER CICLO · Paralelo
   A»; sin errores de consola. Capturas y los Word en `pruebas/salidas-coherencia/`.
 - `node calcos/pruebas/areas-compartir.mjs`: el servidor con los destinos por ciclo y paralelo (sólo cursantes
   activos), `ejercicio_enviar` con la Mesa del profesor, los documentos elegidos y lo que recibe cada
@@ -358,7 +391,7 @@ puede tocar.
   sin lo del profesor), y todo sigue después de recargar. Capturas en `pruebas/salidas-ogo/`.
 - `node calcos/pruebas/modalidad.cjs`: 7 fases, 50 pasos, **96 «Abrir» que existen en el
   compilado** (cada uno una sola hoja, en el catálogo de su sección), herramientas y secciones
-  con botón real (el editor CMOC incluido), los 11 pasos del profesor en orden con su pedido a
+  con botón real (el editor CMOC incluido), los 13 pasos del profesor en orden con su pedido a
   la IA (la OGO al final, con su clave `n` propia), los focos, la sección de cada documento de la
   OGO, sintaxis de los módulos y el orden de los `<script>` en el `index.html`.
 - `node calcos/pruebas/carpeta-profesor.cjs`: con la respuesta REAL del CMOC que pegó Sergio
