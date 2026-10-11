@@ -82,8 +82,9 @@ const titulo = async (page, re) => (await page.locator('div, h3', { hasText: re 
       // Profesor
       await page.locator(`${SEL} button[data-m=profesor]`).dispatchEvent('click')
       await page.waitForTimeout(300)
-      assert.equal(await page.locator(`${PANEL} .pasos.prof > .paso`).count(), 11)
-      assert.deepEqual(await page.locator(`${PANEL} .pasos.prof > .paso .num`).allInnerTexts(), ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'], 'los números en orden (la OGO es el 10)')
+      // desde el 11-10-2026: 11 coherencia, 12 unidades que faltan, 13 repartir
+      assert.equal(await page.locator(`${PANEL} .pasos.prof > .paso`).count(), 13)
+      assert.deepEqual(await page.locator(`${PANEL} .pasos.prof > .paso .num`).allInnerTexts(), ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13'], 'los números en orden (la OGO es el 10)')
       const pedidoOgo = async (id, re = /CONTEXTO DEL EJERCICIO/) => {
         const b = page.locator(`${PANEL} [data-ogo-doc="${id}"] [data-a="ogo-pedido"]`)
         if (!/▴/.test(await b.innerText())) await b.dispatchEvent('click')

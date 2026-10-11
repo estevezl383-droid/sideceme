@@ -77,12 +77,14 @@ for (const [k, S] of Object.entries(CAT.SECCIONES)) {
 
 CAT.PROFESOR.forEach((p, i) => {
   assert.equal(p.ver || p.n, i + 1, 'el número que se ve va en orden')
-  assert.ok(p.ogoFinal || (p.ia && p.ia.tit && p.ia.pide), `paso ${p.ver || p.n} del profesor con su pedido a la IA (o la OGO por documento)`)
+  assert.ok(p.ogoFinal || p.coherencia || p.porUbicar || (p.ia && p.ia.tit && p.ia.pide), `paso ${p.ver || p.n} del profesor con su pedido a la IA (o la OGO por documento, la coherencia o las unidades)`)
   ;(p.abrir || []).forEach((a) => { if (a.h) assert.ok(CAT.HERRAMIENTAS[a.h], `herramienta ${a.h}`); else assert.ok(CAT.SECCIONES[a.s]) })
 })
-assert.equal(CAT.PROFESOR.length, 11)
-assert.equal(new Set(CAT.PROFESOR.map((p) => p.n)).size, 11, 'claves únicas (lo marcado y la carpeta van por `n`)')
-assert.deepEqual(CAT.PROFESOR.slice(-2).map((p) => [p.n, p.ver]), [[11, 10], [10, 11]], 'la OGO va antes de repartir; «Repartir» conserva su clave 10')
+assert.equal(CAT.PROFESOR.length, 13)
+assert.equal(new Set(CAT.PROFESOR.map((p) => p.n)).size, 13, 'claves únicas (lo marcado y la carpeta van por `n`)')
+assert.deepEqual(CAT.PROFESOR.slice(-4).map((p) => [p.n, p.ver]), [[11, 10], [12, 11], [13, 12], [10, 13]], 'la OGO, la coherencia y las unidades van antes de repartir; «Repartir» conserva su clave 10')
+assert.ok(CAT.PROFESOR[10].coherencia && CAT.PROFESOR[11].porUbicar && CAT.PROFESOR[12].repartir, 'coherencia (11) → unidades (12) → repartir (13)')
+assert.match(CAT.PROFESOR[12].que, /CICLO o por PARALELO[\s\S]*tijera/)
 assert.ok(CAT.PROFESOR.some((p) => p.escalon))
 assert.ok(/CMOC/.test(CAT.PROFESOR[3].nom) && /calcos/i.test(CAT.PROFESOR[2].nom), 'el CMOC va después de los calcos')
 assert.deepEqual(CAT.PROFESOR[3].abrir.map((a) => a.h), ['cmoc', 'analisisIA'])
@@ -94,8 +96,11 @@ assert.deepEqual(CAT.FOCOS.map((f) => f.id), ['pmtd', 'g1', 'g2', 'g3', 'g4', 'g
 CAT.FOCOS.forEach((f) => { assert.ok(f.nom && f.pide && f.deja, `foco ${f.id}`); f.secs.forEach((s) => assert.ok(CAT.SECCIONES[s])) })
 const MODS = require('../modalidad/ogo-modelos.js')
 MODS.DOCS.forEach((d) => assert.ok(CAT.SECCIONES[d.sec], `documento ${d.id}: sección ${d.sec}`))
-for (const f of ['ogo-modelos.js', 'ogo.js']) { assert.match(html, new RegExp('modalidad/' + f.replace('.', '\\.'))); new vm.Script(fs.readFileSync(path.join(RAIZ, 'modalidad', f), 'utf8')) }
+for (const f of ['ogo-modelos.js', 'ogo-mesa.js', 'ogo.js', 'ogo-terreno.js', 'ogo-coherencia.js', 'ogo-calco.js']) { assert.match(html, new RegExp('modalidad/' + f.replace('.', '\\.'))); new vm.Script(fs.readFileSync(path.join(RAIZ, 'modalidad', f), 'utf8')) }
 assert.ok(html.indexOf('modalidad/ia-profesor.js') < html.indexOf('modalidad/ogo.js') && html.indexOf('modalidad/ogo.js') < html.indexOf('modalidad/modalidad.js'), 'ogo.js después de ia-profesor.js y antes de modalidad.js')
+assert.ok(html.indexOf('modalidad/ogo-mesa.js') < html.indexOf('modalidad/ogo.js'), 'ogo-mesa.js antes de ogo.js (lo usa)')
+assert.ok(html.indexOf('modalidad/ogo.js') < html.indexOf('modalidad/ogo-coherencia.js') && html.indexOf('modalidad/ogo-calco.js') < html.indexOf('modalidad/modalidad.js') && html.indexOf('modalidad/ogo-coherencia.js') < html.indexOf('modalidad/modalidad.js'), 'coherencia y calco después de ogo.js y antes de modalidad.js')
+assert.ok(html.indexOf('modalidad/ogo-mesa.js') < html.indexOf('modalidad/ogo-terreno.js') && html.indexOf('modalidad/ogo-terreno.js') < html.indexOf('modalidad/ogo-coherencia.js'), 'el terreno, antes de la coherencia (que lo usa)')
 assert.match(html, /modalidad\/ia-profesor\.js/)
 new vm.Script(fs.readFileSync(path.join(RAIZ, 'modalidad/ia-profesor.js'), 'utf8'))
 // la carpeta del profesor se carga ANTES de la IA (ia-profesor.js la usa) y de modalidad.js

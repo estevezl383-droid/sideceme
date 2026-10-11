@@ -20,9 +20,9 @@
    · paraEjercicio(est): los documentos para adjuntar al ejercicio (los ven los alumnos).
    Dónde se guarda lo decide modalidad.js (IndexedDB «sid-profesor-ogo» de ese navegador). */
 (function (raiz, fabrica) {
-  if (typeof module === 'object' && module.exports) module.exports = fabrica(require('./ogo-modelos.js'), require('./ia-profesor.js'), require('./carpeta.js'))
-  else raiz.SIDOgo = fabrica(raiz.SIDOgoModelos, raiz.SIDIAProfesor, raiz.SIDCarpetaProfesor)
-})(typeof window !== 'undefined' ? window : this, function (MOD, IA, CARP) {
+  if (typeof module === 'object' && module.exports) module.exports = fabrica(require('./ogo-modelos.js'), require('./ia-profesor.js'), require('./carpeta.js'), require('./ogo-mesa.js'))
+  else raiz.SIDOgo = fabrica(raiz.SIDOgoModelos, raiz.SIDIAProfesor, raiz.SIDCarpetaProfesor, raiz.SIDOgoMesa)
+})(typeof window !== 'undefined' ? window : this, function (MOD, IA, CARP, MESA) {
   'use strict'
 
   var DOCS = MOD.DOCS
@@ -35,7 +35,9 @@
   function norm(s) { return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[“”«»"']/g, '').replace(/\s+/g, ' ').trim() }
   function recorta(s, n) { s = String(s == null ? '' : s); return s.length > n ? s.slice(0, n) + '\n[… recortado: ' + (s.length - n) + ' caracteres más]' : s }
   function doc(id) { for (var i = 0; i < DOCS.length; i++) if (DOCS[i].id === id) return DOCS[i]; return null }
-  function producto(texto) { return CARP ? CARP.separar(texto).producto : limpia(texto) }
+  // lo que va a los alumnos y al Word: sin «PARA EL PROFESOR» ni la línea «FECHA Y HORA:» (va al membrete)
+  function productoCrudo(texto) { return CARP ? CARP.separar(texto).producto : limpia(texto) }
+  function producto(texto) { return productoCrudo(texto).replace(/^\s*[*_]*FECHA\s+Y\s+HORA(?:\s+DE\s+[^:]{0,30})?\s*:[^\n]*\n?/i, '') }
 
   // ─── El estado de la OGO de un ejercicio ────────────────────────────────────────────
   // { ejercicio, config: { tipo, numero, superior, unidad, alumnos, lugar, fechaHora, carta,
@@ -45,21 +47,35 @@
   function vacio(ejercicio) {
     return { ejercicio: String(ejercicio || ''), config: { tipo: 'orden', numero: '', superior: '', unidad: '', alumnos: '', lugar: '', fechaHora: '', carta: '', iniciales: '', jem: '', firma: '', distribucion: '', ensenanza: false, seleccion: seleccionInicial(), letras: {} }, docs: {}, actualizado: '' }
   }
-  // Lo que ya está escrito en «Mesa · Preparación» (la Orden del escalón superior que reciben los
-  // alumnos): ahí «Escalón superior» es quien expide (el profesor) y «Unidad considerada» son los
-  // alumnos. Solo llena lo que el profesor todavía no escribió en el tablero de la OGO.
-  function completarConfig(est, ej) {
-    var os = (ej && ej.ordenSup) || {}, c = Object.assign({}, est.config)
-    var pon = function (k, v) { if (!una(c[k]) && una(v)) c[k] = una(v) }
-    pon('numero', os.numero)
-    pon('unidad', os.escalonSuperior)
-    pon('alumnos', os.unidadPropia || os.unidad || (ej && ej.ops && ej.ops.unidadConsiderada && ej.ops.unidadConsiderada.nombre))
-    pon('lugar', os.puestoMando)
-    pon('fechaHora', os.vigencia)
-    pon('carta', os.carta)
-    pon('iniciales', os.clave)
+  // Lo vacío de los datos de la Orden, de la Mesa. Solo llena lo que el profesor todavía no escribió
+  // en el tablero de la OGO (`config`); de dónde salió cada dato queda en `autoDe` (se muestra).
+  // Lo pidió Sergio (11-10-2026) con el Word del Anexo A con «[Escalón superior pendiente]» y
+  // «[Unidad pendiente]»: quien expide es la unidad de «¿Quién soy?» del inicio del ejercicio (si es
+  // del escalón del profesor; si no, el «Escalón superior» de «Mesa · Preparación»), el escalón
+  // superior de las FF.TT.T.O. es el CTO, el CG es la POBLACIÓN MÁS CERCANA a su PC en la carta y la
+  // fecha es la que fijó la IA en la Orden (la misma en todos los documentos). op: { escalon }.
+  function completarConfig(est, ej, op) {
+    op = op || {}
+    var os = (ej && ej.ordenSup) || {}, c = Object.assign({}, est.config), de = {}
+    var pon = function (k, v, f) { if (!una(c[k]) && una(v)) { c[k] = una(v); de[k] = f || '' } }
+    var yo = ej && ej.ops && ej.ops.unidadConsiderada && ej.ops.unidadConsiderada.nombre
+    var id = MESA && ej ? MESA.identidad(ej, op.escalon) : null
+    pon('numero', os.numero, '«Mesa · Preparación»')
+    if (id) {
+      pon('unidad', id.unidad, id.fuentes.unidad); pon('superior', id.superior, id.fuentes.superior)
+      pon('alumnos', id.alumnos, id.fuentes.alumnos); if (id.lugar) pon('lugar', id.lugar.nombre, id.fuentes.lugar)
+    } else {
+      pon('unidad', os.escalonSuperior, '«Mesa · Preparación»')
+      pon('alumnos', os.unidadPropia || os.unidad || yo, '«Mesa · Preparación»')
+    }
+    if (MESA) pon('superior', MESA.superiorDe(c.unidad), 'Regla de la Escuela: el escalón superior de las FF.TT.T.O. es el CTO')
+    pon('lugar', os.puestoMando, '«Mesa · Preparación» (puesto de mando)')
+    pon('fechaHora', est.auto && est.auto.fechaHora, 'La fecha que fijó la IA en la OGO')
+    pon('fechaHora', os.vigencia, '«Mesa · Preparación» (vigencia)')
+    pon('carta', os.carta, '«Mesa · Preparación»')
+    pon('iniciales', os.clave, '«Mesa · Preparación» (clave del redactor)')
     if (!c.seleccion) c.seleccion = seleccionInicial()
-    return Object.assign({}, est, { config: c })
+    return Object.assign({}, est, { config: c, autoDe: de, identidad: id })
   }
   function esPlan(est) { return est && est.config && est.config.tipo === 'plan' }
 
@@ -123,10 +139,22 @@
       '**Documento ' + k + ' de ' + lista.length + ':** ' + titulo(id, est) + '\n' +
       '**Expide:** ' + (una(c.unidad) || 'la unidad del ' + E.profesor) + (una(c.lugar) ? ' · PC ' + una(c.lugar) : '') + (una(c.fechaHora) ? ' · ' + una(c.fechaHora) : '') + ' · **la reciben:** ' + (una(c.alumnos) || E.alumnos) + '\n' +
       '**Lo elabora y lo autentica:** el ' + d.autentica + ' (' + d.seccion + '); lo firma el Comandante.\n' +
+      membreteParaPedido(est) +
       (esPlan(est) ? '**Es un PLAN de operaciones: lleva «Hipótesis».**\n' : '**Es una ORDEN de operaciones: NO lleva «Hipótesis» (eso es solo del Plan).**\n') +
       '**Qué entrena el ejercicio:** ' + F.nom + ' — ' + F.pide + '\n'
     if (entrena(d, F)) t += '**⚠️ ESTE DOCUMENTO ES DEL CAMPO QUE SE ENTRENA (' + F.nom + '):** escribilo COMPLETO y DETALLADO en todo lo que el escalón superior sabe y le da a la unidad de los alumnos (cifras, instalaciones, capacidades, plazos, prioridades): es la BASE con la que el alumno hace su apreciación y su propio anexo. Pero NO le resuelvas lo que tiene que producir él: ' + F.deja + '.\n'
     t += '**Los documentos de esta OGO:** ' + lista.map(function (x) { return (x.principal ? tituloOrden(est) : (x.apendiceDe ? 'Apéndice “' + L[x.id] + '” ' : 'Anexo “' + L[x.id] + '” ') + x.asunto.split(' / ')[0]) + ((est.docs || {})[x.id] && una(est.docs[x.id].texto) ? ' (✓ escrito)' : '') }).join(' · ') + '\n\n'
+    return t
+  }
+  // Lo que la Mesa ya sabe del membrete y que la IA tiene que respetar en TODOS los documentos.
+  function membreteParaPedido(est) {
+    var c = est.config || {}, t = ''
+    if (MESA && MESA.nivelDe(c.unidad) === 'fftt') t += '**Escalón superior de las ' + una(c.unidad) + ':** CTO (Comando del Teatro de Operaciones). Es el ÚNICO escalón superior de las FF.TT.T.O.: no nombres otro (ni «Comando en Jefe», ni «Ejército»).\n'
+    else if (una(c.superior)) t += '**Escalón superior de quien expide:** ' + una(c.superior) + '.\n'
+    if (una(c.lugar)) t += '**CG de quien expide:** ' + una(c.lugar) + ' (la población más cercana a su PC en la carta). Los PC, CG e instalaciones se NOMBRAN POR LA POBLACIÓN MÁS CERCANA (lista de poblaciones más abajo).\n'
+    t += una(c.fechaHora)
+      ? '**Fecha y hora de la OGO:** ' + una(c.fechaHora) + '. Es la MISMA en todos los documentos (y todo lo demás —fases, plazos, OPCON— se cuenta coherente con ella).\n'
+      : '**Fecha y hora de la OGO:** todavía no está fijada. Fijala vos (la OGO se expide con tiempo para que los alumnos planifiquen: regla de 1/3 – 2/3 sobre el tiempo hasta el día D) y escribila en la PRIMERA línea de tu respuesta, así: «FECHA Y HORA: D-60 (0800)». Va al membrete de todos los documentos.\n'
     return t
   }
   function comoContestar(d, est) {
@@ -136,10 +164,11 @@
       '- Empezá con los campos del encabezado, cada uno en su propia línea: ' + pre + ' (por ej. «OBJETO: Operaciones defensivas de la …»).\n'
     if (d.principal) t += '- ANEXOS: en su línea y debajo, uno por línea, EXACTAMENTE estos:\n' + listaAnexos(est).split('\n').map(function (l) { return '    ' + l }).join('\n') + '\n'
     else if (listaAnexos(est, d.id)) t += '- APÉNDICES: en su línea y debajo, uno por línea:\n    ' + listaAnexos(est, d.id) + '\n'
+    else if (d.preliminares.some(function (p) { return /^AP/.test(p) })) t += '- Sin apéndices: «APÉNDICES: S/A.» (así, no «Sin novedad.»).\n'
     if (d.organizacion === 'cuadro') t += '- ORGANIZACIÓN DE LA TAREA: en su línea y debajo UNA LÍNEA POR AGRUPACIÓN o unidad que depende directamente, así: «NOMBRE DE LA AGRUPACIÓN: unidad; unidad; unidad» (la Mesa arma el cuadro). Usá la organización de la tarea de la Mesa si ya está armada.\n'
     else if (d.organizacion === 'lista') t += '- Organización de la Tarea: en su línea y debajo una línea por elemento: «ELEMENTO: lo que tiene».\n'
     t += d.id === 'calco'
-      ? '- Después «REFERENCIAS DEL CALCO» en su línea y debajo una línea por elemento, con guion («- LÍMITES: …»).\n'
+      ? '- Después «REFERENCIAS DEL CALCO» en su línea y debajo una línea por elemento, con guion («- LÍMITES: …»). OJO: el Anexo es un GRÁFICO que la Mesa dibuja con lo trazado en la carta (el Área de Operaciones, los límites, las fichas, las dos cruces de amarre): las referencias NO van al Word; sirven para controlar que todo lo que nombra la Orden esté dibujado, con las MISMAS coordenadas.\n'
       : '- Después, cada apartado del modelo EN SU PROPIA LÍNEA, con su numeración militar y su título, y el texto debajo:\n    I.- SITUACIÓN.\n    A.- Fuerzas enemigas.\n    1.- …\n    a.- …    1) …    a) …\n  Sin «#» ni negritas en los títulos. Cuadros en Markdown (| col | col |). Listas con «- ».\n'
     t += '- Al final, «## PARA EL PROFESOR» (no va al Word ni a los alumnos): los datos que inventaste (los «(supuesto)»), qué dejaste para que lo resuelva el alumno y qué conviene que el profesor revise antes de entregar.\n' +
       '- Si no te entra en una respuesta, cortá al final de un apartado y escribí «SIGUE: <apartado>»; te piden el resto.\n\n'
@@ -153,10 +182,24 @@
       'Si hay BIBLIOTECA DEL PROFESOR (COE, organizaciones de AZUL y de ROJO, de las FF.TT., de los Cuerpos, armamento): usá ESAS unidades con sus designaciones, efectivos, armamento y vehículos, ADECUADAS a este ejercicio; no inventes otras.',
       'Coherente con LO YA ESCRITO de esta OGO (más abajo): la misma misión, la misma intención, las mismas fases con sus mismas fechas, los mismos nombres, las mismas unidades y las mismas letras de anexos. Un anexo amplía la Orden: no la contradice ni la repite.',
       'Escalón coherente: el ' + ctx.escalon.profesor + ' escribe; las unidades subordinadas reciben tareas de su nivel (y sus subordinadas, dos escalones abajo); el enemigo se describe en términos de dos escalones por debajo.',
-      'Español militar, impersonal, sin voseo; los nombres de líneas, objetivos y avenidas en MAYÚSCULAS; abreviaturas reglamentarias.'
+      'Español militar, impersonal, sin voseo; los nombres de líneas, objetivos y avenidas en MAYÚSCULAS; abreviaturas reglamentarias.',
+      'Las unidades son las de la carta (fichas) y las de la organización de la tarea, con la MISMA designación en todos los documentos. Si hace falta una que no está en la carta (un batallón logístico, una agrupación de artillería…), dale designación, ubicación (lat, lng) DENTRO del Área de Operaciones y la población más cercana, y marcala «(supuesto)»: la Mesa se la ofrece al profesor para colocarla.'
     ]
     if (d.id === 'ogo' || d.id === 'icia') r.push('Si la CARPETA DEL PROFESOR trae el CMOC (paso 4) y los cursos de acción del enemigo (paso 7), el párrafo I.A y el Anexo de Inteligencia toman de ahí el terreno, las avenidas de aproximación y el terreno clave con sus MISMOS nombres, al nivel del escalón superior; si el ejercicio entrena el G-2 o el PMTD completo, NO le des al alumno la calificación de las avenidas, el terreno decisivo de SU nivel ni cuál es el curso de acción más probable: eso lo produce él.')
     return '### Reglas para que la orden no tenga observaciones\n' + r.map(function (x, i) { return (i + 1) + '. ' + x }).join('\n') + '\n\n'
+  }
+  // Las poblaciones del Área de Operaciones (capa «Centros poblados» de los calcos) y la más cercana a
+  // cada ficha propia: con ellas se nombran los PC, los CG y las instalaciones.
+  function poblacionesParaPedido(ej) {
+    if (!MESA || !ej) return ''
+    var pobs = MESA.poblacionesParaPedido(ej, 60), todas = MESA.poblaciones(ej)
+    if (!pobs.length) return ''
+    var f4 = function (x) { return String(Math.round(x * 1e4) / 1e4) }
+    var propias = (ej.unidades || []).filter(function (u) { return u && isFinite(+u.lat) && u.lat != null && !/enem|rojo/i.test(u.bando || '') })
+    var cerca = propias.map(function (u) { var c = MESA.masCercana(todas, u.lat, u.lng); return c ? '- ' + una(u.designacion || u.nombre) + (u.tipo === 'pc' ? ' (PC)' : '') + ' → ' + c.nombre + (c.tipo ? ' (' + c.tipo + ')' : '') + ', a ' + c.km.toFixed(1).replace('.', ',') + ' km' : '' }).filter(Boolean)
+    return '### Poblaciones (para nombrar PC, CG e instalaciones: la población más cercana)\n' +
+      (cerca.length ? 'La más cercana a cada ficha propia de la carta:\n' + cerca.slice(0, 60).join('\n') + '\n\n' : '') +
+      'Poblaciones dentro del Área de Operaciones (nombre · tipo · lat, lng · habitantes):\n' + pobs.map(function (p) { return '- ' + p.nombre + (p.tipo ? ' · ' + p.tipo : '') + ' · ' + f4(p.lat) + ', ' + f4(p.lng) + (p.poblacion ? ' · ' + p.poblacion + ' hab.' : '') }).join('\n') + '\n\n'
   }
   // ctx: { escalon, foco, ogo (estado), ejercicio, unidades, centro, biblioteca, carpeta, fuente }
   function pedido(id, ctx) {
@@ -176,6 +219,7 @@
       reglas(d, ctx) + comoContestar(d, ctx.ogo) +
       '### LO YA ESCRITO DE ESTA OGO\n' + (ya || '(Todavía nada: ' + (d.principal ? 'este es el primer documento; los anexos se escriben después, sobre esta Orden).' : 'conviene escribir primero el cuerpo de la Orden, así cada anexo la sigue).')) + '\n\n' +
       (org ? '### La organización de la tarea armada en la Mesa (C.A. por fases / Mesa EM)\n' + org + '\n\n' : '') +
+      poblacionesParaPedido(ctx.ejercicio) +
       '---\n\n# CONTEXTO DEL EJERCICIO (lo que ya hay en la Mesa)\n\n' + (IA ? IA.contexto(ctx) : '') + '\n\n---\n' +
       'RECORDATORIO: escribí SOLO ' + (d.principal ? 'el cuerpo de la ' + tituloOrden(ctx.ogo) : 'el ' + titulo(id, ctx.ogo)) + ', COMPLETO, sobre el modelo de la Escuela, sin membrete ni firma, empezando por ' + d.preliminares[0] + ':, para un ' + ctx.escalon.profesor + ' cuyos alumnos son ' + ctx.escalon.alumnos + '; el ejercicio entrena ' + ctx.foco.nom + '.\n'
   }
@@ -217,16 +261,18 @@
   var RE_SINNUM = /^(intenci[oó]n(?: del comandante)?|referencias del calco)\s*[.:]?\s*(.*)$/i
   var RE_PRE = /^(OBJETO|CARTAS?|ANEXOS?|AP[EÉ]NDICES?|AGREGADOS?)\s*:\s*(.*)$/i
   var RE_ORG = /^ORGANIZACI[OÓ]N\s+DE\s+LA\s+TAREA\b\s*[:.]?\s*(.*)$/i
+  // «FECHA Y HORA: D-60 (0800)»: la fecha de la OGO que fija la IA (va al membrete, no al cuerpo)
+  var RE_FECHA = /^FECHA\s+Y\s+HORA(?:\s+DE\s+(?:EXPEDICI[OÓ]N|LA\s+(?:ORDEN|OGO)))?\s*:\s*(\S.*)$/i
   // la firma (en MAYÚSCULAS y sola en su línea), la autenticación y la distribución: ahí termina el cuerpo
   var RE_FIN = /^(EL COMANDANTE(?:\s+[A-ZÁÉÍÓÚÑ0-9.\-–«»“”"'\s]+)?$|Autenticaci[oó]n\s*:|AUTENTICACI[OÓ]N\b|Distribuci[oó]n\s*:|\(CLASIFICACI[OÓ]N DE SEGURIDAD\)$)/
   var RE_BASURA = /^(\(?CLASIFICACI[OÓ]N DE SEGURIDAD\)?|SECRETO|RESERVADO|CONFIDENCIAL|DESTINO\s*:.*|-{3,}|_{3,}|\*{3,})$/i
   function celdas(l) { return l.replace(/^\s*\|/, '').replace(/\|\s*$/, '').split('|').map(function (c) { return sinMarcas(c.trim()) }) }
   function esSeparadorTabla(l) { return /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/.test(l) }
 
-  // → { preliminares: [{rotulo, texto}], organizacion: [{nombre, elementos}], secciones: [nodos], sigue }
+  // → { preliminares: [{rotulo, texto}], organizacion: [{nombre, elementos}], secciones: [nodos], sigue, fechaHora }
   function estructura(texto) {
-    var lineas = producto(texto).split('\n'), pre = [], org = [], raiz = { nivel: 0, hijos: [], bloques: [] }, pila = [raiz]
-    var modo = 'pre', prelim = null, tabla = null, sigue = false, parrafo = []
+    var lineas = productoCrudo(texto).split('\n'), pre = [], org = [], raiz = { nivel: 0, hijos: [], bloques: [] }, pila = [raiz]
+    var modo = 'pre', prelim = null, tabla = null, sigue = false, parrafo = [], fechaHora = ''
     var actual = function () { return pila[pila.length - 1] }
     var cerrarParrafo = function () { if (parrafo.length) { actual().bloques.push({ texto: parrafo.join(' ') }); parrafo = [] } }
     var cerrarTabla = function () {
@@ -246,6 +292,8 @@
       var lm = sinMarcas(l.replace(/^#{1,6}\s*/, ''))
       if (RE_FIN.test(lm) && modo === 'cuerpo') break
       if (RE_BASURA.test(lm)) continue
+      var fh = modo !== 'cuerpo' && RE_FECHA.exec(lm)
+      if (fh) { cerrarParrafo(); fechaHora = una(fh[1]).replace(/[.]$/, ''); prelim = null; continue }
       var p = RE_PRE.exec(lm)
       if (p && modo !== 'cuerpo') { cerrarParrafo(); var r = p[1].toUpperCase().replace('Á', 'A'); prelim = { rotulo: /^CARTA/.test(r) ? 'CARTA' : /^ANEXO/.test(r) ? 'ANEXOS' : /^AP/.test(r) ? 'APÉNDICES' : /^AGREG/.test(r) ? 'AGREGADOS' : 'OBJETO', texto: sinMarcas(p[2]) }; pre.push(prelim); modo = 'pre'; continue }
       var o = RE_ORG.exec(lm)
@@ -295,7 +343,7 @@
     var secciones = raiz.hijos.map(convertir)
     var sueltoRaiz = convertir({ titulo: undefined, bloques: raiz.bloques, hijos: [] })
     if (sueltoRaiz.texto || sueltoRaiz.vinetas || sueltoRaiz.hijos.length) secciones = [{ texto: sueltoRaiz.texto, vinetas: sueltoRaiz.vinetas, hijos: sueltoRaiz.hijos }].concat(secciones)
-    return { preliminares: pre, organizacion: org.filter(function (x) { return una(x.nombre) }), secciones: secciones, sigue: sigue }
+    return { preliminares: pre, organizacion: org.filter(function (x) { return una(x.nombre) }), secciones: secciones, sigue: sigue, fechaHora: fechaHora }
   }
   function titulos(secciones, acc) { acc = acc || []; (secciones || []).forEach(function (n) { if (n.titulo) acc.push(n); titulos(n.hijos, acc) }); return acc }
   function tieneContenido(n) { return !!(una(n.texto) || (n.vinetas && n.vinetas.length) || n.tabla || (n.hijos || []).length) }
@@ -346,11 +394,20 @@
     return { ok: !faltan.length && !faltanTexto.length && !vacios.length && !marcadores.length && !avisos.filter(function (a) { return !/supuesto/.test(a) }).length, faltan: faltan, faltanTexto: faltanTexto, vacios: vacios, marcadores: marcadores, supuestos: supuestos, avisos: avisos, apartados: ts.length }
   }
   // La OGO entera: cada documento elegido, los datos del membrete y lo que falta dibujar en la Mesa.
+  // El Anexo A es el GRÁFICO de la Mesa: sin texto de la IA, está listo si la carta tiene el Área de
+  // Operaciones y fichas propias (el OBJETO y la CARTA los pone la Mesa).
+  function calcoDeLaMesa(ej) {
+    var ops = (ej && ej.ops) || {}
+    return !!(ops.areaOps || (ops.areasOps || []).length) && ((ej && ej.unidades) || []).some(function (u) { return u && !/enem|rojo/i.test(u.bando || '') })
+  }
   function revisarTodo(est, op) {
     op = op || {}
-    var c = est.config || {}, docs = {}, generales = [], listos = 0, lista = elegidos(est)
-    lista.forEach(function (d) { var x = est.docs && est.docs[d.id]; docs[d.id] = x && una(x.texto) ? revisar(d.id, x.texto, { ogo: est }) : null; if (docs[d.id] && docs[d.id].ok) listos++ })
-    var faltaDato = [['numero', 'el N° de la Orden'], ['unidad', 'la unidad que expide (la tuya)'], ['superior', 'el escalón superior de tu unidad (va arriba del membrete)'], ['alumnos', 'la unidad de los alumnos'], ['lugar', 'el CG / lugar del puesto comando'], ['fechaHora', 'la fecha y hora (grupo fecha-hora o D/H)'], ['carta', 'la carta'], ['iniciales', 'las iniciales del elaborador'], ['jem', 'las iniciales del JEM']].filter(function (k) { return !una(c[k[0]]) }).map(function (k) { return k[1] })
+    var c = est.config || {}, docs = {}, generales = [], listos = 0, lista = elegidos(est), grafico = calcoDeLaMesa(op.ejercicio)
+    lista.forEach(function (d) {
+      var x = est.docs && est.docs[d.id]; docs[d.id] = x && una(x.texto) ? revisar(d.id, x.texto, { ogo: est }) : null
+      if ((docs[d.id] && docs[d.id].ok) || (d.id === 'calco' && !docs[d.id] && grafico)) listos++
+    })
+    var faltaDato = [['numero', 'el N° de la Orden'], ['unidad', 'la unidad que expide (la tuya)'], ['superior', 'el escalón superior de tu unidad (va arriba del membrete)'], ['alumnos', 'la unidad de los alumnos'], ['lugar', 'el CG / lugar del puesto comando'], ['fechaHora', 'la fecha y hora (grupo fecha-hora o D/H)'], ['carta', 'la carta']].filter(function (k) { return !una(c[k[0]]) }).map(function (k) { return k[1] })
     if (faltaDato.length) generales.push('En «Datos de la Orden y del membrete» falta: ' + faltaDato.join(', ') + '.')
     var ej = op.ejercicio || {}, ops = ej.ops || {}, us = (ej.unidades || []).filter(function (u) { return u && (u.tipo || 'unidad') === 'unidad' })
     if (op.ejercicio) {
@@ -359,7 +416,7 @@
       if (!us.some(function (u) { return u.bando !== 'enemigo' && u.bando !== 'enemigas' })) generales.push('En la carta no hay fichas PROPIAS: la Organización de la Tarea y el calco las necesitan (🪖 UNIDADES).')
       if (!us.some(function (u) { return u.bando === 'enemigo' || u.bando === 'enemigas' })) generales.push('En la carta no hay fichas ENEMIGAS: el párrafo I.A y el Anexo de Inteligencia las necesitan.')
     }
-    lista.forEach(function (d) { if (!docs[d.id]) generales.push('Falta escribir: ' + corto(d.id, est) + '.') })
+    lista.forEach(function (d) { if (!docs[d.id] && !(d.id === 'calco' && grafico)) generales.push('Falta escribir: ' + corto(d.id, est) + '.') })
     return { docs: docs, generales: generales, listos: listos, total: lista.length, ok: listos === lista.length && !generales.length }
   }
   function pedidoCorregir(id, rev, ctx) {
@@ -380,18 +437,26 @@
   }
 
   // ─── Al formato militar de la Mesa (word.js · crearWord) ────────────────────────────
-  function aSpec(id, texto, est) {
+  // Sin apéndices: «APÉNDICES : S/A.» (como en los modelos de la Escuela; no «Sin novedad.» ni «Sin.»).
+  var RE_SIN = /^(sin\b.*|ningun[oa]s?|no (tiene|hay|lleva|aplica)\b.*|n\/?a|s\/?a|-+|—)\.?$/i
+  function deLas(unidad) { var u = una(unidad); return !u ? '' : /^(FF\.?\s?TT|FUERZAS)/i.test(u) ? ' de las ' + u : /^(R|B|C\.?E|CUERPO|COMANDO|CMDO|GRUPO|G\.?A|REGIMIENTO|BATALL|[IVX]+\s*C\.?\s?E)/i.test(u) ? ' del ' + u : ' de la ' + u }
+  // op.imagen: el gráfico del calco (ogo-calco.js → PNG); el Anexo A es ESE gráfico, no texto (Sergio, 11-10-2026).
+  function aSpec(id, texto, est, op) {
+    op = op || {}
     var d = doc(id), e = estructura(texto), pre = []
     d.preliminares.forEach(function (rot) {
       var k = /^CARTA/.test(rot) ? 'CARTA' : /^ANEXO/.test(rot) ? 'ANEXOS' : /^AP/.test(rot) ? 'APÉNDICES' : /^AGREG/.test(rot) ? 'AGREGADOS' : 'OBJETO'
       var hay = e.preliminares.filter(function (p) { return p.rotulo === k })[0], txt = hay ? hay.texto : ''
-      if (k === 'CARTA' && !una(txt)) txt = una(est.config.carta)
+      if (k === 'CARTA' && !una(txt)) txt = una(est.config.carta) || (id === 'calco' ? 'Cartas Topográficas del Área de Operaciones, Esc. 1:100.000.' : '')
+      if (k === 'OBJETO' && !una(txt) && id === 'calco') txt = ('Calco de Operaciones anexo a la ' + tituloOrden(est) + deLas(est.config.unidad)).replace(/\.?$/, '.')
       if (k === 'ANEXOS' && d.principal) txt = listaAnexos(est) // la lista de la OGO es la de los anexos elegidos, con sus letras
-      if (k === 'APÉNDICES' && !una(txt)) txt = listaAnexos(est, id)
+      if (k === 'APÉNDICES' && (!una(txt) || RE_SIN.test(una(txt)))) txt = listaAnexos(est, id)
+      if ((k === 'APÉNDICES' || k === 'AGREGADOS') && RE_SIN.test(una(txt))) txt = ''
       txt = limpia(txt).split('\n').map(una).filter(Boolean).join('\n') // una línea por anexo
-      pre.push({ rotulo: rot, texto: txt || (k === 'APÉNDICES' || k === 'AGREGADOS' ? 'Sin.' : '') })
+      pre.push({ rotulo: rot, texto: txt || (k === 'APÉNDICES' || k === 'AGREGADOS' ? 'S/A.' : '') })
     })
     var spec = { titulo: titulo(id, est), preliminares: pre, secciones: e.secciones, estructuraPropia: true }
+    if (id === 'calco' && op.imagen) { spec.secciones = [{ imagen: op.imagen }]; return spec }
     if (e.organizacion.length) {
       if (d.organizacion === 'cuadro' && e.organizacion.some(function (x) { return x.elementos.length })) spec.organizacion = { titulo: 'ORGANIZACIÓN DE LA TAREA', equipos: e.organizacion.map(function (x) { return { nombre: x.nombre, elementos: x.elementos } }) }
       else spec.secciones = [{ titulo: 'Organización de la Tarea.', sinRotulo: true, vinetas: e.organizacion.map(function (x) { return x.nombre + (x.elementos.length ? ': ' + x.elementos.join('; ') : '') }), hijos: [] }].concat(spec.secciones)
@@ -401,13 +466,15 @@
   function cfgWord(id, est) {
     var d = doc(id), c = est.config || {}, L = letras(est), lista = elegidos(est)
     var nSec = lista.filter(function (x) { return x.seccion === d.seccion }).indexOf(d) + 1
-    var unidad = una(c.unidad), superior = una(c.superior)
+    var unidad = una(c.unidad), superior = una(c.superior) || (MESA ? MESA.superiorDe(unidad) : '')
+    // «No. 002/XYZ.»: sin iniciales, XYZ (como el resto de los documentos de la Mesa), con su punto
+    var ini = una(c.iniciales).toUpperCase().replace(/\.+$/, '') || 'XYZ', lugar = una(c.lugar)
     var cfg = {
-      superior: superior || '[Escalón superior pendiente]', unidad: unidad || '[Unidad pendiente]', lugar: una(c.lugar), fechaHora: una(c.fechaHora),
-      seccion: d.seccion, expedicion: nSec, iniciales: una(c.iniciales).toUpperCase(), titulo: esPlan(est) ? 'PLAN DE OPERACIONES' : 'ORDEN DE OPERACIONES', numero: numero(est),
+      superior: superior || '[Escalón superior pendiente]', unidad: unidad || '[Unidad pendiente]', lugar: lugar ? lugar.replace(/\.?$/, '.') : '', fechaHora: una(c.fechaHora),
+      seccion: d.seccion, expedicion: nSec, iniciales: ini + '.', titulo: esPlan(est) ? 'PLAN DE OPERACIONES' : 'ORDEN DE OPERACIONES', numero: numero(est),
       nivel: d.principal ? 'principal' : d.apendiceDe ? 'apendice' : 'anexo', identificador: d.principal ? '' : L[id], asunto: d.principal ? '' : d.asunto,
       firma: una(c.firma) || (unidad ? 'EL COMANDANTE ' + (/^(R|B|C\.?E|CUERPO|COMANDO|CMDO|GRUPO|G\.?A|REGIMIENTO|BATALL)/i.test(unidad) ? 'DEL ' : /^(FF\.?\s?TT|FUERZAS)/i.test(unidad) ? 'DE LAS ' : 'DE LA ') + unidad.toUpperCase() : 'EL COMANDANTE'),
-      jem: una(c.jem).toUpperCase(), autenticador: d.autentica, inicialesAut: una(c.iniciales).toUpperCase(),
+      jem: una(c.jem).toUpperCase().replace(/\.+$/, '') || 'XYZ', autenticador: d.autentica, inicialesAut: ini,
       distribucion: limpia(c.distribucion).trim() || 'Original: ' + (superior || 'ARCHIVO') + '\nCopia 1-12: UU. DEP.\nCopia 13: ARCHIVO',
       ensenanza: !!c.ensenanza
     }
@@ -421,11 +488,15 @@
   }
 
   // ─── Guardar, el .md, el ejercicio ──────────────────────────────────────────────────
+  // La fecha que la IA escribe en la primera línea («FECHA Y HORA: D-60 (0800)») queda como la de TODA
+  // la OGO (est.auto.fechaHora): la de la Orden manda; la de un anexo, sólo si todavía no hay ninguna.
   function poner(est, id, texto, ahora) {
     var n = Object.assign({}, est, { docs: Object.assign({}, est.docs), actualizado: ahora || new Date().toISOString() })
     texto = limpia(texto).trim()
     if (texto) n.docs[id] = { texto: texto, guardado: n.actualizado }
     else delete n.docs[id]
+    var fh = texto ? estructura(texto).fechaHora : ''
+    if (fh && (id === 'ogo' || !(est.auto && est.auto.fechaHora))) n.auto = Object.assign({}, est.auto, { fechaHora: fh, de: id })
     return n
   }
   function conConfig(est, cambios) { return Object.assign({}, est, { config: Object.assign({}, est.config, cambios), actualizado: new Date().toISOString() }) }
@@ -443,7 +514,7 @@
       if (pp) notas.push('### ' + corto(d.id, est) + '\n\n' + pp)
     })
     if (notas.length) t += '---\n\n# 🧑‍🏫 PARA EL PROFESOR (no se entrega a los alumnos)\n\n' + notas.join('\n\n') + '\n'
-    var datos = JSON.stringify({ ejercicio: est.ejercicio, config: est.config, docs: est.docs, actualizado: est.actualizado }).replace(/--/g, '-\\u002d').replace(/>/g, '\\u003e')
+    var datos = JSON.stringify({ ejercicio: est.ejercicio, config: est.config, docs: est.docs, auto: est.auto, coherencia: est.coherencia, colocadas: est.colocadas, actualizado: est.actualizado }).replace(/--/g, '-\\u002d').replace(/>/g, '\\u003e')
     return t + '\n<!-- ' + MARCA + ' ' + datos + ' -->\n'
   }
   function leerMarkdown(texto) {
@@ -451,7 +522,8 @@
     if (!m) throw new Error('Ese archivo no es una OGO bajada de la Mesa (le falta la marca del final).')
     var d = JSON.parse(m[1]), e = vacio(d.ejercicio)
     e.config = Object.assign(e.config, d.config || {})
-    Object.keys(d.docs || {}).forEach(function (k) { if (doc(k) && d.docs[k] && una(d.docs[k].texto)) e.docs[k] = { texto: limpia(d.docs[k].texto), guardado: d.docs[k].guardado || '' } })
+    Object.keys(d.docs || {}).forEach(function (k) { if (doc(k) && d.docs[k] && una(d.docs[k].texto)) e.docs[k] = Object.assign({}, d.docs[k], { texto: limpia(d.docs[k].texto), guardado: d.docs[k].guardado || '' }) })
+    ;['auto', 'coherencia', 'colocadas'].forEach(function (k) { if (d[k] && typeof d[k] === 'object') e[k] = d[k] })
     e.actualizado = d.actualizado || ''
     return e
   }
@@ -466,7 +538,7 @@
   return {
     DOCS: DOCS, doc: doc, vacio: vacio, completarConfig: completarConfig, seleccionInicial: seleccionInicial, elegidos: elegidos, letras: letras,
     tituloOrden: tituloOrden, titulo: titulo, corto: corto, listaAnexos: listaAnexos, entrena: entrena, pedido: pedido, estructura: estructura,
-    revisar: revisar, revisarTodo: revisarTodo, pedidoCorregir: pedidoCorregir, aSpec: aSpec, cfgWord: cfgWord, nombreArchivo: nombreArchivo,
+    revisar: revisar, revisarTodo: revisarTodo, calcoDeLaMesa: calcoDeLaMesa, producto: producto, una: una, pedidoCorregir: pedidoCorregir, aSpec: aSpec, cfgWord: cfgWord, nombreArchivo: nombreArchivo,
     poner: poner, conConfig: conConfig, markdown: markdown, leerMarkdown: leerMarkdown, paraEjercicio: paraEjercicio, leerTitulo: leerTitulo
   }
 })

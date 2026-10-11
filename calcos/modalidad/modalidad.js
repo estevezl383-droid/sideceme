@@ -21,6 +21,7 @@
 (function () {
   'use strict'
   var CAT = window.SIDModalidadCatalogo, IA = window.SIDIAProfesor, BIB = window.SIDBiblioteca, CARP = window.SIDCarpetaProfesor, OGO = window.SIDOgo
+  var COH = window.SIDOgoCoherencia, MESA = window.SIDOgoMesa, CALCO = window.SIDOgoCalco // 11-10-2026: coherencia, unidades que faltan, calco gráfico
   if (!CAT) return
   var K_MODO = 'sid_modalidad', K_HECHO = 'sid_mod_hecho', K_FASE = 'sid_mod_fase', K_ESC = 'sid_mod_escalon', K_PLEGADO = 'sid_mod_plegado', K_FOCO = 'sid_mod_foco'
   var MODOS = [
@@ -41,6 +42,9 @@
   // 📜 la OGO completa del ejercicio abierto (IndexedDB «sid-profesor-ogo»): sus datos y lo que contestó la IA de cada documento
   var ogo = OGO ? OGO.vacio('') : null, ogoDe = null, ogoVer = 0, ogoAbierto = '', ogoPedido = '', ogoPedidoDe = 'pedido', ogoRev = null, ogoRevDoc = {}, ogoCache = {}, ogoBorr = {}, verOgoDatos = false
   var ogoEjUlt = null // el último ejercicio leído de la Mesa: lo de «Mesa · Preparación» se muestra como sugerencia en los datos de la Orden
+  // 🔎 la revisión de coherencia (paso 11), 📍 las unidades que faltan (paso 12) y 📤 el reparto (paso 13)
+  var cohAbierto = false, cohPedido = '', cohBorr = '', nuevoVer = 0
+  var rep = { destinos: null, destino: '', calcoId: '', nombre: '', ind: '', contenido: true, enemigo: false, otros: false, docs: null, ocupado: false, sinCiclos: false }
 
   function lee(k, d) { try { var v = localStorage.getItem(k); return v == null ? d : v } catch (e) { return d } }
   function guarda(k, v) { try { localStorage.setItem(k, v) } catch (e) {} }
@@ -145,7 +149,7 @@
     var MA = window.MesaAcademica
     if (!MA || MA.__sidModalidad) return
     var orig = MA.sincronizar
-    MA.sincronizar = function (p) { puente = p || null; setTimeout(function () { carRevisar(); ogoRevisarCarga() }, 0); return orig.apply(this, arguments) }
+    MA.sincronizar = function (p) { puente = p || null; setTimeout(function () { carRevisar(); ogoRevisarCarga(); ubiRevisar() }, 0); return orig.apply(this, arguments) }
     MA.__sidModalidad = true
   }
   function centroMesa() { try { var c = puente && (typeof puente.centro === 'function' ? puente.centro() : puente.centro); return c && isFinite(c.lat) ? c : null } catch (e) { return null } }
@@ -528,8 +532,8 @@
       if (!ej && nombre) ej = { nombre: nombre }
       if (ej && puente && puente.unidades && !ej.unidades) ej = Object.assign({}, ej, { unidades: puente.unidades })
       ogoEjUlt = ej
-      var est = OGO.completarConfig(ogo, ej || {})
-      return { ej: ej, est: est, ctx: { escalon: escalonDe(escalon), foco: focoDe(foco), ogo: est, ejercicio: ej, fuente: r ? r.fuente : '', unidades: puente && puente.unidades, centro: centroMesa(), biblioteca: biblio, carpeta: carpeta } }
+      var est = OGO.completarConfig(ogo, ej || {}, { escalon: escalon })
+      return { ej: ej, est: est, ctx: { escalon: escalonDe(escalon), escalonId: escalon, foco: focoDe(foco), ogo: est, ejercicio: ej, fuente: r ? r.fuente : '', unidades: puente && puente.unidades, centro: centroMesa(), biblioteca: biblio, carpeta: carpeta } }
     })
   }
   function ogoRevisionDe(id) { // en caché por documento y por cuándo se guardó
@@ -541,6 +545,7 @@
   }
   function ogoEstado(id) {
     var r = ogoRevisionDe(id)
+    if (!r && id === 'calco') return '<span class="ogo-est bien" title="El Anexo A es el gráfico de lo dibujado en la Mesa: el Área de Operaciones, los límites, las fichas y las cruces de amarre">🗺️ gráfico de la Mesa</span>'
     if (!r) return '<span class="ogo-est pend">⏳ sin escribir</span>'
     var n = r.faltan.length + r.faltanTexto.length + r.vacios.length + r.marcadores.length + r.avisos.filter(function (a) { return !/supuesto/.test(a) }).length
     return n ? '<span class="ogo-est mal">⚠️ ' + n + (n > 1 ? ' observaciones' : ' observación') + '</span>' : '<span class="ogo-est bien">✓ completo' + (r.supuestos ? ' · ' + r.supuestos + ' supuesto' + (r.supuestos > 1 ? 's' : '') : '') + '</span>'
@@ -558,8 +563,8 @@
       (sup ? '<p class="ogo-nota">🔎 ' + esc(sup) + '</p>' : '')
   }
   function ogoCampo(k, rot, ph, area) {
-    var v = (ogo.config || {})[k] || '', der = ogoEjUlt ? OGO.completarConfig(OGO.vacio(''), ogoEjUlt).config[k] : ''
-    if (der && typeof der === 'string') ph = der + '  (de «Mesa · Preparación»)'
+    var v = (ogo.config || {})[k] || '', cc = ogoEjUlt ? OGO.completarConfig(Object.assign(OGO.vacio(''), { auto: ogo.auto }), ogoEjUlt, { escalon: escalon }) : null, der = cc ? cc.config[k] : ''
+    if (der && typeof der === 'string') ph = der + '  (de ' + (cc.autoDe[k] || '«Mesa · Preparación»') + ')'
     return '<label class="ogo-campo"><span>' + esc(rot) + '</span>' + (area ? '<textarea data-ogo-cfg="' + k + '" rows="3" placeholder="' + esc(ph || '') + '">' + esc(v) + '</textarea>' : '<input type="text" data-ogo-cfg="' + k + '" value="' + esc(v) + '" placeholder="' + esc(ph || '') + '">') + '</label>'
   }
   function htmlOGO() {
@@ -571,7 +576,7 @@
       (!nom ? '<p class="ogo-aviso">⚠️ Abrí (o creá) el ejercicio en la Mesa: la OGO va con el nombre del ejercicio.</p>' : '') +
       '<button type="button" class="chico ogo-sec" data-a="ogo-datos" aria-expanded="' + verOgoDatos + '">🧾 Datos de la Orden y del membrete' + (verOgoDatos ? ' ▴' : ' ▸') + '</button>'
     if (verOgoDatos) {
-      h += '<div class="ogo-datos"><p class="ogo-nota">Lo vacío se toma de «Mesa · Preparación» (la Orden que escribiste en el paso 5) al armar los pedidos y el Word.</p>' +
+      h += '<div class="ogo-datos"><p class="ogo-nota">Lo vacío se completa solo con la Mesa al armar los pedidos y el Word: quien expide (tu «¿Quién soy?» del inicio), su escalón superior (de las FF.TT.T.O.: el CTO), el CG (la población más cercana a su PC en la carta), la fecha que fijó la IA y lo de «Mesa · Preparación». Sin iniciales va «XYZ».</p>' +
         '<label class="ogo-campo"><span>Tipo</span><select data-ogo-cfg="tipo"><option value="orden"' + (c.tipo !== 'plan' ? ' selected' : '') + '>Orden de operaciones (sin hipótesis)</option><option value="plan"' + (c.tipo === 'plan' ? ' selected' : '') + '>Plan de operaciones (con hipótesis)</option></select></label>' +
         ogoCampo('numero', 'N° de la Orden', '01') + ogoCampo('unidad', 'Unidad que expide (la tuya)', 'FF.TT. «…» / CE-I') + ogoCampo('superior', 'Escalón superior de tu unidad (arriba del membrete)', 'COMANDO EN JEFE…') +
         ogoCampo('alumnos', 'Unidad que la recibe (los alumnos)', 'DIV.MEC.-1') + ogoCampo('lugar', 'CG / lugar del puesto comando', 'VIACHA') + ogoCampo('fechaHora', 'Fecha y hora (grupo fecha-hora o D/H)', '250600-JUN / D-5 (0800)') +
@@ -587,7 +592,7 @@
         '<span class="ogo-nom"><b>' + esc(rot) + '</b>' + (!d.principal && !d.apendiceDe ? ' <input type="text" class="ogo-letra" data-ogo-letra="' + d.id + '" value="' + esc(L[d.id] || '') + '" maxlength="1" aria-label="Letra del anexo" title="Letra del anexo (la cambiás si el reglamento las ordena distinto)"' + (on ? '' : ' disabled') + '>' : '') + ' ' + esc(d.principal ? '(el cuerpo de la Orden)' : d.nom) +
         (OGO.entrena(d, F) ? ' <span class="ogo-entrena" title="Es el campo que entrena el ejercicio: el superior da todo lo que sabe, con datos, y el alumno hace su propio anexo">⭐ entrena</span>' : '') + '</span>' +
         (on ? ogoEstado(d.id) : '') + '</div>'
-      if (on) li += '<div class="ia-acc"><button type="button" class="ir" data-a="ogo-pedido">' + (ab ? '🤖 Pedido ▴' : '🤖 Pedido ▸') + '</button>' + (x ? '<button type="button" class="ir" data-a="ogo-word">⬇️ Word</button>' : '') + '</div>'
+      if (on) li += '<div class="ia-acc"><button type="button" class="ir" data-a="ogo-pedido">' + (ab ? '🤖 Pedido ▴' : '🤖 Pedido ▸') + '</button>' + (x || d.id === 'calco' ? '<button type="button" class="ir" data-a="ogo-word"' + (d.id === 'calco' ? ' title="El calco GRÁFICO: lo dibujado en la Mesa con las dos cruces de amarre"' : '') + '>⬇️ Word</button>' : '') + '</div>'
       if (on && ab) {
         var r = ogoRevDoc[d.id] || ogoRevisionDe(d.id), b = ogoBorr[d.id], val = b != null ? b : x ? x.texto : ''
         li += '<div class="ia-caja"><p class="ia-ayuda">' + (ogoPedidoDe === 'corregir' ? '<b>Pedido de CORRECCIÓN</b>: le dice a la IA qué le falta y le pide el documento completo corregido. ' : 'El pedido lleva el <b>modelo de la Escuela</b> de este documento, lo ya escrito de la OGO y todo lo de la Mesa. ') + 'Copialo y pegalo en ChatGPT, Gemini o Claude (' + ogoPedido.length.toLocaleString('es') + ' caracteres).</p>' +
@@ -602,7 +607,7 @@
       }
       return li + '</li>'
     }).join('') + '</ul>'
-    h += '<div class="ia-acc ogo-fin"><button type="button" class="ir" data-a="ogo-revisar">✅ Revisar todo</button><button type="button" class="ir" data-a="ogo-zip"' + (escritos ? '' : ' disabled') + '>⬇️ Todo en Word (.zip)</button><button type="button" class="ir" data-a="ogo-md"' + (escritos ? '' : ' disabled') + '>⬇️ Todo (.md)</button><label class="ir ogo-subir">📤 Cargar (.md)<input type="file" data-ogo-archivo accept=".md,.txt,text/markdown,text/plain" hidden></label><button type="button" class="ir" data-a="ogo-adjuntar"' + (escritos ? '' : ' disabled') + ' title="Suma los documentos de la OGO a los documentos del ejercicio: los ven los alumnos. Lo «PARA EL PROFESOR» no va.">📎 Adjuntar al ejercicio</button></div>' +
+    h += '<div class="ia-acc ogo-fin"><button type="button" class="ir" data-a="ogo-revisar">✅ Revisar todo</button>' + (COH ? '<button type="button" class="ir" data-a="coh-ir" title="El paso que sigue: la IA revisa todos los documentos juntos y los devuelve consolidados, sin contradicciones">🔎 Revisión de coherencia (paso 11) ▸</button>' : '') + '<button type="button" class="ir" data-a="ogo-zip"' + (escritos ? '' : ' disabled') + '>⬇️ Todo en Word (.zip)</button><button type="button" class="ir" data-a="ogo-md"' + (escritos ? '' : ' disabled') + '>⬇️ Todo (.md)</button><label class="ir ogo-subir">📤 Cargar (.md)<input type="file" data-ogo-archivo accept=".md,.txt,text/markdown,text/plain" hidden></label><button type="button" class="ir" data-a="ogo-adjuntar"' + (escritos ? '' : ' disabled') + ' title="Suma los documentos de la OGO a los documentos del ejercicio: los ven los alumnos. Lo «PARA EL PROFESOR» no va.">📎 Adjuntar al ejercicio</button></div>' +
       (aviso.ogo ? '<div class="ia-aviso">' + esc(aviso.ogo) + '</div>' : '')
     if (ogoRev) {
       h += '<div class="ogo-rev ogo-todo"><div class="org-tit">' + (ogoRev.ok ? '✅ La OGO está completa: ' : '📋 Revisión de la OGO: ') + ogoRev.listos + ' de ' + ogoRev.total + ' documentos sin observaciones</div>' +
@@ -634,12 +639,49 @@
     if (!wordMod) wordMod = import('../formato-militar/v1/word.js?v=ogo20261011').then(function (m) { m.configurarWord(L); return m }, function (e) { wordMod = null; throw e })
     return wordMod
   }
-  function wordDe(id, est) {
-    return conWord().then(function (W) {
-      var x = OGO.cfgWord(id, est)
-      return window.SIDMilLib.Packer.toBlob(W.crearWord(OGO.aSpec(id, est.docs[id].texto, est), x.cfg, x.padre))
+  // El Anexo A es el GRÁFICO de la Mesa (ogo-calco.js): el SVG se pasa a PNG en un canvas.
+  function svgAPng(svg, w, h, k) {
+    return new Promise(function (ok, no) {
+      var img = new Image()
+      img.onload = function () {
+        try {
+          var c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k)
+          var g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height)
+          c.toBlob(function (b) { if (!b) return no(new Error('no se pudo dibujar el calco')); b.arrayBuffer().then(function (buf) { ok(new Uint8Array(buf)) }, no) }, 'image/png')
+        } catch (e) { no(e) }
+      }
+      img.onerror = function () { no(new Error('no se pudo dibujar el calco')) }
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
     })
   }
+  function calcoImagen(ej, k) {
+    if (!CALCO) return Promise.reject(new Error('falta el módulo del calco (recargá la página)'))
+    var d = CALCO.dibujo(ej || {})
+    if (!d.svg) return Promise.reject(new Error(d.avisos.join(' ')))
+    return svgAPng(d.svg, d.ancho, d.alto, k || 2).then(function (png) { var t = CALCO.paraWord(d); return { data: png, ancho: t.ancho, alto: t.alto, dibujo: d } })
+  }
+  function base64De(u8) { var s = '', i, n = 8192; for (i = 0; i < u8.length; i += n) s += String.fromCharCode.apply(null, u8.subarray(i, i + n)); return btoa(s) }
+  function wordDe(id, est, ej) {
+    return conWord().then(function (W) {
+      var x = OGO.cfgWord(id, est), texto = (est.docs[id] || {}).texto || ''
+      // sin nada que dibujar en la carta: con texto escrito sale el texto; sin texto, el aviso de qué falta
+      return (id === 'calco' ? calcoImagen(ej || ogoEjUlt, 2).catch(function (e) { if (OGO.una(texto)) return null; throw e }) : Promise.resolve(null)).then(function (im) {
+        return window.SIDMilLib.Packer.toBlob(W.crearWord(OGO.aSpec(id, texto, est, im ? { imagen: { data: im.data, ancho: im.ancho, alto: im.alto } } : {}), x.cfg, x.padre))
+      })
+    })
+  }
+  // Lo de la OGO que va a los alumnos: los documentos en texto (sin «PARA EL PROFESOR») y el Anexo A como
+  // la IMAGEN del calco (si la carta no tiene qué dibujar, va su texto). ids: sólo esos documentos.
+  function documentosAlumnos(est, ej, ids) {
+    var nom = function (id) { return OGO.nombreArchivo(id, est) + '.md' }
+    var docs = OGO.paraEjercicio(est).filter(function (d) { return !ids || ids.some(function (id) { return d.nombre === nom(id) }) })
+    var conCalco = OGO.elegidos(est).some(function (d) { return d.id === 'calco' }) && (!ids || ids.indexOf('calco') >= 0)
+    if (!conCalco) return Promise.resolve(docs)
+    return calcoImagen(ej, 1.5).then(function (im) {
+      return docs.filter(function (d) { return d.nombre !== nom('calco') }).concat([{ nombre: OGO.nombreArchivo('calco', est) + '.png', mime: 'image/png', tipo: 'imagen', texto: '', base64: base64De(im.data), paginas: 0, categoria: 'orden' }])
+    }, function () { return docs })
+  }
+
   function ogoAccion(acc, id) {
     var d = id && OGO.doc(id)
     if (acc === 'ogo-datos') { verOgoDatos = !verOgoDatos; pintar(true); if (verOgoDatos) ogoContexto().then(function () { ogoVer++; pintar(true) }, function () {}); return }
@@ -667,7 +709,7 @@
     }
     if (acc === 'ogo-word' && d) {
       aviso.ogo = '⏳ Armando el Word del ' + OGO.corto(id, ogo) + '…'; pintar(true)
-      ogoContexto().then(function (o) { return wordDe(id, o.est).then(function (blob) { bajarBlob(OGO.nombreArchivo(id, o.est) + '.docx', blob); aviso.ogo = '⬇️ Bajado: ' + OGO.nombreArchivo(id, o.est) + '.docx (formato militar de la Mesa).'; pintar(true) }) })
+      ogoContexto().then(function (o) { return wordDe(id, o.est, o.ej).then(function (blob) { bajarBlob(OGO.nombreArchivo(id, o.est) + '.docx', blob); aviso.ogo = '⬇️ Bajado: ' + OGO.nombreArchivo(id, o.est) + '.docx (formato militar de la Mesa).'; pintar(true) }) })
         .catch(function (e) { aviso.ogo = '⚠️ No se pudo armar el Word: ' + (e && e.message ? e.message : e); pintar(true) })
       return
     }
@@ -676,11 +718,13 @@
     if (acc === 'ogo-zip') {
       aviso.ogo = '⏳ Armando los Word…'; pintar(true)
       ogoContexto().then(function (o) {
-        var docs = OGO.elegidos(o.est).filter(function (x) { return o.est.docs[x.id] })
+        var grafico = OGO.calcoDeLaMesa(o.ej)
+        var docs = OGO.elegidos(o.est).filter(function (x) { return o.est.docs[x.id] || (x.id === 'calco' && grafico) })
         return conJSZip().then(function (J) {
           var z = new J()
-          return docs.reduce(function (pr, x, i) { return pr.then(function () { return wordDe(x.id, o.est).then(function (b) { z.file(OGO.nombreArchivo(x.id, o.est, i) + '.docx', b) }) }) }, Promise.resolve())
-            .then(function () { var E_ = escalonDe(escalon); z.file('OGO completa (texto, con lo PARA EL PROFESOR).md', OGO.markdown(o.est, { escalon: E_.profesor, alumnos: E_.alumnos, foco: focoDe(foco).nom })); return z.generateAsync({ type: 'blob' }) })
+          return docs.reduce(function (pr, x, i) { return pr.then(function () { return wordDe(x.id, o.est, o.ej).then(function (b) { z.file(OGO.nombreArchivo(x.id, o.est, i) + '.docx', b) }) }) }, Promise.resolve())
+            .then(function () { var E_ = escalonDe(escalon); z.file('OGO completa (texto, con lo PARA EL PROFESOR).md', OGO.markdown(o.est, { escalon: E_.profesor, alumnos: E_.alumnos, foco: focoDe(foco).nom })); return paqueteJSON(o).then(function (pq) { if (pq) z.file(pq.nombre, pq.texto) }, function () {}) })
+            .then(function () { return z.generateAsync({ type: 'blob' }) })
             .then(function (blob) {
               bajarBlob(OGO.nombreArchivo('ogo', o.est) + ' - ' + (o.est.ejercicio || 'ejercicio').replace(/[^\w .-]+/g, '') + '.zip', blob)
               var faltan = OGO.elegidos(o.est).length - docs.length
@@ -693,12 +737,305 @@
     if (acc === 'ogo-adjuntar') {
       if (!puente || !puente.agregarDocumentos) { aviso.ogo = '⚠️ Esta Mesa no tiene el puente para adjuntar (recargá la página con el ejercicio abierto).'; return pintar(true) }
       ogoContexto().then(function (o) {
-        var docs = OGO.paraEjercicio(o.est), rev = OGO.revisarTodo(o.est, { ejercicio: o.ej })
-        if (!docs.length) { aviso.ogo = 'Todavía no hay documentos escritos.'; return pintar(true) }
-        if (!window.confirm('Se adjuntan ' + docs.length + ' documento(s) de la OGO al ejercicio «' + (o.est.ejercicio || '') + '»: los alumnos los ven en los documentos del ejercicio (lo «PARA EL PROFESOR» NO va).' + (rev.ok ? '' : '\n\n⚠️ La revisión todavía encuentra observaciones (' + rev.listos + ' de ' + rev.total + ' documentos sin observaciones).') + '\n\nSi ya estaban adjuntos, se reemplazan. ¿Seguimos?')) return
-        puente.agregarDocumentos(docs)
-        aviso.ogo = '📎 ' + docs.length + ' documento(s) adjuntados al ejercicio (se guarda solo).'; pintar(true)
-      })
+        return documentosAlumnos(o.est, o.ej).then(function (docs) {
+          var rev = OGO.revisarTodo(o.est, { ejercicio: o.ej })
+          if (!docs.length) { aviso.ogo = 'Todavía no hay documentos escritos.'; return pintar(true) }
+          if (!window.confirm('Se adjuntan ' + docs.length + ' documento(s) de la OGO al ejercicio «' + (o.est.ejercicio || '') + '»: los alumnos los ven en los documentos del ejercicio (lo «PARA EL PROFESOR» NO va; el Anexo A va como la imagen del calco).' + (rev.ok ? '' : '\n\n⚠️ La revisión todavía encuentra observaciones (' + rev.listos + ' de ' + rev.total + ' documentos sin observaciones).') + '\n\nSi ya estaban adjuntos, se reemplazan. ¿Seguimos?')) return
+          puente.agregarDocumentos(docs)
+          aviso.ogo = '📎 ' + docs.length + ' documento(s) adjuntados al ejercicio (se guarda solo).'; pintar(true)
+        })
+      }).catch(function (e) { aviso.ogo = '⚠️ ' + (e && e.message ? e.message : e); pintar(true) })
+    }
+  }
+
+  // ════════ 🔎 Paso 11: la revisión de coherencia (ogo-coherencia.js) ════════
+  // Lo pidió Sergio (11-10-2026): antes de repartir, UN pedido con todos los documentos que arregle las
+  // contradicciones y devuelva todo consolidado; lo pegado reemplaza cada documento (lo anterior queda).
+  function ejSync() { try { var M = window.SIDMesaEjercicio, f = M && M.foto && M.foto(); if (f) return f } catch (e) {} return ogoEjUlt }
+  function fechaCorta(iso) { return CARP ? CARP.fecha(iso) : iso }
+  function htmlCoherencia() {
+    if (!COH || !OGO) return ''
+    var e = COH.estado(ogo), lista = OGO.elegidos(ogo), escr = lista.filter(function (d) { return ogo.docs && ogo.docs[d.id] }).length
+    var h = '<div class="ogo coh" id="sid-coh"><p class="ogo-ayuda"><b>Cómo:</b> 1) <b>🤖 Pedido de coherencia</b>: lleva los ' + escr + ' documentos escritos, la carta (fichas con su población más cercana) y las poblaciones; pegalo en la IA. 2) Pegá TODO lo que contestó (si vino en partes, cada parte debajo de la anterior). 3) <b>💾 Aplicar</b>: cada documento se reemplaza por el consolidado (lo anterior queda para volver atrás). 4) Si cortó, <b>🤖 Pedido para seguir</b>.</p>'
+    if (!escr) h += '<p class="ogo-aviso">⚠️ Primero escribí la OGO (paso 10): la revisión trabaja sobre lo escrito.</p>'
+    h += '<div class="ia-acc"><button type="button" class="ir" data-a="coh-pedido" aria-expanded="' + cohAbierto + '">' + (cohAbierto ? '🤖 Pedido de coherencia ▴' : '🤖 Pedido de coherencia ▸') + '</button>' +
+      (e.aplicado && e.faltan.length ? '<button type="button" class="ir" data-a="coh-seguir">🤖 Pedido para seguir (faltan ' + e.faltan.length + ')</button>' : '') + '</div>'
+    if (cohAbierto) h += '<div class="ia-caja"><p class="ia-ayuda">Copialo y pegalo en ChatGPT, Gemini o Claude (' + cohPedido.length.toLocaleString('es') + ' caracteres). Si la IA corta («SIGUE: …»), pedile el resto con «🤖 Pedido para seguir».</p>' +
+      '<div class="ia-acc"><button type="button" class="ir" data-a="coh-copiar">📋 Copiar el pedido</button><button type="button" class="ir" data-a="coh-bajar">⬇️ .md</button><button type="button" class="chico" data-a="coh-cerrar">Cerrar</button></div>' +
+      '<textarea data-coh-pedido readonly rows="6" aria-label="Pedido de coherencia">' + esc(cohPedido) + '</textarea></div>'
+    h += '<div class="coh-resp"><div class="ia-resp-tit">📥 Lo que contestó la IA<span>Con sus marcas «=== REVISIÓN ===», «=== DATOS ===» y «=== DOCUMENTO: … ===». Si vino en partes, pegá cada una debajo de la anterior.</span></div>' +
+      '<textarea data-coh-resp rows="8" placeholder="Pegá acá la respuesta consolidada">' + esc(cohBorr) + '</textarea>' +
+      '<div class="ia-acc"><button type="button" class="ir" data-a="coh-aplicar">💾 Aplicar los documentos consolidados</button>' + (e.hechos.length ? '<button type="button" class="chico" data-a="coh-deshacer" title="Vuelve cada documento a como estaba antes de consolidarlo">↶ Volver a lo anterior</button>' : '') + '</div></div>'
+    if (e.aplicado) {
+      h += '<div class="ogo-rev"><div class="org-tit">' + (e.faltan.length ? '📋 Consolidados ' : '✅ La OGO está consolidada: ') + e.hechos.length + ' de ' + lista.length + ' documentos · ' + esc(fechaCorta(e.aplicado)) + '</div>' +
+        (e.faltan.length ? '<p class="ogo-nota">Faltan: ' + e.faltan.map(function (id) { return esc(OGO.corto(id, ogo)) }).join(' · ') + '</p>' : '') +
+        (e.datos && e.datos.membrete && e.datos.membrete.fechaHora ? '<p class="ogo-nota">📅 Fecha de la OGO: <b>' + esc(e.datos.membrete.fechaHora) + '</b> (va al membrete de todos los documentos)</p>' : '') +
+        (e.revision ? '<details class="coh-rev"><summary>🔎 Lo que corrigió la IA</summary><div class="car-txt">' + esc(e.revision) + '</div></details>' : '') + '</div>'
+      var n = COH.porUbicar(ogo, ejSync() || {}, { escalon: escalon }).filter(function (x) { return x.estado === 'pendiente' }).length
+      var nm = COH.medidasPorDibujar(ogo, ejSync() || {}).filter(function (x) { return x.estado === 'pendiente' }).length
+      if (n || nm) h += '<button type="button" class="ir coh-ubi" data-a="ubi-ir">📍 ' + [n ? n + ' unidad' + (n > 1 ? 'es' : '') + ' para colocar' : '', nm ? nm + ' medida' + (nm > 1 ? 's' : '') + ' para dibujar' : ''].filter(Boolean).join(' y ') + ' (paso 12) ▸</button>'
+    }
+    return h + (aviso.coh ? '<div class="ia-aviso">' + esc(aviso.coh) + '</div>' : '') + '</div>'
+  }
+  function cohArmar(seguir) {
+    cohAbierto = true; cohPedido = '… armando el pedido con TODOS los documentos y la Mesa'; pintar(true)
+    return ogoContexto().then(function (o) {
+      cohPedido = seguir ? COH.pedidoSeguir(o.est) || 'No falta ningún documento: la OGO ya está consolidada.' : COH.pedido(o.ctx)
+      pintar(true)
+    }).catch(function (e) { cohPedido = '⚠️ No se pudo armar el pedido: ' + (e && e.message ? e.message : e); pintar(true) })
+  }
+  function cohAccion(acc) {
+    if (acc === 'coh-ir') { var lc = panel.querySelector('#sid-coh'); if (lc) lc.scrollIntoView({ block: 'start' }); return }
+    if (acc === 'coh-pedido') { if (cohAbierto) { cohAbierto = false; pintar(true) } else cohArmar(false); return }
+    if (acc === 'coh-seguir') { cohArmar(true); return }
+    if (acc === 'coh-cerrar') { cohAbierto = false; pintar(true); return }
+    if (acc === 'coh-copiar') { copiar(cohPedido).then(function () { aviso.coh = '📋 Pedido copiado (' + cohPedido.length.toLocaleString('es') + ' caracteres): pegalo en la IA.'; pintar(true) }, function () { aviso.coh = 'No se pudo copiar: seleccioná el texto y copialo a mano.'; pintar(true) }); return }
+    if (acc === 'coh-bajar') { bajar('pedido-ia-coherencia-' + String(ogo.ejercicio || 'ejercicio').toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40) + '.md', cohPedido); aviso.coh = '⬇️ Bajado: adjuntalo a la IA con la orden de cumplirlo.'; pintar(true); return }
+    if (acc === 'coh-aplicar') {
+      var ta = panel.querySelector('textarea[data-coh-resp]'), txt = ta ? ta.value : cohBorr
+      cohBorr = txt
+      if (!String(txt).trim()) { aviso.coh = 'Pegá primero lo que contestó la IA.'; return pintar(true) }
+      var leido = COH.leer(txt, ogo)
+      if (leido.vacio || (!Object.keys(leido.docs).length && !leido.datos)) { aviso.coh = '⚠️ No encuentro las marcas «=== DOCUMENTO: … ===» ni «=== DATOS ===»: pegá la respuesta completa de la IA al pedido de coherencia.'; return pintar(true) }
+      var r = COH.aplicar(ogo, leido)
+      ogoGuardar(r.est).then(function () {
+        ogoCache = {}; ogoRev = null; ogoRevDoc = {}
+        var n = COH.porUbicar(ogo, ejSync() || {}, { escalon: escalon }).filter(function (x) { return x.estado === 'pendiente' }).length
+        aviso.coh = '✓ ' + r.aplicados.length + ' documento(s) consolidados' + (r.aplicados.length ? ' (' + r.aplicados.map(function (id) { return OGO.corto(id, ogo).split(' — ')[0] }).join(', ') + ')' : '') + '.' +
+          (leido.sigue ? ' La IA cortó («SIGUE»): 🤖 Pedido para seguir.' : '') + (leido.desconocidos.length ? ' No reconocí: ' + leido.desconocidos.join(' · ') + '.' : '') + (n ? ' 📍 ' + n + ' unidad(es) para colocar en la carta (paso 12).' : '')
+        pintar(true)
+        if (n) { var li = panel.querySelector('#sid-ubi'); if (li) li.scrollIntoView({ block: 'start' }) }
+      }, function (e) { aviso.coh = '⚠️ No se guardó: ' + (e && e.message ? e.message : e) + '. Lo pegado queda en el cuadro.'; pintar(true) })
+      return
+    }
+    if (acc === 'coh-deshacer') {
+      if (!window.confirm('¿Volver cada documento consolidado a como estaba antes de la revisión de coherencia?')) return
+      var d = COH.deshacer(ogo)
+      ogoGuardar(d.est).then(function () { ogoCache = {}; ogoRev = null; aviso.coh = '↶ ' + d.vueltos + ' documento(s) vueltos a lo anterior.'; pintar(true) }, function (e) { aviso.coh = '⚠️ ' + (e && e.message ? e.message : e); pintar(true) })
+    }
+  }
+
+  // ════════ 📍 Paso 12: las unidades que faltan en la carta (✓ Aceptar) ════════
+  function kmTxt(x) { return x.toFixed(1).replace('.', ',') }
+  function ll4(x) { return (Math.round(x * 1e4) / 1e4).toFixed(4) }
+  // Si la carta cambia por fuera del panel (↶ Deshacer, 🗑️ en 🪖 Unidades o ⚫ MEDIDAS), el paso 12 se
+  // vuelve a pintar solo: lo que manda es la carta. Sólo ese bloque (no tiene campos que se escriban).
+  var ubiFirma = '', ubiT = 0
+  function firmaCarta(ej) {
+    var o = (ej && ej.ops) || {}, nom = function (x) { return x && (x.nombre || x.etiqueta) || '' }
+    return [(ej && ej.unidades || []).map(function (u) { return u.designacion }).join('|'), (o.limites || []).map(nom).join('|'), (o.objetivos || []).map(nom).join('|'), (o.coordinacion || []).map(nom).join('|')].join('#')
+  }
+  function ubiRevisar() {
+    clearTimeout(ubiT)
+    ubiT = setTimeout(function () {
+      if (modo !== 'profesor') return
+      var viejo = panel && panel.querySelector('#sid-ubi'), ej = viejo && COH ? ejSync() : null
+      if (!ej) return
+      var f = firmaCarta(ej)
+      if (f === ubiFirma) return
+      var d = document.createElement('div'); d.innerHTML = htmlPorUbicar()
+      if (d.firstChild) viejo.parentNode.replaceChild(d.firstChild, viejo)
+    }, 250)
+  }
+  function htmlPorUbicar() {
+    if (!COH) return ''
+    var ej = ejSync()
+    if (!ej) return '<div class="ubi" id="sid-ubi"><p class="ogo-nota">Abrí el ejercicio en la Mesa.</p></div>'
+    ubiFirma = firmaCarta(ej)
+    var items = COH.porUbicar(ogo, ej, { escalon: escalon })
+    var pend = items.filter(function (x) { return x.estado === 'pendiente' }), col = items.filter(function (x) { return x.estado === 'colocada' }), desc = items.filter(function (x) { return x.estado === 'descartada' }), ya = items.filter(function (x) { return x.estado === 'en la carta' })
+    var h = '<div class="ubi" id="sid-ubi">'
+    if (!items.length) h += '<p class="ogo-nota">Todavía no hay unidades para revisar: escribí la Orden con su organización de la tarea (paso 10) y hacé la revisión de coherencia (paso 11).</p>'
+    else if (!pend.length) h += '<p class="ogo-ok">✓ Todas las unidades que nombran los documentos están en la carta.</p>'
+    else h += '<p class="ogo-ayuda">Las que nombran los documentos y <b>no están en la carta</b>. <b>✓ Aceptar</b> la coloca donde dice (la de la IA, si el terreno no la objeta, o la que la Mesa busca en el terreno: caminos, poblaciones, CMOC, agua, enemigo) y saca el «(supuesto)» de los documentos. Después la movés en 🪖 Unidades si hace falta.</p>'
+    if (pend.length) h += '<ul class="ubi-lista">' + pend.map(function (x) {
+      var u = x.u
+      return '<li class="ubi-it" data-ubi="' + esc(x.clave) + '"><div class="ubi-nom">' + (u.tipo === 'pc' ? '🚩' : '🪖') + ' <b>' + esc(u.designacion) + '</b> <small>' + esc((u.tipo === 'pc' ? 'puesto comando' : u.arma) + ' · ' + u.escalon) + '</small>' + (u.supuesto ? ' <span class="ogo-entrena">estaba «(supuesto)»</span>' : '') + (u.relacion ? ' <small>· ' + esc(u.relacion) + '</small>' : '') + '</div>' +
+        (x.lat != null ? '<div class="ubi-lug">📍 ' + (x.poblacion ? 'cerca de <b>' + esc(x.poblacion.nombre.toUpperCase()) + '</b> (' + esc(x.poblacion.tipo || 'población') + ', ' + kmTxt(x.poblacion.km) + ' km)' : 'sin población cercana') + ' · ' + ll4(x.lat) + ', ' + ll4(x.lng) + ' · <i>' + (x.de === 'la IA' ? 'ubicación de la IA' : x.de === 'el terreno' ? 'buscada en el terreno' : 'sugerida por la Mesa') + '</i>' + (x.dentro === false ? ' · <b class="ubi-fuera">⚠️ fuera del Área de Operaciones</b>' : '') + '</div>' : '<div class="ubi-lug">⚠️ Sin ubicación: trazá el Área de Operaciones o colocala a mano.</div>') +
+        (x.porque.length ? '<div class="ubi-pq">🧭 ' + esc(x.porque.join(' · ')) + '</div>' : '') + (x.reemplaza ? '<div class="ubi-pq">↪ Se cambió: ' + esc(x.reemplaza) + '.</div>' : '') +
+        (x.graves.length ? '<div class="ubi-pq ubi-fuera">⚠️ ' + esc(x.graves.join(' · ')) + '</div>' : '') + (x.notas.length ? '<div class="ubi-pq">ℹ️ ' + esc(x.notas.join(' · ')) + '</div>' : '') +
+        (u.porque ? '<div class="ubi-pq">' + esc(u.porque) + '</div>' : '') + (u.de ? '<div class="ubi-pq">de ' + esc(u.de) + '</div>' : '') +
+        '<div class="ia-acc"><button type="button" class="ir ubi-ok" data-a="ubi-aceptar"' + (x.lat == null ? ' disabled' : '') + '>✓ Aceptar</button><button type="button" class="chico" data-a="ubi-descartar" title="No colocarla (ya está con otro nombre, o no va)">✕ No colocar</button></div></li>'
+    }).join('') + '</ul>' + (pend.length > 1 ? '<div class="ia-acc"><button type="button" class="ir ubi-ok" data-a="ubi-todas">✓ Aceptar todas (' + pend.length + ')</button></div>' : '')
+    if (col.length) h += '<p class="ogo-nota">✓ Colocadas: ' + col.map(function (x) { return esc(x.u.designacion) + (x.colocada && x.colocada.poblacion ? ' (' + esc(x.colocada.poblacion) + ')' : '') }).join(' · ') + '</p>'
+    if (ya.length) h += '<p class="ogo-nota">Ya en la carta: ' + ya.map(function (x) { return esc(x.u.designacion) }).join(' · ') + '</p>'
+    if (desc.length) h += '<p class="ogo-nota">✕ Sin colocar: ' + desc.map(function (x) { return esc(x.u.designacion) + ' <button type="button" class="chico" data-a="ubi-volver" data-ubi-k="' + esc(x.clave) + '" title="Volver a ofrecerla">↺</button>' }).join(' · ') + '</p>'
+    h += (aviso.ubi ? '<div class="ia-aviso">' + esc(aviso.ubi) + '</div>' : '') + htmlMedidas(ej)
+    return h + '</div>'
+  }
+  // 📐 Las medidas de coordinación y control de la IA (los DATOS de la coherencia): ✓ Dibujar las pone en
+  // la carta por el puente `agregarOps` (index-medidas-20261011.js), con su nombre y ↶ Deshacer.
+  var TIPO_MED = { 'línea': '─ línea', 'área': '⬚ área', objetivo: '◎ objetivo', punto: '⊗ punto' }
+  function htmlMedidas(ej) {
+    var ms = COH.medidasPorDibujar(ogo, ej), pend = ms.filter(function (x) { return x.estado === 'pendiente' })
+    var hechas = ms.filter(function (x) { return x.estado === 'dibujada' }), ya = ms.filter(function (x) { return x.estado === 'en la carta' }), desc = ms.filter(function (x) { return x.estado === 'descartada' })
+    var h = '<div class="org-tit ubi-med-tit">📐 Medidas de coordinación y control</div>'
+    if (!ms.length) return h + '<p class="ogo-nota">La revisión de coherencia (paso 11) no trajo medidas con coordenadas en los DATOS.</p>'
+    if (!pend.length) h += '<p class="ogo-ok">✓ Las medidas que nombran los documentos están dibujadas en la carta.</p>'
+    else h += '<p class="ogo-ayuda"><b>✓ Dibujar</b> la pone en la carta con su nombre (y en el calco del Anexo A). Después la ajustás en ⚫ MEDIDAS; «↶ Deshacer» de la barra la quita.</p><ul class="ubi-lista">' + pend.map(function (x) {
+      var el = x.op.el, n = el.coords ? el.coords.length - (x.op.tipo === 'área' ? 1 : 0) : 1, p = el.centro || el.coords[0]
+      return '<li class="ubi-it" data-med="' + esc(x.clave) + '"><div class="ubi-nom">📐 <b>' + esc(el.nombre || el.etiqueta) + '</b> <small>' + esc(TIPO_MED[x.op.tipo] || x.op.tipo) + (el.coords ? ' · ' + n + ' puntos' : '') + (el.escalon ? ' · ' + esc(el.escalon) : '') + '</small></div>' +
+        '<div class="ubi-lug">📍 ' + ll4(p[1]) + ', ' + ll4(p[0]) + (el.coords ? ' …' : '') + (x.dentro === false ? ' · <b class="ubi-fuera">⚠️ fuera del Área de Operaciones</b>' : '') + '</div>' +
+        '<div class="ia-acc"><button type="button" class="ir ubi-ok" data-a="med-aceptar">✓ Dibujar</button><button type="button" class="chico" data-a="med-descartar" title="No dibujarla">✕ No dibujar</button></div></li>'
+    }).join('') + '</ul>' + (pend.length > 1 ? '<div class="ia-acc"><button type="button" class="ir ubi-ok" data-a="med-todas">✓ Dibujar todas (' + pend.length + ')</button></div>' : '')
+    if (hechas.length) h += '<p class="ogo-nota">✓ Dibujadas: ' + hechas.map(function (x) { return esc(x.op.el.nombre || x.op.el.etiqueta) }).join(' · ') + '</p>'
+    if (ya.length) h += '<p class="ogo-nota">Ya en la carta: ' + ya.map(function (x) { return esc(x.op.el.nombre || x.op.el.etiqueta) }).join(' · ') + '</p>'
+    if (desc.length) h += '<p class="ogo-nota">✕ Sin dibujar: ' + desc.map(function (x) { return esc(x.op.el.nombre || x.op.el.etiqueta) + ' <button type="button" class="chico" data-a="med-volver" data-med-k="' + esc(x.clave) + '" title="Volver a ofrecerla">↺</button>' }).join(' · ') + '</p>'
+    return h + (aviso.med ? '<div class="ia-aviso">' + esc(aviso.med) + '</div>' : '')
+  }
+  function medAccion(acc, clave_) {
+    var ej = ejSync() || {}, items = COH.medidasPorDibujar(ogo, ej), it = items.filter(function (x) { return x.clave === clave_ })[0]
+    if (acc === 'med-descartar' && it) { ogoGuardar(COH.descartarMedida(ogo, it)).then(function () { pintar(true) }, function () {}); return }
+    if (acc === 'med-volver' && it) { ogoGuardar(COH.descartarMedida(ogo, it, false)).then(function () { pintar(true) }, function () {}); return }
+    var lista = acc === 'med-todas' ? items.filter(function (x) { return x.estado === 'pendiente' }) : acc === 'med-aceptar' && it ? [it] : []
+    if (!lista.length) return
+    if (!puente || !puente.agregarOps) { aviso.med = '⚠️ Esta Mesa todavía no sabe dibujar las medidas de la IA: recargá la página (Ctrl+F5) con el ejercicio abierto.'; return pintar(true) }
+    var r = COH.aceptarMedidas(ogo, lista)
+    if (puente.agregarOps(r.capas) === false) { aviso.med = '⚠️ La Mesa no dejó dibujar (ejercicio bloqueado o finalizado).'; return pintar(true) }
+    ogoGuardar(r.est).then(function () {
+      aviso.med = '✓ ' + (lista.length === 1 ? (lista[0].op.el.nombre || lista[0].op.el.etiqueta) + ' dibujada' : lista.length + ' medidas dibujadas') + ' en la carta (y en el calco). ↶ Deshacer (barra) las quita.'
+      setTimeout(function () { pintar(true) }, 300)
+    }, function (e) { aviso.med = '⚠️ ' + (e && e.message ? e.message : e); pintar(true) })
+  }
+  function ubiAccion(acc, clave_) {
+    var ej = ejSync() || {}, items = COH.porUbicar(ogo, ej, { escalon: escalon })
+    var it = items.filter(function (x) { return x.clave === clave_ })[0]
+    if (acc === 'ubi-ir') { var li = panel.querySelector('#sid-ubi'); if (li) li.scrollIntoView({ block: 'start' }); return }
+    if (acc === 'ubi-descartar' && it) { ogoGuardar(COH.descartar(ogo, it)).then(function () { pintar(true) }, function () {}); return }
+    if (acc === 'ubi-volver' && it) { ogoGuardar(COH.descartar(ogo, it, false)).then(function () { pintar(true) }, function () {}); return }
+    var lista = acc === 'ubi-todas' ? items.filter(function (x) { return x.estado === 'pendiente' && x.lat != null }) : acc === 'ubi-aceptar' && it ? [it] : []
+    if (!lista.length) return
+    if (!puente || !puente.agregarUnidades) { aviso.ubi = '⚠️ Esta Mesa no tiene el puente para colocar fichas (recargá la página con el ejercicio abierto).'; return pintar(true) }
+    var est = ogo, fichas = [], cambios = 0
+    try { lista.forEach(function (x) { var r = COH.aceptar(est, x); est = r.est; fichas.push(r.ficha); cambios += r.cambios }) } catch (e) { aviso.ubi = '⚠️ ' + e.message; return pintar(true) }
+    puente.agregarUnidades(fichas)
+    ogoGuardar(est).then(function () {
+      ogoCache = {}; ogoRev = null
+      aviso.ubi = '✓ ' + (fichas.length === 1 ? fichas[0].designacion + ' colocada' + (lista[0].poblacion ? ' cerca de ' + lista[0].poblacion.nombre.toUpperCase() : '') : fichas.length + ' unidades colocadas') + ' en la carta' + (cambios ? '; se sacó «(supuesto)» de ' + cambios + ' línea(s) de los documentos' : '') + '. ↶ Deshacer (barra) las quita de la carta.'
+      setTimeout(function () { pintar(true) }, 300) // la Mesa tarda un instante en tener la ficha nueva
+    }, function (e) { aviso.ubi = '⚠️ ' + (e && e.message ? e.message : e); pintar(true) })
+  }
+
+  // ════════ 📤 Paso 13: repartir el ejercicio (documentos consolidados + JSON, por ciclo o paralelo) ════════
+  // Lo pidió Sergio: «darme los documentos consolidados en la opción de compartir; compartir a los alumnos
+  // por ciclo o por paralelo; a estos documentos siempre debe ir el JSON, y con mi tijerita (el ✂️ lazo)
+  // compartirles sólo la parte que yo seleccione y que la tenga seleccionada». Va por calco-ops
+  // (`areas_destinos` / `ejercicio_enviar`, supabase/espejo-ge/calco-ops/compartir.mjs) con la sesión de
+  // SIDECEME de esta Mesa; lo recibe el cursante en «Compartir en la aplicación / Recibidos» de su Mesa.
+  var K_REP = 'sid_rep_areas'
+  function valida(a) { return !!a && Array.isArray(a.coords) && a.coords.length >= 3 }
+  function areasDe(ops) { // como listarAreas (areas-operaciones/modelo.mjs): los mismos id que usa el servidor
+    ops = ops || {}
+    var l = (ops.areasOps || []).filter(valida).map(function (a, i) { return Object.assign({}, a, { id: a.id || 'ao-' + i }) })
+    if (valida(ops.areaOps)) { var act = Object.assign({}, ops.areaOps, { id: ops.areaOps.id || 'ao-original' }), i = -1; l.forEach(function (a, k) { if (a.id === act.id) i = k }); if (i >= 0) l[i] = act; else l.unshift(act) }
+    return l
+  }
+  function repLeer() { try { return JSON.parse(lee(K_REP, '{}'))[claveCarpeta()] || null } catch (e) { return null } }
+  function repGuardar(v) { try { var t = JSON.parse(lee(K_REP, '{}')); t[claveCarpeta()] = v; guarda(K_REP, JSON.stringify(t)) } catch (e) {} }
+  // Las áreas que van: las marcadas; si se cortó otra con la tijera (es la activa nueva), ésa sola.
+  function areasElegidas(ej) {
+    var as = areasDe(ej && ej.ops), activa = ej && ej.ops && ej.ops.areaOps ? (ej.ops.areaOps.id || 'ao-original') : (as[0] && as[0].id), g = repLeer()
+    if (!g || g.activa !== activa) { g = { activa: activa, ids: activa ? [activa] : [] }; repGuardar(g) }
+    return g.ids.filter(function (id) { return as.some(function (a) { return a.id === id }) })
+  }
+  function docsElegidos() { var l = OGO.elegidos(ogo).filter(function (d) { return (ogo.docs && ogo.docs[d.id]) || d.id === 'calco' }).map(function (d) { return d.id }); return rep.docs ? l.filter(function (id) { return rep.docs.indexOf(id) >= 0 }) : l }
+  var cmMod = null
+  function conCompartir() { if (!cmMod) cmMod = import('../areas-operaciones/compartir-modelo.mjs?v=lazo20261010').catch(function (e) { cmMod = null; throw e }); return cmMod }
+  function nombreEnvio() { return rep.nombre || (claveCarpeta() + ' · ' + OGO.tituloOrden(ogo)) }
+  function indicaciones() {
+    if (rep.ind) return rep.ind
+    var g = CARP && carpeta && CARP.lista(carpeta).filter(function (x) { return x.n === 10 })[0]
+    return g ? String(CARP.separar(g.texto).producto || '').slice(0, 4000) : ''
+  }
+  function opcionesEnvio(nombres) { return { unidad: true, operacion: true, documentos: true, documentosNombres: nombres, contenido: !!rep.contenido, enemigo: !!rep.enemigo, indicaciones: indicaciones() } }
+  // El JSON del ejercicio (el paquete de áreas de la Mesa: «Importar áreas compartidas» lo abre) con los documentos.
+  function paqueteJSON(o) {
+    var areas = areasElegidas(o.ej)
+    if (!areas.length) return Promise.resolve(null)
+    return Promise.all([conCompartir(), documentosAlumnos(o.est, o.ej, docsElegidos())]).then(function (r) {
+      var docs = r[1].concat(rep.otros ? (o.ej.documentos || []).filter(function (d) { return !r[1].some(function (x) { return x.nombre === d.nombre }) }) : [])
+      var p = r[0].construirPaquete({ ops: o.ej.ops || {}, unidades: o.ej.unidades || [], documentos: docs, nombre: o.ej.nombre || claveCarpeta() }, areas, opcionesEnvio(docs.map(function (d) { return d.nombre })))
+      return { nombre: 'Ejercicio ' + String(o.ej.nombre || claveCarpeta()).replace(/[^\w .-]+/g, '') + ' - para los alumnos.json', texto: JSON.stringify(p, null, 1), paquete: p, docs: docs, areas: areas }
+    })
+  }
+  function nubeApi(accion, datos) {
+    var c = window.SIDECEME_CALCOS
+    if (!c || !c.url) return Promise.reject(new Error('Esta Mesa no está abierta desde SIDECEME: bajá el ⬇️ JSON y mandalo por otro medio.'))
+    if (!c.token) return Promise.reject(new Error('Tu sesión de SIDECEME no está activa: volvé a entrar.'))
+    var hd = { 'Content-Type': 'application/json' }
+    if (c.anonKey) { hd.apikey = c.anonKey; hd.Authorization = 'Bearer ' + c.anonKey }
+    return fetch(c.url + '/functions/v1/calco-ops', { method: 'POST', headers: hd, body: JSON.stringify(Object.assign({ accion: accion, token: c.token }, datos || {})) })
+      .then(function (r) { return r.json() }).then(function (j) { if (!j || !j.ok) throw new Error((j && j.error) || 'No se pudo completar.'); return j })
+  }
+  function repCalcoId() {
+    if (rep.calcoId && rep.calcoDe === claveCarpeta()) return Promise.resolve(rep.calcoId)
+    return nubeApi('mis_calcos').then(function (j) {
+      var n = claveCarpeta(), c = (j.calcos || []).filter(function (x) { return x.nombre === n || nombreGuardado(x.nombre) === n })[0]
+      if (!c) throw new Error('«' + n + '» no está guardado en SIDECEME: guardalo (📁 Ejercicio → Guardar) y volvé a intentar.')
+      rep.calcoId = c.id; rep.calcoDe = n; return c.id
+    })
+  }
+  function htmlRepartir() {
+    if (!OGO) return ''
+    var ej = ejSync(), as = areasDe(ej && ej.ops), sel_ = ej ? areasElegidas(ej) : [], activa = ej && ej.ops && ej.ops.areaOps ? (ej.ops.areaOps.id || 'ao-original') : ''
+    var docs = OGO.elegidos(ogo).filter(function (d) { return (ogo.docs && ogo.docs[d.id]) || d.id === 'calco' }), elegidos_ = docsElegidos(), e = COH ? COH.estado(ogo) : { hechos: [] }
+    var h = '<div class="ogo rep" id="sid-rep">'
+    h += '<div class="org-tit">1 · Los documentos consolidados</div><p class="ogo-nota">' + (e.hechos.length ? '✓ ' + e.hechos.length + ' consolidado(s) en la revisión de coherencia.' : '⚠️ Todavía sin la revisión de coherencia (paso 11).') + ' El Anexo A va como el gráfico del calco.</p>' +
+      '<ul class="rep-docs">' + docs.map(function (d) { return '<li><label><input type="checkbox" data-rep-doc="' + d.id + '"' + (elegidos_.indexOf(d.id) >= 0 ? ' checked' : '') + '> ' + esc(OGO.corto(d.id, ogo)) + (d.id === 'calco' ? ' 🗺️' : '') + '</label></li>' }).join('') + '</ul>' +
+      '<div class="ia-acc"><button type="button" class="ir" data-a="ogo-zip">⬇️ Word (.zip) con el JSON</button><button type="button" class="ir" data-a="rep-json">⬇️ JSON del ejercicio</button><button type="button" class="ir" data-a="ogo-adjuntar">📎 Adjuntar al ejercicio</button></div>'
+    h += '<div class="org-tit">2 · Qué parte del ejercicio va (el JSON) ✂️</div>' +
+      (as.length ? '<ul class="rep-docs">' + as.map(function (a) { return '<li><label><input type="checkbox" data-rep-area="' + esc(a.id) + '"' + (sel_.indexOf(a.id) >= 0 ? ' checked' : '') + '> ' + esc(a.nombre || 'Área') + (a.id === activa ? ' <small>(la seleccionada en la Mesa)</small>' : '') + '</label></li>' }).join('') + '</ul>' : '<p class="ogo-aviso">⚠️ No hay Área de Operaciones trazada: trazala (▧ ÁREA DE OPS).</p>') +
+      '<div class="ia-acc"><button type="button" class="ir" data-a="rep-tijera" title="Abre el Área de Operaciones: «✂️ Seleccionar con lazo» corta la parte que querés repartir; al volver, queda elegida">✂️ Elegir otra parte con la tijera</button></div>' +
+      '<label class="ogo-check"><input type="checkbox" data-rep-op="contenido"' + (rep.contenido ? ' checked' : '') + '> Todo lo que está dentro (límites, medidas, fichas)</label>' +
+      '<label class="ogo-check"><input type="checkbox" data-rep-op="enemigo"' + (rep.enemigo ? ' checked' : '') + '> También las fichas enemigas</label>' +
+      '<label class="ogo-check"><input type="checkbox" data-rep-op="otros"' + (rep.otros ? ' checked' : '') + '> También los otros documentos del ejercicio</label>'
+    h += '<div class="org-tit">3 · A quién</div>'
+    if (!rep.destinos) h += '<div class="ia-acc"><button type="button" class="ir" data-a="rep-destinos"' + (rep.ocupado ? ' disabled' : '') + '>👥 Ver a quién (ciclos, paralelos, Estados Mayores)</button></div>'
+    else {
+      var grupos = [['ciclo', '🎓 Por ciclo'], ['paralelo', '🏫 Por paralelo'], ['grupo', '🪖 Estados Mayores (grupos)'], ['calco', '📁 Mis ejercicios']]
+      var tipoDe = function (d) { return d.tipo || (d.grupo_id ? 'grupo' : 'calco') }
+      h += '<select data-rep-destino aria-label="Destino"><option value="">— Elegí el destino —</option>' + grupos.map(function (g) { var ds = rep.destinos.filter(function (d) { return tipoDe(d) === g[0] }); return ds.length ? '<optgroup label="' + g[1] + '">' + ds.map(function (d) { return '<option value="' + esc(d.clave) + '"' + (d.clave === rep.destino ? ' selected' : '') + '>' + esc(d.nombre) + '</option>' }).join('') + '</optgroup>' : '' }).join('') + '</select>'
+      if (rep.sinCiclos) h += '<p class="ogo-aviso">⚠️ El servidor de SIDECEME todavía no ofrece los ciclos ni los paralelos: falta publicar la versión nueva de calco-ops. Mientras tanto: un Estado Mayor, o el ⬇️ JSON.</p>'
+      h += '<label class="ogo-campo"><span>Nombre del envío</span><input type="text" data-rep-nombre maxlength="160" value="' + esc(nombreEnvio()) + '"></label>' +
+        '<label class="ogo-campo"><span>Indicaciones para los alumnos' + (indicaciones() && !rep.ind ? ' (de tu carpeta, paso 13)' : '') + '</span><textarea data-rep-ind rows="3" maxlength="4000">' + esc(indicaciones()) + '</textarea></label>' +
+        '<div class="ia-acc"><button type="button" class="ir ubi-ok" data-a="rep-enviar"' + (rep.ocupado || !rep.destino || !sel_.length ? ' disabled' : '') + '>📤 Enviar a los alumnos</button></div>' +
+        '<p class="ogo-nota">Lo reciben en su Mesa: ▧ ÁREA DE OPS → «Compartir en la aplicación / Recibidos» → «Incorporar al ejercicio» (el área, lo de adentro y los documentos). Lo PARA EL PROFESOR y tu carpeta no van.</p>'
+    }
+    return h + (aviso.ogo && /Word|\.zip|adjunt|⏳/i.test(aviso.ogo) ? '<div class="ia-aviso">' + esc(aviso.ogo) + '</div>' : '') + (aviso.rep ? '<div class="ia-aviso">' + esc(aviso.rep) + '</div>' : '') + '</div>'
+  }
+  function repAccion(acc, el) {
+    if (acc === 'rep-tijera') { ir(el, { h: 'areaOps' }); return }
+    if (acc === 'rep-json') {
+      aviso.rep = '⏳ Armando el JSON…'; pintar(true)
+      ogoContexto().then(paqueteJSON).then(function (pq) {
+        if (!pq) { aviso.rep = '⚠️ Elegí (o trazá) el Área de Operaciones que va.'; return pintar(true) }
+        bajarBlob(pq.nombre, new Blob([pq.texto], { type: 'application/json' }))
+        aviso.rep = '⬇️ ' + pq.nombre + ': ' + pq.areas.length + ' área(s) y ' + pq.docs.length + ' documento(s). Se abre en la Mesa del alumno con ▧ ÁREA DE OPS → «Importar áreas compartidas».'; pintar(true)
+      }).catch(function (e) { aviso.rep = '⚠️ ' + (e && e.message ? e.message : e); pintar(true) })
+      return
+    }
+    if (acc === 'rep-destinos') {
+      rep.ocupado = true; aviso.rep = '⏳ Buscando los destinos en SIDECEME…'; pintar(true)
+      repCalcoId().then(function (id) { return nubeApi('areas_destinos', { calco_id: id }) }).then(function (j) {
+        rep.destinos = j.destinos || []; rep.sinCiclos = !rep.destinos.some(function (d) { return d.tipo === 'ciclo' || d.tipo === 'paralelo' }); aviso.rep = ''
+      }).catch(function (e) { aviso.rep = '⚠️ ' + (e && e.message ? e.message : e) }).then(function () { rep.ocupado = false; pintar(true) })
+      return
+    }
+    if (acc === 'rep-enviar') {
+      var d = (rep.destinos || []).filter(function (x) { return x.clave === rep.destino })[0]
+      if (!d) { aviso.rep = 'Elegí el destino.'; return pintar(true) }
+      rep.ocupado = true; aviso.rep = '⏳ Armando el envío…'; pintar(true)
+      var o_
+      ogoContexto().then(function (o) { o_ = o; return paqueteJSON(o) }).then(function (pq) {
+        if (!pq) throw new Error('Elegí (o trazá) el Área de Operaciones que va.')
+        if (!window.confirm('Se envía «' + nombreEnvio() + '» a ' + d.nombre + ':\n· ' + pq.areas.length + ' área(s) del ejercicio' + (rep.contenido ? ', con lo que está dentro' : '') + '\n· ' + pq.docs.length + ' documento(s)\n\n¿Enviar?')) return null
+        return repCalcoId().then(function (id) {
+          return nubeApi('ejercicio_enviar', { calco_id: id, nombre: nombreEnvio(), areas: pq.areas, destino: d, opciones: opcionesEnvio(pq.docs.map(function (x) { return x.nombre })), foto: { ops: o_.ej.ops || {}, unidades: o_.ej.unidades || [], documentos: pq.docs } })
+        }).then(function () { aviso.rep = '📤 Enviado a ' + d.nombre + '. Lo encuentran en su Mesa: ▧ ÁREA DE OPS → «Compartir en la aplicación / Recibidos».' })
+      }).catch(function (e) {
+        var m = e && e.message ? e.message : String(e)
+        aviso.rep = '⚠️ ' + (/no reconocida/i.test(m) ? 'El servidor de SIDECEME todavía no tiene el envío del ejercicio (falta publicar calco-ops): usá ⬇️ JSON del ejercicio.' : m)
+      }).then(function () { rep.ocupado = false; pintar(true) })
     }
   }
 
@@ -724,6 +1061,9 @@
       (p.escalon ? selectorEscalon() + selectorFoco() : '') +
       botonesAbrir(p.abrir, F.id, p.n) +
       (F.id === 'P' && p.organizaciones ? htmlOrganizaciones(p) : '') +
+      (F.id === 'P' && p.coherencia ? htmlCoherencia() : '') +
+      (F.id === 'P' && p.porUbicar ? htmlPorUbicar() : '') +
+      (F.id === 'P' && p.repartir ? htmlRepartir() : '') +
       (F.id === 'P' && p.ia ? htmlIA(p) : '') +
       (F.id === 'P' && p.ogoFinal ? htmlOGO() : '') + '</li>'
   }
@@ -765,7 +1105,7 @@
   function pintar(forzar) {
     if (!panel) return
     var pl = cerrado()
-    var f = [modo, fase, escalon, foco, pl, iaPaso, JSON.stringify(hecho), JSON.stringify(aviso), !!(puente && puente.agregarUnidades), verBiblio, bibVer, bibVista, verCarpeta, carVer, carVista, ogoVer, ogoAbierto, ogoPedido.length, verOgoDatos, !!ogoRev].join('|')
+    var f = [modo, fase, escalon, foco, pl, iaPaso, JSON.stringify(hecho), JSON.stringify(aviso), !!(puente && puente.agregarUnidades), verBiblio, bibVer, bibVista, verCarpeta, carVer, carVista, ogoVer, ogoAbierto, ogoPedido.length, verOgoDatos, !!ogoRev, cohAbierto, cohPedido.length, nuevoVer, rep.destino, !!rep.destinos, rep.ocupado].join('|')
     if (!forzar && f === firma) return
     firma = f
     panel.hidden = modo === 'mesa'
@@ -901,6 +1241,10 @@
       return
     }
     if (a && /^ogo-/.test(a.getAttribute('data-a')) && OGO) { var od = a.closest('[data-ogo-doc]'); ogoAccion(a.getAttribute('data-a'), od ? od.getAttribute('data-ogo-doc') : ogoAbierto); return }
+    if (a && /^coh-/.test(a.getAttribute('data-a')) && COH) { cohAccion(a.getAttribute('data-a')); return }
+    if (a && /^med-/.test(a.getAttribute('data-a')) && COH) { var mi = a.closest('[data-med]'); medAccion(a.getAttribute('data-a'), a.getAttribute('data-med-k') || (mi ? mi.getAttribute('data-med') : '')); return }
+    if (a && /^ubi-/.test(a.getAttribute('data-a')) && COH) { var ui = a.closest('[data-ubi]'); ubiAccion(a.getAttribute('data-a'), a.getAttribute('data-ubi-k') || (ui ? ui.getAttribute('data-ubi') : '')); return }
+    if (a && /^rep-/.test(a.getAttribute('data-a')) && OGO) { repAccion(a.getAttribute('data-a'), a); return }
     if (a && a.getAttribute('data-a') === 'car') { verCarpeta = !verCarpeta; if (verCarpeta) { plegado = false; carRevisar() } pintar(true); return }
     if (a && /^car-/.test(a.getAttribute('data-a'))) {
       var ac = a.getAttribute('data-a'), lc = a.closest('[data-car]'), nc = lc ? +lc.getAttribute('data-car') : 0
@@ -977,6 +1321,13 @@
     if (t.matches && t.matches('select[data-foco]')) { foco = t.value; guarda(K_FOCO, foco); iaPaso = 0; pintar(true); return }
     if (t.matches && t.matches('select[data-ia-destino]') && CARP) { var pd = pasoProfesor(iaPaso); if (pd) carGuardar(CARP.cambiarDestino(carpeta, pd.n, t.value)).then(function () { pintar(true) }, function () {}); return }
     if (t.matches && t.matches('input[data-car-archivo]')) { if (t.files && t.files[0]) cargarCarpeta(t.files[0]); t.value = ''; return }
+    if (t.matches && t.matches('input[data-rep-doc]')) { var ld = docsElegidos(), di = t.getAttribute('data-rep-doc'); rep.docs = t.checked ? ld.concat([di]) : ld.filter(function (x) { return x !== di }); nuevoVer++; pintar(true); return }
+    if (t.matches && t.matches('input[data-rep-area]')) {
+      var ejx = ejSync(), g = { activa: ejx && ejx.ops && ejx.ops.areaOps ? (ejx.ops.areaOps.id || 'ao-original') : '', ids: areasElegidas(ejx) }, ai = t.getAttribute('data-rep-area')
+      g.ids = t.checked ? g.ids.filter(function (x) { return x !== ai }).concat([ai]) : g.ids.filter(function (x) { return x !== ai }); repGuardar(g); nuevoVer++; pintar(true); return
+    }
+    if (t.matches && t.matches('input[data-rep-op]')) { rep[t.getAttribute('data-rep-op')] = t.checked; nuevoVer++; pintar(true); return }
+    if (t.matches && t.matches('select[data-rep-destino]')) { rep.destino = t.value; nuevoVer++; pintar(true); return }
     if (OGO && t.matches && t.matches('[data-ogo-cfg]')) {
       var ck = t.getAttribute('data-ogo-cfg'), cv = t.type === 'checkbox' ? t.checked : t.value, cc = {}; cc[ck] = cv
       ogoGuardar(OGO.conConfig(ogo, cc)).then(function () { ogoCache = {}; pintar(true) }, function (e) { aviso.ogo = '⚠️ ' + (e && e.message ? e.message : e); pintar(true) })
@@ -1030,8 +1381,15 @@
       var t = e.target
       if (t.matches && t.matches('textarea[data-ia-resp]')) borrador[bk(+t.getAttribute('data-ia-resp'))] = t.value
       if (t.matches && t.matches('textarea[data-ogo-resp]')) ogoBorr[t.getAttribute('data-ogo-resp')] = t.value
+      if (t.matches && t.matches('textarea[data-coh-resp]')) cohBorr = t.value
+      if (t.matches && t.matches('input[data-rep-nombre]')) rep.nombre = t.value
+      if (t.matches && t.matches('textarea[data-rep-ind]')) rep.ind = t.value
     })
     document.body.appendChild(panel)
+    // las medidas y las fichas que se quitan en la Mesa (↶ Deshacer, 🗑️) no pasan por el puente: el
+    // paso 12 vuelve a mirar la carta después de un clic en la Mesa y al volver al tablero
+    document.addEventListener('click', function (e) { if (!panel.contains(e.target)) ubiRevisar() }, true)
+    panel.addEventListener('pointerenter', ubiRevisar)
     body.setAttribute('data-sid-modo', modo)
     engancharPuente()
     pintar(true)
@@ -1053,6 +1411,7 @@
     get foco() { return foco }, get puente() { return puente }, armarPedido: armarPedido, leerEjercicio: leerEjercicio,
     get biblioteca() { return biblio }, subir: bibSubir, recargarBiblioteca: bibCargar,
     get carpeta() { return carpeta }, recargarCarpeta: carCargar,
-    get ogo() { return ogo }, recargarOgo: ogoCargar
+    get ogo() { return ogo }, recargarOgo: ogoCargar,
+    get rep() { return rep }, nubeApi: nubeApi, calcoImagen: calcoImagen, documentosAlumnos: documentosAlumnos
   }
 })()

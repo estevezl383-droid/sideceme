@@ -1,0 +1,54 @@
+name: OGO del profesor — coherencia, unidades que faltan, calco gráfico y reparto por ciclo/paralelo
+on:
+  pull_request:
+    paths:
+      - 'calcos/modalidad/**'
+      - 'calcos/formato-militar/v1/word.js'
+      - 'calcos/index.html'
+      - 'calcos/areas-operaciones/**'
+      - 'supabase/espejo-ge/calco-ops/**'
+      - 'supabase/migrations/*calco_compartidos*'
+      - 'calcos/pruebas/ogo-coherencia.cjs'
+      - 'calcos/pruebas/areas-compartir.mjs'
+      - 'calcos/pruebas/fixtures/ogo-*.md'
+      - 'calcos/pruebas/e2e/ogo-coherencia.cjs'
+      - '.github/workflows/ogo-coherencia.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preparar docx y navegador
+        run: |
+          npm ci --prefix calcos/pruebas
+          npm install --prefix /tmp/prueba-ogo docx@9.5.1 playwright@1.51.1
+          node /tmp/prueba-ogo/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Los módulos (Node) y el servidor de los envíos
+        env:
+          DOCX_MODULE: /tmp/prueba-ogo/node_modules/docx
+        run: |
+          for f in ogo-mesa ogo-terreno ogo ogo-coherencia ogo-calco modalidad catalogo; do node --check calcos/modalidad/$f.js; done
+          node calcos/pruebas/ogo-coherencia.cjs
+          node calcos/pruebas/ogo.cjs
+          node calcos/pruebas/modalidad.cjs
+          node calcos/pruebas/areas-compartir.mjs
+          node calcos/pruebas/areas-lazo.mjs
+      - name: La Mesa real en Chromium
+        env:
+          PLAYWRIGHT_MODULE: /tmp/prueba-ogo/node_modules/playwright
+        run: |
+          node calcos/pruebas/e2e/ogo-coherencia.cjs
+          node calcos/pruebas/e2e/ogo.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: revision-ogo-coherencia
+          path: calcos/pruebas/salidas-coherencia/
+          retention-days: 7

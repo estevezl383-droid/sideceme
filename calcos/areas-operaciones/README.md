@@ -155,3 +155,37 @@ Pruebas: `node calcos/pruebas/areas-lazo.mjs` (zonas exactas sin huecos, lazo to
 Cuerpo → Divisiones, contenido, paquete, importación y servidor) y
 `node calcos/pruebas/e2e/areas-lazo.cjs` (la Mesa en Chromium: lazo con el mouse, toque,
 entrega JSON e importación con fichas; capturas en `pruebas/salidas-lazo/`).
+
+## 📤 Por ciclo o por paralelo, y el ejercicio del profesor tal como está (11-OCT-2026)
+
+Lo pidió Sergio para el paso 13 del tablero del profesor (`calcos/modalidad`): «compartir a los
+alumnos por ciclo o por paralelo, siempre con el JSON, y con mi tijerita compartirles sólo la parte
+que yo seleccione».
+
+- **Destinos** (`areas_destinos`): además de «Mi ejercicio · …» y los grupos (Estados Mayores), los
+  **ciclos** («Todo el 1ER CICLO (125 cursantes)») y los **paralelos** («1ER CICLO · Paralelo A
+  (42 cursantes)») de los cursantes activos (`cursantes.ciclo` / `cursantes.paralelo`).
+- **Enviar** (`areas_enviar` y la nueva `ejercicio_enviar`): `destino: { ciclo, paralelo? }` guarda
+  `destino_ciclo` / `destino_paralelo` (comprueba que haya cursantes activos). `ejercicio_enviar` arma
+  el paquete con la Mesa del profesor TAL COMO ESTÁ (`foto`: ops, fichas y los documentos de la OGO
+  consolidada, el calco como imagen), sin esperar al autoguardado; el origen sigue siendo un ejercicio
+  personal SUYO y el paquete sale del mismo `construirPaquete` (lista permitida, sólo las áreas
+  elegidas y lo que tienen adentro). `opciones.documentosNombres`: sólo esos documentos, y de cada uno
+  sólo `nombre, mime, tipo, texto, base64, paginas, categoria`.
+- **Recibir** (`areas_recibidos`): el cursante ve, además de lo de su grupo, lo enviado a su ciclo y a
+  su paralelo (no lo de otro paralelo ni de otro ciclo), lo más nuevo primero.
+- **Base**: `supabase/migrations/20261011150000_calco_compartidos_ciclo.sql` agrega las dos columnas,
+  reemplaza la regla de destino (`calco_compartidos_check` → `calco_compartidos_destino_check`, con la
+  tercera forma) y un índice. No borra nada.
+
+**Publicado el 11-10-2026** (con el permiso de Sergio): 1) la migración aplicada en SIDECEME-V2
+(`20261011150000_calco_compartidos_ciclo`; no borró nada: los envíos anteriores siguen con su destino);
+2) `calco-ops` **v9** desplegada con `index.ts` (sin cambios), `compartir.mjs`, `compartir-modelo.mjs`,
+`modelo.mjs` y `recorte.mjs`, con los imports aplanados (`./compartir-modelo.mjs`, `./modelo.mjs`,
+`./recorte.mjs`, sin `?v=`), JWT OFF como estaba. Se comprobó que los archivos desplegados son, byte por
+byte (SHA-256), los de este repositorio con esos imports, y la regla nueva de destino con una transacción
+que se deshizo (ROLLBACK): un envío por ciclo (y por paralelo) entra; uno con paralelo y sin ciclo se rechaza; no quedó ninguna fila de prueba. Si se vuelve a desplegar, igual:
+los mismos cinco archivos con los imports aplanados.
+
+Prueba: `node calcos/pruebas/areas-compartir.mjs` (destinos, envío por paralelo, documentos elegidos,
+lo de adentro desde la Mesa del profesor, un cursante no envía, qué recibe cada cursante).

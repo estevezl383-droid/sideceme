@@ -177,3 +177,29 @@ body[data-sid-mod-col] .sdp{right:var(--sid-mod-col) !important}
 #sid-mod-panel .ogo-subir{display:inline-block}
 #sid-mod-panel .ogo-todo{border-left-color:#c4b5fd}
 #sid-mod-panel .ogo-res{margin:4px 0 0;padding-left:16px;color:#e4f4f6;font-size:11.5px}
+
+/* 🔎 Paso 11 · revisión de coherencia, 📍 paso 12 · unidades que faltan (✓ Aceptar), 📤 paso 13 · repartir (11-10-2026) */
+#sid-mod-panel .coh{border-color:#5eead4;background:rgba(6,44,48,.45)}
+#sid-mod-panel .coh-rev summary{cursor:pointer;color:#c4b5fd;font-weight:700;margin-top:4px}
+#sid-mod-panel .coh-ubi{display:block;margin-top:6px;--sc:#fbbf24}
+#sid-mod-panel .ubi{margin:8px 0 0;font-size:12px}
+#sid-mod-panel .ubi-lista{list-style:none;margin:0 0 6px;padding:0;display:flex;flex-direction:column;gap:6px}
+#sid-mod-panel .ubi-it{padding:7px;border-radius:8px;background:rgba(4,17,26,.7);border:1px solid rgba(251,191,36,.55)}
+#sid-mod-panel .ubi-nom{line-height:1.35}
+#sid-mod-panel .ubi-nom small{color:#8fb0b8}
+#sid-mod-panel .ubi-lug{margin-top:3px;color:#e4f4f6;font-size:11.5px}
+#sid-mod-panel .ubi-lug b{color:#fde68a}
+#sid-mod-panel .ubi-lug .ubi-fuera{color:#fca5a5}
+#sid-mod-panel .ubi-pq{margin-top:2px;color:#b9d2d8;font-size:11px}
+#sid-mod-panel .ubi-it .ia-acc{margin:6px 0 0}
+#sid-mod-panel .ubi-ok{--sc:#46f0d0;font-weight:700}
+#sid-mod-panel .ubi-ok[disabled],#sid-mod-panel .rep .ir[disabled]{opacity:.45;cursor:not-allowed}
+#sid-mod-panel .rep{border-color:#46f0d0;background:rgba(4,30,40,.55)}
+#sid-mod-panel .rep .org-tit{margin-top:8px}
+#sid-mod-panel .rep-docs{list-style:none;margin:2px 0 6px;padding:0;display:flex;flex-direction:column;gap:2px;font-size:11.5px;color:#e4f4f6}
+#sid-mod-panel .rep-docs small{color:#8fb0b8}
+#sid-mod-panel .rep select{width:100%;font:12px/1.3 inherit;color:#e4f4f6;background:#0c2a38;border:1px solid rgba(70,240,208,.4);border-radius:6px;padding:4px;margin:2px 0 6px}
+#sid-mod-panel .rep .ogo-campo textarea{font:12px/1.3 inherit;color:#e4f4f6;background:#0c2a38;border:1px solid rgba(70,240,208,.4);border-radius:6px;padding:4px}
+#sid-mod-panel .coh-resp{margin-top:8px;padding-top:7px;border-top:1px dashed rgba(94,234,212,.5)}
+#sid-mod-panel .coh-resp textarea{border-color:rgba(251,191,36,.45)}
+#sid-mod-panel .coh-resp .ia-acc{margin:6px 0 0}
