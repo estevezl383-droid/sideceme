@@ -75,6 +75,8 @@
     pon('carta', os.carta, '«Mesa · Preparación»')
     pon('iniciales', os.clave, '«Mesa · Preparación» (clave del redactor)')
     if (!c.seleccion) c.seleccion = seleccionInicial()
+    // en el membrete, la firma y los pedidos va sólo la sigla: «FF.TT.T.O.», no su desarrollo (Sergio, 11-10-2026)
+    if (MESA) ['unidad', 'superior', 'alumnos', 'firma'].forEach(function (k) { if (una(c[k])) c[k] = MESA.sinDesarrollo(c[k]) })
     return Object.assign({}, est, { config: c, autoDe: de, identidad: id })
   }
   function esPlan(est) { return est && est.config && est.config.tipo === 'plan' }
@@ -439,7 +441,7 @@
   // ─── Al formato militar de la Mesa (word.js · crearWord) ────────────────────────────
   // Sin apéndices: «APÉNDICES : S/A.» (como en los modelos de la Escuela; no «Sin novedad.» ni «Sin.»).
   var RE_SIN = /^(sin\b.*|ningun[oa]s?|no (tiene|hay|lleva|aplica)\b.*|n\/?a|s\/?a|-+|—)\.?$/i
-  function deLas(unidad) { var u = una(unidad); return !u ? '' : /^(FF\.?\s?TT|FUERZAS)/i.test(u) ? ' de las ' + u : /^(R|B|C\.?E|CUERPO|COMANDO|CMDO|GRUPO|G\.?A|REGIMIENTO|BATALL|[IVX]+\s*C\.?\s?E)/i.test(u) ? ' del ' + u : ' de la ' + u }
+  function deLas(unidad) { var u = MESA ? MESA.sinDesarrollo(unidad) : una(unidad); return !u ? '' : /^(FF\.?\s?TT|FUERZAS)/i.test(u) ? ' de las ' + u : /^(R|B|C\.?E|CUERPO|COMANDO|CMDO|GRUPO|G\.?A|REGIMIENTO|BATALL|[IVX]+\s*C\.?\s?E)/i.test(u) ? ' del ' + u : ' de la ' + u }
   // op.imagen: el gráfico del calco (ogo-calco.js → PNG); el Anexo A es ESE gráfico, no texto (Sergio, 11-10-2026).
   function aSpec(id, texto, est, op) {
     op = op || {}
@@ -466,14 +468,15 @@
   function cfgWord(id, est) {
     var d = doc(id), c = est.config || {}, L = letras(est), lista = elegidos(est)
     var nSec = lista.filter(function (x) { return x.seccion === d.seccion }).indexOf(d) + 1
-    var unidad = una(c.unidad), superior = una(c.superior) || (MESA ? MESA.superiorDe(unidad) : '')
+    var sd = MESA ? MESA.sinDesarrollo : una // sólo la sigla: «FF.TT.T.O.» (Sergio, 11-10-2026)
+    var unidad = sd(c.unidad), superior = sd(c.superior) || (MESA ? MESA.superiorDe(unidad) : '')
     // «No. 002/XYZ.»: sin iniciales, XYZ (como el resto de los documentos de la Mesa), con su punto
     var ini = una(c.iniciales).toUpperCase().replace(/\.+$/, '') || 'XYZ', lugar = una(c.lugar)
     var cfg = {
       superior: superior || '[Escalón superior pendiente]', unidad: unidad || '[Unidad pendiente]', lugar: lugar ? lugar.replace(/\.?$/, '.') : '', fechaHora: una(c.fechaHora),
       seccion: d.seccion, expedicion: nSec, iniciales: ini + '.', titulo: esPlan(est) ? 'PLAN DE OPERACIONES' : 'ORDEN DE OPERACIONES', numero: numero(est),
       nivel: d.principal ? 'principal' : d.apendiceDe ? 'apendice' : 'anexo', identificador: d.principal ? '' : L[id], asunto: d.principal ? '' : d.asunto,
-      firma: una(c.firma) || (unidad ? 'EL COMANDANTE ' + (/^(R|B|C\.?E|CUERPO|COMANDO|CMDO|GRUPO|G\.?A|REGIMIENTO|BATALL)/i.test(unidad) ? 'DEL ' : /^(FF\.?\s?TT|FUERZAS)/i.test(unidad) ? 'DE LAS ' : 'DE LA ') + unidad.toUpperCase() : 'EL COMANDANTE'),
+      firma: sd(c.firma) || (unidad ? 'EL COMANDANTE ' + (/^(R|B|C\.?E|CUERPO|COMANDO|CMDO|GRUPO|G\.?A|REGIMIENTO|BATALL)/i.test(unidad) ? 'DEL ' : /^(FF\.?\s?TT|FUERZAS)/i.test(unidad) ? 'DE LAS ' : 'DE LA ') + unidad.toUpperCase() : 'EL COMANDANTE'),
       jem: una(c.jem).toUpperCase().replace(/\.+$/, '') || 'XYZ', autenticador: d.autentica, inicialesAut: ini,
       distribucion: limpia(c.distribucion).trim() || 'Original: ' + (superior || 'ARCHIVO') + '\nCopia 1-12: UU. DEP.\nCopia 13: ARCHIVO',
       ensenanza: !!c.ensenanza

@@ -92,6 +92,8 @@
     var sin = todos.filter(function (d) { return !escrito(est, d.id) })
     if (sin.length) t += 'Sin escribir todavía (escribilos vos, completos y coherentes con los demás): ' + sin.map(function (d) { return OGO.corto(d.id, est) }).join(' · ') + '.\n\n'
     t += '## LA CARTA (lo que está dibujado en la Mesa)\n### Fichas en la carta (con la población más cercana)\n' + fichasTexto(ej) + '\n\n'
+    var tc = trazosTexto(ej)
+    if (tc) t += '### Áreas, límites y medidas dibujados (lat, lng)\n' + tc + '\n\n'
     if (falt.length) t += '### Unidades que nombran los documentos y NO están en la carta (van en DATOS con su ubicación)\n' + falt.map(function (x) { return '- ' + x.u.designacion + (x.u.nombre && x.u.nombre !== x.u.designacion ? ' (' + x.u.nombre + ')' : '') + ' · ' + x.u.arma + ' · ' + x.u.escalon + (x.u.supuesto ? ' · estaba «(supuesto)»' : '') + (x.u.de ? ' · de ' + x.u.de : '') + (x.u.relacion ? ' · ' + x.u.relacion : '') }).join('\n') + '\n\n'
     var pobs = MESA.poblacionesParaPedido(ej, 80)
     if (pobs.length) t += '### Poblaciones del Área de Operaciones (nombre · tipo · lat, lng · habitantes)\n' + pobs.map(function (p) { return '- ' + p.nombre + (p.tipo ? ' · ' + p.tipo : '') + ' · ' + f4(p.lat) + ', ' + f4(p.lng) + (p.poblacion ? ' · ' + p.poblacion + ' hab.' : '') }).join('\n') + '\n\n'
@@ -162,9 +164,11 @@
     return out
   }
   // Reemplaza los documentos que vinieron (guarda el anterior para volver atrás), la fecha y las unidades.
-  function aplicar(est, leido, ahora) {
+  // ej (11-10-2026): la Mesa con la que quedaron consolidados (mesaRef): después se ve qué cambió.
+  function aplicar(est, leido, ahora, ej) {
     ahora = ahora || new Date().toISOString()
     var n = Object.assign({}, est, { docs: Object.assign({}, est.docs), actualizado: ahora }), ids = []
+    if (ej) n.mesaRef = { huella: huella(ej), cuando: ahora }
     var validos = OGO.elegidos(est).map(function (d) { return d.id })
     Object.keys(leido.docs || {}).forEach(function (id) {
       if (validos.indexOf(id) < 0) return
@@ -203,6 +207,129 @@
     if (!e.faltan.length) return ''
     return 'SEGUÍ con la consolidación, en la MISMA conversación y con las MISMAS decisiones de tu «=== REVISIÓN ===» y de tus «=== DATOS ===» (las mismas unidades, coordenadas, nombres, fases y fecha). Faltan estos documentos, COMPLETOS y cada uno con su marca:\n' +
       e.faltan.map(function (id) { return marca(OGO.doc(id), est) }).join('\n') + '\n\nSi tampoco entran todos, cortá al terminar un documento y escribí «SIGUE: <id del que sigue>».\n'
+  }
+
+  // ─── 🔄 La Mesa cambió después de consolidar ─────────────────────────────────────────
+  // Lo pidió Sergio (11-10-2026): «por favor tomá en cuenta hasta lo último: yo puedo seguir editando,
+  // entonces quisiera que vuelvas a refrescar todos los documentos, OGO, anexos y todo en base a lo que
+  // se está modificando en la Mesa, en los gráficos… si es necesario se somete otra vez a la IA».
+  // · huella(ej): lo de la carta que nombran los documentos (las fichas con su lugar, las áreas, los
+  //   límites y las medidas, las áreas de empeño y las avenidas del CMOC, la unidad considerada).
+  //   Queda en est.mesaRef al aplicar la coherencia (o con «✓ Ya están al día»).
+  // · cambiosMesa(antes, ahora): lo que se agregó, se sacó, se movió o se cambió, en palabras.
+  // · pedidoActualizar(ctx, cambios): el pedido de coherencia con los cambios ADELANTE: la IA
+  //   devuelve TODOS los documentos actualizados a la carta de hoy (se aplica igual: 💾 Aplicar).
+  // El calco del Anexo A y el membrete (unidad, CG por la población más cercana) no necesitan la IA:
+  // salen de la Mesa de ahora cada vez que se baja el Word.
+  function r4(x) { return Math.round(+x * 1e4) / 1e4 }
+  function medio(cs) { var p = (cs || []).filter(function (q) { return Array.isArray(q) && isFinite(+q[0]) && isFinite(+q[1]) }); if (!p.length) return null; var x = 0, y = 0; p.forEach(function (q) { x += +q[0]; y += +q[1] }); return [r4(x / p.length), r4(y / p.length)] }
+  function nombreLinea(l) { return una(l.nombre) || (l.escalon ? 'límite de ' + l.escalon : l.tipo === 'flecha' ? 'flecha' : 'línea') }
+  var PUNTOS = [['coordinacion', 'punto de coordinación'], ['pasaje', 'punto de pasaje'], ['objetivos', 'objetivo']]
+  function conLugar(u) { return u && isFinite(+u.lat) && isFinite(+u.lng) && u.lat !== null && u.lng !== null }
+  function hFicha(u) { return { k: (/enem|rojo/i.test(u.bando || '') ? 'ROJO' : 'AZUL') + ' · ' + una(u.designacion || u.nombre || 'ficha') + (u.tipo === 'pc' ? ' (PC)' : ''), c: [r4(u.lng), r4(u.lat)] } }
+  function hLinea(l) { return { k: nombreLinea(l), c: medio(l.coords), n: l.coords.length } }
+  function hPuntos(o) {
+    return [].concat.apply([], PUNTOS.map(function (p) { return (o[p[0]] || []).filter(function (x) { return x && Array.isArray(x.centro) }).map(function (x) { return { k: una(x.etiqueta || x.nombre) || p[1], c: [r4(x.centro[0]), r4(x.centro[1])] } }) }))
+  }
+  function huella(ej) {
+    ej = ej || {}; var o = ej.ops || {}, cm = ej.cmoc || {}
+    return {
+      v: 1,
+      unidad: una(o.unidadConsiderada && o.unidadConsiderada.nombre),
+      fichas: (ej.unidades || []).filter(conLugar).map(hFicha),
+      areas: MESA.areas(ej).map(function (x) { return { k: String(x.a.id || 'ao-original'), nombre: una(x.a.nombre) || 'Área', escalon: x.a.escalon || '', c: medio(x.an), n: x.an.length, sup: Math.round(superficieKm2(x.an)) } }),
+      lineas: (o.limites || []).filter(function (l) { return l && Array.isArray(l.coords) }).map(hLinea),
+      puntos: hPuntos(o),
+      cmoc: [].concat((cm.ae || []).map(function (x) { return { k: 'área de empeño', c: medio(x && x.coords) } }),
+        (cm.avenidas || []).map(function (x) { return { k: 'avenida ' + (una(x && x.nombre) || 'de aproximación'), c: medio(x && x.coords) } }),
+        (cm.clave || []).map(function (x) { return { k: 'terreno clave ' + (una(x && x.etiqueta) || ''), c: x && x.centro } })).filter(function (x) { return Array.isArray(x.c) })
+    }
+  }
+  function superficieKm2(an) { // aprox. local
+    var lat0 = an.reduce(function (s, p) { return s + +p[1] }, 0) / an.length, kx = 111.32 * Math.cos(lat0 * Math.PI / 180), ky = 110.57, s = 0
+    for (var i = 0, j = an.length - 1; i < an.length; j = i++) s += an[j][0] * kx * an[i][1] * ky - an[i][0] * kx * an[j][1] * ky
+    return Math.abs(s / 2)
+  }
+  function kmEntre(a, b) { return a && b ? MESA.km(a, b) : 0 }
+  // Empareja dos listas por la clave (k) y, entre las de la misma clave, por cercanía.
+  function emparejar(antes, ahora) {
+    var libres = (antes || []).map(function (x, i) { return i }), pares = [], nuevos = []
+    ;(ahora || []).forEach(function (x) {
+      var mejor = -1, d = Infinity
+      libres.forEach(function (i) { if (antes[i].k === x.k) { var dd = kmEntre(antes[i].c, x.c); if (dd < d) { d = dd; mejor = i } } })
+      if (mejor >= 0) { pares.push([antes[mejor], x, d]); libres.splice(libres.indexOf(mejor), 1) } else nuevos.push(x)
+    })
+    return { pares: pares, nuevos: nuevos, idos: libres.map(function (i) { return antes[i] }) }
+  }
+  function cambiosMesa(antes, ahora) {
+    if (!antes || !ahora) return []
+    var out = [], km = function (d) { return kmTxt(d) + ' km' }
+    var poner = function (tipo, texto) { out.push({ tipo: tipo, texto: texto.replace(/\.\.$/, '.') }) } // «FF.TT.» + «.»
+    if (una(antes.unidad) !== una(ahora.unidad) && una(ahora.unidad)) poner('✎', 'La unidad considerada ahora es ' + ahora.unidad + (antes.unidad ? ' (antes ' + antes.unidad + ')' : '') + '.')
+    var ar = emparejar(antes.areas, ahora.areas)
+    ar.nuevos.forEach(function (a) { poner('+', 'Área nueva: ' + a.nombre + (a.escalon ? ' (' + a.escalon + ')' : '') + ', ' + a.sup.toLocaleString('es') + ' km².') })
+    ar.idos.forEach(function (a) { poner('−', 'Ya no está el área ' + a.nombre + '.') })
+    ar.pares.forEach(function (p) {
+      var a = p[0], b = p[1]
+      if (a.nombre !== b.nombre) poner('✎', 'El área «' + a.nombre + '» ahora se llama «' + b.nombre + '».')
+      if (a.n !== b.n || p[2] > 0.3 || Math.abs(a.sup - b.sup) > Math.max(1, a.sup * 0.02)) poner('✎', 'Cambió el contorno del área ' + b.nombre + ' (' + a.sup.toLocaleString('es') + ' → ' + b.sup.toLocaleString('es') + ' km²).')
+    })
+    // [qué es (en «nuevo»), qué es (en «se sacó»), a partir de cuántos km se avisa que se movió]
+    var lista = function (antesL, ahoraL, nuevo, ido, umbral) {
+      var e = emparejar(antesL, ahoraL)
+      e.nuevos.forEach(function (x) { poner('+', nuevo + ': ' + x.k + '.') })
+      e.idos.forEach(function (x) { poner('−', 'Se sacó ' + ido + ' ' + x.k + '.') })
+      e.pares.forEach(function (p) { if (p[2] > umbral) poner('↔', p[1].k + ' se movió ' + km(p[2]) + '.') })
+    }
+    lista(antes.fichas, ahora.fichas, 'Ficha nueva en la carta', 'la ficha', 0.5)
+    lista(antes.lineas, ahora.lineas, 'Línea o límite nuevo', 'la línea', 0.3)
+    lista(antes.puntos, ahora.puntos, 'Punto u objetivo nuevo', 'el punto', 0.3)
+    lista(antes.cmoc, ahora.cmoc, 'Nuevo en el CMOC', 'del CMOC:', 0.3)
+    return out
+  }
+  function estadoMesa(est, ej) {
+    var ref = est && est.mesaRef
+    if (!ref || !ref.huella) return { ref: null, cambios: [] }
+    return { ref: ref, cambios: cambiosMesa(ref.huella, huella(ej)) }
+  }
+  // Lo que la IA propuso en los DATOS y el profesor aceptó (✓ Aceptar las unidades, ✓ Dibujar las
+  // medidas, paso 12) ya está en los documentos: entra a la foto, no es un «cambio» de la Mesa.
+  function absorber(est, lo) {
+    var ref = est && est.mesaRef
+    if (!ref || !ref.huella) return est
+    lo = lo || {}; var hu = Object.assign({}, ref.huella), cap = lo.capas || {}
+    // sin repetir: lo que se vuelve a dibujar después de un ↶ Deshacer ya estaba en la foto
+    var sumar = function (l, nuevos) { var out = (l || []).slice(); nuevos.forEach(function (x) { if (!out.some(function (y) { return y.k === x.k && JSON.stringify(y.c) === JSON.stringify(x.c) })) out.push(x) }); return out }
+    hu.fichas = sumar(hu.fichas, (lo.fichas || []).filter(conLugar).map(hFicha))
+    hu.lineas = sumar(hu.lineas, (cap.limites || []).filter(function (l) { return l && Array.isArray(l.coords) }).map(hLinea))
+    hu.puntos = sumar(hu.puntos, hPuntos(cap))
+    return Object.assign({}, est, { mesaRef: Object.assign({}, ref, { huella: hu }) })
+  }
+  function marcarMesa(est, ej, ahora) {
+    ahora = ahora || new Date().toISOString()
+    return Object.assign({}, est, { mesaRef: { huella: huella(ej), cuando: ahora }, actualizado: ahora })
+  }
+  // La carta en texto: las áreas, los límites y las medidas (para el pedido).
+  function trazosTexto(ej) {
+    var o = (ej && ej.ops) || {}, t = []
+    var ll = function (cs, n) { return (cs || []).slice(0, n).map(function (p) { return f4(+p[1]) + ', ' + f4(+p[0]) }).join(' → ') + ((cs || []).length > n ? ' → …' : '') }
+    MESA.areas(ej).forEach(function (x) { t.push('- Área ' + (una(x.a.nombre) || 'sin nombre') + (x.a.escalon ? ' (' + x.a.escalon + ')' : '') + (x.a.unidad && una(x.a.unidad) !== una(x.a.nombre) ? ' · unidad: ' + una(x.a.unidad) : '') + ' · ' + Math.round(superficieKm2(x.an)).toLocaleString('es') + ' km² · ' + ll(x.an, 16)) })
+    ;(o.limites || []).filter(function (l) { return l && Array.isArray(l.coords) && l.coords.length >= 2 }).slice(0, 60).forEach(function (l) { t.push('- ' + (l.nombre ? una(l.nombre) : nombreLinea(l)) + ': ' + ll(l.coords, 8)) })
+    ;[['coordinacion', 'Punto de coordinación'], ['pasaje', 'Punto de pasaje'], ['objetivos', 'Objetivo']].forEach(function (k) {
+      ;(o[k[0]] || []).filter(function (x) { return x && Array.isArray(x.centro) }).slice(0, 60).forEach(function (x) { t.push('- ' + k[1] + (una(x.nombre || x.etiqueta) ? ' ' + una(x.nombre || x.etiqueta) : '') + ': ' + f4(+x.centro[1]) + ', ' + f4(+x.centro[0])) })
+    })
+    var cm = (ej && ej.cmoc) || {}
+    ;(cm.ae || []).forEach(function (x, i) { var c = medio(x && x.coords); if (c) t.push('- Área de empeño ' + (i + 1) + ' (CMOC): centro ' + f4(c[1]) + ', ' + f4(c[0])) })
+    return t.join('\n')
+  }
+  function pedidoActualizar(ctx, cambios) {
+    var est = (ctx && ctx.ogo) || OGO.vacio(''), ref = est.mesaRef
+    var base = pedido(ctx).replace(/^# PEDIDO DE TRABAJO PARA LA IA — REVISIÓN DE COHERENCIA Y DOCUMENTOS CONSOLIDADOS — LEÉ ESTO PRIMERO\n\n/, '')
+    var t = '# PEDIDO DE TRABAJO PARA LA IA — ACTUALIZAR TODOS LOS DOCUMENTOS CON LO QUE CAMBIÓ EN LA MESA — LEÉ ESTO PRIMERO\n\n' +
+      'Los documentos de abajo ya estaban consolidados' + (ref && ref.cuando ? ' (' + String(ref.cuando).slice(0, 16).replace('T', ' ') + ')' : '') + '. Después el profesor SIGUIÓ EDITANDO la carta de la Mesa. **Actualizá TODOS los documentos (la Orden y cada anexo) para que digan EXACTAMENTE lo que hoy está en la carta**: las mismas fichas con sus ubicaciones, las áreas con sus nombres y escalones, los límites y las medidas de coordinación con sus nombres y coordenadas, las áreas de empeño; las unidades nuevas entran en la organización de la tarea y en los anexos que correspondan, y las que ya no están en la carta se sacan (o se explica por qué quedan). Lo que no cambió, dejalo como está, y todo sigue coherente entre los documentos.\n\n' +
+      '## LO QUE CAMBIÓ EN LA MESA DESDE LA ÚLTIMA CONSOLIDACIÓN\n' + ((cambios || []).length ? cambios.map(function (c) { return '- ' + c.tipo + ' ' + c.texto }).join('\n') : '- (La Mesa no registra cambios: revisá igual que cada documento diga lo que está dibujado en la carta de abajo.)') + '\n\n' +
+      'Contestá IGUAL que en una revisión de coherencia (las marcas de abajo): en «=== REVISIÓN ===», qué cambiaste en cada documento por cada cambio de la Mesa.\n\n'
+    return t + base
   }
 
   // ─── Las unidades que faltan en la carta ────────────────────────────────────────────
@@ -370,5 +497,6 @@
   }
 
   return { CHEQUEO: CHEQUEO, pedido: pedido, leer: leer, aplicar: aplicar, deshacer: deshacer, estado: estado, pedidoSeguir: pedidoSeguir, porUbicar: porUbicar, aceptar: aceptar, descartar: descartar, idDe: idDe,
-    medidaAOps: medidaAOps, medidasPorDibujar: medidasPorDibujar, aceptarMedidas: aceptarMedidas, descartarMedida: descartarMedida }
+    medidaAOps: medidaAOps, medidasPorDibujar: medidasPorDibujar, aceptarMedidas: aceptarMedidas, descartarMedida: descartarMedida,
+    huella: huella, cambiosMesa: cambiosMesa, estadoMesa: estadoMesa, marcarMesa: marcarMesa, absorber: absorber, pedidoActualizar: pedidoActualizar, trazosTexto: trazosTexto }
 })

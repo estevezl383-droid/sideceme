@@ -276,5 +276,47 @@ const ej = {
     assert.match(txt, /APÉNDICES\t:\tS\/A\./); assert.doesNotMatch(txt, /REFERENCIAS|pendiente/i)
     assert.equal(Object.keys(z.files).filter((k) => /^word\/media\/.+/.test(k)).length, 1, 'con la imagen del calco')
   }
+  // ── 11-10-2026: en el membrete y en la firma sólo la sigla (no «FF.TT.T.O. ()FUERZAS TERRESTRES…») ──
+  const largo = 'FF.TT.T.O. ()FUERZAS TERRESTRES DEL TEATRO DE OPERACIONES'
+  const ejL = { ...ej, ops: { ...ej.ops, unidadConsiderada: { nombre: largo, confirmada: true } }, ordenSup: { unidad: largo } }
+  assert.equal(O.completarConfig(O.vacio('FABBLE 1.1'), ejL, { escalon: 'fftt' }).config.unidad, 'FF.TT.T.O.', 'quien expide: sólo la sigla')
+  const wL = O.cfgWord('ogo', O.conConfig(O.vacio('X'), { unidad: largo, firma: 'EL COMANDANTE DE LAS ' + largo })).cfg
+  assert.deepEqual([wL.unidad, wL.superior, wL.firma], ['FF.TT.T.O.', 'CTO', 'EL COMANDANTE DE LAS FF.TT.T.O.'], 'membrete y firma con la sigla, aunque el profesor la haya escrito larga')
+  assert.equal(O.cfgWord('ogo', O.conConfig(O.vacio('X'), { unidad: largo })).cfg.firma, 'EL COMANDANTE DE LAS FF.TT.T.O.')
+  assert.equal(O.aSpec('calco', '', O.conConfig(O.vacio('X'), { unidad: largo })).preliminares[0].texto, 'Calco de Operaciones anexo a la ORDEN DE OPERACIONES No. 01 de las FF.TT.T.O.')
+
+  // ── 11-10-2026: 🔄 la Mesa cambió después de consolidar → el pedido para refrescar todos los documentos ──
+  const foto = C.marcarMesa(ap.est, ej, '2026-10-11T12:10:00Z')
+  assert.deepEqual(C.estadoMesa(foto, ej).cambios, [], 'recién tomada, sin cambios')
+  assert.deepEqual(C.estadoMesa(O.vacio('X'), ej), { ref: null, cambios: [] }, 'sin foto, no hay con qué comparar')
+  const ej2 = JSON.parse(JSON.stringify(ej))
+  ej2.unidades = ej2.unidades.map((x) => x.designacion === 'CE-II' ? { ...x, lat: x.lat + 0.03 } : x).filter((x) => x.designacion !== 'CE-III')
+  ej2.unidades.push(u('GALM-1', 'artilleria', 'batallon', -18.7, -68.6))
+  ej2.ops.areasOps.push({ id: 'ce3', nombre: 'CE-III', escalon: 'cuerpo', coords: [[-68.9, -18.7], [-68.31, -18.7], [-68.3, -19.0], [-68.9, -19.0]] })
+  ej2.ops.limites.push({ coords: [[-69.2, -18.6], [-68.4, -18.6]], tipo: 'simple', nombre: 'LF ALFA' })
+  ej2.ops.objetivos = []
+  ej2.cmoc = { ae: [{ coords: [[-68.8, -18.8], [-68.7, -18.8], [-68.7, -18.9]] }] }
+  const cam = C.estadoMesa(foto, ej2).cambios.map((x) => x.tipo + ' ' + x.texto)
+  for (const esperado of [/^\+ Área nueva: CE-III \(cuerpo\)/, /^↔ AZUL · CE-II se movió 3,3 km\.$/, /^− Se sacó la ficha AZUL · CE-III\.$/, /^\+ Ficha nueva en la carta: AZUL · GALM-1\.$/,
+    /^\+ Línea o límite nuevo: LF ALFA\.$/, /^− Se sacó el punto 1\.$/, /^\+ Nuevo en el CMOC: área de empeño\.$/])
+    assert.ok(cam.some((x) => esperado.test(x)), 'falta ' + esperado + ' en ' + JSON.stringify(cam))
+  assert.equal(cam.length, 7, JSON.stringify(cam))
+  const pa = C.pedidoActualizar({ ...ctx, escalonId: 'fftt', ogo: foto, ejercicio: ej2 }, C.estadoMesa(foto, ej2).cambios)
+  assert.match(pa, /^# PEDIDO DE TRABAJO PARA LA IA — ACTUALIZAR TODOS LOS DOCUMENTOS CON LO QUE CAMBIÓ EN LA MESA/)
+  assert.match(pa, /## LO QUE CAMBIÓ EN LA MESA[\s\S]*↔ AZUL · CE-II se movió 3,3 km/)
+  assert.match(pa, /=== DOCUMENTO: ogo/); assert.match(pa, /=== DATOS ===/)
+  assert.match(pa, /### Áreas, límites y medidas dibujados \(lat, lng\)\n[\s\S]*- Área CE-III \(cuerpo\)[\s\S]*- LF ALFA: -18\.6, -69\.2 → -18\.6, -68\.4/)
+  assert.doesNotMatch(pa, /REVISIÓN DE COHERENCIA Y DOCUMENTOS CONSOLIDADOS — LEÉ/, 'un solo título')
+  // lo que la IA propuso y el profesor aceptó (paso 12) entra a la foto: no es un cambio (y no se repite)
+  const ej3 = JSON.parse(JSON.stringify(ej)); ej3.unidades.push(u('BAT. LOG. FF.TT.', 'logistica', 'batallon', -18.885, -68.49)); ej3.ops.limites.push({ coords: [[-69.2, -18.6], [-68.4, -18.6]], tipo: 'simple', nombre: 'LF ALFA', origen: 'ogo-ia' })
+  const lf = { limites: [{ coords: [[-69.2, -18.6], [-68.4, -18.6]], tipo: 'simple', nombre: 'LF ALFA', origen: 'ogo-ia' }] }
+  const abs = C.absorber(C.absorber(C.absorber(foto, { fichas: [u('BAT. LOG. FF.TT.', 'logistica', 'batallon', -18.885, -68.49)] }), { capas: lf }), { capas: lf })
+  assert.deepEqual(C.estadoMesa(abs, ej3).cambios, [], 'lo aceptado de la IA no es un cambio')
+  assert.equal(abs.mesaRef.huella.lineas.filter((l) => l.k === 'LF ALFA').length, 1, 'dibujada otra vez después de ↶ Deshacer: no se repite')
+  assert.equal(C.absorber(O.vacio('X'), { capas: lf }).mesaRef, undefined, 'sin foto no hay nada que sumar')
+  const ref2 = C.aplicar(foto, C.leer('=== DOCUMENTO: ogo ===\nOBJETO: actualizado', foto), '2026-10-11T13:00:00Z', ej2)
+  assert.deepEqual(C.estadoMesa(ref2.est, ej2).cambios, [], 'al aplicar, la Mesa de ahora pasa a ser la de los documentos')
+  assert.equal(ref2.est.mesaRef.cuando, '2026-10-11T13:00:00Z')
+
   console.log('ogo-coherencia.cjs OK — identidad (FF.TT.T.O. · CTO · Tunapa · CE-I, CE-II y CE-III), membrete «No. 002/XYZ.» y S/A., coherencia (pedido con ' + pc.length.toLocaleString('es') + ' caracteres, 3 documentos aplicados y vueltos atrás), ' + it.length + ' unidades por ubicar con ✓ Aceptar, calco con ' + d.cuenta.fichas + ' fichas y 2 cruces' + (docx ? '; Word del Anexo A con la imagen' : ''))
 })().catch((e) => { console.error(e); process.exit(1) })

@@ -39,6 +39,16 @@ No. 001/SMM                                   ← correlativo de la sección / i
   riesgo, orientación, intención, guías de planificación, requerimientos críticos, plan de
   búsqueda, listas de blancos, tipo de ensayo, orden de operaciones y anexos).
 
+## Sólo la sigla (11-10-2026)
+
+Lo pidió Sergio con el Word que decía «FF.TT.T.O. ()FUERZAS TERRESTRES DEL TEATRO DE OPERACIONES»: «es sólo
+esto: FF.TT.T.O.». `sinDesarrollo(texto)` saca el desarrollo de una sigla con puntos cuando sus palabras
+empiezan con las letras de la sigla (FF = Fuerzas, TT = Terrestres, T = Teatro, O = Operaciones; «de», «del»…
+no cuentan), entre paréntesis o pegado a un «()», y los «()» vacíos; sin paréntesis, sólo si la sigla tiene 3
+grupos o más (así «C.E. CERCA EL ENEMIGO» no se toca). Lo usan `campos()` (escalón superior y unidad), el Word
+militar (`formato-militar/v1/word.js`: membrete y firma), la firma del Word genérico de la Mesa
+(`index-seleccion-20261011.js`) y la OGO del profesor (la misma regla en `modalidad/ogo-mesa.js`).
+
 ## Dónde se usa
 
 - El Word genérico de la Mesa (`_ie`, `Ex`, `W5e`, `rP`, `f3e` del compilado): ver

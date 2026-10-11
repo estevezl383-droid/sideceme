@@ -47,6 +47,8 @@ function ejercicio() {
       magnitudes: [], flechasZona: [], obstaculos: [], posDef: [], ains: [], objetivos: [], maniobra: [],
       areasOps: [{ id: 'ao-fftt', nombre: 'AO FF.TT.T.O.', coords: ao }, { id: 'ao-ce1', nombre: 'CE-I', coords: ce1 }],
       areaOps: { id: 'ao-ce1', nombre: 'CE-I', coords: ce1, tipo: 'defensiva', ambiente: 'altiplano' }, // la que se cortó con la tijera
+      // 💾 una selección guardada con el lazo (11-10-2026): su contorno es el de cuando se guardó
+      selecciones: [{ id: 'sel-ce1', nombre: 'CE-I GUARDADA', areaId: 'ao-ce1', coords: ce1.map(([x, y]) => [x, y + 0.01]), escalon: 'cuerpo', opciones: { contenido: true, enemigo: false, cmoc: true }, capasCmoc: [], guardada: '2026-10-11T20:00:00.000Z' }],
     },
     ordenSup: { unidad: 'FF.TT.T.O.', numero: '01' },
     resultados: { poblaciones_puntos: { fc: { type: 'FeatureCollection', features: [pob('Tunapa', -68.53, -18.87, 'hamlet', 131), pob('Sabaya', -68.62, -18.63, 'town', 900), pob('Pagador', -68.46, -18.69, 'village', 300), pob('Negrillos', -68.42, -18.89, 'village', 250)] } },
@@ -277,9 +279,51 @@ function ejercicio() {
     assert.ok(e.foto.documentos.length >= 3 && e.opciones.documentosNombres.length === e.foto.documentos.length, 'los documentos elegidos, por nombre')
     assert.ok(e.foto.unidades.some((u) => u.designacion === 'BAT. LOG. FF.TT.'), 'la Mesa como está ahora (con lo colocado)')
     await foto('5-repartir')
+
+    // ── 🔄 la Mesa cambió después de consolidar (11-10-2026): se avisa y se pide a la IA refrescar todo ──
+    // lo que la IA propuso y se aceptó (✓ Aceptar, ✓ Dibujar) ya está en los documentos: no es un cambio
+    assert.match(await page.locator(`${repSel} .sid-mesa`).innerText(), /✓ Los documentos están al día con la Mesa/)
+    // si la carta cambia por fuera del tablero (una ficha nueva), el aviso aparece solo, sin recargar
+    await page.evaluate(() => window.SIDModalidad.puente.agregarUnidades([{ id: 'ri99', bando: 'propias', tipo: 'unidad', designacion: 'RI-99 (FICT.)', arma: 'infanteria', escalon: 'regimiento', lat: -18.6, lng: -68.8 }]))
+    await page.waitForTimeout(400)
+    await page.mouse.click(700, 600)
+    await page.waitForFunction(() => /🔄 La Mesa cambió desde que se consolidaron los documentos[\s\S]*Ficha nueva en la carta: AZUL · RI-99 \(FICT\.\)/.test(document.querySelector('#sid-rep .sid-mesa')?.innerText || ''), null, { timeout: 5000 })
+    const mesa = await page.locator(`${repSel} .sid-mesa`).innerText()
+    assert.doesNotMatch(mesa, /BAT\. LOG\. FF\.TT\.|LF ALFA/, 'lo aceptado de la IA no figura como cambio')
+    await page.locator(`${repSel} [data-a="mesa-pedido"]`).dispatchEvent('click')
+    await page.waitForFunction(() => /ACTUALIZAR TODOS LOS DOCUMENTOS CON LO QUE CAMBIÓ EN LA MESA/.test(document.querySelector('#sid-mod-panel textarea[data-coh-pedido]')?.value || ''), null, { timeout: 8000 })
+    const pAct = await page.locator(`${PANEL} textarea[data-coh-pedido]`).inputValue()
+    assert.match(pAct, /## LO QUE CAMBIÓ EN LA MESA[\s\S]*RI-99 \(FICT\.\)/); assert.match(pAct, /=== DOCUMENTO: ogo · ORDEN DE OPERACIONES No\. 01 ===/)
+    assert.match(pAct, /### Áreas, límites y medidas dibujados[\s\S]*LF ALFA/)
+    assert.match(await page.locator(`${PANEL} [data-a="coh-pedido"]`).innerText(), /🔄 Pedido para refrescar con la Mesa/)
+    await foto('6-refrescar')
+    await page.locator(`${repSel} [data-a="mesa-al-dia"]`).dispatchEvent('click')
+    await page.waitForFunction(() => /✓ Los documentos están al día con la Mesa/.test(document.querySelector('#sid-rep .sid-mesa')?.innerText || ''), null, { timeout: 5000 })
+
+    // ── 💾 una selección guardada, elegida por su nombre, al ciclo ──
+    assert.match(await page.locator(repSel).innerText(), /💾 Tus selecciones guardadas[\s\S]*💾 CE-I GUARDADA \(guardada [^)]*todo lo de adentro\)/)
+    await page.locator(`${repSel} input[data-rep-sel="sel-ce1"]`).check()
+    await page.waitForFunction(() => /Va «CE-I GUARDADA»/.test(document.querySelector('#sid-rep')?.innerText || ''), null, { timeout: 5000 })
+    assert.equal(await page.locator(`${repSel} input[data-rep-area]`).count(), 0, 'con una selección no se eligen áreas a mano')
+    const js = await bajar(`${repSel} [data-a="rep-json"]`)
+    assert.match(js.nombre, /^Seleccion CE-I GUARDADA - para los alumnos\.json$/)
+    const pqs = JSON.parse(js.buf.toString('utf8'))
+    const selCoords = ejercicio().ops.selecciones[0].coords
+    assert.deepEqual(pqs.areas[0].coords, selCoords, 'va el contorno guardado, idéntico al recorte')
+    assert.equal(pqs.seleccion.nombre, 'CE-I GUARDADA')
+    assert.ok(!pqs.contenido.unidades.some((u) => u.bando === 'enemigo'), 'sin las enemigas: la selección no las llevaba')
+    assert.equal(await page.locator(`${repSel} input[data-rep-nombre]`).inputValue(), 'CE-I GUARDADA', 'el envío se llama como la selección')
+    await page.locator(`${repSel} select[data-rep-destino]`).selectOption('ciclo:1ER CICLO')
+    await page.locator(`${repSel} [data-a="rep-enviar"]`).dispatchEvent('click')
+    await page.waitForFunction(() => /Enviado a Todo el 1ER CICLO/.test(document.querySelector('#sid-rep')?.innerText || ''), null, { timeout: 10000 })
+    const e2 = envios[1]
+    assert.deepEqual([e2.nombre, e2.areas, e2.destino.tipo], ['CE-I GUARDADA', ['ao-ce1'], 'ciclo'])
+    assert.deepEqual(e2.foto.ops.areasOps.find((a) => a.id === 'ao-ce1').coords, selCoords, 'la foto lleva el contorno guardado')
+    assert.deepEqual([e2.opciones.contenido, e2.opciones.enemigo, e2.opciones.cmoc], [true, false, false], 'lo que estaba activo al guardarla (sin capas del CMOC a la vista)')
+    await foto('7-seleccion')
     const erroresMesa = errores.filter((m) => !/favicon|ERR_|net::|Failed to load resource/.test(m))
     assert.deepEqual(erroresMesa, [], 'sin errores de consola')
-    console.log('✔ OGO coherencia e2e: membrete (CTO, Tunapa, D-60, 002/XYZ., S/A.), calco gráfico en el Word, pedido y aplicación de la coherencia, unidades con ✓ Aceptar (sin «supuesto»), JSON de la parte elegida y envío por paralelo')
+    console.log('✔ OGO coherencia e2e: membrete (CTO, Tunapa, D-60, 002/XYZ., S/A.), calco gráfico en el Word, pedido y aplicación de la coherencia, unidades con ✓ Aceptar (sin «supuesto»), JSON de la parte elegida y envío por paralelo; 🔄 la Mesa cambió → pedido para refrescar (y el aviso se actualiza solo); 💾 la selección guardada por su nombre al ciclo')
   } catch (err) {
     await foto('error').catch(() => {})
     throw err
