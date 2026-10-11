@@ -193,10 +193,13 @@ y «me parece que el lazo no lo está haciendo bien».
   vez por envío: `envioAreas`; `compartir-modelo.mjs · recibirCmoc`). El compilado le pasa al editor `cmoc`,
   `onCmoc` y `verCapa` (`index-seleccion-20261011.js`).
 - **Servidor**: `construirPaquete` arma `contenido.cmoc` sólo si `opciones.cmoc` y de las capas de
-  `opciones.capasCmoc` (un cliente viejo no lo pide); `compartir.mjs` pasa `foto.cmoc`. **Falta publicar
-  calco-ops (v10)** con `compartir.mjs`, `compartir-modelo.mjs`, `modelo.mjs` y `recorte.mjs` (imports
-  aplanados, sin `?v=`, JWT OFF, como la v9): hasta entonces, lo compartido por la aplicación llega con todo
-  menos el CMOC (el ⬇️ JSON sí lo lleva).
+  `opciones.capasCmoc` (un cliente viejo no lo pide); `compartir.mjs` pasa `foto.cmoc`. **Publicado el
+  11-10-2026 (con el permiso de Sergio): calco-ops v10** en SIDECEME-V2 con `index.ts` (sin cambios),
+  `compartir.mjs`, `compartir-modelo.mjs`, `modelo.mjs` y `recorte.mjs`, con los imports aplanados
+  (`./compartir-modelo.mjs`, `./modelo.mjs`, `./recorte.mjs`, sin `?v=` y sin el comentario del `?v=` de
+  `modelo.mjs`, como la v9), JWT OFF como estaba. Antes se comprobó que la v9 desplegada era, archivo por
+  archivo, la de este repositorio (nada del servidor quedaba afuera) y después que los cinco archivos de la v10
+  son idénticos a los de acá. Sin migración: no cambia ninguna tabla.
 - **Caché**: los módulos se importan con `?v=seleccion20261011`.
 
 Pruebas: `node calcos/pruebas/areas-seleccion.mjs`, `node calcos/pruebas/e2e/areas-seleccion.cjs` (la Mesa en

@@ -39,6 +39,8 @@ FF.TT.T.O.»; y «tomá en cuenta hasta lo último: yo puedo seguir editando… 
   aviso de versión, paneles, autoguardado, edición y trazos.
 - **Si se recompila desde el fuente**: llevar al panel de áreas `cmoc`/`onCmoc`/`verCapa`, la lista de las
   AE en «Qué se ve en el calco» (con sus conteos) y el rótulo numerado, y `sinDesarrollo` en la firma.
+- **Servidor**: calco-ops **v10** publicada el 11-10-2026 (el CMOC a la vista viaja también por la aplicación;
+  ver `areas-operaciones/README.md`).
 
 ## 2026-10-11 (tarde) — 📐 Las medidas de la IA se dibujan solas (`index-medidas-20261011.js`)
 
