@@ -10,7 +10,7 @@
 // Quién puede qué:
 //   - Personal con 'sub_ef' en rol o roles[] (Tcnl. Aguirre P019, My. Linares
 //     P020): cargar · publicar · retirar · eliminar_borrador · listar ·
-//     detalle · corregir · historial · panel_ef
+//     detalle · corregir · aprobar_postergacion · historial · panel_ef
 //   - Cualquier profesor activo: evaluaciones_de (ficha EFM de un cursante, solo lectura)
 //   - Cursante (sesión de cursante): mis_evaluaciones · mis_conformidades · resolver — siempre
 //     sobre SUS filas (cursante_id sale de la sesión, nunca del body).
@@ -182,22 +182,36 @@ function soloCampos(row: any): Record<string, string | null> {
 }
 
 // Vuelve la conformidad a 'pendiente' (la firma vieja no vale para otro número).
-async function reabrirConformidad(efmId: number, nota: string | null) {
+async function reabrirConformidad(efmId: number, nota: string | null, completar = false, actor: any = null) {
+  const { data: anterior, error: errorAnterior } = await sb.from("efm_confirmaciones").select("estado, postergacion").eq("efm_id", efmId).maybeSingle();
+  if (errorAnterior) throw new Error("No se pudo leer la conformidad");
+  if (!anterior || (anterior.estado === "postergada" && !completar)) return;
   const now = new Date().toISOString();
-  await sb.from("efm_confirmaciones").update({
+  const { data: actualizada, error } = await sb.from("efm_confirmaciones").update({
     estado: "pendiente", nota_final: nota, firma_cursante: null, confirmada_en: null,
+    ...(anterior?.estado === "postergada" ? { postergacion: { ...anterior.postergacion, cerrada_en: now, cerrada_por: actor?.id, cerrada_por_nombre: actor?.nombre } } : {}),
     observacion_cursante: null, huella_forense: null, publicado_en: now, actualizado_en: now,
-  }).eq("efm_id", efmId);
+  }).eq("efm_id", efmId).eq("estado", anterior.estado).select("efm_id").maybeSingle();
+  if (error || !actualizada) throw new Error("No se pudo reabrir la conformidad; revisa el estado antes de continuar");
 }
 
 async function contarConformidades(efmIds: number[]) {
   const est: Record<string, string> = {};
   for (let i = 0; i < efmIds.length; i += 300) {
-    const { data } = await sb.from("efm_confirmaciones").select("efm_id, estado")
+    const { data, error } = await sb.from("efm_confirmaciones").select("efm_id, estado")
       .in("efm_id", efmIds.slice(i, i + 300));
+    if (error) throw new Error("No se pudo leer el estado EFM");
     for (const r of data || []) est[String(r.efm_id)] = r.estado;
   }
   return est;
+}
+
+// Fuera del editor, una nota parcial no debe entrar en promedios ni reportes.
+async function conEstado(rows: any[]) {
+  const estados = await contarConformidades(rows.map((r: any) => r.efm_id).filter((id: any) => id != null));
+  return rows.map((r: any) => estados[String(r.efm_id)] === "postergada"
+    ? { ...r, nota_final_parcial: r.nota_final, nota_final: null, conformidad_estado: "postergada" }
+    : { ...r, conformidad_estado: estados[String(r.efm_id)] || null });
 }
 
 Deno.serve(async (req) => {
@@ -228,12 +242,12 @@ Deno.serve(async (req) => {
             .eq("cursante_id", curId).or("publicado.is.null,publicado.eq.true")
             .order("tipo_evaluacion", { ascending: true });
           if (error) return json({ ok: false, error: "No se pudo leer tus notas EFM" }, 500);
-          return json({ ok: true, evaluaciones: sinPassword(data || []) });
+          return json({ ok: true, evaluaciones: await conEstado(sinPassword(data || [])) });
         }
 
         case "mis_conformidades": {
           const { data, error } = await sb.from("efm_confirmaciones")
-            .select("id, efm_id, gestion, semestre, ciclo, tipo_evaluacion, nota_final, estado, publicado_en, confirmada_en, observacion_cursante")
+            .select("id, efm_id, gestion, semestre, ciclo, tipo_evaluacion, nota_final, estado, publicado_en, confirmada_en, observacion_cursante, postergacion")
             .eq("cursante_id", curId)
             .order("publicado_en", { ascending: false })
             .limit(50);
@@ -299,7 +313,7 @@ Deno.serve(async (req) => {
         .eq("cursante_id", cid).or("publicado.is.null,publicado.eq.true")
         .order("tipo_evaluacion", { ascending: true });
       if (error) return json({ ok: false, error: "No se pudo leer las notas EFM" }, 500);
-      return json({ ok: true, evaluaciones: sinPassword(data || []) });
+      return json({ ok: true, evaluaciones: await conEstado(sinPassword(data || [])) });
     }
 
     // ===================== PLANILLAS EFM (Sección EF + evaluadores de ciclo) =====================
@@ -317,7 +331,7 @@ Deno.serve(async (req) => {
       if (!esEf && cicloEv) q = q.eq("ciclo", cicloEv);
       const { data, error } = await q;
       if (error) return json({ ok: false, error: "No se pudo leer las notas EFM" }, 500);
-      const filas = sinPassword(data || []);
+      const filas = await conEstado(sinPassword(data || []));
       const est = await contarConformidades(filas.map((r: any) => r.efm_id).filter((x: any) => x != null));
       return json({
         ok: true, ciclo_fijo: esEf ? null : cicloEv,
@@ -336,7 +350,7 @@ Deno.serve(async (req) => {
       case "panel_ef": {
         const { data, error } = await sb.from("evaluaciones_fisicas").select("*").limit(5000);
         if (error) return json({ ok: false, error: "No se pudo leer las notas EFM" }, 500);
-        return json({ ok: true, evaluaciones: sinPassword(data || []) });
+        return json({ ok: true, evaluaciones: await conEstado(sinPassword(data || [])) });
       }
 
       // Resumen de todas las evaluaciones cargadas por la plataforma.
@@ -352,7 +366,7 @@ Deno.serve(async (req) => {
           const g = grupos[k] ||= {
             gestion: r.gestion, semestre: r.semestre, ciclo: r.ciclo, tipo_evaluacion: r.tipo_evaluacion,
             total: 0, publicadas: 0, borrador: 0, normal: 0, excelencia: 0,
-            pendiente: 0, confirmada: 0, rechazada: 0,
+            pendiente: 0, confirmada: 0, rechazada: 0, postergada: 0,
           };
           g.total++;
           if (r.publicado === true) g.publicadas++; else g.borrador++;
@@ -489,7 +503,7 @@ Deno.serve(async (req) => {
         const conf: Record<string, any> = {};
         for (let i = 0; i < ids.length; i += 300) {
           const { data: cs } = await sb.from("efm_confirmaciones")
-            .select("efm_id, estado, observacion_cursante, confirmada_en, publicado_en")
+            .select("efm_id, estado, observacion_cursante, confirmada_en, publicado_en, postergacion")
             .in("efm_id", ids.slice(i, i + 300));
           for (const c of cs || []) conf[String(c.efm_id)] = c;
         }
@@ -562,6 +576,26 @@ Deno.serve(async (req) => {
         return json({ ok: true, eliminadas: filas.length });
       }
 
+      // La aprobación administrativa no altera las marcas ni suplanta la firma.
+      case "aprobar_postergacion": {
+        const efmId = entero(body.efm_id);
+        const motivo = txt(body.motivo, 1000);
+        if (!efmId || !motivo || motivo.length < 5) return json({ ok: false, error: "Indica la evaluacion y el respaldo de la postergacion" }, 400);
+        const { data: ev } = await sb.from("evaluaciones_fisicas").select("efm_id, carga_id, publicado").eq("efm_id", efmId).maybeSingle();
+        if (!ev || ev.carga_id == null || ev.publicado !== true) return json({ ok: false, error: "Solo se puede postergar una evaluacion publicada por la plataforma" }, 409);
+        const { data: conf } = await sb.from("efm_confirmaciones").select("*").eq("efm_id", efmId).maybeSingle();
+        if (!conf || !["rechazada", "pendiente"].includes(conf.estado)) return json({ ok: false, error: "Esta evaluacion ya fue resuelta" }, 409);
+        const now = new Date().toISOString();
+        const { data: actualizada, error } = await sb.from("efm_confirmaciones").update({
+          estado: "postergada", actualizado_en: now,
+          postergacion: { motivo, aprobada_en: now, por_id: prof.id, por_nombre: profNombre,
+            estado_previo: conf.estado, observacion_cursante: conf.observacion_cursante },
+        }).eq("efm_id", efmId).eq("estado", conf.estado).select("efm_id").maybeSingle();
+        if (error) return json({ ok: false, error: "No se pudo aprobar la postergacion" }, 500);
+        if (!actualizada) return json({ ok: false, error: "El estado cambio; actualiza la pantalla" }, 409);
+        return json({ ok: true });
+      }
+
       // Corrige una fila (reclamo pertinente). Queda en la bitácora.
       case "corregir": {
         const efmId = entero(body.efm_id);
@@ -577,11 +611,15 @@ Deno.serve(async (req) => {
         if (prev.carga_id == null) {
           return json({ ok: false, error: "Esta nota es historica (no se cargo por la plataforma) y no se modifica desde aca" }, 403);
         }
-        if (!difiere(prev, lv.v)) return json({ ok: false, error: "Los valores son iguales a los actuales" }, 400);
+        if (!difiere(prev, lv.v) && body.completar_postergacion !== true) return json({ ok: false, error: "Los valores son iguales a los actuales" }, 400);
         const antes: Record<string, unknown> = {};
         for (const k of Object.keys(lv.v)) antes[k] = prev[k] ?? null;
         const { data: confPrev } = await sb.from("efm_confirmaciones")
-          .select("estado, observacion_cursante, confirmada_en").eq("efm_id", efmId).maybeSingle();
+          .select("estado, observacion_cursante, confirmada_en, postergacion").eq("efm_id", efmId).maybeSingle();
+        if (body.completar_postergacion === true) {
+          if (confPrev?.estado !== "postergada") return json({ ok: false, error: "No hay postergacion pendiente" }, 409);
+          if (!("nota_final" in lv.v) || lv.v.nota_final === null) return json({ ok: false, error: "Ingresa la nota final del examen rendido" }, 400);
+        }
         if (confPrev) antes._conformidad_previa = confPrev;
         const { error: eU } = await sb.from("evaluaciones_fisicas")
           .update({ ...lv.v, actualizado_en: new Date().toISOString() }).eq("efm_id", efmId);
@@ -590,8 +628,8 @@ Deno.serve(async (req) => {
           efm_id: efmId, cursante_id: prev.cursante_id, origen: "correccion",
           antes, despues: lv.v, motivo, por_id: prof.id, por_nombre: profNombre,
         });
-        if (confPrev) await reabrirConformidad(efmId, "nota_final" in lv.v ? lv.v.nota_final : prev.nota_final);
-        return json({ ok: true, reabierta: !!confPrev });
+        if (confPrev) await reabrirConformidad(efmId, "nota_final" in lv.v ? lv.v.nota_final : prev.nota_final, body.completar_postergacion === true, { id: prof.id, nombre: profNombre });
+        return json({ ok: true, reabierta: !!confPrev && (confPrev.estado !== "postergada" || body.completar_postergacion === true) });
       }
 
       case "historial": {
