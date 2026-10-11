@@ -60,9 +60,10 @@ const fx = (n) => fs.readFileSync(path.join(__dirname, 'fixtures', n))
   assert.match(res, /RCB-1 \(blindada, regimiento\): 520 H; armamento: PISTOLA 9 mm 57/); assert.match(res, /\(Organización \(propia o enemiga\), ROJO\)/)
   assert.doesNotMatch(res, /NO VA/); assert.ok(res.length < 21000, 'recortado: ' + res.length)
 
-  // El pedido de la OGO lleva la biblioteca y la regla de usarla.
-  const p = IA.armarPedido(CAT.PROFESOR.find((x) => x.ogo), { escalon: CAT.ESCALONES[1], foco: IA.focoDe('g2'), ejercicio: { nombre: 'DIAMANTE' }, biblioteca: [dCoe, dOrg] })
-  assert.match(p, /BIBLIOTECA DEL PROFESOR/); assert.match(p, /### Biblioteca del profesor[\s\S]*COE de la DIV MEC-1 — efectivo total 3805/)
+  // El pedido de la OGO (cada documento, ogo.js) lleva la biblioteca y la regla de usarla.
+  const OGO = require('../modalidad/ogo.js')
+  const p = OGO.pedido('ogo', { escalon: CAT.ESCALONES[1], foco: IA.focoDe('g2'), ogo: OGO.vacio('DIAMANTE'), ejercicio: { nombre: 'DIAMANTE' }, biblioteca: [dCoe, dOrg] })
+  assert.match(p, /BIBLIOTECA DEL PROFESOR/); assert.match(p, /ADECUADAS a este ejercicio/); assert.match(p, /### Biblioteca del profesor[\s\S]*COE de la DIV MEC-1 — efectivo total 3805/)
   assert.match(IA.armarPedido(CAT.PROFESOR[5], { biblioteca: [dCoe] }), /usá ESAS unidades/)
 
   // Lo que ve el navegador: el worker de pdf.js que se usa para leer los PDF existe.

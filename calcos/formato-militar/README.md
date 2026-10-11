@@ -87,3 +87,12 @@ Verificación: `node calcos/pruebas/oca-militar.cjs` (admite una especificación
 La F2·P9 se arma en `calcos/reconocimiento/v1` y llega con `estructuraPropia: true`: se exporta tal cual (no pasa por `aplicarPlantilla` ni por la asignación de apartados del diálogo), con su número y su distribución. `word.js` admite, sin cambiar los demás documentos: `organizacion` (el cuadro de ORGANIZACIÓN DE LA TAREA después de OBJETO/CARTA/ANEXOS, en filas de hasta cuatro equipos, Arial 10, con bordes), nodos `item` (incisos numerados con la numeración de la Mesa, sin negrilla, estilos `MilitarInciso1..6`) y `vinetas` (guiones con sangría francesa debajo del texto). `runtime.js` exporta `vistaMilitar` (el mismo Word, sin descargar ni registrar) y `mostrarDocx`. El OBJETO breve ya no se corta en «AO.», «LF.», «PC.»… delante de un nombre en mayúsculas y el membrete no repite «CG.» si el puesto de mando ya lo trae.
 
 Verificación: `node calcos/pruebas/reconocimiento.cjs` y `node calcos/pruebas/e2e/reconocimiento.cjs`.
+
+### La OGO del profesor y «AL PLAN» (11-10-2026)
+
+`word.js` también arma los Word de la 📜 OGO completa con sus anexos del tablero del profesor
+(`calcos/modalidad/ogo.js`): el tablero lo importa con su propio `?v=` y lo configura con las mismas
+clases de docx del compilado (`window.SIDMilLib`, ver `CAMBIOS-EN-EL-COMPILADO.md`), así que el
+formato es el mismo de todos los documentos. Único cambio en `word.js`: el título de un anexo cuyo
+padre es un PLAN dice «AL PLAN DE OPERACIONES …» (antes «A LA PLAN…»); con una ORDEN sigue «A LA
+ORDEN…». Prueba: `node calcos/pruebas/ogo.cjs`.

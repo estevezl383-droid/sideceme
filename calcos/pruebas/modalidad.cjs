@@ -76,21 +76,26 @@ for (const [k, S] of Object.entries(CAT.SECCIONES)) {
 }
 
 CAT.PROFESOR.forEach((p, i) => {
-  assert.equal(p.n, i + 1)
-  assert.ok(p.ia && p.ia.tit && (p.ia.pide || p.ogo), `paso ${p.n} del profesor con su pedido a la IA`)
+  assert.equal(p.ver || p.n, i + 1, 'el número que se ve va en orden')
+  assert.ok(p.ogoFinal || (p.ia && p.ia.tit && p.ia.pide), `paso ${p.ver || p.n} del profesor con su pedido a la IA (o la OGO por documento)`)
   ;(p.abrir || []).forEach((a) => { if (a.h) assert.ok(CAT.HERRAMIENTAS[a.h], `herramienta ${a.h}`); else assert.ok(CAT.SECCIONES[a.s]) })
 })
-assert.equal(CAT.PROFESOR.length, 10)
+assert.equal(CAT.PROFESOR.length, 11)
+assert.equal(new Set(CAT.PROFESOR.map((p) => p.n)).size, 11, 'claves únicas (lo marcado y la carpeta van por `n`)')
+assert.deepEqual(CAT.PROFESOR.slice(-2).map((p) => [p.n, p.ver]), [[11, 10], [10, 11]], 'la OGO va antes de repartir; «Repartir» conserva su clave 10')
 assert.ok(CAT.PROFESOR.some((p) => p.escalon))
 assert.ok(/CMOC/.test(CAT.PROFESOR[3].nom) && /calcos/i.test(CAT.PROFESOR[2].nom), 'el CMOC va después de los calcos')
 assert.deepEqual(CAT.PROFESOR[3].abrir.map((a) => a.h), ['cmoc', 'analisisIA'])
-assert.equal(CAT.PROFESOR.filter((p) => p.ogo).length, 1, 'un solo paso saca la OGO con anexos')
+assert.equal(CAT.PROFESOR.filter((p) => p.ogoFinal).length, 1, 'un solo paso saca la OGO con anexos (al final)')
+assert.equal(CAT.PROFESOR.filter((p) => p.ogo).length, 0, 'ya no hay un pedido único de la OGO entera')
 assert.ok(CAT.PROFESOR.find((p) => p.organizaciones), 'el paso de unidades inserta organizaciones')
 assert.ok(/btn-cmoc-abrir/.test(js) && /"🪖 CMOC"/.test(js), 'el editor CMOC tiene su botón en el compilado')
 assert.deepEqual(CAT.FOCOS.map((f) => f.id), ['pmtd', 'g1', 'g2', 'g3', 'g4', 'g5'])
 CAT.FOCOS.forEach((f) => { assert.ok(f.nom && f.pide && f.deja, `foco ${f.id}`); f.secs.forEach((s) => assert.ok(CAT.SECCIONES[s])) })
-assert.equal(CAT.ANEXOS_OGO.length, 8)
-CAT.ANEXOS_OGO.forEach((a) => assert.ok(CAT.SECCIONES[a.sec]))
+const MODS = require('../modalidad/ogo-modelos.js')
+MODS.DOCS.forEach((d) => assert.ok(CAT.SECCIONES[d.sec], `documento ${d.id}: sección ${d.sec}`))
+for (const f of ['ogo-modelos.js', 'ogo.js']) { assert.match(html, new RegExp('modalidad/' + f.replace('.', '\\.'))); new vm.Script(fs.readFileSync(path.join(RAIZ, 'modalidad', f), 'utf8')) }
+assert.ok(html.indexOf('modalidad/ia-profesor.js') < html.indexOf('modalidad/ogo.js') && html.indexOf('modalidad/ogo.js') < html.indexOf('modalidad/modalidad.js'), 'ogo.js después de ia-profesor.js y antes de modalidad.js')
 assert.match(html, /modalidad\/ia-profesor\.js/)
 new vm.Script(fs.readFileSync(path.join(RAIZ, 'modalidad/ia-profesor.js'), 'utf8'))
 // la carpeta del profesor se carga ANTES de la IA (ia-profesor.js la usa) y de modalidad.js

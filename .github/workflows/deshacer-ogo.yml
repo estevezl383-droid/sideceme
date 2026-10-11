@@ -1,0 +1,61 @@
+name: Deshacer con las fichas y la OGO completa
+on:
+  pull_request:
+    paths:
+      - 'calcos/modalidad/**'
+      - 'calcos/formato-militar/v1/word.js'
+      - 'calcos/index.html'
+      - 'calcos/assets/index-deshacer-20261011.js'
+      - 'calcos/pruebas/reemplazos-2026-10-11-deshacer.js'
+      - 'calcos/pruebas/construir-deshacer.js'
+      - 'calcos/pruebas/ogo.cjs'
+      - 'calcos/pruebas/fixtures/ogo-*.md'
+      - 'calcos/pruebas/e2e/deshacer.cjs'
+      - 'calcos/pruebas/e2e/ogo.cjs'
+      - '.github/workflows/deshacer-ogo.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preparar docx y navegador
+        run: |
+          npm ci --prefix calcos/pruebas
+          npm install --prefix /tmp/prueba-ogo docx@9.5.1 playwright@1.51.1
+          node /tmp/prueba-ogo/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Motor de la OGO, catálogo y reversibilidad del compilado
+        env:
+          DOCX_MODULE: /tmp/prueba-ogo/node_modules/docx
+        run: |
+          node --check calcos/assets/index-deshacer-20261011.js
+          node --check calcos/modalidad/ogo.js
+          node --check calcos/modalidad/ogo-modelos.js
+          node --check calcos/modalidad/modalidad.js
+          node calcos/pruebas/ogo.cjs
+          node calcos/pruebas/modalidad.cjs
+          node calcos/pruebas/ia-profesor.cjs
+          node calcos/pruebas/biblioteca.cjs
+          node calcos/pruebas/reemplazos-compilado.js
+      - name: La Mesa real en Chromium
+        env:
+          PLAYWRIGHT_MODULE: /tmp/prueba-ogo/node_modules/playwright
+        run: |
+          node calcos/pruebas/e2e/deshacer.cjs
+          node calcos/pruebas/e2e/ogo.cjs
+          node calcos/pruebas/e2e/modalidad.cjs
+          node calcos/pruebas/e2e/carpeta-profesor.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: revision-deshacer-ogo
+          path: |
+            calcos/pruebas/salidas-deshacer/
+            calcos/pruebas/salidas-ogo/
+          retention-days: 7

@@ -1,5 +1,5 @@
-// 🤖 La IA del profesor (calcos/modalidad/ia-profesor.js): los pedidos de cada paso, la OGO con
-// todos sus anexos según el foco, y las fichas de las organizaciones tipo y del JSON de la IA
+// 🤖 La IA del profesor (calcos/modalidad/ia-profesor.js): los pedidos de cada paso (lo esencial de
+// la Orden en el paso 5; la OGO completa la arma ogo.js, ver ogo.cjs), y las fichas de las organizaciones tipo y del JSON de la IA
 // (armas y escalones del catálogo del compilado publicado).
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -46,25 +46,28 @@ assert.throws(() => IA.fichasDeJSON('nada'), /JSON/)
 // Los pedidos: cabecera con escalón y foco, la tarea del paso, el contexto, el recordatorio.
 const ej = { nombre: 'COSA', mision: 'Atacar para conquistar…', ordenSup: { unidad: 'C.E. 2', mision: 'La misión del CE' }, documentos: [{ nombre: 'Situación general', texto: 'x'.repeat(9000) }], unidades: ce }
 const ctx = { escalon: CAT.ESCALONES[0], foco: IA.focoDe('g4'), ejercicio: ej, unidades: ce.concat(rojo), centro }
-const ogo = IA.armarPedido(CAT.PROFESOR.find((p) => p.ogo), ctx)
+// El paso 5 pide LO ESENCIAL de la Orden (los campos de «Mesa · Preparación»); la OGO completa con
+// sus anexos ya no sale de un solo pedido: la arma ogo.js en el paso final (ver ogo.cjs).
+const p5 = CAT.PROFESOR.find((p) => p.n === 5)
+const ogo = IA.armarPedido(p5, ctx)
 assert.ok(ogo.startsWith('# PEDIDO DE TRABAJO PARA LA IA'))
 assert.match(ogo, /Comandante de las FF\.TT\./); assert.match(ogo, /Comandantes de Cuerpo de Ejército/)
-assert.match(ogo, /ORDEN GENERAL DE OPERACIONES \(OGO\)/)
-for (const a of CAT.ANEXOS_OGO) assert.ok(ogo.includes(`Anexo ${a.letra} — ${a.nom}`), `anexo ${a.letra}`)
-assert.match(ogo, /Anexo D — [^\n]*ES EL CAMPO QUE SE ENTRENA/)
-assert.doesNotMatch(ogo, /Anexo A — [^\n]*ES EL CAMPO QUE SE ENTRENA/)
+assert.match(ogo, /LA TAREA: Lo esencial de la Orden del superior/)
+for (const c of ['Escalón superior', 'N° de la Orden', 'Unidad considerada', 'Puesto de Mando', 'Fuerzas enemigas \\(I\\.A\\)', 'Misión \\(II\\)', 'Intención del Comandante \\(III\\)', 'Prioridad de apoyo \\(IV\\.A\\)', 'Vigencia']) assert.match(ogo, new RegExp(c), c)
+assert.match(ogo, /se arma en el paso 10/)
 assert.match(ogo, /G-4 · Logística/); assert.match(ogo, /PARA EL PROFESOR/)
 assert.match(ogo, /# CONTEXTO DEL EJERCICIO/); assert.match(ogo, /Nombre: COSA/); assert.match(ogo, /"mision": "La misión del CE"/)
 assert.match(ogo, /ROJO · Cmdo\. D\.I\. 7 · infanteria · division/)
 assert.match(ogo, /recortado: 3000 caracteres más/)
 assert.ok(ogo.length < 30000, 'con este ejercicio chico el pedido es corto: ' + ogo.length)
-// con el PMTD completo ningún anexo se marca como campo entrenado
-assert.doesNotMatch(IA.armarPedido(CAT.PROFESOR.find((p) => p.ogo), { ...ctx, foco: IA.focoDe('pmtd') }), /ES EL CAMPO QUE SE ENTRENA/)
+assert.ok(!CAT.PROFESOR.some((p) => p.ogo), 'ningún paso pide la OGO entera de un solo saque')
+const pOgo = CAT.PROFESOR.filter((p) => p.ogoFinal)
+assert.equal(pOgo.length, 1, 'un paso final arma la OGO completa'); assert.ok(!pOgo[0].ia, 'sin pedido genérico: tiene el suyo por documento')
 // cada paso tiene su pedido; el de unidades trae el formato de las fichas; el del CMOC pide avenidas
-for (const p of CAT.PROFESOR) {
+for (const p of CAT.PROFESOR.filter((x) => x.ia)) {
   const t = IA.armarPedido(p, ctx)
   assert.ok(t.includes('## LA TAREA'), `paso ${p.n}`)
-  assert.ok(t.includes(`Paso del armado:** ${p.n} ·`))
+  assert.ok(t.includes(`Paso del armado:** ${p.ver || p.n} ·`))
   assert.ok(t.trim().endsWith(`el ejercicio entrena ${ctx.foco.nom}.`))
 }
 assert.match(IA.armarPedido(CAT.PROFESOR[5], ctx), /FORMATO DE LAS FICHAS[\s\S]*"escalon":"division"/)
@@ -114,11 +117,10 @@ assert.match(IA.armarPedido(CAT.PROFESOR[3], ctx), /todavía no hay nada dibujad
 const CARP = require('../modalidad/carpeta.js')
 const RESP = fs.readFileSync(path.join(__dirname, 'respuesta-cmoc-profesor.md'), 'utf8')
 const carpeta = CARP.poner(CARP.vacia('COSA'), CAT.PROFESOR[3], RESP, { ahora: '2026-10-10T21:40:00Z' })
-const ogoCar = IA.armarPedido(CAT.PROFESOR.find((p) => p.ogo), { ...ctx, carpeta })
+const ogoCar = IA.armarPedido(p5, { ...ctx, carpeta })
 assert.match(ogoCar, /### CARPETA DEL PROFESOR: lo que ya resolvió con la IA[\s\S]*#### Paso 4 · CMOC: avenidas de aproximación y terreno clave \(🔒 SOLUCIÓN DEL PROFESOR · guardado \d\d\/10\/2026/)
 assert.match(ogoCar, /AA-E 2 "SUR"/); assert.match(ogoCar, /Punto crítico a evaluar/)
-assert.match(ogoCar, /el párrafo 1\.a y el Anexo A \(Inteligencia\) toman de ahí/)
 assert.doesNotMatch(IA.armarPedido(CAT.PROFESOR[3], { ...ctx, carpeta }), /### CARPETA DEL PROFESOR/, 'el paso 4 no lleva su propia respuesta')
 assert.match(IA.armarPedido(CAT.PROFESOR[6], { ...ctx, carpeta }), /CARPETA DEL PROFESOR, paso 4[\s\S]*AA-E 1 "NORTE"/, 'los CAE salen de las avenidas guardadas')
 
-console.log(`ia-profesor.cjs OK — ${CAT.PROFESOR.length} pedidos, ${CAT.ORGANIZACIONES.length} organizaciones (${CAT.ORGANIZACIONES.reduce((n, o) => n + o.piezas.length, 0)} fichas), OGO con ${CAT.ANEXOS_OGO.length} anexos; el pedido de la OGO de prueba mide ${ogo.length} caracteres`)
+console.log(`ia-profesor.cjs OK — ${CAT.PROFESOR.filter((p) => p.ia).length} pedidos, ${CAT.ORGANIZACIONES.length} organizaciones (${CAT.ORGANIZACIONES.reduce((n, o) => n + o.piezas.length, 0)} fichas); el pedido de lo esencial de la Orden mide ${ogo.length} caracteres`)

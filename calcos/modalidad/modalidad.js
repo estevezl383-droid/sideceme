@@ -20,7 +20,7 @@
    «Mesa completa» no cambia nada. */
 (function () {
   'use strict'
-  var CAT = window.SIDModalidadCatalogo, IA = window.SIDIAProfesor, BIB = window.SIDBiblioteca, CARP = window.SIDCarpetaProfesor
+  var CAT = window.SIDModalidadCatalogo, IA = window.SIDIAProfesor, BIB = window.SIDBiblioteca, CARP = window.SIDCarpetaProfesor, OGO = window.SIDOgo
   if (!CAT) return
   var K_MODO = 'sid_modalidad', K_HECHO = 'sid_mod_hecho', K_FASE = 'sid_mod_fase', K_ESC = 'sid_mod_escalon', K_PLEGADO = 'sid_mod_plegado', K_FOCO = 'sid_mod_foco'
   var MODOS = [
@@ -38,6 +38,9 @@
   var foco = 'pmtd', iaPaso = 0, iaTexto = '', aviso = {}, puente = null // puente: lo último que la Mesa le mandó a MesaAcademica.sincronizar (ejercicio, fichas, centro, agregarUnidades)
   // 📕 la carpeta del profesor del ejercicio abierto (IndexedDB «sid-profesor»): las respuestas de la IA de cada paso
   var carpeta = CARP ? CARP.vacia('') : null, carpetaDe = null, verCarpeta = false, carVer = 0, carVista = 0, borrador = {}
+  // 📜 la OGO completa del ejercicio abierto (IndexedDB «sid-profesor-ogo»): sus datos y lo que contestó la IA de cada documento
+  var ogo = OGO ? OGO.vacio('') : null, ogoDe = null, ogoVer = 0, ogoAbierto = '', ogoPedido = '', ogoPedidoDe = 'pedido', ogoRev = null, ogoRevDoc = {}, ogoCache = {}, ogoBorr = {}, verOgoDatos = false
+  var ogoEjUlt = null // el último ejercicio leído de la Mesa: lo de «Mesa · Preparación» se muestra como sugerencia en los datos de la Orden
 
   function lee(k, d) { try { var v = localStorage.getItem(k); return v == null ? d : v } catch (e) { return d } }
   function guarda(k, v) { try { localStorage.setItem(k, v) } catch (e) {} }
@@ -142,7 +145,7 @@
     var MA = window.MesaAcademica
     if (!MA || MA.__sidModalidad) return
     var orig = MA.sincronizar
-    MA.sincronizar = function (p) { puente = p || null; setTimeout(carRevisar, 0); return orig.apply(this, arguments) }
+    MA.sincronizar = function (p) { puente = p || null; setTimeout(function () { carRevisar(); ogoRevisarCarga() }, 0); return orig.apply(this, arguments) }
     MA.__sidModalidad = true
   }
   function centroMesa() { try { var c = puente && (typeof puente.centro === 'function' ? puente.centro() : puente.centro); return c && isFinite(c.lat) ? c : null } catch (e) { return null } }
@@ -161,6 +164,7 @@
   function escalonDe(id) { for (var i = 0; i < CAT.ESCALONES.length; i++) if (CAT.ESCALONES[i].id === id) return CAT.ESCALONES[i]; return CAT.ESCALONES[1] }
   function focoDe(id) { for (var i = 0; i < CAT.FOCOS.length; i++) if (CAT.FOCOS[i].id === id) return CAT.FOCOS[i]; return CAT.FOCOS[0] }
   function pasoProfesor(n) { for (var i = 0; i < CAT.PROFESOR.length; i++) if (CAT.PROFESOR[i].n === n) return CAT.PROFESOR[i]; return null }
+  function verDe(n) { var p = pasoProfesor(n); return p && p.ver ? p.ver : n } // el número que se muestra
 
   // ---------- la IA del profesor ----------
   // El compilado manda por el puente el NOMBRE del ejercicio abierto (no sus datos). Los datos (la
@@ -246,12 +250,12 @@
   function nombreArchivo(p) { return 'pedido-ia-profesor-' + p.n + '-' + p.nom.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) + '.md' }
   function htmlIA(p) {
     var ia = p.ia || {}, abierto = iaPaso === p.n, guardada = CARP && carpeta && carpeta.pasos && carpeta.pasos[p.n]
-    var h = '<div class="ia' + (p.ogo ? ' ogo' : '') + '">' +
+    var h = '<div class="ia">' +
       '<button type="button" class="ia-btn" data-ia-paso="' + p.n + '" aria-expanded="' + abierto + '" title="Arma el pedido a la IA con lo que ya hay en el ejercicio (escalón, campo que se entrena, Orden, fichas, documentos). Se copia o se baja y se le da a ChatGPT, Gemini o Claude.">' +
-      (p.ogo ? '🤖 OGO con todos sus anexos (IA)' : '🤖 IA: ' + esc(ia.tit || p.nom)) + (guardada ? ' · 📕✓' : '') + (abierto ? ' ▴' : ' ▸') + '</button>'
+      '🤖 IA: ' + esc(ia.tit || p.nom) + (guardada ? ' · 📕✓' : '') + (abierto ? ' ▴' : ' ▸') + '</button>'
     if (abierto) {
       var n = iaTexto.length, otros = CARP ? CARP.lista(carpeta).filter(function (g) { return g.n !== p.n }).map(function (g) { return g.n }) : []
-      h += '<div class="ia-caja"><p class="ia-ayuda">' + (p.ogo ? 'Pide la <b>Orden General de Operaciones</b> del ' + esc(escalonDe(escalon).profesor) + ' con TODOS sus anexos (' + CAT.ANEXOS_OGO.map(function (a) { return a.letra }).join(', ') + '), completa en todo salvo en lo que entrena: <b>' + esc(focoDe(foco).nom) + '</b>. ' : esc(ia.pide ? ia.pide.split('.')[0] + '.' : '')) +
+      h += '<div class="ia-caja"><p class="ia-ayuda">' + esc(ia.pide ? ia.pide.split('.')[0] + '.' : '') +
         'Copialo y pegalo en ChatGPT, Gemini o Claude (' + n.toLocaleString('es') + ' caracteres' + (n > 120000 ? '; es largo: si la IA lo corta, usá Claude o Gemini pagos' : '') + ').' + (otros.length ? ' Lleva lo guardado en la 📕 carpeta (paso' + (otros.length > 1 ? 's ' : ' ') + otros.join(', ') + ').' : '') + (!puente ? ' <b>La Mesa todavía no mandó el ejercicio</b> (abrí uno): el pedido va sin contexto.' : '') + '</p>' +
         '<div class="ia-acc"><button type="button" class="ir" data-a="ia-copiar">📋 Copiar el pedido</button><button type="button" class="ir" data-a="ia-bajar">⬇️ Bajar .md</button><button type="button" class="chico" data-a="ia-cerrar">Cerrar</button>' + (aviso['ia' + p.n] ? '<span class="ia-aviso">' + esc(aviso['ia' + p.n]) + '</span>' : '') + '</div>' +
         '<textarea data-ia readonly rows="8" aria-label="Pedido a la IA">' + esc(iaTexto) + '</textarea>' + htmlRespuesta(p) + '</div>'
@@ -286,7 +290,7 @@
     if (!fichas.length) { aviso[clave] = 'No hay fichas para insertar.'; return }
     puente.agregarUnidades(fichas)
     puente = Object.assign({}, puente, { unidades: (puente.unidades || []).concat(fichas) })
-    aviso[clave] = '✓ ' + fichas.length + ' fichas insertadas (' + de + '). Ajustalas en 🪖 Unidades; con ⟲ Deshacer de la Mesa se quitan.'
+    aviso[clave] = '✓ ' + fichas.length + ' fichas insertadas (' + de + '). Ajustalas en 🪖 Unidades; con ↶ Deshacer de la barra se quitan.'
   }
 
   // ---------- 📚 la biblioteca del profesor ----------
@@ -478,11 +482,224 @@
     if (!nom) h += '<p class="bib-vacia">Abrí (o creá) el ejercicio en la Mesa: cada ejercicio tiene su carpeta.</p>'
     if (!ps.length) return h + '<p class="bib-vacia">Todavía no guardaste ninguna respuesta. En cada paso: 🤖 IA → 📋 Copiar el pedido → pegalo en la IA → pegá lo que contestó en «📥 La respuesta de la IA» → 💾 Guardar.</p></section>'
     h += '<ul class="car-lista">' + ps.map(function (g) {
-      return '<li data-car="' + g.n + '"><div class="bib-nom">Paso ' + g.n + ' · ' + esc(g.tit) + '</div><div class="car-meta">' + (g.destino === 'solucion' ? '🔒 Solución del profesor' : '📤 Va a los alumnos') + ' · ' + esc(CARP.fecha(g.guardado)) + ' · ' + g.texto.length.toLocaleString('es') + ' caracteres</div>' +
+      return '<li data-car="' + g.n + '"><div class="bib-nom">Paso ' + verDe(g.n) + ' · ' + esc(g.tit) + '</div><div class="car-meta">' + (g.destino === 'solucion' ? '🔒 Solución del profesor' : '📤 Va a los alumnos') + ' · ' + esc(CARP.fecha(g.guardado)) + ' · ' + g.texto.length.toLocaleString('es') + ' caracteres</div>' +
         '<div class="org-fila"><button type="button" class="chico" data-a="car-ver">' + (carVista === g.n ? 'Ocultar' : '👁️ Ver') + '</button><button type="button" class="chico" data-a="car-ir">Ir al paso ▸</button></div>' +
         (carVista === g.n ? '<textarea readonly rows="10" aria-label="Respuesta guardada">' + esc(g.texto) + '</textarea>' : '') + '</li>'
     }).join('') + '</ul>'
-    return h + '<div class="car-notas"><div class="org-tit">🧑‍🏫 Para el profesor (se va sumando)</div>' + (notas.length ? notas.map(function (x) { return '<div class="car-nota"><b>Paso ' + x.n + ' · ' + esc(x.tit) + '</b><div class="car-txt">' + esc(x.texto) + '</div></div>' }).join('') : '<p class="bib-vacia">Ninguna respuesta trajo todavía la sección «PARA EL PROFESOR».</p>') + '</div></section>'
+    return h + '<div class="car-notas"><div class="org-tit">🧑‍🏫 Para el profesor (se va sumando)</div>' + (notas.length ? notas.map(function (x) { return '<div class="car-nota"><b>Paso ' + verDe(x.n) + ' · ' + esc(x.tit) + '</b><div class="car-txt">' + esc(x.texto) + '</div></div>' }).join('') : '<p class="bib-vacia">Ninguna respuesta trajo todavía la sección «PARA EL PROFESOR».</p>') + '</div></section>'
+  }
+
+  // ---------- 📜 la OGO completa con sus anexos (el paso final) ----------
+  // Lo pidió Sergio (11-10-2026): «cuando termine todos esos pasos… salga una OGO completa con sus
+  // planes de apoyo para darles a los alumnos… no quiero ser objeto de observaciones con órdenes mal
+  // hechas o incompletas». Documento por documento, sobre los MODELOS DE LA ESCUELA (ogo-modelos.js):
+  // 🤖 el pedido (con todo lo de la Mesa y lo ya escrito de la OGO) → la respuesta de la IA → ✅ la
+  // revisión (lo que le falta) → ⬇️ el Word con el formato militar de la Mesa (formato-militar/v1/
+  // word.js) → 📎 al ejercicio para los alumnos. Queda en el IndexedDB «sid-profesor-ogo» de ESTE
+  // navegador (como la carpeta); para llevarla a otro equipo, ⬇️ .md / 📤 Cargar.
+  function ogoOp(modo_, f) { return dbOp('sid-profesor-ogo', 'ogos', 'ejercicio', modo_, f) }
+  function ogoCargar() {
+    var k = claveCarpeta()
+    ogoDe = k; ogoRev = null; ogoRevDoc = {}; ogoCache = {}
+    if (!OGO) return Promise.resolve()
+    if (!k || !window.indexedDB) { ogo = OGO.vacio(k); ogoVer++; pintar(true); return Promise.resolve() }
+    ogo = OGO.vacio(k); ogo.cargando = true; ogoVer++
+    return ogoOp('readonly', function (st) { return st.get(k) }).then(function (e) {
+      if (ogoDe !== k) return
+      ogo = e && e.config ? e : OGO.vacio(k); ogoVer++; pintar(true)
+    }, function () { if (ogoDe === k) { ogo = OGO.vacio(k); ogoVer++; pintar(true) } })
+  }
+  function ogoRevisarCarga() { if (OGO && ogoDe !== claveCarpeta()) ogoCargar() }
+  function ogoGuardar(e) {
+    var k = claveCarpeta()
+    if (!k) return Promise.reject(new Error('abrí (o creá) el ejercicio en la Mesa: la OGO va con el nombre del ejercicio'))
+    if (ogo && ogo.cargando) return Promise.reject(new Error('todavía se está leyendo la OGO guardada de este ejercicio; probá de nuevo en un segundo'))
+    e.ejercicio = k; delete e.cargando
+    ogo = e; ogoVer++
+    if (!window.indexedDB) return Promise.reject(new Error('este navegador no deja guardar (¿ventana privada?)'))
+    return ogoOp('readwrite', function (st) { st.put(e) })
+  }
+  // El ejercicio de la Mesa y el contexto de los pedidos (el mismo de los otros pasos).
+  function ogoContexto() {
+    var nombre = nombreEj()
+    return leerEjercicio(nombre).then(function (r) {
+      var ej = r && r.datos
+      if (!ej && puente && puente.ejercicio && typeof puente.ejercicio === 'object') ej = puente.ejercicio
+      if (!ej && nombre) ej = { nombre: nombre }
+      if (ej && puente && puente.unidades && !ej.unidades) ej = Object.assign({}, ej, { unidades: puente.unidades })
+      ogoEjUlt = ej
+      var est = OGO.completarConfig(ogo, ej || {})
+      return { ej: ej, est: est, ctx: { escalon: escalonDe(escalon), foco: focoDe(foco), ogo: est, ejercicio: ej, fuente: r ? r.fuente : '', unidades: puente && puente.unidades, centro: centroMesa(), biblioteca: biblio, carpeta: carpeta } }
+    })
+  }
+  function ogoRevisionDe(id) { // en caché por documento y por cuándo se guardó
+    var x = ogo && ogo.docs && ogo.docs[id]
+    if (!x) return null
+    var k = id + '|' + x.guardado + '|' + JSON.stringify([ogo.config.tipo, ogo.config.seleccion, ogo.config.letras, ogo.config.alumnos])
+    if (!ogoCache[k]) ogoCache[k] = OGO.revisar(id, x.texto, { ogo: ogo })
+    return ogoCache[k]
+  }
+  function ogoEstado(id) {
+    var r = ogoRevisionDe(id)
+    if (!r) return '<span class="ogo-est pend">⏳ sin escribir</span>'
+    var n = r.faltan.length + r.faltanTexto.length + r.vacios.length + r.marcadores.length + r.avisos.filter(function (a) { return !/supuesto/.test(a) }).length
+    return n ? '<span class="ogo-est mal">⚠️ ' + n + (n > 1 ? ' observaciones' : ' observación') + '</span>' : '<span class="ogo-est bien">✓ completo' + (r.supuestos ? ' · ' + r.supuestos + ' supuesto' + (r.supuestos > 1 ? 's' : '') : '') + '</span>'
+  }
+  function ogoLista(r) {
+    if (!r) return ''
+    var it = []
+    if (r.faltan.length) it.push('<li><b>Faltan apartados del modelo:</b> ' + r.faltan.map(esc).join(' · ') + '</li>')
+    if (r.faltanTexto.length) it.push('<li><b>No dice:</b> ' + r.faltanTexto.map(esc).join(' · ') + '</li>')
+    if (r.vacios.length) it.push('<li><b>Apartados vacíos:</b> ' + r.vacios.map(esc).join(' · ') + '</li>')
+    if (r.marcadores.length) it.push('<li><b>Marcas sin llenar:</b> ' + r.marcadores.map(function (m) { return '«' + esc(m.slice(0, 80)) + '»' }).join(' · ') + '</li>')
+    r.avisos.filter(function (a) { return !/supuesto/.test(a) }).forEach(function (a) { it.push('<li>' + esc(a) + '</li>') })
+    var sup = r.avisos.filter(function (a) { return /supuesto/.test(a) })[0]
+    return (it.length ? '<ul class="ogo-obs">' + it.join('') + '</ul>' : '<p class="ogo-ok">✓ Tiene todos los apartados del modelo de la Escuela, sin vacíos ni marcas sin llenar (' + r.apartados + ' apartados).</p>') +
+      (sup ? '<p class="ogo-nota">🔎 ' + esc(sup) + '</p>' : '')
+  }
+  function ogoCampo(k, rot, ph, area) {
+    var v = (ogo.config || {})[k] || '', der = ogoEjUlt ? OGO.completarConfig(OGO.vacio(''), ogoEjUlt).config[k] : ''
+    if (der && typeof der === 'string') ph = der + '  (de «Mesa · Preparación»)'
+    return '<label class="ogo-campo"><span>' + esc(rot) + '</span>' + (area ? '<textarea data-ogo-cfg="' + k + '" rows="3" placeholder="' + esc(ph || '') + '">' + esc(v) + '</textarea>' : '<input type="text" data-ogo-cfg="' + k + '" value="' + esc(v) + '" placeholder="' + esc(ph || '') + '">') + '</label>'
+  }
+  function htmlOGO() {
+    if (!OGO) return ''
+    var c = ogo.config || {}, L = OGO.letras(ogo), F = focoDe(foco), nom = claveCarpeta(), sel = c.seleccion || OGO.seleccionInicial()
+    var lista = OGO.elegidos(ogo), escritos = lista.filter(function (d) { return ogo.docs && ogo.docs[d.id] }).length
+    var h = '<div class="ogo" id="sid-ogo">' +
+      '<p class="ogo-ayuda"><b>Cómo:</b> 1) revisá los datos de la Orden; 2) elegí los anexos; 3) en cada documento, de arriba hacia abajo: <b>🤖 Pedido</b> → pegalo en la IA → pegá lo que contestó → <b>💾 Guardar</b> (cada pedido lleva lo ya escrito, así todo queda coherente); 4) <b>✅ Revisar todo</b>; 5) <b>⬇️ Word</b> y <b>📎 al ejercicio</b>.</p>' +
+      (!nom ? '<p class="ogo-aviso">⚠️ Abrí (o creá) el ejercicio en la Mesa: la OGO va con el nombre del ejercicio.</p>' : '') +
+      '<button type="button" class="chico ogo-sec" data-a="ogo-datos" aria-expanded="' + verOgoDatos + '">🧾 Datos de la Orden y del membrete' + (verOgoDatos ? ' ▴' : ' ▸') + '</button>'
+    if (verOgoDatos) {
+      h += '<div class="ogo-datos"><p class="ogo-nota">Lo vacío se toma de «Mesa · Preparación» (la Orden que escribiste en el paso 5) al armar los pedidos y el Word.</p>' +
+        '<label class="ogo-campo"><span>Tipo</span><select data-ogo-cfg="tipo"><option value="orden"' + (c.tipo !== 'plan' ? ' selected' : '') + '>Orden de operaciones (sin hipótesis)</option><option value="plan"' + (c.tipo === 'plan' ? ' selected' : '') + '>Plan de operaciones (con hipótesis)</option></select></label>' +
+        ogoCampo('numero', 'N° de la Orden', '01') + ogoCampo('unidad', 'Unidad que expide (la tuya)', 'FF.TT. «…» / CE-I') + ogoCampo('superior', 'Escalón superior de tu unidad (arriba del membrete)', 'COMANDO EN JEFE…') +
+        ogoCampo('alumnos', 'Unidad que la recibe (los alumnos)', 'DIV.MEC.-1') + ogoCampo('lugar', 'CG / lugar del puesto comando', 'VIACHA') + ogoCampo('fechaHora', 'Fecha y hora (grupo fecha-hora o D/H)', '250600-JUN / D-5 (0800)') +
+        ogoCampo('carta', 'Carta', 'Bolivia, hoja …, Esc. 1:250.000') + ogoCampo('iniciales', 'Iniciales del elaborador', 'SMM') + ogoCampo('jem', 'Iniciales del JEM', 'JGS') +
+        ogoCampo('firma', 'Firma (vacío = «EL COMANDANTE DE …»)', '') + ogoCampo('distribucion', 'Distribución (una línea por destino)', 'Original: …\nCopia 1-12: UU. DEP.\nCopia 13: ARCHIVO', true) +
+        '<label class="ogo-check"><input type="checkbox" data-ogo-cfg="ensenanza"' + (c.ensenanza ? ' checked' : '') + '> Leyenda «Solo para fines de enseñanza» al pie</label></div>'
+    }
+    h += '<div class="org-tit ogo-tit">Documentos de la OGO · ' + escritos + ' de ' + lista.length + ' escritos</div><ul class="ogo-docs">' + OGO.DOCS.map(function (d) {
+      var on = d.principal || (sel[d.id] && (!d.apendiceDe || sel[d.apendiceDe])), ab = ogoAbierto === d.id, x = ogo.docs && ogo.docs[d.id]
+      var rot = d.principal ? OGO.tituloOrden(ogo) : d.apendiceDe ? 'Apéndice “' + (L[d.id] || d.numero) + '” al Anexo “' + (L[d.apendiceDe] || '?') + '”' : 'Anexo'
+      var li = '<li class="ogo-doc' + (on ? '' : ' fuera') + (ab ? ' abierto' : '') + '" data-ogo-doc="' + d.id + '"><div class="ogo-fila">' +
+        (d.principal ? '<span class="ogo-fija">📜</span>' : '<input type="checkbox" data-ogo-sel="' + d.id + '"' + (sel[d.id] ? ' checked' : '') + (d.apendiceDe && !sel[d.apendiceDe] ? ' disabled' : '') + ' aria-label="Incluir ' + esc(d.nom) + '">') +
+        '<span class="ogo-nom"><b>' + esc(rot) + '</b>' + (!d.principal && !d.apendiceDe ? ' <input type="text" class="ogo-letra" data-ogo-letra="' + d.id + '" value="' + esc(L[d.id] || '') + '" maxlength="1" aria-label="Letra del anexo" title="Letra del anexo (la cambiás si el reglamento las ordena distinto)"' + (on ? '' : ' disabled') + '>' : '') + ' ' + esc(d.principal ? '(el cuerpo de la Orden)' : d.nom) +
+        (OGO.entrena(d, F) ? ' <span class="ogo-entrena" title="Es el campo que entrena el ejercicio: el superior da todo lo que sabe, con datos, y el alumno hace su propio anexo">⭐ entrena</span>' : '') + '</span>' +
+        (on ? ogoEstado(d.id) : '') + '</div>'
+      if (on) li += '<div class="ia-acc"><button type="button" class="ir" data-a="ogo-pedido">' + (ab ? '🤖 Pedido ▴' : '🤖 Pedido ▸') + '</button>' + (x ? '<button type="button" class="ir" data-a="ogo-word">⬇️ Word</button>' : '') + '</div>'
+      if (on && ab) {
+        var r = ogoRevDoc[d.id] || ogoRevisionDe(d.id), b = ogoBorr[d.id], val = b != null ? b : x ? x.texto : ''
+        li += '<div class="ia-caja"><p class="ia-ayuda">' + (ogoPedidoDe === 'corregir' ? '<b>Pedido de CORRECCIÓN</b>: le dice a la IA qué le falta y le pide el documento completo corregido. ' : 'El pedido lleva el <b>modelo de la Escuela</b> de este documento, lo ya escrito de la OGO y todo lo de la Mesa. ') + 'Copialo y pegalo en ChatGPT, Gemini o Claude (' + ogoPedido.length.toLocaleString('es') + ' caracteres).</p>' +
+          '<div class="ia-acc"><button type="button" class="ir" data-a="ogo-copiar">📋 Copiar el pedido</button><button type="button" class="ir" data-a="ogo-bajar-pedido">⬇️ .md</button><button type="button" class="chico" data-a="ogo-cerrar">Cerrar</button></div>' +
+          '<textarea data-ogo-pedido readonly rows="6" aria-label="Pedido a la IA">' + esc(ogoPedido) + '</textarea>' +
+          '<div class="ia-resp"><div class="ia-resp-tit">📥 Lo que contestó la IA<span>Pegalo entero (con «PARA EL PROFESOR»: no va al Word ni a los alumnos). Si vino cortado («SIGUE: …»), pedile el resto y pegalo debajo.</span></div>' +
+          '<textarea data-ogo-resp="' + d.id + '" rows="8" placeholder="Pegá acá lo que contestó la IA para este documento">' + esc(val) + '</textarea>' +
+          '<div class="ia-acc"><button type="button" class="ir" data-a="ogo-guardar">💾 Guardar y revisar</button>' + (x ? '<button type="button" class="chico" data-a="ogo-quitar" title="Sacar este documento de la OGO guardada">🗑️</button>' : '') + '</div>' +
+          (x ? '<div class="ia-guardada">💾 Guardado el ' + esc(CARP ? CARP.fecha(x.guardado) : x.guardado) + ' · ' + x.texto.length.toLocaleString('es') + ' caracteres</div>' : '') +
+          (aviso['ogo-' + d.id] ? '<div class="ia-aviso">' + esc(aviso['ogo-' + d.id]) + '</div>' : '') +
+          (r ? '<div class="ogo-rev"><div class="org-tit">✅ Revisión contra el modelo</div>' + ogoLista(r) + (r.ok ? '' : '<button type="button" class="ir" data-a="ogo-corregir">🤖 Pedido de corrección</button>') + '</div>' : '') + '</div></div>'
+      }
+      return li + '</li>'
+    }).join('') + '</ul>'
+    h += '<div class="ia-acc ogo-fin"><button type="button" class="ir" data-a="ogo-revisar">✅ Revisar todo</button><button type="button" class="ir" data-a="ogo-zip"' + (escritos ? '' : ' disabled') + '>⬇️ Todo en Word (.zip)</button><button type="button" class="ir" data-a="ogo-md"' + (escritos ? '' : ' disabled') + '>⬇️ Todo (.md)</button><label class="ir ogo-subir">📤 Cargar (.md)<input type="file" data-ogo-archivo accept=".md,.txt,text/markdown,text/plain" hidden></label><button type="button" class="ir" data-a="ogo-adjuntar"' + (escritos ? '' : ' disabled') + ' title="Suma los documentos de la OGO a los documentos del ejercicio: los ven los alumnos. Lo «PARA EL PROFESOR» no va.">📎 Adjuntar al ejercicio</button></div>' +
+      (aviso.ogo ? '<div class="ia-aviso">' + esc(aviso.ogo) + '</div>' : '')
+    if (ogoRev) {
+      h += '<div class="ogo-rev ogo-todo"><div class="org-tit">' + (ogoRev.ok ? '✅ La OGO está completa: ' : '📋 Revisión de la OGO: ') + ogoRev.listos + ' de ' + ogoRev.total + ' documentos sin observaciones</div>' +
+        (ogoRev.generales.length ? '<ul class="ogo-obs">' + ogoRev.generales.map(function (g) { return '<li>' + esc(g) + '</li>' }).join('') + '</ul>' : '') +
+        '<ul class="ogo-res">' + lista.map(function (d) { var r = ogoRev.docs[d.id]; return '<li>' + esc(OGO.corto(d.id, ogo)) + ' — ' + (!r ? '⏳ sin escribir' : r.ok ? '✓' : '⚠️ ' + (r.faltan.length + r.faltanTexto.length + r.vacios.length + r.marcadores.length + r.avisos.filter(function (a) { return !/supuesto/.test(a) }).length) + ' observación(es) (abrilo para verlas)') + '</li>' }).join('') + '</ul></div>'
+    }
+    return h + '</div>'
+  }
+  function ogoAbrirDoc(id, modo_) {
+    ogoAbierto = id; ogoPedidoDe = modo_ || 'pedido'; ogoPedido = '… armando el pedido con el ejercicio de la Mesa'
+    pintar(true)
+    return ogoContexto().then(function (o) {
+      if (ogoAbierto !== id) return
+      ogoPedido = modo_ === 'corregir' ? OGO.pedidoCorregir(id, OGO.revisar(id, (ogo.docs[id] || {}).texto || '', { ogo: o.est }), o.ctx) : OGO.pedido(id, o.ctx)
+      pintar(true)
+    }).catch(function (e) { ogoPedido = '⚠️ No se pudo armar el pedido: ' + (e && e.message ? e.message : e); pintar(true) })
+  }
+  function bajarBlob(nombre, blob) {
+    var a = document.createElement('a')
+    a.href = URL.createObjectURL(blob); a.download = nombre; document.body.appendChild(a); a.click()
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove() }, 1500)
+  }
+  // El Word con el formato militar de la Mesa: word.js con la librería docx del compilado
+  // (window.SIDMilLib, la que el compilado le da a formato-militar).
+  var wordMod = null
+  function conWord() {
+    var L = window.SIDMilLib
+    if (!L || !L.Packer || !L.Document) return Promise.reject(new Error('la Mesa todavía no cargó su formato militar (recargá la página)'))
+    if (!wordMod) wordMod = import('../formato-militar/v1/word.js?v=ogo20261011').then(function (m) { m.configurarWord(L); return m }, function (e) { wordMod = null; throw e })
+    return wordMod
+  }
+  function wordDe(id, est) {
+    return conWord().then(function (W) {
+      var x = OGO.cfgWord(id, est)
+      return window.SIDMilLib.Packer.toBlob(W.crearWord(OGO.aSpec(id, est.docs[id].texto, est), x.cfg, x.padre))
+    })
+  }
+  function ogoAccion(acc, id) {
+    var d = id && OGO.doc(id)
+    if (acc === 'ogo-datos') { verOgoDatos = !verOgoDatos; pintar(true); if (verOgoDatos) ogoContexto().then(function () { ogoVer++; pintar(true) }, function () {}); return }
+    if (acc === 'ogo-pedido' && d) { if (ogoAbierto === id) { ogoAbierto = ''; pintar(true) } else ogoAbrirDoc(id); return }
+    if (acc === 'ogo-cerrar') { ogoAbierto = ''; pintar(true); return }
+    if (acc === 'ogo-copiar') { var did = ogoAbierto; copiar(ogoPedido).then(function () { aviso['ogo-' + did] = '📋 Pedido copiado (' + ogoPedido.length.toLocaleString('es') + ' caracteres): pegalo en la IA.'; pintar(true) }, function () { aviso['ogo-' + did] = 'No se pudo copiar: seleccioná el texto y copialo a mano.'; pintar(true) }); return }
+    if (acc === 'ogo-bajar-pedido') { bajar('pedido-ia-ogo-' + OGO.nombreArchivo(ogoAbierto, ogo).toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 60) + '.md', ogoPedido); aviso['ogo-' + ogoAbierto] = '⬇️ Bajado: adjuntalo a la IA con la orden de cumplirlo.'; pintar(true); return }
+    if (acc === 'ogo-corregir' && d) { ogoAbrirDoc(id, 'corregir'); return }
+    if (acc === 'ogo-guardar' && d) {
+      var ta = panel.querySelector('textarea[data-ogo-resp="' + id + '"]'), txt = ta ? ta.value : ogoBorr[id] || ''
+      if (!String(txt).trim()) { aviso['ogo-' + id] = 'Pegá primero lo que contestó la IA en el cuadro.'; return pintar(true) }
+      var nuevo = OGO.poner(ogo, id, txt)
+      ogoGuardar(nuevo).then(function () {
+        delete ogoBorr[id]; delete ogoRevDoc[id]
+        var r = ogoRevisionDe(id)
+        aviso['ogo-' + id] = '✓ Guardado. ' + (r.ok ? 'La revisión no encontró faltas.' : 'La revisión encontró observaciones (abajo): «🤖 Pedido de corrección» le pide a la IA el documento corregido.')
+        pintar(true)
+      }, function (e) { ogoBorr[id] = txt; aviso['ogo-' + id] = '⚠️ No se guardó: ' + (e && e.message ? e.message : e) + '. Lo pegado queda en el cuadro.'; pintar(true) })
+      return
+    }
+    if (acc === 'ogo-quitar' && d) {
+      if (!window.confirm('¿Sacar de la OGO guardada el ' + OGO.corto(id, ogo) + '?')) return
+      ogoGuardar(OGO.poner(ogo, id, '')).then(function () { ogoBorr[id] = ''; aviso['ogo-' + id] = 'Se sacó de la OGO guardada.'; pintar(true) }, function (e) { aviso['ogo-' + id] = '⚠️ ' + (e && e.message ? e.message : e); pintar(true) })
+      return
+    }
+    if (acc === 'ogo-word' && d) {
+      aviso.ogo = '⏳ Armando el Word del ' + OGO.corto(id, ogo) + '…'; pintar(true)
+      ogoContexto().then(function (o) { return wordDe(id, o.est).then(function (blob) { bajarBlob(OGO.nombreArchivo(id, o.est) + '.docx', blob); aviso.ogo = '⬇️ Bajado: ' + OGO.nombreArchivo(id, o.est) + '.docx (formato militar de la Mesa).'; pintar(true) }) })
+        .catch(function (e) { aviso.ogo = '⚠️ No se pudo armar el Word: ' + (e && e.message ? e.message : e); pintar(true) })
+      return
+    }
+    if (acc === 'ogo-revisar') { ogoContexto().then(function (o) { ogoRev = OGO.revisarTodo(o.est, { ejercicio: o.ej }); aviso.ogo = ''; pintar(true) }); return }
+    if (acc === 'ogo-md') { var E_ = escalonDe(escalon); bajar('OGO-' + OGO.nombreArchivo('ogo', ogo).replace(/\s+/g, '-') + '-' + (ogo.ejercicio || 'ejercicio').replace(/[^\w-]+/g, '-') + '.md', OGO.markdown(OGO.completarConfig(ogo, {}), { escalon: E_.profesor, alumnos: E_.alumnos, foco: focoDe(foco).nom })); aviso.ogo = '⬇️ Bajada la OGO entera (.md). Para llevarla a otro equipo: 📤 Cargar, con el ejercicio abierto.'; pintar(true); return }
+    if (acc === 'ogo-zip') {
+      aviso.ogo = '⏳ Armando los Word…'; pintar(true)
+      ogoContexto().then(function (o) {
+        var docs = OGO.elegidos(o.est).filter(function (x) { return o.est.docs[x.id] })
+        return conJSZip().then(function (J) {
+          var z = new J()
+          return docs.reduce(function (pr, x, i) { return pr.then(function () { return wordDe(x.id, o.est).then(function (b) { z.file(OGO.nombreArchivo(x.id, o.est, i) + '.docx', b) }) }) }, Promise.resolve())
+            .then(function () { var E_ = escalonDe(escalon); z.file('OGO completa (texto, con lo PARA EL PROFESOR).md', OGO.markdown(o.est, { escalon: E_.profesor, alumnos: E_.alumnos, foco: focoDe(foco).nom })); return z.generateAsync({ type: 'blob' }) })
+            .then(function (blob) {
+              bajarBlob(OGO.nombreArchivo('ogo', o.est) + ' - ' + (o.est.ejercicio || 'ejercicio').replace(/[^\w .-]+/g, '') + '.zip', blob)
+              var faltan = OGO.elegidos(o.est).length - docs.length
+              aviso.ogo = '⬇️ Bajados ' + docs.length + ' Word con el formato militar' + (faltan ? ' (faltan ' + faltan + ' documento(s) por escribir)' : '') + '.'; pintar(true)
+            })
+        })
+      }).catch(function (e) { aviso.ogo = '⚠️ No se pudo armar el .zip: ' + (e && e.message ? e.message : e); pintar(true) })
+      return
+    }
+    if (acc === 'ogo-adjuntar') {
+      if (!puente || !puente.agregarDocumentos) { aviso.ogo = '⚠️ Esta Mesa no tiene el puente para adjuntar (recargá la página con el ejercicio abierto).'; return pintar(true) }
+      ogoContexto().then(function (o) {
+        var docs = OGO.paraEjercicio(o.est), rev = OGO.revisarTodo(o.est, { ejercicio: o.ej })
+        if (!docs.length) { aviso.ogo = 'Todavía no hay documentos escritos.'; return pintar(true) }
+        if (!window.confirm('Se adjuntan ' + docs.length + ' documento(s) de la OGO al ejercicio «' + (o.est.ejercicio || '') + '»: los alumnos los ven en los documentos del ejercicio (lo «PARA EL PROFESOR» NO va).' + (rev.ok ? '' : '\n\n⚠️ La revisión todavía encuentra observaciones (' + rev.listos + ' de ' + rev.total + ' documentos sin observaciones).') + '\n\nSi ya estaban adjuntos, se reemplazan. ¿Seguimos?')) return
+        puente.agregarDocumentos(docs)
+        aviso.ogo = '📎 ' + docs.length + ' documento(s) adjuntados al ejercicio (se guarda solo).'; pintar(true)
+      })
+    }
   }
 
   // ---------- dibujo ----------
@@ -501,13 +718,14 @@
   function paso(F, p) {
     var h = hechoDe(F.id, p.n)
     return '<li class="paso' + (h ? ' hecho' : '') + '" data-paso="' + F.id + '.' + p.n + '">' +
-      '<label class="cab"><input type="checkbox" data-f="' + F.id + '" data-n="' + p.n + '"' + (h ? ' checked' : '') + ' aria-label="Paso ' + p.n + ' hecho"><span class="num">' + p.n + '</span><span class="nom">' + esc(p.nom) + '</span></label>' +
+      '<label class="cab"><input type="checkbox" data-f="' + F.id + '" data-n="' + p.n + '"' + (h ? ' checked' : '') + ' aria-label="Paso ' + (p.ver || p.n) + ' hecho"><span class="num">' + (p.ver || p.n) + '</span><span class="nom">' + esc(p.nom) + '</span></label>' +
       '<div class="doc">' + (p.doc ? '📄 ' + esc(p.doc) : esc(p.que || '')) + '</div>' +
       (p.resp ? '<div class="resp">' + chips(p.resp) + '</div>' : '') +
       (p.escalon ? selectorEscalon() + selectorFoco() : '') +
       botonesAbrir(p.abrir, F.id, p.n) +
       (F.id === 'P' && p.organizaciones ? htmlOrganizaciones(p) : '') +
-      (F.id === 'P' && p.ia ? htmlIA(p) : '') + '</li>'
+      (F.id === 'P' && p.ia ? htmlIA(p) : '') +
+      (F.id === 'P' && p.ogoFinal ? htmlOGO() : '') + '</li>'
   }
   function selectorEscalon() {
     var E = escalonDe(escalon)
@@ -537,7 +755,8 @@
     return '<div class="cab-tab"><h2>🧑‍🏫 Armar el ejercicio</h2><p>Vos sos el <b>' + esc(E.profesor) + '</b>: escribís la Orden del escalón superior y armás el tablero que reciben tus alumnos (<b>' + esc(E.alumnos) + '</b>). Los pasos van en el orden en que la Mesa los necesita.</p>' +
       '<div class="total"><span class="barra"><i style="width:' + Math.round(100 * a.h / a.t) + '%"></i></span><b>' + a.h + ' / ' + a.t + ' pasos</b></div>' +
       (BIB ? '<button type="button" class="bib-btn" data-a="bib" aria-expanded="' + verBiblio + '">📚 Mis documentos: COE, organización, armamento' + (biblio.length ? ' · ' + biblio.length : '') + (verBiblio ? ' ▴' : ' ▸') + '</button>' + (verBiblio ? htmlBiblioteca() : '') : '') +
-      (CARP ? '<button type="button" class="car-btn" data-a="car" aria-expanded="' + verCarpeta + '">📕 Carpeta del profesor: lo que ya resolviste con la IA' + (CARP.cuantos(carpeta) ? ' · ' + CARP.cuantos(carpeta) : '') + (verCarpeta ? ' ▴' : ' ▸') + '</button>' + (verCarpeta ? htmlCarpeta() : '') : '') + '</div>' +
+      (CARP ? '<button type="button" class="car-btn" data-a="car" aria-expanded="' + verCarpeta + '">📕 Carpeta del profesor: lo que ya resolviste con la IA' + (CARP.cuantos(carpeta) ? ' · ' + CARP.cuantos(carpeta) : '') + (verCarpeta ? ' ▴' : ' ▸') + '</button>' + (verCarpeta ? htmlCarpeta() : '') : '') +
+      (OGO ? '<button type="button" class="ogo-btn" data-a="ogo-ir" title="El paso final: la OGO completa con sus anexos, documento por documento, sobre los modelos de la Escuela">📜 OGO completa con sus anexos · ' + OGO.elegidos(ogo).filter(function (d) { return ogo.docs && ogo.docs[d.id] }).length + '/' + OGO.elegidos(ogo).length + ' ▾</button>' : '') + '</div>' +
       '<ol class="pasos prof">' + CAT.PROFESOR.map(function (p) { return paso(F, p) }).join('') + '</ol>' +
       '<div class="pie"><div class="secs">Tableros de cada sección: ' + Object.keys(CAT.SECCIONES).map(function (s) { return '<button type="button" class="ir sec-ir" data-sec="' + s + '" style="--sc:' + CAT.SECCIONES[s].color + '">' + esc(CAT.SECCIONES[s].corto) + '</button>' }).join('') + '</div>' +
       '<button type="button" class="chico" data-a="reiniciar">Reiniciar lo marcado</button></div>'
@@ -546,7 +765,7 @@
   function pintar(forzar) {
     if (!panel) return
     var pl = cerrado()
-    var f = [modo, fase, escalon, foco, pl, iaPaso, JSON.stringify(hecho), JSON.stringify(aviso), !!(puente && puente.agregarUnidades), verBiblio, bibVer, bibVista, verCarpeta, carVer, carVista].join('|')
+    var f = [modo, fase, escalon, foco, pl, iaPaso, JSON.stringify(hecho), JSON.stringify(aviso), !!(puente && puente.agregarUnidades), verBiblio, bibVer, bibVista, verCarpeta, carVer, carVista, ogoVer, ogoAbierto, ogoPedido.length, verOgoDatos, !!ogoRev].join('|')
     if (!forzar && f === firma) return
     firma = f
     panel.hidden = modo === 'mesa'
@@ -676,6 +895,12 @@
       }
       if (acc === 'ia-copiar') { copiar(iaTexto).then(function () { aviso['ia' + pa.n] = '📋 Pedido copiado (' + iaTexto.length.toLocaleString('es') + ' caracteres): pegalo en la IA.'; pintar(true) }, function () { aviso['ia' + pa.n] = 'No se pudo copiar: seleccioná el texto y copialo a mano.'; pintar(true) }); return }
     }
+    if (a && a.getAttribute('data-a') === 'ogo-ir') {
+      plegado = false; ogoRevisarCarga(); pintar(true)
+      var lo = panel.querySelector('[data-paso="P.' + CAT.PROFESOR.filter(function (x) { return x.ogoFinal })[0].n + '"]'); if (lo) lo.scrollIntoView({ block: 'start' })
+      return
+    }
+    if (a && /^ogo-/.test(a.getAttribute('data-a')) && OGO) { var od = a.closest('[data-ogo-doc]'); ogoAccion(a.getAttribute('data-a'), od ? od.getAttribute('data-ogo-doc') : ogoAbierto); return }
     if (a && a.getAttribute('data-a') === 'car') { verCarpeta = !verCarpeta; if (verCarpeta) { plegado = false; carRevisar() } pintar(true); return }
     if (a && /^car-/.test(a.getAttribute('data-a'))) {
       var ac = a.getAttribute('data-a'), lc = a.closest('[data-car]'), nc = lc ? +lc.getAttribute('data-car') : 0
@@ -752,6 +977,33 @@
     if (t.matches && t.matches('select[data-foco]')) { foco = t.value; guarda(K_FOCO, foco); iaPaso = 0; pintar(true); return }
     if (t.matches && t.matches('select[data-ia-destino]') && CARP) { var pd = pasoProfesor(iaPaso); if (pd) carGuardar(CARP.cambiarDestino(carpeta, pd.n, t.value)).then(function () { pintar(true) }, function () {}); return }
     if (t.matches && t.matches('input[data-car-archivo]')) { if (t.files && t.files[0]) cargarCarpeta(t.files[0]); t.value = ''; return }
+    if (OGO && t.matches && t.matches('[data-ogo-cfg]')) {
+      var ck = t.getAttribute('data-ogo-cfg'), cv = t.type === 'checkbox' ? t.checked : t.value, cc = {}; cc[ck] = cv
+      ogoGuardar(OGO.conConfig(ogo, cc)).then(function () { ogoCache = {}; pintar(true) }, function (e) { aviso.ogo = '⚠️ ' + (e && e.message ? e.message : e); pintar(true) })
+      return
+    }
+    if (OGO && t.matches && t.matches('input[data-ogo-sel]')) {
+      var sl = Object.assign({}, ogo.config.seleccion || OGO.seleccionInicial()); sl[t.getAttribute('data-ogo-sel')] = t.checked
+      ogoGuardar(OGO.conConfig(ogo, { seleccion: sl })).then(function () { ogoCache = {}; ogoRev = null; pintar(true) }, function (e) { aviso.ogo = '⚠️ ' + (e && e.message ? e.message : e); pintar(true) })
+      return
+    }
+    if (OGO && t.matches && t.matches('input[data-ogo-letra]')) {
+      var lt = Object.assign({}, ogo.config.letras || {}); lt[t.getAttribute('data-ogo-letra')] = String(t.value || '').trim().toUpperCase().slice(0, 1)
+      ogoGuardar(OGO.conConfig(ogo, { letras: lt })).then(function () { ogoCache = {}; ogoRev = null; pintar(true) }, function (e) { aviso.ogo = '⚠️ ' + (e && e.message ? e.message : e); pintar(true) })
+      return
+    }
+    if (OGO && t.matches && t.matches('input[data-ogo-archivo]')) {
+      var fo = t.files && t.files[0]; t.value = ''
+      if (!fo) return
+      fo.text().then(function (txt) {
+        var e = OGO.leerMarkdown(txt), k = claveCarpeta()
+        if (!k) throw new Error('abrí primero el ejercicio en la Mesa')
+        if (e.ejercicio && e.ejercicio !== k && !window.confirm('Esa OGO es del ejercicio «' + e.ejercicio + '» y tenés abierto «' + k + '». ¿Cargarla en «' + k + '»?')) return
+        if (Object.keys(ogo.docs || {}).length && !window.confirm('Ya hay una OGO guardada en «' + k + '». ¿Reemplazarla por la del archivo?')) return
+        return ogoGuardar(e).then(function () { ogoCache = {}; ogoRev = null; aviso.ogo = '✓ Cargada: ' + Object.keys(e.docs).length + ' documento(s).'; pintar(true) })
+      }).catch(function (e) { aviso.ogo = '⚠️ ' + (e && e.message ? e.message : e); pintar(true) })
+      return
+    }
     if (t.matches && t.matches('input[data-bib-archivo]')) { if (t.files && t.files.length) bibSubir(Array.prototype.slice.call(t.files)); return }
     var li = t.closest && t.closest('[data-bib]'), d = li && bibDoc(li.getAttribute('data-bib'))
     if (d && t.matches('select[data-bib-tipo]')) { d.tipo = t.value; bibGuardar(d).then(bibCargar); return }
@@ -774,7 +1026,11 @@
     panel.setAttribute('aria-label', 'Tablero de la modalidad')
     panel.addEventListener('click', onClic)
     panel.addEventListener('change', onCambio)
-    panel.addEventListener('input', function (e) { var t = e.target; if (t.matches && t.matches('textarea[data-ia-resp]')) borrador[bk(+t.getAttribute('data-ia-resp'))] = t.value })
+    panel.addEventListener('input', function (e) {
+      var t = e.target
+      if (t.matches && t.matches('textarea[data-ia-resp]')) borrador[bk(+t.getAttribute('data-ia-resp'))] = t.value
+      if (t.matches && t.matches('textarea[data-ogo-resp]')) ogoBorr[t.getAttribute('data-ogo-resp')] = t.value
+    })
     document.body.appendChild(panel)
     body.setAttribute('data-sid-modo', modo)
     engancharPuente()
@@ -785,6 +1041,7 @@
     window.addEventListener('resize', acomodar)
     bibCargar()
     carCargar()
+    ogoCargar()
   }
   cargar()
   engancharPuente()
@@ -795,6 +1052,7 @@
     get panel() { return panel }, get hecho() { return hecho }, get tapado() { return tapado }, acomodar: acomodar,
     get foco() { return foco }, get puente() { return puente }, armarPedido: armarPedido, leerEjercicio: leerEjercicio,
     get biblioteca() { return biblio }, subir: bibSubir, recargarBiblioteca: bibCargar,
-    get carpeta() { return carpeta }, recargarCarpeta: carCargar
+    get carpeta() { return carpeta }, recargarCarpeta: carCargar,
+    get ogo() { return ogo }, recargarOgo: ogoCargar
   }
 })()
