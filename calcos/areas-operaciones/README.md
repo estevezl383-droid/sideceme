@@ -136,7 +136,8 @@ tiene dentro, sin redibujar dos áreas con bordes que encajen.
   está marcado). Un límite que sólo toca el área con la punta (el que separa a los dos
   vecinos) no va. Los límites y marcas del borde de un escalón MAYOR que el del área (los de
   la FF.TT.T.O.) no van; el escalón del área se deduce del menor límite con magnitud que la
-  bordea, no de lo elegido en el panel. Planes de fuegos, respuestas, notas y CMOC nunca van.
+  bordea, no de lo elegido en el panel. Planes de fuegos, respuestas y notas nunca van (el CMOC,
+  desde el 11-10-2026, sólo el que está a la vista y si se marca: ver «💾 Guardar selección como área»).
 - **Recibir**: «Importar áreas compartidas» y «Incorporar al ejercicio» suman el área, las
   capas (`sumarContenido`, valida cada elemento) y las fichas con id nuevo
   (`fichasDelPaquete`; por la bandeja, una sola vez por envío con `recibirUnidades`).
@@ -155,6 +156,53 @@ Pruebas: `node calcos/pruebas/areas-lazo.mjs` (zonas exactas sin huecos, lazo to
 Cuerpo → Divisiones, contenido, paquete, importación y servidor) y
 `node calcos/pruebas/e2e/areas-lazo.cjs` (la Mesa en Chromium: lazo con el mouse, toque,
 entrega JSON e importación con fichas; capturas en `pruebas/salidas-lazo/`).
+
+## 💾 Guardar selección como área, el CMOC a la vista y el lazo que no corta por las medidas (11-OCT-2026, noche)
+
+Lo pidió Sergio con la captura del panel del lazo («✂️ «CE-III» creada dentro de «FABBLE». Borde exacto de
+sus límites (3 zonas unidas)…»): «quisiera que haya una opción que diga guardar selección como área y ahí yo le
+pongo el nombre; debe ser idéntico a lo que se recortó y además debe seleccionar todo lo que está activo… y
+luego yo pueda seleccionar el JSON donde se guarda con el nombre que le di y compartirlo al curso o paralelo»;
+y «me parece que el lazo no lo está haciendo bien».
+
+- **El lazo no corta por las medidas de coordinación** (`recorte.mjs · esMedida`): las líneas de fase, la
+  LCAF, las áreas de empeñamiento que trae la IA (`origen: 'ogo-ia'`), una línea con nombre y sin magnitud o
+  un contorno punteado cerrado cruzan el área pero NO la reparten. Antes sí: el «3 zonas unidas» era la LF y el
+  AE-1 partiendo la zona, y un clic dentro de un Cuerpo se quedaba hasta la línea de fase. Siguen yendo con el
+  área (son «lo de adentro»). Los límites con magnitud y las líneas simples sin nombre cortan como antes.
+- **No se encima con lo ya cortado** (`repartir` → `dejadas` / `encima`): las zonas que ya son de otra área
+  cortada dentro de la misma (un Cuerpo ya repartido) se dejan afuera aunque el lazo las tape («Lo que ya es
+  de «CE-II» quedó afuera»); si el lazo no encierra otra cosa, quedan y se avisa («⚠️ Queda encima de…»).
+- **💾 Guardar selección como área** (`editor.mjs`, `modelo.mjs · guardarSeleccion`): después del lazo, en
+  el mismo recuadro, «Nombre de la selección (el área recortada)» y **💾 Guardar selección como área** (o
+  **✕ Descartar el recorte**). Le pone el nombre al área (y a la unidad, si no tenía otra) y guarda EN EL
+  EJERCICIO (`ops.selecciones`) la selección: su nombre, el id del área, una copia EXACTA del contorno que se
+  recortó, lo que estaba activo (las casillas «Todo lo que está dentro», «También las fichas enemigas», «También
+  el CMOC que está a la vista» y qué capas del CMOC estaban prendidas en «Qué se ve en el calco») y cuándo.
+  Guardar otra con el mismo nombre (o la misma área) la reemplaza.
+- **💾 Selecciones guardadas** (debajo de «Qué se entrega»): cada una con lo que lleva y **⬇️ JSON**
+  (`Seleccion_<nombre>.json`, `paqueteSeleccion`: el área con el contorno guardado aunque después se haya
+  movido, y lo de adentro como está AHORA en la carta: «hasta lo último»), **📤 Compartir (ciclo / paralelo)**
+  (abre «Compartir» con su nombre; envía la Mesa tal como está con `ejercicio_enviar`, con el contorno
+  guardado: `opsConSeleccion`) y 🗑. En el paso 13 del tablero del profesor también se elige por su nombre
+  (`calcos/modalidad`). Las selecciones nunca viajan a los alumnos (el paquete sale de la lista permitida).
+- **El CMOC a la vista** (`recorte.mjs · CAPAS_CMOC, capasCmocVisibles, cmocDeAreas, sumarCmoc`): áreas de
+  empeño, zonas restringidas y sev. restringidas (GeoJSON), terreno defensivo, avenidas, corredores (también
+  los clandestinos) y terreno clave que estén dentro o crucen el área, sólo de las capas prendidas. Va en
+  `contenido.cmoc`; al importar el JSON o «Incorporar al ejercicio» se suma al CMOC del que recibe (una sola
+  vez por envío: `envioAreas`; `compartir-modelo.mjs · recibirCmoc`). El compilado le pasa al editor `cmoc`,
+  `onCmoc` y `verCapa` (`index-seleccion-20261011.js`).
+- **Servidor**: `construirPaquete` arma `contenido.cmoc` sólo si `opciones.cmoc` y de las capas de
+  `opciones.capasCmoc` (un cliente viejo no lo pide); `compartir.mjs` pasa `foto.cmoc`. **Falta publicar
+  calco-ops (v10)** con `compartir.mjs`, `compartir-modelo.mjs`, `modelo.mjs` y `recorte.mjs` (imports
+  aplanados, sin `?v=`, JWT OFF, como la v9): hasta entonces, lo compartido por la aplicación llega con todo
+  menos el CMOC (el ⬇️ JSON sí lo lleva).
+- **Caché**: los módulos se importan con `?v=seleccion20261011`.
+
+Pruebas: `node calcos/pruebas/areas-seleccion.mjs`, `node calcos/pruebas/e2e/areas-seleccion.cjs` (la Mesa en
+Chromium: lazo, guardar, JSON con el AE, abrirlo en otro ejercicio, borrar un AE con el panel ▧ abierto;
+capturas en `pruebas/salidas-seleccion/`) y `node calcos/pruebas/e2e/areas-seleccion-nube.cjs` (compartirla a
+un ciclo y recibirla con su área de empeño).
 
 ## 📤 Por ciclo o por paralelo, y el ejercicio del profesor tal como está (11-OCT-2026)
 

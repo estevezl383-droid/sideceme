@@ -51,6 +51,34 @@ sus anexos** · 11 Repartir (Los 5 enlaces). El mismo orden del tablero «Mesa �
 (Lo marcado y la carpeta se guardan por la clave `n` de cada paso: la OGO es `n: 11` y se muestra
 como 10; «Repartir» sigue siendo `n: 10` y se muestra como 11, así no se mezcla lo ya guardado.)
 
+**🔄 Los documentos al día con la Mesa, la selección guardada y sólo «FF.TT.T.O.» (11-10-2026, noche).** Lo pidió
+Sergio: «tomá en cuenta hasta lo último: yo puedo seguir editando, entonces quisiera que vuelvas a refrescar todos
+los documentos, OGO, anexos y todo en base a lo que se está modificando en la Mesa, en los gráficos… si es
+necesario se somete otra vez a la IA»; «en el membrete y en las firmas es sólo FF.TT.T.O.»; y elegir el JSON de la
+selección guardada con su nombre para compartirlo al curso o al paralelo.
+- **🔄 La Mesa cambió** (`ogo-coherencia.js · huella / cambiosMesa / estadoMesa / marcarMesa / pedidoActualizar`):
+  al **💾 Aplicar** la coherencia (o al guardar el primer documento) queda la «foto» de la carta con la que están
+  escritos los documentos (`mesaRef`: las fichas con su lugar, las áreas, los límites y las medidas, las áreas de
+  empeño, las avenidas y el terreno clave del CMOC, la unidad considerada). En los pasos 11 y 13 un recuadro dice
+  qué cambió después («+ Ficha nueva en la carta: AZUL · GALM-1», «↔ AZUL · CE-II se movió 3,3 km», «+ Área nueva:
+  CE-III (cuerpo)», «+ Línea o límite nuevo: LF ALFA»…) y se actualiza solo cuando se edita la carta (sin
+  recargar). **🔄 Refrescar los documentos con la Mesa (IA)** arma el pedido de coherencia con esos cambios
+  ADELANTE y TODOS los documentos («actualizá todos para que digan exactamente lo que hoy está en la carta»); se
+  pega la respuesta en el paso 11 y **💾 Aplicar** (queda la Mesa de ahora como la de los documentos).
+  **✓ Ya están al día** toma la foto sin pasar por la IA. El calco del Anexo A y el membrete (la unidad, el CG por
+  la población más cercana) no necesitan la IA: salen de la Mesa de ahora cada vez que se baja un Word; el aviso
+  del .zip lo recuerda si el texto quedó atrás. El pedido de coherencia lleva además «Áreas, límites y medidas
+  dibujados» (con sus coordenadas).
+- **Paso 13 · 💾 Tus selecciones guardadas**: las del lazo («💾 Guardar selección como área», ver
+  `areas-operaciones/README.md`) aparecen por su nombre; elegida una, va ELLA: el área con el contorno guardado
+  (idéntico a lo recortado), lo de adentro como está ahora y lo que tenía activo al guardarla (las enemigas, el
+  CMOC a la vista); el envío se llama como la selección y el JSON «Seleccion <nombre> - para los alumnos.json».
+  Se elige el ciclo o el paralelo y **📤 Enviar a los alumnos**, como siempre.
+- **Sólo la sigla en el membrete y en la firma** (`ogo-mesa.js · sinDesarrollo`, la misma regla que
+  `membrete/v1/membrete.js`): «FF.TT.T.O. ()FUERZAS TERRESTRES DEL TEATRO DE OPERACIONES» (o con el desarrollo
+  entre paréntesis) → «FF.TT.T.O.» en «Expide», el membrete, la firma («EL COMANDANTE DE LAS FF.TT.T.O.») y el
+  OBJETO del calco, aunque esté escrito largo en «¿Quién soy?» o en los datos de la Orden.
+
 **🔎 La OGO sin contradicciones, las unidades que faltan, el calco gráfico y el reparto (11-10-2026, tarde).**
 Lo pidió Sergio con capturas del paso 10 y del Word del Anexo A, el calco de la Escuela (RI-13 «MONTES») y
 la organización de la tarea con unidades «(supuesto)»: «antes del paso 11 una revisión de todos los

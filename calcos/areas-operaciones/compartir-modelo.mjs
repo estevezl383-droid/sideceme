@@ -1,11 +1,15 @@
-import { paqueteAreas, importarAreas } from './modelo.mjs?v=lazo20261010'
-import { fichasDelPaquete } from './recorte.mjs?v=lazo20261010'
+import { paqueteAreas, importarAreas } from './modelo.mjs?v=seleccion20261011'
+import { fichasDelPaquete, sumarCmoc } from './recorte.mjs?v=seleccion20261011'
 
 export function construirPaquete(payload, ids, opciones = {}) {
   // opciones.contenido: también lo que está dentro de las áreas (límites, puntos,
   // marcas, tareas y fichas; las enemigas sólo si opciones.enemigo no es false).
+  // opciones.cmoc (11-10-2026): también el CMOC de adentro, sólo de las capas de
+  // opciones.capasCmoc (las que el profesor tenía a la vista); un cliente viejo no lo pide.
+  const cmoc = opciones.contenido && opciones.cmoc && payload.cmoc && typeof payload.cmoc === 'object' ? payload.cmoc : null
   const p = paqueteAreas(payload.ops || {}, ids, payload.nombre,
-    opciones.contenido ? { unidades: Array.isArray(payload.unidades) ? payload.unidades : [], enemigo: opciones.enemigo !== false } : null)
+    opciones.contenido ? { unidades: Array.isArray(payload.unidades) ? payload.unidades : [], enemigo: opciones.enemigo !== false,
+      cmoc, capasCmoc: Array.isArray(opciones.capasCmoc) ? opciones.capasCmoc.map(String).slice(0, 20) : [] } : null)
   // Lista permitida: nunca copia planes, respuestas ni otras capas por accidente.
   p.areas = p.areas.map(a => Object.fromEntries(
     ['id', 'nombre', 'coords', 'escalon', ...(opciones.unidad ? ['unidad'] : []), ...(opciones.operacion ? ['operacion', 'tipo', 'modalidad', 'ambiente'] : [])]
@@ -39,6 +43,11 @@ export function recibirUnidades(unidades, envio) {
   if (!envio?.id || previas.some(u => u?.envioAreas === envio.id)) return previas
   const nuevas = fichasDelPaquete(envio.paquete, envio.id)
   return nuevas.length ? [...previas, ...nuevas] : previas
+}
+// El CMOC del envío (las áreas de empeño, las avenidas… de adentro), una sola vez por envío.
+export function recibirCmoc(cmoc, envio) {
+  if (!envio?.id || !envio.paquete?.contenido?.cmoc) return cmoc
+  return sumarCmoc(cmoc, envio.paquete.contenido.cmoc, envio.id)
 }
 export function recibirDocumentos(documentos, envio) {
   const p = envio.paquete

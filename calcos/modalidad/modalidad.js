@@ -43,8 +43,8 @@
   var ogo = OGO ? OGO.vacio('') : null, ogoDe = null, ogoVer = 0, ogoAbierto = '', ogoPedido = '', ogoPedidoDe = 'pedido', ogoRev = null, ogoRevDoc = {}, ogoCache = {}, ogoBorr = {}, verOgoDatos = false
   var ogoEjUlt = null // el último ejercicio leído de la Mesa: lo de «Mesa · Preparación» se muestra como sugerencia en los datos de la Orden
   // 🔎 la revisión de coherencia (paso 11), 📍 las unidades que faltan (paso 12) y 📤 el reparto (paso 13)
-  var cohAbierto = false, cohPedido = '', cohBorr = '', nuevoVer = 0
-  var rep = { destinos: null, destino: '', calcoId: '', nombre: '', ind: '', contenido: true, enemigo: false, otros: false, docs: null, ocupado: false, sinCiclos: false }
+  var cohAbierto = false, cohPedido = '', cohBorr = '', nuevoVer = 0, cohModo = '' // cohModo: 'actualizar' = el pedido para refrescar con la Mesa
+  var rep = { destinos: null, destino: '', calcoId: '', nombre: '', ind: '', contenido: true, enemigo: false, otros: false, docs: null, ocupado: false, sinCiclos: false, sel: '', selDe: '' } // sel: la selección guardada que va (selDe: de qué ejercicio)
 
   function lee(k, d) { try { var v = localStorage.getItem(k); return v == null ? d : v } catch (e) { return d } }
   function guarda(k, v) { try { localStorage.setItem(k, v) } catch (e) {} }
@@ -636,7 +636,7 @@
   function conWord() {
     var L = window.SIDMilLib
     if (!L || !L.Packer || !L.Document) return Promise.reject(new Error('la Mesa todavía no cargó su formato militar (recargá la página)'))
-    if (!wordMod) wordMod = import('../formato-militar/v1/word.js?v=ogo20261011').then(function (m) { m.configurarWord(L); return m }, function (e) { wordMod = null; throw e })
+    if (!wordMod) wordMod = import('../formato-militar/v1/word.js?v=sigla20261011').then(function (m) { m.configurarWord(L); return m }, function (e) { wordMod = null; throw e })
     return wordMod
   }
   // El Anexo A es el GRÁFICO de la Mesa (ogo-calco.js): el SVG se pasa a PNG en un canvas.
@@ -694,6 +694,7 @@
       var ta = panel.querySelector('textarea[data-ogo-resp="' + id + '"]'), txt = ta ? ta.value : ogoBorr[id] || ''
       if (!String(txt).trim()) { aviso['ogo-' + id] = 'Pegá primero lo que contestó la IA en el cuadro.'; return pintar(true) }
       var nuevo = OGO.poner(ogo, id, txt)
+      if (COH && !nuevo.mesaRef && ejSync()) nuevo = COH.marcarMesa(nuevo, ejSync()) // desde acá se ve qué cambia en la Mesa
       ogoGuardar(nuevo).then(function () {
         delete ogoBorr[id]; delete ogoRevDoc[id]
         var r = ogoRevisionDe(id)
@@ -727,8 +728,9 @@
             .then(function () { return z.generateAsync({ type: 'blob' }) })
             .then(function (blob) {
               bajarBlob(OGO.nombreArchivo('ogo', o.est) + ' - ' + (o.est.ejercicio || 'ejercicio').replace(/[^\w .-]+/g, '') + '.zip', blob)
-              var faltan = OGO.elegidos(o.est).length - docs.length
-              aviso.ogo = '⬇️ Bajados ' + docs.length + ' Word con el formato militar' + (faltan ? ' (faltan ' + faltan + ' documento(s) por escribir)' : '') + '.'; pintar(true)
+              var faltan = OGO.elegidos(o.est).length - docs.length, cm = COH ? COH.estadoMesa(o.est, o.ej).cambios.length : 0
+              aviso.ogo = '⬇️ Bajados ' + docs.length + ' Word con el formato militar' + (faltan ? ' (faltan ' + faltan + ' documento(s) por escribir)' : '') + '.' +
+                (cm ? ' ⚠️ La Mesa cambió (' + cm + ' cambio(s)) desde que se consolidaron: el calco y el membrete salen de la Mesa de ahora, el texto de los documentos todavía no: «🔄 Refrescar los documentos con la Mesa».' : ''); pintar(true)
             })
         })
       }).catch(function (e) { aviso.ogo = '⚠️ No se pudo armar el .zip: ' + (e && e.message ? e.message : e); pintar(true) })
@@ -753,12 +755,43 @@
   // contradicciones y devuelva todo consolidado; lo pegado reemplaza cada documento (lo anterior queda).
   function ejSync() { try { var M = window.SIDMesaEjercicio, f = M && M.foto && M.foto(); if (f) return f } catch (e) {} return ogoEjUlt }
   function fechaCorta(iso) { return CARP ? CARP.fecha(iso) : iso }
+  // 🔄 Lo que cambió en la Mesa desde que se consolidaron los documentos (Sergio, 11-10-2026: «yo puedo
+  // seguir editando… refrescá todos los documentos, OGO, anexos y todo en base a lo que se está
+  // modificando en la Mesa… si es necesario se somete otra vez a la IA»). Va en el paso 11 y en el 13;
+  // se vuelve a pintar solo cuando cambia la carta (mesaRevisar).
+  function htmlMesa(donde) {
+    if (!COH || !OGO) return ''
+    var escr = OGO.elegidos(ogo).filter(function (d) { return ogo.docs && ogo.docs[d.id] }).length
+    if (!escr) return '<div class="sid-mesa" data-donde="' + donde + '"></div>'
+    var ej = ejSync() || {}, m = COH.estadoMesa(ogo, ej), h = '<div class="sid-mesa ogo-rev" data-donde="' + donde + '">'
+    if (!m.ref) h += '<p class="ogo-nota">🔄 Todavía no hay una foto de la Mesa junto con los documentos: se toma al aplicar la revisión de coherencia. <button type="button" class="chico" data-a="mesa-al-dia">📸 Tomarla ahora</button> (desde ahí se avisa qué cambia en la carta).</p>'
+    else if (!m.cambios.length) h += '<p class="ogo-ok">✓ Los documentos están al día con la Mesa (foto del ' + esc(fechaCorta(m.ref.cuando)) + '). Si seguís editando la carta, acá aparece lo que cambie.</p>'
+    else {
+      h += '<div class="org-tit">🔄 La Mesa cambió desde que se consolidaron los documentos (' + esc(fechaCorta(m.ref.cuando)) + '): ' + m.cambios.length + ' cambio(s)</div>' +
+        '<ul class="rep-docs">' + m.cambios.slice(0, 12).map(function (c) { return '<li>' + esc(c.tipo + ' ' + c.texto) + '</li>' }).join('') + (m.cambios.length > 12 ? '<li>… y ' + (m.cambios.length - 12) + ' más (van todos en el pedido).</li>' : '') + '</ul>' +
+        '<p class="ogo-nota">El calco del Anexo A y el membrete (la unidad, el CG por la población más cercana) ya salen de la Mesa de ahora al bajar los Word. El TEXTO de la Orden y de los anexos lo reescribe la IA: <b>🔄 Refrescar</b> arma el pedido con estos cambios y TODOS los documentos; pegá la respuesta en el paso 11 y <b>💾 Aplicar</b>.</p>' +
+        '<div class="ia-acc"><button type="button" class="ir" data-a="mesa-pedido">🔄 Refrescar los documentos con la Mesa (IA)</button><button type="button" class="chico" data-a="mesa-al-dia" title="Los documentos ya dicen esto: se toma la Mesa de ahora como la de los documentos">✓ Ya están al día</button></div>'
+    }
+    return h + (aviso.mesa ? '<div class="ia-aviso">' + esc(aviso.mesa) + '</div>' : '') + '</div>'
+  }
+  function mesaAccion(acc) {
+    if (acc === 'mesa-pedido') {
+      cohArmar(false, 'actualizar').then(function () { var lc = panel.querySelector('#sid-coh'); if (lc) lc.scrollIntoView({ block: 'start' }) })
+      aviso.coh = '🔄 Pedido para refrescar los documentos con la Mesa: copialo, pegalo en la IA y pegá su respuesta acá abajo (💾 Aplicar).'
+      return
+    }
+    if (acc === 'mesa-al-dia') {
+      var ej = ejSync(); if (!ej) { aviso.mesa = 'Abrí el ejercicio en la Mesa.'; return pintar(true) }
+      ogoGuardar(COH.marcarMesa(ogo, ej)).then(function () { aviso.mesa = '📸 Listo: desde ahora se avisa lo que cambie en la carta.'; pintar(true) }, function (e) { aviso.mesa = '⚠️ ' + (e && e.message ? e.message : e); pintar(true) })
+    }
+  }
   function htmlCoherencia() {
     if (!COH || !OGO) return ''
     var e = COH.estado(ogo), lista = OGO.elegidos(ogo), escr = lista.filter(function (d) { return ogo.docs && ogo.docs[d.id] }).length
-    var h = '<div class="ogo coh" id="sid-coh"><p class="ogo-ayuda"><b>Cómo:</b> 1) <b>🤖 Pedido de coherencia</b>: lleva los ' + escr + ' documentos escritos, la carta (fichas con su población más cercana) y las poblaciones; pegalo en la IA. 2) Pegá TODO lo que contestó (si vino en partes, cada parte debajo de la anterior). 3) <b>💾 Aplicar</b>: cada documento se reemplaza por el consolidado (lo anterior queda para volver atrás). 4) Si cortó, <b>🤖 Pedido para seguir</b>.</p>'
+    var h = '<div class="ogo coh" id="sid-coh">' + htmlMesa('coh') + '<p class="ogo-ayuda"><b>Cómo:</b> 1) <b>🤖 Pedido de coherencia</b>: lleva los ' + escr + ' documentos escritos, la carta (fichas con su población más cercana) y las poblaciones; pegalo en la IA. 2) Pegá TODO lo que contestó (si vino en partes, cada parte debajo de la anterior). 3) <b>💾 Aplicar</b>: cada documento se reemplaza por el consolidado (lo anterior queda para volver atrás). 4) Si cortó, <b>🤖 Pedido para seguir</b>.</p>'
     if (!escr) h += '<p class="ogo-aviso">⚠️ Primero escribí la OGO (paso 10): la revisión trabaja sobre lo escrito.</p>'
-    h += '<div class="ia-acc"><button type="button" class="ir" data-a="coh-pedido" aria-expanded="' + cohAbierto + '">' + (cohAbierto ? '🤖 Pedido de coherencia ▴' : '🤖 Pedido de coherencia ▸') + '</button>' +
+    var tituloPed = cohModo === 'actualizar' ? '🔄 Pedido para refrescar con la Mesa' : '🤖 Pedido de coherencia'
+    h += '<div class="ia-acc"><button type="button" class="ir" data-a="coh-pedido" aria-expanded="' + cohAbierto + '">' + tituloPed + (cohAbierto ? ' ▴' : ' ▸') + '</button>' +
       (e.aplicado && e.faltan.length ? '<button type="button" class="ir" data-a="coh-seguir">🤖 Pedido para seguir (faltan ' + e.faltan.length + ')</button>' : '') + '</div>'
     if (cohAbierto) h += '<div class="ia-caja"><p class="ia-ayuda">Copialo y pegalo en ChatGPT, Gemini o Claude (' + cohPedido.length.toLocaleString('es') + ' caracteres). Si la IA corta («SIGUE: …»), pedile el resto con «🤖 Pedido para seguir».</p>' +
       '<div class="ia-acc"><button type="button" class="ir" data-a="coh-copiar">📋 Copiar el pedido</button><button type="button" class="ir" data-a="coh-bajar">⬇️ .md</button><button type="button" class="chico" data-a="coh-cerrar">Cerrar</button></div>' +
@@ -777,10 +810,13 @@
     }
     return h + (aviso.coh ? '<div class="ia-aviso">' + esc(aviso.coh) + '</div>' : '') + '</div>'
   }
-  function cohArmar(seguir) {
+  // modo 'actualizar': el pedido de coherencia con lo que cambió en la Mesa adelante (🔄 Refrescar).
+  function cohArmar(seguir, modo_) {
+    cohModo = seguir ? cohModo : modo_ || ''
     cohAbierto = true; cohPedido = '… armando el pedido con TODOS los documentos y la Mesa'; pintar(true)
     return ogoContexto().then(function (o) {
-      cohPedido = seguir ? COH.pedidoSeguir(o.est) || 'No falta ningún documento: la OGO ya está consolidada.' : COH.pedido(o.ctx)
+      cohPedido = seguir ? COH.pedidoSeguir(o.est) || 'No falta ningún documento: la OGO ya está consolidada.'
+        : cohModo === 'actualizar' ? COH.pedidoActualizar(o.ctx, COH.estadoMesa(o.est, o.ej).cambios) : COH.pedido(o.ctx)
       pintar(true)
     }).catch(function (e) { cohPedido = '⚠️ No se pudo armar el pedido: ' + (e && e.message ? e.message : e); pintar(true) })
   }
@@ -797,8 +833,9 @@
       if (!String(txt).trim()) { aviso.coh = 'Pegá primero lo que contestó la IA.'; return pintar(true) }
       var leido = COH.leer(txt, ogo)
       if (leido.vacio || (!Object.keys(leido.docs).length && !leido.datos)) { aviso.coh = '⚠️ No encuentro las marcas «=== DOCUMENTO: … ===» ni «=== DATOS ===»: pegá la respuesta completa de la IA al pedido de coherencia.'; return pintar(true) }
-      var r = COH.aplicar(ogo, leido)
+      var r = COH.aplicar(ogo, leido, undefined, ejSync()) // con la Mesa de ahora: lo que cambie después se avisa
       ogoGuardar(r.est).then(function () {
+        cohModo = ''
         ogoCache = {}; ogoRev = null; ogoRevDoc = {}
         var n = COH.porUbicar(ogo, ejSync() || {}, { escalon: escalon }).filter(function (x) { return x.estado === 'pendiente' }).length
         aviso.coh = '✓ ' + r.aplicados.length + ' documento(s) consolidados' + (r.aplicados.length ? ' (' + r.aplicados.map(function (id) { return OGO.corto(id, ogo).split(' — ')[0] }).join(', ') + ')' : '') + '.' +
@@ -829,13 +866,29 @@
     clearTimeout(ubiT)
     ubiT = setTimeout(function () {
       if (modo !== 'profesor') return
-      var viejo = panel && panel.querySelector('#sid-ubi'), ej = viejo && COH ? ejSync() : null
+      var viejo = panel && panel.querySelector('#sid-ubi'), ej = COH ? ejSync() : null
       if (!ej) return
+      mesaRevisar(ej)
+      if (!viejo) return
       var f = firmaCarta(ej)
       if (f === ubiFirma) return
       var d = document.createElement('div'); d.innerHTML = htmlPorUbicar()
       if (d.firstChild) viejo.parentNode.replaceChild(d.firstChild, viejo)
     }, 250)
+  }
+  // 🔄 Lo mismo para «La Mesa cambió» (pasos 11 y 13) y el reparto (paso 13: aparecen las áreas y las
+  // selecciones nuevas): «hasta lo último» que se editó, sin recargar. El reparto no se repinta mientras
+  // se escribe en uno de sus campos.
+  var mesaFirma = ''
+  function mesaRevisar(ej) {
+    if (!COH || !OGO || !panel || !ej) return
+    var f = JSON.stringify(COH.huella(ej)) + '#' + seleccionesDe(ej).map(function (x) { return x.id + ':' + x.nombre + ':' + x.guardada }).join('|') + '#' + JSON.stringify(ogo && ogo.mesaRef ? ogo.mesaRef.cuando : '')
+    if (f === mesaFirma) return
+    var rp = panel.querySelector('#sid-rep'), activo = document.activeElement
+    if (rp && activo && rp.contains(activo) && /^(INPUT|TEXTAREA|SELECT)$/.test(activo.tagName) && activo.type !== 'checkbox' && activo.type !== 'radio') return
+    mesaFirma = f
+    panel.querySelectorAll('.sid-mesa').forEach(function (b) { if (rp && rp.contains(b)) return; var d = document.createElement('div'); d.innerHTML = htmlMesa(b.getAttribute('data-donde') || ''); if (d.firstChild) b.parentNode.replaceChild(d.firstChild, b) })
+    if (rp) { var d2 = document.createElement('div'); d2.innerHTML = htmlRepartir(); if (d2.firstChild) rp.parentNode.replaceChild(d2.firstChild, rp) }
   }
   function htmlPorUbicar() {
     if (!COH) return ''
@@ -892,7 +945,7 @@
     if (!puente || !puente.agregarOps) { aviso.med = '⚠️ Esta Mesa todavía no sabe dibujar las medidas de la IA: recargá la página (Ctrl+F5) con el ejercicio abierto.'; return pintar(true) }
     var r = COH.aceptarMedidas(ogo, lista)
     if (puente.agregarOps(r.capas) === false) { aviso.med = '⚠️ La Mesa no dejó dibujar (ejercicio bloqueado o finalizado).'; return pintar(true) }
-    ogoGuardar(r.est).then(function () {
+    ogoGuardar(COH.absorber(r.est, { capas: r.capas })).then(function () { // las nombran los documentos: no son un «cambio» de la Mesa
       aviso.med = '✓ ' + (lista.length === 1 ? (lista[0].op.el.nombre || lista[0].op.el.etiqueta) + ' dibujada' : lista.length + ' medidas dibujadas') + ' en la carta (y en el calco). ↶ Deshacer (barra) las quita.'
       setTimeout(function () { pintar(true) }, 300)
     }, function (e) { aviso.med = '⚠️ ' + (e && e.message ? e.message : e); pintar(true) })
@@ -909,7 +962,7 @@
     var est = ogo, fichas = [], cambios = 0
     try { lista.forEach(function (x) { var r = COH.aceptar(est, x); est = r.est; fichas.push(r.ficha); cambios += r.cambios }) } catch (e) { aviso.ubi = '⚠️ ' + e.message; return pintar(true) }
     puente.agregarUnidades(fichas)
-    ogoGuardar(est).then(function () {
+    ogoGuardar(COH.absorber(est, { fichas: fichas })).then(function () { // las nombran los documentos: no son un «cambio» de la Mesa
       ogoCache = {}; ogoRev = null
       aviso.ubi = '✓ ' + (fichas.length === 1 ? fichas[0].designacion + ' colocada' + (lista[0].poblacion ? ' cerca de ' + lista[0].poblacion.nombre.toUpperCase() : '') : fichas.length + ' unidades colocadas') + ' en la carta' + (cambios ? '; se sacó «(supuesto)» de ' + cambios + ' línea(s) de los documentos' : '') + '. ↶ Deshacer (barra) las quita de la carta.'
       setTimeout(function () { pintar(true) }, 300) // la Mesa tarda un instante en tener la ficha nueva
@@ -932,30 +985,45 @@
   }
   function repLeer() { try { return JSON.parse(lee(K_REP, '{}'))[claveCarpeta()] || null } catch (e) { return null } }
   function repGuardar(v) { try { var t = JSON.parse(lee(K_REP, '{}')); t[claveCarpeta()] = v; guarda(K_REP, JSON.stringify(t)) } catch (e) {} }
+  // 💾 Las selecciones guardadas con el lazo («Guardar selección como área»: ops.selecciones, ver
+  // areas-operaciones/modelo.mjs). Elegida una, va ELLA: el área idéntica a lo que se recortó y lo que
+  // tenía activo al guardarla (todo lo de adentro, las fichas enemigas, el CMOC a la vista).
+  function seleccionesDe(ej) { var l = ej && ej.ops && Array.isArray(ej.ops.selecciones) ? ej.ops.selecciones : []; return l.filter(function (x) { return x && typeof x.id === 'string' && typeof x.nombre === 'string' && valida(x) }) }
+  function selElegida(ej) { if (!rep.sel || rep.selDe !== claveCarpeta()) return null; return seleccionesDe(ej).filter(function (x) { return x.id === rep.sel })[0] || null }
   // Las áreas que van: las marcadas; si se cortó otra con la tijera (es la activa nueva), ésa sola.
   function areasElegidas(ej) {
+    var sl = selElegida(ej); if (sl) return [sl.areaId]
     var as = areasDe(ej && ej.ops), activa = ej && ej.ops && ej.ops.areaOps ? (ej.ops.areaOps.id || 'ao-original') : (as[0] && as[0].id), g = repLeer()
     if (!g || g.activa !== activa) { g = { activa: activa, ids: activa ? [activa] : [] }; repGuardar(g) }
     return g.ids.filter(function (id) { return as.some(function (a) { return a.id === id }) })
   }
   function docsElegidos() { var l = OGO.elegidos(ogo).filter(function (d) { return (ogo.docs && ogo.docs[d.id]) || d.id === 'calco' }).map(function (d) { return d.id }); return rep.docs ? l.filter(function (id) { return rep.docs.indexOf(id) >= 0 }) : l }
-  var cmMod = null
-  function conCompartir() { if (!cmMod) cmMod = import('../areas-operaciones/compartir-modelo.mjs?v=lazo20261010').catch(function (e) { cmMod = null; throw e }); return cmMod }
-  function nombreEnvio() { return rep.nombre || (claveCarpeta() + ' · ' + OGO.tituloOrden(ogo)) }
+  var cmMod = null, mdMod = null
+  function conModeloAreas() { if (!mdMod) mdMod = import('../areas-operaciones/modelo.mjs?v=seleccion20261011').catch(function (e) { mdMod = null; throw e }); return mdMod }
+  function conCompartir() { if (!cmMod) cmMod = import('../areas-operaciones/compartir-modelo.mjs?v=seleccion20261011').catch(function (e) { cmMod = null; throw e }); return cmMod }
+  function nombreEnvio() { var sl = selElegida(ejSync()); return rep.nombre || (sl ? sl.nombre : claveCarpeta() + ' · ' + OGO.tituloOrden(ogo)) }
   function indicaciones() {
     if (rep.ind) return rep.ind
     var g = CARP && carpeta && CARP.lista(carpeta).filter(function (x) { return x.n === 10 })[0]
     return g ? String(CARP.separar(g.texto).producto || '').slice(0, 4000) : ''
   }
-  function opcionesEnvio(nombres) { return { unidad: true, operacion: true, documentos: true, documentosNombres: nombres, contenido: !!rep.contenido, enemigo: !!rep.enemigo, indicaciones: indicaciones() } }
+  function opcionesEnvio(nombres, sl) {
+    var o = sl && sl.opciones ? sl.opciones : null
+    return { unidad: true, operacion: true, documentos: true, documentosNombres: nombres, contenido: o ? o.contenido !== false : !!rep.contenido, enemigo: o ? o.enemigo !== false : !!rep.enemigo,
+      cmoc: !!(o && o.contenido !== false && o.cmoc !== false && Array.isArray(sl.capasCmoc) && sl.capasCmoc.length), capasCmoc: o && Array.isArray(sl.capasCmoc) ? sl.capasCmoc : [], indicaciones: indicaciones() }
+  }
+  // Las ops que van: con la selección elegida, su área con el contorno EXACTO que se guardó.
+  function opsDeEnvio(ej, sl) { return sl ? conModeloAreas().then(function (m) { return m.opsConSeleccion(ej.ops || {}, sl) }) : Promise.resolve(ej.ops || {}) }
   // El JSON del ejercicio (el paquete de áreas de la Mesa: «Importar áreas compartidas» lo abre) con los documentos.
   function paqueteJSON(o) {
-    var areas = areasElegidas(o.ej)
+    var areas = areasElegidas(o.ej), sl = selElegida(o.ej)
     if (!areas.length) return Promise.resolve(null)
-    return Promise.all([conCompartir(), documentosAlumnos(o.est, o.ej, docsElegidos())]).then(function (r) {
+    return Promise.all([conCompartir(), documentosAlumnos(o.est, o.ej, docsElegidos()), opsDeEnvio(o.ej, sl)]).then(function (r) {
       var docs = r[1].concat(rep.otros ? (o.ej.documentos || []).filter(function (d) { return !r[1].some(function (x) { return x.nombre === d.nombre }) }) : [])
-      var p = r[0].construirPaquete({ ops: o.ej.ops || {}, unidades: o.ej.unidades || [], documentos: docs, nombre: o.ej.nombre || claveCarpeta() }, areas, opcionesEnvio(docs.map(function (d) { return d.nombre })))
-      return { nombre: 'Ejercicio ' + String(o.ej.nombre || claveCarpeta()).replace(/[^\w .-]+/g, '') + ' - para los alumnos.json', texto: JSON.stringify(p, null, 1), paquete: p, docs: docs, areas: areas }
+      var p = r[0].construirPaquete({ ops: r[2], unidades: o.ej.unidades || [], documentos: docs, cmoc: o.ej.cmoc || null, nombre: o.ej.nombre || claveCarpeta() }, areas, opcionesEnvio(docs.map(function (d) { return d.nombre }), sl))
+      if (sl) p.seleccion = { nombre: sl.nombre, guardada: sl.guardada }
+      var base = sl ? 'Seleccion ' + sl.nombre : 'Ejercicio ' + String(o.ej.nombre || claveCarpeta())
+      return { nombre: base.replace(/[^\w .-]+/g, '') + ' - para los alumnos.json', texto: JSON.stringify(p, null, 1), paquete: p, docs: docs, areas: areas, ops: r[2], sel: sl }
     })
   }
   function nubeApi(accion, datos) {
@@ -979,16 +1047,21 @@
     if (!OGO) return ''
     var ej = ejSync(), as = areasDe(ej && ej.ops), sel_ = ej ? areasElegidas(ej) : [], activa = ej && ej.ops && ej.ops.areaOps ? (ej.ops.areaOps.id || 'ao-original') : ''
     var docs = OGO.elegidos(ogo).filter(function (d) { return (ogo.docs && ogo.docs[d.id]) || d.id === 'calco' }), elegidos_ = docsElegidos(), e = COH ? COH.estado(ogo) : { hechos: [] }
-    var h = '<div class="ogo rep" id="sid-rep">'
+    var h = '<div class="ogo rep" id="sid-rep">' + htmlMesa('rep')
     h += '<div class="org-tit">1 · Los documentos consolidados</div><p class="ogo-nota">' + (e.hechos.length ? '✓ ' + e.hechos.length + ' consolidado(s) en la revisión de coherencia.' : '⚠️ Todavía sin la revisión de coherencia (paso 11).') + ' El Anexo A va como el gráfico del calco.</p>' +
       '<ul class="rep-docs">' + docs.map(function (d) { return '<li><label><input type="checkbox" data-rep-doc="' + d.id + '"' + (elegidos_.indexOf(d.id) >= 0 ? ' checked' : '') + '> ' + esc(OGO.corto(d.id, ogo)) + (d.id === 'calco' ? ' 🗺️' : '') + '</label></li>' }).join('') + '</ul>' +
       '<div class="ia-acc"><button type="button" class="ir" data-a="ogo-zip">⬇️ Word (.zip) con el JSON</button><button type="button" class="ir" data-a="rep-json">⬇️ JSON del ejercicio</button><button type="button" class="ir" data-a="ogo-adjuntar">📎 Adjuntar al ejercicio</button></div>'
-    h += '<div class="org-tit">2 · Qué parte del ejercicio va (el JSON) ✂️</div>' +
-      (as.length ? '<ul class="rep-docs">' + as.map(function (a) { return '<li><label><input type="checkbox" data-rep-area="' + esc(a.id) + '"' + (sel_.indexOf(a.id) >= 0 ? ' checked' : '') + '> ' + esc(a.nombre || 'Área') + (a.id === activa ? ' <small>(la seleccionada en la Mesa)</small>' : '') + '</label></li>' }).join('') + '</ul>' : '<p class="ogo-aviso">⚠️ No hay Área de Operaciones trazada: trazala (▧ ÁREA DE OPS).</p>') +
+    var sels = seleccionesDe(ej), slx = selElegida(ej)
+    h += '<div class="org-tit">2 · Qué parte del ejercicio va (el JSON) ✂️</div>'
+    if (sels.length) h += '<p class="ogo-nota"><b>💾 Tus selecciones guardadas</b> (✂️ lazo → «💾 Guardar selección como área»): elegí una y va IDÉNTICA a lo que recortaste, con lo que tenía activo al guardarla.</p>' +
+      '<ul class="rep-docs">' + sels.map(function (x) { var o = x.opciones || {}; return '<li><label><input type="radio" name="rep-sel" data-rep-sel="' + esc(x.id) + '"' + (slx && slx.id === x.id ? ' checked' : '') + '> 💾 <b>' + esc(x.nombre) + '</b> <small>(guardada ' + esc(fechaCorta(x.guardada)) + (o.contenido === false ? ' · sólo el contorno' : ' · todo lo de adentro' + (o.enemigo !== false ? ', las fichas enemigas' : '') + (o.cmoc !== false && (x.capasCmoc || []).length ? ', el CMOC a la vista' : '')) + ')</small></label></li>' }).join('') +
+      '<li><label><input type="radio" name="rep-sel" data-rep-sel=""' + (slx ? '' : ' checked') + '> Elegir las áreas a mano (abajo)</label></li></ul>'
+    if (slx) h += '<p class="ogo-ok">Va «' + esc(slx.nombre) + '»: el área tal cual se guardó y lo de adentro como está ahora en la Mesa.</p>'
+    else h += (as.length ? '<ul class="rep-docs">' + as.map(function (a) { return '<li><label><input type="checkbox" data-rep-area="' + esc(a.id) + '"' + (sel_.indexOf(a.id) >= 0 ? ' checked' : '') + '> ' + esc(a.nombre || 'Área') + (a.id === activa ? ' <small>(la seleccionada en la Mesa)</small>' : '') + '</label></li>' }).join('') + '</ul>' : '<p class="ogo-aviso">⚠️ No hay Área de Operaciones trazada: trazala (▧ ÁREA DE OPS).</p>') +
       '<div class="ia-acc"><button type="button" class="ir" data-a="rep-tijera" title="Abre el Área de Operaciones: «✂️ Seleccionar con lazo» corta la parte que querés repartir; al volver, queda elegida">✂️ Elegir otra parte con la tijera</button></div>' +
       '<label class="ogo-check"><input type="checkbox" data-rep-op="contenido"' + (rep.contenido ? ' checked' : '') + '> Todo lo que está dentro (límites, medidas, fichas)</label>' +
-      '<label class="ogo-check"><input type="checkbox" data-rep-op="enemigo"' + (rep.enemigo ? ' checked' : '') + '> También las fichas enemigas</label>' +
-      '<label class="ogo-check"><input type="checkbox" data-rep-op="otros"' + (rep.otros ? ' checked' : '') + '> También los otros documentos del ejercicio</label>'
+      '<label class="ogo-check"><input type="checkbox" data-rep-op="enemigo"' + (rep.enemigo ? ' checked' : '') + '> También las fichas enemigas</label>'
+    h += '<label class="ogo-check"><input type="checkbox" data-rep-op="otros"' + (rep.otros ? ' checked' : '') + '> También los otros documentos del ejercicio</label>'
     h += '<div class="org-tit">3 · A quién</div>'
     if (!rep.destinos) h += '<div class="ia-acc"><button type="button" class="ir" data-a="rep-destinos"' + (rep.ocupado ? ' disabled' : '') + '>👥 Ver a quién (ciclos, paralelos, Estados Mayores)</button></div>'
     else {
@@ -1028,9 +1101,9 @@
       var o_
       ogoContexto().then(function (o) { o_ = o; return paqueteJSON(o) }).then(function (pq) {
         if (!pq) throw new Error('Elegí (o trazá) el Área de Operaciones que va.')
-        if (!window.confirm('Se envía «' + nombreEnvio() + '» a ' + d.nombre + ':\n· ' + pq.areas.length + ' área(s) del ejercicio' + (rep.contenido ? ', con lo que está dentro' : '') + '\n· ' + pq.docs.length + ' documento(s)\n\n¿Enviar?')) return null
+        if (!window.confirm('Se envía «' + nombreEnvio() + '» a ' + d.nombre + ':\n· ' + (pq.sel ? 'la selección guardada «' + pq.sel.nombre + '» (idéntica a lo recortado)' : pq.areas.length + ' área(s) del ejercicio') + (opcionesEnvio([], pq.sel).contenido ? ', con lo que está dentro' : '') + '\n· ' + pq.docs.length + ' documento(s)\n\n¿Enviar?')) return null
         return repCalcoId().then(function (id) {
-          return nubeApi('ejercicio_enviar', { calco_id: id, nombre: nombreEnvio(), areas: pq.areas, destino: d, opciones: opcionesEnvio(pq.docs.map(function (x) { return x.nombre })), foto: { ops: o_.ej.ops || {}, unidades: o_.ej.unidades || [], documentos: pq.docs } })
+          return nubeApi('ejercicio_enviar', { calco_id: id, nombre: nombreEnvio(), areas: pq.areas, destino: d, opciones: opcionesEnvio(pq.docs.map(function (x) { return x.nombre }), pq.sel), foto: { ops: pq.ops, unidades: o_.ej.unidades || [], documentos: pq.docs, cmoc: pq.sel ? o_.ej.cmoc || null : null } })
         }).then(function () { aviso.rep = '📤 Enviado a ' + d.nombre + '. Lo encuentran en su Mesa: ▧ ÁREA DE OPS → «Compartir en la aplicación / Recibidos».' })
       }).catch(function (e) {
         var m = e && e.message ? e.message : String(e)
@@ -1242,6 +1315,7 @@
     }
     if (a && /^ogo-/.test(a.getAttribute('data-a')) && OGO) { var od = a.closest('[data-ogo-doc]'); ogoAccion(a.getAttribute('data-a'), od ? od.getAttribute('data-ogo-doc') : ogoAbierto); return }
     if (a && /^coh-/.test(a.getAttribute('data-a')) && COH) { cohAccion(a.getAttribute('data-a')); return }
+    if (a && /^mesa-/.test(a.getAttribute('data-a')) && COH) { mesaAccion(a.getAttribute('data-a')); return }
     if (a && /^med-/.test(a.getAttribute('data-a')) && COH) { var mi = a.closest('[data-med]'); medAccion(a.getAttribute('data-a'), a.getAttribute('data-med-k') || (mi ? mi.getAttribute('data-med') : '')); return }
     if (a && /^ubi-/.test(a.getAttribute('data-a')) && COH) { var ui = a.closest('[data-ubi]'); ubiAccion(a.getAttribute('data-a'), a.getAttribute('data-ubi-k') || (ui ? ui.getAttribute('data-ubi') : '')); return }
     if (a && /^rep-/.test(a.getAttribute('data-a')) && OGO) { repAccion(a.getAttribute('data-a'), a); return }
@@ -1327,6 +1401,7 @@
       g.ids = t.checked ? g.ids.filter(function (x) { return x !== ai }).concat([ai]) : g.ids.filter(function (x) { return x !== ai }); repGuardar(g); nuevoVer++; pintar(true); return
     }
     if (t.matches && t.matches('input[data-rep-op]')) { rep[t.getAttribute('data-rep-op')] = t.checked; nuevoVer++; pintar(true); return }
+    if (t.matches && t.matches('input[data-rep-sel]')) { rep.sel = t.getAttribute('data-rep-sel') || ''; rep.selDe = claveCarpeta(); rep.nombre = ''; nuevoVer++; pintar(true); return }
     if (t.matches && t.matches('select[data-rep-destino]')) { rep.destino = t.value; nuevoVer++; pintar(true); return }
     if (OGO && t.matches && t.matches('[data-ogo-cfg]')) {
       var ck = t.getAttribute('data-ogo-cfg'), cv = t.type === 'checkbox' ? t.checked : t.value, cc = {}; cc[ck] = cv

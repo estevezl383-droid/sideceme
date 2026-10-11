@@ -244,10 +244,23 @@ function union(g, elegidas) {
     .filter(x => x.sup > 0).sort((x, y) => y.sup - x.sup)
 }
 
+// Las medidas de coordinación (líneas de fase, LCAF, áreas de empeñamiento: las que trae la IA
+// o una línea con nombre y sin magnitud, o un contorno punteado cerrado) cruzan el área pero NO
+// la reparten: el área de un Cuerpo llega hasta su límite, no hasta la línea de fase (11-10-2026:
+// «3 zonas unidas» y el clic que se quedaba en la LF). Siguen yendo con el área (contenidoDeAreas).
+const cerradaL = c => Array.isArray(c) && c.length > 3 && esPar(c[0]) && esPar(c[c.length - 1]) && +c[0][0] === +c[c.length - 1][0] && +c[0][1] === +c[c.length - 1][1]
+export function esMedida(l) {
+  if (!l || l.tipo === 'magnitud' || l.escalon) return false
+  return l.origen === 'ogo-ia' || !!String(l.nombre || '').trim() || (l.tipo === 'punteada' && cerradaL(l.coords))
+}
+const corta = l => l && l.tipo !== 'flecha' && Array.isArray(l.coords) && !esMedida(l)
+
 /**
  * Reparte un área: devuelve el contorno del pedazo que encierra el lazo (o el que
  * recibe el clic). `areas`: todas las áreas del ejercicio; `limites`: ops.limites.
  * `seleccion`: { lazo: [[lng, lat]…] } o { punto: [lng, lat] }.
+ * Lo que ya es de otra área cortada dentro de la misma (un Cuerpo ya repartido) se deja
+ * afuera (`dejadas`); si el lazo no encierra otra cosa, queda y se avisa (`encima`).
  */
 export function repartir(areas, limites, seleccion = {}) {
   const lazo = Array.isArray(seleccion.lazo) ? seleccion.lazo.filter(esPar) : null
@@ -276,7 +289,7 @@ export function repartir(areas, limites, seleccion = {}) {
   const S = limitar(diagonal(caja(baseXY.map(p => [p.x, p.y]))) * 0.03, 150, 5000)
   const vertices = coords => coords.filter(esPar).map(p => { const [x, y] = P.a(p); return { x, y, ll: [+p[0], +p[1]] } })
   const cortes = [
-    ...(limites || []).filter(l => l && l.tipo !== 'flecha' && Array.isArray(l.coords)).map(l => vertices(l.coords)).filter(l => l.length >= 2),
+    ...(limites || []).filter(corta).map(l => vertices(l.coords)).filter(l => l.length >= 2),
     ...validas.filter(a => a !== base).map(a => Object.assign(vertices(a.coords), { cerrada: true })),
   ]
   let g = caras(baseXY, cortes, S)
@@ -300,12 +313,26 @@ export function repartir(areas, limites, seleccion = {}) {
     }).map(c => c.id)
   }
   if (!elegidas.length) return { ok: false, error: punto ? 'El clic quedó fuera del área.' : 'El lazo no encierra ninguna zona completa: encierre por lo menos la mitad de la zona.' }
+  // Las otras áreas ya cortadas DENTRO de la base (los Cuerpos ya repartidos): sus zonas no se repiten.
+  const anilloB = baseXY.map(p => [p.x, p.y])
+  const hermanas = validas.filter(a => a !== base).map(a => ({ a, r: anillo(a) })).filter(({ r }) => {
+    const m = muestras(r, 12), pts = m.length ? m : r
+    return pts.filter(p => dentro(p, anilloB)).length > pts.length / 2
+  })
+  const adentro = c => { const m = muestras(c.anillo, 8); return m.length ? m[Math.floor(m.length / 2)] : centroide(c.anillo) }
+  const duenas = id => { const c = g.caras[id], p = adentro(c); return hermanas.filter(h => dentro(p, h.r)).map(h => h.a.nombre || 'otra área') }
+  const libres = elegidas.filter(id => !duenas(id).length)
+  const ajenas = [...new Set(elegidas.flatMap(duenas))]
+  let dejadas = [], encima = []
+  if (libres.length && libres.length < elegidas.length) { dejadas = ajenas; elegidas = libres }
+  else if (!libres.length) encima = ajenas
   const anillos = union(g, elegidas)
   if (!anillos.length) return { ok: false, error: 'No se pudo armar el contorno de la zona elegida.' }
   const coords = anillos[0].a.map(i => g.vert[i].ll ? [...g.vert[i].ll] : P.de([g.vert[i].x, g.vert[i].y]))
   return {
     ok: true, coords, base: base.id, baseNombre: base.nombre || '', piezas: elegidas.length, libre,
     separadas: anillos.length > 1, toda: elegidas.length === g.caras.length && !libre && g.caras.length > 1,
+    dejadas, encima,
   }
 }
 
@@ -412,8 +439,76 @@ export function contenidoDeAreas(areas, ops = {}, unidades = [], { enemigo = tru
   return { ops: salida, unidades: uni }
 }
 
+// ── El CMOC que está dentro (sólo las capas a la vista: «todo lo que está activo») ──
+// Lo pidió Sergio (11-10-2026): la selección guardada lleva todo lo que está activo en la carta,
+// también el terreno ya juzgado (las áreas de empeño, las avenidas…) que está prendido.
+// `vis`: la clave de «Qué se ve en el calco» (verCapa); `forma`: punto (centro), linea, area
+// (coords) o geo (GeoJSON: las zonas restringidas que arma la Mesa).
+export const CAPAS_CMOC = [
+  { capa: 'ae', vis: 'ae', forma: 'area', nombre: 'área(s) de empeño' },
+  { capa: 'restringido', vis: 'restringido', forma: 'geo', nombre: 'zona(s) restringida(s)' },
+  { capa: 'severo', vis: 'severo', forma: 'geo', nombre: 'zona(s) sev. restringida(s)' },
+  { capa: 'defensivo', vis: 'defensivo', forma: 'linea', nombre: 'terreno(s) defensivo(s)' },
+  { capa: 'avenidas', vis: 'avenidas', forma: 'linea', nombre: 'avenida(s) de aproximación' },
+  { capa: 'corredores', vis: 'corredores', forma: 'linea', nombre: 'corredor(es) de movilidad' },
+  { capa: 'corredoresClandestinos', vis: 'clandestinos', forma: 'linea', nombre: 'corredor(es) clandestino(s)' },
+  { capa: 'clave', vis: 'clave', forma: 'punto', nombre: 'terreno(s) clave' },
+]
+// Las capas del CMOC que están prendidas y tienen algo dibujado.
+export function capasCmocVisibles(cmoc, verCapa = {}) {
+  return CAPAS_CMOC.filter(c => verCapa?.[c.vis] !== false && Array.isArray(cmoc?.[c.capa]) && cmoc[c.capa].length).map(c => c.capa)
+}
+function anillosGeo(g) {
+  if (!g || typeof g !== 'object') return []
+  if (g.type === 'FeatureCollection') return (g.features || []).flatMap(anillosGeo)
+  if (g.type === 'Feature' || g.geometry) return anillosGeo(g.geometry)
+  if (g.type === 'Polygon') return [g.coordinates?.[0]].filter(Array.isArray)
+  if (g.type === 'MultiPolygon') return (g.coordinates || []).map(p => p?.[0]).filter(Array.isArray)
+  return []
+}
+function geometriasCmoc(el, forma) {
+  if (!el || typeof el !== 'object') return []
+  if (forma === 'punto') return esPar(el.centro) ? [{ punto: el.centro }] : []
+  if (forma === 'geo') return anillosGeo(el).map(r => r.filter(esPar)).filter(r => r.length >= 3).map(r => ({ linea: r, cerrada: true }))
+  const c = Array.isArray(el.coords) ? el.coords.filter(esPar) : []
+  const g = c.length >= 2 ? [{ linea: c, cerrada: forma === 'area' && c.length >= 3 }] : []
+  return el.poligono ? g.concat(anillosGeo(el.poligono).map(r => ({ linea: r.filter(esPar), cerrada: true })).filter(x => x.linea.length >= 3)) : g
+}
+export function cmocDeAreas(areas, cmoc = {}, capas = null) {
+  const lista = (areas || []).filter(a => Array.isArray(a?.coords) && a.coords.filter(esPar).length >= 3)
+  const salida = {}
+  for (const c of CAPAS_CMOC) {
+    if (capas && !capas.includes(c.capa)) continue
+    const fuente = Array.isArray(cmoc?.[c.capa]) ? cmoc[c.capa] : []
+    const van = fuente.filter(el => lista.some(area => {
+      const P = plano(area.coords.filter(esPar)), anillo = area.coords.filter(esPar).map(P.a)
+      const T = limitar(diagonal(caja(anillo)) * 0.012, 100, 5000)
+      return geometriasCmoc(el, c.forma).some(geo => incluye(geo, anillo, P, T).si)
+    }))
+    if (van.length) salida[c.capa] = van.map(copiar)
+  }
+  return salida
+}
+// Valida lo que llega y lo suma al CMOC del que recibe. `marca`: el envío (una sola vez por envío).
+export function sumarCmoc(cmoc, llegan, marca = '') {
+  if (!llegan || typeof llegan !== 'object') return cmoc
+  const previo = cmoc && typeof cmoc === 'object' ? cmoc : {}
+  if (marca && CAPAS_CMOC.some(c => (previo[c.capa] || []).some(x => x?.envioAreas === marca))) return previo
+  const next = { ...previo }
+  let suma = 0
+  for (const c of CAPAS_CMOC) {
+    const van = (Array.isArray(llegan[c.capa]) ? llegan[c.capa] : []).slice(0, 2000)
+      .filter(el => el && typeof el === 'object' && !Array.isArray(el) && geometriasCmoc(el, c.forma).length)
+      .map(el => ({ ...copiar(el), ...(marca ? { envioAreas: marca } : {}) }))
+    if (!van.length) continue
+    next[c.capa] = [...(Array.isArray(previo[c.capa]) ? previo[c.capa] : []), ...van]
+    suma += van.length
+  }
+  return suma ? next : previo
+}
+
 export function resumenContenido(contenido) {
-  const o = contenido?.ops || {}, u = contenido?.unidades || []
+  const o = contenido?.ops || {}, u = contenido?.unidades || [], cm = contenido?.cmoc || {}
   const n = k => (o[k] || []).length
   const partes = [
     [n('limites'), 'límite(s) y línea(s)'], [n('coordinacion'), 'punto(s) de coordinación'], [n('pasaje'), 'punto(s) de pasaje'],
@@ -421,6 +516,7 @@ export function resumenContenido(contenido) {
     [n('objetivos') + n('ains'), 'objetivo(s) y A.I.N.'], [n('zonasLog') + n('sectoresLog') + n('ejesLog') + n('lineasEM'), 'zona(s), sector(es) y eje(s) log.'],
     [n('maniobra') + n('flechasZona'), 'flecha(s)'],
     [u.filter(x => !enemiga(x)).length, 'ficha(s) propia(s)'], [u.filter(enemiga).length, 'ficha(s) enemiga(s)'],
+    ...CAPAS_CMOC.map(c => [(cm[c.capa] || []).length, c.nombre + ' (CMOC)']),
   ].filter(([c]) => c > 0)
   return partes.length ? partes.map(([c, t]) => `${c} ${t}`).join(' · ') : 'nada más que el contorno'
 }

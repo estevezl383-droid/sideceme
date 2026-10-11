@@ -99,7 +99,7 @@ export async function compartir(body, ses, deps) {
     if (!Array.isArray(body.areas) || body.areas.length > 200) return err('Seleccione las áreas que va a compartir.')
     // ejercicio_enviar: lo que el profesor tiene en su Mesa ahora (su propio ejercicio: `fuente` es suyo)
     const foto = body.accion === 'ejercicio_enviar' && body.foto && typeof body.foto === 'object' ? body.foto : null
-    const base = foto ? { ops: foto.ops || {}, unidades: Array.isArray(foto.unidades) ? foto.unidades : [], documentos: Array.isArray(foto.documentos) ? foto.documentos : [] } : fuente.payload
+    const base = foto ? { ops: foto.ops || {}, unidades: Array.isArray(foto.unidades) ? foto.unidades : [], documentos: Array.isArray(foto.documentos) ? foto.documentos : [], cmoc: foto.cmoc && typeof foto.cmoc === 'object' ? foto.cmoc : null } : fuente.payload
     const paquete = construirPaquete({ ...base, nombre: fuente.nombre }, body.areas, body.opciones)
     if (paquete.areas.length !== new Set(body.areas).size) return err('Hay áreas que no pertenecen al ejercicio guardado.')
     const { data, error } = await sb.from('calco_compartidos').insert({

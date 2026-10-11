@@ -5,6 +5,41 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-11 (noche) — 💾 Guardar selección como área, borrar las áreas de empeño y sólo «FF.TT.T.O.» (`index-seleccion-20261011.js`)
+
+Parte de `index-medidas-20261011.js` + `pruebas/reemplazos-2026-10-11-seleccion.js` (14 reemplazos;
+`construir-seleccion.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con tres
+capturas (la Mesa con las áreas de empeño, el membrete del Word y el panel del lazo «CE-III creada dentro de
+FABBLE… (3 zonas unidas)»): «quisiera una opción que diga guardar selección como área… idéntico a lo que se
+recortó y que lleve todo lo que está activo… y luego seleccionar el JSON con el nombre que le di y compartirlo
+al curso o paralelo»; «las áreas de empeño no las puedo borrar»; «en el membrete y en las firmas es sólo
+FF.TT.T.O.»; y «tomá en cuenta hasta lo último: yo puedo seguir editando… refrescá todos los documentos».
+
+- **Qué pasaba con las áreas de empeño**: con el panel ▧ ÁREA DE OPS abierto la Mesa arma la herramienta
+  «areaops» («Vas a agregar OTRA Área de Operaciones… marcá el FRENTE») y, con cualquier herramienta de dibujo
+  puesta, el CMOC de la carta no responde (`dibujando`): el clic derecho no llegaba al AE. Además nada decía
+  que se borran con clic derecho.
+- **Qué se hizo en el compilado**: el panel `_Ce` le pasa al editor de áreas el CMOC (`Jt`), cómo sumarle
+  lo que llega (`ua` con la foto del deshacer del CMOC `Bo` y los candados `ll`/`Bn`) y lo que está a la
+  vista (`ai`, verCapa). En «Qué se ve en el calco» (`Rve`) el chip «Áreas de empeño» prendido lista
+  «🗑 AE 1 · AE 2 … · 🗑 Todas» (`SIDListaAE`; uno pasa por `GN` como el clic derecho, «Todas» pregunta) y
+  el chip cuenta las AE (y el terreno defensivo); en la carta cada AE se rotula «AE 1», «AE 2» (con una
+  sola, «AE»). La firma del Word genérico pasa por `SIDMembrete.sinDesarrollo`; el formato militar
+  (`runtime.js`) con `?v=sigla20261011`; los tres imports de `areas-operaciones` con `?v=seleccion20261011`.
+- **Fuera del compilado** (código legible): el lazo, «💾 Guardar selección como área», las selecciones
+  guardadas y el CMOC de adentro (`calcos/areas-operaciones`, ver su README); «🔄 La Mesa cambió» y la
+  selección guardada en el paso 13 (`calcos/modalidad`); sólo la sigla en membrete y firma
+  (`membrete/v1/membrete.js · sinDesarrollo`, `formato-militar/v1/word.js`, `modalidad/ogo*.js`).
+- **Cómo se comprobó**: `e2e/areas-seleccion.cjs` (la Mesa real: lazo sin cortar por la LF ni el AE de la
+  IA, guardar la selección, su JSON con el CMOC y abrirlo en otro ejercicio, borrar un AE con el panel ▧
+  abierto), `e2e/areas-seleccion-nube.cjs` (compartirla a un ciclo y recibirla con su AE),
+  `e2e/ogo-coherencia.cjs` (el aviso «La Mesa cambió», el pedido para refrescar y la selección por su
+  nombre al ciclo), `areas-seleccion.mjs`, `membrete.cjs`, `ogo-coherencia.cjs`, `reemplazos-compilado.js`,
+  `npm test` y las e2e de áreas (lazo, compartir, aislamiento), deshacer, modalidad, carpeta, OGO, membrete,
+  aviso de versión, paneles, autoguardado, edición y trazos.
+- **Si se recompila desde el fuente**: llevar al panel de áreas `cmoc`/`onCmoc`/`verCapa`, la lista de las
+  AE en «Qué se ve en el calco» (con sus conteos) y el rótulo numerado, y `sinDesarrollo` en la firma.
+
 ## 2026-10-11 (tarde) — 📐 Las medidas de la IA se dibujan solas (`index-medidas-20261011.js`)
 
 Parte de `index-deshacer-20261011.js` + `pruebas/reemplazos-2026-10-11-medidas.js` (3 reemplazos;

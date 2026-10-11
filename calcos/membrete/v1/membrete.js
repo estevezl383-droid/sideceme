@@ -32,6 +32,39 @@ const sinTildes = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, ''
 export const claveUnidad = (s) => sinTildes(s).toUpperCase().replace(/[^A-Z0-9]+/g, '')
 export const mismaUnidad = (a, b) => !!claveUnidad(a) && claveUnidad(a) === claveUnidad(b)
 
+// ─── En el membrete y en la firma va SÓLO la sigla ───────────────────────────────
+// Lo pidió Sergio (11-10-2026) con el Word que decía «FF.TT.T.O. ()FUERZAS TERRESTRES DEL TEATRO
+// DE OPERACIONES»: «es solo esto: FF.TT.T.O.». Saca el desarrollo de una sigla con puntos cuando
+// sus palabras empiezan con las letras de la sigla (FF = Fuerzas, TT = Terrestres, T = Teatro,
+// O = Operaciones; «de», «del»… no cuentan), entre paréntesis o pegado a un «()», y los «()»
+// vacíos. Sin paréntesis sólo si la sigla tiene 3 grupos o más (así «C.E. CERCA EL…» no se toca).
+// La misma regla está en calcos/modalidad/ogo-mesa.js (sinDesarrollo), para la OGO.
+const CONECTORES = new Set(['DE', 'DEL', 'LA', 'LAS', 'LOS', 'EL', 'Y', 'EN'])
+export function sinDesarrollo(texto) {
+  const s = String(texto ?? '')
+  const re = /(?:[A-ZÁÉÍÓÚÑ]{1,3}\.){2,}/g
+  let out = '', desde = 0, m
+  while ((m = re.exec(s))) {
+    const fin = m.index + m[0].length, resto = s.slice(fin)
+    const letras = m[0].split('.').filter(Boolean).map((g) => sinTildes(g)[0])
+    const cab = /^(\s*\(\s*\))?\s*(\()?\s*/.exec(resto)
+    let j = cab[0].length, n = 0, w
+    while (n < letras.length && (w = /^([A-Za-zÁÉÍÓÚÑáéíóúñÜü]+)\s*/.exec(resto.slice(j)))) {
+      const P = sinTildes(w[1]).toUpperCase()
+      if (CONECTORES.has(P) && n > 0) { j += w[0].length; continue }
+      if (P.length < 2 || P[0] !== letras[n]) break
+      n++
+      j += w[0].length
+    }
+    if (n < letras.length || (!cab[1] && !cab[2] && letras.length < 3)) continue
+    if (cab[2]) { const c = /^\s*\)/.exec(resto.slice(j)); if (!c) continue; j += c[0].length }
+    out += s.slice(desde, fin) + (/^[\w(«“"]/.test(resto.slice(j)) ? ' ' : '')
+    desde = fin + j
+    re.lastIndex = desde
+  }
+  return limpio((out + s.slice(desde)).replace(/\(\s*\)/g, ' ')).replace(/\s+([.,;:])/g, '$1')
+}
+
 // ─── Estado que presta el compilado ──────────────────────────────────────────────
 let entorno = {}
 let estado = {}
@@ -332,8 +365,8 @@ export function campos(ctx = {}, osParcial = null, e = estado, ahora = new Date(
   const clave = claveRedactor(os)
   const numero = numeroConClave(correlativo(seccion, ctx.hoja, e), clave)
   return {
-    superior,
-    unidad,
+    superior: sinDesarrollo(superior),
+    unidad: sinDesarrollo(unidad),
     cg: puesto.cg || CG_SIN_LUGAR,
     hora,
     seccion,
@@ -389,7 +422,7 @@ export function html(c, op = {}) {
 }
 
 // Para el compilado (sin import) y los módulos de la Mesa.
-const API = { UNIDAD_CONSIDERADA_POR_DEFECTO, CG_SIN_LUGAR, DOCUMENTOS_MILITARES, configurar, sincronizar, estadoActual, esDocumentoMilitar, seccionEMO, iniciales, claveRedactor, correlativo, expedidos, lugarMasCercano, fichaDeUnidad, puestoDeLaUnidad, horaTactica, momentoDelDocumento, unidadConsiderada, campos, lineas, lineasTexto, tabulacion, porcentajeTab, html, ANCHO_VERTICAL, ANCHO_APAISADA }
+const API = { UNIDAD_CONSIDERADA_POR_DEFECTO, CG_SIN_LUGAR, DOCUMENTOS_MILITARES, sinDesarrollo, configurar, sincronizar, estadoActual, esDocumentoMilitar, seccionEMO, iniciales, claveRedactor, correlativo, expedidos, lugarMasCercano, fichaDeUnidad, puestoDeLaUnidad, horaTactica, momentoDelDocumento, unidadConsiderada, campos, lineas, lineasTexto, tabulacion, porcentajeTab, html, ANCHO_VERTICAL, ANCHO_APAISADA }
 try {
   globalThis.SIDMembrete = API
 } catch {

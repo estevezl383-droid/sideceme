@@ -27,6 +27,31 @@
 
   function una(s) { return String(s == null ? '' : s).replace(/\s+/g, ' ').trim() }
   function sinTildes(s) { return String(s == null ? '' : s).normalize('NFD').replace(/[̀-ͯ]/g, '') }
+  // En el membrete y en la firma va SÓLO la sigla (Sergio, 11-10-2026: el Word decía «FF.TT.T.O. ()FUERZAS
+  // TERRESTRES DEL TEATRO DE OPERACIONES» y «es solo esto: FF.TT.T.O.»). Saca el desarrollo de una sigla con
+  // puntos cuando sus palabras empiezan con las letras de la sigla, entre paréntesis o pegado a un «()», y los
+  // «()» vacíos; sin paréntesis, sólo si la sigla tiene 3 grupos o más. La misma regla que
+  // calcos/membrete/v1/membrete.js (sinDesarrollo), para el resto de los documentos.
+  var CONECTORES = { DE: 1, DEL: 1, LA: 1, LAS: 1, LOS: 1, EL: 1, Y: 1, EN: 1 }
+  function sinDesarrollo(texto) {
+    var s = String(texto == null ? '' : texto), re = /(?:[A-ZÁÉÍÓÚÑ]{1,3}\.){2,}/g, out = '', desde = 0, m
+    while ((m = re.exec(s))) {
+      var fin = m.index + m[0].length, resto = s.slice(fin)
+      var letras = m[0].split('.').filter(Boolean).map(function (g) { return sinTildes(g)[0] })
+      var cab = /^(\s*\(\s*\))?\s*(\()?\s*/.exec(resto), j = cab[0].length, n = 0, w
+      while (n < letras.length && (w = /^([A-Za-zÁÉÍÓÚÑáéíóúñÜü]+)\s*/.exec(resto.slice(j)))) {
+        var P = sinTildes(w[1]).toUpperCase()
+        if (CONECTORES[P] && n > 0) { j += w[0].length; continue }
+        if (P.length < 2 || P[0] !== letras[n]) break
+        n++; j += w[0].length
+      }
+      if (n < letras.length || (!cab[1] && !cab[2] && letras.length < 3)) continue
+      if (cab[2]) { var c = /^\s*\)/.exec(resto.slice(j)); if (!c) continue; j += c[0].length }
+      out += s.slice(desde, fin) + (/^[\w(«“"]/.test(resto.slice(j)) ? ' ' : '')
+      desde = fin + j; re.lastIndex = desde
+    }
+    return una((out + s.slice(desde)).replace(/\(\s*\)/g, ' ')).replace(/\s+([.,;:])/g, '$1')
+  }
   function r4(x) { return Math.round(x * 1e4) / 1e4 }
   function r6(x) { return Math.round(x * 1e6) / 1e6 }
   function enemiga(u) { return /enem|rojo/i.test(String(u && u.bando || '')) }
@@ -312,7 +337,7 @@
   }
 
   return {
-    una: una, rasgos: rasgos, mismaUnidad: mismaUnidad, nivelDe: nivelDe, superiorDe: superiorDe, poblaciones: poblaciones, masCercana: masCercana,
+    una: una, sinDesarrollo: sinDesarrollo, rasgos: rasgos, mismaUnidad: mismaUnidad, nivelDe: nivelDe, superiorDe: superiorDe, poblaciones: poblaciones, masCercana: masCercana,
     poblacionesParaPedido: poblacionesParaPedido, anillo: anillo, areaMayor: areaMayor, areas: areas, dentro: dentro, fichaDe: fichaDe, identidad: identidad, abreviar: abreviar, sigla: sigla,
     unidadesDeOrganizacion: unidadesDeOrganizacion, faltantes: faltantes, sugerir: sugerir, ficha: ficha, quitarSupuesto: quitarSupuesto, km: km,
     ARMAS: ARMAS, ESCALONES: ESCALONES, SIN_HTML: SIN_HTML, ESC_FICHA: ESC_FICHA

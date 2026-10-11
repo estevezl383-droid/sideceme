@@ -1,15 +1,20 @@
-import { recibirUnidades } from './compartir-modelo.mjs?v=lazo20261010'
-import { resumenContenido } from './recorte.mjs?v=lazo20261010'
+import { recibirUnidades, recibirCmoc } from './compartir-modelo.mjs?v=seleccion20261011'
+import { resumenContenido } from './recorte.mjs?v=seleccion20261011'
+import { opsConSeleccion } from './modelo.mjs?v=seleccion20261011'
 
-// entrega: { contenido, enemigo } elegido en el panel; resumen: lo que lleva, en palabras.
-export default function Compartir({ react: R, nube, ids, ops, ejercicio, entrega = { contenido: false }, resumen = '', onUnidades }) {
+// entrega: { contenido, enemigo, cmoc, capasCmoc } elegido en el panel; resumen: lo que lleva, en palabras.
+// pedido: { n, seleccion } cuando se toca «📤 Compartir» en una selección guardada: se abre con su
+// nombre y se envía la Mesa TAL COMO ESTÁ (ejercicio_enviar, con el contorno guardado), no lo último
+// que llegó a guardarse en SIDECEME.
+export default function Compartir({ react: R, nube, ids, ops, ejercicio, entrega = { contenido: false }, resumen = '', onUnidades, cmoc, onCmoc, pedido = null }) {
   const h = R.createElement
   const [abierto, abrir] = R.useState(false), [destinos, setDestinos] = R.useState([]), [envios, setEnvios] = R.useState([])
   const [destino, setDestino] = R.useState(''), [nombre, setNombre] = R.useState(''), [mensaje, setMensaje] = R.useState('')
-  const [ocupado, setOcupado] = R.useState(false)
+  const [ocupado, setOcupado] = R.useState(false), [sel, setSel] = R.useState(null)
   const [opciones, setOpciones] = R.useState({ unidad: true, operacion: true, documentos: false, indicaciones: '' })
   const actual = R.useRef(ejercicio); actual.current = ejercicio
-  R.useEffect(() => { abrir(false); setDestinos([]); setEnvios([]); setDestino(''); setNombre(''); setMensaje(''); setOpciones({ unidad: true, operacion: true, documentos: false, indicaciones: '' }) }, [ejercicio])
+  const caja = R.useRef(null)
+  R.useEffect(() => { abrir(false); setDestinos([]); setEnvios([]); setDestino(''); setNombre(''); setMensaje(''); setSel(null); setOpciones({ unidad: true, operacion: true, documentos: false, indicaciones: '' }) }, [ejercicio])
   const s = { width: '100%', boxSizing: 'border-box', padding: 7, background: '#111c2c', color: '#e8edf5', border: '1px solid #42516a', borderRadius: 6, fontSize: 14 }
   const tarea = async fn => {
     const origen = ejercicio; setOcupado(true); setMensaje('')
@@ -29,20 +34,35 @@ export default function Compartir({ react: R, nube, ids, ops, ejercicio, entrega
     const d = await nube.api('areas_destinos', { calco_id: c.id }); comprobar()
     setDestinos(d.ok ? d.destinos : []); abrir(true)
   })
+  // Una selección guardada: se abre con su nombre (y sus destinos, ciclos y paralelos incluidos).
+  R.useEffect(() => {
+    if (!pedido?.seleccion) return
+    setSel(pedido.seleccion); setNombre(pedido.seleccion.nombre); setMensaje('')
+    try { caja.current?.scrollIntoView?.({ block: 'nearest' }) } catch {}
+    if (!abierto) cargar()
+  }, [pedido?.n])
   const enviar = () => tarea(async comprobar => {
     const d = destinos.find(x => x.clave === destino)
     if (!d || !nombre.trim() || !ids.length) throw new Error('Indique nombre, áreas y destinatario.')
     const c = await nube.contexto(true); comprobar()
-    await api('areas_enviar', c, { nombre, areas: ids, opciones: { ...opciones, contenido: !!entrega.contenido, enemigo: entrega.enemigo !== false }, destino: d }); comprobar()
+    const op = { ...opciones, contenido: !!entrega.contenido, enemigo: entrega.enemigo !== false, cmoc: !!entrega.cmoc, capasCmoc: entrega.capasCmoc || [] }
+    if (sel && ids.length === 1 && ids[0] === sel.areaId) {
+      // La Mesa como está, con el área idéntica a lo que se recortó y guardó.
+      const mesa = globalThis.window?.SIDMesaEjercicio?.foto?.() || {}
+      await api('ejercicio_enviar', c, { nombre, areas: ids, opciones: op, destino: d, foto: { ops: opsConSeleccion(ops, sel), unidades: Array.isArray(mesa.unidades) ? mesa.unidades : [], documentos: opciones.documentos && Array.isArray(mesa.documentos) ? mesa.documentos : [], cmoc: entrega.cmoc ? cmoc || null : null } })
+    } else await api('areas_enviar', c, { nombre, areas: ids, opciones: op, destino: d })
+    comprobar()
     setMensaje(`Enviado a ${d.nombre}. Lo encontrará en Recibidos dentro de SIDE-CEME.`)
   })
-  return h('section', { 'aria-label': 'Compartir dentro de SIDE-CEME', style: { display: 'grid', gap: 7 } },
+  return h('section', { ref: caja, 'aria-label': 'Compartir dentro de SIDE-CEME', style: { display: 'grid', gap: 7 } },
     h('button', { type: 'button', style: s, disabled: ocupado, onClick: cargar }, 'Compartir en la aplicación / Recibidos'),
     abierto && h(R.Fragment, null,
       destinos.length > 0 && h(R.Fragment, null,
+        sel && ids.length === 1 && ids[0] === sel.areaId && h('strong', { style: { color: '#a9ffcf' } }, `💾 Selección guardada «${sel.nombre}»`),
         h('label', null, 'Nombre del envío', h('input', { style: s, value: nombre, maxLength: 160, placeholder: `${ejercicio} · Áreas asignadas`, onChange: e => setNombre(e.target.value) })),
         h('label', null, 'Ejercicio o grupo destinatario', h('select', { style: s, value: destino, onChange: e => setDestino(e.target.value) },
           h('option', { value: '' }, 'Seleccione el destino'), ...destinos.map(d => h('option', { key: d.clave, value: d.clave }, d.nombre)))),
+        destinos.some(d => d.tipo === 'ciclo' || d.tipo === 'paralelo') && h('small', null, 'En la lista también están los ciclos («Todo el 1ER CICLO…») y los paralelos («1ER CICLO · Paralelo A…»).'),
         h('strong', null, `Contenido: ${ids.length} áreas seleccionadas, con nombre y contorno${entrega.contenido && resumen ? `, y ${resumen}` : ''}`),
         ...[['unidad', 'Unidad responsable'], ['operacion', 'Operación asignada'], ['documentos', 'Todos los documentos adjuntos del ejercicio']].map(([k, texto]) => h('label', { key: k },
           h('input', { type: 'checkbox', checked: opciones[k], onChange: e => setOpciones({ ...opciones, [k]: e.target.checked }) }), ' ', texto)),
@@ -65,6 +85,7 @@ export default function Compartir({ react: R, nube, ids, ops, ejercicio, entrega
             if (!vigente) throw new Error('El envío ya no está disponible para este ejercicio.')
             nube.recibir(vigente)
             onUnidades?.(prev => recibirUnidades(prev, vigente))
+            if (vigente.paquete?.contenido?.cmoc) onCmoc?.(prev => recibirCmoc(prev, vigente))
             setMensaje('Contenido incorporado al ejercicio. Se conserva el trabajo previo; espere el indicador de guardado.')
           }) }, aplicado ? 'Ya incorporado' : 'Incorporar al ejercicio'))
       }),

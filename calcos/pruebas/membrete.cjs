@@ -170,6 +170,22 @@ const LINEA = { recepcion: 'D-15 (2000)', inicioOperacion: 'D (0500)', finOperac
     assert.match(h, /No\. 001\/SMM/)
   })
 
+  // ─── Sólo la sigla en el membrete y en la firma (11-10-2026) ────────────────────
+  await caso('«FF.TT.T.O. ()FUERZAS TERRESTRES DEL TEATRO DE OPERACIONES» → «FF.TT.T.O.» (membrete y firma)', () => {
+    const sd = M.sinDesarrollo
+    assert.equal(sd('FF.TT.T.O. ()FUERZAS TERRESTRES DEL TEATRO DE OPERACIONES'), 'FF.TT.T.O.')
+    assert.equal(sd('FF.TT.T.O. (FUERZAS TERRESTRES DEL TEATRO DE OPERACIONES)'), 'FF.TT.T.O.')
+    assert.equal(sd('FF.TT.T.O. (Fuerzas Terrestres del Teatro de Operaciones) CG. TUNAPA'), 'FF.TT.T.O. CG. TUNAPA')
+    assert.equal(sd('EL COMANDANTE DE LAS FF.TT.T.O. ()FUERZAS TERRESTRES DEL TEATRO DE OPERACIONES'), 'EL COMANDANTE DE LAS FF.TT.T.O.')
+    assert.equal(sd('C.E. (CUERPO DE EJÉRCITO)'), 'C.E.')
+    for (const igual of ['DIV.MEC.-1', 'I CUERPO DE EJÉRCITO (I CE)', 'C.E. CERCA EL ENEMIGO', 'FF.TT.T.O. (CTO)', 'R.I. «ROJO» (FICT.)', 'RCB-1', ''])
+      assert.equal(sd(igual), igual, igual)
+    preparar()
+    const c = M.campos({ unidad: 'FF.TT.T.O. ()FUERZAS TERRESTRES DEL TEATRO DE OPERACIONES', seccion: 'EMO/SEC-III', hoja: 'alerta' },
+      { ...ORDEN, escalonSuperior: 'CTO', unidad: 'FF.TT.T.O. ()FUERZAS TERRESTRES DEL TEATRO DE OPERACIONES', unidadPropia: 'FF.TT.T.O. ()FUERZAS TERRESTRES DEL TEATRO DE OPERACIONES' })
+    assert.equal(c.unidad, 'FF.TT.T.O.'); assert.equal(c.superior, 'CTO')
+  })
+
   // ─── Lo que arma el compilado (rP y _ie reales) ─────────────────────────────────
   // El Word entero (W5e + la biblioteca docx) se prueba en el navegador: e2e/membrete.cjs.
   const w = cargarConDependencias(vigente(), ['_ie', 'rP', 'E2'], (c) => c.rP({ id: 'prep1', nom: 'x', responsable: 'G-3' }, { ordenSup: ORDEN }), { SIDMembrete: M.default })
