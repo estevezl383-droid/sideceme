@@ -133,7 +133,13 @@ const RESPUESTA = fs.readFileSync(path.join(__dirname, '../respuesta-cmoc-profes
     await page.locator(`${PANEL} [data-ia-paso="4"]`).scrollIntoViewIfNeeded()
     await page.locator(`${PANEL} [data-a="ia-quitar"]`).dispatchEvent('click')
     await page.waitForFunction(() => !window.SIDModalidad.carpeta.pasos[4], null, { timeout: 5000 })
-    await page.locator(`${PANEL} input[data-car-archivo]`).setInputFiles({ name: 'carpeta.md', mimeType: 'text/markdown', buffer: Buffer.from(md) })
+    // Al terminar de guardar el «quitar» (IndexedDB) la Mesa repinta el panel: si el archivo cae en el
+    // cuadro viejo justo antes, el cambio se pierde (el panel sigue en «⬇️ Bajada»). Se elige otra vez.
+    const cargada = () => page.waitForFunction(() => /✓ Cargada: 1 paso/.test(document.querySelector('#sid-mod-panel .car')?.innerText || ''), null, { timeout: 2500 }).then(() => true, () => false)
+    for (let i = 0; i < 3; i++) {
+      await page.locator(`${PANEL} input[data-car-archivo]`).setInputFiles({ name: 'carpeta.md', mimeType: 'text/markdown', buffer: Buffer.from(md) })
+      if (await cargada()) break
+    }
     await page.waitForFunction(() => /✓ Cargada: 1 paso/.test(document.querySelector('#sid-mod-panel .car')?.innerText || ''), null, { timeout: 5000 })
     assert.match(await page.locator(`${PANEL} .car`).innerText(), /Paso 4 · CMOC/)
     assert.equal(await page.evaluate(() => window.SIDModalidad.carpeta.pasos[4].texto), RESPUESTA.trim())

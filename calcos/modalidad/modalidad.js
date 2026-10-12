@@ -1014,7 +1014,7 @@
   }
   // Las ops que van: con la selección elegida, su área con el contorno EXACTO que se guardó.
   function opsDeEnvio(ej, sl) { return sl ? conModeloAreas().then(function (m) { return m.opsConSeleccion(ej.ops || {}, sl) }) : Promise.resolve(ej.ops || {}) }
-  // El JSON del ejercicio (el paquete de áreas de la Mesa: «Importar áreas compartidas» lo abre) con los documentos.
+  // El JSON del ejercicio (el paquete de áreas de la Mesa: 📁 Ejercicios → «📂 Abrir archivo JSON» lo abre) con los documentos.
   function paqueteJSON(o) {
     var areas = areasElegidas(o.ej), sl = selElegida(o.ej)
     if (!areas.length) return Promise.resolve(null)
@@ -1083,7 +1083,7 @@
       ogoContexto().then(paqueteJSON).then(function (pq) {
         if (!pq) { aviso.rep = '⚠️ Elegí (o trazá) el Área de Operaciones que va.'; return pintar(true) }
         bajarBlob(pq.nombre, new Blob([pq.texto], { type: 'application/json' }))
-        aviso.rep = '⬇️ ' + pq.nombre + ': ' + pq.areas.length + ' área(s) y ' + pq.docs.length + ' documento(s). Se abre en la Mesa del alumno con ▧ ÁREA DE OPS → «Importar áreas compartidas».'; pintar(true)
+        aviso.rep = '⬇️ ' + pq.nombre + ': ' + pq.areas.length + ' área(s) y ' + pq.docs.length + ' documento(s). El alumno lo abre en su Mesa con 📁 Ejercicios → «📂 Abrir archivo JSON» (como ejercicio nuevo, con los documentos), no con doble clic.'; pintar(true)
       }).catch(function (e) { aviso.rep = '⚠️ ' + (e && e.message ? e.message : e); pintar(true) })
       return
     }
