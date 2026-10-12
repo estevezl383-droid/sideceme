@@ -55035,7 +55035,7 @@ function vistaPorGrupo(){
           '<button class="eem-btn sec mini" onclick="eemIAAbrir(\'rubrica\')">📑 Rúbrica para IA</button>'+
           '<button class="eem-btn mini" onclick="eemIAAbrir(\'prompt\')">📋 Copiar prompt</button>'+
           '<button class="eem-btn mini" onclick="eemIAAbrir(\'resultado\')">📥 Pegar resultado</button>'+
-          '<button class="eem-btn sec mini" onclick="eemExportarMD()">📦 Trabajos completos para IA</button>'+
+          '<button class="eem-btn sec mini" onclick="eemExportarPDF()">📦 Descargar todos los PDF (ZIP)</button><button class="eem-btn sec mini" onclick="eemExportarMD()">📄 Markdown ligero</button>'+
         '</div>'+
       '</div>'+
       '<div class="eem-scroll"><table class="eem-tabla"><thead><tr>'+
@@ -55999,11 +55999,11 @@ async function eemIAAbrir(modo){
  try{
  const c=await eemIAContexto(); eemCerrarModal('eem-ia-modal');
  const bg=document.createElement('div');bg.id='eem-ia-modal';bg.className='eem-modal-bg';
- bg.innerHTML='<div class="eem-modal" style="max-width:850px"><h3>🤖 Revisar trabajos con IA</h3><p>Rúbrica de '+esc(c.materia)+' · Ciclo '+esc(c.ciclo)+'. Revisión del documento: '+c.items.reduce((a,i)=>a+Number(i.valor_pct),0)+' % (forma y fondo). Descarga el Markdown general o los archivos por grupo y cárgalos junto al prompt en Gemini u otra IA. Para verificar la tipografía, añade los PDF originales. Importa aquí el resultado y revisa las notas antes de aplicarlas.</p>'+
+ bg.innerHTML='<div class="eem-modal" style="max-width:850px"><h3>🤖 Revisar trabajos con IA</h3><p>Rúbrica de '+esc(c.materia)+' · Ciclo '+esc(c.ciclo)+'. Revisión del documento: '+c.items.reduce((a,i)=>a+Number(i.valor_pct),0)+' % (forma y fondo). Descarga todos los PDF originales en un ZIP y cárgalos junto al prompt para revisar cada trabajo completo, incluidos gráficos y anexos. El Markdown ligero es un apoyo para buscar texto. Importa aquí el resultado y revisa las notas antes de aplicarlas.</p>'+
  '<p>Este flujo no hace llamadas de pago a IA. La respuesta se valida antes de registrar las notas. Al aplicar, las notas del motor anterior de los grupos revisados se sustituyen; los criterios sin evidencia quedan pendientes.</p>'+
  (modo==='rubrica'?'<label>Rúbrica de referencia (Word, PDF, Markdown o texto)</label><input id="eem-ia-archivo" type="file" accept=".docx,.pdf,.md,.txt"><textarea id="eem-ia-ref" style="width:100%;height:180px" placeholder="Texto de la rúbrica">'+esc(c.referencia?.texto||'')+'</textarea><p>Complementa los criterios oficiales de abajo. No cambia sus puntajes ni una rúbrica congelada.</p><button class="eem-btn" id="eem-ia-guardar-ref" '+(!c.puede_cargar?'disabled':'')+'>Guardar rúbrica de referencia</button><p>Solo el jefe de Evaluaciones del ciclo o el supervisor puede cargarla.</p>':'')+
  '<details><summary>Ver criterios oficiales y máximos</summary>'+c.items.map(i=>'<p>'+esc(i.bloque)+' '+esc(i.orden)+'. '+esc(i.descripcion)+' — '+esc(i.valor_pct)+' puntos</p>').join('')+'</details>'+
- '<button class="eem-btn" id="eem-ia-copiar">📋 Copiar prompt</button> <button class="eem-btn sec" onclick="eemExportarMD()">📄 Markdown ligero</button> <button class="eem-btn sec" onclick="eemExportarMD(true)">📦 Incluir PDF originales</button>'+
+ '<button class="eem-btn" id="eem-ia-copiar">📋 Copiar prompt</button> <button class="eem-btn sec" onclick="eemExportarMD()">📄 Markdown ligero</button> <button class="eem-btn sec" onclick="eemExportarPDF()">📦 Descargar todos los PDF (ZIP)</button>'+
  '<details id="eem-ia-pedido"><summary>Ver / copiar el prompt manualmente</summary><textarea id="eem-ia-prompt" readonly style="width:100%;height:180px"></textarea></details>'+
  '<h4>Cargar notas de la IA</h4><label>Archivo Markdown o JSON de resultados</label><input id="eem-ia-result-file" type="file" accept=".md,.json,.txt"><textarea id="eem-ia-respuesta" style="width:100%;height:180px" placeholder="Pega aquí el bloque JSON completo que devolvió la IA."></textarea>'+
  '<button class="eem-btn sec" id="eem-ia-pegar">📋 Pegar</button> <button class="eem-btn" id="eem-ia-validar">Ver notas propuestas</button>'+
@@ -56050,6 +56050,64 @@ function eemIACelda(e,bloque){
  const b=c.banda;let nota=suma;if(!bloque&&completo&&b){nota=b.modo==='reescalado'?Number(b.nota_minima)+(suma/max)*(Number(b.nota_maxima)-Number(b.nota_minima)):Math.min(Number(b.nota_maxima),Math.max(Number(b.nota_minima),suma));}
  return (!bloque&&completo&&b?'<b>'+esc(dec2(nota))+' / '+max+'</b><br><small>Rúbrica: '+esc(dec2(suma))+' · Banda '+esc(b.nota_minima)+'–'+esc(b.nota_maxima)+'</small>':'<b>'+esc(dec2(suma))+' / '+esc(max)+'</b>')+(!completo?'<br><span class="eem-chip warn">Parcial · '+(its.length-ns.length)+' pendientes</span>':'')+(!bloque?window.eemResumenEscrito(its.map(i=>{const n=ns.find(n=>n.item_id===i.id);return {...i,maximo:i.valor_pct,nota:n?.valor??null,sustento:n?.sustento||n?.motivo_ajuste};})): '');
 }
+
+// Descarga binaria: no convierte ni reconstruye los PDF entregados.
+async function eemExportarPDF(){
+  if(EEM.exportando)return;
+  EEM.exportando=true;
+  const bg=document.createElement('div');bg.className='eem-modal-bg';
+  bg.innerHTML='<div class="eem-modal"><h3>Descargar todos los PDF originales (ZIP)</h3><p id="eem-pdf-progreso" role="status">Preparando las entregas…</p><div id="eem-pdf-fin"></div></div>';
+  document.body.appendChild(bg);
+  const estado=bg.querySelector('#eem-pdf-progreso'),fin=bg.querySelector('#eem-pdf-fin');
+  let url;
+  try{
+    const contexto=await eemIAContexto();
+    const entregas=contexto.entregas||[];
+    if(!entregas.length)throw Error('No hay trabajos entregados en esta carpeta.');
+    await ensureJSZip();
+    const zip=new JSZip(),manifiesto=[];
+    zip.file('00_INSTRUCCIONES.md',eemIAPrompt(contexto));
+    zip.file('REFERENCIAS_METODOLOGICAS.txt',contexto.materia==='ESTUDIO DE ESTADO MAYOR'?EEM_REFERENCIAS_IA:(contexto.referencia?.texto||''));
+    for(let i=0;i<entregas.length;i++){
+      const e=entregas[i],fila={grupo:e.grupo,entrega_id:e.entrega_id,archivo_original:e.archivo,sha256_esperado:e.sha256||null,estado:'pendiente'};
+      manifiesto.push(fila);
+      estado.textContent='Descargando '+(i+1)+' de '+entregas.length+' · '+(e.grupo||e.archivo);
+      try{
+        const r=await eemInvoke('eem-entrega-descargar',null,{entrega_id:e.entrega_id});
+        if(!r.ok||!r.url)throw Error(r.error||'No se obtuvo el enlace de descarga.');
+        const control=new AbortController(),timer=setTimeout(()=>control.abort(),90000);
+        let bytes;
+        try{
+          const res=await fetch(r.url,{signal:control.signal});
+          if(!res.ok)throw Error('Descarga HTTP '+res.status);
+          bytes=new Uint8Array(await res.arrayBuffer());
+        }finally{clearTimeout(timer);}
+        if(!bytes.length||!new TextDecoder('latin1').decode(bytes.subarray(0,1024)).includes('%PDF-'))throw Error('El archivo recibido no contiene una cabecera PDF válida.');
+        const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(b=>b.toString(16).padStart(2,'0')).join('');
+        if(e.sha256&&hash.toLowerCase()!==e.sha256.toLowerCase())throw Error('El archivo descargado no coincide con la entrega registrada; vuelve a actualizar el panel.');
+        const limpio=valor=>String(valor||'trabajo').normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9_-]+/g,'_').slice(0,90);
+        const ruta='PDF_ORIGINALES/'+String(i+1).padStart(2,'0')+'_'+limpio(e.grupo)+'_'+limpio(String(e.archivo||'trabajo').replace(/\.pdf$/i,''))+'.pdf';
+        zip.file(ruta,bytes);
+        Object.assign(fila,{estado:'descargado',archivo_zip:ruta,sha256:hash,bytes:bytes.length});
+      }catch(error){fila.estado='error';fila.error=error.name==='AbortError'?'La descarga excedió el tiempo de espera.':error.message;}
+    }
+    const correctos=manifiesto.filter(f=>f.estado==='descargado'),errores=manifiesto.filter(f=>f.estado==='error');
+    const resumen=correctos.length+' de '+entregas.length+' PDF originales descargados.';
+    zip.file('MANIFIESTO.json',JSON.stringify({materia:contexto.materia,carpeta_id:contexto.carpeta_id,creado_en:new Date().toISOString(),total:entregas.length,descargados:correctos.length,entregas:manifiesto},null,2));
+    zip.file('ESTADO_DE_EXPORTACION.txt',resumen+'\n'+(errores.length?'EXPORTACIÓN INCOMPLETA.\n'+errores.map(f=>(f.grupo||f.entrega_id)+': '+f.error).join('\n'):'EXPORTACIÓN COMPLETA.')+'\nLos PDF conservan sus bytes originales; se comprime el paquete, no se reducen imágenes ni páginas. Un enlace dentro de un PDF no incorpora el documento externo. Revise cada trabajo por separado, incluidos sus anexos.');
+    if(!correctos.length)throw Error('No se pudo descargar ningún PDF. '+errores.map(f=>(f.grupo||f.entrega_id)+': '+f.error).join('; '));
+    estado.textContent='Comprimiendo '+correctos.length+' PDF originales…';
+    const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}},meta=>{estado.textContent='Comprimiendo PDF originales: '+Math.round(meta.percent)+' %';});
+    url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download='SIDECEME_'+(contexto.materia==='ELABORACIÓN DE PLANES'?'EPLA':'TRABAJOS')+'_PDF_ORIGINALES'+(errores.length?'_INCOMPLETO':'')+'.zip';a.className='eem-btn';a.textContent='⬇️ Descargar ZIP con '+correctos.length+' PDF originales';fin.appendChild(a);a.click();
+    estado.textContent=resumen+(errores.length?' Atención: faltan '+errores.length+' archivos. El ZIP es incompleto. '+errores.map(f=>(f.grupo||f.entrega_id)+': '+f.error).join('; '):' Listo para cargar aquí o en otra IA y revisar trabajo por trabajo.');
+  }catch(error){estado.textContent=error.message;}
+  finally{
+    EEM.exportando=false;
+    const cerrar=document.createElement('button');cerrar.className='eem-btn sec';cerrar.textContent='Cerrar';cerrar.onclick=()=>{if(url)URL.revokeObjectURL(url);bg.remove();};fin.appendChild(cerrar);
+  }
+}
+window.eemExportarPDF=eemExportarPDF;
 
 async function eemExportarMD(incluirPDF=false){
   const grupos=(EEM.panel?.grupos||[]).filter(g=>g.entrega?.entrega_id);
