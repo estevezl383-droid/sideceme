@@ -115,7 +115,7 @@ export default function Areas({ react: R, ops, onOps, ejercicio, onDeshacer, nub
     } catch (e) { setError(e.message) }
   }
   const paqueteDe = s => paqueteSeleccion(ops, s, ejercicio, { unidades: fichas, cmoc: conCmoc ? cmoc : null })
-  const bajarSeleccion = s => { try { bajarJSON(`Seleccion_${archivoDe(s.nombre)}.json`, paqueteDe(s)); setAviso(`⬇️ Seleccion_${archivoDe(s.nombre)}.json: se abre en la Mesa del alumno con «Importar áreas compartidas».`) } catch (e) { setError(e.message) } }
+  const bajarSeleccion = s => { try { bajarJSON(`Seleccion_${archivoDe(s.nombre)}.json`, paqueteDe(s)); setAviso(`⬇️ Seleccion_${archivoDe(s.nombre)}.json bajado. Se abre con 📁 Ejercicios → «📂 Abrir archivo JSON» (como ejercicio nuevo, con su área en la carta), no con doble clic.`) } catch (e) { setError(e.message) } }
   const compartirSeleccion = s => {
     setSeleccion([s.areaId]); setEntrega({ contenido: s.opciones?.contenido !== false, enemigo: s.opciones?.enemigo !== false, cmoc: s.opciones?.cmoc !== false })
     setPedido({ n: Date.now(), seleccion: s }); setAviso('')

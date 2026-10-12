@@ -32,7 +32,8 @@
 //   index-lazo-20261010.js + reemplazos-2026-10-10-guardado.js = index-guardado-20261010.js
 //   index-guardado-20261010.js + reemplazos-2026-10-11-deshacer.js = index-deshacer-20261011.js
 //   index-deshacer-20261011.js + reemplazos-2026-10-11-medidas.js = index-medidas-20261011.js
-//   index-medidas-20261011.js + reemplazos-2026-10-11-seleccion.js = index-seleccion-20261011.js (el vigente)
+//   index-medidas-20261011.js + reemplazos-2026-10-11-seleccion.js = index-seleccion-20261011.js
+//   index-seleccion-20261011.js + reemplazos-2026-10-12-abrir.js = index-abrir-20261012.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -46,6 +47,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-12-abrir'),
+    nombre: 'reemplazos-2026-10-12-abrir',
+    // calcos/assets/index-seleccion-20261011.js (antes de «📂 Abrir archivo JSON» en 📁 Ejercicios).
+    anterior: 'bf589a1a209eb1ade955f03d08ca2817b031dda33bddae4d160b5300e6132b3a',
+  },
   {
     lista: require('./reemplazos-2026-10-11-seleccion'),
     nombre: 'reemplazos-2026-10-11-seleccion',
