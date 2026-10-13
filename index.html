@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.431</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.432</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -58123,9 +58123,13 @@ function actPromediosEvaluadores(acta){
   const rango = (v,max) => numero(v) && Number(v)>=0 && Number(v)<=max;
   const tot = acta.totales || (acta.totales={});
   // La rúbrica visible es la fuente del escrito; nunca un total almacenado aparte.
-  function bloque(nombre,max,cantidad){
+  const maximo = nombre => suma((acta[nombre]||[]).map(i=>i.valor_pct??i.valor??i.maximo));
+  const topeExpo = maximo('exposicion');
+  function bloque(nombre){
     const items=acta[nombre]||[];
-    if(items.length!==cantidad || items.some(i=>!numero(i.nota))) return null;
+    if(!items.length || items.some(i=>!numero(i.nota))) return null;
+    const max=maximo(nombre);
+    if(!numero(max) || max<=0) throw new Error('La rúbrica no tiene un valor máximo válido en '+nombre+'.');
     for(const i of items){
       const limite=i.valor_pct??i.valor??i.maximo;
       if(!rango(i.nota,numero(limite)?Number(limite):max))
@@ -58135,8 +58139,8 @@ function actPromediosEvaluadores(acta){
     if(!rango(total,max)) throw new Error('El total de '+nombre+' supera '+max+'. Revise los ítems.');
     return total;
   }
-  tot.forma_20=bloque('forma',20,4);
-  tot.fondo_45=bloque('fondo',45,26);
+  tot.forma_20=bloque('forma');
+  tot.fondo_45=bloque('fondo');
   const escrito=numero(tot.forma_20)&&numero(tot.fondo_45)?red(tot.forma_20+tot.fondo_45):null;
   tot.texto_65=escrito;
   const n=(acta.jurados||[]).length;
@@ -58151,8 +58155,8 @@ function actPromediosEvaluadores(acta){
       return d && numero(d.total) ? Number(d.total)
         : numero(finales[i]) && numero(anterior) ? red(Number(finales[i])-Number(anterior)) : null;
     });
-    if(valores.some(v=>numero(v)&&!rango(v,35)))
-      throw new Error('Una exposición está fuera de 0 a 35. Revise las notas del tribunal.');
+    if(valores.some(v=>numero(v)&&!rango(v,topeExpo)))
+      throw new Error('Una exposición está fuera de 0 a '+topeExpo+'. Revise las notas del tribunal.');
     c.texto_65=escrito;
     c.por_evaluador=valores.map(v=>numero(v)&&numero(escrito)?red(escrito+v):null);
     c.expo_35=null; c.final_100=null; c.promedio_final=null;
@@ -58721,7 +58725,7 @@ ACT.rubricaExcel = async function(){
     const finales = [['CURSANTE','DOCUMENTO /'+a.forma.concat(a.fondo).reduce((s,i)=>s+Number(i.valor_pct),0),'PRESENCIAL /'+a.exposicion.reduce((s,i)=>s+Number(i.valor_pct),0),...(a.jurados||[]).map(j=>'FINAL — '+j.nombre),'NOTA FINAL /100','OBSERVACIÓN']];
     for(const c of a.cursantes||[]) finales.push([eemNombre(c,'cursante'),valor(c.texto_65),valor(c.expo_35),
       ...(a.jurados||[]).map((j,i)=>c.no_expuso?'NO EXPUSO':valor(c.por_evaluador?.[i])),valor(c.final_100),c.no_expuso?'NO EXPUSO — '+(c.motivo_ausencia||''):c.requiere_recalculo?'PENDIENTE DE RECÁLCULO':c.consolidada?'CONSOLIDADA':'PENDIENTE']);
-    const detalle = [['CURSANTE','EVALUADOR',...(a.exposicion||[]).map(i=>'ÍTEM '+i.orden+' /'+i.valor_pct),'TOTAL /35']];
+    const detalle = [['CURSANTE','EVALUADOR',...(a.exposicion||[]).map(i=>'ÍTEM '+i.orden+' /'+i.valor_pct),'TOTAL /'+a.exposicion.reduce((s,i)=>s+Number(i.valor_pct),0)]];
     for(const c of a.cursantes||[]) for(const j of c.detalle_evaluadores||[]) detalle.push([eemNombre(c,'cursante'),j.nombre,
       ...(a.exposicion||[]).map(i=>valor(j.notas?.[String(i.orden)])),valor(j.total)]);
     for(const [nombre,filas,anchos] of [['Rúbrica',rubrica,[30,14,85,18,18]],['Notas finales',finales,[48,18,18]],['Evaluadores',detalle,[48,42]]]) {
