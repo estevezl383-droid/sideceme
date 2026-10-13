@@ -43,7 +43,7 @@ window.eemCrearCarpeta=async()=>{
  if(!document.getElementById('ec-propia')?.checked)return anteriorCrear();
  const est=document.getElementById('eem-nc-estado');try{
  const n=k=>Number(val('ec-'+k));const items=draft.items.map(x=>({...x}));const order={FORMA:0,FONDO:0,EXPOSICION:0};
- items.forEach(x=>{x.orden=++order[x.bloque];x.modo_calificacion=x.bloque==='EXPOSICION'?'humano':'ia';x.alcance='grupal';});
+ items.forEach(x=>{x.orden=++order[x.bloque];x.modo_calificacion=x.bloque==='EXPOSICION'?'humano':'ia';x.alcance=x.bloque==='EXPOSICION'&&x.orden!==1?'individual':'grupal';});
  if(Math.abs(items.reduce((a,x)=>a+x.valor_pct,0)-100)>0.00001)throw Error('La rúbrica debe sumar 100%.');
  const perfil={...draft.perfil,fuentes_permitidas:val('ec-fuente').split(',').map(x=>x.trim()).filter(Boolean),tamano_pt:n('tamano'),margenes_cm:{sup:n('sup'),inf:n('inf'),izq:n('izq'),der:n('der')},sangria_francesa_cm:n('sangria'),clasificacion:val('ec-clasificacion'),estructura_obligatoria:val('ec-estructura').split('\n').filter(Boolean),guia_metodologica:val('ec-referencia'),entrega_autogrupo:document.getElementById('ec-autogrupo').checked};
  est.textContent='Guardando configuración…';
@@ -83,105 +83,167 @@ window.eemAdaptarActa=function(doc,a){
  const materia=a.carpeta?.materia||a.config?.unidad_competencia||'ELABORACIÓN DE PLANES';
  for(const n of doc.getElementsByTagName('w:t')){if(/ESTUDIO DE ESTADO MAYOR/i.test(n.textContent))n.textContent=n.textContent.replace(/ESTUDIO DE ESTADO MAYOR/gi,materia);if(n.textContent.trim()==='65%')n.textContent=(f+b)+'%';if(n.textContent.trim()==='35%')n.textContent=e+'%';}
 };
-/* EPLA: cuadro de exposición grupal, sin cambiar el contrato del backend
-   (eem-tribunal sigue guardando una nota por integrante con auditoría). */
-(function instalarEplaGrupal(){
+/* EPLA: únicamente el Ítem 1 es GRUPAL.
+   Los ítems 2, 3 y 4 conservan edición individual. */
+(function eplaPresentacionGrupal(){
  const nombres=[
   'Impresión prolija (Tamaño y tipo de papel).',
   'Tienen conocimiento, exponen y sustentan su trabajo con coherencia y metodología de planeamiento.',
   'Emplean adecuadamente las técnicas de plataforma.',
   'Responden con coherencia y seguridad a las preguntas realizadas por el tribunal.'
  ];
- const cuatro=v=>v==null||v===''?'':Number(v).toFixed(4);
+ const titulos=[
+  ['ÍTEM 1 — Impresión prolija','Tamaño y tipo de papel'],
+  ['ÍTEM 2 — Tienen conocimiento, exponen y sustentan','con coherencia y metodología de planeamiento'],
+  ['ÍTEM 3 — Emplean adecuadamente','las técnicas de plataforma'],
+  ['ÍTEM 4 — Responden con coherencia y seguridad','a las preguntas realizadas por el tribunal']
+ ];
+ const cuatro=v=>v===null||v===undefined||v===''?'':Number(v).toFixed(4);
  const activo=()=>window.TRB?.grilla?.items?.length===4 &&
-  [2,15,10,10].every((n,i)=>Number(TRB.grilla.items[i].valor)===n);
+  [2,15,10,10].every((max,i)=>Number(TRB.grilla.items[i].valor)===max);
+ function total(f){
+  let v=0;
+  for(const item of TRB.grilla.items){
+   const n=f.notas?.[String(item.orden)];
+   if(n===null||n===undefined||n==='')return null;
+   v+=Number(n);
+  }
+  return v;
+ }
+ function actualizarTotales(host){
+  for(const f of TRB.grilla.filas||[]){
+   if(f.ausencia)continue;
+   const n=total(f);
+   const txt=n===null?'—':cuatro(n);
+   const desktop=host.querySelector('[id="trb-tot-'+f.cursante_id+'"]');
+   const movil=host.querySelector('[id="trb-totm-'+f.cursante_id+'"]');
+   if(desktop)desktop.textContent=txt;
+   if(movil)movil.textContent=txt+' / 37.0000';
+  }
+ }
  function pintar(){
   const host=document.getElementById('trb-grilla-cont');
   if(!host||!activo())return;
-  const gr=TRB.grilla,tabla=host.querySelector('table.trb-grilla');
-  if(!tabla||tabla.dataset.eplaGrupal==='1')return;
-  tabla.dataset.eplaGrupal='1';
-  const items=gr.items,filas=gr.filas||[];
-  const th=tabla.querySelectorAll('thead th');
+  const tabla=host.querySelector('table.trb-grilla');
+  if(!tabla||tabla.dataset.eplaSoloPrimero==='1')return;
+  tabla.dataset.eplaSoloPrimero='1';
+  const gr=TRB.grilla,filas=gr.filas||[],items=gr.items;
+  const thead=tabla.querySelectorAll('thead th');
   items.forEach((item,i)=>{
-   if(th[i+1]){th[i+1].textContent='ÍTEM '+item.orden+' — '+nombres[i]+' / '+cuatro(item.valor);th[i+1].title=nombres[i];}
+   const th=thead[i+1];if(!th)return;
+   th.style.cssText+=';min-width:'+(i===0?170:255)+'px;white-space:normal;vertical-align:middle;line-height:1.35;padding:8px 7px';
+   th.title=nombres[i];
+   th.textContent='';
+   titulos[i].forEach((line,j)=>{
+    const span=document.createElement('span');
+    span.style.cssText='display:block;font-size:11px;font-weight:'+(j===0?'800':'500')+';white-space:normal';
+    span.textContent=line+(j===1?' / '+cuatro(item.valor):'');
+    th.appendChild(span);
+   });
   });
-  if(th[items.length+1])th[items.length+1].textContent='TOTAL / '+cuatro(37);
+  const thTotal=thead[items.length+1];if(thTotal)thTotal.textContent='TOTAL / 37.0000';
+  const tbody=tabla.tBodies[0];if(!tbody)return;
+  const rows=Array.from(tbody.rows);
+  const primero=rows.findIndex(r=>r.hasAttribute('data-fila'));
+  if(primero<0)return;
   const bloqueado=filas.some(f=>f.cerrado&&!f.ausencia);
-  const fila=document.createElement('tr');fila.className='trb-nota-grupal';
-  const nombre=document.createElement('td');nombre.className='trb-nom';
-  nombre.innerHTML='<b>CALIFICACIÓN GRUPAL</b><div class="trb-sub">Una sola nota por ítem para todos los integrantes del grupo.</div>';
-  fila.appendChild(nombre);
-  items.forEach((item,i)=>{
-   const td=document.createElement('td');td.style.textAlign='center';
-   const inp=document.createElement('input');inp.className='trb-in';inp.inputMode='decimal';
-   inp.setAttribute('aria-label','Nota grupal ítem '+item.orden+' '+nombres[i]);inp.dataset.item=String(item.orden);
-   inp.dataset.max=String(item.valor);inp.placeholder='0.0000';inp.readOnly=bloqueado;
-   const notas=filas.filter(f=>!f.ausencia).map(f=>f.notas?.[String(item.orden)]).filter(x=>x!==null&&x!==undefined&&x!=='');
-   if(notas.length&&notas.every(x=>Number(x)===Number(notas[0])))inp.value=cuatro(notas[0]);
-   else if(notas.length){inp.placeholder='DIFERENTES';inp.title='Existen notas individuales distintas; ingrese una nueva calificación grupal para unificarlas.';}
-   inp.oninput=()=>{
-    const texto=inp.value.replace(',','.').trim();
-    if(texto!==''&&(!/^\d+(?:\.\d{0,4})?$/.test(texto)||Number(texto)>Number(item.valor))){inp.classList.add('mal');return;}
-    inp.classList.remove('mal');
-    // Nunca modificar un cursante ausente, ni calificaciones cerradas.
-    if(filas.some(f=>f.cerrado&&!f.ausencia))return;
-    const valor=texto===''?'':Number(texto);
-    for(const alumno of filas){
-     if(alumno.ausencia)continue;
-     const celda=tabla.querySelector('input.trb-in[data-c="'+CSS.escape(String(alumno.cursante_id))+'"][data-i="'+CSS.escape(String(item.orden))+'"]');
-     if(celda){
-      celda.value=valor===''?'':cuatro(valor);
-      window.trbCambio(celda);
-     }
+  const activos=filas.filter(f=>!f.ausencia);
+  const grupo=document.createElement('td');
+  grupo.rowSpan=rows.length-primero;
+  grupo.className='trb-epla-grupo';
+  grupo.style.cssText='text-align:center;vertical-align:middle;background:rgba(212,175,55,.07);border-left:2px solid rgba(212,175,55,.35);min-width:170px';
+  const label=document.createElement('label');
+  label.style.cssText='display:flex;flex-direction:column;align-items:center;justify-content:center;gap:9px;min-height:'+Math.max(132,activos.length*54)+'px';
+  label.innerHTML='<b style="color:#e8d79a;font-size:12px">ÍTEM 1 — GRUPAL</b><span style="font-size:11px;color:#aebbd1">Presentación / 2.0000</span>';
+  const campo=document.createElement('input');
+  campo.className='trb-in';
+  campo.inputMode='decimal';
+  campo.setAttribute('aria-label','Nota grupal de impresión prolija, ítem 1');
+  campo.style.cssText='width:95%;max-width:145px;min-height:'+Math.max(82,activos.length*34)+'px;font-size:18px;font-weight:700;text-align:center;box-sizing:border-box';
+  campo.placeholder='0.0000';campo.readOnly=bloqueado;
+  const existentes=activos.map(f=>f.notas?.[String(items[0].orden)]).filter(v=>v!==null&&v!==undefined&&v!=='');
+  if(existentes.length&&existentes.every(v=>Number(v)===Number(existentes[0])))campo.value=cuatro(existentes[0]);
+  else if(existentes.length){campo.placeholder='DIFERENTES';campo.title='Hay notas previas diferentes; confirme antes de reemplazarlas por una grupal.';}
+  function asignar(){
+   const txt=campo.value.replace(',','.').trim();
+   if(txt!==''&&(!/^\d+(?:\.\d{0,4})?$/.test(txt)||Number(txt)>2)){
+    campo.classList.add('mal');return;
+   }
+   campo.classList.remove('mal');
+   if(bloqueado)return;
+   const valor=txt===''?'':Number(txt);
+   for(const f of activos){
+    const selector='input.trb-in[data-c="'+CSS.escape(String(f.cursante_id))+'"][data-i="1"]';
+    const original=host.querySelector('.trb-tarjetas '+selector);
+    if(original){
+     original.value=valor===''?'':cuatro(valor);
+     window.trbCambio(original);
     }
-    host.querySelectorAll('.trb-total').forEach(x=>{x.textContent=x.textContent.replace(/\b\d+(?:\.\d+)?\b/g,n=>cuatro(n));});
-    host.querySelectorAll('.trb-tarjetas input.trb-in[data-i="'+item.orden+'"]').forEach(celda=>{
-     const f=filas.find(x=>String(x.cursante_id)===celda.dataset.c);
-     if(f&&!f.ausencia)celda.value=valor===''?'':cuatro(valor);
-    });
-   };
-   inp.onblur=()=>{if(!inp.classList.contains('mal')&&inp.value.trim()!=='')inp.value=cuatro(inp.value.replace(',','.'));};
-   td.appendChild(inp);fila.appendChild(td);
+   }
+   actualizarTotales(host);
+  }
+  campo.addEventListener('input',asignar);
+  campo.addEventListener('blur',()=>{if(!campo.classList.contains('mal')&&campo.value.trim()!=='')campo.value=cuatro(campo.value.replace(',','.'));});
+  label.appendChild(campo);grupo.appendChild(label);
+  for(let i=primero;i<rows.length;i++){
+   const row=rows[i];
+   if(row.hasAttribute('data-fila')){
+    const celda=row.children[1];
+    if(i===primero)celda.replaceWith(grupo);
+    else celda.remove();
+   }else if(row.classList.contains('trb-ausente')){
+    if(row.children[1])row.children[1].colSpan=4;
+   }else if(row.id.startsWith('trb-obsfila-')){
+    const observacion=row.children[0];
+    if(observacion){
+     const blanco=document.createElement('td');
+     blanco.style.cssText='border:0;background:transparent';
+     row.insertBefore(blanco,observacion);
+     observacion.colSpan=5;
+    }
+   }
+  }
+  // Edición individual normal intacta en Ítems 2, 3 y 4.
+  host.querySelectorAll('.trb-tarjetas input.trb-in').forEach(input=>{
+   if(input.dataset.i==='1'){
+    input.readOnly=true;
+    input.parentElement?.querySelectorAll('button').forEach(b=>b.style.display='none');
+   }
+   if(input.value.trim()!=='')input.value=cuatro(input.value.replace(',','.'));
   });
-  const fin=document.createElement('td');fin.colSpan=2;fin.className='trb-sub';
-  fin.textContent=bloqueado?'🔒 Reabra las notas antes de modificar el grupo':'Las notas se replican y guardan en cada integrante';
-  fila.appendChild(fin);tabla.tBodies[0]?.prepend(fila);
-  // En pantallas angostas la tabla se oculta: ofrecer los mismos cuatro controles sobre las tarjetas.
+  host.querySelectorAll('table.trb-grilla input.trb-in[data-i]').forEach(input=>{
+   if(input.value.trim()!=='')input.value=cuatro(input.value.replace(',','.'));
+   if(input.dataset.i!=='1')input.addEventListener('blur',()=>{
+    if(input.value.trim()!=='')input.value=cuatro(input.value.replace(',','.'));
+   });
+  });
+  // Refrescar los totales a cuatro decimales tras la edición individual.
+  host.addEventListener('input',event=>{
+   const el=event.target;
+   if(el instanceof HTMLInputElement&&el.matches('.trb-in[data-i]'))
+    queueMicrotask(()=>actualizarTotales(host));
+  });
+  actualizarTotales(host);
+  // Control de grupo en móvil, donde la tabla grande suele estar oculta.
   const tarjetas=host.querySelector('.trb-tarjetas');
   if(tarjetas){
-   const movil=document.createElement('div');
-   movil.className='trb-card trb-grupal-movil';
-   movil.innerHTML='<h3>CALIFICACIÓN GRUPAL — 37.0000</h3><div class="trb-sub">Una nota por ítem para todos los integrantes.</div>';
-   items.forEach((item,i)=>{
-    const grupo=fila.querySelector('input.trb-in[data-item="'+item.orden+'"]');
-    const renglon=document.createElement('label');renglon.className='trb-sub';
-    renglon.style.cssText='display:block;margin:10px 0';
-    renglon.textContent='Ítem '+item.orden+' — '+nombres[i]+' / '+cuatro(item.valor);
-    const entrada=document.createElement('input');entrada.className='trb-in';
-    entrada.style.cssText='display:block;width:100%;max-width:160px;margin-top:5px';
-    entrada.inputMode='decimal';entrada.readOnly=bloqueado;
-    entrada.value=grupo.value;entrada.placeholder=grupo.placeholder;
-    entrada.oninput=()=>{grupo.value=entrada.value;grupo.dispatchEvent(new Event('input',{bubbles:false}));};
-    entrada.onblur=()=>{grupo.dispatchEvent(new Event('blur',{bubbles:false}));entrada.value=grupo.value;};
-    grupo.addEventListener('input',()=>{if(entrada!==document.activeElement)entrada.value=grupo.value;});
-    renglon.appendChild(entrada);movil.appendChild(renglon);
-   });
-   tarjetas.parentNode.insertBefore(movil,tarjetas);
-   const style=document.createElement('style');
-   style.textContent='.trb-grupal-movil{display:none}@media(max-width:760px){.trb-grupal-movil{display:block}}';
-   movil.appendChild(style);
+   const caja=document.createElement('div');
+   caja.className='trb-card trb-epla-grupo-movil';
+   caja.style.display='none';
+   caja.innerHTML='<h3>ÍTEM 1 — GRUPAL / 2.0000</h3><p class="trb-sub">Impresión prolija (tamaño y tipo de papel). Una sola nota para todo el grupo.</p>';
+   const mobile=campo.cloneNode();
+   mobile.value=campo.value;mobile.style.cssText='width:100%;max-width:220px;min-height:75px;font-size:18px;text-align:center';
+   mobile.addEventListener('input',()=>{campo.value=mobile.value;campo.dispatchEvent(new Event('input'));});
+   mobile.addEventListener('blur',()=>{campo.dispatchEvent(new Event('blur'));mobile.value=campo.value;});
+   campo.addEventListener('input',()=>{if(document.activeElement!==mobile)mobile.value=campo.value;});
+   caja.appendChild(mobile);
+   tarjetas.parentNode.insertBefore(caja,tarjetas);
+   const estilo=document.createElement('style');
+   estilo.textContent='@media(max-width:760px){.trb-epla-grupo-movil{display:block!important}}';
+   caja.appendChild(estilo);
   }
-  host.querySelectorAll('input.trb-in[data-c]').forEach(inp=>{
-   inp.readOnly=true;
-   if(inp.value.trim()!=='')inp.value=cuatro(inp.value.replace(',','.'));
-  });
-  host.querySelectorAll('.trb-tarjetas .trb-pm button').forEach(b=>b.style.display='none');
-  host.querySelectorAll('.trb-total').forEach(x=>{
-   x.textContent=x.textContent.replace(/\b\d+(?:\.\d+)?\b/g,n=>cuatro(n));
-  });
  }
- let observador=null;
+ let observador;
  function iniciar(){
   const host=document.getElementById('trb-grilla-cont');
   if(!host||observador)return;
