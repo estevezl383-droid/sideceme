@@ -135,6 +135,7 @@ window.eemAdaptarActa=function(doc,a){
       window.trbCambio(celda);
      }
     }
+    host.querySelectorAll('.trb-total').forEach(x=>{x.textContent=x.textContent.replace(/\b\d+(?:\.\d+)?\b/g,n=>cuatro(n));});
     host.querySelectorAll('.trb-tarjetas input.trb-in[data-i="'+item.orden+'"]').forEach(celda=>{
      const f=filas.find(x=>String(x.cursante_id)===celda.dataset.c);
      if(f&&!f.ausencia)celda.value=valor===''?'':cuatro(valor);
@@ -146,6 +147,31 @@ window.eemAdaptarActa=function(doc,a){
   const fin=document.createElement('td');fin.colSpan=2;fin.className='trb-sub';
   fin.textContent=bloqueado?'🔒 Reabra las notas antes de modificar el grupo':'Las notas se replican y guardan en cada integrante';
   fila.appendChild(fin);tabla.tBodies[0]?.prepend(fila);
+  // En pantallas angostas la tabla se oculta: ofrecer los mismos cuatro controles sobre las tarjetas.
+  const tarjetas=host.querySelector('.trb-tarjetas');
+  if(tarjetas){
+   const movil=document.createElement('div');
+   movil.className='trb-card trb-grupal-movil';
+   movil.innerHTML='<h3>CALIFICACIÓN GRUPAL — 37.0000</h3><div class="trb-sub">Una nota por ítem para todos los integrantes.</div>';
+   items.forEach((item,i)=>{
+    const grupo=fila.querySelector('input.trb-in[data-item="'+item.orden+'"]');
+    const renglon=document.createElement('label');renglon.className='trb-sub';
+    renglon.style.cssText='display:block;margin:10px 0';
+    renglon.textContent='Ítem '+item.orden+' — '+nombres[i]+' / '+cuatro(item.valor);
+    const entrada=document.createElement('input');entrada.className='trb-in';
+    entrada.style.cssText='display:block;width:100%;max-width:160px;margin-top:5px';
+    entrada.inputMode='decimal';entrada.readOnly=bloqueado;
+    entrada.value=grupo.value;entrada.placeholder=grupo.placeholder;
+    entrada.oninput=()=>{grupo.value=entrada.value;grupo.dispatchEvent(new Event('input',{bubbles:false}));};
+    entrada.onblur=()=>{grupo.dispatchEvent(new Event('blur',{bubbles:false}));entrada.value=grupo.value;};
+    grupo.addEventListener('input',()=>{if(entrada!==document.activeElement)entrada.value=grupo.value;});
+    renglon.appendChild(entrada);movil.appendChild(renglon);
+   });
+   tarjetas.parentNode.insertBefore(movil,tarjetas);
+   const style=document.createElement('style');
+   style.textContent='.trb-grupal-movil{display:none}@media(max-width:760px){.trb-grupal-movil{display:block}}';
+   movil.appendChild(style);
+  }
   host.querySelectorAll('input.trb-in[data-c]').forEach(inp=>{
    inp.readOnly=true;
    if(inp.value.trim()!=='')inp.value=cuatro(inp.value.replace(',','.'));
