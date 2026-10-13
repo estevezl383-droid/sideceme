@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.432</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.433</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -58141,7 +58141,18 @@ function actPromediosEvaluadores(acta){
   }
   tot.forma_20=bloque('forma');
   tot.fondo_45=bloque('fondo');
-  const escrito=numero(tot.forma_20)&&numero(tot.fondo_45)?red(tot.forma_20+tot.fondo_45):null;
+  const bruta=numero(tot.forma_20)&&numero(tot.fondo_45)?red(tot.forma_20+tot.fondo_45):null;
+  tot.texto_bruta=bruta;
+  let escrito=bruta;
+  const banda=acta.banda;
+  if(numero(bruta) && banda?.activa && banda.aplicar_a==='texto_65'){
+    const min=Number(banda.nota_minima),max=Number(banda.nota_maxima);
+    const tope=maximo('forma')+maximo('fondo');
+    if(!numero(banda.nota_minima)||!numero(banda.nota_maxima)||min<0||max<min||max>tope)
+      throw new Error('La banda del escrito está fuera del máximo de la rúbrica.');
+    escrito=red(Math.min(max,Math.max(min,banda.modo==='reescalado'
+      ? min+(bruta/tope)*(max-min) : bruta)));
+  }
   tot.texto_65=escrito;
   const n=(acta.jurados||[]).length;
   const exposiciones=[];
@@ -58226,7 +58237,7 @@ async function actaDocx(plantilla, acta){
     escribirNota(doc, filaPorRotulo(tFondo,"PROMEDIO PARCIAL"), tot.fondo_45);
     escribirNota(doc, filaPorRotulo(tFondo,"ASPECTOS DE FORMA"), tot.forma_20);
     escribirNota(doc, filaPorRotulo(tFondo,"ASPECTO DE FONDO"), tot.fondo_45);
-    escribirNota(doc, filaPorRotulo(tFondo,"TOTAL PARCIAL"), tot.texto_65);
+    escribirNota(doc, filaPorRotulo(tFondo,"TOTAL PARCIAL"), tot.texto_bruta ?? tot.texto_65);
   }
 
   // 4 · EXPOSICION
@@ -58687,7 +58698,7 @@ ACT.vista = async function(grupoId, parcial=false, consolidado=false){
   catch(e){ c.innerHTML = '<div class="act-vacio">⚠️ No se pudo armar el acta: '+esc(e.message)+'</div>'; return; }
   ACT.bytesActual = bytes;
 
-  c.innerHTML = (escritoItems.length?'<div class="act-card">'+window.eemResumenEscrito(escritoItems)+'</div>':'')+(parcial ? '<div class="act-card"><b>Hallazgos de la revisión</b>'+ (acta.hallazgos||[]).map(h=>'<p>Ítem '+esc(h.item)+': '+esc(h.texto)+'</p>').join('')+((acta.criterios_omitidos||[]).length?'<p>No se computan: '+acta.criterios_omitidos.map(esc).join(', ')+'</p>':'')+'</div>' : '')+(acta.avisos||[]).map(a=>`<div class="act-aviso">⚠️ ${esc(a)}</div>`).join('')
+  c.innerHTML = (escritoItems.length?'<div class="act-card">'+window.eemResumenEscrito(escritoItems)+(acta.banda?.activa?'<p>Escrito bruto: <b>'+esc(acta.totales.texto_bruta)+'</b> · Escrito ajustado para la nota final: <b>'+esc(acta.totales.texto_65)+'</b> (banda vigente '+esc(acta.banda.nota_minima)+'–'+esc(acta.banda.nota_maxima)+').</p>':'')+'</div>':'')+(parcial ? '<div class="act-card"><b>Hallazgos de la revisión</b>'+ (acta.hallazgos||[]).map(h=>'<p>Ítem '+esc(h.item)+': '+esc(h.texto)+'</p>').join('')+((acta.criterios_omitidos||[]).length?'<p>No se computan: '+acta.criterios_omitidos.map(esc).join(', ')+'</p>':'')+'</div>' : '')+(acta.avisos||[]).map(a=>`<div class="act-aviso">⚠️ ${esc(a)}</div>`).join('')
     + `<div class="act-card">
          <div class="act-row">
            <button class="act-btn" onclick="ACT.bajarActa()">⬇️ Word (.docx)</button>
