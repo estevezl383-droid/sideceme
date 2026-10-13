@@ -43,7 +43,7 @@ window.eemCrearCarpeta=async()=>{
  if(!document.getElementById('ec-propia')?.checked)return anteriorCrear();
  const est=document.getElementById('eem-nc-estado');try{
  const n=k=>Number(val('ec-'+k));const items=draft.items.map(x=>({...x}));const order={FORMA:0,FONDO:0,EXPOSICION:0};
- items.forEach(x=>{x.orden=++order[x.bloque];x.modo_calificacion=x.bloque==='EXPOSICION'?'humano':'ia';x.alcance='grupal';});
+ items.forEach(x=>{x.orden=++order[x.bloque];x.modo_calificacion=x.bloque==='EXPOSICION'?'humano':'ia';x.alcance=x.bloque==='EXPOSICION' ? (/elaboraci[oó]n de planes/i.test(val('eem-nc-materia')) && x.orden===1 ? 'grupal' : 'individual') : 'grupal';});
  if(Math.abs(items.reduce((a,x)=>a+x.valor_pct,0)-100)>0.00001)throw Error('La rúbrica debe sumar 100%.');
  const perfil={...draft.perfil,fuentes_permitidas:val('ec-fuente').split(',').map(x=>x.trim()).filter(Boolean),tamano_pt:n('tamano'),margenes_cm:{sup:n('sup'),inf:n('inf'),izq:n('izq'),der:n('der')},sangria_francesa_cm:n('sangria'),clasificacion:val('ec-clasificacion'),estructura_obligatoria:val('ec-estructura').split('\n').filter(Boolean),guia_metodologica:val('ec-referencia'),entrega_autogrupo:document.getElementById('ec-autogrupo').checked};
  est.textContent='Guardando configuración…';
@@ -83,110 +83,173 @@ window.eemAdaptarActa=function(doc,a){
  const materia=a.carpeta?.materia||a.config?.unidad_competencia||'ELABORACIÓN DE PLANES';
  for(const n of doc.getElementsByTagName('w:t')){if(/ESTUDIO DE ESTADO MAYOR/i.test(n.textContent))n.textContent=n.textContent.replace(/ESTUDIO DE ESTADO MAYOR/gi,materia);if(n.textContent.trim()==='65%')n.textContent=(f+b)+'%';if(n.textContent.trim()==='35%')n.textContent=e+'%';}
 };
-/* EPLA: cuadro de exposición grupal, sin cambiar el contrato del backend
-   (eem-tribunal sigue guardando una nota por integrante con auditoría). */
-(function instalarEplaGrupal(){
+/* EPLA — SOLO ÍTEM 1 GRUPAL. Ítems 2, 3 y 4 individuales.
+   La API del tribunal mantiene sus notas por cursante y su auditoría. */
+(function configurarExposicionEpla(){
  const nombres=[
   'Impresión prolija (Tamaño y tipo de papel).',
   'Tienen conocimiento, exponen y sustentan su trabajo con coherencia y metodología de planeamiento.',
   'Emplean adecuadamente las técnicas de plataforma.',
   'Responden con coherencia y seguridad a las preguntas realizadas por el tribunal.'
  ];
+ const etiquetas=[
+  ['IMPRESIÓN PROLIJA','Tamaño y tipo de papel'],
+  ['CONOCIMIENTO Y SUSTENTO','Metodología de planeamiento'],
+  ['TÉCNICAS DE PLATAFORMA','Empleo adecuado'],
+  ['RESPUESTAS AL TRIBUNAL','Coherencia y seguridad']
+ ];
  const cuatro=v=>v==null||v===''?'':Number(v).toFixed(4);
  const activo=()=>window.TRB?.grilla?.items?.length===4 &&
   [2,15,10,10].every((n,i)=>Number(TRB.grilla.items[i].valor)===n);
+ const visible=el=>el && getComputedStyle(el).display!=='none';
+ function totalCuatro(host){
+  host.querySelectorAll('.trb-total').forEach(el=>{
+   const txt=el.textContent;
+   el.textContent=txt.replace(/\d+(?:\.\d+)?/g,x=>cuatro(x));
+  });
+ }
  function pintar(){
   const host=document.getElementById('trb-grilla-cont');
   if(!host||!activo())return;
-  const gr=TRB.grilla,tabla=host.querySelector('table.trb-grilla');
-  if(!tabla||tabla.dataset.eplaGrupal==='1')return;
-  tabla.dataset.eplaGrupal='1';
-  const items=gr.items,filas=gr.filas||[];
+  const tabla=host.querySelector('table.trb-grilla');
+  if(!tabla||tabla.dataset.eplaUno==='1')return;
+  tabla.dataset.eplaUno='1';
+  const gr=TRB.grilla,items=gr.items,filas=gr.filas||[];
   const th=tabla.querySelectorAll('thead th');
   items.forEach((item,i)=>{
-   if(th[i+1]){th[i+1].textContent='ÍTEM '+item.orden+' — '+nombres[i]+' / '+cuatro(item.valor);th[i+1].title=nombres[i];}
+   const h=th[i+1];if(!h)return;
+   h.title=nombres[i];
+   h.innerHTML='<span class="epla-enc-n">'+
+     'ÍTEM '+item.orden+'</span><span class="epla-enc-2">'+
+     etiquetas[i][0]+'</span><span class="epla-enc-2">'+
+     etiquetas[i][1]+'</span><span class="epla-enc-valor">/'+cuatro(item.valor)+'</span>';
   });
-  if(th[items.length+1])th[items.length+1].textContent='TOTAL / '+cuatro(37);
-  const bloqueado=filas.some(f=>f.cerrado&&!f.ausencia);
-  const fila=document.createElement('tr');fila.className='trb-nota-grupal';
-  const nombre=document.createElement('td');nombre.className='trb-nom';
-  nombre.innerHTML='<b>CALIFICACIÓN GRUPAL</b><div class="trb-sub">Una sola nota por ítem para todos los integrantes del grupo.</div>';
-  fila.appendChild(nombre);
-  items.forEach((item,i)=>{
-   const td=document.createElement('td');td.style.textAlign='center';
-   const inp=document.createElement('input');inp.className='trb-in';inp.inputMode='decimal';
-   inp.setAttribute('aria-label','Nota grupal ítem '+item.orden+' '+nombres[i]);inp.dataset.item=String(item.orden);
-   inp.dataset.max=String(item.valor);inp.placeholder='0.0000';inp.readOnly=bloqueado;
-   const notas=filas.filter(f=>!f.ausencia).map(f=>f.notas?.[String(item.orden)]).filter(x=>x!==null&&x!==undefined&&x!=='');
-   if(notas.length&&notas.every(x=>Number(x)===Number(notas[0])))inp.value=cuatro(notas[0]);
-   else if(notas.length){inp.placeholder='DIFERENTES';inp.title='Existen notas individuales distintas; ingrese una nueva calificación grupal para unificarlas.';}
-   inp.oninput=()=>{
-    const texto=inp.value.replace(',','.').trim();
-    if(texto!==''&&(!/^\d+(?:\.\d{0,4})?$/.test(texto)||Number(texto)>Number(item.valor))){inp.classList.add('mal');return;}
-    inp.classList.remove('mal');
-    // Nunca modificar un cursante ausente, ni calificaciones cerradas.
-    if(filas.some(f=>f.cerrado&&!f.ausencia))return;
-    const valor=texto===''?'':Number(texto);
-    for(const alumno of filas){
-     if(alumno.ausencia)continue;
-     const celda=tabla.querySelector('input.trb-in[data-c="'+CSS.escape(String(alumno.cursante_id))+'"][data-i="'+CSS.escape(String(item.orden))+'"]');
-     if(celda){
-      celda.value=valor===''?'':cuatro(valor);
-      window.trbCambio(celda);
-     }
-    }
-    host.querySelectorAll('.trb-total').forEach(x=>{x.textContent=x.textContent.replace(/\b\d+(?:\.\d+)?\b/g,n=>cuatro(n));});
-    host.querySelectorAll('.trb-tarjetas input.trb-in[data-i="'+item.orden+'"]').forEach(celda=>{
-     const f=filas.find(x=>String(x.cursante_id)===celda.dataset.c);
-     if(f&&!f.ausencia)celda.value=valor===''?'':cuatro(valor);
+  if(th[items.length+1])th[items.length+1].innerHTML='TOTAL<span class="epla-enc-valor">/37.0000</span>';
+  const css=document.createElement('style');
+  css.textContent='.trb-grilla th .epla-enc-n{display:block;color:#f2d786;font-size:11px}'+
+   '.trb-grilla th .epla-enc-2{display:block;white-space:normal!important;line-height:1.4;font-size:10.5px;font-weight:600;padding:1px 3px;overflow-wrap:break-word}'+
+   '.trb-grilla th .epla-enc-valor{display:block;margin-top:5px;color:#a9b9cf;font-size:11px}'+
+   '.trb-grilla .epla-unica{position:relative;min-width:105px;vertical-align:middle;background:rgba(212,175,55,.08);border-left:2px solid #d4af37;border-right:2px solid #d4af37}'+
+   '.trb-grilla .epla-unica-contenido{position:absolute;inset:6px;display:flex;flex-direction:column;gap:5px;align-items:stretch;justify-content:center}'+
+   '.trb-grilla .epla-unica input{box-sizing:border-box;width:100%;max-width:none;flex:1;min-height:48px;height:100%;text-align:center;font-size:17px;font-weight:bold;color:#f9df91;border:1px solid #b2923f;border-radius:9px;background:#141b2b}'+
+   '.trb-grilla .epla-unica small{font-size:10px;color:#e8d79a;text-align:center}'+
+   '.trb-grilla thead th{white-space:normal;vertical-align:middle;padding:8px 5px}'+
+   '.trb-grilla .trb-in[readonly]{opacity:.82}'+
+   '.epla-movil-grupal{display:none}@media(max-width:760px){.epla-movil-grupal{display:block}}';
+  host.appendChild(css);
+  const bloqueado=filas.some(f=>!f.ausencia&&f.cerrado);
+  const normal=Array.from(tabla.tBodies[0]?.querySelectorAll('tr[data-fila]')||[]);
+  const ausentes=filas.some(f=>f.ausencia);
+  const notas=filas.filter(f=>!f.ausencia).map(f=>f.notas?.['1']).filter(x=>x!==null&&x!==undefined&&x!=='');
+  const distintas=notas.length && !notas.every(x=>Number(x)===Number(notas[0]));
+  const entrada=document.createElement('input');entrada.className='epla-nota-1';
+  entrada.inputMode='decimal';entrada.setAttribute('aria-label','Nota grupal Ítem 1: Impresión prolija, máximo 2.0000');
+  entrada.placeholder=distintas?'DIFERENTES':'0.0000';entrada.readOnly=bloqueado;
+  if(notas.length&&!distintas)entrada.value=cuatro(notas[0]);
+  function aplicar(){
+   const t=entrada.value.replace(',','.').trim();
+   if(t!==''&&(!/^\d+(?:\.\d{0,4})?$/.test(t)||Number(t)>2)){
+    entrada.style.borderColor='#ef6464';return;
+   }
+   entrada.style.borderColor='';
+   if(bloqueado)return;
+   for(const f of filas){
+    if(f.ausencia||f.cerrado)continue;
+    // La lógica original valida, recalcula y guarda cada fila con su cursante_id.
+    window.trbCambio({
+     dataset:{c:String(f.cursante_id),i:'1',max:'2',mitad:String(items[0].mitad)},
+     value:t,
+     classList:{remove(){},add(){},toggle(){}}
     });
-   };
-   inp.onblur=()=>{if(!inp.classList.contains('mal')&&inp.value.trim()!=='')inp.value=cuatro(inp.value.replace(',','.'));};
-   td.appendChild(inp);fila.appendChild(td);
-  });
-  const fin=document.createElement('td');fin.colSpan=2;fin.className='trb-sub';
-  fin.textContent=bloqueado?'🔒 Reabra las notas antes de modificar el grupo':'Las notas se replican y guardan en cada integrante';
-  fila.appendChild(fin);tabla.tBodies[0]?.prepend(fila);
-  // En pantallas angostas la tabla se oculta: ofrecer los mismos cuatro controles sobre las tarjetas.
-  const tarjetas=host.querySelector('.trb-tarjetas');
-  if(tarjetas){
-   const movil=document.createElement('div');
-   movil.className='trb-card trb-grupal-movil';
-   movil.innerHTML='<h3>CALIFICACIÓN GRUPAL — 37.0000</h3><div class="trb-sub">Una nota por ítem para todos los integrantes.</div>';
-   items.forEach((item,i)=>{
-    const grupo=fila.querySelector('input.trb-in[data-item="'+item.orden+'"]');
-    const renglon=document.createElement('label');renglon.className='trb-sub';
-    renglon.style.cssText='display:block;margin:10px 0';
-    renglon.textContent='Ítem '+item.orden+' — '+nombres[i]+' / '+cuatro(item.valor);
-    const entrada=document.createElement('input');entrada.className='trb-in';
-    entrada.style.cssText='display:block;width:100%;max-width:160px;margin-top:5px';
-    entrada.inputMode='decimal';entrada.readOnly=bloqueado;
-    entrada.value=grupo.value;entrada.placeholder=grupo.placeholder;
-    entrada.oninput=()=>{grupo.value=entrada.value;grupo.dispatchEvent(new Event('input',{bubbles:false}));};
-    entrada.onblur=()=>{grupo.dispatchEvent(new Event('blur',{bubbles:false}));entrada.value=grupo.value;};
-    grupo.addEventListener('input',()=>{if(entrada!==document.activeElement)entrada.value=grupo.value;});
-    renglon.appendChild(entrada);movil.appendChild(renglon);
+   }
+   totalCuatro(host);
+   host.querySelectorAll('.trb-tarjetas input.trb-in[data-i="1"]').forEach(inp=>{
+    const f=filas.find(x=>String(x.cursante_id)===inp.dataset.c);
+    if(f&&!f.ausencia)inp.value=t===''?'':cuatro(t);
    });
-   tarjetas.parentNode.insertBefore(movil,tarjetas);
-   const style=document.createElement('style');
-   style.textContent='.trb-grupal-movil{display:none}@media(max-width:760px){.trb-grupal-movil{display:block}}';
-   movil.appendChild(style);
   }
-  host.querySelectorAll('input.trb-in[data-c]').forEach(inp=>{
+  entrada.addEventListener('input',aplicar);
+  entrada.addEventListener('blur',()=>{if(entrada.style.borderColor===''&&entrada.value.trim()!=='')entrada.value=cuatro(entrada.value.replace(',','.'));});
+  function contenedor(){
+   const box=document.createElement('div');box.className='epla-unica-contenido';
+   const label=document.createElement('small');label.textContent='GRUPAL · 2.0000';
+   box.appendChild(label);box.appendChild(entrada);return box;
+  }
+  if(normal.length&&normal.length===filas.length&&!ausentes){
+   // Fusión REAL de la primera columna de puntaje entre los alumnos.
+   const celda=normal[0].cells[1];
+   if(celda){
+    celda.classList.add('epla-unica');
+    celda.replaceChildren(contenedor());
+    for(let n=1;n<normal.length;n++){const c=normal[n].cells[1];if(c)c.remove();}
+    // Las observaciones de notas bajas ocupan solo columnas libres.
+    const obs=Array.from(tabla.tBodies[0].querySelectorAll('tr[id^="trb-obsfila-"]'));
+    obs.forEach(row=>{
+     const c=row.cells[0];if(!c)return;
+     c.colSpan=1;
+     const contenido=document.createElement('td');contenido.colSpan=5;
+     while(c.firstChild)contenido.appendChild(c.firstChild);
+     row.appendChild(contenido);
+    });
+    const ajustar=()=>{
+     let visibleObs=0;
+     obs.forEach(r=>{if(visible(r))visibleObs++;});
+     const span=normal.length+visibleObs;
+     if(celda.rowSpan!==span)celda.rowSpan=span;
+    };
+    ajustar();
+    const mo=new MutationObserver(ajustar);
+    obs.forEach(r=>mo.observe(r,{attributes:true,attributeFilter:['style','class']}));
+   }
+  }else{
+   // Si falta un integrante, evitar un rowspan que afecte la fila de ausencia.
+   const row=tabla.tBodies[0].insertRow(0);
+   const td=document.createElement('td');td.colSpan=7;td.className='epla-unica';
+   td.style.height='100px';td.appendChild(contenedor());row.appendChild(td);
+   normal.forEach(r=>{const i=r.querySelector('input.trb-in[data-i="1"]');if(i)i.readOnly=true;});
+  }
+  // Ítems 2, 3, 4 conservan TODOS los campos individuales y sus botones.
+  host.querySelectorAll('input.trb-in[data-i="1"]').forEach(inp=>{
    inp.readOnly=true;
    if(inp.value.trim()!=='')inp.value=cuatro(inp.value.replace(',','.'));
   });
-  host.querySelectorAll('.trb-tarjetas .trb-pm button').forEach(b=>b.style.display='none');
-  host.querySelectorAll('.trb-total').forEach(x=>{
-   x.textContent=x.textContent.replace(/\b\d+(?:\.\d+)?\b/g,n=>cuatro(n));
+  host.querySelectorAll('input.trb-in[data-i="2"],input.trb-in[data-i="3"],input.trb-in[data-i="4"]').forEach(inp=>{
+   if(inp.value.trim()!=='')inp.value=cuatro(inp.value.replace(',','.'));
   });
+  host.querySelectorAll('.trb-tarjetas input.trb-in[data-i="1"]').forEach(inp=>{
+   const lin=inp.closest('.lin');if(lin)lin.style.display='none';
+  });
+  // Una sola casilla grupal también en móviles, sin duplicar entradas individuales.
+  const tarjetas=host.querySelector('.trb-tarjetas');
+  if(tarjetas){
+   const mov=document.createElement('div');mov.className='trb-card epla-movil-grupal';
+   mov.innerHTML='<h3>ÍTEM 1 — IMPRESIÓN PROLIJA</h3><div class="trb-sub">Nota única para todos los integrantes · /2.0000</div>';
+   const copia=document.createElement('input');copia.className='trb-in';copia.inputMode='decimal';copia.placeholder=entrada.placeholder;
+   copia.style.cssText='display:block;width:100%;height:70px;margin-top:8px;font-size:18px;text-align:center';
+   copia.value=entrada.value;copia.readOnly=bloqueado;
+   copia.oninput=()=>{entrada.value=copia.value;entrada.dispatchEvent(new Event('input'));};
+   copia.onblur=()=>{entrada.dispatchEvent(new Event('blur'));copia.value=entrada.value;};
+   mov.appendChild(copia);tarjetas.parentNode.insertBefore(mov,tarjetas);
+   entrada.addEventListener('input',()=>{if(document.activeElement!==copia)copia.value=entrada.value;});
+  }
+  // Convertir a cuatro decimales los totales ya presentes.
+  totalCuatro(host);
+  // Tras calificar 2/3/4, la aplicación recalcula totales: mantener presentación 4D.
+  const totales=new MutationObserver(()=>totalCuatroSinMutacion(host));
+  function totalCuatroSinMutacion(h){
+   h.querySelectorAll('.trb-total').forEach(el=>{
+    const nuevo=el.textContent.replace(/\d+(?:\.\d+)?/g,x=>cuatro(x));
+    if(nuevo!==el.textContent)el.textContent=nuevo;
+   });
+  }
+  totales.observe(host,{childList:true,subtree:true,characterData:true});
  }
  let observador=null;
  function iniciar(){
   const host=document.getElementById('trb-grilla-cont');
   if(!host||observador)return;
-  observador=new MutationObserver(()=>pintar());
-  observador.observe(host,{childList:true,subtree:true});
+  observador=new MutationObserver(pintar);
+  observador.observe(host,{childList:true});
   pintar();
  }
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',iniciar,{once:true});
