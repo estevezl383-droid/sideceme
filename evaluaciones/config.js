@@ -215,6 +215,10 @@ window.eemAdaptarActa=function(doc,a){
   });
   host.querySelectorAll('input.trb-in[data-i="2"],input.trb-in[data-i="3"],input.trb-in[data-i="4"]').forEach(inp=>{
    if(inp.value.trim()!=='')inp.value=cuatro(inp.value.replace(',','.'));
+   inp.addEventListener('blur',()=>{
+    const v=Number(inp.value.replace(',','.'));
+    if(inp.value.trim()!==''&&Number.isFinite(v)&&v>=0&&v<=Number(inp.dataset.max))inp.value=cuatro(v);
+   });
   });
   host.querySelectorAll('.trb-tarjetas input.trb-in[data-i="1"]').forEach(inp=>{
    const lin=inp.closest('.lin');if(lin)lin.style.display='none';
@@ -231,6 +235,21 @@ window.eemAdaptarActa=function(doc,a){
    copia.onblur=()=>{entrada.dispatchEvent(new Event('blur'));copia.value=entrada.value;};
    mov.appendChild(copia);tarjetas.parentNode.insertBefore(mov,tarjetas);
    entrada.addEventListener('input',()=>{if(document.activeElement!==copia)copia.value=entrada.value;});
+  }
+  // Los botones +/− también refrescan los números: convertir tras cada paso.
+  if(!window.__eplaPaso4D && typeof window.trbPaso==='function'){
+   window.__eplaPaso4D=true;
+   const anterior=window.trbPaso;
+   window.trbPaso=function(cid,orden,signo){
+    const v=anterior.apply(this,arguments);
+    if(activo()&&Number(orden)>=2){
+     document.querySelectorAll('.trb-in[data-c="'+CSS.escape(String(cid))+'"][data-i="'+Number(orden)+'"]').forEach(inp=>{
+      const nota=TRB.grilla.filas.find(f=>String(f.cursante_id)===String(cid))?.notas?.[String(orden)];
+      if(nota!==null&&nota!==undefined)inp.value=cuatro(nota);
+     });
+    }
+    return v;
+   };
   }
   // Convertir a cuatro decimales los totales ya presentes.
   totalCuatro(host);
