@@ -129,7 +129,8 @@ async function preparar({ vista = '2d', movil = false, comoSafari = false } = {}
   const { page } = m
   if (process.env.COMPILADO) {
     const cuerpo = fs.readFileSync(process.env.COMPILADO)
-    await page.route(`**/assets/${path.basename(vigente())}`, (r) => r.fulfill({ contentType: 'text/javascript; charset=utf-8', body: cuerpo }))
+    // Por el pathname: index.html lo pide con «?v=…» y un glob que termina en «.js» no lo agarra.
+    await page.route((u) => u.pathname.endsWith(`/assets/${path.basename(vigente())}`), (r) => r.fulfill({ contentType: 'text/javascript; charset=utf-8', body: cuerpo }))
     await page.reload({ waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(2500)
     const ok = page.getByRole('button', { name: /entendido/i })

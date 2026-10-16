@@ -52,7 +52,8 @@ async function navegador({ administra = true, recortar } = {}) {
   const pedidos = []
   if (process.env.COMPILADO) {
     const cuerpo = fs.readFileSync(process.env.COMPILADO)
-    await ctx.route(`**/assets/${path.basename(vigente())}`, (r) => r.fulfill({ contentType: 'text/javascript; charset=utf-8', body: cuerpo }))
+    // Por el pathname: index.html lo pide con «?v=…» y un glob que termina en «.js» no lo agarra.
+    await ctx.route((u) => u.pathname.endsWith(`/assets/${path.basename(vigente())}`), (r) => r.fulfill({ contentType: 'text/javascript; charset=utf-8', body: cuerpo }))
   }
   // Las capas que la Mesa lee del disco en modo archivos (escritorio).
   const archivos = []
