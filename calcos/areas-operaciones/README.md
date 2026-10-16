@@ -287,9 +287,11 @@ terreno y las avenidas, si están prendidos).
   el navegador manda la foto con los calcos ya cortados; el servidor corta igual y, si los calcos no
   entran en los 2 MB del envío, va sin ellos (`calcosFuera`; el aviso dice que el que recibe los genera o
   que se le pase el JSON). El paso 13 del tablero del Profesor (`modalidad.js`) manda `tijera` y los calcos.
-  **Requiere publicar calco-ops v11** (mismos cinco archivos que la v10, imports aplanados, sin `?v=`):
-  hasta entonces la v10 ignora `opciones.tijera` y un envío por la aplicación sale como antes (lo de
-  adentro del área, sin cortar las líneas y sin lo de afuera). El JSON ya sale bien sin el servidor.
+  **Publicado el 16-10-2026 (con el permiso de Sergio): calco-ops v11** en SIDECEME-V2, con los mismos
+  cinco archivos que la v10 (`index.ts` sin cambios, `compartir.mjs`, `compartir-modelo.mjs`, `modelo.mjs`
+  y `recorte.mjs`), imports aplanados y sin `?v=`, JWT OFF como estaba. Antes se comprobó que la v10
+  desplegada era, archivo por archivo, la de este repositorio, y después que los cinco archivos de la v11
+  son idénticos a los de acá. Sin migración: no cambia ninguna tabla.
 - **Arreglos de paso**: la capa «Clandestinos» del CMOC se buscaba con la tecla `clandestinos` (no
   existe: es `corredoresClandestinos`), así que siempre se tomaba como prendida.
 - **No va (todavía)**: la plantilla situacional del G-2 (producto del paso 4) no viaja con las áreas.

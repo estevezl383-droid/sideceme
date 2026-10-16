@@ -24,8 +24,8 @@ seleccionar todo lo que esté activado (también las unidades enemigas)».
 - **Fuera del compilado** (código legible): la tijera, la vista previa, el corte por donde pasó el lazo y
   lo que se entrega (`calcos/areas-operaciones`: `tijera.mjs`, `lazo.mjs`, `recorte.mjs`, `modelo.mjs`,
   `abrir-archivo.mjs`, `compartir-modelo.mjs`; ver su README); el paso 13 del tablero del Profesor
-  (`modalidad/modalidad.js`); el servidor (`supabase/espejo-ge/calco-ops/compartir.mjs`, calco-ops v11
-  sin publicar todavía).
+  (`modalidad/modalidad.js`); el servidor (`supabase/espejo-ge/calco-ops/compartir.mjs`): calco-ops v11
+  publicada el 16-10-2026 con el permiso de Sergio (ver `areas-operaciones/README.md`).
 - **Cómo se comprobó**: `areas-tijera.mjs` y `e2e/areas-tijera.cjs` (nuevas), `e2e/areas-lazo.cjs` y
   `e2e/areas-seleccion.cjs` (pasadas a la tijera), las unitarias de áreas, `reemplazos-compilado.js` y las
   e2e de áreas, abrir, OGO, deshacer, paneles, aviso de versión, autoguardado, modalidad, carpeta, edición,
