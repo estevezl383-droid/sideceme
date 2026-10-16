@@ -34,7 +34,8 @@
 //   index-deshacer-20261011.js + reemplazos-2026-10-11-medidas.js = index-medidas-20261011.js
 //   index-medidas-20261011.js + reemplazos-2026-10-11-seleccion.js = index-seleccion-20261011.js
 //   index-seleccion-20261011.js + reemplazos-2026-10-12-abrir.js = index-abrir-20261012.js
-//   index-abrir-20261012.js + reemplazos-2026-10-16-tijera.js = index-tijera-20261016.js (el vigente)
+//   index-abrir-20261012.js + reemplazos-2026-10-16-tijera.js = index-tijera-20261016.js
+//   index-tijera-20261016.js + reemplazos-2026-10-16-huellas.js = index-huellas-20261016.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -48,6 +49,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-16-huellas'),
+    nombre: 'reemplazos-2026-10-16-huellas',
+    // calcos/assets/index-tijera-20261016.js (antes de las huellas de OSM en calcos/huellas).
+    anterior: '14d4146525267f92fcff5e6acc16c4dbc7ad98b6ee8e503530ffc6139f94bdb5',
+  },
   {
     lista: require('./reemplazos-2026-10-16-tijera'),
     nombre: 'reemplazos-2026-10-16-tijera',
