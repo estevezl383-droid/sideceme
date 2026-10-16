@@ -5,6 +5,34 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-16 (tarde) — 🛤️ Las huellas de OSM ya no cuelgan la Mesa (`index-huellas-20261016.js`)
+
+Parte de `index-tijera-20261016.js` + `pruebas/reemplazos-2026-10-16-huellas.js` (5 reemplazos;
+`construir-huellas.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con dos capturas
+del botón trabado en «⚙️ 🛤️ Huellas y sendas (OSM al día — Vía 3/4) (🇧🇴)…»: «en momentos hace que la
+aplicación se cuelgue y pareciera que todo el programa falló… especialmente cuando las áreas son más grandes».
+
+- **Qué pasaba** (reproducido en Chromium con la Mesa real): la capa se pide en vivo a OpenStreetMap
+  (`assets/huellasOSM-B2eaicIK.js`) sin tiempo máximo: si Overpass no contestaba, ⚡ GENERAR CALCOS se quedaba
+  en ese paso para siempre. Con un área grande, OSM devuelve decenas de miles de caminos y `rF` los recortaba
+  al área con turf en el hilo de la página: con 1°×1° y 30.000 caminos, la pestaña congelada 13 s seguidos.
+  Si fallaba, sólo lo decía la consola, y el vacío quedaba en la caché (`tt`): volver a generar no reintentaba.
+- **Qué se hizo en el compilado**: el import dinámico de las huellas pasa a `../huellas/v1/huellas-osm.mjs`
+  (`?v=huellas20261016`) y se importa `alAvisar` (`SIDavisoHuellas`). En ⚡ GENERAR CALCOS (`vg`), mientras se
+  pide una capa `envivo` el botón muestra el progreso de OSM (`Ge`), el aviso de la capa (`_aviso`) se suma al
+  mensaje de arriba (`he`) y lo que ya llega recortado (`_recortada`) no pasa por `rF`. `Lc` no guarda en la
+  caché lo que no se pudo traer (`_reintentar`). El ⚙️ Calcular automáticamente del CMOC (`Bd`) muestra el
+  progreso y el aviso igual.
+- **Fuera del compilado** (código legible): `calcos/huellas/v1` (Web Worker, tiempos máximos, recorte al
+  Área de Interés igual al de turf, simplificación, topes con aviso, sin errores, una sola vez por área; ver
+  `calcos/huellas/README.md`). `assets/huellasOSM-B2eaicIK.js` queda para los compilados anteriores.
+- **Cómo se comprobó**: `huellas-osm.mjs` y `e2e/huellas.cjs` (nuevas; con el compilado anterior la e2e falla),
+  `reemplazos-compilado.js`, `npm test` y las e2e de carga, áreas y autoguardado. Con 1°×1° y 30.000 caminos:
+  la página trabada como mucho ~0,3 s (antes 13 s), ⚡ GENERAR en 5,8 s (antes 17,6 s), los mismos 13.101
+  caminos en el calco; con OSM colgado termina y lo avisa.
+- **Si se recompila desde el fuente**: llevar el import de `calcos/huellas/v1/huellas-osm.mjs`, el progreso y
+  el aviso en GENERAR y en el CMOC, el salto de `rF` con `_recortada` y el `_reintentar` en la caché de `Lc`.
+
 ## 2026-10-16 — ✂️ La tijera en la barra principal (`index-tijera-20261016.js`)
 
 Parte de `index-abrir-20261012.js` + `pruebas/reemplazos-2026-10-16-tijera.js` (5 reemplazos;
