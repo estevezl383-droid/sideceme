@@ -1,6 +1,7 @@
-// ✂️ La Mesa real en Chromium: el Profesor reparte el Área de Operaciones con el lazo
-// (sin redibujar), entrega el área con lo que tiene dentro en un JSON y el escalón
-// subordinado lo abre en su ejercicio. Capturas en pruebas/salidas-lazo/.
+// ✂️ La Mesa real en Chromium: el Profesor reparte el Área de Operaciones con la tijera (desde el
+// botón del panel ▧, el mismo que «✂️ Cortar área» de la barra), sin redibujar, entrega el área con
+// lo que tiene dentro en un JSON y el escalón subordinado lo abre en su ejercicio. Capturas en
+// pruebas/salidas-lazo/.
 //   node calcos/pruebas/e2e/areas-lazo.cjs
 const assert = require('assert/strict')
 const fs = require('fs')
@@ -41,8 +42,8 @@ const leerUnidades = page => estadoReact(page, v => Array.isArray(v) && v.length
       return L.map(([lng, lat]) => { const p = m.latLngToContainerPoint([lat, lng]); return [r.left + p.x, r.top + p.y] })
     }, lista)
 
-    // 1 · Lazo a mano alzada, tosco, alrededor de la mitad este.
-    await panel.getByRole('button', { name: '✂️ Seleccionar con lazo' }).click()
+    // 1 · Lazo a mano alzada, tosco, alrededor de la mitad este (con la tijera del panel).
+    await panel.getByRole('button', { name: '✂️ Cortar con la tijera' }).click()
     assert.equal(await page.locator('.sid-lazo').count(), 1, 'la capa del lazo tapa la carta')
     const lazo = await pantalla([[-65.047, -17.056], [-65.046, -16.972], [-64.995, -16.972], [-64.993, -17.058], [-65.047, -17.056]])
     for (const [x, y] of lazo) assert.equal(await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.className, [x, y]), 'sid-lazo', `el lazo se dibuja sobre la carta en ${x},${y}`)
@@ -50,30 +51,39 @@ const leerUnidades = page => estadoReact(page, v => Array.isArray(v) && v.length
     for (let i = 1; i < lazo.length; i++) await page.mouse.move(...lazo[i], { steps: 12 })
     await page.screenshot({ path: path.join(SALIDAS, '0-dibujando-el-lazo.png') })
     await page.mouse.up()
-    await panel.getByRole('status').filter({ hasText: 'creada' }).waitFor()
+    const vista = page.getByRole('region', { name: 'Tijera · vista previa' })
+    await vista.waitFor()
     assert.equal(await page.locator('.sid-lazo').count(), 0, 'el lazo se apaga solo')
+    assert.match(await vista.innerText(), /Por los límites de las unidades\./)
+    await vista.getByLabel('Nombre de la selección').fill('CE-ESTE')
+    await vista.getByRole('button', { name: '✓ Cortar y guardar selección' }).click()
+    const tarjeta = page.getByRole('region', { name: 'Tijera' })
+    await tarjeta.getByRole('status').filter({ hasText: 'guardada' }).waitFor()
     let ops = await leerOps(page)
     assert.equal(ops.areasOps.length, 2)
     const este = ops.areaOps
-    assert.equal(este.operacion, 'DEFENSA')
+    assert.equal(este.operacion, 'DEFENSA'); assert.equal(este.nombre, 'CE-ESTE')
     const lngs = este.coords.map(p => p[0])
     assert.ok(Math.min(...lngs) >= -65.0511 && Math.min(...lngs) <= -65.0499, 'el borde oeste es el límite trazado')
     assert.ok(este.coords.some(p => p[0] === -65.05 && p[1] === -17.02), 'conserva los vértices del límite')
     await page.screenshot({ path: path.join(SALIDAS, '1-lazo-este.png') })
-    const aviso = await panel.getByRole('status').innerText()
-    assert.match(aviso, /Borde exacto de sus límites/)
+    await tarjeta.getByRole('button', { name: 'Cerrar' }).click()
 
     // 2 · Un toque dentro de la otra mitad la elige sola.
-    await panel.getByLabel('Nombre del área').fill('CE-ESTE')
-    await panel.getByRole('button', { name: '✂️ Seleccionar con lazo' }).click()
+    await panel.getByRole('button', { name: '✂️ Cortar con la tijera' }).click()
     const [toque] = await pantalla([[-65.08, -17.01]])
     await page.mouse.click(...toque)
+    await vista.waitFor()
+    await vista.getByLabel('Nombre de la selección').fill('CE-OESTE')
+    await vista.getByRole('button', { name: '✓ Cortar y guardar selección' }).click()
+    await tarjeta.getByRole('status').filter({ hasText: 'guardada' }).waitFor()
+    await tarjeta.getByRole('button', { name: 'Cerrar' }).click()
     await page.waitForFunction(() => document.querySelectorAll('input[type=checkbox][aria-label^="Compartir "]').length === 3)
     ops = await leerOps(page)
     const oeste = ops.areaOps
+    assert.equal(oeste.nombre, 'CE-OESTE')
     const comunes = oeste.coords.filter(p => este.coords.some(q => q[0] === p[0] && q[1] === p[1]))
     assert.ok(comunes.length >= 3, 'las dos áreas comparten los vértices del límite: encajan')
-    await panel.getByLabel('Nombre del área').fill('CE-OESTE')
 
     // 3 · Entregar sólo CE-ESTE con lo que tiene dentro.
     for (const n of ['CE-OESTE']) await panel.getByLabel(`Compartir ${n}`, { exact: true }).uncheck()

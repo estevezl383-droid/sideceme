@@ -1,5 +1,5 @@
-// 💾 La Mesa real en Chromium (11-10-2026): el Profesor corta con el lazo la zona del CE-III, la
-// guarda con «💾 Guardar selección como área» (idéntica al recorte, con todo lo que está activo:
+// 💾 La Mesa real en Chromium (11-10-2026; con la ✂️ tijera de la barra desde el 16-10-2026): el
+// Profesor corta la zona del CE-III, la guarda con «✓ Cortar y guardar» (idéntica al recorte, con todo lo que está activo:
 // fichas propias y enemigas, las medidas de adentro y el CMOC a la vista), baja su JSON y otro
 // ejercicio lo abre con su área de empeño. Además: las líneas de fase y las AE de la IA no reparten
 // el área, y las áreas de empeño se borran desde «Qué se ve en el calco» aunque el panel ▧ esté
@@ -62,41 +62,41 @@ const leerCmoc = page => estadoReact(page, v => v && !Array.isArray(v) && Array.
     assert.equal(cm.ae.length, 1, 'se borró el AE 2 (con el panel ▧ abierto)')
     assert.equal(cm.ae[0].centro[0], -65.014, 'queda el AE del este')
 
-    // 2 · El lazo en la zona este: borde exacto de los límites, sin cortar por la LF ni por el AE-1 de la IA.
-    await panel.getByRole('button', { name: '✂️ Seleccionar con lazo' }).click()
+    // 2 · La tijera (botón de la barra) en la zona este: por los límites, sin cortar por la LF ni por el AE-1 de la IA.
+    await page.getByRole('button', { name: '✂️ Cortar área' }).click()
     const lazo = await pantalla([[-65.036, -17.057], [-65.035, -16.972], [-64.996, -16.972], [-64.994, -17.058], [-65.036, -17.057]])
     await page.mouse.move(...lazo[0]); await page.mouse.down()
     for (let i = 1; i < lazo.length; i++) await page.mouse.move(...lazo[i], { steps: 12 })
     await page.mouse.up()
-    const aviso = panel.getByRole('status').filter({ hasText: 'creada' })
-    await aviso.waitFor()
-    const texto = await aviso.innerText()
-    assert.match(texto, /Borde exacto de sus límites\./, texto)
+    const vista = page.getByRole('region', { name: 'Tijera · vista previa' })
+    await vista.waitFor()
+    const texto = await vista.innerText()
+    assert.match(texto, /Por los límites de las unidades\./, texto)
     assert.doesNotMatch(texto, /zonas unidas/, 'una sola zona: la línea de fase y el AE de la IA no la parten')
     assert.match(texto, /1 área\(s\) de empeño \(CMOC\)/, texto)
+    assert.match(texto, /1 ficha\(s\) propia\(s\) · 1 ficha\(s\) enemiga\(s\)/, texto)
+    await page.screenshot({ path: path.join(SALIDAS, '1-recorte.png') })
+
+    // 3 · ✓ Cortar y guardar, con su nombre: el área y la selección guardada, idénticas.
+    await vista.getByLabel('Nombre de la selección').fill('CE-III')
+    await vista.getByRole('button', { name: '✓ Cortar y guardar selección' }).click()
+    await page.getByRole('region', { name: 'Tijera' }).getByRole('status').filter({ hasText: 'guardada' }).waitFor()
     let ops = await leerOps(page)
     const recortada = ops.areaOps
     const lngs = recortada.coords.map(p => p[0])
     assert.ok(Math.min(...lngs) >= -65.0331 && Math.min(...lngs) <= -65.0329, 'el borde oeste es el límite del Cuerpo')
     assert.ok(Math.abs(Math.max(...recortada.coords.map(p => p[1])) - -16.98) < 1e-6 && Math.abs(Math.min(...recortada.coords.map(p => p[1])) - -17.05) < 1e-6, 'de borde a borde del área (no se queda en la LF)')
-    await page.screenshot({ path: path.join(SALIDAS, '1-recorte.png') })
-
-    // 3 · 💾 Guardar selección como área, con su nombre.
-    const guardar = panel.getByRole('group', { name: 'Guardar el recorte' })
-    await guardar.getByLabel('Nombre de la selección (el área recortada)').fill('CE-III')
-    assert.match(await guardar.innerText(), /todo lo de adentro, las fichas enemigas, el CMOC a la vista \(área de empeño\)/)
-    await guardar.getByRole('button', { name: '💾 Guardar selección como área' }).click()
-    await panel.getByRole('status').filter({ hasText: 'guardada' }).waitFor()
-    ops = await leerOps(page)
     assert.equal(ops.selecciones.length, 1)
     const sel = ops.selecciones[0]
     assert.equal(sel.nombre, 'CE-III'); assert.equal(sel.areaId, recortada.id)
     assert.deepEqual(sel.coords, recortada.coords, 'idéntica a lo que se recortó')
     assert.deepEqual(sel.opciones, { contenido: true, enemigo: true, cmoc: true })
     assert.deepEqual(sel.capasCmoc, ['ae'], 'las capas del CMOC que estaban a la vista')
+    assert.ok(sel.tijera && sel.tijera.lazo.length >= 3, 'con el trazo de la tijera')
     assert.equal(ops.areaOps.nombre, 'CE-III', 'el área toma el nombre de la selección')
+    await page.getByRole('region', { name: 'Tijera' }).getByRole('button', { name: 'Cerrar' }).click()
     const lista = panel.getByRole('group', { name: 'Selecciones guardadas' })
-    assert.match(await lista.innerText(), /CE-III[\s\S]*1 ficha\(s\) propia\(s\) · 1 ficha\(s\) enemiga\(s\) · 1 área\(s\) de empeño \(CMOC\)/)
+    assert.match(await lista.innerText(), /CE-III[\s\S]*✂️ Cortada con la tijera[\s\S]*1 ficha\(s\) propia\(s\) · 1 ficha\(s\) enemiga\(s\) · 1 área\(s\) de empeño \(CMOC\)/)
     await page.screenshot({ path: path.join(SALIDAS, '2-guardada.png') })
 
     // 4 · ⬇️ su JSON: el área idéntica y todo lo activo.
@@ -127,7 +127,7 @@ const leerCmoc = page => estadoReact(page, v => v && !Array.isArray(v) && Array.
     assert.equal(cm.ae.length, 1, 'llega el área de empeño')
     await page.screenshot({ path: path.join(SALIDAS, '3-recibida.png') })
     assert.deepEqual(errores, [])
-    console.log('E2E selección: el lazo corta por los límites (no por la LF ni el AE de la IA), «💾 Guardar selección como área» la guarda idéntica con todo lo activo, su JSON lleva el CMOC a la vista y otro ejercicio la abre; las AE se borran con el panel ▧ abierto. Sin errores JS.')
+    console.log('E2E selección: la tijera corta por los límites (no por la LF ni el AE de la IA), «✓ Cortar y guardar» la guarda idéntica con todo lo activo, su JSON lleva el CMOC a la vista y otro ejercicio la abre; las AE se borran con el panel ▧ abierto. Sin errores JS.')
   } catch (e) {
     await page.screenshot({ path: path.join(SALIDAS, 'error.png') }).catch(() => {})
     console.error('DIAGNOSTICO', await page.getByRole('region', { name: 'Áreas del ejercicio' }).innerText().catch(() => ''), errores)

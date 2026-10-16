@@ -1,6 +1,6 @@
-import { recibirUnidades, recibirCmoc } from './compartir-modelo.mjs?v=seleccion20261011'
-import { resumenContenido } from './recorte.mjs?v=seleccion20261011'
-import { opsConSeleccion } from './modelo.mjs?v=seleccion20261011'
+import { recibirUnidades, recibirCmoc } from './compartir-modelo.mjs?v=tijera20261016'
+import { resumenContenido } from './recorte.mjs?v=tijera20261016'
+import { opsConSeleccion, contenidoTijera } from './modelo.mjs?v=tijera20261016'
 
 // entrega: { contenido, enemigo, cmoc, capasCmoc } elegido en el panel; resumen: lo que lleva, en palabras.
 // pedido: { n, seleccion } cuando se toca «📤 Compartir» en una selección guardada: se abre con su
@@ -45,14 +45,21 @@ export default function Compartir({ react: R, nube, ids, ops, ejercicio, entrega
     const d = destinos.find(x => x.clave === destino)
     if (!d || !nombre.trim() || !ids.length) throw new Error('Indique nombre, áreas y destinatario.')
     const c = await nube.contexto(true); comprobar()
-    const op = { ...opciones, contenido: !!entrega.contenido, enemigo: entrega.enemigo !== false, cmoc: !!entrega.cmoc, capasCmoc: entrega.capasCmoc || [] }
-    if (sel && ids.length === 1 && ids[0] === sel.areaId) {
+    const propia = sel && ids.length === 1 && ids[0] === sel.areaId
+    // ✂️ Hecha con la tijera: el servidor la corta por donde pasó el lazo (opciones.tijera).
+    const op = { ...opciones, contenido: !!entrega.contenido, enemigo: entrega.enemigo !== false, cmoc: !!entrega.cmoc, capasCmoc: entrega.capasCmoc || [], ...(propia && sel.tijera ? { tijera: sel.tijera } : {}) }
+    let r
+    if (propia) {
       // La Mesa como está, con el área idéntica a lo que se recortó y guardó.
       const mesa = globalThis.window?.SIDMesaEjercicio?.foto?.() || {}
-      await api('ejercicio_enviar', c, { nombre, areas: ids, opciones: op, destino: d, foto: { ops: opsConSeleccion(ops, sel), unidades: Array.isArray(mesa.unidades) ? mesa.unidades : [], documentos: opciones.documentos && Array.isArray(mesa.documentos) ? mesa.documentos : [], cmoc: entrega.cmoc ? cmoc || null : null } })
-    } else await api('areas_enviar', c, { nombre, areas: ids, opciones: op, destino: d })
+      const unidades = Array.isArray(mesa.unidades) ? mesa.unidades : []
+      // Los calcos del terreno van ya cortados por el lazo (pesan mucho menos que enteros).
+      let resultados = null
+      if (sel.tijera && entrega.contenido && mesa.resultados) try { resultados = contenidoTijera(ops, sel, { unidades, resultados: mesa.resultados }).resultados } catch { resultados = null }
+      r = await api('ejercicio_enviar', c, { nombre, areas: ids, opciones: op, destino: d, foto: { ops: opsConSeleccion(ops, sel), unidades, documentos: opciones.documentos && Array.isArray(mesa.documentos) ? mesa.documentos : [], cmoc: entrega.cmoc ? cmoc || null : null, ...(resultados && Object.keys(resultados).length ? { resultados } : {}) } })
+    } else r = await api('areas_enviar', c, { nombre, areas: ids, opciones: op, destino: d })
     comprobar()
-    setMensaje(`Enviado a ${d.nombre}. Lo encontrará en Recibidos dentro de SIDE-CEME.`)
+    setMensaje(`Enviado a ${d.nombre}. Lo encontrará en Recibidos dentro de SIDE-CEME.${r?.calcosFuera ? ' Los calcos del terreno no entraron en el envío (más de 2 MB): el que lo recibe los genera con ⚡ Generar calcos sobre el Área de Interés que le llega, o usted le pasa el ⬇️ JSON de la selección, que sí los lleva.' : ''}`)
   })
   return h('section', { ref: caja, 'aria-label': 'Compartir dentro de SIDE-CEME', style: { display: 'grid', gap: 7 } },
     h('button', { type: 'button', style: s, disabled: ocupado, onClick: cargar }, 'Compartir en la aplicación / Recibidos'),

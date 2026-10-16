@@ -999,8 +999,8 @@
   }
   function docsElegidos() { var l = OGO.elegidos(ogo).filter(function (d) { return (ogo.docs && ogo.docs[d.id]) || d.id === 'calco' }).map(function (d) { return d.id }); return rep.docs ? l.filter(function (id) { return rep.docs.indexOf(id) >= 0 }) : l }
   var cmMod = null, mdMod = null
-  function conModeloAreas() { if (!mdMod) mdMod = import('../areas-operaciones/modelo.mjs?v=seleccion20261011').catch(function (e) { mdMod = null; throw e }); return mdMod }
-  function conCompartir() { if (!cmMod) cmMod = import('../areas-operaciones/compartir-modelo.mjs?v=seleccion20261011').catch(function (e) { cmMod = null; throw e }); return cmMod }
+  function conModeloAreas() { if (!mdMod) mdMod = import('../areas-operaciones/modelo.mjs?v=tijera20261016').catch(function (e) { mdMod = null; throw e }); return mdMod }
+  function conCompartir() { if (!cmMod) cmMod = import('../areas-operaciones/compartir-modelo.mjs?v=tijera20261016').catch(function (e) { cmMod = null; throw e }); return cmMod }
   function nombreEnvio() { var sl = selElegida(ejSync()); return rep.nombre || (sl ? sl.nombre : claveCarpeta() + ' · ' + OGO.tituloOrden(ogo)) }
   function indicaciones() {
     if (rep.ind) return rep.ind
@@ -1010,7 +1010,9 @@
   function opcionesEnvio(nombres, sl) {
     var o = sl && sl.opciones ? sl.opciones : null
     return { unidad: true, operacion: true, documentos: true, documentosNombres: nombres, contenido: o ? o.contenido !== false : !!rep.contenido, enemigo: o ? o.enemigo !== false : !!rep.enemigo,
-      cmoc: !!(o && o.contenido !== false && o.cmoc !== false && Array.isArray(sl.capasCmoc) && sl.capasCmoc.length), capasCmoc: o && Array.isArray(sl.capasCmoc) ? sl.capasCmoc : [], indicaciones: indicaciones() }
+      cmoc: !!(o && o.contenido !== false && o.cmoc !== false && Array.isArray(sl.capasCmoc) && sl.capasCmoc.length), capasCmoc: o && Array.isArray(sl.capasCmoc) ? sl.capasCmoc : [], indicaciones: indicaciones(),
+      // ✂️ Cortada con la tijera (16-10-2026): lo de adentro va cortado por donde pasó el lazo.
+      tijera: sl && sl.tijera ? sl.tijera : undefined }
   }
   // Las ops que van: con la selección elegida, su área con el contorno EXACTO que se guardó.
   function opsDeEnvio(ej, sl) { return sl ? conModeloAreas().then(function (m) { return m.opsConSeleccion(ej.ops || {}, sl) }) : Promise.resolve(ej.ops || {}) }
@@ -1020,7 +1022,7 @@
     if (!areas.length) return Promise.resolve(null)
     return Promise.all([conCompartir(), documentosAlumnos(o.est, o.ej, docsElegidos()), opsDeEnvio(o.ej, sl)]).then(function (r) {
       var docs = r[1].concat(rep.otros ? (o.ej.documentos || []).filter(function (d) { return !r[1].some(function (x) { return x.nombre === d.nombre }) }) : [])
-      var p = r[0].construirPaquete({ ops: r[2], unidades: o.ej.unidades || [], documentos: docs, cmoc: o.ej.cmoc || null, nombre: o.ej.nombre || claveCarpeta() }, areas, opcionesEnvio(docs.map(function (d) { return d.nombre }), sl))
+      var p = r[0].construirPaquete({ ops: r[2], unidades: o.ej.unidades || [], documentos: docs, cmoc: o.ej.cmoc || null, resultados: sl && sl.tijera ? o.ej.resultados || null : null, nombre: o.ej.nombre || claveCarpeta() }, areas, opcionesEnvio(docs.map(function (d) { return d.nombre }), sl))
       if (sl) p.seleccion = { nombre: sl.nombre, guardada: sl.guardada }
       var base = sl ? 'Seleccion ' + sl.nombre : 'Ejercicio ' + String(o.ej.nombre || claveCarpeta())
       return { nombre: base.replace(/[^\w .-]+/g, '') + ' - para los alumnos.json', texto: JSON.stringify(p, null, 1), paquete: p, docs: docs, areas: areas, ops: r[2], sel: sl }
@@ -1053,12 +1055,12 @@
       '<div class="ia-acc"><button type="button" class="ir" data-a="ogo-zip">⬇️ Word (.zip) con el JSON</button><button type="button" class="ir" data-a="rep-json">⬇️ JSON del ejercicio</button><button type="button" class="ir" data-a="ogo-adjuntar">📎 Adjuntar al ejercicio</button></div>'
     var sels = seleccionesDe(ej), slx = selElegida(ej)
     h += '<div class="org-tit">2 · Qué parte del ejercicio va (el JSON) ✂️</div>'
-    if (sels.length) h += '<p class="ogo-nota"><b>💾 Tus selecciones guardadas</b> (✂️ lazo → «💾 Guardar selección como área»): elegí una y va IDÉNTICA a lo que recortaste, con lo que tenía activo al guardarla.</p>' +
-      '<ul class="rep-docs">' + sels.map(function (x) { var o = x.opciones || {}; return '<li><label><input type="radio" name="rep-sel" data-rep-sel="' + esc(x.id) + '"' + (slx && slx.id === x.id ? ' checked' : '') + '> 💾 <b>' + esc(x.nombre) + '</b> <small>(guardada ' + esc(fechaCorta(x.guardada)) + (o.contenido === false ? ' · sólo el contorno' : ' · todo lo de adentro' + (o.enemigo !== false ? ', las fichas enemigas' : '') + (o.cmoc !== false && (x.capasCmoc || []).length ? ', el CMOC a la vista' : '')) + ')</small></label></li>' }).join('') +
+    if (sels.length) h += '<p class="ogo-nota"><b>💾 Tus selecciones guardadas</b> (✂️ Cortar área → «✓ Cortar y guardar»): elegí una y va IDÉNTICA a lo que recortaste, con lo que se veía al cortarla; las cortadas con la tijera van cortadas por donde pasó su trazo.</p>' +
+      '<ul class="rep-docs">' + sels.map(function (x) { var o = x.opciones || {}; return '<li><label><input type="radio" name="rep-sel" data-rep-sel="' + esc(x.id) + '"' + (slx && slx.id === x.id ? ' checked' : '') + '> 💾 <b>' + esc(x.nombre) + '</b> <small>(guardada ' + esc(fechaCorta(x.guardada)) + (o.contenido === false ? ' · sólo el contorno' : ' · todo lo de adentro' + (o.enemigo !== false ? ', las fichas enemigas' : '') + (o.cmoc !== false && (x.capasCmoc || []).length ? ', el CMOC a la vista' : '') + (x.tijera ? ' · ✂️ cortada por la tijera' : '')) + ')</small></label></li>' }).join('') +
       '<li><label><input type="radio" name="rep-sel" data-rep-sel=""' + (slx ? '' : ' checked') + '> Elegir las áreas a mano (abajo)</label></li></ul>'
     if (slx) h += '<p class="ogo-ok">Va «' + esc(slx.nombre) + '»: el área tal cual se guardó y lo de adentro como está ahora en la Mesa.</p>'
     else h += (as.length ? '<ul class="rep-docs">' + as.map(function (a) { return '<li><label><input type="checkbox" data-rep-area="' + esc(a.id) + '"' + (sel_.indexOf(a.id) >= 0 ? ' checked' : '') + '> ' + esc(a.nombre || 'Área') + (a.id === activa ? ' <small>(la seleccionada en la Mesa)</small>' : '') + '</label></li>' }).join('') + '</ul>' : '<p class="ogo-aviso">⚠️ No hay Área de Operaciones trazada: trazala (▧ ÁREA DE OPS).</p>') +
-      '<div class="ia-acc"><button type="button" class="ir" data-a="rep-tijera" title="Abre el Área de Operaciones: «✂️ Seleccionar con lazo» corta la parte que querés repartir; al volver, queda elegida">✂️ Elegir otra parte con la tijera</button></div>' +
+      '<div class="ia-acc"><button type="button" class="ir" data-a="rep-tijera" title="Abre la ✂️ tijera de la barra (la misma de «✂️ Cortar área»): cortá la parte que querés repartir; al volver, queda elegida">✂️ Elegir otra parte con la tijera</button></div>' +
       '<label class="ogo-check"><input type="checkbox" data-rep-op="contenido"' + (rep.contenido ? ' checked' : '') + '> Todo lo que está dentro (límites, medidas, fichas)</label>' +
       '<label class="ogo-check"><input type="checkbox" data-rep-op="enemigo"' + (rep.enemigo ? ' checked' : '') + '> También las fichas enemigas</label>'
     h += '<label class="ogo-check"><input type="checkbox" data-rep-op="otros"' + (rep.otros ? ' checked' : '') + '> También los otros documentos del ejercicio</label>'
@@ -1077,7 +1079,7 @@
     return h + (aviso.ogo && /Word|\.zip|adjunt|⏳/i.test(aviso.ogo) ? '<div class="ia-aviso">' + esc(aviso.ogo) + '</div>' : '') + (aviso.rep ? '<div class="ia-aviso">' + esc(aviso.rep) + '</div>' : '') + '</div>'
   }
   function repAccion(acc, el) {
-    if (acc === 'rep-tijera') { ir(el, { h: 'areaOps' }); return }
+    if (acc === 'rep-tijera') { ir(el, { h: 'areaOps' }); setTimeout(function () { try { window.dispatchEvent(new CustomEvent('sid-tijera')) } catch (e) {} }, 350); return }
     if (acc === 'rep-json') {
       aviso.rep = '⏳ Armando el JSON…'; pintar(true)
       ogoContexto().then(paqueteJSON).then(function (pq) {
@@ -1103,7 +1105,7 @@
         if (!pq) throw new Error('Elegí (o trazá) el Área de Operaciones que va.')
         if (!window.confirm('Se envía «' + nombreEnvio() + '» a ' + d.nombre + ':\n· ' + (pq.sel ? 'la selección guardada «' + pq.sel.nombre + '» (idéntica a lo recortado)' : pq.areas.length + ' área(s) del ejercicio') + (opcionesEnvio([], pq.sel).contenido ? ', con lo que está dentro' : '') + '\n· ' + pq.docs.length + ' documento(s)\n\n¿Enviar?')) return null
         return repCalcoId().then(function (id) {
-          return nubeApi('ejercicio_enviar', { calco_id: id, nombre: nombreEnvio(), areas: pq.areas, destino: d, opciones: opcionesEnvio(pq.docs.map(function (x) { return x.nombre }), pq.sel), foto: { ops: pq.ops, unidades: o_.ej.unidades || [], documentos: pq.docs, cmoc: pq.sel ? o_.ej.cmoc || null : null } })
+          return nubeApi('ejercicio_enviar', { calco_id: id, nombre: nombreEnvio(), areas: pq.areas, destino: d, opciones: opcionesEnvio(pq.docs.map(function (x) { return x.nombre }), pq.sel), foto: { ops: pq.ops, unidades: o_.ej.unidades || [], documentos: pq.docs, cmoc: pq.sel ? o_.ej.cmoc || null : null, resultados: pq.sel && pq.sel.tijera && pq.paquete.contenido && pq.paquete.contenido.resultados ? pq.paquete.contenido.resultados : null } })
         }).then(function () { aviso.rep = '📤 Enviado a ' + d.nombre + '. Lo encuentran en su Mesa: ▧ ÁREA DE OPS → «Compartir en la aplicación / Recibidos».' })
       }).catch(function (e) {
         var m = e && e.message ? e.message : String(e)
