@@ -240,3 +240,67 @@ los mismos cinco archivos con los imports aplanados.
 
 Prueba: `node calcos/pruebas/areas-compartir.mjs` (destinos, envío por paralelo, documentos elegidos,
 lo de adentro desde la Mesa del profesor, un cursante no envía, qué recibe cada cursante).
+
+## ✂️ La tijera en la barra principal: el área por los límites y lo que se ve, cortado por donde pasó (16-OCT-2026)
+
+Lo pidió Sergio con las capturas de FABBLE 1.1 (cortó el Cuerpo de arriba y en el ejercicio que abrió con
+el JSON las líneas seguían enteras hasta el fondo del Cuerpo de abajo y no estaban las brigadas rojas):
+«la opción de cortar la quiero en el menú principal… debe cortar el polígono tomando como referencia los
+límites de las unidades… debe cortar la línea por donde pasa el lazo… no seleccionás las unidades
+enemigas: debe seleccionar todo lo que esté activado y se vea en la mesa, pero cortado por donde pasó la
+tijera». Se le preguntó y eligió: las líneas se cortan DONDE PASÓ EL LAZO; fuera de las Áreas de
+Operaciones va todo lo activado que encierre el lazo y, dentro, sólo lo del área recortada (que no se
+mezcle con el Cuerpo vecino); vista previa antes de cortar; y todo lo que se ve (también los calcos del
+terreno y las avenidas, si están prendidos).
+
+- **El botón** «✂️ Cortar área» está en la barra, al lado de «▧ Área de Ops» (y el del panel ▧,
+  «✂️ Cortar con la tijera», llama a la misma). La tijera (`tijera.mjs`) la monta el compilado siempre.
+- **Vista previa** (`lazo.mjs · vistaPrevia`): al soltar el lazo se pintan en la carta las zonas en que
+  los límites parten el área (punteado blanco), en celeste las que se van a cortar y en naranja el trazo.
+  Un toque suma o quita la zona de abajo (`repartir` con `toques`; devuelve `zonas`); arrastrar mueve la
+  carta, con dos dedos se acerca, la rueda acerca. La tarjeta (a la izquierda, encima de la barra lateral)
+  dice qué lleva, propone el nombre por los límites que la rodean (`escalonDelBorde`: rodeada por límites
+  de Cuerpo → «CE-I», no la «Magnitud que se va a colocar» del panel) y **✓ Cortar y guardar selección**
+  deja juntos el área y su selección guardada (una sola foto del ↶ Deshacer). Después: ⬇️ JSON,
+  📤 Compartir (abre el panel ▧ con esa selección), ✂️ Cortar otra.
+- **Qué entrega** (`recorte.mjs · regionTijera, recortarContenido`): la región es el lazo, y de lo que cae
+  dentro de alguna Área de Operaciones del ejercicio sólo lo del área recortada (o lo que corre por su
+  borde). Las líneas (límites, ejes, CMOC, caminos, curvas de nivel…) se cortan exactamente donde cruzan
+  esa región (`cortarLinea`, con un índice en grilla de los bordes); los polígonos (zonas logísticas, áreas
+  de empeño, restringido/severo, el polígono de una avenida, vegetación, áreas pobladas…) se recortan
+  (`cortarPoligono`, con las caras de `caras`); las flechas van enteras si su mitad está adentro; las marcas
+  de un límite siguen a su pedazo. Sólo lo que se ve: las teclas de «Qué se ve en el calco» (fichas
+  propias/enemigas, objetivos, maniobra, A.I.N., logística, posiciones, cada capa del CMOC; los
+  clandestinos también con su botón de la barra) y los calcos del terreno prendidos (`resultados`, con
+  `total` y `porCapa` recontados). Los límites del borde de un escalón mayor siguen sin ir. Sin lazo (un
+  toque), la región es el área.
+- **La selección guardada** lleva `tijera: { lazo, vista }` (`modelo.mjs · guardarSeleccion, vistaLimpia`):
+  el trazo simplificado (`simplificarLazo`) y lo que estaba a la vista al cortar. Lo de adentro se toma
+  como está AHORA (`contenidoTijera`). Su JSON (`paqueteSeleccion`) lleva además `contenido.resultados`,
+  `contenido.calcosVer` y el lazo como Área de Interés (`aoi`). Las selecciones viejas (sin `tijera`)
+  siguen como antes.
+- **Abrir el JSON** (`abrir-archivo.mjs`): el ejercicio nuevo trae los calcos del terreno cortados
+  (`calcosValidos`), el lazo como Área de Interés (de ahí se puede volver a ⚡ Generar calcos) y el
+  compilado prende los calcos que se veían. **Incorporar al ejercicio** (bandeja): suma los calcos que el
+  ejercicio no tiene y el Área de Interés si no tiene la suya (`recibirTerreno`, `recibirAoi`).
+- **Compartir al ciclo o al paralelo** (`compartir-modelo.mjs · construirPaquete` con `opciones.tijera`):
+  el navegador manda la foto con los calcos ya cortados; el servidor corta igual y, si los calcos no
+  entran en los 2 MB del envío, va sin ellos (`calcosFuera`; el aviso dice que el que recibe los genera o
+  que se le pase el JSON). El paso 13 del tablero del Profesor (`modalidad.js`) manda `tijera` y los calcos.
+  **Publicado el 16-10-2026 (con el permiso de Sergio): calco-ops v11** en SIDECEME-V2, con los mismos
+  cinco archivos que la v10 (`index.ts` sin cambios, `compartir.mjs`, `compartir-modelo.mjs`, `modelo.mjs`
+  y `recorte.mjs`), imports aplanados y sin `?v=`, JWT OFF como estaba. Antes se comprobó que la v10
+  desplegada era, archivo por archivo, la de este repositorio, y después que los cinco archivos de la v11
+  son idénticos a los de acá. Sin migración: no cambia ninguna tabla.
+- **Arreglos de paso**: la capa «Clandestinos» del CMOC se buscaba con la tecla `clandestinos` (no
+  existe: es `corredoresClandestinos`), así que siempre se tomaba como prendida.
+- **No va (todavía)**: la plantilla situacional del G-2 (producto del paso 4) no viaja con las áreas.
+- **Caché**: los módulos se importan con `?v=tijera20261016`; el compilado es `index-tijera-20261016.js`
+  (`node calcos/pruebas/construir-tijera.js`, 5 reemplazos reversibles en `reemplazos-2026-10-16-tijera.js`).
+
+Pruebas: `node calcos/pruebas/areas-tijera.mjs` (FABBLE ficticio como el de Sergio: toques, nombre por los
+límites, líneas/avenida/AE/camino cortados en el límite de los Cuerpos, la brigada roja y el objetivo de
+afuera, lo apagado no va, el toque sin lazo, el JSON, abrirlo, el servidor con y sin lugar para los calcos y
+la recepción) y `node calcos/pruebas/e2e/areas-tijera.cjs` (la Mesa en Chromium: el botón de la barra, la
+vista previa con toques, guardar, el JSON y abrirlo con los calcos prendidos; capturas en
+`pruebas/salidas-tijera/`). `areas-lazo.cjs` y `areas-seleccion.cjs` usan ahora la tijera.

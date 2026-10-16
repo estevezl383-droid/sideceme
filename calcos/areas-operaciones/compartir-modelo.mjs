@@ -1,15 +1,31 @@
-import { paqueteAreas, importarAreas } from './modelo.mjs?v=seleccion20261011'
-import { fichasDelPaquete, sumarCmoc } from './recorte.mjs?v=seleccion20261011'
+import { paqueteAreas, importarAreas, listarAreas, vistaLimpia } from './modelo.mjs?v=tijera20261016'
+import { fichasDelPaquete, sumarCmoc, recortarContenido, aoiDelLazo, calcosValidos } from './recorte.mjs?v=tijera20261016'
 
 export function construirPaquete(payload, ids, opciones = {}) {
   // opciones.contenido: también lo que está dentro de las áreas (límites, puntos,
   // marcas, tareas y fichas; las enemigas sólo si opciones.enemigo no es false).
   // opciones.cmoc (11-10-2026): también el CMOC de adentro, sólo de las capas de
   // opciones.capasCmoc (las que el profesor tenía a la vista); un cliente viejo no lo pide.
+  // opciones.tijera (16-10-2026): { lazo, vista } de una selección hecha con la tijera: lo de adentro
+  // va cortado por donde pasó el lazo (también lo de afuera del Área de Operaciones que encierra,
+  // como las fichas enemigas) y con los calcos del terreno que se veían, si entran en el envío.
   const cmoc = opciones.contenido && opciones.cmoc && payload.cmoc && typeof payload.cmoc === 'object' ? payload.cmoc : null
+  const tijera = opciones.contenido && opciones.tijera && typeof opciones.tijera === 'object' && Array.isArray(ids) && ids.length === 1 ? opciones.tijera : null
   const p = paqueteAreas(payload.ops || {}, ids, payload.nombre,
-    opciones.contenido ? { unidades: Array.isArray(payload.unidades) ? payload.unidades : [], enemigo: opciones.enemigo !== false,
+    opciones.contenido && !tijera ? { unidades: Array.isArray(payload.unidades) ? payload.unidades : [], enemigo: opciones.enemigo !== false,
       cmoc, capasCmoc: Array.isArray(opciones.capasCmoc) ? opciones.capasCmoc.map(String).slice(0, 20) : [] } : null)
+  if (tijera) {
+    const lazo = Array.isArray(tijera.lazo) ? tijera.lazo.slice(0, 5000) : null
+    const areas = listarAreas(payload.ops || {})
+    const c = recortarContenido({ area: p.areas[0].coords, lazo, areas: areas.filter(a => a.id !== ids[0]).map(a => a.coords) },
+      { ops: payload.ops || {}, unidades: Array.isArray(payload.unidades) ? payload.unidades : [], cmoc, resultados: payload.resultados || null,
+        vista: vistaLimpia(tijera.vista), enemigo: opciones.enemigo !== false, conCmoc: !!cmoc })
+    p.contenido = { ops: c.ops, unidades: c.unidades }
+    if (Object.keys(c.cmoc).length) p.contenido.cmoc = c.cmoc
+    if (Object.keys(c.resultados).length) { p.contenido.resultados = c.resultados; p.contenido.calcosVer = Object.keys(c.resultados) }
+    const aoi = aoiDelLazo(lazo)
+    if (aoi) p.aoi = aoi
+  }
   // Lista permitida: nunca copia planes, respuestas ni otras capas por accidente.
   p.areas = p.areas.map(a => Object.fromEntries(
     ['id', 'nombre', 'coords', 'escalon', ...(opciones.unidad ? ['unidad'] : []), ...(opciones.operacion ? ['operacion', 'tipo', 'modalidad', 'ambiente'] : [])]
@@ -17,7 +33,11 @@ export function construirPaquete(payload, ids, opciones = {}) {
   p.documentos = opciones.documentos && Array.isArray(payload.documentos) ? documentosDe(payload.documentos, opciones.documentosNombres) : []
   p.indicaciones = String(opciones.indicaciones || '').slice(0, 4000)
   p.formato = 'SIDE-CEME editable'
-  if (new TextEncoder().encode(JSON.stringify(p)).length > 2000000) throw new Error('El envío supera 2 MB. Comparta menos documentos.')
+  const pesa = () => new TextEncoder().encode(JSON.stringify(p)).length
+  // Los calcos del terreno no entran: van sin ellos (el que recibe los genera con ⚡ Generar calcos
+  // sobre el Área de Interés que llega, o abre el JSON de la selección, que sí los lleva).
+  if (p.contenido?.resultados && pesa() > 2000000) { delete p.contenido.resultados; delete p.contenido.calcosVer; p.calcosFuera = true }
+  if (pesa() > 2000000) throw new Error('El envío supera 2 MB. Comparta menos documentos.')
   return p
 }
 // Los documentos que viajan: sólo los campos que la Mesa usa (texto o imagen), y si se eligieron
@@ -48,6 +68,19 @@ export function recibirUnidades(unidades, envio) {
 export function recibirCmoc(cmoc, envio) {
   if (!envio?.id || !envio.paquete?.contenido?.cmoc) return cmoc
   return sumarCmoc(cmoc, envio.paquete.contenido.cmoc, envio.id)
+}
+// ✂️ Los calcos del terreno del envío (16-10-2026): se suman los que el ejercicio no tiene; los suyos
+// no se pisan. Y el Área de Interés (el lazo), sólo si el ejercicio no tiene la suya.
+export function recibirTerreno(resultados, envio) {
+  const llegan = calcosValidos(envio?.paquete?.contenido?.resultados)
+  if (!llegan) return resultados
+  const previos = resultados && typeof resultados === 'object' ? resultados : {}
+  const nuevos = Object.fromEntries(Object.entries(llegan).filter(([id]) => !previos[id]))
+  return Object.keys(nuevos).length ? { ...previos, ...nuevos } : resultados
+}
+export function recibirAoi(aoi, envio) {
+  const a = envio?.paquete?.aoi
+  return aoi || !(a?.geometry?.type === 'Polygon' && Array.isArray(a.geometry.coordinates?.[0]) && a.geometry.coordinates[0].length >= 4) ? aoi : JSON.parse(JSON.stringify(a))
 }
 export function recibirDocumentos(documentos, envio) {
   const p = envio.paquete

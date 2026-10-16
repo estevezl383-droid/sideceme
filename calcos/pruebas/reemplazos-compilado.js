@@ -33,7 +33,8 @@
 //   index-guardado-20261010.js + reemplazos-2026-10-11-deshacer.js = index-deshacer-20261011.js
 //   index-deshacer-20261011.js + reemplazos-2026-10-11-medidas.js = index-medidas-20261011.js
 //   index-medidas-20261011.js + reemplazos-2026-10-11-seleccion.js = index-seleccion-20261011.js
-//   index-seleccion-20261011.js + reemplazos-2026-10-12-abrir.js = index-abrir-20261012.js (el vigente)
+//   index-seleccion-20261011.js + reemplazos-2026-10-12-abrir.js = index-abrir-20261012.js
+//   index-abrir-20261012.js + reemplazos-2026-10-16-tijera.js = index-tijera-20261016.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -47,6 +48,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-16-tijera'),
+    nombre: 'reemplazos-2026-10-16-tijera',
+    // calcos/assets/index-abrir-20261012.js (antes de la ✂️ tijera en la barra principal).
+    anterior: 'f945d869d0577ba8ba78318fdde233ccac7a9b4d99b59644f6d2185488557162',
+  },
   {
     lista: require('./reemplazos-2026-10-12-abrir'),
     nombre: 'reemplazos-2026-10-12-abrir',

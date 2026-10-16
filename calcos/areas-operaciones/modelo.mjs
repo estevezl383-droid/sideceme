@@ -1,7 +1,7 @@
 // areaOps sigue siendo el área activa para los consumidores anteriores.
 // areasOps conserva todas; el área activa prevalece para reflejar sus ediciones.
 // El ?v= obliga al navegador a bajar la versión que va con este módulo.
-import { repartir, contenidoDeAreas, cmocDeAreas, sumarContenido, ESCALONES } from './recorte.mjs?v=seleccion20261011'
+import { repartir, contenidoDeAreas, cmocDeAreas, sumarContenido, recortarContenido, aoiDelLazo, escalonDelBorde, ESCALONES } from './recorte.mjs?v=tijera20261016'
 const copiar = x => JSON.parse(JSON.stringify(x))
 const nuevoId = () => `ao-${globalThis.crypto?.randomUUID?.() || Date.now().toString(36) + Math.random().toString(36).slice(2)}`
 export function validarArea(a) {
@@ -75,7 +75,10 @@ const nuevoSel = () => `sel-${globalThis.crypto?.randomUUID?.() || Date.now().to
 export function listarSelecciones(ops = {}) {
   return (Array.isArray(ops.selecciones) ? ops.selecciones : []).filter(s => s && typeof s.id === 'string' && typeof s.nombre === 'string' && validarArea(s))
 }
-export function guardarSeleccion(ops, { areaId, nombre, opciones = {}, capasCmoc = [], id = nuevoSel(), ahora = new Date().toISOString() } = {}) {
+// `tijera` (16-10-2026): { lazo, vista } — el trazo del lazo (null si fue un toque) y lo que estaba a la
+// vista al cortar (verCapa, clandestinos, calcos del terreno prendidos). Con ella, lo de adentro se
+// entrega cortado por donde pasó el lazo (recortarContenido); sin ella, como antes (contenidoDeAreas).
+export function guardarSeleccion(ops, { areaId, nombre, opciones = {}, capasCmoc = [], tijera = null, id = nuevoSel(), ahora = new Date().toISOString() } = {}) {
   const area = listarAreas(ops).find(a => a.id === areaId)
   if (!area) throw new Error('El área recortada ya no está en el ejercicio (¿se deshizo?): vuelva a cortarla con el lazo.')
   const nom = String(nombre ?? area.nombre ?? '').replace(/\s+/g, ' ').trim().slice(0, 160)
@@ -86,10 +89,21 @@ export function guardarSeleccion(ops, { areaId, nombre, opciones = {}, capasCmoc
     id, nombre: nom, areaId, coords: copiar(area.coords), ...(area.escalon ? { escalon: area.escalon } : {}),
     opciones: { contenido: opciones.contenido !== false, enemigo: opciones.enemigo !== false, cmoc: opciones.cmoc !== false },
     capasCmoc: Array.isArray(capasCmoc) ? capasCmoc.map(String) : [], guardada: ahora,
+    ...(tijera ? { tijera: {
+      lazo: Array.isArray(tijera.lazo) && tijera.lazo.length >= 3 ? copiar(tijera.lazo) : null,
+      vista: vistaLimpia(tijera.vista),
+    } } : {}),
   }
   // La del mismo nombre (o la misma área) se reemplaza: guardar otra vez la actualiza.
   const otras = listarSelecciones(ops).filter(s => s.areaId !== areaId && s.nombre.toUpperCase() !== nom.toUpperCase())
   return { ops: { ...conNombre, selecciones: [...otras, sel] }, seleccion: sel }
+}
+// Lo que estaba a la vista: sólo las teclas apagadas de «Qué se ve en el calco» (lo demás se ve),
+// el botón de los clandestinos y los calcos del terreno prendidos.
+export function vistaLimpia(v = {}) {
+  const verCapa = Object.fromEntries(Object.entries(v?.verCapa || {}).filter(([k, x]) => x === false && /^[\w-]{1,40}$/.test(k)).slice(0, 60))
+  const calcos = (Array.isArray(v?.calcos) ? v.calcos : typeof v?.calcos === 'string' ? [v.calcos] : []).map(String).filter(x => /^[\w-]{1,40}$/.test(x)).slice(0, 20)
+  return { verCapa, clandestinos: v?.clandestinos !== false, calcos }
 }
 export function borrarSeleccion(ops, id) {
   return { ...ops, selecciones: listarSelecciones(ops).filter(s => s.id !== id) }
@@ -105,11 +119,38 @@ export function opsConSeleccion(ops, sel) {
   const areasOps = lista.some(a => a.id === area.id) ? lista.map(a => a.id === area.id ? area : a) : [...lista, area]
   return { ...ops, areasOps, areaOps: ops.areaOps && (ops.areaOps.id || 'ao-original') === area.id ? area : ops.areaOps }
 }
+// Las otras Áreas de Operaciones del ejercicio (para la tijera: dentro de ellas sólo va lo del área).
+export function otrasAreas(ops, areaId) {
+  return listarAreas(ops).filter(a => a.id !== areaId).map(a => copiar(a.coords))
+}
+// Lo de adentro de una selección hecha con la tijera, como está AHORA en la carta y con lo que estaba
+// a la vista al cortarla. `datos`: { unidades, cmoc, resultados }.
+export function contenidoTijera(ops, sel, { unidades = [], cmoc = null, resultados = null } = {}) {
+  const op = sel.opciones || {}
+  return recortarContenido({ area: sel.coords, lazo: sel.tijera?.lazo || null, areas: otrasAreas(ops, sel.areaId) },
+    { ops, unidades, cmoc, resultados, vista: sel.tijera?.vista || {}, enemigo: op.enemigo !== false, conCmoc: op.cmoc !== false })
+}
 // El JSON de una selección: el área idéntica al recorte y lo que lleva según lo que estaba activo.
-export function paqueteSeleccion(ops, sel, ejercicio, { unidades = [], cmoc = null } = {}) {
+// Hecha con la tijera: lo de adentro cortado por donde pasó el lazo, los calcos del terreno que se
+// veían (resultados) y el contorno del lazo como Área de Interés del ejercicio que la abre.
+export function paqueteSeleccion(ops, sel, ejercicio, { unidades = [], cmoc = null, resultados = null } = {}) {
   const o = opsConSeleccion(ops, sel), op = sel.opciones || {}
-  const p = paqueteAreas(o, [sel.areaId], ejercicio, op.contenido === false ? null : { unidades, enemigo: op.enemigo !== false, cmoc: op.cmoc === false ? null : cmoc, capasCmoc: sel.capasCmoc })
-  p.seleccion = { nombre: sel.nombre, guardada: sel.guardada }
+  if (!sel.tijera) {
+    const p = paqueteAreas(o, [sel.areaId], ejercicio, op.contenido === false ? null : { unidades, enemigo: op.enemigo !== false, cmoc: op.cmoc === false ? null : cmoc, capasCmoc: sel.capasCmoc })
+    p.seleccion = { nombre: sel.nombre, guardada: sel.guardada }
+    return p
+  }
+  const area = listarAreas(o).find(a => a.id === sel.areaId)
+  const p = { tipoArchivo: 'sideceme-areas-operaciones', version: 1, ejercicioOrigen: ejercicio || '', areas: [copiar(area)] }
+  if (op.contenido !== false) {
+    const c = contenidoTijera(ops, sel, { unidades, cmoc, resultados })
+    p.contenido = { ops: c.ops, unidades: c.unidades }
+    if (Object.keys(c.cmoc).length) p.contenido.cmoc = c.cmoc
+    if (Object.keys(c.resultados).length) { p.contenido.resultados = c.resultados; p.contenido.calcosVer = Object.keys(c.resultados) }
+  }
+  const aoi = aoiDelLazo(sel.tijera.lazo)
+  if (aoi) p.aoi = aoi
+  p.seleccion = { nombre: sel.nombre, guardada: sel.guardada, tijera: true }
   return p
 }
 export function importarAreas(ops, paquete) {
@@ -124,12 +165,14 @@ export function importarAreas(ops, paquete) {
 }
 const romano = n => [['X', 10], ['IX', 9], ['V', 5], ['IV', 4], ['I', 1]].reduce((s, [r, v]) => { while (n >= v) { s += r; n -= v } return s }, '')
 // ✂️ Agrega como área nueva el pedazo que encierra el lazo (o el del clic), cortado
-// por los límites ya trazados. Queda activa para ponerle nombre.
-export function recortarArea(ops, seleccion, { escalon = '', id = nuevoId() } = {}) {
+// por los límites ya trazados. Queda activa para ponerle nombre. El escalón (y el nombre: CE-I,
+// DIV-II…) sale de los límites con magnitud que la bordean; si no hay, del que se eligió en el panel.
+export function recortarArea(ops, seleccion, { escalon: elegido = '', id = nuevoId() } = {}) {
   const lista = listarAreas(ops)
   const r = repartir(lista, ops.limites || [], seleccion)
   if (!r.ok) throw new Error(r.error)
   const base = lista.find(a => a.id === r.base) || {}
+  const escalon = escalonDelBorde(r.coords, ops.limites) || elegido
   const esc = ESCALONES.find(e => e.id === escalon)
   const iguales = lista.filter(a => a.escalon && a.escalon === escalon).length
   const nombre = esc ? `${esc.corto}-${romano(iguales + 1)}` : `Área ${lista.length + 1}`

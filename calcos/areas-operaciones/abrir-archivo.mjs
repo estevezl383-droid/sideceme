@@ -13,9 +13,9 @@
 //     ejercicio» de la aplicación).
 //   · El ejercicio entero (EJERCICIO_….json, el ejercicio.json del .zip).
 // Lo llama el compilado (index-abrir-20261012.js); acá no hay React ni pantalla.
-import { listarAreas } from './modelo.mjs?v=seleccion20261011'
-import { fichasDelPaquete, sumarCmoc, resumenContenido } from './recorte.mjs?v=seleccion20261011'
-import { recibirPaquete, recibirDocumentos } from './compartir-modelo.mjs?v=seleccion20261011'
+import { listarAreas } from './modelo.mjs?v=tijera20261016'
+import { fichasDelPaquete, sumarCmoc, resumenContenido, calcosValidos } from './recorte.mjs?v=tijera20261016'
+import { recibirPaquete, recibirDocumentos } from './compartir-modelo.mjs?v=tijera20261016'
 
 export const LIMITE_BYTES = 60 * 1024 * 1024
 const copiar = x => JSON.parse(JSON.stringify(x))
@@ -72,19 +72,32 @@ function deAreas(j, { archivo, opsVacias, cmocVacio, ahora, sello }) {
   const cmoc = sumarCmoc(copiar(cmocVacio), j.contenido?.cmoc)
   const docs = (Array.isArray(j.documentos) ? j.documentos : []).filter(d => objeto(d) && typeof d.nombre === 'string')
   const documentos = recibirDocumentos([], { ...envio, paquete: { documentos: docs } })
+  // ✂️ La tijera (16-10-2026): los calcos del terreno que se veían, cortados por el lazo, y el lazo
+  // como Área de Interés (de ahí se puede volver a ⚡ Generar calcos del mismo pedazo de terreno).
+  const resultados = calcosValidos(j.contenido?.resultados)
+  const aoi = aoiValida(j.aoi)
+  const calcosVer = resultados ? (Array.isArray(j.contenido?.calcosVer) ? j.contenido.calcosVer : Object.keys(resultados)).map(String).filter(id => resultados[id]) : []
   const areas = j.areas.map(a => String(a.nombre || '').trim()).filter(Boolean)
   const nombre = String(j.seleccion?.nombre || '').trim() || (j.areas.length === 1 ? areas[0] : '') || nombreDeArchivo(archivo) || String(j.ejercicioOrigen || '').trim()
   const partes = [
     j.areas.length === 1 ? `el área${areas[0] ? ` «${areas[0]}»` : ''}` : `${j.areas.length} áreas`,
-    j.contenido ? resumenContenido({ ops: j.contenido.ops, unidades, cmoc: j.contenido.cmoc ? cmoc : {} }) : 'sólo el contorno',
+    j.contenido ? resumenContenido({ ops: j.contenido.ops, unidades, cmoc: j.contenido.cmoc ? cmoc : {}, resultados: resultados || {} }) : 'sólo el contorno',
     documentos.length ? `${documentos.length} documento(s)` : '',
   ].filter(Boolean)
   return {
     ok: true, tipo: 'areas', nombre,
-    datos: { version: 1, nombre, guardadoEn: ahora, ops, unidades, cmoc, ...(documentos.length ? { documentos } : {}) },
+    datos: { version: 1, nombre, guardadoEn: ahora, ops, unidades, cmoc, ...(documentos.length ? { documentos } : {}),
+      ...(resultados ? { resultados } : {}), ...(aoi ? { aoi, aoPuntos: aoi.geometry.coordinates[0].slice(0, -1) } : {}) },
     resumen: partes.join(' · '),
     coords: pares(listarAreas(ops).map(a => a.coords)),
+    calcosVer,
   }
+}
+
+function aoiValida(a) {
+  const anillo = a?.geometry?.type === 'Polygon' && Array.isArray(a.geometry.coordinates?.[0]) ? a.geometry.coordinates[0].filter(esPar) : []
+  if (anillo.length < 4) return null
+  return { type: 'Feature', properties: objeto(a.properties) ? copiar(a.properties) : {}, geometry: { type: 'Polygon', coordinates: [copiar(anillo)] } }
 }
 
 function deEjercicio(j, { archivo }) {

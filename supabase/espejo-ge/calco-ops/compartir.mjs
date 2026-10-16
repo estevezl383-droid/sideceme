@@ -99,7 +99,8 @@ export async function compartir(body, ses, deps) {
     if (!Array.isArray(body.areas) || body.areas.length > 200) return err('Seleccione las áreas que va a compartir.')
     // ejercicio_enviar: lo que el profesor tiene en su Mesa ahora (su propio ejercicio: `fuente` es suyo)
     const foto = body.accion === 'ejercicio_enviar' && body.foto && typeof body.foto === 'object' ? body.foto : null
-    const base = foto ? { ops: foto.ops || {}, unidades: Array.isArray(foto.unidades) ? foto.unidades : [], documentos: Array.isArray(foto.documentos) ? foto.documentos : [], cmoc: foto.cmoc && typeof foto.cmoc === 'object' ? foto.cmoc : null } : fuente.payload
+    // resultados (16-10-2026): los calcos del terreno, ya cortados por el lazo de la tijera en el navegador.
+    const base = foto ? { ops: foto.ops || {}, unidades: Array.isArray(foto.unidades) ? foto.unidades : [], documentos: Array.isArray(foto.documentos) ? foto.documentos : [], cmoc: foto.cmoc && typeof foto.cmoc === 'object' ? foto.cmoc : null, resultados: foto.resultados && typeof foto.resultados === 'object' && !Array.isArray(foto.resultados) ? foto.resultados : null } : fuente.payload
     const paquete = construirPaquete({ ...base, nombre: fuente.nombre }, body.areas, body.opciones)
     if (paquete.areas.length !== new Set(body.areas).size) return err('Hay áreas que no pertenecen al ejercicio guardado.')
     const { data, error } = await sb.from('calco_compartidos').insert({
@@ -107,6 +108,6 @@ export async function compartir(body, ses, deps) {
       nombre, paquete, creado_por: ses.id, enviado_por: ses.nombre
     }).select('id').single()
     if (error) throw error
-    return ok({ envio_id: data.id })
+    return ok({ envio_id: data.id, calcosFuera: !!paquete.calcosFuera })
   } catch (e) { return err(e.message || 'No se pudo compartir.', 400) }
 }

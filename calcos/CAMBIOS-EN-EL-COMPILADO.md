@@ -5,6 +5,35 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-16 — ✂️ La tijera en la barra principal (`index-tijera-20261016.js`)
+
+Parte de `index-abrir-20261012.js` + `pruebas/reemplazos-2026-10-16-tijera.js` (5 reemplazos;
+`construir-tijera.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con las capturas
+de FABBLE 1.1 y de la barra: «la opción de cortar la quiero en el menú principal… debe cortar el polígono
+tomando como referencia los límites de las unidades… debe cortar la línea por donde pasa el lazo… y
+seleccionar todo lo que esté activado (también las unidades enemigas)».
+
+- **Qué se hizo en el compilado**: los imports de `areas-operaciones` con `?v=tijera20261016` (más
+  `tijera.mjs` y `recibirTerreno`/`recibirAoi`); el botón «✂️ Cortar área» en la barra, al lado de
+  «▧ Área de Ops» (`SIDpedirTijera`); la tijera (`SIDTijera`) montada siempre con `ops` (con los candados
+  `ll`/`Bn` de siempre), `verCapa` (`ai`), el botón de los clandestinos (`pa`), los calcos del terreno
+  prendidos (`fe`) y generados (`ne`), la «Magnitud que se va a colocar» (`Ml`), la herramienta (`ba`/`Ep`)
+  y cómo abrir el panel ▧ (`xi("areaops",!1)`); «Incorporar al ejercicio» (`recibir`) suma los calcos del
+  terreno que no tiene (`Ke`) y el Área de Interés si no tiene la suya (`Ie`/`Nn`); «📂 Abrir archivo
+  JSON» prende los calcos que traía la selección (`oe`).
+- **Fuera del compilado** (código legible): la tijera, la vista previa, el corte por donde pasó el lazo y
+  lo que se entrega (`calcos/areas-operaciones`: `tijera.mjs`, `lazo.mjs`, `recorte.mjs`, `modelo.mjs`,
+  `abrir-archivo.mjs`, `compartir-modelo.mjs`; ver su README); el paso 13 del tablero del Profesor
+  (`modalidad/modalidad.js`); el servidor (`supabase/espejo-ge/calco-ops/compartir.mjs`): calco-ops v11
+  publicada el 16-10-2026 con el permiso de Sergio (ver `areas-operaciones/README.md`).
+- **Cómo se comprobó**: `areas-tijera.mjs` y `e2e/areas-tijera.cjs` (nuevas), `e2e/areas-lazo.cjs` y
+  `e2e/areas-seleccion.cjs` (pasadas a la tijera), las unitarias de áreas, `reemplazos-compilado.js` y las
+  e2e de áreas, abrir, OGO, deshacer, paneles, aviso de versión, autoguardado, modalidad, carpeta, edición,
+  trazos y membrete. Con los datos reales de FABBLE 1.1 (sólo lectura): el Cuerpo de arriba con un lazo que
+  se pasa unos 5 km al de abajo deja las dos líneas cortadas en el límite de los Cuerpos y suma la Br. III.
+- **Si se recompila desde el fuente**: llevar el botón de la barra, la tijera montada con esas props, la
+  recepción de los calcos y del Área de Interés y el `oe(calcosVer)` al abrir el JSON.
+
 ## 2026-10-11 (noche) — 💾 Guardar selección como área, borrar las áreas de empeño y sólo «FF.TT.T.O.» (`index-seleccion-20261011.js`)
 
 Parte de `index-medidas-20261011.js` + `pruebas/reemplazos-2026-10-11-seleccion.js` (14 reemplazos;
