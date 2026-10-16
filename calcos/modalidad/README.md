@@ -9,7 +9,7 @@ Cmte. de FF.TT. / de Cuerpo y mis alumnos son los Cmtes. de Cuerpo / de Divisió
 ## Qué hay
 
 Código **aparte del compilado** (como la piel Pandora, el Superponer o el Despliegue): no toca
-React, no guarda nada en el ejercicio y se puede quitar sacando tres líneas del `index.html`.
+React, no guarda nada en el ejercicio (salvo los documentos que se adjuntan a propósito) y se puede quitar sacando sus líneas del `index.html`.
 
 | Archivo | Qué es |
 |---|---|
@@ -23,7 +23,8 @@ React, no guarda nada en el ejercicio y se puede quitar sacando tres líneas del
 | `ogo-calco.js` | **🗺️ El Anexo A como gráfico** (puro: arma un SVG): el Área de Operaciones, los límites con su magnitud, las medidas, las fichas propias con su símbolo, los PC y las **dos cruces de amarre** sobre la cuadrícula UTM con sus coordenadas; el navegador lo pasa a PNG para el Word. |
 | `carpeta.js` | **📕 La carpeta del profesor** (pura, se prueba en Node): las respuestas de la IA de cada paso, lo «PARA EL PROFESOR» que se va sumando, lo que es solución y lo que va a los alumnos, el bloque para los pedidos que siguen y el .md para bajarla y volver a cargarla. |
 | `biblioteca.js` | **📚 La biblioteca del profesor** (puro, se prueba en Node con `jszip.min.js`): lee un Word (.docx) con sus párrafos y TABLAS; reconoce el **COE** (la tabla «CLASE \| CMDO. \| RCB-1 \| … \| TOTAL» con PERSONAL · ARMAMENTO · VEHÍCULOS · EQUIPO ESPECIAL) y devuelve la División con cada unidad, su efectivo, armamento y vehículos; da el arma y el escalón de la Mesa por la sigla (RCB, RIM, RIAT, RAM, BAT. AA, BATING, BAT. COM, BAT. LOG, COMP. ICIA, ERM, RI, RAC…); arma las fichas de un COE y el resumen para la IA. |
-| `modalidad.js` | El selector **🎖️ Mesa · 🎓 Aprendizaje · 🧑‍🏫 Profesor** y el tablero de la derecha. |
+| `ruta-g4.js` | **🚚 La ruta del G-4** (puro, se prueba en Node): el trabajo del G-4 en orden por las 7 fases (22 pasos: por qué ahora, qué recibe, qué hace, qué entrega, dónde se hace en el panel del G-4 y cómo se sabe que está hecho), lo que le entregan las otras secciones (19 insumos y cómo se sabe si están en la Mesa), el paso que sigue y el **🤖 Estado Mayor simulado** (el pedido por fase, leer la respuesta y pasarla a documentos del ejercicio). |
+| `modalidad.js` | El selector **🎖️ Mesa · 🎓 Aprendizaje · 🧑‍🏫 Profesor** y el tablero de la derecha (en Aprendizaje, «¿Qué practicás?»: el PMTD completo o la ruta del G-4 con la luz en la Mesa). |
 | `modalidad.css` | Los estilos; con Pandora y una modalidad que no sea «Mesa», **esconde la columna CMTE./JEM./G-1…G-5** (el tablero ocupa su lugar y aprieta esos botones por el alumno). |
 
 ### 🎓 Aprendizaje
@@ -33,6 +34,62 @@ que abren el panel de esa sección, su pestaña (📋 Mis hojas / 📄 Documento
 herramienta (Unidades, C.A. por fases, Mesa EM…). Casilla «hecho» por paso, barra de avance,
 botón **«Siguiente: F2·P3 ▸»** (el primer paso sin marcar). Al abrir una hoja el tablero se pliega
 a una pestaña vertical en el borde derecho (como Superponer) y se vuelve a abrir desde ahí.
+
+### 🚚 Aprendizaje · «Como G-4» — la ruta del G-4 (16-10-2026, `ruta-g4.js`)
+
+Lo pidió Sergio con capturas del panel del G-4 (▣ ASDI · ↔ Ejes · 🎬 Concepto · 🧮 Cálculos · 📋 Mis
+hojas): «no sé en qué momento del planeamiento se establece… es un orden lógico y sistemático: eso
+quisiera que vaya siguiendo el alumno… que se ilumine lo primero que se tiene que hacer… y lo del G-1
+al G-5 se completa automáticamente; la idea es que aprenda esta vez logística, después avanzaremos al
+resto».
+
+Arriba del tablero de Aprendizaje, **«¿Qué practicás?» 🎓 PMTD completo · 🚚 Como G-4** (queda en el
+navegador). Con «Como G-4»:
+
+- **El trabajo del G-4 en orden: 22 pasos en las 7 fases**, cada uno con su paso del PMTD (F2·P4…),
+  **¿por qué ahora?** (qué ya tenés para poder hacerlo), **necesitás** (lo que te entregan las otras
+  secciones, ✓ / 🤖 / ○), **qué hacés**, **qué entregás** y **dónde se hace** en el panel del G-4.
+
+  | Fase | Pasos del G-4 |
+  |---|---|
+  | 1 Recibir la misión | Leer la Orden y el Anexo de Logística del superior · F1·P3 Apreciación Activa · ▣ ASDI 1 Entender el esquema en profundidad |
+  | 2 Analizar la misión | F2·P3 Tareas · 🧮 Cálculos: necesidades iniciales (F2·P4, comprobar los recursos) · F2·P5 Limitaciones · F2·P6 Hechos y suposiciones · F2·P8 RCIC/EEIA · F2·P13 Apreciación actualizada |
+  | 3 Desarrollar los CAP | F3·P1 Aporte a la PRC · ▣ ASDI 2 Proponer las áreas A, B, C · ↔ Ejes: EPA y EPE tentativos · 🎬 Concepto de apoyo por fase |
+  | 4 Juego de Guerra | ▣ ASDI 3 Verificar (datos generales, DMA) · Consumo, evacuación y transporte por fase |
+  | 5 Comparar los CAP | ▣ ASDI 4 Evaluar las áreas · F5·P1 Ventajas y desventajas |
+  | 6 Aprobar el CAP | ▣ ASDI 5 Elegir el área y desplegar el Bat. Log. · ↔ Ejes definitivos y la capa para el G-3 · F6·P3 Riesgos |
+  | 7 Planes y órdenes | F7·P1 Anexo de Logística · F7·P2 Matriz de sincronización logística |
+
+- **💡 La luz**: el paso que sigue (el primero sin hacer) va arriba («💡 AHORA · FASE 2 · PASO 5») y
+  brilla en la lista; su botón abre el panel del G-4 **en esa pestaña** y, en la Mesa, se ilumina lo
+  que hay que tocar: la pestaña si el panel está en otra; adentro, el paso del ▣ ASDI (`data-paso`), el
+  botón («➡️ Trazar el EPA», «⬇️ Descargar el cálculo», «⬇️ Bajar mi capa (G4)») o la hoja de 📋 Mis
+  hojas (o «Volver a mis hojas» si hay otra abierta). No aprieta nada solo: lo aprieta el alumno.
+- **Lo hecho se ve en el ejercicio**: las 11 hojas del G-4 con texto escrito (lo que pone la Mesa sola
+  —esquema, número, firma— no cuenta), las áreas propuestas (`ops.zonasLog` con `propuesta`, dos o
+  más), el EPA y el EPE (`ops.ejesLog`), el concepto por fase (`conceptoApoyo` contra las fases del
+  G-3), la evaluación con su conclusión (`hojasG.g4.evalAreas`) y el área elegida. Lo que la Mesa no
+  guarda (bajar el cálculo, bajar la capa) se da por hecho al apretarlo en el panel; lo demás (leer la
+  Orden, entender el esquema, verificar, los consumos por fase) se marca con **✓ Listo** (en el
+  navegador, por ejercicio).
+- **📥 Lo que te entregan en cada fase** (19 insumos): la Orden y el Anexo de Logística del superior,
+  tu unidad y sus fichas, la Guía Inicial (Cmte.); la PICB/CMOC (G-2), los recursos locales (G-5), las
+  tareas y la misión reexpresada (G-3), la Intención y la Guía de Planificación (Cmte.), las normas de
+  evaluación (JEM); las fases, los CAP, la organización de la tarea (G-3) y los CAE (G-2); el Juego de
+  Guerra (G-3), las bajas por fase (G-1), el plan de barreras; la decisión del Cmte.; la OGO (G-3). Cada
+  uno dice para qué le sirve al G-4 y si está **✓ en la Mesa** (con «Ver en la Mesa ▸»: la hoja de esa
+  sección o la herramienta), **🤖 lo entregó el EM simulado** (👁 Leer) u **○ falta**.
+- **🤖 El Estado Mayor simulado** («Que el EM simulado entregue lo que falta»): arma el pedido a la IA
+  para lo que falta **hasta esa fase** (con el contexto del ejercicio de `ia-profesor.js · contexto` y
+  lo ya entregado), con la regla de no hacer el trabajo del G-4 y una marca `=== ENTREGA: id ===` por
+  producto. Lo pegado se lee (`leerEntregas`: marcas con adornos de Markdown, la última si se repite,
+  las desconocidas se avisan) y entra a los **documentos del ejercicio** por el puente
+  (`agregarDocumentos`): «EM SIMULADO · F3 · G-3 · Los cursos de acción propios (CAP 1 y CAP 2).md»,
+  con `emSimulado: { insumo, fase, de }`, categoría «orden» lo del escalón superior y «bases» lo de las
+  secciones (la IA de las hojas no lo recorta primero). Así **la IA de cada hoja del G-4 lo lee en su
+  expediente** y el ejercicio lo lleva consigo. **Por fases**: una fase a la que el alumno no llegó
+  dice 🔒 y lo que la IA haya escrito de esa fase queda afuera (la decisión del Cmte. no aparece antes
+  de comparar los CAP). La unidad y sus fichas no se simulan: las pone el profesor (o el alumno).
 
 ### 🧑‍🏫 Profesor
 **Desde el 11-10-2026 son 13 pasos:** … 10 📜 OGO completa con sus anexos · **11 🔎 Revisión de coherencia:
@@ -354,7 +411,14 @@ puede tocar.
   hoja es criterio de la Mesa (la prueba comprueba que cada una exista en el compilado).
 - Lo marcado como hecho, la fase abierta, el escalón y el foco quedan en **localStorage de ese
   navegador**: no viajan con el ejercicio ni se ven desde otro equipo. Las hojas de verdad siguen
-  en el ejercicio, como siempre.
+  en el ejercicio, como siempre. Lo único que la modalidad escribe en el ejercicio son los documentos
+  que se adjuntan a propósito (📎 de la OGO y las entregas del 🤖 EM simulado).
+- **La ruta del G-4 es criterio de la Mesa** sobre la Visión Horizontal 2020 (las hojas del G-4 en cada
+  fase) y el «Estudio de situación de logística» de la Escuela (las áreas se eligen en el análisis de
+  los CAP, con la DMA y la seguridad): en qué fase se proponen, se verifican, se evalúan y se eligen las
+  áreas, cuándo se trazan los ejes y en qué paso del PMTD va cada cosa lo tiene que validar la Escuela.
+  Se cambia en `ruta-g4.js` (PASOS) sin tocar el tablero; la prueba avisa si un paso necesita algo que
+  llega después.
 - **La IA no se llama desde la Mesa**: el tablero arma el PEDIDO (el texto) y el profesor lo
   pega en la IA que use; lo que la IA conteste se pega en «📥 La respuesta de la IA» del mismo paso
   (queda en la 📕 carpeta del profesor) y, si va al ejercicio, a mano en «Mesa · Preparación», en
@@ -375,6 +439,20 @@ puede tocar.
   `HERRAMIENTAS` en `catalogo.js` (la prueba avisa).
 
 ## Cómo se comprobó
+- `node calcos/pruebas/ruta-g4.cjs` (16-10-2026): los 22 pasos en el orden de las 7 fases, cada uno con
+  insumos que llegan antes o en su fase; las 11 hojas del G-4 existen en el compilado y lo que se mira
+  para darlas por hechas es su clave (lo que pone la Mesa sola no cuenta); las pestañas, el título del
+  panel, los cinco pasos del ▣ ASDI con su `data-paso` (en `logistica/v1/editor.js`) y los botones que
+  se iluminan existen; los «Ver en la Mesa» van a hojas reales del Cmte., del JEM y del G-3 o a una
+  herramienta; el ejercicio de prueba de logística (5 de 22 hechos, la luz en el paso 1, lo marcado a
+  mano la pasa a 🧮 Cálculos); el pedido al EM simulado (lo que falta hasta la fase 2, con sus marcas,
+  nada de la fase 3), leer lo pegado y los documentos que después cuentan como entregados.
+- `node calcos/pruebas/e2e/ruta-g4.cjs` (la Mesa real en Chromium, escritorio y teléfono): «Como G-4»,
+  5 / 22, el paso 1 ilumina el botón del ejercicio, ✓ Listo pasa la luz a 🧮 Cálculos, «Ir» abre el panel
+  del G-4 en esa pestaña con «Descargar el cálculo» iluminado, al apretarlo la luz va a 📋 Mis hojas y
+  a la hoja F2·P5; todo sigue después de recargar; el EM simulado de la fase 2 (lo de la fase 3 queda
+  afuera, la PICB pasa a 🤖 y 👁 Leer la muestra); sin errores de consola. Capturas en
+  `pruebas/salidas-ruta-g4/` (no se versionan).
 - `node calcos/pruebas/ogo-coherencia.cjs` (11-10-2026, tarde): las designaciones («I CUERPO DE EJÉRCITO (I CE)» =
   «CE-I», GALM-1 por su sigla), la capa de poblaciones y la más cercana, el Área de Operaciones más grande,
   quién expide (FF.TT.T.O. · CTO · CE-I, CE-II y CE-III · Tunapa) en sus tres casos, las unidades de la
