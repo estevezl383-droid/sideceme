@@ -304,3 +304,27 @@ afuera, lo apagado no va, el toque sin lazo, el JSON, abrirlo, el servidor con y
 la recepción) y `node calcos/pruebas/e2e/areas-tijera.cjs` (la Mesa en Chromium: el botón de la barra, la
 vista previa con toques, guardar, el JSON y abrirlo con los calcos prendidos; capturas en
 `pruebas/salidas-tijera/`). `areas-lazo.cjs` y `areas-seleccion.cjs` usan ahora la tijera.
+
+### 🧩 El JSON del corte se abre limpio: lo de Superponer se apaga solo (16-OCT-2026, tarde)
+
+Sergio cortó la parte de arriba de FABBLE 1.1 (CE-VI), abrió `Seleccion_CE-VI.json` como ejercicio nuevo
+y abajo seguía un polígono «AO CE-I» que bajaba hasta el fondo: «no está cortando el polígono… lo que
+quiero es cortar y que quede la parte que quiero». **El corte estaba bien** (el ejercicio «CE-VI.1» tenía
+sólo CE-VI, con los límites cortados en el límite de abajo): el polígono era un archivo de áreas de
+FABBLE (CE-I y CE-II) cargado antes en **🧩 Superponer**, que el navegador recuerda y mostraba encima de
+cualquier ejercicio (rótulo «AO …» con la unidad abajo, en la esquina de abajo a la izquierda: así rotula
+Superponer; las áreas del ejercicio dicen «ÁREA DE OPERACIONES …»). Se le preguntó y eligió que **se
+apague solo**:
+
+- Cada capa cargada en Superponer anota los ejercicios donde se ve (`ejercicios`: el abierto al cargarla
+  y los que se prenden a mano en el tablero; apagarla a mano la saca de ese ejercicio). Al abrir otro
+  ejercicio se apaga sola, con un aviso, y queda en el tablero para prenderla; al volver a su ejercicio
+  se prende otra vez. Lo cargado sin ejercicio abierto queda del primero que se abra (`adoptar`).
+- Lo guardado por la versión anterior (sin `ejercicios`, el caso de Sergio) se apaga al abrir un
+  ejercicio. Las capas fijas (`PRESETS`, hoy ninguna) siguen con su regla.
+- El nombre del ejercicio sale de `window.SIDMesaEjercicio.nombre()` (el autoguardado). Sin compilado
+  nuevo: `superponer.js?v=20261016` en `calcos/index.html` (el aviso «Hay una versión nueva» lo detecta).
+
+Prueba: `node calcos/pruebas/e2e/superponer-ejercicio.cjs` (la capa vieja se apaga, la cargada en FABBLE
+se apaga al abrir el JSON del corte y se prende al volver, lo hecho a mano sigue después de recargar;
+capturas en `pruebas/salidas-superponer/`).

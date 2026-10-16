@@ -19,6 +19,14 @@
  *   - GeoJSON (FeatureCollection / Feature)
  *
  * Lo cargado se recuerda en este navegador (localStorage); si no se puede, igual funciona.
+ *
+ * Cada capa se ve sólo en SU ejercicio (16-10-2026). Lo pidió Sergio con las capturas del corte de
+ * CE-VI: abrió el JSON del corte como ejercicio nuevo y abajo seguía «AO CE-I», un archivo cargado
+ * antes acá que se mostraba en cualquier ejercicio («lo que quiero es cortar y que quede la parte
+ * que quiero»). Eligió que se apague solo: la capa anota los ejercicios donde se ve (`ejercicios`: el
+ * abierto al cargarla y los que se prenden a mano); al abrir otro se apaga sola, con aviso, y queda en
+ * el tablero para prenderla. Lo cargado sin ejercicio abierto queda del primero que se abra
+ * (`adoptar`); lo guardado por una versión anterior (sin `ejercicios`) se apaga al abrir uno.
  */
 (function () {
   'use strict'
@@ -41,6 +49,7 @@
         conf: conf,
         capas: capas.map(function (c) {
           return { id: c.id, nombre: c.nombre, visible: c.visible, opac: c.opac, relleno: c.relleno, preset: c.preset || null,
+            ejercicios: c.ejercicios, adoptar: c.adoptar || undefined,
             grupos: c.grupos.map(function (g) { return { id: g.id, nombre: g.nombre, visible: g.visible, elementos: c.preset ? [] : g.elementos } }) }
         })
       }))
@@ -311,6 +320,7 @@
     var c = { id: 'c' + Date.now() + Math.floor(Math.random() * 1000), nombre: n.nombre, visible: true, opac: 1, grupos: n.grupos.map(function (g) {
       return { id: g.id, nombre: g.nombre, visible: g.visible !== false, elementos: g.elementos || [] } }) }
     if (extra) for (var k in extra) c[k] = extra[k]
+    if (!c.preset) { var ej = ejercicioActual(); c.ejercicios = ej ? [ej] : []; if (!ej) c.adoptar = true }
     capas.push(c)
     if (mapa) dibujar(c)
     guardar(); pintar()
@@ -376,6 +386,9 @@
         '<b title="' + esc(c.nombre) + '">' + esc(c.nombre) + '</b>' +
         '<button type="button" data-a="zoom" title="Ir a la capa">🎯</button>' +
         '<button type="button" data-a="quitar" title="Quitar del tablero (no borra nada del ejercicio)">✕</button></div>' +
+        (c.preset ? '' : '<p class="sidsup-nota">' + (c.ejercicios && c.ejercicios.length
+          ? 'Se prende sola en: ' + c.ejercicios.map(function (x) { return '«' + esc(x) + '»' }).join(', ')
+          : c.adoptar ? 'Se queda en el próximo ejercicio que se abra' : 'No se prende sola en ningún ejercicio') + '</p>') +
         '<div class="sidsup-gs">' + c.grupos.map(function (g) {
           return '<label><input type="checkbox" data-a="grupo" data-g="' + esc(g.id) + '"' + (g.visible ? ' checked' : '') + '> ' + esc(g.nombre) + '</label>'
         }).join('') + '</div>' +
@@ -409,6 +422,7 @@
       '<button type="button" class="sidsup-cargar" data-a="cargar">💻 Abrir archivo de la computadora (JSON / GeoJSON)</button>' +
       '<button type="button" class="sidsup-cargar" data-a="quitartodo">🗑️ Quitar todas las capas</button>' +
       '<p class="sidsup-ayuda"><b>Superponer</b> sólo muestra el archivo encima de la carta: no se guarda en el ejercicio ni borra nada. <b>Integrar capa</b> (en 📁 Ejercicio) sí lo mete al ejercicio.</p>' +
+      '<p class="sidsup-ayuda">Cada archivo se ve en el ejercicio donde se cargó (o donde se prenda a mano): al abrir otro se apaga solo y queda acá para prenderlo.</p>' +
       '<div class="sidsup-cf"><label>Tamaño de las fichas <input type="range" min="1" max="2" step="0.1" data-a="escala"> <span class="sidsup-esc"></span></label>' +
       '<p class="sidsup-nota">El tamaño vale también para las fichas de la Mesa (se aplica al mover el zoom).</p>' +
       '<label><input type="checkbox" data-a="comp"> Achicar al ver todo el TO (sin congestión)</label>' +
@@ -428,7 +442,20 @@
     })
     tab.addEventListener('change', function (e) {
       var t = e.target, a = t.getAttribute('data-a'), cel = t.closest('[data-c]'), c = cel && capas.filter(function (x) { return x.id === cel.getAttribute('data-c') })[0]
-      if (a === 'ver' && c) { c.visible = t.checked; if (c.lg) { c.visible ? c.lg.addTo(mapa) : mapa.removeLayer(c.lg) } cel.classList.toggle('off', !c.visible); actualizar3D() }
+      if (a === 'ver' && c) {
+        c.visible = t.checked
+        if (c.lg) { c.visible ? c.lg.addTo(mapa) : mapa.removeLayer(c.lg) }
+        cel.classList.toggle('off', !c.visible)
+        // A mano vale para el ejercicio abierto: ahí se prende (o no) sola la próxima vez.
+        var ej = ejercicioActual()
+        if (!c.preset && ej) {
+          c.ejercicios = (c.ejercicios || []).filter(function (x) { return x !== ej })
+          if (c.visible) c.ejercicios = c.ejercicios.concat(ej).slice(-50)
+          delete c.adoptar
+          pintar()
+        }
+        actualizar3D()
+      }
       if (a === 'grupo' && c) {
         var g = c.grupos.filter(function (x) { return x.id === t.getAttribute('data-g') })[0]
         g.visible = t.checked
@@ -475,6 +502,36 @@
     var b = document.querySelector('button[title="Crear, abrir y guardar ejercicios"]')
     return b ? (b.textContent || '').toUpperCase() : ''
   }
+  // El nombre del ejercicio abierto, tal cual ('' si no hay): lo da el autoguardado de la Mesa.
+  function ejercicioActual() {
+    try {
+      var m = window.SIDMesaEjercicio
+      if (m && typeof m.nombre === 'function') return String(m.nombre() || '').trim()
+    } catch (e) {}
+    return ''
+  }
+
+  // Al abrir otro ejercicio: cada capa cargada se prende en los suyos y se apaga en los demás.
+  var ultimoEjercicio = ''
+  function porEjercicio() {
+    var ej = ejercicioActual()
+    if (!ej || ej === ultimoEjercicio) return
+    ultimoEjercicio = ej
+    var apagadas = [], cambio = false
+    capas.forEach(function (c) {
+      if (c.preset) return
+      if (c.adoptar) { delete c.adoptar; c.ejercicios = [ej]; cambio = true; return }
+      var ver = (c.ejercicios || []).indexOf(ej) >= 0
+      if (ver === !!c.visible) return
+      c.visible = ver; cambio = true
+      if (c.lg && mapa) { ver ? c.lg.addTo(mapa) : mapa.removeLayer(c.lg) }
+      if (!ver) apagadas.push('«' + c.nombre + '»')
+    })
+    if (!cambio) return
+    guardar(); pintar(); actualizar3D()
+    if (apagadas.length) aviso('🧩 Superponer: se ' + (apagadas.length > 1 ? 'apagaron ' : 'apagó ') + apagadas.join(', ') +
+      ' porque ' + (apagadas.length > 1 ? 'son' : 'es') + ' de otro ejercicio. Para verlo acá, prendelo en el tablero 🧩 SUPERPONER.')
+  }
 
   function prepararMapa(m) {
     mapa = m
@@ -511,6 +568,7 @@
         }
       })
       if (nom) ultimoNombre = nom
+      porEjercicio()
     } catch (e) { /* agregado: si falla, la Mesa sigue igual */ }
   }
 
@@ -518,7 +576,8 @@
     var g = leerGuardado()
     if (g) {
       if (g.conf) { conf.escala = +g.conf.escala || 1.5; conf.rotulos = g.conf.rotulos || 'auto'; conf.compacto = g.conf.compacto !== false }
-      ;(g.capas || []).forEach(function (c) { if (!c.preset && !/^DIAMANTE · Despliegue D-30$/.test(c.nombre || '')) capas.push({ id: c.id, nombre: c.nombre, visible: c.visible, opac: c.opac || 1, relleno: c.relleno, grupos: c.grupos || [] }) })
+      ;(g.capas || []).forEach(function (c) { if (!c.preset && !/^DIAMANTE · Despliegue D-30$/.test(c.nombre || '')) capas.push({ id: c.id, nombre: c.nombre, visible: c.visible, opac: c.opac || 1, relleno: c.relleno, grupos: c.grupos || [],
+        ejercicios: Array.isArray(c.ejercicios) ? c.ejercicios.map(String) : [], adoptar: c.adoptar === true || undefined }) })
     }
     window.SIDEscalaFichas = conf.escala   // el compilado agranda también las fichas de la Mesa con este factor
     crearUI()

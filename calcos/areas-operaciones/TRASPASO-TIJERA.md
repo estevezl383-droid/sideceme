@@ -138,9 +138,19 @@ metros sobre un plano local equirectangular).
 
 > Sergio: anotá acá cada corrección (y adjuntá la captura en la sesión nueva).
 
-1. **Qué hice** (ejercicio, qué área corté, lazo o toque):
-   **Qué salió**:
-   **Qué debería salir**:
+1. **Qué hice**: en FABBLE 1.1 cortó con el lazo la parte de arriba (CE-VI) y abrió
+   `Seleccion_CE-VI.json` como ejercicio nuevo («CE-VI.1»).
+   **Qué salió**: abajo seguía un polígono «AO CE-I» hasta el fondo; parecía que el corte no había
+   achicado el área.
+   **Qué pasaba**: **el corte estaba bien** (CE-VI.1 tiene sólo CE-VI, con los límites cortados en el
+   límite de abajo, y así lo quiere: también la franja entre el frente y el límite de la izquierda).
+   El polígono era un archivo de áreas de FABBLE (CE-I y CE-II) cargado antes en **🧩 Superponer**,
+   que el navegador recuerda y mostraba encima de cualquier ejercicio. **Pista**: si un rótulo dice
+   «AO …» con la unidad abajo, en la esquina de abajo a la izquierda, es de Superponer (las áreas del
+   ejercicio dicen «ÁREA DE OPERACIONES …»).
+   **Arreglo (eligió «que se apague solo»)**: lo cargado en Superponer se ve sólo en su ejercicio; al
+   abrir otro se apaga con aviso y queda en el tablero (`superponer.js`, ver README «🧩 El JSON del
+   corte se abre limpio»). Prueba: `e2e/superponer-ejercicio.cjs`.
 2. …
 
 ---
@@ -188,6 +198,7 @@ node calcos/pruebas/areas-tijera.mjs          # la tijera: FABBLE ficticio, toqu
 node calcos/pruebas/e2e/areas-tijera.cjs      # la Mesa en Chromium (capturas en calcos/pruebas/salidas-tijera/)
 node calcos/pruebas/e2e/areas-lazo.cjs
 node calcos/pruebas/e2e/areas-seleccion.cjs
+node calcos/pruebas/e2e/superponer-ejercicio.cjs   # lo de 🧩 Superponer se apaga al abrir otro ejercicio
 ```
 
 - `e2e/trazos.cjs` tiene **2 fallas que ya estaban antes** («dedo (Safari) · Área de Operaciones: doble
