@@ -1,4 +1,4 @@
-/* Consulta de la versión publicada; disponible a planta y al ciclo de cada cursante. */
+/* Consulta de la versión publicada; solo para el personal de planta. Los cursantes ven los horarios cargados (PDF). */
 (function(){
   'use strict';
   const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -12,6 +12,7 @@
   }
   function save(blob,name){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),30000);}
   window.plcPublicadosAbrir=async function(){
+    if(esCursante())return goHorarios();
     document.getElementById('plc-publicados')?.remove();
     const dlg=document.createElement('dialog');dlg.id='plc-publicados';dlg.className='plc-dialog';
     dlg.innerHTML='<h2>HORARIO SEMANAL PUBLICADO</h2><p>Versión final publicada por Planificación. Las semanas se ordenan por gestión y fecha. Las correcciones aparecen cuando Planificación publica la nueva versión.</p><div data-controls></div><p role="status" data-status>CARGANDO…</p><div data-preview style="overflow:auto;max-height:45vh"></div><button data-close>CERRAR</button>';
@@ -45,6 +46,7 @@
     const old=cont.querySelector('[onclick="goHorarios()"]');if(old)old.insertAdjacentElement('beforebegin',b);else cont.appendChild(b);
   }
   const show=showScreen;showScreen=function(){const result=show.apply(this,arguments);panel();return result;};
-  const go=goHorarios;goHorarios=function(){if(esCursante())return plcPublicadosAbrir();const r=go.apply(this,arguments);const sc=document.getElementById('screen-horarios');if(sc&&!sc.querySelector('.plc-published-button')){const b=document.createElement('button');b.className='btn-mega plc-published-button';b.textContent='HORARIOS PUBLICADOS — CONSULTAR, WORD, IMPRIMIR Y CALENDARIO';b.onclick=plcPublicadosAbrir;(sc.querySelector('.menu-container')||sc.querySelector('.disc-container')||sc).appendChild(b);}return r;};
+  // Los cursantes ven la lista de horarios cargados; el acceso a la versión publicada queda solo para planta.
+  const go=goHorarios;goHorarios=function(){const r=go.apply(this,arguments);const sc=document.getElementById('screen-horarios');if(!sc)return r;let b=sc.querySelector('.plc-published-button');if(!b&&!esCursante()){b=document.createElement('button');b.className='btn-mega plc-published-button';b.textContent='HORARIOS PUBLICADOS — CONSULTAR, WORD, IMPRIMIR Y CALENDARIO';b.onclick=plcPublicadosAbrir;(sc.querySelector('.menu-container')||sc.querySelector('.disc-container')||sc).appendChild(b);}if(b)b.style.display=esCursante()?'none':'';return r;};
   panel();
 })();
