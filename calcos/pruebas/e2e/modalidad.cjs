@@ -5,6 +5,8 @@
 //     📋 Mis hojas en las Tareas de Personal; el de G-3 F1·P1 abre 📄 Documentos en la Orden de
 //     Alerta; marcar un paso lo guarda y queda después de recargar;
 //   · Profesor: los pasos para armar el ejercicio y el escalón (CE → Divisiones);
+//   · el título y la barra de avance del tablero no quedan tapados (en el teléfono, por el cartel
+//     «🎖️ MESA · INSTRUCTOR» de la carta), en Aprendizaje y en Profesor;
 //   · sin errores de consola. Sin servicios externos.
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -16,6 +18,16 @@ const out = path.resolve(__dirname, '../salidas-modalidad')
 fs.mkdirSync(out, { recursive: true })
 const SEL = '#sid-mod-sel', PANEL = '#sid-mod-panel'
 const titulo = async (page, re) => (await page.locator('div, h3', { hasText: re }).count()) > 0
+// el título y la barra de avance del tablero no quedan tapados por nada de la Mesa (en el teléfono el
+// cartel «🎖️ MESA · INSTRUCTOR» de la carta le quedaba encima): lo que está en ese punto es del tablero
+const aLaVista = (page) => page.evaluate(() => {
+  const p = document.querySelector('#sid-mod-panel')
+  return ['h2', '.total'].map((s) => {
+    const el = p.querySelector(s), r = el.getBoundingClientRect(), x = r.left + Math.min(40, r.width / 2), y = r.top + r.height / 2
+    const enc = document.elementFromPoint(x, y)
+    return enc && p.contains(enc) ? '' : s + ' tapado por «' + ((enc && enc.textContent) || '').replace(/\s+/g, ' ').trim().slice(0, 50) + '»'
+  }).filter(Boolean)
+})
 
 ;(async () => {
   for (const movil of [false, true]) {
@@ -36,6 +48,7 @@ const titulo = async (page, re) => (await page.locator('div, h3', { hasText: re 
       assert.ok(await page.locator(PANEL).isVisible())
       assert.equal(await page.locator(`${PANEL} .fase`).count(), 7)
       assert.ok(/0 \/ 50 pasos/.test(await page.locator(`${PANEL} .total`).innerText()))
+      assert.deepEqual(await aLaVista(page), [], 'el tablero de Aprendizaje se lee entero')
       if (!movil && (await page.evaluate(() => document.body.classList.contains('sid-pandora')))) {
         const g1 = page.locator('.botones-mapa > button', { hasText: /G-1/ }).first()
         assert.equal(await g1.isVisible(), false, 'con Pandora la columna de la derecha se esconde')
@@ -84,6 +97,13 @@ const titulo = async (page, re) => (await page.locator('div, h3', { hasText: re 
       await page.waitForTimeout(300)
       // desde el 11-10-2026: 11 coherencia, 12 unidades que faltan, 13 repartir
       assert.equal(await page.locator(`${PANEL} .pasos.prof > .paso`).count(), 13)
+      // después de recargar la Mesa abre su bienvenida (un diálogo) y despliega «🎖️ MESA · PREPARACIÓN»
+      // (abajo, por encima del tablero a propósito): se cierran como lo haría el usuario
+      const entendido = page.getByRole('button', { name: 'entendido' })
+      if (await entendido.count()) { await entendido.first().dispatchEvent('click'); await page.waitForTimeout(200) }
+      const ocultar = page.locator('button', { hasText: /^▼ ocultar$/ })
+      if (await ocultar.count()) { await ocultar.first().dispatchEvent('click'); await page.waitForTimeout(300) }
+      assert.deepEqual(await aLaVista(page), [], 'el tablero del Profesor se lee entero')
       assert.deepEqual(await page.locator(`${PANEL} .pasos.prof > .paso .num`).allInnerTexts(), ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13'], 'los números en orden (la OGO es el 10)')
       const pedidoOgo = async (id, re = /CONTEXTO DEL EJERCICIO/) => {
         const b = page.locator(`${PANEL} [data-ogo-doc="${id}"] [data-a="ogo-pedido"]`)

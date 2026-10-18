@@ -71,7 +71,11 @@ body.sid-pandora:not([data-sid-modo="mesa"]) .sid-pd-cap{display:none !important
 
 @media (max-width:820px){
   #sid-mod-sel{right:8px;top:auto;bottom:52px;font-size:10px}
-  #sid-mod-panel{left:8px;right:8px;top:auto;bottom:92px;width:auto;max-height:55vh}
+  /* En el teléfono la carta empieza a media pantalla y su cartel «🎖️ MESA · INSTRUCTOR» (z-index 1010,
+     arriba de la carta) le quedaba encima al tablero (18-10-2026): el tablero va justo por encima del
+     cartel y sigue debajo de lo de abajo (Pandora 1100, «Mesa · Preparación» 1150) y de los paneles de
+     cada G (1200). Plegado, el cartel se ve entero. En pantalla ancha lo acomoda modalidad.js. */
+  #sid-mod-panel{left:8px;right:8px;top:auto;bottom:92px;width:auto;max-height:55vh;z-index:1011}
   #sid-mod-panel.plegado{left:auto;bottom:140px}
 }
 

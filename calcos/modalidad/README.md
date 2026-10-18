@@ -405,6 +405,15 @@ Prueba: `node calcos/pruebas/e2e/paneles-sin-cruce.cjs` (2000 × 1290, 1440 × 9
 capturas en `pruebas/salidas-paneles/`): nada se cruza, cada botón del tablero y de la barra se
 puede tocar.
 
+**En el teléfono (18-10-2026)** la carta empieza a media pantalla y su cartel «🎖️ MESA ·
+INSTRUCTOR» (arriba de la carta, z-index 1010) le quedaba encima al tablero y tapaba el título y la
+barra de avance. Ahora el tablero va justo por encima de ese cartel (1011, `modalidad.css`) y sigue
+debajo de lo que está abajo (Pandora 1100, «Mesa · Preparación» 1150) y de los paneles de cada G
+(1200); plegado, el cartel se ve entero. Lo que NO cambia: si «Mesa · Preparación» está desplegado
+(la Mesa lo despliega sola al recargar), en el teléfono tapa el tablero hasta que se lo oculta («▼
+ocultar»): las dos van abajo y no hay lugar para las dos. `e2e/modalidad.cjs` lo comprueba en
+escritorio y teléfono: lo que hay en el título y en la barra de avance del tablero es del tablero.
+
 ### Lo que es criterio de la Mesa y lo que NO hace (para ser honestos)
 - Las fases, los pasos, los documentos y los responsables son los de la **Visión Horizontal 2020**
   (hoja «PMTD 2020»); los «qué es» de cada fase resumen el texto PMTD 2017. Dónde se abre cada
