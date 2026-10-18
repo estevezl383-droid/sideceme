@@ -22,8 +22,10 @@
   'use strict'
   var CAT = window.SIDModalidadCatalogo, IA = window.SIDIAProfesor, BIB = window.SIDBiblioteca, CARP = window.SIDCarpetaProfesor, OGO = window.SIDOgo
   var COH = window.SIDOgoCoherencia, MESA = window.SIDOgoMesa, CALCO = window.SIDOgoCalco // 11-10-2026: coherencia, unidades que faltan, calco gráfico
+  var RUTA = window.SIDRutaG4 // 16-10-2026: 🚚 la ruta del G-4 (Aprendizaje · practicar como G-4)
   if (!CAT) return
   var K_MODO = 'sid_modalidad', K_HECHO = 'sid_mod_hecho', K_FASE = 'sid_mod_fase', K_ESC = 'sid_mod_escalon', K_PLEGADO = 'sid_mod_plegado', K_FOCO = 'sid_mod_foco'
+  var K_RUTA = 'sid_mod_ruta', K_RUTA_M = 'sid_ruta_g4' // qué practica el alumno (PMTD completo / G-4) y lo que marcó a mano, por ejercicio
   var MODOS = [
     { id: 'mesa', rot: '🎖️ Mesa', title: 'La Mesa completa, como siempre: el instructor arma y reparte; cada G trabaja su tablero' },
     { id: 'aprendizaje', rot: '🎓 Aprendizaje', title: 'Un solo alumno hace TODO el PMTD, fase por fase y paso por paso' },
@@ -44,6 +46,10 @@
   var ogoEjUlt = null // el último ejercicio leído de la Mesa: lo de «Mesa · Preparación» se muestra como sugerencia en los datos de la Orden
   // 🔎 la revisión de coherencia (paso 11), 📍 las unidades que faltan (paso 12) y 📤 el reparto (paso 13)
   var cohAbierto = false, cohPedido = '', cohBorr = '', nuevoVer = 0, cohModo = '' // cohModo: 'actualizar' = el pedido para refrescar con la Mesa
+  // 🚚 la ruta del G-4: la fase y el paso desplegados (0 = los del paso que sigue; -1 = ninguna fase), lo
+  // marcado a mano por ejercicio, la entrega del EM simulado que se está leyendo, su pedido y lo pegado,
+  // y lo que está iluminado en la Mesa
+  var ruta = 'pmtd', rutaFase = 0, rutaVer = '', rutaMarcas = {}, rutaActual = '', rutaHuella = '', rutaIns = '', emFase = 0, emTexto = '', emResp = '', luces = [], rutaTics = 0
   var rep = { destinos: null, destino: '', calcoId: '', nombre: '', ind: '', contenido: true, enemigo: false, otros: false, docs: null, ocupado: false, sinCiclos: false, sel: '', selDe: '' } // sel: la selección guardada que va (selDe: de qué ejercicio)
 
   function lee(k, d) { try { var v = localStorage.getItem(k); return v == null ? d : v } catch (e) { return d } }
@@ -120,19 +126,27 @@
     if (h && h.tagName === 'BUTTON') h.click()
     return !!h
   }
+  // el botón de una herramienta: por su texto o, si la herramienta lo dice, por su descripción (title)
+  function botonHerr(T) {
+    var b = boton(T.boton, T.donde)
+    if (b || !T.titulo) return b
+    var bs = botones(T.donde)
+    for (var i = 0; i < bs.length; i++) if (T.titulo.test(bs[i].getAttribute('title') || '')) return bs[i]
+    return null
+  }
   async function abrirHerr(id) {
     var T = CAT.HERRAMIENTAS[id]
     if (!T) return false
-    var b = boton(T.boton, T.donde)
+    var b = botonHerr(T)
     if (!b && (T.donde === 'panel' || T.donde === 'cmoc')) { // el panel de la izquierda puede estar plegado
       var ab = boton(/^\W*\+$|mostrar|abrir panel/i)
-      if (ab) { ab.click(); b = await hasta(function () { return boton(T.boton, T.donde) }, 1200) }
+      if (ab) { ab.click(); b = await hasta(function () { return botonHerr(T) }, 1200) }
     }
     if (!b) return T.donde === 'cmoc' ? 'calcos' : false // el editor CMOC y el Análisis IA aparecen recién con los calcos generados
     b.click()
     return true
   }
-  function abrir(ref) { return ref.h ? abrirHerr(ref.h) : abrirHoja(ref) }
+  function abrir(ref) { return ref.g4 ? abrirG4(ref) : ref.h ? abrirHerr(ref.h) : abrirHoja(ref) }
 
   // ---------- estado ----------
   function cargar() {
@@ -142,6 +156,8 @@
     escalon = lee(K_ESC, 'ce')
     plegado = lee(K_PLEGADO, '0') === '1'
     foco = lee(K_FOCO, 'pmtd'); if (!CAT.FOCOS.some(function (f) { return f.id === foco })) foco = 'pmtd'
+    ruta = RUTA && lee(K_RUTA, 'pmtd') === 'g4' ? 'g4' : 'pmtd'
+    try { rutaMarcas = JSON.parse(lee(K_RUTA_M, '{}')) || {} } catch (e) { rutaMarcas = {} }
   }
   // El puente con la Mesa: el compilado llama a MesaAcademica.sincronizar({unidades, ejercicio,
   // centro, agregarUnidades, docente…}) cada vez que cambia algo; nos quedamos con una copia.
@@ -1152,9 +1168,10 @@
     return null
   }
   function htmlAprendizaje() {
+    if (RUTA && ruta === 'g4') return selectorRuta() + htmlRutaG4()
     var sig = siguiente(), tot = 0, hh = 0
     CAT.FASES.forEach(function (F) { var a = avance(F); tot += a.t; hh += a.h })
-    return '<div class="cab-tab"><h2>🎓 PMTD por fases</h2><p>Sos el único alumno: hacés el Proceso Militar de Toma de Decisiones completo, en el orden de la Visión Horizontal 2020 (texto PMTD 2017). Cada paso dice qué sale, quién lo hace y dónde se abre en la Mesa.</p>' +
+    return (RUTA ? selectorRuta() : '') + '<div class="cab-tab"><h2>🎓 PMTD por fases</h2><p>Sos el único alumno: hacés el Proceso Militar de Toma de Decisiones completo, en el orden de la Visión Horizontal 2020 (texto PMTD 2017). Cada paso dice qué sale, quién lo hace y dónde se abre en la Mesa.</p>' +
       '<div class="total"><span class="barra"><i style="width:' + (tot ? Math.round(100 * hh / tot) : 0) + '%"></i></span><b>' + hh + ' / ' + tot + ' pasos</b>' +
       (sig ? '<button type="button" class="sig" data-sig="' + sig.f + '.' + sig.n + '">Siguiente: F' + sig.f + '·P' + sig.n + ' ▸</button>' : '<span class="fin">✓ PMTD completo</span>') + '</div></div>' +
       '<ol class="fases">' + CAT.FASES.map(function (F) {
@@ -1165,6 +1182,231 @@
       }).join('') + '</ol>' +
       '<div class="pie"><button type="button" class="chico" data-a="reiniciar">Reiniciar lo marcado</button></div>'
   }
+  // ════════ 🚚 La ruta del G-4 (Aprendizaje · «Practicar como G-4», ruta-g4.js) ════════
+  // Lo pidió Sergio (16-10-2026): que el alumno aprenda logística siguiendo el orden lógico del
+  // planeamiento, que se ilumine lo que sigue —acá y en el panel real del G-4— y que lo del G-1 al G-5
+  // lo complete el Estado Mayor simulado, fase por fase. Lo marcado a mano queda en este navegador,
+  // por ejercicio; lo que entrega el EM simulado va a los documentos del ejercicio (viaja con él).
+  var TAB_G4 = { asdi: /^\W*ASDI$/i, ejes: /^\W*Ejes$/i, concepto: /^\W*Concepto$/i, calculo: /^\W*Cálculos$/i, hojas: /^\W*Mis hojas$/i }
+  var TAB_ROT = { asdi: '▣ ASDI', ejes: '↔ Ejes', concepto: '🎬 Concepto', calculo: '🧮 Cálculos', hojas: '📋 Mis hojas' }
+  // lo que se ve con esa pestaña abierta (el panel del G-4 no marca la pestaña activa)
+  // (el texto exacto de cada pestaña: «enfoque de apoyo», p. ej., también puede estar escrito en una hoja).
+  // Desde el 18-10-2026 el tablero del G-4 tiene sólo las herramientas, sin los párrafos de ayuda: el ▣ ASDI
+  // se reconoce por su paso a paso (data-g4) y los ↔ Ejes por el botón del EPE.
+  var TAB_VISTA = { asdi: function (r) { return !!(r.querySelector && r.querySelector('[data-g4="paso-a-paso"]')) }, ejes: /Trazar el EPE — Eje Principal de Evacuación/, concepto: /Prioridad de apoyo \(en orden\)|todavía no creó fases del curso de acción/, calculo: /PEDIDO A FORMULAR|Días de la operación/, hojas: /\d+ de \d+ hojas con contenido|Volver a mis hojas/ }
+  function enVista(tab, raiz) { var v = TAB_VISTA[tab]; return typeof v === 'function' ? v(raiz) : v.test(texto(raiz)) }
+  function rutaM() { return rutaMarcas[claveCarpeta()] || {} }
+  function rutaGuardarM(m) { var k = claveCarpeta(); if (!k) return; rutaMarcas[k] = m; guarda(K_RUTA_M, JSON.stringify(rutaMarcas)) }
+  function rutaEstado() { var ej = RUTA && ejSync(); return ej ? RUTA.estado(ej, rutaM()) : null }
+  function rutaPaso(id) { return RUTA.PASOS.filter(function (p) { return p.id === id })[0] || null }
+  function refPaso(p) { var a = p.abrir || {}; return a.h ? { h: a.h } : a.tab === 'hojas' ? { s: 'g4', num: a.num, nom: a.nom } : { g4: a.tab, paso: a.paso, boton: a.boton } }
+  function dondeTxt(p) {
+    var a = p.abrir || {}
+    if (a.h) return CAT.HERRAMIENTAS[a.h] ? CAT.HERRAMIENTAS[a.h].nom : a.h
+    return a.tab === 'hojas' ? 'G-4 · ' + a.num : TAB_ROT[a.tab] + (a.paso ? ' · paso ' + a.paso : '')
+  }
+  // el panel del G-4 («🚚 Apoyo Logístico — G-4»), sus botones, sus hojas y los pasos del ▣ ASDI
+  function panelG4() {
+    var hs = document.querySelectorAll('h3')
+    for (var i = 0; i < hs.length; i++) {
+      if (panel.contains(hs[i]) || !/Apoyo Logístico\s*—\s*G-4/.test(texto(hs[i]))) continue
+      for (var r = hs[i].parentElement, k = 0; r && k < 5; r = r.parentElement, k++) if (r.querySelectorAll('button').length > 5) return r
+    }
+    return null
+  }
+  function enG4(raiz, re) { var bs = raiz ? raiz.querySelectorAll('button') : []; for (var i = 0; i < bs.length; i++) if (re.test(texto(bs[i]))) return bs[i]; return null }
+  function hojaEnG4(raiz, num, nomRe) { var bs = raiz ? raiz.querySelectorAll('button') : []; for (var i = 0; i < bs.length; i++) { var t = texto(bs[i]); if (t.indexOf(num) === 0 && (!nomRe || nomRe.test(t))) return bs[i] } return null }
+  function pasoASDI(raiz, n) { return raiz ? raiz.querySelector('[data-g4="paso-a-paso"] [data-paso="' + n + '"] > button') : null }
+  // Abre el panel del G-4 en la pestaña del paso; lo que hay que tocar queda iluminado (no se aprieta solo)
+  async function abrirG4(ref) {
+    var re = TAB_G4[ref.g4]
+    if (!re) return false
+    var raiz = panelG4()
+    if (!raiz) {
+      var b = boton(CAT.SECCIONES.g4.boton, 'barra')
+      if (!b) return false
+      b.click()
+      raiz = await hasta(panelG4, 2500)
+      if (!raiz) return false
+    }
+    var tab = enG4(raiz, re)
+    if (!tab) return false
+    tab.click()
+    var blanco = await hasta(function () { var r = panelG4(); return r && (ref.paso ? pasoASDI(r, ref.paso) : ref.boton ? enG4(r, ref.boton) : true) }, 1500)
+    if (blanco && blanco !== true) try { blanco.scrollIntoView({ block: 'center' }) } catch (e) {}
+    setTimeout(luzG4, 60)
+    return true
+  }
+  // 💡 La luz en la Mesa: lo que el alumno tiene que tocar AHORA (la pestaña del G-4 si está en otra; adentro,
+  // la hoja, el paso del ASDI o el botón). Se vuelve a poner en cada vuelta: React puede rehacer el botón.
+  function luzG4() {
+    var quiero = [], E = modo === 'aprendizaje' && ruta === 'g4' ? rutaEstado() : null, A = E && E.actual
+    if (A) {
+      var ab = A.p.abrir || {}
+      if (ab.h) { var T = CAT.HERRAMIENTAS[ab.h], b = T && botonHerr(T); if (b && b.offsetParent) quiero.push(b) }
+      else {
+        var raiz = panelG4(), x = null
+        if (raiz) {
+          if (!enVista(ab.tab, raiz)) x = enG4(raiz, TAB_G4[ab.tab])
+          else if (ab.tab === 'hojas') x = hojaEnG4(raiz, ab.num, ab.nom) || (hojaAbierta(ab.num, ab.nom) ? null : enG4(raiz, /Volver a mis hojas/i))
+          else if (ab.paso) { x = pasoASDI(raiz, ab.paso); if (x && x.getAttribute('aria-expanded') === 'true') x = null }
+          else if (ab.boton) x = enG4(raiz, ab.boton)
+        }
+        if (x) quiero.push(x)
+      }
+    }
+    luces.forEach(function (el) { if (quiero.indexOf(el) < 0) el.classList.remove('sid-luz') })
+    quiero.forEach(function (el) { el.classList.add('sid-luz') })
+    luces = quiero
+  }
+  // lo que cambia en la ruta (lo hecho, lo recibido): si cambió, se repinta; si avanzó, la luz va al paso nuevo
+  function huellaRuta(E) {
+    if (!E) return 'sin ejercicio'
+    return E.pasos.map(function (x) { return (x.ok ? 1 : 0) + x.det + x.insumos.map(function (i) { return i.e.de || '-' }).join('') }).join('|') + '#' + E.porFase.map(function (pf) { return pf.insumos.map(function (i) { return i.e.de || '-' }).join('') }).join('.')
+  }
+  function rutaTic() {
+    if (!RUTA) return
+    if (modo !== 'aprendizaje' || ruta !== 'g4') { if (luces.length) luzG4(); return }
+    var E = rutaEstado(), h = huellaRuta(E)
+    if (h !== rutaHuella) {
+      var act = E && E.actual ? E.actual.p.id : ''
+      if (act !== rutaActual) { rutaActual = act; rutaFase = 0; rutaVer = '' }
+      rutaHuella = h
+      pintar(true)
+    }
+    luzG4()
+  }
+  // lo que la Mesa no guarda (bajar el cálculo, bajar la capa) se da por hecho al apretarlo en el panel del G-4
+  function rutaClic(e) {
+    if (!RUTA || modo !== 'aprendizaje' || ruta !== 'g4') return
+    var b = e.target && e.target.closest && e.target.closest('button')
+    if (!b) return
+    var t = texto(b), m = rutaM(), nuevo = null
+    RUTA.PASOS.forEach(function (p) { if (p.automatico && p.automatico.test(t) && !m[p.id]) { nuevo = nuevo || Object.assign({}, m); nuevo[p.id] = 1 } })
+    if (nuevo) rutaGuardarM(nuevo)
+    setTimeout(rutaTic, 400)
+  }
+  function selectorRuta() {
+    return '<div class="rg-sel" role="group" aria-label="Qué practicás"><span>¿Qué practicás?</span>' +
+      '<button type="button" data-a="ruta-elegir" data-ruta="pmtd" aria-pressed="' + (ruta !== 'g4') + '" title="Un solo alumno hace TODO el PMTD, fase por fase">🎓 PMTD completo</button>' +
+      '<button type="button" data-a="ruta-elegir" data-ruta="g4" aria-pressed="' + (ruta === 'g4') + '" title="El trabajo del G-4 en el orden del planeamiento; lo de las otras secciones lo completa el Estado Mayor simulado">🚚 Como G-4</button></div>'
+  }
+  function chipDe(de) { var S = RUTA.DE[de]; return '<span class="sec" style="--sc:' + S.color + '" title="' + esc(S.nom) + '">' + esc(S.corto) + '</span>' }
+  // bloq: el alumno todavía no llegó a la fase de este insumo (si ya está, se ve que está, pero no se abre)
+  function htmlInsumo(x, ej, bloq) {
+    var I = x.ins, e = x.e, leyendo = !bloq && rutaIns === I.id && e.de === 'em', acc = '', txt = ''
+    var est = e.ok ? (bloq ? '🔒 ya está: lo leés cuando llegues a la fase ' + I.fase : e.de === 'em' ? '🤖 lo entregó el EM simulado' : '✓ ' + e.det) : '○ falta' + (I.simulable === false ? ': ' + I.quien : '')
+    if (bloq) acc = ''
+    else if (e.de === 'em') acc = '<button type="button" class="chico" data-a="em-ver" data-ins="' + I.id + '" aria-expanded="' + leyendo + '">' + (leyendo ? 'Cerrar' : '👁 Leer') + '</button>'
+    else if (I.ver && (e.ok || I.simulable === false)) acc = '<button type="button" class="chico" data-a="ruta-ins-ir" data-ins="' + I.id + '">' + (e.ok ? 'Ver en la Mesa' : 'Abrir') + ' ▸</button>'
+    if (leyendo) { var d = (ej.documentos || []).filter(function (z) { return z && z.emSimulado && z.emSimulado.insumo === I.id })[0]; txt = '<div class="rg-texto">' + esc(d ? d.texto : '') + '</div>' }
+    return '<li class="rg-ins ' + (e.ok ? (e.de === 'em' ? 'em' : 'ok') : 'falta') + '">' + chipDe(I.de) + '<div class="rg-in"><b>' + esc(I.nom) + '</b><i>' + esc(est) + '</i><small>Te sirve para: ' + esc(I.para) + '</small>' + (acc ? '<div class="rg-acc">' + acc + '</div>' : '') + txt + '</div></li>'
+  }
+  function htmlEM(f) {
+    return '<div class="ia-caja rg-em-caja"><p class="ia-ayuda">El <b>EM simulado</b> (la IA) escribe lo que el Cmte., el JEM, el G-1, el G-2, el G-3 y el G-5 —y el escalón superior, si falta— te entregan hasta la fase ' + f + ', <b>sin hacer tu trabajo</b>. Copiá el pedido (' + emTexto.length.toLocaleString('es') + ' caracteres), pegalo en ChatGPT, Gemini o Claude, y pegá abajo lo que conteste: las entregas se suman a los documentos del ejercicio y la IA de tus hojas las lee.</p>' +
+      '<div class="ia-acc"><button type="button" class="ir" data-a="em-copiar">📋 Copiar el pedido</button><button type="button" class="ir" data-a="em-bajar">⬇️ Bajar .md</button><button type="button" class="chico" data-a="em-cerrar">Cerrar</button>' + (aviso.em ? '<span class="ia-aviso">' + esc(aviso.em) + '</span>' : '') + '</div>' +
+      '<textarea data-em readonly rows="6" aria-label="Pedido al Estado Mayor simulado">' + esc(emTexto) + '</textarea>' +
+      '<div class="ia-resp"><div class="ia-resp-tit">📥 Lo que contestó la IA<span>Pegalo entero, con las marcas «=== ENTREGA: … ===».</span></div>' +
+      '<textarea data-em-resp rows="6" placeholder="Pegá acá TODO lo que te contestó la IA">' + esc(emResp) + '</textarea>' +
+      '<div class="ia-acc"><button type="button" class="ir" data-a="em-recibir">📥 Recibir las entregas</button></div>' + (aviso.emr ? '<div class="ia-aviso">' + esc(aviso.emr) + '</div>' : '') + '</div></div>'
+  }
+  function htmlRecibe(pf, E, ej) {
+    var F = pf.F, falt = RUTA.faltantes(F.id, ej), llega = F.id <= E.fase
+    if (!pf.insumos.length && !(F.id === E.fase && falt.length)) return ''
+    var h = '<div class="rg-recibe"><div class="rg-tit">📥 Lo que te entregan en esta fase</div>' +
+      (pf.insumos.length ? '<ul>' + pf.insumos.map(function (x) { return htmlInsumo(x, ej, !llega) }).join('') + '</ul>' : '<p class="rg-nada">En esta fase no te entregan nada nuevo: trabajás con lo que ya tenés.</p>')
+    if (!llega) h += '<div class="rg-bloq">🔒 El EM simulado te lo entrega cuando llegues a esta fase (estás en la fase ' + E.fase + '): así no ves antes de tiempo lo que todavía no se decidió.</div>'
+    else if (falt.length) h += '<button type="button" class="rg-em" data-a="em-abrir" data-rf="' + F.id + '" aria-expanded="' + (emFase === F.id) + '">🤖 Que el EM simulado entregue lo que falta (' + falt.length + ')' + (emFase === F.id ? ' ▴' : ' ▸') + '</button>' + (emFase === F.id ? htmlEM(F.id) : '')
+    else h += '<div class="rg-listo">✓ Tenés todo lo que te entregan hasta esta fase.</div>'
+    if (aviso['emf' + F.id]) h += '<div class="ia-aviso">' + esc(aviso['emf' + F.id]) + '</div>'
+    return h + '</div>'
+  }
+  function htmlPasoRuta(x, A, E) {
+    var p = x.p, act = !!(A && A.p.id === p.id), abierto = act ? rutaVer !== '-' + p.id : rutaVer === p.id, luego = !x.ok && !act && !!A && x.n > A.n
+    var h = '<li class="paso rg-paso' + (x.ok ? ' hecho' : '') + (act ? ' ahora' : '') + (luego ? ' luego' : '') + '" data-rp="' + p.id + '">' +
+      '<button type="button" class="rg-pcab" data-a="ruta-ver" data-paso="' + p.id + '" aria-expanded="' + abierto + '"><span class="num">' + (x.ok ? '✓' : x.n) + '</span><span class="nom">' + esc(p.nom) + '</span><span class="rg-pm">' + (act ? '💡 ' : '') + esc(p.pmtd) + '</span></button>'
+    if (!abierto) return h + (x.det && !x.ok ? '<div class="doc">' + esc(x.det) + '</div>' : '') + '</li>'
+    // lo que falta, según dónde se consigue: el EM simulado ya (llega hasta la fase del alumno), más adelante, o el profesor
+    var falt = x.insumos.filter(function (i) { return !i.e.ok }), sinSim = falt.filter(function (i) { return i.ins.simulable === false })
+    var ya = falt.filter(function (i) { return i.ins.simulable !== false && i.ins.fase <= E.fase }), luegoF = falt.filter(function (i) { return i.ins.simulable !== false && i.ins.fase > E.fase }).map(function (i) { return i.ins.fase })
+    var dondeFalta = [].concat(ya.length ? ['lo completa el 🤖 EM simulado («📥 Lo que te entregan» de la fase ' + E.fase + ')'] : [], luegoF.length ? ['te lo entregan al llegar a la fase ' + Math.min.apply(null, luegoF)] : [], sinSim.length ? [sinSim[0].ins.quien] : []).join('; ')
+    h += '<div class="rg-det">' + (act ? '<div class="rg-luz">💡 Esto es lo que sigue</div>' : luego ? '<div class="rg-antes">Primero: ' + A.n + '. ' + esc(A.p.nom) + '</div>' : '') +
+      '<p><b>¿Por qué ahora?</b> ' + esc(p.porque) + '</p>' +
+      '<div class="rg-nec"><b>Necesitás:</b> ' + x.insumos.map(function (i) { var S = RUTA.DE[i.ins.de]; return '<span class="rg-chip ' + (i.e.ok ? (i.e.de === 'em' ? 'em' : 'ok') : 'falta') + '" title="' + esc(S.nom + ' · ' + (i.e.ok ? i.e.det : 'falta')) + '">' + (i.e.ok ? '✓' : '○') + ' ' + esc(S.corto + ' · ' + i.ins.nom) + '</span>' }).join('') + '</div>' +
+      (falt.length ? '<div class="rg-falta">Te ' + (falt.length === 1 ? 'falta 1' : 'faltan ' + falt.length) + ': ' + esc(dondeFalta) + '</div>' : '') +
+      '<p><b>Qué hacés:</b> ' + esc(p.hace) + '</p><p><b>Entregás:</b> ' + esc(p.entrega) + '</p>' +
+      (x.det ? '<div class="rg-estado' + (x.auto ? ' ok' : '') + '">' + (x.auto ? '✓ ' : '') + esc(x.det) + '</div>' : '') +
+      '<div class="abrir"><button type="button" class="ir' + (act ? ' luz' : '') + '" data-a="ruta-ir" data-paso="' + p.id + '" style="--sc:#fbbf24" title="Abre el panel del G-4 donde se hace (lo que hay que tocar queda iluminado)">' + esc(dondeTxt(p)) + ' ▸</button>' +
+      (x.auto ? '' : x.manual ? '<button type="button" class="chico" data-a="ruta-desmarcar" data-paso="' + p.id + '">↺ Desmarcar</button>' :
+        '<button type="button" class="chico" data-a="ruta-listo" data-paso="' + p.id + '" title="' + esc(p.hecho ? 'La Mesa lo marca sola cuando lo guardás; si ya lo hiciste de otra forma, marcalo' : p.automatico ? 'Se marca solo al usarlo en el panel del G-4; también podés marcarlo' : 'La Mesa no guarda este paso: marcalo cuando lo termines') + '">✓ Listo</button>') + '</div></div></li>'
+    return h
+  }
+  function htmlRutaG4() {
+    var ej = ejSync(), cab = '<div class="cab-tab rg"><h2>🚚 Practicar como G-4</h2>'
+    if (!ej) return cab + '<p>Abrí un ejercicio (📁 Ejercicio) para empezar: la ruta mira lo que ya está hecho en él y te ilumina lo que sigue.</p></div>'
+    var E = RUTA.estado(ej, rutaM()), A = E.actual, fAb = rutaFase > 0 ? rutaFase : rutaFase < 0 ? 0 : E.fase
+    return cab + '<p>Sos el <b>G-4 de ' + esc(RUTA.nombreUnidad(ej)) + '</b>. Seguí la luz 💡: cada paso usa lo que ya hiciste y lo que te entregan las otras secciones; lo que ellas no hicieron lo completa el <b>🤖 EM simulado</b>, fase por fase.</p>' +
+      '<div class="total"><span class="barra"><i style="width:' + Math.round(100 * E.hechos / E.total) + '%"></i></span><b>' + E.hechos + ' / ' + E.total + ' pasos</b></div>' +
+      (A ? '<div class="rg-ahora"><span>💡 AHORA · FASE ' + A.p.fase + ' · PASO ' + A.n + '</span><b>' + esc(A.p.nom) + '</b><div class="rg-acc"><button type="button" class="ir luz" data-a="ruta-ir" data-paso="' + A.p.id + '" style="--sc:#fbbf24">' + esc(dondeTxt(A.p)) + ' ▸</button><button type="button" class="chico" data-a="ruta-mostrar" data-paso="' + A.p.id + '">Por qué y cómo ▾</button></div></div>'
+        : '<div class="rg-fin">✓ Terminaste la ruta del G-4: tu Anexo y tu Matriz de sincronización están hechos.</div>') + '</div>' +
+      '<ol class="fases rg-fases">' + E.porFase.map(function (pf) {
+        var F = pf.F, on = F.id === fAb, lista = pf.pasos.length && pf.hechos === pf.pasos.length
+        return '<li class="fase' + (on ? ' on' : '') + (lista ? ' lista' : '') + (F.id > E.fase ? ' futura' : '') + (A && A.p.fase === F.id ? ' actual' : '') + '" data-rf="' + F.id + '">' +
+          '<button type="button" class="fcab" data-a="ruta-fase" data-rf="' + F.id + '" aria-expanded="' + on + '"><span class="fn">FASE ' + F.id + '</span><span class="ft">' + esc(F.nom) + '</span><span class="fa">' + (lista ? '✓ ' : '') + pf.hechos + '/' + pf.pasos.length + '</span></button>' +
+          (on ? '<p class="que">' + esc(F.que) + '</p>' + htmlRecibe(pf, E, ej) + '<ol class="pasos">' + pf.pasos.map(function (x) { return htmlPasoRuta(x, A, E) }).join('') + '</ol>' : '') + '</li>'
+      }).join('') + '</ol>' +
+      '<div class="pie"><button type="button" class="chico" data-a="ruta-reiniciar">Desmarcar lo marcado a mano</button></div>'
+  }
+  function emPedido(f) {
+    var ej = ejSync()
+    if (!ej) return ''
+    var ctx = IA ? IA.contexto({ ejercicio: ej, unidades: puente && puente.unidades, centro: centroMesa(), fuente: 'la Mesa abierta, tal como está ahora' }) : ''
+    return RUTA.pedidoEM(f, ej, { contexto: ctx }) || ''
+  }
+  function emRecibir() {
+    var ej = ejSync(), E = rutaEstado()
+    if (!ej || !E) { aviso.emr = '⚠️ Abrí el ejercicio en la Mesa.'; return pintar(true) }
+    if (!puente || !puente.agregarDocumentos) { aviso.emr = '⚠️ Esta Mesa no tiene el puente para adjuntar (recargá la página con el ejercicio abierto).'; return pintar(true) }
+    var r = RUTA.leerEntregas(emResp), vale = r.entregas.filter(function (x) { return RUTA.insumo(x.insumo).fase <= E.fase }), tarde = r.entregas.length - vale.length
+    if (!vale.length) { aviso.emr = r.entregas.length ? '⚠️ Esas entregas son de fases a las que todavía no llegaste: se reciben cuando llegues.' : '⚠️ No encontré ninguna marca «=== ENTREGA: … ===»: pegá la respuesta entera de la IA.'; return pintar(true) }
+    var docs = RUTA.documentos(vale, ej), f = emFase
+    puente.agregarDocumentos(docs)
+    aviso['emf' + f] = '📎 ' + docs.length + ' entrega(s) del EM simulado en los documentos del ejercicio: ' + vale.map(function (x) { return RUTA.insumo(x.insumo).nom }).join(' · ') + (tarde ? '; ' + (tarde === 1 ? 'una entrega es de una fase a la que todavía no llegaste: quedó afuera' : tarde + ' entregas son de fases a las que todavía no llegaste: quedaron afuera') : '') + (r.desconocidos.length ? '; no reconocí: ' + r.desconocidos.join(', ') : '') + '. La IA de tus hojas ya las lee.'
+    emFase = 0; emResp = ''; delete aviso.emr; rutaHuella = ''
+    pintar(true)
+    setTimeout(rutaTic, 300)
+  }
+  function rutaAccion(acc, el) {
+    var id = el.getAttribute('data-paso') || '', p = id ? rutaPaso(id) : null, f = +el.getAttribute('data-rf') || 0, ins = el.getAttribute('data-ins') || ''
+    if (acc === 'ruta-elegir') {
+      ruta = el.getAttribute('data-ruta') === 'g4' ? 'g4' : 'pmtd'; guarda(K_RUTA, ruta); rutaHuella = ''; rutaActual = ''
+      var cu = panel.querySelector('.cuerpo'); if (cu) cu.scrollTop = 0
+      pintar(true); rutaTic(); return
+    }
+    if (acc === 'ruta-fase' && f) { var E = rutaEstado(), fAb = rutaFase > 0 ? rutaFase : rutaFase < 0 ? 0 : (E ? E.fase : 1); rutaFase = fAb === f ? -1 : f; pintar(true); return }
+    if (acc === 'ruta-ver' && p) { var E2 = rutaEstado(), act = !!(E2 && E2.actual && E2.actual.p.id === id); rutaVer = act ? (rutaVer === '-' + id ? '' : '-' + id) : (rutaVer === id ? '' : id); pintar(true); return }
+    if (acc === 'ruta-mostrar' && p) { rutaFase = 0; rutaVer = ''; pintar(true); var li = panel.querySelector('[data-rp="' + id + '"]'); if (li) li.scrollIntoView({ block: 'start' }); return }
+    if (acc === 'ruta-ir' && p) { ir(el, refPaso(p)); return }
+    if (acc === 'ruta-ins-ir' && ins) { var I = RUTA.insumo(ins); if (I && I.ver) ir(el, I.ver); return }
+    if ((acc === 'ruta-listo' || acc === 'ruta-desmarcar') && p) {
+      var m = Object.assign({}, rutaM()); if (acc === 'ruta-listo') m[id] = 1; else delete m[id]
+      rutaGuardarM(m); rutaHuella = ''; rutaTic(); return
+    }
+    if (acc === 'ruta-reiniciar') {
+      if (!window.confirm('¿Desmarcar los pasos que marcaste a mano en este ejercicio? (lo que ya está hecho en la Mesa sigue contando)')) return
+      rutaGuardarM({}); rutaHuella = ''; rutaTic(); return
+    }
+    if (acc === 'em-ver' && ins) { rutaIns = rutaIns === ins ? '' : ins; pintar(true); return }
+    if (acc === 'em-abrir' && f) {
+      if (emFase === f) { emFase = 0; pintar(true); return }
+      emFase = f; emResp = ''; delete aviso.em; delete aviso.emr; emTexto = emPedido(f); pintar(true); return
+    }
+    if (acc === 'em-cerrar') { emFase = 0; pintar(true); return }
+    if (acc === 'em-copiar') { copiar(emTexto).then(function () { aviso.em = '📋 Pedido copiado: pegalo en la IA.'; pintar(true) }, function () { aviso.em = 'No se pudo copiar: seleccioná el texto y copialo a mano.'; pintar(true) }); return }
+    if (acc === 'em-bajar') { bajar('pedido-em-simulado-fase-' + emFase + '.md', emTexto); aviso.em = '⬇️ Bajado: adjuntalo a la IA con la orden de cumplirlo.'; pintar(true); return }
+    if (acc === 'em-recibir') emRecibir()
+  }
+
   function htmlProfesor() {
     var F = { id: 'P', pasos: CAT.PROFESOR }, a = avance(F), E = escalonDe(escalon)
     return '<div class="cab-tab"><h2>🧑‍🏫 Armar el ejercicio</h2><p>Vos sos el <b>' + esc(E.profesor) + '</b>: escribís la Orden del escalón superior y armás el tablero que reciben tus alumnos (<b>' + esc(E.alumnos) + '</b>). Los pasos van en el orden en que la Mesa los necesita.</p>' +
@@ -1180,14 +1422,14 @@
   function pintar(forzar) {
     if (!panel) return
     var pl = cerrado()
-    var f = [modo, fase, escalon, foco, pl, iaPaso, JSON.stringify(hecho), JSON.stringify(aviso), !!(puente && puente.agregarUnidades), verBiblio, bibVer, bibVista, verCarpeta, carVer, carVista, ogoVer, ogoAbierto, ogoPedido.length, verOgoDatos, !!ogoRev, cohAbierto, cohPedido.length, nuevoVer, rep.destino, !!rep.destinos, rep.ocupado].join('|')
+    var f = [modo, fase, escalon, foco, pl, iaPaso, JSON.stringify(hecho), JSON.stringify(aviso), !!(puente && puente.agregarUnidades), verBiblio, bibVer, bibVista, verCarpeta, carVer, carVista, ogoVer, ogoAbierto, ogoPedido.length, verOgoDatos, !!ogoRev, cohAbierto, cohPedido.length, nuevoVer, rep.destino, !!rep.destinos, rep.ocupado, ruta, rutaFase, rutaVer, rutaIns, emFase, emTexto.length, rutaHuella].join('|')
     if (!forzar && f === firma) return
     firma = f
     panel.hidden = modo === 'mesa'
     panel.className = pl ? 'plegado' : ''
     if (modo !== 'mesa') {
       var cu0 = panel.querySelector('.cuerpo'), arriba_ = cu0 ? cu0.scrollTop : 0 // que no salte arriba al tocar algo
-      panel.innerHTML = '<button type="button" class="asa" data-a="asa" aria-expanded="' + !pl + '" title="' + (pl ? 'Desplegar el tablero' : 'Plegar el tablero para ver la carta') + '">' + (pl ? (modo === 'profesor' ? '🧑‍🏫 Pasos ◂' : '🎓 Fases ◂') : '▸ Plegar') + '</button>' +
+      panel.innerHTML = '<button type="button" class="asa" data-a="asa" aria-expanded="' + !pl + '" title="' + (pl ? 'Desplegar el tablero' : 'Plegar el tablero para ver la carta') + '">' + (pl ? (modo === 'profesor' ? '🧑‍🏫 Pasos ◂' : RUTA && ruta === 'g4' ? '🚚 Ruta G-4 ◂' : '🎓 Fases ◂') : '▸ Plegar') + '</button>' +
         '<div class="cuerpo">' + (modo === 'profesor' ? htmlProfesor() : htmlAprendizaje()) + '</div>'
       var cu1 = panel.querySelector('.cuerpo'); if (cu1 && arriba_) cu1.scrollTop = arriba_
     }
@@ -1286,6 +1528,7 @@
       } else { plegado = true; abiertoIgual = false; guarda(K_PLEGADO, '1') }
       pintar(true); return
     }
+    if (a && /^(ruta|em)-/.test(a.getAttribute('data-a')) && RUTA) { rutaAccion(a.getAttribute('data-a'), a); return }
     var ib = t.closest && t.closest('[data-ia-paso]')
     if (ib) {
       var pn = +ib.getAttribute('data-ia-paso')
@@ -1459,20 +1702,21 @@
       if (t.matches && t.matches('textarea[data-ia-resp]')) borrador[bk(+t.getAttribute('data-ia-resp'))] = t.value
       if (t.matches && t.matches('textarea[data-ogo-resp]')) ogoBorr[t.getAttribute('data-ogo-resp')] = t.value
       if (t.matches && t.matches('textarea[data-coh-resp]')) cohBorr = t.value
+      if (t.matches && t.matches('textarea[data-em-resp]')) emResp = t.value
       if (t.matches && t.matches('input[data-rep-nombre]')) rep.nombre = t.value
       if (t.matches && t.matches('textarea[data-rep-ind]')) rep.ind = t.value
     })
     document.body.appendChild(panel)
     // las medidas y las fichas que se quitan en la Mesa (↶ Deshacer, 🗑️) no pasan por el puente: el
     // paso 12 vuelve a mirar la carta después de un clic en la Mesa y al volver al tablero
-    document.addEventListener('click', function (e) { if (!panel.contains(e.target)) ubiRevisar() }, true)
+    document.addEventListener('click', function (e) { if (!panel.contains(e.target)) { ubiRevisar(); rutaClic(e) } }, true)
     panel.addEventListener('pointerenter', ubiRevisar)
     body.setAttribute('data-sid-modo', modo)
     engancharPuente()
     pintar(true)
     // la barra se acomoda en filas, el tablero de abajo se abre y se cierra, los tableros de la
     // derecha van y vienen: se revisa seguido (es barato) y al cambiar el tamaño de la ventana
-    setInterval(function () { if (modo !== 'mesa') acomodar() }, 400)
+    setInterval(function () { if (modo !== 'mesa') acomodar(); if (RUTA && ++rutaTics % 2 === 0) rutaTic() }, 400)
     window.addEventListener('resize', acomodar)
     bibCargar()
     carCargar()
@@ -1489,6 +1733,7 @@
     get biblioteca() { return biblio }, subir: bibSubir, recargarBiblioteca: bibCargar,
     get carpeta() { return carpeta }, recargarCarpeta: carCargar,
     get ogo() { return ogo }, recargarOgo: ogoCargar,
-    get rep() { return rep }, nubeApi: nubeApi, calcoImagen: calcoImagen, documentosAlumnos: documentosAlumnos
+    get rep() { return rep }, nubeApi: nubeApi, calcoImagen: calcoImagen, documentosAlumnos: documentosAlumnos,
+    get ruta() { return ruta }, rutaEstado: function () { return rutaEstado() }, get luces() { return luces.slice() }, rutaTic: function () { rutaTic() }
   }
 })()

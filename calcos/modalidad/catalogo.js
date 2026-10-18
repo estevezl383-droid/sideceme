@@ -46,7 +46,8 @@
     caFases: { nom: 'C.A. por fases', boton: /C\.A\. POR FASES/i, donde: 'barra' },
     defensa: { nom: 'Defensa (plan de barreras)', boton: /^\W*DEFENSA$/i, donde: 'barra' },
     mesaEM: { nom: 'Mesa EM (Orden del escalón superior)', boton: /MESA EM|Mesa ·/i, donde: 'barra' },
-    ejercicio: { nom: 'Ejercicio (documentos del ejercicio)', boton: /^\W*EJERCICIO$/i, donde: 'barra' },
+    // con un ejercicio abierto el botón lleva su NOMBRE: se lo encuentra por su descripción (title)
+    ejercicio: { nom: 'Ejercicio (documentos del ejercicio)', boton: /^\W*EJERCICIO$/i, titulo: /Crear, abrir y guardar ejercicios/i, donde: 'barra' },
     estudio: { nom: 'Estudio doctrinario', boton: /^\W*ESTUDIO$/i, donde: 'barra' },
     analisisIA: { nom: '🧠 Análisis IA del terreno', boton: /ANÁLISIS IA/i, donde: 'cmoc' },
     enlaces: { nom: 'Los 5 enlaces', boton: /LOS 5 ENLACES|Ver los 5 enlaces/i, donde: 'cinta' }

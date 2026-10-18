@@ -7,14 +7,24 @@
 //   · los ejes logísticos (EPA / EPE), el ARCE y las instalaciones del escalón superior;
 //   · las fichas enemigas.
 //
-// Método (el de la Escuela, hecho por la máquina): se recorre el Área de Operaciones con
-// una grilla; en cada punto se apoya un rectángulo del tamaño de la norma (orientado al
+// Método (el de la Escuela, hecho por la máquina): se recorre con una grilla el terreno de
+// NUESTRO lado del frente, a lo ancho del Área de Operaciones y hacia retaguardia (también
+// FUERA del AO); en cada punto se apoya un rectángulo del tamaño de la norma (orientado al
 // frente); se DESCARTA lo que no cumple lo impositivo (distancia de seguridad, distancia
-// máxima de apoyo) y lo que el CMOC prohíbe (terreno severo, encima de una avenida de
-// aproximación enemiga); a lo que queda se le pone un puntaje por cada aspecto de los
-// cuatro factores (maniobra, terreno, seguridad, situación logística) y se eligen las tres
-// mejores áreas separadas entre sí (A, B, C). Los pesos son CRITERIO DE LA MESA y se pueden
-// cambiar; la decisión es del oficial (paso 4 de la evaluación).
+// máxima de apoyo), lo que el CMOC prohíbe (terreno severo, encima de una avenida de
+// aproximación enemiga) y lo que queda AL ALCANCE DE LOS FUEGOS ENEMIGOS; a lo que queda se
+// le pone un puntaje por cada aspecto de los cuatro factores (maniobra, terreno, seguridad,
+// situación logística) y se eligen las tres mejores áreas separadas entre sí (A, B, C). Los
+// pesos son CRITERIO DE LA MESA y se pueden cambiar; la decisión es del oficial (paso 4).
+//
+// El AO no es obligatorio (lo pidió Sergio el 18-10-2026): «sé que en la doctrina el ARCE o el
+// ASDI está dentro del Área de Operaciones, pero no es obligatorio, porque estaría dentro del
+// área de fuegos de la brigada… tomá esas consideraciones al sugerir… además hay distancias
+// aproximadas». Un área fuera del AO es válida (se dice: el espacio lo coordina el escalón
+// superior); el alcance de los fuegos enemigos se mide desde las fichas enemigas (o, sin
+// ellas, desde el frente) con un alcance APROXIMADO y editable (por defecto el del LAR-160 de
+// la brigada enemiga del ejercicio de la Escuela, 30 km; el M109 llega a 22 km). Si ningún
+// lugar queda fuera de ese alcance sin pasar la DMA, se proponen los menos expuestos y se avisa.
 // Sin DOM: se prueba en Node.
 import { tamanoDe, seguridadDe, calcularDMA, operacionDeAO, FUENTES } from './doctrina.js'
 import { limpiar, plano, centroide, areaKm2 } from './geo.js'
@@ -22,6 +32,11 @@ import { frenteDe, parametrosDe, nombreUnidad } from './analisis.js'
 import { unidadesQueReciben, posicion } from './planeamiento.js'
 
 export const DIMENSIONES = { asdi: { ancho: 3, fondo: 2.5 }, arce: { ancho: 3.5, fondo: 3 } }
+// Alcance aproximado de los fuegos enemigos (km): el LAR-160 de la brigada enemiga (Apéndice 2 del
+// ejercicio de la Escuela, 30 km); el M109 del mismo apéndice, 22 km. Lo cambia el oficial.
+export const ALCANCE_ENEMIGO = 30
+// Hasta dónde se busca hacia retaguardia, como mucho (km desde el frente).
+export const FONDO_MAX = 150
 export const ANCHO_AVENIDA = { fino: 1, medio: 2, ancho: 3 }
 
 // Los criterios con su factor de la Escuela, el sentido (menor o mayor es mejor) y el peso.
@@ -50,11 +65,11 @@ export const PESOS_OPERACION = {
 export const COLOR_FACTOR = { maniobra: '#ff4d4d', terreno: '#2fd36b', seguridad: '#ff9fd3', situacion: '#ffc000' }
 export const NOMBRE_FACTOR = { maniobra: 'MANIOBRA', terreno: 'TERRENO', seguridad: 'SEGURIDAD', situacion: 'SIT. LOGÍSTICA' }
 export const MOTIVOS = [
-  { id: 'fueraAO', nom: 'No entra en el Área de Operaciones' },
   { id: 'seguridad', nom: 'Menos de la distancia de seguridad' },
   { id: 'severo', nom: 'Terreno severo del CMOC (no-go)' },
   { id: 'avenida', nom: 'Sobre una avenida de aproximación enemiga' },
   { id: 'dma', nom: 'Fuera de la distancia máxima de apoyo' },
+  { id: 'fuegos', nom: 'Al alcance de los fuegos enemigos' },
 ]
 export const FUENTE_PICB = `Impositivos y tamaño: ${FUENTES.dia}, «Datos generales de planeamiento logístico» y «Factores de empleo». Terreno: el CMOC del G-2 (PICB). Pesos de cada aspecto: criterio de la Mesa (editables).`
 
@@ -134,6 +149,7 @@ export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, peso
   const P = parametrosDe(parametros)
   const dma = calcularDMA(P)
   const dim = DIMENSIONES[nivel] || DIMENSIONES.asdi
+  const alcance = Number.isFinite(+parametros.alcance) && +parametros.alcance > 0 && parametros.alcance !== '' ? +parametros.alcance : ALCANCE_ENEMIGO
 
   const ref = centroide(ao)
   const PL = plano(ref)
@@ -177,29 +193,34 @@ export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, peso
   const fondoBloqueo = bloqueos.length ? Math.max(...bloqueos) : 0
   const minSeg = S.min + fondoBloqueo
 
-  // La grilla.
-  const xs = A.map((p) => p[0])
-  const ys = A.map((p) => p[1])
-  const sup = Math.max(1, areaKm2(ao))
+  // Los fuegos enemigos: desde las fichas enemigas o, sin ellas, desde el frente.
+  const desdeFichas = enemigos.length > 0
+  const dFuegos = (R) => (desdeFichas ? Math.min(...enemigos.map((p) => dPPoly(p, R))) : dPolyLinea(R, FR))
+
+  // La grilla: en coordenadas del frente (u a lo largo del frente, n hacia nuestro lado), a lo
+  // ancho del AO y desde el frente hasta detrás del AO y del alcance de los fuegos enemigos.
+  const proy = (p) => [(p[0] - medio[0]) * U[0] + (p[1] - medio[1]) * U[1], (p[0] - medio[0]) * N[0] + (p[1] - medio[1]) * N[1]]
+  const pu = A.map(proy)
+  const uMin = Math.min(...pu.map((q) => q[0])), uMax = Math.max(...pu.map((q) => q[0]))
+  const fondoAO = Math.max(0, ...pu.map((q) => q[1]))
+  const nMax = Math.min(FONDO_MAX, Math.max(fondoAO, minSeg + alcance + 15))
+  const sup = Math.max(1, (uMax - uMin) * nMax)
   const paso = Math.max(0.6, Math.sqrt(sup / maxGrilla))
-  const embudo = { evaluados: 0, fueraAO: 0, seguridad: 0, severo: 0, avenida: 0, dma: 0, validos: 0 }
+  const embudo = { evaluados: 0, seguridad: 0, severo: 0, avenida: 0, dma: 0, fuegos: 0, validos: 0, fueraAO: 0 }
   const validos = []
+  const expuestos = [] // cumplen todo menos el alcance de los fuegos enemigos
   const rect = (c) => [
     [c[0] - U[0] * dim.ancho / 2 - N[0] * dim.fondo / 2, c[1] - U[1] * dim.ancho / 2 - N[1] * dim.fondo / 2],
     [c[0] + U[0] * dim.ancho / 2 - N[0] * dim.fondo / 2, c[1] + U[1] * dim.ancho / 2 - N[1] * dim.fondo / 2],
     [c[0] + U[0] * dim.ancho / 2 + N[0] * dim.fondo / 2, c[1] + U[1] * dim.ancho / 2 + N[1] * dim.fondo / 2],
     [c[0] - U[0] * dim.ancho / 2 + N[0] * dim.fondo / 2, c[1] - U[1] * dim.ancho / 2 + N[1] * dim.fondo / 2],
   ]
-  for (let x = Math.min(...xs) + paso / 2; x < Math.max(...xs); x += paso) {
-    for (let y = Math.min(...ys) + paso / 2; y < Math.max(...ys); y += paso) {
-      const c = [x, y]
-      if (!pip(c, A)) continue
+  for (let uu = uMin + paso / 2; uu < uMax; uu += paso) {
+    for (let nn = paso / 2; nn < nMax; nn += paso) {
+      const c = [medio[0] + U[0] * uu + N[0] * nn, medio[1] + U[1] * uu + N[1] * nn]
       embudo.evaluados++
       const R = rect(c)
-      if (!R.every((p) => pip(p, A))) {
-        embudo.fueraAO++
-        continue
-      }
+      const enAO = R.every((p) => pip(p, A))
       const dSeg = dPolyLinea(R, FR)
       if (dSeg < minSeg) {
         embudo.seguridad++
@@ -221,7 +242,7 @@ export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, peso
         embudo.dma++
         continue
       }
-      embudo.validos++
+      const dF = dFuegos(R)
       const media = (xs2) => (xs2.length ? xs2.reduce((s, v) => s + v, 0) / xs2.length : NaN)
       const v = {
         cerrado: primer.length ? media(primer.map((x) => dPPoly(x.p, R))) : NaN,
@@ -236,9 +257,17 @@ export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, peso
         amiga: dists.length ? Math.min(...dists) : NaN,
         superior: superiores.length ? Math.min(...superiores.map((s) => (s.poly ? dPolyLinea(R, cerrar(s.poly)) : dPPoly(s.p, R)))) : NaN,
       }
-      validos.push({ c, R, v, dSeg, dist: dists })
+      const x = { c, R, v, dSeg, dist: dists, enAO, dF }
+      if (dF < alcance) expuestos.push(x)
+      else validos.push(x)
     }
   }
+  // Si nada queda fuera del alcance de los fuegos enemigos, los menos expuestos (y se avisa).
+  const todosExpuestos = !validos.length && expuestos.length > 0
+  if (todosExpuestos) validos.push(...expuestos.sort((a, b) => b.dF - a.dF).slice(0, Math.max(30, Math.ceil(expuestos.length / 4))))
+  embudo.fuegos = todosExpuestos ? expuestos.length - validos.length : expuestos.length
+  embudo.validos = validos.length
+  embudo.fueraAO = validos.filter((x) => !x.enAO).length
 
   // Puntajes 0-1 por criterio (comparando los lugares válidos entre sí).
   const usados = CRITERIOS.filter((k) => validos.some((x) => Number.isFinite(x.v[k.id]))).map((k) => ({ ...k, pesoOp: pesosOp[k.id] ?? k.peso, peso: Number.isFinite(+pesos[k.id]) && +pesos[k.id] >= 0 && pesos[k.id] !== '' ? +pesos[k.id] : pesosOp[k.id] ?? k.peso }))
@@ -296,11 +325,17 @@ export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, peso
       centro: aLL(x.c),
       km2: areaKm2(coords),
       total: x.total,
+      enAO: x.enAO,
+      dFuegos: x.dF,
       criterios,
       porFactor,
       dSeg: x.dSeg,
       motivos: [
         `A ${x.dSeg.toFixed(1)} km de la ${fr.rot} (mínimo ${S.min} km${fondoBloqueo ? ` desde las últimas posiciones de bloqueo, que están a ${fondoBloqueo.toFixed(1)} km` : ''}).`,
+        x.dF >= alcance
+          ? `Fuera del alcance de los fuegos enemigos (≈ ${alcance} km): a ${x.dF.toFixed(1)} km ${desdeFichas ? 'de la ficha enemiga más cercana' : `de la ${fr.rot} (no hay fichas enemigas: se midió desde el frente)`}.`
+          : `⚠️ Al alcance de los fuegos enemigos (≈ ${alcance} km): a ${x.dF.toFixed(1)} km ${desdeFichas ? 'de la ficha enemiga más cercana' : `de la ${fr.rot}`}; ningún lugar quedaba fuera sin pasar la DMA.`,
+        x.enAO ? 'Dentro del Área de Operaciones.' : 'Fuera del Área de Operaciones (detrás o al costado de su borde): el espacio lo coordina el escalón superior.',
         Number.isFinite(x.v.cerrado) ? `A ${x.v.cerrado.toFixed(1)} km en promedio del 1er escalón (${nombres(primer, 3)}).` : '',
         Number.isFinite(x.v.continuidad) ? `El más lejano a ${x.v.continuidad.toFixed(1)} km (≈ ${(x.v.continuidad * P.factor).toFixed(0)} km por carretera; DMA ${dma.km} km).` : '',
         Number.isFinite(x.v.viaria) ? (x.v.viaria < 0.5 ? 'El EPA / un corredor propio pasa por el área.' : `El EPA / corredor propio más cercano a ${x.v.viaria.toFixed(1)} km.`) : '',
@@ -313,12 +348,14 @@ export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, peso
   if (!severo.length && !restringido.length && !avenidas.length) avisos.push('El CMOC está vacío: la propuesta no ve el terreno. Marcá en el tablero del G-2 el terreno severo, el restringido y las avenidas de aproximación (o generalos) y volvé a calcular.')
   if (!amigas.length) avisos.push('No hay fichas de unidades propias: no se pudo medir el apoyo cerrado ni la DMA.')
   if (!viarias.length) avisos.push('No hay EPA ni corredores de movilidad propios: la red viaria no entró en la cuenta. Trazá el EPA para que la tenga en cuenta.')
-  if (!candidatos.length) avisos.push('Ningún lugar del Área de Operaciones cumple a la vez la distancia de seguridad, la DMA y el CMOC. Revisá el AO, el frente o la DMA (TD, TC, V).')
+  if (todosExpuestos) avisos.push(`Ningún lugar queda fuera del alcance de los fuegos enemigos (≈ ${alcance} km) sin pasar la distancia máxima de apoyo: se proponen los menos expuestos. Revisá el alcance (es aproximado), la DMA (TD, TC, V) o la ubicación de las unidades.`)
+  if (!desdeFichas) avisos.push(`No hay fichas enemigas en la carta: el alcance de sus fuegos (≈ ${alcance} km) se midió desde la ${fr.rot}. Con el dispositivo enemigo colocado, la cuenta es más justa.`)
+  if (!candidatos.length) avisos.push('Ningún lugar de nuestro lado del frente cumple a la vez la distancia de seguridad, la DMA y el CMOC. Revisá el AO, el frente o la DMA (TD, TC, V).')
   const grilla = validos.map((x) => ({ c: aLL(x.c), s: x.total }))
   return {
     ok: true,
     nivel,
-    norma: { tamano: T.nota, seguridad: S.min, seguridadDesdeFrente: minSeg, fondoBloqueo, dma: dma.km },
+    norma: { tamano: T.nota, seguridad: S.min, seguridadDesdeFrente: minSeg, fondoBloqueo, dma: dma.km, alcance, alcanceDesde: desdeFichas ? 'fichas' : 'frente', fondoBusqueda: nMax },
     operacion: op,
     dim,
     paso,
@@ -335,8 +372,8 @@ export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, peso
 export function textoPropuesta(pr) {
   if (!pr?.ok) return pr?.error || 'Sin propuesta.'
   const L = []
-  L.push(`Propuesta de la Mesa para el ${pr.nivel === 'arce' ? 'ARCE' : 'ASDI'} (rectángulos de ${pr.dim.ancho} × ${pr.dim.fondo} km, grilla cada ${pr.paso.toFixed(1)} km dentro del AO). Operación: ${pr.operacion}. Distancia de seguridad: ${pr.norma.seguridad} km${pr.norma.fondoBloqueo ? ` desde las últimas posiciones de bloqueo (a ${pr.norma.fondoBloqueo.toFixed(1)} km de la ${pr.frente.rot}: ${pr.norma.seguridadDesdeFrente.toFixed(1)} km desde la ${pr.frente.rot})` : ''}. Pesos: ${pr.criterios.map((k) => `${k.nom} ${k.peso}`).join(', ')}.`)
-  L.push(`Lugares evaluados: ${pr.embudo.evaluados}; descartados: ${MOTIVOS.map((m) => `${m.nom.toLowerCase()} ${pr.embudo[m.id]}`).join(', ')}; válidos: ${pr.embudo.validos}.`)
+  L.push(`Propuesta de la Mesa para el ${pr.nivel === 'arce' ? 'ARCE' : 'ASDI'} (rectángulos de ${pr.dim.ancho} × ${pr.dim.fondo} km, grilla cada ${pr.paso.toFixed(1)} km de nuestro lado del frente, a lo ancho del AO y hasta ${pr.norma.fondoBusqueda.toFixed(0)} km hacia atrás: también fuera del AO). Operación: ${pr.operacion}. Fuera del alcance de los fuegos enemigos: ≈ ${pr.norma.alcance} km, medido desde ${pr.norma.alcanceDesde === 'fichas' ? 'las fichas enemigas' : `la ${pr.frente.rot} (no hay fichas enemigas)`}. Las distancias de la norma y el alcance son aproximados: medilos en la carta. Distancia de seguridad: ${pr.norma.seguridad} km${pr.norma.fondoBloqueo ? ` desde las últimas posiciones de bloqueo (a ${pr.norma.fondoBloqueo.toFixed(1)} km de la ${pr.frente.rot}: ${pr.norma.seguridadDesdeFrente.toFixed(1)} km desde la ${pr.frente.rot})` : ''}. Pesos: ${pr.criterios.map((k) => `${k.nom} ${k.peso}`).join(', ')}.`)
+  L.push(`Lugares evaluados: ${pr.embudo.evaluados}; descartados: ${MOTIVOS.map((m) => `${m.nom.toLowerCase()} ${pr.embudo[m.id]}`).join(', ')}; válidos: ${pr.embudo.validos} (${pr.embudo.fueraAO} fuera del AO).`)
   L.push(`CMOC usado: ${pr.cmoc.severo} zona(s) de terreno severo, ${pr.cmoc.restringido} de restringido, ${pr.cmoc.avenidas} avenida(s) enemiga(s), ${pr.cmoc.corredores} corredor(es) propio(s).`)
   for (const c of pr.candidatos) {
     L.push(`- Área ${c.letra}: puntaje ${(c.total * 100).toFixed(0)}/100 · ${Object.entries(c.porFactor).filter(([, v]) => v != null).map(([f, v]) => `${NOMBRE_FACTOR[f]} ${(v * 100).toFixed(0)}`).join(' · ')}. Centro ${c.centro[1].toFixed(5)}, ${c.centro[0].toFixed(5)}.`)

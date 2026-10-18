@@ -4,7 +4,9 @@
 //   · calcos-datos contesta que tiene permiso;
 //   · calco-ops guarda los ejercicios en `calcos` (en memoria) y anota cada pedido en `log`.
 // `fallar(true)` hace que 'guardar' conteste como cuando el servidor falla.
-async function servidorFalso(page, calcos, log = []) {
+// Con `{ tokens }` (un Set) sólo valen esas sesiones: con otra contesta como SIDECEME cuando la
+// sesión venció (403 «Sesion no valida. Volve a entrar.»). Sin `tokens`, vale cualquiera.
+async function servidorFalso(page, calcos, log = [], { tokens = null } = {}) {
   let falla = false
   await page.addInitScript(() => {
     window.SIDECEME_CALCOS = { url: 'https://servidor-falso.supabase.co', anonKey: 'x', token: 'tok', esProfesor: true }
@@ -18,7 +20,8 @@ async function servidorFalso(page, calcos, log = []) {
   await page.route(/functions\/v1\/calco-ops/, (r) => {
     if (r.request().method() === 'OPTIONS') return r.fulfill({ status: 200, headers: cors })
     const b = JSON.parse(r.request().postData() || '{}')
-    log.push({ accion: b.accion, t: Date.now(), payload: b.payload })
+    log.push({ accion: b.accion, t: Date.now(), payload: b.payload, token: b.token })
+    if (tokens && !tokens.has(b.token)) return json(r, { ok: false, error: 'Sesion no valida. Volve a entrar.' }, 403)
     const ok = (o) => json(r, { ok: true, ...o })
     if (b.accion === 'mis_calcos') return ok({ calcos: calcos.map((c) => ({ id: c.id, nombre: c.nombre, actualizado_en: c.actualizado_en, bytes: JSON.stringify(c.payload).length })) })
     if (b.accion === 'mi_calco') return ok({ calco: calcos[0] })

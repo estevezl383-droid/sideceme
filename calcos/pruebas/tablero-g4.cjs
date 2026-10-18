@@ -170,14 +170,17 @@ const caso = (nom, f) => casos.push({ nom, f })
     assert.equal(pr.ok, true)
     assert.equal(pr.operacion, 'defensa')
     const E = pr.embudo
-    assert.equal(E.evaluados, E.fueraAO + E.seguridad + E.severo + E.avenida + E.dma + E.validos)
-    assert.ok(E.severo > 0 && E.avenida > 0 && E.seguridad > 0, 'el CMOC y la seguridad descartaron lugares')
+    assert.equal(E.evaluados, E.seguridad + E.severo + E.avenida + E.dma + E.fuegos + E.validos)
+    assert.ok(E.severo > 0 && E.avenida > 0 && E.seguridad > 0 && E.fuegos > 0, 'el CMOC, la seguridad y los fuegos enemigos descartaron lugares')
+    assert.equal(pr.norma.alcance, A.ALCANCE_ENEMIGO)
+    assert.equal(pr.norma.alcanceDesde, 'fichas')
     assert.equal(pr.candidatos.length, 3)
     const ao = ex.ops.areaOps.coords
     const sev = ex.cmoc.severo[0].geometry.coordinates[0]
     for (const c of pr.candidatos) {
       assert.ok(c.km2 >= 6 && c.km2 <= 9, `Área ${c.letra}: ${c.km2} km²`)
-      assert.ok(c.coords.every((p) => G2.puntoEnPoligono(p, ao)), 'dentro del AO')
+      assert.ok(c.dFuegos >= A.ALCANCE_ENEMIGO - 1e-6, `Área ${c.letra}: fuera del alcance de los fuegos enemigos (${c.dFuegos.toFixed(1)} km)`)
+      assert.equal(c.enAO, c.coords.every((p) => G2.puntoEnPoligono(p, ao)), 'dice si queda dentro del AO')
       assert.ok(G2.distPoligonoLinea(c.coords, ex.ops.areaOps.frente) >= 12 - 1e-6, 'a 12 km o más de la LPR')
       assert.ok(!c.coords.some((p) => G2.puntoEnPoligono(p, sev)) && !G2.puntoEnPoligono(c.centro, sev), 'fuera del terreno severo')
       assert.ok(G2.distPuntoLinea(c.centro, ex.cmoc.avenidas[0].coords) > 2, 'fuera de la avenida enemiga')
@@ -186,6 +189,37 @@ const caso = (nom, f) => casos.push({ nom, f })
     for (let i = 0; i < 3; i++) for (let j = i + 1; j < 3; j++) assert.ok(G2.distKm(pr.candidatos[i].centro, pr.candidatos[j].centro) >= 5 - 1e-6, 'separadas')
     assert.ok(pr.candidatos[0].total >= pr.candidatos[1].total && pr.candidatos[1].total >= pr.candidatos[2].total)
     assert.match(A.textoPropuesta(pr), /Área A: puntaje \d+\/100/)
+  })
+
+  caso('Propuesta (18-10-2026): el AO no es obligatorio y se evitan los fuegos enemigos; distancias aproximadas y editables', () => {
+    // un AO de sólo 20 km de fondo: con los fuegos enemigos a ≈ 30 km, el área queda DETRÁS del AO
+    const ao = [[-68.6, -16.8], [-68.0, -16.8], [-68.0, -16.98], [-68.6, -16.98]]
+    const chato = { ...calco, ops: { ...calco.ops, areaOps: { ...calco.ops.areaOps, coords: ao, frente: [ao[0], ao[1]] } } }
+    const pr = A.proponerASDI(chato)
+    assert.equal(pr.ok, true)
+    assert.ok(pr.candidatos.length >= 1)
+    for (const c of pr.candidatos) {
+      assert.ok(c.dFuegos >= A.ALCANCE_ENEMIGO - 1e-6, 'fuera del alcance de los fuegos enemigos')
+      assert.equal(c.enAO, false, 'fuera del AO, detrás')
+      assert.ok(c.motivos.some((m) => /Fuera del Área de Operaciones[\s\S]*escalón superior/.test(m)), 'y lo dice')
+      assert.ok(G2.distPoligonoLinea(c.coords, ex.ops.areaOps.frente) >= 12 - 1e-6, 'con la distancia de seguridad')
+    }
+    assert.ok(pr.embudo.fueraAO >= pr.candidatos.length)
+    assert.match(A.textoPropuesta(pr), /también fuera del AO[\s\S]*≈ 30 km[\s\S]*aproximados/)
+    // el alcance lo cambia el oficial
+    const corto = A.proponerASDI(calco, { parametros: { alcance: 15 } })
+    assert.equal(corto.norma.alcance, 15)
+    assert.ok(corto.embudo.fuegos < pr.embudo.fuegos || corto.embudo.fuegos < A.proponerASDI(calco).embudo.fuegos)
+    // sin fichas enemigas: se mide desde el frente, y se avisa
+    const sinEn = A.proponerASDI({ ...calco, unidades: calco.unidades.filter((u) => !/^enem/i.test(String(u.bando || ''))) })
+    assert.equal(sinEn.norma.alcanceDesde, 'frente')
+    assert.ok(sinEn.candidatos.every((c) => c.dSeg >= A.ALCANCE_ENEMIGO - 1e-6), 'a 30 km o más del frente')
+    assert.ok(sinEn.avisos.some((a) => /No hay fichas enemigas/.test(a)))
+    // un alcance que no deja nada: los menos expuestos, con aviso
+    const todo = A.proponerASDI(calco, { parametros: { alcance: 400 } })
+    assert.ok(todo.candidatos.length >= 1, 'igual propone')
+    assert.ok(todo.avisos.some((a) => /se proponen los menos expuestos/.test(a)))
+    assert.ok(todo.candidatos[0].motivos.some((m) => /⚠️ Al alcance de los fuegos enemigos/.test(m)))
   })
 
   caso('Propuesta: en el ataque el área va más adelante que en la defensa; las posiciones de bloqueo corren el mínimo; sin AO no propone', () => {
