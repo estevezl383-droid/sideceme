@@ -7,7 +7,7 @@
 // Escuela. Las áreas se llevan al calco como propuestas (después se miden y se evalúan en
 // los pasos 3 y 4, como si las hubiera trazado el oficial). La IA revisa la propuesta con
 // las ideas del oficial.
-import { proponerASDI, textoPropuesta, CRITERIOS, COLOR_FACTOR, NOMBRE_FACTOR, MOTIVOS, FUENTE_PICB } from './asdi-picb.js'
+import { proponerASDI, textoPropuesta, CRITERIOS, COLOR_FACTOR, NOMBRE_FACTOR, MOTIVOS, FUENTE_PICB, ALCANCE_ENEMIGO } from './asdi-picb.js'
 import { doctrinaParaIA } from './doctrina.js'
 import { limpiar, paralela, centroide } from './geo.js'
 import { LETRAS, nombreUnidad } from './analisis.js'
@@ -56,8 +56,10 @@ export function PropuestaPICB({ nivel = 'asdi', parametros = {}, onExpediente = 
   const [grande, setGrande] = useState(false)
   const cm = calco.cmoc || {}
   const n = (k) => (Array.isArray(cm[k]) ? cm[k].length : 0)
-  const calcular = (p = pesos) => {
-    const r = proponerASDI(calco, { nivel, parametros, pesos: p, operacion: planLog.operacion || '' })
+  // el alcance aproximado de los fuegos enemigos (km): lo pone el oficial; vacío = el de la Mesa
+  const alcance = Number.isFinite(+planLog.alcanceFuegos) && +planLog.alcanceFuegos > 0 ? +planLog.alcanceFuegos : ''
+  const calcular = (p = pesos, alc = alcance) => {
+    const r = proponerASDI(calco, { nivel, parametros: { ...parametros, alcance: alc }, pesos: p, operacion: planLog.operacion || '' })
     setPr(r)
     if (!r.ok) setMsg({ tipo: 'err', txt: r.error })
     else setMsg(r.candidatos.length ? { tipo: 'ok', txt: `🎯 ${r.candidatos.length} área(s) propuesta(s) de ${r.embudo.evaluados} lugares evaluados. Llevalas al calco para medirlas y evaluarlas en los pasos 3 y 4.` } : { tipo: 'err', txt: r.avisos[r.avisos.length - 1] })
@@ -285,6 +287,14 @@ export function PropuestaPICB({ nivel = 'asdi', parametros = {}, onExpediente = 
       h('span', { style: S.chip(n('avenidas') > 0) }, `${n('avenidas') ? '✓' : '⚠'} ${n('avenidas')} avenidas`),
       h('span', { style: S.chip(n('corredores') > 0) }, `${n('corredores') ? '✓' : '⚠'} ${n('corredores')} corredores`),
       h('span', { style: S.chip((calco.ops?.ejesLog || []).some((e) => e.tipo === 'epa')) }, (calco.ops?.ejesLog || []).some((e) => e.tipo === 'epa') ? '✓ EPA' : '⚠ sin EPA'),
+      h('span', { style: S.chip((calco.unidades || []).some((u) => /^enem/i.test(String(u?.bando || '')))) }, (calco.unidades || []).some((u) => /^enem/i.test(String(u?.bando || ''))) ? '✓ fichas enemigas' : '⚠ sin fichas enemigas (se mide desde el frente)'),
+    ),
+    h(
+      'label',
+      { style: { ...S.fila, ...S.ayuda, fontSize: 11 }, title: 'Las áreas se proponen FUERA de este alcance, aunque queden fuera del Área de Operaciones (el AO no es obligatorio). Es aproximado: el LAR-160 de la brigada enemiga llega a 30 km; el M109, a 22 km.' },
+      '🎯 Fuera del alcance de los fuegos enemigos ≈',
+      h('input', { style: S.num, type: 'number', min: 1, step: 1, value: alcance, placeholder: String(ALCANCE_ENEMIGO), 'aria-label': 'Alcance de los fuegos enemigos (km)', 'data-campo': 'alcance-fuegos', onChange: (e) => { const v = e.target.value === '' ? '' : Math.max(1, +e.target.value); guardarPlan({ alcanceFuegos: v }); if (pr) calcular(pesos, v) } }),
+      'km · también fuera del AO, si hace falta',
     ),
     h('div', { style: S.fila }, h('button', { style: S.btnPrin, onClick: () => calcular(), 'data-accion': 'calcular-picb' }, pr ? '↻ Recalcular la propuesta' : '🎯 Calcular la propuesta'), pr?.ok && pr.candidatos.length > 0 && h('button', { style: S.btn, onClick: verCarta }, enCarta ? '🙈 Quitar de la carta' : '🗺️ Ver en la carta'), pr?.ok && h('button', { style: S.btn, onClick: () => setGrande(true), 'data-accion': 'grande-picb' }, '⛶ Ver en grande'), pr?.ok && pr.candidatos.length > 0 && h('button', { style: { ...S.btnPrin, background: AMBAR, color: '#1b1405' }, onClick: llevar, disabled: !libres.length, 'data-accion': 'llevar-picb' }, `✔ Llevar ${pr.candidatos.map((c, i) => libres[i]).filter(Boolean).join(', ')} al calco`)),
     msg && h('div', { style: S[msg.tipo] || S.ok, role: 'status' }, msg.txt),

@@ -70,6 +70,26 @@ cuánto consume en la operación, cuántos vehículos y viajes hacen falta y cad
 gráficos (📊 Tablero G-4); y en el paso 2 del ASDI la Mesa propone las áreas A, B y C con el
 CMOC. Detalle en `calcos/pruebas/TABLERO-G4-2026-10-03.md`.
 
+### El ASDI / ARCE fuera del alcance de los fuegos enemigos, aunque quede fuera del AO (18-10-2026)
+
+Lo pidió Sergio: «sé que en la doctrina el ARCE o el ASDI está dentro del Área de Operaciones, sin
+embargo creo que no es obligatorio, porque estaría dentro del área de fuegos de la brigada… tomá
+esas consideraciones al sugerir… además hay distancias aproximadas». En la propuesta de la Mesa
+(paso 2, `asdi-picb.js`):
+
+- la grilla recorre **nuestro lado del frente, a lo ancho del AO y hacia retaguardia**, también
+  **fuera del AO** (hasta detrás del AO y del alcance de los fuegos enemigos, como mucho 150 km);
+  un área fuera del AO es válida y dice «el espacio lo coordina el escalón superior»;
+- se **descarta lo que queda al alcance de los fuegos enemigos**: ≈ **30 km** por defecto (el
+  LAR-160 de la brigada enemiga del Apéndice 2 del ejercicio de la Escuela; el M109 llega a 22 km),
+  **editable** en «🎯 Fuera del alcance de los fuegos enemigos ≈ … km» (`ops.planLog.alcanceFuegos`),
+  medido desde las fichas enemigas o, sin ellas, desde el frente (y lo avisa);
+- si ningún lugar queda fuera de ese alcance sin pasar la DMA, propone **los menos expuestos** y
+  lo avisa; el embudo cuenta «al alcance de los fuegos enemigos» y cuántos válidos quedan fuera del
+  AO; el texto de la propuesta dice que las distancias de la norma y el alcance **son aproximados**.
+
+La distancia de seguridad (12 km el ASDI, 25 km el ARCE) y la DMA siguen siendo las de la Escuela.
+
 ## Archivos (`v1/`)
 
 - `doctrina.js` — los datos y definiciones de los tres textos, con la cita de cada uno.
