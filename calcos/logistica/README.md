@@ -17,13 +17,19 @@ Lo pidió Sergio el 02-10-2026 con capturas del panel del G-4 y tres textos de l
 
 ### 🚚 G-4 Logística → ▣ ASDI → 🧭 Paso a paso
 
+Desde el 18-10-2026 el tablero del G-4 tiene **sólo las herramientas** (lo pidió Sergio para
+que los alumnos desarrollen el ejercicio: «que no haya la explicación de qué es ASDI, sólo las
+herramientas para construir»): se quitaron el paso «1 · Entender» (las tarjetas de ASDI, ARCE,
+la diferencia, la SEGAR y el método, con el esquema en profundidad), la lámina de los datos
+generales, las definiciones de cada aspecto de la matriz, las citas y los párrafos de ayuda.
+Las tarjetas siguen en `doctrina.js` (`ENTENDER`) por si se quieren volver a mostrar.
+
 | Paso | Qué se hace | De dónde sale |
 |---|---|---|
-| 1 · Entender | ASDI (División, 6-9 km², ≥ 12 km) y ARCE (CE, 9-12 km², ≥ 25 km), el esquema en profundidad ZI → Base Log. → Zona de Etapas → ARCE → ASDI → áreas de trenes → LC/LPR, el área de retaguardia y la SEGAR, el método de la Escuela | Las láminas y los textos, con su cita |
-| 2 · Proponer | «▣ Trazar el Área A / B / C» traza el polígono con la herramienta de siempre y le pone la letra. ¿ASDI o ARCE? (según el escalón). El ARCE del CE se traza como referencia | El calco |
-| 3 · Verificar | Tamaño, distancia de seguridad (desde la LPR/LC: el primer lado del AO; sin AO, la ficha enemiga más cercana), distancia máxima de apoyo (DMA = (TD − TC) × V / 2, editable), EPA, enemigo más cercano y el tonelaje que tiene que soportar el EPA. **🗺️ Acostar las medidas en la carta**: la línea de la distancia de seguridad mínima, la menor distancia de cada área al frente (verde cumple, rojo no) y el anillo de la DMA | Medido en el calco contra los «Datos generales de planeamiento logístico» |
-| 4 · Evaluar | La matriz de la lámina (MANIOBRA · TERRENO · SEGURIDAD · SITUACIÓN LOGÍSTICA × área A, B…): casilla **roja ✔ = reúne el aspecto**. 🧮 lo medido (impositivo, norma o comparando las propuestas), 👤 lo del oficial, 🤖 lo de la IA. Ideas del oficial, 🤖 IA, conclusión con la forma del ejemplo de la Escuela y **Word** apaisado | Factores de empleo del Batallón Logístico |
-| 5 · Elegir | «✔ Elegir el Área A»: en la carta queda como ÁREA SERV. DIV. (las otras siguen con línea discontinua y su letra, o se quitan). Abajo se despliega el Batallón Logístico como siempre | — |
+| 1 · Proponer | «▣ Trazar el Área A / B / C» traza el polígono con la herramienta de siempre y le pone la letra. ¿ASDI o ARCE? (según el escalón). El ARCE del CE se traza como referencia | El calco |
+| 2 · Verificar | Tamaño, distancia de seguridad (desde la LPR/LC: el primer lado del AO; sin AO, la ficha enemiga más cercana), distancia máxima de apoyo (DMA = (TD − TC) × V / 2, editable), EPA, enemigo más cercano y el tonelaje que tiene que soportar el EPA. **🗺️ Acostar las medidas en la carta**: la línea de la distancia de seguridad mínima, la menor distancia de cada área al frente (verde cumple, rojo no) y el anillo de la DMA | Medido en el calco contra los «Datos generales de planeamiento logístico» |
+| 3 · Evaluar | La matriz de la lámina (MANIOBRA · TERRENO · SEGURIDAD · SITUACIÓN LOGÍSTICA × área A, B…): casilla **roja ✔ = reúne el aspecto**. 🧮 lo medido (impositivo, norma o comparando las propuestas), 👤 lo del oficial, 🤖 lo de la IA. Ideas del oficial, 🤖 IA, conclusión con la forma del ejemplo de la Escuela y **Word** apaisado | Factores de empleo del Batallón Logístico |
+| 4 · Elegir | «✔ Elegir el Área A»: en la carta queda como ÁREA SERV. DIV. (las otras siguen con línea discontinua y su letra, o se quitan). Abajo se despliega el Batallón Logístico como siempre | — |
 
 ### 📋 Mis hojas
 

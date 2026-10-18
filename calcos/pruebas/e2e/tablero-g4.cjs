@@ -9,7 +9,7 @@
 //   · la IA: el pedido lleva lo calculado y las ideas; la respuesta se proyecta en
 //     gráficos y sus ajustes se aplican con un botón;
 //   · acostar en la carta y bajar la imagen PNG;
-//   · G-4 → ▣ ASDI → paso 2: la Mesa propone A, B y C con el CMOC, «en grande» en <body>,
+//   · G-4 → ▣ ASDI → paso 1 (proponer): la Mesa propone A, B y C con el CMOC, «en grande» en <body>,
 //     y las lleva al calco como propuestas;
 //   · se guarda con el ejercicio; sin errores de JS.
 const assert = require('node:assert/strict')
@@ -186,11 +186,11 @@ const kpi = async (page, rot) => {
       assert.ok(fs.statSync(fimg).size > 20000, 'la imagen tiene contenido')
       await clic(tablero(page).getByRole('button', { name: 'Cerrar el tablero' }))
 
-      // ── G-4 → ▣ ASDI → paso 2: la Mesa propone con la PICB ──
+      // ── G-4 → ▣ ASDI → paso 1 (proponer; era el 2 hasta que se quitó «Entender»): la Mesa propone con la PICB ──
       await clic(page.getByRole('button', { name: /G-4 Logística/ }).first())
       const paso = page.locator('[data-g4="paso-a-paso"]')
       await paso.waitFor({ timeout: 15000 })
-      const b2 = paso.locator('[data-paso="2"] > button').first()
+      const b2 = paso.locator('[data-paso="1"] > button').first()
       if ((await b2.getAttribute('aria-expanded')) !== 'true') await clic(b2)
       const caja = paso.locator('[data-g4="propuesta-picb"]')
       await caja.waitFor()
