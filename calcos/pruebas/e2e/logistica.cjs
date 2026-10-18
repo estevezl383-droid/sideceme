@@ -1,11 +1,12 @@
 // El módulo de LOGÍSTICA del G-4 en la Mesa real (Chromium), con un ejercicio FICTICIO
 // (logistica-ejemplo.js), en escritorio y en teléfono:
-//   · pestaña «▣ ASDI» → PASO A PASO: 1 entender (ASDI, ARCE, esquema en profundidad);
-//     2 proponer las áreas A y B (en escritorio se TRAZAN en la carta con el botón del
-//     asistente y quedan con su letra; en el teléfono vienen trazadas); 3 verificar los
-//     datos generales (tamaño, distancia de seguridad desde la LPR, DMA) y acostar las
-//     medidas en la carta; 4 evaluar con la matriz de la Escuela (lo medido, lo del
-//     oficial, la IA sin pisar lo impositivo), conclusión y Word; 5 elegir el área;
+//   · pestaña «▣ ASDI» → PASO A PASO, sólo herramientas (desde el 18-10-2026 sin la
+//     explicación de qué es el ASDI/ARCE: el alumno lo resuelve): 1 proponer las áreas A y B
+//     (en escritorio se TRAZAN en la carta con el botón del asistente y quedan con su letra;
+//     en el teléfono vienen trazadas); 2 verificar los datos generales (tamaño, distancia de
+//     seguridad desde la LPR, DMA) y acostar las medidas en la carta; 3 evaluar con la matriz
+//     de la Escuela (lo medido, lo del oficial, la IA sin pisar lo impositivo), conclusión y
+//     Word; 4 elegir el área;
 //   · «📋 Mis hojas» → F1·P3 Apreciación de Logística: 🌱 trae del calco, de la evaluación
 //     y de las otras hojas del G-4; ideas; pedido a la IA; respuesta sin pisar; vista
 //     previa del Word militar; Word. F2·P13 parte de la F1·P3. F7·P2 Matriz de
@@ -78,13 +79,13 @@ async function trazar(page, coords) {
       await clic(page.getByRole('button', { name: /G-4 Logística/ }).first())
       await paso(page).waitFor({ timeout: 15000 })
 
-      // ── 1 · Entender ──
-      await abrirPaso(page, 1)
-      for (const t of ['ASDI — Área de Servicios de la División', 'ARCE — Área de Retaguardia del Cuerpo de Ejército', 'Entonces, ¿cuál es la diferencia?', 'mínimo 12 km', 'mínimo 25 km', 'Zona de Etapas'])
-        assert.ok(await paso(page).getByText(t, { exact: false }).count(), `paso 1: falta «${t}»`)
+      // ── Sin la explicación (Sergio, 18-10-2026: «sólo las herramientas para construir») ──
+      for (const t of ['¿Qué es un área de apoyo logístico?', 'Entonces, ¿cuál es la diferencia?', 'Zona de Etapas', 'Construí el área de apoyo logístico paso a paso'])
+        assert.equal(await paso(page).getByText(t, { exact: false }).count(), 0, `el paso a paso ya no explica «${t}»`)
+      assert.equal(await paso(page).locator('[data-paso]').count(), 4, 'cuatro pasos: proponer, verificar, evaluar, elegir')
 
-      // ── 2 · Proponer las áreas A y B ──
-      await abrirPaso(page, 2)
+      // ── 1 · Proponer las áreas A y B ──
+      await abrirPaso(page, 1)
       if (!movil) {
         await page.evaluate(([A, B]) => {
           const pts = [...A, ...B]
@@ -109,8 +110,8 @@ async function trazar(page, coords) {
       }
       assert.ok(await paso(page).getByText(/2 propuesta\(s\)/).count(), 'dos propuestas')
 
-      // ── 3 · Verificar ──
-      await abrirPaso(page, 3)
+      // ── 2 · Verificar ──
+      await abrirPaso(page, 2)
       const ver = paso(page).locator('[data-g4="verificacion"]')
       await ver.waitFor()
       const tv = await ver.innerText()
@@ -123,8 +124,8 @@ async function trazar(page, coords) {
       assert.ok(await page.getByText(/DMA Área A/).count(), 'el anillo de la DMA en la carta')
       await page.screenshot({ path: path.join(out, `${tag}-medidas.png`) })
 
-      // ── 4 · Evaluar ──
-      await abrirPaso(page, 4)
+      // ── 3 · Evaluar ──
+      await abrirPaso(page, 3)
       const celda = (id) => paso(page).locator(`[data-celda="${id}"]`)
       assert.match(await celda('m_dma|A').innerText(), /✔/, 'DMA del Área A medida: reúne')
       assert.match(await celda('s_distSeg|B').innerText(), /✔/, 'seguridad del Área B medida: reúne')
@@ -156,8 +157,8 @@ async function trazar(page, coords) {
         assert.ok(xEval.includes(t), `el Word de la evaluación no trae «${t}»`)
       await paso(page).screenshot({ path: path.join(out, `${tag}-paso4.png`) }).catch(() => {})
 
-      // ── 5 · Elegir ──
-      await abrirPaso(page, 5)
+      // ── 4 · Elegir ──
+      await abrirPaso(page, 4)
       await clic(paso(page).getByRole('button', { name: '✔ Elegir el Área A' }))
       const o5 = await esperar(page, async () => {
         const x = await opsDe(page)
@@ -292,7 +293,7 @@ async function trazar(page, coords) {
       assert.equal(g.hojasG.g4.aprecActiva.esquema, 'aprec-log-v1')
       assert.equal(g.ops.zonasLog.find((z) => z.propuesta === 'A').elegida, true)
       assert.deepEqual(a.errores, [])
-      console.log(`OK ${movil ? 'teléfono' : 'escritorio'}: paso a paso (entender, proponer${movil ? '' : ' trazando en la carta'}, verificar y acostar las medidas, evaluar con IA sin pisar, Word, elegir), Apreciación (calco, evaluación, hojas, ideas, IA, vista previa y Word militar), F2·P13, Matriz (fases, concepto, calco, amenaza, IA, Word), avance y guardado.`)
+      console.log(`OK ${movil ? 'teléfono' : 'escritorio'}: paso a paso sin textos (proponer${movil ? '' : ' trazando en la carta'}, verificar y acostar las medidas, evaluar con IA sin pisar, Word, elegir), Apreciación (calco, evaluación, hojas, ideas, IA, vista previa y Word militar), F2·P13, Matriz (fases, concepto, calco, amenaza, IA, Word), avance y guardado.`)
     } catch (e) {
       console.error('ERRORES APP', a.errores)
       fs.writeFileSync(path.join(out, `fallo-${tag}.txt`), await page.locator('body').innerText().catch(() => ''))

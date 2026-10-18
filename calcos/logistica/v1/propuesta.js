@@ -7,7 +7,7 @@
 // Escuela. Las áreas se llevan al calco como propuestas (después se miden y se evalúan en
 // los pasos 3 y 4, como si las hubiera trazado el oficial). La IA revisa la propuesta con
 // las ideas del oficial.
-import { proponerASDI, textoPropuesta, CRITERIOS, COLOR_FACTOR, NOMBRE_FACTOR, MOTIVOS, FUENTE_PICB } from './asdi-picb.js'
+import { proponerASDI, textoPropuesta, CRITERIOS, COLOR_FACTOR, NOMBRE_FACTOR, MOTIVOS } from './asdi-picb.js'
 import { doctrinaParaIA } from './doctrina.js'
 import { limpiar, paralela, centroide } from './geo.js'
 import { LETRAS, nombreUnidad } from './analisis.js'
@@ -242,7 +242,6 @@ export function PropuestaPICB({ nivel = 'asdi', parametros = {}, onExpediente = 
             ),
           ),
         ),
-        h('div', { style: S.ayuda }, `Los pesos son criterio de la Mesa (los de la ${pr.operacion === 'defensa' ? 'defensa: más peso a la seguridad contra fuegos e infiltrados' : pr.operacion === 'retrograda' ? 'operación retrógrada: más atrás y sobre la red viaria' : 'ofensiva: lo más adelante posible'}): cambialos y la propuesta se recalcula. `, FUENTE_PICB),
       ),
     )
     graficos.push(
@@ -276,7 +275,6 @@ export function PropuestaPICB({ nivel = 'asdi', parametros = {}, onExpediente = 
     'div',
     { style: S.caja, 'data-g4': 'propuesta-picb' },
     h('div', { style: S.tit }, `🎯 LA MESA PROPONE EL ${nivel === 'arce' ? 'ARCE' : 'ASDI'} CON LA PICB (CMOC)`),
-    h('div', { style: S.ayuda }, 'Recorre el Área de Operaciones, descarta lo que no cumple (distancia de seguridad, DMA, terreno severo, avenidas enemigas) y puntúa el resto por los factores de la Escuela. Vos decidís: llevá las áreas al calco y evaluálas en el paso 4.'),
     h(
       'div',
       { style: S.fila },
@@ -293,7 +291,7 @@ export function PropuestaPICB({ nivel = 'asdi', parametros = {}, onExpediente = 
     visor,
     h('div', { style: { fontSize: 11, color: '#b9c9da', fontWeight: 600 } }, '💡 Tus ideas para el área (van a la IA)'),
     h('textarea', { style: S.area, rows: 2, value: ideas, placeholder: 'Ej.: «Quiero el ASDI sobre la ruta 1, detrás de la FT TORREZ; evitar el monte del este por la infiltración».', onChange: (e) => setIdeas(e.target.value), onBlur: () => guardarPlan({ ideasPICB: ideas }) }),
-    Panel && h(Panel, { titulo: '🤖 Que la IA revise la propuesta', nota: 'Le manda lo que calculó la Mesa (CMOC, descartes, puntajes de A, B y C), la doctrina de la Escuela, el expediente y TUS IDEAS. Devuelve cuál recomienda y por qué.', color: '#9ec5f4', onPedido, onAplicar }),
+    Panel && h(Panel, { titulo: '🤖 Que la IA revise la propuesta', color: '#9ec5f4', onPedido, onAplicar }),
     ia &&
       h(
         'div',

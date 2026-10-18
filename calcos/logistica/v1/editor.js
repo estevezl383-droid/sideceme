@@ -1,15 +1,15 @@
 // Las pantallas de logística del G-4 (JavaScript sin compilar; React llega por runtime.js):
 //
 //   · <PasoAPaso>: arriba de la pestaña «▣ ASDI». Construye el área de apoyo logístico
-//     PASO A PASO, como enseña la Escuela: 1 entender (ASDI, ARCE y el esquema en
-//     profundidad) · 2 proponer áreas A, B… sobre el calco · 3 verificar los datos
-//     generales de planeamiento (tamaño, distancia de seguridad, DMA, tonelaje) y
-//     ACOSTAR las medidas en la carta · 4 evaluar las áreas (la matriz de la Escuela, con
-//     lo medido, lo del oficial y la IA) · 5 elegir y desplegar el Batallón Logístico.
+//     PASO A PASO, sólo con las herramientas (sin textos de explicación: el alumno lo
+//     resuelve): 1 proponer áreas A, B… sobre el calco · 2 verificar los datos generales
+//     de planeamiento (tamaño, distancia de seguridad, DMA, tonelaje) y ACOSTAR las
+//     medidas en la carta · 3 evaluar las áreas (la matriz de la Escuela, con lo medido,
+//     lo del oficial y la IA) · 4 elegir y desplegar el Batallón Logístico.
 //   · <EditorHojaLog>: en «📋 Mis hojas» del G-4, la APRECIACIÓN DE SITUACIÓN DE LOGÍSTICA
 //     (F1·P3 y F2·P13) y la MATRIZ DE SINCRONIZACIÓN LOGÍSTICA (F7·P2): 🌱 traer del calco
 //     y de las demás hojas, 💡 ideas del oficial, 🤖 IA, Word y acostar al calco.
-import { ENTENDER, FACTORES, TAMANO, SEGURIDAD, TONELAJE_BATALLON, TONELAJE_DIVISION, FUENTE_DATOS, FUENTE_FACTORES, OBS_SEGURIDAD, DMA_NOTA, FILAS_MATRIZ, NIVELES_AMENAZA, FUENTE_AMENAZA, SIGLAS_MATRIZ, EJEMPLO_CONCLUSION } from './doctrina.js'
+import { FACTORES, TONELAJE_BATALLON, TONELAJE_DIVISION, FILAS_MATRIZ, NIVELES_AMENAZA, FUENTE_AMENAZA, SIGLAS_MATRIZ, EJEMPLO_CONCLUSION } from './doctrina.js'
 import { analizarCalco, LETRAS, REGLAS, batallonesDelCalco, tonelaje, nombreArea } from './analisis.js'
 import { fmtKm, fmtKm2 } from './geo.js'
 import {
@@ -47,7 +47,7 @@ import {
 } from './modelo.js'
 import { MODOS, pedidoEval, aplicarRespuestaEval, pedidoASL, aplicarRespuestaASL, pedidoMatriz, aplicarRespuestaMatriz, otrasHojasG4, pedidoAnexo, aplicarRespuestaAnexo, textoMatriz } from './ia.js'
 import { especificacionASL, aslHTML, especificacionAnexo, anexoHTML, crearWordMatriz, crearWordEvaluacion, matrizHTML, descargar, blobDe } from './documento.js'
-import { PropuestaPICB } from './propuesta.js'
+import { PropuestaPICB } from './propuesta.js?v=herramientas20261018'
 import { useState, useEffect, jsx, jsxs, panelIA, encabezadoIA, corregirIA, wordMilitar, registroMilitar, vistaMilitar, mostrarDocx, catalogo, useCalco, accion, verEnCarta, mostrarMedidas, ocultarMedidas, medidasVisibles } from './runtime.js'
 
 function h(tipo, props, ...hijos) {
@@ -183,51 +183,6 @@ async function expedienteDe(onExpediente) {
 // ════════════════════════════════════════════════════════════════════════════════════
 // PASO A PASO — pestaña «▣ ASDI»
 // ════════════════════════════════════════════════════════════════════════════════════
-const ESQUEMA = [
-  { t: 'Zona del Interior', d: 'producción y acumulación' },
-  { t: 'Base Logística', d: 'relaciona la ZI con la ZE' },
-  { t: 'Zona de Etapas', d: 'Sección Base → Sección Avanzada (una por CE)' },
-  { t: 'ARCE', d: 'Cuerpo de Ejército · 9-12 km² · ≥ 25 km', marca: true },
-  { t: 'ASDI', d: 'División (Bat. Log.) · 6-9 km² · ≥ 12 km', marca: true },
-  { t: 'Áreas de trenes', d: 'Regimiento / Batallón · 1-2 km² · ≥ 5 km' },
-  { t: 'LC / LPR', d: 'las tropas en contacto' },
-]
-function Esquema() {
-  return h(
-    'div',
-    { style: { display: 'flex', flexDirection: 'column', gap: 3 }, 'aria-label': 'Esquema en profundidad del apoyo logístico' },
-    h('div', { style: E.sub }, 'De atrás (retaguardia) hacia adelante (el frente) — el abastecimiento sube, la evacuación baja'),
-    ESQUEMA.map((x, i) =>
-      h(
-        'div',
-        { key: i, style: { display: 'flex', alignItems: 'center', gap: 6 } },
-        h('span', { style: { color: '#7f8ea6', width: 14, textAlign: 'center' } }, i ? '↓' : ''),
-        h('div', { style: { flex: 1, background: x.marca ? 'rgba(251,191,36,0.16)' : 'rgba(255,255,255,0.05)', border: `1px solid ${x.marca ? AMBAR : 'rgba(255,255,255,0.15)'}`, borderRadius: 6, padding: '4px 7px' } }, h('b', { style: { color: x.marca ? AMBAR : '#dfeaf3' } }, x.t), h('span', { style: { color: '#9fb0c8', fontSize: 10.5 } }, ` — ${x.d}`)),
-      ),
-    ),
-  )
-}
-
-function Datos() {
-  return h(
-    'div',
-    { style: E.tarjeta },
-    h('b', { style: { color: AMBAR } }, 'DATOS GENERALES DE PLANEAMIENTO LOGÍSTICO'),
-    h('table', { style: E.tabla }, h('tbody', null,
-      h('tr', null, h('th', { style: E.th, colSpan: 2 }, 'Tamaño de un área de apoyo logístico')),
-      TAMANO.map((x) => h('tr', { key: x.id }, h('td', { style: E.td }, x.nom), h('td', { style: { ...E.td, textAlign: 'center', whiteSpace: 'nowrap' } }, x.nota))),
-      h('tr', null, h('th', { style: E.th, colSpan: 2 }, 'Distancia de seguridad')),
-      SEGURIDAD.map((x) => h('tr', { key: x.id }, h('td', { style: E.td }, x.nom), h('td', { style: { ...E.td, textAlign: 'center', whiteSpace: 'nowrap' } }, x.nota))),
-      h('tr', null, h('td', { style: { ...E.td, fontSize: 10.5, color: '#9fb0c8' }, colSpan: 2 }, OBS_SEGURIDAD)),
-      h('tr', null, h('th', { style: E.th, colSpan: 2 }, 'Tonelaje mínimo/día para los ejes de abastecimiento — valor Batallón')),
-      TONELAJE_BATALLON.map((x) => h('tr', { key: x.id }, h('td', { style: E.td }, x.nom), h('td', { style: { ...E.td, textAlign: 'center' } }, `${x.t} t`))),
-      h('tr', null, h('th', { style: E.th, colSpan: 2 }, 'Tonelaje mínimo/día — valor División')),
-      TONELAJE_DIVISION.map((x) => h('tr', { key: x.id }, h('td', { style: E.td }, x.nom), h('td', { style: { ...E.td, textAlign: 'center' } }, `${x.t} t`))),
-    )),
-    h('div', { style: E.fuente }, FUENTE_DATOS),
-  )
-}
-
 const marcaFuente = { calco: '🧮', oficial: '👤', ia: '🤖' }
 const tituloFuente = { calco: 'medido en el calco', oficial: 'lo decidió el oficial', ia: 'propuesto por la IA (revisar)' }
 
@@ -242,7 +197,7 @@ export function PasoAPaso({ hojas = {}, onHojas, onExpediente, ctxDoc = {}, orde
   const resumen = resumenEval(ev, areas, an.sugerencias)
   const elegida = areas.find((a) => a.clave === ev.elegida && zonas[a.idx]?.elegida)
   const sinEvaluar = resumen.reduce((s, r) => s + r.sin, 0)
-  const pasoInicial = !propuestas.length ? 1 : areas.some((a) => a.seguridad?.ok == null) ? 3 : !elegida ? 4 : 5
+  const pasoInicial = !propuestas.length ? 1 : areas.some((a) => a.seguridad?.ok == null) ? 2 : !elegida ? 3 : 4
   const [abierto, setAbierto] = useState(pasoInicial)
   const [pendiente, setPendiente] = useState(null)
   const [msg, setMsg] = useState(null)
@@ -258,7 +213,7 @@ export function PasoAPaso({ hojas = {}, onHojas, onExpediente, ctxDoc = {}, orde
     if (!pendiente) return
     if (nZonas > pendiente.n) {
       accion('ajustarZona')?.(nZonas - 1, { propuesta: pendiente.letra })
-      setMsg({ tipo: 'ok', txt: `▣ Área ${pendiente.letra} trazada. ${pendiente.letra === 'A' ? 'Trazá la B para poder compararlas.' : 'Pasá al paso 3: la Mesa ya la midió.'}` })
+      setMsg({ tipo: 'ok', txt: `▣ Área ${pendiente.letra} trazada. ${pendiente.letra === 'A' ? 'Trazá la B para poder compararlas.' : 'Pasá al paso 2: la Mesa ya la midió.'}` })
       setPendiente(null)
     } else if (calco.herramienta !== 'zonalog' && pendiente.activo) setPendiente(null)
     else if (calco.herramienta === 'zonalog' && !pendiente.activo) setPendiente({ ...pendiente, activo: true })
@@ -320,23 +275,12 @@ export function PasoAPaso({ hojas = {}, onHojas, onExpediente, ctxDoc = {}, orde
   return h(
     'div',
     { style: E.raiz, 'data-g4': 'paso-a-paso' },
-    h('div', { style: { ...E.aviso, color: '#ffe3a0' } }, h('b', null, '🧭 Construí el área de apoyo logístico paso a paso. '), 'Cada paso usa lo que ya está en el calco y lo que resolvés vuelve al calco (las áreas, las medidas, el área elegida) y a tus hojas (la Apreciación F1·P3 y la Matriz de sincronización F7·P2).'),
     h(Msg, { msg }),
 
-    // ── 1 · Entender ──
+    // ── 1 · Proponer ──
     h(
       Paso,
-      { n: 1, titulo: 'Entender: ASDI, ARCE y el esquema en profundidad', estado: 'leé esto primero', abierto: abierto === 1, onAbrir: () => setAbierto(abierto === 1 ? 0 : 1) },
-      h(Esquema),
-      ENTENDER.map((t) => h('div', { key: t.id, style: E.tarjeta }, h('b', { style: { color: AMBAR } }, t.titulo), h('div', { style: { fontSize: 11.5, lineHeight: 1.45 } }, t.texto), h('div', { style: E.fuente }, t.fuente))),
-      h('button', { style: E.btnPrin, onClick: () => setAbierto(2) }, 'Entendido → proponer las áreas'),
-    ),
-
-    // ── 2 · Proponer ──
-    h(
-      Paso,
-      { n: 2, titulo: 'Proponer las áreas posibles (A, B…) sobre el terreno', estado: propuestas.length ? `${propuestas.length} propuesta(s)` : 'ninguna todavía', abierto: abierto === 2, onAbrir: () => setAbierto(abierto === 2 ? 0 : 2) },
-      h('div', { style: E.ayuda }, 'Mirá la carta y buscá dos o tres lugares donde podría ir el área: cerca de una buena ruta (el futuro EPA), detrás de la tropa que apoyás, con cubiertas, agua y suelo firme, lejos de los flancos y fuera del alcance de la artillería enemiga. Trazá cada una como un polígono. Todavía no se decide nada: después se comparan.'),
+      { n: 1, titulo: 'Proponer las áreas posibles (A, B…) sobre el terreno', estado: propuestas.length ? `${propuestas.length} propuesta(s)` : 'ninguna todavía', abierto: abierto === 1, onAbrir: () => setAbierto(abierto === 1 ? 0 : 1) },
       h('div', { style: E.sub }, '¿Qué área estás eligiendo?'),
       h(
         'div',
@@ -344,8 +288,7 @@ export function PasoAPaso({ hojas = {}, onHojas, onExpediente, ctxDoc = {}, orde
         h('button', { style: { ...E.chip, ...(nivel === 'asdi' ? E.chipOn : {}) }, onClick: () => setNivel('asdi') }, 'ASDI — soy G-4 de una División'),
         h('button', { style: { ...E.chip, ...(nivel === 'arce' ? E.chipOn : {}) }, onClick: () => setNivel('arce') }, 'ARCE — soy G-4 de un Cuerpo de Ejército'),
       ),
-      h('div', { style: E.ayuda }, nivel === 'asdi' ? 'Cada área: 6 a 9 km², a 12 km o más de la LC/LPR. El ARCE lo fija el CE: si lo tenés, trazalo como referencia (sin letra) y la Mesa mide la distancia de cada propuesta al escalón superior.' : 'Cada área: 9 a 12 km², a 25 km o más de la LC/LPR.'),
-      h(PropuestaPICB, { nivel, parametros: ev.parametros, onExpediente, onLlevadas: () => setMsg({ tipo: 'ok', txt: '▣ Áreas de la propuesta en el calco. Pasá al paso 3: la Mesa ya las midió.' }) }),
+      h(PropuestaPICB, { nivel, parametros: ev.parametros, onExpediente, onLlevadas: () => setMsg({ tipo: 'ok', txt: '▣ Áreas de la propuesta en el calco. Pasá al paso 2: la Mesa ya las midió.' }) }),
       h('div', { style: E.sub }, 'O trazalas vos sobre el terreno'),
       h(
         'div',
@@ -372,15 +315,14 @@ export function PasoAPaso({ hojas = {}, onHojas, onExpediente, ctxDoc = {}, orde
               : null,
           ),
         ),
-      propuestas.length >= 1 && h('button', { style: E.btnPrin, onClick: () => setAbierto(3) }, 'Listo → verificar los datos generales'),
+      propuestas.length >= 1 && h('button', { style: E.btnPrin, onClick: () => setAbierto(2) }, 'Listo → verificar los datos generales'),
     ),
 
-    // ── 3 · Verificar ──
+    // ── 2 · Verificar ──
     h(
       Paso,
-      { n: 3, titulo: 'Verificar los datos generales de planeamiento', estado: !areas.length ? 'sin áreas' : areas.some((a) => a.seguridad?.ok === false || a.dma?.ok === false) ? '✗ hay un impositivo que no cumple' : '✓ medido', abierto: abierto === 3, onAbrir: () => setAbierto(abierto === 3 ? 0 : 3) },
-      h('div', { style: E.ayuda }, 'La Mesa mide cada área en el calco y la compara con la norma de la Escuela. Lo IMPOSITIVO (distancia de seguridad y distancia máxima de apoyo) descarta el área que no cumple.'),
-      !areas.length && h('div', { style: E.aviso }, 'Todavía no hay áreas para medir: trazá al menos una en el paso 2.'),
+      { n: 2, titulo: 'Verificar los datos generales de planeamiento', estado: !areas.length ? 'sin áreas' : areas.some((a) => a.seguridad?.ok === false || a.dma?.ok === false) ? '✗ hay un impositivo que no cumple' : '✓ medido', abierto: abierto === 2, onAbrir: () => setAbierto(abierto === 2 ? 0 : 2) },
+      !areas.length && h('div', { style: E.aviso }, 'Todavía no hay áreas para medir: trazá al menos una en el paso 1.'),
       !an.frente && areas.length > 0 && h('div', { style: E.aviso }, 'No hay Área de Operaciones ni fichas enemigas: no hay desde dónde medir la distancia de seguridad. Trazá el AO (▧ Área de Ops — el primer lado que trazás ES el frente).'),
       an.frente && h('div', { style: E.ayuda }, `Distancia de seguridad medida desde ${an.frente.fuente}.`),
       areas.length > 0 &&
@@ -401,14 +343,14 @@ export function PasoAPaso({ hojas = {}, onHojas, onExpediente, ctxDoc = {}, orde
         h('label', null, 'V ', h('input', { style: E.num, type: 'number', value: ev.parametros.v, onChange: (e) => P('v', e.target.value) }), ' km/h'),
         h('label', { title: 'La Mesa no tiene la red vial: la distancia por carretera se estima con la línea recta por este factor. Medila en la carta.' }, 'carretera ≈ recta × ', h('input', { style: E.num, type: 'number', step: '0.1', value: ev.parametros.factor, onChange: (e) => P('factor', e.target.value) })),
       ),
-      h('div', { style: E.ayuda }, an.dma.ok ? an.dma.texto : an.dma.error, '. ', DMA_NOTA),
+      h('div', { style: E.ayuda }, an.dma.ok ? an.dma.texto : an.dma.error),
       h('div', { style: E.sub }, 'Tonelaje que tiene que soportar el EPA (t/día)'),
       h(
         'div',
         { style: E.fila },
         TONELAJE_BATALLON.map((x) => h('label', { key: x.id, style: { fontSize: 11 } }, `${x.nom.replace('Tropas ', '')} `, h('input', { style: { ...E.num, width: 44 }, type: 'number', min: 0, value: conteo[x.id] ?? 0, onChange: (e) => guardar({ ...ev, tropas: { ...ev.tropas, [x.id]: e.target.value === '' ? 0 : Number(e.target.value) } }) }))),
       ),
-      h('div', { style: E.ayuda }, ton.total ? `Valor batallón: ${ton.texto}.` : 'Poné cuántos batallones (o regimientos, que en el cuadro valen un batallón) apoya el EPA; la Mesa propone los del calco.', ' ', 'Valor División: ', h('select', { style: { ...E.campo, width: 'auto' }, value: ev.tipoDivision, onChange: (e) => guardar({ ...ev, tipoDivision: e.target.value }) }, h('option', { value: '' }, '— tipo de División —'), TONELAJE_DIVISION.map((x) => h('option', { key: x.id, value: x.id }, x.nom))), div ? ` → ${div.t} t/día como mínimo.` : ''),
+      h('div', { style: E.ayuda }, ton.total ? `Valor batallón: ${ton.texto}. ` : '', 'Valor División: ', h('select', { style: { ...E.campo, width: 'auto' }, value: ev.tipoDivision, onChange: (e) => guardar({ ...ev, tipoDivision: e.target.value }) }, h('option', { value: '' }, '— tipo de División —'), TONELAJE_DIVISION.map((x) => h('option', { key: x.id, value: x.id }, x.nom))), div ? ` → ${div.t} t/día como mínimo.` : ''),
       h(
         'div',
         { style: E.fila },
@@ -427,16 +369,13 @@ export function PasoAPaso({ hojas = {}, onHojas, onExpediente, ctxDoc = {}, orde
           },
         }, verMedidas ? '🙈 Quitar las medidas de la carta' : '🗺️ Acostar las medidas en la carta'),
       ),
-      h('div', { style: E.ayuda }, 'Dibuja en la carta la línea de la distancia de seguridad mínima, la menor distancia de cada área al frente (verde cumple, rojo no) y el anillo de la DMA de cada área.'),
-      h('details', null, h('summary', { style: { cursor: 'pointer', color: AMBAR, fontSize: 11.5 } }, '📊 Datos generales de planeamiento logístico (la lámina)'), h(Datos)),
-      areas.length > 0 && h('button', { style: E.btnPrin, onClick: () => setAbierto(4) }, 'Siguiente → evaluar las áreas'),
+      areas.length > 0 && h('button', { style: E.btnPrin, onClick: () => setAbierto(3) }, 'Siguiente → evaluar las áreas'),
     ),
 
-    // ── 4 · Evaluar ──
+    // ── 3 · Evaluar ──
     h(
       Paso,
-      { n: 4, titulo: 'Evaluar las áreas propuestas (factores de la Escuela)', estado: !areas.length ? 'sin áreas' : sinEvaluar ? `${sinEvaluar} casilla(s) sin evaluar` : '✓ completa', abierto: abierto === 4, onAbrir: () => setAbierto(abierto === 4 ? 0 : 4) },
-      h('div', { style: E.ayuda }, 'Tocá una casilla para decidir: ', h('b', { style: { color: '#ff8a8a' } }, 'roja ✔ = el área REÚNE el aspecto'), ', blanca = no lo reúne; un tercer toque la devuelve a lo que midió la Mesa. 🧮 medido en el calco · 👤 lo decidiste vos · 🤖 lo propuso la IA. Tocá el nombre del aspecto para ver qué significa y por qué.'),
+      { n: 3, titulo: 'Evaluar las áreas propuestas (factores de la Escuela)', estado: !areas.length ? 'sin áreas' : sinEvaluar ? `${sinEvaluar} casilla(s) sin evaluar` : '✓ completa', abierto: abierto === 3, onAbrir: () => setAbierto(abierto === 3 ? 0 : 3) },
       areas.length > 0 &&
         h(
           'div',
@@ -465,7 +404,6 @@ export function PasoAPaso({ hojas = {}, onHojas, onExpediente, ctxDoc = {}, orde
                     h(
                       'div',
                       { style: { background: 'rgba(0,0,0,0.3)', padding: '5px 8px', display: 'flex', flexDirection: 'column', gap: 4 } },
-                      h('div', { style: E.ayuda }, asp.def),
                       areas.map((a) => {
                         const c = celdaEval(ev, an.sugerencias, asp.id, a.clave)
                         return h(
@@ -484,23 +422,22 @@ export function PasoAPaso({ hojas = {}, onHojas, onExpediente, ctxDoc = {}, orde
               }),
             ),
           ),
-          h('div', { style: E.fuente }, FUENTE_FACTORES),
           h('div', { style: E.fila }, resumen.map((r) => h('span', { key: r.clave, style: { ...E.chip, cursor: 'default', borderColor: r.descartada ? '#ff7a7a' : '#34405a' } }, `${r.nombre}: ${r.si} ✔ · ${r.no} ✗ · ${r.sin} ?${r.descartada ? ' · DESCARTADA' : ''}`))),
         ),
       h('div', { style: E.sub }, '💡 Qué área preferís y por qué (tus ideas — van a la IA)'),
       h('textarea', { style: E.area, rows: filasDe(ev.ideas, 2), value: ev.ideas, placeholder: 'Ej.: «Prefiero la A porque queda sobre la ruta 1 y detrás del RI-1, pero me preocupa el río que la corta» · «La B tiene la estancia que sirve de depósito».', onChange: (e) => guardar({ ...ev, ideas: e.target.value }) }),
-      Panel && areas.length > 0 && h(Panel, { titulo: '🤖 Evaluar las áreas con IA', nota: 'Le manda el expediente entero, lo que midió la Mesa en el calco (km², distancia de seguridad, DMA, EPA, tropa amiga, flancos), los factores de la Escuela, lo que ya decidiste y TUS IDEAS. Devuelve cada aspecto con su motivo concreto y la conclusión. Nunca cambia lo que decidiste vos ni lo impositivo medido.', color: AMBAR, modos: MODOS, onPedido, onAplicar }),
+      Panel && areas.length > 0 && h(Panel, { titulo: '🤖 Evaluar las áreas con IA', color: AMBAR, modos: MODOS, onPedido, onAplicar }),
       areas.length > 0 && h('div', { style: E.sub }, 'Conclusión'),
       areas.length > 0 && h('textarea', { style: E.area, rows: filasDe(ev.conclusion || autoConc, 3), value: ev.conclusion, placeholder: autoConc || EJEMPLO_CONCLUSION, onChange: (e) => guardar({ ...ev, conclusion: e.target.value, conclusionIA: false }), 'aria-label': 'Conclusión de la evaluación' }),
-      areas.length > 0 && h('div', { style: E.ayuda }, ev.conclusion ? h('span', null, ev.conclusionIA ? '🤖 La escribió la IA: revisala. ' : 'La escribiste vos. ', h('button', { style: E.btnChico, onClick: () => guardar({ ...ev, conclusion: '', conclusionIA: false }) }, '↺ Volver a la que arma la Mesa')) : 'Vacía = la arma la Mesa con la matriz (se ve en gris). Escribí encima para corregirla.'),
+      areas.length > 0 && ev.conclusion && h('div', { style: E.fila }, h('button', { style: E.btnChico, onClick: () => guardar({ ...ev, conclusion: '', conclusionIA: false }) }, '↺ Volver a la que arma la Mesa')),
       areas.length > 0 && h('div', { style: E.fila }, h('button', { style: E.btn, onClick: () => previaDocx('Evaluación de las áreas propuestas', crearWordEvaluacion(ev, an, { ctx }), 'G4_Evaluacion_de_las_areas_propuestas.docx', '') }, '👁️ Vista previa'), h('button', { style: E.btnPrin, onClick: () => setMsg({ tipo: 'ok', txt: wordEval() }) }, '📄 Evaluación (Word)')),
-      areas.length > 0 && h('button', { style: E.btnPrin, onClick: () => setAbierto(5) }, 'Siguiente → elegir y acostar'),
+      areas.length > 0 && h('button', { style: E.btnPrin, onClick: () => setAbierto(4) }, 'Siguiente → elegir y acostar'),
     ),
 
-    // ── 5 · Elegir y acostar ──
+    // ── 4 · Elegir y acostar ──
     h(
       Paso,
-      { n: 5, titulo: 'Elegir el área y desplegar el Batallón Logístico', estado: elegida ? `✔ ${elegida.nombre}` : 'sin elegir', abierto: abierto === 5, onAbrir: () => setAbierto(abierto === 5 ? 0 : 5) },
+      { n: 4, titulo: 'Elegir el área y desplegar el Batallón Logístico', estado: elegida ? `✔ ${elegida.nombre}` : 'sin elegir', abierto: abierto === 4, onAbrir: () => setAbierto(abierto === 4 ? 0 : 4) },
       !areas.length && h('div', { style: E.aviso }, 'Primero trazá y evaluá las áreas.'),
       mejor && !elegida && h('div', { style: E.ok }, `Según la matriz, el ${mejor.nombre} tiene ventaja (${mejor.si} aspectos favorables).`),
       areas.map((a) => {
@@ -515,8 +452,6 @@ export function PasoAPaso({ hojas = {}, onHojas, onExpediente, ctxDoc = {}, orde
         )
       }),
       elegida && propuestas.some(({ z }) => !z.elegida && z.zona === zonas[elegida.idx]?.zona) && h('button', { style: E.btn, onClick: quitarDescartadas }, '🗑 Quitar del calco las áreas no elegidas'),
-      elegida && h('div', { style: E.ok }, '👇 Abajo: elegí esta área en «Área sobre la que desplegar», marcá hacia dónde está el frente y desplegá las compañías del Batallón Logístico. Después adaptá cada puesto al terreno (se arrastran). Con «Desplegar el esquema en profundidad» salen también el Área de Trenes adelante y el ARCE atrás.'),
-      h('div', { style: E.ayuda }, 'La evaluación, la conclusión y el área elegida entran solas en la Apreciación de Logística (📋 Mis hojas → F1·P3, «🌱 Traer…») y en la Matriz de sincronización logística (F7·P2).'),
     ),
   )
 }

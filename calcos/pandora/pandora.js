@@ -36,7 +36,7 @@
 
   // Reparto de botones por grupo (por el texto, sin tocar los nodos)
   var MANDO = [/^\W*CMTE\./i, /^\W*JEM\./i, /^\W*EME\./i, /G-1/i, /G-2/i, /G-3/i, /G-4/i, /G-5/i]
-  var HERR = /deshacer|limpiar|ejercicio|regla|bajar kmz|complementar/i
+  var HERR = /deshacer|limpiar|ejercicio|regla|seleccionar|bajar kmz|complementar/i
   var DIBUJO = /área de ops|área de interés|á\. influencia|a\.i\.n/i
 
   function clasificar() {
