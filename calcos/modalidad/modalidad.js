@@ -1190,8 +1190,11 @@
   var TAB_G4 = { asdi: /^\W*ASDI$/i, ejes: /^\W*Ejes$/i, concepto: /^\W*Concepto$/i, calculo: /^\W*Cálculos$/i, hojas: /^\W*Mis hojas$/i }
   var TAB_ROT = { asdi: '▣ ASDI', ejes: '↔ Ejes', concepto: '🎬 Concepto', calculo: '🧮 Cálculos', hojas: '📋 Mis hojas' }
   // lo que se ve con esa pestaña abierta (el panel del G-4 no marca la pestaña activa)
-  // (el texto exacto de cada pestaña: «enfoque de apoyo», p. ej., también puede estar escrito en una hoja)
-  var TAB_VISTA = { asdi: /Construí el área de apoyo logístico paso a paso/, ejes: /columna vertebral del apoyo/, concepto: /Prioridad de apoyo \(en orden\)|todavía no creó fases del curso de acción/, calculo: /PEDIDO A FORMULAR|Días de la operación/, hojas: /\d+ de \d+ hojas con contenido|Volver a mis hojas/ }
+  // (el texto exacto de cada pestaña: «enfoque de apoyo», p. ej., también puede estar escrito en una hoja).
+  // Desde el 18-10-2026 el tablero del G-4 tiene sólo las herramientas, sin los párrafos de ayuda: el ▣ ASDI
+  // se reconoce por su paso a paso (data-g4) y los ↔ Ejes por el botón del EPE.
+  var TAB_VISTA = { asdi: function (r) { return !!(r.querySelector && r.querySelector('[data-g4="paso-a-paso"]')) }, ejes: /Trazar el EPE — Eje Principal de Evacuación/, concepto: /Prioridad de apoyo \(en orden\)|todavía no creó fases del curso de acción/, calculo: /PEDIDO A FORMULAR|Días de la operación/, hojas: /\d+ de \d+ hojas con contenido|Volver a mis hojas/ }
+  function enVista(tab, raiz) { var v = TAB_VISTA[tab]; return typeof v === 'function' ? v(raiz) : v.test(texto(raiz)) }
   function rutaM() { return rutaMarcas[claveCarpeta()] || {} }
   function rutaGuardarM(m) { var k = claveCarpeta(); if (!k) return; rutaMarcas[k] = m; guarda(K_RUTA_M, JSON.stringify(rutaMarcas)) }
   function rutaEstado() { var ej = RUTA && ejSync(); return ej ? RUTA.estado(ej, rutaM()) : null }
@@ -1244,7 +1247,7 @@
       else {
         var raiz = panelG4(), x = null
         if (raiz) {
-          if (!TAB_VISTA[ab.tab].test(texto(raiz))) x = enG4(raiz, TAB_G4[ab.tab])
+          if (!enVista(ab.tab, raiz)) x = enG4(raiz, TAB_G4[ab.tab])
           else if (ab.tab === 'hojas') x = hojaEnG4(raiz, ab.num, ab.nom) || (hojaAbierta(ab.num, ab.nom) ? null : enG4(raiz, /Volver a mis hojas/i))
           else if (ab.paso) { x = pasoASDI(raiz, ab.paso); if (x && x.getAttribute('aria-expanded') === 'true') x = null }
           else if (ab.boton) x = enG4(raiz, ab.boton)

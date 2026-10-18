@@ -240,13 +240,17 @@ const caso = (nom, f) => casos.push({ nom, f })
     const html = fs.readFileSync(path.join(__dirname, '..', 'index.html'), 'utf8')
     const vigente = fs.readFileSync(path.join(__dirname, '..', html.match(/\.\/(assets\/index-[\w-]+\.js)/)[1]), 'utf8')
     // Los pasos posteriores de la cadena que retocan lo de logística (el tablero G-4 le suma
-    // el CMOC, agregar áreas y createPortal): el vigente tiene lo de logística CON esos retoques.
-    const posteriores = require('./reemplazos-2026-10-03-tablero-g4.js')
+    // el CMOC, agregar áreas y createPortal; ⬚ Seleccionar le pone versión al import del paso a
+    // paso): el vigente tiene lo de logística CON esos retoques.
+    const posteriores = [...require('./reemplazos-2026-10-03-tablero-g4.js'), ...require('./reemplazos-2026-10-18-seleccionar.js')]
     const conRetoques = (t) => posteriores.reduce((x, r2) => x.split(r2.viejo).join(r2.nuevo), t)
+    // ⬚ Seleccionar (18-10-2026) sacó del tablero del G-4 los párrafos de explicación: lo que
+    // logística dejaba antes del párrafo «El ASDI no se dibuja libre…» sigue igual.
+    const sinTextos = (t) => t.split(',f.jsxs("div",{style:fn.ayuda,children:["El ASDI no se dibuja libre: es el ",')[0]
     for (const r of lista) {
       assert.equal(base.split(r.viejo).length - 1, r.veces, r.nombre)
       assert.ok(vig.includes(r.nuevo), r.nombre)
-      assert.ok(vigente.includes(conRetoques(r.nuevo)), `el compilado vigente conserva: ${r.nombre}`)
+      assert.ok(vigente.includes(sinTextos(conRetoques(r.nuevo))), `el compilado vigente conserva: ${r.nombre}`)
     }
   })
 

@@ -82,20 +82,19 @@ assert.equal(hojas, 11, 'las 11 hojas del G-4 están en la ruta')
 for (const rot of ['▣ ASDI', '↔ Ejes', '🎬 Concepto', '🧮 Cálculos', '📋 Mis hojas']) assert.ok(js.includes(`"${rot}"`), `pestaña ${rot} del panel del G-4`)
 assert.ok(js.includes('🚚 Apoyo Logístico — G-4'), 'el título del panel del G-4')
 // los textos con que el tablero (modalidad.js · TAB_VISTA) sabe qué pestaña del G-4 está abierta
-for (const t of ['columna vertebral del apoyo', 'Prioridad de apoyo (en orden)', 'todavía no creó fases del curso de acción', 'PEDIDO A FORMULAR', 'Días de la operación', ' hojas con contenido', 'Volver a mis hojas']) assert.ok(js.includes(t), `el panel del G-4 dice «${t}»`)
+for (const t of ['Trazar el EPE — Eje Principal de Evacuación', 'Prioridad de apoyo (en orden)', 'todavía no creó fases del curso de acción', 'PEDIDO A FORMULAR', 'Días de la operación', ' hojas con contenido', 'Volver a mis hojas']) assert.ok(js.includes(t), `el panel del G-4 dice «${t}»`)
 // el ▣ ASDI paso a paso no está en el compilado: lo arma calcos/logistica/v1/editor.js
 const asdi = fs.readFileSync(path.join(RAIZ, 'logistica/v1/editor.js'), 'utf8')
-assert.match(asdi, /'data-g4': 'paso-a-paso'/, 'el ▣ ASDI paso a paso')
-assert.ok(asdi.includes('Construí el área de apoyo logístico paso a paso'), 'el ▣ ASDI dice cómo se construye (así se sabe que está abierto)')
+assert.match(asdi, /'data-g4': 'paso-a-paso'/, 'el ▣ ASDI paso a paso (así se sabe que está abierto: TAB_VISTA.asdi)')
 assert.match(asdi, /'data-paso': String\(n\)/, 'cada paso del ASDI con su data-paso')
-assert.equal([...asdi.matchAll(/\{ n: (\d), titulo: /g)].map((m) => +m[1]).join(','), '1,2,3,4,5', 'los cinco pasos del ASDI')
+assert.equal([...asdi.matchAll(/\{ n: (\d), titulo: /g)].map((m) => +m[1]).join(','), '1,2,3,4', 'los cuatro pasos del ASDI (desde el 18-10-2026, sin «Entender»)')
 for (const p of R.PASOS) {
   if (p.abrir.boton) assert.ok(js.search(new RegExp(p.abrir.boton.source.replace(/^\^\\W\*/, ''), 'i')) > 0, `${p.id}: el botón ${p.abrir.boton} existe`)
   if (p.automatico) assert.ok(js.search(new RegExp(p.automatico.source, 'i')) > 0, `${p.id}: el botón que lo marca existe`)
   if (p.abrir.h) assert.ok(CAT.HERRAMIENTAS[p.abrir.h], `${p.id}: herramienta ${p.abrir.h}`)
   if (p.abrir.paso) assert.ok(p.abrir.paso >= 1 && p.abrir.paso <= 5, `${p.id}: paso ${p.abrir.paso} del ASDI`)
 }
-assert.deepEqual(R.PASOS.filter((p) => p.abrir.tab === 'asdi').map((p) => p.abrir.paso), [1, 2, 3, 4, 5], 'los cinco pasos del ASDI, en orden')
+assert.deepEqual(R.PASOS.filter((p) => p.abrir.tab === 'asdi' && p.abrir.paso).map((p) => p.abrir.paso), [1, 2, 3, 4], 'los cuatro pasos del ASDI, en orden')
 let veres = 0
 R.INSUMOS.forEach((I) => {
   if (!I.ver) return

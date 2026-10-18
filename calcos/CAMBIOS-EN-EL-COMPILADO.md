@@ -5,6 +5,43 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-18 — ⬚ Seleccionar en la carta (como en PowerPoint) y el G-4 sólo con herramientas (`index-seleccionar-20261018.js`)
+
+Parte de `index-huellas-20261016.js` + `pruebas/reemplazos-2026-10-18-seleccionar.js` (25 reemplazos;
+`construir-seleccionar.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con dos
+capturas (los 30 puestos del Batallón Logístico amontonados en la carta y el paso a paso del ASDI lleno de
+texto): «necesito una herramienta que me permita seleccionar objetos… no encuentro cómo borrar esos
+símbolos… dibujar un área, seleccionar, y hacer clic otra vez para deseleccionar uno por uno, así como en
+PowerPoint» · «en las opciones del G-4 que no haya texto… sólo las herramientas para construir… no me
+modifiques, sólo quitá lo que no es necesario» · «quiero preparar el ejercicio para que los alumnos lo
+desarrollen».
+
+- **Qué pasaba**: cada ficha se borraba de a una (clic derecho → confirmar; una instalación, desde su
+  cartel). Los 30 puestos que pone «🏗️ Desplegar la plantilla» quedan encimados: no había forma práctica
+  de sacarlos. El tablero del G-4 explicaba la doctrina (qué es el ASDI y el ARCE, la diferencia, la
+  SEGAR, el método, las normas) que el alumno tiene que saber y aplicar.
+- **Qué se hizo en el compilado**: el import de `calcos/seleccion/v1/seleccion.mjs`; el botón
+  «⬚ Seleccionar» junto a la 📏 Regla (sólo «⬚» en pantallas de menos de 1600 px, para no sumarle una
+  fila a la barra; la herramienta es `ba === "seleccionar"`; la carta no la recibe
+  como herramienta de trazado: `herramientaOps`); cada ficha de la carta 2D (`hve`) lleva
+  `data-sid-unidad`; el puente `SIDSelSync` con `aplicar` (`SIDSelAplicar`: borra las fichas por id y
+  pone el calco nuevo, con UNA foto `{__SIDunidades, __SIDops}` en la pila; respeta el candado del
+  ejercicio finalizado) y `Mg` devuelve esa foto entera («↶ Se deshizo: volvió lo que se borró con
+  ⬚ Seleccionar»). En el tablero «🚚 Apoyo Logístico — G-4» (`yDe`) se quitaron los párrafos de
+  explicación de ▣ ASDI, ↔ Ejes, 🎬 Concepto y 🧮 Cálculos (quedan los botones, los campos, las listas,
+  los avisos de lo que falta y los resultados); el paso a paso se importa con `?v=herramientas20261018`.
+- **Fuera del compilado** (código legible): la herramienta (`calcos/seleccion`, ver su README); el paso a
+  paso del ASDI sin el paso «Entender», sin la lámina de datos generales, sin las definiciones de los
+  aspectos ni las citas (`logistica/v1/editor.js`, `propuesta.js`; quedan cuatro pasos: proponer,
+  verificar, evaluar, elegir); la piel Pandora pone «⬚ Seleccionar» con las herramientas de la barra.
+- **Cómo se comprobó**: `seleccion.mjs` (el modelo; borra igual que `SIDMagSinLimite`/`SIDMagSinZona`
+  del compilado) y `e2e/seleccion.cjs` (la Mesa real: el G-4 sin textos, la plantilla de 30 puestos, el
+  recuadro, soltar y volver a tomar con clic, Supr, ↶ Deshacer de un toque, Alt, Esc y lo guardado),
+  `e2e/logistica.cjs` (pasada a cuatro pasos), `reemplazos-compilado.js`, `npm test` y las e2e de
+  deshacer, tablero G-4, ASDI, carga, aviso de versión, paneles, autoguardado, edición, trazos y tijera.
+- **Si se recompila desde el fuente**: llevar el botón, `data-sid-unidad` en el dibujo de las fichas, el
+  puente con `aplicar` y la foto doble en el deshacer, y quitar los párrafos del tablero del G-4.
+
 ## 2026-10-16 (tarde) — 🛤️ Las huellas de OSM ya no cuelgan la Mesa (`index-huellas-20261016.js`)
 
 Parte de `index-tijera-20261016.js` + `pruebas/reemplazos-2026-10-16-huellas.js` (5 reemplazos;

@@ -52,12 +52,12 @@ navegador). Con «Como G-4»:
 
   | Fase | Pasos del G-4 |
   |---|---|
-  | 1 Recibir la misión | Leer la Orden y el Anexo de Logística del superior · F1·P3 Apreciación Activa · ▣ ASDI 1 Entender el esquema en profundidad |
+  | 1 Recibir la misión | Leer la Orden y el Anexo de Logística del superior · F1·P3 Apreciación Activa · Ubicar en la carta lo que da el superior (▣ ASDI) |
   | 2 Analizar la misión | F2·P3 Tareas · 🧮 Cálculos: necesidades iniciales (F2·P4, comprobar los recursos) · F2·P5 Limitaciones · F2·P6 Hechos y suposiciones · F2·P8 RCIC/EEIA · F2·P13 Apreciación actualizada |
-  | 3 Desarrollar los CAP | F3·P1 Aporte a la PRC · ▣ ASDI 2 Proponer las áreas A, B, C · ↔ Ejes: EPA y EPE tentativos · 🎬 Concepto de apoyo por fase |
-  | 4 Juego de Guerra | ▣ ASDI 3 Verificar (datos generales, DMA) · Consumo, evacuación y transporte por fase |
-  | 5 Comparar los CAP | ▣ ASDI 4 Evaluar las áreas · F5·P1 Ventajas y desventajas |
-  | 6 Aprobar el CAP | ▣ ASDI 5 Elegir el área y desplegar el Bat. Log. · ↔ Ejes definitivos y la capa para el G-3 · F6·P3 Riesgos |
+  | 3 Desarrollar los CAP | F3·P1 Aporte a la PRC · ▣ ASDI 1 Proponer las áreas A, B, C · ↔ Ejes: EPA y EPE tentativos · 🎬 Concepto de apoyo por fase |
+  | 4 Juego de Guerra | ▣ ASDI 2 Verificar (datos generales, DMA) · Consumo, evacuación y transporte por fase |
+  | 5 Comparar los CAP | ▣ ASDI 3 Evaluar las áreas · F5·P1 Ventajas y desventajas |
+  | 6 Aprobar el CAP | ▣ ASDI 4 Elegir el área y desplegar el Bat. Log. · ↔ Ejes definitivos y la capa para el G-3 · F6·P3 Riesgos |
   | 7 Planes y órdenes | F7·P1 Anexo de Logística · F7·P2 Matriz de sincronización logística |
 
 - **💡 La luz**: el paso que sigue (el primero sin hacer) va arriba («💡 AHORA · FASE 2 · PASO 5») y
@@ -451,7 +451,7 @@ escritorio y teléfono: lo que hay en el título y en la barra de avance del tab
 - `node calcos/pruebas/ruta-g4.cjs` (16-10-2026): los 22 pasos en el orden de las 7 fases, cada uno con
   insumos que llegan antes o en su fase; las 11 hojas del G-4 existen en el compilado y lo que se mira
   para darlas por hechas es su clave (lo que pone la Mesa sola no cuenta); las pestañas, el título del
-  panel, los cinco pasos del ▣ ASDI con su `data-paso` (en `logistica/v1/editor.js`) y los botones que
+  panel, los pasos del ▣ ASDI con su `data-paso` (cuatro desde el 18-10-2026, cuando el tablero del G-4 quedó con sólo las herramientas) (en `logistica/v1/editor.js`) y los botones que
   se iluminan existen; los «Ver en la Mesa» van a hojas reales del Cmte., del JEM y del G-3 o a una
   herramienta; el ejercicio de prueba de logística (5 de 22 hechos, la luz en el paso 1, lo marcado a
   mano la pasa a 🧮 Cálculos); el pedido al EM simulado (lo que falta hasta la fase 2, con sus marcas,
