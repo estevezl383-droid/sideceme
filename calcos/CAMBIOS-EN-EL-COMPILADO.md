@@ -5,6 +5,36 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-19 — ⏱️ La Línea Inicial de Tiempo lee los momentos de TODOS los documentos del ejercicio (`index-linea-tiempo-20261019.js`)
+
+Parte de `index-seleccionar-20261018.js` + `pruebas/reemplazos-2026-10-19-linea-tiempo.js` (5 reemplazos;
+`construir-linea-tiempo.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con capturas
+de la F1·P4 (G-3) que decía «Falta la recepción de la orden» con la Orden y sus anexos cargados: «la Orden
+dice CG. Challapata. D-44 (0900) y la misión del D (0400) al D+15 (1800)… ¿por qué no saca la línea de
+tiempo? No está analizando los documentos».
+
+- **Qué pasaba** (reproducido con los Word reales del ejercicio y en la Mesa):
+  - la hoja leía la RECEPCIÓN de un solo documento (el primero con categoría «Orden») y sólo en sus
+    primeros 1200 caracteres; si ahí no estaba el membrete, no miraba los anexos (que traen el mismo
+    «CG. … D-44 (0900)»);
+  - sin membrete al principio (un .md, una Orden sin él), tomaba como recepción la primera fecha que
+    hubiera: la de la MISIÓN, D (0400), que es el inicio de la operación;
+  - los restos de formato de un .md (`D\-44`, `**negritas**`) no se leían;
+  - «✅ Usar estos datos» salía sólo con la hoja vacía: con el inicio y el fin ya puestos, lo que faltaba
+    no se volvía a ofrecer nunca.
+- **Qué se hizo en el compilado**: `tLe` limpia el formato del texto; el membrete es una línea corta
+  (≤ 90 caracteres) que NO es la misión («a partir del… hasta…»), con CG./PC/CMDO y un D±n (hhmm), en
+  cualquier parte del documento (si no hay ninguna con CG., la primera línea corta con fecha de los
+  primeros 3000 caracteres). `nLe` completa lo que falte en la Orden con los demás documentos cargados y
+  dice de cuál salió. En la hoja, la oferta sale mientras falte algo («✅ Completar lo que falta (no pisa
+  lo ya escrito)») y sólo llena los casilleros vacíos; no se ofrece si la hoja está en fechas de calendario.
+- **Cómo se comprobó**: `linea-tiempo.cjs` (el lector del compilado: Word, .md, membrete lejos, sin
+  membrete, otro documento, Orden completa, línea larga) y `e2e/linea-tiempo.cjs` (la Mesa real: G-3 →
+  Documentos → F1·P4 con el inicio y el fin ya puestos; completa la recepción con el anexo, no pisa, se
+  guarda, sin errores de consola), `reemplazos-compilado.js` y `npm test`.
+- **Si se recompila desde el fuente**: llevar la limpieza del texto y el membrete nuevo a `tLe`, la búsqueda
+  en los demás documentos a `nLe` y la oferta «completar sin pisar» a la hoja `lineaTiempo`.
+
 ## 2026-10-18 — ⬚ Seleccionar en la carta (como en PowerPoint) y el G-4 sólo con herramientas (`index-seleccionar-20261018.js`)
 
 Parte de `index-huellas-20261016.js` + `pruebas/reemplazos-2026-10-18-seleccionar.js` (25 reemplazos;
