@@ -38,7 +38,8 @@
 //   index-tijera-20261016.js + reemplazos-2026-10-16-huellas.js = index-huellas-20261016.js
 //   index-huellas-20261016.js + reemplazos-2026-10-18-seleccionar.js = index-seleccionar-20261018.js
 //   index-seleccionar-20261018.js + reemplazos-2026-10-19-linea-tiempo.js = index-linea-tiempo-20261019.js
-//   index-linea-tiempo-20261019.js + reemplazos-2026-10-19-orden-documentos.js = index-orden-documentos-20261019.js (el vigente)
+//   index-linea-tiempo-20261019.js + reemplazos-2026-10-19-orden-documentos.js = index-orden-documentos-20261019.js
+//   index-orden-documentos-20261019.js + reemplazos-2026-10-19-picb-tiempo.js = index-picb-tiempo-20261019.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -52,6 +53,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-19-picb-tiempo'),
+    nombre: 'reemplazos-2026-10-19-picb-tiempo',
+    // calcos/assets/index-orden-documentos-20261019.js (antes de que la PICB tome el tiempo de la Línea de Tiempo).
+    anterior: '00b39e37fb7038e794c40cd111afac4cf59346804b829e7d704aede540271b12',
+  },
   {
     lista: require('./reemplazos-2026-10-19-orden-documentos'),
     nombre: 'reemplazos-2026-10-19-orden-documentos',
