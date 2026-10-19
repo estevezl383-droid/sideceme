@@ -1372,7 +1372,7 @@
       var partes = []
       if (s.listos.length) partes.push('<span class="ok">✅ Terminó: ' + esc(s.listos.map(function (x) { return insCorto(x) + (x.e.de === 'em' ? ' 🤖' : '') }).join(' · ')) + '</span>')
       if (s.deben.length) partes.push('<span class="debe">⏳ Te debe: ' + esc(s.deben.map(function (x) { return insCorto(x) + (x.ins.simulable === false ? ' (lo pone el profesor)' : x.uso ? ' (paso ' + x.uso.n + ')' : ' (ya te hacía falta)') }).join(' · ')) + '</span>')
-      if (s.luego.length) partes.push('<span class="luego">🔒 Más adelante: ' + esc(s.luego.map(function (x) { return insCorto(x) + ' (fase ' + x.ins.fase + ')' }).join(' · ')) + '</span>')
+      if (s.luego.length) partes.push('<span class="luego">🔒 Más adelante: ' + esc(s.luego.map(function (x) { return insCorto(x) + ' (fase ' + x.ins.fase + (x.e.ok ? ', ya preparado' : '') + ')' }).join(' · ')) + '</span>')
       return '<li class="' + (s.deben.length ? 'debe' : s.listos.length ? 'ok' : 'luego') + '">' + chipDe(s.de) + '<div>' + partes.join('') + '</div></li>'
     })
     return '<div class="rg-parte"><div class="rg-tit">📣 Parte del Estado Mayor — qué terminó cada sección (estás en la fase ' + E.fase + ')</div><ul>' + filas.join('') + '</ul>' +

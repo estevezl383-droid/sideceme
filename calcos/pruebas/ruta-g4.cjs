@@ -200,6 +200,12 @@ assert.deepEqual(g3.listos.map((x) => x.ins.id), ['fases'])
 assert.ok(g3.deben.some((x) => x.ins.id === 'caps' && x.uso.n === 11), 'los CAP del G-3: paso 11')
 assert.deepEqual(g3.luego.map((x) => x.ins.id), ['sincroG3', 'barreras', 'opord'])
 assert.deepEqual(g1.luego.map((x) => x.ins.fase), [4], 'el G-1 te da las bajas en la fase 4')
+// lo que el profesor ya escribió para la fase 3 (la hoja F3·P6 del G-3) no se anuncia en la fase 2: se revela al llegar
+const ejCap = { ...ej, g3: { ...(ej.g3 || {}), coa: { campos: { enunciado: 'CAP 1: la DIV.MEC.-1 (FICT.) defiende…' } } } }
+const P2 = R.parteEM(ejCap, { 'leer-orden': 1, 'aprec-activa': 1, 'asdi-entender': 1 }).find((s) => s.de === 'g3')
+assert.ok(!P2.listos.some((x) => x.ins.id === 'caps'), 'en la fase 2 los CAP preparados no figuran como terminados')
+assert.ok(P2.luego.some((x) => x.ins.id === 'caps' && x.e.ok), 'van a «más adelante», ya preparados')
+assert.ok(R.parteEM(ejCap, marcasF3).find((s) => s.de === 'g3').listos.some((x) => x.ins.id === 'caps'), 'en la fase 3 se revelan: ✅ terminó')
 const en = R.entrada(E3, ej)
 assert.deepEqual(en.necesita.map((i) => i.ins.id), ['cae', 'picb'])
 assert.deepEqual(en.despues.map((x) => [x.ins.id, x.uso.n]), [['caps', 11], ['orgTarea', 11]], 'en la F3·P1 los CAP todavía no hacen falta (las fases ya están: no se nombran)')

@@ -482,9 +482,11 @@
       if (!it.length) return null
       return {
         de: de, S: DE[de],
-        listos: it.filter(function (x) { return x.e.ok }),
+        // lo que el profesor ya dejó escrito para una fase a la que el alumno no llegó NO se anuncia como
+        // terminado: va a «más adelante» (con e.ok) y se revela al llegar a su fase
+        listos: it.filter(function (x) { return x.e.ok && x.ins.fase <= E.fase }),
         deben: it.filter(function (x) { return !x.e.ok && x.ins.fase <= E.fase }),
-        luego: it.filter(function (x) { return !x.e.ok && x.ins.fase > E.fase })
+        luego: it.filter(function (x) { return x.ins.fase > E.fase })
       }
     }).filter(Boolean)
   }
