@@ -5,6 +5,25 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-19 (3) — ⏱️ El tiempo de la PICB sale de la Línea Inicial de Tiempo (`index-picb-tiempo-20261019.js`)
+
+Parte de `index-orden-documentos-20261019.js` + `pruebas/reemplazos-2026-10-19-picb-tiempo.js` (6 reemplazos;
+`construir-picb-tiempo.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con la captura
+de la H.T. 3 «Línea de tiempo de la PICB» vacía: «el G-3 ya realizó la línea de tiempo y ahí tenía un tiempo
+para el análisis de la misión o para la PICB… de ahí ya debería generarse automáticamente… así debe ser todo
+sincronizado».
+
+- **Qué pasaba**: la F1·P4 reparte el tercio del Estado Mayor por fases y la primera es «ANÁLISIS DE LA
+  MISIÓN (PICB)», 40 %. El tablero del G-2 (`iLe`) no recibía el G-3: «Tiempo para la PICB»
+  (`picb._minutos`) sólo se escribía a mano.
+- **Qué se hizo en el compilado**: el tablero del G-2 recibe `ctx.g3`; si `picb._minutos` está vacío,
+  `Te` toma los minutos de la fase `analisisMision` de `MS(g3.lineaTiempo)` (con el % que haya puesto el
+  JEM); «Tiempo para la PICB» y la H.T. 3 muestran ese valor y dicen de dónde salió; lo que escriba el G-2
+  manda (si lo borra, vuelve a seguir a la Línea de Tiempo); el Word de la H.T. 3 lleva los minutos que se ven.
+- **Cómo se comprobó**: `e2e/picb-tiempo.cjs` (la Mesa real: D-15 (2300) → D (0500) = 2736 min = 45 h 36 min,
+  el reparto 10/40/20/30 de la H.T. 3 y el número propio del G-2), `reemplazos-compilado.js` y `npm test`.
+- **Si se recompila desde el fuente**: llevar `ctx.g3` al tablero del G-2 y el tiempo por defecto de la PICB.
+
 ## 2026-10-19 (2) — 📄 La Orden del escalón superior sale de los documentos del ejercicio (`index-orden-documentos-20261019.js`)
 
 Parte de `index-linea-tiempo-20261019.js` + `pruebas/reemplazos-2026-10-19-orden-documentos.js` (3 reemplazos;
