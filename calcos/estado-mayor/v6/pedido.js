@@ -310,12 +310,26 @@ ${json}
 - Empezá con \`\`\`json y terminá con \`\`\`. Nada antes ni después: ni saludo, ni resumen, ni la hoja redactada aparte. La Mesa pega ese bloque directo en la hoja.
 - NO escribas: un análisis METT-TC u OCOKA suelto, «conclusiones», la Orden de Operaciones, una matriz de sincronización, un resumen del expediente, ni preguntas («¿Cuál es el producto que requiere?», «¿Querés que…?», «Want me to…?»). La tarea ya está dicha: hacela.
 - Si el texto te llega CORTADO (no ves la sección «CÓMO CONTESTAR» del final), contestá IGUAL con este bloque y con lo que llegó. No preguntes qué hacer.
+- NO ADELANTES ETAPAS: nada de AIN (AIN-1, AIN-2…) ni de otros productos que se definen más adelante, salvo que figuren TEXTUALMENTE en el expediente; usá sólo nombres, lugares y cifras del expediente (si falta: «SIN DATO — verificar»).
 - Las instrucciones detalladas (cómo se escribe la hoja, qué va en cada casilla, la doctrina) están más abajo: seguilas.${ind ? `
 
 INDICACIÓN DEL OFICIAL PARA ESTA HOJA (manda sobre todo lo demás; se repite al final):
 «${ind}»
 Cambia QUÉ escribís y en qué te basás, no el formato: va DENTRO de los textos del JSON.` : ''}`
 }
+
+// ─── No adelantar etapas (19-10-2026) ───────────────────────────────────────────────
+// Sergio vio la H.T. 4 (vacíos y suposiciones) bajada con «la AIN-3 (valle del río LAUCA)» y
+// «la AIN-5», y las A.I.N. recién se definen en la H.T. 20, más adelante. El ejercicio es para que
+// los cursantes trabajen cada sección en su momento: la IA no puede traerles productos de una
+// etapa que todavía no hicieron. Va al principio (encabezado) y, para TODOS los pedidos
+// (también la PRC, que no lleva encabezado), repetida al final.
+export const REGLA_ETAPAS = `# NO ADELANTES ETAPAS — SÓLO LO QUE EL EJERCICIO YA TIENE
+
+Esta hoja se trabaja en SU momento. No escribas nombres, números ni productos que se definen en una etapa POSTERIOR y que todavía no están en el expediente:
+- NO nombres ni numeres Áreas de Interés de Inteligencia (AIN-1, AIN-2, AIN-3…) ni hables de «la AIN» como si ya existiera, salvo que ese nombre figure TEXTUALMENTE en el expediente (en la hoja de A.I.N. del G-2 ya hecha o en un documento del ejercicio). Si hace falta ubicar algo, usá lugares, ejes o accidentes del terreno que el expediente SÍ nombra.
+- Lo mismo con cualquier otro producto posterior (cursos de acción numerados, líneas de decisión, objetivos de búsqueda, órdenes de búsqueda…): si no está en el expediente, no lo inventes ni lo des por hecho.
+- Nombres de unidades, lugares, pasos y cifras: sólo los del expediente. Si falta el dato: «SIN DATO — verificar», nunca uno inventado.`
 
 // ─── El pedido final ────────────────────────────────────────────────────────────────
 // `p` es el pedido como lo armó la Mesa (con la indicación y el recordatorio al final).
@@ -356,6 +370,7 @@ export function armarPedidoFinal(p, indicacion = '', { tamano = tamanoPedido() }
     // sin el expediente de la Mesa pero largo: igual, la tarea adelante
     cuerpo = `${encabezado(p, indicacion)}\n\n---\n\n${p}`
   }
+  if (!cuerpo.includes(REGLA_ETAPAS.split('\n')[0])) cuerpo = `${cuerpo.trimEnd()}\n\n---\n\n${REGLA_ETAPAS}`
   ultimo = { total: cuerpo.length, tamano, recortado: false, ...(exp || {}) }
   return cuerpo
 }
