@@ -5,6 +5,20 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-19 (4) — 🏷️ Rótulo «AA-n» chico sobre cada avenida de aproximación (`index-rotulo-avenidas-20261019.js`)
+
+Parte de `index-picb-tiempo-20261019.js` + `pruebas/reemplazos-2026-10-19-rotulo-avenidas.js` (3 reemplazos;
+`construir-rotulo-avenidas.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con la
+captura del CMOC: no se podía saber cuál es AA-1, AA-3… en la carta.
+
+- **Qué pasaba**: el rótulo sólo se dibujaba si la avenida tenía `nombre` (AA-n sólo existía como columna de la
+  H.T. 6) y, cuando salía, era una píldora de 12 px con el puntaje, en el centroide del polígono.
+- **Qué se hizo en el compilado**: sin nombre, el rótulo es «AA-n» (el de la H.T. 6); chico (10 px, sin puntaje,
+  que sigue en el popup y en la H.T. 6) y sobre el eje de la avenida, en su punto medio. Igual en el mapa 3D
+  (`cmoc-aves-rot`, texto de 10 px).
+- **Si se recompila desde el fuente**: llevar el nombre por defecto `AA-${n}` y la posición sobre `coords` al
+  dibujo Leaflet de avenidas y a `rSe`.
+
 ## 2026-10-19 (3) — ⏱️ El tiempo de la PICB sale de la Línea Inicial de Tiempo (`index-picb-tiempo-20261019.js`)
 
 Parte de `index-orden-documentos-20261019.js` + `pruebas/reemplazos-2026-10-19-picb-tiempo.js` (6 reemplazos;
