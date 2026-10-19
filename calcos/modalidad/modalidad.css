@@ -240,6 +240,22 @@ body[data-sid-mod-col] .sdp{right:var(--sid-mod-col) !important}
 #sid-mod-panel .rg-em{display:block;width:100%;margin-top:4px;text-align:left;font:600 12px/1.25 inherit;color:#fff;background:linear-gradient(90deg,rgba(124,58,237,.7),rgba(251,191,36,.35));border:1px solid #c4b5fd;border-radius:8px;padding:7px 9px;cursor:pointer}
 #sid-mod-panel .rg-em:hover,#sid-mod-panel .rg-em[aria-expanded="true"]{box-shadow:0 0 12px rgba(167,139,250,.5)}
 #sid-mod-panel .rg-em-caja{margin-top:6px}
+#sid-mod-panel .rg-em small{display:block;margin-top:3px;font-weight:500;font-size:11px;color:#e9ddff}
+#sid-mod-panel .rg-3{margin:0 0 6px;padding-left:4px;list-style:none;font-size:11.5px;color:#e6defa}
+#sid-mod-panel .rg-3 li{margin:0 0 3px}
+/* 📣 el parte del Estado Mayor y las novedades (18-10-2026) */
+#sid-mod-panel .rg-parte,#sid-mod-panel .rg-nov{margin:0 0 10px;padding:7px 8px;border-radius:9px;border:1px solid rgba(148,163,184,.45);background:rgba(4,17,26,.55)}
+#sid-mod-panel .rg-nov{border-color:#46f0d0;background:rgba(10,60,52,.45);box-shadow:0 0 12px rgba(70,240,208,.25)}
+#sid-mod-panel .rg-parte ul,#sid-mod-panel .rg-nov ul{list-style:none;margin:0;padding:0}
+#sid-mod-panel .rg-parte li{display:flex;gap:6px;align-items:flex-start;margin:0 0 6px;font-size:11.5px;line-height:1.35}
+#sid-mod-panel .rg-parte li>div{flex:1;min-width:0}
+#sid-mod-panel .rg-parte li span{display:block;overflow-wrap:anywhere}
+#sid-mod-panel .rg-parte .ok{color:#7dffb0}
+#sid-mod-panel .rg-parte .debe{color:#ffc9b8}
+#sid-mod-panel .rg-parte .luego{color:#94a3b8}
+#sid-mod-panel .rg-nov li{margin:0 0 4px;font-size:12px;color:#d9fff6;overflow-wrap:anywhere}
+#sid-mod-panel .rg-entra{display:flex;flex-wrap:wrap;gap:3px;align-items:center;margin:0 0 5px;font-size:11.5px}
+#sid-mod-panel .rg-todavia{margin:0 0 5px;font-size:11.5px;color:#cbd5e1}
 #sid-mod-panel .rg-bloq,#sid-mod-panel .rg-nada{margin:4px 0 0;font-size:11.5px;color:#94a3b8}
 #sid-mod-panel .rg-listo{margin-top:4px;font-size:11.5px;color:#7dffb0}
 #sid-mod-panel .rg-pcab{display:flex;align-items:flex-start;gap:7px;width:100%;padding:0;text-align:left;color:inherit;background:transparent;border:0;cursor:pointer;font:inherit}

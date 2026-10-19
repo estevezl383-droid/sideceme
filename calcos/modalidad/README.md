@@ -23,7 +23,7 @@ React, no guarda nada en el ejercicio (salvo los documentos que se adjuntan a pr
 | `ogo-calco.js` | **🗺️ El Anexo A como gráfico** (puro: arma un SVG): el Área de Operaciones, los límites con su magnitud, las medidas, las fichas propias con su símbolo, los PC y las **dos cruces de amarre** sobre la cuadrícula UTM con sus coordenadas; el navegador lo pasa a PNG para el Word. |
 | `carpeta.js` | **📕 La carpeta del profesor** (pura, se prueba en Node): las respuestas de la IA de cada paso, lo «PARA EL PROFESOR» que se va sumando, lo que es solución y lo que va a los alumnos, el bloque para los pedidos que siguen y el .md para bajarla y volver a cargarla. |
 | `biblioteca.js` | **📚 La biblioteca del profesor** (puro, se prueba en Node con `jszip.min.js`): lee un Word (.docx) con sus párrafos y TABLAS; reconoce el **COE** (la tabla «CLASE \| CMDO. \| RCB-1 \| … \| TOTAL» con PERSONAL · ARMAMENTO · VEHÍCULOS · EQUIPO ESPECIAL) y devuelve la División con cada unidad, su efectivo, armamento y vehículos; da el arma y el escalón de la Mesa por la sigla (RCB, RIM, RIAT, RAM, BAT. AA, BATING, BAT. COM, BAT. LOG, COMP. ICIA, ERM, RI, RAC…); arma las fichas de un COE y el resumen para la IA. |
-| `ruta-g4.js` | **🚚 La ruta del G-4** (puro, se prueba en Node): el trabajo del G-4 en orden por las 7 fases (22 pasos: por qué ahora, qué recibe, qué hace, qué entrega, dónde se hace en el panel del G-4 y cómo se sabe que está hecho), lo que le entregan las otras secciones (19 insumos y cómo se sabe si están en la Mesa), el paso que sigue y el **🤖 Estado Mayor simulado** (el pedido por fase, leer la respuesta y pasarla a documentos del ejercicio). |
+| `ruta-g4.js` | **🚚 La ruta del G-4** (puro, se prueba en Node): el trabajo del G-4 en orden por las 7 fases (22 pasos: por qué ahora, qué recibe, qué hace, qué entrega, dónde se hace en el panel del G-4 y cómo se sabe que está hecho), lo que le entregan las otras secciones (19 insumos y cómo se sabe si están en la Mesa), el paso que sigue, el **📣 parte del Estado Mayor** (qué terminó cada sección y qué te debe) y el **🤖 Estado Mayor simulado** (el pedido por fase, leer la respuesta y pasarla a documentos del ejercicio; las unidades que despliega el G-3 en la carta). |
 | `modalidad.js` | El selector **🎖️ Mesa · 🎓 Aprendizaje · 🧑‍🏫 Profesor** y el tablero de la derecha (en Aprendizaje, «¿Qué practicás?»: el PMTD completo o la ruta del G-4 con la luz en la Mesa). |
 | `modalidad.css` | Los estilos; con Pandora y una modalidad que no sea «Mesa», **esconde la columna CMTE./JEM./G-1…G-5** (el tablero ocupa su lugar y aprieta esos botones por el alumno). |
 
@@ -90,6 +90,40 @@ navegador). Con «Como G-4»:
   expediente** y el ejercicio lo lleva consigo. **Por fases**: una fase a la que el alumno no llegó
   dice 🔒 y lo que la IA haya escrito de esa fase queda afuera (la decisión del Cmte. no aparece antes
   de comparar los CAP). La unidad y sus fichas no se simulan: las pone el profesor (o el alumno).
+
+#### 📣 El parte del Estado Mayor y el G-3 que despliega en la carta (18-10-2026)
+
+Sergio, con la captura de «🤖 Que el EM simulado entregue lo que falta (9)» en la F3·P1: «no hay los
+cursos de acción propios y no se ven las unidades que el G-3 ya debería haber desplazado… mis unidades
+siguen como Cuerpo de Ejército… debería salir un mensaje diciendo: el G-2 ya terminó esto, el G-3 ya
+terminó esto… quiero que aprenda dónde, cuándo y con qué insumos de los otros entra».
+
+- **Los CAE del G-2 llegan en la fase 2** (son el último paso de la PICB, F2·P2), no en la 3; los usa
+  el F2·P8 RCIC/EEIA y el F3·P1. Los CAP propios siguen en la fase 3: el G-3 los arma DESPUÉS de la
+  potencia relativa (F3·P2 a P6).
+- **📣 Parte del Estado Mayor** (debajo de «💡 AHORA»): por sección (Sup., Cmte., JEM, G-1, G-2, G-3,
+  G-5) **✅ Terminó** (lo que ya te entregó; 🤖 si fue el EM simulado), **⏳ Te debe** (de tu fase o de
+  antes, con el paso en que lo usás) y **🔒 Más adelante** (con su fase). Debajo, «🤖 Pedirle al EM
+  simulado lo que te deben (n)», con quién debe cuánto (`parteEM`, nombres cortos en `INSUMOS[].corto`).
+- **¿Con qué entrás?** En «💡 AHORA»: **Entrás con** (lo que necesita el paso, ✓/🤖/○) y **⏭️ Todavía no
+  te hace falta** (lo de tu misma fase que usás más adelante, sin entregar: en la F3·P1, «G-3 · los CAP
+  1 y 2 (paso 11)… no te adelantes») (`entrada`).
+- **El botón del EM simulado se explica solo**: «🤖 Pedirle al EM simulado lo que te falta (n)» con
+  «Te deben: Sup. 1 · G-2 2 · G-3 3…»; adentro, ① Copiá el pedido ② Pegalo en ChatGPT, Gemini o Claude ③
+  Pegá la respuesta y 📥 Recibir, y que **la Mesa no tiene IA propia** (por eso no se llena sola).
+- **📣 Novedades del Estado Mayor** al recibir: «✅ El G-3 terminó: Los cursos de acción propios → lo
+  usás en el paso 11 · Proponer las áreas…», «🪖 El G-3 desplegó el CAP 1 en la carta…» y «💡 Ahora
+  seguís con el paso…»; «✓ Entendido» las cierra.
+- **🪖 El G-3 despliega en la carta**: en la fase 3 el pedido pide, al final de la entrega `orgTarea`
+  (o de `caps`), un bloque ```json con las unidades SUBORDINADAS (un escalón abajo y las de apoyo de
+  combate) donde las pone el CAP 1 al iniciar la operación (`pedidoFichas`). Al recibir, `leerEntregas`
+  saca las del CAP 1 con lugar válido (`unidadesDelTexto`; `null` o vacío no es 0°) y el documento
+  queda sin el JSON, con la lista en texto (la IA de las hojas del G-4 la lee). `desplegar`: la propia
+  que ya está en la carta con la misma designación (sin importar mayúsculas ni puntos) **se mueve**; las
+  demás **se agregan**; una enemiga nunca se mueve. Agrega con `agregarUnidades` (que toma la foto del
+  ↶ Deshacer) y mueve con el `setUnidades` del puente de la F3·P3 (`organizacion/v1/carta.js ·
+  datosPuente`, el mismo módulo que importa el compilado): **un solo ↶ Deshacer vuelve todo**. Si ese
+  puente no está, agrega las nuevas y avisa cuáles había que mover a mano.
 
 ### 🧑‍🏫 Profesor
 **Desde el 11-10-2026 son 13 pasos:** … 10 📜 OGO completa con sus anexos · **11 🔎 Revisión de coherencia:
@@ -462,6 +496,13 @@ escritorio y teléfono: lo que hay en el título y en la barra de avance del tab
   a la hoja F2·P5; todo sigue después de recargar; el EM simulado de la fase 2 (lo de la fase 3 queda
   afuera, la PICB pasa a 🤖 y 👁 Leer la muestra); sin errores de consola. Capturas en
   `pruebas/salidas-ruta-g4/` (no se versionan).
+  Desde el 18-10-2026 también: las 📣 Novedades (el G-2 terminó la PICB, en qué paso se usa, el paso que
+  sigue) y «✓ Entendido»; el 📣 Parte (el G-2 terminó la PICB 🤖 y debe los CAE, el G-1 da las bajas en la
+  fase 4); en la F3·P1, «Entrás con» los CAE y «Todavía no te hace falta» los CAP (paso 11); el pedido de
+  la fase 3 con el bloque de las unidades, los pasos ①②③; al recibir, RI-1 «ALFA» se MUEVE (no se
+  duplica), BAT. ING. 9 aparece, lo del CAP 2 no toca nada, el documento lleva las unidades en texto sin
+  el JSON, y un solo ↶ Deshacer de la barra vuelve todo. En `ruta-g4.cjs`: los CAE en la fase 2, el JSON
+  de las unidades (sólo CAP 1, `null` no es 0°, texto sin el bloque), `desplegar`, `parteEM` y `entrada`.
 - `node calcos/pruebas/ogo-coherencia.cjs` (11-10-2026, tarde): las designaciones («I CUERPO DE EJÉRCITO (I CE)» =
   «CE-I», GALM-1 por su sigla), la capa de poblaciones y la más cercana, el Área de Operaciones más grande,
   quién expide (FF.TT.T.O. · CTO · CE-I, CE-II y CE-III · Tunapa) en sus tres casos, las unidades de la

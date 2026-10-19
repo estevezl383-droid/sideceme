@@ -131,7 +131,9 @@ assert.equal(E.porFase[2].insumos.find((i) => i.ins.id === 'fases').e.ok, true, 
 
 // ─── 🤖 el Estado Mayor simulado ───────────────────────────────────────────────────────
 const f2 = R.faltantes(2, ej).map((i) => i.id)
-assert.deepEqual(f2, ['anexoLogSup', 'guiaInicial', 'picb', 'recursosG5', 'tareasG3', 'misionReexp', 'intencion', 'normasEval'], 'lo que falta hasta la fase 2, en orden')
+assert.deepEqual(f2, ['anexoLogSup', 'guiaInicial', 'picb', 'cae', 'recursosG5', 'tareasG3', 'misionReexp', 'intencion', 'normasEval'], 'lo que falta hasta la fase 2, en orden (los CAE salen de la PICB: fase 2)')
+assert.equal(R.insumo('cae').fase, 2, 'los CAE del G-2 llegan en la fase 2 (último paso de la PICB), no en la 3')
+R.INSUMOS.forEach((I) => assert.ok(I.corto, `${I.id}: su nombre corto para el 📣 Parte del EM`))
 assert.ok(!R.faltantes(7, ej).some((i) => i.id === 'unidad' || i.id === 'orden' || i.id === 'fases'), 'ni lo que ya está ni lo que pone el profesor')
 const ped = R.pedidoEM(2, ej, { contexto: '### Ejercicio\n- (contexto de prueba)' })
 assert.match(ped, /^# PEDIDO DE TRABAJO PARA LA IA — LEÉ ESTO PRIMERO/)
@@ -140,6 +142,7 @@ assert.match(ped, /NO hagas el trabajo del G-4/)
 assert.match(ped, /FASE 2 · Analizar la misión/)
 for (const id of f2) assert.ok(ped.includes('=== ENTREGA: ' + id + ' ==='), `marca de ${id}`)
 assert.ok(!/=== ENTREGA: (caps|decision|opord) ===/.test(ped), 'nada de fases a las que el alumno no llegó')
+assert.ok(!/Las unidades en la carta/.test(ped), 'en la fase 2 el G-3 todavía no despliega nada')
 assert.match(ped, /\(contexto de prueba\)/)
 assert.equal(R.pedidoEM(1, { ...ej, documentos: [...ej.documentos, ...R.documentos([{ insumo: 'anexoLogSup', texto: 'a' }, { insumo: 'guiaInicial', texto: 'b' }], ej)] }, {}), '', 'sin nada que falte no hay pedido')
 
@@ -165,6 +168,43 @@ assert.ok(!R.faltantes(2, ej2).some((i) => i.id === 'picb'))
 // un anexo de logística real (del profesor) cuenta como de la Mesa
 const ej3 = { ...ej, documentos: [{ nombre: 'ANEXO D (LOGÍSTICA) A LA OGO N° 3.docx', categoria: 'orden', texto: '...' }] }
 assert.equal(R.estado(ej3, {}).porFase[0].insumos.find((i) => i.ins.id === 'anexoLogSup').e.de, 'mesa')
+// ─── 🪖 el G-3 despliega las unidades del CAP 1 en la carta ─────────────────────────────
+const ped3 = R.pedidoEM(3, ej, {})
+assert.match(ped3, /## Las unidades en la carta \(lo hace el G-3\)[\s\S]*Al final de la entrega `orgTarea`/, 'el pedido de la fase 3 pide el bloque json al final de la organización de la tarea')
+assert.match(ped3, /"designacion":"1ra\. DIV\.","bando":"propias"/)
+assert.match(ped3, /=== ENTREGA: orgTarea ===\n[^\n]*\n\(y al final, el bloque ```json con las unidades desplegadas\)/)
+assert.match(ped3, /y al final de `orgTarea` el bloque ```json/, 'y el recordatorio')
+const resp3 = '=== ENTREGA: caps ===\nCAP 1 (FICT.)\n```json\n[{"designacion":"no va"}]\n```\n\n=== ENTREGA: orgTarea ===\nAgrupación ALFA (FICT.).\n```json\n{"fichas":[{"designacion":"RI-1 «ALFA» (FICT.)","arma":"infanteria","escalon":"regimiento","lat":-16.8,"lng":-68.45,"cap":1},{"designacion":"BAT. ING. 9 (FICT.)","arma":"ingenieria","escalon":"batallon","lat":"-16.9","lon":-68.35},{"designacion":"RCB-2 «BRAVO» (FICT.)","lat":-16.6,"lng":-68.1,"cap":2},{"designacion":"SIN LUGAR","lat":null,"lng":1}]}\n```\n\n=== ENTREGA: tareasG3 ===\nTareas (FICT.)\n```json\n{"fichas":[{"designacion":"X","lat":1,"lng":1}]}\n```\n'
+const L3 = R.leerEntregas(resp3)
+const og = L3.entregas.find((e) => e.insumo === 'orgTarea')
+assert.deepEqual(og.unidades.map((u) => u.designacion), ['RI-1 «ALFA» (FICT.)', 'BAT. ING. 9 (FICT.)'], 'sólo las del CAP 1 con lugar válido (lat como texto vale, lon también)')
+assert.equal(og.unidades[1].lng, -68.35)
+assert.ok(!/```/.test(og.texto), 'el texto queda sin el bloque json')
+assert.deepEqual(L3.entregas.find((e) => e.insumo === 'caps').unidades, [], 'un json sin lugar no despliega nada')
+assert.ok(/```json/.test(L3.entregas.find((e) => e.insumo === 'tareasG3').texto), 'en las entregas que no despliegan, el texto queda como vino')
+const d3 = R.documentos([og], ej)[0]
+assert.match(d3.texto, /UNIDADES DESPLEGADAS EN LA CARTA POR EL G-3 \(CAP 1[^\n]*\n- RI-1 «ALFA» \(FICT\.\) \(infanteria, regimiento\): -16\.8, -68\.45\n- BAT\. ING\. 9/)
+const dsp = R.desplegar([{ designacion: 'RI-1 «alfa» (fict)', lat: -16.8, lng: -68.45 }, { designacion: 'BAT. ING. 9 (FICT.)', lat: -16.9, lng: -68.35 }, { designacion: 'BAT. ING. 9 (FICT.)', lat: 0, lng: 0 }, { designacion: 'BRIG. BL. ROJA (FICT.)', bando: 'propias', lat: -16, lng: -68 }], ej.unidades)
+assert.deepEqual(dsp.mover.map((x) => [x.id, x.lat, x.lng]), [['l-alfa', -16.8, -68.45]], 'la que ya está (misma designación, sin importar mayúsculas ni puntos) se MUEVE')
+assert.deepEqual(dsp.nuevas.map((x) => x.designacion), ['BAT. ING. 9 (FICT.)', 'BRIG. BL. ROJA (FICT.)'], 'las demás son nuevas, sin repetir; una enemiga nunca se mueve')
+
+// ─── 📣 el parte del Estado Mayor y ¿dónde entrás? ──────────────────────────────────────
+const marcasF3 = { 'leer-orden': 1, 'aprec-activa': 1, 'asdi-entender': 1, calculos: 1, limitaciones: 1, rcic: 1, 'aprec-orientacion': 1 }
+const E3 = R.estado(ej, marcasF3)
+assert.equal(E3.actual.p.id, 'potencia', 'F3·P1')
+const P3 = R.parteEM(ej, marcasF3)
+assert.deepEqual(P3.map((s) => s.de), ['sup', 'cmte', 'jem', 'g1', 'g2', 'g3', 'g5'], 'todas las secciones, en orden')
+const g2 = P3.find((s) => s.de === 'g2'), g3 = P3.find((s) => s.de === 'g3'), g1 = P3.find((s) => s.de === 'g1')
+assert.deepEqual(g2.deben.map((x) => [x.ins.id, x.uso && x.uso.n]), [['picb', 10], ['cae', 10]], 'el G-2 te debe la PICB y los CAE, que usás ahora (paso 10)')
+assert.deepEqual(g3.listos.map((x) => x.ins.id), ['fases'])
+assert.ok(g3.deben.some((x) => x.ins.id === 'caps' && x.uso.n === 11), 'los CAP del G-3: paso 11')
+assert.deepEqual(g3.luego.map((x) => x.ins.id), ['sincroG3', 'barreras', 'opord'])
+assert.deepEqual(g1.luego.map((x) => x.ins.fase), [4], 'el G-1 te da las bajas en la fase 4')
+const en = R.entrada(E3, ej)
+assert.deepEqual(en.necesita.map((i) => i.ins.id), ['cae', 'picb'])
+assert.deepEqual(en.despues.map((x) => [x.ins.id, x.uso.n]), [['caps', 11], ['orgTarea', 11]], 'en la F3·P1 los CAP todavía no hacen falta (las fases ya están: no se nombran)')
+assert.equal(R.entrada(R.estado(ej, Object.fromEntries(R.PASOS.map((p) => [p.id, 1]))), ej), null, 'con la ruta terminada no hay paso de entrada')
+
 // sin ejercicio: nada hecho, todo falta
 assert.equal(R.estado(null, {}).hechos, 0)
 assert.equal(R.tieneTexto({ esquema: 'aprec-log-v1', numero: '2', campos: { mision: '  ' } }), false)

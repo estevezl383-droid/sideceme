@@ -50,6 +50,7 @@
   // marcado a mano por ejercicio, la entrega del EM simulado que se está leyendo, su pedido y lo pegado,
   // y lo que está iluminado en la Mesa
   var ruta = 'pmtd', rutaFase = 0, rutaVer = '', rutaMarcas = {}, rutaActual = '', rutaHuella = '', rutaIns = '', emFase = 0, emTexto = '', emResp = '', luces = [], rutaTics = 0
+  var novedades = [] // 📣 lo que el EM simulado acaba de entregar (y lo que desplegó en la carta), hasta que el alumno lo cierra
   var rep = { destinos: null, destino: '', calcoId: '', nombre: '', ind: '', contenido: true, enemigo: false, otros: false, docs: null, ocupado: false, sinCiclos: false, sel: '', selDe: '' } // sel: la selección guardada que va (selDe: de qué ejercicio)
 
   function lee(k, d) { try { var v = localStorage.getItem(k); return v == null ? d : v } catch (e) { return d } }
@@ -1303,7 +1304,9 @@
     return '<li class="rg-ins ' + (e.ok ? (e.de === 'em' ? 'em' : 'ok') : 'falta') + '">' + chipDe(I.de) + '<div class="rg-in"><b>' + esc(I.nom) + '</b><i>' + esc(est) + '</i><small>Te sirve para: ' + esc(I.para) + '</small>' + (acc ? '<div class="rg-acc">' + acc + '</div>' : '') + txt + '</div></li>'
   }
   function htmlEM(f) {
-    return '<div class="ia-caja rg-em-caja"><p class="ia-ayuda">El <b>EM simulado</b> (la IA) escribe lo que el Cmte., el JEM, el G-1, el G-2, el G-3 y el G-5 —y el escalón superior, si falta— te entregan hasta la fase ' + f + ', <b>sin hacer tu trabajo</b>. Copiá el pedido (' + emTexto.length.toLocaleString('es') + ' caracteres), pegalo en ChatGPT, Gemini o Claude, y pegá abajo lo que conteste: las entregas se suman a los documentos del ejercicio y la IA de tus hojas las lee.</p>' +
+    var conFichas = RUTA.faltantes(f, ejSync()).some(function (i) { return i.fichas })
+    return '<div class="ia-caja rg-em-caja" id="sid-rg-em"><p class="ia-ayuda">El <b>EM simulado</b> hace de tus compañeros (el Cmte., el JEM, el G-1, el G-2, el G-3, el G-5 y el escalón superior) y te entrega lo que te deben hasta la fase ' + f + ', <b>sin hacer tu trabajo</b>. La Mesa no tiene IA propia: por eso no se llena sola. Son tres pasos:</p>' +
+      '<ol class="rg-3"><li><b>① Copiá el pedido</b> (' + emTexto.length.toLocaleString('es') + ' caracteres).</li><li><b>② Pegalo</b> en ChatGPT, Gemini o Claude y esperá la respuesta entera.</li><li><b>③ Pegá la respuesta abajo</b> y tocá <b>📥 Recibir las entregas</b>: cada documento se suma al ejercicio (la IA de tus hojas lo lee)' + (conFichas ? ' y <b>las unidades que despliega el G-3 aparecen en la carta</b>' : '') + '. Arriba te avisa qué sección terminó qué.</li></ol>' +
       '<div class="ia-acc"><button type="button" class="ir" data-a="em-copiar">📋 Copiar el pedido</button><button type="button" class="ir" data-a="em-bajar">⬇️ Bajar .md</button><button type="button" class="chico" data-a="em-cerrar">Cerrar</button>' + (aviso.em ? '<span class="ia-aviso">' + esc(aviso.em) + '</span>' : '') + '</div>' +
       '<textarea data-em readonly rows="6" aria-label="Pedido al Estado Mayor simulado">' + esc(emTexto) + '</textarea>' +
       '<div class="ia-resp"><div class="ia-resp-tit">📥 Lo que contestó la IA<span>Pegalo entero, con las marcas «=== ENTREGA: … ===».</span></div>' +
@@ -1316,7 +1319,7 @@
     var h = '<div class="rg-recibe"><div class="rg-tit">📥 Lo que te entregan en esta fase</div>' +
       (pf.insumos.length ? '<ul>' + pf.insumos.map(function (x) { return htmlInsumo(x, ej, !llega) }).join('') + '</ul>' : '<p class="rg-nada">En esta fase no te entregan nada nuevo: trabajás con lo que ya tenés.</p>')
     if (!llega) h += '<div class="rg-bloq">🔒 El EM simulado te lo entrega cuando llegues a esta fase (estás en la fase ' + E.fase + '): así no ves antes de tiempo lo que todavía no se decidió.</div>'
-    else if (falt.length) h += '<button type="button" class="rg-em" data-a="em-abrir" data-rf="' + F.id + '" aria-expanded="' + (emFase === F.id) + '">🤖 Que el EM simulado entregue lo que falta (' + falt.length + ')' + (emFase === F.id ? ' ▴' : ' ▸') + '</button>' + (emFase === F.id ? htmlEM(F.id) : '')
+    else if (falt.length) h += '<button type="button" class="rg-em" data-a="em-abrir" data-rf="' + F.id + '" aria-expanded="' + (emFase === F.id) + '">🤖 Pedirle al EM simulado lo que te falta (' + falt.length + ')' + (emFase === F.id ? ' ▴' : ' ▾') + '<small>Te deben: ' + esc(quienesDeben(falt)) + '</small></button>' + (emFase === F.id ? htmlEM(F.id) : '')
     else h += '<div class="rg-listo">✓ Tenés todo lo que te entregan hasta esta fase.</div>'
     if (aviso['emf' + F.id]) h += '<div class="ia-aviso">' + esc(aviso['emf' + F.id]) + '</div>'
     return h + '</div>'
@@ -1329,7 +1332,7 @@
     // lo que falta, según dónde se consigue: el EM simulado ya (llega hasta la fase del alumno), más adelante, o el profesor
     var falt = x.insumos.filter(function (i) { return !i.e.ok }), sinSim = falt.filter(function (i) { return i.ins.simulable === false })
     var ya = falt.filter(function (i) { return i.ins.simulable !== false && i.ins.fase <= E.fase }), luegoF = falt.filter(function (i) { return i.ins.simulable !== false && i.ins.fase > E.fase }).map(function (i) { return i.ins.fase })
-    var dondeFalta = [].concat(ya.length ? ['lo completa el 🤖 EM simulado («📥 Lo que te entregan» de la fase ' + E.fase + ')'] : [], luegoF.length ? ['te lo entregan al llegar a la fase ' + Math.min.apply(null, luegoF)] : [], sinSim.length ? [sinSim[0].ins.quien] : []).join('; ')
+    var dondeFalta = [].concat(ya.length ? ['pedíselo al 🤖 EM simulado (botón del 📣 Parte del Estado Mayor, arriba)'] : [], luegoF.length ? ['te lo entregan al llegar a la fase ' + Math.min.apply(null, luegoF)] : [], sinSim.length ? [sinSim[0].ins.quien] : []).join('; ')
     h += '<div class="rg-det">' + (act ? '<div class="rg-luz">💡 Esto es lo que sigue</div>' : luego ? '<div class="rg-antes">Primero: ' + A.n + '. ' + esc(A.p.nom) + '</div>' : '') +
       '<p><b>¿Por qué ahora?</b> ' + esc(p.porque) + '</p>' +
       '<div class="rg-nec"><b>Necesitás:</b> ' + x.insumos.map(function (i) { var S = RUTA.DE[i.ins.de]; return '<span class="rg-chip ' + (i.e.ok ? (i.e.de === 'em' ? 'em' : 'ok') : 'falta') + '" title="' + esc(S.nom + ' · ' + (i.e.ok ? i.e.det : 'falta')) + '">' + (i.e.ok ? '✓' : '○') + ' ' + esc(S.corto + ' · ' + i.ins.nom) + '</span>' }).join('') + '</div>' +
@@ -1341,14 +1344,76 @@
         '<button type="button" class="chico" data-a="ruta-listo" data-paso="' + p.id + '" title="' + esc(p.hecho ? 'La Mesa lo marca sola cuando lo guardás; si ya lo hiciste de otra forma, marcalo' : p.automatico ? 'Se marca solo al usarlo en el panel del G-4; también podés marcarlo' : 'La Mesa no guarda este paso: marcalo cuando lo termines') + '">✓ Listo</button>') + '</div></div></li>'
     return h
   }
+  // ─── 📣 El parte del Estado Mayor (18-10-2026) ───
+  // Sergio: «debería salir un mensaje diciendo: el G-2 ya terminó esto, el G-3 ya terminó esto, para saber
+  // que todo avanza… quiero que aprenda dónde, cuándo y con qué insumos de los otros entra».
+  function quienesDeben(lis) {
+    var n = {}, orden = []
+    lis.forEach(function (x) { var I = x.ins || x; if (!n[I.de]) { n[I.de] = 0; orden.push(I.de) } n[I.de]++ })
+    return orden.map(function (de) { return RUTA.DE[de].corto + ' ' + n[de] }).join(' · ')
+  }
+  function insCorto(x) { return x.ins.corto || x.ins.nom }
+  // ¿Con qué entrás al paso de ahora? Y lo que es de tu misma fase pero usás más adelante (no te adelantes)
+  function htmlEntrada(E, ej) {
+    var en = RUTA.entrada(E, ej)
+    if (!en) return ''
+    var h = '<div class="rg-entra"><b>Entrás con:</b> ' + en.necesita.map(function (i) { var S = RUTA.DE[i.ins.de]; return '<span class="rg-chip ' + (i.e.ok ? (i.e.de === 'em' ? 'em' : 'ok') : 'falta') + '">' + (i.e.ok ? '✓' : '○') + ' ' + esc(S.corto + ' · ' + insCorto(i)) + '</span>' }).join('') + '</div>'
+    if (en.despues.length) h += '<div class="rg-todavia">⏭️ <b>Todavía no te hace falta:</b> ' + esc(en.despues.map(function (x) { return RUTA.DE[x.ins.de].corto + ' · ' + insCorto(x) + ' (paso ' + x.uso.n + ')' }).join(' · ')) + '. Son de esta fase, pero los usás más adelante: no te adelantes.</div>'
+    return h
+  }
+  function htmlNovedades() {
+    if (!novedades.length) return ''
+    return '<div class="rg-nov" role="status"><div class="rg-tit">📣 Novedades del Estado Mayor</div><ul>' + novedades.map(function (t) { return '<li>' + esc(t) + '</li>' }).join('') + '</ul>' +
+      '<div class="rg-acc"><button type="button" class="chico" data-a="nov-cerrar">✓ Entendido</button></div></div>'
+  }
+  function htmlParte(ej, E) {
+    var P = RUTA.parteEM(ej, rutaM()), deben = RUTA.faltantes(E.fase, ej).length
+    var filas = P.map(function (s) {
+      var partes = []
+      if (s.listos.length) partes.push('<span class="ok">✅ Terminó: ' + esc(s.listos.map(function (x) { return insCorto(x) + (x.e.de === 'em' ? ' 🤖' : '') }).join(' · ')) + '</span>')
+      if (s.deben.length) partes.push('<span class="debe">⏳ Te debe: ' + esc(s.deben.map(function (x) { return insCorto(x) + (x.ins.simulable === false ? ' (lo pone el profesor)' : x.uso ? ' (paso ' + x.uso.n + ')' : ' (ya te hacía falta)') }).join(' · ')) + '</span>')
+      if (s.luego.length) partes.push('<span class="luego">🔒 Más adelante: ' + esc(s.luego.map(function (x) { return insCorto(x) + ' (fase ' + x.ins.fase + ')' }).join(' · ')) + '</span>')
+      return '<li class="' + (s.deben.length ? 'debe' : s.listos.length ? 'ok' : 'luego') + '">' + chipDe(s.de) + '<div>' + partes.join('') + '</div></li>'
+    })
+    return '<div class="rg-parte"><div class="rg-tit">📣 Parte del Estado Mayor — qué terminó cada sección (estás en la fase ' + E.fase + ')</div><ul>' + filas.join('') + '</ul>' +
+      (deben ? '<button type="button" class="rg-em" data-a="em-ir">🤖 Pedirle al EM simulado lo que te deben (' + deben + ') ▾<small>Te deben: ' + esc(quienesDeben(RUTA.faltantes(E.fase, ej))) + '</small></button>' : '<div class="rg-listo">✓ Hasta tu fase, todas las secciones te entregaron lo suyo.</div>') + '</div>'
+  }
+  // 🪖 Las unidades que despliega el G-3 del EM simulado: las que ya están en la carta (misma designación)
+  // se MUEVEN al lugar del CAP 1 (con el setUnidades del puente de la F3·P3, organizacion/v1/carta.js); las
+  // demás se agregan. Una sola foto para ↶ Deshacer (la de agregarUnidades, que se toma antes de los dos cambios).
+  function puenteCarta() {
+    return import('../organizacion/v1/carta.js').then(function (m) { return m && m.datosPuente ? m.datosPuente() : {} }, function () { return {} })
+  }
+  function desplegarG3(us) {
+    if (!IA || !puente || !puente.agregarUnidades) return Promise.resolve('⚠️ Las unidades del G-3 no se pudieron poner en la carta (recargá la Mesa con el ejercicio abierto): están escritas en su documento.')
+    var fichas = IA.fichasDeJSON(JSON.stringify({ fichas: us }), { centro: centroMesa() }).fichas
+    fichas.forEach(function (f) { f.id = String(f.id).replace(/^prof-ia-/, 'em-g3-') })
+    return puenteCarta().then(function (pc) {
+      var mesa = puente.unidades || (ejSync() || {}).unidades || [], d = RUTA.desplegar(fichas, mesa), setU = pc && typeof pc.setUnidades === 'function' ? pc.setUnidades : null
+      var mover = setU ? d.mover : []
+      puente.agregarUnidades(d.nuevas)
+      if (mover.length) {
+        var m = {}
+        mover.forEach(function (x) { m[String(x.id)] = x })
+        setU(function (P) { return (P || []).map(function (u) { var x = u && m[String(u.id)]; return x ? Object.assign({}, u, { lat: x.lat, lng: x.lng }) : u }) })
+      }
+      puente = Object.assign({}, puente, { unidades: mesa.map(function (u) { var x = u && mover.filter(function (y) { return String(y.id) === String(u.id) })[0]; return x ? Object.assign({}, u, { lat: x.lat, lng: x.lng }) : u }).concat(d.nuevas) })
+      var partes = []
+      if (mover.length) partes.push('movió ' + mover.map(function (x) { return x.designacion }).join(', '))
+      if (d.nuevas.length) partes.push('puso ' + d.nuevas.map(function (x) { return x.designacion }).join(', '))
+      if (!setU && d.mover.length) partes.push('no pudo mover ' + d.mover.map(function (x) { return x.designacion }).join(', ') + ' (ya estaban: movelas a mano)')
+      return '🪖 El G-3 desplegó el CAP 1 en la carta: ' + partes.join('; ') + '. ↶ Deshacer (barra) lo vuelve atrás.'
+    })
+  }
   function htmlRutaG4() {
     var ej = ejSync(), cab = '<div class="cab-tab rg"><h2>🚚 Practicar como G-4</h2>'
     if (!ej) return cab + '<p>Abrí un ejercicio (📁 Ejercicio) para empezar: la ruta mira lo que ya está hecho en él y te ilumina lo que sigue.</p></div>'
     var E = RUTA.estado(ej, rutaM()), A = E.actual, fAb = rutaFase > 0 ? rutaFase : rutaFase < 0 ? 0 : E.fase
     return cab + '<p>Sos el <b>G-4 de ' + esc(RUTA.nombreUnidad(ej)) + '</b>. Seguí la luz 💡: cada paso usa lo que ya hiciste y lo que te entregan las otras secciones; lo que ellas no hicieron lo completa el <b>🤖 EM simulado</b>, fase por fase.</p>' +
       '<div class="total"><span class="barra"><i style="width:' + Math.round(100 * E.hechos / E.total) + '%"></i></span><b>' + E.hechos + ' / ' + E.total + ' pasos</b></div>' +
-      (A ? '<div class="rg-ahora"><span>💡 AHORA · FASE ' + A.p.fase + ' · PASO ' + A.n + '</span><b>' + esc(A.p.nom) + '</b><div class="rg-acc"><button type="button" class="ir luz" data-a="ruta-ir" data-paso="' + A.p.id + '" style="--sc:#fbbf24">' + esc(dondeTxt(A.p)) + ' ▸</button><button type="button" class="chico" data-a="ruta-mostrar" data-paso="' + A.p.id + '">Por qué y cómo ▾</button></div></div>'
+      (A ? '<div class="rg-ahora"><span>💡 AHORA · FASE ' + A.p.fase + ' · PASO ' + A.n + ' · ' + esc(A.p.pmtd) + '</span><b>' + esc(A.p.nom) + '</b>' + htmlEntrada(E, ej) + '<div class="rg-acc"><button type="button" class="ir luz" data-a="ruta-ir" data-paso="' + A.p.id + '" style="--sc:#fbbf24">' + esc(dondeTxt(A.p)) + ' ▸</button><button type="button" class="chico" data-a="ruta-mostrar" data-paso="' + A.p.id + '">Por qué y cómo ▾</button></div></div>'
         : '<div class="rg-fin">✓ Terminaste la ruta del G-4: tu Anexo y tu Matriz de sincronización están hechos.</div>') + '</div>' +
+      htmlNovedades() + htmlParte(ej, E) +
       '<ol class="fases rg-fases">' + E.porFase.map(function (pf) {
         var F = pf.F, on = F.id === fAb, lista = pf.pasos.length && pf.hechos === pf.pasos.length
         return '<li class="fase' + (on ? ' on' : '') + (lista ? ' lista' : '') + (F.id > E.fase ? ' futura' : '') + (A && A.p.fase === F.id ? ' actual' : '') + '" data-rf="' + F.id + '">' +
@@ -1369,12 +1434,25 @@
     if (!puente || !puente.agregarDocumentos) { aviso.emr = '⚠️ Esta Mesa no tiene el puente para adjuntar (recargá la página con el ejercicio abierto).'; return pintar(true) }
     var r = RUTA.leerEntregas(emResp), vale = r.entregas.filter(function (x) { return RUTA.insumo(x.insumo).fase <= E.fase }), tarde = r.entregas.length - vale.length
     if (!vale.length) { aviso.emr = r.entregas.length ? '⚠️ Esas entregas son de fases a las que todavía no llegaste: se reciben cuando llegues.' : '⚠️ No encontré ninguna marca «=== ENTREGA: … ===»: pegá la respuesta entera de la IA.'; return pintar(true) }
-    var docs = RUTA.documentos(vale, ej), f = emFase
+    var docs = RUTA.documentos(vale, ej), desde = E.actual ? E.actual.n : 1
     puente.agregarDocumentos(docs)
-    aviso['emf' + f] = '📎 ' + docs.length + ' entrega(s) del EM simulado en los documentos del ejercicio: ' + vale.map(function (x) { return RUTA.insumo(x.insumo).nom }).join(' · ') + (tarde ? '; ' + (tarde === 1 ? 'una entrega es de una fase a la que todavía no llegaste: quedó afuera' : tarde + ' entregas son de fases a las que todavía no llegaste: quedaron afuera') : '') + (r.desconocidos.length ? '; no reconocí: ' + r.desconocidos.join(', ') : '') + '. La IA de tus hojas ya las lee.'
-    emFase = 0; emResp = ''; delete aviso.emr; rutaHuella = ''
-    pintar(true)
-    setTimeout(rutaTic, 300)
+    // 📣 lo que avisa: qué sección terminó qué y en qué paso lo usás
+    novedades = vale.map(function (x) {
+      var I = RUTA.insumo(x.insumo), S = RUTA.DE[I.de], u = RUTA.usoDesde(I.id, desde)
+      return '✅ ' + (I.de === 'sup' ? 'El escalón superior te entregó' : 'El ' + S.corto + ' terminó') + ': ' + I.nom + (u ? ' → lo usás en el paso ' + u.n + (u.n === desde ? ' (el de ahora)' : '') + ' · ' + u.p.nom : '') + '.'
+    })
+    novedades.push('📎 ' + docs.length + ' entrega(s) del EM simulado en los documentos del ejercicio (📁 Ejercicio); la IA de tus hojas ya las lee.' + (tarde ? ' ' + (tarde === 1 ? 'Una entrega es de una fase a la que todavía no llegaste: quedó afuera.' : tarde + ' entregas son de fases a las que todavía no llegaste: quedaron afuera.') : '') + (r.desconocidos.length ? ' No reconocí: ' + r.desconocidos.join(', ') + '.' : ''))
+    emFase = 0; emResp = ''; delete aviso.emr; rutaHuella = ''; rutaFase = 0
+    var us = [].concat.apply([], vale.map(function (x) { return x.unidades || [] }))
+    var listo = function () {
+      var E2 = rutaEstado()
+      if (E2 && E2.actual) novedades.push('💡 Ahora seguís con el paso ' + E2.actual.n + ' · ' + E2.actual.p.nom + ' (' + E2.actual.p.pmtd + ').')
+      pintar(true)
+      var cu = panel && panel.querySelector('.cuerpo'); if (cu) cu.scrollTop = 0
+      setTimeout(rutaTic, 300)
+    }
+    if (!us.length) return listo()
+    desplegarG3(us).then(function (t) { novedades.push(t); listo() }, function (e) { novedades.push('⚠️ Las unidades del G-3 no se pudieron poner en la carta: ' + (e && e.message ? e.message : e)); listo() })
   }
   function rutaAccion(acc, el) {
     var id = el.getAttribute('data-paso') || '', p = id ? rutaPaso(id) : null, f = +el.getAttribute('data-rf') || 0, ins = el.getAttribute('data-ins') || ''
@@ -1402,6 +1480,16 @@
       emFase = f; emResp = ''; delete aviso.em; delete aviso.emr; emTexto = emPedido(f); pintar(true); return
     }
     if (acc === 'em-cerrar') { emFase = 0; pintar(true); return }
+    if (acc === 'em-ir') { // desde el 📣 Parte: abre el pedido de la fase en que está el alumno
+      var E4 = rutaEstado()
+      if (!E4) return
+      rutaFase = E4.fase
+      if (emFase !== E4.fase) { emFase = E4.fase; emResp = ''; delete aviso.em; delete aviso.emr; emTexto = emPedido(E4.fase) }
+      pintar(true)
+      var caja = panel.querySelector('#sid-rg-em'); if (caja) caja.scrollIntoView({ block: 'start' })
+      return
+    }
+    if (acc === 'nov-cerrar') { novedades = []; pintar(true); return }
     if (acc === 'em-copiar') { copiar(emTexto).then(function () { aviso.em = '📋 Pedido copiado: pegalo en la IA.'; pintar(true) }, function () { aviso.em = 'No se pudo copiar: seleccioná el texto y copialo a mano.'; pintar(true) }); return }
     if (acc === 'em-bajar') { bajar('pedido-em-simulado-fase-' + emFase + '.md', emTexto); aviso.em = '⬇️ Bajado: adjuntalo a la IA con la orden de cumplirlo.'; pintar(true); return }
     if (acc === 'em-recibir') emRecibir()
@@ -1422,7 +1510,7 @@
   function pintar(forzar) {
     if (!panel) return
     var pl = cerrado()
-    var f = [modo, fase, escalon, foco, pl, iaPaso, JSON.stringify(hecho), JSON.stringify(aviso), !!(puente && puente.agregarUnidades), verBiblio, bibVer, bibVista, verCarpeta, carVer, carVista, ogoVer, ogoAbierto, ogoPedido.length, verOgoDatos, !!ogoRev, cohAbierto, cohPedido.length, nuevoVer, rep.destino, !!rep.destinos, rep.ocupado, ruta, rutaFase, rutaVer, rutaIns, emFase, emTexto.length, rutaHuella].join('|')
+    var f = [modo, fase, escalon, foco, pl, iaPaso, JSON.stringify(hecho), JSON.stringify(aviso), !!(puente && puente.agregarUnidades), verBiblio, bibVer, bibVista, verCarpeta, carVer, carVista, ogoVer, ogoAbierto, ogoPedido.length, verOgoDatos, !!ogoRev, cohAbierto, cohPedido.length, nuevoVer, rep.destino, !!rep.destinos, rep.ocupado, ruta, rutaFase, rutaVer, rutaIns, emFase, emTexto.length, rutaHuella, novedades.join('¦')].join('|')
     if (!forzar && f === firma) return
     firma = f
     panel.hidden = modo === 'mesa'
@@ -1528,7 +1616,7 @@
       } else { plegado = true; abiertoIgual = false; guarda(K_PLEGADO, '1') }
       pintar(true); return
     }
-    if (a && /^(ruta|em)-/.test(a.getAttribute('data-a')) && RUTA) { rutaAccion(a.getAttribute('data-a'), a); return }
+    if (a && /^(ruta|em|nov)-/.test(a.getAttribute('data-a')) && RUTA) { rutaAccion(a.getAttribute('data-a'), a); return }
     var ib = t.closest && t.closest('[data-ia-paso]')
     if (ib) {
       var pn = +ib.getAttribute('data-ia-paso')

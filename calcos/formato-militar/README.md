@@ -96,3 +96,41 @@ clases de docx del compilado (`window.SIDMilLib`, ver `CAMBIOS-EN-EL-COMPILADO.m
 formato es el mismo de todos los documentos. Único cambio en `word.js`: el título de un anexo cuyo
 padre es un PLAN dice «AL PLAN DE OPERACIONES …» (antes «A LA PLAN…»); con una ORDEN sigue «A LA
 ORDEN…». Prueba: `node calcos/pruebas/ogo.cjs`.
+
+### El diálogo se llena solo (18-10-2026, `modelo.js?v=destinos20261018`)
+
+Sergio, con la captura del diálogo del Anexo de Apoyo de Servicio de Combate (🎬 Concepto del G-4): «¿por
+qué no se rellena sola?». Los contenidos que no coincidían EXACTO con un apartado del modelo de la Escuela
+quedaban en «Seleccione apartado» y el DOCX no salía hasta elegirlos uno por uno; el anexo pedía además su
+letra, su asunto y el padre, y la distribución podía quedar con «[Unidad superior pendiente]» aunque la
+unidad superior ya estuviera arriba.
+
+- **Cada contenido trae su apartado** (`sugerencias` → `sugerido`, `destinoCercano`): «Organización de la
+  Tarea» va a un bloque **sin numerar antes de SITUACIÓN** (`§org`); lo que empieza con el título de un
+  apartado («2.- Condiciones meteorológicas.») va a ese apartado; si no, el título más hondo que coincide
+  (igual, o con todas sus palabras: «Personal» → «Funciones de Personal»; las fases → el Concepto de
+  Apoyo) y si no, el de arriba («SITUACIÓN.»); lo que no tiene dónde ir se **conserva con su título de la
+  hoja, al final** (`§propio`). El diálogo los muestra ya elegidos (y esas dos opciones arriba de la
+  lista). Si el oficial deja uno en «Seleccione apartado», el aviso «Asigne el contenido…» sigue.
+- **El título propio del renglón no se pierde** cuando su apartado es otro («Mantenimiento.» dentro de
+  «Funciones Logísticas.», sin numerar). En un apartado exacto no se repite, como antes.
+- **La descarga directa sin diálogo no cambia**: lo exacto sigue en `destino` y, si algo no coincide, se
+  conserva la estructura propia de la hoja.
+- **El anexo se identifica solo** (`completarSubordinado`): el asunto, del paréntesis del título; la
+  letra, del título o del cuadro de anexos de la OGO del G-3 (si no, la de la OGO de la Mesa: «F» Apoyo
+  de Servicio de Combate, «H» Personal, «I» AC/GM…); el padre, la OGO registrada en el ejercicio o, con el
+  número de la Orden en el título («… ORDEN DE OPERACIONES Nº 3»), la ORDEN GENERAL DE OPERACIONES No. 3.
+  Con todo eso **baja directo, sin diálogo**. Un padre escrito sólo con su número («24») es la ORDEN
+  GENERAL DE OPERACIONES No. 24 (`tituloPadre`); lo que escribió el oficial no se pisa.
+- **La distribución** toma la unidad superior aunque llegue del membrete después (y al descargar se
+  reemplaza «[Unidad superior pendiente]» si quedó).
+
+El compilado importa `runtime.js?v=sigla20261011` (no se tocó): el navegador puede tardar lo que dure su
+caché en tomar el `runtime.js` nuevo, que ya importa `modelo.js?v=destinos20261018`.
+
+Pruebas: `node calcos/pruebas/formato-militar-destinos.cjs` (los renglones del anexo, el Word con los
+sugeridos, letra/asunto/padre) y `node calcos/pruebas/e2e/word-anexo-g4.cjs` (la Mesa real: directo con
+el número de la Orden; sin él, el diálogo lleno y el DOCX con la OGO No. 24). `formato-militar-ui.cjs`
+cambió con esto: el contenido sin correspondencia ya viene ubicado (`§propio`); el aviso se prueba
+dejándolo a propósito sin apartado.
+
