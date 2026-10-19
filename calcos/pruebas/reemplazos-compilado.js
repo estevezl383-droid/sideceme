@@ -36,7 +36,8 @@
 //   index-seleccion-20261011.js + reemplazos-2026-10-12-abrir.js = index-abrir-20261012.js
 //   index-abrir-20261012.js + reemplazos-2026-10-16-tijera.js = index-tijera-20261016.js
 //   index-tijera-20261016.js + reemplazos-2026-10-16-huellas.js = index-huellas-20261016.js
-//   index-huellas-20261016.js + reemplazos-2026-10-18-seleccionar.js = index-seleccionar-20261018.js (el vigente)
+//   index-huellas-20261016.js + reemplazos-2026-10-18-seleccionar.js = index-seleccionar-20261018.js
+//   index-seleccionar-20261018.js + reemplazos-2026-10-19-linea-tiempo.js = index-linea-tiempo-20261019.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -50,6 +51,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-19-linea-tiempo'),
+    nombre: 'reemplazos-2026-10-19-linea-tiempo',
+    // calcos/assets/index-seleccionar-20261018.js (antes de que la Línea de Tiempo lea todos los documentos).
+    anterior: '2527a3e16789741b0ec32c3dc08a24a6db975542beeceadb8f9143da40b5f33e',
+  },
   {
     lista: require('./reemplazos-2026-10-18-seleccionar'),
     nombre: 'reemplazos-2026-10-18-seleccionar',
