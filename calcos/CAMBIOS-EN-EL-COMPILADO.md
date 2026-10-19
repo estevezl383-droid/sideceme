@@ -5,6 +5,26 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-19 (2) — 📄 La Orden del escalón superior sale de los documentos del ejercicio (`index-orden-documentos-20261019.js`)
+
+Parte de `index-linea-tiempo-20261019.js` + `pruebas/reemplazos-2026-10-19-orden-documentos.js` (3 reemplazos;
+`construir-orden-documentos.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con la
+captura de la F1·P7 Orden Preparatoria N° 1 («Todavía no hay nada en el calco para sembrar esta hoja»)
+teniendo la Orden cargada: «los documentos que yo cargo… esos deben ser la fuente de información».
+
+- **Qué pasaba**: las hojas se llenan con la Orden del escalón superior de MESA EM (`ordenSup`, `Tn`),
+  que sólo se llenaba a mano; los documentos del ejercicio (`en`) no la alimentaban.
+- **Qué se hizo en el compilado**: el import de `calcos/orden-documentos/v1/orden.mjs`; un `useEffect`
+  sobre `[en, Tn, ut, Bn]` que llama a `completarOrdenSup` y, si devuelve algo, lo pone con `$s` (se
+  guarda con el ejercicio; no corre con el ejercicio finalizado); y en las Órdenes Preparatorias
+  (`l3e`, `prep1/2/3`) «ORGANIZACIÓN (MEDIOS)» con `ordenSup.organizacionTarea`.
+- **Fuera del compilado** (código legible): el lector de la Orden (`calcos/orden-documentos`, ver su
+  README): Word y .md, membrete de la Orden o de un anexo, nuestra unidad en «Tareas de las unidades de
+  maniobra», sin pisar y una sola vez (`_desdeDocs`).
+- **Cómo se comprobó**: `orden-documentos.mjs` (25 casos), `e2e/orden-documentos.cjs` (la Mesa real),
+  `reemplazos-compilado.js`, `npm test` y las e2e de línea de tiempo, membrete, pedido del Cmte., personal y OGO.
+- **Si se recompila desde el fuente**: llevar el `useEffect` y la organización de las Órdenes Preparatorias.
+
 ## 2026-10-19 — ⏱️ La Línea Inicial de Tiempo lee los momentos de TODOS los documentos del ejercicio (`index-linea-tiempo-20261019.js`)
 
 Parte de `index-seleccionar-20261018.js` + `pruebas/reemplazos-2026-10-19-linea-tiempo.js` (5 reemplazos;
