@@ -54,6 +54,9 @@ import {
   leerOrdenDeBatalla,
   ubicarNuevas,
   yaEnElCalco,
+  unidadesPuras,
+  nombresDeFuerza,
+  proponerPuras,
 } from './modelo.js'
 import { graficaHTML, abrirParaImprimir } from './grafica.js'
 import { useState, useEffect, useMemo, jsx, jsxs, simb, svgPieza, svgTarea, catalogoTareas, armas } from './runtime.js'
@@ -175,6 +178,8 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
   const hayInfanteria = tipos.some((tp) => ES_INFANTERIA.test(tp.simbolo))
   const avisos = revisar(bal, { picb: ctx.picb, ops, cmoc: ctx.cmoc, g3, ordenSup: ctx.ordenSup })
   const ods = bal.tareas.filter((x) => x.op.id === 'od').length
+  const puras = bal.flujo.puras
+  const listaPuras = unidadesPuras(bal, unidades, simb)
   const listo = {
     1: !!g2.probable && objetivos.length > 0 && propias.length > 0,
     2: bal.tareas.length > 0,
@@ -258,6 +263,25 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
     if (!window.confirm('¿Vaciar el reparto? Todas las piezas vuelven a quedar libres.')) return
     cambiarTareas((ts) => ts.map((t) => (oiDe(t).id ? { ...t, oi: { ...oiDe(t), piezas: [] } } : t)))
     setFlujo((f) => ({ ...f, reserva: { ...f.reserva, piezas: [] } }))
+  }
+  // Unidades PURAS: la unidad entera (todas sus piezas) va a la tarea; si ya estaba toda ahí, se saca.
+  const moverVarias = (piezas, destino) => {
+    if (!piezas.length) return
+    P.setOps?.((o) => piezas.reduce((acc, p) => moverPieza({ ops: acc, flujo: {} }, p, destino).ops, o))
+    setFlujo((f) => piezas.reduce((acc, p) => moverPieza({ ops: { tareas: [] }, flujo: acc }, p, destino).flujo, f))
+  }
+  const ponerUnidad = (pu, destino) => {
+    const toda = (pu.donde[destino] || 0) === pu.piezas.length
+    moverVarias(pu.piezas, toda ? null : destino)
+    if (!toda) aviso('ok', `🪖 ${pu.nombre} entera ${destino === 'reserva' ? 'a la reserva' : `cumple la ${bal.tareas.find((y) => y.oi.id === destino)?.op.corto || 'tarea'}`}. Tocala de nuevo para sacarla.`)
+  }
+  const setPuras = (v) => setFlujo((f) => ({ ...f, puras: v }))
+  const repartirPuras = () => {
+    const r = proponerPuras(bal, unidades, simb)
+    if (!Object.keys(r.tareas).length) return aviso('info', 'No hay tareas sin unidad o no quedan unidades enteras libres.')
+    cambiarTareas((ts) => ts.map((t) => (r.tareas[oiDe(t).id] ? { ...t, oi: { ...oiDe(t), piezas: r.tareas[oiDe(t).id] } } : t)))
+    setFlujo((f) => ({ ...f, reserva: { ...f.reserva, piezas: r.reserva } }))
+    aviso('ok', `⚡ ${Object.keys(r.tareas).length} tarea(s) con una unidad entera (la más fuerte a la que más requiere; la OD primero). Las que sobraron, a la reserva. Cambialo tocando las unidades.`)
   }
   const sobranteAReserva = () => {
     const libres = bal.libresManiobra
@@ -442,6 +466,36 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
   )
 
   // ─── ③ Las fuerzas de cada tarea ───
+  // Los botones OD / OC 1… de una tarea (también en su tarjeta de fuerzas: se designa ahí mismo).
+  const botonesOp = (x) => [
+    ...OPERACIONES.map((o) => {
+      const mia = x.oi.operacion === o.id
+      const otra = !mia && o.id !== 'sost' && bal.tareas.find((y) => y.oi.operacion === o.id)
+      return h('button', { key: o.id, onClick: () => designar(x.oi.id, o.id), style: { ...E.chip, ...(mia ? { background: o.color, color: '#fff', border: `1px solid ${o.color}` } : otra ? { borderStyle: 'dashed', color: '#8fa2bd' } : {}) }, title: otra ? `${o.nom} — la tiene T${otra.n} (se intercambian)` : o.nom }, otra ? `${o.corto} (T${otra.n})` : o.corto)
+    }),
+    h('button', { key: 'nada', onClick: () => designar(x.oi.id, ''), style: { ...E.chip, ...(!x.designada ? { background: 'rgba(255,255,255,0.18)' } : {}) }, title: 'Sin designar todavía' }, '—'),
+  ]
+  // Unidades PURAS: la lista de mis unidades; tocar una la pone ENTERA en esta tarea.
+  const dondeEsta = (k) => (k === 'reserva' ? RESERVA.corto : bal.tareas.find((y) => y.oi.id === k)?.op.corto || '?')
+  const elegirUnidades = (destino) =>
+    h(
+      'div',
+      { style: { display: 'flex', flexDirection: 'column', gap: 3 } },
+      ...listaPuras.map((pu) => {
+        const aca = pu.donde[destino] || 0
+        const toda = aca === pu.piezas.length
+        const otros = Object.keys(pu.donde).filter((k) => k !== destino && k !== 'libre')
+        return h(
+          'button',
+          { key: pu.u.id, className: 'oi-pura', onClick: () => ponerUnidad(pu, destino), title: toda ? 'Tocar para sacarla de esta tarea' : 'Tocar para que la cumpla esta unidad entera', style: { ...E.tipo, cursor: 'pointer', color: '#e6eef6', textAlign: 'left', fontFamily: 'inherit', borderColor: toda ? VERDE : aca ? '#ffb35c' : 'rgba(255,255,255,0.1)', background: toda ? 'rgba(125,255,176,0.14)' : 'rgba(255,255,255,0.04)' } },
+          h('span', { style: { fontSize: 14, color: toda ? VERDE : '#8fa2bd' } }, toda ? '☑' : '☐'),
+          svg(svgPieza(pu.simbolo, 28, '#0e1320'), E.simbolo),
+          h('b', { style: { flex: 1, fontSize: 11.5 } }, pu.nombre),
+          h('span', { style: { fontSize: 10.5, color: toda ? VERDE : aca ? '#ffb35c' : '#8fa2bd' } }, toda ? '✓ esta tarea' : aca ? `parte acá (${aca}/${pu.piezas.length})` : otros.length ? `en ${otros.map(dondeEsta).join(', ')}` : 'libre'),
+        )
+      }),
+      !listaPuras.length && h('div', { style: E.aviso }, 'No hay unidades propias en el calco.'),
+    )
   const filaTipo = (destino, x, tp) => {
     const dentro = (x ? x.piezas : bal.reserva).filter((p) => p.simbolo === tp.simbolo).length
     if (!dentro && !tp.libres.length) return null
@@ -505,11 +559,20 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
         h('select', { style: E.sel, value: x.prop.id, onChange: (e) => cambiarOI(oi.id, { proporcion: e.target.value }), 'aria-label': `Proporción ${x.op.corto}` }, ...PROPORCIONES.map((p) => h('option', { key: p.id, value: p.id }, `${p.id} — ${p.nom}`))),
         h('span', { style: E.ayuda }, `(la Mesa propone ${x.propSugerida.id}: ${x.propSugerida.por})`),
       ),
-      h('div', { style: E.rot }, 'Sus fuerzas: cuántas de cada tipo'),
-      h('div', { style: E.tipos }, ...tipos.map((tp) => filaTipo(oi.id, x, tp))),
-      !tipos.length && h('div', { style: E.aviso }, 'No hay unidades propias en el calco para repartir.'),
-      piezasDe(x.piezas),
-      deDonde(x.piezas),
+      h('div', { style: E.fila }, h('span', { style: E.rot }, 'Esta tarea es la:'), ...botonesOp(x)),
+      ...(puras
+        ? [
+            h('div', { style: E.rot }, 'Quién la cumple: la unidad entera (sin disgregar)'),
+            elegirUnidades(oi.id),
+            x.piezas.length > 0 && h('div', { style: E.bien }, `🪖 ${x.op.corto}: ${nombresDeFuerza(x.piezas, unidades, simb).join(' + ')}`),
+          ]
+        : [
+            h('div', { style: E.rot }, 'Sus fuerzas: cuántas de cada tipo'),
+            h('div', { style: E.tipos }, ...tipos.map((tp) => filaTipo(oi.id, x, tp))),
+            !tipos.length && h('div', { style: E.aviso }, 'No hay unidades propias en el calco para repartir.'),
+            piezasDe(x.piezas),
+            deDonde(x.piezas),
+          ]),
       h(
         'div',
         { style: E.fila },
@@ -554,6 +617,18 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
     Paso,
     { n: 3, titulo: 'Las fuerzas de cada tarea: la proporción y cuántas de cada tipo', ok: listo[3], abierto: abiertos[3], onAbrir: () => abrir(3) },
     h('div', { style: E.doctrina }, `Para CADA tarea, la proporción requerida de unidades propias frente a las enemigas de su sector (un instrumento de planeamiento: considera el terreno y la misión, no el tiempo, la iniciativa, la sorpresa, la logística ni los intangibles; persecución, explotación y movimiento para hacer contacto no requieren una proporción particular: 1:1). Se dispone hasta DOS NIVELES INFERIORES con unidades GENÉRICAS (acá: ${cantidad(2, bal.G).replace(/^2 /, '')}), primero las de maniobra y después los multiplicadores de combate (ingeniería, comunicaciones, artillería…). Lo que sobra va a una agrupación aparte; si falta, la deficiencia es un posible requerimiento de recursos adicionales.`),
+    h(
+      'div',
+      { style: { ...E.tarjeta, borderColor: `${VERDE}66` }, className: 'oi-modo' },
+      h('div', { style: E.rot }, '¿Cómo doy las fuerzas?'),
+      h(
+        'div',
+        { style: E.fila },
+        h('button', { style: { ...E.chip, padding: '5px 9px', ...(puras ? { background: VERDE, color: '#10202a', borderColor: VERDE } : {}) }, onClick: () => setPuras(true), 'aria-pressed': puras ? 'true' : 'false' }, '🪖 Unidades enteras (sin disgregar)'),
+        h('button', { style: { ...E.chip, padding: '5px 9px', ...(!puras ? { background: VERDE, color: '#10202a', borderColor: VERDE } : {}) }, onClick: () => setPuras(false), 'aria-pressed': !puras ? 'true' : 'false' }, '🧩 Por tipo (unidades genéricas)'),
+      ),
+      h('div', { style: E.ayuda }, puras ? 'Cada tarea la cumple UNA de tus unidades tal como está (la DIV MEC-2, la DIV-1…): tocala en la tarea y, en la misma tarjeta, decí si esa tarea es la OD o la OC 1, OC 2… La proporción se sigue calculando con lo que tiene la unidad.' : 'Las unidades se disgregan en piezas genéricas y se reparten por tipo (+ / −). Si en este ejercicio no disgregás, elegí «Unidades enteras».'),
+    ),
     h('div', { style: E.rot }, 'Las unidades con que cuento'),
     tipos.length
       ? h('div', { style: E.fila }, ...tipos.map((tp) => h('span', { key: tp.simbolo, style: { ...E.tipo, padding: '2px 6px' }, title: tp.nom }, svg(svgPieza(tp.simbolo, 24, '#0e1320'), E.simbolo), h('span', { style: { fontSize: 11 } }, `${tp.corto || tp.nom} ${tp.libres.length}/${tp.total}`))))
@@ -564,15 +639,14 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
     panelOrden,
     !bal.tareas.length && h('div', { style: E.aviso }, 'Primero el paso ②: las tareas tácticas en la carta.'),
     bal.tareas.length > 0 && h('div', { style: E.fila }, h('b', null, `Disponibles: ${genericas(bal.totalManiobra, bal.G)} de maniobra`), h('span', null, `· requeridas: ${n1(bal.totalRequerido)}`), bal.deficiencia > 0 ? h('span', { style: E.falta }, `· FALTAN ${n1(bal.deficiencia)}`) : h('span', { style: E.ok }, `· sobran ${n1(bal.sobrante)}`)),
-    bal.tareas.length > 0 && h('div', { style: E.fila }, h('button', { style: E.btnPrin, onClick: repartir }, '⚡ Proponer el reparto de la maniobra'), h('button', { style: E.btn, onClick: vaciar }, '🧹 Vaciar el reparto')),
+    bal.tareas.length > 0 && h('div', { style: E.fila }, h('button', { style: E.btnPrin, onClick: puras ? repartirPuras : repartir }, puras ? '⚡ Proponer: una unidad entera por tarea' : '⚡ Proponer el reparto de la maniobra'), h('button', { style: E.btn, onClick: vaciar }, '🧹 Vaciar el reparto')),
     ...porOrden.map(tarjetaFuerzas),
     bal.tareas.length > 0 &&
       h(
         'div',
         { key: 'reserva', style: { ...E.tarjeta, borderColor: `${RESERVA.color}88` }, className: 'oi-fuerzas', 'data-op': 'reserva' },
         h('div', { style: E.fila }, h('span', { style: { ...E.chip, background: RESERVA.color, color: '#10202a', cursor: 'default' } }, RESERVA.corto), h('b', null, 'Agrupación aparte (reserva): lo que sobra')),
-        h('div', { style: E.tipos }, ...tipos.map((tp) => filaTipo('reserva', null, tp))),
-        piezasDe(bal.reserva),
+        ...(puras ? [elegirUnidades('reserva')] : [h('div', { style: E.tipos }, ...tipos.map((tp) => filaTipo('reserva', null, tp))), piezasDe(bal.reserva)]),
         bal.libresManiobra.length > 0 && h('button', { style: { ...E.btnChico, alignSelf: 'flex-start' }, onClick: sobranteAReserva }, `⬇️ Pasar lo que sobra (${bal.libresManiobra.length} pieza(s) de maniobra)`),
       ),
     bal.deficiencia > 0 && h('div', { style: E.aviso }, `⚠️ Lo requerido supera lo disponible en ${cantidad(bal.deficiencia, bal.G)}: identificalo como un posible REQUERIMIENTO DE RECURSOS ADICIONALES al escalón superior.`),
@@ -581,7 +655,7 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
 
   // ─── ④ La designación: OD, OC 1, OC 2… ───
   const tarjetaDesignar = (x) => {
-    const fuerzas = resumenPiezas(x.piezas, bal.G, simb)
+    const fuerzas = puras ? nombresDeFuerza(x.piezas, unidades, simb) : resumenPiezas(x.piezas, bal.G, simb)
     return h(
       'div',
       { key: x.oi.id, style: { ...E.tarjeta, borderColor: `${x.op.color}88` }, className: 'oi-designar', 'data-n': String(x.n) },
@@ -589,12 +663,7 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
       h(
         'div',
         { style: E.fila },
-        ...OPERACIONES.map((o) => {
-          const mia = x.oi.operacion === o.id
-          const otra = !mia && o.id !== 'sost' && bal.tareas.find((y) => y.oi.operacion === o.id)
-          return h('button', { key: o.id, onClick: () => designar(x.oi.id, o.id), style: { ...E.chip, ...(mia ? { background: o.color, color: '#fff', border: `1px solid ${o.color}` } : otra ? { borderStyle: 'dashed', color: '#8fa2bd' } : {}) }, title: otra ? `${o.nom} — la tiene T${otra.n} (se intercambian)` : o.nom }, otra ? `${o.corto} (T${otra.n})` : o.corto)
-        }),
-        h('button', { key: 'nada', onClick: () => designar(x.oi.id, ''), style: { ...E.chip, ...(!x.designada ? { background: 'rgba(255,255,255,0.18)' } : {}) }, title: 'Sin designar todavía' }, '—'),
+        ...botonesOp(x),
       ),
     )
   }
