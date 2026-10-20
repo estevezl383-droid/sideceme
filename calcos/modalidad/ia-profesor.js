@@ -216,6 +216,11 @@
   }
 
   // ─── El contexto del ejercicio (recortado) ─────────────────────────────────────────
+  // calcos/dispositivo/v1/dispositivo.js (en el navegador, window.SIDDispositivo).
+  function DISP() {
+    if (typeof window !== 'undefined' && window.SIDDispositivo) return window.SIDDispositivo
+    try { return typeof require === 'function' ? require('../dispositivo/v1/dispositivo.js') : null } catch (e) { return null }
+  }
   function resumenUnidades(unidades) {
     var us = (unidades || []).filter(function (u) { return u && (u.tipo || 'unidad') === 'unidad' })
     if (!us.length) return '(todavía no hay fichas en la carta)'
@@ -236,6 +241,10 @@
     if (aoi) partes.push(aoi)
     if (ctx.centro && isFinite(ctx.centro.lat)) partes.push('- Centro de la vista: ' + r6(ctx.centro.lat) + ', ' + r6(ctx.centro.lng))
     partes.push('\n### Fichas en la carta\n' + resumenUnidades(ctx.unidades || ej.unidades))
+    // 🧭 Cuál está adelante (y en qué sector) y cuál atrás: la IA no lo deduce de las lat, lng sueltas
+    // (le hizo a la DIV MEC-2 esfuerzo principal en el norte cuando en el calco estaba atrás, en reserva).
+    var disp = DISP()
+    if (disp) try { var dt = disp.texto(Object.assign({}, ej, { unidades: ctx.unidades || ej.unidades })); if (dt) partes.push('\n' + dt.trim()) } catch (e) {}
     // El terreno que el profesor ya dibujó va ANTES de la Orden y los documentos: es lo que el
     // análisis tiene que usar, y así el recorte no lo alcanza.
     var ter = resumenTerreno(ej.cmoc, ej.ops, ej.dirAvenidas)

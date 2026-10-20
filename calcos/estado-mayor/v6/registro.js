@@ -176,6 +176,11 @@ La indicación del oficial cambia QUÉ escribís y CÓMO lo redactás (el tono, 
 // final: ChatGPT y Gemini los cortaban y la IA preguntaba «¿cuál es el producto?».
 export function cierreIndicacion(prompt, indicacion) {
   let p = String(prompt ?? '')
+  // 🧭 El dispositivo de la carta (calcos/dispositivo): cuál está adelante y en qué sector, cuál atrás.
+  try {
+    const dt = typeof window !== 'undefined' && window.SIDDispositivo && window.SIDMesaEjercicio ? window.SIDDispositivo.texto(window.SIDMesaEjercicio.foto() || {}) : ''
+    if (dt) p = `${p}\n\n---\n\n${dt.trim()}`
+  } catch {}
   if (String(indicacion ?? '').trim()) p = `${p}\n\n---\n\n${RECORDATORIO_FORMATO}`
   try {
     return armarPedidoFinal(p, indicacion)

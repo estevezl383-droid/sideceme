@@ -58,6 +58,15 @@ fs.mkdirSync(SALIDAS, { recursive: true })
     assert.match(await boton.innerText(), /Reagrupar/)
     assert.equal(await botones.count(), 4, 'las divisiones también se pueden disgregar después (en sus brigadas)')
     await foto('2-disgregado')
+    // 🧭 El dispositivo para la IA (calcos/dispositivo), con un enemigo al oeste: cargado en la Mesa y en el pedido del profesor.
+    const disp = await page.evaluate(() => {
+      const f = window.SIDMesaEjercicio.foto()
+      const ej = { ...f, unidades: [...f.unidades, { id: 'r', bando: 'enemigo', tipo: 'unidad', designacion: 'ROJO', arma: 'blindada', escalon: 'division', lat: -17.0, lng: -69.5 }] }
+      return { texto: window.SIDDispositivo.texto(ej), ia: window.SIDIAProfesor.contexto({ ejercicio: ej }) }
+    })
+    assert.match(disp.texto, /El enemigo viene del OESTE/)
+    for (const d of ['DIV MEC-2', 'DIV-1', 'DIV-6']) assert.match(disp.texto, new RegExp(d + ': (ADELANTE|ATRÁS)'))
+    assert.match(disp.ia, /EL DISPOSITIVO EN LA CARTA/)
     // ↶ Deshacer
     const deshacer = page.locator('.botones-mapa > button.btn-deshacer').first()
     await deshacer.click()
