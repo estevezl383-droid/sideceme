@@ -5,6 +5,31 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-20 (2) — 🎯 Los objetivos del enemigo van donde el G-2 los indica (`index-objetivos-indicados-20261020.js`)
+
+Parte de `index-plantilla-ajuste-20261020.js` + `pruebas/reemplazos-2026-10-20-objetivos-indicados.js` (10 reemplazos;
+`construir-objetivos-indicados.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con la
+captura de la H.T. 16: acostó los objetivos, no le convencieron, escribió en «Tu indicación para esta hoja»
+«EL TERRENO C 13 ES EL OBJETIVO UNO, OSEA EL TERRENO CLAVE 13», volvió a Acostar y no cambió nada.
+
+- **Qué pasaba**: «🎯 Acostar los OBJETIVOS» (`Tv` → `sK`) mide sólo desde la plantilla situacional. La
+  indicación era un estado suelto de la caja de la IA (`hU`): no se guardaba y Acostar no la leía; las
+  celdas de la H.T. 16 tampoco.
+- **Qué se hizo en el compilado**: el import de `calcos/objetivos-indicados/v1/objetivos.mjs`; la caja de la
+  IA del tablero del G-2 guarda la indicación de cada hoja en `picb._indic[hoja]` (vuelve al reabrir la hoja);
+  `Tv` y el acostado previo de `iw` (esquema de maniobra) pasan el resultado de `sK` por `objetivosIndicados`;
+  el aviso dice qué objetivo quedó en qué terreno clave (o que ese terreno clave no existe); la ayuda de
+  la H.T. 16 lo explica.
+- **Fuera del compilado** (código legible): `calcos/objetivos-indicados/v1/objetivos.mjs` — lee «C 13»,
+  «C13», «terreno clave 13», «clave 13», «T.C. 13» o el nombre; «objetivo 1 / uno / final / O1» es el
+  OBJETIVO FINAL (rótulo O1), «Oa», «objetivo intermedio b», «objetivo 2…» los intermedios; una clave suelta
+  va al final si está libre (en la celda «Objetivo intermedio» de la H.T. 16, a un intermedio).
+- **Cómo se comprobó**: `objetivos-indicados.mjs` (8 casos), `e2e/objetivos-indicados.cjs` (la Mesa real:
+  sin indicación el final no cae en C13; con la frase de Sergio el O1 queda sobre C13, el aviso lo dice y la
+  indicación sigue ahí al volver a la hoja), `e2e/plantilla-ajuste.cjs`, `reemplazos-compilado.js` y `npm test`.
+- **Si se recompila desde el fuente**: llevar `objetivosIndicados` a las llamadas de `sK` y guardar la
+  indicación de `hU` en `picb._indic`.
+
 ## 2026-10-20 — 🧭 De dónde viene el enemigo y ✋ mover la plantilla doctrinal (`index-plantilla-ajuste-20261020.js`)
 
 Parte de `index-rotulo-avenidas-20261019.js` + `pruebas/reemplazos-2026-10-20-plantilla-ajuste.js` (17 reemplazos;
