@@ -43,7 +43,8 @@
 //   index-picb-tiempo-20261019.js + reemplazos-2026-10-19-rotulo-avenidas.js = index-rotulo-avenidas-20261019.js
 //   index-rotulo-avenidas-20261019.js + reemplazos-2026-10-20-plantilla-ajuste.js = index-plantilla-ajuste-20261020.js
 //   index-plantilla-ajuste-20261020.js + reemplazos-2026-10-20-objetivos-indicados.js = index-objetivos-indicados-20261020.js
-//   index-objetivos-indicados-20261020.js + reemplazos-2026-10-20-ht19-fases.js = index-ht19-fases-20261020.js (el vigente)
+//   index-objetivos-indicados-20261020.js + reemplazos-2026-10-20-ht19-fases.js = index-ht19-fases-20261020.js
+//   index-ht19-fases-20261020.js + reemplazos-2026-10-20-ains-acostar.js = index-ains-acostar-20261020.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -57,6 +58,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-20-ains-acostar'),
+    nombre: 'reemplazos-2026-10-20-ains-acostar',
+    // calcos/assets/index-ht19-fases-20261020.js (antes de acostar las A.I.N. que no nombran el CMOC).
+    anterior: '79c049e0f7977914456ecfe6a3daf545d89624930c33ca17dc0398836d58b0e6',
+  },
   {
     lista: require('./reemplazos-2026-10-20-ht19-fases'),
     nombre: 'reemplazos-2026-10-20-ht19-fases',

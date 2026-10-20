@@ -5,6 +5,29 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-20 (4) — ◎ Las A.I.N. de la H.T. 20 se acuestan aunque su nombre no cite el CMOC (`index-ains-acostar-20261020.js`)
+
+Parte de `index-ht19-fases-20261020.js` + `pruebas/reemplazos-2026-10-20-ains-acostar.js` (4 reemplazos;
+`construir-ains-acostar.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con la H.T. 20 que
+le hizo la IA (AIN-2, AIN-3, AIN-5, AIN-1): «le di a la aplicación para acostar los AINes y no me los muestra, ¿qué
+pasa?, ¿dónde están los AINes?».
+
+- **Qué pasaba**: «◎ Acostar las A.I.N.» (`wC` → `$je`) sólo deduce el lugar desde el NOMBRE de la A.I.N. («AIN-2
+  (Vado Lauca)», «AIN-3 C 12», «… 6 km de la LPR») y lo busca en el terreno clave y los ejes del CMOC. Con «AIN-2» a
+  secas y el lugar en el indicador no ubicaba ninguna: pasaba a «ubicar a mano, una por una» y no ponía nada en la carta.
+- **Qué se hizo en el compilado**: el import de `calcos/ains-acostar/v1/ains.mjs`; lo que `$je` deja sin ubicar pasa por
+  `acostarRestantes` con los calcos del terreno (`zIe(hie({datosCapas,resultados}))`); el aviso (`avisoAins`) dice
+  cuántas quedaron en el lugar de la hoja y cuántas repartidas para revisar.
+- **Fuera del compilado** (código legible): `calcos/ains-acostar/v1/ains.mjs` — en orden: la avenida «AA-n» que nombre
+  la hoja; los lugares que nombra el indicador (después el CAE más probable y el más peligroso) en poblaciones, ríos,
+  vías, cimas y terreno clave (si nombra dos, «Putre – Guallatire», entre los dos); si no nombra nada de la carta,
+  repartidas sobre las avenidas de aproximación (sin avenidas, el terreno clave; sin nada, el centro del A.O.). Cada
+  una lleva su porqué y ✎ para arrastrarla.
+- **Cómo se comprobó**: `ains-acostar.mjs` (5 casos, con las filas de Sergio), `e2e/ains-acostar.cjs` (la Mesa real:
+  H.T. 20 con las 4 A.I.N., Acostar → las 4 en `ops.ains` sobre las avenidas, el aviso, sin pasar a «a mano», sin
+  errores de consola), `reemplazos-compilado.js` y `npm test`.
+- **Si se recompila desde el fuente**: llevar `acostarRestantes`/`avisoAins` a `wC` (Acostar las A.I.N.).
+
 ## 2026-10-20 (3) — 🗡️ H.T. 19 fase por fase con TODOS los elementos y la IA en tarea y propósito (`index-ht19-fases-20261020.js`)
 
 Parte de `index-objetivos-indicados-20261020.js` + `pruebas/reemplazos-2026-10-20-ht19-fases.js` (14 reemplazos;
