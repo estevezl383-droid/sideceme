@@ -5,6 +5,32 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-20 — 🧭 De dónde viene el enemigo y ✋ mover la plantilla doctrinal (`index-plantilla-ajuste-20261020.js`)
+
+Parte de `index-rotulo-avenidas-20261019.js` + `pruebas/reemplazos-2026-10-20-plantilla-ajuste.js` (17 reemplazos;
+`construir-plantilla-ajuste.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con las
+capturas de la H.T. P.D. «Ataque de penetración en dos escalones»: «me la acostó al otro lado… la L.P.R. está
+al otro lado y el ataque debería venir de izquierda a derecha… dame una opción para acomodar la dirección y
+aparte mover la plantilla, o sea mover todo y luego uno por uno».
+
+- **Qué pasaba**: `s9` toma como frente el PRIMER LADO trazado del Área de Operaciones (`areaOps.frente`) y cada
+  avenida desde su primer punto. Con el A.O. empezado por el lado norte, la plantilla salió contra el norte
+  aunque la L.P.R. y el enemigo estaban al oeste. Una vez acostada no se podía mover.
+- **Qué se hizo en el compilado**: el import de `calcos/plantilla-ajuste/v1/ajuste.mjs`; las 3 llamadas a `s9`
+  (`r1` Acostar, `uu` plantilla rehecha, `Tg` peor caso del CAE) toman frente y avenidas de `entradaPlantilla`
+  y pasan por `marcarDireccion`; `r1` acepta `SIDdir` para re-acostar al elegir la dirección; el estado
+  `SIDarrPl` (modo de arrastre) y el setter de la plantilla (`ol`) llegan a la hoja P.D. (`iLe` → `rLe`, que
+  muestra `PanelAjuste` antes del botón Acostar) y a la carta (`kve` → `lve`: las fichas son `draggable` y al
+  soltarlas corren toda la plantilla o esa sola; no re-encuadra si la plantilla tiene `SIDajustada`).
+- **Fuera del compilado** (código legible): `calcos/plantilla-ajuste/v1/ajuste.mjs` — rosa de 8 direcciones +
+  Automático (se guarda en `picb._pd.dirEnemigo`), mover TODO con flechas (0,25-5 km), girar ±5/15/180°
+  alrededor del medio de la L.P.R., arrastrar toda o ficha por ficha (con su arco). La L.P.R. no se mueve.
+- **Cómo se comprobó**: `plantilla-ajuste.mjs` (9 casos), `e2e/plantilla-ajuste.cjs` (la Mesa real, con el A.O.
+  de la captura: automático → norte; OESTE → L.P.R. al oeste, todas las fichas afuera al oeste y el primer
+  escalón con rumbo al este; mover, girar, arrastrar), `reemplazos-compilado.js` y `npm test`.
+- **Si se recompila desde el fuente**: llevar `entradaPlantilla`/`marcarDireccion` a las llamadas de `s9`, el
+  panel a la hoja P.D. y el arrastre a la capa de la plantilla.
+
 ## 2026-10-19 (4) — 🏷️ Rótulo «AA-n» chico sobre cada avenida de aproximación (`index-rotulo-avenidas-20261019.js`)
 
 Parte de `index-picb-tiempo-20261019.js` + `pruebas/reemplazos-2026-10-19-rotulo-avenidas.js` (3 reemplazos;
