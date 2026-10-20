@@ -7,7 +7,7 @@
 // Se dibuja en el Leaflet de la Mesa (window.__mapa2d): la vista 3D copia sola lo que se
 // agrega ahí. El compilado llama a sincronizarCarta({ ops, g3, unidades, setOps, … }) cada
 // vez que cambia el calco o las hojas del G-3.
-import { balance, oiDe, flujoNormal, CLAVE_FLUJO, RESERVA, cantidad, esManiobra } from './modelo.js'
+import { balance, oiDe, flujoNormal, CLAVE_FLUJO, RESERVA, cantidad, esManiobra, nombresDeFuerza } from './modelo.js'
 import { leaflet, simb, svgPieza } from './runtime.js'
 
 let puente = null
@@ -35,10 +35,23 @@ export function editorAbierto(on) {
   dibujar()
 }
 
-function bloqueHTML({ corto, color, texto, piezas, pie, arrastrable }) {
-  const simbolos = piezas.length
+// Con unidades puras, junto a la tarea va la UNIDAD (su símbolo y su nombre), no sus piezas.
+function unidadesHTML(piezas) {
+  const nombres = nombresDeFuerza(piezas, puente?.unidades || [], simb)
+  const madres = [...new Set(piezas.map((p) => p.de))]
+  return madres
+    .map((de, i) => {
+      const p = piezas.find((x) => x.de === de)
+      return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;margin-right:4px"><span style="line-height:0">${svgPieza(p.simbolo, 26, '#000')}</span>${esc(nombres[i] || '')}</span>`
+    })
+    .join('')
+}
+function bloqueHTML({ corto, color, texto, piezas, pie, arrastrable, puras }) {
+  const simbolos = piezas.length && puras
+    ? unidadesHTML(piezas)
+    : piezas.length
     ? piezas.map((p) => `<span style="display:inline-block;line-height:0" title="${esc(p.nom || '')}">${svgPieza(p.simbolo, 30, '#000')}</span>`).join('')
-    : '<span style="font-size:10px;color:#555;font-style:italic">sin unidades genéricas</span>'
+    : `<span style="font-size:10px;color:#555;font-style:italic">${puras ? 'sin unidad asignada' : 'sin unidades genéricas'}</span>`
   return `<div class="oi-bloque-caja" style="background:rgba(255,255,255,.88);border:1.5px solid ${color};border-radius:4px;padding:2px 5px 3px;box-shadow:0 1px 4px rgba(0,0,0,.45);font-family:Arial,Helvetica,sans-serif;color:#000;width:max-content;max-width:250px;cursor:${arrastrable ? 'move' : 'default'}">
 <div style="display:flex;align-items:flex-start;gap:4px;font-size:11px;font-weight:700;line-height:1.25"><span style="background:${color};color:#fff;border-radius:3px;padding:0 4px;white-space:nowrap">${esc(corto)}</span><span>${esc(texto)}</span></div>
 <div style="display:flex;flex-wrap:wrap;gap:1px 2px;margin-top:2px;align-items:center">${simbolos}</div>
@@ -76,6 +89,7 @@ function dibujar() {
   if (!b.flujo.verEnCarta) return quitarCapa()
   const nueva = JSON.stringify([
     editor > 0,
+    b.flujo.puras,
     b.tareas.filter((x) => enLaCapa(x.oi)).map((x) => [x.oi.id, x.t.centro, x.t.tarea, x.oi.texto, x.oi.desp, x.op.id, x.prop.id, x.requeridas, x.dispuestas, x.nivel, x.piezas.map((p) => p.id), [...x.enemigo.maniobra, ...x.enemigo.apoyo].map((u) => [u.lat, u.lng])]),
     b.reserva.map((p) => p.id),
     b.flujo.reserva.pos,
@@ -111,7 +125,7 @@ function dibujar() {
     const texto = String(x.oi.texto || '').trim() || simb.nombreTarea(x.t.tarea)
     const pie = x.nivel === 'sin-enemigo' ? `${x.prop.id} · sin enemigo en el sector` : `${x.prop.id} · ${String(Math.round(x.dispuestas * 10) / 10).replace('.', ',')} de ${cantidad(x.requeridas, G, { corto: true })}${x.falta ? ' — FALTAN' : ' ✓'}`
     const piezas = [...x.piezas.filter(esManiobra), ...x.piezas.filter((p) => !esManiobra(p))]
-    const icon = L.divIcon({ className: 'oi-bloque', html: bloqueHTML({ corto: x.op.corto, color: x.op.color, texto: `T: ${texto}`, piezas, pie, arrastrable: abierta }), iconSize: null, iconAnchor: desp ? [0, 16] : [-36, 16] })
+    const icon = L.divIcon({ className: 'oi-bloque', html: bloqueHTML({ corto: x.op.corto, color: x.op.color, texto: `T: ${texto}`, piezas, pie, arrastrable: abierta, puras: b.flujo.puras }), iconSize: null, iconAnchor: desp ? [0, 16] : [-36, 16] })
     const mk = L.marker([pos[1], pos[0]], { icon, draggable: abierta, interactive: abierta, keyboard: false, zIndexOffset: 1400 }).addTo(g)
     if (abierta) {
       mk.bindTooltip('Arrastrá el rótulo adonde se lea mejor', { direction: 'top' })
@@ -133,7 +147,7 @@ function dibujar() {
     const pos = b.flujo.reserva.pos || posicionReserva(b)
     if (pos) {
       const peso = b.reserva.reduce((s, p) => s + (esManiobra(p) ? 1 : 0), 0)
-      const icon = L.divIcon({ className: 'oi-bloque', html: bloqueHTML({ corto: RESERVA.corto, color: RESERVA.color, texto: 'Reserva (lo que sobra)', piezas: b.reserva, pie: peso ? `${peso} pieza(s) de maniobra` : '', arrastrable: abierta }), iconSize: null, iconAnchor: [0, 16] })
+      const icon = L.divIcon({ className: 'oi-bloque', html: bloqueHTML({ corto: RESERVA.corto, color: RESERVA.color, texto: 'Reserva (lo que sobra)', piezas: b.reserva, pie: peso && !b.flujo.puras ? `${peso} pieza(s) de maniobra` : '', arrastrable: abierta, puras: b.flujo.puras }), iconSize: null, iconAnchor: [0, 16] })
       const mk = L.marker([pos[1], pos[0]], { icon, draggable: abierta, interactive: abierta, keyboard: false, zIndexOffset: 1400 }).addTo(g)
       if (abierta)
         mk.on('dragend', () => {

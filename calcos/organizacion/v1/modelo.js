@@ -219,6 +219,9 @@ export function flujoNormal(f) {
   return {
     esquema: ESQUEMA,
     verEnCarta: v.verEnCarta !== false,
+    // Unidades PURAS: cada tarea la cumple una unidad entera (la DIV MEC-2, la DIV-1…), sin
+    // disgregarla en piezas genéricas.
+    puras: v.puras === true,
     reserva: { piezas: Array.isArray(r.piezas) ? r.piezas.filter((p) => p && p.id != null) : [], pos: Array.isArray(r.pos) && r.pos.length === 2 ? r.pos : null, agId: r.agId || null },
   }
 }
@@ -426,7 +429,9 @@ export function filasCuadro({ ops, g3, unidades }, simb) {
     const texto = String(x.oi.texto || '').trim() || textoSugerido(x.t, { unidades, objetivos: ops?.objetivos }, simb)
     filas.push({
       Operación: x.designada ? `${x.op.corto} — ${x.op.nom}` : `${x.op.corto} — sin designar todavía (OD / OC)`,
-      'Agrupación / unidad genérica': man.length || apo.length
+      'Agrupación / unidad genérica': b.flujo.puras && x.piezas.length
+        ? nombresDeFuerza(x.piezas, unidades, simb).join(' + ')
+        : man.length || apo.length
         ? [man.length ? `${genericas(x.dispuestas, G)} de maniobra (${resumenPiezas(man, G, simb).join(', ')})` : 'Sin unidades de maniobra', apo.length ? `con ${resumenPiezas(apo, G, simb).join(', ')}` : ''].filter(Boolean).join(' ')
         : 'Sin unidades dispuestas todavía.',
       'Tarea que cumple': `${simb.nombreTarea(x.t.tarea)} — T: ${texto}`,
@@ -442,7 +447,7 @@ export function filasCuadro({ ops, g3, unidades }, simb) {
     const peso = b.reserva.reduce((s, p) => s + pesoPieza(p, G), 0)
     filas.push({
       Operación: `${RESERVA.corto} — Agrupación aparte (reserva)`,
-      'Agrupación / unidad genérica': `${peso ? `${genericas(peso, G)} de maniobra` : 'Piezas'} (${resumenPiezas(b.reserva, G, simb).join(', ')})`,
+      'Agrupación / unidad genérica': b.flujo.puras ? nombresDeFuerza(b.reserva, unidades, simb).join(' + ') : `${peso ? `${genericas(peso, G)} de maniobra` : 'Piezas'} (${resumenPiezas(b.reserva, G, simb).join(', ')})`,
       'Tarea que cumple': 'Lo que sobra después de cubrir las tareas: se usa al desarrollar el esquema de maniobra.',
       'Enemigo en su sector': '—',
       'Proporción requerida frente al enemigo en su sector': '—',
@@ -667,6 +672,55 @@ export function piezaParaAgregar(bal, x, simbolo) {
 export function piezaParaQuitar(x, simbolo) {
   const de = (x?.piezas || []).filter((p) => p.simbolo === simbolo)
   return de.length ? de[de.length - 1] : null
+}
+// ─── Unidades PURAS (sin disgregar): una tarea la cumple la unidad entera ────────────
+// Las unidades propias con sus piezas y dónde está cada una: { u, nombre, piezas, donde }
+// donde = { [oi.id | 'reserva' | 'libre']: cuántas piezas }.
+export function unidadesPuras(bal, unidades, simb) {
+  const lugar = new Map()
+  for (const x of bal.tareas) for (const p of x.piezas) lugar.set(p.id, x.oi.id)
+  for (const p of bal.reserva) lugar.set(p.id, 'reserva')
+  const out = []
+  for (const u of (unidades || []).filter(esPropia)) {
+    const piezas = bal.piezas.filter((p) => p.de === u.id)
+    if (!piezas.length) continue
+    const donde = {}
+    for (const p of piezas) {
+      const k = lugar.get(p.id) || 'libre'
+      donde[k] = (donde[k] || 0) + 1
+    }
+    out.push({ u, nombre: simb.rotulo(u), simbolo: piezas[0].simbolo, piezas, donde })
+  }
+  return out
+}
+// «⚡ Proponer» con unidades puras: a cada tarea sin fuerzas, UNA unidad entera libre (la
+// más fuerte, a la que más requiere: la OD primero); lo que sobra, a la reserva.
+// Devuelve { tareas: { [oi.id]: piezas }, reserva }.
+export function proponerPuras(bal, unidades, simb) {
+  const peso = (ps) => ps.reduce((s, p) => s + pesoPieza(p, bal.G), 0)
+  const libres = unidadesPuras(bal, unidades, simb)
+    .filter((x) => x.donde.libre === x.piezas.length && x.piezas.some(esManiobra))
+    .sort((a, b) => peso(b.piezas) - peso(a.piezas))
+  const out = {}
+  const orden = [...bal.tareas].filter((x) => !x.piezas.length).sort((a, b) => (b.op.id === 'od') - (a.op.id === 'od') || b.requeridas - a.requeridas || a.n - b.n)
+  for (const x of orden) {
+    const u = libres.shift()
+    if (!u) break
+    out[x.oi.id] = u.piezas
+  }
+  return { tareas: out, reserva: [...bal.reserva, ...libres.flatMap((x) => x.piezas)] }
+}
+// Los nombres de lo que cumple una tarea: la unidad entera por su nombre («DIV MEC-2»); si
+// sólo tiene una parte, «DIV-1 (2 X)».
+export function nombresDeFuerza(piezas, unidades, simb) {
+  const out = []
+  for (const r of origenDePiezas(piezas, unidades, simb)) {
+    const u = (unidades || []).find((x) => x && x.id === r.de)
+    const total = u ? (simb.piezasDe(u) || []).length : 0
+    const tiene = (piezas || []).filter((p) => p.de === r.de).length
+    out.push(total && tiene >= total ? r.nombre : `${r.nombre} (${r.cantidad})`)
+  }
+  return out
 }
 // De qué unidades salen las piezas de una tarea: «RIM-8 «AYACUCHO»: 2 Cía.».
 export function origenDePiezas(piezas, unidades, simb) {

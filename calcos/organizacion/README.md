@@ -98,3 +98,17 @@ contrario de la doctrina); sin tareas con operación no inventa nada y la Mesa d
   una tarea tocando la carta y otra en el objetivo, la orientación, las fuerzas, la OD y la OC 1
   con el dedo, y el panel 🧩; y «📄 Traer las unidades de la Orden» desde un documento del
   ejercicio (`organizacion-orden.txt`: el cuadro de la organización de la Orden de las capturas).
+
+## Unidades enteras (sin disgregar) — 20-10-2026
+
+Lo pidió Sergio: en un ejercicio en que **no se disgrega**, que cada tarea la cumpla una de sus
+unidades tal como está (la DIV MEC-2, la DIV-1…) y designar ahí mismo cuál es la OD y cuáles
+las OC. En el paso ③, **«¿Cómo doy las fuerzas?»**: **🪖 Unidades enteras (sin disgregar)** o
+**🧩 Por tipo (unidades genéricas)** (se guarda en `g3.organizacionInicial.puras`). Con unidades
+enteras, cada tarjeta lista las unidades propias (☐ / ☑, «libre», «en OD», «parte acá»):
+tocar una la pone **entera** en la tarea (todas sus piezas, de donde estuvieran); tocarla de
+nuevo la saca. La misma tarjeta tiene **«Esta tarea es la: OD · OC 1 … · SOST · —»** (se
+intercambian como en el paso ④). «⚡ Proponer: una unidad entera por tarea» da la más fuerte a
+la que más requiere (la OD primero) y lo que sobra a la reserva. En la carta, en el paso ④, en
+el cuadro y en la Organización de la Tarea va el **nombre de la unidad** en lugar de las piezas
+genéricas. La proporción se sigue calculando con lo que tiene cada unidad.
