@@ -30,6 +30,15 @@
             location.hostname === '127.0.0.1'
           if (enLocal) return
 
+          // 🎓 Modo PRÁCTICA (20-10-2026): …/calcos/?practica abre la Mesa SIN el servidor.
+          // Cada alumno abre el EJERCICIO_….json que le pasó el profesor (📁 Ejercicios →
+          // 📂 Abrir archivo JSON), practica en su pantalla y lo suyo queda en SU navegador;
+          // para entregar lo baja (⬇️ Bajar el ejercicio) y lo manda. No toca SIDECEME.
+          if (/[?&]practica\b/.test(location.search)) {
+            window.SIDECEME_PRACTICA = true
+            return
+          }
+
           // SIDECEME guarda la sesión en DOS lugares según el rol:
           //   profesores → localStorage 'sideceme_token_p'   (entre pestañas)
           //   cursantes  → sessionStorage 'sideceme_token'   (SOLO esa pestaña)
@@ -132,5 +141,23 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      // 🎓 Cartel del modo PRÁCTICA: el alumno sabe que trabaja sin el servidor y cómo entregar.
+      if (window.SIDECEME_PRACTICA) {
+        var aviso = document.createElement('div')
+        aviso.id = 'aviso-practica'
+        aviso.style.cssText = 'position:fixed;left:50%;bottom:56px;transform:translateX(-50%);z-index:99999;' +
+          'max-width:min(560px,calc(100vw - 32px));padding:8px 34px 8px 14px;border-radius:8px;' +
+          'background:#3a2a00;color:#ffe08a;border:1px solid #f0b400;font:13px/1.4 system-ui,sans-serif;' +
+          'box-shadow:0 4px 14px rgba(0,0,0,.45)'
+        aviso.innerHTML = '<b>🎓 MODO PRÁCTICA</b> — sin SIDECEME. Abrí el ejercicio con ' +
+          '<b>📁 Ejercicios → 📂 Abrir archivo JSON</b>. Lo tuyo se guarda en este navegador; ' +
+          'para entregar: <b>📁 Ejercicios → ⬇️ Bajar el ejercicio</b>.' +
+          '<button aria-label="Cerrar aviso" style="position:absolute;top:4px;right:6px;background:none;' +
+          'border:0;color:#ffe08a;font-size:16px;cursor:pointer">✕</button>'
+        aviso.querySelector('button').onclick = function () { aviso.remove() }
+        document.body.appendChild(aviso)
+      }
+    </script>
   </body>
 </html>
