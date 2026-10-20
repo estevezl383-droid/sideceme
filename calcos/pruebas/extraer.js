@@ -26,6 +26,11 @@ function cargar(ruta, nombres, globales = {}) {
   }
   // SIDMembrete no es del compilado: lo importa de calcos/membrete/v1 (membrete táctico).
   if (quiero.delete('SIDMembrete') && !('SIDMembrete' in globales)) globales = { ...globales, SIDMembrete: require('../membrete/v1/membrete.js').default }
+  // SIDCae* no son del compilado: los importa de calcos/ht19-cae/v1 (H.T. 19 fase por fase, 20-10-2026).
+  const cae = require('../ht19-cae/v1/cae.mjs')
+  const CAE = { SIDCaeElem: cae.elementosCAE, SIDCaeSocb: cae.socbCAE, SIDCaeEtiq: cae.etiquetaCAE, SIDCaePrep: cae.prepCAE, SIDCaeHtml: cae.htmlCAE, SIDCaeDocx: cae.docxCAE, SIDCaeExtra: cae.extraCAE }
+  for (const k of Object.keys(CAE)) if (quiero.delete(k) && !(k in globales)) globales = { ...globales, [k]: CAE[k] }
+  globales = { ...CAE, ...globales }
   if (quiero.size) throw new Error(`No están en ${ruta}: ${[...quiero].join(', ')}`)
   const ctx = { ...globales }
   vm.createContext(ctx)

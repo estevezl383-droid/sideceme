@@ -19,8 +19,10 @@ const base = args.includes('--base') ? args[args.indexOf('--base') + 1] : null
 const suelto = args.find((a, i) => !a.startsWith('--') && args[i - 1] !== '--base')
 const archivo = suelto || vigente()
 
-// hie() sólo alimenta a otras hojas.
-const cargar = ruta => cargarNombres(ruta, ['UIe', 'vD', 'iq'], { hie: () => ({}) })
+// hie() sólo alimenta a otras hojas. SIDCaeElem no es del compilado: lo importa de calcos/ht19-cae/v1
+// (los elementos de la H.T. 19, desde el 20-10-2026); los compilados anteriores no lo usan.
+const cae = require('../ht19-cae/v1/cae.mjs')
+const cargar = ruta => cargarNombres(ruta, ['UIe', 'vD', 'iq'], { hie: () => ({}), SIDCaeElem: cae.elementosCAE })
 
 // Las 16 fichas de la plantilla situacional de la 1ra. Brigada Acorazada
 // (RAGNAR, envolvimiento, nivel brigada) y dos fichas propias. Sólo los
@@ -120,8 +122,8 @@ caso('Sigue sin repartir fichas entre OC-1…OD (arreglo del 27-09)', () => {
   assert.strictEqual(c.vD('OC-1', { _ocsNom: { 'OC-1': 'brigada Cab. Mec.' } }), 'OC-1')
 })
 
-// Quién es cada OC/OD: sale de las fichas del CAE más probable, con su rol de la
-// plantilla. Las fichas de maniobra de los dos CAE de «ARMAS» (27-09).
+// Quién es cada elemento (20-10-2026): TODAS las fichas enemigas del calco, cada una en su sistema
+// operativo, con el rol del CAE más probable. Antes sólo se nombraban OC-1…OC-3 y OD.
 const M = (designacion, rol, escalon, extra = {}) => ({ designacion, rol, escalon, tipo: 'unidad', bando: 'enemigo', ...extra })
 const PROBABLE = [
   M('BAT. INF. BLIN. «CARAMPAGUÉ» (AMARRE)', 'e1', 'batallon'),
@@ -135,46 +137,59 @@ const PELIGROSO = [
   M('G. BLIN. 9 «VENCEDORES» (OD)', 'flanqueo', 'batallon', { principal: true }),
   M('BAT. INF. BLIN. «CARAMPAGUÉ» (SIGUE)', 'e2', 'batallon'),
 ]
-const unidadesDe = s => Object.fromEntries(['OC-1', 'OC-2', 'OC-3', 'OD'].map(i => [i, s[`MANIOBRA|${i}|Unidad`]]))
 const conFases = (...fases) => c.UIe('ht19', { unidades: [], picb: {}, fasesCOA: { enemigo: fases } })
+const plano = o => JSON.parse(JSON.stringify(o))
 
-caso('Propone quién es cada OC/OD con el CAE más probable del calco (aunque el peligroso esté primero)', () => {
-  const s = conFases({ coa: 'peligroso', unidades: PELIGROSO }, { coa: 'probable', unidades: PROBABLE })
-  assert.deepStrictEqual(unidadesDe(s), {
-    'OC-1': 'BAT. INF. BLIN. «CARAMPAGUÉ» (AMARRE)',
-    'OC-2': 'RESERVA',
-    'OC-3': undefined,
-    OD: 'G. BLIN. 9 «VENCEDORES» (OD)',
+caso('Las 16 fichas de la Brigada: cada una en su sistema operativo, ninguna afuera', () => {
+  assert.deepStrictEqual(plano(r._items), {
+    MANIOBRA: ['SEG.', 'OC-1', 'OC-2', 'OD', 'RES.'],
+    'APOYO DE FUEGOS': ['ART.', 'ART.-2', 'MORT.', 'AAC.'],
   })
+  assert.deepStrictEqual(plano(r._nom), {
+    'MANIOBRA|SEG.': 'PEL. REC. BLIN.',
+    'MANIOBRA|OC-1': 'BAT. INF. BLIN. «CARAMPAGUÉ» (AMARRE)',
+    'MANIOBRA|OC-2': 'CÍA. A/B (SPIKE)',
+    'MANIOBRA|OD': 'G. BLIN. 9 «VENCEDORES» (OD)',
+    'MANIOBRA|RES.': 'RESERVA',
+    'APOYO DE FUEGOS|ART.': 'G.A.AP. «SALVO»',
+    'APOYO DE FUEGOS|ART.-2': 'BAT. LAR-160',
+    'APOYO DE FUEGOS|MORT.': 'CÍA. MORT. 120',
+    'INGENIERÍA|—': 'CÍA. ING. MEC. «ACONCAGUA»',
+    'ADA.|—': 'BAT. AA.',
+    'APOYO DE SERVICIOS|—': 'CÍA. LOG.',
+    'C4|—': 'PC BAT. · PC 1RA. BRIG. · CÍA. TELECOM.',
+  })
+  assert.ok(!Object.keys(r).some(k => /\|Unidad$/.test(k)), 'ya no siembra «MANIOBRA|…|Unidad»: eso es del G-2')
 })
 
-caso('Las OC van por ocurrencia (1er escalón → 2do escalón → reserva); si coinciden, el de mayor escalón', () => {
+caso('Sin fichas en el calco usa las del CAE más probable (aunque el peligroso esté primero)', () => {
+  const s = conFases({ coa: 'peligroso', unidades: PELIGROSO }, { coa: 'probable', unidades: PROBABLE })
+  assert.deepStrictEqual(plano(s._items.MANIOBRA), ['SEG.', 'OC-1', 'OD', 'RES.'])
+  assert.strictEqual(s._nom['MANIOBRA|OC-1'], 'BAT. INF. BLIN. «CARAMPAGUÉ» (AMARRE)')
+  assert.strictEqual(s._nom['APOYO DE FUEGOS|ART.'], 'G.A.AP. «SALVO»')
+})
+
+caso('Las OC van por ocurrencia (1er escalón → 2do escalón); si coinciden, el de mayor escalón', () => {
   const s = conFases({ coa: 'probable', unidades: [
     M('RES', 'reserva', 'batallon'), M('B', 'e1', 'batallon'), M('SIG', 'e2', 'batallon'),
     M('A', 'e1', 'regimiento'), M('X (OD)', 'e2', 'brigada'),
   ] })
-  assert.deepStrictEqual(unidadesDe(s), { 'OC-1': 'A', 'OC-2': 'B', 'OC-3': 'SIG', OD: 'X (OD)' })
+  assert.deepStrictEqual(plano(s._items.MANIOBRA), ['OC-1', 'OC-2', 'OC-3', 'OD', 'RES.'])
+  assert.deepStrictEqual(['OC-1', 'OC-2', 'OC-3', 'OD', 'RES.'].map(i => s._nom[`MANIOBRA|${i}`]), ['A', 'B', 'SIG', 'X (OD)', 'RES'])
 })
 
-caso('Sin una ficha marcada (OD) no propone nada: lo escribe el docente', () => {
+caso('Sin una ficha marcada (OD) el renglón OD queda igual, sin nombre: lo escribe el G-2', () => {
   const s = conFases({ coa: 'probable', unidades: [M('ESF. PPAL.', 'flanqueo', 'batallon', { principal: true }), M('AMARRE', 'e1', 'batallon')] })
-  assert.deepStrictEqual(unidadesDe(s), { 'OC-1': undefined, 'OC-2': undefined, 'OC-3': undefined, OD: undefined })
+  assert.deepStrictEqual(plano(s._items.MANIOBRA), ['OC-1', 'OC-2', 'OD'])
+  assert.strictEqual(s._nom['MANIOBRA|OD'], undefined)
 })
 
-caso('Sin fases trazadas usa las fichas que están en el calco', () => {
-  const s = c.UIe('ht19', { unidades: PROBABLE, picb: {} })
-  assert.strictEqual(s['MANIOBRA|OD|Unidad'], 'G. BLIN. 9 «VENCEDORES» (OD)')
-  assert.strictEqual(s['MANIOBRA|OC-1|Unidad'], 'BAT. INF. BLIN. «CARAMPAGUÉ» (AMARRE)')
-})
-
-caso('El rótulo (hoja, vista previa, Word e IA) muestra la unidad; lo escrito por el docente no se pisa', () => {
-  const hoja = { 'MANIOBRA|OC-1|Unidad': 'FT IBARRA', 'MANIOBRA|OC-2|Unidad': '   ' }
-  assert.strictEqual(c.vD('OC-1', hoja), 'OC-1 · FT IBARRA')
-  assert.strictEqual(c.vD('OC-2', hoja), 'OC-2')
-  assert.strictEqual(c.vD('ART.', hoja), 'ART.')
+caso('Lo escrito por el G-2 no se pisa: ni la unidad de un renglón ni los renglones', () => {
+  const hoja = { 'MANIOBRA|OC-1|Unidad': 'FT IBARRA', _items: { MANIOBRA: ['OC-1', 'OD'] } }
   const m = c.iq(hoja, conFases({ coa: 'probable', unidades: PROBABLE }))
   assert.strictEqual(m['MANIOBRA|OC-1|Unidad'], 'FT IBARRA')
-  assert.strictEqual(m['MANIOBRA|OD|Unidad'], 'G. BLIN. 9 «VENCEDORES» (OD)')
+  assert.deepStrictEqual(m._items, { MANIOBRA: ['OC-1', 'OD'] })
+  assert.strictEqual(cae.etiquetaCAE('MANIOBRA', 'OC-1', { ...m, _nom: { 'MANIOBRA|OC-1': 'OTRA' } }), 'OC-1 · FT IBARRA')
 })
 
 // Las columnas de fase: sólo las del CAE más probable, y nunca sobre una hoja ya escrita.
@@ -212,7 +227,7 @@ if (base) {
       const ctx = { picb: {}, ...e }
       const sin = o => {
         const { 'Quién': _q, 'Con qué fuerza': _f, _ocsNom: _o, ...resto } = o
-        return Object.fromEntries(Object.entries(resto).filter(([k]) => !/^MANIOBRA\|.*\|Unidad$/.test(k)))
+        return Object.fromEntries(Object.entries(resto).filter(([k]) => !/^MANIOBRA\|.*\|Unidad$/.test(k) && k !== '_items' && k !== '_nom'))
       }
       assert.deepStrictEqual(sin(c.UIe('ht19', ctx)), sin(b.UIe('ht19', ctx)), `difiere en «${nom}»`)
     }
