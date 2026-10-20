@@ -5,6 +5,36 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-20 (3) — 🗡️ H.T. 19 fase por fase con TODOS los elementos y la IA en tarea y propósito (`index-ht19-fases-20261020.js`)
+
+Parte de `index-objetivos-indicados-20261020.js` + `pruebas/reemplazos-2026-10-20-ht19-fases.js` (14 reemplazos;
+`construir-ht19-fases.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con la H.T. 19
+bajada en Word y el cuadro de los 13 elementos de la Brigada enemiga: «OC-2 vacío, OC-3 vacío, ART., MORT., AAC.
+vacío… debería ser la explicación para cada fase: en la FASE I cada unidad con su tarea y propósito, excepto la
+artillería y otras que tienen diferente formato; después la FASE II, misma estructura, otro contenido… respuestas
+más cortas y precisas: TAREA Y PROPÓSITO».
+
+- **Qué pasaba**: la hoja tenía renglones fijos (OC-1…OC-3, OD, ART., MORT., AAC.); la siembra nombraba sólo hasta 4
+  fichas de maniobra, así que el reconocimiento, la CÍA. A/B, el LAR-160, la ADA, los ingenieros, la logística y los PC
+  no tenían renglón. Se imprimía por sistema operativo con las fases en columnas, y la IA recibía la regla general
+  «dos a cuatro oraciones por campo»: textos largos, y lo que no tenía nombre quedaba vacío.
+- **Qué se hizo en el compilado**: el import de `calcos/ht19-cae/v1/cae.mjs`; la siembra de la H.T. 19 (`UIe`) deja
+  `_items`/`_nom` en vez de `MANIOBRA|OC-n|Unidad`; las claves de la IA (`KS` cae) van fase por fase con los
+  renglones de la hoja; el pedido (`cU`) agrega las reglas cortas (`extraCAE`) y la H.T. 19 se pide entera (tope
+  320 en vez de `sU`=160); el tablero del G-2 prepara la hoja con las fichas del calco al pedir y al aplicar
+  (`prepCAE`); vista previa / Word .doc (`ED`), Word .docx (`I3e`) y el editor van FASE POR FASE; la guía de la hoja
+  (`gie.ht19`) lo explica.
+- **Fuera del compilado** (código legible): `calcos/ht19-cae/v1/cae.mjs` — reparte cada ficha enemiga (rol de la
+  plantilla o designación) en MANIOBRA (SEG., OC-n, OD, RES.), APOYO DE FUEGOS (ART., ART.-2…, MORT., AAC.),
+  INGENIERÍA, ADA., APOYO DE SERVICIOS y C4. Las claves siguen siendo «MANIOBRA|OC-1|FASE I|Tarea»: lo ya escrito en
+  OC-1, OD, ART., MORT. y AAC. no se pierde; lo que el G-2 escribió como unidad de un renglón manda.
+- **Cómo se comprobó**: `ht19-fases.mjs` (7 casos), `ht19-autollenado.js` (con los casos nuevos de quién es quién),
+  `e2e/ht19-fases.cjs` (la Mesa real con la Brigada de 13 elementos: 🌱, editor por fase, pedido de 164 casillas
+  sin corte, una respuesta con las claves nuevas se aplica, vista previa FASE I → MANIOBRA → … → FASE II, el .docx
+  se baja), `reemplazos-compilado.js` y `npm test`.
+- **Si se recompila desde el fuente**: llevar `socbCAE`/`etiquetaCAE` a la hoja `cae` (claves, editor, Word), la
+  siembra de `_items`/`_nom`, `prepCAE` al tablero del G-2 y `extraCAE` al pedido.
+
 ## 2026-10-20 (2) — 🎯 Los objetivos del enemigo van donde el G-2 los indica (`index-objetivos-indicados-20261020.js`)
 
 Parte de `index-plantilla-ajuste-20261020.js` + `pruebas/reemplazos-2026-10-20-objetivos-indicados.js` (10 reemplazos;
