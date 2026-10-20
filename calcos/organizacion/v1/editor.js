@@ -562,11 +562,12 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
       h('div', { style: E.fila }, h('span', { style: E.rot }, 'Esta tarea es la:'), ...botonesOp(x)),
       ...(puras
         ? [
-            h('div', { style: E.rot }, 'Quién la cumple: la unidad entera (sin disgregar)'),
+            h('div', { style: E.fila }, h('span', { style: { ...E.rot, flex: 1 } }, 'Quién la cumple: la unidad entera (sin disgregar)'), h('button', { style: E.btnChico, onClick: () => setPuras(false), title: 'Volver a repartir por tipo (unidades genéricas)' }, '🧩 Por tipo')),
             elegirUnidades(oi.id),
             x.piezas.length > 0 && h('div', { style: E.bien }, `🪖 ${x.op.corto}: ${nombresDeFuerza(x.piezas, unidades, simb).join(' + ')}`),
           ]
         : [
+            h('button', { style: { ...E.btnPrin, alignSelf: 'stretch' }, onClick: () => setPuras(true), className: 'oi-a-puras' }, `🪖 Sin disgregar: elegir la unidad entera (${listaPuras.slice(0, 3).map((pu) => pu.nombre).join(', ')}${listaPuras.length > 3 ? '…' : ''})`),
             h('div', { style: E.rot }, 'Sus fuerzas: cuántas de cada tipo'),
             h('div', { style: E.tipos }, ...tipos.map((tp) => filaTipo(oi.id, x, tp))),
             !tipos.length && h('div', { style: E.aviso }, 'No hay unidades propias en el calco para repartir.'),
