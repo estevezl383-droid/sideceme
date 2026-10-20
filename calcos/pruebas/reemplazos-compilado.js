@@ -44,7 +44,8 @@
 //   index-rotulo-avenidas-20261019.js + reemplazos-2026-10-20-plantilla-ajuste.js = index-plantilla-ajuste-20261020.js
 //   index-plantilla-ajuste-20261020.js + reemplazos-2026-10-20-objetivos-indicados.js = index-objetivos-indicados-20261020.js
 //   index-objetivos-indicados-20261020.js + reemplazos-2026-10-20-ht19-fases.js = index-ht19-fases-20261020.js
-//   index-ht19-fases-20261020.js + reemplazos-2026-10-20-ains-acostar.js = index-ains-acostar-20261020.js (el vigente)
+//   index-ht19-fases-20261020.js + reemplazos-2026-10-20-ains-acostar.js = index-ains-acostar-20261020.js
+//   index-ains-acostar-20261020.js + reemplazos-2026-10-20-disgregar.js = index-disgregar-20261020.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -58,6 +59,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-20-disgregar'),
+    nombre: 'reemplazos-2026-10-20-disgregar',
+    // calcos/assets/index-ains-acostar-20261020.js (antes de ⊞ Disgregar una gran unidad en sus dependientes).
+    anterior: '5656ff5eaae353fc5e58d35d3937a93d356abe7e2eb0c19dfaa2114e5ac2c3e3',
+  },
   {
     lista: require('./reemplazos-2026-10-20-ains-acostar'),
     nombre: 'reemplazos-2026-10-20-ains-acostar',

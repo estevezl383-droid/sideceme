@@ -5,6 +5,31 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-20 (5) — ⊞ Disgregar una gran unidad: queda como su Puesto Comando y aparecen sus dependientes (`index-disgregar-20261020.js`)
+
+Parte de `index-ains-acostar-20261020.js` + `pruebas/reemplazos-2026-10-20-disgregar.js` (6 reemplazos;
+`construir-disgregar.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio en la F2·SAL
+«Movimientos iniciales» con el CE-I como una sola ficha: «quiero que ese Cuerpo de Ejército se convierta en
+Puesto Comando y que aparezcan las tres fichas: DIV MEC-2, DIV-1, DIV-6» (el GALM-1 en refuerzo ya estaba).
+
+- **Qué pasaba**: una gran unidad propia era UNA ficha; para mover sus dependientes había que crearlas a
+  mano, una por una, y la ficha madre seguía contando como unidad de maniobra junto a ellas.
+- **Qué se hizo en el compilado**: el import de `calcos/disgregar/v1/disgregar.mjs`; en 🪖 Unidades (`ZAe`)
+  cada gran unidad propia (Brigada para arriba) lleva «⊞ Disgregar» / «⊟ Reagrupar» (`onDisgregar`, con
+  `SIDlaU` para «↶ Deshacer»); la F2·SAL (`l3e`, `movimientos`) lleva un renglón por cada dependiente; el
+  aviso de la hoja vacía dice dónde está el botón.
+- **Fuera del compilado** (código legible): `calcos/disgregar/v1/disgregar.mjs` — lee las dependientes
+  INMEDIATAS de la organización de la tarea de MESA EM («CE-I: DIV MEC-2, DIV-1, DIV-6; GALM-1 en
+  refuerzo») o, si no está, de la línea / el bloque de la unidad en los documentos del ejercicio; el oficial
+  las revisa en un cuadro antes de ponerlas; aparecen alrededor de la madre con su escalón, su arma,
+  `dependeDe` y su `relacion`; las que ya están en la carta (por la sigla: DIV-1 ≠ DIV-12 ≠ DIV MEC-1) no se
+  duplican, sólo se marcan; la madre pasa a `tipo: 'pc'` con la misma designación (el membrete y la unidad
+  considerada no cambian) y deja de contarse como maniobra (F3·P3 no la cuenta dos veces).
+- **Cómo se comprobó**: `disgregar.mjs` (9 casos, con la organización de Sergio), `e2e/disgregar.cjs` (la
+  Mesa real: CE-I + GALM-1 → PC + DIV MEC-2, DIV-1, DIV-6, GALM-1 sin duplicar; deshacer; reagrupar; sin
+  errores de consola), `reemplazos-compilado.js` y `npm test`.
+- **Si se recompila desde el fuente**: llevar `onDisgregar` a `ZAe` y el renglón de dependientes a `l3e`.
+
 ## 2026-10-20 (4) — ◎ Las A.I.N. de la H.T. 20 se acuestan aunque su nombre no cite el CMOC (`index-ains-acostar-20261020.js`)
 
 Parte de `index-ht19-fases-20261020.js` + `pruebas/reemplazos-2026-10-20-ains-acostar.js` (4 reemplazos;
