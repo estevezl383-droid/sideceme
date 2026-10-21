@@ -121,7 +121,7 @@ export function modoTableroInicial() {
 export function guardarModoTablero(m) { try { localStorage.setItem(CLAVE, m) } catch {} }
 
 const E = {
-  tablero: { position: 'fixed', left: 12, right: 354, bottom: 12, zIndex: 1190, background: 'linear-gradient(180deg, rgba(20,27,40,0.98), rgba(12,17,27,0.99))', color: '#e8edf5', border: '1px solid #8a6d1f', borderRadius: 10, boxShadow: '0 -4px 30px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', maxHeight: '60vh', font: '13px/1.4 Arial, sans-serif' },
+  tablero: { position: 'fixed', left: 12, right: 354, bottom: 12, zIndex: 1190, background: 'linear-gradient(180deg, rgba(20,27,40,0.98), rgba(12,17,27,0.99))', color: '#e8edf5', border: '1px solid #8a6d1f', borderRadius: 10, boxShadow: '0 -4px 30px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', maxHeight: '30vh', font: '13px/1.4 Arial, sans-serif' },
   cabecera: { display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderBottom: '1px solid #34405a' },
   titulo: { flex: 1, font: '700 13px/1 Arial', letterSpacing: '.08em', color: '#e0b84a' },
   btn: { background: '#0e1320', color: '#cdd8e8', border: '1px solid #34405a', borderRadius: 6, padding: '4px 9px', cursor: 'pointer', fontSize: 12 },
@@ -134,6 +134,13 @@ export const tituloSeccion = { font: '700 11px/1.2 Arial', letterSpacing: '.08em
 
 const limpio = (xs) => (xs || []).filter((x) => x !== false && x != null && x !== '')
 
+// Dónde termina el panel de la izquierda (la Mesa del Estado Mayor), si está a la vista.
+function bordePanelIzq() {
+  if (typeof document === 'undefined') return 4
+  const r = document.querySelector('aside.panel')?.getBoundingClientRect()
+  return r && r.width > 0 && r.right > 0 && r.left < 40 && r.right < window.innerWidth / 2 ? Math.round(r.right) : 4
+}
+
 // cabeza: queda siempre en el panel. cuerpo: va abajo, en grande. pie: en el panel y, si pieAbajo, también abajo.
 export function tablero({ f, portal, trazando = false, modo = 'panel', onModo, titulo, columnas = 'repeat(auto-fit, minmax(330px, 1fr))', cabeza = [], cuerpo = [], pie = [], pieAbajo = false }) {
   const ir = (m) => () => { guardarModoTablero(m); onModo?.(m) }
@@ -143,7 +150,9 @@ export function tablero({ f, portal, trazando = false, modo = 'panel', onModo, t
   // Mientras se traza en la carta (ASDI, ARCE, áreas A/B, EPA/EPE) se corre a la derecha, en una columna donde
   // está el panel, para dejar la carta libre; es el mismo elemento (no se rehace: el paso abierto sigue abierto).
   const mini = modo === 'mini' && !trazando
-  const estilo = trazando ? { ...E.tablero, left: 'auto', right: 12, top: 56, bottom: 'auto', width: 380, maxHeight: 'calc(100vh - 80px)', zIndex: 1210 } : E.tablero
+  // Abajo: la mitad de alto (30vh, lo pidió Sergio el 21-10-2026: «me tapa toda la vista de la carta») y
+  // empezando donde termina el panel de la izquierda, para no taparlo.
+  const estilo = trazando ? { ...E.tablero, left: 'auto', right: 12, top: 56, bottom: 'auto', width: 380, maxHeight: 'calc(100vh - 80px)', zIndex: 1210 } : { ...E.tablero, left: bordePanelIzq() + 8 }
   const caja = f.jsxs('div', { style: estilo, 'data-g4-tablero': titulo, children: [
     f.jsxs('div', { style: E.cabecera, children: [
       f.jsx('span', { style: E.titulo, children: titulo }),
