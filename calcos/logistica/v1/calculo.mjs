@@ -120,6 +120,15 @@ export function modoTableroInicial() {
 }
 export function guardarModoTablero(m) { try { localStorage.setItem(CLAVE, m) } catch {} }
 
+// Alto del tablero abajo, en % de la pantalla. 30 por defecto (lo pidió Sergio para no tapar la carta), pero
+// el borde de arriba se arrastra: si el cálculo se corta, se lo agranda y el alto queda guardado en el navegador.
+const ALTO_CLAVE = 'sid-g4-tablero-alto'
+const ALTO_INICIAL = 30
+const ALTO_MIN = 20
+const ALTO_MAX = 90
+export function altoTablero() { try { const a = Number(localStorage.getItem(ALTO_CLAVE)); if (a >= ALTO_MIN && a <= ALTO_MAX) return a } catch {} return ALTO_INICIAL }
+function guardarAlto(a) { try { localStorage.setItem(ALTO_CLAVE, String(a)) } catch {} }
+
 const E = {
   tablero: { position: 'fixed', left: 12, right: 354, bottom: 12, zIndex: 1190, background: 'linear-gradient(180deg, rgba(20,27,40,0.98), rgba(12,17,27,0.99))', color: '#e8edf5', border: '1px solid #8a6d1f', borderRadius: 10, boxShadow: '0 -4px 30px rgba(0,0,0,0.6)', display: 'flex', flexDirection: 'column', maxHeight: '30vh', font: '13px/1.4 Arial, sans-serif' },
   cabecera: { display: 'flex', alignItems: 'center', gap: 8, padding: '7px 12px', borderBottom: '1px solid #34405a' },
@@ -129,6 +138,29 @@ const E = {
   pie: { display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', padding: '8px 12px', borderTop: '1px solid #34405a' },
   nota: { fontSize: 11, color: '#cfe0f2', background: '#16233a', border: '1px solid #2f6df0', borderRadius: 6, padding: '7px 9px', lineHeight: 1.45, display: 'flex', flexDirection: 'column', gap: 6 },
   carta: { background: '#141b29', border: '1px solid #23304a', borderRadius: 8, padding: 10, display: 'flex', flexDirection: 'column', gap: 7, minWidth: 0, overflowX: 'auto' },
+  agarre: { flex: '0 0 auto', height: 12, cursor: 'ns-resize', display: 'flex', alignItems: 'center', justifyContent: 'center', touchAction: 'none', borderBottom: '1px solid #34405a' },
+  agarreRaya: { width: 44, height: 4, borderRadius: 2, background: '#8a6d1f' },
+}
+
+// Arrastrar el borde de arriba del tablero para cambiar su alto (en % de la pantalla, entre ALTO_MIN y ALTO_MAX).
+// Mueve el DOM directo mientras se arrastra y guarda el valor al soltar; el render lo vuelve a leer de ahí.
+function arrastrarAlto(ev) {
+  ev.preventDefault()
+  const caja = ev.currentTarget.parentElement
+  const y0 = ev.clientY
+  const a0 = parseFloat(caja.style.maxHeight) || ALTO_INICIAL
+  let a = a0
+  const mover = (e) => {
+    a = Math.min(ALTO_MAX, Math.max(ALTO_MIN, Math.round(a0 + ((y0 - e.clientY) / window.innerHeight) * 100)))
+    caja.style.maxHeight = a + 'vh'
+  }
+  const soltar = () => {
+    guardarAlto(a)
+    window.removeEventListener('pointermove', mover)
+    window.removeEventListener('pointerup', soltar)
+  }
+  window.addEventListener('pointermove', mover)
+  window.addEventListener('pointerup', soltar)
 }
 export const tituloSeccion = { font: '700 11px/1.2 Arial', letterSpacing: '.08em', color: '#e0b84a', borderBottom: '1px solid #34405a', paddingBottom: 4 }
 
@@ -152,8 +184,9 @@ export function tablero({ f, portal, trazando = false, modo = 'panel', onModo, t
   const mini = modo === 'mini' && !trazando
   // Abajo: la mitad de alto (30vh, lo pidió Sergio el 21-10-2026: «me tapa toda la vista de la carta») y
   // empezando donde termina el panel de la izquierda, para no taparlo.
-  const estilo = trazando ? { ...E.tablero, left: 'auto', right: 12, top: 56, bottom: 'auto', width: 380, maxHeight: 'calc(100vh - 80px)', zIndex: 1210 } : { ...E.tablero, left: bordePanelIzq() + 8 }
+  const estilo = trazando ? { ...E.tablero, left: 'auto', right: 12, top: 56, bottom: 'auto', width: 380, maxHeight: 'calc(100vh - 80px)', zIndex: 1210 } : { ...E.tablero, left: bordePanelIzq() + 8, maxHeight: altoTablero() + 'vh' }
   const caja = f.jsxs('div', { style: estilo, 'data-g4-tablero': titulo, children: [
+    !trazando && !mini && f.jsx('div', { style: E.agarre, title: 'Arrastrá este borde para agrandar o achicar el tablero', onPointerDown: arrastrarAlto, children: f.jsx('span', { style: E.agarreRaya }) }),
     f.jsxs('div', { style: E.cabecera, children: [
       f.jsx('span', { style: E.titulo, children: titulo }),
       !trazando && f.jsx('button', { style: E.btn, onClick: ir(mini ? 'abajo' : 'mini'), title: mini ? 'Volver a abrirlo' : 'Achicarlo para ver la carta (por ejemplo, para trazar)', children: mini ? '▴ Agrandar' : '▾ Achicar' }),
