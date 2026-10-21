@@ -238,12 +238,22 @@ const paso = (page, n) => page.locator(`#oi-paso-${n}`)
       const od = entran()[0]
       assert.equal(od.oi.piezas.length, 2, 'la OD con dos compañías genéricas')
 
-      // ⑤ En la carta: los rótulos con OD / OC y los triángulos.
+      // ⑤ En la carta: cerrados, los rótulos son sólo su sigla (OD / OC / RES) para que se vea el terreno.
+      const siglas = (await page.locator('.oi-bloque').allInnerTexts()).map((t) => t.trim())
+      assert.ok(['OD', 'OC 3', 'RES'].every((x) => siglas.includes(x)), JSON.stringify(siglas))
+      // Tocar la sigla abre el rótulo con la tarea y los triángulos; tocar otro lado de la carta lo cierra.
+      await page.locator('.oi-bloque', { hasText: /^\s*OD\s*$/ }).first().click()
+      await page.waitForTimeout(200)
       const rotulos = await page.locator('.oi-bloque').allInnerTexts()
       assert.ok(rotulos.some((t) => /^OD\s*T: Bloquear a las unidades mecanizadas y blindadas de la FT-43/.test(t.trim())), JSON.stringify(rotulos))
-      assert.ok(rotulos.some((t) => /^OC 3\s*T: /.test(t.trim())))
-      assert.ok(rotulos.some((t) => /^RES\s*Reserva \(lo que sobra\)/.test(t.trim())), 'la reserva también')
-      assert.equal(await page.locator('.oi-bloque').first().locator('svg').count() > 0, true, 'con los símbolos')
+      assert.ok(rotulos.some((t) => t.trim() === 'OC 3'), 'los otros siguen cerrados')
+      assert.equal(await page.locator('.oi-bloque', { hasText: 'T: Bloquear' }).locator('svg').count() > 0, true, 'con los símbolos')
+      await page.evaluate(() => window.__mapa2d.fire('click', { latlng: window.__mapa2d.getCenter(), originalEvent: { target: document.body } }))
+      await page.waitForTimeout(200)
+      assert.ok((await page.locator('.oi-bloque').allInnerTexts()).every((t) => !/T: /.test(t)), 'tocar la carta lo cierra')
+      await page.locator('.oi-bloque', { hasText: /^\s*RES\s*$/ }).first().click()
+      await page.waitForTimeout(200)
+      assert.ok((await page.locator('.oi-bloque').allInnerTexts()).some((t) => /^RES\s*Reserva \(lo que sobra\)/.test(t.trim())), 'la reserva también')
       await page.evaluate(() => window.__mapa2d.setView([-16.85, -68.31], 11, { animate: false }))
       await page.waitForTimeout(500)
       await page.screenshot({ path: path.join(out, `${tag}-carta.png`) })
@@ -334,6 +344,11 @@ const paso = (page, n) => page.locator(`#oi-paso-${n}`)
       if (!movil) {
         await entrar3D(page)
         await page.waitForTimeout(1500)
+        // Cerrado va la sigla; tocarla en el 3D también abre el rótulo.
+        const sigla3d = page.locator('.maplibregl-marker .oi-bloque', { hasText: /^\s*OD\s*$/ }).first()
+        await sigla3d.waitFor({ timeout: 5000 })
+        await sigla3d.click()
+        await page.waitForTimeout(800)
         const en3d = await page.evaluate(() => [...document.querySelectorAll('.maplibregl-marker')].filter((e) => /T: Bloquear/.test(e.textContent || '')).length)
         assert.ok(en3d >= 1, 'el rótulo de la OD en el 3D')
         await page.screenshot({ path: path.join(out, `${tag}-3d.png`) })

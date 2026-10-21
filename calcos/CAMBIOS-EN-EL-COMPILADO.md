@@ -5,6 +5,22 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-21 — ◎ Los rótulos AIN al 60 % y los rótulos de la F3·P3 se abren al tocarlos (`index-ain-chico-20261021.js`)
+
+Parte de `index-disgregar-20261020.js` + `pruebas/reemplazos-2026-10-21-ain-chico.js` (2 reemplazos;
+`construir-ain-chico.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con la carta tapada
+por los cuadros blancos de las operaciones (OD, OC 1, OC 2, RES) y los AIN: «que se activen esos cuadros cuando le
+das a la unidad y que cuando le des click en otro lado se desactiven… los aines reducelos a un 60%».
+
+- **En el compilado**: el rótulo «AIN n» (`_Y`, que usa `Cve`) se dibuja al 60 %: el mismo viewBox en un SVG de
+  62×0,6 de ancho, y el divIcon con ese tamaño para seguir centrado.
+- **Fuera del compilado** (`calcos/organizacion/v1/carta.js`): cada rótulo de la F3·P3 en la carta es sólo su
+  sigla de color («OD», «OC 1», «RES»); tocarla abre el cuadro con la tarea, las unidades y la proporción; tocar
+  otro lugar de la carta (u otra sigla) lo cierra. Con la hoja abierta, se siguen arrastrando.
+- **Cómo se comprobó**: `e2e/organizacion.cjs` (siglas cerradas, abrir la OD, cerrar tocando la carta, abrir RES),
+  `reemplazos-compilado.js` y `npm test`.
+- **Si se recompila desde el fuente**: llevar el tamaño 0,6 a `_Y`.
+
 ## 2026-10-20 (5) — ⊞ Disgregar una gran unidad: queda como su Puesto Comando y aparecen sus dependientes (`index-disgregar-20261020.js`)
 
 Parte de `index-ains-acostar-20261020.js` + `pruebas/reemplazos-2026-10-20-disgregar.js` (6 reemplazos;

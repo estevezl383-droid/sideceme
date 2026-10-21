@@ -1,6 +1,8 @@
 // La F3·P3 sobre el TERRENO (como el calco de la Escuela): junto a cada tarea táctica de la
 // carta que tiene operación, su rótulo «OD · T: …» y las unidades genéricas (los
-// triángulos y cuadrados) que la cumplen; la reserva (lo que sobra) aparte. Con la hoja
+// triángulos y cuadrados) que la cumplen; la reserva (lo que sobra) aparte. Para que no tapen
+// la carta, cada rótulo es sólo su sigla («OC 1», «RES»): se abre al tocarla y se cierra al
+// tocar otro lugar de la carta. Con la hoja
 // abierta, los rótulos se arrastran (su lugar se guarda con la tarea) y se ve con una línea
 // punteada el enemigo de cada sector.
 //
@@ -19,6 +21,9 @@ let cartel = null
 let dblPrevio = null
 let cursorPrevio = ''
 let oculto = null
+// El rótulo que está abierto (el id de la tarea, o RESERVA.corto) y la carta que escucha el clic que lo cierra.
+let abierto = null
+let escucha = null
 
 const mapa = () => (typeof window !== 'undefined' && window.__mapa2d) || null
 const r6 = (x) => Math.round(x * 1e6) / 1e6
@@ -45,6 +50,10 @@ function unidadesHTML(piezas) {
       return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:700;margin-right:4px"><span style="line-height:0">${svgPieza(p.simbolo, 26, '#000')}</span>${esc(nombres[i] || '')}</span>`
     })
     .join('')
+}
+// El rótulo cerrado: sólo su sigla, para que se vea el terreno.
+function siglaHTML({ corto, color, texto, arrastrable }) {
+  return `<div class="oi-bloque-caja" title="${esc(texto)} — tocá para ver las unidades" style="background:${color};color:#fff;border:1.5px solid #fff;border-radius:4px;padding:0 5px;box-shadow:0 1px 4px rgba(0,0,0,.45);font:700 11px/1.35 Arial,Helvetica,sans-serif;width:max-content;white-space:nowrap;cursor:${arrastrable ? 'move' : 'pointer'}">${esc(corto)}</div>`
 }
 function bloqueHTML({ corto, color, texto, piezas, pie, arrastrable, puras }) {
   const simbolos = piezas.length && puras
@@ -73,6 +82,26 @@ function quitarCapa() {
 // Una tarea va a la capa cuando ya tiene su operación o sus fuerzas; mientras la hoja está
 // abierta, todas las que entran en la organización (aunque falte designarlas: «T1», «T2»…).
 const enLaCapa = (oi) => !!oi && !!oi.id && oi.operacion !== 'fuera' && oi.operacion !== 'reserva' && (!!oi.operacion || (oi.piezas || []).length > 0 || editor > 0)
+function alTocarCarta(e) {
+  const t = e && e.originalEvent && e.originalEvent.target
+  if (t && t.closest && t.closest('.oi-bloque')) return
+  if (abierto == null) return
+  abierto = null
+  dibujar()
+}
+function escuchar(m) {
+  if (escucha === m) return
+  if (escucha) escucha.off('click', alTocarCarta)
+  escucha = m
+  if (m) m.on('click', alTocarCarta)
+}
+// Tocar un rótulo lo abre (o lo cierra si ya estaba abierto); arrastrarlo no.
+function alternar(mk, id) {
+  mk.on('click', () => {
+    abierto = abierto === id ? null : id
+    dibujar()
+  })
+}
 const hayAlgo = (p) => !!p && ((p.ops?.tareas || []).some((t) => t && enLaCapa(t.oi)) || ((p.g3?.[CLAVE_FLUJO] || {}).reserva?.piezas || []).length > 0)
 
 function dibujar() {
@@ -87,8 +116,10 @@ function dibujar() {
     return quitarCapa()
   }
   if (!b.flujo.verEnCarta) return quitarCapa()
+  escuchar(m)
   const nueva = JSON.stringify([
     editor > 0,
+    abierto,
     b.flujo.puras,
     b.tareas.filter((x) => enLaCapa(x.oi)).map((x) => [x.oi.id, x.t.centro, x.t.tarea, x.oi.texto, x.oi.desp, x.op.id, x.prop.id, x.requeridas, x.dispuestas, x.nivel, x.piezas.map((p) => p.id), [...x.enemigo.maniobra, ...x.enemigo.apoyo].map((u) => [u.lat, u.lng])]),
     b.reserva.map((p) => p.id),
@@ -125,8 +156,11 @@ function dibujar() {
     const texto = String(x.oi.texto || '').trim() || simb.nombreTarea(x.t.tarea)
     const pie = x.nivel === 'sin-enemigo' ? `${x.prop.id} · sin enemigo en el sector` : `${x.prop.id} · ${String(Math.round(x.dispuestas * 10) / 10).replace('.', ',')} de ${cantidad(x.requeridas, G, { corto: true })}${x.falta ? ' — FALTAN' : ' ✓'}`
     const piezas = [...x.piezas.filter(esManiobra), ...x.piezas.filter((p) => !esManiobra(p))]
-    const icon = L.divIcon({ className: 'oi-bloque', html: bloqueHTML({ corto: x.op.corto, color: x.op.color, texto: `T: ${texto}`, piezas, pie, arrastrable: abierta, puras: b.flujo.puras }), iconSize: null, iconAnchor: desp ? [0, 16] : [-36, 16] })
-    const mk = L.marker([pos[1], pos[0]], { icon, draggable: abierta, interactive: abierta, keyboard: false, zIndexOffset: 1400 }).addTo(g)
+    const datos = { corto: x.op.corto, color: x.op.color, texto: `T: ${texto}`, piezas, pie, arrastrable: abierta, puras: b.flujo.puras }
+    const ver = abierto === x.oi.id
+    const icon = L.divIcon({ className: 'oi-bloque', html: ver ? bloqueHTML(datos) : siglaHTML(datos), iconSize: null, iconAnchor: desp ? [0, ver ? 16 : 8] : [-36, ver ? 16 : 8] })
+    const mk = L.marker([pos[1], pos[0]], { icon, draggable: abierta, interactive: true, keyboard: false, zIndexOffset: ver ? 1500 : 1400 }).addTo(g)
+    alternar(mk, x.oi.id)
     if (abierta) {
       mk.bindTooltip('Arrastrá el rótulo adonde se lea mejor', { direction: 'top' })
       const id = x.oi.id
@@ -147,8 +181,11 @@ function dibujar() {
     const pos = b.flujo.reserva.pos || posicionReserva(b)
     if (pos) {
       const peso = b.reserva.reduce((s, p) => s + (esManiobra(p) ? 1 : 0), 0)
-      const icon = L.divIcon({ className: 'oi-bloque', html: bloqueHTML({ corto: RESERVA.corto, color: RESERVA.color, texto: 'Reserva (lo que sobra)', piezas: b.reserva, pie: peso && !b.flujo.puras ? `${peso} pieza(s) de maniobra` : '', arrastrable: abierta, puras: b.flujo.puras }), iconSize: null, iconAnchor: [0, 16] })
-      const mk = L.marker([pos[1], pos[0]], { icon, draggable: abierta, interactive: abierta, keyboard: false, zIndexOffset: 1400 }).addTo(g)
+      const datos = { corto: RESERVA.corto, color: RESERVA.color, texto: 'Reserva (lo que sobra)', piezas: b.reserva, pie: peso && !b.flujo.puras ? `${peso} pieza(s) de maniobra` : '', arrastrable: abierta, puras: b.flujo.puras }
+      const ver = abierto === RESERVA.corto
+      const icon = L.divIcon({ className: 'oi-bloque', html: ver ? bloqueHTML(datos) : siglaHTML(datos), iconSize: null, iconAnchor: [0, ver ? 16 : 8] })
+      const mk = L.marker([pos[1], pos[0]], { icon, draggable: abierta, interactive: true, keyboard: false, zIndexOffset: ver ? 1500 : 1400 }).addTo(g)
+      alternar(mk, RESERVA.corto)
       if (abierta)
         mk.on('dragend', () => {
           const ll = mk.getLatLng()

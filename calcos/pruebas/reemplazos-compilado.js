@@ -45,7 +45,8 @@
 //   index-plantilla-ajuste-20261020.js + reemplazos-2026-10-20-objetivos-indicados.js = index-objetivos-indicados-20261020.js
 //   index-objetivos-indicados-20261020.js + reemplazos-2026-10-20-ht19-fases.js = index-ht19-fases-20261020.js
 //   index-ht19-fases-20261020.js + reemplazos-2026-10-20-ains-acostar.js = index-ains-acostar-20261020.js
-//   index-ains-acostar-20261020.js + reemplazos-2026-10-20-disgregar.js = index-disgregar-20261020.js (el vigente)
+//   index-ains-acostar-20261020.js + reemplazos-2026-10-20-disgregar.js = index-disgregar-20261020.js
+//   index-disgregar-20261020.js + reemplazos-2026-10-21-ain-chico.js = index-ain-chico-20261021.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -59,6 +60,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-21-ain-chico'),
+    nombre: 'reemplazos-2026-10-21-ain-chico',
+    // calcos/assets/index-disgregar-20261020.js (antes de los rótulos AIN al 60 %).
+    anterior: '5bffe6a6a16c60da5733fcd7307b40ac9f92296fb974807c6aadfca96674d713',
+  },
   {
     lista: require('./reemplazos-2026-10-20-disgregar'),
     nombre: 'reemplazos-2026-10-20-disgregar',
