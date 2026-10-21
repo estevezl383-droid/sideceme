@@ -218,6 +218,22 @@ const kpi = async (page, rot) => {
       assert.deepEqual(o2.zonasLog.filter((z) => z.origen === 'picb').map((z) => z.propuesta), ['B', 'C', 'D'], 'con las letras libres (la A ya estaba)')
       assert.ok(o2.zonasLog.filter((z) => z.origen === 'picb').every((z) => z.zona === 'asdi' && z.coords.length === 4 && z.clave))
       await clic(grande.getByRole('button', { name: '✕ Cerrar' }))
+      // Llevadas al calco, el panel mide ESAS áreas (B, C, D) y sigue a la que se mueve.
+      await esperar(page, async () => /ÁREA D ·/.test(await caja.innerText()))
+      const previo = await caja.innerText()
+      assert.ok(/Medidas las 3 área/.test(previo) && /ÁREA B ·/.test(previo) && !/Llevar .* al calco/.test(previo), 'mide las áreas del calco')
+      const motivoB = (t) => (t.match(/ÁREA B · \d+\/100[\s\S]*?km de la [^\n]*/) || [''])[0]
+      await page.evaluate(async () => {
+        const R = await import('/calcos/logistica/v1/runtime.js')
+        const zs = R.calcoActual().ops.zonasLog
+        const i = zs.findIndex((z) => z.origen === 'picb' && z.propuesta === 'B')
+        R.accion('ajustarZona')(i, { coords: zs[i].coords.map(([x, y]) => [x, y + 0.135]) })
+      })
+      const despues = await esperar(page, async () => {
+        const t = await caja.innerText()
+        return motivoB(t) && motivoB(t) !== motivoB(previo) ? t : null
+      })
+      assert.ok(despues, `al mover el Área B cambian sus datos (${motivoB(previo)})`)
 
       // En el 3D el globo no se ve: tocar la instalación abre el tablero directo.
       if (!movil) {

@@ -134,7 +134,9 @@ const lineaDe = (x) => limpiar(x?.coords || (x?.geometry?.type === 'LineString' 
 const esEnemigo = (x) => !/^prop/i.test(String(x?.bando || 'enemigo'))
 
 // ─── La propuesta ─────────────────────────────────────────────────────────────────────
-export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, pesos = {}, operacion = '', maxGrilla = 1400 } = {}) {
+// Con «areas» ([{ letra, coords }], las del calco) no elige lugares: mide ESAS áreas donde
+// el oficial las dejó (aunque las haya movido) y las puntúa contra los lugares válidos.
+export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, pesos = {}, operacion = '', maxGrilla = 1400, areas = null } = {}) {
   const ops = calco.ops || {}
   const cmoc = calco.cmoc || {}
   const unidades = calco.unidades || []
@@ -215,50 +217,42 @@ export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, peso
     [c[0] + U[0] * dim.ancho / 2 + N[0] * dim.fondo / 2, c[1] + U[1] * dim.ancho / 2 + N[1] * dim.fondo / 2],
     [c[0] - U[0] * dim.ancho / 2 + N[0] * dim.fondo / 2, c[1] - U[1] * dim.ancho / 2 + N[1] * dim.fondo / 2],
   ]
+  // Mide un lugar (el rectángulo de la grilla o un área del calco) con todos los aspectos;
+  // «falla» dice el primer impositivo que no cumple (null = cumple todo).
+  const medir = (R, c) => {
+    const enAO = R.every((p) => pip(p, A))
+    const dSeg = dPolyLinea(R, FR)
+    const muestras = [c, ...R, ...R.map((p, i) => [(p[0] + R[(i + 1) % R.length][0]) / 2, (p[1] + R[(i + 1) % R.length][1]) / 2])]
+    const enSevero = severo.some((poly) => muestras.some((m) => pip(m, poly)))
+    const dAv = avenidas.length ? Math.min(...avenidas.map((a) => dPL(c, a.l) - a.media)) : Infinity
+    const dists = ptsAmigas.map((x) => dPPoly(x.p, R))
+    const lejos = dists.length ? Math.max(...dists) : 0
+    const fueraDMA = dma.ok && dists.length && lejos * P.factor > dma.km
+    const dF = dFuegos(R)
+    const media = (xs2) => (xs2.length ? xs2.reduce((s, v) => s + v, 0) / xs2.length : NaN)
+    const v = {
+      cerrado: primer.length ? media(primer.map((x) => dPPoly(x.p, R))) : NaN,
+      esfuerzo: od.length ? media(od.map((x) => dPPoly(x.p, R))) : NaN,
+      continuidad: dists.length ? lejos : NaN,
+      viaria: viarias.length ? Math.min(...viarias.map((l) => dPolyLinea(R, l))) : NaN,
+      terreno: restringido.length ? (100 * muestras.filter((m) => restringido.some((poly) => pip(m, poly))).length) / muestras.length : NaN,
+      responsabilidad: dSeg,
+      avenidas: avenidas.length ? Math.max(0, dAv) : NaN,
+      flancos: flancos.length ? Math.min(...flancos.map((l) => dPolyLinea(R, l))) : NaN,
+      enemigo: enemigos.length ? Math.min(...enemigos.map((p) => dPPoly(p, R))) : NaN,
+      amiga: dists.length ? Math.min(...dists) : NaN,
+      superior: superiores.length ? Math.min(...superiores.map((s) => (s.poly ? dPolyLinea(R, cerrar(s.poly)) : dPPoly(s.p, R)))) : NaN,
+    }
+    const fallas = [dSeg < minSeg && 'seguridad', enSevero && 'severo', dAv < dim.fondo / 2 && 'avenida', fueraDMA && 'dma', dF < alcance && 'fuegos'].filter(Boolean)
+    return { c, R, v, dSeg, dist: dists, enAO, dF, fallas, falla: fallas[0] || null }
+  }
   for (let uu = uMin + paso / 2; uu < uMax; uu += paso) {
     for (let nn = paso / 2; nn < nMax; nn += paso) {
       const c = [medio[0] + U[0] * uu + N[0] * nn, medio[1] + U[1] * uu + N[1] * nn]
       embudo.evaluados++
-      const R = rect(c)
-      const enAO = R.every((p) => pip(p, A))
-      const dSeg = dPolyLinea(R, FR)
-      if (dSeg < minSeg) {
-        embudo.seguridad++
-        continue
-      }
-      const muestras = [c, ...R, ...R.map((p, i) => [(p[0] + R[(i + 1) % 4][0]) / 2, (p[1] + R[(i + 1) % 4][1]) / 2])]
-      if (severo.some((poly) => muestras.some((m) => pip(m, poly)))) {
-        embudo.severo++
-        continue
-      }
-      const dAv = avenidas.length ? Math.min(...avenidas.map((a) => dPL(c, a.l) - a.media)) : Infinity
-      if (dAv < dim.fondo / 2) {
-        embudo.avenida++
-        continue
-      }
-      const dists = ptsAmigas.map((x) => dPPoly(x.p, R))
-      const lejos = dists.length ? Math.max(...dists) : 0
-      if (dma.ok && dists.length && lejos * P.factor > dma.km) {
-        embudo.dma++
-        continue
-      }
-      const dF = dFuegos(R)
-      const media = (xs2) => (xs2.length ? xs2.reduce((s, v) => s + v, 0) / xs2.length : NaN)
-      const v = {
-        cerrado: primer.length ? media(primer.map((x) => dPPoly(x.p, R))) : NaN,
-        esfuerzo: od.length ? media(od.map((x) => dPPoly(x.p, R))) : NaN,
-        continuidad: dists.length ? lejos : NaN,
-        viaria: viarias.length ? Math.min(...viarias.map((l) => dPolyLinea(R, l))) : NaN,
-        terreno: restringido.length ? (100 * muestras.filter((m) => restringido.some((poly) => pip(m, poly))).length) / muestras.length : NaN,
-        responsabilidad: dSeg,
-        avenidas: avenidas.length ? Math.max(0, dAv) : NaN,
-        flancos: flancos.length ? Math.min(...flancos.map((l) => dPolyLinea(R, l))) : NaN,
-        enemigo: enemigos.length ? Math.min(...enemigos.map((p) => dPPoly(p, R))) : NaN,
-        amiga: dists.length ? Math.min(...dists) : NaN,
-        superior: superiores.length ? Math.min(...superiores.map((s) => (s.poly ? dPolyLinea(R, cerrar(s.poly)) : dPPoly(s.p, R)))) : NaN,
-      }
-      const x = { c, R, v, dSeg, dist: dists, enAO, dF }
-      if (dF < alcance) expuestos.push(x)
+      const x = medir(rect(c), c)
+      if (x.falla === 'fuegos') expuestos.push(x)
+      else if (x.falla) embudo[x.falla]++
       else validos.push(x)
     }
   }
@@ -269,22 +263,34 @@ export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, peso
   embudo.validos = validos.length
   embudo.fueraAO = validos.filter((x) => !x.enAO).length
 
-  // Puntajes 0-1 por criterio (comparando los lugares válidos entre sí).
-  const usados = CRITERIOS.filter((k) => validos.some((x) => Number.isFinite(x.v[k.id]))).map((k) => ({ ...k, pesoOp: pesosOp[k.id] ?? k.peso, peso: Number.isFinite(+pesos[k.id]) && +pesos[k.id] >= 0 && pesos[k.id] !== '' ? +pesos[k.id] : pesosOp[k.id] ?? k.peso }))
+  // Las áreas del calco, medidas donde están.
+  const medidas = (Array.isArray(areas) ? areas : [])
+    .map((a) => ({ letra: String(a?.letra || '?'), coords: limpiar(a?.coords) }))
+    .filter((a) => a.coords.length >= 3)
+    .map((a) => {
+      const R = conCaja(a.coords.map(PL.a))
+      const c = [R.reduce((s, p) => s + p[0], 0) / R.length, R.reduce((s, p) => s + p[1], 0) / R.length]
+      return { ...medir(R, c), letra: a.letra, coords: a.coords }
+    })
+  const enCalco = Array.isArray(areas)
+  // Puntajes 0-1 por criterio (comparando con los lugares válidos).
+  const base = validos.length ? validos : medidas
+  const usados = CRITERIOS.filter((k) => [...base, ...medidas].some((x) => Number.isFinite(x.v[k.id]))).map((k) => ({ ...k, pesoOp: pesosOp[k.id] ?? k.peso, peso: Number.isFinite(+pesos[k.id]) && +pesos[k.id] >= 0 && pesos[k.id] !== '' ? +pesos[k.id] : pesosOp[k.id] ?? k.peso }))
   const rango = {}
   for (const k of usados) {
-    const vals = validos.map((x) => x.v[k.id]).filter(Number.isFinite).map((v) => (k.tope ? Math.min(v, k.tope) : v))
+    const vals = base.map((x) => x.v[k.id]).filter(Number.isFinite).map((v) => (k.tope ? Math.min(v, k.tope) : v))
     rango[k.id] = [Math.min(...vals), Math.max(...vals)]
   }
   const puntaje = (k, v) => {
     if (!Number.isFinite(v)) return null
     const [a, b] = rango[k.id]
+    if (!Number.isFinite(a)) return null
     const w = k.tope ? Math.min(v, k.tope) : v
     if (b - a < 1e-9) return 1
-    const s = (w - a) / (b - a)
+    const s = Math.max(0, Math.min(1, (w - a) / (b - a)))
     return k.menor ? 1 - s : s
   }
-  for (const x of validos) {
+  for (const x of [...validos, ...medidas]) {
     let s = 0
     let w = 0
     x.s = {}
@@ -311,16 +317,17 @@ export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, peso
     return [Math.round(q[0] * 1e6) / 1e6, Math.round(q[1] * 1e6) / 1e6]
   }
   const nombres = (lista, k) => lista.slice(0, k).map((x) => nombreUnidad(x.u)).join(', ')
-  const candidatos = elegidos.map((x, i) => {
+  const candidatos = (enCalco ? medidas : elegidos).map((x, i) => {
     const criterios = usados.map((k) => ({ id: k.id, nom: k.nom, factor: k.factor, aspecto: k.aspecto, peso: k.peso, valor: x.v[k.id], unidad: k.unidad, puntaje: x.s[k.id] }))
     const porFactor = {}
     for (const f of Object.keys(COLOR_FACTOR)) {
       const cs = criterios.filter((c) => c.factor === f && c.puntaje != null && c.peso)
       porFactor[f] = cs.length ? cs.reduce((s, c) => s + c.puntaje * c.peso, 0) / cs.reduce((s, c) => s + c.peso, 0) : null
     }
-    const coords = x.R.map(aLL)
+    const coords = enCalco ? x.coords : x.R.map(aLL)
+    const ff = x.fallas || []
     return {
-      letra: 'ABC'[i],
+      letra: enCalco ? x.letra : 'ABC'[i],
       coords,
       centro: aLL(x.c),
       km2: areaKm2(coords),
@@ -330,11 +337,15 @@ export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, peso
       criterios,
       porFactor,
       dSeg: x.dSeg,
+      fallas: ff,
       motivos: [
-        `A ${x.dSeg.toFixed(1)} km de la ${fr.rot} (mínimo ${S.min} km${fondoBloqueo ? ` desde las últimas posiciones de bloqueo, que están a ${fondoBloqueo.toFixed(1)} km` : ''}).`,
+        `${ff.includes('seguridad') ? '⚠️ Menos de la distancia de seguridad: ' : ''}A ${x.dSeg.toFixed(1)} km de la ${fr.rot} (mínimo ${S.min} km${fondoBloqueo ? ` desde las últimas posiciones de bloqueo, que están a ${fondoBloqueo.toFixed(1)} km` : ''}).`,
+        ff.includes('severo') ? '⚠️ Toca terreno severo del CMOC (no-go).' : '',
+        ff.includes('avenida') ? '⚠️ Sobre una avenida de aproximación enemiga.' : '',
+        ff.includes('dma') ? `⚠️ Fuera de la distancia máxima de apoyo: la unidad más lejana queda a ≈ ${(x.v.continuidad * P.factor).toFixed(0)} km por carretera (DMA ${dma.km} km).` : '',
         x.dF >= alcance
           ? `Fuera del alcance de los fuegos enemigos (≈ ${alcance} km): a ${x.dF.toFixed(1)} km ${desdeFichas ? 'de la ficha enemiga más cercana' : `de la ${fr.rot} (no hay fichas enemigas: se midió desde el frente)`}.`
-          : `⚠️ Al alcance de los fuegos enemigos (≈ ${alcance} km): a ${x.dF.toFixed(1)} km ${desdeFichas ? 'de la ficha enemiga más cercana' : `de la ${fr.rot}`}; ningún lugar quedaba fuera sin pasar la DMA.`,
+          : `⚠️ Al alcance de los fuegos enemigos (≈ ${alcance} km): a ${x.dF.toFixed(1)} km ${desdeFichas ? 'de la ficha enemiga más cercana' : `de la ${fr.rot}`}${enCalco ? '.' : '; ningún lugar quedaba fuera sin pasar la DMA.'}`,
         x.enAO ? 'Dentro del Área de Operaciones.' : 'Fuera del Área de Operaciones (detrás o al costado de su borde): el espacio lo coordina el escalón superior.',
         Number.isFinite(x.v.cerrado) ? `A ${x.v.cerrado.toFixed(1)} km en promedio del 1er escalón (${nombres(primer, 3)}).` : '',
         Number.isFinite(x.v.continuidad) ? `El más lejano a ${x.v.continuidad.toFixed(1)} km (≈ ${(x.v.continuidad * P.factor).toFixed(0)} km por carretera; DMA ${dma.km} km).` : '',
@@ -350,7 +361,7 @@ export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, peso
   if (!viarias.length) avisos.push('No hay EPA ni corredores de movilidad propios: la red viaria no entró en la cuenta. Trazá el EPA para que la tenga en cuenta.')
   if (todosExpuestos) avisos.push(`Ningún lugar queda fuera del alcance de los fuegos enemigos (≈ ${alcance} km) sin pasar la distancia máxima de apoyo: se proponen los menos expuestos. Revisá el alcance (es aproximado), la DMA (TD, TC, V) o la ubicación de las unidades.`)
   if (!desdeFichas) avisos.push(`No hay fichas enemigas en la carta: el alcance de sus fuegos (≈ ${alcance} km) se midió desde la ${fr.rot}. Con el dispositivo enemigo colocado, la cuenta es más justa.`)
-  if (!candidatos.length) avisos.push('Ningún lugar de nuestro lado del frente cumple a la vez la distancia de seguridad, la DMA y el CMOC. Revisá el AO, el frente o la DMA (TD, TC, V).')
+  if (!candidatos.length && !enCalco) avisos.push('Ningún lugar de nuestro lado del frente cumple a la vez la distancia de seguridad, la DMA y el CMOC. Revisá el AO, el frente o la DMA (TD, TC, V).')
   const grilla = validos.map((x) => ({ c: aLL(x.c), s: x.total }))
   return {
     ok: true,
@@ -361,6 +372,7 @@ export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, peso
     paso,
     frente: { rot: fr.rot, linea: limpiar(fr.linea) },
     candidatos,
+    enCalco,
     embudo,
     criterios: usados,
     grilla,

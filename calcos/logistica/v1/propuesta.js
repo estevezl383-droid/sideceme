@@ -13,7 +13,7 @@ import { limpiar, paralela, centroide } from './geo.js'
 import { LETRAS, nombreUnidad } from './analisis.js'
 import { unidadesQueReciben, posicion } from './planeamiento.js'
 import * as G from './graficos.js'
-import { useState, jsx, jsxs, useCalco, accion, panelIA, encabezadoIA, enBody, mostrarPropuesta, ocultarPropuesta, propuestaVisible, verEnCarta } from './runtime.js'
+import { useState, useEffect, jsx, jsxs, useCalco, accion, panelIA, encabezadoIA, enBody, mostrarPropuesta, ocultarPropuesta, propuestaVisible, verEnCarta } from './runtime.js'
 
 function h(tipo, props, ...hijos) {
   const { key, ...p } = props || {}
@@ -25,6 +25,9 @@ function h(tipo, props, ...hijos) {
 const AMBAR = '#fbbf24'
 // Las áreas propuestas: categóricas en orden fijo (paleta validada para fondo oscuro).
 export const COLOR_AREA = { A: '#3987e5', B: '#d95926', C: '#199e70' }
+// Las áreas del calco llevan su propia letra (G, H…): el color va por orden.
+const PALETA = Object.values(COLOR_AREA)
+const colorDe = (pr, c) => (pr?.enCalco ? PALETA[Math.max(0, pr.candidatos.indexOf(c)) % PALETA.length] : COLOR_AREA[c.letra])
 const S = {
   caja: { background: 'rgba(57,135,229,0.07)', border: '1px solid rgba(57,135,229,0.45)', borderRadius: 8, padding: 9, display: 'flex', flexDirection: 'column', gap: 8 },
   tit: { color: '#9ec5f4', fontWeight: 800, fontSize: 12.5 },
@@ -58,19 +61,28 @@ export function PropuestaPICB({ nivel = 'asdi', parametros = {}, onExpediente = 
   const n = (k) => (Array.isArray(cm[k]) ? cm[k].length : 0)
   // el alcance aproximado de los fuegos enemigos (km): lo pone el oficial; vacío = el de la Mesa
   const alcance = Number.isFinite(+planLog.alcanceFuegos) && +planLog.alcanceFuegos > 0 ? +planLog.alcanceFuegos : ''
-  const calcular = (p = pesos, alc = alcance) => {
-    const r = proponerASDI(calco, { nivel, parametros: { ...parametros, alcance: alc }, pesos: p, operacion: planLog.operacion || '' })
+  // Las áreas que ya se llevaron al calco: se miden donde están (si el oficial las movió, los
+  // puntajes, el mapa y los motivos siguen a las áreas).
+  const zonas = calco.ops?.zonasLog || []
+  const enCalco = zonas.filter((z) => z.zona === nivel && z.origen === 'picb' && Array.isArray(z.coords) && z.coords.length >= 3).map((z, i) => ({ letra: z.propuesta || String(i + 1), coords: z.coords }))
+  const huella = JSON.stringify(enCalco)
+  const calcular = (p = pesos, alc = alcance, nuevas = false) => {
+    const r = proponerASDI(calco, { nivel, parametros: { ...parametros, alcance: alc }, pesos: p, operacion: planLog.operacion || '', areas: !nuevas && enCalco.length ? enCalco : null })
     setPr(r)
     if (!r.ok) setMsg({ tipo: 'err', txt: r.error })
+    else if (r.enCalco) setMsg({ tipo: 'ok', txt: `📐 Medidas las ${r.candidatos.length} área(s) del calco donde están (${r.candidatos.map((c) => c.letra).join(', ')}). Si las movés, esto se actualiza solo.` })
     else setMsg(r.candidatos.length ? { tipo: 'ok', txt: `🎯 ${r.candidatos.length} área(s) propuesta(s) de ${r.embudo.evaluados} lugares evaluados. Llevalas al calco para medirlas y evaluarlas en los pasos 3 y 4.` } : { tipo: 'err', txt: r.avisos[r.avisos.length - 1] })
-    if (enCarta && r.ok) setEnCarta(mostrarPropuesta(r, COLOR_AREA))
+    if (enCarta && r.ok && !r.enCalco) setEnCarta(mostrarPropuesta(r, COLOR_AREA))
     return r
   }
+  // Movieron, agregaron o borraron un área del calco: se vuelve a medir.
+  useEffect(() => {
+    if (enCalco.length || pr?.enCalco) calcular()
+  }, [huella])
   const guardarPlan = (patch) => accion('setOps')?.((o) => ({ ...o, planLog: { ...(esObj(o.planLog) ? o.planLog : {}), ...patch } }))
-  const zonas = calco.ops?.zonasLog || []
   const libres = LETRAS.split('').filter((l) => !zonas.some((z) => z.propuesta === l))
   const llevar = () => {
-    if (!pr?.candidatos?.length) return
+    if (!pr?.candidatos?.length || pr.enCalco) return
     const agregar = accion('agregarOps')
     const ajustar = accion('ajustarZona')
     if (!ajustar || (!agregar && !accion('setOps'))) return setMsg({ tipo: 'err', txt: 'Esta versión de la Mesa no deja agregar áreas desde acá.' })
@@ -118,7 +130,7 @@ export function PropuestaPICB({ nivel = 'asdi', parametros = {}, onExpediente = 
     P.push(doctrinaParaIA({ conFactores: true, conMatriz: false, conAmenaza: true }))
     if (exp) P.push(`# EXPEDIENTE DEL EJERCICIO\n\n${exp}`)
     if (String(ideas).trim()) P.push(`# IDEAS DEL OFICIAL — respetalas\n\n${ideas.trim()}`)
-    P.push(`# QUÉ DEVOLVÉS\n\nÚNICAMENTE un objeto JSON válido (sin texto alrededor):\n${JSON.stringify({ recomendada: 'A', areas: [{ letra: 'A', valoracion: 'Ventajas y desventajas concretas de esta área según los factores.', cambiar: 'Qué le corregirías (correrla, agrandarla…) o vacío.' }], conclusion: 'Con la forma de la Escuela: LAS ÁREAS … TIENEN CONDICIONES …, MIENTRAS QUE EL ÁREA … TIENE LA VENTAJA …, CONSIDERANDO LOS ASPECTOS …', riesgos: ['…'] }, null, 2)}\nUsá las letras A, B, C de la propuesta. No inventes lugares ni coordenadas: lo que no sepas, «SIN DATO — verificar».`)
+    P.push(`# QUÉ DEVOLVÉS\n\nÚNICAMENTE un objeto JSON válido (sin texto alrededor):\n${JSON.stringify({ recomendada: 'A', areas: [{ letra: 'A', valoracion: 'Ventajas y desventajas concretas de esta área según los factores.', cambiar: 'Qué le corregirías (correrla, agrandarla…) o vacío.' }], conclusion: 'Con la forma de la Escuela: LAS ÁREAS … TIENEN CONDICIONES …, MIENTRAS QUE EL ÁREA … TIENE LA VENTAJA …, CONSIDERANDO LOS ASPECTOS …', riesgos: ['…'] }, null, 2)}\nUsá las letras de la propuesta (${(r?.candidatos || []).map((c) => c.letra).join(', ') || 'A, B, C'}). No inventes lugares ni coordenadas: lo que no sepas, «SIN DATO — verificar».`)
     return P.join('\n\n')
   }
   const onAplicar = (texto) => {
@@ -136,8 +148,8 @@ export function PropuestaPICB({ nivel = 'asdi', parametros = {}, onExpediente = 
     }
     if (!esObj(j)) return { ok: false, msg: 'No encontré un objeto JSON en la respuesta.' }
     const ia = {
-      recomendada: /^[A-C]$/.test(String(j.recomendada || '')) ? j.recomendada : '',
-      areas: (Array.isArray(j.areas) ? j.areas : []).filter((x) => esObj(x) && /^[A-C]$/.test(String(x.letra))).map((x) => ({ letra: x.letra, valoracion: String(x.valoracion || '').slice(0, 3000), cambiar: String(x.cambiar || '').slice(0, 1500) })),
+      recomendada: /^[A-Z]$/.test(String(j.recomendada || '')) ? j.recomendada : '',
+      areas: (Array.isArray(j.areas) ? j.areas : []).filter((x) => esObj(x) && /^[A-Z]$/.test(String(x.letra))).map((x) => ({ letra: x.letra, valoracion: String(x.valoracion || '').slice(0, 3000), cambiar: String(x.cambiar || '').slice(0, 1500) })),
       conclusion: String(j.conclusion || '').slice(0, 3000),
       riesgos: (Array.isArray(j.riesgos) ? j.riesgos : []).filter((x) => typeof x === 'string').slice(0, 20),
       en: new Date().toISOString(),
@@ -174,7 +186,7 @@ export function PropuestaPICB({ nivel = 'asdi', parametros = {}, onExpediente = 
         ...anillos(calco.cmoc?.severo).map((c) => ({ coords: c, color: '#d03b3b', relleno: '#d03b3b', opacidad: 0.45, titulo: 'Terreno severo (CMOC)' })),
         ...anillos(calco.cmoc?.restringido).map((c) => ({ coords: c, color: '#fab219', relleno: '#fab219', opacidad: 0.3, titulo: 'Terreno restringido (CMOC)' })),
         ...(ops.zonasLog || []).filter((z) => z.zona === 'arce' && nivel !== 'arce').map((z) => ({ coords: z.coords, color: '#ffc000', relleno: '#ffc000', opacidad: 0.12, trazo: '5 4', rot: 'ARCE', tamRot: 10 })),
-        ...pr.candidatos.map((c) => ({ coords: c.coords, color: COLOR_AREA[c.letra], relleno: COLOR_AREA[c.letra], opacidad: 0.35, grosor: 2.5, rot: c.letra, colorRot: '#fff', tamRot: 13, titulo: `Área ${c.letra}: ${pct(c.total)}/100` })),
+        ...pr.candidatos.map((c) => ({ coords: c.coords, color: colorDe(pr, c), relleno: colorDe(pr, c), opacidad: 0.35, grosor: 2.5, rot: c.letra, colorRot: '#fff', tamRot: 13, titulo: `Área ${c.letra}: ${pct(c.total)}/100` })),
       ],
       lineas: [
         { coords: pr.frente.linea, color: '#d03b3b', grosor: 3, rot: pr.frente.rot },
@@ -189,7 +201,7 @@ export function PropuestaPICB({ nivel = 'asdi', parametros = {}, onExpediente = 
       ],
     })
     const leyendaMapa = G.leyenda(h, [
-      { id: 'a', corto: 'Áreas A · B · C', color: COLOR_AREA.A },
+      { id: 'a', corto: `Áreas ${pr.candidatos.map((c) => c.letra).join(' · ')}${pr.enCalco ? ' (las del calco, donde están)' : ''}`, color: COLOR_AREA.A },
       { id: 'cal', corto: 'Lugares válidos (más claro = mejor)', color: RAMPA[7] },
       { id: 'sev', corto: 'Terreno severo', color: '#d03b3b' },
       { id: 'res', corto: 'Terreno restringido', color: '#fab219' },
@@ -205,7 +217,7 @@ export function PropuestaPICB({ nivel = 'asdi', parametros = {}, onExpediente = 
         { nom: '✓ Cumplen lo impositivo y el CMOC', n: E.validos, color: '#0ca30c', fuerte: true },
       ],
     })
-    const totales = G.barras(h, { dato: 'puntaje-picb', max: 100, fmt: (x) => `${Math.round(x)}`, filas: pr.candidatos.map((c) => ({ id: c.letra, nom: `Área ${c.letra}`, sub: `${c.km2.toFixed(1)} km² · a ${c.dSeg.toFixed(1)} km de la ${pr.frente.rot}`, txt: `${pct(c.total)}/100`, partes: [{ id: 't', valor: c.total * 100, color: COLOR_AREA[c.letra], titulo: `Área ${c.letra}: ${pct(c.total)} de 100` }] })) })
+    const totales = G.barras(h, { dato: 'puntaje-picb', max: 100, fmt: (x) => `${Math.round(x)}`, filas: pr.candidatos.map((c) => ({ id: c.letra, nom: `Área ${c.letra}`, sub: `${c.km2.toFixed(1)} km² · a ${c.dSeg.toFixed(1)} km de la ${pr.frente.rot}`, txt: `${pct(c.total)}/100`, partes: [{ id: 't', valor: c.total * 100, color: colorDe(pr, c), titulo: `Área ${c.letra}: ${pct(c.total)} de 100` }] })) })
     const porFactor = h(
       'div',
       { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }, 'data-grafico': 'factores-picb' },
@@ -214,7 +226,7 @@ export function PropuestaPICB({ nivel = 'asdi', parametros = {}, onExpediente = 
           'div',
           { key: f, style: { border: `1px solid ${COLOR_FACTOR[f]}66`, borderRadius: 6, padding: 6, display: 'flex', flexDirection: 'column', gap: 4 } },
           h('div', { style: { fontSize: 10, fontWeight: 800, color: '#111', background: COLOR_FACTOR[f], borderRadius: 3, padding: '1px 5px', alignSelf: 'flex-start' } }, NOMBRE_FACTOR[f]),
-          G.barras(h, { max: 100, alto: 10, col: '14px', fmt: (x) => `${Math.round(x)}`, filas: pr.candidatos.map((c) => ({ id: c.letra, nom: c.letra, txt: c.porFactor[f] == null ? 'sin dato' : pct(c.porFactor[f]), partes: [{ id: 'v', valor: (c.porFactor[f] || 0) * 100, color: COLOR_AREA[c.letra], titulo: `Área ${c.letra} · ${NOMBRE_FACTOR[f]}: ${c.porFactor[f] == null ? 'sin dato' : pct(c.porFactor[f])}` }] })) }),
+          G.barras(h, { max: 100, alto: 10, col: '14px', fmt: (x) => `${Math.round(x)}`, filas: pr.candidatos.map((c) => ({ id: c.letra, nom: c.letra, txt: c.porFactor[f] == null ? 'sin dato' : pct(c.porFactor[f]), partes: [{ id: 'v', valor: (c.porFactor[f] || 0) * 100, color: colorDe(pr, c), titulo: `Área ${c.letra} · ${NOMBRE_FACTOR[f]}: ${c.porFactor[f] == null ? 'sin dato' : pct(c.porFactor[f])}` }] })) }),
         ),
       ),
     )
@@ -229,7 +241,7 @@ export function PropuestaPICB({ nivel = 'asdi', parametros = {}, onExpediente = 
           'table',
           { style: { width: '100%', borderCollapse: 'collapse', fontSize: 11 } },
           h('tbody', null,
-            h('tr', null, h('th', { style: th }, 'Aspecto'), h('th', { style: th }, 'Peso'), ...pr.candidatos.map((c) => h('th', { key: c.letra, style: { ...th, color: COLOR_AREA[c.letra] } }, `Área ${c.letra}`))),
+            h('tr', null, h('th', { style: th }, 'Aspecto'), h('th', { style: th }, 'Peso'), ...pr.candidatos.map((c) => h('th', { key: c.letra, style: { ...th, color: colorDe(pr, c) } }, `Área ${c.letra}`))),
             ...pr.criterios.map((k) =>
               h(
                 'tr',
@@ -238,7 +250,7 @@ export function PropuestaPICB({ nivel = 'asdi', parametros = {}, onExpediente = 
                 h('td', { style: { ...td, textAlign: 'center' } }, h('input', { style: S.num, type: 'number', min: 0, step: 0.5, value: pesos[k.id] ?? '', placeholder: String(k.pesoOp ?? k.peso), 'aria-label': `Peso de ${k.nom}`, onChange: (e) => { const p = { ...pesos }; if (e.target.value === '') delete p[k.id]; else p[k.id] = Math.max(0, +e.target.value); guardarPlan({ pesosPICB: p }); calcular(p) } })),
                 ...pr.candidatos.map((c) => {
                   const x = c.criterios.find((y) => y.id === k.id)
-                  return h('td', { key: c.letra, style: td, title: x?.puntaje == null ? '' : `puntaje ${pct(x.puntaje)}/100` }, h('div', { style: { display: 'flex', alignItems: 'center', gap: 5 } }, h('span', { style: { display: 'inline-block', height: 8, width: `${Math.round((x?.puntaje || 0) * 40)}px`, background: COLOR_AREA[c.letra], borderRadius: 2 } }), Number.isFinite(x?.valor) ? `${x.valor.toFixed(k.unidad === '%' ? 0 : 1)} ${k.unidad}` : '—'))
+                  return h('td', { key: c.letra, style: td, title: x?.puntaje == null ? '' : `puntaje ${pct(x.puntaje)}/100` }, h('div', { style: { display: 'flex', alignItems: 'center', gap: 5 } }, h('span', { style: { display: 'inline-block', height: 8, width: `${Math.round((x?.puntaje || 0) * 40)}px`, background: colorDe(pr, c), borderRadius: 2 } }), Number.isFinite(x?.valor) ? `${x.valor.toFixed(k.unidad === '%' ? 0 : 1)} ${k.unidad}` : '—'))
                 }),
               ),
             ),
@@ -253,7 +265,7 @@ export function PropuestaPICB({ nivel = 'asdi', parametros = {}, onExpediente = 
         G.tarjeta(h, { tit: 'Qué se descartó y por qué', children: [embudo] }),
       ),
       G.tarjeta(h, { tit: 'Comparación por factor de la Escuela', children: [porFactor] }),
-      ...pr.candidatos.map((c) => h('div', { key: c.letra, style: { borderLeft: `4px solid ${COLOR_AREA[c.letra]}`, background: '#101a27', borderRadius: 6, padding: '6px 9px', display: 'flex', flexDirection: 'column', gap: 3 } }, h('div', { style: S.fila }, h('b', { style: { color: COLOR_AREA[c.letra] } }, `ÁREA ${c.letra} · ${pct(c.total)}/100`), h('button', { style: { ...S.btn, flex: '0 0 auto', minWidth: 0, padding: '2px 8px', fontSize: 11 }, onClick: () => verEnCarta([c.coords]) }, '📍 Ver')), ...c.motivos.map((m, i) => h('div', { key: i, style: { fontSize: 11, color: '#cfdbe8' } }, '· ', m)))),
+      ...pr.candidatos.map((c) => h('div', { key: c.letra, style: { borderLeft: `4px solid ${colorDe(pr, c)}`, background: '#101a27', borderRadius: 6, padding: '6px 9px', display: 'flex', flexDirection: 'column', gap: 3 } }, h('div', { style: S.fila }, h('b', { style: { color: colorDe(pr, c) } }, `ÁREA ${c.letra} · ${pct(c.total)}/100`), h('button', { style: { ...S.btn, flex: '0 0 auto', minWidth: 0, padding: '2px 8px', fontSize: 11 }, onClick: () => verEnCarta([c.coords]) }, '📍 Ver')), ...c.motivos.map((m, i) => h('div', { key: i, style: { fontSize: 11, color: '#cfdbe8' } }, '· ', m)))),
       detalle,
     )
   }
@@ -265,7 +277,7 @@ export function PropuestaPICB({ nivel = 'asdi', parametros = {}, onExpediente = 
       ? enBody(h(
           'div',
           { role: 'dialog', 'aria-label': 'Propuesta del área en grande', 'data-g4': 'propuesta-grande', style: { position: 'fixed', inset: 0, zIndex: 100000, background: 'rgba(8,12,20,0.97)', overflow: 'auto', padding: 12, boxSizing: 'border-box', display: 'flex', flexDirection: 'column', gap: 10 } },
-          h('div', { style: { ...S.fila, position: 'sticky', top: 0, background: '#141a29', border: '1px solid #34405a', borderRadius: 8, padding: 8, zIndex: 2 } }, h('b', { style: { ...S.tit, flex: 1 } }, `🎯 PROPUESTA DEL ${nivel === 'arce' ? 'ARCE' : 'ASDI'} CON LA PICB`), h('button', { style: { ...S.btn, flex: '0 0 auto' }, onClick: async (e) => setMsg({ tipo: 'ok', txt: await G.exportarImagen(e.currentTarget.closest('[data-g4="propuesta-grande"]')?.querySelector('[data-cuerpo]'), `Propuesta ${nivel}`, '#0b111a') }) }, '🖼️ Bajar la imagen'), h('button', { style: { ...S.btnPrin, flex: '0 0 auto', background: AMBAR, color: '#1b1405' }, onClick: llevar }, '✔ Llevar al calco'), h('button', { style: { ...S.btn, flex: '0 0 auto' }, onClick: () => setGrande(false) }, '✕ Cerrar')),
+          h('div', { style: { ...S.fila, position: 'sticky', top: 0, background: '#141a29', border: '1px solid #34405a', borderRadius: 8, padding: 8, zIndex: 2 } }, h('b', { style: { ...S.tit, flex: 1 } }, `🎯 PROPUESTA DEL ${nivel === 'arce' ? 'ARCE' : 'ASDI'} CON LA PICB`), h('button', { style: { ...S.btn, flex: '0 0 auto' }, onClick: async (e) => setMsg({ tipo: 'ok', txt: await G.exportarImagen(e.currentTarget.closest('[data-g4="propuesta-grande"]')?.querySelector('[data-cuerpo]'), `Propuesta ${nivel}`, '#0b111a') }) }, '🖼️ Bajar la imagen'), !pr.enCalco && h('button', { style: { ...S.btnPrin, flex: '0 0 auto', background: AMBAR, color: '#1b1405' }, onClick: llevar }, '✔ Llevar al calco'), h('button', { style: { ...S.btn, flex: '0 0 auto' }, onClick: () => setGrande(false) }, '✕ Cerrar')),
           msg && h('div', { style: S[msg.tipo] || S.ok }, msg.txt),
           (() => {
             const gg = armar(true)
@@ -294,7 +306,7 @@ export function PropuestaPICB({ nivel = 'asdi', parametros = {}, onExpediente = 
       h('input', { style: S.num, type: 'number', min: 1, step: 1, value: alcance, placeholder: String(ALCANCE_ENEMIGO), 'aria-label': 'Alcance de los fuegos enemigos (km)', 'data-campo': 'alcance-fuegos', onChange: (e) => { const v = e.target.value === '' ? '' : Math.max(1, +e.target.value); guardarPlan({ alcanceFuegos: v }); if (pr) calcular(pesos, v) } }),
       'km · también fuera del AO, si hace falta',
     ),
-    h('div', { style: S.fila }, h('button', { style: S.btnPrin, onClick: () => calcular(), 'data-accion': 'calcular-picb' }, pr ? '↻ Recalcular la propuesta' : '🎯 Calcular la propuesta'), pr?.ok && pr.candidatos.length > 0 && h('button', { style: S.btn, onClick: verCarta }, enCarta ? '🙈 Quitar de la carta' : '🗺️ Ver en la carta'), pr?.ok && h('button', { style: S.btn, onClick: () => setGrande(true), 'data-accion': 'grande-picb' }, '⛶ Ver en grande'), pr?.ok && pr.candidatos.length > 0 && h('button', { style: { ...S.btnPrin, background: AMBAR, color: '#1b1405' }, onClick: llevar, disabled: !libres.length, 'data-accion': 'llevar-picb' }, `✔ Llevar ${pr.candidatos.map((c, i) => libres[i]).filter(Boolean).join(', ')} al calco`)),
+    h('div', { style: S.fila }, h('button', { style: S.btnPrin, onClick: () => calcular(), 'data-accion': 'calcular-picb' }, pr?.enCalco || (!pr && enCalco.length) ? '📐 Medir las áreas del calco' : pr ? '↻ Recalcular la propuesta' : '🎯 Calcular la propuesta'), enCalco.length > 0 && h('button', { style: S.btn, onClick: () => calcular(pesos, alcance, true), 'data-accion': 'nuevas-picb', title: 'Busca lugares de nuevo sin mirar las áreas que ya están en el calco' }, '🎯 Proponer otras áreas'), pr?.ok && !pr.enCalco && pr.candidatos.length > 0 && h('button', { style: S.btn, onClick: verCarta }, enCarta ? '🙈 Quitar de la carta' : '🗺️ Ver en la carta'), pr?.ok && h('button', { style: S.btn, onClick: () => setGrande(true), 'data-accion': 'grande-picb' }, '⛶ Ver en grande'), pr?.ok && !pr.enCalco && pr.candidatos.length > 0 && h('button', { style: { ...S.btnPrin, background: AMBAR, color: '#1b1405' }, onClick: llevar, disabled: !libres.length, 'data-accion': 'llevar-picb' }, `✔ Llevar ${pr.candidatos.map((c, i) => libres[i]).filter(Boolean).join(', ')} al calco`)),
     msg && h('div', { style: S[msg.tipo] || S.ok, role: 'status' }, msg.txt),
     pr?.ok && pr.avisos.map((a, i) => h('div', { key: i, style: S.aviso }, '⚠ ', a)),
     ...graficos,
@@ -307,7 +319,7 @@ export function PropuestaPICB({ nivel = 'asdi', parametros = {}, onExpediente = 
         'div',
         { style: { ...S.aviso, color: '#d9c2ff', borderColor: 'rgba(198,156,255,0.45)', background: 'rgba(198,156,255,0.08)', display: 'flex', flexDirection: 'column', gap: 4 } },
         h('b', null, `🤖 La IA recomienda: ${ia.recomendada ? `Área ${ia.recomendada}` : '—'} (pendiente de revisión)`),
-        ...ia.areas.map((a) => h('div', { key: a.letra }, h('b', { style: { color: COLOR_AREA[a.letra] } }, `Área ${a.letra}: `), a.valoracion, a.cambiar ? ` — Cambiar: ${a.cambiar}` : '')),
+        ...ia.areas.map((a) => h('div', { key: a.letra }, h('b', { style: { color: (COLOR_AREA[a.letra] || AMBAR) } }, `Área ${a.letra}: `), a.valoracion, a.cambiar ? ` — Cambiar: ${a.cambiar}` : '')),
         ia.conclusion && h('div', { style: { fontStyle: 'italic' } }, ia.conclusion),
         ...ia.riesgos.map((r, i) => h('div', { key: `r${i}` }, '⚠ ', r)),
       ),
