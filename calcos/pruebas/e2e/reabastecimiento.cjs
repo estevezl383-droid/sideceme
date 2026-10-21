@@ -43,9 +43,9 @@ async function textoDocx(ruta) {
     for (const id of ['cl1', 'agua', 'cl3', 'cl5', 'reab', 'encabezado']) assert.equal(await tab.locator(`[data-calc="${id}"]`).count(), 1, 'abajo: ' + id)
     const caja = await tab.boundingBox()
     assert.ok(caja.width > 1000 && caja.y > 300, 'abajo y ancho: ' + JSON.stringify(caja))
-    // 21-10-2026: la mitad de alto (30vh) y sin tapar el panel de la izquierda
+    // alto por defecto 60vh (se arrastra su borde de arriba) y sin tapar el panel de la izquierda
     const vista = await page.evaluate(() => ({ alto: innerHeight, izq: document.querySelector('aside.panel').getBoundingClientRect().right }))
-    assert.ok(caja.height <= vista.alto * 0.3 + 1, 'la mitad de alto: ' + JSON.stringify({ caja, vista }))
+    assert.ok(caja.height <= vista.alto * 0.6 + 1, 'alto por defecto 60vh: ' + JSON.stringify({ caja, vista }))
     assert.ok(caja.x >= vista.izq, 'no tapa el panel de la izquierda: ' + JSON.stringify({ caja, vista }))
 
     // días: se escribe 30 de corrido

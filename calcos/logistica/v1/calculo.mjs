@@ -120,10 +120,10 @@ export function modoTableroInicial() {
 }
 export function guardarModoTablero(m) { try { localStorage.setItem(CLAVE, m) } catch {} }
 
-// Alto del tablero abajo, en % de la pantalla. 30 por defecto (lo pidió Sergio para no tapar la carta), pero
-// el borde de arriba se arrastra: si el cálculo se corta, se lo agranda y el alto queda guardado en el navegador.
+// Alto del tablero abajo, en % de la pantalla. 60 por defecto para que se vea el cálculo completo sin scrollear;
+// el borde de arriba se arrastra para achicarlo o agrandarlo, y el alto queda guardado en el navegador.
 const ALTO_CLAVE = 'sid-g4-tablero-alto'
-const ALTO_INICIAL = 30
+const ALTO_INICIAL = 60
 const ALTO_MIN = 20
 const ALTO_MAX = 90
 export function altoTablero() { try { const a = Number(localStorage.getItem(ALTO_CLAVE)); if (a >= ALTO_MIN && a <= ALTO_MAX) return a } catch {} return ALTO_INICIAL }
