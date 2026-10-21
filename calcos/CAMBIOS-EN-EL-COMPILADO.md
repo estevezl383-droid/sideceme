@@ -21,6 +21,8 @@ abajo»; «igual para el ASDI y el ARCE»; «920 veh × 3 L… ¿qué es veh?»;
   `Ife.createPortal` al `<body>`: dentro del panel `position: fixed` quedaba atrapado en su ancho); las cuatro
   clases lado a lado; la Cl V toma los días sucesivos de los días de la operación; «⧉ hasta N días» en la Cl III;
   el Word (`tDe`) con OBJETO / CARTAS / ANEXOS, «vehículos … por vehículo y por día» y la sección REABASTECIMIENTO.
+  Mientras hay una herramienta de trazado activa (`herramienta`), el tablero se corre a la derecha en una columna
+  (el mismo elemento: el paso abierto sigue abierto) para no tapar la carta.
 - **Fuera del compilado** (`calcos/logistica/v1/calculo.mjs`): `planReabastecimiento` (cada cuántos días, lo que
   lleva cada ciclo, vueltas de camiones / cisternas / medios de agua, horas contra el ciclo, avisos de la ración),
   `encabezadoCalculo` (OBJETO «Sección IV Logística en Apoyo a las Operaciones Defensivas/Ofensivas del …» según
@@ -28,7 +30,8 @@ abajo»; «igual para el ASDI y el ARCE»; «920 veh × 3 L… ¿qué es veh?»;
   paso y los botones del G-4 también en el tablero de abajo (`[data-g4-tablero]`).
 - **Cómo se comprobó**: `reabastecimiento.mjs` (8 casos), `e2e/reabastecimiento.cjs` (la Mesa real: tablero
   abajo, 30 días escritos de corrido, 10 reabastecimientos, Word con el encabezado y la sección, achicar / al
-  panel, el ASDI abajo con su paso a paso), `e2e/ruta-g4.cjs`, `e2e/logistica.cjs`, `reemplazos-compilado.js` y
+  panel, el ASDI abajo con su paso a paso), `e2e/ruta-g4.cjs`, `e2e/logistica.cjs` (trazar las áreas A y B con el tablero abierto), `e2e/tablero-g4.cjs`,
+  `e2e/word-anexo-g4.cjs`, `reemplazos-compilado.js` y
   `npm test`.
 - **Si se recompila desde el fuente**: llevar `Vt`/`Nn` fuera del render (o llamarlos como función) y el tablero,
   el reabastecimiento y el encabezado a `yDe` / `tDe`.

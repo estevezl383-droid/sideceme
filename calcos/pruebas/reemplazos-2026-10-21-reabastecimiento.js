@@ -86,7 +86,7 @@ module.exports = [
   {
     nombre: '▣ ASDI / ARCE: en grande abajo (cabeza)',
     viejo: 'Re==="asdi"&&f.jsxs("div",{style:fn.cuerpo,children:[f.jsx(SIDLogPaso,{hojas:e,onHojas:n,onExpediente:a,ctxDoc:i,orden:o,onSeleccionarArea:Ie}),',
-    nuevo: 'Re==="asdi"&&SIDCalcTablero({f,portal:Ife.createPortal,modo:SIDtab,onModo:SIDsetTab,titulo:"▣ ASDI / ARCE — PASO A PASO Y DESPLIEGUE",columnas:"minmax(0,1.5fr) minmax(300px,1fr)",cuerpo:[f.jsx(SIDLogPaso,{hojas:e,onHojas:n,onExpediente:a,ctxDoc:i,orden:o,onSeleccionarArea:Ie}),f.jsxs("div",{style:' + ES_TAB + '?SIDCalcCarta:fn.cuerpo,children:[',
+    nuevo: 'Re==="asdi"&&SIDCalcTablero({f,portal:Ife.createPortal,trazando:!!T,modo:SIDtab,onModo:SIDsetTab,titulo:"▣ ASDI / ARCE — PASO A PASO Y DESPLIEGUE",columnas:"minmax(0,1.5fr) minmax(300px,1fr)",cuerpo:[f.jsx(SIDLogPaso,{hojas:e,onHojas:n,onExpediente:a,ctxDoc:i,orden:o,onSeleccionarArea:Ie}),f.jsxs("div",{style:' + ES_TAB + '?SIDCalcCarta:fn.cuerpo,children:[',
     veces: 1,
   },
   {
@@ -98,7 +98,7 @@ module.exports = [
   {
     nombre: '🧮 Cálculos: en grande abajo (los datos quedan en el panel)',
     viejo: 'Re==="calculo"&&f.jsxs(f.Fragment,{children:[',
-    nuevo: 'Re==="calculo"&&SIDCalcTablero({f,portal:Ife.createPortal,modo:SIDtab,onModo:SIDsetTab,titulo:"🧮 CÁLCULO DE NECESIDADES LOGÍSTICAS",pieAbajo:!0,cabeza:[',
+    nuevo: 'Re==="calculo"&&SIDCalcTablero({f,portal:Ife.createPortal,trazando:!!T,modo:SIDtab,onModo:SIDsetTab,titulo:"🧮 CÁLCULO DE NECESIDADES LOGÍSTICAS",pieAbajo:!0,cabeza:[',
     veces: 1,
   },
   {

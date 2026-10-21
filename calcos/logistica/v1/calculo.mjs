@@ -135,25 +135,28 @@ export const tituloSeccion = { font: '700 11px/1.2 Arial', letterSpacing: '.08em
 const limpio = (xs) => (xs || []).filter((x) => x !== false && x != null && x !== '')
 
 // cabeza: queda siempre en el panel. cuerpo: va abajo, en grande. pie: en el panel y, si pieAbajo, también abajo.
-export function tablero({ f, portal, modo = 'panel', onModo, titulo, columnas = 'repeat(auto-fit, minmax(330px, 1fr))', cabeza = [], cuerpo = [], pie = [], pieAbajo = false }) {
+export function tablero({ f, portal, trazando = false, modo = 'panel', onModo, titulo, columnas = 'repeat(auto-fit, minmax(330px, 1fr))', cabeza = [], cuerpo = [], pie = [], pieAbajo = false }) {
   const ir = (m) => () => { guardarModoTablero(m); onModo?.(m) }
   if (modo === 'panel') {
     return f.jsxs(f.Fragment, { children: [...limpio(cabeza), f.jsx('button', { style: E.btn, onClick: ir('abajo'), title: 'Abrir esto en grande, en el espacio de abajo de la pantalla', children: '⤢ Abrir en grande abajo' }), ...limpio(cuerpo), ...limpio(pie)] })
   }
-  const mini = modo === 'mini'
-  const caja = f.jsxs('div', { style: E.tablero, 'data-g4-tablero': titulo, children: [
+  // Mientras se traza en la carta (ASDI, ARCE, áreas A/B, EPA/EPE) se corre a la derecha, en una columna donde
+  // está el panel, para dejar la carta libre; es el mismo elemento (no se rehace: el paso abierto sigue abierto).
+  const mini = modo === 'mini' && !trazando
+  const estilo = trazando ? { ...E.tablero, left: 'auto', right: 12, top: 56, bottom: 'auto', width: 380, maxHeight: 'calc(100vh - 80px)', zIndex: 1210 } : E.tablero
+  const caja = f.jsxs('div', { style: estilo, 'data-g4-tablero': titulo, children: [
     f.jsxs('div', { style: E.cabecera, children: [
       f.jsx('span', { style: E.titulo, children: titulo }),
-      f.jsx('button', { style: E.btn, onClick: ir(mini ? 'abajo' : 'mini'), title: mini ? 'Volver a abrirlo' : 'Achicarlo para ver la carta (por ejemplo, para trazar)', children: mini ? '▴ Agrandar' : '▾ Achicar' }),
+      !trazando && f.jsx('button', { style: E.btn, onClick: ir(mini ? 'abajo' : 'mini'), title: mini ? 'Volver a abrirlo' : 'Achicarlo para ver la carta (por ejemplo, para trazar)', children: mini ? '▴ Agrandar' : '▾ Achicar' }),
       f.jsx('button', { style: E.btn, onClick: ir('panel'), title: 'Volver a ponerlo en el panel de la derecha', children: '↗ Al panel' }),
     ] }),
-    !mini && f.jsx('div', { style: { ...E.cuerpo, gridTemplateColumns: columnas }, children: limpio(cuerpo) }),
+    !mini && f.jsx('div', { style: { ...E.cuerpo, gridTemplateColumns: trazando ? 'minmax(0, 1fr)' : columnas }, children: limpio(cuerpo) }),
     !mini && pieAbajo && limpio(pie).length > 0 && f.jsx('div', { style: E.pie, children: limpio(pie) }),
   ] })
   return f.jsxs(f.Fragment, { children: [
     ...limpio(cabeza),
     f.jsxs('div', { style: E.nota, children: [
-      f.jsx('span', { children: mini ? '▾ Está achicado abajo: agrandalo cuando termines de trazar.' : '⤢ Está abierto en grande, abajo de la pantalla.' }),
+      f.jsx('span', { children: trazando ? '→ Mientras trazás en la carta está a la derecha; vuelve abajo al terminar.' : mini ? '▾ Está achicado abajo: agrandalo cuando termines de trazar.' : '⤢ Está abierto en grande, abajo de la pantalla.' }),
       f.jsx('button', { style: E.btn, onClick: ir('panel'), children: '↗ Traerlo al panel' }),
     ] }),
     ...limpio(pie),
