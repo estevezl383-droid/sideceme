@@ -1194,7 +1194,9 @@
   // (el texto exacto de cada pestaña: «enfoque de apoyo», p. ej., también puede estar escrito en una hoja).
   // Desde el 18-10-2026 el tablero del G-4 tiene sólo las herramientas, sin los párrafos de ayuda: el ▣ ASDI
   // se reconoce por su paso a paso (data-g4) y los ↔ Ejes por el botón del EPE.
-  var TAB_VISTA = { asdi: function (r) { return !!(r.querySelector && r.querySelector('[data-g4="paso-a-paso"]')) }, ejes: /Trazar el EPE — Eje Principal de Evacuación/, concepto: /Prioridad de apoyo \(en orden\)|todavía no creó fases del curso de acción/, calculo: /PEDIDO A FORMULAR|Días de la operación/, hojas: /\d+ de \d+ hojas con contenido|Volver a mis hojas/ }
+  // Desde el 21-10-2026 el ▣ ASDI y el 🧮 Cálculos se abren en grande abajo («[data-g4-tablero]», fuera del panel).
+  function zonasG4(raiz) { return raiz ? [raiz].concat([].slice.call(document.querySelectorAll('[data-g4-tablero]'))) : [] }
+  var TAB_VISTA = { asdi: function (r) { return zonasG4(r).some(function (z) { return !!(z.querySelector && z.querySelector('[data-g4="paso-a-paso"]')) }) }, ejes: /Trazar el EPE — Eje Principal de Evacuación/, concepto: /Prioridad de apoyo \(en orden\)|todavía no creó fases del curso de acción/, calculo: /PEDIDO A FORMULAR|Días de la operación/, hojas: /\d+ de \d+ hojas con contenido|Volver a mis hojas/ }
   function enVista(tab, raiz) { var v = TAB_VISTA[tab]; return typeof v === 'function' ? v(raiz) : v.test(texto(raiz)) }
   function rutaM() { return rutaMarcas[claveCarpeta()] || {} }
   function rutaGuardarM(m) { var k = claveCarpeta(); if (!k) return; rutaMarcas[k] = m; guarda(K_RUTA_M, JSON.stringify(rutaMarcas)) }
@@ -1215,9 +1217,9 @@
     }
     return null
   }
-  function enG4(raiz, re) { var bs = raiz ? raiz.querySelectorAll('button') : []; for (var i = 0; i < bs.length; i++) if (re.test(texto(bs[i]))) return bs[i]; return null }
+  function enG4(raiz, re) { var zs = zonasG4(raiz); for (var k = 0; k < zs.length; k++) { var bs = zs[k].querySelectorAll('button'); for (var i = 0; i < bs.length; i++) if (re.test(texto(bs[i]))) return bs[i] } return null }
   function hojaEnG4(raiz, num, nomRe) { var bs = raiz ? raiz.querySelectorAll('button') : []; for (var i = 0; i < bs.length; i++) { var t = texto(bs[i]); if (t.indexOf(num) === 0 && (!nomRe || nomRe.test(t))) return bs[i] } return null }
-  function pasoASDI(raiz, n) { return raiz ? raiz.querySelector('[data-g4="paso-a-paso"] [data-paso="' + n + '"] > button') : null }
+  function pasoASDI(raiz, n) { var zs = zonasG4(raiz); for (var k = 0; k < zs.length; k++) { var b = zs[k].querySelector('[data-g4="paso-a-paso"] [data-paso="' + n + '"] > button'); if (b) return b } return null }
   // Abre el panel del G-4 en la pestaña del paso; lo que hay que tocar queda iluminado (no se aprieta solo)
   async function abrirG4(ref) {
     var re = TAB_G4[ref.g4]

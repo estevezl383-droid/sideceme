@@ -5,6 +5,34 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-21 (2) — 🧮 Cálculos y ▣ ASDI / ARCE en grande abajo, reabastecimiento por ciclos y el Word del cálculo lleno (`index-reabastecimiento-20261021.js`)
+
+Parte de `index-ain-chico-20261021.js` + `pruebas/reemplazos-2026-10-21-reabastecimiento.js` (22 reemplazos;
+`construir-reabastecimiento.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con capturas
+del 🧮 Cálculos y del Word: «la operación durará más de 30 días… calcular cada cuánto tiempo se podría realizar el
+reabastecimiento… no se dispone de todos los vehículos del mundo»; «está muy pequeño… que se abra en el panel de
+abajo»; «igual para el ASDI y el ARCE»; «920 veh × 3 L… ¿qué es veh?»; OBJETO / CARTAS / ANEXOS vacíos.
+
+- **Qué pasaba con los días**: los números del panel (`Vt`) y las pestañas (`Nn`) eran componentes definidos
+  DENTRO del render del panel del G-4 (`yDe`): en cada tecla se rehacían y el cursor se salía del campo (después
+  del «2» no se podía escribir el «0» de 20). Ahora se llaman como función.
+- **En el compilado**: el import de `calcos/logistica/v1/calculo.mjs`; en `yDe` el estado del tablero, del
+  reabastecimiento y del encabezado; 🧮 Cálculos y ▣ ASDI pasan por `SIDCalcTablero` (abajo, con
+  `Ife.createPortal` al `<body>`: dentro del panel `position: fixed` quedaba atrapado en su ancho); las cuatro
+  clases lado a lado; la Cl V toma los días sucesivos de los días de la operación; «⧉ hasta N días» en la Cl III;
+  el Word (`tDe`) con OBJETO / CARTAS / ANEXOS, «vehículos … por vehículo y por día» y la sección REABASTECIMIENTO.
+- **Fuera del compilado** (`calcos/logistica/v1/calculo.mjs`): `planReabastecimiento` (cada cuántos días, lo que
+  lleva cada ciclo, vueltas de camiones / cisternas / medios de agua, horas contra el ciclo, avisos de la ración),
+  `encabezadoCalculo` (OBJETO «Sección IV Logística en Apoyo a las Operaciones Defensivas/Ofensivas del …» según
+  la Orden, CARTAS de la Orden, ANEXOS «S/A»), el tablero y sus controles. `modalidad/modalidad.js` busca el paso a
+  paso y los botones del G-4 también en el tablero de abajo (`[data-g4-tablero]`).
+- **Cómo se comprobó**: `reabastecimiento.mjs` (8 casos), `e2e/reabastecimiento.cjs` (la Mesa real: tablero
+  abajo, 30 días escritos de corrido, 10 reabastecimientos, Word con el encabezado y la sección, achicar / al
+  panel, el ASDI abajo con su paso a paso), `e2e/ruta-g4.cjs`, `e2e/logistica.cjs`, `reemplazos-compilado.js` y
+  `npm test`.
+- **Si se recompila desde el fuente**: llevar `Vt`/`Nn` fuera del render (o llamarlos como función) y el tablero,
+  el reabastecimiento y el encabezado a `yDe` / `tDe`.
+
 ## 2026-10-21 — ◎ Los rótulos AIN al 60 % y los rótulos de la F3·P3 se abren al tocarlos (`index-ain-chico-20261021.js`)
 
 Parte de `index-disgregar-20261020.js` + `pruebas/reemplazos-2026-10-21-ain-chico.js` (2 reemplazos;
