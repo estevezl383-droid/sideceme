@@ -13,7 +13,8 @@ muy pero muy cerca del límite de retaguardia, puede ser dentro o fuera del AO�
 
 - **El tablero** (`calcos/logistica/v1/calculo.mjs`): abajo tiene como mucho 30vh de alto (antes 60vh) y arranca
   donde termina el panel de la izquierda (`aside.panel`); si el panel no está a la vista, en el borde. Vale para
-  🧮 Cálculos y ▣ ASDI.
+  🧮 Cálculos y ▣ ASDI. Si algo queda cortado, se arrastra su borde de arriba para agrandarlo (el alto se guarda en
+  el navegador, `sid-g4-tablero-alto`; el valor por defecto sigue siendo 30vh).
 - **La propuesta** (`calcos/logistica/v1/asdi-picb.js`): calcula el límite de retaguardia del AO (el borde opuesto
   al frente), prueba además lugares a lo largo de ese borde (por dentro, encima y por fuera) y elige A, B, C
   primero por cercanía a ese borde (centro a ≤ fondo/2 + 1,5 km), después por lo impositivo y después por el
