@@ -222,6 +222,31 @@ const caso = (nom, f) => casos.push({ nom, f })
     assert.ok(todo.candidatos[0].motivos.some((m) => /⚠️ Al alcance de los fuegos enemigos/.test(m)))
   })
 
+  caso('Propuesta (21-10-2026): las áreas llevadas al calco se miden donde están; si se mueven, cambian los datos', () => {
+    const pr = A.proponerASDI(calco)
+    const areas = pr.candidatos.map((c, i) => ({ letra: 'GHI'[i], coords: c.coords }))
+    const igual = A.proponerASDI(calco, { areas })
+    assert.equal(igual.enCalco, true)
+    assert.deepEqual(igual.candidatos.map((c) => c.letra), ['G', 'H', 'I'])
+    assert.deepEqual(igual.embudo, pr.embudo, 'el embudo es de la búsqueda, no de las áreas')
+    for (const [i, c] of igual.candidatos.entries()) {
+      assert.ok(Math.abs(c.dSeg - pr.candidatos[i].dSeg) < 0.05, 'en el mismo lugar mide lo mismo')
+      assert.ok(Math.abs(c.total - pr.candidatos[i].total) < 0.05)
+      assert.deepEqual(c.fallas, [])
+    }
+    // la G se corre 15 km hacia el frente: cambia la distancia, el puntaje y los motivos
+    const corrida = areas.map((a, i) => (i ? a : { ...a, coords: a.coords.map(([x, y]) => [x, y + 0.135]) }))
+    const mov = A.proponerASDI(calco, { areas: corrida })
+    const g = mov.candidatos[0]
+    assert.ok(g.dSeg < igual.candidatos[0].dSeg - 5, `más cerca del frente (${g.dSeg.toFixed(1)} km)`)
+    assert.notEqual(g.total, igual.candidatos[0].total)
+    assert.notEqual(g.motivos[0], igual.candidatos[0].motivos[0])
+    assert.ok(g.total >= 0 && g.total <= 1)
+    assert.equal(mov.candidatos[1].total, igual.candidatos[1].total, 'las otras no cambian')
+    // sin áreas en el calco, propone como siempre
+    assert.equal(A.proponerASDI(calco, { areas: null }).enCalco, false)
+  })
+
   caso('Propuesta: en el ataque el área va más adelante que en la defensa; las posiciones de bloqueo corren el mínimo; sin AO no propone', () => {
     const def = A.proponerASDI(calco)
     const ata = A.proponerASDI(calco, { operacion: 'ataque' })
