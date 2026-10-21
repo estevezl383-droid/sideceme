@@ -30,7 +30,11 @@ function cargar(ruta, nombres, globales = {}) {
   const cae = require('../ht19-cae/v1/cae.mjs')
   const CAE = { SIDCaeElem: cae.elementosCAE, SIDCaeSocb: cae.socbCAE, SIDCaeEtiq: cae.etiquetaCAE, SIDCaePrep: cae.prepCAE, SIDCaeHtml: cae.htmlCAE, SIDCaeDocx: cae.docxCAE, SIDCaeExtra: cae.extraCAE }
   for (const k of Object.keys(CAE)) if (quiero.delete(k) && !(k in globales)) globales = { ...globales, [k]: CAE[k] }
-  globales = { ...CAE, ...globales }
+  // SIDCalc* no son del compilado: los importa de calcos/logistica/v1/calculo.mjs (reabastecimiento, 21-10-2026).
+  const calc = require('../logistica/v1/calculo.mjs')
+  const CALC = { SIDCalcReabHtml: calc.htmlReabastecimiento, SIDCalcPlan: calc.planReabastecimiento, SIDCalcEnc: calc.encabezadoCalculo }
+  for (const k of Object.keys(CALC)) quiero.delete(k)
+  globales = { ...CAE, ...CALC, ...globales }
   if (quiero.size) throw new Error(`No están en ${ruta}: ${[...quiero].join(', ')}`)
   const ctx = { ...globales }
   vm.createContext(ctx)

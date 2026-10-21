@@ -46,7 +46,8 @@
 //   index-objetivos-indicados-20261020.js + reemplazos-2026-10-20-ht19-fases.js = index-ht19-fases-20261020.js
 //   index-ht19-fases-20261020.js + reemplazos-2026-10-20-ains-acostar.js = index-ains-acostar-20261020.js
 //   index-ains-acostar-20261020.js + reemplazos-2026-10-20-disgregar.js = index-disgregar-20261020.js
-//   index-disgregar-20261020.js + reemplazos-2026-10-21-ain-chico.js = index-ain-chico-20261021.js (el vigente)
+//   index-disgregar-20261020.js + reemplazos-2026-10-21-ain-chico.js = index-ain-chico-20261021.js
+//   index-ain-chico-20261021.js + reemplazos-2026-10-21-reabastecimiento.js = index-reabastecimiento-20261021.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -60,6 +61,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-21-reabastecimiento'),
+    nombre: 'reemplazos-2026-10-21-reabastecimiento',
+    // calcos/assets/index-ain-chico-20261021.js (antes del reabastecimiento y los tableros grandes del G-4).
+    anterior: '82a1bd560cde245d58b208be052bcc88bcd31389b8b992bcd8396af5a3fb5412',
+  },
   {
     lista: require('./reemplazos-2026-10-21-ain-chico'),
     nombre: 'reemplazos-2026-10-21-ain-chico',
