@@ -247,10 +247,20 @@ const caso = (nom, f) => casos.push({ nom, f })
     assert.equal(A.proponerASDI(calco, { areas: null }).enCalco, false)
   })
 
-  caso('Propuesta: en el ataque el área va más adelante que en la defensa; las posiciones de bloqueo corren el mínimo; sin AO no propone', () => {
-    const def = A.proponerASDI(calco)
-    const ata = A.proponerASDI(calco, { operacion: 'ataque' })
-    assert.ok(ata.candidatos[0].dSeg < def.candidatos[0].dSeg, `ataque ${ata.candidatos[0].dSeg} < defensa ${def.candidatos[0].dSeg}`)
+  caso('Propuesta (21-10-2026): en el ataque y en la defensa, A, B y C pegadas al límite de retaguardia del AO (dentro o fuera); el ARCE también', () => {
+    for (const pr of [A.proponerASDI(calco), A.proponerASDI(calco, { operacion: 'ataque' }), A.proponerASDI(calco, { nivel: 'arce' })]) {
+      assert.equal(pr.candidatos.length, 3)
+      for (const r of pr.retaguardia) assert.ok(Math.abs(r.km) <= pr.norma.franjaRetaguardia + 1e-9, `${pr.nivel} ${pr.operacion} área ${r.letra} a ${r.km} km del límite de retaguardia`)
+      for (const c of pr.candidatos) assert.match(c.motivos.join(' '), /Pegada al límite de retaguardia/)
+      assert.match(A.textoPropuesta(pr), /PEGADA AL LÍMITE DE RETAGUARDIA/)
+    }
+    // un AO de 20 km de fondo: igual pegadas a su límite de retaguardia (aunque queden al alcance de los fuegos, con aviso)
+    const ao = [[-68.6, -16.8], [-68.0, -16.8], [-68.0, -16.98], [-68.6, -16.98]]
+    const chato = A.proponerASDI({ ...calco, ops: { ...calco.ops, areaOps: { ...calco.ops.areaOps, coords: ao, frente: [ao[0], ao[1]] } } })
+    for (const r of chato.retaguardia) assert.ok(Math.abs(r.km) <= 2 * chato.norma.franjaRetaguardia, `AO chato: área ${r.letra} a ${r.km} km`)
+  })
+
+  caso('Propuesta: las posiciones de bloqueo corren el mínimo; sin AO no propone', () => {
     const conBloqueo = { ...calco, ops: { ...calco.ops, posDef: [{ centro: [-68.3, -16.89], escalon: 'compania' }] } }
     const b = A.proponerASDI(conBloqueo)
     assert.ok(b.norma.fondoBloqueo > 9 && b.norma.fondoBloqueo < 11)

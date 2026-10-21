@@ -25,6 +25,14 @@
 // ellas, desde el frente) con un alcance APROXIMADO y editable (por defecto el del LAR-160 de
 // la brigada enemiga del ejercicio de la Escuela, 30 km; el M109 llega a 22 km). Si ningún
 // lugar queda fuera de ese alcance sin pasar la DMA, se proponen los menos expuestos y se avisa.
+//
+// PEGADA AL LÍMITE DE RETAGUARDIA (lo pidió Sergio el 21-10-2026, para todos los ejercicios): «que
+// estén muy pero muy cerca del límite de retaguardia; puede ser dentro o fuera del Área de
+// Operaciones». El límite de retaguardia es el borde del AO opuesto al frente (del lado contrario
+// al enemigo). Además de la grilla se prueban lugares a lo largo de ese borde, por dentro, encima
+// y por fuera; al elegir A, B, C mandan primero los que quedan pegados al borde (el rectángulo a
+// ≤ 1,5 km de él), después los cumplidores y recién después el puntaje. Si pegado al borde nada
+// cumple lo impositivo, se abre de a poco la franja y se avisa.
 // Sin DOM: se prueba en Node.
 import { tamanoDe, seguridadDe, calcularDMA, operacionDeAO, FUENTES } from './doctrina.js'
 import { limpiar, plano, centroide, areaKm2 } from './geo.js'
@@ -205,6 +213,27 @@ export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, peso
   const pu = A.map(proy)
   const uMin = Math.min(...pu.map((q) => q[0])), uMax = Math.max(...pu.map((q) => q[0]))
   const fondoAO = Math.max(0, ...pu.map((q) => q[1]))
+  // El límite de retaguardia: para cada «u» a lo largo del frente, el borde más profundo del AO.
+  const ringU = cerrar(pu)
+  const nRet = (u) => {
+    let m = -Infinity
+    for (let i = 1; i < ringU.length; i++) {
+      const [a, b] = [ringU[i - 1], ringU[i]]
+      if (a[0] === b[0] || (a[0] - u) * (b[0] - u) > 0) continue
+      m = Math.max(m, a[1] + ((b[1] - a[1]) * (u - a[0])) / (b[0] - a[0]))
+    }
+    return Number.isFinite(m) ? m : fondoAO
+  }
+  const pasoRet = Math.max(0.2, Math.min(0.5, (uMax - uMin) / 400))
+  const lineaRet = []
+  for (let uu = uMin; uu <= uMax + 1e-9; uu += pasoRet) lineaRet.push([uu, nRet(uu)])
+  // Distancia del centro al límite de retaguardia (+ por fuera del AO, − por dentro).
+  const dRetDe = (c) => {
+    const q = proy(c)
+    const d = lineaRet.length >= 2 ? dPL(q, lineaRet) : Math.abs(fondoAO - q[1])
+    return q[1] > nRet(Math.max(uMin, Math.min(uMax, q[0]))) ? d : -d
+  }
+  const franjaRet = dim.fondo / 2 + 1.5
   const nMax = Math.min(FONDO_MAX, Math.max(fondoAO, minSeg + alcance + 15))
   const sup = Math.max(1, (uMax - uMin) * nMax)
   const paso = Math.max(0.6, Math.sqrt(sup / maxGrilla))
@@ -244,17 +273,25 @@ export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, peso
       superior: superiores.length ? Math.min(...superiores.map((s) => (s.poly ? dPolyLinea(R, cerrar(s.poly)) : dPPoly(s.p, R)))) : NaN,
     }
     const fallas = [dSeg < minSeg && 'seguridad', enSevero && 'severo', dAv < dim.fondo / 2 && 'avenida', fueraDMA && 'dma', dF < alcance && 'fuegos'].filter(Boolean)
-    return { c, R, v, dSeg, dist: dists, enAO, dF, fallas, falla: fallas[0] || null }
+    return { c, R, v, dSeg, dist: dists, enAO, dF, dRet: dRetDe(c), fallas, falla: fallas[0] || null }
+  }
+  const probar = (uu, nn) => {
+    const c = [medio[0] + U[0] * uu + N[0] * nn, medio[1] + U[1] * uu + N[1] * nn]
+    embudo.evaluados++
+    const x = medir(rect(c), c)
+    if (x.falla === 'fuegos') expuestos.push(x)
+    else if (x.falla) embudo[x.falla]++
+    else validos.push(x)
   }
   for (let uu = uMin + paso / 2; uu < uMax; uu += paso) {
-    for (let nn = paso / 2; nn < nMax; nn += paso) {
-      const c = [medio[0] + U[0] * uu + N[0] * nn, medio[1] + U[1] * uu + N[1] * nn]
-      embudo.evaluados++
-      const x = medir(rect(c), c)
-      if (x.falla === 'fuegos') expuestos.push(x)
-      else if (x.falla) embudo[x.falla]++
-      else validos.push(x)
-    }
+    for (let nn = paso / 2; nn < nMax; nn += paso) probar(uu, nn)
+  }
+  // A lo largo del límite de retaguardia: por dentro, encima y por fuera del borde.
+  const desvios = [-(dim.fondo / 2 + 1), -dim.fondo / 2, -dim.fondo / 4, 0, dim.fondo / 4, dim.fondo / 2, dim.fondo / 2 + 1]
+  const pasoBorde = Math.min(paso, 1)
+  for (let uu = uMin + dim.ancho / 2; uu <= uMax - dim.ancho / 2 + 1e-9; uu += pasoBorde) {
+    const r = nRet(uu)
+    for (const d of desvios) if (r + d > dim.fondo / 2) probar(uu, r + d)
   }
   // Si nada queda fuera del alcance de los fuegos enemigos, los menos expuestos (y se avisa).
   const todosExpuestos = !validos.length && expuestos.length > 0
@@ -290,7 +327,7 @@ export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, peso
     const s = Math.max(0, Math.min(1, (w - a) / (b - a)))
     return k.menor ? 1 - s : s
   }
-  for (const x of [...validos, ...medidas]) {
+  for (const x of [...validos, ...expuestos, ...medidas]) {
     let s = 0
     let w = 0
     x.s = {}
@@ -305,10 +342,15 @@ export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, peso
   }
   validos.sort((a, b) => b.total - a.total)
 
-  // Las tres mejores, separadas (no se pisan).
+  // Las tres mejores, separadas (no se pisan), PEGADAS AL LÍMITE DE RETAGUARDIA: primero la franja
+  // pegada al borde (y si ahí nada cumple, se abre de a poco), después lo que cumple todo y
+  // después el puntaje. Lo que sólo falla por los fuegos enemigos entra si está pegado al borde.
+  const cumplenTodo = validos.filter((x) => !x.falla).length
+  const nivelRet = (x) => { const d = Math.abs(x.dRet); return d <= franjaRet ? 0 : d <= 2 * franjaRet ? 1 : d <= 4 * franjaRet ? 2 : 3 }
+  const orden = [...new Set([...validos, ...expuestos])].sort((a, b) => nivelRet(a) - nivelRet(b) || (a.falla ? 1 : 0) - (b.falla ? 1 : 0) || b.total - a.total)
   const sep = Math.max(5, 2 * Math.max(dim.ancho, dim.fondo))
   const elegidos = []
-  for (const x of validos) {
+  for (const x of orden) {
     if (elegidos.every((e) => Math.hypot(e.c[0] - x.c[0], e.c[1] - x.c[1]) >= sep)) elegidos.push(x)
     if (elegidos.length >= 3) break
   }
@@ -345,7 +387,8 @@ export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, peso
         ff.includes('dma') ? `⚠️ Fuera de la distancia máxima de apoyo: la unidad más lejana queda a ≈ ${(x.v.continuidad * P.factor).toFixed(0)} km por carretera (DMA ${dma.km} km).` : '',
         x.dF >= alcance
           ? `Fuera del alcance de los fuegos enemigos (≈ ${alcance} km): a ${x.dF.toFixed(1)} km ${desdeFichas ? 'de la ficha enemiga más cercana' : `de la ${fr.rot} (no hay fichas enemigas: se midió desde el frente)`}.`
-          : `⚠️ Al alcance de los fuegos enemigos (≈ ${alcance} km): a ${x.dF.toFixed(1)} km ${desdeFichas ? 'de la ficha enemiga más cercana' : `de la ${fr.rot}`}${enCalco ? '.' : '; ningún lugar quedaba fuera sin pasar la DMA.'}`,
+          : `⚠️ Al alcance de los fuegos enemigos (≈ ${alcance} km): a ${x.dF.toFixed(1)} km ${desdeFichas ? 'de la ficha enemiga más cercana' : `de la ${fr.rot}`}${enCalco ? '.' : cumplenTodo ? '; se prefirió pegarla al límite de retaguardia del AO.' : '; ningún lugar quedaba fuera sin pasar la DMA.'}`,
+        Math.abs(x.dRet) <= franjaRet ? `Pegada al límite de retaguardia del AO: el centro a ${Math.abs(x.dRet).toFixed(1)} km ${x.dRet > 0 ? 'por fuera' : 'por dentro'} del borde.` : `⚠️ Lejos del límite de retaguardia del AO: el centro a ${Math.abs(x.dRet).toFixed(1)} km ${x.dRet > 0 ? 'por fuera' : 'por dentro'} del borde.`,
         x.enAO ? 'Dentro del Área de Operaciones.' : 'Fuera del Área de Operaciones (detrás o al costado de su borde): el espacio lo coordina el escalón superior.',
         Number.isFinite(x.v.cerrado) ? `A ${x.v.cerrado.toFixed(1)} km en promedio del 1er escalón (${nombres(primer, 3)}).` : '',
         Number.isFinite(x.v.continuidad) ? `El más lejano a ${x.v.continuidad.toFixed(1)} km (≈ ${(x.v.continuidad * P.factor).toFixed(0)} km por carretera; DMA ${dma.km} km).` : '',
@@ -361,17 +404,20 @@ export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, peso
   if (!viarias.length) avisos.push('No hay EPA ni corredores de movilidad propios: la red viaria no entró en la cuenta. Trazá el EPA para que la tenga en cuenta.')
   if (todosExpuestos) avisos.push(`Ningún lugar queda fuera del alcance de los fuegos enemigos (≈ ${alcance} km) sin pasar la distancia máxima de apoyo: se proponen los menos expuestos. Revisá el alcance (es aproximado), la DMA (TD, TC, V) o la ubicación de las unidades.`)
   if (!desdeFichas) avisos.push(`No hay fichas enemigas en la carta: el alcance de sus fuegos (≈ ${alcance} km) se midió desde la ${fr.rot}. Con el dispositivo enemigo colocado, la cuenta es más justa.`)
+  if (!enCalco && elegidos.some((x) => nivelRet(x) > 0)) avisos.push(`Pegado al límite de retaguardia del AO no hay lugar suficiente que cumpla lo impositivo (distancia de seguridad, DMA, CMOC): ${elegidos.filter((x) => nivelRet(x) > 0).length === elegidos.length ? 'las áreas quedaron' : 'alguna área quedó'} más lejos del borde. Revisá la DMA o el AO.`)
+  if (!enCalco && cumplenTodo && elegidos.some((x) => x.falla === 'fuegos')) avisos.push(`Pegada al límite de retaguardia del AO, alguna área queda al alcance de los fuegos enemigos (≈ ${alcance} km): se priorizó el borde de retaguardia. Evaluá la seguridad en el paso 3.`)
   if (!candidatos.length && !enCalco) avisos.push('Ningún lugar de nuestro lado del frente cumple a la vez la distancia de seguridad, la DMA y el CMOC. Revisá el AO, el frente o la DMA (TD, TC, V).')
   const grilla = validos.map((x) => ({ c: aLL(x.c), s: x.total }))
   return {
     ok: true,
     nivel,
-    norma: { tamano: T.nota, seguridad: S.min, seguridadDesdeFrente: minSeg, fondoBloqueo, dma: dma.km, alcance, alcanceDesde: desdeFichas ? 'fichas' : 'frente', fondoBusqueda: nMax },
+    norma: { tamano: T.nota, seguridad: S.min, seguridadDesdeFrente: minSeg, fondoBloqueo, dma: dma.km, alcance, alcanceDesde: desdeFichas ? 'fichas' : 'frente', fondoBusqueda: nMax, franjaRetaguardia: franjaRet },
     operacion: op,
     dim,
     paso,
     frente: { rot: fr.rot, linea: limpiar(fr.linea) },
     candidatos,
+    retaguardia: candidatos.map((c, i) => ({ letra: c.letra, km: +(enCalco ? medidas[i] : elegidos[i]).dRet.toFixed(2) })),
     enCalco,
     embudo,
     criterios: usados,
@@ -384,7 +430,7 @@ export function proponerASDI(calco = {}, { nivel = 'asdi', parametros = {}, peso
 export function textoPropuesta(pr) {
   if (!pr?.ok) return pr?.error || 'Sin propuesta.'
   const L = []
-  L.push(`Propuesta de la Mesa para el ${pr.nivel === 'arce' ? 'ARCE' : 'ASDI'} (rectángulos de ${pr.dim.ancho} × ${pr.dim.fondo} km, grilla cada ${pr.paso.toFixed(1)} km de nuestro lado del frente, a lo ancho del AO y hasta ${pr.norma.fondoBusqueda.toFixed(0)} km hacia atrás: también fuera del AO). Operación: ${pr.operacion}. Fuera del alcance de los fuegos enemigos: ≈ ${pr.norma.alcance} km, medido desde ${pr.norma.alcanceDesde === 'fichas' ? 'las fichas enemigas' : `la ${pr.frente.rot} (no hay fichas enemigas)`}. Las distancias de la norma y el alcance son aproximados: medilos en la carta. Distancia de seguridad: ${pr.norma.seguridad} km${pr.norma.fondoBloqueo ? ` desde las últimas posiciones de bloqueo (a ${pr.norma.fondoBloqueo.toFixed(1)} km de la ${pr.frente.rot}: ${pr.norma.seguridadDesdeFrente.toFixed(1)} km desde la ${pr.frente.rot})` : ''}. Pesos: ${pr.criterios.map((k) => `${k.nom} ${k.peso}`).join(', ')}.`)
+  L.push(`Propuesta de la Mesa para el ${pr.nivel === 'arce' ? 'ARCE' : 'ASDI'} (rectángulos de ${pr.dim.ancho} × ${pr.dim.fondo} km, grilla cada ${pr.paso.toFixed(1)} km de nuestro lado del frente, a lo ancho del AO y hasta ${pr.norma.fondoBusqueda.toFixed(0)} km hacia atrás: también fuera del AO). Operación: ${pr.operacion}. Criterio de ubicación: PEGADA AL LÍMITE DE RETAGUARDIA DEL AO (el borde opuesto al frente), por dentro o por fuera; primero lo que queda con el centro a ≤ ${(pr.norma.franjaRetaguardia || 0).toFixed(1)} km de ese borde. Fuera del alcance de los fuegos enemigos: ≈ ${pr.norma.alcance} km, medido desde ${pr.norma.alcanceDesde === 'fichas' ? 'las fichas enemigas' : `la ${pr.frente.rot} (no hay fichas enemigas)`}. Las distancias de la norma y el alcance son aproximados: medilos en la carta. Distancia de seguridad: ${pr.norma.seguridad} km${pr.norma.fondoBloqueo ? ` desde las últimas posiciones de bloqueo (a ${pr.norma.fondoBloqueo.toFixed(1)} km de la ${pr.frente.rot}: ${pr.norma.seguridadDesdeFrente.toFixed(1)} km desde la ${pr.frente.rot})` : ''}. Pesos: ${pr.criterios.map((k) => `${k.nom} ${k.peso}`).join(', ')}.`)
   L.push(`Lugares evaluados: ${pr.embudo.evaluados}; descartados: ${MOTIVOS.map((m) => `${m.nom.toLowerCase()} ${pr.embudo[m.id]}`).join(', ')}; válidos: ${pr.embudo.validos} (${pr.embudo.fueraAO} fuera del AO).`)
   L.push(`CMOC usado: ${pr.cmoc.severo} zona(s) de terreno severo, ${pr.cmoc.restringido} de restringido, ${pr.cmoc.avenidas} avenida(s) enemiga(s), ${pr.cmoc.corredores} corredor(es) propio(s).`)
   for (const c of pr.candidatos) {

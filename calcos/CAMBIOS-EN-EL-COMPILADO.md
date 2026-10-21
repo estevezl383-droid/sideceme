@@ -5,6 +5,24 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-21 (3) — ▣ El tablero ASDI / ARCE a la mitad de alto y la propuesta pegada al límite de retaguardia (sin tocar el compilado)
+
+Lo pidió Sergio con una captura del ▣ ASDI abierto abajo: «achicá este panel por lo menos a la mitad (de lo alto), me
+tapa toda la vista de la carta… que no tape el panel de la izquierda»; y «cuando sugieras los ARCE o ASDI, que estén
+muy pero muy cerca del límite de retaguardia, puede ser dentro o fuera del AO… para este y todos los ejercicios».
+
+- **El tablero** (`calcos/logistica/v1/calculo.mjs`): abajo tiene como mucho 30vh de alto (antes 60vh) y arranca
+  donde termina el panel de la izquierda (`aside.panel`); si el panel no está a la vista, en el borde. Vale para
+  🧮 Cálculos y ▣ ASDI.
+- **La propuesta** (`calcos/logistica/v1/asdi-picb.js`): calcula el límite de retaguardia del AO (el borde opuesto
+  al frente), prueba además lugares a lo largo de ese borde (por dentro, encima y por fuera) y elige A, B, C
+  primero por cercanía a ese borde (centro a ≤ fondo/2 + 1,5 km), después por lo impositivo y después por el
+  puntaje. Lo que sólo falla por los fuegos enemigos entra si está pegado al borde (con aviso). Cada área dice a
+  cuántos km del borde queda; `textoPropuesta` y la doctrina para la IA (`doctrina.js`) llevan el criterio.
+- **Cómo se comprobó**: `tablero-g4.cjs` (el caso de «el ataque más adelante que la defensa» se cambió por «A, B y
+  C pegadas al límite de retaguardia» en defensa, ataque, ARCE y un AO chato), `e2e/reabastecimiento.cjs` (alto
+  ≤ 30vh y sin tapar el panel de la izquierda), `logistica.cjs` y `e2e/logistica.cjs`.
+
 ## 2026-10-21 (2) — 🧮 Cálculos y ▣ ASDI / ARCE en grande abajo, reabastecimiento por ciclos y el Word del cálculo lleno (`index-reabastecimiento-20261021.js`)
 
 Parte de `index-ain-chico-20261021.js` + `pruebas/reemplazos-2026-10-21-reabastecimiento.js` (22 reemplazos;

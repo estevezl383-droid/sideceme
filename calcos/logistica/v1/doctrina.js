@@ -257,6 +257,7 @@ export function doctrinaParaIA({ conFactores = true, conMatriz = false, conAmena
   L.push('')
   L.push('## ASDI y ARCE')
   for (const t of ENTENDER.filter((x) => ['asdi', 'arce', 'diferencia', 'retaguardia'].includes(x.id))) L.push(`- ${t.titulo}: ${t.texto}`)
+  L.push('- Criterio de la cátedra para UBICARLOS (para todos los ejercicios): el ASDI y el ARCE van MUY CERCA DEL LÍMITE DE RETAGUARDIA del Área de Operaciones — el borde opuesto al frente, del lado contrario a donde viene el enemigo —, por dentro o apenas por fuera del AO. Al proponer o corregir un área, pegala a ese borde; no la dejes en el medio del AO.')
   L.push('')
   L.push('## Datos generales de planeamiento logístico')
   L.push(`- Tamaño: ${TAMANO.map((x) => `${x.nom} ${x.nota}`).join('; ')}.`)

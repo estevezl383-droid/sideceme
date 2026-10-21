@@ -42,7 +42,11 @@ async function textoDocx(ruta) {
     assert.equal(await tab.count(), 1, 'el tablero grande de los cálculos')
     for (const id of ['cl1', 'agua', 'cl3', 'cl5', 'reab', 'encabezado']) assert.equal(await tab.locator(`[data-calc="${id}"]`).count(), 1, 'abajo: ' + id)
     const caja = await tab.boundingBox()
-    assert.ok(caja.width > 1200 && caja.y > 300, 'abajo y ancho: ' + JSON.stringify(caja))
+    assert.ok(caja.width > 1000 && caja.y > 300, 'abajo y ancho: ' + JSON.stringify(caja))
+    // 21-10-2026: la mitad de alto (30vh) y sin tapar el panel de la izquierda
+    const vista = await page.evaluate(() => ({ alto: innerHeight, izq: document.querySelector('aside.panel').getBoundingClientRect().right }))
+    assert.ok(caja.height <= vista.alto * 0.3 + 1, 'la mitad de alto: ' + JSON.stringify({ caja, vista }))
+    assert.ok(caja.x >= vista.izq, 'no tapa el panel de la izquierda: ' + JSON.stringify({ caja, vista }))
 
     // días: se escribe 30 de corrido
     const dias = page.locator('label', { hasText: 'Días de la operación' }).locator('input')
