@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.434</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.436</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -54514,6 +54514,10 @@ function eemDialogoEntrega(i){
     '<div class="eem-field"><label>Archivo PDF del trabajo (máximo 5 MB)</label>'+
       '<input type="file" id="eem-file" accept="application/pdf,.pdf"></div>'+
     '<div id="eem-file-info" class="eem-sub" style="margin:-4px 0 10px"></div>'+
+    '<div class="eem-field"><label for="eem-tema">Tema del trabajo (nombre del proyecto)</label>'+
+      '<input id="eem-tema" maxlength="300" placeholder="Se completa solo al elegir el PDF" value="'+esc(x.grupo.tema||'')+'"'+
+      ' oninput="this.dataset.auto=\'0\'">'+
+      '<div class="eem-sub" id="eem-tema-aviso">Es el TEMA que figura en el acta de calificación del grupo.</div></div>'+
     '<div class="eem-field"><label for="eem-enlace">Enlace complementario (opcional)</label>'+
       '<input type="url" id="eem-enlace" maxlength="2000" placeholder="https://…" value="'+esc((x.entrega||{}).enlace_complementario||'')+'">'+
       '<div class="eem-sub">Video, presentación, carpeta u otro material. Compruebe que sus evaluadores puedan abrirlo. El PDF sigue siendo obligatorio.</div></div>'+
@@ -54588,8 +54592,33 @@ async function revisarArchivo(f){
   _eemArchivo = { file:f, sha256:hex, tamano:f.size, paginas:doc.numPages };
   info.innerHTML = '<span style="color:#8fe3b0">✅ PDF correcto · '+doc.numPages+' páginas · '+kb(f.size)+
                    '</span><div class="eem-mono" style="margin-top:4px">SHA-256: '+esc(hex)+'</div>';
+  // El tema del grupo sale del propio trabajo: lo que el PDF dice en «Nombre del
+  // proyecto». Sólo se propone; el alumno lo ve y lo corrige antes de subir.
+  const campoTema = document.getElementById('eem-tema');
+  const leido = eemTemaDelPdf(texto);
+  if(campoTema && leido && (!campoTema.value.trim() || campoTema.dataset.auto === '1')){
+    campoTema.value = leido; campoTema.dataset.auto = '1';
+    const aviso = document.getElementById('eem-tema-aviso');
+    if(aviso) aviso.textContent = '📄 Leído del PDF («Nombre del proyecto»). Revisalo y corregilo si hace falta.';
+  }
   document.getElementById('eem-btn-subir').disabled = false;
 }
+
+/* «A.- Nombre del proyecto. Mejora del Sistema de Saneamiento del RA-5…  B.- Entidad…»
+   Se toma el texto que sigue al rótulo hasta el punto siguiente (B.-, Entidad
+   ejecutora). Se descartan las líneas del índice (puntos guía o sólo un número). */
+function eemTemaDelPdf(texto){
+  const plano = String(texto||'').replace(/\s+/g,' ');
+  const re = /nombre\s+del\s+proyecto\s*[.:]?\s*(.+?)\s*(?=\b[B2]\s*\.\s*-|\bentidad\s+ejecutora|\bII\s*\.\s*-|$)/gi;
+  for(const m of plano.matchAll(re)){
+    const t = m[1].replace(/^[\s.:\-–]+|[\s.\-–]+$/g,'').trim();
+    if(/\.{3,}|…/.test(t) || !/[A-Za-zÁÉÍÓÚÑáéíóúñ]{3}/.test(t)) continue;
+    if(t.length < 8 || t.length > 300) continue;
+    return t;
+  }
+  return '';
+}
+window.eemTemaDelPdf = eemTemaDelPdf;
 
 async function eemTransferir(ini, file, datos, progreso){
   // Retry the same signed path: an interrupted response must not create a new submission.
@@ -54625,6 +54654,8 @@ async function eemSubir(i){
   let enlace;
   try{enlace=eemEnlaceValido(document.getElementById('eem-enlace').value);}
   catch(e){est.textContent=e.message;return;}
+  const tema = (document.getElementById('eem-tema')?.value||'').replace(/\s+/g,' ').trim();
+  if(!tema){ est.innerHTML = '<span style="color:#f0938a">Escribí el tema del trabajo (el nombre del proyecto).</span>'; return; }
   EEM.subiendo = true;
   const btn = document.getElementById('eem-btn-subir'); btn.disabled = true;
   const paso = t => est.innerHTML = '<span style="color:#9fb0c9">'+t+'</span>';
@@ -54643,7 +54674,7 @@ async function eemSubir(i){
     const fin = await eemInvoke('eem-entrega-subir', 'confirmar', {
       carpeta_id: x.carpeta.id, integrantes: tildados, path: ini.path,
       archivo_nombre: _eemArchivo.file.name, sha256: _eemArchivo.sha256, enlace_complementario:enlace,
-      user_agent: navigator.userAgent });
+      tema, user_agent: navigator.userAgent });
     if(!fin.ok) throw new Error(fin.error);
 
     eemCerrarModal('eem-modal-entrega');
@@ -56554,6 +56585,8 @@ async function eemInyectar(idPantalla){
 .trb-in.mal{border-color:#e74c3c;background:#2a1210}
 .trb-in[readonly]{background:transparent;border-color:transparent;color:#cbd6e8;font-weight:700}
 .trb-total{font-size:15px;font-weight:900;color:#e8d79a;text-align:center;font-variant-numeric:tabular-nums}
+.trb-t100{font-size:15px;font-weight:900;color:#8fe3b0;text-align:center;font-variant-numeric:tabular-nums;white-space:nowrap}
+.trb-t100.vacio{color:#5f6d85;font-weight:700}
 .trb-total.vacio{color:#5f6d85;font-weight:700}
 .trb-obs{width:100%;box-sizing:border-box;background:#0c1220;border:1px solid rgba(255,255,255,.18);
   border-radius:8px;color:#e6edf8;font-size:12px;padding:8px 9px;margin-top:2px}
@@ -56879,13 +56912,15 @@ function pintarGrilla(){
   h += '<div class="trb-card trb-cuadro" style="padding:8px 6px"><table class="trb-grilla"><thead><tr>'
     +'<th class="izq" style="width:36%">GRADO, APELLIDOS Y NOMBRES</th>';
   it.forEach(i=>{ h += '<th>ÍTEM '+i.orden+'<br><span style="color:#93a0b8">/'+Number(i.valor).toFixed(0)+'</span></th>'; });
-  h += '<th>TOTAL<br><span style="color:#93a0b8">/'+it.reduce((a,i)=>a+Number(i.valor),0)+'</span></th><th>✎</th></tr></thead><tbody>';
+  h += '<th>TOTAL<br><span style="color:#93a0b8">/'+it.reduce((a,i)=>a+Number(i.valor),0)+'</span></th>'
+    +'<th title="Escrito del grupo + promedio de la exposición de toda la mesa. Aparece cuando todos los jurados cerraron.">NOTA FINAL<br><span style="color:#93a0b8">/100</span></th>'
+    +'<th>✎</th></tr></thead><tbody>';
 
   filas.forEach((f, idx)=>{
     const tot = totalFila(f), bajo = algoBajo(f);
     if(f.ausencia){
       h += '<tr class="trb-ausente'+(idx%2?' par':'')+'"><td class="trb-nom">'+esc(nomP(f))+'</td>'
-        +'<td colspan="'+(it.length+1)+'" style="text-align:center;color:#f0cf7a">✖ NO EXPUSO — '
+        +'<td colspan="'+(it.length+2)+'" style="text-align:center;color:#f0cf7a">✖ NO EXPUSO — '
         +esc(f.ausencia.motivo)+'</td>'
         +'<td style="text-align:center">'+(f.cerrado?'🔒':'<button class="trb-btn sec mini" onclick="trbAusencia(\''+f.cursante_id+'\',true)">↺</button>')+'</td></tr>';
       return;
@@ -56901,6 +56936,7 @@ function pintarGrilla(){
     });
     h += '<td class="trb-total'+(tot===null?' vacio':'')+'" id="trb-tot-'+esc(f.cursante_id)+'">'
       +(tot===null?'—':tot.toFixed(2))+'</td>'
+      +'<td class="trb-t100 vacio" id="trb-t100-'+esc(f.cursante_id)+'">—</td>'
       +'<td style="text-align:center">'
       +(f.cerrado ? '🔒'
         : '<button class="trb-btn sec mini" onclick="trbObs(\''+f.cursante_id+'\')" title="Observación">'
@@ -56912,7 +56948,7 @@ function pintarGrilla(){
     // campo en rojo y no tendría dónde escribir.
     h += '<tr class="'+(idx%2?'par':'')+'" id="trb-obsfila-'+esc(f.cursante_id)+'" '
       +'style="display:'+((bajo||f.observacion)?'table-row':'none')+'">'
-      +'<td colspan="'+(it.length+3)+'" style="padding-top:0">'
+      +'<td colspan="'+(it.length+4)+'" style="padding-top:0">'
       +'<div class="trb-aviso" id="trb-avisobajo-'+esc(f.cursante_id)+'" style="display:'+(bajo?'block':'none')+'">'
       +'⚠ Hay una nota por debajo de la mitad del ítem: la observación es obligatoria.</div>'
       +'<textarea class="trb-obs'+(bajo && !f.observacion?' falta':'')+'" rows="2" '
@@ -56947,7 +56983,9 @@ function pintarGrilla(){
     });
     h += '<div class="lin" style="border-top:1px solid rgba(255,255,255,.1);padding-top:7px">'
       +'<span><b>TOTAL</b></span><span class="trb-total" id="trb-totm-'+esc(f.cursante_id)+'">'
-      +(tot===null?'—':tot.toFixed(2))+' / '+itemsDe().reduce((a,i)=>a+Number(i.valor),0)+'</span></div>';
+      +(tot===null?'—':tot.toFixed(2))+' / '+itemsDe().reduce((a,i)=>a+Number(i.valor),0)+'</span></div>'
+      +'<div class="lin"><span><b>NOTA FINAL</b> <small>(escrito + promedio de la mesa)</small></span>'
+      +'<span class="trb-t100 vacio" id="trb-t100m-'+esc(f.cursante_id)+'">—</span><span style="color:#93a0b8">/ 100</span></div>';
     if(!f.cerrado){
       h += '<div class="trb-row"><button class="trb-btn sec mini" onclick="trbObs(\''+f.cursante_id+'\')">✎ Observación</button>'
         +'<button class="trb-btn sec mini" onclick="trbAusencia(\''+f.cursante_id+'\',false)">✖ No expuso</button></div>';
@@ -56978,7 +57016,66 @@ function pintarGrilla(){
   c.innerHTML = h;
   if(escritoPrevio){document.getElementById("eem-escrito-tribunal")?.replaceWith(escritoPrevio);}else window.eemEscritoMontar(g.grupo.id||g.grupo.grupo_id);
   estadoRed();
+  trbNota100();
 }
+
+/* ── NOTA FINAL /100 — sólo para el profesor y sólo con la mesa completa ──
+   Es el escrito del grupo (ya con su banda) + el PROMEDIO de la exposición de
+   todos los jurados. Mientras falte un jurado por cerrar no se muestra nada:
+   un número con dos de tres notas sería una nota que no existe. */
+let trbNota100Serie = 0, trbNota100Reloj = null;
+async function trbNota100(){
+  const serie = ++trbNota100Serie;
+  clearTimeout(trbNota100Reloj);
+  const g = TRB.grilla;
+  if(!g || !g.entrega) return;
+  const vigente = () => serie === trbNota100Serie && TRB.grilla === g;
+  const mesa = (g.jurados||[]).length;
+  const filas = (g.filas||[]).filter(f=>!f.ausencia);
+  const poner = (cid, txt, titulo) => ['trb-t100-','trb-t100m-'].forEach(pre=>{
+    const el = document.getElementById(pre+cid); if(!el) return;
+    el.textContent = txt; el.title = titulo || '';
+    el.classList.toggle('vacio', !/^\d/.test(txt));
+  });
+  const yaCerre = (g.filas||[]).length > 0 && (g.filas||[]).every(f=>f.cerrado);
+  if(!yaCerre){
+    filas.forEach(f=>poner(f.cursante_id, '—', 'Aparece cuando cierres tu calificación y los '+mesa+' jurados de la mesa hayan cerrado la suya.'));
+    return;
+  }
+  let escrito = null;
+  try{
+    const { data, error } = await sb.functions.invoke('eem-evaluar-forma',
+      { body: { accion:'escrito', grupo_id: g.grupo.grupo_id, token: tok() } });
+    if(!error && data && data.ok) escrito = data.resultado;
+  }catch(_){}
+  if(!vigente()) return;
+  let faltanJurados = false;
+  for(const f of filas){
+    const r = await api('comparativo', { carpeta_id: g.carpeta_id, cursante_id: f.cursante_id });
+    if(!vigente()) return;
+    if(!r.ok){ poner(f.cursante_id, '—', r.error); continue; }
+    const c = r.comparativo || {};
+    const cerrados = Number(c.cerrados) || 0;
+    if(!mesa || cerrados < mesa){
+      faltanJurados = true;
+      poner(f.cursante_id, '—', 'Cerraron '+cerrados+' de '+mesa+' jurados. La nota aparece cuando cierren todos.');
+      continue;
+    }
+    if(!escrito || escrito.texto_65 === null || escrito.texto_65 === undefined){
+      poner(f.cursante_id, '—', 'El trabajo escrito del grupo todavía no tiene su nota completa.');
+      continue;
+    }
+    const total = Math.round((Number(escrito.texto_65) + Number(c.promedio)) * 10000) / 10000;
+    poner(f.cursante_id, total.toFixed(4),
+      'Escrito '+Number(escrito.texto_65).toFixed(4)+' + exposición '+Number(c.promedio).toFixed(4)
+      +' (promedio de los '+cerrados+' jurados)');
+  }
+  // Los demás jurados cierran a su ritmo: se vuelve a mirar sin recargar la grilla.
+  if(faltanJurados) trbNota100Reloj = setTimeout(()=>{
+    if(vigente() && document.getElementById('screen-eem-trib-grilla')?.classList.contains('active')) trbNota100();
+  }, 30000);
+}
+window.trbNota100 = trbNota100;
 
 function trbIncremento(){
   const v = prompt('¿De a cuánto suben y bajan las notas con + y −?\n(0.25, 0.5 o 1)', String(TRB.incremento));
@@ -57843,8 +57940,10 @@ function escribirCelda(doc, tc, valor){
   for(let i=1;i<ps.length;i++) escribirParrafo(doc, ps[i], "", {sinSangria:true});
 }
 
-/* El redondeo YA lo hizo la base (fn_eem_f5_nota2). Aca solo se imprime. */
-const d2 = v => v==='Por completar' ? v : (v===null||v===undefined||v==='') ? '' : Number(v).toFixed(2);
+/* El redondeo YA lo hizo la base (fn_eem_f5_nota2). Aca solo se imprime.
+   Proyectos se imprime a 4 decimales (actaDocx lo fija mientras arma el acta). */
+let actDecimales = 2;
+const d2 = v => v==='Por completar' ? v : (v===null||v===undefined||v==='') ? '' : Number(v).toFixed(actDecimales);
 
 function centrar(doc, p){
   let pPr = primerHijo(p, "w:pPr");
@@ -58000,7 +58099,7 @@ function textoExposicion(c){
   if(c.no_expuso) return c.decision_ausencia === 'cero' ? 'NO EXPUSO (0.00)' : 'NO EXPUSO';
   return d2(c.expo_35);
 }
-function rellenarCursantes(doc, tabla, cursantes){
+function rellenarCursantes(doc, tabla, cursantes, textoEnCadaFila){
   const filas = hijos(tabla, "w:tr");
   if(filas.length < 2) return;
   const plantillaResto = filas[2] || filas[1];
@@ -58022,7 +58121,7 @@ function rellenarCursantes(doc, tabla, cursantes){
     const tcs = hijos(datos[i], "w:tc");
     if(tcs.length < 5) return;
     escribirCelda(doc, tcs[0], eemNombre(c, 'cursante'));
-    if(i === 0) escribirCelda(doc, tcs[1], d2(c.texto_65));
+    if(i === 0 || textoEnCadaFila) escribirCelda(doc, tcs[1], d2(c.texto_65));
     escribirCelda(doc, tcs[2], textoExposicion(c));
     escribirCelda(doc, tcs[3], (c.final_100===null||c.final_100===undefined) ? '' : d2(c.final_100));
     escribirCelda(doc, tcs[4], '');          // FIRMA: en blanco, se firma a mano
@@ -58210,8 +58309,82 @@ function actPromediosEvaluadores(acta){
   return acta;
 }
 
+/* ── PROYECTOS: el acta sale sobre su propio ANEXO "A" ────────────────
+   Su rubrica (forma 3 + fondo 60 + exposicion 37) no es la del EEM. Se usa
+   el Word de la Escuela tal cual: se llenan forma, fondo, impresion prolija y
+   el cuadro de cursantes; el cuadro de EXPOSICION, DEFENSA Y SUSTENTACION
+   GRUPAL queda sin tocar porque es la referencia de lo que se califico. */
+function esActaProyectos(acta){
+  return /PROYECTOS/i.test((acta.carpeta||{}).materia || (acta.config||{}).unidad_competencia || '');
+}
+let _plantillaProyectos = null;
+function plantillaProyectosBytes(){
+  if(_plantillaProyectos) return _plantillaProyectos;
+  if(!window.EEM_ANEXO_A_PROYECTOS_B64) throw new Error('Falta la plantilla del Anexo A de Proyectos. Recargá la página.');
+  const bin = atob(window.EEM_ANEXO_A_PROYECTOS_B64);
+  const u8 = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i);
+  _plantillaProyectos = u8;
+  return u8;
+}
+/* «PARALELO⇥:» — el valor va despues de los dos puntos; las tabulaciones
+   que alinean los rotulos se quedan donde estan. */
+function completarRotulo(p, valor){
+  const ts = Array.from(p.getElementsByTagName("w:t"));
+  let k = ts.length - 1;
+  while(k >= 0 && !ts[k].textContent.includes(":")) k--;
+  if(k < 0) return false;
+  ts[k].setAttribute("xml:space", "preserve");
+  ts[k].textContent = ts[k].textContent.replace(/:.*$/, ": " + valor);
+  for(let i=k+1;i<ts.length;i++) ts[i].textContent = "";
+  return true;
+}
+
+/* ── PROYECTOS: el escrito se informa YA en su escala (58 a 63) ─────────
+   Criterio por criterio: valor v y nota n pasan a  v·min/tope + n·(max−min)/tope.
+   Ningun criterio supera su valor y forma + fondo suman EXACTAMENTE la nota del
+   escrito: el papel no muestra dos totales distintos para lo mismo. Se guarda
+   aparte (nota_acta) para no tocar la nota cargada; recalcular da lo mismo. */
+function actEscalaProyectos(acta){
+  const tot = acta.totales || (acta.totales = {});
+  const items = (acta.forma||[]).concat(acta.fondo||[]);
+  items.forEach(i=>{ delete i.nota_acta; });
+  delete tot.forma_acta; delete tot.fondo_acta;
+  const b = acta.banda;
+  const num = v => v!==null && v!==undefined && v!=='' && Number.isFinite(Number(v));
+  if(!b || !b.activa || b.aplicar_a!=='texto_65' || b.modo!=='reescalado') return acta;
+  if(!items.length || !items.every(i=>num(i.nota)) || !num(tot.texto_65)) return acta;
+  const min = Number(b.nota_minima), max = Number(b.nota_maxima);
+  const tope = items.reduce((a,i)=>a+Number(i.valor_pct),0);
+  const paso = v => Math.round(v*10000);                 // en diezmilesimas, sin errores de coma
+  items.forEach(i=>{ i._p = paso(Number(i.valor_pct)*min/tope + Number(i.nota)*(max-min)/tope); i._v = paso(Number(i.valor_pct)); });
+  // El redondeo de cada criterio no puede mover el total: la diferencia (unas
+  // diezmilesimas) se reparte entre los criterios de mayor valor que tienen margen.
+  let dif = paso(Number(tot.texto_65)) - items.reduce((a,i)=>a+i._p,0);
+  const orden = items.slice().sort((x,y)=>y._v-x._v);
+  for(let vuelta=0; dif!==0 && vuelta<1000; vuelta++){
+    const it = orden.find(i => dif>0 ? i._p < i._v : i._p > 0);
+    if(!it) break;
+    it._p += dif>0 ? 1 : -1; dif += dif>0 ? -1 : 1;
+  }
+  items.forEach(i=>{ i.nota_acta = i._p/10000; delete i._p; delete i._v; });
+  const suma = xs => xs.reduce((a,i)=>a+Math.round(i.nota_acta*10000),0)/10000;
+  tot.forma_acta = suma(acta.forma||[]);
+  tot.fondo_acta = suma(acta.fondo||[]);
+  return acta;
+}
+
 async function actaDocx(plantilla, acta){
+  const proyectos = esActaProyectos(acta);
+  actDecimales = proyectos ? 4 : 2;
+  try{ return await actaDocxArmar(plantilla, acta, proyectos); }
+  finally{ actDecimales = 2; }
+}
+
+async function actaDocxArmar(plantilla, acta, proyectos){
   actPromediosEvaluadores(acta);
+  if(proyectos){ actEscalaProyectos(acta); plantilla = plantillaProyectosBytes(); }
+  const notaHoja = it => proyectos && it.nota_acta!==undefined ? it.nota_acta : it.nota;
   const zip = await JSZip.loadAsync(plantilla);
   const archivo = zip.file("word/document.xml");
   if(!archivo) throw new Error("La plantilla no parece un .docx de Word.");
@@ -58222,7 +58395,7 @@ async function actaDocx(plantilla, acta){
   const cfg = acta.config || {};
   const grupo = acta.grupo || {};
   const tot = acta.totales || {};
-  if(window.eemAdaptarActa) window.eemAdaptarActa(doc,acta);
+  if(window.eemAdaptarActa && !proyectos) window.eemAdaptarActa(doc,acta);
   const tablas = hijos(body, "w:tbl");
 
   // 1 · encabezado
@@ -58231,20 +58404,28 @@ async function actaDocx(plantilla, acta){
   const pUC = parrafoQueEmpieza(body, "UNIDAD DE COMPETENCIA");
   if(pUC) escribirParrafo(doc, pUC, "UNIDAD DE COMPETENCIA: " + (cfg.unidad_competencia||""));
   const pCiclo = parrafoQueEmpieza(body, "CICLO:");
-  if(pCiclo) escribirParrafo(doc, pCiclo, "CICLO: " + String(cfg.ciclo_texto||"").toUpperCase());
   const pPar = parrafoQueEmpieza(body, "PARALELO:");
-  if(pPar) escribirParrafo(doc, pPar, "PARALELO: " + (grupo.paralelo || cfg.paralelo_carpeta || ""));
   const pTema = parrafoQueEmpieza(body, "TEMA:");
-  if(pTema) escribirParrafo(doc, pTema, "TEMA: " + (grupo.tema||""));
+  if(proyectos){
+    if(pCiclo && cfg.ciclo_texto) completarRotulo(pCiclo, String(cfg.ciclo_texto).toUpperCase());
+    if(pPar) completarRotulo(pPar, grupo.paralelo || cfg.paralelo_carpeta || "");
+    if(pTema) completarRotulo(pTema, grupo.tema || "");
+  }else{
+    if(pCiclo) escribirParrafo(doc, pCiclo, "CICLO: " + String(cfg.ciclo_texto||"").toUpperCase());
+    if(pPar) escribirParrafo(doc, pPar, "PARALELO: " + (grupo.paralelo || cfg.paralelo_carpeta || ""));
+    if(pTema) escribirParrafo(doc, pTema, "TEMA: " + (grupo.tema||""));
+  }
 
   // 2 · FORMA
   const tForma = buscarTabla(tablas, "ASPECTOS DE FORMA");
   if(tForma){
     const filas = filasNumeradas(tForma);
-    for(const it of (acta.forma||[])){
-      const f = filas.find(x=>x.n===it.orden); if(f) escribirNota(doc, f, it.nota);
-    }
-    escribirNota(doc, filaPorRotulo(tForma,"PROMEDIO PARCIAL"), tot.forma_20);
+    // El Anexo A de Proyectos numera la forma 2 y 3: ahi la fila va por posicion.
+    (acta.forma||[]).forEach((it,i)=>{
+      const f = proyectos ? filas[i] : filas.find(x=>x.n===it.orden);
+      if(f) escribirNota(doc, f, notaHoja(it));
+    });
+    escribirNota(doc, filaPorRotulo(tForma,"PROMEDIO PARCIAL"), tot.forma_acta ?? tot.forma_20);
   }
 
   // 3 · FONDO + TOTALES PARCIALES (viven en la misma tabla)
@@ -58252,16 +58433,24 @@ async function actaDocx(plantilla, acta){
   if(tFondo){
     const filas = filasNumeradas(tFondo);
     for(const it of (acta.fondo||[])){
-      const f = filas.find(x=>x.n===it.orden); if(f) escribirNota(doc, f, it.nota);
+      const f = filas.find(x=>x.n===it.orden); if(f) escribirNota(doc, f, notaHoja(it));
     }
-    escribirNota(doc, filaPorRotulo(tFondo,"PROMEDIO PARCIAL"), tot.fondo_45);
-    escribirNota(doc, filaPorRotulo(tFondo,"ASPECTOS DE FORMA"), tot.forma_20);
-    escribirNota(doc, filaPorRotulo(tFondo,"ASPECTO DE FONDO"), tot.fondo_45);
-    escribirNota(doc, filaPorRotulo(tFondo,"TOTAL PARCIAL"), tot.texto_bruta ?? tot.texto_65);
+    escribirNota(doc, filaPorRotulo(tFondo,"PROMEDIO PARCIAL"), tot.fondo_acta ?? tot.fondo_45);
+    escribirNota(doc, filaPorRotulo(tFondo,"ASPECTOS DE FORMA"), tot.forma_acta ?? tot.forma_20);
+    escribirNota(doc, filaPorRotulo(tFondo,"ASPECTO DE FONDO"), tot.fondo_acta ?? tot.fondo_45);
+    // Proyectos: el TOTAL PARCIAL es la nota del escrito (58-63), la misma de NOTA TEXTO.
+    escribirNota(doc, filaPorRotulo(tFondo,"TOTAL PARCIAL"), proyectos ? tot.texto_65 : (tot.texto_bruta ?? tot.texto_65));
   }
 
-  // 4 · EXPOSICION
-  const tExpo = buscarTabla(tablas, "EXPOSICION, DEFENSA");
+  // 4 · EXPOSICION — en Proyectos solo la impresion prolija lleva nota;
+  //     el cuadro de exposicion, defensa y sustentacion no se toca.
+  const tImpresion = proyectos ? buscarTabla(tablas, "IMPRESION PROLIJA") : null;
+  if(tImpresion){
+    const it = (acta.exposicion||[]).find(x=>Number(x.orden)===1);
+    const tr = hijos(tImpresion,"w:tr").find(x=>normal(textoDe(x)).includes("IMPRESION PROLIJA"));
+    if(it && tr) escribirNota(doc, {tr, celdas:hijos(tr,"w:tc")}, it.nota);
+  }
+  const tExpo = proyectos ? null : buscarTabla(tablas, "EXPOSICION, DEFENSA");
   if(tExpo){
     const filas = filasNumeradas(tExpo);
     for(const it of (acta.exposicion||[])){
@@ -58283,8 +58472,9 @@ async function actaDocx(plantilla, acta){
     // El cuadro LIMPIO, antes de escribirle nada: de el sale el segundo.
     const molde = tCur.cloneNode(true);
     const cabecera = hijos(hijos(tCur, 'w:tr')[0], 'w:tc');
-    if(cabecera[1]) escribirCeldaLineas(doc, cabecera[1], ['NOTA FONDO','Y FORMA',String((acta.forma||[]).concat(acta.fondo||[]).reduce((a,i)=>a+Number(i.valor_pct),0))+'%']);
-    rellenarCursantes(doc, tCur, acta.cursantes||[]);
+    if(cabecera[1] && !proyectos) escribirCeldaLineas(doc, cabecera[1], ['NOTA FONDO','Y FORMA',String((acta.forma||[]).concat(acta.fondo||[]).reduce((a,i)=>a+Number(i.valor_pct),0))+'%']);
+    // En el Anexo A de Proyectos la columna NOTA TEXTO no viene unida: va en cada fila.
+    rellenarCursantes(doc, tCur, acta.cursantes||[], proyectos);
     const tEval = cuadroPorEvaluador(doc, molde, acta.cursantes||[], acta.jurados||[]);
     if(tEval){
       // Un parrafo vacio DE VERDAD entre cuadro y cuadro: Word ignora el
@@ -58337,8 +58527,13 @@ async function actaDocx(plantilla, acta){
 function nombreActa(acta){
   const g = acta.grupo || {};
   const par = g.paralelo || '';
-  const num = g.numero==null ? '' : String(g.numero).padStart(2,'0');
-  return ('ACTA_EEM_' + par + (par?'-':'') + 'G' + num + '.docx').replace(/\s+/g,'_');
+  const proyectos = esActaProyectos(acta);
+  // Proyectos: «B · Grupo 6» — el numero que conoce el alumno es el del nombre
+  // (unico por paralelo), no el interno de la carpeta.
+  const delNombre = proyectos ? /grupo\s*(\d+)/i.exec(g.nombre || '') : null;
+  const n = delNombre ? delNombre[1] : g.numero;
+  const num = n==null ? '' : String(n).padStart(2,'0');
+  return ((proyectos ? 'ACTA_PROYECTOS_' : 'ACTA_EEM_') + par + (par?'-':'') + 'G' + num + '.docx').replace(/\s+/g,'_');
 }
 
 /* ── La plantilla, embebida: la app funciona aunque no haya red ────────── */
@@ -58747,7 +58942,7 @@ ACT.vista = async function(grupoId, parcial=false, consolidado=false){
   catch(e){ c.innerHTML = '<div class="act-vacio">⚠️ No se pudo armar el acta: '+esc(e.message)+'</div>'; return; }
   ACT.bytesActual = bytes;
 
-  c.innerHTML = (escritoItems.length?'<div class="act-card">'+window.eemResumenEscrito(escritoItems)+(acta.banda?.activa?'<p>Escrito bruto: <b>'+esc(acta.totales.texto_bruta)+'</b> · Escrito ajustado para la nota final: <b>'+esc(acta.totales.texto_65)+'</b> (banda vigente '+esc(acta.banda.nota_minima)+'–'+esc(acta.banda.nota_maxima)+').</p>':'')+'</div>':'')+(parcial ? '<div class="act-card"><b>Hallazgos de la revisión</b>'+ (acta.hallazgos||[]).map(h=>'<p>Ítem '+esc(h.item)+': '+esc(h.texto)+'</p>').join('')+((acta.criterios_omitidos||[]).length?'<p>No se computan: '+acta.criterios_omitidos.map(esc).join(', ')+'</p>':'')+'</div>' : '')+(acta.avisos||[]).map(a=>`<div class="act-aviso">⚠️ ${esc(a)}</div>`).join('')
+  c.innerHTML = (escritoItems.length?'<div class="act-card">'+window.eemResumenEscrito(escritoItems)+(acta.banda?.activa&&esActaProyectos(acta)?'<p>Nota del escrito: <b>'+esc(acta.totales.texto_65)+'</b> (escala '+esc(acta.banda.nota_minima)+'–'+esc(acta.banda.nota_maxima)+'). En el acta cada criterio sale ya en esa escala y forma + fondo suman exactamente esa nota.</p>':acta.banda?.activa?'<p>Escrito bruto: <b>'+esc(acta.totales.texto_bruta)+'</b> · Escrito ajustado para la nota final: <b>'+esc(acta.totales.texto_65)+'</b> (banda vigente '+esc(acta.banda.nota_minima)+'–'+esc(acta.banda.nota_maxima)+').</p>':'')+'</div>':'')+(parcial ? '<div class="act-card"><b>Hallazgos de la revisión</b>'+ (acta.hallazgos||[]).map(h=>'<p>Ítem '+esc(h.item)+': '+esc(h.texto)+'</p>').join('')+((acta.criterios_omitidos||[]).length?'<p>No se computan: '+acta.criterios_omitidos.map(esc).join(', ')+'</p>':'')+'</div>' : '')+(acta.avisos||[]).map(a=>`<div class="act-aviso">⚠️ ${esc(a)}</div>`).join('')
     + `<div class="act-card">
          <div class="act-row">
            <button class="act-btn" onclick="ACT.bajarActa()">⬇️ Word (.docx)</button>
@@ -58778,10 +58973,10 @@ ACT.rubricaExcel = async function(){
       ['MATERIA',a.carpeta.materia||''],['TEMA',a.grupo.tema||''],['FECHA',a.fecha_texto||''],[],
       ['BLOQUE','ÍTEM','CRITERIO','VALOR MÁXIMO','NOTA']];
     for(const bloque of ['forma','fondo','exposicion']) {
-      for(const i of a[bloque]||[]) rubrica.push([bloque==='exposicion'?'EXPOSICIÓN (promedio grupal)':bloque.toUpperCase(),i.orden,i.descripcion,valor(i.valor_pct),valor(i.nota)]);
+      for(const i of a[bloque]||[]) rubrica.push([bloque==='exposicion'?'EXPOSICIÓN (promedio grupal)':bloque.toUpperCase(),i.orden,i.descripcion,valor(i.valor_pct),valor(i.nota_acta ?? i.nota)]);
     }
     rubrica.push([],['TOTALES','FORMA /'+a.forma.reduce((s,i)=>s+Number(i.valor_pct),0),'FONDO /'+a.fondo.reduce((s,i)=>s+Number(i.valor_pct),0),'DOCUMENTO /'+a.forma.concat(a.fondo).reduce((s,i)=>s+Number(i.valor_pct),0),'PRESENCIAL /'+a.exposicion.reduce((s,i)=>s+Number(i.valor_pct),0)],
-      ['',valor(a.totales.forma_20),valor(a.totales.fondo_45),valor(a.totales.texto_65),valor(a.totales.exposicion_35_grupal)]);
+      ['',valor(a.totales.forma_acta ?? a.totales.forma_20),valor(a.totales.fondo_acta ?? a.totales.fondo_45),valor(a.totales.texto_65),valor(a.totales.exposicion_35_grupal)]);
     const finales = [['CURSANTE','DOCUMENTO /'+a.forma.concat(a.fondo).reduce((s,i)=>s+Number(i.valor_pct),0),'PRESENCIAL /'+a.exposicion.reduce((s,i)=>s+Number(i.valor_pct),0),...(a.jurados||[]).map(j=>'FINAL — '+j.nombre),'NOTA FINAL /100','OBSERVACIÓN']];
     for(const c of a.cursantes||[]) finales.push([eemNombre(c,'cursante'),valor(c.texto_65),valor(c.expo_35),
       ...(a.jurados||[]).map((j,i)=>c.no_expuso?'NO EXPUSO':valor(c.por_evaluador?.[i])),valor(c.final_100),c.no_expuso?'NO EXPUSO — '+(c.motivo_ausencia||''):c.requiere_recalculo?'PENDIENTE DE RECÁLCULO':c.consolidada?'CONSOLIDADA':'PENDIENTE']);
@@ -58791,7 +58986,7 @@ ACT.rubricaExcel = async function(){
     for(const [nombre,filas,anchos] of [['Rúbrica',rubrica,[30,14,85,18,18]],['Notas finales',finales,[48,18,18]],['Evaluadores',detalle,[48,42]]]) {
       const ws = XLSX.utils.aoa_to_sheet(filas);
       ws['!cols'] = Array.from({length:Math.max(...filas.map(f=>f.length))},(_,i)=>({wch:anchos[i]||24}));
-      for(const k of Object.keys(ws)) if(!k.startsWith('!') && ws[k].t==='n') ws[k].z='0.00';
+      for(const k of Object.keys(ws)) if(!k.startsWith('!') && ws[k].t==='n') ws[k].z=esActaProyectos(a)?'0.0000':'0.00';
       XLSX.utils.book_append_sheet(wb,ws,nombre);
     }
     XLSX.writeFile(wb,nombreActa(a).replace(/\.docx$/i,'.xlsx'));
@@ -60896,6 +61091,7 @@ window.eemEscritoAbrir=grupo=>{document.getElementById('eem-escrito-modal')?.rem
 <script src="assets/horario-consolidado.js?v=2.9.428"></script>
 <script src="assets/horario-publicado.js?v=2.9.428"></script>
 <script src="soporte.js?v=11"></script>
-<script src="evaluaciones/config.js?v=20261011"></script>
+<script src="evaluaciones/config.js?v=20261022"></script>
+<script src="evaluaciones/anexo-a-proyectos.js?v=20261022b"></script>
 </body>
 </html>
