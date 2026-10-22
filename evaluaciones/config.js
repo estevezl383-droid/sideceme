@@ -62,9 +62,11 @@ const prev=window.showScreen;window.showScreen=function(id){const r=prev.apply(t
 setInterval(()=>{if(document.getElementById('screen-cursante-home')?.classList.contains('active'))avisos();},30000);
 const originalMateria=window.goAulaMateriaCursante;
 if(originalMateria)window.goAulaMateriaCursante=function(){const r=originalMateria.apply(this,arguments);document.getElementById('ec-materia-entrega')?.remove();
- if(/elaboraci[oó]n de planes/i.test(document.getElementById('aula-mat-titulo')?.textContent||'')){const el=document.createElement('div');el.id='ec-materia-entrega';el.className='eem-card';el.innerHTML='<h3>Evaluación sumativa — Elaboración de Planes</h3><p>Entrega hasta el 12-OCT-2026 a las 08:00 (hora de Bolivia).</p><button class="eem-btn" onclick="eemAbrirAlumno()">Entregar mi trabajo / ver acuse</button>';document.querySelector('#screen-aula-materia .cursante-container')?.prepend(el);}return r;};
+ const titulo=document.getElementById('aula-mat-titulo')?.textContent||'';
+ const sumativa=/elaboraci[oó]n de planes/i.test(titulo)?['Elaboración de Planes','12-OCT-2026 a las 08:00']:/proyectos/i.test(titulo)?['Elaboración de Proyectos','22-OCT-2026 a las 08:30']:null;
+ if(sumativa){const el=document.createElement('div');el.id='ec-materia-entrega';el.className='eem-card';el.innerHTML='<h3>Evaluación sumativa — '+sumativa[0]+'</h3><p>Entrega hasta el '+sumativa[1]+' (hora de Bolivia).</p><button class="eem-btn" onclick="eemAbrirAlumno()">Entregar mi trabajo / ver acuse</button>';document.querySelector('#screen-aula-materia .cursante-container')?.prepend(el);}return r;};
 const originalCarpeta=window.avAbrirCarpeta;
-if(originalCarpeta)window.avAbrirCarpeta=async function(){const r=await originalCarpeta.apply(this,arguments);document.getElementById('ec-docente-entrega')?.remove();if(AV.data?.carpeta?.materia_codigo==='EM-AU-EP-03'){const el=document.createElement('div');el.id='ec-docente-entrega';el.className='eem-card';el.innerHTML='<h3>Evaluación sumativa y trabajos recibidos</h3><button class="eem-btn" onclick="eemAbrirCarpetas()">Abrir entregas centralizadas y tribunales</button>';document.getElementById('avc-sub')?.parentNode.appendChild(el);}return r;};
+if(originalCarpeta)window.avAbrirCarpeta=async function(){const r=await originalCarpeta.apply(this,arguments);document.getElementById('ec-docente-entrega')?.remove();if(['EM-AU-EP-03','EM-AU-FE-01'].includes(AV.data?.carpeta?.materia_codigo)){const el=document.createElement('div');el.id='ec-docente-entrega';el.className='eem-card';el.innerHTML='<h3>Evaluación sumativa y trabajos recibidos</h3><button class="eem-btn" onclick="eemAbrirCarpetas()">Abrir entregas centralizadas y tribunales</button>';document.getElementById('avc-sub')?.parentNode.appendChild(el);}return r;};
 window.eemAdaptarActa=function(doc,a){
  const sum=xs=>(xs||[]).reduce((n,x)=>n+Number(x.valor_pct),0),f=sum(a.forma),b=sum(a.fondo),e=sum(a.exposicion);
  if(f===20&&b===45&&e===35)return;
@@ -116,13 +118,16 @@ window.eemAdaptarActa=function(doc,a){
   tabla.dataset.eplaUno='1';
   const gr=TRB.grilla,items=gr.items,filas=gr.filas||[];
   const th=tabla.querySelectorAll('thead th');
+  // Proyectos usa la misma mesa 2+15+10+10; cambia el rótulo del ítem 2.
+  const proyectos=/proyectos/i.test(items[1]?.descripcion||'');
+  const rotulos=etiquetas.map((e,i)=>i===1&&proyectos?['CONOCIMIENTO Y SUSTENTO','Elaboración de proyectos']:e);
   items.forEach((item,i)=>{
    const h=th[i+1];if(!h)return;
-   h.title=nombres[i];
+   h.title=item.descripcion||nombres[i];
    h.innerHTML='<span class="epla-enc-n">'+
      'ÍTEM '+item.orden+'</span><span class="epla-enc-2">'+
-     etiquetas[i][0]+'</span><span class="epla-enc-2">'+
-     etiquetas[i][1]+'</span><span class="epla-enc-valor">/'+cuatro(item.valor)+'</span>';
+     rotulos[i][0]+'</span><span class="epla-enc-2">'+
+     rotulos[i][1]+'</span><span class="epla-enc-valor">/'+cuatro(item.valor)+'</span>';
   });
   if(th[items.length+1])th[items.length+1].innerHTML='TOTAL<span class="epla-enc-valor">/37.0000</span>';
   const css=document.createElement('style');
@@ -187,7 +192,8 @@ window.eemAdaptarActa=function(doc,a){
     obs.forEach(row=>{
      const c=row.cells[0];if(!c)return;
      c.colSpan=1;
-     const contenido=document.createElement('td');contenido.colSpan=5;
+     // Nombre + celda fusionada ocupan 2; quedan ítems 2-4, TOTAL, /100 y ✎.
+     const contenido=document.createElement('td');contenido.colSpan=items.length+2;
      while(c.firstChild)contenido.appendChild(c.firstChild);
      row.appendChild(contenido);
     });
@@ -204,7 +210,7 @@ window.eemAdaptarActa=function(doc,a){
   }else{
    // Si falta un integrante, evitar un rowspan que afecte la fila de ausencia.
    const row=tabla.tBodies[0].insertRow(0);
-   const td=document.createElement('td');td.colSpan=7;td.className='epla-unica';
+   const td=document.createElement('td');td.colSpan=items.length+4;td.className='epla-unica';
    td.style.height='100px';td.appendChild(contenedor());row.appendChild(td);
    normal.forEach(r=>{const i=r.querySelector('input.trb-in[data-i="1"]');if(i)i.readOnly=true;});
   }
