@@ -54511,7 +54511,7 @@ function eemDialogoEntrega(i){
     '<div class="eem-sub" style="margin-bottom:10px">'+esc(x.carpeta.materia_nombre)+' · '+
       '<b>Grupo '+esc(rotuloGrupo(x.grupo.numero,x.grupo.nombre))+'</b>'+(x.grupo.tema?' — '+esc(x.grupo.tema):'')+
       '<br>El grupo no se elige: es el que te asignó el Evaluador.</div>'+
-    '<div class="eem-field"><label>Archivo PDF del trabajo (máximo 5 MB)</label>'+
+    '<div class="eem-field"><label>Archivo PDF del trabajo (máximo 20 MB)</label>'+
       '<input type="file" id="eem-file" accept="application/pdf,.pdf"></div>'+
     '<div id="eem-file-info" class="eem-sub" style="margin:-4px 0 10px"></div>'+
     '<div class="eem-field"><label for="eem-tema">Tema del trabajo (nombre del proyecto)</label>'+
@@ -54551,7 +54551,7 @@ async function revisarArchivo(f){
   const di = (t,c)=>{ info.innerHTML = '<span style="color:'+c+'">'+t+'</span>'; };
 
   if(!/\.pdf$/i.test(f.name)) return di('⛔ El formato de entrega es PDF, y solo PDF.', '#f0938a');
-  if(f.size > 5*1024*1024) return di('⛔ Pesa '+(f.size/1048576).toFixed(1)+' MB. El máximo son 5 MB.', '#f0938a');
+  if(f.size > 20*1024*1024) return di('⛔ Pesa '+(f.size/1048576).toFixed(1)+' MB. El máximo son 20 MB.', '#f0938a');
   if(f.size === 0) return di('⛔ El archivo está vacío.', '#f0938a');
 
   di('Revisando el archivo…', '#9fb0c9');
@@ -55431,7 +55431,7 @@ async function eemCargarPorEl(cursante){
   inp.onchange = async ()=>{
     const f = inp.files[0]; if(!f) return;
     if(!/\.pdf$/i.test(f.name)) return aviso('⛔ Solo PDF.');
-    if(f.size > 5*1024*1024) return aviso('⛔ Máximo 5 MB.');
+    if(f.size > 20*1024*1024) return aviso('⛔ Máximo 20 MB.');
     const motivo = prompt('Motivo de la carga por excepción (obligatorio):');
     if(!motivo || !motivo.trim()) return;
     const buf = await f.arrayBuffer();

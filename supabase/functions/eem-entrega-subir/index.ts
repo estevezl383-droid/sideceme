@@ -35,7 +35,7 @@ const err = (msg: string, status = 400) =>
   new Response(JSON.stringify({ ok: false, error: msg }), { status, headers: corsHeaders });
 
 const BUCKET = "eem-entregas";
-const MAX_BYTES = 5 * 1024 * 1024;   // 5 MB, igual que valida el navegador
+const MAX_BYTES = 20 * 1024 * 1024;  // 20 MB, igual que valida el navegador
 
 type Sesion = { id: string; tabla: "cursantes" | "profesores"; rol: string; nombre: string };
 
@@ -169,7 +169,7 @@ Deno.serve(async (req: Request) => {
 
     if (!/\.pdf$/i.test(nombre)) return err("El formato de entrega es PDF, y solo PDF.");
     if (!(tam > 0)) return err("El archivo llego vacio.");
-    if (tam > MAX_BYTES) return err(`El archivo pesa ${(tam / 1048576).toFixed(1)} MB. El maximo es 5 MB.`);
+    if (tam > MAX_BYTES) return err(`El archivo pesa ${(tam / 1048576).toFixed(1)} MB. El maximo es 20 MB.`);
     if (!/^[0-9a-f]{64}$/.test(hash)) return err("Falta el SHA-256 del archivo.");
 
     const r: any = await revisarEntrega(carpetaId, quienEntrega, integrantes);
@@ -195,11 +195,11 @@ Deno.serve(async (req: Request) => {
     if (r.error) return err(r.error, 403);
     if (!path.startsWith(`${carpetaId}/${r.grupo_id}/`) || path.includes("..")) return err("Ruta invalida.", 403);
     const encoded = String(body.pdf_base64 || "");
-    if (!encoded || encoded.length > 4 * Math.ceil(MAX_BYTES / 3)) return err("El maximo es 5 MB.");
+    if (!encoded || encoded.length > 4 * Math.ceil(MAX_BYTES / 3)) return err("El maximo es 20 MB.");
     let bytes: Uint8Array;
     try { bytes = Uint8Array.from(atob(encoded), c => c.charCodeAt(0)); }
     catch { return err("Archivo invalido."); }
-    if (!bytes.length || bytes.length > MAX_BYTES) return err("El maximo es 5 MB.");
+    if (!bytes.length || bytes.length > MAX_BYTES) return err("El maximo es 20 MB.");
     if (new TextDecoder().decode(bytes.slice(0,5)) !== "%PDF-") return err("Solo PDF.");
     if (!/^[0-9a-f]{64}$/.test(hash) || await sha256Hex(bytes.buffer as ArrayBuffer) !== hash) return err("La huella del archivo no coincide.");
     const { error } = await sb.storage.from(BUCKET).upload(path, bytes, {contentType:"application/pdf", upsert:false});
@@ -236,7 +236,7 @@ Deno.serve(async (req: Request) => {
 
     if (tam > MAX_BYTES) {
       await sb.storage.from(BUCKET).remove([path]);
-      return err(`El archivo pesa ${(tam / 1048576).toFixed(1)} MB. El maximo es 5 MB.`);
+      return err(`El archivo pesa ${(tam / 1048576).toFixed(1)} MB. El maximo es 20 MB.`);
     }
     const cabecera = new TextDecoder().decode(new Uint8Array(buf.slice(0, 5)));
     if (cabecera !== "%PDF-") {
