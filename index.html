@@ -58325,6 +58325,8 @@ function eemNotaBanda(bruta,tope,b){
   return Math.min(max,Math.max(min,nota));
 }
 
+if(typeof window!=='undefined') window.eemNotaBanda=eemNotaBanda;
+
 /* ── PROYECTOS: el acta sale sobre su propio ANEXO "A" ────────────────
    Su rubrica (forma 3 + fondo 60 + exposicion 37) no es la del EEM. Se usa
    el Word de la Escuela tal cual: se llenan forma, fondo, impresion prolija y
