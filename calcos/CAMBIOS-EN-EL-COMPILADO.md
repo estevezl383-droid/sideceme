@@ -5,6 +5,29 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-22 (2) — 🔹 Las fichas al 40 % y con fondo blanco: unidades, PC e instalaciones (`index-fichas-chicas-20261022.js`)
+
+Parte de `index-concepto-20261022.js` + `pruebas/reemplazos-2026-10-22-fichas-chicas.js` (9 reemplazos;
+`construir-fichas-chicas.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con la carta
+congestionada: «reduce las fichas en un 60%… que tengan fondo blanco y que sean azul más o menos como [la ficha XX
+del 🧩 Superponer]… igual las instalaciones… para todo desde ahora en adelante y las que ya tenemos cambiarles».
+
+- **En el compilado** (todo en `sb`, el dibujo de TODA ficha de la Mesa): el marco (y el de la agrupación) con
+  relleno blanco 0,92 (antes 0,10, se veía la carta a través); el tamaño que devuelve (`w`, `h` y el ancla) por
+  `SIDFichaChica` = 0,4; la designación con letra 16 (antes 12) y, si es más ancha que el marco, el dibujo se
+  ensancha igual a cada lado (`SIDAnchoDesig`, `SIDpad`); halo blanco en el escalón y en la designación. En la
+  carta 2D (`hve`) el símbolo de la tarea táctica encima de la ficha también va por `SIDFichaChica`.
+- **Qué alcanza**: la carta 2D, la 3D, la plantilla del enemigo y las marcas del concepto (todas usan `sb`); las
+  fichas ya puestas cambian solas (no se guarda el dibujo). El Word, el KMZ, 🎓 Estudio y las vistas previas sólo
+  usan la imagen o la proporción del ancla: no cambian. El deslizador «Tamaño de las fichas» del 🧩 Superponer
+  (`SIDEscalaFichas`) sigue agrandándolas; los símbolos propios del Superponer no se tocaron.
+- **Cómo se comprobó**: `e2e/fichas-chicas.cjs` (la Mesa con el compilado anterior y con el nuevo: la ficha sin
+  nombre al 40 %, unidad, PC, enemigo e instalación ≤ 50 %, el centro del marco blanco, sin errores),
+  `reemplazos-compilado.js` y `npm test`. `e2e/navegador.js` acepta `escalaPantalla` (2 = Retina) para mirarlo
+  como en una Mac.
+- **Si se recompila desde el fuente**: llevar a `sb` el relleno blanco, el factor 0,4, la letra 16 con el
+  ensanche y los halos; y el factor a la tarea táctica de `hve`.
+
 ## 2026-10-22 — 🗺️ F3·P4: el concepto de la operación EN LA CARTA, con el plan de barreras y el plan de fuegos (`index-concepto-20261022.js`)
 
 Parte de `index-reabastecimiento-20261021.js` + `pruebas/reemplazos-2026-10-22-concepto.js` (6 reemplazos;

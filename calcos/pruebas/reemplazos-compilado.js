@@ -48,7 +48,8 @@
 //   index-ains-acostar-20261020.js + reemplazos-2026-10-20-disgregar.js = index-disgregar-20261020.js
 //   index-disgregar-20261020.js + reemplazos-2026-10-21-ain-chico.js = index-ain-chico-20261021.js
 //   index-ain-chico-20261021.js + reemplazos-2026-10-21-reabastecimiento.js = index-reabastecimiento-20261021.js
-//   index-reabastecimiento-20261021.js + reemplazos-2026-10-22-concepto.js = index-concepto-20261022.js (el vigente)
+//   index-reabastecimiento-20261021.js + reemplazos-2026-10-22-concepto.js = index-concepto-20261022.js
+//   index-concepto-20261022.js + reemplazos-2026-10-22-fichas-chicas.js = index-fichas-chicas-20261022.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -62,6 +63,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-22-fichas-chicas'),
+    nombre: 'reemplazos-2026-10-22-fichas-chicas',
+    // calcos/assets/index-concepto-20261022.js (antes de las fichas al 40 % y con fondo blanco).
+    anterior: 'b2e29940bb646e2d8cbd5f408b101ced8f2083e18cbc697929d27eab68cafb0a',
+  },
   {
     lista: require('./reemplazos-2026-10-22-concepto'),
     nombre: 'reemplazos-2026-10-22-concepto',
