@@ -76,39 +76,61 @@ assert.equal(texto(parrafo('TEMA')), 'TEMA: Sistema de saneamiento para el RA-5'
 assert.equal(texto(parrafo('CICLO')), 'CICLO: SEGUNDO');
 assert.ok(xml.includes('UNIDAD DE COMPETENCIA: ELABORACIÓN DE PROYECTOS'));
 
-// 2 · forma: el Anexo numera 2 y 3; las notas entran por posición
-const tForma = filas(buscar('ASPECTOS DE FORMA (3%)'));
-assert.deepEqual(tForma.filter(f => /^\d+$/.test(f[0])).map(f => [f[0], f.at(-1)]), [['2', '1.00'], ['3', '2.00']]);
-assert.equal(tForma.find(f => f[0].startsWith('PROMEDIO PARCIAL')).at(-1), '3.00');
+// Escala del escrito: 58 + bruta/63·5 → cada criterio v·58/63 + n·5/63, a 4 decimales
+const r4 = v => Math.round(v * 10000) / 10000;
+const notaFondo = v => v === 6 ? 4 : v;
+const bruta = forma.reduce((x, v) => x + v, 0) + fondo.reduce((x, v) => x + notaFondo(v), 0);   // 61
+const escrito = r4(58 + bruta / 63 * 5);                                                        // 62.8413
+const num = t => Number(t);
+const sumar = xs => xs.reduce((x, v) => x + Math.round(num(v) * 10000), 0) / 10000;
 
-// 3 · fondo: 23 filas, cada una con su nota; totales parciales
+// 2 · forma: el Anexo numera 2 y 3; las notas entran por posición, ya en escala
+const tForma = filas(buscar('ASPECTOS DE FORMA (3%)'));
+const fForma = tForma.filter(f => /^\d+$/.test(f[0]));
+assert.deepEqual(fForma.map(f => f[0]), ['2', '3']);
+fForma.forEach((f, i) => {
+  assert.match(f.at(-1), /^\d+\.\d{4}$/);
+  assert.ok(Math.abs(num(f.at(-1)) - (forma[i] * 58 / 63 + forma[i] * 5 / 63)) <= 0.0002, 'forma ' + i);
+  assert.ok(num(f.at(-1)) <= forma[i]);
+});
+const promForma = tForma.find(f => f[0].startsWith('PROMEDIO PARCIAL')).at(-1);
+assert.equal(sumar(fForma.map(f => f.at(-1))), num(promForma));
+
+// 3 · fondo: 23 filas en escala; nunca pasan su valor; los totales cuadran con la NOTA TEXTO
 const tFondo = filas(buscar('ASPECTOS DE FONDO'));
 const numeradas = tFondo.filter(f => /^\d+$/.test(f[0]));
 assert.equal(numeradas.length, 23);
-numeradas.forEach((f, i) => assert.equal(f.at(-1), (fondo[i] === 6 ? 4 : fondo[i]).toFixed(2), 'fondo ítem ' + (i + 1)));
+numeradas.forEach((f, i) => {
+  const ideal = fondo[i] * 58 / 63 + notaFondo(fondo[i]) * 5 / 63;
+  assert.ok(Math.abs(num(f.at(-1)) - ideal) <= 0.0002, 'fondo ítem ' + (i + 1) + ': ' + f.at(-1));
+  assert.ok(num(f.at(-1)) <= fondo[i] && num(f.at(-1)) >= fondo[i] * 58 / 63 - 0.0002);
+});
 const rot = r => tFondo.find(f => f[0].startsWith(r)).at(-1);
-assert.equal(rot('PROMEDIO PARCIAL'), '58.00');
-assert.equal(rot('ASPECTOS DE FORMA'), '3.00');
-assert.equal(rot('ASPECTO DE FONDO'), '58.00');
-assert.equal(rot('TOTAL PARCIAL'), '61.00');
+assert.equal(sumar(numeradas.map(f => f.at(-1))), num(rot('PROMEDIO PARCIAL')));
+assert.equal(rot('ASPECTOS DE FORMA'), promForma);
+assert.equal(rot('ASPECTO DE FONDO'), rot('PROMEDIO PARCIAL'));
+assert.equal(rot('TOTAL PARCIAL'), escrito.toFixed(4));
+assert.equal(sumar([rot('ASPECTOS DE FORMA'), rot('ASPECTO DE FONDO')]), escrito, 'forma + fondo = nota del escrito');
 
-// 4 · impresión prolija con su nota; el cuadro de exposición queda IDÉNTICO al Anexo
-assert.equal(filas(buscar('IMPRESIÓN PROLIJA')).find(f => f[0].startsWith('Impresión')).at(-1), '2.00');
+// 4 · impresión prolija con su nota y el título corregido (2%); el cuadro de exposición queda IDÉNTICO
+assert.ok(texto(buscar('IMPRESIÓN PROLIJA')).includes('ASPECTOS DE FORMA (2%)'));
+assert.ok(!xml.includes('(5%)') && !texto(xml).includes('(5%)'));
+assert.equal(filas(buscar('IMPRESIÓN PROLIJA')).find(f => f[0].startsWith('Impresión')).at(-1), '2.0000');
 const iExpo = tablasOrig.findIndex(t => texto(t).includes('EXPOSICIÓN, DEFENSA Y SUSTENTACIÓN GRUPAL'));
 const tExpo = tablas.find(t => texto(t).includes('EXPOSICIÓN, DEFENSA Y SUSTENTACIÓN GRUPAL'));
 assert.equal(tExpo, tablasOrig[iExpo], 'el cuadro de exposición no debe cambiar ni una coma');
 
-// 5 · cursantes: escrito 58-63 en CADA fila, exposición promedio de los 3 jurados, final = suma
-const escrito = Math.round((58 + 61 / 63 * 5) * 10000) / 10000;      // 62.8413
+// 5 · cursantes: escrito 58-63 en CADA fila (= TOTAL PARCIAL), exposición promedio de los 3 jurados, final = suma
 const tCur = filas(tablas.find(t => texto(t).includes('NOTA TEXTO')));
 assert.deepEqual(tCur[0], ['GRADO, APELLIDOS Y NOMBRES  ', 'NOTA TEXTO 63%', 'NOTA EXPOSICIÓN 37%', 'NOTA FINAL 100%', 'FIRMA']);
 const datos = tCur.slice(1);
 assert.equal(datos.length, 5);
 datos.forEach((f, k) => {
-  const expo = (34 + 33 + 32.5) / 3 - k * 0.5;
-  assert.equal(f[1], escrito.toFixed(2));
-  assert.equal(f[2], expo.toFixed(2));
-  assert.equal(f[3], (Math.round((escrito + expo) * 10000) / 10000).toFixed(2));
-  assert.ok(Number(f[1]) >= 58 && Number(f[1]) <= 63);
+  const expo = r4((34 + 33 + 32.5) / 3 - k * 0.5);
+  assert.equal(f[1], escrito.toFixed(4));
+  assert.equal(f[2], expo.toFixed(4));
+  assert.equal(f[3], r4(escrito + expo).toFixed(4));
+  assert.equal(sumar([f[1], f[2]]), num(f[3]), 'texto + exposición = final, fila ' + k);
+  assert.ok(num(f[1]) >= 58 && num(f[1]) <= 63);
 });
 console.log('Acta de Proyectos sobre el Anexo A: encabezado, forma, fondo, impresión, cuadro de exposición intacto y cursantes OK');
