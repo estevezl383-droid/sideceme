@@ -5,6 +5,41 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-22 — 🗺️ F3·P4: el concepto de la operación EN LA CARTA, con el plan de barreras y el plan de fuegos (`index-concepto-20261022.js`)
+
+Parte de `index-reabastecimiento-20261021.js` + `pruebas/reemplazos-2026-10-22-concepto.js` (6 reemplazos;
+`construir-concepto.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con la F3·P4 que le hizo
+la IA (Defensa de área del CE-I en el AO LAUCA) y la carta vacía: «me lo armó un documento pero en el calco no se ve
+absolutamente nada… armalo como una plantilla doctrinal con fichas que incluya el plan de barreras y el plan de
+fuegos… que pueda mover la concentración de fuego, mover las barreras, aumentarlas… en congruencia con los otros G».
+
+- **Qué pasaba**: la F3·P4 era sólo nueve campos de texto. Lo que nombraba (LF «PUMA», PC-1…PC-5 con coordenadas,
+  ZO-1 en Ungallire – Guata con 3.000 minas, la reserva en Turco y sus ejes, las A.I.N. de los fuegos) no llegaba a
+  la carta, ni al plan de barreras (🛡️ Defensa) ni al plan de fuegos (🔥 Fuegos).
+- **En el compilado**: el import de `calcos/concepto-operacion/v1`; `SIDCOConfig` (React, `js`, `cb`, `Nm`, Leaflet)
+  junto a `SIDOIConfig`; en el Tablero del G-3 (`wLe`) la F3·P4 lleva `SIDEditorConcepto` arriba de sus campos
+  (`yU`, igual que antes); en `Sze` el estado `modoCO` (sumado al `dibujando` de la carta) y el efecto `SIDCOSync`
+  con el calco, `planFuegos`, `g3`, las unidades, el CMOC, la PICB, la plantilla situacional, el nomenclátor
+  (`zIe(hie(…))`) y los setters con los candados de siempre (`ll`/`Nl`, `Bn`) y la foto del ↶ Deshacer (`la`,
+  `SIDlaU`).
+- **Fuera del compilado** (código legible, `calcos/concepto-operacion/v1`, ver su README): la plantilla doctrinal
+  (medidas de control, esfuerzos y reserva, una zona de obstáculos por avenida con minado, concertina, zanja,
+  demolición y su efecto, zona de aniquilamiento, FPF, interdicción en las A.I.N., contrabatería), cada ficha con
+  su porqué y su fuente (TEXTO · G-2 · F3·P3 · DOCTRINA); todo va a `ops.limites` / `ops.coordinacion` /
+  `ops.obstaculos` / `planFuegos.blancos` (un solo plan) con `co: { id, rol, grupo }`, y lo que no tiene pieza a
+  `g3.conceptoCarta.marcas`. ✋ Ajustar: ✥ mueve (la ZO con todo su grupo), ⤡ agranda, ⟳ gira, con vista previa;
+  paleta; congruencia (obstáculo batido, delante de la LPR, eje de contraataque libre, al alcance, el peso en el
+  esfuerzo principal); «📝 Llevar la carta al texto» (bloque «Según el calco»).
+- **Cómo se comprobó**: `concepto.mjs` (24 casos, con el texto real de la F3·P4 de Sergio), `e2e/concepto.cjs` (la
+  Mesa real: proponer, poner en el calco, arrastrar la ZO-1 con su grupo, ⤡ y ⟳, la FPF con los botones, la paleta,
+  la congruencia, el texto, ↶ Deshacer, sin errores), el teléfono (390 px, sin desborde) y el 3D (sin errores),
+  `reemplazos-compilado.js`, `npm test` entero y las e2e de la F3·P3, el plan de fuegos, deshacer, edición, la
+  plantilla del enemigo, el reabastecimiento y disgregar. `e2e/plan-barreras-3d.js` falla en «puntos de la prueba
+  tapados por la interfaz», IGUAL con `index-reabastecimiento-20261021.js` (no es de este cambio: la prueba toca donde
+  hoy está la barra de la Mesa).
+- **Si se recompila desde el fuente**: llevar `SIDEditorConcepto` a la hoja `concepto` de `wLe`, el estado
+  `modoCO` al `dibujando` de la carta y el efecto `SIDCOSync` a `Sze`.
+
 ## 2026-10-21 (3) — ▣ El tablero ASDI / ARCE a la mitad de alto y la propuesta pegada al límite de retaguardia (sin tocar el compilado)
 
 Lo pidió Sergio con una captura del ▣ ASDI abierto abajo: «achicá este panel por lo menos a la mitad (de lo alto), me
