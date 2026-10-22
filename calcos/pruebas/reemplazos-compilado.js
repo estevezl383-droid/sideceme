@@ -47,7 +47,8 @@
 //   index-ht19-fases-20261020.js + reemplazos-2026-10-20-ains-acostar.js = index-ains-acostar-20261020.js
 //   index-ains-acostar-20261020.js + reemplazos-2026-10-20-disgregar.js = index-disgregar-20261020.js
 //   index-disgregar-20261020.js + reemplazos-2026-10-21-ain-chico.js = index-ain-chico-20261021.js
-//   index-ain-chico-20261021.js + reemplazos-2026-10-21-reabastecimiento.js = index-reabastecimiento-20261021.js (el vigente)
+//   index-ain-chico-20261021.js + reemplazos-2026-10-21-reabastecimiento.js = index-reabastecimiento-20261021.js
+//   index-reabastecimiento-20261021.js + reemplazos-2026-10-22-concepto.js = index-concepto-20261022.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -61,6 +62,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-22-concepto'),
+    nombre: 'reemplazos-2026-10-22-concepto',
+    // calcos/assets/index-reabastecimiento-20261021.js (antes del concepto de la operación en la carta, F3·P4).
+    anterior: '8b72f8115cd8cf51db323f398af41df03430e7429e9c4befcff2dc6520e6a3d5',
+  },
   {
     lista: require('./reemplazos-2026-10-21-reabastecimiento'),
     nombre: 'reemplazos-2026-10-21-reabastecimiento',
