@@ -72,11 +72,11 @@ function pngLiso([r, g, b]) {
 const TILE_CARTA = pngLiso([92, 104, 72])
 const TILE_DEM = pngLiso([128, 14, 0]) // terrarium: 128·256 + 14 − 32768 = 3598 m (plano)
 
-async function abrir({ ancho = 1440, alto = 900, movil = false, consulta = '', preparar } = {}) {
+async function abrir({ ancho = 1440, alto = 900, movil = false, consulta = '', preparar, escalaPantalla = 1 } = {}) {
   const { chromium } = cargarPlaywright()
   const { srv, url } = await servir()
   const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] })
-  const ctx = await browser.newContext({ viewport: { width: ancho, height: alto }, deviceScaleFactor: 1, isMobile: movil, hasTouch: movil })
+  const ctx = await browser.newContext({ viewport: { width: ancho, height: alto }, deviceScaleFactor: escalaPantalla, isMobile: movil, hasTouch: movil })
   const page = await ctx.newPage()
   const errores = []
   page.on('pageerror', (e) => errores.push('pageerror: ' + e.message))
