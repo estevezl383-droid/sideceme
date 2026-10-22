@@ -54475,6 +54475,14 @@ function tarjetaAlumno(x, i){
       '</div></div>';
   }
 
+  if(x.escrito && !x.nota){
+    nota='<div class="eem-card" style="margin:10px 0 0;border-color:rgba(212,175,55,.5)">'+
+      '<b style="color:#e8d79a">Resultado del trabajo escrito</b><div class="eem-row" style="margin-top:8px">'+
+      '<span class="eem-chip ok">Escrito <b>'+esc(dec2(x.escrito.nota))+' / '+esc(x.escrito.maximo)+'</b></span>'+
+      '<span class="eem-chip">Exposición: pendiente</span></div><div class="eem-sub" style="margin-top:6px">'+
+      'Resultado con la banda aplicada. La nota final se completará con la exposición del tribunal.</div></div>';
+  }
+
   let boton = '';
   if(!x.grupo){ boton = cp.entrega_autogrupo && puede ? '<button class="eem-btn" style="width:100%;margin-top:12px" onclick="eemDeclararGrupo('+i+')">📤 IDENTIFICAR MI GRUPO Y ENTREGAR</button>' : ''; }
   else if(!abierta){ boton = '<div class="eem-chip bad" style="margin-top:10px">La carpeta está '+esc(cp.estado)+': ya no admite entregas.</div>'; }
@@ -55087,7 +55095,7 @@ function vistaPorAlumno(){
       '<td>'+(r.entrega_id
               ? esc(fechaHora(r.entregado_en))+(r.fuera_de_plazo?'<br><span class="eem-rojo">TARDÍA</span>':'')
               : '<span style="color:#f0cf7a">sin entrega</span>')+'</td>'+
-      '<td style="color:#7d8aa3">— <span style="font-size:9px">F2/F3</span></td>'+
+      '<td>'+(r.escrito?'<b>'+esc(dec2(r.escrito.nota))+' / '+esc(r.escrito.maximo)+'</b><br><small>Con banda aplicada</small>':'<span style="color:#7d8aa3">Pendiente</span>')+'</td>'+
       '<td style="color:#7d8aa3">— <span style="font-size:9px">F4</span></td>'+
       '<td style="color:#7d8aa3">— <span style="font-size:9px">F5</span></td>'+
       '<td>'+
@@ -55100,10 +55108,10 @@ function vistaPorAlumno(){
 
   return barraFiltros(true)+
     '<div class="eem-card">'+
-      '<b style="color:#e8d79a">Vista por ALUMNO — exposición (35%) y nota final</b>'+
-      '<div class="eem-sub" style="margin:4px 0 8px">La nota del 65% la hereda del grupo; la exposición es de cada uno.</div>'+
+      '<b style="color:#e8d79a">Vista por ALUMNO — escrito, exposición y nota final</b>'+
+      '<div class="eem-sub" style="margin:4px 0 8px">Cada alumno recibe el resultado con banda de su grupo. La exposición y la nota final se completan con el tribunal.</div>'+
       '<div class="eem-scroll"><table class="eem-tabla"><thead><tr>'+
-        '<th>Cursante</th><th>Grupo</th><th>Entrega</th><th>Texto 65</th><th>Exposición 35</th><th>Final 100</th><th>Acciones</th>'+
+        '<th>Cursante</th><th>Grupo</th><th>Entrega</th><th>Escrito / '+eemPesos(EEM.panel.carpeta).texto+'</th><th>Exposición / '+eemPesos(EEM.panel.carpeta).EXPOSICION+'</th><th>Final / 100</th><th>Acciones</th>'+
       '</tr></thead><tbody>'+(filas || '<tr><td colspan="7" class="eem-vacio">Nadie coincide con el filtro.</td></tr>')+'</tbody></table></div>'+
     '</div>';
 }
