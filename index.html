@@ -56078,7 +56078,7 @@ function eemIACelda(e,bloque){
  const its=c.items.filter(i=>!bloque||i.bloque===bloque),ns=c.notas.filter(n=>n.origen!=='deterministico'&&n.entrega_id===e.entrega_id&&its.some(i=>i.id===n.item_id));
  if(!ns.length)return null;
  const suma=ns.reduce((a,n)=>a+Number(n.valor),0),max=its.reduce((a,i)=>a+Number(i.valor_pct),0),completo=ns.length===its.length;
- const b=c.banda;let nota=suma;if(!bloque&&completo&&b){nota=b.modo==='reescalado'?Number(b.nota_minima)+(suma/max)*(Number(b.nota_maxima)-Number(b.nota_minima)):Math.min(Number(b.nota_maxima),Math.max(Number(b.nota_minima),suma));}
+ const b=c.banda;let nota=suma;if(!bloque&&completo&&b){nota=eemNotaBanda(suma,max,b);}
  return (!bloque&&completo&&b?'<b>'+esc(dec2(nota))+' / '+max+'</b><br><small>Rúbrica: '+esc(dec2(suma))+' · Banda '+esc(b.nota_minima)+'–'+esc(b.nota_maxima)+'</small>':'<b>'+esc(dec2(suma))+' / '+esc(max)+'</b>')+(!completo?'<br><span class="eem-chip warn">Parcial · '+(its.length-ns.length)+' pendientes</span>':'')+(!bloque?window.eemResumenEscrito(its.map(i=>{const n=ns.find(n=>n.item_id===i.id);return {...i,maximo:i.valor_pct,nota:n?.valor??null,sustento:n?.sustento||n?.motivo_ajuste};})): '');
 }
 
@@ -58269,8 +58269,7 @@ function actPromediosEvaluadores(acta){
     const tope=maximo('forma')+maximo('fondo');
     if(!numero(banda.nota_minima)||!numero(banda.nota_maxima)||min<0||max<min||max>tope)
       throw new Error('La banda del escrito está fuera del máximo de la rúbrica.');
-    escrito=red(Math.min(max,Math.max(min,banda.modo==='reescalado'
-      ? min+(bruta/tope)*(max-min) : bruta)));
+    escrito=red(eemNotaBanda(bruta,tope,banda));
   }
   tot.texto_65=escrito;
   const n=(acta.jurados||[]).length;
@@ -58307,6 +58306,23 @@ function actPromediosEvaluadores(acta){
   tot.exposicion_35_grupal=presentes.length && exposiciones.length===presentes.length
     ? red(media(exposiciones)) : null;
   return acta;
+}
+
+// Los extremos brutos pertenecen a una versión de banda, nunca se recalculan
+// al abrir un grupo. Sin extremos explícitos se conserva la escala histórica.
+function eemNotaBanda(bruta,tope,b){
+  const min=Number(b.nota_minima),max=Number(b.nota_maxima);
+  let nota=Number(bruta);
+  if(b.modo==='reescalado'){
+    const explicita=b.bruta_minima!=null || b.bruta_maxima!=null;
+    const desde=explicita?Number(b.bruta_minima):0;
+    const hasta=explicita?Number(b.bruta_maxima):Number(tope);
+    if(explicita && (b.bruta_minima==null || b.bruta_maxima==null ||
+      !Number.isFinite(desde)||!Number.isFinite(hasta)||desde<0||hasta<=desde||hasta>tope))
+      throw new Error('Los extremos brutos de la banda no son válidos.');
+    if(hasta>desde) nota=min+(nota-desde)*(max-min)/(hasta-desde);
+  }
+  return Math.min(max,Math.max(min,nota));
 }
 
 /* ── PROYECTOS: el acta sale sobre su propio ANEXO "A" ────────────────
@@ -58357,7 +58373,15 @@ function actEscalaProyectos(acta){
   const min = Number(b.nota_minima), max = Number(b.nota_maxima);
   const tope = items.reduce((a,i)=>a+Number(i.valor_pct),0);
   const paso = v => Math.round(v*10000);                 // en diezmilesimas, sin errores de coma
-  items.forEach(i=>{ i._p = paso(Number(i.valor_pct)*min/tope + Number(i.nota)*(max-min)/tope); i._v = paso(Number(i.valor_pct)); });
+  const explicita=b.bruta_minima!=null && b.bruta_maxima!=null;
+  const bruta=items.reduce((a,i)=>a+Number(i.nota),0);
+  // Para normalización de cohorte, distribuir el incremento según el margen
+  // disponible de cada criterio. Conserva los originales y respeta cada tope.
+  const fraccion=tope>bruta?(Number(tot.texto_65)-bruta)/(tope-bruta):0;
+  items.forEach(i=>{ const v=Number(i.valor_pct),n=Number(i.nota);
+    const ajustada=explicita?n+(v-n)*fraccion:v*min/tope+n*(max-min)/tope;
+    i._p=paso(ajustada); i._v=paso(v);
+  });
   // El redondeo de cada criterio no puede mover el total: la diferencia (unas
   // diezmilesimas) se reparte entre los criterios de mayor valor que tienen margen.
   let dif = paso(Number(tot.texto_65)) - items.reduce((a,i)=>a+i._p,0);
@@ -58942,7 +58966,7 @@ ACT.vista = async function(grupoId, parcial=false, consolidado=false){
   catch(e){ c.innerHTML = '<div class="act-vacio">⚠️ No se pudo armar el acta: '+esc(e.message)+'</div>'; return; }
   ACT.bytesActual = bytes;
 
-  c.innerHTML = (escritoItems.length?'<div class="act-card">'+window.eemResumenEscrito(escritoItems)+(acta.banda?.activa&&esActaProyectos(acta)?'<p>Nota del escrito: <b>'+esc(acta.totales.texto_65)+'</b> (escala '+esc(acta.banda.nota_minima)+'–'+esc(acta.banda.nota_maxima)+'). En el acta cada criterio sale ya en esa escala y forma + fondo suman exactamente esa nota.</p>':acta.banda?.activa?'<p>Escrito bruto: <b>'+esc(acta.totales.texto_bruta)+'</b> · Escrito ajustado para la nota final: <b>'+esc(acta.totales.texto_65)+'</b> (banda vigente '+esc(acta.banda.nota_minima)+'–'+esc(acta.banda.nota_maxima)+').</p>':'')+'</div>':'')+(parcial ? '<div class="act-card"><b>Hallazgos de la revisión</b>'+ (acta.hallazgos||[]).map(h=>'<p>Ítem '+esc(h.item)+': '+esc(h.texto)+'</p>').join('')+((acta.criterios_omitidos||[]).length?'<p>No se computan: '+acta.criterios_omitidos.map(esc).join(', ')+'</p>':'')+'</div>' : '')+(acta.avisos||[]).map(a=>`<div class="act-aviso">⚠️ ${esc(a)}</div>`).join('')
+  c.innerHTML = (escritoItems.length?'<div class="act-card">'+window.eemResumenEscrito(escritoItems)+(acta.banda?.activa&&esActaProyectos(acta)?'<p>Nota del escrito: <b>'+esc(acta.totales.texto_65)+'</b> (escala '+esc(acta.banda.nota_minima)+'–'+esc(acta.banda.nota_maxima)+'). '+(acta.banda.bruta_minima!=null?'Normalización proporcional del escrito bruto '+esc(acta.banda.bruta_minima)+'–'+esc(acta.banda.bruta_maxima)+' a '+esc(acta.banda.nota_minima)+'–'+esc(acta.banda.nota_maxima)+'. ':'')+'En el acta cada criterio sale ya en esa escala y forma + fondo suman exactamente esa nota.</p>':acta.banda?.activa?'<p>Escrito bruto: <b>'+esc(acta.totales.texto_bruta)+'</b> · Escrito ajustado para la nota final: <b>'+esc(acta.totales.texto_65)+'</b> (banda vigente '+esc(acta.banda.nota_minima)+'–'+esc(acta.banda.nota_maxima)+').</p>':'')+'</div>':'')+(parcial ? '<div class="act-card"><b>Hallazgos de la revisión</b>'+ (acta.hallazgos||[]).map(h=>'<p>Ítem '+esc(h.item)+': '+esc(h.texto)+'</p>').join('')+((acta.criterios_omitidos||[]).length?'<p>No se computan: '+acta.criterios_omitidos.map(esc).join(', ')+'</p>':'')+'</div>' : '')+(acta.avisos||[]).map(a=>`<div class="act-aviso">⚠️ ${esc(a)}</div>`).join('')
     + `<div class="act-card">
          <div class="act-row">
            <button class="act-btn" onclick="ACT.bajarActa()">⬇️ Word (.docx)</button>

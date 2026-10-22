@@ -28,3 +28,25 @@ test('mantiene pendientes y ausencia autorizada en cero',()=>{
  const a=acta();a.forma[0].nota=null;ctx.actPromediosEvaluadores(a);assert.equal(a.cursantes[0].final_100,null);
  const b=acta();b.cursantes[0].no_expuso=true;b.cursantes[0].decision_ausencia='cero';ctx.actPromediosEvaluadores(b);assert.equal(b.cursantes[0].final_100,56.7);
 });
+test('cohorte Proyectos: 54→58, 62.75→63, 18 totales, acta y exposición coherentes',()=>{
+ const brutos=[61.5,61.75,55.25,60.5,61.5,59,54,57.75,62.25,57.5,58.25,62.25,61.75,59,62.75,57.25,61.5,59.5];
+ const b={activa:true,aplicar_a:'texto_65',modo:'reescalado',nota_minima:58,nota_maxima:63,bruta_minima:54,bruta_maxima:62.75};
+ for(const bruto of brutos){
+  const a=acta();a.banda=b;
+  const valores=[1,2,1,1,1,2,2,2,2,3,3,3,3,1,6,5,5,4,2,3,3,2,3,1,2];
+  a.forma=valores.slice(0,2).map(valor_pct=>({valor_pct,nota:valor_pct*bruto/63}));
+  a.fondo=valores.slice(2).map(valor_pct=>({valor_pct,nota:valor_pct*bruto/63}));
+  const originales=JSON.stringify([a.forma,a.fondo]);
+  ctx.actPromediosEvaluadores(a);ctx.actEscalaProyectos(a);
+  const esperado=Number((58+(bruto-54)*5/8.75).toFixed(4));
+  assert.equal(a.totales.texto_65,esperado);
+  assert.equal(Math.round((a.totales.forma_acta+a.totales.fondo_acta)*10000)/10000,esperado);
+  for(const i of [...a.forma,...a.fondo])assert.ok(i.nota_acta>=0&&i.nota_acta<=i.valor_pct);
+  assert.equal(a.cursantes[0].final_100,Number((esperado+35).toFixed(4)));
+  ctx.actPromediosEvaluadores(a);ctx.actEscalaProyectos(a);assert.equal(a.totales.texto_65,esperado);
+  for(const i of [...a.forma,...a.fondo])delete i.nota_acta;
+  assert.equal(JSON.stringify([a.forma,a.fondo]),originales);
+ }
+ assert.equal(ctx.eemNotaBanda(54,63,b),58);assert.equal(ctx.eemNotaBanda(62.75,63,b),63);
+ assert.throws(()=>ctx.eemNotaBanda(54,63,{...b,bruta_maxima:null}),/extremos/);
+});
