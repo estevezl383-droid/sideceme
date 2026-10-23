@@ -93,13 +93,10 @@ function tileset() {
   return { raiz, glb }
 }
 
-async function main() {
-  if (!CESIUM) {
-    console.log('  (sin CESIUM_DIR: no se prueba el visor 3D; ver el encabezado)')
-    return
-  }
+// Google simulado con el volcán como 3D realista, CesiumJS local y Esri liso (sin red). Lo usa también google-3d-claro.cjs.
+function prepararVolcan() {
   const T = tileset()
-  const preparar = async (page) => {
+  return async (page) => {
     await page.route(/^https:\/\/tile\.googleapis\.com\//, (r) => {
       const u = new URL(r.request().url())
       if (u.pathname === '/v1/createSession') {
@@ -122,7 +119,14 @@ async function main() {
     // Satélite de Esri: liso (no hay red).
     await page.route(/server\.arcgisonline\.com/, (r) => r.fulfill({ status: 200, contentType: 'image/png', body: PNG }))
   }
-  const { page, errores, cerrar } = await abrir({ ancho: 1400, alto: 900, preparar })
+}
+
+async function main() {
+  if (!CESIUM) {
+    console.log('  (sin CESIUM_DIR: no se prueba el visor 3D; ver el encabezado)')
+    return
+  }
+  const { page, errores, cerrar } = await abrir({ ancho: 1400, alto: 900, preparar: prepararVolcan() })
   try {
     await sembrarYAbrir(page, ejercicioPersonal({ nombre: 'PRUEBA GOOGLE 3D RELIEVE (FICT.)' }))
     await page.evaluate(([lng, lat]) => window.__mapa2d.setView([lat, lng], 12, { animate: false }), CUMBRE)
@@ -149,7 +153,7 @@ async function main() {
     assert.equal(rel.vr, rel.cota, 'se estira relativo a la cota del centro')
     assert.equal(rel.rr, true, 'dibuja sólo cuando algo cambia')
     assert.equal(rel.det, 'normal')
-    assert.equal(rel.sse, 24, '⚡ Detalle normal: error en pantalla 24 (Cesium usa 16)')
+    assert.equal(rel.sse, 32, '⚡ Detalle normal: error en pantalla 32 (Cesium usa 16)')
     assert.equal(await m.locator('#relieve-x').isDisabled(), false)
 
     const altoEn = (lng, lat) => m.evaluate(async ([x, y]) => {
@@ -226,8 +230,8 @@ async function main() {
 
     // ⚡ Detalle fluido.
     await m.locator('#detalle').selectOption('fluido')
-    assert.equal(await m.evaluate(() => window.__google3dTiles.maximumScreenSpaceError), 40)
-    assert.equal(await m.evaluate(() => window.__google3d.resolutionScale), 0.75)
+    assert.equal(await m.evaluate(() => window.__google3dTiles.maximumScreenSpaceError), 48)
+    assert.equal(await m.evaluate(() => window.__google3d.resolutionScale), 0.6)
 
     // La carta vuelve a dibujar lo mismo: el 3D no lo rehace. Si cambia (se apaga la línea), sí.
     const enviados = await page.evaluate(() => SIDGoogle.enviados3D())
@@ -255,7 +259,11 @@ async function main() {
   }
 }
 
-main().catch((e) => {
-  console.error(e)
-  process.exit(1)
-})
+module.exports = { prepararVolcan, altura, CUMBRE }
+
+if (require.main === module) {
+  main().catch((e) => {
+    console.error(e)
+    process.exit(1)
+  })
+}

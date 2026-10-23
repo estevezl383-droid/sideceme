@@ -5,6 +5,35 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-23 (4) — ⊗ Puntos de coordinación al 40 %, AIN a la mitad y 🏙️ Google 3D más claro (`index-puntos-chicos-20261023.js`)
+
+Parte de `index-tareas-chicas-20261023.js` + `pruebas/reemplazos-2026-10-23-puntos-chicos.js` (5 reemplazos;
+`construir-puntos-chicos.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con capturas del
+plan de barreras (G-4) en el 🏙️ Google 3D: «reduce de tamaño los puntos de control un 60 % y los aines (AIN) un 50 %»;
+«el medidor ese de relieve no hay o no funciona del Google Earth»; «las líneas tienen partes blancas… eso no se ve
+claro, se ve horrible»; «y la velocidad sigue mal».
+
+- **En el compilado**: el punto de coordinación y control (⊗, `bY`, 44 px) se dibuja al 40 % (el mismo viewBox en un
+  SVG más chico, trazo 7 en vez de 5 para que no se pierda); el rótulo «AIN n» (`_Y`, al 60 % desde el 21-10-2026) pasa
+  al 30 % (la mitad), con la letra más grande en el viewBox (20 y 17 en vez de 15 y 11,5) para que se siga leyendo y,
+  si el nombre es largo, ajustada al recuadro. Vale para la carta 2D (`Sve`, `Cve`) y el ⛰️ 3D; el 🏙️ Google 3D toma
+  el tamaño de la carta 2D. Lo ya puesto cambia solo.
+- **Fuera del compilado** (`google-mapas/v1`, ver su README): la barra del 🏙️ Google 3D (con ⛰️ Relieve ×) iba fija
+  abajo y el tablero del plan de barreras la tapaba: ahora la Mesa la pone donde ningún panel la tape; el «Relieve ×»
+  de la barra de arriba de la Mesa (⛰️ 3D) también mueve el del Google 3D; las líneas van sin el halo blanco que
+  llevan en la carta 2D (asomaba entre los guiones); para la velocidad, fichas y rótulos ya no van pegados al suelo
+  (Cesium recalculaba su altura con cada tile de Google), áreas y líneas pintan sólo los tiles 3D, ⚡ Detalle normal
+  más liviano (error en pantalla 32, sin suavizado) y las cartas de abajo se ocultan mientras se ve el 3D.
+- **Cómo se comprobó**: `e2e/puntos-chicos.cjs` (con el compilado anterior y el nuevo: en 2D y en ⛰️ 3D el ⊗ al 40 % y
+  el AIN al 50 %, el nombre dentro del recuadro), `e2e/google-3d-claro.cjs` (volcán sintético como el 3D de Google: con
+  un tablero de 300 px abajo la barra queda arriba de él y sin nada encima, sin el tablero baja; el «Relieve ×» de la
+  Mesa en ×3,8 lo pone en el Google 3D; ninguna línea blanca en el 3D; nada puntual pegado al suelo y a la altura del
+  terreno estirada; sólo los tiles 3D clasificados), `e2e/google-3d-relieve.cjs` (con los nuevos valores de ⚡ Detalle),
+  `e2e/google-mapas.cjs`, `reemplazos-compilado.js` y `npm test`. Lo que no se pudo medir sin la clave real es cuánto
+  más fluido navega con los tiles de Google: mirarlo a mano en github.io.
+- **Si se recompila desde el fuente**: llevar a `bY` el 40 % y el trazo 7; a `_Y` el 30 %, la letra 20/17, la fecha en
+  y=48 (alto 34 + 20) y el `textLength` de los nombres largos.
+
 ## 2026-10-23 (3) — 🎯 Las tareas tácticas al 40 %, sin las flechas de los ejes de la reserva y ⛰️ Relieve × en el 🏙️ Google 3D (`index-tareas-chicas-20261023.js`)
 
 Parte de `index-google-mapas-20261023.js` + `pruebas/reemplazos-2026-10-23-tareas-chicas.js` (3 reemplazos;

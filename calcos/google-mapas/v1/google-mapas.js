@@ -375,10 +375,16 @@
         console.info('[Google 3D] no se pasó una capa de la carta:', e && e.message)
       }
     })
+    // Los halos: en la carta cada línea de la maniobra, los corredores, la línea de vista… lleva debajo una línea blanca
+    // más ancha para que se lea sobre el satélite. En el 3D el halo asoma entre los guiones y entre los tramos (Sergio,
+    // 23-10-2026: «las líneas tienen partes blancas… eso no se ve claro, se ve horrible»): va sólo la línea de color.
+    const conColor = new Set(calco.lineas.filter((l) => !esBlanco(l.color)).map((l) => JSON.stringify(l.coords)))
+    calco.lineas = calco.lineas.filter((l) => !(esBlanco(l.color) && conColor.has(JSON.stringify(l.coords))))
     return calco
   }
+  const esBlanco = (c) => /^\s*(#fff(fff)?\b|white\b|rgba?\(\s*255\s*,\s*255\s*,\s*255\b)/i.test(String(c || ''))
 
-  let g3d = null // { caja, marco, base, reloj, alCambiar, alClic, alMensaje, alCapa }
+  let g3d = null // { caja, marco, base, reloj, alCambiar, alClic, alMensaje, alCapa, alRelieve, ocultos, barra, lugar }
   const destino = () => (location.origin === 'null' ? '*' : location.origin)
 
   function estilos3D() {
@@ -406,15 +412,72 @@
     }
   }
 
+  // El «Relieve ×» de la barra de arriba de la Mesa (`label.m3d-des`): en el ⛰️ 3D es la exageración vertical (en la
+  // carta 2D, la intensidad del sombreado: ése no se toca). Con el 🏙️ Google 3D abierto también mueve el de Google.
+  function relieveDeLaMesa(el) {
+    const r = el || document.querySelector('label.m3d-des input[type=range]')
+    const etiqueta = r && r.closest && r.closest('label.m3d-des')
+    if (!etiqueta || r.disabled || !/^Exageración vertical/.test(etiqueta.title || '')) return null
+    const x = Number(r.value)
+    return Number.isFinite(x) ? x : null
+  }
+  function mandarRelieve(x) {
+    if (g3d && x != null && g3d.marco.contentWindow) g3d.marco.contentWindow.postMessage({ sid3d: 'relieve', x }, destino())
+  }
+
+  // La barra del 3D (⛰️ Relieve ×, ⚡ Detalle, ✕ Volver…) va donde ningún panel de la Mesa la tape: se prueba de abajo
+  // hacia arriba, en el centro de la carta y un poco a los costados, con elementFromPoint (si en esos puntos lo que
+  // está encima es el 3D, está libre). Antes iba fija abajo y el tablero del plan de barreras la tapaba entera.
+  function ubicarBarra(g, forzar) {
+    if (!g || g3d !== g || !g.marco.contentWindow) return
+    const r = g.marco.getBoundingClientRect()
+    if (r.width < 160 || r.height < 120) return
+    const ancho = Math.min(g.barra ? g.barra.ancho : 640, r.width - 16)
+    const alto = (g.barra ? g.barra.alto : 34) + 22 // y la atribución de Google, debajo
+    const libre = (cx, y) => {
+      for (const fy of [1, alto / 2, alto - 1]) {
+        for (const fx of [-0.5, -0.25, 0, 0.25, 0.5]) {
+          const x = cx + fx * (ancho - 4)
+          if (document.elementFromPoint(x, y + fy) !== g.marco) return false
+        }
+      }
+      return true
+    }
+    const ya = g.lugar
+    const medio = ancho / 2 + 6
+    const centros = [0.5, 0.4, 0.6, 0.3, 0.7].map((f) => Math.min(r.right - medio, Math.max(r.left + medio, r.left + r.width * f)))
+    if (!forzar && ya && ya.tapada && Date.now() - ya.tapada < 4000) return
+    // Lo más abajo que se pueda (al centro, si no un poco a un costado). Si se cerró un tablero, baja; si se abrió
+    // uno encima, sube.
+    let lugar = null
+    for (let y = r.bottom - alto - 6; y >= r.top + 6 && !lugar; y -= 12) {
+      for (const cx of centros) {
+        if (libre(cx, y)) {
+          lugar = { cx: Math.round(cx - r.left), y: Math.round(y - r.top) }
+          break
+        }
+      }
+    }
+    // Todo tapado: arriba al centro (y se vuelve a probar en unos segundos).
+    if (!lugar) lugar = { cx: Math.round(r.width / 2), y: 6, tapada: Date.now() }
+    if (ya && ya.cx === lugar.cx && ya.y === lugar.y) return (g.lugar = lugar)
+    g.lugar = lugar
+    g.marco.contentWindow.postMessage({ sid3d: 'lugar', cx: lugar.cx, y: lugar.y }, destino())
+  }
+
   function cerrar3D() {
     if (!g3d) return
     const g = g3d
     g3d = null
     clearInterval(g.reloj)
+    clearInterval(g.relojBarra)
     clearTimeout(g.espera)
     document.removeEventListener('change', g.alCambiar, true)
     document.removeEventListener('click', g.alClic, true)
+    document.removeEventListener('input', g.alRelieve, true)
+    window.removeEventListener('resize', g.alTamano)
     window.removeEventListener('message', g.alMensaje)
+    for (const el of g.ocultos) el.style.visibility = ''
     if (window.__mapa2d && window.__mapa2d.off) window.__mapa2d.off('layeradd layerremove', g.alCapa)
     g.caja.remove()
     document.documentElement.classList.remove('sid-g3d-abierto')
@@ -446,20 +509,39 @@
     marco.setAttribute('allow', 'fullscreen')
     marco.style.cssText = 'border:0;width:100%;height:100%;display:block'
     const url = new URL('google-mapas/v1/3d.html', location.href.replace(/[^/]*$/, ''))
-    url.search = '?embebido=1'
+    url.search = '?embebido=1&v=20261023-claro' // el ?v= para que el navegador no use un 3d.html viejo
     url.hash = `${v.lat.toFixed(5)},${v.lng.toFixed(5)},${v.zoom.toFixed(1)}`
     marco.src = url.toString()
     caja.appendChild(marco)
     contenedor.appendChild(caja)
     document.documentElement.classList.add('sid-g3d-abierto')
+    // Las cartas de abajo (la 2D y la del ⛰️ 3D) no se ven mientras está el 3D: se ocultan para que el navegador no
+    // las siga pintando (más fluido). Al cerrar vuelven.
+    const ocultos = Array.from(contenedor.querySelectorAll('.leaflet-map-pane, .maplibregl-canvas')).filter((el) => !caja.contains(el) && !el.style.visibility)
+    for (const el of ocultos) el.style.visibility = 'hidden'
 
-    const g = (g3d = { caja, marco, base: '' })
+    const g = (g3d = { caja, marco, base: '', ocultos })
     g.alMensaje = (e) => {
       if (!g3d || e.source !== marco.contentWindow || !e.data) return
-      if (e.data.sid3d === 'listo' || e.data.sid3d === 'pedirCalco') enviarCalco(true)
-      else if (e.data.sid3d === 'cerrar') cerrar3D()
+      if (e.data.sid3d === 'listo' || e.data.sid3d === 'pedirCalco') {
+        enviarCalco(true)
+        if (e.data.sid3d === 'listo') mandarRelieve(relieveDeLaMesa())
+      } else if (e.data.sid3d === 'cerrar') cerrar3D()
+      else if (e.data.sid3d === 'barra') {
+        g.barra = { ancho: Number(e.data.ancho) || 640, alto: Number(e.data.alto) || 34 }
+        ubicarBarra(g, true)
+      }
     }
     window.addEventListener('message', g.alMensaje)
+    g.alRelieve = (e) => {
+      const t = e.target
+      if (t && t.matches && t.matches('label.m3d-des input[type=range]')) mandarRelieve(relieveDeLaMesa(t))
+    }
+    document.addEventListener('input', g.alRelieve, true)
+    // Los paneles de la Mesa se abren, se cierran y se agrandan: cada tanto se mira si la barra sigue a la vista.
+    g.relojBarra = setInterval(() => ubicarBarra(g), 1200)
+    g.alTamano = () => ubicarBarra(g, true)
+    window.addEventListener('resize', g.alTamano)
     // Lo que se prende, apaga o se vuelve a dibujar en la carta llega al 3D.
     g.alCapa = () => {
       clearTimeout(g.espera)

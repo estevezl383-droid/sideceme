@@ -28,13 +28,27 @@ selector (angosto, para que la barra siga en una fila; la lista abierta es más 
   sale de la imagen y se abre otra aparte… no muestra la plantilla».
 - En la barra del 🏙️ 3D: **⛰️ Relieve ×** (de ×1 a ×5, arranca en ×2; como el «Relieve ×» del ⛰️ 3D de la Mesa)
   estira el relieve de Google en la vertical, relativo a la cota del lugar mirado (el centro no se mueve); se
-  activa cuando se conoce esa cota. **⚡ Detalle**: alto (lo de Cesium), normal (por defecto, más liviano) o
-  fluido (para computadoras lentas). Las dos cosas quedan para la próxima vez (`localStorage`:
-  `sid-g3d-relieve`, `sid-g3d-detalle`). Sergio, 23-10-2026: «para navegar está muy lenta, muy lenta… ¿se le puede
-  dar la misma opción para aumentar el relieve?».
+  activa cuando se conoce esa cota. El **«Relieve ×» de la barra de arriba de la Mesa** (el del ⛰️ 3D) también lo
+  mueve, y al abrir el 3D desde el ⛰️ 3D arranca con ese valor. **⚡ Detalle**: alto (lo de Cesium), normal (por
+  defecto, más liviano) o fluido (para computadoras lentas). Las dos cosas quedan para la próxima vez
+  (`localStorage`: `sid-g3d-relieve`, `sid-g3d-detalle`). Sergio, 23-10-2026: «para navegar está muy lenta, muy
+  lenta… ¿se le puede dar la misma opción para aumentar el relieve?».
+- **La barra va donde se vea**: la Mesa busca, de abajo hacia arriba, el lugar de la carta que ningún panel tapa
+  (con el tablero del plan de barreras abierto, queda arriba de él; si se cierra, baja) y la atribución de Google
+  va justo debajo. Antes iba fija abajo y ese tablero la tapaba: Sergio, 23-10-2026, «el medidor ese de relieve no
+  hay o no funciona».
+- **Las líneas sin el halo blanco**: en la carta 2D muchas líneas (la maniobra, los corredores, la línea de vista…)
+  llevan debajo una línea blanca más ancha para leerse sobre el satélite; en el 3D asomaba entre los guiones
+  («las líneas tienen partes blancas… se ve horrible») y no se manda.
 - Para que se navegue más fluido: el 3D dibuja sólo cuando algo cambia (`requestRenderMode`), las líneas y áreas
   del calco llegan simplificadas (se sacan los puntos a menos de ~8 m de la línea) y, si la carta 2D vuelve a
-  dibujar lo mismo (pasa al guardar o con cada cambio del ejercicio), el calco no se rehace.
+  dibujar lo mismo (pasa al guardar o con cada cambio del ejercicio), el calco no se rehace. Desde el 23-10-2026
+  («la velocidad sigue mal»), además: fichas, flechas y rótulos ya no van «pegados al suelo» (con los tiles de
+  Google Cesium recalculaba la altura de cada uno con cada tile que llegaba): su altura se mide en lo ya dibujado
+  cuando la vista termina de cargar (y otra vez si la cámara se acerca mucho) y sigue al ⛰️ Relieve ×; áreas y
+  líneas pintan sólo los tiles 3D (antes también el globo, que está oculto); ⚡ Detalle normal acepta más error en
+  pantalla (32 en vez de 24) y sin suavizado, fluido 48 y a 0,6 de resolución; y las cartas 2D y ⛰️ 3D de abajo se
+  ocultan mientras se ve el 3D.
 - Si Google no entrega el 3D (cupo, clave, red), el calco igual se ve, sobre el satélite de Esri (sin relieve),
   con un aviso.
 - Abajo al centro de la carta quedan «Google» y la atribución de las imágenes del lugar (lo exige Google).
@@ -52,9 +66,11 @@ selector (angosto, para que la barra siga en una fila; la lista abierta es más 
 - 🏙️ 3D realista (`SIDGoogle.abrir3D`, sin cambios en el compilado): un iframe con `3d.html?embebido=1#lat,lng,zoom`
   sobre la carta (z-index 999: encima de la carta 2D y del ⛰️ 3D, debajo de los paneles de la Mesa).
   `SIDGoogle.calcoDeLaCarta()` lee las capas de la carta 2D (Leaflet: polígonos, líneas, círculos, marcadores con
-  imagen, DivIcon con SVG o texto, rótulos fijos que no son de medición) y se las manda por `postMessage`; `3d.html`
-  las dibuja con Cesium: áreas y líneas «clasifican» los tiles 3D (`classificationType`), fichas y rótulos van
-  `CLAMP_TO_GROUND` sin que los tapen los cerros. Abierto solo (sin `?embebido=1`), `3d.html` es el 3D sin calco.
+  imagen, DivIcon con SVG o texto, rótulos fijos que no son de medición; sin los halos blancos) y se las manda por
+  `postMessage`; `3d.html` las dibuja con Cesium: áreas y líneas «clasifican» los tiles 3D (`classificationType`),
+  fichas y rótulos van a la altura medida (`scene.sampleHeight`) sin que los tapen los cerros. Otros mensajes:
+  `barra` (el 3D dice su tamaño) → `lugar` (la Mesa le dice dónde ponerla) y `relieve` (el «Relieve ×» de la Mesa).
+  Abierto solo (sin `?embebido=1`), `3d.html` es el 3D sin calco.
 
 ## La clave y lo que cuesta
 
@@ -69,7 +85,9 @@ selector (angosto, para que la barra siga en una fila; la lista abierta es más 
 
 `node calcos/pruebas/e2e/google-mapas.cjs` (Google simulado, no gasta la clave) y
 `node calcos/pruebas/e2e/google-3d-relieve.cjs` (⛰️ Relieve × y ⚡ Detalle sobre un volcán sintético servido como
-si fuera el 3D de Google; necesita `CESIUM_DIR`). Con
+si fuera el 3D de Google; necesita `CESIUM_DIR`) y `node calcos/pruebas/e2e/google-3d-claro.cjs` (sobre el mismo
+volcán: la barra a la vista con un tablero abajo, el «Relieve ×» de la Mesa, sin halos blancos, lo puntual a la
+altura medida). Con
 `CESIUM_DIR=…/package/Build/Cesium` (de `npm pack cesium@1.145.0`) también prueba el visor 3D con el calco (con el
 3D de Google rechazado, sobre Esri, y con un tileset vacío). Lo que no se puede probar sin la clave real es cómo se
 ven áreas y líneas pintadas sobre los tiles de Google: mirarlo a mano en github.io.

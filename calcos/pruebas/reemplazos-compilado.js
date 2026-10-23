@@ -66,6 +66,12 @@ const { vigente } = require('./extraer')
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
   {
+    lista: require('./reemplazos-2026-10-23-puntos-chicos'),
+    nombre: 'reemplazos-2026-10-23-puntos-chicos',
+    // calcos/assets/index-tareas-chicas-20261023.js (antes de los puntos de coordinación al 40 % y los AIN al 30 %).
+    anterior: '6a2bd6f9a82286e0138ce7738f4154ab8cb263f8e48dbf3db318e4090c3622af',
+  },
+  {
     lista: require('./reemplazos-2026-10-23-tareas-chicas'),
     nombre: 'reemplazos-2026-10-23-tareas-chicas',
     // calcos/assets/index-google-mapas-20261023.js (antes de las tareas tácticas al 40 %).
