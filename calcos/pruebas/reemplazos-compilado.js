@@ -53,7 +53,8 @@
 //   index-fichas-chicas-20261022.js + reemplazos-2026-10-23-google-mapas.js = index-google-mapas-20261023.js
 //   index-google-mapas-20261023.js + reemplazos-2026-10-23-tareas-chicas.js = index-tareas-chicas-20261023.js
 //   index-tareas-chicas-20261023.js + reemplazos-2026-10-23-puntos-chicos.js = index-puntos-chicos-20261023.js
-//   index-puntos-chicos-20261023.js + reemplazos-2026-10-23-suelo.js = index-suelo-20261023.js (el vigente)
+//   index-puntos-chicos-20261023.js + reemplazos-2026-10-23-suelo.js = index-suelo-20261023.js
+//   index-suelo-20261023.js + reemplazos-2026-10-23-editar-tareas.js = index-editar-tareas-20261023.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -67,6 +68,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-23-editar-tareas'),
+    nombre: 'reemplazos-2026-10-23-editar-tareas',
+    // calcos/assets/index-suelo-20261023.js (antes del recuadro para editar las tareas tácticas ya puestas).
+    anterior: 'b2464c1e5869d997d8eb26b553fcd96947a70cc21af2ca5c2f7837c1ab260fcc',
+  },
   {
     lista: require('./reemplazos-2026-10-23-suelo'),
     nombre: 'reemplazos-2026-10-23-suelo',
