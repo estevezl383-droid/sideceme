@@ -13,7 +13,7 @@
   <script>window.CESIUM_BASE_URL = 'https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/'</script>
   <script src="https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/Cesium.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/Widgets/widgets.css">
-  <script src="./google-mapas.js?v=20261023-relieve"></script>
+  <script src="./google-mapas.js?v=20261023-claro"></script>
   <style>
     html, body { margin: 0; height: 100%; background: #0a0e13; overflow: hidden; font: 600 12px Arial, sans-serif; color: #c3ced9 }
     #lienzo { position: absolute; inset: 0 }
@@ -54,7 +54,7 @@
     <button id="cenital" title="Mirar desde arriba">⬇️ Desde arriba</button>
     <button id="oblicua" title="Volver a la vista inclinada del principio">↗️ Inclinada</button>
     <button id="norte" title="Girar para que el norte quede arriba">🧭 Norte</button>
-    <label id="relieve" class="apagado" title="Exagerar el relieve del 3D de Google, como el «Relieve ×» del ⛰️ 3D de la Mesa (se activa cuando llega el 3D)">⛰️ Relieve ×<span id="relieve-val">2.0</span><input type="range" id="relieve-x" min="1" max="5" step="0.5" value="2" aria-label="Exagerar el relieve" disabled></label>
+    <label id="relieve" class="apagado" title="Exagerar el relieve del 3D de Google, como el «Relieve ×» del ⛰️ 3D de la Mesa (se activa cuando llega el 3D)">⛰️ Relieve ×<span id="relieve-val">2.0</span><input type="range" id="relieve-x" min="1" max="5" step="0.1" value="2" aria-label="Exagerar el relieve" disabled></label>
     <label title="Menos detalle = se navega más fluido (útil en computadoras lentas o con mucho calco)">⚡ <select id="detalle" aria-label="Detalle del 3D"><option value="alto">Detalle alto</option><option value="normal">Detalle normal</option><option value="fluido">Fluido</option></select></label>
     <label class="solo-embebido" title="Mostrar u ocultar lo trazado en la carta (áreas, líneas, fichas, rótulos)"><input type="checkbox" id="ver-calco" checked> Calco</label>
     <button id="recargar" class="solo-embebido" title="Volver a traer el calco de la carta (si lo cambiaste)">🔄 Calco</button>
@@ -82,11 +82,29 @@
     const guardar = (k, v) => { try { localStorage.setItem(k, String(v)) } catch {} }
     // ⚡ Detalle: cuánto error en pantalla se acepta en los tiles de Google (Cesium usa 16), la resolución del dibujo
     // y el suavizado de bordes. «Normal» ya es más liviano que lo de Cesium: Sergio (23-10-2026), «para navegar está
-    // muy lenta, muy lenta».
+    // muy lenta, muy lenta»; y después, «la velocidad sigue mal» (normal pasó de 24 a 32 y sin suavizado).
     const DETALLE = {
       alto: { sse: 16, escala: 1, msaa: 4 },
-      normal: { sse: 24, escala: 1, msaa: 2 },
-      fluido: { sse: 40, escala: 0.75, msaa: 1 },
+      normal: { sse: 32, escala: 1, msaa: 1 },
+      fluido: { sse: 48, escala: 0.6, msaa: 1 },
+    }
+    // Dentro de la Mesa, la barra va donde no la tapen los paneles: la Mesa mide qué parte de la carta está libre y
+    // manda el lugar (antes iba fija abajo y el tablero del plan de barreras la tapaba entera: Sergio, 23-10-2026, «el
+    // medidor ese de relieve no hay o no funciona»). La atribución de Google va justo debajo de la barra.
+    const barra = document.querySelector('.barra')
+    const creditos = document.getElementById('creditos')
+    const avisarTamano = () => aLaMesa({ sid3d: 'barra', ancho: barra.offsetWidth, alto: barra.offsetHeight })
+    const ubicar = (d) => {
+      Object.assign(barra.style, { left: d.cx + 'px', top: d.y + 'px', bottom: 'auto', transform: 'translateX(-50%)' })
+      Object.assign(creditos.style, { left: d.cx + 'px', top: d.y + barra.offsetHeight + 4 + 'px', bottom: 'auto' })
+      window.__google3dBarra = { cx: d.cx, y: d.y }
+    }
+    if (embebido) {
+      window.addEventListener('message', (e) => {
+        if (e.source === window.parent && e.data && e.data.sid3d === 'lugar') ubicar(e.data)
+      })
+      if (window.ResizeObserver) new ResizeObserver(avisarTamano).observe(barra)
+      avisarTamano()
     }
     const [lat, lng, zoom] = (location.hash.slice(1).split(',').map(Number).concat([NaN, NaN, NaN])).slice(0, 3)
     const centro = { lat: Number.isFinite(lat) ? lat : -16.5, lng: Number.isFinite(lng) ? lng : -68.15 }
@@ -99,8 +117,12 @@
     // ── El calco de la carta, pegado al terreno ───────────────────────────────────────────────────────────
     // Lo arma google-mapas.js (SIDGoogle.calcoDeLaCarta) con lo que está prendido en la carta 2D. Las áreas y
     // las líneas «clasifican» el 3D (se pintan sobre los tiles de Google, o sobre el globo si no hay 3D); las
-    // fichas, flechas y rótulos se apoyan en el suelo y no los tapan los cerros.
-    function dibujarCalco(C, viewer, fuente, calco) {
+    // fichas, flechas y rótulos van a la altura del suelo (op.lugar) y no los tapan los cerros.
+    // op.clase: qué se pinta (los tiles de Google o, sin ellos, el globo). op.lugar(lng, lat): la posición de lo puntual.
+    // Lo puntual NO va «pegado al suelo» (CLAMP_TO_GROUND): con los tiles de Google, Cesium recalcula la altura de cada
+    // ficha y rótulo con cada tile que llega, y con un calco grande eso traba la navegación (Sergio, 23-10-2026: «la
+    // velocidad sigue mal»). La altura se mide una vez, cuando se termina de cargar la vista (medirAlturas).
+    function dibujarCalco(C, viewer, fuente, calco, op) {
       const ents = fuente.entities
       ents.suspendEvents()
       ents.removeAll()
@@ -126,14 +148,15 @@
       const posiciones = (coords) => C.Cartesian3.fromDegreesArray(coords.flat())
       const linea = (coords, l) => {
         if (coords.length < 2 || l.opacidad < 0.05) return
-        ents.add({ polyline: { positions: posiciones(coords), width: Math.max(1.5, Math.min(12, l.ancho)), material: material(l), clampToGround: true, classificationType: C.ClassificationType.BOTH } })
+        ents.add({ polyline: { positions: posiciones(coords), width: Math.max(1.5, Math.min(12, l.ancho)), material: material(l), clampToGround: true, classificationType: op.clase } })
       }
       const sinCierre = (anillo) => {
         const a = anillo.slice()
         if (a.length > 1 && a[0][0] === a[a.length - 1][0] && a[0][1] === a[a.length - 1][1]) a.pop()
         return a
       }
-      const alSuelo = { heightReference: C.HeightReference.CLAMP_TO_GROUND, disableDepthTestDistance: Number.POSITIVE_INFINITY }
+      const alSuelo = { disableDepthTestDistance: Number.POSITIVE_INFINITY }
+      const puntual = (lng, lat, ent) => { ent.sidLL = [lng, lat]; return ent }
 
       for (const l of calco.lineas || []) linea(l.coords, l)
       for (const a of calco.areas || []) {
@@ -142,7 +165,7 @@
           if (exterior.length < 3) continue
           if (a.opRelleno > 0.01) {
             const huecos = anillos.slice(1).map((h) => new C.PolygonHierarchy(posiciones(sinCierre(h))))
-            ents.add({ polygon: { hierarchy: new C.PolygonHierarchy(posiciones(exterior), huecos), material: color(a.relleno, Math.min(0.6, a.opRelleno)), classificationType: C.ClassificationType.BOTH } })
+            ents.add({ polygon: { hierarchy: new C.PolygonHierarchy(posiciones(exterior), huecos), material: color(a.relleno, Math.min(0.6, a.opRelleno)), classificationType: op.clase } })
           }
           for (const anillo of anillos) linea(anillo, a)
         }
@@ -150,7 +173,7 @@
       for (const c of calco.circulos || []) {
         const [x, y] = c.centro
         if (c.opRelleno > 0.01) {
-          ents.add({ position: C.Cartesian3.fromDegrees(x, y), ellipse: { semiMajorAxis: c.radio, semiMinorAxis: c.radio, material: color(c.relleno, Math.min(0.6, c.opRelleno)), classificationType: C.ClassificationType.BOTH } })
+          ents.add({ position: C.Cartesian3.fromDegrees(x, y), ellipse: { semiMajorAxis: c.radio, semiMinorAxis: c.radio, material: color(c.relleno, Math.min(0.6, c.opRelleno)), classificationType: op.clase } })
         }
         const borde = []
         for (let k = 0; k <= 72; k++) {
@@ -161,7 +184,7 @@
       }
       for (const p of calco.puntos || []) {
         if (p.opacidad < 0.05) continue
-        ents.add({ position: C.Cartesian3.fromDegrees(p.lng, p.lat), point: Object.assign({ pixelSize: Math.max(4, 2 * p.radio), color: color(p.color, p.opacidad), outlineColor: C.Color.WHITE, outlineWidth: 1 }, alSuelo) })
+        puntual(p.lng, p.lat, ents.add({ position: op.lugar(p.lng, p.lat), point: Object.assign({ pixelSize: Math.max(4, 2 * p.radio), color: color(p.color, p.opacidad), outlineColor: C.Color.WHITE, outlineWidth: 1 }, alSuelo) }))
       }
       // Las fichas, un poco más grandes que en la carta (en la carta su tamaño depende del zoom): ~34 px de alto.
       for (const f of calco.fichas || []) {
@@ -170,20 +193,20 @@
           const s = Math.max(1, Math.min(4, 34 / f.alto))
           Object.assign(b, { width: f.ancho * s, height: f.alto * s, horizontalOrigin: C.HorizontalOrigin.LEFT, verticalOrigin: C.VerticalOrigin.TOP, pixelOffset: new C.Cartesian2(-f.ax * s, -f.ay * s) })
         }
-        ents.add({ position: C.Cartesian3.fromDegrees(f.lng, f.lat), billboard: Object.assign(b, alSuelo) })
+        puntual(f.lng, f.lat, ents.add({ position: op.lugar(f.lng, f.lat), billboard: Object.assign(b, alSuelo) }))
       }
       // Las puntas de flecha giradas como en la carta: el giro se mide desde el norte del lugar.
       for (const f of calco.flechas || []) {
-        const pos = C.Cartesian3.fromDegrees(f.lng, f.lat)
+        const pos = op.lugar(f.lng, f.lat)
         const enu = C.Transforms.eastNorthUpToFixedFrame(pos)
         const norte = C.Cartesian3.normalize(C.Cartesian3.fromCartesian4(C.Matrix4.getColumn(enu, 1, new C.Cartesian4())), new C.Cartesian3())
-        ents.add({ position: pos, billboard: Object.assign({ image: f.svg, width: f.ancho * 1.4, height: f.alto * 1.4, rotation: (-f.rot * Math.PI) / 180, alignedAxis: norte }, alSuelo) })
+        puntual(f.lng, f.lat, ents.add({ position: pos, billboard: Object.assign({ image: f.svg, width: f.ancho * 1.4, height: f.alto * 1.4, rotation: (-f.rot * Math.PI) / 180, alignedAxis: norte }, alSuelo) }))
       }
       for (const r of calco.rotulos || []) {
-        ents.add({
-          position: C.Cartesian3.fromDegrees(r.lng, r.lat),
+        puntual(r.lng, r.lat, ents.add({
+          position: op.lugar(r.lng, r.lat),
           label: Object.assign({ text: r.texto, font: `700 ${Math.max(12, Math.min(22, r.tam || 12))}px Arial`, fillColor: color(r.color || '#000', 1), outlineColor: C.Color.WHITE, outlineWidth: 3, style: C.LabelStyle.FILL_AND_OUTLINE, horizontalOrigin: C.HorizontalOrigin.CENTER, verticalOrigin: C.VerticalOrigin.CENTER }, alSuelo),
-        })
+        }))
       }
       ents.resumeEvents()
       viewer.scene.requestRender()
@@ -235,7 +258,7 @@
         viewer.scene.verticalExaggerationRelativeHeight = cota
         viewer.scene.verticalExaggeration = x
         window.__google3dRelieve = { x, cota }
-        viewer.scene.requestRender()
+        reubicar()
         // Las áreas pegadas al terreno se arman con el estiramiento del momento (Cesium lo toma al crearlas): el calco
         // se rehace un rato después de mover el deslizador.
         if (estirado.x !== x) {
@@ -248,16 +271,82 @@
       elRelieve.onchange = () => guardar('sid-g3d-relieve', elRelieve.value)
       document.getElementById('relieve-val').textContent = Number(elRelieve.value).toFixed(1)
 
+      // ── La altura de lo puntual (fichas, flechas, rótulos) ──
+      // Se mide en lo que ya está dibujado (scene.sampleHeight, sin pedir tiles nuevos) cuando la vista termina de
+      // cargar, y se vuelve a medir si la cámara se acercó mucho desde la última vez (con más detalle, más exacta).
+      // Se guarda sin estirar: con ⛰️ Relieve × se estira igual que los tiles (relativo a la cota del centro).
       const fuente = new C.CustomDataSource('calco')
       viewer.dataSources.add(fuente)
+      let hayTiles = false
+      const alturas = new Map() // 'lng,lat' → { h: metros sin estirar, d: distancia de la cámara al medirla }
+      const clave = (lng, lat) => lng.toFixed(5) + ',' + lat.toFixed(5)
+      const estirar = (h) => (cota == null ? h : cota + (h - cota) * (viewer.scene.verticalExaggeration || 1))
+      const lugar = (lng, lat) => {
+        const a = alturas.get(clave(lng, lat))
+        return C.Cartesian3.fromDegrees(lng, lat, estirar(a ? a.h : hayTiles ? cota || 0 : 0) + 2)
+      }
+      const puntuales = () => fuente.entities.values.filter((e) => e.sidLL)
+      const reubicar = () => {
+        for (const e of puntuales()) e.position = lugar(e.sidLL[0], e.sidLL[1])
+        viewer.scene.requestRender()
+      }
+      const medicion = { reloj: 0, pendientes: [] }
+      const medirAlturas = () => {
+        clearTimeout(medicion.reloj)
+        if (!hayTiles) return
+        const vista = viewer.camera.computeViewRectangle()
+        const cam = viewer.camera.positionWC
+        const excluir = fuente.entities.values
+        medicion.pendientes = puntuales().filter((e) => {
+          const [lng, lat] = e.sidLL
+          if (vista && !C.Rectangle.contains(vista, C.Cartographic.fromDegrees(lng, lat))) return false
+          const a = alturas.get(clave(lng, lat))
+          return !a || a.d > 3 * C.Cartesian3.distance(cam, C.Cartesian3.fromDegrees(lng, lat, estirar(a.h)))
+        })
+        // De a 20 por vez, para no trabar el dibujo.
+        const tanda = () => {
+          let cambio = false
+          const x = viewer.scene.verticalExaggeration || 1
+          for (const e of medicion.pendientes.splice(0, 20)) {
+            const [lng, lat] = e.sidLL
+            let h
+            try { h = viewer.scene.sampleHeight(C.Cartographic.fromDegrees(lng, lat), excluir) } catch {}
+            if (!Number.isFinite(h)) continue
+            const crudo = cota == null || x === 1 ? h : cota + (h - cota) / x
+            alturas.set(clave(lng, lat), { h: crudo, d: C.Cartesian3.distance(cam, C.Cartesian3.fromDegrees(lng, lat, h)) })
+            cambio = true
+          }
+          if (cambio) reubicar()
+          if (medicion.pendientes.length) medicion.reloj = setTimeout(tanda, 30)
+          else window.__google3dAlturas = alturas.size
+        }
+        tanda()
+      }
+      const medirLuego = () => {
+        clearTimeout(medicion.reloj)
+        medicion.reloj = setTimeout(medirAlturas, 400)
+      }
+
       let ultimo = null
+      let listo = false // el calco se dibuja cuando se sabe si hay 3D de Google (qué se pinta: los tiles o el globo)
       const redibujar = () => {
-        if (ultimo) window.__calcoDibujado = dibujarCalco(C, viewer, fuente, ultimo)
+        if (!ultimo || !listo) return
+        window.__calcoDibujado = dibujarCalco(C, viewer, fuente, ultimo, { clase: hayTiles ? C.ClassificationType.CESIUM_3D_TILE : C.ClassificationType.TERRAIN, lugar })
+        medirLuego()
       }
       window.addEventListener('message', (e) => {
-        if (e.source !== window.parent || !e.data || e.data.sid3d !== 'calco') return
-        ultimo = e.data.calco || {}
-        redibujar()
+        if (e.source !== window.parent || !e.data) return
+        if (e.data.sid3d === 'calco') {
+          ultimo = e.data.calco || {}
+          redibujar()
+        } else if (e.data.sid3d === 'relieve') {
+          // El «Relieve ×» de la barra de la Mesa (arriba) también mueve el de acá.
+          const x = Math.max(1, Math.min(5, Math.round(Number(e.data.x) * 10) / 10))
+          if (!Number.isFinite(x)) return
+          elRelieve.value = String(x)
+          guardar('sid-g3d-relieve', x)
+          aplicarRelieve()
+        }
       })
       document.getElementById('ver-calco').onchange = (e) => { fuente.show = e.target.checked; viewer.scene.requestRender() }
       document.getElementById('recargar').onclick = () => aLaMesa({ sid3d: 'pedirCalco' })
@@ -287,30 +376,46 @@
         viewer.scene.globe.show = false
         viewer.imageryLayers.removeAll()
         window.__google3dTiles = tiles
+        hayTiles = true
+        // Cuando la vista termina de cargar (después de moverse), se mide la altura de lo puntual que se ve.
+        tiles.allTilesLoaded.addEventListener(medirLuego)
       } catch (e) {
         window.__google3dFallo = String(e && e.message ? e.message : e)
         const texto = 'Google no entregó el 3D (' + window.__google3dFallo + '). Puede ser el cupo del día o la conexión.'
+        document.getElementById('relieve').title = 'Sin el 3D de Google no hay relieve para exagerar'
+        listo = true
+        redibujar()
         return embebido ? aviso(texto + ' Se muestra el calco sobre el satélite de Esri, sin relieve.', true) : aviso(texto)
       }
+      listo = true
+      redibujar()
       // Los tiles 3D no tienen altura conocida antes de cargar: se apunta al nivel del mar y, cuando se sabe la
       // cota del centro, se corrige la mira para que la cámara no quede bajo el terreno de la puna. Con esa cota se
       // activa ⛰️ Relieve ×.
       const medirCota = async (intento) => {
+        const lugarCentro = C.Cartographic.fromDegrees(centro.lng, centro.lat)
+        let h = null
         try {
-          const [c] = await viewer.scene.sampleHeightMostDetailed([C.Cartographic.fromDegrees(centro.lng, centro.lat)])
-          if (c && Number.isFinite(c.height)) {
-            const alto = C.Cartesian3.fromDegrees(centro.lng, centro.lat, c.height)
-            viewer.camera.lookAt(alto, new C.HeadingPitchRange(0, C.Math.toRadians(-35), distancia))
-            viewer.camera.lookAtTransform(C.Matrix4.IDENTITY)
-            punto.x = alto.x; punto.y = alto.y; punto.z = alto.z
-            cota = c.height
-          }
+          const [c] = await viewer.scene.sampleHeightMostDetailed([lugarCentro], fuente.entities.values)
+          if (c && Number.isFinite(c.height)) h = c.height
         } catch {}
+        // Si con el máximo detalle no se pudo (los tiles más finos no llegaron), con lo que ya se ve.
+        if (h == null) try { const v = viewer.scene.sampleHeight(lugarCentro, fuente.entities.values); if (Number.isFinite(v)) h = v } catch {}
+        if (h != null) {
+          const alto = C.Cartesian3.fromDegrees(centro.lng, centro.lat, h)
+          viewer.camera.lookAt(alto, new C.HeadingPitchRange(0, C.Math.toRadians(-35), distancia))
+          viewer.camera.lookAtTransform(C.Matrix4.IDENTITY)
+          punto.x = alto.x; punto.y = alto.y; punto.z = alto.z
+          cota = h
+        }
         // Si los tiles del centro todavía no llegaron, se vuelve a medir (sin cota, el relieve no se estira).
-        if (cota == null) return intento < 6 && setTimeout(() => medirCota(intento + 1), 2500)
+        if (cota == null) return intento < 12 && setTimeout(() => medirCota(intento + 1), 2500)
         elRelieve.disabled = false
         document.getElementById('relieve').classList.remove('apagado')
+        document.getElementById('relieve').title = 'Exagerar el relieve del 3D de Google (también lo mueve el «Relieve ×» de la barra de arriba de la Mesa)'
         aplicarRelieve()
+        reubicar()
+        medirLuego()
       }
       setTimeout(() => medirCota(1), 2500)
     }
