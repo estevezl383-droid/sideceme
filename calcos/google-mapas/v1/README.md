@@ -13,13 +13,21 @@ selector (angosto, para que la barra siga en una fila; la lista abierta es más 
 | Google | 🛰️ Google | imagen satelital de Google |
 | Google | 🏷️ Nombres | satélite + rutas, ríos y nombres de lugares |
 | Google | ⛰️ Relieve | relieve sombreado con rutas y nombres (como el «Terreno» de Google Maps) |
-| Google | 🏙️ 3D realista ↗ | abre `3d.html` en otra pestaña (no cambia el mapa base) |
+| Google | 🏙️ 3D realista | el 3D de Google DENTRO de la carta, con el calco encima (no cambia el mapa base) |
 | Esri / OSM (gratis) | 🛰️ Esri | el satélite de siempre |
 | Esri / OSM (gratis) | 🗺️ Mapa | el mapa de calles de siempre |
 
 - En **⛰️ 3D** la imagen elegida va sobre el relieve SRTM de la Mesa, con todo lo trazado encima.
-- **🏙️ 3D realista** abre, en el lugar que se estaba mirando, el 3D de Google (Photorealistic 3D Tiles, con
-  CesiumJS). Lo trazado no va: es para reconocer el terreno.
+- **🏙️ 3D realista** muestra, en la misma carta y en el lugar que se estaba mirando, el 3D de Google
+  (Photorealistic 3D Tiles, con CesiumJS), con **el calco encima**: lo que está prendido en la carta 2D (áreas,
+  líneas con sus guiones, círculos, fichas, puntas de flecha y rótulos) se pinta pegado al terreno. Los paneles de
+  la Mesa siguen a la vista. Abajo al centro: ⬇️ Desde arriba, ↗️ Inclinada, 🧭 Norte, ☑ Calco (mostrarlo u
+  ocultarlo), 🔄 Calco (volver a traerlo) y **✕ Volver a la carta**; también vuelven a la carta elegir otro mapa
+  base en el selector o 🗺️ 2D / ⛰️ 3D. Lo que se prende o apaga en la carta llega solo al 3D.
+  Antes (hasta el 23-10-2026) se abría en otra pestaña sin lo trazado: Sergio, en la F3·P4 de un ejercicio, «se
+  sale de la imagen y se abre otra aparte… no muestra la plantilla».
+- Si Google no entrega el 3D (cupo, clave, red), el calco igual se ve, sobre el satélite de Esri (sin relieve),
+  con un aviso.
 - Abajo al centro de la carta quedan «Google» y la atribución de las imágenes del lugar (lo exige Google).
 - Si Google deja de dar imágenes (cupo del día agotado, sin conexión), la carta vuelve sola al satélite de Esri,
   avisa una vez y saca los mapas de Google del selector hasta recargar la página.
@@ -32,6 +40,12 @@ selector (angosto, para que la barra siga en una fila; la lista abierta es más 
   de `/tile/v1/viewport`.
 - El compilado (`reemplazos-2026-10-23-google-mapas.js`) pide el mapa base a `SIDGoogle.leaflet(id)` /
   `SIDGoogle.maplibre(id)` y le pasa cada carta a `SIDGoogle.seguir(mapa)`. Sin este script todo queda como antes.
+- 🏙️ 3D realista (`SIDGoogle.abrir3D`, sin cambios en el compilado): un iframe con `3d.html?embebido=1#lat,lng,zoom`
+  sobre la carta (z-index 999: encima de la carta 2D y del ⛰️ 3D, debajo de los paneles de la Mesa).
+  `SIDGoogle.calcoDeLaCarta()` lee las capas de la carta 2D (Leaflet: polígonos, líneas, círculos, marcadores con
+  imagen, DivIcon con SVG o texto, rótulos fijos que no son de medición) y se las manda por `postMessage`; `3d.html`
+  las dibuja con Cesium: áreas y líneas «clasifican» los tiles 3D (`classificationType`), fichas y rótulos van
+  `CLAMP_TO_GROUND` sin que los tapen los cerros. Abierto solo (sin `?embebido=1`), `3d.html` es el 3D sin calco.
 
 ## La clave y lo que cuesta
 
@@ -45,4 +59,6 @@ selector (angosto, para que la barra siga en una fila; la lista abierta es más 
 ## Pruebas
 
 `node calcos/pruebas/e2e/google-mapas.cjs` (Google simulado, no gasta la clave). Con
-`CESIUM_DIR=…/package/Build/Cesium` (de `npm pack cesium@1.145.0`) también prueba el visor 3D.
+`CESIUM_DIR=…/package/Build/Cesium` (de `npm pack cesium@1.145.0`) también prueba el visor 3D con el calco (con el
+3D de Google rechazado, sobre Esri, y con un tileset vacío). Lo que no se puede probar sin la clave real es cómo se
+ven áreas y líneas pintadas sobre los tiles de Google: mirarlo a mano en github.io.

@@ -5,24 +5,42 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Google 3D — SIDECEME</title>
   <!-- 🏙️ El 3D realista de Google (Photorealistic 3D Tiles, Map Tiles API) para reconocer el terreno del ejercicio.
-       Lo abre «🏙️ 3D realista», en el selector de mapa base de la carta, en el lugar que se estaba mirando:
-       3d.html#lat,lng,zoom. Usa la misma clave que google-mapas.js. CesiumJS dibuja los tiles. -->
+       Lo abre «🏙️ 3D realista», en el selector de mapa base de la carta, DENTRO de la carta de la Mesa
+       (3d.html?embebido=1#lat,lng,zoom en un iframe): la Mesa le manda el calco por postMessage y acá se dibuja
+       pegado al terreno 3D (áreas, líneas, fichas, flechas y rótulos). Abierto solo (sin ?embebido) es el 3D sin
+       calco, como antes. Usa la misma clave que google-mapas.js. CesiumJS dibuja los tiles.
+       Si Google no entrega el 3D (cupo, clave, red), el calco igual se ve, sobre el satélite de Esri. -->
   <script>window.CESIUM_BASE_URL = 'https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/'</script>
   <script src="https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/Cesium.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/Widgets/widgets.css">
-  <script src="./google-mapas.js?v=20261023"></script>
+  <script src="./google-mapas.js?v=20261023-3d"></script>
   <style>
     html, body { margin: 0; height: 100%; background: #0a0e13; overflow: hidden; font: 600 12px Arial, sans-serif; color: #c3ced9 }
     #lienzo { position: absolute; inset: 0 }
     .barra { position: absolute; left: 12px; top: 12px; z-index: 5; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; max-width: calc(100% - 24px);
-      padding: 6px 10px; background: rgba(10, 16, 24, .9); border: 1px solid rgba(15, 181, 201, .45); border-radius: 6px }
+      padding: 6px 10px; background: rgba(10, 16, 24, .9); border: 1px solid rgba(15, 181, 201, .45); border-radius: 6px; box-sizing: border-box }
     .barra b { color: #3de1f5; letter-spacing: .04em }
-    .barra button { background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .18); color: #c3ced9; border-radius: 5px; padding: 4px 9px; font: 600 11px Arial, sans-serif; cursor: pointer }
-    .barra button:hover { border-color: #0fb5c9; color: #3de1f5 }
+    .barra button, .barra label { background: rgba(255, 255, 255, .06); border: 1px solid rgba(255, 255, 255, .18); color: #c3ced9; border-radius: 5px; padding: 4px 9px; font: 600 11px Arial, sans-serif; cursor: pointer }
+    .barra button:hover, .barra label:hover { border-color: #0fb5c9; color: #3de1f5 }
+    .barra label { display: inline-flex; align-items: center; gap: 4px }
+    .barra label input { margin: 0 }
+    .barra #volver { background: #0fb5c9; border-color: #0fb5c9; color: #04151a }
     .ayuda { color: #8fa1b3; font-weight: 400 }
     .aviso { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 6; max-width: min(520px, 90vw); padding: 14px 18px; border-radius: 8px;
       background: rgba(12, 18, 24, .95); border: 1px solid #d9a400; color: #ffd75e; text-align: center; line-height: 1.5; display: none }
-    @media (max-width: 600px) { .ayuda { display: none } }
+    .aviso.chico { top: auto; bottom: 150px; transform: translateX(-50%); padding: 8px 14px; font-size: 11px }
+    .solo-embebido, .embebido .solo-suelto { display: none }
+    .embebido .solo-embebido { display: inline-flex }
+    /* Dentro de la Mesa: los paneles de la Mesa tapan arriba y los costados de la carta; la barra y la atribución
+       de Google («Google» y las fuentes de las imágenes, obligatorias) van abajo al centro, sobre el tablero. */
+    .embebido .barra { left: 50%; top: auto; bottom: 86px; transform: translateX(-50%); justify-content: center; max-width: min(720px, calc(100% - 24px)) }
+    #creditos { position: absolute; left: 50%; bottom: 62px; transform: translateX(-50%); z-index: 5; max-width: min(720px, calc(100% - 24px)); display: none;
+      padding: 1px 6px; border-radius: 3px; background: rgba(0, 0, 0, .45); font: 500 10px Arial, sans-serif; color: #fff; white-space: nowrap; overflow: hidden }
+    .embebido #creditos { display: block }
+    #creditos .cesium-widget-credits { position: static; padding: 0 }
+    #creditos a { color: #fff }
+    #creditos img { vertical-align: middle; max-height: 16px }
+    @media (max-width: 600px) { .ayuda { display: none } .embebido .barra { bottom: 70px } }
   </style>
 </head>
 <body>
@@ -32,41 +50,184 @@
     <button id="cenital" title="Mirar desde arriba">⬇️ Desde arriba</button>
     <button id="oblicua" title="Volver a la vista inclinada del principio">↗️ Inclinada</button>
     <button id="norte" title="Girar para que el norte quede arriba">🧭 Norte</button>
-    <span class="ayuda">Arrastrá para moverte · rueda para acercar · Ctrl + arrastrar (o clic derecho) para inclinar y girar</span>
+    <label class="solo-embebido" title="Mostrar u ocultar lo trazado en la carta (áreas, líneas, fichas, rótulos)"><input type="checkbox" id="ver-calco" checked> Calco</label>
+    <button id="recargar" class="solo-embebido" title="Volver a traer el calco de la carta (si lo cambiaste)">🔄 Calco</button>
+    <button id="volver" class="solo-embebido" title="Cerrar el 3D de Google y volver a la carta">✕ Volver a la carta</button>
+    <span class="ayuda solo-suelto">Arrastrá para moverte · rueda para acercar · Ctrl + arrastrar (o clic derecho) para inclinar y girar</span>
   </div>
+  <div id="creditos"></div>
   <div class="aviso" id="aviso"></div>
   <script>
     'use strict'
-    const aviso = (t) => { const a = document.getElementById('aviso'); a.textContent = t; a.style.display = 'block' }
+    const embebido = /[?&]embebido=1/.test(location.search) && window.parent !== window
+    if (embebido) document.body.classList.add('embebido')
+    const aviso = (t, chico) => {
+      const a = document.getElementById('aviso')
+      a.textContent = t
+      a.className = 'aviso' + (chico ? ' chico' : '')
+      a.style.display = 'block'
+      if (chico) setTimeout(() => (a.style.display = 'none'), 12000)
+    }
+    const aLaMesa = (datos) => {
+      if (embebido) window.parent.postMessage(Object.assign({ sid3d: '' }, datos), location.origin === 'null' ? '*' : location.origin)
+    }
     const [lat, lng, zoom] = (location.hash.slice(1).split(',').map(Number).concat([NaN, NaN, NaN])).slice(0, 3)
     const centro = { lat: Number.isFinite(lat) ? lat : -16.5, lng: Number.isFinite(lng) ? lng : -68.15 }
     // Distancia de la cámara para ver más o menos lo mismo que en la carta (zoom de 256 px, ~1200 px de ancho).
     const z = Number.isFinite(zoom) ? zoom : 12
     const metrosPorPixel = 156543.03 * Math.cos(centro.lat * Math.PI / 180) / Math.pow(2, z)
     const distancia = Math.min(400000, Math.max(600, metrosPorPixel * 1200))
+    const ESRI = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+
+    // ── El calco de la carta, pegado al terreno ───────────────────────────────────────────────────────────
+    // Lo arma google-mapas.js (SIDGoogle.calcoDeLaCarta) con lo que está prendido en la carta 2D. Las áreas y
+    // las líneas «clasifican» el 3D (se pintan sobre los tiles de Google, o sobre el globo si no hay 3D); las
+    // fichas, flechas y rótulos se apoyan en el suelo y no los tapan los cerros.
+    function dibujarCalco(C, viewer, fuente, calco) {
+      const ents = fuente.entities
+      ents.suspendEvents()
+      ents.removeAll()
+      const color = (c, a) => {
+        const x = C.Color.fromCssColorString(String(c || '#3388ff'))
+        return (x || C.Color.WHITE).withAlpha(Math.max(0, Math.min(1, a)))
+      }
+      // dashArray de Leaflet («11 7», en píxeles) → material de guiones de Cesium (16 bits de patrón).
+      const material = (l) => {
+        const c = color(l.color, l.opacidad)
+        const g = String(l.guiones || '').split(/[\s,]+/).map(Number).filter((n) => n > 0)
+        if (g.length < 2) return c
+        const total = g.reduce((a, b) => a + b, 0)
+        let patron = 0
+        let pos = 0
+        g.forEach((largo, k) => {
+          const n = Math.max(1, Math.round((largo / total) * 16))
+          if (k % 2 === 0) for (let b = 0; b < n && pos + b < 16; b++) patron |= 1 << (15 - (pos + b))
+          pos += n
+        })
+        return new C.PolylineDashMaterialProperty({ color: c, dashLength: Math.max(8, total), dashPattern: patron })
+      }
+      const posiciones = (coords) => C.Cartesian3.fromDegreesArray(coords.flat())
+      const linea = (coords, l) => {
+        if (coords.length < 2 || l.opacidad < 0.05) return
+        ents.add({ polyline: { positions: posiciones(coords), width: Math.max(1.5, Math.min(12, l.ancho)), material: material(l), clampToGround: true, classificationType: C.ClassificationType.BOTH } })
+      }
+      const sinCierre = (anillo) => {
+        const a = anillo.slice()
+        if (a.length > 1 && a[0][0] === a[a.length - 1][0] && a[0][1] === a[a.length - 1][1]) a.pop()
+        return a
+      }
+      const alSuelo = { heightReference: C.HeightReference.CLAMP_TO_GROUND, disableDepthTestDistance: Number.POSITIVE_INFINITY }
+
+      for (const l of calco.lineas || []) linea(l.coords, l)
+      for (const a of calco.areas || []) {
+        for (const anillos of a.poligonos) {
+          const exterior = sinCierre(anillos[0] || [])
+          if (exterior.length < 3) continue
+          if (a.opRelleno > 0.01) {
+            const huecos = anillos.slice(1).map((h) => new C.PolygonHierarchy(posiciones(sinCierre(h))))
+            ents.add({ polygon: { hierarchy: new C.PolygonHierarchy(posiciones(exterior), huecos), material: color(a.relleno, Math.min(0.6, a.opRelleno)), classificationType: C.ClassificationType.BOTH } })
+          }
+          for (const anillo of anillos) linea(anillo, a)
+        }
+      }
+      for (const c of calco.circulos || []) {
+        const [x, y] = c.centro
+        if (c.opRelleno > 0.01) {
+          ents.add({ position: C.Cartesian3.fromDegrees(x, y), ellipse: { semiMajorAxis: c.radio, semiMinorAxis: c.radio, material: color(c.relleno, Math.min(0.6, c.opRelleno)), classificationType: C.ClassificationType.BOTH } })
+        }
+        const borde = []
+        for (let k = 0; k <= 72; k++) {
+          const t = (k / 72) * 2 * Math.PI
+          borde.push([x + (c.radio * Math.sin(t)) / (111320 * Math.cos((y * Math.PI) / 180)), y + (c.radio * Math.cos(t)) / 110574])
+        }
+        linea(borde, c)
+      }
+      for (const p of calco.puntos || []) {
+        if (p.opacidad < 0.05) continue
+        ents.add({ position: C.Cartesian3.fromDegrees(p.lng, p.lat), point: Object.assign({ pixelSize: Math.max(4, 2 * p.radio), color: color(p.color, p.opacidad), outlineColor: C.Color.WHITE, outlineWidth: 1 }, alSuelo) })
+      }
+      // Las fichas, un poco más grandes que en la carta (en la carta su tamaño depende del zoom): ~34 px de alto.
+      for (const f of calco.fichas || []) {
+        const b = { image: f.img, horizontalOrigin: C.HorizontalOrigin.CENTER, verticalOrigin: C.VerticalOrigin.CENTER }
+        if (f.ancho > 0 && f.alto > 0) {
+          const s = Math.max(1, Math.min(4, 34 / f.alto))
+          Object.assign(b, { width: f.ancho * s, height: f.alto * s, horizontalOrigin: C.HorizontalOrigin.LEFT, verticalOrigin: C.VerticalOrigin.TOP, pixelOffset: new C.Cartesian2(-f.ax * s, -f.ay * s) })
+        }
+        ents.add({ position: C.Cartesian3.fromDegrees(f.lng, f.lat), billboard: Object.assign(b, alSuelo) })
+      }
+      // Las puntas de flecha giradas como en la carta: el giro se mide desde el norte del lugar.
+      for (const f of calco.flechas || []) {
+        const pos = C.Cartesian3.fromDegrees(f.lng, f.lat)
+        const enu = C.Transforms.eastNorthUpToFixedFrame(pos)
+        const norte = C.Cartesian3.normalize(C.Cartesian3.fromCartesian4(C.Matrix4.getColumn(enu, 1, new C.Cartesian4())), new C.Cartesian3())
+        ents.add({ position: pos, billboard: Object.assign({ image: f.svg, width: f.ancho * 1.4, height: f.alto * 1.4, rotation: (-f.rot * Math.PI) / 180, alignedAxis: norte }, alSuelo) })
+      }
+      for (const r of calco.rotulos || []) {
+        ents.add({
+          position: C.Cartesian3.fromDegrees(r.lng, r.lat),
+          label: Object.assign({ text: r.texto, font: `700 ${Math.max(12, Math.min(22, r.tam || 12))}px Arial`, fillColor: color(r.color || '#000', 1), outlineColor: C.Color.WHITE, outlineWidth: 3, style: C.LabelStyle.FILL_AND_OUTLINE, horizontalOrigin: C.HorizontalOrigin.CENTER, verticalOrigin: C.VerticalOrigin.CENTER }, alSuelo),
+        })
+      }
+      ents.resumeEvents()
+      viewer.scene.requestRender()
+      return ents.values.length
+    }
 
     async function iniciar() {
       if (!window.Cesium) return aviso('No se pudo cargar el visor 3D (CesiumJS). Revisá la conexión a internet y volvé a abrir.')
       const C = window.Cesium
-      const viewer = new C.Viewer('lienzo', {
-        globe: false, baseLayer: false, baseLayerPicker: false, geocoder: false, homeButton: false, sceneModePicker: false,
-        navigationHelpButton: false, timeline: false, animation: false, infoBox: false, selectionIndicator: false, fullscreenButton: true,
-      })
-      viewer.scene.skyAtmosphere.show = true
-      try {
-        const tiles = await C.createGooglePhotorealistic3DTileset({ key: window.SIDGoogle.CLAVE, onlyUsingWithGoogleGeocoder: true }, { showCreditsOnScreen: true })
-        viewer.scene.primitives.add(tiles)
-      } catch (e) {
-        return aviso('Google no entregó el 3D (' + (e && e.message ? e.message : e) + '). Puede ser el cupo del día o la conexión.')
+      const opciones = {
+        // Debajo, el satélite de Esri: se ve mientras llega el 3D de Google y queda si Google no lo entrega.
+        baseLayer: new C.ImageryLayer(new C.UrlTemplateImageryProvider({ url: ESRI, maximumLevel: 19, credit: new C.Credit('Tiles © Esri', true) })),
+        baseLayerPicker: false, geocoder: false, homeButton: false, sceneModePicker: false,
+        navigationHelpButton: false, timeline: false, animation: false, infoBox: false, selectionIndicator: false, fullscreenButton: !embebido,
       }
+      if (embebido) opciones.creditContainer = document.getElementById('creditos')
+      const viewer = new C.Viewer('lienzo', opciones)
+      viewer.scene.skyAtmosphere.show = true
+      window.__google3d = viewer
+
+      const fuente = new C.CustomDataSource('calco')
+      viewer.dataSources.add(fuente)
+      window.addEventListener('message', (e) => {
+        if (e.source !== window.parent || !e.data || e.data.sid3d !== 'calco') return
+        window.__calcoDibujado = dibujarCalco(C, viewer, fuente, e.data.calco || {})
+      })
+      document.getElementById('ver-calco').onchange = (e) => { fuente.show = e.target.checked }
+      document.getElementById('recargar').onclick = () => aLaMesa({ sid3d: 'pedirCalco' })
+      document.getElementById('volver').onclick = () => aLaMesa({ sid3d: 'cerrar' })
+      aLaMesa({ sid3d: 'listo' })
+
       const punto = C.Cartesian3.fromDegrees(centro.lng, centro.lat, 0)
       const inclinada = () => {
         viewer.camera.lookAt(punto, new C.HeadingPitchRange(0, C.Math.toRadians(-35), distancia))
         viewer.camera.lookAtTransform(C.Matrix4.IDENTITY)
       }
+      document.getElementById('oblicua').onclick = inclinada
+      document.getElementById('cenital').onclick = () => {
+        const c = C.Cartographic.fromCartesian(punto)
+        viewer.camera.flyTo({ destination: C.Cartesian3.fromRadians(c.longitude, c.latitude, c.height + distancia), orientation: { heading: 0, pitch: C.Math.toRadians(-90), roll: 0 }, duration: 1.2 })
+      }
+      document.getElementById('norte').onclick = () => {
+        viewer.camera.flyTo({ destination: viewer.camera.positionWC.clone(), orientation: { heading: 0, pitch: viewer.camera.pitch, roll: 0 }, duration: .8 })
+      }
+      inclinada()
+
+      try {
+        const tiles = await C.createGooglePhotorealistic3DTileset({ key: window.SIDGoogle.CLAVE, onlyUsingWithGoogleGeocoder: true }, { showCreditsOnScreen: true })
+        viewer.scene.primitives.add(tiles)
+        // Con el 3D de Google el globo (y el satélite de Esri, con su atribución) se saca: si no, asoma entre los
+        // tiles. Lo trazado se pinta sobre los tiles.
+        viewer.scene.globe.show = false
+        viewer.imageryLayers.removeAll()
+        window.__google3dTiles = tiles
+      } catch (e) {
+        window.__google3dFallo = String(e && e.message ? e.message : e)
+        const texto = 'Google no entregó el 3D (' + window.__google3dFallo + '). Puede ser el cupo del día o la conexión.'
+        return embebido ? aviso(texto + ' Se muestra el calco sobre el satélite de Esri, sin relieve.', true) : aviso(texto)
+      }
       // Los tiles 3D no tienen altura conocida antes de cargar: se apunta al nivel del mar y, cuando se sabe la
       // cota del centro, se corrige la mira para que la cámara no quede bajo el terreno de la puna.
-      inclinada()
       setTimeout(async () => {
         try {
           const [c] = await viewer.scene.sampleHeightMostDetailed([C.Cartographic.fromDegrees(centro.lng, centro.lat)])
@@ -78,15 +239,6 @@
           }
         } catch {}
       }, 2500)
-      document.getElementById('oblicua').onclick = inclinada
-      document.getElementById('cenital').onclick = () => {
-        const c = C.Cartographic.fromCartesian(punto)
-        viewer.camera.flyTo({ destination: C.Cartesian3.fromRadians(c.longitude, c.latitude, c.height + distancia), orientation: { heading: 0, pitch: C.Math.toRadians(-90), roll: 0 }, duration: 1.2 })
-      }
-      document.getElementById('norte').onclick = () => {
-        viewer.camera.flyTo({ destination: viewer.camera.positionWC.clone(), orientation: { heading: 0, pitch: viewer.camera.pitch, roll: 0 }, duration: .8 })
-      }
-      window.__google3d = viewer
     }
     iniciar()
   </script>

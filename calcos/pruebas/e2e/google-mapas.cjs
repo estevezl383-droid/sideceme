@@ -6,7 +6,10 @@
 //   · el ⛰️ 3D toma la misma imagen de Google sobre el relieve, también con la atribución;
 //   · si Google deja de dar tiles (cupo agotado), la carta vuelve sola a Esri, avisa y saca Google del selector;
 //   · la barra de la carta sigue en una fila (el selector tiene ancho fijo);
-//   · 🏙️ 3D realista (en el mismo selector) abre google-mapas/v1/3d.html en el lugar que se miraba y pide el 3D realista con la clave;
+//   · 🏙️ 3D realista (en el mismo selector) muestra google-mapas/v1/3d.html DENTRO de la carta (sin pestaña nueva), en
+//     el lugar que se miraba, pide el 3D realista con la clave y dibuja el calco de la carta encima (áreas, líneas,
+//     fichas, rótulos); si Google no lo entrega, el calco va sobre Esri; lo que se apaga en la carta se va del 3D;
+//     «✕ Volver a la carta», otro mapa base o 🗺️ 2D / ⛰️ 3D lo cierran; también se abre desde el ⛰️ 3D;
 //   · sin errores de consola.
 //   node calcos/pruebas/e2e/google-mapas.cjs
 const assert = require('node:assert/strict')
@@ -33,7 +36,7 @@ const nadaLaTapa = (page, sel) =>
   }, sel)
 
 async function main() {
-  const google = { sesiones: [], tiles: [], viewport: 0, falla: false, raiz3d: [] }
+  const google = { sesiones: [], tiles: [], viewport: 0, falla: false, raiz3d: [], ok3d: false }
   const preparar = async (page) => {
     await page.route(/^https:\/\/tile\.googleapis\.com\//, (r) => {
       const u = new URL(r.request().url())
@@ -47,25 +50,26 @@ async function main() {
         google.tiles.push(u.searchParams.get('session'))
         return google.falla ? r.fulfill({ status: 403, body: 'cupo' }) : r.fulfill({ status: 200, contentType: 'image/png', body: PNG })
       }
+      // El 3D realista: 403 (como con el cupo agotado) o, con google.ok3d, un tileset vacío que Cesium acepta.
+      if (u.pathname.startsWith('/v1/3dtiles/')) {
+        google.raiz3d.push(u.toString())
+        if (!google.ok3d) return r.fulfill({ status: 403, contentType: 'application/json', body: '{"error":{"code":403,"message":"cupo"}}' })
+        const region = [-1.22, -0.33, -1.18, -0.29, 0, 6000]
+        return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ asset: { version: '1.0' }, geometricError: 1000, root: { boundingVolume: { region }, geometricError: 0, refine: 'REPLACE' } }) })
+      }
       if (u.pathname === '/tile/v1/viewport') {
         google.viewport++
         return r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ copyright: 'Imágenes ©2026 PRUEBA Maxar Technologies', maxZoomRects: [] }) })
       }
       return r.fulfill({ status: 404 })
     })
-    // La pestaña de 🏙️ Google 3D: CesiumJS local y el 3D de Google simulado (403, como con el cupo agotado).
-    const ctx = page.context()
-    await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, (r) => r.abort())
-    await ctx.route(/cdn\.jsdelivr\.net\/npm\/cesium@1\.145\.0\/Build\/Cesium\//, (r) => {
+    // 🏙️ Google 3D va en un iframe de la misma página: CesiumJS local (las rutas de la página mandan sobre las del contexto).
+    await page.route(/cdn\.jsdelivr\.net\/npm\/cesium@1\.145\.0\/Build\/Cesium\//, (r) => {
       const rel = decodeURIComponent(new URL(r.request().url()).pathname.split('/Build/Cesium/')[1])
       const f = CESIUM && path.join(CESIUM, rel)
       if (!f || !fs.existsSync(f)) return r.fulfill({ status: 404 })
       const tipo = f.endsWith('.js') ? 'text/javascript' : f.endsWith('.css') ? 'text/css' : f.endsWith('.json') ? 'application/json' : 'application/octet-stream'
       return r.fulfill({ status: 200, contentType: tipo, body: fs.readFileSync(f) })
-    })
-    await ctx.route(/tile\.googleapis\.com\/v1\/3dtiles\//, (r) => {
-      google.raiz3d.push(r.request().url())
-      return r.fulfill({ status: 403, contentType: 'application/json', body: '{"error":{"code":403,"message":"cupo"}}' })
     })
   }
   const { page, errores, cerrar } = await abrir({ ancho: 1400, alto: 900, preparar })
@@ -133,21 +137,92 @@ async function main() {
     assert.deepEqual(await page.locator('select.sid-base option').evaluateAll((os) => os.map((o) => o.value)), ['g3d', 'sat', 'osm'], 'sin los mapas de Google en el selector')
     google.falla = false
 
-    // 🏙️ Google 3D: otra pestaña, en el lugar que se miraba.
-    const [pestana] = await Promise.all([page.context().waitForEvent('page'), page.locator('select.sid-base').selectOption('g3d')])
-    await pestana.waitForLoadState('domcontentloaded')
-    const hash = new URL(pestana.url()).hash.slice(1).split(',').map(Number)
-    assert.ok(Math.abs(hash[0] - -18.3) < 0.01 && Math.abs(hash[1] - -69.0) < 0.01, 'abre donde se miraba: ' + pestana.url())
+    // 🏙️ Google 3D: DENTRO de la carta, en el lugar que se miraba y con el calco encima (el caso de Sergio: «se sale
+    // de la imagen y se abre otra aparte… no muestra la plantilla»).
+    await page.evaluate(() => window.__mapa2d.setView([-17.1, -68.3], 10, { animate: false }))
+    await page.waitForTimeout(800)
+    const calco = await page.evaluate(() => SIDGoogle.calcoDeLaCarta())
+    assert.ok(calco.areas.length >= 1, 'el Área de Operaciones va al 3D')
+    assert.ok(calco.lineas.filter((l) => l.opacidad > 0.5).length >= 3, 'las líneas (EPE, L EXTRAV, PP.GG.) van al 3D')
+    assert.ok(calco.lineas.every((l) => l.coords.every((p) => Number.isFinite(p[0]) && Number.isFinite(p[1]))), 'en grados')
+    assert.ok(calco.fichas.length >= 8 && calco.fichas.every((f) => /^data:image\/png/.test(f.img)), 'las fichas, con su imagen')
+    assert.ok(calco.rotulos.some((r) => r.texto === 'L EXTRAV') && calco.rotulos.some((r) => /OPERACIONES/.test(r.texto)), 'los rótulos')
+    assert.ok(calco.flechas.length >= 1 && /^data:image\/svg\+xml/.test(calco.flechas[0].svg), 'la punta de flecha del EPE')
+    const pestanas = page.context().pages().length
+    await page.locator('select.sid-base').selectOption('g3d')
+    const caja = page.locator('.contenedor-mapa > .sid-g3d iframe')
+    await caja.waitFor({ state: 'attached' })
+    const src = new URL(await caja.getAttribute('src'))
+    const hash = src.hash.slice(1).split(',').map(Number)
+    assert.equal(src.search, '?embebido=1')
+    assert.ok(Math.abs(hash[0] - -17.1) < 0.01 && Math.abs(hash[1] - -68.3) < 0.01, 'abre donde se miraba: ' + src)
+    await page.waitForTimeout(600)
+    assert.equal(page.context().pages().length, pestanas, 'no abre otra pestaña')
+    assert.equal(await page.locator('select.sid-base').inputValue(), 'g3d', 'el selector dice 🏙️ 3D realista')
+    assert.ok(await page.locator('.m3d-seg').isVisible(), 'los paneles de la Mesa siguen encima')
+    const marco = () => page.frames().find((f) => /3d\.html\?embebido=1/.test(f.url()))
+    const esperarMarco = async () => {
+      for (let i = 0; i < 100 && !marco(); i++) await page.waitForTimeout(100)
+      return marco()
+    }
     if (CESIUM) {
-      await pestana.getByText(/Google no entregó el 3D/).waitFor({ timeout: 30000 })
+      await (await esperarMarco()).waitForFunction(() => window.__calcoDibujado > 0 && window.__google3dFallo, null, { timeout: 60000 })
       assert.ok(google.raiz3d.some((u) => /3dtiles\/root\.json\?key=AIza/.test(u)), 'pidió el 3D realista con la clave')
-      await pestana.screenshot({ path: path.join(SALIDAS, 'google-3d.png') })
-    } else console.log('  (sin CESIUM_DIR: no se probó el visor 3D)')
-    await pestana.close()
+      await page.frameLocator('.sid-g3d iframe').getByText(/Se muestra el calco sobre el satélite de Esri/).waitFor()
+      const n = await marco().evaluate(() => window.__calcoDibujado)
+      assert.ok(n >= calco.fichas.length + calco.rotulos.length + 3, 'el calco está en el 3D: ' + n + ' elementos')
+      await page.waitForTimeout(3000)
+      await page.screenshot({ path: path.join(SALIDAS, 'google-3d-calco-sobre-esri.png') })
+      // ☑ Calco lo esconde y lo vuelve a mostrar.
+      const verCalco = page.frameLocator('.sid-g3d iframe').locator('#ver-calco')
+      await verCalco.uncheck()
+      assert.equal(await marco().evaluate(() => window.__google3d.dataSources.get(0).show), false)
+      await verCalco.check()
+      // Lo que se apaga en la carta se va del 3D.
+      await page.getByText('Fichas enemigas', { exact: true }).first().click()
+      await marco().waitForFunction((antes) => window.__calcoDibujado < antes, n, { timeout: 10000 })
+      await page.getByText('Fichas enemigas', { exact: true }).first().click()
+      await marco().waitForFunction((antes) => window.__calcoDibujado === antes, n, { timeout: 10000 })
+      // ✕ Volver a la carta.
+      await page.frameLocator('.sid-g3d iframe').getByRole('button', { name: /Volver a la carta/ }).click()
+    } else {
+      console.log('  (sin CESIUM_DIR: no se probó el visor 3D)')
+      await page.evaluate(() => SIDGoogle.cerrar3D())
+    }
+    await page.waitForTimeout(400)
+    assert.equal(await page.locator('.sid-g3d').count(), 0, 'volvió a la carta')
     assert.equal(await page.locator('select.sid-base').inputValue(), 'sat', 'abrir el 3D no cambia el mapa base')
 
+    // Con el 3D de Google: el globo se esconde (lo trazado se pinta sobre los tiles); 🗺️ 2D vuelve a la carta.
+    google.ok3d = true
+    await page.locator('select.sid-base').selectOption('g3d')
+    await caja.waitFor({ state: 'attached' })
+    if (CESIUM) {
+      await (await esperarMarco()).waitForFunction(() => window.__calcoDibujado > 0 && window.__google3dTiles, null, { timeout: 60000 })
+      assert.equal(await marco().evaluate(() => window.__google3d.scene.globe.show), false)
+    }
+    await page.locator('.m3d-seg button', { hasText: '2D' }).click()
+    await page.waitForTimeout(400)
+    assert.equal(await page.locator('.sid-g3d').count(), 0, '🗺️ 2D cierra el 3D de Google')
+
+    // Desde el ⛰️ 3D: el mismo calco; otro mapa base lo cierra.
+    await entrar3D(page)
+    await page.locator('select.sid-base').selectOption('g3d')
+    await caja.waitFor({ state: 'attached' })
+    if (CESIUM) {
+      await (await esperarMarco()).waitForFunction(() => window.__calcoDibujado > 0, null, { timeout: 60000 })
+      await page.waitForTimeout(3000)
+      await page.screenshot({ path: path.join(SALIDAS, 'google-3d-desde-el-3d.png') })
+    }
+    assert.ok((await page.evaluate(() => SIDGoogle.calcoDeLaCarta().fichas.length)) >= 8, 'en ⛰️ 3D el calco también está')
+    await page.locator('select.sid-base').selectOption('osm')
+    await page.waitForTimeout(400)
+    assert.equal(await page.locator('.sid-g3d').count(), 0, 'elegir otro mapa base cierra el 3D de Google')
+    assert.equal(await page.locator('select.sid-base').inputValue(), 'osm')
+    await salir3D(page)
+
     assert.deepEqual(errores, [], 'sin errores de consola')
-    console.log('✔ Google en la Mesa: selector, carta 2D, ⛰️ 3D, atribución, respaldo a Esri y 🏙️ Google 3D')
+    console.log('✔ Google en la Mesa: selector, carta 2D, ⛰️ 3D, atribución, respaldo a Esri y 🏙️ Google 3D en la carta con el calco')
   } finally {
     await cerrar()
   }
