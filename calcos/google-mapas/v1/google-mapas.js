@@ -5,8 +5,8 @@
 // les da los cuadritos (tiles) de Google como un mapa base más, junto al satélite de Esri y al mapa de OSM:
 //   · 🛰️ Google Satélite, 🛰️ Google Satélite con nombres y ⛰️ Google Relieve (relieve sombreado con rutas);
 //   · el ⛰️ 3D de la Mesa pone la imagen elegida sobre el relieve, igual que con Esri;
-//   · 🏙️ 3D realista (última opción de Google en el selector) abre el lugar que se está mirando en el 3D
-//     realista de Google (google-mapas/v1/3d.html).
+//   · 🏙️ 3D realista (última opción de Google en el selector) muestra, DENTRO de la carta, el lugar que se está
+//     mirando en el 3D realista de Google (google-mapas/v1/3d.html en un iframe), con el calco encima.
 //
 // Cómo funciona la API: se pide una «sesión» por tipo de mapa (POST createSession, dura unas dos semanas y se
 // guarda en localStorage) y cada tile es https://tile.googleapis.com/v1/2dtiles/{z}/{x}/{y}?session=…&key=….
@@ -31,9 +31,9 @@
   }
   // El selector de la barra de la carta, en dos grupos. Nombres cortos: el selector tiene un ancho fijo para
   // que la barra siga en una fila, y cerrado muestra sólo el nombre elegido (la lista abierta es más ancha).
-  // g3d no es un mapa base: elegirlo abre 🏙️ Google 3D en otra pestaña y el selector queda como estaba.
+  // g3d no es un mapa base: elegirlo muestra 🏙️ Google 3D sobre la carta (con el calco) sin cambiar el mapa base.
   const GRUPOS = [
-    { grupo: 'Google', opciones: [{ id: 'gsat' }, { id: 'ghib' }, { id: 'gter' }, { id: 'g3d', nombre: '🏙️ 3D realista ↗', titulo: 'Abre el 3D realista de Google en otra pestaña' }] },
+    { grupo: 'Google', opciones: [{ id: 'gsat' }, { id: 'ghib' }, { id: 'gter' }, { id: 'g3d', nombre: '🏙️ 3D realista', titulo: 'El 3D realista de Google en la carta, con el calco encima' }] },
     { grupo: 'Esri / OSM (gratis)', opciones: [{ id: 'sat', nombre: '🛰️ Esri' }, { id: 'osm', nombre: '🗺️ Mapa' }] },
   ]
 
@@ -96,7 +96,16 @@
     return { tiles: [url], atrib: 'Google Maps', maxzoom: id === 'gter' ? 15 : 19 }
   }
 
+  // El título del selector está en el compilado y decía que el 3D se abría en otra pestaña sin lo trazado: se
+  // corrige acá (React no lo vuelve a poner mientras no cambie).
+  const TITULO_SELECTOR =
+    'Mapa base: las imágenes de Google (satélite, con nombres o relieve), el satélite de Esri o el mapa de calles. ' +
+    '🏙️ 3D realista muestra el 3D de Google del lugar en la misma carta, con el calco encima.'
   function opciones() {
+    setTimeout(() => {
+      const sel = document.querySelector('select.sid-base')
+      if (sel && sel.title !== TITULO_SELECTOR) sel.title = TITULO_SELECTOR
+    })
     return GRUPOS.map((g) => ({
       grupo: g.grupo,
       opciones: g.opciones
@@ -235,13 +244,207 @@
     }
   }
 
-  // 🏙️ Google 3D: el 3D realista de Google en otra pestaña, donde se está mirando.
-  function abrir3D() {
-    const v = vista || { lat: -16.5, lng: -68.15, zoom: 12 }
+  // ── 🏙️ Google 3D en la carta, con el calco encima ──────────────────────────────────────────────────────
+  // Sergio (23-10-2026): «cuando cambio a Google 3D se sale de la imagen y se abre otra aparte… no muestra la
+  // plantilla». Ahora el 3D va en un iframe (3d.html?embebido=1) sobre la carta, debajo de los paneles de la Mesa,
+  // y se le manda lo que está prendido en la carta 2D para que lo dibuje pegado al terreno.
+  const redondo = (n) => Math.round(n * 1e6) / 1e6
+  const lngLat = (ll) => [redondo(ll.lng), redondo(ll.lat)]
+
+  function estiloDe(o) {
+    return {
+      color: o.color || '#3388ff',
+      ancho: o.weight == null ? 3 : Number(o.weight),
+      opacidad: o.stroke === false ? 0 : o.opacity == null ? 1 : Number(o.opacity),
+      guiones: o.dashArray ? String(o.dashArray) : '',
+      relleno: o.fill ? o.fillColor || o.color || '#3388ff' : '',
+      opRelleno: o.fill ? (o.fillOpacity == null ? 0.2 : Number(o.fillOpacity)) : 0,
+    }
+  }
+  const anillos = (coords, prof) => (prof === 0 ? coords.map((p) => [redondo(p[0]), redondo(p[1])]) : coords.map((c) => anillos(c, prof - 1)))
+
+  // Un DivIcon de la carta → ficha (si tiene una imagen), flecha (si es sólo un SVG) o rótulo (texto).
+  function divIcono(html, ll, tam, calco) {
+    const d = document.createElement('div')
+    d.innerHTML = typeof html === 'string' ? html : html && html.outerHTML ? html.outerHTML : ''
+    const texto = d.textContent.replace(/\s+/g, ' ').trim()
+    const img = d.querySelector('img')
+    if (img && img.getAttribute('src') && !texto) {
+      const w = Number(img.getAttribute('width')) || (tam && tam.x) || 0
+      const h = Number(img.getAttribute('height')) || (tam && tam.y) || 0
+      return calco.fichas.push({ lng: ll[0], lat: ll[1], img: img.src, ancho: w, alto: h, ax: w / 2, ay: h / 2 })
+    }
+    const svg = d.querySelector('svg')
+    if (svg && texto === svg.textContent.replace(/\s+/g, ' ').trim()) {
+      const w = Number(svg.getAttribute('width')) || (tam && tam.x) || 18
+      const h = Number(svg.getAttribute('height')) || (tam && tam.y) || 18
+      svg.setAttribute('width', w)
+      svg.setAttribute('height', h)
+      const giro = /rotate\((-?[\d.]+)deg\)/.exec(d.innerHTML)
+      const fuente = new XMLSerializer().serializeToString(svg)
+      return calco.flechas.push({ lng: ll[0], lat: ll[1], svg: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(fuente), ancho: w, alto: h, rot: giro ? Number(giro[1]) : 0 })
+    }
+    if (!texto) return
+    // Un renglón por cada <div> sin otros adentro o por cada <br>.
+    const hojas = Array.from(d.querySelectorAll('div')).filter((x) => !x.querySelector('div'))
+    const lineas = hojas.length > 1 ? hojas.map((x) => x.textContent.trim()).filter(Boolean) : [d.innerHTML.split(/<br\s*\/?>/i).map((t) => { const e = document.createElement('div'); e.innerHTML = t; return e.textContent.trim() }).filter(Boolean).join('\n')]
+    const color = /(?:^|[;"\s])color:\s*([^;"]+)/.exec(d.innerHTML)
+    const tamLetra = /font:[^;"]*?([\d.]+)px/.exec(d.innerHTML) || /font-size:\s*([\d.]+)px/.exec(d.innerHTML)
+    calco.rotulos.push({ lng: ll[0], lat: ll[1], texto: lineas.join('\n'), color: color ? color[1].trim() : '#000', tam: tamLetra ? Number(tamLetra[1]) : 12 })
+  }
+
+  // Lo que está prendido en la carta 2D (Leaflet): áreas, líneas, círculos, fichas, flechas y rótulos, en grados.
+  function calcoDeLaCarta() {
+    const calco = { lineas: [], areas: [], circulos: [], puntos: [], fichas: [], flechas: [], rotulos: [] }
+    const mapa = window.__mapa2d
+    const L = window.L
+    if (!mapa || !L || !mapa.eachLayer) return calco
+    mapa.eachLayer((c) => {
+      try {
+        if (c instanceof L.Circle) {
+          calco.circulos.push({ centro: lngLat(c.getLatLng()), radio: c.getRadius(), ...estiloDe(c.options) })
+        } else if (c instanceof L.CircleMarker) {
+          const e = estiloDe(c.options)
+          const [lng, lat] = lngLat(c.getLatLng())
+          calco.puntos.push({ lng, lat, radio: c.getRadius(), color: e.relleno || e.color, opacidad: Math.max(e.opacidad, e.opRelleno) })
+        } else if (c instanceof L.Polygon) {
+          const g = c.toGeoJSON().geometry
+          const poligonos = g.type === 'Polygon' ? [anillos(g.coordinates, 1)] : g.type === 'MultiPolygon' ? anillos(g.coordinates, 2) : []
+          if (poligonos.length) calco.areas.push({ poligonos, ...estiloDe(c.options) })
+        } else if (c instanceof L.Polyline) {
+          const g = c.toGeoJSON().geometry
+          const tramos = g.type === 'LineString' ? [anillos(g.coordinates, 0)] : g.type === 'MultiLineString' ? anillos(g.coordinates, 1) : []
+          const e = estiloDe(c.options)
+          for (const coords of tramos) calco.lineas.push({ coords, ...e })
+        } else if (c instanceof L.Marker) {
+          if (c.options.opacity === 0) return
+          const ll = lngLat(c.getLatLng())
+          const io = (c.options.icon && c.options.icon.options) || {}
+          const tam = io.iconSize ? L.point(io.iconSize) : null
+          if (io.iconUrl) {
+            const anc = io.iconAnchor ? L.point(io.iconAnchor) : tam ? tam.divideBy(2) : L.point(0, 0)
+            calco.fichas.push({ lng: ll[0], lat: ll[1], img: io.iconUrl, ancho: tam ? tam.x : 0, alto: tam ? tam.y : 0, ax: anc.x, ay: anc.y })
+          } else if (io.html) divIcono(io.html, ll, tam, calco)
+        }
+        // Rótulos fijos (los de medición, con km y km², quedan sólo en la carta).
+        const tt = c.getTooltip && c.getTooltip()
+        if (tt && tt.options.permanent && !/medida/.test(tt.options.className || '') && (!c.isTooltipOpen || c.isTooltipOpen())) {
+          const ll = tt.getLatLng ? tt.getLatLng() : null
+          const lugar = ll || (c.getCenter ? c.getCenter() : c.getLatLng ? c.getLatLng() : null)
+          const d = document.createElement('div')
+          d.innerHTML = String(tt.getContent() || '')
+          d.querySelectorAll('.tt-sub').forEach((x) => x.remove())
+          const texto = d.innerHTML.split(/<br\s*\/?>/i).map((t) => { const e = document.createElement('div'); e.innerHTML = t; return e.textContent.trim() }).filter(Boolean)[0]
+          if (lugar && texto) {
+            const [lng, lat] = lngLat(lugar)
+            calco.rotulos.push({ lng, lat, texto, color: '#000', tam: 12 })
+          }
+        }
+      } catch (e) {
+        console.info('[Google 3D] no se pasó una capa de la carta:', e && e.message)
+      }
+    })
+    return calco
+  }
+
+  let g3d = null // { caja, marco, base, reloj, alCambiar, alClic, alMensaje, alCapa }
+  const destino = () => (location.origin === 'null' ? '*' : location.origin)
+
+  function estilos3D() {
+    if (document.getElementById('sid-g3d-estilos')) return
+    const st = document.createElement('style')
+    st.id = 'sid-g3d-estilos'
+    // Mientras se ve el 3D, los botones de zoom y la atribución de la carta 2D (que queda debajo) no van.
+    st.textContent = '.sid-g3d-abierto .mapa-principal .leaflet-control-container,.sid-g3d-abierto .mapa-principal .sid-google-atrib{display:none!important}'
+    document.head.appendChild(st)
+  }
+
+  function enviarCalco() {
+    if (!g3d || !g3d.marco.contentWindow) return
+    try {
+      g3d.marco.contentWindow.postMessage({ sid3d: 'calco', calco: calcoDeLaCarta() }, destino())
+    } catch (e) {
+      console.info('[Google 3D] no se pudo mandar el calco:', e && e.message)
+    }
+  }
+
+  function cerrar3D() {
+    if (!g3d) return
+    const g = g3d
+    g3d = null
+    clearInterval(g.reloj)
+    clearTimeout(g.espera)
+    document.removeEventListener('change', g.alCambiar, true)
+    document.removeEventListener('click', g.alClic, true)
+    window.removeEventListener('message', g.alMensaje)
+    if (window.__mapa2d && window.__mapa2d.off) window.__mapa2d.off('layeradd layerremove', g.alCapa)
+    g.caja.remove()
+    document.documentElement.classList.remove('sid-g3d-abierto')
+    const sel = document.querySelector('select.sid-base')
+    if (sel && sel.value === 'g3d' && g.base) sel.value = g.base
+  }
+
+  // La pestaña aparte de antes: sólo si no hay carta donde ponerlo.
+  function abrirPestana3D(v) {
     const url = new URL('google-mapas/v1/3d.html', location.href.replace(/[^/]*$/, ''))
     url.hash = `${v.lat.toFixed(5)},${v.lng.toFixed(5)},${v.zoom.toFixed(1)}`
     window.open(url.toString(), '_blank', 'noopener')
   }
 
-  window.SIDGoogle = { CLAVE, TIPOS, leaflet, maplibre, opciones, seguir, abrir3D, esGoogle, vista: () => vista }
+  // 🏙️ Google 3D sobre la carta, donde se está mirando y con el calco.
+  function abrir3D() {
+    const v = vista || { lat: -16.5, lng: -68.15, zoom: 12 }
+    if (g3d) return enviarCalco()
+    const mapa = window.__mapa2d
+    const contenedor = mapa && mapa.getContainer && mapa.getContainer() && mapa.getContainer().parentElement
+    if (!contenedor) return abrirPestana3D(v)
+    estilos3D()
+    const caja = document.createElement('div')
+    caja.className = 'sid-g3d'
+    // Encima de la carta 2D y del ⛰️ 3D, debajo de los paneles de la Mesa (z-index 1000 y más).
+    caja.style.cssText = 'position:absolute;inset:0;z-index:999;background:#0a0e13'
+    const marco = document.createElement('iframe')
+    marco.title = 'Google 3D con el calco'
+    marco.setAttribute('allow', 'fullscreen')
+    marco.style.cssText = 'border:0;width:100%;height:100%;display:block'
+    const url = new URL('google-mapas/v1/3d.html', location.href.replace(/[^/]*$/, ''))
+    url.search = '?embebido=1'
+    url.hash = `${v.lat.toFixed(5)},${v.lng.toFixed(5)},${v.zoom.toFixed(1)}`
+    marco.src = url.toString()
+    caja.appendChild(marco)
+    contenedor.appendChild(caja)
+    document.documentElement.classList.add('sid-g3d-abierto')
+
+    const g = (g3d = { caja, marco, base: '' })
+    g.alMensaje = (e) => {
+      if (!g3d || e.source !== marco.contentWindow || !e.data) return
+      if (e.data.sid3d === 'listo' || e.data.sid3d === 'pedirCalco') enviarCalco()
+      else if (e.data.sid3d === 'cerrar') cerrar3D()
+    }
+    window.addEventListener('message', g.alMensaje)
+    // Lo que se prende, apaga o se vuelve a dibujar en la carta llega al 3D.
+    g.alCapa = () => {
+      clearTimeout(g.espera)
+      g.espera = setTimeout(enviarCalco, 700)
+    }
+    if (mapa.on) mapa.on('layeradd layerremove', g.alCapa)
+    // El selector muestra «🏙️ 3D realista» mientras se ve el 3D (React lo vuelve a poner en el mapa base en cada
+    // dibujo); elegir otro mapa base, o 🗺️ 2D / ⛰️ 3D, vuelve a la carta.
+    g.reloj = setInterval(() => {
+      const sel = document.querySelector('select.sid-base')
+      if (!sel || sel.value === 'g3d') return
+      if (!g.base) g.base = sel.value
+      sel.value = 'g3d'
+    }, 250)
+    g.alCambiar = (e) => {
+      if (e.target && e.target.matches && e.target.matches('select.sid-base') && e.target.value !== 'g3d') cerrar3D()
+    }
+    g.alClic = (e) => {
+      if (e.target && e.target.closest && e.target.closest('.m3d-seg button')) cerrar3D()
+    }
+    document.addEventListener('change', g.alCambiar, true)
+    document.addEventListener('click', g.alClic, true)
+  }
+
+  window.SIDGoogle = { CLAVE, TIPOS, leaflet, maplibre, opciones, seguir, abrir3D, cerrar3D, calcoDeLaCarta, esGoogle, vista: () => vista, abierto3D: () => !!g3d }
 })()

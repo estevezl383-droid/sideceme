@@ -5,6 +5,14 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-23 (2) — 🏙️ Google 3D dentro de la carta, con el calco (sin cambios en el compilado)
+
+Sólo `google-mapas/v1` (`google-mapas.js` y `3d.html`; `index.html` sube el `?v=`). Sergio: «cuando cambio a Google 3D
+se sale de la imagen y se abre otra aparte… no muestra la plantilla». La opción 🏙️ 3D realista del selector (en el
+compilado llama a `SIDGoogle.abrir3D`) ahora pone el 3D de Google en un iframe sobre la carta y le manda lo trazado en la
+carta 2D; el título del selector (en el compilado decía «en otra pestaña… lo trazado no va») lo corrige
+`google-mapas.js` al dibujarse. Ver `google-mapas/v1/README.md`. Probado con `e2e/google-mapas.cjs` (con `CESIUM_DIR`).
+
 ## 2026-10-23 — 🛰️ Imágenes de Google en la carta 2D, en el ⛰️ 3D y 🏙️ Google 3D (`index-google-mapas-20261023.js`)
 
 Parte de `index-fichas-chicas-20261022.js` + `pruebas/reemplazos-2026-10-23-google-mapas.js` (6 reemplazos;
