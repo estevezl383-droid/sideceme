@@ -99,7 +99,10 @@
          de los <script> de esta página antes de que el compilado agregue los suyos. -->
     <script src="./version/aviso-version.js?v=20261010b" defer></script>
     <script src="./dispositivo/v1/dispositivo.js?v=20261020"></script>
-    <script type="module" crossorigin src="./assets/index-fichas-chicas-20261022.js?v=fichas-chicas-20261022"></script>
+    <!-- 🛰️ Imágenes de Google (Map Tiles API): mapas base de Google en la carta 2D y en el ⛰️ 3D, y 🏙️ Google 3D.
+         Antes del compilado: pide las sesiones de Google mientras carga la página (window.SIDGoogle). -->
+    <script src="./google-mapas/v1/google-mapas.js?v=20261023" defer></script>
+    <script type="module" crossorigin src="./assets/index-google-mapas-20261023.js?v=google-mapas-20261023"></script>
     <link rel="stylesheet" crossorigin href="./assets/index-lHYAlTjN.css">
     <!-- 💾 Sello del autoguardado: es un botón (tocarlo guarda todo ya) y dice si hay algo sin guardar
          o si falló. La lógica está en guardado/v1/autoguardado.mjs (la importa el compilado). -->

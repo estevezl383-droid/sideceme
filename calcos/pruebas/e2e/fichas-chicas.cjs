@@ -15,10 +15,12 @@ const { ejercicioPersonal } = require('../personal-ejemplo.js')
 const SALIDAS = path.join(__dirname, '..', 'salidas-fichas-chicas')
 fs.mkdirSync(SALIDAS, { recursive: true })
 const ANTERIOR = 'index-concepto-20261022.js'
+// El compilado que carga la Mesa hoy (el de las fichas chicas o uno posterior) se cambia por el ANTERIOR.
+const VIGENTE = new RegExp('/assets/' + path.basename(require('../extraer').vigente()).replace(/\./g, '\\.'))
 
 async function medir(anterior) {
   const preparar = anterior
-    ? (page) => page.route(/\/assets\/index-fichas-chicas-20261022\.js/, (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: fs.readFileSync(path.join(__dirname, '..', '..', 'assets', ANTERIOR)) }))
+    ? (page) => page.route(VIGENTE, (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: fs.readFileSync(path.join(__dirname, '..', '..', 'assets', ANTERIOR)) }))
     : undefined
   const { page, errores, cerrar } = await abrir({ ancho: 1400, alto: 900, preparar })
   try {
