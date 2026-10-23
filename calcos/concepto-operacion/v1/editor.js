@@ -14,7 +14,7 @@
 //   ⑥ llevar el calco al texto de la hoja (el bloque «Según el calco» en los campos que corresponden).
 //
 // JavaScript sin compilar: React llega por runtime.js (el de la Mesa).
-import { proponer, aplicar, enElCalco, revisar, piezasDePaleta, textoDelCalco, conBloque, centroDe, borrarPieza, objetoDe, elegirMedio, SECCIONES, PALETA, DIRECCIONES, FORMAS, marco } from './modelo.mjs'
+import { proponer, aplicar, enElCalco, revisar, piezasDePaleta, textoDelCalco, conBloque, centroDe, borrarPieza, objetoDe, elegirMedio, SECCIONES, PALETA, DIRECCIONES, FORMAS, marco, esEjeDeLaReserva, quitarEjes } from './modelo.mjs'
 import { CAMPOS, leerConcepto, unidadesNombradas } from './lector.mjs'
 import { useState, useEffect, useMemo, jsx, jsxs, rotulo, svgTarea, catalogoObstaculos, nomObstaculo, fuegos, mediosDeApoyo } from './runtime.js'
 import { datosPuente, editorAbierto, estado, ponerAjuste, estaAjustando, seleccion, elegir, escucharCambios, aplicarTransformacion, colocar, cancelarColocar, centroVista, irA, nombrePieza, encuadrar } from './carta.js'
@@ -160,6 +160,15 @@ export default function SIDEditorConcepto({ hoja, valor, onValor, ctx = {} }) {
     setCC((prevCC) => ({ marcas: borrarPieza({ marcas: prevCC.marcas || [] }, sel, { grupo: g || false }).marcas }))
     elegir(null)
   }
+  // Las flechas de los ejes de la reserva que ya están en la carta (ver esEjeDeLaReserva en modelo.mjs).
+  const ejesPuestos = puestos.filter((p) => p.capa === 'limites' && esEjeDeLaReserva(p.obj))
+  const sacarEjes = () => {
+    if (!ejesPuestos.length || bloqueado) return
+    P.marcar?.()
+    P.setOps((prev) => quitarEjes({ ops: prev || {} }).ops)
+    elegir(null)
+    setAviso(`✓ Se sacaron de la carta ${ejesPuestos.length === 1 ? 'la flecha' : `las ${ejesPuestos.length} flechas`} de los ejes de la reserva (${ejesPuestos.map((p) => p.obj.nombre).join(', ')}). ↶ Deshacer las devuelve.`)
+  }
   const cambiarObj = (cambios) => {
     if (!sel) return
     if (sel.capa === 'blancos') P.setPlan?.((prev) => ({ ...prev, blancos: (prev?.blancos || []).map((b) => (b.id === sel.id ? { ...b, ...cambios } : b)) }))
@@ -286,6 +295,11 @@ export default function SIDEditorConcepto({ hoja, valor, onValor, ctx = {} }) {
         { style: E.fila },
         h('button', { style: ajustando ? E.btnOn : E.btnPrin, onClick: () => ponerAjuste(!ajustando), 'aria-pressed': ajustando ? 'true' : 'false' }, ajustando ? '✋ Ajustando — tocá para terminar' : '✋ Mover / agrandar / girar en la carta'),
         h('label', { style: { ...E.fila, cursor: 'pointer' } }, h('input', { type: 'checkbox', checked: cc.verEnCarta !== false, onChange: (e) => setCC({ verEnCarta: e.target.checked }) }), 'Ver los rótulos y efectos en la carta'),
+      ),
+      ejesPuestos.length > 0 && h(
+        'div',
+        { style: E.fila },
+        h('button', { style: E.btn, onClick: sacarEjes, disabled: bloqueado, title: 'Quita las flechas EJE CA / EJE BLQ que puso la plantilla (lo trazado a mano no se toca)' }, `✕ Sacar las flechas de los ejes de la reserva (${ejesPuestos.map((p) => p.obj.nombre).join(', ')})`),
       ),
       ajustando && h('div', { style: E.ayuda }, 'Cada ficha tiene ✥: arrastrala para moverla. La de una zona de obstáculos («ZO-1 ✥») se lleva TODO su grupo. Tocá ✥ para elegirla: aparecen ⤡ (agrandar / achicar) y ⟳ (girar). En celeste se ve cómo va a quedar.'),
       objSel && h(Seleccion, { sel, obj: objSel, medios, F, enGrupo, setEnGrupo, mover, girar, escalar, borrar, cambiarObj }),

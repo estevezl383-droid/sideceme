@@ -5,6 +5,35 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-23 (3) — 🎯 Las tareas tácticas al 40 %, sin las flechas de los ejes de la reserva y ⛰️ Relieve × en el 🏙️ Google 3D (`index-tareas-chicas-20261023.js`)
+
+Parte de `index-google-mapas-20261023.js` + `pruebas/reemplazos-2026-10-23-tareas-chicas.js` (3 reemplazos;
+`construir-tareas-chicas.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con la carta del
+plan de barreras (G-4, ARCE) congestionada: «las tareas tácticas por favor hacelas un 60 % más pequeñas»; «esas líneas…
+llegan en flecha hasta el frente… ya tengo un esquema planificado y elaborado… es demasiado congestionado»; «la imagen
+para navegar está muy lenta… lo mejor es trabajar en 3D… ¿en Google Earth se le puede dar la misma opción [que el
+«Relieve ×5.0» del ⛰️ 3D] para aumentar el relieve?».
+
+- **En el compilado**: cada tarea de 🎯 Tareas (`ops.tareas`) se dibuja con `SIDFichaChica` (0,4, el de las fichas)
+  en la carta 2D (también la que se arrastra) y en el ⛰️ 3D; el panel 🎯 Tareas Tácticas dice ese tamaño. Las ya
+  puestas cambian solas (se guarda la magnitud y la escala, no los píxeles). El 🏙️ Google 3D toma el tamaño de la
+  carta 2D.
+- **Fuera del compilado**: `concepto-operacion/v1` — el símbolo del efecto de cada zona de obstáculos (bloquear,
+  fijar…) al 40 %; las flechas de los ejes de la reserva (EJE CA-n, EJE BLQ-n) salen DESMARCADAS en ② y ③ tiene
+  «✕ Sacar las flechas de los ejes de la reserva» (con ↶ Deshacer; lo trazado a mano no se toca).
+  `google-mapas/v1` — ⛰️ Relieve × (×1 a ×5, arranca en ×2, relativo a la cota del lugar mirado) y ⚡ Detalle
+  (alto / normal / fluido) en el 🏙️ Google 3D, que además dibuja sólo cuando algo cambia; el calco va con las
+  líneas simplificadas (~8 m) y no se rehace si la carta vuelve a dibujar lo mismo. Ver sus README.
+- **Cómo se comprobó**: `e2e/tareas-chicas.cjs` (con el compilado anterior y el nuevo: 2D y ⛰️ 3D al 40 %),
+  `concepto.mjs` (los ejes desmarcados, sacarlos), `e2e/concepto.cjs` (desmarcados en la Mesa, marcar uno y
+  sacarlo con el botón), `e2e/google-3d-relieve.cjs` (un volcán sintético servido como el 3D de Google: ×2 al abrir,
+  ×5, la falda a la altura que corresponde, el calco entero desde arriba con ×5, ⚡ Detalle, lo elegido se recuerda,
+  el calco simplificado y sin rehacer lo mismo), `e2e/google-mapas.cjs`, `reemplazos-compilado.js` y `npm test`.
+  Con ×5 se comprobó también que las líneas del calco siguen pegadas al terreno en la falda y en la llanura que
+  queda por debajo de la cota del centro (Cesium las ajusta solo).
+- **Si se recompila desde el fuente**: llevar el factor `SIDFichaChica` a las tareas de la carta 2D, del ⛰️ 3D y
+  al tamaño del panel 🎯 Tareas.
+
 ## 2026-10-23 (2) — 🏙️ Google 3D dentro de la carta, con el calco (sin cambios en el compilado)
 
 Sólo `google-mapas/v1` (`google-mapas.js` y `3d.html`; `index.html` sube el `?v=`). Sergio: «cuando cambio a Google 3D

@@ -13,7 +13,7 @@
   <script>window.CESIUM_BASE_URL = 'https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/'</script>
   <script src="https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/Cesium.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/Widgets/widgets.css">
-  <script src="./google-mapas.js?v=20261023-3d"></script>
+  <script src="./google-mapas.js?v=20261023-relieve"></script>
   <style>
     html, body { margin: 0; height: 100%; background: #0a0e13; overflow: hidden; font: 600 12px Arial, sans-serif; color: #c3ced9 }
     #lienzo { position: absolute; inset: 0 }
@@ -24,6 +24,10 @@
     .barra button:hover, .barra label:hover { border-color: #0fb5c9; color: #3de1f5 }
     .barra label { display: inline-flex; align-items: center; gap: 4px }
     .barra label input { margin: 0 }
+    .barra input[type=range] { width: 84px; accent-color: #0fb5c9; cursor: pointer }
+    .barra select { background: #0a1018; color: #c3ced9; border: 1px solid rgba(255, 255, 255, .25); border-radius: 4px; font: 600 11px Arial, sans-serif; padding: 1px 2px; cursor: pointer }
+    .barra #relieve-val { min-width: 24px; color: #3de1f5 }
+    .barra .apagado { opacity: .45; cursor: default }
     .barra #volver { background: #0fb5c9; border-color: #0fb5c9; color: #04151a }
     .ayuda { color: #8fa1b3; font-weight: 400 }
     .aviso { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 6; max-width: min(520px, 90vw); padding: 14px 18px; border-radius: 8px;
@@ -50,6 +54,8 @@
     <button id="cenital" title="Mirar desde arriba">⬇️ Desde arriba</button>
     <button id="oblicua" title="Volver a la vista inclinada del principio">↗️ Inclinada</button>
     <button id="norte" title="Girar para que el norte quede arriba">🧭 Norte</button>
+    <label id="relieve" class="apagado" title="Exagerar el relieve del 3D de Google, como el «Relieve ×» del ⛰️ 3D de la Mesa (se activa cuando llega el 3D)">⛰️ Relieve ×<span id="relieve-val">2.0</span><input type="range" id="relieve-x" min="1" max="5" step="0.5" value="2" aria-label="Exagerar el relieve" disabled></label>
+    <label title="Menos detalle = se navega más fluido (útil en computadoras lentas o con mucho calco)">⚡ <select id="detalle" aria-label="Detalle del 3D"><option value="alto">Detalle alto</option><option value="normal">Detalle normal</option><option value="fluido">Fluido</option></select></label>
     <label class="solo-embebido" title="Mostrar u ocultar lo trazado en la carta (áreas, líneas, fichas, rótulos)"><input type="checkbox" id="ver-calco" checked> Calco</label>
     <button id="recargar" class="solo-embebido" title="Volver a traer el calco de la carta (si lo cambiaste)">🔄 Calco</button>
     <button id="volver" class="solo-embebido" title="Cerrar el 3D de Google y volver a la carta">✕ Volver a la carta</button>
@@ -70,6 +76,17 @@
     }
     const aLaMesa = (datos) => {
       if (embebido) window.parent.postMessage(Object.assign({ sid3d: '' }, datos), location.origin === 'null' ? '*' : location.origin)
+    }
+    // Lo que eligió el usuario (relieve, detalle) queda para la próxima vez. Sin almacenamiento, los valores de siempre.
+    const leer = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v } catch { return d } }
+    const guardar = (k, v) => { try { localStorage.setItem(k, String(v)) } catch {} }
+    // ⚡ Detalle: cuánto error en pantalla se acepta en los tiles de Google (Cesium usa 16), la resolución del dibujo
+    // y el suavizado de bordes. «Normal» ya es más liviano que lo de Cesium: Sergio (23-10-2026), «para navegar está
+    // muy lenta, muy lenta».
+    const DETALLE = {
+      alto: { sse: 16, escala: 1, msaa: 4 },
+      normal: { sse: 24, escala: 1, msaa: 2 },
+      fluido: { sse: 40, escala: 0.75, msaa: 1 },
     }
     const [lat, lng, zoom] = (location.hash.slice(1).split(',').map(Number).concat([NaN, NaN, NaN])).slice(0, 3)
     const centro = { lat: Number.isFinite(lat) ? lat : -16.5, lng: Number.isFinite(lng) ? lng : -68.15 }
@@ -181,19 +198,68 @@
         baseLayer: new C.ImageryLayer(new C.UrlTemplateImageryProvider({ url: ESRI, maximumLevel: 19, credit: new C.Credit('Tiles © Esri', true) })),
         baseLayerPicker: false, geocoder: false, homeButton: false, sceneModePicker: false,
         navigationHelpButton: false, timeline: false, animation: false, infoBox: false, selectionIndicator: false, fullscreenButton: !embebido,
+        // Dibuja sólo cuando algo cambia (la cámara, los tiles que llegan, el calco): quieto no gasta la máquina.
+        requestRenderMode: true, maximumRenderTimeChange: Infinity,
       }
       if (embebido) opciones.creditContainer = document.getElementById('creditos')
       const viewer = new C.Viewer('lienzo', opciones)
       viewer.scene.skyAtmosphere.show = true
       window.__google3d = viewer
 
+      let tiles = null
+      const elDetalle = document.getElementById('detalle')
+      elDetalle.value = DETALLE[leer('sid-g3d-detalle', 'normal')] ? leer('sid-g3d-detalle', 'normal') : 'normal'
+      const aplicarDetalle = () => {
+        const d = DETALLE[elDetalle.value] || DETALLE.normal
+        viewer.resolutionScale = d.escala
+        try { viewer.scene.msaaSamples = d.msaa } catch {}
+        if (tiles) tiles.maximumScreenSpaceError = d.sse
+        window.__google3dDetalle = Object.assign({ id: elDetalle.value }, d)
+        viewer.scene.requestRender()
+      }
+      elDetalle.onchange = () => { guardar('sid-g3d-detalle', elDetalle.value); aplicarDetalle() }
+      aplicarDetalle()
+
+      // ⛰️ Relieve ×: Cesium estira los tiles de Google en la vertical, relativo a la cota del lugar mirado (así el
+      // centro no se mueve y la cámara no queda bajo los cerros). Hasta saber esa cota no se estira nada: sobre el
+      // nivel del mar, ×5 subiría la puna 16 km.
+      let cota = null
+      const elRelieve = document.getElementById('relieve-x')
+      const valRelieve = Number(leer('sid-g3d-relieve', '2'))
+      elRelieve.value = String(valRelieve >= 1 && valRelieve <= 5 ? valRelieve : 2)
+      const estirado = { x: 1, reloj: 0 }
+      const aplicarRelieve = () => {
+        const x = Number(elRelieve.value) || 1
+        document.getElementById('relieve-val').textContent = x.toFixed(1)
+        if (cota == null) return
+        viewer.scene.verticalExaggerationRelativeHeight = cota
+        viewer.scene.verticalExaggeration = x
+        window.__google3dRelieve = { x, cota }
+        viewer.scene.requestRender()
+        // Las áreas pegadas al terreno se arman con el estiramiento del momento (Cesium lo toma al crearlas): el calco
+        // se rehace un rato después de mover el deslizador.
+        if (estirado.x !== x) {
+          estirado.x = x
+          clearTimeout(estirado.reloj)
+          estirado.reloj = setTimeout(redibujar, 350)
+        }
+      }
+      elRelieve.oninput = aplicarRelieve
+      elRelieve.onchange = () => guardar('sid-g3d-relieve', elRelieve.value)
+      document.getElementById('relieve-val').textContent = Number(elRelieve.value).toFixed(1)
+
       const fuente = new C.CustomDataSource('calco')
       viewer.dataSources.add(fuente)
+      let ultimo = null
+      const redibujar = () => {
+        if (ultimo) window.__calcoDibujado = dibujarCalco(C, viewer, fuente, ultimo)
+      }
       window.addEventListener('message', (e) => {
         if (e.source !== window.parent || !e.data || e.data.sid3d !== 'calco') return
-        window.__calcoDibujado = dibujarCalco(C, viewer, fuente, e.data.calco || {})
+        ultimo = e.data.calco || {}
+        redibujar()
       })
-      document.getElementById('ver-calco').onchange = (e) => { fuente.show = e.target.checked }
+      document.getElementById('ver-calco').onchange = (e) => { fuente.show = e.target.checked; viewer.scene.requestRender() }
       document.getElementById('recargar').onclick = () => aLaMesa({ sid3d: 'pedirCalco' })
       document.getElementById('volver').onclick = () => aLaMesa({ sid3d: 'cerrar' })
       aLaMesa({ sid3d: 'listo' })
@@ -214,7 +280,7 @@
       inclinada()
 
       try {
-        const tiles = await C.createGooglePhotorealistic3DTileset({ key: window.SIDGoogle.CLAVE, onlyUsingWithGoogleGeocoder: true }, { showCreditsOnScreen: true })
+        tiles = await C.createGooglePhotorealistic3DTileset({ key: window.SIDGoogle.CLAVE, onlyUsingWithGoogleGeocoder: true }, { showCreditsOnScreen: true, maximumScreenSpaceError: (DETALLE[elDetalle.value] || DETALLE.normal).sse })
         viewer.scene.primitives.add(tiles)
         // Con el 3D de Google el globo (y el satélite de Esri, con su atribución) se saca: si no, asoma entre los
         // tiles. Lo trazado se pinta sobre los tiles.
@@ -227,8 +293,9 @@
         return embebido ? aviso(texto + ' Se muestra el calco sobre el satélite de Esri, sin relieve.', true) : aviso(texto)
       }
       // Los tiles 3D no tienen altura conocida antes de cargar: se apunta al nivel del mar y, cuando se sabe la
-      // cota del centro, se corrige la mira para que la cámara no quede bajo el terreno de la puna.
-      setTimeout(async () => {
+      // cota del centro, se corrige la mira para que la cámara no quede bajo el terreno de la puna. Con esa cota se
+      // activa ⛰️ Relieve ×.
+      const medirCota = async (intento) => {
         try {
           const [c] = await viewer.scene.sampleHeightMostDetailed([C.Cartographic.fromDegrees(centro.lng, centro.lat)])
           if (c && Number.isFinite(c.height)) {
@@ -236,9 +303,16 @@
             viewer.camera.lookAt(alto, new C.HeadingPitchRange(0, C.Math.toRadians(-35), distancia))
             viewer.camera.lookAtTransform(C.Matrix4.IDENTITY)
             punto.x = alto.x; punto.y = alto.y; punto.z = alto.z
+            cota = c.height
           }
         } catch {}
-      }, 2500)
+        // Si los tiles del centro todavía no llegaron, se vuelve a medir (sin cota, el relieve no se estira).
+        if (cota == null) return intento < 6 && setTimeout(() => medirCota(intento + 1), 2500)
+        elRelieve.disabled = false
+        document.getElementById('relieve').classList.remove('apagado')
+        aplicarRelieve()
+      }
+      setTimeout(() => medirCota(1), 2500)
     }
     iniciar()
   </script>

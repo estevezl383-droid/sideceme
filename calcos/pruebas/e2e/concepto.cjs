@@ -65,6 +65,12 @@ async function abrirHoja(page) {
       assert.ok(cuerpo.includes(t), `la propuesta trae «${t}»`)
     assert.match(cuerpo, /3\.000 minas AC|3000 minas AC/, 'usa las minas del texto')
     await foto('2-propuesta')
+    // Las flechas de los ejes de la reserva salen desmarcadas (Sergio: «esas líneas llegan en flecha hasta el
+    // frente… congestionado»); se marca una para probar después ✕ Sacar las flechas.
+    const ejeCA = page.locator('.co-editor label', { hasText: 'EJE CA-1' }).first()
+    assert.equal(await ejeCA.locator('input[type=checkbox]').isChecked(), false, 'EJE CA-1 desmarcado')
+    assert.equal(await page.locator('.co-editor label', { hasText: 'EJE BLQ-1' }).first().locator('input[type=checkbox]').isChecked(), false, 'EJE BLQ-1 desmarcado')
+    await ejeCA.locator('input[type=checkbox]').check()
     await clic(page.getByRole('button', { name: /✓ Poner en el calco/ }))
     const ops = await esperar(page, leerOps, (o) => o.obstaculos.some(co))
     const plan = await esperar(page, leerPlan, (p) => p.blancos.some(co))
@@ -84,6 +90,13 @@ async function abrirHoja(page) {
     await page.waitForTimeout(600)
     assert.ok(await page.locator('.co-marca').count() >= 5, 'las marcas se ven en la carta')
     await foto('3-en-la-carta')
+    assert.ok(ops.limites.some((l) => l.nombre === 'EJE CA-1'), 'el EJE CA-1 marcado va al calco')
+    assert.ok(!ops.limites.some((l) => l.nombre === 'EJE BLQ-1'), 'el EJE BLQ-1 desmarcado no')
+    await clic(page.getByRole('button', { name: /✕ Sacar las flechas de los ejes de la reserva \(EJE CA-1\)/ }))
+    const sinEjes = await esperar(page, leerOps, (o) => !o.limites.some((l) => /^EJE /.test(l.nombre || '')))
+    assert.ok(sinEjes.limites.some((l) => /^LPR/.test(l.nombre || '')), 'lo demás de la plantilla queda')
+    await page.getByText(/Se sacaron de la carta la flecha de los ejes de la reserva \(EJE CA-1\)/).waitFor({ timeout: 5000 })
+    assert.equal(await page.getByRole('button', { name: /✕ Sacar las flechas/ }).count(), 0, 'sin ejes, el botón no está')
 
     // ③ Ajustar: arrastrar ZO-1 ✥ mueve todo el grupo
     await clic(page.getByRole('button', { name: /Mover \/ agrandar \/ girar en la carta/ }))

@@ -126,6 +126,15 @@ caso('la reserva en TURCO (el texto) con la DIV-6, el EJE CA-1 (Julo – Bella V
   assert.ok(uno((i) => i.obj.nombre === 'EJE BLQ-1'))
   assert.ok(uno((i) => i.rol === 'pb'))
 })
+caso('los ejes de la reserva van DESMARCADOS (Sergio: «esas líneas llegan en flecha hasta el frente… congestionado»)', () => {
+  const ejes = it((i) => i.rol === 'eje-ca' || i.rol === 'eje-bloqueo')
+  assert.ok(ejes.length >= 2)
+  assert.ok(ejes.every((i) => i.marcado === false))
+  assert.ok(ejes.every((i) => /DESMARCADA/.test(i.porQue)))
+  const puesto = Mo.aplicar({ ops: ej.ops, plan: {}, marcas: [] }, r.items)
+  assert.ok(!(puesto.ops.limites || []).some((l) => /^EJE /.test(l.nombre || '')), 'sin marcarlos no van al calco')
+  assert.ok(uno((i) => i.rol === 'reserva').marcado !== false && uno((i) => i.rol === 'pb').marcado !== false, 'la reserva y su PB sí')
+})
 caso('sin texto: sale todo de la doctrina, del calco y del G-2 (y lo avisa)', () => {
   const s = Mo.proponer(ctx({ hoja: {} }))
   assert.ok(s.ok)
@@ -147,7 +156,19 @@ caso('la dirección elegida a mano manda sobre las fichas enemigas', () => {
 console.log('\nPonerla en el calco, moverla, revisarla y llevarla al texto')
 const otroObst = { tipo: 'alambre_simple', estado: 'proyectado', coords: [[-68.5, -18.4], [-68.49, -18.41]] }
 const est0 = { ops: { ...ej.ops, obstaculos: [otroObst] }, plan: { version: 1, medios: {}, blancos: [{ id: 'pf-x', num: 'AB-030', lng: -68.6, lat: -18.6, forma: 'circular', radioM: 100 }] }, marcas: [] }
-const est = Mo.aplicar(est0, r.items)
+// Con los ejes marcados a mano (salen desmarcados), para probar también su congruencia y ③ sacarlos.
+const conEjes = r.items.map((i) => (i.rol === 'eje-ca' || i.rol === 'eje-bloqueo' ? { ...i, marcado: true } : i))
+const est = Mo.aplicar(est0, conEjes)
+caso('③ sacar las flechas de los ejes: quita EJE CA / EJE BLQ de la plantilla y deja lo trazado a mano', () => {
+  const aMano = { coords: [[-68.4, -18.5], [-68.5, -18.45]], nombre: 'EJE CA-9', tipo: 'flecha' }
+  const ops = { ...est.ops, limites: [...est.ops.limites, aMano] }
+  assert.ok(ops.limites.filter(Mo.esEjeDeLaReserva).length >= 2)
+  const q = Mo.quitarEjes({ ops }).ops
+  assert.equal(q.limites.filter(Mo.esEjeDeLaReserva).length, 0)
+  assert.ok(q.limites.includes(aMano), 'el trazado a mano queda')
+  assert.equal(q.limites.length, ops.limites.length - ops.limites.filter(Mo.esEjeDeLaReserva).length)
+  assert.equal(q.obstaculos, ops.obstaculos, 'lo demás no se toca')
+})
 caso('aplicar: va a ops.obstaculos / limites / coordinacion, planFuegos.blancos y las marcas, con `co`; lo de antes queda', () => {
   assert.ok(est.ops.obstaculos.includes(otroObst))
   assert.ok(est.ops.obstaculos.filter(Mo.esDelConcepto).length >= 10)
