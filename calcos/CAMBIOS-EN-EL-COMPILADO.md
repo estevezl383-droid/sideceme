@@ -5,6 +5,43 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-23 (5) — 📏 Magnitudes al 60 % y acostadas, 🎯 tareas sujetas al suelo, fichas que se arrastran en el ⛰️ 3D y 🔥 concentraciones al 60 % (`index-suelo-20261023.js`)
+
+Parte de `index-puntos-chicos-20261023.js` + `pruebas/reemplazos-2026-10-23-suelo.js` (8 reemplazos;
+`construir-suelo.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con capturas del ⛰️ 3D:
+«la magnitud de los límites deben ser reducidos también en un 40 % y además no deben flotar ni cambiar de dirección,
+deben estar alineadas con la línea»; «reduce a un 60 % las concentraciones de artillería»; «cuando estoy moviendo la
+manito… aparece en otro lugar… AO CE-VI, que no aparezca»; «debo poder mover las unidades de azul o sus tareas
+tácticas»; «las tareas tácticas no deben flotar o cambiar de dirección… deben ir sujetas al suelo»; «cuando se le haga
+clic a las concentraciones sólo ahí debe aparecer ese recuadro, más ancho y con letras más pequeñas».
+
+- **En el compilado**: la marca de magnitud (`vY`) al 60 % (el mismo viewBox en un SVG más chico, trazo ×1,3) y el
+  hueco que le deja la línea del límite (`Si`, 17 px) también al 60 %; `vY` devuelve `suelo:!0`. En el espejo del
+  ⛰️ 3D (`yze.reconstruirMarcas`) la marca de la carta 2D con clase `lim-mag` o `sid-suelo` va en un fS.Marker con
+  `rotationAlignment` y `pitchAlignment` «map»: ACOSTADA sobre el terreno y girando con la carta (antes «auto»:
+  parada frente a la cámara, y al girar la vista dejaba de seguir la línea). Igual en la otra vista 3D (`yS`: la
+  magnitud y la tarea). La tarea de 🎯 Tareas lleva la clase `sid-suelo`. Las fichas (`hve`): en el ⛰️ 3D la «Cota»
+  de la barra cambia con cada movimiento del cursor, la carta se vuelve a dibujar y `unidades` llegaba como un arreglo
+  nuevo (se filtra en cada dibujo), así que las fichas se rehacían a cada rato y el arrastre se cortaba (la manito
+  movía la carta y la ficha no se movía); ahora, si las unidades son las mismas, se usa el arreglo anterior. Con eso
+  se arrastran directo, sin doble clic.
+- **Fuera del compilado**: `fuegos/plan-fuegos.js` — la cruz de la concentración de 16 px (antes 26) y su número en
+  letra de 9 px; sus datos ya no salen al pasar el cursor sino en un recuadro al tocarla (`bindPopup`, clase `pf-pop`,
+  340 px de ancho, letra de 11 px; tocar afuera lo cierra; si la carta se rehace queda abierto). `.pf-tt` lleva
+  `width: max-content` (en el 3D los recuadros salían de una palabra por renglón). `concepto-operacion/v1/carta.js` —
+  el efecto de cada zona de obstáculos lleva `sid-suelo`. `superponer/superponer.js` — el polígono de cada AO de un
+  archivo superpuesto ya no tiene recuadro al pasar el cursor (el nombre ya va escrito en su esquina).
+- **Cómo se comprobó**: `e2e/suelo.cjs` (con el compilado anterior y el nuevo: la magnitud al 60 % en 2D; en el 3D
+  con rumbo 70° e inclinación 55° la magnitud y la tarea con `rotateX(55deg) rotateZ(-70deg)`; la concentración de
+  16 px, nada al pasar el cursor, el recuadro al tocarla y cerrado al tocar afuera, en 2D y 3D; en el 3D, con el
+  cursor moviéndose antes, la ficha azul y la tarea se arrastran). Con el compilado anterior la ficha azul NO se movía
+  en el 3D. Además `reemplazos-compilado.js`, `npm test` y las e2e de las tareas, puntos y fichas chicas, el plan de
+  fuegos, el concepto, la edición y deshacer. El 🏙️ Google 3D (Cesium) toma la magnitud al 60 % de la carta 2D; sus
+  marcas siguen como carteles que giran con el rumbo (no acostadas).
+- **Si se recompila desde el fuente**: llevar a `vY` el 60 % y el trazo ×1,3, a `Si` el 0,6, al espejo y a `yS` la
+  alineación «map» de lo que va sobre el suelo, la clase `sid-suelo` a la tarea de la carta 2D, y a `hve` (o a quien
+  le pasa `unidades`) un arreglo estable.
+
 ## 2026-10-23 (4) — ⊗ Puntos de coordinación al 40 %, AIN a la mitad y 🏙️ Google 3D más claro (`index-puntos-chicos-20261023.js`)
 
 Parte de `index-tareas-chicas-20261023.js` + `pruebas/reemplazos-2026-10-23-puntos-chicos.js` (5 reemplazos;

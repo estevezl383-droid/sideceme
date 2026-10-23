@@ -153,7 +153,10 @@ function dibujar() {
   if (ver || ajustando)
     for (const mc of est.marcas) {
       if (!G.valido(mc.centro)) continue
-      L.marker([mc.centro[1], mc.centro[0]], { interactive: false, keyboard: false, zIndexOffset: 700, icon: L.divIcon({ className: 'co-marca', html: marcaHTML(mc), iconSize: [0, 0], iconAnchor: [0, 0] }) }).addTo(g)
+      // El efecto (la tarea táctica de la zona) lleva `sid-suelo`: en el ⛰️ 3D va acostado sobre el terreno y gira con la
+      // carta (Sergio, 23-10-2026: «las tareas tácticas no deben flotar o cambiar de dirección»).
+      const clase = mc.tipo === 'efecto' ? 'co-marca sid-suelo' : 'co-marca'
+      L.marker([mc.centro[1], mc.centro[0]], { interactive: false, keyboard: false, zIndexOffset: 700, icon: L.divIcon({ className: clase, html: marcaHTML(mc), iconSize: [0, 0], iconAnchor: [0, 0] }) }).addTo(g)
     }
   if (ajustando) for (const p of piezas) manijas(L, m, g, p)
   g.addTo(m)

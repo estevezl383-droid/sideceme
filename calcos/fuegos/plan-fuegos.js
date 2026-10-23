@@ -646,6 +646,10 @@ tr.fuera td { color: #b000b0; }
   let modoPedido = false // con el panel montado, la Mesa entra en «modo fuegos»
   let capa = null // capas de Leaflet del plan
   let refs = { blancos: new Map(), anillos: new Map() }
+  // La concentración cuyo recuadro está abierto (se abre sólo al tocarla) y si la carta se está rehaciendo
+  // (al rehacerla el recuadro se cierra y se vuelve a abrir en la marca nueva).
+  let fichaAbierta = null
+  let rehaciendo = false
   let ultimo = null // lo que se calculó en el último dibujo
   let teclado = null
   let cartel = null
@@ -786,16 +790,18 @@ tr.fuera td { color: #b000b0; }
   }
 
   // ─── Carta ───
-  const cruz = (clase) =>
-    `<svg class="${clase}" width="26" height="26" viewBox="0 0 26 26" aria-hidden="true"><path class="pf-halo" d="M13 2V24M2 13H24"/><path class="pf-trazo" d="M13 2V24M2 13H24"/></svg>`
+  const cruz = (clase, tam = 26) =>
+    `<svg class="${clase}" width="${tam}" height="${tam}" viewBox="0 0 26 26" aria-hidden="true"><path class="pf-halo" d="M13 2V24M2 13H24"/><path class="pf-trazo" d="M13 2V24M2 13H24"/></svg>`
 
+  // Al 60 % (antes 26 px; Sergio, 23-10-2026: «reduce a un 60 % las concentraciones de artillería, están muy grandes»).
+  const TAM_CRUZ = Math.round(26 * 0.6)
   function iconoBlanco(b, ev) {
     const L = Lf()
     return L.divIcon({
       className: `pf-marca${ev.fuera ? ' pf-fuera' : ''}${vista.sel === b.id && raiz ? ' pf-sel' : ''}`,
-      html: `${cruz('pf-cruz')}<span class="pf-num">${esc(b.num)}${ev.fuera ? ' ⚠' : ''}</span>`,
-      iconSize: [26, 26],
-      iconAnchor: [13, 13],
+      html: `${cruz('pf-cruz', TAM_CRUZ)}<span class="pf-num">${esc(b.num)}${ev.fuera ? ' ⚠' : ''}</span>`,
+      iconSize: [TAM_CRUZ, TAM_CRUZ],
+      iconAnchor: [TAM_CRUZ / 2, TAM_CRUZ / 2],
     })
   }
 
@@ -866,9 +872,11 @@ tr.fuera td { color: #b000b0; }
 
   function dibujar() {
     if (capa) {
+      rehaciendo = true
       try {
         capa.remove()
       } catch {}
+      rehaciendo = false
       capa = null
     }
     refs = { blancos: new Map(), anillos: new Map() }
@@ -932,7 +940,15 @@ tr.fuera td { color: #b000b0; }
         const ev = evaluar([b.lng, b.lat], d.medios, b.medio)
         const { halo, forma } = dibujarForma(g, b, ev.fuera ? FUCSIA : NEGRO)
         const mk = L.marker([b.lat, b.lng], { draggable: abierta, keyboard: false, zIndexOffset: 1600, icon: iconoBlanco(b, ev) })
-        mk.bindTooltip(tooltipBlanco(b, ev), { direction: 'top', offset: [0, -12], opacity: 0.97 })
+        // Sus datos, en un recuadro que sale SÓLO al tocarla (antes, al pasar el cursor: en el ⛰️ 3D aparecía
+        // al mover la carta) — ancho y con letra chica (Sergio, 23-10-2026).
+        mk.bindPopup(tooltipBlanco(b, ev), { className: 'pf-pop', minWidth: 300, maxWidth: 380, autoPan: false, offset: [0, -4] })
+        mk.on('popupopen', () => {
+          fichaAbierta = b.id
+        })
+        mk.on('popupclose', () => {
+          if (!rehaciendo && fichaAbierta === b.id) fichaAbierta = null
+        })
         mk.on('click', (e) => {
           L.DomEvent.stop(e)
           if (!raiz) return
@@ -972,6 +988,9 @@ tr.fuera td { color: #b000b0; }
 
     g.addTo(m)
     capa = g
+    const conRecuadro = fichaAbierta && refs.blancos.get(fichaAbierta)
+    if (conRecuadro) conRecuadro.mk.openPopup()
+    else fichaAbierta = null
   }
 
   // ─── Panel ───

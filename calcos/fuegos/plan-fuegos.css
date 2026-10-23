@@ -195,16 +195,17 @@
 /* ─── En la carta (2D y espejo 3D) ─── */
 .pf-marca { background: none; border: none; }
 .pf-marca .pf-cruz { position: absolute; left: 0; top: 0; overflow: visible; }
-.pf-marca .pf-halo { stroke: #fff; stroke-width: 6.5; stroke-linecap: square; opacity: 0.9; }
-.pf-marca .pf-trazo { stroke: #000; stroke-width: 2.8; stroke-linecap: square; }
-.pf-marca.pf-fuera .pf-trazo { stroke: #ff00ff; stroke-width: 3.4; }
+.pf-marca .pf-halo { stroke: #fff; stroke-width: 8; stroke-linecap: square; opacity: 0.9; }
+.pf-marca .pf-trazo { stroke: #000; stroke-width: 3.6; stroke-linecap: square; }
+.pf-marca.pf-fuera .pf-trazo { stroke: #ff00ff; stroke-width: 4.2; }
 .pf-marca.pf-sel .pf-halo { stroke: #5ce1ff; }
 .pf-marca .pf-num {
   position: absolute;
-  left: 25px;
-  top: 3px;
+  /* Al 60 % como la cruz (16 px): el número va pegado a su derecha (23-10-2026). */
+  left: 16px;
+  top: 2px;
   white-space: nowrap;
-  font: 800 12px Arial;
+  font: 800 9px/1.2 Arial;
   color: #000;
   text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 2px #fff;
 }
@@ -249,7 +250,10 @@
   text-shadow: 0 0 3px #000, 0 0 3px #000;
   pointer-events: none;
 }
-.pf-tt { font: 12px/1.4 Arial; max-width: 280px; white-space: normal; }
+.pf-tt { font: 12px/1.4 Arial; width: max-content; max-width: 280px; white-space: normal; }
+/* El recuadro de una concentración (sale al tocarla): ancho y con letra chica, también en el ⛰️ 3D. */
+.pf-pop .leaflet-popup-content { margin: 8px 12px; }
+.pf-pop .pf-tt, .m3d-popup .pf-tt { font: 11px/1.35 Arial; width: 340px; max-width: 340px; }
 .pf-tt-fuera { color: #c000c0; font-weight: 700; }
 .pf-cartel {
   position: fixed;
