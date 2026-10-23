@@ -111,8 +111,9 @@
       ;(g.elementos || []).forEach(function (el) {
         var col = el.color || '#4f9cf0'
         if (el.tipo === 'area' && el.coords && el.coords.length > 2) {
-          L.polygon(el.coords, { color: '#000', weight: 3, fillColor: '#000', fillOpacity: rellenoAO(c), opacity: c.opac, interactive: true, pane: 'sidSupArea' })
-            .bindTooltip('<b>' + esc(el.rotulo || '') + '</b>' + (el.sub ? '<br>' + esc(el.sub) : ''), { sticky: true }).addTo(lg)
+          // Sin recuadro al pasar el cursor: el nombre ya va escrito en la esquina, y en el ⛰️ 3D el recuadro «AO …»
+          // aparecía en cualquier lado al mover la carta con la manito (Sergio, 23-10-2026: «que no aparezca»).
+          L.polygon(el.coords, { color: '#000', weight: 3, fillColor: '#000', fillOpacity: rellenoAO(c), opacity: c.opac, interactive: false, pane: 'sidSupArea' }).addTo(lg)
           if (el.frente && el.frente.length > 1) L.polyline(el.frente, { color: '#e0443a', weight: 5, opacity: c.opac, pane: 'sidSupArea', interactive: false }).addTo(lg)
           if (el.rotulo) {
             var b = L.latLngBounds(el.coords)

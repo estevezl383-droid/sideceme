@@ -51,7 +51,9 @@
 //   index-reabastecimiento-20261021.js + reemplazos-2026-10-22-concepto.js = index-concepto-20261022.js
 //   index-concepto-20261022.js + reemplazos-2026-10-22-fichas-chicas.js = index-fichas-chicas-20261022.js
 //   index-fichas-chicas-20261022.js + reemplazos-2026-10-23-google-mapas.js = index-google-mapas-20261023.js
-//   index-google-mapas-20261023.js + reemplazos-2026-10-23-tareas-chicas.js = index-tareas-chicas-20261023.js (el vigente)
+//   index-google-mapas-20261023.js + reemplazos-2026-10-23-tareas-chicas.js = index-tareas-chicas-20261023.js
+//   index-tareas-chicas-20261023.js + reemplazos-2026-10-23-puntos-chicos.js = index-puntos-chicos-20261023.js
+//   index-puntos-chicos-20261023.js + reemplazos-2026-10-23-suelo.js = index-suelo-20261023.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -65,6 +67,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-23-suelo'),
+    nombre: 'reemplazos-2026-10-23-suelo',
+    // calcos/assets/index-puntos-chicos-20261023.js (antes de las magnitudes al 60 %, lo acostado en el 3D y las fichas que no se rehacen).
+    anterior: '2dfcbd19572f92751e6066c832f24b2434a7ab3a3f8ee6ac41b5ec31c95aa5ae',
+  },
   {
     lista: require('./reemplazos-2026-10-23-puntos-chicos'),
     nombre: 'reemplazos-2026-10-23-puntos-chicos',
