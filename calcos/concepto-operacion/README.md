@@ -32,7 +32,11 @@ operación**. Arriba de los nueve campos de siempre (que siguen igual: vista pre
   F3·P3, o el sector que nombra, o la de mayor escalón), el secundario, el **límite entre sectores** con su
   PC, y la **reserva** (la de la F3·P3, la que ubica el texto, o detrás del esfuerzo principal) con sus
   **ejes** (los del texto: «eje Julo – Bella Vista» → EJE CA-1; «bloquear… eje Macaya – Turco» → EJE BLQ-1
-  y PB-1) o un eje de contraataque hacia donde la avenida principal corta la LPR.
+  y PB-1) o un eje de contraataque hacia donde la avenida principal corta la LPR. Las **flechas de los ejes**
+  (EJE CA-n, EJE BLQ-n) salen **desmarcadas** en ② (se marcan si se quieren) y ③ tiene **✕ Sacar las flechas de
+  los ejes de la reserva** para quitar las que ya están en la carta (con ↶ Deshacer; lo trazado a mano no se toca).
+  Sergio, 23-10-2026: «esas líneas llegan en flecha hasta el frente… ya tengo un esquema planificado y
+  elaborado… es demasiado congestionado». El símbolo del efecto de cada zona (bloquear, fijar…) va al 40 %.
 - **Plan de barreras**: una **zona de obstáculos por avenida**, atravesada a la avenida y delante de la LPR
   (la ZO del texto en su lugar: «ZO-1 … Ungallire–Guata»), con su **efecto** (el del texto o bloquear /
   fijar / desviar según el esfuerzo), **campo minado** (AC en el esfuerzo principal, mixto en los demás;

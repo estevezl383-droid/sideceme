@@ -120,7 +120,8 @@ function marcaHTML(m) {
   }
   if (m.tipo === 'reserva') return `<div style="transform:translate(-50%,-50%);background:#fff;color:${AZUL};border:2px dashed ${AZUL};border-radius:14px;padding:2px 9px;font:800 12px/1.3 Arial,Helvetica,sans-serif;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.45)">${esc(m.texto)}</div>`
   if (m.tipo === 'efecto') {
-    const tam = Math.round(42 * (m.escala || 1))
+    // Al 40 % (antes 42 px), como las tareas tácticas de 🎯 Tareas: Sergio, 23-10-2026, «hacelas un 60 % más pequeñas».
+    const tam = Math.round(42 * 0.4 * (m.escala || 1))
     return `<div style="transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:0"><span style="line-height:0;filter:drop-shadow(0 0 2px #fff) drop-shadow(0 0 2px #fff)">${svgTarea(m.tarea, tam, '#0d2a55', m.rot || 0)}</span><span style="font:800 10px/1.1 Arial,Helvetica,sans-serif;color:#0d2a55;text-shadow:0 0 3px #fff,0 0 3px #fff;white-space:nowrap">${esc(m.texto || '')}</span></div>`
   }
   return ''

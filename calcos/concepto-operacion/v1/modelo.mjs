@@ -30,6 +30,10 @@ import * as G from './geo.mjs'
 import { leerConcepto, norm, formaDe, FORMAS } from './lector.mjs'
 import { agruparLugares, lugaresNombrados } from '../../ains-acostar/v1/ains.mjs'
 
+// Los ejes de la reserva salen desmarcados en la propuesta (ver esEjeDeLaReserva).
+const EJES_MARCADOS = false
+const NOTA_EJES = 'Va DESMARCADA: marcala si querés la flecha en la carta.'
+
 export { FORMAS }
 export const DIRECCIONES = [
   { id: 'auto', nom: 'Automático', v: null },
@@ -589,12 +593,12 @@ export function proponer(ctx = {}) {
       const antes = norm(C.reserva.texto.slice(Math.max(0, C.reserva.texto.indexOf(e.texto) - 90), C.reserva.texto.indexOf(e.texto)))
       const bloq = /BLOQUE/.test(antes) && !/CONTRAATAQ/.test(antes)
       const nom = bloq ? `EJE BLQ-${++nBL}` : `EJE CA-${++nCA}`
-      poner({ seccion: 'maniobra', rol: bloq ? 'eje-bloqueo' : 'eje-ca', grupo: nom, titulo: `${nom} (${e.a} – ${e.b})`, capa: 'limites', obj: { coords, nombre: nom, tipo: 'flecha' }, fuente: 'texto', porQue: `Lo nombra el concepto: «${e.texto}».` })
+      poner({ seccion: 'maniobra', rol: bloq ? 'eje-bloqueo' : 'eje-ca', grupo: nom, titulo: `${nom} (${e.a} – ${e.b})`, capa: 'limites', obj: { coords, nombre: nom, tipo: 'flecha' }, marcado: EJES_MARCADOS, fuente: 'texto', porQue: `Lo nombra el concepto: «${e.texto}». ${NOTA_EJES}` })
       if (bloq) poner({ seccion: 'maniobra', rol: 'pb', grupo: nom, titulo: `PB-${nBL} — posición de bloqueo de la reserva`, capa: 'marcas', obj: { tipo: 'efecto', tarea: 'bloquear', texto: `PB-${nBL} (RES)`, centro: coords[coords.length - 1], rot: M.az }, fuente: 'texto', porQue: 'Donde la reserva bloquea si el enemigo irrumpe.' })
     }
     if (!nCA && pfEP) {
       const obj = G.desplazar(pfEP.p, clamp(zr * 0.25, 1, 5), pfEP.az)
-      poner({ seccion: 'maniobra', rol: 'eje-ca', grupo: 'EJE CA-1', titulo: 'EJE CA-1 — contraataque de la reserva', capa: 'limites', obj: { coords: [posRes, obj], nombre: 'EJE CA-1', tipo: 'flecha' }, fuente: 'doctrina', porQue: `Desde la reserva hacia donde la ${pfEP.a.nom} cruza la LPR: es por donde el enemigo intentaría irrumpir.` })
+      poner({ seccion: 'maniobra', rol: 'eje-ca', grupo: 'EJE CA-1', titulo: 'EJE CA-1 — contraataque de la reserva', capa: 'limites', obj: { coords: [posRes, obj], nombre: 'EJE CA-1', tipo: 'flecha' }, marcado: EJES_MARCADOS, fuente: 'doctrina', porQue: `Desde la reserva hacia donde la ${pfEP.a.nom} cruza la LPR: es por donde el enemigo intentaría irrumpir. ${NOTA_EJES}` })
       plan.push({ grupo: 'EJE CA-1', punto: obj, tipo: 'apoyo', efecto: 'neutralizar', ejecucion: 'a_pedido', forma: 'circular', radioM: 300, descripcion: 'Objetivo del contraataque', proposito: 'Apoyar el contraataque de la reserva.', titulo: 'Apoyo al contraataque (EJE CA-1)', porQue: 'Fuego que acompaña a la reserva cuando contraataca.' })
     }
     if (!nBL && pfEP && forma.id !== 'defensa_movil') {
@@ -635,6 +639,15 @@ const cerrar = (anillo) => [...anillo, anillo[0]]
 
 export const CAPAS_OPS = ['limites', 'coordinacion', 'obstaculos']
 export const esDelConcepto = (x) => !!(x && x.co && x.co.id)
+
+// Las flechas de los ejes de la reserva (EJE CA-n, EJE BLQ-n) que puso la plantilla. Sergio (23-10-2026), con la
+// carta del plan de barreras: «esas líneas llegan en flecha hasta el frente… ya tengo un esquema planificado y
+// elaborado… es demasiado congestionado». La plantilla las propone DESMARCADAS (se marcan si se quieren) y
+// ③ «Sacar las flechas de los ejes» quita las que ya están en el calco (las trazadas a mano no se tocan).
+export const esEjeDeLaReserva = (x) => esDelConcepto(x) && (x.co.rol === 'eje-ca' || x.co.rol === 'eje-bloqueo')
+export function quitarEjes({ ops = {} } = {}) {
+  return { ops: { ...ops, limites: (ops.limites || []).filter((l) => !esEjeDeLaReserva(l)) } }
+}
 
 // Saca lo que puso la plantilla antes y pone lo marcado. Devuelve { ops, plan, marcas }.
 export function aplicar({ ops = {}, plan = {}, marcas = [] } = {}, items = [], { reemplazar = true, fuegos = null } = {}) {

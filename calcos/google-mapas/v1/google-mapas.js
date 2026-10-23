@@ -261,7 +261,38 @@
       opRelleno: o.fill ? (o.fillOpacity == null ? 0.2 : Number(o.fillOpacity)) : 0,
     }
   }
-  const anillos = (coords, prof) => (prof === 0 ? coords.map((p) => [redondo(p[0]), redondo(p[1])]) : coords.map((c) => anillos(c, prof - 1)))
+  const anillos = (coords, prof) => (prof === 0 ? simplificar(coords.map((p) => [redondo(p[0]), redondo(p[1])])) : coords.map((c) => anillos(c, prof - 1)))
+
+  // Los caminos, ríos y áreas de los calcos del terreno traen miles de puntos: en el 3D cada tramo es un volumen que
+  // se pinta sobre los tiles de Google, y con todos la navegación se arrastra (Sergio, 23-10-2026: «para navegar está
+  // muy lenta, muy lenta»). Se sacan los puntos que se apartan menos de ~8 m de la línea (Douglas-Peucker); a la vista
+  // no cambia nada. Las líneas cortas pasan como están.
+  const TOLERANCIA_M = 8
+  function simplificar(pts) {
+    if (pts.length <= 12) return pts
+    const kx = 111320 * Math.cos((pts[0][1] * Math.PI) / 180)
+    const ky = 110574
+    const t2 = TOLERANCIA_M * TOLERANCIA_M
+    const queda = new Uint8Array(pts.length)
+    queda[0] = queda[pts.length - 1] = 1
+    const pila = [[0, pts.length - 1]]
+    while (pila.length) {
+      const [a, b] = pila.pop()
+      const ax = pts[a][0] * kx, ay = pts[a][1] * ky
+      const dx = pts[b][0] * kx - ax, dy = pts[b][1] * ky - ay
+      const l2 = dx * dx + dy * dy
+      let peor = -1, dmax = t2
+      for (let i = a + 1; i < b; i++) {
+        const px = pts[i][0] * kx - ax, py = pts[i][1] * ky - ay
+        const u = l2 ? Math.max(0, Math.min(1, (px * dx + py * dy) / l2)) : 0
+        const ex = px - u * dx, ey = py - u * dy
+        const d2 = ex * ex + ey * ey
+        if (d2 > dmax) { dmax = d2; peor = i }
+      }
+      if (peor > 0) { queda[peor] = 1; pila.push([a, peor], [peor, b]) }
+    }
+    return pts.filter((p, i) => queda[i])
+  }
 
   // Un DivIcon de la carta → ficha (si tiene una imagen), flecha (si es sólo un SVG) o rótulo (texto).
   function divIcono(html, ll, tam, calco) {
@@ -359,10 +390,17 @@
     document.head.appendChild(st)
   }
 
-  function enviarCalco() {
+  // La carta 2D vuelve a dibujar sus capas cada vez que cambia algo del ejercicio (y al guardar): si el calco es el
+  // mismo, el 3D no lo rehace (rehacerlo traba la navegación unos segundos). `forzar`: cuando el 3D lo pide.
+  function enviarCalco(forzar) {
     if (!g3d || !g3d.marco.contentWindow) return
     try {
-      g3d.marco.contentWindow.postMessage({ sid3d: 'calco', calco: calcoDeLaCarta() }, destino())
+      const calco = calcoDeLaCarta()
+      const firma = JSON.stringify(calco)
+      if (!forzar && firma === g3d.firma) return
+      g3d.firma = firma
+      g3d.enviados = (g3d.enviados || 0) + 1
+      g3d.marco.contentWindow.postMessage({ sid3d: 'calco', calco }, destino())
     } catch (e) {
       console.info('[Google 3D] no se pudo mandar el calco:', e && e.message)
     }
@@ -394,7 +432,7 @@
   // 🏙️ Google 3D sobre la carta, donde se está mirando y con el calco.
   function abrir3D() {
     const v = vista || { lat: -16.5, lng: -68.15, zoom: 12 }
-    if (g3d) return enviarCalco()
+    if (g3d) return enviarCalco(true)
     const mapa = window.__mapa2d
     const contenedor = mapa && mapa.getContainer && mapa.getContainer() && mapa.getContainer().parentElement
     if (!contenedor) return abrirPestana3D(v)
@@ -418,14 +456,14 @@
     const g = (g3d = { caja, marco, base: '' })
     g.alMensaje = (e) => {
       if (!g3d || e.source !== marco.contentWindow || !e.data) return
-      if (e.data.sid3d === 'listo' || e.data.sid3d === 'pedirCalco') enviarCalco()
+      if (e.data.sid3d === 'listo' || e.data.sid3d === 'pedirCalco') enviarCalco(true)
       else if (e.data.sid3d === 'cerrar') cerrar3D()
     }
     window.addEventListener('message', g.alMensaje)
     // Lo que se prende, apaga o se vuelve a dibujar en la carta llega al 3D.
     g.alCapa = () => {
       clearTimeout(g.espera)
-      g.espera = setTimeout(enviarCalco, 700)
+      g.espera = setTimeout(() => enviarCalco(false), 700)
     }
     if (mapa.on) mapa.on('layeradd layerremove', g.alCapa)
     // El selector muestra «🏙️ 3D realista» mientras se ve el 3D (React lo vuelve a poner en el mapa base en cada
@@ -446,5 +484,5 @@
     document.addEventListener('click', g.alClic, true)
   }
 
-  window.SIDGoogle = { CLAVE, TIPOS, leaflet, maplibre, opciones, seguir, abrir3D, cerrar3D, calcoDeLaCarta, esGoogle, vista: () => vista, abierto3D: () => !!g3d }
+  window.SIDGoogle = { CLAVE, TIPOS, leaflet, maplibre, opciones, seguir, abrir3D, cerrar3D, calcoDeLaCarta, esGoogle, vista: () => vista, abierto3D: () => !!g3d, enviados3D: () => (g3d ? g3d.enviados || 0 : 0) }
 })()

@@ -26,6 +26,15 @@ selector (angosto, para que la barra siga en una fila; la lista abierta es más 
   base en el selector o 🗺️ 2D / ⛰️ 3D. Lo que se prende o apaga en la carta llega solo al 3D.
   Antes (hasta el 23-10-2026) se abría en otra pestaña sin lo trazado: Sergio, en la F3·P4 de un ejercicio, «se
   sale de la imagen y se abre otra aparte… no muestra la plantilla».
+- En la barra del 🏙️ 3D: **⛰️ Relieve ×** (de ×1 a ×5, arranca en ×2; como el «Relieve ×» del ⛰️ 3D de la Mesa)
+  estira el relieve de Google en la vertical, relativo a la cota del lugar mirado (el centro no se mueve); se
+  activa cuando se conoce esa cota. **⚡ Detalle**: alto (lo de Cesium), normal (por defecto, más liviano) o
+  fluido (para computadoras lentas). Las dos cosas quedan para la próxima vez (`localStorage`:
+  `sid-g3d-relieve`, `sid-g3d-detalle`). Sergio, 23-10-2026: «para navegar está muy lenta, muy lenta… ¿se le puede
+  dar la misma opción para aumentar el relieve?».
+- Para que se navegue más fluido: el 3D dibuja sólo cuando algo cambia (`requestRenderMode`), las líneas y áreas
+  del calco llegan simplificadas (se sacan los puntos a menos de ~8 m de la línea) y, si la carta 2D vuelve a
+  dibujar lo mismo (pasa al guardar o con cada cambio del ejercicio), el calco no se rehace.
 - Si Google no entrega el 3D (cupo, clave, red), el calco igual se ve, sobre el satélite de Esri (sin relieve),
   con un aviso.
 - Abajo al centro de la carta quedan «Google» y la atribución de las imágenes del lugar (lo exige Google).
@@ -58,7 +67,9 @@ selector (angosto, para que la barra siga en una fila; la lista abierta es más 
 
 ## Pruebas
 
-`node calcos/pruebas/e2e/google-mapas.cjs` (Google simulado, no gasta la clave). Con
+`node calcos/pruebas/e2e/google-mapas.cjs` (Google simulado, no gasta la clave) y
+`node calcos/pruebas/e2e/google-3d-relieve.cjs` (⛰️ Relieve × y ⚡ Detalle sobre un volcán sintético servido como
+si fuera el 3D de Google; necesita `CESIUM_DIR`). Con
 `CESIUM_DIR=…/package/Build/Cesium` (de `npm pack cesium@1.145.0`) también prueba el visor 3D con el calco (con el
 3D de Google rechazado, sobre Esri, y con un tileset vacío). Lo que no se puede probar sin la clave real es cómo se
 ven áreas y líneas pintadas sobre los tiles de Google: mirarlo a mano en github.io.
