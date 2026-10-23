@@ -49,7 +49,8 @@
 //   index-disgregar-20261020.js + reemplazos-2026-10-21-ain-chico.js = index-ain-chico-20261021.js
 //   index-ain-chico-20261021.js + reemplazos-2026-10-21-reabastecimiento.js = index-reabastecimiento-20261021.js
 //   index-reabastecimiento-20261021.js + reemplazos-2026-10-22-concepto.js = index-concepto-20261022.js
-//   index-concepto-20261022.js + reemplazos-2026-10-22-fichas-chicas.js = index-fichas-chicas-20261022.js (el vigente)
+//   index-concepto-20261022.js + reemplazos-2026-10-22-fichas-chicas.js = index-fichas-chicas-20261022.js
+//   index-fichas-chicas-20261022.js + reemplazos-2026-10-23-google-mapas.js = index-google-mapas-20261023.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -63,6 +64,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-23-google-mapas'),
+    nombre: 'reemplazos-2026-10-23-google-mapas',
+    // calcos/assets/index-fichas-chicas-20261022.js (antes de las imágenes de Google).
+    anterior: '96263b390efe7f2eddae7fe651bf94882d6bfdd30fefc3563ed73f433bc7ac3f',
+  },
   {
     lista: require('./reemplazos-2026-10-22-fichas-chicas'),
     nombre: 'reemplazos-2026-10-22-fichas-chicas',

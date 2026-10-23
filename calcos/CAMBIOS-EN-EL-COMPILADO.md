@@ -5,6 +5,35 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-23 — 🛰️ Imágenes de Google en la carta 2D, en el ⛰️ 3D y 🏙️ Google 3D (`index-google-mapas-20261023.js`)
+
+Parte de `index-fichas-chicas-20261022.js` + `pruebas/reemplazos-2026-10-23-google-mapas.js` (6 reemplazos;
+`construir-google-mapas.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio, que vio la app de
+un alumno con el mapa de Google: «quiero usar esas imágenes… estoy dispuesto a pagar por la API… las quiero en 3D y
+2D con relieve, para realizar mis ejercicios académicos». Sacó la clave de la Map Tiles API (proyecto CIDECEME).
+
+- **En el compilado**: la carta 2D (`ZK`, Leaflet) y la del ⛰️ 3D (`ON`, MapLibre, al crearla y al cambiar de base)
+  toman el mapa base de `SIDGoogle.leaflet(id)` / `SIDGoogle.maplibre(id)` cuando es de Google (`gsat`, `ghib`,
+  `gter`); la carta 2D (en el `addInitHook` que pone `__mapa2d`) y la 3D (junto a `__map3d`) se le pasan a
+  `SIDGoogle.seguir`; en la barra de la carta (`Aze`) el botón Satélite/Mapa pasa a ser un selector
+  (`select.sid-base`, grupos Google y Esri/OSM de `SIDGoogle.opciones()`, 76 px de ancho para que la barra siga en
+  una fila a 1440 px) cuya opción `g3d` (🏙️ 3D realista) abre `SIDGoogle.abrir3D` sin cambiar el mapa base. Sin
+  `window.SIDGoogle` todo queda como antes.
+- **Fuera del compilado** (`calcos/google-mapas/v1`, ver su README): las sesiones de la Map Tiles API (una por
+  tipo, guardadas ~2 semanas), «Google» y la atribución del lugar (viewport) abajo al centro de la carta, la vuelta
+  a Esri si Google deja de dar tiles, y `3d.html` (Photorealistic 3D Tiles con CesiumJS 1.145.0 de jsDelivr).
+- **Cómo se comprobó**: `e2e/google-mapas.cjs` (Google simulado: las tres sesiones, el selector, los tiles en 2D y
+  en 3D, la atribución sin paneles encima, la vuelta a Esri con el aviso, 🏙️ Google 3D en el lugar mirado con
+  CesiumJS local, la barra en una fila), `reemplazos-compilado.js`, `npm test` y las e2e de las fichas chicas, el
+  concepto, deshacer, la edición y el aviso de versión. `e2e/plan-barreras-3d.js` («puntos tapados por la
+  interfaz») y 2 casos de `e2e/trazos.cjs` (doble toque del dedo en el Área de Operaciones) fallan IGUAL con
+  `index-fichas-chicas-20261022.js`: no son de este cambio. Con un botón 🏙️ aparte la barra pasaba a dos filas y
+  `e2e/edicion.cjs` fallaba (el clic caía en la barra): por eso el 3D va dentro del selector. La clave real se probó a mano: crea las
+  sesiones (satélite, con nombres, relieve), da tiles con CORS para github.io, responde el 3D y, sin el sitio de
+  Sergio como referente, Google la rechaza (403).
+- **Si se recompila desde el fuente**: llevar a `ZK`/`ON` la consulta a `SIDGoogle`, las dos llamadas a
+  `SIDGoogle.seguir` y el selector (con su opción 🏙️ 3D realista) de `Aze`.
+
 ## 2026-10-22 (2) — 🔹 Las fichas al 40 % y con fondo blanco: unidades, PC e instalaciones (`index-fichas-chicas-20261022.js`)
 
 Parte de `index-concepto-20261022.js` + `pruebas/reemplazos-2026-10-22-fichas-chicas.js` (9 reemplazos;
