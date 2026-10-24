@@ -5,6 +5,32 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-24 — ⭐ Los puntos de decisión de la F4·P4 en la carta y 🌱 la hoja sembrada desde las A.I.N. (`index-puntos-decision-20261024.js`)
+
+Parte de `index-editar-tareas-20261023.js` + `pruebas/reemplazos-2026-10-24-puntos-decision.js` (4 reemplazos;
+`construir-puntos-decision.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con la F4·P4
+«Eventos críticos y puntos de decisión»: «🌱 Traer del calco lo que falte» le decía «Todavía no hay nada en el calco
+para sembrar esta hoja» con la carta llena (la hoja se sembraba SÓLO con las fases del C.A. propio y él tiene
+cargadas las del enemigo); la llenó con la IA y pidió «que lo pongas en la maqueta para identificar… no quiero que
+pongas más texto».
+
+- **Fuera del compilado**: `puntos-decision/v1/` (ver su README) — cada renglón de `g3.eventos` que nombra una A.I.N.
+  de `ops.ains` va como una ⭐ con su número al lado de la A.I.N. (en `window.__mapa2d`; el ⛰️ 3D la copia); tocarla
+  muestra ventana, evento, criterio y decisión; se arrastra (`g3.pdCarta.pos`) y «↺ Volver junto a su A.I.N.» la
+  devuelve; se esconde con «Ver A.I.N.».
+- **En el compilado**: el import de `../puntos-decision/v1/carta.js`; un `useEffect` junto al de `SIDCOSync` que le
+  pasa `ops`, `g3`, si se ven las A.I.N. (`ai.ains`) y `setG3` (nulo con `ll` o `Bn`: no se arrastra donde no se puede
+  editar); en `l3e` el caso `"eventos"` siembra además un renglón por cada A.I.N. sin P.D. (ventana e indicador),
+  numerado después de los que hay (la 🤖 IA recibe la misma semilla); y el aviso de «nada para sembrar» de esta hoja
+  dice de dónde se siembra.
+- **Cómo se comprobó**: `puntos-decision.mjs` (las seis filas reales de la IA: las seis estrellas, las tres de la
+  AIN-3 en fila, el arrastre, sin A.I.N. no se dibuja; `l3e` con y sin fases propias, sin repetir A.I.N.) y
+  `e2e/puntos-decision.cjs` (en la Mesa: seis estrellas, el recuadro, arrastrar y volver, «Ver A.I.N.», 🌱 agrega el
+  P.D. 7 de la AIN-4 y aparece en la carta, el aviso nuevo, el ⛰️ 3D, sin errores de consola). Además
+  `reemplazos-compilado.js`, `npm test` y las e2e del concepto, las A.I.N., editar tareas, deshacer, carga y suelo.
+- **Si se recompila desde el fuente**: llevar el import y el `useEffect` de `SIDPDSync`, el caso `"eventos"` de `l3e`
+  y el aviso de la hoja `eventos`.
+
 ## 2026-10-23 (6) — 🎯 Editar las tareas tácticas ya puestas: agrandar, achicar, girar y cambiarlas por otra (`index-editar-tareas-20261023.js`)
 
 Parte de `index-suelo-20261023.js` + `pruebas/reemplazos-2026-10-23-editar-tareas.js` (4 reemplazos;
