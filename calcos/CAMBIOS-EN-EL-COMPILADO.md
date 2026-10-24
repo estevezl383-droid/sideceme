@@ -5,6 +5,25 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-24 (6) — 🧩 La respuesta de la IA de los dos CAP se lee aunque venga con errores (`index-json-ia-20261024.js`)
+
+Parte de `index-fuegos-fase-20261024.js` + `pruebas/reemplazos-2026-10-24-json-ia.js` (1 reemplazo;
+`construir-json-ia.js`; `reemplazos-compilado.js` lo deshace byte por byte). Sergio pegó la respuesta de la IA en
+«🤖 La IA desarrolla los dos CAP EN LA CARTA» y la Mesa le dijo «No se reconoció la respuesta»: el JSON de las IA trae a
+menudo errores que `JSON.parse` no acepta.
+
+- **Fuera del compilado**: `cap-propios/v1/json-tolerante.mjs` — prueba cada bloque ```json, cada objeto balanceado y
+  el texto entero, tal cual, reparado (comillas rectas dentro de un texto, comas de más, comentarios, saltos de línea
+  crudos, comillas tipográficas, espacios duros) y cerrado (la respuesta cortada); si no puede, dice dónde se rompe.
+  `carta-ia.mjs` lo usa y acepta los dos CAP en dos bloques o como «CAP 1» / «CAP 2»; avisa si venía cortada.
+  `panel.js` carga `carta-ia.mjs?v=json20261024`.
+- **En el compilado**: la carga del panel con versión (`panel.js?v=json20261024`), para que el navegador no use el de
+  antes.
+- **Cómo se comprobó**: `json-tolerante.mjs` (cada error típico, la respuesta de ejemplo rota colocada igual, los dos
+  CAP en dos bloques, cortada a mitad del CAP 2) y `e2e/cap-carta.cjs` (en la Mesa, ahora con una respuesta con
+  comillas rectas adentro, una coma de más y un comentario). Además `reemplazos-compilado.js`, `npm test` y las e2e de
+  los CAP, los fuegos por fase y el aviso de versión.
+
 ## 2026-10-24 (5) — 🔥 Los fuegos por fase y 📝 el texto de la F3·P6 desde la carta (`index-fuegos-fase-20261024.js`)
 
 Parte de `index-cap-carta-20261024.js` + `pruebas/reemplazos-2026-10-24-fuegos-fase.js` (4 reemplazos;

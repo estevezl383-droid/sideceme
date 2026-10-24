@@ -63,7 +63,11 @@ async function esperar(page, leer, cumple, ms = 10000) {
     await foto('1-pedido')
 
     // ── Pegar la respuesta y aplicar ──
-    await panel.locator('textarea[placeholder="Pegá acá la respuesta completa de la IA…"]').fill(RESPUESTA_TEXTO)
+    // Como la que pegó Sergio: con los errores de siempre de las IA (comillas rectas dentro de un texto, una coma de más
+    // y un comentario). La Mesa la tiene que leer igual.
+    const ROTA = RESPUESTA_TEXTO.replace('"forma": "movil",', '"forma": "movil", // la "móvil"').replace('"Defiende."', '"Defiende "de área"."').replace(/\]\n(\s*)\}/, '],\n$1}')
+    assert.notEqual(ROTA, RESPUESTA_TEXTO)
+    await panel.locator('textarea[placeholder="Pegá acá la respuesta completa de la IA…"]').fill(ROTA)
     await clic(panel.getByRole('button', { name: '✓ Aplicar' }))
     await panel.getByText(/🗺️ CAP 1: 5 fases · CAP 2: 5 fases en la carta/).waitFor({ timeout: 8000 })
     await panel.getByText(/No se pudo: CAP 1 · fase 2: la unidad «DIV-7» no está en las fichas; CAP 2 · fase 3: «Cerro Comanchi»/).waitFor({ timeout: 5000 })
@@ -77,7 +81,7 @@ async function esperar(page, leer, cumple, ms = 10000) {
     assert.deepEqual([u1.lng, u1.lat], [-68.3, -18.5])
     const g3 = await esperar(page, leerG3, (g) => g._caps?.guardados?.[2]?.fases?.length === 5)
     assert.equal(g3._caps.guardados[2].fases.length, 5, 'el CAP 2 quedó guardado')
-    assert.equal(g3.coa.QUÉ, 'Defiende. [IA — verificar]', 'la F3·P6 del CAP 1')
+    assert.equal(g3.coa.QUÉ, 'Defiende "de área". [IA — verificar]', 'la F3·P6 del CAP 1 (con las comillas de adentro)')
     assert.match(g3.coa['Razón fundamental (por qué este CAP)'], /^CAP 1: SIRVE/)
     await foto('2-aplicado')
 

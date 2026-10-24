@@ -98,7 +98,7 @@ await caso('la F3·P6 de cada CAP y el juicio en «Razón fundamental»', () => 
 })
 
 await caso('respuestas que no sirven', () => {
-  assert.match(C.leerRespuesta('No puedo hacer eso.', CTX).error, /No se reconoció la respuesta/)
+  assert.match(C.leerRespuesta('No puedo hacer eso.', CTX).error, /No se pudo leer la respuesta de la IA\. No se encontró un JSON/)
   assert.match(C.leerRespuesta('```json\n{"juicio":"x"}\n```', CTX).error, /no trae «caps»/)
   assert.match(C.leerRespuesta('{"caps":[{"cap":1,"fases":[]}]}', CTX).error, /sin «fases»/)
   // Sin bloque ```json, el JSON suelto también se lee.

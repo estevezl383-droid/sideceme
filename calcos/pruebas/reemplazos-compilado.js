@@ -59,7 +59,8 @@
 //   index-puntos-decision-20261024.js + reemplazos-2026-10-24-cae-enemigo.js = index-cae-enemigo-20261024.js
 //   index-cae-enemigo-20261024.js + reemplazos-2026-10-24-cap-propios.js = index-cap-propios-20261024.js
 //   index-cap-propios-20261024.js + reemplazos-2026-10-24-cap-carta.js = index-cap-carta-20261024.js
-//   index-cap-carta-20261024.js + reemplazos-2026-10-24-fuegos-fase.js = index-fuegos-fase-20261024.js (el vigente)
+//   index-cap-carta-20261024.js + reemplazos-2026-10-24-fuegos-fase.js = index-fuegos-fase-20261024.js
+//   index-fuegos-fase-20261024.js + reemplazos-2026-10-24-json-ia.js = index-json-ia-20261024.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -73,6 +74,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-24-json-ia'),
+    nombre: 'reemplazos-2026-10-24-json-ia',
+    // calcos/assets/index-fuegos-fase-20261024.js (antes de la versión en la carga del panel de los CAP).
+    anterior: '9672bb8a67ec6e25337e568efc8c53a290baac093673f3c1dcf03f793d35280c',
+  },
   {
     lista: require('./reemplazos-2026-10-24-fuegos-fase'),
     nombre: 'reemplazos-2026-10-24-fuegos-fase',
