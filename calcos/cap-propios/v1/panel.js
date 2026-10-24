@@ -2,7 +2,9 @@
 // G-3, y los botones «CAP 1 / CAP 2» del 🎬 C.A. por fases. La lógica está en proponer.mjs; acá sólo se dibuja.
 // JavaScript sin compilar: React llega por configurarCAP() (lo llama el compilado antes del primer render).
 import { proponer, capsDe, fasesPorCAP, llevarAHoja, FORMAS } from './proponer.mjs'
+import { pedido, HOJAS_POR_CAP } from './proponer.mjs'
 import { pedidoCarta, leerRespuesta } from './carta-ia.mjs'
+import { textoDeLaCarta, hojaConCarta, bloqueCartaIA, nomenclatorDe } from './texto-carta.mjs'
 import { datosPuente } from '../../concepto-operacion/v1/carta.js'
 
 let R = {}
@@ -42,6 +44,42 @@ function lugaresDeLaCarta() {
     return datosPuente().lugares?.() || []
   } catch {
     return []
+  }
+}
+
+// Los catálogos de la Mesa: tareas tácticas y obstáculos (configurarCAP) y los del plan de fuegos (window.MesaFuegos).
+function catalogos() {
+  const F = (typeof window !== 'undefined' && window.MesaFuegos && window.MesaFuegos.modelo) || {}
+  return { tareas: R.tareas || [], obstaculos: R.obstaculos || {}, tiposFuego: F.TIPOS_FUEGO || [], efectos: F.EFECTOS || [] }
+}
+const planDeLaCarta = () => {
+  try {
+    return datosPuente().plan || null
+  } catch {
+    return null
+  }
+}
+// Cómo se escribe la F3·P6 desde la carta (para la acción «texto» de la Mesa).
+function escritor(ctx) {
+  const nomenclator = nomenclatorDe({ ...ctx, lugares: lugaresDeLaCarta() })
+  return { campos: (fases) => textoDeLaCarta(fases, { nomenclator, catalogos: catalogos() }).campos, conBloques: (v, c) => hojaConCarta(v, c).valor }
+}
+// El pedido de la IA de la F3·P4 y la F3·P6 (lo usa el compilado): la propuesta de los dos CAP (proponer.mjs) y lo que
+// ya está en la carta del CAP activo, antes de «# CÓMO CONTESTAR».
+export function pedidoCAP(r, hoja, ctx = {}) {
+  if (r && typeof r.then === 'function') return r.then((x) => pedidoCAP(x, hoja, ctx))
+  const p = pedido(r, hoja, ctx)
+  try {
+    if (!HOJAS_POR_CAP.includes(hoja?.id) || !p?.ok || typeof p.prompt !== 'string') return p
+    const fases = ctx.fasesCOA?.propio || []
+    if (!fases.length) return p
+    const b = bloqueCartaIA(fases, { nomenclator: nomenclatorDe({ ...ctx, lugares: lugaresDeLaCarta() }), catalogos: catalogos() }, capsDe(ctx.g3).activo)
+    if (!b) return p
+    const marca = '\n\n---\n\n# CÓMO CONTESTAR'
+    const i = p.prompt.lastIndexOf(marca)
+    return { ...p, prompt: i >= 0 ? `${p.prompt.slice(0, i)}\n\n---\n\n${b}${p.prompt.slice(i)}` : `${p.prompt}\n\n---\n\n${b}` }
+  } catch {
+    return p
   }
 }
 
@@ -92,6 +130,7 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
     abierto && P.caps.map(tarjeta),
     abierto && h('div', { style: { display: 'flex', flexDirection: 'column', gap: 5 } },
       hoja?.id === 'coa' && h('button', { style: E.btn, onClick: llevar }, `🌱 Llevar el CAP ${activo.n} a esta hoja (sólo las casillas vacías)`),
+      hoja?.id === 'coa' && h('button', { style: E.btn, 'data-cap-texto': '1', onClick: () => (setMsg(''), onAccion?.('texto', escritor(ctx))) }, '📝 Llevar la carta a la F3·P6 de los dos CAP (lo que quedó en las fases 🔵: unidades, tareas, obstáculos y fuegos)'),
       h('button', { style: E.btn, onClick: () => (setMsg(''), onAccion?.('fases', { cap: activo, formas })) }, `🎬 Armar las ${activo.fases.length} fases 🔵 del CAP ${activo.n} (con el dispositivo de ahora; después movés las fichas)`)),
     msg && h('div', { style: E.ok }, msg),
     // 🤖 La IA desarrolla los dos CAP y la Mesa los pone en la carta (la caja de la IA de la Mesa: copiar, abrir en
@@ -99,14 +138,14 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
     abierto && R.CajaIA && h(R.CajaIA, {
       key: 'ia-carta',
       titulo: '🤖 La IA desarrolla los dos CAP EN LA CARTA',
-      nota: 'Le manda el expediente, esta propuesta y las piezas de la carta (las unidades, los lugares, las tareas tácticas y los obstáculos). Al pegar su respuesta, la Mesa arma las fases 🔵 de los DOS CAP: mueve cada unidad al lugar que dijo, pone las tareas tácticas y los obstáculos, y llena la F3·P6 de cada uno (sólo lo vacío). Después vos lo corregís en la carta.',
+      nota: 'Le manda el expediente, esta propuesta y las piezas de la carta (las unidades, los lugares, las tareas tácticas, los obstáculos y los fuegos). Al pegar su respuesta, la Mesa arma las fases 🔵 de los DOS CAP: mueve cada unidad al lugar que dijo, pone las tareas tácticas, los obstáculos y los fuegos de cada fase, y llena la F3·P6 de cada uno (sólo lo vacío). Después vos lo corregís en la carta.',
       color: AZUL,
       onPedido: async () => {
         const e = await onExpediente?.()
-        return pedidoCarta({ ctx, P, activo: C.activo, expediente: e?.md || '', lugares: lugaresDeLaCarta(), tareas: R.tareas || [], obstaculos: R.obstaculos || {} })
+        return pedidoCarta({ ctx, P, activo: C.activo, expediente: e?.md || '', lugares: lugaresDeLaCarta(), ...catalogos() })
       },
       onAplicar: (texto) => {
-        const r = leerRespuesta(texto, { ...ctx, lugares: lugaresDeLaCarta(), tareas: R.tareas || [], obstaculos: R.obstaculos || {} })
+        const r = leerRespuesta(texto, { ...ctx, lugares: lugaresDeLaCarta(), plan: planDeLaCarta(), ...catalogos() })
         if (!r.ok) return { ok: false, error: r.error }
         if (onAccion?.('colocar', { resultado: r }) === false) return { ok: false, error: 'No se colocó nada (se canceló, o la BASE está con candado).' }
         const f = r.faltan.length ? ` ⚠️ No se pudo: ${r.faltan.slice(0, 6).join('; ')}${r.faltan.length > 6 ? `; y ${r.faltan.length - 6} más` : ''}.` : ''
