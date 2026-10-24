@@ -85,6 +85,30 @@ async function esperar(page, leer, cumple, ms = 10000) {
     assert.match(g3.coa['Razón fundamental (por qué este CAP)'], /^CAP 1: SIRVE/)
     await foto('2-aplicado')
 
+    // ── Los botones FASE I, II… de cada CAP en el panel ──
+    const fases1 = panel.locator('[data-fases-cap="1"] button')
+    assert.equal(await fases1.count(), 5, 'el CAP 1 con sus cinco fases')
+    assert.match(await fases1.nth(3).innerText(), /^FASE IV · Conducción de la defensa/)
+    await clic(fases1.nth(3))
+    const u4p = await esperar(page, (p) => leerUnidad(p, 'divmec2'), (u) => u.lng === -68.97)
+    assert.deepEqual([u4p.lng, u4p.lat], [-68.97, -18.49], 'CAP 1 · FASE IV: la DIV MEC-2 en Guata')
+    await esperar(page, async () => (await panel.locator('[data-fases-cap="1"] button[data-fase="4"]').evaluate((b) => getComputedStyle(b).color)) || '', (c) => c === 'rgb(255, 255, 255)')
+    // Una fase del CAP guardado: cambia al CAP 2 y la muestra.
+    await clic(panel.locator('[data-fases-cap="2"] button[data-fase="1"]'))
+    const g3c2 = await esperar(page, leerG3, (g) => g._caps?.activo === 2)
+    assert.equal(g3c2._caps.activo, 2, 'pasó al CAP 2')
+    const u1c2 = await esperar(page, (p) => leerUnidad(p, 'divmec2'), (u) => u.lng === -68.68)
+    assert.deepEqual([u1c2.lng, u1c2.lat], [-68.68, -18.47], 'CAP 2 · FASE I: la DIV MEC-2 en Macaya')
+    await page.evaluate(() => window.__mapa2d.fitBounds([[-18.9, -69.4], [-18.2, -68.2]]))
+    await panel.locator('[data-tarjeta-cap="2"]').scrollIntoViewIfNeeded()
+    await page.waitForTimeout(500)
+    await foto('2b-cap2-fase1')
+    // De vuelta al CAP 1, FASE I (para lo que sigue).
+    await clic(panel.locator('[data-fases-cap="1"] button[data-fase="1"]'))
+    await esperar(page, leerG3, (g) => g._caps?.activo === 1)
+    const u1c1 = await esperar(page, (p) => leerUnidad(p, 'divmec2'), (u) => u.lng === -68.3)
+    assert.deepEqual([u1c1.lng, u1c1.lat], [-68.3, -18.5], 'CAP 1 · FASE I: la DIV MEC-2 en Turco')
+
     // ── La FASE 4 del CAP 1 en el 🎬 C.A. por fases: la DIV MEC-2 en Guata y las dos tareas ──
     await clic(page.getByRole('button', { name: /← Volver a mis documentos/ }).first()).catch(() => {})
     await clic(page.getByRole('button', { name: /C\.A\. POR FASES/i }).first())

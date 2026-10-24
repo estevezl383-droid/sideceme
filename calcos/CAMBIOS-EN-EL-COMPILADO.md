@@ -5,6 +5,24 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-24 (7) — 🎬 Los botones FASE I, II… de cada CAP en el panel de la F3·P6 (`index-fases-cap-20261024.js`)
+
+Parte de `index-json-ia-20261024.js` + `pruebas/reemplazos-2026-10-24-fases-cap.js` (3 reemplazos;
+`construir-fases-cap.js`; `reemplazos-compilado.js` lo deshace byte por byte). Sergio, con el panel de los dos CAP: «CAP 1
+fase I se le da clic y se ven las fichas donde están, se le da clic fase 2 aparecen donde deberían estar… así como
+muestra en la del enemigo».
+
+- **Fuera del compilado**: `cap-propios/v1/panel.js` — en cada CAP, un botón por cada fase que ya está en la carta
+  (del activo, `fasesCOA.propio`; del guardado, `g3._caps.guardados`), con la que está a la vista en azul;
+  `proponer.mjs` — la acción «fase» (la del activo se toca; la del guardado primero cambia de CAP y, después de
+  dibujar, se toca; con candado sólo se mira el activo).
+- **En el compilado**: `SIDcapAcc` recibe `activarFase` (la función de tocar una fase del 🎬 C.A. por fases, por su
+  referencia `Mc`, que siempre tiene la última); el panel recibe la fase a la vista (`faseActiva`); `panel.js?v=fases20261024`.
+- **Cómo se comprobó**: `cap-propios.mjs` (la acción «fase» con el CAP activo, con el guardado y con candado) y
+  `e2e/cap-carta.cjs` (en la Mesa: el CAP 1 con cinco botones, FASE IV pone la DIV MEC-2 en Guata y se marca; FASE I del
+  CAP 2 cambia de CAP y la pone en Macaya; de vuelta al CAP 1). Además `reemplazos-compilado.js`, `npm test` y las e2e
+  de los CAP, los fuegos por fase y deshacer.
+
 ## 2026-10-24 (6) — 🧩 La respuesta de la IA de los dos CAP se lee aunque venga con errores (`index-json-ia-20261024.js`)
 
 Parte de `index-fuegos-fase-20261024.js` + `pruebas/reemplazos-2026-10-24-json-ia.js` (1 reemplazo;

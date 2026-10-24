@@ -107,6 +107,28 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
       `${c.n === C.activo ? '● ' : ''}CAP ${c.n} · ${c.nomForma}`,
       h('div', { style: { fontWeight: 400, fontSize: 10.5, marginTop: 2 } }, `${nf[c.n] || 0} fase(s) 🔵${c.n === C.activo ? ' · el que estás trabajando' : ' · guardado'}`))
 
+  // Las fases de cada CAP que ya están en la carta: las del activo (fasesCOA.propio) y las del guardado.
+  const ROM = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
+  const corto = (t) => {
+    const x = String(t).trim()
+    return x.length <= 28 ? x : `${x.slice(0, 28).replace(/\s+\S*$/, '')}…`
+  }
+  const fasesDe = (n) => (n === C.activo ? ctx.fasesCOA?.propio : C.guardados[n]?.fases) || []
+  const enVista = (n, i) => n === C.activo && ctx.faseActiva?.bando === 'propio' && ctx.faseActiva?.idx === i
+  const botonesFase = (c) => {
+    const fs = fasesDe(c.n)
+    if (!fs.length) return h('div', { style: E.fases }, '🎬 Todavía sin fases en la carta: tocá «🎬 Armar las fases» o pedíselas a la IA (abajo).')
+    return h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 4 }, 'data-fases-cap': c.n },
+      fs.map((f, i) =>
+        h('button', {
+          key: i,
+          'data-fase': i + 1,
+          title: `${f.nombre || `Fase ${i + 1}`}${f.origen ? ` · ${f.origen}` : ''} — tocala y la carta muestra dónde está cada ficha`,
+          style: { ...E.btn, padding: '4px 8px', fontSize: 11.5, fontWeight: 700, background: enVista(c.n, i) ? AZUL : 'rgba(90,169,255,0.12)', color: enVista(c.n, i) ? '#fff' : '#dff0ff' },
+          onClick: () => (setMsg(''), onAccion?.('fase', { n: c.n, idx: i, formas })),
+        }, `FASE ${ROM[i] || i + 1}${f.nombre ? ` · ${corto(f.nombre)}` : ''}`)))
+  }
+
   const tarjeta = (c) =>
     h('div', { key: c.n, style: E.tarjeta(c.n === C.activo), 'data-tarjeta-cap': c.n },
       h('div', { style: { display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' } },
@@ -115,7 +137,8 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
           FORMAS[P.tipo].map((f) => h('option', { key: f.id, value: f.id }, f.larga)))),
       c.roles.map((r, i) => h('div', { key: i, style: E.rol }, h('b', null, `${r.principal ? '★ ' : ''}${r.rol}: `), `${r.unidades.map((u) => u.nom).join(', ')} — ${r.tarea}.`)),
       h('div', { style: E.dist }, `🗺️ En la carta: ${c.distingue}.`),
-      h('div', { style: E.fases }, `🎬 ${c.fases.map((f, i) => `${i + 1}. ${f.nombre} (${f.cuando})`).join(' · ')}`))
+      h('div', { style: E.fases }, `🎬 ${c.fases.map((f, i) => `${i + 1}. ${f.nombre} (${f.cuando})`).join(' · ')}`),
+      botonesFase(c))
 
   const llevar = () => {
     const r = llevarAHoja(valor, activo)
