@@ -78,6 +78,16 @@ async function esperar(page, leer, cumple, ms = 10000) {
     assert.deepEqual(fc.propio[3].unidades.find((u) => u.id === 'divmec2'), { id: 'divmec2', tarea: 'Detener al enemigo en la AA-1', principal: true })
     await panel.getByText('5 fase(s) 🔵 · el que estás trabajando').waitFor({ timeout: 5000 })
     await foto('2-cap1-fases')
+    // Cada fase con su dispositivo: en la FASE I la DIV MEC-2 junto al CE-I (-68.40, -18.55); en la III, en su lugar.
+    const posU = (page, id) => estadoReact(page, new Function('v', `return Array.isArray(v) && v.some((u) => u && u.id === 'divmec2' && u.bando) ? (() => { const u = v.find((x) => x.id === '${id}'); return [u.lng, u.lat] })() : undefined`))
+    const km = (a, b) => Math.hypot((a[0] - b[0]) * 105.6, (a[1] - b[1]) * 110.6)
+    assert.equal(await panel.locator('[data-quietas]').count(), 0, 'las fases ya no están quietas')
+    await clic(panel.locator('[data-fases-cap="1"] button[data-fase="1"]'))
+    const p1 = await esperar(page, (p) => posU(p, 'divmec2'), (q) => km(q, [-68.4, -18.55]) <= 6.1)
+    assert.ok(km(p1, [-68.4, -18.55]) <= 6.1, `FASE I: junto al CE (${p1})`)
+    await clic(panel.locator('[data-fases-cap="1"] button[data-fase="3"]'))
+    const p3 = await esperar(page, (p) => posU(p, 'divmec2'), (q) => km(q, p1) > 5)
+    assert.ok(km(p3, p1) > 5, `FASE III: se movió a su sector (${p1} → ${p3})`)
 
     // ── CAP 2: lo del CAP 1 queda guardado ──
     await clic(panel.locator('button[data-cap="2"]'))

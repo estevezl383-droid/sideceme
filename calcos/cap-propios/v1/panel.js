@@ -1,12 +1,13 @@
 // 💡 El panel «La Mesa propone 2 CAP para este ejercicio», arriba de la F3·P6 (y de la F3·P4) en el Tablero del
 // G-3, y los botones «CAP 1 / CAP 2» del 🎬 C.A. por fases. La lógica está en proponer.mjs; acá sólo se dibuja.
 // JavaScript sin compilar: React llega por configurarCAP() (lo llama el compilado antes del primer render).
-import { proponer, capsDe, fasesPorCAP, llevarAHoja, FORMAS } from './proponer.mjs'
-import { pedido, HOJAS_POR_CAP } from './proponer.mjs'
-// Con versión: la lectura tolerante del JSON (json-tolerante.mjs, 24-10-2026) tiene que llegar aunque el navegador
-// tenga guardada la carta-ia.mjs de antes.
-import { pedidoCarta, leerRespuesta } from './carta-ia.mjs?v=json20261024'
+import { proponer, capsDe, fasesPorCAP, llevarAHoja, FORMAS, armarCAP } from './proponer.mjs?v=pos20261024'
+import { pedido, HOJAS_POR_CAP } from './proponer.mjs?v=pos20261024'
+// Con versión: lo nuevo (la lectura tolerante del JSON, las posiciones por fase) tiene que llegar aunque el navegador
+// tenga guardados los archivos de antes.
+import { pedidoCarta, leerRespuesta } from './carta-ia.mjs?v=pos20261024'
 import { textoDeLaCarta, hojaConCarta, bloqueCartaIA, nomenclatorDe } from './texto-carta.mjs'
+import { posicionesCAP } from './posiciones.mjs?v=pos20261024'
 import { datosPuente } from '../../concepto-operacion/v1/carta.js'
 
 let R = {}
@@ -115,10 +116,19 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
   }
   const fasesDe = (n) => (n === C.activo ? ctx.fasesCOA?.propio : C.guardados[n]?.fases) || []
   const enVista = (n, i) => n === C.activo && ctx.faseActiva?.bando === 'propio' && ctx.faseActiva?.idx === i
+  // ¿Las fases tienen las fichas propias en el mismo lugar? (las que se armaron antes copiando el dispositivo)
+  const quietas = (fs) => {
+    if (fs.length < 2) return false
+    const clave = (f) => (f?.unidades || []).filter((u) => !/^enemig/i.test(String(u?.bando || ''))).map((u) => `${u.id}:${(+u.lng).toFixed(4)},${(+u.lat).toFixed(4)}`).sort().join('|')
+    const k0 = clave(fs[0])
+    return fs.every((f) => clave(f) === k0)
+  }
   const botonesFase = (c) => {
     const fs = fasesDe(c.n)
     if (!fs.length) return h('div', { style: E.fases }, '🎬 Todavía sin fases en la carta: tocá «🎬 Armar las fases» o pedíselas a la IA (abajo).')
-    return h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 4 }, 'data-fases-cap': c.n },
+    return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
+      quietas(fs) && h('div', { style: E.aviso, 'data-quietas': c.n }, `⚠️ En las ${fs.length} fases del CAP ${c.n} las fichas están en el MISMO lugar (se armaron copiando el dispositivo). ${c.n === C.activo ? 'Tocá «🎬 Armar las fases» de nuevo' : `Pasá al CAP ${c.n} y tocá «🎬 Armar las fases»`}: ahora la Mesa ubica cada unidad en cada fase (o movelas a mano fase por fase).`),
+      h('div', { style: { display: 'flex', flexWrap: 'wrap', gap: 4 }, 'data-fases-cap': c.n },
       fs.map((f, i) =>
         h('button', {
           key: i,
@@ -126,7 +136,7 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
           title: `${f.nombre || `Fase ${i + 1}`}${f.origen ? ` · ${f.origen}` : ''} — tocala y la carta muestra dónde está cada ficha`,
           style: { ...E.btn, padding: '4px 8px', fontSize: 11.5, fontWeight: 700, background: enVista(c.n, i) ? AZUL : 'rgba(90,169,255,0.12)', color: enVista(c.n, i) ? '#fff' : '#dff0ff' },
           onClick: () => (setMsg(''), onAccion?.('fase', { n: c.n, idx: i, formas })),
-        }, `FASE ${ROM[i] || i + 1}${f.nombre ? ` · ${corto(f.nombre)}` : ''}`)))
+        }, `FASE ${ROM[i] || i + 1}${f.nombre ? ` · ${corto(f.nombre)}` : ''}`))))
   }
 
   const tarjeta = (c) =>
@@ -156,7 +166,7 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
     abierto && h('div', { style: { display: 'flex', flexDirection: 'column', gap: 5 } },
       hoja?.id === 'coa' && h('button', { style: E.btn, onClick: llevar }, `🌱 Llevar el CAP ${activo.n} a esta hoja (sólo las casillas vacías)`),
       hoja?.id === 'coa' && h('button', { style: E.btn, 'data-cap-texto': '1', onClick: () => (setMsg(''), onAccion?.('texto', escritor(ctx))) }, '📝 Llevar la carta a la F3·P6 de los dos CAP (lo que quedó en las fases 🔵: unidades, tareas, obstáculos y fuegos)'),
-      h('button', { style: E.btn, onClick: () => (setMsg(''), onAccion?.('fases', { cap: activo, formas })) }, `🎬 Armar las ${activo.fases.length} fases 🔵 del CAP ${activo.n} (con el dispositivo de ahora; después movés las fichas)`)),
+      h('button', { style: E.btn, onClick: () => (setMsg(''), onAccion?.('fases', { cap: activo, formas, posiciones: (us, ops) => posicionesCAP(activo, { unidades: us, ops, marcas: ctx.g3?.conceptoCarta?.marcas || [], A: P.A }) })) }, `🎬 Armar las ${activo.fases.length} fases 🔵 del CAP ${activo.n} (con el dispositivo de ahora; después movés las fichas)`)),
     msg && h('div', { style: E.ok }, msg),
     // 🤖 La IA desarrolla los dos CAP y la Mesa los pone en la carta (la caja de la IA de la Mesa: copiar, abrir en
     // Claude / ChatGPT / Gemini, pegar la respuesta y ✓ Aplicar).
@@ -170,7 +180,10 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
         return pedidoCarta({ ctx, P, activo: C.activo, expediente: e?.md || '', lugares: lugaresDeLaCarta(), ...catalogos() })
       },
       onAplicar: (texto) => {
-        const r = leerRespuesta(texto, { ...ctx, lugares: lugaresDeLaCarta(), plan: planDeLaCarta(), ...catalogos() })
+        // Si la IA nombra un lugar que no está en la carta, la unidad va donde la pone la Mesa en esa fase.
+        const mesaPos = {}
+        for (const c of P.caps) mesaPos[c.n] = (forma) => posicionesCAP(forma && forma !== c.forma ? armarCAP(c.n, forma, P.A) : c, { unidades: ctx.unidades || [], ops: ctx.ops || {}, marcas: ctx.g3?.conceptoCarta?.marcas || [], A: P.A })
+        const r = leerRespuesta(texto, { ...ctx, lugares: lugaresDeLaCarta(), plan: planDeLaCarta(), mesaPos, ...catalogos() })
         if (!r.ok) return { ok: false, error: r.error }
         if (onAccion?.('colocar', { resultado: r }) === false) return { ok: false, error: 'No se colocó nada (se canceló, o la BASE está con candado).' }
         const f = r.faltan.length ? ` ⚠️ No se pudo: ${r.faltan.slice(0, 6).join('; ')}${r.faltan.length > 6 ? `; y ${r.faltan.length - 6} más` : ''}.` : ''

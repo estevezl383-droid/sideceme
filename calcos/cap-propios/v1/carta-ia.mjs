@@ -253,6 +253,13 @@ export function leerRespuesta(texto, ctx = {}) {
     let unidades = base.map((u) => ({ ...u }))
     let obsAcum = []
     let nAB = maxAB
+    // Dónde pone la Mesa cada unidad en cada fase (posiciones.mjs), para cuando el lugar de la IA no está en la carta.
+    let mesa = null
+    try {
+      mesa = typeof ctx.mesaPos?.[n] === 'function' ? ctx.mesaPos[n](String(c?.forma || '')) : ctx.mesaPos?.[n] || null
+    } catch {
+      mesa = null
+    }
     const ubicar = (lugar, cercaDe) => {
       const s = String(lugar ?? '').trim()
       if (!s) return null
@@ -261,6 +268,8 @@ export function leerRespuesta(texto, ctx = {}) {
     }
     const fases = (Array.isArray(c?.fases) ? c.fases : []).map((f, i) => {
       const etiqueta = `CAP ${n} · fase ${i + 1}`
+      // En la FASE I, las unidades que la IA no nombra arrancan donde las pone la Mesa (concentradas junto al PC).
+      if (i === 0 && mesa?.[0]) unidades = unidades.map((v) => (mesa[0][v.id] ? { ...v, lng: mesa[0][v.id][0], lat: mesa[0][v.id][1] } : v))
       // Las unidades que se mueven o cambian de tarea.
       for (const x of Array.isArray(f?.unidades) ? f.unidades : []) {
         const u = fichaDe(x?.unidad, pz.propias)
@@ -268,8 +277,12 @@ export function leerRespuesta(texto, ctx = {}) {
           if (x?.unidad) faltan.push(`${etiqueta}: la unidad «${limpio(x.unidad)}» no está en las fichas`)
           continue
         }
-        const p = ubicar(x?.lugar, [+u.lng, +u.lat])
-        if (x?.lugar && !p) faltan.push(`${etiqueta}: «${limpio(x.lugar)}» (${u.designacion}) no está en la carta; quedó donde estaba`)
+        let p = ubicar(x?.lugar, [+u.lng, +u.lat])
+        if (x?.lugar && !p) {
+          const m = mesa?.[i]?.[u.id]
+          if (m) p = m
+          faltan.push(`${etiqueta}: «${limpio(x.lugar)}» (${u.designacion}) no está en la carta; ${m ? 'quedó donde la pone la Mesa en esa fase' : 'quedó donde estaba'}`)
+        }
         unidades = unidades.map((v) => (v.id !== u.id ? v : { ...v, ...(p ? { lng: p[0], lat: p[1] } : {}), tarea: limpio(x?.tarea) || v.tarea || '', proposito: limpio(x?.proposito) || v.proposito || '' }))
       }
       // Las tareas tácticas de la fase (sólo de esa fase) y los obstáculos (se acumulan: lo construido queda).

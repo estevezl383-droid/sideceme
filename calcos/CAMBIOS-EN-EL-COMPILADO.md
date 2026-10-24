@@ -5,6 +5,27 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-24 (8) — 📍 Cada fase de un CAP con su dispositivo (`index-posiciones-fase-20261024.js`)
+
+Parte de `index-fases-cap-20261024.js` + `pruebas/reemplazos-2026-10-24-posiciones-fase.js` (2 reemplazos;
+`construir-posiciones-fase.js`; `reemplazos-compilado.js` lo deshace byte por byte). Sergio tocaba FASE I… V: «no se ve
+ninguna diferencia ni el cambio de posición de las fichas… se supone que en la fase I todos están donde está el CE y de
+ahí se disgregan». «🎬 Armar las fases» copiaba el dispositivo de ese momento en las cinco fases.
+
+- **Fuera del compilado**: `cap-propios/v1/posiciones.mjs` — dónde va cada unidad en cada fase con lo que hay en la
+  carta (el PC del CE; la LPR, la LDE-1 y el EJE CA de `ops.limites`; las marcas de la F3·P4 en `g3.conceptoCarta`):
+  FASE I junto al PC, II a mitad de camino, III en su lugar, IV y V según la forma. `proponer.mjs`: `armarFases` con
+  posiciones; los roles toman las marcas «RES · …» y «ESFUERZO PRINCIPAL · …»; la LF se lee también del nombre de la
+  línea. `carta-ia.mjs`: el lugar que no está en la carta y la FASE I de las unidades que la IA no nombra, donde las
+  pone la Mesa. `panel.js`: el aviso de las fases «quietas» y los imports con versión.
+- **En el compilado**: `panel.js?v=pos20261024` y `proponer.mjs?v=pos20261024` (para que el navegador no use los de
+  antes).
+- **Cómo se comprobó**: `cap-posiciones.mjs` (las referencias; FASE I junto al CE; CAP 1 en sus marcas y la reserva al
+  final del EJE CA-1; CAP 2 el retardo sobre la LDE-1 y la masa entre la LDE-1 y la LPR; armar; sin LPR; la IA) y
+  `e2e/posiciones-fase.cjs` (en la Mesa: el aviso de las fases quietas; FASE I, III y V del CAP 1; FASE III del CAP 2;
+  sin errores de consola). Además `reemplazos-compilado.js`, `npm test` y las e2e de los CAP, la carta, los fuegos por
+  fase y deshacer.
+
 ## 2026-10-24 (7) — 🎬 Los botones FASE I, II… de cada CAP en el panel de la F3·P6 (`index-fases-cap-20261024.js`)
 
 Parte de `index-json-ia-20261024.js` + `pruebas/reemplazos-2026-10-24-fases-cap.js` (3 reemplazos;

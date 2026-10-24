@@ -61,7 +61,8 @@
 //   index-cap-propios-20261024.js + reemplazos-2026-10-24-cap-carta.js = index-cap-carta-20261024.js
 //   index-cap-carta-20261024.js + reemplazos-2026-10-24-fuegos-fase.js = index-fuegos-fase-20261024.js
 //   index-fuegos-fase-20261024.js + reemplazos-2026-10-24-json-ia.js = index-json-ia-20261024.js
-//   index-json-ia-20261024.js + reemplazos-2026-10-24-fases-cap.js = index-fases-cap-20261024.js (el vigente)
+//   index-json-ia-20261024.js + reemplazos-2026-10-24-fases-cap.js = index-fases-cap-20261024.js
+//   index-fases-cap-20261024.js + reemplazos-2026-10-24-posiciones-fase.js = index-posiciones-fase-20261024.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -75,6 +76,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-24-posiciones-fase'),
+    nombre: 'reemplazos-2026-10-24-posiciones-fase',
+    // calcos/assets/index-fases-cap-20261024.js (antes de las posiciones por fase de los CAP).
+    anterior: '27edd4decd859be07826cc309be9fd7b0efddfe9a498e38c79debb5a6ee0be2a',
+  },
   {
     lista: require('./reemplazos-2026-10-24-fases-cap'),
     nombre: 'reemplazos-2026-10-24-fases-cap',

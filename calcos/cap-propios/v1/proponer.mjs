@@ -111,16 +111,26 @@ export function analizar({ unidades = [], ops = {}, cmoc = {}, ordenSup = {}, un
     .map((a, i) => ({ nombre: String(a.nombre || `AA-${i + 1}`), escalon: a.escalon || '', coords: a.coords.filter(valido), i }))
     .sort((a, b) => rango(b.escalon) - rango(a.escalon) || a.i - b.i)
 
-  // La reserva: la unidad de maniobra más lejos del frente (con tres o más; con dos, ninguna queda atrás).
+  // Lo que ya decidió la F3·P4 en la carta manda: «RES · DIV-6», «ESFUERZO PRINCIPAL · DIV MEC-2», «ESFUERZO
+  // SECUNDARIO · DIV-1» (si no, se deduce de dónde están: con una fase a la vista, las fichas están en otro lado).
+  const marcas = (g3?.conceptoCarta?.marcas || []).filter((m) => m && m.texto)
+  const nombrada = (f) => {
+    const m = marcas.find(f)
+    return m ? maniobra.find((u) => norm(m.texto).includes(norm(nom(u)))) || null : null
+  }
+  const resMarca = nombrada((m) => m.tipo === 'reserva')
+  const ppalMarca = nombrada((m) => m.tipo === 'esfuerzo' && m.clase === 'principal')
+  // La reserva: la de la marca, o la unidad de maniobra más lejos del frente (con tres o más; con dos, ninguna atrás).
   const conPos = maniobra.filter((u) => pos(u))
   const porFondo = conPos.slice().sort((a, b) => refFrente(pos(b)) - refFrente(pos(a)))
-  const reserva = maniobra.length >= 3 && porFondo.length ? porFondo[0] : null
+  const reserva = resMarca || (maniobra.length >= 3 && porFondo.length ? porFondo[0] : null)
   const adelante = maniobra.filter((u) => u !== reserva)
-  // A qué avenida mira cada unidad de adelante (la más cercana).
-  const cercaDe = (av) => adelante.filter((u) => pos(u)).sort((a, b) => aLinea(pos(a), av.coords) - aLinea(pos(b), av.coords))[0] || null
+  // A qué avenida mira cada unidad de adelante (la más cercana); la principal, la de la marca del esfuerzo principal.
+  const cercaDe = (av, { principal = false } = {}) => (principal && ppalMarca && adelante.includes(ppalMarca) ? ppalMarca : adelante.filter((u) => pos(u)).sort((a, b) => aLinea(pos(a), av.coords) - aLinea(pos(b), av.coords))[0] || null)
 
   // Las líneas y la hora que nombran la Orden y los documentos del G-3 («LF «PUMA»», «LDE-1», «D (0400)»).
-  const T = [...textos(ordenSup), ...textos(g3?.concepto), ...textos(g3?.coa)].join('\n')
+  // (también los nombres de las líneas de la carta: «LPR (LF «PUMA»)», «LDE-1»… aunque la F3·P4 de este CAP esté vacía)
+  const T = [...textos(ordenSup), ...textos(g3?.concepto), ...textos(g3?.coa), ...(ops?.limites || []).map((l) => String(l?.nombre || ''))].join('\n')
   const lf = (T.match(/\bLF\s*[«"“]\s*([^»"”]{2,30}?)\s*[»"”]/) || [])[1]
   const lpr = lf ? `la LPR en la LF «${lf}»` : 'la LPR'
   const ldes = [...new Set(T.match(/\bLDE-\d+\b/g) || [])].sort()
@@ -173,7 +183,7 @@ function roles(forma, A) {
   const avNom = (av) => (av ? av.nombre : 'la avenida principal')
   const ld1 = A.ldes[0] ? `la ${A.ldes[0]}` : 'la línea de seguridad'
   const conAv = forma === 'area_alterna' && av2 ? av2 : av1
-  const ppal = (conAv && A.cercaDe(conAv)) || A.adelante[0] || null
+  const ppal = (conAv && A.cercaDe(conAv, { principal: forma !== 'area_alterna' })) || A.adelante[0] || null
   const resto = (x) => A.adelante.filter((u) => u !== x)
   const R = []
   const art = A.apoyo.filter((u) => ['artilleria', 'lanzacohetes', 'morteros'].includes(u.arma))
@@ -394,16 +404,20 @@ export function llevarAHoja(valor = {}, cap) {
 }
 // Las cinco fases 🔵 del CAP con el dispositivo de ahora (cada ficha queda donde está: se mueve a mano en cada
 // fase); cada unidad con rol lleva su tarea y su propósito de esa fase, y la del esfuerzo principal, la ★.
-export function armarFases(cap, { unidades = [], ops = {} } = {}) {
+// `posiciones` (posiciones.mjs): [{ id: [lng, lat] }, …] por fase — dónde va cada unidad en cada fase (sin ellas, cada
+// ficha queda donde está).
+export function armarFases(cap, { unidades = [], ops = {}, posiciones = null } = {}) {
   const principal = new Set((cap?.roles || []).filter((r) => r.principal).flatMap((r) => r.unidades.map((u) => u.id)))
-  return (cap?.fases || []).map((f) => ({
+  return (cap?.fases || []).map((f, i) => ({
     nombre: f.nombre,
     tarea: f.tarea,
     proposito: f.proposito,
     origen: `Mesa · CAP ${cap.n} · ${f.cuando}`,
     unidades: (unidades || []).map((u) => {
       const p = f.porUnidad?.[u.id]
-      return p ? { ...u, tarea: p.tarea, proposito: p.proposito || u.proposito || '', principal: principal.has(u.id) || undefined } : u
+      const donde = posiciones?.[i]?.[u.id]
+      const v = donde ? { ...u, lng: donde[0], lat: donde[1] } : u
+      return p ? { ...v, tarea: p.tarea, proposito: p.proposito || u.proposito || '', principal: principal.has(u.id) || undefined } : v
     }),
     ops: ops || {},
     desplazamientos: [],
@@ -473,7 +487,7 @@ export function accion(que, d = {}, M = {}) {
       return true
     }
     if (que === 'fases') {
-      const fases = armarFases(d.cap, { unidades: (M.unidades || []).filter((u) => u && u.deFaseEnemiga == null), ops: M.ops || {} })
+      const fases = armarFases(d.cap, { unidades: (M.unidades || []).filter((u) => u && u.deFaseEnemiga == null), ops: M.ops || {}, posiciones: typeof d.posiciones === 'function' ? d.posiciones(M.unidades || [], M.ops || {}) : d.posiciones })
       if (!fases.length) return false
       const ya = (M.fasesCOA?.propio || []).length
       const confirmar = M.confirmar || ((t) => (typeof window !== 'undefined' ? window.confirm(t) : true))
@@ -484,7 +498,7 @@ export function accion(que, d = {}, M = {}) {
         if (g !== M.g3) M.setG3?.(g)
       }
       mostrarFase0(fases, M)
-      M.aviso?.(`🎬 ${fases.length} fases 🔵 del CAP ${d.cap.n}, con la tarea de cada unidad. Ahora, fase por fase, mové las fichas a donde van: la Mesa no inventa los lugares.`)
+      M.aviso?.(`🎬 ${fases.length} fases 🔵 del CAP ${d.cap.n}: cada unidad en su lugar de cada fase (concentración junto al PC y después a su sector, según lo que hay en la carta) con su tarea. Tocá FASE I… V para verlas y corregí las fichas a mano.`)
       return true
     }
     if (que === 'texto') {
