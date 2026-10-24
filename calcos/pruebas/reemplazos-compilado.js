@@ -54,7 +54,8 @@
 //   index-google-mapas-20261023.js + reemplazos-2026-10-23-tareas-chicas.js = index-tareas-chicas-20261023.js
 //   index-tareas-chicas-20261023.js + reemplazos-2026-10-23-puntos-chicos.js = index-puntos-chicos-20261023.js
 //   index-puntos-chicos-20261023.js + reemplazos-2026-10-23-suelo.js = index-suelo-20261023.js
-//   index-suelo-20261023.js + reemplazos-2026-10-23-editar-tareas.js = index-editar-tareas-20261023.js (el vigente)
+//   index-suelo-20261023.js + reemplazos-2026-10-23-editar-tareas.js = index-editar-tareas-20261023.js
+//   index-editar-tareas-20261023.js + reemplazos-2026-10-24-puntos-decision.js = index-puntos-decision-20261024.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -68,6 +69,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-24-puntos-decision'),
+    nombre: 'reemplazos-2026-10-24-puntos-decision',
+    // calcos/assets/index-editar-tareas-20261023.js (antes de los puntos de decisión de la F4·P4 en la carta).
+    anterior: '8eefa352f3fb3b32ff6cc6ed328f7b50b427953dc78885786a49465960a0143b',
+  },
   {
     lista: require('./reemplazos-2026-10-23-editar-tareas'),
     nombre: 'reemplazos-2026-10-23-editar-tareas',
