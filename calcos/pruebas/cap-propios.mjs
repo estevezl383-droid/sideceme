@@ -201,4 +201,32 @@ await caso('los botones de la Mesa: cambiar, la forma, armar las fases, con cand
   assert.equal(llamadas.length, 0)
 })
 
+await caso('🎬 ver una fase de un CAP: la del activo se toca; la del guardado cambia de CAP y después se toca', async () => {
+  const tocadas = []
+  const ll = []
+  const M = {
+    fasesCOA: { propio: [{ nombre: 'F1 CAP 1' }], enemigo: [] },
+    g3: { _caps: { activo: 1, guardados: { 2: { fases: [{ nombre: 'F1 CAP 2' }, { nombre: 'F2 CAP 2' }] } } } },
+    flush: (fc) => fc,
+    setFases: (v) => ll.push(['fases', v]),
+    setG3: (v) => ll.push(['g3', v]),
+    setActiva: () => {},
+    aviso: () => {},
+    activarFase: (b, i) => tocadas.push([b, i]),
+  }
+  assert.ok(P.accion('fase', { n: 1, idx: 0 }, M))
+  assert.deepEqual(tocadas, [['propio', 0]])
+  assert.equal(ll.length, 0, 'el mismo CAP: no cambia nada más')
+  assert.ok(P.accion('fase', { n: 2, idx: 1 }, M))
+  assert.equal(ll.find((x) => x[0] === 'g3')[1]._caps.activo, 2, 'cambió al CAP 2')
+  assert.equal(ll.find((x) => x[0] === 'fases')[1].propio[1].nombre, 'F2 CAP 2')
+  await new Promise((r) => setTimeout(r, 200))
+  assert.deepEqual(tocadas, [['propio', 0], ['propio', 1]], 'después de dibujar, la FASE 2 del CAP 2')
+  // Con candado: se puede MIRAR una fase del CAP activo, no cambiar de CAP.
+  tocadas.length = 0
+  assert.ok(P.accion('fase', { n: 1, idx: 0 }, { ...M, bloqueado: true }))
+  assert.equal(P.accion('fase', { n: 2, idx: 0 }, { ...M, bloqueado: true, avisoBloqueo: () => {} }), false)
+  assert.deepEqual(tocadas, [['propio', 0]])
+})
+
 console.log(`cap-propios: ${n} casos ✔`)

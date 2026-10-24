@@ -442,6 +442,21 @@ export function accion(que, d = {}, M = {}) {
       M.setG3?.(conForma(M.g3, d.n, d.forma))
       return true
     }
+    // 🎬 Ver una fase de un CAP en la carta (los botones FASE I, II… de cada CAP en el panel). Del CAP activo, como
+    // tocarla en el 🎬 C.A. por fases (M.activarFase = la función de la Mesa); del guardado, primero se cambia de CAP y,
+    // cuando la Mesa ya lo tiene (después de dibujar), se toca la fase.
+    if (que === 'fase') {
+      const C = capsDe(M.g3)
+      if (d.n === C.activo) {
+        M.activarFase?.('propio', d.idx)
+        return true
+      }
+      if (!accion('cambiar', { n: d.n, formas: d.formas }, M)) return false
+      const tocar = () => M.activarFase?.('propio', d.idx)
+      if (typeof setTimeout === 'function') setTimeout(tocar, 120)
+      else tocar()
+      return true
+    }
     if (M.bloqueado) {
       M.avisoBloqueo?.()
       return false

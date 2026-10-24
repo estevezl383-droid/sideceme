@@ -27,6 +27,10 @@ construir la aplicación».
   Mesa las busca siempre (por eso los documentos, el Word, la OPORD y el Juego de Guerra siguen funcionando con «el»
   CAP activo); el otro queda **guardado tal cual** y vuelve al elegirlo. También se cambia desde el
   **🎬 C.A. por fases** (los botones debajo de «🔵 Curso de acción PROPIO»).
+- **FASE I, II, III…** en cada CAP (24-10-2026, Sergio: «CAP 1 fase I se le da clic y se ven las fichas donde están…
+  así como muestra en la del enemigo»): tocar una fase la pone en la carta, como en el 🎬 C.A. por fases (cada ficha
+  donde está en esa fase, sus tareas, obstáculos y fuegos); la que está a la vista se marca en azul. Si la fase es del
+  CAP guardado, la Mesa primero cambia de CAP. Un CAP sin fases todavía dice cómo armarlas.
 - **🌱 Llevar el CAP a esta hoja** (F3·P6): llena SÓLO las casillas vacías, marcadas «[Mesa — verificar]».
 - **🎬 Armar las 5 fases 🔵 del CAP**: cinco fases con el dispositivo de ahora; cada unidad lleva su tarea y su
   propósito de esa fase, y la del esfuerzo principal, la ★. **La Mesa no inventa lugares**: fase por fase se mueven
