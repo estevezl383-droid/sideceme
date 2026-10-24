@@ -14,6 +14,7 @@
 import { ubicador } from '../../concepto-operacion/v1/modelo.mjs'
 import { agruparLugares } from '../../ains-acostar/v1/ains.mjs'
 import { analizar, bloqueIA } from './proponer.mjs'
+import { leerJSON } from './json-tolerante.mjs'
 
 const sinTildes = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '')
 const norm = (s) => sinTildes(s).toUpperCase().replace(/[^A-Z0-9ª]+/g, ' ').trim()
@@ -176,21 +177,24 @@ Tiene que poder leerse con JSON.parse: sin comentarios y sin texto alrededor. «
 }
 
 // ─── Leer la respuesta ─────────────────────────────────────────────────────────────────────────────────────
-function jsonDe(texto) {
-  const t = String(texto || '')
-  const cands = []
-  const m = t.match(/```(?:json)?\s*([\s\S]*?)```/i)
-  if (m) cands.push(m[1])
-  const i = t.indexOf('{')
-  const j = t.lastIndexOf('}')
-  if (i >= 0 && j > i) cands.push(t.slice(i, j + 1))
-  for (const c of cands) {
-    try {
-      return JSON.parse(c)
-    } catch {}
+// La lista de los CAP, venga como venga: { caps: [...] }, una lista, { "CAP 1": {...}, "CAP 2": {...} }, { cap1, cap2 },
+// o los dos CAP en dos bloques ```json separados (cada uno con sus «fases»).
+const tieneFases = (x) => x && typeof x === 'object' && Array.isArray(x.fases)
+function capsDe(v, todos = []) {
+  if (Array.isArray(v?.caps)) return v.caps
+  if (Array.isArray(v) && v.some(tieneFases)) return v
+  if (v && typeof v === 'object') {
+    const ks = Object.keys(v).filter((k) => /^cap[\s_-]*\d$/i.test(k.trim()) && tieneFases(v[k]))
+    if (ks.length) return ks.sort().map((k) => ({ cap: Number(k.match(/\d/)[0]), ...v[k] }))
+    if (tieneFases(v)) {
+      const otros = todos.map((r) => r.valor).filter(tieneFases)
+      return otros.length ? otros : [v]
+    }
   }
   return null
 }
+const conCaps = (v) => !!capsDe(v)
+
 // La ficha que nombra la IA: igual, sin puntos ni guiones, o contenida («DIV MEC-2» ↔ «DIV.MEC.-2 (FICT.)»).
 function fichaDe(nombre, propias) {
   const n = norm(nombre).replace(/ /g, '')
@@ -218,10 +222,11 @@ function obstaculoEn(tipo, p, q, cat, azEnemigo) {
 // texto: la respuesta de la IA. ctx: { unidades, ops, cmoc, lugares, tareas (catálogo), obstaculos (catálogo) }.
 // Devuelve { ok, caps: { 1: { forma, nombre, fases, f3p6 }, 2: … }, juicio, faltan: [...], resumen } o { ok:false, error }.
 export function leerRespuesta(texto, ctx = {}) {
-  const g = jsonDe(texto)
-  if (!g || typeof g !== 'object') return { ok: false, error: 'No se reconoció la respuesta: tiene que traer el bloque ```json con «caps». Pegá la respuesta COMPLETA de la IA.' }
-  const lista = Array.isArray(g.caps) ? g.caps : Array.isArray(g) ? g : g.cap1 || g.CAP1 ? [g.cap1 || g.CAP1, g.cap2 || g.CAP2].filter(Boolean) : null
-  if (!lista || !lista.length) return { ok: false, error: 'La respuesta no trae «caps» (la lista de los dos cursos de acción con sus fases).' }
+  const L = leerJSON(texto, conCaps)
+  if (!L.ok) return { ok: false, error: `No se pudo leer la respuesta de la IA. ${L.error} Pegá la respuesta COMPLETA (desde «\`\`\`json» hasta el final) o pedile a la IA que reenvíe SÓLO el bloque JSON.` }
+  const g = L.valor
+  const lista = capsDe(g, L.todos)
+  if (!lista || !lista.length) return { ok: false, error: 'La respuesta no trae «caps» (la lista de los dos cursos de acción con sus fases). Pedile a la IA que conteste con el JSON de «CÓMO CONTESTAR».' }
   const pz = piezas(ctx)
   const tareasOk = new Map((ctx.tareas || []).flatMap((t) => [[norm(t.id), t.id], [norm(t.nombre), t.id]]))
   const obsCat = ctx.obstaculos || {}
@@ -330,5 +335,6 @@ export function leerRespuesta(texto, ctx = {}) {
   }
   const movidas = Object.values(caps).reduce((s, c) => s + c.fases.reduce((a, f) => a + f.unidades.filter((u) => u.tarea).length, 0), 0)
   const resumen = [1, 2].filter((n) => caps[n]).map((n) => `CAP ${n}: ${caps[n].fases.length} fases`).join(' · ')
-  return { ok: true, caps, juicio, faltan, resumen, movidas }
+  if (L.cortado) faltan.unshift('la respuesta de la IA venía CORTADA: se colocó hasta donde llegó (pedile que siga o que la reenvíe más corta)')
+  return { ok: true, caps, juicio, faltan, resumen, movidas, reparado: L.reparado, cortado: L.cortado }
 }

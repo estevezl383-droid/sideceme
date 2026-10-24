@@ -56,6 +56,11 @@ Claude / ChatGPT / Gemini, tamaño, tu indicación, pegar y ✓ Aplicar):
   (lo construido queda). El CAP activo queda a la vista (su FASE 1 en la carta); el otro, guardado. La F3·P6 de cada
   CAP se llena SÓLO en lo vacío (lo que había propuesto la Mesa con «[Mesa — verificar]» sí se reemplaza) y el juicio
   va a «Razón fundamental». Si ya había fases, pregunta antes de reemplazarlas.
+- **La respuesta se lee aunque venga con los errores de siempre** (`v1/json-tolerante.mjs`, 24-10-2026: a Sergio le
+  decía «No se reconoció la respuesta»): comillas rectas dentro de un texto (`"GAAP N° 4 "MIRAFLORES""`), comas de más,
+  comentarios, saltos de línea crudos, comillas tipográficas, texto antes y después, los dos CAP en dos bloques ```json
+  o como «CAP 1» / «CAP 2», y la respuesta CORTADA (se coloca hasta donde llegó y se avisa). Si igual no se puede, dice
+  dónde se rompe el JSON.
 - **Lo que no se pudo** lo dice («la unidad «DIV-7» no está en las fichas», «Cerro Comanchi no está en la carta;
   quedó donde estaba»): la Mesa no inventa lugares.
 - Los **fuegos** también: la IA pone las concentraciones de cada fase (tipo de fuego, efecto, lugar y el medio que la
@@ -108,6 +113,7 @@ del calco y no cambian con el CAP.
   `conForma`, `conFormas`, `fasesPorCAP`, `llevarAHoja`, `armarFases`, `accion`.
 - `v1/carta-ia.mjs` — `piezas` (el nomenclátor y el ubicador de la F3·P4), `pedidoCarta`, `leerRespuesta` (con los
   fuegos de cada fase).
+- `v1/json-tolerante.mjs` — `leerJSON`, `reparar`, `cerrar` (sin dependencias).
 - `v1/texto-carta.mjs` — `describirFases`, `textoDeLaCarta`, `conBloqueCarta`, `hojaConCarta`, `bloqueCartaIA`.
 - `v1/panel.js` — el panel (React, la caja de la IA `hU` y los catálogos por `configurarCAP`) y `botonesCAP` del
   🎬 C.A. por fases.
@@ -118,5 +124,5 @@ del calco y no cambian con el CAP.
   `setOps` y el candado del ejercicio finalizado en `SIDcapAcc`, y el expediente al panel.
 - En el compilado (`pruebas/reemplazos-2026-10-24-fuegos-fase.js`): `fo` guarda el plan de fuegos en la fase propia,
   `Uo` lo devuelve, `SIDcapAcc` recibe `setPlan` y el pedido pasa por `pedidoCAP` de `panel.js`.
-- Pruebas: `pruebas/cap-propios.mjs`, `pruebas/cap-carta.mjs`, `pruebas/cap-texto.mjs` (con la respuesta de ejemplo
+- Pruebas: `pruebas/cap-propios.mjs`, `pruebas/cap-carta.mjs`, `pruebas/cap-texto.mjs`, `pruebas/json-tolerante.mjs` (con la respuesta de ejemplo
   `pruebas/cap-carta-ejemplo.js`), `pruebas/e2e/cap-propios.cjs`, `pruebas/e2e/cap-carta.cjs` y `pruebas/e2e/fuegos-fase.cjs`.

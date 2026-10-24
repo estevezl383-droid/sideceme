@@ -3,7 +3,9 @@
 // JavaScript sin compilar: React llega por configurarCAP() (lo llama el compilado antes del primer render).
 import { proponer, capsDe, fasesPorCAP, llevarAHoja, FORMAS } from './proponer.mjs'
 import { pedido, HOJAS_POR_CAP } from './proponer.mjs'
-import { pedidoCarta, leerRespuesta } from './carta-ia.mjs'
+// Con versión: la lectura tolerante del JSON (json-tolerante.mjs, 24-10-2026) tiene que llegar aunque el navegador
+// tenga guardada la carta-ia.mjs de antes.
+import { pedidoCarta, leerRespuesta } from './carta-ia.mjs?v=json20261024'
 import { textoDeLaCarta, hojaConCarta, bloqueCartaIA, nomenclatorDe } from './texto-carta.mjs'
 import { datosPuente } from '../../concepto-operacion/v1/carta.js'
 
