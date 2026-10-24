@@ -58,8 +58,31 @@ Claude / ChatGPT / Gemini, tamaño, tu indicación, pegar y ✓ Aplicar):
   va a «Razón fundamental». Si ya había fases, pregunta antes de reemplazarlas.
 - **Lo que no se pudo** lo dice («la unidad «DIV-7» no está en las fichas», «Cerro Comanchi no está en la carta;
   quedó donde estaba»): la Mesa no inventa lugares.
-- Los **fuegos** (plan de fuegos) no van por fase: siguen en la F3·P4 («Proponer la plantilla del concepto») y en
-  🔥 Fuegos.
+- Los **fuegos** también: la IA pone las concentraciones de cada fase (tipo de fuego, efecto, lugar y el medio que la
+  bate) y cada fase queda con su plan de fuegos (ver abajo).
+
+## 🔥 Los fuegos por fase (24-10-2026)
+
+El plan de fuegos (🔥 Fuegos, `planFuegos`) era uno solo para todo el ejercicio. Ahora **cada fase 🔵 del C.A. propio
+guarda el suyo**, como ya guardaba las fichas y el calco:
+
+- Al **dejar** una fase propia, su plan de fuegos queda guardado en la fase (con las fichas y el calco).
+- Al **tocar** una fase propia que tiene plan, vuelve su plan. Una fase que **no tiene** (las de antes, o una «＋ Fase»
+  nueva) se queda con el plan que está a la vista: lo ya hecho no cambia hasta que se tocan los fuegos en una fase.
+- La IA de los dos CAP pone las concentraciones de cada fase: el plan de la fase es el de la Mesa más las de esa fase
+  (numeradas AB-0xx después de las que hay, con «lo bate RAM-4 — para…» en la descripción). El medio exacto (pieza y
+  posición de fuego) se elige en 🔥 Fuegos.
+
+## 📝 El texto de la F3·P6 sale de la carta (24-10-2026, `v1/texto-carta.mjs`)
+
+- **📝 Llevar la carta a la F3·P6 de los dos CAP** (en el panel de la F3·P6): lee las fases 🔵 del CAP activo y las del
+  guardado y escribe, al final de las casillas QUIÉN, CUÁNDO, DÓNDE, CÓMO y Bosquejo, el bloque
+  «— Según la carta (fases 🔵):» — fase por fase, qué unidad va de dónde a dónde (con los lugares de la carta: «de
+  Turco a Macaya», «a 7 km al O de Julo»), con qué tarea, las tareas tácticas, los obstáculos nuevos y los fuegos nuevos
+  de cada fase. Lo que escribió el oficial (o la IA) queda arriba sin tocar; si se vuelve a apretar, el bloque se
+  reemplaza.
+- El pedido de **🤖 Trabajar esta hoja con IA** de la F3·P6 y la F3·P4 lleva «LO QUE YA ESTÁ EN LA CARTA — CAP n, fase
+  por fase»: el texto tiene que describir eso; si no coincide con la propuesta, manda la carta.
 
 ## Cómo lee el ejercicio (`analizar`)
 
@@ -83,7 +106,9 @@ del calco y no cambian con el CAP.
 
 - `v1/proponer.mjs` — sin dependencias: `analizar`, `proponer`, `armarCAP`, `bloqueIA`, `pedido`, `cambiarCAP`,
   `conForma`, `conFormas`, `fasesPorCAP`, `llevarAHoja`, `armarFases`, `accion`.
-- `v1/carta-ia.mjs` — `piezas` (el nomenclátor y el ubicador de la F3·P4), `pedidoCarta`, `leerRespuesta`.
+- `v1/carta-ia.mjs` — `piezas` (el nomenclátor y el ubicador de la F3·P4), `pedidoCarta`, `leerRespuesta` (con los
+  fuegos de cada fase).
+- `v1/texto-carta.mjs` — `describirFases`, `textoDeLaCarta`, `conBloqueCarta`, `hojaConCarta`, `bloqueCartaIA`.
 - `v1/panel.js` — el panel (React, la caja de la IA `hU` y los catálogos por `configurarCAP`) y `botonesCAP` del
   🎬 C.A. por fases.
 - En el compilado (`pruebas/reemplazos-2026-10-24-cap-propios.js`): el import, `configurarCAP`, `SIDcapAcc` en la
@@ -91,5 +116,7 @@ del calco y no cambian con el CAP.
   🎬 C.A. por fases y el pedido de la IA (por `SIDdespues` de la caja de la IA).
 - En el compilado (`pruebas/reemplazos-2026-10-24-cap-carta.js`): la caja de la IA y los catálogos al panel,
   `setOps` y el candado del ejercicio finalizado en `SIDcapAcc`, y el expediente al panel.
-- Pruebas: `pruebas/cap-propios.mjs`, `pruebas/cap-carta.mjs` (con la respuesta de ejemplo `pruebas/cap-carta-ejemplo.js`),
-  `pruebas/e2e/cap-propios.cjs` y `pruebas/e2e/cap-carta.cjs`.
+- En el compilado (`pruebas/reemplazos-2026-10-24-fuegos-fase.js`): `fo` guarda el plan de fuegos en la fase propia,
+  `Uo` lo devuelve, `SIDcapAcc` recibe `setPlan` y el pedido pasa por `pedidoCAP` de `panel.js`.
+- Pruebas: `pruebas/cap-propios.mjs`, `pruebas/cap-carta.mjs`, `pruebas/cap-texto.mjs` (con la respuesta de ejemplo
+  `pruebas/cap-carta-ejemplo.js`), `pruebas/e2e/cap-propios.cjs`, `pruebas/e2e/cap-carta.cjs` y `pruebas/e2e/fuegos-fase.cjs`.

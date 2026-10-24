@@ -85,7 +85,7 @@ await caso('las tareas tácticas (sólo en su fase, apuntando a donde dijo) y lo
 
 await caso('lo que no se pudo: la unidad que no existe y el lugar que no está en la carta (queda donde estaba)', () => {
   const r = C.leerRespuesta(X.RESPUESTA_TEXTO, CTX)
-  assert.deepEqual(r.faltan, ['CAP 1 · fase 2: la unidad «DIV-7» no está en las fichas', 'CAP 2 · fase 3: «Cerro Comanchi» (DIV-6) no está en la carta; quedó donde estaba'])
+  assert.deepEqual(r.faltan, ['CAP 1 · fase 2: la unidad «DIV-7» no está en las fichas', 'CAP 2 · fase 3: «Cerro Comanchi» (DIV-6) no está en la carta; quedó donde estaba', 'CAP 2 · fase 4: el lugar del fuego «apoyo» («Pampa Inexistente») no está en la carta'])
   assert.deepEqual(pos(r.caps[2].fases[2], 'div6'), pos(r.caps[2].fases[1], 'div6'))
 })
 

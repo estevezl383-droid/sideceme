@@ -81,13 +81,14 @@ const EJEMPLO = {
           unidades: [{ unidad: 'DESIGNACIÓN EXACTA de la ficha', lugar: 'NOMBRE EXACTO de la lista de lugares (o «lat, lng»)', tarea: '…', proposito: '…' }],
           tareas: [{ tarea: 'id del catálogo (bloquear, fijar…)', unidad: 'DESIGNACIÓN EXACTA', lugar: 'NOMBRE EXACTO', hacia: 'NOMBRE EXACTO (hacia dónde apunta)' }],
           obstaculos: [{ tipo: 'id del catálogo (minado_ac…)', lugar: 'NOMBRE EXACTO', hasta: 'NOMBRE EXACTO (sólo si es una línea)' }],
+          fuegos: [{ tipo: 'id de «Tipos de fuego»', efecto: 'id de «Efectos»', lugar: 'NOMBRE EXACTO', unidad: 'DESIGNACIÓN EXACTA del medio que lo bate', proposito: '…' }],
         },
       ],
     },
   ],
 }
 
-export function pedidoCarta({ ctx = {}, P = null, activo = 1, expediente = '', lugares = [], tareas = [], obstaculos = {} } = {}) {
+export function pedidoCarta({ ctx = {}, P = null, activo = 1, expediente = '', lugares = [], tareas = [], obstaculos = {}, tiposFuego = [], efectos = [] } = {}) {
   const pz = piezas({ ...ctx, lugares })
   const A = P?.A || analizar(ctx)
   const dondeEsta = (u) => {
@@ -99,6 +100,8 @@ export function pedidoCarta({ ctx = {}, P = null, activo = 1, expediente = '', l
   const filasU = (xs) => xs.map((u) => `- ${u.designacion || '(sin designación)'} — ${u.escalon || ''} ${u.arma || ''} — hoy en ${dondeEsta(u)}`).join('\n') || '- (ninguna)'
   const tCat = (tareas || []).map((t) => `${t.id} (${t.nombre})`).join(' · ')
   const oCat = Object.entries(obstaculos || {}).map(([id, o]) => `${id} (${o?.nom || id}${o?.forma === 'linea' ? ', línea' : o?.forma === 'area' ? ', área' : ''})`).join(' · ')
+  const fCat = (tiposFuego || []).map((t) => `${t.id} (${t.nom})`).join(' · ')
+  const eCat = (efectos || []).map((t) => `${t.id} (${t.nom})`).join(' · ')
   const ains = (ctx.ops?.ains || []).filter((a) => valido(a?.centro)).map((a) => `- ${a.nom || `AIN-${a.n}`}: ${f4(a.centro[1])}, ${f4(a.centro[0])}`).join('\n')
   return {
     ok: true,
@@ -121,7 +124,7 @@ F3·P6 — Los dos cursos de acción propios EN LA CARTA (fase por fase)
 La Mesa va a poner en la carta lo que contestes: para cada CAP crea sus fases 🔵 y, en cada fase, mueve cada unidad al LUGAR que digas, pone las tareas tácticas y los obstáculos. Después el oficial los corrige a mano. Por eso:
 - Cada unidad se nombra con su DESIGNACIÓN EXACTA (la de la lista «Unidades propias»). No inventes unidades.
 - Cada lugar se nombra con su NOMBRE EXACTO de la lista «Lugares de la carta», o con una A.I.N. («AIN-3»), o con coordenadas «lat, lng» (con 4 decimales). Un lugar que no está en la lista NO se puede colocar.
-- Las tareas tácticas y los obstáculos, con el id EXACTO de su catálogo.
+- Las tareas tácticas, los obstáculos y los fuegos, con el id EXACTO de su catálogo. Los FUEGOS son de cada fase (las concentraciones que se tiran en esa fase); cada uno con el medio que lo bate (una unidad de artillería, morteros o lanzacohetes de las fichas).
 - Los dos CAP tienen que DISTINGUIRSE EN LA CARTA (otra forma de maniobra, otro esfuerzo principal, otra ubicación de la reserva), no sólo en el nombre.
 - Cinco fases por CAP, en orden: concentración, desplazamiento, ocupación y organización (con el plan de barreras), conducción, y contraataque / consolidación (adaptalas a la forma de maniobra). En cada fase poné SÓLO las unidades que se mueven o cambian de tarea; las otras quedan donde estaban en la fase anterior.
 - «f3p6» es el enunciado de la hoja F3·P6 de ese CAP. Tu juicio de los dos CAP (SIRVE / NO SIRVE con las cinco pruebas) va en «juicio».
@@ -151,6 +154,12 @@ ${tCat || '(ninguna)'}
 
 ## Obstáculos (id)
 ${oCat || '(ninguno)'}
+
+## Tipos de fuego (id)
+${fCat || '(ninguno)'}
+
+## Efectos del fuego (id)
+${eCat || '(ninguno)'}
 
 ---
 
@@ -223,6 +232,12 @@ export function leerRespuesta(texto, ctx = {}) {
   })()
   const faltan = []
   const base = (ctx.unidades || []).filter((u) => u && u.deFaseEnemiga == null)
+  // El plan de fuegos de cada fase: el de la Mesa (sin lo que puso antes la IA) más las concentraciones de esa fase.
+  const planBase = { version: 1, medios: {}, verEnCarta: true, ...(ctx.plan || {}) }
+  const blancosBase = (planBase.blancos || []).filter((b) => !b?.capIA)
+  const maxAB = Math.max(9, ...blancosBase.map((b) => Number(/AB\s*-?\s*(\d+)/i.exec(String(b?.num || ''))?.[1]) || 0))
+  const tiposOk = new Map((ctx.tiposFuego || []).flatMap((t) => [[norm(t.id), t.id], [norm(t.nom), t.id]]))
+  const efectosOk = new Map((ctx.efectos || []).flatMap((t) => [[norm(t.id), t.id], [norm(t.nom), t.id]]))
   const opsBase = { ...(ctx.ops || {}) }
   delete opsBase.ains
   const sinIA = (xs) => (xs || []).filter((x) => !x?.capIA)
@@ -232,6 +247,7 @@ export function leerRespuesta(texto, ctx = {}) {
     if ((n !== 1 && n !== 2) || caps[n]) return
     let unidades = base.map((u) => ({ ...u }))
     let obsAcum = []
+    let nAB = maxAB
     const ubicar = (lugar, cercaDe) => {
       const s = String(lugar ?? '').trim()
       if (!s) return null
@@ -269,6 +285,27 @@ export function leerRespuesta(texto, ctx = {}) {
         if (!p) { faltan.push(`${etiqueta}: el lugar del obstáculo «${limpio(o?.tipo)}» («${limpio(o?.lugar)}») no está en la carta`); continue }
         obsAcum = [...obsAcum, { ...obstaculoEn(id, p, ubicar(o?.hasta, p), obsCat, pRojo ? rumbo(pRojo, p) : null), capIA: { cap: n, fase: i + 1 } }]
       }
+      const fus = []
+      for (const x of Array.isArray(f?.fuegos) ? f.fuegos : []) {
+        const p = ubicar(x?.lugar, pRojo)
+        if (!p) { faltan.push(`${etiqueta}: el lugar del fuego «${limpio(x?.tipo) || 'concentración'}» («${limpio(x?.lugar)}») no está en la carta`); continue }
+        const medio = fichaDe(x?.unidad, pz.propias)
+        const r6 = (v) => Math.round(v * 1e6) / 1e6
+        nAB++
+        fus.push({
+          id: `cap${n}-f${i + 1}-${fus.length + 1}`,
+          num: `AB-${String(nAB).padStart(3, '0')}`,
+          lng: r6(p[0]), lat: r6(p[1]), cota: null,
+          forma: 'circular', radioM: 200, largoM: 400, anchoM: 200, orientacion: 0,
+          tipo: tiposOk.get(norm(x?.tipo)) || 'apoyo',
+          efecto: efectosOk.get(norm(x?.efecto)) || 'neutralizar',
+          ejecucion: 'a_pedido', medio: null,
+          descripcion: [medio ? `lo bate ${medio.designacion}` : limpio(x?.unidad) ? `lo bate ${limpio(x.unidad)}` : '', limpio(x?.proposito)].filter(Boolean).join(' — '),
+          fase: `CAP ${n} · fase ${i + 1}`, hora: '', municion: '', espoleta: '', volumen: '', observador: '',
+          proposito: limpio(x?.proposito), obs: 'IA — verificar',
+          capIA: { cap: n, fase: i + 1 },
+        })
+      }
       const ops = { ...opsBase, tareas: [...sinIA(opsBase.tareas), ...tts], obstaculos: [...sinIA(opsBase.obstaculos), ...obsAcum] }
       return {
         nombre: limpio(f?.nombre) || `Fase ${i + 1}`,
@@ -277,6 +314,7 @@ export function leerRespuesta(texto, ctx = {}) {
         origen: `IA · CAP ${n}${limpio(f?.cuando) ? ` · ${limpio(f.cuando)}` : ''}`,
         unidades: unidades.map((u) => ({ ...u })),
         ops,
+        plan: { ...planBase, blancos: [...blancosBase, ...fus] },
         desplazamientos: [],
       }
     })

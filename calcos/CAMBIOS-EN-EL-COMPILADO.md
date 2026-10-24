@@ -5,6 +5,33 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-24 (5) — 🔥 Los fuegos por fase y 📝 el texto de la F3·P6 desde la carta (`index-fuegos-fase-20261024.js`)
+
+Parte de `index-cap-carta-20261024.js` + `pruebas/reemplazos-2026-10-24-fuegos-fase.js` (4 reemplazos;
+`construir-fuegos-fase.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio: que el texto de la
+F3·P6 salga de lo que quede en la carta, y los fuegos por fase (el plan de fuegos era uno solo para todo el ejercicio).
+
+- **En el compilado**: `fo` (guardar lo movido en la fase activa) guarda además el plan de fuegos (`planFuegos`) en la
+  fase si es PROPIA; `Uo` (tocar una fase) lo devuelve con `setPlanFuegos` si la fase propia tiene plan (si no, queda
+  el que está: los ejercicios de antes no cambian); `SIDcapAcc` recibe `setPlan` (al poner un CAP en la carta, el plan
+  de su fase 1); el pedido de la F3·P4 y la F3·P6 pasa por `pedidoCAP` de `cap-propios/v1/panel.js`.
+- **Fuera del compilado**: `cap-propios/v1/carta-ia.mjs` — el pedido lleva los tipos de fuego y los efectos de la Mesa
+  (`window.MesaFuegos.modelo`) y la respuesta trae los fuegos de cada fase → el plan de cada fase (el de la Mesa sin lo
+  que puso antes la IA, más las concentraciones de esa fase, AB-0xx). `cap-propios/v1/texto-carta.mjs` — las fases en
+  palabras (de dónde a dónde con los lugares de la carta, tareas, obstáculos y fuegos nuevos de cada fase) y el bloque
+  «— Según la carta (fases 🔵):» de las casillas QUIÉN, CUÁNDO, DÓNDE, CÓMO y Bosquejo; `proponer.mjs` — la acción
+  «texto» (la F3·P6 del CAP activo y la del guardado); `panel.js` — el botón «📝 Llevar la carta a la F3·P6 de los dos
+  CAP» y `pedidoCAP` («LO QUE YA ESTÁ EN LA CARTA»).
+- **Cómo se comprobó**: `cap-texto.mjs` (el plan de cada fase, la numeración, los tipos y efectos por nombre; las
+  fases en palabras; los bloques; reemplazar sin duplicar ni tocar al oficial; la acción «texto» con los dos CAP; el
+  plan de la fase 1 al colocar; el pedido) y `e2e/fuegos-fase.cjs` (en la Mesa: FASE 1 con AB-012, FASE 4 con
+  AB-012/013/014, de vuelta a la 1; una «＋ Fase» nueva se queda con el plan que estaba y lo guarda; 📝 la F3·P6 de los
+  dos CAP con los fuegos; el bloque no se duplica; el pedido de la F3·P6 con lo de la carta; sin errores de consola).
+  Además `reemplazos-compilado.js`, `npm test` y las e2e de los CAP, el CAE, el concepto, los puntos de decisión, la
+  PRC, el pedido, deshacer y el plan de fuegos.
+- **Si se recompila desde el fuente**: llevar a `fo` y `Uo` el plan de fuegos de la fase propia, `setPlan` a
+  `SIDcapAcc` y el import de `pedidoCAP`.
+
 ## 2026-10-24 (4) — 🤖 La IA desarrolla los dos CAP propios y la Mesa los pone en la carta (`index-cap-carta-20261024.js`)
 
 Parte de `index-cap-propios-20261024.js` + `pruebas/reemplazos-2026-10-24-cap-carta.js` (3 reemplazos;

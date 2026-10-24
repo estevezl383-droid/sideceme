@@ -429,6 +429,7 @@ function mostrarFase0(fases, M) {
   M.setActiva?.({ bando: 'propio', idx: 0 })
   M.setUnidades?.(fases[0].unidades)
   M.setOps?.((o) => ({ ...(fases[0].ops || {}), ains: o?.ains || [] }))
+  if (fases[0].plan) M.setPlan?.(fases[0].plan)
 }
 
 // ─── Lo que hace la Mesa con cada botón ─────────────────────────────────────────────────────────────────────
@@ -470,6 +471,37 @@ export function accion(que, d = {}, M = {}) {
       mostrarFase0(fases, M)
       M.aviso?.(`🎬 ${fases.length} fases 🔵 del CAP ${d.cap.n}, con la tarea de cada unidad. Ahora, fase por fase, mové las fichas a donde van: la Mesa no inventa los lugares.`)
       return true
+    }
+    if (que === 'texto') {
+      // 📝 La F3·P6 de los dos CAP desde sus fases 🔵. d.campos(fases) → los bloques «Según la carta» de cada casilla;
+      // d.conBloques(valor, campos) → la hoja con esos bloques (los arma texto-carta.mjs en el panel).
+      const fc = M.flush ? M.flush(M.fasesCOA || {}) : M.fasesCOA || {}
+      const C = capsDe(M.g3)
+      const act = C.activo
+      const otro = act === 1 ? 2 : 1
+      const g = { ...(M.g3 || {}) }
+      const guardados = { ...C.guardados }
+      const hechos = []
+      const conAlgo = (c) => c && Object.values(c).some(Boolean)
+      const cA = (fc.propio || []).length ? d.campos?.(fc.propio) : null
+      if (conAlgo(cA)) {
+        g.coa = d.conBloques(g.coa, cA)
+        hechos.push(act)
+      }
+      const fO = guardados[otro]?.fases || []
+      const cO = fO.length ? d.campos?.(fO) : null
+      if (conAlgo(cO)) {
+        guardados[otro] = { ...guardados[otro], coa: d.conBloques(guardados[otro]?.coa, cO) }
+        hechos.push(otro)
+      }
+      if (!hechos.length) {
+        M.aviso?.('📝 Todavía no hay nada en la carta para escribir: armá las fases 🔵 (🎬) o pedíselas a la IA.')
+        return false
+      }
+      g._caps = { ...(M.g3?._caps || {}), activo: act, formas: C.formas, guardados }
+      M.setG3?.(g)
+      M.aviso?.(`📝 La F3·P6 ${hechos.length === 2 ? 'de los dos CAP' : `del CAP ${hechos[0]}`} tiene ahora el bloque «Según la carta» (lo que escribiste no se tocó).`)
+      return hechos
     }
     if (que === 'colocar') {
       // Lo que leyó carta-ia.mjs de la respuesta de la IA: los dos CAP con sus fases y su F3·P6.
