@@ -55,7 +55,8 @@
 //   index-tareas-chicas-20261023.js + reemplazos-2026-10-23-puntos-chicos.js = index-puntos-chicos-20261023.js
 //   index-puntos-chicos-20261023.js + reemplazos-2026-10-23-suelo.js = index-suelo-20261023.js
 //   index-suelo-20261023.js + reemplazos-2026-10-23-editar-tareas.js = index-editar-tareas-20261023.js
-//   index-editar-tareas-20261023.js + reemplazos-2026-10-24-puntos-decision.js = index-puntos-decision-20261024.js (el vigente)
+//   index-editar-tareas-20261023.js + reemplazos-2026-10-24-puntos-decision.js = index-puntos-decision-20261024.js
+//   index-puntos-decision-20261024.js + reemplazos-2026-10-24-cae-enemigo.js = index-cae-enemigo-20261024.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -69,6 +70,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-24-cae-enemigo'),
+    nombre: 'reemplazos-2026-10-24-cae-enemigo',
+    // calcos/assets/index-puntos-decision-20261024.js (antes de la revisión del CAE: misión propia y unidades inventadas).
+    anterior: '1d65735175b9563da589ad2b6b87d6608fec85b12814ada87c063307027c78c4',
+  },
   {
     lista: require('./reemplazos-2026-10-24-puntos-decision'),
     nombre: 'reemplazos-2026-10-24-puntos-decision',

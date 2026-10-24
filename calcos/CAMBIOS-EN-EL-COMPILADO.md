@@ -5,6 +5,34 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-24 (2) — 🔴 El CAE del G-2 desde el lado del enemigo y sin unidades inventadas (`index-cae-enemigo-20261024.js`)
+
+Parte de `index-puntos-decision-20261024.js` + `pruebas/reemplazos-2026-10-24-cae-enemigo.js` (9 reemplazos;
+`construir-cae-enemigo.js`; `reemplazos-compilado.js` lo deshace byte por byte). El caso de Sergio (CE-I en el AO
+LAUCA contra la 1ª Br. Ac. «CORACEROS»): en la hoja del G-2 «CAE — Enunciado del curso de acción más probable» la
+IA escribió en «Misión» la misión PROPIA («El CE-I … defiende el AO LAUCA…») y en «Estado final deseado» el estado
+final PROPIO, con una «VI División de Ejército de SATURNO» que nunca existió en el ejercicio. Las hojas del G-3 lo
+mostraban en «🔎 Lo que entregó el G-2» y se lo mandaban a la IA: la «VI División» pasó a la F3·P4 y al P.D. 6 de
+la F4·P4.
+
+- **Fuera del compilado**: `cae-enemigo/v1/revisar.mjs` (ver `cae-enemigo/README.md`) — detecta la misión o el
+  estado final propios en el CAE y las grandes unidades del lado enemigo que no son fichas rojas ni están en la
+  Orden superior; arma los avisos y los bloques que se suman a los pedidos.
+- **En el compilado**: el import; el pedido del CAE (`ne` del tablero del G-2) pasa por `SIDMEPedidoCAE` («QUIÉN ES
+  QUIÉN EN ESTA HOJA», antes de «CÓMO CONTESTAR»); su ✓ Aplicar (`Ke`) suma el aviso; el aviso fijo arriba del CAE;
+  en el panel de documentos del G-3 (`wLe`) `SIDctxG3` (fichas de todas las fases, la Orden, el PICB), el aviso en
+  «🔎 Lo que entregó el G-2», el aviso de cada hoja y el de su ✓ Aplicar; y en la caja de la IA (`hU`) la prop
+  `SIDdespues`, que retoca el pedido ya armado (la usa sólo el G-3 para «EL ENEMIGO ES EL DEL EJERCICIO»: el
+  `onPedido` que armó la PRC el 06-10 queda igual, como pide `prc.cjs`).
+- **Cómo se comprobó**: `cae-enemigo.mjs` (el texto real del error da los tres avisos; un CAE bien escrito, ninguno;
+  la F3·P4 y la F4·P4 de Sergio avisan sólo la «VI División»; los adyacentes y la DIV-6 propia no; los pedidos) y
+  `e2e/cae-enemigo.cjs` (en la Mesa: los avisos en la F3·P4, la F4·P4 y el CAE; los dos pedidos; ✓ Aplicar una
+  Intención escrita desde el CE-I avisa; ✓ Aplicar el CAE bien escrito saca el aviso del CAE y del recuadro del G-2;
+  sin errores de consola). Además `reemplazos-compilado.js`, `npm test` y las e2e de la H.T. 19, los puntos de
+  decisión, el concepto, la PRC y el pedido.
+- **Si se recompila desde el fuente**: llevar el import, los envoltorios del pedido y del ✓ Aplicar del CAE y del
+  G-3, los tres avisos y la prop `SIDdespues` de `hU`.
+
 ## 2026-10-24 — ⭐ Los puntos de decisión de la F4·P4 en la carta y 🌱 la hoja sembrada desde las A.I.N. (`index-puntos-decision-20261024.js`)
 
 Parte de `index-editar-tareas-20261023.js` + `pruebas/reemplazos-2026-10-24-puntos-decision.js` (4 reemplazos;
