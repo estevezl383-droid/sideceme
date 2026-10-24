@@ -5,6 +5,60 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-24 (3) — 💡 Los dos cursos de acción propios: los propone la Mesa, los juzga la IA, se guardan los dos (`index-cap-propios-20261024.js`)
+
+Parte de `index-cae-enemigo-20261024.js` + `pruebas/reemplazos-2026-10-24-cap-propios.js` (10 reemplazos;
+`construir-cap-propios.js`; `reemplazos-compilado.js` lo deshace byte por byte). El PMTD pide «al menos dos» cursos
+de acción propios y la Mesa guardaba uno solo (una sola F3·P6, un solo juego de fases 🔵). Sergio pidió «que la
+aplicación sugiera y que lo lleve a la IA… si es o no es lo que estoy haciendo precisamente para este ejercicio… en
+este caso defensa móvil».
+
+- **Fuera del compilado**: `cap-propios/v1/` (ver `cap-propios/README.md`) — `proponer.mjs` lee el ejercicio (tipo
+  de operación, unidades de maniobra, móviles, reserva, avenidas, LF y LDE, hora D) y propone dos CAP que se
+  distinguen por la forma de maniobra, con quién hace qué, el enunciado de la F3·P6 y cinco fases; arma el bloque de
+  la IA; guarda el CAP no activo en `g3._caps`. `panel.js` dibuja el panel y los botones CAP 1 / CAP 2.
+- **En el compilado**: el import y `configurarCAP`; en la Mesa `SIDcapAcc` (cambiar de CAP: guarda lo movido en la
+  fase activa, cambia fases 🔵 + F3·P4 + F3·P6, suelta la fase propia activa; elegir la forma; armar las fases), con el
+  candado de la BASE; el Tablero del G-3 la recibe en su `ctx` y muestra el panel en la F3·P6 y la F3·P4; el pedido de
+  esas dos hojas pasa por `SIDCapPedido` (dentro del `SIDdespues` del 24-10 (2)); el 🎬 C.A. por fases (`_ae`) recibe
+  `SIDcap` y muestra los botones debajo de «🔵 Curso de acción PROPIO».
+- **Cómo se comprobó**: `cap-propios.mjs` (con el ejercicio del CE-I: CAP 1 defensa de área, CAP 2 defensa móvil,
+  quién hace qué; otras formas y tipos; los avisos; el pedido; ida y vuelta CAP 1 ↔ CAP 2 sin perder nada; 🌱 y 🎬; los
+  botones con el candado) y `e2e/cap-propios.cjs` (en la Mesa: el panel, el pedido, 🌱, 🎬 las 5 fases del CAP 1, CAP 2
+  con su F3·P6 vacía y sus fases de defensa móvil, la F3·P4 del CAP 2, de vuelta al CAP 1 desde el 🎬 C.A. por fases;
+  sin errores de consola). Además `reemplazos-compilado.js`, `npm test` y las e2e del CAE, el concepto, los puntos de
+  decisión, la PRC, el pedido, la H.T. 19 y deshacer.
+- **Si se recompila desde el fuente**: llevar el import, `configurarCAP`, `SIDcapAcc` y su paso al G-3 y al
+  🎬 C.A. por fases, el panel y el envoltorio del pedido.
+
+## 2026-10-24 (2) — 🔴 El CAE del G-2 desde el lado del enemigo y sin unidades inventadas (`index-cae-enemigo-20261024.js`)
+
+Parte de `index-puntos-decision-20261024.js` + `pruebas/reemplazos-2026-10-24-cae-enemigo.js` (9 reemplazos;
+`construir-cae-enemigo.js`; `reemplazos-compilado.js` lo deshace byte por byte). El caso de Sergio (CE-I en el AO
+LAUCA contra la 1ª Br. Ac. «CORACEROS»): en la hoja del G-2 «CAE — Enunciado del curso de acción más probable» la
+IA escribió en «Misión» la misión PROPIA («El CE-I … defiende el AO LAUCA…») y en «Estado final deseado» el estado
+final PROPIO, con una «VI División de Ejército de SATURNO» que nunca existió en el ejercicio. Las hojas del G-3 lo
+mostraban en «🔎 Lo que entregó el G-2» y se lo mandaban a la IA: la «VI División» pasó a la F3·P4 y al P.D. 6 de
+la F4·P4.
+
+- **Fuera del compilado**: `cae-enemigo/v1/revisar.mjs` (ver `cae-enemigo/README.md`) — detecta la misión o el
+  estado final propios en el CAE y las grandes unidades del lado enemigo que no son fichas rojas ni están en la
+  Orden superior; arma los avisos y los bloques que se suman a los pedidos.
+- **En el compilado**: el import; el pedido del CAE (`ne` del tablero del G-2) pasa por `SIDMEPedidoCAE` («QUIÉN ES
+  QUIÉN EN ESTA HOJA», antes de «CÓMO CONTESTAR»); su ✓ Aplicar (`Ke`) suma el aviso; el aviso fijo arriba del CAE;
+  en el panel de documentos del G-3 (`wLe`) `SIDctxG3` (fichas de todas las fases, la Orden, el PICB), el aviso en
+  «🔎 Lo que entregó el G-2», el aviso de cada hoja y el de su ✓ Aplicar; y en la caja de la IA (`hU`) la prop
+  `SIDdespues`, que retoca el pedido ya armado (la usa sólo el G-3 para «EL ENEMIGO ES EL DEL EJERCICIO»: el
+  `onPedido` que armó la PRC el 06-10 queda igual, como pide `prc.cjs`).
+- **Cómo se comprobó**: `cae-enemigo.mjs` (el texto real del error da los tres avisos; un CAE bien escrito, ninguno;
+  la F3·P4 y la F4·P4 de Sergio avisan sólo la «VI División»; los adyacentes y la DIV-6 propia no; los pedidos) y
+  `e2e/cae-enemigo.cjs` (en la Mesa: los avisos en la F3·P4, la F4·P4 y el CAE; los dos pedidos; ✓ Aplicar una
+  Intención escrita desde el CE-I avisa; ✓ Aplicar el CAE bien escrito saca el aviso del CAE y del recuadro del G-2;
+  sin errores de consola). Además `reemplazos-compilado.js`, `npm test` y las e2e de la H.T. 19, los puntos de
+  decisión, el concepto, la PRC y el pedido.
+- **Si se recompila desde el fuente**: llevar el import, los envoltorios del pedido y del ✓ Aplicar del CAE y del
+  G-3, los tres avisos y la prop `SIDdespues` de `hU`.
+
 ## 2026-10-24 — ⭐ Los puntos de decisión de la F4·P4 en la carta y 🌱 la hoja sembrada desde las A.I.N. (`index-puntos-decision-20261024.js`)
 
 Parte de `index-editar-tareas-20261023.js` + `pruebas/reemplazos-2026-10-24-puntos-decision.js` (4 reemplazos;
