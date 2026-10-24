@@ -32,9 +32,18 @@ construir la aplicación».
   donde está en esa fase, sus tareas, obstáculos y fuegos); la que está a la vista se marca en azul. Si la fase es del
   CAP guardado, la Mesa primero cambia de CAP. Un CAP sin fases todavía dice cómo armarlas.
 - **🌱 Llevar el CAP a esta hoja** (F3·P6): llena SÓLO las casillas vacías, marcadas «[Mesa — verificar]».
-- **🎬 Armar las 5 fases 🔵 del CAP**: cinco fases con el dispositivo de ahora; cada unidad lleva su tarea y su
-  propósito de esa fase, y la del esfuerzo principal, la ★. **La Mesa no inventa lugares**: fase por fase se mueven
-  las fichas a donde van. Si el CAP ya tenía fases, pregunta antes de reemplazarlas.
+- **🎬 Armar las 5 fases 🔵 del CAP**: cinco fases, **cada una con su dispositivo** (`v1/posiciones.mjs`, 24-10-2026;
+  Sergio: «en la fase I todos están donde está el CE y de ahí se disgregan»): FASE I concentradas junto al PC del CE;
+  FASE II a mitad de camino; FASE III cada una en su lugar según lo que dejó la F3·P4 en la carta (las marcas
+  «ESFUERZO PRINCIPAL · …», «ESFUERZO SECUNDARIO · …», «RES · …»; si no están, donde su avenida corta la LPR); FASE IV y
+  V según la forma (la reserva contraataca por el EJE CA; en la defensa móvil el retardo va de la LDE-1 a la LPR y la
+  masa contraataca entre las dos). Cada unidad lleva su tarea y su propósito, y la del esfuerzo principal, la ★. Lo que
+  no tiene base en la carta queda donde está; las fichas se corrigen a mano. Si el CAP ya tenía fases, pregunta antes de
+  reemplazarlas. Si las fases de un CAP tienen las fichas en el MISMO lugar (armadas antes), el panel lo avisa.
+- Los roles salen de la carta: si la F3·P4 marcó «RES · DIV-6» o «ESFUERZO PRINCIPAL · DIV MEC-2», ésos mandan (no
+  cambian según la fase que esté a la vista).
+- La IA: si nombra un lugar que no está en la carta, la unidad va donde la pone la Mesa en esa fase; en la FASE I, las
+  que no nombra arrancan concentradas junto al PC.
 - **🤖 Trabajar esta hoja con IA** (F3·P6 y F3·P4): el pedido lleva «LO QUE PROPONE LA MESA PARA ESTE EJERCICIO» y la
   tarea de **decir si cada CAP SIRVE o NO para este ejercicio** con las cinco pruebas del PMTD (adecuado, factible,
   aceptable, distinguible, completo), proponer el reemplazo del que no sirva y desarrollar el CAP activo. El juicio
@@ -117,6 +126,7 @@ del calco y no cambian con el CAP.
   `conForma`, `conFormas`, `fasesPorCAP`, `llevarAHoja`, `armarFases`, `accion`.
 - `v1/carta-ia.mjs` — `piezas` (el nomenclátor y el ubicador de la F3·P4), `pedidoCarta`, `leerRespuesta` (con los
   fuegos de cada fase).
+- `v1/posiciones.mjs` — `referencias` (la LPR, la LDE-1, el EJE CA, las marcas de la F3·P4, el PC) y `posicionesCAP`.
 - `v1/json-tolerante.mjs` — `leerJSON`, `reparar`, `cerrar` (sin dependencias).
 - `v1/texto-carta.mjs` — `describirFases`, `textoDeLaCarta`, `conBloqueCarta`, `hojaConCarta`, `bloqueCartaIA`.
 - `v1/panel.js` — el panel (React, la caja de la IA `hU` y los catálogos por `configurarCAP`) y `botonesCAP` del
@@ -128,5 +138,5 @@ del calco y no cambian con el CAP.
   `setOps` y el candado del ejercicio finalizado en `SIDcapAcc`, y el expediente al panel.
 - En el compilado (`pruebas/reemplazos-2026-10-24-fuegos-fase.js`): `fo` guarda el plan de fuegos en la fase propia,
   `Uo` lo devuelve, `SIDcapAcc` recibe `setPlan` y el pedido pasa por `pedidoCAP` de `panel.js`.
-- Pruebas: `pruebas/cap-propios.mjs`, `pruebas/cap-carta.mjs`, `pruebas/cap-texto.mjs`, `pruebas/json-tolerante.mjs` (con la respuesta de ejemplo
+- Pruebas: `pruebas/cap-propios.mjs`, `pruebas/cap-carta.mjs`, `pruebas/cap-texto.mjs`, `pruebas/json-tolerante.mjs`, `pruebas/cap-posiciones.mjs` (con la respuesta de ejemplo
   `pruebas/cap-carta-ejemplo.js`), `pruebas/e2e/cap-propios.cjs`, `pruebas/e2e/cap-carta.cjs` y `pruebas/e2e/fuegos-fase.cjs`.
