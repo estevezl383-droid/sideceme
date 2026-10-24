@@ -32,18 +32,31 @@ construir la aplicación».
   donde está en esa fase, sus tareas, obstáculos y fuegos); la que está a la vista se marca en azul. Si la fase es del
   CAP guardado, la Mesa primero cambia de CAP. Un CAP sin fases todavía dice cómo armarlas.
 - **🌱 Llevar el CAP a esta hoja** (F3·P6): llena SÓLO las casillas vacías, marcadas «[Mesa — verificar]».
-- **🎬 Armar las 5 fases 🔵 del CAP**: cinco fases, **cada una con su dispositivo** (`v1/posiciones.mjs`, 24-10-2026;
-  Sergio: «en la fase I todos están donde está el CE y de ahí se disgregan»): FASE I concentradas junto al PC del CE;
-  FASE II a mitad de camino; FASE III cada una en su lugar según lo que dejó la F3·P4 en la carta (las marcas
-  «ESFUERZO PRINCIPAL · …», «ESFUERZO SECUNDARIO · …», «RES · …»; si no están, donde su avenida corta la LPR); FASE IV y
-  V según la forma (la reserva contraataca por el EJE CA; en la defensa móvil el retardo va de la LDE-1 a la LPR y la
-  masa contraataca entre las dos). Cada unidad lleva su tarea y su propósito, y la del esfuerzo principal, la ★. Lo que
-  no tiene base en la carta queda donde está; las fichas se corrigen a mano. Si el CAP ya tenía fases, pregunta antes de
-  reemplazarlas. Si las fases de un CAP tienen las fichas en el MISMO lugar (armadas antes), el panel lo avisa.
+- **🎬 Armar las 5 fases 🔵 del CAP**: cinco fases, **cada una con su dispositivo**, y se mueven **TODAS las fichas
+  propias** (`v1/posiciones.mjs`, 24-10-2026; Sergio: «en la fase I todos están donde está el CE y de ahí se
+  disgregan… en la fase dos hacia los lugares donde hay trabajos (el plan de barreras), quienes hacen esos trabajos son
+  ellos dentro de su sector… en la fase 3 donde están ya sus posiciones»):
+  - FASE I: todas juntas con el CE (alrededor de su PC);
+  - FASE II: cada una a los trabajos del plan de barreras de SU sector (los obstáculos del calco más cerca de su puesto
+    que la «LÍM. … / …» entre sectores no separa); la reserva, la masa y el apoyo no hacen obras: van a mitad de camino;
+  - FASE III: cada una en su puesto: donde la puso el oficial (la ficha ya desplegada, o lo que quedó en la FASE III
+    del CAP). Si la ficha todavía está junto al CE, la Mesa la lleva a su lugar con lo que dejó la F3·P4 (las marcas
+    «ESFUERZO PRINCIPAL · …», «ESFUERZO SECUNDARIO · …», «RES · …», o donde su avenida corta la LPR). La fuerza de
+    retardo (LDE-1) y la masa de contraataque (zona de reserva) las pone siempre la Mesa;
+  - FASE IV y V según la forma (la reserva contraataca por el EJE CA; en la defensa móvil el retardo va de la LDE-1 a
+    la LPR y la masa contraataca entre las dos).
+  Cada unidad del CAP lleva su tarea y su propósito, y la del esfuerzo principal, la ★. El puesto queda en la ficha
+  (`puesto`): armar de nuevo con otra fase a la vista da lo mismo, y lo que el oficial corrigió en la FASE III es el
+  puesto nuevo. Si el CAP ya tenía fases, pregunta antes de reemplazarlas. Si en las fases de un CAP hay fichas que no
+  se mueven (armadas antes), el panel las nombra.
+- Las agrupaciones de la organización para el combate (OD, OC 1, OC 2, RES…) no son unidades del CAP (la RES ya no sale
+  como «apoyo de fuegos»): en las fases hacen lo de la unidad del CAP de la que salen sus piezas; si no, lo de su
+  operación (la OD, el esfuerzo principal; las OC, los otros esfuerzos; la RES, la reserva). Si no hay otras fichas de
+  maniobra, el CAP se arma con ellas.
 - Los roles salen de la carta: si la F3·P4 marcó «RES · DIV-6» o «ESFUERZO PRINCIPAL · DIV MEC-2», ésos mandan (no
   cambian según la fase que esté a la vista).
-- La IA: si nombra un lugar que no está en la carta, la unidad va donde la pone la Mesa en esa fase; en la FASE I, las
-  que no nombra arrancan concentradas junto al PC.
+- La IA: lo que no nombra (o nombra sin un lugar de la carta) sigue a la Mesa fase por fase; si nombra un lugar que no
+  está en la carta, la unidad va donde la pone la Mesa en esa fase.
 - **🤖 Trabajar esta hoja con IA** (F3·P6 y F3·P4): el pedido lleva «LO QUE PROPONE LA MESA PARA ESTE EJERCICIO» y la
   tarea de **decir si cada CAP SIRVE o NO para este ejercicio** con las cinco pruebas del PMTD (adecuado, factible,
   aceptable, distinguible, completo), proponer el reemplazo del que no sirva y desarrollar el CAP activo. El juicio
@@ -126,7 +139,8 @@ del calco y no cambian con el CAP.
   `conForma`, `conFormas`, `fasesPorCAP`, `llevarAHoja`, `armarFases`, `accion`.
 - `v1/carta-ia.mjs` — `piezas` (el nomenclátor y el ubicador de la F3·P4), `pedidoCarta`, `leerRespuesta` (con los
   fuegos de cada fase).
-- `v1/posiciones.mjs` — `referencias` (la LPR, la LDE-1, el EJE CA, las marcas de la F3·P4, el PC) y `posicionesCAP`.
+- `v1/posiciones.mjs` — `referencias` (la LPR, la LDE-1, el EJE CA, la LÍM. entre sectores, las marcas de la F3·P4,
+  el PC), `trabajos` (el plan de barreras), `movibles` (las fichas que se mueven) y `posicionesCAP`.
 - `v1/json-tolerante.mjs` — `leerJSON`, `reparar`, `cerrar` (sin dependencias).
 - `v1/texto-carta.mjs` — `describirFases`, `textoDeLaCarta`, `conBloqueCarta`, `hojaConCarta`, `bloqueCartaIA`.
 - `v1/panel.js` — el panel (React, la caja de la IA `hU` y los catálogos por `configurarCAP`) y `botonesCAP` del

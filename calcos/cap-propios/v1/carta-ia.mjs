@@ -13,7 +13,7 @@
 //     F3·P6 y el juicio. Lo que no pudo ubicar lo dice: la Mesa no inventa lugares.
 import { ubicador } from '../../concepto-operacion/v1/modelo.mjs'
 import { agruparLugares } from '../../ains-acostar/v1/ains.mjs'
-import { analizar, bloqueIA } from './proponer.mjs'
+import { analizar, bloqueIA } from './proponer.mjs?v=todas20261024'
 import { leerJSON } from './json-tolerante.mjs'
 
 const sinTildes = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -266,10 +266,14 @@ export function leerRespuesta(texto, ctx = {}) {
       const r = pz.ubicar(s, cercaDe)
       return r ? r.p : null
     }
+    // El puesto de cada ficha (posiciones.mjs) queda guardado en ella, como cuando se arman las fases en la Mesa.
+    if (mesa?.puestos) unidades = unidades.map((v) => (mesa.puestos[v.id] ? { ...v, puesto: mesa.puestos[v.id] } : v))
+    // Las fichas que la IA todavía no nombró van, en cada fase, donde las pone la Mesa (en la FASE I, juntas con el CE;
+    // en la II, a sus trabajos de barreras; en la III, en su puesto…). Las que nombró quedan donde las puso la IA.
+    const nombradas = new Set()
     const fases = (Array.isArray(c?.fases) ? c.fases : []).map((f, i) => {
       const etiqueta = `CAP ${n} · fase ${i + 1}`
-      // En la FASE I, las unidades que la IA no nombra arrancan donde las pone la Mesa (concentradas junto al PC).
-      if (i === 0 && mesa?.[0]) unidades = unidades.map((v) => (mesa[0][v.id] ? { ...v, lng: mesa[0][v.id][0], lat: mesa[0][v.id][1] } : v))
+      if (mesa?.[i]) unidades = unidades.map((v) => (!nombradas.has(v.id) && mesa[i][v.id] ? { ...v, lng: mesa[i][v.id][0], lat: mesa[i][v.id][1] } : v))
       // Las unidades que se mueven o cambian de tarea.
       for (const x of Array.isArray(f?.unidades) ? f.unidades : []) {
         const u = fichaDe(x?.unidad, pz.propias)
@@ -278,6 +282,8 @@ export function leerRespuesta(texto, ctx = {}) {
           continue
         }
         let p = ubicar(x?.lugar, [+u.lng, +u.lat])
+        // (sólo la que la IA puso en un lugar de la carta deja de seguir a la Mesa)
+        if (p) nombradas.add(u.id)
         if (x?.lugar && !p) {
           const m = mesa?.[i]?.[u.id]
           if (m) p = m
