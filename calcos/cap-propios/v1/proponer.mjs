@@ -91,7 +91,11 @@ export function analizar({ unidades = [], ops = {}, cmoc = {}, ordenSup = {}, un
   const fichaPropia = propiasTodas.find((u) => norm(nom(u)) === norm(nombrePropio)) || null
   const escPropio = ops?.unidadConsiderada?.escalon || fichaPropia?.escalon || ''
   const rProp = rango(escPropio) >= 0 ? rango(escPropio) : Math.max(-1, ...propiasTodas.map((u) => rango(u.escalon))) + 1
-  const subordinadas = propiasTodas.filter((u) => u !== fichaPropia && rango(u.escalon) < rProp)
+  // Las agrupaciones de la organización para el combate (OD, OC 1, RES…) no son unidades del CAP: salen de las piezas
+  // de éstas (posiciones.mjs las mueve con la unidad de la que salen). Sólo si no hay otras, se usan ellas.
+  const subTodas = propiasTodas.filter((u) => u !== fichaPropia && rango(u.escalon) < rProp)
+  const sinAg = subTodas.filter((u) => !u.esAgrupacion)
+  const subordinadas = sinAg.some((u) => !APOYO.has(u.arma)) ? sinAg : subTodas
   const deManiobra = subordinadas.filter((u) => !APOYO.has(u.arma))
   const rMan = Math.max(-1, ...deManiobra.map((u) => rango(u.escalon)))
   const maniobra = deManiobra.filter((u) => rango(u.escalon) === rMan)
@@ -405,8 +409,9 @@ export function llevarAHoja(valor = {}, cap) {
 // Las cinco fases 🔵 del CAP con el dispositivo de ahora (cada ficha queda donde está: se mueve a mano en cada
 // fase); cada unidad con rol lleva su tarea y su propósito de esa fase, y la del esfuerzo principal, la ★.
 // `posiciones` (posiciones.mjs): [{ id: [lng, lat] }, …] por fase — dónde va cada unidad en cada fase (sin ellas, cada
-// ficha queda donde está).
+// ficha queda donde está); su `.puestos` { id: [lng, lat] } queda en cada ficha (`puesto`) para la próxima vez.
 export function armarFases(cap, { unidades = [], ops = {}, posiciones = null } = {}) {
+  const puestos = posiciones?.puestos || {}
   const principal = new Set((cap?.roles || []).filter((r) => r.principal).flatMap((r) => r.unidades.map((u) => u.id)))
   return (cap?.fases || []).map((f, i) => ({
     nombre: f.nombre,
@@ -416,7 +421,7 @@ export function armarFases(cap, { unidades = [], ops = {}, posiciones = null } =
     unidades: (unidades || []).map((u) => {
       const p = f.porUnidad?.[u.id]
       const donde = posiciones?.[i]?.[u.id]
-      const v = donde ? { ...u, lng: donde[0], lat: donde[1] } : u
+      const v = donde ? { ...u, lng: donde[0], lat: donde[1], ...(puestos[u.id] ? { puesto: puestos[u.id] } : {}) } : u
       return p ? { ...v, tarea: p.tarea, proposito: p.proposito || u.proposito || '', principal: principal.has(u.id) || undefined } : v
     }),
     ops: ops || {},
@@ -487,18 +492,21 @@ export function accion(que, d = {}, M = {}) {
       return true
     }
     if (que === 'fases') {
-      const fases = armarFases(d.cap, { unidades: (M.unidades || []).filter((u) => u && u.deFaseEnemiga == null), ops: M.ops || {}, posiciones: typeof d.posiciones === 'function' ? d.posiciones(M.unidades || [], M.ops || {}) : d.posiciones })
+      // Las posiciones: la función recibe las fichas, el calco y las fases que ya tiene el CAP (su FASE III dice dónde
+      // está el puesto de cada unidad, con lo que se movió en la fase que está a la vista).
+      const previas = (M.flush ? M.flush(M.fasesCOA || {}) : M.fasesCOA || {}).propio || []
+      const fases = armarFases(d.cap, { unidades: (M.unidades || []).filter((u) => u && u.deFaseEnemiga == null), ops: M.ops || {}, posiciones: typeof d.posiciones === 'function' ? d.posiciones(M.unidades || [], M.ops || {}, { previas }) : d.posiciones })
       if (!fases.length) return false
       const ya = (M.fasesCOA?.propio || []).length
       const confirmar = M.confirmar || ((t) => (typeof window !== 'undefined' ? window.confirm(t) : true))
-      if (ya && !confirmar(`El CAP ${d.cap.n} ya tiene ${ya} fase(s) 🔵.\n\nArmarlas de nuevo las REEMPLAZA por las ${fases.length} de la propuesta (con el dispositivo de ahora). Lo que hayas movido o escrito en esas fases se pierde.\n\n¿Seguimos?`)) return false
+      if (ya && !confirmar(`El CAP ${d.cap.n} ya tiene ${ya} fase(s) 🔵.\n\nArmarlas de nuevo las REEMPLAZA por las ${fases.length} de la propuesta. Donde pusiste cada ficha en la FASE III queda como su puesto; lo demás que hayas movido o escrito en esas fases se pierde.\n\n¿Seguimos?`)) return false
       M.setFases?.((fc) => ({ ...(M.flush ? M.flush(fc) : fc), propio: fases }))
       if (d.formas && M.g3) {
         const g = conFormas(M.g3, d.formas)
         if (g !== M.g3) M.setG3?.(g)
       }
       mostrarFase0(fases, M)
-      M.aviso?.(`🎬 ${fases.length} fases 🔵 del CAP ${d.cap.n}: cada unidad en su lugar de cada fase (concentración junto al PC y después a su sector, según lo que hay en la carta) con su tarea. Tocá FASE I… V para verlas y corregí las fichas a mano.`)
+      M.aviso?.(`🎬 ${fases.length} fases 🔵 del CAP ${d.cap.n}: TODAS las fichas propias se mueven: FASE I juntas con el CE, FASE II a los trabajos del plan de barreras de su sector, FASE III en su puesto y después según el CAP. Tocá FASE I… V para verlas y corregí las fichas a mano.`)
       return true
     }
     if (que === 'texto') {

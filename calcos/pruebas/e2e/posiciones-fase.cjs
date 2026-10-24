@@ -1,6 +1,7 @@
 // 📍 Cada fase de un CAP con su dispositivo (index-posiciones-fase-20261024.js), en la Mesa real (Chromium). El caso de
 // Sergio: tocaba FASE I… V y las fichas no se movían (las fases se habían armado copiando el dispositivo). Con una carta
-// como la suya (la LPR en la LF «PUMA», la LDE-1, el EJE CA-1 y las marcas de la F3·P4):
+// como la suya (la LPR en la LF «PUMA», la LDE-1, el EJE CA-1 y las marcas de la F3·P4) y las divisiones todavía junto
+// al CE (sin desplegar: la Mesa las lleva a las marcas; las agrupaciones y las fichas desplegadas, en todas-fichas.cjs):
 //   · un ejercicio con las fases ya armadas «quietas» muestra el aviso;
 //   · «🎬 Armar las fases» del CAP 1: FASE I junto al CE, FASE III cada una en su marca, FASE V la reserva al final del
 //     EJE CA-1; y el CAP 2 (defensa móvil): el retardo sobre la LDE-1 en la FASE III; sin errores de consola.
@@ -42,6 +43,9 @@ async function esperar(page, leer, cumple, ms = 10000) {
     { tipo: 'esfuerzo', clase: 'secundario', texto: 'ESFUERZO SECUNDARIO · DIV-1', centro: [-68.8, -18.78], co: { id: 'm2' } },
     { tipo: 'reserva', texto: 'RES · DIV-6', centro: [-68.55, -18.62], co: { id: 'm3' } },
   ] } }
+  // Las divisiones todavía junto al CE (no las desplegaron).
+  const junto = { divmec2: [-68.42, -18.53], div1: [-68.43, -18.57], div6: [-68.37, -18.56] }
+  ej.unidades = ej.unidades.map((u) => (junto[u.id] ? { ...u, lng: junto[u.id][0], lat: junto[u.id][1] } : u))
   // Las fases que se armaron antes: las cinco con el mismo dispositivo.
   ej.fasesCOA = { enemigo: [], propio: ['Concentración', 'Desplazamiento', 'Ocupación', 'Conducción', 'Contraataque'].map((nombre) => ({ nombre, unidades: ej.unidades, ops: {}, desplazamientos: [] })) }
   try {

@@ -5,6 +5,34 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-24 (9) — 📍 En las fases de los CAP se mueven TODAS las fichas (`index-todas-fichas-20261024.js`)
+
+Parte de `index-posiciones-fase-20261024.js` + `pruebas/reemplazos-2026-10-24-todas-fichas.js` (2 reemplazos;
+`construir-todas-fichas.js`; `reemplazos-compilado.js` lo deshace byte por byte). Sergio, con la FASE I del CAP 1 a la
+vista: «la OC 1, la OC 2, la OD, todas están en sus puestos… en la fase I deberían todas las unidades estar con el
+cuerpo de ejército… en la fase dos desplazarse hacia los lugares donde hay trabajos de organización del terreno (el plan
+de barreras), porque quienes hacen esos trabajos son ellos dentro de su sector… en la fase 3 donde están ya sus
+posiciones… debes mover todas las fichas». Sólo se movían las unidades con rol en el CAP; sus agrupaciones de la
+organización para el combate (OD, OC 1, OC 2, RES) quedaban quietas.
+
+- **Fuera del compilado**: `cap-propios/v1/posiciones.mjs` — se mueven todas las fichas propias de unidad (menos la del
+  CE): FASE I juntas con el CE; FASE II a los trabajos del plan de barreras de su sector (`ops.obstaculos`; la «LÍM. …
+  / …» entre sectores separa); FASE III en su puesto (la ficha desplegada, lo que quedó en la FASE III del CAP o el
+  `puesto` guardado; si sigue junto al CE, a su marca de la F3·P4); las agrupaciones siguen a la unidad de la que salen
+  sus piezas o a su operación (OD, OC, RES). `proponer.mjs`: las agrupaciones fuera de los roles del CAP (la RES salía
+  como «apoyo de fuegos»), `puesto` en cada ficha de las fases, la acción «fases» pasa las fases que ya tiene el CAP.
+  `carta-ia.mjs`: lo que la IA no ubica en la carta sigue a la Mesa fase por fase. `panel.js`: el aviso nombra las
+  fichas que no se mueven en ninguna fase.
+- **En el compilado**: `panel.js?v=todas20261024` y `proponer.mjs?v=todas20261024`.
+- **Cómo se comprobó**: `cap-posiciones.mjs` (9 casos: la LÍM. y el plan de barreras; las agrupaciones fuera de los
+  roles; FASE I todas con el CE; FASE II a los trabajos de su sector; FASE III en su puesto o en su marca; CAP 2 la OD
+  con el retardo; armar de nuevo da lo mismo y respeta lo corregido en la FASE III; sin LPR; la IA) y
+  `e2e/todas-fichas.cjs` (en la Mesa, con las agrupaciones desplegadas y las fases armadas antes: el aviso «no se
+  mueven: OD, OC 1, OC 2, RES», FASE I, II, III y V del CAP 1, armar de nuevo con la FASE I a la vista, la OD con el
+  retardo del CAP 2; sin errores de consola). `e2e/posiciones-fase.cjs` ahora con las divisiones sin desplegar (van a
+  las marcas). Además `reemplazos-compilado.js`, `npm test` y las e2e de los CAP, la carta, los fuegos por fase y
+  deshacer.
+
 ## 2026-10-24 (8) — 📍 Cada fase de un CAP con su dispositivo (`index-posiciones-fase-20261024.js`)
 
 Parte de `index-fases-cap-20261024.js` + `pruebas/reemplazos-2026-10-24-posiciones-fase.js` (2 reemplazos;
