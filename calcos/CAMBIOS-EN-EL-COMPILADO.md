@@ -5,6 +5,34 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-23 (6) — 🎯 Editar las tareas tácticas ya puestas: agrandar, achicar, girar y cambiarlas por otra (`index-editar-tareas-20261023.js`)
+
+Parte de `index-suelo-20261023.js` + `pruebas/reemplazos-2026-10-23-editar-tareas.js` (4 reemplazos;
+`construir-editar-tareas.js`; `reemplazos-compilado.js` lo deshace byte por byte). Lo pidió Sergio con la captura de
+una «Atacar con Fuego» en la carta: «me das la opción de agrandar o achicar las tareas tácticas, asimismo de cambiar de
+dirección y otra opción de poner otras tareas tácticas». Hasta ahora la orientación y el tamaño del panel 🎯 Tareas
+valían sólo para la tarea que se iba a poner; la ya puesta sólo se movía o se borraba.
+
+- **En el compilado**: `SIDTareaEditor` (nuevo, junto a `EF`) le pone a cada tarea de la carta 2D (`ops.tareas`) un
+  recuadro que se abre con un clic (en el ⛰️ 3D también: el espejo pasa el clic y el recuadro): «Cambiar por otra
+  tarea táctica» (las 28 de `zg`, por grupo de `mY`), la magnitud (`f8`), ➖ Achicar / ➕ Agrandar (×0,8 / ×1,25) y una
+  barra (30 % a 400 %), ↺ / ↻ 15° y 45°, ↻ 180°, «Hacia el N…» y una barra de 0° a 359°, ⧉ Poner otra igual (al lado,
+  a la derecha) y ↺ Restablecer (0° y 100 %). Mientras se corre una barra se ve el número y, en 2D, el símbolo; se
+  guarda al soltarla. Como la carta se vuelve a dibujar con cada cambio, `SIDTareaAb` recuerda qué recuadro estaba
+  abierto (índice, cantidad de tareas y centro) y lo vuelve a abrir; se cierra con la ✕, tocando afuera o al arrastrar
+  la tarea. `onMoverTarea` (`UN`) acepta además de `{lat,lng}` cualquier cambio (`{tarea}`, `{escala}`, `{rot}`,
+  `{escalon}`) o `{duplicar:[lng,lat]}`, y esos cambios entran en ↶ Deshacer (`la()`; mover sigue sin entrar, como
+  antes). El panel 🎯 Tareas avisa que un clic sobre una tarea puesta la edita. Se guarda lo mismo que antes, así que
+  el ⛰️ 3D, el 🏙️ Google 3D y el KMZ toman los cambios solos.
+- **Cómo se comprobó**: `e2e/editar-tareas.cjs` (en 2D: el clic abre el recuadro; ➕ y ➖ cambian la escala y el
+  símbolo 24 → 30 → 24 px; ↻ 45°, «Hacia el S» y la barra giran el símbolo; cambiada por Fijar y por División;
+  ↺ Restablecer; ⧉ deja otra igual al este con su recuadro abierto; el recuadro sigue abierto después de cada cambio y
+  se cierra tocando afuera; ↶ Deshacer vuelve atrás; en el ⛰️ 3D el clic abre el recuadro y ➕ funciona; sin errores
+  de consola), `reemplazos-compilado.js`, `npm test` y las e2e de las tareas chicas, lo sujeto al suelo, la edición,
+  deshacer y las fichas chicas.
+- **Si se recompila desde el fuente**: llevar `SIDTareaEditor` (y su llamada en el dibujo de las tareas de la carta
+  2D) y el `UN` que acepta cambios y `duplicar`.
+
 ## 2026-10-23 (5) — 📏 Magnitudes al 60 % y acostadas, 🎯 tareas sujetas al suelo, fichas que se arrastran en el ⛰️ 3D y 🔥 concentraciones al 60 % (`index-suelo-20261023.js`)
 
 Parte de `index-puntos-chicos-20261023.js` + `pruebas/reemplazos-2026-10-23-suelo.js` (8 reemplazos;
