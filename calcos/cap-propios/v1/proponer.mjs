@@ -316,12 +316,12 @@ export function bloqueIA(P, { activo = 1, hoja = 'coa' } = {}) {
   const A = P.A
   const capTxt = (c) =>
     [
-      `## ${c.nombre}${c.n === activo ? ' ← EL ACTIVO: es el que va en las casillas de esta hoja' : ''}`,
+      `## ${c.nombre}${c.n === activo && hoja !== 'carta' ? ' ← EL ACTIVO: es el que va en las casillas de esta hoja' : ''}`,
       ...c.roles.map((r) => `- ${r.rol}: ${r.unidades.map((u) => u.nom).join(', ')} — ${r.tarea}, ${r.proposito}.`),
       `- En la carta se distingue por: ${c.distingue}.`,
       `- Fases: ${c.fases.map((f, i) => `${i + 1}. ${f.nombre} (${f.cuando})`).join(' · ')}.`,
     ].join('\n')
-  const dondeJuicio = hoja === 'concepto' ? '«Forma de maniobra elegida y por qué»' : '«Razón fundamental (por qué este CAP)»'
+  const dondeJuicio = hoja === 'concepto' ? '«Forma de maniobra elegida y por qué»' : hoja === 'carta' ? '«juicio»' : '«Razón fundamental (por qué este CAP)»'
   return `# LO QUE PROPONE LA MESA PARA ESTE EJERCICIO — DOS CURSOS DE ACCIÓN PROPIOS
 
 La Mesa armó esta propuesta con las fichas, las avenidas del CMOC y la Orden de ESTE ejercicio. Es un BORRADOR para que lo juzgues: no es doctrina general ni está verificado.
@@ -333,7 +333,7 @@ ${P.caps.map(capTxt).join('\n\n')}
 
 1. Para CADA uno de los dos CAP decí si SIRVE o NO SIRVE para ESTE ejercicio, con las cinco pruebas del PMTD (adecuado, factible, aceptable, distinguible, completo): una frase por prueba, con el dato del expediente que la justifica (el terreno, las fuerzas, el tiempo hasta el D, el CAE del G-2).
 2. Si uno NO sirve, proponé el que lo reemplaza y decí por qué; si los dos se parecen, decí qué hay que cambiar para que se distingan EN LA CARTA.
-3. Las casillas de esta hoja son del CAP ACTIVO (CAP ${activo}): desarrollalo ahí con las unidades REALES de las fichas. Tu juicio de los dos CAP va al principio de ${dondeJuicio}.
+3. ${hoja === 'carta' ? 'Desarrollá LOS DOS CAP en la carta, fase por fase, con las unidades REALES de las fichas' : `Las casillas de esta hoja son del CAP ACTIVO (CAP ${activo}): desarrollalo ahí con las unidades REALES de las fichas`}. Tu juicio de los dos CAP va ${hoja === 'carta' ? 'en' : 'al principio de'} ${dondeJuicio}.
 4. No inventes unidades ni lugares que no estén en el expediente.`
 }
 
@@ -410,6 +410,27 @@ export function armarFases(cap, { unidades = [], ops = {} } = {}) {
   }))
 }
 
+// La F3·P6 de un CAP con lo que escribió la IA: lo del oficial no se toca; lo vacío o lo que había propuesto la
+// Mesa («[Mesa — verificar]»), sí.
+export function conF3P6(valor = {}, f3p6 = {}) {
+  const v = { ...(valor || {}) }
+  let n = 0
+  for (const [k, t] of Object.entries(f3p6 || {})) {
+    const ya = String(v[k] ?? '').trim()
+    if (ya && !ya.includes(MARCA)) continue
+    v[k] = t
+    n++
+  }
+  return { valor: v, n }
+}
+// Pone en la carta la fase 0 del CAP activo (como cuando se toca la FASE 1 en el 🎬 C.A. por fases).
+function mostrarFase0(fases, M) {
+  if (!fases?.length) return
+  M.setActiva?.({ bando: 'propio', idx: 0 })
+  M.setUnidades?.(fases[0].unidades)
+  M.setOps?.((o) => ({ ...(fases[0].ops || {}), ains: o?.ains || [] }))
+}
+
 // ─── Lo que hace la Mesa con cada botón ─────────────────────────────────────────────────────────────────────
 // M: lo que le pasa el compilado (el estado y sus setters): { fasesCOA, g3, setFases, setG3, flush (guarda en la
 // fase activa lo que se movió), unidades, ops, activa, setActiva, setUnidades, bloqueado, avisoBloqueo, aviso,
@@ -446,9 +467,34 @@ export function accion(que, d = {}, M = {}) {
         const g = conFormas(M.g3, d.formas)
         if (g !== M.g3) M.setG3?.(g)
       }
-      M.setActiva?.({ bando: 'propio', idx: 0 })
-      M.setUnidades?.(fases[0].unidades)
+      mostrarFase0(fases, M)
       M.aviso?.(`🎬 ${fases.length} fases 🔵 del CAP ${d.cap.n}, con la tarea de cada unidad. Ahora, fase por fase, mové las fichas a donde van: la Mesa no inventa los lugares.`)
+      return true
+    }
+    if (que === 'colocar') {
+      // Lo que leyó carta-ia.mjs de la respuesta de la IA: los dos CAP con sus fases y su F3·P6.
+      const R = d.resultado || {}
+      const C = capsDe(M.g3)
+      const act = C.activo
+      const otro = act === 1 ? 2 : 1
+      const ya = [act, otro].filter((n) => R.caps?.[n]?.fases?.length).map((n) => [n, n === act ? (M.fasesCOA?.propio || []).length : (C.guardados[otro]?.fases || []).length]).filter(([, k]) => k)
+      const confirmar = M.confirmar || ((t) => (typeof window !== 'undefined' ? window.confirm(t) : true))
+      if (ya.length && !confirmar(`${ya.map(([n, k]) => `El CAP ${n} ya tiene ${k} fase(s) 🔵`).join(' y ')}.\n\nLo de la IA las REEMPLAZA (la F3·P6 sólo llena lo vacío). Lo que hayas movido en esas fases se pierde.\n\n¿Seguimos?`)) return false
+      const ids = new Set(Object.values(FORMAS).flat().map((f) => f.id))
+      const formas = { ...C.formas }
+      for (const n of [1, 2]) if (ids.has(R.caps?.[n]?.forma)) formas[n] = R.caps[n].forma
+      const g = { ...(M.g3 || {}) }
+      const guardados = { ...C.guardados }
+      if (R.caps?.[act]) g.coa = conF3P6(g.coa, R.caps[act].f3p6).valor
+      if (R.caps?.[otro]) {
+        const gu = guardados[otro] || {}
+        guardados[otro] = { ...gu, fases: R.caps[otro].fases, coa: conF3P6(gu.coa, R.caps[otro].f3p6).valor }
+      }
+      g._caps = { ...(M.g3?._caps || {}), activo: act, formas, guardados }
+      if (R.caps?.[act]) M.setFases?.((fc) => ({ ...(M.flush ? M.flush(fc) : fc), propio: R.caps[act].fases }))
+      M.setG3?.(g)
+      mostrarFase0(R.caps?.[act]?.fases, M)
+      M.aviso?.(`🤖 En la carta: ${[act, otro].filter((n) => R.caps?.[n]).map((n) => `CAP ${n} (${R.caps[n].fases.length} fases${n === act ? ', a la vista' : ', guardado'})`).join(' y ')}. Revisalo fase por fase y corregí lo que haga falta.`)
       return true
     }
   } catch (e) {

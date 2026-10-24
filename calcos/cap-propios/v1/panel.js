@@ -2,6 +2,8 @@
 // G-3, y los botones «CAP 1 / CAP 2» del 🎬 C.A. por fases. La lógica está en proponer.mjs; acá sólo se dibuja.
 // JavaScript sin compilar: React llega por configurarCAP() (lo llama el compilado antes del primer render).
 import { proponer, capsDe, fasesPorCAP, llevarAHoja, FORMAS } from './proponer.mjs'
+import { pedidoCarta, leerRespuesta } from './carta-ia.mjs'
+import { datosPuente } from '../../concepto-operacion/v1/carta.js'
 
 let R = {}
 export function configurarCAP(v) {
@@ -34,8 +36,18 @@ const E = {
   pie: { fontSize: 11, color: '#c69cff', lineHeight: 1.4 },
 }
 
-// props: { hoja, valor, ctx: { unidades, ops, cmoc, ordenSup, unidad, fasesCOA, g3 }, onAccion(que, datos), onLlevar(valor) }
-export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar }) {
+// El nomenclátor de la carta (el mismo que usa la F3·P4: poblaciones y terreno de los calcos generados).
+function lugaresDeLaCarta() {
+  try {
+    return datosPuente().lugares?.() || []
+  } catch {
+    return []
+  }
+}
+
+// props: { hoja, valor, ctx: { unidades, ops, cmoc, ordenSup, unidad, fasesCOA, g3 }, onAccion(que, datos), onLlevar(valor),
+//          onExpediente() → { md } }
+export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, onExpediente }) {
   const [abierto, setAbierto] = R.useState(hoja?.id === 'coa')
   const [msg, setMsg] = R.useState('')
   const C = capsDe(ctx.g3)
@@ -82,6 +94,25 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar }) 
       hoja?.id === 'coa' && h('button', { style: E.btn, onClick: llevar }, `🌱 Llevar el CAP ${activo.n} a esta hoja (sólo las casillas vacías)`),
       h('button', { style: E.btn, onClick: () => (setMsg(''), onAccion?.('fases', { cap: activo, formas })) }, `🎬 Armar las ${activo.fases.length} fases 🔵 del CAP ${activo.n} (con el dispositivo de ahora; después movés las fichas)`)),
     msg && h('div', { style: E.ok }, msg),
+    // 🤖 La IA desarrolla los dos CAP y la Mesa los pone en la carta (la caja de la IA de la Mesa: copiar, abrir en
+    // Claude / ChatGPT / Gemini, pegar la respuesta y ✓ Aplicar).
+    abierto && R.CajaIA && h(R.CajaIA, {
+      key: 'ia-carta',
+      titulo: '🤖 La IA desarrolla los dos CAP EN LA CARTA',
+      nota: 'Le manda el expediente, esta propuesta y las piezas de la carta (las unidades, los lugares, las tareas tácticas y los obstáculos). Al pegar su respuesta, la Mesa arma las fases 🔵 de los DOS CAP: mueve cada unidad al lugar que dijo, pone las tareas tácticas y los obstáculos, y llena la F3·P6 de cada uno (sólo lo vacío). Después vos lo corregís en la carta.',
+      color: AZUL,
+      onPedido: async () => {
+        const e = await onExpediente?.()
+        return pedidoCarta({ ctx, P, activo: C.activo, expediente: e?.md || '', lugares: lugaresDeLaCarta(), tareas: R.tareas || [], obstaculos: R.obstaculos || {} })
+      },
+      onAplicar: (texto) => {
+        const r = leerRespuesta(texto, { ...ctx, lugares: lugaresDeLaCarta(), tareas: R.tareas || [], obstaculos: R.obstaculos || {} })
+        if (!r.ok) return { ok: false, error: r.error }
+        if (onAccion?.('colocar', { resultado: r }) === false) return { ok: false, error: 'No se colocó nada (se canceló, o la BASE está con candado).' }
+        const f = r.faltan.length ? ` ⚠️ No se pudo: ${r.faltan.slice(0, 6).join('; ')}${r.faltan.length > 6 ? `; y ${r.faltan.length - 6} más` : ''}.` : ''
+        return { ok: true, msg: `🗺️ ${r.resumen} en la carta. Mirá el CAP ${C.activo} fase por fase en el 🎬 C.A. por fases; el otro quedó guardado (tocá su botón).${f} Revisá todo antes de darlo por bueno.` }
+      },
+    }),
     abierto && h('div', { style: E.pie }, `🤖 «Trabajar esta hoja con IA» le manda esta propuesta: la IA tiene que decir si cada CAP SIRVE o NO para este ejercicio (las cinco pruebas) y desarrollar el CAP ${C.activo} en esta hoja.`))
 }
 

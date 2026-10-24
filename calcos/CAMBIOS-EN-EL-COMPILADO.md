@@ -5,6 +5,31 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-24 (4) — 🤖 La IA desarrolla los dos CAP propios y la Mesa los pone en la carta (`index-cap-carta-20261024.js`)
+
+Parte de `index-cap-propios-20261024.js` + `pruebas/reemplazos-2026-10-24-cap-carta.js` (3 reemplazos;
+`construir-cap-carta.js`; `reemplazos-compilado.js` lo deshace byte por byte). Sergio: «la aplicación me genera el
+prompt con toda la situación y la IA me lo genera, yo lo pego y se coloca en la mesa».
+
+- **Fuera del compilado**: `cap-propios/v1/carta-ia.mjs` — el pedido con el expediente, la propuesta y las piezas de
+  la carta (unidades con su designación exacta, el nomenclátor del A.O. con coordenadas, A.I.N., avenidas, los
+  catálogos de tareas tácticas y obstáculos) y la lectura de la respuesta: las fases de los dos CAP con cada unidad en
+  su lugar (con el ubicador de la F3·P4), las tareas tácticas de cada fase, los obstáculos acumulados, la F3·P6 y el
+  juicio; lo que no se pudo ubicar. `proponer.mjs` suma la acción «colocar» (el activo a la vista con el calco de su
+  fase 1, el otro guardado). `panel.js` muestra «🤖 La IA desarrolla los dos CAP EN LA CARTA» con la caja de la IA de
+  la Mesa.
+- **En el compilado**: `configurarCAP` recibe la caja de la IA (`hU`) y los catálogos (`zg`, `Nm`); `SIDcapAcc` recibe
+  `setOps` (`Sn`) y el candado del ejercicio finalizado (`Bn`); el panel recibe `onExpediente`.
+- **Cómo se comprobó**: `cap-carta.mjs` (el pedido; con la respuesta de ejemplo, cada unidad en su lugar fase por
+  fase, las tareas tácticas con su rumbo, los obstáculos acumulados, la F3·P6 sin pisar al oficial, los avisos de lo
+  que no está; «colocar» con el CAP 1 o el CAP 2 activo) y `e2e/cap-carta.cjs` (en la Mesa: el pedido final con la
+  tarea adelante y los catálogos reales; ✓ Aplicar arma las fases de los dos CAP; en la FASE 4 del CAP 1 la DIV MEC-2
+  en Guata con «bloquear» y «fijar» y los dos obstáculos; el CAP 2 vuelve con sus fases; sin errores de consola).
+  Además `reemplazos-compilado.js`, `npm test` y las e2e de los CAP propios, el CAE, el concepto y los puntos de
+  decisión.
+- **Si se recompila desde el fuente**: pasarle a `configurarCAP` la caja de la IA y los catálogos, y a `SIDcapAcc`
+  `setOps` y el candado.
+
 ## 2026-10-24 (3) — 💡 Los dos cursos de acción propios: los propone la Mesa, los juzga la IA, se guardan los dos (`index-cap-propios-20261024.js`)
 
 Parte de `index-cae-enemigo-20261024.js` + `pruebas/reemplazos-2026-10-24-cap-propios.js` (10 reemplazos;
