@@ -56,7 +56,8 @@
 //   index-puntos-chicos-20261023.js + reemplazos-2026-10-23-suelo.js = index-suelo-20261023.js
 //   index-suelo-20261023.js + reemplazos-2026-10-23-editar-tareas.js = index-editar-tareas-20261023.js
 //   index-editar-tareas-20261023.js + reemplazos-2026-10-24-puntos-decision.js = index-puntos-decision-20261024.js
-//   index-puntos-decision-20261024.js + reemplazos-2026-10-24-cae-enemigo.js = index-cae-enemigo-20261024.js (el vigente)
+//   index-puntos-decision-20261024.js + reemplazos-2026-10-24-cae-enemigo.js = index-cae-enemigo-20261024.js
+//   index-cae-enemigo-20261024.js + reemplazos-2026-10-24-cap-propios.js = index-cap-propios-20261024.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -70,6 +71,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-24-cap-propios'),
+    nombre: 'reemplazos-2026-10-24-cap-propios',
+    // calcos/assets/index-cae-enemigo-20261024.js (antes de los dos CAP propios que propone la Mesa).
+    anterior: '1e14809887a0e8c3bb63b9853757e21c2d683ebdd6c93e6c6e2322c7ead024b1',
+  },
   {
     lista: require('./reemplazos-2026-10-24-cae-enemigo'),
     nombre: 'reemplazos-2026-10-24-cae-enemigo',

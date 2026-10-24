@@ -5,6 +5,32 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-24 (3) — 💡 Los dos cursos de acción propios: los propone la Mesa, los juzga la IA, se guardan los dos (`index-cap-propios-20261024.js`)
+
+Parte de `index-cae-enemigo-20261024.js` + `pruebas/reemplazos-2026-10-24-cap-propios.js` (10 reemplazos;
+`construir-cap-propios.js`; `reemplazos-compilado.js` lo deshace byte por byte). El PMTD pide «al menos dos» cursos
+de acción propios y la Mesa guardaba uno solo (una sola F3·P6, un solo juego de fases 🔵). Sergio pidió «que la
+aplicación sugiera y que lo lleve a la IA… si es o no es lo que estoy haciendo precisamente para este ejercicio… en
+este caso defensa móvil».
+
+- **Fuera del compilado**: `cap-propios/v1/` (ver `cap-propios/README.md`) — `proponer.mjs` lee el ejercicio (tipo
+  de operación, unidades de maniobra, móviles, reserva, avenidas, LF y LDE, hora D) y propone dos CAP que se
+  distinguen por la forma de maniobra, con quién hace qué, el enunciado de la F3·P6 y cinco fases; arma el bloque de
+  la IA; guarda el CAP no activo en `g3._caps`. `panel.js` dibuja el panel y los botones CAP 1 / CAP 2.
+- **En el compilado**: el import y `configurarCAP`; en la Mesa `SIDcapAcc` (cambiar de CAP: guarda lo movido en la
+  fase activa, cambia fases 🔵 + F3·P4 + F3·P6, suelta la fase propia activa; elegir la forma; armar las fases), con el
+  candado de la BASE; el Tablero del G-3 la recibe en su `ctx` y muestra el panel en la F3·P6 y la F3·P4; el pedido de
+  esas dos hojas pasa por `SIDCapPedido` (dentro del `SIDdespues` del 24-10 (2)); el 🎬 C.A. por fases (`_ae`) recibe
+  `SIDcap` y muestra los botones debajo de «🔵 Curso de acción PROPIO».
+- **Cómo se comprobó**: `cap-propios.mjs` (con el ejercicio del CE-I: CAP 1 defensa de área, CAP 2 defensa móvil,
+  quién hace qué; otras formas y tipos; los avisos; el pedido; ida y vuelta CAP 1 ↔ CAP 2 sin perder nada; 🌱 y 🎬; los
+  botones con el candado) y `e2e/cap-propios.cjs` (en la Mesa: el panel, el pedido, 🌱, 🎬 las 5 fases del CAP 1, CAP 2
+  con su F3·P6 vacía y sus fases de defensa móvil, la F3·P4 del CAP 2, de vuelta al CAP 1 desde el 🎬 C.A. por fases;
+  sin errores de consola). Además `reemplazos-compilado.js`, `npm test` y las e2e del CAE, el concepto, los puntos de
+  decisión, la PRC, el pedido, la H.T. 19 y deshacer.
+- **Si se recompila desde el fuente**: llevar el import, `configurarCAP`, `SIDcapAcc` y su paso al G-3 y al
+  🎬 C.A. por fases, el panel y el envoltorio del pedido.
+
 ## 2026-10-24 (2) — 🔴 El CAE del G-2 desde el lado del enemigo y sin unidades inventadas (`index-cae-enemigo-20261024.js`)
 
 Parte de `index-puntos-decision-20261024.js` + `pruebas/reemplazos-2026-10-24-cae-enemigo.js` (9 reemplazos;
