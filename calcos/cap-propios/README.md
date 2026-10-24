@@ -36,6 +36,31 @@ construir la aplicación».
   aceptable, distinguible, completo), proponer el reemplazo del que no sirva y desarrollar el CAP activo. El juicio
   va al principio de «Razón fundamental» (F3·P6) o de «Forma de maniobra elegida y por qué» (F3·P4).
 
+## 🤖 La IA desarrolla los dos CAP EN LA CARTA (24-10-2026, `v1/carta-ia.mjs`)
+
+Sergio: «tú me los propones los dos con sus fases (con ayuda de la IA: la aplicación me genera el prompt con toda la
+situación y la IA me lo genera, yo lo pego y se coloca en la mesa); puedo yo aquí mover fichas, tareas, fuegos,
+barreras… y concreto los dos cursos de acción en la mesa».
+
+En el mismo panel, **«🤖 La IA desarrolla los dos CAP EN LA CARTA»** (la caja de la IA de la Mesa: copiar, abrir en
+Claude / ChatGPT / Gemini, tamaño, tu indicación, pegar y ✓ Aplicar):
+
+- **El pedido** lleva el expediente completo, la propuesta de la Mesa y **las piezas de la carta**: las unidades
+  propias y enemigas con su designación EXACTA y dónde están hoy («a 6 km de Macaya»), los **lugares de la carta**
+  (el nomenclátor de los calcos y el terreno clave del CMOC dentro del A.O. y 30 km alrededor) con sus coordenadas,
+  las A.I.N., las avenidas y los catálogos de **tareas tácticas** y **obstáculos** de la Mesa. La IA contesta un JSON:
+  el juicio de los dos CAP y, para cada CAP, cinco fases con a qué lugar va cada unidad, qué tarea táctica se pone
+  (dónde y hacia dónde) y qué obstáculos (dónde; las líneas, de dónde a dónde), y el enunciado de su F3·P6.
+- **Al aplicar**: se arman las fases 🔵 de los DOS CAP. En cada fase, cada unidad está donde dijo la IA (las que no
+  nombra quedan donde estaban en la fase anterior); las tareas tácticas son de esa fase; los obstáculos se acumulan
+  (lo construido queda). El CAP activo queda a la vista (su FASE 1 en la carta); el otro, guardado. La F3·P6 de cada
+  CAP se llena SÓLO en lo vacío (lo que había propuesto la Mesa con «[Mesa — verificar]» sí se reemplaza) y el juicio
+  va a «Razón fundamental». Si ya había fases, pregunta antes de reemplazarlas.
+- **Lo que no se pudo** lo dice («la unidad «DIV-7» no está en las fichas», «Cerro Comanchi no está en la carta;
+  quedó donde estaba»): la Mesa no inventa lugares.
+- Los **fuegos** (plan de fuegos) no van por fase: siguen en la F3·P4 («Proponer la plantilla del concepto») y en
+  🔥 Fuegos.
+
 ## Cómo lee el ejercicio (`analizar`)
 
 - **Tipo de operación**: el del Área de Operaciones (ofensiva, defensiva, retrógrada); si no tiene, la misión
@@ -58,8 +83,13 @@ del calco y no cambian con el CAP.
 
 - `v1/proponer.mjs` — sin dependencias: `analizar`, `proponer`, `armarCAP`, `bloqueIA`, `pedido`, `cambiarCAP`,
   `conForma`, `conFormas`, `fasesPorCAP`, `llevarAHoja`, `armarFases`, `accion`.
-- `v1/panel.js` — el panel (React por `configurarCAP`) y `botonesCAP` del 🎬 C.A. por fases.
+- `v1/carta-ia.mjs` — `piezas` (el nomenclátor y el ubicador de la F3·P4), `pedidoCarta`, `leerRespuesta`.
+- `v1/panel.js` — el panel (React, la caja de la IA `hU` y los catálogos por `configurarCAP`) y `botonesCAP` del
+  🎬 C.A. por fases.
 - En el compilado (`pruebas/reemplazos-2026-10-24-cap-propios.js`): el import, `configurarCAP`, `SIDcapAcc` en la
   Mesa (las fases, el G-3, la fase activa, el candado de la BASE), el panel en la F3·P6 y la F3·P4, los botones del
   🎬 C.A. por fases y el pedido de la IA (por `SIDdespues` de la caja de la IA).
-- Pruebas: `pruebas/cap-propios.mjs` y `pruebas/e2e/cap-propios.cjs`.
+- En el compilado (`pruebas/reemplazos-2026-10-24-cap-carta.js`): la caja de la IA y los catálogos al panel,
+  `setOps` y el candado del ejercicio finalizado en `SIDcapAcc`, y el expediente al panel.
+- Pruebas: `pruebas/cap-propios.mjs`, `pruebas/cap-carta.mjs` (con la respuesta de ejemplo `pruebas/cap-carta-ejemplo.js`),
+  `pruebas/e2e/cap-propios.cjs` y `pruebas/e2e/cap-carta.cjs`.
