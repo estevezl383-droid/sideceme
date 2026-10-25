@@ -1,13 +1,15 @@
 // 💡 El panel «La Mesa propone 2 CAP para este ejercicio», arriba de la F3·P6 (y de la F3·P4) en el Tablero del
 // G-3, y los botones «CAP 1 / CAP 2» del 🎬 C.A. por fases. La lógica está en proponer.mjs; acá sólo se dibuja.
 // JavaScript sin compilar: React llega por configurarCAP() (lo llama el compilado antes del primer render).
-import { proponer, capsDe, fasesPorCAP, llevarAHoja, FORMAS, armarCAP } from './proponer.mjs?v=todas20261024'
-import { pedido, HOJAS_POR_CAP } from './proponer.mjs?v=todas20261024'
-// Con versión: lo nuevo (la lectura tolerante del JSON, las posiciones por fase) tiene que llegar aunque el navegador
-// tenga guardados los archivos de antes.
-import { pedidoCarta, leerRespuesta } from './carta-ia.mjs?v=todas20261024'
+import { proponer, capsDe, fasesPorCAP, llevarAHoja, FORMAS, armarCAP } from './proponer.mjs?v=iti20261025'
+import { pedido, HOJAS_POR_CAP } from './proponer.mjs?v=iti20261025'
+// Con versión: lo nuevo (la lectura tolerante del JSON, las posiciones por fase, las tareas con su unidad) tiene que
+// llegar aunque el navegador tenga guardados los archivos de antes.
+import { pedidoCarta, leerRespuesta } from './carta-ia.mjs?v=iti20261025'
 import { textoDeLaCarta, hojaConCarta, bloqueCartaIA, nomenclatorDe } from './texto-carta.mjs'
-import { posicionesCAP, movibles } from './posiciones.mjs?v=todas20261024'
+import { posicionesCAP, movibles } from './posiciones.mjs?v=iti20261025'
+import { tareasPorFase } from './tareas-fase.mjs?v=iti20261025'
+import { COLOR_CAP, COLOR_CAP_CLARO, NOMBRE_COLOR } from './itinerario.mjs?v=iti20261025'
 import { datosPuente } from '../../concepto-operacion/v1/carta.js'
 
 let R = {}
@@ -86,6 +88,9 @@ export function pedidoCAP(r, hoja, ctx = {}) {
   }
 }
 
+// Los CAP cuyas fases están todas iguales y el oficial dijo que NO las armemos al tocar una (no se pregunta otra vez).
+const noArmar = new Set()
+
 // props: { hoja, valor, ctx: { unidades, ops, cmoc, ordenSup, unidad, fasesCOA, g3 }, onAccion(que, datos), onLlevar(valor),
 //          onExpediente() → { md } }
 export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, onExpediente }) {
@@ -127,11 +132,31 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
     if (!fijas.length) return null
     return fijas.length === ids.length ? 'todas' : fijas.map((id) => en[0].get(id).designacion || id)
   }
+  // 🎬 Armar las fases de un CAP: cada unidad en su lugar en cada fase (posiciones.mjs) y cada tarea táctica con su
+  // unidad (tareas-fase.mjs). El del CAP guardado lo arma ahí mismo y pasa a él (proponer.mjs, armarGuardado).
+  const armado = (c, extra = {}) => ({
+    cap: c,
+    formas,
+    posiciones: (us, ops, x) => posicionesCAP(c, { unidades: us, ops, marcas: ctx.g3?.conceptoCarta?.marcas || [], A: P.A, previas: x?.previas }),
+    conTareas: (fs) => tareasPorFase(fs, { n: c.n }),
+    ...extra,
+  })
   const botonesFase = (c) => {
     const fs = fasesDe(c.n)
-    if (!fs.length) return h('div', { style: E.fases }, '🎬 Todavía sin fases en la carta: tocá «🎬 Armar las fases» o pedíselas a la IA (abajo).')
+    if (!fs.length) return h('div', { style: E.fases }, `🎬 Todavía sin fases en la carta: tocá «🎬 Armar las fases» ${c.n === C.activo ? '(abajo)' : 'de este CAP (abajo)'} o pedíselas a la IA.`)
     const q = quietas(fs)
-    const deNuevo = c.n === C.activo ? 'Tocá «🎬 Armar las fases» de nuevo' : `Pasá al CAP ${c.n} y tocá «🎬 Armar las fases»`
+    const deNuevo = c.n === C.activo ? 'Tocá «🎬 Armar las fases» de nuevo' : `Tocá «🎬 Armar las fases de este CAP» (acá abajo)`
+    // Si todas las fases tienen las fichas en el mismo lugar, tocar una no cambia nada: la Mesa ofrece armarlas ya.
+    const tocar = (i) => {
+      setMsg('')
+      if (q === 'todas' && !noArmar.has(c.n)) {
+        const si = typeof window === 'undefined' || window.confirm(`Las ${fs.length} fases del CAP ${c.n} tienen TODAS las fichas en el MISMO lugar (se armaron copiando el dispositivo): por eso de una fase a otra no cambia nada.\n\n¿Las armo ahora? La Mesa ubica cada unidad en cada fase (${c.nomForma}): FASE I juntas con el CE, FASE II a sus trabajos, FASE III en su puesto con su tarea táctica… y marca el itinerario con flechas.\n\n(Cancelar: la muestra como está.)`)
+        // (si no se pudo armar —el candado del ejercicio—, igual se muestra la fase)
+        if (si && onAccion?.('fases', armado(c, { ver: i, sinPreguntar: true }))) return
+        if (!si) noArmar.add(c.n)
+      }
+      onAccion?.('fase', { n: c.n, idx: i, formas })
+    }
     return h('div', { style: { display: 'flex', flexDirection: 'column', gap: 4 } },
       q && h('div', { style: E.aviso, 'data-quietas': c.n }, q === 'todas'
         ? `⚠️ En las ${fs.length} fases del CAP ${c.n} las fichas están en el MISMO lugar (se armaron copiando el dispositivo). ${deNuevo}: ahora la Mesa ubica cada unidad en cada fase (o movelas a mano fase por fase).`
@@ -143,9 +168,14 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
           'data-fase': i + 1,
           title: `${f.nombre || `Fase ${i + 1}`}${f.origen ? ` · ${f.origen}` : ''} — tocala y la carta muestra dónde está cada ficha`,
           style: { ...E.btn, padding: '4px 8px', fontSize: 11.5, fontWeight: 700, background: enVista(c.n, i) ? AZUL : 'rgba(90,169,255,0.12)', color: enVista(c.n, i) ? '#fff' : '#dff0ff' },
-          onClick: () => (setMsg(''), onAccion?.('fase', { n: c.n, idx: i, formas })),
+          onClick: () => tocar(i),
         }, `FASE ${ROM[i] || i + 1}${f.nombre ? ` · ${corto(f.nombre)}` : ''}`))))
   }
+  // El CAP guardado se arma desde su tarjeta (sin pasar antes a él): «el CAP 2 no está funcionando nada».
+  const botonArmarGuardado = (c) =>
+    c.n !== C.activo &&
+    h('button', { style: { ...E.btn, borderColor: COLOR_CAP[c.n] || AZUL }, 'data-armar-cap': c.n, onClick: () => (setMsg(''), onAccion?.('fases', armado(c))) },
+      `🎬 Armar las ${c.fases.length} fases 🔵 de este CAP (CAP ${c.n}) y verlas en la carta`)
 
   const tarjeta = (c) =>
     h('div', { key: c.n, style: E.tarjeta(c.n === C.activo), 'data-tarjeta-cap': c.n },
@@ -156,7 +186,9 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
       c.roles.map((r, i) => h('div', { key: i, style: E.rol }, h('b', null, `${r.principal ? '★ ' : ''}${r.rol}: `), `${r.unidades.map((u) => u.nom).join(', ')} — ${r.tarea}.`)),
       h('div', { style: E.dist }, `🗺️ En la carta: ${c.distingue}.`),
       h('div', { style: E.fases }, `🎬 ${c.fases.map((f, i) => `${i + 1}. ${f.nombre} (${f.cuando})`).join(' · ')}`),
-      botonesFase(c))
+      h('div', { style: { ...E.fases, color: COLOR_CAP_CLARO[c.n] || E.fases.color }, 'data-itinerario-cap': c.n }, `➜ En las fases, el itinerario de cada unidad va marcado con flechas ${NOMBRE_COLOR[c.n] || ''}.`),
+      botonesFase(c),
+      botonArmarGuardado(c))
 
   const llevar = () => {
     const r = llevarAHoja(valor, activo)
@@ -174,7 +206,7 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
     abierto && h('div', { style: { display: 'flex', flexDirection: 'column', gap: 5 } },
       hoja?.id === 'coa' && h('button', { style: E.btn, onClick: llevar }, `🌱 Llevar el CAP ${activo.n} a esta hoja (sólo las casillas vacías)`),
       hoja?.id === 'coa' && h('button', { style: E.btn, 'data-cap-texto': '1', onClick: () => (setMsg(''), onAccion?.('texto', escritor(ctx))) }, '📝 Llevar la carta a la F3·P6 de los dos CAP (lo que quedó en las fases 🔵: unidades, tareas, obstáculos y fuegos)'),
-      h('button', { style: E.btn, onClick: () => (setMsg(''), onAccion?.('fases', { cap: activo, formas, posiciones: (us, ops, x) => posicionesCAP(activo, { unidades: us, ops, marcas: ctx.g3?.conceptoCarta?.marcas || [], A: P.A, previas: x?.previas }) })) }, `🎬 Armar las ${activo.fases.length} fases 🔵 del CAP ${activo.n} (todas las fichas: juntas con el CE, a sus trabajos de barreras, a su puesto…)`)),
+      h('button', { style: E.btn, onClick: () => (setMsg(''), onAccion?.('fases', armado(activo))) }, `🎬 Armar las ${activo.fases.length} fases 🔵 del CAP ${activo.n} (todas las fichas: juntas con el CE, a sus trabajos de barreras, a su puesto con su tarea…)`)),
     msg && h('div', { style: E.ok }, msg),
     // 🤖 La IA desarrolla los dos CAP y la Mesa los pone en la carta (la caja de la IA de la Mesa: copiar, abrir en
     // Claude / ChatGPT / Gemini, pegar la respuesta y ✓ Aplicar).

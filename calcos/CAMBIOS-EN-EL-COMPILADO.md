@@ -5,6 +5,63 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-25 — 🎯 La tarea de cada fase con su unidad, el rótulo OD / OC con la unidad, ➜ el itinerario con flechas y el CAP 2 (`index-itinerario-20261025.js`)
+
+Parte de `index-todas-fichas-20261024.js` + `pruebas/reemplazos-2026-10-25-itinerario.js` (4 reemplazos;
+`construir-itinerario.js`; `reemplazos-compilado.js` lo deshace byte por byte). Sergio, con la FASE I del CAP 1 a la
+vista: «la OC y la OD deben permanecer con su nombre con la unidad… están solas ya esperando en un lugar; eso se mueve
+con la unidad», «las tareas tácticas deben aparecer con la unidad, no deben aparecer solas», «cada fase tiene una tarea
+táctica diferente, y las que se ven sólo aparecerían en la FASE III, porque no hacen esa tarea todo el rato», «que su
+desplazamiento quede marcado con una línea flecha… uno violeta y otro fucsia… en la fase última todo su itinerario» y
+«el CAP 2 no está funcionando nada». Las tareas de la F3·P3 (con su rótulo OD / OC / RES) estaban en el calco de TODAS
+las fases, quietas en su lugar, mientras sus unidades estaban con el CE; y las 5 fases de su CAP 2 eran copias (todas
+las fichas en el mismo lugar), así que tocarlas no cambiaba nada.
+
+- **Fuera del compilado**:
+  - `cap-propios/v1/tareas-fase.mjs` (nuevo) — la unidad de cada tarea (`duenoDeTarea`: su agrupación por el agId, la
+    que nombró la IA, la única de su operación o la de sus piezas) y `tareasPorFase`: las tareas de la carta (las de la
+    F3·P3 y las que puso el oficial) se ven SÓLO en la FASE III y sólo si su unidad está con ellas (a menos de 3 km); en
+    las demás fases quedan en `ops.tareasOcultas` de la fase (para el rótulo y para volver a armar). Las de la IA, sólo
+    en su fase y en su CAP; las tareas y obstáculos de la IA del otro CAP no pasan.
+  - `posiciones.mjs` — en la FASE III la unidad que cumple una tarea de la carta va junto a ella (0,7 km, del lado
+    propio), salvo la que la forma pone en otro lado (el retardo, la masa). Y la tarea de cada fase según su rol
+    (`tareasFase` de `proponer.mjs`: en la defensa de área, la FASE IV «destruir» el esfuerzo principal, «fijar» el
+    secundario; la FASE V «destruir» la reserva, «mantener» los demás; en la móvil, «canalizar» el retardo, «fijar» la
+    fijadora y «destruir» la masa…), DISTINTA de la de la fase anterior, pegada a la ficha que la cumple
+    (`tareaSimbolo`, como en las fases del enemigo): la agrupación de ese rol (la OD, la OC…) o, si no hay, la unidad.
+  - `itinerario.mjs` (nuevo) — el itinerario de cada ficha propia de la FASE I a la que está a la vista, con flechas:
+    el CAP 1 en VIOLETA (`#8f00ff`), el CAP 2 en FUCSIA (`#ff00ff`); en la última fase, todo el recorrido. Con halo
+    blanco, punta de flecha y un punto donde estaba en cada fase; tocando un tramo: quién, de qué fase a cuál y los km.
+  - `proponer.mjs` — `armarFases` pone la tarea de cada fase en las fichas y no copia las de la IA; la acción «fases» del
+    CAP GUARDADO lo arma ahí mismo, lo deja en `g3._caps.guardados` y pasa a él con la fase pedida a la vista
+    (`armarGuardado`).
+  - `panel.js` — en la tarjeta del CAP guardado, «🎬 Armar las 5 fases 🔵 de este CAP (CAP 2) y verlas en la carta»;
+    tocar una fase de un CAP con las fases copiadas pregunta «¿Las armo ahora?»; cada tarjeta dice el color de sus
+    flechas.
+  - `carta-ia.mjs` — cada tarea de la IA con su unidad (si la dejó lejos, en esa fase va junto a su tarea y ahí se
+    queda); el pedido le dice que cada fase tiene su tarea y le lista las tareas que ya están en la carta (de la fase 3).
+  - `texto-carta.mjs` — cada tarea con su unidad y las tareas pegadas a las fichas en «Según la carta».
+  - `organizacion/v1/carta.js` — en una fase propia (con la hoja cerrada), el rótulo OD / OC / RES va a la derecha de la
+    ficha de su unidad, también cuando su tarea está guardada aparte; `organizacion/v1/editor.js` (la hoja F3·P3) cuenta
+    y trabaja también las tareas que la fase a la vista guarda aparte, y lo avisa: abierta en la FASE I no las pierde,
+    no las duplica ni ofrece «⬅️ Partir de lo que ya armé» por ellas.
+  - Las e2e de los CAP no le devuelven el mapa a Playwright en `fitBounds` (con las capas del itinerario no se puede
+    serializar).
+- **En el compilado**: el import de `itinerario.mjs` y su `useEffect` (las fases, la fase activa, el G-3 y las fichas;
+  se apaga con «Fichas propias»), `faseActiva` en la sincronización de la capa de la F3·P3 y `panel.js?v=iti20261025`,
+  `proponer.mjs?v=iti20261025`.
+- **Cómo se comprobó**: `cap-tareas-fase.mjs` (9 casos: la unidad de cada tarea; las de la F3·P3 sólo en la FASE III y
+  con su agrupación; cada fase con su tarea distinta, pegada a la ficha, en los dos CAP; armar de nuevo da lo mismo y no
+  trae lo del otro CAP; la IA; el pedido; el CAP guardado desde su tarjeta; los tramos del itinerario) y
+  `e2e/itinerario.cjs` (en la Mesa: con el CAP 2 copiado, FASE I sin tareas y los rótulos OD / OC 1 / OC 2 / RES junto a
+  su agrupación; la hoja F3·P3 abierta en la FASE I cuenta sus 3 tareas y lo avisa; FASE III las tres tareas con su unidad y las flechas violetas; FASE IV y V otra tarea pegada a cada
+  ficha y todo el itinerario; tocar el CAP 2 copiado lo arma y muestra las flechas fucsias; el CAP 1 guardado se arma
+  desde su tarjeta; sin errores de consola). Además `reemplazos-compilado.js`, `npm test` y las e2e de los CAP, la
+  carta, los fuegos por fase, las posiciones, todas las fichas, la organización, deshacer, el concepto, los puntos de
+  decisión, editar tareas y el aviso de versión.
+- **Si se recompila desde el fuente**: llevar el import y el `useEffect` del itinerario y `faseActiva` a la
+  sincronización de la capa de la F3·P3.
+
 ## 2026-10-24 (9) — 📍 En las fases de los CAP se mueven TODAS las fichas (`index-todas-fichas-20261024.js`)
 
 Parte de `index-posiciones-fase-20261024.js` + `pruebas/reemplazos-2026-10-24-todas-fichas.js` (2 reemplazos;

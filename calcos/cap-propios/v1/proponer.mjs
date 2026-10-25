@@ -196,12 +196,12 @@ function roles(forma, A) {
   const ingenieros = (que) => ing.length && R.push({ unidades: ing, rol: 'Ingenieros', tarea: que, proposito: 'para canalizar y retardar al enemigo donde lo baten los fuegos', fases: ['Concentrarse con el grueso', 'Reconocer los sitios de obstáculos', 'Construir el plan de barreras', 'Mantener la movilidad de la reserva', 'Abrir pasos para el contraataque'] })
 
   if (forma === 'area' || forma === 'area_alterna') {
-    if (ppal) R.push({ unidades: [ppal], rol: 'Esfuerzo principal', tarea: `Defender ${A.lpr} sobre la ${avNom(conAv)}`, proposito: `para detener al enemigo en la ${avNom(conAv)} antes de la LPR`, principal: true, fases: ['Concentrarse en su zona de reunión', 'Desplazarse a su sector', 'Ocupar y organizar su sector (posiciones y obstáculos)', `Detener al enemigo en la ${avNom(conAv)}`, 'Consolidar su sector'] })
+    if (ppal) R.push({ unidades: [ppal], rol: 'Esfuerzo principal', tarea: `Defender ${A.lpr} sobre la ${avNom(conAv)}`, proposito: `para detener al enemigo en la ${avNom(conAv)} antes de la LPR`, principal: true, fases: ['Concentrarse en su zona de reunión', 'Desplazarse a su sector', 'Ocupar y organizar su sector (posiciones y obstáculos)', `Detener al enemigo en la ${avNom(conAv)}`, 'Consolidar su sector'], tareasFase: [null, null, null, ['destruir', 'bloquear'], ['mantener', 'asegurar']] })
     for (const u of resto(ppal)) {
       const av = A.avenidas.find((a) => a !== conAv && A.cercaDe(a) === u) || A.avenidas.find((a) => a !== conAv) || null
-      R.push({ unidades: [u], rol: 'Esfuerzo secundario', tarea: `Defender ${A.lpr}${av ? ` sobre la ${av.nombre}` : ' en su sector'}`, proposito: `para impedir que el enemigo desborde al esfuerzo principal`, fases: ['Concentrarse en su zona de reunión', 'Desplazarse a su sector', 'Ocupar y organizar su sector', `Defender su sector${av ? ` (${av.nombre})` : ''}`, 'Consolidar su sector'] })
+      R.push({ unidades: [u], rol: 'Esfuerzo secundario', tarea: `Defender ${A.lpr}${av ? ` sobre la ${av.nombre}` : ' en su sector'}`, proposito: `para impedir que el enemigo desborde al esfuerzo principal`, fases: ['Concentrarse en su zona de reunión', 'Desplazarse a su sector', 'Ocupar y organizar su sector', `Defender su sector${av ? ` (${av.nombre})` : ''}`, 'Consolidar su sector'], tareasFase: [null, null, null, ['fijar', 'contener'], ['mantener', 'asegurar']] })
     }
-    if (A.reserva) R.push({ unidades: [A.reserva], rol: 'Reserva', tarea: 'Reserva: contraatacar o bloquear sobre el eje que amenace la LPR', proposito: 'para restablecer la LPR si el enemigo la penetra', fases: ['Concentrarse en su zona de reunión', 'Desplazarse a su zona de reunión de reserva', 'Reconocer los ejes de contraataque', 'Lista para empeñarse', 'Contraatacar y restablecer la LPR'] })
+    if (A.reserva) R.push({ unidades: [A.reserva], rol: 'Reserva', tarea: 'Reserva: contraatacar o bloquear sobre el eje que amenace la LPR', proposito: 'para restablecer la LPR si el enemigo la penetra', fases: ['Concentrarse en su zona de reunión', 'Desplazarse a su zona de reunión de reserva', 'Reconocer los ejes de contraataque', 'Lista para empeñarse', 'Contraatacar y restablecer la LPR'], tareasFase: [null, null, null, null, ['destruir', 'derrotar']] })
     apoyoFuegos(`el esfuerzo principal (${ppal ? nom(ppal) : avNom(conAv)})`)
     ingenieros(`Plan de barreras con prioridad en la ${avNom(conAv)}`)
     return { R, av: conAv, distingue: `el esfuerzo principal sobre la ${avNom(conAv)} con ${ppal ? nom(ppal) : 'la unidad más cercana'}, las unidades sobre ${A.lpr}${A.reserva ? ` y ${nom(A.reserva)} de reserva atrás` : ''}: se RETIENE el terreno` }
@@ -212,9 +212,9 @@ function roles(forma, A) {
     const retardo = (av1 && movilesAdelante.slice().sort((a, b) => aLinea(pos(a), av1.coords) - aLinea(pos(b), av1.coords))[0]) || movilesAdelante[0] || ppal
     const fijadora = A.adelante.filter((u) => u !== retardo)
     const masa = [A.reserva, ...(A.reserva ? [] : [])].filter(Boolean)
-    if (retardo) R.push({ unidades: [retardo], rol: 'Fuerza de retardo (seguridad)', tarea: `Retardar desde ${ld1} hasta ${A.lpr} sobre la ${avNom(av1)}`, proposito: 'para desgastar al enemigo y canalizarlo hacia la zona de destrucción', principal: !masa.length, fases: ['Concentrarse en su zona de reunión', `Desplazarse a ${ld1}`, 'Ocupar posiciones de retardo sucesivas', `Retardar sobre la ${avNom(av1)} y pasar por las líneas de la fuerza fijadora`, 'Reunirse y sumarse al contraataque'] })
-    for (const u of fijadora) R.push({ unidades: [u], rol: 'Fuerza fijadora', tarea: `Defender ${A.lpr} en su sector`, proposito: 'para fijar al enemigo en la zona de destrucción', fases: ['Concentrarse en su zona de reunión', 'Desplazarse a su sector', 'Ocupar y organizar la posición', 'Fijar al enemigo en la zona de destrucción', 'Consolidar y apoyar el contraataque'] })
-    if (masa.length) R.push({ unidades: masa, rol: 'Masa de contraataque (esfuerzo principal)', tarea: 'Contraatacar sobre el flanco del enemigo canalizado', proposito: 'para DESTRUIR al enemigo en la zona de destrucción', principal: true, fases: ['Concentrarse en su zona de reunión', 'Desplazarse oculta a su zona de reunión de contraataque', 'Reconocer los ejes de contraataque (sin obstáculos propios)', 'Lista para contraatacar (punto de decisión)', 'Contraatacar y destruir al enemigo'] })
+    if (retardo) R.push({ unidades: [retardo], rol: 'Fuerza de retardo (seguridad)', tarea: `Retardar desde ${ld1} hasta ${A.lpr} sobre la ${avNom(av1)}`, proposito: 'para desgastar al enemigo y canalizarlo hacia la zona de destrucción', principal: !masa.length, fases: ['Concentrarse en su zona de reunión', `Desplazarse a ${ld1}`, 'Ocupar posiciones de retardo sucesivas', `Retardar sobre la ${avNom(av1)} y pasar por las líneas de la fuerza fijadora`, 'Reunirse y sumarse al contraataque'], tareasFase: [null, null, null, ['canalizar', 'desorganizar'], null] })
+    for (const u of fijadora) R.push({ unidades: [u], rol: 'Fuerza fijadora', tarea: `Defender ${A.lpr} en su sector`, proposito: 'para fijar al enemigo en la zona de destrucción', fases: ['Concentrarse en su zona de reunión', 'Desplazarse a su sector', 'Ocupar y organizar la posición', 'Fijar al enemigo en la zona de destrucción', 'Consolidar y apoyar el contraataque'], tareasFase: [null, null, null, ['fijar', 'contener'], ['mantener', 'asegurar']] })
+    if (masa.length) R.push({ unidades: masa, rol: 'Masa de contraataque (esfuerzo principal)', tarea: 'Contraatacar sobre el flanco del enemigo canalizado', proposito: 'para DESTRUIR al enemigo en la zona de destrucción', principal: true, fases: ['Concentrarse en su zona de reunión', 'Desplazarse oculta a su zona de reunión de contraataque', 'Reconocer los ejes de contraataque (sin obstáculos propios)', 'Lista para contraatacar (punto de decisión)', 'Contraatacar y destruir al enemigo'], tareasFase: [null, null, null, null, ['destruir', 'derrotar']] })
     apoyoFuegos('la fuerza de retardo y después a la masa de contraataque')
     ingenieros('Obstáculos que canalicen al enemigo hacia la zona de destrucción, sin cortar los ejes del contraataque')
     return { R, av: av1, distingue: `${retardo ? nom(retardo) : 'una fuerza móvil'} retarda desde ${ld1}, ${fijadora.length ? lista(fijadora.map(nom)) : 'la fuerza fijadora'} fija en ${A.lpr}${masa.length ? ` y ${lista(masa.map(nom))} contraataca` : ''}: se CEDE terreno para destruir al enemigo` }
@@ -224,9 +224,9 @@ function roles(forma, A) {
     const otro = A.adelante.find((u) => u !== fuerte) || null
     const avPpal = forma === 'ruptura' ? av1 : av2 || av1
     const avFij = forma === 'ruptura' ? av2 : av1
-    if (fuerte) R.push({ unidades: [fuerte], rol: forma === 'ruptura' ? 'Esfuerzo principal (ruptura)' : forma === 'envolvimiento' ? 'Fuerza envolvente (esfuerzo principal)' : 'Fuerza desbordante (esfuerzo principal)', tarea: forma === 'ruptura' ? `Romper la defensa enemiga sobre la ${avNom(avPpal)}` : `${forma === 'envolvimiento' ? 'Envolver' : 'Desbordar'} al enemigo por la ${avNom(avPpal)}`, proposito: forma === 'ruptura' ? 'para abrir la brecha por donde pasa la explotación' : 'para caer sobre su flanco o su retaguardia', principal: true, fases: ['Concentrarse en la zona de reunión', 'Desplazarse a la base de partida', forma === 'ruptura' ? 'Romper la posición enemiga' : 'Avanzar por el eje de desborde', 'Penetrar / explotar en profundidad', 'Consolidar sobre el objetivo'] })
-    if (otro) R.push({ unidades: [otro], rol: forma === 'ruptura' ? 'Esfuerzo secundario' : 'Fuerza de fijación', tarea: forma === 'ruptura' ? `Atacar sobre la ${avNom(avFij)}` : `Fijar al enemigo de frente sobre la ${avNom(avFij)}`, proposito: 'para impedir que el enemigo refuerce donde va el esfuerzo principal', fases: ['Concentrarse en la zona de reunión', 'Desplazarse a la base de partida', 'Atacar / fijar', 'Mantener la presión', 'Consolidar'] })
-    if (A.reserva) R.push({ unidades: [A.reserva], rol: 'Reserva', tarea: 'Reserva: explotar el éxito', proposito: 'para explotar la brecha o rechazar un contraataque', fases: ['Concentrarse en la zona de reunión', 'Seguir al esfuerzo principal', 'Lista para empeñarse', 'Explotar el éxito', 'Consolidar'] })
+    if (fuerte) R.push({ unidades: [fuerte], rol: forma === 'ruptura' ? 'Esfuerzo principal (ruptura)' : forma === 'envolvimiento' ? 'Fuerza envolvente (esfuerzo principal)' : 'Fuerza desbordante (esfuerzo principal)', tarea: forma === 'ruptura' ? `Romper la defensa enemiga sobre la ${avNom(avPpal)}` : `${forma === 'envolvimiento' ? 'Envolver' : 'Desbordar'} al enemigo por la ${avNom(avPpal)}`, proposito: forma === 'ruptura' ? 'para abrir la brecha por donde pasa la explotación' : 'para caer sobre su flanco o su retaguardia', principal: true, fases: ['Concentrarse en la zona de reunión', 'Desplazarse a la base de partida', forma === 'ruptura' ? 'Romper la posición enemiga' : 'Avanzar por el eje de desborde', 'Penetrar / explotar en profundidad', 'Consolidar sobre el objetivo'], tareasFase: [null, null, null, ['destruir', 'conquistar'], ['asegurar', 'mantener']] })
+    if (otro) R.push({ unidades: [otro], rol: forma === 'ruptura' ? 'Esfuerzo secundario' : 'Fuerza de fijación', tarea: forma === 'ruptura' ? `Atacar sobre la ${avNom(avFij)}` : `Fijar al enemigo de frente sobre la ${avNom(avFij)}`, proposito: 'para impedir que el enemigo refuerce donde va el esfuerzo principal', fases: ['Concentrarse en la zona de reunión', 'Desplazarse a la base de partida', 'Atacar / fijar', 'Mantener la presión', 'Consolidar'], tareasFase: [null, null, null, ['fijar', 'contener'], ['mantener', 'asegurar']] })
+    if (A.reserva) R.push({ unidades: [A.reserva], rol: 'Reserva', tarea: 'Reserva: explotar el éxito', proposito: 'para explotar la brecha o rechazar un contraataque', fases: ['Concentrarse en la zona de reunión', 'Seguir al esfuerzo principal', 'Lista para empeñarse', 'Explotar el éxito', 'Consolidar'], tareasFase: [null, null, null, ['seguir_asumir', 'seguir_apoyar'], null] })
     apoyoFuegos('el esfuerzo principal')
     return { R, av: avPpal, distingue: `el esfuerzo principal (${fuerte ? nom(fuerte) : 'la unidad más fuerte'}) por la ${avNom(avPpal)}${forma === 'ruptura' ? ' de frente' : ' hacia el flanco'}` }
   }
@@ -409,10 +409,15 @@ export function llevarAHoja(valor = {}, cap) {
 // Las cinco fases 🔵 del CAP con el dispositivo de ahora (cada ficha queda donde está: se mueve a mano en cada
 // fase); cada unidad con rol lleva su tarea y su propósito de esa fase, y la del esfuerzo principal, la ★.
 // `posiciones` (posiciones.mjs): [{ id: [lng, lat] }, …] por fase — dónde va cada unidad en cada fase (sin ellas, cada
-// ficha queda donde está); su `.puestos` { id: [lng, lat] } queda en cada ficha (`puesto`) para la próxima vez.
+// ficha queda donde está); su `.puestos` { id: [lng, lat] } queda en cada ficha (`puesto`) para la próxima vez y su
+// `.simbolos` [{ id: { tarea, texto } }, …] es la tarea táctica de cada unidad en cada fase (su símbolo va pegado a la
+// ficha: `tareaSimbolo`). Las tareas de una fase que traía el calco (las que puso la IA en otro armado) no se copian.
 export function armarFases(cap, { unidades = [], ops = {}, posiciones = null } = {}) {
   const puestos = posiciones?.puestos || {}
   const principal = new Set((cap?.roles || []).filter((r) => r.principal).flatMap((r) => r.unidades.map((u) => u.id)))
+  const deLaCarta = (xs) => (xs || []).filter((t) => !t?.capIA)
+  const conIA = (ops?.tareas || []).some((t) => t?.capIA) || (ops?.tareasOcultas || []).some((t) => t?.capIA)
+  const base = conIA ? { ...(ops || {}), tareas: deLaCarta(ops?.tareas), ...(ops?.tareasOcultas ? { tareasOcultas: deLaCarta(ops.tareasOcultas) } : {}) } : ops || {}
   return (cap?.fases || []).map((f, i) => ({
     nombre: f.nombre,
     tarea: f.tarea,
@@ -421,10 +426,18 @@ export function armarFases(cap, { unidades = [], ops = {}, posiciones = null } =
     unidades: (unidades || []).map((u) => {
       const p = f.porUnidad?.[u.id]
       const donde = posiciones?.[i]?.[u.id]
-      const v = donde ? { ...u, lng: donde[0], lat: donde[1], ...(puestos[u.id] ? { puesto: puestos[u.id] } : {}) } : u
+      const s = posiciones?.simbolos?.[i]?.[u.id]
+      let v = donde ? { ...u, lng: donde[0], lat: donde[1], ...(puestos[u.id] ? { puesto: puestos[u.id] } : {}) } : u
+      // La tarea de la fase, pegada a la ficha (la de otra fase, no); la agrupación, con el texto de su rol en la fase.
+      if (s && !p) v = { ...v, tarea: s.texto }
+      if (s?.tarea) v = { ...v, tareaSimbolo: s.tarea }
+      else if (v.tareaSimbolo && posiciones?.simbolos) {
+        v = { ...v }
+        delete v.tareaSimbolo
+      }
       return p ? { ...v, tarea: p.tarea, proposito: p.proposito || u.proposito || '', principal: principal.has(u.id) || undefined } : v
     }),
-    ops: ops || {},
+    ops: base,
     desplazamientos: [],
   }))
 }
@@ -442,13 +455,42 @@ export function conF3P6(valor = {}, f3p6 = {}) {
   }
   return { valor: v, n }
 }
-// Pone en la carta la fase 0 del CAP activo (como cuando se toca la FASE 1 en el 🎬 C.A. por fases).
-function mostrarFase0(fases, M) {
+// Pone en la carta una fase del CAP activo (la 0 si no se dice; como cuando se la toca en el 🎬 C.A. por fases).
+function mostrarFase0(fases, M, idx = 0) {
   if (!fases?.length) return
-  M.setActiva?.({ bando: 'propio', idx: 0 })
-  M.setUnidades?.(fases[0].unidades)
-  M.setOps?.((o) => ({ ...(fases[0].ops || {}), ains: o?.ains || [] }))
-  if (fases[0].plan) M.setPlan?.(fases[0].plan)
+  const i = Math.max(0, Math.min(fases.length - 1, Number(idx) || 0))
+  M.setActiva?.({ bando: 'propio', idx: i })
+  M.setUnidades?.(fases[i].unidades)
+  M.setOps?.((o) => ({ ...(fases[i].ops || {}), ains: o?.ains || [] }))
+  if (fases[i].plan) M.setPlan?.(fases[i].plan)
+}
+const ROMANOS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
+const confirmarDe = (M) => M.confirmar || ((t) => (typeof window !== 'undefined' ? window.confirm(t) : true))
+// Las fases de un CAP con las posiciones de la propuesta (d.posiciones) y cada tarea táctica con su unidad
+// (d.conTareas, tareas-fase.mjs: la pasa el panel).
+function fasesDe(d, M, previas) {
+  const us = M.unidades || []
+  const fases = armarFases(d.cap, { unidades: us.filter((u) => u && u.deFaseEnemiga == null), ops: M.ops || {}, posiciones: typeof d.posiciones === 'function' ? d.posiciones(us, M.ops || {}, { previas }) : d.posiciones })
+  return typeof d.conTareas === 'function' ? d.conTareas(fases) : fases
+}
+// 🎬 Las fases del CAP GUARDADO, desde su tarjeta (Sergio: «el CAP 2 no está funcionando nada»: sus fases se habían armado
+// copiando el dispositivo y, para armarlas de nuevo, primero había que pasar al CAP 2). Se arman con las fichas de la
+// carta y las fases que ya tenía; quedan en su lugar (g3._caps.guardados) y la Mesa pasa a ese CAP con la fase pedida a
+// la vista. Todo sale de la MISMA foto del estado: el cambio de CAP lleva ya las fases nuevas.
+function armarGuardado(d, M, C) {
+  const n = d.cap.n
+  const previas = C.guardados[n]?.fases || []
+  const fases = fasesDe(d, M, previas)
+  if (!fases.length) return false
+  const ver = Math.max(0, Math.min(fases.length - 1, Number(d.ver) || 0))
+  if (previas.length && !d.sinPreguntar && !confirmarDe(M)(`El CAP ${n} ya tiene ${previas.length} fase(s) 🔵 (guardado).\n\nArmarlas de nuevo las REEMPLAZA por las ${fases.length} de la propuesta. Donde pusiste cada ficha en la FASE III queda como su puesto; lo demás que hayas movido o escrito en esas fases se pierde.\n\nDespués la Mesa pasa al CAP ${n} y muestra su FASE ${ROMANOS[ver] || ver + 1}.\n\n¿Seguimos?`)) return false
+  const g3 = { ...(M.g3 || {}), _caps: { ...(M.g3?._caps || {}), activo: C.activo, formas: C.formas, guardados: { ...C.guardados, [n]: { ...(C.guardados[n] || {}), fases } } } }
+  if (!accion('cambiar', { n, formas: d.formas }, { ...M, g3 })) return false
+  const tocar = () => M.activarFase?.('propio', ver)
+  if (typeof setTimeout === 'function') setTimeout(tocar, 120)
+  else tocar()
+  M.aviso?.(`🎬 ${fases.length} fases 🔵 del CAP ${n} y ahora trabajás el CAP ${n} (FASE ${ROMANOS[ver] || ver + 1} a la vista): TODAS las fichas propias se mueven, cada tarea táctica con su unidad y el itinerario marcado con flechas. Tocá FASE I… V para verlas.`)
+  return true
 }
 
 // ─── Lo que hace la Mesa con cada botón ─────────────────────────────────────────────────────────────────────
@@ -492,21 +534,22 @@ export function accion(que, d = {}, M = {}) {
       return true
     }
     if (que === 'fases') {
+      const C = capsDe(M.g3)
+      if (d.cap?.n && d.cap.n !== C.activo) return armarGuardado(d, M, C)
       // Las posiciones: la función recibe las fichas, el calco y las fases que ya tiene el CAP (su FASE III dice dónde
       // está el puesto de cada unidad, con lo que se movió en la fase que está a la vista).
       const previas = (M.flush ? M.flush(M.fasesCOA || {}) : M.fasesCOA || {}).propio || []
-      const fases = armarFases(d.cap, { unidades: (M.unidades || []).filter((u) => u && u.deFaseEnemiga == null), ops: M.ops || {}, posiciones: typeof d.posiciones === 'function' ? d.posiciones(M.unidades || [], M.ops || {}, { previas }) : d.posiciones })
+      const fases = fasesDe(d, M, previas)
       if (!fases.length) return false
       const ya = (M.fasesCOA?.propio || []).length
-      const confirmar = M.confirmar || ((t) => (typeof window !== 'undefined' ? window.confirm(t) : true))
-      if (ya && !confirmar(`El CAP ${d.cap.n} ya tiene ${ya} fase(s) 🔵.\n\nArmarlas de nuevo las REEMPLAZA por las ${fases.length} de la propuesta. Donde pusiste cada ficha en la FASE III queda como su puesto; lo demás que hayas movido o escrito en esas fases se pierde.\n\n¿Seguimos?`)) return false
+      if (ya && !d.sinPreguntar && !confirmarDe(M)(`El CAP ${d.cap.n} ya tiene ${ya} fase(s) 🔵.\n\nArmarlas de nuevo las REEMPLAZA por las ${fases.length} de la propuesta. Donde pusiste cada ficha en la FASE III queda como su puesto; lo demás que hayas movido o escrito en esas fases se pierde.\n\n¿Seguimos?`)) return false
       M.setFases?.((fc) => ({ ...(M.flush ? M.flush(fc) : fc), propio: fases }))
       if (d.formas && M.g3) {
         const g = conFormas(M.g3, d.formas)
         if (g !== M.g3) M.setG3?.(g)
       }
-      mostrarFase0(fases, M)
-      M.aviso?.(`🎬 ${fases.length} fases 🔵 del CAP ${d.cap.n}: TODAS las fichas propias se mueven: FASE I juntas con el CE, FASE II a los trabajos del plan de barreras de su sector, FASE III en su puesto y después según el CAP. Tocá FASE I… V para verlas y corregí las fichas a mano.`)
+      mostrarFase0(fases, M, d.ver)
+      M.aviso?.(`🎬 ${fases.length} fases 🔵 del CAP ${d.cap.n}: TODAS las fichas propias se mueven: FASE I juntas con el CE, FASE II a los trabajos del plan de barreras de su sector, FASE III en su puesto, cada tarea táctica con su unidad, y después según el CAP. El itinerario de cada unidad queda marcado con flechas. Tocá FASE I… V para verlas y corregí las fichas a mano.`)
       return true
     }
     if (que === 'texto') {

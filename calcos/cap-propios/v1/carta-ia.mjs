@@ -13,8 +13,9 @@
 //     F3·P6 y el juicio. Lo que no pudo ubicar lo dice: la Mesa no inventa lugares.
 import { ubicador } from '../../concepto-operacion/v1/modelo.mjs'
 import { agruparLugares } from '../../ains-acostar/v1/ains.mjs'
-import { analizar, bloqueIA } from './proponer.mjs?v=todas20261024'
+import { analizar, bloqueIA } from './proponer.mjs?v=iti20261025'
 import { leerJSON } from './json-tolerante.mjs'
+import { tareasDeLaCarta, tareasPorFase, duenoDeTarea, juntoA, CERCA } from './tareas-fase.mjs?v=iti20261025'
 
 const sinTildes = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '')
 const norm = (s) => sinTildes(s).toUpperCase().replace(/[^A-Z0-9ª]+/g, ' ').trim()
@@ -104,6 +105,16 @@ export function pedidoCarta({ ctx = {}, P = null, activo = 1, expediente = '', l
   const fCat = (tiposFuego || []).map((t) => `${t.id} (${t.nom})`).join(' · ')
   const eCat = (efectos || []).map((t) => `${t.id} (${t.nom})`).join(' · ')
   const ains = (ctx.ops?.ains || []).filter((a) => valido(a?.centro)).map((a) => `- ${a.nom || `AIN-${a.n}`}: ${f4(a.centro[1])}, ${f4(a.centro[0])}`).join('\n')
+  // Las tareas que ya están en la carta (las de la F3·P3, con su OD / OC): son de la FASE 3, con su unidad.
+  const OPS = { od: 'OD', oc1: 'OC 1', oc2: 'OC 2', oc3: 'OC 3', oc4: 'OC 4', oc5: 'OC 5', sost: 'SOST' }
+  const nomT = (id) => (tareas || []).find((t) => t.id === id)?.nombre || String(id || '')
+  const enCarta = tareasDeLaCarta(ctx.ops)
+    .map((t) => {
+      const u = duenoDeTarea(t, ctx.unidades)
+      const op = OPS[t.oi?.operacion]
+      return `- ${op ? `${op} · ` : ''}${nomT(t.tarea)}${u ? ` — ${u.designacion}` : ''} — en ${dondeEsta({ lng: t.centro[0], lat: t.centro[1] })}`
+    })
+    .join('\n')
   return {
     ok: true,
     prompt: `Sos el Oficial de Operaciones (G-3) de un Estado Mayor en un ejercicio académico de planeamiento (PMTD). Trabajás en la sección EM. Sec. G-3 (Operaciones).
@@ -126,6 +137,8 @@ La Mesa va a poner en la carta lo que contestes: para cada CAP crea sus fases �
 - Cada unidad se nombra con su DESIGNACIÓN EXACTA (la de la lista «Unidades propias»). No inventes unidades.
 - Cada lugar se nombra con su NOMBRE EXACTO de la lista «Lugares de la carta», o con una A.I.N. («AIN-3»), o con coordenadas «lat, lng» (con 4 decimales). Un lugar que no está en la lista NO se puede colocar.
 - Las tareas tácticas, los obstáculos y los fuegos, con el id EXACTO de su catálogo. Los FUEGOS son de cada fase (las concentraciones que se tiran en esa fase); cada uno con el medio que lo bate (una unidad de artillería, morteros o lanzacohetes de las fichas).
+- Cada TAREA TÁCTICA va con SU UNIDAD («unidad», la designación exacta): en esa fase la unidad tiene que estar EN EL LUGAR de su tarea (el mismo lugar, o a menos de ${CERCA} km). Si ponés la unidad en otro lado, la Mesa la lleva junto a su tarea.
+- CADA FASE TIENE SU TAREA TÁCTICA: una unidad no hace la misma tarea todas las fases. Poné en cada fase la tarea que la unidad ejecuta EN ESA FASE (en la concentración y el desplazamiento todavía no hay tareas). Las tareas que ya están en la carta (las de la Formación inicial, con su OD / OC: ver «Tareas tácticas que ya están en la carta») son de la FASE 3: en esa fase su unidad tiene que estar junto a ellas (si no la nombrás en la fase 3, la Mesa la pone ahí); no las repitas, y en las otras fases dale a esa unidad OTRA tarea.
 - Los dos CAP tienen que DISTINGUIRSE EN LA CARTA (otra forma de maniobra, otro esfuerzo principal, otra ubicación de la reserva), no sólo en el nombre.
 - Cinco fases por CAP, en orden: concentración, desplazamiento, ocupación y organización (con el plan de barreras), conducción, y contraataque / consolidación (adaptalas a la forma de maniobra). En cada fase poné SÓLO las unidades que se mueven o cambian de tarea; las otras quedan donde estaban en la fase anterior.
 - «f3p6» es el enunciado de la hoja F3·P6 de ese CAP. Tu juicio de los dos CAP (SIRVE / NO SIRVE con las cinco pruebas) va en «juicio».
@@ -146,7 +159,7 @@ ${filasU(pz.rojas)}
 
 ## Lugares de la carta (NOMBRE EXACTO → lat, lng)
 ${pz.nomenclator.map((l) => `- ${l.nom} → ${f4(l.p[1])}, ${f4(l.p[0])}${l.clase && l.clase !== 'lugar' ? ` (${l.clase})` : ''}`).join('\n') || '- (la carta no tiene lugares cargados: usá coordenadas «lat, lng» o A.I.N.)'}
-${ains ? `\n## A.I.N. de la carta\n${ains}\n` : ''}
+${ains ? `\n## A.I.N. de la carta\n${ains}\n` : ''}${enCarta ? `\n## Tareas tácticas que ya están en la carta (Formación inicial, F3·P3) — son de la FASE 3, con su unidad\n${enCarta}\n` : ''}
 ## Avenidas de aproximación
 ${A.avenidas.map((a) => `- ${a.nombre}${a.escalon ? ` (${a.escalon})` : ''}: de ${f4(a.coords[0][1])}, ${f4(a.coords[0][0])} a ${f4(a.coords[a.coords.length - 1][1])}, ${f4(a.coords[a.coords.length - 1][0])}`).join('\n') || '- (ninguna)'}
 
@@ -236,7 +249,12 @@ export function leerRespuesta(texto, ctx = {}) {
     return ps.length ? [ps.reduce((s, p) => s + p[0], 0) / ps.length, ps.reduce((s, p) => s + p[1], 0) / ps.length] : null
   })()
   const faltan = []
-  const base = (ctx.unidades || []).filter((u) => u && u.deFaseEnemiga == null)
+  // (sin la tarea que la Mesa le pegó a la ficha en la fase que está a la vista: en las fases de la IA, las de la IA)
+  const base = (ctx.unidades || []).filter((u) => u && u.deFaseEnemiga == null).map((u) => {
+    if (!u.tareaSimbolo || esEnemiga(u)) return u
+    const { tareaSimbolo, ...v } = u
+    return v
+  })
   // El plan de fuegos de cada fase: el de la Mesa (sin lo que puso antes la IA) más las concentraciones de esa fase.
   const planBase = { version: 1, medios: {}, verEnCarta: true, ...(ctx.plan || {}) }
   const blancosBase = (planBase.blancos || []).filter((b) => !b?.capIA)
@@ -245,6 +263,9 @@ export function leerRespuesta(texto, ctx = {}) {
   const efectosOk = new Map((ctx.efectos || []).flatMap((t) => [[norm(t.id), t.id], [norm(t.nom), t.id]]))
   const opsBase = { ...(ctx.ops || {}) }
   delete opsBase.ains
+  // Las tareas de la carta (las que se ven y las que la fase a la vista guarda aparte), sin las que puso antes la IA.
+  opsBase.tareas = tareasDeLaCarta(opsBase)
+  delete opsBase.tareasOcultas
   const sinIA = (xs) => (xs || []).filter((x) => !x?.capIA)
   const caps = {}
   lista.forEach((c, k) => {
@@ -293,6 +314,7 @@ export function leerRespuesta(texto, ctx = {}) {
       }
       // Las tareas tácticas de la fase (sólo de esa fase) y los obstáculos (se acumulan: lo construido queda).
       const tts = []
+      const conUnidad = []
       for (const t of Array.isArray(f?.tareas) ? f.tareas : []) {
         const id = tareasOk.get(norm(t?.tarea))
         const p = ubicar(t?.lugar, pRojo)
@@ -300,7 +322,22 @@ export function leerRespuesta(texto, ctx = {}) {
         if (!p) { faltan.push(`${etiqueta}: el lugar de la tarea «${limpio(t?.tarea)}» («${limpio(t?.lugar)}») no está en la carta`); continue }
         const q = ubicar(t?.hacia, p)
         const u = fichaDe(t?.unidad, pz.propias)
-        tts.push({ centro: r5(p), tarea: id, escalon: ESC_TAREA[u?.escalon] || u?.escalon || 'brigada', rot: Math.round(q ? rumbo(p, q) : pRojo ? rumbo(p, pRojo) : 0), escala: 1, capIA: { cap: n, fase: i + 1, unidad: u?.designacion || '' } })
+        const tt = { centro: r5(p), tarea: id, escalon: ESC_TAREA[u?.escalon] || u?.escalon || 'brigada', rot: Math.round(q ? rumbo(p, q) : pRojo ? rumbo(p, pRojo) : 0), escala: 1, capIA: { cap: n, fase: i + 1, unidad: u?.designacion || '' } }
+        tts.push(tt)
+        if (u) conUnidad.push([tt, u.id])
+      }
+      // Cada tarea CON SU UNIDAD (Sergio: «las tareas tácticas deben aparecer con la unidad, no solas»): si la IA dejó la
+      // unidad lejos de su tarea, en esta fase va junto a ella (y ahí se queda hasta que la IA la mueva). Con varias
+      // tareas, junto a la primera.
+      const juntas = new Set()
+      for (const [tt, id] of conUnidad) {
+        if (juntas.has(id)) continue
+        juntas.add(id)
+        const v = unidades.find((x) => x.id === id)
+        if (!v || (valido([+v.lng, +v.lat]) && km([+v.lng, +v.lat], tt.centro) <= CERCA)) continue
+        const p = juntoA(tt, pRojo)
+        unidades = unidades.map((x) => (x.id === id ? { ...x, lng: p[0], lat: p[1] } : x))
+        nombradas.add(id)
       }
       for (const o of Array.isArray(f?.obstaculos) ? f.obstaculos : []) {
         const id = obsOk.get(norm(o?.tipo))
@@ -344,7 +381,8 @@ export function leerRespuesta(texto, ctx = {}) {
     })
     const f3p6 = {}
     for (const [kk, v] of Object.entries(c?.f3p6 && typeof c.f3p6 === 'object' ? c.f3p6 : {})) if (limpio(v)) f3p6[kk] = `${limpio(v)} ${IA}`
-    if (fases.length) caps[n] = { forma: String(c?.forma || ''), nombre: limpio(c?.nombre), fases, f3p6 }
+    // Las tareas de la carta (las de la F3·P3 con su OD / OC), sólo en las fases en que su unidad está con ellas.
+    if (fases.length) caps[n] = { forma: String(c?.forma || ''), nombre: limpio(c?.nombre), fases: tareasPorFase(fases, { n }), f3p6 }
   })
   if (!caps[1] && !caps[2]) return { ok: false, error: 'La respuesta trae los CAP pero sin «fases»: no hay nada para poner en la carta.' }
   const juicio = g.juicio && typeof g.juicio === 'object' ? Object.entries(g.juicio).map(([k, v]) => `${k}: ${limpio(v)}`).join('\n') : limpio(g.juicio)

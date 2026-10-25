@@ -70,8 +70,11 @@ await caso('📝 los bloques de la F3·P6: QUIÉN, CUÁNDO, DÓNDE, CÓMO y el b
   for (const v of Object.values(t)) assert.ok(v.startsWith(T.MARCA_CARTA + '\n'))
   assert.equal(t.QUIÉN, `${T.MARCA_CARTA}\nDIV MEC-2, DIV-1 y DIV-6.`)
   assert.match(t.CUÁNDO, /Fase 4 \(Conducción de la defensa\): D a D\+8\./)
-  assert.match(t.DÓNDE, /^.*\nEn la fase 4 \(Conducción de la defensa\): .*DIV MEC-2 en Guata; DIV-1 en Julo; DIV-6 en Estancia Ticanani/)
-  assert.match(t['CÓMO (forma de maniobra)'], /Fase 5 — Contraataque y consolidación: DIV-6 \(Contraatacar\) de Estancia Ticanani a Macaya; Destruir \(DIV-6\) en Guata, hacia el NO\./)
+  // Cada unidad con su tarea táctica (25-10-2026): en la fase 4 la DIV-1 está con su «Fijar» de la AIN-5 (7 km al O de
+  // Julo) y en la 5 la DIV-6 con su «Destruir» de Guata (la IA la había dejado en Macaya, lejos de su tarea).
+  assert.match(t.DÓNDE, /^.*\nEn la fase 4 \(Conducción de la defensa\): .*DIV MEC-2 en Guata; DIV-1 a 7 km al O de Julo; DIV-6 en Estancia Ticanani/)
+  assert.match(t['CÓMO (forma de maniobra)'], /Fase 4 — Conducción de la defensa: .*DIV-1 \(Defender la LPR\) de Julo a un punto a 7 km al O de Julo; .*Fijar \(DIV-1\) a 7 km al O de Julo, hacia el E\./)
+  assert.match(t['CÓMO (forma de maniobra)'], /Fase 5 — Contraataque y consolidación: DIV-6 \(Contraatacar\) de Estancia Ticanani a Guata; Destruir \(DIV-6\) en Guata, hacia el NO\./)
   assert.match(t['Bosquejo: qué muestra el calco'], /FASE 4 — Conducción de la defensa \(D a D\+8\): .*Fuegos: AB-013/)
   assert.deepEqual(T.textoDeLaCarta([], {}).campos, {})
 })
@@ -127,7 +130,7 @@ await caso('🤖 el pedido de la F3·P6 lleva «LO QUE YA ESTÁ EN LA CARTA» de
   assert.ok(i > 0 && i < r.prompt.lastIndexOf('# CÓMO CONTESTAR'))
   assert.ok(r.prompt.indexOf('# LO QUE PROPONE LA MESA') < i, 'después de la propuesta')
   assert.match(r.prompt, /si algo de la propuesta de la Mesa no coincide con la carta, manda la carta/)
-  assert.match(r.prompt, /- FASE 4 — Conducción de la defensa \(D a D\+8\): DIV MEC-2 \(Detener al enemigo en la AA-1\) de Estancia Esmeralda a Guata; tarea táctica Bloquear/)
+  assert.match(r.prompt, /- FASE 4 — Conducción de la defensa \(D a D\+8\): DIV MEC-2 \(Detener al enemigo en la AA-1\) de Estancia Esmeralda a Guata; DIV-1 \(Defender la LPR\) de Julo a un punto a 7 km al O de Julo; tarea táctica Bloquear \(DIV MEC-2\) en Guata/)
   assert.ok(!/LO QUE YA ESTÁ EN LA CARTA/.test(pedidoCAP(PEDIDO, { id: 'coa' }, { ...ctx, fasesCOA: { propio: [] } }).prompt), 'sin fases, sin el bloque')
   assert.equal(pedidoCAP(PEDIDO, { id: 'eventos' }, ctx), PEDIDO)
 })

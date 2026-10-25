@@ -93,7 +93,7 @@ const ag = (id, nom, op, lng, lat, arma, piezas = []) => ({ id, designacion: nom
       await page.waitForTimeout(400)
     }
     const vista = async (nombre) => {
-      await page.evaluate(() => window.__mapa2d.fitBounds([[-18.95, -69.4], [-18.25, -68.25]]))
+      await page.evaluate(() => void window.__mapa2d.fitBounds([[-18.95, -69.4], [-18.25, -68.25]]))
       await page.waitForTimeout(600)
       await foto(nombre)
     }

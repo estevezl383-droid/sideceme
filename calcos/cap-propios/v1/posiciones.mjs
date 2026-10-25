@@ -24,7 +24,17 @@
 // Las agrupaciones (OD, OC 1, OC 2, RES…) hacen lo de la unidad del CAP de la que salen sus piezas; si no, lo de su
 // operación: la OD, el esfuerzo principal; las OC, los otros esfuerzos; la RES, la reserva.
 // Lo que no se puede calcular (sin LPR, sin avenidas) queda en su puesto: la Mesa no inventa lugares sin base.
+//
+// Sergio, 25-10-2026: «las tareas tácticas deben aparecer con la unidad… esas deben estar con su unidad en este punto»
+// y «cada fase tiene una tarea táctica diferente; las que se ven sólo en la FASE III». La unidad que cumple una tarea
+// táctica de la carta (la de su agrupación de la F3·P3, o la de sus piezas) está en la organización (FASE III) JUNTO A
+// SU TAREA (tareas-fase.mjs); salvo la que la forma pone en otro lado (el retardo sobre la LDE-1, la masa oculta). Y en
+// cada fase, la unidad lleva la tarea de su rol en esa fase (r.tareasFase de proponer.mjs: en la defensa de área, la
+// FASE IV «destruir» el esfuerzo principal, «fijar» el secundario; la FASE V «destruir» la reserva, «mantener» los
+// demás…), distinta de la que tenía en la fase anterior, con su símbolo pegado a la ficha (`tareaSimbolo`, como en las
+// fases del enemigo): la cumple su agrupación si la tiene (la OD, la OC…), si no la unidad del CAP.
 import * as G from '../../concepto-operacion/v1/geo.mjs'
+import { tareasDeLaCarta, duenoDeTarea, ordenTareas, juntoA, CERCA } from './tareas-fase.mjs?v=iti20261025'
 
 const norm = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase()
 const esEnemiga = (u) => /^enemig/i.test(String(u?.bando || ''))
@@ -125,8 +135,9 @@ const marcaDe = (ms, u) => {
 // Los roles cuyo lugar depende de la forma (lo pone siempre la Mesa, no el puesto de la ficha).
 const segunForma = (rol) => /RETARDO|COBERTURA|MASA/.test(rol)
 
-// Las posiciones de un CAP: [fase0, fase1, …] cada una { id: [lng, lat] }, y `.puestos` { id: [lng, lat] } (el puesto
-// de cada ficha, que se guarda en la ficha para la próxima vez). cap: el de proponer.armarCAP. previas: las fases que
+// Las posiciones de un CAP: [fase0, fase1, …] cada una { id: [lng, lat] }, `.puestos` { id: [lng, lat] } (el puesto
+// de cada ficha, que se guarda en la ficha para la próxima vez) y `.simbolos` [{ id: { tarea, texto } }, …] (la tarea
+// táctica de cada unidad en cada fase, que va pegada a su ficha). cap: el de proponer.armarCAP. previas: las fases que
 // ya tiene este CAP (su FASE III dice dónde está el puesto de cada unidad).
 export function posicionesCAP(cap, { unidades = [], ops = {}, marcas = [], A = null, previas = null } = {}) {
   const R = referencias({ unidades, ops, marcas, A })
@@ -191,6 +202,14 @@ export function posicionesCAP(cap, { unidades = [], ops = {}, marcas = [], A = n
     else p = sobreLPR(R, avDeRol(r) || avPpal) // ofensiva / retrógrada: sobre su línea
     lugar[u.id] = p || puesto[u.id]
   }
+  // La unidad con una tarea táctica en la carta, junto a su tarea (la OD primero; con varias, la primera).
+  const conTarea = new Set()
+  for (const t of ordenTareas(tareasDeLaCarta(ops))) {
+    const u = duenoDeTarea(t, lista)
+    if (!u || conTarea.has(u.id) || segunForma(ROL(u.id))) continue
+    conTarea.add(u.id)
+    if (!lugar[u.id] || G.km(lugar[u.id], [+t.centro[0], +t.centro[1]]) > CERCA) lugar[u.id] = juntoA(t, R.enemigo)
+  }
 
   // FASE II: los trabajos del plan de barreras, cada uno a la unidad que defiende ese sector (la más cercana a su
   // puesto que la LÍM. entre sectores no separa del trabajo). La reserva, la masa y el apoyo no hacen obras.
@@ -237,5 +256,29 @@ export function posicionesCAP(cap, { unidades = [], ops = {}, marcas = [], A = n
     }
     fases.push(f)
   }
-  return Object.assign(fases, { puestos })
+  // La tarea de cada fase, CON la unidad que la cumple (su símbolo va pegado a la ficha, como en las fases del enemigo):
+  // la cumplen las agrupaciones de ese rol (la OD, la OC…) o, si no hay, la unidad. Cada fase con una tarea DISTINTA de
+  // la de la fase anterior (en la FASE III, la suya de la carta): «cada fase tiene una tarea táctica diferente».
+  const deLaCarta = new Map()
+  for (const t of tareasDeLaCarta(ops)) {
+    const u = duenoDeTarea(t, lista)
+    if (u && !deLaCarta.has(u.id)) deLaCarta.set(u.id, t.tarea)
+  }
+  const simbolos = Array.from({ length: nF }, () => ({}))
+  for (const r of new Set([...rolDe.values()].filter((x) => x?.tareasFase))) {
+    const ags = lista.filter((u) => u.esAgrupacion && rolDe.get(u.id) === r)
+    const quienes = ags.length ? ags : lista.filter((u) => !u.esAgrupacion && rolDe.get(u.id) === r)
+    for (const u of quienes) {
+      let antes = null
+      for (let i = 0; i < nF; i++) {
+        const opciones = [].concat(r.tareasFase[i] || [])
+        let t = i === FASE_ORG ? deLaCarta.get(u.id) || null : null
+        // (la de la carta se ve en la carta: no se repite pegada a la ficha)
+        const pegada = !t && opciones.length ? opciones.find((x) => x !== antes) || opciones[0] : null
+        simbolos[i][u.id] = { tarea: pegada, texto: r.fases?.[i] || '' }
+        antes = t || pegada
+      }
+    }
+  }
+  return Object.assign(fases, { puestos, simbolos })
 }

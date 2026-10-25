@@ -112,3 +112,13 @@ intercambian como en el paso ④). «⚡ Proponer: una unidad entera por tarea»
 la que más requiere (la OD primero) y lo que sobra a la reserva. En la carta, en el paso ④, en
 el cuadro y en la Organización de la Tarea va el **nombre de la unidad** en lugar de las piezas
 genéricas. La proporción se sigue calculando con lo que tiene cada unidad.
+
+## En las fases de los CAP: el rótulo con su unidad — 25-10-2026
+
+Lo pidió Sergio con la FASE I del CAP 1 a la vista: «la OC y la OD deben permanecer con su nombre con la unidad… están
+solas ya esperando en un lugar; eso se mueve con la unidad». Con una fase 🔵 de un CAP propio a la vista (y esta hoja
+cerrada), el rótulo **OD / OC 1 … / RES** se dibuja a la derecha de la ficha de su unidad (su agrupación, por el agId o
+por su operación, o la unidad de la que salen sus piezas; la RES, la de la reserva), y se mueve con ella de fase en
+fase. La tarea táctica se ve sólo en la FASE III, con su unidad al lado; en las demás fases la fase la guarda en
+`ops.tareasOcultas` (`cap-propios/v1/tareas-fase.mjs`) y su rótulo igual va con la unidad. Con la hoja abierta, los
+rótulos vuelven junto a su tarea, como siempre. Prueba: `pruebas/e2e/itinerario.cjs`.

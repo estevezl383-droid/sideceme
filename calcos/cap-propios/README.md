@@ -42,7 +42,8 @@ construir la aplicación».
   - FASE III: cada una en su puesto: donde la puso el oficial (la ficha ya desplegada, o lo que quedó en la FASE III
     del CAP). Si la ficha todavía está junto al CE, la Mesa la lleva a su lugar con lo que dejó la F3·P4 (las marcas
     «ESFUERZO PRINCIPAL · …», «ESFUERZO SECUNDARIO · …», «RES · …», o donde su avenida corta la LPR). La fuerza de
-    retardo (LDE-1) y la masa de contraataque (zona de reserva) las pone siempre la Mesa;
+    retardo (LDE-1) y la masa de contraataque (zona de reserva) las pone siempre la Mesa. La que cumple una tarea
+    táctica de la carta (la de la F3·P3) va junto a su tarea (25-10-2026, ver abajo);
   - FASE IV y V según la forma (la reserva contraataca por el EJE CA; en la defensa móvil el retardo va de la LDE-1 a
     la LPR y la masa contraataca entre las dos).
   Cada unidad del CAP lleva su tarea y su propósito, y la del esfuerzo principal, la ★. El puesto queda en la ficha
@@ -61,6 +62,36 @@ construir la aplicación».
   tarea de **decir si cada CAP SIRVE o NO para este ejercicio** con las cinco pruebas del PMTD (adecuado, factible,
   aceptable, distinguible, completo), proponer el reemplazo del que no sirva y desarrollar el CAP activo. El juicio
   va al principio de «Razón fundamental» (F3·P6) o de «Forma de maniobra elegida y por qué» (F3·P4).
+
+## 🎯 La tarea de cada fase con su unidad y ➜ el itinerario con flechas (25-10-2026)
+
+Sergio, con la FASE I del CAP 1 a la vista: «la OC y la OD deben permanecer con su nombre con la unidad… están solas
+ya esperando en un lugar», «las tareas tácticas deben aparecer con la unidad, no deben aparecer solas», «cada fase tiene
+una tarea táctica diferente, y las que se ven sólo aparecerían en la FASE III, porque no hacen esa tarea todo el rato» y
+«que su desplazamiento quede marcado con una línea flecha… uno violeta y otro fucsia… cuando se llegue a la fase última
+debe estar marcado todo su itinerario».
+
+- **Las tareas de la carta** (las de la F3·P3, con su OD / OC, y las que puso el oficial) son de la **FASE III**: se ven
+  sólo ahí y sólo si su unidad está con ellas (a menos de 3 km). Al armar las fases, en la FASE III la unidad que cumple
+  cada una (su agrupación de la F3·P3 por el agId, la única de su operación, o la unidad de la que salen sus piezas) va
+  **junto a su tarea** (0,7 km, del lado propio); la que la forma pone en otro lado (el retardo sobre la LDE-1, la masa)
+  no: su tarea no se ve sola. En las demás fases quedan guardadas en `ops.tareasOcultas` de la fase
+  (`v1/tareas-fase.mjs`).
+- **Cada fase con su tarea**: la Mesa propone, para el rol de cada unidad, la tarea de esa fase, **distinta** de la que
+  tenía en la anterior (en la FASE III, la suya de la carta), y la pega a la ficha que la cumple (`tareaSimbolo`, como
+  en las fases del enemigo; la agrupación de ese rol —la OD, la OC…— o, si no hay, la unidad). En la defensa de área: la
+  FASE IV «destruir» el esfuerzo principal (si en la III bloqueó), «fijar» o «contener» el secundario; la FASE V
+  «destruir» la reserva y «mantener» los demás. En la móvil: «canalizar» el retardo, «fijar» o «contener» la fijadora,
+  «destruir» la masa. Las de la IA van en su fase y con su unidad: si la IA dejó la unidad lejos de su tarea, en esa
+  fase va junto a ella.
+- **El rótulo OD / OC / RES va siempre con su unidad**: en una fase propia (con la hoja F3·P3 cerrada) se dibuja a la
+  derecha de la ficha de su unidad, también cuando su tarea está guardada aparte (`organizacion/v1/carta.js`).
+- **El itinerario** (`v1/itinerario.mjs`): de la FASE I a la que está a la vista, un tramo con flecha por cada ficha
+  propia que se movió; en la última fase, todo el recorrido. El **CAP 1 en VIOLETA** y el **CAP 2 en FUCSIA**; tocando
+  un tramo, quién, de qué fase a cuál y los km. Se apaga con «Fichas propias».
+- **El CAP 2 que no funcionaba**: sus 5 fases eran copias (todas las fichas en el mismo lugar). Ahora el CAP guardado
+  tiene en su tarjeta **«🎬 Armar las 5 fases 🔵 de este CAP (CAP 2) y verlas en la carta»** (lo arma ahí mismo y pasa a
+  él), y tocar una fase de un CAP con las fases copiadas pregunta «¿Las armo ahora?».
 
 ## 🤖 La IA desarrolla los dos CAP EN LA CARTA (24-10-2026, `v1/carta-ia.mjs`)
 
@@ -145,6 +176,10 @@ del calco y no cambian con el CAP.
 - `v1/texto-carta.mjs` — `describirFases`, `textoDeLaCarta`, `conBloqueCarta`, `hojaConCarta`, `bloqueCartaIA`.
 - `v1/panel.js` — el panel (React, la caja de la IA `hU` y los catálogos por `configurarCAP`) y `botonesCAP` del
   🎬 C.A. por fases.
+- `v1/tareas-fase.mjs` — `duenoDeTarea`, `duenoDeReserva`, `tareasDeLaCarta`, `tareasPorFase` (cada tarea en su
+  fase y con su unidad), `juntoA` (sin dependencias del compilado).
+- `v1/itinerario.mjs` — `tramos` (el itinerario hasta la fase a la vista) y `sincronizarItinerario` (las flechas en la
+  carta; el ⛰️ 3D las copia solo).
 - En el compilado (`pruebas/reemplazos-2026-10-24-cap-propios.js`): el import, `configurarCAP`, `SIDcapAcc` en la
   Mesa (las fases, el G-3, la fase activa, el candado de la BASE), el panel en la F3·P6 y la F3·P4, los botones del
   🎬 C.A. por fases y el pedido de la IA (por `SIDdespues` de la caja de la IA).
@@ -152,5 +187,7 @@ del calco y no cambian con el CAP.
   `setOps` y el candado del ejercicio finalizado en `SIDcapAcc`, y el expediente al panel.
 - En el compilado (`pruebas/reemplazos-2026-10-24-fuegos-fase.js`): `fo` guarda el plan de fuegos en la fase propia,
   `Uo` lo devuelve, `SIDcapAcc` recibe `setPlan` y el pedido pasa por `pedidoCAP` de `panel.js`.
-- Pruebas: `pruebas/cap-propios.mjs`, `pruebas/cap-carta.mjs`, `pruebas/cap-texto.mjs`, `pruebas/json-tolerante.mjs`, `pruebas/cap-posiciones.mjs` (con la respuesta de ejemplo
-  `pruebas/cap-carta-ejemplo.js`), `pruebas/e2e/cap-propios.cjs`, `pruebas/e2e/cap-carta.cjs` y `pruebas/e2e/fuegos-fase.cjs`.
+- En el compilado (`pruebas/reemplazos-2026-10-25-itinerario.js`): el import y el `useEffect` del itinerario y la fase
+  a la vista para la capa de la F3·P3.
+- Pruebas: `pruebas/cap-propios.mjs`, `pruebas/cap-carta.mjs`, `pruebas/cap-texto.mjs`, `pruebas/json-tolerante.mjs`, `pruebas/cap-posiciones.mjs`, `pruebas/cap-tareas-fase.mjs` (con la respuesta de ejemplo
+  `pruebas/cap-carta-ejemplo.js`), `pruebas/e2e/cap-propios.cjs`, `pruebas/e2e/cap-carta.cjs`, `pruebas/e2e/fuegos-fase.cjs` y `pruebas/e2e/itinerario.cjs`.

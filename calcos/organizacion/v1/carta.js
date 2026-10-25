@@ -7,10 +7,18 @@
 // punteada el enemigo de cada sector.
 //
 // Se dibuja en el Leaflet de la Mesa (window.__mapa2d): la vista 3D copia sola lo que se
-// agrega ahí. El compilado llama a sincronizarCarta({ ops, g3, unidades, setOps, … }) cada
-// vez que cambia el calco o las hojas del G-3.
+// agrega ahí. El compilado llama a sincronizarCarta({ ops, g3, unidades, setOps, faseActiva, … })
+// cada vez que cambia el calco, las hojas del G-3 o la fase a la vista.
+//
+// En las fases de un CAP propio (con la hoja cerrada), el rótulo va CON SU UNIDAD (Sergio,
+// 25-10-2026: «la OC y la OD deben permanecer con su nombre con la unidad… están solas ya
+// esperando en un lugar; eso se mueve con la unidad»): junto a la ficha que cumple la tarea
+// (su agrupación, o la unidad de sus piezas) y la RES junto a la de la reserva. La tarea se ve
+// sólo en la fase en que su unidad está con ella; las otras las guarda la fase en
+// ops.tareasOcultas (cap-propios/v1/tareas-fase.mjs) y igual tienen su rótulo con la unidad.
 import { balance, oiDe, flujoNormal, CLAVE_FLUJO, RESERVA, cantidad, esManiobra, nombresDeFuerza } from './modelo.js'
 import { leaflet, simb, svgPieza } from './runtime.js'
+import { duenoDeTarea, duenoDeReserva } from '../../cap-propios/v1/tareas-fase.mjs?v=iti20261025'
 
 let puente = null
 let capa = null
@@ -53,7 +61,7 @@ function unidadesHTML(piezas) {
 }
 // El rótulo cerrado: sólo su sigla, para que se vea el terreno.
 function siglaHTML({ corto, color, texto, arrastrable }) {
-  return `<div class="oi-bloque-caja" title="${esc(texto)} — tocá para ver las unidades" style="background:${color};color:#fff;border:1.5px solid #fff;border-radius:4px;padding:0 5px;box-shadow:0 1px 4px rgba(0,0,0,.45);font:700 11px/1.35 Arial,Helvetica,sans-serif;width:max-content;white-space:nowrap;cursor:${arrastrable ? 'move' : 'pointer'}">${esc(corto)}</div>`
+  return `<div class="oi-bloque-caja" data-oi-rotulo="${esc(corto)}" title="${esc(texto)} — tocá para ver las unidades" style="background:${color};color:#fff;border:1.5px solid #fff;border-radius:4px;padding:0 5px;box-shadow:0 1px 4px rgba(0,0,0,.45);font:700 11px/1.35 Arial,Helvetica,sans-serif;width:max-content;white-space:nowrap;cursor:${arrastrable ? 'move' : 'pointer'}">${esc(corto)}</div>`
 }
 function bloqueHTML({ corto, color, texto, piezas, pie, arrastrable, puras }) {
   const simbolos = piezas.length && puras
@@ -61,7 +69,7 @@ function bloqueHTML({ corto, color, texto, piezas, pie, arrastrable, puras }) {
     : piezas.length
     ? piezas.map((p) => `<span style="display:inline-block;line-height:0" title="${esc(p.nom || '')}">${svgPieza(p.simbolo, 30, '#000')}</span>`).join('')
     : `<span style="font-size:10px;color:#555;font-style:italic">${puras ? 'sin unidad asignada' : 'sin unidades genéricas'}</span>`
-  return `<div class="oi-bloque-caja" style="background:rgba(255,255,255,.88);border:1.5px solid ${color};border-radius:4px;padding:2px 5px 3px;box-shadow:0 1px 4px rgba(0,0,0,.45);font-family:Arial,Helvetica,sans-serif;color:#000;width:max-content;max-width:250px;cursor:${arrastrable ? 'move' : 'default'}">
+  return `<div class="oi-bloque-caja" data-oi-rotulo="${esc(corto)}" style="background:rgba(255,255,255,.88);border:1.5px solid ${color};border-radius:4px;padding:2px 5px 3px;box-shadow:0 1px 4px rgba(0,0,0,.45);font-family:Arial,Helvetica,sans-serif;color:#000;width:max-content;max-width:250px;cursor:${arrastrable ? 'move' : 'default'}">
 <div style="display:flex;align-items:flex-start;gap:4px;font-size:11px;font-weight:700;line-height:1.25"><span style="background:${color};color:#fff;border-radius:3px;padding:0 4px;white-space:nowrap">${esc(corto)}</span><span>${esc(texto)}</span></div>
 <div style="display:flex;flex-wrap:wrap;gap:1px 2px;margin-top:2px;align-items:center">${simbolos}</div>
 ${pie ? `<div style="font-size:9.5px;color:#333;margin-top:1px">${esc(pie)}</div>` : ''}</div>`
@@ -102,29 +110,50 @@ function alternar(mk, id) {
     dibujar()
   })
 }
-const hayAlgo = (p) => !!p && ((p.ops?.tareas || []).some((t) => t && enLaCapa(t.oi)) || ((p.g3?.[CLAVE_FLUJO] || {}).reserva?.piezas || []).length > 0)
+const hayAlgo = (p) => !!p && ([...(p.ops?.tareas || []), ...(p.ops?.tareasOcultas || [])].some((t) => t && enLaCapa(t.oi)) || ((p.g3?.[CLAVE_FLUJO] || {}).reserva?.piezas || []).length > 0)
+// ¿Una fase de un CAP propio a la vista, con la hoja cerrada? Entonces los rótulos van con su unidad.
+const enFases = () => puente?.faseActiva?.bando === 'propio' && editor === 0
+// Con la unidad: el rótulo a la derecha de su ficha.
+const AL_LADO = -26
+const lugarDe = (u) => (u && Number.isFinite(+u.lng) && Number.isFinite(+u.lat) ? [+u.lng, +u.lat] : null)
 
 function dibujar() {
   const L = leaflet()
   const m = mapa()
   // Sin tareas con operación ni reserva no hay nada que dibujar (lo más común: no cuesta nada).
   if (!L || !m || !hayAlgo(puente)) return quitarCapa()
+  const fases = enFases()
+  const ops = puente.ops || {}
+  // En una fase, también las tareas que esa fase guarda aparte (su unidad todavía no está con ellas).
+  const opsB = fases && (ops.tareasOcultas || []).length ? { ...ops, tareas: [...(ops.tareas || []), ...ops.tareasOcultas] } : ops
   let b
   try {
-    b = balance({ ops: puente.ops || {}, g3: puente.g3 || {}, unidades: puente.unidades || [] }, simb)
+    b = balance({ ops: opsB, g3: puente.g3 || {}, unidades: puente.unidades || [] }, simb)
   } catch {
     return quitarCapa()
   }
   if (!b.flujo.verEnCarta) return quitarCapa()
   escuchar(m)
+  // Dónde va cada rótulo en la fase: junto a su unidad; sin unidad, junto a su tarea si se ve en esta fase.
+  const visibles = new Set(ops.tareas || [])
+  const conUnidad = new Map()
+  if (fases)
+    for (const x of b.tareas) {
+      if (!enLaCapa(x.oi)) continue
+      const p = lugarDe(duenoDeTarea(x.t, puente.unidades))
+      conUnidad.set(x.oi.id, p || (visibles.has(x.t) ? x.t.centro : null))
+    }
+  const resUnidad = fases && b.reserva.length ? lugarDe(duenoDeReserva(b.flujo.reserva, puente.unidades)) : null
   const nueva = JSON.stringify([
     editor > 0,
+    fases,
     abierto,
     b.flujo.puras,
-    b.tareas.filter((x) => enLaCapa(x.oi)).map((x) => [x.oi.id, x.t.centro, x.t.tarea, x.oi.texto, x.oi.desp, x.op.id, x.prop.id, x.requeridas, x.dispuestas, x.nivel, x.piezas.map((p) => p.id), [...x.enemigo.maniobra, ...x.enemigo.apoyo].map((u) => [u.lat, u.lng])]),
+    b.tareas.filter((x) => enLaCapa(x.oi)).map((x) => [x.oi.id, x.t.centro, x.t.tarea, x.oi.texto, x.oi.desp, x.op.id, x.prop.id, x.requeridas, x.dispuestas, x.nivel, x.piezas.map((p) => p.id), [...x.enemigo.maniobra, ...x.enemigo.apoyo].map((u) => [u.lat, u.lng]), conUnidad.get(x.oi.id)]),
     b.reserva.map((p) => p.id),
     b.flujo.reserva.pos,
     b.flujo.reserva.pos ? null : posicionReserva(b),
+    resUnidad,
   ])
   if (capa && capa._map === m && nueva === firma) return
   quitarCapa()
@@ -134,6 +163,20 @@ function dibujar() {
   for (const x of b.tareas) {
     if (!enLaCapa(x.oi)) continue
     const c = x.t.centro
+    if (fases) {
+      // En la fase: el rótulo con su unidad (no se arrastra; su lugar respecto de la tarea es de la hoja).
+      const p = conUnidad.get(x.oi.id)
+      if (!p) continue
+      const texto = String(x.oi.texto || '').trim() || simb.nombreTarea(x.t.tarea)
+      const pie = x.nivel === 'sin-enemigo' ? `${x.prop.id} · sin enemigo en el sector` : `${x.prop.id} · ${String(Math.round(x.dispuestas * 10) / 10).replace('.', ',')} de ${cantidad(x.requeridas, G, { corto: true })}${x.falta ? ' — FALTAN' : ' ✓'}`
+      const piezas = [...x.piezas.filter(esManiobra), ...x.piezas.filter((q) => !esManiobra(q))]
+      const datos = { corto: x.op.corto, color: x.op.color, texto: `T: ${texto}`, piezas, pie, arrastrable: false, puras: b.flujo.puras }
+      const ver = abierto === x.oi.id
+      const icon = L.divIcon({ className: 'oi-bloque', html: ver ? bloqueHTML(datos) : siglaHTML(datos), iconSize: null, iconAnchor: [AL_LADO, ver ? 16 : 8] })
+      const mk = L.marker([p[1], p[0]], { icon, draggable: false, interactive: true, keyboard: false, zIndexOffset: ver ? 1500 : 1400 }).addTo(g)
+      alternar(mk, x.oi.id)
+      continue
+    }
     const desp = Array.isArray(x.oi.desp) && x.oi.desp.length === 2 ? x.oi.desp : null
     const pos = desp ? [c[0] + desp[0], c[1] + desp[1]] : c
     if (abierta)
@@ -178,12 +221,13 @@ function dibujar() {
     }
   }
   if (b.reserva.length) {
-    const pos = b.flujo.reserva.pos || posicionReserva(b)
+    // En una fase, la RES va con la unidad de la reserva (si se sabe cuál es).
+    const pos = resUnidad || b.flujo.reserva.pos || posicionReserva(b)
     if (pos) {
       const peso = b.reserva.reduce((s, p) => s + (esManiobra(p) ? 1 : 0), 0)
       const datos = { corto: RESERVA.corto, color: RESERVA.color, texto: 'Reserva (lo que sobra)', piezas: b.reserva, pie: peso && !b.flujo.puras ? `${peso} pieza(s) de maniobra` : '', arrastrable: abierta, puras: b.flujo.puras }
       const ver = abierto === RESERVA.corto
-      const icon = L.divIcon({ className: 'oi-bloque', html: ver ? bloqueHTML(datos) : siglaHTML(datos), iconSize: null, iconAnchor: [0, ver ? 16 : 8] })
+      const icon = L.divIcon({ className: 'oi-bloque', html: ver ? bloqueHTML(datos) : siglaHTML(datos), iconSize: null, iconAnchor: [resUnidad ? AL_LADO : 0, ver ? 16 : 8] })
       const mk = L.marker([pos[1], pos[0]], { icon, draggable: abierta, interactive: true, keyboard: false, zIndexOffset: ver ? 1500 : 1400 }).addTo(g)
       alternar(mk, RESERVA.corto)
       if (abierta)
