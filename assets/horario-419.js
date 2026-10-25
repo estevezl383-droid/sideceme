@@ -5,7 +5,6 @@
   function mayInput(el){ if(!el)return; var p=el.selectionStart; el.value=MAY(el.value); try{if(p!==null)el.setSelectionRange(p,p);}catch(_){} }
   window._plpMay=MAY; window._plpMayInput=mayInput;
 
-  var vm=document.getElementById('version-marker'); if(vm) vm.textContent='v2.9.420';
 
   /* Todo lo escrito en el horario sale en MAYÚSCULAS. */
   document.addEventListener('input',function(ev){
@@ -323,7 +322,6 @@
   _plpForm=function(p,aviso){form(p,aviso);if((PLP.perfil||{}).mover){var dlg=document.getElementById('plp-dlg');if(dlg)dlg.querySelectorAll('.plp-av').forEach(function(e){if(/hasta que|al aprobarse/i.test(e.textContent))e.textContent='LOS CAMBIOS DE PLANIFICACIÓN SE APLICAN DIRECTAMENTE AL GUARDAR.';});}};
   var pintar=_plpEncajarPintar;
   _plpEncajarPintar=function(){pintar();if((PLP.perfil||{}).mover){var d=document.getElementById('plp-dlg');if(d)d.querySelectorAll('.plp-av-pend').forEach(function(el){el.textContent='LOS CAMBIOS SE APLICAN DIRECTAMENTE Y QUEDAN EN PLOMO.';});}};
-  var vm=document.getElementById('version-marker');if(vm)vm.textContent='v2.9.421';
 })();
 
 /* v2.9.422 — revisión editable, planificación sin etiquetas y avisos propios. */
@@ -407,5 +405,4 @@
   _plpBoton=async function(){await boton();await plpAvisosActualizar();if(!timer)timer=setInterval(plpAvisosActualizar,30000);};
   var barra=_plpBarra;
   _plpBarra=function(){barra();pintar();};
-  var vm=document.getElementById('version-marker');if(vm)vm.textContent='v2.9.423';
 })();

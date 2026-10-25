@@ -14,8 +14,17 @@ decisión sale **después**, de la matriz ya jugada.
 **Tablero del G-3 → 📄 Documentos → «4 · Analizar los cursos de acción» → F4·P6-7 Matriz de sincronización**, arriba
 de la hoja: **⚔️ Evento crítico para el Juego de Guerra — 🔴 CAE (G-2) contra 🔵 CAP (G-3)**.
 
-- Cada fase 🔵 del CAP frente a una fase 🔴 del CAE: de entrada la del mismo orden en el tiempo (FASE I con FASE I…,
-  sin pasarse de la última), o la que se eligió en el 🎬 C.A. por fases (`contra`). Se cambia en su lista.
+- Cada fase 🔵 del CAP frente a una fase 🔴 del CAE: de entrada las dos listas **alineadas por el final** (el último
+  choque es la última fase de los dos), o la que se eligió en el 🎬 C.A. por fases (`contra`). Se cambia en su lista.
+  Con las 5 fases de la defensa y las 4 del ataque (Sergio, 25-10-2026: «fase IV de azul contra fase III de rojo»):
+
+  | 🔵 CAP | 🔴 CAE |
+  |---|---|
+  | FASE I — Concentración | FASE I — Ramificación |
+  | FASE II — Desplazamiento | FASE I — Ramificación |
+  | FASE III — Ocupación y organización de la posición | FASE II — Apresto lejano |
+  | FASE IV — Conducción de la defensa | FASE III — Ataque propiamente tal |
+  | FASE V — Contraataque y consolidación | FASE IV — Ruptura, consolidación y explotación |
 - Cada encuentro, medido: cuántas unidades enemigas de maniobra quedan a menos de **15 km** de una propia, las dos más
   cercanas y a qué distancia, y la relación de poder enemigo/propio en contacto. **⭐ = el más crítico** (más unidades
   enemigas en contacto, más poder enemigo, más cerca). Es para ordenar; el juicio es del Estado Mayor.
@@ -28,7 +37,7 @@ de la hoja: **⚔️ Evento crítico para el Juego de Guerra — 🔴 CAE (G-2) 
   guardado y `eventoCritico` ya armado: las fichas 🔵 de la fase del CAP, las 🔴 de la fase del CAE y el calco de la
   fase propia. `JUEGO_GUERRA_<ejercicio>_evento_critico_<fecha>.json`.
 
-## En el Juego de Guerra (SIDECEME, `index.html`, v2.9.437)
+## En el Juego de Guerra (SIDECEME, `index.html`, v2.9.438)
 
 **⚙️ Configurar → 🌄 Traer escenario del Generador de Calcos → 📂 Cargar escenario (reemplaza)** con el archivo de ⬇️ o
 con el ejercicio.json de siempre (si el evento se guardó con 💾, lo trae igual):
@@ -36,7 +45,14 @@ con el ejercicio.json de siempre (si el evento se guardó con 💾, lo trae igua
 - **⚔️ EVENTO CRÍTICO — CAP n · FASE x contra CAE … · FASE y** sale primero, recuadrado en rojo: 🔵 azules de la
   fase del CAP y 🔴 rojas de la del CAE en el mismo tablero.
 - **⚔️ Enfrentar una fase 🔵 con una fase 🔴**: dos listas (las fases de los dos CAP y las del CAE) para jugar
-  cualquier otra pareja.
+  cualquier otra pareja; vienen marcadas con la del evento crítico. Las fases sueltas («Una fase sola, sin enfrentar»)
+  van al final, y las del CAE se llaman «CAE más probable · Fase I…IV» y «CAE más peligroso · Fase I…IV» (antes
+  «COA ENEMIGO · Fase 1…8», que no se entendía).
+- **Las agrupaciones de la organización para el combate** (OD, OC 1, OC 2, RES: fichas con `esAgrupacion`, que la
+  Mesa dibuja con magnitud brigada junto a las divisiones de las que salen sus piezas) **no entran** si el bando tiene
+  otras fichas de maniobra: antes aparecían como «brigadas» y las fuerzas se contaban dos veces. El aviso de carga
+  dice cuáles quedaron afuera. Si el bando sólo tiene agrupaciones, quedan.
+- La marca de versión de la esquina dice la de verdad: los scripts del horario la pisaban siempre con «v2.9.428».
 - La fase 🔵 que tenía `contra` ahora trae también a esos rojos (antes llegaba sin enemigo: la Mesa la guarda sin las
   fichas rojas que pone a la vista).
 - Las fichas con `bando: 'enemigas'` (las del CAE) entran como 🔴 ROJO: antes entraban como AZUL.

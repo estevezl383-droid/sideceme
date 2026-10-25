@@ -124,10 +124,10 @@ function ejercicio() {
     fs.writeFileSync(path.join(SALIDAS, 'juego-guerra.json'), JSON.stringify(d))
     await panel.getByText(/Bajado/).waitFor({ timeout: 5000 })
 
-    // Contra el más peligroso: la FASE III 🔵 va con su última fase (la II).
+    // Contra el más peligroso (2 fases): alineadas por el final, la FASE III 🔵 con su última (la II).
     await clic(panel.getByRole('button', { name: 'CAE más peligroso' }))
     await page.waitForTimeout(300)
-    assert.deepEqual(await filas.locator('select').evaluateAll((x) => x.map((e) => e.value)), ['4', '5', '5'])
+    assert.deepEqual(await filas.locator('select').evaluateAll((x) => x.map((e) => e.value)), ['4', '4', '5'])
     await foto('3-peligroso')
 
     assert.deepEqual(dialogos, [])

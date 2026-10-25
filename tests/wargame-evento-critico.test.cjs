@@ -95,6 +95,21 @@ test('las fichas «enemigas» de la Mesa entran como ROJO (antes entraban como A
   assert.deepStrictEqual(W._wgEscenarioDesde(d, f[0]).unidades.map((u) => u.bando).sort(), ['azul', 'rojo', 'rojo']);
 });
 
+test('las agrupaciones de la organización para el combate (OD, OC, RES) no entran como «brigadas»', () => {
+  const ag = (id) => ({ id, designacion: id, bando: 'propias', tipo: 'unidad', escalon: 'brigada', esAgrupacion: true, agrupacion: true, agId: 'g-' + id, lng: -68.8, lat: -18.5 });
+  const d = ej();
+  d.fasesCOA.propio[1].unidades.push(ag('OD'), ag('OC 1'), ag('RES'));
+  d.g3.sincro = { _evento: { cap: 1, azul: 1, rojo: 2 } };
+  const f = W._wgFasesCOA(d);
+  assert.deepStrictEqual([f[0].nAzul, f[0].nRojo], [1, 2], 'la cuenta del cuadro no las suma');
+  const esc = W._wgEscenarioDesde(d, f[0]);
+  assert.deepStrictEqual(esc.unidades.map((u) => u.designacion).sort(), ['BIA-1', 'BTQ-1', 'DIV-1']);
+  assert.deepStrictEqual(esc.agrupaciones, ['OD', 'OC 1', 'RES']);
+  // Si el bando SÓLO tiene agrupaciones, quedan (son su única maniobra).
+  const solo = { unidades: [ag('OD'), roja('R', -69)], fasesCOA: {} };
+  assert.deepStrictEqual(W._wgEscenarioDesde(solo, null).unidades.map((u) => u.designacion).sort(), ['OD', 'R']);
+});
+
 test('un ejercicio de antes (sin CAP ni CAE con nombre) se sigue viendo igual', () => {
   const d = { unidades: [], fasesCOA: { propio: [{ unidades: [azul('A', -68)] }], enemigo: [{ unidades: [roja('R', -69), azul('A', -68)] }] } };
   const f = W._wgFasesCOA(d);
@@ -123,7 +138,12 @@ test('el cuadro de elección en Chromium: ⚔️ EVENTO CRÍTICO y ⚔️ Enfren
     // 2) Otra pareja: CAP 2 (guardado) contra el CAE más peligroso.
     r = page.evaluate(([d, p]) => window._wgPreguntarFase(Object.assign(window._wgFasesCOA(d), { _vivas: {} }), eval(p)).then((x) => x && { nombre: x.nombre, us: x.unidades.map((u) => u.id + '@' + u.lng) }), [d, poner]);
     await page.waitForSelector('#wg-enf-azul');
-    assert.strictEqual(await page.inputValue('#wg-enf-rojo'), '0');
+    // La pareja del evento crítico ya viene elegida en las dos listas.
+    assert.deepStrictEqual([await page.inputValue('#wg-enf-azul'), await page.inputValue('#wg-enf-rojo')], ['1', '2']);
+    // Orden: el evento crítico, «⚔️ Enfrentar», el estado actual y al final las fases sueltas.
+    const orden = await page.$$eval('#wg-imp-estado button[data-fase]', (bs) => bs.map((b) => b.getAttribute('data-fase')));
+    assert.deepStrictEqual(orden.slice(0, 3), ['0', 'enfrentar', 'viva']);
+    assert.match(await page.textContent('#wg-imp-estado'), /Una fase sola, sin enfrentar/);
     await page.selectOption('#wg-enf-azul', '2');
     await page.selectOption('#wg-enf-rojo', '3');
     await page.click('button[data-fase="enfrentar"]');

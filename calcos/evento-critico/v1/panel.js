@@ -2,7 +2,7 @@
 // del G-3: elige una fase 🔵 del CAP y la fase 🔴 del CAE que la enfrenta, marca la más crítica (⭐), lo guarda en el
 // ejercicio, lo anota en la matriz y baja el archivo para el Juego de Guerra. La lógica está en modelo.mjs.
 // JavaScript sin compilar: React llega en la prop R (jsx, jsxs, useState) desde el compilado.
-import { encuentros, resolver, conEvento, anotar, paraElJuego, nombreArchivo, textoMedida, capActivo, fasesDeCAP, NOM_COA } from './modelo.mjs?v=ev20261025'
+import { encuentros, resolver, conEvento, anotar, paraElJuego, nombreArchivo, textoMedida, capActivo, fasesDeCAP, NOM_COA } from './modelo.mjs?v=ev20261025b'
 
 const ROJO = '#ff6b6b'
 const AZUL = '#5aa9ff'
