@@ -57,6 +57,22 @@ function catalogos() {
   const F = (typeof window !== 'undefined' && window.MesaFuegos && window.MesaFuegos.modelo) || {}
   return { tareas: R.tareas || [], obstaculos: R.obstaculos || {}, tiposFuego: F.TIPOS_FUEGO || [], efectos: F.EFECTOS || [] }
 }
+// ➜ El botón que prende o apaga las flechas del itinerario (itinerario.mjs, por window.SIDItinerario: si el navegador
+// tiene guardado un itinerario.mjs de antes, el botón no aparece). El texto lo cambia itinerario.mjs en todos los
+// botones a la vez (el del panel y el del 🎬 C.A. por fases).
+function botonFlechas(extra) {
+  const I = typeof window !== 'undefined' && window.SIDItinerario
+  if (!I || typeof I.alternar !== 'function') return null
+  const v = I.visibles()
+  return h('button', {
+    'data-iti-flechas': '1',
+    'aria-pressed': String(v),
+    title: 'Prender o apagar, en la carta (y en el 🏙️ Google 3D), las flechas con el recorrido de cada unidad de una fase a la otra',
+    style: { ...E.btn, padding: '4px 8px', fontSize: 11.5, fontWeight: 700, ...(extra || {}) },
+    onClick: () => I.alternar(),
+  }, I.texto(v))
+}
+
 const planDeLaCarta = () => {
   try {
     return datosPuente().plan || null
@@ -187,6 +203,7 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
       h('div', { style: E.dist }, `🗺️ En la carta: ${c.distingue}.`),
       h('div', { style: E.fases }, `🎬 ${c.fases.map((f, i) => `${i + 1}. ${f.nombre} (${f.cuando})`).join(' · ')}`),
       h('div', { style: { ...E.fases, color: COLOR_CAP_CLARO[c.n] || E.fases.color }, 'data-itinerario-cap': c.n }, `➜ En las fases, el itinerario de cada unidad va marcado con flechas ${NOMBRE_COLOR[c.n] || ''}.`),
+      c.n === C.activo && botonFlechas({ alignSelf: 'flex-start', borderColor: COLOR_CAP[c.n] || AZUL }),
       botonesFase(c),
       botonArmarGuardado(c))
 
@@ -247,7 +264,8 @@ export function botonesCAP(info, fasesCOA) {
     return h('div', { style: { display: 'flex', gap: 5, margin: '4px 0 6px', alignItems: 'center', flexWrap: 'wrap' }, 'data-cap-botones': '1' },
       [1, 2].map((n) =>
         h('button', { key: n, 'data-cap': n, style: { ...E.cap(n === C.activo), flex: '0 0 auto', padding: '4px 8px', fontSize: 11.5 }, onClick: () => n !== C.activo && info.acc?.('cambiar', { n }) }, `${n === C.activo ? '● ' : ''}CAP ${n}${nomF(n)} (${nf[n] || 0})`)),
-      h('span', { style: { fontSize: 10.5, color: '#8fa3b5' } }, 'El otro CAP queda guardado con sus fases.'))
+      h('span', { style: { fontSize: 10.5, color: '#8fa3b5' } }, 'El otro CAP queda guardado con sus fases.'),
+      botonFlechas({ flex: '0 0 auto', borderColor: COLOR_CAP[C.activo] || AZUL }))
   } catch {
     return null
   }

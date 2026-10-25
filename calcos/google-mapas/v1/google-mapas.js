@@ -332,12 +332,17 @@
     if (!mapa || !L || !mapa.eachLayer) return calco
     mapa.eachLayer((c) => {
       try {
+        let punto = null
         if (c instanceof L.Circle) {
           calco.circulos.push({ centro: lngLat(c.getLatLng()), radio: c.getRadius(), ...estiloDe(c.options) })
         } else if (c instanceof L.CircleMarker) {
           const e = estiloDe(c.options)
           const [lng, lat] = lngLat(c.getLatLng())
-          calco.puntos.push({ lng, lat, radio: c.getRadius(), color: e.relleno || e.color, opacidad: Math.max(e.opacidad, e.opRelleno) })
+          punto = { lng, lat, radio: c.getRadius(), color: e.relleno || e.color, opacidad: Math.max(e.opacidad, e.opRelleno) }
+          // El borde, si es de otro color que el relleno (los círculos «C1, C2…» de la carta son blancos con el borde
+          // de color: en el 3D sin el borde ni el número eran «puntos blancos», Sergio, 25-10-2026).
+          if (e.relleno && e.opacidad > 0.05 && e.color && e.color !== e.relleno) Object.assign(punto, { borde: e.color, anchoBorde: e.ancho, opRelleno: e.opRelleno })
+          calco.puntos.push(punto)
         } else if (c instanceof L.Polygon) {
           const g = c.toGeoJSON().geometry
           const poligonos = g.type === 'Polygon' ? [anillos(g.coordinates, 1)] : g.type === 'MultiPolygon' ? anillos(g.coordinates, 2) : []
@@ -366,7 +371,9 @@
           d.innerHTML = String(tt.getContent() || '')
           d.querySelectorAll('.tt-sub').forEach((x) => x.remove())
           const texto = d.innerHTML.split(/<br\s*\/?>/i).map((t) => { const e = document.createElement('div'); e.innerHTML = t; return e.textContent.trim() }).filter(Boolean)[0]
-          if (lugar && texto) {
+          // El rótulo fijo de un círculo (C1, C2…) va adentro del círculo, como en la carta.
+          if (punto && texto && texto.length <= 6) punto.texto = texto
+          else if (lugar && texto) {
             const [lng, lat] = lngLat(lugar)
             calco.rotulos.push({ lng, lat, texto, color: '#000', tam: 12 })
           }
@@ -509,7 +516,7 @@
     marco.setAttribute('allow', 'fullscreen')
     marco.style.cssText = 'border:0;width:100%;height:100%;display:block'
     const url = new URL('google-mapas/v1/3d.html', location.href.replace(/[^/]*$/, ''))
-    url.search = '?embebido=1&v=20261023-claro' // el ?v= para que el navegador no use un 3d.html viejo
+    url.search = '?embebido=1&v=20261025-fluido' // el ?v= para que el navegador no use un 3d.html viejo
     url.hash = `${v.lat.toFixed(5)},${v.lng.toFixed(5)},${v.zoom.toFixed(1)}`
     marco.src = url.toString()
     caja.appendChild(marco)

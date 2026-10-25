@@ -49,6 +49,16 @@ selector (angosto, para que la barra siga en una fila; la lista abierta es más 
   líneas pintan sólo los tiles 3D (antes también el globo, que está oculto); ⚡ Detalle normal acepta más error en
   pantalla (32 en vez de 24) y sin suavizado, fluido 48 y a 0,6 de resolución; y las cartas 2D y ⛰️ 3D de abajo se
   ocultan mientras se ve el 3D.
+- Desde el 25-10-2026 (Sergio, con las fases de los CAP en el 3D: «aparecen puntos blancos… las unidades se cuelgan y
+  desaparecen, no aparecen… debe ser fluido»):
+  - los círculos «C1, C2…» de la carta (blancos con el borde de color y el número adentro) van al 3D con su borde y su
+    número; antes llegaban sólo como un punto blanco grande;
+  - al cambiar algo en la carta (otra fase de un CAP, una ficha movida, las flechas del itinerario) el 3D rehace sólo
+    lo que cambió (cada cosa del calco tiene su clave); antes borraba y volvía a armar todo el calco, áreas y líneas
+    pegadas a los tiles incluidas. Todo se rehace sólo cuando cambia el ⛰️ Relieve ×;
+  - después de dibujar, el 3D sigue pidiendo cuadros hasta que todo está listo (mínimo 3 s): las imágenes de las fichas
+    y las áreas pegadas a los tiles se terminan de armar después de agregarlas y Cesium, que dibuja sólo cuando algo
+    cambia, no siempre volvía a dibujar: las fichas no aparecían hasta mover la cámara.
 - Si Google no entrega el 3D (cupo, clave, red), el calco igual se ve, sobre el satélite de Esri (sin relieve),
   con un aviso.
 - Abajo al centro de la carta quedan «Google» y la atribución de las imágenes del lugar (lo exige Google).

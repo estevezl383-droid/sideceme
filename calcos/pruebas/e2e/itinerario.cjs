@@ -9,7 +9,9 @@
 //     FASE III las tres tareas, cada una con su agrupación; FASE IV y V otra tarea en cada fase, pegada a la ficha
 //     (destruir, contener, fijar; destruir, mantener); el itinerario en VIOLETA, que en la FASE V tiene todos los tramos;
 //   · CAP 2: tocar una de sus fases copiadas ofrece armarlas; armadas, el itinerario en FUCSIA;
-//   · el CAP guardado se arma desde su tarjeta; sin errores de consola.
+//   · el CAP guardado se arma desde su tarjeta; sin errores de consola;
+//   · ➜ el botón de la tarjeta apaga y prende las flechas (Sergio, 25-10-2026: «necesito un botón que desactive las
+//     flechas de los itinerarios»), también en las otras fases, y queda para la próxima vez.
 //   node calcos/pruebas/e2e/itinerario.cjs
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -132,7 +134,7 @@ const ag = (id, nom, op, lng, lat, arma, piezas = []) => ({ id, designacion: nom
     await panel.waitFor({ timeout: 10000 })
     await panel.locator('[data-quietas="2"]').waitFor({ timeout: 5000 })
     assert.match(await panel.locator('[data-quietas="2"]').innerText(), /MISMO lugar.*Tocá «🎬 Armar las fases de este CAP» \(acá abajo\)/)
-    assert.equal(await panel.locator('[data-armar-cap="2"]').count(), 1, 'el CAP guardado se arma desde su tarjeta')
+    assert.equal(await panel.locator('[data-armar-cap="2"]').count(), 1, 'el CAP guardado se arma desde su tarjeta, el botón apaga y prende las flechas')
     assert.equal(await panel.locator('[data-armar-cap="1"]').count(), 0, 'el activo, con el botón de abajo')
     assert.match(await panel.locator('[data-itinerario-cap="1"]').innerText(), /flechas VIOLETAS/)
     assert.match(await panel.locator('[data-itinerario-cap="2"]').innerText(), /flechas FUCSIAS/)
@@ -214,6 +216,25 @@ const ag = (id, nom, op, lng, lat, arma, piezas = []) => ({ id, designacion: nom
     assert.ok(fl5['#8f00ff'] > fl3['#8f00ff'], `FASE V: todo el itinerario (${fl5['#8f00ff']} tramos > ${fl3['#8f00ff']})`)
     await vista('4-cap1-faseV')
 
+    // ➜ El botón que apaga las flechas («necesito un botón que desactive las flechas de los itinerarios»): en la tarjeta
+    // del CAP a la vista; queda apagado al cambiar de fase y para la próxima vez; vuelve a prenderlas.
+    const btnFlechas = panel.locator('[data-iti-flechas]')
+    assert.equal(await btnFlechas.count(), 1, 'el botón de las flechas, en la tarjeta del CAP a la vista')
+    assert.match(await btnFlechas.innerText(), /Ocultar las flechas del itinerario/)
+    await clic(btnFlechas)
+    await page.waitForTimeout(300)
+    assert.deepEqual(await flechas(page), { '#8f00ff': 0, '#ff00ff': 0, puntas: 0 }, 'apagadas: sin flechas')
+    assert.match(await btnFlechas.innerText(), /Mostrar las flechas del itinerario/)
+    assert.equal(await page.evaluate(() => localStorage.getItem('sid-iti-flechas')), '0', 'queda para la próxima vez')
+    await fase(1, 4)
+    assert.equal((await flechas(page))['#8f00ff'], 0, 'apagadas también en otra fase')
+    await vista('4b-cap1-faseIV-sin-flechas')
+    await fase(1, 5)
+    await clic(btnFlechas)
+    await page.waitForTimeout(300)
+    assert.equal((await flechas(page))['#8f00ff'], fl5['#8f00ff'], 'prendidas de nuevo: todo el itinerario')
+    assert.match(await btnFlechas.innerText(), /Ocultar las flechas del itinerario/)
+
     // ── CAP 2: sus fases eran copias; tocar una ofrece armarlas ──
     dialogos.length = 0
     await fase(2, 2)
@@ -247,7 +268,7 @@ const ag = (id, nom, op, lng, lat, arma, piezas = []) => ({ id, designacion: nom
 
     const malos = errores.filter((e) => !/favicon|net::ERR|Failed to load resource|WebGL|GPU stall|tiles/i.test(e))
     assert.deepEqual(malos, [], 'sin errores de consola')
-    console.log('✔ e2e itinerario: las tareas de la F3·P3 sólo en la FASE III y con su agrupación, otra tarea pegada a cada ficha en la IV y la V, los rótulos OD / OC / RES con su unidad, el itinerario violeta (CAP 1) y fucsia (CAP 2) acumulado, el CAP 2 copiado se arma al tocarlo, el CAP guardado se arma desde su tarjeta')
+    console.log('✔ e2e itinerario: las tareas de la F3·P3 sólo en la FASE III y con su agrupación, otra tarea pegada a cada ficha en la IV y la V, los rótulos OD / OC / RES con su unidad, el itinerario violeta (CAP 1) y fucsia (CAP 2) acumulado, el CAP 2 copiado se arma al tocarlo, el CAP guardado se arma desde su tarjeta, el botón apaga y prende las flechas')
   } catch (e) {
     await foto('error').catch(() => {})
     console.error(e)

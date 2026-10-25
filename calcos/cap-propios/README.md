@@ -89,6 +89,11 @@ debe estar marcado todo su itinerario».
 - **El itinerario** (`v1/itinerario.mjs`): de la FASE I a la que está a la vista, un tramo con flecha por cada ficha
   propia que se movió; en la última fase, todo el recorrido. El **CAP 1 en VIOLETA** y el **CAP 2 en FUCSIA**; tocando
   un tramo, quién, de qué fase a cuál y los km. Se apaga con «Fichas propias».
+- **➜ Ocultar / Mostrar las flechas del itinerario** (25-10-2026; Sergio: «necesito un botón que desactive las flechas
+  de los itinerarios»): un botón en la tarjeta del CAP a la vista y otro junto a «CAP 1 / CAP 2» del 🎬 C.A. por fases.
+  Apaga las flechas en todas las fases (y en el 🏙️ Google 3D) y queda para la próxima vez (`localStorage`
+  `sid-iti-flechas`). El panel lo toca por `window.SIDItinerario` (si el navegador tiene un `itinerario.mjs` de antes,
+  el botón no aparece en vez de romper el panel).
 - **El CAP 2 que no funcionaba**: sus 5 fases eran copias (todas las fichas en el mismo lugar). Ahora el CAP guardado
   tiene en su tarjeta **«🎬 Armar las 5 fases 🔵 de este CAP (CAP 2) y verlas en la carta»** (lo arma ahí mismo y pasa a
   él), y tocar una fase de un CAP con las fases copiadas pregunta «¿Las armo ahora?».
