@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.436</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.437</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -8302,6 +8302,13 @@ body.wg-jugando{overflow:hidden}
   Podés elegir <b>varios archivos de una vez</b> (Cmd+clic): se combinan en un solo
   escenario. <b>Agregar capa</b> suma sin borrar lo que ya está cargado — así cada G
   sube la suya cuando la tiene lista.
+</div>
+<!-- v2.9.437 — ⚔️ El evento crítico de la Matriz de sincronización (F4·P6-7): las dos fases enfrentadas. -->
+<div style="font-size:10.5px;color:var(--text-muted);line-height:1.45;margin-bottom:6px;border-left:3px solid #e23b3b;padding-left:6px">
+  ⚔️ <b>Evento crítico</b>: en la Mesa, <b>G-3 → F4·P6-7 Matriz de sincronización</b> se elige la fase
+  <span style="color:#1f6dff">🔵 del CAP</span> y la <span style="color:#e23b3b">🔴 del CAE</span> que se enfrentan.
+  Al cargar ese ejercicio aparece primero <b>⚔️ EVENTO CRÍTICO</b>, con los dos bandos en el tablero; o armá otra pareja
+  con <b>⚔️ Enfrentar una fase 🔵 con una fase 🔴</b>.
 </div>
 <div id="wg-imp-estado" style="font-size:11px;color:var(--text-muted);margin-bottom:10px"></div>
 
@@ -37007,23 +37014,90 @@ function _wgNumerarUnidades(unidades){
 // tratan aparte: ver `_wgEscenarioDesde`. Un ASDI no es una ficha de maniobra
 // —no se mueve de un COA a otro— así que no puede depender de cuál se elija.
 // ============================================================
+// ============================================================
+// v2.9.437 — ⚔️ LAS DOS FASES ENFRENTADAS (el EVENTO CRÍTICO de la Matriz de
+// sincronización, F4·P6-7). Sergio: que la fase del enemigo ROJO que desarrolló
+// el G-2 y la del G-3 «se enfrenten» en el Juego, guardadas y listas para jugar.
+// Antes se elegía UNA fase por archivo y eso no alcanzaba: la fase 🔵 se guarda
+// SIN las fichas rojas que tenía a la vista (las del CAE con `contra`), así que
+// elegir «COA PROPIO · Fase 3» traía sólo a los azules, y la 🔴 traía a los
+// azules donde estaban al armar el CAE.
+// Ahora: las azules salen de la fase 🔵 y las rojas de la fase 🔴, en el mismo
+// tablero. La Mesa guarda la pareja elegida en la matriz (`g3.sincro._evento`)
+// y, si se bajó desde ahí, el archivo ya la trae armada (`eventoCritico`).
+// ============================================================
+function _wgEsRoja(u){ return !!u && (u.bando==='enemigo'||u.bando==='enemigas'||u.bando==='rojo'); }
+function _wgEnfrentar(fA, fR){
+  const az=((fA&&fA.unidades)||[]).filter(u=>u&&!_wgEsRoja(u)&&u.deFaseEnemiga==null);
+  const ro=(((fR?fR.unidades:(fA&&fA.unidades)))||[]).filter(_wgEsRoja);
+  return { unidades:[...az,...ro], ops:(fA&&fA.ops)||null, desplazamientos:(fA&&fA.desplazamientos)||null };
+}
+// Lo que cada opción muestra antes de elegir: cuántas de combate, cuántas
+// instalaciones y, si trae a los dos bandos, cuántas de cada uno.
+function _wgOpcionFase(o){
+  const us=o.unidades||[];
+  const comb=us.filter(u=>u&&u.tipo!=='instalacion');
+  o.n=comb.length;
+  o.nInst=us.filter(u=>u&&u.tipo==='instalacion').length;
+  o.nAzul=comb.filter(u=>!_wgEsRoja(u)).length;
+  o.nRojo=comb.filter(_wgEsRoja).length;
+  return o;
+}
+const _WG_ROM=['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII'];
+const _wgRom=(n)=>_WG_ROM[n-1]||String(n);
+// Las fases 🔵 de los dos CAP (el activo en fasesCOA.propio, el otro guardado
+// en g3._caps) y las 🔴 del CAE (más probable / más peligroso), con su nombre.
+function _wgFasesBandos(d){
+  const fc=(d&&d.fasesCOA)||{};
+  const caps=(d&&d.g3&&d.g3._caps)||null;
+  const act=(caps&&caps.activo===2)?2:1;
+  const azules=[];
+  const meter=(arr,cap)=>(arr||[]).forEach((f,idx)=>{ if(f) azules.push({cap, idx, f,
+    nombre:(caps?`CAP ${cap}`:'COA PROPIO')+` · Fase ${_wgRom(idx+1)}`+(f.nombre?` — ${f.nombre}`:'')+(caps&&cap!==act?' (guardado)':'') }); });
+  meter(fc.propio, act);
+  const otro=caps&&caps.guardados&&caps.guardados[act===1?2:1];
+  if(otro&&Array.isArray(otro.fases)) meter(otro.fases, act===1?2:1);
+  const cuenta={};
+  const rojas=(fc.enemigo||[]).map((f,idx)=>{
+    if(!f) return null;
+    const coa=f.coa==='peligroso'?'peligroso':(f.coa?'probable':null);
+    const k=coa||'x'; const n=Number(f.n)||(cuenta[k]=(cuenta[k]||0)+1);
+    return { idx, coa, f, nombre:(coa?`CAE más ${coa}`:'COA ENEMIGO')+` · Fase ${_wgRom(coa?n:idx+1)}`+(f.nombre?` — ${f.nombre}`:'') };
+  }).filter(Boolean);
+  return { azules, rojas, act };
+}
 function _wgFasesCOA(d){
-  const fc=(d&&d.fasesCOA)||null; if(!fc) return [];
+  const B=_wgFasesBandos(d);
   const out=[];
-  for(const bando of ['propio','enemigo']){
-    const arr=fc[bando]||[];
-    arr.forEach((f,i)=>{
-      const us=(f&&f.unidades)||[];
-      const n=us.length;
-      if(n) out.push({bando, idx:i, nombre:`COA ${bando==='propio'?'PROPIO':'ENEMIGO'} · Fase ${i+1}`,
-        unidades:us,
-        // Cuántas de esas fichas son de combate y cuántas son instalaciones: es
-        // lo que hay que ver ANTES de elegir, no descubrirlo con el tablero vacío.
-        n: us.filter(u=>u&&u.tipo!=='instalacion').length,
-        nInst: us.filter(u=>u&&u.tipo==='instalacion').length,
-        ops:(f&&f.ops)||null, desplazamientos:(f&&f.desplazamientos)||null});
-    });
+  // 1) El evento crítico de la Matriz de sincronización, primero.
+  const ev=d&&d.eventoCritico;
+  if(ev&&Array.isArray(ev.unidades)&&ev.unidades.length){
+    out.push(_wgOpcionFase({bando:'evento', evento:true, nombre:'⚔️ '+(ev.nombre||'EVENTO CRÍTICO'),
+      unidades:ev.unidades, ops:ev.ops||null, desplazamientos:ev.desplazamientos||null}));
+  } else {
+    const g=d&&d.g3&&d.g3.sincro&&d.g3.sincro._evento;
+    const a=g&&B.azules.find(x=>x.cap===(g.cap===2?2:1)&&x.idx===g.azul);
+    const r=g&&B.rojas.find(x=>x.idx===g.rojo);
+    if(a&&r) out.push(_wgOpcionFase(Object.assign({bando:'evento', evento:true,
+      nombre:`⚔️ EVENTO CRÍTICO — ${a.nombre} contra ${r.nombre}`}, _wgEnfrentar(a.f, r.f))));
   }
+  // 2) Las fases de siempre. La 🔵 que el 🎬 C.A. por fases puso «contra» una
+  //    fase del enemigo trae también a esos rojos (antes llegaba sin enemigo).
+  B.azules.filter(a=>a.cap===B.act).forEach(a=>{
+    const r=Number.isInteger(a.f.contra)?B.rojas.find(x=>x.idx===a.f.contra):null;
+    if(!(a.f.unidades||[]).length) return;
+    out.push(_wgOpcionFase(r
+      ? Object.assign({bando:'propio', idx:a.idx, nombre:`${a.nombre} ⚔️ contra ${r.nombre}`}, _wgEnfrentar(a.f, r.f))
+      : {bando:'propio', idx:a.idx, nombre:a.nombre, unidades:a.f.unidades, ops:a.f.ops||null, desplazamientos:a.f.desplazamientos||null}));
+  });
+  B.rojas.forEach(r=>{
+    if(!(r.f.unidades||[]).length) return;
+    out.push(_wgOpcionFase({bando:'enemigo', idx:r.idx, nombre:r.nombre, unidades:r.f.unidades,
+      ops:r.f.ops||null, desplazamientos:r.f.desplazamientos||null}));
+  });
+  // Para «⚔️ Enfrentar una fase 🔵 con una fase 🔴» (cualquier pareja).
+  out._azules=B.azules.filter(a=>(a.f.unidades||[]).length);
+  out._rojas=B.rojas.filter(r=>(r.f.unidades||[]).length);
   return out;
 }
 // Muestra los cursos de acción disponibles y espera la elección del árbitro.
@@ -37034,26 +37108,47 @@ function _wgPreguntarFase(fases, poner, archivo){
     // se veía igual que uno con ASDI.
     const vivas=(fases._vivas||{});
     const filas=fases.map((f,i)=>
-      `<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-bottom:4px" data-fase="${i}">`
-      +`${f.nombre} — ${f.n} unidad(es) de combate`
+      `<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-bottom:4px${f.evento?';border:2px solid #e23b3b;background:rgba(226,59,59,.12)':''}" data-fase="${i}">`
+      +`${_rgEsc(f.nombre)} — ${f.n} unidad(es) de combate`
+      +((f.nAzul&&f.nRojo)?` <span style="color:#1f6dff">🔵 ${f.nAzul}</span> <span style="color:#e23b3b">🔴 ${f.nRojo}</span>`:'')
       +`<br><span class="rg-meta">🏭 ${f.nInst||0} instalación(es) propias de esta fase`
       +((vivas.inst||0)>(f.nInst||0)
         ? ` · se completan con las ${vivas.inst} del estado actual`
         : '')+`</span></button>`).join('');
+    // v2.9.437: cualquier fase 🔵 contra cualquier fase 🔴.
+    const az=fases._azules||[], ro=fases._rojas||[];
+    const ev=fases.find(f=>f.evento);
+    const opc=(xs,sel)=>xs.map((x,i)=>`<option value="${i}"${i===sel?' selected':''}>${_rgEsc(x.nombre)}</option>`).join('');
+    const enfrentar=(az.length&&ro.length)
+      ? `<div style="border:1px solid rgba(226,59,59,.5);border-radius:8px;padding:8px;margin:8px 0">`
+        +`<b>⚔️ Enfrentar una fase 🔵 con una fase 🔴</b><br>`
+        +`<span class="rg-meta">Las fichas AZULES salen de la fase del CAP (G-3) y las ROJAS de la fase del CAE (G-2): las dos en el mismo tablero.</span>`
+        +`<div style="margin-top:6px"><span style="color:#1f6dff">🔵</span> <select id="wg-enf-azul" style="max-width:100%">${opc(az,0)}</select></div>`
+        +`<div style="margin-top:4px"><span style="color:#e23b3b">🔴</span> <select id="wg-enf-rojo" style="max-width:100%">${opc(ro,Math.min(ro.length-1,Math.max(0,ro.findIndex(r=>r.coa!=='peligroso'))))}</select></div>`
+        +`<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-top:6px" data-fase="enfrentar">⚔️ Jugar este enfrentamiento</button></div>`
+      : '';
     poner(`<b>¿Qué curso de acción querés jugar?</b>`
       +(archivo?` <span class="rg-meta">— ${_rgEsc(archivo)}</span>`:'')+`<br>`
       +`<span class="rg-meta">El ejercicio tiene ${fases.length} fase(s) guardadas. Cada una tiene las unidades en la posición de ESA fase. `
       +`Las instalaciones logísticas (ASDI, ARCE, PCED…) <b>no dependen del COA</b>: entran siempre, se elija la fase que se elija.</span>`
+      +(ev?`<br><span class="rg-meta">⚔️ El <b>evento crítico</b> lo eligió el Estado Mayor en la Matriz de sincronización (F4·P6-7): la fase 🔵 del CAP contra la fase 🔴 del CAE.</span>`:'')
       +`<div style="margin-top:8px">`
       +`<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-bottom:4px" data-fase="viva">📍 Estado actual del ejercicio (como quedó abierto)`
       +`<br><span class="rg-meta">${vivas.comb||0} unidad(es) de combate · 🏭 ${vivas.inst||0} instalación(es)</span></button>`
       +filas
+      +enfrentar
       +`<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-top:6px" data-fase="no">✖️ Cancelar</button></div>`);
     const cont=document.getElementById('wg-imp-estado');
     cont.querySelectorAll('button[data-fase]').forEach(b=>{
       b.onclick=()=>{
         const v=b.getAttribute('data-fase');
         if(v==='no') return resolve(undefined);
+        if(v==='enfrentar'){
+          const a=az[Number(document.getElementById('wg-enf-azul').value)||0];
+          const r=ro[Number(document.getElementById('wg-enf-rojo').value)||0];
+          return resolve(_wgOpcionFase(Object.assign({bando:'evento', evento:true,
+            nombre:`⚔️ ${a.nombre} contra ${r.nombre}`}, _wgEnfrentar(a.f, r.f))));
+        }
         resolve(v==='viva'?null:fases[Number(v)]);
       };
     });
@@ -37166,7 +37261,9 @@ function _wgEscenarioDesde(d, fase){
   for(const u of fuente){
     if(u==null||u.lat==null||u.lng==null) continue;
     // En el Generador el bando es 'propias' | 'enemigo'; acá es 'azul' | 'rojo'.
-    const bando = (u.bando==='enemigo'||u.bando==='rojo')?'rojo':'azul';
+    // v2.9.437: la Mesa también guarda 'enemigas' (las fichas del CAE): antes
+    // esas entraban como AZUL y el enemigo peleaba de nuestro lado.
+    const bando = _wgEsRoja(u)?'rojo':'azul';
     // v2.9.342 — LAS INSTALACIONES NO SON UNIDADES DE COMBATE. Antes de esto,
     // un ASDI desplegado con la plantilla del G-4 entraba al juego como 30
     // fichas con poder de fuego, que además el motor hacía pelear. Ahora se
