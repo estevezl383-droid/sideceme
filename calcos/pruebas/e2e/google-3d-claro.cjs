@@ -9,6 +9,8 @@
 //     captura, donde va la línea punteada negra no hay blanco;
 //   · lo puntual (fichas, ⊗, AIN, rótulos) no va «pegado al suelo» (Cesium no lo recalcula con cada tile): su altura
 //     se mide cuando la vista termina de cargar y sigue al ⛰️ Relieve ×; áreas y líneas pintan sólo los tiles 3D;
+//   · los círculos «C1, C2…» de la carta van con su borde y su número (no como puntos blancos) y al cambiar algo en la
+//     carta sólo se rehace lo que cambió (Sergio, 25-10-2026: «esos puntos blancos… las unidades se cuelgan»);
 //   · sin errores de consola.
 //   CESIUM_DIR=…/package/Build/Cesium node calcos/pruebas/e2e/google-3d-claro.cjs   (de `npm pack cesium@1.145.0`)
 const assert = require('node:assert/strict')
@@ -147,6 +149,35 @@ async function main() {
     await page.waitForTimeout(2500)
     await page.screenshot({ path: path.join(SALIDAS, 'linea-sin-halo.png') })
     console.log('  ✔ en el 3D la punteada negra va sin el halo blanco')
+
+    // Un círculo «C1» de la carta (blanco con el borde de color y su número, como los de la Mesa): en el 3D va con su
+    // borde y su número, no como un punto blanco (Sergio, 25-10-2026: «esos puntos blancos»). Y al cambiar algo en la
+    // carta (como al tocar otra fase de un CAP) sólo se rehace lo que cambió: lo demás queda como estaba («las unidades
+    // se cuelgan y desaparecen… no es fluido»); después se sigue dibujando hasta que todo esté listo.
+    const idsAntes = await m.evaluate(() => window.__google3d.dataSources.get(0).entities.values.map((e) => e.id))
+    const listosAntes = await m.evaluate(() => window.__google3dListo || 0)
+    const enviadosAntes = await page.evaluate(() => SIDGoogle.enviados3D())
+    await page.evaluate(([x, y]) => {
+      window.__c1 = L.circleMarker([y - 0.02, x + 0.02], { radius: 11, color: '#7c3aed', weight: 2.5, fillColor: '#fff', fillOpacity: 1 })
+        .bindTooltip('C1', { permanent: true, direction: 'center', className: 'sin-fondo' })
+        .addTo(window.__mapa2d)
+    }, CUMBRE)
+    const calcoC1 = await page.evaluate(() => SIDGoogle.calcoDeLaCarta())
+    const c1 = calcoC1.puntos.find((p) => p.texto === 'C1')
+    assert.ok(c1 && c1.borde === '#7c3aed' && c1.color === '#fff', 'el C1 con su número y su borde: ' + JSON.stringify(c1))
+    assert.ok(!calcoC1.rotulos.some((r) => r.texto === 'C1'), 'el número va adentro del círculo, no como rótulo aparte')
+    await page.waitForFunction((n) => SIDGoogle.enviados3D() > n, enviadosAntes, { timeout: 10000 })
+    await m.waitForFunction((n) => (window.__google3dListo || 0) > n, listosAntes, { timeout: 30000 })
+    const conC1 = await m.evaluate((antes) => {
+      const ents = window.__google3d.dataSources.get(0).entities.values
+      const nuevas = ents.filter((e) => !antes.includes(e.id))
+      return { quedan: ents.filter((e) => antes.includes(e.id)).length, nuevas: nuevas.map((e) => ({ billboard: !!e.billboard, point: !!e.point, img: e.billboard ? String(e.billboard.image.getValue()).slice(0, 22) : '' })) }
+    }, idsAntes)
+    assert.equal(conC1.quedan, idsAntes.length, 'lo que ya estaba dibujado no se rehízo')
+    assert.deepEqual(conC1.nuevas, [{ billboard: true, point: false, img: 'data:image/png;base64,' }], 'el C1 es un círculo dibujado (con borde y número), no un punto')
+    await page.evaluate(() => window.__c1.remove())
+    await m.waitForFunction((n) => window.__google3d.dataSources.get(0).entities.values.length === n, idsAntes.length, { timeout: 10000 })
+    console.log('  ✔ los «C1» con su borde y su número; al cambiar la carta sólo se rehace lo que cambió')
 
     assert.deepEqual(errores, [], 'sin errores de consola')
     console.log('✔ Google 3D claro: barra a la vista con el tablero, el Relieve × de la Mesa, sin halos blancos y lo puntual sin pegarse al suelo')

@@ -56,6 +56,37 @@ export function tramos({ fases = [], idx = 0, actuales = null } = {}) {
   return out
 }
 
+// ─── Prender / apagar las flechas ────────────────────────────────────────────────────────────────────────────
+// Sergio, 25-10-2026: «necesito un botón que desactive las flechas de los itinerarios». Lo tocan el panel de los
+// CAP y el 🎬 C.A. por fases; queda para la próxima vez (localStorage `sid-iti-flechas`). Va por window.SIDItinerario
+// (no por un import) para que un panel.js o un itinerario.mjs que el navegador tenga guardado de antes no rompa nada:
+// sin esto, el botón no aparece.
+const CLAVE_VER = 'sid-iti-flechas'
+let verFlechas = (() => {
+  try {
+    return localStorage.getItem(CLAVE_VER) !== '0'
+  } catch {
+    return true
+  }
+})()
+export const flechasVisibles = () => verFlechas
+export function ponerFlechas(v) {
+  verFlechas = !!v
+  try {
+    localStorage.setItem(CLAVE_VER, verFlechas ? '1' : '0')
+  } catch {}
+  dibujar()
+  if (typeof document !== 'undefined') {
+    for (const b of document.querySelectorAll('[data-iti-flechas]')) {
+      b.textContent = textoBotonFlechas(verFlechas)
+      b.setAttribute('aria-pressed', String(verFlechas))
+    }
+  }
+  return verFlechas
+}
+export const textoBotonFlechas = (v) => (v ? '➜ Ocultar las flechas del itinerario' : '➜ Mostrar las flechas del itinerario')
+if (typeof window !== 'undefined') window.SIDItinerario = { visibles: flechasVisibles, poner: ponerFlechas, alternar: () => ponerFlechas(!verFlechas), texto: textoBotonFlechas }
+
 // ─── En la carta ─────────────────────────────────────────────────────────────────────────────────────────────
 let puente = null
 let capa = null
@@ -97,7 +128,7 @@ export function dibujar() {
   reintentos = 0
   const fa = puente.faseActiva
   const fases = puente.fasesCOA?.propio || []
-  if (puente.ver === false || fa?.bando !== 'propio' || !fases.length) return quitar()
+  if (puente.ver === false || !verFlechas || fa?.bando !== 'propio' || !fases.length) return quitar()
   const n = capActivo(puente.g3)
   const color = COLOR_CAP[n]
   const ts = tramos({ fases, idx: fa.idx, actuales: puente.unidades })

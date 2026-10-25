@@ -13,7 +13,7 @@
   <script>window.CESIUM_BASE_URL = 'https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/'</script>
   <script src="https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/Cesium.js"></script>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/cesium@1.145.0/Build/Cesium/Widgets/widgets.css">
-  <script src="./google-mapas.js?v=20261023-claro"></script>
+  <script src="./google-mapas.js?v=20261025-fluido"></script>
   <style>
     html, body { margin: 0; height: 100%; background: #0a0e13; overflow: hidden; font: 600 12px Arial, sans-serif; color: #c3ced9 }
     #lienzo { position: absolute; inset: 0 }
@@ -122,10 +122,39 @@
     // Lo puntual NO va «pegado al suelo» (CLAMP_TO_GROUND): con los tiles de Google, Cesium recalcula la altura de cada
     // ficha y rótulo con cada tile que llega, y con un calco grande eso traba la navegación (Sergio, 23-10-2026: «la
     // velocidad sigue mal»). La altura se mide una vez, cuando se termina de cargar la vista (medirAlturas).
-    function dibujarCalco(C, viewer, fuente, calco, op) {
+    //
+    // Al cambiar algo (otra fase de un CAP, una ficha que se movió) sólo se rehace lo que cambió: cada cosa del calco
+    // tiene su clave y lo que ya está dibujado queda (las áreas y líneas pegadas a los tiles tardan en armarse). Antes
+    // se borraba y se volvía a armar todo: Sergio, 25-10-2026, «las unidades se cuelgan y desaparecen… no es fluido».
+    // `todo`: rehacer todo (el ⛰️ Relieve × cambió: las áreas toman el estiramiento al crearse).
+    function dibujarCalco(C, viewer, fuente, calco, op, todo) {
       const ents = fuente.entities
       ents.suspendEvents()
-      ents.removeAll()
+      if (todo || !fuente.sidPorClave) {
+        ents.removeAll()
+        fuente.sidPorClave = new Map()
+      }
+      const previos = fuente.sidPorClave
+      const nuevos = new Map()
+      let agregadas = []
+      const add = (o) => {
+        const e = ents.add(o)
+        agregadas.push(e)
+        return e
+      }
+      const cosa = (tipo, x, dibujar) => {
+        let k = tipo + JSON.stringify(x)
+        while (nuevos.has(k)) k += '+'
+        const ya = previos.get(k)
+        if (ya) {
+          previos.delete(k)
+          nuevos.set(k, ya)
+          return
+        }
+        agregadas = []
+        dibujar(x)
+        nuevos.set(k, agregadas)
+      }
       const color = (c, a) => {
         const x = C.Color.fromCssColorString(String(c || '#3388ff'))
         return (x || C.Color.WHITE).withAlpha(Math.max(0, Math.min(1, a)))
@@ -148,7 +177,7 @@
       const posiciones = (coords) => C.Cartesian3.fromDegreesArray(coords.flat())
       const linea = (coords, l) => {
         if (coords.length < 2 || l.opacidad < 0.05) return
-        ents.add({ polyline: { positions: posiciones(coords), width: Math.max(1.5, Math.min(12, l.ancho)), material: material(l), clampToGround: true, classificationType: op.clase } })
+        add({ polyline: { positions: posiciones(coords), width: Math.max(1.5, Math.min(12, l.ancho)), material: material(l), clampToGround: true, classificationType: op.clase } })
       }
       const sinCierre = (anillo) => {
         const a = anillo.slice()
@@ -158,22 +187,22 @@
       const alSuelo = { disableDepthTestDistance: Number.POSITIVE_INFINITY }
       const puntual = (lng, lat, ent) => { ent.sidLL = [lng, lat]; return ent }
 
-      for (const l of calco.lineas || []) linea(l.coords, l)
-      for (const a of calco.areas || []) {
+      for (const l of calco.lineas || []) cosa('l', l, () => linea(l.coords, l))
+      for (const a of calco.areas || []) cosa('a', a, () => {
         for (const anillos of a.poligonos) {
           const exterior = sinCierre(anillos[0] || [])
           if (exterior.length < 3) continue
           if (a.opRelleno > 0.01) {
             const huecos = anillos.slice(1).map((h) => new C.PolygonHierarchy(posiciones(sinCierre(h))))
-            ents.add({ polygon: { hierarchy: new C.PolygonHierarchy(posiciones(exterior), huecos), material: color(a.relleno, Math.min(0.6, a.opRelleno)), classificationType: op.clase } })
+            add({ polygon: { hierarchy: new C.PolygonHierarchy(posiciones(exterior), huecos), material: color(a.relleno, Math.min(0.6, a.opRelleno)), classificationType: op.clase } })
           }
           for (const anillo of anillos) linea(anillo, a)
         }
-      }
-      for (const c of calco.circulos || []) {
+      })
+      for (const c of calco.circulos || []) cosa('c', c, () => {
         const [x, y] = c.centro
         if (c.opRelleno > 0.01) {
-          ents.add({ position: C.Cartesian3.fromDegrees(x, y), ellipse: { semiMajorAxis: c.radio, semiMinorAxis: c.radio, material: color(c.relleno, Math.min(0.6, c.opRelleno)), classificationType: op.clase } })
+          add({ position: C.Cartesian3.fromDegrees(x, y), ellipse: { semiMajorAxis: c.radio, semiMinorAxis: c.radio, material: color(c.relleno, Math.min(0.6, c.opRelleno)), classificationType: op.clase } })
         }
         const borde = []
         for (let k = 0; k <= 72; k++) {
@@ -181,36 +210,84 @@
           borde.push([x + (c.radio * Math.sin(t)) / (111320 * Math.cos((y * Math.PI) / 180)), y + (c.radio * Math.cos(t)) / 110574])
         }
         linea(borde, c)
-      }
+      })
       for (const p of calco.puntos || []) {
         if (p.opacidad < 0.05) continue
-        puntual(p.lng, p.lat, ents.add({ position: op.lugar(p.lng, p.lat), point: Object.assign({ pixelSize: Math.max(4, 2 * p.radio), color: color(p.color, p.opacidad), outlineColor: C.Color.WHITE, outlineWidth: 1 }, alSuelo) }))
+        cosa('p', p, () => {
+          // Con borde de color o con número (los «C1, C2…» de la carta): un círculo dibujado, con el número adentro.
+          if (p.borde || p.texto) {
+            const im = circulo(p)
+            puntual(p.lng, p.lat, add({ position: op.lugar(p.lng, p.lat), billboard: Object.assign({ image: im.url, width: im.lado, height: im.lado }, alSuelo) }))
+          } else puntual(p.lng, p.lat, add({ position: op.lugar(p.lng, p.lat), point: Object.assign({ pixelSize: Math.max(4, 2 * p.radio), color: color(p.color, p.opacidad), outlineColor: C.Color.WHITE, outlineWidth: 1 }, alSuelo) }))
+        })
       }
       // Las fichas, un poco más grandes que en la carta (en la carta su tamaño depende del zoom): ~34 px de alto.
-      for (const f of calco.fichas || []) {
+      for (const f of calco.fichas || []) cosa('f', f, () => {
         const b = { image: f.img, horizontalOrigin: C.HorizontalOrigin.CENTER, verticalOrigin: C.VerticalOrigin.CENTER }
         if (f.ancho > 0 && f.alto > 0) {
           const s = Math.max(1, Math.min(4, 34 / f.alto))
           Object.assign(b, { width: f.ancho * s, height: f.alto * s, horizontalOrigin: C.HorizontalOrigin.LEFT, verticalOrigin: C.VerticalOrigin.TOP, pixelOffset: new C.Cartesian2(-f.ax * s, -f.ay * s) })
         }
-        puntual(f.lng, f.lat, ents.add({ position: op.lugar(f.lng, f.lat), billboard: Object.assign(b, alSuelo) }))
-      }
+        puntual(f.lng, f.lat, add({ position: op.lugar(f.lng, f.lat), billboard: Object.assign(b, alSuelo) }))
+      })
       // Las puntas de flecha giradas como en la carta: el giro se mide desde el norte del lugar.
-      for (const f of calco.flechas || []) {
+      for (const f of calco.flechas || []) cosa('v', f, () => {
         const pos = op.lugar(f.lng, f.lat)
         const enu = C.Transforms.eastNorthUpToFixedFrame(pos)
         const norte = C.Cartesian3.normalize(C.Cartesian3.fromCartesian4(C.Matrix4.getColumn(enu, 1, new C.Cartesian4())), new C.Cartesian3())
-        puntual(f.lng, f.lat, ents.add({ position: pos, billboard: Object.assign({ image: f.svg, width: f.ancho * 1.4, height: f.alto * 1.4, rotation: (-f.rot * Math.PI) / 180, alignedAxis: norte }, alSuelo) }))
-      }
-      for (const r of calco.rotulos || []) {
-        puntual(r.lng, r.lat, ents.add({
+        puntual(f.lng, f.lat, add({ position: pos, billboard: Object.assign({ image: f.svg, width: f.ancho * 1.4, height: f.alto * 1.4, rotation: (-f.rot * Math.PI) / 180, alignedAxis: norte }, alSuelo) }))
+      })
+      for (const r of calco.rotulos || []) cosa('r', r, () => {
+        puntual(r.lng, r.lat, add({
           position: op.lugar(r.lng, r.lat),
           label: Object.assign({ text: r.texto, font: `700 ${Math.max(12, Math.min(22, r.tam || 12))}px Arial`, fillColor: color(r.color || '#000', 1), outlineColor: C.Color.WHITE, outlineWidth: 3, style: C.LabelStyle.FILL_AND_OUTLINE, horizontalOrigin: C.HorizontalOrigin.CENTER, verticalOrigin: C.VerticalOrigin.CENTER }, alSuelo),
         }))
-      }
+      })
+      // Lo que ya no está en la carta.
+      for (const lista of previos.values()) for (const e of lista) ents.remove(e)
+      fuente.sidPorClave = nuevos
       ents.resumeEvents()
       viewer.scene.requestRender()
       return ents.values.length
+    }
+
+    // Un círculo de la carta con su borde y su número (C1, C2…), como imagen para el 3D (una por cada aspecto distinto).
+    const circulos = new Map()
+    function circulo(p) {
+      const k = JSON.stringify([p.radio, p.color, p.opacidad, p.borde, p.anchoBorde, p.opRelleno, p.texto])
+      if (circulos.has(k)) return circulos.get(k)
+      const r = Math.max(4, Math.min(22, Number(p.radio) || 6)) * 1.2
+      const b = p.borde ? Math.max(1, Math.min(5, Number(p.anchoBorde) || 2)) : 0
+      const lado = Math.ceil(2 * (r + b) + 2)
+      const cv = document.createElement('canvas')
+      cv.width = cv.height = lado * 2
+      const g = cv.getContext('2d')
+      g.scale(2, 2)
+      g.beginPath()
+      g.arc(lado / 2, lado / 2, r, 0, 2 * Math.PI)
+      g.globalAlpha = p.opRelleno == null ? Math.max(0.05, Math.min(1, p.opacidad)) : Math.max(0.6, Math.min(1, p.opRelleno))
+      g.fillStyle = p.color || '#fff'
+      g.fill()
+      g.globalAlpha = 1
+      if (b) {
+        g.lineWidth = b
+        g.strokeStyle = p.borde
+        g.stroke()
+      }
+      if (p.texto) {
+        const blanco = /^\s*(#fff(fff)?\b|white\b)/i
+        g.fillStyle = p.borde && !blanco.test(p.borde) ? p.borde : '#111'
+        g.textAlign = 'center'
+        g.textBaseline = 'middle'
+        let t = Math.round(r * 0.95)
+        do {
+          g.font = `700 ${t}px Arial`
+        } while (g.measureText(p.texto).width > 2 * r - 3 && --t > 6)
+        g.fillText(p.texto, lado / 2, lado / 2 + 0.5)
+      }
+      const im = { url: cv.toDataURL('image/png'), lado }
+      circulos.set(k, im)
+      return im
     }
 
     async function iniciar() {
@@ -264,7 +341,7 @@
         if (estirado.x !== x) {
           estirado.x = x
           clearTimeout(estirado.reloj)
-          estirado.reloj = setTimeout(redibujar, 350)
+          estirado.reloj = setTimeout(() => redibujar(true), 350)
         }
       }
       elRelieve.oninput = aplicarRelieve
@@ -329,9 +406,28 @@
 
       let ultimo = null
       let listo = false // el calco se dibuja cuando se sabe si hay 3D de Google (qué se pinta: los tiles o el globo)
-      const redibujar = () => {
+      // Las imágenes de las fichas y las áreas pegadas a los tiles se terminan de armar DESPUÉS de agregarlas, y Cesium
+      // (que dibuja sólo cuando algo cambia) no siempre vuelve a dibujar cuando llegan: las fichas no aparecían hasta
+      // mover la cámara (Sergio, 25-10-2026: «las unidades no aparecen»). Se sigue dibujando hasta que todo esté listo.
+      const espera = { reloj: 0, desde: 0 }
+      const dibujarHastaListo = () => {
+        espera.desde = Date.now()
+        viewer.scene.requestRender()
+        if (espera.reloj) return
+        espera.reloj = setInterval(() => {
+          viewer.scene.requestRender()
+          const t = Date.now() - espera.desde
+          if ((t > 3000 && viewer.dataSourceDisplay.ready) || t > 20000) {
+            clearInterval(espera.reloj)
+            espera.reloj = 0
+            window.__google3dListo = (window.__google3dListo || 0) + 1
+          }
+        }, 150)
+      }
+      const redibujar = (todo) => {
         if (!ultimo || !listo) return
-        window.__calcoDibujado = dibujarCalco(C, viewer, fuente, ultimo, { clase: hayTiles ? C.ClassificationType.CESIUM_3D_TILE : C.ClassificationType.TERRAIN, lugar })
+        window.__calcoDibujado = dibujarCalco(C, viewer, fuente, ultimo, { clase: hayTiles ? C.ClassificationType.CESIUM_3D_TILE : C.ClassificationType.TERRAIN, lugar }, todo === true)
+        dibujarHastaListo()
         medirLuego()
       }
       window.addEventListener('message', (e) => {
@@ -384,11 +480,11 @@
         const texto = 'Google no entregó el 3D (' + window.__google3dFallo + '). Puede ser el cupo del día o la conexión.'
         document.getElementById('relieve').title = 'Sin el 3D de Google no hay relieve para exagerar'
         listo = true
-        redibujar()
+        redibujar(true)
         return embebido ? aviso(texto + ' Se muestra el calco sobre el satélite de Esri, sin relieve.', true) : aviso(texto)
       }
       listo = true
-      redibujar()
+      redibujar(true)
       // Los tiles 3D no tienen altura conocida antes de cargar: se apunta al nivel del mar y, cuando se sabe la
       // cota del centro, se corrige la mira para que la cámara no quede bajo el terreno de la puna. Con esa cota se
       // activa ⛰️ Relieve ×.
