@@ -63,13 +63,23 @@ caso('medir: contacto a menos de 15 km, el poder y el par más cercano', () => {
   assert.ok(cerca.puntaje > lejos.puntaje)
   assert.match(M.textoMedida(cerca), /^3 unidad\(es\) enemiga\(s\) a menos de 15 km; las más cercanas: DIV1 y BIA1 a \d+,\d km; relación/)
 })
-caso('cada fase 🔵 con la 🔴 del mismo orden (o la de `contra`), y ⭐ la más crítica', () => {
+caso('cada fase 🔵 con su 🔴 alineadas por el final (o la de `contra`), y ⭐ la más crítica', () => {
   const e = M.encuentros(ctx, { cap: 1 })
   assert.deepEqual(e.filas.map((f) => f.roja.idx), [0, 1, 2])
   assert.equal(e.critico.azul.idx, 2)
   assert.deepEqual(e.coas, ['probable', 'peligroso'])
-  // Contra el más peligroso: la FASE III 🔵 va con su última fase (la II).
-  assert.deepEqual(M.encuentros(ctx, { cap: 1, coa: 'peligroso' }).filas.map((f) => f.roja.idx), [4, 5, 5])
+  // Contra el más peligroso (2 fases): alineadas por el final, la FASE III 🔵 con su última (la II), la I y la II con la I.
+  assert.deepEqual(M.encuentros(ctx, { cap: 1, coa: 'peligroso' }).filas.map((f) => f.roja.idx), [4, 4, 5])
+  // Sergio (25-10-2026): 5 fases 🔵 de la defensa contra 4 🔴 del ataque → «fase IV de azul contra fase III de rojo».
+  const cinco = { ...ctx, fasesCOA: { ...ctx.fasesCOA, propio: [...fasesAzul, fasesAzul[2], fasesAzul[2]] } }
+  const e5 = M.encuentros(cinco, { cap: 1 })
+  assert.deepEqual(e5.filas.map((f) => `${f.azul.nombre.split(' — ')[0]} ↔ ${f.roja.nombre.split(' — ')[0]}`), [
+    'CAP 1 · FASE I ↔ CAE más probable · FASE I',
+    'CAP 1 · FASE II ↔ CAE más probable · FASE I',
+    'CAP 1 · FASE III ↔ CAE más probable · FASE II',
+    'CAP 1 · FASE IV ↔ CAE más probable · FASE III',
+    'CAP 1 · FASE V ↔ CAE más probable · FASE IV',
+  ])
   // `contra` del 🎬 C.A. por fases manda; y lo elegido en el panel, también.
   const c2 = { ...ctx, fasesCOA: { ...ctx.fasesCOA, propio: [{ ...fasesAzul[0], contra: 3 }, ...fasesAzul.slice(1)] } }
   assert.equal(M.encuentros(c2, { cap: 1 }).filas[0].roja.idx, 3)

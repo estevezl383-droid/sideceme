@@ -5,6 +5,24 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-25 (2) — ⚔️ Evento crítico: las fases alineadas por el final, sin «brigadas» y sin «Fase 1…8» (`index-evento-fases-20261025.js`)
+
+Parte de `index-evento-critico-20261025.js` + `pruebas/reemplazos-2026-10-25-evento-fases.js` (1 reemplazo: la
+versión del import del panel, `panel.js?v=ev20261025b`; `construir-evento-fases.js`). Sergio, después de probarlo:
+la FASE IV del CAP quedaba contra la FASE IV del CAE («deberían ser fase IV de azul contra fase III de rojo»), en el
+Juego aparecieron «brigadas… yo no tengo brigadas» y el cuadro decía «COA ENEMIGO · Fase 1…8» («no se de dónde
+sale ni se entiende»).
+
+- **Fuera del compilado**: `evento-critico/v1/modelo.mjs` (`rojaDeAzul`): las fases 🔵 y 🔴 se alinean por el final
+  (con 5 y 4: IV ↔ III, V ↔ IV). En `index.html` (Juego de Guerra, v2.9.438): las agrupaciones OD / OC / RES
+  (`esAgrupacion`) no entran si el bando tiene otras fichas de maniobra (`_wgSinAgrupaciones`, y el aviso de carga
+  las nombra); el cuadro de elección pone primero el evento crítico y «⚔️ Enfrentar» con la pareja ya marcada, y al
+  final las fases sueltas; las del CAE con su nombre. `assets/horario-419.js` y `horario-consolidado.js` ya no pisan
+  la marca de versión (decía siempre «v2.9.428», así que no se podía saber qué versión estaba abierta).
+- **Cómo se comprobó**: `pruebas/evento-critico.mjs` (con el caso de 5 fases contra 4), `pruebas/e2e/evento-critico.cjs`,
+  `tests/wargame-evento-critico.test.cjs` (7 casos, con las agrupaciones y el orden del cuadro en Chromium),
+  `tests/wargame-motor.test.cjs`, `reemplazos-compilado.js` y `npm test`.
+
 ## 2026-10-25 — ⚔️ El evento crítico de la Matriz de sincronización: el CAE (G-2) contra el CAP (G-3), listo para el Juego de Guerra (`index-evento-critico-20261025.js`)
 
 Parte de `index-itinerario-20261025.js` + `pruebas/reemplazos-2026-10-25-evento-critico.js` (2 reemplazos;

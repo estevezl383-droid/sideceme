@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.437</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.438</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -37034,8 +37034,31 @@ function _wgEnfrentar(fA, fR){
 }
 // Lo que cada opción muestra antes de elegir: cuántas de combate, cuántas
 // instalaciones y, si trae a los dos bandos, cuántas de cada uno.
+// ============================================================
+// v2.9.438 — LAS AGRUPACIONES NO SON UNIDADES DEL TABLERO.
+// Sergio: «aparecieron brigadas… yo no tengo brigadas». Eran OD, OC 1, OC 2 y
+// RES: las fichas de la organización para el combate (F3·P3), que la Mesa
+// dibuja con magnitud brigada JUNTO a las divisiones de las que salen sus
+// piezas. Entraban como unidades de combate aparte: el CE peleaba con sus
+// divisiones y además con cuatro «brigadas» que son esas mismas divisiones.
+// Regla: si el bando tiene otras fichas de maniobra, las agrupaciones no se
+// cargan (se avisa cuáles). Si el bando SÓLO tiene agrupaciones, quedan.
+// ============================================================
+function _wgEsAgrupacion(u){ return !!u && (u.esAgrupacion===true || u.agrupacion===true); }
+function _wgSinAgrupaciones(lista){
+  const comb=(lista||[]).filter(u=>u&&u.tipo!=='instalacion');
+  const conOtras={ rojo:comb.some(u=>_wgEsRoja(u)&&!_wgEsAgrupacion(u)),
+                   azul:comb.some(u=>!_wgEsRoja(u)&&!_wgEsAgrupacion(u)) };
+  const fuera=[];
+  const quedan=(lista||[]).filter(u=>{
+    if(!_wgEsAgrupacion(u) || (u&&u.tipo==='instalacion')) return true;
+    if(!conOtras[_wgEsRoja(u)?'rojo':'azul']) return true;
+    fuera.push(String(u.designacion||u.nombre||'agrupación')); return false;
+  });
+  return { quedan, fuera };
+}
 function _wgOpcionFase(o){
-  const us=o.unidades||[];
+  const us=_wgSinAgrupaciones(o.unidades||[]).quedan;
   const comb=us.filter(u=>u&&u.tipo!=='instalacion');
   o.n=comb.length;
   o.nInst=us.filter(u=>u&&u.tipo==='instalacion').length;
@@ -37069,18 +37092,30 @@ function _wgFasesBandos(d){
 function _wgFasesCOA(d){
   const B=_wgFasesBandos(d);
   const out=[];
+  // Para «⚔️ Enfrentar una fase 🔵 con una fase 🔴» (cualquier pareja).
+  out._azules=B.azules.filter(a=>(a.f.unidades||[]).length);
+  out._rojas=B.rojas.filter(r=>(r.f.unidades||[]).length);
+  // v2.9.438: la pareja que ya viene elegida (la del evento crítico o, si no,
+  // la primera fase 🔵 con `contra`) queda marcada en las dos listas.
+  const marcar=(cap, azul, rojo)=>{
+    const ia=out._azules.findIndex(x=>x.cap===cap&&x.idx===azul);
+    const ir=out._rojas.findIndex(x=>x.idx===rojo);
+    if(ia>=0&&ir>=0&&!out._sel) out._sel={ azul:ia, rojo:ir };
+  };
   // 1) El evento crítico de la Matriz de sincronización, primero.
   const ev=d&&d.eventoCritico;
+  const g=(d&&d.g3&&d.g3.sincro&&d.g3.sincro._evento)||(ev&&Number.isInteger(ev.azul)?ev:null);
+  if(g) marcar(g.cap===2?2:1, g.azul, g.rojo);
   if(ev&&Array.isArray(ev.unidades)&&ev.unidades.length){
     out.push(_wgOpcionFase({bando:'evento', evento:true, nombre:'⚔️ '+(ev.nombre||'EVENTO CRÍTICO'),
       unidades:ev.unidades, ops:ev.ops||null, desplazamientos:ev.desplazamientos||null}));
   } else {
-    const g=d&&d.g3&&d.g3.sincro&&d.g3.sincro._evento;
     const a=g&&B.azules.find(x=>x.cap===(g.cap===2?2:1)&&x.idx===g.azul);
     const r=g&&B.rojas.find(x=>x.idx===g.rojo);
     if(a&&r) out.push(_wgOpcionFase(Object.assign({bando:'evento', evento:true,
       nombre:`⚔️ EVENTO CRÍTICO — ${a.nombre} contra ${r.nombre}`}, _wgEnfrentar(a.f, r.f))));
   }
+  B.azules.forEach(a=>{ if(Number.isInteger(a.f.contra)) marcar(a.cap, a.idx, a.f.contra); });
   // 2) Las fases de siempre. La 🔵 que el 🎬 C.A. por fases puso «contra» una
   //    fase del enemigo trae también a esos rojos (antes llegaba sin enemigo).
   B.azules.filter(a=>a.cap===B.act).forEach(a=>{
@@ -37095,9 +37130,6 @@ function _wgFasesCOA(d){
     out.push(_wgOpcionFase({bando:'enemigo', idx:r.idx, nombre:r.nombre, unidades:r.f.unidades,
       ops:r.f.ops||null, desplazamientos:r.f.desplazamientos||null}));
   });
-  // Para «⚔️ Enfrentar una fase 🔵 con una fase 🔴» (cualquier pareja).
-  out._azules=B.azules.filter(a=>(a.f.unidades||[]).length);
-  out._rojas=B.rojas.filter(r=>(r.f.unidades||[]).length);
   return out;
 }
 // Muestra los cursos de acción disponibles y espera la elección del árbitro.
@@ -37107,36 +37139,42 @@ function _wgPreguntarFase(fases, poner, archivo){
     // contaba las instalaciones adentro de ese número, así que un COA sin ASDI
     // se veía igual que uno con ASDI.
     const vivas=(fases._vivas||{});
-    const filas=fases.map((f,i)=>
+    // v2.9.438: primero el evento crítico y «⚔️ Enfrentar»; las fases sueltas
+    // (una sola fase, sin enfrentar) van al final.
+    const boton=(f,i)=>
       `<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-bottom:4px${f.evento?';border:2px solid #e23b3b;background:rgba(226,59,59,.12)':''}" data-fase="${i}">`
       +`${_rgEsc(f.nombre)} — ${f.n} unidad(es) de combate`
       +((f.nAzul&&f.nRojo)?` <span style="color:#1f6dff">🔵 ${f.nAzul}</span> <span style="color:#e23b3b">🔴 ${f.nRojo}</span>`:'')
       +`<br><span class="rg-meta">🏭 ${f.nInst||0} instalación(es) propias de esta fase`
       +((vivas.inst||0)>(f.nInst||0)
         ? ` · se completan con las ${vivas.inst} del estado actual`
-        : '')+`</span></button>`).join('');
+        : '')+`</span></button>`;
+    const filasEv=fases.map((f,i)=>f.evento?boton(f,i):'').join('');
+    const filas=fases.map((f,i)=>f.evento?'':boton(f,i)).join('');
     // v2.9.437: cualquier fase 🔵 contra cualquier fase 🔴.
     const az=fases._azules||[], ro=fases._rojas||[];
     const ev=fases.find(f=>f.evento);
+    const sel=fases._sel||{ azul:0, rojo:Math.min(ro.length-1,Math.max(0,ro.findIndex(r=>r.coa!=='peligroso'))) };
     const opc=(xs,sel)=>xs.map((x,i)=>`<option value="${i}"${i===sel?' selected':''}>${_rgEsc(x.nombre)}</option>`).join('');
     const enfrentar=(az.length&&ro.length)
       ? `<div style="border:1px solid rgba(226,59,59,.5);border-radius:8px;padding:8px;margin:8px 0">`
         +`<b>⚔️ Enfrentar una fase 🔵 con una fase 🔴</b><br>`
         +`<span class="rg-meta">Las fichas AZULES salen de la fase del CAP (G-3) y las ROJAS de la fase del CAE (G-2): las dos en el mismo tablero.</span>`
-        +`<div style="margin-top:6px"><span style="color:#1f6dff">🔵</span> <select id="wg-enf-azul" style="max-width:100%">${opc(az,0)}</select></div>`
-        +`<div style="margin-top:4px"><span style="color:#e23b3b">🔴</span> <select id="wg-enf-rojo" style="max-width:100%">${opc(ro,Math.min(ro.length-1,Math.max(0,ro.findIndex(r=>r.coa!=='peligroso'))))}</select></div>`
+        +`<div style="margin-top:6px"><span style="color:#1f6dff">🔵</span> <select id="wg-enf-azul" style="max-width:100%">${opc(az,sel.azul)}</select></div>`
+        +`<div style="margin-top:4px"><span style="color:#e23b3b">🔴</span> <select id="wg-enf-rojo" style="max-width:100%">${opc(ro,sel.rojo)}</select></div>`
         +`<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-top:6px" data-fase="enfrentar">⚔️ Jugar este enfrentamiento</button></div>`
       : '';
     poner(`<b>¿Qué curso de acción querés jugar?</b>`
       +(archivo?` <span class="rg-meta">— ${_rgEsc(archivo)}</span>`:'')+`<br>`
-      +`<span class="rg-meta">El ejercicio tiene ${fases.length} fase(s) guardadas. Cada una tiene las unidades en la posición de ESA fase. `
+      +`<span class="rg-meta">Cada fase tiene las unidades en la posición de ESA fase. `
       +`Las instalaciones logísticas (ASDI, ARCE, PCED…) <b>no dependen del COA</b>: entran siempre, se elija la fase que se elija.</span>`
       +(ev?`<br><span class="rg-meta">⚔️ El <b>evento crítico</b> lo eligió el Estado Mayor en la Matriz de sincronización (F4·P6-7): la fase 🔵 del CAP contra la fase 🔴 del CAE.</span>`:'')
       +`<div style="margin-top:8px">`
+      +filasEv
+      +enfrentar
       +`<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-bottom:4px" data-fase="viva">📍 Estado actual del ejercicio (como quedó abierto)`
       +`<br><span class="rg-meta">${vivas.comb||0} unidad(es) de combate · 🏭 ${vivas.inst||0} instalación(es)</span></button>`
-      +filas
-      +enfrentar
+      +(filas?`<div class="rg-meta" style="margin:8px 0 4px">Una fase sola, sin enfrentar (cada bando como quedó al armar esa fase):</div>`+filas:'')
       +`<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-top:6px" data-fase="no">✖️ Cancelar</button></div>`);
     const cont=document.getElementById('wg-imp-estado');
     cont.querySelectorAll('button[data-fase]').forEach(b=>{
@@ -37249,7 +37287,9 @@ function _wgEscenarioDesde(d, fase){
   const maniobra = (fase && fase.unidades) ? fase.unidades : ((d&&d.unidades)||[]);
   const esInst = (u)=> u && u.tipo==='instalacion';
   const claveInst = (u)=> `${u.instalacion||''}|${Number(u.lat).toFixed(5)}|${Number(u.lng).toFixed(5)}`;
-  const fuente = maniobra.filter(u=>!esInst(u));
+  const _sinAg = _wgSinAgrupaciones(maniobra.filter(u=>!esInst(u)));   // v2.9.438
+  const agrupaciones = _sinAg.fuera;
+  const fuente = _sinAg.quedan;
   const vistas = new Set();
   for(const lista of [maniobra, ((d&&d.unidades)||[])])
     for(const u of lista){
@@ -37430,7 +37470,7 @@ function _wgEscenarioDesde(d, fase){
     visuales++;
   }
   return { unidades, terreno, visuales, instalaciones, sinEfecto, ejes,
-    obstaculos, obsMecanicos,
+    obstaculos, obsMecanicos, agrupaciones,
     nombre:(d&&d.nombre)||'', fase:(fase?fase.nombre:null) };
 }
 // ============================================================
@@ -37475,7 +37515,7 @@ async function wgImportarEscenario(inp, sumar){
     // v2.9.365: el cuadro compara cada COA contra el estado vivo, que es de
     // donde salen las instalaciones pase lo que pase.
     const _uv=(d&&d.unidades)||[];
-    fases._vivas={ comb:_uv.filter(u=>u&&u.tipo!=='instalacion').length,
+    fases._vivas={ comb:_wgSinAgrupaciones(_uv).quedan.filter(u=>u&&u.tipo!=='instalacion').length,   // v2.9.438: sin OD/OC/RES
                    inst:_uv.filter(u=>u&&u.tipo==='instalacion').length };
     let faseElegida=null;
     if(fases.length){
@@ -37486,7 +37526,7 @@ async function wgImportarEscenario(inp, sumar){
   }
   // 2) Combinar en UN escenario. Cada capa aporta lo suyo y nada se pisa.
   const esc={ unidades:[], terreno:[], visuales:0, instalaciones:[], sinEfecto:[], ejes:0,
-              obstaculos:0, obsMecanicos:0, nombre:'', fase:null };
+              obstaculos:0, obsMecanicos:0, agrupaciones:[], nombre:'', fase:null };
   const detalle=[];
   for(const p of partes){
     const e=p.esc;
@@ -37494,6 +37534,7 @@ async function wgImportarEscenario(inp, sumar){
     esc.terreno.push(...(e.terreno||[]));
     esc.instalaciones.push(...(e.instalaciones||[]));
     esc.sinEfecto.push(...(e.sinEfecto||[]));
+    esc.agrupaciones.push(...(e.agrupaciones||[]));
     esc.visuales += (e.visuales||0);
     esc.ejes += (e.ejes||0);
     esc.obstaculos += (e.obstaculos||0);
@@ -37506,6 +37547,7 @@ async function wgImportarEscenario(inp, sumar){
       +((e.ejes||0)?`, ${e.ejes} eje(s)`:''));
   }
   esc.sinEfecto=[...new Set(esc.sinEfecto)];
+  esc.agrupaciones=[...new Set(esc.agrupaciones)];
   if(!esc.unidades.length && !esc.terreno.length){
     poner('❌ No encontré ni unidades ni terreno (CMOC) en '+(files.length>1?'esos archivos':'ese archivo')
       +'. ¿Es el ejercicio.json del Generador?'); return;
@@ -37519,6 +37561,9 @@ async function wgImportarEscenario(inp, sumar){
     +((esc.obstaculos||0)?`\n• ${esc.obstaculos} obstáculo(s) del plan de barreras`
       +(esc.obsMecanicos?` — ${esc.obsMecanicos} con efecto en el juego (campos minados ejecutados y posiciones ocupadas); el resto se ve pero no frena`
         :` — ninguno con efecto todavía: están todos PROYECTADOS`):'')
+    +(esc.agrupaciones.length
+      ? `\n\nNO se cargan ${esc.agrupaciones.length} agrupación(es) de la organización para el combate (${esc.agrupaciones.slice(0,8).join(', ')}${esc.agrupaciones.length>8?'…':''}): sus piezas ya están en las unidades del tablero.`
+      : '')
     +((esc.sinEfecto&&esc.sinEfecto.length)
       ? `\n\nNO se cargan ${esc.sinEfecto.length} instalación(es) que todavía no tienen efecto en el juego:\n${esc.sinEfecto.slice(0,10).join(', ')}${esc.sinEfecto.length>10?'…':''}`
       : '');
@@ -61216,10 +61261,10 @@ window.eemEscritoAbrir=grupo=>{document.getElementById('eem-escrito-modal')?.rem
 </script>
 
 <link rel="stylesheet" href="assets/horario-419.css?v=2.9.424">
-<script src="assets/horario-419.js?v=2.9.424"></script>
+<script src="assets/horario-419.js?v=2.9.438"></script>
 <link rel="stylesheet" href="assets/horario-consolidado.css?v=2.9.425">
 <script src="assets/horario-documento.js?v=2.9.425"></script>
-<script src="assets/horario-consolidado.js?v=2.9.428"></script>
+<script src="assets/horario-consolidado.js?v=2.9.438"></script>
 <script src="assets/horario-publicado.js?v=2.9.428"></script>
 <script src="soporte.js?v=11"></script>
 <script src="evaluaciones/config.js?v=20261022"></script>

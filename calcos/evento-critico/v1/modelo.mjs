@@ -125,8 +125,11 @@ export function textoMedida(m) {
 }
 
 // La fase 🔴 que le toca a cada fase 🔵: la que eligió el oficial (la del 🎬 C.A. por fases, `contra`, si es del mismo
-// CAE), si no la del mismo orden en el tiempo (FASE I con FASE I…), sin pasarse de la última.
-export function rojaDeAzul(az, rojas, coa = 'probable') {
+// CAE); si no, las dos listas ALINEADAS POR EL FINAL (25-10-2026, Sergio: «fase IV de azul contra fase III de rojo»):
+// el último choque es la última fase de los dos. Con 5 fases 🔵 de la defensa y 4 🔴 del ataque: I y II contra la
+// FASE I (ramificación), III contra la II (apresto lejano), IV —conducción de la defensa— contra la III —ataque
+// propiamente tal— y V —contraataque— contra la IV —ruptura y explotación—. `nAzul`: las fases del CAP.
+export function rojaDeAzul(az, rojas, coa = 'probable', nAzul = 0) {
   const delCAE = rojas.filter((r) => r.coa === coa)
   if (!delCAE.length) return null
   const contra = az?.fase?.contra
@@ -134,7 +137,8 @@ export function rojaDeAzul(az, rojas, coa = 'probable') {
     const r = delCAE.find((x) => x.idx === contra)
     if (r) return r
   }
-  return delCAE[Math.min(az.idx, delCAE.length - 1)]
+  const corrimiento = Math.max(0, (Number(nAzul) || 0) - delCAE.length)
+  return delCAE[Math.max(0, Math.min(az.idx - corrimiento, delCAE.length - 1))]
 }
 // Los encuentros de un CAP con su CAE, medidos, y el más crítico (⭐).
 export function encuentros(ctx = {}, { cap, coa = 'probable', elegidas = {} } = {}) {
@@ -142,7 +146,7 @@ export function encuentros(ctx = {}, { cap, coa = 'probable', elegidas = {} } = 
   const azules = fasesAzules(ctx).filter((a) => cap == null || a.cap === cap)
   const filas = azules.map((az) => {
     const pedida = elegidas[az.idx]
-    const roja = (pedida != null && rojas.find((r) => r.idx === pedida && r.coa === coa)) || rojaDeAzul(az, rojas, coa)
+    const roja = (pedida != null && rojas.find((r) => r.idx === pedida && r.coa === coa)) || rojaDeAzul(az, rojas, coa, azules.filter((a) => a.cap === az.cap).length)
     return { azul: az, roja, medida: roja ? medir(az.fase, roja.fase) : null }
   })
   let critico = null

@@ -65,7 +65,8 @@
 //   index-fases-cap-20261024.js + reemplazos-2026-10-24-posiciones-fase.js = index-posiciones-fase-20261024.js
 //   index-posiciones-fase-20261024.js + reemplazos-2026-10-24-todas-fichas.js = index-todas-fichas-20261024.js
 //   index-todas-fichas-20261024.js + reemplazos-2026-10-25-itinerario.js = index-itinerario-20261025.js
-//   index-itinerario-20261025.js + reemplazos-2026-10-25-evento-critico.js = index-evento-critico-20261025.js (el vigente)
+//   index-itinerario-20261025.js + reemplazos-2026-10-25-evento-critico.js = index-evento-critico-20261025.js
+//   index-evento-critico-20261025.js + reemplazos-2026-10-25-evento-fases.js = index-evento-fases-20261025.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -79,6 +80,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-25-evento-fases'),
+    nombre: 'reemplazos-2026-10-25-evento-fases',
+    // calcos/assets/index-evento-critico-20261025.js (antes de alinear las fases del evento crítico por el final).
+    anterior: 'db9426dce0371d259cd42853b6b2244d88a87b1a6da946e1d75e496fc9d49740',
+  },
   {
     lista: require('./reemplazos-2026-10-25-evento-critico'),
     nombre: 'reemplazos-2026-10-25-evento-critico',
