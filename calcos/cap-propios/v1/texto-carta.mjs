@@ -7,6 +7,7 @@
 // la mesa, y el texto sale de eso». Lo que escribió el oficial (o la IA) no se toca: el bloque va al final de la
 // casilla y, si ya estaba, se reemplaza (como «Según el calco» de la F3·P4).
 import { piezas } from './carta-ia.mjs'
+import { duenoDeTarea } from './tareas-fase.mjs?v=iti20261025'
 
 const valido = (c) => Array.isArray(c) && c.length >= 2 && Number.isFinite(+c[0]) && Number.isFinite(+c[1])
 const esEnemiga = (u) => /^enemig/i.test(String(u?.bando || ''))
@@ -71,7 +72,13 @@ export function describirFases(fases = [], { nomenclator = [], catalogos = {}, b
       mov.push(`${u.designacion}${tarea ? ` (${tarea})` : ''} ${movio ? `de ${corto(lugar(pa))} a ${corto(lugar(p))}` : lugar(p)}`)
     }
     antes = new Map(us.map((u) => [u.id, u]))
-    const tareas = (f?.ops?.tareas || []).filter((t) => valido(t?.centro)).map((t) => `${nomTarea(t.tarea)}${t.capIA?.unidad ? ` (${t.capIA.unidad})` : ''} ${lugar(t.centro)}${Number.isFinite(+t.rot) ? `, hacia el ${punto(+t.rot)}` : ''}`)
+    // Cada tarea con su unidad (la de la IA, o la que la cumple en la carta: su agrupación o la de sus piezas), y la que
+    // va pegada a la ficha (la de su rol en esta fase).
+    const quien = (t) => t.capIA?.unidad || duenoDeTarea(t, f?.unidades)?.designacion || ''
+    const tareas = [
+      ...(f?.ops?.tareas || []).filter((t) => valido(t?.centro)).map((t) => `${nomTarea(t.tarea)}${quien(t) ? ` (${quien(t)})` : ''} ${lugar(t.centro)}${Number.isFinite(+t.rot) ? `, hacia el ${punto(+t.rot)}` : ''}`),
+      ...us.filter((u) => u.tareaSimbolo && pos(u)).map((u) => `${nomTarea(u.tareaSimbolo)} (${u.designacion}) ${lugar(pos(u))}`),
+    ]
     const obs = (f?.ops?.obstaculos || []).filter((o) => centroDe(o))
     const nuevos = obs.filter((o) => !obsAntes.has(claveObs(o))).map((o) => `${nomObs(o.tipo)} ${lugar(centroDe(o))}`)
     obsAntes = new Set(obs.map(claveObs))

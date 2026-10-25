@@ -99,7 +99,7 @@ async function esperar(page, leer, cumple, ms = 10000) {
     assert.equal(g3c2._caps.activo, 2, 'pasó al CAP 2')
     const u1c2 = await esperar(page, (p) => leerUnidad(p, 'divmec2'), (u) => u.lng === -68.68)
     assert.deepEqual([u1c2.lng, u1c2.lat], [-68.68, -18.47], 'CAP 2 · FASE I: la DIV MEC-2 en Macaya')
-    await page.evaluate(() => window.__mapa2d.fitBounds([[-18.9, -69.4], [-18.2, -68.2]]))
+    await page.evaluate(() => void window.__mapa2d.fitBounds([[-18.9, -69.4], [-18.2, -68.2]]))
     await panel.locator('[data-tarjeta-cap="2"]').scrollIntoViewIfNeeded()
     await page.waitForTimeout(500)
     await foto('2b-cap2-fase1')
@@ -118,7 +118,7 @@ async function esperar(page, leer, cumple, ms = 10000) {
     assert.equal(ops4.obstaculos, 2)
     const u4 = await esperar(page, (p) => leerUnidad(p, 'divmec2'), (u) => u.lng === -68.97)
     assert.deepEqual([u4.lng, u4.lat], [-68.97, -18.49])
-    await page.evaluate(() => window.__mapa2d.fitBounds([[-18.9, -69.4], [-18.2, -68.2]]))
+    await page.evaluate(() => void window.__mapa2d.fitBounds([[-18.9, -69.4], [-18.2, -68.2]]))
     await page.waitForTimeout(600)
     await foto('3-cap1-fase4')
 

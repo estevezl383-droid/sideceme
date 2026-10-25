@@ -73,7 +73,7 @@ async function esperar(page, leer, cumple, ms = 10000) {
     const f1 = await esperar(page, (p) => posU(p, 'divmec2'), (q) => km(q, [-68.4, -18.55]) <= 6.1)
     assert.ok(km(f1, [-68.4, -18.55]) <= 6.1, 'FASE I: junto al CE')
     assert.ok(km(await posU(page, 'div6'), [-68.4, -18.55]) <= 6.1)
-    await page.evaluate(() => window.__mapa2d.fitBounds([[-18.95, -69.4], [-18.25, -68.25]]))
+    await page.evaluate(() => void window.__mapa2d.fitBounds([[-18.95, -69.4], [-18.25, -68.25]]))
     await page.waitForTimeout(600)
     await foto('1-cap1-faseI')
     await fase(1, 3)

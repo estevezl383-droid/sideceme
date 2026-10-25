@@ -134,7 +134,11 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
   const g3 = ctx.g3 || {}
   const orgTarea = ctx.orgTarea || []
   const P = datosPuente()
-  const bal = useMemo(() => balance({ ops, g3, unidades }, simb), [ops, g3, unidades])
+  // En una fase de un CAP, las tareas cuya unidad todavía no llegó a ellas están guardadas aparte (ops.tareasOcultas,
+  // cap-propios/v1/tareas-fase.mjs): la hoja las cuenta y las trabaja igual.
+  const ocultas = ops.tareasOcultas || []
+  const opsT = useMemo(() => (ocultas.length ? { ...ops, tareas: [...(ops.tareas || []), ...ocultas] } : ops), [ops])
+  const bal = useMemo(() => balance({ ops: opsT, g3, unidades }, simb), [opsT, g3, unidades])
   const [abiertos, setAbiertos] = useState({ 1: true, 2: true, 3: true, 4: true, 5: false, 6: false, 7: true })
   const [nueva, setNueva] = useState(() => ({ tarea: 'bloquear', escalon: '', rot: 0 }))
   const [traer, setTraer] = useState(null)
@@ -150,14 +154,23 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
   // Cada tarea de la carta necesita un id propio para guardar su orientación, sus fuerzas y
   // su operación.
   useEffect(() => {
-    if ((ops.tareas || []).some((t) => t && t.centro && !oiDe(t).id)) P.setOps?.((o) => ({ ...o, tareas: (o.tareas || []).map((t) => (t && t.centro && !oiDe(t).id ? { ...t, oi: { ...oiDe(t), id: nuevoId() } } : t)) }))
-  }, [ops.tareas])
+    if ((opsT.tareas || []).some((t) => t && t.centro && !oiDe(t).id)) conOcultas((o) => ({ ...o, tareas: (o.tareas || []).map((t) => (t && t.centro && !oiDe(t).id ? { ...t, oi: { ...oiDe(t), id: nuevoId() } } : t)) }))
+  }, [opsT.tareas])
 
   const aviso = (tipo, txt) => setMsg({ tipo, txt })
   const abrir = (n, v) => setAbiertos((a) => ({ ...a, [n]: v ?? !a[n] }))
   const irAlPaso = (n) => (abrir(n, true), setTimeout(() => document.getElementById(`oi-paso-${n}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 30))
   const setFlujo = (fn) => onG3?.((prev) => ({ [CLAVE_FLUJO]: fn(flujoNormal(prev?.[CLAVE_FLUJO])) }))
-  const cambiarTareas = (fn) => P.setOps?.((o) => ({ ...o, tareas: fn(o.tareas || []) }))
+  // Cambiar las tareas de la carta con las guardadas aparte incluidas: cada una vuelve a su lista (la nueva, a la vista).
+  function conOcultas(fn) {
+    return P.setOps?.((o) => {
+      if (!(o.tareasOcultas || []).length) return fn(o)
+      const r = fn({ ...o, tareas: [...(o.tareas || []), ...o.tareasOcultas.map((t) => ({ ...t, _oculta: true }))] })
+      const ts = r.tareas || []
+      return { ...r, tareas: ts.filter((t) => !t._oculta), tareasOcultas: ts.filter((t) => t._oculta).map(({ _oculta, ...t }) => t) }
+    })
+  }
+  const cambiarTareas = (fn) => conOcultas((o) => ({ ...o, tareas: fn(o.tareas || []) }))
   const cambiarTarea = (id, cambio) => cambiarTareas((ts) => ts.map((t) => (oiDe(t).id === id ? { ...t, ...cambio } : t)))
   const cambiarOI = (id, cambio) => cambiarTareas((ts) => ts.map((t) => (oiDe(t).id === id ? { ...t, oi: { ...oiDe(t), ...(typeof cambio === 'function' ? cambio(oiDe(t), t) : cambio) } } : t)))
   const irA = (centro, radio = 3000) => P.irA?.(centro, radio)
@@ -171,9 +184,9 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
   const objetivos = (ops.objetivos || []).filter((o) => o && o.centro)
   const enemigas = unidades.filter((u) => ['enemigo', 'enemigas', 'rojo'].includes(String(u?.bando || '').toLowerCase()) && (u.tipo || 'unidad') === 'unidad')
   const propias = unidades.filter(esPropia)
-  const fuera = (ops.tareas || []).filter((t) => t && t.centro && oiDe(t).id && oiDe(t).operacion === FUERA)
+  const fuera = (opsT.tareas || []).filter((t) => t && t.centro && oiDe(t).id && oiDe(t).operacion === FUERA)
   const porOrden = [...bal.tareas].sort((a, b) => a.n - b.n)
-  const sueltas = orgTarea.filter((a) => a && OPERACIONES.concat(RESERVA).some((o) => o.id === a.operacion) && !(ops.tareas || []).some((t) => oiDe(t).agId === a.id) && a.id !== bal.flujo.reserva.agId)
+  const sueltas = orgTarea.filter((a) => a && OPERACIONES.concat(RESERVA).some((o) => o.id === a.operacion) && !(opsT.tareas || []).some((t) => oiDe(t).agId === a.id) && a.id !== bal.flujo.reserva.agId)
   const tipos = tiposDisponibles(bal, simb)
   const hayInfanteria = tipos.some((tp) => ES_INFANTERIA.test(tp.simbolo))
   const avisos = revisar(bal, { picb: ctx.picb, ops, cmoc: ctx.cmoc, g3, ordenSup: ctx.ordenSup })
@@ -206,7 +219,7 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
     const n = bal.tareas.length + 1
     P.marcar?.()
     const t = { centro, tarea: nueva.tarea, escalon, rot: grados(nueva.rot), escala: 1, oi: { id: nuevoId(), operacion: '', texto: '', enemigos: sugerirEnemigos({ centro, escalon }, unidades), proporcion: '' } }
-    P.setOps?.((o) => ({ ...o, tareas: [...(o.tareas || []), t] }))
+    conOcultas((o) => ({ ...o, tareas: [...(o.tareas || []), t] }))
     aviso('ok', `📍 «${nom}» quedó en la carta como T${n}. Si no quedó justo en su lugar, arrastrá su símbolo (o «📍 Mover»); si apunta al revés, «⇄ Al otro lado». Poné la próxima tarea táctica, o pasá al paso ③ a darles las fuerzas.`)
   }
   const colocarNueva = () => {
@@ -231,17 +244,17 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
   const sacarDeLaOrganizacion = (id) => cambiarOI(id, { operacion: FUERA, piezas: [] })
   const partirDeOrganizacion = () => {
     const c = P.centro?.()
-    const r = desdeOrganizacion({ ops, flujo: bal.flujo, orgTarea, unidades }, { centro: objetivos[0]?.centro || (c ? [c.lng, c.lat] : null), G: bal.G })
+    const r = desdeOrganizacion({ ops: opsT, flujo: bal.flujo, orgTarea, unidades }, { centro: objetivos[0]?.centro || (c ? [c.lng, c.lat] : null), G: bal.G })
     if (!r.tareas.length && r.reserva === bal.flujo.reserva) return aviso('info', 'No hay agrupaciones con operación para traer.')
     P.marcar?.()
-    if (r.tareas.length) P.setOps?.((o) => ({ ...o, tareas: [...(o.tareas || []), ...r.tareas] }))
+    if (r.tareas.length) conOcultas((o) => ({ ...o, tareas: [...(o.tareas || []), ...r.tareas] }))
     setFlujo((f) => ({ ...f, reserva: r.reserva }))
     aviso('ok', `⬅️ ${r.tareas.length} agrupación(es) pasaron a la carta como tareas tácticas, con su operación y sus piezas. Arrastralas a su lugar sobre el terreno y revisá la tarea de cada una.`)
   }
 
   // ─── Acciones: las fuerzas ───
   const asignar = (pieza, destino) => {
-    P.setOps?.((o) => moverPieza({ ops: o, flujo: {} }, pieza, destino).ops)
+    conOcultas((o) => moverPieza({ ops: o, flujo: {} }, pieza, destino).ops)
     setFlujo((f) => moverPieza({ ops: { tareas: [] }, flujo: f }, pieza, destino).flujo)
   }
   const agregarTipo = (destino, x, tp) => {
@@ -267,7 +280,7 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
   // Unidades PURAS: la unidad entera (todas sus piezas) va a la tarea; si ya estaba toda ahí, se saca.
   const moverVarias = (piezas, destino) => {
     if (!piezas.length) return
-    P.setOps?.((o) => piezas.reduce((acc, p) => moverPieza({ ops: acc, flujo: {} }, p, destino).ops, o))
+    conOcultas((o) => piezas.reduce((acc, p) => moverPieza({ ops: acc, flujo: {} }, p, destino).ops, o))
     setFlujo((f) => piezas.reduce((acc, p) => moverPieza({ ops: { tareas: [] }, flujo: acc }, p, destino).flujo, f))
   }
   const ponerUnidad = (pu, destino) => {
@@ -455,6 +468,7 @@ export default function SIDEditorOrgInicial({ hoja, ctx = {}, onG3, onAbrirOrgTa
     ...porOrden.map(tarjetaTarea),
     !bal.tareas.length && h('div', { style: E.aviso }, 'Todavía no hay tareas tácticas en la carta.'),
     bal.tareas.length > 0 && h('div', { style: E.bien }, `${bal.tareas.length} tarea(s) táctica(s) en la carta. ¿Falta alguna? Ponela arriba. Cuando estén todas, pasá al paso ③.`),
+    ocultas.length > 0 && h('div', { style: E.aviso, 'data-oi-ocultas': String(ocultas.length) }, `📌 En la fase de los CAP que está a la vista, ${ocultas.length} de estas tareas no se ven: son de la FASE III y su unidad todavía no está con ellas. La hoja las cuenta y las trabaja igual; en la carta aparecen en la FASE III, con su unidad.`),
     !!fuera.length &&
       h(
         'div',

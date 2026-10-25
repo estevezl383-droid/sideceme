@@ -63,7 +63,8 @@
 //   index-fuegos-fase-20261024.js + reemplazos-2026-10-24-json-ia.js = index-json-ia-20261024.js
 //   index-json-ia-20261024.js + reemplazos-2026-10-24-fases-cap.js = index-fases-cap-20261024.js
 //   index-fases-cap-20261024.js + reemplazos-2026-10-24-posiciones-fase.js = index-posiciones-fase-20261024.js
-//   index-posiciones-fase-20261024.js + reemplazos-2026-10-24-todas-fichas.js = index-todas-fichas-20261024.js (el vigente)
+//   index-posiciones-fase-20261024.js + reemplazos-2026-10-24-todas-fichas.js = index-todas-fichas-20261024.js
+//   index-todas-fichas-20261024.js + reemplazos-2026-10-25-itinerario.js = index-itinerario-20261025.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -77,6 +78,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-25-itinerario'),
+    nombre: 'reemplazos-2026-10-25-itinerario',
+    // calcos/assets/index-todas-fichas-20261024.js (antes del itinerario con flechas y las tareas con su unidad).
+    anterior: '26aaf60613f2e7ac89a145be538a6fbf1d2cd53a698cd0bc7cae0b318d67a026',
+  },
   {
     lista: require('./reemplazos-2026-10-24-todas-fichas'),
     nombre: 'reemplazos-2026-10-24-todas-fichas',

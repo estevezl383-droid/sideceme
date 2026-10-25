@@ -18,6 +18,7 @@ const caso = async (nombre, fn) => { await fn(); n++; console.log('  ✔ ' + nom
 const EJ = ejercicioConcepto()
 const CTX = { unidades: EJ.unidades, ops: EJ.ops, cmoc: EJ.cmoc, ordenSup: EJ.ordenSup, g3: EJ.g3, lugares: [], tareas: X.TAREAS, obstaculos: X.OBSTACULOS }
 const pos = (f, id) => { const u = f.unidades.find((x) => x.id === id); return [u.lng, u.lat] }
+const km = (a, b) => Math.hypot((a[0] - b[0]) * 105.6, (a[1] - b[1]) * 110.6)
 
 await caso('las piezas de la carta: el nomenclátor del A.O. y las fichas de cada bando', () => {
   const pz = C.piezas(CTX)
@@ -62,7 +63,12 @@ await caso('la respuesta: los dos CAP con cinco fases, cada unidad donde dijo la
   assert.deepEqual(pos(c1[3], 'div6'), [-68.5, -18.55], 'la DIV-6 sigue en Estancia Ticanani en la fase 4')
   assert.equal(c1[3].unidades.find((u) => u.id === 'divmec2').tarea, 'Detener al enemigo en la AA-1')
   assert.deepEqual(pos(c1[0], 'e-br1'), [-69.35, -18.45], 'el enemigo no se toca')
-  assert.deepEqual(pos(r.caps[2].fases[4], 'div6'), [-68.8, -18.49], 'coordenadas «lat, lng»')
+  // La IA puso la DIV-6 en unas coordenadas y su «destruir» en Macaya, a 13 km: va junto a su tarea (25-10-2026).
+  assert.ok(km(pos(r.caps[2].fases[4], 'div6'), [-68.68, -18.47]) <= 1, 'CAP 2 · fase 5: la DIV-6 junto a su tarea en Macaya')
+  // Sin tarea lejos, la unidad queda en las coordenadas «lat, lng» que dio la IA.
+  const sinTarea = JSON.parse(JSON.stringify(X.RESPUESTA_CAP))
+  sinTarea.caps[1].fases[4].tareas = []
+  assert.deepEqual(pos(C.leerRespuesta(JSON.stringify(sinTarea), CTX).caps[2].fases[4], 'div6'), [-68.8, -18.49], 'coordenadas «lat, lng»')
 })
 
 await caso('las tareas tácticas (sólo en su fase, apuntando a donde dijo) y los obstáculos (se acumulan)', () => {
