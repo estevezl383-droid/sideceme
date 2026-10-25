@@ -5,6 +5,31 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-25 — ⚔️ El evento crítico de la Matriz de sincronización: el CAE (G-2) contra el CAP (G-3), listo para el Juego de Guerra (`index-evento-critico-20261025.js`)
+
+Parte de `index-itinerario-20261025.js` + `pruebas/reemplazos-2026-10-25-evento-critico.js` (2 reemplazos;
+`construir-evento-critico.js`; `reemplazos-compilado.js` lo deshace byte por byte). Sergio, con los pasos de la F4·P7:
+que en la Matriz de sincronización salga «el evento más crítico», donde se carguen la fase del enemigo ROJO del G-2 y
+la del G-3 «para que se enfrenten», guardadas y «listas para jugar» en el Juego de Guerra. Ver `evento-critico/README.md`.
+
+- **Qué pasaba**: el Juego de Guerra importaba UNA fase por archivo. La fase 🔵 se guarda sin las fichas rojas que la
+  Mesa pone a la vista (`contra`), así que llegaba sin enemigo; y la fase 🔴 traía a los azules donde estaban al armar
+  el CAE. Además, las fichas `bando: 'enemigas'` entraban al Juego como AZUL.
+- **Fuera del compilado**: `evento-critico/v1/modelo.mjs` y `panel.js` (el panel ⚔️ arriba de la F4·P6-7: cada fase 🔵
+  frente a su 🔴, medidas, ⭐ la más crítica, 💾 `g3.sincro._evento`, 📝 MANIOBRA e INTELIGENCIA de esa columna si
+  están vacías, ⬇️ el ejercicio con `eventoCritico`). En `index.html` (Juego de Guerra, v2.9.437): «⚔️ EVENTO CRÍTICO»
+  primero, «⚔️ Enfrentar una fase 🔵 con una fase 🔴», la fase con `contra` con sus rojos y `'enemigas'` → ROJO.
+- **En el compilado**: el import de `evento-critico/v1/panel.js?v=ev20261025` (al principio) y
+  `Ke.id==="sincro"&&f.jsx(SIDEvPanel,{R:{jsx,jsxs,useState},hoja,valor,ctx:SIDctxCap,onLlevar})` antes del botón
+  «🌱 Traer del calco lo que falte» de la hoja abierta del Tablero del G-3. Ningún reemplazo anterior queda partido.
+- **En el fuente**: en el Tablero del G-3, para la hoja `sincro`, el panel con `ctx` (unidades, ops, fasesCOA, g3) y el
+  setter de la hoja.
+- **Cómo se comprobó**: `pruebas/evento-critico.mjs` (7 casos), `pruebas/e2e/evento-critico.cjs` (en la Mesa: el panel
+  sólo en la F4·P6-7, la ⭐ en la FASE III, cambiar la 🔴, guardar, anotar sin pisar, bajar el .json y leerlo, el más
+  peligroso, sin errores de consola), `tests/wargame-evento-critico.test.cjs` (6 casos con las funciones reales del
+  Juego, también el cuadro en Chromium, y el .json bajado por la e2e pasado por `_wgFasesCOA`/`_wgEscenarioDesde`),
+  `tests/wargame-motor.test.cjs`, `reemplazos-compilado.js` y `npm test`.
+
 ## 2026-10-25 — 🎯 La tarea de cada fase con su unidad, el rótulo OD / OC con la unidad, ➜ el itinerario con flechas y el CAP 2 (`index-itinerario-20261025.js`)
 
 Parte de `index-todas-fichas-20261024.js` + `pruebas/reemplazos-2026-10-25-itinerario.js` (4 reemplazos;
