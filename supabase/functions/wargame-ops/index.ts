@@ -339,14 +339,116 @@ function enTerrenoClave(pt: number[], terreno: any[]) {
 // El que lo sembró pasa: conoce sus pasillos. Ésa es la razón doctrinal por la
 // que un obstáculo propio no estorba y por la que hay que registrarlos.
 // ============================================================
-function enMinado(pt: number[], terreno: any[], bando?: string) {
+// v2.9.440 — EL CAMPO MINADO EXPLOTA, Y NADIE LO SALTA.
+// Sergio, con la partida «ZAPATO II»: «esta unidad de rojo pasó por encima del
+// campo minado sin novedad, lo cruzó como si fuera terreno normal… debería ir
+// explotando y explotando hasta detenerse y reducirse por lo menos».
+// Dos cosas cambian:
+//   1) EL SUELO SE MIRA CADA 50 m. La marcha avanza de a 500 m y el campo se
+//      buscaba sólo en la punta de cada paso: un campo angosto, o tomado en
+//      diagonal, podía quedar ENTRE dos puntas y la columna pasaba de largo.
+//   2) LA VANGUARDIA ENTRA SIN SABERLO. Salta la primera mina, la orden de alto
+//      tarda en llegar a toda la columna y saltan más —una cada 100 m de campo—
+//      hasta la tercera. Cada detonación se lleva su parte según el medio y el
+//      tipo de campo, y se ve en la película. La unidad queda DETENIDA al borde,
+//      donde lo encontró: fija y localizada para el fuego del dueño.
+// (La búsqueda punto por punto de la v2.9.324, `enMinado`, dio paso a
+// `campoEnPaso`, dentro de `moverUnidad`.)
+// ============================================================
+const MINA_MUESTRA_KM = 0.05;
+const MINA_CADA_KM = 0.1;
+const MINA_DETONACIONES = 3;
+// Lo que se lleva CADA detonación, en fracción del poder que le queda. La mina
+// anticarro (AC) no salta bajo un hombre; la antipersonal (AP) apenas raya un
+// blindado. Tres detonaciones en un campo mixto cuestan lo de la v2.9.324: a
+// pie 10 %, oruga 18 %, motorizado 22 %, camión 30 %.
+const MINA_GOLPE: any = {
+  pie: { ap: 0.05, ac: 0.01, mixto: 0.035 },
+  oruga: { ap: 0.01, ac: 0.08, mixto: 0.065 },
+  motor: { ap: 0.02, ac: 0.10, mixto: 0.08 },
+  rueda: { ap: 0.04, ac: 0.13, mixto: 0.11 },
+};
+const NOMBRE_CAMPO: any = { ap: "antipersonal", ac: "anticarro", mixto: "mixto" };
+// AP, AC o mixto. Lo importado antes de la v2.9.439 no trae `obs`: se lee la
+// sigla del rótulo («CM AC (proyectado)»). El que se siembra en la partida es
+// mixto («minas AP y AT»).
+function tipoDeCampo(z: any) {
+  const g = (z && z.geojson) || {};
+  if (g.obs === "minado_ap") return "ap";
+  if (g.obs === "minado_ac") return "ac";
+  if (g.obs) return "mixto";
+  const nom = String(g.nom || "").toUpperCase();
+  if (/^CM AP\b/.test(nom)) return "ap";
+  if (/^CM AC\b/.test(nom)) return "ac";
+  return "mixto";
+}
+// Dónde están las minas: el campo DIBUJADO (`dib`) cuando la fila es una zona
+// de efecto con margen (el plan de barreras de la Mesa); si no, la zona misma
+// (el campo que se siembra en la partida). El margen de 150 m existía porque el
+// suelo se miraba cada 500 m; mirándolo cada 50, las minas saltan donde están
+// dibujadas y no en el pasto de al lado.
+function geomDelCampo(t: any) {
+  const g = t && t.geojson, d = g && g.dib;
+  return d && (d.type === "Polygon" || d.type === "MultiPolygon") ? d : g;
+}
+// Los campos minados que le pesan a una unidad: los del otro bando y los que no
+// tienen dueño (el dueño conoce sus pasillos). Se arma una vez por marcha —son
+// un puñado entre cientos de filas— con la geometría de las minas y su caja.
+function camposContra(terreno: any[], bando?: string) {
+  const out: any[] = [];
   for (const t of terreno || []) {
-    if (t.tipo !== "minado") continue;
-    if (bando && t.bando === bando) continue; // el dueño conoce las brechas
-    if (fueraDeCaja(pt, t)) continue;
-    if (puntoEnGeom(pt, t.geojson)) return t;
+    if (!t || t.tipo !== "minado" || (bando && t.bando === bando)) continue;
+    const geom = geomDelCampo(t);
+    out.push({ fila: t, geom, _caja: cajaDeGeom(geom) });
   }
-  return null;
+  return out;
+}
+// ¿El punto pisa ese campo?
+function pisaCampo(pt: number[], c: any) {
+  return !fueraDeCaja(pt, c) && puntoEnGeom(pt, c.geom);
+}
+// Cuánto adentro de un campo está un punto: la distancia a su borde más cercano.
+function distAlBordeKm(pt: number[], geom: any) {
+  const polis = geom && geom.type === "Polygon" ? [geom.coordinates]
+    : geom && geom.type === "MultiPolygon" ? geom.coordinates : [];
+  let d = Infinity;
+  for (const poli of polis) {
+    for (const anillo of poli) {
+      for (let i = 1; i < anillo.length; i++) d = Math.min(d, distPtSegKm(pt, anillo[i - 1], anillo[i]));
+    }
+  }
+  return d;
+}
+// ¿El tramo a→b pasa cerca de la caja de la zona? Prefiltro barato.
+function tramoTocaCaja(a: number[], b: number[], t: any, holguraKm = 0.06) {
+  const c = t && t._caja;
+  if (!c) return true;
+  const dLat = holguraKm / 110.57, dLng = dLat / Math.max(1e-6, Math.cos(rad(a[1])));
+  return !(Math.max(a[0], b[0]) < c[0] - dLng || Math.min(a[0], b[0]) > c[2] + dLng
+    || Math.max(a[1], b[1]) < c[1] - dLat || Math.min(a[1], b[1]) > c[3] + dLat);
+}
+// Dónde saltan las minas: la primera donde entró y una cada 100 m de campo por
+// la dirección de la marcha, hasta la tercera — o hasta que se termine el campo
+// o la ruta.
+function puntosDeDetonacion(entrada: number[], destino: number[], zona: any) {
+  const pts: number[][] = [entrada];
+  const total = haversineKm(entrada, destino);
+  for (let k = 1; k < MINA_DETONACIONES; k++) {
+    const dk = k * MINA_CADA_KM;
+    if (total <= 0 || dk > total + 1e-9) break;
+    const f = dk / total;
+    const q = [entrada[0] + (destino[0] - entrada[0]) * f, entrada[1] + (destino[1] - entrada[1]) * f];
+    if (!pisaCampo(q, zona)) break;
+    pts.push(q);
+  }
+  return pts;
+}
+// Cuánto le cuesta a la unidad: cada detonación se lleva su fracción de lo que
+// le QUEDA (la segunda pega sobre lo que dejó la primera).
+function golpeDeMinas(u: any, zona: any, n: number) {
+  const g = MINA_GOLPE[medioDe(u)] || MINA_GOLPE.pie;
+  const f = g[tipoDeCampo(zona)] != null ? g[tipoDeCampo(zona)] : g.mixto;
+  return 1 - Math.pow(1 - f, Math.max(0, n));
 }
 // ============================================================
 // Lo que una BRECHA levanta al abrirse.
@@ -363,6 +465,131 @@ function enMinado(pt: number[], terreno: any[], bando?: string) {
 const OBSTACULO_TIPOS = ["minado", "restringido", "severo"];
 function esObstaculoConstruido(z: any) {
   return !!(z && z.bando && OBSTACULO_TIPOS.includes(z.tipo));
+}
+// ============================================================
+// v2.9.440 — EL PLAN DE BARRERAS SE CONSTRUYE EN LA PARTIDA, SIN VOLVER A
+// IMPORTAR. «ZAPATO II» entró antes de la v2.9.439: sus 13 obras están como
+// dibujo (`obstaculo`, «CM MX (proyectado)», sin dueño) y el motor no las ve,
+// así que el blindado rojo cruzó el campo minado como si fuera campo abierto.
+// Reimportar la reinicia en el turno 0. Ahora el árbitro decide, en cualquier
+// turno, si el plan está CONSTRUIDO —con la zona de efecto y el dueño que le da
+// la importación de la v2.9.439— o PROYECTADO (se ve punteado, no frena).
+// Mismas siglas, efectos y márgenes que `_wgEscenarioDesde` del Juego.
+// ============================================================
+const OBS_ABREV: any = { alambre_simple: "AL", alambre_doble: "AL 2", concertina: "CONC",
+  concertina_triple: "CONC 3", zanja_at: "ZAT", abatida: "ABT", minado_ap: "CM AP", minado_ac: "CM AC",
+  minado_mixto: "CM MX", minado_ficticio: "CM FIC", demolicion: "DEM", bloqueo: "BLQ" };
+const OBS_POR_ABREV: any = Object.fromEntries(Object.entries(OBS_ABREV).map(([k, v]) => [v, k]));
+const OBS_MECANICO: any = { minado_ap: "minado", minado_ac: "minado", minado_mixto: "minado",
+  zanja_at: "severo", demolicion: "severo", bloqueo: "severo",
+  alambre_simple: "restringido", alambre_doble: "restringido", concertina: "restringido",
+  concertina_triple: "restringido", abatida: "restringido" };
+const OBS_AREA = ["minado_ap", "minado_ac", "minado_mixto", "minado_ficticio"];
+// Qué obra de la Mesa es una fila (por `obs`, o por la sigla del rótulo en lo
+// importado antes de la v2.9.439), o null si no es del plan de barreras.
+function obraDelPlan(t: any) {
+  const g = (t && t.geojson) || {};
+  if (g.obs && OBS_ABREV[g.obs]) return g.obs;
+  if (t && t.tipo === "obstaculo") return OBS_POR_ABREV[String(g.nom || "").replace(/\s*\(.*$/, "").trim()] || null;
+  return null;
+}
+function nombreObraPlan(t: any) {
+  const obs = obraDelPlan(t);
+  return obs ? `${NOMBRE_OBRA[obs] || obs} (${OBS_ABREV[obs]})` : nombreObra(t);
+}
+// La ZONA DE EFECTO de una obra construida: la obra y `rKm` alrededor (la
+// envolvente convexa de un círculo en cada vértice). Gemelo de
+// `_wgHuellaObstaculo` del Juego: para la línea recta o el rectángulo que traza
+// la Mesa es exactamente la franja.
+function huellaObstaculo(g: any, rKm: number) {
+  const pts: number[][] = [];
+  const verts = !g ? [] : g.type === "Point" ? [g.coordinates]
+    : g.type === "LineString" ? g.coordinates
+    : g.type === "Polygon" ? g.coordinates[0] : [];
+  for (const v of verts || []) {
+    const lng = Number(v[0]), lat = Number(v[1]);
+    if (!Number.isFinite(lng) || !Number.isFinite(lat)) continue;
+    const dy = rKm / 110.57, dx = rKm / (111.32 * Math.cos(rad(lat)) || 1e-9);
+    for (let i = 0; i < 12; i++) { const a = i * Math.PI / 6; pts.push([lng + dx * Math.cos(a), lat + dy * Math.sin(a)]); }
+  }
+  if (pts.length < 3) return null;
+  pts.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cruz = (o: number[], a: number[], b: number[]) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const abajo: number[][] = [], arriba: number[][] = [];
+  for (const p of pts) {
+    while (abajo.length >= 2 && cruz(abajo[abajo.length - 2], abajo[abajo.length - 1], p) <= 0) abajo.pop();
+    abajo.push(p);
+  }
+  for (let i = pts.length - 1; i >= 0; i--) {
+    const p = pts[i];
+    while (arriba.length >= 2 && cruz(arriba[arriba.length - 2], arriba[arriba.length - 1], p) <= 0) arriba.pop();
+    arriba.push(p);
+  }
+  const casco = abajo.slice(0, -1).concat(arriba.slice(0, -1))
+    .map((p) => [Math.round(p[0] * 1e6) / 1e6, Math.round(p[1] * 1e6) / 1e6]);
+  if (casco.length < 3) return null;
+  casco.push(casco[0]);
+  return { type: "Polygon", coordinates: [casco] };
+}
+// Lo que hay que cambiar en las filas para que el plan quede construido (o
+// proyectado). Sólo toca lo del plan: el CMOC importado y las obras hechas en la
+// partida no tienen `obs` ni sigla de la Mesa, y no se tocan. Lo que no tenía
+// dueño (importado antes de la v2.9.439) pasa a ser del AZUL, como en la
+// importación: el plan de barreras es el propio, y así viaja con niebla.
+function planDeBarreras(filas: any[], construir: boolean) {
+  const cambios: any[] = [];
+  for (const t of filas || []) {
+    const obs = obraDelPlan(t);
+    if (!obs || t.id == null) continue;
+    const g = t.geojson || {};
+    const dib = (g.dib && g.dib.type) ? g.dib : { type: g.type, coordinates: g.coordinates };
+    if (!dib.type || !dib.coordinates) continue;
+    const ab = OBS_ABREV[obs], bando = t.bando || "azul";
+    const yaConstruido = t.tipo !== "obstaculo" || g.est === "construido";
+    if (construir) {
+      if (yaConstruido) continue;
+      const mec = OBS_MECANICO[obs];   // el campo minado ficticio no detiene a nadie
+      const huella = mec ? huellaObstaculo(dib, OBS_AREA.includes(obs) ? 0.15 : 0.3) : null;
+      cambios.push(huella
+        ? { id: t.id, tipo: mec, bando, geojson: { ...huella, nom: ab, obs, est: "construido", dib } }
+        : { id: t.id, tipo: "obstaculo", bando, geojson: { ...dib, nom: ab, obs, est: "construido" } });
+    } else {
+      if (!yaConstruido) continue;
+      cambios.push({ id: t.id, tipo: "obstaculo", bando, geojson: { ...dib, nom: ab + " (proyectado)", obs, est: "proyectado" } });
+    }
+  }
+  return cambios;
+}
+// Las obras PROYECTADAS del plan por las que pasó una marcha (las que tendrían
+// efecto construidas y son del otro bando). No frenan: sólo se avisa al árbitro.
+function obrasProyectadasEnRuta(ruta: number[][], terreno: any[], bando?: string) {
+  const out: any[] = [];
+  if (!Array.isArray(ruta) || ruta.length < 2) return out;
+  for (const t of terreno || []) {
+    if (!t || t.tipo !== "obstaculo" || (t.geojson && t.geojson.est === "construido")) continue;
+    if ((t.bando || "azul") === bando) continue;   // el dueño sabe que todavía no está
+    const obs = obraDelPlan(t);
+    if (!obs || !OBS_MECANICO[obs]) continue;
+    // La misma zona que tendría construida: las minas, donde están dibujadas;
+    // la zanja, la alambrada o la demolición, con su franja de 300 m.
+    const g = t.geojson || {};
+    const dib = (g.dib && g.dib.type) ? g.dib : g;
+    const zona = OBS_MECANICO[obs] === "minado" && /Polygon$/.test(dib.type || "") ? dib : huellaObstaculo(dib, 0.3);
+    if (!zona) continue;
+    const z = { geojson: zona, _caja: cajaDeGeom(zona) };
+    let pasa = false;
+    for (let i = 1; i < ruta.length && !pasa; i++) {
+      const a = ruta[i - 1], b = ruta[i];
+      if (!tramoTocaCaja(a, b, z)) continue;
+      const n = Math.max(1, Math.ceil(haversineKm(a, b) / MINA_MUESTRA_KM));
+      for (let j = 0; j <= n && !pasa; j++) {
+        const q = [a[0] + (b[0] - a[0]) * (j / n), a[1] + (b[1] - a[1]) * (j / n)];
+        if (!fueraDeCaja(q, z) && puntoEnGeom(q, zona)) pasa = true;
+      }
+    }
+    if (pasa) out.push(t);
+  }
+  return out;
 }
 // v2.9.221: `camino` es la clase más rápida para TODOS los medios, y la única
 // forma de que el motorizado atraviese un sector restringido o severo.
@@ -495,6 +722,46 @@ function moverUnidad(u: any, destino: number[], terreno: any[], horas: number, p
   // v2.9.324: si entró en un campo minado enemigo, cuál. Uno solo: la marcha se
   // corta ahí, así que no hay un segundo.
   let minado: any = null;
+  // v2.9.440: y dónde saltaron las minas (para la bitácora, las bajas y la película).
+  let detonaciones: number[][] = [];
+  // v2.9.440 — LOS CAMPOS QUE LE PESAN A ESTA UNIDAD, y de cuáles ARRANCA
+  // ADENTRO (la frenaron ahí, la puso el árbitro o el campo se construyó
+  // encima). De ésos sale por sus propias huellas: ninguna mina salta mientras
+  // no se meta más adentro de lo que ya estaba.
+  const campos = camposContra(terreno, u.bando);
+  const salida = new Map<any, number>();
+  for (const c of campos) if (pisaCampo(pos, c)) salida.set(c, distAlBordeKm(pos, c.geom));
+  // ¿El paso a→b entra en un campo minado? Se mira el suelo cada 50 m y se
+  // devuelve hasta dónde llega (el último punto antes de pisarlo) y por dónde
+  // entraría.
+  const campoEnPaso = (a: number[], b: number[]) => {
+    if (!campos.length) return null;
+    const cerca = campos.filter((c: any) => tramoTocaCaja(a, b, c));
+    for (const c of [...salida.keys()]) if (!cerca.includes(c)) salida.delete(c);
+    if (!cerca.length) return null;
+    const n = Math.max(1, Math.ceil(haversineKm(a, b) / MINA_MUESTRA_KM));
+    let antes = a;
+    for (let j = 1; j <= n; j++) {
+      const q = [a[0] + (b[0] - a[0]) * (j / n), a[1] + (b[1] - a[1]) * (j / n)];
+      for (const c of cerca) {
+        if (!pisaCampo(q, c)) { salida.delete(c); continue; }
+        const p0 = salida.get(c);
+        if (p0 != null && distAlBordeKm(q, c.geom) <= p0 + MINA_MUESTRA_KM) continue;   // sale por sus huellas
+        return { corte: antes, entrada: q, zona: c };
+      }
+      antes = q;
+    }
+    return null;
+  };
+  // La vanguardia pisó el campo: saltan las minas y la columna se detiene.
+  const pisarCampo = (tope: any) => {
+    minado = tope.zona.fila;
+    detonaciones = puntosDeDetonacion(tope.entrada, destino, tope.zona);
+    detenida = true;
+    const n = detonaciones.length;
+    motivo = `se topó con un OBSTÁCULO ENEMIGO — campo minado ${NOMBRE_CAMPO[tipoDeCampo(minado)]} — `
+      + `${n > 1 ? `saltaron ${n} minas` : "saltó una mina"} y la columna se detuvo al borde`;
+  };
   const anotar = (clase: string, km: number, pt?: number[]) => {
     if (porClase[clase] == null) porClase[clase] = 0;
     porClase[clase] += km;
@@ -506,14 +773,19 @@ function moverUnidad(u: any, destino: number[], terreno: any[], horas: number, p
     if (restante <= 1e-6) break; // llegó (1 mm)
     if (++guardia > 100000) { motivo = "corte de seguridad"; break; }
     const frac = Math.min(pasoKm, restante) / restante;
-    const sig = [pos[0] + (destino[0] - pos[0]) * frac, pos[1] + (destino[1] - pos[1]) * frac];
+    let sig = [pos[0] + (destino[0] - pos[0]) * frac, pos[1] + (destino[1] - pos[1]) * frac];
     // v2.9.324 — EL CAMPO MINADO PARA LA MARCHA, ANTES DE PISARLO DEL TODO.
     // Se corta en el borde, no en el medio: una columna que toca un campo
     // minado se detiene y se despliega, no lo sigue atravesando. Y se corta
     // ANTES de mover, así la unidad queda DONDE LO ENCONTRÓ — que es el dato
     // que después le sirve al otro bando para saber que su obstáculo funcionó.
-    const mina = enMinado(sig, terreno, u.bando);
-    if (mina) { minado = mina; detenida = true; motivo = "campo minado"; break; }
+    // v2.9.440: el paso se acorta hasta el borde (mirado cada 50 m) y la unidad
+    // llega hasta ahí; si el reloj o el tanque no le alcanzan, no lo pisa.
+    const tope = campoEnPaso(pos, sig);
+    if (tope) {
+      sig = tope.corte;
+      if (haversineKm(pos, sig) < 1e-6) { pisarCampo(tope); break; }   // ya estaba en el borde
+    }
     const clase = claseTerreno(sig, terreno, u.bando);   // v2.9.439
     let v = vel[clase];
     // Doctrina: del terreno que no se cruza SE SALE, pero a paso de hombre (el
@@ -568,6 +840,7 @@ function moverUnidad(u: any, destino: number[], terreno: any[], horas: number, p
     anotar(clase, pasoReal, pos);
     if (aPasoDeHombre) kmSalida += pasoReal;
     ruta.push([pos[0], pos[1]]);
+    if (tope) { pisarCampo(tope); break; }   // v2.9.440: llegó al borde y la vanguardia entró
     if (clase !== "camino") {
       kmFueraRuta += pasoReal;
       if (kmFueraRuta >= topeFuera - 1e-9) {
@@ -581,7 +854,7 @@ function moverUnidad(u: any, destino: number[], terreno: any[], horas: number, p
   }
   return { lng: pos[0], lat: pos[1], detenida, motivo, avanzadoKm: avanzado, totalKm: totalDest,
     ruta, horasUsadas: Math.max(0, horas - presupuesto), llego: !detenida && haversineKm(pos, destino) <= 1e-3,
-    porClase, consumoKm, kmBatido, minado, kmFueraRuta,
+    porClase, consumoKm, kmBatido, minado, detonaciones, kmFueraRuta,
     fueraDeRuta: motivo.startsWith("fuera de ruta"),
     seco: motivo === "sin combustible",
     // v2.9.431: para que la bitácora cuente la salida a paso de hombre.
@@ -599,7 +872,7 @@ function moverPorRuta(u: any, ruta: any[], terreno: any[], horas: number, turno:
   let rutaTot: number[][] = [[u.lng, u.lat]];
   let detenida = false, motivo = "", llego = false, seco = false;
   const porClase: any = { camino: 0, libre: 0, restringido: 0, severo: 0 };
-  let consumoKm = 0, kmBatido = 0, minado: any = null;
+  let consumoKm = 0, kmBatido = 0, minado: any = null, detonaciones: number[][] = [];
   let kmSalida = 0, claseSalida: any = null, sigueAdentro = false;   // v2.9.431
   const gastadoAntes = Number(u.combustible_km) || 0;   // v2.9.334
   const totalKm = pts.reduce((s: number, p: any, i: number) => s + haversineKm(i ? pts[i - 1] : [u.lng, u.lat], p), 0);
@@ -612,7 +885,7 @@ function moverPorRuta(u: any, ruta: any[], terreno: any[], horas: number, turno:
     for (const k of Object.keys((r as any).porClase || {})) porClase[k] = (porClase[k] || 0) + (r as any).porClase[k];
     consumoKm += (r as any).consumoKm || 0;
     kmBatido += (r as any).kmBatido || 0;
-    if ((r as any).minado) minado = (r as any).minado;
+    if ((r as any).minado) { minado = (r as any).minado; detonaciones = (r as any).detonaciones || []; }
     if ((r as any).seco) seco = true;
     if ((r as any).kmSalida > 0 || (r as any).claseSalida) {
       kmSalida += (r as any).kmSalida || 0;
@@ -630,7 +903,7 @@ function moverPorRuta(u: any, ruta: any[], terreno: any[], horas: number, turno:
   }
   return { lng: pos.lng, lat: pos.lat, detenida, motivo, avanzadoKm: avanzado, totalKm,
     ruta: rutaTot, horasUsadas: Math.max(0, horas - restante), llego, consumidos,
-    porClase, consumoKm, kmBatido, minado, seco, kmSalida, claseSalida, sigueAdentro };
+    porClase, consumoKm, kmBatido, minado, detonaciones, seco, kmSalida, claseSalida, sigueAdentro };
 }
 
 // v2.9.225 — CÓMO FUE LA MARCHA Y QUÉ COSTÓ: velocidad media, por qué clase de
@@ -952,12 +1225,12 @@ const RINDE_ZAPA: any = { seccion: 0.55, compania: 0.8, batallon: 1, regimiento:
 // diferencia, y es la que hace que valga la pena tener zapadores.
 // ============================================================
 const RINDE_ARMA: any = { ingenieria: 1, infanteria: 0.55, aerotransportada: 0.5 };
-// Lo que cuesta ENTRAR en un campo minado, por medio. El de a pie pierde
-// hombres; el vehículo pierde el vehículo, y por eso paga el doble.
-// v2.9.353: el camión de llantas es lo que peor lleva una mina — sin blindaje
-// de casco y con la carga arriba, un solo estallido saca del ruedo al vehículo
-// y a lo que llevaba. Por eso el eje de abastecimiento se barre antes de usarlo.
-const MINADO_PERDIDA: any = { pie: 0.10, oruga: 0.18, motor: 0.22, rueda: 0.30 };
+// Lo que cuesta ENTRAR en un campo minado, por medio: ahora mina por mina, en
+// `MINA_GOLPE` (v2.9.440). El de a pie pierde hombres; el vehículo pierde el
+// vehículo, y por eso paga el doble. El camión de llantas (v2.9.353) es lo que
+// peor lleva una mina — sin blindaje de casco y con la carga arriba, un solo
+// estallido saca del ruedo al vehículo y a lo que llevaba. Por eso el eje de
+// abastecimiento se barre antes de usarlo.
 function capacidadObra(u: any) {
   if (!u) return null;
   if (armamentoDe(u).some((a: any) => a.ingenieria)) return { rinde: 1, ing: true };
@@ -1779,6 +2052,11 @@ function resolverTurno(estado: any) {
   // DESPUÉS de mover a todos: «a la vista de» depende de dónde quedaron los demás.
   const trazas: any[] = [];
   const movidas: any[] = [];
+  // v2.9.220: dónde cayeron los fuegos. Viaja en la RESPUESTA (no se guarda),
+  // como las trazas, para que la pantalla pueda encender el incendio ahí.
+  // v2.9.440: se declara antes de la marcha — las minas que pisa una columna
+  // también estallan en la película.
+  const impactos: any[] = [];
   // v2.9.225 — ROMPER CONTACTO. El choque por proximidad era OBLIGATORIO: dos
   // unidades enemigas cerca se trenzaban TODOS los turnos y al turno 60 no
   // quedaba nadie. Un comandante puede replegarse.
@@ -1805,7 +2083,10 @@ function resolverTurno(estado: any) {
       ruta: ralearRuta(r.ruta), horas: r.horasUsadas, km: Number(r.avanzadoKm.toFixed(2)),
       llego: !!r.llego, detenida: !!r.detenida, destino: [o.destino_lng, o.destino_lat],
       consumidos: (r as any).consumidos || 0,
-      inicio: (r as any).inicio || 0 });
+      inicio: (r as any).inicio || 0,
+      // v2.9.440: la frenó un campo minado — la marcha NO sigue sola el turno
+      // que viene (sería meterla otra vez en el campo): espera orden nueva.
+      minado: !!(r as any).minado });
     movidas.push({ u, r });
   }
   for (const { u, r } of movidas) {
@@ -1828,27 +2109,51 @@ function resolverTurno(estado: any) {
     }
     // ============================================================
     // v2.9.324 — ENTRÓ EN UN CAMPO MINADO.
-    // Cuesta bajas de golpe (no por kilómetro: el daño lo hace la PRIMERA fila)
+    // Cuesta bajas de golpe (no por kilómetro: el daño lo hace la vanguardia)
     // y sobre todo cuesta TIEMPO — la unidad quedó parada donde lo encontró.
-    // El motorizado y el de orugas pagan más: pierden el vehículo, no un hombre.
     // Y el hallazgo se cuenta a LOS DOS bandos: el que lo pisó porque lo sufre,
     // y el que lo sembró porque su obstáculo cumplió y tiene que aprovecharlo.
+    // v2.9.440 — MINA POR MINA. Cada detonación se cobra aparte, según el medio
+    // y el tipo de campo (la AC destroza vehículos y casi no toca al de a pie;
+    // la AP, al revés), y cada una estalla en la película donde saltó.
     // ============================================================
     if ((r as any).minado) {
       const z: any = (r as any).minado;
-      const _md = medioDe(u);
-      const perd = MINADO_PERDIDA[_md] != null ? MINADO_PERDIDA[_md] : 0.12;
-      const antes = poderEfectivo(u);
-      const nuevo = Math.max(0, antes * (1 - perd));
+      const dets: number[][] = ((r as any).detonaciones || []).length ? (r as any).detonaciones : [[u.lng, u.lat]];
+      const n = dets.length, tipoC = tipoDeCampo(z);
+      const antes = Math.max(0, Number(u.poder_actual) || 0);
+      const nuevo = Math.max(0, antes * (1 - golpeDeMinas(u, z, n)));
       u.poder_actual = Number(nuevo.toFixed(2));
       u.estado = nuevo <= u.poder_max * 0.2 ? "fuera_combate" : (nuevo <= u.poder_max * 0.6 ? "desgastada" : "activa");
-      castigo += ` 💣 CAMPO MINADO: la marcha se DETUVO al borde del campo y perdió `
-        + `${(antes - nuevo).toFixed(0)} (${Math.round((100 * nuevo) / u.poder_max)} %). `
-        + `No se cruza por voluntad — hay que ABRIR BRECHA con ingeniería o rodearlo.`;
+      const pct = Math.round((100 * nuevo) / u.poder_max);
+      const como = nuevo <= u.poder_max * 0.2 ? "FUERA DE COMBATE" : (nuevo <= u.poder_max * 0.6 ? "DESGASTADA" : "en condiciones");
+      castigo += ` 💣 ${n} DETONACI${n > 1 ? "ONES" : "ÓN"} EN EL CAMPO MINADO ${NOMBRE_CAMPO[tipoC].toUpperCase()}: `
+        + `la vanguardia entró sin saberlo y la orden de alto tardó en llegar a toda la columna. `
+        + `Perdió ${(antes - nuevo).toFixed(1)} de poder y quedó ${como} (${pct} %), DETENIDA al borde del campo.`;
       eventos.push({ tipo: "obra", lat: u.lat, lng: u.lng,
-        descripcion: `💣 ${nombreUnidad(u)} entró en un CAMPO MINADO ${z.bando ? "del " + String(z.bando).toUpperCase() : ""} `
-          + `y quedó detenida. El obstáculo cumplió: ahora está fija y localizada.`,
+        descripcion: `💣 ${nombreUnidad(u)} entró en un CAMPO MINADO ${NOMBRE_CAMPO[tipoC]}`
+          + `${z.bando ? " del " + String(z.bando).toUpperCase() : ""}: ${n} detonaci${n > 1 ? "ones" : "ón"}, `
+          + `perdió ${(antes - nuevo).toFixed(1)} de poder (queda ${pct} %) y quedó DETENIDA. `
+          + `El obstáculo cumplió: ahora está fija y localizada.`,
         bandos_visibles: ["rojo", "azul"] });
+      // La película: las minas estallan cuando la columna llega al borde, una
+      // detrás de la otra. Sin `desde`: nadie las tiró, no hay proyectil.
+      const hora = (Number((r as any).inicio) || 0) + (Number(r.horasUsadas) || 0);
+      dets.forEach((p: number[], i: number) => impactos.push({ lng: p[0], lat: p[1], radio: 0.06, arma: "mina",
+        nom: tipoC === "ap" ? "Mina AP" : tipoC === "ac" ? "Mina AC" : "Mina", bando: z.bando || null,
+        tocadas: 1, mina: true, uid: u.id, orden: i, hora }));
+    }
+    // v2.9.440 — PASÓ POR UNA OBRA DEL PLAN DE BARRERAS QUE ESTÁ PROYECTADA.
+    // No la frena (es el plan, no el terreno), pero el árbitro lo tiene que
+    // saber: es lo que pasó en «ZAPATO II», donde en pantalla se veía un campo
+    // minado cruzado como si nada. Sólo lo lee el árbitro.
+    const proy = obrasProyectadasEnRuta(r.ruta, terreno, u.bando);
+    if (proy.length) {
+      eventos.push({ tipo: "obra", lat: u.lat, lng: u.lng,
+        descripcion: `📐 ${nombreUnidad(u)} pasó por ${proy.map((t: any) => "«" + nombreObraPlan(t) + "»").join(", ")} `
+          + `del plan de barreras, que está PROYECTADO: todavía no está construido y no la frenó. Si en esta fase `
+          + `ya está hecho, construilo en ⚙️ Configurar → 🛡️ Plan de barreras: desde ahí detiene y frena.`,
+        bandos_visibles: [] });
     }
     eventos.push({ tipo: "movimiento", lat: u.lat, lng: u.lng,
       descripcion: textoMovimiento(u, r) + (marcha ? " " + marcha : "") + castigo
@@ -1863,9 +2168,7 @@ function resolverTurno(estado: any) {
   //      porque eso modela el combate de encuentro, no el fuego planificado.
   const procesados = new Set();
   const disparadoras = new Set(); // abrieron fuego → quedan localizadas
-  // v2.9.220: dónde cayeron los fuegos. Viaja en la RESPUESTA (no se guarda),
-  // como las trazas, para que la pantalla pueda encender el incendio ahí.
-  const impactos: any[] = [];
+  // (los `impactos` del turno se declaran arriba, antes de la marcha: v2.9.440)
   // v2.9.226: zonas NUEVAS que deja el turno (interdicción). Éstas SÍ se
   // guardan: viven en wg_terreno hasta que vencen.
   const zonas: any[] = [];
@@ -2613,7 +2916,9 @@ async function manejar(req: Request): Promise<Response> {
        "reportar_contacto", "borrar_contacto",
        // v2.9.317 — ⚠️ SON DOS LISTAS. Si una acción falta ACÁ, el 500 es mudo.
        "colocar_instalacion", "quitar_instalacion", "mover_instalacion",
-       "formar_convoy"].includes(accion)) {
+       "formar_convoy",
+       // v2.9.440: del árbitro, nunca de un invitado (no va en la otra lista).
+       "plan_barreras"].includes(accion)) {
     if (!partida) return err("Partida no encontrada", 404);
   }
   const arbitro = partida ? esArbitro(partida, ses) : false;
@@ -2776,6 +3081,33 @@ async function manejar(req: Request): Promise<Response> {
     if (error) return err(error.message, 500);
     return ok();
   }
+  // ---------- plan_barreras (v2.9.440) ----------
+  // El árbitro da el plan de barreras por CONSTRUIDO (desde ya detiene y frena
+  // al enemigo) o lo vuelve a PROYECTADO, en cualquier turno y sin reimportar.
+  // Se cambian las filas en su lugar (mismo `id`): las órdenes, los eventos y
+  // las detecciones de la partida no se tocan.
+  if (accion === "plan_barreras") {
+    if (!arbitro) return err("Sólo el árbitro decide si el plan de barreras está construido", 403);
+    const construir = body.estado !== "proyectado";
+    const sel = "id, tipo, bando, geojson";
+    // Lo proyectado (`obstaculo`) y lo construido del plan (obras con dueño). El
+    // CMOC importado no tiene dueño y queda afuera de la segunda consulta.
+    const { data: proy, error: e1 } = await todasLasFilas(() => sb.from("wg_terreno").select(sel)
+      .eq("partida_id", partida.id).eq("tipo", "obstaculo").order("id", { ascending: true }));
+    if (e1) return err(`No se pudo leer el plan de barreras: ${e1.message}`, 500);
+    const { data: hechas, error: e2 } = await todasLasFilas(() => sb.from("wg_terreno").select(sel)
+      .eq("partida_id", partida.id).in("tipo", OBSTACULO_TIPOS).not("bando", "is", null).order("id", { ascending: true }));
+    if (e2) return err(`No se pudo leer el plan de barreras: ${e2.message}`, 500);
+    const cambios = planDeBarreras([...(proy || []), ...(hechas || [])], construir);
+    for (const c of cambios) {
+      const { error: eU } = await sb.from("wg_terreno").update({ tipo: c.tipo, bando: c.bando, geojson: c.geojson })
+        .eq("id", c.id).eq("partida_id", partida.id);
+      if (eU) return err(`No se pudo ${construir ? "construir" : "volver a proyectar"} «${c.geojson.nom}»: ${eU.message}`, 500);
+    }
+    const plan = [...(proy || []), ...(hechas || [])].filter((t: any) => obraDelPlan(t));
+    return ok({ construido: construir, cambiadas: cambios.length, obras: plan.length,
+      campos: cambios.filter((c: any) => c.tipo === "minado").length });
+  }
   if (accion === "iniciar") {
     if (!arbitro) return err("Solo el árbitro inicia la partida", 403);
     const { error } = await sb.from("wg_partidas").update({ estado: "en_curso", turno_actual: 1 }).eq("id", partida.id);
@@ -2905,6 +3237,12 @@ async function manejar(req: Request): Promise<Response> {
         .eq("partida_id", partida.id).is("bando", null).order("id", { ascending: true }));
       terreno = ordenarCarta(data || []);
     }
+    // v2.9.440 — LA FIRMA DE LA CARTA. El navegador la cachea y no la vuelve a
+    // pedir; si cambió en el servidor (el árbitro construyó el plan de barreras:
+    // esas filas pasan a tener dueño y viajan en `obras`) tiene que enterarse,
+    // o se queda dibujando el plan viejo encima del nuevo. Un conteo, sin filas.
+    const { count: terrenoN } = await sb.from("wg_terreno").select("id", { count: "exact", head: true })
+      .eq("partida_id", partida.id).is("bando", null);
     // ============================================================
     // v2.9.317 — LAS INSTALACIONES DEL G-4 VIAJAN SIEMPRE, APARTE DEL TERRENO.
     //
@@ -3008,6 +3346,7 @@ async function manejar(req: Request): Promise<Response> {
     return ok({
       partida: { id: partida.id, nombre: partida.nombre, estado: partida.estado, turno_actual: partida.turno_actual, duracion_turno_horas: partida.duracion_turno_horas },
       soy: arbitro ? "arbitro" : miBando.bando, bandos: bandos || [], terreno,
+      terreno_n: terrenoN ?? null,   // v2.9.440: la firma de la carta cacheada
       unidades: visibles, ordenes: misOrdenes, inteligencia: intel || [],
       instalaciones,              // v2.9.317: las del G-4, siempre frescas
       obras,                      // v2.9.324: obras y fajas, siempre frescas y con niebla
@@ -3356,8 +3695,11 @@ async function manejar(req: Request): Promise<Response> {
     // decir qué filas se borran.
     // v2.9.439: por páginas. Con más de 1.000 filas (751 caminos y el CMOC de
     // una sola carta ya andan cerca) el motor resolvía sin parte de los caminos.
+    // v2.9.440: con el plan de barreras PROYECTADO (`obstaculo`): no frena a
+    // nadie —ninguna regla del motor lo mira—, pero se le avisa al árbitro
+    // cuando una marcha pasa por encima.
     const { data: terreno } = await todasLasFilas(() => sb.from("wg_terreno").select("id, tipo, geojson, hasta_turno, bando")
-      .eq("partida_id", partida.id).in("tipo", TIPOS_MOTOR).order("id", { ascending: true }));
+      .eq("partida_id", partida.id).in("tipo", [...TIPOS_MOTOR, "obstaculo"]).order("id", { ascending: true }));
     // v2.9.334: las instalaciones del G-4 entran al motor. Van APARTE del
     // terreno porque no son accidentes del terreno: no frenan ni protegen a
     // nadie, reabastecen. Y van sin filtro de bando: el motor resuelve el turno
