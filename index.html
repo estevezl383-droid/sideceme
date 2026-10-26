@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.439</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.440</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7929,6 +7929,23 @@ body.wg-jugando{overflow:hidden}
   border-radius:50%;animation:wgEstallido .55s ease-out forwards;
   background:radial-gradient(circle,#fffdf0 0%,#ffe259 18%,#ff9d05 42%,#ff3c00 62%,rgba(120,30,0,.35) 80%,rgba(0,0,0,0) 100%);
   filter:blur(1px)}
+/* v2.9.440 — LA MINA QUE SALTA: fogonazo a ras del suelo, la tierra que sube y
+   el humo pardo que queda. Nadie la tiró: no hay proyectil. */
+.wg-mina{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none}
+.wg-mina .fogonazo{position:absolute;left:0;top:0;width:74px;height:74px;border-radius:50%;
+  background:radial-gradient(circle,#fffbe0 0%,#ffd23a 22%,#ff7a00 48%,rgba(140,40,0,.45) 72%,rgba(0,0,0,0) 100%);
+  animation:wgEstallido .5s ease-out forwards;filter:blur(.6px)}
+.wg-mina .tierra{position:absolute;left:0;top:0;width:34px;height:84px;margin:-84px 0 0 -17px;
+  border-radius:45% 45% 20% 20%;transform-origin:50% 100%;
+  background:linear-gradient(to top,rgba(92,64,38,.95),rgba(120,88,52,.75) 55%,rgba(150,120,80,0));
+  animation:wgMinaTierra 1.1s ease-out forwards}
+.wg-mina .humo{position:absolute;left:0;top:0;width:64px;height:64px;margin:-74px 0 0 -32px;border-radius:50%;
+  background:radial-gradient(circle,rgba(70,60,52,.78) 0%,rgba(70,60,52,.36) 55%,rgba(70,60,52,0) 100%);
+  animation:wgMinaHumo 1.8s ease-out forwards}
+@keyframes wgMinaTierra{0%{opacity:0;transform:scaleY(.1)} 15%{opacity:1;transform:scaleY(1)}
+  100%{opacity:0;transform:translateY(-8px) scaleY(1.25)}}
+@keyframes wgMinaHumo{0%{opacity:0;transform:scale(.3)} 25%{opacity:.9}
+  100%{opacity:0;transform:translateY(-26px) scale(1.8)}}
 /* v2.9.261 — COLUMNA DE ARRIBA A LA IZQUIERDA. Vistas del árbitro, franja de
    consola y panel de ARMAMENTO, apilados. Ninguno vuelve a taparle el título al
    otro, y si la suma no entra en la pantalla, la columna hace scroll. */
@@ -8162,6 +8179,12 @@ body.wg-jugando{overflow:hidden}
         <!-- v2.9.233 — LAS TRES VISTAS DEL ÁRBITRO. Sólo aparece para él. -->
         <div id="wg-vistas" style="display:flex;gap:7px;flex-wrap:wrap"></div>
 
+        <!-- v2.9.440 — EL PLAN DE BARRERAS QUE QUEDÓ PROYECTADO. Sólo el árbitro,
+             mientras haya obras proyectadas: se ven en la carta y no frenan a
+             nadie, y desde la pantalla no había cómo saberlo. -->
+        <div id="wg-barreras-aviso" style="display:none;padding:7px 11px;border-radius:10px;max-width:300px;
+          background:rgba(40,30,6,.92);border:1px solid #e8c33a;color:#f6e7b0;font-size:11.5px;line-height:1.45"></div>
+
         <!-- v2.9.236 — FRANJA DE CONSOLA AJENA. -->
         <div id="wg-consola" style="display:none;align-items:center;gap:9px;
           padding:6px 12px;border-radius:10px;
@@ -8311,6 +8334,20 @@ body.wg-jugando{overflow:hidden}
   con <b>⚔️ Enfrentar una fase 🔵 con una fase 🔴</b>.
 </div>
 <div id="wg-imp-estado" style="font-size:11px;color:var(--text-muted);margin-bottom:10px"></div>
+
+<!-- v2.9.440 — EL PLAN DE BARRERAS, CONSTRUIDO O PROYECTADO, EN CUALQUIER TURNO.
+     Sergio, en «ZAPATO II»: el blindado rojo cruzó el campo minado «como si fuera
+     terreno normal». El plan había entrado PROYECTADO (es lo que hacía la
+     importación hasta la v2.9.438): se dibuja, no frena. Reimportar lo
+     arreglaba pero reiniciaba la partida; esto lo cambia sin tocar nada más. -->
+<div class="section-label">🛡️ Plan de barreras</div>
+<div id="wg-barreras-estado" style="font-size:11px;color:var(--text-muted);line-height:1.45;margin-bottom:6px"></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+  <button class="rg-doc" onclick="wgPlanBarreras('construido',this)"
+    title="El campo minado detiene (con sus detonaciones y bajas); la zanja, la demolición y el bloqueo cortan el paso a los vehículos; la alambrada y la concertina frenan. Siempre al enemigo: el dueño conoce sus pasos.">🧱 Construido — detiene y frena al enemigo</button>
+  <button class="rg-doc" onclick="wgPlanBarreras('proyectado',this)"
+    title="Las obras vuelven a ser plan: se ven punteadas y no frenan a nadie.">📐 Proyectado — sólo se ve</button>
+</div>
 
 <!-- ============================================================
      v2.9.331 — CADA ESTADO MAYOR, SU BLOQUE.
@@ -30141,6 +30178,7 @@ function wgHoja(cual){
   // refresca solo cada 20 s MIENTRAS la hoja esté abierta. Cerrada no consulta
   // nada: es una lista de asistencia, no un sondeo del juego.
   clearInterval(WG._regT); WG._regT=null;
+  if(WG.hoja==='config') wgPanelBarreras();   // v2.9.440
   if(WG.hoja==='config' && WG.soy==='arbitro'){
     wgRegistroEM();
     WG._regT=setInterval(()=>{ if(WG.hoja==='config') wgRegistroEM(); else { clearInterval(WG._regT); WG._regT=null; } }, 20000);
@@ -34698,6 +34736,7 @@ async function _wgReproducirTurno(turno, datos){
       await Promise.all([
         trazas.length ? wgReplay(trazas) : Promise.resolve(),
         _wgAnimarDisparos(impactos, trazas),
+        _wgAnimarMinas(impactos, trazas),   // v2.9.440: las minas que pisó una columna
       ]);
     } finally { WG.replayando=false; }
     _wgEncender(impactos, turno);
@@ -34717,7 +34756,15 @@ async function wgEstado(silencioso){
     if(silencioso){ console.warn('estado (en vivo):', r.error); return; }
     alert('No se pudo cargar el estado: '+r.error); return;
   }
-  if(Array.isArray(r.terreno)) WG.terreno=_wgPrepTerreno(r.terreno);
+  if(Array.isArray(r.terreno)){ WG.terreno=_wgPrepTerreno(r.terreno); WG._terrenoN=r.terreno_n; }
+  // v2.9.440 — LA CARTA CACHEADA SE VENCE SI CAMBIÓ EN EL SERVIDOR. Pasa cuando
+  // el árbitro construye el plan de barreras: esas obras dejan la carta y viajan
+  // en `obras`, y sin esto cada pantalla seguiría dibujando el plan viejo
+  // («proy.») debajo del nuevo hasta recargar la página.
+  else if(r.terreno_n!=null && WG.terreno && WG._terrenoN!=null && r.terreno_n!==WG._terrenoN){
+    WG.terreno=null; WG._terrenoN=null; WG.capaTerrenoFirma=null;
+    return wgEstado(silencioso);
+  }
   // ============================================================
   // v2.9.324 — LAS OBRAS SE PEGAN AL TERRENO EN CADA REFRESCO. (⚠️ ERA UN BUG.)
   //
@@ -34856,6 +34903,10 @@ async function wgEstado(silencioso){
   // razón por la que las fichas no se mueven y no puede quedar escondido.
   document.getElementById('wg-ayuda').classList.toggle('mostrar',
     p.estado!=='en_curso' || !!WG.ayudaFija);
+  // v2.9.440: el plan de barreras — el cartel del árbitro si quedó proyectado,
+  // y la cuenta de ⚙️ Configurar al día si está abierta.
+  _wgAvisoPlanProyectado();
+  if(WG.hoja==='config') wgPanelBarreras();
   _wgRender();
   // v2.9.261: la barra de unidades y la estación del CW 40 se rearman con el
   // estado fresco — si no, la barra queda mostrando bajas que ya no existen.
@@ -34943,17 +34994,61 @@ function _wgEnCamino(pt,terreno){
   }
   return false;
 }
-// v2.9.324 — ¿el punto cae en un campo minado que NO es mío? Espejo exacto de
-// `enMinado` del motor (wargame-ops.ts): si se cambia uno hay que cambiar el
-// otro, o la previsión promete un paso que el servidor no da.
-function _wgEnMinado(pt,terreno,bando){
+// v2.9.324 — ¿el punto cae en un campo minado que NO es mío?
+// v2.9.440 — GEMELOS de `camposContra`/`campoEnPaso` del motor (wargame-ops.ts):
+// el suelo se mira cada 50 m, las minas están donde se DIBUJÓ el campo (`dib`)
+// y del campo donde ya estaba la unidad se sale por sus propias huellas. Si se
+// cambia uno hay que cambiar el otro, o la previsión promete un paso que el
+// servidor no da.
+const WG_MINA_MUESTRA_KM=0.05;
+function _wgCamposContra(terreno,bando){
+  const out=[];
   for(const t of terreno||[]){
-    if(t.tipo!=='minado') continue;
-    if(bando && t.bando===bando) continue;   // el dueño conoce las brechas
-    if(_wgFueraDeCaja(pt,t)) continue;
-    if(_wgPtEnGeom(pt,t.geojson)) return t;
+    if(!t || t.tipo!=='minado' || (bando && t.bando===bando)) continue;   // el dueño conoce las brechas
+    const g=t.geojson, d=g&&g.dib;
+    const geom=(d && (d.type==='Polygon'||d.type==='MultiPolygon')) ? d : g;
+    out.push({ fila:t, geom, _caja:_wgCajaDeGeom(geom) });
   }
-  return null;
+  return out;
+}
+function _wgPisaCampo(pt,c){ return !_wgFueraDeCaja(pt,c) && _wgPtEnGeom(pt,c.geom); }
+function _wgDistAlBordeKm(pt,geom){
+  const polis=geom&&geom.type==='Polygon'?[geom.coordinates]:geom&&geom.type==='MultiPolygon'?geom.coordinates:[];
+  let d=Infinity;
+  for(const poli of polis) for(const anillo of poli)
+    for(let i=1;i<anillo.length;i++) d=Math.min(d,_wgDistPtSeg(pt,anillo[i-1],anillo[i]));
+  return d;
+}
+function _wgTramoTocaCaja(a,b,c){
+  const k=c&&c._caja; if(!k) return true;
+  const dLat=0.06/110.57, dLng=dLat/Math.max(1e-6,Math.cos(a[1]*Math.PI/180));
+  return !(Math.max(a[0],b[0])<k[0]-dLng||Math.min(a[0],b[0])>k[2]+dLng
+        ||Math.max(a[1],b[1])<k[1]-dLat||Math.min(a[1],b[1])>k[3]+dLat);
+}
+// El que arma la previsión: dice si el paso a→b pisa un campo y hasta dónde llega.
+function _wgVigiaMinas(pos,terreno,bando){
+  const campos=_wgCamposContra(terreno,bando);
+  const salida=new Map();
+  for(const c of campos) if(_wgPisaCampo(pos,c)) salida.set(c,_wgDistAlBordeKm(pos,c.geom));
+  return (a,b)=>{
+    if(!campos.length) return null;
+    const cerca=campos.filter(c=>_wgTramoTocaCaja(a,b,c));
+    for(const c of [...salida.keys()]) if(!cerca.includes(c)) salida.delete(c);
+    if(!cerca.length) return null;
+    const n=Math.max(1,Math.ceil(_wgHav(a,b)/WG_MINA_MUESTRA_KM));
+    let antes=a;
+    for(let j=1;j<=n;j++){
+      const q=[a[0]+(b[0]-a[0])*(j/n), a[1]+(b[1]-a[1])*(j/n)];
+      for(const c of cerca){
+        if(!_wgPisaCampo(q,c)){ salida.delete(c); continue; }
+        const p0=salida.get(c);
+        if(p0!=null && _wgDistAlBordeKm(q,c.geom)<=p0+WG_MINA_MUESTRA_KM) continue;   // sale por sus huellas
+        return { corte:antes, entrada:q, zona:c };
+      }
+      antes=q;
+    }
+    return null;
+  };
 }
 // v2.9.439 — GEMELO de `obstaculoContra`/`claseTerreno` del motor: el
 // obstáculo construido por un bando (con `bando`) le pesa al OTRO, también sobre
@@ -35037,18 +35132,23 @@ function _wgPreverMovimiento(u,destino,horas){
   // hombre (misma regla que el motor: nadie queda atrapado para siempre).
   const atrapada = vel[_wgClaseTerreno(pos,terreno,u.bando)]==null;   // v2.9.439
   let saliendo = atrapada;
+  // v2.9.324 — LA PREVISIÓN AVISA DEL CAMPO MINADO ANTES DE MANDAR LA ORDEN.
+  // Misma regla que el motor: detiene, y el dueño pasa. Sólo puede avisar de
+  // los campos que este bando YA conoce — el servidor no manda los otros, así
+  // que esto no filtra nada que no se sepa.
+  // v2.9.440: mirando el suelo cada 50 m, como el motor (`_wgVigiaMinas`).
+  const campoEnPaso=_wgVigiaMinas(pos,terreno,u.bando);
+  const MINADO_TXT='CAMPO MINADO — saltan las minas y se detiene con bajas: abrir brecha o rodearlo';
   while(true){
     const restante=_wgHav(pos,destino);
     if(restante<=1e-6) break;
     if(++guardia>4000) { motivo='corte'; break; } // la previsión no necesita más
     const frac=Math.min(0.5,restante)/restante;
-    const sig=[pos[0]+(destino[0]-pos[0])*frac, pos[1]+(destino[1]-pos[1])*frac];
-    // v2.9.324 — LA PREVISIÓN AVISA DEL CAMPO MINADO ANTES DE MANDAR LA ORDEN.
-    // Misma regla que el motor: detiene, y el dueño pasa. Sólo puede avisar de
-    // los campos que este bando YA conoce — el servidor no manda los otros, así
-    // que esto no filtra nada que no se sepa.
-    if(_wgEnMinado(sig,terreno,u.bando)){
-      detenida=true; motivo='CAMPO MINADO — se detiene ahí y sufre bajas'; break;
+    let sig=[pos[0]+(destino[0]-pos[0])*frac, pos[1]+(destino[1]-pos[1])*frac];
+    const tope=campoEnPaso(pos,sig);
+    if(tope){
+      sig=tope.corte;
+      if(_wgHav(pos,sig)<1e-6){ detenida=true; motivo=MINADO_TXT; break; }
     }
     const clase=_wgClaseTerreno(sig,terreno,u.bando);   // v2.9.439
     let v=vel[clase];
@@ -35076,6 +35176,7 @@ function _wgPreverMovimiento(u,destino,horas){
     }
     presupuesto-=tPaso; pos=sig; avanzado+=pasoReal; consumoKm+=pasoReal*gasta;
     ruta.push([pos[0],pos[1]]);
+    if(tope){ detenida=true; motivo=MINADO_TXT; break; }   // v2.9.440: llegó al borde del campo
     if(clase!=='camino'){
       kmFueraRuta+=pasoReal;
       if(kmFueraRuta>=topeFuera-1e-9){
@@ -35098,8 +35199,8 @@ function _wgPreverMovimiento(u,destino,horas){
 function _wgPreverRuta(u,ruta,horas){
   const pts=(ruta||[]).filter(p=>Array.isArray(p)&&p.length>=2);
   if(!pts.length) return _wgPreverMovimiento(u,[u.lng,u.lat],horas);
-  // v2.9.324: el BANDO va en la posición de trabajo. Sin él, `_wgEnMinado` no
-  // podía saber de quién es el campo y la previsión frenaba a la unidad en su
+  // v2.9.324: el BANDO va en la posición de trabajo. Sin él, la previsión (hoy
+  // `_wgVigiaMinas`) no podía saber de quién es el campo y frenaba a la unidad en su
   // PROPIO campo minado — al revés de la regla (el que lo sembró conoce las
   // brechas). El motor no tenía el bug porque allá `pos` se arma con `{...u}`.
   // v2.9.439: con `arma` y `medios` — el convoy se reconoce por su arma y la
@@ -35896,6 +35997,69 @@ function _wgAnimarDisparos(impactos, trazas, segundosMarcha=22){
       for(const t of tiros){ if(!t.reventado) t.el.remove(); }
       liberar();                    // v2.9.261: la cámara vuelve a moverse
       setTimeout(listo,300);
+    };
+    _wgCuadro(paso);
+  });
+}
+// ============================================================
+// v2.9.440 — LAS MINAS ESTALLAN EN LA PELÍCULA.
+// Sergio: «debería ir explotando y explotando hasta detenerse». El motor manda
+// dónde saltó cada mina (`impactos` con `mina:true` y sin `desde`: nadie la
+// tiró). Estallan cuando la columna LLEGA al borde del campo —el final de su
+// marcha, ahí la frenaron—, una detrás de la otra: fogonazo, la tierra que sube
+// y el humo que queda. Después `_wgEncender` deja el fuego y el cráter.
+// ============================================================
+const WG_MINA_HUECO_MS=520;   // de una detonación a la siguiente
+function _wgAnimarMinas(impactos, trazas, segundosMarcha=22){
+  const minas=(impactos||[]).filter(im=>im && im.mina && Number.isFinite(im.lng) && Number.isFinite(im.lat));
+  if(!minas.length) return Promise.resolve();
+  const capa=_wgCapaEfectos();
+  if(!capa) return Promise.resolve();
+  const marcha=_wgFusionarTrazas(trazas||[]).filter(t=>t.km>0 && t.ruta.length>1);
+  const maxH=Math.max(...marcha.map(_wgFinMarcha),0.0001);
+  // Cuándo llega la columna al borde: el final de SU marcha, en la misma escala
+  // de tiempo que la película (`wgReplay`).
+  const llega=(im)=>{
+    const t=marcha.find(x=>String(x.id)===String(im.uid));
+    const h=t ? _wgFinMarcha(t) : (Number.isFinite(Number(im.hora)) ? Number(im.hora) : 0);
+    return Math.max(0, (Math.min(h,maxH)/maxH)*segundosMarcha*1000 - 250);
+  };
+  const evs=minas.map(im=>({ im, uid:String(im.uid), orden:Number(im.orden)||0,
+    t:llega(im)+(Number(im.orden)||0)*WG_MINA_HUECO_MS, hecha:false, el:null, fin:0 }));
+  const VIDA=1800;
+  // Tope de seguridad: si la pantalla va muy lenta, igual termina.
+  const tope=evs.reduce((m,e)=>Math.max(m,e.t),0)+VIDA+8000;
+  const cuerdo=(p)=>p && Number.isFinite(p[0]) && Number.isFinite(p[1]) && Math.abs(p[0])<20000 && Math.abs(p[1])<20000;
+  return new Promise((listo)=>{
+    const t0=performance.now();
+    const paso=(ahora)=>{
+      const dt=ahora-t0;
+      let quedan=false;
+      for(const e of evs){
+        if(e.hecha && !e.el) continue;             // ya estalló y se apagó
+        quedan=true;
+        if(dt<e.t) continue;                       // todavía no saltó
+        // La cámara puede estar girando: la mina se reubica en cada cuadro.
+        const p=_wgAPixel([e.im.lng,e.im.lat]);
+        if(!e.hecha){
+          // Vive desde que APARECE, y la que sigue espera su turno aunque el
+          // cuadro haya llegado tarde (un 3D pesado no las junta en una sola).
+          e.hecha=true; e.fin=dt+VIDA;
+          for(const o of evs) if(o.uid===e.uid && o.orden>e.orden)
+            o.t=Math.max(o.t, dt+(o.orden-e.orden)*WG_MINA_HUECO_MS);
+          if(!cuerdo(p)) continue;
+          e.el=document.createElement('div');
+          e.el.className='wg-mina';
+          e.el.innerHTML='<div class="fogonazo"></div><div class="tierra"></div><div class="humo"></div>';
+          capa.appendChild(e.el);
+        }
+        if(dt>e.fin){ e.el.remove(); e.el=null; continue; }
+        if(cuerdo(p)){ e.el.style.display=''; e.el.style.transform=`translate(${p[0]}px,${p[1]}px)`; }
+        else e.el.style.display='none';
+      }
+      if(quedan && dt<tope){ _wgCuadro(paso); return; }
+      for(const e of evs){ if(e.el){ e.el.remove(); e.el=null; } }
+      setTimeout(listo,120);
     };
     _wgCuadro(paso);
   });
@@ -36842,7 +37006,8 @@ const WG_CALCOS=[
   // demoliciones y todo lo proyectado). Se apaga aparte de los campos minados
   // ejecutados: al explicar la defensa conviene mostrar primero lo que hay y
   // después lo que falta construir.
-  {id:'obstaculo',   nom:'🛡️ Plan de barreras (proyectado)', col:'#3fbf6a', grupo:'CMOC'},
+  // v2.9.440: la casilla apaga TODO el plan de la Mesa, construido o proyectado.
+  {id:'obstaculo',   nom:'🛡️ Plan de barreras de la Mesa', col:'#3fbf6a', grupo:'CMOC'},
   {id:'elevacion',   nom:'Elevaciones (curvas y cimas)', col:'#e0b34a', grupo:'Carta'},
   {id:'hidro',       nom:'Hidrografía (ríos, lagos)', col:'#4aa3e0', grupo:'Carta'},
   {id:'via',         nom:'Comunicaciones (caminos)', col:'#ff9a2e', grupo:'Carta'},
@@ -37596,7 +37761,8 @@ function _wgPreguntarFase(fases, poner, archivo){
         +`<b>Construido</b> — el campo minado DETIENE; la zanja, la demolición y el bloqueo cortan el paso a los vehículos (también sobre el camino); la alambrada y la concertina frenan. Siempre al enemigo: su dueño conoce los pasos.</label>`
         +`<label style="display:block;margin-top:4px"><input type="radio" name="wg-barreras" value="proyectado"${porDefecto==='proyectado'?' checked':''}> `
         +`<b>Proyectado</b> — se ve punteado, no frena a nadie (lo que la Mesa marcó como ejecutado igual entra construido).</label>`
-        +`<span class="rg-meta">El enemigo no ve el plan: lo descubre cuando lo tiene a la vista o se lo topa.</span></div>`
+        +`<span class="rg-meta">El enemigo no ve el plan: lo descubre cuando lo tiene a la vista o se lo topa. `
+        +`Se cambia en cualquier turno en ⚙️ Configurar → 🛡️ Plan de barreras.</span></div>`   // v2.9.440
       : '';
     poner(`<b>¿Qué curso de acción querés jugar?</b>`
       +(archivo?` <span class="rg-meta">— ${_rgEsc(archivo)}</span>`:'')+`<br>`
@@ -38576,6 +38742,94 @@ async function wgVaciarEscenario(btn){
   if(est) est.innerHTML='🧹 Escenario vaciado.';
   WG.terreno=null; WG.capaTerrenoFirma=null; WG.sel=null; WG.ordenes={};
   await wgEstado();
+}
+// ============================================================
+// v2.9.440 — 🛡️ EL PLAN DE BARRERAS: ¿CONSTRUIDO O PROYECTADO?
+// Cuenta lo que hay en la carta y deja cambiarlo en cualquier turno (acción
+// `plan_barreras` del servidor). Las obras del plan con efecto si se construyen
+// son las que el motor sabe usar: campos minados, zanja, demolición, bloqueo,
+// alambradas, concertinas y abatida (el campo minado ficticio, no).
+// ============================================================
+const WG_OBS_CON_EFECTO=['minado_ap','minado_ac','minado_mixto','zanja_at','demolicion','bloqueo',
+  'alambre_simple','alambre_doble','concertina','concertina_triple','abatida'];
+function _wgPlanBarrerasCuenta(){
+  const c={ total:0, construidas:0, proyectadas:0, campos:0, camposProy:0 };
+  for(const t of (WG.terreno||[])){
+    const b=_wgBarreraDe(t);
+    if(!b || !b.tipo || !WG_OBS_CON_EFECTO.includes(b.tipo)) continue;
+    c.total++;
+    const campo=/^minado_/.test(b.tipo);
+    if(campo) c.campos++;
+    if(b.proy){ c.proyectadas++; if(campo) c.camposProy++; } else c.construidas++;
+  }
+  return c;
+}
+function wgPanelBarreras(){
+  const el=document.getElementById('wg-barreras-estado'); if(!el) return;
+  const c=_wgPlanBarrerasCuenta();
+  if(!c.total){
+    el.innerHTML='Esta partida no tiene plan de barreras de la Mesa. Llega con el escenario '
+      +'(<b>📂 Cargar escenario</b>) si el G-3 lo dibujó en el calco.';
+    return;
+  }
+  const est = !c.proyectadas ? '<b style="color:#2fbf71">🧱 CONSTRUIDO</b> — detiene y frena al enemigo'
+    : !c.construidas ? '<b style="color:#e8c33a">📐 PROYECTADO</b> — se ve punteado y <b>no frena a nadie</b>: el enemigo lo cruza como campo abierto'
+    : `<b>${c.construidas} construida(s)</b> y <b>${c.proyectadas} proyectada(s)</b>`;
+  el.innerHTML=`${c.total} obra(s)${c.campos?` · 💣 ${c.campos} campo(s) minado(s)`:''}: ${est}.`
+    +`<br>Construido, el campo minado <b>detiene</b>: la vanguardia entra, saltan las minas una tras otra y la `
+    +`unidad queda detenida al borde, con bajas. Se cambia en cualquier turno, sin reimportar.`;
+}
+async function wgPlanBarreras(estado, btn){
+  if(WG.soy!=='arbitro'){ _wgAviso('Sólo el árbitro decide si el plan de barreras está construido.',4000); return; }
+  const construir = estado!=='proyectado';
+  if(btn) btn.disabled=true;
+  let r;
+  try{
+    r=await _wgInvoke('plan_barreras',{ partida_id:WG.partidaId, clave_acceso:WG.clave,
+      estado: construir?'construido':'proyectado' });
+  } finally { if(btn) btn.disabled=false; }
+  if(!r || !r.ok){
+    const vieja=/no reconocida/i.test((r&&r.error)||'');
+    _wgAviso(vieja
+      ? '⚠️ La Edge Function <b>wargame-ops</b> todavía es la versión anterior: desplegala para poder construir el plan de barreras.'
+      : 'No se pudo cambiar el plan de barreras: '+_rgEsc((r&&r.error)||''), 9000);
+    return;
+  }
+  // La carta cacheada tiene el plan viejo: se vuelve a pedir entera.
+  WG.terreno=null; WG._terrenoN=null; WG.capaTerrenoFirma=null; WG._firmaBarreras3d=null;
+  await wgEstado(true); _wgRender(); if(WG.map3d) _wg3dDatos();
+  wgPanelBarreras();
+  _wgAviso(construir
+    ? (r.cambiadas
+      ? `🧱 <b>Plan de barreras CONSTRUIDO</b> — ${r.cambiadas} obra(s)${r.campos?`, ${r.campos} campo(s) minado(s)`:''}. `
+        +`Desde el próximo turno el campo minado <b>detiene</b> al enemigo, mina tras mina y con bajas; la zanja, la `
+        +`demolición y el bloqueo cortan el paso a los vehículos; la alambrada y la concertina frenan. El dueño conoce sus pasos.`
+      : '🧱 El plan de barreras ya estaba construido.')
+    : (r.cambiadas
+      ? `📐 <b>Plan de barreras PROYECTADO</b> — ${r.cambiadas} obra(s) vuelven a ser plan: se ven punteadas y no frenan a nadie.`
+      : '📐 El plan de barreras ya estaba proyectado.'), 9000);
+}
+// El árbitro se entera en cuanto abre la partida: un plan proyectado se ve en la
+// carta y no frena a nadie, y desde la pantalla no había cómo saberlo. Es un
+// cartel fijo (el de ayuda lo reescribe cada `wgEstado`) que se va solo cuando
+// el plan queda construido, o si el árbitro elige dejarlo así.
+function _wgAvisoPlanProyectado(){
+  const el=document.getElementById('wg-barreras-aviso'); if(!el) return;
+  const p=(WG.estado&&WG.estado.partida)||{};
+  WG._avisoBarreras=WG._avisoBarreras||{};
+  const toca = WG.soy==='arbitro' && !_wgRol() && !WG.maqueta && p.estado==='en_curso'
+    && !WG._avisoBarreras[WG.partidaId];
+  const c = toca ? _wgPlanBarrerasCuenta() : null;
+  if(!c || !c.proyectadas){ el.style.display='none'; return; }
+  el.innerHTML=`🛡️ <b>Plan de barreras PROYECTADO</b>`
+    +(c.camposProy?` · 💣 ${c.camposProy} campo(s) minado(s)`:'')
+    +`: se ve punteado («proy.») pero <b>no frena a nadie</b> — el enemigo lo cruza como campo abierto.`
+    +`<div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">`
+    +`<button class="rg-doc" onclick="wgPlanBarreras('construido',this)" `
+    +`title="Desde el próximo turno el campo minado detiene, mina tras mina y con bajas; la zanja, la demolición y el bloqueo cortan el paso; la alambrada frena.">🧱 Construirlo</button>`
+    +`<button class="rg-doc" onclick="WG._avisoBarreras[WG.partidaId]=1;_wgAvisoPlanProyectado()" `
+    +`title="Queda proyectado. Se cambia cuando quieras en ⚙️ Configurar → 🛡️ Plan de barreras.">Dejarlo así</button></div>`;
+  el.style.display='';
 }
 // Encuadra el mapa sobre todo lo que hay en juego (unidades + terreno).
 function _wgEncuadrar(){
@@ -41451,6 +41705,10 @@ function _wgAvanzarRutas(trazas){
     const u=_wgUnidadPorId(id), r=WG.rutas[id];
     if(!u || !r || !r.length){ delete WG.rutas[id]; continue; }
     const t=porId[id];
+    // v2.9.440 — LA FRENÓ UN CAMPO MINADO: la marcha NO sigue sola. Seguirla el
+    // turno que viene sería meterla otra vez en el campo, mina tras mina. Queda
+    // esperando una orden nueva: rodearlo o esperar la brecha.
+    if(t && t.minado){ delete WG.rutas[id]; delete WG.ordenes[id]; continue; }
     let n = t && Number.isFinite(t.consumidos) ? t.consumidos : 0;
     // Respaldo por si la traza no vino (Edge Function vieja): el criterio de antes.
     if(!t && _wgHav([u.lng,u.lat], r[0]) < 0.35) n=1;
@@ -41606,6 +41864,7 @@ async function wgResolver(btn){
     await Promise.all([
       trazas.length ? wgReplay(trazas) : Promise.resolve(),
       _wgAnimarDisparos(impactos, trazas),   // v2.9.430: el fuego espera a que lleguen
+      _wgAnimarMinas(impactos, trazas),      // v2.9.440: y las minas saltan cuando llega la columna
     ]);
   } finally { WG.replayando=false; }
   _wgEncender(impactos, r.turno_resuelto);
@@ -42293,6 +42552,9 @@ async function wgHistorial(){
     .replace(/(CUMPLIDA A MEDIAS)/g,'<b style="color:#e8c33a">$1</b>')
     .replace(/(TAREA NO CUMPLIDA)/g,'<b style="color:#ff6b6b">$1</b>')
     .replace(/(SE TE FUE|CAMPO MINADO|ABRIÓ BRECHA)/g,'<b style="color:#ff9f43">$1</b>')
+    // v2.9.440: las minas que saltaron, y el plan que quedó en el papel.
+    .replace(/(\d+ DETONACI(?:ÓN|ONES))/g,'<b style="color:#ff6b6b">$1</b>')
+    .replace(/(está PROYECTADO)/g,'<b style="color:#e8c33a">$1</b>')
     // La corrección doctrinal, en su propio renglón y en cursiva: es la parte
     // que enseña, y pegada al resto se perdía.
     .replace(/📖 (.+)$/,'<br><i style="color:#9fd0ff;font-size:11px">📖 $1</i>');
