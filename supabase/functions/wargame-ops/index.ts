@@ -72,6 +72,65 @@ const TIPOS_VISUALES = ["hidro", "elevacion", "via", "poblado", "vegetacion", "j
 // v2.9.324: `minado` es un obstáculo sembrado por un bando — detiene y desgasta
 // al que entra, así que el motor SÍ tiene que verlo.
 const TIPOS_MOTOR = [...TIPOS_DOCTRINA, "via", "interdiccion", "minado"];
+// v2.9.439 — los tipos que el plan de barreras importado puede traer CON BANDO
+// (como las obras construidas en la partida): los construidos tienen efecto
+// (`minado` detiene, `severo`/`restringido` frenan al enemigo) y los proyectados
+// sólo se ven (`obstaculo`). Con bando viajan con niebla, en `obras`.
+const TIPOS_OBRA_DE_BANDO = ["minado", "severo", "restringido", "defensivo", "obstaculo"];
+// ============================================================
+// v2.9.439 — EL TERRENO SE PIDE POR PÁGINAS. (⚠️ ÉSTE ERA EL BUG GRANDE.)
+// Sergio, con la partida «ZAPATO II» abierta: «deberían poder verse los
+// caminos… el calco de vegetación… el plan de barreras». Estaban en la base
+// (1.782 elementos de carta) pero PostgREST entrega como MÁXIMO 1.000 filas por
+// consulta, aunque se le pida `.limit(3000)` — el mismo tope que ya mordió a
+// las notas y a las sanciones (v2.9.407). Llegaban, en el orden en que se
+// importaron, el CMOC, la hidrografía, las 763 curvas de nivel y 84 de los 751
+// caminos; el resto de los caminos, las poblaciones, la vegetación, las
+// jurisdicciones y las 13 obras del plan de barreras no llegaban NUNCA.
+// Ahora se pide de a 1.000 (ordenado por id, para que las páginas no se pisen)
+// y con lo que pesa en el combate PRIMERO: el CMOC, los ejes y el plan de
+// barreras, después los caminos y la hidrografía, y al final las curvas.
+// ============================================================
+const PAGINA_FILAS = 1000;
+async function todasLasFilas(consulta: () => any, tope = 20000) {
+  const filas: any[] = [];
+  for (let desde = 0; desde < tope; desde += PAGINA_FILAS) {
+    const { data, error } = await consulta().range(desde, Math.min(tope, desde + PAGINA_FILAS) - 1);
+    if (error) return { data: filas, error };
+    filas.push(...(data || []));
+    if (!data || data.length < PAGINA_FILAS) break;
+  }
+  return { data: filas, error: null };
+}
+// En qué orden se manda la carta: lo que decide el combate y el plan primero.
+const ORDEN_CARTA: string[] = ["restringido", "severo", "clave", "ae", "defensivo", "minado", "obstaculo",
+  "eje_log", "via", "hidro", "poblado", "vegetacion", "jurisdiccion", "elevacion"];
+function ordenarCarta(filas: any[]) {
+  const pos = (t: string) => { const i = ORDEN_CARTA.indexOf(t); return i < 0 ? ORDEN_CARTA.length : i; };
+  return [...(filas || [])].sort((a: any, b: any) => pos(a.tipo) - pos(b.tipo));
+}
+// v2.9.439 — los MEDIOS de una unidad que llegan del Generador (COE y
+// planeamiento). Se guardan tal cual en `wg_unidades.medios`, con un tope de
+// tamaño: son datos para leer, no un lugar para meter cualquier cosa.
+function limpiarMedios(m: any) {
+  if (!m || typeof m !== "object" || Array.isArray(m)) return null;
+  try {
+    const t = JSON.stringify(m);
+    if (!t || t.length > 16000) return null;
+    return JSON.parse(t);
+  } catch (_e) { return null; }
+}
+// La munición con que ARRANCA: sólo sistemas del catálogo y números sanos.
+function limpiarMunicion(m: any) {
+  if (!m || typeof m !== "object" || Array.isArray(m)) return null;
+  const out: any = {};
+  for (const [k, v] of Object.entries(m)) {
+    if (!ARMAS[k]) continue;
+    const n = Number(v);
+    if (Number.isFinite(n) && n >= 0) out[k] = Math.min(99, Number(n.toFixed(2)));
+  }
+  return Object.keys(out).length ? out : null;
+}
 
 // ============================================================
 // MOTOR (inline, idéntico a wargame-engine.js) — determinista, sin deps.
@@ -204,10 +263,51 @@ function enCamino(pt: number[], terreno: any[]) {
   }
   return false;
 }
-function claseTerreno(pt: number[], terreno: any[]) {
-  if (enCamino(pt, terreno)) return "camino"; // la carretera manda sobre todo
-  let restringido = false;
+// ============================================================
+// v2.9.439 — EL OBSTÁCULO CONSTRUIDO ES DE UN BANDO Y LE PESA AL OTRO.
+// Una zanja antitanque, una alambrada o una demolición (las del plan de
+// barreras que llega construido de la Mesa y las obras de la partida) llevan
+// `bando`: frenan al ENEMIGO y su dueño conoce los pasos, igual que en el campo
+// minado. Y mandan sobre el camino: antes «la carretera manda sobre todo», así
+// que la voladura del puente o la zanja que corta la ruta no frenaban a nadie.
+// Sin `bando` (bono de defensa, observación) todo cuenta como siempre.
+// ============================================================
+function obstaculoContra(pt: number[], terreno: any[], bando: string) {
+  let r: string | null = null;
   for (const t of terreno || []) {
+    if (!t.bando || t.bando === bando) continue;
+    if (t.tipo !== "severo" && t.tipo !== "restringido") continue;
+    if (fueraDeCaja(pt, t) || !puntoEnGeom(pt, t.geojson)) continue;
+    if (t.tipo === "severo") return "severo";
+    r = "restringido";
+  }
+  return r;
+}
+// v2.9.439 — CON QUÉ SE TOPÓ. La obra enemiga que corta el paso en ese punto,
+// para que la bitácora diga «zanja antitanque» y no «terreno severo»: el que la
+// encontró no sabía que estaba ahí, y lo que corresponde es abrir brecha.
+const NOMBRE_OBRA: any = { zanja_at: "zanja antitanque", demolicion: "demolición", bloqueo: "bloqueo de ruta",
+  minado_ap: "campo minado AP", minado_ac: "campo minado AC", minado_mixto: "campo minado mixto",
+  alambre_simple: "alambrada", alambre_doble: "alambrada doble", concertina: "concertina",
+  concertina_triple: "concertina triple", abatida: "abatida" };
+function obraQueCorta(pt: number[], terreno: any[], bando: string) {
+  for (const t of terreno || []) {
+    if (!t.bando || t.bando === bando || t.tipo !== "severo") continue;
+    if (!fueraDeCaja(pt, t) && puntoEnGeom(pt, t.geojson)) return t;
+  }
+  return null;
+}
+function nombreObra(t: any) {
+  const g = (t && t.geojson) || {};
+  return NOMBRE_OBRA[g.obs] || (g.nom ? String(g.nom).replace(/\s*\(.*\)\s*$/, "") : "obstáculo");
+}
+function claseTerreno(pt: number[], terreno: any[], bando?: string) {
+  const obs = bando ? obstaculoContra(pt, terreno, bando) : null;
+  if (obs === "severo") return "severo";
+  if (enCamino(pt, terreno)) return obs || "camino"; // la carretera manda sobre el terreno natural
+  let restringido = obs === "restringido";
+  for (const t of terreno || []) {
+    if (bando && t.bando) continue;   // v2.9.439: las obras de un bando ya se miraron arriba
     if (fueraDeCaja(pt, t)) continue;
     if (t.tipo === "severo" && puntoEnGeom(pt, t.geojson)) return "severo";
     if (t.tipo === "restringido" && puntoEnGeom(pt, t.geojson)) restringido = true;
@@ -322,7 +422,8 @@ const CONSUMO_TERRENO: any = { camino: 0.9, libre: 1.0, restringido: 1.6, severo
 // vado o un paso. Por eso no se resuelve con daño instantáneo, sino con una
 // zona que QUEDA batida y castiga a todo el que la cruce, propios incluidos.
 const MISIONES: any = { destruccion: 1, interdiccion: 1, neutralizacion: 1 };
-const INTERDICCION_TURNOS: any = { obus155: 4, obus105: 3, mortero120: 3, mortero81: 2, mortero60: 2 };
+const INTERDICCION_TURNOS: any = { obus155: 4, obus105: 3, mortero120: 3, mortero81: 2, mortero60: 2,
+  lanzacohetes: 2 };   // v2.9.439: la salva satura, pero no sostiene el fuego
 const INTERDICCION_ANCHO = 2.5;
 const INTERDICCION_POR_KM = 0.06;
 // v2.9.201 — BUCLE INFINITO CORREGIDO (ésta era la causa REAL del cartel
@@ -342,7 +443,7 @@ function moverUnidad(u: any, destino: number[], terreno: any[], horas: number, p
   // la cuenta del consumo y hasta avisaba «TANQUE VACÍO», pero era una frase:
   // nada la hacía cumplir. Ahora la autonomía que le queda LIMITA la marcha,
   // igual que el reloj o el terreno infranqueable.
-  const tanque = AUTONOMIA_KM[_medio] || 0;
+  const tanque = tanqueDe(u);   // v2.9.439: la autonomía planificada de ESA unidad
   const autonomia = tanque > 0 ? Math.max(0, tanque - (Number(u.combustible_km) || 0)) : Infinity;
   let pos = [u.lng, u.lat];
   const totalDest = haversineKm(pos, destino);
@@ -360,7 +461,7 @@ function moverUnidad(u: any, destino: number[], terreno: any[], horas: number, p
   const ruta: number[][] = [[pos[0], pos[1]]]; // v2.9.203: para el replay y la bitácora
   // v2.9.208: ¿arranca metida en terreno que su medio NO cruza? Antes se detenía
   // «a los 0.0 km» TODOS los turnos y quedaba muerta en el tablero para siempre.
-  const claseSalida = claseTerreno(pos, terreno);
+  const claseSalida = claseTerreno(pos, terreno, u.bando);   // v2.9.439: los obstáculos del otro bando
   const atrapada = vel[claseSalida] == null;
   let saliendo = atrapada;
   // v2.9.431 — DE DONDE NO SE CRUZA, SÓLO SE SALE. La regla de la 208 dejaba a
@@ -370,7 +471,7 @@ function moverUnidad(u: any, destino: number[], terreno: any[], horas: number, p
   // sector restringido hizo 1,7 km y 1,5 km en dos turnos por terreno que su
   // medio no cruza, y la bitácora decía «LLEGÓ» sin explicar nada. Ahora, si el
   // destino también está en terreno que no cruza, no se mueve y se dice por qué.
-  const claseDestino = claseTerreno(destino, terreno);
+  const claseDestino = claseTerreno(destino, terreno, u.bando);
   if (atrapada && vel[claseDestino] == null) {
     const NOMC: any = { restringido: "terreno restringido", severo: "terreno severamente restringido" };
     return { lng: pos[0], lat: pos[1], detenida: true,
@@ -413,7 +514,7 @@ function moverUnidad(u: any, destino: number[], terreno: any[], horas: number, p
     // que después le sirve al otro bando para saber que su obstáculo funcionó.
     const mina = enMinado(sig, terreno, u.bando);
     if (mina) { minado = mina; detenida = true; motivo = "campo minado"; break; }
-    const clase = claseTerreno(sig, terreno);
+    const clase = claseTerreno(sig, terreno, u.bando);   // v2.9.439
     let v = vel[clase];
     // Doctrina: del terreno que no se cruza SE SALE, pero a paso de hombre (el
     // vehículo se remolca, la tropa desembarca). Al pisar terreno transitable
@@ -423,7 +524,10 @@ function moverUnidad(u: any, destino: number[], terreno: any[], horas: number, p
     else if (v != null) saliendo = false;
     if (v == null) {
       detenida = true;
-      motivo = esConvoy(u)
+      const obra = clase === "severo" ? obraQueCorta(sig, terreno, u.bando) : null;
+      motivo = obra
+        ? `se topó con un OBSTÁCULO ENEMIGO — ${nombreObra(obra)} — infranqueable para ${esConvoy(u) ? "la columna" : u.medio}`
+        : esConvoy(u)
         ? `terreno ${clase}: por acá no pasa un camión — el eje no está trazado sobre ruta`
         : `terreno ${clase} infranqueable para ${u.medio}`;
       break;
@@ -567,7 +671,7 @@ function textoMarcha(u: any, r: any, usadoAntes: number) {
       .map(([k, km]: any) => `${Math.round((100 * km) / tot)} % ${NOM[k] || k}`);
     if (reparto.length) partes.push(`🛣️ ${reparto.join(" · ")}`);
   }
-  const tanque = AUTONOMIA_KM[medioDe(u)] || 0;
+  const tanque = tanqueDe(u);   // v2.9.439
   if (tanque > 0 && r.consumoKm > 0.05) {
     const acum = (Number(usadoAntes) || 0) + r.consumoKm;
     const pct = Math.round((100 * acum) / tanque);
@@ -630,6 +734,7 @@ function avisosPosicion(u: any, unidades: any[], terreno: any[], rango = 3) {
 }
 // v2.9.211 — nombre legible (las unidades importadas vienen sin designación).
 const ARMA_NOM: any = { infanteria:"Inf", caballeria:"Cab", artilleria:"Art", blindada:"Bld",
+  mecanizada:"Mec", motorizada:"Mot", cabmec:"Cab Mec", antiaerea:"AA", logistica:"Log", ninguna:"PC",
   ingenieria:"Ing", comunicaciones:"Com", aerotransportada:"Aert", aviacion:"Avn",
   sanidad:"San", intendencia:"Int", transporte:"Tte", mantenimiento:"Mant",
   antitanque:"AT", morteros:"Mort", ametralladoras:"Amtr", lanzacohetes:"LC",
@@ -648,7 +753,9 @@ function textoMovimiento(u: any, r: any) {
   const quien = nombreUnidad(u);
   const t = horasATexto(r.horasUsadas);
   if (r.detenida) return `🛑 ${quien}: DETENIDA a los ${r.avanzadoKm.toFixed(1)} km de ${r.totalKm.toFixed(1)} — ${r.motivo} (${t}). `
-    + `HASTA ACÁ PUEDE LLEGAR por ese camino: hay que rodear el obstáculo con puntos de paso o cambiarle el destino.`;
+    + (/^se topó con un OBSTÁCULO/.test(r.motivo || "")
+      ? `HASTA ACÁ PUEDE LLEGAR por ese camino: hay que ABRIR BRECHA con ingeniería (🛠️) o rodearlo con puntos de paso.`
+      : `HASTA ACÁ PUEDE LLEGAR por ese camino: hay que rodear el obstáculo con puntos de paso o cambiarle el destino.`);
   if (r.llego) return `✅ ${quien}: LLEGÓ al final de su ruta — ${r.avanzadoKm.toFixed(1)} km en ${t}.`;
   const pct = r.totalKm > 0 ? Math.round((100 * r.avanzadoKm) / r.totalKm) : 0;
   // v2.9.222: decir QUÉ HACER, no sólo qué pasó.
@@ -675,29 +782,100 @@ const ARMAS: any = {
   canon: { id: "canon", nom: "Cañón de tanque", alcance: 2.5, radio: 0.10, pot: 0.25, uf: 5, contra: "blindados y posiciones" },
   obus105: { id: "obus105", nom: "Obús 105 mm", alcance: 11.0, radio: 0.35, pot: 0.40, uf: 5, contra: "áreas", indirecto: true },
   obus155: { id: "obus155", nom: "Obús 155 mm", alcance: 24.0, radio: 0.50, pot: 0.55, uf: 4, contra: "áreas", indirecto: true },
+  // v2.9.439 — LOS QUE FALTABAN. Sergio: «el armamento debe pasar a esa GALM».
+  // El GALM-1 (Grupo de Artillería de Lanzadores Múltiples) y la batería LAR-160
+  // del enemigo entraban con fusiles y morteros de infantería, porque el arma
+  // «lanzacohetes» no estaba acá y caía en la dotación por defecto. El alcance es
+  // el del ejercicio de la Escuela (Anexo C: LAR-160 «≈ 30 km»; concepto de la
+  // operación: GALM-1 «alcance 30 km»). 2 UF = las «2 cargas completas por
+  // lanzador» de la tasa del Anexo G: dos salvas y a recargar.
+  lanzacohetes: { id: "lanzacohetes", nom: "Lanzacohetes múltiple", alcance: 30.0, radio: 1.0, pot: 0.45, uf: 2, contra: "áreas (fuego de saturación)", indirecto: true },
+  // La antiaérea (Gepard 35 mm «≈ 4 km» del Anexo C, RBS-70): contra aeronaves
+  // y drones; sus cañones también baten vehículos livianos y personal.
+  antiaereo: { id: "antiaereo", nom: "Antiaérea (cañón / misil)", alcance: 4.0, radio: 0.08, pot: 0.15, uf: 4, contra: "aeronaves y drones · vehículos livianos" },
   zapa: { id: "zapa", nom: "Medios de zapa", alcance: 0, radio: 0, pot: 0, uf: 0, contra: "terreno: brechas y obstáculos", ingenieria: true },
 };
+// v2.9.439: la división (y el CE) trae lo ORGÁNICO de una división —su
+// artillería, su antiaérea y su ingeniería—, no sólo lo de la brigada.
+const _INF: any = { base: ["fusil", "ametralladora"], compania: ["pesada", "mortero60"],
+  batallon: ["pesada", "mortero81", "srAT"], regimiento: ["pesada", "mortero81", "srAT"],
+  brigada: ["pesada", "mortero120", "misilAT"], division: ["obus105", "antiaereo", "zapa"] };
+const _CAB: any = { base: ["ametralladora", "pesada"], compania: ["canon"], batallon: ["canon", "misilAT"],
+  regimiento: ["canon", "misilAT"], brigada: ["canon", "misilAT"], division: ["obus105", "antiaereo", "zapa"] };
+const _APOYO: any = { base: ["fusil"] };
 const DOTACION: any = {
-  infanteria: { base: ["fusil", "ametralladora"], compania: ["pesada", "mortero60"],
-    batallon: ["pesada", "mortero81", "srAT"], regimiento: ["pesada", "mortero81", "srAT"],
-    brigada: ["pesada", "mortero120", "misilAT"] },
-  caballeria: { base: ["ametralladora", "pesada"], compania: ["canon"], batallon: ["canon", "misilAT"],
-    regimiento: ["canon", "misilAT"], brigada: ["canon", "misilAT"] },
-  blindada: { base: ["canon", "pesada"], batallon: ["canon", "pesada", "misilAT"] },
+  infanteria: _INF, motorizada: _INF, andina: _INF, selva: _INF,
+  caballeria: _CAB, cabmec: _CAB,
+  // v2.9.439 — la infantería MECANIZADA (VCI/VTP) tiene su ametralladora pesada
+  // en el vehículo y misiles antitanque desde la compañía.
+  mecanizada: { base: ["fusil", "ametralladora", "pesada"], compania: ["misilAT"],
+    batallon: ["mortero81", "misilAT"], regimiento: ["mortero81", "misilAT"],
+    brigada: ["mortero120", "misilAT", "canon"], division: ["obus105", "obus155", "antiaereo", "zapa"] },
+  blindada: { base: ["canon", "pesada"], batallon: ["canon", "pesada", "misilAT"],
+    division: ["obus155", "antiaereo", "zapa"] },
   artilleria: { base: ["fusil"], compania: ["obus105"], batallon: ["obus105"],
     regimiento: ["obus105", "obus155"], brigada: ["obus155"] },
+  lanzacohetes: { base: ["fusil", "lanzacohetes"], compania: ["pesada"] },
+  antiaerea: { base: ["fusil", "antiaereo"], compania: ["pesada"] },
   morteros: { base: ["fusil", "mortero81"], batallon: ["mortero120"] },
   antitanque: { base: ["fusil", "srAT"], batallon: ["misilAT"] },
   ametralladoras: { base: ["ametralladora", "pesada"] },
   ingenieria: { base: ["fusil", "zapa"] },
-  comunicaciones: { base: ["fusil"] },
+  comunicaciones: _APOYO, logistica: _APOYO, sanidad: _APOYO, intendencia: _APOYO,
+  transporte: _APOYO, mantenimiento: _APOYO, materialbelico: _APOYO, veterinaria: _APOYO, aviacion: _APOYO,
+  inteligencia: { base: ["fusil", "ametralladora"] }, policiamilitar: { base: ["fusil", "ametralladora"] },
   aerotransportada: { base: ["fusil", "ametralladora"], batallon: ["pesada", "mortero60", "misilAT"] },
+  // v2.9.439 — EL PUESTO DE COMANDO no es una fuerza de maniobra: se defiende
+  // con su seguridad. Antes el «CE-1» (arma «ninguna») entraba con la dotación
+  // de una división de infantería y poder 150.
+  ninguna: { base: ["fusil", "pesada"] },
   // v2.9.335 — el convoy va armado apenas: «asegurar CON LIMITACIONES su propia
   // defensa». No es una unidad de combate: es un blanco que hay que escoltar.
   convoy: { base: ["fusil"] },
 };
+// ============================================================
+// v2.9.439 — LOS MEDIOS DE VERDAD DE CADA UNIDAD (COE y planeamiento).
+// Sergio: «trasladado las unidades con lo que realmente tienen de acuerdo a su
+// COE… se debe poder realmente acabar el combustible, acabar la munición de
+// acuerdo a lo que se planificó».
+// El catálogo de arriba es la REFERENCIA por arma y escalón. Al importar del
+// Generador, cada unidad trae `medios` (columna jsonb de wg_unidades): los
+// sistemas que TIENE —del COE de la biblioteca o del planeamiento del G-4—, su
+// dotación en UF (la tasa del Anexo G) y la autonomía planificada (con el
+// consumo de la altura). Si los trae, mandan; si no, el catálogo.
+// ============================================================
+function mediosDe(u: any) {
+  const m = u && u.medios;
+  return m && typeof m === "object" && !Array.isArray(m) ? m : null;
+}
+function sistemasPropios(u: any): string[] | null {
+  const m = mediosDe(u);
+  const s = m && m.sistemas;
+  if (!s || typeof s !== "object" || Array.isArray(s)) return null;
+  const ids = Object.keys(s).filter((id) => ARMAS[id]);
+  return ids.length ? ids : null;
+}
+// La dotación de un sistema: la planificada para ESA unidad o la del catálogo.
+function ufTope(u: any, armaId: string) {
+  const m = mediosDe(u);
+  const s = m && m.sistemas && m.sistemas[armaId];
+  const v = Number(s && s.uf);
+  if (Number.isFinite(v) && v > 0) return v;
+  return Number(ARMAS[armaId] && ARMAS[armaId].uf) || 0;
+}
+// La autonomía: la planificada (el Anexo G puede subir el consumo por la altura)
+// o la del reglamento por medio. El de a pie no lleva tanque.
+function tanqueDe(u: any) {
+  const base = AUTONOMIA_KM[medioDe(u)] || 0;
+  if (!base) return 0;
+  const m = mediosDe(u);
+  const a = Number(m && m.autonomiaKm);
+  return Number.isFinite(a) && a > 0 ? a : base;
+}
 function armamentoDe(u: any) {
   if (!u) return [];
+  const propios = sistemasPropios(u);
+  if (propios) return propios.map((id) => ARMAS[id]).sort((a: any, b: any) => a.alcance - b.alcance);
   const d = DOTACION[u.arma] || DOTACION.infanteria;
   const ids: string[] = [...(d.base || [])];
   const orden = ["seccion", "compania", "batallon", "regimiento", "brigada", "division", "cuerpo"];
@@ -1155,7 +1333,7 @@ function municionDe(u: any, armaId: string) {
   if (!arma) return 0;
   const m = u && u.municion;
   if (m && Object.prototype.hasOwnProperty.call(m, armaId)) return Math.max(0, Number(m[armaId]) || 0);
-  return Number(arma.uf) || 0;
+  return ufTope(u, armaId);   // v2.9.439: la dotación planificada de ESA unidad
 }
 function gastarMunicion(u: any, armaId: string, uf: number) {
   const hay = municionDe(u, armaId);
@@ -1392,7 +1570,7 @@ function reabastecer(u: any, fuentes: any[]) {
   const nombres = [...new Set([fC, fM].filter((f: any) => f && (f.combustible || f.municion)).map((f: any) => f.nom))];
   const partes: string[] = [];
   let repC = 0, repM = 0;
-  const tanque = AUTONOMIA_KM[medioDe(u)] || 0;
+  const tanque = tanqueDe(u);   // v2.9.439
   if (tanque > 0 && topeC > 0) {
     const gastado = Number(u.combustible_km) || 0;
     if (gastado > 0.05) {
@@ -1408,15 +1586,17 @@ function reabastecer(u: any, fuentes: any[]) {
   if (topeM > 0) {
     const faltantes: string[] = [];
     for (const a of armamentoDe(u)) {
-      if ((a as any).ingenieria || !a.uf) continue;
+      // v2.9.439: se repone hasta la dotación PLANIFICADA de esa unidad.
+      const uf = ufTope(u, a.id);
+      if ((a as any).ingenieria || !uf) continue;
       const hay = municionDe(u, a.id);
-      if (hay >= a.uf - 1e-6) continue;
-      const repone = Math.min(a.uf - hay, a.uf * topeM);
+      if (hay >= uf - 1e-6) continue;
+      const repone = Math.min(uf - hay, uf * topeM);
       if (repone <= 1e-6) continue;
       if (!u.municion) u.municion = {};
       u.municion[a.id] = Number((hay + repone).toFixed(2));
       repM += repone;
-      faltantes.push(`${a.nom} ${u.municion[a.id].toFixed(1)}/${a.uf} UF`);
+      faltantes.push(`${a.nom} ${u.municion[a.id].toFixed(1)}/${uf} UF`);
     }
     if (faltantes.length) {
       partes.push(`🎯 Cl V: ${faltantes.join(" · ")}`);
@@ -1730,19 +1910,26 @@ function resolverTurno(estado: any) {
         bandos_visibles: ["rojo", "azul"], ratio: null, resultado: "sin_empeno" });
       continue;
     }
+    // v2.9.439: el que persigue SIN MUNICIÓN no castiga a nadie; el que tira, gasta.
+    const armaP: any = armaDeFuego(perseguidor, null);
+    if (!armaP || municionDe(perseguidor, armaP.id) <= 0) {
+      eventos.push({ tipo: "combate", lat: u.lat, lng: u.lng,
+        descripcion: `↩️ ${nombreUnidad(u)} ROMPIÓ CONTACTO sin castigo: ${nombreUnidad(perseguidor)} `
+          + `no tenía con qué tirarle (SIN MUNICIÓN).`,
+        bandos_visibles: ["rojo", "azul"], ratio: null, resultado: "rompio_contacto" });
+      continue;
+    }
+    gastarMunicion(perseguidor, armaP.id, COSTO_UF.encuentro);
     const bono = bonoDefensa(p0, terreno);
     const perd = Math.min(0.5, 0.18 / bono);
     const antes = poderEfectivo(u);
     const nuevo = Math.max(0, antes * (1 - perd));
     u.poder_actual = Number(nuevo.toFixed(2));
     u.estado = nuevo <= u.poder_max * 0.2 ? "fuera_combate" : (nuevo <= u.poder_max * 0.6 ? "desgastada" : "activa");
-    const armaP: any = armaDeFuego(perseguidor, null);
-    if (armaP) {
-      impactos.push({ lng: p0[0], lat: p0[1], radio: armaP.radio, arma: armaP.id,
-        nom: armaP.nom, bando: perseguidor.bando, tocadas: 1, encuentro: true,
-        desde: [perseguidor.lng, perseguidor.lat], indirecto: !!armaP.indirecto });
-      disparadoras.add(perseguidor.id);
-    }
+    impactos.push({ lng: p0[0], lat: p0[1], radio: armaP.radio, arma: armaP.id,
+      nom: armaP.nom, bando: perseguidor.bando, tocadas: 1, encuentro: true,
+      desde: [perseguidor.lng, perseguidor.lat], indirecto: !!armaP.indirecto });
+    disparadoras.add(perseguidor.id);
     eventos.push({ tipo: "combate", lat: p0[1], lng: p0[0],
       descripcion: `↩️ ${nombreUnidad(u)} ROMPIÓ CONTACTO y se replegó bajo el fuego de `
         + `${nombreUnidad(perseguidor)} (lo tenía a ${dMin.toFixed(1)} km): aguantó el castigo de la `
@@ -2070,25 +2257,40 @@ function resolverTurno(estado: any) {
       if (poderEfectivo(a) <= 0 || poderEfectivo(b) <= 0) continue;
       if (procesados.has(a.id) || procesados.has(b.id)) continue;
       if (haversineKm([a.lng, a.lat], [b.lng, b.lat]) > rango) continue;
-      const [atac, def] = poderEfectivo(a) >= poderEfectivo(b) ? [a, b] : [b, a];
+      let [atac, def] = poderEfectivo(a) >= poderEfectivo(b) ? [a, b] : [b, a];
+      // v2.9.439 — SIN MUNICIÓN NO SE PELEA. Antes el que estaba seco igual
+      // «respondía el fuego» (con el arma vacía) y le hacía bajas al otro: la
+      // munición se acababa en el papel pero no en el combate. Ahora tira sólo
+      // el que tiene con qué; si los dos están secos, se topan y no hay fuego.
+      const seca = (x: any) => { const w: any = armaDeFuego(x, null); return !w || municionDe(x, w.id) <= 0; };
+      if (seca(atac) && seca(def)) {
+        eventos.push({ tipo: "sin_municion", lat: def.lat, lng: def.lng,
+          descripcion: `🚫 ${nombreUnidad(atac)} y ${nombreUnidad(def)} se toparon SIN MUNICIÓN: no hubo fuego. `
+            + `Hay que reabastecerlas antes de volver a empeñarlas.`,
+          bandos_visibles: ["rojo", "azul"] });
+        procesados.add(a.id); procesados.add(b.id);
+        continue;
+      }
+      if (seca(atac)) [atac, def] = [def, atac];        // tira el que tiene con qué
+      const secoD = seca(def);
       // v2.9.224 — EL COMBATE DE ENCUENTRO TAMBIÉN SE VE. Hasta acá sólo el
       // empeño ORDENADO generaba impactos: dos unidades que se topaban se
       // desgastaban en la bitácora sin que saliera un solo tiro en pantalla.
       const armaA: any = armaDeFuego(atac, null), armaD: any = armaDeFuego(def, null);
       // v2.9.230: trenzarse también consume, aunque menos.
       if (armaA) gastarMunicion(atac, armaA.id, COSTO_UF.encuentro);
-      if (armaD) gastarMunicion(def, armaD.id, COSTO_UF.encuentro);
+      if (armaD && !secoD) gastarMunicion(def, armaD.id, COSTO_UF.encuentro);
       // v2.9.270: se trenzan DONDE SE ENCONTRARON, no en sus puntos de llegada.
       const [pAtac, pDef]: any = puntoDeContacto(atac, def, rango);
-      aplicarCombate(resolverCombate([atac], def, terreno), U, eventos, def, [atac], armaA,
-        { puede: true, arma: armaD, d: haversineKm(pAtac, pDef) });
+      aplicarCombate(resolverCombate([atac], def, terreno, undefined, !secoD), U, eventos, def, [atac], armaA,
+        { puede: !secoD, arma: armaD, d: haversineKm(pAtac, pDef), seco: secoD && !!armaD });
       if (armaA) {
         impactos.push({ lng: pDef[0], lat: pDef[1], radio: armaA.radio, arma: armaA.id,
           nom: armaA.nom, bando: atac.bando, tocadas: 1, encuentro: true,
           desde: pAtac, indirecto: !!armaA.indirecto });
         disparadoras.add(atac.id);
       }
-      if (armaD) {
+      if (armaD && !secoD) {
         impactos.push({ lng: pAtac[0], lat: pAtac[1], radio: armaD.radio, arma: armaD.id,
           nom: armaD.nom, bando: def.bando, tocadas: 1, respuesta: true, encuentro: true,
           desde: pDef, indirecto: !!armaD.indirecto });
@@ -2467,8 +2669,8 @@ async function manejar(req: Request): Promise<Response> {
     // pero se dice en el acto.
     let aviso: string | null = null;
     try {
-      const { data: terr } = await sb.from("wg_terreno").select("tipo, geojson")
-        .eq("partida_id", partida.id).in("tipo", ["restringido", "severo", "via"]).is("bando", null).limit(3000);
+      const { data: terr } = await todasLasFilas(() => sb.from("wg_terreno").select("tipo, geojson")   // v2.9.439
+        .eq("partida_id", partida.id).in("tipo", ["restringido", "severo", "via"]).is("bando", null).order("id", { ascending: true }));
       const medio = medioDe({ medio: u.medio || "motor", arma: u.arma });
       const clase = claseTerreno([Number(u.lng), Number(u.lat)], prepararTerreno(terr || []));
       if ((VEL[medio] || VEL.pie)[clase] == null) {
@@ -2506,15 +2708,35 @@ async function manejar(req: Request): Promise<Response> {
       if (eBp) return err(`No se pudo volver la partida a planificación: ${eBp.message}`, 500);
     }
     let nU = 0, nT = 0;
+    let avisoMedios: string | null = null;
     if (unidades.length) {
       const filas = unidades.filter((u: any) => u.lat != null && u.lng != null && u.bando).map((u: any) => {
         const poder = Number(u.poder_max) || 1;
-        return { partida_id: partida.id, bando: u.bando === "rojo" ? "rojo" : "azul",
+        const fila: any = { partida_id: partida.id, bando: u.bando === "rojo" ? "rojo" : "azul",
           designacion: u.designacion ? String(u.designacion).slice(0, 120) : null, escalon: u.escalon || null,
           arma: u.arma || null, medio: u.medio || "motor", lat: Number(u.lat), lng: Number(u.lng),
           poder_max: poder, poder_actual: poder, obs_km: u.obs_km != null ? Number(u.obs_km) : 4, estado: "activa" };
+        // v2.9.439 — LOS MEDIOS DE LA UNIDAD (COE, planeamiento del G-4) y lo que
+        // ya trae cargado. `municion` y `combustible_km` son columnas de siempre.
+        const medios = limpiarMedios(u.medios);
+        if (medios) fila.medios = medios;
+        const mun = limpiarMunicion(u.municion);
+        if (mun) fila.municion = mun;
+        const cKm = Number(u.combustible_km);
+        if (Number.isFinite(cKm) && cKm > 0) fila.combustible_km = Math.min(5000, cKm);
+        return fila;
       });
-      if (filas.length) { const { error } = await sb.from("wg_unidades").insert(filas); if (error) return err(`Unidades: ${error.message}`, 500); }
+      if (filas.length) {
+        let { error } = await sb.from("wg_unidades").insert(filas);
+        // v2.9.439: si la base todavía no tiene la columna `medios` (falta correr
+        // supabase/wargame/002_medios_unidades.sql), las unidades entran igual,
+        // con el armamento del catálogo, y se avisa en vez de cortar la importación.
+        if (error && /medios/i.test(error.message || "") && filas.some((f: any) => f.medios)) {
+          ({ error } = await sb.from("wg_unidades").insert(filas.map(({ medios: _m, ...f }: any) => f)));
+          if (!error) avisoMedios = "La base todavía no tiene la columna «medios» de wg_unidades: las unidades entraron con el armamento del catálogo. Corré supabase/wargame/002_medios_unidades.sql y volvé a importar.";
+        }
+        if (error) return err(`Unidades: ${error.message}`, 500);
+      }
       nU = filas.length;
     }
     if (terreno.length) {
@@ -2528,14 +2750,23 @@ async function manejar(req: Request): Promise<Response> {
           if (TIPOS_DOCTRINA.includes(t.tipo)) return t.geojson.type === "Polygon" || t.geojson.type === "MultiPolygon";
           return TIPOS_VISUALES.includes(t.tipo);
         })
-        .map((t: any) => ({ partida_id: partida.id, tipo: t.tipo, geojson: t.geojson }));
+        .map((t: any) => {
+          const fila: any = { partida_id: partida.id, tipo: t.tipo, geojson: t.geojson };
+          // v2.9.439 — EL PLAN DE BARRERAS ES DE UN BANDO. Con `bando` viaja como
+          // las obras (v2.9.324): su dueño lo ve siempre y conoce los pasos; el
+          // otro bando lo descubre cuando lo tiene a la vista o se lo topa. Antes
+          // entraba sin bando y el enemigo recibía el plan de barreras entero.
+          if ((t.bando === "azul" || t.bando === "rojo") && TIPOS_OBRA_DE_BANDO.includes(t.tipo)) fila.bando = t.bando;
+          return fila;
+        });
       if (filas.length) { const { error } = await sb.from("wg_terreno").insert(filas); if (error) return err(`Terreno: ${error.message}`, 500); }
       nT = filas.length;
     }
     // Totales acumulados, para que el frontend muestre el avance real.
     const { count: totU } = await sb.from("wg_unidades").select("id", { count: "exact", head: true }).eq("partida_id", partida.id);
     const { count: totT } = await sb.from("wg_terreno").select("id", { count: "exact", head: true }).eq("partida_id", partida.id);
-    return ok({ unidades: nU, terreno: nT, total_unidades: totU || 0, total_terreno: totT || 0 });
+    return ok({ unidades: nU, terreno: nT, total_unidades: totU || 0, total_terreno: totT || 0,
+      aviso_medios: avisoMedios });
   }
   if (accion === "cargar_terreno") {
     if (!arbitro) return err("Solo el árbitro carga el terreno", 403);
@@ -2669,9 +2900,10 @@ async function manejar(req: Request): Promise<Response> {
       // las que ahora van frescas en `obras`, y —peor— viajarían SIN NIEBLA,
       // porque este paquete se manda entero a los dos bandos. O sea que el
       // enemigo recibía tus campos minados en la primera carga.
-      const { data } = await sb.from("wg_terreno").select("tipo, geojson")
-        .eq("partida_id", partida.id).is("bando", null).limit(3000);
-      terreno = data || [];
+      // v2.9.439: por páginas (PostgREST corta en 1.000) y lo importante primero.
+      const { data } = await todasLasFilas(() => sb.from("wg_terreno").select("tipo, geojson")
+        .eq("partida_id", partida.id).is("bando", null).order("id", { ascending: true }));
+      terreno = ordenarCarta(data || []);
     }
     // ============================================================
     // v2.9.317 — LAS INSTALACIONES DEL G-4 VIAJAN SIEMPRE, APARTE DEL TERRENO.
@@ -2756,10 +2988,12 @@ async function manejar(req: Request): Promise<Response> {
     // de terreno: acá no se está detectando una unidad que se esconde, sino una
     // obra en el suelo, y el número tiene que dar igual en las dos pantallas.
     // ============================================================
+    // v2.9.439: también el plan de barreras PROYECTADO (`obstaculo` con bando):
+    // se ve, no frena, y viaja con la misma niebla que las obras.
     const { data: obrasRaw } = await sb.from("wg_terreno")
       .select("id, tipo, bando, geojson, hasta_turno")
       .eq("partida_id", partida.id).not("bando", "is", null)
-      .in("tipo", TIPOS_MOTOR).limit(600);
+      .in("tipo", [...TIPOS_MOTOR, "obstaculo"]).order("id", { ascending: true }).limit(1000);
     const mias = (unidades || []).filter((u: any) =>
       miBando && u.bando === miBando.bando && u.estado !== "fuera_combate");
     const obras = (obrasRaw || []).filter((z: any) => {
@@ -3120,8 +3354,10 @@ async function manejar(req: Request): Promise<Response> {
     // caminos, curvas de nivel) no tienen efecto táctico y sólo lo harían lento.
     // v2.9.324: con `id`, porque una brecha LEVANTA obstáculos y hay que poder
     // decir qué filas se borran.
-    const { data: terreno } = await sb.from("wg_terreno").select("id, tipo, geojson, hasta_turno, bando")
-      .eq("partida_id", partida.id).in("tipo", TIPOS_MOTOR);
+    // v2.9.439: por páginas. Con más de 1.000 filas (751 caminos y el CMOC de
+    // una sola carta ya andan cerca) el motor resolvía sin parte de los caminos.
+    const { data: terreno } = await todasLasFilas(() => sb.from("wg_terreno").select("id, tipo, geojson, hasta_turno, bando")
+      .eq("partida_id", partida.id).in("tipo", TIPOS_MOTOR).order("id", { ascending: true }));
     // v2.9.334: las instalaciones del G-4 entran al motor. Van APARTE del
     // terreno porque no son accidentes del terreno: no frenan ni protegen a
     // nadie, reabastecen. Y van sin filtro de bando: el motor resuelve el turno

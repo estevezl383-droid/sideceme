@@ -192,16 +192,54 @@ export function anotar(valor = {}, hoja = {}, r) {
   return { valor: v, n, col }
 }
 
+// 📚 Los COE de la biblioteca del profesor, compactos, para el Juego de Guerra (26-10-2026, Sergio: «trasladado las
+// unidades lo que realmente tienen de acuerdo a su COE»). La biblioteca vive en el navegador del profesor (IndexedDB
+// «sid-biblioteca»), no en el ejercicio: sin esto el Juego no tenía de dónde sacar efectivos, armamento y vehículos.
+// Sólo la tabla de cada unidad (sin el texto del Word).
+const tabla = (o) => {
+  const r = {}
+  for (const [k, v] of Object.entries(o && typeof o === 'object' ? o : {})) {
+    const n = Number(v)
+    if (k && Number.isFinite(n) && n > 0) r[String(k).slice(0, 60)] = n
+  }
+  return r
+}
+export function coeParaElJuego(biblioteca = []) {
+  return (Array.isArray(biblioteca) ? biblioteca : [])
+    .filter((d) => d && d.coe && Array.isArray(d.coe.unidades))
+    .map((d) => ({
+      nombre: String(d.nombre || '').slice(0, 120),
+      bando: d.bando === 'enemigas' ? 'enemigas' : 'propias',
+      coe: {
+        division: String(d.coe.division || '').slice(0, 60),
+        arma: d.coe.arma || null,
+        efectivo: Number(d.coe.efectivo) || null,
+        unidades: d.coe.unidades.slice(0, 60).map((u) => ({
+          designacion: String(u.designacion || '').slice(0, 60),
+          arma: u.arma || null,
+          escalon: u.escalon || null,
+          efectivo: Number(u.efectivo) || null,
+          armamento: tabla(u.armamento),
+          vehiculos: tabla(u.vehiculos),
+          equipo: tabla(u.equipo),
+        })),
+        totales: { armamento: tabla(d.coe.totales?.armamento), vehiculos: tabla(d.coe.totales?.vehiculos), equipo: tabla(d.coe.totales?.equipo) },
+      },
+    }))
+}
+
 // ⬇️ El ejercicio para el Juego de Guerra: el ejercicio entero (sigue sirviendo para la Mesa) con el evento guardado en
 // la hoja y `eventoCritico` ya armado (las fichas de las dos fases y el calco de la fase propia), que el Juego ofrece
-// primero.
-export function paraElJuego(ejercicio = {}, valorHoja = {}, sel) {
+// primero. `biblioteca`: los documentos del profesor (sus COE viajan como `bibliotecaCOE`).
+export function paraElJuego(ejercicio = {}, valorHoja = {}, sel, biblioteca = null) {
   const ctx = { fasesCOA: ejercicio.fasesCOA || {}, g3: ejercicio.g3 || {} }
   const r = resolver(ctx, sel)
   if (!r) return null
   const e = enfrentar(r.azul.fase, r.roja.fase)
+  const coes = coeParaElJuego(biblioteca)
   return {
     ...ejercicio,
+    ...(coes.length ? { bibliotecaCOE: coes } : null),
     g3: { ...(ejercicio.g3 || {}), sincro: conEvento(valorHoja, sel) },
     eventoCritico: {
       nombre: `EVENTO CRÍTICO — ${r.nombre}`,

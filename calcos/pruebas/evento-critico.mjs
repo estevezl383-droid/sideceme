@@ -123,5 +123,28 @@ caso('para el Juego de Guerra: el ejercicio entero con el evento guardado y `eve
   assert.equal(M.paraElJuego(ej, {}, { cap: 1, azul: 7, rojo: 2 }), null)
   assert.match(M.nombreArchivo('CE-I «LAUCA» (FICT.)', Date.UTC(2026, 9, 25, 15, 4)), /^JUEGO_GUERRA_CE-I_LAUCA_FICT_evento_critico_20261025_\d{4}\.json$/)
 })
+caso('para el Juego de Guerra: los COE de la biblioteca del profesor viajan compactos (26-10-2026)', () => {
+  const ej = { nombre: 'CE-I (FICT.)', unidades: [], ...ctx }
+  const biblio = [
+    { id: 'd1', nombre: 'APÉNDICE 7 COE DIV MEC-9 (FICT.)', tipo: 'coe', bando: 'propias', texto: 'x'.repeat(5000),
+      coe: { division: 'DIV MEC-9', arma: 'mecanizada', efectivo: 3805, titulo: 'COE',
+        unidades: [{ designacion: 'RCB-9', arma: 'blindada', escalon: 'regimiento', efectivo: 520, personal: { TOTAL: 520 },
+          armamento: { 'FUSIL GALIL': 400, X: 0 }, vehiculos: { 'VC-TQ CASCAVEL EE-9': 27 }, equipo: {} }],
+        totales: { personal: { TOTAL: 3805 }, armamento: { 'FUSIL GALIL': 2830 }, vehiculos: { 'VTP URUTU EE-11': 44 }, equipo: { 'DETECTOR MINAS': 18 } } } },
+    { id: 'd2', nombre: 'Reglamento', tipo: 'doctrina', bando: 'propias', texto: 'RDO', coe: null },
+  ]
+  const d = M.paraElJuego(ej, {}, { cap: 1, azul: 2, rojo: 2, coa: 'probable' }, biblio)
+  assert.equal(d.bibliotecaCOE.length, 1)
+  const c = d.bibliotecaCOE[0]
+  assert.equal(c.nombre, 'APÉNDICE 7 COE DIV MEC-9 (FICT.)')
+  assert.equal(c.coe.division, 'DIV MEC-9')
+  assert.deepEqual(c.coe.unidades[0], { designacion: 'RCB-9', arma: 'blindada', escalon: 'regimiento', efectivo: 520,
+    armamento: { 'FUSIL GALIL': 400 }, vehiculos: { 'VC-TQ CASCAVEL EE-9': 27 }, equipo: {} })
+  assert.deepEqual(c.coe.totales, { armamento: { 'FUSIL GALIL': 2830 }, vehiculos: { 'VTP URUTU EE-11': 44 }, equipo: { 'DETECTOR MINAS': 18 } })
+  assert.ok(!('texto' in c), 'el texto del Word no viaja')
+  // Sin biblioteca (o sin COE) el archivo es el de siempre.
+  assert.equal('bibliotecaCOE' in M.paraElJuego(ej, {}, { cap: 1, azul: 2, rojo: 2 }), false)
+  assert.equal('bibliotecaCOE' in M.paraElJuego(ej, {}, { cap: 1, azul: 2, rojo: 2 }, [biblio[1]]), false)
+})
 console.log(fallos ? `${fallos} FALLO(S)` : 'OK')
 process.exit(fallos ? 1 : 0)

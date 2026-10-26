@@ -2,7 +2,7 @@
 // del G-3: elige una fase 🔵 del CAP y la fase 🔴 del CAE que la enfrenta, marca la más crítica (⭐), lo guarda en el
 // ejercicio, lo anota en la matriz y baja el archivo para el Juego de Guerra. La lógica está en modelo.mjs.
 // JavaScript sin compilar: React llega en la prop R (jsx, jsxs, useState) desde el compilado.
-import { encuentros, resolver, conEvento, anotar, paraElJuego, nombreArchivo, textoMedida, capActivo, fasesDeCAP, NOM_COA } from './modelo.mjs?v=ev20261025b'
+import { encuentros, resolver, conEvento, anotar, paraElJuego, nombreArchivo, textoMedida, capActivo, fasesDeCAP, NOM_COA } from './modelo.mjs?v=ev20261026'
 
 const ROJO = '#ff6b6b'
 const AZUL = '#5aa9ff'
@@ -82,12 +82,21 @@ export default function PanelEvento({ R, hoja, valor, ctx, onLlevar }) {
       ej = null
     }
     if (!ej) return setMsg('⚠️ No encontré el ejercicio abierto en la Mesa: abrilo y volvé a tocar.')
-    const d = paraElJuego(ej, v, selActual)
+    // 26-10-2026: con los COE de 📚 Mis documentos (biblioteca del profesor), para que en el Juego cada unidad tenga
+    // sus efectivos, su armamento y sus vehículos.
+    let biblio = null
+    try {
+      biblio = (typeof window !== 'undefined' && window.SIDModalidad && window.SIDModalidad.biblioteca) || null
+    } catch {
+      biblio = null
+    }
+    const d = paraElJuego(ej, v, selActual, biblio)
     if (!d) return setMsg('⚠️ Esas fases ya no están en el ejercicio: elegí de nuevo.')
     d.guardadoEn = new Date().toISOString()
     bajar(nombreArchivo(M.nombre && M.nombre()), JSON.stringify(d))
     if (!yaGuardado) onLlevar(conEvento(v, selActual))
-    setMsg('⬇️ Bajado (está en Descargas). En el Juego de Guerra: ⚙️ Configurar → 🌄 Traer escenario → 📂 Cargar escenario (reemplaza) → elegí ese archivo → «⚔️ EVENTO CRÍTICO».')
+    const nCoe = (d.bibliotecaCOE || []).length
+    setMsg('⬇️ Bajado (está en Descargas)' + (nCoe ? ` con ${nCoe} COE de tu biblioteca (efectivos, armamento y vehículos de cada unidad)` : ' — sin COE: si los cargás en 📚 Mis documentos, las unidades van al Juego con su armamento y sus vehículos') + '. En el Juego de Guerra: ⚙️ Configurar → 🌄 Traer escenario → 📂 Cargar escenario (reemplaza) → elegí ese archivo → «⚔️ EVENTO CRÍTICO».')
   }
 
   return h(
