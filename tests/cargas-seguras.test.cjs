@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const { stripTypeScriptTypes } = require('node:module');
-const source = stripTypeScriptTypes(fs.readFileSync('supabase/functions/registros-ops/index.ts','utf8').replace(/^import .*;$/m,''));
+const source = stripTypeScriptTypes(fs.readFileSync('supabase/seguridad/registros-ops/index.ts','utf8').replace(/^import .*;$/m,''));
 function setup(options={}) {
   const inserts=[],updates=[];
   const sb={ from(table) {

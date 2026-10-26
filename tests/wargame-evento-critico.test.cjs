@@ -17,8 +17,15 @@ const fuente = corte('// v2.9.437 — ⚔️ LAS DOS FASES ENFRENTADAS', '// v2.
   .replace(/\/\/ =+\s*$/, '');
 const auxiliares = [
   html.match(/function _rgEsc\(s\)\{[^\n]*\n/)[0],
-  corte('const WG_PODER', ';\n') + ';\n',
-  corte('const WG_OBS', ';\n') + ';\n',
+  corte('const WG_PODER=', ';\n') + ';\n',
+  corte('const WG_OBS=', ';\n') + ';\n',   // con «=»: WG_OBS_MESA (v2.9.439) empieza igual
+  // v2.9.439: la importación arma los MEDIOS de cada unidad (catálogo de armas,
+  // autonomía y los espejos de sistemas / UF / tanque).
+  corte('const WG_ARMAS={', '// ============================================================\n// v2.9.214 — PANEL DE SISTEMAS DE ARMAS.'),
+  html.match(/const WG_AUTONOMIA=\{[^\n]*\n/)[0],
+  html.match(/function _wgEsConvoy\(u\)\{[^\n]*\n/)[0],
+  html.match(/function _wgMedioDe\(u\)\{[^\n]*\n/)[0],
+  corte('// v2.9.439 — LOS MEDIOS DE VERDAD DE CADA UNIDAD. Espejo', 'const WG_ROMANO='),
 ].join('');
 const W = new Function(auxiliares + fuente + `
   function _wgNumerarUnidades(u){ return u; }

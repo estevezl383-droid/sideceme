@@ -36,6 +36,9 @@ de la hoja: **⚔️ Evento crítico para el Juego de Guerra — 🔴 CAE (G-2) 
 - **⬇️ Bajar para el Juego de Guerra (.json)**: el ejercicio entero (sigue sirviendo para la Mesa) con el evento
   guardado y `eventoCritico` ya armado: las fichas 🔵 de la fase del CAP, las 🔴 de la fase del CAE y el calco de la
   fase propia. `JUEGO_GUERRA_<ejercicio>_evento_critico_<fecha>.json`.
+  Desde la v2.9.439 lleva también **`bibliotecaCOE`**: los COE de 📚 Mis documentos (efectivos, armamento y vehículos
+  de cada unidad), para que cada ficha entre al Juego con lo que de verdad tiene (`coeParaElJuego` en `v1/modelo.mjs`).
+  El aviso dice cuántos COE viajan.
 
 ## En el Juego de Guerra (SIDECEME, `index.html`, v2.9.438)
 
@@ -60,7 +63,7 @@ con el ejercicio.json de siempre (si el evento se guardó con 💾, lo trae igua
 ## Archivos
 
 - `v1/modelo.mjs` — sin dependencias: `fasesAzules`, `fasesRojas`, `enfrentar`, `medir`, `encuentros`, `resolver`,
-  `conEvento`, `anotar`, `paraElJuego`, `nombreArchivo`.
+  `conEvento`, `anotar`, `paraElJuego`, `coeParaElJuego`, `nombreArchivo`.
 - `v1/panel.js` — el panel (React llega en la prop `R` desde el compilado).
 - En el compilado (`pruebas/reemplazos-2026-10-25-evento-critico.js`): el import y el panel arriba de la hoja `sincro`.
 - En `index.html` (Juego de Guerra): `_wgEsRoja`, `_wgEnfrentar`, `_wgFasesBandos`, `_wgFasesCOA`, `_wgPreguntarFase`

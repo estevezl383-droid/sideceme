@@ -11,7 +11,9 @@
 //   · CAP 2: tocar una de sus fases copiadas ofrece armarlas; armadas, el itinerario en FUCSIA;
 //   · el CAP guardado se arma desde su tarjeta; sin errores de consola;
 //   · ➜ el botón de la tarjeta apaga y prende las flechas (Sergio, 25-10-2026: «necesito un botón que desactive las
-//     flechas de los itinerarios»), también en las otras fases, y queda para la próxima vez.
+//     flechas de los itinerarios»), también en las otras fases, y queda para la próxima vez;
+//   · ➜ las flechas se leen (Sergio, 26-10-2026: «muy confusas»): lo de la fase a la vista lleno y lo anterior
+//     punteado, una punta por unidad y el número de la fase por donde pasó.
 //   node calcos/pruebas/e2e/itinerario.cjs
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -37,10 +39,15 @@ const leerG3 = (page) => estadoReact(page, (v) => (v && !Array.isArray(v) && v._
 // Los tramos del itinerario en la carta: por color.
 const flechas = (page) =>
   page.evaluate(() => {
-    const out = { '#8f00ff': 0, '#ff00ff': 0, puntas: 0 }
+    const out = { '#8f00ff': 0, '#ff00ff': 0, puntas: 0, punteadas: 0, fases: 0 }
     window.__mapa2d.eachLayer((l) => {
-      if (typeof l.getLatLngs === 'function' && l.options && out[l.options.color] != null) out[l.options.color]++
-      if (l.options && l.options.icon && l.options.icon.options && l.options.icon.options.className === 'cap-iti-punta') out.puntas++
+      if (typeof l.getLatLngs === 'function' && l.options && out[l.options.color] != null) {
+        out[l.options.color]++
+        if (l.options.dashArray) out.punteadas++
+      }
+      const cl = l.options && l.options.icon && l.options.icon.options && l.options.icon.options.className
+      if (cl === 'cap-iti-punta') out.puntas++
+      if (cl === 'cap-iti-fase') out.fases++
     })
     return out
   })
@@ -199,7 +206,11 @@ const ag = (id, nom, op, lng, lat, arma, piezas = []) => ({ id, designacion: nom
     const fl3 = await flechas(page)
     assert.ok(fl3['#8f00ff'] >= 6, `FASE III: los tramos en violeta (${JSON.stringify(fl3)})`)
     assert.equal(fl3['#ff00ff'], 0)
-    assert.ok(fl3.puntas >= 6, 'cada tramo con su punta de flecha')
+    // Sergio, 26-10-2026: «las flechas… muy confusas». Lo de esta fase lleno y lo de las anteriores punteado; UNA punta
+    // por unidad (no una por tramo); el número de la fase por donde pasó.
+    assert.ok(fl3.punteadas > 0 && fl3.punteadas < fl3['#8f00ff'], `FASE III: lo anterior punteado, lo de esta fase lleno (${JSON.stringify(fl3)})`)
+    assert.ok(fl3.puntas >= 3 && fl3.puntas < fl3['#8f00ff'], `una punta por unidad, no por tramo (${JSON.stringify(fl3)})`)
+    assert.ok(fl3.fases > 0, 'el número de la FASE II donde estuvo cada una')
 
     // FASE IV y V: OTRA tarea en cada fase, pegada a la ficha que la cumple; las de la F3·P3, guardadas aparte.
     await fase(1, 4)
@@ -223,7 +234,7 @@ const ag = (id, nom, op, lng, lat, arma, piezas = []) => ({ id, designacion: nom
     assert.match(await btnFlechas.innerText(), /Ocultar las flechas del itinerario/)
     await clic(btnFlechas)
     await page.waitForTimeout(300)
-    assert.deepEqual(await flechas(page), { '#8f00ff': 0, '#ff00ff': 0, puntas: 0 }, 'apagadas: sin flechas')
+    assert.deepEqual(await flechas(page), { '#8f00ff': 0, '#ff00ff': 0, puntas: 0, punteadas: 0, fases: 0 }, 'apagadas: sin flechas')
     assert.match(await btnFlechas.innerText(), /Mostrar las flechas del itinerario/)
     assert.equal(await page.evaluate(() => localStorage.getItem('sid-iti-flechas')), '0', 'queda para la próxima vez')
     await fase(1, 4)

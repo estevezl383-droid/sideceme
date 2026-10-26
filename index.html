@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.438</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.439</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -34039,6 +34039,7 @@ function wgSeguir(btn){
 // quebradas, pero ahora el ⚡ puede bajarla como a cualquier otra capa cara.
 const WG_CAPAS_PESADAS=['wg-terr-relleno','wg-terr-punto','wg-quema-relleno',
   'wg-dib-punto','wg-piso-disco','wg-terr-linea','wg-dib-linea','wg-dib-linea-pt',
+  'wg-terr-casco','wg-terr-linea-pt','wg-barreras-marca',   // v2.9.439
   'sombreado'];
 function _wgDetalle(map, completo){
   if(!map||!map.getLayer) return;
@@ -34954,10 +34955,27 @@ function _wgEnMinado(pt,terreno,bando){
   }
   return null;
 }
-function _wgClaseTerreno(pt,terreno){
-  if(_wgEnCamino(pt,terreno)) return 'camino';
-  let restr=false;
+// v2.9.439 — GEMELO de `obstaculoContra`/`claseTerreno` del motor: el
+// obstáculo construido por un bando (con `bando`) le pesa al OTRO, también sobre
+// el camino; el dueño conoce sus pasos. Sin `bando`, todo cuenta como siempre.
+function _wgObstaculoContra(pt,terreno,bando){
+  let r=null;
   for(const t of (terreno||[])){
+    if(!t.bando || t.bando===bando) continue;
+    if(t.tipo!=='severo' && t.tipo!=='restringido') continue;
+    if(_wgFueraDeCaja(pt,t) || !_wgPtEnGeom(pt,t.geojson)) continue;
+    if(t.tipo==='severo') return 'severo';
+    r='restringido';
+  }
+  return r;
+}
+function _wgClaseTerreno(pt,terreno,bando){
+  const obs=bando?_wgObstaculoContra(pt,terreno,bando):null;
+  if(obs==='severo') return 'severo';
+  if(_wgEnCamino(pt,terreno)) return obs||'camino';
+  let restr=obs==='restringido';
+  for(const t of (terreno||[])){
+    if(bando && t.bando) continue;
     if(_wgFueraDeCaja(pt,t)) continue;
     if(t.tipo==='severo' && _wgPtEnGeom(pt,t.geojson)) return 'severo';
     if(t.tipo==='restringido' && _wgPtEnGeom(pt,t.geojson)) restr=true;
@@ -34998,7 +35016,7 @@ function _wgPreverMovimiento(u,destino,horas){
   const _md=_wgMedioDe(u);
   const vel=WG_VEL[_md]||WG_VEL.pie;
   const terreno=WG.terreno||[];
-  const tanque=WG_AUTONOMIA[_md]||0;
+  const tanque=_wgTanqueDe(u);   // v2.9.439
   const autonomia = tanque>0 ? Math.max(0, tanque-(Number(u.combustible_km)||0)) : Infinity;
   let consumoKm=0;
   // v2.9.358 — espejo de CONVOY_FUERA_RUTA_KM: el convoy sale del camino sólo
@@ -35017,7 +35035,7 @@ function _wgPreverMovimiento(u,destino,horas){
   const ruta=[[pos[0],pos[1]]];
   // v2.9.208: si arranca metida en terreno que su medio no cruza, SALE a paso de
   // hombre (misma regla que el motor: nadie queda atrapado para siempre).
-  const atrapada = vel[_wgClaseTerreno(pos,terreno)]==null;
+  const atrapada = vel[_wgClaseTerreno(pos,terreno,u.bando)]==null;   // v2.9.439
   let saliendo = atrapada;
   while(true){
     const restante=_wgHav(pos,destino);
@@ -35032,7 +35050,7 @@ function _wgPreverMovimiento(u,destino,horas){
     if(_wgEnMinado(sig,terreno,u.bando)){
       detenida=true; motivo='CAMPO MINADO — se detiene ahí y sufre bajas'; break;
     }
-    const clase=_wgClaseTerreno(sig,terreno);
+    const clase=_wgClaseTerreno(sig,terreno,u.bando);   // v2.9.439
     let v=vel[clase];
     if(v==null && saliendo) v=(WG_VEL.pie[clase]||2)*0.5;
     else if(v!=null) saliendo=false;
@@ -35084,7 +35102,10 @@ function _wgPreverRuta(u,ruta,horas){
   // podía saber de quién es el campo y la previsión frenaba a la unidad en su
   // PROPIO campo minado — al revés de la regla (el que lo sembró conoce las
   // brechas). El motor no tenía el bug porque allá `pos` se arma con `{...u}`.
-  let pos={lng:u.lng,lat:u.lat,medio:u.medio,bando:u.bando,
+  // v2.9.439: con `arma` y `medios` — el convoy se reconoce por su arma y la
+  // autonomía planificada viaja en `medios` (sin esto la previsión usaba el
+  // tanque de referencia y otro medio).
+  let pos={lng:u.lng,lat:u.lat,medio:u.medio,bando:u.bando,arma:u.arma,medios:u.medios,
            combustible_km:Number(u.combustible_km)||0};
   const gastadoAntes=Number(u.combustible_km)||0;   // v2.9.334
   let restante=horas, avanzado=0, consumidos=0, consumoKm=0, seco=false;
@@ -35122,6 +35143,230 @@ function _wgAlcanceObs(u,terreno){
 }
 // Dibuja el CMOC (terreno restringido / severo / clave) en su propia capa,
 // una sola vez. Sólo se rehace cuando el terreno cambió de verdad.
+// ============================================================
+// v2.9.439 — EL PLAN DE BARRERAS CON SU SÍMBOLO, COMO EN EL CALCO DE LA MESA.
+// Sergio: «debería tener marcado el plan de barreras». Llegaba (cuando llegaba:
+// ver el tope de 1.000 filas, corregido en el servidor) como una línea verde
+// punteada sin nada que dijera si era una alambrada o una zanja antitanque, y
+// la demolición como un puntito gris. Ahora cada obra se dibuja con la marca de
+// la Mesa (el catálogo `Nm` y los trazos de `VK` del compilado): travesaños de
+// la alambrada, bucles de la concertina, dientes de la zanja, la tala de la
+// abatida, minas dentro del campo minado, el cráter de la demolición y la cruz
+// del bloqueo; en el verde de ingenieros del calco y con su sigla. Lo
+// proyectado, punteado y con «(proy.)»; lo construido, macizo.
+// Sirve también para lo importado ANTES de esta versión: el tipo se reconoce
+// por la sigla del rótulo («ZAT (proyectado)» → zanja antitanque).
+// ============================================================
+const WG_OBS_MESA={
+  alambre_simple:{nom:'Alambrada simple',abrev:'AL',forma:'linea',marca:'travesano',paso:26,grosor:2.6},
+  alambre_doble:{nom:'Alambrada doble',abrev:'AL 2',forma:'linea',marca:'travesano2',paso:26,grosor:2.6},
+  concertina:{nom:'Concertina (rollo)',abrev:'CONC',forma:'linea',marca:'bucle',paso:20,grosor:2.4},
+  concertina_triple:{nom:'Concertina triple (2-1)',abrev:'CONC 3',forma:'linea',marca:'bucle3',paso:24,grosor:2.6},
+  zanja_at:{nom:'Zanja antitanque',abrev:'ZAT',forma:'linea',marca:'diente',paso:22,grosor:3.2},
+  abatida:{nom:'Abatida (tala)',abrev:'ABT',forma:'linea',marca:'tala',paso:24,grosor:2.8},
+  minado_ap:{nom:'Campo minado antipersonal',abrev:'CM AP',forma:'area',marca:'mina_ap',paso:34,grosor:2.6},
+  minado_ac:{nom:'Campo minado anticarro',abrev:'CM AC',forma:'area',marca:'mina_ac',paso:38,grosor:2.6},
+  minado_mixto:{nom:'Campo minado mixto',abrev:'CM MX',forma:'area',marca:'mina_mix',paso:36,grosor:2.6},
+  minado_ficticio:{nom:'Campo minado ficticio',abrev:'CM FIC',forma:'area',marca:'mina_fic',paso:36,grosor:2.2,punteado:true},
+  demolicion:{nom:'Demolición / cráter',abrev:'DEM',forma:'punto',marca:'crater',grosor:2.8},
+  bloqueo:{nom:'Bloqueo de camino',abrev:'BLQ',forma:'punto',marca:'bloqueo',grosor:2.8},
+};
+const WG_OBS_POR_ABREV=Object.fromEntries(Object.entries(WG_OBS_MESA).map(([k,v])=>[v.abrev,k]));
+const WG_OBS_COL='#1f7a3d';   // el verde de ingenieros del calco de la Mesa (Dp)
+// La marca en un cuadro de 24: los mismos trazos que `VK` del compilado.
+function _wgMarcaSVG(marca, col, px, grosor){
+  const tr=`stroke="${col}" stroke-width="${grosor}" fill="none" stroke-linecap="round"`, rel=`fill="${col}" stroke="none"`;
+  const d={
+    travesano:`<line x1="4" y1="12" x2="20" y2="12" ${tr}/>`,
+    travesano2:`<line x1="4" y1="8" x2="20" y2="8" ${tr}/><line x1="4" y1="16" x2="20" y2="16" ${tr}/>`,
+    bucle:`<circle cx="12" cy="12" r="6" ${tr}/>`,
+    bucle3:`<circle cx="7" cy="16" r="4.6" ${tr}/><circle cx="17" cy="16" r="4.6" ${tr}/><circle cx="12" cy="7" r="4.6" ${tr}/>`,
+    diente:`<path d="M8 3 L20 12 L8 21" ${tr}/>`,
+    tala:`<path d="M8 3 L8 21 M8 7 L18 4 M8 12 L19 11 M8 17 L18 18" ${tr}/>`,
+    mina_ap:`<circle cx="12" cy="12" r="4.5" ${rel}/>`,
+    mina_ac:`<circle cx="12" cy="12" r="5.5" ${rel}/><line x1="3" y1="12" x2="21" y2="12" stroke="${col}" stroke-width="${grosor}"/>`,
+    mina_mix:`<circle cx="7" cy="14" r="3.6" ${rel}/><circle cx="16" cy="10" r="4.6" ${rel}/><line x1="9" y1="10" x2="23" y2="10" stroke="${col}" stroke-width="${grosor}"/>`,
+    mina_fic:`<circle cx="12" cy="12" r="4.8" ${tr}/>`,
+    crater:`<path d="M3 17 L8 8 L12 13 L16 8 L21 17" ${tr}/><line x1="3" y1="17" x2="21" y2="17" ${tr}/>`,
+    bloqueo:`<path d="M5 7 L19 17 M19 7 L5 17" ${tr}/><circle cx="12" cy="12" r="9" ${tr}/>`,
+  }[marca]||'';
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${px}" height="${px}" viewBox="0 0 24 24" style="display:block;overflow:visible;filter:drop-shadow(0 0 1.5px #fff) drop-shadow(0 0 1px #fff)">${d}</svg>`;
+}
+// Lo que hay que dibujar de un elemento del terreno, o null si no es del plan.
+function _wgBarreraDe(t){
+  const g=t&&t.geojson; if(!g) return null;
+  let tipo=g.obs||null;
+  if(!tipo && t.tipo==='obstaculo'){
+    const ab=String(g.nom||'').replace(/\s*\(.*$/,'').trim();
+    tipo=WG_OBS_POR_ABREV[ab]||null;
+  }
+  if(!tipo && t.tipo!=='obstaculo') return null;
+  const def=WG_OBS_MESA[tipo]||null;
+  const geom=(g.dib&&g.dib.type)?g.dib:g;
+  const proy=g.est ? g.est!=='construido' : t.tipo==='obstaculo';
+  const nom=String(g.nom||(def?def.abrev:'OBST')).replace(/\s*\(proyectado\)\s*$/,'');
+  return { tipo, def, geom, proy, nom, bando:t.bando||null };
+}
+const _wgKmX=(lat)=>111.32*Math.cos(lat*Math.PI/180)||1e-9;
+// Dónde va cada marca: a lo largo de la línea, en grilla dentro del campo o en el punto.
+function _wgPuntosMarca(b, pasoKm){
+  const g=b.geom, def=b.def;
+  if(!def||!g) return [];
+  if(def.forma==='punto'){
+    const c=g.type==='Point'?g.coordinates:(_wgCentroDeGeom(g)||null);
+    return c?[{p:c,ang:0}]:[];
+  }
+  if(def.forma==='linea'){
+    const lineas=g.type==='LineString'?[g.coordinates]:g.type==='MultiLineString'?g.coordinates
+      :g.type==='Polygon'?[g.coordinates[0]]:[];
+    const out=[];
+    for(const l of lineas){
+      let sobra=pasoKm/2;
+      for(let i=1;i<l.length && out.length<400;i++){
+        const a=l[i-1], z=l[i];
+        const dx=(z[0]-a[0])*_wgKmX((a[1]+z[1])/2), dy=(z[1]-a[1])*110.57, d=Math.hypot(dx,dy);
+        if(d<1e-6) continue;
+        const ang=Math.atan2(dx,dy)*180/Math.PI;
+        let h=sobra;
+        while(h<=d && out.length<400){ const f=h/d; out.push({p:[a[0]+(z[0]-a[0])*f, a[1]+(z[1]-a[1])*f], ang}); h+=pasoKm; }
+        sobra=h-d;
+      }
+    }
+    return out;
+  }
+  // Área: grilla escalonada, sólo lo que cae adentro.
+  const anillo=g.type==='Polygon'?g.coordinates[0]:g.type==='MultiPolygon'?g.coordinates[0][0]:null;
+  if(!anillo||anillo.length<3) return [];
+  let x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity;
+  for(const q of anillo){ x0=Math.min(x0,q[0]); x1=Math.max(x1,q[0]); y0=Math.min(y0,q[1]); y1=Math.max(y1,q[1]); }
+  const dy=pasoKm/110.57, dx=pasoKm/_wgKmX((y0+y1)/2);
+  if((y1-y0)/dy*(x1-x0)/dx>2500) return [];
+  const out=[]; let fila=0;
+  for(let y=y0+dy/2;y<=y1;y+=dy,fila++){
+    for(let x=x0+dx/2+(fila%2?dx/2:0);x<=x1;x+=dx) if(_wgPtEnAnillo([x,y],anillo)) out.push({p:[x,y],ang:0});
+  }
+  if(!out.length) out.push({p:[(x0+x1)/2,(y0+y1)/2],ang:0});   // un campo chico lleva al menos una mina
+  return out.slice(0,300);
+}
+// Metros por píxel de pantalla a esa latitud y zoom (teselas de 256 px).
+const _wgMetrosPx=(lat,zoom)=>156543.03392*Math.cos(lat*Math.PI/180)/Math.pow(2,zoom);
+// El rótulo de la obra: su sigla, al medio, en el verde del calco.
+function _wgRotuloBarrera(b){
+  const g=b.geom; let c=null;
+  if(g.type==='LineString'){ const l=g.coordinates; c=l[Math.floor(l.length/2)]; }
+  else c=_wgCentroDeGeom(g);
+  return c?{ p:c, txt:b.nom+(b.proy?' (proy.)':'') }:null;
+}
+// En la carta 2D: la línea o el contorno (punteado si es proyectado), las marcas
+// cada tantos píxeles (se rehacen al cambiar el zoom, como en la Mesa) y la sigla.
+function _wgMarcasBarreras2D(terr){
+  if(!WG.map || typeof L==='undefined') return;
+  if(WG.capaBarreras){ try{ WG.map.removeLayer(WG.capaBarreras); }catch(_e){} }
+  WG.capaBarreras=L.layerGroup().addTo(WG.map);
+  if(!WG._barrerasZoom){
+    WG._barrerasZoom=true;
+    WG.map.on('zoomend',()=>{ try{ _wgMarcasBarreras2D(WG.terreno||[]); }catch(_e){} });
+  }
+  if(!_wgCalcoVisible('obstaculo') || (WG.maqueta && WG.maqTerrenoOff)) return;
+  const z=WG.map.getZoom();
+  let n=0;
+  for(const t of (terr||[])){
+    const b=_wgBarreraDe(t); if(!b) continue;
+    const g=b.geom, dash=b.proy||(b.def&&b.def.punteado)?'9 6':null;
+    const grosor=(b.def&&b.def.grosor)||2.6;
+    try{
+      if(g.type==='Polygon'||g.type==='MultiPolygon')
+        L.geoJSON(g,{interactive:false,style:{color:WG_OBS_COL,weight:grosor,opacity:.95,dashArray:dash,fillColor:WG_OBS_COL,fillOpacity:.07}}).addTo(WG.capaBarreras);
+      else if(/Line/.test(g.type)){
+        L.geoJSON(g,{interactive:false,style:{color:'#ffffff',weight:grosor+3,opacity:.55}}).addTo(WG.capaBarreras);
+        L.geoJSON(g,{interactive:false,style:{color:WG_OBS_COL,weight:grosor,opacity:.95,dashArray:dash}}).addTo(WG.capaBarreras);
+      }
+    }catch(_e){}
+    if(b.def){
+      const c=_wgCentroDeGeom(g)||(g.type==='Point'?g.coordinates:null);
+      const lat=c?c[1]:-17;
+      const pasoKm=(b.def.paso||30)*_wgMetrosPx(lat,z)/1000;
+      const px=b.def.forma==='punto'?26:20;
+      for(const m of _wgPuntosMarca(b,pasoKm)){
+        if(++n>900) break;
+        L.marker([m.p[1],m.p[0]],{interactive:false,keyboard:false,zIndexOffset:560,
+          icon:L.divIcon({className:'',iconSize:[px,px],iconAnchor:[px/2,px/2],
+            html:`<div style="transform:rotate(${m.ang.toFixed(0)}deg);width:${px}px;height:${px}px;opacity:${b.proy?.8:1}">`
+              +_wgMarcaSVG(b.def.marca,WG_OBS_COL,px,grosor*.9)+`</div>`})}).addTo(WG.capaBarreras);
+      }
+    }
+    const r=_wgRotuloBarrera(b);
+    if(r) L.marker([r.p[1],r.p[0]],{interactive:false,keyboard:false,zIndexOffset:570,
+      icon:L.divIcon({className:'',iconSize:[110,16],iconAnchor:[55,22],
+        html:`<b style="display:block;text-align:center;color:${WG_OBS_COL};font:700 11px Arial;white-space:nowrap;`
+          +`text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff">${_rgEsc(r.txt)}</b>`})}).addTo(WG.capaBarreras);
+  }
+}
+// En el 3D: las marcas como íconos de MapLibre (una imagen por marca, girada
+// con el mapa y apoyada en el terreno) y la sigla como rótulo del DOM.
+function _wg3dImagenesBarreras(map){
+  if(!map||!map.addImage||map.__imgBarreras) return;
+  map.__imgBarreras=true;
+  const R=2, PX=22;
+  for(const def of Object.values(WG_OBS_MESA)){
+    const id='wg-obs-'+def.marca;
+    if(map.hasImage&&map.hasImage(id)) continue;
+    const img=new Image(PX*R,PX*R);
+    img.onload=()=>{ try{
+      const c=document.createElement('canvas'); c.width=PX*R; c.height=PX*R;
+      const x=c.getContext('2d'); x.drawImage(img,0,0,PX*R,PX*R);
+      if(!(map.hasImage&&map.hasImage(id))) map.addImage(id, x.getImageData(0,0,PX*R,PX*R), {pixelRatio:R});
+      if(map.getSource('wg-barreras')) map.triggerRepaint&&map.triggerRepaint();
+    }catch(_e){} };
+    img.src='data:image/svg+xml;charset=utf-8,'+encodeURIComponent(_wgMarcaSVG(def.marca,WG_OBS_COL,PX*R,def.grosor*.9));
+  }
+}
+function _wg3dBarrerasFC(map){
+  const feats=[];
+  if(!_wgCalcoVisible('obstaculo')) return {type:'FeatureCollection',features:feats};
+  const z=map&&map.getZoom?map.getZoom()+1:13;   // MapLibre: teselas de 512 px
+  for(const t of (WG.terreno||[])){
+    const b=_wgBarreraDe(t); if(!b) continue;
+    const g=b.geom, dash=(b.proy||(b.def&&b.def.punteado))?1:0;
+    if(g.type==='Polygon'||g.type==='MultiPolygon'||/Line/.test(g.type))
+      feats.push({type:'Feature',geometry:g,properties:{_k:'traza',_dash:dash,_w:(b.def&&b.def.grosor)||2.6}});
+    if(!b.def) continue;
+    const c=_wgCentroDeGeom(g)||(g.type==='Point'?g.coordinates:null);
+    const pasoKm=(b.def.paso||30)*1.15*_wgMetrosPx(c?c[1]:-17,z)/1000;
+    for(const m of _wgPuntosMarca(b,pasoKm))
+      feats.push({type:'Feature',geometry:{type:'Point',coordinates:m.p},
+        properties:{_k:'marca',_ico:'wg-obs-'+b.def.marca,_rot:m.ang,_op:b.proy?.8:1}});
+  }
+  return {type:'FeatureCollection',features:feats};
+}
+function _wg3dRotulosBarreras(map){
+  for(const m of (WG.marcBarreras3d||[])){ try{ m.remove(); }catch(_e){} }
+  WG.marcBarreras3d=[];
+  if(!map||typeof maplibregl==='undefined'||!_wgCalcoVisible('obstaculo')) return;
+  for(const t of (WG.terreno||[])){
+    const b=_wgBarreraDe(t); if(!b) continue;
+    const r=_wgRotuloBarrera(b); if(!r) continue;
+    const el=document.createElement('div');
+    el.style.cssText=`color:${WG_OBS_COL};font:700 11px Arial;white-space:nowrap;pointer-events:none;`
+      +`text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff`;
+    el.textContent=r.txt;
+    try{ WG.marcBarreras3d.push(new maplibregl.Marker({element:el,anchor:'bottom',offset:[0,-8]}).setLngLat(r.p).addTo(map)); }catch(_e){}
+  }
+}
+function _wg3dBarreras(){
+  const map=WG.map3d; if(!map||!map.getSource) return;
+  _wg3dImagenesBarreras(map);
+  // Sólo se rehace si cambió algo (el estado se refresca cada pocos segundos y
+  // rehacer los rótulos del DOM cada vez los haría parpadear).
+  const items=(WG.terreno||[]).filter(t=>_wgBarreraDe(t));
+  const firma=JSON.stringify([_wgCalcoVisible('obstaculo'), items.length,
+    items.map(t=>(t.geojson&&t.geojson.nom)||'').join('|'), Math.round((map.getZoom?map.getZoom():0)*2)]);
+  if(firma===WG._firmaBarreras3d) return;
+  const soloZoom = WG._firmaBarreras3d && firma.replace(/,-?\d+\]$/,'')===String(WG._firmaBarreras3d).replace(/,-?\d+\]$/,'');
+  WG._firmaBarreras3d=firma;
+  try{ const s=map.getSource('wg-barreras'); if(s) s.setData(_wg3dBarrerasFC(map)); }catch(_e){}
+  if(!soloZoom) _wg3dRotulosBarreras(map);
+}
 function _wgRenderTerreno(){
   if(!WG.map) return;
   const terr = WG.terreno||[];
@@ -35135,71 +35380,102 @@ function _wgRenderTerreno(){
   const firma = (ocultoMaq?'OFF|':'')+terr.length+'|'+(WG.partidaId||'')+'|'+apagados;
   if(ocultoMaq){
     if(WG.capaTerreno){ try{ WG.map.removeLayer(WG.capaTerreno); }catch(_e){} WG.capaTerreno=null; }
+    if(WG.capaBarreras){ try{ WG.map.removeLayer(WG.capaBarreras); }catch(_e){} WG.capaBarreras=null; }   // v2.9.439
     WG.capaTerrenoFirma=firma; return;
   }
   if(WG.capaTerrenoFirma===firma && WG.capaTerreno) return;
   if(WG.capaTerreno){ try{ WG.map.removeLayer(WG.capaTerreno); }catch(_e){} }
+  if(WG.capaBarreras){ try{ WG.map.removeLayer(WG.capaBarreras); }catch(_e){} WG.capaBarreras=null; }   // v2.9.439
   WG.capaTerreno = L.layerGroup().addTo(WG.map);
   WG.capaTerrenoFirma = firma;
   if(!terr.length) return;
-  // CMOC (lo que pesa en el combate) — colores fuertes, se ven siempre.
+  // ============================================================
+  // v2.9.439 — LOS CALCOS COMO EN LA MESA (ver `_wgEstiloCalco`).
+  // Los colores por tipo son los del Generador: el CMOC con el amarillo y el
+  // naranja de la Mesa y su opacidad (antes casi transparente: «no se ve el
+  // terreno restringido»), los caminos ROJOS como el calco de comunicaciones
+  // (antes del mismo naranja que las curvas de nivel), los ríos celestes, los
+  // lagos azules, la vegetación verde. Lo que trae su estilo (`geojson.e`,
+  // importado desde la v2.9.439) se dibuja con el suyo, elemento por elemento.
+  // ============================================================
   const estilo={
-    restringido:{color:'#ffd400',weight:1,fillOpacity:0.10,fillColor:'#ffd400'},
-    severo:{color:'#e2521b',weight:1,fillOpacity:0.16,fillColor:'#e2521b'},
+    restringido:{color:'#caa800',weight:1.4,fillOpacity:0.30,fillColor:'#ffd400'},
+    severo:{color:'#a83a10',weight:1.5,fillOpacity:0.44,fillColor:'#e2521b'},
     clave:{color:'#cc00ff',weight:2,fillOpacity:0.14,fillColor:'#cc00ff'},
     // v2.9.226: faja INTERDICTADA por la artillería. Violeta y punteada: no es
     // terreno del CMOC, es fuego que niega el paso — y vence sola.
     interdiccion:{color:'#c060ff',weight:2,fillOpacity:0.20,fillColor:'#c060ff',dashArray:'8 5'},
-    // Carta de fondo del Generador — colores de carta, discretos.
-    hidro:{color:'#4aa3e0',weight:1.4,fillOpacity:0.35,fillColor:'#2f6ea8'},
-    elevacion:{color:'#e0b34a',weight:1.1,fillOpacity:0}, // curvas en ámbar: guían sin tapar
-    via:{color:'#ff9a2e',weight:2.2,fillOpacity:0},   // naranja camino: contrasta sobre satélite y sobre relieve gris
-    poblado:{color:'#d8d8d8',weight:1,fillOpacity:0.25,fillColor:'#9aa0a6'},
-    vegetacion:{color:'#4f8f45',weight:1,fillOpacity:0.22,fillColor:'#4f8f45'},
-    jurisdiccion:{color:'#b06de0',weight:1.2,fillOpacity:0,dashArray:'5 4'},
+    // La carta de fondo del Generador, con sus colores.
+    hidro:{color:'#33ddff',weight:1.8,fillOpacity:0.45,fillColor:'#0066ff'},
+    elevacion:{color:'#fecc66',weight:1.1,opacity:0.8,fillOpacity:0},
+    via:{color:'#ff2222',weight:2.2,fillOpacity:0},
+    poblado:{color:'#fc02ff',weight:1,fillOpacity:0.3,fillColor:'#fc02ff'},
+    vegetacion:{color:'#2e7d32',weight:1,fillOpacity:0.45,fillColor:'#2e7d32'},
+    jurisdiccion:{color:'#111111',weight:2,fillOpacity:0,dashArray:'10 6'},
     // v2.9.344 — LOS EJES DEL ESTADO MAYOR. Grueso y rosa fuerte: tienen que
-    // saltar a la vista por encima del naranja de todos los caminos, porque no
-    // son un camino más — son la decisión del G-4 sobre por dónde fluye el apoyo.
+    // saltar a la vista por encima de todos los caminos, porque no son un camino
+    // más — son la decisión del G-4 sobre por dónde fluye el apoyo.
     eje_log:{color:'#ff2e6a',weight:5,fillOpacity:0},
     ae:{color:'#ff3b3b',weight:2,fillOpacity:0.18,fillColor:'#ff3b3b',dashArray:'6 4'},
     defensivo:{color:'#00d3a7',weight:2,fillOpacity:0.12,fillColor:'#00d3a7'},
-    // v2.9.324 — CAMPO MINADO. Rojo y con trazo grueso punteado: en la carta
-    // militar el obstáculo minado se marca fuerte a propósito, es lo último que
-    // uno quiere confundir con otra cosa. Sobre la maqueta también se ve solo.
+    // v2.9.324 — CAMPO MINADO. Rojo y con trazo grueso punteado: es lo último
+    // que uno quiere confundir con otra cosa. Sobre la maqueta también se ve solo.
     minado:{color:'#ff2e2e',weight:3,fillOpacity:0.22,fillColor:'#ff2e2e',dashArray:'2 6'},
-    // v2.9.365 — EL PLAN DE BARRERAS que llega de la Mesa del Estado Mayor.
-    // Verde de ingenieros, como en el calco, y punteado: son obras del PLAN.
-    // Las que ya tienen efecto en el motor no salen acá — el campo minado
-    // ejecutado entra como `minado` (rojo) y la posición ocupada como
-    // `defensivo` (turquesa), para no decir dos veces la misma cosa.
-    obstaculo:{color:'#3fbf6a',weight:3,fillOpacity:0.1,fillColor:'#3fbf6a',dashArray:'7 5'},
+    // v2.9.365/439 — EL PLAN DE BARRERAS de la Mesa, en su verde de ingenieros
+    // (#1f7a3d, el del calco): la marca de cada obstáculo va aparte, encima.
+    obstaculo:{color:'#1f7a3d',weight:3,fillOpacity:0.08,fillColor:'#1f7a3d',dashArray:'9 6'},
   };
   // Los puntos (cimas, volcanes, poblados, hitos) van como circulitos chicos.
-  const punto={ elevacion:{r:3.4,color:'#e0b34a'}, poblado:{r:3.8,color:'#ffffff'}, jurisdiccion:{r:3,color:'#b06de0'} };
-  // v2.9.292 — RENDIMIENTO. Antes se creaba UNA capa `L.geoJSON` por polígono:
-  // con el terreno real del Generador eso son 250-600 capas SVG, y por eso
-  // importar o vaciar «tardaba un montón». Ahora se agrupan por tipo (máximo 11
-  // capas) y se dibujan sobre un ÚNICO lienzo `canvas`, que Leaflet pinta de una
-  // pasada en vez de crear miles de nodos en el DOM.
+  const punto={ elevacion:{r:3.6,color:'#cc8833'}, poblado:{r:4,color:'#fc02ff'}, jurisdiccion:{r:3,color:'#212121'},
+    obstaculo:{r:4,color:'#1f7a3d'} };
+  // v2.9.292 — RENDIMIENTO: una capa por TIPO (no una por polígono) sobre un
+  // único lienzo `canvas`.
   if(!WG.lienzo) WG.lienzo=L.canvas({padding:0.3});
   const porTipo={};
   for(const t of terr){
     if(!_wgCalcoVisible(t.tipo)) continue; // 🗺️ este calco está apagado
-    (porTipo[t.tipo]||(porTipo[t.tipo]=[])).push({type:'Feature',geometry:t.geojson,properties:{}});
+    if(_wgBarreraDe(t)) continue;          // v2.9.439: el plan de barreras va con su símbolo, aparte
+    (porTipo[t.tipo]||(porTipo[t.tipo]=[])).push({type:'Feature',geometry:t.geojson,
+      properties:(t.geojson&&t.geojson.e)||{}});
   }
-  // El terreno es telón de fondo: no debe robar los clics del mapa ni de las fichas.
-  for(const tipo in porTipo){
-    const est=Object.assign({interactive:false,renderer:WG.lienzo},
-      estilo[tipo]||{color:'#888',weight:1,fillOpacity:0.10});
+  // El estilo de UN elemento: el de su tipo, o el que trajo de la Mesa.
+  const estiloDe=(tipo,p)=>{
+    const b=Object.assign({interactive:false,renderer:WG.lienzo}, estilo[tipo]||{color:'#888',weight:1,fillOpacity:0.10});
+    if(!p||!p.c) return b;
+    return Object.assign(b,{ color:p.c, fillColor:p.c, weight:p.w!=null?p.w:b.weight,
+      fillOpacity:p.f!=null?p.f:(b.fillOpacity||0), dashArray:p.d||b.dashArray||null });
+  };
+  const capa=(tipo,feats,est)=>{
     try{
-      L.geoJSON({type:'FeatureCollection',features:porTipo[tipo]},{
+      L.geoJSON({type:'FeatureCollection',features:feats},{
         style:est, interactive:false, renderer:WG.lienzo,
-        pointToLayer:(f,ll)=>{ const p=punto[tipo]||{r:3,color:'#aaa'};
-          return L.circleMarker(ll,{radius:p.r,color:p.color,weight:1,fillColor:p.color,
-            fillOpacity:.65,interactive:false,renderer:WG.lienzo}); },
+        pointToLayer:(f,ll)=>{ const p=f.properties||{}, d=punto[tipo]||{r:3,color:'#aaa'};
+          const col=p.c||d.color, r=p.r||d.r;
+          return L.circleMarker(ll,{radius:r,color:'#000',opacity:.45,weight:1,fillColor:col,
+            fillOpacity:.9,interactive:false,renderer:WG.lienzo}); },
       }).addTo(WG.capaTerreno);
     }catch(_e){}
+  };
+  // El ORDEN de la carta: abajo lo que es fondo (vegetación, poblados), después
+  // el CMOC, el agua y el relieve, y ARRIBA los caminos (con un contorno oscuro
+  // que los despega del satélite) y lo que decide el combate. Antes el orden era
+  // el de llegada y las 763 curvas de nivel quedaban encima de los caminos.
+  const ORDEN=['vegetacion','poblado','jurisdiccion','restringido','severo','clave','ae','defensivo',
+    'interdiccion','hidro','elevacion','via','eje_log','minado','obstaculo'];
+  const tipos=Object.keys(porTipo).sort((a,b)=>{
+    const ia=ORDEN.indexOf(a), ib=ORDEN.indexOf(b);
+    return (ia<0?ORDEN.length:ia)-(ib<0?ORDEN.length:ib); });
+  for(const tipo of tipos){
+    if(tipo==='via'){
+      const lineas=porTipo.via.filter(f=>f.geometry&&/Line/.test(f.geometry.type));
+      capa('via_casco', lineas, (f)=>({interactive:false,renderer:WG.lienzo,color:'#2a0606',opacity:.55,
+        weight:((f.properties&&f.properties.w)||2.2)+2.6,fillOpacity:0}));
+    }
+    capa(tipo, porTipo[tipo], (f)=>estiloDe(tipo, f.properties));
   }
+  // v2.9.439 — LA MARCA DE CADA OBSTÁCULO del plan de barreras (alambrada,
+  // concertina, zanja, campo minado, demolición), como en el calco de la Mesa.
+  _wgMarcasBarreras2D(terr);
   // v2.9.344 — EL RÓTULO DEL EJE. De nada sirve una línea rosa si nadie sabe
   // si es el de abastecimiento o el de evacuación: el nombre viaja en
   // `geojson.nom` desde el Generador y acá se escribe al medio del trazo.
@@ -35235,12 +35511,13 @@ const WG3D_BASES={
   osm:{tiles:['https://a.tile.openstreetmap.org/{z}/{x}/{y}.png'],atrib:'© OpenStreetMap',maxzoom:19},
 };
 // Mismos colores que el mapa 2D, para que el terreno se lea igual en las dos vistas.
+// v2.9.439: con los colores de la Mesa (ver `_wgRenderTerreno`).
 const WG3D_EST={
-  restringido:{col:'#ffd400',fill:0.20,w:1.2}, severo:{col:'#e2521b',fill:0.30,w:1.2},
+  restringido:{col:'#ffd400',fill:0.30,w:1.4}, severo:{col:'#e2521b',fill:0.44,w:1.5},
   clave:{col:'#cc00ff',fill:0.22,w:2.4}, interdiccion:{col:'#c060ff',fill:0.26,w:2.4},
-  hidro:{col:'#4aa3e0',fill:0.45,w:1.7}, elevacion:{col:'#e0b34a',fill:0,w:1.3},
-  via:{col:'#ff9a2e',fill:0,w:2.4}, poblado:{col:'#ffffff',fill:0.30,w:1.2},
-  vegetacion:{col:'#4f8f45',fill:0.28,w:1.0}, jurisdiccion:{col:'#b06de0',fill:0,w:1.3},
+  hidro:{col:'#33ddff',fill:0.45,w:1.8}, elevacion:{col:'#fecc66',fill:0,w:1.1},
+  via:{col:'#ff2222',fill:0,w:2.2}, poblado:{col:'#fc02ff',fill:0.30,w:1.2},
+  vegetacion:{col:'#2e7d32',fill:0.45,w:1.0}, jurisdiccion:{col:'#111111',fill:0,w:2,dash:1},
   ae:{col:'#ff3b3b',fill:0.20,w:2.4}, defensivo:{col:'#00d3a7',fill:0.14,w:2.0},
   // ============================================================
   // v2.9.352 — LOS EJES DEL EM, EN 3D. (⚠️ QUINTA VEZ.)
@@ -35257,7 +35534,7 @@ const WG3D_EST={
   // `_wg3dTerrenoFC()` lo descarta y el G-3 ve su defensa en 2D y no en 3D,
   // que es justamente donde se juega. (Mismo agujero que tuvieron el EPA y el
   // campo minado en la v2.9.344.)
-  obstaculo:{col:'#3fbf6a',fill:0.1,w:3},
+  obstaculo:{col:'#1f7a3d',fill:0.08,w:3,dash:1},
 };
 const WG3D_DOCT=['restringido','severo','clave','ae','defensivo','eje_log','minado','obstaculo'];
 const WG3D_VACIO={type:'FeatureCollection',features:[]};
@@ -35269,9 +35546,22 @@ function _wg3dTerrenoFC(){
     const e=WG3D_EST[t.tipo]; if(!e||!t.geojson) continue;
     // v2.9.352: si el calco está apagado en el riel, tampoco se pinta en 3D.
     if(typeof _wgCalcoVisible==='function' && !_wgCalcoVisible(t.tipo)) continue;
+    // v2.9.439: el plan de barreras va con su símbolo, en su propia capa.
+    if(_wgBarreraDe(t)) continue;
+    // v2.9.439: el estilo de la Mesa de cada elemento (`geojson.e`), si lo trae.
+    const m=t.geojson.e||null;
+    const via=t.tipo==='via';
     feats.push({type:'Feature',geometry:t.geojson,properties:{
-      _col:e.col,_fill:e.fill,_w:e.w,_tipo:t.tipo,_doct:WG3D_DOCT.includes(t.tipo)?1:0}});
+      _col:(m&&m.c)||e.col, _fill:(m&&m.f!=null)?m.f:e.fill, _w:((m&&m.w)||e.w)*(via?1.25:1),
+      _dash:(m&&m.d)||e.dash?1:0, _casco:via?1:0, _r:(m&&m.r)||3.5,
+      _tipo:t.tipo,_doct:WG3D_DOCT.includes(t.tipo)?1:0}});
   }
+  // El orden de la carta (el mismo del 2D): los caminos y el plan de barreras
+  // ARRIBA, las curvas de nivel debajo de los caminos.
+  const ORDEN=['vegetacion','poblado','jurisdiccion','restringido','severo','clave','ae','defensivo',
+    'interdiccion','hidro','elevacion','via','eje_log','minado','obstaculo'];
+  const pos=(t)=>{ const i=ORDEN.indexOf(t); return i<0?ORDEN.length:i; };
+  feats.sort((a,b)=>pos(a.properties._tipo)-pos(b.properties._tipo));
   return {type:'FeatureCollection',features:feats};
 }
 // ============================================================
@@ -35345,7 +35635,8 @@ const WG_RAFAGA_MS = 7000;
 // Cuántos proyectiles según el sistema. El obús tira serie sostenida, el misil
 // antitanque uno solo — no se inventa cadencia donde no la hay.
 const WG_SALVA = { fusil:14, ametralladora:18, pesada:15, mortero60:9, mortero81:11,
-  mortero120:9, srAT:3, misilAT:2, canon:6, obus105:11, obus155:9 };
+  mortero120:9, srAT:3, misilAT:2, canon:6, obus105:11, obus155:9,
+  lanzacohetes:24, antiaereo:12 };   // v2.9.439: la salva del lanzacohetes satura la zona
 function _wgProyectilEl(){
   const el=document.createElement('div');
   el.className='wg-proy'; el.style.pointerEvents='none';
@@ -35926,13 +36217,47 @@ async function wgVista3D(){
     map.addLayer({id:'wg-terr-relleno',type:'fill',source:'wg-terr',
       filter:['==',['geometry-type'],'Polygon'],
       paint:{'fill-color':['get','_col'],'fill-opacity':['get','_fill']}});
+    // v2.9.439: el contorno oscuro de los caminos (los despega del satélite),
+    // las líneas macizas y, aparte, las punteadas (el punteado no va por dato).
+    map.addLayer({id:'wg-terr-casco',type:'line',source:'wg-terr',
+      filter:['all',['!=',['geometry-type'],'Point'],['==',['get','_casco'],1]],
+      layout:{'line-cap':'round','line-join':'round'},
+      paint:{'line-color':'#2a0606','line-width':['+',['get','_w'],2.6],'line-opacity':0.55}});
     map.addLayer({id:'wg-terr-linea',type:'line',source:'wg-terr',
-      filter:['!=',['geometry-type'],'Point'],
+      filter:['all',['!=',['geometry-type'],'Point'],['!=',['get','_dash'],1]],
       layout:{'line-cap':'round','line-join':'round'},
       paint:{'line-color':['get','_col'],'line-width':['get','_w'],'line-opacity':0.95}});
+    map.addLayer({id:'wg-terr-linea-pt',type:'line',source:'wg-terr',
+      filter:['all',['!=',['geometry-type'],'Point'],['==',['get','_dash'],1]],
+      layout:{'line-cap':'butt','line-join':'round'},
+      paint:{'line-color':['get','_col'],'line-width':['get','_w'],'line-opacity':0.95,'line-dasharray':[3,2]}});
     map.addLayer({id:'wg-terr-punto',type:'circle',source:'wg-terr',
       filter:['==',['geometry-type'],'Point'],
-      paint:{'circle-radius':3.5,'circle-color':['get','_col'],'circle-stroke-width':1,'circle-stroke-color':'#00000066'}});
+      paint:{'circle-radius':['get','_r'],'circle-color':['get','_col'],'circle-stroke-width':1,'circle-stroke-color':'#00000066'}});
+    // v2.9.439 — EL PLAN DE BARRERAS con su símbolo (ver `_wg3dBarrerasFC`).
+    map.addSource('wg-barreras',{type:'geojson',data:WG3D_VACIO});
+    map.addLayer({id:'wg-barreras-relleno',type:'fill',source:'wg-barreras',
+      filter:['all',['==',['get','_k'],'traza'],['==',['geometry-type'],'Polygon']],
+      paint:{'fill-color':WG_OBS_COL,'fill-opacity':0.08}});
+    map.addLayer({id:'wg-barreras-halo',type:'line',source:'wg-barreras',
+      filter:['all',['==',['get','_k'],'traza'],['!=',['geometry-type'],'Point']],
+      layout:{'line-cap':'round','line-join':'round'},
+      paint:{'line-color':'#ffffff','line-width':['+',['get','_w'],3],'line-opacity':0.5}});
+    map.addLayer({id:'wg-barreras-linea',type:'line',source:'wg-barreras',
+      filter:['all',['==',['get','_k'],'traza'],['!=',['geometry-type'],'Point'],['!=',['get','_dash'],1]],
+      layout:{'line-cap':'round','line-join':'round'},
+      paint:{'line-color':WG_OBS_COL,'line-width':['get','_w'],'line-opacity':0.95}});
+    map.addLayer({id:'wg-barreras-linea-pt',type:'line',source:'wg-barreras',
+      filter:['all',['==',['get','_k'],'traza'],['!=',['geometry-type'],'Point'],['==',['get','_dash'],1]],
+      layout:{'line-cap':'butt','line-join':'round'},
+      paint:{'line-color':WG_OBS_COL,'line-width':['get','_w'],'line-opacity':0.95,'line-dasharray':[3,2]}});
+    map.addLayer({id:'wg-barreras-marca',type:'symbol',source:'wg-barreras',
+      filter:['==',['get','_k'],'marca'],
+      layout:{'icon-image':['get','_ico'],'icon-rotate':['get','_rot'],'icon-rotation-alignment':'map',
+        'icon-pitch-alignment':'map','icon-allow-overlap':true,'icon-ignore-placement':true,'icon-size':1},
+      paint:{'icon-opacity':['get','_op']}});
+    _wg3dImagenesBarreras(map);
+    map.on('zoomend',()=>{ try{ _wg3dBarreras(); }catch(_e){} });
     // v2.9.220 — TERRENO QUEMADO. Va PRIMERO para que quede por debajo del
     // calco y de las fichas: es una mancha en el suelo, no un símbolo.
     map.addSource('wg-quema',{type:'geojson',data:WG3D_VACIO});
@@ -36064,6 +36389,7 @@ function _wg3dDatos(){
   if(WG.replayando && _wgAnimando()){ WG._renderPend=true; return; }   // v2.9.430
   try{
     const s1=map.getSource('wg-terr'); if(s1) s1.setData(_wg3dTerrenoFC());
+    _wg3dBarreras();   // v2.9.439: el plan de barreras con su símbolo
     // v2.9.218: la MISMA lista que pinta el 2D. Si mañana se agrega una figura
     // nueva a `_wgDibujo()`, aparece acá sola — ése era el punto del cambio.
     // v2.9.227: se guarda la lista para que los RÓTULOS puedan salir como
@@ -36458,10 +36784,18 @@ function _wg3dCapas(){
   const map=WG.map3d; if(!map||!map.setFilter) return;
   const visibles=WG_CALCOS.filter(c=>_wgCalcoVisible(c.id)).map(c=>c.id);
   const cond = visibles.length ? ['in',['get','_tipo'],['literal',visibles]] : ['literal',false];
-  for(const [capa,geom] of [['wg-terr-relleno','Polygon'],['wg-terr-linea',null],['wg-terr-punto','Point']]){
-    const base = capa==='wg-terr-linea' ? ['!=',['geometry-type'],'Point'] : ['==',['geometry-type'],geom];
-    try{ map.setFilter(capa,['all',base,cond]); }catch(_e){}
+  // v2.9.439: con el contorno de los caminos y las líneas punteadas, que son capas aparte.
+  const BASE={
+    'wg-terr-relleno':['==',['geometry-type'],'Polygon'],
+    'wg-terr-casco':['all',['!=',['geometry-type'],'Point'],['==',['get','_casco'],1]],
+    'wg-terr-linea':['all',['!=',['geometry-type'],'Point'],['!=',['get','_dash'],1]],
+    'wg-terr-linea-pt':['all',['!=',['geometry-type'],'Point'],['==',['get','_dash'],1]],
+    'wg-terr-punto':['==',['geometry-type'],'Point'],
+  };
+  for(const capa in BASE){
+    try{ if(map.getLayer(capa)) map.setFilter(capa,['all',BASE[capa],cond]); }catch(_e){}
   }
+  _wg3dBarreras();
 }
 function wg3dBase(cual){
   WG.base3d=cual;
@@ -36593,8 +36927,11 @@ const WG_PODER={equipo:0.5,escuadra:1,seccion:2,compania:4,batallon:12,regimient
 const WG_OBS={equipo:2,escuadra:2,seccion:3,compania:4,batallon:6,regimiento:8,brigada:10,division:14,cuerpo:20,ejercito:25};
 // Medio de transporte según el arma (define qué terreno puede cruzar).
 function _wgMedioPorArma(arma){
-  if(arma==='blindada') return 'oruga';
-  if(arma==='infanteria'||arma==='aerotransportada') return 'pie';
+  // v2.9.439: la mecanizada y la caballería mecanizada van en BLINDADOS (VCI,
+  // VTP, Cascavel, Urutu): cruzan el campo y lo restringido como los de oruga.
+  // Antes eran «motor» y la DIV MEC-2 no podía salir del camino.
+  if(arma==='blindada'||arma==='mecanizada'||arma==='cabmec') return 'oruga';
+  if(arma==='infanteria'||arma==='aerotransportada'||arma==='andina'||arma==='selva') return 'pie';
   return 'motor';
 }
 function _wgPeso(n){ return n>=1048576?(n/1048576).toFixed(1)+' MB':Math.round(n/1024)+' KB'; }
@@ -36631,6 +36968,10 @@ const WG_ICONO_ARMA = {
   obus:`<path d="M4.8 11.4l14.9-4.9.8 2.5-14.9 4.9z"/><path d="M19.4 5.9l3.4-1.1.9 2.7-3.4 1.1z"/><circle cx="6.4" cy="16.6" r="3.4"/><path d="M5.4 15.1L1 20.6l1.5 1.2 4.4-5.5z"/><path d="M7.4 15.1l4.4 5.5 1.5-1.2-4.4-5.5z"/><rect x="3.4" y="11.6" width="4.6" height="3.4" rx=".6"/>`,
   // Cañón de tanque: torre con tubo y oruga.
   canon:`<path d="M2.6 12.9h11.6v3.6H2.6z" rx="1"/><path d="M13.6 13.6h8.8v1.9h-8.8z"/><path d="M5.4 9.6h6.6l1.4 3.3H4z"/><rect x="1.4" y="17.2" width="14.4" height="3.6" rx="1.8"/><circle cx="4.4" cy="19" r="1.1" fill="#000" opacity=".35"/><circle cx="8.6" cy="19" r="1.1" fill="#000" opacity=".35"/><circle cx="12.8" cy="19" r="1.1" fill="#000" opacity=".35"/>`,
+  // v2.9.439 — Lanzacohetes múltiple: el haz de tubos sobre el camión, elevado.
+  cohete:`<path d="M2.4 17.8h12.2v2.6H2.4z"/><circle cx="5" cy="21" r="1.6"/><circle cx="12.2" cy="21" r="1.6"/><path d="M14.6 15.6h4.3l2.2 2.6v2.2h-6.5z"/><path d="M4.6 15.9l12.8-7.4 1.3 2.2-12.8 7.4z"/><path d="M3.9 14.3l12.8-7.4 1-.6.9 1.6-1 .6-12.8 7.4z" opacity=".75"/><path d="M18.6 4.6l2.6-1.4.5 3.2z"/><path d="M19.6 7.1l2.6-1.4.5 3.2z" opacity=".75"/>`,
+  // v2.9.439 — Antiaérea: el tubo doble apuntando al cielo sobre su montaje.
+  antiaereo:`<path d="M5 18.6h14v2.4H5z"/><path d="M7.2 18.6l2.4-5h4.8l2.4 5z"/><path d="M11 13.6l5.6-10 1.6.9-5.6 10z"/><path d="M12.9 14.4l5.6-10 1.6.9-5.6 10z" opacity=".7"/><circle cx="12" cy="14.2" r="1.7"/>`,
   // Ingeniería: pala y pico cruzados (obstáculos y brechas).
   zapa:`<path d="M4 19.6l9.4-9.4 1.4 1.4-9.4 9.4z"/><path d="M12.6 6.2c2-2 5.2-2.2 6.9-.5s1.5 4.9-.5 6.9l-1.6-1.6c1.1-1.1 1.3-2.6.5-3.4s-2.3-.6-3.4.5z"/><path d="M2.4 18l3.2 3.2-1.5 1.5-3.2-3.2z"/><path d="M15.4 9l3.2 3.2" stroke="currentColor" stroke-width="1.6" fill="none"/>`,
 };
@@ -36665,25 +37006,44 @@ const WG_ARMAS={
   canon:        {id:'canon',        nom:'Cañón de tanque',     icono:'canon',        alcance:2.5,  radio:0.1, pot:0.25, uf:5,  contra:'blindados y posiciones'},
   obus105:      {id:'obus105',      nom:'Obús 105 mm',         icono:'obus',         alcance:11.0,  radio:0.35, pot:0.4, uf:5, contra:'áreas', indirecto:true},
   obus155:      {id:'obus155',      nom:'Obús 155 mm',         icono:'obus',         alcance:24.0,  radio:0.5, pot:0.55, uf:4, contra:'áreas', indirecto:true},
+  // v2.9.439 — los que faltaban (ver ARMAS del motor): el GALM-1 y la batería
+  // LAR-160 entraban con fusiles y morteros de infantería.
+  lanzacohetes: {id:'lanzacohetes', nom:'Lanzacohetes múltiple', icono:'cohete',     alcance:30.0, radio:1.0, pot:0.45, uf:2, contra:'áreas (fuego de saturación)', indirecto:true},
+  antiaereo:    {id:'antiaereo',    nom:'Antiaérea (cañón / misil)', icono:'antiaereo', alcance:4.0, radio:0.08, pot:0.15, uf:4, contra:'aeronaves y drones · vehículos livianos'},
   zapa:         {id:'zapa',         nom:'Medios de zapa',      icono:'zapa',         alcance:0,  radio:0, pot:0, uf:0,    contra:'terreno: brechas y obstáculos', ingenieria:true},
 };
 // Qué tiene cada arma. El escalón agrega o quita sistemas.
+// ⚠️ v2.9.439: ESPEJO de DOTACION del motor (wargame-ops). Todas las armas de la
+// Mesa tienen su renglón: antes mecanizada, caballería mecanizada, antiaérea,
+// lanzacohetes, logística y los PC caían en la dotación de infantería.
+const _WG_INF={base:['fusil','ametralladora'], compania:['pesada','mortero60'],
+  batallon:['pesada','mortero81','srAT'], regimiento:['pesada','mortero81','srAT'],
+  brigada:['pesada','mortero120','misilAT'], division:['obus105','antiaereo','zapa']};
+const _WG_CAB={base:['ametralladora','pesada'], compania:['canon'], batallon:['canon','misilAT'],
+  regimiento:['canon','misilAT'], brigada:['canon','misilAT'], division:['obus105','antiaereo','zapa']};
+const _WG_APOYO={base:['fusil']};
 const WG_DOTACION={
   convoy:       {base:['fusil']},   // v2.9.335: se defiende apenas, no combate
-  infanteria:   {base:['fusil','ametralladora'], compania:['pesada','mortero60'],
-                 batallon:['pesada','mortero81','srAT'], regimiento:['pesada','mortero81','srAT'],
-                 brigada:['pesada','mortero120','misilAT']},
-  caballeria:   {base:['ametralladora','pesada'], compania:['canon'], batallon:['canon','misilAT'],
-                 regimiento:['canon','misilAT'], brigada:['canon','misilAT']},
-  blindada:     {base:['canon','pesada'], batallon:['canon','pesada','misilAT']},
+  infanteria:_WG_INF, motorizada:_WG_INF, andina:_WG_INF, selva:_WG_INF,
+  caballeria:_WG_CAB, cabmec:_WG_CAB,
+  mecanizada:   {base:['fusil','ametralladora','pesada'], compania:['misilAT'],
+                 batallon:['mortero81','misilAT'], regimiento:['mortero81','misilAT'],
+                 brigada:['mortero120','misilAT','canon'], division:['obus105','obus155','antiaereo','zapa']},
+  blindada:     {base:['canon','pesada'], batallon:['canon','pesada','misilAT'],
+                 division:['obus155','antiaereo','zapa']},
   artilleria:   {base:['fusil'], compania:['obus105'], batallon:['obus105'],
                  regimiento:['obus105','obus155'], brigada:['obus155']},
+  lanzacohetes: {base:['fusil','lanzacohetes'], compania:['pesada']},
+  antiaerea:    {base:['fusil','antiaereo'], compania:['pesada']},
   morteros:     {base:['fusil','mortero81'], batallon:['mortero120']},
   antitanque:   {base:['fusil','srAT'], batallon:['misilAT']},
   ametralladoras:{base:['ametralladora','pesada']},
   ingenieria:   {base:['fusil','zapa']},
-  comunicaciones:{base:['fusil']},
+  comunicaciones:_WG_APOYO, logistica:_WG_APOYO, sanidad:_WG_APOYO, intendencia:_WG_APOYO,
+  transporte:_WG_APOYO, mantenimiento:_WG_APOYO, materialbelico:_WG_APOYO, veterinaria:_WG_APOYO, aviacion:_WG_APOYO,
+  inteligencia:{base:['fusil','ametralladora']}, policiamilitar:{base:['fusil','ametralladora']},
   aerotransportada:{base:['fusil','ametralladora'], batallon:['pesada','mortero60','misilAT']},
+  ninguna:      {base:['fusil','pesada']},   // v2.9.439: el PC se defiende con su seguridad
 };
 // ============================================================
 // v2.9.214 — PANEL DE SISTEMAS DE ARMAS.
@@ -36783,9 +37143,11 @@ function _wgPanelArmasHTML(){
     // v2.9.230: cuánta munición le queda a ESE sistema. Es el dato que decide
     // si la orden se puede dar, así que va junto al alcance.
     const mun = a.ingenieria ? null : _wgMunicion(u,a.id);
+    // v2.9.439: la dotación PLANIFICADA de esa unidad (tope) al lado de lo que le queda.
+    const tope = a.ingenieria ? 0 : _wgUfTope(u,a.id);
     const munTxt = mun==null ? ''
-      : (mun<=0 ? ` · <b style="color:#ff6b6b">SIN MUNICIÓN</b>`
-                : ` · <b style="color:${mun<=1?'#ffb15c':'#8ef0b4'}">${mun} UF</b>`);
+      : (mun<=0 ? ` · <b style="color:#ff6b6b">SIN MUNICIÓN</b> (de ${tope} UF)`
+                : ` · <b style="color:${mun<=1?'#ffb15c':'#8ef0b4'}">${+mun.toFixed(1)}/${tope} UF</b>`);
     const detalle = (a.ingenieria ? a.contra
       : (a.alcance? (a.alcance.toFixed(1).replace('.0','')+' km · '+a.contra) : a.contra)) + munTxt;
     const marca = a.ingenieria ? ''
@@ -36797,6 +37159,8 @@ function _wgPanelArmasHTML(){
       +(activa?`background:rgba(255,225,26,.14);border:1px solid #ffe11a`:`background:rgba(255,255,255,.04);border:1px solid transparent`)+`">`
       +`<span style="color:${activa?'#ffe11a':'#bcd6ee'}">${_wgIconoArma(a.icono,26)}</span>`
       +`<span style="flex:1;line-height:1.3"><b style="font-size:12px">${a.nom}</b>`
+      +((()=>{ const sm=_wgMediosDe(u), x=sm&&sm.sistemas&&sm.sistemas[a.id];   // v2.9.439: cuántos tiene
+          return x&&x.n?` <span class="rg-meta" style="font-size:10.5px">×${Number(x.n).toLocaleString('es')}</span>`:''; })())
       +`<br><span class="rg-meta" style="font-size:10.5px">${detalle}${a.indirecto?' · <b style="color:#8fd3ff">tiro indirecto</b>':''}</span></span>`
       +`<span style="font-size:10.5px;text-align:right">${marca}</span></div>`;
   }).join('');
@@ -36835,7 +37199,36 @@ function _wgPanelArmasHTML(){
         :(c.pct>=80?'<br><b style="color:#ffb15c">⚠️ Menos de un quinto de tanque.</b>':''))
       +`</div>` : '';
   return `<div class="section-label" style="margin:0 0 6px">🎯 ARMAMENTO · ${_rgEsc(u.designacion||'unidad')}</div>`
-    +comb+_wgPanelTareaHTML(u)+filas+pie+_wgPanelMisionHTML(elegida)+rep+_wgPanelObrasHTML(u)+_wgPanelDronHTML(u);
+    +comb+_wgPanelMediosHTML(u)+_wgPanelTareaHTML(u)+filas+pie+_wgPanelMisionHTML(elegida)+rep+_wgPanelObrasHTML(u)+_wgPanelDronHTML(u);
+}
+// ============================================================
+// v2.9.439 — MEDIOS Y CAPACIDADES de la unidad seleccionada. Sergio: «se debe
+// saber qué capacidades tienen». Lo que trajo del Generador: de dónde salió
+// (COE, G-4 o catálogo), efectivos, vehículos, armamento, autonomía planificada
+// y, si es un PC o una ficha del CAE, qué es y qué tarea tiene.
+// ============================================================
+function _wgPanelMediosHTML(u){
+  const m=_wgMediosDe(u);
+  const alc=_wgArmamento(u).filter(a=>!a.ingenieria&&a.alcance>0).reduce((x,a)=>Math.max(x,a.alcance),0);
+  const MEDIO={ pie:'a pie', motor:'motorizado (rueda)', oruga:'blindado / oruga', rueda:'camión cargado' };
+  const fmt=(o)=>Object.entries(o||{}).slice(0,10).map(([k,n])=>`${_rgEsc(k)} <b>${Number(n).toLocaleString('es')}</b>`).join(' · ');
+  const filas=[];
+  if(m&&m.pc) filas.push(`⛳ <b>Puesto de Comando</b> — no es una fuerza de maniobra: combate sólo con su seguridad.`);
+  if(m&&m.efectivo) filas.push(`👥 <b>${Number(m.efectivo).toLocaleString('es')} H</b>`);
+  filas.push(`🚚 ${MEDIO[_wgMedioDe(u)]||_rgEsc(u.medio||'—')} · 👁️ observa ${(+u.obs_km||0).toFixed(0)} km`
+    +(alc?` · 🎯 alcance máximo <b>${alc.toFixed(alc<10?1:0).replace('.0','')} km</b>`:'')
+    +` · 💪 poder ${Math.round(+u.poder_actual||0)}/${Math.round(+u.poder_max||0)}`);
+  if(m&&m.vehiculos) filas.push(`🛞 ${fmt(m.vehiculos)}`);
+  if(m&&m.armamento) filas.push(`🔫 ${fmt(m.armamento)}`);
+  if(m&&m.autonomiaKm) filas.push(`⛽ autonomía planificada <b>${m.autonomiaKm} km</b>${m.consumo?` (${_rgEsc(m.consumo)})`:''}`);
+  if(m&&m.tadDe) filas.push(`🧾 dotación de fuego según la tasa del <b>${_rgEsc(m.tadDe)}</b>`);
+  if(m&&m.nivelDias) filas.push(`📅 nivel de abastecimiento planificado: ${m.nivelDias} días`);
+  if(m&&m.tarea) filas.push(`📋 <b>Tarea:</b> ${_rgEsc(m.tarea)}${m.proposito?` — <i>${_rgEsc(m.proposito)}</i>`:''}`);
+  const fuente = m ? (m.fuenteTxt||m.fuente) : 'Dotación de referencia del Juego (importada antes de la v2.9.439)';
+  return `<div style="margin:0 0 9px;padding:8px 9px;border-radius:9px;background:rgba(90,169,255,.07);border:1px solid rgba(90,169,255,.28)">`
+    +`<div class="section-label" style="margin:0 0 4px">📦 MEDIOS Y CAPACIDADES</div>`
+    +`<div class="rg-meta" style="font-size:10.5px;line-height:1.5">${filas.join('<br>')}`
+    +`<br><span style="opacity:.75">Fuente: ${_rgEsc(fuente)}</span></div></div>`;
 }
 // ============================================================
 // v2.9.325 — TAREAS TÁCTICAS: la orden dice QUÉ HACER y PARA QUÉ.
@@ -36939,9 +37332,35 @@ function _wgPanelTareaHTML(u){
         +`Elegir una es lo que convierte la orden en doctrina.</div>`)
     +`</div>`;
 }
+// ============================================================
+// v2.9.439 — LOS MEDIOS DE VERDAD DE CADA UNIDAD. Espejo de `sistemasPropios`,
+// `ufTope` y `tanqueDe` del motor: si la unidad trae `medios` (del COE o del
+// planeamiento del G-4, al importar del Generador), MANDAN; si no, el catálogo.
+// ============================================================
+function _wgMediosDe(u){ const m=u&&u.medios; return (m&&typeof m==='object'&&!Array.isArray(m))?m:null; }
+function _wgSistemasPropios(u){
+  const m=_wgMediosDe(u), s=m&&m.sistemas;
+  if(!s||typeof s!=='object'||Array.isArray(s)) return null;
+  const ids=Object.keys(s).filter(id=>WG_ARMAS[id]);
+  return ids.length?ids:null;
+}
+function _wgUfTope(u, armaId){
+  const m=_wgMediosDe(u), s=m&&m.sistemas&&m.sistemas[armaId];
+  const v=Number(s&&s.uf);
+  if(Number.isFinite(v)&&v>0) return v;
+  return Number(WG_ARMAS[armaId]&&WG_ARMAS[armaId].uf)||0;
+}
+function _wgTanqueDe(u){
+  const base=WG_AUTONOMIA[_wgMedioDe(u)]||0;
+  if(!base) return 0;
+  const m=_wgMediosDe(u), a=Number(m&&m.autonomiaKm);
+  return (Number.isFinite(a)&&a>0)?a:base;
+}
 // Sistemas de armas de una unidad, ordenados de menor a mayor alcance.
 function _wgArmamento(u){
   if(!u) return [];
+  const propios=_wgSistemasPropios(u);   // v2.9.439
+  if(propios) return propios.map(id=>WG_ARMAS[id]).sort((a,b)=>a.alcance-b.alcance);
   const d=WG_DOTACION[u.arma]||WG_DOTACION.infanteria;
   const ids=[...(d.base||[])];
   // El escalón suma lo suyo, y los mayores heredan lo del batallón.
@@ -37164,12 +37583,28 @@ function _wgPreguntarFase(fases, poner, archivo){
         +`<div style="margin-top:4px"><span style="color:#e23b3b">🔴</span> <select id="wg-enf-rojo" style="max-width:100%">${opc(ro,sel.rojo)}</select></div>`
         +`<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-top:6px" data-fase="enfrentar">⚔️ Jugar este enfrentamiento</button></div>`
       : '';
+    // v2.9.439 — ¿EL PLAN DE BARRERAS YA ESTÁ CONSTRUIDO EN LA FASE QUE SE JUEGA?
+    // De entrada sí cuando el evento crítico es de la FASE III en adelante (la
+    // organización del terreno ya se hizo); el árbitro lo cambia acá.
+    const nObs=Number(fases._nObs)||0;
+    const azSel=(fases._azules||[])[(fases._sel||{}).azul];
+    const porDefecto=(fases._sel && azSel && azSel.idx>=2) ? 'construido' : 'proyectado';
+    const barreras = nObs
+      ? `<div style="border:1px solid rgba(31,122,61,.6);border-radius:8px;padding:8px;margin:8px 0">`
+        +`<b>🛡️ Plan de barreras de la Mesa</b> <span class="rg-meta">(${nObs} obra(s))</span><br>`
+        +`<label style="display:block;margin-top:4px"><input type="radio" name="wg-barreras" value="construido"${porDefecto==='construido'?' checked':''}> `
+        +`<b>Construido</b> — el campo minado DETIENE; la zanja, la demolición y el bloqueo cortan el paso a los vehículos (también sobre el camino); la alambrada y la concertina frenan. Siempre al enemigo: su dueño conoce los pasos.</label>`
+        +`<label style="display:block;margin-top:4px"><input type="radio" name="wg-barreras" value="proyectado"${porDefecto==='proyectado'?' checked':''}> `
+        +`<b>Proyectado</b> — se ve punteado, no frena a nadie (lo que la Mesa marcó como ejecutado igual entra construido).</label>`
+        +`<span class="rg-meta">El enemigo no ve el plan: lo descubre cuando lo tiene a la vista o se lo topa.</span></div>`
+      : '';
     poner(`<b>¿Qué curso de acción querés jugar?</b>`
       +(archivo?` <span class="rg-meta">— ${_rgEsc(archivo)}</span>`:'')+`<br>`
       +`<span class="rg-meta">Cada fase tiene las unidades en la posición de ESA fase. `
       +`Las instalaciones logísticas (ASDI, ARCE, PCED…) <b>no dependen del COA</b>: entran siempre, se elija la fase que se elija.</span>`
       +(ev?`<br><span class="rg-meta">⚔️ El <b>evento crítico</b> lo eligió el Estado Mayor en la Matriz de sincronización (F4·P6-7): la fase 🔵 del CAP contra la fase 🔴 del CAE.</span>`:'')
       +`<div style="margin-top:8px">`
+      +barreras
       +filasEv
       +enfrentar
       +`<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-bottom:4px" data-fase="viva">📍 Estado actual del ejercicio (como quedó abierto)`
@@ -37180,6 +37615,9 @@ function _wgPreguntarFase(fases, poner, archivo){
     cont.querySelectorAll('button[data-fase]').forEach(b=>{
       b.onclick=()=>{
         const v=b.getAttribute('data-fase');
+        // v2.9.439: lo que eligió para el plan de barreras viaja en la lista.
+        const rb=cont.querySelector('input[name="wg-barreras"]:checked');
+        fases._barreras = rb ? rb.value : porDefecto;
         if(v==='no') return resolve(undefined);
         if(v==='enfrentar'){
           const a=az[Number(document.getElementById('wg-enf-azul').value)||0];
@@ -37257,6 +37695,370 @@ const WG_ABREV_INSTAL = {
   pce:'PCE', p_extrav:'P Reu Extrav', p_pm:'P PM', p_confin:'C Confin',
   p_reu_reempl:'P Reu Reempl', prm:'PRM', p_sepul:'Sepult',
 };
+// ============================================================
+// v2.9.439 — LOS MEDIOS DE CADA UNIDAD, AL TRAERLA DEL GENERADOR.
+// Sergio: «trasladado las unidades lo que realmente tienen de acuerdo a su
+// COE… se debe saber qué capacidades tienen… se debe poder realmente acabar el
+// combustible, acabar la munición de acuerdo a lo que se planificó… esto debe
+// ser una transferencia de todos los medios».
+// Hasta acá cada ficha entraba con lo que dice el catálogo por arma y escalón
+// (y las armas que el catálogo no tenía —lanzacohetes, mecanizada, antiaérea,
+// logística, los PC— caían en la de infantería). Ahora cada unidad viaja con
+// `medios` (columna jsonb de wg_unidades), armados con lo MEJOR que haya:
+//   1. el COE de la biblioteca del profesor (lo baja la Mesa con el ejercicio,
+//      `bibliotecaCOE`): efectivos, armamento y vehículos de esa unidad;
+//   2. lo que el oficial cargó para esa unidad en el tablero del G-4
+//      (`logDatos`: hombres, vehículos y armas);
+//   3. si no hay ninguno de los dos, el catálogo del Juego.
+// Y con lo PLANIFICADO en los documentos del ejercicio (el Anexo de Logística):
+//   · la tasa de abastecimiento disponible (TAD) por arma y por día → la
+//     dotación de cada sistema en UF («GALM-1, 2 cargas completas por
+//     lanzador» = 2 UF: dos salvas y a recargar);
+//   · el consumo de combustible por la altura («≈ 20 %») → la autonomía;
+//   · el nivel de abastecimiento (días) → se informa.
+// El motor (wargame-ops) usa `medios.sistemas` y `medios.autonomiaKm`: si la
+// unidad los trae, mandan sobre el catálogo; el combustible y la munición se
+// acaban de verdad y se reponen hasta lo planificado.
+// ⚠️ CIFRAS DE REFERENCIA: cuántos tiros hacen una «misión» (1 UF) de cada
+// sistema. Sergio las tiene que validar contra el reglamento.
+// ============================================================
+const WG_TIROS_POR_UF={ obus105:16, obus155:15, mortero120:15, mortero81:16, mortero60:10,
+  lanzacohetes:1, misilAT:1, srAT:2, antiaereo:1, canon:20 };
+function _wgNormTxt(s){
+  return String(s==null?'':s).normalize('NFD').replace(/[̀-ͯ]/g,'').toUpperCase().replace(/\s+/g,' ').trim();
+}
+// El sistema del Juego que corresponde a un renglón del COE, del Anexo o del G-4.
+function _wgSistemaDeNombre(nombre){
+  const n=_wgNormTxt(nombre);
+  if(!n) return null;
+  // El lanzacohetes de 3,5" y los cohetes portátiles son antitanque de infantería.
+  if(/LANZACOHETES?\s*(DE\s*)?3[.,]?5|BAZOOKA|\bRPG|CARL\s*GUSTA|\bM72\b|\bLAW\b|\bAT-?4\b|SIN RETROCESO|\bS\/R\b|\bSR\b.*\b(84|90|106)\b|\b106\b/.test(n)) return 'srAT';
+  if(/\bGALM\b|LANZADOR(ES)? MULTIPLE|LANZACOHETES? MULTIPLE|\bLAR\b|LAR-?160|ASTROS|\bBM-?21\b|\bMLRS\b|TYPE\s*63|COHETE/.test(n)) return 'lanzacohetes';
+  if(/RBS|MISTRAL|IGLA|STINGER|MANPAD|ANTIAER|\bA\.?A\.?\b|BOFORS|OERLIKON|GEPARD|ZU-?23|ZSU|CHAPARRAL|ROLAND/.test(n)) return 'antiaereo';
+  if(/MISIL|\bMSS\b|MILAN|\bTOW\b|SPIKE|\bHOT\b|KORNET|JAVELIN|MAPATS/.test(n)) return 'misilAT';
+  if(/\b155\b|M114|M109|M198|M777/.test(n)) return 'obus155';
+  if(/OBUS|\b105\b.*(MM|OBUS)|M101|M102|\bM56\b|OTO MELARA|L118/.test(n)) return 'obus105';
+  if(/MORT.*\b120\b|\b120 ?MM/.test(n)) return 'mortero120';
+  if(/MORT.*\b8[12]\b|\b8[12] ?MM/.test(n)) return 'mortero81';
+  if(/MORT.*\b60\b|\b60 ?MM/.test(n)) return 'mortero60';
+  if(/MORTERO/.test(n)) return 'mortero81';
+  // Las ametralladoras antes que el cañón: la «COAX AMX-13» es una ametralladora.
+  if(/\.50|12[,.]7|\bM2\b|PESADA|BROWNING/.test(n)) return 'pesada';
+  if(/AMETRALLADORA|AMETR\b|\bMAG\b|\bM60\b|MINIMI|\bPKM\b|COAX/.test(n)) return 'ametralladora';
+  if(/TANQUE|\bTQ\b|CASCAVEL|SK-?105|LEOPARD|\bAMX|\bM60A|\bT-?55|KURASSIER|CANON\s*(DE\s*)?90|\b90 ?MM/.test(n)) return 'canon';
+  if(/FUSIL|CARABINA|PISTOLA|SUBFUSIL|SUBAMETR|\bFAL\b|GALIL|\bM16\b|\bAK\b|REVOLVER/.test(n)) return 'fusil';
+  if(/DETECTOR|EXPLOSIV|SEMBRADORA|ZAPA|PUENTE|TOPADORA|RETROEXC|MOTONIVEL|EXCAVAD/.test(n)) return 'zapa';
+  return null;
+}
+// Los vehículos dicen cómo se mueve y, si llevan arma, con qué tira.
+function _wgVehiculoBlindado(nombre){
+  return /TANQUE|\bTQ\b|LEOPARD|SK-?105|M113|\bAMX|M109|\bBMP|ORUGA|\bM41\b|URUTU|GUARANI|CASCAVEL|\bVTP\b|\bVCI\b|\bVCTP\b|BLIND|\bEE-?(9|11)\b|MOWAG|PIRANHA|\bVBTP\b/.test(_wgNormTxt(nombre));
+}
+function _wgVehiculoRueda(nombre){
+  return /CAMION|\bVUG\b|JEEP|CAMIONETA|TRACTO|\bVEH|REMOLQUE|CISTERNA|AMBULANCIA|MOTO/.test(_wgNormTxt(nombre));
+}
+// La clave para encontrar una unidad en el COE: «RIM-8 (DIV MEC-1)» → «RIM8».
+function _wgClaveDesig(d){
+  return _wgNormTxt(String(d||'').split('(')[0]).replace(/[^A-Z0-9]/g,'');
+}
+// Lo PLANIFICADO, leído de los documentos del ejercicio (el Anexo de Logística).
+function _wgPlanLogistico(d){
+  const docs=((d&&d.documentos)||[]).filter(x=>x&&typeof x.texto==='string'&&x.texto.length>40);
+  // Primero el anexo de logística; después cualquier otro que lo diga.
+  const prio=(x)=>/ANEXO\s*["“”']?\s*G\b|LOGISTIC/.test(_wgNormTxt(x.nombre))?0:1;
+  docs.sort((a,b)=>prio(a)-prio(b));
+  const plan={ tad:{}, tadTxt:[], fuente:null, consumo:null, consumoTxt:null, nivelDias:null, nivelTxt:null };
+  for(const doc of docs){
+    const t=String(doc.texto).replace(/\s+/g,' ');
+    if(!Object.keys(plan.tad).length){
+      const m=/tasa de abastecimiento disponible[^:]{0,200}?por arma y por d[ií]a\s*:\s*(.+)/i.exec(t);
+      if(m){
+        const lista=m[1].split(/\.\s+(?=[A-ZÁÉÍÓÚÑ])/)[0];
+        for(const item of lista.split(';')){
+          const partes=item.split(',');
+          if(partes.length<2) continue;
+          const nombre=partes[0].trim(), resto=partes.slice(1).join(',');
+          const num=/(\d+(?:[.,]\d+)?)/.exec(resto);
+          const sis=_wgSistemaDeNombre(nombre);
+          if(!num||!sis) continue;
+          const tiros=Number(num[1].replace(',','.'));
+          if(!(tiros>0)) continue;
+          if(plan.tad[sis]==null || tiros>plan.tad[sis].tiros) plan.tad[sis]={ tiros, txt:(nombre+','+resto).trim().slice(0,90) };
+        }
+        if(Object.keys(plan.tad).length) plan.fuente=String(doc.nombre||'Anexo de Logística').replace(/\.(md|docx?)$/i,'');
+      }
+    }
+    if(plan.consumo==null){
+      const m=/consumo de combustible en\s*(?:≈|~|aprox\.?|aproximadamente|un|el)?\s*(\d+(?:[.,]\d+)?)\s*%/i.exec(t);
+      if(m){ const p=Number(m[1].replace(',','.')); if(p>0&&p<=100){ plan.consumo=1+p/100; plan.consumoTxt=`+${String(p).replace('.',',')} % de consumo`; } }
+    }
+    if(plan.nivelDias==null){
+      const m=/nivel de abastecimiento.{0,160}?operativo de (\d+) d[ií]as?(?:.{0,60}?seguridad de (\d+) d[ií]as?)?/i.exec(t);
+      if(m){ const a=Number(m[1])||0, b=Number(m[2])||0; plan.nivelDias=a+b; plan.nivelTxt=`${a} día(s) operativo(s)${b?` + ${b} de seguridad`:''}`; }
+    }
+  }
+  return plan;
+}
+// La dotación (UF) de un sistema: la de la TAD si el Anexo la da, si no la del catálogo.
+function _wgUfPlan(id, plan){
+  const t=plan&&plan.tad&&plan.tad[id];
+  if(t&&WG_TIROS_POR_UF[id]) return { uf:Math.max(1,Math.min(12,Math.round(t.tiros/WG_TIROS_POR_UF[id]))), de:'tad' };
+  return { uf:Number(WG_ARMAS[id]&&WG_ARMAS[id].uf)||0, de:'catalogo' };
+}
+// El COE de la unidad, si la biblioteca del profesor lo trae.
+function _wgCoeDe(u, coes){
+  const k=_wgClaveDesig(u&&u.designacion);
+  if(!k) return null;
+  for(const doc of (coes||[])){
+    const c=doc&&doc.coe; if(!c) continue;
+    if(_wgClaveDesig(c.division)===k)
+      return { nivel:'division', efectivo:Number(c.efectivo)||null,
+        armamento:(c.totales&&c.totales.armamento)||{}, vehiculos:(c.totales&&c.totales.vehiculos)||{},
+        equipo:(c.totales&&c.totales.equipo)||{}, fuente:`COE de la ${c.division}` };
+    for(const x of (c.unidades||[]))
+      if(_wgClaveDesig(x.designacion)===k)
+        return { nivel:'unidad', efectivo:Number(x.efectivo)||null, armamento:x.armamento||{},
+          vehiculos:x.vehiculos||{}, equipo:x.equipo||{}, fuente:`COE de la ${c.division} (${x.designacion})` };
+  }
+  return null;
+}
+// Los ids de armas del tablero del G-4 (planeamiento.js) → sistemas del Juego.
+const WG_ARMA_G4={ portatil:'fusil', ametralladora:'ametralladora', mort81:'mortero81',
+  mort120:'mortero120', tanque:'canon', art105:'obus105', art155:'obus155', aa:'antiaereo' };
+const WG_VEH_G4={ liviano:'Livianos', camion:'Camiones', vci:'Blindados de transporte / VCI',
+  tanque:'Tanques', pieza:'Piezas autopropulsadas' };
+const WG_ESC_ORDEN=['equipo','escuadra','seccion','compania','batallon','regimiento','brigada','division','cuerpo','ejercito'];
+const _wgEscMayor=(e,ref)=>WG_ESC_ORDEN.indexOf(e)>=WG_ESC_ORDEN.indexOf(ref);
+// Todo junto: los medios de UNA ficha de la Mesa. Devuelve `{ medios, medio,
+// poder, obs, pc, designacion }` — lo que va a wg_unidades.
+function _wgMediosImport(u, ctx){
+  ctx=ctx||{};
+  // La TAD y el nivel de abastecimiento son de NUESTRO plan de logística: al
+  // enemigo no le tocan. El consumo por la altura sí es de los dos (es el
+  // terreno, no el plan).
+  const plan0=ctx.plan||{ tad:{} };
+  const plan=_wgEsRoja(u) ? Object.assign({}, plan0, { tad:{}, fuente:null, nivelDias:null, nivelTxt:null }) : plan0;
+  const arma=u.arma||'infanteria';
+  const escalon=WG_PODER[u.escalon]!=null?u.escalon:'batallon';
+  const pc = u.tipo==='pc' || arma==='ninguna';
+  const conteo={};          // sistema → cantidad (si se sabe)
+  const sumar=(sis,n)=>{ if(!sis||!WG_ARMAS[sis]) return; conteo[sis]=(conteo[sis]||0)+(Number(n)>0?Number(n):0); };
+  let fuente='catalogo', fuenteTxt='Dotación de referencia del Juego para '+arma+' · '+escalon;
+  let efectivo=Number(u.efectivo)||null, armamento=null, vehiculos=null, medio=null;
+  const coe=pc?null:_wgCoeDe(u, ctx.coes);
+  const lg=(u.logDatos&&typeof u.logDatos==='object')?u.logDatos:null;
+  const lgArmas=lg&&lg.armas&&typeof lg.armas==='object'?lg.armas:null;
+  if(coe){
+    fuente='coe'; fuenteTxt=coe.fuente+' (biblioteca del profesor)';
+    if(coe.efectivo) efectivo=coe.efectivo;
+    armamento=coe.armamento; vehiculos=coe.vehiculos;
+    for(const [k,n] of Object.entries(coe.armamento||{})) if(k!=='TOTAL') sumar(_wgSistemaDeNombre(k),n);
+    for(const [k,n] of Object.entries(coe.equipo||{})) if(_wgSistemaDeNombre(k)==='zapa') sumar('zapa',n);
+    for(const [k,n] of Object.entries(coe.vehiculos||{})){
+      const s=_wgSistemaDeNombre(k);
+      if(s==='canon') sumar('canon',n);
+      else if(_wgVehiculoBlindado(k)) sumar('pesada',n);   // el VCI/VTP lleva su .50
+    }
+    const vs=Object.keys(coe.vehiculos||{});
+    if(vs.some(_wgVehiculoBlindado)) medio='oruga';
+    else if(vs.some(_wgVehiculoRueda)) medio='motor';
+  } else if(lgArmas && Object.keys(lgArmas).length){
+    fuente='g4'; fuenteTxt='Datos del G-4 para esta unidad (tablero de la instalación)';
+    if(Number(lg.hombres)>0) efectivo=Math.round(Number(lg.hombres));
+    armamento={};
+    for(const [k,n] of Object.entries(lgArmas)){
+      if(!(Number(n)>0)) continue;
+      const sis = k==='at' ? (_wgEscMayor(escalon,'batallon')||arma==='mecanizada'||arma==='antitanque'?'misilAT':'srAT') : WG_ARMA_G4[k];
+      sumar(sis,n);
+      armamento[(WG_ARMAS[sis]&&WG_ARMAS[sis].nom)||k]=Number(n);
+    }
+    const lv=lg.veh&&typeof lg.veh==='object'?lg.veh:{};
+    vehiculos={};
+    for(const [k,n] of Object.entries(lv)) if(Number(n)>0) vehiculos[WG_VEH_G4[k]||k]=Number(n);
+    if(Number(lv.vci)>0||Number(lv.tanque)>0) medio='oruga';
+    else if(Number(lv.camion)>0||Number(lv.liviano)>0) medio='motor';
+  }
+  // Los sistemas: los del COE / G-4 y, siempre, lo que define a esa arma
+  // (el GALM tira cohetes aunque su COE no los nombre como tales; ingeniería
+  // tiene sus medios de zapa).
+  const ref=_wgArmamento({ arma, escalon }).map(a=>a.id);
+  let ids=Object.keys(conteo);
+  if(!ids.length){
+    ids=ref.slice();
+    // El nombre también dice con qué tira: «CÍA. MORT. 120» tiene morteros de
+    // 120 (no de 81), «CÍA. A/B (SPIKE)» misiles (no el S/R). Reemplaza al de
+    // la misma familia que puso el catálogo.
+    const sisNom=pc?null:_wgSistemaDeNombre(u.designacion);
+    const FAM=[['mortero60','mortero81','mortero120'],['srAT','misilAT'],['obus105','obus155']];
+    if(sisNom && WG_ARMAS[sisNom] && sisNom!=='zapa'){
+      const fam=FAM.find(f=>f.includes(sisNom));
+      if(fam) ids=ids.filter(id=>!fam.includes(id));
+      if(!ids.includes(sisNom)) ids.push(sisNom);
+    }
+  }
+  if(arma==='lanzacohetes' && !ids.includes('lanzacohetes')) ids.push('lanzacohetes');
+  if(arma==='antiaerea' && !ids.includes('antiaereo')) ids.push('antiaereo');
+  if(arma==='ingenieria' && !ids.includes('zapa')) ids.push('zapa');
+  if(!ids.some(id=>WG_ARMAS[id]&&WG_ARMAS[id].alcance>0)) ids.unshift('fusil');   // nadie queda sin con qué defenderse
+  const sistemas={};
+  let deTad=0;
+  for(const id of ids){
+    const p=_wgUfPlan(id, plan);
+    if(p.de==='tad') deTad++;
+    sistemas[id]={ uf:p.uf, de:p.de };
+    if(conteo[id]) sistemas[id].n=conteo[id];
+    if(p.de==='tad' && plan.tad[id]) sistemas[id].tad=plan.tad[id].txt;
+  }
+  // El medio: el de los vehículos del COE / G-4 si los hay; la tropa de a pie
+  // sigue a pie (desembarca para combatir); si no, el del arma.
+  const aPie=['infanteria','aerotransportada','andina','selva'].includes(arma);
+  const medioFinal = aPie ? 'pie' : (medio || _wgMedioPorArma(arma));
+  // La autonomía: la del reglamento por medio, con el consumo que planificó el Anexo.
+  const base=WG_AUTONOMIA[medioFinal]||0;
+  const autonomiaKm = (base && plan.consumo) ? Math.round(base/plan.consumo) : null;
+  // El PC no es una fuerza de maniobra: combate con su seguridad.
+  const poder = pc ? (_wgEscMayor(escalon,'division') ? WG_PODER.compania : WG_PODER.seccion)
+                   : (WG_PODER[escalon]||12);
+  const obs = pc ? Math.min(WG_OBS[escalon]||4, WG_OBS.batallon) : (WG_OBS[escalon]||4);
+  const s={};
+  if(u.tipo==='pc') s.tipo='pc';
+  if(String(u.textoSimbolo||'').trim()) s.texto=String(u.textoSimbolo).trim().slice(0,12);
+  if(u.circuloSimbolo) s.circulo=true;
+  if(String(u.numeroUnidad||'').trim()) s.numero=String(u.numeroUnidad).trim().slice(0,8);
+  if(u.reducida) s.reducida=true;
+  const medios={ v:1, fuente, fuenteTxt, sistemas };
+  if(efectivo) medios.efectivo=efectivo;
+  const corta=(o)=>{ if(!o) return null; const r={}; let i=0;
+    for(const [k,n] of Object.entries(o)){ if(k==='TOTAL'||!(Number(n)>0)) continue; if(i++>=24) break; r[String(k).slice(0,48)]=Number(n); }
+    return Object.keys(r).length?r:null; };
+  const arm=corta(armamento), veh=corta(vehiculos);
+  if(arm) medios.armamento=arm;
+  if(veh) medios.vehiculos=veh;
+  if(autonomiaKm){ medios.autonomiaKm=autonomiaKm; medios.consumo=plan.consumoTxt; }
+  if(plan.nivelDias) medios.nivelDias=plan.nivelDias;
+  if(deTad) medios.tadDe=plan.fuente;
+  if(pc) medios.pc=true;
+  if(Object.keys(s).length) medios.simbolo=s;
+  const tarea=String(u.tarea||u.tareaAg||'').trim();
+  if(tarea) medios.tarea=tarea.slice(0,220);
+  const prop=String(u.proposito||u.propositoAg||'').trim();
+  if(prop) medios.proposito=prop.slice(0,160);
+  // La designación del PC que en la Mesa va sólo con su número («I» al lado del
+  // marco del CE): «CE-I», no «CE-1».
+  let designacion=u.designacion||null;
+  if(!String(designacion||'').trim() && s.numero){
+    const pre={ cuerpo:'CE', division:'DIV', brigada:'Brig', regimiento:'R', batallon:'B' }[escalon];
+    designacion = pre ? `${pre}-${s.numero}` : `PC-${s.numero}`;
+  }
+  return { medios, medio:medioFinal, poder, obs, pc, designacion };
+}
+// ============================================================
+// v2.9.439 — CADA CALCO CON EL DIBUJO DE LA MESA.
+// Sergio: «deberían poder verse los caminos… el calco de comunicaciones de esa
+// área, el hidrográfico y el de vegetación». En el Juego todos los caminos
+// salían del mismo naranja que las curvas de nivel (y ahí se perdían), los
+// ríos finitos y la vegetación casi transparente. Ahora cada elemento viaja
+// con el estilo que le da la Mesa según su capa (`_capaId`) y su clase: la
+// carretera roja y gruesa, el camino de tierra naranja punteado, la senda, el
+// ferrocarril, el río celeste, el lago azul, la quebrada punteada, el bosque
+// más oscuro que el pastizal, la curva índice más marcada que las demás.
+// Va colgado de la geometría (`e`), como el nombre (`nom`): el servidor lo
+// guarda tal cual y el motor no lo mira.
+// Las mismas cifras de la Mesa (nh, kye, Tye, Iye y Fye del compilado).
+// ============================================================
+const WG_CALCO_MESA={
+  hidro_lineas:{c:'#33ddff',w:1.8}, hidro_poligonos:{c:'#0066ff',w:1,f:.45}, hidro_quebradas:{c:'#5ec8ff',w:1.1,d:'6 4'},
+  elevaciones_puntos:{c:'#cc8833',r:4}, curvas_nivel:{c:'#fecc66',w:1.1},
+  comunicaciones_vias:{c:'#ff2222',w:2}, comunicaciones_caminos:{c:'#ff9000',w:1.4,d:'5 3'},
+  comunicaciones_huellas:{c:'#e0a33a',w:1.3,d:'4 3'}, comunicaciones_calles:{c:'#cc4444',w:.8},
+  comunicaciones_ffcc:{c:'#880000',w:2}, comunicaciones_aero:{c:'#ff33cc',w:1,f:.4}, mil_vias:{c:'#ff8800',w:1.8},
+  poblaciones_puntos:{c:'#fc02ff',r:4}, poblaciones_areas:{c:'#fc02ff',w:1,f:.3}, poblaciones_pois:{c:'#fd66ff',r:3},
+  vegetacion:{c:'#2e7d32',w:1,f:.5},
+  mil_jurisdicciones:{c:'#111111',w:2.5,d:'10 6'}, mil_jurisdicciones_pu:{c:'#555555',w:1.5,d:'5 5'},
+  mil_unidades:{c:'#212121',r:6}, mil_pma:{c:'#e53935',r:5}, mil_otros_puestos:{c:'#fb8c00',r:5}, mil_hitos:{c:'#bdbdbd',r:3},
+};
+const WG_ANCHO_VIA={ 'Autopista':3.2, 'Carretera troncal':3, 'Enlace de autopista':2.2, 'Enlace troncal':2.2,
+  'Carretera primaria':2.6, 'Enlace primario':2, 'Carretera secundaria':2.2, 'Enlace secundario':1.8,
+  'Carretera terciaria':1.8, 'Enlace terciario':1.5, 'Camino vecinal':1.3, 'Camino de tierra / senda':1.6,
+  'Calle compartida':1.3, 'Calle residencial':.8, 'Vía de servicio':.6 };
+const WG_ANCHO_VIA_MIL={ 1:3, 2:2.4, 3:1.8, 4:1.2 };
+const WG_VEG_COLOR={ 'Bosque (denso)':'#1b5e20', 'Reserva natural':'#205723', 'Matorral':'#2e7d32',
+  'Brezal / pajonal':'#43a047', 'Huerto frutal':'#4caf50', 'Viñedo':'#4caf50', 'Pradera':'#66bb6a',
+  'Pastizal':'#81c784', 'Tierras de cultivo':'#aed581', 'Granja':'#c5e1a5' };
+function _wgEstiloCalco(f){
+  const capa=f&&f._capaId;
+  const base=WG_CALCO_MESA[capa];
+  if(!base) return null;
+  const pr=(f&&f.properties)||{};
+  const e=Object.assign({k:capa}, base);
+  const vial=/^comunicaciones_(vias|caminos|calles)$/.test(capa);
+  if(capa==='vegetacion' && WG_VEG_COLOR[pr.Tipo]) e.c=WG_VEG_COLOR[pr.Tipo];
+  else if(vial && WG_ANCHO_VIA[pr.Tipo]) e.w=WG_ANCHO_VIA[pr.Tipo];
+  else if(capa==='mil_vias'){ const m=/V[ií]a\s*([1-4])/.exec(String(pr['Clasificación militar']||'')); if(m) e.w=WG_ANCHO_VIA_MIL[m[1]]; }
+  else if(capa==='curvas_nivel' && pr.Tipo==='Curva índice'){ e.c='#d99a2b'; e.w=2.2; }
+  if(vial && pr.Tipo==='Camino de tierra / senda' && !e.d) e.d='4 4';
+  return e;
+}
+// Menos peso sin cambiar lo que se ve: coordenadas a 5 decimales (≈ 1 m) y las
+// curvas de nivel simplificadas a ~13 m (son las que más pesan: 1,9 MB de los
+// 2,4 MB de la carta de «ZAPATO II»).
+function _wgRedondear(c){
+  return Array.isArray(c) ? (typeof c[0]==='number' ? c.map(x=>Math.round(x*1e5)/1e5) : c.map(_wgRedondear)) : c;
+}
+function _wgSimplificarLinea(pts, tol){
+  if(!Array.isArray(pts) || pts.length<4) return pts;
+  const kx=Math.cos((Number(pts[0][1])||0)*Math.PI/180);
+  const queda=new Uint8Array(pts.length); queda[0]=1; queda[pts.length-1]=1;
+  const pila=[[0,pts.length-1]], t2=tol*tol;
+  while(pila.length){
+    const [a,b]=pila.pop();
+    const ax=pts[a][0]*kx, ay=pts[a][1], dx=pts[b][0]*kx-ax, dy=pts[b][1]-ay, l2=dx*dx+dy*dy;
+    let peor=-1, dmax=t2;
+    for(let i=a+1;i<b;i++){
+      const px=pts[i][0]*kx-ax, py=pts[i][1]-ay;
+      const u=l2?Math.max(0,Math.min(1,(px*dx+py*dy)/l2)):0;
+      const ex=px-u*dx, ey=py-u*dy, d2=ex*ex+ey*ey;
+      if(d2>dmax){ dmax=d2; peor=i; }
+    }
+    if(peor>0){ queda[peor]=1; pila.push([a,peor],[peor,b]); }
+  }
+  return pts.filter((p,i)=>queda[i]);
+}
+function _wgGeomLiviana(g, simplificar){
+  if(!g||!g.coordinates) return g;
+  let c=_wgRedondear(g.coordinates);
+  if(simplificar){
+    const TOL=0.00012;   // ≈ 13 m
+    if(g.type==='LineString') c=_wgSimplificarLinea(c,TOL);
+    else if(g.type==='MultiLineString') c=c.map(l=>_wgSimplificarLinea(l,TOL));
+  }
+  return Object.assign({}, g, { coordinates:c });
+}
+// v2.9.439 — la ZONA DE EFECTO de una obra construida: la obra y `rKm`
+// alrededor (la envolvente convexa de un círculo en cada vértice). Para una
+// línea recta o un rectángulo —lo que traza la Mesa— es exactamente la franja.
+function _wgHuellaObstaculo(g, rKm){
+  const pts=[];
+  const verts = g.type==='Point' ? [g.coordinates]
+    : g.type==='LineString' ? g.coordinates
+    : g.type==='Polygon' ? g.coordinates[0] : [];
+  for(const v of verts){
+    const lng=Number(v[0]), lat=Number(v[1]);
+    if(!Number.isFinite(lng)||!Number.isFinite(lat)) continue;
+    const dy=rKm/110.57, dx=rKm/(111.32*Math.cos(lat*Math.PI/180)||1e-9);
+    for(let i=0;i<12;i++){ const a=i*Math.PI/6; pts.push([lng+dx*Math.cos(a), lat+dy*Math.sin(a)]); }
+  }
+  if(pts.length<3) return null;
+  pts.sort((a,b)=>a[0]-b[0]||a[1]-b[1]);
+  const cruz=(o,a,b)=>(a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]);
+  const abajo=[], arriba=[];
+  for(const p of pts){ while(abajo.length>=2&&cruz(abajo[abajo.length-2],abajo[abajo.length-1],p)<=0) abajo.pop(); abajo.push(p); }
+  for(let i=pts.length-1;i>=0;i--){ const p=pts[i]; while(arriba.length>=2&&cruz(arriba[arriba.length-2],arriba[arriba.length-1],p)<=0) arriba.pop(); arriba.push(p); }
+  const casco=abajo.slice(0,-1).concat(arriba.slice(0,-1)).map(p=>[Math.round(p[0]*1e6)/1e6, Math.round(p[1]*1e6)/1e6]);
+  if(casco.length<3) return null;
+  casco.push(casco[0]);
+  return { type:'Polygon', coordinates:[casco] };
+}
 // Cómo se rotulan los ejes y las líneas de control del Estado Mayor cuando
 // viajan al juego. Van como capa VISUAL (`via`) porque la Edge Function sólo
 // acepta esos tipos: así entran sin desplegar nada nuevo.
@@ -37268,8 +38070,14 @@ const WG_NOM_EJES = {
   humanitario:'Eje humanitario (población civil)',
 };
 
-function _wgEscenarioDesde(d, fase){
+function _wgEscenarioDesde(d, fase, op){
+  op=op||{};
   const unidades=[], terreno=[], instalaciones=[]; const sinEfecto=[];
+  // v2.9.439 — lo planificado (Anexo de Logística) y el COE de la biblioteca,
+  // una sola vez para todas las fichas.
+  const plan=_wgPlanLogistico(d);
+  const ctxMedios={ plan, coes:(d&&Array.isArray(d.bibliotecaCOE))?d.bibliotecaCOE:[] };
+  const medios={ porFuente:{}, pcs:[], plan, nCoe:ctxMedios.coes.length };
   // Si se eligió una fase del COA, las unidades salen de ESA fase; si no, del
   // estado vivo del ejercicio (que es la fase que quedó abierta al guardar).
   // ============================================================
@@ -37316,10 +38124,14 @@ function _wgEscenarioDesde(d, fase){
       continue;
     }
     const escalon = WG_PODER[u.escalon]!=null?u.escalon:'batallon';
-    unidades.push({ bando, designacion:u.designacion||null, escalon, arma:u.arma||null,
-      medio: u.medio||_wgMedioPorArma(u.arma), lat:Number(u.lat), lng:Number(u.lng),
-      poder_max: Number(u.poder_max)||WG_PODER[escalon]||12,
-      obs_km: Number(u.obs_km)||WG_OBS[escalon]||4 });
+    // v2.9.439: con sus MEDIOS (COE / G-4 / catálogo y lo planificado).
+    const M=_wgMediosImport(u, ctxMedios);
+    medios.porFuente[M.medios.fuente]=(medios.porFuente[M.medios.fuente]||0)+1;
+    if(M.pc) medios.pcs.push(String(M.designacion||u.designacion||'PC'));
+    unidades.push({ bando, designacion:M.designacion||null, escalon, arma:u.arma||null,
+      medio: u.medio||M.medio, lat:Number(u.lat), lng:Number(u.lng),
+      poder_max: Number(u.poder_max)||M.poder||12,
+      obs_km: Number(u.obs_km)||M.obs||4, medios:M.medios });
   }
   // Terreno DOCTRINAL (el único que usa el motor): sólo polígonos del CMOC.
   const meter=(tipo,geom)=>{ if(geom&&(geom.type==='Polygon'||geom.type==='MultiPolygon')) terreno.push({tipo,geojson:geom}); };
@@ -37351,7 +38163,13 @@ function _wgEscenarioDesde(d, fase){
       // y sin esto el G-5 sólo puede listar poblaciones por coordenada.
       const pr=(f&&f.properties)||{};
       const nom=pr['Nombre']||pr['nombre']||pr['name']||pr['Población']||pr['Poblacion']||'';
-      terreno.push({ tipo:CAPAS[clave], geojson: nom?Object.assign({},g,{nom:String(nom)}):g });
+      // v2.9.439: con el estilo de la Mesa (`e`) y más liviana.
+      const geo=_wgGeomLiviana(g, clave==='elevaciones');
+      const est=_wgEstiloCalco(f);
+      const extra={};
+      if(nom && nom!=='Sin nombre') extra.nom=String(nom).slice(0,80);
+      if(est) extra.e=est;
+      terreno.push({ tipo:CAPAS[clave], geojson: Object.assign({}, geo, extra) });
       visuales++;
     }
   }
@@ -37418,46 +38236,71 @@ function _wgEscenarioDesde(d, fase){
     minado_mixto:'CM MX', minado_ficticio:'CM FIC', demolicion:'DEM', bloqueo:'BLQ',
   };
   const OBS_AREA = ['minado_ap','minado_ac','minado_mixto','minado_ficticio'];
+  // ============================================================
+  // v2.9.439 — EL PLAN DE BARRERAS: CON DUEÑO, CON SU SÍMBOLO, Y CONSTRUIDO SI
+  // LA FASE QUE SE JUEGA YA LO TIENE HECHO.
+  // Sergio: «debería tener marcado el plan de barreras… debe ser un juego de
+  // guerra real». Tres cambios sobre la v2.9.365:
+  //   · Cada obra viaja con su TIPO de la Mesa (`obs`) y su geometría de dibujo:
+  //     el Juego la dibuja con la marca del calco (`_wgMarcasBarreras2D`).
+  //   · Viaja con BANDO (el azul: es el plan propio). Antes entraba sin bando y
+  //     el servidor se lo mandaba entero al enemigo. Ahora va como las obras de
+  //     la partida: su dueño la ve siempre; el otro, cuando la tiene a la vista
+  //     o se la topa.
+  //   · CONSTRUIDO (lo ejecutado en la Mesa, o todo si el árbitro elige «el plan
+  //     de barreras ya está construido» al importar —p. ej. la FASE IV,
+  //     conducción de la defensa—) tiene efecto: el campo minado DETIENE; la
+  //     zanja antitanque, la demolición y el bloqueo cortan el paso a los
+  //     vehículos, también sobre el camino; la alambrada, la concertina y la
+  //     abatida frenan. Siempre al ENEMIGO: el dueño conoce los pasos. La zona
+  //     de efecto es la obra más 150-300 m alrededor (el motor avanza de a
+  //     500 m: una zanja de ancho cero no la vería nunca).
+  //   · PROYECTADO: se ve, punteado, y no frena a nadie (es el plan).
+  // ============================================================
+  const barrerasConstruidas = op.barreras==='construido';
+  const MECANICO={ minado_ap:'minado', minado_ac:'minado', minado_mixto:'minado',
+    zanja_at:'severo', demolicion:'severo', bloqueo:'severo',
+    alambre_simple:'restringido', alambre_doble:'restringido', concertina:'restringido',
+    concertina_triple:'restringido', abatida:'restringido' };
   let obstaculos=0, obsMecanicos=0;
-  const meterObs=(tipo, geom, nom)=>{
+  const meterObs=(tipo, geom, extra, mecanico)=>{
     if(!geom) return;
-    terreno.push({ tipo, geojson: Object.assign({}, geom, { nom }) });
+    terreno.push({ tipo, bando:'azul', geojson: Object.assign({}, geom, extra) });
     obstaculos++; visuales++;
-    if(tipo==='minado' || tipo==='defensivo') obsMecanicos++;
+    if(mecanico) obsMecanicos++;
   };
+  const xy=(x)=>[Number(x[0]),Number(x[1])];
   for(const ob of (ops.obstaculos||[])){
     const ab = OBS_ABREV[ob.tipo] || 'OBST';
-    const proy = (ob.estado||'proyectado')==='proyectado';
-    const nom = ab + (proy ? ' (proyectado)' : '');
-    if(OBS_AREA.includes(ob.tipo)){
-      const c=ob.coords;
-      if(!Array.isArray(c)||c.length<3) continue;
-      const anillo=c.map(x=>[Number(x[0]),Number(x[1])]); anillo.push(anillo[0]);
-      // El campo minado FICTICIO no detiene a nadie: es señalización sin mina.
-      // Que entrara como `minado` sería regalarle al que lo pone un obstáculo
-      // real que no construyó.
-      const real = !proy && ob.tipo!=='minado_ficticio';
-      meterObs(real?'minado':'obstaculo', { type:'Polygon', coordinates:[anillo] }, nom);
-    } else if(ob.centro){
-      meterObs('obstaculo', { type:'Point',
-        coordinates:[Number(ob.centro[0]), Number(ob.centro[1])] }, nom);
-    } else {
-      const c=ob.coords;
-      if(!Array.isArray(c)||c.length<2) continue;
-      meterObs('obstaculo', { type:'LineString',
-        coordinates:c.map(x=>[Number(x[0]),Number(x[1])]) }, nom);
-    }
+    const area = OBS_AREA.includes(ob.tipo);
+    let dib=null;
+    if(area && Array.isArray(ob.coords) && ob.coords.length>=3){
+      const anillo=ob.coords.map(xy);
+      const a0=anillo[0], an=anillo[anillo.length-1];
+      if(a0[0]!==an[0]||a0[1]!==an[1]) anillo.push(a0);
+      dib={ type:'Polygon', coordinates:[anillo] };
+    } else if(ob.centro) dib={ type:'Point', coordinates:xy(ob.centro) };
+    else if(Array.isArray(ob.coords) && ob.coords.length>=2) dib={ type:'LineString', coordinates:ob.coords.map(xy) };
+    if(!dib) continue;
+    const ejecutado = (ob.estado||'proyectado')!=='proyectado';
+    const construido = ejecutado || barrerasConstruidas;
+    const extra={ nom: ab + (construido ? '' : ' (proyectado)'), obs: ob.tipo, est: construido?'construido':'proyectado' };
+    // El campo minado FICTICIO no detiene a nadie: es señalización sin mina.
+    const mec = (construido && ob.tipo!=='minado_ficticio') ? MECANICO[ob.tipo] : null;
+    const huella = mec ? _wgHuellaObstaculo(dib, area?0.15:0.3) : null;
+    if(mec && huella){ meterObs(mec, huella, Object.assign(extra,{ dib }), true); continue; }
+    meterObs('obstaculo', dib, extra, false);
   }
   // Las posiciones «riñón». El contorno ya viene calculado del lado de la Mesa
   // (`anillo`), así que acá no hay que rehacer la geometría del óvalo.
   for(const pd of (ops.posDef||[])){
     const c=pd&&pd.anillo;
     if(!Array.isArray(c)||c.length<4) continue;
-    const anillo=c.map(x=>[Number(x[0]),Number(x[1])]);
+    const anillo=c.map(xy);
     if(anillo[0][0]!==anillo[anillo.length-1][0] || anillo[0][1]!==anillo[anillo.length-1][1]) anillo.push(anillo[0]);
     const ocup=(pd.estado||'ocupada')==='ocupada';
     meterObs(ocup?'defensivo':'obstaculo', { type:'Polygon', coordinates:[anillo] },
-      'Posición '+(pd.etiqueta||'')+(ocup?'':' (proyectada)'));
+      { nom:'Posición '+(pd.etiqueta||'')+(ocup?'':' (proyectada)') }, ocup);
   }
   // Las zonas logísticas (ASDI, ARCE, Áreas de Trenes) son ÁREAS: van como
   // polígono visual para que se vea el sector, además de la ficha de la instalación.
@@ -37470,7 +38313,7 @@ function _wgEscenarioDesde(d, fase){
     visuales++;
   }
   return { unidades, terreno, visuales, instalaciones, sinEfecto, ejes,
-    obstaculos, obsMecanicos, agrupaciones,
+    obstaculos, obsMecanicos, agrupaciones, medios,
     nombre:(d&&d.nombre)||'', fase:(fase?fase.nombre:null) };
 }
 // ============================================================
@@ -37491,6 +38334,28 @@ function _wgSinCaminos(esc){
   const enArchivo=((esc&&esc.terreno)||[]).some(t=>t&&t.tipo==='via');
   const enPartida=((WG.terreno)||[]).some(t=>t&&t.tipo==='via');
   return !enArchivo && !enPartida;
+}
+// v2.9.439 — lo que dice la importación de los MEDIOS: de dónde salió cada
+// cosa, qué se leyó del Anexo de Logística y qué fichas son Puestos de Comando.
+function _wgResumenMedios(m){
+  if(!m) return '';
+  const pf=m.porFuente||{}, partes=[];
+  if(pf.coe) partes.push(`${pf.coe} con su COE (biblioteca del profesor)`);
+  if(pf.g4) partes.push(`${pf.g4} con los datos del G-4`);
+  if(pf.catalogo) partes.push(`${pf.catalogo} con la dotación de referencia del Juego`);
+  let t = partes.length ? `\n• 📦 Medios de las unidades: ${partes.join(' · ')}` : '';
+  if(!pf.coe && !m.nCoe) t += `\n   (para traer el COE de cada unidad: cargalo en 📚 Mis documentos de la Mesa y bajá el ejercicio con «⬇️ Bajar para el Juego de Guerra»)`;
+  const pl=m.plan;
+  if(pl){
+    const nom={ obus105:'obús 105', obus155:'obús 155', lanzacohetes:'lanzacohetes', mortero120:'mortero 120',
+      mortero81:'mortero 81', mortero60:'mortero 60', srAT:'S/R', misilAT:'misil AT', antiaereo:'antiaérea', canon:'cañón' };
+    const tad=Object.keys(pl.tad||{}).map(k=>`${nom[k]||k} ${_wgUfPlan(k,pl).uf} UF`);
+    if(tad.length) t += `\n• 🧾 ${pl.fuente||'Anexo de Logística'}: tasa de abastecimiento → ${tad.join(', ')} (1 UF = una misión de fuego; se repone en los puntos de distribución)`;
+    if(pl.consumo) t += `\n• ⛽ ${pl.consumoTxt||'consumo planificado'} → autonomía ${Math.round(200/pl.consumo)} km (rueda) · ${Math.round(150/pl.consumo)} km (blindados)`;
+    if(pl.nivelDias) t += `\n• 📅 Nivel de abastecimiento planificado: ${pl.nivelTxt||pl.nivelDias+' días'}`;
+  }
+  if((m.pcs||[]).length) t += `\n• ⛳ Puestos de Comando (combaten sólo con su seguridad): ${m.pcs.slice(0,8).join(', ')}${m.pcs.length>8?'…':''}`;
+  return t;
 }
 async function wgImportarEscenario(inp, sumar){
   const files=[...((inp&&inp.files)||[])]; if(!files.length) return;
@@ -37518,15 +38383,19 @@ async function wgImportarEscenario(inp, sumar){
     fases._vivas={ comb:_wgSinAgrupaciones(_uv).quedan.filter(u=>u&&u.tipo!=='instalacion').length,   // v2.9.438: sin OD/OC/RES
                    inst:_uv.filter(u=>u&&u.tipo==='instalacion').length };
     let faseElegida=null;
+    // v2.9.439: cuántas obras del plan de barreras trae (para ofrecer «construido»).
+    fases._nObs=((d&&d.ops&&d.ops.obstaculos)||[]).length
+      || Math.max(0,...[...(fases._azules||[]).map(a=>((a.f&&a.f.ops&&a.f.ops.obstaculos)||[]).length),0]);
     if(fases.length){
       faseElegida = await _wgPreguntarFase(fases, poner, files.length>1?f.name:null);
       if(faseElegida===undefined){ poner('Importación cancelada.'); return; }
     }
-    partes.push({ nombre:f.name, esc:_wgEscenarioDesde(d, faseElegida) });
+    partes.push({ nombre:f.name, esc:_wgEscenarioDesde(d, faseElegida, { barreras: fases._barreras||'proyectado' }) });
   }
   // 2) Combinar en UN escenario. Cada capa aporta lo suyo y nada se pisa.
   const esc={ unidades:[], terreno:[], visuales:0, instalaciones:[], sinEfecto:[], ejes:0,
-              obstaculos:0, obsMecanicos:0, agrupaciones:[], nombre:'', fase:null };
+              obstaculos:0, obsMecanicos:0, agrupaciones:[], nombre:'', fase:null,
+              medios:{ porFuente:{}, pcs:[], plan:null, nCoe:0 } };   // v2.9.439
   const detalle=[];
   for(const p of partes){
     const e=p.esc;
@@ -37535,6 +38404,14 @@ async function wgImportarEscenario(inp, sumar){
     esc.instalaciones.push(...(e.instalaciones||[]));
     esc.sinEfecto.push(...(e.sinEfecto||[]));
     esc.agrupaciones.push(...(e.agrupaciones||[]));
+    // v2.9.439: de dónde salieron los medios de cada unidad, sumado.
+    if(e.medios){
+      for(const [k,n] of Object.entries(e.medios.porFuente||{})) esc.medios.porFuente[k]=(esc.medios.porFuente[k]||0)+n;
+      esc.medios.pcs.push(...(e.medios.pcs||[]));
+      esc.medios.nCoe=Math.max(esc.medios.nCoe, e.medios.nCoe||0);
+      const pl=e.medios.plan;
+      if(pl && !esc.medios.plan && (Object.keys(pl.tad||{}).length || pl.consumo || pl.nivelDias)) esc.medios.plan=pl;
+    }
     esc.visuales += (e.visuales||0);
     esc.ejes += (e.ejes||0);
     esc.obstaculos += (e.obstaculos||0);
@@ -37558,9 +38435,11 @@ async function wgImportarEscenario(inp, sumar){
   const resumen=`• ${esc.unidades.length} unidad(es) de combate\n• ${nCmoc} polígono(s) de CMOC (terreno restringido / severo / clave)\n• ${esc.visuales||0} elemento(s) de carta (ríos, curvas de nivel, caminos, poblados)`
     +(nInst?`\n• ${nInst} instalación(es) logística(s) y de personal del Estado Mayor`:'')
     +((esc.ejes||0)?`\n• ${esc.ejes} eje(s) de control (EPA, EPE, extraviados, PP.GG., humanitario)`:'')
-    +((esc.obstaculos||0)?`\n• ${esc.obstaculos} obstáculo(s) del plan de barreras`
-      +(esc.obsMecanicos?` — ${esc.obsMecanicos} con efecto en el juego (campos minados ejecutados y posiciones ocupadas); el resto se ve pero no frena`
-        :` — ninguno con efecto todavía: están todos PROYECTADOS`):'')
+    +((esc.obstaculos||0)?`\n• ${esc.obstaculos} obra(s) del plan de barreras, con su símbolo`
+      +(esc.obsMecanicos?` — ${esc.obsMecanicos} CONSTRUIDA(S), con efecto sobre el enemigo (detienen o frenan; su dueño conoce los pasos); el resto proyectado, se ve pero no frena`
+        :` — todas PROYECTADAS: se ven pero no frenan`)
+      +`. El enemigo no las ve hasta tenerlas a la vista.`:'')
+    +_wgResumenMedios(esc.medios)
     +(esc.agrupaciones.length
       ? `\n\nNO se cargan ${esc.agrupaciones.length} agrupación(es) de la organización para el combate (${esc.agrupaciones.slice(0,8).join(', ')}${esc.agrupaciones.length>8?'…':''}): sus piezas ya están en las unidades del tablero.`
       : '')
@@ -37591,7 +38470,7 @@ async function wgImportarEscenario(inp, sumar){
   if(actual.length) tandas.push(actual);
   if(!tandas.length) tandas.push([]); // sólo unidades
 
-  let totU=0, totT=0;
+  let totU=0, totT=0, avisoMedios=null;
   // v2.9.365: cuántas filas ACEPTÓ el servidor de las que se le mandaron. La
   // Edge Function descarta en silencio los tipos que no conoce, así que ésta es
   // la única forma de saber que se quedó una capa afuera sin ir a consultarla.
@@ -37607,6 +38486,7 @@ async function wgImportarEscenario(inp, sumar){
     if(!r.ok){ poner(`❌ Falló en la tanda ${i+1}: ${_rgEsc(r.error)}`+(i>0?'<br>El escenario quedó a medio cargar: volvé a importar.':'')); return; }
     totU=r.total_unidades||totU; totT=r.total_terreno||totT;
     insT += (r.terreno||0);
+    if(r.aviso_medios) avisoMedios=r.aviso_medios;   // v2.9.439
   }
   // v2.9.205: si se mandaron capas de carta y el servidor no las guardó, es que
   // la Edge Function `wargame-ops` está DESACTUALIZADA (la vieja sólo acepta
@@ -37668,9 +38548,11 @@ async function wgImportarEscenario(inp, sumar){
     +(falloInst?`<br>⚠️ No entraron: <b>${_rgEsc(detalleFallos)}</b> — ${_rgEsc(falloInst)}`
       +(tiposFallados.log_pc?`<br><span style="opacity:.85">El tipo <code>log_pc</code> (Puesto de Comando) lo rechaza la Edge Function por un defecto propio de su validación; se arregla cambiando <code>{3,20}</code> por <code>{2,20}</code> en <code>wargame-ops</code>.</span>`:''):'')
     +((esc.ejes||0)?`<br>↔️ <b>${esc.ejes}</b> eje(s) de control en la carta (EPA, EPE, evacuación).`:'')
-    +((esc.obstaculos||0)?`<br>🛡️ <b>${esc.obstaculos}</b> obstáculo(s) del plan de barreras`
-      +(esc.obsMecanicos?` (<b>${esc.obsMecanicos}</b> con efecto en el motor).`:` — todos proyectados, todavía sin efecto.`):'')
+    +((esc.obstaculos||0)?`<br>🛡️ <b>${esc.obstaculos}</b> obra(s) del plan de barreras`
+      +(esc.obsMecanicos?` (<b>${esc.obsMecanicos}</b> construida(s), con efecto sobre el enemigo).`:` — todas proyectadas, sin efecto.`):'')
     +avisoBarreras
+    +(avisoMedios?`<br><br>⚠️ <b>Medios de las unidades:</b> ${_rgEsc(avisoMedios)}`:'')
+    +(_wgResumenMedios(esc.medios)?`<br><span class="rg-meta" style="white-space:pre-line">${_rgEsc(_wgResumenMedios(esc.medios).trim())}</span>`:'')
     // v2.9.359 — SIN CAMINOS NO HAY LOGÍSTICA. Se avisa ACÁ, que es cuando
     // todavía se puede agregar la capa, y no cuando el convoy ya se clavó.
     +(_wgSinCaminos(esc)
@@ -37732,6 +38614,7 @@ const WG_MAGNITUD={ equipo:'EQUIPO', escuadra:'ESCUADRA', seccion:'SECCIÓN',
   brigada:'BRIGADA', division:'DIVISIÓN', cuerpo:'CUERPO', ejercito:'EJÉRCITO' };
 const WG_ABREV={intendencia:'Int',transporte:'Tte',mantenimiento:'Mant',veterinaria:'Vet',
   policiamilitar:'PM',antitanque:'AT',morteros:'Mort',ametralladoras:'Amtr',lanzacohetes:'LC',
+  logistica:'Log',materialbelico:'MB',   // v2.9.439: los mismos rótulos que la Mesa
   convoy:'Cnv'};   // v2.9.335: el convoy de abastecimiento es una unidad más
 const _wgSimCache={};
 function _wgDibEscalon(ctx,esc,cx,topY,color){
@@ -38274,122 +39157,175 @@ function _wgSimboloUnidad(u,sel){
   const _var=_wgVarianteDibujo(u);
   // v2.9.353: los vehículos tienen su propio símbolo, en planta y rotable.
   if(WG_PLANTA[_var]) return _wgSimboloVehiculo(u, sel, _var);
-  const clave=[u.bando,u.escalon,_var,u.designacion||'',pct,u.estado,sel?1:0,u._reportado?'R':''].join('|');
+  // ============================================================
+  // v2.9.439 — LA FICHA CON EL DISEÑO DE LA MESA (Generador de Calcos).
+  // Sergio: «las unidades aquí quisiera que mantengas su diseño del generador
+  // de calco». Es el mismo dibujo que `sb()` del compilado de la Mesa: marco
+  // BLANCO con el borde del color del bando (rectángulo propio, rombo enemigo),
+  // el signo de CADA arma —también mecanizada, motorizada, andina, selva,
+  // caballería mecanizada y antiaérea, que acá salían vacías—, la flecha de los
+  // apoyos propios (morteros, antitanque, lanzacohetes, ametralladoras), la
+  // magnitud arriba con halo blanco, la designación debajo en el color del bando
+  // con contorno blanco, el número de la unidad a la derecha y el asta del PC.
+  // Lo del Juego va encima, sin tocar el diseño: la retícula amarilla de la
+  // selección, la barra de poder, el trazo de lo reportado por el dron y el
+  // apagado de lo que quedó fuera de combate.
+  // ============================================================
+  const sm=(_wgMediosDe(u)||{}).simbolo||{};
+  const pc=sm.tipo==='pc';
+  const clave=[u.bando,u.escalon,_var,u.designacion||'',pct,u.estado,sel?1:0,u._reportado?'R':'',
+    sm.tipo||'',sm.texto||'',sm.circulo?1:0,sm.numero||'',sm.reducida?1:0].join('|');
   if(_wgSimCache[clave]) return _wgSimCache[clave];
   const esc=WG_ESCALONES[u.escalon]||WG_ESCALONES.batallon;
   const rojo = u.bando==='rojo';
-  // ============================================================
-  // v2.9.286 — OTRO TONO PARA LO QUE SUBIÓ EL DRON.
-  // Sergio: «las unidades dadas por el dron deben estar en otro tono de rojo,
-  // como si fueran información proporcionada por el dron».
-  // Tono más claro + marco DE TRAZOS. Las dos cosas juntas dicen lo mismo de un
-  // vistazo: eso no es una ficha comprobada, es un reporte — y como todo
-  // reporte, puede estar viejo.
-  // ============================================================
-  const color = u._reportado ? (WG_COL_REPORTADO[u.bando]||'#c9a0a0')
-                             : (WG_COL[u.bando]||'#888');
-  const desig=(u.designacion||'').trim();
-  // v2.9.351 — EL VEHÍCULO VA SIN MARCO. Sergio: «quitale ese borde cuadrado
-  // rectangular». Y tiene razón doctrinaria: el marco rectangular/rombo es el
-  // símbolo de una UNIDAD que combate. El convoy no combate — es un medio
-  // rodando —, así que se grafica por su silueta y su color, no encerrado en el
-  // signo de una unidad de maniobra. Sin marco, además, el lienzo se le puede
-  // dar entero al vehículo y se lee mucho mejor.
-  const _sinMarco = ['convoy','convoy_i','convoy_agua','convoy_iii','convoy_v','ambulancia'].includes(_var);
-  const fw=_sinMarco?78:64, fh=_sinMarco?36:(rojo?52:40), padTop=_sinMarco?14:18, padX=_sinMarco?2:(rojo?6:4);
-  const FUENTE='bold 11px Arial, sans-serif';
-  // El rótulo va DEBAJO del marco y puede ser más ancho que él: se mide para
-  // que no se corte y para que el marco quede igual centrado.
-  let anchoTexto=0;
-  if(desig){ const med=document.createElement('canvas').getContext('2d'); med.font=FUENTE; anchoTexto=med.measureText(desig).width; }
-  const labelH=desig?17:0, barraH=8;
-  // v2.9.207: la ficha seleccionada lleva RETÍCULA (punto de mira) por fuera del
-  // marco, así que el lienzo necesita aire alrededor. Antes el halo se recortaba
-  // contra el borde y por eso «no se notaba nada».
-  const RET = sel?16:0;
-  const W=Math.ceil(Math.max(fw+padX*2, anchoTexto+8))+RET*2, H=padTop+fh+labelH+barraH+RET;
+  const color = u._reportado ? (WG_COL_REPORTADO[u.bando]||'#c9a0a0') : (WG_COL_MESA[u.bando]||WG_COL[u.bando]||'#888');
+  const desigBase=(u.designacion||'').trim();
+  const desig=sm.reducida ? `${desigBase} (-)`.trim() : desigBase;
+  const FUENTE='bold 16px Arial, sans-serif';
+  const med=document.createElement('canvas').getContext('2d');
+  const anchoDesig = desig ? (med.font=FUENTE, med.measureText(desig).width+8) : 0;
+  const numero=(!rojo && sm.numero) ? String(sm.numero) : '';
+  const anchoNum = numero ? (med.font='bold 12px Arial, sans-serif', Math.ceil(med.measureText(numero).width)+10) : 0;
+  // Las medidas de la Mesa: marco de 64 × 40 (el rombo, 52 de alto), 18 px para
+  // la magnitud, 15 para el asta del PC y 20 para la designación.
+  const fw=64, fh=rojo?52:40, padTop=18, padX=rojo?6:4, T=pc?15:0, M=desig?20:0, barraH=8;
+  const pad=desig?Math.max(0,(anchoDesig-fw-padX*2)/2):0;
+  const RET = sel?16:0;     // la retícula de la selección va por fuera de la ficha
+  const W=Math.ceil(fw+padX*2+pad*2+anchoNum)+RET*2, H=padTop+fh+T+M+barraH+RET*2;
   const dpr=(window.devicePixelRatio||1)*2;
   const cv=document.createElement('canvas');
   cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
   const ctx=cv.getContext('2d'); ctx.scale(dpr,dpr); ctx.lineJoin='round';
-  // Fuera de combate = todo el símbolo apagado.
-  ctx.globalAlpha = u.estado==='fuera_combate'?0.42:1;
-  const fx=(W-fw)/2, fy=padTop+RET, cx=W/2, my=fy+fh/2;
-  ctx.save();
-  // v2.9.205: la ficha SELECCIONADA se enciende en amarillo, como en los juegos:
-  // halo difuso por fuera + relleno cálido. Se lee de un golpe de vista, que era
-  // el problema del rayado blanco anterior.
-  // v2.9.350 — EL MARCO SE PINTA DEL COLOR DEL BANDO. Con el relleno blanco de
-  // antes, azules y rojos se leían igual de grises hasta acercarse: el color
-  // vivía sólo en el trazo del borde, que a 30 px casi no se ve.
-  ctx.fillStyle = sel?'rgba(255,225,26,0.18)':_wgAlfa(color,0.26);
-  ctx.strokeStyle=color; ctx.lineWidth=7;
-  const marco=()=>{ if(rojo){ const hw=fw/2+padX-2, hh=fh/2; ctx.beginPath();
-      ctx.moveTo(cx,my-hh); ctx.lineTo(cx+hw,my); ctx.lineTo(cx,my+hh); ctx.lineTo(cx-hw,my); ctx.closePath();
-    } else { ctx.beginPath(); ctx.rect(fx,fy,fw,fh); } };
+  ctx.globalAlpha = u.estado==='fuera_combate'?0.42:1;     // fuera de combate = apagada
+  const fx=RET+padX+pad, fy=RET+padTop, cx=fx+fw/2, my=fy+fh/2;
   if(sel){
-    // RETÍCULA DE PUNTERÍA — amarillo encendido, MÁS GRANDE que la ficha, con
-    // esquinas en escuadra: se lee de un vistazo en cualquier fondo.
+    // RETÍCULA DE PUNTERÍA (v2.9.207): esquinas en escuadra, amarillo encendido.
     ctx.save();
     const AM='#ffe11a';
     const rx=fx-RET+3, ry=fy-RET+3, rw=fw+(RET-3)*2, rh=fh+(RET-3)*2;
-    const br=Math.min(rw,rh)*0.30; // largo de cada escuadra
-    const esquinas=()=>{
-      ctx.beginPath();
+    const br=Math.min(rw,rh)*0.30;
+    const esquinas=()=>{ ctx.beginPath();
       ctx.moveTo(rx,ry+br); ctx.lineTo(rx,ry); ctx.lineTo(rx+br,ry);
       ctx.moveTo(rx+rw-br,ry); ctx.lineTo(rx+rw,ry); ctx.lineTo(rx+rw,ry+br);
       ctx.moveTo(rx+rw,ry+rh-br); ctx.lineTo(rx+rw,ry+rh); ctx.lineTo(rx+rw-br,ry+rh);
-      ctx.moveTo(rx+br,ry+rh); ctx.lineTo(rx,ry+rh); ctx.lineTo(rx,ry+rh-br);
-    };
-    ctx.lineCap='round';
-    // resplandor exterior + trazo nítido encima
-    ctx.shadowColor=AM; ctx.strokeStyle=AM;
+      ctx.moveTo(rx+br,ry+rh); ctx.lineTo(rx,ry+rh); ctx.lineTo(rx,ry+rh-br); };
+    ctx.lineCap='round'; ctx.shadowColor=AM; ctx.strokeStyle=AM;
     for(const [w,al,bl] of [[9,0.30,22],[6,0.60,12],[3.2,1,5]]){
-      ctx.lineWidth=w; ctx.globalAlpha=al; ctx.shadowBlur=bl; esquinas(); ctx.stroke();
-    }
-    // pequeñas marcas de mira a media altura de cada lado
-    ctx.globalAlpha=0.95; ctx.lineWidth=2.4; ctx.shadowBlur=8;
-    ctx.beginPath();
+      ctx.lineWidth=w; ctx.globalAlpha=al; ctx.shadowBlur=bl; esquinas(); ctx.stroke(); }
+    ctx.globalAlpha=0.95; ctx.lineWidth=2.4; ctx.shadowBlur=8; ctx.beginPath();
     ctx.moveTo(rx-4,ry+rh/2); ctx.lineTo(rx+4,ry+rh/2);
     ctx.moveTo(rx+rw-4,ry+rh/2); ctx.lineTo(rx+rw+4,ry+rh/2);
     ctx.moveTo(rx+rw/2,ry-4); ctx.lineTo(rx+rw/2,ry+4);
-    ctx.stroke();
-    ctx.restore();
+    ctx.stroke(); ctx.restore();
+    ctx.globalAlpha = u.estado==='fuera_combate'?0.42:1;
   }
-  if(!_sinMarco){ marco(); ctx.fill(); }
-  if(u.estado==='fuera_combate') ctx.setLineDash([8,5]); // ya no combate
-  else if(u._reportado) ctx.setLineDash([7,4]);          // v2.9.286: dato reportado
-  if(!_sinMarco) ctx.stroke();
-  ctx.setLineDash([]);
-  if(_sinMarco){
-    // Sin marco que lo despegue del terreno, el vehículo lleva su propio
-    // resplandor: un halo del color del bando que lo separa de la carta.
-    ctx.save(); ctx.shadowColor=_wgAlfa(color,0.95); ctx.shadowBlur=9;
-    _wgDibArma(ctx,_var,fx,fy,fw,fh,color,false);
-    ctx.shadowBlur=0; _wgDibArma(ctx,_var,fx,fy,fw,fh,color,false);
-    ctx.restore();
-  } else {
-    ctx.save(); marco(); ctx.clip(); _wgDibArma(ctx,_var,fx,fy,fw,fh,color,rojo); ctx.restore();
+  const marco=()=>{ ctx.beginPath();
+    if(rojo){ const hw=fw/2+padX-2, hh=fh/2;
+      ctx.moveTo(cx,my-hh); ctx.lineTo(cx+hw,my); ctx.lineTo(cx,my+hh); ctx.lineTo(cx-hw,my); ctx.closePath(); }
+    else ctx.rect(fx,fy,fw,fh); };
+  ctx.save();
+  ctx.fillStyle='rgba(255,255,255,0.92)'; ctx.strokeStyle=color; ctx.lineWidth=7;
+  marco(); ctx.fill();
+  if(u.estado==='fuera_combate') ctx.setLineDash([8,5]);      // ya no combate
+  else if(u._reportado) ctx.setLineDash([7,4]);               // v2.9.286: dato reportado
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.save(); marco(); ctx.clip();
+  if(rojo || !_wgDibApoyoMesa(ctx,u.arma,sm,fx,fy,fw,fh,color)) _wgDibArmaMesa(ctx,u.arma,fx,fy,fw,fh,color);
+  ctx.restore();
+  // El asta del Puesto de Comando, como en la Mesa.
+  if(pc){
+    ctx.strokeStyle=color; ctx.lineWidth=7;
+    if(rojo){ const hw=fw/2+padX-2; ctx.lineCap='round'; ctx.beginPath();
+      ctx.moveTo(cx-hw,my); ctx.lineTo(cx-hw,my+fh/2+12); ctx.stroke(); }
+    else { ctx.beginPath(); ctx.moveTo(fx,fy+fh); ctx.lineTo(fx,fy+fh+14); ctx.stroke(); }
   }
   ctx.restore();
-  _wgDibEscalon(ctx,esc,cx,2,color);
-  // Rótulo: 5 px por debajo del marco (el trazo del marco es de 7 px y antes
-  // el texto le quedaba encima).
-  if(desig){ ctx.save(); ctx.fillStyle=color; ctx.font=FUENTE;
-    ctx.textAlign='center'; ctx.textBaseline='top';
-    ctx.strokeStyle='rgba(0,0,0,.55)'; ctx.lineWidth=3; ctx.strokeText(desig,cx,fy+fh+5); // contorno: legible sobre cualquier mapa
-    ctx.fillText(desig,cx,fy+fh+5); ctx.restore(); }
-  // Barra de poder de combate: de un vistazo se ve cuánto le queda.
-  const by=fy+fh+labelH+3, bw=fw*0.8, bx=cx-bw/2;
+  // La magnitud, arriba y con halo blanco (se lee sobre cualquier terreno).
+  ctx.save(); ctx.shadowColor='#fff'; ctx.shadowBlur=4*dpr;
+  _wgDibEscalon(ctx,esc,cx,RET+2,color); ctx.restore();
+  // La designación: 16 px en el color del bando, con contorno blanco.
+  if(desig){ ctx.save(); ctx.fillStyle=color; ctx.font=FUENTE; ctx.textAlign='center'; ctx.textBaseline='top';
+    ctx.strokeStyle='rgba(255,255,255,.85)'; ctx.lineWidth=2.5;
+    ctx.strokeText(desig,cx,fy+fh+T+2); ctx.fillText(desig,cx,fy+fh+T+2); ctx.restore(); }
+  // El número de la unidad (el «I» del CE), a la derecha del marco.
+  if(numero){ ctx.save(); ctx.fillStyle=color; ctx.font='bold 12px Arial, sans-serif'; ctx.textAlign='left';
+    ctx.textBaseline='middle'; ctx.strokeStyle='rgba(255,255,255,.85)'; ctx.lineWidth=2.5;
+    ctx.strokeText(numero,fx+fw+5,my); ctx.fillText(numero,fx+fw+5,my); ctx.restore(); }
+  // Barra de poder de combate (lo del Juego): de un vistazo, cuánto le queda.
+  const by=fy+fh+T+M+2, bw=fw*0.8, bx=cx-bw/2;
   ctx.save(); ctx.globalAlpha=1;
   ctx.fillStyle='rgba(0,0,0,.45)'; ctx.fillRect(bx,by,bw,4);
   ctx.fillStyle = pct>60?'#2ecc71':(pct>20?'#e08a2c':'#e23b3b');
   ctx.fillRect(bx,by,bw*pct/100,4);
   ctx.restore();
-
-  const r={ url:cv.toDataURL('image/png'), w:W, h:H, ax:cx, ay:padTop+fh/2 };
+  const r={ url:cv.toDataURL('image/png'), w:W, h:H, ax:cx, ay:my };
   _wgSimCache[clave]=r;
   return r;
+}
+// v2.9.439 — los colores de la ficha son los de la Mesa (OI del compilado).
+const WG_COL_MESA={ azul:'#1f6dff', rojo:'#ff1f1f' };
+// Rótulo del arma dentro del marco, el mismo de la Mesa (Wfe del compilado).
+const WG_ABREV_MESA={ intendencia:'Int', transporte:'Tte', mantenimiento:'Mant', veterinaria:'Vet',
+  policiamilitar:'PM', antitanque:'AT', morteros:'Mort', ametralladoras:'Amtr', lanzacohetes:'LC',
+  logistica:'Log', materialbelico:'MB' };
+// El signo de cada arma: copia de `Zfe` del compilado de la Mesa (simboloUnidad).
+function _wgDibArmaMesa(t,arma,n,a,i,o,col){
+  t.save(); t.strokeStyle=col; t.fillStyle=col; t.lineWidth=5;
+  const r=n+i/2, u=a+o/2;
+  const X=()=>{ t.beginPath(); t.moveTo(n,a); t.lineTo(n+i,a+o); t.moveTo(n+i,a); t.lineTo(n,a+o); t.stroke(); };
+  const D=()=>{ t.beginPath(); t.moveTo(n,a+o); t.lineTo(n+i,a); t.stroke(); };
+  const O=()=>{ t.beginPath(); t.ellipse(r,u,i*.3,o*.26,0,0,Math.PI*2); t.stroke(); };
+  switch(arma){
+    case 'infanteria': X(); break;
+    case 'mecanizada': X(); O(); break;
+    case 'motorizada': { X(); const v=Math.min(i,o)*.17; t.beginPath(); t.arc(r,u,v,0,Math.PI*2); t.stroke();
+      t.beginPath(); t.moveTo(r-v*1.6,u-v); t.lineTo(r+v*1.6,u-v); t.stroke(); break; }
+    case 'andina': { X(); const v=Math.min(i,o)*.3; t.beginPath(); t.moveTo(r,u-v); t.lineTo(r+v,u+v*.8);
+      t.lineTo(r-v,u+v*.8); t.closePath(); t.stroke(); break; }
+    case 'selva': { X(); t.beginPath(); t.arc(r,u,Math.min(i,o)*.24,0,Math.PI*2); t.stroke(); break; }
+    case 'caballeria': D(); break;
+    case 'cabmec': D(); O(); break;
+    case 'artilleria': t.beginPath(); t.arc(r,u,Math.min(i,o)*.18,0,Math.PI*2); t.fill(); break;
+    case 'antiaerea': { const v=Math.min(i,o)*.16; t.beginPath(); t.arc(r,u+o*.12,v,0,Math.PI*2); t.fill();
+      t.beginPath(); t.moveTo(r-i*.22,u-o*.04); t.lineTo(r,u-o*.3); t.lineTo(r+i*.22,u-o*.04); t.stroke(); break; }
+    case 'ingenieria': { const v=i*.52, x=o*.42; t.beginPath(); t.moveTo(r-v/2,u+x/2); t.lineTo(r-v/2,u-x/2);
+      t.lineTo(r+v/2,u-x/2); t.lineTo(r+v/2,u+x/2); t.moveTo(r,u-x/2); t.lineTo(r,u+x/2); t.stroke(); break; }
+    case 'comunicaciones': t.beginPath(); t.moveTo(r-i*.18,a+o*.2); t.lineTo(r+i*.05,u); t.lineTo(r-i*.05,u);
+      t.lineTo(r+i*.18,a+o*.8); t.stroke(); break;
+    case 'blindada': O(); break;
+    case 'aerotransportada': { const v=i*.18; t.beginPath(); t.arc(r-v,u,v,Math.PI,0); t.arc(r+v,u,v,Math.PI,0); t.stroke(); break; }
+    case 'aviacion': { const v=Math.min(i,o)*.32; t.beginPath(); t.moveTo(r-v,u-v*.5); t.lineTo(r+v,u+v*.5);
+      t.moveTo(r-v,u+v*.5); t.lineTo(r+v,u-v*.5); t.stroke(); t.beginPath(); t.arc(r,u,2.2,0,Math.PI*2); t.fill(); break; }
+    case 'sanidad': { const v=Math.min(i,o)*.26; t.beginPath(); t.moveTo(r,u-v); t.lineTo(r,u+v);
+      t.moveTo(r-v,u); t.lineTo(r+v,u); t.stroke(); break; }
+    default:
+      if(WG_ABREV_MESA[arma]){ t.font='bold 13px Arial, sans-serif'; t.textAlign='center'; t.textBaseline='middle';
+        t.fillText(WG_ABREV_MESA[arma],r,u+1); }
+  }
+  t.restore();
+}
+// Los apoyos PROPIOS con su flecha: copia de calcos/unidades/simbolos-apoyo.mjs
+// (`dibujarApoyo`). Devuelve false si esa ficha no lleva ese signo.
+function _wgDibApoyoMesa(ctx,arma,sm,x,y,ancho,alto,color){
+  const armas=['ametralladoras','morteros','antitanque','lanzacohetes'];
+  const texto=String((sm&&sm.texto)||'').trim();
+  if(!armas.includes(arma) && !texto) return false;
+  const cx=x+ancho/2, cy=y+alto/2;
+  ctx.save(); ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=2;
+  if(texto){
+    ctx.textAlign='center'; ctx.textBaseline='middle'; ctx.font='bold 11px Arial, sans-serif';
+    ctx.fillText(texto,cx,cy,ancho-10);
+  } else {
+    if(sm&&sm.circulo){ ctx.beginPath(); ctx.arc(cx,cy,alto*.36,0,Math.PI*2); ctx.stroke(); }
+    const arriba=cy-alto*.26, abajo=cy+alto*(arma==='morteros'?.12:.26);
+    ctx.beginPath(); ctx.moveTo(cx,arriba+5); ctx.lineTo(cx,abajo); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx,arriba); ctx.lineTo(cx-4,arriba+8); ctx.lineTo(cx+4,arriba+8); ctx.closePath(); ctx.fill();
+    if(arma==='morteros'){ ctx.beginPath(); ctx.ellipse(cx,abajo+4,6,4,0,0,Math.PI*2); ctx.stroke(); }
+    else if(['antitanque','lanzacohetes'].includes(arma)){ ctx.beginPath(); ctx.moveTo(cx-7,abajo+5);
+      ctx.lineTo(cx,abajo-3); ctx.lineTo(cx+7,abajo+5); ctx.stroke(); }
+  }
+  ctx.restore();
+  return true;
 }
 
 // ============================================================
@@ -38596,7 +39532,7 @@ function _wgDibujo(){
 // turnos), así que la regla no enseñaba nada.
 const WG_AUTONOMIA={ motor:200, oruga:150, rueda:200, pie:0 };
 function _wgCombustible(u){
-  const tanque=WG_AUTONOMIA[_wgMedioDe(u)]||0;
+  const tanque=_wgTanqueDe(u);   // v2.9.439: la autonomía planificada de ESA unidad
   if(!tanque) return null;
   const usado=Math.max(0,Number(u.combustible_km)||0);
   const pct=Math.min(100,Math.round(100*usado/tanque));
@@ -39905,7 +40841,7 @@ function _wgMunicion(u, armaId){
   const arma=WG_ARMAS[armaId]; if(!arma) return 0;
   const m=u&&u.municion;
   if(m && Object.prototype.hasOwnProperty.call(m,armaId)) return Math.max(0,Number(m[armaId])||0);
-  return Number(arma.uf)||0;
+  return _wgUfTope(u,armaId);   // v2.9.439: la dotación planificada de ESA unidad
 }
 // Estado de munición del conjunto de sistemas de una unidad, para el tablero.
 function _wgMunicionUnidad(u){
@@ -39913,7 +40849,7 @@ function _wgMunicionUnidad(u){
   if(!armas.length) return null;
   let hay=0, tope=0;
   const det=armas.map(a=>{
-    const q=_wgMunicion(u,a.id), t=Number(a.uf)||0;
+    const q=_wgMunicion(u,a.id), t=_wgUfTope(u,a.id);   // v2.9.439
     hay+=q; tope+=t;
     return { arma:a, q, t, pct: t?Math.round(100*q/t):0 };
   });

@@ -211,7 +211,7 @@ export default function PanelCAP({ hoja, valor, ctx = {}, onAccion, onLlevar, on
       c.roles.map((r, i) => h('div', { key: i, style: E.rol }, h('b', null, `${r.principal ? '★ ' : ''}${r.rol}: `), `${r.unidades.map((u) => u.nom).join(', ')} — ${r.tarea}.`)),
       h('div', { style: E.dist }, `🗺️ En la carta: ${c.distingue}.`),
       h('div', { style: E.fases }, `🎬 ${c.fases.map((f, i) => `${i + 1}. ${f.nombre} (${f.cuando})`).join(' · ')}`),
-      h('div', { style: { ...E.fases, color: COLOR_CAP_CLARO[c.n] || E.fases.color }, 'data-itinerario-cap': c.n }, `➜ En las fases, el itinerario de cada unidad va marcado con flechas ${NOMBRE_COLOR[c.n] || ''}.`),
+      h('div', { style: { ...E.fases, color: COLOR_CAP_CLARO[c.n] || E.fases.color }, 'data-itinerario-cap': c.n }, `➜ En las fases, el itinerario de cada unidad va marcado con flechas ${NOMBRE_COLOR[c.n] || ''}: llena la de la fase a la vista, punteadas las de las anteriores, una punta donde está cada unidad y el número de la fase por donde pasó.`),
       c.n === C.activo && botonFlechas({ alignSelf: 'flex-start', borderColor: COLOR_CAP[c.n] || AZUL }),
       botonesFase(c),
       botonArmarGuardado(c))

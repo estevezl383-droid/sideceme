@@ -12,7 +12,7 @@ import * as P from '../cap-propios/v1/proponer.mjs'
 import { posicionesCAP } from '../cap-propios/v1/posiciones.mjs'
 import * as T from '../cap-propios/v1/tareas-fase.mjs'
 import * as C from '../cap-propios/v1/carta-ia.mjs'
-import { tramos, COLOR_CAP, capActivo } from '../cap-propios/v1/itinerario.mjs'
+import { tramos, trazos, COLOR_CAP, capActivo } from '../cap-propios/v1/itinerario.mjs'
 
 const require = createRequire(import.meta.url)
 const { ejercicioConcepto } = require('./concepto-ejemplo.js')
@@ -233,6 +233,35 @@ await caso('➜ el itinerario: los tramos de la FASE I a la que está a la vista
   assert.equal(COLOR_CAP[2], '#ff00ff')
   assert.equal(capActivo({ _caps: { activo: 2 } }), 2)
   assert.equal(capActivo({}), 1)
+})
+
+await caso('➜ el itinerario se lee (Sergio, 26-10-2026: «las flechas… muy confusas»): una punta por unidad, lleno lo de esta fase y punteado lo anterior, la agrupación que va con su unidad no se repite', () => {
+  const fs = armar(CAP1)
+  const z = trazos({ fases: fs, idx: 4 })
+  const ts = tramos({ fases: fs, idx: 4 })
+  const movidas = new Set(ts.map((t) => t.id))
+  assert.equal(z.puntas.length, movidas.size, 'una punta por unidad que se movió (antes, una por tramo)')
+  assert.ok(z.puntas.length < ts.length)
+  assert.ok(z.lineas.every((l) => l.actual === (l.hasta === 4)), 'lleno sólo el movimiento de la fase a la vista')
+  assert.ok(z.lineas.some((l) => l.actual) && z.lineas.some((l) => !l.actual))
+  assert.ok(z.estaciones.every((e) => e.fase < 4))
+  // Una agrupación que sale y llega con la unidad de la que salen sus piezas (a 1,5 km, como la pone posiciones.mjs):
+  // UNA flecha, con los dos nombres; si la unidad se queda y la agrupación sale, la agrupación tiene la suya.
+  const u = (id, nom, lng, lat, extra = {}) => ({ id, designacion: nom, bando: 'propias', tipo: 'unidad', lng, lat, ...extra })
+  const agd = (lng, lat) => u('ag-x', 'OD', lng, lat, { esAgrupacion: true, agrupacion: true, piezasAg: [{ id: 'dm-1', de: 'dm' }] })
+  const f = [
+    { unidades: [u('dm', 'DIV MEC-2', -68.4, -18.55), agd(-68.4, -18.535), u('b1', 'BI-1', -68.45, -18.5), u('b2', 'BI-2', -68.45, -18.5)] },
+    { unidades: [u('dm', 'DIV MEC-2', -68.7, -18.5), agd(-68.7, -18.486), u('b1', 'BI-1', -68.6, -18.6), u('b2', 'BI-2', -68.6, -18.6)] },
+    { unidades: [u('dm', 'DIV MEC-2', -68.7, -18.5), agd(-68.85, -18.45), u('b1', 'BI-1', -68.6, -18.6), u('b2', 'BI-2', -68.6, -18.6)] },
+  ]
+  const z1 = trazos({ fases: f, idx: 1 })
+  assert.deepEqual(z1.lineas.map((l) => l.nombres), [['DIV MEC-2 con la OD'], ['BI-1', 'BI-2']], 'la OD va con su DIV MEC-2; los dos batallones, un solo trazo')
+  assert.equal(z1.puntas.length, 2)
+  const z2 = trazos({ fases: f, idx: 2 })
+  assert.deepEqual(z2.lineas.map((l) => [l.nombres.join(' + '), l.actual]), [['DIV MEC-2 con la OD', false], ['BI-1 + BI-2', false], ['OD', true]])
+  assert.equal(z2.puntas.length, 3, 'la DIV MEC-2 y los batallones donde quedaron (FASE II), la OD donde está')
+  assert.deepEqual(z2.puntas.map((p) => p.actual), [false, false, true])
+  assert.deepEqual(z2.estaciones.map((e) => e.fase), [0, 0, 1])
 })
 
 console.log(`cap-tareas-fase: ${n} casos ✔`)
