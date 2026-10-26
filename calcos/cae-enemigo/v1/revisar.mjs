@@ -21,6 +21,23 @@ const limpio = (s) => String(s ?? '').replace(TAG, ' ').replace(/\s+/g, ' ').tri
 const esEnemiga = (u) => /^enemig/i.test(String(u?.bando || ''))
 const esUnidad = (u) => (u?.tipo || 'unidad') === 'unidad'
 const ESC = ['equipo', 'escuadra', 'seccion', 'compania', 'batallon', 'regimiento', 'brigada', 'division', 'cuerpo', 'ejercito']
+// El escalón de una ficha: el que tiene cargado o, si no tiene, el que dice su designación («1ª BR. AC.» → brigada).
+// Sin esto, una brigada sin escalón quedaba por debajo de sus batallones y el aviso decía «el enemigo es BAT. …».
+const POR_NOMBRE = [
+  [/(^|[^A-Z])(CE|CUERPO)([^A-Z]|$)/, 'cuerpo'],
+  [/(^|[^A-Z])(DIV|DE|DIVISION)([^A-Z]|$)/, 'division'],
+  [/(^|[^A-Z])(BR|BRIG|BRIGADA)([^A-Z]|$)/, 'brigada'],
+  [/(^|[^A-Z])(RGT|REG|REGIMIENTO|RI|RC|RA)([^A-Z]|$)/, 'regimiento'],
+  [/(^|[^A-Z])(BAT|BTN|BATALLON|GA|GAAP)([^A-Z]|$)/, 'batallon'],
+  [/(^|[^A-Z])(CIA|CIE|COMPANIA|ESC|ESCUADRON)([^A-Z]|$)/, 'compania'],
+]
+const escalonDe = (u) => {
+  const e = ESC.indexOf(String(u?.escalon || ''))
+  if (e >= 0) return e
+  const n = norm(String(u?.designacion || '').replace(/[«"“][^»"”]*[»"”]/g, ' '))
+  const m = POR_NOMBRE.find(([re]) => re.test(n))
+  return m ? ESC.indexOf(m[1]) : -1
+}
 const NOM_ESC = { brigada: 'brigada', division: 'división', cuerpo: 'cuerpo de ejército', ejercito: 'ejército' }
 
 // ─── Los nombres de las fichas, para encontrarlos en un texto ────────────────────────────────────────────────
@@ -50,10 +67,10 @@ export function fuerzas({ unidades = [], ordenSup = {}, unidad = '' } = {}) {
   const propias = [...new Set([propia, ...us.filter((u) => !esEnemiga(u)).map(nom)].filter(Boolean))]
   const rojas = us.filter(esEnemiga)
   const enemigas = [...new Set(rojas.map(nom).filter(Boolean))]
-  const rango = (u) => ESC.indexOf(String(u?.escalon || ''))
-  const mayor = rojas.slice().sort((a, b) => rango(b) - rango(a))[0] || null
-  const enemigo = mayor ? nom(mayor) || (NOM_ESC[mayor.escalon] ? `la ${NOM_ESC[mayor.escalon]} enemiga` : '') : ''
-  const escEnemigo = mayor && NOM_ESC[mayor.escalon] ? NOM_ESC[mayor.escalon] : ''
+  const mayor = rojas.slice().sort((a, b) => escalonDe(b) - escalonDe(a))[0] || null
+  const escMayor = mayor ? ESC[escalonDe(mayor)] : ''
+  const enemigo = mayor ? nom(mayor) || (NOM_ESC[escMayor] ? `la ${NOM_ESC[escMayor]} enemiga` : '') : ''
+  const escEnemigo = NOM_ESC[escMayor] || ''
   // Lo que «existe» en el ejercicio: las fichas de los dos bandos y todo lo escrito en la Orden superior.
   const textos = []
   const juntar = (x, p = 0) => {
@@ -64,7 +81,19 @@ export function fuerzas({ unidades = [], ordenSup = {}, unidad = '' } = {}) {
   }
   juntar(ordenSup)
   const claves = (xs) => new Set(xs.flatMap((t) => formaciones(t).map((g) => g.clave)))
-  const conocidas = { rojas: claves(enemigas), propias: claves(propias), orden: claves(textos) }
+  const conCal = (xs) => new Set(xs.flatMap((t) => formaciones(t).filter((g) => g.cal).map((g) => g.clave + g.cal)))
+  // Lo que la Orden superior dice del ENEMIGO (fuerzas enemigas, sus cursos de acción): las grandes unidades que nombra
+  // ahí son enemigas que existen en el ejercicio («SATURNO emplea… la VI DE»), aunque no tengan ficha roja.
+  const ordenEnemigo = ['enemigo', 'probable', 'peligroso'].map((k) => ordenSup?.[k]).filter((x) => typeof x === 'string')
+  const conocidas = {
+    rojas: claves(enemigas),
+    propias: claves(propias),
+    orden: claves(textos),
+    ordenEnemigo: claves(ordenEnemigo),
+    // «DIV MEC-1» (un adyacente que nombra la Orden) no es la «DIV-1» propia: con el calificativo se distinguen.
+    ordenCal: conCal(textos),
+    propiasCal: conCal(propias),
+  }
   return {
     propia,
     propias,
@@ -104,22 +133,26 @@ const TIPO = [
 const tipoDe = (s) => (TIPO.find(([re]) => re.test(s.replace(/\.$/, '').trim())) || [])[1] || null
 const ORD = '(\\d{1,2}|[IVX]{1,5})'
 const SUF = '(?:\\s*[ªº°]|\\s*(?:RA|ER|DA|DO|TA|TO|A|O)\\b)?\\.?'
-const GRAN = '(CUERPO DE EJERCITO|DIVISION(?! *ES)(?: DE EJERCITO)?|BRIGADA|BRIG\\b\\.?|BR\\b\\.?|DIV\\b\\.?|EJERCITO)'
-const CALIF = '(?:\\s+(?:MEC|AC|BLIN|MOT|INF|CAB|ART|ACORAZADA|MECANIZADA|BLINDADA|MOTORIZADA|DE INFANTERIA|DE CABALLERIA|DE MONTANA)\\b\\.?)?'
-const RE_ORD_TIPO = new RegExp(`(?<![A-Z0-9])${ORD}${SUF}\\s*${GRAN}`, 'g')
+// «DE» sola («la VI DE (CG IQUIQUE)», «la I DE, en el sur») sólo antes de un signo o del final: «Fase I de la…» no es una división.
+const GRAN = '(CUERPO DE EJERCITO|DIVISION(?! *ES)(?: DE EJERCITO)?|BRIGADA|BRIG\\b\\.?|BR\\b\\.?|DIV\\b\\.?|EJERCITO|DE(?=\\s*(?:[(),.;:]|$)))'
+const CALIF = '(?:\\s+(MEC|AC|BLIN|MOT|INF|CAB|ART|ACORAZADA|MECANIZADA|BLINDADA|MOTORIZADA|DE INFANTERIA|DE CABALLERIA|DE MONTANA)\\b\\.?)?'
+const RE_ORD_TIPO = new RegExp(`(?<![A-Z0-9])${ORD}${SUF}\\s*${GRAN}${CALIF}`, 'g')
+// El calificativo con una sola forma: «MECANIZADA» y «MEC» son lo mismo.
+const CAL = { MECANIZADA: 'MEC', ACORAZADA: 'AC', BLINDADA: 'BLIN', MOTORIZADA: 'MOT', 'DE INFANTERIA': 'INF', 'DE CABALLERIA': 'CAB', 'DE MONTANA': 'MONT' }
+const calDe = (c) => (c ? CAL[c] || c : '')
 const RE_TIPO_ORD = new RegExp(`(?<![A-Z0-9])(CUERPO DE EJERCITO|DIVISION(?: DE EJERCITO)?|BRIGADA|BRIG\\.?|BR\\.?|DIV\\.?|CE(?=[\\s-–])|DE(?=[-–]))${CALIF}\\s*(?:N\\s*[°ºO]\\.?\\s*)?[-–]?\\s*${ORD}(?![A-Z0-9])`, 'g')
 export function formaciones(texto) {
   const t = norm(texto)
   const out = []
-  const meter = (m, ord, tipo) => {
+  const meter = (m, ord, tipo, cal) => {
     const n = numero(ord)
     const k = tipoDe(tipo)
     if (n == null || !k) return
     if (out.some((o) => m.index < o.f && m.index + m[0].length > o.i)) return
-    out.push({ clave: `${k}${n}`, texto: String(texto).slice(m.index, m.index + m[0].length), i: m.index, f: m.index + m[0].length })
+    out.push({ clave: `${k}${n}`, cal: calDe(cal), texto: String(texto).slice(m.index, m.index + m[0].length), i: m.index, f: m.index + m[0].length })
   }
-  for (const m of t.matchAll(RE_ORD_TIPO)) meter(m, m[1], m[2])
-  for (const m of t.matchAll(RE_TIPO_ORD)) meter(m, m[2], m[1])
+  for (const m of t.matchAll(RE_ORD_TIPO)) meter(m, m[1], m[2], m[3])
+  for (const m of t.matchAll(RE_TIPO_ORD)) meter(m, m[3], m[1], m[2])
   return out.sort((a, b) => a.i - b.i)
 }
 
@@ -137,6 +170,8 @@ function inventadasEn(texto, F) {
   const gs = formaciones(texto)
   gs.forEach((g, k) => {
     if (C.rojas.has(g.clave) || (C.orden.has(g.clave) && !C.propias.has(g.clave))) return
+    if (C.ordenEnemigo?.has(g.clave)) return
+    if (g.cal && C.ordenCal?.has(g.clave + g.cal) && !C.propiasCal?.has(g.clave + g.cal)) return
     const cerca = t.slice(Math.max(0, g.i - 40), g.f + 70)
     const roja = /ENEMIG|ADVERSARI|HOSTIL/.test(cerca) || F.reEnemigas.some((re) => re.test(cerca))
     if (!roja) return
@@ -307,8 +342,15 @@ export function pedidoG3(r, ctx = {}) {
   return conPedido(r, () => bloqueG3(ctx))
 }
 
+// Sólo las casillas que la hoja muestra: el 🌱 de antes dejaba en la O.P. N° 3 casillas que no son de ella
+// («I.- SITUACIÓN · A. Fuerzas enemigas») y el aviso nombraba algo que no se ve ni sale en el Word.
+const visible = (hoja, valor) => {
+  const cs = hoja?.tipo === 'campos' && Array.isArray(hoja.campos) ? hoja.campos : null
+  if (!cs || !valor || typeof valor !== 'object' || Array.isArray(valor)) return valor
+  return Object.fromEntries(cs.filter((k) => k in valor).map((k) => [k, valor[k]]))
+}
 const avisosDe = (hoja, valor, ctx) =>
-  hoja?.id === 'cae' ? revisarCAE(valor, ctx) : unidadesInventadas(valor, ctx).map((x) => ({ ...x, tipo: 'inventada', txt: x.unidad }))
+  hoja?.id === 'cae' ? revisarCAE(valor, ctx) : unidadesInventadas(visible(hoja, valor), ctx).map((x) => ({ ...x, tipo: 'inventada', txt: x.unidad }))
 
 // Lo que se suma al mensaje de «✓ Aplicar» (con un espacio adelante) o ''.
 export function avisoAplicar(hoja, valor, ctx = {}) {
