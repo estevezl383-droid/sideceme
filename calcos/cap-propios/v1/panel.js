@@ -85,6 +85,15 @@ function escritor(ctx) {
   const nomenclator = nomenclatorDe({ ...ctx, lugares: lugaresDeLaCarta() })
   return { campos: (fases) => textoDeLaCarta(fases, { nomenclator, catalogos: catalogos() }).campos, conBloques: (v, c) => hojaConCarta(v, c).valor }
 }
+// El nomenclátor y los catálogos de la carta para los documentos que describen el CAP aprobado (las Órdenes
+// Preparatorias, orden-preparatoria/v1/prep.mjs): los mismos con los que se escribe la F3·P6.
+export function cartaParaDocumentos(ctx = {}) {
+  try {
+    return { nomenclator: nomenclatorDe({ ...ctx, lugares: lugaresDeLaCarta() }), catalogos: catalogos() }
+  } catch {
+    return { nomenclator: [], catalogos: catalogos() }
+  }
+}
 // El pedido de la IA de la F3·P4 y la F3·P6 (lo usa el compilado): la propuesta de los dos CAP (proponer.mjs) y lo que
 // ya está en la carta del CAP activo, antes de «# CÓMO CONTESTAR».
 export function pedidoCAP(r, hoja, ctx = {}) {

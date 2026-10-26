@@ -5,6 +5,30 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-26 — 📄 La O.P. N° 3 (F6·P4) con el CAP aprobado: el Concepto de la operación ya no queda vacío (`index-op3-20261026.js`)
+
+Parte de `index-evento-fases-20261025.js` + `pruebas/reemplazos-2026-10-26-op3.js` (8 reemplazos; `construir-op3.js`;
+`reemplazos-compilado.js` lo deshace byte por byte). Sergio, con la F6·P4 del CE-I después de «Completar y mejorar»:
+«III.- EJECUCIÓN · A. Concepto de la operación (el CAP aprobado)» quedó VACÍA y el Word salía con «Concepto de la
+operación.» sin nada; y el aviso nombraba como inventadas la «DIV MEC-1» y la «VI División de Ejército» de la Orden
+superior. Ver `orden-preparatoria/README.md`.
+
+- **Fuera del compilado**: `orden-preparatoria/v1/prep.mjs` (nuevo: el CAP aprobado —el recomendado en la F5·P1 o el
+  activo— en el Concepto, con las fases de la carta; las tareas de cada unidad fase por fase; la coordinación; la
+  situación en SU casilla; el pedido «CASI LA ORDEN DE OPERACIONES»; lo vacío después de la IA; la clave parecida),
+  `cap-propios/v1/panel.js` (`cartaParaDocumentos`) y `cae-enemigo/v1/revisar.mjs` (DIV MEC-1 ≠ DIV-1, «VI DE», lo que
+  la Orden dice del enemigo, el escalón por la designación, sólo las casillas visibles).
+- **En el compilado**: los imports (`panel.js?v=op320261026` con `cartaParaDocumentos`, `prep.mjs?v=op320261026`,
+  `revisar.mjs?v=cae20261026`); el 🌱 del Tablero del G-3 pasa por `SIDPrepSemilla` y `SIDPrepOrdenar`; `SIDdespues`
+  suma `SIDPrepPedido`; ✓ Aplicar llena lo vacío con `SIDPrepTras` y lo dice con `SIDPrepAviso`; en `dU`, después de
+  `SIDEMClave`, `SIDPrepClave`.
+- **En el fuente**: lo mismo en el Tablero del G-3 (la semilla de las Órdenes Preparatorias, el pedido y ✓ Aplicar) y
+  en `dU`.
+- **Cómo se comprobó**: `pruebas/orden-preparatoria.mjs` (9 casos), `pruebas/e2e/orden-preparatoria.cjs` (en la Mesa:
+  sin aviso por la casilla vieja, el pedido, ✓ Aplicar sin el Concepto lo llena y sin «⚠️ OJO», la clave parecida, 🌱
+  sin pisar, sin errores de consola), `pruebas/cae-enemigo.mjs`, las e2e de `cae-enemigo`, `cap-propios`, `cap-carta`,
+  `itinerario` y `evento-critico`, y `reemplazos-compilado.js`.
+
 ## 2026-10-25 (2) — ⚔️ Evento crítico: las fases alineadas por el final, sin «brigadas» y sin «Fase 1…8» (`index-evento-fases-20261025.js`)
 
 Parte de `index-evento-critico-20261025.js` + `pruebas/reemplazos-2026-10-25-evento-fases.js` (1 reemplazo: la

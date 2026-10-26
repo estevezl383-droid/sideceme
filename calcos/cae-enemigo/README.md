@@ -35,6 +35,11 @@ pasó a la F3·P4 (Concepto amplio) y al P.D. 6 de la F4·P4.
   roja) y que no es una ficha roja ni algo que nombre la Orden superior. No se avisan los adyacentes («el enlace
   con la DIV MEC-1»), las propias nombradas por su designación («la DIV-6 contraataca a la 1ª Br. Ac.») ni las que
   sigue el apodo de una ficha («1ª Br. Ac. «CORACEROS»»).
+- (26-10-2026, con la O.P. N° 3 de Sergio) **No se avisan**: las grandes unidades que la Orden superior pone del lado
+  enemigo («SATURNO emplea… la VI DE»: «VI DE» es una división y la «VI División de Ejército» que la nombra, también),
+  ni un adyacente que la Orden nombra con su calificativo aunque haya una propia con el mismo número («DIV MEC-1» no es
+  la «DIV-1»). Sólo se revisan las casillas que la hoja muestra. El enemigo del aviso es la ficha roja de mayor
+  escalón; si no tiene el escalón cargado, sale de la designación («1ª BR. AC.» → brigada).
 - Si el escenario NO tiene fichas rojas, el aviso de misión propia igual funciona (con la unidad de la Orden
   superior); el de unidades inventadas sólo mira «enemigo/a».
 
