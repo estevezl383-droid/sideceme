@@ -1,4 +1,4 @@
-// Reemplazos del 2026-10-27 sobre calcos/assets/index-guia-final-20261027.js → index-guia-inicial-20261027.js.
+// Reemplazos del 2026-10-27 sobre calcos/assets/index-guia-plan-20261027.js → index-guia-inicial-20261027.js.
 // Sergio, con la F1·P6 «Guía Inicial del Comandante» del panel del Comandante y el Word que bajó
 // («F1P5_Guía_Inicial_del_Comandante_6.docx»): «está mal y está incompleta». La F1·P6 era una tabla
 // (Área / Sección · Guía impartida · Para cuándo) que no es la forma del PMTD 2017 y el Word buscaba los siete
@@ -10,7 +10,7 @@
 //   · 🌱 (l3e) llena los siete apartados con lo del ejercicio; el Word (f3e) con la forma del modelo;
 //   · en el panel del Comandante, 📘 la guía y 🌱 arriba de la hoja, y la guía en el pedido de la IA.
 //
-// SHA-256 de index-guia-final-20261027.js (antes de estos reemplazos): a21828fc129b336585d8cd814e7441491a5665a85eeb0b3854be9d4e3d614440
+// SHA-256 de index-guia-plan-20261027.js (antes de estos reemplazos): ab89b41297826a5ec97c8821c20041c0e25674ddee2c585432e7f0e7d1f14ed8
 const PRIMERO = 'import SIDEvPanel from "../evento-critico/v1/panel.js?v=ev20261025b";'
 const CTX_CMTE = '{...SIDGuiaCalco(),...i,ordenSup:i.ordenSup&&Object.keys(i.ordenSup).length?i.ordenSup:SIDGuiaCalco().ordenSup,documentos:o?.documentos||[],g3:s,cmte:e}'
 module.exports = [
@@ -32,14 +32,14 @@ module.exports = [
     nombre: 'La F1·P6 del Comandante: los siete apartados del PMTD, compartida con el G-3 (ya no la tabla Área / Guía / Para cuándo)',
     viejo:
       '{id:"guiaInicial",num:"F1·P6",nom:"Guía Inicial del Comandante",tipo:"filas",entrega:"SE DIFUNDE SÓLO AL ESTADO MAYOR",cols:["Área / Sección","Guía impartida","Para cuándo"],nota:"Sale ANTES del análisis de la misión, con lo poco que se sabe: qué quiere que se analice, con qué prioridad y en qué tiempo. Es lo que habilita la Orden Preparatoria N° 1 del G-3."}',
-    nuevo: '{id:"guiaInicial",num:"F1·P6",...SIDGuiaCmte}',
+    nuevo: '{id:"guiaInicial",num:"F1·P6",nom:"Guía Inicial del Comandante",...SIDGuiaCmte}',
     veces: 1,
   },
   {
     nombre: 'La del Tablero del G-3: F1·P6 (como en el Comandante), con la ayuda del PMTD en cada apartado',
     viejo:
       '{id:"guiaInicial",num:"F1·P5",nom:"Guía Inicial del Comandante",entrega:"Se difunde al Estado Mayor — orienta, no autoriza el planeamiento definitivo",responsable:"Cmte.",tipo:"campos",campos:["I.- MÉTODO","II.- ASIGNACIÓN INICIAL DEL TIEMPO","III.- OFICIALES DE ENLACE","IV.- RECONOCIMIENTO INICIAL","V.- MOVIMIENTOS","VI.- TAREAS ADICIONALES","VII.- OTROS"],ayudaCampos:{"I.- MÉTODO":"Ej.: «Vamos a analizar dos cursos de acción, uno ofensivo y uno defensivo» (PMTD 2017). Es un texto de ejemplo — no se guarda solo.","II.- ASIGNACIÓN INICIAL DEL TIEMPO":"Se siembra solo desde la hoja «Línea de Tiempo» de esta misma fase (🌱).","III.- OFICIALES DE ENLACE":"A quién se manda y a qué unidad, si corresponde.","IV.- RECONOCIMIENTO INICIAL":"Qué se reconoce ya, sin esperar el plan completo.","V.- MOVIMIENTOS":"Qué unidad se mueve ya, aunque el plan no esté cerrado.","VI.- TAREAS ADICIONALES":"Cualquier tarea que el Cmte. quiera adelantar.","VII.- OTROS":"Lo que no entra en las anteriores."},autollena:"guiaInicial",nota:"Formato de siete secciones del PMTD 2017. Orienta el trabajo del Estado Mayor desde el primer momento; no reemplaza la Guía de Planificación de la fase II."}',
-    nuevo: '{id:"guiaInicial",num:"F1·P6",...SIDGuiaG3}',
+    nuevo: '{id:"guiaInicial",num:"F1·P6",nom:"Guía Inicial del Comandante",...SIDGuiaG3}',
     veces: 1,
   },
   {

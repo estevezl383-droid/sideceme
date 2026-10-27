@@ -175,7 +175,7 @@ caso('el formato militar: «sinAutenticacion» deja sólo la distribución (word
 })
 
 caso('ningún gancho cae DENTRO de lo que insertaron las listas anteriores (salvo la versión del formato militar)', () => {
-  const viejo = fs.readFileSync(path.join(DIR, '..', 'assets', 'index-guia-final-20261027.js'), 'utf8')
+  const viejo = fs.readFileSync(path.join(DIR, '..', 'assets', 'index-guia-plan-20261027.js'), 'utf8')
   let n = 0
   const rotos = []
   for (const f of fs.readdirSync(DIR)) {
