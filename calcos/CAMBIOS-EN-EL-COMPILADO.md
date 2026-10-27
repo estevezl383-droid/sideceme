@@ -5,6 +5,38 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-27 (3) — 📋 La Guía Inicial del Comandante (F1·P6) con la forma del PMTD 2017 (`index-guia-inicial-20261027.js`)
+
+Parte de `index-guia-plan-20261027.js` (encima de la Guía de Planificación F2·P15 y la Final F6·P2, del mismo día) + `pruebas/reemplazos-2026-10-27-guia-inicial.js` (10 reemplazos;
+`construir-guia-inicial.js`; `reemplazos-compilado.js` lo deshace byte por byte). Sergio, con la F1·P6 del panel del
+Comandante, el Word que bajó, el modelo de la Escuela y el texto del PMTD 2017: «está mal y está incompleta». Ver
+`guia-inicial/README.md`.
+
+- **Qué pasaba**: la F1·P6 del Comandante era una tabla «Área / Sección · Guía impartida · Para cuándo» (no es la forma
+  del PMTD) y el Word (`f3e`) buscaba los siete apartados: salía todo vacío salvo el tiempo. La del G-3 (F1·P5) era
+  otra hoja para el mismo documento; su guía decía que el MÉTODO es «cuántos cursos de acción» (eso es de la Guía de
+  Planificación); 🌱 sólo traía el tiempo; el tiempo no seguía el orden del modelo; el Word iba a «Original:
+  FF.TT.T.O. · Copia 1-12: UU. DEP.», con «Autenticación» y «No. 01».
+- **Fuera del compilado**: `guia-inicial/v1/guia.mjs` (nuevo: la hoja, la guía, 🌱 de los siete apartados, el Word y
+  el panel 📘/🌱); `formato-militar/v1/word.js` (`spec.sinAutenticacion`: sólo la distribución) y `runtime.js`
+  (`spec.sinNumero`; importa `word.js?v=guia20261027`).
+- **En el compilado**: el import de `guia-inicial/v1/guia.mjs?v=guia20261027` y `calcoActual` en el import que ya existe del motor del Estado Mayor (`estado-mayor/v7/runtime.js`: siguen siendo 3 imports del motor); la F1·P6 de
+  `PLe` → `{...SIDGuiaCmte}` (siete apartados, `compartida: 'g3'`); la del G-3 (`ev`) → F1·P6 `{...SIDGuiaG3}`; la guía
+  `Qoe.guiaInicial` → `SIDGuiaGuia` (la vieja queda como `SIDguiaInicialVieja`); `l3e` y `f3e` (`case "guiaInicial"`)
+  → `SIDGuiaSemilla` y `SIDGuiaWord` (los cuerpos viejos quedan bajo `case "SIDguiaInicialVieja"`); en `dN` (Mis
+  hojas), después de «📤 entrega», el panel `SIDGuiaAyuda` para la F1·P6 del Comandante, y su `onPedido` con la guía;
+  `formato-militar/v1/runtime.js?v=guiainicial20261027`. El motor v7 registra al Comandante sólo para la F6·P2: la F1·P6 no tiene guía ni semilla ahí, así que no se duplican 📘/🌱.
+- **En el fuente**: la hoja de la Guía Inicial del Comandante (CMTE. y Tablero del G-3) con los siete apartados y
+  compartida; el productor del Word y el 🌱 de `guiaInicial` desde el módulo; el panel en Mis hojas del Comandante.
+- **Cómo se comprobó**: `pruebas/guia-inicial.mjs` (10 casos con `MS`, `l3e`, `f3e`, `PLe`, `ev` y `Qoe` reales: la
+  hoja, la guía, 🌱 deliberado y en tiempo restringido, sin Línea de Tiempo, sin pisar, el renglón viejo, el Word, el
+  formato militar y que ningún gancho anterior quede partido), `pruebas/e2e/guia-inicial.cjs` (en la Mesa, escritorio y
+  teléfono: los siete apartados, 📘, 🌱, compartida con el G-3, el pedido con la guía, el Word bajado y leído, sin
+  errores de consola; el Word pasado a PDF con LibreOffice y mirado), `npm test`, `reemplazos-compilado.js` y las e2e
+  `pedido-cmte`, `membrete`, `modalidad`, `linea-tiempo` y `orden-preparatoria`.
+- **Si se recompila desde el fuente**: llevar los imports, las dos hojas, la guía, `l3e`/`f3e` de `guiaInicial` y el
+  panel de `dN`.
+
 ## 2026-10-27 (2) — 📄 La Guía de Planificación del Comandante (F2·P15) con el formato del PMTD 2017 (`index-guia-plan-20261027.js`)
 
 Parte de `index-guia-final-20261027.js` + `pruebas/reemplazos-2026-10-27-guia-plan.js` (6 reemplazos; `construir-guia-plan.js`;
