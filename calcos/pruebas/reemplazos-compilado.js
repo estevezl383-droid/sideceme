@@ -68,7 +68,8 @@
 //   index-itinerario-20261025.js + reemplazos-2026-10-25-evento-critico.js = index-evento-critico-20261025.js
 //   index-evento-critico-20261025.js + reemplazos-2026-10-25-evento-fases.js = index-evento-fases-20261025.js
 //   index-evento-fases-20261025.js + reemplazos-2026-10-26-op3.js = index-op3-20261026.js
-//   index-op3-20261026.js + reemplazos-2026-10-27-guia-final.js = index-guia-final-20261027.js (el vigente)
+//   index-op3-20261026.js + reemplazos-2026-10-27-guia-final.js = index-guia-final-20261027.js
+//   index-guia-final-20261027.js + reemplazos-2026-10-27-guia-plan.js = index-guia-plan-20261027.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -82,6 +83,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-27-guia-plan'),
+    nombre: 'reemplazos-2026-10-27-guia-plan',
+    // calcos/assets/index-guia-final-20261027.js (antes de la Guía de Planificación con el formato del PMTD 2017).
+    anterior: 'a21828fc129b336585d8cd814e7441491a5665a85eeb0b3854be9d4e3d614440',
+  },
   {
     lista: require('./reemplazos-2026-10-27-guia-final'),
     nombre: 'reemplazos-2026-10-27-guia-final',

@@ -5,6 +5,27 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-27 (2) — 📄 La Guía de Planificación del Comandante (F2·P15) con el formato del PMTD 2017 (`index-guia-plan-20261027.js`)
+
+Parte de `index-guia-final-20261027.js` + `pruebas/reemplazos-2026-10-27-guia-plan.js` (6 reemplazos; `construir-guia-plan.js`;
+`reemplazos-compilado.js` lo deshace byte por byte). Sergio, con el Word de la F2·P15 del CE-I y el formato de la
+Escuela al lado: «el formato está muy mal». La hoja era un cuadro «Área / Sección · Guía impartida · Observación» y el
+Word salía con un «A.- Área / Sección: … · Guía impartida: … · Observación: …» por renglón; el formato son los
+párrafos I.- LA OPERACIÓN DECISIVA … XIII.- PRIORIDADES DE APOYO DE SERVICIO DE COMBATE. La F6·P2 (Final) ya venía
+arreglada en `index-guia-final-20261027.js` y no se toca. Ver `guia-planificacion/README.md`.
+
+- **Fuera del compilado**: `guia-planificacion/v1/guia.mjs` (nuevo: la hoja con sus campos, la ayuda de cada
+  párrafo y lo que se le dice a la IA; `leerGuia`, que pasa cada renglón del cuadro viejo al párrafo que le toca).
+- **En el compilado**: el import (`guia.mjs?v=guia20261027`); en `PLe` (las hojas del Comandante), la F2·P15
+  es `{id,num,nom,...SIDGuiaPlan}` (antes `tipo:"filas"`; la clave, el número y el nombre quedan escritos en el compilado, que es donde los buscan `modalidad.cjs` y `ruta-g4.cjs`); `SIDGuiaLeer` al leer el valor en la hoja
+  (`yU`), en el Word (`Jq`) y en la IA (`KD`); en el pedido (`wje`), `t.ayudaIA` antes de las reglas de las claves.
+- **En el fuente**: lo mismo en el catálogo de hojas del Comandante, el editor de hojas, el armado del Word, la lectura
+  de casillas de la IA y las reglas del JSON del pedido.
+- **Cómo se comprobó**: `pruebas/guia-planificacion.mjs` (5 casos), `pruebas/e2e/guia-planificacion.cjs` (en la Mesa:
+  la F2·P15 guardada con el cuadro viejo abre con cada renglón en su párrafo y su Word ya sale con el formato; el pedido
+  con las 13 claves y qué va en cada una; ✓ Aplicar llena las 13; el Word con I.- a XIII.- en orden y la firma; sin
+  errores de consola; el Word renderizado en LibreOffice), `npm test` y `reemplazos-compilado.js`.
+
 ## 2026-10-27 — ⭐ La Guía de Planificación Final (F6·P2) con la forma del PMTD 2017 (`index-guia-final-20261027.js`)
 
 Parte de `index-op3-20261026.js` + `pruebas/reemplazos-2026-10-27-guia-final.js` (4 reemplazos; `construir-guia-final.js`;
