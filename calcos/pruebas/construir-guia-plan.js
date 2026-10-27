@@ -1,8 +1,8 @@
-// Arma el compilado nuevo de la Mesa: index-op3-20261026.js + reemplazos-2026-10-27-guia-plan.js.
+// Arma el compilado nuevo de la Mesa: index-guia-final-20261027.js + reemplazos-2026-10-27-guia-plan.js.
 //   node construir-guia-plan.js
 const fs = require('fs')
 const path = require('path')
-const ANTERIOR = path.join(__dirname, '..', 'assets', 'index-op3-20261026.js')
+const ANTERIOR = path.join(__dirname, '..', 'assets', 'index-guia-final-20261027.js')
 const lista = require('./reemplazos-2026-10-27-guia-plan')
 let src = fs.readFileSync(ANTERIOR, 'utf8')
 for (const r of lista) {

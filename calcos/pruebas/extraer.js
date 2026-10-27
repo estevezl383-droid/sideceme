@@ -36,7 +36,7 @@ function cargar(ruta, nombres, globales = {}) {
   for (const k of Object.keys(CALC)) quiero.delete(k)
   // SIDGuia* no son del compilado: los importa de calcos/guia-planificacion/v1/guia.mjs (Guía de Planificación, 27-10-2026).
   const guia = require('../guia-planificacion/v1/guia.mjs')
-  const GUIA = { SIDGuiaLeer: guia.leerGuia, SIDGuiaPlan: guia.HOJA_GUIA_PLANIFICACION, SIDGuiaFinal: guia.HOJA_GUIA_FINAL }
+  const GUIA = { SIDGuiaLeer: guia.leerGuia, SIDGuiaPlan: guia.HOJA_GUIA_PLANIFICACION }
   for (const k of Object.keys(GUIA)) quiero.delete(k)
   globales = { ...CAE, ...CALC, ...GUIA, ...globales }
   if (quiero.size) throw new Error(`No están en ${ruta}: ${[...quiero].join(', ')}`)

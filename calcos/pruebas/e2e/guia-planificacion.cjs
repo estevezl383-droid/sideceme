@@ -4,8 +4,8 @@
 //   · la hoja guardada con el cuadro viejo (renglones del CE-I) se abre con cada renglón en su párrafo;
 //   · el Word de lo guardado así ya sale con los párrafos romanos, sin «Área / Sección:» ni «Guía impartida:»;
 //   · el pedido a la IA lleva las 13 claves y qué va en cada una; la respuesta llena los 13 párrafos;
-//   · el Word final: los 13 títulos en orden, la firma del Comandante, sin errores de consola;
-//   · la F6·P2 Guía de Planificación Final: los 6 párrafos.
+//   · el Word final: los 13 títulos en orden, la firma del Comandante, sin errores de consola.
+// (La F6·P2 Guía de Planificación Final tiene su propia prueba: e2e/guia-final.cjs.)
 // Sin servicios externos: la IA es una respuesta escrita en la prueba.
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -20,7 +20,6 @@ fs.mkdirSync(out, { recursive: true })
 const TITULOS = ['LA OPERACIÓN DECISIVA', 'CURSOS DE ACCIÓN PROPIOS Y DEL ENEMIGO PARA SER CONSIDERADOS', 'REQUERIMIENTOS CRÍTICOS DE INFORMACIÓN DEL COMANDANTE (RCIC)', 'LA GUÍA DE RECONOCIMIENTO', 'RIESGO', 'ENGAÑO MILITAR', 'APOYO DE FUEGOS', 'APOYO DE INGENIERÍA (MOVILIDAD/CONTRA MOVILIDAD)', 'MEDIDAS DE SEGURIDAD', 'PLAN DE TIEMPO', 'TIPO DE ORDEN QUE SE DEBE DISTRIBUIR', 'TIPO DE ENSAYO QUE SE DEBERÁ LLEVAR A CABO', 'PRIORIDADES DE APOYO DE SERVICIO DE COMBATE']
 const ROMANOS = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII', 'XIII']
 const CLAVES = TITULOS.map((t, i) => `${ROMANOS[i]}.- ${t}`)
-const FINAL = ['I.- DECISIÓN', 'II.- INTENCIÓN DEL COMANDANTE', 'III.- REQUERIMIENTOS CRÍTICOS DE INFORMACIÓN DEL COMANDANTE', 'IV.- PRIORIDADES PARA LOS SISTEMAS OPERATIVOS DEL CAMPO DE BATALLA', 'V.- DISPOSICIONES SOBRE LA ELABORACIÓN DE LOS PLANES U ÓRDENES', 'VI.- DISPOSICIONES SOBRE LA PREPARACIÓN Y EJECUCIÓN DE ENSAYOS']
 const BUENA = '```json\n' + JSON.stringify(Object.fromEntries(CLAVES.map((k, i) => [k, `Guía ${i + 1} del Comandante (FICT.).`])), null, 2) + '\n```'
 
 // Los renglones del Word de Sergio (CE-I), recortados.
@@ -120,18 +119,9 @@ async function abrirHoja(page, re) {
     assert.ok(!/Área \/ Sección:|Guía impartida:|IA\s*[—–-]\s*verificar/.test(w.texto))
     try { execFileSync('soffice', ['--headless', '--convert-to', 'pdf', '--outdir', out, w.archivo], { stdio: 'ignore', timeout: 120000 }) } catch {}
 
-    // F6·P2: los seis párrafos de la Guía de Planificación Final.
-    await abrirHoja(page, /F6·P2\s*Guía de Planificación Final/)
-    const fin = await page.locator('body').innerText()
-    for (const k of FINAL) assert.ok(fin.includes(k), `la F6·P2 no muestra «${k}»`)
-    await page.locator('label', { hasText: 'I.- DECISIÓN' }).first().locator('textarea').fill('El CAP-1 (FICT.).')
-    await page.locator('label', { hasText: 'VI.- DISPOSICIONES SOBRE LA PREPARACIÓN' }).first().locator('textarea').fill('Ensayo de comandantes el D-5 (FICT.).')
-    const wf = await bajarWord(page, 'F6P2.docx')
-    assert.ok(wf.texto.indexOf('DECISIÓN') < wf.texto.indexOf('DISPOSICIONES SOBRE LA PREPARACIÓN Y EJECUCIÓN DE ENSAYOS'))
-    assert.ok(wf.texto.includes('El CAP-1 (FICT.).') && wf.texto.includes('Ensayo de comandantes el D-5 (FICT.).'))
 
     assert.deepEqual(a.errores, [])
-    console.log('OK: la F2·P15 vieja abre en sus párrafos y su Word ya sale con el formato; el pedido con las 13 claves y su guía; el Word con I.- a XIII.- en orden y la firma; la F6·P2 con sus 6 párrafos; sin errores de consola.')
+    console.log('OK: la F2·P15 vieja abre en sus párrafos y su Word ya sale con el formato; el pedido con las 13 claves y su guía; el Word con I.- a XIII.- en orden y la firma; sin errores de consola.')
   } catch (e) {
     console.error('ERRORES APP', a.errores)
     fs.writeFileSync(path.join(out, 'fallo.txt'), await page.locator('body').innerText().catch(() => ''))

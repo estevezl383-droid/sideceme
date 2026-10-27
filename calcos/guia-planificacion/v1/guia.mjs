@@ -1,12 +1,12 @@
-// Guía de Planificación del Comandante (F2·P15) y Guía de Planificación Final (F6·P2) con el
-// formato del PMTD 2017 (Parte Tercera, Cap. II «Guía del Comandante»).
+// Guía de Planificación del Comandante (F2·P15) con el formato del PMTD 2017 (Parte Tercera, Cap. II
+// «Guía del Comandante»). La Guía de Planificación Final (F6·P2) está en estado-mayor/v7/campos/cmte.js.
 //
 // Lo pidió Sergio el 27-10-2026 con el Word de la F2·P15 del CE-I y el formato de la Escuela al
 // lado: la hoja era un cuadro «Área / Sección · Guía impartida · Observación» y el Word salía con
 // un párrafo «A.- Área / Sección: … · Guía impartida: … · Observación: …» por renglón. El formato
-// son los párrafos I.- a XIII.- (la Final, I.- a VI.-), cada uno con su título.
+// son los párrafos I.- a XIII.-, cada uno con su título.
 //
-// Acá están las dos hojas (campos, ayuda de cada campo y lo que se le dice a la IA) y la lectura
+// Acá está la hoja (campos, ayuda de cada campo y lo que se le dice a la IA) y la lectura
 // de lo que ya estaba escrito con el cuadro viejo: cada renglón pasa al párrafo que le toca por
 // su «Área / Sección» (y si no se reconoce, por lo que dice), sin perder nada.
 // Sin DOM: se prueba en Node (calcos/pruebas/guia-planificacion.mjs).
@@ -40,20 +40,6 @@ const PLAN = [
     'El enfoque de apoyo logístico (cuál es la función logística principal y la prioridad de apoyo), el enfoque de apoyo de personal y algunas prioridades de AC/GM. Ej.: «Abastecimientos principalmente de Clase III y V, prioridad a las Unidades de primera línea… Los reemplazos serán efectivos a partir del D+1… El G-5 coordinará la evacuación de la población civil hasta el D-20».'],
 ]
 
-const FINAL = [
-  ['I.- DECISIÓN',
-    'La decisión del Comandante: qué curso de acción propio es el elegido para articular el Plan u Orden de Operaciones. Ej.: «Señores miembros de la Plana Mayor, mi decisión es que el Curso de Acción Propio No. 2 es el más adecuado para cumplir con la misión asignada».'],
-  ['II.- INTENCIÓN DEL COMANDANTE',
-    'La Intención del Comandante, mejorada en base a las orientaciones posteriores o mantenida como definitiva; cualquiera sea el caso, se la hace conocer.'],
-  ['III.- REQUERIMIENTOS CRÍTICOS DE INFORMACIÓN DEL COMANDANTE',
-    'Los nuevos RCIC. para llenar los vacíos de información durante la preparación y la ejecución: Requerimientos Prioritarios de Inteligencia (enemigo, terreno y CC.MM.) o Requerimientos de Información de las Fuerzas Amigas (RIFA.).'],
-  ['IV.- PRIORIDADES PARA LOS SISTEMAS OPERATIVOS DEL CAMPO DE BATALLA',
-    'Si existen las condiciones y la necesidad, prioridades de apoyo de las Unidades de apoyo de combate o de apoyo de servicio de combate hacia las Unidades de maniobra en algunas fases.'],
-  ['V.- DISPOSICIONES SOBRE LA ELABORACIÓN DE LOS PLANES U ÓRDENES',
-    'Medidas para la elaboración de los planes u órdenes y sus anexos: tipo de orden, cantidad de anexos, plazos para su elaboración, etc. (si no lo dijo en la Guía de Planificación). Ej.: «Será una Orden de Operaciones con todos sus Anexos, sin Anexo de Organización de la Tarea… lista para su emisión el D-3 (0800)».'],
-  ['VI.- DISPOSICIONES SOBRE LA PREPARACIÓN Y EJECUCIÓN DE ENSAYOS',
-    'Disposiciones sobre el tipo de ensayo y la técnica usada, si no las dio en su Guía de Planificación.'],
-]
 
 // Cada renglón del cuadro viejo va al párrafo cuyo patrón reconoce su «Área / Sección»; si el área
 // no dice nada, se mira lo que dice el renglón. El orden importa: lo más específico primero.
@@ -71,14 +57,6 @@ const REGLAS_PLAN = [
   [/curso|\bcaps?\b|\bcaes?\b|metodo|apreciaci/, 1],
   [/logist|personal|asuntos civiles|\bac\/?gm\b|\bg-?[145]\b|sanidad|abastec|servicio de combate|reemplazo|evacuaci/, 12],
   [/operaci|maniobra|\bg-?3\b|decisiv|esfuerzo/, 0],
-]
-const REGLAS_FINAL = [
-  [/ensayo/, 5],
-  [/orden|plan|anexo|elaboraci/, 4],
-  [/rcic|requerimiento|inteligencia|\bg-?2\b|\brpi\b|rifa/, 2],
-  [/intenci/, 1],
-  [/decisi|curso|\bcaps?\b/, 0],
-  [/./, 3],
 ]
 
 const sinTildes = (s) => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
@@ -100,12 +78,7 @@ export const HOJA_GUIA_PLANIFICACION = definir('guiaPlanificacion', 'F2·P15', '
   nota: 'DISTINTA de la Guía Inicial: ésta sale DESPUÉS de la Orientación del Análisis de la Misión y con ella el Estado Mayor recién puede desarrollar los cursos de acción. Va con el formato del PMTD 2017 (Parte Tercera, Cap. II): los trece párrafos I.- a XIII.-, cada uno con su título y en ese orden (el que quede sin guía sale sólo con su título, así no se corre la numeración).',
 })
 
-export const HOJA_GUIA_FINAL = definir('guiaFinal', 'F6·P2', 'Guía de Planificación Final', FINAL, {
-  legado: { cols: ['Área / Sección', 'Guía final impartida', 'Plazo'], reglas: REGLAS_FINAL, porDefecto: 3 },
-  nota: 'La última guía: con ella el Estado Mayor escribe la Orden General de Operaciones y sus anexos. Habilita la Orden Preparatoria N° 3 del G-3. Va con el formato del PMTD 2017: I.- DECISIÓN, II.- INTENCIÓN, III.- RCIC., IV.- PRIORIDADES PARA LOS SISTEMAS OPERATIVOS, V.- ELABORACIÓN DE LOS PLANES U ÓRDENES y VI.- ENSAYOS.',
-})
-
-const HOJAS = { guiaPlanificacion: HOJA_GUIA_PLANIFICACION, guiaFinal: HOJA_GUIA_FINAL }
+const HOJAS = { guiaPlanificacion: HOJA_GUIA_PLANIFICACION }
 
 // El párrafo que le toca a un renglón del cuadro viejo.
 export function parrafoDe(hoja, fila) {

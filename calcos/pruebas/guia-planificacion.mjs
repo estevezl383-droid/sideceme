@@ -1,8 +1,8 @@
-// La Guía de Planificación del Comandante (F2·P15) y la Final (F6·P2) con el formato del PMTD 2017
-// (calcos/guia-planificacion/v1/guia.mjs): las hojas y la lectura de lo escrito con el cuadro viejo.
+// La Guía de Planificación del Comandante (F2·P15) con el formato del PMTD 2017
+// (calcos/guia-planificacion/v1/guia.mjs): la hoja y la lectura de lo escrito con el cuadro viejo.
 //   node guia-planificacion.mjs
 import assert from 'node:assert/strict'
-import { HOJA_GUIA_PLANIFICACION as P, HOJA_GUIA_FINAL as F, leerGuia, parrafoDe } from '../guia-planificacion/v1/guia.mjs'
+import { HOJA_GUIA_PLANIFICACION as P, leerGuia, parrafoDe } from '../guia-planificacion/v1/guia.mjs'
 
 let fallas = 0
 const caso = (nombre, fn) => {
@@ -25,12 +25,6 @@ caso('F2·P15: los trece párrafos del PMTD 2017, en orden, cada uno con su ayud
   }
   assert.equal(P.id, 'guiaPlanificacion')
   assert.equal(P.num, 'F2·P15')
-})
-
-caso('F6·P2: los seis párrafos de la Guía de Planificación Final', () => {
-  assert.deepEqual(F.campos.map((c) => c.split('.- ')[0]), ['I', 'II', 'III', 'IV', 'V', 'VI'])
-  assert.equal(F.campos[0], 'I.- DECISIÓN')
-  assert.equal(F.campos[5], 'VI.- DISPOSICIONES SOBRE LA PREPARACIÓN Y EJECUCIÓN DE ENSAYOS')
 })
 
 caso('Los renglones del Word del CE-I, cada uno en su párrafo', () => {
@@ -67,14 +61,8 @@ caso('Lo que no es del cuadro viejo no se toca (null)', () => {
   assert.equal(leerGuia(P, { 'I.- LA OPERACIÓN DECISIVA': 'x' }), null)
   assert.equal(leerGuia(P, null), null)
   assert.equal(leerGuia({ id: 'guiaInicial', tipo: 'filas' }, [fila('a', 'b')]), null)
+  assert.equal(leerGuia({ id: 'guiaFinal', tipo: 'campos' }, [fila('a', 'b')]), null)
   assert.equal(leerGuia({ ...P, tipo: 'filas' }, [fila('a', 'b')]), null)
-})
-
-caso('F6·P2 vieja: «Plazo» se conserva y cada renglón a su párrafo', () => {
-  const v = leerGuia(F, [{ 'Área / Sección': 'G-3', 'Guía final impartida': 'OGO con todos sus anexos.', Plazo: 'D-3 (0800)' }, { 'Área / Sección': 'Ensayos', 'Guía final impartida': 'Ensayo de comandantes.' }])
-  assert.equal(v['V.- DISPOSICIONES SOBRE LA ELABORACIÓN DE LOS PLANES U ÓRDENES'], undefined)
-  assert.equal(v['IV.- PRIORIDADES PARA LOS SISTEMAS OPERATIVOS DEL CAMPO DE BATALLA'], 'OGO con todos sus anexos. Plazo: D-3 (0800)')
-  assert.equal(v['VI.- DISPOSICIONES SOBRE LA PREPARACIÓN Y EJECUCIÓN DE ENSAYOS'], 'Ensayo de comandantes.')
 })
 
 console.log(fallas ? `\n${fallas} caso(s) fallan.` : '\nTodos los casos pasan.')
