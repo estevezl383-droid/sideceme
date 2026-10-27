@@ -1,4 +1,4 @@
-# Motor de documentos de Estado Mayor — «📋 Mis hojas» del G-1 y del G-5 (y del EME cuando se sume), y la F3·P1 Potencia Relativa de Combate del G-3
+# Motor de documentos de Estado Mayor — «📋 Mis hojas» del G-1 y del G-5 (y del EME cuando se sume), la F3·P1 Potencia Relativa de Combate del G-3 y la F6·P2 Guía de Planificación Final del Comandante
 
 Lo pidió Sergio el 03-10-2026 con capturas del panel del G-1: la **F1·P3 Apreciación Activa
 de PERSONAL** sólo decía «se baja desde el botón de Apreciación» y el Word salía con casi
@@ -103,6 +103,38 @@ bajaban hechos». Se hizo con el skill `.claude/skills/habilitar-hojas-seccion/`
   albergue, 40 plazas por medio de transporte, 5.000 L por fuente explotable, 30 % y 3 días
   por defecto) son las del panel y son editables. Los 500 m para decir que un eje
   humanitario «se monta» sobre el EPA son criterio de la Mesa.
+
+## En la Mesa: ⭐ CMTE. → 📋 Mis hojas → F6·P2 Guía de Planificación Final (27-10-2026, `v7/campos/cmte.js`)
+
+Lo pidió Sergio con el Word que bajó de la F6·P2 del CE-I: «lo que me está generando la
+aplicación está muy mal, corregí de acuerdo al modelo». La hoja era un cuadro «Área / Sección ·
+Guía final impartida · Plazo» y el Word salía como una lista de tareas por sección (A.- G-1 …
+I.- Defensa Antiaérea). El modelo es el del **TEXTO PMTD 2017** (Parte Tercera, Capítulo II
+«Guía del Comandante»): seis párrafos, sin subapartados, sin OBJETO/CARTA/ANEXOS y sin número
+en el título (el «No. / Clave» va en el membrete).
+
+| Párrafo | Qué trae 🌱 (sin pisar) |
+|---|---|
+| **I.- DECISIÓN.** | La F6·P1 del Comandante (el CAP, la razón, las modificaciones) dicha como en el modelo: «Señores miembros del Estado Mayor, mi decisión es que el Curso de Acción Propio N° 2 «…» es el más adecuado para cumplir con la misión asignada». Sin la F6·P1, el CAP que el G-3 marcó «RECOMENDADO AL COMANDANTE» en la F5·P1 (`capAprobado` de `orden-preparatoria/v1/prep.mjs`). Sin ninguno de los dos, nada: no se inventa una decisión |
+| **II.- INTENCIÓN DEL COMANDANTE.** | La Intención Inicial (F2·P14): propósito, tareas clave y estado final deseado; si no está, la de la O.P. N° 3 del G-3 |
+| **III.- RCIC.** | Los que el Comandante priorizó (F2·P8), ordenados por su prioridad; si no, los RCIC (no los EEIA) de la F2·P8 del G-3 |
+| **IV.- PRIORIDADES PARA LOS SOCB.** | La Matriz de sincronización del G-3 (F4·P6-7), fila por fila y fase por fase, salvo la maniobra: inteligencia, apoyo de fuegos, defensa antiaérea, ingeniería, apoyo de servicio de combate y C2; si está vacía, los fuegos y la ingeniería del concepto del CAP |
+| **V.- ELABORACIÓN DE LOS PLANES U ÓRDENES.** | El tipo de orden de la F6·SAL del G-3 |
+| **VI.- PREPARACIÓN Y EJECUCIÓN DE ENSAYOS.** | El tipo de ensayo y quiénes participan, de la F6·SAL del G-3 |
+
+- **La IA**: el pedido lleva el expediente, lo de arriba («LO QUE LA MESA YA CALCULÓ»), lo que
+  entregaron el Comandante y el G-3, la doctrina del PMTD 2017 (qué incluye la guía, los dos
+  ejemplos del modelo, la Fase VI, los RCIC ≤ 10, los SOCB) y dice expresamente que NO se arma
+  por sección (G-1, G-2…).
+- **El Word**: formato militar común (`registro: { id: 'guiaFinal', militar: true }`), membrete
+  con «EMO/JEM» (la línea de las hojas del Comandante y del JEM en `membrete/v1`), el título
+  «GUÍA DE PLANIFICACIÓN FINAL» sin «No. 01» (`def.sinNumeroTitulo` → `spec.sinNumero`, que
+  respeta `formato-militar/v1/runtime.js`), los seis párrafos y la firma del Comandante.
+- **Las demás hojas del Comandante no cambian**: `soloDocumentos` en la configuración hace que
+  su pedido a la IA siga igual (sin los bloques del Comandante) y no tienen guía ni 🌱 nuevos.
+- **Lo guardado con la forma vieja** (el cuadro por sección) no se toma como el documento: la
+  hoja se ve vacía hasta que se trabaje (🌱 o la IA); el cuadro viejo sigue en el ejercicio
+  hasta que se escriba la guía nueva.
 
 ## El pedido a la IA: la tarea AL PRINCIPIO y el expediente recortado (10-10-2026, `v6/pedido.js`)
 
@@ -359,7 +391,10 @@ node e2e/prc.cjs                # la PRC en la Mesa real, escritorio y teléfono
 node construir-prc.js           # arma index-prc-20261006.js encima de index-tablero-g4-20261003.js
 node pedido-ia.cjs              # el pedido con la tarea arriba y el expediente recortado, las respuestas de Sergio, el Word sin la marca
 node e2e/pedido-cmte.cjs        # la F1·P3 del Comandante en la Mesa real, escritorio y teléfono
-node construir-pedido.js        # arma index-pedido-20261010.js (el vigente) encima de index-fichas-20261009.js
+node construir-pedido.js        # arma index-pedido-20261010.js encima de index-fichas-20261009.js
+node guia-final.mjs             # la F6·P2 del Comandante: la forma del PMTD 2017, las hojas REALES del compilado, 🌱, IA, respuesta escrita
+node e2e/guia-final.cjs         # la F6·P2 en la Mesa real, escritorio y teléfono, con el Word militar (salidas en pruebas/salidas-guia-final/)
+node construir-guia-final.js    # arma index-guia-final-20261027.js (el vigente) encima de index-op3-20261026.js
 ```
 
 `personal-ejemplo.js` tiene un ejercicio FICTICIO (División en la ofensiva, tres fases) y

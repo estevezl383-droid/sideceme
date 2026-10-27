@@ -5,6 +5,35 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-27 — ⭐ La Guía de Planificación Final (F6·P2) con la forma del PMTD 2017 (`index-guia-final-20261027.js`)
+
+Parte de `index-op3-20261026.js` + `pruebas/reemplazos-2026-10-27-guia-final.js` (4 reemplazos; `construir-guia-final.js`;
+`reemplazos-compilado.js` lo deshace byte por byte). Sergio, con el Word de la F6·P2 del CE-I: «lo que me está generando
+la aplicación está muy mal, corregí de acuerdo al modelo». Ver «⭐ CMTE.» en `estado-mayor/README.md`.
+
+- **Qué pasaba**: la F6·P2 del Comandante era un cuadro «Área / Sección · Guía final impartida · Plazo»; la IA lo llenaba
+  sección por sección y el Word salía como «A.- Área / Sección: Sección G-1 (Personal) · Guía final impartida: … ·
+  Plazo: …» hasta la «I.-». El modelo del TEXTO PMTD 2017 tiene seis párrafos: I.- DECISIÓN, II.- INTENCIÓN DEL
+  COMANDANTE, III.- REQUERIMIENTOS CRÍTICOS DE INFORMACIÓN DEL COMANDANTE, IV.- PRIORIDADES PARA LOS SISTEMAS
+  OPERATIVOS DEL CAMPO DE BATALLA, V.- DISPOSICIONES SOBRE LA ELABORACIÓN DE LOS PLANES U ÓRDENES y VI.- DISPOSICIONES
+  SOBRE LA PREPARACIÓN Y EJECUCIÓN DE ENSAYOS.
+- **Fuera del compilado**: `estado-mayor/v7` (copia de la v6): `campos/cmte.js` (nuevo: la guía con la forma del
+  modelo, la instrucción literal de cada párrafo, 🌱 desde la F6·P1, F2·P14, F2·P8 y lo del G-3 —F5·P1, F4·P6-7,
+  F6·SAL—, la doctrina, el pedido «NO por sección», la guía 📘); `registro.js` (el Comandante en `CAMPOS`, con
+  `soloDocumentos`: sus demás hojas siguen igual); `motor.js` y `editor.js` (`def.sinNumeroTitulo`: sin «No. 01» ni
+  casilla de número; el resumen sin preliminares). `formato-militar/v1/runtime.js`: con `spec.sinNumero` no pone el
+  «01» por defecto en el título.
+- **En el compilado**: los 3 imports del motor `v6` → `v7`; `hse={cmte:SIDEMFases({id:"cmte"},PLe),…}` (la F6·P2 pasa a
+  `docEM`; las demás hojas del Comandante quedan como estaban); en `LLe` (el avance del Comandante) los documentos
+  cuentan por lo que tienen escrito; el import de `formato-militar/v1/runtime.js` con `?v=guiafinal20261027`.
+- **En el fuente**: lo mismo en las hojas del Comandante (`hse` y su avance) y la versión de los imports.
+- **Cómo se comprobó**: `pruebas/guia-final.mjs` (7 casos: la forma contra el modelo, las hojas REALES del compilado,
+  🌱 con y sin la F6·P1/F2·P8, el pedido, la respuesta en JSON y escrita como documento, las demás hojas igual),
+  `pruebas/e2e/guia-final.cjs` (en la Mesa, escritorio y teléfono: el documento, 🌱, el pedido, «Sólo completar» no
+  pisa, «Completar y mejorar», la vista previa y el Word militar —membrete EMO/JEM, título sin número, los seis
+  párrafos en orden, firma, sin «Área / Sección»—, la F6·P1 igual, el avance y el guardado), `npm test` entero y las
+  e2e `pedido-cmte` y `personal` (escritorio y teléfono).
+
 ## 2026-10-26 — 📄 La O.P. N° 3 (F6·P4) con el CAP aprobado: el Concepto de la operación ya no queda vacío (`index-op3-20261026.js`)
 
 Parte de `index-evento-fases-20261025.js` + `pruebas/reemplazos-2026-10-26-op3.js` (8 reemplazos; `construir-op3.js`;
