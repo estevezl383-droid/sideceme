@@ -67,7 +67,8 @@
 //   index-todas-fichas-20261024.js + reemplazos-2026-10-25-itinerario.js = index-itinerario-20261025.js
 //   index-itinerario-20261025.js + reemplazos-2026-10-25-evento-critico.js = index-evento-critico-20261025.js
 //   index-evento-critico-20261025.js + reemplazos-2026-10-25-evento-fases.js = index-evento-fases-20261025.js
-//   index-evento-fases-20261025.js + reemplazos-2026-10-26-op3.js = index-op3-20261026.js (el vigente)
+//   index-evento-fases-20261025.js + reemplazos-2026-10-26-op3.js = index-op3-20261026.js
+//   index-op3-20261026.js + reemplazos-2026-10-27-guia-inicial.js = index-guia-inicial-20261027.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -81,6 +82,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-27-guia-inicial'),
+    nombre: 'reemplazos-2026-10-27-guia-inicial',
+    // calcos/assets/index-op3-20261026.js (antes de la Guía Inicial del Comandante con la forma del PMTD).
+    anterior: '4ebbd3ab59a83a5dbb023a585a14262f2d53ea7a045bd5eb6c04dd143e70dc90',
+  },
   {
     lista: require('./reemplazos-2026-10-26-op3'),
     nombre: 'reemplazos-2026-10-26-op3',

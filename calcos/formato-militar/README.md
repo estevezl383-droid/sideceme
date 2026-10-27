@@ -27,6 +27,7 @@ Los borradores antiguos guardados en `ops.documentosMilitares` permanecen dispon
 | Ruta existente | Modelo | Nivel / origen |
 |---|---|---|
 | G-3 `ivr` F2·P9 | Orden de reconocimiento (forma de la Escuela, `calcos/reconocimiento/v1`) | Principal; estructura propia de la hoja |
+| Cmte. / G-3 `guiaInicial` F1·P6 (27-10-2026, `calcos/guia-inicial/v1`) | Guía Inicial del Comandante del PMTD 2017 (siete apartados, `estructuraPropia`) | Principal; distribución sólo al Estado Mayor (`spec.distribucion`), sin autenticación (`spec.sinAutenticacion`, word.js) y sin número en el título (`spec.sinNumero`, runtime.js) |
 | G-3 `prep1`, `prep2`, `prep3` | Preparatorias 1, 2 y 3 | Principal; formulario del paso |
 | G-3 `opord` | Orden de operaciones | Principal; formulario |
 | `aprecActiva`, `aprecOrientacion`, `aprecOps` | Apreciación de la sección correspondiente | Principal; ejercicio/calco vigente |

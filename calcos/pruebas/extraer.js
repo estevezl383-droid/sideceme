@@ -34,7 +34,12 @@ function cargar(ruta, nombres, globales = {}) {
   const calc = require('../logistica/v1/calculo.mjs')
   const CALC = { SIDCalcReabHtml: calc.htmlReabastecimiento, SIDCalcPlan: calc.planReabastecimiento, SIDCalcEnc: calc.encabezadoCalculo }
   for (const k of Object.keys(CALC)) quiero.delete(k)
-  globales = { ...CAE, ...CALC, ...globales }
+  // SIDGuia* no son del compilado: los importa de calcos/guia-inicial/v1 (la Guía Inicial del Comandante, 27-10-2026);
+  // SIDGuiaCalco es el calco vivo del motor del Estado Mayor (en las pruebas, vacío salvo que se pase).
+  const gi = require('../guia-inicial/v1/guia.mjs')
+  const GUIA = { SIDGuiaCmte: gi.HOJA_CMTE, SIDGuiaG3: gi.HOJA_G3, SIDGuiaGuia: gi.GUIA, SIDGuiaSemilla: gi.semillaGuia, SIDGuiaWord: gi.wordGuia, SIDGuiaAyuda: gi.AyudaGuia, SIDGuiaCalco: () => ({}) }
+  for (const k of Object.keys(GUIA)) quiero.delete(k)
+  globales = { ...CAE, ...CALC, ...GUIA, ...globales }
   if (quiero.size) throw new Error(`No están en ${ruta}: ${[...quiero].join(', ')}`)
   const ctx = { ...globales }
   vm.createContext(ctx)
