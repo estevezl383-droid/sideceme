@@ -1,4 +1,4 @@
-// Reemplazos del 2026-10-27 sobre calcos/assets/index-op3-20261026.js → index-guia-inicial-20261027.js.
+// Reemplazos del 2026-10-27 sobre calcos/assets/index-guia-final-20261027.js → index-guia-inicial-20261027.js.
 // Sergio, con la F1·P6 «Guía Inicial del Comandante» del panel del Comandante y el Word que bajó
 // («F1P5_Guía_Inicial_del_Comandante_6.docx»): «está mal y está incompleta». La F1·P6 era una tabla
 // (Área / Sección · Guía impartida · Para cuándo) que no es la forma del PMTD 2017 y el Word buscaba los siete
@@ -10,7 +10,7 @@
 //   · 🌱 (l3e) llena los siete apartados con lo del ejercicio; el Word (f3e) con la forma del modelo;
 //   · en el panel del Comandante, 📘 la guía y 🌱 arriba de la hoja, y la guía en el pedido de la IA.
 //
-// SHA-256 de index-op3-20261026.js (antes de estos reemplazos): 4ebbd3ab59a83a5dbb023a585a14262f2d53ea7a045bd5eb6c04dd143e70dc90
+// SHA-256 de index-guia-final-20261027.js (antes de estos reemplazos): a21828fc129b336585d8cd814e7441491a5665a85eeb0b3854be9d4e3d614440
 const PRIMERO = 'import SIDEvPanel from "../evento-critico/v1/panel.js?v=ev20261025b";'
 const CTX_CMTE = '{...SIDGuiaCalco(),...i,ordenSup:i.ordenSup&&Object.keys(i.ordenSup).length?i.ordenSup:SIDGuiaCalco().ordenSup,documentos:o?.documentos||[],g3:s,cmte:e}'
 module.exports = [
@@ -18,7 +18,7 @@ module.exports = [
     nombre: 'Los imports: la Guía Inicial y el calco vivo del motor del Estado Mayor',
     viejo: PRIMERO,
     nuevo:
-      'import {HOJA_CMTE as SIDGuiaCmte,HOJA_G3 as SIDGuiaG3,GUIA as SIDGuiaGuia,semillaGuia as SIDGuiaSemilla,wordGuia as SIDGuiaWord,AyudaGuia as SIDGuiaAyuda} from "../guia-inicial/v1/guia.mjs?v=guia20261027";import {calcoActual as SIDGuiaCalco} from "../estado-mayor/v6/runtime.js";' +
+      'import {HOJA_CMTE as SIDGuiaCmte,HOJA_G3 as SIDGuiaG3,GUIA as SIDGuiaGuia,semillaGuia as SIDGuiaSemilla,wordGuia as SIDGuiaWord,AyudaGuia as SIDGuiaAyuda} from "../guia-inicial/v1/guia.mjs?v=guia20261027";import {calcoActual as SIDGuiaCalco} from "../estado-mayor/v7/runtime.js";' +
       PRIMERO,
     veces: 1,
   },
@@ -70,8 +70,8 @@ module.exports = [
   },
   {
     nombre: 'El formato militar con la versión nueva (la Guía Inicial sin autenticación)',
-    viejo: 'formato-militar/v1/runtime.js?v=sigla20261011',
-    nuevo: 'formato-militar/v1/runtime.js?v=guia20261027',
+    viejo: 'formato-militar/v1/runtime.js?v=guiafinal20261027',
+    nuevo: 'formato-militar/v1/runtime.js?v=guiainicial20261027',
     veces: 1,
   },
 ]

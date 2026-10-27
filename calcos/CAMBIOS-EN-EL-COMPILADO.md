@@ -7,7 +7,7 @@ al fuente o se pierden.**
 
 ## 2026-10-27 — 📋 La Guía Inicial del Comandante (F1·P6) con la forma del PMTD 2017 (`index-guia-inicial-20261027.js`)
 
-Parte de `index-op3-20261026.js` + `pruebas/reemplazos-2026-10-27-guia-inicial.js` (9 reemplazos;
+Parte de `index-guia-final-20261027.js` (la Guía de Planificación Final, del mismo día) + `pruebas/reemplazos-2026-10-27-guia-inicial.js` (9 reemplazos;
 `construir-guia-inicial.js`; `reemplazos-compilado.js` lo deshace byte por byte). Sergio, con la F1·P6 del panel del
 Comandante, el Word que bajó, el modelo de la Escuela y el texto del PMTD 2017: «está mal y está incompleta». Ver
 `guia-inicial/README.md`.
@@ -20,12 +20,12 @@ Comandante, el Word que bajó, el modelo de la Escuela y el texto del PMTD 2017:
 - **Fuera del compilado**: `guia-inicial/v1/guia.mjs` (nuevo: la hoja, la guía, 🌱 de los siete apartados, el Word y
   el panel 📘/🌱); `formato-militar/v1/word.js` (`spec.sinAutenticacion`: sólo la distribución) y `runtime.js`
   (`spec.sinNumero`; importa `word.js?v=guia20261027`).
-- **En el compilado**: los imports (`guia.mjs?v=guia20261027` y `calcoActual` del motor del Estado Mayor); la F1·P6 de
+- **En el compilado**: los imports (`guia.mjs?v=guia20261027` y `calcoActual` del motor del Estado Mayor, `estado-mayor/v7`); la F1·P6 de
   `PLe` → `{...SIDGuiaCmte}` (siete apartados, `compartida: 'g3'`); la del G-3 (`ev`) → F1·P6 `{...SIDGuiaG3}`; la guía
   `Qoe.guiaInicial` → `SIDGuiaGuia` (la vieja queda como `SIDguiaInicialVieja`); `l3e` y `f3e` (`case "guiaInicial"`)
   → `SIDGuiaSemilla` y `SIDGuiaWord` (los cuerpos viejos quedan bajo `case "SIDguiaInicialVieja"`); en `dN` (Mis
   hojas), después de «📤 entrega», el panel `SIDGuiaAyuda` para la F1·P6 del Comandante, y su `onPedido` con la guía;
-  `formato-militar/v1/runtime.js?v=guia20261027`.
+  `formato-militar/v1/runtime.js?v=guiainicial20261027`. El motor v7 registra al Comandante sólo para la F6·P2: la F1·P6 no tiene guía ni semilla ahí, así que no se duplican 📘/🌱.
 - **En el fuente**: la hoja de la Guía Inicial del Comandante (CMTE. y Tablero del G-3) con los siete apartados y
   compartida; el productor del Word y el 🌱 de `guiaInicial` desde el módulo; el panel en Mis hojas del Comandante.
 - **Cómo se comprobó**: `pruebas/guia-inicial.mjs` (10 casos con `MS`, `l3e`, `f3e`, `PLe`, `ev` y `Qoe` reales: la
@@ -36,6 +36,35 @@ Comandante, el Word que bajó, el modelo de la Escuela y el texto del PMTD 2017:
   `pedido-cmte`, `membrete`, `modalidad`, `linea-tiempo` y `orden-preparatoria`.
 - **Si se recompila desde el fuente**: llevar los imports, las dos hojas, la guía, `l3e`/`f3e` de `guiaInicial` y el
   panel de `dN`.
+
+## 2026-10-27 — ⭐ La Guía de Planificación Final (F6·P2) con la forma del PMTD 2017 (`index-guia-final-20261027.js`)
+
+Parte de `index-op3-20261026.js` + `pruebas/reemplazos-2026-10-27-guia-final.js` (4 reemplazos; `construir-guia-final.js`;
+`reemplazos-compilado.js` lo deshace byte por byte). Sergio, con el Word de la F6·P2 del CE-I: «lo que me está generando
+la aplicación está muy mal, corregí de acuerdo al modelo». Ver «⭐ CMTE.» en `estado-mayor/README.md`.
+
+- **Qué pasaba**: la F6·P2 del Comandante era un cuadro «Área / Sección · Guía final impartida · Plazo»; la IA lo llenaba
+  sección por sección y el Word salía como «A.- Área / Sección: Sección G-1 (Personal) · Guía final impartida: … ·
+  Plazo: …» hasta la «I.-». El modelo del TEXTO PMTD 2017 tiene seis párrafos: I.- DECISIÓN, II.- INTENCIÓN DEL
+  COMANDANTE, III.- REQUERIMIENTOS CRÍTICOS DE INFORMACIÓN DEL COMANDANTE, IV.- PRIORIDADES PARA LOS SISTEMAS
+  OPERATIVOS DEL CAMPO DE BATALLA, V.- DISPOSICIONES SOBRE LA ELABORACIÓN DE LOS PLANES U ÓRDENES y VI.- DISPOSICIONES
+  SOBRE LA PREPARACIÓN Y EJECUCIÓN DE ENSAYOS.
+- **Fuera del compilado**: `estado-mayor/v7` (copia de la v6): `campos/cmte.js` (nuevo: la guía con la forma del
+  modelo, la instrucción literal de cada párrafo, 🌱 desde la F6·P1, F2·P14, F2·P8 y lo del G-3 —F5·P1, F4·P6-7,
+  F6·SAL—, la doctrina, el pedido «NO por sección», la guía 📘); `registro.js` (el Comandante en `CAMPOS`, con
+  `soloDocumentos`: sus demás hojas siguen igual); `motor.js` y `editor.js` (`def.sinNumeroTitulo`: sin «No. 01» ni
+  casilla de número; el resumen sin preliminares). `formato-militar/v1/runtime.js`: con `spec.sinNumero` no pone el
+  «01» por defecto en el título.
+- **En el compilado**: los 3 imports del motor `v6` → `v7`; `hse={cmte:SIDEMFases({id:"cmte"},PLe),…}` (la F6·P2 pasa a
+  `docEM`; las demás hojas del Comandante quedan como estaban); en `LLe` (el avance del Comandante) los documentos
+  cuentan por lo que tienen escrito; el import de `formato-militar/v1/runtime.js` con `?v=guiafinal20261027`.
+- **En el fuente**: lo mismo en las hojas del Comandante (`hse` y su avance) y la versión de los imports.
+- **Cómo se comprobó**: `pruebas/guia-final.mjs` (7 casos: la forma contra el modelo, las hojas REALES del compilado,
+  🌱 con y sin la F6·P1/F2·P8, el pedido, la respuesta en JSON y escrita como documento, las demás hojas igual),
+  `pruebas/e2e/guia-final.cjs` (en la Mesa, escritorio y teléfono: el documento, 🌱, el pedido, «Sólo completar» no
+  pisa, «Completar y mejorar», la vista previa y el Word militar —membrete EMO/JEM, título sin número, los seis
+  párrafos en orden, firma, sin «Área / Sección»—, la F6·P1 igual, el avance y el guardado), `npm test` entero y las
+  e2e `pedido-cmte` y `personal` (escritorio y teléfono).
 
 ## 2026-10-26 — 📄 La O.P. N° 3 (F6·P4) con el CAP aprobado: el Concepto de la operación ya no queda vacío (`index-op3-20261026.js`)
 

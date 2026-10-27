@@ -169,13 +169,13 @@ caso('el formato militar: «sinAutenticacion» deja sólo la distribución (word
   assert.ok(word.includes('if(spec.sinAutenticacion)body.push(...dis);else body.push(tablaBloques(aut,dis,10.5*cm))'))
   const rt = fs.readFileSync(path.join(DIR, '..', 'formato-militar', 'v1', 'runtime.js'), 'utf8')
   assert.ok(rt.includes("from './word.js?v=guia20261027'"))
-  assert.ok(SRC.includes('formato-militar/v1/runtime.js?v=guia20261027'))
+  assert.ok(SRC.includes('formato-militar/v1/runtime.js?v=guiainicial20261027'))
   // En el automático, la distribución de la hoja con estructura propia manda sobre la guardada antes.
   assert.ok(rt.includes("if(spec.estructuraPropia){if(spec.numero)cfg.numero=spec.numero;if(spec.distribucion)cfg.distribucion=spec.distribucion}if(spec.sinNumero)cfg.numero='';"))
 })
 
 caso('ningún gancho cae DENTRO de lo que insertaron las listas anteriores (salvo la versión del formato militar)', () => {
-  const viejo = fs.readFileSync(path.join(DIR, '..', 'assets', 'index-op3-20261026.js'), 'utf8')
+  const viejo = fs.readFileSync(path.join(DIR, '..', 'assets', 'index-guia-final-20261027.js'), 'utf8')
   let n = 0
   const rotos = []
   for (const f of fs.readdirSync(DIR)) {
