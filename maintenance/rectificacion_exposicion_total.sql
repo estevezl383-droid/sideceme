@@ -10,7 +10,7 @@ declare v_rectificacion numeric;
 begin
   select (a.datos_despues->>'nota_expo_35_final')::numeric into v_rectificacion
   from eem_auditoria a join eem_notas_finales nf on nf.id::text=a.registro_id
-  where a.tabla='eem_notas_finales' and a.modo='rectificacion_exposicion_total' and a.operacion='UPDATE'
+  where a.tabla='eem_notas_finales' and a.modo='rectificacion_exposicion_total' and a.operacion='UPDATE' and (a.datos_antes->'nota_expo_35_final') is distinct from (a.datos_despues->'nota_expo_35_final')
     and nf.carpeta_id=p_carpeta and nf.cursante_id=p_cursante
   order by a.timestamp_ms desc,a.id desc limit 1;
   if v_rectificacion is not null then
@@ -100,7 +100,7 @@ begin
   return jsonb_build_object(
     'rectificacion_exposicion', (select jsonb_build_object('nota_anterior',(a.datos_antes->>'nota_expo_35_final')::numeric,'nota_rectificada',(a.datos_despues->>'nota_expo_35_final')::numeric,'motivo',a.motivo,'fecha',a.timestamp_ms,'auditoria_id',a.id)
 from eem_auditoria a join eem_notas_finales nf_rect on nf_rect.id::text=a.registro_id
-where a.tabla='eem_notas_finales' and a.modo='rectificacion_exposicion_total' and a.operacion='UPDATE'
+where a.tabla='eem_notas_finales' and a.modo='rectificacion_exposicion_total' and a.operacion='UPDATE' and (a.datos_antes->'nota_expo_35_final') is distinct from (a.datos_despues->'nota_expo_35_final')
 and nf_rect.carpeta_id=p_carpeta and nf_rect.cursante_id=p_cursante
 order by a.timestamp_ms desc,a.id desc limit 1),
     'jurados', coalesce(v_res, '[]'::jsonb),
@@ -179,7 +179,7 @@ begin
   select jsonb_agg(jsonb_build_object(
            'rectificacion_exposicion', (select jsonb_build_object('nota_anterior',(a.datos_antes->>'nota_expo_35_final')::numeric,'nota_rectificada',(a.datos_despues->>'nota_expo_35_final')::numeric,'motivo',a.motivo,'fecha',a.timestamp_ms,'auditoria_id',a.id)
 from eem_auditoria a join eem_notas_finales nf_rect on nf_rect.id::text=a.registro_id
-where a.tabla='eem_notas_finales' and a.modo='rectificacion_exposicion_total' and a.operacion='UPDATE'
+where a.tabla='eem_notas_finales' and a.modo='rectificacion_exposicion_total' and a.operacion='UPDATE' and (a.datos_antes->'nota_expo_35_final') is distinct from (a.datos_despues->'nota_expo_35_final')
 and nf_rect.carpeta_id=v_carpeta and nf_rect.cursante_id=cu.id
 order by a.timestamp_ms desc,a.id desc limit 1),
            'cursante_id', cu.id, 'grado', cu.grado, 'arma', cu.arma, 'nombre', cu.nombre_completo,
