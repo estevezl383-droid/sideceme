@@ -185,7 +185,7 @@ caso('ningún gancho cae DENTRO de lo que insertaron las listas anteriores (salv
     for (const r of l || []) {
       if (!r.nuevo || !viejo.includes(r.nuevo)) continue
       n++
-      if (!SRC.includes(r.nuevo) && !/formato-militar\/v1\/runtime\.js\?v=/.test(r.nuevo)) rotos.push(`${f}: ${r.nombre || r.nuevo.slice(0, 80)}`)
+      if (!SRC.includes(r.nuevo) && !/formato-militar\/v1\/runtime\.js\?v=|\.\.\/estado-mayor\/v\d\//.test(r.nuevo)) rotos.push(`${f}: ${r.nombre || r.nuevo.slice(0, 80)}`)
     }
   }
   assert.ok(n > 100, `se revisaron ${n}`)

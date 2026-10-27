@@ -15,11 +15,17 @@ const PRIMERO = 'import SIDEvPanel from "../evento-critico/v1/panel.js?v=ev20261
 const CTX_CMTE = '{...SIDGuiaCalco(),...i,ordenSup:i.ordenSup&&Object.keys(i.ordenSup).length?i.ordenSup:SIDGuiaCalco().ordenSup,documentos:o?.documentos||[],g3:s,cmte:e}'
 module.exports = [
   {
-    nombre: 'Los imports: la Guía Inicial y el calco vivo del motor del Estado Mayor',
+    nombre: 'El import de la Guía Inicial',
     viejo: PRIMERO,
     nuevo:
-      'import {HOJA_CMTE as SIDGuiaCmte,HOJA_G3 as SIDGuiaG3,GUIA as SIDGuiaGuia,semillaGuia as SIDGuiaSemilla,wordGuia as SIDGuiaWord,AyudaGuia as SIDGuiaAyuda} from "../guia-inicial/v1/guia.mjs?v=guia20261027";import {calcoActual as SIDGuiaCalco} from "../estado-mayor/v7/runtime.js";' +
+      'import {HOJA_CMTE as SIDGuiaCmte,HOJA_G3 as SIDGuiaG3,GUIA as SIDGuiaGuia,semillaGuia as SIDGuiaSemilla,wordGuia as SIDGuiaWord,AyudaGuia as SIDGuiaAyuda} from "../guia-inicial/v1/guia.mjs?v=guia20261027";' +
       PRIMERO,
+    veces: 1,
+  },
+  {
+    nombre: 'El calco vivo del motor del Estado Mayor (en el import que ya existe: siguen siendo 3 imports del motor)',
+    viejo: 'sincronizarExtraEM as SIDEMExtra} from "../estado-mayor/v7/runtime.js"',
+    nuevo: 'sincronizarExtraEM as SIDEMExtra,calcoActual as SIDGuiaCalco} from "../estado-mayor/v7/runtime.js"',
     veces: 1,
   },
   {
