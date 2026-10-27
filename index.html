@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.440</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.441</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7929,7 +7929,7 @@ body.wg-jugando{overflow:hidden}
   border-radius:50%;animation:wgEstallido .55s ease-out forwards;
   background:radial-gradient(circle,#fffdf0 0%,#ffe259 18%,#ff9d05 42%,#ff3c00 62%,rgba(120,30,0,.35) 80%,rgba(0,0,0,0) 100%);
   filter:blur(1px)}
-/* v2.9.440 — LA MINA QUE SALTA: fogonazo a ras del suelo, la tierra que sube y
+/* v2.9.441 — LA MINA QUE SALTA: fogonazo a ras del suelo, la tierra que sube y
    el humo pardo que queda. Nadie la tiró: no hay proyectil. */
 .wg-mina{position:absolute;left:0;top:0;width:0;height:0;pointer-events:none}
 .wg-mina .fogonazo{position:absolute;left:0;top:0;width:74px;height:74px;border-radius:50%;
@@ -8179,7 +8179,7 @@ body.wg-jugando{overflow:hidden}
         <!-- v2.9.233 — LAS TRES VISTAS DEL ÁRBITRO. Sólo aparece para él. -->
         <div id="wg-vistas" style="display:flex;gap:7px;flex-wrap:wrap"></div>
 
-        <!-- v2.9.440 — EL PLAN DE BARRERAS QUE QUEDÓ PROYECTADO. Sólo el árbitro,
+        <!-- v2.9.441 — EL PLAN DE BARRERAS QUE QUEDÓ PROYECTADO. Sólo el árbitro,
              mientras haya obras proyectadas: se ven en la carta y no frenan a
              nadie, y desde la pantalla no había cómo saberlo. -->
         <div id="wg-barreras-aviso" style="display:none;padding:7px 11px;border-radius:10px;max-width:300px;
@@ -8335,7 +8335,7 @@ body.wg-jugando{overflow:hidden}
 </div>
 <div id="wg-imp-estado" style="font-size:11px;color:var(--text-muted);margin-bottom:10px"></div>
 
-<!-- v2.9.440 — EL PLAN DE BARRERAS, CONSTRUIDO O PROYECTADO, EN CUALQUIER TURNO.
+<!-- v2.9.441 — EL PLAN DE BARRERAS, CONSTRUIDO O PROYECTADO, EN CUALQUIER TURNO.
      Sergio, en «ZAPATO II»: el blindado rojo cruzó el campo minado «como si fuera
      terreno normal». El plan había entrado PROYECTADO (es lo que hacía la
      importación hasta la v2.9.438): se dibuja, no frena. Reimportar lo
@@ -30178,7 +30178,7 @@ function wgHoja(cual){
   // refresca solo cada 20 s MIENTRAS la hoja esté abierta. Cerrada no consulta
   // nada: es una lista de asistencia, no un sondeo del juego.
   clearInterval(WG._regT); WG._regT=null;
-  if(WG.hoja==='config') wgPanelBarreras();   // v2.9.440
+  if(WG.hoja==='config') wgPanelBarreras();   // v2.9.441
   if(WG.hoja==='config' && WG.soy==='arbitro'){
     wgRegistroEM();
     WG._regT=setInterval(()=>{ if(WG.hoja==='config') wgRegistroEM(); else { clearInterval(WG._regT); WG._regT=null; } }, 20000);
@@ -34736,7 +34736,7 @@ async function _wgReproducirTurno(turno, datos){
       await Promise.all([
         trazas.length ? wgReplay(trazas) : Promise.resolve(),
         _wgAnimarDisparos(impactos, trazas),
-        _wgAnimarMinas(impactos, trazas),   // v2.9.440: las minas que pisó una columna
+        _wgAnimarMinas(impactos, trazas),   // v2.9.441: las minas que pisó una columna
       ]);
     } finally { WG.replayando=false; }
     _wgEncender(impactos, turno);
@@ -34757,7 +34757,7 @@ async function wgEstado(silencioso){
     alert('No se pudo cargar el estado: '+r.error); return;
   }
   if(Array.isArray(r.terreno)){ WG.terreno=_wgPrepTerreno(r.terreno); WG._terrenoN=r.terreno_n; }
-  // v2.9.440 — LA CARTA CACHEADA SE VENCE SI CAMBIÓ EN EL SERVIDOR. Pasa cuando
+  // v2.9.441 — LA CARTA CACHEADA SE VENCE SI CAMBIÓ EN EL SERVIDOR. Pasa cuando
   // el árbitro construye el plan de barreras: esas obras dejan la carta y viajan
   // en `obras`, y sin esto cada pantalla seguiría dibujando el plan viejo
   // («proy.») debajo del nuevo hasta recargar la página.
@@ -34903,7 +34903,7 @@ async function wgEstado(silencioso){
   // razón por la que las fichas no se mueven y no puede quedar escondido.
   document.getElementById('wg-ayuda').classList.toggle('mostrar',
     p.estado!=='en_curso' || !!WG.ayudaFija);
-  // v2.9.440: el plan de barreras — el cartel del árbitro si quedó proyectado,
+  // v2.9.441: el plan de barreras — el cartel del árbitro si quedó proyectado,
   // y la cuenta de ⚙️ Configurar al día si está abierta.
   _wgAvisoPlanProyectado();
   if(WG.hoja==='config') wgPanelBarreras();
@@ -34995,7 +34995,7 @@ function _wgEnCamino(pt,terreno){
   return false;
 }
 // v2.9.324 — ¿el punto cae en un campo minado que NO es mío?
-// v2.9.440 — GEMELOS de `camposContra`/`campoEnPaso` del motor (wargame-ops.ts):
+// v2.9.441 — GEMELOS de `camposContra`/`campoEnPaso` del motor (wargame-ops.ts):
 // el suelo se mira cada 50 m, las minas están donde se DIBUJÓ el campo (`dib`)
 // y del campo donde ya estaba la unidad se sale por sus propias huellas. Si se
 // cambia uno hay que cambiar el otro, o la previsión promete un paso que el
@@ -35136,7 +35136,7 @@ function _wgPreverMovimiento(u,destino,horas){
   // Misma regla que el motor: detiene, y el dueño pasa. Sólo puede avisar de
   // los campos que este bando YA conoce — el servidor no manda los otros, así
   // que esto no filtra nada que no se sepa.
-  // v2.9.440: mirando el suelo cada 50 m, como el motor (`_wgVigiaMinas`).
+  // v2.9.441: mirando el suelo cada 50 m, como el motor (`_wgVigiaMinas`).
   const campoEnPaso=_wgVigiaMinas(pos,terreno,u.bando);
   const MINADO_TXT='CAMPO MINADO — saltan las minas y se detiene con bajas: abrir brecha o rodearlo';
   while(true){
@@ -35176,7 +35176,7 @@ function _wgPreverMovimiento(u,destino,horas){
     }
     presupuesto-=tPaso; pos=sig; avanzado+=pasoReal; consumoKm+=pasoReal*gasta;
     ruta.push([pos[0],pos[1]]);
-    if(tope){ detenida=true; motivo=MINADO_TXT; break; }   // v2.9.440: llegó al borde del campo
+    if(tope){ detenida=true; motivo=MINADO_TXT; break; }   // v2.9.441: llegó al borde del campo
     if(clase!=='camino'){
       kmFueraRuta+=pasoReal;
       if(kmFueraRuta>=topeFuera-1e-9){
@@ -36002,7 +36002,7 @@ function _wgAnimarDisparos(impactos, trazas, segundosMarcha=22){
   });
 }
 // ============================================================
-// v2.9.440 — LAS MINAS ESTALLAN EN LA PELÍCULA.
+// v2.9.441 — LAS MINAS ESTALLAN EN LA PELÍCULA.
 // Sergio: «debería ir explotando y explotando hasta detenerse». El motor manda
 // dónde saltó cada mina (`impactos` con `mina:true` y sin `desde`: nadie la
 // tiró). Estallan cuando la columna LLEGA al borde del campo —el final de su
@@ -37006,7 +37006,7 @@ const WG_CALCOS=[
   // demoliciones y todo lo proyectado). Se apaga aparte de los campos minados
   // ejecutados: al explicar la defensa conviene mostrar primero lo que hay y
   // después lo que falta construir.
-  // v2.9.440: la casilla apaga TODO el plan de la Mesa, construido o proyectado.
+  // v2.9.441: la casilla apaga TODO el plan de la Mesa, construido o proyectado.
   {id:'obstaculo',   nom:'🛡️ Plan de barreras de la Mesa', col:'#3fbf6a', grupo:'CMOC'},
   {id:'elevacion',   nom:'Elevaciones (curvas y cimas)', col:'#e0b34a', grupo:'Carta'},
   {id:'hidro',       nom:'Hidrografía (ríos, lagos)', col:'#4aa3e0', grupo:'Carta'},
@@ -37762,7 +37762,7 @@ function _wgPreguntarFase(fases, poner, archivo){
         +`<label style="display:block;margin-top:4px"><input type="radio" name="wg-barreras" value="proyectado"${porDefecto==='proyectado'?' checked':''}> `
         +`<b>Proyectado</b> — se ve punteado, no frena a nadie (lo que la Mesa marcó como ejecutado igual entra construido).</label>`
         +`<span class="rg-meta">El enemigo no ve el plan: lo descubre cuando lo tiene a la vista o se lo topa. `
-        +`Se cambia en cualquier turno en ⚙️ Configurar → 🛡️ Plan de barreras.</span></div>`   // v2.9.440
+        +`Se cambia en cualquier turno en ⚙️ Configurar → 🛡️ Plan de barreras.</span></div>`   // v2.9.441
       : '';
     poner(`<b>¿Qué curso de acción querés jugar?</b>`
       +(archivo?` <span class="rg-meta">— ${_rgEsc(archivo)}</span>`:'')+`<br>`
@@ -38744,7 +38744,7 @@ async function wgVaciarEscenario(btn){
   await wgEstado();
 }
 // ============================================================
-// v2.9.440 — 🛡️ EL PLAN DE BARRERAS: ¿CONSTRUIDO O PROYECTADO?
+// v2.9.441 — 🛡️ EL PLAN DE BARRERAS: ¿CONSTRUIDO O PROYECTADO?
 // Cuenta lo que hay en la carta y deja cambiarlo en cualquier turno (acción
 // `plan_barreras` del servidor). Las obras del plan con efecto si se construyen
 // son las que el motor sabe usar: campos minados, zanja, demolición, bloqueo,
@@ -41705,7 +41705,7 @@ function _wgAvanzarRutas(trazas){
     const u=_wgUnidadPorId(id), r=WG.rutas[id];
     if(!u || !r || !r.length){ delete WG.rutas[id]; continue; }
     const t=porId[id];
-    // v2.9.440 — LA FRENÓ UN CAMPO MINADO: la marcha NO sigue sola. Seguirla el
+    // v2.9.441 — LA FRENÓ UN CAMPO MINADO: la marcha NO sigue sola. Seguirla el
     // turno que viene sería meterla otra vez en el campo, mina tras mina. Queda
     // esperando una orden nueva: rodearlo o esperar la brecha.
     if(t && t.minado){ delete WG.rutas[id]; delete WG.ordenes[id]; continue; }
@@ -41864,7 +41864,7 @@ async function wgResolver(btn){
     await Promise.all([
       trazas.length ? wgReplay(trazas) : Promise.resolve(),
       _wgAnimarDisparos(impactos, trazas),   // v2.9.430: el fuego espera a que lleguen
-      _wgAnimarMinas(impactos, trazas),      // v2.9.440: y las minas saltan cuando llega la columna
+      _wgAnimarMinas(impactos, trazas),      // v2.9.441: y las minas saltan cuando llega la columna
     ]);
   } finally { WG.replayando=false; }
   _wgEncender(impactos, r.turno_resuelto);
@@ -42552,7 +42552,7 @@ async function wgHistorial(){
     .replace(/(CUMPLIDA A MEDIAS)/g,'<b style="color:#e8c33a">$1</b>')
     .replace(/(TAREA NO CUMPLIDA)/g,'<b style="color:#ff6b6b">$1</b>')
     .replace(/(SE TE FUE|CAMPO MINADO|ABRIÓ BRECHA)/g,'<b style="color:#ff9f43">$1</b>')
-    // v2.9.440: las minas que saltaron, y el plan que quedó en el papel.
+    // v2.9.441: las minas que saltaron, y el plan que quedó en el papel.
     .replace(/(\d+ DETONACI(?:ÓN|ONES))/g,'<b style="color:#ff6b6b">$1</b>')
     .replace(/(está PROYECTADO)/g,'<b style="color:#e8c33a">$1</b>')
     // La corrección doctrinal, en su propio renglón y en cursiva: es la parte
@@ -59554,7 +59554,7 @@ function cuadroPorEvaluador(doc, modelo, cursantes, jurados){
   const tcsEnc = ajustarCeldas(encabezado, M);
   const rotulos = [["GRADO, APELLIDOS Y","NOMBRES"]];
   for(let k=1;k<=n;k++) rotulos.push(["NOTA","FINAL","EV. "+k]);
-  rotulos.push(["NOTA","FINAL","PROMEDIO"]);
+  rotulos.push(["NOTA","FINAL",cursantes.some(c=>c.rectificacion_exposicion)?"VIGENTE":"PROMEDIO"]);
   rotulos.push(["FIRMA"]);
   rotulos.forEach((lineas,i)=>{ escribirCeldaLineas(doc, tcsEnc[i], lineas); anchoCelda(doc, tcsEnc[i], anchos[i]); });
 
@@ -59642,6 +59642,14 @@ function actPromediosEvaluadores(acta){
       if(c.decision_ausencia==='cero'){
         c.expo_35=0; c.final_100=escrito; c.promedio_final=escrito;
       }
+      continue;
+    }
+    const rectificacion = c.rectificacion_exposicion;
+    if(rectificacion && rango(rectificacion.nota_rectificada,topeExpo)){
+      const expo = Number(rectificacion.nota_rectificada);
+      c.expo_35=red(expo);
+      if(numero(escrito)) c.final_100=c.promedio_final=red(escrito+expo);
+      exposiciones.push(expo);
       continue;
     }
     if(n<3 || !valores.every(numero)) continue;
@@ -59861,6 +59869,15 @@ async function actaDocxArmar(plantilla, acta, proyectos){
       const sig = tCur.nextSibling;
       body.insertBefore(hueco, sig);
       body.insertBefore(tEval, sig);
+      for(const c of acta.cursantes||[]){
+        const r=c.rectificacion_exposicion;
+        if(!r) continue;
+        const p=doc.createElementNS(NS_W,"w:p");
+        p.appendChild(doc.createElementNS(NS_W,"w:r"));
+        p.firstChild.appendChild(doc.createElementNS(NS_W,"w:t"));
+        escribirParrafo(doc,p,"RECTIFICACIÓN · "+eemNombre(c,"cursante")+": exposición "+Number(r.nota_anterior).toFixed(4)+" → "+Number(r.nota_rectificada).toFixed(4)+". Nota final vigente "+Number(c.final_100).toFixed(4)+". "+r.motivo);
+        body.insertBefore(p,sig);
+      }
     }
   }
 
@@ -60257,6 +60274,7 @@ async function actPorEvaluador(acta){
           { body:{ accion:'comparativo', token:t, carpeta_id:carpeta, cursante_id:c.cursante_id } });
         const comp = data && data.ok && data.comparativo;
         if(!comp) continue;
+        if(comp.rectificacion_exposicion) c.rectificacion_exposicion = comp.rectificacion_exposicion;
         const porId = {};
         (comp.jurados||[]).forEach(j=>{
           if(j && j.cerrado && !j.excluido && j.total!=null) porId[j.profesor_id] = Number(j.total);
