@@ -107,7 +107,7 @@
   var btn = null, pan = null, franja = null, idb = null
 
   function lee(k) { try { return sessionStorage.getItem(k) || localStorage.getItem(k) } catch (e) { return null } }
-  function C() { return window.SIDECEME_CALCOS || null }
+  function C() { return window.SIDECEME_PAQUETES ? null : window.SIDECEME_CALCOS || null }
   function mesa() { return window.SIDMesaEjercicio || null }
 
   // IndexedDB «sid-resguardo»: copias {clave, nombre, h, t, bytes, s} y ajustes {k, v} (la carpeta)

@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+*.sidcalco
+*.partial
+registro-claves.json
