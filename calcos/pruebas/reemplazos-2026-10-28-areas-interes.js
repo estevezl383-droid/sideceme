@@ -1,0 +1,36 @@
+// Sobre index-paquetes-20261027.js. Los módulos legibles mantienen las áreas;
+// el compilado sólo conecta sus acciones y entrega la unión al motor existente.
+const imports = 'import {agregarArea as SIDAIagregar,quitarArea as SIDAIquitar,renombrarArea as SIDAIrenombrar,areasEnMapa as SIDAIMapa,rotularArea as SIDAIrotulo} from "../areas-interes/modelo.mjs?v=20261028";import SIDAIPanel from "../areas-interes/editor.mjs?v=20261028";\n'
+module.exports = [
+  { nombre: 'Módulos de áreas de interés', viejo: '', nuevo: imports, veces: 1, prefijo: true },
+  { nombre: 'Espacio para el gestor en el panel de capas', viejo: 'onArchivoAOI:h,onQuitarAOI:y,formato:g', nuevo: 'onArchivoAOI:h,onQuitarAOI:y,slotAreasInteres:SIDslotAI,formato:g', veces: 1 },
+  { nombre: 'Título del panel', viejo: '2 · Área de interés (KML/KMZ)', nuevo: '2 · Áreas de Interés', veces: 1 },
+  { nombre: 'Gestor antes de cargar archivos', viejo: 'f.jsxs("div",{className:`zona-drop ${_e?', nuevo: 'SIDslotAI,f.jsxs("div",{className:`zona-drop ${_e?', veces: 1 },
+  { nombre: 'Importación aditiva visible',
+    viejo: 'u?f.jsxs(f.Fragment,{children:[f.jsxs("div",{className:"aoi-ok",children:["✅ ",(pe=u.properties)==null?void 0:pe.nombre]}),f.jsx("button",{className:"btn-mini",onClick:He=>{He.stopPropagation(),y()},children:"✕ Quitar"})]})',
+    nuevo: 'u?f.jsx("span",{children:"📂 Añadir otra área (.kml / .kmz)"})', veces: 1 },
+  { nombre: 'Añadir sin reemplazar y comprobar permisos',
+    viejo: 'hp=je.useCallback(async Ee=>{he("");try{const Qe=await lze(Ee);Ie(Qe),Ke(null),oe(null)}catch(Qe){he(Qe.message)}},[])',
+    nuevo: 'SIDaiRef=je.useRef(Ae),SIDaiSync=(SIDaiRef.current=Ae),SIDaiEditable=()=>{if(He||Bn||fr&&Ha&&Ha!=="g3"){he(He?"Espere a que terminen de generarse los calcos.":"🔒 El área está bloqueada: duplique el ejercicio o edite su BASE con el G-3.");return!1}return!0},SIDaiPoner=(SIDa,geometria=!0)=>{SIDaiRef.current=SIDa;Ie(SIDa);if(geometria){Ke(null);oe(null)}he("")},SIDaiAgregar=SIDf=>{if(!SIDaiEditable())return!1;try{SIDaiPoner(SIDAIagregar(SIDaiRef.current,SIDf,l5));return!0}catch(SIDe){he(SIDe.message);return!1}},hp=async Ee=>{if(!SIDaiEditable())return;he("");try{const Qe=await lze(Ee);SIDaiAgregar(Qe)}catch(Qe){he(Qe.message)}}', veces: 1 },
+  { nombre: 'El área dibujada se suma al conjunto',
+    viejo: 'to=je.useCallback(()=>{if(cn.length<3){he("Dibuja al menos 3 puntos del área.");return}const Ee=[...cn,cn[0]];Ie({type:"Feature",properties:{nombre:"Área dibujada"},geometry:{type:"Polygon",coordinates:[Ee]}}),Ke(null),oe(null),nn(!1),he("")},[cn])',
+    nuevo: 'to=je.useCallback(()=>{if(cn.length<3){he("Dibuja al menos 3 puntos del área.");return}const Ee=[...cn,cn[0]];if(SIDaiAgregar({type:"Feature",properties:{nombre:"Área dibujada"},geometry:{type:"Polygon",coordinates:[Ee]}})){Nn([]);nn(!1)}},[cn,SIDaiAgregar])', veces: 1 },
+  { nombre: 'Empezar otro contorno con el botón de la barra',
+    viejo: '$c=je.useCallback(()=>{if(ll){Nl();return}nn(Ee=>{const Qe=!Ee;return Qe&&(Si(!1),$n(null)),Qe})},[ll,Nl])',
+    nuevo: '$c=je.useCallback(()=>{if(!SIDaiEditable())return;nn(Ee=>{const Qe=!Ee;return Qe&&(Nn([]),Si(!1),$n(null)),Qe})},[ll,Nl,Bn,He])', veces: 1 },
+  { nombre: 'Sumar también las áreas derivadas del AO',
+    viejo: 'Ie({type:"Feature",properties:{nombre:`Área de Interés (${Ht} + ${Ee} km)`},geometry:on.geometry}),Ke(null),oe(null),nn(!1),za(`🔎 Área de Interés establecida: ${Ht} más ${Ee} km`),he("")',
+    nuevo: 'SIDaiAgregar({type:"Feature",properties:{nombre:`Área de Interés (${Ht} + ${Ee} km)`},geometry:on.geometry})&&(Nn([]),nn(!1),za(`🔎 Área de Interés añadida: ${Ht} más ${Ee} km`))', veces: 1 },
+  { nombre: 'Actualizar el callback de derivación', viejo: '[Lt.areaOps,Lt.influenciaTrazada,zl,za])', nuevo: '[Lt.areaOps,Lt.influenciaTrazada,zl,za,SIDaiAgregar])', veces: 1 },
+  { nombre: 'Conectar el gestor y sus acciones',
+    viejo: 'aoi:Ae,onArchivoAOI:hp,onQuitarAOI:()=>{Ie(null),Ke(null),oe(null)},formato:lt',
+    nuevo: 'aoi:Ae,onArchivoAOI:hp,onQuitarAOI:()=>{if(SIDaiEditable())SIDaiPoner(null)},slotAreasInteres:f.jsx(SIDAIPanel,{react:je,aoi:Ae,bloqueado:ll||Bn||He,onNueva:()=>{if(SIDaiEditable()){Nn([]);Si(!1);$n(null);nn(!0)}},onQuitar:SIDid=>{if(SIDaiEditable())try{SIDaiPoner(SIDAIquitar(SIDaiRef.current,SIDid,l5))}catch(SIDe){he(SIDe.message)}},onNombre:(SIDid,SIDnom)=>{if(SIDaiEditable())SIDaiPoner(SIDAIrenombrar(SIDaiRef.current,SIDid,SIDnom),!1)}}),formato:lt', veces: 1 },
+  { nombre: 'Confirmar el dibujo con intención aditiva', viejo: 'children:"✓ Usar como Área de Interés"', nuevo: 'children:"✓ Añadir Área de Interés"', veces: 1 },
+  { nombre: 'Explicar el alcance del dibujo', viejo: 'title:"Fijar esta área como Área de Interés: de acá se bajan los datos y se generan los calcos"', nuevo: 'title:"Añadir esta área sin borrar las anteriores. Los calcos se generan sobre todas las áreas."', veces: 1 },
+  { nombre: 'Mostrar todos los contornos y nombres en 2D',
+    viejo: 'f.jsx(dY,{data:s,interactive:!1,style:{color:"#ff2222",weight:3,fillColor:"#ff2222",fillOpacity:.05,dashArray:"8 4"}},JSON.stringify(er(s)))',
+    nuevo: 'f.jsx(dY,{data:SIDAIMapa(s),interactive:!1,onEachFeature:SIDAIrotulo,style:{color:"#ff2222",weight:3,fillColor:"#ff2222",fillOpacity:.05,dashArray:"8 4"}},JSON.stringify(SIDAIMapa(s)))', veces: 1 },
+  { nombre: 'Mostrar todos los contornos en 3D', viejo: 'getSource("aoi"))==null||kt.setData(lSe(t))', nuevo: 'getSource("aoi"))==null||kt.setData(SIDAIMapa(t))', veces: 1 },
+  { nombre: 'Conservar cada área en el espejo Google Earth', viejo: '((e?.type==="FeatureCollection"?e.features:e?.type==="Feature"?[e]:e!=null&&e.geometry?[e]:[])||[]).forEach(a=>{OSe(a.geometry||a).forEach', nuevo: '(SIDAIMapa(e).features).forEach(a=>{OSe(a.geometry||a).forEach', veces: 1 },
+  { nombre: 'Nombres de áreas en Google Earth', viejo: '<Placemark><name>Área de interés</name><styleUrl>#aoi</styleUrl>', nuevo: '<Placemark><name>${Vne(a.properties?.nombre||"Área de interés")}</name><styleUrl>#aoi</styleUrl>', veces: 1 }
+]

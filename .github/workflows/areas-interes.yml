@@ -1,0 +1,44 @@
+name: Varias áreas de interés
+on:
+  pull_request:
+    paths:
+      - 'calcos/areas-interes/**'
+      - 'calcos/index.html'
+      - 'calcos/assets/index-areas-interes-20261028.js'
+      - 'calcos/pruebas/*areas-interes*'
+      - 'calcos/pruebas/e2e/areas-interes.cjs'
+      - 'calcos/pruebas/e2e/areas-interes-vistas.cjs'
+      - '.github/workflows/areas-interes.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Modelo y compilado reproducible
+        run: |
+          npm ci --prefix calcos/pruebas
+          npm run test:areas-interes --prefix calcos/pruebas
+          node calcos/pruebas/construir-areas-interes.js
+          git diff --exit-code -- calcos/index.html calcos/assets/index-areas-interes-20261028.js
+          node --check calcos/assets/index-areas-interes-20261028.js
+      - name: Preparar Chromium
+        run: |
+          npm install --prefix /tmp/prueba-areas-interes playwright@1.51.1
+          node /tmp/prueba-areas-interes/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Cinco áreas, calcos y guardado en el navegador
+        env:
+          PLAYWRIGHT_MODULE: /tmp/prueba-areas-interes/node_modules/playwright
+        run: npm run e2e:areas-interes --prefix calcos/pruebas
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: revision-areas-interes
+          path: calcos/pruebas/salidas-areas-interes/
+          retention-days: 7
