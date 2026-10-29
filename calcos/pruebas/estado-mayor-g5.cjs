@@ -29,7 +29,7 @@ const RAIZ = path.join(__dirname, '..')
 const url = (p) => 'file://' + path.join(RAIZ, p)
 const html = fs.readFileSync(path.join(RAIZ, 'index.html'), 'utf8')
 const VIGENTE = path.join(RAIZ, html.match(/\.\/(assets\/index-[\w-]+\.js)/)[1])
-const V = (fs.readFileSync(VIGENTE, 'utf8').match(/"\.\.\/estado-mayor\/(v\d+)\/registro\.js"/) || [])[1]
+const V = (fs.readFileSync(VIGENTE, 'utf8').match(/"\.\.\/estado-mayor\/(v\d+)\/registro\.js(?:\?[^" ]*)?"/) || [])[1]
 let fallos = 0
 const casos = []
 const caso = (nombre, f) => casos.push([nombre, f])

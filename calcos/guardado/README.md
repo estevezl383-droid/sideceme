@@ -1,5 +1,12 @@
 # 💾 Autoguardado de la Mesa del EM — 10-10-2026
 
+Actualización del 29/10/2026: **«Copias» ahora se llama «Guardar como»** y ofrece
+primero guardar un archivo JSON. Se comprobaron las descargas con un perfil de
+alumno, se corrigió el reintento tras un fallo de copia local y la renovación de
+sesión del alumno desde la ventana de ingreso. Véase [Guardar como y pedidos de alumnos](../pedido/README.md)
+para el funcionamiento actual, los límites y las pruebas. Lo siguiente conserva
+el detalle de las revisiones anteriores.
+
 Lo pidió Sergio (Profesor) con una captura del sello **«💾 guardado 10:34 a. m.»** de la barra:
 «parece que no funciona, no autoguarda» y «que se le dé click y que se quede guardado ese rato
 todos los cambios».

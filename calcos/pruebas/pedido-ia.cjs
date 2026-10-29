@@ -26,7 +26,7 @@ const { cargarConDependencias } = require('./extraer-con-dependencias')
 const RAIZ = path.join(__dirname, '..')
 const VIG = vigente()
 const SRC = fs.readFileSync(VIG, 'utf8')
-const V = (SRC.match(/"\.\.\/estado-mayor\/(v\d+)\/registro\.js"/) || [])[1]
+const V = (SRC.match(/"\.\.\/estado-mayor\/(v\d+)\/registro\.js(?:\?[^" ]*)?"/) || [])[1]
 let fallos = 0
 const casos = []
 const caso = (nombre, f) => casos.push([nombre, f])
@@ -35,7 +35,7 @@ const url = (p) => 'file://' + path.join(RAIZ, p)
 ;(async () => {
   console.log(`compilado: ${path.basename(VIG)} · motor: calcos/estado-mayor/${V}`)
   const R = await import(url(`estado-mayor/${V}/registro.js`))
-  const P = await import(url(`estado-mayor/${V}/pedido.js`))
+  const P = await import(url(`estado-mayor/${V}/pedido.js?v=20261029-guardar-ia`))
   const M = await import(url(`estado-mayor/${V}/motor.js`))
   const G = await import(url(`estado-mayor/${V}/campos/g1.js`))
   const RT = await import(url(`estado-mayor/${V}/runtime.js`))

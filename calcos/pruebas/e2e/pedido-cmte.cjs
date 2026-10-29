@@ -57,14 +57,14 @@ function ejercicio() {
 
       // El selector de tamaño: Normal por defecto.
       for (const t of ['Corto', 'Normal', 'Completo']) assert.ok(await page.getByRole('button', { name: t, exact: true }).count(), `falta el botón «${t}»`)
-      await page.getByText(/Tamaño del pedido: entra entero en ChatGPT, Gemini y Claude/).waitFor({ timeout: 5000 })
+      await page.getByText(/Tamaño del pedido: hasta 120 mil caracteres/).waitFor({ timeout: 5000 })
 
       // El pedido: la tarea, el JSON y la indicación AL PRINCIPIO.
       await page.locator('textarea[placeholder^="Ej.: «Trabajá sólo"]').fill(INDICACION)
       await page.getByText(/Va AL PRINCIPIO y AL FINAL del pedido/).waitFor({ timeout: 5000 })
       await page.getByRole('button', { name: '📋 Copiar el pedido' }).dispatchEvent('click')
       await page.getByText(/El expediente va RECORTADO \(de [\d.]+ a [\d.]+ caracteres\)/).waitFor({ timeout: 30000 })
-      await page.getByRole('button', { name: /Ver el pedido/ }).dispatchEvent('click')
+      if (!(await page.locator('textarea[readonly]').count())) await page.getByRole('button', { name: /Ver el pedido/ }).dispatchEvent('click')
       const pedido = await page.locator('textarea[readonly]').inputValue()
       fs.writeFileSync(path.join(out, `${tag}-pedido.md`), pedido)
       assert.ok(pedido.startsWith('# PEDIDO DE TRABAJO PARA LA IA — LEÉ ESTO PRIMERO'), pedido.slice(0, 200))
@@ -78,9 +78,34 @@ function ejercicio() {
       assert.ok(pedido.trimEnd().endsWith('ese estilo va DENTRO de los textos.'))
       await page.screenshot({ path: path.join(out, `${tag}-pedido.png`) })
 
+      // Un navegador que deniega el portapapeles: el texto preparado se puede
+      // copiar desde otro clic, sin volver a solicitar las capas del terreno.
+      await page.evaluate(() => {
+        window.__clipAnterior = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+        window.__cmdAnterior = document.execCommand
+        window.__fetchAnterior = window.fetch
+        window.__peticionesAlCopiar = 0
+        Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: async () => { throw new DOMException('bloqueado', 'NotAllowedError') } } })
+        document.execCommand = function (comando) {
+          if (comando === 'copy') { window.__textoAlternativo = document.activeElement.value; return true }
+          return window.__cmdAnterior.apply(this, arguments)
+        }
+        window.fetch = function () { window.__peticionesAlCopiar++; return window.__fetchAnterior.apply(this, arguments) }
+      })
+      await page.getByRole('button', { name: '📋 Copiar texto preparado' }).dispatchEvent('click')
+      await page.getByText('Texto preparado copiado. Pegalo en tu IA.', { exact: true }).waitFor()
+      assert.equal(await page.evaluate(() => window.__textoAlternativo), pedido)
+      assert.equal(await page.evaluate(() => window.__peticionesAlCopiar), 0)
+      await page.evaluate(() => {
+        if (window.__clipAnterior) Object.defineProperty(navigator, 'clipboard', window.__clipAnterior)
+        else delete navigator.clipboard
+        document.execCommand = window.__cmdAnterior
+        window.fetch = window.__fetchAnterior
+      })
+
       // «Corto»: entra en 60 mil.
       await page.getByRole('button', { name: 'Corto', exact: true }).dispatchEvent('click')
-      await page.getByText(/Tamaño del pedido: para ChatGPT o Gemini gratis/).waitFor({ timeout: 5000 })
+      await page.getByText(/Tamaño del pedido: hasta 60 mil caracteres/).waitFor({ timeout: 5000 })
       await page.getByRole('button', { name: '📋 Copiar el pedido' }).dispatchEvent('click')
       await page.waitForTimeout(800)
       const corto = await page.locator('textarea[readonly]').inputValue()

@@ -12,7 +12,7 @@ import CMTE from './campos/cmte.js'
 import { calcoActual, contexto } from './runtime.js'
 import { rescatarHoja as rescatar, filasDe as filas_, celdaFila as celda_, listasDe as listas_, claveCasilla as clave_, normalizarTabla } from './lector.js'
 import { esPRC, pedidoPRC, migrarG3 as migrar_, errorRespuesta as error_, bajarWordPRC } from './prc.js'
-import { armarPedidoFinal, TAMANOS, tamanoPedido, elegirTamano, avisoPedido } from './pedido.js'
+import { armarPedidoFinal, TAMANOS, tamanoPedido, elegirTamano, avisoPedido } from './pedido.js?v=20261029-guardar-ia'
 
 // (v7) El Comandante (⭐ CMTE.): sólo la F6·P2 Guía de Planificación Final, con la forma del
 // modelo del TEXTO PMTD 2017. `soloDocumentos`: sus demás hojas (F1·P3, F1·P6, F2·P8…) siguen

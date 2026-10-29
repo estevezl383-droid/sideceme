@@ -24,7 +24,7 @@ const AQUI = path.dirname(fileURLToPath(import.meta.url))
 const RAIZ = path.join(AQUI, '..')
 const VIGENTE = vigente()
 const SRC = fs.readFileSync(VIGENTE, 'utf8')
-const V = (SRC.match(/"\.\.\/estado-mayor\/(v\d+)\/registro\.js"/) || [])[1]
+const V = (SRC.match(/"\.\.\/estado-mayor\/(v\d+)\/registro\.js(?:\?[^" ]*)?"/) || [])[1]
 const url = (p) => pathToFileURL(path.join(RAIZ, p)).href
 
 let fallos = 0

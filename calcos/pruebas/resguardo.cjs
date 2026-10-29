@@ -33,6 +33,8 @@ const { ejercicioLogistica } = require('./logistica-ejemplo.js')
   assert.deepEqual([s.token, s.vencida, s.profesor], [null, true, false], 'la del 16-10 a las 19:03 ya venció')
   s = R.leerSesion(st({ sideceme_token: 'C', sideceme_token_expira: '2026-10-19T00:00:00Z' }), ahora)
   assert.deepEqual([s.token, s.profesor], ['C', false], 'un cursante')
+  s = R.leerSesion(st({ sideceme_token: 'C', sideceme_token_expira: '2026-10-19T00:00:00Z', sideceme_token_expira_p: '2026-10-16T00:00:00Z' }), ahora)
+  assert.deepEqual([s.token, s.vencida, s.profesor], ['C', false, false], 'una fecha vieja del profesor no vence la sesión del alumno')
   s = R.leerSesion(st({ sideceme_token_p: 'P' }), ahora)
   assert.deepEqual([s.token, s.vencida, s.expira], ['P', false, null], 'sin fecha de vencimiento: vale')
   assert.equal(R.leerSesion(st({}), ahora).token, null)
@@ -46,6 +48,9 @@ const { ejercicioLogistica } = require('./logistica-ejemplo.js')
   assert.notEqual(R.huella(a), R.huella(c), 'otro contenido, otra huella')
   assert.equal(R.vacio(ej), false)
   assert.equal(R.vacio({ version: 1, nombre: 'x', ops: {}, unidades: [] }), true, 'una pantalla en blanco no se resguarda')
+  for (const datos of [{ hojasG: { g1: { tareas: ['trabajo'] } } }, { hojasG: { cmte: { guia: 'orientación' } } }, { g3: { coa: 'curso propio' } }, { fasesCOA: { propio: [{ nombre: 'Fase 1' }] } }, { ops: { obstaculos: [{ id: 'obstáculo' }] } }]) {
+    assert.equal(R.vacio({ nombre: 'Sólo documentos', ...datos }), false, 'se protege el trabajo aunque todavía no tenga terreno')
+  }
 
   // ─── las copias ───
   const copia = (h, min) => ({ clave: 'X|' + h, nombre: 'X', h, t: new Date(ahora + min * 60000).toISOString(), bytes: 10 })

@@ -28,7 +28,7 @@ const { cargarConDependencias } = require('./extraer-con-dependencias')
 
 const RAIZ = path.join(__dirname, '..')
 const VIG = vigente()
-const V = (fs.readFileSync(VIG, 'utf8').match(/"\.\.\/estado-mayor\/(v\d+)\/registro\.js"/) || [])[1]
+const V = (fs.readFileSync(VIG, 'utf8').match(/"\.\.\/estado-mayor\/(v\d+)\/registro\.js(?:\?[^" ]*)?"/) || [])[1]
 const ANTERIOR = path.join(RAIZ, 'assets', 'index-tablero-g4-20261003.js')
 const NUEVO = path.join(RAIZ, 'assets', 'index-prc-20261006.js')
 const SALIDA = path.join(__dirname, 'salidas-prc')

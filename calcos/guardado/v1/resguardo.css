@@ -1,4 +1,4 @@
-/* 🛟 Resguardo del ejercicio (resguardo.js, 18-10-2026): el botón «💾 Copias», su panel y la franja de
+/* 🛟 Resguardo del ejercicio: el botón «💾 Guardar como», su panel y la franja de
    aviso (sesión de SIDECEME vencida, versión más nueva en esta computadora, permiso de la carpeta). */
 #sid-resg-btn{position:fixed;top:8px;right:8px;z-index:1200;font:600 11px/1 'Exo 2','Segoe UI',system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;
   color:#cde7ec;background:rgba(6,28,40,.85);border:1px solid rgba(70,240,208,.3);border-radius:9px;padding:9px 10px;cursor:pointer;white-space:nowrap}
@@ -20,6 +20,7 @@
 #sid-resg-panel button.grande{display:block;width:100%;padding:8px;font-size:12.5px}
 #sid-resg-panel .nota{margin:6px 0 0;font-size:11.5px;color:#9fb8c8}
 #sid-resg-panel .nota.ok{color:#7dffb0}
+#sid-resg-panel .nota.error{color:#fca5a5}
 #sid-resg-aviso{position:fixed;top:52px;left:50%;transform:translateX(-50%);z-index:2600;width:min(760px,calc(100vw - 16px));box-sizing:border-box;padding:9px 12px;border-radius:10px;
   font:13px/1.4 'Exo 2','Segoe UI',system-ui,sans-serif;color:#1a0505;background:#fecaca;border:2px solid #dc2626;box-shadow:0 8px 26px rgba(0,0,0,.45)}
 #sid-resg-aviso.ojo{color:#1a1200;background:#fde68a;border-color:#d97706}

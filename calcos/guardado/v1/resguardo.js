@@ -32,7 +32,7 @@
      navegador, también en el iPhone).
    · 🛟 Si al abrir un ejercicio hay en esta computadora una versión más nueva que la de SIDECEME,
      lo avisa y la deja bajar.
-   Se ve con el botón «💾 Copias» (al lado de 🎖️ Mesa · 🎓 Aprendizaje · 🧑‍🏫 Profesor). */
+   Se ve con el botón «💾 Guardar como» (al lado de 🎖️ Mesa · 🎓 Aprendizaje · 🧑‍🏫 Profesor). */
 (function (raiz, fabrica) {
   var R = fabrica()
   if (typeof module === 'object' && module.exports) module.exports = R
@@ -55,7 +55,7 @@
   // sessionStorage 'sideceme_token'; `lee(clave)` mira sessionStorage y después localStorage.
   function leerSesion(lee, ahora) {
     var tp = lee('sideceme_token_p'), tc = lee('sideceme_token'), token = tp || tc || null
-    var ex = lee('sideceme_token_expira_p') || lee('sideceme_token_expira'), expira = ex ? Date.parse(ex) : NaN
+    var ex = tp ? lee('sideceme_token_expira_p') : tc ? lee('sideceme_token_expira') : null, expira = ex ? Date.parse(ex) : NaN
     if (!isFinite(expira)) expira = null
     var vencida = !!(token && expira != null && expira < ahora)
     return { token: vencida ? null : token, expira: expira, vencida: vencida, profesor: !!tp && !vencida }
@@ -72,11 +72,17 @@
     for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0 }
     return ('0000000' + h.toString(16)).slice(-8) + '-' + s.length.toString(36)
   }
-  // Como la Mesa (vS del compilado): sin área, fichas, calcos, misión ni documentos no hay nada que cuidar.
+  // También se resguardan las hojas y fases aunque todavía no haya un área dibujada.
   function vacio(d) {
     if (!d || typeof d !== 'object') return true
-    var ops = d.ops || {}
-    return !d.aoi && !ops.areaOps && !(Array.isArray(d.unidades) && d.unidades.length) && !d.resultados && !String(d.mision || '').trim() && !(Array.isArray(d.documentos) && d.documentos.length) && !d.ordenSup
+    var ops = d.ops || {}, cmoc = d.cmoc || {}, fases = d.fasesCOA || {}
+    function hay(v) { return Array.isArray(v) ? v.length > 0 : v && typeof v === 'object' ? Object.keys(v).length > 0 : !!v }
+    return !d.aoi && !ops.areaOps && !d.resultados && !d.plantilla && !d.baseInfo && !d.ordenSup &&
+      !String(d.mision || '').trim() && !String(d.escenario || '').trim() &&
+      !['unidades', 'documentos', 'orgTarea', 'aoPuntos', 'conceptoApoyo', 'bajasPorFase', 'picb', 'g3', 'estadosRecursos'].some(function (k) { return hay(d[k]) }) &&
+      !Object.keys(d.hojasG || {}).some(function (k) { return hay(d.hojasG[k]) }) &&
+      !Object.keys(ops).some(function (k) { return hay(ops[k]) }) && !Object.keys(cmoc).some(function (k) { return hay(cmoc[k]) }) &&
+      !hay(fases.propio) && !hay(fases.enemigo) && !hay(d.academico && d.academico.actividades) && !hay(d.planFuegos && d.planFuegos.blancos)
   }
   function limpio(n) { return String(n || '').trim().replace(/[\\/:*?"<>|]+/g, '-').replace(/\s+/g, ' ').slice(0, 80) || 'ejercicio' }
   function dia(ms) { var d = new Date(ms); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) }
@@ -103,8 +109,8 @@
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] }) }
 
   // ─── en el navegador ──────────────────────────────────────────────────────────────────
-  var est = { sesion: 'local', expira: null, nubeOk: 0, nubeVencida: false, renovada: 0, carpeta: null, permiso: '', carpetaUlt: 0, carpetaErr: '', copias: [], ultimo: {}, nubeDe: {}, abierto: '', nueva: null, aviso: '', verPanel: false }
-  var btn = null, pan = null, franja = null, idb = null
+  var est = { sesion: 'local', expira: null, nubeOk: 0, nubeVencida: false, renovada: 0, carpeta: null, permiso: '', carpetaUlt: 0, carpetaErr: '', localErr: '', copias: [], ultimo: {}, nubeDe: {}, abierto: '', nueva: null, aviso: '', verPanel: false }
+  var btn = null, pan = null, franja = null, idb = null, entrada = null
 
   function lee(k) { try { return sessionStorage.getItem(k) || localStorage.getItem(k) } catch (e) { return null } }
   function C() { return window.SIDECEME_PAQUETES ? null : window.SIDECEME_CALCOS || null }
@@ -146,9 +152,27 @@
   function copiaTexto(clave) { return op('copias', 'readonly', function (st) { return st.get(clave) }).then(function (c) { return c ? c.s : null }) }
 
   // ── 🔑 la sesión ──
+  function tomarSesionAlumno() {
+    // sessionStorage no se comparte entre pestañas. Sólo se toma la sesión de la
+    // ventana de ingreso que abrió este botón, cuando ya volvió al mismo origen.
+    try {
+      if (!entrada || entrada.closed || !C() || C().esProfesor) return
+      var token = entrada.sessionStorage.getItem('sideceme_token'), expira = entrada.sessionStorage.getItem('sideceme_token_expira')
+      if (!token || (expira && Date.parse(expira) <= Date.now())) return
+      sessionStorage.setItem('sideceme_token', token)
+      if (expira) sessionStorage.setItem('sideceme_token_expira', expira)
+      else sessionStorage.removeItem('sideceme_token_expira')
+    } catch (e) {}
+  }
+  function entrar() {
+    entrada = window.open(new URL('../', location.href).href, 'sideceme-renovar-sesion')
+    est.aviso = entrada ? 'Inicia sesión en la ventana que se abrió y vuelve aquí. La Mesa tomará tu sesión nueva.' : 'El navegador bloqueó la ventana de ingreso. Permite abrirla y vuelve a pulsar «Entrar a SIDECEME». Puedes guardar un archivo JSON mientras tanto.'
+    pintar()
+  }
   function revisarSesion() {
     var c = C()
     if (!c || !c.url) { est.sesion = 'local'; return pintar() }
+    tomarSesionAlumno()
     var s = leerSesion(lee, Date.now())
     if (s.token && s.token !== c.token) { // entró de nuevo (en otra pestaña): la Mesa la usa desde el próximo guardado
       c.token = s.token; c.esProfesor = s.profesor
@@ -202,20 +226,27 @@
     try { nombre = M.nombre(); datos = nombre ? M.foto() : null } catch (e) { return Promise.resolve(null) }
     if (!nombre || vacio(datos)) return Promise.resolve(null)
     var s
-    try { s = texto(datos) } catch (e) { return Promise.resolve(null) }
+    try { s = texto(datos) } catch (e) { est.localErr = 'No se pudo preparar la copia del ejercicio: ' + ((e && e.message) || e); pintar(); return Promise.resolve(null) }
     var k = limpio(nombre), h = huella(s), ahora = Date.now()
     if (k !== est.abierto) { est.abierto = k; est.nueva = null; buscarNueva(k, h) }
-    if (!forzar && est.ultimo[k] === h) return Promise.resolve(null)
-    est.ultimo[k] = h
+    if (!forzar && est.ultimo[k] === h) {
+      if (est.carpetaErr && est.carpeta && est.permiso === 'granted') return enCarpeta(nombre, s, ahora).then(pintar)
+      return Promise.resolve(null)
+    }
     var t = new Date(ahora).toISOString()
     return op('copias', 'readwrite', function (st) { st.put({ clave: k + '|' + h, nombre: k, h: h, t: t, bytes: s.length, s: s }) })
-      .then(function () { return copiasDe(k) })
+      .then(function () {
+        est.ultimo[k] = h
+        if (est.localErr && est.aviso === est.localErr) est.aviso = '✓ Copia de seguridad guardada en este navegador.'
+        est.localErr = ''
+        return copiasDe(k)
+      })
       .then(function (l) {
         var p = podar(l, MAX_COPIAS)
         est.copias = p.quedan
         return p.sobran.length ? op('copias', 'readwrite', function (st) { p.sobran.forEach(function (c) { st.delete(c.clave) }) }) : null
       })
-      .catch(function (e) { est.aviso = 'No se pudo dejar la copia en esta computadora: ' + ((e && e.message) || e) })
+      .catch(function (e) { est.localErr = 'No se pudo guardar la copia en este navegador: ' + ((e && e.message) || e) + '. Usa «Guardar como archivo JSON».'; est.aviso = est.localErr })
       .then(function () { return enCarpeta(nombre, s, ahora) })
       .then(function () { pintar(); return { nombre: k, h: h } })
   }
@@ -274,18 +305,38 @@
     a.href = u; a.download = nombre; document.body.appendChild(a); a.click(); a.remove()
     setTimeout(function () { URL.revokeObjectURL(u) }, 4000)
   }
-  function bajarAhora() {
+  async function bajarAhora() {
     var M = mesa(), nombre = M && M.nombre && M.nombre()
     if (!nombre) { est.aviso = 'Abrí un ejercicio primero.'; return pintar() }
-    var ahora = Date.now()
-    bajar(bajadaDe(nombre, ahora), contenido(texto(M.foto()), ahora))
-    est.aviso = '⬇️ Bajado: está en tu carpeta de Descargas. Para abrirlo: 📁 Ejercicio → 📂 Abrir archivo JSON.'
+    try {
+      var ahora = Date.now(), archivo = bajadaDe(nombre, ahora), txt = contenido(texto(M.foto()), ahora)
+      if (typeof window.showSaveFilePicker === 'function') {
+        var h
+        try { h = await window.showSaveFilePicker({ suggestedName: archivo, types: [{ description: 'Ejercicio SIDECEME (JSON)', accept: { 'application/json': ['.json'] } }] }) }
+        catch (e) {
+          if (e && e.name === 'AbortError') { est.aviso = 'Guardado cancelado. Puedes volver a elegir el archivo.'; return pintar() }
+          if (!e || !/^(SecurityError|NotAllowedError|NotSupportedError|TypeError)$/.test(e.name)) throw e
+          // Hay navegadores que exponen el selector pero no permiten usarlo.
+          h = null
+        }
+        if (h) {
+          await escribir({ getFileHandle: function () { return Promise.resolve(h) } }, archivo, txt)
+          est.aviso = '✓ Archivo guardado: ' + (h.name || archivo) + '. Para abrirlo: 📁 botón con el nombre del ejercicio → 📂 Abrir archivo JSON.'
+          return pintar()
+        }
+      }
+      bajar(archivo, txt)
+      est.aviso = '⬇️ Descarga solicitada: busca ' + archivo + ' en las descargas del navegador. Si pregunta, elige Guardar. Para abrirlo: 📁 botón con el nombre del ejercicio → 📂 Abrir archivo JSON.'
+    } catch (e) { est.aviso = '⚠️ No se pudo guardar el archivo: ' + ((e && e.message) || e) + '. Vuelve a intentarlo; revisa el espacio disponible y los permisos del navegador.' }
     pintar()
   }
   function bajarCopia(clave) {
     var c = est.copias.filter(function (x) { return x.clave === clave })[0] || (est.nueva && est.nueva.clave === clave ? est.nueva : null)
     if (!c) return
-    copiaTexto(clave).then(function (s) { if (s) bajar(bajadaDe(c.nombre, Date.parse(c.t)), contenido(s, Date.parse(c.t))) })
+    copiaTexto(clave).then(function (s) {
+      if (!s) throw new Error('Esta copia ya no está disponible en el navegador.')
+      bajar(bajadaDe(c.nombre, Date.parse(c.t)), contenido(s, Date.parse(c.t)))
+    }).catch(function (e) { est.aviso = '⚠️ No se pudo descargar esa copia: ' + ((e && e.message) || e); pintar() })
   }
 
   // ── la pantalla ──
@@ -293,18 +344,19 @@
     if (!document.getElementById('sid-resg-btn')) {
       btn = document.createElement('button')
       btn.type = 'button'; btn.id = 'sid-resg-btn'
-      btn.title = 'Dónde se guarda el ejercicio: SIDECEME (la nube), tu carpeta y esta computadora. Bajar el ejercicio en .json.'
+      btn.setAttribute('aria-controls', 'sid-resg-panel')
+      btn.title = 'Guardar como archivo JSON, elegir una carpeta y revisar las copias del ejercicio.'
       btn.addEventListener('click', function () { est.verPanel = !est.verPanel; if (est.verPanel) resguardar(false); pintar() })
       document.body.appendChild(btn)
     }
-    pan = document.createElement('div'); pan.id = 'sid-resg-panel'; pan.hidden = true
+    pan = document.createElement('div'); pan.id = 'sid-resg-panel'; pan.hidden = true; pan.setAttribute('role', 'region'); pan.setAttribute('aria-label', 'Guardar como')
     franja = document.createElement('div'); franja.id = 'sid-resg-aviso'; franja.hidden = true; franja.setAttribute('role', 'alert')
     document.body.appendChild(pan); document.body.appendChild(franja)
     var acc = function (e) {
       var a = e.target.closest && e.target.closest('[data-r]')
       if (!a) return
       var q = a.getAttribute('data-r')
-      if (q === 'entrar') window.open(new URL('../', location.href).href, '_blank')
+      if (q === 'entrar') entrar()
       else if (q === 'bajar') bajarAhora()
       else if (q === 'copia') bajarCopia(a.getAttribute('data-c'))
       else if (q === 'carpeta') elegirCarpeta()
@@ -323,28 +375,29 @@
     return '<li class="bien"><b>☁️ SIDECEME (la nube)</b><span>✓ ' + esc(ok) + (est.expira ? ' · tu sesión vence ' + esc(hora(est.expira)) : '') + '</span></li>'
   }
   function lineaCarpeta() {
-    if (!puedeCarpeta()) return '<li><b>📁 Tu carpeta</b><span>Este navegador no deja guardar solo en una carpeta (sí Chrome y Edge de computadora): usá «⬇️ Bajar el ejercicio ahora».</span></li>'
+    if (!puedeCarpeta()) return '<li><b>📁 Tu carpeta</b><span>Este navegador no permite guardar automáticamente en una carpeta. Usa «Guardar como archivo JSON» para descargarlo.</span></li>'
     if (!est.carpeta) return '<li><b>📁 Tu carpeta</b><span>Elegí una carpeta (por ejemplo Documentos › SIDECEME) y cada vez que cambie el ejercicio va a quedar ahí «' + esc(archivoDe(nombreAbierto() || 'CE-VI.1')) + '».</span><button type="button" data-r="carpeta">📁 Elegir carpeta</button></li>'
     if (est.permiso !== 'granted') return '<li class="mal"><b>📁 Tu carpeta «' + esc(est.carpeta.name) + '»</b><span>El navegador pide permiso otra vez para escribir en ella.</span><button type="button" data-r="permitir">🔓 Permitir</button><button type="button" class="chico" data-r="olvidar">Elegir otra</button></li>'
     return '<li class="bien"><b>📁 Tu carpeta «' + esc(est.carpeta.name) + '»</b><span>' + (est.carpetaUlt ? '✓ ' + esc(archivoDe(nombreAbierto() || '')) + ' · ' + esc(hora(est.carpetaUlt)) + ' (y uno por día en «respaldos»)' : 'Se guarda ahí apenas cambie el ejercicio.') + (est.carpetaErr ? ' ⚠️ ' + esc(est.carpetaErr) : '') + '</span><button type="button" class="chico" data-r="olvidar">Elegir otra</button></li>'
   }
   function lineaCopias() {
     var l = est.copias
-    return '<li><b>🖥️ Esta computadora</b><span>' + (l.length ? l.length + ' copia(s) de «' + esc(nombreAbierto()) + '» (no se pisan al abrir el ejercicio):' : 'Todavía no hay copias de este ejercicio.') + '</span>' +
+    return '<li' + (est.localErr ? ' class="mal"' : '') + '><b>🖥️ Esta computadora</b><span>' + (est.localErr ? '⚠️ ' + esc(est.localErr) : l.length ? l.length + ' copia(s) de «' + esc(nombreAbierto()) + '» (no se pisan al abrir el ejercicio):' : 'Todavía no hay copias de este ejercicio.') + '</span>' +
       (l.length ? '<ol>' + l.map(function (c) { return '<li>' + esc(hora(Date.parse(c.t))) + ' · ' + esc(kb(c.bytes)) + ' <button type="button" class="chico" data-r="copia" data-c="' + esc(c.clave) + '">⬇️</button></li>' }).join('') + '</ol>' : '') + '</li>'
   }
   function nombreAbierto() { try { var M = mesa(); return (M && M.nombre && M.nombre()) || '' } catch (e) { return '' } }
   function pintar() {
     if (!pan) return
-    var mal = est.sesion === 'vencida' || (est.carpeta && est.permiso && est.permiso !== 'granted')
-    if (btn) { btn.textContent = mal ? '⚠️ Copias' : '💾 Copias'; btn.classList.toggle('mal', !!mal); btn.setAttribute('aria-expanded', String(est.verPanel)) }
+    var mal = est.sesion === 'vencida' || est.localErr || est.carpetaErr || (est.carpeta && est.permiso && est.permiso !== 'granted')
+    if (btn) { btn.textContent = mal ? '⚠️ Guardar como' : '💾 Guardar como'; btn.classList.toggle('mal', !!mal); btn.setAttribute('aria-expanded', String(est.verPanel)) }
     pan.hidden = !est.verPanel
     if (est.verPanel) setTimeout(colocar, 0)
-    if (est.verPanel) pan.innerHTML = '<div class="cab"><b>💾 Dónde se guarda «' + esc(nombreAbierto() || 'el ejercicio') + '»</b><button type="button" class="chico" data-r="cerrar">✕</button></div>' +
+    if (est.verPanel) pan.innerHTML = '<div class="cab"><b>💾 Guardar como · ' + esc(nombreAbierto() || 'el ejercicio') + '</b><button type="button" class="chico" data-r="cerrar">✕</button></div>' +
+      '<button type="button" class="grande" data-r="bajar">💾 Guardar como archivo JSON</button>' +
+      '<p class="nota">' + (typeof window.showSaveFilePicker === 'function' ? 'Elige el nombre y dónde guardar el archivo. Si el navegador no permite elegir, se solicitará una descarga.' : 'El archivo se descarga con el nombre del ejercicio. Tu navegador decide si pregunta la carpeta o usa Descargas.') + '</p>' +
       '<ul>' + lineaNube() + lineaCarpeta() + lineaCopias() + '</ul>' +
-      '<button type="button" class="grande" data-r="bajar">⬇️ Bajar el ejercicio ahora (.json)</button>' +
       '<p class="nota">Un .json se abre con <b>📁 Ejercicio → 📂 Abrir archivo JSON</b>: entra como ejercicio NUEVO y el que tenías abierto no se toca.</p>' +
-      (est.aviso ? '<p class="nota ok">' + esc(est.aviso) + '</p>' : '')
+      (est.aviso ? '<p role="status" class="nota' + (/^(⚠️|No se pudo|El navegador bloqueó)/.test(est.aviso) ? ' error' : /^✓/.test(est.aviso) ? ' ok' : '') + '">' + esc(est.aviso) + '</p>' : '')
     // la franja de arriba
     var f = ''
     if (est.sesion === 'vencida') f = '<b>⚠️ Tu sesión de SIDECEME venció: la Mesa NO puede guardar en la nube.</b> <span>No cierres ni recargues esta pestaña. Entrá a SIDECEME en otra pestaña con tu usuario y la Mesa vuelve a guardar sola' + (est.carpeta && est.permiso === 'granted' ? '; mientras tanto se guarda en tu carpeta «' + esc(est.carpeta.name) + '» y en esta computadora.' : '; mientras tanto se guarda en esta computadora.') + '</span><button type="button" data-r="entrar">🔑 Entrar a SIDECEME</button><button type="button" data-r="bajar">⬇️ Bajar el ejercicio ahora</button>'
@@ -357,12 +410,16 @@
     if (franja.__f !== f) { franja.innerHTML = f; franja.__f = f }
   }
 
-  // «💾 Copias» va a la izquierda del selector 🎖️ Mesa · 🎓 Aprendizaje · 🧑‍🏫 Profesor (arriba en la
+  // «💾 Guardar como» va a la izquierda del selector 🎖️ Mesa · 🎓 Aprendizaje · 🧑‍🏫 Profesor (arriba en la
   // computadora, abajo en el teléfono) y el panel se abre hacia donde haya lugar
   function colocar() {
     if (!btn) return
     var sel = document.getElementById('sid-mod-sel'), r = sel && sel.getBoundingClientRect(), s = btn.style
-    if (r && r.width) { s.top = Math.round(r.top + (r.height - btn.offsetHeight) / 2) + 'px'; s.left = Math.max(4, Math.round(r.left - btn.offsetWidth - 6)) + 'px'; s.right = 'auto' }
+    if (r && r.width) {
+      var izquierda = Math.round(r.left - btn.offsetWidth - 6)
+      s.top = Math.round(izquierda >= 4 ? r.top + (r.height - btn.offsetHeight) / 2 : r.top > window.innerHeight / 2 ? r.top - btn.offsetHeight - 6 : r.bottom + 6) + 'px'
+      s.left = Math.max(4, izquierda) + 'px'; s.right = 'auto'
+    }
     else { s.top = '8px'; s.right = '8px'; s.left = 'auto' }
     if (!pan || pan.hidden) return
     var b = btn.getBoundingClientRect(), abajo = b.top < window.innerHeight / 2

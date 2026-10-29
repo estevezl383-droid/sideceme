@@ -1,0 +1,61 @@
+name: Guardar como y pedidos de alumnos
+on:
+  pull_request:
+    paths:
+      - 'calcos/guardado/**'
+      - 'calcos/pedido/**'
+      - 'calcos/estado-mayor/v7/pedido.js'
+      - 'calcos/estado-mayor/v7/registro.js'
+      - 'calcos/pandora/pandora.js'
+      - 'calcos/index.html'
+      - 'calcos/assets/index-guardar-ia-20261029.js'
+      - 'calcos/pruebas/*guardar*'
+      - 'calcos/pruebas/*pedido*'
+      - 'calcos/pruebas/*resguardo*'
+      - 'calcos/pruebas/e2e/guardar-alumnos.cjs'
+      - 'calcos/pruebas/e2e/pedido-*.cjs'
+      - 'calcos/pruebas/e2e/resguardo.cjs'
+      - '.github/workflows/guardar-ia.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Código, límites y compilado reproducible
+        run: |
+          npm ci --prefix calcos/pruebas
+          node calcos/pruebas/construir-guardar-ia.js
+          git diff --exit-code -- calcos/index.html calcos/assets/index-guardar-ia-20261029.js
+          node --check calcos/assets/index-guardar-ia-20261029.js
+          node calcos/pruebas/resguardo.cjs
+          node calcos/pruebas/pedido-fiabilidad.mjs
+          node calcos/pruebas/pedido-ia.cjs
+      - name: Preparar Chromium
+        run: |
+          npm install --prefix /tmp/prueba-guardar-ia playwright@1.51.1
+          node /tmp/prueba-guardar-ia/node_modules/playwright/cli.js install --with-deps chromium
+      - name: Alumnos, descargas y pedidos simultáneos
+        env:
+          PLAYWRIGHT_MODULE: /tmp/prueba-guardar-ia/node_modules/playwright
+        run: |
+          node calcos/pruebas/e2e/resguardo.cjs
+          node calcos/pruebas/e2e/guardar-alumnos.cjs
+          node calcos/pruebas/e2e/pedido-cmte.cjs
+          node calcos/pruebas/e2e/pedido-alumnos.cjs
+          node calcos/pruebas/e2e/pedido-espera.cjs
+          node calcos/pruebas/e2e/vista-plegada.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: revision-guardar-ia
+          path: |
+            calcos/pruebas/salidas-resguardo/
+            calcos/pruebas/salidas-pedido/
+          retention-days: 7

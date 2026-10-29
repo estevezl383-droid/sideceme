@@ -28,7 +28,7 @@ const caso = (nombre, f) => casos.push([nombre, f])
 ;(async () => {
   // la carpeta del motor que importa el compilado que carga calcos/index.html
   const vig0 = path.join(RAIZ, fs.readFileSync(path.join(RAIZ, 'index.html'), 'utf8').match(/\.\/(assets\/index-[\w-]+\.js)/)[1])
-  const V = (fs.readFileSync(vig0, 'utf8').match(/"\.\.\/estado-mayor\/(v\d+)\/registro\.js"/) || [])[1] || 'v2'
+  const V = (fs.readFileSync(vig0, 'utf8').match(/"\.\.\/estado-mayor\/(v\d+)\/registro\.js(?:\?[^" ]*)?"/) || [])[1] || 'v2'
   console.log(`motor: calcos/estado-mayor/${V}`)
   const M = await import(url(`estado-mayor/${V}/motor.js`))
   const G = await import(url(`estado-mayor/${V}/campos/g1.js`))

@@ -28,11 +28,11 @@ export const TITULO_PEDIDO = '# PEDIDO DE TRABAJO PARA LA IA — LEÉ ESTO PRIME
 
 // ─── El tamaño del pedido ───────────────────────────────────────────────────────────
 // Caracteres del pedido ENTERO (≈ 3,5 caracteres por token en español). «Normal» es lo que
-// entra sin cortarse en ChatGPT, Gemini y Claude; «Completo» manda el expediente sin recortar.
+// se intenta ajustar al modelo elegido; su capacidad depende del servicio, modelo y plan.
 export const TAMANOS = [
-  { id: 'corto', nom: 'Corto', limite: 60000, ayuda: 'para ChatGPT o Gemini gratis (≈ 60 mil caracteres)' },
-  { id: 'normal', nom: 'Normal', limite: 120000, ayuda: 'entra entero en ChatGPT, Gemini y Claude (≈ 120 mil caracteres)' },
-  { id: 'completo', nom: 'Completo', limite: Infinity, ayuda: 'el expediente sin recortar: sólo para Claude o Gemini pagos (puede pasar los 400 mil caracteres)' },
+  { id: 'corto', nom: 'Corto', limite: 60000, ayuda: 'hasta 60 mil caracteres; recomendado para empezar o si el texto resulta demasiado largo' },
+  { id: 'normal', nom: 'Normal', limite: 120000, ayuda: 'hasta 120 mil caracteres; la capacidad depende de la IA, el modelo y tu plan' },
+  { id: 'completo', nom: 'Completo', limite: Infinity, ayuda: 'sin recortar; puede superar los 400 mil caracteres y el límite de tu IA, incluso con un plan de pago' },
 ]
 const CLAVE = 'sidem-tamano-pedido'
 let tamanoActual = null
@@ -61,7 +61,7 @@ const miles = (n) => Math.round(n).toLocaleString('es')
 export function avisoPedido() {
   const u = ultimo
   if (!u) return ''
-  if (u.recortado) return ` El expediente va RECORTADO (de ${miles(u.expedienteAntes)} a ${miles(u.expedienteDespues)} caracteres) para que la IA lo reciba entero; con Claude o Gemini pagos podés elegir «Completo».`
+  if (u.recortado) return ` El expediente va RECORTADO (de ${miles(u.expedienteAntes)} a ${miles(u.expedienteDespues)} caracteres) para ajustarlo al tamaño elegido. Si la IA lo rechaza por longitud, elegí «Corto».`
   if (u.total > limiteDe('normal')) return ' Es largo: si la IA contesta que se cortó o pregunta qué hacer, elegí «Normal» y copiá de nuevo.'
   return ''
 }

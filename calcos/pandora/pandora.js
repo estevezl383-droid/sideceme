@@ -87,22 +87,8 @@
   window.addEventListener('resize', programar)
   new MutationObserver(programar).observe(document.body, { childList: true, subtree: true })
 
-  // El tablero de abajo (Mesa · Preparación) empieza recogido: se abre con su botón cuando se necesita.
-  function recogerMesa() {
-    try { if (sessionStorage.getItem('sid_pd_mesa') === '1') return } catch (e) { return }
-    if (!body.classList.contains('sid-pandora')) return
-    var m = document.querySelector('.contenedor-mapa')
-    if (!m) return
-    var bs = m.querySelectorAll('button')
-    for (var i = 0; i < bs.length; i++) {
-      if (/ocultar/i.test(bs[i].textContent || '')) {
-        try { sessionStorage.setItem('sid_pd_mesa', '1') } catch (e) {}
-        bs[i].click()
-        return
-      }
-    }
-  }
-  new MutationObserver(function () { recogerMesa() }).observe(document.body, { childList: true, subtree: true })
+  // La Mesa ya inicia con Preparación plegada en su propio estado. No se deben
+  // pulsar otros botones «Ocultar»: también existen en el pedido de IA y en los calcos.
 
   aplicar(!apagada())
   programar()

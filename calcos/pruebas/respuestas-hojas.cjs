@@ -24,7 +24,7 @@ const { cargarConDependencias } = require('./extraer-con-dependencias')
 
 const RAIZ = path.join(__dirname, '..')
 const VIG = vigente()
-const V = (fs.readFileSync(VIG, 'utf8').match(/"\.\.\/estado-mayor\/(v\d+)\/registro\.js"/) || [])[1]
+const V = (fs.readFileSync(VIG, 'utf8').match(/"\.\.\/estado-mayor\/(v\d+)\/registro\.js(?:\?[^" ]*)?"/) || [])[1]
 let fallos = 0
 const casos = []
 const caso = (nombre, f) => casos.push([nombre, f])
