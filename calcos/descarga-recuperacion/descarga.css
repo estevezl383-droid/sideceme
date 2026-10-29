@@ -1,0 +1,16 @@
+:root { color-scheme: dark; font-family: system-ui, sans-serif; background: #101724; color: #edf2fa; }
+* { box-sizing: border-box; }
+body { margin: 0; padding: 28px 18px; }
+main { max-width: 620px; margin: 7vh auto; padding: 28px; border: 1px solid #40516c; border-radius: 16px; background: #192336; }
+.marca { color: #a8bde0; font-size: .85rem; letter-spacing: .06em; }
+h1 { font-size: clamp(1.5rem, 5vw, 2rem); line-height: 1.2; }
+h2 { margin-top: 30px; font-size: 1.1rem; }
+p, li { line-height: 1.6; }
+li + li { margin-top: 10px; }
+ol { padding-left: 22px; }
+#descargar { display: block; padding: 18px; margin-top: 24px; border-radius: 10px; background: #a7f3c2; color: #10251a; text-decoration: none; font-weight: 750; text-align: center; line-height: 1.4; }
+#descargar:focus-visible { outline: 3px solid white; outline-offset: 4px; }
+#descargar:hover { background: #ccfadd; }
+[hidden] { display: none !important; }
+.nota { margin-top: 28px; font-size: .85rem; color: #b2c1d7; }
+@media (max-width: 480px) { main { margin: 12px auto; padding: 22px; } }
