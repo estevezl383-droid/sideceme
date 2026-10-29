@@ -24,7 +24,7 @@
   var COH = window.SIDOgoCoherencia, MESA = window.SIDOgoMesa, CALCO = window.SIDOgoCalco // 11-10-2026: coherencia, unidades que faltan, calco gráfico
   var RUTA = window.SIDRutaG4 // 16-10-2026: 🚚 la ruta del G-4 (Aprendizaje · practicar como G-4)
   if (!CAT) return
-  var K_MODO = 'sid_modalidad', K_HECHO = 'sid_mod_hecho', K_FASE = 'sid_mod_fase', K_ESC = 'sid_mod_escalon', K_PLEGADO = 'sid_mod_plegado', K_FOCO = 'sid_mod_foco'
+  var K_MODO = 'sid_modalidad', K_HECHO = 'sid_mod_hecho', K_FASE = 'sid_mod_fase', K_ESC = 'sid_mod_escalon', K_PLEGADO = 'sid_mod_plegado_v2', K_FOCO = 'sid_mod_foco'
   var K_RUTA = 'sid_mod_ruta', K_RUTA_M = 'sid_ruta_g4' // qué practica el alumno (PMTD completo / G-4) y lo que marcó a mano, por ejercicio
   var MODOS = [
     { id: 'mesa', rot: '🎖️ Mesa', title: 'La Mesa completa, como siempre: el instructor arma y reparte; cada G trabaja su tablero' },
@@ -32,7 +32,7 @@
     { id: 'profesor', rot: '🧑‍🏫 Profesor', title: 'Armar un ejercicio para los alumnos, paso a paso, con las herramientas de la Mesa' }
   ]
   var body = document.body
-  var modo = 'mesa', hecho = {}, fase = 1, escalon = 'ce', plegado = false, panel = null, sel = null, firma = ''
+  var modo = 'mesa', hecho = {}, fase = 1, escalon = 'ce', plegado = true, panel = null, sel = null, firma = ''
   // tapado: un tablero de la Mesa (Unidades, Área de Ops, Mesa EM…) o el de Superponer ocupa la
   // columna derecha; el tablero se pliega solo mientras tanto. abiertoIgual: lo abrió el usuario
   // igual (se corre a la izquierda de ese tablero).
@@ -155,7 +155,7 @@
     try { hecho = JSON.parse(lee(K_HECHO, '{}')) || {} } catch (e) { hecho = {} }
     fase = +lee(K_FASE, '1') || 1
     escalon = lee(K_ESC, 'ce')
-    plegado = lee(K_PLEGADO, '0') === '1'
+    plegado = lee(K_PLEGADO, '1') === '1'
     foco = lee(K_FOCO, 'pmtd'); if (!CAT.FOCOS.some(function (f) { return f.id === foco })) foco = 'pmtd'
     ruta = RUTA && lee(K_RUTA, 'pmtd') === 'g4' ? 'g4' : 'pmtd'
     try { rutaMarcas = JSON.parse(lee(K_RUTA_M, '{}')) || {} } catch (e) { rutaMarcas = {} }

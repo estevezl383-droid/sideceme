@@ -65,8 +65,8 @@ export function renombrarArea(aoi, id, texto) {
     nombre: areas.length === 1 ? nueva : `${areas.length} Áreas de Interés`, areasInteres: actualizadas } }
 }
 
-export function areasEnMapa(aoi) {
-  return { type: 'FeatureCollection', features: listarAreas(aoi).map(a => ({
+export function areasEnMapa(aoi, verCapa = {}) {
+  return { type: 'FeatureCollection', features: listarAreas(aoi).filter(a => verCapa.areaInteres !== false && verCapa[`areaInteres:${a.id}`] !== false).map(a => ({
     type: 'Feature', id: a.id, properties: { nombre: a.nombre }, geometry: a.geometry
   })) }
 }

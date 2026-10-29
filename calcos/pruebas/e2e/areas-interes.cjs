@@ -36,6 +36,7 @@ const pausa = ms => new Promise(r => setTimeout(r, ms))
       }
     }), true, 'mapa Leaflet activo')
     const panel = page.getByRole('region', { name: 'Áreas de Interés', exact: true })
+    await panel.getByRole('button', { name: '2 · Áreas de Interés', exact: true }).click()
     for (let i = 0; i < centros.length; i++) {
       await panel.getByRole('button', { name: /Dibujar.*área de interés/ }).click()
       const [lng, lat] = centros[i]

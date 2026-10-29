@@ -46,6 +46,7 @@ const aLaVista = (page) => page.evaluate(() => {
       await page.waitForTimeout(300)
       assert.equal(await page.evaluate(() => document.body.getAttribute('data-sid-modo')), 'aprendizaje')
       assert.ok(await page.locator(PANEL).isVisible())
+      if (await page.locator(`${PANEL}.plegado`).count()) await page.locator(`${PANEL} .asa`).dispatchEvent('click')
       assert.equal(await page.locator(`${PANEL} .fase`).count(), 7)
       assert.ok(/0 \/ 50 pasos/.test(await page.locator(`${PANEL} .total`).innerText()))
       assert.deepEqual(await aLaVista(page), [], 'el tablero de Aprendizaje se lee entero')

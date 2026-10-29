@@ -1,4 +1,5 @@
-import { listarAreas } from './modelo.mjs?v=20261028'
+import { listarAreas } from './modelo.mjs?v=20261028-vista'
+import { BotonOjo } from '../visibilidad/v1/panel.mjs?v=20261028'
 
 function NombreArea({ react: R, area, indice, bloqueado, onNombre }) {
   const [texto, setTexto] = R.useState(area.nombre)
@@ -13,12 +14,13 @@ function NombreArea({ react: R, area, indice, bloqueado, onNombre }) {
     onChange: e => setTexto(e.target.value), onBlur: guardar, onKeyDown: e => { if (e.key === 'Enter') e.currentTarget.blur() } })
 }
 
-export default function AreasInteres({ react: R, aoi, onNueva, onQuitar, onNombre, bloqueado = false }) {
+export default function AreasInteres({ react: R, aoi, onNueva, onQuitar, onNombre, verCapa = {}, onVerArea, bloqueado = false }) {
   const h = R.createElement, areas = listarAreas(aoi)
-  return h('section', { 'aria-label': 'Áreas de Interés', style: { display: 'grid', gap: 8, marginBottom: 10 } },
+  return h('div', { style: { display: 'grid', gap: 8, marginBottom: 10 } },
     h('strong', { role: 'status' }, `${areas.length} ${areas.length === 1 ? 'área de interés' : 'áreas de interés'}`),
     h('small', null, 'Puedes mantener cinco o más áreas a la vez. Generar calcos analiza todas, sin incluir el terreno que queda entre ellas.'),
     ...areas.map((area, i) => h('div', { key: area.id, style: { display: 'flex', gap: 5, alignItems: 'center' } },
+      h(BotonOjo, { react: R, nombre: area.nombre, visible: verCapa.areaInteres !== false && verCapa[`areaInteres:${area.id}`] !== false, onClick: () => onVerArea(area.id) }),
       h(NombreArea, { react: R, area, indice: i, bloqueado, onNombre }),
       h('button', { type: 'button', className: 'btn-mini', disabled: bloqueado, 'aria-label': `Quitar ${area.nombre}`,
         onClick: () => { if (globalThis.confirm(`¿Quitar «${area.nombre}»? Las demás áreas se conservan.`)) onQuitar(area.id) } }, '✕'))),

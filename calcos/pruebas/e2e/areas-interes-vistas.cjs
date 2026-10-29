@@ -15,6 +15,7 @@ const sectores = Array.from({ length: 5 }, (_, i) => {
     antigua.nombre = 'Área anterior (FICT.)'
     antigua.aoi = { type: 'Feature', properties: { nombre: 'Área histórica' }, geometry: sectores[0].geometry }
     await sembrarYAbrir(page, antigua)
+    await panel.getByRole('button', { name: '2 · Áreas de Interés', exact: true }).click()
     await panel.getByRole('status').filter({ hasText: /^1 área/ }).waitFor()
     assert.equal(await panel.getByLabel('Nombre del Área de Interés 1', { exact: true }).inputValue(), 'Área histórica')
 

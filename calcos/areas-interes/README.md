@@ -24,14 +24,16 @@ para conservar el contrato del generador de calcos y de los archivos antiguos.
 El guardado del ejercicio, sus JSON y la BASE conservan esa información sin
 cambios de base de datos. Las áreas antiguas sin la lista siguen abriendo.
 
-El compilado se reproduce con:
+El compilado inicial de esta función se construyó con
+`construir-areas-interes.js`. La versión vigente incorpora los controles de ojo
+y los grupos plegados; se reproduce con:
 
 ```bash
-node calcos/pruebas/construir-areas-interes.js
+node calcos/pruebas/construir-vista-plegada.js
 ```
 
 El constructor verifica el SHA-256 del compilado de partida y la reversibilidad
-de cada cambio antes de generar `index-areas-interes-20261028.js`. No modifica
+de cada cambio antes de generar `index-vista-plegada-20261028.js`. No modifica
 los compilados anteriores ni sus hashes esperados.
 
 Pruebas desde el directorio raíz, con Node 22 y PLAYWRIGHT_MODULE configurado:

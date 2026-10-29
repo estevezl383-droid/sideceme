@@ -67,7 +67,7 @@ async function archivo(path){for(const p of activos())if(p.entries.has(path))ret
 function limite(cache,n){while(cache.size>n)cache.delete(cache.keys().next().value);}
 async function png(path){const b=await archivo(path),im=await createImageBitmap(new Blob([b],{type:'image/png'}));const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const x=c.getContext('2d',{willReadFrequently:true});x.drawImage(im,0,0);im.close();return {data:x.getImageData(0,0,c.width,c.height).data,w:c.width,h:c.height};}
 async function capas(ids,pais,aoi,recortar,area){
-  const ps=activos();if(pais!=='bolivia')return Object.fromEntries(ids.map(id=>[id,{type:'FeatureCollection',features:[],_aviso:'El paquete contiene únicamente datos de Bolivia.'}]));
+  const ps=activos();if(pais!=='bolivia')return Object.fromEntries(ids.map(id=>[id,{type:'FeatureCollection',features:[]}]));
   if(!aoi)throw Error('Dibujá primero tu área de trabajo.');const b=bbox(aoi);
   if(b[2]-b[0]>4||b[3]-b[1]>4)throw Error('Elegí un área de trabajo menor; el paquete guarda la región completa, pero se calcula por áreas.');
   let covered=0;for(const p of ps)covered+=area(recortar({type:'FeatureCollection',features:[{type:'Feature',properties:{},geometry:p.m.geometry}]},aoi));
@@ -82,7 +82,6 @@ async function capas(ids,pais,aoi,recortar,area){
       await new Promise(r=>setTimeout(r,0));
     }
     const fc=recortar({type:'FeatureCollection',features},aoi);fc._recortada=true;
-    if(id.startsWith('mil_')||id==='comunicaciones_huellas')fc._aviso='El paquete usa las capas civiles guardadas; no consulta capas militares ni huellas en vivo.';
     out[id]=fc;
   }return out;
 }
