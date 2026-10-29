@@ -3,6 +3,8 @@
   "private": true,
   "description": "Pruebas sobre el compilado de la Mesa del EM (calcos/assets) y los módulos de estudio (calcos/academico), del plan de fuegos (calcos/fuegos), de la hoja de conceptos entrelazados (calcos/conceptos), de la matriz de administración del riesgo (calcos/riesgo), de la orden de reconocimiento (calcos/reconocimiento), de la logística del G-4 y su tablero por instalación (calcos/logistica, calcos/fichas-instalacion) y del motor de documentos de Estado Mayor con el G-1, el G-5 y la Potencia Relativa de Combate del G-3 (calcos/estado-mayor) y de la Formación inicial de las fuerzas del G-3 (calcos/organizacion) y del concepto de la operación en la carta, F3·P4 (calcos/concepto-operacion), de los puntos de decisión de la F4·P4 en la carta (calcos/puntos-decision), de la revisión del CAE del G-2 (calcos/cae-enemigo), de los dos CAP propios que propone la Mesa, con las tareas de cada fase junto a su unidad y el itinerario con flechas (calcos/cap-propios), del evento crítico de la Matriz de sincronización para el Juego de Guerra (calcos/evento-critico), de la Guía de Planificación Final del Comandante con la forma del PMTD 2017 (calcos/estado-mayor, campos/cmte.js) y de las imágenes de Google (calcos/google-mapas). e2e: Chromium con Playwright.",
   "scripts": {
+    "test:cursos-visibilidad": "node cursos-visibilidad.mjs",
+    "e2e:cursos-g2-g3": "node e2e/cursos-g2-g3.cjs",
     "test:visibilidad": "node visibilidad.mjs",
     "e2e:visibilidad": "node e2e/vista-plegada.cjs && node e2e/paquetes.cjs",
     "test:areas-interes": "node areas-interes.mjs",

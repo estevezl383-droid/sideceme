@@ -23,7 +23,7 @@ Construcción reproducible desde el compilado anterior, comprobando su SHA-256
 y la reversibilidad de los cambios:
 
 ```bash
-node calcos/pruebas/construir-vista-plegada.js
+node calcos/pruebas/construir-cursos-g2-g3.js
 ```
 
 Pruebas con datos ficticios y un paquete cifrado generado para el test:
@@ -38,3 +38,5 @@ El paquete de prueba se sitúa dentro de Bolivia, en una zona cuya caja también
 intersecta la caja de Brasil. Se comprueba que no se consultan otros países, que
 se generan los calcos y el CMOC, que no aparecen avisos repetidos y que cerrar
 el paquete produce un error real visible.
+
+La versión vigente añade los [cursos de G-2 y G-3](CURSOS-G2-G3.md) al panel.

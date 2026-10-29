@@ -882,7 +882,7 @@ tr.fuera td { color: #b000b0; }
     refs = { blancos: new Map(), anillos: new Map() }
     const L = Lf()
     const m = mapa()
-    if (!L || !m || !puente) return
+    if (!L || !m || !puente || puente.visible === false) return
     const d = datos()
     const abierta = !!raiz
     const g = L.layerGroup()

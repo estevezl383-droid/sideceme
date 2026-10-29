@@ -139,7 +139,7 @@ function quitar() {
 function dibujar() {
   const L = leaflet()
   const m = mapa()
-  if (!L || !m || !puente) return quitar()
+  if (!L || !m || !puente || puente.visible === false) return quitar()
   const est = estado()
   const cc = puente.g3?.conceptoCarta || {}
   const ver = cc.verEnCarta !== false

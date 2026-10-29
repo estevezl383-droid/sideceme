@@ -29,11 +29,11 @@ El compilado inicial de esta función se construyó con
 y los grupos plegados; se reproduce con:
 
 ```bash
-node calcos/pruebas/construir-vista-plegada.js
+node calcos/pruebas/construir-cursos-g2-g3.js
 ```
 
 El constructor verifica el SHA-256 del compilado de partida y la reversibilidad
-de cada cambio antes de generar `index-vista-plegada-20261028.js`. No modifica
+de cada cambio antes de generar `index-cursos-g2-g3-20261029.js`. No modifica
 los compilados anteriores ni sus hashes esperados.
 
 Pruebas desde el directorio raíz, con Node 22 y PLAYWRIGHT_MODULE configurado:

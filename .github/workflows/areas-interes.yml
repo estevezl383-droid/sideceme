@@ -9,6 +9,11 @@ on:
       - 'calcos/index.html'
       - 'calcos/assets/index-areas-interes-20261028.js'
       - 'calcos/assets/index-vista-plegada-20261028.js'
+      - 'calcos/assets/index-cursos-g2-g3-20261029.js'
+      - 'calcos/fuegos/plan-fuegos.js'
+      - 'calcos/concepto-operacion/v1/carta.js'
+      - 'calcos/pruebas/*cursos*'
+      - 'calcos/pruebas/e2e/cursos-g2-g3.cjs'
       - 'calcos/pruebas/*vista*'
       - 'calcos/pruebas/visibilidad.mjs'
       - 'calcos/pruebas/e2e/vista-plegada.cjs'
@@ -34,10 +39,11 @@ jobs:
           npm ci --prefix calcos/pruebas
           npm run test:areas-interes --prefix calcos/pruebas
           npm run test:visibilidad --prefix calcos/pruebas
+          npm run test:cursos-visibilidad --prefix calcos/pruebas
           node calcos/pruebas/paquetes.mjs
-          node calcos/pruebas/construir-vista-plegada.js
-          git diff --exit-code -- calcos/index.html calcos/assets/index-vista-plegada-20261028.js
-          node --check calcos/assets/index-vista-plegada-20261028.js
+          node calcos/pruebas/construir-cursos-g2-g3.js
+          git diff --exit-code -- calcos/index.html calcos/assets/index-cursos-g2-g3-20261029.js
+          node --check calcos/assets/index-cursos-g2-g3-20261029.js
       - name: Preparar Chromium
         run: |
           npm install --prefix /tmp/prueba-areas-interes playwright@1.51.1
@@ -48,6 +54,7 @@ jobs:
         run: |
           npm run e2e:areas-interes --prefix calcos/pruebas
           npm run e2e:visibilidad --prefix calcos/pruebas
+          npm run e2e:cursos-g2-g3 --prefix calcos/pruebas
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -55,4 +62,5 @@ jobs:
           path: |
             calcos/pruebas/salidas-areas-interes/
             calcos/pruebas/salidas-vista-plegada/
+            calcos/pruebas/salidas-cursos-g2-g3/
           retention-days: 7
