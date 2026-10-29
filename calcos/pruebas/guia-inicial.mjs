@@ -169,9 +169,10 @@ caso('el formato militar: «sinAutenticacion» deja sólo la distribución (word
   assert.ok(word.includes('if(spec.sinAutenticacion)body.push(...dis);else body.push(tablaBloques(aut,dis,10.5*cm))'))
   const rt = fs.readFileSync(path.join(DIR, '..', 'formato-militar', 'v1', 'runtime.js'), 'utf8')
   assert.ok(rt.includes("from './word.js?v=guia20261027'"))
-  assert.ok(SRC.includes('formato-militar/v1/runtime.js?v=guiainicial20261027'))
+  // (29-10-2026) La OGO F7·P1 subió la versión: «ogo20261029» (y el autenticador de la hoja: spec.autenticador).
+  assert.ok(/formato-militar\/v1\/runtime\.js\?v=(guiainicial20261027|ogo20261029)/.test(SRC))
   // En el automático, la distribución de la hoja con estructura propia manda sobre la guardada antes.
-  assert.ok(rt.includes("if(spec.estructuraPropia){if(spec.numero)cfg.numero=spec.numero;if(spec.distribucion)cfg.distribucion=spec.distribucion}if(spec.sinNumero)cfg.numero='';"))
+  assert.ok(/if\(spec\.estructuraPropia\)\{if\(spec\.numero\)cfg\.numero=spec\.numero;if\(spec\.distribucion\)cfg\.distribucion=spec\.distribucion(;if\(spec\.autenticador\)cfg\.autenticador=spec\.autenticador)?\}if\(spec\.sinNumero\)cfg\.numero='';/.test(rt))
 })
 
 caso('ningún gancho cae DENTRO de lo que insertaron las listas anteriores (salvo la versión del formato militar)', () => {

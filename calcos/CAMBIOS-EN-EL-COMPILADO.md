@@ -5,6 +5,42 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-29 — 📜 La Orden General de Operaciones (F7·P1) con la forma de la Escuela (`index-ogo-20261029.js`)
+
+Parte de `index-areas-logisticas-20261029.js` + `pruebas/reemplazos-2026-10-29-ogo.js` (11 reemplazos; `construir-ogo.js`
+comprueba el SHA-256 del anterior y que se deshace byte por byte; paso nuevo arriba de `PASOS` en `reemplazos-compilado.js`).
+Sergio, con el Word de la F7·P1 que le bajó la Mesa, la OGO 01-35, la OGO 01/21 del CE-I, la O.O. 05/24 y el texto del
+PMTD 2017: «está demasiado incompleta, mal redactada y muy mal hecha… la OGO contiene tareas y un montón de
+información que ya hay en la Mesa». Ver `orden-operaciones/README.md`.
+
+- **Qué pasaba**: la F7·P1 tenía claves como «A.1 Curso de acción más PROBABLE» y el Word genérico (`R3e`) les ponía su
+  numeración encima («I. Encabezamiento», «III. I.- SITUACIÓN», «B. 1 …»); la organización de la tarea salía como texto,
+  la intención como «Propósito: … Tareas clave: …», las tareas sin subpárrafos, la autenticación «G3» y la distribución
+  «UU. DEP.»; 🌱 casi no traía nada; el aviso de la hoja mandaba a otro borrador (Mesa EM → «Orden de Operaciones +
+  matriz», con «[Completar…]»).
+- **Fuera del compilado**: `orden-operaciones/v1/ogo.mjs` (nuevo: la hoja, la guía, la ayuda de la IA con lo que ya tiene
+  la Mesa, 🌱 desde todas las hojas, las claves de antes y el Word); `formato-militar/v1/runtime.js` (`spec.autenticador`).
+- **En el compilado**: el import (`ogo.mjs?v=ogo20261029`, antes del de la Guía Inicial); la F7·P1 de `ev` →
+  `{...SIDOgoHoja,anexos:Ike,get ayudaIA(){…}}` (sin `remite`: se va el aviso); `Qoe.opord` → `SIDOgoGuia` (la vieja queda
+  como `SIDopordGuiaVieja`); `l3e` `case"opord"` → `SIDOgoSemilla` (el cuerpo viejo queda como `case"SIDopordViejo"` y
+  le pasa el CAE, los fuegos y el plan de barreras); en `Aoe` (antes de `const i=VM(t)` de la PRC) y en `Coe`, la F7·P1
+  baja `SIDOgoWord` como «F7P1_Orden_General_de_Operaciones»; `yU` lee la hoja con `SIDOgoLeer`; el `Ge` del Tablero del
+  G-3 la guarda sin las claves de antes; Mesa EM → «Orden General de Operaciones (F7·P1)» (`du`) baja la misma OGO (el
+  borrador `dNe` sólo si algo falla); `formato-militar/v1/runtime.js?v=ogo20261029`.
+- **En el fuente**: la hoja F7·P1 del catálogo del G-3 con las casillas del módulo; el 🌱, el Word y el pedido desde el
+  módulo; el botón de Mesa EM con la misma OGO.
+- **Cómo se comprobó**: `pruebas/ogo-f7.mjs` (8 casos con `ev`, `Qoe`, `l3e`, `MS`, `Soe` y `VM` reales, la F7·P1 que bajó
+  Sergio con las claves de antes, el .docx con `word.js` pasado a PDF con LibreOffice y mirado);
+  `pruebas/e2e/ogo-f7.cjs` (en la Mesa, escritorio y teléfono: las casillas, lo escrito antes en su lugar, 🌱 sin pisar y
+  sin claves viejas, el pedido con el formato y lo de la Mesa, el Word bajado y leído, sin errores de consola);
+  `npm test`; e2e `membrete`. `guia-inicial.mjs` acepta la versión nueva del formato militar.
+- **Lo que ya fallaba en `main` y sigue igual** (no es de este cambio): en `guia-inicial.mjs`, «ningún gancho cae DENTRO…»
+  nombra 9 reemplazos del 03-10 al 25-10 que partieron los compilados del 28 y 29-10; `reemplazos-compilado.js` da 70
+  casos (los pasos del 27-10 al 29-10 de otros compilados no están en `PASOS`); las e2e `guia-inicial`,
+  `orden-preparatoria`, `guia-planificacion`, `guia-final` y `pedido-cmte` se cortan esperando el visor «👁 Ver el
+  pedido».
+- **Si se recompila desde el fuente**: llevar la hoja, la guía, `l3e`/`Aoe`/`Coe`/`yU`/`Ge` de la F7·P1 y el botón de Mesa EM.
+
 ## 2026-10-27 (3) — 📋 La Guía Inicial del Comandante (F1·P6) con la forma del PMTD 2017 (`index-guia-inicial-20261027.js`)
 
 Parte de `index-guia-plan-20261027.js` (encima de la Guía de Planificación F2·P15 y la Final F6·P2, del mismo día) + `pruebas/reemplazos-2026-10-27-guia-inicial.js` (10 reemplazos;

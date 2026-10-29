@@ -70,7 +70,9 @@
 //   index-evento-fases-20261025.js + reemplazos-2026-10-26-op3.js = index-op3-20261026.js
 //   index-op3-20261026.js + reemplazos-2026-10-27-guia-final.js = index-guia-final-20261027.js
 //   index-guia-final-20261027.js + reemplazos-2026-10-27-guia-plan.js = index-guia-plan-20261027.js
-//   index-guia-plan-20261027.js + reemplazos-2026-10-27-guia-inicial.js = index-guia-inicial-20261027.js (el vigente)
+//   index-guia-plan-20261027.js + reemplazos-2026-10-27-guia-inicial.js = index-guia-inicial-20261027.js
+//   … (index-paquetes, areas-interes, vista-plegada, cursos-g2-g3, productos-em y areas-logisticas: sus construir-*.js) …
+//   index-areas-logisticas-20261029.js + reemplazos-2026-10-29-ogo.js = index-ogo-20261029.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -84,6 +86,12 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-29-ogo'),
+    nombre: 'reemplazos-2026-10-29-ogo',
+    // calcos/assets/index-areas-logisticas-20261029.js (antes de la Orden General de Operaciones F7·P1 con la forma de la Escuela).
+    anterior: '01d5ef175f0304651a3d7cf6a9df66c751a64cf1abf0ea436de51c40344fb05a',
+  },
   {
     lista: require('./reemplazos-2026-10-27-guia-inicial'),
     nombre: 'reemplazos-2026-10-27-guia-inicial',

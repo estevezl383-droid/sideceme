@@ -29,7 +29,7 @@ Los borradores antiguos guardados en `ops.documentosMilitares` permanecen dispon
 | G-3 `ivr` F2·P9 | Orden de reconocimiento (forma de la Escuela, `calcos/reconocimiento/v1`) | Principal; estructura propia de la hoja |
 | Cmte. / G-3 `guiaInicial` F1·P6 (27-10-2026, `calcos/guia-inicial/v1`) | Guía Inicial del Comandante del PMTD 2017 (siete apartados, `estructuraPropia`) | Principal; distribución sólo al Estado Mayor (`spec.distribucion`), sin autenticación (`spec.sinAutenticacion`, word.js) y sin número en el título (`spec.sinNumero`, runtime.js) |
 | G-3 `prep1`, `prep2`, `prep3` | Preparatorias 1, 2 y 3 | Principal; formulario del paso |
-| G-3 `opord` | Orden de operaciones | Principal; formulario |
+| G-3 `opord` F7·P1 (29-10-2026, `calcos/orden-operaciones/v1`) | Orden General de Operaciones del PMTD 2017 y de los modelos de la Escuela (`estructuraPropia`: cuadro de la organización, I.- a V.-, intención inextensa) | Principal; autenticación del «G-3» (`spec.autenticador`, runtime.js) y distribución a las unidades |
 | `aprecActiva`, `aprecOrientacion`, `aprecOps` | Apreciación de la sección correspondiente | Principal; ejercicio/calco vigente |
 | G-1 `anexoF7P1`, `mNe` | Plan de personal | Anexo; productor existente de personal |
 | G-1 `aprecActiva`, `aprecOrientacion` (Mis hojas, `calcos/estado-mayor/v4`) | Apreciación de personal (forma del modelo, `estructuraPropia`) | Principal; se trabaja en la hoja (🌱, IA) |

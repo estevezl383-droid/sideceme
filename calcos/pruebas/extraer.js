@@ -41,7 +41,12 @@ function cargar(ruta, nombres, globales = {}) {
   const gi = require('../guia-inicial/v1/guia.mjs')
   const GUIA = { SIDGuiaLeer: guia.leerGuia, SIDGuiaPlan: guia.HOJA_GUIA_PLANIFICACION, SIDGuiaCmte: gi.HOJA_CMTE, SIDGuiaG3: gi.HOJA_G3, SIDGuiaGuia: gi.GUIA, SIDGuiaSemilla: gi.semillaGuia, SIDGuiaWord: gi.wordGuia, SIDGuiaAyuda: gi.AyudaGuia, SIDGuiaCalco: () => ({}) }
   for (const k of Object.keys(GUIA)) quiero.delete(k)
-  globales = { ...CAE, ...CALC, ...GUIA, ...globales }
+  // SIDOgo* no son del compilado: los importa de calcos/orden-operaciones/v1 (la Orden General de Operaciones F7·P1,
+  // 29-10-2026).
+  const ogo = require('../orden-operaciones/v1/ogo.mjs')
+  const OGO = { SIDOgoHoja: ogo.HOJA, SIDOgoGuia: ogo.GUIA, SIDOgoSemilla: ogo.semillaOgo, SIDOgoSembrar: ogo.sembrarOgo, SIDOgoLeer: ogo.leerOgo, SIDOgoWord: ogo.wordOgo, SIDOgoAyudaIA: ogo.ayudaIAConMesa }
+  for (const k of Object.keys(OGO)) quiero.delete(k)
+  globales = { ...CAE, ...CALC, ...GUIA, ...OGO, ...globales }
   if (quiero.size) throw new Error(`No están en ${ruta}: ${[...quiero].join(', ')}`)
   const ctx = { ...globales }
   vm.createContext(ctx)
