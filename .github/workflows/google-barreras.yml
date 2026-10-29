@@ -5,6 +5,8 @@ on:
       - 'calcos/google-mapas/**'
       - 'calcos/visibilidad/**'
       - 'calcos/assets/index-productos-em-20261029.js'
+      - 'calcos/assets/index-areas-logisticas-20261029.js'
+      - 'calcos/pruebas/e2e/areas-logisticas.cjs'
       - 'calcos/pruebas/e2e/productos-em.cjs'
       - 'calcos/pruebas/e2e/google-3d-barreras.cjs'
       - 'calcos/pruebas/e2e/google-mapas.cjs'
@@ -36,6 +38,7 @@ jobs:
           node --check calcos/google-mapas/v1/google-mapas.js
           npm run e2e:google-barreras --prefix calcos/pruebas
           npm run e2e:productos-em --prefix calcos/pruebas
+          npm run e2e:areas-logisticas --prefix calcos/pruebas
           node calcos/pruebas/e2e/google-mapas.cjs
       - uses: actions/upload-artifact@v4
         if: always()
@@ -45,4 +48,5 @@ jobs:
             calcos/pruebas/salidas-google-3d-barreras/
             calcos/pruebas/salidas-google-mapas/
             calcos/pruebas/salidas-productos-em/
+            calcos/pruebas/salidas-areas-logisticas/
           retention-days: 7

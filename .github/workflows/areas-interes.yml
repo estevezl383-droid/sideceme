@@ -11,6 +11,8 @@ on:
       - 'calcos/assets/index-vista-plegada-20261028.js'
       - 'calcos/assets/index-cursos-g2-g3-20261029.js'
       - 'calcos/assets/index-productos-em-20261029.js'
+      - 'calcos/assets/index-areas-logisticas-20261029.js'
+      - 'calcos/pruebas/*areas-logisticas*'
       - 'calcos/pruebas/*productos-em*'
       - 'calcos/pruebas/e2e/productos-em.cjs'
       - 'calcos/fuegos/plan-fuegos.js'
@@ -44,10 +46,11 @@ jobs:
           npm run test:visibilidad --prefix calcos/pruebas
           npm run test:cursos-visibilidad --prefix calcos/pruebas
           npm run test:productos-em --prefix calcos/pruebas
+          npm run test:areas-logisticas --prefix calcos/pruebas
           node calcos/pruebas/paquetes.mjs
-          node calcos/pruebas/construir-productos-em.js
-          git diff --exit-code -- calcos/index.html calcos/assets/index-productos-em-20261029.js
-          node --check calcos/assets/index-productos-em-20261029.js
+          node calcos/pruebas/construir-areas-logisticas.js
+          git diff --exit-code -- calcos/index.html calcos/assets/index-areas-logisticas-20261029.js
+          node --check calcos/assets/index-areas-logisticas-20261029.js
       - name: Preparar Chromium
         run: |
           npm install --prefix /tmp/prueba-areas-interes playwright@1.51.1

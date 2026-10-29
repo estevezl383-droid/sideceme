@@ -23,12 +23,14 @@ conservan sus controles propios en «Superponer».
 Construcción y pruebas desde la raíz:
 
 ```bash
-node calcos/pruebas/construir-productos-em.js
+node calcos/pruebas/construir-areas-logisticas.js
 npm run test:productos-em --prefix calcos/pruebas
 CESIUM_DIR=…/Build/Cesium npm run e2e:productos-em --prefix calcos/pruebas
 ```
 
-El constructor verifica el SHA-256 de `index-cursos-g2-g3-20261029.js`, la unicidad de cada reemplazo y
-la reversibilidad completa. Genera `index-productos-em-20261029.js`, sin modificar compilados anteriores.
+El constructor verifica el SHA-256 de `index-productos-em-20261029.js`, la unicidad de cada reemplazo y
+la reversibilidad completa. Genera `index-areas-logisticas-20261029.js`, sin modificar compilados anteriores.
 La prueba de navegador usa datos ficticios: verifica ojos individuales y de grupo, las tres vistas,
 conservación del ejercicio y edición del ARCE de índice 1 mientras el ASDI de índice 0 está oculto.
+
+La vista de las cuatro áreas sin instalaciones se detalla en [AREAS-LOGISTICAS.md](AREAS-LOGISTICAS.md).

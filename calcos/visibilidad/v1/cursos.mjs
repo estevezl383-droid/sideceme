@@ -1,6 +1,6 @@
 import { capsDe } from '../../cap-propios/v1/proponer.mjs'
 import { BotonOjo, CabeceraGrupo } from './panel.mjs?v=20261028'
-import { unidadesProductos } from './productos-em.mjs?v=20261029-g4-g1'
+import { unidadesProductos } from './productos-em.mjs?v=20261029-areas-logisticas'
 
 export function cursosEnemigos(fasesCOA = {}) {
   const cursos = [

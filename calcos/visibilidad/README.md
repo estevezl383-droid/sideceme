@@ -23,7 +23,7 @@ Construcción reproducible desde el compilado anterior, comprobando su SHA-256
 y la reversibilidad de los cambios:
 
 ```bash
-node calcos/pruebas/construir-productos-em.js
+node calcos/pruebas/construir-areas-logisticas.js
 ```
 
 Pruebas con datos ficticios y un paquete cifrado generado para el test:

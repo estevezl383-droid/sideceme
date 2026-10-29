@@ -1,0 +1,11 @@
+module.exports = [
+  {nombre:'Áreas internas de la plantilla en G-4',viejo:'cambiarProducto as SIDCambiarProducto} from',nuevo:'cambiarProducto as SIDCambiarProducto,sectoresRepresentados as SIDSectoresRepresentados} from',veces:1},
+  {nombre:'Actualizar productos G-4/G-1',viejo:'../visibilidad/v1/productos-em.mjs?v=20261029-g4-g1"',nuevo:'../visibilidad/v1/productos-em.mjs?v=20261029-areas-logisticas"',veces:1},
+  {nombre:'Actualizar el filtro de instalaciones',viejo:'../visibilidad/v1/cursos.mjs?v=20261029-g4-g1"',nuevo:'../visibilidad/v1/cursos.mjs?v=20261029-areas-logisticas"',veces:1},
+  {nombre:'Usar la plantilla existente sin desplegar sus instalaciones',viejo:'unidades:SIDcursos.unidades,catalogo:h8,verCapa:re',nuevo:'unidades:SIDcursos.unidades,catalogo:h8,crearSectores:rDe,verCapa:re',veces:1},
+  {nombre:'Dibujar áreas internas aunque no haya instalaciones',viejo:'(T.sectoresLog||[]).forEach((dt,ft)=>{if(!SIDProductoVisible',nuevo:'SIDSectoresRepresentados(T,rDe).forEach((dt,ft)=>{if(!SIDProductoVisible',veces:1},
+  {nombre:'Los esquemas no tienen acciones de edición sobre datos guardados',viejo:'Kt=SIDBorde(_n,SIDpg,SIDed);if(SIDed){if(yo(Kt,j,"sectorLog"',nuevo:'Kt=SIDBorde(_n,SIDpg,SIDed&&!dt.soloVista);if(SIDed&&!dt.soloVista){if(yo(Kt,j,"sectorLog"',veces:1},
+  {nombre:'Contornos internos legibles sobre el terreno',viejo:'weight:1.6,dashArray:"7 5",fillColor:mt,fillOpacity:.07',nuevo:'weight:dt.soloVista?2.4:1.6,dashArray:"7 5",fillColor:mt,fillOpacity:dt.soloVista?0.14:0.07',veces:1},
+  {nombre:'Rotular el contorno exterior sin tapar las áreas internas',viejo:'const Pt=Kt.getBounds().getCenter();Rt.marker(Pt,{icon:Rt.divIcon({className:"zona-log",html:',nuevo:'const SIDsoloAreas=S?.["g4:instalaciones"]===!1&&S?.["g4:sectores"]!==!1,Pt=SIDsoloAreas?Kt.getBounds().getNorthWest():Kt.getBounds().getCenter();Rt.marker(Pt,{icon:Rt.divIcon({className:"zona-log",html:SIDsoloAreas?`<b style="color:${hd};font:700 12px Arial;text-shadow:0 0 3px #fff,0 0 3px #fff;white-space:nowrap">${Vt}</b>`:',veces:1},
+  {nombre:'Anclar el nombre ASDI/ARCE en la esquina',viejo:'iconSize:[120,46],iconAnchor:[60,23]',nuevo:'iconSize:[120,46],iconAnchor:SIDsoloAreas?[0,20]:[60,23]',veces:1}
+]
