@@ -294,34 +294,41 @@
     return pts.filter((p, i) => queda[i])
   }
 
-  // Un DivIcon de la carta → ficha (si tiene una imagen), flecha (si es sólo un SVG) o rótulo (texto).
+  // Un DivIcon puede contener símbolo Y rótulo: los calcos superpuestos usan
+  // esa combinación. Pasar sólo el texto hacía desaparecer el símbolo en 3D.
   function divIcono(html, ll, tam, calco) {
     const d = document.createElement('div')
     d.innerHTML = typeof html === 'string' ? html : html && html.outerHTML ? html.outerHTML : ''
-    const texto = d.textContent.replace(/\s+/g, ' ').trim()
+    let separacion = 0
     const img = d.querySelector('img')
-    if (img && img.getAttribute('src') && !texto) {
+    if (img && img.getAttribute('src')) {
       const w = Number(img.getAttribute('width')) || (tam && tam.x) || 0
       const h = Number(img.getAttribute('height')) || (tam && tam.y) || 0
-      return calco.fichas.push({ lng: ll[0], lat: ll[1], img: img.src, ancho: w, alto: h, ax: w / 2, ay: h / 2 })
+      calco.fichas.push({ lng: ll[0], lat: ll[1], img: img.src, ancho: w, alto: h, ax: w / 2, ay: h / 2 })
+      separacion = w / 2 * (h > 0 ? Math.max(1, Math.min(4, 34 / h)) : 1) + 6
+      img.remove()
     }
     const svg = d.querySelector('svg')
-    if (svg && texto === svg.textContent.replace(/\s+/g, ' ').trim()) {
+    if (svg) {
       const w = Number(svg.getAttribute('width')) || (tam && tam.x) || 18
       const h = Number(svg.getAttribute('height')) || (tam && tam.y) || 18
       svg.setAttribute('width', w)
       svg.setAttribute('height', h)
       const giro = /rotate\((-?[\d.]+)deg\)/.exec(d.innerHTML)
       const fuente = new XMLSerializer().serializeToString(svg)
-      return calco.flechas.push({ lng: ll[0], lat: ll[1], svg: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(fuente), ancho: w, alto: h, rot: giro ? Number(giro[1]) : 0 })
+      calco.flechas.push({ lng: ll[0], lat: ll[1], svg: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(fuente), ancho: w, alto: h, rot: giro ? Number(giro[1]) : 0 })
+      separacion = Math.max(separacion, w * 0.7 + 6)
+      svg.remove()
     }
+    const texto = d.textContent.replace(/\s+/g, ' ').trim()
     if (!texto) return
     // Un renglón por cada <div> sin otros adentro o por cada <br>.
     const hojas = Array.from(d.querySelectorAll('div')).filter((x) => !x.querySelector('div'))
     const lineas = hojas.length > 1 ? hojas.map((x) => x.textContent.trim()).filter(Boolean) : [d.innerHTML.split(/<br\s*\/?>/i).map((t) => { const e = document.createElement('div'); e.innerHTML = t; return e.textContent.trim() }).filter(Boolean).join('\n')]
     const color = /(?:^|[;"\s])color:\s*([^;"]+)/.exec(d.innerHTML)
     const tamLetra = /font:[^;"]*?([\d.]+)px/.exec(d.innerHTML) || /font-size:\s*([\d.]+)px/.exec(d.innerHTML)
-    calco.rotulos.push({ lng: ll[0], lat: ll[1], texto: lineas.join('\n'), color: color ? color[1].trim() : '#000', tam: tamLetra ? Number(tamLetra[1]) : 12 })
+    calco.rotulos.push({ lng: ll[0], lat: ll[1], texto: lineas.join('\n'), color: color ? color[1].trim() : '#000', tam: tamLetra ? Number(tamLetra[1]) : 12,
+      ...(separacion ? { dx: separacion, alinear: 'izquierda' } : {}) })
   }
 
   // Lo que está prendido en la carta 2D (Leaflet): áreas, líneas, círculos, fichas, flechas y rótulos, en grados.
@@ -516,7 +523,7 @@
     marco.setAttribute('allow', 'fullscreen')
     marco.style.cssText = 'border:0;width:100%;height:100%;display:block'
     const url = new URL('google-mapas/v1/3d.html', location.href.replace(/[^/]*$/, ''))
-    url.search = '?embebido=1&v=20261025-fluido' // el ?v= para que el navegador no use un 3d.html viejo
+    url.search = '?embebido=1&v=20261029-barreras' // el ?v= para que el navegador no use un 3d.html viejo
     url.hash = `${v.lat.toFixed(5)},${v.lng.toFixed(5)},${v.zoom.toFixed(1)}`
     marco.src = url.toString()
     caja.appendChild(marco)

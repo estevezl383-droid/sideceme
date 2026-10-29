@@ -240,7 +240,7 @@
       for (const r of calco.rotulos || []) cosa('r', r, () => {
         puntual(r.lng, r.lat, add({
           position: op.lugar(r.lng, r.lat),
-          label: Object.assign({ text: r.texto, font: `700 ${Math.max(12, Math.min(22, r.tam || 12))}px Arial`, fillColor: color(r.color || '#000', 1), outlineColor: C.Color.WHITE, outlineWidth: 3, style: C.LabelStyle.FILL_AND_OUTLINE, horizontalOrigin: C.HorizontalOrigin.CENTER, verticalOrigin: C.VerticalOrigin.CENTER }, alSuelo),
+          label: Object.assign({ text: r.texto, font: `700 ${Math.max(12, Math.min(22, r.tam || 12))}px Arial`, fillColor: color(r.color || '#000', 1), outlineColor: C.Color.WHITE, outlineWidth: 3, style: C.LabelStyle.FILL_AND_OUTLINE, horizontalOrigin: r.alinear === 'izquierda' ? C.HorizontalOrigin.LEFT : C.HorizontalOrigin.CENTER, verticalOrigin: C.VerticalOrigin.CENTER, pixelOffset: new C.Cartesian2(r.dx || 0, r.dy || 0) }, alSuelo),
         }))
       })
       // Lo que ya no está en la carta.

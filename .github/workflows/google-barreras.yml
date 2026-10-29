@@ -1,0 +1,43 @@
+name: Calcos en Google 3D
+on:
+  pull_request:
+    paths:
+      - 'calcos/google-mapas/**'
+      - 'calcos/pruebas/e2e/google-3d-barreras.cjs'
+      - 'calcos/pruebas/e2e/google-mapas.cjs'
+      - '.github/workflows/google-barreras.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  visor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Preparar el navegador y Cesium local
+        run: |
+          npm install --prefix /tmp/prueba-google3d playwright@1.51.1
+          node /tmp/prueba-google3d/node_modules/playwright/cli.js install --with-deps chromium
+          mkdir -p /tmp/prueba-google3d/cesium
+          npm pack cesium@1.145.0 --pack-destination /tmp/prueba-google3d/cesium --silent
+          tar -xzf /tmp/prueba-google3d/cesium/cesium-1.145.0.tgz -C /tmp/prueba-google3d/cesium
+      - name: Mapa y Google 3D con los mismos símbolos
+        env:
+          PLAYWRIGHT_MODULE: /tmp/prueba-google3d/node_modules/playwright
+          CESIUM_DIR: /tmp/prueba-google3d/cesium/package/Build/Cesium
+        run: |
+          node --check calcos/google-mapas/v1/google-mapas.js
+          npm run e2e:google-barreras --prefix calcos/pruebas
+          node calcos/pruebas/e2e/google-mapas.cjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: revision-google3d
+          path: |
+            calcos/pruebas/salidas-google-3d-barreras/
+            calcos/pruebas/salidas-google-mapas/
+          retention-days: 7

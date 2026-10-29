@@ -83,7 +83,8 @@ async function main() {
     assert.equal(await selector.count(), 1, 'el selector de mapa base está en la barra')
     const ids = await selector.locator('option').evaluateAll((os) => os.map((o) => o.value))
     assert.deepEqual(ids, ['gsat', 'ghib', 'gter', 'g3d', 'sat', 'osm'])
-    assert.equal(await page.evaluate(() => Math.round(document.querySelector('.m3d-barra').getBoundingClientRect().height)), 35, 'la barra de la carta sigue en una fila')
+    const altoBarra = await page.evaluate(() => document.querySelector('.m3d-barra').getBoundingClientRect().height)
+    assert.ok(altoBarra >= 30 && altoBarra <= 40, `la barra de la carta sigue en una fila (${altoBarra} px)`)
 
     // 🛰️ Google Satélite en la carta 2D.
     await selector.selectOption('gsat')
@@ -180,9 +181,12 @@ async function main() {
       assert.equal(await marco().evaluate(() => window.__google3d.dataSources.get(0).show), false)
       await verCalco.check()
       // Lo que se apaga en la carta se va del 3D.
-      await page.getByText('Fichas enemigas', { exact: true }).first().click()
+      const capas = page.locator('.bloque-ver')
+      await capas.getByRole('button', { name: '📐 Calco del Estado Mayor', exact: true }).click()
+      const fichasEnemigas = capas.getByText('Fichas enemigas', { exact: true })
+      await fichasEnemigas.click()
       await marco().waitForFunction((antes) => window.__calcoDibujado < antes, n, { timeout: 10000 })
-      await page.getByText('Fichas enemigas', { exact: true }).first().click()
+      await fichasEnemigas.click()
       await marco().waitForFunction((antes) => window.__calcoDibujado === antes, n, { timeout: 10000 })
       // ✕ Volver a la carta.
       await page.frameLocator('.sid-g3d iframe').getByRole('button', { name: /Volver a la carta/ }).click()

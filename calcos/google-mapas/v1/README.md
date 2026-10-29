@@ -59,6 +59,10 @@ selector (angosto, para que la barra siga en una fila; la lista abierta es más 
   - después de dibujar, el 3D sigue pidiendo cuadros hasta que todo está listo (mínimo 3 s): las imágenes de las fichas
     y las áreas pegadas a los tiles se terminan de armar después de agregarlas y Cesium, que dibuja sólo cuando algo
     cambia, no siempre volvía a dibujar: las fichas no aparecían hasta mover la cámara.
+- Desde el 29-10-2026, los marcadores que combinan **símbolo y texto** conservan ambos en Google 3D.
+  Antes sólo pasaba el rótulo y se perdía el SVG o la imagen. Esto también afectaba los calcos superpuestos,
+  cuyos elementos pueden verse en la carta aunque no estén contabilizados en `ops.obstaculos`.
+  El texto se coloca junto al símbolo para que no lo tape; ocultar la capa retira ambos del visor.
 - Si Google no entrega el 3D (cupo, clave, red), el calco igual se ve, sobre el satélite de Esri (sin relieve),
   con un aviso.
 - Abajo al centro de la carta quedan «Google» y la atribución de las imágenes del lugar (lo exige Google).
@@ -101,3 +105,7 @@ altura medida). Con
 `CESIUM_DIR=…/package/Build/Cesium` (de `npm pack cesium@1.145.0`) también prueba el visor 3D con el calco (con el
 3D de Google rechazado, sobre Esri, y con un tileset vacío). Lo que no se puede probar sin la clave real es cómo se
 ven áreas y líneas pintadas sobre los tiles de Google: mirarlo a mano en github.io.
+
+`CESIUM_DIR=…/Build/Cesium npm run e2e:google-barreras --prefix calcos/pruebas` reproduce
+el caso de símbolos SVG e imagen con un rótulo al lado: verifica su presencia en Mapa, su transferencia,
+las entidades dibujadas por Cesium sobre el relieve sintético y ocultar/restaurar la capa sin cambiar el ejercicio.
