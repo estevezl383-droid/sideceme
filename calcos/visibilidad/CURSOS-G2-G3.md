@@ -38,9 +38,9 @@ todos los cursos y planes.
 Construcción reproducible, verificando el SHA-256 de partida y la reversibilidad:
 
 ```bash
-node calcos/pruebas/construir-cursos-g2-g3.js
+node calcos/pruebas/construir-productos-em.js
 ```
 
-Este constructor genera el compilado vigente `index-cursos-g2-g3-20261029.js`.
+Este constructor genera el compilado vigente `index-productos-em-20261029.js`.
 No cambia los compilados anteriores ni los hashes de la cadena histórica de
 verificación, que ya tenía un fallo con el paso de paquetes.

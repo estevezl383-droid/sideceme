@@ -3,6 +3,9 @@ on:
   pull_request:
     paths:
       - 'calcos/google-mapas/**'
+      - 'calcos/visibilidad/**'
+      - 'calcos/assets/index-productos-em-20261029.js'
+      - 'calcos/pruebas/e2e/productos-em.cjs'
       - 'calcos/pruebas/e2e/google-3d-barreras.cjs'
       - 'calcos/pruebas/e2e/google-mapas.cjs'
       - '.github/workflows/google-barreras.yml'
@@ -12,7 +15,7 @@ permissions:
 jobs:
   visor:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -32,6 +35,7 @@ jobs:
         run: |
           node --check calcos/google-mapas/v1/google-mapas.js
           npm run e2e:google-barreras --prefix calcos/pruebas
+          npm run e2e:productos-em --prefix calcos/pruebas
           node calcos/pruebas/e2e/google-mapas.cjs
       - uses: actions/upload-artifact@v4
         if: always()
@@ -40,4 +44,5 @@ jobs:
           path: |
             calcos/pruebas/salidas-google-3d-barreras/
             calcos/pruebas/salidas-google-mapas/
+            calcos/pruebas/salidas-productos-em/
           retention-days: 7

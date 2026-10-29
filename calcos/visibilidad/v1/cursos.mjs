@@ -1,5 +1,6 @@
 import { capsDe } from '../../cap-propios/v1/proponer.mjs'
 import { BotonOjo, CabeceraGrupo } from './panel.mjs?v=20261028'
+import { unidadesProductos } from './productos-em.mjs?v=20261029-g4-g1'
 
 export function cursosEnemigos(fasesCOA = {}) {
   const cursos = [
@@ -22,7 +23,7 @@ export function cursosPropios(g3 = {}, fasesCOA = {}) {
 }
 
 // Se filtra la representación, nunca el estado editable que se guarda.
-export function vistaDelCurso(vista, activa, verCapa = {}) {
+export function vistaDelCurso(vista, activa, verCapa = {}, catalogo = []) {
   const enemigoOculto = !!activa && verCapa.cae === false
   const propioOculto = activa?.bando === 'propio' && verCapa.cap === false
   const faseOculta = propioOculto || (activa?.bando === 'enemigo' && enemigoOculto)
@@ -36,7 +37,7 @@ export function vistaDelCurso(vista, activa, verCapa = {}) {
     cmoc = { ...cmoc, desplazamientos: [] }
   }
   if (verCapa.planBarreras === false && activa?.bando !== 'enemigo') ops = { ...ops, obstaculos: [], posDef: [] }
-  return { ...vista, unidades, ops, cmoc }
+  return { ...vista, unidades: unidadesProductos(unidades,ops,verCapa,catalogo), ops, cmoc }
 }
 
 const boton = { width: '100%', padding: '6px 8px', border: '1px solid #3c5268', borderRadius: 5,

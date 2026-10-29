@@ -31,7 +31,7 @@ const contar = async (page, n) => page.waitForFunction(n => document.querySelect
     assert.equal(await page.locator('#sid-mod-panel').evaluate(e => e.classList.contains('plegado')), true)
     await page.locator('#sid-mod-sel button[data-m=mesa]').dispatchEvent('click')
     const grupos = page.locator('.bloque-ver .ver-cab')
-    assert.equal(await grupos.count(), 5)
+    assert.equal(await grupos.count(), 7)
     for (const b of await grupos.all()) assert.equal(await b.getAttribute('aria-expanded'), 'false')
     const panelAI = page.getByRole('region', { name: 'Áreas de Interés', exact: true })
     assert.equal(await panelAI.getByRole('button', { name: '2 · Áreas de Interés', exact: true }).getAttribute('aria-expanded'), 'false')
