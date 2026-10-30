@@ -60,6 +60,12 @@
 //     `nota_final` cuando la nota tiene desglose, pero solo a menos de EPS_NOTA
 //     del promedio del desglose (la planilla publicada redondea distinto que el
 //     sistema). Queda en `cambios` como "NOTA FINAL · ajuste a mano".
+//
+// v2.9.442 (2026-10-30): EL PESO DE CADA ITEM. Un bloque con varios items puede
+//     traer el peso de cada uno (`p`): Sumarios Informativos tiene TRAB. 1 = 5%
+//     y TRAB. 2 = 15%. Con el promedio simple, al corregir un casillero la nota
+//     se rehacia como si fueran 10 y 10. Si el peso no esta guardado, se deduce
+//     de los demas alumnos de la materia o la correccion se rechaza.
 // ================================================================================
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -309,12 +315,135 @@ function valorItem(v: unknown): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+// v2.9.442 — EL PESO DE CADA ITEM. En Sumarios Informativos (2do ciclo, 2026
+// sem. 2) el TRAB. 1 vale 5% y el TRAB. 2 vale 15%: el bloque Trabajo aporta 20
+// pero sus dos items NO pesan lo mismo. Con el promedio simple, corregir un
+// casillero rehacia la nota como si fueran 10 y 10, y Careaga y Espinoza Vaca
+// quedaron con una nota final distinta a la de la planilla de la Seccion.
+// Ahora cada item puede traer `p` (su peso) y el bloque se promedia ponderado.
+function pesoItem(i: any): number | null {
+  if (!i || i.p === null || i.p === undefined || i.p === "") return null;
+  const p = Number(i.p);
+  return Number.isFinite(p) && p > 0 ? p : null;
+}
+
 // Promedio de los items de un bloque. null si el bloque no tiene numeros.
+// Ponderado si TODOS los items traen su peso; si no, promedio simple.
 function promItems(b: any): number | null {
   const its = Array.isArray(b?.items) ? b.items : [];
-  const vs = its.map((i: any) => valorItem(i?.v)).filter((n: number | null) => n !== null) as number[];
-  if (!vs.length) return null;
-  return vs.reduce((a: number, c: number) => a + c, 0) / vs.length;
+  const xs = its.map((i: any) => ({ v: valorItem(i?.v), p: pesoItem(i) }))
+    .filter((x: any) => x.v !== null) as { v: number; p: number | null }[];
+  if (!xs.length) return null;
+  if (xs.every((x) => x.p !== null)) {
+    const sp = xs.reduce((a, x) => a + (x.p as number), 0);
+    return xs.reduce((a, x) => a + x.v * (x.p as number), 0) / sp;
+  }
+  return xs.reduce((a, x) => a + x.v, 0) / xs.length;
+}
+
+function conPesos(b: any): boolean {
+  const its = Array.isArray(b?.items) ? b.items : [];
+  return its.length > 0 && its.every((i: any) => pesoItem(i) !== null);
+}
+
+function mediana(xs: number[]): number {
+  const s = [...xs].sort((a, b) => a - b), m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+// Antes de corregir un casillero de un bloque con VARIOS items sin peso
+// guardado, hay que saber cuanto vale cada uno. No se adivina: se mira el
+// resto de los alumnos de la misma materia, cuya nota final vino del Excel.
+//   1) si otro alumno ya tiene los pesos guardados, se usan esos;
+//   2) si con pesos iguales cuadran (casi) todos, son iguales;
+//   3) con dos items y aporte de porcentaje, se DEDUCE el peso de cada uno y
+//      se acepta solo si con ese peso cuadran (casi) todos;
+//   4) si nada de eso alcanza, NO se corrige: es preferible un "no" que una
+//      nota final que no coincide con la planilla.
+// Devuelve los pesos por bloque (indice -> pesos) para pegarlos a los items.
+function resolverPesos(bloques: any[], hermanas: any[], indices: number[]):
+  { pesos: Record<number, number[]> } | { error: string } {
+  const out: Record<number, number[]> = {};
+  const porcentaje = Math.abs(bloques.reduce((t: number, x: any) => t + (Number(x?.aporte) || 0), 0) - 100) < 0.5;
+
+  for (const bi of indices) {
+    const b = bloques[bi];
+    const n = b.items.length;
+    const A = Number(b.aporte);
+    const nombre = String(b.tipo || "");
+
+    // 1) Pesos que ya tiene guardados otro alumno de la materia.
+    const guardados = hermanas.map((h) => bloquesDe(h.detalle_json)[bi])
+      .filter((x: any) => x && String(x.tipo) === nombre && Array.isArray(x.items) && x.items.length === n && conPesos(x));
+    if (guardados.length) { out[bi] = guardados[0].items.map((i: any) => pesoItem(i) as number); continue; }
+
+    // Evidencia: alumnos con los items de ese bloque DISTINTOS entre si (con
+    // items iguales cualquier peso da lo mismo y no enseña nada).
+    const evid: { vs: number[]; c: number }[] = [];
+    for (const h of hermanas) {
+      const bl = bloquesDe(h.detalle_json);
+      if (bl.length !== bloques.length) continue;
+      const x = bl[bi];
+      if (!x || String(x.tipo) !== nombre || !Array.isArray(x.items) || x.items.length !== n) continue;
+      const vs = x.items.map((i: any) => valorItem(i?.v));
+      if (vs.some((v: number | null) => v === null)) continue;
+      if (new Set(vs).size === 1) continue;
+      const nf = Number(h.nota_final);
+      if (!Number.isFinite(nf)) continue;
+      let c: number | null;
+      if (porcentaje) {
+        // Lo que aporta este bloque = nota final - lo que aportan los otros.
+        let otros = 0; let ok = true;
+        bl.forEach((y: any, k: number) => {
+          if (k === bi) return;
+          const p = promItems(y), ap = Number(y?.aporte);
+          if (p === null || !Number.isFinite(ap)) ok = false; else otros += p * ap / 100;
+        });
+        c = ok ? nf - otros : null;
+      } else {
+        const ap = Number(x.aporte);       // modo B: aporte = puntos del bloque
+        c = Number.isFinite(ap) ? ap : null;
+      }
+      if (c !== null) evid.push({ vs: vs as number[], c });
+    }
+
+    const sinDatos = "No se puede corregir un casillero del bloque '" + nombre + "' de forma automatica: "
+      + "tiene " + n + " items y el sistema no sabe cuanto vale cada uno";
+    if (evid.length < 3) {
+      return { error: sinDatos + " (en esta materia ningun alumno tiene esos items con valores distintos, asi que no se puede deducir). "
+        + "Vuelva a cargar la planilla de la materia: el sistema ahora guarda el peso de cada trabajo. Despues corrija." };
+    }
+    const umbral = Math.ceil(evid.length * 0.9);
+    const prom = (vs: number[]) => vs.reduce((a, v) => a + v, 0) / vs.length;
+
+    // 2) Pesos iguales.
+    const factor = porcentaje ? A / 100 : mediana(evid.map((e) => e.c / prom(e.vs)));
+    const igualesOk = evid.filter((e) => Math.abs(prom(e.vs) * factor - e.c) < EPS_NOTA).length;
+    if (igualesOk >= umbral) continue;     // iguales: el promedio simple es correcto
+
+    // 3) Dos items con aporte de porcentaje: w1 + w2 = A.
+    if (porcentaje && n === 2 && Number.isFinite(A)) {
+      const w1s = evid.map((e) => (e.c * 100 - A * e.vs[1]) / (e.vs[0] - e.vs[1]));
+      const w1 = Math.round(mediana(w1s) * 100) / 100, w2 = limpiar(A - w1);
+      if (w1 > 0 && w2 > 0) {
+        const ok = evid.filter((e) => Math.abs((e.vs[0] * w1 + e.vs[1] * w2) / 100 - e.c) < EPS_NOTA).length;
+        if (ok >= umbral) { out[bi] = [w1, w2]; continue; }
+      }
+    }
+
+    // 4) No hay forma segura.
+    return { error: sinDatos + ": con los demas alumnos de la materia no da ni pesos iguales ni una combinacion clara. "
+      + "Vuelva a cargar la planilla de la materia (el sistema ahora guarda el peso de cada trabajo) y despues corrija." };
+  }
+  return { pesos: out };
+}
+
+function pegarPesos(bloques: any[], pesos: Record<number, number[]>): any[] {
+  return bloques.map((b: any, i: number) => {
+    const ps = pesos[i];
+    if (!ps) return b;
+    return { ...b, items: b.items.map((it: any, j: number) => ({ ...it, p: ps[j] })) };
+  });
 }
 
 function notaModoA(bloques: any[]): number | null {
@@ -407,18 +536,27 @@ function validarEstructura(orig: any[], nuevos: any[]): string | null {
 //
 // Devuelve tambien los bloques tal cual hay que guardarlos: en modo B el
 // `aporte` ES el puntaje del bloque, asi que el bloque corregido lo actualiza.
+// Los items guardados con el valor nuevo: del navegador solo se toma `v`. Asi
+// el peso de cada item (`p`) no se puede perder ni cambiar por la red.
+function conValores(origItems: any[], nuevosItems: any[]): any[] {
+  return origItems.map((it: any, j: number) => ({ ...it, v: nuevosItems[j]?.v }));
+}
+
 function recalcular(orig: any[], nuevos: any[], modo: "A" | "B", notaGuardada: number):
   { nota: number; bloques: any[] } | { error: string } {
   const salida: any[] = [];
   let delta = 0;
 
   for (let i = 0; i < orig.length; i++) {
-    const o = orig[i], n = nuevos[i];
+    // Del navegador solo se toman los valores: el bloque nuevo es el guardado
+    // (tipo, aporte, peso de cada item) con los `v` corregidos.
+    const o = orig[i];
+    const n = { ...o, items: conValores(Array.isArray(o?.items) ? o.items : [], Array.isArray(nuevos[i]?.items) ? nuevos[i].items : []) };
     const promViejo = promItems(o), promNuevo = promItems(n);
     if (promNuevo === null) return { error: "El bloque '" + o?.tipo + "' quedo sin valores" };
 
-    // Bloque intacto: se copia tal cual, con su aporte exacto. Ni se lo mira.
-    if (promViejo !== null && promNuevo === promViejo) { salida.push(o); continue; }
+    // Bloque cuyo promedio no cambia: aporte exacto, sin delta.
+    if (promViejo !== null && promNuevo === promViejo) { salida.push(n); continue; }
     if (promViejo === null) return { error: "El bloque '" + o?.tipo + "' no tenia valores con que comparar" };
 
     const apOrig = Number(o?.aporte);
@@ -427,7 +565,7 @@ function recalcular(orig: any[], nuevos: any[], modo: "A" | "B", notaGuardada: n
     if (modo === "A") {
       // aporte = el PESO (10/30/60). El peso no se toca; cambia el promedio.
       delta += (promNuevo - promViejo) * apOrig / 100;
-      salida.push({ ...o, items: n.items, aporte: apOrig });
+      salida.push({ ...n, aporte: apOrig });
     } else {
       // aporte = los PUNTOS del bloque. El peso esta implicito y se deduce.
       if (promViejo === 0) {
@@ -436,7 +574,7 @@ function recalcular(orig: any[], nuevos: any[], modo: "A" | "B", notaGuardada: n
       const pct = apOrig / promViejo * 100;
       const apNuevo = limpiar(apOrig + (promNuevo - promViejo) * pct / 100);
       delta += apNuevo - apOrig;
-      salida.push({ ...o, items: n.items, aporte: apNuevo });
+      salida.push({ ...n, aporte: apNuevo });
     }
   }
 
@@ -1141,10 +1279,38 @@ Deno.serve(async (req) => {
         if (errN) return json({ ok: false, error: "No se pudo leer la nota" }, 500);
         if (!nota) return json({ ok: false, error: "Ese alumno no tiene nota cargada en esa materia" }, 404);
 
-        const bloquesOrig = bloquesDe(nota.detalle_json);
+        let bloquesOrig = bloquesDe(nota.detalle_json);
         const notaVieja = Number(nota.nota_final);
-        const modo = detectarModo(bloquesOrig, notaVieja);
         const porComponentes = Array.isArray(body.bloques) && body.bloques.length > 0;
+
+        // v2.9.442: si se toca un casillero de un bloque con varios items sin
+        // peso guardado, primero se averigua cuanto vale cada item mirando a
+        // los demas alumnos de la materia. Ver resolverPesos().
+        if (porComponentes) {
+          // Necesita peso: el bloque que se toca, y tambien uno intacto cuyos
+          // items difieran, porque si la nota guardada no cuadra la suma se
+          // rehace entera (le paso a Espinoza Vaca: se corrigio la Formativa
+          // y se rehizo el Trabajo como 10 y 10).
+          const tocados = bloquesOrig.map((_b: any, i: number) => i).filter((i: number) => {
+            const b = bloquesOrig[i];
+            if (!b || !Array.isArray(b.items) || b.items.length < 2 || conPesos(b)) return false;
+            const ni = Array.isArray(body.bloques[i]?.items) ? body.bloques[i].items : [];
+            const cambia = b.items.some((it: any, j: number) => valorItem(it?.v) !== valorItem(ni[j]?.v));
+            const distintos = new Set(b.items.map((it: any) => valorItem(it?.v))).size > 1;
+            return cambia || distintos;
+          });
+          if (tocados.length) {
+            const { data: hermanas, error: errH } = await sb
+              .from("notas_academicas").select("id, nota_final, detalle_json")
+              .eq("gestion", gestion).eq("semestre", semestre).eq("ciclo", ciclo).eq("materia", materia)
+              .neq("id", nota.id);
+            if (errH) return json({ ok: false, error: "No se pudo leer el resto de la materia para verificar los pesos" }, 500);
+            const rp = resolverPesos(bloquesOrig, hermanas || [], tocados);
+            if ("error" in rp) return json({ ok: false, error: rp.error }, 400);
+            bloquesOrig = pegarPesos(bloquesOrig, rp.pesos);
+          }
+        }
+        const modo = detectarModo(bloquesOrig, notaVieja);
 
         let notaNueva: number;
         let detalleNuevo: any = null;
