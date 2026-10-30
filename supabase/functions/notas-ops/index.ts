@@ -523,6 +523,12 @@ function validarEstructura(orig: any[], nuevos: any[]): string | null {
   return null;
 }
 
+// Los items guardados con el valor nuevo: del navegador solo se toma `v`. Asi
+// el peso de cada item (`p`) no se puede perder ni cambiar por la red.
+function conValores(origItems: any[], nuevosItems: any[]): any[] {
+  return origItems.map((it: any, j: number) => ({ ...it, v: nuevosItems[j]?.v }));
+}
+
 // Recalcula la nota final. NO rehace la suma entera: aplica el DELTA de los
 // bloques que el evaluador toco sobre la nota que ya estaba guardada.
 //
@@ -536,12 +542,6 @@ function validarEstructura(orig: any[], nuevos: any[]): string | null {
 //
 // Devuelve tambien los bloques tal cual hay que guardarlos: en modo B el
 // `aporte` ES el puntaje del bloque, asi que el bloque corregido lo actualiza.
-// Los items guardados con el valor nuevo: del navegador solo se toma `v`. Asi
-// el peso de cada item (`p`) no se puede perder ni cambiar por la red.
-function conValores(origItems: any[], nuevosItems: any[]): any[] {
-  return origItems.map((it: any, j: number) => ({ ...it, v: nuevosItems[j]?.v }));
-}
-
 function recalcular(orig: any[], nuevos: any[], modo: "A" | "B", notaGuardada: number):
   { nota: number; bloques: any[] } | { error: string } {
   const salida: any[] = [];
@@ -659,7 +659,7 @@ Deno.serve(async (req) => {
         "publicar_confirmaciones", "estado_confirmaciones", "fijar_plazo",
         "borrar_carga", "cargas_archivadas", "restaurar_carga",
         "corregir_nota", "historial_correcciones",
-        "correcciones_aviso", "acusar_correccion"], version: "v2.9.430" });
+        "correcciones_aviso", "acusar_correccion"], version: "v2.9.442" });
   }
 
   const auth = await validarSesion(body.token);
