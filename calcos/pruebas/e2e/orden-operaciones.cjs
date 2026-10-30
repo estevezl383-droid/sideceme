@@ -63,9 +63,13 @@ function comprobarWord(x, cual) {
     assert.ok(i > antes, `${cual}: «${t}» en su lugar`)
     antes = i
   }
-  for (const t of ['Curso de acción del enemigo más probable.', 'Intención del Comandante.', 'Concepto de la operación.', 'Maniobra.', 'FASE I (CONCENTRACIÓN) desde el D-10 hasta el D-8.', 'La DIV MEC-2 (OD), esfuerzo principal, se concentra en TURCO con el propósito de completar su aclimatación (IA, FICT.).', 'Tareas de las unidades de maniobra.', 'FASE IV: Detiene al enemigo en la AA-1 en Guata, con el propósito de que no pase la LF «PUMA».', 'Requerimientos prioritarios de inteligencia (RPI).', 'Sucesión de mando.', 'IOC «ILLIMANI»'])
+  for (const t of ['Curso de acción del enemigo más probable.', 'Intención del Comandante.', 'Concepto de la operación.', 'Maniobra.', 'FASE I: CONCENTRACIÓN (desde el D-10 hasta el D-8).', 'La DIV MEC-2 (OD y esfuerzo principal) se concentra en TURCO con el propósito de completar su aclimatación (IA, FICT.).', 'Tareas de las unidades de maniobra.', 'TAREA: Detiene al enemigo en la AA-1 en Guata.', 'PROPÓSITO: Que no pase la LF «PUMA».', 'Requerimientos prioritarios de inteligencia (RPI).', '¿Dónde emplaza el enemigo sus lanzadores LAR-160 (FICT.)?', 'Informar cuando la Clase III de la DIV MEC-2 baje de dos días de consumo (FICT.).', 'Sucesión de mando.', 'IOC «ILLIMANI»'])
     assert.ok(x.includes(t), `${cual}: el Word no trae «${t}»`)
   assert.ok(!/Hipótesis\./.test(x), `${cual}: una ORDEN no lleva hipótesis`)
+  // la misión, la intención y el concepto con la forma del PMTD
+  assert.ok(x.includes('Mi intención es detener al primer escalón enemigo'), `${cual}: la intención en prosa`)
+  assert.ok(x.includes('Vamos a cumplir la misión mediante una defensa de área.'), `${cual}: el concepto del PMTD`)
+  assert.ok(x.includes('Una División Mecanizada (OD y esfuerzo principal) detiene al enemigo en la AA-1 en Guata'), `${cual}: una oración por unidad en el concepto`)
   assert.ok(!/Medios disponibles:|límite\(s\)|trabajo\(s\)|Atacar con Fuego|\[Completar/.test(x), `${cual}: sin las cuentas del 🌱 viejo ni el esqueleto de antes`)
   assert.ok(!/🤖|🌱|IA\s*[—–-]\s*verificar/.test(x), `${cual}: sin emojis ni marcas de la IA`)
   // lo que va después de una lista queda después («Ver Anexo…» de la Logística)
@@ -73,7 +77,7 @@ function comprobarWord(x, cual) {
   assert.ok(log > 0 && x.indexOf('Abastecimiento: PD-1 en Turco (FICT.).', log) < x.indexOf('Ver Anexo “F” Apoyo de Servicio de Combate.', log), `${cual}: el orden de lo escrito`)
 }
 
-const MEJORA = '```json\n' + JSON.stringify({ campos: { maniobra: 'FASE I (CONCENTRACIÓN) desde el D-10 hasta el D-8.\nLa DIV MEC-2 (OD), esfuerzo principal, se concentra en TURCO con el propósito de completar su aclimatación (IA, FICT.).', apoyoAereo: 'Prioridad de Apoyo Aéreo Cercano a la DIV MEC-2 en la FASE IV (IA, FICT.).' } }) + '\n```'
+const MEJORA = '```json\n' + JSON.stringify({ campos: { maniobra: 'FASE I: CONCENTRACIÓN (desde el D-10 hasta el D-8).\nLa DIV MEC-2 (OD y esfuerzo principal) se concentra en TURCO con el propósito de completar su aclimatación (IA, FICT.).', apoyoAereo: 'Prioridad de Apoyo Aéreo Cercano a la DIV MEC-2 en la FASE IV (IA, FICT.).' } }) + '\n```'
 
 ;(async () => {
   const { leerRespuesta } = await import('../../cap-propios/v1/carta-ia.mjs')
@@ -121,12 +125,15 @@ const MEJORA = '```json\n' + JSON.stringify({ campos: { maniobra: 'FASE I (CONCE
         ['orgTarea', 'DIV MEC-2 (OD):'],
         ['caeProbable', 'CAE-1 (el MÁS PROBABLE para el G-2, H.T. 18).'],
         ['propias', '1.- FF.TT.T.O. (FICT.).'],
-        ['intencion', 'El propósito de la operación es detener al primer escalón enemigo'],
-        ['concepto', 'Cumpliremos la misión mediante la ejecución de una defensa de área.'],
-        ['maniobra', 'FASE IV (CONDUCCIÓN DE LA DEFENSA) desde el D hasta el D+8.\nLa DIV MEC-2 (OD), esfuerzo principal, detiene al enemigo en la AA-1 en Guata, con el propósito de que no pase la LF «PUMA».'],
+        ['intencion', 'Mi intención es detener al primer escalón enemigo'],
+        ['concepto', 'Vamos a cumplir la misión mediante una defensa de área.'],
+        ['concepto', 'Una División de Infantería (RESERVA) constituye la reserva, encontrándose en condiciones de contraatacar en Guata con orden'],
+        ['maniobra', 'FASE IV: CONDUCCIÓN DE LA DEFENSA (desde el D hasta el D+8).\nLa DIV MEC-2 (OD y esfuerzo principal) detiene al enemigo en la AA-1 en Guata, con el propósito de que no pase la LF «PUMA».'],
         ['maniobra', 'La DIV-6 (RESERVA) contraataca en Guata, con el propósito de restablecer la LPR.'],
-        ['tareasManiobra', '3.- DIV-6 (RESERVA).\na.- FASE I: Se concentra en Turco.'],
-        ['rpi', '1) ¿Por qué avenida (FICT.) empeña el enemigo su esfuerzo principal?'],
+        ['tareasManiobra', 'FASE I: CONCENTRACIÓN (desde el D-10 hasta el D-8).\n1.- DIV MEC-2 (OD).\nTAREA: Se concentra en Turco.'],
+        ['tareasManiobra', '3.- DIV-6 (RESERVA).\nTAREA: Contraataca en Guata.\nPROPÓSITO: Restablecer la LPR.'],
+        ['rpi', '1) ¿Por qué avenida (FICT.) empeña el enemigo su esfuerzo principal?\n2) ¿Dónde emplaza el enemigo sus lanzadores LAR-160 (FICT.)?'],
+        ['rifa', '2) Informar cuando las bajas de la DIV MEC-2 superen el 10 % de sus efectivos (FICT.).'],
         ['conceptoApoyo', '- FASE III: enfoque de apoyo en Clase IV y Clase V'],
         ['puestosComando', '- PC Principal CE-I en Estancia Ticanani.'],
       ])
@@ -144,7 +151,7 @@ const MEJORA = '```json\n' + JSON.stringify({ campos: { maniobra: 'FASE I (CONCE
       await clic(doc.getByRole('button', { name: /Ver el pedido/ }))
       const pedido = await doc.locator('textarea[readonly]').inputValue()
       fs.writeFileSync(path.join(out, `${tag}-pedido.md`), pedido)
-      for (const t of ['ORDEN GENERAL DE OPERACIONES', 'ESTA VEZ TRABAJÁS SÓLO ESTA PARTE DEL DOCUMENTO (III concepto', 'TEXTO PMTD 2017, Parte Primera, Capítulo VII', 'KILÓMETRO 7', 'El riesgo a afrontar es', 'La Orden va COMPLETA, apartado por apartado, DENTRO de las claves del JSON.', 'Las fases del CAP aprobado en la carta', 'El CAE del G-2 (PICB)', '"maniobra": "…"'])
+      for (const t of ['ORDEN GENERAL DE OPERACIONES', 'ESTA VEZ TRABAJÁS SÓLO ESTA PARTE DEL DOCUMENTO (III concepto', 'TEXTO PMTD 2017, Parte Primera, Capítulo VII', 'KILÓMETRO 7', 'Se asume como riesgo', 'Mi intención es facilitar la destrucción de la FT-43', 'La Orden va COMPLETA, apartado por apartado, DENTRO de las claves del JSON.', 'Las fases del CAP aprobado en la carta', 'El CAE del G-2 (PICB)', '"maniobra": "…"'])
         assert.ok(pedido.includes(t), `el pedido no trae «${t}»`)
       assert.ok(!pedido.includes('la Orden de Operaciones, una matriz de sincronización'), 'a la Orden no se le prohíbe escribir la Orden')
       const json = pedido.slice(pedido.lastIndexOf('# CÓMO CONTESTAR'))

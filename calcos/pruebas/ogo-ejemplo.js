@@ -73,15 +73,27 @@ function ejercicioOGO({ leerRespuesta, nombre = 'PRUEBA OGO (FICT.)' } = {}) {
         { 'Requerimiento propuesto': '¿Por qué avenida (FICT.) empeña el enemigo su esfuerzo principal?', 'Prioridad que asigna el Cmte.': '1' },
       ],
     },
-    g1: { anexo: { campos: { concepto: 'Prioridad de reemplazos a la DIV MEC-2 (FICT.)', reemplazos: '450 reemplazos el D-3 (FICT.)', ppgg: 'Puesto de reunión de PP.GG. en Toledo (FICT.)' } } },
-    g4: { anexoF7P1: { campos: { concepto: '- FASE III: enfoque de apoyo en Clase IV y Clase V; prioridad a la DIV MEC-2 (FICT.).', abastecimiento: 'PD-1 en Turco (FICT.)', epa: 'Oruro–Toledo–Corque–Turco (FICT.)', epe: 'Turco–Toledo (FICT.)', segar: 'Nivel II (FICT.).' } } },
-    g5: { anexo: { campos: { concepto: 'Evacuar la población de Guata antes del D-10 (FICT.)', evacuacion: 'Puesto de reunión de evacuados en Corque (FICT.)', ejes: 'Turco–Corque (FICT.)' } } },
+    g1: {
+      anexo: { campos: { concepto: 'Prioridad de reemplazos a la DIV MEC-2 (FICT.)', reemplazos: '450 reemplazos el D-3 (FICT.)', ppgg: 'Puesto de reunión de PP.GG. en Toledo (FICT.)' } },
+      // los RCIC de cada sección (su F2·P8 «RCIC. y EEIA.»): van todos a III.- D.- 2.- de la Orden
+      rcic: [{ Requerimiento: 'Informar cuando las bajas de la DIV MEC-2 superen el 10 % de sus efectivos (FICT.)', 'Por qué es crítico': 'Decidir el empleo de la reserva', 'Quién lo busca': 'DIV MEC-2', 'Para cuándo': 'D+2' }],
+    },
+    g4: {
+      anexoF7P1: { campos: { concepto: '- FASE III: enfoque de apoyo en Clase IV y Clase V; prioridad a la DIV MEC-2 (FICT.).', abastecimiento: 'PD-1 en Turco (FICT.)', epa: 'Oruro–Toledo–Corque–Turco (FICT.)', epe: 'Turco–Toledo (FICT.)', segar: 'Nivel II (FICT.).' } },
+      rcic: [{ Requerimiento: 'Informar cuando la Clase III de la DIV MEC-2 baje de dos días de consumo (FICT.)', 'Por qué es crítico': 'Reabastecer antes de la FASE IV' }],
+    },
+    g5: {
+      anexo: { campos: { concepto: 'Evacuar la población de Guata antes del D-10 (FICT.)', evacuacion: 'Puesto de reunión de evacuados en Corque (FICT.)', ejes: 'Turco–Corque (FICT.)' } },
+      rcic: [{ Requerimiento: '¿Cuántos civiles permanecen al oeste de la LF «PUMA» (FICT.)?', 'Quién lo busca': 'G-5' }],
+    },
   }
   const picb = {
     ht18: { _marca: { 'CAE-1': 'MÁS PROBABLE', 'CAE-2': 'MÁS PELIGROSO' } },
     cae: { Misión: 'La VI DE ataca a partir del D (0400) para conquistar TURCO (FICT.)', Maniobra: 'La 1ª Br. Ac. ataca por la AA-1 (valle del Lauca) con el GB N° 9 en primer escalón (FICT.)', 'Estado final deseado': 'TURCO conquistado y el CE-I destruido al oeste de la LDE-2 (FICT.)' },
     ht19: { _nom: { 'MANIOBRA|OC-1': '1ª BR. AC. «CORACEROS»' }, 'MANIOBRA|OC-1|FASE I|Tarea': 'Ataca por el valle del Lauca (FICT.)', 'MANIOBRA|OC-1|FASE I|Propósito': 'para conquistar el paso Ungallire (FICT.)' },
     ht20: [{ 'N° A.I.N.': 'AIN-3', Indicador: 'Movimiento de obuses M109 (FICT.)', 'No antes de': 'D-1', 'No después de': 'D+1' }],
+    // el Plan de búsqueda de información del G-2: sus requisitos son los RPI (uno repite el que priorizó el Comandante)
+    pbi: { requisitos: [{ requisito: 'RPI-01. ¿Dónde emplaza el enemigo sus lanzadores LAR-160 (FICT.)?' }, { requisito: '¿Por qué avenida (FICT.) empeña el enemigo su esfuerzo principal?' }] },
   }
   const datos = { ...ej, unidades, fasesCOA, ordenSup, g3, hojasG: { ...(ej.hojasG || {}), ...hojasG }, picb: { ...(ej.picb || {}), ...picb } }
   datos.ops = { ...ej.ops, unidadConsiderada: { nombre: 'CE-I', escalon: 'cuerpo', confirmada: true } }

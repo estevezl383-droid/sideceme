@@ -30,6 +30,20 @@
 //     «KILÓMETRO 7» (como forma y nivel de detalle: no para copiar);
 //   · especificacion: el Word con la numeración del PMTD (I.- A.- 1.- a.- 1) a)), la Organización de la Tarea en cuadro,
 //     las fases como subtítulos y las tareas de cada unidad como incisos.
+//
+// El mismo día Sergio volvió con el Word que le dio la Orden ya hecha y el TEXTO PMTD 2017: «los párrafos, la estructura
+// está bien, pero el contenido…». Cada párrafo va ahora con la FORMA del PMTD, en 🌱 y en lo que se le pide a la IA:
+//   · la MISIÓN, una oración con QUIÉN, QUÉ, CUÁNDO, DÓNDE y PROPÓSITO en ese orden (paso 11 del Análisis de la Misión);
+//   · la INTENCIÓN en prosa y sin rótulos: «Mi intención es…, para esto es clave… Al finalizar la operación, (propia
+//     fuerza), (enemigo), (operación futura).» (la Hoja de trabajo de la Intención del Comandante);
+//   · el CONCEPTO como el enunciado del CAP de la Div-2: «Vamos a cumplir la misión mediante… El punto decisivo es…», una
+//     oración por unidad («Una División Mecanizada (OD y esfuerzo principal) defiende…, con el propósito de…»), la reserva,
+//     el propósito de los fuegos, de la defensa antiaérea y de los ingenieros, el sostenimiento, las fases y el estado final;
+//   · la MANIOBRA fase por fase con la designación de cada unidad; fuegos, inteligencia, ingenieros y defensa antiaérea con
+//     la forma de sus ejemplos; el riesgo al final;
+//   · las TAREAS fase por fase y, en cada fase, TODAS las unidades con «TAREA:» y «PROPÓSITO:»;
+//   · los RCIC: los que ya determinó cada sección (la F2·P8 del G-1, G-3, G-4, G-5 y EME, el Plan de búsqueda del G-2),
+//     primero los que priorizó el Comandante.
 import { limpio, texto, sinMarcaIA, articuloDe } from '../../riesgo/v1/modelo.js'
 import { describirFases } from '../../cap-propios/v1/texto-carta.mjs'
 import { capAprobado } from '../../orden-preparatoria/v1/prep.mjs'
@@ -112,26 +126,26 @@ const AY = {
   propias: 'Considere la misión, la intención del Comandante y el concepto de la operación de dos escalones superiores. Los subpárrafos indican las misiones de las Unidades en los flancos y otras Unidades cuyas acciones tienen un efecto significativo en el comando de la Unidad («1.- FF.TT.T.O.» con «a.- Misión: …», «b.- Intención: …», «c.- Concepto: …»; «2.- Unidades adyacentes: …»)',
   refuerzos: 'Generalmente, la organización de la tarea se cubre en el Anexo “A” (Organización de la Tarea) en lo que respecta a las órdenes de operaciones de División y Cuerpo de Ejército. Si el Anexo “A” no se incluye con la orden, la información respecto a las Unidades en refuerzo o reducidas se incluye en este subpárrafo, indicando el lugar, fecha y hora en que la reducción o refuerzo cobra vigencia («Omitido.» si no hay)',
   hipotesis: '(Aplica sólo para el Plan de Operaciones) Enumere todas las hipótesis establecidas. En una ORDEN de operaciones se deja vacío (no sale en el Word)',
-  mision: 'Quién, qué, cuándo, dónde y —lo más importante— el propósito («con el propósito de…»), en una oración. Es la transcripción de la misión aprobada por el Comandante al finalizar el Análisis de la Misión',
-  intencion: 'Va inmediatamente antes del párrafo III.- A.-: el propósito de la operación, el punto decisivo, las tareas clave y el estado final (la fuerza propia, la amenaza y el terreno). Es el nexo entre la misión y el concepto: no entra en el «cómo»',
-  concepto: 'Cómo el Comandante visualiza las acciones de las Unidades subordinadas: expande el curso de acción aprobado. «Cumpliremos la misión mediante (forma de maniobra); el punto decisivo es … porque …», la operación decisiva y las de configuración, el esfuerzo principal de cada fase y la lista de las fases («FASE I (NOMBRE) desde … hasta …»)',
-  maniobra: 'El esquema de maniobra, consistente con el calco: la operación decisiva y las de configuración, las operaciones de seguridad y el uso de la reserva. FASE POR FASE («FASE I (NOMBRE) desde … hasta …») y, en cada fase, cada unidad con su designación, (OD/OC-n/RESERVA), si es esfuerzo principal o secundario, su tarea, dónde y «con el propósito de…». Al final, el riesgo a afrontar y cómo se mitiga',
-  fuegos: 'La intención del Comandante respecto a los fuegos, en cuatro elementos: la TAREA esencial (destruir, neutralizar o suprimir) en relación con una formación o función enemiga, el PROPÓSITO, el MÉTODO (prioridad por fase, asignación y restricciones) y el EFECTO deseado (cuantificado y observable)',
+  mision: 'Es la transcripción de la misión aprobada por el Comandante al finalizar el Análisis de la Misión: UNA oración con todos sus elementos y EN ESTE ORDEN: QUIÉN (la Unidad que ejecuta la operación), QUÉ (el tipo de operación —ataca, defiende— y la tarea esencial, expresada como tarea táctica: destruye, fija, canaliza, bloquea…), CUÁNDO (a partir del D (hora) hasta el D+n (hora), con orden…), DÓNDE (AO, objetivos, coordenadas) y el PROPÓSITO («con el propósito de…»). Sin agregados («reteniendo…», «sin permitir…»). Ej. del PMTD: «La Div-2, defiende y destruye al batallón de tanques a partir del D(0600) hasta D+6 (1800) al sud de la LF. ÁGUILA con el propósito de permitir a la DBL-22 ejecutar el contraataque y destruir al Regimiento de tanques de Rojo en el AE. LEÓN.»',
+  intencion: 'Va inmediatamente antes del párrafo III.- A.-, redactada en forma inextensa (sin rótulos «Propósito:», «Tareas clave:» ni numeración) con sus tres partes: el PROPÓSITO («Mi intención es…»), las TAREAS CLAVE y/o condiciones («…, para esto es clave inicialmente…, asimismo es importante…») y, en otro párrafo, el ESTADO FINAL: cómo queda la propia fuerza, cómo queda el enemigo y la operación futura («Al finalizar la operación, la FT “LANZA” se encontrará ocupando posiciones en…, con eficiencia combativa, el RIMEC-6 habrá sido destruido…, encontrándose nuestra Unidad en condiciones de realizar operaciones ofensivas con orden.»). Es el nexo entre la misión y el concepto: no entra en el «cómo»',
+  concepto: 'Cómo el Comandante visualiza las acciones de las Unidades subordinadas: expande el curso de acción aprobado. Como en el PMTD, un renglón por idea: «Vamos a cumplir la misión mediante (forma de maniobra / forma defensiva). El punto decisivo es … porque …»; una oración por Unidad con su tarea y su propósito: «Una Fuerza de Tarea fuerte en Infantería (OD y esfuerzo principal) defiende y bloquea al…, con el propósito de…», «Una … (OC1 y esfuerzo secundario)…», la reserva («… constituye la reserva, encontrándose en condiciones de ser empleada con orden, con prioridad de planeamiento a la OD y posteriormente a OC1 y OC2»); «El propósito del apoyo de fuegos es…», «La prioridad de esfuerzo de ingeniería será…, la prioridad de trabajo será para la Unidad que lleve la OD», «El Batallón Logístico (operación de sostenimiento) tiene la tarea de…, con el propósito de…»; «La operación se desarrollará en las siguientes fases:» (una por renglón: «FASE I: OCUPACIÓN Y ORGANIZACIÓN DE LA PD (desde … hasta …).») y el estado final («Al finalizar la operación…»)',
+  maniobra: 'El esquema de maniobra, consistente con el calco: la operación decisiva y las de configuración, las operaciones de seguridad y el uso de la reserva. FASE POR FASE («FASE I: NOMBRE (desde … hasta …).») y, debajo, una oración por Unidad con su designación: «La Fuerza de Tarea VARGAS (OD y esfuerzo principal) defiende y bloquea al BIM (OD) de la DIMEC-56, con el propósito de evitar la conquista de Co. TUNARI.»; la reserva: «La FT LANDA (OC3) constituye la reserva, encontrándose en condiciones de ser empleada con orden, con prioridad de planeamiento a la OD y posteriormente a OC1 y OC2.». Al final, el riesgo: «Se asume como riesgo…» y cómo se mitiga',
+  fuegos: 'La intención del Comandante respecto a los fuegos, en sus cuatro elementos y en un párrafo, como en el PMTD: «Los medios de apoyo de fuegos tienen la tarea de (destruir / neutralizar / suprimir) a … (una formación o función enemiga), con el propósito de …, el método: la prioridad de apoyo de fuegos a … (por fase), se asignan los blancos …, restricciones: …, el efecto será … (cuantificado y observable)»',
   apoyoAereo: 'La asignación de los vuelos de Apoyo Aéreo Cercano (AAC), de interdicción aérea (Cuerpo de Ejército) y las designaciones (División): prioridad y misiones por unidad',
   artilleria: 'Las prioridades (contrabatería, interdicción), la prioridad de fuego por fase, la prioridad para la adquisición de blancos, las restricciones y la Organización de la Artillería para el Combate (OAPC: «RAM-4 : AG CE-I»)',
   mcaf: 'Las medidas permisivas (LCAF, LSAA, AFL) y las restrictivas (AFP, AFR, LRF), con su ubicación y desde cuándo rigen',
   reconocimiento: 'El punto focal del esfuerzo de recopilación de inteligencia y cómo complementa el plan de maniobra: los recursos de inteligencia a emplear y las áreas de interés nombradas (A.I.N.); puede remitir a la Matriz de Eventos o de Reconocimiento y Vigilancia',
-  inteligencia: 'El concepto del sistema de inteligencia: la prioridad del esfuerzo entre el desarrollo de la situación, la búsqueda de blancos y la evaluación de daños de combate; la prioridad de apoyo para las Unidades y la de contrainteligencia. Remite al Anexo de Inteligencia',
-  ingenieros: 'El propósito de los recursos u obstáculos de ingenieros; la prioridad del esfuerzo de Movilidad, Contramovilidad y Supervivencia (MCS); la prioridad de trabajo (qué Unidades reciben apoyo, en orden) y las restricciones o la delegación de autoridad para emplazar obstáculos',
-  antiaerea: 'El concepto general de defensa antiaérea en apoyo de la maniobra, el apoyo de la Fuerza Aérea, la prioridad de defensa antiaérea y los niveles de alerta (ROJA: ataque inminente; AMARILLA: ataque probable; VERDE: ataque improbable)',
+  inteligencia: 'El concepto del sistema de inteligencia, como en el PMTD: «El enfoque de recopilación de inteligencia está dirigido a … La prioridad de apoyo a la … (OD). Los recursos son …». La prioridad del esfuerzo entre el desarrollo de la situación, la búsqueda de blancos y la evaluación de daños de combate, y la de contrainteligencia. Remite al Anexo de Inteligencia',
+  ingenieros: 'Como en el PMTD: «La prioridad de esfuerzo es de (movilidad / contramovilidad / supervivencia) mediante …, la prioridad de trabajo a la … (OD) y posteriormente a …». El propósito de los obstáculos y las restricciones o la delegación de autoridad para emplazarlos',
+  antiaerea: 'Como en el PMTD: «La tarea de los medios de ADA es …, con el propósito de …, la prioridad de apoyo a la … (OD)». El apoyo de la Fuerza Aérea y los niveles de alerta (ROJA: ataque inminente; AMARILLA: ataque probable; VERDE: ataque improbable)',
   qbn: 'El concepto general de las operaciones QBN y las prioridades de esfuerzo y de apoyo («Omitido.» si no corresponde)',
   policiaMilitar: 'El concepto general de las operaciones de la Policía Militar en apoyo de la maniobra: prioridades, control de circulación y seguridad del área de retaguardia',
   acgm: 'El concepto general de las operaciones de AC/GM y las prioridades de esfuerzo y de apoyo (evacuación de civiles, ejes humanitarios, bienes protegidos); remite al Anexo de AC/GM',
-  tareasManiobra: 'Un subpárrafo por cada Unidad de maniobra que depende directamente, en el orden de la organización de la tarea, incluida la reserva: «1.- DIV MEC-2 (OD).» y debajo sus tareas «a.- …», «b.- …» en orden cronológico. Pasaje de líneas y puntos de enlace, puntos de contacto, misiones «en condiciones de…», coordinación de los flancos, evacuación de refugiados',
-  tareasApoyo: 'Un subpárrafo por cada Unidad de apoyo de combate (artillería, ingeniería, antiaérea, comunicaciones, inteligencia, policía militar…), en el orden de la organización de la tarea: sólo las tareas que no se especifican o sobreentienden en otra parte',
+  tareasManiobra: 'Mediante la emisión de órdenes y FASE POR FASE: «FASE I: NOMBRE (desde … hasta …).» y debajo TODAS las Unidades de maniobra que dependen directamente, incluida la reserva, en el orden de la organización de la tarea, cada una con su TAREA y su PROPÓSITO: «1.- FT VARGAS (OD).», «TAREA: Se desplaza a la PD.», «PROPÓSITO: Ocupar la PD.». Pasaje de líneas y puntos de enlace, puntos de contacto, misiones «en condiciones de…», coordinación de los flancos, evacuación de refugiados',
+  tareasApoyo: 'Como las de maniobra, FASE POR FASE: cada Unidad de apoyo de combate (artillería, ingeniería, antiaérea, comunicaciones, inteligencia, policía militar…), en el orden de la organización de la tarea, con su «TAREA: …» y su «PROPÓSITO: …»',
   vigencia: 'Hora o condición cuando un plan o una orden entra en vigor; el día D y la hora H',
-  rpi: 'Los Requerimientos Prioritarios de Inteligencia: preguntas sobre el enemigo, el terreno y las CC.MM. («1) ¿Por dónde lleva el enemigo su esfuerzo principal?»). Los RCIC van SOLAMENTE acá (no en los anexos) y son diez o menos',
-  rifa: 'Los Requerimientos de Información de la Fuerza Amiga («1) Informar cuando…»)',
+  rpi: 'Los Requerimientos Prioritarios de Inteligencia que ya determinó cada sección del Estado Mayor (y priorizó el Comandante): preguntas sobre el enemigo, el terreno, las condiciones meteorológicas y las CC.MM., una por renglón («1) ¿Por dónde lleva el enemigo su esfuerzo principal?»). Los RCIC van SOLAMENTE acá (no en los anexos)',
+  rifa: 'Los Requerimientos de Información de la Fuerza Amiga que ya determinó cada sección: sobre las PROPIAS FUERZAS, uno por renglón («1) Informar cuando…»)',
   eeia: 'Los Elementos Esenciales de Información Amiga: lo que hay que negarle al enemigo (opcional)',
   riesgos: 'Las medidas de control para la reducción de riesgos, producto del proceso de administración de riesgos (Matriz de riesgo), una por renglón',
   reglas: 'Las reglas de enfrentamiento (DICA, población civil, prisioneros de guerra, armas restringidas)',
@@ -231,11 +245,11 @@ export const DEF = {
     }),
   ],
   obligatorios: [
-    { id: 'mision', txt: 'II.- Falta la MISIÓN (quién, qué, cuándo, dónde y para qué): es la misión aprobada de la F2·P12.', tipo: 'err' },
-    { id: 'intencion', txt: 'III.- Falta la INTENCIÓN DEL COMANDANTE (propósito, punto decisivo, tareas clave y estado final).', tipo: 'err' },
-    { id: 'concepto', txt: 'III.- A.- Falta el CONCEPTO DE LA OPERACIÓN (forma de maniobra, punto decisivo, esfuerzo principal y fases).', tipo: 'err' },
+    { id: 'mision', txt: 'II.- Falta la MISIÓN (quién, qué, cuándo, dónde y propósito, en ese orden): es la misión aprobada de la F2·P12.', tipo: 'err' },
+    { id: 'intencion', txt: 'III.- Falta la INTENCIÓN DEL COMANDANTE («Mi intención es…»: propósito, tareas clave y estado final).', tipo: 'err' },
+    { id: 'concepto', txt: 'III.- A.- Falta el CONCEPTO DE LA OPERACIÓN (forma de maniobra, punto decisivo, la tarea y el propósito de cada Unidad, fuegos, ingenieros, sostenimiento, fases y estado final).', tipo: 'err' },
     { id: 'maniobra', txt: 'III.- A.- 1.- Falta la MANIOBRA fase por fase, con la tarea y el propósito de cada unidad.', tipo: 'err' },
-    { id: 'tareasManiobra', txt: 'III.- B.- Faltan las TAREAS DE LAS UNIDADES DE MANIOBRA (un subpárrafo por unidad, con la reserva).', tipo: 'err' },
+    { id: 'tareasManiobra', txt: 'III.- B.- Faltan las TAREAS DE LAS UNIDADES DE MANIOBRA (fase por fase, todas las Unidades con la reserva, cada una con TAREA y PROPÓSITO).', tipo: 'err' },
     { id: 'orgTarea', txt: 'Falta la ORGANIZACIÓN DE LA TAREA (las agrupaciones y lo que queda bajo control).' },
     { id: 'enemigo', txt: 'I.- A.- Faltan las FUERZAS ENEMIGAS (dos escalones abajo).' },
     { id: 'caeProbable', txt: 'I.- A.- 1.- Falta el CURSO DE ACCIÓN DEL ENEMIGO MÁS PROBABLE (el del G-2).' },
@@ -245,7 +259,7 @@ export const DEF = {
     { id: 'ingenieros', txt: 'III.- A.- 5.- Faltan los INGENIEROS (propósito, prioridad de esfuerzo y de trabajo).' },
     { id: 'tareasApoyo', txt: 'III.- C.- Faltan las TAREAS DE LAS UNIDADES DE APOYO DE COMBATE.' },
     { id: 'vigencia', txt: 'III.- D.- 1.- Falta la hora o condición de entrada en vigor (día D, hora H).' },
-    { id: 'rpi', txt: 'III.- D.- 2.- Faltan los RCIC (RPI).' },
+    { id: 'rpi', txt: 'III.- D.- 2.- Faltan los RCIC (RPI): los que determinó cada sección del Estado Mayor.' },
     { id: 'conceptoApoyo', txt: 'IV.- A.- Falta el CONCEPTO DE APOYO (enfoque y prioridad por fase).' },
     { id: 'puestosComando', txt: 'V.- A.- 2.- Faltan los PUESTOS COMANDO con sus ubicaciones.' },
     { id: 'ioc', txt: 'V.- B.- 1.- Faltan las IOC en vigencia.' },
@@ -545,21 +559,70 @@ export function fasesDelCAP(ctx = {}) {
   })
   return { C, fases: out }
 }
-const cabeceraFase = (f) => `FASE ${romano(f.n)}${f.nombre ? ` (${f.nombre.toUpperCase()})` : ''}${f.cuando ? ` ${cuandoLargo(f.cuando)}` : ''}.`
-// La unidad en la fase, como en la OGO del CE-I «KILÓMETRO 7»: «La DIV MEC-2 (OD), esfuerzo principal, defiende la LPR en
-// Estancia Esmeralda, con el propósito de…».
-function oracionUnidad(u, ant) {
-  const esReserva = u.rol === 'RESERVA' || /^reserva$/i.test(u.tarea)
-  const nom = u.rol ? `${u.nom} (${u.rol})` : u.nom
-  const cabeza = `${articulo(u.nom)} ${nom}${esReserva ? '' : `, ${esfuerzoDe(u.rol, u.principal)},`}`
+// «FASE I: CONCENTRACIÓN (desde el D-10 hasta el D-8).», como en el PMTD («Fase I: Ocupación y organización de la PD.»).
+const cabeceraFase = (f) => {
+  const c = cuandoLargo(f.cuando).replace(/^\((.*)\)$/, '$1')
+  return `FASE ${romano(f.n)}${f.nombre ? `: ${f.nombre.toUpperCase()}` : ''}${c ? ` (${c})` : ''}.`
+}
+const SIN_DATO = 'SIN DATO — verificar'
+// La designación con lo que es en la operación, como en el PMTD: «(OD y esfuerzo principal)», «(OC-1 y esfuerzo
+// secundario)», «(RESERVA)».
+const esReservaU = (u) => u.rol === 'RESERVA' || /^reserva\b/i.test(u.tarea || '')
+function etiquetaDe(u) {
+  if (esReservaU(u)) return 'RESERVA'
+  const esf = esfuerzoDe(u.rol, u.principal)
+  return u.rol ? `${u.rol} y ${esf}` : esf
+}
+// «con prioridad de planeamiento a la OD y posteriormente a la OC-1 y OC-2»
+function planeamientoDe(roles) {
+  const xs = unicos(roles.filter((r) => r && r !== 'RESERVA' && r !== 'SOST')).sort((a, b) => ORDEN_ROL(a) - ORDEN_ROL(b))
+  return xs.length ? `con prioridad de planeamiento a la ${xs[0]}${xs.length > 1 ? ` y posteriormente a la ${listaY(xs.slice(1))}` : ''}` : ''
+}
+const dondeDe = (u) => (u.donde && !/sin posici[oó]n/i.test(u.donde) && !norm(u.tarea).includes(norm(u.donde.replace(/^en\s+/i, ''))) ? ` ${u.donde}` : '')
+// La unidad en la fase, como en el PMTD: «La Fuerza de Tarea VARGAS (OD y esfuerzo principal) defiende y bloquea al BIM
+// (OD) de la DIMEC-56, con el propósito de evitar la conquista de Co. TUNARI.»; la reserva, «… constituye la reserva,
+// encontrándose en condiciones de ser empleada con orden, con prioridad de planeamiento a la OD…».
+function oracionUnidad(u, ant, { planeamiento = '' } = {}) {
+  const cabeza = `${articulo(u.nom)} ${u.nom} (${etiquetaDe(u)})`
   const repetida = ant && ant.tarea === u.tarea && ant.donde === u.donde
-  const donde = u.donde && !/sin posici[oó]n/i.test(u.donde) && !norm(u.tarea).includes(norm(u.donde.replace(/^en\s+/i, ''))) ? ` ${u.donde}` : ''
+  const donde = dondeDe(u)
   let queHace
   if (/^reserva$/i.test(u.tarea)) queHace = repetida ? 'continúa como reserva' : 'constituye la reserva'
   else if (repetida) queHace = enGerundio(u.tarea) ? `continúa ${enGerundio(u.tarea)}` : `mantiene su tarea (${minus(u.tarea)})`
   else queHace = u.tarea ? minus(enPresente(u.tarea)) : 'mantiene su dispositivo'
   const p = repetida ? '' : proposito(u.proposito)
-  return `${cabeza} ${sinPunto(queHace)}${donde}${p ? `, ${p}` : ''}.`
+  const lista = /^reserva$/i.test(u.tarea) && !repetida && planeamiento ? `, encontrándose en condiciones de ser ${articulo(u.nom) === 'El' ? 'empleado' : 'empleada'} con orden, ${planeamiento}` : ''
+  return `${cabeza} ${sinPunto(queHace)}${donde}${p ? `, ${p}` : ''}${lista}.`
+}
+// La fase en la que se libra la operación decisiva (la que el concepto cuenta unidad por unidad): la que se llama como
+// el combate («CONDUCCIÓN DE LA DEFENSA», «ATAQUE»…) y no como un movimiento; si no, la primera en la que el esfuerzo
+// principal no se mueve; si no, la última.
+const MOVIMIENTO = /concentr|desplaz|ocupaci|organizaci|reorganiz|consolid|preparaci|movimiento|marcha|aprest|alistam|reuni[oó]n|repliegue/i
+const COMBATE = /defens|conducci|decisiv|ataque|asalto|bloqueo|destrucci|canaliz|retardo|combate|ruptura|penetraci|envolv|contraataque|explotaci|persecuci|cobertura|desgaste/i
+const VERBO_MOVIMIENTO = /^(concentrar|desplazar|ocupar|mover|marchar|trasladar|reunir|replegar|alistar)/i
+export function faseDecisiva(fases = []) {
+  if (!fases.length) return null
+  const porNombre = fases.find((f) => COMBATE.test(sinTildes(f.nombre)) && !MOVIMIENTO.test(sinTildes(f.nombre))) || fases.find((f) => COMBATE.test(sinTildes(f.nombre)))
+  if (porNombre) return porNombre
+  const od = fases.find((f) => f.unidades.some((u) => u.clase === 'maniobra' && (u.principal || u.rol === 'OD') && u.tarea && !VERBO_MOVIMIENTO.test(sinTildes(u.tarea)) && !/^reserva$/i.test(u.tarea)))
+  return od || fases[fases.length - 1]
+}
+// La Unidad dicha como en el concepto del PMTD («Una División Mecanizada», «Un Batallón de Infantería», «Una Fuerza de
+// Tarea»): el escalón y el arma de la ficha; si no, los de la designación.
+const ESCALONES = { equipo: ['Equipo de Combate', 'm'], seccion: ['Sección', 'f'], compania: ['Compañía', 'f'], escuadron: ['Escuadrón', 'm'], batallon: ['Batallón', 'm'], grupo: ['Grupo', 'm'], regimiento: ['Regimiento', 'm'], brigada: ['Brigada', 'f'], division: ['División', 'f'], cuerpo: ['Cuerpo de Ejército', 'm'] }
+const ARMAS = { infanteria: 'de Infantería', mecanizada: ['Mecanizada', 'Mecanizado'], blindada: ['Blindada', 'Blindado'], motorizada: ['Motorizada', 'Motorizado'], caballeria: 'de Caballería', cabmec: 'de Caballería Mecanizada', aerotransportada: ['Aerotransportada', 'Aerotransportado'], andina: ['Andina', 'Andino'], paracaidista: 'Paracaidista', logistica: ['Logística', 'Logístico'], sanidad: 'de Sanidad', artilleria: 'de Artillería', ingenieria: 'de Ingeniería', antiaerea: 'de Artillería Antiaérea', comunicaciones: 'de Comunicaciones' }
+export function genericoDe(ctx, nom, { definido = false } = {}) {
+  const u = unidadesPropias(ctx).find((x) => mismaUnidad(nombreDe(x), nom)) || {}
+  const d = sinTildes(nom).toUpperCase()
+  const ft = /^(F\.?\s?T\.?\b|FUERZA DE TAREA|AGRUP)/.test(d)
+  const esc = !ft && (norm(u.escalon) || (/^DIV/.test(d) ? 'division' : /^BR/.test(d) ? 'brigada' : /^(R[A-Z]{0,4}-|REG)/.test(d) ? 'regimiento' : /^(B[A-Z]{0,5}-|BAT)/.test(d) ? 'batallon' : /^(C[IÍ]A|CIA)/.test(d) ? 'compania' : /^ESC/.test(d) ? 'escuadron' : ''))
+  const E = ESCALONES[esc]
+  if (!E) return `${definido ? 'La' : 'Una'} Fuerza de Tarea`
+  const arma = norm(u.arma).replace(/\s+/g, '') || (/MEC/.test(d) ? 'mecanizada' : /BLIN|\bAC\b/.test(d) ? 'blindada' : /MOT/.test(d) ? 'motorizada' : /CAB/.test(d) ? 'caballeria' : /LOG/.test(d) ? 'logistica' : '')
+  const A = ARMAS[arma]
+  const adj = Array.isArray(A) ? A[E[1] === 'f' ? 0 : 1] : A || ''
+  const art = definido ? (E[1] === 'f' ? 'La' : 'El') : E[1] === 'f' ? 'Una' : 'Un'
+  return `${art} ${E[0]}${adj ? ` ${adj}` : ''}`
 }
 
 // ─── El CAE del G-2 ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -752,61 +815,253 @@ export function refuerzosTexto(ctx = {}) {
   if (ref.length && !L[0]) L.push(...ref.map((u) => `${nombreDe(u)}: ${limpio(u.relacion)}.`))
   return L.filter(Boolean).join('\n')
 }
+// ─── II.- MISIÓN ────────────────────────────────────────────────────────────────────────────────────────────────
+// La misión aprobada (F2·P12) en el orden del PMTD: QUIÉN, QUÉ, CUÁNDO, DÓNDE y PROPÓSITO, en una oración («La Div-2,
+// defiende y destruye al batallón de tanques a partir del D(0600) hasta D+6 (1800) al sud de la LF. ÁGUILA con el
+// propósito de…»). Con sus cinco elementos escritos se arma con ellos, en ese orden; si no, el enunciado completo.
+const PREP_LUGAR = /^(en|al|a la|a lo largo|sobre|entre|dentro|frente|delante|detr[aá]s|desde|hacia|del?|por|hasta)\b/i
+function cuandoMision(c) {
+  const s = sinPunto(plano(c))
+  if (!s || /^(a partir|desde|entre|con orden|durante|antes|despu[eé]s|hasta)\b/i.test(s)) return s
+  const m = s.match(/^(?:el\s+)?(.+?)\s+(?:a|al|hasta(?: el)?)\s+(?:el\s+)?(.+)$/i)
+  if (m && /^(D\b|D[\s(+-]|d[ií]a\b)/i.test(m[1])) return `a partir del ${m[1]} hasta el ${m[2]}`
+  return /^(D\b|D[\s(+-])/.test(s) ? `a partir del ${s}` : s
+}
+const dondeMision = (d) => (!d || PREP_LUGAR.test(d) ? d : `en ${d}`)
+// «Defender y retener la LF PUMA» → «defiende y retiene la LF PUMA»
+function quePresente(q) {
+  const s = minus(enPresente(q))
+  const m = s.match(/^(\S+ y )(\p{L}+(?:ar|er|ir)(?:se|lo|la|los|las)?)(?=$|[\s,.;:])/iu)
+  return m ? `${m[1]}${enPresente(m[2])}${s.slice(m[0].length)}` : s
+}
 export function misionTexto(ctx = {}) {
   const g3 = g3De(ctx)
-  const m = casilla(g3.mision, 'ENUNCIADO COMPLETO')
-  if (m) return punto(plano(m))
-  const partes = ['QUIÉN', 'QUÉ', 'CUÁNDO', 'DÓNDE', 'PROPÓSITO'].map((k) => sinCuentas(casilla(g3.mision, k)))
-  if (partes[0] && partes[1] && partes.slice(2).filter(Boolean).length >= 2) return punto(partes.filter(Boolean).join(', ').replace(/,\s*(para|con el prop)/i, ' $1'))
+  const [quien, que, cuando, donde, prop] = ['QUIÉN', 'QUÉ', 'CUÁNDO', 'DÓNDE', 'PROPÓSITO'].map((k) => sinPunto(plano(sinCuentas(casilla(g3.mision, k)))))
+  const p = proposito(prop)
+  const armar = () => {
+    const q = /^(el|la|los|las)\s/i.test(quien) ? mayus(quien) : `${articulo(quien)} ${quien}`
+    return punto(limpio(`${q}, ${quePresente(que)} ${cuandoMision(cuando)} ${dondeMision(donde)} ${p}`))
+  }
+  if (quien && que && cuando && donde && p && [quien, que, cuando, donde, prop].every((x) => x.length < 300)) return armar()
+  const enunciado = casilla(g3.mision, 'ENUNCIADO COMPLETO')
+  if (enunciado) return punto(plano(enunciado))
+  if (quien && que && [cuando, donde, p].filter(Boolean).length >= 2) return armar()
   return punto(plano(casilla(g3.prep3, 'II.- MISIÓN')) || plano(ordenDe(ctx).mision))
 }
-// La intención: la de la Guía de Planificación Final (F6·P2); si no, la Intención Inicial (F2·P14) dicha como en el
-// PMTD («El propósito de la operación es… Para esto será clave… Al finalizar la operación…»); si no, la O.P. N° 3.
+
+// ─── LA INTENCIÓN DEL COMANDANTE ────────────────────────────────────────────────────────────────────────────────
+// Como en el PMTD, en forma inextensa y sin rótulos: «Mi intención es (propósito), para esto es clave inicialmente
+// (tareas clave), asimismo es importante…» y, en otro párrafo, el estado final: «Al finalizar la operación, (cómo queda
+// la propia fuerza), (cómo queda el enemigo), (la operación futura).»
+const ROTULOS_INTENCION = [
+  ['proposito', 'prop[oó]sito(?: ampliado| de la operaci[oó]n)?'],
+  ['pd', 'punto decisivo'],
+  ['tareas', 'tareas? claves?(?: y\\/o condiciones)?'],
+  ['propia', '(?:c[oó]mo queda la )?(?:propia fuerza|fuerza propia)'],
+  ['enemigo', '(?:c[oó]mo queda el )?enemigo'],
+  ['futura', 'operaci[oó]n(?:es)? futuras?'],
+  ['fin', 'estado final(?: deseado)?'],
+]
+const RE_ROTULO_INTENCION = new RegExp(`(?:^|\\n|(?<=[.;])[ \\t]+)(${ROTULOS_INTENCION.map(([, r]) => r).join('|')})\\s*:\\s*`, 'gi')
+// «Propósito: … Punto decisivo: … Tareas clave: … Estado final: …» → { proposito, pd, tareas, fin, propia, enemigo, futura }
+export function partesIntencion(t) {
+  const s = txt(t)
+  const ms = [...s.matchAll(RE_ROTULO_INTENCION)]
+  const out = {}
+  ms.forEach((m, i) => {
+    const k = ROTULOS_INTENCION.find(([, r]) => new RegExp(`^(?:${r})$`, 'i').test(m[1]))?.[0]
+    const v = s.slice(m.index + m[0].length, i + 1 < ms.length ? ms[i + 1].index : s.length).trim()
+    if (k && v) out[k] = out[k] ? `${out[k]}\n${v}` : v
+  })
+  return out
+}
+// Las tareas clave, una por elemento («1) …», «- …», «PRIMERO.- …», o separadas por «;» en un renglón).
+export function listaTareas(t) {
+  const ls = lineas(t)
+  const xs = ls.length === 1 ? ls[0].split(/\s*;\s*|\s+(?=\d{1,2}\)\s)|\s*\b(?:PRIMERO|SEGUNDO|TERCERO|CUARTO|QUINTO|SEXTO)\s*\.?-?\s*/) : ls
+  return xs.map((l) => sinPunto(l.replace(/^[-•·]\s*|^\d{1,2}\s*(?:\.-|[.)])\s+|^[a-z]\s*(?:\.-|\))\s+/i, '').trim())).filter(Boolean)
+}
+function tareasEnProsa(ts) {
+  const t = ts.map((x) => minus(sinPunto(x)))
+  if (!t.length) return ''
+  if (t.length === 1) return `para esto es clave ${t[0]}`
+  if (t.length === 2) return `para esto es clave inicialmente ${t[0]} y ${t[1]}`
+  return `para esto es clave inicialmente ${t[0]}, ${t[1]}, asimismo es importante ${listaY(t.slice(2))}`
+}
+export function componerIntencion({ proposito: p = '', tareas = [], fin = '', propia = '', enemigo = '', futura = '' } = {}) {
+  const prop = minus(sinPunto(plano(p))).replace(/^(mi intenci[oó]n es|el prop[oó]sito(?: ampliado)?(?: de la operaci[oó]n)? es)\s+/i, '')
+  const tp = tareasEnProsa(tareas)
+  const L = []
+  if (prop || tp) L.push(punto(prop ? `Mi intención es ${prop}${tp ? `, ${tp}` : ''}` : mayus(tp)))
+  const fut = sinPunto(plano(futura))
+  const finales = [propia, enemigo].map((x) => sinPunto(plano(x))).filter(Boolean)
+  if (fut) finales.push(/^(encontr|en condiciones|quedando|list[oa]s?|preparad)/i.test(fut) ? fut : `encontrándonos en condiciones de ${minus(fut)}`)
+  const f = finales.length ? finales.map((x, i) => (i ? minus(x) : x)).join(', ') : sinPunto(plano(fin))
+  if (f) L.push(/^al finalizar/i.test(f) ? punto(f) : `Al finalizar la operación, ${minus(punto(f))}`)
+  return L.join('\n')
+}
+// Una intención escrita de cualquier forma, dicha como en el PMTD.
+export function intencionEnProsa(t) {
+  const s = txt(t).trim()
+  if (!s || /^mi intenci[oó]n\b/i.test(s)) return s
+  const P = partesIntencion(s)
+  if (P.proposito || P.tareas || P.fin || P.propia || P.enemigo) return componerIntencion({ ...P, tareas: listaTareas(P.tareas || '') })
+  // como la escribía antes la Mesa: «El propósito de la operación es… Para esto será necesario cumplir las siguientes
+  // tareas clave: 1) … Al finalizar la operación, …»
+  const vieja = s.match(/^El prop[oó]sito(?: de la operaci[oó]n)? es\s+([\s\S]*?)\n(?:El punto decisivo es [^\n]*\n)?Para esto ser[aá] necesario cumplir las siguientes tareas clave:\n([\s\S]*?)(?:\n(Al finalizar la operaci[oó]n,[\s\S]*))?$/i)
+  if (vieja) return componerIntencion({ proposito: vieja[1], tareas: listaTareas(vieja[2]), fin: vieja[3] || '' })
+  return s.replace(/^El prop[oó]sito(?: de la operaci[oó]n)? es\s+/i, 'Mi intención es ')
+}
+// La de la Guía de Planificación Final (F6·P2, la definitiva); si no, la Intención Inicial (F2·P14); si no, la O.P. N° 3.
 export function intencionTexto(ctx = {}) {
-  const gf = plano(guiaFinal(ctx).intencion) ? txt(guiaFinal(ctx).intencion) : ''
+  const gf = txt(guiaFinal(ctx).intencion)
+  if (!vacio(gf)) return intencionEnProsa(gf)
   const h = hojasDe(ctx, 'cmte').intencion
   const prop = casilla(h, 'Propósito')
-  const pd = casilla(h, 'Punto decisivo')
   const tareas = casilla(h, 'Tareas clave')
   const fin = casilla(h, 'Estado Final')
-  if (prop || tareas || fin) {
-    const L = []
-    if (prop) L.push(`El propósito de la operación es ${minus(punto(plano(prop)).replace(/^(el prop[oó]sito( de la operaci[oó]n)? es\s+)/i, ''))}`)
-    if (pd) L.push(`El punto decisivo es ${minus(punto(plano(pd)))}`)
-    const ts = lineas(tareas)
-      .flatMap((l) => (lineas(tareas).length === 1 ? l.split(/\s*;\s*|\s*\d\)\s+/) : [l]))
-      .map((l) => l.replace(/^[-•·\d.)\s]+/, '').trim())
-      .filter(Boolean)
-    if (ts.length) L.push('Para esto será necesario cumplir las siguientes tareas clave:', ...ts.map((t, i) => `${i + 1}) ${punto(mayus(t))}`))
-    if (fin) L.push(`Al finalizar la operación, ${minus(punto(plano(fin)))}`)
-    return gf && gf.length > L.join(' ').length ? gf : L.join('\n')
+  if (prop || tareas || fin) return componerIntencion({ proposito: prop, tareas: listaTareas(tareas), fin })
+  return intencionEnProsa(casilla(g3De(ctx).prep3, 'III.- EJECUCIÓN · Intención', 'III.- EJECUCION · Intencion'))
+}
+
+// ─── III.- A.- EL CONCEPTO DE LA OPERACIÓN ──────────────────────────────────────────────────────────────────────
+// Como en el PMTD (Desarrollo de los CAP, paso 4, y el enunciado del CAP de la Div-2): «Vamos a cumplir la misión
+// mediante… El punto decisivo es… porque…», una oración por unidad («Una Fuerza de Tarea fuerte en Infantería (OD y
+// esfuerzo principal) defiende y bloquea…, con el propósito de…»), la reserva, el propósito de los fuegos, de la defensa
+// antiaérea y del esfuerzo de ingenieros, la operación de sostenimiento, las fases y el estado final.
+const formaEnFrase = (f) => (f === 'defensa' ? 'una operación defensiva' : f === 'ofensiva' ? 'una operación ofensiva' : `${/^(repliegue|ataque|contraataque)/.test(f) ? 'un' : 'una'} ${f}`)
+const aLa = (n) => `${articulo(n) === 'El' ? 'al' : 'a la'} ${n}`
+const deLa = (n) => `${articulo(n) === 'El' ? 'del' : 'de la'} ${n}`
+// El punto decisivo: el de la Estructura del campo de batalla (F2·SAL); si no, el que dijo el Comandante.
+export function puntoDecisivo(ctx = {}) {
+  const fuentes = [casilla(g3De(ctx).estructura, 'PUNTO DECISIVO'), partesIntencion(guiaFinal(ctx).intencion).pd, casilla(hojasDe(ctx, 'cmte').intencion, 'Punto decisivo')]
+  const pd = fuentes.map((x) => sinPunto(plano(sinCuentas(x)))).find(Boolean) || ''
+  return pd.replace(/^(el )?punto decisivo (es|ser[aá]|se encuentra(?: materializado)?(?: por| en)?)\s*:?\s*/i, '')
+}
+// «con el propósito de X» (o «a fin de X») dentro de un texto, hasta el fin de la oración.
+function propositoEn(t) {
+  const m = plano(t).match(/(?:con el prop[oó]sito de|con la finalidad de|a fin de)\s+(.+?)(?:\.\s+(?=\p{Lu})|\.$|;|$)/iu)
+  return m ? sinPunto(m[1]) : ''
+}
+// La tarea de la unidad en la fase decisiva (si no tiene ficha en esa fase, la de la última anterior; si no, la próxima).
+function enLaFase(fases, dec, nom) {
+  const i = Math.max(0, fases.indexOf(dec))
+  const orden = [...fases.slice(0, i + 1).reverse(), ...fases.slice(i + 1)]
+  for (const f of orden) {
+    const u = f.unidades.find((x) => mismaUnidad(x.nom, nom) && x.tarea)
+    if (u) return u
   }
-  return gf || casilla(g3De(ctx).prep3, 'III.- EJECUCIÓN · Intención', 'III.- EJECUCION · Intencion')
+  return null
+}
+// Las unidades de maniobra que dependen directamente (con la reserva), en el orden OD, OC-n, RESERVA.
+export function maniobraDirecta(ctx = {}, fases = fasesDelCAP(ctx).fases) {
+  const R = rolesDe(ctx)
+  const u0 = unidadDe(ctx)
+  const propias = unidadesPropias(ctx)
+  const subordinada = (n) => {
+    const x = propias.find((y) => mismaUnidad(nombreDe(y), n))
+    return !!(x && limpio(x.dependeDe) && !(u0 && mismaUnidad(x.dependeDe, u0)))
+  }
+  const xs = []
+  const sumar = (n) => n && !xs.some((x) => mismaUnidad(x, n)) && !subordinada(n) && xs.push(n)
+  for (const f of fases) for (const u of f.unidades) if (u.clase === 'maniobra') sumar(u.nom)
+  for (const u of propias) if (claseDe(u) === 'maniobra' && (!limpio(u.dependeDe) || (u0 && mismaUnidad(u.dependeDe, u0)))) sumar(nombreDe(u))
+  const principal = (n) => fases.some((f) => f.unidades.some((u) => mismaUnidad(u.nom, n) && u.principal))
+  const rolOrden = (u) => (u.principal && !u.rol ? 'OD' : u.rol)
+  return xs.map((nom) => ({ nom, rol: rolDe(R, nom), principal: principal(nom) })).sort((a, b) => ORDEN_ROL(rolOrden(a)) - ORDEN_ROL(rolOrden(b)))
+}
+// Lo de los ingenieros: la prioridad de esfuerzo (la que el concepto del CAP nombra primero), los obstáculos de la carta
+// por fase y lo que dice el concepto de cada uno.
+function ingenieria(ctx, C, fases) {
+  const t = sinCuentas(casilla(C.concepto, 'Movilidad'))
+  const todo = `${t} ${sincro(ctx, 'MOVILIDAD / CONTRAMOVILIDAD / SUPERVIVENCIA (ING.)').join(' ')}`
+  const donde = (re) => {
+    const i = todo.search(re)
+    return i < 0 ? Infinity : i
+  }
+  const cand = [['contramovilidad', donde(/contra\s?movilidad/i)], ['movilidad', donde(/(?<!contra\s?)movilidad/i)], ['supervivencia', donde(/supervivencia/i)]].sort((a, b) => a[1] - b[1])
+  const obs = fases.filter((f) => f.obstaculos.length).map((f) => `${listaY(unicos(f.obstaculos.map((o) => minus(sinPunto(o)))))} (FASE ${romano(f.n)})`)
+  const tipo = cand[0][1] < Infinity ? cand[0][0] : obs.length ? 'contramovilidad' : ''
+  const segs = {}
+  for (const m of t.matchAll(/\b(Contramovilidad|Movilidad|Supervivencia)\s*:\s*([\s\S]*?)(?=\s*\b(?:Contramovilidad|Movilidad|Supervivencia)\s*:|$)/gi)) segs[norm(m[1])] = sinPunto(plano(m[2]))
+  return { tipo, mediante: obs.length ? `la construcción de ${obs.join('; ')}` : '', segs, texto: t }
+}
+// «a la DIV MEC-2 (OD) y posteriormente a la DIV-1 (OC-1)»
+function prioridadTrabajo(ctx, fases) {
+  const R = rolesDe(ctx)
+  const xs = maniobraDirecta(ctx, fases).filter((u) => u.rol !== 'RESERVA').map((u) => conRol(R, u.nom))
+  return xs.length ? `${aLa(xs[0])}${xs.length > 1 ? ` y posteriormente ${listaY(xs.slice(1).map(aLa))}` : ''}` : ''
+}
+const esADA = (u) => /antiaer|\bada\b|\baa\b|raa|bat ?aa/i.test(sinTildes(`${u.arma} ${u.simbolo} ${nombreDe(u)}`))
+// La operación de sostenimiento: «El Batallón Logístico (operación de sostenimiento) tiene la tarea de proporcionar apoyo
+// de servicio de combate, con el propósito de…» (el propósito, el de la misión logística del G-4).
+function sostenimientoFrase(ctx) {
+  const u0 = unidadDe(ctx)
+  const log = unidadesPropias(ctx).filter((u) => claseDe(u) === 'servicio' && (!limpio(u.dependeDe) || (u0 && mismaUnidad(u.dependeDe, u0))))
+  const ml = sinPunto(plano(ctx.calco?.misionLog))
+  if (log.length) {
+    const quien = log.length === 1 ? genericoDe(ctx, nombreDe(log[0]), { definido: true }) : 'Las Unidades de apoyo de servicio de combate'
+    return `${quien} (operación de sostenimiento) ${log.length === 1 ? 'tiene' : 'tienen'} la tarea de proporcionar apoyo de servicio de combate, con el propósito de ${propositoEn(ml) || 'satisfacer las necesidades de vida y de combate de las Unidades empeñadas en primera línea'}.`
+  }
+  return ml ? `La operación de sostenimiento: ${punto(ml)}` : ''
+}
+// El estado final: el del concepto del CAP; si no, el de la intención del Comandante.
+function estadoFinal(ctx, C) {
+  const pi = partesIntencion(guiaFinal(ctx).intencion)
+  const fin = sinCuentas(casilla(C.concepto, 'Estado final')) || [pi.propia, pi.enemigo].filter(Boolean).join(', ') || pi.fin || casilla(hojasDe(ctx, 'cmte').intencion, 'Estado Final')
+  const f = sinPunto(plano(fin))
+  return !f ? '' : /^al finalizar/i.test(f) ? punto(f) : `Al finalizar la operación, ${minus(punto(f))}`
 }
 export function conceptoTexto(ctx = {}) {
   const { C, fases } = fasesDelCAP(ctx)
-  const g3 = g3De(ctx)
   const k = C.concepto
   const forma = formaDeManiobra(ctx)
-  const pd = sinCuentas(casilla(g3.estructura, 'PUNTO DECISIVO'))
-  const enunciado = sinCuentas(casilla(C.coa, 'Enunciado completo'))
+  const pd = puntoDecisivo(ctx)
   const L = []
-  if (forma || pd) L.push(`Cumpliremos la misión mediante la ejecución de una ${forma || 'operación'}${pd ? `; el punto decisivo es ${minus(sinPunto(plano(pd)))}` : ''}.`)
-  const fm = sinCuentas(casilla(k, 'Forma de maniobra'))
-  if (fm) L.push(punto(plano(fm)))
-  else if (enunciado) L.push(punto(plano(enunciado)))
-  const ep = sinCuentas(casilla(k, 'Esfuerzo principal'))
-  if (ep) L.push(`Esfuerzo principal: ${punto(plano(ep))}`)
-  const es = sinCuentas(casilla(k, 'Esfuerzos secundarios'))
-  if (es) L.push(`Esfuerzos secundarios: ${punto(plano(es))}`)
-  if (fases.length) {
-    L.push('La operación se desarrollará en las siguientes fases:')
-    for (const f of fases) L.push(cabeceraFase(f))
+  if (forma || pd || fases.length) {
+    const a = forma ? `Vamos a cumplir la misión mediante ${formaEnFrase(forma)}.` : ''
+    const b = pd ? `El punto decisivo es ${minus(pd)}.` : fases.length ? `El punto decisivo es ${SIN_DATO} (dónde y por qué).` : ''
+    L.push([a, b].filter(Boolean).join(' '))
   }
+  const dec = faseDecisiva(fases)
+  const us = maniobraDirecta(ctx, fases)
+  const plan = planeamientoDe(us.map((u) => u.rol))
+  for (const x of dec ? us : []) {
+    const gen = genericoDe(ctx, x.nom)
+    const u = enLaFase(fases, dec, x.nom)
+    if (x.rol === 'RESERVA' || (u && /^reserva$/i.test(u.tarea))) {
+      // lo que hará con orden: su primera tarea después de la fase decisiva que no sea «Reserva»
+      const despues = fases.slice(fases.indexOf(dec) + 1).flatMap((f) => f.unidades.filter((y) => mismaUnidad(y.nom, x.nom) && y.tarea && !/^reserva$/i.test(y.tarea)))[0]
+      const cond = despues ? `${minus(sinPunto(despues.tarea))}${dondeDe(despues)} con orden` : `ser ${/^Un /.test(gen) ? 'empleado' : 'empleada'} con orden`
+      L.push(`${gen} (RESERVA) constituye la reserva, encontrándose en condiciones de ${cond}${plan ? `, ${plan}` : ''}.`)
+    } else if (u) {
+      const p = proposito(u.proposito)
+      L.push(`${gen} (${etiquetaDe({ ...u, rol: x.rol, principal: x.principal })}) ${sinPunto(quePresente(u.tarea))}${dondeDe(u)}${p ? `, ${p}` : ''}.`)
+    }
+  }
+  if (!dec) {
+    // sin las fases en la carta: lo que dice el concepto del CAP (F3·P4)
+    for (const [r, t] of [['OD', 'Esfuerzo principal'], ['OC', 'Esfuerzos secundarios'], ['RESERVA', 'Reserva']]) {
+      const x = sinCuentas(casilla(k, t))
+      if (x) L.push(`${t} (${r}): ${punto(plano(x))}`)
+    }
+  }
+  const pf = propositoEn(casilla(k, 'Fuegos')) || filasDe(g3De(ctx).fuegos).map((f) => proposito(casilla(f, 'Propósito')).replace(/^con el propósito de\s+/, '')).find(Boolean)
+  if (pf) L.push(`El propósito del apoyo de fuegos es ${minus(pf)}.`)
+  if (unidadesPropias(ctx).some(esADA)) L.push('El propósito del apoyo de defensa antiaérea es proporcionar cobertura a las operaciones terrestres, con prioridad a la Unidad que lleve la OD.')
+  const I = ingenieria(ctx, C, fases)
+  if (I.tipo) L.push(`La prioridad de esfuerzo de ingeniería será la ${I.tipo}${I.mediante ? ` mediante ${I.mediante}` : ''}, la prioridad de trabajo será para la Unidad que lleve la OD.`)
+  const sost = sostenimientoFrase(ctx)
+  if (sost) L.push(sost)
+  if (fases.length) L.push('La operación se desarrollará en las siguientes fases:', ...fases.map(cabeceraFase))
+  const fin = estadoFinal(ctx, C)
+  if (fin && L.length) L.push(fin)
   return L.join('\n')
 }
+// III.- A.- 1.- Maniobra: fase por fase, una oración por unidad con su designación; al final, el riesgo.
 export function maniobraTexto(ctx = {}) {
   const { C, fases } = fasesDelCAP(ctx)
+  const plan = planeamientoDe(maniobraDirecta(ctx, fases).map((u) => u.rol))
   const L = []
   let ant = new Map()
   for (const f of fases) {
@@ -815,15 +1070,13 @@ export function maniobraTexto(ctx = {}) {
     if (!conTarea.length && !f.tarea) continue
     L.push(cabeceraFase(f))
     if (f.tarea && !/del CE|^Concentraci|^Desplazamiento/i.test(f.tarea)) L.push(punto(mayus(f.tarea)))
-    for (const u of conTarea) L.push(oracionUnidad(u, ant.get(norm(u.nom))))
+    for (const u of conTarea) L.push(oracionUnidad(u, ant.get(norm(u.nom)), { planeamiento: plan }))
     const otras = f.tareas.filter((t) => !conTarea.some((u) => norm(t).includes(norm(u.nom))))
-    if (otras.length) L.push(`Tareas tácticas en la carta: ${otras.join('; ')}.`)
+    if (otras.length) L.push(`Tareas tácticas: ${otras.join('; ')}.`)
     ant = new Map(f.unidades.map((u) => [norm(u.nom), u]))
   }
-  const res = sinCuentas(casilla(C.concepto, 'Reserva'))
-  if (res) L.push(`La RESERVA: ${punto(plano(res))}`)
-  const riesgo = sinCuentas(casilla(C.concepto, 'Riesgo aceptado'))
-  if (riesgo) L.push(`El riesgo a afrontar: ${punto(plano(riesgo))}`)
+  const riesgo = plano(sinCuentas(casilla(C.concepto, 'Riesgo aceptado'))).replace(/(^|\s)\d{1,2}\)\s+/g, ' ').trim()
+  if (riesgo) L.push(/^se (asume|acepta)/i.test(riesgo) ? punto(mayus(riesgo)) : `Se asume como riesgo ${minus(punto(riesgo))}`)
   return L.join('\n')
 }
 // La prioridad de una fila de la Matriz de sincronización (F4·P6-7), fase por fase.
@@ -833,36 +1086,66 @@ function sincro(ctx, fila) {
   const cols = Array.isArray(s._cols) && s._cols.length ? s._cols : ['FASE I', 'FASE II', 'FASE III', 'FASE IV', 'FASE V']
   return cols.map((c) => [c, sinCuentas(s[`${fila}|${c}`])]).filter(([, x]) => x).map(([c, x]) => `${limpio(c).replace(/^FASE\s+(\d+)/i, (m, n) => `FASE ${romano(Number(n))}`)}: ${sinPunto(plano(x))}.`)
 }
+// III.- A.- 2.- Apoyo de fuegos, en sus cuatro elementos y en un párrafo, como en el PMTD: «Los medios de apoyo de fuegos
+// tienen la tarea de suprimir a…, con el propósito de…, el método: la prioridad de apoyo de fuegos a…, se asignan los
+// blancos…, restricciones:…, el efecto será…».
+const CODIGO_BLANCO = /^[A-Z]{1,4}-?\d{1,4}\b/
+function prioridadFuegos(ctx, fases) {
+  const R = rolesDe(ctx)
+  const pri = sincro(ctx, 'APOYO DE FUEGOS')
+  if (pri.length) return `la prioridad de apoyo de fuegos ${pri.map((x) => sinPunto(x).replace(/^(FASE\s+[IVX]+):\s*(.*)$/, (m, f, r) => `en la ${f}, ${minus(r)}`)).join('; ')}`
+  const p = fases.map((f) => [f.n, f.unidades.filter((u) => u.clase === 'maniobra' && (u.principal || u.rol === 'OD') && u.tarea).map((u) => conRol(R, u.nom))]).filter(([, a]) => a.length).map(([n, a]) => [n, listaY(a.map(aLa))])
+  const tramos = []
+  for (const [n, a] of p) {
+    const t = tramos[tramos.length - 1]
+    if (t && t.a === a && t.hasta === n - 1) t.hasta = n
+    else tramos.push({ desde: n, hasta: n, a })
+  }
+  return tramos.length ? `la prioridad de apoyo de fuegos ${tramos.map((t) => `${t.desde === t.hasta ? `en la FASE ${romano(t.desde)}` : `de la FASE ${romano(t.desde)} a la FASE ${romano(t.hasta)}`} ${t.a}`).join('; ')}` : ''
+}
+const restriccionesFuego = (ctx) => unicos(sinCuentas(casilla(g3De(ctx).controlOrden, 'Medidas de coordinación de apoyo')).split(/(?<=[.;])\s+|\n/).map((x) => sinPunto(plano(x))).filter((x) => /\b(AFP|AFR|LRF|ZFP|ZFR)\b|restrictiv|prohib/i.test(x)))
 export function fuegosTexto(ctx = {}) {
   const { C, fases } = fasesDelCAP(ctx)
   const g3 = g3De(ctx)
-  const L = []
   const k = sinCuentas(casilla(C.concepto, 'Fuegos'))
-  if (k) L.push(punto(plano(k)))
-  const pri = sincro(ctx, 'APOYO DE FUEGOS')
-  if (pri.length) L.push('Prioridad de fuegos por fase:', ...pri.map((x) => `- ${x}`))
-  else {
-    const p = fases.map((f) => [f.n, f.unidades.filter((u) => u.clase === 'maniobra' && (u.principal || u.rol === 'OD') && u.tarea).map((u) => u.nom).join(' y a la ')]).filter(([, a]) => a)
-    const tramos = []
-    for (const [n, a] of p) {
-      const t = tramos[tramos.length - 1]
-      if (t && t.a === a && t.hasta === n - 1) t.hasta = n
-      else tramos.push({ desde: n, hasta: n, a })
-    }
-    if (tramos.length) L.push(`Prioridad de fuegos: ${tramos.map((t) => `${t.desde === t.hasta ? `en la FASE ${romano(t.desde)}` : `de la FASE ${romano(t.desde)} a la FASE ${romano(t.hasta)}`} a la ${t.a}`).join('; ')}.`)
+  const filas = filasDe(g3.fuegos)
+  // la TAREA y el PROPÓSITO: los del concepto del CAP; si no, la primera fila de la Matriz de ejecución (F4·P7)
+  let tarea = ''
+  let prop = ''
+  const conProp = plano(k).split(/(?<=\.)\s+(?=Fase\s+[IVX\d]+\b)/i).find((x) => /con el prop[oó]sito de/i.test(x)) || ''
+  if (conProp) {
+    const [a, b] = conProp.split(/,?\s*con el prop[oó]sito de\s+/i)
+    tarea = minus(sinPunto(a.replace(/^Fase\s+[IVX\d]+\s*(\([^)]*\))?\s*:\s*/i, '')))
+    prop = sinPunto(String(b || '').split(/\.\s+(?=\p{Lu})/u)[0])
   }
-  const mat = filasDe(g3.fuegos).map((f) => {
+  const f0 = filas.find((f) => casilla(f, 'Tarea'))
+  if (!tarea && f0) {
+    tarea = limpio(`${minus(plano(casilla(f0, 'Tarea')))} ${plano(casilla(f0, 'Blanco'))}`)
+    prop = proposito(casilla(f0, 'Propósito')).replace(/^con el propósito de\s+/, '')
+  }
+  // el MÉTODO: la prioridad por fase, los blancos asignados y las restricciones
+  const pri = prioridadFuegos(ctx, fases)
+  const blancos = unicos([...fases.flatMap((f) => f.fuegos.map((x) => (limpio(x).match(CODIGO_BLANCO) || [])[0])), ...filas.map((f) => (plano(casilla(f, 'Blanco')).match(CODIGO_BLANCO) || [])[0])].filter(Boolean))
+  const restr = restriccionesFuego(ctx)
+  // el EFECTO: lo cuantificado o lo que impide, que no está ya en el propósito
+  const efecto = [...plano(k).matchAll(/(?:para|a fin de|con el prop[oó]sito de)\s+((?:destruir|neutralizar|suprimir|impedir|evitar|degradar|desgastar|reducir)[^.;]*)/gi)].map((m) => sinPunto(m[1])).find((x) => /\d\s?%|impedir|evitar/i.test(x) && !prop.includes(x)) || ''
+  const L = []
+  if (tarea || prop || pri || blancos.length) {
+    const metodo = [pri, blancos.length ? `se ${blancos.length === 1 ? 'asigna el blanco' : 'asignan los blancos'} ${listaY(blancos)}` : '', restr.length ? `restricciones: ${restr.join('; ')}` : ''].filter(Boolean).join(', ')
+    L.push(punto([`Los medios de apoyo de fuegos tienen la tarea de ${tarea || SIN_DATO}`, prop ? `con el propósito de ${prop}` : '', metodo ? `el método: ${metodo}` : '', efecto ? `el efecto será ${efecto}` : ''].filter(Boolean).join(', ')))
+  }
+  // los fuegos planificados, fase por fase (la Matriz de ejecución y los fuegos de la carta)
+  const mat = filas.map((f) => {
     const blanco = casilla(f, 'Blanco')
     const quien = casilla(f, 'Unidad que lo bate')
-    const tarea = casilla(f, 'Tarea')
-    const prop = casilla(f, 'Propósito')
+    const t = casilla(f, 'Tarea')
+    const p = casilla(f, 'Propósito')
     const met = casilla(f, 'Método')
     const fase = casilla(f, 'Fase')
-    return tarea || prop ? `- ${fase ? `${plano(fase)}: ` : ''}${plano(tarea) || 'batir'} ${plano(blanco)}${quien ? ` con ${plano(quien)}` : ''}${prop ? `, ${minus(proposito(prop))}` : ''}${met ? `. Método: ${plano(met)}` : ''}.` : ''
+    return t || p ? `- ${fase ? `${plano(fase)}: ` : ''}${minus(plano(t)) || 'batir'} ${plano(blanco)}${quien ? ` con ${plano(quien)}` : ''}${p ? `, ${proposito(p)}` : ''}${met ? `; método: ${minus(plano(met))}` : ''}.` : ''
   }).filter(Boolean)
-  if (mat.length) L.push('Matriz de ejecución de apoyo de fuegos (F4·P7):', ...mat)
   const deFases = fases.filter((f) => f.fuegos.length).map((f) => `- FASE ${romano(f.n)}: ${f.fuegos.join('; ')}.`)
-  if (deFases.length) L.push('Fuegos planificados en la carta:', ...deFases)
+  if (mat.length || deFases.length) L.push('Los fuegos planificados:', ...mat, ...deFases)
   return L.join('\n')
 }
 export function artilleriaTexto(ctx = {}) {
@@ -886,47 +1169,88 @@ export function artilleriaTexto(ctx = {}) {
 export function mcafTexto(ctx = {}) {
   return punto(sinCuentas(casilla(g3De(ctx).controlOrden, 'Medidas de coordinación de apoyo')))
 }
-export function reconocimientoTexto(ctx = {}) {
-  const g3 = g3De(ctx)
-  const L = []
+// Los órganos de reconocimiento de la Orden de Reconocimiento (F2·P9): «Escuadrón ZULU — …».
+function organosReco(ctx) {
   let reco = ''
   try {
-    reco = textoReconocimiento(g3.ivr)
+    reco = textoReconocimiento(g3De(ctx).ivr)
   } catch {
     reco = ''
   }
-  const eq = reco
+  return reco
     .split('\n')
     .map((l) => l.replace(/^\s*-\s*/, ''))
     .filter((l) => /—/.test(l) && !/^(Número|OBJETO|CARTA|ANEXOS)\b/.test(l))
-  if (eq.length) L.push('Órganos de reconocimiento (Orden de Reconocimiento, F2·P9):', ...eq.map((l) => `- ${punto(l)}`))
+}
+export function reconocimientoTexto(ctx = {}) {
+  const L = []
   const ains = (ctx.calco?.ops?.ains || []).map((a) => limpio(a?.nom || (a?.n != null ? `AIN-${a.n}` : '')) + (plano(a?.porQue) ? ` (${plano(a.porQue)})` : '')).filter(Boolean)
-  if (ains.length) L.push(`Áreas de interés nombradas: ${ains.join('; ')}.`)
-  const ev = filasDe(picbDe(ctx).ht20).map((f) => `${casilla(f, 'N° A.I.N.')}: ${casilla(f, 'Indicador')}${casilla(f, 'No antes de') ? `, no antes de ${casilla(f, 'No antes de')}` : ''}${casilla(f, 'No después de') ? `, no después de ${casilla(f, 'No después de')}` : ''}`).filter((x) => !/^:\s*$/.test(x))
-  if (ev.length) L.push('Matriz de eventos del G-2 (H.T. 20):', ...ev.map((x) => `- ${punto(plano(x))}`))
+  if (ains.length) L.push(`El punto focal del esfuerzo de reconocimiento y vigilancia son ${ains.length === 1 ? 'el área de interés nombrada' : 'las áreas de interés nombradas'} ${listaY(ains)}.`)
+  const eq = organosReco(ctx)
+  if (eq.length) L.push('Los órganos de reconocimiento y sus tareas:', ...eq.map((l) => `- ${punto(l)}`))
+  const ev = filasDe(picbDe(ctx).ht20)
+    .map((f) => {
+      const ain = casilla(f, 'N° A.I.N.')
+      const ind = casilla(f, 'Indicador')
+      const na = casilla(f, 'No antes de')
+      const nd = casilla(f, 'No después de')
+      return ind ? `${ain ? `${ain}: ` : ''}${minus(sinPunto(plano(ind)))}${na ? `, no antes del ${plano(na)}` : ''}${nd ? `${na ? ' y' : ','} no después del ${plano(nd)}` : ''}` : ''
+    })
+    .filter(Boolean)
+  if (ev.length) L.push('Los indicadores a vigilar:', ...ev.map((x) => `- ${punto(x)}`))
   const pri = sincro(ctx, 'INTELIGENCIA')
-  if (pri.length) L.push('Por fase (Matriz de sincronización):', ...pri.map((x) => `- ${x}`))
+  if (pri.length) L.push('Por fase:', ...pri.map((x) => `- ${x}`))
   return L.join('\n')
 }
+// III.- A.- 4.- Inteligencia, como en el PMTD: «El enfoque de recopilación de inteligencia está dirigido a determinar…
+// La prioridad de apoyo a la… (OD). Los recursos son…».
+export function inteligenciaTexto(ctx = {}) {
+  const { fases } = fasesDelCAP(ctx)
+  const R = rolesDe(ctx)
+  const L = []
+  const enemigo = nombreDe(enemigas(ctx).find((u) => claseDe(u) === 'maniobra') || {})
+  const defensiva = /defens|retard|repliegue/.test(formaDeManiobra(ctx))
+  if (enemigo) L.push(`El enfoque de recopilación de inteligencia está dirigido a determinar ${defensiva ? `el dispositivo de ataque, la dirección del esfuerzo principal y las rutas alternas que pueda emplear ${articulo(enemigo) === 'El' ? 'el' : 'la'} ${enemigo}` : `el dispositivo defensivo, las reservas y los obstáculos ${deLa(enemigo)}`} en nuestra área de operaciones.`)
+  const od = maniobraDirecta(ctx, fases).find((u) => u.rol === 'OD' || u.principal)
+  if (od) L.push(`La prioridad de apoyo ${aLa(conRol(R, od.nom))}.`)
+  const intel = unidadesPropias(ctx).filter((u) => /intelig|explor|\bcie\b|cirt|uav|dron|guerra electr/i.test(sinTildes(`${u.arma} ${u.simbolo} ${nombreDe(u)}`))).map(nombreDe)
+  const recursos = unicos([...intel, ...organosReco(ctx).map((l) => limpio(l.split('—')[0]))])
+  if (recursos.length) L.push(`Los recursos son ${listaY(recursos)}.`)
+  const pri = sincro(ctx, 'INTELIGENCIA')
+  if (pri.length && L.length) L.push(...pri.map((x) => `- ${x}`))
+  if (L.length) L.push(`Ver Anexo “${letraDe('Inteligencia')}” Inteligencia.`)
+  return L.join('\n')
+}
+// III.- A.- 5.- Ingenieros, como en el PMTD: «La prioridad de esfuerzo es de contramovilidad mediante…, la prioridad de
+// trabajo a la… (OD)».
 export function ingenierosTexto(ctx = {}) {
   const { C, fases } = fasesDelCAP(ctx)
+  const I = ingenieria(ctx, C, fases)
+  const trabajo = prioridadTrabajo(ctx, fases)
   const L = []
-  const mcs = sinCuentas(casilla(C.concepto, 'Movilidad'))
-  if (mcs) L.push(punto(plano(mcs)))
+  if (I.tipo) L.push(`La prioridad de esfuerzo es de ${I.tipo}${I.mediante ? ` mediante ${I.mediante}` : ''}${trabajo ? `, la prioridad de trabajo ${trabajo}` : ''}.`)
+  const segs = [['contramovilidad', 'Contramovilidad'], ['movilidad', 'Movilidad'], ['supervivencia', 'Supervivencia']].filter(([k]) => I.segs[k])
+  if (segs.length) L.push(...segs.map(([k, t]) => `- ${t}: ${punto(I.segs[k])}`))
+  else if (I.texto) L.push(punto(plano(I.texto)))
   const obs = sinCuentas(casilla(g3De(ctx).controlOrden, 'Medidas de control de obstáculos'))
   if (obs) L.push(`Control de obstáculos: ${punto(plano(obs))}`)
   const pri = sincro(ctx, 'MOVILIDAD / CONTRAMOVILIDAD / SUPERVIVENCIA (ING.)')
-  if (pri.length) L.push('Por fase (Matriz de sincronización):', ...pri.map((x) => `- ${x}`))
-  const deFases = fases.filter((f) => f.obstaculos.length).map((f) => `- FASE ${romano(f.n)}: ${f.obstaculos.join('; ')}.`)
-  if (deFases.length) L.push('Obstáculos planificados en la carta:', ...deFases)
+  if (pri.length) L.push('Por fase:', ...pri.map((x) => `- ${x}`))
   return L.join('\n')
 }
+// III.- A.- 6.- Defensa antiaérea, como en el PMTD: «La tarea de los medios de ADA es destruir vectores aéreos…, con el
+// propósito de proporcionar cobertura a las operaciones terrestres, la prioridad de apoyo a la… (OD)».
 export function antiaereaTexto(ctx = {}) {
-  const ada = unidadesPropias(ctx).filter((u) => /antiaer|\bada\b|\baa\b|raa|bat ?aa/i.test(`${u.arma} ${u.simbolo} ${sinTildes(nombreDe(u))}`))
-  const L = []
-  if (ada.length) L.push(`Medios de defensa antiaérea: ${ada.map((u) => `${nombreDe(u)}${limpio(u.relacion) ? ` (${limpio(u.relacion)})` : ''}`).join(', ')}.`)
+  const { fases } = fasesDelCAP(ctx)
+  const R = rolesDe(ctx)
+  const ada = unidadesPropias(ctx).filter(esADA)
   const pri = sincro(ctx, 'ADA.')
-  if (pri.length) L.push('Por fase (Matriz de sincronización):', ...pri.map((x) => `- ${x}`))
+  const L = []
+  if (ada.length || pri.length) {
+    const od = maniobraDirecta(ctx, fases).find((u) => u.rol === 'OD' || u.principal)
+    L.push(`La tarea de los medios de defensa antiaérea${ada.length ? ` (${listaY(ada.map((u) => `${nombreDe(u)}${limpio(u.relacion) ? `, ${limpio(u.relacion)}` : ''}`))})` : ''} es destruir los vectores aéreos enemigos, con el propósito de proporcionar cobertura a las operaciones terrestres${od ? `, la prioridad de apoyo ${aLa(conRol(R, od.nom))}` : ''}.`)
+  }
+  if (pri.length) L.push('Por fase:', ...pri.map((x) => `- ${x}`))
   return L.join('\n')
 }
 export function policiaTexto(ctx = {}) {
@@ -943,38 +1267,120 @@ export function acgmTexto(ctx = {}) {
   if (L.length) L.push(`Ver Anexo “${letraDe('Asuntos Civiles')}” Asuntos Civiles y Gobierno Militar.`)
   return L.join('\n')
 }
-// «1.- DIV MEC-2 (OD).» y debajo sus tareas, fase por fase (las de la carta, conjugadas).
+// III.- B.- y C.- Las tareas de las unidades, FASE POR FASE como en el PMTD: en cada fase TODAS las unidades (las de
+// maniobra que dependen directamente, con la reserva; o las de apoyo de combate), cada una con su TAREA y su PROPÓSITO:
+//   FASE I: OCUPACIÓN Y ORGANIZACIÓN DE LA PD (desde … hasta …).
+//   1.- FT VARGAS (OD).
+//   TAREA: Se desplaza a la PD.
+//   PROPÓSITO: Ocupar la PD.
+// La tarea es la de la ficha de la unidad en esa fase (conjugada); sin ficha, «Continúa …» lo de la fase anterior. Las de
+// apoyo de combate suman su relación de apoyo (F4·SAL, desde su fase) y sus fuegos de la Matriz de ejecución (F4·P7).
+const RELACION = [
+  [/refuerzo de fuegos|apoyo general.?refuerzo/i, (a) => `Refuerza los fuegos ${deLa(a)}`],
+  [/refuerzo/i, (a) => `Refuerza ${aLa(a)}`],
+  [/apoyo directo/i, (a) => `Apoya directamente ${aLa(a)}`],
+  [/acci[oó]n de conjunto|apoyo general/i, (a) => `Ejecuta acción de conjunto en apoyo ${deLa(a)}`],
+]
+const numFase = (s) => {
+  const m = sinTildes(String(s || '')).toUpperCase().match(/FASE\s+([IVX]+|\d+)\b/)
+  return !m ? null : /^\d+$/.test(m[1]) ? Number(m[1]) : ROMANOS.indexOf(m[1]) + 1 || null
+}
+const sinProposito = (p) => sinPunto(String(p || '').replace(/^con el propósito de\s+/i, ''))
+const continua = (u) => (/^reserva$/i.test(u.tarea) ? 'Continúa como reserva' : enGerundio(u.tarea) ? `Continúa ${enGerundio(u.tarea)}${dondeDe(u)}` : `Continúa con su tarea: ${minus(sinPunto(u.tarea))}`)
 export function tareasTexto(ctx = {}, clase = 'maniobra') {
   const { fases } = fasesDelCAP(ctx)
   const R = rolesDe(ctx)
-  const por = new Map()
-  for (const f of fases) {
-    for (const u of f.unidades) {
-      if ((clase === 'maniobra') !== (u.clase === 'maniobra') || u.clase === 'servicio' || !u.tarea) continue
-      const k = [...por.keys()].find((x) => mismaUnidad(x, u.nom)) || u.nom
-      if (!por.has(k)) por.set(k, { nom: k, rol: u.rol || rolDe(R, k), items: [] })
-      const p = proposito(u.proposito)
-      const linea = `FASE ${romano(f.n)}: ${sinPunto(mayus(tareaEnPresente(u.tarea)))}${u.donde && !/sin posici/i.test(u.donde) ? ` ${u.donde}` : ''}${p ? `, ${p}` : ''}.`
-      const x = por.get(k)
-      if (!x.items.some((i) => i.replace(/^FASE [IVX]+: /, '') === linea.replace(/^FASE [IVX]+: /, ''))) x.items.push(linea)
+  const g3 = g3De(ctx)
+  const u0 = unidadDe(ctx)
+  const propias = unidadesPropias(ctx)
+  const deClase = (u) => (clase === 'maniobra' ? u.clase === 'maniobra' : u.clase === 'apoyo')
+  const directa = maniobraDirecta(ctx, fases)
+  const plan = planeamientoDe(directa.map((u) => u.rol))
+  // las unidades, en el orden de la organización de la tarea
+  let nombres = []
+  if (clase === 'maniobra') nombres = directa.map((u) => u.nom)
+  else {
+    const sumar = (n) => {
+      const x = propias.find((y) => mismaUnidad(nombreDe(y), n))
+      if (n && !nombres.some((y) => mismaUnidad(y, n)) && !(x && claseDe(x) !== 'apoyo') && !(u0 && mismaUnidad(n, u0))) nombres.push(n)
     }
+    for (const u of propias) if (claseDe(u) === 'apoyo' && (!limpio(u.dependeDe) || (u0 && mismaUnidad(u.dependeDe, u0)))) sumar(nombreDe(u))
+    for (const f of fases) for (const u of f.unidades) if (deClase(u)) sumar(u.nom)
+    for (const f of filasDe(g3.recursos)) sumar(sinCuentas(casilla(f, 'Recurso')))
+    for (const f of filasDe(g3.fuegos)) sumar(sinCuentas(casilla(f, 'Unidad que lo bate')))
   }
-  if (clase !== 'maniobra') {
-    for (const f of filasDe(g3De(ctx).recursos)) {
-      const quien = sinCuentas(casilla(f, 'Recurso'))
-      if (!quien) continue
-      const k = [...por.keys()].find((x) => mismaUnidad(x, quien)) || quien
-      if (!por.has(k)) por.set(k, { nom: k, rol: '', items: [] })
+  // lo que una unidad de apoyo de combate hace en la fase n fuera de su ficha
+  const extra = (nom, n) => {
+    const tareas = []
+    const props = []
+    if (clase === 'maniobra') return { tareas, props }
+    for (const f of filasDe(g3.recursos)) {
+      if (!mismaUnidad(sinCuentas(casilla(f, 'Recurso')), nom)) continue
+      const desde = numFase(casilla(f, 'Desde qué fase'))
+      if (desde && n < desde) continue
       const aq = sinCuentas(casilla(f, 'A quién'))
       const rel = sinCuentas(casilla(f, 'Relación'))
-      const desde = sinCuentas(casilla(f, 'Desde qué fase'))
-      const pr = sinCuentas(casilla(f, 'Prioridad'))
-      const linea = `${rel ? mayus(rel) : 'Apoya'}${aq ? ` a ${aq}` : ''}${desde ? ` desde la ${desde}` : ''}${pr ? `, prioridad ${pr}` : ''}.`
-      if (aq || rel) por.get(k).items.unshift(linea)
+      const a = aq ? conRol(R, aq) : ''
+      const r = RELACION.find(([re]) => re.test(rel))
+      if (a || rel) tareas.push(r && a ? r[1](a) : `${mayus(rel || 'Apoya')}${a ? ` ${aLa(a)}` : ''}`)
     }
+    for (const f of filasDe(g3.fuegos)) {
+      const nf = numFase(casilla(f, 'Fase'))
+      if (!mismaUnidad(sinCuentas(casilla(f, 'Unidad que lo bate')), nom) || (nf && nf !== n)) continue
+      const t = plano(casilla(f, 'Tarea'))
+      if (t) tareas.push(limpio(`${mayus(enPresente(t))} ${plano(casilla(f, 'Blanco'))}`))
+      const p = sinProposito(proposito(casilla(f, 'Propósito')))
+      if (p) props.push(p)
+    }
+    return { tareas, props }
   }
-  const xs = [...por.values()].filter((x) => x.items.length).sort((a, b) => ORDEN_ROL(a.rol) - ORDEN_ROL(b.rol))
-  return xs.map((x, i) => [`${i + 1}.- ${x.rol ? `${x.nom} (${x.rol})` : x.nom}.`, ...x.items.map((t, j) => `${String.fromCharCode(97 + (j % 26))}.- ${t}`)].join('\n')).join('\n')
+  const juntar = (xs) => xs.map((x, i) => (i ? minus(sinPunto(x)) : mayus(sinPunto(x)))).join('; ')
+  const bloque = (i, nom, tareas, props) => [`${i}.- ${conRol(R, nom)}.`, `TAREA: ${punto(juntar(tareas))}`, `PROPÓSITO: ${props.length ? punto(juntar(props)) : `${SIN_DATO}.`}`]
+  const L = []
+  if (!fases.length) {
+    // sin las fases en la carta: sólo las de apoyo de combate, con su relación de apoyo
+    if (clase === 'maniobra') return ''
+    let i = 0
+    for (const nom of nombres) {
+      const x = extra(nom, Infinity)
+      if (x.tareas.length) L.push(...bloque(++i, nom, x.tareas, x.props))
+    }
+    return L.join('\n')
+  }
+  const ultimo = new Map()
+  for (const f of fases) {
+    const B = []
+    let i = 0
+    for (const nom of nombres) {
+      const k = norm(nom)
+      const u = f.unidades.find((x) => deClase(x) && mismaUnidad(x.nom, nom) && x.tarea)
+      const prev = ultimo.get(k)
+      let tarea = ''
+      let prop = ''
+      if (u) {
+        const igual = prev && prev.u.tarea === u.tarea && prev.u.donde === u.donde
+        tarea = igual ? continua(u) : `${mayus(sinPunto(tareaEnPresente(u.tarea)))}${dondeDe(u)}`
+        prop = sinProposito(proposito(u.proposito)) || (igual ? prev.prop : '')
+        ultimo.set(k, { u, prop })
+      } else if (prev) {
+        tarea = continua(prev.u)
+        prop = prev.prop
+      }
+      const x = extra(nom, f.n)
+      const tareas = [tarea, ...x.tareas].filter(Boolean)
+      const props = unicos([prop, ...x.props].filter(Boolean))
+      if (!tareas.length) {
+        if (clase !== 'maniobra') continue
+        tareas.push(SIN_DATO)
+      }
+      const reserva = /^reserva$/i.test((u || prev?.u)?.tarea || '')
+      if (!props.length && reserva && plan) props.push(`encontrarse en condiciones de ser ${articulo(nom) === 'El' ? 'empleado' : 'empleada'} con orden, ${plan}`)
+      if (!props.length && f.proposito) props.push(sinProposito(proposito(f.proposito)))
+      B.push(...bloque(++i, nom, tareas, props.filter(Boolean)))
+    }
+    if (B.length) L.push(cabeceraFase(f), ...B)
+  }
+  return L.join('\n')
 }
 export function vigenciaTexto(ctx = {}) {
   const os = ordenDe(ctx)
@@ -985,30 +1391,69 @@ export function vigenciaTexto(ctx = {}) {
   if (d || h) L.push(`${d ? `Día D: ${limpio(d)}` : ''}${d && h ? '; ' : ''}${h ? `hora H: ${limpio(h)}` : ''}.`)
   return d || h || unidadDe(ctx) ? L.join('\n') : ''
 }
-// Los RCIC: los de la Guía de Planificación Final; si no, los priorizados por el Comandante (F2·P8); si no, los del
-// G-3 (F2·P8). RPI = preguntas sobre el enemigo, el terreno y las CC.MM.; RIFA = sobre la fuerza propia.
-export function rcicDe(ctx = {}) {
-  const RIFA = /^informar|\bnuestr|\bpropi[ao]s?\b|\bamig|eficiencia|abastecim|clase (iii|v)\b|repliegue de la|concluy|baj(a|en) (del|de)|reemplaz/i
+// ─── III.- D.- 2.- LOS RCIC ─────────────────────────────────────────────────────────────────────────────────────
+// Los que ya determinó cada sección del Estado Mayor (PMTD 2017, octavo paso del Análisis de la Misión: «desde sus
+// respectivos campos de responsabilidad, desarrollan tanto RPI como RIFA y las presentan a consideración del
+// Comandante»): la F2·P8 «RCIC. y EEIA.» del G-1, del G-3, del G-4, del G-5 y del EME, y el Plan de búsqueda de
+// información del G-2 (sus requisitos son los RPI). Primero los que priorizó el Comandante (F2·P8 «Prioridad a los RCIC.»
+// y la Guía de Planificación Final), en su orden; después los de cada sección. RPI = sobre el enemigo, el terreno, las
+// condiciones meteorológicas y las CC.MM.; RIFA = sobre las propias fuerzas; EEIA = lo que hay que negarle al enemigo.
+const SECCIONES_RCIC = [['g1', 'G-1'], ['g4', 'G-4'], ['g5', 'G-5'], ['eme', 'EME']]
+const RE_EEIA = /\bEEIA\b|que el enemigo no (conozca|detecte|descubra|sepa|ubique)|negar(le)? al enemigo|ocultar|enmascar/i
+const RE_RPI = /\benemig|\brojo\b|amenaza|adversari|\bCAE\b|terreno|camino|carretera|puente|vado|\br[ií]o\b|transitab|clima|meteorol|lluvia|nevad|helada|visibilidad|iluminaci|poblaci|civil|refugiad|desplazad|autoridad|\bONG\b|\bCC\.?\s?MM\b/i
+const RE_RIFA = /^informar\b|\bnuestr|\bpropi[ao]s?\b|\bamig|eficiencia|abastec|clase\s+(i|ii|iii|iv|v|vi|vii|viii|ix|x)\b|reemplaz|munici[oó]n|combustible|baja(s)? propia|repliegue de|empe[nñ]o de la reserva|concluy|complet/i
+function tipoRequerimiento(r, de, tipo = '') {
+  if (/EEIA/i.test(tipo) || RE_EEIA.test(r)) return 'EEIA'
+  if (/RIFA/i.test(tipo) || /^\s*RIFA\b/i.test(r)) return 'RIFA'
+  if (/RPI/i.test(tipo) || /^\s*(RPI|ORI)\b/i.test(r) || de === 'G-2') return 'RPI'
+  if (RE_RPI.test(r) && !/^\s*informar\b/i.test(r)) return 'RPI'
+  if (RE_RIFA.test(r)) return 'RIFA'
+  return de === 'G-1' || de === 'G-4' ? 'RIFA' : /[¿?]/.test(r) ? 'RPI' : 'RIFA'
+}
+const limpiarReq = (r) =>
+  sinPunto(plano(r).replace(/^(?:[-•·]\s*|\d{1,2}\s*(?:\.-|[.)])\s+|(?:RCIC|RPI|RIFA|ORI|EEIA)\s*[-–—.]?\s*\d*\s*[.:)-]*\s*)+/i, '').replace(/\s*\((?:prioridad|lo propuso|sostiene|no despu[eé]s)[^)]*\)\s*$/i, ''))
+const seccionDe = (s) => {
+  const t = sinTildes(String(s || '')).toUpperCase()
+  const m = t.match(/\bG\s*-?\s*([1-5])\b/)
+  return m ? `G-${m[1]}` : /\bEME\b|ESPECIAL/.test(t) ? 'EME' : /CMTE|COMANDANTE/.test(t) ? 'Cmte.' : limpio(s)
+}
+// [{ r, tipo: 'RPI' | 'RIFA' | 'EEIA', de: ['G-2', …], p }] en el orden en que van en la Orden.
+export function requerimientosDe(ctx = {}) {
   const lista = []
-  const delG3 = filasDe(g3De(ctx).rcic).map((f) => ({ r: casilla(f, 'Requerimiento'), tipo: casilla(f, 'Tipo') })).filter((x) => x.r)
-  const gf = lineas(guiaFinal(ctx).rcic).map((l) => l.replace(/^[-•·\d.)\s]+/, '').replace(/\s*\((?:prioridad|lo propuso|sostiene)[^)]*\)\s*$/i, ''))
-  const pr = filasDe(hojasDe(ctx, 'cmte').prioridadRcic).map((f) => ({ r: casilla(f, 'Requerimiento'), p: parseFloat(casilla(f, 'Prioridad')) || 99 })).filter((x) => x.r).sort((a, b) => a.p - b.p)
-  if (gf.length) lista.push(...gf.map((r) => ({ r, tipo: '' })))
-  else if (pr.length) lista.push(...pr.map((x) => ({ r: x.r, tipo: '' })))
-  else lista.push(...delG3)
-  // los EEIA del G-3 van siempre: el Comandante prioriza los RCIC (RPI y RIFA), no lo que hay que negarle al enemigo
-  if (gf.length || pr.length) lista.push(...delG3.filter((x) => /EEIA/i.test(x.tipo)))
-  const rpi = []
-  const rifa = []
-  const eeia = []
-  for (const x of lista) {
-    const r = plano(x.r)
-    if (/EEIA/i.test(x.tipo)) eeia.push(r)
-    else if (RIFA.test(r) && !/\benemig|\brojo\b|\bsaturno\b|magenta|goliat/i.test(r)) rifa.push(r)
-    else rpi.push(r)
+  const agregar = (r0, de, tipo = '', p = null) => {
+    const r = limpiarReq(r0)
+    if (!r) return
+    const ya = lista.find((x) => norm(x.r) === norm(r))
+    if (ya) {
+      if (p != null && (ya.p == null || p < ya.p)) ya.p = p
+      if (de && !ya.de.includes(de)) ya.de.push(de)
+      return
+    }
+    lista.push({ r, tipo: tipoRequerimiento(plano(r0), de, tipo), de: de ? [de] : [], p, i: lista.length })
   }
-  const num = (xs) => xs.slice(0, 10).map((r, i) => `${i + 1}) ${punto(mayus(r))}`).join('\n')
-  return { rpi: num(rpi), rifa: num(rifa), eeia: eeia.map((r, i) => `${String.fromCharCode(97 + i)}.- ${punto(mayus(r))}`).join('\n') }
+  filasDe(hojasDe(ctx, 'cmte').prioridadRcic).forEach((f) => {
+    const n = parseFloat(casilla(f, 'Prioridad'))
+    agregar(casilla(f, 'Requerimiento'), seccionDe(casilla(f, 'Quién lo propone', 'Quien')), '', Number.isFinite(n) ? n : 50)
+  })
+  lineas(guiaFinal(ctx).rcic).forEach((l, i) => {
+    const n = Number(l.match(/prioridad\s*(\d+)/i)?.[1])
+    agregar(l, seccionDe(l.match(/lo propuso\s*([^);]+)/i)?.[1] || ''), '', Number.isFinite(n) && n > 0 ? n : 50 + i / 100)
+  })
+  // el G-2: los requisitos de su Plan de búsqueda de información (si no tiene, los vacíos de inteligencia de la H.T. 4)
+  const p = picbDe(ctx)
+  const pbi = Array.isArray(p.pbi) ? p.pbi.map((f) => casilla(f, 'Requisito')) : Array.isArray(p.pbi?.requisitos) ? p.pbi.requisitos.map((x) => (esObj(x) ? x.requisito : '')) : []
+  const reqG2 = pbi.map(plano).filter(Boolean)
+  for (const r of reqG2.length ? reqG2 : Array.isArray(p.ht4?.a) ? p.ht4.a : []) agregar(r, 'G-2', 'RPI')
+  // el G-3 (F2·P8, con su tipo) y las demás secciones (su F2·P8 «RCIC. y EEIA.»)
+  filasDe(g3De(ctx).rcic).forEach((f) => agregar(casilla(f, 'Requerimiento'), 'G-3', casilla(f, 'Tipo')))
+  for (const [g, de] of SECCIONES_RCIC) filasDe(hojasDe(ctx, g).rcic).forEach((f) => agregar(casilla(f, 'Requerimiento'), de, casilla(f, 'Tipo')))
+  return lista.sort((a, b) => (a.p ?? 999) - (b.p ?? 999) || a.i - b.i)
+}
+export function rcicDe(ctx = {}) {
+  const L = requerimientosDe(ctx)
+  const de = (t) => L.filter((x) => x.tipo === t).map((x) => x.r)
+  const num = (xs) => xs.map((r, i) => `${i + 1}) ${punto(mayus(r))}`).join('\n')
+  return { rpi: num(de('RPI')), rifa: num(de('RIFA')), eeia: de('EEIA').map((r, i) => `${String.fromCharCode(97 + (i % 26))}.- ${punto(mayus(r))}`).join('\n') }
 }
 // La matriz de riesgo (F6·P3; si no, F2·P7): cada peligro con sus medidas de control.
 export function riesgosTexto(ctx = {}) {
@@ -1092,7 +1537,13 @@ export function conceptoApoyoTexto(ctx = {}) {
   if (!vacio(a4.concepto)) L.push(txt(a4.concepto))
   else {
     const fases = c.fasesCOA?.propio || []
-    const cc = (Array.isArray(c.conceptoApoyo) ? c.conceptoApoyo : []).map((x, i) => (esObj(x) && ((x.enfoque || []).length || limpio(x.prioridad)) ? `- FASE ${romano(i + 1)}${limpio(x.nombre || fases[i]?.nombre) ? ` (${limpio(x.nombre || fases[i]?.nombre).replace(/^FASE\s+[IVX\d]+\s*[—–:-]?\s*/i, '')})` : ''}: enfoque de apoyo en ${(x.enfoque || []).join(', ') || '[definir]'}; prioridad de apoyo: ${limpio(x.prioridad) || '[definir]'}.` : '')).filter(Boolean)
+    // como en el PMTD: «El enfoque de apoyo logístico es de abastecimiento de clase III y V, la prioridad de apoyo a la…»
+    const cc = (Array.isArray(c.conceptoApoyo) ? c.conceptoApoyo : []).map((x, i) => {
+      if (!esObj(x) || (!(x.enfoque || []).length && !limpio(x.prioridad))) return ''
+      const nom = limpio(x.nombre || fases[i]?.nombre).replace(/^FASE\s+[IVX\d]+\s*[—–:-]?\s*/i, '')
+      const pri = limpio(x.prioridad)
+      return `- FASE ${romano(i + 1)}${nom ? ` (${nom})` : ''}: el enfoque de apoyo logístico es de ${(x.enfoque || []).join(', ') || SIN_DATO}, la prioridad de apoyo ${!pri ? SIN_DATO : /^(a|al)\s/i.test(pri) ? pri : aLa(pri)}.`
+    }).filter(Boolean)
     L.push(...cc)
   }
   const pri = sincro(ctx, 'APOYO DE SERVICIO DE COMBATE')
@@ -1196,6 +1647,7 @@ export function propuestas(ctx = {}) {
   poner('artilleria', artilleriaTexto)
   poner('mcaf', mcafTexto)
   poner('reconocimiento', reconocimientoTexto)
+  poner('inteligencia', inteligenciaTexto)
   poner('ingenieros', ingenierosTexto)
   poner('antiaerea', antiaereaTexto)
   poner('policiaMilitar', policiaTexto)
@@ -1240,61 +1692,107 @@ export function propuestas(ctx = {}) {
 export const DOCTRINA = [
   `${FUENTE}. «Los planes y las órdenes son los medios que emplea el Comandante para expresar a sus subordinados su visualización del campo de batalla, intención y decisiones… Deben proporcionar el qué en vez del cómo con el objeto de alentar la iniciativa.» Todos los planes y órdenes: tienen CINCO PÁRRAFOS; proporcionan la organización táctica y el esquema de maniobra; una declaración clara y concisa de la misión, con la fecha y hora de ejecución; transmiten la intención y el concepto de la operación del Comandante; generalmente incluyen un calco y los anexos necesarios.`,
   'Características (PMTD 2017, Cap. VII, IV): las ÓRDENES de operaciones NO indican suposiciones (sólo los planes). Expresión de carácter IMPOSITIVO: redacción directa, sin lugar a dudas de lo que el Comandante desea. Expresión POSITIVA («Los trenes de combate permanecerán en el área de reunión», no «no acompañarán»). Evitar expresiones no pertinentes: no «trate de controlar», sino «controle hasta»; no «atacará» ni «retardará mientras mantiene contacto», sino «ataca», «retarda». Simplicidad, brevedad (no repetir lo que está en los PON), CLARIDAD (términos y gráficas doctrinales), CABALIDAD (medidas de control completas, relaciones de mando y apoyo claras, responsabilidades asignadas de acuerdo con la intención), coordinación (contacto entre subordinados, apoyo mutuo, evitar el fratricidio) y flexibilidad.',
-  'LA MISIÓN (PMTD 2017, Análisis de la Misión, paso 11): contiene QUIÉN (la unidad), QUÉ (el tipo de operación —ataca, defiende— y la tarea esencial como tarea táctica: destruye, fija, canaliza…), CUÁNDO (desde el D-2 hasta el D+3, con orden), DÓNDE (AO, objetivos, coordenadas) y el PROPÓSITO (el porqué). Ejemplo del PMTD: «La Div-2, defiende y destruye al batallón de tanques a partir del D(0600) hasta D+6 (1800) al sud de la LF. ÁGUILA con el propósito de permitir a la DBL-22 ejecutar el contraataque y destruir al Regimiento de tanques de Rojo en el AE. LEÓN.» En la Orden es la TRANSCRIPCIÓN de la misión aprobada por el Comandante.',
-  'LA INTENCIÓN DEL COMANDANTE (PMTD 2017, paso 14 y Cap. VII): enunciado claro y conciso de lo que la fuerza debe desempeñar para tener éxito en relación con el terreno, el enemigo y el estado final deseado; el ENLACE entre la misión y el concepto: propósito, punto decisivo, tareas clave y estado final (cómo quedan la fuerza propia, la amenaza y el terreno). No entra en el «cómo». Se redacta en forma inextensa. Ejemplo del PMTD: «Mi intención es facilitar la destrucción de la FT-43 en el AE. YUNQUE por parte de la FT CALAMA y de esta manera evitar la conquista de VIACHA y VILLA BOLÍVAR, para esto es clave inicialmente aprovechar al máximo las características del terreno en los trabajos de OT… Al finalizar la operación, la FT “LANZA” se encontrará ocupando posiciones en Coord. 7600-4400, con eficiencia combativa, el RIMEC-6 habrá sido destruido por la FT “INGAVI” y las Unidades de la FT-43 se encontrarán comprometidas en el AE. “YUNQUE”, encontrándose nuestra Unidad en condiciones de realizar operaciones ofensivas con orden.»',
-  'EL CONCEPTO DE LA OPERACIÓN (PMTD 2017, Desarrollo de los CAP, paso 4): «Vamos a cumplir la misión… (forma de maniobra / forma defensiva). El punto decisivo es … porque … Un (…) Operación decisiva, esfuerzo principal, (Tarea/propósito). Una … (Op. Configuración 1), esfuerzo secundario, (Tarea/propósito)… El propósito de los fuegos de artillería es… El propósito del apoyo de defensa aérea… El propósito del esfuerzo de ingenieros es… La operación de sostenimiento (tarea/propósito)… La misión se ejecutará en las siguientes fases… El estado final deseado…». Ejemplo del PMTD: «Vamos a cumplir la misión mediante una operación defensiva y de retardo en una parte de nuestro sector defensivo. El punto decisivo se encuentra materializado por el corredor de movilidad situado entre Co…… y Co…… porque el mismo posibilita que el primer y el segundo escalón de ataque de la FT-43 de ROJO pueda desviar su dirección de ataque hacia el sector de la Div-2 evitando su canalización. Un Equipo de Combate fuerte en Tanques OD, esfuerzo principal, defiende y bloquea a las Unidades enemigas del primer y segundo escalón de ataque entre Co… y Co… con el propósito de evitar que las mencionadas Unidades eludan la canalización hacia AE YUNQUE…» El Cap. VII: el concepto expande el curso de acción seleccionado; trata la operación decisiva y las de configuración; designa el esfuerzo principal PARA CADA FASE; incluye las misiones «estar preparado»; las fases se designan «Fase» y número romano.',
-  'EL ESQUEMA DE MANIOBRA (PMTD 2017): «El enunciado de los cursos de acción se convierte en la base del párrafo III A 1 (Maniobra) del Plan u Orden de Operaciones y el bosquejo del curso de acción se convierte en la base del Calco de Operaciones.» La guía del enunciado: «Maniobra (UNIDADES DE MANIOBRA POR FASES). Para cada Unidad: Tarea, Propósito.» Trata la operación decisiva, las de configuración, las de seguridad y el empleo de la reserva (con su prioridad de planeamiento); es consistente con el calco y no duplica las tareas a las unidades. Termina con el riesgo táctico («El riesgo a afrontar es…, lo cual será mitigado mediante…»).',
-  'EL APOYO DE FUEGOS (PMTD 2017): cuatro elementos — TAREA esencial de apoyo de fuegos (destruir, neutralizar, suprimir) sobre una formación o función enemiga; PROPÓSITO (el beneficio para la maniobra); MÉTODO (prioridades por fase, asignaciones y restricciones); EFECTO (cuantificado y observable: «destruir el 30 % de…», «evitar la maniobra…»). Luego a.- Apoyo aéreo (misiones de AAC por unidad), b.- Apoyo de artillería de campaña (prioridad de fuego, prioridad para la adquisición de blancos, restricciones y la Organización de la Artillería para el Combate: «RAC-21/CE-I : AG CE-I»), c.- Medidas de coordinación (permisivas y restrictivas).',
-  'MOVILIDAD / CONTRAMOVILIDAD / SUPERVIVENCIA: prioridad de esfuerzo (movilidad, contramovilidad o supervivencia) y prioridad de trabajo (a qué unidad se apoya, en orden), con el propósito de los obstáculos. DEFENSA ANTIAÉREA: tarea, propósito, prioridad de apoyo, y los niveles de alerta (ROJA: ataque inminente; AMARILLA: ataque probable; VERDE: ataque improbable). INTELIGENCIA: enfoque de la recopilación (¿a qué está dirigida?), prioridad de apoyo (¿a qué unidad?) y recursos (¿con qué medios?). SOSTENIMIENTO: enfoque del apoyo logístico (abastecimiento, evacuación, transporte…) y prioridad de apoyo, por fase.',
-  'TAREAS A LAS UNIDADES (Cap. VII, III.- B.- y C.-): mediante la emisión de órdenes, un subpárrafo por unidad, en la secuencia de la organización de la tarea, con la reserva; las tareas que son necesarias para la comprensión, claridad y énfasis; las que afectan a dos o más unidades van en las instrucciones de coordinación. Para las de apoyo de combate, sólo las tareas que no se especifican o sobreentienden en otra parte.',
-  'INSTRUCCIONES DE COORDINACIÓN: las que aplican a dos o más unidades; los RCIC SOLAMENTE en «Información esencial requerida por el Comandante» (RPI y RIFA), nunca en los anexos; son diez o menos. La Matriz de riesgo aporta las medidas de control para la reducción de riesgos.',
+  'LA MISIÓN (PMTD 2017, Análisis de la Misión, paso 11 «Re expresión de la misión»): debe contener todos los elementos de un enunciado de la misión — QUIÉN (la Unidad que ejecutará la operación), QUÉ (el tipo de operación que realizará —ataca, defiende— y la tarea esencial seleccionada en el análisis, el efecto que se busca lograr, expresado como una tarea táctica: destruye, fija, canaliza, bloquea…), CUÁNDO (la oportunidad de ejecución en términos de tiempo: desde el D-2 hasta el D+3, con orden, fecha…), DÓNDE (AO, objetivos, coordenadas) y el PROPÓSITO (el porqué de la operación). Se escribe en UNA oración y EN ESE ORDEN, sin agregados («reteniendo…», «sin permitir…», «manteniendo…»). Ejemplo del PMTD: «La Div-2, defiende y destruye al batallón de tanques a partir del D(0600) hasta D+6 (1800) al sud de la LF. ÁGUILA con el propósito de permitir a la DBL-22 ejecutar el contraataque y destruir al Regimiento de tanques de Rojo en el AE. LEÓN.» Otro del PMTD: «La Div – 2, defiende y bloquea a la DIMEC – 56 de ROJO, a partir del día D hora H hasta el día D H + 10, delante de la LF TORO en su sector de responsabilidad, con el propósito de impedir la progresión del enemigo hacia TAMENGO y posibilitar su destrucción por parte de la Primera Brigada Blindada desde el sudoeste.» En la Orden es la TRANSCRIPCIÓN de la misión aprobada por el Comandante (si está desordenada, se la ordena: quién, qué, cuándo, dónde, propósito).',
+  'LA INTENCIÓN DEL COMANDANTE (PMTD 2017, paso 14 y la Hoja de trabajo de la Intención): enunciado claro y conciso de lo que la fuerza debe desempeñar para tener éxito en relación con el terreno, el enemigo y el estado final deseado; el ENLACE entre la misión y el concepto; no entra en el «cómo». Se compone de: 1) PROPÓSITO — un propósito más amplio que el porqué de la operación inmediata (en los niveles tácticos inferiores puede ser el mismo propósito de la misión); 2) TAREAS CLAVE y/o CONDICIONES — las que la fuerza necesariamente debe desempeñar para alcanzar el propósito (el ritmo, la duración, el efecto sobre el enemigo, el terreno que se debe controlar…); 3) ESTADO FINAL — CÓMO QUEDA LA PROPIA FUERZA (eficiencia combativa, ubicación, efectivos), CÓMO QUEDA EL ENEMIGO (bajas, potencia de combate, ubicación) y la OPERACIÓN FUTURA. Pero NO se escribe con esos rótulos ni numerada: «debe ser redactada en forma inextensa de la siguiente manera»: «Mi intención es facilitar la destrucción de la FT-43 en el AE. YUNQUE por parte de la FT CALAMA y de esta manera evitar la conquista de VIACHA y VILLA BOLÍVAR, para esto es clave inicialmente, aprovechar al máximo las características del terreno en los trabajos de OT, de manera de lograr el grado de protección y el efecto deseado contra el fuego y la maniobra del enemigo, efectuar y terminar el recibimiento de las Unidades del GRM-I por el PP-B antes del D(0400), de manera que dicha operación no sufra interferencia con el ataque enemigo, asimismo es importante seleccionar y disponer de sectores de tiro adecuados que permitan optimizar los fuegos de apoyo a la FT INGAVI, coordinando la dirección y el traslado de nuestros fuegos con la mencionada Unidad, para la canalización considero que debemos realizar un retardo a la FT-43, mostrando un frente débil evitando que estas Unidades evadan las acciones en el AE YUNQUE y se dirijan hacia el Sector de responsabilidad de la Div-2.» y, en otro párrafo, «Al finalizar la operación, la FT “LANZA” se encontrará ocupando posiciones en Coord. 7600-4400, con eficiencia combativa, el RIMEC-6 habrá sido destruido por la FT “INGAVI” y las Unidades de la FT-43 se encontrarán comprometidas en el AE. “YUNQUE”, encontrándose nuestra Unidad en condiciones de realizar operaciones ofensivas con orden.»',
+  'EL CONCEPTO DE LA OPERACIÓN (PMTD 2017, Desarrollo de los CAP, paso 4, y Cap. VII): describe cómo las fuerzas dispuestas cumplirán la intención del Comandante; trata la operación decisiva y las de configuración, designa el esfuerzo principal para cada fase e incluye las misiones «estar preparado». Abarca, en este orden y un renglón por idea: «Vamos a cumplir la misión… (forma de maniobra / forma defensiva). El punto decisivo es … porque …» · «Un (Batallón, Compañía…) Operación decisiva, esfuerzo principal, (tarea / propósito)» · «Una … (Op. Configuración 1), esfuerzo secundario, (tarea / propósito)» (una por cada una) · la reserva · «El propósito de los fuegos de artillería es…» · «El propósito del apoyo de defensa aérea…» · «El propósito del esfuerzo de ingenieros es…» · «La operación de sostenimiento (tarea / propósito)» · «La misión se ejecutará en las siguientes fases:» · el estado final deseado. Ejemplo del PMTD (el enunciado del CAP de la Div-2): «La operación se cumple mediante una defensa tenaz, el punto decisivo es el bloqueo en la parte central de la posición defensiva (Co. TUNARI) para impedir al BIM. (OD.) de la DIMEC – 56 y evitar la conquista de las elevaciones de Co. TUNARI y la conquista de O1 (TAMENGO). / Una Fuerza de Tarea fuerte en Infantería (OD y esfuerzo principal) defiende y bloquea al BIM (OD) de la DIMEC – 56, con el propósito de evitar la conquista de Co. TUNARI. / Una Fuerza de Tarea de Infantería (OC1 y esfuerzo secundario), defiende y controla Co. KHISKA LOMA, con el propósito de evitar la conquista de Co. KHISKA LOMA por parte del BIM. OC 1 de ROJO. / Una Fuerza de Tarea de Infantería (OC2 y esfuerzo secundario), defiende y controla Co. OTUKIS, con el propósito de evitar la conquista de Co. OTUKIS por el BIM. OC2 de ROJO. / Una Fuerza de Tarea (OC3) constituye la reserva, encontrándose en condiciones de ser empleada con orden, con prioridad de planeamiento a la OD. y posteriormente a OC1 y OC2. / El propósito del apoyo de fuegos es suprimir el ataque del enemigo y evitar su progresión hacia O1 (TAMENGO). / La prioridad de esfuerzo de ingeniería será la construcción de obstáculos de contra movilidad en los corredores de movilidad e impedir al Enemigo dirigirse hacia TAMENGO, la prioridad de trabajo será para la Unidad que lleve la OD. / El Batallón Logístico (operación de sostenimiento), tiene la tarea de proporcionar apoyo de servicio de combate con el propósito de satisfacer las necesidades de vida y de combate de las Unidades empeñadas en primera línea. / La operación se desarrollará en las siguientes fases: Primera fase: Ocupación y Organización de la Posición defensiva. Segunda fase: Defensa de la Posición Defensiva. Tercera fase: Reorganización. / Al finalizar la operación las Unidades de primera línea de la Div-2 se encontrarán manteniendo sus posiciones defensivas sobre Co. OTUQUIS – Co. KHISKA LOMA – Co. TUNARI, habiéndose imposibilitado la progresión de DIMEC – 56 de ROJO hacia TAMENGO, encontrándonos en condiciones de continuar operaciones ofensivas en coordinación con la Div-1.» (cada «/» es un renglón aparte).',
+  'LOS SUBPÁRRAFOS DEL CONCEPTO (PMTD 2017, la guía del enunciado del curso de acción y el ejemplo de la Div-2), con la forma de cada uno: 1.- MANIOBRA, «(UNIDADES DE MANIOBRA POR FASES) Para cada Unidad: Tarea, Propósito»: «Fase I: Ocupación y organización de la PD. Las Unidades de Combate, de apoyo de combate y apoyo de servicios de combate se desplazan desde su actual ZR (ARUBA) por el ITIN ROJO con el propósito de ocupar y organizar la PD. Fase II: Defensa de la Posición Defensiva. La Fuerza de Tarea VARGAS fuerte en Infantería (OD y esfuerzo principal) defiende y bloquea al BIM (OD) de la DIMEC – 56, con el propósito de evitar la conquista de Co. TUNARI. La Fuerza de Tarea IBARRA (OC1 y esfuerzo secundario), defiende y controla Co. KHISKA LOMA, con el propósito de… La Fuerza de Tarea LANDA (OC3) constituye la reserva, encontrándose en condiciones de ser empleada con orden, con prioridad de planeamiento a la OD. y posteriormente a OC1 y OC2.» y al final el RIESGO: «Se asume como riesgo que el flanco norte se encuentre desprotegido, debido al empeñamiento de nuestras Unidades en el frente de operaciones y el flanco sur.» (y cómo se mitiga). 2.- APOYO DE FUEGOS (Tarea: destruir, neutralizar, suprimir; Propósito; Método: prioridades, asignaciones, restricciones; Efecto: cuantificado), en un párrafo: «Los medios de apoyo de fuegos tienen la tarea de suprimir a las Unidades del primer y segundo escalón de ataque la DIMEC – 56, con el propósito de evitar su progresión ordenada y sostenida hacia TAMENGO, el método: la prioridad de apoyo de fuegos a la Fuerza de Tarea VARGAS (OD) se asigna los blancos AB-001, 002, 003, restricciones: el AFR 1 y 2, el efecto será lograr impedir el avance de la DIMEC – 56 por la avenida de aproximación No. 1.» Luego a.- Apoyo aéreo (misiones de AAC por unidad), b.- Apoyo de artillería de campaña (prioridad de fuego, prioridad para la adquisición de blancos, restricciones y la Organización de la Artillería para el Combate: «RAC-21/CE-I : AG CE-I»), c.- Medidas de coordinación (permisivas y restrictivas). 5.- INGENIEROS (Prioridad de esfuerzo: movilidad, contramovilidad, supervivencia; Prioridad de trabajo: a qué Unidad apoya): «La prioridad de esfuerzo es de contra movilidad mediante la construcción de fajas de minas; campos minados, alambradas, la prioridad de trabajo a la Fuerza de Tarea VARGAS (OD).» 6.- DEFENSA ANTIAÉREA (Tarea, Propósito, Prioridad de apoyo): «La tarea de los medios de ADA es destruir vectores aéreos de ROJO, con el propósito de proporcionar cobertura a las operaciones Terrestres la prioridad de apoyo a la Fuerza de Tarea VARGAS (OD).», con los niveles de alerta (ROJA: ataque inminente; AMARILLA: ataque probable; VERDE: ataque improbable). 4.- INTELIGENCIA (Enfoque de recopilación: ¿a qué está dirigida?; Prioridad de apoyo: ¿a qué Unidad?; Recursos: ¿con qué medios?): «El enfoque de recopilación de inteligencia está dirigido a determinar el dispositivo de ataque de la DIMEC – 56 y las rutas alternas que pueda emplear hacia TAMENGO en nuestra área de operaciones. La prioridad de apoyo a la Fuerza de Tarea VARGAS (OD). Los recursos son las Secciones de Reconocimiento y Exploración de las Compañías Comando y Servicios de las Unidades de Maniobra.» SOSTENIMIENTO (va en IV.- A.- Concepto de apoyo; Enfoque de apoyo logístico y Prioridad de apoyo, por fase): «El enfoque de apoyo logístico es de abastecimiento de clase III y V, la prioridad de apoyo a la FT VARGAS (OD), FT IBARRA (OC1), FT ROJAS (OC2).»',
+  'EL ESQUEMA DE MANIOBRA (PMTD 2017): «El enunciado de los cursos de acción se convierte en la base del párrafo III A 1 (Maniobra) del Plan u Orden de Operaciones y el bosquejo del curso de acción se convierte en la base del Calco de Operaciones.» En la Orden cada Unidad va con su DESIGNACIÓN real («La Fuerza de Tarea VARGAS…», «La DIV MEC-2…»), fase por fase, con su tarea y su propósito; es consistente con el calco y no duplica las tareas a las unidades.',
+  'TAREAS A LAS UNIDADES (Cap. VII, III.- B.- y C.-): «Exprese, mediante la emisión de órdenes, las misiones o tareas asignadas a cada Unidad de maniobra que depende directamente del comando de Unidad. Utilice un subpárrafo separado para cada Unidad… Enumere las Unidades en secuencia de la organización establecida. Incluya las reservas.» En la Mesa se escriben FASE POR FASE y, en cada fase, TODAS las Unidades dependientes con las que se cuenta, cada una con su TAREA y su PROPÓSITO, uno por renglón: «FASE I: OCUPACIÓN Y ORGANIZACIÓN DE LA PD.» / «1.- FT VARGAS (OD).» / «TAREA: Se desplaza a la PD.» / «PROPÓSITO: Ocupar la PD.» / «2.- FT IBARRA (OC1).» / «TAREA: …» / «PROPÓSITO: …» … y lo mismo en la FASE II, la FASE III… Las de apoyo de combate (III.- C.-), con la misma forma.',
+  'INSTRUCCIONES DE COORDINACIÓN: las que aplican a dos o más unidades; los RCIC SOLAMENTE en «Información esencial requerida por el Comandante», nunca en los anexos: a.- RPI (sobre el ENEMIGO, el TERRENO, las CONDICIONES METEOROLÓGICAS y las CC.MM.) y b.- RIFA (sobre las PROPIAS FUERZAS), uno por renglón. Son los que cada miembro del Estado Mayor desarrolló «desde sus respectivos campos de responsabilidad» (paso 8 del Análisis de la Misión) y presentó al Comandante: se transcriben los que ya determinó cada sección, en el orden de prioridad que les dio el Comandante (la doctrina pide limitarlos a diez o menos: eso lo decide el Comandante). La Matriz de riesgo aporta las medidas de control para la reducción de riesgos.',
   'ANEXOS (Cap. VII, V): en una ORDEN llevan el nombre del sistema (Anexo «B» Inteligencia; en un PLAN, «Plan de Inteligencia»); los numera la Sección III según el orden en que la Orden los menciona. Los de una unidad de maniobra (Tabla 28 del PMTD): Organización de la Tarea / Calco de Operaciones, Inteligencia, Apoyo de Fuegos, Defensa Antiaérea, Ingeniería, Apoyo de Servicio de Combate (o Logística, Personal y AC/GM por separado), Comunicaciones, Engaño. Los anexos tienen CONCEPTO DE APOYO, no intención.',
   'Encabezado del modelo: (CLASIFICACIÓN) · Unidad Superior · Unidad Considerada, PC., lugar, fecha y hora · EM./Sec. III Ops. · No. / Clave · ORDEN DE OPERACIONES No. … · OBJETO, CARTA, ANEXOS · ORGANIZACIÓN DE LA TAREA · I.- a V.- · EL COMANDANTE DE UNIDAD · Autenticación (JEM, G-3) · Distribución. El membrete, la numeración, la firma, la autenticación y la distribución los pone la Mesa.',
 ]
 export const doctrinaParaIA = () => DOCTRINA.map((x) => `- ${x}`).join('\n')
 
-// El nivel de detalle que se espera, con la OGO del CE-I «KILÓMETRO 7» (ejercicio de la Escuela: AZUL contra MAGENTA).
-// Es la FORMA: la IA no copia sus unidades, sus lugares ni sus cifras.
-export const EJEMPLO = `EJEMPLO DE REDACCIÓN — ORDEN GENERAL DE OPERACIONES No. 01/21 del CE-I «KILÓMETRO 7» (OTRO ejercicio de la Escuela: AZUL contra MAGENTA). Copiá el NIVEL DE DETALLE, la FORMA y el TONO; nunca sus unidades, sus lugares ni sus cifras.
+// El nivel de detalle y la FORMA que se espera, con los ejemplos del TEXTO PMTD 2017 (la Div-2 en TAMENGO y la FT
+// «LANZA») para la misión, la intención, el concepto, la maniobra y las tareas, y la OGO del CE-I «KILÓMETRO 7» (ejercicio
+// de la Escuela: AZUL contra MAGENTA) para la situación, la coordinación y los párrafos IV y V. La IA no copia sus
+// unidades, sus lugares ni sus cifras.
+export const EJEMPLO = `EJEMPLO DE REDACCIÓN — con los ejemplos del TEXTO PMTD 2017 (la Div-2 contra la DIMEC-56 de ROJO en TAMENGO; la FT «LANZA») y la ORDEN GENERAL DE OPERACIONES No. 01/21 del CE-I «KILÓMETRO 7» (AZUL contra MAGENTA): son OTROS ejercicios. Copiá la FORMA, el ORDEN de cada párrafo y el TONO; nunca sus unidades, sus lugares ni sus cifras.
 
-I.- SITUACIÓN. A.- Fuerzas enemigas. … D.- Curso de Acción del Enemigo más probable.
+I.- SITUACIÓN. A.- Fuerzas enemigas. … Curso de Acción del Enemigo más probable (KM 7).
 «Fuerzas del EO de MAGENTA del valor de hasta 16 Batallones, atacan y derrotan a las Fuerzas defensivas de AZUL, a partir del D (0400), progresando sobre su posición por dos ejes de penetración… Para esto, abandonará su zona de apresto lejano HUACHACALLA… La DE-VI ocupará su posición de ataque al norte de Co. LLALLAGUANI… Las Brigadas de la DE-I atacan por la AA-1 y conquistan Co. TUSQUI…, con el propósito de ganar terreno que permita conquistar Co. CHIVO… El propósito de los ingenieros de combate es abrir brechas… Los fuegos suprimirán las fuerzas blindadas de contraataque de AZUL… El propósito de la defensa aérea es evitar el Apoyo Aéreo Cercano… Al finalizar la operación las fuerzas de AZUL habrán sido derrotadas en sus posiciones, MAGENTA habrá conquistado y controlado la PAMPA DE LOS CHIVOS…»
 
-B.- Situación Propia. 1.- CTO. a.- Misión. b.- Intención del Comandante del CTO. 2.- FFTTTO. a.- Misión. b.- Intención del Comandante de las FF.TT.TO. c.- Concepto de la Operación (con sus fases y el papel de cada CE).
+B.- Fuerzas propias (KM 7). 1.- CTO. a.- Misión. b.- Intención del Comandante del CTO. 2.- FFTTTO. a.- Misión. b.- Intención del Comandante de las FF.TT.TO. c.- Concepto de la Operación (con sus fases y el papel de cada CE).
 
-II.- MISIÓN. «El CE-I defiende y derrota a las fuerzas de la DE-I y DE-VI, a partir del D (0400) hasta el D (1800), en su área de operaciones PAMPA DE LOS CHIVOS, con el propósito de establecer las condiciones para detener el esfuerzo principal de ataque de MAGENTA, y disminuir su poder de combate.»
+II.- MISIÓN — QUIÉN, QUÉ, CUÁNDO, DÓNDE y PROPÓSITO, en ese orden y en UNA oración (PMTD):
+«La Div – 2, defiende y bloquea a la DIMEC – 56 de ROJO, a partir del día D hora H hasta el día D H + 10, delante de la LF TORO en su sector de responsabilidad, con el propósito de impedir la progresión del enemigo hacia TAMENGO y posibilitar su destrucción por parte de la Primera Brigada Blindada desde el sudoeste.»
 
-III.- EJECUCIÓN. Intención del Comandante del CE-I.
-«El propósito de la Operación es disminuir el poder de combate enemigo, hasta que no puedan reaccionar a nuestro contraataque, para esto será necesario cumplir las siguientes tareas claves: PRIMERO.- Sobreextender las líneas de comunicación y ejes de abastecimiento de MAGENTA. SEGUNDO.- Aislar a las Brigadas Reserva… TERCERO.- Ejecutar ataques violentos sobre los flancos enemigos. Al final de la Operación las Fuerzas atacantes de MAGENTA habrán sido detenidas y derrotadas, el CE-I mantendrá un poder de combate superior, los civiles afectados serán puestos en condiciones de seguridad, y podremos continuar con operaciones futuras…»
+III.- EJECUCIÓN. Intención del Comandante — en forma inextensa, SIN rótulos: el propósito y las tareas clave en un párrafo, el estado final (propia fuerza, enemigo, operación futura) en otro (PMTD):
+«Mi intención es facilitar la destrucción de la FT-43 en el AE. YUNQUE por parte de la FT CALAMA y de esta manera evitar la conquista de VIACHA y VILLA BOLÍVAR, para esto es clave inicialmente, aprovechar al máximo las características del terreno en los trabajos de OT, de manera de lograr el grado de protección y el efecto deseado contra el fuego y la maniobra del enemigo, efectuar y terminar el recibimiento de las Unidades del GRM-I por el PP-B antes del D(0400), de manera que dicha operación no sufra interferencia con el ataque enemigo, asimismo es importante seleccionar y disponer de sectores de tiro adecuados que permitan optimizar los fuegos de apoyo a la FT INGAVI, coordinando la dirección y el traslado de nuestros fuegos con la mencionada Unidad, para la canalización considero que debemos realizar un retardo a la FT-43, mostrando un frente débil evitando que estas Unidades evadan las acciones en el AE YUNQUE y se dirijan hacia el Sector de responsabilidad de la Div-2.
+Al finalizar la operación, la FT “LANZA” se encontrará ocupando posiciones en Coord. 7600-4400, con eficiencia combativa, el RIMEC-6 habrá sido destruido por la FT “INGAVI” y las Unidades de la FT-43 se encontrarán comprometidas en el AE. “YUNQUE”, encontrándose nuestra Unidad en condiciones de realizar operaciones ofensivas con orden.»
 
-A.- Concepto de la Operación.
-«Cumpliremos la misión mediante la ejecución de una operación defensiva – defensa móvil, el punto decisivo para la operación es la derrota de las Brigadas Reserva de MAGENTA en el AE GUANO y AE SALITRE, porque de esta manera perderá sus medios físicos para continuar su avance… La operación se desarrollará en las siguientes fases: FASE I (DEFENSA) desde el D (0400) hasta el D (1300). FASE II (CANALIZACIÓN) desde el D (1300) hasta el D (1530). FASE III (DERROTA) desde el D (1530) hasta el D (1800).»
+A.- Concepto de la operación — un renglón por idea (PMTD):
+«La operación se cumple mediante una defensa tenaz, el punto decisivo es el bloqueo en la parte central de la posición defensiva (Co. TUNARI) para impedir al BIM. (OD.) de la DIMEC – 56 y evitar la conquista de las elevaciones de Co. TUNARI y la conquista de O1 (TAMENGO).
+Una Fuerza de Tarea fuerte en Infantería (OD y esfuerzo principal) defiende y bloquea al BIM (OD) de la DIMEC – 56, con el propósito de evitar la conquista de Co. TUNARI.
+Una Fuerza de Tarea de Infantería (OC1 y esfuerzo secundario), defiende y controla Co. KHISKA LOMA, con el propósito de evitar la conquista de Co. KHISKA LOMA por parte del BIM. OC 1 de ROJO.
+Una Fuerza de Tarea de Infantería (OC2 y esfuerzo secundario), defiende y controla Co. OTUKIS, con el propósito de evitar la conquista de Co. OTUKIS por el BIM. OC2 de ROJO.
+Una Fuerza de Tarea (OC3) constituye la reserva, encontrándose en condiciones de ser empleada con orden, con prioridad de planeamiento a la OD. y posteriormente a OC1 y OC2.
+El propósito del apoyo de fuegos es suprimir el ataque del enemigo y evitar su progresión hacia O1 (TAMENGO).
+La prioridad de esfuerzo de ingeniería será la construcción de obstáculos de contra movilidad en los corredores de movilidad e impedir al Enemigo dirigirse hacia TAMENGO, la prioridad de trabajo será para la Unidad que lleve la OD.
+El Batallón Logístico (operación de sostenimiento), tiene la tarea de proporcionar apoyo de servicio de combate con el propósito de satisfacer las necesidades de vida y de combate de las Unidades empeñadas en primera línea.
+La operación se desarrollará en las siguientes fases:
+FASE I: OCUPACIÓN Y ORGANIZACIÓN DE LA POSICIÓN DEFENSIVA.
+FASE II: DEFENSA DE LA POSICIÓN DEFENSIVA.
+FASE III: REORGANIZACIÓN.
+Al finalizar la operación las Unidades de primera línea de la Div-2 se encontrarán manteniendo sus posiciones defensivas sobre Co. OTUQUIS – Co. KHISKA LOMA – Co. TUNARI, habiéndose imposibilitado la progresión de DIMEC – 56 de ROJO hacia TAMENGO, encontrándonos en condiciones de continuar operaciones ofensivas en coordinación con la Div-1.»
 
-1.- Movimiento y Maniobra.
-FASE I (DEFENSA) desde el D (0400) hasta el D (1300).
-«La FT 32 RIOS, (OC-3) esfuerzo secundario, ejecuta la cobertura de las unidades de maniobra del área principal de combate, ocupando posiciones en KOTOKKOTA PAMPA y Co. KIVILLANI (LF BRUMA), con el propósito de evitar ataques sorpresivos y ganar el contacto con las fuerzas atacantes… Con orden, inicia su repliegue por rutas establecidas, empleando PP definidos en su Plan de Repliegue… Una vez en la retaguardia, ocupa posiciones en ACAUQUIRI PAMPA, pasando a constituir la RESERVA del CE-I.»
-«La DIMEC-2 (OC-2), esfuerzo principal, recibe a una unidad de la FT 32 RIOS, asume la responsabilidad de la batalla, y defiende y derrota al Batallón de la BA de MAGENTA que ataca por el sector ESTE de la LF NIEBLA, con el propósito de impedir su avance y limitar el ímpetu de ataque inicial del enemigo.»
-«La DIBLIN-3 (OD) constituirá la RESERVA hasta que la FT-32 RIOS asuma esta función. Ocupa posiciones en ECIA. SEVENCANI VINTO, en condiciones de apoyar a las unidades de primera línea, con prioridad de planeamiento a la OC-1 y OC-2.»
-FASE II (CANALIZACIÓN) … FASE III (DERROTA) … (las mismas unidades, con su tarea y su propósito en cada fase; el esfuerzo principal cambia de fase a fase).
-«El riesgo a afrontar es dividir la fuerza de golpe en tres núcleos de contraataque…, lo cual será mitigado mediante la reconstitución rápida de una nueva reserva por parte de la FT-32 RIOS…»
+1.- Maniobra — fase por fase, cada Unidad con su designación, su tarea y su propósito; al final el riesgo (PMTD):
+«FASE I: OCUPACIÓN Y ORGANIZACIÓN DE LA PD.
+Las Unidades de Combate, de apoyo de combate y apoyo de servicios de combate se desplazan desde su actual ZR (ARUBA) por el ITIN ROJO con el propósito de ocupar y organizar la PD.
+FASE II: DEFENSA DE LA POSICIÓN DEFENSIVA.
+La Fuerza de Tarea VARGAS fuerte en Infantería (OD y esfuerzo principal) defiende y bloquea al BIM (OD) de la DIMEC – 56, con el propósito de evitar la conquista de Co. TUNARI.
+La Fuerza de Tarea IBARRA (OC1 y esfuerzo secundario), defiende y controla Co. KHISKA LOMA, con el propósito de evitar la conquista de Co. KHISKA LOMA por parte del BIM. OC 1 de ROJO.
+La Fuerza de Tarea ROJAS (OC2 y esfuerzo secundario), defiende y controla Co. OTUKIS, con el propósito de evitar la conquista de Co OTUKIS por el BIM (OC2) de ROJO.
+La Fuerza de Tarea LANDA (OC3) constituye la reserva, encontrándose en condiciones de ser empleada con orden, con prioridad de planeamiento a la OD. y posteriormente a OC1 y OC2.
+Se asume como riesgo que el flanco norte se encuentre desprotegido, debido al empeñamiento de nuestras Unidades en el frente de operaciones y el flanco sur.»
 
-2.- Fuegos. «Los fuegos buscarán dar profundidad a la batalla, desorganizando la progresión ordenada de las unidades de maniobra enemigas… Asimismo, neutralizan los sistemas de tiro indirecto de largo alcance… La prioridad de apoyo de fuegos en la FASE I a la OC-3, OC-1, OC-2 y OD en ese orden. En la FASE II a la OC-1, OC-2 y OD…»
-a.- Apoyo aéreo cercano. «1) La prioridad inicial del Apoyo Aéreo Cercano será a las unidades de maniobra del CE-I, mediante la destrucción de los sistemas de armas de tiro indirecto y sistemas de comando y control. 2) El CE-I cuenta con 15 misiones diarias…: a) CE-I: 4 b) DIMEC-1: 4 …»
-b.- Apoyo de artillería de campaña. «1) Prioridad de fuego. En la FASE I a la OC-3. En la fase II a la OC-1 y OC-2… 2) Prioridad para la adquisición de blancos. Instalaciones de mando y control. Unidades de Artillería de Campaña… 3) Restricciones. AFP todas las poblaciones… 4) Organización de la Artillería para el Combate. RAC-21/CE-I : AG CE-I; GAC-I/DIMEC-1 : AD DIMEC-1…»
-3.- Reconocimiento e Inteligencia. 4.- Ingeniería («El propósito del apoyo de ingeniería para la preparación y fase I es asegurar la movilidad por el PASO DEL ANTA. Para la fase II es contramovilidad…»). 5.- Defensa Antiaérea. 6.- Protección. 7.- Operaciones de Información. 8.- Asuntos Civiles.
+2.- Apoyo de fuegos — tarea, propósito, método y efecto en un párrafo (PMTD):
+«Los medios de apoyo de fuegos tienen la tarea de suprimir a las Unidades del primer y segundo escalón de ataque la DIMEC – 56, con el propósito de evitar su progresión ordenada y sostenida hacia TAMENGO, el método: la prioridad de apoyo de fuegos a la Fuerza de Tarea VARGAS (OD) se asigna los blancos AB-001, 002, 003, restricciones: el AFR 1 y 2, el efecto será lograr impedir el avance de la DIMEC – 56 por la avenida de aproximación No. 1.»
+b.- Apoyo de artillería de campaña (KM 7): «1) Prioridad de fuego. En la FASE I a la OC-3. En la fase II a la OC-1 y OC-2… 2) Prioridad para la adquisición de blancos. Instalaciones de mando y control. Unidades de Artillería de Campaña… 3) Restricciones. AFP todas las poblaciones… 4) Organización de la Artillería para el Combate. RAC-21/CE-I : AG CE-I; GAC-I/DIMEC-1 : AD DIMEC-1…»
 
-B.- Tareas a las Unidades de Movimiento y Maniobra.
-«1.- DIMEC-1 (OC-1). a. Recibe a un Batallón de la FT 32 RIOS. b. Asume la responsabilidad de la batalla en su sector. c. Derrota al Batallón de la BA de MAGENTA que ataca por el sector OESTE de la LF NIEBLA. d. Se repliega y canaliza a las fuerzas remanentes de la BA… e. Cede espacio hasta LF. NIEBLA. f. Bloquea a la BA reserva de la DE-VI de MAGENTA, sobre la LF HUMO.» (y así cada unidad, con la reserva)
+4.- Inteligencia (PMTD): «El enfoque de recopilación de inteligencia está dirigido a determinar el dispositivo de ataque de la DIMEC – 56 y las rutas alternas que pueda emplear hacia TAMENGO en nuestra área de operaciones. La prioridad de apoyo a la Fuerza de Tarea VARGAS (OD). Los recursos son las Secciones de Reconocimiento y Exploración de las Compañías Comando y Servicios de las Unidades de Maniobra.»
+5.- Ingenieros (PMTD): «La prioridad de esfuerzo es de contra movilidad mediante la construcción de fajas de minas; campos minados, alambradas, la prioridad de trabajo a la Fuerza de Tarea VARGAS (OD).»
+6.- Defensa antiaérea (PMTD): «La tarea de los medios de ADA es destruir vectores aéreos de ROJO, con el propósito de proporcionar cobertura a las operaciones Terrestres la prioridad de apoyo a la Fuerza de Tarea VARGAS (OD).»
 
-C.- Tareas para las unidades de apoyo de combate. «1.- RAC-21. Suprime las amenazas de MAGENTA sobre los puntos de pasaje 1, 2, 3 y 4 mediante fuegos de concentración… 3.- BATING-XXIII. Proporciona apoyo de contramovilidad… mediante la construcción de zanjas antitanque…»
+B.- Tareas de las unidades de maniobra — fase por fase, TODAS las Unidades dependientes (con la reserva), cada una con TAREA y PROPÓSITO, un renglón cada uno:
+«FASE I: OCUPACIÓN Y ORGANIZACIÓN DE LA PD.
+1.- FT VARGAS (OD).
+TAREA: Se desplaza desde la ZR ARUBA por el ITIN ROJO a la PD.
+PROPÓSITO: Ocupar y organizar la PD en Co. TUNARI.
+2.- FT IBARRA (OC1).
+TAREA: Se desplaza desde la ZR ARUBA por el ITIN ROJO a la PD.
+PROPÓSITO: Ocupar y organizar la PD en Co. KHISKA LOMA.
+3.- FT ROJAS (OC2).
+TAREA: …
+PROPÓSITO: …
+4.- FT LANDA (OC3).
+TAREA: …
+PROPÓSITO: …
+FASE II: DEFENSA DE LA POSICIÓN DEFENSIVA.
+1.- FT VARGAS (OD).
+TAREA: Defiende y bloquea al BIM (OD) de la DIMEC – 56.
+PROPÓSITO: Evitar la conquista de Co. TUNARI.
+2.- FT IBARRA (OC1).
+TAREA: Defiende y controla Co. KHISKA LOMA.
+PROPÓSITO: Evitar la conquista de Co. KHISKA LOMA por parte del BIM OC1 de ROJO.
+… (cada Unidad, en cada fase)»
 
-D.- Instrucciones de coordinación. «1.- La presente orden entra en vigor a partir de su emisión. 2.- Requerimientos críticos de información del comandante: a.- RPI: 1) ¿Por dónde lleva el enemigo su esfuerzo principal? 2) ¿Cuándo empleará MAGENTA sus helicópteros de ataque?… b.- RIFA: 1) Informar cuándo la FT-32 RIOS concluya su repliegue. 2) Informar cuando las UU. de maniobra bajen 10, 15 y 20 % de su eficiencia combativa… 4.- Medidas de control para la reducción de riesgos: a.- Los contraataques deberán disponer de rutas previamente establecidas… 9.- Límite de Avance de las tropas: a.- FT-32 RIOS: Camino SANTUARIO DE QUILLACAS – TAMBO TAMBILLO… 11.- Medidas de fuego indirecto: a.- Permisivas: 1) LCAF sobre el camino AROMA – PAMPA AULLAGAS… b.- Restrictivas: 1) Áreas de fuego prohibido: Ecia. KIVILLANIK (Coord 9940 – 6330)… 12.- La ejecución del ensayo de comprobación y repetición de órdenes se realizará el D-1 (0600) en el PCP del CE-I Ecia SUMA. 13.- El nivel de amenaza actual en el área de retaguardia es Nivel II.»
+C.- Tareas de las unidades de apoyo de combate — con la misma forma, fase por fase:
+«FASE II: DEFENSA DE LA POSICIÓN DEFENSIVA.
+1.- RAC-21.
+TAREA: Suprime las amenazas de MAGENTA sobre los puntos de pasaje 1, 2, 3 y 4 mediante fuegos de concentración.
+PROPÓSITO: …
+2.- BATING-XXIII.
+TAREA: Proporciona apoyo de contramovilidad mediante la construcción de zanjas antitanque.
+PROPÓSITO: …»
 
-IV.- SOSTENIMIENTO / APOYO DE SERVICIO (Ver anexo). «A.- Logística. El sistema de apoyo logístico del CE-I está enfocado a… B.- Personal. … Instalará y operará un puesto de reunión de PP.GG. en COROMA (Coord. 2950 – 3950). La prioridad de apoyo de reemplazos a la OD, OC-1 y OC-2, en ese orden a partir del D-1 (0800).»
+D.- Instrucciones de coordinación (KM 7). «1.- La presente orden entra en vigor a partir de su emisión. 2.- Requerimientos críticos de información del comandante: a.- RPI: 1) ¿Por dónde lleva el enemigo su esfuerzo principal? 2) ¿Cuándo empleará MAGENTA sus helicópteros de ataque?… b.- RIFA: 1) Informar cuándo la FT-32 RIOS concluya su repliegue. 2) Informar cuando las UU. de maniobra bajen 10, 15 y 20 % de su eficiencia combativa… (uno por renglón) 4.- Medidas de control para la reducción de riesgos: a.- Los contraataques deberán disponer de rutas previamente establecidas… 9.- Límite de Avance de las tropas: a.- FT-32 RIOS: Camino SANTUARIO DE QUILLACAS – TAMBO TAMBILLO… 11.- Medidas de fuego indirecto: a.- Permisivas: 1) LCAF sobre el camino AROMA – PAMPA AULLAGAS… b.- Restrictivas: 1) Áreas de fuego prohibido: Ecia. KIVILLANIK (Coord 9940 – 6330)… 12.- La ejecución del ensayo de comprobación y repetición de órdenes se realizará el D-1 (0600) en el PCP del CE-I Ecia SUMA. 13.- El nivel de amenaza actual en el área de retaguardia es Nivel II.»
 
-V.- COMANDO Y COMUNICACIONES. «A.- Comando. 1.- Cadena de Mando: a.- Comandante del CE-I. b.- Jefe de Estado Mayor del CE-I. c.- G-3 del CE-I. d.- Cmte. de DIBLIND-3… 2.- Ubicación del Puesto Comando: a.- PCA. del CE-I Ecia. ICHALULA (Coord. 9490 – 5410). b.- PCP. … c.- PCR. … B.- Comunicaciones. 1.- IEC «ANGEL» en vigor a partir del día D-5 (1800). 2.- Centro de Comunicaciones: CC. Adelantado…, CC. Principal…, CC. Retrasado…»
+IV.- APOYO DE SERVICIO. A.- Concepto de apoyo (PMTD): «El enfoque de apoyo logístico es de abastecimiento de clase III y V, la prioridad de apoyo a la FT VARGAS (OD), FT IBARRA (OC1), FT ROJAS (OC2).» (por fase si cambia). B.- Personal (KM 7): «… Instalará y operará un puesto de reunión de PP.GG. en COROMA (Coord. 2950 – 3950). La prioridad de apoyo de reemplazos a la OD, OC-1 y OC-2, en ese orden a partir del D-1 (0800).»
 
-A nivel Regimiento, la Orden de Operaciones 05/24 del RI-20 escribe las tareas de cada fase como «Compañía "A". TAREA: … PROPÓSITO: …»: la misma idea, más corta.`
+V.- COMANDO Y COMUNICACIONES (KM 7). «A.- Comando. 1.- Cadena de Mando: a.- Comandante del CE-I. b.- Jefe de Estado Mayor del CE-I. c.- G-3 del CE-I. d.- Cmte. de DIBLIND-3… 2.- Ubicación del Puesto Comando: a.- PCA. del CE-I Ecia. ICHALULA (Coord. 9490 – 5410). b.- PCP. … c.- PCR. … B.- Comunicaciones. 1.- IEC «ANGEL» en vigor a partir del día D-5 (1800). 2.- Centro de Comunicaciones: CC. Adelantado…, CC. Principal…, CC. Retrasado…»`
+
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════════════
 // LA IA: lo que la Mesa ya sabe, ordenado para la Orden
@@ -1324,7 +1822,10 @@ export function datosParaIA(ctx = {}) {
   const cm = hojasDe(ctx, 'cmte')
   add('Lo del Comandante (F6·P2 Guía de Planificación Final, F6·P1 decisión, F2·P14 intención)', [...Object.entries(guiaFinal(ctx)).map(([k, x]) => [`Guía Final — ${k}`, x]), ['F6·P1 Curso de acción aprobado', casilla(cm.decisionCmte, 'Curso de acción aprobado')], ['F6·P1 Modificaciones', casilla(cm.decisionCmte, 'Modificaciones')], ['F2·P14 Propósito', casilla(cm.intencion, 'Propósito')], ['F2·P14 Tareas clave', casilla(cm.intencion, 'Tareas clave')], ['F2·P14 Estado final', casilla(cm.intencion, 'Estado Final')]].filter(([, x]) => !vacio(x)).map(([k, x]) => `- ${k}: ${plano(x)}`).join('\n'))
   const filasTxt = (xs) => filasDe(xs).map((f) => `- ${Object.entries(f).filter(([k, x]) => !k.startsWith('_') && !vacio(sinCuentas(x))).map(([k, x]) => `${k}: ${plano(sinCuentas(x))}`).join(' · ')}`).join('\n')
-  add('RCIC y EEIA del G-3 (F2·P8)', filasTxt(g3.rcic))
+  add(
+    'LOS RCIC QUE YA DETERMINÓ CADA SECCIÓN DEL ESTADO MAYOR (la F2·P8 «RCIC. y EEIA.» del G-1, G-3, G-4, G-5 y EME, el Plan de búsqueda de información del G-2 y la prioridad que les dio el Comandante): van TODOS, en este orden, en III.- D.- 2.- (RPI en a.-, RIFA en b.-, EEIA en c.-), uno por renglón — no los cambies por otros',
+    requerimientosDe(ctx).map((x) => `- ${x.tipo}${x.de.length ? ` (${x.de.join(', ')}${x.p != null && x.p < 50 ? `; prioridad ${x.p}` : ''})` : ''}: ${punto(mayus(x.r))}`).join('\n'),
+  )
   add('Eventos críticos y puntos de decisión (F4·P4)', filasTxt(g3.eventos))
   add('Asignación de recursos (F4·SAL)', filasTxt(g3.recursos))
   add('Matriz de ejecución de apoyo de fuegos (F4·P7)', filasTxt(g3.fuegos))
@@ -1361,6 +1862,12 @@ export function entregas(ctx = {}) {
   de('El G-4 (Anexo de Apoyo de Servicio de Combate)', [['Misión logística', ctx.calco?.misionLog], ['Concepto de apoyo', a4.concepto], ['EPA', a4.epa], ['EPE', a4.epe]])
   const a5 = anexoG5(ctx)
   de('El G-5 (Anexo de AC/GM)', [['Concepto de apoyo', a5.concepto], ['Evacuación', a5.evacuacion], ['Ejes humanitarios', a5.ejes]])
+  // los RCIC de cada sección (F2·P8 y el Plan de búsqueda del G-2): de dónde sale III.- D.- 2.-
+  const req = requerimientosDe(ctx)
+  de(
+    'Los RCIC de cada sección (F2·P8 y el Plan de búsqueda del G-2)',
+    unicos(req.flatMap((x) => x.de)).map((s) => [s, req.filter((x) => x.de.includes(s)).map((x) => `${x.tipo}: ${punto(mayus(x.r))}`).join('\n')]),
+  )
   return E
 }
 export function entregasTexto(ctx = {}) {
@@ -1415,6 +1922,7 @@ const marcaDe = (l) => {
   return null
 }
 const FASE = /^(FASE|Fase)\s+([IVXL]+|\d{1,2})\b/
+const RIESGO = /^(Se (asume|acepta)\b[^.]{0,40}\briesgo|El riesgo (a afrontar|que se asume|aceptado)\b|Riesgos?\s*[:.-])/i
 const ROTULO = /^(Misi[oó]n|Intenci[oó]n( del Comandante)?|Concepto( de la operaci[oó]n)?|Tarea|Prop[oó]sito|M[eé]todo|Efecto|Prioridad[^.:]{0,40}|Restricciones|Medidas (permisivas|restrictivas)|Organizaci[oó]n[^.:]{0,40}|Enfoque|Recursos|Composici[oó]n|Ubicaci[oó]n|Riesgo|Estado final[^.:]{0,20})$/i
 function partirTitulo(l) {
   const dos = l.match(/^([^:]{2,70}[^\s:]):\s+(.+)$/)
@@ -1438,7 +1946,8 @@ function bloques(items) {
   return { texto: primero.texto.join('\n'), vinetas: primero.vinetas, segmentos: resto.map((r) => ({ titulo: '', sinRotulo: true, texto: r.texto.join('\n'), vinetas: r.vinetas, hijos: [] })) }
 }
 const renglon = (l) => (VINETA.test(l) ? { v: true, l: punto(l.replace(VINETA, '')) } : { v: false, l })
-export function estructurar(t, { llano = false } = {}) {
+// `fases: false`: las «FASE I: …» son renglones del texto (el concepto las enumera: no son subtítulos con lo que sigue).
+export function estructurar(t, { llano = false, fases = true } = {}) {
   const ls = txt(t)
     .split('\n')
     .map((l) => l.trim().replace(/^\*\*(.+?)\*\*\s*:?$/, '$1').replace(/\*\*/g, '').replace(/^#{1,6}\s+/, ''))
@@ -1462,12 +1971,20 @@ export function estructurar(t, { llano = false } = {}) {
       pila.push({ tipo: m.tipo, nodo: n })
       continue
     }
-    if (FASE.test(l) && l.length <= 220) {
-      const dos = l.length > 110 ? l.match(/^(.{6,110}?):\s+(.+)$/) : null
-      fase = { titulo: dos ? punto(dos[1]) : punto(l), sinRotulo: true, items: dos ? [{ v: false, l: dos[2] }] : [], hijos: [] }
+    if (fases && FASE.test(l) && l.length <= 220) {
+      // «FASE I: NOMBRE (desde … hasta …).» es el subtítulo entero; si sigue texto en el mismo renglón, va debajo
+      const dos = l.length > 110 ? l.match(/^(FASE\s+[IVXL\d]+\s*:?\s*[^:]*?\))\s*[.:]\s+(\S.*)$/i) || l.match(/^(.{6,110}?):\s+(.+)$/) : null
+      const partir = dos && !/^FASE\s+[IVXL\d]+$/i.test(dos[1].trim())
+      fase = { titulo: punto(partir ? dos[1] : l), sinRotulo: true, items: partir ? [{ v: false, l: dos[2] }] : [], hijos: [] }
       raiz.hijos.push(fase)
       pila.length = 0
       continue
+    }
+    // el riesgo, al final de la maniobra, no es de la última fase: va después de las fases
+    if (fase && RIESGO.test(l)) {
+      fase = { titulo: '', sinRotulo: true, items: [], hijos: [] }
+      raiz.hijos.push(fase)
+      pila.length = 0
     }
     ;(pila.length ? pila[pila.length - 1].nodo : base()).items.push(renglon(l))
   }
@@ -1527,7 +2044,7 @@ export function especificacion(valor, ctx = {}, { firma = '' } = {}) {
   const nodo = (n) => {
     if (n.id === 'orgTarea') return []
     if (n.soloConTexto && vacio(C[n.id])) return []
-    const propio = n.id ? estructurar(C[n.id], { llano: !!n.sinNumero }) : { texto: '', vinetas: [], hijos: [] }
+    const propio = n.id ? estructurar(C[n.id], { llano: !!n.sinNumero, fases: n.id !== 'concepto' }) : { texto: '', vinetas: [], hijos: [] }
     const deDef = (n.hijos || []).flatMap(nodo)
     const hijos = [...propio.hijos, ...deDef]
     const x = { titulo: n.t, texto: propio.texto, hijos }
@@ -1572,33 +2089,36 @@ export const GUIA = {
   como: [
     '🌱 trae lo que ya tiene el ejercicio, párrafo por párrafo: la Orden superior, el CAE más probable y el más peligroso del G-2, la misión aprobada (F2·P12), la intención y los RCIC del Comandante, el CAP aprobado con sus fases de la carta y la tarea y el propósito de cada unidad, la organización de la tarea, fuegos, barreras, reconocimiento, riesgo y lo de los anexos del G-1, G-4 y G-5. No pisa lo escrito.',
     '🤖 la IA la redacta COMPLETA con el expediente y la doctrina del Capítulo VII (cómo se escriben la misión, la intención, el concepto, la maniobra por fases y las tareas), con el nivel de detalle de una orden real. Si tu IA corta las respuestas largas, pedila por partes (I-II · III concepto · III tareas · IV-V).',
-    'Dentro de un apartado, los subapartados se escriben «1.- DIV MEC-2 (OD).», «a.- …», «1) …» y las fases «FASE I (NOMBRE) desde … hasta …», cada uno en su renglón: el Word los numera solo (I.- A.- 1.- a.- 1) a)).',
-    'Los RCIC van SOLAMENTE en III.- D.- 2.- (no en los anexos). Una ORDEN no lleva hipótesis (sólo el PLAN).',
+    'Cada párrafo con la forma del PMTD: la MISIÓN en una oración (quién, qué, cuándo, dónde y propósito, en ese orden); la INTENCIÓN en prosa («Mi intención es…, para esto es clave… Al finalizar la operación…»); el CONCEPTO («Vamos a cumplir la misión mediante… El punto decisivo es… porque…», una oración por Unidad con su tarea y su propósito, fuegos, ingenieros, sostenimiento, fases y estado final); la MANIOBRA fase por fase; las TAREAS fase por fase, TODAS las Unidades con «TAREA:» y «PROPÓSITO:».',
+    'Dentro de un apartado, los subapartados se escriben «1.- DIV MEC-2 (OD).», «a.- …», «1) …» y las fases «FASE I: NOMBRE (desde … hasta …).», cada uno en su renglón: el Word los numera solo (I.- A.- 1.- a.- 1) a)).',
+    'Los RCIC van SOLAMENTE en III.- D.- 2.- (no en los anexos): 🌱 trae los que ya determinó cada sección (la F2·P8 del G-1, G-3, G-4, G-5 y EME, y el Plan de búsqueda del G-2), primero los que priorizó el Comandante. Una ORDEN no lleva hipótesis (sólo el PLAN).',
     'Controlá los anexos (🗺️ abajo): Inteligencia (G-2), Apoyo de Fuegos, Ingeniería, Apoyo de Servicio de Combate (G-4), Personal (G-1) y AC/GM (G-5).',
     '👁️ Vista previa y 📄 Word (formato militar): membrete, la Organización de la Tarea en cuadro, la numeración del PMTD, la firma del Comandante, la autenticación y la distribución.',
   ],
-  ejemplo: '«La DIV MEC-2 (OD), esfuerzo principal, defiende sobre la LF «PUMA» y bloquea a la 1ª Br. Ac. en el paso Ungallire–Guata, con el propósito de impedir que penetre hacia TURCO.» Una oración por unidad y por fase: quién, qué, dónde, cuándo y para qué.',
+  ejemplo: 'Misión: «La Div-2, defiende y destruye al batallón de tanques a partir del D(0600) hasta D+6 (1800) al sud de la LF. ÁGUILA con el propósito de permitir a la DBL-22 ejecutar el contraataque…». Maniobra: «La Fuerza de Tarea VARGAS (OD y esfuerzo principal) defiende y bloquea al BIM (OD) de la DIMEC-56, con el propósito de evitar la conquista de Co. TUNARI.» Tareas: «FASE II: DEFENSA DE LA POSICIÓN DEFENSIVA.» · «1.- FT VARGAS (OD).» · «TAREA: Defiende y bloquea al BIM (OD) de la DIMEC-56.» · «PROPÓSITO: Evitar la conquista de Co. TUNARI.»',
 }
 
 export const PRODUCTO = (ctx, hoja) =>
-  `Tu producto es la ORDEN GENERAL DE OPERACIONES ${unidadDe(ctx) ? `${articuloDe(unidadDe(ctx)) === 'DEL' ? 'del' : 'de la'} ${unidadDe(ctx)} ` : ''}(hoja ${hoja?.num || 'F7·P1'} del PMTD, Fase VII «Elaborar planes y órdenes»): el documento en el que desemboca TODO el planeamiento. La coordina el G-3, la escribe todo el Estado Mayor y la firma el Comandante. Va con la forma de CINCO PÁRRAFOS del TEXTO PMTD 2017 (Parte Primera, Capítulo VII), apartado por apartado: OBJETO, CARTAS, ANEXOS; ORGANIZACIÓN DE LA TAREA; I.- SITUACIÓN; II.- MISIÓN; III.- EJECUCIÓN (la Intención del Comandante sin número, A.- Concepto de la operación con 1.- Maniobra … 9.- Operaciones de AC/GM, B.- Tareas de las unidades de maniobra, C.- de apoyo de combate, D.- Instrucciones de coordinación); IV.- APOYO DE SERVICIO; V.- COMANDO Y COMUNICACIONES. Tiene que INTEGRAR todo lo que ya trabajó el Estado Mayor en la Mesa: la Orden del escalón superior, el CAE más probable y el más peligroso del G-2, la misión aprobada, la intención y los RCIC del Comandante, el CAP aprobado con su maniobra FASE POR FASE y la tarea y el propósito de CADA unidad, los fuegos, el plan de barreras, el reconocimiento, la matriz de riesgo, la matriz de sincronización y los anexos del G-1, G-4 y G-5. Tiene que quedar COMPLETA, con el nivel de detalle de una orden real de Cuerpo de Ejército o División (ver el EJEMPLO DE REDACCIÓN): nada de resúmenes, de cuentas sueltas («13 trabajos», «18 límites») ni de remisiones a hojas de la Mesa («ver F3·P4»). El membrete, la numeración, la firma, la autenticación y la distribución los pone la Mesa.`
+  `Tu producto es la ORDEN GENERAL DE OPERACIONES ${unidadDe(ctx) ? `${articuloDe(unidadDe(ctx)) === 'DEL' ? 'del' : 'de la'} ${unidadDe(ctx)} ` : ''}(hoja ${hoja?.num || 'F7·P1'} del PMTD, Fase VII «Elaborar planes y órdenes»): el documento en el que desemboca TODO el planeamiento. La coordina el G-3, la escribe todo el Estado Mayor y la firma el Comandante. Va con la forma de CINCO PÁRRAFOS del TEXTO PMTD 2017 (Parte Primera, Capítulo VII), apartado por apartado: OBJETO, CARTAS, ANEXOS; ORGANIZACIÓN DE LA TAREA; I.- SITUACIÓN; II.- MISIÓN; III.- EJECUCIÓN (la Intención del Comandante sin número, A.- Concepto de la operación con 1.- Maniobra … 9.- Operaciones de AC/GM, B.- Tareas de las unidades de maniobra, C.- de apoyo de combate, D.- Instrucciones de coordinación); IV.- APOYO DE SERVICIO; V.- COMANDO Y COMUNICACIONES. Tiene que INTEGRAR todo lo que ya trabajó el Estado Mayor en la Mesa: la Orden del escalón superior, el CAE más probable y el más peligroso del G-2, la misión aprobada, la intención del Comandante, los RCIC (RPI y RIFA) que determinó cada sección del Estado Mayor, el CAP aprobado con su maniobra FASE POR FASE y la tarea y el propósito de CADA unidad, los fuegos, el plan de barreras, el reconocimiento, la matriz de riesgo, la matriz de sincronización y los anexos del G-1, G-4 y G-5. Cada párrafo va con la FORMA del PMTD (la misión, la intención, el concepto, la maniobra y las tareas como en los ejemplos del PMTD de la DOCTRINA y del EJEMPLO DE REDACCIÓN). Tiene que quedar COMPLETA, con el nivel de detalle de una orden real de Cuerpo de Ejército o División: nada de resúmenes, de cuentas sueltas («13 trabajos», «18 límites») ni de remisiones a hojas de la Mesa («ver F3·P4»). El membrete, la numeración, la firma, la autenticación y la distribución los pone la Mesa.`
 
 export const REGLAS = [
-  'Dentro de un apartado, los SUBAPARTADOS van cada uno en su renglón con su marca: «1.- DIV MEC-2 (OD).» (y su texto en el renglón siguiente o después de «:»), «a.- …», «1) …», «a) …»; las fases, «FASE I (NOMBRE) desde el … hasta el ….» en su propio renglón. La Mesa los numera en el Word: la marca sólo dice el nivel.',
+  'Dentro de un apartado, los SUBAPARTADOS van cada uno en su renglón con su marca: «1.- DIV MEC-2 (OD).» (y su texto en el renglón siguiente o después de «:»), «a.- …», «1) …», «a) …»; las fases, «FASE I: NOMBRE (desde el … hasta el …).» en su propio renglón. La Mesa los numera en el Word: la marca sólo dice el nivel.',
+  'Cada idea del concepto en su renglón (la forma, el punto decisivo, una oración por Unidad, fuegos, defensa antiaérea, ingenieros, sostenimiento, «La operación se desarrollará en las siguientes fases:», una fase por renglón, el estado final). En las TAREAS (III.- B.- y C.-), por cada fase: «FASE I: NOMBRE (…).», y por cada Unidad tres renglones: «1.- FT VARGAS (OD).», «TAREA: …», «PROPÓSITO: …». Los RPI y los RIFA, uno por renglón («1) …», «2) …»), nunca varios en el mismo renglón separados por «;».',
+  'NADA con rótulos donde el PMTD pide prosa: la intención NO va como «Propósito: … Punto decisivo: … Tareas clave: … Estado final: …», sino «Mi intención es…, para esto es clave… Al finalizar la operación…»; la misión NO lleva gerundios agregados («reteniendo…», «sin permitir…»).',
   'NO repitas el título del apartado dentro de su texto ni le pongas la numeración del apartado («III.- A.- 1.-»): eso lo pone la Mesa.',
   'Ninguna clave queda vacía ni con «…». Lo que no corresponda: «Omitido.» (refuerzos, QBN) o, si de verdad falta el dato, «SIN DATO — verificar» en ese dato. La «hipotesis» va VACÍA en una ORDEN (sólo el PLAN la lleva).',
-  'Las unidades, lugares, líneas, puntos, coordenadas, días y horas son SÓLO los del expediente (la Orden superior, el calco, las fases del CAP, las hojas). No inventes unidades ni las renombres.',
+  'Las unidades, lugares, líneas, puntos, coordenadas, días y horas son SÓLO los del expediente (la Orden superior, el calco, las fases del CAP, las hojas). No inventes unidades ni las renombres. Los RCIC (RPI y RIFA) son los que ya determinó cada sección: transcribilos todos, en el orden del expediente; no los reemplaces por otros.',
 ]
 
 export const VERIFICACION = [
   'Están TODAS las claves del JSON con texto de ESTA situación; la Orden se lee completa de OBJETO a V.- COMANDO Y COMUNICACIONES, sin huecos.',
-  'MISIÓN: una oración con quién, qué (tipo de operación + tarea táctica), cuándo (D y hora), dónde y «con el propósito de…»; es la misión aprobada (F2·P12) del expediente.',
-  'INTENCIÓN: propósito, punto decisivo, tareas clave (numeradas) y estado final (fuerza propia, enemigo, terreno); NO describe la maniobra.',
-  'CONCEPTO: «Cumpliremos la misión mediante…», el punto decisivo y el porqué, la operación decisiva y las de configuración, el esfuerzo principal de cada fase y la lista de FASES con su nombre y desde/hasta.',
-  'MANIOBRA: FASE POR FASE, CADA unidad de maniobra del CAP aprobado con su designación real, (OD / OC-n / RESERVA), esfuerzo principal o secundario, su tarea táctica, dónde y «con el propósito de…»; la reserva con su prioridad de planeamiento; el riesgo y cómo se mitiga. Coincide con las fases y las fichas de la carta.',
-  'APOYO DE FUEGOS: tarea (destruir / neutralizar / suprimir) sobre una formación enemiga, propósito, método (prioridad por fase, asignación, restricciones) y efecto cuantificado; a.- b.- c.- con contenido; OAPC con la relación de cada unidad de artillería.',
-  'TAREAS: un subpárrafo «1.- UNIDAD (rol).» por unidad de maniobra (con la reserva) y otro por unidad de apoyo de combate, cada uno con sus tareas «a.- …» en orden cronológico, en presente impositivo («defiende», «bloquea», «se repliega»).',
-  'INSTRUCCIONES DE COORDINACIÓN: vigencia; RCIC (RPI como preguntas, RIFA como «Informar…», diez o menos); medidas de reducción de riesgos de la matriz; reglas; ambiente; protección; adicionales (puntos de contacto, enlaces, puntos de decisión); límite de avance; MCAF; ensayo (tipo, lugar y D-hora); nivel de amenaza.',
-  'IV y V completos: concepto de apoyo POR FASE, logística, personal, AC/GM; sucesión de mando; PCP / PCA / PCR con su ubicación; IOC en vigor; prioridad de las comunicaciones.',
+  'MISIÓN: UNA oración, en este orden: QUIÉN, QUÉ (tipo de operación + tarea táctica: «defiende y bloquea a…»), CUÁNDO («a partir del D (hora) hasta el D+n (hora)»), DÓNDE y «con el propósito de…»; sin gerundios agregados; es la misión aprobada (F2·P12) del expediente.',
+  'INTENCIÓN: en prosa y sin rótulos ni números, como en el PMTD: «Mi intención es (propósito), para esto es clave inicialmente (tareas clave), asimismo es importante…» y, en otro párrafo, «Al finalizar la operación, (cómo queda la propia fuerza), (cómo queda el enemigo), encontrándonos en condiciones de (operación futura).»; NO describe la maniobra.',
+  'CONCEPTO: «Vamos a cumplir la misión mediante (forma de maniobra). El punto decisivo es … porque …»; una oración por Unidad («Una División Mecanizada (OD y esfuerzo principal) defiende y bloquea…, con el propósito de…», las OC con «esfuerzo secundario», la reserva «… constituye la reserva, encontrándose en condiciones de ser empleada con orden, con prioridad de planeamiento a la OD y posteriormente a…»); «El propósito del apoyo de fuegos es…»; «La prioridad de esfuerzo de ingeniería será…, la prioridad de trabajo será para la Unidad que lleve la OD»; la operación de sostenimiento (tarea y propósito); «La operación se desarrollará en las siguientes fases:» con cada FASE, su nombre y desde/hasta; y el estado final («Al finalizar la operación…»).',
+  'MANIOBRA: FASE POR FASE, CADA unidad de maniobra del CAP aprobado con su designación real: «La DIV MEC-2 (OD y esfuerzo principal) defiende…, con el propósito de…», «La DIV-1 (OC-1 y esfuerzo secundario)…»; la reserva con su prioridad de planeamiento; al final «Se asume como riesgo…» y cómo se mitiga. Coincide con las fases y las fichas de la carta.',
+  'APOYO DE FUEGOS: un párrafo «Los medios de apoyo de fuegos tienen la tarea de (destruir / neutralizar / suprimir) a…, con el propósito de…, el método: la prioridad de apoyo de fuegos a…, se asignan los blancos…, restricciones:…, el efecto será…»; a.- b.- c.- con contenido; OAPC con la relación de cada unidad de artillería. INTELIGENCIA: «El enfoque de recopilación de inteligencia está dirigido a… La prioridad de apoyo a la… Los recursos son…». INGENIEROS: «La prioridad de esfuerzo es de… mediante…, la prioridad de trabajo a la…». DEFENSA ANTIAÉREA: «La tarea de los medios de ADA es…, con el propósito de…, la prioridad de apoyo a la…».',
+  'TAREAS: FASE POR FASE («FASE I: NOMBRE (…).»); en CADA fase TODAS las Unidades de maniobra dependientes (con la reserva) —y en III.- C.- las de apoyo de combate—, cada una con «1.- UNIDAD (rol).», «TAREA: …» en presente impositivo («Defiende…», «Se desplaza…») y «PROPÓSITO: …» («Evitar la conquista de…»).',
+  'INSTRUCCIONES DE COORDINACIÓN: vigencia; RCIC: TODOS los que determinó cada sección (RPI como preguntas, RIFA como «Informar…»), uno por renglón y en el orden del expediente; medidas de reducción de riesgos de la matriz; reglas; ambiente; protección; adicionales (puntos de contacto, enlaces, puntos de decisión); límite de avance; MCAF; ensayo (tipo, lugar y D-hora); nivel de amenaza.',
+  'IV y V completos: concepto de apoyo POR FASE («El enfoque de apoyo logístico es de…, la prioridad de apoyo a la…»), logística, personal, AC/GM; sucesión de mando; PCP / PCA / PCR con su ubicación; IOC en vigor; prioridad de las comunicaciones.',
   'Redacción impositiva, positiva y en presente; sin «tratará de», sin cuentas sueltas, sin coordenadas decimales sueltas, sin «[IA — verificar]» y sin remisiones a hojas de la Mesa.',
 ]
