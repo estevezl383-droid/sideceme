@@ -153,63 +153,126 @@ caso('🌱: los preliminares, la organización de la tarea, la situación y la m
   assert.ok(C.propias.includes('2.- Unidades adyacentes y de apoyo: La DIV MEC-1 defiende TAMBO QUEMADO'))
   // II.- la misión aprobada, transcripta
   assert.equal(C.mision, 'El CE-I defiende el AO LAUCA a partir del D (0400) hasta el D+15 (1800), reteniendo la LF «PUMA», con el propósito de impedir que SATURNO penetre hacia TURCO (FICT.).')
+  // con los cinco elementos de la F2·P12, en el orden del PMTD: QUIÉN, QUÉ, CUÁNDO, DÓNDE y PROPÓSITO, en una oración
+  const e3 = ejercicio()
+  e3.g3.mision = {
+    'QUIÉN (la unidad que ejecuta)': 'CE-I',
+    'QUÉ (tipo de operación + tarea esencial, como tarea táctica)': 'Defender y bloquear a la 1ª Br. Ac. (FICT.)',
+    'CUÁNDO (desde / hasta, en términos de tiempo)': 'D (0400) a D+15 (1800)',
+    'DÓNDE (AO, objetivos, coordenadas)': 'el AO LAUCA, al oeste de la LF «PUMA»',
+    'PROPÓSITO (el porqué de la operación)': 'para impedir que SATURNO penetre hacia TURCO.',
+    'ENUNCIADO COMPLETO DE LA MISIÓN': 'El CE-I defiende el AO LAUCA reteniendo la LF «PUMA» (FICT.).',
+  }
+  assert.equal(O.propuestas(ctxDe(e3)).campos.mision, 'El CE-I, defiende y bloquea a la 1ª Br. Ac. (FICT.) a partir del D (0400) hasta el D+15 (1800) en el AO LAUCA, al oeste de la LF «PUMA» con el propósito de impedir que SATURNO penetre hacia TURCO.')
   assert.equal(C.hipotesis, undefined, 'una ORDEN no lleva hipótesis')
 })
 
 caso('🌱: la intención y el concepto como en el PMTD, y la MANIOBRA fase por fase con cada unidad (tarea y propósito)', () => {
   const C = O.propuestas(ctxDe()).campos
+  // la intención en prosa, como la Hoja de trabajo del PMTD: «Mi intención es…, para esto es clave… Al finalizar…»
   assert.deepEqual(C.intencion.split('\n'), [
-    'El propósito de la operación es detener al primer escalón enemigo al oeste de la LDE-2 (FICT.).',
-    'Para esto será necesario cumplir las siguientes tareas clave:',
-    '1) Fijar a la 1ª Br. Ac. al oeste de la LF «PUMA».',
-    '2) Consolidar la ZO-1.',
-    '3) Evacuar civiles hasta el D-10.',
+    'Mi intención es detener al primer escalón enemigo al oeste de la LDE-2 (FICT.), para esto es clave inicialmente fijar a la 1ª Br. Ac. al oeste de la LF «PUMA», consolidar la ZO-1, asimismo es importante evacuar civiles hasta el D-10.',
     'Al finalizar la operación, la 1ª Br. Ac. detenida y desgastada, la LDE-2 retenida y el CE-I listo para la Segunda Campaña (FICT.).',
   ])
-  assert.ok(C.concepto.startsWith('Cumpliremos la misión mediante la ejecución de una defensa de área.'))
-  assert.ok(C.concepto.includes('Esfuerzo principal: '))
-  assert.ok(C.concepto.includes('La operación se desarrollará en las siguientes fases:\nFASE I (CONCENTRACIÓN) desde el D-10 hasta el D-8.'))
+  // el concepto como el enunciado del CAP de la Div-2 del PMTD, un renglón por idea
+  const con = C.concepto.split('\n')
+  assert.equal(con[0], 'Vamos a cumplir la misión mediante una defensa de área. El punto decisivo es SIN DATO — verificar (dónde y por qué).')
+  assert.equal(con[1], 'Una División Mecanizada (OD y esfuerzo principal) detiene al enemigo en la AA-1 en Guata, con el propósito de que no pase la LF «PUMA».', 'la tarea y el propósito de la fase decisiva (CONDUCCIÓN DE LA DEFENSA)')
+  assert.equal(con[2], 'Una División de Infantería (OC-1 y esfuerzo secundario) defiende la LPR a 7 km al O de Julo.')
+  assert.equal(con[3], 'Una División de Infantería (RESERVA) constituye la reserva, encontrándose en condiciones de contraatacar en Guata con orden, con prioridad de planeamiento a la OD y posteriormente a la OC-1.')
+  assert.ok(con[4].startsWith('El propósito del apoyo de fuegos es neutralizar el 50% de los lanzadores de cohetes LAR-160'))
+  assert.equal(con[5], 'La prioridad de esfuerzo de ingeniería será la contramovilidad mediante la construcción de campo minado anticarro en Guata y zanja antitanque a 3 km al NO de Guata (FASE III), la prioridad de trabajo será para la Unidad que lleve la OD.')
+  assert.ok(C.concepto.includes('La operación se desarrollará en las siguientes fases:\nFASE I: CONCENTRACIÓN (desde el D-10 hasta el D-8).\nFASE II: DESPLAZAMIENTO (desde el D-8 hasta el D-5).'))
+  assert.ok(con[con.length - 1].startsWith('Al finalizar la operación, el primer escalón de la VI División de Ejército de SATURNO'), 'el estado final al final')
+  assert.ok(!/Esfuerzo principal:|Cumpliremos/.test(C.concepto), 'sin rótulos de la hoja del CAP')
+  // la puntuación del PMTD con el punto decisivo de la F2·SAL; la defensa antiaérea y el sostenimiento con sus unidades
+  const e2 = ejercicio()
+  e2.g3.estructura = { 'PUNTO DECISIVO|Qué comprende y qué se hace en ella': 'El paso Ungallire–Guata porque canaliza a la 1ª Br. Ac. (FICT.)' }
+  e2.unidades.push({ id: 'aa2', tipo: 'unidad', bando: 'propias', designacion: 'BAT AA-2', arma: 'antiaerea', escalon: 'batallon', lat: -18.5, lng: -68.5 }, { id: 'log2', tipo: 'unidad', bando: 'propias', designacion: 'BAT LOG-II', arma: 'logistica', escalon: 'batallon', lat: -18.55, lng: -68.45 })
+  e2.calco.unidades = e2.unidades
+  const C2 = O.propuestas(ctxDe(e2)).campos
+  assert.ok(C2.concepto.startsWith('Vamos a cumplir la misión mediante una defensa de área. El punto decisivo es el paso Ungallire–Guata porque canaliza a la 1ª Br. Ac. (FICT.).'))
+  assert.ok(C2.concepto.includes('El propósito del apoyo de defensa antiaérea es proporcionar cobertura a las operaciones terrestres, con prioridad a la Unidad que lleve la OD.'))
+  assert.ok(C2.concepto.includes('El Batallón Logístico (operación de sostenimiento) tiene la tarea de proporcionar apoyo de servicio de combate, con el propósito de satisfacer las necesidades de vida y de combate de las Unidades empeñadas en primera línea.'))
+  assert.ok(C2.antiaerea.startsWith('La tarea de los medios de defensa antiaérea (BAT AA-2) es destruir los vectores aéreos enemigos, con el propósito de proporcionar cobertura a las operaciones terrestres, la prioridad de apoyo a la DIV MEC-2 (OD).'))
+  // la maniobra fase por fase, cada unidad con su designación: «La FT VARGAS (OD y esfuerzo principal) defiende…»
   const man = C.maniobra.split('\n')
-  const fases = man.filter((l) => /^FASE [IVX]+ \(/.test(l))
+  const fases = man.filter((l) => /^FASE [IVX]+: /.test(l))
   assert.equal(fases.length, 5, 'las cinco fases del CAP en la carta')
-  assert.equal(man[0], 'FASE I (CONCENTRACIÓN) desde el D-10 hasta el D-8.')
-  // la oración de la OGO del CE-I «KILÓMETRO 7»: «La DIV MEC-2 (OD), esfuerzo principal, defiende…, con el propósito de…»
-  assert.ok(man.includes('La DIV MEC-2 (OD), esfuerzo principal, se concentra en Turco.'))
-  assert.ok(man.includes('La DIV-1 (OC-1), esfuerzo secundario, se concentra en Huachacalla.'))
-  assert.ok(man.includes('La DIV MEC-2 (OD), esfuerzo principal, detiene al enemigo en la AA-1 en Guata, con el propósito de que no pase la LF «PUMA».'))
-  assert.ok(man.includes('La DIV-6 (RESERVA) constituye la reserva en Estancia Ticanani.'))
+  assert.equal(man[0], 'FASE I: CONCENTRACIÓN (desde el D-10 hasta el D-8).')
+  assert.ok(man.includes('La DIV MEC-2 (OD y esfuerzo principal) se concentra en Turco.'))
+  assert.ok(man.includes('La DIV-1 (OC-1 y esfuerzo secundario) se concentra en Huachacalla.'))
+  assert.ok(man.includes('La DIV MEC-2 (OD y esfuerzo principal) detiene al enemigo en la AA-1 en Guata, con el propósito de que no pase la LF «PUMA».'))
+  assert.ok(man.includes('La DIV-6 (RESERVA) constituye la reserva en Estancia Ticanani, encontrándose en condiciones de ser empleada con orden, con prioridad de planeamiento a la OD y posteriormente a la OC-1.'))
   assert.ok(man.includes('La DIV-6 (RESERVA) continúa como reserva en Estancia Ticanani.'), 'lo que sigue igual: «continúa…»')
-  assert.ok(man.includes('La DIV-1 (OC-1), esfuerzo secundario, continúa defendiendo la LPR a 7 km al O de Julo.'))
+  assert.ok(man.includes('La DIV-1 (OC-1 y esfuerzo secundario) continúa defendiendo la LPR a 7 km al O de Julo.'))
   assert.ok(man.includes('La DIV-6 (RESERVA) contraataca en Guata, con el propósito de restablecer la LPR.'))
-  assert.ok(man.some((l) => l.startsWith('La RESERVA: Composición: ')))
-  assert.ok(man.some((l) => l.startsWith('El riesgo a afrontar: ')))
+  assert.ok(man[man.length - 1].startsWith('Se acepta el riesgo de concentrar la masa defensiva'), 'el riesgo al final')
+  assert.ok(!man.some((l) => /^La RESERVA: Composición/.test(l)), 'sin la hoja del CAP copiada')
   for (const l of man) assert.ok(!/\d+ (trabajo|límite|punto)\(s\)|ver F\d·P\d/i.test(l), `sin cuentas ni remisiones: ${l}`)
-  // los demás del concepto
-  assert.ok(C.fuegos.includes('Prioridad de fuegos: de la FASE I a la FASE V a la DIV MEC-2.') || C.fuegos.includes('Prioridad de fuegos'))
-  assert.ok(C.fuegos.includes('Matriz de ejecución de apoyo de fuegos (F4·P7):\n- FASE IV: Destruir AB-010 en Ungallire con RAM-4, con el propósito de impedir el cruce del Lauca (FICT.). Método: fuego de protección final.'))
+  // los demás del concepto, con la forma de los ejemplos del PMTD
+  assert.ok(C.fuegos.startsWith('Los medios de apoyo de fuegos tienen la tarea de ejecutar fuegos de contrabatería masiva e interdicción lejana'))
+  assert.ok(C.fuegos.includes(', con el propósito de neutralizar el 50% de los lanzadores de cohetes LAR-160'))
+  assert.ok(C.fuegos.includes(', el método: la prioridad de apoyo de fuegos de la FASE I a la FASE V a la DIV MEC-2 (OD), se asignan los blancos AB-010 y AB-011, el efecto será destruir más del 30% de los tanques Leopard 2A4'))
+  assert.ok(C.fuegos.includes('Los fuegos planificados:\n- FASE IV: destruir AB-010 en Ungallire con RAM-4, con el propósito de impedir el cruce del Lauca (FICT.); método: fuego de protección final.'))
   assert.ok(C.artilleria.includes('Organización de la Artillería para el Combate.\nGALM-1 : Refuerzo de fuegos DIV MEC-2\nRAM-4 : Acción de conjunto CE-I'))
   assert.equal(C.mcaf, 'LCAF sobre la LDE-1 desde el D (0400) (FICT.).')
-  assert.ok(C.reconocimiento.includes('Matriz de eventos del G-2 (H.T. 20):\n- AIN-3: Movimiento de obuses M109 (FICT.), no antes de D-1, no después de D+1.'))
-  assert.ok(C.ingenieros.startsWith('Contramovilidad: '))
-  assert.ok(C.ingenieros.includes('Obstáculos planificados en la carta:\n- FASE III: '))
-  assert.ok(C.antiaerea.includes('- FASE IV: Prioridad al PC de Ticanani (FICT.).'))
+  assert.ok(C.reconocimiento.startsWith('El punto focal del esfuerzo de reconocimiento y vigilancia son las áreas de interés nombradas AIN-2, AIN-3 y AIN-5.'))
+  assert.ok(C.reconocimiento.includes('Los indicadores a vigilar:\n- AIN-3: movimiento de obuses M109 (FICT.), no antes del D-1 y no después del D+1.'))
+  assert.deepEqual(C.inteligencia.split('\n'), ['El enfoque de recopilación de inteligencia está dirigido a determinar el dispositivo de ataque, la dirección del esfuerzo principal y las rutas alternas que pueda emplear la 1ª BR. AC. «CORACEROS» en nuestra área de operaciones.', 'La prioridad de apoyo a la DIV MEC-2 (OD).', 'Ver Anexo “B” Inteligencia.'])
+  assert.ok(C.ingenieros.startsWith('La prioridad de esfuerzo es de contramovilidad mediante la construcción de campo minado anticarro en Guata y zanja antitanque a 3 km al NO de Guata (FASE III), la prioridad de trabajo a la DIV MEC-2 (OD) y posteriormente a la DIV-1 (OC-1).'))
+  assert.ok(C.ingenieros.includes('\n- Contramovilidad: Construcción de la Zona de Obstáculos principal ZO-1'))
+  assert.ok(C.antiaerea.includes('Por fase:\n- FASE IV: Prioridad al PC de Ticanani (FICT.).'))
   assert.ok(C.acgm.startsWith('Evacuar la población de Guata antes del D-10 (FICT.).'))
   assert.ok(C.acgm.endsWith('Ver Anexo “H” Asuntos Civiles y Gobierno Militar.'))
 })
 
-caso('🌱: las TAREAS de cada unidad (incisos por fase), la coordinación con los RCIC, IV y V', () => {
+caso('🌱: las TAREAS fase por fase (todas las unidades, TAREA y PROPÓSITO), los RCIC de cada sección, IV y V', () => {
   const C = O.propuestas(ctxDe()).campos
+  // fase por fase y, en cada fase, TODAS las unidades de maniobra con la reserva: «1.- DIV MEC-2 (OD).», «TAREA:», «PROPÓSITO:»
   const tm = C.tareasManiobra.split('\n')
-  assert.deepEqual(tm.filter((l) => /^\d+\.- /.test(l)), ['1.- DIV MEC-2 (OD).', '2.- DIV-1 (OC-1).', '3.- DIV-6 (RESERVA).'])
-  assert.equal(tm[1], 'a.- FASE I: Se concentra en Turco.')
-  assert.ok(tm.includes('d.- FASE IV: Detiene al enemigo en la AA-1 en Guata, con el propósito de que no pase la LF «PUMA».'))
-  assert.ok(tm.includes('b.- FASE III: Constituye la reserva en Estancia Ticanani.'))
-  assert.ok(C.tareasApoyo.includes('GALM-1.\na.- Refuerzo de fuegos a DIV MEC-2 desde la FASE II, prioridad 1.'))
+  assert.deepEqual(tm.filter((l) => /^FASE [IVX]+: /.test(l)).length, 5)
+  assert.deepEqual(tm.slice(0, 10), [
+    'FASE I: CONCENTRACIÓN (desde el D-10 hasta el D-8).',
+    '1.- DIV MEC-2 (OD).',
+    'TAREA: Se concentra en Turco.',
+    'PROPÓSITO: SIN DATO — verificar.',
+    '2.- DIV-1 (OC-1).',
+    'TAREA: Se concentra en Huachacalla.',
+    'PROPÓSITO: SIN DATO — verificar.',
+    '3.- DIV-6 (RESERVA).',
+    'TAREA: Se concentra en Turco.',
+    'PROPÓSITO: SIN DATO — verificar.',
+  ])
+  for (let i = 0; i < 5; i++) assert.deepEqual(tm.filter((l) => /^\d+\.- /.test(l)).slice(i * 3, i * 3 + 3), ['1.- DIV MEC-2 (OD).', '2.- DIV-1 (OC-1).', '3.- DIV-6 (RESERVA).'], 'las tres unidades en cada fase')
+  const iv = tm.indexOf('FASE IV: CONDUCCIÓN DE LA DEFENSA (desde el D hasta el D+8).')
+  assert.deepEqual(tm.slice(iv + 1, iv + 10), [
+    '1.- DIV MEC-2 (OD).',
+    'TAREA: Detiene al enemigo en la AA-1 en Guata.',
+    'PROPÓSITO: Que no pase la LF «PUMA».',
+    '2.- DIV-1 (OC-1).',
+    'TAREA: Defiende la LPR a 7 km al O de Julo.',
+    'PROPÓSITO: SIN DATO — verificar.',
+    '3.- DIV-6 (RESERVA).',
+    'TAREA: Continúa como reserva.',
+    'PROPÓSITO: Encontrarse en condiciones de ser empleada con orden, con prioridad de planeamiento a la OD y posteriormente a la OC-1.',
+  ])
+  assert.ok(tm.includes('TAREA: Continúa deteniendo al enemigo en la AA-1 en Guata.'), 'lo que sigue igual: «Continúa…», con su propósito')
+  assert.ok(tm.includes('TAREA: Contraataca en Guata.') && tm.includes('PROPÓSITO: Restablecer la LPR.'))
+  // las de apoyo de combate, con la misma forma: la relación de apoyo desde su fase y sus fuegos
+  const ta = C.tareasApoyo.split('\n')
+  assert.deepEqual(ta.slice(0, 4), ['FASE I: CONCENTRACIÓN (desde el D-10 hasta el D-8).', '1.- RAM-4.', 'TAREA: Ejecuta acción de conjunto en apoyo del CE-I.', 'PROPÓSITO: SIN DATO — verificar.'], 'el GALM-1 recién desde la FASE II')
+  assert.ok(C.tareasApoyo.includes('FASE II: DESPLAZAMIENTO (desde el D-8 hasta el D-5).\n1.- GALM-1.\nTAREA: Refuerza los fuegos de la DIV MEC-2 (OD).'))
+  assert.ok(C.tareasApoyo.includes('2.- RAM-4.\nTAREA: Ejecuta acción de conjunto en apoyo del CE-I; destruye AB-010 en Ungallire.\nPROPÓSITO: Impedir el cruce del Lauca (FICT.).'))
   assert.equal(C.vigencia, 'La presente orden entra en vigor a partir de su emisión.\nDía D: 15 de noviembre (FICT.); hora H: 0400.')
-  // los RCIC: los priorizados por el Comandante (F2·P8), RPI y RIFA por separado
-  assert.equal(C.rpi, '1) ¿Por qué avenida (FICT.) empeña el enemigo su esfuerzo principal?')
-  assert.equal(C.rifa, '1) Informar cuando la DIV-6 complete su aclimatación en TURCO (FICT.).')
-  assert.equal(C.eeia, 'a.- La ubicación de la reserva (FICT.).', 'el EEIA del G-3 va igual (el Comandante prioriza los RCIC)')
+  // los RCIC que determinó CADA sección (la F2·P8 del G-1, G-3, G-4 y G-5 y el Plan de búsqueda del G-2), primero los que
+  // priorizó el Comandante; RPI y RIFA por separado, uno por renglón, sin repetir
+  assert.equal(C.rpi, '1) ¿Por qué avenida (FICT.) empeña el enemigo su esfuerzo principal?\n2) ¿Dónde emplaza el enemigo sus lanzadores LAR-160 (FICT.)?\n3) ¿Cuántos civiles permanecen al oeste de la LF «PUMA» (FICT.)?')
+  assert.equal(C.rifa, '1) Informar cuando la DIV-6 complete su aclimatación en TURCO (FICT.).\n2) Informar cuando las bajas de la DIV MEC-2 superen el 10 % de sus efectivos (FICT.).\n3) Informar cuando la Clase III de la DIV MEC-2 baje de dos días de consumo (FICT.).')
+  assert.equal(C.eeia, 'a.- La ubicación de la reserva (FICT.).')
+  const req = O.requerimientosDe(ctxDe())
+  assert.deepEqual(req.find((x) => /avenida/.test(x.r)).de, ['G-2'], 'el que priorizó el Comandante y también trae el G-2 va una vez')
+  assert.deepEqual(req.map((x) => x.de.join('/')).filter(Boolean), ['G-2', 'G-2', 'G-3', 'G-1', 'G-4', 'G-5'])
   assert.equal(C.riesgos, '- Fratricidio en el pasaje de líneas: Puntos de pasaje con guías y señales de reconocimiento (FICT.).')
   assert.equal(C.reglas, '- Emplear minas antipersonal (FICT.).')
   assert.equal(C.ambiente, '- Contaminar el río Lauca con combustibles (FICT.).')
@@ -222,6 +285,11 @@ caso('🌱: las TAREAS de cada unidad (incisos por fase), la coordinación con l
   assert.equal(C.amenazaRetaguardia, 'Nivel II (FICT.).')
   assert.equal(C.servicio, 'Ver Anexo “F” Apoyo de Servicio de Combate.')
   assert.ok(C.conceptoApoyo.includes('- FASE III: enfoque de apoyo en Clase IV y Clase V; prioridad a la DIV MEC-2 (FICT.).'))
+  // sin el anexo del G-4, el concepto de apoyo por fase del calco dicho como en el PMTD
+  const e4 = ejercicio()
+  e4.hojasG.g4.anexoF7P1 = { campos: {} }
+  e4.calco.conceptoApoyo = [null, null, { enfoque: ['abastecimiento de Clase IV', 'Clase V'], prioridad: 'DIV MEC-2 (OD)' }]
+  assert.ok(O.propuestas(ctxDe(e4)).campos.conceptoApoyo.includes('- FASE III (Ocupación y organización): el enfoque de apoyo logístico es de abastecimiento de Clase IV, Clase V, la prioridad de apoyo a la DIV MEC-2 (OD).'))
   assert.ok(C.logistica.includes('- Eje Principal de Abastecimiento (EPA): Oruro–Toledo–Corque–Turco (FICT.).'))
   assert.ok(C.personal.includes('- Reemplazos: 450 reemplazos el D-3 (FICT.).'))
   assert.ok(C.personal.endsWith('Ver Anexo “G” Personal.'))
@@ -237,7 +305,7 @@ caso('🌱: las TAREAS de cada unidad (incisos por fase), la coordinación con l
   assert.equal(C.prioridadCom, '- FASE IV: Prioridad a la DIV MEC-2 (FICT.).')
   // 🌱 llena TODA la Orden con este ejercicio (salvo lo que no corresponde o es juicio del Comandante)
   const vacios = M.camposDe(DEF).map((c) => c.id).filter((id) => !C[id])
-  assert.deepEqual(vacios.sort(), ['situacion', 'apoyoAereo', 'hipotesis', 'inteligencia', 'policiaMilitar', 'proteccion', 'qbn', 'refuerzos', 'limiteAvance'].sort())
+  assert.deepEqual(vacios.sort(), ['situacion', 'apoyoAereo', 'hipotesis', 'policiaMilitar', 'proteccion', 'qbn', 'refuerzos', 'limiteAvance'].sort())
 })
 
 caso('🌱: sin pisar; con la hoja vieja trae todo lo demás; sin datos no inventa', () => {
@@ -245,7 +313,7 @@ caso('🌱: sin pisar; con la hoja vieja trae todo lo demás; sin datos no inven
   const P1 = O.propuestas(ctx)
   const x = M.armar(DEF, VIEJA, P1)
   assert.equal(x.valor.campos.mision, VIEJA['Misión'], 'lo que escribió el oficial manda')
-  assert.ok(x.valor.campos.maniobra.startsWith('FASE I (CONCENTRACIÓN)'), 'la maniobra del 🌱 viejo (cuentas) no estorbaba: ahora viene la de la carta')
+  assert.ok(x.valor.campos.maniobra.startsWith('FASE I: CONCENTRACIÓN'), 'la maniobra del 🌱 viejo (cuentas) no estorbaba: ahora viene la de la carta')
   assert.ok(x.cambios.length > 30)
   const y = M.armar(DEF, x.valor, P1)
   assert.equal(y.cambios.length, 0, 'una segunda vez no trae nada nuevo')
@@ -259,6 +327,33 @@ caso('la conjugación de las tareas de la carta (presente impositivo y «contin�
   assert.equal(O.tareaEnPresente('Reserva'), 'constituye la reserva')
   assert.equal(O.proposito('para que no pase la LF «PUMA»'), 'con el propósito de que no pase la LF «PUMA»')
   assert.equal(O.proposito('Para cumplir la misión'), '')
+})
+
+caso('la forma del PMTD: la intención con rótulos pasa a prosa; la fase decisiva; la unidad genérica del concepto', () => {
+  // como venía en la F7·P1 del CE-I: «Propósito: … Punto decisivo: … Tareas clave: … Estado final: …»
+  const conRotulos = 'Propósito: detener al primer escalón enemigo al oeste de la LDE-2, sin perder los ejes hacia ORURO (FICT.). Punto decisivo: el desfiladero de UNGALLIRE–GUATA (FICT.). Tareas clave: fijar al enemigo al oeste de la LF «PUMA»; consolidar la ZO-1; vigilar el vacío al sur del Volcán PUQUINTICA. Estado final: 1ª Br. Ac. detenida en la ZO-1 (FICT.).'
+  assert.deepEqual(O.intencionEnProsa(conRotulos).split('\n'), [
+    'Mi intención es detener al primer escalón enemigo al oeste de la LDE-2, sin perder los ejes hacia ORURO (FICT.), para esto es clave inicialmente fijar al enemigo al oeste de la LF «PUMA», consolidar la ZO-1, asimismo es importante vigilar el vacío al sur del Volcán PUQUINTICA.',
+    'Al finalizar la operación, 1ª Br. Ac. detenida en la ZO-1 (FICT.).',
+  ])
+  assert.equal(O.partesIntencion(conRotulos).pd, 'el desfiladero de UNGALLIRE–GUATA (FICT.).', 'el punto decisivo queda para el concepto')
+  // el estado final en sus tres partes: la propia fuerza, el enemigo y la operación futura
+  assert.equal(
+    O.intencionEnProsa('Propósito: facilitar la destrucción de la FT-43 (FICT.)\nTareas clave:\n1) Aprovechar el terreno en los trabajos de OT.\n2) Recibir al GRM-I por el PP-B antes del D (0400).\nCómo queda la propia fuerza: La FT «LANZA» se encontrará ocupando posiciones en Coord. 7600-4400 (FICT.)\nCómo queda el enemigo: el RIMEC-6 habrá sido destruido (FICT.)\nOperación futura: realizar operaciones ofensivas con orden'),
+    'Mi intención es facilitar la destrucción de la FT-43 (FICT.), para esto es clave inicialmente aprovechar el terreno en los trabajos de OT y recibir al GRM-I por el PP-B antes del D (0400).\nAl finalizar la operación, la FT «LANZA» se encontrará ocupando posiciones en Coord. 7600-4400 (FICT.), el RIMEC-6 habrá sido destruido (FICT.), encontrándonos en condiciones de realizar operaciones ofensivas con orden.',
+  )
+  // la que escribía antes la Mesa, y la que ya está en prosa
+  assert.equal(O.intencionEnProsa('El propósito de la operación es detener al enemigo (FICT.).\nPara esto será necesario cumplir las siguientes tareas clave:\n1) Fijar al enemigo.\n2) Consolidar la ZO-1.\nAl finalizar la operación, el enemigo detenido (FICT.).'), 'Mi intención es detener al enemigo (FICT.), para esto es clave inicialmente fijar al enemigo y consolidar la ZO-1.\nAl finalizar la operación, el enemigo detenido (FICT.).')
+  assert.equal(O.intencionEnProsa('Mi intención es X (FICT.).'), 'Mi intención es X (FICT.).')
+  assert.deepEqual(O.listaTareas('PRIMERO.- Sobreextender las líneas. SEGUNDO.- Aislar a las Brigadas Reserva.'), ['Sobreextender las líneas', 'Aislar a las Brigadas Reserva'])
+  // la fase decisiva: la que se llama como el combate, no como un movimiento
+  const f = (n, nombre) => ({ n, nombre, unidades: [] })
+  assert.equal(O.faseDecisiva([f(1, 'Concentración'), f(2, 'Ocupación y organización'), f(3, 'Conducción de la defensa'), f(4, 'Contraataque y consolidación')]).n, 3)
+  assert.equal(O.faseDecisiva([f(1, 'Ocupación y organización de la PD'), f(2, 'Defensa de la posición defensiva'), f(3, 'Reorganización')]).n, 2)
+  // la unidad dicha como en el concepto del PMTD
+  const ctx = ctxDe()
+  assert.deepEqual(['DIV MEC-2', 'DIV-1', 'FT VARGAS', 'RI-20'].map((n) => O.genericoDe(ctx, n)), ['Una División Mecanizada', 'Una División de Infantería', 'Una Fuerza de Tarea', 'Un Regimiento'])
+  assert.equal(O.genericoDe(ctx, 'BAT LOG-II', { definido: true }), 'El Batallón Logístico')
 })
 
 // ── LA IA ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -291,10 +386,29 @@ caso('la IA: el pedido trae la forma, la doctrina del Capítulo VII, el ejemplo 
     'V.- COMANDO Y COMUNICACIONES.',
     'TEXTO PMTD 2017, Parte Primera, Capítulo VII',
     'Vamos a cumplir la misión',
-    'El riesgo a afrontar es',
+    'Se asume como riesgo',
     'EJEMPLO DE REDACCIÓN',
     'KILÓMETRO 7',
-    'La DIMEC-2 (OC-2), esfuerzo principal',
+    // la forma de cada párrafo, con los ejemplos del PMTD
+    'QUIÉN, QUÉ, CUÁNDO, DÓNDE y PROPÓSITO',
+    'La Div-2, defiende y destruye al batallón de tanques a partir del D(0600) hasta D+6 (1800)',
+    'Mi intención es facilitar la destrucción de la FT-43 en el AE. YUNQUE',
+    'CÓMO QUEDA LA PROPIA FUERZA',
+    'Una Fuerza de Tarea fuerte en Infantería (OD y esfuerzo principal) defiende y bloquea al BIM (OD) de la DIMEC – 56',
+    'La Fuerza de Tarea VARGAS fuerte en Infantería (OD y esfuerzo principal)',
+    'Los medios de apoyo de fuegos tienen la tarea de suprimir',
+    'El enfoque de recopilación de inteligencia está dirigido a',
+    'La prioridad de esfuerzo es de contra movilidad',
+    'La tarea de los medios de ADA es destruir vectores aéreos',
+    'El enfoque de apoyo logístico es de abastecimiento de clase III y V',
+    'TAREA: Defiende y bloquea al BIM (OD) de la DIMEC – 56.',
+    'PROPÓSITO: Evitar la conquista de Co. TUNARI.',
+    'la intención NO va como «Propósito: … Punto decisivo: … Tareas clave: … Estado final: …»',
+    // los RCIC de cada sección
+    'LOS RCIC QUE YA DETERMINÓ CADA SECCIÓN DEL ESTADO MAYOR',
+    '- RPI (G-2): ¿Dónde emplaza el enemigo sus lanzadores LAR-160 (FICT.)?',
+    '- RIFA (G-4): Informar cuando la Clase III de la DIV MEC-2 baje de dos días de consumo (FICT.).',
+    '- RPI (G-5): ¿Cuántos civiles permanecen al oeste de la LF «PUMA» (FICT.)?',
     // lo de la Mesa
     'El CAE del G-2 (PICB): el MÁS PROBABLE',
     'La misión aprobada (F2·P12)',
@@ -304,6 +418,7 @@ caso('la IA: el pedido trae la forma, la doctrina del Capítulo VII, el ejemplo 
     '- Seguridad del área de retaguardia: Nivel II (FICT.).',
     '- Previsión de evacuación y dimensionamiento del apoyo: Puesto de reunión de evacuados en Corque (FICT.)',
     'Matriz de ejecución de apoyo de fuegos (F4·P7)',
+    'Los RCIC de cada sección',
     'Lo del G-4 (Anexo de Apoyo de Servicio de Combate',
     'Lo del G-1 (Anexo de Personal)',
     'Lo del G-5 (Anexo de AC/GM)',
@@ -317,6 +432,7 @@ caso('la IA: el pedido trae la forma, la doctrina del Capítulo VII, el ejemplo 
   ])
     assert.ok(p.includes(t), `el pedido no trae «${t}»`)
   assert.ok(!/\d+ l[ií]mite\(s\), \d+ punto\(s\)/.test(p), 'sin las cuentas del calco')
+  assert.ok(!p.includes('La DIMEC-2 (OC-2), esfuerzo principal'), 'el ejemplo ya no lleva la forma de KM 7 para la maniobra ni para las tareas')
 })
 
 caso('la IA: el encabezado común ya no le dice «NO escribas… la Orden de Operaciones» (a las demás hojas sí)', () => {
@@ -411,14 +527,14 @@ caso('el Word: la numeración del PMTD, las fases como subtítulos, las tareas c
   linea('  Intención del Comandante.')
   linea('  A.- Concepto de la operación.')
   linea('    1.- Maniobra.')
-  linea('      FASE I (CONCENTRACIÓN) desde el D-10 hasta el D-8.')
+  linea('      FASE I: CONCENTRACIÓN (desde el D-10 hasta el D-8).')
   linea('    2.- Apoyo de fuegos.')
   linea('      a.- Apoyo aéreo.')
   linea('      b.- Apoyo de artillería de campaña.')
   linea('    9.- Operaciones de AC/GM.')
   linea('  B.- Tareas de las unidades de maniobra.')
+  linea('    FASE I: CONCENTRACIÓN (desde el D-10 hasta el D-8).')
   linea('    1.- DIV MEC-2 (OD).')
-  linea('      a.- FASE I: Se concentra en Turco. ·inciso')
   linea('    3.- DIV-6 (RESERVA).')
   linea('  C.- Tareas de las unidades de apoyo de combate.')
   linea('  D.- Instrucciones de coordinación.')
@@ -446,7 +562,21 @@ caso('el Word: la numeración del PMTD, las fases como subtítulos, las tareas c
   const int = s.secciones.find((x) => x.titulo === 'EJECUCIÓN.').hijos[0]
   assert.ok(int.sinRotulo)
   assert.equal(int.hijos.length, 0)
-  assert.ok(int.texto.includes('1) Fijar a la 1ª Br. Ac. al oeste de la LF «PUMA».'))
+  assert.ok(int.texto.startsWith('Mi intención es detener al primer escalón enemigo'))
+  // el concepto enumera las fases en su texto (no son subtítulos que se lleven el estado final)
+  const con = s.secciones.find((x) => x.titulo === 'EJECUCIÓN.').hijos[1]
+  assert.ok(con.texto.includes('La operación se desarrollará en las siguientes fases:\nFASE I: CONCENTRACIÓN (desde el D-10 hasta el D-8).'))
+  assert.ok(con.texto.split('\n').pop().startsWith('Al finalizar la operación,'))
+  assert.deepEqual(con.hijos.map((h) => h.titulo).slice(0, 2), ['Maniobra.', 'Apoyo de fuegos.'])
+  // las tareas: cada unidad es un subpárrafo con su TAREA y su PROPÓSITO, debajo de su fase
+  const tar = s.secciones.find((x) => x.titulo === 'EJECUCIÓN.').hijos[2]
+  assert.equal(tar.hijos[0].titulo, 'FASE I: CONCENTRACIÓN (desde el D-10 hasta el D-8).')
+  assert.deepEqual([tar.hijos[0].hijos[0].titulo, tar.hijos[0].hijos[0].texto], ['DIV MEC-2 (OD).', 'TAREA: Se concentra en Turco.\nPROPÓSITO: SIN DATO — verificar.'])
+  // el riesgo va después de las fases de la maniobra, no dentro de la última
+  const man = con.hijos[0]
+  assert.equal(man.hijos[4].titulo, 'FASE V: CONTRAATAQUE Y CONSOLIDACIÓN (desde el D+8 hasta el D+15).')
+  assert.ok(!man.hijos[4].texto.includes('riesgo'))
+  assert.ok(man.hijos[5].texto.startsWith('Se acepta el riesgo'))
   // lo vacío sale «[Pendiente de elaboración]», no se cae
   const vacio = DOC.especificacion(M.normalizar(DEF, {}), ctx, {})
   const sv = arbolDe(vacio.secciones)
@@ -484,7 +614,7 @@ caso('el registro: la Orden para los otros botones (con 🌱 en lo vacío, sin g
   const s = R.especificacionOrden(undefined, { unidad: 'CE-I', SIDcarta })
   assert.ok(s, 'con el calco cargado hay Orden aunque la F7·P1 esté vacía')
   assert.equal(s.titulo, 'ORDEN GENERAL DE OPERACIONES')
-  assert.ok(arbolDe(s.secciones).includes('      FASE I (CONCENTRACIÓN) desde el D-10 hasta el D-8.'))
+  assert.ok(arbolDe(s.secciones).includes('      FASE I: CONCENTRACIÓN (desde el D-10 hasta el D-8).'))
   const conVieja = R.especificacionOrden(VIEJA, { unidad: 'CE-I', SIDcarta })
   assert.equal(conVieja.secciones.find((x) => x.titulo === 'MISIÓN.').texto, VIEJA['Misión'])
   RT.sincronizarEM({})

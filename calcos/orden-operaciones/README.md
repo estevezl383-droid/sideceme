@@ -75,7 +75,7 @@ tenía «[IA — verificar]» queda marcado para revisar. «A. Comando» con la 
 | Fuegos, artillería, MCAF | el concepto (F3·P6), la prioridad por fase, la F4·P7, los fuegos de la carta, la OAPC con la relación de cada unidad (F4·SAL) |
 | Reconocimiento, ingenieros, antiaérea, AC/GM | F2·P9 y las A.I.N., la H.T. 20; el plan de barreras y los obstáculos de la carta; la sincronización; el anexo del G-5 |
 | **Tareas** | «1.- DIV MEC-2 (OD).» y sus tareas «a.- FASE I: Se concentra en Turco.» de la carta; las de apoyo de combate con su relación |
-| Coordinación | vigencia (D, H); **RCIC** de la F6·P2 o los priorizados por el Comandante (RPI y RIFA por separado, diez o menos) y los EEIA del G-3; la matriz de riesgo; las limitaciones (reglas, ambiente, restricciones); puntos de decisión (F4·P4); ensayo (F6·SAL); nivel de amenaza (G-4) |
+| Coordinación | vigencia (D, H); **RCIC** de cada sección (F2·P8 de cada G y el Plan de búsqueda del G-2), primero los priorizados por el Comandante (RPI, RIFA y EEIA por separado); la matriz de riesgo; las limitaciones (reglas, ambiente, restricciones); puntos de decisión (F4·P4); ensayo (F6·SAL); nivel de amenaza (G-4) |
 | IV.- | la misión logística y el concepto por fase del G-4; el anexo del G-4 (EPA, EPE…), del G-1 (reemplazos, PP.GG.…) y del G-5 |
 | V.- | la sucesión de mando; los PC (los del concepto o las fichas «PC» de la carta con el lugar); las IOC de la Orden superior; la prioridad por fase |
 
@@ -103,6 +103,31 @@ del **G-3** y la distribución (Original al escalón superior, una copia por agr
 
 Los botones «Mesa EM → Orden de Operaciones» y «📄 OPORD» del 🎬 C.A. por fases bajan **esta** Orden: lo escrito en la
 F7·P1 y, en lo vacío, lo que trae 🌱 (sin guardar nada en la hoja). Sin nada en la F7·P1 ni en el calco, bajan lo de antes.
+
+## 30-10-2026 (tarde) — el CONTENIDO de cada párrafo con la forma del PMTD
+
+Sergio volvió con el Word de la F7·P1 que le dio la Orden ya hecha (con la IA) y el TEXTO PMTD 2017: «los párrafos, la
+estructura está bien, pero te explico cómo debe ser el contenido». Lo que estaba mal y cómo va ahora (en 🌱 **y** en lo
+que se le pide a la IA: la instrucción de cada apartado, la `DOCTRINA`, el `EJEMPLO`, las `REGLAS` y la `VERIFICACION`):
+
+| Párrafo | Antes | Ahora (como en el PMTD) |
+|---|---|---|
+| II.- MISIÓN | «El CE-I defiende el AO LAUCA a partir del D… **reteniendo** la LPR… **sin permitir**… con el propósito de…» | UNA oración en el orden QUIÉN, QUÉ (tipo de operación + tarea táctica), CUÁNDO, DÓNDE y PROPÓSITO (paso 11). Con los cinco elementos de la F2·P12 escritos, 🌱 la arma con ellos en ese orden («El CE-I, defiende y bloquea a… a partir del D (0400) hasta el D+15 (1800) en el AO LAUCA con el propósito de…») |
+| Intención | «**Propósito:** … **Punto decisivo:** … **Tareas clave:** … **Estado final:** …» (o las tareas clave numeradas) | En prosa, sin rótulos (la Hoja de trabajo de la Intención): «Mi intención es (propósito), para esto es clave inicialmente (tareas clave), asimismo es importante…» y, en otro párrafo, «Al finalizar la operación, (propia fuerza), (enemigo), encontrándonos en condiciones de (operación futura).». `intencionEnProsa` pasa a prosa la que venga con rótulos (la F6·P2) o como la escribía antes la Mesa |
+| III.- A.- Concepto | «Cumpliremos la misión…», la hoja del CAP copiada («Esfuerzo principal: Asignado a la División…») | Como el enunciado del CAP de la Div-2: «Vamos a cumplir la misión mediante una defensa de área. El punto decisivo es… porque…», una oración por unidad con la tarea y el propósito de la **fase decisiva** («Una División Mecanizada (OD y esfuerzo principal) detiene…, con el propósito de…»; las OC con «esfuerzo secundario»; la reserva «… constituye la reserva, encontrándose en condiciones de… con orden, con prioridad de planeamiento a la OD y posteriormente a la OC-1»), «El propósito del apoyo de fuegos es…», de la defensa antiaérea, «La prioridad de esfuerzo de ingeniería será…, la prioridad de trabajo será para la Unidad que lleve la OD», la operación de sostenimiento, «La operación se desarrollará en las siguientes fases:» (una por renglón) y el estado final. En el Word, las fases del concepto son renglones del texto (no subtítulos que se lleven el estado final) |
+| 1.- Maniobra | «La DIV MEC-2 (OD), esfuerzo principal, …», «La RESERVA: Composición: …», «El riesgo a afrontar: …» | Fase por fase («FASE I: CONCENTRACIÓN (desde el D-10 hasta el D-8).») y «La DIV MEC-2 (OD y esfuerzo principal) defiende…, con el propósito de…»; la reserva con su prioridad de planeamiento; al final «Se acepta / Se asume como riesgo…», que en el Word va **después** de las fases |
+| 2.- Fuegos, 4.- Inteligencia, 5.- Ingenieros, 6.- ADA | listas con rótulos de la Mesa («Matriz de ejecución (F4·P7):», «Obstáculos planificados en la carta:») | «Los medios de apoyo de fuegos tienen la tarea de…, con el propósito de…, el método: la prioridad de apoyo de fuegos…, se asignan los blancos…, restricciones:…, el efecto será…»; «El enfoque de recopilación de inteligencia está dirigido a… La prioridad de apoyo a la… Los recursos son…»; «La prioridad de esfuerzo es de contramovilidad mediante…, la prioridad de trabajo a la… (OD) y posteriormente a…»; «La tarea de los medios de defensa antiaérea es…, con el propósito de…, la prioridad de apoyo a la…» |
+| III.- B.- y C.- Tareas | por unidad, con incisos «a.- FASE I: …» | **Fase por fase** y, en cada fase, **todas** las unidades (las de maniobra que dependen directamente, con la reserva; en C.- las de apoyo de combate): «1.- DIV MEC-2 (OD).» / «TAREA: …» / «PROPÓSITO: …». Sin ficha en una fase, «Continúa…» lo anterior; sin dato, «SIN DATO — verificar» (la IA lo completa). Las de apoyo de combate suman su relación de apoyo (F4·SAL) desde su fase y sus fuegos (F4·P7) |
+| III.- D.- 2.- RCIC | sólo los del Comandante, o los del G-3; diez o menos | `requerimientosDe`: los que ya determinó **cada sección** — la F2·P8 «RCIC. y EEIA.» del G-1, G-3, G-4, G-5 y EME y el Plan de búsqueda de información del G-2 (sus requisitos; si no tiene, los vacíos de la H.T. 4) — primero los que priorizó el Comandante (F2·P8 y F6·P2), sin repetir, RPI / RIFA / EEIA por separado, uno por renglón. Van a la IA con su sección («- RPI (G-2): …») y al panel de lo que entregaron las secciones |
+| IV.- A.- Concepto de apoyo | «enfoque de apoyo en…; prioridad de apoyo: …» | «el enfoque de apoyo logístico es de…, la prioridad de apoyo a la…» |
+
+La unidad «genérica» del concepto (`genericoDe`) sale del escalón y el arma de la ficha («División» + «mecanizada» →
+«Una División Mecanizada»; una FT, «Una Fuerza de Tarea»), como en el ejemplo del PMTD; en la maniobra y en las tareas va
+la designación. La fase decisiva (`faseDecisiva`) es la que se llama como el combate (defensa, ataque, bloqueo…) y no como
+un movimiento (concentración, desplazamiento, ocupación…).
+
+🌱 no pisa lo escrito: en una Orden que ya estaba hecha, para tener la forma nueva se vacía el párrafo y se vuelve a traer,
+o se le pide a la IA «Completar y mejorar» (por partes si corta).
 
 ## Qué es de la doctrina y qué es criterio de la Mesa
 
