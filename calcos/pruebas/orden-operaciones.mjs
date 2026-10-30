@@ -180,7 +180,7 @@ caso('🌱: la intención y el concepto como en el PMTD, y la MANIOBRA fase por 
   assert.equal(con[2], 'Una División de Infantería (OC-1 y esfuerzo secundario) defiende la LPR a 7 km al O de Julo.')
   assert.equal(con[3], 'Una División de Infantería (RESERVA) constituye la reserva, encontrándose en condiciones de contraatacar en Guata con orden, con prioridad de planeamiento a la OD y posteriormente a la OC-1.')
   assert.ok(con[4].startsWith('El propósito del apoyo de fuegos es neutralizar el 50% de los lanzadores de cohetes LAR-160'))
-  assert.equal(con[5], 'La prioridad de esfuerzo de ingeniería será la contramovilidad mediante la construcción de campo minado anticarro en Guata y zanja antitanque a 3 km al NO de Guata (FASE III), la prioridad de trabajo será para la Unidad que lleve la OD.')
+  assert.equal(con[5], 'La prioridad de esfuerzo de ingeniería será la contramovilidad mediante la construcción de campo minado anticarro y zanja antitanque (FASE III), la prioridad de trabajo será para la Unidad que lleve la OD.', 'los tipos de obstáculo, sin el lugar de cada uno')
   assert.ok(C.concepto.includes('La operación se desarrollará en las siguientes fases:\nFASE I: CONCENTRACIÓN (desde el D-10 hasta el D-8).\nFASE II: DESPLAZAMIENTO (desde el D-8 hasta el D-5).'))
   assert.ok(con[con.length - 1].startsWith('Al finalizar la operación, el primer escalón de la VI División de Ejército de SATURNO'), 'el estado final al final')
   assert.ok(!/Esfuerzo principal:|Cumpliremos/.test(C.concepto), 'sin rótulos de la hoja del CAP')
@@ -219,7 +219,7 @@ caso('🌱: la intención y el concepto como en el PMTD, y la MANIOBRA fase por 
   assert.ok(C.reconocimiento.startsWith('El punto focal del esfuerzo de reconocimiento y vigilancia son las áreas de interés nombradas AIN-2, AIN-3 y AIN-5.'))
   assert.ok(C.reconocimiento.includes('Los indicadores a vigilar:\n- AIN-3: movimiento de obuses M109 (FICT.), no antes del D-1 y no después del D+1.'))
   assert.deepEqual(C.inteligencia.split('\n'), ['El enfoque de recopilación de inteligencia está dirigido a determinar el dispositivo de ataque, la dirección del esfuerzo principal y las rutas alternas que pueda emplear la 1ª BR. AC. «CORACEROS» en nuestra área de operaciones.', 'La prioridad de apoyo a la DIV MEC-2 (OD).', 'Ver Anexo “B” Inteligencia.'])
-  assert.ok(C.ingenieros.startsWith('La prioridad de esfuerzo es de contramovilidad mediante la construcción de campo minado anticarro en Guata y zanja antitanque a 3 km al NO de Guata (FASE III), la prioridad de trabajo a la DIV MEC-2 (OD) y posteriormente a la DIV-1 (OC-1).'))
+  assert.ok(C.ingenieros.startsWith('La prioridad de esfuerzo es de contramovilidad mediante la construcción de campo minado anticarro y zanja antitanque (FASE III), la prioridad de trabajo a la DIV MEC-2 (OD) y posteriormente a la DIV-1 (OC-1).'))
   assert.ok(C.ingenieros.includes('\n- Contramovilidad: Construcción de la Zona de Obstáculos principal ZO-1'))
   assert.ok(C.antiaerea.includes('Por fase:\n- FASE IV: Prioridad al PC de Ticanani (FICT.).'))
   assert.ok(C.acgm.startsWith('Evacuar la población de Guata antes del D-10 (FICT.).'))
@@ -397,6 +397,31 @@ caso('♻️ Rehacer: la Orden ya escrita con otra forma pasa a la del PMTD (y s
   assert.equal(sit.hijos[2].texto, 'R (FICT.)')
 })
 
+caso('la carta del CE-I de Sergio: las fichas genéricas («OD», «OC 1», «RES») no son unidades; las divisiones dependen del CE-I por su id', () => {
+  const e = ejercicio()
+  // disgregar.mjs: la madre va por el id de su ficha
+  for (const u of e.unidades) if (/^DIV/.test(u.designacion)) u.dependeDe = 'pc-ce'
+  // cada fase trae también las fichas genéricas de la formación inicial, como brigadas, todas «esfuerzo principal»
+  const gen = { 'DIV MEC-2': 'OD', 'DIV-1': 'OC 1', 'DIV-6': 'RES' }
+  for (const f of e.fasesCOA.propio) {
+    const extra = (f.unidades || []).filter((u) => gen[u.designacion]).map((u) => ({ ...u, id: `g-${u.id}`, designacion: gen[u.designacion], escalon: 'brigada', tarea: 'Retardar sobre la AA-1 y pasar por las líneas (FICT.)', principal: true }))
+    f.unidades = [...f.unidades.map((u) => (u.designacion === 'DIV-1' ? { ...u, principal: true } : u)), ...extra]
+  }
+  const C = O.propuestas(ctxDe(e)).campos
+  assert.ok(!/Una Brigada/.test(C.concepto), `sin brigadas propias: ${C.concepto}`)
+  assert.ok(C.concepto.includes('Una División Mecanizada (OD y esfuerzo principal)'))
+  assert.ok(C.concepto.includes('Una División de Infantería (OC-1 y esfuerzo secundario)'), 'un solo esfuerzo principal: la OD')
+  assert.deepEqual(unicosDe(C.tareasManiobra.split('\n').filter((l) => /^\d+\.- /.test(l))), ['1.- DIV MEC-2 (OD).', '2.- DIV-1 (OC-1).', '3.- DIV-6 (RESERVA).'], 'las divisiones, no «OD», «OC 1» ni «RES»')
+  assert.ok(!/\b(OD|OC 1|RES)\.$/m.test(C.tareasManiobra))
+  assert.ok(!C.maniobra.includes('La DIV-1 (OC-1 y esfuerzo principal)'), 'en cada fase, un solo esfuerzo principal')
+  assert.ok(C.sucesion.includes('Comandante de la DIV MEC-2 (OD).'), 'la sucesión de mando con las divisiones')
+  // los verbos coordinados en presente, «lista para…» con su verbo, y sin coordenadas decimales
+  assert.deepEqual(['Retardar sobre la AA-1 y pasar por las líneas', 'Reunirse y sumarse al contraataque', 'Lista para contraatacar (punto de decisión)', 'Ocupar y organizar la posición', 'Contraatacar y destruir al enemigo'].map(O.presenteTodo), ['retarda sobre la AA-1 y pasa por las líneas', 'se reúne y se suma al contraataque', 'se encuentra lista para contraatacar (punto de decisión)', 'ocupa y organiza la posición', 'contraataca y destruye al enemigo'])
+  assert.equal(O.conCoordenadas('retarda en -18.5347, -68.7610.'), 'retarda en Coord. 18°32\'05"S 68°45\'40"O.')
+  assert.equal(O.proposito('DESTRUIR al enemigo en la zona de destrucción'), 'con el propósito de destruir al enemigo en la zona de destrucción')
+})
+const unicosDe = (xs) => [...new Set(xs)]
+
 // ── LA IA ───────────────────────────────────────────────────────────────────────────────────────────────────────
 const pedidoDe = (valor = {}, op = {}) => {
   const ctx = ctxDe()
@@ -408,15 +433,38 @@ const pedidoDe = (valor = {}, op = {}) => {
     bloques: [
       { titulo: 'LO QUE LA MESA YA CALCULÓ Y TIENE EN EL CALCO PARA G-3 OPERACIONES (son datos: usalos tal cual)', texto: G3.datosCalco(ctx, HOJA) },
       { titulo: 'LO QUE YA ENTREGARON LAS OTRAS SECCIONES', texto: G3.entregasTexto(ctx) },
-      ...DOC.bloquesIA(ctx, HOJA),
+      ...DOC.bloquesIA(ctx, HOJA, M.normalizar(DEF, valor)),
     ],
     doctrina: G3.doctrina(),
+    tarea: DOC.tareaIA,
     ideasQue: DOC.ideasQue,
     reglas: DOC.reglas,
     verificacion: DOC.verificacion,
     ...op,
   })
 }
+caso('la IA parte del BORRADOR de la Mesa (♻️): lo mejora, no lo rehace; con el documento ya rehecho, no lo repite', () => {
+  const p = pedidoDe().prompt
+  for (const t of [
+    'PARTÍ DEL BORRADOR DE LA MESA',
+    'Tu trabajo es MEJORARLO, no rehacerlo',
+    'si son Divisiones, son Divisiones: nunca «Brigada»',
+    '# EL BORRADOR DE LA MESA',
+    '### MISIÓN — clave "mision"',
+    '### Tareas de las unidades de maniobra — clave "tareasManiobra"\nFASE I: CONCENTRACIÓN (desde el D-10 hasta el D-8).\n1.- DIV MEC-2 (OD).\nTAREA: Se concentra en Turco.',
+    '### Requerimientos prioritarios de inteligencia (RPI) — clave "rpi"',
+  ])
+    assert.ok(p.includes(t), `el pedido no trae «${t}»`)
+  assert.ok(p.indexOf('# EL BORRADOR DE LA MESA') < p.indexOf('# EJEMPLO DE REDACCIÓN'), 'el borrador antes que el ejemplo')
+  // el documento ya rehecho con ♻️: el borrador no se repite
+  const rehecha = M.rehacer(DEF, {}, O.propuestas(ctxDe()), DOC.rehacer.campos).valor
+  const q = pedidoDe(rehecha).prompt
+  assert.ok(q.includes('El DOCUMENTO DE HOY ya es el borrador de la Mesa en esos apartados'))
+  assert.ok(!q.includes('### MISIÓN — clave "mision"'))
+  // sin coordenadas decimales en lo que la Mesa le pasa
+  assert.ok(!/-?\d{1,2}\.\d{4},\s*-?\d{1,3}\.\d{4}/.test(G3.datosCalco(ctxDe(), HOJA)))
+})
+
 caso('la IA: el pedido trae la forma, la doctrina del Capítulo VII, el ejemplo KM 7, TODO lo de la Mesa y las reglas', () => {
   const p = pedidoDe().prompt
   for (const t of [
@@ -454,7 +502,7 @@ caso('la IA: el pedido trae la forma, la doctrina del Capítulo VII, el ejemplo 
     'El CAE del G-2 (PICB): el MÁS PROBABLE',
     'La misión aprobada (F2·P12)',
     'Las fases del CAP aprobado en la carta: lo que hace CADA unidad',
-    '- DIV MEC-2 (OD): Detener al enemigo en la AA-1, en Guata — para que no pase la LF «PUMA»',
+    '- DIV MEC-2 (OD) [esfuerzo principal]: Detener al enemigo en la AA-1, en Guata — para que no pase la LF «PUMA»',
     '- Reemplazos: 450 reemplazos el D-3 (FICT.)',
     '- Seguridad del área de retaguardia: Nivel II (FICT.).',
     '- Previsión de evacuación y dimensionamiento del apoyo: Puesto de reunión de evacuados en Corque (FICT.)',

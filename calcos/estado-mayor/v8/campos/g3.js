@@ -53,7 +53,12 @@ export default {
       reglas: OGO.REGLAS,
       verificacion: OGO.VERIFICACION,
       partes: OGO.PARTES,
-      bloquesIA: () => [{ titulo: 'EJEMPLO DE REDACCIÓN — LA FORMA Y EL NIVEL DE DETALLE QUE SE ESPERA (es de OTRO ejercicio: no lo copies)', texto: OGO.EJEMPLO }],
+      // el borrador de ♻️ es la BASE de la IA (lo pule y lo completa, no lo rehace); después, el ejemplo de redacción
+      bloquesIA: (ctx, hoja, valor) => [
+        { titulo: 'EL BORRADOR DE LA MESA — la forma del PMTD con las unidades, fases, tareas, propósitos y RCIC de ESTE ejercicio: PARTÍ DE ACÁ (mejoralo, no lo rehagas)', texto: OGO.borradorParaIA(ctx, valor) },
+        { titulo: 'EJEMPLO DE REDACCIÓN — LA FORMA Y EL NIVEL DE DETALLE QUE SE ESPERA (es de OTRO ejercicio: no copies sus unidades ni sus lugares)', texto: OGO.EJEMPLO },
+      ],
+      tareaIA: OGO.TAREA_IA,
       especificacion: (v, ctx, op) => OGO.especificacion(v, ctx, op),
       // ♻️ la Orden que ya estaba escrita (por el oficial o la IA) con otra forma: estos apartados pasan a la forma del PMTD
       rehacer: {
