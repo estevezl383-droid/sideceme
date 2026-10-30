@@ -106,7 +106,14 @@ const CUENTAS = [
   /Prioridad de trabajo: plan de barreras \([^)]*\)\./gi,
   /\d+\s+terreno\(s\) clave marcados por el G-2 en el CMOC\./gi,
   /\d+\s+pieza\(s\)/gi,
+  /\s*\(\d+ en la carta\)/gi,
 ]
+// «en -18.5347, -68.7610» → «en Coord. 18°32'05"S 68°45'40"O» (como las escribe la Mesa): en una Orden no van decimales.
+const gms = (v, pos, neg) => {
+  const r = Math.round(Math.abs(v) * 3600)
+  return `${Math.floor(r / 3600)}°${String(Math.floor((r % 3600) / 60)).padStart(2, '0')}'${String(r % 60).padStart(2, '0')}"${v >= 0 ? pos : neg}`
+}
+export const conCoordenadas = (t) => String(t ?? '').replace(/(?<![\d.°'"])(-?\d{1,2}\.\d{3,})\s*,\s*(-?\d{1,3}\.\d{3,})(?!\d|\.\d)/g, (m, la, lo) => `Coord. ${gms(+la, 'N', 'S')} ${gms(+lo, 'E', 'O')}`)
 export function sinCuentas(s) {
   let t = txt(s)
   for (const re of CUENTAS) t = t.replace(re, ' ')
@@ -413,9 +420,36 @@ export function claseDe(u) {
   if (/AVIAC|HELIC|\bHEL\b/.test(d) || a === 'aviacion') return 'apoyo'
   return 'maniobra'
 }
+// Las fichas GENÉRICAS del curso de acción («OD», «OC 1», «RES»…, las de la formación inicial de las fuerzas): no son
+// unidades, son el lugar de la unidad que tiene ese rol.
+const RE_GENERICA = /^(O\.?\s?D\.?|O\.?\s?C\.?\s*-?\s*\d{1,2}|RES(ERVA)?|SOST(ENIMIENTO)?|SEG(URIDAD)?)$/i
+export const esGenerica = (nom) => RE_GENERICA.test(limpio(sinTildes(nom)))
+function rolGenerico(nom) {
+  const t = limpio(sinTildes(nom)).toUpperCase()
+  if (/^O\.?\s?D/.test(t)) return 'OD'
+  const m = t.match(/^O\.?\s?C\.?\s*-?\s*(\d{1,2})$/)
+  if (m) return `OC-${m[1]}`
+  return /^RES/.test(t) ? 'RESERVA' : /^SOST/.test(t) ? 'SOST' : ''
+}
+const todasLasFichas = (ctx = {}) => (Array.isArray(ctx.calco?.unidades) ? ctx.calco.unidades : Array.isArray(ctx.unidades) ? ctx.unidades : [])
+// `dependeDe` es el id de la ficha madre (disgregar.mjs); en hojas viejas, su nombre. Sin madre en la carta: directa.
+function madreDe(ctx, u) {
+  const d = u?.dependeDe
+  if (d == null || d === '') return null
+  const todas = todasLasFichas(ctx)
+  return todas.find((x) => x && x.id != null && x.id === d) || todas.find((x) => nombreDe(x) && mismaUnidad(nombreDe(x), String(d))) || null
+}
+const nombreMadre = (ctx, u) => nombreDe(madreDe(ctx, u) || {})
+// Depende directamente de la unidad considerada (sin madre, o la madre es la unidad considerada o su PC).
+export function directa(ctx, u) {
+  const m = madreDe(ctx, u)
+  if (!m) return true
+  const u0 = unidadDe(ctx)
+  return m.tipo === 'pc' || !!(u0 && mismaUnidad(nombreDe(m), u0))
+}
 export function unidadesPropias(ctx = {}) {
   const u = unidadDe(ctx)
-  const todas = (Array.isArray(ctx.calco?.unidades) ? ctx.calco.unidades : Array.isArray(ctx.unidades) ? ctx.unidades : []).filter((x) => esUnidad(x) && !esEnemiga(x) && nombreDe(x))
+  const todas = todasLasFichas(ctx).filter((x) => esUnidad(x) && !esEnemiga(x) && nombreDe(x) && !esGenerica(nombreDe(x)))
   const sinCG = todas.filter((x) => !(u && mismaUnidad(nombreDe(x), u)))
   const vistas = new Set()
   return sinCG.filter((x) => {
@@ -489,7 +523,7 @@ const esfuerzoDe = (r, principal) => (principal || r === 'OD' ? 'esfuerzo princi
 // ─── La conjugación de las tareas de la carta («Defender la LPR» → «defiende la LPR») ──────────────────────────
 const IRREGULAR = {
   defender: 'defiende', detener: 'detiene', mantener: 'mantiene', contener: 'contiene', retener: 'retiene', obtener: 'obtiene', sostener: 'sostiene',
-  destruir: 'destruye', construir: 'construye', contribuir: 'contribuye', distribuir: 'distribuye', constituir: 'constituye', incluir: 'incluye', concluir: 'concluye', sustituir: 'sustituye',
+  reunir: 'reúne', destruir: 'destruye', construir: 'construye', contribuir: 'contribuye', distribuir: 'distribuye', constituir: 'constituye', incluir: 'incluye', concluir: 'concluye', sustituir: 'sustituye',
   seguir: 'sigue', perseguir: 'persigue', conseguir: 'consigue', impedir: 'impide', medir: 'mide', servir: 'sirve', elegir: 'elige', corregir: 'corrige',
   mover: 'mueve', desplegar: 'despliega', replegar: 'repliega', negar: 'niega', cerrar: 'cierra', atravesar: 'atraviesa', volver: 'vuelve', envolver: 'envuelve',
   reforzar: 'refuerza', forzar: 'fuerza', atender: 'atiende', extender: 'extiende', advertir: 'advierte', convertir: 'convierte', ir: 'va', dar: 'da', hacer: 'hace',
@@ -531,13 +565,22 @@ export function enGerundio(frase) {
   if (pron) g = g.replace(/([aeiou])(ndo)$/, (x, v, r) => `${ACENTO[v]}${r}`) + pron
   return `${g}${s.slice(m[0].length)}`
 }
-// La tarea de la ficha dicha como orden: «Reserva» → «constituye la reserva»; un verbo, en presente.
-export const tareaEnPresente = (t) => (/^reserva\b/i.test(limpio(t)) ? `constituye la ${minus(limpio(t))}` : enPresente(t))
+// Todos los verbos de la tarea en presente: «Retardar sobre la AA-1 y pasar por las líneas…» → «retarda sobre la AA-1 y
+// pasa por las líneas…»; «Lista para contraatacar» → «se encuentra lista para contraatacar».
+export function presenteTodo(frase) {
+  let s = enPresente(frase)
+  s = s.replace(/(\s(?:y|e)\s)(\p{L}+?(?:ar|er|ir)(?:se|lo|la|los|las)?)(?=$|[\s,.;:)])/giu, (m, c, w) => `${c}${enPresente(w)}`)
+  if (/^(list[oa]s?|preparad[oa]s?|en condiciones)\b/i.test(s)) s = `se encuentra ${minus(s)}`
+  return s
+}
+// La tarea de la ficha dicha como orden: «Reserva» → «constituye la reserva»; los verbos, en presente.
+export const tareaEnPresente = (t) => (/^reserva\b/i.test(limpio(t)) ? `constituye la ${minus(limpio(t))}` : presenteTodo(t))
 // «para que no pase…» → «con el propósito de que no pase…»; vacío si es el genérico «para cumplir la misión».
 export function proposito(p) {
   let s = plano(p).replace(/[.;]+$/, '')
   if (!s || /^para cumplir (con )?la misi[oó]n$/i.test(s)) return ''
-  s = s.replace(/^(con el (prop[oó]sito|fin|objeto) de|a fin de|con la finalidad de)\s+/i, '')
+  s = s.replace(/^(con el (prop[oó]sito|fin|objeto) de|a fin de|con la finalidad de)\s+/i, '').replace(/^(\p{Lu}{4,})(?=\s+\p{Ll})/u, (w) => w.toLowerCase())
+  s = minus(s)
   if (/^para que\b/i.test(s)) return `con el propósito de que ${s.replace(/^para que\s+/i, '')}`
   return `con el propósito de ${s.replace(/^para\s+/i, '')}`
 }
@@ -560,12 +603,32 @@ export function fasesDelCAP(ctx = {}) {
     D = []
   }
   const R = rolesDe(ctx)
+  const realDe = (rol) => [...R.entries()].find(([k, r]) => r === rol && !esGenerica(k))?.[0] || ''
   const out = fases.map((f, i) => {
     const d = D[i] || { n: i + 1, nombre: limpio(f?.nombre) || `Fase ${i + 1}`, cuando: '', tarea: '', tareas: [], obstaculos: [], fuegos: [], final: [] }
     const donde = new Map((d.final || []).map((x) => [norm(x.nom), x.donde]))
-    const us = (f?.unidades || [])
+    const todas = (f?.unidades || [])
       .filter((u) => esUnidad(u) && !esEnemiga(u) && u.deFaseEnemiga == null && nombreDe(u) && !(unidadDe(ctx) && mismaUnidad(nombreDe(u), unidadDe(ctx))))
       .map((u) => ({ nom: nombreDe(u), clase: claseDe(u), rol: rolDe(R, nombreDe(u)), principal: !!u.principal, tarea: plano(u.tarea), proposito: plano(u.proposito), donde: donde.get(norm(nombreDe(u))) || '' }))
+    // las fichas genéricas («OD», «OC 1»…) son la unidad que tiene ese rol: si esa unidad ya tiene su ficha en la fase,
+    // sobran; si no, su tarea es la de esa unidad. Sin una unidad con ese rol, no van (la Orden nombra unidades).
+    const us = []
+    for (const u of todas) {
+      if (!esGenerica(u.nom)) {
+        if (!us.some((x) => mismaUnidad(x.nom, u.nom))) us.push(u)
+        continue
+      }
+      const rol = rolGenerico(u.nom)
+      const real = rol && realDe(rol)
+      if (!real || u.clase !== 'maniobra' || todas.some((x) => !esGenerica(x.nom) && mismaUnidad(x.nom, real) && x.tarea) || us.some((x) => mismaUnidad(x.nom, real))) continue
+      us.push({ ...u, nom: real, rol })
+    }
+    // un solo esfuerzo principal en la fase: la OD (operación decisiva = esfuerzo principal, PMTD); sin la OD en la
+    // fase, el que marca la carta (si marca más de uno, el primero)
+    const deManiobra = us.filter((u) => u.clase === 'maniobra')
+    const od = deManiobra.find((u) => u.rol === 'OD')
+    if (od) for (const u of deManiobra) u.principal = u === od
+    else deManiobra.filter((u) => u.principal).slice(1).forEach((u) => (u.principal = false))
     const nombre = limpio(d.nombre).replace(/^FASE\s+[IVX\d]+\s*[—–:-]?\s*/i, '')
     return { n: i + 1, nombre, cuando: d.cuando || '', tarea: plano(d.tarea || f?.tarea), proposito: plano(f?.proposito), unidades: us, tareas: d.tareas || [], obstaculos: d.obstaculos || [], fuegos: d.fuegos || [] }
   })
@@ -601,7 +664,7 @@ function oracionUnidad(u, ant, { planeamiento = '' } = {}) {
   let queHace
   if (/^reserva$/i.test(u.tarea)) queHace = repetida ? 'continúa como reserva' : 'constituye la reserva'
   else if (repetida) queHace = enGerundio(u.tarea) ? `continúa ${enGerundio(u.tarea)}` : `mantiene su tarea (${minus(u.tarea)})`
-  else queHace = u.tarea ? minus(enPresente(u.tarea)) : 'mantiene su dispositivo'
+  else queHace = u.tarea ? minus(presenteTodo(u.tarea)) : 'mantiene su dispositivo'
   const p = repetida ? '' : proposito(u.proposito)
   const lista = /^reserva$/i.test(u.tarea) && !repetida && planeamiento ? `, encontrándose en condiciones de ser ${articulo(u.nom) === 'El' ? 'empleado' : 'empleada'} con orden, ${planeamiento}` : ''
   return `${cabeza} ${sinPunto(queHace)}${donde}${p ? `, ${p}` : ''}${lista}.`
@@ -741,17 +804,17 @@ export function organizacionTexto(ctx = {}) {
   }
   const us = unidadesPropias(ctx)
   if (!grupos.size) {
-    for (const u of us.filter((x) => claseDe(x) === 'maniobra' && (!x.dependeDe || mismaUnidad(x.dependeDe, unidadDe(ctx))))) agregar(nombreDe(u), [])
+    for (const u of us.filter((x) => claseDe(x) === 'maniobra' && directa(ctx, x))) agregar(nombreDe(u), [])
   }
   // las dependientes de cada agrupación (las fichas con `dependeDe`)
   for (const u of us) {
-    if (!u.dependeDe || mismaUnidad(u.dependeDe, unidadDe(ctx))) continue
-    const k = [...grupos.keys()].find((x) => mismaUnidad(x, u.dependeDe))
+    if (directa(ctx, u)) continue
+    const k = [...grupos.keys()].find((x) => mismaUnidad(x, nombreMadre(ctx, u)))
     if (k) agregar(k, [`${nombreDe(u)}${limpio(u.relacion) && !/orgánic/i.test(u.relacion) ? ` (${limpio(u.relacion)})` : ''}`])
   }
   if (!grupos.size) return ''
   const enGrupo = (n) => [...grupos.entries()].some(([k, xs]) => mismaUnidad(k, n) || xs.some((x) => mismaUnidad(x.replace(/\(.*$/, ''), n)))
-  const control = us.filter((u) => claseDe(u) !== 'maniobra' && !enGrupo(nombreDe(u)) && (!u.dependeDe || mismaUnidad(u.dependeDe, unidadDe(ctx)))).map((u) => `${nombreDe(u)}${limpio(u.relacion) && !/orgánic/i.test(u.relacion) ? ` (${limpio(u.relacion)})` : ''}`)
+  const control = us.filter((u) => claseDe(u) !== 'maniobra' && !enGrupo(nombreDe(u)) && directa(ctx, u)).map((u) => `${nombreDe(u)}${limpio(u.relacion) && !/orgánic/i.test(u.relacion) ? ` (${limpio(u.relacion)})` : ''}`)
   const filas = [...grupos.entries()].sort(([a], [b]) => ORDEN_ROL(rolDe(R, a)) - ORDEN_ROL(rolDe(R, b))).map(([k, xs]) => `${conRol(R, k)}: ${xs.join(', ')}`.replace(/:\s*$/, ':'))
   if (control.length) filas.push(`BAJO CONTROL: ${control.join(', ')}`)
   return filas.join('\n')
@@ -841,11 +904,7 @@ function cuandoMision(c) {
 }
 const dondeMision = (d) => (!d || PREP_LUGAR.test(d) ? d : `en ${d}`)
 // «Defender y retener la LF PUMA» → «defiende y retiene la LF PUMA»
-function quePresente(q) {
-  const s = minus(enPresente(q))
-  const m = s.match(/^(\S+ y )(\p{L}+(?:ar|er|ir)(?:se|lo|la|los|las)?)(?=$|[\s,.;:])/iu)
-  return m ? `${m[1]}${enPresente(m[2])}${s.slice(m[0].length)}` : s
-}
+const quePresente = (q) => minus(presenteTodo(q))
 export function misionTexto(ctx = {}) {
   const g3 = g3De(ctx)
   const [quien, que, cuando, donde, prop] = ['QUIÉN', 'QUÉ', 'CUÁNDO', 'DÓNDE', 'PROPÓSITO'].map((k) => sinPunto(plano(sinCuentas(casilla(g3.mision, k)))))
@@ -968,19 +1027,20 @@ function enLaFase(fases, dec, nom) {
 // Las unidades de maniobra que dependen directamente (con la reserva), en el orden OD, OC-n, RESERVA.
 export function maniobraDirecta(ctx = {}, fases = fasesDelCAP(ctx).fases) {
   const R = rolesDe(ctx)
-  const u0 = unidadDe(ctx)
   const propias = unidadesPropias(ctx)
   const subordinada = (n) => {
     const x = propias.find((y) => mismaUnidad(nombreDe(y), n))
-    return !!(x && limpio(x.dependeDe) && !(u0 && mismaUnidad(x.dependeDe, u0)))
+    return !!(x && !directa(ctx, x))
   }
   const xs = []
   const sumar = (n) => n && !xs.some((x) => mismaUnidad(x, n)) && !subordinada(n) && xs.push(n)
   for (const f of fases) for (const u of f.unidades) if (u.clase === 'maniobra') sumar(u.nom)
-  for (const u of propias) if (claseDe(u) === 'maniobra' && (!limpio(u.dependeDe) || (u0 && mismaUnidad(u.dependeDe, u0)))) sumar(nombreDe(u))
-  const principal = (n) => fases.some((f) => f.unidades.some((u) => mismaUnidad(u.nom, n) && u.principal))
+  for (const u of propias) if (claseDe(u) === 'maniobra' && directa(ctx, u)) sumar(nombreDe(u))
+  // el esfuerzo principal de la operación es la OD; sin OD, el que la carta marca como principal
+  const marcada = (n) => fases.some((f) => f.unidades.some((u) => mismaUnidad(u.nom, n) && u.principal))
+  const hayOD = xs.some((n) => rolDe(R, n) === 'OD')
   const rolOrden = (u) => (u.principal && !u.rol ? 'OD' : u.rol)
-  return xs.map((nom) => ({ nom, rol: rolDe(R, nom), principal: principal(nom) })).sort((a, b) => ORDEN_ROL(rolOrden(a)) - ORDEN_ROL(rolOrden(b)))
+  return xs.map((nom) => ({ nom, rol: rolDe(R, nom), principal: rolDe(R, nom) === 'OD' || (!hayOD && marcada(nom)) })).sort((a, b) => ORDEN_ROL(rolOrden(a)) - ORDEN_ROL(rolOrden(b)))
 }
 // Lo de los ingenieros: la prioridad de esfuerzo (la que el concepto del CAP nombra primero), los obstáculos de la carta
 // por fase y lo que dice el concepto de cada uno.
@@ -992,8 +1052,12 @@ function ingenieria(ctx, C, fases) {
     return i < 0 ? Infinity : i
   }
   const cand = [['contramovilidad', donde(/contra\s?movilidad/i)], ['movilidad', donde(/(?<!contra\s?)movilidad/i)], ['supervivencia', donde(/supervivencia/i)]].sort((a, b) => a[1] - b[1])
-  const obs = fases.filter((f) => f.obstaculos.length).map((f) => `${listaY(unicos(f.obstaculos.map((o) => minus(sinPunto(o)))))} (FASE ${romano(f.n)})`)
-  const tipo = cand[0][1] < Infinity ? cand[0][0] : obs.length ? 'contramovilidad' : ''
+  // los obstáculos de la carta (son contramovilidad): sus tipos, sin el lugar de cada uno, y en qué fases
+  const tipoObs = (o) => minus(sinPunto(o).replace(/\s+(en|a\s+\d+\s*km)\b.*$/i, '').trim())
+  const tipos = unicos(fases.flatMap((f) => f.obstaculos.map(tipoObs)).filter(Boolean))
+  const enFases = fases.filter((f) => f.obstaculos.length).map((f) => `FASE ${romano(f.n)}`)
+  const obs = tipos.length ? [`${listaY(tipos)}${enFases.length ? ` (${listaY(enFases)})` : ''}`] : []
+  const tipo = obs.length ? 'contramovilidad' : cand[0][1] < Infinity ? cand[0][0] : ''
   const segs = {}
   for (const m of t.matchAll(/\b(Contramovilidad|Movilidad|Supervivencia)\s*:\s*([\s\S]*?)(?=\s*\b(?:Contramovilidad|Movilidad|Supervivencia)\s*:|$)/gi)) segs[norm(m[1])] = sinPunto(plano(m[2]))
   return { tipo, mediante: obs.length ? `la construcción de ${obs.join('; ')}` : '', segs, texto: t }
@@ -1008,8 +1072,7 @@ const esADA = (u) => /antiaer|\bada\b|\baa\b|raa|bat ?aa/i.test(sinTildes(`${u.a
 // La operación de sostenimiento: «El Batallón Logístico (operación de sostenimiento) tiene la tarea de proporcionar apoyo
 // de servicio de combate, con el propósito de…» (el propósito, el de la misión logística del G-4).
 function sostenimientoFrase(ctx) {
-  const u0 = unidadDe(ctx)
-  const log = unidadesPropias(ctx).filter((u) => claseDe(u) === 'servicio' && (!limpio(u.dependeDe) || (u0 && mismaUnidad(u.dependeDe, u0))))
+  const log = unidadesPropias(ctx).filter((u) => claseDe(u) === 'servicio' && directa(ctx, u))
   const ml = sinPunto(plano(ctx.calco?.misionLog))
   if (log.length) {
     const quien = log.length === 1 ? genericoDe(ctx, nombreDe(log[0]), { definido: true }) : 'Las Unidades de apoyo de servicio de combate'
@@ -1044,11 +1107,12 @@ export function conceptoTexto(ctx = {}) {
     if (x.rol === 'RESERVA' || (u && /^reserva$/i.test(u.tarea))) {
       // lo que hará con orden: su primera tarea después de la fase decisiva que no sea «Reserva»
       const despues = fases.slice(fases.indexOf(dec) + 1).flatMap((f) => f.unidades.filter((y) => mismaUnidad(y.nom, x.nom) && y.tarea && !/^reserva$/i.test(y.tarea)))[0]
-      const cond = despues ? `${minus(sinPunto(despues.tarea))}${dondeDe(despues)} con orden` : `ser ${/^Un /.test(gen) ? 'empleado' : 'empleada'} con orden`
+      const cond = despues ? `${minus(sinPunto(despues.tarea))}${/\d+\.\d{3,}/.test(despues.donde) ? '' : dondeDe(despues)} con orden` : `ser ${/^Un /.test(gen) ? 'empleado' : 'empleada'} con orden`
       L.push(`${gen} (RESERVA) constituye la reserva, encontrándose en condiciones de ${cond}${plan ? `, ${plan}` : ''}.`)
     } else if (u) {
       const p = proposito(u.proposito)
-      L.push(`${gen} (${etiquetaDe({ ...u, rol: x.rol, principal: x.principal })}) ${sinPunto(quePresente(u.tarea))}${dondeDe(u)}${p ? `, ${p}` : ''}.`)
+      const donde = /\d+\.\d{3,}/.test(u.donde) ? '' : dondeDe(u)
+      L.push(`${gen} (${etiquetaDe({ ...u, rol: x.rol, principal: x.principal })}) ${sinPunto(quePresente(u.tarea))}${donde}${p ? `, ${p}` : ''}.`)
     }
   }
   if (!dec) {
@@ -1081,7 +1145,7 @@ export function maniobraTexto(ctx = {}) {
     const conTarea = us.filter((u) => u.tarea)
     if (!conTarea.length && !f.tarea) continue
     L.push(cabeceraFase(f))
-    if (f.tarea && !/del CE|^Concentraci|^Desplazamiento/i.test(f.tarea)) L.push(punto(mayus(f.tarea)))
+    if (f.tarea && !conTarea.length && !/del CE|^Concentraci|^Desplazamiento/i.test(f.tarea)) L.push(punto(mayus(sinCuentas(f.tarea))))
     for (const u of conTarea) L.push(oracionUnidad(u, ant.get(norm(u.nom)), { planeamiento: plan }))
     const otras = f.tareas.filter((t) => !conTarea.some((u) => norm(t).includes(norm(u.nom))))
     if (otras.length) L.push(`Tareas tácticas: ${otras.join('; ')}.`)
@@ -1196,7 +1260,7 @@ function organosReco(ctx) {
 }
 export function reconocimientoTexto(ctx = {}) {
   const L = []
-  const ains = (ctx.calco?.ops?.ains || []).map((a) => limpio(a?.nom || (a?.n != null ? `AIN-${a.n}` : '')) + (plano(a?.porQue) ? ` (${plano(a.porQue)})` : '')).filter(Boolean)
+  const ains = unicos((ctx.calco?.ops?.ains || []).map((a) => limpio(a?.nom || (a?.n != null ? `AIN-${a.n}` : ''))))
   if (ains.length) L.push(`El punto focal del esfuerzo de reconocimiento y vigilancia son ${ains.length === 1 ? 'el área de interés nombrada' : 'las áreas de interés nombradas'} ${listaY(ains)}.`)
   const eq = organosReco(ctx)
   if (eq.length) L.push('Los órganos de reconocimiento y sus tareas:', ...eq.map((l) => `- ${punto(l)}`))
@@ -1209,9 +1273,7 @@ export function reconocimientoTexto(ctx = {}) {
       return ind ? `${ain ? `${ain}: ` : ''}${minus(sinPunto(plano(ind)))}${na ? `, no antes del ${plano(na)}` : ''}${nd ? `${na ? ' y' : ','} no después del ${plano(nd)}` : ''}` : ''
     })
     .filter(Boolean)
-  if (ev.length) L.push('Los indicadores a vigilar:', ...ev.map((x) => `- ${punto(x)}`))
-  const pri = sincro(ctx, 'INTELIGENCIA')
-  if (pri.length) L.push('Por fase:', ...pri.map((x) => `- ${x}`))
+  if (ev.length) L.push('Los indicadores a vigilar:', ...unicos(ev).map((x) => `- ${punto(x)}`))
   return L.join('\n')
 }
 // III.- A.- 4.- Inteligencia, como en el PMTD: «El enfoque de recopilación de inteligencia está dirigido a determinar…
@@ -1220,7 +1282,9 @@ export function inteligenciaTexto(ctx = {}) {
   const { fases } = fasesDelCAP(ctx)
   const R = rolesDe(ctx)
   const L = []
-  const enemigo = nombreDe(enemigas(ctx).find((u) => claseDe(u) === 'maniobra') || {})
+  const RANGO = ['equipo', 'escuadra', 'seccion', 'compania', 'batallon', 'regimiento', 'brigada', 'division', 'cuerpo', 'ejercito']
+  const rango = (u) => RANGO.indexOf(norm(u.escalon))
+  const enemigo = nombreDe(enemigas(ctx).filter((u) => claseDe(u) === 'maniobra').sort((a, b) => rango(b) - rango(a))[0] || {})
   const defensiva = /defens|retard|repliegue/.test(formaDeManiobra(ctx))
   if (enemigo) L.push(`El enfoque de recopilación de inteligencia está dirigido a determinar ${defensiva ? `el dispositivo de ataque, la dirección del esfuerzo principal y las rutas alternas que pueda emplear ${articulo(enemigo) === 'El' ? 'el' : 'la'} ${enemigo}` : `el dispositivo defensivo, las reservas y los obstáculos ${deLa(enemigo)}`} en nuestra área de operaciones.`)
   const od = maniobraDirecta(ctx, fases).find((u) => u.rol === 'OD' || u.principal)
@@ -1229,7 +1293,7 @@ export function inteligenciaTexto(ctx = {}) {
   const recursos = unicos([...intel, ...organosReco(ctx).map((l) => limpio(l.split('—')[0]))])
   if (recursos.length) L.push(`Los recursos son ${listaY(recursos)}.`)
   const pri = sincro(ctx, 'INTELIGENCIA')
-  if (pri.length && L.length) L.push(...pri.map((x) => `- ${x}`))
+  if (pri.length && L.length) L.push('Por fase:', ...pri.map((x) => `- ${x}`))
   if (L.length) L.push(`Ver Anexo “${letraDe('Inteligencia')}” Inteligencia.`)
   return L.join('\n')
 }
@@ -1287,12 +1351,19 @@ export function acgmTexto(ctx = {}) {
 //   PROPÓSITO: Ocupar la PD.
 // La tarea es la de la ficha de la unidad en esa fase (conjugada); sin ficha, «Continúa …» lo de la fase anterior. Las de
 // apoyo de combate suman su relación de apoyo (F4·SAL, desde su fase) y sus fuegos de la Matriz de ejecución (F4·P7).
+// «a la DIV MEC-2 (OD)», «al CE-I»; lo que no es una designación, tal cual («a los Puestos de Mando…»).
+const esDesignacion = (a) => /^[A-ZÁÉÍÓÚÑ0-9«»"'().,/ -]+$/.test(String(a).replace(/\(.*?\)/g, '').trim())
+const aQuien = (a) => (esDesignacion(a) ? aLa(a) : `a ${a}`)
+const deQuien = (a) => (esDesignacion(a) ? deLa(a) : `de ${a}`)
 const RELACION = [
-  [/refuerzo de fuegos|apoyo general.?refuerzo/i, (a) => `Refuerza los fuegos ${deLa(a)}`],
-  [/refuerzo/i, (a) => `Refuerza ${aLa(a)}`],
-  [/apoyo directo/i, (a) => `Apoya directamente ${aLa(a)}`],
-  [/acci[oó]n de conjunto|apoyo general/i, (a) => `Ejecuta acción de conjunto en apoyo ${deLa(a)}`],
+  [/refuerzo de fuegos|apoyo general.?refuerzo/i, (a) => `Refuerza los fuegos ${deQuien(a)}`],
+  [/refuerzo/i, (a) => `Refuerza ${aQuien(a)}`],
+  [/apoyo directo/i, (a) => `Apoya directamente ${aQuien(a)}`],
+  [/acci[oó]n de conjunto|apoyo general/i, (a) => `Ejecuta acción de conjunto en apoyo ${deQuien(a)}`],
+  [/org[aá]nic/i, (a) => `Apoya ${aQuien(a)} (orgánica)`],
 ]
+// ¿El texto nombra a la unidad? («RAM-4, RAC-1 y RAC-6 (artillería de campaña)» nombra a la RAM-4)
+const menciona = (t, nom) => new RegExp(`(^|[^A-Z0-9])${sinTildes(nom).toUpperCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/[\s.-]+/g, '[\\s.-]*')}(?![A-Z0-9])`).test(sinTildes(t).toUpperCase())
 const numFase = (s) => {
   const m = sinTildes(String(s || '')).toUpperCase().match(/FASE\s+([IVX]+|\d+)\b/)
   return !m ? null : /^\d+$/.test(m[1]) ? Number(m[1]) : ROMANOS.indexOf(m[1]) + 1 || null
@@ -1306,39 +1377,53 @@ export function tareasTexto(ctx = {}, clase = 'maniobra') {
   const u0 = unidadDe(ctx)
   const propias = unidadesPropias(ctx)
   const deClase = (u) => (clase === 'maniobra' ? u.clase === 'maniobra' : u.clase === 'apoyo')
-  const directa = maniobraDirecta(ctx, fases)
-  const plan = planeamientoDe(directa.map((u) => u.rol))
+  const deManiobra = maniobraDirecta(ctx, fases)
+  const plan = planeamientoDe(deManiobra.map((u) => u.rol))
   // las unidades, en el orden de la organización de la tarea
   let nombres = []
-  if (clase === 'maniobra') nombres = directa.map((u) => u.nom)
+  // las de apoyo de combate: las de la carta; cada renglón de la Asignación de recursos (F4·SAL) y de la Matriz de
+  // ejecución de fuegos (F4·P7) va a las unidades que nombra («RAM-4, RAC-1 y RAC-6 (…)» → RAM-4); si no nombra
+  // ninguna, a la que dice (sin lo que va entre paréntesis), si es de apoyo de combate
+  const dueños = new Map()
+  if (clase === 'maniobra') nombres = deManiobra.map((u) => u.nom)
   else {
     const sumar = (n) => {
       const x = propias.find((y) => mismaUnidad(nombreDe(y), n))
-      if (n && !nombres.some((y) => mismaUnidad(y, n)) && !(x && claseDe(x) !== 'apoyo') && !(u0 && mismaUnidad(n, u0))) nombres.push(n)
+      if (n && !esGenerica(n) && !nombres.some((y) => mismaUnidad(y, n)) && !(x && claseDe(x) !== 'apoyo') && !(u0 && mismaUnidad(n, u0))) nombres.push(n)
     }
-    for (const u of propias) if (claseDe(u) === 'apoyo' && (!limpio(u.dependeDe) || (u0 && mismaUnidad(u.dependeDe, u0)))) sumar(nombreDe(u))
+    for (const u of propias) if (claseDe(u) === 'apoyo' && directa(ctx, u)) sumar(nombreDe(u))
     for (const f of fases) for (const u of f.unidades) if (deClase(u)) sumar(u.nom)
-    for (const f of filasDe(g3.recursos)) sumar(sinCuentas(casilla(f, 'Recurso')))
-    for (const f of filasDe(g3.fuegos)) sumar(sinCuentas(casilla(f, 'Unidad que lo bate')))
+    const asignar = (fila, t) => {
+      const conocidas = nombres.filter((n) => menciona(t, n))
+      if (conocidas.length) return dueños.set(fila, conocidas)
+      const n = limpio(sinCuentas(t).replace(/\s*\(.*?\)\s*/g, ' '))
+      if (n && n.length <= 40 && claseDe({ designacion: n }) === 'apoyo') {
+        sumar(n)
+        dueños.set(fila, [nombres.find((x) => mismaUnidad(x, n)) || n])
+      }
+    }
+    for (const f of filasDe(g3.recursos)) asignar(f, casilla(f, 'Recurso'))
+    for (const f of filasDe(g3.fuegos)) asignar(f, casilla(f, 'Unidad que lo bate'))
   }
+  const de = (fila, nom) => (dueños.get(fila) || []).some((x) => mismaUnidad(x, nom))
   // lo que una unidad de apoyo de combate hace en la fase n fuera de su ficha
   const extra = (nom, n) => {
     const tareas = []
     const props = []
     if (clase === 'maniobra') return { tareas, props }
     for (const f of filasDe(g3.recursos)) {
-      if (!mismaUnidad(sinCuentas(casilla(f, 'Recurso')), nom)) continue
+      if (!de(f, nom)) continue
       const desde = numFase(casilla(f, 'Desde qué fase'))
       if (desde && n < desde) continue
       const aq = sinCuentas(casilla(f, 'A quién'))
       const rel = sinCuentas(casilla(f, 'Relación'))
       const a = aq ? conRol(R, aq) : ''
       const r = RELACION.find(([re]) => re.test(rel))
-      if (a || rel) tareas.push(r && a ? r[1](a) : `${mayus(rel || 'Apoya')}${a ? ` ${aLa(a)}` : ''}`)
+      if (a || rel) tareas.push(r && a ? r[1](a) : `${mayus(rel || 'Apoya')}${a ? ` ${aQuien(a)}` : ''}`)
     }
     for (const f of filasDe(g3.fuegos)) {
       const nf = numFase(casilla(f, 'Fase'))
-      if (!mismaUnidad(sinCuentas(casilla(f, 'Unidad que lo bate')), nom) || (nf && nf !== n)) continue
+      if (!de(f, nom) || (nf && nf !== n)) continue
       const t = plano(casilla(f, 'Tarea'))
       if (t) tareas.push(limpio(`${mayus(enPresente(t))} ${plano(casilla(f, 'Blanco'))}`))
       const p = sinProposito(proposito(casilla(f, 'Propósito')))
@@ -1347,7 +1432,8 @@ export function tareasTexto(ctx = {}, clase = 'maniobra') {
     return { tareas, props }
   }
   const juntar = (xs) => xs.map((x, i) => (i ? minus(sinPunto(x)) : mayus(sinPunto(x)))).join('; ')
-  const bloque = (i, nom, tareas, props) => [`${i}.- ${conRol(R, nom)}.`, `TAREA: ${punto(juntar(tareas))}`, `PROPÓSITO: ${props.length ? punto(juntar(props)) : `${SIN_DATO}.`}`]
+  // (el rol OD / OC / RESERVA es de las de maniobra)
+  const bloque = (i, nom, tareas, props) => [`${i}.- ${clase === 'maniobra' ? conRol(R, nom) : nom}.`, `TAREA: ${punto(juntar(tareas))}`, `PROPÓSITO: ${props.length ? punto(juntar(props)) : `${SIN_DATO}.`}`]
   const L = []
   if (!fases.length) {
     // sin las fases en la carta: sólo las de apoyo de combate, con su relación de apoyo
@@ -1595,7 +1681,7 @@ export function sucesionTexto(ctx = {}) {
   if (!u) return ''
   const R = rolesDe(ctx)
   const de = articuloDe(u) === 'DEL' ? 'del' : 'de la'
-  const sub = unidadesPropias(ctx).filter((x) => claseDe(x) === 'maniobra' && (!x.dependeDe || mismaUnidad(x.dependeDe, u))).map(nombreDe).sort((a, b) => ORDEN_ROL(rolDe(R, a)) - ORDEN_ROL(rolDe(R, b)))
+  const sub = unidadesPropias(ctx).filter((x) => claseDe(x) === 'maniobra' && directa(ctx, x)).map(nombreDe).sort((a, b) => ORDEN_ROL(rolDe(R, a)) - ORDEN_ROL(rolDe(R, b)))
   const L = [`Comandante ${de} ${u}.`, `Jefe de Estado Mayor ${de} ${u}.`, `G-3 ${de} ${u}.`, ...sub.map((n) => `Comandante ${articulo(n) === 'El' ? 'del' : 'de la'} ${conRol(R, n)}.`)]
   return L.map((x, i) => `${String.fromCharCode(97 + i)}.- ${x}`).join('\n')
 }
@@ -1639,7 +1725,7 @@ export function propuestas(ctx = {}) {
   const poner = (id, f) => {
     try {
       const t = typeof f === 'function' ? f(ctx) : f
-      if (!vacio(t)) campos[id] = texto(t)
+      if (!vacio(t)) campos[id] = texto(conCoordenadas(t))
     } catch {}
   }
   poner('objeto', objetoTexto)
@@ -1816,7 +1902,7 @@ export function datosParaIA(ctx = {}) {
   add('La Orden del escalón superior (lo que la Mesa leyó de ella)', [['Escalón superior', os.escalonSuperior], ['Unidad considerada', unidadDe(ctx)], ['Carta', os.carta], ['Fuerzas enemigas', os.enemigo], ['Fuerzas propias', os.propias], ['Refuerzos', os.refuerzos], ['Misión de nuestra unidad', os.mision], ['Tareas de nuestra unidad', os.tareas], ['Intención del escalón superior', os.intencion], ['Concepto del escalón superior', os.concepto], ['Coordinación', os.coordinacion], ['Comando', os.comando], ['Comunicaciones', os.comunicaciones]].filter(([, x]) => !vacio(x)).map(([k, x]) => `- ${k}: ${plano(x)}`).join('\n'))
   const R = rolesDe(ctx)
   const us = unidadesPropias(ctx)
-  add('Las unidades propias en el calco (con su rol y su clase)', us.map((u) => `- ${conRol(R, nombreDe(u))} — ${claseDe(u) === 'maniobra' ? 'maniobra' : claseDe(u) === 'apoyo' ? 'apoyo de combate' : 'apoyo de servicio de combate'}${u.escalon ? `, ${u.escalon}` : ''}${limpio(u.dependeDe) ? `, depende de ${limpio(u.dependeDe)}` : ''}${limpio(u.relacion) ? ` (${limpio(u.relacion)})` : ''}`).join('\n'))
+  add('Las unidades propias en el calco (con su rol y su clase)', us.map((u) => `- ${conRol(R, nombreDe(u))} — ${claseDe(u) === 'maniobra' ? 'maniobra' : claseDe(u) === 'apoyo' ? 'apoyo de combate' : 'apoyo de servicio de combate'}${u.escalon ? `, ${u.escalon}` : ''}${!directa(ctx, u) && nombreMadre(ctx, u) ? `, depende de ${nombreMadre(ctx, u)}` : ''}${limpio(u.relacion) ? ` (${limpio(u.relacion)})` : ''}`).join('\n'))
   add('La organización de la tarea (F4·P2 y agrupaciones)', organizacionTexto(ctx))
   const cae = caeDe(ctx)
   add('El CAE del G-2 (PICB): el MÁS PROBABLE (H.T. 18, enunciado y H.T. 19 fase por fase)', caeProbableTexto(ctx))
@@ -1854,7 +1940,7 @@ export function datosParaIA(ctx = {}) {
   add('Lo del G-1 (Anexo de Personal)', Object.entries(anexoG1(ctx)).filter(([, x]) => !vacio(x)).map(([k, x]) => `- ${tit('g1', k)}: ${plano(x)}`).join('\n'))
   add('Lo del G-5 (Anexo de AC/GM)', Object.entries(anexoG5(ctx)).filter(([, x]) => !vacio(x)).map(([k, x]) => `- ${tit('g5', k)}: ${plano(x)}`).join('\n'))
   add('Puestos comando (calco y textos)', puestosComandoTexto(ctx))
-  return B.join('\n\n')
+  return conCoordenadas(B.join('\n\n'))
 }
 
 // 🔎 Lo que ya entregaron el Comandante y las otras secciones (el panel del documento).
@@ -2113,12 +2199,40 @@ export const GUIA = {
 export const PRODUCTO = (ctx, hoja) =>
   `Tu producto es la ORDEN GENERAL DE OPERACIONES ${unidadDe(ctx) ? `${articuloDe(unidadDe(ctx)) === 'DEL' ? 'del' : 'de la'} ${unidadDe(ctx)} ` : ''}(hoja ${hoja?.num || 'F7·P1'} del PMTD, Fase VII «Elaborar planes y órdenes»): el documento en el que desemboca TODO el planeamiento. La coordina el G-3, la escribe todo el Estado Mayor y la firma el Comandante. Va con la forma de CINCO PÁRRAFOS del TEXTO PMTD 2017 (Parte Primera, Capítulo VII), apartado por apartado: OBJETO, CARTAS, ANEXOS; ORGANIZACIÓN DE LA TAREA; I.- SITUACIÓN; II.- MISIÓN; III.- EJECUCIÓN (la Intención del Comandante sin número, A.- Concepto de la operación con 1.- Maniobra … 9.- Operaciones de AC/GM, B.- Tareas de las unidades de maniobra, C.- de apoyo de combate, D.- Instrucciones de coordinación); IV.- APOYO DE SERVICIO; V.- COMANDO Y COMUNICACIONES. Tiene que INTEGRAR todo lo que ya trabajó el Estado Mayor en la Mesa: la Orden del escalón superior, el CAE más probable y el más peligroso del G-2, la misión aprobada, la intención del Comandante, los RCIC (RPI y RIFA) que determinó cada sección del Estado Mayor, el CAP aprobado con su maniobra FASE POR FASE y la tarea y el propósito de CADA unidad, los fuegos, el plan de barreras, el reconocimiento, la matriz de riesgo, la matriz de sincronización y los anexos del G-1, G-4 y G-5. Cada párrafo va con la FORMA del PMTD (la misión, la intención, el concepto, la maniobra y las tareas como en los ejemplos del PMTD de la DOCTRINA y del EJEMPLO DE REDACCIÓN). Tiene que quedar COMPLETA, con el nivel de detalle de una orden real de Cuerpo de Ejército o División: nada de resúmenes, de cuentas sueltas («13 trabajos», «18 límites») ni de remisiones a hojas de la Mesa («ver F3·P4»). El membrete, la numeración, la firma, la autenticación y la distribución los pone la Mesa.`
 
+// ─── EL BORRADOR DE LA MESA, la base del pedido a la IA ───────────────────────────────────────────────────────────
+// Lo que trae ♻️ (la forma del PMTD con las unidades, fases, tareas, propósitos y RCIC del ejercicio) va a la IA como
+// BASE OBLIGATORIA de esos apartados: la IA lo pule y lo completa, no lo rehace (Sergio, 30-10-2026: «el botón ♻️ está
+// mejor… la IA está sacando cualquier cosa»). Sólo van los apartados en los que el documento de hoy no es ya el borrador.
+export function borradorParaIA(ctx = {}, valor = null) {
+  const P = propuestas(ctx).campos
+  const hoy = esObj(valor?.campos) ? valor.campos : {}
+  const tit = {}
+  const rec = (ns) => ns.forEach((n) => {
+    if (n.id) tit[n.id] = n.t.replace(/\.$/, '')
+    if (n.hijos) rec(n.hijos)
+  })
+  rec(DEF.arbol)
+  const ids = REHACER.filter((id) => !vacio(P[id]))
+  if (!ids.length) return ''
+  const distintos = ids.filter((id) => texto(hoy[id] || '') !== texto(P[id]))
+  if (!distintos.length) return 'El DOCUMENTO DE HOY ya es el borrador de la Mesa en esos apartados (♻️): mejoralo conservando su forma renglón por renglón.'
+  return distintos.map((id) => `### ${tit[id] || id} — clave "${id}"\n${P[id]}`).join('\n\n')
+}
+export const TAREA_IA = `PARTÍ DEL BORRADOR DE LA MESA. Para la misión, la intención, el concepto de la operación (con la maniobra, los fuegos, el reconocimiento, la inteligencia, los ingenieros y la defensa antiaérea), las tareas de las unidades, los RCIC y el concepto de apoyo, la Mesa ya armó un BORRADOR con la forma del PMTD y con las unidades, las fases, las tareas, los propósitos y los RCIC de este ejercicio (el bloque «EL BORRADOR DE LA MESA», o el documento de hoy si ya lo es). Tu trabajo es MEJORARLO, no rehacerlo:
+1. Conservá su forma renglón por renglón: la misión en UNA oración (quién, qué, cuándo, dónde, propósito); la intención «Mi intención es…, para esto es clave…» y «Al finalizar la operación…»; en el concepto, las mismas oraciones («Vamos a cumplir la misión mediante…», una por unidad, fuegos, ingenieros, sostenimiento, las fases, el estado final); en la maniobra y en las tareas, las MISMAS fases con su nombre y desde/hasta y, en cada fase, las MISMAS unidades en el mismo orden con «1.- UNIDAD (rol).», «TAREA: …» y «PROPÓSITO: …»; los mismos RPI, RIFA y EEIA, uno por renglón.
+2. Las unidades son SÓLO las del borrador, con su designación y su escalón (si son Divisiones, son Divisiones: nunca «Brigada», «Fuerza de Tarea» ni las fichas genéricas «OD», «OC 1»). No agregues, no saques ni renombres unidades.
+3. Completá lo que dice «SIN DATO — verificar» con el expediente (el punto decisivo, el propósito de una tarea…); si de verdad no está, dejalo así.
+4. Corregí la redacción: presente impositivo y concordancia («ocupa y organiza», «se reúne y se suma»), sin coordenadas decimales (el lugar o la Coord. del borrador), sin rótulos ni remisiones a hojas de la Mesa.
+5. Los apartados que el borrador no trae (la situación, el apoyo aéreo, la artillería, las MCAF, QBN, Policía Militar, AC/GM, las instrucciones de coordinación, IV y V) completalos con el expediente, con la forma de la DOCTRINA y del EJEMPLO.
+6. Nunca hipótesis: es una ORDEN de operaciones.`
+
 export const REGLAS = [
   'Dentro de un apartado, los SUBAPARTADOS van cada uno en su renglón con su marca: «1.- DIV MEC-2 (OD).» (y su texto en el renglón siguiente o después de «:»), «a.- …», «1) …», «a) …»; las fases, «FASE I: NOMBRE (desde el … hasta el …).» en su propio renglón. La Mesa los numera en el Word: la marca sólo dice el nivel.',
   'Cada idea del concepto en su renglón (la forma, el punto decisivo, una oración por Unidad, fuegos, defensa antiaérea, ingenieros, sostenimiento, «La operación se desarrollará en las siguientes fases:», una fase por renglón, el estado final). En las TAREAS (III.- B.- y C.-), por cada fase: «FASE I: NOMBRE (…).», y por cada Unidad tres renglones: «1.- FT VARGAS (OD).», «TAREA: …», «PROPÓSITO: …». Los RPI y los RIFA, uno por renglón («1) …», «2) …»), nunca varios en el mismo renglón separados por «;».',
   'NADA con rótulos donde el PMTD pide prosa: la intención NO va como «Propósito: … Punto decisivo: … Tareas clave: … Estado final: …», sino «Mi intención es…, para esto es clave… Al finalizar la operación…»; la misión NO lleva gerundios agregados («reteniendo…», «sin permitir…»).',
   'NO repitas el título del apartado dentro de su texto ni le pongas la numeración del apartado («III.- A.- 1.-»): eso lo pone la Mesa.',
   'Ninguna clave queda vacía ni con «…». Lo que no corresponda: «Omitido.» (refuerzos, QBN) o, si de verdad falta el dato, «SIN DATO — verificar» en ese dato. NO escribas hipótesis ni suposiciones en ninguna parte: es una ORDEN de operaciones (I.- SITUACIÓN termina en C.- Refuerzos y reducciones).',
+  'Las unidades propias son SÓLO las de la organización de la tarea y del BORRADOR DE LA MESA, con su designación y su escalón (si son Divisiones, son Divisiones: nunca «Brigada»); las fichas genéricas «OD», «OC 1», «RES» no son unidades. Sin coordenadas decimales («-18.5347, -68.7610»): el lugar o la Coord. como la trae el borrador.',
   'Las unidades, lugares, líneas, puntos, coordenadas, días y horas son SÓLO los del expediente (la Orden superior, el calco, las fases del CAP, las hojas). No inventes unidades ni las renombres. Los RCIC (RPI y RIFA) son los que ya determinó cada sección: transcribilos todos, en el orden del expediente; no los reemplaces por otros.',
 ]
 

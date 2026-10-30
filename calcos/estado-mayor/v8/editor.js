@@ -277,9 +277,11 @@ export default function EditorDocumento({ campo = '', hoja = null, valor, onValo
         { titulo: `LO QUE LA MESA YA CALCULÓ Y TIENE EN EL CALCO PARA ${cfg.nombre.toUpperCase()} (son datos: usalos tal cual)`, texto: cfg.datosCalco?.(ctx, hoja) || '' },
         { titulo: 'LO QUE YA ENTREGARON LAS OTRAS SECCIONES', texto: cfg.entregasTexto?.(ctx) || '' },
         { titulo: `LO QUE YA DICEN TUS OTRAS HOJAS (${cfg.nombre})`, texto: cfg.otrasHojas?.(ctx, [hoja?.id]) || '' },
-        ...(typeof doc.bloquesIA === 'function' ? doc.bloquesIA(ctx, hoja) || [] : []),
+        ...(typeof doc.bloquesIA === 'function' ? doc.bloquesIA(ctx, hoja, v) || [] : []),
       ],
       doctrina: cfg.doctrina?.() || '',
+      // (v8) lo que el documento le pide a la IA además de la tarea común (la OGO: partir del borrador de la Mesa)
+      tarea: typeof doc.tareaIA === 'function' ? doc.tareaIA(ctx, hoja) : doc.tareaIA || '',
       ideasQue: doc.ideasQue,
       reglas: doc.reglas || [],
       verificacion: doc.verificacion || [],

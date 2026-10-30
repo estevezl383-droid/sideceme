@@ -137,6 +137,35 @@ apartado ya no existe; lo que la IA escriba igual como «D.- Hipótesis.» (que 
 corta en todos los apartados (`sinHipotesis`, por `def.limpiar` del motor, al guardar, al aplicar la respuesta y en el
 Word), y la casilla «D. Hipótesis» de la hoja vieja no pasa.
 
+## 30-10-2026 (noche) — con la carta real del CE-I: sin brigadas, y la IA parte del borrador
+
+Sergio probó ♻️ con su ejercicio («así está mejor») pero el concepto decía «Una Brigada Mecanizada… en -18.5251,
+-68.7510»: el CE-I no tiene brigadas, tiene divisiones. Y la IA «está sacando cualquier cosa».
+
+- **Las fichas genéricas** del curso de acción («OD», «OC 1», «RES»: la formación inicial de las fuerzas, como brigadas)
+  no son unidades (`esGenerica`): si la unidad real con ese rol tiene su ficha en la fase, sobran; si no, su tarea es la
+  de esa unidad (`rolesDe`); sin una unidad con ese rol, no van.
+- **La dependencia va por id**: `dependeDe` es el id de la ficha madre (`disgregar.mjs`), no su nombre; por eso las
+  divisiones (madre: la ficha del CE-I) quedaban afuera del concepto y de las tareas (`directa`, `madreDe`). Lo mismo
+  en la organización de la tarea, la sucesión de mando y los datos para la IA.
+- **Un solo esfuerzo principal por fase**: la OD (operación decisiva = esfuerzo principal); sin la OD en la fase, el que
+  marca la carta.
+- **Los verbos**: todos los coordinados en presente («retarda… y pasa…», «se reúne y se suma…», «ocupa y organiza…»);
+  «Lista para contraatacar» → «se encuentra lista para contraatacar» (`presenteTodo`); «DESTRUIR al enemigo» →
+  «destruir al enemigo».
+- **Sin coordenadas decimales**: «-18.5347, -68.7610» → «Coord. 18°32'05"S 68°45'40"O» (`conCoordenadas`, en todo lo
+  que trae 🌱 y en lo que se le pasa a la IA); en el concepto, la oración de cada unidad va sin coordenadas.
+- **Ingeniería**: con obstáculos en la carta la prioridad es la contramovilidad, y van sus tipos («campo minado
+  anticarro, zanja antitanque… (FASE I y FASE V)»), no la lista de coordenadas.
+- **Tareas de apoyo de combate**: las unidades de la carta; cada renglón de la F4·SAL y de la F4·P7 va a las unidades que
+  nombra («RAM-4, RAC-1 y RAC-6 (…)» → RAM-4), sin el rol de maniobra.
+- **Reconocimiento e inteligencia**: las A.I.N. por su nombre (sin las notas de la carta), los indicadores sin repetir; el
+  enemigo del enfoque de inteligencia es el de mayor escalón; la prioridad por fase, sólo en inteligencia.
+- **La IA parte del borrador**: el pedido trae «EL BORRADOR DE LA MESA» (`borradorParaIA`: lo de ♻️ en los apartados en
+  que el documento de hoy no lo es ya) antes del ejemplo, y la tarea (`TAREA_IA`, por `doc.tareaIA` del editor v8):
+  mejorarlo, no rehacerlo — la misma forma renglón por renglón, las mismas unidades con su escalón (nunca «Brigada»),
+  completar los «SIN DATO», corregir la redacción, sin decimales, sin hipótesis.
+
 ## Qué es de la doctrina y qué es criterio de la Mesa
 
 - **Doctrina (PMTD 2017, Parte Primera, Cap. VII y Parte Tercera)**: los cinco párrafos y sus subpárrafos, las

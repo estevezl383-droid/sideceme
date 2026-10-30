@@ -162,7 +162,7 @@ const MEJORA = '```json\n' + JSON.stringify({ campos: { maniobra: 'FASE I: CONCE
       await clic(doc.getByRole('button', { name: /Ver el pedido/ }))
       const pedido = await doc.locator('textarea[readonly]').inputValue()
       fs.writeFileSync(path.join(out, `${tag}-pedido.md`), pedido)
-      for (const t of ['ORDEN GENERAL DE OPERACIONES', 'ESTA VEZ TRABAJÁS SÓLO ESTA PARTE DEL DOCUMENTO (III concepto', 'TEXTO PMTD 2017, Parte Primera, Capítulo VII', 'KILÓMETRO 7', 'Se asume como riesgo', 'Mi intención es facilitar la destrucción de la FT-43', 'La Orden va COMPLETA, apartado por apartado, DENTRO de las claves del JSON.', 'Las fases del CAP aprobado en la carta', 'El CAE del G-2 (PICB)', '"maniobra": "…"'])
+      for (const t of ['ORDEN GENERAL DE OPERACIONES', 'ESTA VEZ TRABAJÁS SÓLO ESTA PARTE DEL DOCUMENTO (III concepto', 'TEXTO PMTD 2017, Parte Primera, Capítulo VII', 'KILÓMETRO 7', 'Se asume como riesgo', 'Mi intención es facilitar la destrucción de la FT-43', 'PARTÍ DEL BORRADOR DE LA MESA', '# EL BORRADOR DE LA MESA', 'La Orden va COMPLETA, apartado por apartado, DENTRO de las claves del JSON.', 'Las fases del CAP aprobado en la carta', 'El CAE del G-2 (PICB)', '"maniobra": "…"'])
         assert.ok(pedido.includes(t), `el pedido no trae «${t}»`)
       assert.ok(!pedido.includes('la Orden de Operaciones, una matriz de sincronización'), 'a la Orden no se le prohíbe escribir la Orden')
       const json = pedido.slice(pedido.lastIndexOf('# CÓMO CONTESTAR'))
