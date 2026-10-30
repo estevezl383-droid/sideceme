@@ -35,7 +35,9 @@ const url = (p) => 'file://' + path.join(RAIZ, p)
 ;(async () => {
   console.log(`compilado: ${path.basename(VIG)} · motor: calcos/estado-mayor/${V}`)
   const R = await import(url(`estado-mayor/${V}/registro.js`))
-  const P = await import(url(`estado-mayor/${V}/pedido.js?v=20261029-guardar-ia`))
+  // el pedido.js que importa el registro, con su «?v=»: el tamaño elegido vive en ESA instancia del módulo
+  const QP = (fs.readFileSync(path.join(RAIZ, `estado-mayor/${V}/registro.js`), 'utf8').match(/from '\.\/pedido\.js(\?[^']*)?'/) || [])[1] || ''
+  const P = await import(url(`estado-mayor/${V}/pedido.js${QP}`))
   const M = await import(url(`estado-mayor/${V}/motor.js`))
   const G = await import(url(`estado-mayor/${V}/campos/g1.js`))
   const RT = await import(url(`estado-mayor/${V}/runtime.js`))

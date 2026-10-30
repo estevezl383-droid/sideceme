@@ -5,6 +5,51 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-30 — 📜 La F7·P1 ORDEN GENERAL DE OPERACIONES del G-3 con la forma del PMTD 2017 y TODO lo del Estado Mayor (`index-ogo-20261030.js`)
+
+Parte de `index-guardar-ia-20261029.js` + `pruebas/reemplazos-2026-10-30-ogo.js` (11 reemplazos; `construir-ogo.js`;
+`reemplazos-compilado.js` lo deshace byte por byte). Sergio, con el Word de la F7·P1 del CE-I, la OGO No. 01/21 del CE-I
+«KILÓMETRO 7», la Orden de Operaciones 05/24 del RI-20 y el texto del PMTD: «la OGO que me está generando la aplicación
+es inaceptable… la IA debería integrar TODA la información que generó la aplicación manteniendo el formato del PMTD…
+es en esto en lo que desemboca todo el ejercicio». Ver `orden-operaciones/README.md`.
+
+- **Qué pasaba**: la F7·P1 era un formulario plano de 32 casillas; el Word militar le ponía su numeración encima de la
+  de las casillas («III. I.- SITUACIÓN») y se comía IV.- y V.-; 🌱 escribía cuentas («18 límite(s)…», «Medios
+  disponibles: RES (alcance 23 km)», «DIV MEC-2 (OD): Atacar con Fuego.»); el pedido a la IA no tenía la doctrina del
+  Capítulo VII, ni el CAP fase por fase con la tarea y el propósito de cada unidad, ni el CAE, y el encabezado común le
+  decía «NO escribas… la Orden de Operaciones»; los botones «Orden de Operaciones» y «📄 OPORD» bajaban un esqueleto con
+  «[Completar…]».
+- **Fuera del compilado**: `orden-operaciones/v1/ogo.mjs` (nuevo: la forma del Capítulo VII con la instrucción literal,
+  la hoja vieja, 🌱 con todo el Estado Mayor, la doctrina, el ejemplo «KILÓMETRO 7», las partes, el Word); el motor del
+  Estado Mayor pasa a `estado-mayor/v8/` (copia de `v7/`: `def.desdeViejo`, el pedido por partes `soloCampos`,
+  `htmlDeSpec`, `doc.especificacion`/`partes`/`reglas`/`bloquesIA` en el editor, `campos/g3.js` con `soloDocumentos`,
+  `especificacionOrden` y `htmlDocumento` en el registro —el editor los reexporta—, y el encabezado común sin «NO
+  escribas… la Orden de Operaciones» para la Orden); `formato-militar/v1/runtime.js` (`spec.autenticador`: «G-3»).
+- **En el compilado**: los tres imports del motor van a `estado-mayor/v8/` (siguen siendo 3; `htmlDocumento` y
+  `especificacionOrden` llegan por el import del editor); el catálogo del G-3 `ev` pasa fase por fase por
+  `SIDEMFases({id:"g3"})` (sólo la F7·P1 es un documento; sigue empezando `ev=[{id:1,…`); el avance (`CD`) cuenta el
+  documento por lo que tiene escrito; la carpeta y la vista previa (`ED`) lo muestran con su forma; el Tablero del G-3
+  (`wLe`) abre la F7·P1 en `SIDEditorEM` con el contexto del calco y la carta (`SIDCapDocs`); `du` («Mesa EM → Orden de
+  Operaciones» y «📄 OPORD») baja `SIDEMOrden(...)` con el formato militar (si no hay nada, lo de antes); la consulta
+  «Orden de operaciones (OPORD)» de la IA de la Mesa con los párrafos del PMTD; `formato-militar/v1/runtime.js?v=ogo20261030`.
+- **En el fuente**: la F7·P1 del Tablero del G-3 como documento del motor (con su editor), el avance, la vista de la
+  carpeta, el productor de los botones «Orden de Operaciones» y la consulta de la IA.
+- **La cadena de compilados**: `reemplazos-compilado.js` ahora sigue del vigente hacia atrás sin saltos hasta el
+  2026-09-27: se sumaron los pasos que faltaban (paquetes —`reemplazos-2026-10-27-paquetes.js`, la misma lista de
+  `paquetes/scripts/integrar.py`—, áreas de interés, vista plegada, cursos, productos del EM, áreas logísticas y
+  «Guardar como»), y el reemplazo que agrega al principio (`prefijo`) se deshace sacándolo del principio.
+- **Cómo se comprobó**: `pruebas/orden-operaciones.mjs` (15 casos: la forma contra el Capítulo VII, la hoja vieja, 🌱
+  con el ejercicio ficticio de `pruebas/ogo-ejemplo.js`, la conjugación, el pedido y la respuesta, el Word, el registro y
+  los ganchos del compilado con `ev`, `CD` reales), `pruebas/e2e/orden-operaciones.cjs` (en la Mesa, escritorio y
+  teléfono: la hoja vieja migrada, 🌱, la IA por partes, la vista previa, el Word militar bajado y leído, «📄 OPORD», el
+  guardado, sin errores de consola; el Word pasado a PDF con LibreOffice y mirado), las unitarias de `npm test` (todas
+  pasan salvo el caso «ningún gancho cae DENTRO…» de `guia-inicial.mjs`, que ya fallaba con el compilado anterior por
+  10 ganchos de listas de otros días), `reemplazos-compilado.js` y las e2e del motor y del G-3 (ver el README).
+  Se ajustaron, sin cambiar lo que comprueban: `extraer.js` (`SIDEMFases` por defecto), `pedido-ia.cjs` (el `?v=` del
+  pedido lo toma del registro) y `guia-inicial.mjs` (la versión nueva del formato militar y su autenticador).
+- **Si se recompila desde el fuente**: llevar la F7·P1 como documento del motor (editor, avance, carpeta), `du` con la
+  Orden de la F7·P1 y la consulta de la IA.
+
 ## 2026-10-27 (3) — 📋 La Guía Inicial del Comandante (F1·P6) con la forma del PMTD 2017 (`index-guia-inicial-20261027.js`)
 
 Parte de `index-guia-plan-20261027.js` (encima de la Guía de Planificación F2·P15 y la Final F6·P2, del mismo día) + `pruebas/reemplazos-2026-10-27-guia-inicial.js` (10 reemplazos;

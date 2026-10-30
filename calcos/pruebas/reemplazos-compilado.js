@@ -70,7 +70,15 @@
 //   index-evento-fases-20261025.js + reemplazos-2026-10-26-op3.js = index-op3-20261026.js
 //   index-op3-20261026.js + reemplazos-2026-10-27-guia-final.js = index-guia-final-20261027.js
 //   index-guia-final-20261027.js + reemplazos-2026-10-27-guia-plan.js = index-guia-plan-20261027.js
-//   index-guia-plan-20261027.js + reemplazos-2026-10-27-guia-inicial.js = index-guia-inicial-20261027.js (el vigente)
+//   index-guia-plan-20261027.js + reemplazos-2026-10-27-guia-inicial.js = index-guia-inicial-20261027.js
+//   index-guia-inicial-20261027.js + reemplazos-2026-10-27-paquetes.js (= paquetes/scripts/integrar.py) = index-paquetes-20261027.js
+//   index-paquetes-20261027.js + reemplazos-2026-10-28-areas-interes.js = index-areas-interes-20261028.js
+//   index-areas-interes-20261028.js + reemplazos-2026-10-28-vista.js = index-vista-plegada-20261028.js
+//   index-vista-plegada-20261028.js + reemplazos-2026-10-29-cursos.js = index-cursos-g2-g3-20261029.js
+//   index-cursos-g2-g3-20261029.js + reemplazos-2026-10-29-productos-em.js = index-productos-em-20261029.js
+//   index-productos-em-20261029.js + reemplazos-2026-10-29-areas-logisticas.js = index-areas-logisticas-20261029.js
+//   index-areas-logisticas-20261029.js + reemplazos-2026-10-29-guardar-ia.js = index-guardar-ia-20261029.js
+//   index-guardar-ia-20261029.js + reemplazos-2026-10-30-ogo.js = index-ogo-20261030.js (el vigente)
 // Del vigente hacia atrás, para cada paso:
 //   · cada reemplazo aparece las veces esperadas,
 //   · deshaciéndolos se vuelve BYTE POR BYTE al compilado anterior (SHA-256).
@@ -84,6 +92,54 @@ const { vigente } = require('./extraer')
 
 // Del más nuevo al más viejo. `anterior`: SHA-256 del compilado antes de la lista.
 const PASOS = [
+  {
+    lista: require('./reemplazos-2026-10-30-ogo'),
+    nombre: 'reemplazos-2026-10-30-ogo',
+    // calcos/assets/index-guardar-ia-20261029.js (antes de la F7·P1 Orden General de Operaciones con la forma del PMTD 2017).
+    anterior: 'e770c168bed0c622cdeb2d99354969bf155c411d08b17e53c3542e82b0670dbb',
+  },
+  {
+    lista: require('./reemplazos-2026-10-29-guardar-ia'),
+    nombre: 'reemplazos-2026-10-29-guardar-ia',
+    // calcos/assets/index-areas-logisticas-20261029.js (antes de «Guardar como» y la preparación de los pedidos).
+    anterior: '01d5ef175f0304651a3d7cf6a9df66c751a64cf1abf0ea436de51c40344fb05a',
+  },
+  {
+    lista: require('./reemplazos-2026-10-29-areas-logisticas'),
+    nombre: 'reemplazos-2026-10-29-areas-logisticas',
+    // calcos/assets/index-productos-em-20261029.js (antes de las áreas internas del ASDI y el ARCE).
+    anterior: '34ed781b51731c0326609dd668e828690ad4bd5171e463be68e0b17f421abad1',
+  },
+  {
+    lista: require('./reemplazos-2026-10-29-productos-em'),
+    nombre: 'reemplazos-2026-10-29-productos-em',
+    // calcos/assets/index-cursos-g2-g3-20261029.js (antes de los grupos de visibilidad del G-4 y el G-1).
+    anterior: 'df496ff0289f61a1dbf8908d8f68cf2c1c9755eecf431d03f3ba507493bcb440',
+  },
+  {
+    lista: require('./reemplazos-2026-10-29-cursos'),
+    nombre: 'reemplazos-2026-10-29-cursos',
+    // calcos/assets/index-vista-plegada-20261028.js (antes de los controles por fase de los cursos del G-2 y el G-3).
+    anterior: 'ddedff9386bf9772f8448924e2d6c8639349ba2b2b8deab486a530c687f0ed14',
+  },
+  {
+    lista: require('./reemplazos-2026-10-28-vista'),
+    nombre: 'reemplazos-2026-10-28-vista',
+    // calcos/assets/index-areas-interes-20261028.js (antes de los paneles plegables y los grupos que se ocultan).
+    anterior: 'f2205076988481dfc8b92e544a79350bec730c3aaff62783fc953adcf4dc9a20',
+  },
+  {
+    lista: require('./reemplazos-2026-10-28-areas-interes'),
+    nombre: 'reemplazos-2026-10-28-areas-interes',
+    // calcos/assets/index-paquetes-20261027.js (antes de las varias áreas de interés).
+    anterior: '33d4c5a1a44236385716c7dcad9d78b730bee968676720d07385b6438b9a9017',
+  },
+  {
+    lista: require('./reemplazos-2026-10-27-paquetes'),
+    nombre: 'reemplazos-2026-10-27-paquetes',
+    // calcos/assets/index-guia-inicial-20261027.js (antes de los paquetes de terreno de Bolivia).
+    anterior: '8dae1e190617a556aded507df98341678bdb601e2d1c1fb5e5e9a2072ee5e674',
+  },
   {
     lista: require('./reemplazos-2026-10-27-guia-inicial'),
     nombre: 'reemplazos-2026-10-27-guia-inicial',
@@ -532,7 +588,12 @@ for (const paso of PASOS) {
   })
 
   caso(`${paso.nombre}: deshaciéndolos se vuelve byte por byte al compilado anterior`, () => {
-    for (const p of [...paso.lista].reverse()) src = src.split(p.nuevo).join(p.viejo)
+    for (const p of [...paso.lista].reverse()) {
+      if (p.prefijo) {
+        assert.ok(src.startsWith(p.nuevo), `${p.nombre}: no está al principio del compilado`)
+        src = src.slice(p.nuevo.length)
+      } else src = src.split(p.nuevo).join(p.viejo)
+    }
     assert.strictEqual(crypto.createHash('sha256').update(src).digest('hex'), paso.anterior)
   })
 }
