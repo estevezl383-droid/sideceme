@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.441</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.442</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -10674,7 +10674,14 @@ function _ncDetalle(header, row, comps, nota){
       const peso = (String(h).match(/(\d+(?:[.,]\d+)?)\s*%/) || [])[1];
       if(peso != null){
         const n = Number(String(peso).replace(',','.'));
-        if(!isNaN(n)) g[t].pesos.push(n);
+        if(!isNaN(n)){
+          g[t].pesos.push(n);
+          // v2.9.442: "TRAB. 1 | TRAB. 5% | TRAB. 2 | TRAB. 15%": cada "%" va
+          // detrás de su trabajo. Se guarda el peso EN el item para que una
+          // corrección posterior sepa cuánto vale cada uno.
+          const ult = g[t].items[g[t].items.length-1];
+          if(ult && ult._p == null) ult._p = n;
+        }
       } else {
         const n = Number(v);
         if(!isNaN(n)) g[t].pts = (g[t].pts || 0) + n;
@@ -10708,10 +10715,23 @@ function _ncDetalle(header, row, comps, nota){
     const uno = x.pesos[x.pesos.length-1];
     return forma === 'porItem' ? uno * Math.max(1, x.items.length) : uno;
   };
+  // Peso por item solo si CADA item tiene el suyo y no son todos iguales (si
+  // son iguales, el promedio simple ya da lo mismo y no hace falta guardarlo).
+  const itemsDe = function(t){
+    const its = g[t].items;
+    const ps = its.map(function(it){ return it._p; });
+    const conP = its.length > 1 && ps.every(function(p){ return p != null && p > 0; })
+      && new Set(ps).size > 1;
+    return its.map(function(it){
+      const o = { n:it.n, v:it.v };
+      if(conP) o.p = _ncNum(it._p);
+      return o;
+    });
+  };
   const armar = function(forma){
     return tipos.map(function(t){
       const ap = aporteDe(t, forma);
-      return { tipo:t, aporte: ap != null ? _ncNum(ap) : null, items:g[t].items };
+      return { tipo:t, aporte: ap != null ? _ncNum(ap) : null, items:itemsDe(t) };
     });
   };
   const formas = ['suma','porItem','uno'].map(armar);
@@ -11985,11 +12005,24 @@ function _ncValor(v){
   const n = Number(v);
   return isFinite(n) ? n : null;
 }
+// v2.9.442: si cada item trae su peso (`p`), el bloque se promedia PONDERADO.
+// Sumarios Informativos: TRAB. 1 = 5% y TRAB. 2 = 15%; con el promedio simple
+// la nota se rehacía como si fueran 10 y 10. Igual que promItems() de la EF.
+function _ncPeso(i){
+  if(!i || i.p===null || i.p===undefined || i.p==='') return null;
+  const p = Number(i.p);
+  return (isFinite(p) && p>0) ? p : null;
+}
 function _ncProm(b){
   const its = (b && Array.isArray(b.items)) ? b.items : [];
-  const vs = its.map(function(i){ return _ncValor(i && i.v); }).filter(function(n){ return n!==null; });
-  if(!vs.length) return null;
-  return vs.reduce(function(a,c){ return a+c; },0)/vs.length;
+  const xs = its.map(function(i){ return { v:_ncValor(i && i.v), p:_ncPeso(i) }; })
+    .filter(function(x){ return x.v!==null; });
+  if(!xs.length) return null;
+  if(xs.every(function(x){ return x.p!==null; })){
+    const sp = xs.reduce(function(a,x){ return a+x.p; },0);
+    return xs.reduce(function(a,x){ return a+x.v*x.p; },0)/sp;
+  }
+  return xs.reduce(function(a,x){ return a+x.v; },0)/xs.length;
 }
 function _ncLimpiar(n){ return parseFloat(n.toFixed(10)); }
 function _ncModo(bloques, nota){
@@ -13390,7 +13423,7 @@ function htmlDetalleMateria(m){
   const bloques = dj.bloques.map(b=>{
     const items = (b.items||[]).map(it=>`
       <div style="display:flex;justify-content:space-between;padding:4px 0 4px 14px;font-size:12px;color:var(--text-secondary)">
-        <span>${it.n||'—'}</span><span style="font-weight:600;color:var(--text-primary)">${it.v!=null?fmtNota(it.v):'—'}</span>
+        <span>${it.n||'—'}${it.p!=null?` <span style="color:var(--text-muted)">(${Number(it.p)}%)</span>`:''}</span><span style="font-weight:600;color:var(--text-primary)">${it.v!=null?fmtNota(it.v):'—'}</span>
       </div>`).join('');
     return `<div style="margin-bottom:8px">
       <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border-subtle)">
