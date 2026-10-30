@@ -1,4 +1,4 @@
-# Motor de documentos de Estado Mayor — «📋 Mis hojas» del G-1 y del G-5 (y del EME cuando se sume), la F3·P1 Potencia Relativa de Combate del G-3 y la F6·P2 Guía de Planificación Final del Comandante
+# Motor de documentos de Estado Mayor — «📋 Mis hojas» del G-1 y del G-5 (y del EME cuando se sume), la F3·P1 Potencia Relativa de Combate del G-3, la F6·P2 Guía de Planificación Final del Comandante y la F7·P1 Orden General de Operaciones del G-3
 
 Lo pidió Sergio el 03-10-2026 con capturas del panel del G-1: la **F1·P3 Apreciación Activa
 de PERSONAL** sólo decía «se baja desde el botón de Apreciación» y el Word salía con casi
@@ -135,6 +135,29 @@ en el título (el «No. / Clave» va en el membrete).
 - **Lo guardado con la forma vieja** (el cuadro por sección) no se toma como el documento: la
   hoja se ve vacía hasta que se trabaje (🌱 o la IA); el cuadro viejo sigue en el ejercicio
   hasta que se escriba la guía nueva.
+
+## En la Mesa: ⚔️ G-3 → 📄 Documentos → F7·P1 Orden General de Operaciones (30-10-2026, `v8/campos/g3.js`)
+
+Lo pidió Sergio con el Word que bajó de la F7·P1 del CE-I y dos órdenes de ejemplo («KILÓMETRO 7» y la 05/24 del
+RI-20): «la IA debería integrar TODA la información que generó la aplicación manteniendo el formato del PMTD… es en esto
+en lo que desemboca todo el ejercicio». La Orden es un documento del motor con la forma del **TEXTO PMTD 2017, Parte
+Primera, Capítulo VII**; todo lo suyo (la forma, 🌱, la doctrina, el ejemplo, el Word) está en
+`calcos/orden-operaciones/v1/ogo.mjs` y su README. Lo que sumó la v8 al motor para ella:
+
+- **`def.desdeViejo(valor)`**: la hoja guardada con la forma vieja (las 32 casillas planas) se lee como el documento
+  (`normalizar`, `tiene`, `esDe`) y se guarda con la forma nueva en el primer cambio.
+- **`doc.especificacion(v, ctx, op)`**: el Word con la forma propia del documento (el cuadro de la Organización de la
+  Tarea, los subapartados que se escriben adentro de cada apartado, la autenticación «G-3»); `M.htmlDeSpec` hace la vista
+  de cualquier especificación.
+- **Por partes** (`doc.partes`, `pedido({ soloCampos, parte })`): arriba del panel de la IA, «¿Qué le pedís a la IA?»
+  (Toda la Orden · I-II · III concepto · III tareas · IV-V). El pedido muestra el formato completo y pide sólo esas claves.
+- **`doc.reglas`, `doc.bloquesIA`**: las reglas del documento y el ejemplo de redacción («KILÓMETRO 7») en el pedido.
+- **El encabezado común** (`pedido.js`) ya no le dice a la Orden «NO escribas… la Orden de Operaciones».
+- **El registro**: `especificacionOrden(valor, ctxDoc)` (los botones «Mesa EM → Orden de Operaciones» y «📄 OPORD» del
+  🎬 C.A. por fases bajan esta Orden, con 🌱 en lo vacío y sin guardar) y `htmlDocumento(h, v, ctxDoc)` (la carpeta del
+  G-3 y la vista previa). El editor los reexporta: el compilado los toma del import del editor y sigue importando el
+  motor 3 veces.
+- **`soloDocumentos`**: las demás hojas del G-3 (las de siempre, la PRC, las Órdenes Preparatorias…) siguen como estaban.
 
 ## El pedido a la IA: la tarea AL PRINCIPIO y el expediente recortado (10-10-2026, `v6/pedido.js`)
 
@@ -393,6 +416,9 @@ node pedido-ia.cjs              # el pedido con la tarea arriba y el expediente 
 node e2e/pedido-cmte.cjs        # la F1·P3 del Comandante en la Mesa real, escritorio y teléfono
 node construir-pedido.js        # arma index-pedido-20261010.js encima de index-fichas-20261009.js
 node guia-final.mjs             # la F6·P2 del Comandante: la forma del PMTD 2017, las hojas REALES del compilado, 🌱, IA, respuesta escrita
+node orden-operaciones.mjs      # la F7·P1 del G-3: la forma del Capítulo VII, la hoja vieja, 🌱 con todo el EM, IA por partes, Word, ganchos
+node e2e/orden-operaciones.cjs  # la F7·P1 en la Mesa real, escritorio y teléfono (ogo-ejemplo.js; salidas en pruebas/salidas-orden-operaciones/)
+node construir-ogo.js           # arma index-ogo-20261030.js encima de index-guardar-ia-20261029.js
 node e2e/guia-final.cjs         # la F6·P2 en la Mesa real, escritorio y teléfono, con el Word militar (salidas en pruebas/salidas-guia-final/)
 node construir-guia-final.js    # arma index-guia-final-20261027.js (el vigente) encima de index-op3-20261026.js
 ```

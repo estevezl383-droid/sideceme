@@ -41,6 +41,9 @@ function cargar(ruta, nombres, globales = {}) {
   const gi = require('../guia-inicial/v1/guia.mjs')
   const GUIA = { SIDGuiaLeer: guia.leerGuia, SIDGuiaPlan: guia.HOJA_GUIA_PLANIFICACION, SIDGuiaCmte: gi.HOJA_CMTE, SIDGuiaG3: gi.HOJA_G3, SIDGuiaGuia: gi.GUIA, SIDGuiaSemilla: gi.semillaGuia, SIDGuiaWord: gi.wordGuia, SIDGuiaAyuda: gi.AyudaGuia, SIDGuiaCalco: () => ({}) }
   for (const k of Object.keys(GUIA)) quiero.delete(k)
+  // SIDEMFases es del motor del Estado Mayor (estado-mayor/vN/registro.js, fasesConDocumentos): desde index-ogo-20261030.js
+  // las hojas del G-3 (ev) pasan por él (la F7·P1 es un documento). Sin pasarlo, quedan como en el catálogo del compilado.
+  if (quiero.delete('SIDEMFases') && !('SIDEMFases' in globales)) globales = { ...globales, SIDEMFases: (g, fases) => fases }
   globales = { ...CAE, ...CALC, ...GUIA, ...globales }
   if (quiero.size) throw new Error(`No están en ${ruta}: ${[...quiero].join(', ')}`)
   const ctx = { ...globales }
