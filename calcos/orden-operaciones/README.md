@@ -35,7 +35,7 @@ el oficial y la IA):
 OBJETO · CARTAS · ANEXOS
 ORGANIZACIÓN DE LA TAREA.                       (sin número; en el Word, el cuadro y «BAJO CONTROL:»)
 I.-   SITUACIÓN.  A.- Fuerzas enemigas (1.- CAE más probable, 2.- más peligroso) · B.- Fuerzas propias ·
-                  C.- Refuerzos y reducciones · D.- Hipótesis (sólo en un PLAN: vacía no sale)
+                  C.- Refuerzos y reducciones (sin hipótesis: es una ORDEN)
 II.-  MISIÓN.
 III.- EJECUCIÓN.  Intención del Comandante (sin número, antes de A.-)
                   A.- Concepto de la operación: 1.- Maniobra · 2.- Apoyo de fuegos (a.- aéreo, b.- artillería, c.- MCAF) ·
@@ -126,8 +126,16 @@ La unidad «genérica» del concepto (`genericoDe`) sale del escalón y el arma 
 la designación. La fase decisiva (`faseDecisiva`) es la que se llama como el combate (defensa, ataque, bloqueo…) y no como
 un movimiento (concentración, desplazamiento, ocupación…).
 
-🌱 no pisa lo escrito: en una Orden que ya estaba hecha, para tener la forma nueva se vacía el párrafo y se vuelve a traer,
-o se le pide a la IA «Completar y mejorar» (por partes si corta).
+🌱 no pisa lo escrito. Para una Orden que ya estaba hecha con otra forma está **♻️ Rehacer con la forma del PMTD** (debajo de
+🌱): reemplaza la misión, la intención, el concepto con sus subpárrafos (maniobra, fuegos, reconocimiento, inteligencia,
+ingenieros, antiaérea), las tareas, los RCIC y el concepto de apoyo (`REHACER`) por lo que trae la Mesa; los demás
+apartados no se tocan. Lo que había queda en el valor (`anterior`) y **↩️ Volver a lo que estaba antes de rehacer** lo
+trae de vuelta (motor v8: `rehacer`, `volverAnterior`; el editor muestra el botón si el documento tiene `rehacer`).
+
+**Sin hipótesis.** Una ORDEN de operaciones no lleva hipótesis: I.- SITUACIÓN termina en C.- Refuerzos y reducciones. El
+apartado ya no existe; lo que la IA escriba igual como «D.- Hipótesis.» (que el lector dejaba al final de los refuerzos) se
+corta en todos los apartados (`sinHipotesis`, por `def.limpiar` del motor, al guardar, al aplicar la respuesta y en el
+Word), y la casilla «D. Hipótesis» de la hoja vieja no pasa.
 
 ## Qué es de la doctrina y qué es criterio de la Mesa
 

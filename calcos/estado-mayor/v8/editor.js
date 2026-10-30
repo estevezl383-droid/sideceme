@@ -251,6 +251,18 @@ export default function EditorDocumento({ campo = '', hoja = null, valor, onValo
     guardar(x.valor)
     setMsg({ tipo: 'ok', txt: `🌱 Se trajo: ${x.cambios.join(' · ')}. Revisalo y completá lo que es juicio tuyo (o pedíselo a la IA).` })
   }
+  // ♻️ Un documento ya escrito con otra forma: los apartados de `doc.rehacer.campos` pasan a lo que trae 🌱 (pisando);
+  // lo que había queda guardado y «↩️ Volver a lo anterior» lo trae de vuelta.
+  const rehacerDoc = () => {
+    const R = doc.rehacer
+    if (!window.confirm(R.confirmar || '¿Rehacer estos apartados con lo que trae la Mesa? Lo que está escrito se reemplaza (queda guardado para volver atrás).')) return
+    const P = typeof doc.propuestas === 'function' ? doc.propuestas(ctx, hoja) : {}
+    const x = M.rehacer(def, v, P, R.campos || [])
+    if (!x.cambios.length) return setMsg({ tipo: 'aviso', txt: 'No había nada que rehacer: la Mesa no trae esos apartados (cargá el calco y las hojas) o ya están así.' })
+    guardar(x.valor)
+    setMsg({ tipo: 'ok', txt: `♻️ Se rehízo: ${x.cambios.join(' · ')}. Lo que había quedó guardado (↩️ Volver a lo anterior). Revisalo y, si querés más detalle, pedíselo a la IA con «Completar y mejorar».` })
+  }
+  const volver = () => (guardar(M.volverAnterior(def, v)), setMsg({ tipo: 'ok', txt: '↩️ Volvió lo que estaba escrito antes de rehacer.' }))
   const base = doc.partirDe ? hojas?.[doc.partirDe] : null
   const Panel = panelIA()
   const partes = Array.isArray(doc.partes) ? doc.partes : []
@@ -364,6 +376,14 @@ export default function EditorDocumento({ campo = '', hoja = null, valor, onValo
     h(Entregas, { E, items: typeof cfg.entregas === 'function' ? cfg.entregas(ctx) : [] }),
     base && h('div', { style: E.caja }, h('button', { style: E.btn, onClick: () => (guardar(M.partirDe(def, v, base)), setMsg({ tipo: 'ok', txt: `📋 Se copió lo de la ${doc.partirDe === 'aprecActiva' ? 'F1·P3' : 'versión anterior'} en lo que estaba vacío. Ahora actualizala.` })) }, `📋 Partir de la ${doc.partirDe === 'aprecActiva' ? 'F1·P3' : 'versión anterior'} (sin pisar)`)),
     h('div', { style: E.caja }, h('div', { style: E.sub }, '1 · Lo que ya tiene el ejercicio'), h('button', { style: E.sembrar, onClick: armar }, '🌱 Traer del calco y de mis hojas lo que falte'), doc.sembrarAyuda && h('div', { style: E.ayuda }, doc.sembrarAyuda)),
+    doc.rehacer &&
+      h(
+        'div',
+        { style: E.caja, 'data-em': 'rehacer' },
+        h('button', { style: E.sembrar, onClick: rehacerDoc }, doc.rehacer.boton || '♻️ Rehacer con lo que trae la Mesa'),
+        v.anterior && h('button', { style: { ...E.btn, marginTop: 6, width: '100%' }, onClick: volver }, '↩️ Volver a lo que estaba antes de rehacer'),
+        doc.rehacer.ayuda && h('div', { style: E.ayuda }, doc.rehacer.ayuda),
+      ),
     h('div', { style: E.caja }, h('div', { style: E.sub }, '2 · 💡 Mis ideas (cómo quiero el documento)'), h('textarea', { style: E.area, rows: filasDe(v.ideas, 3), value: v.ideas, placeholder: doc.ideasEjemplo || 'Lo que querés que diga, lo que te preocupa, qué curso de acción preferís.', onChange: (e) => guardar({ ...v, ideas: e.target.value }) }), h('div', { style: E.ayuda }, 'No se imprime: va al pedido a la IA y la IA lo sigue. También podés escribir directamente en cualquier apartado: lo que escribís vos manda.')),
     partes.length > 0 &&
       Panel &&
