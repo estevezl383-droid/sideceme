@@ -5,6 +5,24 @@ El código fuente de la Mesa del EM (Vite/React) no está en este repositorio:
 sobre ese compilado. **Si se vuelve a compilar desde el fuente, hay que pasarlos
 al fuente o se pierden.**
 
+## 2026-10-30 — 🧩 El JEM integra el trabajo de los G (`index-integrar-jem-20261030.js`)
+
+Parte de `index-guardar-ia-20261029.js` + `pruebas/reemplazos-2026-10-30-integrar-jem.js` (2 reemplazos;
+`construir-integrar-jem.js` verifica el SHA-256 del anterior y que se deshaga byte por byte). Ver `integrar/README.md`.
+
+- **Qué pidió Sergio**: cada G trabaja en su computadora y el JEM tiene que juntar el trabajo, eligiendo hojas o
+  documentos, sin que se cruce la información, y devolver a los G el trabajo integrado.
+- **Fuera del compilado**: `integrar/v1/integrar.js` y `integrar.css` (el botón 🧩 Integrar y su panel), cargados
+  desde `index.html`.
+- **En el compilado**: después de `aC` (catálogo del G-1, G-4, G-5 y EME), `window.SIDCatalogoHojas=()=>({cmte:hse.cmte,
+  jem:hse.jem,g1:aC.g1,g2:sg,g3:ev,g4:aC.g4,g5:aC.g5,eme:aC.eme})`; antes de `Qu` (abrir un ejercicio guardado),
+  `window.SIDMesaCargar=mm`, la función que pone un ejercicio en la Mesa. El enganche no cae dentro de lo que
+  insertó `reemplazos-inicio-ejercicio.json` en `mm`.
+- **En el fuente**: exponer el catálogo de hojas por sección y la función que carga un ejercicio en el estado.
+- **Cómo se comprobó**: `pruebas/integrar-jem.cjs`, `pruebas/e2e/integrar-jem.cjs` (escritorio y teléfono, sin
+  errores de consola), y los chequeos de ganchos de `estado-mayor.cjs`, `prc.cjs`, `estado-mayor-g5.cjs` y
+  `guia-inicial.mjs`, que dan lo mismo que con el compilado anterior.
+
 ## 2026-10-27 (3) — 📋 La Guía Inicial del Comandante (F1·P6) con la forma del PMTD 2017 (`index-guia-inicial-20261027.js`)
 
 Parte de `index-guia-plan-20261027.js` (encima de la Guía de Planificación F2·P15 y la Final F6·P2, del mismo día) + `pruebas/reemplazos-2026-10-27-guia-inicial.js` (10 reemplazos;

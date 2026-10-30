@@ -1,0 +1,35 @@
+/* 🧩 Integrar el trabajo de los G (calcos/integrar/v1/integrar.js): el botón a la izquierda de
+   «💾 Guardar como» y su panel, con los mismos colores que el resguardo. */
+#sid-integ-btn{position:fixed;top:8px;right:150px;z-index:1200;font:600 11px/1 'Exo 2','Segoe UI',system-ui,sans-serif;letter-spacing:.06em;text-transform:uppercase;
+  color:#cde7ec;background:rgba(6,28,40,.85);border:1px solid rgba(70,240,208,.3);border-radius:9px;padding:9px 10px;cursor:pointer;white-space:nowrap}
+#sid-integ-btn:hover,#sid-integ-btn[aria-expanded="true"]{color:#fff;border-color:#46f0d0}
+#sid-integ-panel{position:fixed;right:8px;z-index:2500;width:min(640px,calc(100vw - 16px));max-height:min(80vh,760px);overflow:auto;box-sizing:border-box;padding:10px 12px;
+  color:#e4f4f6;font:13px/1.4 'Exo 2','Segoe UI',system-ui,sans-serif;background:rgba(6,28,40,.97);border:1px solid rgba(70,240,208,.45);border-radius:12px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+#sid-integ-panel[hidden]{display:none}
+#sid-integ-panel .cab{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px;color:#46f0d0}
+#sid-integ-panel .archivo{margin:10px 0;padding:8px 9px;border-radius:9px;background:rgba(4,17,26,.6);border:1px solid rgba(255,255,255,.1)}
+#sid-integ-panel .archivo>.cab{color:#e4f4f6;margin-bottom:4px;word-break:break-all}
+#sid-integ-panel label.de{display:block;margin:6px 0 2px;font-size:12px;color:#b9d2d8}
+#sid-integ-panel select{font:12px inherit;color:#e4f4f6;background:#04111a;border:1px solid rgba(70,240,208,.4);border-radius:6px;padding:3px 5px;max-width:100%}
+#sid-integ-panel details{margin:6px 0 0;border-top:1px solid rgba(255,255,255,.08);padding-top:4px}
+#sid-integ-panel summary{cursor:pointer;font-weight:600;color:#d6f5ef}
+#sid-integ-panel summary small{font-weight:400;color:#9fb8c8}
+#sid-integ-panel ul{list-style:none;margin:4px 0 0;padding:0}
+#sid-integ-panel li{display:flex;align-items:flex-start;gap:6px;padding:3px 2px;font-size:12.5px}
+#sid-integ-panel li label{flex:1;cursor:pointer}
+#sid-integ-panel li label small{color:#9fb8c8}
+#sid-integ-panel li .est{flex:none;font-size:11px;color:#9fb8c8;white-space:nowrap}
+#sid-integ-panel li.nueva .est{color:#7dffb0}
+#sid-integ-panel li.distinta .est{color:#fbbf24}
+#sid-integ-panel input[type=checkbox]{margin-top:2px;accent-color:#46f0d0}
+#sid-integ-panel button{font:600 11.5px/1.2 inherit;color:#03121a;background:#46f0d0;border:0;border-radius:7px;padding:5px 9px;margin:5px 5px 0 0;cursor:pointer}
+#sid-integ-panel button:disabled{opacity:.45;cursor:default}
+#sid-integ-panel button.chico{color:#cde7ec;background:transparent;border:1px solid rgba(255,255,255,.25);padding:3px 7px}
+#sid-integ-panel button.grande{display:block;width:100%;padding:8px;font-size:12.5px}
+#sid-integ-panel button.grande.chico{padding:7px}
+#sid-integ-panel button.ok{background:#7dffb0}
+#sid-integ-panel .nota{margin:6px 0 0;font-size:11.5px;color:#9fb8c8}
+#sid-integ-panel .nota.ok{color:#7dffb0}
+#sid-integ-panel .nota.info{color:#93c5fd}
+#sid-integ-panel .nota.error{color:#fca5a5}
+@media (max-width:600px){#sid-integ-panel li{flex-wrap:wrap}#sid-integ-panel li .est{width:100%;padding-left:20px}}

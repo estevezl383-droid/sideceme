@@ -1,0 +1,46 @@
+name: Integrar el trabajo de los G (JEM)
+on:
+  pull_request:
+    paths:
+      - 'calcos/integrar/**'
+      - 'calcos/index.html'
+      - 'calcos/guardado/v1/resguardo.js'
+      - 'calcos/assets/index-integrar-jem-20261030.js'
+      - 'calcos/pruebas/*integrar-jem*'
+      - 'calcos/pruebas/e2e/integrar-jem.cjs'
+      - '.github/workflows/integrar-jem.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Lógica y compilado reproducible
+        run: |
+          npm ci --prefix calcos/pruebas
+          node calcos/pruebas/construir-integrar-jem.js
+          git diff --exit-code -- calcos/index.html calcos/assets/index-integrar-jem-20261030.js
+          node --check calcos/assets/index-integrar-jem-20261030.js
+          node --check calcos/integrar/v1/integrar.js
+          npm run test:integrar-jem --prefix calcos/pruebas
+      - name: Preparar Chromium
+        run: |
+          npm install --prefix /tmp/prueba-integrar-jem playwright@1.51.1
+          node /tmp/prueba-integrar-jem/node_modules/playwright/cli.js install --with-deps chromium
+      - name: El JEM integra y el G-1 recibe el integrado
+        env:
+          PLAYWRIGHT_MODULE: /tmp/prueba-integrar-jem/node_modules/playwright
+        run: |
+          npm run e2e:integrar-jem --prefix calcos/pruebas
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: revision-integrar-jem
+          path: calcos/pruebas/salidas-integrar-jem/
+          retention-days: 7
