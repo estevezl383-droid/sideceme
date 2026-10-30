@@ -43,7 +43,7 @@ export default {
   guias: { opord: OGO.GUIA },
   documentos: {
     opord: {
-      def: { ...OGO.DEF, desdeViejo: OGO.desdeHojaVieja },
+      def: { ...OGO.DEF, desdeViejo: OGO.desdeHojaVieja, limpiar: (id, x) => OGO.sinHipotesis(x) },
       nota: NOTA,
       // el Word: la identidad de la OGO del G-3 (plantilla «orden-operaciones») con su estructura propia
       registro: { id: 'opord', militar: true },
@@ -55,6 +55,13 @@ export default {
       partes: OGO.PARTES,
       bloquesIA: () => [{ titulo: 'EJEMPLO DE REDACCIÓN — LA FORMA Y EL NIVEL DE DETALLE QUE SE ESPERA (es de OTRO ejercicio: no lo copies)', texto: OGO.EJEMPLO }],
       especificacion: (v, ctx, op) => OGO.especificacion(v, ctx, op),
+      // ♻️ la Orden que ya estaba escrita (por el oficial o la IA) con otra forma: estos apartados pasan a la forma del PMTD
+      rehacer: {
+        campos: OGO.REHACER,
+        boton: '♻️ Rehacer con la forma del PMTD: misión, intención, concepto, maniobra, tareas y RCIC',
+        confirmar: '¿Rehacer con la forma del PMTD la MISIÓN, la INTENCIÓN, el CONCEPTO (con maniobra, fuegos, inteligencia, ingenieros y antiaérea), las TAREAS fase por fase, los RCIC de cada sección y el concepto de apoyo? Lo que está escrito en esos apartados se reemplaza; queda guardado y se puede volver atrás.',
+        ayuda: 'Para la Orden que ya estaba hecha con otra forma (🌱 no pisa lo escrito): reemplaza esos apartados por lo que trae la Mesa con la forma del PMTD 2017 — la misión en una oración (quién, qué, cuándo, dónde, propósito), la intención «Mi intención es…», el concepto «Vamos a cumplir la misión mediante…», las tareas fase por fase con TAREA y PROPÓSITO de todas las unidades y los RCIC de cada sección. Lo que la Mesa no sabe queda «SIN DATO — verificar»: completalo vos o con la IA («Completar y mejorar»). Los demás apartados no se tocan.',
+      },
       ideasQue: 'cómo quiere la orden: el énfasis, lo que no puede faltar, lo que cambió el Comandante',
       ideasEjemplo: 'Ej.: «El esfuerzo principal es la DIV MEC-2 en la AA-1 en todas las fases» · «La DIV-6 contraataca por el eje Julo–Bella Vista con orden» · «Prioridad de fuegos a la DIV-1 en la fase II» · «El ensayo es de comandantes sobre maqueta el D-5 en el PC».',
       sembrarAyuda:

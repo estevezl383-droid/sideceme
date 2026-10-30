@@ -108,7 +108,7 @@ const MEJORA = '```json\n' + JSON.stringify({ campos: { maniobra: 'FASE I: CONCE
       // (lastIndexOf: la nota de arriba también nombra los párrafos)
       for (let i = 1; i < PARRAFOS.length; i++) assert.ok(c.lastIndexOf(`${ROMANOS[i - 1]}.- ${PARRAFOS[i - 1]}`) < c.lastIndexOf(`${ROMANOS[i]}.- ${PARRAFOS[i]}`), 'en el orden del modelo')
       assert.ok(c.includes('Exprese la información en términos de dos escalones enemigos por debajo del suyo'), 'la instrucción del PMTD')
-      assert.ok(/5 de 52 apartados/i.test(c), 'lo escrito en la hoja vieja (objeto, misión, reconocimiento, sucesión e IOC)')
+      assert.ok(/5 de 51 apartados/i.test(c), 'lo escrito en la hoja vieja (objeto, misión, reconocimiento, sucesión e IOC)')
       const vals = async () => Object.fromEntries(await doc.locator('[data-campo]').evaluateAll((xs) => xs.map((x) => [x.getAttribute('data-campo'), x.querySelector('textarea')?.value || ''])))
       let v = await vals()
       assert.equal(v.mision, VIEJA['Misión'])
@@ -139,7 +139,18 @@ const MEJORA = '```json\n' + JSON.stringify({ campos: { maniobra: 'FASE I: CONCE
       ])
         assert.ok(v[k].includes(t), `🌱 ${k}: falta «${t}»\n${v[k]}`)
       const llenos = Object.values(v).filter((x) => x.trim()).length
-      assert.ok(llenos >= 40, `🌱 llena la Orden: ${llenos} de 52`)
+      assert.ok(llenos >= 40, `🌱 llena la Orden: ${llenos} de 51`)
+
+      // ── ♻️ Rehacer con la forma del PMTD (pisa lo escrito; ↩️ vuelve atrás) ──
+      await clic(doc.getByRole('button', { name: /♻️ Rehacer con la forma del PMTD/ }))
+      await doc.getByText(/♻️ Se rehízo:/).waitFor({ timeout: 5000 })
+      v = await vals()
+      assert.ok(v.mision.startsWith('El CE-I defiende el AO LAUCA a partir del D (0400)'), `♻️ la misión aprobada pisa la escrita: ${v.mision}`)
+      await clic(doc.getByRole('button', { name: '↩️ Volver a lo que estaba antes de rehacer' }))
+      await doc.getByText(/Volvió lo que estaba escrito/).waitFor({ timeout: 5000 })
+      v = await vals()
+      assert.equal(v.mision, VIEJA['Misión'], '↩️ vuelve lo escrito')
+      assert.ok(!(await doc.locator('[data-campo="hipotesis"]').count()), 'sin el apartado de hipótesis')
 
       // ── 🤖 La IA, por partes ──
       await clic(doc.getByRole('button', { name: 'III concepto', exact: true }))

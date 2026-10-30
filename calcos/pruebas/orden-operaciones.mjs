@@ -61,7 +61,7 @@ caso('la forma: los párrafos del modelo del Capítulo VII, en orden, con su ins
   assert.deepEqual(DEF.arbol.map((n) => n.t), ['ORGANIZACIÓN DE LA TAREA.', 'SITUACIÓN.', 'MISIÓN.', 'EJECUCIÓN.', 'APOYO DE SERVICIO.', 'COMANDO Y COMUNICACIONES.'])
   const t = (ns) => ns.map((n) => n.t)
   const [, sit, , eje, ser, com] = DEF.arbol
-  assert.deepEqual(t(sit.hijos), ['Fuerzas enemigas.', 'Fuerzas propias.', 'Refuerzos y reducciones.', 'Hipótesis.'])
+  assert.deepEqual(t(sit.hijos), ['Fuerzas enemigas.', 'Fuerzas propias.', 'Refuerzos y reducciones.'], 'sin hipótesis: es una ORDEN de operaciones')
   assert.deepEqual(t(sit.hijos[0].hijos), ['Curso de acción del enemigo más probable.', 'Curso de acción del enemigo más peligroso.'])
   assert.deepEqual(t(eje.hijos), ['Intención del Comandante.', 'Concepto de la operación.', 'Tareas de las unidades de maniobra.', 'Tareas de las unidades de apoyo de combate.', 'Instrucciones de coordinación.'])
   assert.ok(eje.hijos[0].sinNumero, 'la intención va sin número, antes de A.-')
@@ -81,7 +81,6 @@ caso('la forma: los párrafos del modelo del Capítulo VII, en orden, con su ins
     ['enemigo', 'Exprese la información en términos de dos escalones enemigos por debajo del suyo'],
     ['propias', 'Considere la misión, la intención del Comandante y el concepto de la operación de dos escalones superiores'],
     ['refuerzos', 'la información respecto a las Unidades en refuerzo o reducidas se incluye en este subpárrafo, indicando el lugar, fecha y hora en que la reducción o refuerzo cobra vigencia'],
-    ['hipotesis', '(Aplica sólo para el Plan de Operaciones) Enumere todas las hipótesis establecidas'],
     ['vigencia', 'Hora o condición cuando un plan o una orden entra en vigor'],
     ['conceptoApoyo', 'Establezca el enfoque de apoyo logístico y la prioridad de apoyo a las Unidades dependientes para cada fase de la operación'],
     ['servicio', 'al Anexo “Apoyo de Servicio de Combate” si es una Orden de Operaciones'],
@@ -305,7 +304,7 @@ caso('🌱: las TAREAS fase por fase (todas las unidades, TAREA y PROPÓSITO), l
   assert.equal(C.prioridadCom, '- FASE IV: Prioridad a la DIV MEC-2 (FICT.).')
   // 🌱 llena TODA la Orden con este ejercicio (salvo lo que no corresponde o es juicio del Comandante)
   const vacios = M.camposDe(DEF).map((c) => c.id).filter((id) => !C[id])
-  assert.deepEqual(vacios.sort(), ['situacion', 'apoyoAereo', 'hipotesis', 'policiaMilitar', 'proteccion', 'qbn', 'refuerzos', 'limiteAvance'].sort())
+  assert.deepEqual(vacios.sort(), ['situacion', 'apoyoAereo', 'policiaMilitar', 'proteccion', 'qbn', 'refuerzos', 'limiteAvance'].sort())
 })
 
 caso('🌱: sin pisar; con la hoja vieja trae todo lo demás; sin datos no inventa', () => {
@@ -354,6 +353,48 @@ caso('la forma del PMTD: la intención con rótulos pasa a prosa; la fase decisi
   const ctx = ctxDe()
   assert.deepEqual(['DIV MEC-2', 'DIV-1', 'FT VARGAS', 'RI-20'].map((n) => O.genericoDe(ctx, n)), ['Una División Mecanizada', 'Una División de Infantería', 'Una Fuerza de Tarea', 'Un Regimiento'])
   assert.equal(O.genericoDe(ctx, 'BAT LOG-II', { definido: true }), 'El Batallón Logístico')
+})
+
+caso('♻️ Rehacer: la Orden ya escrita con otra forma pasa a la del PMTD (y se puede volver atrás); nunca hay hipótesis', () => {
+  // como la F7·P1 del CE-I: la escribió la IA con rótulos, tareas por unidad e hipótesis
+  // (M.normalizar: como la guarda el editor)
+  const escrita = M.normalizar(DEF, M.armar(DEF, {}, {
+    campos: {
+      mision: 'El I Cuerpo de Ejército (CE-I) defiende el AO LAUCA a partir del D (0400), reteniendo la LPR, sin permitir… (FICT.).',
+      intencion: 'Propósito: detener al primer escalón (FICT.). Punto decisivo: Ungallire (FICT.). Tareas clave: fijar al enemigo (FICT.). Estado final: enemigo detenido (FICT.).',
+      tareasManiobra: 'DIV MEC-2: Ocupar LPR (FICT.). DIV-1: Ocupar LPR en el sector sur (FICT.).',
+      refuerzos: 'Se incorporan la DIV-1 y la DIV-6 (FICT.).\nD.- Hipótesis.\nEl avance enemigo será canalizado (FICT.).',
+      ioc: 'IOC «ILLIMANI» (escrito por el oficial, FICT.).',
+    },
+  }).valor)
+  assert.equal(escrita.campos.refuerzos, 'Se incorporan la DIV-1 y la DIV-6 (FICT.).', 'la hipótesis no queda en ningún apartado')
+  const ctx = ctxDe()
+  const r = M.rehacer(DEF, escrita, O.propuestas(ctx), DOC.rehacer.campos)
+  assert.ok(r.cambios.includes('MISIÓN') && r.cambios.includes('Intención del Comandante') && r.cambios.includes('Tareas de las unidades de maniobra'), r.cambios.join(' · '))
+  assert.ok(r.valor.campos.intencion.startsWith('Mi intención es detener al primer escalón enemigo'))
+  assert.ok(r.valor.campos.tareasManiobra.startsWith('FASE I: CONCENTRACIÓN (desde el D-10 hasta el D-8).\n1.- DIV MEC-2 (OD).\nTAREA: Se concentra en Turco.'))
+  assert.ok(r.valor.campos.concepto.startsWith('Vamos a cumplir la misión mediante una defensa de área.'))
+  assert.equal(r.valor.campos.ioc, 'IOC «ILLIMANI» (escrito por el oficial, FICT.).', 'lo que no es de la forma del PMTD no se toca')
+  assert.equal(r.valor.campos.refuerzos, escrita.campos.refuerzos)
+  // lo que había queda guardado (también después de guardar) y vuelve con «↩️ Volver a lo anterior»
+  const guardado = M.normalizar(DEF, JSON.parse(JSON.stringify(r.valor)))
+  assert.equal(guardado.anterior.campos.intencion, escrita.campos.intencion)
+  const atras = M.volverAnterior(DEF, guardado)
+  assert.equal(atras.campos.intencion, escrita.campos.intencion)
+  assert.equal(atras.campos.tareasManiobra, escrita.campos.tareasManiobra)
+  assert.equal(atras.anterior, undefined)
+  // sin nada nuevo que traer, no cambia nada
+  assert.deepEqual(M.rehacer(DEF, r.valor, O.propuestas(ctx), DOC.rehacer.campos).cambios, [])
+  // la IA que escribe igual las hipótesis: no quedan (ni en el JSON ni escritas como documento), ni en el Word
+  const prosa = ['I.- SITUACIÓN.', 'C.- Refuerzos y reducciones.', 'Se incorporan la DIV-1 (FICT.).', 'D.- Hipótesis.', 'El avance enemigo será canalizado (FICT.).', '', 'II.- MISIÓN.', 'El CE-I defiende (FICT.).'].join('\n')
+  const d = M.aplicarRespuesta(DEF, prosa, {})
+  assert.equal(d.valor.campos.refuerzos, 'Se incorporan la DIV-1 (FICT.).')
+  const j = M.aplicarRespuesta(DEF, '```json\n' + JSON.stringify({ campos: { refuerzos: 'Omitido.', hipotesis: 'X (FICT.)' } }) + '\n```', {})
+  assert.ok(j.ok && !('hipotesis' in j.valor.campos))
+  const w = O.especificacion({ esquema: 'ogo-v1', campos: { hipotesis: 'Vieja (FICT.)', refuerzos: 'R (FICT.)\nHipótesis: vieja (FICT.)' } }, {})
+  const sit = w.secciones.find((x) => x.titulo === 'SITUACIÓN.')
+  assert.deepEqual(sit.hijos.map((h) => h.titulo), ['Fuerzas enemigas.', 'Fuerzas propias.', 'Refuerzos y reducciones.'])
+  assert.equal(sit.hijos[2].texto, 'R (FICT.)')
 })
 
 // ── LA IA ───────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -425,7 +466,7 @@ caso('la IA: el pedido trae la forma, la doctrina del Capítulo VII, el ejemplo 
     'El G-2 (PICB)',
     // las reglas y la verificación
     '«1.- DIV MEC-2 (OD).»',
-    'La «hipotesis» va VACÍA en una ORDEN',
+    'NO escribas hipótesis ni suposiciones en ninguna parte',
     'MANIOBRA: FASE POR FASE',
     '"maniobra": "…"',
     '"prioridadCom": "…"',
@@ -461,13 +502,12 @@ caso('la IA: por partes (la Orden es larga) — sólo esas claves, con el format
 
 caso('la IA: la respuesta en JSON (sólo completar no pisa) y escrita como documento', () => {
   const campos = Object.fromEntries(M.camposDe(DEF).map((c) => [c.id, `${c.t} (IA, FICT.)`]))
-  campos.hipotesis = ''
   campos.maniobra = 'FASE I (CONCENTRACIÓN) desde el D-10 hasta el D-8.\nLa DIV MEC-2 (OD), esfuerzo principal, se concentra en Turco (IA, FICT.).'
   const resp = '```json\n' + JSON.stringify({ campos }) + '\n```'
   const a = M.aplicarRespuesta(DEF, resp, {})
   assert.ok(a.ok, a.error)
   assert.equal(a.valor.campos.maniobra, campos.maniobra)
-  assert.equal(a.valor.campos.hipotesis, '')
+  assert.ok(!('hipotesis' in a.valor.campos), 'sin hipótesis: es una ORDEN')
   const propio = M.armar(DEF, {}, { campos: { mision: 'La mía (FICT.)' } }).valor
   const b = M.aplicarRespuesta(DEF, resp, propio, { modo: 'completar' })
   assert.equal(b.valor.campos.mision, 'La mía (FICT.)')

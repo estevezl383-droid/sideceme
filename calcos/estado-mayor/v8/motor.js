@@ -109,6 +109,8 @@ export function normalizar(def, valor) {
   const o = esObj(o0) ? o0 : {}
   const campos = {}
   for (const c of camposDe(def)) campos[c.id] = texto(o.campos?.[c.id] ?? o[c.id])
+  // `def.limpiar(id, texto)`: lo que el documento no admite (la OGO: las hipótesis) no queda en ningún apartado
+  if (typeof def.limpiar === 'function') for (const id of Object.keys(campos)) campos[id] = texto(def.limpiar(id, campos[id]) ?? campos[id])
   let caps = []
   if (tieneCaps(def)) {
     caps = (Array.isArray(o.caps) ? o.caps.filter(esObj) : []).map((c, i) => ({
@@ -132,6 +134,8 @@ export function normalizar(def, valor) {
     ideas: texto(o.ideas),
     firma: limpio(o.firma),
     iaCampos: Array.isArray(o.iaCampos) ? [...new Set(o.iaCampos.map(String))] : [],
+    // lo que había antes de ♻️ Rehacer (para volver atrás)
+    ...(esObj(o.anterior?.campos) ? { anterior: { campos: Object.fromEntries(Object.entries(o.anterior.campos).filter(([k]) => k in campos).map(([k, x]) => [k, texto(x)])), iaCampos: Array.isArray(o.anterior.iaCampos) ? o.anterior.iaCampos.map(String) : [] } } : {}),
   }
 }
 export const esDe = (def, v) => esObj(v) && (v.esquema === def.esquema || (viejo(def, v) && migrado(def, v)?.esquema === def.esquema))
@@ -197,6 +201,33 @@ export function armar(def, valor, P = {}) {
     v = { ...v, caps }
   }
   return { valor: v, cambios: [...new Set(cambios)] }
+}
+
+// ─── ♻️ Rehacer con lo que trae la Mesa (pisando) ───────────────────────────────────
+// Para un documento que ya estaba escrito con otra forma: los campos `ids` pasan a lo que propone 🌱 (sólo los que 🌱
+// sabe llenar); lo que había queda en `anterior` para volver atrás con `volverAnterior`.
+export function rehacer(def, valor, P = {}, ids = []) {
+  const v = normalizar(def, valor)
+  const titulos = Object.fromEntries(camposDe(def).map((c) => [c.id, c.t]))
+  const campos = { ...v.campos }
+  const antes = {}
+  const cambios = []
+  for (const id of ids) {
+    const t = P.campos?.[id]
+    if (!(id in campos) || !limpio(t) || texto(t) === campos[id]) continue
+    antes[id] = campos[id]
+    campos[id] = texto(t)
+    cambios.push(String(titulos[id] || id).replace(/\.-?$/, ''))
+  }
+  if (!cambios.length) return { valor: v, cambios }
+  const iaCampos = v.iaCampos.filter((x) => !(x.startsWith('campo:') && x.slice(6) in antes))
+  return { valor: { ...v, campos, iaCampos, anterior: { campos: antes, iaCampos: v.iaCampos } }, cambios }
+}
+export function volverAnterior(def, valor) {
+  const v = normalizar(def, valor)
+  if (!v.anterior) return v
+  const { anterior, ...resto } = v
+  return { ...resto, campos: { ...v.campos, ...anterior.campos }, iaCampos: anterior.iaCampos }
 }
 
 // La versión actualizada (F2·P13) parte de la de la fase 1 (F1·P3), sin pisar.
@@ -517,5 +548,6 @@ export function aplicarRespuesta(def, respuesta, valor, { modo = 'completar', co
       c.desventajas = poner(c.desventajas, x.desventajas, `cap:${c.id}:desventajas`)
     })
   if (!n) return { ok: false, error: mejorar ? 'La respuesta no traía apartados del documento.' : 'No había nada vacío que la respuesta completara (lo escrito no se pisa). Si querés que reescriba, elegí «Completar y mejorar».' }
+  if (typeof def.limpiar === 'function') for (const id of Object.keys(campos)) campos[id] = texto(def.limpiar(id, campos[id]) ?? campos[id])
   return { ok: true, valor: { ...v, campos, caps, iaCampos: [...ia] }, n, como: lectura.como, msg: `${n} apartado(s) ${mejorar ? 'escritos' : 'completados'} por la IA${COMO[lectura.como] || ''}. Quedan marcados 🤖: revisalos antes de darlos por buenos.` }
 }

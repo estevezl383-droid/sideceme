@@ -125,7 +125,6 @@ const AY = {
   caePeligroso: 'Lo que la amenaza es capaz de hacer que puede amenazar el éxito del curso de acción propio; dentro de su capacidad y de su doctrina. El mismo nivel de detalle que el más probable',
   propias: 'Considere la misión, la intención del Comandante y el concepto de la operación de dos escalones superiores. Los subpárrafos indican las misiones de las Unidades en los flancos y otras Unidades cuyas acciones tienen un efecto significativo en el comando de la Unidad («1.- FF.TT.T.O.» con «a.- Misión: …», «b.- Intención: …», «c.- Concepto: …»; «2.- Unidades adyacentes: …»)',
   refuerzos: 'Generalmente, la organización de la tarea se cubre en el Anexo “A” (Organización de la Tarea) en lo que respecta a las órdenes de operaciones de División y Cuerpo de Ejército. Si el Anexo “A” no se incluye con la orden, la información respecto a las Unidades en refuerzo o reducidas se incluye en este subpárrafo, indicando el lugar, fecha y hora en que la reducción o refuerzo cobra vigencia («Omitido.» si no hay)',
-  hipotesis: '(Aplica sólo para el Plan de Operaciones) Enumere todas las hipótesis establecidas. En una ORDEN de operaciones se deja vacío (no sale en el Word)',
   mision: 'Es la transcripción de la misión aprobada por el Comandante al finalizar el Análisis de la Misión: UNA oración con todos sus elementos y EN ESTE ORDEN: QUIÉN (la Unidad que ejecuta la operación), QUÉ (el tipo de operación —ataca, defiende— y la tarea esencial, expresada como tarea táctica: destruye, fija, canaliza, bloquea…), CUÁNDO (a partir del D (hora) hasta el D+n (hora), con orden…), DÓNDE (AO, objetivos, coordenadas) y el PROPÓSITO («con el propósito de…»). Sin agregados («reteniendo…», «sin permitir…»). Ej. del PMTD: «La Div-2, defiende y destruye al batallón de tanques a partir del D(0600) hasta D+6 (1800) al sud de la LF. ÁGUILA con el propósito de permitir a la DBL-22 ejecutar el contraataque y destruir al Regimiento de tanques de Rojo en el AE. LEÓN.»',
   intencion: 'Va inmediatamente antes del párrafo III.- A.-, redactada en forma inextensa (sin rótulos «Propósito:», «Tareas clave:» ni numeración) con sus tres partes: el PROPÓSITO («Mi intención es…»), las TAREAS CLAVE y/o condiciones («…, para esto es clave inicialmente…, asimismo es importante…») y, en otro párrafo, el ESTADO FINAL: cómo queda la propia fuerza, cómo queda el enemigo y la operación futura («Al finalizar la operación, la FT “LANZA” se encontrará ocupando posiciones en…, con eficiencia combativa, el RIMEC-6 habrá sido destruido…, encontrándose nuestra Unidad en condiciones de realizar operaciones ofensivas con orden.»). Es el nexo entre la misión y el concepto: no entra en el «cómo»',
   concepto: 'Cómo el Comandante visualiza las acciones de las Unidades subordinadas: expande el curso de acción aprobado. Como en el PMTD, un renglón por idea: «Vamos a cumplir la misión mediante (forma de maniobra / forma defensiva). El punto decisivo es … porque …»; una oración por Unidad con su tarea y su propósito: «Una Fuerza de Tarea fuerte en Infantería (OD y esfuerzo principal) defiende y bloquea al…, con el propósito de…», «Una … (OC1 y esfuerzo secundario)…», la reserva («… constituye la reserva, encontrándose en condiciones de ser empleada con orden, con prioridad de planeamiento a la OD y posteriormente a OC1 y OC2»); «El propósito del apoyo de fuegos es…», «La prioridad de esfuerzo de ingeniería será…, la prioridad de trabajo será para la Unidad que lleve la OD», «El Batallón Logístico (operación de sostenimiento) tiene la tarea de…, con el propósito de…»; «La operación se desarrollará en las siguientes fases:» (una por renglón: «FASE I: OCUPACIÓN Y ORGANIZACIÓN DE LA PD (desde … hasta …).») y el estado final («Al finalizar la operación…»)',
@@ -190,7 +189,7 @@ export const DEF = {
         hoja('enemigo', 'Fuerzas enemigas.', { hijos: [hoja('caeProbable', 'Curso de acción del enemigo más probable.'), hoja('caePeligroso', 'Curso de acción del enemigo más peligroso.')] }),
         hoja('propias', 'Fuerzas propias.'),
         hoja('refuerzos', 'Refuerzos y reducciones.'),
-        hoja('hipotesis', 'Hipótesis.', { soloConTexto: true }),
+        // sin «D.- Hipótesis»: es una ORDEN de operaciones (las hipótesis son sólo del PLAN)
       ],
     }),
     hoja('mision', 'MISIÓN.'),
@@ -279,14 +278,27 @@ export function idsDe(def = DEF) {
   return out
 }
 
+// ♻️ Los apartados que se rehacen con la forma del PMTD en una Orden que ya estaba escrita con otra (30-10-2026).
+export const REHACER = ['mision', 'intencion', 'concepto', 'maniobra', 'fuegos', 'reconocimiento', 'inteligencia', 'ingenieros', 'antiaerea', 'tareasManiobra', 'tareasApoyo', 'rpi', 'rifa', 'eeia', 'conceptoApoyo']
+
 // La Orden es larga: si la IA corta respuestas largas, se le pide por partes (el oficial elige cuál en la hoja).
 export const PARTES = [
   { id: 'todo', nom: 'Toda la Orden', ayuda: 'Todos los apartados en un solo pedido (Claude o Gemini, o ChatGPT con un plan pago).' },
-  { id: 'situacion', nom: 'I-II', ayuda: 'OBJETO, CARTAS, ANEXOS, Organización de la tarea, I.- SITUACIÓN y II.- MISIÓN.', campos: ['objeto', 'cartas', 'anexos', 'orgTarea', 'situacion', 'enemigo', 'caeProbable', 'caePeligroso', 'propias', 'refuerzos', 'hipotesis', 'mision'] },
+  { id: 'situacion', nom: 'I-II', ayuda: 'OBJETO, CARTAS, ANEXOS, Organización de la tarea, I.- SITUACIÓN y II.- MISIÓN.', campos: ['objeto', 'cartas', 'anexos', 'orgTarea', 'situacion', 'enemigo', 'caeProbable', 'caePeligroso', 'propias', 'refuerzos', 'mision'] },
   { id: 'concepto', nom: 'III concepto', ayuda: 'III.- Intención, A.- Concepto de la operación: maniobra fase por fase, fuegos, reconocimiento, inteligencia, ingenieros, antiaérea, QBN, PM y AC/GM.', campos: ['intencion', 'concepto', 'maniobra', 'fuegos', 'apoyoAereo', 'artilleria', 'mcaf', 'reconocimiento', 'inteligencia', 'ingenieros', 'antiaerea', 'qbn', 'policiaMilitar', 'acgm'] },
   { id: 'tareas', nom: 'III tareas', ayuda: 'III.- B.- y C.- Tareas de las unidades de maniobra y de apoyo de combate, y D.- Instrucciones de coordinación.', campos: ['tareasManiobra', 'tareasApoyo', 'vigencia', 'rpi', 'rifa', 'eeia', 'riesgos', 'reglas', 'ambiente', 'proteccion', 'adicionales', 'limiteAvance', 'mcafVigentes', 'ensayo', 'amenazaRetaguardia', 'restricciones'] },
   { id: 'servicio', nom: 'IV-V', ayuda: 'IV.- APOYO DE SERVICIO y V.- COMANDO Y COMUNICACIONES.', campos: ['servicio', 'conceptoApoyo', 'logistica', 'personal', 'asuntosCiviles', 'comando', 'sucesion', 'puestosComando', 'ioc', 'prioridadCom'] },
 ]
+
+// ─── Una ORDEN de operaciones no lleva hipótesis ─────────────────────────────────────────────────────────────────
+// Si la IA (o una hoja de antes) escribe igual «D.- Hipótesis.» con su texto, eso no queda en ningún apartado (el lector
+// de documentos lo dejaba al final de «C.- Refuerzos y reducciones»): se corta desde ese título hasta el final.
+const TITULO_HIPOTESIS = /^\s*(?:[A-Z]\s*\.-\s*|\d{1,2}\s*\.-\s*)?(?:Hip[oó]tesis|Suposiciones)\s*(?:[.:]|$)/i
+export function sinHipotesis(t) {
+  const ls = String(t ?? '').split('\n')
+  const i = ls.findIndex((l) => TITULO_HIPOTESIS.test(l))
+  return i < 0 ? String(t ?? '') : ls.slice(0, i).join('\n').trim()
+}
 
 // ─── Lo escrito en la hoja vieja (32 casillas planas) pasa a su apartado ───────────────────────────────────────
 const VIEJAS = [
@@ -299,7 +311,7 @@ const VIEJAS = [
   ['A.2 Curso de acción más PELIGROSO', 'caePeligroso'],
   ['B. Fuerzas propias', 'propias'],
   ['C. Refuerzos y reducciones', 'refuerzos'],
-  ['D. Hipótesis (sólo en el PLAN de operaciones)', 'hipotesis'],
+  ['D. Hipótesis (sólo en el PLAN de operaciones)', null], // una ORDEN no lleva hipótesis: lo escrito ahí no pasa
   ['Misión', 'mision'],
   ['Intención del Comandante', 'intencion'],
   ['A. Concepto de la operación', 'concepto'],
@@ -343,7 +355,7 @@ export function desdeHojaVieja(v) {
   const ia = []
   for (const [k, id] of VIEJAS) {
     const x = v[k]
-    if (typeof x !== 'string' || vacio(x)) continue
+    if (!id || typeof x !== 'string' || vacio(x)) continue
     const deIA = TIENE_MARCA.test(x)
     const ls = lineas(x)
     if (!deIA && SEMILLA_VIEJA[id] && ls.every((l) => SEMILLA_VIEJA[id].test(l))) continue
@@ -2077,7 +2089,7 @@ export function normalizarValor(valor) {
   const o0 = esHojaVieja(valor) ? desdeHojaVieja(valor) : valor
   const o = esObj(o0) ? o0 : {}
   const campos = {}
-  for (const id of idsDe()) campos[id] = texto(o.campos?.[id] ?? '')
+  for (const id of idsDe()) campos[id] = texto(sinHipotesis(o.campos?.[id] ?? ''))
   return { esquema: ESQUEMA, numero: limpio(o.numero), campos, ideas: texto(o.ideas), firma: limpio(o.firma), iaCampos: Array.isArray(o.iaCampos) ? o.iaCampos : [] }
 }
 
@@ -2091,7 +2103,7 @@ export const GUIA = {
     '🤖 la IA la redacta COMPLETA con el expediente y la doctrina del Capítulo VII (cómo se escriben la misión, la intención, el concepto, la maniobra por fases y las tareas), con el nivel de detalle de una orden real. Si tu IA corta las respuestas largas, pedila por partes (I-II · III concepto · III tareas · IV-V).',
     'Cada párrafo con la forma del PMTD: la MISIÓN en una oración (quién, qué, cuándo, dónde y propósito, en ese orden); la INTENCIÓN en prosa («Mi intención es…, para esto es clave… Al finalizar la operación…»); el CONCEPTO («Vamos a cumplir la misión mediante… El punto decisivo es… porque…», una oración por Unidad con su tarea y su propósito, fuegos, ingenieros, sostenimiento, fases y estado final); la MANIOBRA fase por fase; las TAREAS fase por fase, TODAS las Unidades con «TAREA:» y «PROPÓSITO:».',
     'Dentro de un apartado, los subapartados se escriben «1.- DIV MEC-2 (OD).», «a.- …», «1) …» y las fases «FASE I: NOMBRE (desde … hasta …).», cada uno en su renglón: el Word los numera solo (I.- A.- 1.- a.- 1) a)).',
-    'Los RCIC van SOLAMENTE en III.- D.- 2.- (no en los anexos): 🌱 trae los que ya determinó cada sección (la F2·P8 del G-1, G-3, G-4, G-5 y EME, y el Plan de búsqueda del G-2), primero los que priorizó el Comandante. Una ORDEN no lleva hipótesis (sólo el PLAN).',
+    'Los RCIC van SOLAMENTE en III.- D.- 2.- (no en los anexos): 🌱 trae los que ya determinó cada sección (la F2·P8 del G-1, G-3, G-4, G-5 y EME, y el Plan de búsqueda del G-2), primero los que priorizó el Comandante. Una ORDEN de operaciones NO lleva hipótesis: el párrafo I.- SITUACIÓN termina en C.- Refuerzos y reducciones.',
     'Controlá los anexos (🗺️ abajo): Inteligencia (G-2), Apoyo de Fuegos, Ingeniería, Apoyo de Servicio de Combate (G-4), Personal (G-1) y AC/GM (G-5).',
     '👁️ Vista previa y 📄 Word (formato militar): membrete, la Organización de la Tarea en cuadro, la numeración del PMTD, la firma del Comandante, la autenticación y la distribución.',
   ],
@@ -2106,7 +2118,7 @@ export const REGLAS = [
   'Cada idea del concepto en su renglón (la forma, el punto decisivo, una oración por Unidad, fuegos, defensa antiaérea, ingenieros, sostenimiento, «La operación se desarrollará en las siguientes fases:», una fase por renglón, el estado final). En las TAREAS (III.- B.- y C.-), por cada fase: «FASE I: NOMBRE (…).», y por cada Unidad tres renglones: «1.- FT VARGAS (OD).», «TAREA: …», «PROPÓSITO: …». Los RPI y los RIFA, uno por renglón («1) …», «2) …»), nunca varios en el mismo renglón separados por «;».',
   'NADA con rótulos donde el PMTD pide prosa: la intención NO va como «Propósito: … Punto decisivo: … Tareas clave: … Estado final: …», sino «Mi intención es…, para esto es clave… Al finalizar la operación…»; la misión NO lleva gerundios agregados («reteniendo…», «sin permitir…»).',
   'NO repitas el título del apartado dentro de su texto ni le pongas la numeración del apartado («III.- A.- 1.-»): eso lo pone la Mesa.',
-  'Ninguna clave queda vacía ni con «…». Lo que no corresponda: «Omitido.» (refuerzos, QBN) o, si de verdad falta el dato, «SIN DATO — verificar» en ese dato. La «hipotesis» va VACÍA en una ORDEN (sólo el PLAN la lleva).',
+  'Ninguna clave queda vacía ni con «…». Lo que no corresponda: «Omitido.» (refuerzos, QBN) o, si de verdad falta el dato, «SIN DATO — verificar» en ese dato. NO escribas hipótesis ni suposiciones en ninguna parte: es una ORDEN de operaciones (I.- SITUACIÓN termina en C.- Refuerzos y reducciones).',
   'Las unidades, lugares, líneas, puntos, coordenadas, días y horas son SÓLO los del expediente (la Orden superior, el calco, las fases del CAP, las hojas). No inventes unidades ni las renombres. Los RCIC (RPI y RIFA) son los que ya determinó cada sección: transcribilos todos, en el orden del expediente; no los reemplaces por otros.',
 ]
 
