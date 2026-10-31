@@ -293,8 +293,10 @@ export default function EditorDocumento({ campo = '', hoja = null, valor, onValo
   const onAplicar = (texto, modo) => {
     const x = M.aplicarRespuesta(def, texto, v, { modo, corregir: corregirIA() })
     if (!x.ok) return x
-    guardar(x.valor)
-    return { ok: true, msg: x.msg }
+    // (v8) el documento revisa lo de la IA (la OGO: lo que rompe la forma del PMTD no entra; queda el borrador)
+    const r = typeof doc.aceptarIA === 'function' ? doc.aceptarIA(x.valor, v, ctx) : { valor: x.valor, malos: [] }
+    guardar(r.valor)
+    return { ok: true, msg: r.malos?.length ? `${x.msg} ⚠️ La IA no respetó la forma del PMTD en: ${r.malos.join(', ')}. Ahí quedó el borrador de la Mesa (♻️).` : x.msg }
   }
 
   // ── El documento, apartado por apartado ──
