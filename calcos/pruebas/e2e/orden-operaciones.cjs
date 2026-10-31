@@ -77,7 +77,10 @@ function comprobarWord(x, cual) {
   assert.ok(log > 0 && x.indexOf('Abastecimiento: PD-1 en Turco (FICT.).', log) < x.indexOf('Ver Anexo “F” Apoyo de Servicio de Combate.', log), `${cual}: el orden de lo escrito`)
 }
 
-const MEJORA = '```json\n' + JSON.stringify({ campos: { maniobra: 'FASE I: CONCENTRACIÓN (desde el D-10 hasta el D-8).\nLa DIV MEC-2 (OD y esfuerzo principal) se concentra en TURCO con el propósito de completar su aclimatación (IA, FICT.).', apoyoAereo: 'Prioridad de Apoyo Aéreo Cercano a la DIV MEC-2 en la FASE IV (IA, FICT.).' } }) + '\n```'
+// la IA mejora la maniobra SIN romper su forma (las cinco fases, cada unidad): la Mesa la acepta; la que la rompe
+// (una sola fase, la intención con rótulos) no entra y queda el borrador
+const MEJORA = (maniobra) => '```json\n' + JSON.stringify({ campos: { maniobra: maniobra.replace('La DIV MEC-2 (OD y esfuerzo principal) se concentra en Turco.', 'La DIV MEC-2 (OD y esfuerzo principal) se concentra en TURCO con el propósito de completar su aclimatación (IA, FICT.).'), apoyoAereo: 'Prioridad de Apoyo Aéreo Cercano a la DIV MEC-2 en la FASE IV (IA, FICT.).' } }) + '\n```'
+const ROMPE = '```json\n' + JSON.stringify({ campos: { intencion: 'Propósito: detener (IA, FICT.). Tareas clave: fijar (IA, FICT.). Estado final: detenido (IA, FICT.).' } }) + '\n```'
 
 ;(async () => {
   const { leerRespuesta } = await import('../../cap-propios/v1/carta-ia.mjs')
@@ -145,7 +148,7 @@ const MEJORA = '```json\n' + JSON.stringify({ campos: { maniobra: 'FASE I: CONCE
       await clic(doc.getByRole('button', { name: /♻️ Rehacer con la forma del PMTD/ }))
       await doc.getByText(/♻️ Se rehízo:/).waitFor({ timeout: 5000 })
       v = await vals()
-      assert.ok(v.mision.startsWith('El CE-I defiende el AO LAUCA a partir del D (0400)'), `♻️ la misión aprobada pisa la escrita: ${v.mision}`)
+      assert.ok(v.mision.startsWith('El CE-I, defiende y retiene la LF «PUMA» a partir del D (0400)'), `♻️ la misión aprobada, en el orden del PMTD, pisa la escrita: ${v.mision}`)
       await clic(doc.getByRole('button', { name: '↩️ Volver a lo que estaba antes de rehacer' }))
       await doc.getByText(/Volvió lo que estaba escrito/).waitFor({ timeout: 5000 })
       v = await vals()
@@ -168,9 +171,15 @@ const MEJORA = '```json\n' + JSON.stringify({ campos: { maniobra: 'FASE I: CONCE
       const json = pedido.slice(pedido.lastIndexOf('# CÓMO CONTESTAR'))
       assert.ok(!json.includes('"mision": "…"'), 'el JSON pide sólo la parte')
       const caja = doc.locator('textarea[placeholder^="Pegá acá la respuesta"]')
-      await caja.fill(MEJORA)
+      const intencionAntes = v.intencion
+      await caja.fill(ROMPE)
       await clic(doc.getByRole('button', { name: '✓ Aplicar' }))
-      await doc.getByText(/apartado\(s\) escritos por la IA/).waitFor({ timeout: 5000 })
+      await doc.getByText(/La IA no respetó la forma del PMTD en: Intención del Comandante/).waitFor({ timeout: 5000 })
+      v = await vals()
+      assert.equal(v.intencion, intencionAntes, 'la intención con rótulos no entra: queda el borrador')
+      await caja.fill(MEJORA(v.maniobra))
+      await clic(doc.getByRole('button', { name: '✓ Aplicar' }))
+      await doc.getByText(/^(?![\s\S]*no respetó)[\s\S]*apartado\(s\) escritos por la IA/).waitFor({ timeout: 5000 })
       v = await vals()
       assert.ok(v.maniobra.includes('con el propósito de completar su aclimatación (IA, FICT.)'), 'mejorar reescribe la maniobra')
       assert.equal(v.apoyoAereo, 'Prioridad de Apoyo Aéreo Cercano a la DIV MEC-2 en la FASE IV (IA, FICT.).')

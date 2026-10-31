@@ -579,10 +579,10 @@ export const tareaEnPresente = (t) => (/^reserva\b/i.test(limpio(t)) ? `constitu
 export function proposito(p) {
   let s = plano(p).replace(/[.;]+$/, '')
   if (!s || /^para cumplir (con )?la misi[oó]n$/i.test(s)) return ''
-  s = s.replace(/^(con el (prop[oó]sito|fin|objeto) de|a fin de|con la finalidad de)\s+/i, '').replace(/^(\p{Lu}{4,})(?=\s+\p{Ll})/u, (w) => w.toLowerCase())
-  s = minus(s)
-  if (/^para que\b/i.test(s)) return `con el propósito de que ${s.replace(/^para que\s+/i, '')}`
-  return `con el propósito de ${s.replace(/^para\s+/i, '')}`
+  s = s.replace(/^(con el (prop[oó]sito|fin|objeto) de|a fin de|con la finalidad de)\s+/i, '')
+  const sinMayus = (x) => minus(x.replace(/^(\p{Lu}{4,})(?=\s+\p{Ll})/u, (w) => w.toLowerCase()))
+  if (/^para que\b/i.test(s)) return `con el propósito de que ${sinMayus(s.replace(/^para que\s+/i, ''))}`
+  return `con el propósito de ${sinMayus(s.replace(/^para\s+/i, ''))}`
 }
 
 // ─── El CAP aprobado en la carta ────────────────────────────────────────────────────────────────────────────────
@@ -905,6 +905,32 @@ function cuandoMision(c) {
 const dondeMision = (d) => (!d || PREP_LUGAR.test(d) ? d : `en ${d}`)
 // «Defender y retener la LF PUMA» → «defiende y retiene la LF PUMA»
 const quePresente = (q) => minus(presenteTodo(q))
+// «El CE-I defiende el AO LAUCA a partir del D (0400) y hasta el D+15 (1800), reteniendo la LPR sobre la LF «PUMA» sin
+// permitir que…, con el propósito de…» → «El CE-I, defiende y retiene la LPR sobre la LF «PUMA» a partir del D (0400)
+// hasta el D+15 (1800) en el AO LAUCA, con el propósito de…»: quién, qué, cuándo, dónde y propósito, sin el gerundio.
+const PRESENTE_DE = { reteniendo: 'retiene', manteniendo: 'mantiene', deteniendo: 'detiene', conteniendo: 'contiene', destruyendo: 'destruye', impidiendo: 'impide', defendiendo: 'defiende', negando: 'niega', persiguiendo: 'persigue' }
+const presenteDeGerundio = (g) => PRESENTE_DE[sinTildes(g).toLowerCase()] || (/ando$/i.test(g) ? g.replace(/ando$/i, 'a') : /iendo$/i.test(g) ? g.replace(/iendo$/i, 'e') : g)
+const VERBO_MISION = /\s(defiende|ataca|retarda|retiene|bloquea|destruye|fija|canaliza|contraataca|conquista|ocupa|asegura|controla|neutraliza|se repliega)\b/i
+export function misionOrdenada(t) {
+  const s = plano(t)
+  const ip = s.search(/,?\s+con el prop[oó]sito de\s/i)
+  if (ip < 0) return s
+  let cabeza = s.slice(0, ip).trim()
+  const prop = sinPunto(s.slice(ip).replace(/^,?\s+/, ''))
+  const g = cabeza.match(/,\s*(\p{L}+(?:ando|iendo|endo))\s+(.+)$/u)
+  if (!g) return s
+  cabeza = cabeza.slice(0, g.index).trim()
+  const objeto = g[2].replace(/\s+sin permitir\b.*$/i, '').trim()
+  const tm = cabeza.match(/\s+((?:a partir del?|desde el?)\s.+)$/i)
+  if (!tm) return s
+  const cuando = tm[1].replace(/\s+y\s+hasta\s+/i, ' hasta ')
+  cabeza = cabeza.slice(0, tm.index).trim()
+  const vm = cabeza.match(VERBO_MISION)
+  if (!vm) return s
+  const quien = cabeza.slice(0, vm.index).trim().replace(/,$/, '')
+  const donde = cabeza.slice(vm.index + vm[0].length).trim()
+  return punto(`${quien}, ${vm[1]} y ${presenteDeGerundio(g[1])} ${objeto} ${cuando}${donde ? ` ${dondeMision(donde)}` : ''}, ${prop}`)
+}
 export function misionTexto(ctx = {}) {
   const g3 = g3De(ctx)
   const [quien, que, cuando, donde, prop] = ['QUIÉN', 'QUÉ', 'CUÁNDO', 'DÓNDE', 'PROPÓSITO'].map((k) => sinPunto(plano(sinCuentas(casilla(g3.mision, k)))))
@@ -915,9 +941,9 @@ export function misionTexto(ctx = {}) {
   }
   if (quien && que && cuando && donde && p && [quien, que, cuando, donde, prop].every((x) => x.length < 300)) return armar()
   const enunciado = casilla(g3.mision, 'ENUNCIADO COMPLETO')
-  if (enunciado) return punto(plano(enunciado))
+  if (enunciado) return punto(misionOrdenada(enunciado))
   if (quien && que && [cuando, donde, p].filter(Boolean).length >= 2) return armar()
-  return punto(plano(casilla(g3.prep3, 'II.- MISIÓN')) || plano(ordenDe(ctx).mision))
+  return punto(misionOrdenada(casilla(g3.prep3, 'II.- MISIÓN') || ordenDe(ctx).mision))
 }
 
 // ─── LA INTENCIÓN DEL COMANDANTE ────────────────────────────────────────────────────────────────────────────────
@@ -2197,7 +2223,7 @@ export const GUIA = {
 }
 
 export const PRODUCTO = (ctx, hoja) =>
-  `Tu producto es la ORDEN GENERAL DE OPERACIONES ${unidadDe(ctx) ? `${articuloDe(unidadDe(ctx)) === 'DEL' ? 'del' : 'de la'} ${unidadDe(ctx)} ` : ''}(hoja ${hoja?.num || 'F7·P1'} del PMTD, Fase VII «Elaborar planes y órdenes»): el documento en el que desemboca TODO el planeamiento. La coordina el G-3, la escribe todo el Estado Mayor y la firma el Comandante. Va con la forma de CINCO PÁRRAFOS del TEXTO PMTD 2017 (Parte Primera, Capítulo VII), apartado por apartado: OBJETO, CARTAS, ANEXOS; ORGANIZACIÓN DE LA TAREA; I.- SITUACIÓN; II.- MISIÓN; III.- EJECUCIÓN (la Intención del Comandante sin número, A.- Concepto de la operación con 1.- Maniobra … 9.- Operaciones de AC/GM, B.- Tareas de las unidades de maniobra, C.- de apoyo de combate, D.- Instrucciones de coordinación); IV.- APOYO DE SERVICIO; V.- COMANDO Y COMUNICACIONES. Tiene que INTEGRAR todo lo que ya trabajó el Estado Mayor en la Mesa: la Orden del escalón superior, el CAE más probable y el más peligroso del G-2, la misión aprobada, la intención del Comandante, los RCIC (RPI y RIFA) que determinó cada sección del Estado Mayor, el CAP aprobado con su maniobra FASE POR FASE y la tarea y el propósito de CADA unidad, los fuegos, el plan de barreras, el reconocimiento, la matriz de riesgo, la matriz de sincronización y los anexos del G-1, G-4 y G-5. Cada párrafo va con la FORMA del PMTD (la misión, la intención, el concepto, la maniobra y las tareas como en los ejemplos del PMTD de la DOCTRINA y del EJEMPLO DE REDACCIÓN). Tiene que quedar COMPLETA, con el nivel de detalle de una orden real de Cuerpo de Ejército o División: nada de resúmenes, de cuentas sueltas («13 trabajos», «18 límites») ni de remisiones a hojas de la Mesa («ver F3·P4»). El membrete, la numeración, la firma, la autenticación y la distribución los pone la Mesa.`
+  `LO PRIMERO: más abajo está «EL BORRADOR DE LA MESA» (♻️): la misión, la intención, el concepto, la maniobra, las tareas y los RCIC YA ESTÁN con la forma del PMTD y con los datos de la carta. Devolvelos MEJORADOS conservando esa forma renglón por renglón (lo que la rompa, la Mesa lo descarta) y completá los demás apartados. Tu producto es la ORDEN GENERAL DE OPERACIONES ${unidadDe(ctx) ? `${articuloDe(unidadDe(ctx)) === 'DEL' ? 'del' : 'de la'} ${unidadDe(ctx)} ` : ''}(hoja ${hoja?.num || 'F7·P1'} del PMTD, Fase VII «Elaborar planes y órdenes»): el documento en el que desemboca TODO el planeamiento. La coordina el G-3, la escribe todo el Estado Mayor y la firma el Comandante. Va con la forma de CINCO PÁRRAFOS del TEXTO PMTD 2017 (Parte Primera, Capítulo VII), apartado por apartado: OBJETO, CARTAS, ANEXOS; ORGANIZACIÓN DE LA TAREA; I.- SITUACIÓN; II.- MISIÓN; III.- EJECUCIÓN (la Intención del Comandante sin número, A.- Concepto de la operación con 1.- Maniobra … 9.- Operaciones de AC/GM, B.- Tareas de las unidades de maniobra, C.- de apoyo de combate, D.- Instrucciones de coordinación); IV.- APOYO DE SERVICIO; V.- COMANDO Y COMUNICACIONES. Tiene que INTEGRAR todo lo que ya trabajó el Estado Mayor en la Mesa: la Orden del escalón superior, el CAE más probable y el más peligroso del G-2, la misión aprobada, la intención del Comandante, los RCIC (RPI y RIFA) que determinó cada sección del Estado Mayor, el CAP aprobado con su maniobra FASE POR FASE y la tarea y el propósito de CADA unidad, los fuegos, el plan de barreras, el reconocimiento, la matriz de riesgo, la matriz de sincronización y los anexos del G-1, G-4 y G-5. Cada párrafo va con la FORMA del PMTD (la misión, la intención, el concepto, la maniobra y las tareas como en los ejemplos del PMTD de la DOCTRINA y del EJEMPLO DE REDACCIÓN). Tiene que quedar COMPLETA, con el nivel de detalle de una orden real de Cuerpo de Ejército o División: nada de resúmenes, de cuentas sueltas («13 trabajos», «18 límites») ni de remisiones a hojas de la Mesa («ver F3·P4»). El membrete, la numeración, la firma, la autenticación y la distribución los pone la Mesa.`
 
 // ─── EL BORRADOR DE LA MESA, la base del pedido a la IA ───────────────────────────────────────────────────────────
 // Lo que trae ♻️ (la forma del PMTD con las unidades, fases, tareas, propósitos y RCIC del ejercicio) va a la IA como
@@ -2218,13 +2244,86 @@ export function borradorParaIA(ctx = {}, valor = null) {
   if (!distintos.length) return 'El DOCUMENTO DE HOY ya es el borrador de la Mesa en esos apartados (♻️): mejoralo conservando su forma renglón por renglón.'
   return distintos.map((id) => `### ${tit[id] || id} — clave "${id}"\n${P[id]}`).join('\n\n')
 }
+// ¿El apartado conserva la forma del PMTD? Lo que devuelve la IA en los apartados de ♻️ se acepta sólo si la conserva
+// (Sergio, 31-10-2026, con la Orden que le hizo la IA: intención con rótulos, concepto resumido, tareas en un párrafo,
+// RIFA vacíos, la misión con gerundios); si no, queda lo que había o el borrador de la Mesa.
+const RE_FASE = /^FASE\s+[IVXL]+\b/i
+const RE_ROTULOS = /^(Prop[oó]sito|Punto decisivo|Tareas? clave|Estado final|Esfuerzo principal|Esfuerzos secundarios|Reserva|Primer escal[oó]n|Segundo escal[oó]n)\s*:/im
+// lo que el borrador cumple, el apartado de la IA también tiene que cumplirlo
+const SELLOS = {
+  fuegos: [/tienen la tarea de/i, /con el prop[oó]sito de/i, /el m[eé]todo/i],
+  inteligencia: [/enfoque de recopilaci[oó]n/i, /prioridad de apoyo/i],
+  ingenieros: [/prioridad de esfuerzo/i, /prioridad de trabajo/i],
+  antiaerea: [/tarea de los medios/i, /con el prop[oó]sito de/i],
+  conceptoApoyo: [/enfoque de apoyo log[ií]stico/i],
+  reconocimiento: [/punto focal/i],
+}
+const unidadesDe = (t) => unicos(lineas(t).map((l) => (l.match(/^\d{1,2}\s*\.-\s*(.+?)\.?$/) || [])[1]).filter(Boolean).map(norm))
+export function formaPMTD(id, t, borrador = '') {
+  const s = txt(t).trim()
+  if (!s) return false
+  const ls = lineas(s)
+  const cuenta = (re, x) => lineas(x).filter((l) => re.test(l)).length
+  const brigadasNuevas = /\b(Una|La|Un|El)\s+(Brigada|Fuerza de Tarea)\b/.test(s) && !/\b(Una|La|Un|El)\s+(Brigada|Fuerza de Tarea)\b/.test(borrador)
+  if (brigadasNuevas || /(?<![\d.°'"])-?\d{1,2}\.\d{3,}\s*,\s*-?\d{1,3}\.\d{3,}/.test(s)) return false
+  switch (id) {
+    case 'mision': {
+      const antes = s.split(/con el prop[oó]sito de/i)[0]
+      return ls.length === 1 && /con el prop[oó]sito de/i.test(s) && !/,\s*\p{L}+(?:ando|iendo)\s/u.test(antes) && !/sin permitir/i.test(antes)
+    }
+    case 'intencion':
+      return /^Mi intenci[oó]n es\b/i.test(s) && /Al finalizar la operaci[oó]n/i.test(s) && !RE_ROTULOS.test(s)
+    case 'concepto':
+      return /^(Vamos a cumplir la misi[oó]n|La operaci[oó]n se cumple|Cumpliremos la misi[oó]n)\b/i.test(s) && /siguientes fases/i.test(s) && !RE_ROTULOS.test(s) && ls.length >= Math.min(4, lineas(borrador).length || 4)
+    case 'maniobra':
+      return cuenta(RE_FASE, s) >= Math.max(1, cuenta(RE_FASE, borrador)) && !RE_ROTULOS.test(s)
+    case 'tareasManiobra':
+    case 'tareasApoyo': {
+      const b = unidadesDe(borrador)
+      return cuenta(/^TAREA\s*:/i, s) > 0 && cuenta(RE_FASE, s) >= cuenta(RE_FASE, borrador) && cuenta(/^TAREA\s*:/i, s) >= cuenta(/^TAREA\s*:/i, borrador) && cuenta(/^PROP[OÓ]SITO\s*:/i, s) >= cuenta(/^PROP[OÓ]SITO\s*:/i, borrador) && unidadesDe(s).every((u) => !b.length || b.includes(u))
+    }
+    case 'rpi':
+    case 'rifa':
+    case 'eeia':
+      // uno por renglón (no «1) …? 2) …?» en el mismo), al menos los del borrador, y no «SIN DATO» si el borrador los trae
+      return ls.length >= lineas(borrador).length && !ls.some((l) => /[?.;]\s*\d{1,2}\s*[).-]+\s+\S/.test(l)) && !(lineas(borrador).length && /^SIN DATO/i.test(s))
+    default:
+      return (SELLOS[id] || []).every((re) => !re.test(borrador) || re.test(s))
+  }
+}
+const tituloDe = (id) => {
+  let t = id
+  const rec = (ns) => ns.forEach((n) => (n.id === id ? (t = n.t.replace(/\.$/, '')) : n.hijos && rec(n.hijos)))
+  rec(DEF.arbol)
+  return t
+}
+// Lo que devolvió la IA, revisado: en los apartados de ♻️ que la IA cambió rompiendo la forma del PMTD, queda lo que
+// había (si tenía la forma) o el borrador de la Mesa. → { valor, malos: ['Intención del Comandante', …] }
+export function aceptarIA(nuevo, antes = {}, ctx = {}) {
+  const B = propuestas(ctx).campos
+  const campos = { ...(nuevo?.campos || {}) }
+  const previo = antes?.campos || {}
+  let ia = Array.isArray(nuevo?.iaCampos) ? [...nuevo.iaCampos] : []
+  const malos = []
+  for (const id of REHACER) {
+    if (!(id in campos) || texto(campos[id]) === texto(previo[id] || '')) continue
+    const b = texto(B[id] || '')
+    if (formaPMTD(id, campos[id], b)) continue
+    campos[id] = formaPMTD(id, previo[id], b) ? previo[id] : b || previo[id] || ''
+    ia = ia.filter((x) => x !== `campo:${id}`)
+    malos.push(tituloDe(id))
+  }
+  return { valor: { ...nuevo, campos, iaCampos: ia }, malos }
+}
+
 export const TAREA_IA = `PARTÍ DEL BORRADOR DE LA MESA. Para la misión, la intención, el concepto de la operación (con la maniobra, los fuegos, el reconocimiento, la inteligencia, los ingenieros y la defensa antiaérea), las tareas de las unidades, los RCIC y el concepto de apoyo, la Mesa ya armó un BORRADOR con la forma del PMTD y con las unidades, las fases, las tareas, los propósitos y los RCIC de este ejercicio (el bloque «EL BORRADOR DE LA MESA», o el documento de hoy si ya lo es). Tu trabajo es MEJORARLO, no rehacerlo:
 1. Conservá su forma renglón por renglón: la misión en UNA oración (quién, qué, cuándo, dónde, propósito); la intención «Mi intención es…, para esto es clave…» y «Al finalizar la operación…»; en el concepto, las mismas oraciones («Vamos a cumplir la misión mediante…», una por unidad, fuegos, ingenieros, sostenimiento, las fases, el estado final); en la maniobra y en las tareas, las MISMAS fases con su nombre y desde/hasta y, en cada fase, las MISMAS unidades en el mismo orden con «1.- UNIDAD (rol).», «TAREA: …» y «PROPÓSITO: …»; los mismos RPI, RIFA y EEIA, uno por renglón.
 2. Las unidades son SÓLO las del borrador, con su designación y su escalón (si son Divisiones, son Divisiones: nunca «Brigada», «Fuerza de Tarea» ni las fichas genéricas «OD», «OC 1»). No agregues, no saques ni renombres unidades.
 3. Completá lo que dice «SIN DATO — verificar» con el expediente (el punto decisivo, el propósito de una tarea…); si de verdad no está, dejalo así.
 4. Corregí la redacción: presente impositivo y concordancia («ocupa y organiza», «se reúne y se suma»), sin coordenadas decimales (el lugar o la Coord. del borrador), sin rótulos ni remisiones a hojas de la Mesa.
 5. Los apartados que el borrador no trae (la situación, el apoyo aéreo, la artillería, las MCAF, QBN, Policía Militar, AC/GM, las instrucciones de coordinación, IV y V) completalos con el expediente, con la forma de la DOCTRINA y del EJEMPLO.
-6. Nunca hipótesis: es una ORDEN de operaciones.`
+6. Nunca hipótesis: es una ORDEN de operaciones.
+7. La Mesa REVISA lo que devolvés: el apartado que no conserve la forma del borrador (la intención con rótulos, el concepto resumido, las tareas en un párrafo o sin TAREA/PROPÓSITO de cada unidad en cada fase, los RPI o RIFA en un solo renglón o vacíos, la misión con gerundios, otras unidades) se DESCARTA y queda el borrador. Si no podés mejorar un apartado sin romper su forma, devolvelo tal cual.`
 
 export const REGLAS = [
   'Dentro de un apartado, los SUBAPARTADOS van cada uno en su renglón con su marca: «1.- DIV MEC-2 (OD).» (y su texto en el renglón siguiente o después de «:»), «a.- …», «1) …», «a) …»; las fases, «FASE I: NOMBRE (desde el … hasta el …).» en su propio renglón. La Mesa los numera en el Word: la marca sólo dice el nivel.',
@@ -2237,6 +2336,7 @@ export const REGLAS = [
 ]
 
 export const VERIFICACION = [
+  'Cada apartado que vino en EL BORRADOR DE LA MESA conserva su forma renglón por renglón (las mismas fases, las mismas unidades con «TAREA:» y «PROPÓSITO:», la intención «Mi intención es…», el concepto «Vamos a cumplir la misión…», un RPI o RIFA por renglón). Si no, devolvé el del borrador tal cual.',
   'Están TODAS las claves del JSON con texto de ESTA situación; la Orden se lee completa de OBJETO a V.- COMANDO Y COMUNICACIONES, sin huecos.',
   'MISIÓN: UNA oración, en este orden: QUIÉN, QUÉ (tipo de operación + tarea táctica: «defiende y bloquea a…»), CUÁNDO («a partir del D (hora) hasta el D+n (hora)»), DÓNDE y «con el propósito de…»; sin gerundios agregados; es la misión aprobada (F2·P12) del expediente.',
   'INTENCIÓN: en prosa y sin rótulos ni números, como en el PMTD: «Mi intención es (propósito), para esto es clave inicialmente (tareas clave), asimismo es importante…» y, en otro párrafo, «Al finalizar la operación, (cómo queda la propia fuerza), (cómo queda el enemigo), encontrándonos en condiciones de (operación futura).»; NO describe la maniobra.',

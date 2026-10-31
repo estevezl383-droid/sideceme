@@ -43,7 +43,10 @@ export default {
   guias: { opord: OGO.GUIA },
   documentos: {
     opord: {
-      def: { ...OGO.DEF, desdeViejo: OGO.desdeHojaVieja, limpiar: (id, x) => OGO.sinHipotesis(x) },
+      // en ningún apartado: hipótesis ni coordenadas decimales
+      def: { ...OGO.DEF, desdeViejo: OGO.desdeHojaVieja, limpiar: (id, x) => OGO.conCoordenadas(OGO.sinHipotesis(x)) },
+      // lo que devuelve la IA: en los apartados de ♻️, sólo si conserva la forma del PMTD
+      aceptarIA: OGO.aceptarIA,
       nota: NOTA,
       // el Word: la identidad de la OGO del G-3 (plantilla «orden-operaciones») con su estructura propia
       registro: { id: 'opord', militar: true },

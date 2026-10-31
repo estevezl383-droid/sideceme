@@ -166,6 +166,26 @@ Sergio probó ♻️ con su ejercicio («así está mejor») pero el concepto de
   mejorarlo, no rehacerlo — la misma forma renglón por renglón, las mismas unidades con su escalón (nunca «Brigada»),
   completar los «SIN DATO», corregir la redacción, sin decimales, sin hipótesis.
 
+## 31-10-2026 — la IA no puede empeorar lo de ♻️
+
+Sergio, con dos Word: el de ♻️ sin IA («ese está muy bien») y el que le hizo la IA («muy pero muy mal»: la intención con
+«Propósito: … Punto decisivo: …», el concepto resumido, la maniobra por escalones, las tareas en un párrafo, los RPI en un
+renglón, los RIFA «SIN DATO», la misión con «reteniendo… sin permitir…»). La IA no siempre sigue el pedido; por eso la
+Mesa ahora REVISA lo que devuelve:
+
+- `aceptarIA` (por `doc.aceptarIA` del editor v8, al aplicar la respuesta): en los apartados de ♻️ (`REHACER`) que la IA
+  cambió, lo nuevo entra sólo si conserva la forma del PMTD (`formaPMTD`: la misión en una oración sin gerundios, la
+  intención «Mi intención es… Al finalizar la operación…» sin rótulos, el concepto «Vamos a cumplir la misión… siguientes
+  fases», la maniobra con todas las fases, las tareas con todas las fases y TAREA/PROPÓSITO de cada unidad del borrador,
+  los RPI y RIFA uno por renglón y no menos que el borrador; fuegos, inteligencia, ingenieros, antiaérea, reconocimiento y
+  concepto de apoyo con las frases del PMTD que trae el borrador; sin brigadas nuevas ni decimales). Si no, queda lo que
+  había (si tenía la forma) o el borrador de la Mesa, y el aviso dice en qué apartados.
+- El pedido empieza por «LO PRIMERO: … EL BORRADOR DE LA MESA», la tarea (7.) y la verificación le dicen a la IA que lo
+  que rompa la forma se descarta.
+- La misión aprobada con un gerundio se dice en el orden del PMTD (`misionOrdenada`): «El CE-I, defiende y retiene la LPR
+  sobre la LF «PUMA» a partir del D (0400) hasta el D+15 (1800) en el AO LAUCA, con el propósito de…».
+- Ningún apartado queda con coordenadas decimales (`def.limpiar`: también lo que escribe la IA).
+
 ## Qué es de la doctrina y qué es criterio de la Mesa
 
 - **Doctrina (PMTD 2017, Parte Primera, Cap. VII y Parte Tercera)**: los cinco párrafos y sus subpárrafos, las

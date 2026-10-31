@@ -151,7 +151,14 @@ caso('🌱: los preliminares, la organización de la tarea, la situación y la m
   assert.ok(C.propias.includes('b.- Intención del Comandante: Detener a SATURNO al oeste de la LDE-2 (FICT.).'))
   assert.ok(C.propias.includes('2.- Unidades adyacentes y de apoyo: La DIV MEC-1 defiende TAMBO QUEMADO'))
   // II.- la misión aprobada, transcripta
-  assert.equal(C.mision, 'El CE-I defiende el AO LAUCA a partir del D (0400) hasta el D+15 (1800), reteniendo la LF «PUMA», con el propósito de impedir que SATURNO penetre hacia TURCO (FICT.).')
+  // la misión aprobada venía con un gerundio («…, reteniendo la LF «PUMA», con el propósito…»): en el orden del PMTD
+  assert.equal(C.mision, 'El CE-I, defiende y retiene la LF «PUMA» a partir del D (0400) hasta el D+15 (1800) en el AO LAUCA, con el propósito de impedir que SATURNO penetre hacia TURCO (FICT.).')
+  // la del CE-I de Sergio
+  assert.equal(
+    O.misionOrdenada('El I Cuerpo de Ejército (CE-I) defiende el AO LAUCA a partir del D (0400) y hasta el D+15 (1800), reteniendo la Línea Principal de Resistencia sobre la LF «PUMA» (Estancia Esmeralda – Cerro Sacabaya – límite sur) sin permitir que fuerzas enemigas de magnitud batallón o mayor la sobrepasen, con el propósito de impedir que las fuerzas de SATURNO penetren por el valle del río LAUCA hacia TURCO y HUACHACALLA (LDE-2) y envuelvan por el norte al CE-II.'),
+    'El I Cuerpo de Ejército (CE-I), defiende y retiene la Línea Principal de Resistencia sobre la LF «PUMA» (Estancia Esmeralda – Cerro Sacabaya – límite sur) a partir del D (0400) hasta el D+15 (1800) en el AO LAUCA, con el propósito de impedir que las fuerzas de SATURNO penetren por el valle del río LAUCA hacia TURCO y HUACHACALLA (LDE-2) y envuelvan por el norte al CE-II.',
+  )
+  assert.equal(O.misionOrdenada('La Div-2, defiende y destruye al batallón de tanques a partir del D(0600) hasta D+6 (1800) al sud de la LF. ÁGUILA con el propósito de permitir el contraataque.'), 'La Div-2, defiende y destruye al batallón de tanques a partir del D(0600) hasta D+6 (1800) al sud de la LF. ÁGUILA con el propósito de permitir el contraataque.', 'la que ya está bien no se toca')
   // con los cinco elementos de la F2·P12, en el orden del PMTD: QUIÉN, QUÉ, CUÁNDO, DÓNDE y PROPÓSITO, en una oración
   const e3 = ejercicio()
   e3.g3.mision = {
@@ -463,6 +470,54 @@ caso('la IA parte del BORRADOR de la Mesa (♻️): lo mejora, no lo rehace; con
   assert.ok(!q.includes('### MISIÓN — clave "mision"'))
   // sin coordenadas decimales en lo que la Mesa le pasa
   assert.ok(!/-?\d{1,2}\.\d{4},\s*-?\d{1,3}\.\d{4}/.test(G3.datosCalco(ctxDe(), HOJA)))
+})
+
+caso('la IA no puede romper la forma del PMTD: lo que devolvió en la F7·P1 del CE-I (Word 8) no entra; lo que mejora sí', () => {
+  const ctx = ctxDe()
+  const rehecha = M.normalizar(DEF, M.rehacer(DEF, {}, O.propuestas(ctx), DOC.rehacer.campos).valor)
+  // lo que devolvió la IA (la forma del Word 8 de Sergio), en «Completar y mejorar»
+  const mala = {
+    mision: 'El I Cuerpo de Ejército (CE-I) defiende el AO LAUCA a partir del D (0400) y hasta el D+15 (1800), reteniendo la LPR sobre la LF «PUMA» sin permitir que la sobrepasen, con el propósito de impedir que SATURNO penetre (FICT.).',
+    intencion: 'Propósito: Detener al primer escalón (FICT.). Punto decisivo: Ungallire (FICT.). Tareas clave: fijar al enemigo (FICT.). Estado final: enemigo detenido (FICT.).',
+    concepto: 'Defensa de área ejecutada en cuatro fases (FICT.). Fase I (D-44 a D 0400): concentración (FICT.).',
+    maniobra: 'Primer escalón: DIV MEC-2 (esfuerzo principal) retiene la LF «PUMA» (FICT.). Segundo escalón (Reserva): DIV-6 (FICT.).',
+    tareasManiobra: 'DIV MEC-2: Defiende LF «PUMA» sector norte (FICT.). DIV-1: Defiende sector sur (FICT.). DIV-6 (Reserva): lista a contraatacar (FICT.).',
+    fuegos: 'Ejecución centralizada y masiva de contrabatería en Fase II (FICT.).',
+    rpi: '1) ¿Dónde empeña SATURNO su esfuerzo principal? 2) ¿Por cuál eje ataca? (FICT.)',
+    rifa: 'SIN DATO — verificar.',
+    apoyoAereo: '4 vuelos diarios de apoyo aéreo cercano con aviones K-8W (IA, FICT.).',
+    situacion: 'Operaciones defensivas de área en el AO LAUCA (IA, FICT.).',
+  }
+  const x = M.aplicarRespuesta(DEF, '```json\n' + JSON.stringify({ campos: mala }) + '\n```', rehecha, { modo: 'completar_mejorar' })
+  assert.ok(x.ok, x.error)
+  const r = DOC.aceptarIA(x.valor, rehecha, ctx)
+  assert.deepEqual(r.malos.sort(), ['MISIÓN', 'Intención del Comandante', 'Concepto de la operación', 'Maniobra', 'Tareas de las unidades de maniobra', 'Apoyo de fuegos', 'Requerimientos prioritarios de inteligencia (RPI)', 'Requerimientos de información de la fuerza amiga (RIFA)'].sort())
+  for (const id of ['mision', 'intencion', 'concepto', 'maniobra', 'tareasManiobra', 'fuegos', 'rpi', 'rifa']) {
+    assert.equal(r.valor.campos[id], rehecha.campos[id], `${id}: queda el borrador de la Mesa`)
+    assert.ok(!r.valor.iaCampos.includes(`campo:${id}`))
+  }
+  assert.equal(r.valor.campos.apoyoAereo, mala.apoyoAereo, 'lo que el borrador no trae, de la IA')
+  assert.equal(r.valor.campos.situacion, mala.situacion)
+  // la IA que MEJORA el borrador sin romper su forma: entra
+  const buena = {
+    tareasManiobra: rehecha.campos.tareasManiobra.replace('TAREA: Se concentra en Turco.\nPROPÓSITO: SIN DATO — verificar.', 'TAREA: Se concentra en Turco.\nPROPÓSITO: Completar su aclimatación antes de ocupar la LPR (IA, FICT.).'),
+    intencion: rehecha.campos.intencion.replace('Mi intención es detener', 'Mi intención es detener y desgastar'),
+    rpi: `${rehecha.campos.rpi}\n4) ¿Cuándo empeña la reserva el enemigo? (IA, FICT.)`,
+  }
+  const y = M.aplicarRespuesta(DEF, '```json\n' + JSON.stringify({ campos: buena }) + '\n```', rehecha, { modo: 'completar_mejorar' })
+  const q = DOC.aceptarIA(y.valor, rehecha, ctx)
+  assert.deepEqual(q.malos, [])
+  assert.ok(q.valor.campos.tareasManiobra.includes('PROPÓSITO: Completar su aclimatación antes de ocupar la LPR (IA, FICT.).'))
+  assert.ok(q.valor.campos.intencion.startsWith('Mi intención es detener y desgastar'))
+  assert.ok(q.valor.campos.rpi.endsWith('4) ¿Cuándo empeña la reserva el enemigo? (IA, FICT.)'))
+  // en la Orden que NO estaba rehecha (la vieja de la IA), lo que la IA rompe queda con el borrador de la Mesa
+  const vieja = M.normalizar(DEF, { esquema: 'ogo-v1', campos: { intencion: mala.intencion, tareasManiobra: mala.tareasManiobra } })
+  const z = DOC.aceptarIA(M.aplicarRespuesta(DEF, '```json\n' + JSON.stringify({ campos: { intencion: 'Propósito: otra (FICT.)', tareasManiobra: 'DIV MEC-2: otra (FICT.)' } }) + '\n```', vieja, { modo: 'completar_mejorar' }).valor, vieja, ctx)
+  assert.ok(z.valor.campos.intencion.startsWith('Mi intención es'))
+  assert.ok(z.valor.campos.tareasManiobra.startsWith('FASE I: CONCENTRACIÓN'))
+  // y el pedido se lo dice
+  assert.ok(DOC.producto(ctx, HOJA).startsWith('LO PRIMERO: más abajo está «EL BORRADOR DE LA MESA»'))
+  assert.ok(DOC.tareaIA.includes('La Mesa REVISA lo que devolvés'))
 })
 
 caso('la IA: el pedido trae la forma, la doctrina del Capítulo VII, el ejemplo KM 7, TODO lo de la Mesa y las reglas', () => {
