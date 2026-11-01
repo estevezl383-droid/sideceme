@@ -11,6 +11,7 @@ const server=http.createServer((req,res)=>{
    const newer=records.some(x=>x.prueba===r.prueba&&x.revision>r.revision);if(newer){res.statusCode=409;return res.end(JSON.stringify({error:'EL REGISTRO CAMBIÓ'}));}
    r.conformidad={registro_id:r.id,cursante_id:student.id,confirmado_en:new Date().toISOString()};return res.end(JSON.stringify({ok:true,conformidad:r.conformidad}));
   }
+  if(b.accion==='registrar'){const r={...b,organizacion_id:plan.id,revision:++n,creado_en:new Date().toISOString(),calculo:{nota:85,evaluador_nombre:'EVALUADOR TEST'},conformidad:null};records.push(r);return res.end(JSON.stringify({ok:true,registro:r}));}
   if(failSync){res.statusCode=503;return res.end(JSON.stringify({error:'SIN CONEXIÓN TEST'}));}
   const common={ok:true,registros:records,servidor_en:new Date().toISOString()};
   if(b.accion==='mis_evaluaciones')return res.end(JSON.stringify({...common,alumno:student,organizaciones:[plan]}));
@@ -38,6 +39,11 @@ const server=http.createServer((req,res)=>{
   // La sincronización no reconstruye el temporizador ni la marca en edición.
   await e.locator('[data-test=flexiones]').click();await e.locator('[data-student=TEST1]').first().click();await e.locator('[data-key="4"]').click();
   await e.evaluate(()=>window.timerNode=document.querySelector('#efmc-active'));await e.waitForTimeout(2300);assert(await e.evaluate(()=>window.timerNode===document.querySelector('#efmc-active')));assert.equal(await e.locator('#efmc-value .efmc-digital').getAttribute('aria-label'),'4');
+  // Una llegada guardada muestra marca, nota roja y conformidad verde en la estación.
+  await e.locator('[data-test=aerobica]').click();await e.locator('[data-action=group-all]').click();await e.locator('[data-action=race-start]').click();await e.locator('[data-action=lap]').click();await e.locator('[data-action=race-start]').click();await e.locator('[data-lap="0"]').selectOption('TEST1');await e.locator('[data-save-lap="0"]').click();
+  await e.locator('.efmc-lap-row .efmc-conformidad.pendiente').waitFor();
+  const arrivalId=records.at(-1).id;await a.locator(`[data-confirm="${arrivalId}"]`).waitFor({timeout:7000});
+  await a.locator(`[data-confirm="${arrivalId}"]`).click();await e.locator('.efmc-lap-row .efmc-conformidad.conforme').waitFor({timeout:7000});
   failSync=true;await a.getByText(/No se pudo sincronizar/).waitFor({timeout:7000});failSync=false;
   await a.waitForFunction(()=>!document.querySelector('.efmc-sync').textContent.includes('No se pudo sincronizar'),{timeout:7000});
   assert.equal(await a.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
