@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.442</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.443</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -8347,6 +8347,26 @@ body.wg-jugando{overflow:hidden}
     title="El campo minado detiene (con sus detonaciones y bajas); la zanja, la demolición y el bloqueo cortan el paso a los vehículos; la alambrada y la concertina frenan. Siempre al enemigo: el dueño conoce sus pasos.">🧱 Construido — detiene y frena al enemigo</button>
   <button class="rg-doc" onclick="wgPlanBarreras('proyectado',this)"
     title="Las obras vuelven a ser plan: se ven punteadas y no frenan a nadie.">📐 Proyectado — sólo se ve</button>
+</div>
+
+<!-- v2.9.443 — LOS MEDIOS DE LAS FICHAS (azul y rojo) Y LA CARTA, SIN REINICIAR.
+     Sergio: «que se cargue bien lo que las fichas tienen, de azul como de rojo».
+     Las partidas importadas antes de la v2.9.439 no traen los medios de cada
+     ficha (armas, dotación en UF, autonomía, medio, poder por arma) ni la capa de
+     cada camino y río. Reimportar vuelve al turno 0; esto los actualiza en su
+     lugar: posición, munición gastada, combustible, órdenes y turno no cambian. -->
+<div class="section-label">🔄 Medios de las fichas y carta</div>
+<div id="wg-medios-estado" style="font-size:11px;color:var(--text-muted);line-height:1.45;margin-bottom:6px">
+  Recalcula los <b>sistemas de armas, la dotación en UF, la autonomía, el medio y el poder</b> de TODAS las fichas
+  (las del azul y las del rojo, con las mismas reglas), sin reiniciar la partida.
+  Con el <b>archivo del ejercicio</b> (el mismo de «Cargar escenario») usa además el COE de la biblioteca y lo
+  planificado en el Anexo de Logística, y actualiza la carta: cada camino y cada río con su capa (sendas, ferrocarril, quebradas).
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+  <button class="rg-doc" onclick="wgActualizarMedios(null,this)"
+    title="Con la dotación de referencia del Juego para el arma y el escalón de cada ficha.">🔄 Recalcular medios</button>
+  <label class="rg-doc" style="cursor:pointer" title="El ejercicio.json bajado de la Mesa (⬇️ Bajar para el Juego de Guerra).">📂 Con el archivo del ejercicio (medios + carta)
+    <input type="file" accept=".json,application/json" style="display:none" onchange="wgActualizarMedios(this)"></label>
 </div>
 
 <!-- ============================================================
@@ -31466,7 +31486,11 @@ function _wgConvoyExpuesto(c){
   return { expuesto: dmin>WG_CONVOY_ESCOLTA_KM, km:dmin, quien };
 }
 function _wgCargaDe(u,c){ const x=(u&&u.carga)||{}; return Math.max(0,Number(x[c])||0); }
-function _wgCargaTotal(u){ return _wgCargaDe(u,'III')+_wgCargaDe(u,'V'); }
+// v2.9.443: todas las clases (antes sólo III y V: el de víveres lleno figuraba «VACÍO»).
+function _wgCargaTotal(u){ return WG_CLASES_ORDEN.reduce((a,k)=>a+_wgCargaDe(u,k),0); }
+// v2.9.443: la capacidad de esa clase en ESE convoy (el paquete lleva 2 de cada una).
+function _wgCapDe(u,c){ const x=(u&&u.carga&&u.carga.cap)||null; return (x&&Number(x[c])>0)?Number(x[c]):WG_CONVOY_CAPACIDAD; }
+function _wgCargaTxt(u,k){ const n=_wgCargaDe(u,k); return `${Number.isInteger(n)?n:n.toFixed(1)}/${_wgCapDe(u,k)}`; }
 // ============================================================
 // v2.9.353 — ¿ESTE EJE LO AGUANTA UN CAMIÓN?
 // Sergio: «los ejes de abastecimiento también deberían considerar eso» — «eso»
@@ -31485,7 +31509,7 @@ function _wgAuditarEje(t){
   // transitabilidad que un G-4 hace antes de comprometer una columna.
   const terreno=WG.terreno||[];
   const vel=WG_VEL.rueda;
-  const km={camino:0, libre:0, restringido:0, severo:0};
+  const km={camino:0, libre:0, restringido:0, severo:0, rio:0, agua:0};
   let total=0;
   for(const l of lineas){
     for(let i=1;i<l.length;i++){
@@ -31497,21 +31521,23 @@ function _wgAuditarEje(t){
       for(let k=0;k<n;k++){
         const f=(k+0.5)/n;
         const pt=[a[0]+(b[0]-a[0])*f, a[1]+(b[1]-a[1])*f];
-        const cl=_wgClaseTerreno(pt, terreno);
+        const cl=_wgClaseTerreno(pt, terreno, null, 'rueda');
         km[cl]=(km[cl]||0)+d/n; total+=d/n;
       }
     }
   }
   if(!(total>0)) return null;
-  const corta = km.severo>0.05;
+  // v2.9.443: un camión no pasa por terreno restringido, severo, ni un río sin puente.
+  const noPasa = km.severo + km.restringido + km.rio + km.agua;
+  const corta = noPasa>0.05;
   // Horas de marcha de una columna cargada, por este eje.
   let horas=0;
   for(const cl of ['camino','libre','restringido']){
     const v=vel[cl]; if(v) horas += (km[cl]||0)/v;
   }
-  return { total, km, corta, horas,
+  return { total, km, corta, noPasa, horas,
     pct:{ camino:100*km.camino/total, libre:100*km.libre/total,
-          restringido:100*km.restringido/total, severo:100*km.severo/total } };
+          restringido:100*km.restringido/total, severo:100*(km.severo+km.rio+km.agua)/total } };
 }
 function _wgEjesHTML(){
   const ejes=(WG.terreno||[]).filter(t=>t.tipo==='eje_log');
@@ -31551,8 +31577,10 @@ function _wgEjesHTML(){
     }).join('');
     const fuera=a.km.libre+a.km.restringido+a.km.severo;
     const veredicto = a.corta
-      ? `⛔ <b>${a.km.severo.toFixed(1)} km de terreno severo</b>: ahí la columna se detiene. `
-        +`Retrazalo, o abrí paso con zapadores.`
+      ? `⛔ <b>${a.noPasa.toFixed(1)} km por donde un camión no pasa</b>`
+        +` (${[a.km.restringido>0.05?a.km.restringido.toFixed(1)+' restringido':'', a.km.severo>0.05?a.km.severo.toFixed(1)+' severo':'',
+             (a.km.rio+a.km.agua)>0.05?'un río o laguna sin puente':''].filter(Boolean).join(' · ')}): ahí la columna se detiene. `
+        +`Retrazalo por caminos y puentes, o que la ingeniería abra paso (🛠️ brecha · 🌉 puente).`
       : fuera > WG_CONVOY_FUERA_RUTA_KM
         ? `⛔ <b>${fuera.toFixed(1)} km fuera de camino</b> — el convoy se detiene a los `
           +`${WG_CONVOY_FUERA_RUTA_KM} km. Este eje no está trazado sobre rutas.`
@@ -31598,7 +31626,8 @@ function _wgConvoyesHTML(uds){
         const tot=_wgCargaTotal(c);
         const col = fc?'#e23b3b' : tot<=0?'#e08a2c' : '#2ecc71';
         const que=WG_CLASES_ORDEN.filter(k=>_wgCargaDe(c,k)>0)
-          .map(k=>`${WG_CONVOY_CLASES[k].ico} ${_wgCargaDe(c,k)}/${WG_CONVOY_CAPACIDAD} ${WG_CONVOY_CLASES[k].cod}`).join(' · ');
+          .map(k=>`${WG_CONVOY_CLASES[k].ico} ${_wgCargaTxt(c,k)} ${WG_CONVOY_CLASES[k].cod}`).join(' · ')
+          +((c.carga&&c.carga.apoya!=null)?` · 🤝 apoya a ${_rgEsc(((_wgUnidadPorId(c.carga.apoya)||{}).designacion)||'una unidad')}`:'');
         const est = fc ? '💥 DESTRUIDO — se perdió la carga'
           : tot<=0 ? '🕳️ VACÍO — mandalo a recargar a una instalación'
           : que;
@@ -31613,6 +31642,14 @@ function _wgConvoyesHTML(uds){
       +`Formá uno y dale orden de marcha hasta la unidad que hay que apoyar.</div>`;
   return `<div style="font-size:9px;letter-spacing:1.2px;opacity:.6;margin:9px 0 3px">`
     +`🚚 CONVOYES · abastecimiento a domicilio</div>`+botones+lista;
+}
+// v2.9.443 — 📦 el árbitro (escalón superior) repone la estiba de un puesto.
+async function wgReponerInstal(id){
+  const r=await _wgInvoke('reponer_instalacion',{ partida_id:WG.partidaId, clave_acceso:WG.clave, id });
+  if(!r.ok){ _wgAviso('No se pudo reponer: '+_rgEsc(r.error||''),6000); return; }
+  _wgAviso(`📦 Repuesto: el puesto tiene <b>${r.quedan} de ${r.cap}</b> cargas.`, 4500);
+  await wgEstado(true); _wgRender();
+  try{ const it=(_wgInstalaciones()||[]).find(x=>x.id===id); if(it) _wgPanelInstal(it, WG_INSTAL[it.tipo]); }catch(_e){}
 }
 async function wgFormarConvoy(instalacionId, clase){
   // ============================================================
@@ -31635,9 +31672,13 @@ async function wgFormarConvoy(instalacionId, clase){
       +'clases de víveres, agua y evacuación.</span>', 9000);
     return;
   }
-  _wgAviso(`🚚 <b>${_rgEsc(r.designacion||'Convoy')}</b> formado con ${WG_CONVOY_CAPACIDAD} cargas de `
-    +`${_rgEsc(WG_CONVOY_CLASES[clase].nom)}. Dale orden de marcha hasta la unidad que hay que apoyar — `
-    +`y acordate de que en ruta lo pueden batir.`, 7000);
+  const _lleva = clase==='PAQUETE'
+    ? 'un paquete logístico ('+WG_CLASES_ORDEN.filter(k=>r.carga&&Number(r.carga[k])>0).map(k=>`${Number(r.carga[k]).toFixed(1)} ${WG_CONVOY_CLASES[k].cod}`).join(' + ')+')'
+    : `${r.carga&&r.carga[clase]!=null?Number(r.carga[clase]).toFixed(1):WG_CONVOY_CAPACIDAD} cargas de ${_rgEsc(WG_CONVOY_CLASES[clase].nom)}`;
+  _wgAviso(`🚚 <b>${_rgEsc(r.designacion||'Convoy')}</b> formado con ${_lleva}`
+    +(r.estiba?` — al puesto le quedan <b>${r.estiba.quedan} de ${r.estiba.cap}</b> cargas`:'')+`. `
+    +`Dale orden de marcha, o <b>🤝 APOYAR A UNA UNIDAD</b> para que la siga y la abastezca solo — `
+    +`y acordate de que en ruta lo pueden batir.`, 8000);
   await wgEstado(true); _wgRender(); if(WG.map3d) _wg3dDatos();
   // v2.9.351: el panel del puesto queda abierto y con el vehículo nuevo adentro,
   // listo para despacharlo. Antes había que volver a tocar la instalación.
@@ -31962,7 +32003,7 @@ function _wgPanelInstal(it, I){
   _wgCerrarPanelInstal();
   const g=it.geojson||{}, pt=g.coordinates||[0,0];
   const col=(WG_COL&&WG_COL[it.bando])||'#8fa6bd';
-  const cap=Number(I.cap||0), usado=Number(g.usado||0), quedan=Math.max(0,cap-usado);
+  const cap=Number(I.cap||0), usado=Number(g.usado||0), quedan=Math.round(Math.max(0,cap-usado)*10)/10;
   const pctE = cap?Math.round(100*quedan/cap):100;
   const colE = pctE>50?'#2ecc71':(pctE>20?'#e08a2c':'#e23b3b');
   // Los vehículos que están EN el puesto o a su lado (menos de 3 km).
@@ -31977,7 +32018,7 @@ function _wgPanelInstal(it, I){
     const clase=WG_CLASES_ORDEN.find(k=>_wgCargaDe(c,k)>0);
     const ic=clase?_wgIconoClase(clase,c.bando,72):null;
     const carga=WG_CLASES_ORDEN.filter(k=>_wgCargaDe(c,k)>0)
-      .map(k=>`${WG_CONVOY_CLASES[k].ico} ${_wgCargaDe(c,k)}/${WG_CONVOY_CAPACIDAD} ${WG_CONVOY_CLASES[k].cod}`).join(' · ');
+      .map(k=>`${WG_CONVOY_CLASES[k].ico} ${_wgCargaTxt(c,k)} ${WG_CONVOY_CLASES[k].cod}`).join(' · ');
     const comb=_wgCombustible(c);
     const vacio=!carga;
     return `<div class="rg-card" style="display:flex;gap:9px;align-items:center;padding:7px 9px;margin-top:6px;border-left:3px solid ${vacio?'#e08a2c':col}">`
@@ -32007,6 +32048,22 @@ function _wgPanelInstal(it, I){
       }).join('')
     : `<div style="font-size:9px;opacity:.6;margin-top:6px">Este puesto no despacha vehículos: `
       +`abastece por cuenta propia a lo que se le acerque a menos de ${WG_REABASTECER_KM} km.</div>`;
+  // v2.9.443 — 📦 EL PAQUETE LOGÍSTICO: combustible + munición + víveres en un convoy.
+  const enPaquete=['III','V','I'].filter(k=>despacha.includes(k));
+  const paquete = (puedeMandar && enPaquete.length>=2)
+    ? `<button class="rg-card" style="display:flex;gap:9px;align-items:center;width:100%;padding:7px 9px;margin-top:6px;`
+      +`border:1px solid rgba(46,204,113,.45);cursor:pointer;text-align:left" onclick="wgFormarConvoy(${it.id},'PAQUETE')"`
+      +` title="Un convoy con ${enPaquete.map(k=>WG_CONVOY_CLASES[k].nom).join(' + ')} (2 cargas de cada una)">`
+      +`<span style="font-size:22px;flex:0 0 auto">📦</span><div style="flex:1;min-width:0">`
+      +`<b style="font-size:11px">Paquete logístico (${enPaquete.join(' + ')})</b>`
+      +`<div style="font-size:9px;opacity:.75;margin-top:2px">Lo que hace falta en un solo convoy: repone el tanque, cada sistema de arma y sostiene a la unidad.</div></div>`
+      +`<span style="font-size:16px;opacity:.6;flex:0 0 auto">+</span></button>`
+    : '';
+  // v2.9.443 — 📦 REPONER: el escalón superior (lo juega el árbitro).
+  const reponer = (WG.soy==='arbitro' && cap && usado>0)
+    ? `<button class="wg-pill" style="font-size:10px" onclick="wgReponerInstal(${it.id})" `
+      +`title="El escalón superior repone la estiba de este puesto.">📦 Reponer (escalón superior)</button>`
+    : '';
 
   const html=`<div id="wg-panel-instal" style="position:fixed;right:18px;top:74px;width:340px;max-height:calc(100vh - 110px);`
     +`overflow:auto;z-index:6000;background:rgba(9,14,20,.96);border:1px solid ${col};border-radius:12px;`
@@ -32028,8 +32085,10 @@ function _wgPanelInstal(it, I){
     +(mios.length?mios.map(tarjeta).join('')
        :`<div style="font-size:9px;opacity:.6;margin-top:5px">Ninguno formado todavía. Formá uno acá abajo.</div>`)
     +`<div style="font-size:9px;letter-spacing:1.2px;opacity:.6;margin:14px 0 0">FORMAR VEHÍCULO</div>`
-    +formar
+    +`<div style="font-size:8.5px;opacity:.55;margin-top:2px">La carga sale de la estiba de este puesto.</div>`
+    +paquete+formar
     +`<div style="display:flex;gap:6px;margin-top:14px;flex-wrap:wrap">`
+    +reponer
     +(I.movil?`<button class="wg-pill" style="font-size:10px" onclick="_wgMoverInstal(${it.id})">✋ Desplazar el puesto</button>`:'')
     +`<button class="wg-pill" style="font-size:10px;opacity:.75" onclick="_wgLevantarInstal(${it.id})">🗑️ Levantar de la carta</button>`
     +`</div>`
@@ -32467,10 +32526,17 @@ function wgVistaArbitro(id){
 // tablas de la ECEME antes del ejercicio.
 // ============================================================
 const WG_OBRAS={
-  brecha:{ id:'brecha', mision:'movilidad', nom:'Abrir brecha', icono:'🛠️',
-    desc:'Abre paso por donde no se podía. Queda transitable — y la usan LOS DOS bandos.',
-    horas:{camino:1.5,libre:1.5,restringido:3,severo:6}, soloIng:true,
-    detalle:'Explosivos y maquinaria. Levanta también los obstáculos que encuentre en el paso.' },
+  // v2.9.443 — gemelo del motor: la brecha es un CORREDOR de 200 m de ancho desde
+  // donde está la cuadrilla hacia el punto marcado (hasta 2 km); `horas` son h/km.
+  brecha:{ id:'brecha', mision:'movilidad', nom:'Abrir brecha (corredor)', icono:'🛠️',
+    desc:'Abre un corredor de paso de hasta 2 km por terreno restringido, severo o minado. Queda transitable — y lo usan LOS DOS bandos.',
+    horas:{camino:1,libre:1.5,restringido:3,severo:6,rio:6,agua:12}, porKm:true, soloIng:true,
+    detalle:'Se trabaja desde donde está la cuadrilla hacia el punto que marques (hasta 2 km). Cuesta horas por kilómetro según el suelo. No cruza ríos: para eso está el puente.' },
+  // v2.9.443 — el puente: un río sin puente frena a los vehículos.
+  puente:{ id:'puente', mision:'movilidad', nom:'Tender puente / vado', icono:'🌉',
+    desc:'Cruza el río: desde que está, los vehículos pasan por ahí — los DOS bandos.',
+    horas:{rio:3,camino:1,libre:3,restringido:3,severo:3,agua:3}, soloIng:true,
+    detalle:'Puente táctico de dotación o vado preparado: tocá SOBRE la traza del río (a menos de 1 km de la cuadrilla). Una laguna no se puentea: se rodea.' },
   defensiva:{ id:'defensiva', mision:'proteccion', nom:'Posición defensiva', icono:'🛡️',
     desc:'Cava y fortifica: quien la ocupe pelea protegido.',
     horas:{camino:6,libre:6,restringido:5,severo:5},
@@ -32513,8 +32579,33 @@ function _wgHorasTurno(){
   const p=WG.estado&&WG.estado.partida;
   return Math.max(0.25, Number(p&&p.duracion_turno_horas)||2);
 }
+// v2.9.443 — gemelos de `tramoDeBrecha` y `horasDeCorredor` del motor.
+const WG_BRECHA_MAX_KM=2;
+function _wgTramoDeBrecha(desde,hacia){
+  const d=_wgHav(desde,hacia); if(d<1e-6) return [desde,desde];
+  const f=Math.min(1, WG_BRECHA_MAX_KM/d);
+  return [desde,[desde[0]+(hacia[0]-desde[0])*f, desde[1]+(hacia[1]-desde[1])*f]];
+}
+function _wgHorasDeCorredor(u,desde,hasta){
+  const L=_wgHav(desde,hasta), n=Math.max(1,Math.ceil(L/0.1));
+  let h=0;
+  for(let i=0;i<n;i++){
+    const f=(i+0.5)/n;
+    const cl=_wgClaseTerreno([desde[0]+(hasta[0]-desde[0])*f, desde[1]+(hasta[1]-desde[1])*f], WG.terreno||[]);
+    const hk=WG_OBRAS.brecha.horas[cl];
+    h+=(hk!=null?hk:1.5)*(L/n);
+  }
+  const cap=_wgCapacidadObra(u);
+  const rinde=(WG_RINDE_ZAPA[u&&u.escalon]||1)*((cap&&cap.rinde)||1);
+  return Math.max(0.5,h)/Math.max(0.1,rinde);
+}
 function _wgHorasDeObra(u,obraId,pt){
   const o=WG_OBRAS[obraId]; if(!o) return 0;
+  if(o.porKm){
+    const d0=(u&&u.trabajo&&u.trabajo.obra===obraId&&u.trabajo.desde)||(u?[u.lng,u.lat]:pt);
+    const [a,b]=_wgTramoDeBrecha(d0,pt);
+    return _wgHorasDeCorredor(u,a,b);
+  }
   const clase=_wgClaseTerreno(pt, WG.terreno||[]);
   const base=o.horas[clase]!=null?o.horas[clase]:4;
   const cap=_wgCapacidadObra(u);
@@ -32631,7 +32722,11 @@ function _wgPanelObrasHTML(u){
     +(refuerza?`<br>🪨 <b style="color:#8ef0b4">Estás en terreno ${claseAqui}</b> — acá la contramovilidad `
       +`rinde más (se refuerza el accidente natural) y la movilidad cuesta más. Es la decisión de fondo `
       +`del arma: <b>movilidad contra contramovilidad</b>.`:'')
-    +(WG.obraSel?`<br><b style="color:#d9ccff">TOCÁ EL MAPA</b> donde querés la obra (hay que estar a menos de 1 km).`:'')
+    +(WG.obraSel?(WG_OBRAS[WG.obraSel]&&WG_OBRAS[WG.obraSel].porKm
+        ? `<br><b style="color:#d9ccff">TOCÁ EL MAPA</b> hacia dónde abrir el corredor: arranca donde está la cuadrilla y llega hasta 2 km.`
+        : WG.obraSel==='puente'
+        ? `<br><b style="color:#d9ccff">TOCÁ SOBRE EL RÍO</b> donde tender el puente (a menos de 1 km de la cuadrilla).`
+        : `<br><b style="color:#d9ccff">TOCÁ EL MAPA</b> donde querés la obra (hay que estar a menos de 1 km).`):'')
     +`</div>`+bloques;
 }
 // v2.9.232 — APUNTAR EL DRON. No es una orden de turno: es una decisión de
@@ -34529,9 +34624,23 @@ async function _wgCanalTurno(p){
     await wgHistorial();
     return;
   }
-  WG.ordenes={};
+  _wgConservarLocales();   // v2.9.443
   _wgAviso(`⚔️ <b>Se resolvió el turno ${turno}.</b> Mirá lo que pasó.`, 4000);
   await _wgReproducirTurno(turno, p.datos);
+}
+// ============================================================
+// v2.9.443 — LO QUE ESTÁS ARMANDO NO SE BORRA CUANDO EL OTRO JUEGA EL TURNO.
+// Cuando el turno lo resolvía la OTRA pantalla, acá se hacía `WG.ordenes={}`:
+// se perdía la orden que estabas marcando y todavía no habías mandado (y la
+// ruta seguía dibujada, sin orden detrás). Ahora se conservan las que están SIN
+// ENVIAR (`_local`): son tu decisión para el turno que viene. Y las marchas que
+// no terminaron las sigue el servidor solo, para los dos bandos.
+// ============================================================
+function _wgConservarLocales(){
+  const quedan={};
+  for(const [k,v] of Object.entries(WG.ordenes||{})) if(v && v._local) quedan[k]=v;
+  WG.ordenes=quedan;
+  try{ _wgActualizarContadorOrdenes(); }catch(_e){}
 }
 // Sólo el reloj del sondeo. Separado de `_wgSyncIniciar` a propósito: el canal
 // lo llama para cambiar de ritmo, y si llamara al iniciador se desarmaría a sí
@@ -34655,6 +34764,8 @@ async function _wgSyncTick(){
       // volver a mirar la pestaña, en el acto.
       // ========================================================
       WG._syncVueltas = (WG._syncVueltas||0) + 1;
+      // v2.9.443: mientras otra pantalla está guardando el turno, no se repinta (se vería a medias).
+      if(p.resolviendo){ WG._syncRepasoYa = true; return; }
       if(WG._syncVueltas >= 6 || WG._syncRepasoYa){
         WG._syncVueltas = 0; WG._syncRepasoYa = false;
         await wgEstado(true); _wgRender(); if(WG.map3d) _wg3dDatos();
@@ -34667,7 +34778,7 @@ async function _wgSyncTick(){
         const desp=_wgTurnoActual();
         if(desp!=null && antes!=null && Number(desp)>Number(antes)
            && Number(WG._turnoVisto||0)<Number(desp)-1 && !_wgAnimando()){
-          WG._turnoVisto=Number(desp)-1; WG.ordenes={}; _wgActualizarContadorOrdenes();
+          WG._turnoVisto=Number(desp)-1; _wgConservarLocales();   // v2.9.443
           await wgHistorial();
           _wgAviso(`⚔️ <b>Se resolvió el turno ${antes}.</b> El tablero ya está al día — mirá la <b>bitácora</b>.`, 5000);
         }
@@ -34679,7 +34790,7 @@ async function _wgSyncTick(){
     // ya se vio en ESTA pantalla (lo animó wgResolver o un tick anterior), no se
     // reproduce de nuevo: quien lo anotó ya se encarga de poner el tablero al día.
     if(Number(antes)===Number(WG._turnoVisto)) return;
-    WG.ordenes={};                             // las órdenes de ese turno ya se jugaron
+    _wgConservarLocales();                     // v2.9.443: las enviadas ya se jugaron; las que armabas, quedan
     const saltados = ahora - Number(antes);
     if(saltados===1){
       _wgAviso(`⚔️ <b>Se resolvió el turno ${antes}.</b> Mirá lo que pasó.`, 4000);
@@ -34766,22 +34877,71 @@ async function _wgReproducirTurno(turno, datos){
     try{
       // Movimiento y fuego A LA VEZ, igual que en el turno real.
       // v2.9.430: el fuego espera a que LLEGUEN los que marchan (ver _wgAnimarDisparos).
+      const hFin=_wgHoraFinPelicula(trazas, impactos);   // v2.9.443: una sola escala de tiempo
       await Promise.all([
-        trazas.length ? wgReplay(trazas) : Promise.resolve(),
-        _wgAnimarDisparos(impactos, trazas),
-        _wgAnimarMinas(impactos, trazas),   // v2.9.441: las minas que pisó una columna
+        trazas.length ? wgReplay(trazas, 22, hFin) : Promise.resolve(),
+        _wgAnimarDisparos(impactos, trazas, 22, hFin),
+        _wgAnimarMinas(impactos, trazas, 22, hFin),   // v2.9.441: las minas que pisó una columna
       ]);
     } finally { WG.replayando=false; }
     _wgEncender(impactos, turno);
   }
   try{ await _wgAnimarEntregas(entregas); }catch(_e){}   // v2.9.351
+  // v2.9.443: los puntos de paso que el motor consumió se recortan también acá
+  // (antes sólo en la pantalla que apretó «Jugar turno»).
+  try{ _wgAvanzarRutas(trazas); }catch(_e){}
   await wgEstado(true);   // recién ahora se desvanecen los que quedaron fuera de combate
   _wgRender(); if(WG.map3d) _wg3dDatos();
   await wgHistorial();
   if(!trazas.length && !impactos.length) wgHoja('bitacora');
 }
+// ============================================================
+// v2.9.443 — LA CARTA SE GUARDA EN EL NAVEGADOR («que se cargue bien»).
+// La carta de una partida pesa varios MB (la de «ZAPATO II», 2,4 MB) y se bajaba
+// entera cada vez que se abría el Juego. Ahora queda guardada en el navegador
+// (IndexedDB) con su FIRMA (cantidad de filas + la última), y se vuelve a pedir
+// sólo si en el servidor cambió. Si el navegador no deja guardar (ventana
+// privada), funciona como antes.
+// ============================================================
+const WG_CARTA_DB='sideceme-wg-carta', WG_CARTA_ALMACEN='cartas';
+function _wgCartaDB(){
+  return new Promise((ok,mal)=>{
+    try{
+      const rq=indexedDB.open(WG_CARTA_DB,1);
+      rq.onupgradeneeded=()=>{ try{ rq.result.createObjectStore(WG_CARTA_ALMACEN); }catch(_e){} };
+      rq.onsuccess=()=>ok(rq.result); rq.onerror=()=>mal(rq.error);
+    }catch(e){ mal(e); }
+  });
+}
+async function _wgCartaLeer(pid){
+  try{
+    const db=await _wgCartaDB();
+    return await new Promise(ok=>{
+      const rq=db.transaction(WG_CARTA_ALMACEN,'readonly').objectStore(WG_CARTA_ALMACEN).get(String(pid));
+      rq.onsuccess=()=>ok(rq.result||null); rq.onerror=()=>ok(null);
+    });
+  }catch(_e){ return null; }
+}
+async function _wgCartaGuardar(pid, firma, terreno){
+  try{
+    const db=await _wgCartaDB();
+    await new Promise(ok=>{
+      const tx=db.transaction(WG_CARTA_ALMACEN,'readwrite');
+      tx.objectStore(WG_CARTA_ALMACEN).put({ firma, terreno, t:Date.now() }, String(pid));
+      tx.oncomplete=()=>ok(); tx.onerror=()=>ok(); tx.onabort=()=>ok();
+    });
+  }catch(_e){}
+}
 async function wgEstado(silencioso){
   if(!WG.partidaId) return;
+  // v2.9.443: la primera vez en la sesión, la carta guardada en el navegador.
+  if(!WG.terreno && WG._cartaProbada!==WG.partidaId){
+    WG._cartaProbada=WG.partidaId;
+    const c=await _wgCartaLeer(WG.partidaId);
+    if(c && Array.isArray(c.terreno) && c.firma){
+      WG.terreno=_wgPrepTerreno(c.terreno); WG._terrenoFirma=c.firma; WG._terrenoN=null; WG._cartaDeCache=true;
+    }
+  }
   // v2.9.201: el terreno importado del Generador pesa MB; se pide UNA vez y se
   // guarda en WG.terreno. En los refrescos la EF lo omite (terreno:null).
   const r=await _wgInvoke('estado',{ partida_id:WG.partidaId, clave_acceso:WG.clave, incluir_terreno: !WG.terreno });
@@ -34789,7 +34949,23 @@ async function wgEstado(silencioso){
     if(silencioso){ console.warn('estado (en vivo):', r.error); return; }
     alert('No se pudo cargar el estado: '+r.error); return;
   }
-  if(Array.isArray(r.terreno)){ WG.terreno=_wgPrepTerreno(r.terreno); WG._terrenoN=r.terreno_n; }
+  // v2.9.443: la carta guardada sólo vale si el servidor confirma que es la misma.
+  if(WG._cartaDeCache && !Array.isArray(r.terreno)){
+    WG._cartaDeCache=false;
+    if(!r.terreno_firma || r.terreno_firma!==WG._terrenoFirma){
+      WG.terreno=null; WG._terrenoN=null; WG._terrenoFirma=null; WG.capaTerrenoFirma=null;
+      return wgEstado(silencioso);
+    }
+  }
+  if(Array.isArray(r.terreno)){
+    WG.terreno=_wgPrepTerreno(r.terreno); WG._terrenoN=r.terreno_n; WG._terrenoFirma=r.terreno_firma||null;
+    if(r.terreno_firma) _wgCartaGuardar(WG.partidaId, r.terreno_firma, r.terreno);
+  }
+  else if(r.terreno_firma && WG.terreno && WG._terrenoFirma && r.terreno_firma!==WG._terrenoFirma){
+    // v2.9.443: la carta cambió en el servidor (se construyó el plan, se actualizó la carta).
+    WG.terreno=null; WG._terrenoN=null; WG._terrenoFirma=null; WG.capaTerrenoFirma=null;
+    return wgEstado(silencioso);
+  }
   // v2.9.441 — LA CARTA CACHEADA SE VENCE SI CAMBIÓ EN EL SERVIDOR. Pasa cuando
   // el árbitro construye el plan de barreras: esas obras dejan la carta y viajan
   // en `obras`, y sin esto cada pantalla seguiría dibujando el plan viejo
@@ -34949,18 +35125,70 @@ async function wgEstado(silencioso){
 }
 // v2.9.191: helpers del alcance de observación — MISMA lógica que wargame-engine.js
 // (punto-en-polígono propio; severo manda sobre restringido).
+// ============================================================
+// v2.9.443 — GEMELOS EXACTOS DEL MOTOR (wargame-ops.ts). Si esto no coincide, la
+// previsión de la orden promete un paso que el servidor no da. Lo que cambió:
+//   · el anillo grande se mira por FRANJAS (mismo resultado, mucho más rápido) y
+//     los HUECOS del polígono son transitables (el motor ya lo hacía, acá no);
+//   · la carta se indexa en una grilla de ~1 km y el suelo se mira cada 50 m;
+//   · abren paso las carreteras y caminos; la senda sólo a pie; el ferrocarril y
+//     el aeródromo no son camino; la brecha de la ingeniería (polígono con bando)
+//     sí — antes la previsión no la conocía y frenaba donde el motor pasaba;
+//   · los RÍOS (±50 m) y las LAGUNAS frenan; se cruzan por el puente de un camino
+//     o el que tienda la ingeniería; a pie el río se vadea despacio; el humedal es
+//     terreno restringido;
+//   · RESTRINGIDO: ningún vehículo, a pie 1,5 km/h. SEVERO: nadie.
+// ============================================================
+const _wgFranjas=new WeakMap();
+function _wgFranjasDe(ring){
+  let b=_wgFranjas.get(ring);
+  if(b) return b;
+  const n=ring.length;
+  let y0=Infinity, y1=-Infinity;
+  for(const p of ring){ if(p[1]<y0) y0=p[1]; if(p[1]>y1) y1=p[1]; }
+  const nb=Math.max(1, Math.min(1024, Math.ceil(n/6)));
+  const dy=(y1-y0)/nb || 1e-12;
+  const franjas=Array.from({length:nb}, ()=>[]);
+  for(let i=0,j=n-1;i<n;j=i++){
+    const ya=ring[i][1], yb=ring[j][1];
+    const lo=Math.max(0, Math.floor((Math.min(ya,yb)-y0)/dy));
+    const hi=Math.min(nb-1, Math.floor((Math.max(ya,yb)-y0)/dy));
+    for(let k=lo;k<=hi;k++) franjas[k].push(i);
+  }
+  b={ y0, y1, dy, nb, franjas };
+  _wgFranjas.set(ring, b);
+  return b;
+}
 function _wgPtEnAnillo(pt,ring){
   let dentro=false;
-  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+  const n=ring.length;
+  if(n>48){
+    const b=_wgFranjasDe(ring);
+    if(pt[1]<b.y0 || pt[1]>b.y1) return false;
+    const k=Math.min(b.nb-1, Math.max(0, Math.floor((pt[1]-b.y0)/b.dy)));
+    for(const i of b.franjas[k]){
+      const j = i===0 ? n-1 : i-1;
+      const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];
+      if(((yi>pt[1])!==(yj>pt[1])) && (pt[0] < (xj-xi)*(pt[1]-yi)/((yj-yi)||1e-12)+xi)) dentro=!dentro;
+    }
+    return dentro;
+  }
+  for(let i=0,j=n-1;i<n;j=i++){
     const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];
     if(((yi>pt[1])!==(yj>pt[1])) && (pt[0] < (xj-xi)*(pt[1]-yi)/((yj-yi)||1e-12)+xi)) dentro=!dentro;
   }
   return dentro;
 }
+// v2.9.443: dentro del anillo exterior Y fuera de todos los huecos (como el motor desde la v2.9.431).
+function _wgPtEnPoligono(pt,anillos){
+  if(!anillos || !anillos.length || !_wgPtEnAnillo(pt,anillos[0])) return false;
+  for(let i=1;i<anillos.length;i++) if(_wgPtEnAnillo(pt,anillos[i])) return false;
+  return true;
+}
 function _wgPtEnGeom(pt,geom){
   if(!geom) return false;
-  const polys = geom.type==='MultiPolygon'?geom.coordinates : geom.type==='Polygon'?[geom.coordinates] : [];
-  for(const p of polys){ if(p[0] && _wgPtEnAnillo(pt,p[0])) return true; }
+  if(geom.type==='Polygon') return _wgPtEnPoligono(pt,geom.coordinates);
+  if(geom.type==='MultiPolygon') return geom.coordinates.some(p=>_wgPtEnPoligono(pt,p));
   return false;
 }
 // v2.9.201: caja (bounding box) por polígono — MISMO prefiltro que el motor.
@@ -35011,28 +35239,128 @@ function _wgFueraDeCajaCon(pt,t,holguraKm){
   const dLat=holguraKm/110.57, dLng=dLat/Math.max(1e-6,Math.cos(pt[1]*Math.PI/180));
   return pt[0]<c[0]-dLng||pt[0]>c[2]+dLng||pt[1]<c[1]-dLat||pt[1]>c[3]+dLat;
 }
-function _wgEnCamino(pt,terreno){
-  for(const t of (terreno||[])){
-    // v2.9.354 — espejo EXACTO de `enCamino` del motor. El `eje_log` YA NO
-    // cuenta como camino: el eje es la DECISIÓN del G-4, no una ruta que exista.
-    // Manda el suelo por el que pasa. (Si acá y allá no dicen lo mismo, la
-    // previsión promete un paso que el servidor no da.)
-    if(t.tipo!=='via') continue;
-    if(_wgFueraDeCajaCon(pt,t,WG_CAMINO_KM)) continue;
-    for(const linea of _wgLineasDe(t.geojson)){
+const WG_MUESTRA_KM=0.05, WG_RIO_BANDA_KM=0.05, WG_PUENTE_KM=0.05, WG_CELDA=0.01;
+const WG_TIPOS_POLI_IDX=['restringido','severo','clave','ae','defensivo','minado','interdiccion'];
+// Gemelo de `claseVia` del motor: "camino" · "senda" (sólo a pie) · null; polígonos: "brecha" · "puente" · null.
+function _wgClaseVia(t){
+  const g=(t&&t.geojson)||{};
+  if(g.type==='Polygon'||g.type==='MultiPolygon'){
+    if(g.obra==='puente') return 'puente';
+    return (t.bando || g.obra==='brecha') ? 'brecha' : null;
+  }
+  const k=g.e&&g.e.k;
+  if(k==='comunicaciones_ffcc'||k==='comunicaciones_aero') return null;
+  if(k==='comunicaciones_huellas') return 'senda';
+  if(k) return 'camino';
+  const nom=String(g.nom||'');
+  if(/ferrocarril|v[ií]a f[eé]rrea|l[ií]nea f[eé]rrea/i.test(nom)) return null;
+  if(/\b(senda|sendero|huella|trocha|camino de herradura)\b/i.test(nom)) return 'senda';
+  return 'camino';
+}
+// Gemelo de `claseAgua` del motor: "rio" · "agua" · "humedal" · null.
+function _wgClaseAgua(t){
+  const g=(t&&t.geojson)||{};
+  const k=g.e&&g.e.k, nom=String(g.nom||'');
+  if(k==='hidro_quebradas') return null;
+  if(g.type==='Polygon'||g.type==='MultiPolygon'){
+    if(/\b(laguna|lago|lagunilla|embalse|represa|reservorio|dique)\b/i.test(nom)) return 'agua';
+    return 'humedal';
+  }
+  if(/quebrada|arroyo|riachuelo|acequia|zanja|vertiente/i.test(nom)) return null;
+  if(k==='hidro_lineas') return 'rio';
+  return /^\s*r[ií]o\b/i.test(nom) ? 'rio' : null;
+}
+const _wgIndices=new WeakMap();
+function _wgClaveCelda(cx,cy){ return (cx+20000)*40000+(cy+20000); }
+function _wgIndiceDe(terreno){
+  const arr=terreno||[];
+  let idx=_wgIndices.get(arr);
+  if(idx) return idx;
+  const celdas=new Map();
+  const celda=(cx,cy)=>{ const k=_wgClaveCelda(cx,cy); let c=celdas.get(k); if(!c){ c={polis:[],segs:[]}; celdas.set(k,c); } return c; };
+  const enCaja=(x0,y0,x1,y1,fn)=>{
+    const cx0=Math.floor(x0/WG_CELDA), cx1=Math.floor(x1/WG_CELDA), cy0=Math.floor(y0/WG_CELDA), cy1=Math.floor(y1/WG_CELDA);
+    if((cx1-cx0+1)*(cy1-cy0+1)>250000) return;
+    for(let cx=cx0;cx<=cx1;cx++) for(let cy=cy0;cy<=cy1;cy++) fn(celda(cx,cy));
+  };
+  for(const t of arr){
+    if(!t||!t.geojson||!t.geojson.type) continue;
+    const g=t.geojson;
+    const poli=g.type==='Polygon'||g.type==='MultiPolygon';
+    if(poli){
+      if(t.tipo==='via'){ const cv=_wgClaseVia(t); if(!cv) continue; t._via=cv; }
+      else if(t.tipo==='hidro'){ const ca=_wgClaseAgua(t); if(!ca||ca==='rio') continue; t._agua=ca; }
+      else if(!WG_TIPOS_POLI_IDX.includes(t.tipo)) continue;
+      if(!t._caja) t._caja=_wgCajaDeGeom(g);
+      const c=t._caja; if(!c) continue;
+      enCaja(c[0],c[1],c[2],c[3],ce=>ce.polis.push(t));
+      continue;
+    }
+    let clase=null, margen=0;
+    if(t.tipo==='via'){ clase=_wgClaseVia(t); margen=WG_CAMINO_KM; }
+    else if(t.tipo==='hidro'){ clase=_wgClaseAgua(t)==='rio'?'rio':null; margen=WG_RIO_BANDA_KM; }
+    if(!clase) continue;
+    for(const linea of _wgLineasDe(g)){
       for(let i=1;i<linea.length;i++){
-        if(_wgDistPtSeg(pt,linea[i-1],linea[i])<=WG_CAMINO_KM) return true;
+        const a=linea[i-1], b=linea[i];
+        if(!a||!b) continue;
+        const dLat=margen/110.57, dLng=dLat/Math.max(1e-6,Math.cos(((a[1]+b[1])/2)*Math.PI/180));
+        const seg={a,b,c:clase,t};
+        enCaja(Math.min(a[0],b[0])-dLng, Math.min(a[1],b[1])-dLat, Math.max(a[0],b[0])+dLng, Math.max(a[1],b[1])+dLat, ce=>ce.segs.push(seg));
       }
     }
   }
-  return false;
+  idx={ celdas, celdaDe(pt){ return celdas.get(_wgClaveCelda(Math.floor(pt[0]/WG_CELDA), Math.floor(pt[1]/WG_CELDA)))||null; } };
+  _wgIndices.set(arr, idx);
+  return idx;
+}
+function _wgTramoLibre(idx,a,b){
+  const cx0=Math.floor(Math.min(a[0],b[0])/WG_CELDA), cx1=Math.floor(Math.max(a[0],b[0])/WG_CELDA);
+  const cy0=Math.floor(Math.min(a[1],b[1])/WG_CELDA), cy1=Math.floor(Math.max(a[1],b[1])/WG_CELDA);
+  for(let cx=cx0;cx<=cx1;cx++) for(let cy=cy0;cy<=cy1;cy++){
+    const c=idx.celdas.get(_wgClaveCelda(cx,cy));
+    if(c && (c.polis.length||c.segs.length)) return false;
+  }
+  return true;
+}
+function _wgSueloEn(pt,c,aPie){
+  let dCamino=Infinity, poli=null, agua=null, rio=false;
+  for(const s of c.segs){
+    if(s.c==='rio'){ if(!rio && _wgDistPtSeg(pt,s.a,s.b)<=WG_RIO_BANDA_KM) rio=true; continue; }
+    if(s.c==='senda' && !aPie) continue;
+    const d=_wgDistPtSeg(pt,s.a,s.b);
+    if(d<dCamino) dCamino=d;
+  }
+  for(const t of c.polis){
+    if(!t._via && !t._agua) continue;
+    if(_wgFueraDeCaja(pt,t) || !_wgPtEnGeom(pt,t.geojson)) continue;
+    if(t._via){ if(t._via==='puente' || !poli) poli=t._via; continue; }
+    if(t._agua==='agua') agua='agua'; else if(!agua) agua='humedal';
+  }
+  if(rio && agua!=='agua') agua='rio';
+  return { dCamino, poli, agua };
+}
+function _wgBrechaEn(pt,terreno){
+  const c=_wgIndiceDe(terreno).celdaDe(pt);
+  if(!c) return null;
+  for(const t of c.polis) if(t._via && !_wgFueraDeCaja(pt,t) && _wgPtEnGeom(pt,t.geojson)) return t._via;
+  return null;
+}
+function _wgEnCamino(pt,terreno,aPie){
+  // v2.9.354 — espejo EXACTO de `enCamino` del motor. El `eje_log` YA NO
+  // cuenta como camino: el eje es la DECISIÓN del G-4, no una ruta que exista.
+  // v2.9.443: sin sendas (salvo a pie), ferrocarril ni aeródromos; con la brecha.
+  const c=_wgIndiceDe(terreno).celdaDe(pt);
+  if(!c) return false;
+  const s=_wgSueloEn(pt,c,!!aPie);
+  return !!s.poli || s.dCamino<=WG_CAMINO_KM;
 }
 // v2.9.324 — ¿el punto cae en un campo minado que NO es mío?
 // v2.9.441 — GEMELOS de `camposContra`/`campoEnPaso` del motor (wargame-ops.ts):
 // el suelo se mira cada 50 m, las minas están donde se DIBUJÓ el campo (`dib`)
 // y del campo donde ya estaba la unidad se sale por sus propias huellas. Si se
 // cambia uno hay que cambiar el otro, o la previsión promete un paso que el
-// servidor no da.
+// servidor no da. v2.9.443: por la brecha abierta en el campo se pasa sin minas.
 const WG_MINA_MUESTRA_KM=0.05;
 function _wgCamposContra(terreno,bando){
   const out=[];
@@ -35072,8 +35400,9 @@ function _wgVigiaMinas(pos,terreno,bando){
     let antes=a;
     for(let j=1;j<=n;j++){
       const q=[a[0]+(b[0]-a[0])*(j/n), a[1]+(b[1]-a[1])*(j/n)];
+      const porLaBrecha=!!_wgBrechaEn(q,terreno);
       for(const c of cerca){
-        if(!_wgPisaCampo(q,c)){ salida.delete(c); continue; }
+        if(porLaBrecha || !_wgPisaCampo(q,c)){ salida.delete(c); continue; }
         const p0=salida.get(c);
         if(p0!=null && _wgDistAlBordeKm(q,c.geom)<=p0+WG_MINA_MUESTRA_KM) continue;   // sale por sus huellas
         return { corte:antes, entrada:q, zona:c };
@@ -35086,10 +35415,10 @@ function _wgVigiaMinas(pos,terreno,bando){
 // v2.9.439 — GEMELO de `obstaculoContra`/`claseTerreno` del motor: el
 // obstáculo construido por un bando (con `bando`) le pesa al OTRO, también sobre
 // el camino; el dueño conoce sus pasos. Sin `bando`, todo cuenta como siempre.
-function _wgObstaculoContra(pt,terreno,bando){
+function _wgObstaculoEnCelda(pt,c,bando){
   let r=null;
-  for(const t of (terreno||[])){
-    if(!t.bando || t.bando===bando) continue;
+  for(const t of c.polis){
+    if(!t.bando || t.bando===bando || t._via) continue;
     if(t.tipo!=='severo' && t.tipo!=='restringido') continue;
     if(_wgFueraDeCaja(pt,t) || !_wgPtEnGeom(pt,t.geojson)) continue;
     if(t.tipo==='severo') return 'severo';
@@ -35097,16 +35426,31 @@ function _wgObstaculoContra(pt,terreno,bando){
   }
   return r;
 }
-function _wgClaseTerreno(pt,terreno,bando){
-  const obs=bando?_wgObstaculoContra(pt,terreno,bando):null;
+function _wgObstaculoContra(pt,terreno,bando){
+  const c=_wgIndiceDe(terreno).celdaDe(pt);
+  return c ? _wgObstaculoEnCelda(pt,c,bando) : null;
+}
+// v2.9.443 — GEMELO de `claseTerreno`: camino · libre · restringido · severo · rio · agua.
+function _wgClaseTerreno(pt,terreno,bando,medio){
+  const c=_wgIndiceDe(terreno).celdaDe(pt);
+  if(!c) return 'libre';
+  const obs=bando?_wgObstaculoEnCelda(pt,c,bando):null;
+  const s=_wgSueloEn(pt,c,medio==='pie');
+  if(s.agua==='agua' || s.agua==='rio'){
+    if(s.poli==='puente' || s.dCamino<=WG_PUENTE_KM) return obs==='severo' ? 'severo' : (obs||'camino');
+    return s.agua;
+  }
+  if(s.poli) return 'camino';
   if(obs==='severo') return 'severo';
-  if(_wgEnCamino(pt,terreno)) return obs||'camino';
-  let restr=obs==='restringido';
-  for(const t of (terreno||[])){
+  if(s.dCamino<=WG_CAMINO_KM) return obs||'camino';
+  let restr = obs==='restringido' || s.agua==='humedal';
+  for(const t of c.polis){
+    if(t._via || t._agua) continue;
     if(bando && t.bando) continue;
-    if(_wgFueraDeCaja(pt,t)) continue;
-    if(t.tipo==='severo' && _wgPtEnGeom(pt,t.geojson)) return 'severo';
-    if(t.tipo==='restringido' && _wgPtEnGeom(pt,t.geojson)) restr=true;
+    if(t.tipo!=='severo' && t.tipo!=='restringido') continue;
+    if(_wgFueraDeCaja(pt,t) || !_wgPtEnGeom(pt,t.geojson)) continue;
+    if(t.tipo==='severo') return 'severo';
+    restr=true;
   }
   return restr?'restringido':'libre';
 }
@@ -35119,79 +35463,104 @@ function _wgClaseTerreno(pt,terreno,bando){
 // ============================================================
 // v2.9.221 — MISMAS VELOCIDADES QUE EL MOTOR, con la clase `camino`: por la
 // carretera se pasa aunque el sector sea restringido o severo.
-// v2.9.353 — MISMAS CIFRAS QUE EL MOTOR, incluida la clase `rueda`: el convoy
-// es un camión militar 6×6 CARGADO. Si esta tabla no coincidiera con la del
-// servidor, la vista previa prometería un recorrido que el motor no va a hacer
-// — y el G-4 planificaría sobre una mentira.
-const WG_VEL={motor:{camino:50,libre:40,restringido:null,severo:null},
-              oruga:{camino:32,libre:28,restringido:9,severo:null},
-              rueda:{camino:35,libre:12,restringido:4,severo:null},
-              pie:{camino:6,libre:5,restringido:3.5,severo:2}};
+// v2.9.353 — MISMAS CIFRAS QUE EL MOTOR, incluida la clase `rueda`.
+// v2.9.443 — LO RESTRINGIDO Y LO SEVERO NO SE PASAN: restringido, ningún
+// vehículo (la tropa a pie a 1,5 km/h); severo, nadie; río, ningún vehículo sin
+// puente (a pie se vadea a 0,5 km/h); laguna, nadie.
+const WG_VEL={motor:{camino:50,libre:40,restringido:null,severo:null,rio:null,agua:null},
+              oruga:{camino:32,libre:28,restringido:null,severo:null,rio:null,agua:null},
+              rueda:{camino:35,libre:12,restringido:null,severo:null,rio:null,agua:null},
+              pie:{camino:6,libre:5,restringido:1.5,severo:null,rio:0.5,agua:null}};
+const WG_NOM_CLASE={ camino:'camino', libre:'campo abierto', restringido:'terreno restringido',
+  severo:'terreno severamente restringido', rio:'un río sin puente', agua:'una laguna' };
 // El convoy rueda sobre llantas aunque su columna `medio` diga «motor».
 function _wgMedioDe(u){ return _wgEsConvoy(u) ? 'rueda' : ((u&&u.medio)||'pie'); }
+// v2.9.443 — gemelo de `esNoCombatiente` del motor: el apoyo no se traba ni empieza un combate.
+function _wgEsNoCombatienteCli(u){
+  return !!u && (_wgEsConvoy(u) || u.arma==='ninguna' || u.arma==='comunicaciones'
+    || ['logistica','sanidad','intendencia','transporte','mantenimiento','materialbelico','veterinaria'].includes(u.arma)
+    || !!(u.medios && u.medios.pc));
+}
 function _wgHav(a,b){
   const R=6371, rad=(d)=>d*Math.PI/180;
   const dLat=rad(b[1]-a[1]), dLng=rad(b[0]-a[0]), la1=rad(a[1]), la2=rad(b[1]);
   const h=Math.sin(dLat/2)**2+Math.cos(la1)*Math.cos(la2)*Math.sin(dLng/2)**2;
   return 2*R*Math.asin(Math.min(1,Math.sqrt(h)));
 }
-// v2.9.334 — mismas cifras que CONSUMO_TERRENO del motor: por camino rinde, en
-// el barro y la roca el tanque se vacía más rápido. Sin esto la previsión
-// mentiría: diría que llega adonde el motor la va a dejar clavada.
-const WG_CONSUMO={ camino:0.9, libre:1.0, restringido:1.6, severo:2.2 };
+// v2.9.334 — mismas cifras que CONSUMO_TERRENO del motor.
+const WG_CONSUMO={ camino:0.9, libre:1.0, restringido:1.6, severo:2.2, rio:2.2, agua:2.2 };
+// v2.9.443 — gemelo de `gastoPorKm`: el camión cargado fuera de camino gasta la mitad más.
+function _wgGastoPorKm(u,clase){
+  const g=WG_CONSUMO[clase]!=null?WG_CONSUMO[clase]:1;
+  return (_wgEsConvoy(u) && clase!=='camino') ? g*1.5 : g;
+}
 const WG_CONVOY_FUERA_RUTA_KM=4;   // espejo de CONVOY_FUERA_RUTA_KM del motor
 function _wgPreverMovimiento(u,destino,horas){
   const _md=_wgMedioDe(u);
   const vel=WG_VEL[_md]||WG_VEL.pie;
   const terreno=WG.terreno||[];
+  const idx=_wgIndiceDe(terreno);
   const tanque=_wgTanqueDe(u);   // v2.9.439
   const autonomia = tanque>0 ? Math.max(0, tanque-(Number(u.combustible_km)||0)) : Infinity;
-  let consumoKm=0;
-  // v2.9.358 — espejo de CONVOY_FUERA_RUTA_KM: el convoy sale del camino sólo
-  // para el último tramo, el de la entrega. Sin esto la vista previa diría
-  // «llega» y el motor lo dejaría clavado a mitad de la serranía.
-  let kmFueraRuta=0;
+  let consumoKm=0, tUsado=0;
+  // v2.9.358 — espejo de CONVOY_FUERA_RUTA_KM. v2.9.443: el tope vale para TODO el turno.
+  let kmFueraRuta=Number(u._kmFueraRuta)||0;
   const topeFuera=_wgEsConvoy(u)?WG_CONVOY_FUERA_RUTA_KM:Infinity;
   let pos=[u.lng,u.lat];
   const totalDest=_wgHav(pos,destino);
-  if(totalDest<1e-4) return {lng:pos[0],lat:pos[1],detenida:false,motivo:'ya está ahí',avanzadoKm:0,totalKm:0,llego:true,horasUsadas:0,ruta:[pos]};
+  if(totalDest<1e-4) return {lng:pos[0],lat:pos[1],detenida:false,motivo:'ya está ahí',avanzadoKm:0,totalKm:0,llego:true,horasUsadas:0,ruta:[pos],consumoKm:0,kmFueraRuta};
   let presupuesto=horas, avanzado=0, detenida=false, motivo='', guardia=0;
   if(autonomia<=1e-6) return {lng:pos[0],lat:pos[1],detenida:true,
     motivo:'SIN COMBUSTIBLE — no puede moverse hasta reabastecer',
     avanzadoKm:0,totalKm:totalDest,llego:false,horasUsadas:0,ruta:[[pos[0],pos[1]]],
-    consumoKm:0,seco:true};
+    consumoKm:0,seco:true,kmFueraRuta};
   const ruta=[[pos[0],pos[1]]];
   // v2.9.208: si arranca metida en terreno que su medio no cruza, SALE a paso de
   // hombre (misma regla que el motor: nadie queda atrapado para siempre).
-  const atrapada = vel[_wgClaseTerreno(pos,terreno,u.bando)]==null;   // v2.9.439
+  const claseSalida=_wgClaseTerreno(pos,terreno,u.bando,_md);   // v2.9.439
+  const atrapada = vel[claseSalida]==null;
   let saliendo = atrapada;
-  // v2.9.324 — LA PREVISIÓN AVISA DEL CAMPO MINADO ANTES DE MANDAR LA ORDEN.
-  // Misma regla que el motor: detiene, y el dueño pasa. Sólo puede avisar de
-  // los campos que este bando YA conoce — el servidor no manda los otros, así
-  // que esto no filtra nada que no se sepa.
-  // v2.9.441: mirando el suelo cada 50 m, como el motor (`_wgVigiaMinas`).
+  // v2.9.431 (gemelo): de donde no se cruza, sólo se SALE.
+  const claseDestino=_wgClaseTerreno(destino,terreno,u.bando,_md);
+  if(atrapada && vel[claseDestino]==null){
+    return {lng:pos[0],lat:pos[1],detenida:true,
+      motivo:`está DENTRO de ${WG_NOM_CLASE[claseSalida]||claseSalida} y el destino también: de ahí sólo se SALE — dale un destino en terreno transitable o sobre un camino`,
+      avanzadoKm:0,totalKm:totalDest,llego:false,horasUsadas:0,ruta:[[pos[0],pos[1]]],consumoKm:0,kmFueraRuta};
+  }
+  // v2.9.324/441 — LA PREVISIÓN AVISA DEL CAMPO MINADO ANTES DE MANDAR LA ORDEN.
   const campoEnPaso=_wgVigiaMinas(pos,terreno,u.bando);
   const MINADO_TXT='CAMPO MINADO — saltan las minas y se detiene con bajas: abrir brecha o rodearlo';
   while(true){
     const restante=_wgHav(pos,destino);
     if(restante<=1e-6) break;
-    if(++guardia>4000) { motivo='corte'; break; } // la previsión no necesita más
-    const frac=Math.min(0.5,restante)/restante;
+    if(++guardia>400000) { motivo='corte'; break; }
+    // v2.9.443 — el paso: 50 m donde la carta tiene algo; 500 m por el campo vacío (como el motor).
+    const largo=Math.min(0.5,restante);
+    const fL=largo/restante;
+    const lejos=[pos[0]+(destino[0]-pos[0])*fL, pos[1]+(destino[1]-pos[1])*fL];
+    const paso=_wgTramoLibre(idx,pos,lejos) ? largo : Math.min(WG_MUESTRA_KM,restante);
+    const frac=paso/restante;
     let sig=[pos[0]+(destino[0]-pos[0])*frac, pos[1]+(destino[1]-pos[1])*frac];
     const tope=campoEnPaso(pos,sig);
     if(tope){
       sig=tope.corte;
       if(_wgHav(pos,sig)<1e-6){ detenida=true; motivo=MINADO_TXT; break; }
     }
-    const clase=_wgClaseTerreno(sig,terreno,u.bando);   // v2.9.439
+    const clase=_wgClaseTerreno(sig,terreno,u.bando,_md);   // v2.9.439
     let v=vel[clase];
-    if(v==null && saliendo) v=(WG_VEL.pie[clase]||2)*0.5;
+    const aPasoDeHombre = v==null && saliendo;
+    if(aPasoDeHombre) v=(WG_VEL.pie[clase]||2)*0.5;
     else if(v!=null) saliendo=false;
-    if(v==null){ detenida=true; motivo='terreno '+clase+' infranqueable para '+(u.medio||'pie'); break; }
+    if(v==null){
+      detenida=true;
+      motivo=(clase==='rio'||clase==='agua')
+        ? `${WG_NOM_CLASE[clase]}: ${_wgEsConvoy(u)?'la columna':(u.medio||'pie')} no lo cruza — buscá un puente (o que la ingeniería tienda uno)`
+        : `terreno ${clase} infranqueable para ${_md}`;
+      break;
+    }
     const pasoReal=_wgHav(pos,sig), tPaso=pasoReal/v;
     // v2.9.334: el tanque limita igual que el reloj (idéntico al motor).
-    let gasta = WG_CONSUMO[clase]!=null ? WG_CONSUMO[clase] : 1;
-    if(_wgEsConvoy(u) && clase!=='camino') gasta = gasta*1.5;   // v2.9.353: camión cargado
+    const gasta=_wgGastoPorKm(u,clase);
     const kmPorTanque = (autonomia===Infinity||gasta<=0) ? Infinity
       : Math.max(0,(autonomia-consumoKm)/gasta);
     const kmPorTiempo = presupuesto*v;
@@ -35201,13 +35570,15 @@ function _wgPreverMovimiento(u,destino,horas){
       const f2=pasoReal>0?km/pasoReal:0;
       pos=[pos[0]+(sig[0]-pos[0])*f2, pos[1]+(sig[1]-pos[1])*f2];
       avanzado+=km; consumoKm+=km*gasta;
+      const tParcial=Math.min(presupuesto, km/v);
+      tUsado+=tParcial; presupuesto-=tParcial;
       ruta.push([pos[0],pos[1]]);
       if(clase!=='camino') kmFueraRuta+=km;
       if(porTanque){ detenida=true; motivo='SE LE ACABA EL COMBUSTIBLE ahí — hay que reabastecer antes'; }
       else { presupuesto=0; motivo='no alcanza el tiempo del turno'; }
       break;
     }
-    presupuesto-=tPaso; pos=sig; avanzado+=pasoReal; consumoKm+=pasoReal*gasta;
+    presupuesto-=tPaso; tUsado+=tPaso; pos=sig; avanzado+=pasoReal; consumoKm+=pasoReal*gasta;
     ruta.push([pos[0],pos[1]]);
     if(tope){ detenida=true; motivo=MINADO_TXT; break; }   // v2.9.441: llegó al borde del campo
     if(clase!=='camino'){
@@ -35222,27 +35593,21 @@ function _wgPreverMovimiento(u,destino,horas){
     if(presupuesto<=1e-9){ motivo='no alcanza el tiempo del turno'; break; }
   }
   return {lng:pos[0],lat:pos[1],detenida,motivo,avanzadoKm:avanzado,totalKm:totalDest,
-    llego:!detenida && _wgHav(pos,destino)<=1e-3, horasUsadas:Math.max(0,horas-presupuesto), ruta,
+    llego:!detenida && _wgHav(pos,destino)<=1e-3, horasUsadas:Math.max(0,Math.min(horas,tUsado)), ruta,
     consumoKm, kmFueraRuta, fueraDeRuta:/DEL CAMINO/.test(motivo), seco:/COMBUSTIBLE/.test(motivo)};
 }
 // v2.9.220 — GEMELO DE `moverPorRuta` DEL MOTOR. La unidad encadena los tramos:
 // llega a un punto de paso y con las horas que le quedan sigue al siguiente, en
-// el MISMO turno. Antes la previsión mostraba sólo el primer tramo, que además
-// era lo único que se ordenaba: por eso avanzaba de hito en hito.
+// el MISMO turno.
 function _wgPreverRuta(u,ruta,horas){
   const pts=(ruta||[]).filter(p=>Array.isArray(p)&&p.length>=2);
   if(!pts.length) return _wgPreverMovimiento(u,[u.lng,u.lat],horas);
-  // v2.9.324: el BANDO va en la posición de trabajo. Sin él, la previsión (hoy
-  // `_wgVigiaMinas`) no podía saber de quién es el campo y frenaba a la unidad en su
-  // PROPIO campo minado — al revés de la regla (el que lo sembró conoce las
-  // brechas). El motor no tenía el bug porque allá `pos` se arma con `{...u}`.
-  // v2.9.439: con `arma` y `medios` — el convoy se reconoce por su arma y la
-  // autonomía planificada viaja en `medios` (sin esto la previsión usaba el
-  // tanque de referencia y otro medio).
-  let pos={lng:u.lng,lat:u.lat,medio:u.medio,bando:u.bando,arma:u.arma,medios:u.medios,
-           combustible_km:Number(u.combustible_km)||0};
+  // v2.9.324: el BANDO va en la posición de trabajo (el dueño pasa por su campo).
+  // v2.9.439: con `arma` y `medios` (el convoy y la autonomía planificada).
+  let pos={lng:u.lng,lat:u.lat,medio:u.medio,bando:u.bando,arma:u.arma,medios:u.medios,escalon:u.escalon,
+           combustible_km:Number(u.combustible_km)||0, _kmFueraRuta:0};
   const gastadoAntes=Number(u.combustible_km)||0;   // v2.9.334
-  let restante=horas, avanzado=0, consumidos=0, consumoKm=0, seco=false;
+  let restante=horas, avanzado=0, consumidos=0, consumoKm=0, seco=false, kmFueraRuta=0;
   let rutaTot=[[u.lng,u.lat]];
   let detenida=false, motivo='', llego=false;
   let totalKm=0;
@@ -35254,8 +35619,10 @@ function _wgPreverRuta(u,ruta,horas){
     if(r.ruta&&r.ruta.length>1) rutaTot=rutaTot.concat(r.ruta.slice(1));
     avanzado+=r.avanzadoKm;
     consumoKm+=r.consumoKm||0;
+    kmFueraRuta=r.kmFueraRuta||kmFueraRuta;
     if(r.seco) seco=true;
     pos.combustible_km=gastadoAntes+consumoKm;   // v2.9.334: el tramo que sigue lo sabe
+    pos._kmFueraRuta=kmFueraRuta;                // v2.9.443: el tope fuera de ruta es de todo el turno
     restante=Math.max(0,restante-r.horasUsadas);
     motivo=r.motivo;
     if(r.detenida){ detenida=true; break; }
@@ -35264,12 +35631,12 @@ function _wgPreverRuta(u,ruta,horas){
     llego=(i===pts.length-1);
   }
   return {lng:pos.lng,lat:pos.lat,detenida,motivo,avanzadoKm:avanzado,totalKm,
-    ruta:rutaTot,horasUsadas:Math.max(0,horas-restante),llego,consumidos,consumoKm,seco};
+    ruta:rutaTot,horasUsadas:Math.max(0,horas-restante),llego,consumidos,consumoKm,seco,kmFueraRuta};
 }
 function _wgHoras(h){ const t=Math.max(0,Math.round((h||0)*60)), hh=Math.floor(t/60), mm=t%60;
   return hh?(hh+' h '+mm+' min'):(mm+' min'); }
 function _wgAlcanceObs(u,terreno){
-  const OBS={camino:1.0,libre:1.0,restringido:0.5,severo:0.3}; // v2.9.221
+  const OBS={camino:1.0,libre:1.0,restringido:0.5,severo:0.3,rio:1.0,agua:1.0}; // v2.9.221 · v2.9.443: ríos y lagunas
   const pt=[u.lng,u.lat];
   let r=(Number(u.obs_km)||4)*(OBS[_wgClaseTerreno(pt,terreno)]??1);
   if((terreno||[]).some(t=>t.tipo==='clave'&&!_wgFueraDeCaja(pt,t)&&_wgPtEnGeom(pt,t.geojson))) r*=1.5;
@@ -35818,14 +36185,17 @@ function _wgCapaEfectos(){
 // artillería batiendo un punto, dos unidades que no se movieron— sale enseguida,
 // como antes.
 // ============================================================
-function _wgAnimarDisparos(impactos, trazas, segundosMarcha=22){
+function _wgAnimarDisparos(impactos, trazas, segundosMarcha=22, horaFin){
   const base=(impactos||[]).filter(im=>Array.isArray(im.desde)
     && Number.isFinite(im.lng) && Number.isFinite(im.lat));
   if(!base.length) return Promise.resolve();
   const capa=_wgCapaEfectos();
   if(!capa) return Promise.resolve();
   const marcha=_wgFusionarTrazas(trazas||[]).filter(t=>t.km>0 && t.ruta.length>1);
-  const maxH=Math.max(...marcha.map(_wgFinMarcha),0.0001);
+  // v2.9.443: la misma escala que la marcha. Si nadie marchó, el fuego se reparte en
+  // unos segundos según su hora (no se hace esperar la película entera).
+  const maxH = (Number(horaFin)>0) ? Number(horaFin) : Math.max(...marcha.map(_wgFinMarcha),0.0001);
+  if(!marcha.length) segundosMarcha=Math.min(segundosMarcha, 8);
   // ¿Cuánto tarda en LLEGAR a `pt` alguna unidad que marcha hasta ahí? (0 si ninguna)
   const llegadaMs=(pt)=>{
     let ms=0;
@@ -36043,18 +36413,19 @@ function _wgAnimarDisparos(impactos, trazas, segundosMarcha=22){
 // y el humo que queda. Después `_wgEncender` deja el fuego y el cráter.
 // ============================================================
 const WG_MINA_HUECO_MS=520;   // de una detonación a la siguiente
-function _wgAnimarMinas(impactos, trazas, segundosMarcha=22){
+function _wgAnimarMinas(impactos, trazas, segundosMarcha=22, horaFin){
   const minas=(impactos||[]).filter(im=>im && im.mina && Number.isFinite(im.lng) && Number.isFinite(im.lat));
   if(!minas.length) return Promise.resolve();
   const capa=_wgCapaEfectos();
   if(!capa) return Promise.resolve();
   const marcha=_wgFusionarTrazas(trazas||[]).filter(t=>t.km>0 && t.ruta.length>1);
-  const maxH=Math.max(...marcha.map(_wgFinMarcha),0.0001);
+  const maxH = (Number(horaFin)>0) ? Number(horaFin) : Math.max(...marcha.map(_wgFinMarcha),0.0001);   // v2.9.443
   // Cuándo llega la columna al borde: el final de SU marcha, en la misma escala
   // de tiempo que la película (`wgReplay`).
   const llega=(im)=>{
     const t=marcha.find(x=>String(x.id)===String(im.uid));
-    const h=t ? _wgFinMarcha(t) : (Number.isFinite(Number(im.hora)) ? Number(im.hora) : 0);
+    // v2.9.443: la hora que manda el motor (la columna llegó al campo); si no viene, el fin de su marcha.
+    const h=Number.isFinite(Number(im.hora)) ? Number(im.hora) : (t ? _wgFinMarcha(t) : 0);
     return Math.max(0, (Math.min(h,maxH)/maxH)*segundosMarcha*1000 - 250);
   };
   const evs=minas.map(im=>({ im, uid:String(im.uid), orden:Number(im.orden)||0,
@@ -37121,7 +37492,8 @@ function wgPanelCapas(){
 // ============================================================
 // Poder de combate y observación por escalón (el árbitro los puede cambiar
 // después unidad por unidad; esto es sólo el punto de partida razonable).
-const WG_PODER={equipo:0.5,escuadra:1,seccion:2,compania:4,batallon:12,regimiento:20,brigada:40,division:80,cuerpo:150,ejercito:300};
+// v2.9.443 — WG_ARMAS_SERVICIO (en la misma línea, va con el poder): gemelo de ARMAS_SERVICIO del motor, no son fuerzas de maniobra.
+const WG_PODER={equipo:0.5,escuadra:1,seccion:2,compania:4,batallon:12,regimiento:20,brigada:40,division:80,cuerpo:150,ejercito:300}, WG_ARMAS_SERVICIO=['logistica','sanidad','intendencia','transporte','mantenimiento','materialbelico','veterinaria'];
 const WG_OBS={equipo:2,escuadra:2,seccion:3,compania:4,batallon:6,regimiento:8,brigada:10,division:14,cuerpo:20,ejercito:25};
 // Medio de transporte según el arma (define qué terreno puede cruzar).
 function _wgMedioPorArma(arma){
@@ -37297,7 +37669,24 @@ function _wgPanelMisionHTML(arma){
 function wgReplegar(){
   if(!WG.sel) return;
   WG.modoReplegar=!WG.modoReplegar;
-  if(WG.modoReplegar) WG.armaSel=null;
+  if(WG.modoReplegar){ WG.armaSel=null; WG.modoApoyar=false; }
+  _wgRender();
+}
+// v2.9.443 — ⏹ ALTO: orden «defender» (se queda). Corta la marcha que seguía sola.
+function wgAlto(){
+  const u=_wgUnidadPorId(WG.sel); if(!u) return;
+  if(!_wgPuedeOrdenarA(u)) return;
+  if(WG.rutas) delete WG.rutas[u.id];
+  WG.ordenes[u.id]={ tipo:'defender', _local:1 };
+  WG.modoReplegar=false; WG.modoApoyar=false; WG.armaSel=null;
+  _wgAviso(`⏹ <b>${_rgEsc(u.designacion||'La unidad')}</b>: ALTO — se queda donde está. Mandá la orden con <b>✔️ Órdenes listas</b>.`, 4500);
+  _wgActualizarContadorOrdenes(); _wgRender(); if(WG.map3d) _wg3dDatos();
+}
+// v2.9.443 — 🤝 arma el modo «apoyar»: el próximo clic en una unidad propia lo agrega.
+function wgModoApoyar(){
+  const u=_wgUnidadPorId(WG.sel); if(!u || !_wgEsConvoy(u)) return;
+  WG.modoApoyar=!WG.modoApoyar;
+  if(WG.modoApoyar){ WG.modoReplegar=false; WG.armaSel=null; }
   _wgRender();
 }
 function wgElegirArma(id){
@@ -37387,7 +37776,25 @@ function _wgPanelArmasHTML(){
     +(WG.modoReplegar?'↩️ TOCÁ EL MAPA: hacia dónde se repliega':'↩️ ROMPER CONTACTO · replegarse')+`</div>`
     +`<div class="rg-meta" style="font-size:10.5px;line-height:1.4;margin-bottom:6px">`
     +`Se retira <b>sin empeñar</b>. Si tenía un enemigo encima, aguanta el fuego de la persecución `
-    +`y no devuelve golpes: desenganchar cuesta, pero salva a la unidad.</div>`;
+    +`y no devuelve golpes: desenganchar cuesta, pero salva a la unidad.</div>`
+    // v2.9.443 — ⏹ ALTO: la marcha que no terminó la sigue SOLA el servidor el turno
+    // que viene; para pararla hace falta una orden. Ésta es («defender»: se queda).
+    +`<div onclick="wgAlto()" style="display:flex;align-items:center;justify-content:center;gap:7px;`
+    +`padding:7px;margin:4px 0 2px;border-radius:9px;cursor:pointer;font-size:11.5px;font-weight:700;`
+    +`background:rgba(140,210,255,.08);border:1px solid rgba(140,210,255,.35);color:#bfe3ff">⏹ ALTO · se queda donde está</div>`
+    +`<div class="rg-meta" style="font-size:10px;line-height:1.4;margin-bottom:6px">La marcha que no terminó sigue sola el turno que viene; con ALTO se corta.</div>`
+    +(_wgEsConvoy(u)
+      ? `<div onclick="wgModoApoyar()" style="display:flex;align-items:center;justify-content:center;gap:7px;`
+        +`padding:8px;margin:6px 0 2px;border-radius:9px;cursor:pointer;font-size:12px;font-weight:700;`
+        +(WG.modoApoyar?`background:rgba(46,204,113,.28);border:1px solid #2ecc71;color:#c9f7d9`
+                       :`background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.5);color:#8ef0b4`)+`">`
+        +(WG.modoApoyar?'🤝 TOCÁ LA UNIDAD PROPIA que va a apoyar':'🤝 APOYAR A UNA UNIDAD')+`</div>`
+        +`<div class="rg-meta" style="font-size:10px;line-height:1.4;margin-bottom:6px">`
+        +((u.carga&&u.carga.apoya!=null)
+          ? `Ahora apoya a <b>${_rgEsc(((_wgUnidadPorId(u.carga.apoya)||{}).designacion)||'una unidad')}</b>: la sigue y la abastece. Una orden de marcha lo desagrega.`
+          : `Queda agregado: la sigue por los caminos a 1,5 km detrás y la abastece cada turno hasta vaciarse; vacío, vuelve solo a recargar.`)
+        +`</div>`
+      : '');
   // v2.9.227: el estado de COMBUSTIBLE de la unidad seleccionada, arriba de todo.
   const c=_wgCombustible(u);
   const comb = c ? `<div class="rg-meta" style="font-size:11px;margin:0 0 8px;line-height:1.45">`
@@ -38032,11 +38439,12 @@ const _wgEscMayor=(e,ref)=>WG_ESC_ORDEN.indexOf(e)>=WG_ESC_ORDEN.indexOf(ref);
 // poder, obs, pc, designacion }` — lo que va a wg_unidades.
 function _wgMediosImport(u, ctx){
   ctx=ctx||{};
-  // La TAD y el nivel de abastecimiento son de NUESTRO plan de logística: al
-  // enemigo no le tocan. El consumo por la altura sí es de los dos (es el
-  // terreno, no el plan).
-  const plan0=ctx.plan||{ tad:{} };
-  const plan=_wgEsRoja(u) ? Object.assign({}, plan0, { tad:{}, fuente:null, nivelDias:null, nivelTxt:null }) : plan0;
+  // v2.9.443 — EL ROJO CON LAS MISMAS POSIBILIDADES QUE EL AZUL. Sergio: «las
+  // unidades de rojo tienen las mismas posibilidades de azul». Hasta acá la TAD
+  // y el nivel de abastecimiento del Anexo eran sólo del azul y el rojo entraba
+  // con la dotación de referencia: dos reglas distintas para el mismo sistema de
+  // armas. Ahora el mismo cálculo vale para los dos.
+  const plan=ctx.plan||{ tad:{} };
   const arma=u.arma||'infanteria';
   const escalon=WG_PODER[u.escalon]!=null?u.escalon:'batallon';
   const pc = u.tipo==='pc' || arma==='ninguna';
@@ -38116,8 +38524,15 @@ function _wgMediosImport(u, ctx){
   const base=WG_AUTONOMIA[medioFinal]||0;
   const autonomiaKm = (base && plan.consumo) ? Math.round(base/plan.consumo) : null;
   // El PC no es una fuerza de maniobra: combate con su seguridad.
+  // v2.9.443 — Y EL APOYO TAMPOCO: el servicio de combate (logística, sanidad,
+  // transporte…) pelea con el 15 % de su escalón y comunicaciones con el 25 %.
+  // Gemelo de `poderDeReferencia` del motor. (Sergio: los vehículos de
+  // abastecimiento «estaban disparando como si fueran división».)
+  const basePoder=(WG_PODER[escalon]||12);
   const poder = pc ? (_wgEscMayor(escalon,'division') ? WG_PODER.compania : WG_PODER.seccion)
-                   : (WG_PODER[escalon]||12);
+              : WG_ARMAS_SERVICIO.includes(arma) ? Math.round(basePoder*0.15*10)/10
+              : arma==='comunicaciones' ? Math.round(basePoder*0.25*10)/10
+              : basePoder;
   const obs = pc ? Math.min(WG_OBS[escalon]||4, WG_OBS.batallon) : (WG_OBS[escalon]||4);
   const s={};
   if(u.tipo==='pc') s.tipo='pc';
@@ -38811,6 +39226,96 @@ function wgPanelBarreras(){
   el.innerHTML=`${c.total} obra(s)${c.campos?` · 💣 ${c.campos} campo(s) minado(s)`:''}: ${est}.`
     +`<br>Construido, el campo minado <b>detiene</b>: la vanguardia entra, saltan las minas una tras otra y la `
     +`unidad queda detenida al borde, con bajas. Se cambia en cualquier turno, sin reimportar.`;
+}
+// ============================================================
+// v2.9.443 — 🔄 LOS MEDIOS DE LAS FICHAS (azul y rojo) Y LA CARTA, SIN REINICIAR.
+// Sergio: «que se cargue bien lo que las fichas tienen, de azul como de rojo».
+// En «ZAPATO II» las 20 fichas entraron antes de la v2.9.439: sin sus medios, con
+// el PC del CE-1 en 150 de poder y la DIV MEC-2 como motorizada; y la carta sin
+// la capa de cada camino y cada río. Se recalcula con la MISMA función que usa la
+// importación (`_wgMediosImport`) y se guarda en su lugar (`actualizar_medios`):
+// posición, munición gastada, combustible, órdenes, bitácora y turno no cambian.
+// Con el archivo del ejercicio, además: el COE de la biblioteca, lo planificado en
+// el Anexo de Logística y la carta de fondo con su capa (`actualizar_carta`).
+// ============================================================
+function _wgMesaDe(u, mesa){
+  // La ficha de la Mesa que corresponde a la del Juego (por bando y designación).
+  if(!mesa || !mesa.length) return null;
+  const k=_wgClaveDesig(u.designacion);
+  if(!k) return null;
+  const rojo=u.bando==='rojo';
+  return mesa.find(m=>m && m.tipo!=='instalacion' && _wgClaveDesig(m.designacion)===k && (!!_wgEsRoja(m))===rojo) || null;
+}
+async function wgActualizarMedios(inp, btn){
+  if(WG.soy!=='arbitro'){ _wgAviso('Sólo el árbitro actualiza los medios de las fichas.',4000); return; }
+  const est=document.getElementById('wg-medios-estado');
+  const poner=(t)=>{ if(est) est.innerHTML=t; };
+  let d=null;
+  const f=inp && inp.files && inp.files[0];
+  if(inp) inp.value='';
+  if(f){
+    try{ d=JSON.parse(await f.text()); }
+    catch(_e){ poner('❌ Ese archivo no es un JSON válido: elegí el <b>ejercicio.json</b> que baja la Mesa.'); return; }
+  }
+  const uds=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u && !_wgEsConvoy(u));
+  if(!uds.length){ poner('No hay fichas en esta partida.'); return; }
+  const plan = d ? _wgPlanLogistico(d) : { tad:{} };
+  const coes = (d && Array.isArray(d.bibliotecaCOE)) ? d.bibliotecaCOE : [];
+  const mesa = d ? [ ...((d.unidades)||[]) ] : [];
+  const lista=[]; const porFuente={};
+  for(const u of uds){
+    const m=_wgMesaDe(u, mesa);
+    // La ficha de la Mesa trae su COE, sus datos del G-4 y su diseño; si no está, la del Juego.
+    const base=Object.assign({}, m||{}, { designacion:u.designacion, arma:u.arma||(m&&m.arma), escalon:u.escalon||(m&&m.escalon),
+      bando:u.bando, tipo:(m&&m.tipo)||(u.arma==='ninguna'?'pc':undefined) });
+    if(!m && u.bando==='rojo') base.lado='enemigo';
+    const M=_wgMediosImport(base, { plan, coes });
+    // Lo que la importación guardó de la ficha (su símbolo, su tarea) se conserva.
+    const viejo=(u.medios&&typeof u.medios==='object')?u.medios:{};
+    for(const k of ['simbolo','tarea','proposito']) if(viejo[k] && !M.medios[k]) M.medios[k]=viejo[k];
+    porFuente[M.medios.fuente]=(porFuente[M.medios.fuente]||0)+1;
+    lista.push({ id:u.id, medios:M.medios, medio:M.medio, poder_max:M.poder, obs_km:M.obs });
+  }
+  if(btn) btn.disabled=true;
+  poner(`⏳ Actualizando los medios de ${lista.length} ficha(s)…`);
+  let r;
+  try{ r=await _wgInvoke('actualizar_medios',{ partida_id:WG.partidaId, clave_acceso:WG.clave, unidades:lista }); }
+  finally{ if(btn) btn.disabled=false; }
+  if(!r || !r.ok){
+    const vieja=/no reconocida/i.test((r&&r.error)||'');
+    poner(vieja ? '⚠️ La Edge Function <b>wargame-ops</b> todavía es la anterior: desplegala (v2.9.443) para actualizar los medios.'
+      : '❌ No se pudieron actualizar los medios: '+_rgEsc((r&&r.error)||''));
+    return;
+  }
+  const pf=[]; if(porFuente.coe) pf.push(`${porFuente.coe} con su COE`); if(porFuente.g4) pf.push(`${porFuente.g4} con los datos del G-4`);
+  if(porFuente.catalogo) pf.push(`${porFuente.catalogo} con la dotación de referencia`);
+  let txt=`✅ <b>${r.actualizadas}</b> ficha(s) con sus medios (${pf.join(' · ')}).`
+    +(Object.keys(plan.tad||{}).length?` Lo planificado en ${_rgEsc(plan.fuente||'el Anexo de Logística')} vale para los dos bandos.`:'')
+    +(r.aviso?`<br>⚠️ ${_rgEsc(r.aviso)}`:'');
+  // La carta, con su capa (sólo si vino el archivo).
+  if(d){
+    const esc=_wgEscenarioDesde(d, null, {});
+    const CAPAS=['via','hidro','vegetacion','poblado','elevacion','jurisdiccion'];
+    const carta=(esc.terreno||[]).filter(t=>t && CAPAS.includes(t.tipo) && !t.bando);
+    if(carta.length){
+      const TOPE=600000, tandas=[]; let actual=[], peso=0;
+      for(const t of carta){ const n=JSON.stringify(t).length; if(actual.length && peso+n>TOPE){ tandas.push(actual); actual=[]; peso=0; } actual.push(t); peso+=n; }
+      if(actual.length) tandas.push(actual);
+      let ok=0, fallo=null;
+      for(let i=0;i<tandas.length;i++){
+        poner(txt+`<br>⏳ Actualizando la carta… tanda ${i+1} de ${tandas.length}`);
+        const rc=await _wgInvoke('actualizar_carta',{ partida_id:WG.partidaId, clave_acceso:WG.clave, limpiar:i===0, terreno:tandas[i] });
+        if(!rc || !rc.ok){ fallo=(rc&&rc.error)||'error'; break; }
+        ok+=(rc.insertadas||0);
+      }
+      txt += fallo ? `<br>⚠️ La carta no se actualizó entera: ${_rgEsc(fallo)} — volvé a intentarlo.`
+        : `<br>🗺️ Carta actualizada: <b>${ok}</b> elementos con su capa (caminos, sendas, ríos, quebradas, lagunas…).`;
+      WG.terreno=null; WG._terrenoN=null; WG._terrenoFirma=null; WG.capaTerrenoFirma=null;
+    }
+  }
+  poner(txt);
+  await wgEstado(true); _wgRender(); if(WG.map3d) _wg3dDatos(); wgBarraUnidades();
+  _wgAviso(txt, 9000);
 }
 async function wgPlanBarreras(estado, btn){
   if(WG.soy!=='arbitro'){ _wgAviso('Sólo el árbitro decide si el plan de barreras está construido.',4000); return; }
@@ -39681,6 +40186,18 @@ function _wgDibujo(){
       D.push(_wgD.pt(pv.lng,pv.lat,6,'#ffffff',2,
         pv.detenida?'#e08a2c':(pv.llego?'#2ecc71':'#e8c33a')));
       const marca = esRepliegue ? '↩️ REPLIEGUE · ' : '';
+      // v2.9.443 — EL QUE YA ESTÁ EN CONTACTO NO AVANZA. El motor detiene a dos
+      // enemigos que quedan a 3 km o menos; si ya empiezan así, la marcha no sale.
+      // Se avisa con lo que este bando VE (no se filtra nada que no sepa).
+      if(!esRepliegue && !_wgEsNoCombatienteCli(u)){
+        const enC=(visibles||[]).filter(x=>x && x.bando!==u.bando && x.estado!=='fuera_combate' && !_wgEsNoCombatienteCli(x)
+          && Number.isFinite(x.lng) && _wgHav([u.lng,u.lat],[x.lng,x.lat])<=3);
+        if(enC.length){
+          D.push(_wgD.txt(u.lng,u.lat, `⚔️ EN CONTACTO con ${enC[0].designacion||'el enemigo'} (${_wgHav([u.lng,u.lat],[enC[0].lng,enC[0].lat]).toFixed(1)} km): `
+            +`así no avanza — ↩️ ROMPER CONTACTO para salir`, uid));
+          continue;
+        }
+      }
       D.push(_wgD.txt(pv.lng,pv.lat, pv.detenida
         ? `${marca}🛑 ${pv.avanzadoKm.toFixed(1)} km · ${pv.motivo}`
         : (pv.llego ? `${marca}✅ llega (${pv.avanzadoKm.toFixed(1)} km · ${_wgHoras(pv.horasUsadas)})`
@@ -39708,6 +40225,13 @@ function _wgDibujo(){
       D.push(_wgD.txt(t.lng,t.lat, alcanza
         ? `⚔️ ${arma?arma.nom:'combate'} · ${d.toFixed(1)} km · relación ${rel.toFixed(1)}:1 → ${txtRel}`
         : `🔥 TIRO CORTO · ${arma?arma.nom:'el sistema'} bate ${alcance.toFixed(1)} km y está a ${d.toFixed(1)} km. Dispara igual: gasta munición y delata su posición.`, uid));
+    }else if(o.tipo==='apoyar' && o.objetivo_id && uById[o.objetivo_id]){
+      // v2.9.443 — el convoy agregado: una línea verde hasta la unidad que apoya.
+      const t=uById[o.objetivo_id];
+      D.push(_wgD.lin([[u.lng,u.lat],[t.lng,t.lat]],'#2ecc71',2,'2 6',.9));
+      D.push(_wgD.txt(t.lng,t.lat, `🤝 ${u.designacion||'Convoy'} la apoya: la sigue a 1,5 km y la abastece`, uid));
+    }else if(o.tipo==='defender'){
+      D.push(_wgD.txt(u.lng,u.lat,'⏹ ALTO — se queda donde está', uid));
     }else if(o.tipo==='fuego' && o.destino_lat!=null){
       // v2.9.219 — CONCENTRACIÓN DE FUEGO sobre un punto del terreno.
       const arma=_wgArmaDeFuego(u,o.arma);
@@ -41466,6 +41990,25 @@ function _wgPuedeEmpenar(u){
   return false;
 }
 function _wgUnidadClick(u){
+  // v2.9.443 — 🤝 APOYAR A UNA UNIDAD: con un convoy elegido y el modo armado, el
+  // clic sobre una unidad PROPIA lo agrega a ella (la sigue y la abastece).
+  if(WG.modoApoyar){
+    const cv=_wgUnidadPorId(WG.sel);
+    WG.modoApoyar=false;
+    if(cv && _wgEsConvoy(cv) && String(cv.id)!==String(u.id) && u.bando===cv.bando && !_wgEsConvoy(u)){
+      if(!_wgPuedeOrdenarA(cv)) return;
+      if(WG.rutas) delete WG.rutas[cv.id];
+      WG.ordenes[cv.id]={ tipo:'apoyar', objetivo_id:u.id, _local:1 };
+      _wgAviso(`🤝 <b>${_rgEsc(cv.designacion||'El convoy')}</b> va a quedar <b>agregado a ${_rgEsc(u.designacion||'esa unidad')}</b>: `
+        +`la sigue por los caminos, a 1,5 km detrás, y la abastece al final de cada turno hasta vaciarse; vacío, `
+        +`vuelve solo a su instalación a recargar. Mandá la orden con <b>✔️ Órdenes listas</b>.`, 8000);
+      _wgActualizarContadorOrdenes(); _wgRender(); if(WG.map3d) _wg3dDatos();
+      return;
+    }
+    _wgAviso('🤝 El convoy apoya a una unidad <b>propia</b> (no a otro convoy). Elegí de nuevo.', 4500);
+    _wgRender();
+    return;
+  }
   // v2.9.214 — EL ÁRBITRO TAMBIÉN ATACA. Antes `mio` era true para TODAS las
   // unidades cuando sos árbitro, así que tocar un enemigo lo seleccionaba en
   // lugar de empeñarlo: el árbitro no podía ordenar un solo ataque.
@@ -41524,7 +42067,17 @@ function _wgMapClick(ev){
     // en la bitácora que nadie lee EN EL MOMENTO. Ahora se avisa acá, al tocar,
     // no se crea la orden, y la obra queda elegida para volver a intentar
     // dentro del círculo (que desde esta versión se DIBUJA).
-    if(uO){
+    if(uO && WG.obraSel==='puente'){
+      const cl=_wgClaseTerreno(p, WG.terreno||[]);
+      if(cl!=='rio'){
+        _wgAviso(cl==='agua' ? `🌉 <b>Una laguna no se puentea</b>: hay que rodearla.`
+          : `🌉 <b>Ahí no hay un río que cruzar</b>${cl==='camino'?' (ya hay un puente de camino)':''}. Tocá <b>sobre la traza del río</b>.`, 6000);
+        return;
+      }
+    }
+    if(uO && WG_OBRAS[WG.obraSel] && WG_OBRAS[WG.obraSel].porKm){
+      // v2.9.443: la brecha arranca donde está la cuadrilla; el clic marca HACIA DÓNDE (hasta 2 km).
+    } else if(uO){
       const d=_wgHav([uO.lng,uO.lat],p);
       if(d>1.0){
         _wgAviso(`🚧 <b>Fuera del alcance de trabajo.</b> Tocaste a <b>${d.toFixed(2)} km</b> y `
@@ -41742,6 +42295,9 @@ function _wgAvanzarRutas(trazas){
     // turno que viene sería meterla otra vez en el campo, mina tras mina. Queda
     // esperando una orden nueva: rodearlo o esperar la brecha.
     if(t && t.minado){ delete WG.rutas[id]; delete WG.ordenes[id]; continue; }
+    // v2.9.443 — LA FRENÓ UN CONTACTO: está trabada con el enemigo; seguirla sería
+    // atravesarlo. Espera orden: vencerlo, o romper contacto.
+    if(t && t.contacto){ delete WG.rutas[id]; delete WG.ordenes[id]; continue; }
     let n = t && Number.isFinite(t.consumidos) ? t.consumidos : 0;
     // Respaldo por si la traza no vino (Edge Function vieja): el criterio de antes.
     if(!t && _wgHav([u.lng,u.lat], r[0]) < 0.35) n=1;
@@ -41894,10 +42450,11 @@ async function wgResolver(btn){
   // ============================================================
   WG.replayando=true;
   try{
+    const hFin=_wgHoraFinPelicula(trazas, impactos);   // v2.9.443: una sola escala de tiempo
     await Promise.all([
-      trazas.length ? wgReplay(trazas) : Promise.resolve(),
-      _wgAnimarDisparos(impactos, trazas),   // v2.9.430: el fuego espera a que lleguen
-      _wgAnimarMinas(impactos, trazas),      // v2.9.441: y las minas saltan cuando llega la columna
+      trazas.length ? wgReplay(trazas, 22, hFin) : Promise.resolve(),
+      _wgAnimarDisparos(impactos, trazas, 22, hFin),   // v2.9.443: cada tiro a SU hora
+      _wgAnimarMinas(impactos, trazas, 22, hFin),      // v2.9.441: y las minas saltan cuando llega la columna
     ]);
   } finally { WG.replayando=false; }
   _wgEncender(impactos, r.turno_resuelto);
@@ -41976,9 +42533,48 @@ function _wgFaseMarcha(t, horaSim){
 // un doble envío), el motor la movió una detrás de la otra. Animarlas por
 // separado hacía que la ficha saltara entre dos rutas en cada cuadro. Se
 // encadenan: una sola marcha, ruta seguida, tiempos sumados.
+// ============================================================
+// v2.9.443 — LA MARCHA SE ANIMA POR SU HORA, NO POR SUS PUNTOS.
+// Desde esta versión el motor manda la HORA de cada punto de la traza (`tt`): el
+// suelo se mira cada 50 m donde hay algo y cada 500 m en el campo vacío, así
+// que los puntos ya no están parejos, y la columna va más lenta por el
+// restringido que por el camino. La traza se remuestrea a intervalos IGUALES DE
+// TIEMPO: con eso todo lo que ya animaba por fracción (2D, 3D, cámara, polvo)
+// pone la ficha donde el motor dice que estaba a cada hora — que es donde caen
+// los disparos que se resolvieron a esa hora.
+// ============================================================
+function _wgTrazaPorHora(t){
+  const r=t&&t.ruta, tt=t&&t.tt;
+  if(!Array.isArray(r) || !Array.isArray(tt) || tt.length!==r.length || r.length<2) return t;
+  const t0=Number(tt[0]), t1=Number(tt[tt.length-1]);
+  if(!(t1>t0)) return Object.assign({}, t, { inicio:t0, horas:0, tt:null });
+  const N=Math.min(160, Math.max(24, r.length*2));
+  const out=[]; let j=0;
+  for(let k=0;k<=N;k++){
+    const h=t0+(t1-t0)*k/N;
+    while(j<tt.length-2 && tt[j+1]<h) j++;
+    const d=tt[j+1]-tt[j];
+    const f=d>0 ? Math.max(0,Math.min(1,(h-tt[j])/d)) : 1;
+    out.push([r[j][0]+(r[j+1][0]-r[j][0])*f, r[j][1]+(r[j+1][1]-r[j][1])*f]);
+  }
+  return Object.assign({}, t, { ruta:out, inicio:t0, horas:t1-t0, tt:null });
+}
+// La hora en que termina la película: la última marcha o el último disparo.
+// Las tres animaciones (marcha, fuego, minas) tienen que usar LA MISMA escala.
+function _wgHoraFinPelicula(trazas, impactos){
+  let h=0;
+  for(const t of (trazas||[])){
+    if(!t) continue;
+    const fin = (Array.isArray(t.tt)&&t.tt.length) ? Number(t.tt[t.tt.length-1]) : _wgFinMarcha(t);
+    if(Number.isFinite(fin) && (Number(t.km)||0)>0) h=Math.max(h,fin);
+  }
+  for(const im of (impactos||[])) if(im && Number.isFinite(Number(im.hora))) h=Math.max(h, Number(im.hora));
+  return Math.max(h, 0.0001);
+}
 function _wgFusionarTrazas(trazas){
   const por=new Map();
-  for(const t of (trazas||[])){
+  for(const t0 of (trazas||[])){
+    const t=_wgTrazaPorHora(t0);
     if(!t || !Array.isArray(t.ruta) || !t.ruta.length) continue;
     const k=String(t.id), prev=por.get(k);
     if(!prev){ por.set(k, Object.assign({}, t, { ruta:t.ruta.slice() })); continue; }
@@ -42012,7 +42608,7 @@ function _wgAsentarTrazas(trazas){
     if(u){ u.lng=fin[0]; u.lat=fin[1]; }
   }
 }
-async function wgReplay(trazas, segundos=22){
+async function wgReplay(trazas, segundos=22, horaFin){
   if(!WG.map||!trazas||!trazas.length) return;
   trazas=_wgFusionarTrazas(trazas);
   if(!trazas.length) return;
@@ -42042,7 +42638,8 @@ async function wgReplay(trazas, segundos=22){
       if(l.__uid!=null && l.setLatLng) fichas[String(l.__uid)]=l; }); }catch(_e){}
   };
   _indexar();
-  const maxH=Math.max(...trazas.map(_wgFinMarcha),0.0001);   // v2.9.430: inicio + horas
+  // v2.9.430: inicio + horas. v2.9.443: la escala común con el fuego y las minas.
+  const maxH = (Number(horaFin)>0) ? Number(horaFin) : Math.max(...trazas.map(_wgFinMarcha),0.0001);
   const cartel=document.getElementById('wg-ayuda');
   const antes=cartel?cartel.innerHTML:'';
   // v2.9.261: el marcador del replay tiene que verse aunque la ayuda esté cerrada.

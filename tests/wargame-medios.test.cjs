@@ -162,14 +162,18 @@ test('el PC del CE no es una fuerza de maniobra: «CE-IX», poder de su segurida
   assert.strictEqual(pcRojo.poder_max, 2);                   // antes 40 (brigada)
 });
 
-test('el enemigo usa el catálogo, no la TAD de nuestro plan; la tarea del CAE viaja con la ficha', () => {
+// v2.9.443 — Sergio: «las unidades de rojo tienen las mismas posibilidades de azul». Desde esta versión el
+// mismo cálculo vale para los dos bandos: la TAD y el nivel del Anexo también le tocan al rojo.
+test('el rojo con las mismas posibilidades que el azul: misma TAD, mismo nivel; la tarea del CAE viaja con la ficha', () => {
   const esc = W._wgEscenarioDesde(ejercicio(), null);
   const lar = porNom(esc)['BAT. LAR-160 (FICT.)'];
   assert.strictEqual(lar.bando, 'rojo');
   assert.ok(W._wgArmamento(lar).some((a) => a.id === 'lanzacohetes'), 'la LAR-160 tira cohetes');
-  assert.strictEqual(lar.medios.sistemas.lanzacohetes.de, 'catalogo');
-  assert.strictEqual(lar.medios.tadDe, undefined);
-  assert.strictEqual(lar.medios.nivelDias, undefined);       // el nivel de abastecimiento es de nuestro plan
+  const galm = porNom(esc)['GALM-1'] || Object.values(porNom(esc)).find((u) => u.bando === 'azul' && u.arma === 'lanzacohetes');
+  assert.ok(galm, 'hay un GALM azul en el ejercicio');
+  assert.strictEqual(lar.medios.sistemas.lanzacohetes.de, galm.medios.sistemas.lanzacohetes.de);
+  assert.strictEqual(lar.medios.sistemas.lanzacohetes.uf, galm.medios.sistemas.lanzacohetes.uf);
+  assert.strictEqual(lar.medios.nivelDias, galm.medios.nivelDias);
   assert.match(lar.medios.tarea, /INTERDICTAR/);
   const tq = porNom(esc)['G. BLIN. 9 (FICT.)'];
   assert.strictEqual(tq.medio, 'oruga');
