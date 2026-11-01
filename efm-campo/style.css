@@ -137,3 +137,23 @@ dialog.efmc-planner{width:min(1220px,96vw);max-width:1220px;padding:28px;backgro
 #efmc .efmc-management{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 20px;border:1px solid #3e6574;border-radius:14px;background:#14313e;margin:12px 0 20px}#efmc .efmc-management>div:last-child{display:flex;flex-wrap:wrap;gap:8px}#efmc .efmc-management b{display:block;margin-top:4px;font-size:16px}
 @media(max-width:800px){.efmc-dialog .plan-settings,.efmc-dialog .plan-builder-fields{grid-template-columns:1fr 1fr}.efmc-plan-stations{grid-template-columns:1fr 1fr}#efmc .efmc-management{align-items:flex-start;flex-direction:column}}
 @media(max-width:520px){dialog.efmc-planner{padding:16px}.efmc-dialog h2{font-size:22px}.efmc-dialog .plan-settings,.efmc-dialog .plan-builder-fields,.efmc-plan-stations{grid-template-columns:1fr}.plan-builder,.efmc-planner .efmc-plan-group{padding:16px}.plan-footer{flex-direction:column}.efmc-plan-group h3>b{margin-left:0}.plan-people{grid-template-columns:repeat(auto-fill,minmax(36px,1fr))}.plan-person-info{position:static}}
+
+/* Conformidad de la versión guardada: rojo hasta aceptación del alumno. */
+#efmc .efmc-sync{font-size:12px;color:#b9d0d9;min-height:20px;line-height:1.5}
+#efmc .efmc-conformidad{display:block;padding:10px 12px;border:1px solid;border-radius:8px;margin:8px 0;line-height:1.5}
+#efmc .efmc-conformidad b{display:block;font-size:20px}
+#efmc .efmc-conformidad small{color:inherit;font-size:11px;letter-spacing:0}
+#efmc .efmc-conformidad.pendiente{color:#ffb4b4;border-color:#ee6565;background:#4a1c25}
+#efmc .efmc-conformidad.conforme{color:#adf7ce;border-color:#43cf8b;background:#123c2c}
+#efmc .efmc-conformidad.sin-registro{color:#c2ced5;border-color:#556b76;background:#21323e}
+#efmc .efmc-records{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;margin-top:20px}
+#efmc .efmc-record{padding:20px;border:1px solid #3e5b6a;border-radius:14px;background:#0e1f2a;min-width:0}
+#efmc .efmc-record.pendiente{border-color:#ee6565}#efmc .efmc-record.conforme{border-color:#43cf8b}
+#efmc .efmc-record h3{margin-top:0}#efmc .efmc-record p{line-height:1.6}
+#efmc .efmc-record .efmc-mark{font-size:24px;font-weight:700}
+#efmc .efmc-record [data-confirm]{width:100%;background:#54313c;border-color:#ee9191;min-height:52px}
+#efmc .efmc-evaluaciones{display:flex;gap:12px;flex-wrap:wrap;margin:24px 0}
+#efmc .efmc-evaluaciones button{flex:1;text-align:left;line-height:1.5;min-width:240px}
+#efmc .efmc-evaluaciones small{letter-spacing:0}
+#efmc [data-live-student]{display:block;min-width:145px}
+@media(max-width:720px){#efmc .efmc-records{grid-template-columns:1fr}#efmc .efmc-evaluaciones button{min-width:0;flex-basis:100%}}
