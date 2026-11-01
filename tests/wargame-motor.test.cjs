@@ -51,11 +51,12 @@ test('motorizado adentro con destino afuera: sale a paso de hombre y lo explica'
   const u = unidad({ lng: pt(9, 2)[0], lat: pt(9, 2)[1] });   // a 1 km del borde este
   const r = M.moverPorRuta(u, [pt(13, 2)], terreno, 2, 14);     // 4 km, 1 adentro + 3 afuera
   assert.strictEqual(r.llego, true);
-  // el paso de 0,5 km se clasifica en su punto final: 1 km adentro cuenta 0,5–1,0
-  assert.ok(r.kmSalida >= 0.5 && r.kmSalida < 1.6, 'km a paso de hombre: ' + r.kmSalida);
+  // v2.9.443: el suelo se mira cada 50 m — el km adentro se cuenta entero, no de a 500 m
+  assert.ok(r.kmSalida >= 0.95 && r.kmSalida < 1.06, 'km a paso de hombre: ' + r.kmSalida);
   assert.strictEqual(r.claseSalida, 'restringido');
-  // 1 km a 1,75 km/h ≈ 0,57 h; 3 km a 40 km/h ≈ 0,075 h
-  assert.ok(r.horasUsadas > 0.3 && r.horasUsadas < 0.95, 'horas: ' + r.horasUsadas);
+  // v2.9.443: a pie el restringido se cruza a 1,5 km/h; el vehículo remolcado sale a la mitad (0,75 km/h).
+  // 1 km a 0,75 km/h ≈ 1,33 h; 3 km a 40 km/h ≈ 0,075 h
+  assert.ok(r.horasUsadas > 1.3 && r.horasUsadas < 1.5, 'horas: ' + r.horasUsadas);
   const txt = M.textoMarcha(u, r, 0);
   assert.match(txt, /arrancó DENTRO de terreno restringido, que «motor» NO cruza/);
   assert.match(txt, /paso de hombre/);
@@ -116,7 +117,8 @@ test('fuego sin hora: se bate al blanco en el primer punto de su marcha al alcan
   const res = partidaFuego(null);
   const im = res.impactos.find((i) => i.arma === 'obus105' && !i.respuesta);
   assert.ok(im, 'hubo impacto');
-  assert.strictEqual(im.hora, null);
+  // v2.9.443: todo tiro lleva su hora — acá H+0, apenas el blanco está al alcance (la película dispara ahí)
+  assert.strictEqual(im.hora, 0);
   // el primer punto de la ruta ya está a 8,5 km < 11 km de alcance: se bate ahí
   assert.ok(M.haversineKm([im.lng, im.lat], pt(-8, 3)) < 0.6);
 });
