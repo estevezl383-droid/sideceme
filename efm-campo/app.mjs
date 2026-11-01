@@ -44,7 +44,7 @@ export async function abrir({invoke,onClose,owner,authorized=()=>true}){
   if(!alive||!authorized()||!organizacionId||busy||syncing||document.hidden)return;
   syncing=true;const id=organizacionId;
   try{const r=await invoke({accion:'sincronizar',organizacion_id:id});if(!alive||!authorized()||organizacionId!==id)return;
-   if(r.version!==organizacion?.version){syncError='La organización cambió. Actualiza antes de continuar.';if(!pending&&!timer.running&&!run.running&&value===''&&!datosPendientes()){await load();}return;}
+   if(r.version!==organizacion?.version){syncError='La organización cambió. Actualiza antes de continuar.';if(!pending&&!timer.running&&!run.running&&value===''&&!datosPendientes()){await load();}pintarSincronizacion();return;}
    records=r.registros;condiciones=r.condiciones;roster.forEach(c=>c.condiciones=condiciones.filter(x=>x.cursante_id===c.id));syncEn=r.servidor_en;syncError='';pintarSincronizacion();
   }catch(e){if(alive&&organizacionId===id){syncError='Sin sincronizar: '+e.message;pintarSincronizacion();}}finally{syncing=false;}
  }
@@ -106,7 +106,7 @@ export async function abrir({invoke,onClose,owner,authorized=()=>true}){
  }
  function raceRows(){
   const used=new Set(run.laps.filter(x=>x.cursante).map(x=>x.cursante));
-  return run.laps.map((l,i)=>`<div class="efmc-lap-row"><b>#${i+1}</b><strong>${fmt(l.ms)}</strong>${l.saved?`<span>✓ ${esc([gradoArma(roster.find(c=>c.id===l.cursante)),roster.find(c=>c.id===l.cursante)?.nombre_completo].filter(Boolean).join(' '))}</span>`:`<select data-lap="${i}" ${run.running||busy?'disabled':''}><option value="">IDENTIFICAR CURSANTE</option>${roster.filter(c=>run.group.includes(c.id)&&(!used.has(c.id)||c.id===l.cursante)).map(c=>`<option value="${c.id}" ${c.id===l.cursante?'selected':''}>${esc([gradoArma(c),c.nombre_completo].filter(Boolean).join(' '))}</option>`).join('')}</select><button data-save-lap="${i}" ${!l.cursante||busy||run.running?'disabled':''}>GUARDAR</button>`}</div>`).join('');
+  return run.laps.map((l,i)=>`<div class="efmc-lap-row"><b>#${i+1}</b><strong>${fmt(l.ms)}</strong>${l.saved?`<span>✓ ${esc([gradoArma(roster.find(c=>c.id===l.cursante)),roster.find(c=>c.id===l.cursante)?.nombre_completo].filter(Boolean).join(' '))}</span>${vivo(l.cursante,'aerobica')}`:`<select data-lap="${i}" ${run.running||busy?'disabled':''}><option value="">IDENTIFICAR CURSANTE</option>${roster.filter(c=>run.group.includes(c.id)&&(!used.has(c.id)||c.id===l.cursante)).map(c=>`<option value="${c.id}" ${c.id===l.cursante?'selected':''}>${esc([gradoArma(c),c.nombre_completo].filter(Boolean).join(' '))}</option>`).join('')}</select><button data-save-lap="${i}" ${!l.cursante||busy||run.running?'disabled':''}>GUARDAR</button>`}</div>`).join('');
  }
  function captureArrival(){
   if(!run.running||run.laps.length>=run.group.length)return;
