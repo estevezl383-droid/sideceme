@@ -6,6 +6,14 @@ import {validarMedidas,calificarMedidas} from './medidas.mjs';
 const sb=createClient(Deno.env.get('SUPABASE_URL')||'',Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'');
 const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,apikey,x-client-info,content-type','Access-Control-Allow-Methods':'POST,OPTIONS','Content-Type':'application/json','Cache-Control':'no-store'};
 const reply=(status:number,data:any)=>new Response(JSON.stringify(data),{status,headers});
+async function conConformidades(records){
+ const ids=records.filter(r=>r.organizacion_id).map(r=>r.id);
+ if(!ids.length)return records;
+ const q=await sb.from('efmc_conformidades').select('registro_id,cursante_id,confirmado_en').in('registro_id',ids);
+ if(q.error)throw q.error;
+ const byId=new Map(q.data.map(c=>[c.registro_id,c]));
+ return records.map(r=>({...r,conformidad:byId.get(r.id)||null}));
+}
 Deno.serve(async(req:Request)=>{
  if(req.method==='OPTIONS')return new Response(null,{headers});
  if(req.method!=='POST')return reply(405,{ok:false,error:'MÉTODO NO PERMITIDO'});
@@ -15,7 +23,26 @@ Deno.serve(async(req:Request)=>{
   const {data:s,error:se}=await sb.from('sesiones').select('usuario_id,usuario_ci,usuario_tabla,expira_en,revocado,es_master,soporte_actor_id,soporte_actor_ci').eq('token',b.token).maybeSingle();
   if(se)throw se;
   if(!s||s.revocado!==false||!Number.isFinite(Date.parse(s.expira_en))||Date.parse(s.expira_en)<=Date.now())return reply(401,{ok:false,error:'SESIÓN VENCIDA'});
-  if(s.usuario_tabla!=='profesores'||s.es_master!==false||s.soporte_actor_id!=null||s.soporte_actor_ci!=null)return reply(403,{ok:false,error:'USÁ TU CUENTA PERSONAL'});
+  if(s.es_master!==false||s.soporte_actor_id!=null||s.soporte_actor_ci!=null)return reply(403,{ok:false,error:'USÁ TU CUENTA PERSONAL'});
+  if(s.usuario_tabla==='cursantes'){
+   const q=await sb.from('cursantes').select('id,nombre_completo,ciclo,activo').eq('id',s.usuario_id).eq('ci',s.usuario_ci).eq('activo',true).maybeSingle();
+   if(q.error||q.data?.activo!==true)return reply(403,{ok:false,error:'CUENTA DE CURSANTE NO HABILITADA'});
+   if(b.accion==='acceso')return reply(200,{ok:true,alumno:true});
+   if(b.accion==='mis_evaluaciones'){
+    const ps=await sb.from('efmc_organizaciones').select('*').eq('habilitado',true).eq('modo','EVALUACION').order('fecha',{ascending:false});if(ps.error)throw ps.error;
+    const plans=ps.data.filter(p=>p.grupos.some(g=>g.alumnos.includes(s.usuario_id)));
+    const ids=plans.map(p=>p.id);
+    const rs=ids.length?await sb.from('efmc_registros').select('*').eq('cursante_id',s.usuario_id).in('organizacion_id',ids).order('revision',{ascending:false}).limit(10000):{data:[]};if(rs.error)throw rs.error;
+    return reply(200,{ok:true,alumno:q.data,organizaciones:plans.map(p=>({id:p.id,nombre:p.nombre,fecha:p.fecha,ciclo:p.ciclo,grupo:p.grupos.find(g=>g.alumnos.includes(s.usuario_id))?.color})),registros:await conConformidades(rs.data),servidor_en:new Date().toISOString()});
+   }
+   if(b.accion==='confirmar'){
+    if(typeof b.registro_id!=='string'||!/^[0-9a-f-]{36}$/i.test(b.registro_id))return reply(400,{ok:false,error:'REGISTRO NO VÁLIDO'});
+    const r=await sb.rpc('efmc_confirmar_registro',{p_registro_id:b.registro_id,p_cursante_id:s.usuario_id});if(r.error)throw r.error;
+    return reply(r.data?.ok?200:409,r.data);
+   }
+   return reply(403,{ok:false,error:'EL CURSANTE SÓLO PUEDE CONSULTAR Y CONFIRMAR SUS REGISTROS'});
+  }
+  if(s.usuario_tabla!=='profesores')return reply(403,{ok:false,error:'USÁ TU CUENTA PERSONAL'});
   const {data:actor,error:ae}=await sb.from('profesores').select('id,ci,activo,grado,arma,especialidad,nombre_completo,es_suboficial,es_auxiliar,solo_lectura').eq('id',s.usuario_id).eq('ci',s.usuario_ci).single();
   if(ae||actor?.activo!==true||!puedeEvaluar({...actor,id:s.usuario_id}))return reply(403,{ok:false,error:'CUENTA NO HABILITADA PARA EVALUAR'});
   const jefe=JEFES.includes(s.usuario_id);
@@ -52,6 +79,11 @@ Deno.serve(async(req:Request)=>{
   }
   if(b.accion==='cargar'){
    if(!/^\d{4}-\d{2}-\d{2}$/.test(b.fecha)||edad(b.fecha,b.fecha)===null)return reply(400,{ok:false,error:'FECHA NO VÁLIDA'});
+   if(b.inicial&&!plan){
+    const upcoming=await sb.from('efmc_organizaciones').select('*').eq('habilitado',true).eq('modo','EVALUACION').order('fecha',{ascending:true});if(upcoming.error)throw upcoming.error;
+    plan=upcoming.data.find(p=>p.fecha>=b.fecha&&(jefe||asignaciones(p,s.usuario_id).length))||null;
+    if(plan)b.fecha=plan.fecha;
+   }
    const plans=await sb.from('efmc_organizaciones').select('*').eq('fecha',b.fecha).order('actualizado_en',{ascending:false});if(plans.error)throw plans.error;
    const disponibles=jefe?plans.data:plans.data.filter(p=>asignaciones(p,s.usuario_id).length);
    if(!jefe&&!plan)plan=disponibles[0]||null;
@@ -70,8 +102,16 @@ Deno.serve(async(req:Request)=>{
    const paths=p.data.filter(x=>x.foto_path).map(x=>x.foto_path);
    const signed=paths.length?await sb.storage.from('efm-retratos').createSignedUrls(paths,1800):{data:[]};
    const urls=new Map((signed.data||[]).map(x=>[x.path,x.signedUrl]));
-   const safePlan=plan&&(jefe?plan:{id:plan.id,nombre:plan.nombre,ciclo:plan.ciclo,fecha:plan.fecha,modo:plan.modo,habilitado:plan.habilitado,grupos:plan.grupos.filter(g=>assignments.some(a=>a.grupo===g.id)).map(g=>({id:g.id,color:g.color,alumnos:g.alumnos}))});
-   return reply(200,{ok:true,jefe,actor_nombre:actorNombre,organizacion:safePlan,organizaciones:disponibles.map(p=>({id:p.id,nombre:p.nombre,ciclo:p.ciclo,modo:p.modo,habilitado:p.habilitado})),asignaciones:assignments,condiciones:safeConditions,personal:people.data,cursantes:c.data.map(x=>{const pp=p.data.find(y=>y.cursante_id===x.id)||{};return {...x,...pp,foto:urls.get(pp.foto_path)||null};}),registros:safeRecords.map(x=>({...x,evaluador_nombre:x.calculo?.evaluador_nombre||(x.actor_id===s.usuario_id?actorNombre:'')}))});
+   const safePlan=plan&&(jefe?plan:{id:plan.id,nombre:plan.nombre,ciclo:plan.ciclo,fecha:plan.fecha,version:plan.version,modo:plan.modo,habilitado:plan.habilitado,grupos:plan.grupos.filter(g=>assignments.some(a=>a.grupo===g.id)).map(g=>({id:g.id,color:g.color,alumnos:g.alumnos}))});
+   return reply(200,{ok:true,fecha:b.fecha,jefe,actor_nombre:actorNombre,organizacion:safePlan,organizaciones:disponibles.map(p=>({id:p.id,nombre:p.nombre,ciclo:p.ciclo,modo:p.modo,habilitado:p.habilitado})),asignaciones:assignments,condiciones:safeConditions,personal:people.data,cursantes:c.data.map(x=>{const pp=p.data.find(y=>y.cursante_id===x.id)||{};return {...x,...pp,foto:urls.get(pp.foto_path)||null};}),registros:await conConformidades(safeRecords.map(x=>({...x,evaluador_nombre:x.calculo?.evaluador_nombre||(x.actor_id===s.usuario_id?actorNombre:'')})))});
+  }
+  if(b.accion==='sincronizar'){
+   if(!plan)return reply(400,{ok:false,error:'SELECCIONÁ UNA EVALUACIÓN'});
+   const [r,c]=await Promise.all([sb.from('efmc_registros').select('*').eq('organizacion_id',plan.id).order('revision',{ascending:false}).limit(10000),sb.from('efmc_condiciones').select('*').eq('organizacion_id',plan.id).order('creado_en',{ascending:false}).limit(10000)]);
+   if(r.error||c.error)throw r.error||c.error;
+   const assignments=jefe?[]:asignaciones(plan,s.usuario_id),ids=new Set(assignments.flatMap(a=>a.alumnos));
+   const records=jefe?r.data:r.data.filter(x=>assignments.some(a=>a.prueba===x.prueba&&a.alumnos.includes(x.cursante_id)));
+   return reply(200,{ok:true,version:plan.version,habilitado:plan.habilitado,registros:await conConformidades(records),condiciones:jefe?c.data:c.data.filter(x=>ids.has(x.cursante_id)&&(x.prueba==='TODAS'||assignments.some(a=>a.prueba===x.prueba&&a.alumnos.includes(x.cursante_id)))),servidor_en:new Date().toISOString()});
   }
   if(!jefe&&!plan)return reply(403,{ok:false,error:'NECESITÁS UNA DESIGNACIÓN HABILITADA'});
   if(b.accion==='guardar_datos'){
@@ -85,7 +125,7 @@ Deno.serve(async(req:Request)=>{
   }
   if(b.accion==='registrar'){
    if(plan&&(!plan.habilitado||!plan.grupos.some(g=>g.alumnos.includes(b.cursante_id))))return reply(403,{ok:false,error:'ORGANIZACIÓN DESHABILITADA O CURSANTE FUERA DEL GRUPO'});
-   if(!jefe&&!puedeRegistrar(plan,s.usuario_id,b.cursante_id,b.prueba))return reply(403,{ok:false,error:'PRUEBA O CURSANTE NO ASIGNADO A TU CUENTA'});
+   if((!jefe||plan?.modo==='EVALUACION')&&!puedeRegistrar(plan,s.usuario_id,b.cursante_id,b.prueba))return reply(403,{ok:false,error:'PRUEBA O CURSANTE NO ASIGNADO A TU CUENTA'});
    if(plan){const q=await sb.from('efmc_condiciones').select('*').eq('organizacion_id',plan.id).eq('cursante_id',b.cursante_id).in('prueba',['TODAS',b.prueba]).order('creado_en',{ascending:false}).limit(1);if(q.error)throw q.error;if(q.data[0]&&q.data[0].estado!=='NORMAL')return reply(409,{ok:false,error:'CURSANTE CON NOVEDAD: '+CONDICIONES[q.data[0].estado]+'. EL JEFE DEBE ACTUALIZAR SU CONDICIÓN ANTES DE EVALUAR.'});}
    if(!/^[0-9a-f-]{36}$/i.test(b.id)||typeof b.valor!=='number'||!Number.isFinite(b.valor)||b.valor<0||b.valor>10000||!['flexiones','abdominales','aerobica','natacion','barras','talla_peso'].includes(b.prueba)||!['M','F'].includes(b.sexo)||!/^\d{4}-\d{2}-\d{2}$/.test(b.fecha)||edad(b.fecha,b.fecha)===null||validarNacimiento(b.nacimiento,b.fecha))return reply(400,{ok:false,error:'REVISAR MARCA, FECHAS Y TABLA'});
    if(b.no_realizo!=null&&typeof b.no_realizo!=='boolean')return reply(400,{ok:false,error:'ESTADO DE PRUEBA NO VÁLIDO'});
@@ -98,7 +138,7 @@ Deno.serve(async(req:Request)=>{
    if(!b.no_realizo&&b.prueba==='talla_peso'&&calculo.nota===null)return reply(400,{ok:false,error:calculo.motivo});
    calculo.evaluador_nombre=actorNombre;
    if(plan){calculo.organizacion_nombre=plan.nombre;calculo.grupo=plan.grupos.find(g=>g.alumnos.includes(b.cursante_id))?.color;}
-   const row={id:b.id,cursante_id:b.cursante_id,prueba:b.prueba,fecha:b.fecha,valor:b.valor,sexo:b.sexo,nacimiento:b.nacimiento||null,calculo,actor_id:s.usuario_id,...(plan?{organizacion_id:plan.id}:{})};
+   const row={id:b.id,cursante_id:b.cursante_id,prueba:b.prueba,fecha:b.fecha,valor:b.valor,sexo:b.sexo,nacimiento:b.nacimiento||null,calculo,actor_id:s.usuario_id,...(plan?{organizacion_id:plan.id,...(plan.modo==='EVALUACION'?{modo:'EVALUACION'}:{})}:{})};
    const {data,error}=await sb.from('efmc_registros').insert(row).select().single();
    if(error?.code==='23505'){
     const {data:prev,error:pe}=await sb.from('efmc_registros').select('*').eq('id',b.id).single();

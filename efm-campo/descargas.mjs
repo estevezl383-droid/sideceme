@@ -1,4 +1,4 @@
-import {PRUEBAS,datosHoja,valoresHoja,marca,evaluador,novedadesHoja} from './informes.mjs?v=11';
+import {PRUEBAS,datosHoja,valoresHoja,marca,evaluador,novedadesHoja} from './informes.mjs?v=13';
 import {edad} from './baremos.mjs';
 import {gradoArma} from './ui.mjs?v=10';
 const xml=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
