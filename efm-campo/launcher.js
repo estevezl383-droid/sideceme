@@ -14,7 +14,7 @@
   if(loading||open||!owner())return;loading=true;
   try{
    if(!document.getElementById('efmc-style')){const s=document.createElement('link');s.id='efmc-style';s.rel='stylesheet';s.href='efm-campo/style.css?v=13';document.head.append(s);}
-   const tipo=session().tipo,app=tipo==='cursante'?await import('./alumno.mjs?v=13'):await import('./app.mjs?v=13');open=true;const id=allowedId;await app.abrir({invoke,owner:id,authorized:()=>owner()&&allowedId===id&&session()?.tipo===tipo,onClose:()=>{open=false;}});
+   const tipo=session().tipo,app=tipo==='cursante'?await import('./alumno.mjs?v=13'):await import('./app.mjs?v=14');open=true;const id=allowedId;await app.abrir({invoke,owner:id,authorized:()=>owner()&&allowedId===id&&session()?.tipo===tipo,onClose:()=>{open=false;}});
   }catch(e){alert(e.message);}finally{loading=false;}
  }
  async function refresh(){
