@@ -151,3 +151,10 @@ Botones SELECCIONAR TODOS (cantidad de lista visible) y QUITAR SELECCIÓN encima
 - El ciclo, la nómina y los registros cambian juntos después de una carga exitosa. Una carga fallida conserva la selección anterior. No se modifican el ciclo institucional de alumnos ni los datos guardados.
 - Protege mediciones, marcas, datos de perfil, llegadas pendientes y pruebas en curso. Ignora una sincronización anterior mientras carga el nuevo grupo. Caché de app/launcher/soporte versión 14.
 - Chromium comprobó primer ciclo (1 alumno) ↔ segundo ciclo (4 alumnos), cambio con alumno seleccionado, protección de peso pendiente y recuperación de un fallo de carga, además del flujo de conformidades.
+
+## Carpeta del cursante y consulta desde soporte
+
+- El launcher presenta en Mi cuenta una carpeta por evaluación con su nombre, fecha y cantidad de registros vigentes pendientes de conformidad. La lista se obtiene del servidor y los errores se muestran con opción de reintento.
+- Una sesión de soporte de cursante emitida por auth-soporte puede consultar la evaluación. efm-campo vuelve a verificar al actor P030, su CI, rol vigente y cuenta activa. Sesiones maestras, vencidas, revocadas o de otros actores siguen denegadas. Soporte sólo admite acceso/mis_evaluaciones: nunca registra ni da conformidad.
+- El servidor devuelve solo_lectura; la pantalla de consulta muestra un aviso y no ofrece botones de conformidad. La cuenta personal del alumno conserva la confirmación y la sincronización automática. Cambiar entre soporte/personal cierra la vista anterior aunque sea el mismo cursante.
+- Caché launcher/soporte/alumno v15. Prueba de navegador adicional recorre el launcher real y el código del backend con cinco cuentas ficticias, tanto personales como soporte, incluyendo cero/100, una evaluación sin mediciones, ausencia de datos ajenos, rechazo de firma desde soporte y cambio rojo/verde tras aceptación personal. No se confirman registros reales durante la verificación.

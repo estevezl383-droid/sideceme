@@ -24,6 +24,17 @@ r=await call({accion:'confirmar',registro_id:id,cursante_id:'TEST2'});assert.equ
 d=await (await call({accion:'mis_evaluaciones'})).json();assert(notaConformidad(d.registros[0]).includes('conforme'));
 identity=alumnos[1];assert.equal((await call({accion:'confirmar',registro_id:id})).status,409);d=await (await call({accion:'mis_evaluaciones'})).json();assert.equal(d.organizaciones.length,0);assert.equal(d.registros.length,0);
 identity=alumnos[0];for(const bad of [{revocado:true},{expira_en:'2000-01-01'},{es_master:true},{soporte_actor_id:'TEST-SUPPORT'},{usuario_ci:'OTRA'}]){change=bad;assert([401,403].includes((await call({accion:'mis_evaluaciones'})).status));}change={};
+// Soporte autenticado permite consultar, pero nunca confirmar ni registrar en nombre del alumno.
+profesores.push({id:'P030',ci:'TEST-OWNER',activo:true,rol:'ciencia_tecnologia'});
+change={soporte_actor_id:'P030',soporte_actor_ci:'TEST-OWNER'};
+r=await call({accion:'mis_evaluaciones'});d=await r.json();assert.equal(r.status,200);assert.equal(d.solo_lectura,true);assert.deepEqual(d.registros.map(x=>x.cursante_id),['TEST1']);
+assert.equal((await call({accion:'acceso'})).status,200);const countBefore=tables.efmc_conformidades.length;
+for(const accion of ['confirmar','registrar','guardar_datos','organizar','condicion'])assert.equal((await call({accion,registro_id:id})).status,403);
+assert.equal(tables.efmc_conformidades.length,countBefore);
+change.soporte_actor_ci='OTRA';assert.equal((await call({accion:'mis_evaluaciones'})).status,403);change.soporte_actor_ci='TEST-OWNER';
+profesores.at(-1).activo=false;assert.equal((await call({accion:'mis_evaluaciones'})).status,403);profesores.at(-1).activo=true;
+profesores.at(-1).rol='profesor';assert.equal((await call({accion:'mis_evaluaciones'})).status,403);profesores.at(-1).rol='ciencia_tecnologia';
+change={};
 tables.efmc_registros.push({...registro,id:'55555555-5555-5555-5555-555555555555',valor:40,calculo:{nota:90},revision:2});assert.equal((await call({accion:'confirmar',registro_id:id})).status,409);
 d=await (await call({accion:'mis_evaluaciones'})).json();const actual=vigente(d.registros,'TEST1','flexiones');assert.equal(actual.valor,40);assert.equal(actual.conformidad,null);assert.equal(d.registros.find(r=>r.id===id).conformidad.registro_id,id);
 identity=profesores[0];tabla='profesores';d=await (await call({accion:'sincronizar',organizacion_id:planId})).json();assert.equal(d.registros.find(r=>r.id===id).conformidad.cursante_id,'TEST1');assert.equal(d.version,1);

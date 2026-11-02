@@ -23,17 +23,24 @@ Deno.serve(async(req:Request)=>{
   const {data:s,error:se}=await sb.from('sesiones').select('usuario_id,usuario_ci,usuario_tabla,expira_en,revocado,es_master,soporte_actor_id,soporte_actor_ci').eq('token',b.token).maybeSingle();
   if(se)throw se;
   if(!s||s.revocado!==false||!Number.isFinite(Date.parse(s.expira_en))||Date.parse(s.expira_en)<=Date.now())return reply(401,{ok:false,error:'SESIÓN VENCIDA'});
-  if(s.es_master!==false||s.soporte_actor_id!=null||s.soporte_actor_ci!=null)return reply(403,{ok:false,error:'USÁ TU CUENTA PERSONAL'});
+  if(s.es_master!==false)return reply(403,{ok:false,error:'USÁ TU CUENTA PERSONAL'});
+  const soporte=s.soporte_actor_id!=null||s.soporte_actor_ci!=null;
+  if(soporte){
+   if(s.usuario_tabla!=='cursantes'||s.soporte_actor_id!=='P030'||typeof s.soporte_actor_ci!=='string'||!s.soporte_actor_ci)return reply(403,{ok:false,error:'SOPORTE DE CURSANTE NO AUTORIZADO'});
+   const a=await sb.from('profesores').select('id,activo,rol').eq('id',s.soporte_actor_id).eq('ci',s.soporte_actor_ci).maybeSingle();if(a.error)throw a.error;
+   if(a.data?.activo!==true||a.data?.rol!=='ciencia_tecnologia')return reply(403,{ok:false,error:'CUENTA DE SOPORTE NO HABILITADA'});
+   if(!['acceso','mis_evaluaciones'].includes(b.accion))return reply(403,{ok:false,error:'SOPORTE ES SÓLO CONSULTA. LA CONFORMIDAD DEBE DARLA EL ALUMNO DESDE SU CUENTA PERSONAL.'});
+  }
   if(s.usuario_tabla==='cursantes'){
    const q=await sb.from('cursantes').select('id,nombre_completo,ciclo,activo').eq('id',s.usuario_id).eq('ci',s.usuario_ci).eq('activo',true).maybeSingle();
    if(q.error||q.data?.activo!==true)return reply(403,{ok:false,error:'CUENTA DE CURSANTE NO HABILITADA'});
-   if(b.accion==='acceso')return reply(200,{ok:true,alumno:true});
+   if(b.accion==='acceso')return reply(200,{ok:true,alumno:true,solo_lectura:soporte});
    if(b.accion==='mis_evaluaciones'){
     const ps=await sb.from('efmc_organizaciones').select('*').eq('habilitado',true).eq('modo','EVALUACION').order('fecha',{ascending:false});if(ps.error)throw ps.error;
     const plans=ps.data.filter(p=>p.grupos.some(g=>g.alumnos.includes(s.usuario_id)));
     const ids=plans.map(p=>p.id);
     const rs=ids.length?await sb.from('efmc_registros').select('*').eq('cursante_id',s.usuario_id).in('organizacion_id',ids).order('revision',{ascending:false}).limit(10000):{data:[]};if(rs.error)throw rs.error;
-    return reply(200,{ok:true,alumno:q.data,organizaciones:plans.map(p=>({id:p.id,nombre:p.nombre,fecha:p.fecha,ciclo:p.ciclo,grupo:p.grupos.find(g=>g.alumnos.includes(s.usuario_id))?.color})),registros:await conConformidades(rs.data),servidor_en:new Date().toISOString()});
+    return reply(200,{ok:true,solo_lectura:soporte,alumno:q.data,organizaciones:plans.map(p=>({id:p.id,nombre:p.nombre,fecha:p.fecha,ciclo:p.ciclo,grupo:p.grupos.find(g=>g.alumnos.includes(s.usuario_id))?.color})),registros:await conConformidades(rs.data),servidor_en:new Date().toISOString()});
    }
    if(b.accion==='confirmar'){
     if(typeof b.registro_id!=='string'||!/^[0-9a-f-]{36}$/i.test(b.registro_id))return reply(400,{ok:false,error:'REGISTRO NO VÁLIDO'});
