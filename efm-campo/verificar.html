@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="es">
+<head>
+ <meta charset="utf-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1">
+ <meta name="robots" content="noindex, nofollow">
+ <meta name="referrer" content="no-referrer">
+ <title>Verificar hoja de evaluación física · SIDECEME</title>
+ <link rel="stylesheet" href="verificar.css?v=1">
+ <script type="module" src="verificar.mjs?v=1"></script>
+</head>
+<body>
+ <main>
+  <header><p>SIDECEME · ECEME</p><h1>Verificar hoja de evaluación física</h1></header>
+  <section id="resultado" aria-live="polite"><p>Consultando la emisión del documento…</p></section>
+  <section id="comprobar" hidden>
+   <h2>Comprobar el archivo PDF</h2>
+   <p>Selecciona el PDF que recibiste para comprobar que coincide exactamente con la emisión registrada. El archivo se comprueba en tu dispositivo.</p>
+   <label for="archivo">Seleccionar PDF</label><input id="archivo" type="file" accept="application/pdf,.pdf">
+   <p id="huella" role="status">Todavía no has seleccionado un archivo.</p>
+  </section>
+  <button id="reintentar" type="button">Volver a consultar</button>
+ </main>
+</body>
+</html>

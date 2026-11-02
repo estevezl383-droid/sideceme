@@ -3,6 +3,7 @@ import {validarNacimiento} from './perfil.mjs';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
 import {calificar,edad} from './baremos.mjs';
 import {validarMedidas,calificarMedidas} from './medidas.mjs';
+import {hojaPDFAlumno} from './documentos.mjs';
 const sb=createClient(Deno.env.get('SUPABASE_URL')||'',Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'');
 const headers={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization,apikey,x-client-info,content-type','Access-Control-Allow-Methods':'POST,OPTIONS','Content-Type':'application/json','Cache-Control':'no-store'};
 const reply=(status:number,data:any)=>new Response(JSON.stringify(data),{status,headers});
@@ -35,6 +36,7 @@ Deno.serve(async(req:Request)=>{
    const q=await sb.from('cursantes').select('id,nombre_completo,ciclo,activo').eq('id',s.usuario_id).eq('ci',s.usuario_ci).eq('activo',true).maybeSingle();
    if(q.error||q.data?.activo!==true)return reply(403,{ok:false,error:'CUENTA DE CURSANTE NO HABILITADA'});
    if(b.accion==='acceso')return reply(200,{ok:true,alumno:true,solo_lectura:soporte});
+   if(b.accion==='hoja_pdf'){const pdf=await hojaPDFAlumno(sb,s.usuario_id,b);return reply(pdf.status,pdf.data);}
    if(b.accion==='mis_evaluaciones'){
     const ps=await sb.from('efmc_organizaciones').select('*').eq('habilitado',true).eq('modo','EVALUACION').order('fecha',{ascending:false});if(ps.error)throw ps.error;
     const plans=ps.data.filter(p=>p.grupos.some(g=>g.alumnos.includes(s.usuario_id)));
@@ -47,7 +49,7 @@ Deno.serve(async(req:Request)=>{
     const r=await sb.rpc('efmc_confirmar_registro',{p_registro_id:b.registro_id,p_cursante_id:s.usuario_id});if(r.error)throw r.error;
     return reply(r.data?.ok?200:409,r.data);
    }
-   return reply(403,{ok:false,error:'EL CURSANTE SÓLO PUEDE CONSULTAR Y CONFIRMAR SUS REGISTROS'});
+   return reply(403,{ok:false,error:'EL CURSANTE SÓLO PUEDE CONSULTAR, CONFIRMAR Y DESCARGAR SU HOJA EN PDF'});
   }
   if(s.usuario_tabla!=='profesores')return reply(403,{ok:false,error:'USÁ TU CUENTA PERSONAL'});
   const {data:actor,error:ae}=await sb.from('profesores').select('id,ci,activo,grado,arma,especialidad,nombre_completo,es_suboficial,es_auxiliar,solo_lectura').eq('id',s.usuario_id).eq('ci',s.usuario_ci).single();

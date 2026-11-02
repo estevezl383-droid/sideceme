@@ -3,7 +3,7 @@ export async function abrir({invoke,onClose,evaluacionId='',authorized=()=>true}
  document.getElementById('efmc')?.remove();
  const root=document.createElement('div');root.id='efmc';document.body.append(root);
  let alive=true,loading=false,confirming=false,data=null,selected=evaluacionId,error='',actionError='',lastSync='',signature='';
- let actionVersion=0,refreshAgain=false,manualRefresh=false;
+ let actionVersion=0,refreshAgain=false,manualRefresh=false,downloading=false;
  const close=()=>{if(!alive)return;alive=false;clearInterval(poll);window.removeEventListener('focus',refresh);document.removeEventListener('visibilitychange',refresh);window.removeEventListener('online',refresh);root.remove();data=null;onClose();};
  function render(){
   if(!alive)return;
@@ -12,11 +12,28 @@ export async function abrir({invoke,onClose,evaluacionId='',authorized=()=>true}
   root.querySelector('[data-close]').onclick=close;
   const refreshButton=root.querySelector('[data-refresh]');refreshButton.onclick=()=>refresh({manual:true});estadoRefresh();
   root.querySelectorAll('[data-plan]').forEach(b=>b.onclick=()=>{selected=b.dataset.plan;render();});
+  if(plan){
+   const box=document.createElement('div');box.className='efmc-pdf';
+   box.innerHTML=`<button type="button" data-pdf ${downloading||data.solo_lectura?'disabled':''} aria-busy="${downloading}">${downloading?'Preparando PDF…':'Descargar mi hoja individual (PDF)'}</button><small>${data.solo_lectura?'La descarga está disponible desde la cuenta personal del alumno.':'Incluye un QR para verificar su autenticidad. Si faltan pruebas o conformidades, la hoja indicará que es parcial.'}</small>`;
+   root.querySelector('.efmc-records').before(box);box.querySelector('[data-pdf]').onclick=downloadPDF;
+  }
   root.querySelectorAll('[data-confirm]').forEach(b=>{b.disabled=confirming;b.onclick=async()=>{
    if(confirming||data?.solo_lectura||!authorized())return;actionVersion++;confirming=true;error='';actionError='';render();
    try{const r=await invoke({accion:'confirmar',registro_id:b.dataset.confirm});if(!alive||!authorized())return;const row=data.registros.find(x=>x.id===b.dataset.confirm);if(row)row.conformidad=r.conformidad;signature='';}
    catch(e){actionError=e.message;signature='';}finally{confirming=false;if(alive){render();await refresh({manual:true});}}
   };});
+ }
+ async function downloadPDF(){
+  if(downloading||data?.solo_lectura||!selected||!authorized())return;
+  const organizacion_id=selected;downloading=true;actionError='';render();
+  try{
+   const r=await invoke({accion:'hoja_pdf',organizacion_id,formato:'pdf'});if(!alive||!authorized())return;
+   const a=r.archivo;if(a?.mime!=='application/pdf'||!a.nombre?.endsWith('.pdf')||!a.base64||!/^[a-f0-9]{64}$/.test(a.sha256))throw Error('No se recibió un PDF válido. Volvé a intentarlo.');
+   const bytes=Uint8Array.from(atob(a.base64),c=>c.charCodeAt(0)),hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)),v=>v.toString(16).padStart(2,'0')).join('');
+   if(hash!==a.sha256)throw Error('No se pudo comprobar el PDF recibido. Volvé a descargarlo.');
+   if(!alive||!authorized())return;
+   const url=URL.createObjectURL(new Blob([bytes],{type:'application/pdf'})),link=document.createElement('a');link.href=url;link.download=a.nombre;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }catch(e){actionError='No se pudo descargar la hoja. '+e.message;}finally{downloading=false;if(alive)render();}
  }
  function estadoRefresh(){const b=root.querySelector('[data-refresh]');if(b){b.disabled=manualRefresh||confirming;b.textContent=manualRefresh?'Consultando notas…':'↻ Actualizar notas';b.setAttribute('aria-busy',String(manualRefresh));}}
  async function refresh(options={}){
