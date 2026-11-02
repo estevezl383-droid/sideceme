@@ -140,6 +140,8 @@ dialog.efmc-planner{width:min(1220px,96vw);max-width:1220px;padding:28px;backgro
 
 /* Conformidad de la versión guardada: rojo hasta aceptación del alumno. */
 #efmc .efmc-sync{font-size:12px;color:#b9d0d9;min-height:20px;line-height:1.5}
+#efmc .efmc-student-tools{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+#efmc [data-refresh]{border-color:#63dbbc;background:#164338}
 #efmc .efmc-conformidad{display:block;padding:10px 12px;border:1px solid;border-radius:8px;margin:8px 0;line-height:1.5}
 #efmc .efmc-conformidad b{display:block;font-size:20px}
 #efmc .efmc-conformidad small{color:inherit;font-size:11px;letter-spacing:0}

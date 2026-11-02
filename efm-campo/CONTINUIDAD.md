@@ -172,3 +172,10 @@ Botones SELECCIONAR TODOS (cantidad de lista visible) y QUITAR SELECCIÓN encima
 - Al cerrar la evaluación se refresca la carpeta inmediatamente. Se muestran las conformidades completadas y las pruebas sin registro. Soporte refleja el mismo estado, conservando la consulta sin firma.
 - CSS del aviso limitado a la carpeta del alumno; las sanciones mantienen su estilo. Si el dispositivo solicita reducir movimiento, conserva la iluminación fija. Caché del launcher/soporte v17.
 - Chromium comprobó evaluación recién habilitada, conformidad parcial, cinco pruebas confirmadas → aspecto normal y corrección → nuevo aviso, sin desbordamiento móvil; las regresiones de soporte pasan.
+
+## Actualización inmediata y botón Actualizar notas
+
+- La ventana del alumno incluye Actualizar notas, sin recargar la página ni perder la evaluación seleccionada. Consulta al abrir, al volver al primer plano, al recuperar conexión y automáticamente cada segundo. El seguimiento de evaluadores/jefes también consulta cada segundo.
+- Cada prueba registrada pendiente habilita su propio botón en la sesión personal, aun cuando todas las otras pruebas estén sin registro. La consulta de soporte sigue mostrando el motivo por el que no puede aceptar como si fuera el alumno.
+- Una respuesta de consulta anterior al inicio de una conformidad se descarta; se consulta de nuevo después de terminar la aceptación. Evita que una lectura retrasada vuelva a mostrar rojo un registro ya confirmado. Mantiene visibles los errores de confirmación y permite reintentar.
+- Caché v18. Chromium comprobó llegada y aceptación de cada prueba una por una, refresh manual con desconexión y recuperación, respuesta retenida antes de aceptar sin regresión a rojo, tres jefes, consulta de soporte y la alerta de pendientes. No se aceptaron notas reales durante las pruebas.
