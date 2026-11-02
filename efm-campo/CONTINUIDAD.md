@@ -144,3 +144,10 @@ Botones SELECCIONAR TODOS (cantidad de lista visible) y QUITAR SELECCIÓN encima
 - Peso/talla se mantiene pendiente hasta la carga del responsable. No se escribieron marcas ni notas de alumnos como parte de la preparación de la jornada. El modo EVALUACION queda distinguido del piloto histórico. `evaluaciones_fisicas` no recibe copias automáticas ni duplicados de estas estaciones.
 - `cargar` con `inicial` elige la próxima evaluación habilitada; un borrador de aeróbica con llegadas pendientes se restaura antes. El organizador existente conserva el campo Nombre y su historial de versiones.
 - Verificación: pruebas de permisos/aislamiento, conformidad idempotente, nueva corrección roja, tres ventanas Chromium (alumno móvil, evaluador y jefe), nota cero, desconexión/reintento y conservación de edición. Prueba SQL transaccional revertida verificó guardado, inmutabilidad y rechazo de confirmación obsoleta sin dejar registros de prueba.
+
+## Corrección del selector de ciclo
+
+- CICLO DEL CURSANTE permanece disponible con una organización o alumno seleccionado. Al cambiar, carga la organización del otro ciclo para la misma fecha; prioriza nombre y modalidad coincidentes. Si hay varias opciones ambiguas, pide elegir en ORGANIZACIÓN.
+- El ciclo, la nómina y los registros cambian juntos después de una carga exitosa. Una carga fallida conserva la selección anterior. No se modifican el ciclo institucional de alumnos ni los datos guardados.
+- Protege mediciones, marcas, datos de perfil, llegadas pendientes y pruebas en curso. Ignora una sincronización anterior mientras carga el nuevo grupo. Caché de app/launcher/soporte versión 14.
+- Chromium comprobó primer ciclo (1 alumno) ↔ segundo ciclo (4 alumnos), cambio con alumno seleccionado, protección de peso pendiente y recuperación de un fallo de carga, además del flujo de conformidades.
