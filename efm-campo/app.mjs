@@ -1,5 +1,5 @@
 import {CONDICIONES,puedeRegistrar} from './organizacion.mjs?v=11';
-import {notaConformidad,marcaRegistro,fechaHora} from './conformidad.mjs?v=16';
+import {notaConformidad,marcaRegistro,fechaHora} from './conformidad.mjs?v=18';
 import {panelConformidades} from './seguimiento.mjs?v=16';
 import {abrirOrganizacion,abrirCondicion} from './planificador.mjs?v=12';
 import {fechaEditable,leerFechaEditable,validarNacimiento,fechaPerfil} from './perfil.mjs?v=10';
@@ -49,7 +49,7 @@ export async function abrir({invoke,onClose,owner,vistaInicial='estacion',author
   }catch(e){if(alive&&id===organizacionId&&day===fecha){syncError='No se pudo actualizar el detalle: '+e.message;pintarSincronizacion();}}finally{monitorBusy=false;}
  }
  function seguimiento(){if(jefe)return `<div id="efmc-monitor-live">${panelConformidades(monitorData)}</div>`;const list=courseList();return `<section class="efmc-sheet"><h2>Seguimiento de conformidades</h2><p>Rojo: registro pendiente. Verde: conformidad del alumno. Sin registro: la prueba aún no fue guardada.</p><div class="efmc-table-wrap"><table><thead><tr><th>Alumno</th>${stationNames().filter(([p])=>p!=='barras').map(([,n])=>`<th>${n}</th>`).join('')}</tr></thead><tbody>${list.map(c=>`<tr><th>${esc(c.nombre_completo)}</th>${stationNames().filter(([p])=>p!=='barras').map(([p])=>`<td>${vivo(c.id,p)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></section>`;}
- function pintarSincronizacion(){root.querySelectorAll('[data-live-mark]').forEach(e=>e.textContent=marcaRegistro(latest(e.dataset.liveMark,e.dataset.livePrueba)));root.querySelectorAll('[data-live-note]').forEach(e=>e.innerHTML=notaConformidad(latest(e.dataset.liveNote,e.dataset.livePrueba)));const host=root.querySelector('[data-sync-status]');if(host)host.textContent=syncError||(syncEn?'Sincronización automática · '+fechaHora(syncEn):'Sincronización automática cada 2 segundos');root.querySelectorAll('[data-live-student]').forEach(e=>{e.innerHTML=marcaYNota(latest(e.dataset.liveStudent,e.dataset.livePrueba));});}
+ function pintarSincronizacion(){root.querySelectorAll('[data-live-mark]').forEach(e=>e.textContent=marcaRegistro(latest(e.dataset.liveMark,e.dataset.livePrueba)));root.querySelectorAll('[data-live-note]').forEach(e=>e.innerHTML=notaConformidad(latest(e.dataset.liveNote,e.dataset.livePrueba)));const host=root.querySelector('[data-sync-status]');if(host)host.textContent=syncError||(syncEn?'Sincronización automática · '+fechaHora(syncEn):'Sincronización automática cada segundo');root.querySelectorAll('[data-live-student]').forEach(e=>{e.innerHTML=marcaYNota(latest(e.dataset.liveStudent,e.dataset.livePrueba));});}
  async function sincronizar(){
   if(!alive||!authorized()||busy||syncing||document.hidden)return;
   if(jefe&&tab==='seguimiento')return cargarConformidades();
@@ -228,6 +228,6 @@ export async function abrir({invoke,onClose,owner,vistaInicial='estacion',author
   const remaining=Math.max(0,120000-elapsed(timer));const t=root.querySelector('#efmc-time');if(t&&t.dataset.clock!==clock(remaining)){t.innerHTML=digital(clock(remaining));t.dataset.clock=clock(remaining);t.setAttribute('aria-label',clock(remaining));};const circle=root.querySelector('#efmc-ring');if(circle){circle.style.setProperty('--remaining',(remaining/120000*100)+'%');circle.dataset.phase=remaining<=10000?'end':remaining<=30000?'warn':'normal';}
   const r=root.querySelector('#efmc-race-time');if(r){const time=fmt(elapsed(run));if(r.dataset.clock!==time){r.innerHTML=digital(time);r.dataset.clock=time;}}
  },100);
- const livePoll=setInterval(sincronizar,2000);window.addEventListener('focus',sincronizar);document.addEventListener('visibilitychange',sincronizar);
+ const livePoll=setInterval(sincronizar,1000);window.addEventListener('focus',sincronizar);document.addEventListener('visibilitychange',sincronizar);
  await load();
 }

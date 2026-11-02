@@ -13,7 +13,7 @@ export const textoEstado=r=>!r?'Sin registro':r.conformidad?'✓ Conformidad del
 export function notaConformidad(r){return `<span class="efmc-conformidad ${estadoRegistro(r)}" data-record-status="${esc(r?.id||'')}"><b>${esc(r?.calculo?.nota??(!r?'Sin registro':r.calculo?.estado==='NO_REALIZO'?'No realizó':'Pendiente de calificación'))}${r?.calculo?.nota!=null?' / 100':''}</b><small>${textoEstado(r)}</small></span>`;}
 export function botonConformidad(r,prueba,{soloLectura=false}={}){
  const habilitado=!!r&&!r.conformidad&&!soloLectura,label=estaciones[prueba]||prueba;
- const reason=!r?'Se habilitará cuando el evaluador registre esta prueba.':r.conformidad?'Conformidad guardada el '+fechaHora(r.conformidad.confirmado_en):soloLectura?'En soporte sólo puedes consultar. El alumno debe entrar con su cuenta personal para dar conformidad.':'Revisa la marca y la nota de esta prueba antes de aceptar.';
+ const reason=!r?'Se habilitará cuando el evaluador registre esta prueba.':r.conformidad?'Conformidad guardada el '+fechaHora(r.conformidad.confirmado_en):soloLectura?'En soporte sólo puedes consultar. El alumno debe entrar con su cuenta personal para dar conformidad.':'Registro guardado. Puedes dar conformidad a esta prueba ahora, sin esperar las demás.';
  return `<button type="button" class="efmc-confirm-action ${r?.conformidad?'conforme':''}" data-confirm-test="${esc(prueba)}" ${habilitado?`data-confirm="${esc(r.id)}"`:'disabled'} aria-describedby="efmc-confirm-help-${esc(prueba)}">${r?.conformidad?'✓ Conforme':'Dar conformidad'} · ${esc(label)}</button><p id="efmc-confirm-help-${esc(prueba)}" class="efmc-confirm-help">${esc(reason)}</p>`;
 }
 export function fichaRegistro(r,{confirmar=false,mostrarBoton=false,soloLectura=false}={}){
