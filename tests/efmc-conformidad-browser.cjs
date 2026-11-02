@@ -19,6 +19,7 @@ const server=http.createServer((req,res)=>{
   const active=b.organizacion_id===plan2.id?plan2:plan;
   const common={ok:true,registros:records.filter(r=>r.organizacion_id===active.id),servidor_en:new Date().toISOString()};
   if(b.accion==='mis_evaluaciones')return res.end(JSON.stringify({...common,alumno:student,organizaciones:[plan]}));
+  if(b.accion==='conformidades')return res.end(JSON.stringify({ok:true,registros:records,cursantes:roster,organizaciones:[plan,plan2],servidor_en:new Date().toISOString()}));
   if(b.accion==='sincronizar')return res.end(JSON.stringify({...common,version:1,habilitado:true,condiciones:[]}));
   res.end(JSON.stringify({...common,jefe:true,fecha:plan.fecha,actor_nombre:'EVALUADOR TEST',cursantes:roster,organizacion:active,organizaciones:[plan,plan2],condiciones:[],personal:[],asignaciones:[]}));});return;
  }

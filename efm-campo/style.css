@@ -156,4 +156,16 @@ dialog.efmc-planner{width:min(1220px,96vw);max-width:1220px;padding:28px;backgro
 #efmc .efmc-evaluaciones button{flex:1;text-align:left;line-height:1.5;min-width:240px}
 #efmc .efmc-evaluaciones small{letter-spacing:0}
 #efmc [data-live-student]{display:block;min-width:145px}
+ #efmc .efmc-confirm-action{width:100%;min-height:56px;line-height:1.5;background:#54313c;border-color:#ee9191;margin-top:12px}
+ #efmc .efmc-confirm-action:disabled{opacity:1;background:#263945;border-color:#66808b;color:#c4d3da;cursor:default}
+ #efmc .efmc-confirm-action.conforme{background:#123c2c;border-color:#43cf8b;color:#adf7ce}
+ #efmc .efmc-confirm-help{font-size:12px;line-height:1.6;color:#b8cbd4}
+ #efmc .efmc-monitor-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin:20px 0}
+ #efmc .efmc-monitor-summary article{padding:14px;border:1px solid #486572;border-radius:10px;background:#172e3b}
+ #efmc .efmc-monitor-summary strong{display:block;font-size:30px;color:#b8f4de}
+ #efmc .efmc-monitor-summary span{font-size:12px;line-height:1.5}
+ #efmc .efmc-monitor td{min-width:210px;vertical-align:top}
+ #efmc .efmc-monitor th{min-width:160px}
+ #efmc .efmc-monitor td details{font-size:12px;line-height:1.7}
+ #efmc .efmc-monitor td summary{cursor:pointer;text-decoration:underline}
 @media(max-width:720px){#efmc .efmc-records{grid-template-columns:1fr}#efmc .efmc-evaluaciones button{min-width:0;flex-basis:100%}}
