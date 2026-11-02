@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {createRequire} from 'node:module';
+import {execFileSync} from 'node:child_process';
+import {generarHojaPDF} from '../supabase/functions/efm-campo/hoja-pdf.mjs';
+import {snapshotHoja} from '../supabase/functions/efm-campo/hoja-modelo.mjs';
+const require=createRequire(process.env.SIDECEME_PDF_TOOLS||import.meta.url),pdfLib=require('pdf-lib'),QRCode=require('qrcode'),jsQR=require('jsqr'),{PNG}=require('pngjs');
+const dir=fs.mkdtempSync(path.join(os.tmpdir(),'efmc-pdf-')),plan={id:'TEST',nombre:'Evaluación física diagnóstica ficticia — 03/11/2026',fecha:'2026-11-03',ciclo:'2DO CICLO',grupos:[{alumnos:['TEST'],color:'AZUL'}]},student={id:'TEST',nombre_completo:'ALUMNO FICTICIO VÁSQUEZ',ci:'FICTICIO',ciclo:'2DO CICLO'};
+const snapshot=snapshotHoja(student,{fecha_nacimiento:'1985-01-01',sexo:'M'},plan,[{id:'R1',revision:1,cursante_id:'TEST',organizacion_id:'TEST',prueba:'talla_peso',valor:76.4,calculo:{peso:76.4,talla:1.69,nota:100,evaluador_nombre:'My. EVALUADOR FICTICIO'}}]);
+const url='https://estevezl383-droid.github.io/sideceme/efm-campo/verificar.html?t='+'A'.repeat(43),bytes=await generarHojaPDF(snapshot,{id:'11111111-1111-1111-1111-111111111111',emitido_en:'2026-11-03T12:00:00Z',url},{...pdfLib,QRCode});
+const file=path.join(dir,'hoja.pdf');fs.writeFileSync(file,bytes);const doc=await pdfLib.PDFDocument.load(bytes);assert.equal(doc.getPageCount(),1);assert.deepEqual(doc.getPage(0).getSize(),{width:792,height:612});
+const text=execFileSync('pdftotext',['-layout',file,'-'],{encoding:'utf8'});for(const expected of ['ALUMNO FICTICIO','DIAGNÓSTICA'.toLowerCase(),'76.4','1.69','PARCIAL','VERIFICAR AUTENTICIDAD','S/R','PEND.'])assert(text.includes(expected),'No figura: '+expected);
+execFileSync('pdftoppm',['-png','-r','180','-singlefile',file,path.join(dir,'hoja')]);const png=PNG.sync.read(fs.readFileSync(path.join(dir,'hoja.png'))),qr=jsQR(new Uint8ClampedArray(png.data),png.width,png.height);assert.equal(qr?.data,url,'El QR real del PDF debe decodificarse al enlace completo');
+console.log('PDF real: una página carta horizontal, notas parciales, texto extraíble y QR vectorial decodificado: OK. Vista: '+path.join(dir,'hoja.png'));
