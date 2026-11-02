@@ -1,0 +1,35 @@
+/* Aviso de evaluación pendiente en la cuenta del cursante. */
+#cur-tab-inicio [data-efmc-launch].efmc-pendiente {
+  background: linear-gradient(135deg, #713716, #541e2e) !important;
+  border: 2px solid #ffc16b !important;
+  box-shadow: 0 0 0 2px #ffb34744, 0 0 18px #ff963c66;
+  animation: efmcFolderLatido 1.8s ease-in-out infinite;
+}
+#cur-tab-inicio [data-efmc-launch].efmc-pendiente:focus-visible {
+  outline: 3px solid #fff2be;
+  outline-offset: 4px;
+}
+#cur-tab-inicio .efmc-folder-alert {
+  display: block;
+  width: fit-content;
+  margin-bottom: 9px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: #ffd08a;
+  color: #3c1c0d;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.5;
+  letter-spacing: .03em;
+}
+@keyframes efmcFolderLatido {
+  0%, 55%, 100% { box-shadow: 0 0 0 2px #ffb34733, 0 0 12px #ff963c55; }
+  22%, 40% { box-shadow: 0 0 0 4px #ffcb6655, 0 0 28px #ffb347bb; border-color: #ffe7ac; }
+  31% { box-shadow: 0 0 0 2px #ffb34744, 0 0 16px #ff963c77; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #cur-tab-inicio [data-efmc-launch].efmc-pendiente {
+    animation: none;
+    box-shadow: 0 0 0 2px #ffb34755, 0 0 20px #ffb34788;
+  }
+}
