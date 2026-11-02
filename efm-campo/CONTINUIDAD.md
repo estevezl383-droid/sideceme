@@ -165,3 +165,10 @@ Botones SELECCIONAR TODOS (cantidad de lista visible) y QUITAR SELECCIÓN encima
 - P019, P020 y P030 tienen acceso directo a DETALLE DE CONFORMIDADES desde su panel. El endpoint conformidades valida sesión personal, profesor activo y pertenencia a JEFES; consulta la evaluación seleccionada con ambos ciclos. No permite al alumno ni a soporte consultar el detalle general.
 - Panel general: alumnos, pruebas previstas, conformes, pendientes y sin registro; matriz por alumno/ciclo/prueba, marca, nota, evaluador, hora de registro y alumno/hora de conformidad. Una corrección usa su nueva revisión y vuelve a rojo. Actualización cada 2 segundos, conservando los detalles abiertos.
 - Caché v16. Chromium recorrió cinco botones por cuenta, aprobación separada de las cinco pruebas, cero válido, nuevo registro correctivo, cinco alumnos/25 pruebas y las tres cuentas de jefe con el mismo detalle. Se mantiene el historial y ninguna prueba confirma registros reales.
+
+## Aviso luminoso mientras la evaluación esté pendiente
+
+- La carpeta del cursante muestra borde luminoso, latido y aviso de notas por confirmar. Sigue destacada si faltan registros de pruebas; desaparece el destaque sólo cuando todas las pruebas previstas tienen conformidad vigente. Una corrección reactiva el aviso.
+- Al cerrar la evaluación se refresca la carpeta inmediatamente. Se muestran las conformidades completadas y las pruebas sin registro. Soporte refleja el mismo estado, conservando la consulta sin firma.
+- CSS del aviso limitado a la carpeta del alumno; las sanciones mantienen su estilo. Si el dispositivo solicita reducir movimiento, conserva la iluminación fija. Caché del launcher/soporte v17.
+- Chromium comprobó evaluación recién habilitada, conformidad parcial, cinco pruebas confirmadas → aspecto normal y corrección → nuevo aviso, sin desbordamiento móvil; las regresiones de soporte pasan.
