@@ -19,7 +19,7 @@ const source=fs.readFileSync(new URL('../supabase/functions/efm-campo/index.ts',
 vm.runInNewContext(source,{...org,...perfil,...baremos,...medidas,createClient:()=>sb,console,Response,Date,Number,Deno:{env:{get:()=>''},serve:f=>handler=f}});
 const call=b=>handler({method:'POST',json:async()=>({token:'TEST',...b})});
 let r=await call({accion:'mis_evaluaciones',cursante_id:'TEST2'}),d=await r.json();assert.equal(r.status,200);assert.equal(d.organizaciones.length,1);assert.deepEqual(d.registros.map(r=>r.cursante_id),['TEST1']);assert.equal(d.registros[0].conformidad,null);assert(notaConformidad(d.registros[0]).includes('pendiente'));
-assert.equal((await call({accion:'registrar'})).status,403);assert.equal((await call({accion:'organizar'})).status,403);assert.equal((await call({accion:'sincronizar',organizacion_id:planId})).status,403);
+assert.equal((await call({accion:'conformidades',fecha})).status,403);assert.equal((await call({accion:'registrar'})).status,403);assert.equal((await call({accion:'organizar'})).status,403);assert.equal((await call({accion:'sincronizar',organizacion_id:planId})).status,403);
 r=await call({accion:'confirmar',registro_id:id,cursante_id:'TEST2'});assert.equal(r.status,200);assert.equal(rpcArgs.p_cursante_id,'TEST1');assert.equal((await call({accion:'confirmar',registro_id:id})).status,200);assert.equal(tables.efmc_conformidades.length,1);
 d=await (await call({accion:'mis_evaluaciones'})).json();assert(notaConformidad(d.registros[0]).includes('conforme'));
 identity=alumnos[1];assert.equal((await call({accion:'confirmar',registro_id:id})).status,409);d=await (await call({accion:'mis_evaluaciones'})).json();assert.equal(d.organizaciones.length,0);assert.equal(d.registros.length,0);
@@ -29,7 +29,7 @@ profesores.push({id:'P030',ci:'TEST-OWNER',activo:true,rol:'ciencia_tecnologia'}
 change={soporte_actor_id:'P030',soporte_actor_ci:'TEST-OWNER'};
 r=await call({accion:'mis_evaluaciones'});d=await r.json();assert.equal(r.status,200);assert.equal(d.solo_lectura,true);assert.deepEqual(d.registros.map(x=>x.cursante_id),['TEST1']);
 assert.equal((await call({accion:'acceso'})).status,200);const countBefore=tables.efmc_conformidades.length;
-for(const accion of ['confirmar','registrar','guardar_datos','organizar','condicion'])assert.equal((await call({accion,registro_id:id})).status,403);
+for(const accion of ['confirmar','registrar','guardar_datos','organizar','condicion','conformidades'])assert.equal((await call({accion,registro_id:id})).status,403);
 assert.equal(tables.efmc_conformidades.length,countBefore);
 change.soporte_actor_ci='OTRA';assert.equal((await call({accion:'mis_evaluaciones'})).status,403);change.soporte_actor_ci='TEST-OWNER';
 profesores.at(-1).activo=false;assert.equal((await call({accion:'mis_evaluaciones'})).status,403);profesores.at(-1).activo=true;
@@ -38,6 +38,7 @@ change={};
 tables.efmc_registros.push({...registro,id:'55555555-5555-5555-5555-555555555555',valor:40,calculo:{nota:90},revision:2});assert.equal((await call({accion:'confirmar',registro_id:id})).status,409);
 d=await (await call({accion:'mis_evaluaciones'})).json();const actual=vigente(d.registros,'TEST1','flexiones');assert.equal(actual.valor,40);assert.equal(actual.conformidad,null);assert.equal(d.registros.find(r=>r.id===id).conformidad.registro_id,id);
 identity=profesores[0];tabla='profesores';d=await (await call({accion:'sincronizar',organizacion_id:planId})).json();assert.equal(d.registros.find(r=>r.id===id).conformidad.cursante_id,'TEST1');assert.equal(d.version,1);
+d=await (await call({accion:'conformidades',fecha,organizacion_id:planId})).json();assert.equal(d.organizaciones.length,1);assert.deepEqual(d.cursantes.map(c=>c.id),['TEST1']);assert(d.registros.every(r=>r.cursante_id==='TEST1'));
 const body={accion:'registrar',organizacion_id:planId,id:'66666666-6666-6666-6666-666666666666',cursante_id:'TEST1',prueba:'flexiones',fecha,valor:35,sexo:'M',nacimiento:'1985-01-01'};
 assert.equal((await call({...body,prueba:'abdominales'})).status,403);r=await call(body);d=await r.json();assert.equal(r.status,200);assert.equal(d.registro.modo,'EVALUACION');assert.equal(d.registro.actor_id,'P019');
 r=await call({accion:'cargar',fecha:'2026-11-01',inicial:true});d=await r.json();assert.equal(d.fecha,fecha);assert.equal(d.organizacion.id,planId);

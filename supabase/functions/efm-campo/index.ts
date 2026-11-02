@@ -66,6 +66,15 @@ Deno.serve(async(req:Request)=>{
    const q=await sb.from('efmc_organizaciones').select('*').eq('habilitado',true);if(q.error)throw q.error;
    return q.data.some(p=>asignaciones(p,s.usuario_id).length)?reply(200,{ok:true,jefe:false}):reply(403,{ok:false,error:'SIN DESIGNACIONES HABILITADAS'});
   }
+  if(b.accion==='conformidades'){
+   if(!jefe)return reply(403,{ok:false,error:'SÓLO LOS JEFES DE ENTRENAMIENTO FÍSICO CONSULTAN EL DETALLE GENERAL'});
+   if(!/^\d{4}-\d{2}-\d{2}$/.test(b.fecha)||edad(b.fecha,b.fecha)===null)return reply(400,{ok:false,error:'FECHA NO VÁLIDA'});
+   const ps=await sb.from('efmc_organizaciones').select('*').eq('fecha',b.fecha).eq('modo','EVALUACION').eq('habilitado',true).order('ciclo');if(ps.error)throw ps.error;
+   const plans=ps.data.filter(p=>!plan||p.nombre===plan.nombre),orgIds=plans.map(p=>p.id),ids=[...new Set(plans.flatMap(p=>p.grupos.flatMap(g=>g.alumnos)))];
+   const [cs,rs]=ids.length?await Promise.all([sb.from('cursantes').select('id,nombre_completo,ciclo').in('id',ids).eq('activo',true).order('nombre_completo'),sb.from('efmc_registros').select('*').in('organizacion_id',orgIds).in('cursante_id',ids).order('revision',{ascending:false}).limit(10000)]):[{data:[]},{data:[]}];
+   if(cs.error||rs.error)throw cs.error||rs.error;
+   return reply(200,{ok:true,organizaciones:plans.map(p=>({id:p.id,nombre:p.nombre,fecha:p.fecha,ciclo:p.ciclo,grupos:p.grupos.map(g=>({id:g.id,color:g.color,alumnos:g.alumnos}))})),cursantes:cs.data,registros:await conConformidades(rs.data),servidor_en:new Date().toISOString()});
+  }
   if(b.accion==='organizar'){
    const input=b.plan;
    if(!input||!/^[0-9a-f-]{36}$/i.test(input.id)||!/^\d{4}-\d{2}-\d{2}$/.test(input.fecha)||edad(input.fecha,input.fecha)===null||!Number.isInteger(input.version)||input.version<0)return reply(400,{ok:false,error:'ORGANIZACIÓN NO VÁLIDA'});
