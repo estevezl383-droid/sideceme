@@ -23,7 +23,7 @@ function table(rows,widths){return `<w:tbl><w:tblPr><w:tblW w:w="0" w:type="auto
 function firmaWord(config){return p('')+table(roles.map((r,i)=>[config[Object.keys(PRUEBAS)[i]]||'',r]).reduce((a,r,i)=>{a[0][i]=r[0]+'\n________________________';a[1][i]=r[1];return a;},[[],[]]),Array(5).fill(2900))+p('________________________     JEFE DE CURSO: '+(config.jefe_curso||''))+p('________________________     JEFE DE ENTRENAMIENTO FÍSICO: '+(config.jefe_efm||''))+p('________________________     JEFE DE LA SAC.: '+(config.jefe_sac||''))+p('________________________     JEFE DE ESTUDIOS: '+(config.jefe_estudios||''))+p('________________________     COMANDANTE DE LA ECEME.: '+(config.comandante||''));}
 async function word(list,config,scope){
  const headers=cabeceras(list),conBarras=list.some(esHojaExcelencia);
- const response=await fetch(new URL('./modelo-hoja.json?v=22',import.meta.url));if(!response.ok)throw Error('NO SE PUDO CARGAR EL MODELO WORD.');const parts=await response.json();const responseEx=await fetch(new URL('./modelo-excelencia.json?v=22',import.meta.url));if(!responseEx.ok)throw Error('NO SE PUDO CARGAR EL MODELO DE EXCELENCIA.');const partsEx=await responseEx.json();const original=parts['word/document.xml'];let body='',pictures=[];
+ const response=await fetch(new URL('./modelo-hoja.json?v=23',import.meta.url));if(!response.ok)throw Error('NO SE PUDO CARGAR EL MODELO WORD.');const parts=await response.json();const responseEx=await fetch(new URL('./modelo-excelencia.json?v=23',import.meta.url));if(!responseEx.ok)throw Error('NO SE PUDO CARGAR EL MODELO DE EXCELENCIA.');const partsEx=await responseEx.json();const original=parts['word/document.xml'];let body='',pictures=[];
  if(scope==='curso'){
   const widths=[360,850,2700,400,...Array(headers.length-4).fill(conBarras?510:590)];
   body=membrete.map(x=>p(x,18,true)).join('')+p('MATRIZ DE LA EVALUACIÓN FÍSICA MILITAR · '+list[0].c.ciclo,22,true)+p(`FECHA: ${list[0].fecha} · CURSO: ${config.cursoLabel||'TODOS'} · ${list.filter(s=>s.final!=null).length}/${list.length} COMPLETOS · REGISTROS DE PRUEBA`)+table([headers,...list.map((s,i)=>matriz(s,i,conBarras))],widths)+firmaWord(config);
@@ -37,6 +37,7 @@ async function word(list,config,scope){
  let drawingId=0;body=body.replace(/wp:docPr id="\d+"/g,()=>`wp:docPr id="${++drawingId}"`);
  parts['word/document.xml']=prefix+body+section;
  parts['word/_rels/document.xml.rels']=parts['word/_rels/document.xml.rels'].replace(/<Relationship[^>]+Type="[^"]*\/image"[^>]*\/>/g,'').replace('</Relationships>',pictures.map(p=>`<Relationship Id="${p.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${p.name}"/>`).join('')+'</Relationships>');
+ if(pictures.length&&!/Extension="jpeg"/.test(parts['[Content_Types].xml']))parts['[Content_Types].xml']=parts['[Content_Types].xml'].replace('</Types>','<Default Extension="jpeg" ContentType="image/jpeg"/></Types>');
  for(const p of pictures)parts['word/media/'+p.name]=p.bytes;
  return zip(parts);
 }
