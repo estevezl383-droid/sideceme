@@ -63,6 +63,12 @@ Deno.serve(async(req:Request)=>{
    if(!plan||(!jefe&&!asignaciones(plan,s.usuario_id).length))return reply(403,{ok:false,error:'ORGANIZACIÓN NO HABILITADA PARA TU CUENTA'});
    if(b.fecha&&plan.fecha!==b.fecha)return reply(400,{ok:false,error:'LA FECHA NO CORRESPONDE A LA ORGANIZACIÓN'});
   }
+  if(['preparar_publicacion','publicar_diagnostica'].includes(b.accion)){
+   if(!jefe)return reply(403,{ok:false,error:'SÓLO AGUIRRE, LINARES Y MORALES PUEDEN CERRAR Y PUBLICAR'});
+   if(!plan||!Number.isInteger(b.version)||![1,2].includes(b.semestre))return reply(400,{ok:false,error:'REVISAR EVALUACIÓN Y SEMESTRE'});
+   const r=await sb.rpc('efmc_publicar_diagnostica',{p_organizacion:plan.id,p_actor:s.usuario_id,p_version:b.version,p_semestre:b.semestre,p_publicar:b.accion==='publicar_diagnostica',p_huella:typeof b.huella==='string'?b.huella:null});
+   if(r.error)throw r.error;return reply(r.data?.ok?200:409,r.data);
+  }
   if(b.accion==='acceso'){
    if(jefe)return reply(200,{ok:true,jefe:true});
    const q=await sb.from('efmc_organizaciones').select('*').eq('habilitado',true);if(q.error)throw q.error;
@@ -83,12 +89,14 @@ Deno.serve(async(req:Request)=>{
    const [cs,ps]=await Promise.all([sb.from('cursantes').select('id,ciclo').eq('activo',true),sb.from('profesores').select('id,activo,grado,es_suboficial,es_auxiliar,solo_lectura').eq('activo',true)]);if(cs.error||ps.error)throw cs.error||ps.error;
    const issue=validarPlan(input,cs.data,ps.data);if(issue)return reply(400,{ok:false,error:issue});
    const prev=await sb.from('efmc_organizaciones').select('*').eq('id',input.id).maybeSingle();if(prev.error)throw prev.error;
+   if(prev.data?.publicada_en)return reply(409,{ok:false,error:'EVALUACIÓN CERRADA Y PUBLICADA. EL HISTORIAL NO SE PUEDE REORGANIZAR.'});
    if(prev.data&&(prev.data.fecha!==input.fecha||prev.data.ciclo!==input.ciclo))return reply(400,{ok:false,error:'CREÁ OTRA ORGANIZACIÓN PARA CAMBIAR FECHA O CICLO'});
    const row={id:input.id,nombre:input.nombre.trim(),fecha:input.fecha,ciclo:input.ciclo,modo:input.modo,habilitado:input.habilitado,grupos:input.grupos,version:input.version+1,actor_id:s.usuario_id,actualizado_en:new Date().toISOString()};
    const q=prev.data?await sb.from('efmc_organizaciones').update(row).eq('id',input.id).eq('version',input.version).select().maybeSingle():input.version===0?await sb.from('efmc_organizaciones').insert(row).select().single():{error:{code:'CONFLICT'}};
    if(q.error?.code==='23505'||q.error?.code==='CONFLICT'||(!q.error&&!q.data))return reply(409,{ok:false,error:'OTRO JEFE ACTUALIZÓ ESTA ORGANIZACIÓN. RECARGÁ ANTES DE EDITAR.'});if(q.error)throw q.error;
    return reply(200,{ok:true,plan:q.data});
   }
+  if(plan?.publicada_en&&['condicion','registrar'].includes(b.accion))return reply(409,{ok:false,error:'EVALUACIÓN CERRADA Y PUBLICADA. REVISÁ LAS NOTAS Y RECLAMOS EN EL PANEL EFM.'});
   if(b.accion==='condicion'){
    if(!plan||!plan.grupos.some(g=>g.alumnos.includes(b.cursante_id))||(!ESTACIONES[b.prueba]&&b.prueba!=='TODAS')||!CONDICIONES[b.estado]||!/^[0-9a-f-]{36}$/i.test(b.id)||typeof b.observacion!=='string'||b.observacion.length>600||typeof b.referencia!=='string'||b.referencia.length>160)return reply(400,{ok:false,error:'REVISAR CURSANTE, PRUEBA Y CONDICIÓN'});
    if(b.estado==='CON_PAPELETA'&&!b.referencia.trim())return reply(400,{ok:false,error:'INDICÁ LA REFERENCIA DE LA PAPELETA MÉDICA'});
