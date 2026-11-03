@@ -4,7 +4,7 @@
  const enSoporte=()=>!!sessionStorage.getItem('sideceme_soporte');
  const session=()=>{try{const s=getSession();return ['docente','cursante'].includes(s?.tipo)&&s.user?.id&&(s.tipo==='cursante'||!enSoporte())?s:null;}catch{return null;}};
  const key=()=>{const s=session();return s?[s.tipo,s.user.id,enSoporte()?'soporte':'personal'].join(':'):'';};
- if(!document.getElementById('efmc-avisos-style')){const css=document.createElement('link');css.id='efmc-avisos-style';css.rel='stylesheet';css.href='efm-campo/avisos.css?v=17';document.head.append(css);}
+ if(!document.getElementById('efmc-avisos-style')){const css=document.createElement('link');css.id='efmc-avisos-style';css.rel='stylesheet';css.href='efm-campo/avisos.css?v=22';document.head.append(css);}
  let loading=false,open=false,checking=false,allowedKey='',checkedKey='',checkedAt=0,studentData=null,accessError='',chief=false;
  const owner=()=>!!allowedKey&&key()===allowedKey;
  const invoke=async body=>{
@@ -16,8 +16,8 @@
  async function abrir(evaluacionId='',vistaInicial='estacion'){
   if(loading||open||!owner())return;loading=true;
   try{
-   if(!document.getElementById('efmc-style')){const s=document.createElement('link');s.id='efmc-style';s.rel='stylesheet';s.href='efm-campo/style.css?v=20';document.head.append(s);}
-   const tipo=session().tipo,app=tipo==='cursante'?await import('./alumno.mjs?v=20'):await import('./app.mjs?v=21');
+   if(!document.getElementById('efmc-style')){const s=document.createElement('link');s.id='efmc-style';s.rel='stylesheet';s.href='efm-campo/style.css?v=22';document.head.append(s);}
+   const tipo=session().tipo,app=tipo==='cursante'?await import('./alumno.mjs?v=22'):await import('./app.mjs?v=22');
    open=true;const account=allowedKey;await app.abrir({invoke,evaluacionId,vistaInicial,owner:session().user.id,authorized:()=>owner()&&allowedKey===account,onClose:()=>{open=false;checkedAt=0;refresh();}});
   }catch(e){open=false;alert(e.message);}finally{loading=false;}
  }
@@ -25,7 +25,7 @@
  function pendientes(plan){
   const latest=new Map();
   for(const r of studentData?.registros||[]){if(r.organizacion_id!==plan.id)continue;const prev=latest.get(r.prueba);if(!prev||Number(r.revision)>Number(prev.revision))latest.set(r.prueba,r);}
-  const pruebas=['talla_peso','flexiones','abdominales','aerobica','natacion'];if(plan.grupo==='NEGRO'||latest.has('barras'))pruebas.push('barras');
+  const pruebas=['talla_peso','flexiones','abdominales','aerobica','natacion'];if(plan.modalidad==='EXCELENCIA'||plan.grupo==='NEGRO'||latest.has('barras'))pruebas.push('barras');
   const rows=pruebas.map(p=>latest.get(p)),total=rows.filter(Boolean).length,pendientes=rows.filter(r=>r&&!r.conformidad).length,conformes=rows.filter(r=>r?.conformidad).length,sinCalificar=rows.filter(r=>r&&r.prueba!=='barras'&&r.calculo?.estado!=='NO_REALIZO'&&!(typeof r.calculo?.nota==='number'&&Number.isFinite(r.calculo.nota)&&r.calculo.nota>=0&&r.calculo.nota<=100)).length;
   return {total,pendientes,conformes,sinCalificar,esperadas:pruebas.length,sinRegistro:pruebas.length-total,atencion:!!plan.id&&(conformes<pruebas.length||sinCalificar>0)};
  }

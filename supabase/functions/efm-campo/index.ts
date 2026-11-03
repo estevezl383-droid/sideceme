@@ -150,11 +150,12 @@ Deno.serve(async(req:Request)=>{
    if(b.no_realizo&&b.valor!==0)return reply(400,{ok:false,error:'NO REALIZÓ NO ADMITE MARCA'});
    if(!b.no_realizo&&b.prueba==='talla_peso'&&(validarMedidas(b.valor,b.talla)))return reply(400,{ok:false,error:validarMedidas(b.valor,b.talla)});
    const excelencia=esExcelencia(plan?.grupos.find(g=>g.alumnos.includes(b.cursante_id)));
+   if(plan&&b.prueba==='barras'&&!excelencia)return reply(403,{ok:false,error:'BARRAS REQUIERE GRUPO DE EXCELENCIA'});
    if(b.no_cumplio!==undefined&&(typeof b.no_cumplio!=='boolean'||!excelencia||!['natacion','barras'].includes(b.prueba)||b.valor!==0||b.no_realizo))return reply(400,{ok:false,error:'NO CUMPLIÓ REQUIERE GRUPO DE EXCELENCIA, BARRAS O NATACIÓN Y SIN MARCA'});
    if(b.prueba!=='aerobica'&&b.prueba!=='talla_peso'&&!(excelencia&&b.prueba==='natacion')&&!Number.isInteger(b.valor))return reply(400,{ok:false,error:'USAR UN NÚMERO ENTERO'});
    const {data:c,error:ce}=await sb.from('cursantes').select('id').eq('id',b.cursante_id).eq('activo',true).maybeSingle();
    if(ce||!c)return reply(400,{ok:false,error:'CURSANTE NO VÁLIDO'});
-   const calculo=b.no_cumplio?{estado:'NO_CUMPLIO',modalidad:'EXCELENCIA',cumple:false,nota:null,motivo:'NO CUMPLIÓ LA PRUEBA'}:b.no_realizo?{estado:'NO_REALIZO',nota:null,motivo:'NO REALIZÓ LA PRUEBA'}:b.prueba==='talla_peso'?calificarMedidas(b.valor,b.talla,b.sexo,b.nacimiento,b.fecha):excelencia?calificarExcelencia(b.prueba,b.valor,b.sexo,b.nacimiento,b.fecha):calificar(b.prueba,b.valor,b.sexo,b.nacimiento,b.fecha);
+   const calculo=b.no_cumplio?{estado:'NO_CUMPLIO',modalidad:'EXCELENCIA',cumple:false,nota:0,motivo:'NO CUMPLIÓ LA PRUEBA'}:b.no_realizo?{estado:'NO_REALIZO',nota:null,motivo:'NO REALIZÓ LA PRUEBA'}:b.prueba==='talla_peso'?calificarMedidas(b.valor,b.talla,b.sexo,b.nacimiento,b.fecha):excelencia?calificarExcelencia(b.prueba,b.valor,b.sexo,b.nacimiento,b.fecha):calificar(b.prueba,b.valor,b.sexo,b.nacimiento,b.fecha);
    if(!b.no_realizo&&b.prueba==='talla_peso'&&calculo.nota===null)return reply(400,{ok:false,error:calculo.motivo});
    calculo.evaluador_nombre=actorNombre;
    if(plan){calculo.organizacion_nombre=plan.nombre;calculo.modalidad=excelencia?'EXCELENCIA':'ORDINARIA';calculo.grupo=plan.grupos.find(g=>g.alumnos.includes(b.cursante_id))?.color;}

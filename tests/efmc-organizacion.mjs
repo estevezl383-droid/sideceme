@@ -24,3 +24,13 @@ who='S001';assert.equal((await call({accion:'acceso'})).status,403);
 who='P019';assert.equal((await call({accion:'acceso'})).status,200);assert.equal((await call({accion:'organizar',plan:{...plan,version:0}})).status,409);
 r=await call({accion:'organizar',plan});assert.equal(r.status,200);assert.equal((await r.json()).plan.version,2);
 console.log('Organización: colores, ciclos, Word, apoyo, aislamiento de datos, notas, novedades, reemplazos y concurrencia: OK');
+// Excelencia usa la modalidad del grupo validada por el servidor, nunca una nota del cliente.
+who='P100';const exBody={...body,cursante_id:'C2',sexo:'M',nacimiento:'1985-01-01',prueba:'natacion',valor:230,id:'66666666-6666-6666-6666-666666666666',nota:12};
+r=await call(exBody);assert.equal(r.status,200);data=await r.json();assert.equal(data.registro.calculo.nota,100);assert.equal(data.registro.calculo.distancia,100);assert.equal(data.registro.calculo.modalidad,'EXCELENCIA');
+r=await call({...exBody,id:'77777777-7777-7777-7777-777777777777',valor:230.01});assert.equal(r.status,200);assert.equal((await r.json()).registro.calculo.nota,0);
+for(const prueba of ['natacion','barras']){r=await call({...exBody,id:crypto.randomUUID(),prueba,valor:0,no_cumplio:true});assert.equal(r.status,200);const r2=(await r.json()).registro;assert.equal(r2.calculo.nota,0);assert.equal(r2.calculo.estado,'NO_CUMPLIO');}
+assert.equal((await call({...exBody,id:crypto.randomUUID(),valor:10,no_cumplio:true})).status,400);
+assert.equal((await call({...exBody,id:crypto.randomUUID(),prueba:'flexiones',valor:0,no_cumplio:true})).status,400);
+assert.equal((await call({...exBody,id:crypto.randomUUID(),cursante_id:'C1',valor:0,no_cumplio:true})).status,400);
+assert.equal((await call({...exBody,id:crypto.randomUUID(),prueba:'barras',valor:7.5})).status,400);
+console.log('Servidor excelencia: 3:50 inclusive, centésima posterior con cero, nota cliente ignorada, no cumplió en barras/natación, restricciones de grupo/prueba: OK');

@@ -1,6 +1,6 @@
-import {CONDICIONES} from './organizacion.mjs?v=11';
+import {CONDICIONES} from './organizacion.mjs?v=22';
 import {edad,esExcelencia} from './baremos.mjs';
-import {nacimiento,gradoArma,sexoInicial,fechaEvaluacion} from './ui.mjs?v=10';
+import {nacimiento,gradoArma,sexoInicial,fechaEvaluacion} from './ui.mjs?v=22';
 export const PRUEBAS={talla_peso:'TALLA / PESO',natacion:'NATACIÓN',abdominales:'ABDOMINALES',flexiones:'FLEXIONES EN SUELO',aerobica:'AERÓBICA 3.200 M'};
 export const PRUEBAS_EXCELENCIA={natacion:'NATACIÓN 100 M',barras:'FLEXIONES EN BARRA',abdominales:'ABDOMINALES',flexiones:'FLEXIONES EN SUELO',aerobica:'AERÓBICA 3.200 M'};
 export const esHojaExcelencia=s=>s.excelencia===true||s.organizacion?.modalidad==='EXCELENCIA'||(!s.organizacion?.modalidad&&s.organizacion?.grupo==='NEGRO');
@@ -14,7 +14,7 @@ export function resumen(c,registros,fecha){
  const latest=registros.filter(r=>r.cursante_id===c.id&&r.fecha===fecha).sort((a,b)=>a.revision!=null&&b.revision!=null?Number(b.revision)-Number(a.revision):String(b.creado_en||'').localeCompare(String(a.creado_en||'')))[0];
  return {c,fecha,excelencia,rows,completos,final,nacimiento:c.fecha_nacimiento||latest?.nacimiento,sexo:sexoInicial(c,registros),condiciones:c.condiciones||[],organizacion:c.organizacion||null,barras:ultima(registros,c.id,'barras',fecha)};
 }
-export const tiempo=v=>{const n=Math.floor(Number(v));return `${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;};
+export const tiempo=v=>{if(!Number.isInteger(Number(v)))return `${String(Math.floor(Number(v)/60)).padStart(2,'0')}:${(Number(v)%60).toFixed(2).padStart(5,'0')}`;const n=Math.floor(Number(v));return `${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;};
 export function marca(row){if(row.condicion)return CONDICIONES[row.condicion.estado];const r=row.registro;if(!r)return 'PENDIENTE';if(r.calculo?.estado==='NO_CUMPLIO')return 'NO CUMPLIÓ';if(r.calculo?.estado==='NO_REALIZO')return 'NO REALIZÓ';if(row.prueba==='talla_peso')return `${r.calculo.peso} KG / ${r.calculo.talla} M`;return (row.prueba==='aerobica'||(r.calculo?.modalidad==='EXCELENCIA'&&row.prueba==='natacion'))?tiempo(r.valor):String(r.valor);}
 export function valoresHoja(s){if(esHojaExcelencia(s))return [...s.rows.flatMap(r=>[r.registro?marca(r):'S/R',r.nota??'S/R',r.aporte??'S/R']),s.final??'PENDIENTE'];const r=p=>s.rows.find(x=>x.prueba===p),ausente=p=>!!r(p).condicion||r(p).registro?.calculo?.estado==='NO_REALIZO',v=p=>ausente(p)?'N/R':r(p).registro?.valor??'S/R',n=p=>ausente(p)?'N/R':r(p).nota??'S/R',a=p=>ausente(p)?'N/R':r(p).aporte??'S/R';return [ausente('talla_peso')?'N/R':r('talla_peso').registro?.calculo.peso??'S/R',ausente('talla_peso')?'N/R':r('talla_peso').registro?.calculo.talla??'S/R',n('talla_peso'),a('talla_peso'),v('natacion'),n('natacion'),a('natacion'),v('abdominales'),n('abdominales'),a('abdominales'),v('flexiones'),n('flexiones'),a('flexiones'),ausente('aerobica')?'N/R':r('aerobica').registro?tiempo(v('aerobica')):'S/R',n('aerobica'),a('aerobica'),s.final??'PENDIENTE'];}
 export function evaluador(s,p){const r=s.rows.find(x=>x.prueba===p)?.registro;return r?.calculo?.evaluador_nombre||r?.evaluador_nombre||'';}
