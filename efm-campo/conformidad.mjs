@@ -3,7 +3,7 @@ export const estaciones={talla_peso:'Peso y talla',flexiones:'Flexiones',abdomin
 export function vigente(records,id,prueba){return records.filter(r=>r.cursante_id===id&&r.prueba===prueba).sort((a,b)=>a.revision!=null&&b.revision!=null?Number(b.revision)-Number(a.revision):String(b.creado_en||'').localeCompare(String(a.creado_en||'')))[0];}
 export const fechaHora=s=>s?new Intl.DateTimeFormat('es-BO',{timeZone:'America/La_Paz',dateStyle:'short',timeStyle:'medium'}).format(new Date(s)):'—';
 export function marcaRegistro(r){
- if(!r)return 'Sin registro';if(r.calculo?.estado==='NO_REALIZO')return 'No realizó la prueba';
+ if(!r)return 'Sin registro';if(r.calculo?.estado==='NO_CUMPLIO')return 'NO CUMPLIÓ';if(r.calculo?.modalidad==='EXCELENCIA'&&r.prueba==='natacion')return `${Math.floor(r.valor/60)}:${(r.valor%60).toFixed(2).padStart(5,'0')} · 100 m`;if(r.calculo?.estado==='NO_REALIZO')return 'No realizó la prueba';
  if(r.prueba==='talla_peso')return `${r.calculo.peso} kg / ${r.calculo.talla} m`;
  if(r.prueba==='aerobica'){const n=Math.floor(Number(r.valor));return `${String(Math.floor(n/60)).padStart(2,'0')}:${String(n%60).padStart(2,'0')}`;}
  return `${r.valor} ${r.prueba==='natacion'?'m':'repeticiones'}`;
@@ -11,7 +11,7 @@ export function marcaRegistro(r){
 export const sinCalificar=r=>!!r&&r.prueba!=='barras'&&r.calculo?.estado!=='NO_REALIZO'&&!(typeof r.calculo?.nota==='number'&&Number.isFinite(r.calculo.nota)&&r.calculo.nota>=0&&r.calculo.nota<=100);
 export const estadoRegistro=r=>!r?'sin-registro':sinCalificar(r)?'sin-calificar':r.conformidad?'conforme':'pendiente';
 export const textoEstado=r=>!r?'Sin registro':r.conformidad?'✓ Conformidad del alumno':'● Pendiente de conformidad';
-export function notaConformidad(r){return `<span class="efmc-conformidad ${estadoRegistro(r)}" data-record-status="${esc(r?.id||'')}"><b>${esc(r?.calculo?.nota??(!r?'Sin registro':r.calculo?.estado==='NO_REALIZO'?'No realizó':'Pendiente de calificación'))}${r?.calculo?.nota!=null?' / 100':''}</b><small>${textoEstado(r)}</small>${sinCalificar(r)?`<small class="efmc-calculo-motivo">${esc(r.calculo?.motivo||'El evaluador debe revisar el cálculo de esta prueba.')}</small>`:''}</span>`;}
+export function notaConformidad(r){return `<span class="efmc-conformidad ${estadoRegistro(r)}" data-record-status="${esc(r?.id||'')}"><b>${esc(r?.calculo?.nota??(!r?'Sin registro':r.calculo?.estado==='NO_REALIZO'?'No realizó':r.calculo?.cumple===true?'CUMPLE':r.calculo?.cumple===false?'NO CUMPLIÓ':'Pendiente de calificación'))}${r?.calculo?.nota!=null?' / 100':''}</b><small>${textoEstado(r)}</small>${sinCalificar(r)?`<small class="efmc-calculo-motivo">${esc(r.calculo?.motivo||'El evaluador debe revisar el cálculo de esta prueba.')}</small>`:''}</span>`;}
 export function botonConformidad(r,prueba,{soloLectura=false}={}){
  const habilitado=!!r&&!r.conformidad&&!soloLectura,label=estaciones[prueba]||prueba;
  const reason=!r?'Se habilitará cuando el evaluador registre esta prueba.':r.conformidad?'Conformidad guardada el '+fechaHora(r.conformidad.confirmado_en):soloLectura?'En soporte sólo puedes consultar. El alumno debe entrar con su cuenta personal para dar conformidad.':'Registro guardado. Puedes dar conformidad a esta prueba ahora, sin esperar las demás.';

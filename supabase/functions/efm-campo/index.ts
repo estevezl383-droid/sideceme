@@ -1,7 +1,7 @@
 import {JEFES,ESTACIONES,CONDICIONES,puedeEvaluar,validarPlan,asignaciones,puedeRegistrar} from './organizacion.mjs';
 import {validarNacimiento} from './perfil.mjs';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.8';
-import {calificar,edad} from './baremos.mjs';
+import {calificar,edad,calificarExcelencia,esExcelencia} from './baremos.mjs';
 import {validarMedidas,calificarMedidas} from './medidas.mjs';
 import {hojaPDFAlumno} from './documentos.mjs';
 const sb=createClient(Deno.env.get('SUPABASE_URL')||'',Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||'');
@@ -42,7 +42,7 @@ Deno.serve(async(req:Request)=>{
     const plans=ps.data.filter(p=>p.grupos.some(g=>g.alumnos.includes(s.usuario_id)));
     const ids=plans.map(p=>p.id);
     const rs=ids.length?await sb.from('efmc_registros').select('*').eq('cursante_id',s.usuario_id).in('organizacion_id',ids).order('revision',{ascending:false}).limit(10000):{data:[]};if(rs.error)throw rs.error;
-    return reply(200,{ok:true,solo_lectura:soporte,alumno:q.data,organizaciones:plans.map(p=>({id:p.id,nombre:p.nombre,fecha:p.fecha,ciclo:p.ciclo,grupo:p.grupos.find(g=>g.alumnos.includes(s.usuario_id))?.color})),registros:await conConformidades(rs.data),servidor_en:new Date().toISOString()});
+    return reply(200,{ok:true,solo_lectura:soporte,alumno:q.data,organizaciones:plans.map(p=>({id:p.id,nombre:p.nombre,fecha:p.fecha,ciclo:p.ciclo,grupo:p.grupos.find(g=>g.alumnos.includes(s.usuario_id))?.color,modalidad:esExcelencia(p.grupos.find(g=>g.alumnos.includes(s.usuario_id)))?'EXCELENCIA':'ORDINARIA'})),registros:await conConformidades(rs.data),servidor_en:new Date().toISOString()});
    }
    if(b.accion==='confirmar'){
     if(typeof b.registro_id!=='string'||!/^[0-9a-f-]{36}$/i.test(b.registro_id))return reply(400,{ok:false,error:'REGISTRO NO VÁLIDO'});
@@ -75,7 +75,7 @@ Deno.serve(async(req:Request)=>{
    const plans=ps.data.filter(p=>!plan||p.nombre===plan.nombre),orgIds=plans.map(p=>p.id),ids=[...new Set(plans.flatMap(p=>p.grupos.flatMap(g=>g.alumnos)))];
    const [cs,rs]=ids.length?await Promise.all([sb.from('cursantes').select('id,nombre_completo,ciclo').in('id',ids).eq('activo',true).order('nombre_completo'),sb.from('efmc_registros').select('*').in('organizacion_id',orgIds).in('cursante_id',ids).order('revision',{ascending:false}).limit(10000)]):[{data:[]},{data:[]}];
    if(cs.error||rs.error)throw cs.error||rs.error;
-   return reply(200,{ok:true,organizaciones:plans.map(p=>({id:p.id,nombre:p.nombre,fecha:p.fecha,ciclo:p.ciclo,grupos:p.grupos.map(g=>({id:g.id,color:g.color,alumnos:g.alumnos}))})),cursantes:cs.data,registros:await conConformidades(rs.data),servidor_en:new Date().toISOString()});
+   return reply(200,{ok:true,organizaciones:plans.map(p=>({id:p.id,nombre:p.nombre,fecha:p.fecha,ciclo:p.ciclo,grupos:p.grupos.map(g=>({id:g.id,color:g.color,modalidad:g.modalidad,alumnos:g.alumnos}))})),cursantes:cs.data,registros:await conConformidades(rs.data),servidor_en:new Date().toISOString()});
   }
   if(b.accion==='organizar'){
    const input=b.plan;
@@ -120,7 +120,7 @@ Deno.serve(async(req:Request)=>{
    const paths=p.data.filter(x=>x.foto_path).map(x=>x.foto_path);
    const signed=paths.length?await sb.storage.from('efm-retratos').createSignedUrls(paths,1800):{data:[]};
    const urls=new Map((signed.data||[]).map(x=>[x.path,x.signedUrl]));
-   const safePlan=plan&&(jefe?plan:{id:plan.id,nombre:plan.nombre,ciclo:plan.ciclo,fecha:plan.fecha,version:plan.version,modo:plan.modo,habilitado:plan.habilitado,grupos:plan.grupos.filter(g=>assignments.some(a=>a.grupo===g.id)).map(g=>({id:g.id,color:g.color,alumnos:g.alumnos}))});
+   const safePlan=plan&&(jefe?plan:{id:plan.id,nombre:plan.nombre,ciclo:plan.ciclo,fecha:plan.fecha,version:plan.version,modo:plan.modo,habilitado:plan.habilitado,grupos:plan.grupos.filter(g=>assignments.some(a=>a.grupo===g.id)).map(g=>({id:g.id,color:g.color,modalidad:g.modalidad,alumnos:g.alumnos}))});
    return reply(200,{ok:true,fecha:b.fecha,jefe,actor_nombre:actorNombre,organizacion:safePlan,organizaciones:disponibles.map(p=>({id:p.id,nombre:p.nombre,ciclo:p.ciclo,modo:p.modo,habilitado:p.habilitado})),asignaciones:assignments,condiciones:safeConditions,personal:people.data,cursantes:c.data.map(x=>{const pp=p.data.find(y=>y.cursante_id===x.id)||{};return {...x,...pp,foto:urls.get(pp.foto_path)||null};}),registros:await conConformidades(safeRecords.map(x=>({...x,evaluador_nombre:x.calculo?.evaluador_nombre||(x.actor_id===s.usuario_id?actorNombre:'')})))});
   }
   if(b.accion==='sincronizar'){
@@ -149,19 +149,21 @@ Deno.serve(async(req:Request)=>{
    if(b.no_realizo!=null&&typeof b.no_realizo!=='boolean')return reply(400,{ok:false,error:'ESTADO DE PRUEBA NO VÁLIDO'});
    if(b.no_realizo&&b.valor!==0)return reply(400,{ok:false,error:'NO REALIZÓ NO ADMITE MARCA'});
    if(!b.no_realizo&&b.prueba==='talla_peso'&&(validarMedidas(b.valor,b.talla)))return reply(400,{ok:false,error:validarMedidas(b.valor,b.talla)});
-   if(b.prueba!=='aerobica'&&b.prueba!=='talla_peso'&&!Number.isInteger(b.valor))return reply(400,{ok:false,error:'USAR UN NÚMERO ENTERO'});
+   const excelencia=esExcelencia(plan?.grupos.find(g=>g.alumnos.includes(b.cursante_id)));
+   if(b.no_cumplio!==undefined&&(typeof b.no_cumplio!=='boolean'||!excelencia||!['natacion','barras'].includes(b.prueba)||b.valor!==0||b.no_realizo))return reply(400,{ok:false,error:'NO CUMPLIÓ REQUIERE GRUPO DE EXCELENCIA, BARRAS O NATACIÓN Y SIN MARCA'});
+   if(b.prueba!=='aerobica'&&b.prueba!=='talla_peso'&&!(excelencia&&b.prueba==='natacion')&&!Number.isInteger(b.valor))return reply(400,{ok:false,error:'USAR UN NÚMERO ENTERO'});
    const {data:c,error:ce}=await sb.from('cursantes').select('id').eq('id',b.cursante_id).eq('activo',true).maybeSingle();
    if(ce||!c)return reply(400,{ok:false,error:'CURSANTE NO VÁLIDO'});
-   const calculo=b.no_realizo?{estado:'NO_REALIZO',nota:null,motivo:'NO REALIZÓ LA PRUEBA'}:b.prueba==='talla_peso'?calificarMedidas(b.valor,b.talla,b.sexo,b.nacimiento,b.fecha):calificar(b.prueba,b.valor,b.sexo,b.nacimiento,b.fecha);
+   const calculo=b.no_cumplio?{estado:'NO_CUMPLIO',modalidad:'EXCELENCIA',cumple:false,nota:null,motivo:'NO CUMPLIÓ LA PRUEBA'}:b.no_realizo?{estado:'NO_REALIZO',nota:null,motivo:'NO REALIZÓ LA PRUEBA'}:b.prueba==='talla_peso'?calificarMedidas(b.valor,b.talla,b.sexo,b.nacimiento,b.fecha):excelencia?calificarExcelencia(b.prueba,b.valor,b.sexo,b.nacimiento,b.fecha):calificar(b.prueba,b.valor,b.sexo,b.nacimiento,b.fecha);
    if(!b.no_realizo&&b.prueba==='talla_peso'&&calculo.nota===null)return reply(400,{ok:false,error:calculo.motivo});
    calculo.evaluador_nombre=actorNombre;
-   if(plan){calculo.organizacion_nombre=plan.nombre;calculo.grupo=plan.grupos.find(g=>g.alumnos.includes(b.cursante_id))?.color;}
+   if(plan){calculo.organizacion_nombre=plan.nombre;calculo.modalidad=excelencia?'EXCELENCIA':'ORDINARIA';calculo.grupo=plan.grupos.find(g=>g.alumnos.includes(b.cursante_id))?.color;}
    const row={id:b.id,cursante_id:b.cursante_id,prueba:b.prueba,fecha:b.fecha,valor:b.valor,sexo:b.sexo,nacimiento:b.nacimiento||null,calculo,actor_id:s.usuario_id,...(plan?{organizacion_id:plan.id,...(plan.modo==='EVALUACION'?{modo:'EVALUACION'}:{})}:{})};
    const {data,error}=await sb.from('efmc_registros').insert(row).select().single();
    if(error?.code==='23505'){
     const {data:prev,error:pe}=await sb.from('efmc_registros').select('*').eq('id',b.id).single();
     if(pe)throw pe;
-    if(prev.actor_id!==row.actor_id||(prev.organizacion_id||null)!==(row.organizacion_id||null)||prev.cursante_id!==row.cursante_id||prev.prueba!==row.prueba||prev.fecha!==row.fecha||Number(prev.valor)!==row.valor||prev.sexo!==row.sexo||prev.nacimiento!==row.nacimiento||((prev.calculo.estado==='NO_REALIZO')!==!!b.no_realizo)||(!b.no_realizo&&b.prueba==='talla_peso'&&(Number(prev.calculo.talla)!==b.talla||prev.calculo.nota!==calculo.nota)))return reply(409,{ok:false,error:'EL IDENTIFICADOR YA PERTENECE A OTRA MARCA'});
+    if(prev.actor_id!==row.actor_id||(prev.organizacion_id||null)!==(row.organizacion_id||null)||prev.cursante_id!==row.cursante_id||prev.prueba!==row.prueba||prev.fecha!==row.fecha||Number(prev.valor)!==row.valor||prev.sexo!==row.sexo||prev.nacimiento!==row.nacimiento||((prev.calculo.estado==='NO_REALIZO')!==!!b.no_realizo)||((prev.calculo.estado==='NO_CUMPLIO')!==!!b.no_cumplio)||(!b.no_realizo&&b.prueba==='talla_peso'&&(Number(prev.calculo.talla)!==b.talla||prev.calculo.nota!==calculo.nota)))return reply(409,{ok:false,error:'EL IDENTIFICADOR YA PERTENECE A OTRA MARCA'});
     return reply(200,{ok:true,registro:prev});
    }
    if(error)throw error;

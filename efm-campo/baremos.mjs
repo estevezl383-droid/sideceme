@@ -38,3 +38,17 @@ export function calificar(prueba,valor,sexo,nacimiento,dia){
  nota=Math.min(100,nota);
  return {nota,motivo:'',edad:a,version:VERSION};
 }
+
+// Tabla diferenciada de excelencia facilitada por ECEME el 03/11/2026.
+export const esExcelencia=g=>g?.modalidad==='EXCELENCIA'||(!g?.modalidad&&g?.color==='NEGRO');
+export function calificarExcelencia(prueba,valor,sexo,nacimiento,dia){
+ const a=edad(nacimiento,dia),v=Number(valor),base={nota:null,modalidad:'EXCELENCIA',version:'excelencia-20261103-v1',edad:a};
+ if(a===null||a<35||!['M','F'].includes(sexo))return {...base,motivo:'EDAD O SEXO SIN TABLA DE EXCELENCIA VERIFICADA'};
+ const g=Math.min(3,Math.floor((a-35)/5));
+ const tablas=sexo==='M'?{natacion:[200,null,260,290],barras:[9,7,5,3],abdominales:[55,50,45,40],flexiones:[55,50,45,40],aerobica:[1030,1080,1130,1180]}:{natacion:[230,260,290,320],barras:[6,5,4,3],abdominales:[40,35,30,25],flexiones:[40,35,30,25],aerobica:[1060,1110,1160,1210]};
+ const requisito=tablas[prueba]?.[g],tiempo=['natacion','aerobica'].includes(prueba);
+ if(requisito==null)return {...base,motivo:'REQUISITO PENDIENTE DE CONFIRMACIÓN'};
+ if(!Number.isFinite(v)||v<0||(tiempo?v<=0:!Number.isInteger(v)))return {...base,motivo:'MARCA INVÁLIDA'};
+ const cumple=tiempo?v<=requisito:v>=requisito;
+ return {...base,requisito,cumple,unidad:tiempo?'segundos':'repeticiones',...(prueba==='natacion'?{distancia:100}:{}),motivo:cumple?'CUMPLE':'NO CUMPLIÓ'};
+}
