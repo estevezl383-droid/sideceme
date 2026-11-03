@@ -1,4 +1,4 @@
-import {esExcelencia} from './baremos.mjs';
+import {esExcelencia} from './baremos.mjs?v=22';
 export const JEFES=['P019','P020','P030'];
 export const COLORES={ROJO:'#ef4444',AMARILLO:'#eab308',VERDE:'#22c55e',GUINDO:'#800020',ANARANJADO:'#f97316',AZUL:'#3b82f6',MORADO:'#a855f7',ROSADO:'#ec4899',CELESTE:'#38bdf8',BLANCO:'#f8fafc',GRIS:'#64748b',NEGRO:'#111827'};
 export const ESTACIONES={talla_peso:'TALLA / PESO',flexiones:'FLEXIONES',abdominales:'ABDOMINALES',aerobica:'AERÓBICA 3.200 M',natacion:'NATACIÓN',barras:'BARRAS · EXCELENCIA'};
