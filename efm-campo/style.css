@@ -172,3 +172,8 @@ dialog.efmc-planner{width:min(1220px,96vw);max-width:1220px;padding:28px;backgro
  #efmc .efmc-monitor td summary{cursor:pointer;text-decoration:underline}
 @media(max-width:720px){#efmc .efmc-records{grid-template-columns:1fr}#efmc .efmc-evaluaciones button{min-width:0;flex-basis:100%}}
 #efmc .efmc-pdf{display:flex;align-items:center;gap:14px;margin:18px 0;padding:14px;border:1px solid #416b5a;border-radius:10px;background:#15392e}#efmc .efmc-pdf button{flex-shrink:0;border-color:#65d5bb}#efmc .efmc-pdf small{line-height:1.5;color:#c6e9d7;letter-spacing:0}@media(max-width:600px){#efmc .efmc-pdf{align-items:stretch;flex-direction:column}}
+
+/* Una marca aceptada sin nota sigue requiriendo calificación. */
+#efmc .efmc-conformidad.sin-calificar,#efmc .efmc-confirm-action.sin-calificar{color:#ffe3a1;border-color:#e9b74c;background:#493712}
+#efmc .efmc-record.sin-calificar{border-color:#e9b74c}
+#efmc .efmc-calculo-motivo{display:block;margin-top:6px}

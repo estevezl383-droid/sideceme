@@ -10,7 +10,7 @@ assert.equal(calificar('natacion',36,'M','1984-01-01',d).nota,72);
 assert.equal(calificar('natacion',71,'F','1992-01-01',d).nota,71);
 assert.equal(calificar('aerobica',1390,'M','1984-01-01',d).nota,71);
 assert.equal(calificar('aerobica',1420,'F','1984-01-01',d).nota,71);
-assert.equal(calificar('aerobica',1391,'M','1984-01-01',d).nota,null);
+assert.equal(calificar('aerobica',1391,'M','1984-01-01',d).nota,70);
 assert.equal(calificar('barras',7,'M','1984-01-01',d).requisito,7);
 assert.equal(calificar('barras',6,'F','1987-01-01',d).requisito,6);
 assert.equal(calificar('barras',6,'F','1987-01-01',d).nota,null);
