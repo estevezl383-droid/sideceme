@@ -1,4 +1,4 @@
-import {esExcelencia} from './baremos.mjs';
+import {esExcelencia} from './baremos.mjs?v=22';
 import {esc,estaciones,vigente,notaConformidad,marcaRegistro,fechaHora,sinCalificar} from './conformidad.mjs?v=22';
 export const pruebasConformidad=['talla_peso','flexiones','abdominales','aerobica','natacion'];
 export function situacionConformidades(data){

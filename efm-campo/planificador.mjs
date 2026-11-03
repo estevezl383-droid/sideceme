@@ -1,5 +1,5 @@
 import {COLORES,ESTACIONES,CONDICIONES,puedeEvaluar,validarPlan,importarLineas} from './organizacion.mjs?v=22';
-import {esExcelencia} from './baremos.mjs';
+import {esExcelencia} from './baremos.mjs?v=22';
 import {zip} from './descargas.mjs?v=22';
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 export function abrirOrganizacion({invoke,roster,personal,plan,fecha,ciclo,onSaved}){

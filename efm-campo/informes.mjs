@@ -1,5 +1,5 @@
 import {CONDICIONES} from './organizacion.mjs?v=22';
-import {edad,esExcelencia} from './baremos.mjs';
+import {edad,esExcelencia} from './baremos.mjs?v=22';
 import {nacimiento,gradoArma,sexoInicial,fechaEvaluacion} from './ui.mjs?v=22';
 export const PRUEBAS={talla_peso:'TALLA / PESO',natacion:'NATACIÓN',abdominales:'ABDOMINALES',flexiones:'FLEXIONES EN SUELO',aerobica:'AERÓBICA 3.200 M'};
 export const PRUEBAS_EXCELENCIA={natacion:'NATACIÓN 100 M',barras:'FLEXIONES EN BARRA',abdominales:'ABDOMINALES',flexiones:'FLEXIONES EN SUELO',aerobica:'AERÓBICA 3.200 M'};

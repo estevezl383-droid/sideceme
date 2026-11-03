@@ -1,5 +1,5 @@
 import {PRUEBAS,PRUEBAS_EXCELENCIA,esHojaExcelencia,datosHoja,valoresHoja,marca,evaluador,novedadesHoja} from './informes.mjs?v=22';
-import {edad} from './baremos.mjs';
+import {edad} from './baremos.mjs?v=22';
 import {gradoArma} from './ui.mjs?v=22';
 const xml=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 const membrete=['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES','ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO','“MCAL. ANDRÉS DE SANTA CRUZ”','BOLIVIA'];

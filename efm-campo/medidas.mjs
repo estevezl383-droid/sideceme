@@ -1,4 +1,4 @@
-import {edad} from './baremos.mjs';
+import {edad} from './baremos.mjs?v=22';
 export const VERSION_MEDIDAS='anexo-e-11-25-v1';
 export function validarMedidas(peso,talla){
  if(typeof peso!=='number'||!Number.isFinite(peso)||peso<20||peso>300||typeof talla!=='number'||!Number.isFinite(talla)||talla<1||talla>2.5)return 'REVISÁ PESO (20–300 KG) Y TALLA (1–2,50 M).';
