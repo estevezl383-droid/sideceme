@@ -81,6 +81,15 @@ const base=path.resolve(__dirname,'..');
   sessions.find(s=>s.token==='SUPPORT-TEST5').expira_en='2000-01-01';const expired=await browser.newPage();await expired.goto(url+'/harness?student=TEST5&support=1');await expired.getByText('SESIÓN VENCIDA').waitFor();assert.equal(await expired.locator('#efmc').count(),0);
   failNetwork=true;const disconnected=await browser.newPage();await disconnected.goto(url+'/harness?student=TEST4');await disconnected.getByText('FALLO DE CONEXIÓN TEST').waitFor();failNetwork=false;await disconnected.locator('[data-efmc-launch]').click();await disconnected.getByRole('button',{name:/Diagnóstica pendiente TEST/}).waitFor();
   if(process.env.EFMC_SCREENSHOT)await support[1].screenshot({path:process.env.EFMC_SCREENSHOT,fullPage:true});
+  // La conformidad no oculta una nota pendiente ni apaga la alerta de la carpeta.
+  const pending={...extra[0],id:'55555555-5555-5555-5555-555555555555',revision:80,calculo:{nota:null,motivo:'MARCA SUPERIOR A TABLA: VALIDAR TOPE',evaluador_nombre:'EVALUADOR FICTICIO'}};
+  records.push(pending);tables.efmc_conformidades.push({registro_id:pending.id,cursante_id:'TEST2',confirmado_en:new Date().toISOString()});
+  await personal[1].locator('.efmc-record.sin-calificar').waitFor({timeout:7000});
+  assert.equal(await personal[1].locator('[data-record-status="'+pending.id+'"] .efmc-calculo-motivo').textContent(),pending.calculo.motivo);
+  assert.equal(await personal[1].locator('[data-confirm-test=flexiones].sin-calificar:disabled').count(),1);
+  for(const p of chiefs)await p.waitForFunction(()=>document.querySelector('[data-monitor-count=sin-calificar]').textContent==='1');
+  await personal[1].locator('[data-close]').click();await personal[1].waitForFunction(()=>document.querySelector('[data-efmc-launch]')?.textContent.includes('1 PENDIENTES DE CALIFICACIÓN'));
+  assert.equal(await personal[1].locator('[data-efmc-launch].efmc-pendiente').count(),1);
   // QR: página pública sin sesión y comprobación del PDF local, incluyendo modificación y copia anterior.
   const verify=await browser.newPage({viewport:{width:390,height:844}});verify.on('pageerror',e=>errors.push(e.message));let current=true;
   await verify.route('https://ofsyiylhdrdiqtnbaovo.supabase.co/functions/v1/efm-verificar?*',async route=>route.fulfill({status:200,contentType:'application/json',headers:{'Access-Control-Allow-Origin':'*'},body:JSON.stringify({ok:true,sha256:await sha256(pdfFixture),vigente:current,documento:{codigo:'TEST',nombre:'ALUMNO FICTICIO',grado:'My.',ciclo:'2DO CICLO',evaluacion:'Diagnóstica FICTICIA',fecha:'2026-11-03',emitido_en:'2026-11-03T12:00:00Z',estado:'PARCIAL',final:null,pruebas:[{nombre:'PESO / TALLA',nota:0,confirmado_en:null}]}})}));

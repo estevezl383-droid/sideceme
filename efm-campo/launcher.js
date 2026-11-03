@@ -16,8 +16,8 @@
  async function abrir(evaluacionId='',vistaInicial='estacion'){
   if(loading||open||!owner())return;loading=true;
   try{
-   if(!document.getElementById('efmc-style')){const s=document.createElement('link');s.id='efmc-style';s.rel='stylesheet';s.href='efm-campo/style.css?v=19';document.head.append(s);}
-   const tipo=session().tipo,app=tipo==='cursante'?await import('./alumno.mjs?v=19'):await import('./app.mjs?v=18');
+   if(!document.getElementById('efmc-style')){const s=document.createElement('link');s.id='efmc-style';s.rel='stylesheet';s.href='efm-campo/style.css?v=20';document.head.append(s);}
+   const tipo=session().tipo,app=tipo==='cursante'?await import('./alumno.mjs?v=20'):await import('./app.mjs?v=20');
    open=true;const account=allowedKey;await app.abrir({invoke,evaluacionId,vistaInicial,owner:session().user.id,authorized:()=>owner()&&allowedKey===account,onClose:()=>{open=false;checkedAt=0;refresh();}});
   }catch(e){open=false;alert(e.message);}finally{loading=false;}
  }
@@ -26,8 +26,8 @@
   const latest=new Map();
   for(const r of studentData?.registros||[]){if(r.organizacion_id!==plan.id)continue;const prev=latest.get(r.prueba);if(!prev||Number(r.revision)>Number(prev.revision))latest.set(r.prueba,r);}
   const pruebas=['talla_peso','flexiones','abdominales','aerobica','natacion'];if(plan.grupo==='NEGRO'||latest.has('barras'))pruebas.push('barras');
-  const rows=pruebas.map(p=>latest.get(p)),total=rows.filter(Boolean).length,pendientes=rows.filter(r=>r&&!r.conformidad).length,conformes=rows.filter(r=>r?.conformidad).length;
-  return {total,pendientes,conformes,esperadas:pruebas.length,sinRegistro:pruebas.length-total,atencion:!!plan.id&&conformes<pruebas.length};
+  const rows=pruebas.map(p=>latest.get(p)),total=rows.filter(Boolean).length,pendientes=rows.filter(r=>r&&!r.conformidad).length,conformes=rows.filter(r=>r?.conformidad).length,sinCalificar=rows.filter(r=>r&&r.prueba!=='barras'&&r.calculo?.estado!=='NO_REALIZO'&&!(typeof r.calculo?.nota==='number'&&Number.isFinite(r.calculo.nota)&&r.calculo.nota>=0&&r.calculo.nota<=100)).length;
+  return {total,pendientes,conformes,sinCalificar,esperadas:pruebas.length,sinRegistro:pruebas.length-total,atencion:!!plan.id&&(conformes<pruebas.length||sinCalificar>0)};
  }
  function carpetas(account){
   const container=document.querySelector('#cur-tab-inicio');if(!container)return;
@@ -41,7 +41,7 @@
    const b=document.createElement('button');b.className='btn-mega';b.dataset.efmcLaunch='1';b.dataset.evaluacion=plan.id;b.style.cssText=style;
    const content=document.createElement('span'),name=document.createElement('strong'),detail=document.createElement('small');name.textContent=plan.nombre;detail.style.cssText='display:block;line-height:1.7;font-size:12px';
    const status=pendientes(plan);if(status.atencion){b.classList.add('efmc-pendiente');const badge=document.createElement('span');badge.className='efmc-folder-alert';badge.textContent=status.pendientes?'● '+status.pendientes+' '+(status.pendientes===1?'NOTA POR CONFIRMAR':'NOTAS POR CONFIRMAR'):'● EVALUACIÓN PENDIENTE';content.append(badge);}
-   detail.textContent=accessError||(!owner()?'CONSULTANDO TUS EVALUACIONES…':plan.id?[plan.fecha.split('-').reverse().join('/'),status.conformes+' / '+status.esperadas+' PRUEBAS CONFIRMADAS',status.sinRegistro?status.sinRegistro+' SIN REGISTRO':'',studentData?.solo_lectura?'SOPORTE · SÓLO CONSULTA':status.atencion?'TOCÁ AQUÍ PARA REVISAR TU EVALUACIÓN':'EVALUACIÓN CONFIRMADA'].filter(Boolean).join(' · '):'CONSULTAR MIS EVALUACIONES');
+   detail.textContent=accessError||(!owner()?'CONSULTANDO TUS EVALUACIONES…':plan.id?[plan.fecha.split('-').reverse().join('/'),status.conformes+' / '+status.esperadas+' PRUEBAS CONFIRMADAS',status.sinRegistro?status.sinRegistro+' SIN REGISTRO':'',status.sinCalificar?status.sinCalificar+' PENDIENTES DE CALIFICACIÓN':'',studentData?.solo_lectura?'SOPORTE · SÓLO CONSULTA':status.atencion?'TOCÁ AQUÍ PARA REVISAR TU EVALUACIÓN':'EVALUACIÓN CONFIRMADA'].filter(Boolean).join(' · '):'CONSULTAR MIS EVALUACIONES');
    content.append(name,detail);b.append(content);b.disabled=!owner()&&!accessError;
    b.onclick=()=>{if(owner())abrir(plan.id);else{checkedAt=0;refresh();}};host.append(b);
   }
