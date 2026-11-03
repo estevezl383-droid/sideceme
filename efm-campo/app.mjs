@@ -6,7 +6,7 @@ import {fechaEditable,leerFechaEditable,validarNacimiento,fechaPerfil} from './p
 import {calificar,edad,calificarExcelencia,esExcelencia} from './baremos.mjs?v=22';
 import {resumen,PRUEBAS,marca,ultima} from './informes.mjs?v=22';
 import {validarMedidas,calificarMedidas} from './medidas.mjs?v=22';
-import {descargar} from './descargas.mjs?v=22';
+import {descargar} from './descargas.mjs?v=23';
 import {digital,nacimiento,sexoInicial,siguiente,gradoArma} from './ui.mjs?v=22';
 const names={talla_peso:'TALLA / PESO',flexiones:'FLEXIONES',abdominales:'ABDOMINALES',aerobica:'AERÓBICA 3.200 M',natacion:'NATACIÓN',barras:'BARRAS · EXCELENCIA'};
 const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
