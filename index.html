@@ -13617,7 +13617,7 @@ function htmlTarjetaEvaluacionFisica(ev, conEditar){
     {nombre:'Natación', cant: [ev.natacion_distancia, ev.natacion_tiempo].filter(Boolean).join(' · '), nota: ev.natacion_nota, pon: ev.natacion_nota_pon, obs: ev.natacion_obs},
     {nombre:'Abdominales', cant: ev.abdominales_cant, nota: ev.abdominales_nota, pon: ev.abdominales_nota_pon, obs: ev.abdominales_obs},
     {nombre:'Flexiones', cant: ev.flexiones_cant, nota: ev.flexiones_nota, pon: ev.flexiones_nota_pon, obs: ev.flexiones_obs},
-    {nombre:'Barra (dominadas)', cant: ev.barra_cant, nota: ev.barra_nota, pon: null, obs: ev.barra_obs},
+    {nombre:'Barra (dominadas)', cant: ev.barra_cant, nota: ev.barra_nota, pon: ev.categoria==='EXCELENCIA' && ev.barra_nota!=null && ev.barra_nota!=='' ? Math.round(Number(ev.barra_nota)*20)/100 : null, obs: ev.barra_obs},
     {nombre:'Aeróbica', cant: ev.aerobica_tiempo, nota: ev.aerobica_nota, pon: ev.aerobica_nota_pon, obs: ev.aerobica_obs}
   ];
   const tienePon = v => v!=null && v!=='';
@@ -63112,7 +63112,7 @@ window.eemEscritoAbrir=grupo=>{document.getElementById('eem-escrito-modal')?.rem
 <script src="assets/horario-documento.js?v=2.9.425"></script>
 <script src="assets/horario-consolidado.js?v=2.9.438"></script>
 <script src="assets/horario-publicado.js?v=2.9.428"></script>
-<script src="soporte.js?v=23"></script>
+<script src="soporte.js?v=24"></script>
 <script src="evaluaciones/config.js?v=20261022"></script>
 <script src="evaluaciones/anexo-a-proyectos.js?v=20261022b"></script>
 </body>
