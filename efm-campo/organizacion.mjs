@@ -1,3 +1,4 @@
+import {esExcelencia} from './baremos.mjs';
 export const JEFES=['P019','P020','P030'];
 export const COLORES={ROJO:'#ef4444',AMARILLO:'#eab308',VERDE:'#22c55e',GUINDO:'#800020',ANARANJADO:'#f97316',AZUL:'#3b82f6',MORADO:'#a855f7',ROSADO:'#ec4899',CELESTE:'#38bdf8',BLANCO:'#f8fafc',GRIS:'#64748b',NEGRO:'#111827'};
 export const ESTACIONES={talla_peso:'TALLA / PESO',flexiones:'FLEXIONES',abdominales:'ABDOMINALES',aerobica:'AERÓBICA 3.200 M',natacion:'NATACIÓN',barras:'BARRAS · EXCELENCIA'};
@@ -9,16 +10,18 @@ export function validarPlan(p,roster,personal){
  const colors=new Set(),members=new Set(),ids=new Set();
  for(const g of p.grupos){
   if(!g.id||typeof g.id!=='string'||! /^[a-zA-Z0-9_-]{1,60}$/.test(g.id)||ids.has(g.id)||!COLORES[g.color]||colors.has(g.color)||!Array.isArray(g.alumnos)||!g.alumnos.length)return 'CADA GRUPO NECESITA ALUMNOS Y UN COLOR ÚNICO. NEGRO ES EXCLUSIVO DE EXCELENCIA.';
+  if(g.modalidad&&!['ORDINARIA','EXCELENCIA'].includes(g.modalidad))return 'MODALIDAD DE GRUPO NO VÁLIDA.';
+  if(g.color==='NEGRO'&&!esExcelencia(g))return 'NEGRO ESTÁ RESERVADO A EXCELENCIA FÍSICA.';
   ids.add(g.id);colors.add(g.color);
   for(const id of g.alumnos){if(members.has(id)||!roster.some(c=>c.id===id&&c.ciclo===p.ciclo))return 'CURSANTE REPETIDO O AJENO AL CICLO.';members.add(id);}
   if(!g.encargados||Object.keys(g.encargados).some(k=>!ESTACIONES[k]))return 'PRUEBA NO VÁLIDA.';
-  for(const [prueba,ps] of Object.entries(g.encargados)){if(!Array.isArray(ps)||new Set(ps).size!==ps.length||ps.some(id=>!puedeEvaluar(personal.find(x=>x.id===id))))return 'SOLO PROFESORES HABILITADOS PUEDEN EVALUAR.';if(prueba==='barras'&&g.color!=='NEGRO'&&ps.length)return 'BARRAS SE ORGANIZA EN EL GRUPO NEGRO.';}
-  if(p.habilitado&&Object.keys(ESTACIONES).filter(x=>x!=='barras'||g.color==='NEGRO').some(k=>!g.encargados[k]?.length))return 'ASIGNÁ EVALUADORES A TODAS LAS PRUEBAS ANTES DE HABILITAR.';
+  for(const [prueba,ps] of Object.entries(g.encargados)){if(!Array.isArray(ps)||new Set(ps).size!==ps.length||ps.some(id=>!puedeEvaluar(personal.find(x=>x.id===id))))return 'SOLO PROFESORES HABILITADOS PUEDEN EVALUAR.';if(prueba==='barras'&&!esExcelencia(g)&&ps.length)return 'BARRAS SE ORGANIZA EN UN GRUPO DE EXCELENCIA.';}
+  if(p.habilitado&&Object.keys(ESTACIONES).filter(x=>x!=='barras'||esExcelencia(g)).some(k=>!g.encargados[k]?.length))return 'ASIGNÁ EVALUADORES A TODAS LAS PRUEBAS ANTES DE HABILITAR.';
   if(!Array.isArray(g.apoyos)||g.apoyos.length>100||g.apoyos.some(a=>!String(a.tarea||'').trim()||a.tarea.length>200||(!a.personal_id&&!String(a.nombre||'').trim())||(a.personal_id&&!personal.some(x=>x.id===a.personal_id))||String(a.nombre||'').length>160))return 'REVISAR PERSONAL DE APOYO Y TAREAS.';
  }
  return null;
 }
-export function asignaciones(plan,actor){return !plan?.habilitado?[]:plan.grupos.flatMap(g=>Object.keys(ESTACIONES).filter(p=>g.encargados[p]?.includes(actor)).map(prueba=>({grupo:g.id,color:g.color,prueba,alumnos:g.alumnos})));}
+export function asignaciones(plan,actor){return !plan?.habilitado?[]:plan.grupos.flatMap(g=>Object.keys(ESTACIONES).filter(p=>(p!=='barras'||esExcelencia(g))&&g.encargados[p]?.includes(actor)).map(prueba=>({grupo:g.id,color:g.color,prueba,alumnos:g.alumnos})));}
 export const puedeRegistrar=(plan,actor,id,prueba)=>asignaciones(plan,actor).some(a=>a.prueba===prueba&&a.alumnos.includes(id));
 // Coincidencia exacta por CI/ID o conjunto completo de nombres; nunca asigna coincidencias parciales.
 export function importarLineas(lines,roster){

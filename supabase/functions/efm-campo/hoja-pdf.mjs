@@ -7,19 +7,19 @@ export async function generarHojaPDF(s,emision,{PDFDocument,StandardFonts,rgb,QR
  const text=(v,x,top,size=8,isBold=false,maxWidth=750,maxLines=4)=>{const font=isBold?bold:normal;const ls=lines(v,font,size,maxWidth).slice(0,maxLines);ls.forEach((line,i)=>page.drawText(line,{x,y:612-top-size-i*(size+2),size,font,color:rgb(0,0,0)}));};
  const cell=(v,x,top,w,h,size=7,isBold=false)=>{page.drawRectangle({x,y:612-top-h,width:w,height:h,borderWidth:.6,borderColor:rgb(.2,.2,.2)});text(v,x+3,top+3,size,isBold,w-6,Math.max(1,Math.floor((h-4)/(size+2))));};
  ['FACULTAD DE CIENCIAS Y ARTES MILITARES TERRESTRES','ESCUELA DE COMANDO Y ESTADO MAYOR DEL EJÉRCITO','"MCAL. ANDRÉS DE SANTA CRUZ"','BOLIVIA'].forEach((v,i)=>text(v,20,18+i*12,9,true));
- text('HOJA DE EVALUACIÓN DEL EXAMEN FÍSICO MILITAR DE LA ECEME.',20,78,11,true);
+ text(s.excelencia?'HOJA DE EVALUACIÓN DE APTITUDES FÍSICAS SOBRESALIENTES DE LA ECEME.':'HOJA DE EVALUACIÓN DEL EXAMEN FÍSICO MILITAR DE LA ECEME.',20,78,11,true);
  text(s.evaluacion.nombre,20,96,8,true,752,2);
  text('FECHA: '+fechaTexto(s.evaluacion.fecha)+' | '+s.estado+' | '+s.completos+'/5 NOTAS | '+s.conformes+'/5 CONFORMIDADES',20,112,7,false);
  const c=s.cursante;
  cell('GRADO, APELLIDOS Y NOMBRES: '+[c.grado,c.arma,c.nombre].filter(Boolean).join(' ')+'     CICLO: '+c.ciclo+'     CURSO: '+(c.curso||'S/R'),20,128,752,28,8,true);
  cell('NACIMIENTO: '+fechaTexto(c.nacimiento)+'     EDAD: '+(c.edad??'PENDIENTE')+' AÑOS     CI: '+(c.ci||'S/R')+'     SEXO: '+(c.sexo==='F'?'FEMENINO':c.sexo==='M'?'MASCULINO':'PENDIENTE'),20,156,752,24,8);
- const groups=[['PESO / TALLA',4],['NATACIÓN',3],['ABDOMINALES',3],['FLEXIONES EN SUELO',3],['AERÓBICA 3.200 METROS',3],['NOTA FINAL',1],['FIRMA DEL EVALUADO',1],['HUELLA DIGITAL',1]],widths=[...Array(17).fill(35),78,79];let x=20,j=0;
+ const groups=s.excelencia?[['NATACIÓN 100 M',3],['FLEXIONES EN BARRA',3],['ABDOMINALES',3],['FLEXIONES EN SUELO',3],['AERÓBICA 3.200 METROS',3],['NOTA FINAL',1],['FIRMA DEL EVALUADO',1],['HUELLA DIGITAL',1]]:[['PESO / TALLA',4],['NATACIÓN',3],['ABDOMINALES',3],['FLEXIONES EN SUELO',3],['AERÓBICA 3.200 METROS',3],['NOTA FINAL',1],['FIRMA DEL EVALUADO',1],['HUELLA DIGITAL',1]],widths=s.excelencia?[...Array(16).fill(37),80,80]:[...Array(17).fill(35),78,79];let x=20,j=0;
  for(const [label,count] of groups){const w=widths.slice(j,j+count).reduce((a,b)=>a+b,0);cell(label,x,180,w,34,7,true);x+=w;j+=count;}
- const sub=['PESO KG','TALLA M','NOTA','29 %','DIST. M','NOTA','11 %','CANT.','NOTA','20 %','CANT.','NOTA','20 %','TIEMPO','NOTA','20 %','100 %','',''];x=20;sub.forEach((v,i)=>{cell(v,x,214,widths[i],28,6,true);x+=widths[i];});
+ const sub=s.excelencia?['TIEMPO','NOTA','20 %','CANT.','NOTA','20 %','CANT.','NOTA','20 %','CANT.','NOTA','20 %','TIEMPO','NOTA','20 %','100 %','','']:['PESO KG','TALLA M','NOTA','29 %','DIST. M','NOTA','11 %','CANT.','NOTA','20 %','CANT.','NOTA','20 %','TIEMPO','NOTA','20 %','100 %','',''];x=20;sub.forEach((v,i)=>{cell(v,x,214,widths[i],28,6,true);x+=widths[i];});
  const val=r=>r.condicion||r.marca==='N/R'?'N/R':r.registro_id?r.valor:'S/R',nota=r=>r.condicion||r.marca==='N/R'?'N/R':r.nota??'S/R',aporte=r=>r.condicion||r.marca==='N/R'?'N/R':r.aporte??'S/R',r=s.rows;
  const ausente=r[0].condicion||r[0].marca==='N/R';
- const values=[ausente?'N/R':r[0].peso??'S/R',ausente?'N/R':r[0].talla??'S/R',nota(r[0]),aporte(r[0]),val(r[1]),nota(r[1]),aporte(r[1]),val(r[2]),nota(r[2]),aporte(r[2]),val(r[3]),nota(r[3]),aporte(r[3]),r[4].marca,nota(r[4]),aporte(r[4]),s.final??'PEND.','',''];x=20;values.forEach((v,i)=>{cell(v,x,242,widths[i],30,6);x+=widths[i];});
- const short=['T/P','NAT.','ABD.','FLEX.','AER.'];cell(s.rows.map((v,i)=>short[i]+': '+(v.confirmado_en?'CONFORME':'PENDIENTE')).join('   |   '),20,272,752,18,7,true);
+ const values=s.excelencia?[...r.flatMap(v=>[v.marca,nota(v),aporte(v)]),s.final??'PEND.','','']:[ausente?'N/R':r[0].peso??'S/R',ausente?'N/R':r[0].talla??'S/R',nota(r[0]),aporte(r[0]),val(r[1]),nota(r[1]),aporte(r[1]),val(r[2]),nota(r[2]),aporte(r[2]),val(r[3]),nota(r[3]),aporte(r[3]),r[4].marca,nota(r[4]),aporte(r[4]),s.final??'PEND.','',''];x=20;values.forEach((v,i)=>{cell(v,x,242,widths[i],30,6);x+=widths[i];});
+ const short=s.excelencia?['NAT.','BARR.','ABD.','FLEX.','AER.']:['T/P','NAT.','ABD.','FLEX.','AER.'];cell(s.rows.map((v,i)=>short[i]+': '+(v.confirmado_en?'CONFORME':'PENDIENTE')).join('   |   '),20,272,752,18,7,true);
  cell('PRESIÓN ARTERIAL: __________________\n\nSATURACIÓN: _______________________\n\nPULSO: _____________________________',20,290,200,107,8);
  cell('VALORACIÓN MÉDICA DE APTITUD FÍSICA\n\nAPTO [  ]     NO APTO [  ]\n\nFECHA: ______________________',220,290,265,107,9,true);
  const observations=s.rows.filter(v=>v.condicion).map(v=>v.nombre+': '+v.condicion.estado+(v.condicion.referencia?' / '+v.condicion.referencia:'')).join('; ');
@@ -33,9 +33,9 @@ export async function generarHojaPDF(s,emision,{PDFDocument,StandardFonts,rgb,QR
  const qr=QRCode.create(emision.url,{errorCorrectionLevel:'M'}),quiet=4,box=104,module=box/(qr.modules.size+quiet*2),qx=657,qtop=337;
  page.drawRectangle({x:qx,y:612-qtop-box,width:box,height:box,color:rgb(1,1,1)});
  for(let row=0;row<qr.modules.size;row++)for(let col=0;col<qr.modules.size;col++)if(qr.modules.get(row,col))page.drawRectangle({x:qx+(col+quiet)*module,y:612-qtop-(row+quiet+1)*module,width:module+.015,height:module+.015,color:rgb(0,0,0)});
- const roleNames=['EVALUADOR TALLA-PESO','EVALUADOR NATACIÓN','EVALUADOR ABDOMINALES','EVALUADOR FLEXIONES','EVALUADOR AERÓBICA'];
+ const roleNames=s.excelencia?['EVALUADOR NATACIÓN','EVALUADOR FLEXIONES EN BARRA','EVALUADOR ABDOMINALES','EVALUADOR FLEXIONES EN SUELO','EVALUADOR AERÓBICA']:['EVALUADOR TALLA-PESO','EVALUADOR NATACIÓN','EVALUADOR ABDOMINALES','EVALUADOR FLEXIONES','EVALUADOR AERÓBICA'];
  s.rows.forEach((v,i)=>{const px=20+i*150;text('____________________________',px,483,7);text(v.evaluador,px,493,6,false,144,2);text(roleNames[i],px,514,6,true,144,2);});
- ['JEFE DE CURSO','JEFE DE ENTRENAMIENTO FÍSICO','JEFE DE LA SAC.','JEFE DE ESTUDIOS','COMANDANTE DE LA ECEME.'].forEach((v,i)=>{const px=20+i*150;text('____________________________',px,548,7);text(v,px,560,6,true,144,2);});
+ text(s.comandante||'Gral. Brig. José Jhonny Pardo Pardo',290,550,9,false,400);text('COMANDANTE DE LA ECEME.',310,566,9,true,400);
  text('SIDECEME | S/R: sin registro. N/R: no realizó o con novedad. Los espacios médicos y de firmas manuscritas no certifican una valoración.',20,586,6,false,752,1);text('1 / 1',745,599,6);
  return new Uint8Array(await pdf.save());
 }
