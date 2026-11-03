@@ -3,7 +3,7 @@ import {notaConformidad,marcaRegistro,fechaHora} from './conformidad.mjs?v=20';
 import {panelConformidades} from './seguimiento.mjs?v=20';
 import {abrirOrganizacion,abrirCondicion} from './planificador.mjs?v=12';
 import {fechaEditable,leerFechaEditable,validarNacimiento,fechaPerfil} from './perfil.mjs?v=10';
-import {calificar,edad} from './baremos.mjs';
+import {calificar,edad} from './baremos.mjs?v=21';
 import {resumen,PRUEBAS,marca,ultima} from './informes.mjs?v=13';
 import {validarMedidas,calificarMedidas} from './medidas.mjs?v=8';
 import {descargar} from './descargas.mjs?v=13';

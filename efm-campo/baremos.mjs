@@ -1,5 +1,6 @@
 // Transcripción de Anexo D, Directiva 11/25. No extrapolar celdas vacías.
-export const VERSION='anexo-d-11-25-v1';
+// Criterio confirmado el 03-NOV-2026: tope 100 y aeróbica a la siguiente fila de 10 s.
+export const VERSION='anexo-d-11-25-v2';
 export function edad(fecha, dia){
  if(!/^\d{4}-\d{2}-\d{2}$/.test(fecha||'')||!/^\d{4}-\d{2}-\d{2}$/.test(dia||''))return null;
  const f=new Date(fecha+'T12:00:00Z'),d=new Date(dia+'T12:00:00Z');
@@ -32,10 +33,8 @@ export function calificar(prueba,valor,sexo,nacimiento,dia){
  }else if(prueba==='aerobica'){
   const base=(sexo==='M'?900:930)+g*50;
   if(v>1800||v<=0)return pendiente('TIEMPO FUERA DEL ANEXO');
-  if(v<base)return pendiente('TIEMPO MEJOR QUE PRIMERA CELDA: VALIDAR TOPE');
-  if(v%10!==0)return pendiente('TIEMPO ENTRE FILAS: PENDIENTE CRITERIO DE REDONDEO');
-  nota=100-(v-base)/10;
+  nota=100-(Math.ceil(v/10)*10-base)/10;
  }else return pendiente('PRUEBA DESCONOCIDA');
- if(nota>100)return pendiente('MARCA SUPERIOR A TABLA: VALIDAR TOPE');
+ nota=Math.min(100,nota);
  return {nota,motivo:'',edad:a,version:VERSION};
 }
