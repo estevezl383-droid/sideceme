@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.453</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.454</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -8759,16 +8759,23 @@ body.wg-jugando #version-marker{top:auto!important;bottom:1px!important;left:4px
      llegan las fichas (poder, combustible, munición, raciones, heridos) con su
      parte en la bitácora. Posición, órdenes y turno no cambian. -->
 <div class="section-label">🧭 Desgaste de arranque</div>
-<div id="wg-arranque-estado" style="font-size:11px;color:var(--text-muted);line-height:1.45;margin-bottom:6px">
-  Calcula <b>cómo llegan las unidades</b> a las fases que se juegan: las fases anteriores de cada bando (marchas,
-  raciones, reabastecimiento) y la llegada a la posición bajo el fuego del enemigo. Aplica a cada ficha su poder,
-  combustible, munición, raciones y heridos, y escribe el <b>parte de arranque</b> de cada bando en la bitácora.
+<!-- v2.9.454 — la explicación queda fija y el resultado va en su propio cuadro; la pareja
+     de fases se detecta sola por la posición de las fichas (antes salía «cancelado»). -->
+<div style="font-size:11px;color:var(--text-muted);line-height:1.45;margin-bottom:6px">
+  <b>Cómo llegan las unidades</b> al momento que se juega: lo que pasó en las fases anteriores (marchas, fuegos,
+  contacto, obstáculos, raciones). Elegí el <b>ejercicio.json</b> con que cargaste el escenario: la pareja de fases
+  se <b>detecta sola</b> por la posición de las fichas.<br>
+  <b>🤖 Con IA</b> arma un pedido completo (situación, terreno, altura, clima, fuerzas, logística y anexos del Estado
+  Mayor) para pegar en Claude, ChatGPT o Gemini; pegás su respuesta, la revisás en una tabla y se aplica: poder,
+  bajas, combustible, munición, raciones, el <b>parte</b> de cada bando y los <b>pedidos</b> al G-4, al G-1 y al G-3.
+  Ninguna ficha baja del 25 %.
 </div>
+<div id="wg-arranque-estado" style="font-size:11px;line-height:1.45;margin-bottom:6px"></div>
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-  <label class="rg-doc" style="cursor:pointer" title="El ejercicio.json de la Mesa: se elige la pareja de fases y la intensidad.">📂 Con el archivo del ejercicio
-    <input type="file" accept=".json,application/json" style="display:none" onchange="wgDesgasteArranque(this)"></label>
-  <label class="rg-doc" style="cursor:pointer" title="Se arma el pedido para tu IA (Claude, ChatGPT, Gemini) con las dos fases y el cálculo de la plataforma; pegás su respuesta y se aplica.">🤖 Con IA (copiar y pegar)
+  <label class="rg-doc" style="cursor:pointer" title="Elegí el ejercicio.json: se arma el pedido para tu IA (Claude, ChatGPT, Gemini), pegás su respuesta, la revisás y se aplica.">🤖 Con IA (copiar y pegar)
     <input type="file" accept=".json,application/json" style="display:none" onchange="wgArranqueIA(this)"></label>
+  <label class="rg-doc" style="cursor:pointer" title="Elegí el ejercicio.json: la plataforma calcula sola un desgaste aproximado (fuegos y contacto de la llegada).">📂 Cálculo de la plataforma
+    <input type="file" accept=".json,application/json" style="display:none" onchange="wgDesgasteArranque(this)"></label>
 </div>
 
 <!-- v2.9.449 — 🎖️ EL JUEGO DEL ESTADO MAYOR: cada célula con su enlace. -->
@@ -38998,7 +39005,8 @@ function _wgArranque(d, par, unidades, intensidad){
     const bajas=Math.round(hombres*frac), heridos=Math.round(bajas*0.7);
     const usado=Math.min(e.tanque, r2(e.usado));
     const mun={}; for(const s of e.sist) mun[s.id]=r2(Math.max(0,Math.min(s.tope,e.mun[s.id])));
-    res.push({ bando:b, designacion:u.designacion, poder_actual:r2(Math.max(0,e.poder)), combustible_km:usado,
+    res.push({ id:(u.id!=null && Number.isFinite(Number(u.id)))?u.id:undefined,   // v2.9.454: las designaciones se repiten
+      bando:b, designacion:u.designacion, poder_actual:r2(Math.max(0,e.poder)), combustible_km:usado,
       municion:mun, carga:{ racion:r2(e.racion), heridos, bajas, muertos:bajas-heridos, faltan:bajas } });   // v2.9.448: muertos y faltantes
     // El renglón: sólo lo que importa.
     // Sólo lo que importa: lo demás va a «sin novedad».
@@ -39039,188 +39047,934 @@ function _wgArranque(d, par, unidades, intensidad){
   return { unidades:res, parte, resumen, intensidad:I.nom };
 }
 // v2.9.447 — ⚙️ Configurar → 🧭 Desgaste de arranque, para la partida ya cargada.
+// ============================================================
+// v2.9.454 — 🤖 EL DESGASTE DE ARRANQUE CON IA, COMPLETO. Sergio (04-11-2026): «cargué la
+// fase 4 de azul contra la 3 de rojo; se supone que ya hubo un tremendo desgaste, pero todas
+// las unidades están al 100 %… que se genere un prompt para copiar a cualquier IA
+// considerando el terreno, las fuerzas y todo… copiar el prompt, pegar el resultado y que
+// aparezca el desgaste… no desaparece ninguna unidad: la peor queda bien desgastada… lo que
+// quiero es que empiecen a trabajar logística, evacuaciones, el G-3 con sus unidades y el G-1».
+// Lo que pasaba: el cuadro de fases sólo calculaba el desgaste con «⚔️ Jugar este
+// enfrentamiento». La fase SOLA —la que trae a los dos bandos y Sergio reconoce como «la
+// fase 4»— no llevaba la pareja de fases, y desde ⚙️ Configurar salía «cancelado»: la
+// partida quedaba al 100 %. Ahora:
+//   • la pareja de fases se DETECTA por la posición de las fichas de la partida;
+//   • el pedido para la IA es un documento completo (Markdown): la situación, lo que ya
+//     pasó, el terreno medido en la carta (altura por las curvas de nivel, caminos, ríos,
+//     obstáculos que cruzó), cada unidad con sus medios y lo que tiene enfrente, la
+//     logística, lo planificado por el Estado Mayor, referencias doctrinarias y los anexos;
+//   • la respuesta se revisa (piso del 25 %: ninguna ficha desaparece), se muestra en una
+//     tabla y recién ahí se aplica: poder, bajas, combustible, munición de CADA sistema,
+//     raciones, el parte de cada bando y los pedidos al G-4 (Cl III, V, I, evacuación), al
+//     G-1 (reemplazos) y al G-3 (la unidad que no está apta para su tarea).
+// La app no gasta plata (regla de SIDECEME): la IA es la de cada uno, por copiar y pegar.
+// ============================================================
+const WG_PISO_IA=25;   // % de poder mínimo: el motor da por perdida a la ficha en el 20 %
+// El ejercicio.json: el que se eligió ahora o, si no, el de esta sesión para esta partida.
+async function _wgEjercicioDe(inp, poner){
+  const f=inp && inp.files && inp.files[0];
+  if(inp) inp.value='';
+  let d=null;
+  if(f){
+    try{ d=JSON.parse(await f.text()); }
+    catch(_e){ poner('❌ Ese archivo no es un JSON válido: elegí el <b>ejercicio.json</b> de la Mesa.'); return null; }
+    WG._ejercicio={ d, nombre:f.name, partida:WG.partidaId };
+  }else if(WG._ejercicio && WG._ejercicio.partida===WG.partidaId) d=WG._ejercicio.d;
+  if(!d) return null;
+  const B=_wgFasesBandos(d);
+  if(!B.azules.some(a=>(a.f.unidades||[]).length) || !B.rojas.some(r=>(r.f.unidades||[]).length)){
+    poner('❌ Ese ejercicio no trae fases 🔵 y 🔴 para enfrentar.'); return null;
+  }
+  return d;
+}
 async function wgDesgasteArranque(inp){
   const est=document.getElementById('wg-arranque-estado');
   const poner=(t)=>{ if(est) est.innerHTML=t; };
-  const f=inp && inp.files && inp.files[0];
-  if(inp) inp.value='';
-  if(!f) return;
-  if(WG.soy!=='arbitro'){ poner('❌ Sólo el árbitro aplica el desgaste de arranque.'); return; }
-  let d;
-  try{ d=JSON.parse(await f.text()); }catch(_e){ poner('❌ Ese archivo no es un JSON válido: elegí el <b>ejercicio.json</b> de la Mesa.'); return; }
-  const fases=_wgFasesCOA(d);
-  if(!(fases._azules||[]).length || !(fases._rojas||[]).length){ poner('❌ Ese ejercicio no trae fases 🔵 y 🔴 para enfrentar.'); return; }
-  // El mismo cuadro de la importación, dentro de esta sección.
-  const imp=document.getElementById('wg-imp-estado');
-  const fase=await new Promise((res)=>{
-    const orig=imp; const tmp=document.createElement('div'); tmp.id='wg-imp-estado';
-    if(orig) orig.id='wg-imp-estado-viejo';
-    est.innerHTML=''; est.appendChild(tmp);
-    _wgPreguntarFase(fases, (t)=>{ tmp.innerHTML=t; }, null).then((x)=>{ tmp.id=''; if(orig) orig.id='wg-imp-estado'; res(x); });
-  });
-  if(!fase || !fase._par){ poner('Desgaste de arranque cancelado (hace falta «⚔️ Jugar este enfrentamiento» o el evento crítico).'); return; }
+  if(WG.soy!=='arbitro'){ if(inp) inp.value=''; poner('❌ Sólo el árbitro aplica el desgaste de arranque.'); return; }
+  const d=await _wgEjercicioDe(inp, poner); if(!d) return;
+  const e=await _wgElegirPar(d, est, 'plataforma');
+  if(!e){ poner('Cancelado: la partida sigue como estaba.'); return; }
   const uds=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u && !_wgEsConvoy(u));
-  const arr=_wgArranque(d, fase._par, uds, fase._desgaste||'medio');
+  _wgParGuardar(e.par);
+  if(e.desgaste==='ia') return _wgArranqueIAMostrar(est, d, e.par, uds);
+  const arr=_wgArranque(d, e.par, uds, e.desgaste||'medio');
   if(!arr){ poner('Sin desgaste (intensidad «ninguno»).'); return; }
   if(!confirm(`Aplicar el desgaste de arranque a ${uds.length} ficha(s)?\n\n${arr.resumen}\n\nLa posición, las órdenes y el turno no cambian.`)){ poner('Cancelado.'); return; }
   poner('⏳ Aplicando…');
   poner(await _wgAplicarArranque(arr));
 }
-// ============================================================
-// v2.9.450 — 🤖 EL ARRANQUE CON IA (copiar y pegar). Sergio (03-11-2026): «o, si no,
-// decime si es mejor meter la información de las dos fases a una IA y que realice
-// el cálculo del escenario; en ese caso debés construirme esa opción».
-// La app no gasta plata (regla de SIDECEME): como en el aula virtual, se arma el
-// pedido —las dos fases y las anteriores, cada unidad con sus medios y su posición,
-// lo que dicen el G-2, el G-3 y el G-4, y el cálculo de la plataforma como
-// referencia— para pegarlo en la IA de cada uno, y se pega su respuesta. La
-// plataforma la revisa (cada número dentro de lo posible) y la aplica igual que el
-// cálculo propio: estado de cada ficha y parte en la bitácora.
-// ============================================================
+// ------------------------------------------------------------
+// LA PAREJA DE FASES, DETECTADA POR LA POSICIÓN DE LAS FICHAS
+// ------------------------------------------------------------
+// Distancia media entre las fichas de un bando y las mismas fichas en la fase `f`
+// (cada ficha de la fase se usa una sola vez: hay designaciones repetidas).
+function _wgDistFase(f, uds, rojo){
+  const fu=((f&&f.unidades)||[]).filter(x=>x && x.tipo!=='instalacion' && !_wgEsAgrupacion(x) && (!!_wgEsRoja(x))===rojo
+    && Number.isFinite(Number(x.lng)) && Number.isFinite(Number(x.lat)));
+  const usados=new Set(); let s=0, n=0;
+  for(const u of (uds||[])){
+    if(!u || (u.bando==='rojo')!==rojo || _wgEsConvoy(u)) continue;
+    const k=_wgClaveDesig(u.designacion); if(!k) continue;
+    let mejor=-1, dm=Infinity;
+    fu.forEach((x,i)=>{ if(usados.has(i) || _wgClaveDesig(x.designacion)!==k) return;
+      const dd=_wgHav([Number(u.lng),Number(u.lat)],[Number(x.lng),Number(x.lat)]); if(dd<dm){ dm=dd; mejor=i; } });
+    if(mejor>=0){ usados.add(mejor); s+=dm; n++; }
+  }
+  return n ? { km:s/n, n } : null;
+}
+// En qué momento del combate está cada fase: 0 antes del contacto, 1 el choque, 2 después.
+function _wgMomentoFase(f, rojo){
+  const t=String((f&&f.nombre)||'');
+  return rojo ? (/ruptur|explot|consolid|persecu/i.test(t)?2:(/ataq|asalt|irrup|penetr|combate/i.test(t)?1:0))
+              : (/contraataq|consolid|reorganiz|persecu|explot/i.test(t)?2:(/conducc|defens|retard|combate|ataq/i.test(t)?1:0));
+}
+function _wgParDetectado(d, uds, fijo){
+  const B=_wgFasesBandos(d);
+  const medir=(lista, rojo)=>lista.map(x=>({ x, m:_wgDistFase(x.f, uds, rojo) })).filter(o=>o.m);
+  const ordenar=(xs)=>{ if(!xs.length) return xs; const nMax=Math.max(...xs.map(o=>o.m.n));
+    return xs.filter(o=>o.m.n>=Math.max(1,nMax*0.6)).sort((p,q)=>p.m.km-q.m.km); };
+  const R=(fijo&&fijo.rojo) ? [{ x:fijo.rojo, m:_wgDistFase(fijo.rojo.f, uds, true)||{ km:0, n:0 } }] : ordenar(medir(B.rojas, true));
+  const A=(fijo&&fijo.azul) ? [{ x:fijo.azul, m:_wgDistFase(fijo.azul.f, uds, false)||{ km:0, n:0 } }] : ordenar(medir(B.azules, false));
+  if(!R.length || !A.length) return null;
+  // Empates (±1 km: el bando no se movió entre dos fases): la del CAP activo, la del mismo
+  // momento del combate que la del otro bando y, si no, la más avanzada.
+  const nro=(x)=>Number(x.f&&x.f.n)||(x.idx+1);
+  const r=R.filter(o=>o.m.km<=R[0].m.km+1).sort((p,q)=>nro(q.x)-nro(p.x))[0];
+  const mr=_wgMomentoFase(r.x.f, true);
+  const a=A.filter(o=>o.m.km<=A[0].m.km+1).sort((p,q)=>((p.x.cap===B.act?0:1)-(q.x.cap===B.act?0:1))
+    || (Math.abs(_wgMomentoFase(p.x.f,false)-mr)-Math.abs(_wgMomentoFase(q.x.f,false)-mr)) || (q.x.idx-p.x.idx))[0];
+  return { azul:a.x, rojo:r.x, km:{ azul:a.m.km, rojo:r.m.km }, n:{ azul:a.m.n, rojo:r.m.n },
+    dudoso:a.m.km>5 || r.m.km>5 };
+}
+// La fase SOLA del cuadro de importación: si trae a los dos bandos, su pareja se deduce.
+function _wgParDeOpcion(d, op){
+  if(!d || !op || op._par) return (op&&op._par)||null;
+  const B=_wgFasesBandos(d);
+  const us=_wgSinAgrupaciones(op.unidades||[]).quedan.filter(x=>x && x.tipo!=='instalacion')
+    .map(x=>({ bando:_wgEsRoja(x)?'rojo':'azul', designacion:x.designacion, lng:x.lng, lat:x.lat }));
+  if(!us.some(x=>x.bando==='rojo') || !us.some(x=>x.bando==='azul')) return null;
+  const fijo={};
+  if(op.bando==='propio') fijo.azul=B.azules.find(x=>x.cap===B.act && x.idx===op.idx);
+  if(op.bando==='enemigo') fijo.rojo=B.rojas.find(x=>x.idx===op.idx);
+  const p=_wgParDetectado(d, us, fijo);
+  return p ? { azul:p.azul, rojo:p.rojo } : null;
+}
+// La pareja que eligió el árbitro para ESTA partida (en este navegador).
+function _wgParGuardar(par){
+  try{ if(par&&par.azul&&par.rojo&&WG.partidaId!=null)
+    localStorage.setItem('wg_par_'+WG.partidaId, JSON.stringify({ cap:par.azul.cap, azul:par.azul.idx, rojo:par.rojo.idx })); }catch(_e){}
+}
+function _wgParRecordado(d){
+  try{
+    const o=JSON.parse(localStorage.getItem('wg_par_'+WG.partidaId)||'null'); if(!o) return null;
+    const B=_wgFasesBandos(d);
+    const a=B.azules.find(x=>x.cap===o.cap && x.idx===o.azul), r=B.rojas.find(x=>x.idx===o.rojo);
+    return (a&&r) ? { azul:a, rojo:r } : null;
+  }catch(_e){ return null; }
+}
+// El cuadro: SÓLO la pareja de fases (y la intensidad, si calcula la plataforma).
+function _wgElegirPar(d, cont, modo){
+  return new Promise((resolve)=>{
+    if(!cont) return resolve(null);
+    const B=_wgFasesBandos(d);
+    const az=B.azules.filter(a=>(a.f.unidades||[]).length), ro=B.rojas.filter(r=>(r.f.unidades||[]).length);
+    const uds=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u && !_wgEsConvoy(u));
+    const det=_wgParDetectado(d, uds);
+    const rec=_wgParRecordado(d);
+    // Lo que el árbitro eligió antes vale si las fichas siguen cerca de esas fases.
+    const recOk=rec && det && (_wgDistFase(rec.azul.f, uds, false)||{km:99}).km<=det.km.azul+3
+      && (_wgDistFase(rec.rojo.f, uds, true)||{km:99}).km<=det.km.rojo+3;
+    const sel=recOk?rec:(det||rec);
+    // Por número de fase (cada llamada a _wgFasesBandos arma objetos nuevos: indexOf no los encuentra).
+    const ia=Math.max(0, sel?az.findIndex(x=>x.cap===sel.azul.cap && x.idx===sel.azul.idx):0);
+    const ir=Math.max(0, sel?ro.findIndex(x=>x.idx===sel.rojo.idx):ro.findIndex(r=>r.coa!=='peligroso'));
+    const opc=(xs,s)=>xs.map((x,i)=>`<option value="${i}"${i===s?' selected':''}>${_rgEsc(x.nombre)}</option>`).join('');
+    const kmTxt=(x)=>x.toFixed(1).replace('.',',');
+    const como = recOk ? '📌 La que elegiste para esta partida.'
+      : det ? (det.dudoso
+          ? `⚠️ Las fichas no coinciden del todo con ninguna fase (🔵 a ${kmTxt(det.km.azul)} km, 🔴 a ${kmTxt(det.km.rojo)} km en promedio): revisá la elección.`
+          : `🎯 Detectada por la posición de las fichas de esta partida (🔵 a ${kmTxt(det.km.azul)} km de su fase · 🔴 a ${kmTxt(det.km.rojo)} km).`)
+      : 'Elegí la pareja de fases que se está jugando.';
+    cont.innerHTML=`<div style="border:1px solid rgba(226,59,59,.5);border-radius:8px;padding:8px;margin:4px 0">`
+      +`<b>⚔️ ¿Qué enfrentamiento se juega?</b><br><span class="rg-meta">${como}</span>`
+      +`<div style="margin-top:6px"><span style="color:#1f6dff">🔵</span> <select id="wg-par-azul" style="max-width:100%">${opc(az,ia)}</select></div>`
+      +`<div style="margin-top:4px"><span style="color:#e23b3b">🔴</span> <select id="wg-par-rojo" style="max-width:100%">${opc(ro,ir)}</select></div>`
+      +(modo==='plataforma'
+        ? `<div style="margin-top:6px;font-size:11px">Intensidad: `+['bajo','medio','alto'].map(k=>`<label style="margin-right:8px;white-space:nowrap"><input type="radio" name="wg-par-int" value="${k}"${k==='medio'?' checked':''}> ${k}</label>`).join('')
+          +`<br><span class="rg-meta">El cálculo de la plataforma es aproximado: sólo mide los fuegos y el contacto de la llegada. Para un desgaste realista, usá 🤖 Con IA.</span></div>`
+        : `<div class="rg-meta" style="margin-top:6px">Con esa pareja se arma el pedido: lo que pasó en las fases anteriores de cada bando y en la llegada a estas posiciones.</div>`)
+      +`<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap"><button class="rg-doc" data-par="ok">✅ Seguir</button>`
+      +`<button class="rg-doc" data-par="no">✖️ Cancelar</button></div></div>`;
+    cont.querySelectorAll('button[data-par]').forEach(b=>{ b.onclick=()=>{
+      if(b.getAttribute('data-par')!=='ok') return resolve(null);
+      const a=az[Number(document.getElementById('wg-par-azul').value)||0], r=ro[Number(document.getElementById('wg-par-rojo').value)||0];
+      const dg=modo==='plataforma' ? (((cont.querySelector('input[name="wg-par-int"]:checked')||{}).value)||'medio') : 'ia';
+      resolve({ par:{ azul:a, rojo:r }, desgaste:dg });
+    }; });
+  });
+}
+// ------------------------------------------------------------
+// 🤖 LA OPCIÓN IA: pedido → respuesta → revisión → aplicar
+// ------------------------------------------------------------
 async function wgArranqueIA(inp){
   const est=document.getElementById('wg-arranque-estado');
   const poner=(t)=>{ if(est) est.innerHTML=t; };
-  const f=inp && inp.files && inp.files[0];
-  if(inp) inp.value='';
-  if(!f) return;
-  if(WG.soy!=='arbitro'){ poner('❌ Sólo el árbitro aplica el desgaste de arranque.'); return; }
-  let d;
-  try{ d=JSON.parse(await f.text()); }catch(_e){ poner('❌ Ese archivo no es un JSON válido: elegí el <b>ejercicio.json</b> de la Mesa.'); return; }
-  const fases=_wgFasesCOA(d);
-  if(!(fases._azules||[]).length || !(fases._rojas||[]).length){ poner('❌ Ese ejercicio no trae fases 🔵 y 🔴 para enfrentar.'); return; }
-  const imp=document.getElementById('wg-imp-estado');
-  const fase=await new Promise((res)=>{
-    const tmp=document.createElement('div'); tmp.id='wg-imp-estado';
-    if(imp) imp.id='wg-imp-estado-viejo';
-    est.innerHTML=''; est.appendChild(tmp);
-    _wgPreguntarFase(fases, (t)=>{ tmp.innerHTML=t; }, null).then((x)=>{ tmp.id=''; if(imp) imp.id='wg-imp-estado'; res(x); });
-  });
-  if(!fase || !fase._par){ poner('Cancelado (hace falta «⚔️ Jugar este enfrentamiento» o el evento crítico).'); return; }
+  if(WG.soy!=='arbitro'){ if(inp) inp.value=''; poner('❌ Sólo el árbitro aplica el desgaste de arranque.'); return; }
+  const d=await _wgEjercicioDe(inp, poner); if(!d) return;
+  const e=await _wgElegirPar(d, est, 'ia');
+  if(!e){ poner('Cancelado: la partida sigue como estaba.'); return; }
+  _wgParGuardar(e.par);
   const uds=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u && !_wgEsConvoy(u));
-  const base=_wgArranque(d, fase._par, uds, fase._desgaste&&fase._desgaste!=='ninguno'?fase._desgaste:'medio');
-  WG._ia={ uds, par:fase._par, prompt:_wgPromptArranque(d, fase._par, uds, base) };
+  await _wgArranqueIAMostrar(est, d, e.par, uds);
+}
+// Los tres pasos, en el cuadro que se le pase (⚙️ Configurar o el de la importación).
+async function _wgArranqueIAMostrar(cont, d, par, uds){
+  if(!cont) return;
+  document.querySelectorAll('.wg-ia-caja').forEach(c=>{ if(!cont.contains(c)) c.remove(); });
+  cont.innerHTML='⏳ Armando el pedido para la IA (fases, fuerzas, terreno, clima, logística)…';
+  await new Promise(r=>setTimeout(r,30));   // que se vea el aviso antes de medir la carta
+  let base=null;
+  try{ base=_wgArranque(d, par, uds, 'medio'); }catch(e){ console.warn('referencia de la plataforma:', e); }
+  let prompt='', corto='';
+  try{ prompt=_wgPromptArranque(d, par, uds, base); corto=_wgPromptArranque(d, par, uds, base, { sinAnexos:true }); }
+  catch(e){ console.error('pedido IA:', e); cont.innerHTML='❌ No se pudo armar el pedido: '+_rgEsc(e.message||String(e)); return; }
+  const nomPart=String((WG.estado&&WG.estado.partida&&WG.estado.partida.nombre)||('partida '+WG.partidaId));
+  const archivo=('Desgaste_IA_'+nomPart+'_'+String(par.azul.nombre).replace(/—.*$/,'')+'_vs_'+String(par.rojo.nombre).replace(/—.*$/,''))
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]+/g,'_').replace(/^_|_$/g,'').slice(0,90)+'.md';
+  WG._ia={ uds, par, prompt, corto, conAnexos:true, archivo, revisada:null };
+  const nU=uds.filter(u=>Number(u.poder_max)>0).length;
   const lk=(u,t)=>`<a href="${u}" target="_blank" rel="noopener" style="color:#9fd0ff">${t}</a>`;
-  poner(`<b>🤖 Arranque con IA</b> — ${_rgEsc(fase._par.azul.nombre)} contra ${_rgEsc(fase._par.rojo.nombre)}<br>`
-    +`<b>1.</b> <button class="rg-doc" onclick="wgArranqueIACopiar()">📋 Copiar el pedido</button> `
-    +`<span class="rg-meta">(${WG._ia.prompt.length.toLocaleString('es')} caracteres)</span><br>`
-    +`<b>2.</b> Pegalo en ${lk('https://claude.ai','Claude')}, ${lk('https://chatgpt.com','ChatGPT')} o ${lk('https://gemini.google.com','Gemini')}.<br>`
-    +`<b>3.</b> Pegá acá su respuesta (el JSON):`
-    +`<textarea id="wg-ia-resp" rows="6" style="width:100%;margin-top:4px;font-size:11px;resize:vertical" placeholder='{"unidades":[…],"parte":{…}}'></textarea>`
-    +`<button class="rg-doc" style="margin-top:4px" onclick="wgArranqueIAAplicar()">✅ Revisar y aplicar</button>`
-    +`<div id="wg-ia-res" class="rg-meta" style="margin-top:4px"></div>`);
+  cont.innerHTML=`<div class="wg-ia-caja" style="border:1px solid rgba(159,208,255,.45);border-radius:8px;padding:8px;margin:4px 0">`
+    +`<b>🤖 Desgaste de arranque con IA</b><br><span class="rg-meta">🔵 ${_rgEsc(par.azul.nombre)}<br>🔴 ${_rgEsc(par.rojo.nombre)}</span>`
+    +`<div style="margin-top:8px"><b>1.</b> <button class="rg-doc" onclick="wgArranqueIACopiar()">📋 Copiar el pedido</button> `
+    +`<button class="rg-doc" onclick="wgArranqueIABajar()">⬇️ Bajar el pedido (.md)</button><br>`
+    +(corto.length<prompt.length
+      ? `<label style="font-size:11px;white-space:nowrap"><input type="checkbox" id="wg-ia-anexos" checked onchange="wgArranqueIAAnexos(this.checked)"> con los anexos del Estado Mayor</label> `
+      : '')
+    +`<span class="rg-meta" id="wg-ia-tam">${_wgIATam(prompt, nU, true)}</span></div>`
+    +`<div style="margin-top:6px"><b>2.</b> Pegalo en ${lk('https://claude.ai','Claude')}, ${lk('https://chatgpt.com','ChatGPT')} o ${lk('https://gemini.google.com','Gemini')}. `
+    +`<span class="rg-meta">Si tu IA no acepta un texto tan largo, adjuntale el archivo .md y escribile: «Seguí las instrucciones del archivo».</span></div>`
+    +`<div style="margin-top:6px"><b>3.</b> Pegá acá su respuesta (el bloque JSON):`
+    +`<textarea id="wg-ia-resp" rows="6" style="width:100%;margin-top:4px;font-size:11px;resize:vertical" placeholder='{"formato":"SIDECEME-ARRANQUE-2","unidades":[…],"parte":{…}}'></textarea>`
+    +`<button class="rg-doc" style="margin-top:4px" onclick="wgArranqueIARevisar()">🔍 Revisar la respuesta</button></div>`
+    +`<div id="wg-ia-res" style="margin-top:6px"></div></div>`;
+}
+function _wgIATam(t, nU, anexos){
+  return `${t.length.toLocaleString('es')} caracteres · ${nU} unidades · situación, fases anteriores, terreno, altura, clima, logística, referencias doctrinarias`
+    +(anexos?' y anexos del Estado Mayor.':'. Sin anexos: más corto, para la IA que no acepta textos largos.');
+}
+function _wgIATexto(){ const x=WG._ia; return x ? ((x.conAnexos===false && x.corto) ? x.corto : x.prompt) : ''; }
+function wgArranqueIAAnexos(on){
+  if(!WG._ia) return;
+  WG._ia.conAnexos=!!on;
+  const el=document.getElementById('wg-ia-tam');
+  if(el) el.textContent=_wgIATam(_wgIATexto(), (WG._ia.uds||[]).filter(u=>Number(u.poder_max)>0).length, !!on);
 }
 function wgArranqueIACopiar(){
-  const t=(WG._ia&&WG._ia.prompt)||'';
-  try{ navigator.clipboard.writeText(t).then(()=>_wgAviso('📋 Pedido copiado: pegalo en tu IA.', 3000), ()=>prompt('Copiá el pedido:', t)); }
-  catch(_e){ prompt('Copiá el pedido:', t); }
+  const t=_wgIATexto(); if(!t) return;
+  const respaldo=()=>{
+    const ta=document.createElement('textarea'); ta.value=t; ta.setAttribute('readonly','');
+    ta.style.cssText='position:fixed;left:-9999px;top:0;opacity:0'; document.body.appendChild(ta); ta.select();
+    let ok=false; try{ ok=document.execCommand('copy'); }catch(_e){}
+    ta.remove();
+    _wgAviso(ok?'📋 Pedido copiado: pegalo en tu IA.':'No se pudo copiar: usá ⬇️ Bajar el pedido (.md).', 4000);
+  };
+  try{ navigator.clipboard.writeText(t).then(()=>_wgAviso('📋 Pedido copiado: pegalo en tu IA.', 3000), respaldo); }
+  catch(_e){ respaldo(); }
 }
-// El pedido: compacto, en km desde un origen común, y con el formato de la respuesta.
-function _wgPromptArranque(d, par, uds, base){
+function wgArranqueIABajar(){
+  const t=_wgIATexto(); if(!t) return;
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([t],{ type:'text/markdown;charset=utf-8' }));
+  a.download=(WG._ia&&WG._ia.archivo)||'Desgaste_IA.md';
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ try{ URL.revokeObjectURL(a.href); }catch(_e){} a.remove(); }, 2000);
+}
+// ------------------------------------------------------------
+// LA CARTA, MEDIDA PARA CADA UNIDAD (lo que la IA no puede ver)
+// ------------------------------------------------------------
+function _wgCartaIdx(terreno){
+  const I={ curvas:[], cimas:[], vias:[], rios:[], lagunas:[], poblados:[], severo:[], restringido:[], vegetacion:[], jurisd:[], obras:[], defensivo:[] };
+  for(const t of (terreno||[])){
+    const g=t&&t.geojson; if(!g||!g.type) continue;
+    const k=String((g.e&&g.e.k)||''), nom=String(g.nom||'').trim();
+    const x={ t, g, k, nom, caja:t._caja||_wgCajaDeGeom(g) };
+    if(g.obs || t.tipo==='obstaculo'){ I.obras.push(x); continue; }
+    if(t.tipo==='elevacion'){
+      const m=nom.match(/(\d{3,4})\s*m\b/);
+      if(/curva/.test(k) && m){ x.cota=Number(m[1]); I.curvas.push(x); }
+      else if(g.type==='Point' && nom) I.cimas.push(x);
+    }
+    else if(t.tipo==='via') I.vias.push(Object.assign(x,{ clase:/vias/.test(k)?'ruta':/caminos/.test(k)?'camino':/calles/.test(k)?'calle':/huella/.test(k)?'huella':/aero/.test(k)?'aeródromo':'camino' }));
+    else if(t.tipo==='hidro'){ if(/Polygon/.test(g.type)) I.lagunas.push(x); else I.rios.push(Object.assign(x,{ quebrada:/quebrad/i.test(k+' '+nom) })); }
+    else if(t.tipo==='poblado') I.poblados.push(x);
+    else if(t.tipo==='severo') I.severo.push(x);
+    else if(t.tipo==='restringido') I.restringido.push(x);
+    else if(t.tipo==='vegetacion') I.vegetacion.push(x);
+    else if(t.tipo==='jurisdiccion') I.jurisd.push(x);
+    else if(t.tipo==='defensivo') I.defensivo.push(x);
+  }
+  return I;
+}
+function _wgAnillosDe(g){
+  if(!g) return [];
+  if(g.type==='Polygon') return g.coordinates||[];
+  if(g.type==='MultiPolygon') return (g.coordinates||[]).flat();
+  return _wgLineasDe(g);
+}
+// Distancia (km) de un punto a una geometría; 0 si está dentro de un polígono.
+function _wgDistGeom(pt, g){
+  if(!g) return Infinity;
+  if(g.type==='Point') return _wgHav(pt, g.coordinates);
+  if(g.type==='MultiPoint') return Math.min(...(g.coordinates||[]).map(c=>_wgHav(pt,c)));
+  if(/Polygon/.test(g.type) && _wgPtEnGeom(pt,g)) return 0;
+  let m=Infinity;
+  for(const L of _wgAnillosDe(g)) for(let i=1;i<(L||[]).length;i++){ const dd=_wgDistPtSeg(pt,L[i-1],L[i]); if(dd<m) m=dd; }
+  return m;
+}
+// Cota inferior de la distancia a la caja: descarta rápido lo que está lejos.
+function _wgDistCaja(pt, c){
+  if(!c) return 0;
+  const kx=111.32*Math.cos(pt[1]*Math.PI/180), ky=110.57;
+  const dx=Math.max(0, c[0]-pt[0], pt[0]-c[2])*kx, dy=Math.max(0, c[1]-pt[1], pt[1]-c[3])*ky;
+  return Math.sqrt(dx*dx+dy*dy);
+}
+function _wgMasCerca(pt, lista, filtro, tope){
+  let mejor=null, dm=tope==null?Infinity:tope;
+  for(const x of (lista||[])){
+    if(filtro && !filtro(x)) continue;
+    if(_wgDistCaja(pt, x.caja)>=dm) continue;
+    const dd=_wgDistGeom(pt, x.g); if(dd<dm){ dm=dd; mejor=x; }
+  }
+  return mejor ? { x:mejor, km:dm } : null;
+}
+// La altura, por las dos curvas de nivel más cercanas de cota distinta.
+function _wgCotaPorCurvas(pt, curvas){
+  const porCota=new Map();
+  for(const c of (curvas||[])){
+    if(_wgDistCaja(pt, c.caja)>4) continue;
+    const dd=_wgDistGeom(pt, c.g);
+    if(!porCota.has(c.cota) || dd<porCota.get(c.cota)) porCota.set(c.cota, dd);
+  }
+  const xs=[...porCota.entries()].sort((p,q)=>p[1]-q[1]);
+  if(!xs.length) return null;
+  const [c1,d1]=xs[0], o=xs.find(x=>x[0]!==c1);
+  if(!o || d1<0.03) return Math.round(c1);
+  const [c2,d2]=o;
+  return Math.round(c1+(c2-c1)*d1/Math.max(1e-6,d1+d2));
+}
+function _wgSegCruza(a,b,c,d){
+  const o=(p,q,r)=>(q[0]-p[0])*(r[1]-p[1])-(q[1]-p[1])*(r[0]-p[0]);
+  const d1=o(c,d,a), d2=o(c,d,b), d3=o(a,b,c), d4=o(a,b,d);
+  return ((d1>0)!==(d2>0)) && ((d3>0)!==(d4>0));
+}
+// Lo que un recorrido (lista de puntos) atraviesa de una lista de líneas o polígonos.
+function _wgCruces(camino, lista){
+  const hits=[];
+  for(const x of (lista||[])){
+    const c=x.caja; let toca=false;
+    for(let i=1;i<camino.length && !toca;i++){
+      const p=camino[i-1], q=camino[i];
+      if(c && (c[2]<Math.min(p[0],q[0])||c[0]>Math.max(p[0],q[0])||c[3]<Math.min(p[1],q[1])||c[1]>Math.max(p[1],q[1]))) continue;
+      for(const L of _wgAnillosDe(x.g)){ for(let j=1;j<(L||[]).length;j++) if(_wgSegCruza(p,q,L[j-1],L[j])){ toca=true; break; } if(toca) break; }
+      if(!toca && /Polygon/.test(x.g.type) && (_wgPtEnGeom(p,x.g)||_wgPtEnGeom(q,x.g))) toca=true;
+    }
+    if(toca) hits.push(x);
+  }
+  return hits;
+}
+// ------------------------------------------------------------
+// EL PEDIDO (Markdown). Se arma con la partida (fichas, carta, instalaciones) y el
+// ejercicio (fases, órdenes, PICB, G-3, G-4, anexos).
+// ------------------------------------------------------------
+function _wgPromptArranque(d, par, uds, base, op){
+  const W=(typeof WG!=='undefined')?WG:null;
+  return _wgPedidoIA({ d, par, uds, base, terreno:(W&&W.terreno)||[], inst:(W&&W.estado&&W.estado.instalaciones)||[],
+    partida:(W&&W.estado&&W.estado.partida)||null, sinAnexos:!!(op&&op.sinAnexos) });
+}
+function _wgPedidoIA(o){
+  const d=o.d||{}, par=o.par, base=o.base;
+  const U=(o.uds||[]).filter(u=>u && !_wgEsConvoy(u) && Number(u.poder_max)>0);
   const B=_wgFasesBandos(d);
   const nro=(x)=>Number(x.f&&x.f.n)||(x.idx+1);
   const prev={
-    azul:B.azules.filter(x=>x.cap===par.azul.cap && x.idx<par.azul.idx).sort((a,b)=>a.idx-b.idx).map(x=>x.f),
-    rojo:B.rojas.filter(x=>x.coa===par.rojo.coa && nro(x)<nro(par.rojo)).sort((a,b)=>nro(a)-nro(b)).map(x=>x.f),
+    azul:B.azules.filter(x=>x.cap===par.azul.cap && x.idx<par.azul.idx).sort((a,b)=>a.idx-b.idx),
+    rojo:B.rojas.filter(x=>x.coa===par.rojo.coa && nro(x)<nro(par.rojo)).sort((a,b)=>nro(a)-nro(b)),
   };
-  const lat0=Math.min(...uds.map(u=>Number(u.lat))), lng0=Math.min(...uds.map(u=>Number(u.lng)));
-  const km=(lng,lat)=>`(${((Number(lng)-lng0)*111.32*Math.cos(lat0*Math.PI/180)).toFixed(1)}, ${((Number(lat)-lat0)*110.57).toFixed(1)})`;
-  const fase=(f)=>`«${f.nombre||'fase'}» (${_wgDurFase(f)} h)${f.tarea?': '+String(f.tarea).slice(0,160):''}`;
-  const ref=new Map(((base&&base.unidades)||[]).map(x=>[x.bando+'|'+_wgClaveDesig(x.designacion), x]));
-  const lin=uds.map(u=>{
-    const m=u.medios||{}, b=u.bando==='rojo'?'rojo':'azul', q=m.calidad;
-    const f0=prev[b].length?prev[b][prev[b].length-1]:null, p0=f0?_wgPosFase(f0,u.designacion,b==='rojo'):null;
-    const sis=Object.keys(m.sistemas||{}).map(id=>WG_ARMAS[id]?`${WG_ARMAS[id].nom} ${_wgUfTope(u,id)} UF/${WG_ARMAS[id].alcance} km`:null).filter(Boolean).join(', ');
-    const r=ref.get(b+'|'+_wgClaveDesig(u.designacion));
-    const t=_wgTanqueDe(u);
-    return `- ${b==='rojo'?'🔴':'🔵'} ${u.designacion} · ${u.arma} · ${u.escalon}${m.efectivo?` · ${m.efectivo} H`:''} · poder ${u.poder_max}`
-      +(q?` (calidad ${q.f}${q.det&&q.det.length?': '+q.det.map(x=>x.nom).join(', '):''})`:'')
-      +` · ${sis||'sin sistemas'} · tanque ${t?t+' km':'a pie'} · raciones ${Number(m.nivelDias)||3} d`
-      +` · ahora ${km(u.lng,u.lat)} km${p0?`, antes ${km(p0[0],p0[1])} km`:''}`
-      +(r?` · plataforma: poder ${Math.round(100*r.poder_actual/Math.max(0.01,u.poder_max))} %, comb ${t?Math.round(100*(1-r.combustible_km/t)):'—'} %, raciones ${r.carga.racion} d, heridos ${r.carga.heridos}`:'');
-  }).join('\n');
-  const txt=(x,n)=>String(x||'').replace(/\s+/g,' ').trim().slice(0,n);
-  const pot=(d.g3&&d.g3.potencia)||{};
-  const ctx=[
-    ['G-2 (enemigo)', txt(d.picb&&d.picb.ht1&&d.picb.ht1['FUERZAS ENEMIGAS Y SUS CAPACIDADES'],900)],
-    ['G-3 (potencia propia)', txt(Object.entries(pot).filter(([k])=>/Fuerzas propias/i.test(k)).map(([,v])=>v).join(' '),900)],
-    ['G-3 (potencia enemiga)', txt(Object.entries(pot).filter(([k])=>!/\|/.test(k)).map(([,v])=>v).join(' '),900)],
-    ['G-4', txt(JSON.stringify((d.hojasG&&d.hojasG.g4)||{}),900)],
-  ].filter(([,v])=>v).map(([k,v])=>`[${k}] ${v}`).join('\n');
-  return `Sos oficial de Estado Mayor. Calculá cómo llegan las unidades al comienzo de esta pareja de fases de un juego de guerra.\n\n`
-    +`ENFRENTAMIENTO: 🔵 ${par.azul.nombre} contra 🔴 ${par.rojo.nombre}.\n`
-    +`FASES ANTERIORES 🔵: ${prev.azul.map(fase).join(' → ')||'ninguna'}.\n`
-    +`FASES ANTERIORES 🔴: ${prev.rojo.map(fase).join(' → ')||'ninguna'}.\n\n`
-    +`UNIDADES (posiciones en km desde un origen común; «antes» = la fase anterior):\n${lin}\n\n`
-    +(ctx?`LO QUE DICE EL EJERCICIO:\n${ctx}\n\n`:'')
-    +`TAREA: estimá, para cada unidad, el desgaste con que empieza: pérdidas por fuego y contacto, combustible y munición `
-    +`gastados, raciones y agua, heridos y muertos. Que sea coherente con las distancias, los alcances, los medios y la doctrina. `
-    +`El cálculo de la plataforma es una referencia: apartate si el ejercicio lo justifica (por ejemplo, el apoyo aéreo).\n\n`
-    +`RESPONDÉ SÓLO con este JSON, sin texto antes ni después:\n`
-    +`{"unidades":[{"bando":"azul","designacion":"igual que arriba","poder_pct":0-100,"combustible_pct":0-100,"municion_pct":0-100,`
-    +`"raciones_dias":0-10,"heridos":0,"muertos":0,"motivo":"una frase corta"}],"parte":{"azul":["frase corta"],"rojo":["frase corta"]}}`;
-}
-// La respuesta de la IA, revisada: cada número dentro de lo posible, cada ficha de esta partida.
-function _wgLeerRespuestaIA(txt, uds){
-  const t=String(txt||'');
-  const i=t.indexOf('{'), j=t.lastIndexOf('}');
-  if(i<0 || j<=i) return { error:'No encontré el JSON en la respuesta.' };
-  let o; try{ o=JSON.parse(t.slice(i,j+1)); }catch(e){ return { error:'El JSON no se puede leer: '+e.message }; }
-  const lista=Array.isArray(o.unidades)?o.unidades:[];
-  if(!lista.length) return { error:'La respuesta no trae «unidades».' };
-  const cl=(x,a,b)=>Math.max(a,Math.min(b,Number(x)));
-  const res=[], parte=[], faltan=[];
-  for(const x of lista){
-    const b=x&&x.bando==='rojo'?'rojo':(x&&x.bando==='azul'?'azul':null);
-    const u=b && uds.find(y=>y.bando===b && _wgClaveDesig(y.designacion)===_wgClaveDesig(x.designacion));
-    if(!u){ faltan.push(String((x&&x.designacion)||'?')); continue; }
-    const pm=Number(u.poder_max)||0, t=_wgTanqueDe(u), tope=Number((u.medios||{}).nivelDias)>0?Number(u.medios.nivelDias):3;
-    const pp=Number.isFinite(Number(x.poder_pct))?cl(x.poder_pct,0,100):100;
-    const cp=Number.isFinite(Number(x.combustible_pct))?cl(x.combustible_pct,0,100):100;
-    const mp=Number.isFinite(Number(x.municion_pct))?cl(x.municion_pct,0,100):100;
-    const mun={}; for(const id of Object.keys((u.medios&&u.medios.sistemas)||{})) if(WG_ARMAS[id]) mun[id]=Math.round(_wgUfTope(u,id)*mp)/100;
-    const her=Math.round(cl(x.heridos||0,0,100000)), mue=Math.round(cl(x.muertos||0,0,100000));
-    res.push({ bando:b, designacion:u.designacion, poder_actual:Math.round(pm*pp)/100, combustible_km:t?Math.round(t*(100-cp))/100:0,
-      municion:mun, carga:{ racion:Math.round(cl(Number.isFinite(Number(x.raciones_dias))?x.raciones_dias:tope,0,tope)*100)/100,
-        heridos:her, muertos:mue, bajas:her+mue, faltan:her+mue } });
-    const ico=b==='rojo'?'🔴':'🔵';
-    parte.push({ tipo:'arranque', bandos_visibles:[b], lng:u.lng, lat:u.lat, descripcion:
-      `🧭 🤖 ${ico} ${u.designacion}: 👥 ${Math.round(pp)} % · ⛽ ${Math.round(cp)} % · 🎯 ${Math.round(mp)} %`
-      +(her?` · ${her} heridos`:'')+(x.motivo?` — ${String(x.motivo).slice(0,160)}`:'')+'.' });
-    const pide=(q)=>parte.push({ tipo:'pedido', bandos_visibles:[b], lng:u.lng, lat:u.lat, descripcion:`📻 ${ico} ${u.designacion}: ${q}` });
-    if(t && cp<40) pide(`pide Cl III${cp<20?' URGENTE':''} — le queda ${Math.round(cp)} %.`);
-    if(mp<40) pide(`pide Cl V${mp<20?' URGENTE':''} — munición ${Math.round(mp)} %.`);
-    if(her>=5) pide(`pide evacuación — ${her} heridos.`);
+  const N=(x,dec)=>Number(x||0).toLocaleString('es',{ minimumFractionDigits:dec||0, maximumFractionDigits:dec||0 });
+  const K=(x)=>N(x,1);
+  // Los campos del ejercicio son texto, listas u hojas (objetos): todo pasa a texto corrido.
+  const SALTEAR=/^(_|id$|co$|coords?$|centro$|lat$|lng$|t$|ts$|fecha$|version$|esquema$|marcas$)/i;
+  const plano=(x,nv)=>{
+    if(x==null) return '';
+    if(typeof x==='string') return x;
+    if(typeof x==='number'||typeof x==='boolean') return String(x);
+    if(Array.isArray(x)) return x.map(v=>plano(v,(nv||0)+1)).filter(Boolean).join(nv?'; ':' ');
+    if(typeof x==='object') return Object.entries(x).filter(([k])=>!SALTEAR.test(k)).map(([k,v])=>{
+      const t=plano(v,(nv||0)+1); if(!t) return ''; return (/^[a-z]$/i.test(k)||/^\d+$/.test(k))?t:`${k}: ${t}`; }).filter(Boolean).join(' · ');
+    return String(x);
+  };
+  const limpio=(x)=>plano(x).replace(/\[\s*IA\s*[—-]\s*verificar\s*\]/gi,'').replace(/\s+/g,' ').trim();
+  const nomObra=(g)=>limpio(g.nom||g.obs||'obra').replace(/\s*\((proyectad[oa]|construid[oa]|ejecutad[oa])\)\s*$/i,'');
+  const corta=(x,n)=>{ const s=limpio(x); if(s.length<=n) return s; const c=s.slice(0,n);
+    const i=Math.max(c.lastIndexOf('. '), c.lastIndexOf('; ')); return (i>n*0.6?c.slice(0,i+1):c)+' […]'; };
+  const ico=(b)=>b==='rojo'?'🔴':'🔵';
+  const otro=(b)=>b==='rojo'?'azul':'rojo';
+  const L=[];   // las líneas del documento
+  const P=(s)=>L.push(s==null?'':s);
+  // Origen común de las coordenadas (km): la esquina suroeste de las fichas.
+  const lat0=Math.min(...U.map(u=>Number(u.lat))), lng0=Math.min(...U.map(u=>Number(u.lng)));
+  const kx=111.32*Math.cos(lat0*Math.PI/180), ky=110.57;
+  const xy=(p)=>`(${K((p[0]-lng0)*kx)} ; ${K((p[1]-lat0)*ky)})`;
+  const pos=(u)=>[Number(u.lng),Number(u.lat)];
+  // Cada ficha con su igual en una fase (por orden de aparición: hay designaciones repetidas).
+  const rango=new Map();
+  { const cuenta={}; for(const u of U){ const k=u.bando+'|'+_wgClaveDesig(u.designacion); rango.set(u, cuenta[k]=(cuenta[k]||0)+1); } }
+  const enFase=(f,u)=>{
+    const k=_wgClaveDesig(u.designacion), rojo=u.bando==='rojo';
+    const xs=((f&&f.unidades)||[]).filter(x=>x && x.tipo!=='instalacion' && (!!_wgEsRoja(x))===rojo && _wgClaveDesig(x.designacion)===k);
+    return xs[(rango.get(u)||1)-1] || xs[0] || null;
+  };
+  const C=_wgCartaIdx(o.terreno||[]);
+  const adentro=(p,x)=>/Polygon/.test(x.g.type) && _wgDistCaja(p,x.caja)<=0 && _wgPtEnGeom(p,x.g);
+  const ref=new Map();
+  if(base && Array.isArray(base.unidades)){
+    const usados=new Set();
+    for(const x of base.unidades){
+      const u=U.find(y=>!usados.has(y) && ((x.id!=null && String(y.id)===String(x.id)) || (x.id==null && y.bando===x.bando && _wgClaveDesig(y.designacion)===_wgClaveDesig(x.designacion))));
+      if(u){ usados.add(u); ref.set(u, x); }
+    }
   }
+  const nombrePart=(o.partida&&o.partida.nombre)||'';
+  const ahora=new Date();
+  const hoy=ahora.toLocaleDateString('es')+' '+ahora.toLocaleTimeString('es',{ hour:'2-digit', minute:'2-digit' });
+  const ctxDoc=(d.ops&&d.ops.contextoDocumental)||{};
+  const nAz=U.filter(u=>u.bando!=='rojo').length, nRo=U.filter(u=>u.bando==='rojo').length;
+
+  // ── 0. Encabezado ─────────────────────────────────────────
+  P(`# 🧭 Desgaste de arranque — pedido de arbitraje para la IA`);
+  P(`**Juego de guerra SIDECEME · ECEME** · Ejercicio «${limpio(ctxDoc.ejercicio||d.nombre||'')}»`
+    +(nombrePart?` · Partida «${limpio(nombrePart)}»`:'')+(o.partida&&o.partida.id!=null?` (n.º ${o.partida.id})`:'')+` · Armado el ${hoy}`);
+  P();
+  P(`> Leé TODO el documento antes de responder. Tu respuesta es **sólo el bloque JSON del punto 10**: la plataforma lo lee, lo revisa y lo aplica a cada ficha del tablero.`);
+  P();
+  // ── 1. La tarea ───────────────────────────────────────────
+  P(`## 1. Tu tarea`);
+  P(`Actuás como **árbitro de un juego de guerra** de Estado Mayor (nivel Cuerpo de Ejército), con criterio de oficial de operaciones, de personal y de logística.`);
+  P(`El juego arranca en el instante en que las unidades están en las posiciones del punto 6: **🔵 ${limpio(par.azul.nombre)}** contra **🔴 ${limpio(par.rojo.nombre)}**.`);
+  P(`Todo lo anterior **ya ocurrió**: las fases anteriores de cada bando (punto 3) y lo que hizo falta para llegar a esas posiciones (marchas, fuegos de preparación y de contrabatería, la lucha en la zona de seguridad, el retardo, el paso de líneas, la aproximación bajo el fuego, el franqueo de obstáculos y campos minados). Estimá, con el mayor realismo posible, **cómo llega cada unidad** a ese instante:`);
+  P(`- el **poder de combate** que le queda (% de su poder máximo);`);
+  P(`- las **bajas en hombres**: muertos, heridos (esperan evacuación), desaparecidos o prisioneros, y enfermos (mal de altura, frío, agotamiento);`);
+  P(`- el **combustible**, la **munición de cada sistema**, las **raciones y el agua**;`);
+  P(`- su **aptitud para la tarea** que tiene ahora (para el G-3).`);
+  P();
+  P(`### Reglas (obligatorias)`);
+  P(`1. **Una entrada por cada unidad** de las tablas del punto 6 (son **${U.length}**: ${nAz} 🔵 y ${nRo} 🔴)${U.every(u=>u.id!=null)?', con su \`id\` exacto':', con su designación exacta'}. Ni una más, ni una menos.`);
+  P(`2. **Ninguna unidad desaparece.** El poder mínimo es **${WG_PISO_IA} %**: la más castigada queda bien desgastada (${WG_PISO_IA}–40 %), no destruida. Por debajo del 20 % el juego la da por perdida.`);
+  P(`3. **Coherencia.** Las bajas en hombres tienen que corresponder con el poder perdido (el poder es efectivo × calidad del armamento: puede caer más que el personal si perdió material, o menos si sólo tuvo heridos leves). La munición se gasta según lo que tiró, el combustible según lo que marchó y por dónde, las raciones según las horas transcurridas y si hubo reabastecimiento.`);
+  P(`4. **Usá todo**: tareas, distancias, alcances, terreno, altura, clima, obstáculos cruzados, calidad del armamento, poder relativo, distancia a su logística y lo que dicen los documentos del Estado Mayor. Si algo no está, asumilo con criterio doctrinario y anotalo en \`supuestos\`.`);
+  P(`5. **Asimétrico y creíble.** Quien atacó de frente sobre una posición preparada o cruzó un campo minado bajo fuego no puede salir igual que quien esperó en su posición; la artillería que tiró días enteros tiene que haber gastado munición; un puesto de comando a 20 km del contacto no pierde como un batallón de primera línea.`);
+  P(`6. **No inventes unidades ni muevas a ninguna.** Las posiciones son las del tablero.`);
+  P();
+  // ── 2. La situación ───────────────────────────────────────
+  P(`## 2. La situación`);
+  const n2=L.length;
+  const os=d.ordenSup||{};
+  const sit=[['Misión del escalón superior',os.mision,1600],['Intención',os.intencion,1600],['Concepto de la operación',os.concepto,2200],
+    ['Enemigo',os.enemigo,1500],['Fuerzas propias (escalón superior)',os.propias,1200],['Refuerzos y agregaciones',os.refuerzos,1200],
+    ['Prioridad de apoyo',os.prioridadApoyo,600],['Vigencia',os.vigencia||os.cuando,300]].filter(x=>limpio(x[1]));
+  if(sit.length){ P(`### 2.1 Orden del escalón superior`); for(const [k,v,n] of sit) P(`- **${k}:** ${corta(v,n)}`); P(); }
+  const pic=d.picb||{};
+  // La hoja «cae» del PICB, en el orden en que se lee: misión, intención, concepto, maniobra… y la logística al final.
+  const ORDEN_CAE=['MISION','INTENCION','CONCEPTO','MANIOBRA','APOYO DE FUEGO','INGENIER','INTELIGENCIA','RAMAS','SECUELAS','ESTADO FINAL','ASC'];
+  const rangoCae=(k)=>{ const t=_wgNormTxt(k); const i=ORDEN_CAE.findIndex(x=>t.startsWith(x)); return i<0?99:i; };
+  const cae=pic.cae&&typeof pic.cae==='object' ? Object.entries(pic.cae).filter(([k])=>!/^_/.test(k)).sort((a,b)=>rangoCae(a[0])-rangoCae(b[0]))
+    .map(([k,v])=>`${limpio(k)}: ${limpio(v)}`).join(' · ') : limpio(pic.cae);
+  // ¿De quién es? Si su misión es la de la unidad propia («defiende…» con nuestra designación), es el concepto propio.
+  const caePropio=/\b(DEFIEND|RETARD|RETIEN)/i.test(limpio(pic.cae&&(pic.cae['Misión']||pic.cae['Mision']||pic.cae['MISIÓN'])||''));
+  const g3=d.g3||{};
+  const mis=g3.mision;
+  const sit2=[['Misión de la unidad (G-3)',mis,1000],['Hechos',g3.hechos,1000],['Concepto del CAP',g3.concepto,1800],
+    ['Curso de acción propio',g3.coa,1200],['Limitaciones',g3.limitaciones,700],
+    ...(caePropio?[['Concepto de la operación (hoja del G-2)',cae,1800]]:[])].filter(x=>limpio(x[1]));
+  if(sit2.length){ P(`### 2.2 Lo que planificó el Estado Mayor propio`); for(const [k,v,n] of sit2) P(`- **${k}:** ${corta(v,n)}`); P(); }
+  const ht15=Array.isArray(pic.ht15)?pic.ht15.map((x,i)=>`CAE-${i+1}: ${limpio(x)}`).join(' ‖ '):limpio(pic.ht15);
+  if((limpio(cae)&&!caePropio) || limpio(ht15) || limpio(pic.ht16)){
+    P(`### 2.3 El enemigo según el G-2 (PICB)`);
+    if(limpio(ht15)) P(`- **Cursos de acción del enemigo (HT-15):** ${corta(ht15,2200)}`);
+    if(limpio(cae) && !caePropio) P(`- **Curso de acción enemigo:** ${corta(cae,2000)}`);
+    if(pic.ht1 && limpio(pic.ht1['FUERZAS ENEMIGAS Y SUS CAPACIDADES'])) P(`- **Fuerzas enemigas y capacidades:** ${corta(pic.ht1['FUERZAS ENEMIGAS Y SUS CAPACIDADES'],1400)}`);
+    if(pic.ht16 && typeof pic.ht16==='object') P(`- **Fases del enemigo (objetivos, vulnerabilidades, estado final):** ${corta(Object.entries(pic.ht16).map(([k,v])=>`${k}: ${limpio(v)}`).join(' · '),1600)}`);
+    P();
+  }
+  if(L.length===n2){ P(`El ejercicio no trae la orden del escalón superior ni la planificación del Estado Mayor: guiate por las fases, las tareas y el terreno.`); P(); }
+  // ── 3. Lo que ya pasó ─────────────────────────────────────
+  P(`## 3. El enfrentamiento y lo que ya pasó`);
+  const fila=(b,x,actual)=>`| ${ico(b)} | ${limpio(x.nombre)}${actual?' **← SE JUEGA**':''} | ${_wgDurFase(x.f)} h | ${corta(x.f.tarea,260)||'—'} | ${corta(x.f.proposito,200)||'—'} |`;
+  P(`| Bando | Fase | Duración de referencia | Tarea | Propósito |`);
+  P(`|---|---|---|---|---|`);
+  for(const x of prev.azul) P(fila('azul',x,false));
+  P(fila('azul',par.azul,true));
+  for(const x of prev.rojo) P(fila('rojo',x,false));
+  P(fila('rojo',par.rojo,true));
+  P();
+  P(`*La duración de cada fase es la de referencia de la plataforma por su nombre (concentración 24 h, desplazamiento y ramificación 12 h, organización y apresto 36 h, combate 18 h, ruptura 24 h); si los documentos dicen otra cosa, mandan los documentos.*`);
+  P();
+  // ── 4. Terreno y clima ────────────────────────────────────
+  P(`## 4. El terreno y el clima`);
+  const h1=pic.ht1||{};
+  const t1=['TERRENO','GEOGRAFÍA','INFRAESTRUCTURA','CONDICIONES METEOROLÓGICAS'].filter(k=>limpio(h1[k]));
+  if(t1.length){ P(`### 4.1 Lo que dice el G-2`); for(const k of t1) P(`- **${k.charAt(0)+k.slice(1).toLowerCase()}:** ${corta(h1[k],1000)}`); }
+  const grupo=(obj,n,tot)=>{ if(!obj||typeof obj!=='object') return ''; let s='', out=[];
+    for(const [k,v] of Object.entries(obj)){ if(/^_/.test(k)||!limpio(v)) continue; out.push(`**${limpio(k).replace(/\|/g,' · ')}:** ${corta(v,n)}`); }
+    s=out.join(' · '); return corta(s,tot); };
+  const ht8=grupo(pic.ht8,260,1800), ht7=grupo(pic.ht7,300,3000), ht12=grupo(pic.ht12,260,2000);
+  if(ht8) P(`- **El clima (HT-8):** ${ht8}`);
+  if(ht7) P(`- **Análisis del terreno (OCOKA, HT-7):** ${ht7}`);
+  if(ht12) P(`- **Efectos sobre las operaciones (HT-12):** ${ht12}`);
+  if(t1.length||ht8||ht7||ht12) P();
+  // Medido en la carta.
+  const cotas=new Map(U.map(u=>[u, _wgCotaPorCurvas(pos(u), C.curvas)]));
+  const cv=C.curvas.map(c=>c.cota);
+  P(`### 4.2 Medido en la carta del tablero por la plataforma`);
+  const cu=[...cotas.values()].filter(Boolean);
+  if(cv.length) P(`- **Altura:** las curvas de nivel van de ${N(Math.min(...cv))} a ${N(Math.max(...cv))} m.`
+    +(cu.length?` En las posiciones de las unidades: de ${N(Math.min(...cu))} a ${N(Math.max(...cu))} m (cada una figura en su ficha).`:'')
+    +(Math.max(...cv)>=3000?` Es **altiplano o alta montaña**: el rendimiento de motores y tropa cae, el frío nocturno es extremo y la tropa no aclimatada sufre mal de altura.`:''));
+  else P(`- **Altura:** la carta no trae curvas de nivel con cota.`);
+  const largo=(x)=>{ let s=0; for(const Ln of _wgLineasDe(x.g)) for(let i=1;i<Ln.length;i++) s+=_wgHav(Ln[i-1],Ln[i]); return s; };
+  if(C.vias.length){
+    const porClase={}; for(const v of C.vias){ if(v.clase==='aeródromo') continue; porClase[v.clase]=(porClase[v.clase]||0)+largo(v); }
+    const rutas=[...new Set(C.vias.filter(v=>v.clase==='ruta'&&v.nom).map(v=>v.nom))].slice(0,10);
+    P(`- **Red vial:** ${Object.entries(porClase).filter(x=>x[1]>=1).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${k} ${N(v)} km`).join(' · ')}.${rutas.length?` Rutas con nombre: ${rutas.join(', ')}.`:''} Fuera del camino, los vehículos van a campo traviesa (más lento y con más consumo).`);
+  }
+  const rios=[...new Set(C.rios.filter(r=>r.nom&&!r.quebrada).map(r=>r.nom))], lag=[...new Set(C.lagunas.filter(r=>r.nom).map(r=>r.nom))];
+  if(C.rios.length||C.lagunas.length) P(`- **Hidrografía:** ${rios.length?`ríos ${rios.slice(0,12).join(', ')}; `:''}${C.rios.filter(r=>r.quebrada).length} quebradas; ${C.lagunas.length} lagunas o salares${lag.length?` (${lag.slice(0,10).join(', ')})`:''}.`);
+  const pobl=[...new Set(C.poblados.filter(p=>p.nom).map(p=>p.nom))];
+  if(pobl.length) P(`- **Poblaciones:** ${pobl.slice(0,18).join(', ')}${pobl.length>18?'…':''}.`);
+  if(C.severo.length||C.restringido.length) P(`- **CMOC:** ${C.severo.length} polígonos de terreno SEVERO (los vehículos casi no pasan) y ${C.restringido.length} de terreno RESTRINGIDO (frena a los vehículos).`);
+  const cim=C.cimas.filter(c=>c.nom).slice(0,10);
+  if(cim.length) P(`- **Elevaciones con nombre:** ${cim.map(c=>`${c.nom} ${xy(c.g.coordinates)}`).join(', ')}.`);
+  P();
+  const cm=d.cmoc||{};
+  const av=(cm.avenidas||[]).filter(a=>a&&Array.isArray(a.coords)&&a.coords.length>1);
+  const clave=(cm.clave||[]).filter(c=>c&&Array.isArray(c.centro));
+  if(av.length||clave.length){
+    P(`### 4.3 Avenidas de aproximación y terreno clave (CMOC del G-2)`);
+    av.forEach((a,i)=>{ const c=a.coords; let s=0; for(let j=1;j<c.length;j++) s+=_wgHav(c[j-1],c[j]);
+      P(`- **${limpio(a.nombre||a.etiqueta||('AA-'+(i+1)))}** (${a.bando==='enemigo'?'del enemigo':'propia'}, ancho ${limpio(a.ancho||'—')}): de ${xy(c[0])} a ${xy(c[c.length-1])} km, ${N(s)} km.`); });
+    if(clave.length) P(`- **Terreno clave:** ${clave.slice(0,16).map(c=>`${limpio(c.etiqueta||'C')} ${xy(c.centro)}`).join(' · ')}.`);
+    P();
+  }
+  // El plan de barreras (propio y ajeno), tal como está en la partida.
+  if(C.obras.length){
+    P(`### 4.4 Obstáculos (plan de barreras) en el tablero`);
+    P(`| Obra | Tipo | Estado | Dueño | Dónde (km) |`);
+    P(`|---|---|---|---|---|`);
+    for(const x of C.obras.slice(0,40)){
+      const g=x.g; const c=g.type==='Point'?g.coordinates:(_wgAnillosDe(g)[0]||[])[0];
+      P(`| ${nomObra(g)} | ${limpio(g.obs||x.t.tipo)} | ${limpio(g.est||'—')} | ${x.t.bando?ico(x.t.bando):'—'} | ${c?xy(c):'—'} |`);
+    }
+    P(`*«Construido» = ejecutado: detiene o frena al enemigo, que sólo pasa abriendo brecha y con bajas. «Proyectado» = sólo planificado: no tuvo efecto.*`);
+    P();
+  }
+  // ── 5. Coordenadas ────────────────────────────────────────
+  P(`## 5. Cómo leer las posiciones`);
+  P(`Todas las posiciones van en **kilómetros (x ; y)** desde un origen común: (0 ; 0) = lat ${lat0.toFixed(4)}, lng ${lng0.toFixed(4)}. **x crece hacia el este, y hacia el norte.** La distancia entre dos puntos es la hipotenusa.`);
+  P();
+  // ── 6. Las fuerzas ────────────────────────────────────────
+  P(`## 6. Las fuerzas en el tablero (estado ANTES del desgaste)`);
+  const inst=(o.inst||[]).filter(x=>x && x.geojson && Array.isArray(x.geojson.coordinates));
+  const nomInst=(x)=>{ const I=WG_INSTAL[x.tipo]; return (I?I.nom:x.tipo)+((x.geojson&&x.geojson.nota)?` «${limpio(x.geojson.nota)}»`:''); };
+  const clasesInst=(x)=>{ const I=WG_INSTAL[x.tipo]||{}; return I.despacha||[]; };
+  const linea=(u)=>{
+    const b=u.bando==='rojo'?'rojo':'azul', m=u.medios||{}, q=m.calidad;
+    const H=_wgHombresDe(u), t=_wgTanqueDe(u), p1=pos(u);
+    const out=[];
+    out.push(`#### ${u.id!=null?`id ${u.id} · `:''}${ico(b)} ${limpio(u.designacion)}`);
+    const esPC=!!m.pc || u.arma==='ninguna';
+    out.push(esPC ? `- **Qué es:** **Puesto de Comando** del escalón ${limpio(u.escalon)} · ${limpio(u.medio||_wgMedioDe(u))}: combate sólo con su seguridad`
+      : `- **Qué es:** ${limpio(u.arma)} · ${limpio(u.escalon)} · ${limpio(u.medio||_wgMedioDe(u))}`);
+    out.push((esPC ? `- **Efectivo:** el del puesto de comando y su seguridad (el juego lleva ${N(H)} como referencia del escalón: estimá las bajas sobre el personal real del PC)`
+      : `- **Efectivo:** ${N(H)} hombres${m.efectivo?'':' (referencia del juego para su escalón)'}`)+` · **Poder máximo:** ${N(u.poder_max,1)}`
+      +(q&&q.f&&Math.abs(Number(q.f)-1)>0.01?` (calidad del armamento ×${N(q.f,2)}${q.det&&q.det.length?': '+q.det.map(x=>limpio(x.nom)).join(', '):''})`:''));
+    const sis=Object.keys(m.sistemas||{}).filter(id=>WG_ARMAS[id]&&!WG_ARMAS[id].ingenieria)
+      .map(id=>`${WG_ARMAS[id].nom} \`${id}\` ${N(_wgUfTope(u,id),1)} UF · ${N(WG_ARMAS[id].alcance,1)} km${WG_ARMAS[id].indirecto?' (indirecto)':''}`);
+    out.push(`- **Sistemas (código · dotación · alcance):** ${sis.join('; ')||'sin sistemas de armas'}`);
+    out.push(`- **Movilidad:** ${t?`autonomía ${N(t)} km${m.consumo?` (${limpio(m.consumo)})`:''}`:'a pie (sin tanque)'} · **Raciones y agua:** nivel ${N(Number(m.nivelDias)>0?Number(m.nivelDias):3,1)} días`);
+    // Dónde está y qué pisa.
+    const cota=cotas.get(u);
+    const dentro=[];
+    for(const [lista,txt] of [[C.severo,'terreno SEVERO'],[C.restringido,'terreno restringido'],[C.defensivo,'posición defensiva preparada']])
+      if(lista.some(x=>adentro(p1,x))) dentro.push(txt);
+    const pob=C.poblados.find(x=>/Polygon/.test(x.g.type)&&adentro(p1,x)); if(pob) dentro.push(`poblado «${limpio(pob.nom)}»`);
+    const veg=C.vegetacion.find(x=>adentro(p1,x)); if(veg) dentro.push(`vegetación${veg.nom?' «'+limpio(veg.nom)+'»':''}`);
+    const jur=C.jurisd.find(x=>adentro(p1,x)); if(jur&&jur.nom) dentro.push(`jurisdicción «${limpio(jur.nom)}»`);
+    const via=_wgMasCerca(p1, C.vias, x=>x.clase!=='aeródromo', 30);
+    const rio=_wgMasCerca(p1, C.rios, x=>!!x.nom && !x.quebrada, 30);
+    const pue=_wgMasCerca(p1, C.poblados, x=>!!x.nom, 25);
+    out.push(`- **Posición ahora:** ${xy(p1)} km${cota?` · ≈ ${N(cota)} m de altura`:''}${dentro.length?` · en ${dentro.join(', ')}`:''}`
+      +(via?` · camino más cercano: ${via.x.clase}${via.x.nom?' «'+limpio(via.x.nom)+'»':''} a ${K(via.km)} km`:' · sin camino a menos de 30 km')
+      +(rio?` · río ${limpio(rio.x.nom)} a ${K(rio.km)} km`:'')+(pue?` · ${limpio(pue.x.nom)} a ${K(pue.km)} km`:''));
+    // De dónde viene.
+    const fases=[...prev[b], b==='rojo'?par.rojo:par.azul];
+    const tray=[];
+    for(const x of fases){ const v=enFase(x.f,u); if(v && Number.isFinite(Number(v.lng))) tray.push({ x, p:[Number(v.lng),Number(v.lat)], v }); }
+    const camino=tray.map(t=>t.p); if(!camino.length || _wgHav(camino[camino.length-1],p1)>0.05) camino.push(p1);
+    let recorrido=0; for(let i=1;i<camino.length;i++) recorrido+=_wgHav(camino[i-1],camino[i]);
+    if(tray.length>1 || recorrido>0.5){
+      const pasos=tray.map(t=>`F ${_wgRom(b==='rojo'?nro(t.x):t.x.idx+1)} ${xy(t.p)}`).join(' → ');
+      const rx=_wgCruces(camino, C.rios.filter(r=>r.nom&&!r.quebrada)), qx=_wgCruces(camino, C.rios.filter(r=>r.quebrada));
+      const ox=_wgCruces(camino, C.obras), sx=_wgCruces(camino, C.severo);
+      const cr=[]; if(rx.length) cr.push(`cruzó ${rx.length} río(s) (${[...new Set(rx.map(x=>limpio(x.nom)))].join(', ')})`);
+      if(qx.length) cr.push(`${qx.length} quebrada(s)`);
+      if(ox.length) cr.push(`**atravesó ${ox.length} obstáculo(s): ${ox.slice(0,6).map(x=>`${nomObra(x.g)} (${limpio(x.g.est||'—')})`).join(', ')}**`);
+      if(sx.length) cr.push(`pasó por ${sx.length} zona(s) de terreno severo`);
+      out.push(`- **Recorrido:** ${pasos||'—'}${tray.length&&_wgHav(tray[tray.length-1].p,p1)>0.05?` → ahora ${xy(p1)}`:''} · **${K(recorrido)} km** en línea recta${cr.length?' · '+cr.join(' · '):''}`);
+    }else out.push(`- **Recorrido:** no se movió entre fases (o la fase anterior no lo trae).`);
+    const tareas=tray.map(t=>t.v&&limpio(t.v.tarea)?`F ${_wgRom(b==='rojo'?nro(t.x):t.x.idx+1)}: ${corta(t.v.tarea,170)}`:null).filter(Boolean);
+    const tAhora=limpio(m.tarea)||(tray.length&&limpio(tray[tray.length-1].v.tarea));
+    if(tareas.length) out.push(`- **Tareas por fase:** ${tareas.join(' · ')}`);
+    else if(tAhora) out.push(`- **Tarea:** ${corta(tAhora,220)}`);
+    // Lo que tiene enfrente.
+    const ene=U.filter(e=>e.bando!==u.bando).map(e=>({ e, km:_wgHav(p1,pos(e)) })).sort((p,q)=>p.km-q.km);
+    const cerca=ene.filter(x=>x.km<=40).slice(0,3);
+    out.push(`- **Enemigo más cercano:** ${cerca.length?cerca.map(x=>`${ico(otro(b))} ${limpio(x.e.designacion)} (${x.e.id!=null?`id ${x.e.id}, `:''}${limpio(x.e.arma)}) a ${K(x.km)} km`).join('; '):'ninguno a menos de 40 km'}`);
+    const loBaten=[];
+    for(const x of ene){ const ms=x.e.medios&&x.e.medios.sistemas||{};
+      for(const id of Object.keys(ms)){ const A=WG_ARMAS[id]; if(A&&A.indirecto&&A.alcance>=x.km&&A.alcance>=5) loBaten.push(`${limpio(x.e.designacion)} ${A.nom} (${N(A.alcance)} km) a ${K(x.km)} km`); } }
+    if(loBaten.length) out.push(`- **Lo alcanzan los fuegos indirectos de:** ${loBaten.slice(0,6).join('; ')}${loBaten.length>6?` y ${loBaten.length-6} más`:''}`);
+    const propios=Object.keys(m.sistemas||{}).map(id=>WG_ARMAS[id]).filter(A=>A&&A.alcance>0&&!A.ingenieria);
+    const larga=propios.reduce((x,A)=>(!x||A.alcance>x.alcance)?A:x,null);
+    if(larga){ const al=ene.filter(x=>x.km<=larga.alcance);
+      out.push(`- **Sus armas alcanzan:** ${al.length?`con ${larga.nom} (${N(larga.alcance)} km) a ${al.length} unidad(es) enemiga(s), la más cercana a ${K(al[0].km)} km`:`ninguna unidad enemiga (su arma de mayor alcance llega a ${N(larga.alcance,1)} km)`}`); }
+    // Su logística.
+    const mias=inst.filter(x=>x.bando===b);
+    if(mias.length){
+      const de=(cl)=>{ const xs=mias.filter(x=>clasesInst(x).includes(cl)).map(x=>({ x, km:_wgHav(p1,x.geojson.coordinates) })).sort((p,q)=>p.km-q.km); return xs[0]||null; };
+      const ls=[['Cl III','III'],['Cl V','V'],['Cl I','I'],['evacuación','EVAC'],['reemplazos','REEMP']].map(([t,cl])=>{ const r=de(cl); return r?`${t} a ${K(r.km)} km (${nomInst(r.x)})`:null; }).filter(Boolean);
+      out.push(`- **Su logística más cercana:** ${ls.join(' · ')||'ninguna instalación propia despacha a esta unidad'}`);
+    }else out.push(`- **Su logística:** el bando no tiene instalaciones en el tablero (la que tuvo en las fases anteriores vino de su escalón superior).`);
+    const r=ref.get(u);
+    if(r){ const pc=Math.round(100*Number(r.poder_actual)/Math.max(0.01,Number(u.poder_max)));
+      const mp=Object.entries(r.municion||{}).filter(([id])=>WG_ARMAS[id]&&!['fusil','ametralladora','pesada'].includes(id))
+        .map(([id,v])=>[id, Math.round(100*v/Math.max(0.01,_wgUfTope(u,id)))]).filter(x=>x[1]<100).sort((a,b)=>a[1]-b[1]).slice(0,4).map(([id,pc])=>`${id} ${pc} %`);
+      out.push(`- **Cálculo aproximado de la plataforma (referencia):** poder ${pc} %${t?`, combustible ${Math.round(100*(1-Number(r.combustible_km||0)/t))} %`:''}${mp.length?`, munición ${mp.join(', ')}`:''}, raciones ${N(r.carga&&r.carga.racion,1)} d, ${N(r.carga&&r.carga.heridos)} heridos`); }
+    return out.join('\n');
+  };
+  for(const b of ['azul','rojo']){
+    const xs=U.filter(u=>(u.bando==='rojo'?'rojo':'azul')===b);
+    if(!xs.length) continue;
+    P(`### 6.${b==='azul'?1:2} ${ico(b)} ${b==='azul'?'AZUL':'ROJO'} — ${xs.length} unidad(es) · fase que juega: ${limpio(par[b].nombre)}`);
+    P();
+    for(const u of xs){ P(linea(u)); P(); }
+  }
+  // Instalaciones y poder relativo.
+  P(`### 6.3 Instalaciones logísticas y de personal en el tablero`);
+  for(const b of ['azul','rojo']){
+    const xs=inst.filter(x=>x.bando===b);
+    P(`- ${ico(b)} ${xs.length?xs.map(x=>`${nomInst(x)} ${xy(x.geojson.coordinates)}`).join('; '):'ninguna en el tablero (en las fases anteriores lo abasteció su escalón superior)'}.`);
+  }
+  P();
+  const tot=(b)=>U.filter(u=>(u.bando==='rojo'?'rojo':'azul')===b && !(u.medios&&u.medios.pc)).reduce((a,u)=>a+Number(u.poder_max||0),0);
+  const pa=tot('azul'), pr=tot('rojo');
+  if(pa&&pr){
+    P(`### 6.4 Poder relativo de combate (antes del desgaste, sin puestos de comando)`);
+    P(`🔵 ${N(pa,1)} contra 🔴 ${N(pr,1)} → **${pa>=pr?N(pa/pr,2)+' : 1 a favor del azul':N(pr/pa,2)+' : 1 a favor del rojo'}**. El poder de cada ficha es su efectivo por la calidad de su armamento.`);
+    P();
+  }
+  // ── 7. Lo planificado por el Estado Mayor ─────────────────
+  const plan=[];
+  if(limpio(g3.potencia)) plan.push(['G-3 · Potencia de combate comparada', g3.potencia, 2000]);
+  if(limpio(g3.fuegos)) plan.push(['G-3 · Fuegos', g3.fuegos, 1400]);
+  if(limpio(g3.movimientos)) plan.push(['G-3 · Movimientos', g3.movimientos, 1000]);
+  if(limpio(g3.organizacion)) plan.push(['G-3 · Organización para el combate', g3.organizacion, 1000]);
+  const g4=d.hojasG&&d.hojasG.g4;
+  if(limpio(g4)) plan.push(['G-4 · Apreciación de logística', g4, 3000]);
+  for(const [k,n] of [['misionLog','G-4 · Misión logística'],['conceptoApoyo','G-4 · Concepto del apoyo'],['estadosRecursos','G-4 · Estado de los recursos'],['evacuacion','G-1/G-4 · Plan de evacuación'],['bajasPorFase','G-1 · Bajas estimadas por fase']])
+    if(limpio(d[k]) && !/^(\{\}|\[\]|"")$/.test(limpio(d[k]))) plan.push([n, d[k], 2200]);
+  if(d.planFuegos && Array.isArray(d.planFuegos.blancos) && d.planFuegos.blancos.length)
+    plan.push(['Plan de fuegos (blancos)', d.planFuegos.blancos.slice(0,20).map(x=>`${limpio(x.num||'')} ${x.lng!=null?xy([Number(x.lng),Number(x.lat)]):''} ${limpio(x.obs||'')}`).join(' · '), 1600]);
+  try{ const pl=_wgPlanLogistico(d); if(pl && (Object.keys(pl.tad||{}).length||pl.consumo||pl.nivelDias))
+    plan.push(['Lo planificado en el Anexo de Logística (leído por la plataforma)', `${Object.keys(pl.tad||{}).length?'tasa de abastecimiento: '+Object.entries(pl.tad).map(([k,v])=>`${k} ${limpio(v)}`).join(', ')+'. ':''}${pl.consumoTxt?'consumo: '+limpio(pl.consumoTxt)+'. ':''}${pl.nivelTxt?'nivel: '+limpio(pl.nivelTxt)+'.':''}`, 800]); }catch(_e){}
+  if(plan.length){ P(`## 7. Lo planificado por el Estado Mayor (G-1, G-3, G-4)`); for(const [k,v,n] of plan) P(`- **${k}:** ${corta(v,n)}`); P(); }
+  // ── 8. Referencias doctrinarias ───────────────────────────
+  P(`## 8. Referencias orientativas (ajustalas con criterio y decí cuáles usaste)`);
+  P(`| Situación (por cada 24 h de combate) | Bajas totales, % del efectivo |`);
+  P(`|---|---|`);
+  P(`| Defensor en posición preparada, presión moderada | 1 – 3 % |`);
+  P(`| Defensor sobre el que cae el esfuerzo principal (asalto, irrupción) | 4 – 12 % |`);
+  P(`| Fuerza de cobertura / retardo en la zona de seguridad | 3 – 8 % |`);
+  P(`| Atacante sobre posición preparada: gran unidad | 3 – 8 % |`);
+  P(`| Atacante en el asalto: batallón o compañía del esfuerzo principal | 10 – 30 % |`);
+  P(`| Franqueo de un campo minado batido por el fuego | + 5 – 15 % en esa unidad |`);
+  P(`| Artillería bajo contrabatería | 1 – 5 % |`);
+  P(`| Puestos de comando, comunicaciones y logística a retaguardia | 0 – 2 % |`);
+  P();
+  P(`- **Cuanto más chica la unidad, más alto el porcentaje** en el mismo combate (una división reparte las pérdidas entre muchas subunidades).`);
+  P(`- **Heridos y muertos:** entre 3 y 4 heridos por cada muerto (el juego usa 70 % heridos y 30 % muertos si no se le dice otra cosa). Desaparecidos o prisioneros: 5 – 10 % de las bajas en el atacante rechazado o en el defensor desbordado.`);
+  P(`- **Enfermos (no de combate) por encima de los 4.000 m:** tropa no aclimatada (que viene del llano) 3 – 10 % en los primeros días (mal agudo de montaña, frío, agotamiento); tropa aclimatada 0,5 – 1 % por día.`);
+  P(`- **Combustible:** a campo traviesa el consumo es 1,5 a 2 veces el del camino; en altura, 10 – 20 % más; el ralentí, la calefacción y los grupos electrógenos se comen ~4 % del tanque por día.`);
+  P(`- **Munición** (en el juego, 1 UF = la dotación de una misión de fuego): por día de combate intenso, la artillería y los morteros gastan 1 – 2 UF; los antitanques y cañones 0,5 – 1 UF; las armas de la infantería 0,3 – 0,7 UF. La logística repone sólo en las fases de organización o con convoyes.`);
+  P(`- **Raciones y agua:** se consume 1 día cada 24 h; se reponen al terminar una concentración, una organización o un apresto, si la logística llegó. Sin raciones ni agua, una unidad pierde ~8 % de su poder por día.`);
+  P(`- **Poder de combate:** ≥ 85 % apta · 60 – 85 % limitada (defiende, no ataca sin reorganizar) · < 60 % no apta para su tarea (hay que reorganizarla o relevarla). Por debajo del 20 % el juego la da por perdida: por eso el **piso es ${WG_PISO_IA} %**.`);
+  P(`*Son referencias de planeamiento, a validar con las tablas de la Escuela.*`);
+  P();
+  // ── 9. Anexos ─────────────────────────────────────────────
+  const docs=(d.documentos||[]).filter(x=>x && typeof x.texto==='string' && x.texto.trim().length>200);
+  const base2=(n)=>String(n||'').replace(/\.(md|docx|txt|pdf)$/i,'').replace(/^\d+\s+/,'').trim();
+  const vistos=new Set(), elegidos=[];
+  // Los que pesan en el desgaste: personal, logística, la orden, fuegos e ingeniería. Inteligencia ya va por el
+  // PICB (punto 2.3 y 4); comunicaciones, asuntos civiles, antiaérea y el calco no cambian las bajas.
+  const prio=(n)=>{ const t=_wgNormTxt(n); return /PERSONAL|ANEXO\s*["“”']?\s*H\b/.test(t)?0:/LOGIST|ANEXO\s*["“”']?\s*G\b/.test(t)?1
+    :/ORDEN DE OPERACIONES/.test(t)?2:/FUEGO|ANEXO\s*["“”']?\s*C\b/.test(t)?3:/INGENIER|ANEXO\s*["“”']?\s*D\b/.test(t)?4:9; };
+  const tope=(n)=>/ORDEN DE OPERACIONES/.test(_wgNormTxt(n))?14000:12000;
+  for(const x of [...docs].sort((a,b)=>(/\.md$/i.test(a.nombre)?0:1)-(/\.md$/i.test(b.nombre)?0:1))){
+    const k=_wgNormTxt(base2(x.nombre)); if(vistos.has(k)) continue; vistos.add(k);
+    if(prio(x.nombre)<9) elegidos.push(x); }
+  elegidos.sort((a,b)=>prio(a.nombre)-prio(b.nombre));
+  let presu=o.sinAnexos?0:56000; const anexos=[];
+  for(const x of elegidos){ if(presu<2000) break; const t=x.texto.trim(), n=Math.min(t.length, tope(x.nombre), presu);
+    anexos.push([base2(x.nombre), t.length>n?t.slice(0,n)+'\n\n[… recortado …]':t]); presu-=n; }
+  P(`## 9. Anexos del Estado Mayor`);
+  if(anexos.length){
+    P(`Van al final del documento (apéndice): ${anexos.map(a=>`«${a[0]}»`).join(', ')}. Usalos para lo que no esté arriba: estimaciones de bajas, evacuación, niveles de abastecimiento, fuegos, obstáculos.`);
+  }else P(o.sinAnexos&&elegidos.length ? `Este pedido va sin los anexos (versión corta).` : `El ejercicio no trae anexos con texto.`);
+  P();
+  // ── 10. El formato de la respuesta ────────────────────────
+  P(`## 10. Formato de la respuesta (OBLIGATORIO)`);
+  P(`Respondé **sólo** con un bloque \`\`\`json, sin texto antes ni después, con esta forma. Una entrada por unidad, en el orden de las tablas:`);
+  P('```json');
+  const ej=U.slice(0,2);
+  const ejUnidad=(u,i)=>{ const ids=Object.keys((u.medios&&u.medios.sistemas)||{}).filter(id=>WG_ARMAS[id]&&!WG_ARMAS[id].ingenieria);
+    const mp={}; ids.filter(id=>!['fusil','ametralladora','pesada'].includes(id)).slice(0,2).forEach((id,j)=>{ mp[id]=j?45:30; }); mp['*']=60;
+    return { id:u.id, designacion:u.designacion, poder_pct:i?71:58, muertos:0, heridos:0, desaparecidos:0, enfermos:0,
+      combustible_pct:_wgTanqueDe(u)?(i?62:40):null, municion_pct:mp, raciones_dias:i?2:1.5, aptitud:i?'limitada':'no apta',
+      g3:'una frase: qué puede hacer y qué no', motivo:'una o dos frases: por qué quedó así' }; };
+  P(JSON.stringify({ formato:'SIDECEME-ARRANQUE-2', partida:(o.partida&&o.partida.id!=null)?o.partida.id:null,
+    momento:'qué día y hora del ejercicio es (ej.: D+2 0600)', unidades:ej.map(ejUnidad),
+    parte:{ azul:['3 a 8 frases cortas, estilo radio, para la bitácora del azul'], rojo:['ídem para el rojo'] },
+    supuestos:['lo que asumiste y las referencias que usaste'] }, null, 2));
+  P('```');
+  P(`- \`muertos\`, \`heridos\`, \`desaparecidos\`, \`enfermos\`: **hombres** (números enteros). Los **heridos** esperan evacuación en su unidad (sin ambulancia se agravan); los **enfermos** salen de las filas sin agravarse; todos faltan hasta que el G-1 mande reemplazos.`);
+  P(`- \`poder_pct\`: entre ${WG_PISO_IA} y 100. \`combustible_pct\`: lo que le queda del tanque (null si va a pie). \`raciones_dias\`: días que le quedan (hasta su nivel).`);
+  P(`- \`municion_pct\`: % que le queda de la dotación de **cada** sistema, con los **códigos** de su ficha (\`obus155\`, \`misilAT\`…); \`"*"\` vale para los que no nombres.`);
+  P(`- \`aptitud\`: \`"apta"\`, \`"limitada"\` o \`"no apta"\`. \`g3\`: lo que el G-3 tiene que saber para emplearla.`);
+  P(`- \`parte\`: lo que cada bando sabe de sí mismo (cada uno ve sólo el suyo): sin datos del otro bando que no pueda conocer.`);
+  P();
+  if(anexos.length){
+    P(`---`);
+    P(`# Apéndice — Anexos del Estado Mayor (texto completo)`);
+    for(const [n,t] of anexos){ P(); P(`## ${n}`); P(); P(t); }
+    P();
+    P(`---`);
+    P(`**Recordatorio:** respondé sólo con el bloque JSON del punto 10, con las ${U.length} unidades y sus \`id\`.`);
+  }
+  return L.join('\n');
+}
+// ------------------------------------------------------------
+// LA RESPUESTA: se lee, se revisa y se muestra antes de aplicar
+// ------------------------------------------------------------
+function _wgJsonDeTexto(txt){
+  const t=String(txt||'').replace(/^﻿/,'');
+  const cands=[]; const re=/```(?:json|JSON)?\s*([\s\S]*?)```/g; let m;
+  while((m=re.exec(t))) if(m[1].includes('{')) cands.push(m[1]);
+  const i=t.indexOf('{'), j=t.lastIndexOf('}');
+  if(i>=0 && j>i) cands.push(t.slice(i,j+1));
+  if(!cands.length) return { error:'No encontré el JSON en la respuesta.' };
+  const arreglar=(s)=>s.replace(/^\s*\/\/.*$/gm,'').replace(/,\s*([}\]])/g,'$1').replace(/[“”]/g,'"')
+    .replace(/:\s*(NaN|undefined)\b/g,': null');
+  let ult=null;
+  for(const c of cands){
+    const a=c.indexOf('{'), b=c.lastIndexOf('}'); if(a<0||b<=a) continue;
+    const s=c.slice(a,b+1);
+    for(const v of [s, arreglar(s)]){ try{ const o=JSON.parse(v); if(o && typeof o==='object') return { o }; }catch(e){ ult=e; } }
+  }
+  return { error:'El JSON no se puede leer: '+((ult&&ult.message)||'formato inválido') };
+}
+function _wgAptitud(x){
+  const t=_wgNormTxt(x);
+  if(!t) return null;
+  if(/NO\s*APTA|INEPTA|NO\s*APTO/.test(t)) return 'no apta';
+  if(/LIMIT|REDUC|PARCIAL/.test(t)) return 'limitada';
+  if(/APT/.test(t)) return 'apta';
+  return null;
+}
+function _wgLeerRespuestaIA(txt, uds){
+  const J=_wgJsonDeTexto(txt); if(J.error) return { error:J.error };
+  const o=J.o;
+  const lista=Array.isArray(o)?o:(Array.isArray(o.unidades)?o.unidades:(Array.isArray(o.units)?o.units:[]));
+  if(!lista.length) return { error:'La respuesta no trae «unidades».' };
+  const U=(uds||[]).filter(u=>u && !_wgEsConvoy(u));
+  const cl=(x,a,b)=>Math.max(a,Math.min(b,Number(x)));
+  const num=(x)=>x!==null && x!=='' && Number.isFinite(Number(x));
+  const ent=(x)=>num(x)?Math.round(cl(x,0,1e6)):0;
+  const res=[], parte=[], pedidos=[], faltan=[], avisos=[], filas=[];
+  const usadas=new Set();
+  const lado=(x)=>{ const b=_wgNormTxt(x&&x.bando); return /ROJ|ENEMI/.test(b)?'rojo':(/AZUL|PROPI/.test(b)?'azul':null); };
+  const ico=(b)=>b==='rojo'?'🔴':'🔵';
+  const fmt=(x)=>Number(x||0).toLocaleString('es');
+  for(const x of lista){
+    if(!x || typeof x!=='object') continue;
+    let u=null;
+    if(x.id!=null) u=U.find(y=>y.id!=null && String(y.id)===String(x.id) && !usadas.has(y));
+    const bx=lado(x);
+    if(!u){ const k=_wgClaveDesig(x.designacion); if(k) u=U.find(y=>!usadas.has(y) && (!bx || (y.bando==='rojo'?'rojo':'azul')===bx) && _wgClaveDesig(y.designacion)===k); }
+    if(!u){ faltan.push(String(x.designacion||x.id||'?')); continue; }
+    usadas.add(u);
+    const b=u.bando==='rojo'?'rojo':'azul', m=u.medios||{};
+    const pm=Number(u.poder_max)||0, t=_wgTanqueDe(u), H=_wgHombresDe(u);
+    const tope=Number(m.nivelDias)>0?Math.min(10,Number(m.nivelDias)):3;
+    let pp=num(x.poder_pct)?cl(x.poder_pct,0,100):100;
+    if(pp<WG_PISO_IA){ avisos.push(`${ico(b)} ${u.designacion}: la IA la dejó en ${Math.round(pp)} % → se aplica ${WG_PISO_IA} % (ninguna desaparece).`); pp=WG_PISO_IA; }
+    let mue=ent(x.muertos), her=ent(x.heridos), des=ent(x.desaparecidos), enf=ent(x.enfermos);
+    let baj=mue+her+des+enf;
+    if(baj>H*0.85){ const f=(H*0.75)/baj; [mue,her,des,enf]=[mue,her,des,enf].map(v=>Math.round(v*f)); const antes=baj; baj=mue+her+des+enf;
+      avisos.push(`${ico(b)} ${u.designacion}: ${fmt(antes)} bajas son más que su efectivo de ${fmt(H)} → se ajustan a ${fmt(baj)}.`); }
+    const cp=num(x.combustible_pct)?cl(x.combustible_pct,0,100):100;
+    const mpx=(x.municion_pct!=null)?x.municion_pct:x.municion;
+    const mun={}, munPct={};
+    for(const id of Object.keys(m.sistemas||{})){
+      if(!WG_ARMAS[id] || WG_ARMAS[id].ingenieria) continue;
+      let p=100;
+      if(mpx && typeof mpx==='object'){ const v=num(mpx[id])?mpx[id]:(num(mpx['*'])?mpx['*']:(num(mpx.resto)?mpx.resto:null)); if(v!=null) p=cl(v,0,100); }
+      else if(num(mpx)) p=cl(mpx,0,100);
+      munPct[id]=p; mun[id]=Math.round(_wgUfTope(u,id)*p)/100;
+    }
+    if(mpx && typeof mpx==='object'){ const raros=Object.keys(mpx).filter(k=>k!=='*' && k!=='resto' && !(k in munPct));
+      if(raros.length) avisos.push(`${ico(b)} ${u.designacion}: sistemas que no tiene, ignorados: ${raros.slice(0,4).join(', ')}.`); }
+    const rac=num(x.raciones_dias)?cl(x.raciones_dias,0,tope):tope;
+    const apt=_wgAptitud(x.aptitud||x.estado) || (pp<60?'no apta':(pp<85?'limitada':'apta'));
+    const r2=(v)=>Math.round(v*100)/100;
+    res.push({ id:u.id, bando:b, designacion:u.designacion, poder_actual:r2(pm*pp/100),
+      combustible_km:t?r2(t*(100-cp)/100):0, municion:mun,
+      carga:{ racion:r2(rac), heridos:her, muertos:mue, bajas:baj, faltan:baj } });   // los enfermos faltan, pero no se agravan
+    // El peor sistema que importa (sin las armas portátiles).
+    const ids=Object.keys(munPct), pes=ids.filter(id=>!['fusil','ametralladora','pesada'].includes(id));
+    const peorId=(pes.length?pes:ids).reduce((a,id)=>(a==null||munPct[id]<munPct[a])?id:a,null);
+    const peor=peorId?{ nom:WG_ARMAS[peorId].nom, pct:Math.round(munPct[peorId]) }:null;
+    const g3=String(x.g3||'').trim().slice(0,200), motivo=String(x.motivo||'').trim().slice(0,220);
+    filas.push({ b, id:u.id, nom:u.designacion, pp:Math.round(pp), H, mue, her, des, enf, baj,
+      cp:t?Math.round(cp):null, peor, rac, tope, apt, g3, motivo });
+    // El renglón de la unidad en SU bitácora, y lo que pide.
+    const tr=[`👥 ${Math.round(pp)} %`];
+    if(baj) tr.push(`🧍 −${fmt(baj)} (✝ ${fmt(mue)} · 🚑 ${fmt(her)}${enf?` · 🤒 ${fmt(enf)}`:''}${des?` · ❓ ${fmt(des)}`:''})`);
+    if(t) tr.push(`⛽ ${Math.round(cp)} %`);
+    if(peor) tr.push(`🎯 ${peor.nom} ${peor.pct} %`);
+    tr.push(`🥫 ${String(Math.round(rac*10)/10).replace('.',',')} d`);
+    const aptTxt=apt==='no apta'?'NO APTA':(apt==='limitada'?'LIMITADA':'APTA');
+    parte.push({ tipo:'arranque', bandos_visibles:[b], lng:u.lng, lat:u.lat, descripcion:
+      `🧭 🤖 ${ico(b)} ${u.designacion}: ${tr.join(' · ')} — ${aptTxt}${g3?': '+g3:''}${motivo?` (${motivo})`:''}.`.replace(/\.\)\.$/,').').replace(/\.\.$/,'.') });
+    const pide=(q)=>pedidos.push({ tipo:'pedido', bandos_visibles:[b], lng:u.lng, lat:u.lat, descripcion:`📻 ${ico(b)} ${u.designacion}: ${q}` });
+    if(t && cp<40) pide(cp<=0.5?'SIN COMBUSTIBLE, no se mueve. Pide Cl III.':`pide Cl III${cp<20?' URGENTE':''} — le queda ${Math.round(cp)} % (${fmt(Math.round(t*cp/100))} km).`);
+    if(peor && peor.pct<40) pide(peor.pct<=0?`SIN MUNICIÓN de ${peor.nom}. Pide Cl V.`:`pide Cl V${peor.pct<20?' URGENTE':''} — ${peor.nom} ${peor.pct} %.`);
+    if(rac/tope<0.4) pide(`pide Cl I — raciones y agua para ${String(Math.round(rac*10)/10).replace('.',',')} día(s).`);
+    if(her>=5) pide(`pide evacuación — ${fmt(her)} heridos.`);
+    if(baj>=10 && baj>=H*0.05) pide(`pide reemplazos — le faltan ${fmt(baj)} hombres (${Math.round(100*baj/H)} %).`);
+    if(apt==='no apta') pide(`NO APTA para su tarea — ${g3||'necesita reorganizarse o ser relevada'}. (Para el G-3)`);
+  }
+  if(!res.length) return { error:'Ninguna unidad de la respuesta corresponde a esta partida'+(faltan.length?` (${faltan.slice(0,6).join(', ')})`:'')+'.' };
+  const sinNombrar=U.filter(u=>!usadas.has(u) && Number(u.poder_max)>0).map(u=>`${ico(u.bando==='rojo'?'rojo':'azul')} ${u.designacion}`);
+  if(sinNombrar.length) avisos.push(`La IA no nombró ${sinNombrar.length} unidad(es), que quedan como están: ${sinNombrar.slice(0,8).join(', ')}${sinNombrar.length>8?'…':''}.`);
+  const pid=(typeof WG!=='undefined' && WG) ? WG.partidaId : null;
+  if(o.partida!=null && pid!=null && String(o.partida)!==String(pid))
+    avisos.push(`La respuesta dice partida ${o.partida} y ésta es la ${pid}: ¿es la respuesta de este pedido?`);
+  // Los totales de cada bando y su encabezado.
+  // El % de cada bando, sobre TODAS sus fichas: las que la IA no nombra quedan como están.
+  const nuevo=new Map(); { let i=0; for(const u of usadas) nuevo.set(u, res[i++]); }
+  const tot=(b)=>{ const fs=filas.filter(f=>f.b===b); let pm=0, pa=0;
+    for(const u of U){ if((u.bando==='rojo'?'rojo':'azul')!==b || !(Number(u.poder_max)>0)) continue;
+      const r=nuevo.get(u), ahora=Number.isFinite(Number(u.poder_actual))?Number(u.poder_actual):Number(u.poder_max);
+      pm+=Number(u.poder_max); pa+=r?r.poder_actual:ahora; }
+    return { n:fs.length, pct:pm?Math.round(100*pa/pm):100, baj:fs.reduce((a,f)=>a+f.baj,0), mue:fs.reduce((a,f)=>a+f.mue,0),
+      her:fs.reduce((a,f)=>a+f.her,0), enf:fs.reduce((a,f)=>a+f.enf,0), des:fs.reduce((a,f)=>a+f.des,0) }; };
+  const T={ azul:tot('azul'), rojo:tot('rojo') };
+  const cab=[];
   const p=o.parte||{};
-  for(const b of ['azul','rojo']) (Array.isArray(p[b])?p[b]:[]).slice(0,12).forEach(l=>{
-    if(String(l||'').trim()) parte.unshift({ tipo:'arranque', bandos_visibles:[b], descripcion:`🧭 🤖 ${b==='rojo'?'🔴':'🔵'} ${String(l).slice(0,300)}` }); });
-  for(const b of ['azul','rojo']) parte.unshift({ tipo:'arranque', bandos_visibles:[b], descripcion:`🧭 ARRANQUE ${b==='rojo'?'🔴':'🔵'} calculado con IA (revisado por la plataforma).` });
-  const tot=(b)=>{ const xs=res.filter(r=>r.bando===b); const pa=xs.reduce((a,r)=>a+r.poder_actual,0);
-    const pm=xs.reduce((a,r)=>a+(Number((uds.find(u=>u.bando===b&&u.designacion===r.designacion)||{}).poder_max)||0),0);
-    return pm?Math.round(100*pa/pm):100; };
-  return { unidades:res, parte, faltan,
-    resumen:`🤖 Arranque con IA: ${res.length} ficha(s) · 🔵 ${tot('azul')} % de su poder · 🔴 ${tot('rojo')} %`
-      +(faltan.length?` · ⚠️ no se encontraron: ${faltan.slice(0,6).join(', ')}`:'') };
+  for(const b of ['azul','rojo']){
+    if(!T[b].n) continue;
+    cab.push({ tipo:'arranque', bandos_visibles:[b], descripcion:`🧭 🤖 ARRANQUE ${ico(b)} calculado con IA y revisado por la plataforma`
+      +(o.momento?` — ${String(o.momento).slice(0,60)}`:'')+`: ${T[b].pct} % de su poder · ${fmt(T[b].baj)} bajas (✝ ${fmt(T[b].mue)} · 🚑 ${fmt(T[b].her)} a evacuar`
+      +`${T[b].enf?` · 🤒 ${fmt(T[b].enf)} enfermos`:''}${T[b].des?` · ❓ ${fmt(T[b].des)}`:''}).` });
+    (Array.isArray(p[b])?p[b]:[]).slice(0,10).forEach(l=>{ if(String(l||'').trim())
+      cab.push({ tipo:'arranque', bandos_visibles:[b], descripcion:`🧭 🤖 ${ico(b)} ${String(l).trim().slice(0,300)}` }); });
+  }
+  const resumen=`🤖 Arranque con IA: ${res.length} ficha(s)`
+    +(T.azul.n?` · 🔵 ${T.azul.pct} % de su poder (${fmt(T.azul.baj)} bajas)`:'')+(T.rojo.n?` · 🔴 ${T.rojo.pct} % (${fmt(T.rojo.baj)} bajas)`:'')
+    +(faltan.length?` · ⚠️ no se encontraron: ${faltan.slice(0,6).join(', ')}`:'');
+  return { unidades:res, parte:[...cab, ...parte, ...pedidos], faltan, avisos, filas, totales:T,
+    supuestos:(Array.isArray(o.supuestos)?o.supuestos:[]).map(s=>String(s).slice(0,300)).slice(0,12), resumen };
+}
+// La vista previa: lo que va a quedar, antes de tocar la partida. Dos renglones por
+// unidad (el panel es angosto): nombre y aptitud; poder, bajas, ⛽, 🎯, 🥫; y la nota del G-3.
+function _wgTablaIA(r){
+  const col=(p,a,b)=>p==null?'inherit':(p<a?'#ff6b6b':(p<b?'#ffb84d':'#7fdc9a'));
+  const fmt=(x)=>Number(x||0).toLocaleString('es');
+  const dias=(x)=>String(Math.round(x*10)/10).replace('.',',');
+  const apt={ 'apta':['APTA','#7fdc9a'], 'limitada':['LIMITADA','#ffb84d'], 'no apta':['NO APTA','#ff6b6b'] };
+  let h=`<div style="max-height:360px;overflow:auto;border:1px solid rgba(255,255,255,.12);border-radius:6px;margin-top:4px;font-size:10.5px;line-height:1.45">`;
+  for(const b of ['azul','rojo']){
+    const fs=r.filas.filter(f=>f.b===b); if(!fs.length) continue;
+    const T=r.totales[b];
+    h+=`<div style="position:sticky;top:0;z-index:1;padding:4px 6px;background:${b==='rojo'?'#3a1a1f':'#152544'}">`
+      +`<b>${b==='rojo'?'🔴 ROJO':'🔵 AZUL'}</b> — <b>${T.pct} %</b> de su poder · ${fmt(T.baj)} bajas `
+      +`<span style="opacity:.75">(✝ ${fmt(T.mue)} · 🚑 ${fmt(T.her)}${T.enf?` · 🤒 ${fmt(T.enf)}`:''}${T.des?` · ❓ ${fmt(T.des)}`:''})</span></div>`;
+    for(const f of fs){
+      const a=apt[f.apt]||apt.apta;
+      h+=`<div style="padding:4px 6px;border-top:1px solid rgba(255,255,255,.07)" title="${_rgEsc([f.g3,f.motivo].filter(Boolean).join(' — '))}">`
+        +`<div style="display:flex;justify-content:space-between;gap:6px;align-items:baseline"><b>${_rgEsc(f.nom)}</b>`
+        +`<span style="color:${a[1]};font-weight:700;font-size:9.5px;white-space:nowrap">${a[0]}</span></div>`
+        +`<div>👥 <b style="color:${col(f.pp,60,85)}">${f.pp} %</b>`
+        +` · 🧍 ${f.baj?`${fmt(f.baj)} <span style="opacity:.7">(✝${fmt(f.mue)} 🚑${fmt(f.her)}${f.enf?` 🤒${fmt(f.enf)}`:''}${f.des?` ❓${fmt(f.des)}`:''})</span>`:'0'}`
+        +(f.cp==null?'':` · ⛽ <b style="color:${col(f.cp,20,40)}">${f.cp} %</b>`)
+        +(f.peor?` · 🎯 ${_rgEsc(f.peor.nom)} <b style="color:${col(f.peor.pct,20,40)}">${f.peor.pct} %</b>`:'')
+        +` · 🥫 <b style="color:${col(100*f.rac/f.tope,20,40)}">${dias(f.rac)} d</b></div>`
+        +(f.g3?`<div style="opacity:.7">${_rgEsc(f.g3)}</div>`:'')
+        +`</div>`;
+    }
+  }
+  return h+`</div>`;
+}
+function wgArranqueIARevisar(){
+  const out=document.getElementById('wg-ia-res');
+  const ta=document.getElementById('wg-ia-resp');
+  if(!out) return;
+  const r=_wgLeerRespuestaIA(ta&&ta.value, (WG._ia&&WG._ia.uds)||[]);
+  if(r.error){ if(WG._ia) WG._ia.revisada=null; out.innerHTML='❌ '+_rgEsc(r.error); return; }
+  WG._ia.revisada=r;
+  const nPed=r.parte.filter(e=>e.tipo==='pedido').length;
+  out.innerHTML=`<b>🔍 Así van a quedar</b> <span class="rg-meta">(pasá el mouse por una fila para ver el motivo que dio la IA)</span>`
+    +_wgTablaIA(r)
+    +(r.avisos.length?`<div class="rg-meta" style="margin-top:4px;color:#ffcf7a">${r.avisos.map(a=>'⚠️ '+_rgEsc(a)).join('<br>')}</div>`:'')
+    +(r.faltan.length?`<div class="rg-meta" style="color:#ffcf7a">⚠️ No están en esta partida: ${_rgEsc(r.faltan.slice(0,8).join(', '))}</div>`:'')
+    +(r.supuestos.length?`<details style="margin-top:4px"><summary class="rg-meta">Supuestos de la IA (${r.supuestos.length})</summary><div class="rg-meta">${r.supuestos.map(s=>'· '+_rgEsc(s)).join('<br>')}</div></details>`:'')
+    +`<div class="rg-meta" style="margin-top:4px">Al aplicar: cada ficha toma su poder, bajas, combustible, munición y raciones; cada bando recibe su parte en la bitácora y ${nPed} pedido(s) por radio para el G-4 (Cl III, V, I y evacuación), el G-1 (reemplazos) y el G-3. La posición, las órdenes y el turno no cambian.</div>`
+    +`<button class="rg-doc" style="margin-top:6px" onclick="wgArranqueIAAplicar()">✅ Aplicar a la partida</button>`;
 }
 async function wgArranqueIAAplicar(){
   const out=document.getElementById('wg-ia-res');
-  const ta=document.getElementById('wg-ia-resp');
-  const arr=_wgLeerRespuestaIA(ta&&ta.value, (WG._ia&&WG._ia.uds)||[]);
-  if(arr.error){ if(out) out.innerHTML='❌ '+_rgEsc(arr.error); return; }
+  let arr=WG._ia&&WG._ia.revisada;
+  if(!arr){
+    const ta=document.getElementById('wg-ia-resp');
+    arr=_wgLeerRespuestaIA(ta&&ta.value, (WG._ia&&WG._ia.uds)||[]);
+    if(arr.error){ if(out) out.innerHTML='❌ '+_rgEsc(arr.error); return; }
+  }
   if(!confirm(`${arr.resumen}\n\n¿Aplicar a la partida? La posición, las órdenes y el turno no cambian.`)) return;
   if(out) out.innerHTML='⏳ Aplicando…';
   const r=await _wgAplicarArranque(arr);
+  if(WG._ia) WG._ia.revisada=null;
   if(out) out.innerHTML=r;
 }
-// Aplica el arranque a la partida abierta: las fichas se buscan por bando y designación.
+// Aplica el arranque a la partida abierta: cada ficha por su id o, si no, por bando y
+// designación (una vez cada una: hay designaciones repetidas, como las dos «CÍA. MORT. 120»).
 async function _wgAplicarArranque(arr){
   if(!arr || !Array.isArray(arr.unidades) || !arr.unidades.length) return '';
   const uds=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u && !_wgEsConvoy(u));
-  const lista=[];
+  const usadas=new Set(), lista=[];
   for(const x of arr.unidades){
-    const k=_wgClaveDesig(x.designacion);
-    const u=uds.find(y=>y.bando===x.bando && _wgClaveDesig(y.designacion)===k);
-    if(u) lista.push(Object.assign({ id:u.id }, x));
+    let u=(x.id!=null) ? uds.find(y=>String(y.id)===String(x.id) && !usadas.has(y)) : null;
+    if(!u){ const k=_wgClaveDesig(x.designacion); u=uds.find(y=>!usadas.has(y) && y.bando===x.bando && _wgClaveDesig(y.designacion)===k); }
+    if(u){ usadas.add(u); lista.push(Object.assign({}, x, { id:u.id })); }
   }
   if(!lista.length) return '<br>⚠️ El desgaste de arranque no encontró las fichas de esta partida.';
   const r=await _wgInvoke('aplicar_arranque',{ partida_id:WG.partidaId, clave_acceso:WG.clave, unidades:lista, parte:arr.parte||[] });
@@ -39230,7 +39984,7 @@ async function _wgAplicarArranque(arr){
       :'No se aplicó el desgaste de arranque: '+_rgEsc((r&&r.error)||''));
   }
   await wgEstado(true); _wgRender(); try{ await wgHistorial(); wgBit(true); }catch(_e){}
-  return `<br>🧭 <b>Desgaste de arranque aplicado</b> a ${r.aplicadas} ficha(s) · ${r.parte} renglón(es) de parte en la bitácora.`
+  return `<br>🧭 <b>Desgaste de arranque aplicado</b> a ${r.aplicadas} ficha(s) · ${r.parte} renglón(es) de parte y pedidos en la bitácora.`
     +`<br><span class="rg-meta">${_rgEsc(arr.resumen||'')}</span>`;
 }
 // Lo que cada opción muestra antes de elegir: cuántas de combate, cuántas
@@ -39293,6 +40047,7 @@ function _wgFasesBandos(d){
 function _wgFasesCOA(d){
   const B=_wgFasesBandos(d);
   const out=[];
+  out._d=d;   // v2.9.454: para deducir la pareja de fases de la fase sola
   // Para «⚔️ Enfrentar una fase 🔵 con una fase 🔴» (cualquier pareja).
   out._azules=B.azules.filter(a=>(a.f.unidades||[]).length);
   out._rojas=B.rojas.filter(r=>(r.f.unidades||[]).length);
@@ -39367,10 +40122,19 @@ function _wgPreguntarFase(fases, poner, archivo){
         +`<div style="margin-top:6px"><span style="color:#1f6dff">🔵</span> <select id="wg-enf-azul" style="max-width:100%">${opc(az,sel.azul)}</select></div>`
         +`<div style="margin-top:4px"><span style="color:#e23b3b">🔴</span> <select id="wg-enf-rojo" style="max-width:100%">${opc(ro,sel.rojo)}</select></div>`
         +`<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-top:6px" data-fase="enfrentar">⚔️ Jugar este enfrentamiento</button></div>`
-        // v2.9.447 — cómo llegan las unidades a esas fases (lo anterior se calcula).
-        +`<div style="margin:2px 0 8px;font-size:11px;line-height:1.6">🧭 <b>Desgaste de arranque</b> `
-        +`<span class="rg-meta">(lo que pasó antes de estas fases):</span><br>`
-        +['ninguno','bajo','medio','alto'].map(k=>`<label style="margin-right:8px;white-space:nowrap"><input type="radio" name="wg-desgaste" value="${k}"${k==='medio'?' checked':''}> ${k}</label>`).join('')
+      : '';
+    // v2.9.447 — cómo llegan las unidades a esas fases (lo anterior se calcula).
+    // v2.9.454 — vale para LO QUE SE ELIJA: el enfrentamiento, el evento crítico y la
+    // fase sola que trae a los dos bandos (antes sólo para «⚔️ Jugar», y la fase sola
+    // entraba al 100 %). Y con 🤖 IA, por defecto: el cálculo propio es aproximado.
+    const desgaste=(az.length&&ro.length)
+      ? `<div style="border:1px solid rgba(159,208,255,.45);border-radius:8px;padding:8px;margin:8px 0;font-size:11px;line-height:1.6">`
+        +`🧭 <b>Desgaste de arranque</b> <span class="rg-meta">— lo que pasó ANTES del momento que se juega (fases anteriores, marchas, fuegos, contacto). `
+        +`Vale para el enfrentamiento, el evento crítico y la fase sola que trae a los dos bandos.</span><br>`
+        +`<label style="white-space:nowrap"><input type="radio" name="wg-desgaste" value="ia" checked> 🤖 <b>con IA</b></label> `
+        +`<span class="rg-meta">(recomendado: al terminar de cargar aparece el pedido para copiar en tu IA y pegar su respuesta)</span><br>`
+        +`<span class="rg-meta">Cálculo de la plataforma (aproximado):</span> `
+        +['bajo','medio','alto','ninguno'].map(k=>`<label style="margin-right:8px;white-space:nowrap"><input type="radio" name="wg-desgaste" value="${k}"> ${k}</label>`).join('')
         +`</div>`
       : '';
     // v2.9.439 — ¿EL PLAN DE BARRERAS YA ESTÁ CONSTRUIDO EN LA FASE QUE SE JUEGA?
@@ -39396,6 +40160,7 @@ function _wgPreguntarFase(fases, poner, archivo){
       +(ev?`<br><span class="rg-meta">⚔️ El <b>evento crítico</b> lo eligió el Estado Mayor en la Matriz de sincronización (F4·P6-7): la fase 🔵 del CAP contra la fase 🔴 del CAE.</span>`:'')
       +`<div style="margin-top:8px">`
       +barreras
+      +desgaste
       +filasEv
       +enfrentar
       +`<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-bottom:4px" data-fase="viva">📍 Estado actual del ejercicio (como quedó abierto)`
@@ -39410,14 +40175,19 @@ function _wgPreguntarFase(fases, poner, archivo){
         const rb=cont.querySelector('input[name="wg-barreras"]:checked');
         fases._barreras = rb ? rb.value : porDefecto;
         if(v==='no') return resolve(undefined);
-        const dg=((cont.querySelector('input[name="wg-desgaste"]:checked')||{}).value)||'medio';   // v2.9.447
+        const dg=((cont.querySelector('input[name="wg-desgaste"]:checked')||{}).value)||'ia';   // v2.9.447 · v2.9.454: IA por defecto
         if(v==='enfrentar'){
           const a=az[Number(document.getElementById('wg-enf-azul').value)||0];
           const r=ro[Number(document.getElementById('wg-enf-rojo').value)||0];
           return resolve(_wgOpcionFase(Object.assign({bando:'evento', evento:true,
             nombre:`⚔️ ${a.nombre} contra ${r.nombre}`}, _wgEnfrentar(a.f, r.f), { _par:{ azul:a, rojo:r }, _desgaste:dg })));
         }
-        if(v!=='viva' && fases[Number(v)]) fases[Number(v)]._desgaste=dg;
+        if(v!=='viva' && fases[Number(v)]){
+          const f=fases[Number(v)];
+          f._desgaste=dg;
+          // v2.9.454: la fase sola que trae a los dos bandos también tiene su pareja.
+          if(!f._par){ try{ const pp=_wgParDeOpcion(fases._d, f); if(pp) f._par=pp; }catch(e){ console.warn('pareja de fases:', e); } }
+        }
         resolve(v==='viva'?null:fases[Number(v)]);
       };
     });
@@ -40435,6 +41205,7 @@ async function wgImportarEscenario(inp, sumar){
   // 1) Leer y traducir CADA archivo. La fase del COA se pregunta por archivo:
   //    la capa del G-4 puede estar guardada en otra fase que la del G-3.
   const partes=[];
+  let iaPend=null, sinPar=false;   // v2.9.454: el desgaste con IA se arma al terminar de cargar
   for(const f of files){
     poner('⏳ Leyendo <b>'+_rgEsc(f.name)+'</b> ('+_wgPeso(f.size)+')…'
       +(files.length>1?` <span class="rg-meta">— archivo ${partes.length+1} de ${files.length}</span>`:''));
@@ -40460,6 +41231,9 @@ async function wgImportarEscenario(inp, sumar){
       if(faseElegida===undefined){ poner('Importación cancelada.'); return; }
     }
     partes.push({ nombre:f.name, esc:_wgEscenarioDesde(d, faseElegida, { barreras: fases._barreras||'proyectado' }) });
+    if(faseElegida && faseElegida._par){
+      if(!iaPend) iaPend={ d, par:faseElegida._par, nombre:f.name, ia:faseElegida._desgaste==='ia' };
+    }else if(faseElegida && faseElegida._desgaste && faseElegida._desgaste!=='ninguno') sinPar=true;
   }
   // 2) Combinar en UN escenario. Cada capa aporta lo suyo y nada se pisa.
   const esc={ unidades:[], terreno:[], visuales:0, instalaciones:[], sinEfecto:[], ejes:0,
@@ -40512,6 +41286,8 @@ async function wgImportarEscenario(inp, sumar){
       +`. El enemigo no las ve hasta tenerlas a la vista.`:'')
     +_wgResumenMedios(esc.medios)
     +(esc.arranque?`\n• ${esc.arranque.resumen}`:'')   // v2.9.447
+    +((iaPend&&iaPend.ia&&!sumar)?`\n• 🧭 Desgaste de arranque: 🤖 con IA — al terminar de cargar aparece el pedido para copiar en tu IA.`:'')   // v2.9.454
+    +((sinPar&&!iaPend)?`\n• 🧭 Sin desgaste de arranque: la fase elegida no trae a los dos bandos.`:'')
     +(esc.agrupaciones.length
       ? `\n\nNO se cargan ${esc.agrupaciones.length} agrupación(es) de la organización para el combate (${esc.agrupaciones.slice(0,8).join(', ')}${esc.agrupaciones.length>8?'…':''}): sus piezas ya están en las unidades del tablero.`
       : '')
@@ -40640,6 +41416,17 @@ async function wgImportarEscenario(inp, sumar){
   if(esc.arranque && !sumar){
     const t=await _wgAplicarArranque(esc.arranque);
     if(est) est.innerHTML+=t;
+  }
+  // v2.9.454 — 🤖 el pedido para la IA, ahí mismo; y la pareja queda recordada.
+  if(iaPend && !sumar){
+    WG._ejercicio={ d:iaPend.d, nombre:iaPend.nombre, partida:WG.partidaId };
+    _wgParGuardar(iaPend.par);
+    if(iaPend.ia && est){
+      const caja=document.createElement('div'); est.appendChild(caja);
+      const uds=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u && !_wgEsConvoy(u));
+      await _wgArranqueIAMostrar(caja, iaPend.d, iaPend.par, uds);
+      try{ caja.scrollIntoView({ block:'nearest' }); }catch(_e){}
+    }
   }
 }
 async function wgVaciarEscenario(btn){
