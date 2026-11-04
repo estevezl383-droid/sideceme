@@ -4181,7 +4181,7 @@ body{
 <body>
 
 <!-- Marcador de versión - SIEMPRE visible para verificar qué código está activo -->
-<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.443</div>
+<div id="version-marker" style="position:fixed;bottom:4px;right:8px;font-size:10px;color:rgba(140,210,255,.55);font-family:monospace;letter-spacing:1px;pointer-events:none;z-index:9999;background:rgba(0,0,0,.4);padding:2px 6px;border-radius:4px;">v2.9.451</div>
 
 <!-- v2.9.13: PWA install banner — visible en home y logins para Android/iOS -->
 <style>
@@ -7998,6 +7998,51 @@ body.wg-jugando{overflow:hidden}
 #screen-wargame.wg-full #wg-abajo-izq > *{pointer-events:auto}
 #screen-wargame.wg-full #wg-game.hoja-abierta #wg-abajo-izq{max-width:calc(100% - min(340px,88vw) - 70px)}
 /* ============================================================
+   v2.9.445 — LA BITÁCORA DE ABAJO (🔴 | 🔵). Cerrada es un asa de 30 px con lo
+   último que pasó; abierta ocupa el 20 % de la pantalla (--wg-bit-h, se estira
+   arrastrando el asa) y lo demás de abajo (dron, unidades, acciones) sube.
+   ============================================================ */
+#screen-wargame.wg-full #wg-bit{position:absolute;left:0;right:0;bottom:0;z-index:1037;
+  height:var(--wg-bit-h,20vh);display:flex;flex-direction:column;
+  background:rgba(8,12,18,.93);border-top:1px solid rgba(140,210,255,.30);
+  backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  box-shadow:0 -8px 24px rgba(0,0,0,.45);transition:height .2s ease,right .22s ease}
+#screen-wargame.wg-full #wg-bit.cerrada{height:30px}
+#screen-wargame.wg-full #wg-bit.arrastrando{transition:none}
+#screen-wargame:not(.wg-full) #wg-bit{display:none}
+#screen-wargame.wg-full #wg-game.hoja-abierta #wg-bit{right:min(340px,88vw)}
+#wg-bit-asa{flex:0 0 30px;display:flex;align-items:center;gap:10px;padding:0 12px;cursor:ns-resize;
+  user-select:none;-webkit-user-select:none;touch-action:none;font-size:11px;color:#cfe3f5;overflow:hidden;white-space:nowrap}
+#wg-bit-asa .wg-bit-tit{font-weight:800;letter-spacing:1px}
+#wg-bit-nuevos{font-weight:800;color:#ffd400}
+#wg-bit-ticker{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;opacity:.85}
+#wg-bit-flecha{opacity:.7;transition:transform .2s}
+#wg-bit:not(.cerrada) #wg-bit-flecha{transform:rotate(180deg)}
+#wg-bit-cuerpo{flex:1;min-height:0;display:grid;grid-template-columns:repeat(var(--wg-bit-cols,2),minmax(0,1fr));
+  gap:8px;padding:0 10px 8px}
+#wg-bit.cerrada #wg-bit-cuerpo{display:none}
+.wg-bit-caja{display:flex;flex-direction:column;min-height:0;border-radius:10px;overflow:hidden;
+  border:1px solid var(--c,#4aa3e0);background:rgba(255,255,255,.03)}
+.wg-bit-cab{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:4px 9px;font-size:11px;font-weight:800;
+  letter-spacing:.6px;color:#fff}
+.wg-bit-ped{flex:0 0 auto;display:flex;gap:5px;flex-wrap:wrap;padding:5px 8px 0}
+.wg-bit-ped span{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:9px;background:rgba(224,138,44,.18);
+  border:1px solid rgba(224,138,44,.55);color:#ffd9a8;white-space:nowrap}
+.wg-bit-ped span.urg{background:rgba(226,59,59,.22);border-color:#e23b3b;color:#ffc2c2}
+.wg-bit-lista{flex:1;min-height:0;overflow-y:auto;padding:4px 8px 6px;scrollbar-width:thin}
+.wg-bit-f{font-size:11.5px;line-height:1.35;padding:3px 6px;border-radius:6px;margin-bottom:2px;cursor:pointer;color:#dbe6f1}
+.wg-bit-f.nuevo{background:rgba(255,255,255,.06)}
+.wg-bit-f.pedido{background:rgba(224,138,44,.15);color:#ffe2bf}
+.wg-bit-f.arranque{background:rgba(74,163,224,.14);color:#d6ecff}
+.wg-bit-f .t{font-size:9.5px;opacity:.55;margin-right:5px}
+.wg-bit-f .mas{display:none;opacity:.8;font-size:10.5px;margin-top:2px}
+.wg-bit-f.abierto .mas{display:block}
+/* Lo de abajo se corre para que el asa (cerrada) o la bitácora (abierta) no lo tapen. */
+#screen-wargame.wg-full #wg-game #wg-abajo-izq{bottom:40px}
+#screen-wargame.wg-full #wg-game #wg-acc{bottom:40px}
+#screen-wargame.wg-full #wg-game.bit-abierta #wg-abajo-izq{bottom:calc(var(--wg-bit-h,20vh) + 8px);max-height:calc(40vh - 24px)}
+#screen-wargame.wg-full #wg-game.bit-abierta #wg-acc{bottom:calc(var(--wg-bit-h,20vh) + 8px)}
+/* ============================================================
    v2.9.261 — BARRA DE UNIDADES: LAS QUE TENGO, ABAJO, A LA MANO.
    Seleccionar una unidad en el mapa era una lotería. Acá están todas las mías
    en fila; la que estoy maniobrando queda con MARCO AMARILLO GRUESO, igual que
@@ -8018,6 +8063,12 @@ body.wg-jugando{overflow:hidden}
 .wg-uchip.sel{border-color:#ffd83b;background:rgba(255,216,59,.14);
   box-shadow:0 0 0 1px rgba(255,216,59,.35),0 0 14px rgba(255,216,59,.35)}
 .wg-uchip.fc{opacity:.42;text-decoration:line-through}
+/* v2.9.447 — 🏷️ LOS LETRERITOS de la ficha: sólo lo que le falta, debajo del símbolo. */
+.wg-letrero{position:absolute;left:0;top:0;transform:translate(-50%,15px);display:flex;gap:2px;white-space:nowrap;pointer-events:none}
+.wg-letrero span{font:700 9.5px/1.3 system-ui,-apple-system,sans-serif;padding:0 3px;border-radius:4px;
+  background:rgba(8,12,18,.84);color:#e8f0f7;border:1px solid rgba(255,255,255,.28)}
+.wg-letrero span.a{color:#ffd28a;border-color:#e08a2c}
+.wg-letrero span.r{color:#ffc2c2;border-color:#e23b3b;background:rgba(70,8,8,.88)}
 
 /* --- Hoja deslizante (unidades / bitácora / configurar) --- */
 #screen-wargame.wg-full #wg-hoja{position:absolute;top:0;right:0;bottom:0;z-index:1040;
@@ -8135,6 +8186,10 @@ body.wg-jugando{overflow:hidden}
       <div id="wg-tl">
         <button class="wg-rd" onclick="wgVolver()" title="Salir del juego">←</button>
         <span id="wg-turno-chip" class="wg-chip">Turno —</span>
+        <!-- v2.9.449 — ⏱️ la cuenta regresiva del turno y los mandos del JEM. -->
+        <span id="wg-reloj-chip" class="wg-chip" style="display:none;font-weight:800;font-variant-numeric:tabular-nums"
+          title="El turno corre solo: en 0 se resuelve con las órdenes que estén dadas"></span>
+        <span id="wg-reloj-ctl" style="display:inline-flex;gap:6px;align-items:center"></span>
         <span id="wg-rol-chip" class="wg-chip"></span>
         <span id="wg-3d-cota" class="wg-chip" style="display:none">—</span>
       </div>
@@ -8166,7 +8221,7 @@ body.wg-jugando{overflow:hidden}
         <button class="wg-rd" id="wg-riel-personal" onclick="wgHoja('personal')" title="Personal: efectivos y bajas por unidad">👤</button>
         <button class="wg-rd" id="wg-riel-logistica" onclick="wgHoja('logistica')" title="Logística: combustible, munición, raciones y agua">📦</button>
         <button class="wg-rd" id="wg-riel-civil" onclick="wgHoja('civil')" title="Asuntos civiles: poblaciones del sector y áreas restringidas">🏛️</button>
-        <button class="wg-rd" onclick="wgHoja('bitacora')" title="Bitácora">📜</button>
+        <button class="wg-rd" onclick="wgBit()" title="Bitácora (abajo: 🔴 | 🔵)">📜</button>
         <button class="wg-rd" id="wg-btn-config" onclick="wgHoja('config')" title="Configurar" style="display:none">⚙️</button>
       </div>
 
@@ -8244,6 +8299,22 @@ body.wg-jugando{overflow:hidden}
         <div id="wg-unidades-barra" style="display:none"></div>
         <!-- Barra de cámaras. -->
         <div id="wg-camaras" style="display:flex;gap:7px;flex-wrap:wrap"></div>
+      </div>
+
+      <!-- v2.9.445 — LA BITÁCORA, ABAJO, EN DOS CUADROS (🔴 | 🔵).
+           Sergio: «que la bitácora se pueda desplazar de abajo hacia arriba pero
+           que no ocupe la pantalla, sólo un 20 % en la parte inferior, y que
+           aparezca en dos cuadros, uno de rojo y otro de azul». El árbitro ve los
+           dos; cada bando, sólo el suyo. Se abre y se cierra tocando el asa, y se
+           estira arrastrándola. -->
+      <div id="wg-bit" class="cerrada">
+        <div id="wg-bit-asa" title="Bitácora — tocá para abrir o cerrar; arrastrá para estirarla">
+          <span class="wg-bit-tit">📜 BITÁCORA</span>
+          <span id="wg-bit-nuevos"></span>
+          <span id="wg-bit-ticker"></span>
+          <span id="wg-bit-flecha">▲</span>
+        </div>
+        <div id="wg-bit-cuerpo"></div>
       </div>
 
       <!-- Zoom propio (el de Leaflet queda oculto para no duplicar) -->
@@ -8368,6 +8439,44 @@ body.wg-jugando{overflow:hidden}
   <label class="rg-doc" style="cursor:pointer" title="El ejercicio.json bajado de la Mesa (⬇️ Bajar para el Juego de Guerra).">📂 Con el archivo del ejercicio (medios + carta)
     <input type="file" accept=".json,application/json" style="display:none" onchange="wgActualizarMedios(this)"></label>
 </div>
+
+<!-- v2.9.447 — 🧭 EL DESGASTE DE ARRANQUE, SIN REIMPORTAR. Para la partida que ya
+     está cargada: se elige la pareja de fases y la intensidad, y se aplica cómo
+     llegan las fichas (poder, combustible, munición, raciones, heridos) con su
+     parte en la bitácora. Posición, órdenes y turno no cambian. -->
+<div class="section-label">🧭 Desgaste de arranque</div>
+<div id="wg-arranque-estado" style="font-size:11px;color:var(--text-muted);line-height:1.45;margin-bottom:6px">
+  Calcula <b>cómo llegan las unidades</b> a las fases que se juegan: las fases anteriores de cada bando (marchas,
+  raciones, reabastecimiento) y la llegada a la posición bajo el fuego del enemigo. Aplica a cada ficha su poder,
+  combustible, munición, raciones y heridos, y escribe el <b>parte de arranque</b> de cada bando en la bitácora.
+</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+  <label class="rg-doc" style="cursor:pointer" title="El ejercicio.json de la Mesa: se elige la pareja de fases y la intensidad.">📂 Con el archivo del ejercicio
+    <input type="file" accept=".json,application/json" style="display:none" onchange="wgDesgasteArranque(this)"></label>
+  <label class="rg-doc" style="cursor:pointer" title="Se arma el pedido para tu IA (Claude, ChatGPT, Gemini) con las dos fases y el cálculo de la plataforma; pegás su respuesta y se aplica.">🤖 Con IA (copiar y pegar)
+    <input type="file" accept=".json,application/json" style="display:none" onchange="wgArranqueIA(this)"></label>
+</div>
+
+<!-- v2.9.449 — 🎖️ EL JUEGO DEL ESTADO MAYOR: cada célula con su enlace. -->
+<div class="section-label">🎖️ Puestos del Estado Mayor (juego del COA)</div>
+<div style="font-size:11px;color:var(--text-muted);line-height:1.45;margin-bottom:6px">
+  El <b>G-3</b> juega el azul · el <b>G-2</b> el rojo (como su G-3) · el <b>G-5</b> vuela el dron del rojo (como su
+  G-2) · el <b>G-4</b> la logística y las ambulancias · el <b>G-1</b> los reemplazos · el <b>JEM</b> conduce: ⏱️ reloj
+  y ⏹️ ALTO, que cierra el juego y muestra los resultados a todos. La logística del rojo la mueve el 🤖 G-4 automático.
+</div>
+<div id="wg-kit-em" style="font-size:11px;line-height:1.4;margin-bottom:6px"></div>
+<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+  <button class="rg-doc" onclick="wgKitEM(this)">🔗 Armar los seis enlaces</button>
+</div>
+
+<!-- v2.9.451 — 🤖 EL G-4 AUTOMÁTICO: la logística del bando que nadie juega. -->
+<div class="section-label">🤖 Logística automática</div>
+<div style="font-size:11px;color:var(--text-muted);line-height:1.45;margin-bottom:6px">
+  Al cerrar cada turno, el <b>G-4 automático</b> manda convoyes y ambulancias a quien lo necesita (lo urgente primero),
+  sólo por camino y de su estiba, que se acaba. Si el bando no tiene instalaciones, instala su <b>Área de Servicios</b>
+  junto a su unidad logística. Lo decide el árbitro.
+</div>
+<div id="wg-g4auto" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px"></div>
 
 <!-- ============================================================
      v2.9.331 — CADA ESTADO MAYOR, SU BLOQUE.
@@ -29895,7 +30004,7 @@ function _wgRolOrdena(){ const r=_wgRol(); return !r || WG_ROLES[r].ordena; }
 // La distinción doctrinaria se mantiene: el G-4 MANDA lo suyo (sus convoyes y
 // trenes), pero HACER CORRER EL TURNO sigue siendo del Comandante, el JEM o el
 // G-3. El G-4 propone y ejecuta su parte; el turno lo corre el mando.
-function _wgRolEnvia(){ const r=_wgRol(); return !r || WG_ROLES[r].ordena || r==='g4'; }
+function _wgRolEnvia(){ const r=_wgRol(); return !r || WG_ROLES[r].ordena || r==='g4' || r==='g1'; }   // v2.9.448: el G-1 manda sus reemplazos
 // El enlace de un puesto: el mismo del bando más `&rol=<puesto>`. Se le pasa al
 // oficial para que entre desde SU máquina, sin pisar la pantalla del Comandante.
 function _wgEnlaceRol(rol){
@@ -31463,9 +31572,12 @@ const WG_CONVOY_CLASES = {
   V:    {ico:'🎯', cod:'V',    nom:'Clase V (munición)',      veh:'convoy_v',
          efecto:'Repone las unidades de fuego de cada sistema de arma.'},
   EVAC: {ico:'🚑', cod:'EVAC', nom:'Evacuación sanitaria',    veh:'ambulancia',
-         efecto:'Evacúa las bajas: la unidad recupera poder de combate.'},
+         efecto:'Ambulancias (20 heridos por carga): van por camino, cargan los heridos y los llevan al puesto de socorro.'},
+  // v2.9.448 — los reemplazos del G-1 (50 hombres por carga).
+  REEMP:{ico:'👥', cod:'REEMP', nom:'Reemplazos (personal)',  veh:'convoy_i',
+         efecto:'50 hombres por carga: la unidad recupera el poder que perdió por bajas.'},
 };
-const WG_CLASES_ORDEN = ['I','AGUA','III','V','EVAC'];
+const WG_CLASES_ORDEN = ['I','AGUA','III','V','EVAC','REEMP'];
 function _wgEsConvoy(u){ return !!u && u.arma==='convoy'; }
 // v2.9.343 — ¿ESTE CONVOY ESTÁ EXPUESTO?
 // La lección más repetida de Ucrania: los 20-30 km detrás del frente son una
@@ -31557,8 +31669,7 @@ function _wgEjesHTML(){
       +`<b style="font-size:11.5px;color:#ff9d9d">⚠️ Esta carta NO tiene caminos</b>`
       +`<div class="rg-meta" style="font-size:10.5px;margin-top:5px;line-height:1.5">`
       +`El escenario se importó sin la capa de vías, así que <b>no hay ninguna ruta</b>: `
-      +`ningún eje va sobre camino y <b>los convoyes se van a detener a los `
-      +`${WG_CONVOY_FUERA_RUTA_KM} km</b> de haber salido.<br>`
+      +`ningún eje va sobre camino y <b>los convoyes no van a salir</b>: andan sólo por camino.<br>`
       +`No es tu planificación — es la carta. Cargá la capa de caminos del Generador con `
       +`<b>➕ Agregar capa</b> (⚙️ Configurar → escenario) y volvé a trazar el eje sobre ellos.`
       +`</div></div>`
@@ -31582,11 +31693,11 @@ function _wgEjesHTML(){
              (a.km.rio+a.km.agua)>0.05?'un río o laguna sin puente':''].filter(Boolean).join(' · ')}): ahí la columna se detiene. `
         +`Retrazalo por caminos y puentes, o que la ingeniería abra paso (🛠️ brecha · 🌉 puente).`
       : fuera > WG_CONVOY_FUERA_RUTA_KM
-        ? `⛔ <b>${fuera.toFixed(1)} km fuera de camino</b> — el convoy se detiene a los `
-          +`${WG_CONVOY_FUERA_RUTA_KM} km. Este eje no está trazado sobre rutas.`
+        ? `⛔ <b>${fuera.toFixed(1)} km fuera de camino</b> — por ahí el convoy no va: `
+          +`marcha por la ruta más cercana. Este eje no está trazado sobre rutas.`
         : a.pct.camino>60
           ? `✅ Sobre ruta de punta a punta: la columna marcha a 35 km/h.`
-          : `🟡 ${fuera.toFixed(1)} km fuera de camino — entra en el margen de entrega, pero justo.`;
+          : `🟡 ${fuera.toFixed(1)} km fuera de camino — el convoy los hace por la ruta más cercana.`;
     return `<div class="rg-card" style="padding:7px 9px;margin-top:6px;border-left:3px solid ${col}">`
       +`<div style="display:flex;justify-content:space-between;gap:6px;align-items:baseline">`
       +`<b style="font-size:11px">${_rgEsc(nom)}</b>`
@@ -31599,9 +31710,10 @@ function _wgEjesHTML(){
     +`<div style="font-size:9px;letter-spacing:1.2px;opacity:.6;margin:12px 0 0">`
     +`↔️ EJES · ¿los aguanta un camión 6×6?</div>`+filas
     +`<div class="rg-meta" style="font-size:8.5px;margin-top:5px;line-height:1.45">`
-    +`La columna marcha a <b>35 km/h por camino</b> (sirven los de tercera y cuarta) y `
-    +`sólo puede alejarse <b>${WG_CONVOY_FUERA_RUTA_KM} km</b> de la ruta — lo justo para el `
-    +`tramo final de entrega. Más lejos, se detiene: un convoy no cruza cerros.<br>`
+    +`La columna marcha a <b>35 km/h y SÓLO por camino</b> (sirven los de tercera y cuarta): `
+    +`fuera de la ruta anda nada más que la salida de su instalación (${WG_CONVOY_FUERA_RUTA_KM} km). `
+    +`Para en el punto del camino más cercano a la unidad y descarga ahí; si la unidad queda a más de `
+    +`${WG_REABASTECER_KM} km, no hay abastecimiento.<br>`
     +`El eje es <b>tu</b> decisión y el motor te deja marchar por donde lo trazaste; esto es `
     +`el parte de transitabilidad para que la tomes con la carta a la vista, no un permiso.</div>`;
 }
@@ -31677,7 +31789,7 @@ async function wgFormarConvoy(instalacionId, clase){
     : `${r.carga&&r.carga[clase]!=null?Number(r.carga[clase]).toFixed(1):WG_CONVOY_CAPACIDAD} cargas de ${_rgEsc(WG_CONVOY_CLASES[clase].nom)}`;
   _wgAviso(`🚚 <b>${_rgEsc(r.designacion||'Convoy')}</b> formado con ${_lleva}`
     +(r.estiba?` — al puesto le quedan <b>${r.estiba.quedan} de ${r.estiba.cap}</b> cargas`:'')+`. `
-    +`Dale orden de marcha, o <b>🤝 APOYAR A UNA UNIDAD</b> para que la siga y la abastezca solo — `
+    +`Dale <b>🚚 ABASTECER A UNA UNIDAD</b> (va por camino, para, descarga y vuelve) o una orden de marcha — `
     +`y acordate de que en ruta lo pueden batir.`, 8000);
   await wgEstado(true); _wgRender(); if(WG.map3d) _wg3dDatos();
   // v2.9.351: el panel del puesto queda abierto y con el vehículo nuevo adentro,
@@ -31699,6 +31811,27 @@ async function wgFormarConvoy(instalacionId, clase){
 // G-4 tiene que resolver con un desplazamiento del Tren o un puesto adelantado.
 // ============================================================
 const WG_REABASTECER_KM = 3;   // espejo de REABASTECER_KM del motor
+// v2.9.444 — en qué anda el convoy, en una línea (la fase la lleva el motor en `carga`).
+function _wgFaseConvoyTxt(u){
+  const c=(u&&u.carga)||{};
+  const x=c.apoya!=null?_wgUnidadPorId(c.apoya):null;
+  const nom=x?_rgEsc(x.designacion||'la unidad'):'la unidad';
+  if(c.fase==='descarga'){
+    return `⏳ <b>Descargando</b> para ${nom}`+(c.resta!=null?` — faltan ${_wgHoras(Number(c.resta)||0)}`:'')
+      +(Number(c.dParada)>WG_REABASTECER_KM?` · ⚠️ la unidad está a ${Number(c.dParada).toFixed(1)} km: si no se acerca, vuelve sin descargar`:'')+'.';
+  }
+  const amb=_wgCargaDe(u,'EVAC')>0, rmp=_wgCargaDe(u,'REEMP')>0;   // v2.9.448
+  if(amb && Number(c.aBordo)>=0.5 && c.fase!=='descarga') return `🚑 <b>Lleva ${Math.round(c.aBordo)} herido(s)</b> a su puesto, por camino.`;
+  if(c.fase==='vuelta') return `↩️ <b>Vuelve</b> por camino a su instalación.`;
+  if(c.fase==='ida' && x) return `${amb?'🚑 <b>Va a evacuar</b>':(rmp?'👥 <b>Lleva reemplazos</b>':'🚚 <b>Va a abastecer</b>')} a ${nom}, por camino.`;
+  if(amb) return `Va <b>sólo por camino</b> hasta el punto más cercano a la unidad, <b>carga sus heridos</b> (20 cada 30 min; `
+    +`lleva ${Math.round(Number(c.aBordo)||0)} de ${_wgCargaDe(u,'EVAC')*20}) y los lleva al puesto de socorro.`;
+  if(rmp) return `Va <b>sólo por camino</b> hasta el punto más cercano a la unidad y le <b>incorpora los reemplazos</b> `
+    +`(50 hombres por carga, 30 min cada una). Entrega sólo si la unidad está a ${WG_REABASTECER_KM} km o menos.`;
+  return `Va <b>sólo por camino</b> hasta el punto más cercano a la unidad, <b>para y descarga</b> `
+    +`(por carga de batallón: Cl III 1 h · Cl V 1 h 30 · Cl I 30 min) y <b>vuelve</b>. `
+    +`Entrega sólo si la unidad está a ${WG_REABASTECER_KM} km o menos de donde paró.`;
+}
 function _wgInstalReparte(){
   return (_wgInstalaciones()||[]).filter(x=>{
     const I=WG_INSTAL[x&&x.tipo];
@@ -31908,7 +32041,7 @@ const WG_INSTAL={
             desc:'Custodia de prisioneros de guerra para su evacuación posterior.'},
   log_rezag:{id:'log_rezag',rol:'g1',cap:6, firma:1, montaje:1, blanco:'Firma baja.',nom:'Puesto de Reunión de Extraviados',ico:'🧭',col:'#ffc98f',
             desc:'Recupera al que se desprendió de su unidad y lo devuelve al combate.'},
-  log_reemp:{id:'log_reemp',rol:'g1',cap:6, firma:2, montaje:2, blanco:'Personal reunido y sin encuadrar: muy vulnerable si la sorprenden.',movil:true,nom:'Unidad de Reemplazos',ico:'🧍',col:'#9fe8a0',
+  log_reemp:{id:'log_reemp',rol:'g1',cap:6, despacha:['REEMP'], firma:2, montaje:2, blanco:'Personal reunido y sin encuadrar: muy vulnerable si la sorprenden.',movil:true,nom:'Unidad de Reemplazos',ico:'🧍',col:'#9fe8a0',
             desc:'Recibe y distribuye el personal de reposición. Se desplaza con la fuerza.'},
   log_sepul:{id:'log_sepul',rol:'g1',cap:6, firma:1, montaje:2, blanco:'Firma baja. Va LEJOS de las instalaciones de moral.',nom:'Sepulturas',ico:'✝️',col:'#c9b8a8',
             desc:'Recuperación, identificación y sepultura de los caídos.'},
@@ -32011,7 +32144,7 @@ function _wgPanelInstal(it, I){
     _wgEsConvoy(u) && u.bando===it.bando && u.estado!=='fuera_combate'
     && Number.isFinite(u.lat) && _wgKm([u.lng,u.lat],[pt[0],pt[1]])<=3);
   const despacha=(I.despacha||[]).filter(k=>WG_CONVOY_CLASES[k]);
-  const puedeMandar = (WG.soy==='arbitro' || _wgRol()==='g4' || !_wgRol());
+  const puedeMandar = (WG.soy==='arbitro' || _wgRol()==='g4' || !_wgRol() || (_wgRol()==='g1' && I.rol==='g1'));   // v2.9.448: el G-1, sus reemplazos
 
   const tarjeta=(c)=>{
     const _v=_wgVarianteDibujo(c);
@@ -34121,7 +34254,10 @@ function wgBarraUnidades(){
             +`title="${_rgEsc(u.designacion||('Unidad '+u.id))} — ${fc?'fuera de combate':'en el tablero'}. `
             +`Tocá para maniobrarla.">`
             +`<span class="des" style="color:${fc?'#7c8894':col}">${_rgEsc(u.designacion||('U'+u.id))}${dron}</span>`
-            +`<span class="est">${_rgEsc(_wgEscalonCorto(u))}</span></button>`;
+            // v2.9.444: el convoy dice en qué anda (va · descarga · vuelve).
+            +`<span class="est">${_rgEsc(_wgEsConvoy(u)&&u.carga&&u.carga.fase
+              ? ({ida:'🚚 va',descarga:'⏳ descarga',vuelta:'↩️ vuelve'}[u.carga.fase]||_wgEscalonCorto(u))
+              : _wgEscalonCorto(u))}</span></button>`;
         }).join('')
       +`</div>`;
   }).join('');
@@ -34741,6 +34877,9 @@ async function _wgSyncTick(){
     const p=await _wgInvoke('pulso', Object.assign(
       { partida_id:WG.partidaId, clave_acceso:WG.clave }, _wgVueloParaServidor()));
     if(!p.ok){ console.warn('pulso:', p.error); return; }   // silencioso: es un sondeo
+    // v2.9.449 — ⏱️ el reloj de todos, y el ⏹️ ALTO llega a todas las pantallas.
+    if(p.reloj!==undefined) WG.relojJuego=p.reloj||null;
+    if(p.estado_partida==='finalizada' && WG.estado && WG.estado.partida && WG.estado.partida.estado!=='finalizada'){ await wgEstado(true); return; }
     if(WG.maqueta) _wgLatido(true);   // v2.9.326: llegó dato, la proyección late
     // v2.9.430: mientras el pulso viajaba pudo llegar el aviso del canal y
     // arrancar la película. Si es así, este tic no toca nada: el tablero lo
@@ -34893,7 +35032,7 @@ async function _wgReproducirTurno(turno, datos){
   await wgEstado(true);   // recién ahora se desvanecen los que quedaron fuera de combate
   _wgRender(); if(WG.map3d) _wg3dDatos();
   await wgHistorial();
-  if(!trazas.length && !impactos.length) wgHoja('bitacora');
+  if(!trazas.length && !impactos.length) wgBit(true);   // v2.9.445: la bitácora de abajo
 }
 // ============================================================
 // v2.9.443 — LA CARTA SE GUARDA EN EL NAVEGADOR («que se cargue bien»).
@@ -34996,6 +35135,12 @@ async function wgEstado(silencioso){
     if(WG._obrasFirma!==f){ WG._obrasFirma=f; WG.capaTerrenoFirma=null; }
   }
   WG.estado=r; WG.soy=r.soy;
+  try{ _wgBitRender(); }catch(_e){}   // v2.9.445: los 📻 pedidos pendientes, al día con las fichas
+  WG.relojJuego=r.reloj||null;          // v2.9.449
+  try{ _wgRelojTic(); _wgG4AutoRender(); }catch(_e){}   // v2.9.451: y el 🤖 G-4 automático
+  if(r.partida && r.partida.estado==='finalizada' && WG._resVisto!==WG.partidaId){
+    WG._resVisto=WG.partidaId; setTimeout(()=>{ try{ wgResultados(); }catch(_e){} }, 400);
+  }
   const esArb = r.soy==='arbitro';
   const p=r.partida||{};
   document.getElementById('wg-turno-chip').textContent = 'Turno '+(p.turno_actual||'—')+' · '+(p.estado||'');
@@ -35494,7 +35639,174 @@ function _wgGastoPorKm(u,clase){
   const g=WG_CONSUMO[clase]!=null?WG_CONSUMO[clase]:1;
   return (_wgEsConvoy(u) && clase!=='camino') ? g*1.5 : g;
 }
-const WG_CONVOY_FUERA_RUTA_KM=4;   // espejo de CONVOY_FUERA_RUTA_KM del motor
+// v2.9.444: 2 km — sólo la salida de su instalación hasta el camino (ver `_wgRutaConvoy`).
+const WG_CONVOY_FUERA_RUTA_KM=2;   // espejo de CONVOY_FUERA_RUTA_KM del motor
+// ============================================================
+// v2.9.444 — EL CONVOY VA SÓLO POR CAMINOS. Gemelos de `grafoVial`, `rutaConvoy` y
+// `rutaConvoyPorPuntos` del motor: la previsión dibuja la MISMA ruta que después
+// hace — por la red vial, hasta el punto del camino más cercano a donde se lo
+// manda (aunque la unidad esté lejos de toda ruta). Sergio, 03-11-2026: «no se
+// pueden desplazar por campo traviesa… que llegue lo más cerca posible, que pare
+// en el camino».
+// ============================================================
+const _wgGrafos=new WeakMap();
+function _wgGrafoVial(terreno){
+  const arr=terreno||[];
+  let g=_wgGrafos.get(arr);
+  if(g) return g;
+  const nodos=[], ady=[], pes=[], porClave=new Map();
+  const nodo=(p)=>{
+    const k=Math.round(Number(p[0])*1e5)+','+Math.round(Number(p[1])*1e5);
+    let i=porClave.get(k);
+    if(i==null){ i=nodos.length; nodos.push([Number(p[0]),Number(p[1])]); ady.push([]); pes.push([]); porClave.set(k,i); }
+    return i;
+  };
+  const unir=(i,j)=>{
+    if(i===j) return;
+    const d=_wgHav(nodos[i],nodos[j]);
+    ady[i].push(j); pes[i].push(d); ady[j].push(i); pes[j].push(d);
+  };
+  const extremos=[];
+  for(const t of arr){
+    if(!t||t.tipo!=='via'||_wgClaseVia(t)!=='camino') continue;
+    for(const l of _wgLineasDe(t.geojson)){
+      let prev=-1, pAnt=null;
+      for(const p of l){
+        if(!Array.isArray(p)) continue;
+        if(pAnt){
+          const n=Math.floor(_wgHav(pAnt,p)/0.5);
+          for(let k=1;k<=n;k++){
+            const f=k/(n+1);
+            const i=nodo([pAnt[0]+(p[0]-pAnt[0])*f, pAnt[1]+(p[1]-pAnt[1])*f]);
+            if(prev>=0) unir(prev,i);
+            prev=i;
+          }
+        }
+        const i=nodo(p);
+        if(prev>=0) unir(prev,i);
+        prev=i; pAnt=p;
+      }
+      if(l.length>=2) extremos.push(nodo(l[0]), nodo(l[l.length-1]));
+    }
+  }
+  const celdas=new Map();
+  for(let i=0;i<nodos.length;i++){
+    const k=_wgClaveCelda(Math.floor(nodos[i][0]/WG_CELDA), Math.floor(nodos[i][1]/WG_CELDA));
+    let c=celdas.get(k);
+    if(!c){ c=[]; celdas.set(k,c); }
+    c.push(i);
+  }
+  const cercano=(p,maxKm,excepto=-1)=>{
+    const r=Math.ceil(maxKm)+1;
+    const cx=Math.floor(p[0]/WG_CELDA), cy=Math.floor(p[1]/WG_CELDA);
+    let mejor=-1, dm=maxKm;
+    for(let dx=-r;dx<=r;dx++){
+      for(let dy=-r;dy<=r;dy++){
+        const c=celdas.get(_wgClaveCelda(cx+dx,cy+dy));
+        if(!c) continue;
+        for(const i of c){
+          if(i===excepto) continue;
+          const d=_wgHav(p,nodos[i]);
+          if(d<dm){ dm=d; mejor=i; }
+        }
+      }
+    }
+    return mejor>=0?mejor:null;
+  };
+  for(const e of extremos){
+    if(ady[e].length>1) continue;
+    const c=cercano(nodos[e],0.03,e);
+    if(c!=null && !ady[e].includes(c)) unir(e,c);
+  }
+  g={ nodos, ady, pes, cercano };
+  _wgGrafos.set(arr,g);
+  return g;
+}
+function _wgPieEnTramo(p,a,b){
+  const k=Math.cos((Number(p[1])*Math.PI)/180);
+  const ax=a[0]*k, ay=a[1], bx=b[0]*k, by=b[1], px=p[0]*k, py=p[1];
+  const dx=bx-ax, dy=by-ay, L2=dx*dx+dy*dy;
+  const t=L2>0?Math.max(0,Math.min(1,((px-ax)*dx+(py-ay)*dy)/L2)):0;
+  return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t];
+}
+function _wgRutaConvoy(desde,hasta,terreno){
+  const g=_wgGrafoVial(terreno||WG.terreno||[]);
+  const nada=(motivo)=>({ sinCamino:true, motivo, ruta:[], parada:desde, dParada:_wgHav(desde,hasta), km:0, acceso:0 });
+  if(!g.nodos.length) return nada('la carta no tiene caminos');
+  const a=g.cercano(desde,WG_CONVOY_FUERA_RUTA_KM);
+  if(a==null) return nada(`no hay camino a menos de ${WG_CONVOY_FUERA_RUTA_KM} km`);
+  const n=g.nodos.length;
+  const dist=new Float64Array(n).fill(Infinity), prev=new Int32Array(n).fill(-1), cerrado=new Uint8Array(n);
+  const heap=[];
+  const push=(f,i)=>{
+    heap.push([f,i]);
+    let k=heap.length-1;
+    while(k>0){ const p=(k-1)>>1; if(heap[p][0]<=heap[k][0]) break; [heap[p],heap[k]]=[heap[k],heap[p]]; k=p; }
+  };
+  const pop=()=>{
+    const top=heap[0], last=heap.pop();
+    if(heap.length){
+      heap[0]=last;
+      let k=0;
+      for(;;){
+        const l=2*k+1, r=l+1;
+        let m=k;
+        if(l<heap.length && heap[l][0]<heap[m][0]) m=l;
+        if(r<heap.length && heap[r][0]<heap[m][0]) m=r;
+        if(m===k) break;
+        [heap[m],heap[k]]=[heap[k],heap[m]]; k=m;
+      }
+    }
+    return top;
+  };
+  dist[a]=0; push(0,a);
+  let mejor=a, dMejor=_wgHav(g.nodos[a],hasta), it=0;
+  while(heap.length && ++it<2000000){
+    const [,i]=pop();
+    if(cerrado[i]) continue;
+    cerrado[i]=1;
+    const d=_wgHav(g.nodos[i],hasta);
+    if(d<dMejor-1e-9 || (Math.abs(d-dMejor)<=1e-9 && dist[i]<dist[mejor])){ mejor=i; dMejor=d; }
+    const ad=g.ady[i], ps=g.pes[i];
+    for(let k=0;k<ad.length;k++){
+      const j=ad[k];
+      if(cerrado[j]) continue;
+      const nd=dist[i]+ps[k];
+      if(nd<dist[j]){ dist[j]=nd; prev[j]=i; push(nd,j); }
+    }
+  }
+  const idx=[];
+  for(let i=mejor;i>=0;i=prev[i]){ idx.push(i); if(i===a) break; }
+  idx.reverse();
+  const ruta=idx.map(i=>g.nodos[i]);
+  let fin=g.nodos[mejor], dFin=dMejor;
+  for(const j of g.ady[mejor]){
+    const q=_wgPieEnTramo(hasta,g.nodos[mejor],g.nodos[j]);
+    const dq=_wgHav(q,hasta);
+    if(dq<dFin-1e-6){ dFin=dq; fin=q; }
+  }
+  if(_wgHav(fin,ruta[ruta.length-1])>0.005){
+    const ant=ruta.length>1?ruta[ruta.length-2]:null;
+    if(ant && _wgHav(_wgPieEnTramo(fin,ant,ruta[ruta.length-1]),fin)<0.005) ruta[ruta.length-1]=fin;
+    else ruta.push(fin);
+  }
+  let km=0;
+  for(let i=1;i<ruta.length;i++) km+=_wgHav(ruta[i-1],ruta[i]);
+  return { sinCamino:false, motivo:'', ruta, parada:ruta[ruta.length-1], dParada:dFin, km, acceso:_wgHav(desde,g.nodos[a]) };
+}
+function _wgRutaConvoyPuntos(desde,puntos,terreno){
+  const pts=(puntos||[]).filter(p=>Array.isArray(p)&&p.length>=2);
+  let cur=desde, ruta=[], km=0, acceso=0, ult=null;
+  for(let i=0;i<pts.length;i++){
+    const r=_wgRutaConvoy(cur,pts[i],terreno);
+    if(r.sinCamino){ if(i===0) return r; break; }
+    if(i===0) acceso=r.acceso;
+    for(const p of r.ruta) if(!ruta.length || _wgHav(ruta[ruta.length-1],p)>1e-4) ruta.push(p);
+    km+=r.km; cur=r.parada; ult=r;
+  }
+  if(!ult) return _wgRutaConvoy(desde,desde,terreno);
+  return { sinCamino:false, motivo:'', ruta, parada:cur, dParada:ult.dParada, km, acceso };
+}
 function _wgPreverMovimiento(u,destino,horas){
   const _md=_wgMedioDe(u);
   const vel=WG_VEL[_md]||WG_VEL.pie;
@@ -37788,11 +38100,11 @@ function _wgPanelArmasHTML(){
         +`padding:8px;margin:6px 0 2px;border-radius:9px;cursor:pointer;font-size:12px;font-weight:700;`
         +(WG.modoApoyar?`background:rgba(46,204,113,.28);border:1px solid #2ecc71;color:#c9f7d9`
                        :`background:rgba(46,204,113,.12);border:1px solid rgba(46,204,113,.5);color:#8ef0b4`)+`">`
-        +(WG.modoApoyar?'🤝 TOCÁ LA UNIDAD PROPIA que va a apoyar':'🤝 APOYAR A UNA UNIDAD')+`</div>`
+        +(WG.modoApoyar?'👆 TOCÁ LA UNIDAD PROPIA'
+          :(_wgCargaDe(u,'EVAC')>0?'🚑 EVACUAR A UNA UNIDAD':(_wgCargaDe(u,'REEMP')>0?'👥 REEMPLAZAR A UNA UNIDAD':'🚚 ABASTECER A UNA UNIDAD')))+`</div>`
         +`<div class="rg-meta" style="font-size:10px;line-height:1.4;margin-bottom:6px">`
-        +((u.carga&&u.carga.apoya!=null)
-          ? `Ahora apoya a <b>${_rgEsc(((_wgUnidadPorId(u.carga.apoya)||{}).designacion)||'una unidad')}</b>: la sigue y la abastece. Una orden de marcha lo desagrega.`
-          : `Queda agregado: la sigue por los caminos a 1,5 km detrás y la abastece cada turno hasta vaciarse; vacío, vuelve solo a recargar.`)
+        +(u.carga&&u.carga.auto?'🤖 <b>G-4 automático</b> · ':'')   // v2.9.451
+        +_wgFaseConvoyTxt(u)
         +`</div>`
       : '');
   // v2.9.227: el estado de COMBUSTIBLE de la unidad seleccionada, arriba de todo.
@@ -37823,6 +38135,20 @@ function _wgPanelMediosHTML(u){
   filas.push(`🚚 ${MEDIO[_wgMedioDe(u)]||_rgEsc(u.medio||'—')} · 👁️ observa ${(+u.obs_km||0).toFixed(0)} km`
     +(alc?` · 🎯 alcance máximo <b>${alc.toFixed(alc<10?1:0).replace('.0','')} km</b>`:'')
     +` · 💪 poder ${Math.round(+u.poder_actual||0)}/${Math.round(+u.poder_max||0)}`);
+  // v2.9.446 — de dónde sale el poder: efectivo (o escalón) × calidad del armamento.
+  if(m&&m.calidad){
+    const c=m.calidad, f=Number(c.f)||1;
+    const col=f>=1.2?'#8ef0b4':(f<=0.85?'#ffb15c':'#dbe6f1');
+    filas.push(`⚖️ <b>poder ${Math.round(+u.poder_max||0)}</b> = `
+      +(c.porEfectivo&&m.efectivo?`${Number(m.efectivo).toLocaleString('es')} H`:'su escalón')+` (${c.base}) × calidad `
+      +`<b style="color:${col}">${f.toFixed(2)}</b>${c.manual?' <i>(ajustada por el árbitro)</i>':''}`
+      +((c.det&&c.det.length)?`<br>&nbsp;&nbsp;${c.det.map(x=>`<span title="${_rgEsc(WG_FAM_Q[x.fam]||x.fam)} · de ${_rgEsc(x.de||'')}">${_rgEsc(x.nom)} ×${x.f}</span>`).join(' · ')}`:'')
+      +(WG.soy==='arbitro'
+        ? `<br>&nbsp;&nbsp;<span style="display:inline-flex;gap:5px;align-items:center">ajustar la calidad `
+          +`<button class="rg-doc" style="padding:0 9px;min-height:0" onclick="wgCalidadAjustar(${Number(u.id)},-0.1)">−</button>`
+          +`<button class="rg-doc" style="padding:0 9px;min-height:0" onclick="wgCalidadAjustar(${Number(u.id)},0.1)">+</button></span>`
+        : ''));
+  }
   if(m&&m.vehiculos) filas.push(`🛞 ${fmt(m.vehiculos)}`);
   if(m&&m.armamento) filas.push(`🔫 ${fmt(m.armamento)}`);
   if(m&&m.autonomiaKm) filas.push(`⛽ autonomía planificada <b>${m.autonomiaKm} km</b>${m.consumo?` (${_rgEsc(m.consumo)})`:''}`);
@@ -37834,6 +38160,22 @@ function _wgPanelMediosHTML(u){
     +`<div class="section-label" style="margin:0 0 4px">📦 MEDIOS Y CAPACIDADES</div>`
     +`<div class="rg-meta" style="font-size:10.5px;line-height:1.5">${filas.join('<br>')}`
     +`<br><span style="opacity:.75">Fuente: ${_rgEsc(fuente)}</span></div></div>`;
+}
+// v2.9.446 — ⚖️ el árbitro corrige la calidad de una ficha (de a 0,1). El poder
+// actual conserva su porcentaje (lo hace `actualizar_medios` en el servidor).
+async function wgCalidadAjustar(id, delta){
+  if(WG.soy!=='arbitro') return;
+  const u=_wgUnidadPorId(id); if(!u) return;
+  const m=JSON.parse(JSON.stringify(_wgMediosDe(u)||{}));
+  const c=m.calidad||{ f:1, base:Number(u.poder_max)||12, det:[] };
+  c.f=Math.max(0.3, Math.min(2.5, Math.round(((Number(c.f)||1)+delta)*100)/100));
+  c.manual=true; m.calidad=c;
+  const pm=Math.max(0.5, Math.round((Number(c.base)||Number(u.poder_max)||12)*c.f*10)/10);
+  const r=await _wgInvoke('actualizar_medios',{ partida_id:WG.partidaId, clave_acceso:WG.clave, unidades:[{ id:u.id, medios:m, poder_max:pm }] });
+  if(!r || !r.ok){ _wgAviso('No se pudo ajustar la calidad: '+_rgEsc((r&&r.error)||''), 5000); return; }
+  _wgAviso(`⚖️ <b>${_rgEsc(u.designacion||'La ficha')}</b>: calidad ${c.f.toFixed(2)} → poder ${pm}.`, 3500);
+  await wgEstado(true); _wgRender();
+  try{ if(typeof wgPanelArmas==='function') wgPanelArmas(); }catch(_e){}
 }
 // ============================================================
 // v2.9.325 — TAREAS TÁCTICAS: la orden dice QUÉ HACER y PARA QUÉ.
@@ -38056,6 +38398,404 @@ function _wgEnfrentar(fA, fR){
   const ro=(((fR?fR.unidades:(fA&&fA.unidades)))||[]).filter(_wgEsRoja);
   return { unidades:[...az,...ro], ops:(fA&&fA.ops)||null, desplazamientos:(fA&&fA.desplazamientos)||null };
 }
+// ============================================================
+// v2.9.447 — 🧭 EL DESGASTE DE ARRANQUE: CÓMO LLEGAN LAS UNIDADES A LA FASE ELEGIDA.
+// Sergio (03-11-2026): «elegí esas fases; se supone que hasta esas fases las
+// unidades ya habrían entrado en contacto, por lo tanto deberías realizar un
+// cálculo de cómo fueron desgastadas… letreritos que digan sin combustible, sin
+// munición, munición al 40 %… considerando alimentación también… al iniciar la
+// fase debería salir una bitácora de cómo se está empezando… esto es para todos
+// los juegos que se carguen».
+// El cálculo es determinista y se puede seguir con la carta:
+//   1) LAS FASES ANTERIORES de cada bando, en orden. Cada una dura lo que dice su
+//      nombre (concentración 24 h, desplazamiento 12 h, organización o apresto
+//      36 h…) y se come las raciones de esos días; la marcha de una fase a la
+//      siguiente gasta combustible (×1,2: marcha táctica, no ruta). Al terminar una
+//      fase de concentración, organización o apresto se reabastece al 90 % (la
+//      logística nunca llega a todo).
+//   2) LA LLEGADA a las posiciones de la fase elegida, cada 30 min: cada ficha va
+//      de donde estaba en la fase anterior a donde está ahora; la artillería de
+//      cada bando bate lo que tiene a su alcance (gasta munición) y lo que queda a
+//      3 km o menos del enemigo combate con la tabla del motor. En «CE-IV9»: el
+//      rojo sale del apresto lejano y avanza 18 a 27 km bajo los fuegos del azul.
+//   3) Las bajas en hombres (el 70 % heridos, para evacuar) y el PARTE de cada
+//      bando para la bitácora, con los pedidos de sus comandantes.
+// La intensidad (baja · media · alta) la elige el árbitro.
+// ⚠️ Coeficientes de referencia, a validar con las tablas de la Escuela.
+// ============================================================
+const WG_DUR_FASE=[[/concentr/i,24],[/desplaz|marcha|ramific|movimiento/i,12],[/ocupa|organiza|apresto|prepara|alist/i,36],
+  [/conducc|defens|ataq|asalt|irrup|penetr|combate/i,18],[/ruptur|explot|persecu/i,24],[/contraataq|consolid|reorganiz/i,12]];
+function _wgDurFase(f){
+  const t=String((f&&f.nombre)||'');
+  for(const [re,h] of WG_DUR_FASE) if(re.test(t)) return h;
+  return 24;
+}
+function _wgFaseRepone(f){ return /concentr|ocupa|organiza|apresto|prepara|alist|reorganiz|consolid/i.test(String((f&&f.nombre)||'')); }
+function _wgPosFase(f, desig, rojo){
+  const k=_wgClaveDesig(desig); if(!k||!f) return null;
+  const u=(f.unidades||[]).find(x=>x && x.tipo!=='instalacion' && (!!_wgEsRoja(x))===(!!rojo) && _wgClaveDesig(x.designacion)===k);
+  return (u && Number.isFinite(Number(u.lng)) && Number.isFinite(Number(u.lat))) ? [Number(u.lng),Number(u.lat)] : null;
+}
+const WG_DESGASTE={ ninguno:null, bajo:{ k:0.6, repone:1.0, nom:'bajo' }, medio:{ k:1.0, repone:0.9, nom:'medio' }, alto:{ k:1.5, repone:0.75, nom:'alto' } };
+// Hombres de una ficha (los del COE / la hoja del G-4, o los de su escalón).
+function _wgHombresDe(u){
+  const m=u&&u.medios;
+  return Number(m&&m.efectivo) || (WG_EFECTIVO_REF[u&&u.escalon]||600);
+}
+function _wgArranque(d, par, unidades, intensidad){
+  const I=WG_DESGASTE[intensidad==null?'medio':intensidad];
+  if(!I || !par || !par.azul || !par.rojo) return null;
+  const B=_wgFasesBandos(d);
+  const nro=(x)=>Number(x.f&&x.f.n)||(x.idx+1);
+  const previas={
+    azul: B.azules.filter(x=>x.cap===par.azul.cap && x.idx<par.azul.idx).sort((a,b)=>a.idx-b.idx).map(x=>x.f),
+    rojo: B.rojas.filter(x=>x.coa===par.rojo.coa && nro(x)<nro(par.rojo)).sort((a,b)=>nro(a)-nro(b)).map(x=>x.f),
+  };
+  const actual={ azul:par.azul.f, rojo:par.rojo.f };
+  const E=[];
+  for(const u of (unidades||[])){
+    if(!u || _wgEsConvoy(u) || !(Number(u.poder_max)>0)) continue;
+    const m=u.medios||{};
+    const sist=Object.keys(m.sistemas||{}).map(id=>({ id, tope:_wgUfTope(u,id), arma:WG_ARMAS[id] }))
+      .filter(x=>x.arma && !x.arma.ingenieria && x.arma.alcance>0 && x.tope>0);
+    const tope=Number(m.nivelDias)>0?Math.min(10,Number(m.nivelDias)):3;
+    E.push({ u, b:u.bando==='rojo'?'rojo':'azul', tanque:_wgTanqueDe(u)||0, usado:0, sist,
+      mun:Object.fromEntries(sist.map(x=>[x.id,x.tope])), pm:Number(u.poder_max), poder:Number(u.poder_max),
+      racion:tope, tope, fuego:0, contacto:0, tiro:0, porQuien:{}, conQuien:{} });
+  }
+  if(!E.length) return null;
+  const pos=(e,f)=>_wgPosFase(f, e.u.designacion, e.b==='rojo');
+  const horasPrevias={ azul:0, rojo:0 };
+  // 1) Las fases anteriores.
+  for(const b of ['azul','rojo']){
+    const fases=[...previas[b], actual[b]];
+    for(let i=0;i<previas[b].length;i++){
+      const f=fases[i], sig=fases[i+1], h=_wgDurFase(f);
+      horasPrevias[b]+=h;
+      for(const e of E){
+        if(e.b!==b) continue;
+        e.racion=Math.max(0, e.racion-h/24);
+        if(e.tanque>0){
+          // La marcha a la fase siguiente (la llegada a la elegida va en 2).
+          if(i<previas[b].length-1){ const p0=pos(e,f), p1=pos(e,sig); if(p0&&p1) e.usado+=_wgHav(p0,p1)*1.2; }
+          e.usado+=4*h/24;   // ralentí, generadores y movimientos locales
+        }
+        if(_wgFaseRepone(f)){
+          e.usado=Math.min(e.usado, e.tanque*(1-I.repone));
+          for(const s of e.sist) e.mun[s.id]=Math.max(e.mun[s.id], s.tope*I.repone);
+          e.racion=Math.max(e.racion, e.tope*I.repone);
+        }
+      }
+    }
+  }
+  // 2) La llegada a la posición elegida, cada 30 min.
+  const ventana=Math.max(2, Math.min(12, Math.max(_wgDurFase(actual.azul), _wgDurFase(actual.rojo))*0.5));
+  for(const e of E){
+    const prev=previas[e.b], f0=prev.length?prev[prev.length-1]:null;
+    e.p1=[Number(e.u.lng),Number(e.u.lat)];
+    e.p0=(f0&&pos(e,f0))||e.p1;
+    e.dist=_wgHav(e.p0,e.p1);
+  }
+  const cubierto=(T)=>/ocupa|organiza|defens|conducc/i.test(String((actual[T.b]&&actual[T.b].nombre)||''))?0.6:1;
+  const ataca=(b)=>/ataq|asalt|irrup|penetr|ruptur|explot|contraataq/i.test(String((actual[b]&&actual[b].nombre)||''));
+  const ART=['artilleria','lanzacohetes','morteros'];
+  const dt=0.5;
+  for(let t=dt; t<=ventana+1e-9; t+=dt){
+    const f=t/ventana;
+    const P=new Map(E.map(e=>[e,[e.p0[0]+(e.p1[0]-e.p0[0])*f, e.p0[1]+(e.p1[1]-e.p0[1])*f]]));
+    // a) La artillería bate lo que tiene a su alcance (la orgánica de una gran unidad, con el 30 % de su poder).
+    for(const F of E){
+      if(F.poder<=0) continue;
+      const ind=F.sist.filter(s=>s.arma.indirecto && s.arma.alcance>=5 && F.mun[s.id]>0.05);
+      if(!ind.length) continue;
+      const s=ind.reduce((x,y)=>y.arma.alcance>x.arma.alcance?y:x);
+      const blancos=E.filter(T=>T.b!==F.b && T.poder>0 && _wgHav(P.get(F),P.get(T))<=s.arma.alcance);
+      if(!blancos.length) continue;
+      const parte=ART.includes(F.u.arma)?1:0.3;
+      const salida=F.poder*parte*0.02*dt*I.k*(s.arma.pot/0.45);
+      const total=blancos.reduce((a,T)=>a+T.poder,0);
+      for(const T of blancos){
+        const q=Math.min(T.poder, salida*(T.poder/total)*cubierto(T));
+        T.poder-=q; T.fuego+=q;
+        const k=String(F.u.designacion||'?'); T.porQuien[k]=(T.porQuien[k]||0)+q;
+      }
+      F.mun[s.id]=Math.max(0, F.mun[s.id]-dt/3*I.k);   // una UF (misión de fuego) cada 3 h de fuego
+      F.tiro+=dt;
+    }
+    // b) El contacto (3 km o menos): la tabla del motor, repartida en la hora.
+    for(const A of E){
+      if(A.b!=='rojo' || A.poder<=0) continue;
+      for(const D of E){
+        if(D.b!=='azul' || D.poder<=0 || _wgHav(P.get(A),P.get(D))>3) continue;
+        const [at,de]=ataca('rojo')||!ataca('azul')?[A,D]:[D,A];
+        const r=at.poder/Math.max(0.01,de.poder*1.3);
+        const [pa,pd]=r>=3?[0.10,0.55]:r>=1.5?[0.20,0.40]:r>=1?[0.30,0.30]:r>=1/1.5?[0.40,0.20]:[0.50,0.10];
+        const k=dt/6*0.5*I.k;
+        const qa=Math.min(at.poder,at.pm*pa*k), qd=Math.min(de.poder,de.pm*pd*k);
+        at.poder-=qa; de.poder-=qd; at.contacto+=qa; de.contacto+=qd;
+        at.conQuien[String(de.u.designacion||'?')]=(at.conQuien[String(de.u.designacion||'?')]||0)+qa;
+        de.conQuien[String(at.u.designacion||'?')]=(de.conQuien[String(at.u.designacion||'?')]||0)+qd;
+        for(const x of [at,de]) for(const s of x.sist) if(!s.arma.indirecto) x.mun[s.id]=Math.max(0, x.mun[s.id]-s.tope*0.08*dt*I.k);
+      }
+    }
+  }
+  for(const e of E){
+    if(e.tanque>0) e.usado+=e.dist*1.2+4*ventana/24;
+    e.racion=Math.max(0, e.racion-ventana/24);
+  }
+  // 3) El resultado de cada ficha y el parte de cada bando.
+  const r2=(x)=>Math.round(x*100)/100;
+  const res=[], parte=[];
+  const nombres=(b)=>(previas[b]||[]).map(f=>`${f.nombre||'fase'} (${_wgDurFase(f)} h)`).join(' · ');
+  const ico=(b)=>b==='rojo'?'🔴':'🔵';
+  for(const b of ['azul','rojo']){
+    parte.push({ tipo:'arranque', bandos_visibles:[b], descripcion:
+      `🧭 ARRANQUE ${ico(b)} ${par[b].nombre||''}. `
+      +(previas[b].length?`Vienen de: ${nombres(b)}. `:'')
+      +`Llegada a la posición: ${ventana} h. Desgaste ${I.nom}.` });
+  }
+  const sinNovedad={ azul:[], rojo:[] };
+  for(const e of E){
+    const u=e.u, b=e.b, hombres=_wgHombresDe(u);
+    const perdida=Math.max(0, e.pm-e.poder), frac=e.pm>0?perdida/e.pm:0;
+    const bajas=Math.round(hombres*frac), heridos=Math.round(bajas*0.7);
+    const usado=Math.min(e.tanque, r2(e.usado));
+    const mun={}; for(const s of e.sist) mun[s.id]=r2(Math.max(0,Math.min(s.tope,e.mun[s.id])));
+    res.push({ bando:b, designacion:u.designacion, poder_actual:r2(Math.max(0,e.poder)), combustible_km:usado,
+      municion:mun, carga:{ racion:r2(e.racion), heridos, bajas, muertos:bajas-heridos, faltan:bajas } });   // v2.9.448: muertos y faltantes
+    // El renglón: sólo lo que importa.
+    // Sólo lo que importa: lo demás va a «sin novedad».
+    const tr=[];
+    if(frac>=0.02) tr.push(`👥 ${Math.round(100*(1-frac))} % (${bajas} bajas, ${heridos} heridos)`);
+    if(e.tanque>0){ const pc=Math.round(100*(1-usado/e.tanque)); if(pc<75) tr.push(`⛽ ${pc} %`); }
+    const pes=e.sist.filter(s=>!['fusil','ametralladora','pesada'].includes(s.id));
+    const peor=(pes.length?pes:e.sist).reduce((x,s)=>(!x||mun[s.id]/s.tope<mun[x.id]/x.tope)?s:x,null);
+    if(peor){ const pc=Math.round(100*mun[peor.id]/peor.tope); if(pc<75) tr.push(`🎯 ${peor.arma.nom} ${pc} %`); }
+    if(e.racion<e.tope*0.6) tr.push(`🥫 ${e.racion.toFixed(1).replace('.0','')} d`);
+    const quien=Object.entries(e.porQuien).sort((x,y)=>y[1]-x[1])[0];      // el que más lo batió
+    const conQuien=Object.entries(e.conQuien).sort((x,y)=>y[1]-x[1])[0];  // con quién combatió
+    // El que combatió sale siempre, aunque haya perdido poco: es lo que hay que saber.
+    const combatio=e.contacto>0.02;
+    if(!tr.length && !combatio){ sinNovedad[b].push(u.designacion||'?'); continue; }
+    if(!tr.length) tr.push(`👥 ${Math.round(100*(1-frac))} %`);
+    const otro=ico(b==='rojo'?'azul':'rojo');
+    const causa=[combatio&&conQuien?`en contacto con ${otro} ${conQuien[0]}`:'',
+      (quien&&quien[1]>0.02&&!(combatio&&conQuien&&conQuien[0]===quien[0]))?`bajo el fuego de ${otro} ${quien[0]}`:'']
+      .filter(Boolean).join(' · ');
+    parte.push({ tipo:'arranque', bandos_visibles:[b], lng:e.p1[0], lat:e.p1[1], descripcion:
+      `🧭 ${ico(b)} ${u.designacion||'?'}: ${tr.join(' · ')}${causa?' — '+causa:''}.` });
+    // Los pedidos con que arranca (las mismas franjas del motor: 40 % · 20 % · nada).
+    const pide=(txt)=>parte.push({ tipo:'pedido', bandos_visibles:[b], lng:e.p1[0], lat:e.p1[1], descripcion:`📻 ${ico(b)} ${u.designacion||'?'}: ${txt}` });
+    if(e.tanque>0){ const r=1-usado/e.tanque; if(r<0.4) pide(r<=0.001?'SIN COMBUSTIBLE, no se mueve. Pide Cl III.':`pide Cl III${r<0.2?' URGENTE':''} — le queda ${Math.round(100*r)} % (${Math.round(r*e.tanque)} km).`); }
+    if(peor){ const r=mun[peor.id]/peor.tope; if(r<0.4) pide(r<=0.001?`SIN MUNICIÓN de ${peor.arma.nom}. Pide Cl V.`:`pide Cl V${r<0.2?' URGENTE':''} — ${peor.arma.nom} ${Math.round(100*r)} %.`); }
+    if(e.racion/e.tope<0.4) pide(`pide Cl I — raciones y agua para ${e.racion.toFixed(1).replace('.0','')} día(s).`);
+    if(heridos>=5) pide(`pide evacuación — ${heridos} heridos.`);
+  }
+  for(const b of ['azul','rojo']) if(sinNovedad[b].length)
+    parte.push({ tipo:'arranque', bandos_visibles:[b], descripcion:`🧭 ${ico(b)} Sin novedad: ${sinNovedad[b].join(', ')}.` });
+  // El resumen para el árbitro (antes de importar).
+  const tot=(b)=>{ const xs=E.filter(e=>e.b===b); const pm=xs.reduce((a,e)=>a+e.pm,0), pa=xs.reduce((a,e)=>a+Math.max(0,e.poder),0);
+    return { pct:pm>0?Math.round(100*pa/pm):100, bajas:res.filter(x=>x.bando===b).reduce((a,x)=>a+x.carga.bajas,0) }; };
+  const ta=tot('azul'), tr2=tot('rojo');
+  const resumen=`🧭 Desgaste de arranque (${I.nom}): 🔵 ${ta.pct} % de su poder (${ta.bajas} bajas) · 🔴 ${tr2.pct} % (${tr2.bajas} bajas). `
+    +`Cada bando arranca con su parte en la bitácora y los pedidos de sus comandantes.`;
+  return { unidades:res, parte, resumen, intensidad:I.nom };
+}
+// v2.9.447 — ⚙️ Configurar → 🧭 Desgaste de arranque, para la partida ya cargada.
+async function wgDesgasteArranque(inp){
+  const est=document.getElementById('wg-arranque-estado');
+  const poner=(t)=>{ if(est) est.innerHTML=t; };
+  const f=inp && inp.files && inp.files[0];
+  if(inp) inp.value='';
+  if(!f) return;
+  if(WG.soy!=='arbitro'){ poner('❌ Sólo el árbitro aplica el desgaste de arranque.'); return; }
+  let d;
+  try{ d=JSON.parse(await f.text()); }catch(_e){ poner('❌ Ese archivo no es un JSON válido: elegí el <b>ejercicio.json</b> de la Mesa.'); return; }
+  const fases=_wgFasesCOA(d);
+  if(!(fases._azules||[]).length || !(fases._rojas||[]).length){ poner('❌ Ese ejercicio no trae fases 🔵 y 🔴 para enfrentar.'); return; }
+  // El mismo cuadro de la importación, dentro de esta sección.
+  const imp=document.getElementById('wg-imp-estado');
+  const fase=await new Promise((res)=>{
+    const orig=imp; const tmp=document.createElement('div'); tmp.id='wg-imp-estado';
+    if(orig) orig.id='wg-imp-estado-viejo';
+    est.innerHTML=''; est.appendChild(tmp);
+    _wgPreguntarFase(fases, (t)=>{ tmp.innerHTML=t; }, null).then((x)=>{ tmp.id=''; if(orig) orig.id='wg-imp-estado'; res(x); });
+  });
+  if(!fase || !fase._par){ poner('Desgaste de arranque cancelado (hace falta «⚔️ Jugar este enfrentamiento» o el evento crítico).'); return; }
+  const uds=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u && !_wgEsConvoy(u));
+  const arr=_wgArranque(d, fase._par, uds, fase._desgaste||'medio');
+  if(!arr){ poner('Sin desgaste (intensidad «ninguno»).'); return; }
+  if(!confirm(`Aplicar el desgaste de arranque a ${uds.length} ficha(s)?\n\n${arr.resumen}\n\nLa posición, las órdenes y el turno no cambian.`)){ poner('Cancelado.'); return; }
+  poner('⏳ Aplicando…');
+  poner(await _wgAplicarArranque(arr));
+}
+// ============================================================
+// v2.9.450 — 🤖 EL ARRANQUE CON IA (copiar y pegar). Sergio (03-11-2026): «o, si no,
+// decime si es mejor meter la información de las dos fases a una IA y que realice
+// el cálculo del escenario; en ese caso debés construirme esa opción».
+// La app no gasta plata (regla de SIDECEME): como en el aula virtual, se arma el
+// pedido —las dos fases y las anteriores, cada unidad con sus medios y su posición,
+// lo que dicen el G-2, el G-3 y el G-4, y el cálculo de la plataforma como
+// referencia— para pegarlo en la IA de cada uno, y se pega su respuesta. La
+// plataforma la revisa (cada número dentro de lo posible) y la aplica igual que el
+// cálculo propio: estado de cada ficha y parte en la bitácora.
+// ============================================================
+async function wgArranqueIA(inp){
+  const est=document.getElementById('wg-arranque-estado');
+  const poner=(t)=>{ if(est) est.innerHTML=t; };
+  const f=inp && inp.files && inp.files[0];
+  if(inp) inp.value='';
+  if(!f) return;
+  if(WG.soy!=='arbitro'){ poner('❌ Sólo el árbitro aplica el desgaste de arranque.'); return; }
+  let d;
+  try{ d=JSON.parse(await f.text()); }catch(_e){ poner('❌ Ese archivo no es un JSON válido: elegí el <b>ejercicio.json</b> de la Mesa.'); return; }
+  const fases=_wgFasesCOA(d);
+  if(!(fases._azules||[]).length || !(fases._rojas||[]).length){ poner('❌ Ese ejercicio no trae fases 🔵 y 🔴 para enfrentar.'); return; }
+  const imp=document.getElementById('wg-imp-estado');
+  const fase=await new Promise((res)=>{
+    const tmp=document.createElement('div'); tmp.id='wg-imp-estado';
+    if(imp) imp.id='wg-imp-estado-viejo';
+    est.innerHTML=''; est.appendChild(tmp);
+    _wgPreguntarFase(fases, (t)=>{ tmp.innerHTML=t; }, null).then((x)=>{ tmp.id=''; if(imp) imp.id='wg-imp-estado'; res(x); });
+  });
+  if(!fase || !fase._par){ poner('Cancelado (hace falta «⚔️ Jugar este enfrentamiento» o el evento crítico).'); return; }
+  const uds=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u && !_wgEsConvoy(u));
+  const base=_wgArranque(d, fase._par, uds, fase._desgaste&&fase._desgaste!=='ninguno'?fase._desgaste:'medio');
+  WG._ia={ uds, par:fase._par, prompt:_wgPromptArranque(d, fase._par, uds, base) };
+  const lk=(u,t)=>`<a href="${u}" target="_blank" rel="noopener" style="color:#9fd0ff">${t}</a>`;
+  poner(`<b>🤖 Arranque con IA</b> — ${_rgEsc(fase._par.azul.nombre)} contra ${_rgEsc(fase._par.rojo.nombre)}<br>`
+    +`<b>1.</b> <button class="rg-doc" onclick="wgArranqueIACopiar()">📋 Copiar el pedido</button> `
+    +`<span class="rg-meta">(${WG._ia.prompt.length.toLocaleString('es')} caracteres)</span><br>`
+    +`<b>2.</b> Pegalo en ${lk('https://claude.ai','Claude')}, ${lk('https://chatgpt.com','ChatGPT')} o ${lk('https://gemini.google.com','Gemini')}.<br>`
+    +`<b>3.</b> Pegá acá su respuesta (el JSON):`
+    +`<textarea id="wg-ia-resp" rows="6" style="width:100%;margin-top:4px;font-size:11px;resize:vertical" placeholder='{"unidades":[…],"parte":{…}}'></textarea>`
+    +`<button class="rg-doc" style="margin-top:4px" onclick="wgArranqueIAAplicar()">✅ Revisar y aplicar</button>`
+    +`<div id="wg-ia-res" class="rg-meta" style="margin-top:4px"></div>`);
+}
+function wgArranqueIACopiar(){
+  const t=(WG._ia&&WG._ia.prompt)||'';
+  try{ navigator.clipboard.writeText(t).then(()=>_wgAviso('📋 Pedido copiado: pegalo en tu IA.', 3000), ()=>prompt('Copiá el pedido:', t)); }
+  catch(_e){ prompt('Copiá el pedido:', t); }
+}
+// El pedido: compacto, en km desde un origen común, y con el formato de la respuesta.
+function _wgPromptArranque(d, par, uds, base){
+  const B=_wgFasesBandos(d);
+  const nro=(x)=>Number(x.f&&x.f.n)||(x.idx+1);
+  const prev={
+    azul:B.azules.filter(x=>x.cap===par.azul.cap && x.idx<par.azul.idx).sort((a,b)=>a.idx-b.idx).map(x=>x.f),
+    rojo:B.rojas.filter(x=>x.coa===par.rojo.coa && nro(x)<nro(par.rojo)).sort((a,b)=>nro(a)-nro(b)).map(x=>x.f),
+  };
+  const lat0=Math.min(...uds.map(u=>Number(u.lat))), lng0=Math.min(...uds.map(u=>Number(u.lng)));
+  const km=(lng,lat)=>`(${((Number(lng)-lng0)*111.32*Math.cos(lat0*Math.PI/180)).toFixed(1)}, ${((Number(lat)-lat0)*110.57).toFixed(1)})`;
+  const fase=(f)=>`«${f.nombre||'fase'}» (${_wgDurFase(f)} h)${f.tarea?': '+String(f.tarea).slice(0,160):''}`;
+  const ref=new Map(((base&&base.unidades)||[]).map(x=>[x.bando+'|'+_wgClaveDesig(x.designacion), x]));
+  const lin=uds.map(u=>{
+    const m=u.medios||{}, b=u.bando==='rojo'?'rojo':'azul', q=m.calidad;
+    const f0=prev[b].length?prev[b][prev[b].length-1]:null, p0=f0?_wgPosFase(f0,u.designacion,b==='rojo'):null;
+    const sis=Object.keys(m.sistemas||{}).map(id=>WG_ARMAS[id]?`${WG_ARMAS[id].nom} ${_wgUfTope(u,id)} UF/${WG_ARMAS[id].alcance} km`:null).filter(Boolean).join(', ');
+    const r=ref.get(b+'|'+_wgClaveDesig(u.designacion));
+    const t=_wgTanqueDe(u);
+    return `- ${b==='rojo'?'🔴':'🔵'} ${u.designacion} · ${u.arma} · ${u.escalon}${m.efectivo?` · ${m.efectivo} H`:''} · poder ${u.poder_max}`
+      +(q?` (calidad ${q.f}${q.det&&q.det.length?': '+q.det.map(x=>x.nom).join(', '):''})`:'')
+      +` · ${sis||'sin sistemas'} · tanque ${t?t+' km':'a pie'} · raciones ${Number(m.nivelDias)||3} d`
+      +` · ahora ${km(u.lng,u.lat)} km${p0?`, antes ${km(p0[0],p0[1])} km`:''}`
+      +(r?` · plataforma: poder ${Math.round(100*r.poder_actual/Math.max(0.01,u.poder_max))} %, comb ${t?Math.round(100*(1-r.combustible_km/t)):'—'} %, raciones ${r.carga.racion} d, heridos ${r.carga.heridos}`:'');
+  }).join('\n');
+  const txt=(x,n)=>String(x||'').replace(/\s+/g,' ').trim().slice(0,n);
+  const pot=(d.g3&&d.g3.potencia)||{};
+  const ctx=[
+    ['G-2 (enemigo)', txt(d.picb&&d.picb.ht1&&d.picb.ht1['FUERZAS ENEMIGAS Y SUS CAPACIDADES'],900)],
+    ['G-3 (potencia propia)', txt(Object.entries(pot).filter(([k])=>/Fuerzas propias/i.test(k)).map(([,v])=>v).join(' '),900)],
+    ['G-3 (potencia enemiga)', txt(Object.entries(pot).filter(([k])=>!/\|/.test(k)).map(([,v])=>v).join(' '),900)],
+    ['G-4', txt(JSON.stringify((d.hojasG&&d.hojasG.g4)||{}),900)],
+  ].filter(([,v])=>v).map(([k,v])=>`[${k}] ${v}`).join('\n');
+  return `Sos oficial de Estado Mayor. Calculá cómo llegan las unidades al comienzo de esta pareja de fases de un juego de guerra.\n\n`
+    +`ENFRENTAMIENTO: 🔵 ${par.azul.nombre} contra 🔴 ${par.rojo.nombre}.\n`
+    +`FASES ANTERIORES 🔵: ${prev.azul.map(fase).join(' → ')||'ninguna'}.\n`
+    +`FASES ANTERIORES 🔴: ${prev.rojo.map(fase).join(' → ')||'ninguna'}.\n\n`
+    +`UNIDADES (posiciones en km desde un origen común; «antes» = la fase anterior):\n${lin}\n\n`
+    +(ctx?`LO QUE DICE EL EJERCICIO:\n${ctx}\n\n`:'')
+    +`TAREA: estimá, para cada unidad, el desgaste con que empieza: pérdidas por fuego y contacto, combustible y munición `
+    +`gastados, raciones y agua, heridos y muertos. Que sea coherente con las distancias, los alcances, los medios y la doctrina. `
+    +`El cálculo de la plataforma es una referencia: apartate si el ejercicio lo justifica (por ejemplo, el apoyo aéreo).\n\n`
+    +`RESPONDÉ SÓLO con este JSON, sin texto antes ni después:\n`
+    +`{"unidades":[{"bando":"azul","designacion":"igual que arriba","poder_pct":0-100,"combustible_pct":0-100,"municion_pct":0-100,`
+    +`"raciones_dias":0-10,"heridos":0,"muertos":0,"motivo":"una frase corta"}],"parte":{"azul":["frase corta"],"rojo":["frase corta"]}}`;
+}
+// La respuesta de la IA, revisada: cada número dentro de lo posible, cada ficha de esta partida.
+function _wgLeerRespuestaIA(txt, uds){
+  const t=String(txt||'');
+  const i=t.indexOf('{'), j=t.lastIndexOf('}');
+  if(i<0 || j<=i) return { error:'No encontré el JSON en la respuesta.' };
+  let o; try{ o=JSON.parse(t.slice(i,j+1)); }catch(e){ return { error:'El JSON no se puede leer: '+e.message }; }
+  const lista=Array.isArray(o.unidades)?o.unidades:[];
+  if(!lista.length) return { error:'La respuesta no trae «unidades».' };
+  const cl=(x,a,b)=>Math.max(a,Math.min(b,Number(x)));
+  const res=[], parte=[], faltan=[];
+  for(const x of lista){
+    const b=x&&x.bando==='rojo'?'rojo':(x&&x.bando==='azul'?'azul':null);
+    const u=b && uds.find(y=>y.bando===b && _wgClaveDesig(y.designacion)===_wgClaveDesig(x.designacion));
+    if(!u){ faltan.push(String((x&&x.designacion)||'?')); continue; }
+    const pm=Number(u.poder_max)||0, t=_wgTanqueDe(u), tope=Number((u.medios||{}).nivelDias)>0?Number(u.medios.nivelDias):3;
+    const pp=Number.isFinite(Number(x.poder_pct))?cl(x.poder_pct,0,100):100;
+    const cp=Number.isFinite(Number(x.combustible_pct))?cl(x.combustible_pct,0,100):100;
+    const mp=Number.isFinite(Number(x.municion_pct))?cl(x.municion_pct,0,100):100;
+    const mun={}; for(const id of Object.keys((u.medios&&u.medios.sistemas)||{})) if(WG_ARMAS[id]) mun[id]=Math.round(_wgUfTope(u,id)*mp)/100;
+    const her=Math.round(cl(x.heridos||0,0,100000)), mue=Math.round(cl(x.muertos||0,0,100000));
+    res.push({ bando:b, designacion:u.designacion, poder_actual:Math.round(pm*pp)/100, combustible_km:t?Math.round(t*(100-cp))/100:0,
+      municion:mun, carga:{ racion:Math.round(cl(Number.isFinite(Number(x.raciones_dias))?x.raciones_dias:tope,0,tope)*100)/100,
+        heridos:her, muertos:mue, bajas:her+mue, faltan:her+mue } });
+    const ico=b==='rojo'?'🔴':'🔵';
+    parte.push({ tipo:'arranque', bandos_visibles:[b], lng:u.lng, lat:u.lat, descripcion:
+      `🧭 🤖 ${ico} ${u.designacion}: 👥 ${Math.round(pp)} % · ⛽ ${Math.round(cp)} % · 🎯 ${Math.round(mp)} %`
+      +(her?` · ${her} heridos`:'')+(x.motivo?` — ${String(x.motivo).slice(0,160)}`:'')+'.' });
+    const pide=(q)=>parte.push({ tipo:'pedido', bandos_visibles:[b], lng:u.lng, lat:u.lat, descripcion:`📻 ${ico} ${u.designacion}: ${q}` });
+    if(t && cp<40) pide(`pide Cl III${cp<20?' URGENTE':''} — le queda ${Math.round(cp)} %.`);
+    if(mp<40) pide(`pide Cl V${mp<20?' URGENTE':''} — munición ${Math.round(mp)} %.`);
+    if(her>=5) pide(`pide evacuación — ${her} heridos.`);
+  }
+  const p=o.parte||{};
+  for(const b of ['azul','rojo']) (Array.isArray(p[b])?p[b]:[]).slice(0,12).forEach(l=>{
+    if(String(l||'').trim()) parte.unshift({ tipo:'arranque', bandos_visibles:[b], descripcion:`🧭 🤖 ${b==='rojo'?'🔴':'🔵'} ${String(l).slice(0,300)}` }); });
+  for(const b of ['azul','rojo']) parte.unshift({ tipo:'arranque', bandos_visibles:[b], descripcion:`🧭 ARRANQUE ${b==='rojo'?'🔴':'🔵'} calculado con IA (revisado por la plataforma).` });
+  const tot=(b)=>{ const xs=res.filter(r=>r.bando===b); const pa=xs.reduce((a,r)=>a+r.poder_actual,0);
+    const pm=xs.reduce((a,r)=>a+(Number((uds.find(u=>u.bando===b&&u.designacion===r.designacion)||{}).poder_max)||0),0);
+    return pm?Math.round(100*pa/pm):100; };
+  return { unidades:res, parte, faltan,
+    resumen:`🤖 Arranque con IA: ${res.length} ficha(s) · 🔵 ${tot('azul')} % de su poder · 🔴 ${tot('rojo')} %`
+      +(faltan.length?` · ⚠️ no se encontraron: ${faltan.slice(0,6).join(', ')}`:'') };
+}
+async function wgArranqueIAAplicar(){
+  const out=document.getElementById('wg-ia-res');
+  const ta=document.getElementById('wg-ia-resp');
+  const arr=_wgLeerRespuestaIA(ta&&ta.value, (WG._ia&&WG._ia.uds)||[]);
+  if(arr.error){ if(out) out.innerHTML='❌ '+_rgEsc(arr.error); return; }
+  if(!confirm(`${arr.resumen}\n\n¿Aplicar a la partida? La posición, las órdenes y el turno no cambian.`)) return;
+  if(out) out.innerHTML='⏳ Aplicando…';
+  const r=await _wgAplicarArranque(arr);
+  if(out) out.innerHTML=r;
+}
+// Aplica el arranque a la partida abierta: las fichas se buscan por bando y designación.
+async function _wgAplicarArranque(arr){
+  if(!arr || !Array.isArray(arr.unidades) || !arr.unidades.length) return '';
+  const uds=((WG.estado&&WG.estado.unidades)||[]).filter(u=>u && !_wgEsConvoy(u));
+  const lista=[];
+  for(const x of arr.unidades){
+    const k=_wgClaveDesig(x.designacion);
+    const u=uds.find(y=>y.bando===x.bando && _wgClaveDesig(y.designacion)===k);
+    if(u) lista.push(Object.assign({ id:u.id }, x));
+  }
+  if(!lista.length) return '<br>⚠️ El desgaste de arranque no encontró las fichas de esta partida.';
+  const r=await _wgInvoke('aplicar_arranque',{ partida_id:WG.partidaId, clave_acceso:WG.clave, unidades:lista, parte:arr.parte||[] });
+  if(!r || !r.ok){
+    const vieja=/no reconocida/i.test((r&&r.error)||'');
+    return '<br>⚠️ '+(vieja?'La Edge Function <b>wargame-ops</b> es la anterior: desplegá la v2.9.447 para el desgaste de arranque.'
+      :'No se aplicó el desgaste de arranque: '+_rgEsc((r&&r.error)||''));
+  }
+  await wgEstado(true); _wgRender(); try{ await wgHistorial(); wgBit(true); }catch(_e){}
+  return `<br>🧭 <b>Desgaste de arranque aplicado</b> a ${r.aplicadas} ficha(s) · ${r.parte} renglón(es) de parte en la bitácora.`
+    +`<br><span class="rg-meta">${_rgEsc(arr.resumen||'')}</span>`;
+}
 // Lo que cada opción muestra antes de elegir: cuántas de combate, cuántas
 // instalaciones y, si trae a los dos bandos, cuántas de cada uno.
 // ============================================================
@@ -38130,14 +38870,17 @@ function _wgFasesCOA(d){
   const ev=d&&d.eventoCritico;
   const g=(d&&d.g3&&d.g3.sincro&&d.g3.sincro._evento)||(ev&&Number.isInteger(ev.azul)?ev:null);
   if(g) marcar(g.cap===2?2:1, g.azul, g.rojo);
+  // v2.9.447: con la pareja de fases, para calcular el desgaste de arranque.
+  const _aEv=g&&B.azules.find(x=>x.cap===(g.cap===2?2:1)&&x.idx===g.azul);
+  const _rEv=g&&B.rojas.find(x=>x.idx===g.rojo);
   if(ev&&Array.isArray(ev.unidades)&&ev.unidades.length){
     out.push(_wgOpcionFase({bando:'evento', evento:true, nombre:'⚔️ '+(ev.nombre||'EVENTO CRÍTICO'),
-      unidades:ev.unidades, ops:ev.ops||null, desplazamientos:ev.desplazamientos||null}));
+      unidades:ev.unidades, ops:ev.ops||null, desplazamientos:ev.desplazamientos||null,
+      _par:(_aEv&&_rEv)?{ azul:_aEv, rojo:_rEv }:null}));
   } else {
-    const a=g&&B.azules.find(x=>x.cap===(g.cap===2?2:1)&&x.idx===g.azul);
-    const r=g&&B.rojas.find(x=>x.idx===g.rojo);
+    const a=_aEv, r=_rEv;
     if(a&&r) out.push(_wgOpcionFase(Object.assign({bando:'evento', evento:true,
-      nombre:`⚔️ EVENTO CRÍTICO — ${a.nombre} contra ${r.nombre}`}, _wgEnfrentar(a.f, r.f))));
+      nombre:`⚔️ EVENTO CRÍTICO — ${a.nombre} contra ${r.nombre}`}, _wgEnfrentar(a.f, r.f), { _par:{ azul:a, rojo:r } })));
   }
   B.azules.forEach(a=>{ if(Number.isInteger(a.f.contra)) marcar(a.cap, a.idx, a.f.contra); });
   // 2) Las fases de siempre. La 🔵 que el 🎬 C.A. por fases puso «contra» una
@@ -38187,6 +38930,11 @@ function _wgPreguntarFase(fases, poner, archivo){
         +`<div style="margin-top:6px"><span style="color:#1f6dff">🔵</span> <select id="wg-enf-azul" style="max-width:100%">${opc(az,sel.azul)}</select></div>`
         +`<div style="margin-top:4px"><span style="color:#e23b3b">🔴</span> <select id="wg-enf-rojo" style="max-width:100%">${opc(ro,sel.rojo)}</select></div>`
         +`<button class="rg-doc" style="display:block;width:100%;text-align:left;margin-top:6px" data-fase="enfrentar">⚔️ Jugar este enfrentamiento</button></div>`
+        // v2.9.447 — cómo llegan las unidades a esas fases (lo anterior se calcula).
+        +`<div style="margin:2px 0 8px;font-size:11px;line-height:1.6">🧭 <b>Desgaste de arranque</b> `
+        +`<span class="rg-meta">(lo que pasó antes de estas fases):</span><br>`
+        +['ninguno','bajo','medio','alto'].map(k=>`<label style="margin-right:8px;white-space:nowrap"><input type="radio" name="wg-desgaste" value="${k}"${k==='medio'?' checked':''}> ${k}</label>`).join('')
+        +`</div>`
       : '';
     // v2.9.439 — ¿EL PLAN DE BARRERAS YA ESTÁ CONSTRUIDO EN LA FASE QUE SE JUEGA?
     // De entrada sí cuando el evento crítico es de la FASE III en adelante (la
@@ -38225,12 +38973,14 @@ function _wgPreguntarFase(fases, poner, archivo){
         const rb=cont.querySelector('input[name="wg-barreras"]:checked');
         fases._barreras = rb ? rb.value : porDefecto;
         if(v==='no') return resolve(undefined);
+        const dg=((cont.querySelector('input[name="wg-desgaste"]:checked')||{}).value)||'medio';   // v2.9.447
         if(v==='enfrentar'){
           const a=az[Number(document.getElementById('wg-enf-azul').value)||0];
           const r=ro[Number(document.getElementById('wg-enf-rojo').value)||0];
           return resolve(_wgOpcionFase(Object.assign({bando:'evento', evento:true,
-            nombre:`⚔️ ${a.nombre} contra ${r.nombre}`}, _wgEnfrentar(a.f, r.f))));
+            nombre:`⚔️ ${a.nombre} contra ${r.nombre}`}, _wgEnfrentar(a.f, r.f), { _par:{ azul:a, rojo:r }, _desgaste:dg })));
         }
+        if(v!=='viva' && fases[Number(v)]) fases[Number(v)]._desgaste=dg;
         resolve(v==='viva'?null:fases[Number(v)]);
       };
     });
@@ -38435,6 +39185,230 @@ const WG_VEH_G4={ liviano:'Livianos', camion:'Camiones', vci:'Blindados de trans
   tanque:'Tanques', pieza:'Piezas autopropulsadas' };
 const WG_ESC_ORDEN=['equipo','escuadra','seccion','compania','batallon','regimiento','brigada','division','cuerpo','ejercito'];
 const _wgEscMayor=(e,ref)=>WG_ESC_ORDEN.indexOf(e)>=WG_ESC_ORDEN.indexOf(ref);
+// ============================================================
+// v2.9.446 — EL PODER SALE DEL EFECTIVO Y DE LA CALIDAD DEL ARMAMENTO.
+// Sergio (03-11-2026): «sé que azul es más, pero considerá que rojo tiene más y
+// mejor armamento — revisá eso». Tenía razón: el poder de cada ficha salía SÓLO
+// de su escalón (división 80, batallón 12). En «CE-IV9» las tres divisiones del
+// azul tienen 3.570–3.805 hombres (hoja del G-4) — el tamaño de una brigada — y
+// el Juego las contaba como de 10.000; un Leopard 2A4 valía lo mismo que un
+// Cascavel y un M109 autopropulsado lo mismo que un M114 remolcado. El evento
+// crítico salía 256 a 64 para el azul.
+//   · EFECTIVO: si se sabe (COE, datos del G-4 o los textos del ejercicio:
+//     «DIV MEC-2: 3.805»), el poder sale de la curva de los escalones (600 H ≈ 12,
+//     3.500 H ≈ 40, 10.000 H ≈ 80), no del nombre del escalón.
+//   · CALIDAD: el catálogo de abajo, contra el sistema genérico del Juego
+//     (factor 1). Se lo reconoce en la designación («CÍA. A/B (SPIKE)»), en el COE
+//     y en lo que los textos del ejercicio dicen DE ESA UNIDAD; si no dicen nada,
+//     el sistema típico de su bando para su arma (el PICB del G-2 describe al
+//     rojo; las hojas del G-3 y del G-4, al azul).
+// ⚠️ Factores de referencia, a validar con las tablas de la Escuela. El árbitro ve
+// de dónde sale el número de cada ficha y lo corrige (⚖️ en Medios y capacidades).
+// ============================================================
+const WG_FAM_Q={ tanque:'tanques', vci:'vehículos de combate', misil:'antitanque', tubo:'artillería de tubo',
+  cohete:'lanzacohetes', aa:'antiaérea', ing:'ingeniería' };
+const WG_SISTEMAS_Q=[
+  { fam:'tanque', f:1.8,  nom:'Leopard 2 (tanque 3ª gen.)', re:/LEOPARD\s*2|ABRAMS|\bT\s?90\b|\bT\s?80\b|MERKAVA|CHALLENGER|LECLERC/ },
+  { fam:'tanque', f:1.0,  nom:'tanque 2ª gen.', re:/LEOPARD\s*1(?!\s*AEV)|\bTAM\b|\bAMX\s?30\b|\bM\s?60\b|\bT\s?72\b|\bT\s?62\b/ },
+  { fam:'tanque', f:0.65, nom:'tanque liviano', re:/\bT\s?5[45]\b|\bM\s?4[18]\b|\bAMX\s?13\b|\bSK\s?105\b|KURASSIER|STINGRAY|SCORPION/ },
+  { fam:'tanque', f:0.45, nom:'Cascavel (blindado a rueda)', re:/CASCAVEL|\bEE\s?9\b|\bAML\s?90\b|\bERC\s?90\b|RATEL/ },
+  { fam:'vci', f:1.4,  nom:'VCI con cañón', re:/MARDER|\bBMP\s?[23]\b|BRADLEY|\bCV\s?90\b|WARRIOR/ },
+  { fam:'vci', f:1.15, nom:'M113 (a oruga)', re:/\bM\s?113\b|\bAIFV\b|\bYPR\s?765\b|\bBMP\s?1\b/ },
+  { fam:'vci', f:1.1,  nom:'Piraña / Guaraní (8×8, 6×6)', re:/PIRANA|MOWAG|STRYKER|\bBTR\s?8[02]\b|GUARANI/ },
+  { fam:'vci', f:0.85, nom:'Urutu (VTP antiguo)', re:/URUTU|\bEE\s?11\b/ },
+  { fam:'misil', f:1.4, nom:'Spike (misil 3ª gen.)', re:/SPIKE|JAVELIN|KORNET/ },
+  { fam:'misil', f:1.0, nom:'TOW / Milan', re:/\bTOW\b|MILAN|\bHOT\b|MAPATS|KONKURS/ },
+  { fam:'misil', f:0.7, nom:'S/R 106 / cohete AT', re:/\b106\b|SIN RETROCESO|CARL GUSTA|\bAT\s?4\b/ },
+  { fam:'tubo', f:1.35, nom:'M109 (autopropulsado)', re:/\bM\s?109\b|CAESAR|\bPZH\b|\bAS\s?90\b|\b2S19\b|AUTOPROPULSAD/ },
+  { fam:'tubo', f:1.0,  nom:'obús 155 remolcado', re:/\bM\s?114\b|\bM\s?198\b|SOLTAM|\bM\s?777\b/ },
+  { fam:'tubo', f:0.85, nom:'obús 105 remolcado', re:/\bM\s?101\b|\bM\s?102\b|OTO MELARA|\bL\s?118\b/ },
+  { fam:'cohete', f:1.2, nom:'LAR-160 (largo alcance)', re:/\bLAR\s?160\b|ASTROS|\bMLRS\b|HIMARS|\bRAYO\b/ },
+  { fam:'cohete', f:0.9, nom:'BM-21 (corto alcance)', re:/\bBM\s?21\b|\bGRAD\b|TYPE 63/ },
+  { fam:'aa', f:1.5, nom:'Gepard (AA autopropulsada)', re:/GEPARD|TUNGUSKA|ROLAND|NASAMS|AVENGER/ },
+  { fam:'aa', f:1.0, nom:'RBS-70 / Mistral', re:/\bRBS\s?70\b|MISTRAL|STINGER|\bIGLA\b/ },
+  { fam:'aa', f:0.8, nom:'cañón AA remolcado', re:/\bZU\s?23\b|OERLIKON|\bGDF\b|BOFORS/ },
+  { fam:'ing', f:1.15, nom:'ingeniería blindada', re:/BIBER|AVLB|BERGEPANZER|PIONIERPANZER|LANZAPUENTES|LANZAFAJINAS|BARREMINAS/ },
+];
+// Qué pesa en la calidad de cada arma (la PRIMERA familia es la que la define: de
+// ésa sola se toma el sistema típico del bando si de la unidad no se dice nada).
+const WG_PESOS_Q={
+  blindada:{ tanque:1 }, mecanizada:{ vci:0.7, misil:0.3 }, motorizada:{ vci:0.6, misil:0.4 },
+  cabmec:{ vci:0.6, tanque:0.4 }, caballeria:{ tanque:0.6, vci:0.4 },
+  infanteria:{ misil:0.5 }, andina:{ misil:0.5 }, selva:{ misil:0.5 }, aerotransportada:{ misil:0.5 },
+  artilleria:{ tubo:1 }, lanzacohetes:{ cohete:1 }, antitanque:{ misil:1 }, antiaerea:{ aa:1 }, ingenieria:{ ing:1 },
+};
+// Gran unidad (brigada en adelante): armas combinadas. Su arma pesa la mitad; la
+// otra mitad, su artillería, su antiaérea y su ingeniería orgánicas.
+const WG_PESOS_GU={ tubo:0.3, aa:0.1, ing:0.1 };
+// La mitad «de su arma» en una gran unidad mecanizada o blindada lleva sus tanques
+// (en la DIV MEC-2: Cascavel, Urutu y Guaraní).
+const WG_PESOS_Q_GU={ mecanizada:{ vci:0.5, tanque:0.3, misil:0.2 }, blindada:{ tanque:0.7, vci:0.3 },
+  cabmec:{ tanque:0.5, vci:0.5 }, caballeria:{ tanque:0.6, vci:0.4 } };
+// La curva de los escalones: hombres → poder (interpolada en logaritmos).
+const WG_PODER_EFECTIVO=[[10,0.5],[35,2],[130,4],[600,12],[1500,20],[3500,40],[10000,80],[30000,150],[60000,300]];
+function _wgPoderPorEfectivo(n){
+  n=Number(n)||0;
+  const T=WG_PODER_EFECTIVO;
+  if(n<=T[0][0]) return T[0][1];
+  for(let i=1;i<T.length;i++){
+    if(n<=T[i][0]){
+      const [a,pa]=T[i-1], [b,pb]=T[i];
+      const f=(Math.log(n)-Math.log(a))/(Math.log(b)-Math.log(a));
+      return Math.round((pa+(pb-pa)*f)*10)/10;
+    }
+  }
+  return T[T.length-1][1];
+}
+function _wgNormQ(t){
+  return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()
+    .replace(/[^A-Z0-9]+/g,' ').replace(/\s+/g,' ');
+}
+// Igual, pero conserva ( ) ; para cortar «lo que se dice de la unidad».
+function _wgNormQP(t){
+  return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase()
+    .replace(/[^A-Z0-9();]+/g,' ').replace(/\s+/g,' ');
+}
+function _wgSistemasQ(txtNorm){
+  const out=[];
+  for(const s of WG_SISTEMAS_Q){
+    const re=new RegExp(s.re.source,'g');
+    const n=(String(txtNorm||'').match(re)||[]).length;
+    if(n) out.push({ s, n });
+  }
+  return out;
+}
+// Lo que el ejercicio dice de cada bando, y los efectivos que da por unidad.
+function _wgArmasDelEjercicio(d){
+  const rojo=[], azul=[], docs=[];
+  const add=(arr,x)=>{
+    if(typeof x==='string'){ if(x.trim()) arr.push(x); }
+    else if(Array.isArray(x)) x.forEach(v=>add(arr,v));
+    else if(x && typeof x==='object') Object.values(x).forEach(v=>add(arr,v));
+  };
+  if(d){
+    add(rojo, d.picb);
+    add(rojo, d.ordenSup&&d.ordenSup.enemigo);
+    const pot=(d.g3&&d.g3.potencia)||{};
+    for(const [k,v] of Object.entries(pot)){
+      if(/\|\s*Deducciones/i.test(k)) continue;
+      if(/\|\s*Fuerzas propias/i.test(k)) add(azul,v); else if(!/\|/.test(k)) add(rojo,v);
+    }
+    const op=(d.g3&&d.g3.opord&&d.g3.opord.campos)||{};
+    add(rojo,[op.enemigo,op.caeProbable,op.caePeligroso]);
+    add(azul, d.ordenSup&&[d.ordenSup.propias,d.ordenSup.refuerzos,d.ordenSup.organizacionTarea]);
+    add(azul, d.hojasG);
+    for(const doc of (d.documentos||[])) if(doc && typeof doc.texto==='string') docs.push(doc.texto);
+  }
+  // Para buscar a una unidad por su nombre: el rojo en lo del G-2 y en los
+  // documentos (el Anexo de Inteligencia lo describe); el azul, en lo propio.
+  const N={ rojo:_wgNormQP(rojo.concat(docs).join(' ; ')), azul:_wgNormQP(azul.join(' ; ')) };
+  // El sistema típico de cada bando, por familia (con cuántas veces se lo nombra).
+  const tipicos={ rojo:{}, azul:{} };
+  for(const [b,arr] of [['rojo',rojo],['azul',azul]])
+    for(const x of _wgSistemasQ(_wgNormQ(arr.join(' ; ')))) (tipicos[b][x.s.fam]=tipicos[b][x.s.fam]||[]).push(x);
+  // Efectivos por unidad: «DIV MEC-2: 3.805», «DIV-1, 3.570», «X (≈ 1.200 hombres)».
+  // Cada número junta puntos: si el párrafo habla de efectivos o combatientes; si
+  // lo sigue «hombres»; y resta si el número es de una subunidad nombrada antes
+  // («BAT. LOG-I (DIV-1: 280 hombres» es el del batallón logístico, no la división).
+  const efectivos={};
+  const re=/([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ0-9 .\-«»]{1,26}?)\s*(?::|,|\(\s*≈?)\s*≈?\s*(\d{1,3}(?:[.,]\d{3})+|\d{2,5})(?!\s*(?:km|m\b|%|mm|kg|t\b|°|h\b|min|vuelos|VUG|cisternas))/g;
+  for(const t of rojo.concat(azul, docs)){
+    let m; re.lastIndex=0;
+    while((m=re.exec(t))){
+      const k=_wgClaveDesig(m[1]); const n=Number(String(m[2]).replace(/[.,](?=\d{3}\b)/g,''));
+      if(!k || k.length<2 || !(n>=20 && n<=60000)) continue;
+      const antes=t.slice(Math.max(0,m.index-110), m.index), despues=t.slice(m.index+m[0].length, m.index+m[0].length+25);
+      let pts=1;
+      if(/EFECTIV|COMBATIENT|PERSONAL|TOTAL DE/i.test(antes)) pts+=2;
+      if(/^\s*(combatientes|hombres|efectivos|H\b)/i.test(despues)) pts+=1;
+      if(/\b(BAT|BTN|CIA|CÍA|GRUPO|BATALL[OÓ]N|COMPA[NÑ][IÍ]A)\.?\s*[A-ZÁÉÍÓÚ]{2,5}[\s\-]*[IVX0-9]*\s*\($/i.test(antes.trim()+' (')) pts-=3;
+      const lista=efectivos[k]||(efectivos[k]=[]);
+      const ya=lista.find(x=>x.n===n);
+      if(ya) ya.pts+=pts; else lista.push({ n, pts });
+    }
+  }
+  return { N, tipicos, efectivos };
+}
+// El efectivo de UNA unidad: el de más puntos que sea creíble para su escalón.
+const WG_EFECTIVO_REF={ seccion:35, compania:130, batallon:600, regimiento:1500, brigada:3500, division:10000, cuerpo:30000, ejercito:60000 };
+function _wgEfectivoDe(u, escalon, A){
+  const k=_wgClaveDesig(u&&u.designacion);
+  const lista=(A&&A.efectivos&&k)?A.efectivos[k]:null;
+  if(!lista || !lista.length) return null;
+  const ref=WG_EFECTIVO_REF[escalon]||600;
+  const ok=lista.filter(x=>x.pts>0 && x.n>=ref*0.2 && x.n<=ref*3).sort((a,b)=>b.pts-a.pts);
+  return ok.length ? ok[0].n : null;
+}
+// Los nombres con que los textos nombran a una unidad: lo que va entre «» y la
+// designación sin lo de entre paréntesis («PEL. REC. BLIN.» → «PEL REC BLIN»).
+function _wgNombresQ(desig){
+  const out=[];
+  const s=String(desig||'');
+  for(const m of s.matchAll(/«([^»]{3,40})»/g)) out.push(_wgNormQ(m[1]).trim());
+  const base=_wgNormQ(s.split('(')[0].replace(/«[^»]*»/g,'')).trim();
+  if(base.replace(/\s/g,'').length>=4) out.push(base);
+  return [...new Set(out.filter(Boolean))];
+}
+// Lo que se dice de la unidad JUSTO DESPUÉS de nombrarla: su paréntesis («GB 9
+// «VENCEDORES» (≈42 Leopard 2A4…)») o hasta el próximo «;» — no el resto del
+// párrafo, que suele nombrar también las armas del enemigo.
+function _wgVentanasDe(nombre, texto){
+  const out=[];
+  const pal=nombre.split(' ').map(w=>w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('[\\s()]*');
+  const re=new RegExp('\\b'+pal+'\\b(?!\\s?\\d)','g');
+  let m, k=0;
+  while((m=re.exec(texto)) && k++<15){
+    let resto=texto.slice(m.index+m[0].length, m.index+m[0].length+220);
+    const t0=resto.trimStart();
+    if(t0.startsWith('(')){ const c=t0.indexOf(')'); resto=c>0?t0.slice(1,c):t0.slice(1,160); }
+    else { const c=resto.search(/[;)]/); resto=(c>=0?resto.slice(0,c):resto).slice(0,140); }
+    out.push(resto);
+  }
+  return out;
+}
+// La calidad de UNA ficha: { f, det:[{ fam, nom, f, de }] }.
+function _wgCalidadDe(u, q){
+  const arma=q.arma, escalon=q.escalon, A=q.armas, gu=_wgEscMayor(escalon,'brigada');
+  let pesos=Object.assign({}, (gu && WG_PESOS_Q_GU[arma]) || WG_PESOS_Q[arma] || {});
+  const primera=Object.keys(pesos)[0]||null;
+  if(gu){
+    const p={}; for(const [k,w] of Object.entries(pesos)) p[k]=(p[k]||0)+w*0.5;
+    for(const [k,w] of Object.entries(WG_PESOS_GU)) p[k]=(p[k]||0)+w;
+    pesos=p;
+  }
+  // 1) La designación y el COE; 2) lo que los textos dicen de ESA unidad.
+  const propios=_wgSistemasQ(_wgNormQ(String(u.designacion||'')
+    +' '+Object.keys((q.coe&&q.coe.armamento)||{}).join(' ')+' '+Object.keys((q.coe&&q.coe.vehiculos)||{}).join(' ')));
+  const deTexto=[];
+  if(A && A.N && A.N[q.bando]){
+    for(const nom of _wgNombresQ(u.designacion))
+      for(const v of _wgVentanasDe(nom, A.N[q.bando])) deTexto.push(..._wgSistemasQ(_wgNormQ(v)));
+  }
+  const det=[];
+  let suma=0, w=0;
+  for(const [fam,peso] of Object.entries(pesos)){
+    let lista=propios.filter(x=>x.s.fam===fam), de='la designación / el COE', f=null, nom='';
+    if(!lista.length){ lista=deTexto.filter(x=>x.s.fam===fam); de='lo que el ejercicio dice de la unidad'; }
+    if(lista.length){
+      // De la unidad: el más nombrado (a igual cantidad, el mejor).
+      const mejor=lista.reduce((x,y)=>(!x||y.n>x.n||(y.n===x.n&&y.s.f>x.s.f))?y:x,null);
+      f=mejor.s.f; nom=mejor.s.nom;
+    } else if(A && (fam===primera || (gu && (WG_PESOS_GU[fam] || fam==='tanque')))){
+      // Lo típico de su bando: el promedio de lo que nombra, pesado por las veces.
+      const t=((A.tipicos[q.bando]||{})[fam])||[];
+      const n=t.reduce((a,x)=>a+x.n,0);
+      if(n){ f=Math.round(t.reduce((a,x)=>a+x.s.f*x.n,0)/n*100)/100;
+        nom=t.slice().sort((a,b)=>b.n-a.n).slice(0,2).map(x=>x.s.nom).join(' / '); de='lo típico del '+q.bando; }
+    }
+    if(f==null) continue;
+    det.push({ fam, nom, f, de });
+    suma+=peso*f; w+=peso;
+  }
+  // Lo que no se nombra pesa como el sistema genérico del Juego (1).
+  const total=Math.max(1, Object.values(pesos).reduce((a,b)=>a+b,0));
+  const f=(suma + (total-w)*1) / total;
+  return { f:Math.round(Math.max(0.3,Math.min(2.5,f))*100)/100, det };
+}
 // Todo junto: los medios de UNA ficha de la Mesa. Devuelve `{ medios, medio,
 // poder, obs, pc, designacion }` — lo que va a wg_unidades.
 function _wgMediosImport(u, ctx){
@@ -38529,10 +39503,28 @@ function _wgMediosImport(u, ctx){
   // Gemelo de `poderDeReferencia` del motor. (Sergio: los vehículos de
   // abastecimiento «estaban disparando como si fueran división».)
   const basePoder=(WG_PODER[escalon]||12);
-  const poder = pc ? (_wgEscMayor(escalon,'division') ? WG_PODER.compania : WG_PODER.seccion)
+  let poder = pc ? (_wgEscMayor(escalon,'division') ? WG_PODER.compania : WG_PODER.seccion)
               : WG_ARMAS_SERVICIO.includes(arma) ? Math.round(basePoder*0.15*10)/10
               : arma==='comunicaciones' ? Math.round(basePoder*0.25*10)/10
               : basePoder;
+  // v2.9.446 — EL EFECTIVO Y LA CALIDAD DEL ARMAMENTO (sólo las fuerzas de combate:
+  // el PC y el apoyo siguen con su seguridad / su fracción del escalón).
+  const A=ctx.armas||null;
+  if(!efectivo && A) efectivo=_wgEfectivoDe(u, escalon, A);
+  let calidad=null;
+  if(!pc && !WG_ARMAS_SERVICIO.includes(arma) && arma!=='comunicaciones'){
+    const base = efectivo ? _wgPoderPorEfectivo(efectivo) : basePoder;
+    const q=_wgCalidadDe(u, { arma, escalon, coe, armas:A, bando:_wgEsRoja(u)?'rojo':'azul' });
+    calidad={ f:q.f, base:Math.round(base*10)/10, porEfectivo:!!efectivo, det:q.det.slice(0,8) };
+    poder=Math.max(0.5, Math.round(base*q.f*10)/10);
+    // v2.9.447 — lo reconocido también dice CON QUÉ tira: el M109 bate a 24 km, no a 11.
+    if(fuente==='catalogo' && sistemas.obus105 && !sistemas.obus155
+       && q.det.some(x=>x.fam==='tubo' && !/típico/.test(x.de||'') && /M109|155|autoprop/i.test(x.nom))){
+      const pl=_wgUfPlan('obus155', plan);
+      sistemas.obus155={ uf:pl.uf, de:pl.de };
+      delete sistemas.obus105;
+    }
+  }
   const obs = pc ? Math.min(WG_OBS[escalon]||4, WG_OBS.batallon) : (WG_OBS[escalon]||4);
   const s={};
   if(u.tipo==='pc') s.tipo='pc';
@@ -38542,6 +39534,9 @@ function _wgMediosImport(u, ctx){
   if(u.reducida) s.reducida=true;
   const medios={ v:1, fuente, fuenteTxt, sistemas };
   if(efectivo) medios.efectivo=efectivo;
+  if(calidad) medios.calidad=calidad;   // v2.9.446
+  // v2.9.446 — lo que pesa en cargas de batallón, por su efectivo (600 H = 1).
+  if(efectivo) medios.peso=Math.round(Math.max(0.05, efectivo/600)*100)/100;
   const corta=(o)=>{ if(!o) return null; const r={}; let i=0;
     for(const [k,n] of Object.entries(o)){ if(k==='TOTAL'||!(Number(n)>0)) continue; if(i++>=24) break; r[String(k).slice(0,48)]=Number(n); }
     return Object.keys(r).length?r:null; };
@@ -38690,7 +39685,7 @@ function _wgEscenarioDesde(d, fase, op){
   // v2.9.439 — lo planificado (Anexo de Logística) y el COE de la biblioteca,
   // una sola vez para todas las fichas.
   const plan=_wgPlanLogistico(d);
-  const ctxMedios={ plan, coes:(d&&Array.isArray(d.bibliotecaCOE))?d.bibliotecaCOE:[] };
+  const ctxMedios={ plan, coes:(d&&Array.isArray(d.bibliotecaCOE))?d.bibliotecaCOE:[], armas:_wgArmasDelEjercicio(d) };   // v2.9.446
   const medios={ porFuente:{}, pcs:[], plan, nCoe:ctxMedios.coes.length };
   // Si se eligió una fase del COA, las unidades salen de ESA fase; si no, del
   // estado vivo del ejercicio (que es la fase que quedó abierta al guardar).
@@ -38742,6 +39737,7 @@ function _wgEscenarioDesde(d, fase, op){
     const M=_wgMediosImport(u, ctxMedios);
     medios.porFuente[M.medios.fuente]=(medios.porFuente[M.medios.fuente]||0)+1;
     if(M.pc) medios.pcs.push(String(M.designacion||u.designacion||'PC'));
+    (medios.fichas=medios.fichas||[]).push({ b:bando, p:M.poder, d:String(M.designacion||u.designacion||'?'), c:M.medios.calidad||null, pc:!!M.pc });   // v2.9.446
     unidades.push({ bando, designacion:M.designacion||null, escalon, arma:u.arma||null,
       medio: u.medio||M.medio, lat:Number(u.lat), lng:Number(u.lng),
       poder_max: Number(u.poder_max)||M.poder||12,
@@ -38926,8 +39922,12 @@ function _wgEscenarioDesde(d, fase, op){
       nom:(WG_ABREV_INSTAL[z.zona]||'Área logística') } });
     visuales++;
   }
+  // v2.9.447 — 🧭 el desgaste de arranque de la pareja de fases elegida.
+  // Si el cálculo fallara, la importación sigue igual (sin desgaste): nunca la corta.
+  let arranque=null;
+  if(fase && fase._par){ try{ arranque=_wgArranque(d, fase._par, unidades, fase._desgaste||'medio'); }catch(e){ console.warn('desgaste de arranque:', e); } }
   return { unidades, terreno, visuales, instalaciones, sinEfecto, ejes,
-    obstaculos, obsMecanicos, agrupaciones, medios,
+    obstaculos, obsMecanicos, agrupaciones, medios, arranque,
     nombre:(d&&d.nombre)||'', fase:(fase?fase.nombre:null) };
 }
 // ============================================================
@@ -38969,7 +39969,25 @@ function _wgResumenMedios(m){
     if(pl.nivelDias) t += `\n• 📅 Nivel de abastecimiento planificado: ${pl.nivelTxt||pl.nivelDias+' días'}`;
   }
   if((m.pcs||[]).length) t += `\n• ⛳ Puestos de Comando (combaten sólo con su seguridad): ${m.pcs.slice(0,8).join(', ')}${m.pcs.length>8?'…':''}`;
+  t += _wgBalancePoder(m.fichas, false);   // v2.9.446
   return t;
+}
+// v2.9.446 — EL BALANCE: cuánto pesa cada bando con su efectivo y la calidad de su
+// armamento, y qué fichas se apartan más del sistema genérico del Juego.
+function _wgBalancePoder(fichas, html){
+  const sum={ azul:0, rojo:0 };
+  for(const f of (fichas||[])) if(f && !f.pc && sum[f.b]!=null) sum[f.b]+=Number(f.p)||0;
+  if(!sum.azul && !sum.rojo) return '';
+  const a=Math.round(sum.azul), r=Math.round(sum.rojo);
+  const rel = (a&&r) ? (a>=r ? `${(a/r).toFixed(1)} : 1 para el azul` : `${(r/a).toFixed(1)} : 1 para el rojo`) : '';
+  const extremos=(fichas||[]).filter(f=>f && f.c && !f.pc && Math.abs(Number(f.c.f)-1)>=0.15)
+    .sort((x,y)=>Math.abs(y.c.f-1)-Math.abs(x.c.f-1)).slice(0,6)
+    .map(f=>`${f.b==='rojo'?'🔴':'🔵'} ${f.d} ×${Number(f.c.f).toFixed(2)}`
+      +((f.c.det&&f.c.det.length)?` (${f.c.det.map(x=>x.nom).slice(0,2).join(', ')})`:''));
+  const t1=`⚖️ Poder de combate (efectivo × calidad del armamento): 🔵 ${a} · 🔴 ${r}${rel?' → '+rel:''}`;
+  const t2=extremos.length?`lo que más pesa: ${extremos.join(' · ')}`:'';
+  return html ? `<br>${_rgEsc(t1)}${t2?'<br><span style="opacity:.8">'+_rgEsc(t2)+'</span>':''}`
+              : `\n• ${t1}${t2?'\n   '+t2:''}`;
 }
 async function wgImportarEscenario(inp, sumar){
   const files=[...((inp&&inp.files)||[])]; if(!files.length) return;
@@ -39009,7 +40027,7 @@ async function wgImportarEscenario(inp, sumar){
   // 2) Combinar en UN escenario. Cada capa aporta lo suyo y nada se pisa.
   const esc={ unidades:[], terreno:[], visuales:0, instalaciones:[], sinEfecto:[], ejes:0,
               obstaculos:0, obsMecanicos:0, agrupaciones:[], nombre:'', fase:null,
-              medios:{ porFuente:{}, pcs:[], plan:null, nCoe:0 } };   // v2.9.439
+              medios:{ porFuente:{}, pcs:[], plan:null, nCoe:0, fichas:[] } };   // v2.9.439 · v2.9.446: fichas
   const detalle=[];
   for(const p of partes){
     const e=p.esc;
@@ -39022,6 +40040,8 @@ async function wgImportarEscenario(inp, sumar){
     if(e.medios){
       for(const [k,n] of Object.entries(e.medios.porFuente||{})) esc.medios.porFuente[k]=(esc.medios.porFuente[k]||0)+n;
       esc.medios.pcs.push(...(e.medios.pcs||[]));
+      esc.medios.fichas.push(...(e.medios.fichas||[]));   // v2.9.446
+      if(e.arranque && !esc.arranque) esc.arranque=e.arranque;   // v2.9.447
       esc.medios.nCoe=Math.max(esc.medios.nCoe, e.medios.nCoe||0);
       const pl=e.medios.plan;
       if(pl && !esc.medios.plan && (Object.keys(pl.tad||{}).length || pl.consumo || pl.nivelDias)) esc.medios.plan=pl;
@@ -39054,6 +40074,7 @@ async function wgImportarEscenario(inp, sumar){
         :` — todas PROYECTADAS: se ven pero no frenan`)
       +`. El enemigo no las ve hasta tenerlas a la vista.`:'')
     +_wgResumenMedios(esc.medios)
+    +(esc.arranque?`\n• ${esc.arranque.resumen}`:'')   // v2.9.447
     +(esc.agrupaciones.length
       ? `\n\nNO se cargan ${esc.agrupaciones.length} agrupación(es) de la organización para el combate (${esc.agrupaciones.slice(0,8).join(', ')}${esc.agrupaciones.length>8?'…':''}): sus piezas ya están en las unidades del tablero.`
       : '')
@@ -39171,13 +40192,18 @@ async function wgImportarEscenario(inp, sumar){
     // todavía se puede agregar la capa, y no cuando el convoy ya se clavó.
     +(_wgSinCaminos(esc)
       ? `<br><br>⚠️ <b>Este escenario no trae capa de caminos.</b> Sin rutas, ningún eje va `
-        +`sobre camino y <b>los convoyes se detienen a los ${WG_CONVOY_FUERA_RUTA_KM} km</b> de salir. `
+        +`sobre camino y <b>los convoyes no salen</b>: andan sólo por camino. `
         +`Volvé al Generador, bajá la capa de vías y sumala acá con <b>➕ Agregar capa</b>.`
       : '')
     +`<br>Si la partida estaba en curso, quedó en <b>planificación</b>: acomodá lo que haga falta y tocá <b>Iniciar partida</b>.`);
   WG.terreno=null; WG.capaTerrenoFirma=null; // forzar recarga y redibujo del CMOC
   await wgEstado();
   _wgEncuadrar();
+  // v2.9.447 — 🧭 cómo llegan las unidades a las fases elegidas: estado y parte.
+  if(esc.arranque && !sumar){
+    const t=await _wgAplicarArranque(esc.arranque);
+    if(est) est.innerHTML+=t;
+  }
 }
 async function wgVaciarEscenario(btn){
   if(WG.soy!=='arbitro') return;
@@ -39261,6 +40287,7 @@ async function wgActualizarMedios(inp, btn){
   if(!uds.length){ poner('No hay fichas en esta partida.'); return; }
   const plan = d ? _wgPlanLogistico(d) : { tad:{} };
   const coes = (d && Array.isArray(d.bibliotecaCOE)) ? d.bibliotecaCOE : [];
+  const armas = d ? _wgArmasDelEjercicio(d) : null;   // v2.9.446: efectivos y calidad del armamento
   const mesa = d ? [ ...((d.unidades)||[]) ] : [];
   const lista=[]; const porFuente={};
   for(const u of uds){
@@ -39269,7 +40296,7 @@ async function wgActualizarMedios(inp, btn){
     const base=Object.assign({}, m||{}, { designacion:u.designacion, arma:u.arma||(m&&m.arma), escalon:u.escalon||(m&&m.escalon),
       bando:u.bando, tipo:(m&&m.tipo)||(u.arma==='ninguna'?'pc':undefined) });
     if(!m && u.bando==='rojo') base.lado='enemigo';
-    const M=_wgMediosImport(base, { plan, coes });
+    const M=_wgMediosImport(base, { plan, coes, armas });
     // Lo que la importación guardó de la ficha (su símbolo, su tarea) se conserva.
     const viejo=(u.medios&&typeof u.medios==='object')?u.medios:{};
     for(const k of ['simbolo','tarea','proposito']) if(viejo[k] && !M.medios[k]) M.medios[k]=viejo[k];
@@ -39289,7 +40316,9 @@ async function wgActualizarMedios(inp, btn){
   }
   const pf=[]; if(porFuente.coe) pf.push(`${porFuente.coe} con su COE`); if(porFuente.g4) pf.push(`${porFuente.g4} con los datos del G-4`);
   if(porFuente.catalogo) pf.push(`${porFuente.catalogo} con la dotación de referencia`);
-  let txt=`✅ <b>${r.actualizadas}</b> ficha(s) con sus medios (${pf.join(' · ')}).`
+  // v2.9.446: el balance de poder con efectivo y calidad.
+  const _fichas=lista.map(x=>{ const u=uds.find(y=>y.id===x.id)||{}; return { b:u.bando, p:x.poder_max, d:String(u.designacion||'?'), c:(x.medios&&x.medios.calidad)||null, pc:!!(x.medios&&x.medios.pc) }; });
+  let txt=`✅ <b>${r.actualizadas}</b> ficha(s) con sus medios (${pf.join(' · ')}).`+_wgBalancePoder(_fichas, true)
     +(Object.keys(plan.tad||{}).length?` Lo planificado en ${_rgEsc(plan.fuente||'el Anexo de Logística')} vale para los dos bandos.`:'')
     +(r.aviso?`<br>⚠️ ${_rgEsc(r.aviso)}`:'');
   // La carta, con su capa (sólo si vino el archivo).
@@ -40167,11 +41196,26 @@ function _wgDibujo(){
       // VERDE MACIZO = lo que recorre de verdad este turno · GRIS PUNTEADO = lo
       // que le queda pendiente. La orden se entiende ANTES de resolver.
       // v2.9.220: la previsión recorre TODA la ruta, no sólo el primer tramo.
-      const pv=_wgPreverRuta(u, (Array.isArray(o.ruta)&&o.ruta.length)?o.ruta:[[o.destino_lng,o.destino_lat]], horasTurno);
+      let rutaOrden=(Array.isArray(o.ruta)&&o.ruta.length)?o.ruta:[[o.destino_lng,o.destino_lat]];
+      // v2.9.444 — el convoy, por el camino: se dibuja la ruta que de verdad va a hacer.
+      let destOrden=[o.destino_lng,o.destino_lat];
+      if(_wgEsConvoy(u)){
+        const rc=_wgRutaConvoyPuntos([u.lng,u.lat], rutaOrden);
+        if(rc.sinCamino || !rc.ruta.length){
+          D.push(_wgD.txt(u.lng,u.lat,`⛔ ${rc.motivo||'sin camino'} — el convoy no anda campo traviesa: no se mueve`, uid));
+          continue;
+        }
+        if(rc.dParada>0.2){
+          D.push(_wgD.lin([rc.parada,[o.destino_lng,o.destino_lat]],'#e08a2c',2,'2 6',.85));
+          D.push(_wgD.txt(o.destino_lng,o.destino_lat,`🛣️ el camino llega a ${rc.dParada.toFixed(1)} km de acá: para en el camino`, uid));
+        }
+        rutaOrden=rc.ruta; destOrden=rc.parada;
+      }
+      const pv=_wgPreverRuta(u, rutaOrden, horasTurno);
       D.push(_wgD.lin(pv.ruta, pv.detenida?'#e08a2c':(esRepliegue?'#ffb454':'#2ecc71'), 4));
       if(!pv.llego){
-        D.push(_wgD.lin([[pv.lng,pv.lat],[o.destino_lng,o.destino_lat]],'#9aa7b4',2,'4 7',.75));
-        D.push(_wgD.pt(o.destino_lng,o.destino_lat,4,'#9aa7b4',1));
+        D.push(_wgD.lin([[pv.lng,pv.lat],destOrden],'#9aa7b4',2,'4 7',.75));
+        D.push(_wgD.pt(destOrden[0],destOrden[1],4,'#9aa7b4',1));
       }
       // Los tramos que quedan por delante, en celeste punteado. v2.9.218: esto
       // antes NO se veía en 3D, así que la ruta por tramos parecía no existir.
@@ -40227,9 +41271,23 @@ function _wgDibujo(){
         : `🔥 TIRO CORTO · ${arma?arma.nom:'el sistema'} bate ${alcance.toFixed(1)} km y está a ${d.toFixed(1)} km. Dispara igual: gasta munición y delata su posición.`, uid));
     }else if(o.tipo==='apoyar' && o.objetivo_id && uById[o.objetivo_id]){
       // v2.9.443 — el convoy agregado: una línea verde hasta la unidad que apoya.
+      // v2.9.444 — 🚚 ABASTECER A: la ruta por camino hasta donde para, y si desde
+      // ahí la unidad queda a tiro de descarga (3 km) o no.
       const t=uById[o.objetivo_id];
-      D.push(_wgD.lin([[u.lng,u.lat],[t.lng,t.lat]],'#2ecc71',2,'2 6',.9));
-      D.push(_wgD.txt(t.lng,t.lat, `🤝 ${u.designacion||'Convoy'} la apoya: la sigue a 1,5 km y la abastece`, uid));
+      const rc=_wgRutaConvoy([u.lng,u.lat],[t.lng,t.lat]);
+      if(rc.sinCamino){
+        D.push(_wgD.txt(u.lng,u.lat,`⛔ ${rc.motivo} — el convoy no anda campo traviesa: no sale`, uid));
+      }else{
+        const pv=_wgPreverRuta(u, rc.ruta.length?rc.ruta:[[u.lng,u.lat]], horasTurno);
+        const llega=rc.dParada<=WG_REABASTECER_KM, col=llega?'#2ecc71':'#e23b3b';
+        D.push(_wgD.lin(pv.ruta, pv.detenida?'#e08a2c':'#2ecc71', 4));
+        if(!pv.llego) D.push(_wgD.lin([[pv.lng,pv.lat],rc.parada],'#9aa7b4',2,'4 7',.75));
+        D.push(_wgD.lin([rc.parada,[t.lng,t.lat]],col,2,'2 6',.9));
+        D.push(_wgD.pt(rc.parada[0],rc.parada[1],6,'#ffffff',2,col));
+        D.push(_wgD.txt(rc.parada[0],rc.parada[1], llega
+          ? `🚚 para a ${rc.dParada.toFixed(1)} km de ${t.designacion||'la unidad'}${pv.llego?' ('+_wgHoras(pv.horasUsadas)+')':' · no llega este turno'} · descarga y vuelve`
+          : `⛔ el camino queda a ${rc.dParada.toFixed(1)} km de ${t.designacion||'la unidad'}: sin abastecimiento si no se acerca a ${WG_REABASTECER_KM} km`, uid));
+      }
     }else if(o.tipo==='defender'){
       D.push(_wgD.txt(u.lng,u.lat,'⏹ ALTO — se queda donde está', uid));
     }else if(o.tipo==='fuego' && o.destino_lat!=null){
@@ -41812,6 +42870,12 @@ function _wgRender(){
       : `${_rgEsc(u.designacion||u.bando)} · ${pct}%${u.estado!=='activa'?' ('+u.estado+')':''}${obsTxt}${edadTxt}`,
       {direction:'top'});
     m.on('click', (ev)=>{ L.DomEvent.stopPropagation(ev); _wgUnidadClick(u); });
+    // v2.9.447 — 🏷️ CÓMO ESTÁ, DE UN VISTAZO (sólo lo propio: del enemigo no se sabe).
+    if(mio && !_wgEsConvoy(u) && u.estado!=='fuera_combate' && !_wgEsMaqueta()){
+      const lt=_wgLetrero(u);
+      if(lt) L.marker([u.lat,u.lng],{ interactive:false, zIndexOffset:2500,
+        icon:L.divIcon({ className:'', iconSize:[0,0], iconAnchor:[0,0], html:`<div class="wg-letrero">${lt}</div>` }) }).addTo(WG.capa);
+    }
     // v2.9.343 — EL CONVOY ES UN BLANCO RODANDO. Si no tiene tropa propia a
     // menos de 6 km, se le pinta el anillo de exposición: se ve de un vistazo
     // que va solo por la zona donde el dron enemigo caza camiones.
@@ -41999,9 +43063,16 @@ function _wgUnidadClick(u){
       if(!_wgPuedeOrdenarA(cv)) return;
       if(WG.rutas) delete WG.rutas[cv.id];
       WG.ordenes[cv.id]={ tipo:'apoyar', objetivo_id:u.id, _local:1 };
-      _wgAviso(`🤝 <b>${_rgEsc(cv.designacion||'El convoy')}</b> va a quedar <b>agregado a ${_rgEsc(u.designacion||'esa unidad')}</b>: `
-        +`la sigue por los caminos, a 1,5 km detrás, y la abastece al final de cada turno hasta vaciarse; vacío, `
-        +`vuelve solo a su instalación a recargar. Mandá la orden con <b>✔️ Órdenes listas</b>.`, 8000);
+      // v2.9.444 — por camino hasta el punto más cercano, para, descarga y vuelve.
+      const rc=_wgRutaConvoy([cv.lng,cv.lat],[u.lng,u.lat]);
+      _wgAviso(rc.sinCamino
+        ? `⛔ <b>${_rgEsc(cv.designacion||'El convoy')}</b>: ${_rgEsc(rc.motivo)} — no anda campo traviesa, no va a salir.`
+        : `🚚 <b>${_rgEsc(cv.designacion||'El convoy')}</b> → <b>${_rgEsc(u.designacion||'esa unidad')}</b>: `
+          +`${rc.km.toFixed(1)} km por camino, para a <b>${rc.dParada.toFixed(1)} km</b> de la unidad`
+          +(rc.dParada<=WG_REABASTECER_KM
+            ? `, descarga y vuelve solo.`
+            : `. ⚠️ <b>Más de ${WG_REABASTECER_KM} km: si la unidad no se acerca, no hay abastecimiento.</b>`)
+          +` Mandá la orden con <b>✔️ Órdenes listas</b>.`, 8000);
       _wgActualizarContadorOrdenes(); _wgRender(); if(WG.map3d) _wg3dDatos();
       return;
     }
@@ -42323,6 +43394,13 @@ function _wgEsFichaDelG4(u){
 }
 function _wgPuedeOrdenarA(u){
   const r=_wgRol();
+  // v2.9.448 — el G-1 conduce sus convoyes de reemplazos (y nada más).
+  if(r==='g1' && _wgEsConvoy(u) && _wgCargaDe(u,'REEMP')>0){
+    if(_wgEsMaqueta()) return false;
+    const p=(WG.estado&&WG.estado.partida)||{};
+    if(p.estado!=='en_curso'){ _wgPuedeOrdenar(); return false; }
+    return true;
+  }
   if(r==='g4' && _wgEsFichaDelG4(u)){
     if(_wgEsMaqueta()) return false;
     const p=(WG.estado&&WG.estado.partida)||{};
@@ -42462,7 +43540,7 @@ async function wgResolver(btn){
   try{ await _wgAnimarEntregas(r.entregas||[]); }catch(_e){}
   await wgEstado();   // recién ahora se desvanecen los que quedaron fuera de combate
   _wgRender(); if(WG.map3d) _wg3dDatos();
-  if(!trazas.length){ await wgHistorial(); wgHoja('bitacora'); }
+  if(!trazas.length){ await wgHistorial(); wgBit(true); }   // v2.9.445
   return trazas; // v2.9.220: para recortar los puntos de paso ya consumidos
 }
 
@@ -42927,7 +44005,7 @@ async function wgReplay(trazas, segundos=22, horaFin){
   // v2.9.205: en vez de un cartel que hay que cerrar, se ABRE la bitácora con
   // lo del turno destacado arriba. El juego cuenta lo que pasó, no lo interrumpe.
   await wgHistorial();
-  wgHoja('bitacora');
+  wgBit(true);   // v2.9.445: se abre la de abajo (20 %), no la hoja lateral
 }
 // ============================================================
 // v2.9.209 — BURBUJAS SOBRE LA UNIDAD (como los bocadillos de historieta).
@@ -43144,11 +44222,389 @@ function _wg3dReplayPaso(piezas, horaSim, humo, ahora){
   }
   try{ map.getSource('wg-humo').setData({type:'FeatureCollection',features:puf}); }catch(_e){}
 }
+// ============================================================
+// v2.9.449 — ⏱️ EL RELOJ DEL JUEGO, ⏹️ EL ALTO DEL JEM Y 📊 LOS RESULTADOS.
+// Sergio (03-11-2026): «debe ser un juego donde el G-3, G-4, G-2 estén moviendo sus
+// fichas a todo dar para tomar decisiones en ese momento, y lanzar un resultado
+// cuando el JEM diga ALTO: cómo quedaron las unidades, la potencia relativa de
+// combate y todo eso».
+//   · Todos ven la cuenta regresiva (hora del servidor). A los 10 s se envían
+//     solas las órdenes que cada uno tenga armadas; en 0 resuelve la pantalla del
+//     JEM, del Comandante o del árbitro y, si ninguna lo hace, cualquiera a los
+//     15 s (el servidor no deja resolver dos veces el mismo turno).
+//   · El reloj y el ALTO los manejan el árbitro, el JEM y el Comandante.
+// ============================================================
+function _wgManejaReloj(){ const r=_wgRol(); return WG.soy==='arbitro' || r==='jem' || r==='cmte'; }
+function _wgRelojTic(){
+  const chip=document.getElementById('wg-reloj-chip'), ctl=document.getElementById('wg-reloj-ctl');
+  if(!chip || !ctl) return;
+  const p=(WG.estado&&WG.estado.partida)||{}, R=WG.relojJuego||null;
+  const enCurso=p.estado==='en_curso';
+  const maneja=_wgManejaReloj() && enCurso && !_wgEsMaqueta();
+  const firma=[maneja, !!(R&&R.activo), (R&&R.cadaMin)||3, p.estado, WG.soy].join('|');
+  if(ctl._firma!==firma){
+    ctl._firma=firma;
+    ctl.innerHTML = maneja
+      ? `<select id="wg-reloj-min" class="wg-chip" style="padding:2px 4px" title="Cada cuántos minutos corre el turno">`
+        +[1,2,3,5,10].map(n=>`<option value="${n}"${(Number(R&&R.cadaMin)||3)===n?' selected':''}>${n} min</option>`).join('')+`</select>`
+        +(R&&R.activo
+          ? `<button class="wg-pill" onclick="wgReloj(false)" title="Pausar el reloj">⏸️</button>`
+          : `<button class="wg-pill wg-fuerte" onclick="wgReloj(true)" title="El turno corre solo cada tantos minutos">▶️ Reloj</button>`)
+        +`<button class="wg-pill" style="border-color:#e23b3b;color:#ffb4b4" onclick="wgAltoJuego()" title="Termina el juego y muestra los resultados">⏹️ ALTO</button>`
+      : (p.estado==='finalizada'
+        ? `<button class="wg-pill wg-fuerte" onclick="wgResultados()">📊 Resultados</button>`
+          +(WG.soy==='arbitro'?`<button class="wg-pill" onclick="wgReanudar()" title="Vuelve a abrir la partida">▶️ Reanudar</button>`:'')
+        : '');
+  }
+  if(!R || !R.activo || !enCurso){ chip.style.display='none'; return; }
+  const falta=Math.round((Number(R.proximo)-_wgAhora())/1000);
+  const f=Math.max(0,falta);
+  chip.style.display='';
+  chip.textContent=`⏱️ ${Math.floor(f/60)}:${String(f%60).padStart(2,'0')}`;
+  chip.style.color = falta<=10 ? '#ff6b6b' : (falta<=30 ? '#ffb15c' : '');
+  chip.style.borderColor = falta<=10 ? '#e23b3b' : '';
+  const turno=p.turno_actual;
+  // A los 10 s se mandan las órdenes armadas.
+  if(falta<=10 && WG._relojEnvio!==turno){
+    WG._relojEnvio=turno;
+    if(Object.values(WG.ordenes||{}).some(o=>o && o._local) && _wgRolEnvia()){
+      _wgAviso('⏱️ Quedan 10 s: se envían tus órdenes.', 2500);
+      try{ wgEnviarOrdenes(null); }catch(_e){}
+    }
+  }
+  // En 0 resuelve quien maneja el reloj; a los 15 s, cualquiera.
+  if((falta<=0 && _wgManejaReloj()) || falta<=-15){
+    if(WG._relojResuelve!==turno && !WG.replayando && !WG._accion && !WG._enviando){
+      WG._relojResuelve=turno;
+      wgResolver(null);
+    }
+  }
+}
+setInterval(()=>{ try{ if(WG.partidaId) _wgRelojTic(); }catch(_e){} }, 1000);
+async function wgReloj(activo){
+  const sel=document.getElementById('wg-reloj-min');
+  const r=await _wgInvoke('reloj',{ partida_id:WG.partidaId, clave_acceso:WG.clave, activo:!!activo, cada_min:Number(sel&&sel.value)||3 });
+  if(!r || !r.ok){ _wgAviso('No se pudo: '+_rgEsc((r&&r.error)||''), 4500); return; }
+  WG.relojJuego=r.reloj; _wgRelojTic();
+  _wgAviso(activo?`⏱️ <b>Reloj en marcha</b>: el turno corre solo cada ${r.reloj.cadaMin} min.`:'⏸️ Reloj en pausa.', 3500);
+}
+async function wgAltoJuego(){
+  if(!confirm('⏹️ ALTO\n\nTerminar el juego de guerra y mostrar los resultados a todos?\nYa no se podrán dar órdenes (el árbitro puede reanudarlo).')) return;
+  const r=await _wgInvoke('alto',{ partida_id:WG.partidaId, clave_acceso:WG.clave });
+  if(!r || !r.ok){ _wgAviso('No se pudo dar el ALTO: '+_rgEsc((r&&r.error)||''), 5000); return; }
+  WG.relojJuego=r.reloj; WG._resVisto=WG.partidaId;
+  await wgEstado(true); _wgRender(); wgResultados();
+}
+async function wgReanudar(){
+  const r=await _wgInvoke('reanudar',{ partida_id:WG.partidaId });
+  if(!r || !r.ok){ _wgAviso('No se pudo reanudar: '+_rgEsc((r&&r.error)||''), 5000); return; }
+  await wgEstado(true); _wgRender();
+}
+// 📊 Los resultados: la PRC al empezar y al ALTO, cómo quedó cada bando y cada unidad.
+function _wgResultadosHTML(){
+  const e=WG.estado||{}, p=e.partida||{}, R=WG.relojJuego||{}, A=R.alto||{}, I=R.inicio||null;
+  const uds=(e.unidades||[]).filter(u=>u && !_wgEsConvoy(u));
+  const n=(x)=>Number(x)||0;
+  const lado=(b)=>{
+    const xs=uds.filter(u=>u.bando===b), k=(u)=>u.carga||{};
+    const conT=xs.map(u=>_wgCombustible(u)).filter(Boolean);
+    const mp=xs.map(u=>_wgMunPrincipalPct(u)).filter(Boolean);
+    const rac=xs.map(u=>k(u).racion).filter(v=>v!=null).map(Number);
+    return { xs, poder:xs.reduce((a,u)=>a+n(u.poder_actual),0), max:xs.reduce((a,u)=>a+n(u.poder_max),0),
+      bajas:xs.reduce((a,u)=>a+n(k(u).bajas),0), muertos:xs.reduce((a,u)=>a+n(k(u).muertos),0),
+      pend:xs.reduce((a,u)=>a+n(k(u).heridos),0), evac:xs.reduce((a,u)=>a+n(k(u).evacuados),0),
+      reemp:xs.reduce((a,u)=>a+n(k(u).reemplazos),0), fuera:xs.filter(u=>u.estado==='fuera_combate').length,
+      comb:conT.length?Math.round(conT.reduce((a,c)=>a+(100-c.pct),0)/conT.length):null,
+      mun:mp.length?Math.round(mp.reduce((a,m)=>a+m.pct,0)/mp.length):null,
+      rac:rac.length?Math.min(...rac):null };
+  };
+  const az=lado('azul'), ro=lado('rojo');
+  const rel=(a,r)=> (a>0&&r>0) ? (a>=r?`<b style="color:#6fb2ff">${(a/r).toFixed(1)} : 1</b> para el 🔵`:`<b style="color:#ff7a7a">${(r/a).toFixed(1)} : 1</b> para el 🔴`) : '—';
+  const turno=A.turno||p.turno_actual||0, horas=Math.max(0,(turno-1))*(Number(p.duracion_turno_horas)||2);
+  const tarjeta=(b,L)=>`<div style="flex:1;min-width:250px;border:1px solid ${b==='rojo'?'#e23b3b':'#1f6dff'};border-radius:10px;padding:9px 11px">`
+    +`<b style="font-size:13px">${b==='rojo'?'🔴 ROJO':'🔵 AZUL'}</b>`
+    +`<div style="font-size:12px;line-height:1.6;margin-top:4px">`
+    +`💪 poder <b>${Math.round(L.poder)}</b> de ${Math.round(L.max)} (${L.max?Math.round(100*L.poder/L.max):0} %)`
+    +(L.fuera?` · ⛔ ${L.fuera} fuera de combate`:'')+`<br>`
+    +`☠️ ${Math.round(L.muertos)} muertos · 🚑 ${Math.round(L.evac)} evacuados · <b style="color:${L.pend>=1?'#ffb15c':'inherit'}">${Math.round(L.pend)} heridos sin evacuar</b><br>`
+    +`👥 ${Math.round(L.reemp)} reemplazos recibidos · ${Math.round(L.bajas)} bajas en total<br>`
+    +`⛽ ${L.comb!=null?L.comb+' %':'—'} · 🎯 ${L.mun!=null?L.mun+' %':'—'} · 🥫 ${L.rac!=null?L.rac.toFixed(1).replace('.0','')+' d (la peor)':'—'}`
+    +`</div></div>`;
+  const filas=[...az.xs,...ro.xs].map(u=>{
+    const c=_wgCombustible(u), m=_wgMunPrincipalPct(u), k=u.carga||{};
+    const pc=n(u.poder_max)?Math.round(100*n(u.poder_actual)/n(u.poder_max)):0;
+    return `<tr><td>${u.bando==='rojo'?'🔴':'🔵'} ${_rgEsc(u.designacion||'?')}</td><td>${pc} %</td>`
+      +`<td>${c?(100-c.pct)+' %':'—'}</td><td>${m?m.pct+' %':'—'}</td>`
+      +`<td>${k.racion!=null?Number(k.racion).toFixed(1).replace('.0','')+' d':'—'}</td>`
+      +`<td>${n(k.heridos)>=0.5?Math.round(k.heridos):'—'}</td><td>${n(k.faltan)>=1?Math.round(k.faltan):'—'}</td>`
+      +`<td>${_rgEsc(u.estado||'')}</td></tr>`;
+  }).join('');
+  return `<div style="font-size:16px;font-weight:800">📊 RESULTADOS DEL JUEGO DE GUERRA</div>`
+    +`<div style="font-size:12px;opacity:.8;margin:2px 0 10px">${_rgEsc(p.nombre||'')} · ⏹️ ALTO en el turno ${turno}`
+    +` (${horas} h de combate)${A.quien?' · lo dio '+_rgEsc(A.quien):''}</div>`
+    +`<div style="font-size:13px;line-height:1.7;padding:8px 11px;border-radius:10px;background:rgba(255,255,255,.05);margin-bottom:10px">`
+    +`⚖️ <b>Potencia relativa de combate</b>: al empezar ${I?rel(n(I.azul),n(I.rojo)):'—'}`
+    +`${I&&I.sinFoto?' <span style="opacity:.6">(sin foto: contra el poder máximo)</span>':''} → al ALTO ${rel(az.poder,ro.poder)}</div>`
+    +`<div style="display:flex;gap:10px;flex-wrap:wrap">${tarjeta('azul',az)}${tarjeta('rojo',ro)}</div>`
+    +`<table class="wg-res-tabla" style="width:100%;border-collapse:collapse;margin-top:12px;font-size:11.5px">`
+    +`<tr><th>Unidad</th><th>Poder</th><th>⛽</th><th>🎯</th><th>🥫</th><th>🚑 sin evacuar</th><th>👥 faltan</th><th>Estado</th></tr>${filas}</table>`;
+}
+function wgResultados(){
+  const viejo=document.getElementById('wg-resultados'); if(viejo) viejo.remove();
+  const d=document.createElement('div');
+  d.id='wg-resultados';
+  d.style.cssText='position:fixed;inset:0;z-index:7000;background:rgba(0,0,0,.6);display:flex;align-items:flex-start;justify-content:center;padding:24px 12px;overflow:auto';
+  d.innerHTML=`<div style="width:min(960px,100%);background:#0b1118;color:#e6eef6;border:1px solid rgba(140,210,255,.35);border-radius:14px;padding:16px 18px;box-shadow:0 20px 60px rgba(0,0,0,.6)">`
+    +`<style>#wg-resultados .wg-res-tabla th,#wg-resultados .wg-res-tabla td{border-bottom:1px solid rgba(255,255,255,.1);padding:4px 6px;text-align:left}</style>`
+    +_wgResultadosHTML()
+    +`<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">`
+    +`<button class="wg-pill" onclick="wgResultadosImprimir()">🖨️ Imprimir / PDF</button>`
+    +`<button class="wg-pill" onclick="document.getElementById('wg-resultados').remove()">✕ Cerrar</button></div></div>`;
+  d.addEventListener('click',(ev)=>{ if(ev.target===d) d.remove(); });
+  document.body.appendChild(d);
+}
+function wgResultadosImprimir(){
+  const w=window.open('','_blank'); if(!w) return;
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Resultados del juego de guerra</title>`
+    +`<style>body{font-family:system-ui,sans-serif;margin:24px;color:#111}table{width:100%;border-collapse:collapse}`
+    +`th,td{border-bottom:1px solid #ccc;padding:4px 6px;text-align:left;font-size:12px}</style></head><body>`
+    +_wgResultadosHTML()+`<scr`+`ipt>window.onload=function(){setTimeout(function(){window.print();},300);};</scr`+`ipt></body></html>`);
+  w.document.close();
+}
+// 🎖️ Los seis enlaces del juego del Estado Mayor (análisis del COA): quién juega qué.
+const WG_KIT_EM=[
+  { g:'G-3', bando:'azul', rol:'g3', que:'🔵 juega el AZUL: la maniobra' },
+  { g:'G-2', bando:'rojo', rol:'g3', que:'🔴 juega el ROJO: hace de G-3 del enemigo' },
+  { g:'G-5', bando:'rojo', rol:'g2', que:'🔴 vuela el dron del rojo: hace de G-2 del enemigo' },
+  { g:'G-4', bando:'azul', rol:'g4', que:'📦 logística: convoyes y ambulancias, mientras hay combate' },
+  { g:'G-1', bando:'azul', rol:'g1', que:'👥 reemplazos' },
+  { g:'JEM', bando:'azul', rol:'jem', que:'⏱️ conduce: reloj y ⏹️ ALTO' },
+];
+async function wgKitEM(btn){
+  const cont=document.getElementById('wg-kit-em'); if(!cont) return;
+  if(btn) btn.disabled=true;
+  try{
+    const claves={};
+    for(const b of ['azul','rojo']){
+      const r=await _wgInvoke('agregar_bando',{ partida_id:WG.partidaId, bando:b });
+      if(!r || !r.ok){ cont.innerHTML='❌ No se pudieron armar los enlaces: '+_rgEsc((r&&r.error)||''); return; }
+      claves[b]=r.clave_acceso;
+    }
+    const filas=WG_KIT_EM.map(x=>({ ...x, url:_wgURLInvitacion(WG.partidaId, x.bando, claves[x.bando], x.rol) }));
+    WG._kitTexto=filas.map(x=>`${x.g} — ${x.que.replace(/^[^\s]+\s/,'')}: ${x.url}`).join('\n');
+    cont.innerHTML=filas.map((x,i)=>`<div style="display:flex;gap:6px;align-items:center;margin:4px 0">`
+      +`<b style="min-width:34px">${x.g}</b><span style="flex:1;min-width:0">${_rgEsc(x.que)}</span>`
+      +`<button class="wg-pill" style="font-size:10px" onclick="navigator.clipboard&&navigator.clipboard.writeText(${JSON.stringify(x.url).replace(/"/g,'&quot;')});_wgAviso('🔗 Enlace del ${x.g} copiado.',2000)">📋</button>`
+      +`<a class="wg-pill" style="font-size:10px;text-decoration:none" href="${_rgEsc(x.url)}" target="_blank" rel="noopener">↗</a></div>`).join('')
+      +`<button class="rg-doc" style="margin-top:6px" onclick="navigator.clipboard&&navigator.clipboard.writeText(WG._kitTexto||'');_wgAviso('🔗 Los seis enlaces copiados.',2200)">📋 Copiar los seis</button>`;
+  } finally { if(btn) btn.disabled=false; }
+}
+// v2.9.451 — 🤖 EL G-4 AUTOMÁTICO: por defecto el del rojo; el árbitro lo cambia.
+// Vive en la fila del reloj (`reloj.g4auto`), así llega con el estado y el pulso.
+function _wgG4Auto(){ const a=((WG.relojJuego||{}).g4auto)||{}; return { rojo:a.rojo!==false, azul:a.azul===true }; }
+function _wgG4AutoRender(){
+  const el=document.getElementById('wg-g4auto'); if(!el) return;
+  const a=_wgG4Auto(), arb=WG.soy==='arbitro';
+  el.innerHTML=['rojo','azul'].map(b=>`<button class="wg-pill"${arb?'':' disabled'} onclick="wgG4Auto('${b}')" `
+    +`title="${arb?'Tocá para cambiar':'Lo decide el árbitro'}" style="font-size:11px;border-color:${WG_BIT_COL[b]}">`
+    +`${b==='rojo'?'🔴 Rojo':'🔵 Azul'}: ${a[b]?'🤖 automática':'👤 la juega su G-4'}</button>`).join('');
+}
+async function wgG4Auto(b){
+  const a=_wgG4Auto();
+  const r=await _wgInvoke('g4auto',{ partida_id:WG.partidaId, bando:b, activo:!a[b] });
+  if(!r || !r.ok){ _wgAviso('No se pudo: '+_rgEsc((r&&r.error)||''), 4500); return; }
+  WG.relojJuego=r.reloj; _wgG4AutoRender();
+  _wgAviso(`${b==='rojo'?'🔴':'🔵'} Logística ${r.reloj.g4auto[b]?'🤖 <b>automática</b>: el G-4 automático manda sus convoyes.':'👤 a cargo de su G-4.'}`, 3500);
+}
+// ============================================================
+// v2.9.445 — LA BITÁCORA DE ABAJO, EN DOS CUADROS: 🔴 ROJO | 🔵 AZUL.
+// Sergio (03-11-2026): «me gusta mucho la bitácora, sólo que no se puede apreciar
+// mucho la información… que se pueda desplazar de abajo hacia arriba pero que no
+// ocupe la pantalla, sólo un 20 % en la parte inferior, y que aparezca en dos
+// cuadros, uno de rojo y otro de azul… en la vista del árbitro, obviamente;
+// en la del azul sólo lo de azul y en la del rojo sólo lo de rojo… evitá tanto
+// texto: claro, concreto, conciso».
+//   · Cada renglón va al cuadro del bando que lo ve (`bandos_visibles`); lo que
+//     ve sólo el árbitro, al del bando que nombra (🔴 / 🔵).
+//   · Un renglón = la primera frase; tocándolo se despliega el resto.
+//   · Arriba de cada cuadro, 📻 LOS PEDIDOS PENDIENTES de ese bando, calculados de
+//     las fichas (combustible y munición por debajo del 40 %; en rojo, del 20 %).
+// ============================================================
+const WG_BIT_COL={ rojo:'#e23b3b', azul:'#1f6dff' };
+function _wgBitLados(){
+  const l=_wgBandoLente();
+  return (l==='rojo'||l==='azul') ? [l] : ['rojo','azul'];
+}
+function _wgBitBandosDe(e){
+  const bv=Array.isArray(e&&e.bandos_visibles) ? e.bandos_visibles.filter(b=>b==='rojo'||b==='azul') : [];
+  if(bv.length) return bv;
+  if(WG.soy==='rojo'||WG.soy==='azul') return [WG.soy];   // lo que el servidor le dio a un bando, es de su cuadro
+  const t=String((e&&e.descripcion)||''), r=t.includes('🔴'), a=t.includes('🔵');
+  return r&&!a ? ['rojo'] : (a&&!r ? ['azul'] : ['rojo','azul']);
+}
+// La primera frase (o el primer « · ») y el resto aparte.
+function _wgBitCorto(txt){
+  const t=String(txt||'').replace(/\s+/g,' ').trim();
+  if(t.length<=110) return { corto:t, resto:'' };
+  let i=-1;
+  for(const sep of [' · ','. ',' — ']){
+    const k=t.indexOf(sep,40);
+    if(k>0 && k<=140 && (i<0||k<i)) i=k+(sep==='. '?1:0);
+  }
+  if(i<0) i=110;
+  return { corto:t.slice(0,i).trim(), resto:t.slice(i).replace(/^[\s·.—]+/,'').trim() };
+}
+// v2.9.447 — la munición del arma PRINCIPAL más baja, en % (gemelo de `municionPrincipal` del motor).
+function _wgMunPrincipalPct(u){
+  const m=_wgMunicionUnidad(u);
+  if(!m || !m.det.length) return null;
+  const pes=m.det.filter(d=>d.t>0 && !['fusil','ametralladora','pesada'].includes(d.arma.id));
+  const lista=pes.length?pes:m.det.filter(d=>d.t>0);
+  const peor=lista.reduce((x,d)=>(!x||d.q/d.t<x.q/x.t)?d:x,null);
+  return peor ? { pct:Math.round(100*Math.max(0,Math.min(1,peor.q/peor.t))), arma:peor.arma } : null;
+}
+// v2.9.447 — 🏷️ el letrero de una ficha: lo que le falta, en ámbar o en rojo.
+function _wgLetrero(u){
+  const b=[];
+  const pct=Number(u.poder_max)>0?Math.round(100*Number(u.poder_actual)/Number(u.poder_max)):100;
+  if(pct<95) b.push([`👥${pct}%`, pct<60?'r':(pct<80?'a':'')]);
+  const c=_wgCombustible(u);
+  if(c){ const r=100-c.pct; if(r<=0) b.push(['⛽SIN','r']); else if(r<60) b.push([`⛽${r}%`, r<20?'r':(r<40?'a':'')]); }
+  const mp=_wgMunPrincipalPct(u);
+  if(mp){ if(mp.pct<=0) b.push(['🎯SIN','r']); else if(mp.pct<60) b.push([`🎯${mp.pct}%`, mp.pct<20?'r':(mp.pct<40?'a':'')]); }
+  const k=u.carga||{};
+  if(k.racion!=null){
+    const tope=Number((u.medios||{}).nivelDias)>0?Number(u.medios.nivelDias):3, d=Number(k.racion)||0;
+    if(d<=0) b.push(['🥫SIN','r']); else if(d/tope<0.5) b.push([`🥫${d.toFixed(1).replace('.0','')}d`, d/tope<0.2?'r':'a']);
+  }
+  if(Number(k.heridos)>=5) b.push([`🚑${Math.round(k.heridos)}`,'a']);
+  return b.map(([t,cl])=>`<span class="${cl}">${_rgEsc(t)}</span>`).join('');
+}
+// 📻 Lo que cada comandante tiene pendiente, de la ficha (siempre al día).
+function _wgBitPedidos(bando){
+  const out=[];
+  for(const u of ((WG.estado&&WG.estado.unidades)||[])){
+    if(!u || u.bando!==bando || u.estado==='fuera_combate' || _wgEsConvoy(u)) continue;
+    const nom=u.designacion||('U'+u.id);
+    const c=_wgCombustible(u);
+    if(c){ const r=100-c.pct; if(r<40) out.push({ urg:r<20, txt:`⛽ ${nom} ${r} %` }); }
+    // El arma PRINCIPAL más baja (gemelo de `municionPrincipal` del motor).
+    const mp=_wgMunPrincipalPct(u);
+    if(mp && mp.pct<40) out.push({ urg:mp.pct<20, txt:`🎯 ${nom} ${mp.pct} %` });
+    // v2.9.447 — las raciones y el agua, y los heridos que esperan evacuación.
+    const k=u.carga||{};
+    if(k.racion!=null){
+      const tope=Number((u.medios||{}).nivelDias)>0?Number(u.medios.nivelDias):3, d=Number(k.racion)||0;
+      if(d/tope<0.4) out.push({ urg:d/tope<0.2, txt:`🥫 ${nom} ${d.toFixed(1).replace('.0','')} d` });
+    }
+    if(Number(k.heridos)>=5) out.push({ urg:Number(k.heridos)>=50, txt:`🚑 ${nom} ${Math.round(k.heridos)}` });
+    // v2.9.448 — los hombres que faltan (reemplazos del G-1).
+    if(Number(k.faltan)>=1){ const hom=_wgHombresDe(u), f=Number(k.faltan)/hom;
+      if(f>=0.1) out.push({ urg:f>=0.25, txt:`👥 ${nom} −${Math.round(k.faltan)}` }); }
+  }
+  return out.sort((a,b)=>(b.urg?1:0)-(a.urg?1:0));
+}
+function _wgBitRender(ev){
+  if(Array.isArray(ev)) WG.bitEventos=ev;
+  const lista=WG.bitEventos||[];
+  const bit=document.getElementById('wg-bit'), cuerpo=document.getElementById('wg-bit-cuerpo');
+  if(!bit||!cuerpo) return;
+  _wgBitInit();
+  const lados=_wgBitLados();
+  bit.style.setProperty('--wg-bit-cols', String(lados.length));
+  const ultimo=WG.ultimoTurno!=null ? WG.ultimoTurno : (lista.length?Math.max(...lista.map(x=>Number(x.turno)||0)):null);
+  const porLado={ rojo:[], azul:[] };
+  for(const e of lista) for(const b of _wgBitBandosDe(e)) if(porLado[b]) porLado[b].push(e);
+  // Se conserva dónde estaba leyendo cada uno.
+  const scroll={};
+  cuerpo.querySelectorAll('.wg-bit-lista').forEach(el=>{ scroll[el.dataset.b]=el.scrollTop; });
+  const caja=(b)=>{
+    const col=WG_BIT_COL[b];
+    // Los turnos más nuevos arriba; dentro del turno, en el orden en que pasó.
+    const evs=porLado[b].slice().sort((x,y)=>((Number(y.turno)||0)-(Number(x.turno)||0))||((Number(x.id)||0)-(Number(y.id)||0)));
+    const ped=_wgBitPedidos(b);
+    const filas=evs.map(e=>{
+      const c=_wgBitCorto(e.descripcion);
+      return `<div class="wg-bit-f${Number(e.turno)===ultimo?' nuevo':''}${e.tipo==='pedido'?' pedido':''}${e.tipo==='arranque'?' arranque':''}" onclick="this.classList.toggle('abierto')">`
+        +`<span class="t">T${_rgEsc(e.turno)}</span>${_rgEsc(c.corto)}${c.resto?' <span style="opacity:.5">…</span>':''}`
+        +(c.resto?`<div class="mas">${_rgEsc(c.resto)}</div>`:'')+`</div>`;
+    }).join('');
+    return `<div class="wg-bit-caja" style="--c:${col}">`
+      +`<div class="wg-bit-cab" style="background:${col}40">${b==='rojo'?'🔴 ROJO':'🔵 AZUL'}`
+      +`<span style="margin-left:auto;font-weight:700;opacity:.9">${ped.length?`📻 ${ped.length} pedido${ped.length>1?'s':''}`:'sin pedidos'}</span></div>`
+      +(ped.length?`<div class="wg-bit-ped">${ped.slice(0,14).map(p=>`<span class="${p.urg?'urg':''}">${_rgEsc(p.txt)}</span>`).join('')}</div>`:'')
+      +`<div class="wg-bit-lista" data-b="${b}">${filas||'<div class="rg-meta" style="font-size:11px">Sin novedades todavía.</div>'}</div></div>`;
+  };
+  cuerpo.innerHTML=lados.map(caja).join('');
+  cuerpo.querySelectorAll('.wg-bit-lista').forEach(el=>{ if(scroll[el.dataset.b]!=null) el.scrollTop=scroll[el.dataset.b]; });
+  _wgBitAsa();
+}
+// El asa: cuántos renglones nuevos hay y lo último de cada lado.
+function _wgBitAsa(){
+  const bit=document.getElementById('wg-bit'); if(!bit) return;
+  const lista=WG.bitEventos||[];
+  const abierta=!bit.classList.contains('cerrada');
+  const maxId=lista.reduce((m,e)=>Math.max(m,Number(e.id)||0),0);
+  if(abierta) WG.bitVisto=Math.max(WG.bitVisto||0,maxId);
+  const nuevos=lista.filter(e=>(Number(e.id)||0)>(WG.bitVisto||0)).length;
+  const n=document.getElementById('wg-bit-nuevos');
+  if(n) n.textContent = (!abierta && nuevos) ? `🆕 ${nuevos}` : '';
+  const tk=document.getElementById('wg-bit-ticker');
+  if(tk){
+    const ult=(b)=>{ const e=lista.filter(x=>_wgBitBandosDe(x).includes(b)).sort((x,y)=>((Number(y.turno)||0)-(Number(x.turno)||0))||((Number(y.id)||0)-(Number(x.id)||0)))[0];
+      return e ? _wgBitCorto(e.descripcion).corto : ''; };
+    tk.textContent = abierta ? '' : _wgBitLados().map(b=>ult(b)).filter(Boolean).join('   |   ');
+  }
+}
+function wgBit(abrir){
+  const bit=document.getElementById('wg-bit'); if(!bit) return;
+  _wgBitInit();
+  const ab = abrir==null ? bit.classList.contains('cerrada') : !!abrir;
+  bit.classList.toggle('cerrada', !ab);
+  const g=document.getElementById('wg-game'); if(g) g.classList.toggle('bit-abierta', ab);
+  _wgBitAsa();
+}
+// Tocar el asa abre o cierra; arrastrarla estira la bitácora (la altura queda
+// guardada en este navegador: es comodidad de cada pantalla).
+function _wgBitInit(){
+  const asa=document.getElementById('wg-bit-asa'), g=document.getElementById('wg-game');
+  if(!asa || asa._ok) return;
+  asa._ok=true;
+  try{ const h=Number(localStorage.getItem('wg_bit_h')); if(h>=8 && h<=60) g.style.setProperty('--wg-bit-h', h+'vh'); }catch(_e){}
+  let y0=null, h0=0, movio=false;
+  asa.addEventListener('pointerdown',(ev)=>{
+    const bit=document.getElementById('wg-bit');
+    y0=ev.clientY; movio=false;
+    h0=bit.classList.contains('cerrada') ? 30 : bit.getBoundingClientRect().height;
+    try{ asa.setPointerCapture(ev.pointerId); }catch(_e){}
+  });
+  asa.addEventListener('pointermove',(ev)=>{
+    if(y0==null) return;
+    const dy=y0-ev.clientY;
+    if(!movio && Math.abs(dy)<6) return;
+    movio=true;
+    const bit=document.getElementById('wg-bit'), vh=window.innerHeight||800;
+    const h=Math.max(80, Math.min(vh*0.6, h0+dy));
+    bit.classList.add('arrastrando');
+    g.style.setProperty('--wg-bit-h', (100*h/vh).toFixed(1)+'vh');
+    if(bit.classList.contains('cerrada')) wgBit(true);
+  });
+  const soltar=()=>{
+    if(y0==null) return;
+    y0=null;
+    document.getElementById('wg-bit').classList.remove('arrastrando');
+    if(!movio){ wgBit(); return; }
+    try{ localStorage.setItem('wg_bit_h', String(parseFloat(g.style.getPropertyValue('--wg-bit-h'))||20)); }catch(_e){}
+  };
+  asa.addEventListener('pointerup',soltar);
+  asa.addEventListener('pointercancel',soltar);
+}
 async function wgHistorial(){
   const r=await _wgInvoke('historial',{ partida_id:WG.partidaId, clave_acceso:WG.clave });
   const cont=document.getElementById('wg-bitacora');
   if(!r.ok){ cont.innerHTML=''; return; }
   const ev=r.eventos||[];
+  try{ _wgBitRender(ev); }catch(e){ console.warn('bitácora de abajo:', e); }   // v2.9.445
   // v2.9.205: lo del ÚLTIMO turno resuelto va DESTACADO y arriba de todo, con
   // los avisos importantes resaltados. Antes era una lista plana en la que no
   // se distinguía lo que acababa de pasar de lo de hace cinco turnos.
