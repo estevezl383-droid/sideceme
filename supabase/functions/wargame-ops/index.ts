@@ -238,7 +238,12 @@ function centroDeGeom(geom: any): number[] | null {
   return c ? [(c[0] + c[2]) / 2, (c[1] + c[3]) / 2] : null;
 }
 function prepararTerreno(terreno: any[]) {
-  return (terreno || []).map((t: any) => (t && t._caja ? t : { ...t, _caja: cajaDeGeom(t && t.geojson) }));
+  // v2.9.451: la carta ya preparada sale tal cual — el grafo de caminos (que se guarda
+  // por carta) se arma una sola vez para el 🤖 G-4 automático y para el turno.
+  if (terreno && (terreno as any)._prep) return terreno;
+  const out: any = (terreno || []).map((t: any) => (t && t._caja ? t : { ...t, _caja: cajaDeGeom(t && t.geojson) }));
+  out._prep = true;
+  return out;
 }
 function fueraDeCaja(pt: number[], t: any) {
   const c = t._caja;
@@ -876,7 +881,12 @@ const NOM_CLASE: any = { camino: "camino", libre: "campo abierto", restringido: 
 // Eso es este tope: puede salir del camino, pero POCO. Pasado eso la columna se
 // detiene donde llegó — no se la castiga ni se le prohíbe la orden: se le cobra
 // la planificación, que es lo que hay que enseñar.
-const CONVOY_FUERA_RUTA_KM = 4;
+// v2.9.444 — Y AHORA NI ESO. Sergio (03-11-2026): «los abastecimientos siempre se
+// deben mover por carretera o caminos… no se pueden desplazar por campo
+// traviesa». Toda marcha del convoy se rehace sobre la red vial (`rutaConvoy`):
+// fuera del camino anda sólo la SALIDA de su instalación hasta la ruta. Medido en
+// «CE-IV9»: las instalaciones del G-4 quedaron a 0,1–1,6 km del camino.
+const CONVOY_FUERA_RUTA_KM = 2;
 
 
 // ---------- Combustible (v2.9.225) ----------
@@ -2047,6 +2057,9 @@ const INSTAL_LOG: any = {
                despacha: ["I", "III", "V"], sostiene: 1 },
   log_asdi:  { nom: "Área de Servicios (ASDI)", clases: ["I", "III", "V", "VIII"], combustible: 1, municion: 1, cap: 20,
                despacha: ["I", "AGUA", "III", "V", "EVAC"], sostiene: 1, sanidad: 1 },
+  // v2.9.448 — la del G-1: de acá salen los reemplazos (una carga = 50 hombres).
+  log_reemp: { nom: "Unidad de Reemplazos", clases: [], combustible: 0, municion: 0, cap: 6,
+               despacha: ["REEMP"], reemplazos: 1 },
 };
 // Cargas ya entregadas por una instalación (viven en su propio geojson, así no
 // hace falta ni una columna nueva ni SQL).
@@ -2100,11 +2113,53 @@ function cargaDe(u: any, clase: string) {
   return Math.max(0, Number(c[clase]) || 0);
 }
 // v2.9.351 — cinco clases, no dos. Cada una con su vehículo y su efecto.
-const CONVOY_CLASES = ["I", "AGUA", "III", "V", "EVAC"];
+const CONVOY_CLASES = ["I", "AGUA", "III", "V", "EVAC", "REEMP"];   // v2.9.448: REEMP = reemplazos (G-1)
 // Lo que restituye una entrega, en fracción del poder MÁXIMO de la unidad.
 // Modesto a propósito: el apoyo de servicio de combate sostiene, no resucita.
 const SOSTEN_PCT = 0.08;   // Clase I + agua: raciones y agua mantienen el rendimiento
 const EVAC_PCT   = 0.15;   // evacuación: el herido tratado a tiempo vuelve a la línea
+// ============================================================
+// v2.9.447 — LA CLASE I SE CONSUME. Sergio (03-11-2026): «considerando
+// alimentación también». Hasta acá «el tiempo no daba hambre ni sed».
+// Cada unidad lleva sus raciones y su agua en DÍAS (`carga.racion`); el tope es su
+// nivel planificado (Anexo de Logística: «3 días operativos + 1 de seguridad»).
+// Se gasta un día cada 24 h. Sin raciones ni agua, pierde el 8 % de su poder por
+// día (`carga.hambre` lleva lo perdido). La Clase I que le llega rellena los días
+// y le devuelve lo que perdió por hambre.
+// ⚠️ 8 %/día: cifra de referencia, a validar con las tablas de la Escuela.
+// ============================================================
+const HAMBRE_PCT_DIA = 0.08;
+function topeRacion(u: any) { const m = mediosDe(u); const n = Number(m && m.nivelDias); return n > 0 ? Math.min(10, n) : 3; }
+function racionDe(u: any) { const c = u && u.carga; const r = c ? Number(c.racion) : NaN; return Number.isFinite(r) ? Math.max(0, r) : topeRacion(u); }
+function conRacion(u: any) { return !!(u && !esConvoy(u) && u.carga && u.carga.racion != null); }
+// ============================================================
+// v2.9.448 — LAS BAJAS, LA EVACUACIÓN (G-4) Y LOS REEMPLAZOS (G-1).
+// Sergio (03-11-2026): «si necesitan reemplazos de personal, evacuaciones… deben
+// haber evacuaciones que soliciten las unidades… el G-4 tendrá un rol demasiado
+// importante: podrá mover sus vehículos de evacuación mientras hay combate… el
+// G-1 como reemplazos».
+//   · Lo que una unidad pierde en el turno (combate, fuego, minas, interdicción)
+//     son HOMBRES: poder perdido / poder máximo × su efectivo. El 70 % son heridos
+//     que esperan evacuación (`carga.heridos`); el resto, muertos. Le faltan esos
+//     hombres (`carga.faltan`) hasta que lleguen reemplazos.
+//   · El herido que espera se agrava: el 1,5 % por hora muere.
+//   · Se evacúa POR CUENTA PROPIA (a 3 km o menos de un puesto de socorro o del
+//     ASDI propio) o con AMBULANCIAS (convoy EVAC del G-4: por camino, carga 20
+//     heridos cada 30 min y los lleva a su puesto).
+//   · Los REEMPLAZOS los manda el G-1 desde la Unidad de Reemplazos (convoy REEMP,
+//     50 hombres por carga): la unidad recupera el poder de los hombres que recibe.
+// ⚠️ Cifras de referencia, a validar con las tablas de la Escuela.
+// ============================================================
+const EFECTIVO_REF: any = { equipo: 6, escuadra: 10, seccion: 35, compania: 130, batallon: 600, regimiento: 1500,
+  brigada: 3500, division: 10000, cuerpo: 30000, ejercito: 60000 };
+function hombresDe(u: any) { const m = mediosDe(u); const n = Number(m && m.efectivo); return n > 0 ? n : (EFECTIVO_REF[u && u.escalon] || 600); }
+const HERIDOS_PCT = 0.7;
+const MUERE_H = 0.015;          // de los heridos que esperan, por hora
+const HERIDOS_POR_CARGA = 20;   // una carga de ambulancias
+const HOMBRES_POR_CARGA = 50;   // una carga de reemplazos
+function num(x: any) { const n = Number(x); return Number.isFinite(n) ? n : 0; }
+function herDe(u: any) { return Math.max(0, num(u && u.carga && u.carga.heridos)); }
+function lugarAmbulancia(cv: any) { return Math.max(0, cargaDe(cv, "EVAC") * HERIDOS_POR_CARGA - num(cv && cv.carga && cv.carga.aBordo)); }
 function cargaTotal(u: any) { return CONVOY_CLASES.reduce((a, k) => a + cargaDe(u, k), 0); }
 function claseQueLleva(u: any) { return CONVOY_CLASES.find((k) => cargaDe(u, k) > 0) || null; }
 function gastarCarga(u: any, clase: string) {
@@ -2136,7 +2191,13 @@ function gastarCarga(u: any, clase: string) {
 // ============================================================
 const PESO_ESCALON: any = { equipo: 0.05, escuadra: 0.1, seccion: 0.25, compania: 0.4, batallon: 1,
   regimiento: 1.5, brigada: 3, division: 8, cuerpo: 20, ejercito: 40 };
-function pesoDe(u: any) { const p = PESO_ESCALON[u && u.escalon]; return p != null ? p : 1; }
+// v2.9.446: con su efectivo, si se sabe (`medios.peso`: 600 H = una carga de batallón).
+// Una «división» de 3.570 H no carga como una de 10.000.
+function pesoDe(u: any) {
+  const m = mediosDe(u);
+  if (m && Number(m.peso) > 0) return Number(m.peso);
+  const p = PESO_ESCALON[u && u.escalon]; return p != null ? p : 1;
+}
 const r3 = (x: number) => Math.round(x * 1000) / 1000;
 // La fracción del tanque que le falta (0 = lleno, 1 = vacío).
 function faltaTanque(u: any) {
@@ -2164,7 +2225,12 @@ function necesidad(u: any, clase: string, factor: number) {
   const p = pesoDe(u), tope = Math.max(0, Number(u.poder_max) || 0);
   if (clase === "III") return p * Math.min(factor, faltaTanque(u));
   if (clase === "V") return p * Math.min(factor, faltaMunicion(u));
+  // v2.9.447: con sus raciones a la vista, lo que le falta para el tope (un tope
+  // entero = una carga de batallón por cada batallón que pesa).
+  if (clase === "I" && conRacion(u)) return p * Math.min(factor, Math.max(0, 1 - racionDe(u) / topeRacion(u)));
   if (clase === "I") return tope > 0 ? p * Math.min(1, faltaPoder(u) / (tope * SOSTEN_PCT)) : 0;
+  // v2.9.448: los reemplazos, en cargas de 50 hombres (lo que le falta por bajas).
+  if (clase === "REEMP") return Math.max(0, num(u.carga && u.carga.faltan)) / HOMBRES_POR_CARGA;
   if (clase === "EVAC") return tope > 0 ? p * Math.min(1, faltaPoder(u) / (tope * EVAC_PCT)) : 0;
   return 0;
 }
@@ -2192,6 +2258,35 @@ function entregar(u: any, clase: string, n: number) {
     }
     return uf;
   }
+  // v2.9.448 — los reemplazos: hombres que se incorporan y el poder que traen.
+  if (clase === "REEMP") {
+    const falta = Math.max(0, num(u.carga && u.carga.faltan));
+    const hombres = Math.min(falta, Math.round(n * HOMBRES_POR_CARGA));
+    if (hombres <= 0) return 0;
+    const pm = Math.max(0, Number(u.poder_max) || 0);
+    const nuevo = Math.min(pm, (Number(u.poder_actual) || 0) + pm * hombres / hombresDe(u));
+    u.poder_actual = Number(nuevo.toFixed(2));
+    u.estado = nuevo <= pm * 0.2 ? "fuera_combate" : (nuevo <= pm * 0.6 ? "desgastada" : "activa");
+    u.carga = { ...(u.carga || {}), faltan: falta - hombres, reemplazos: num(u.carga && u.carga.reemplazos) + hombres };
+    return hombres;
+  }
+  // v2.9.447 — Clase I con raciones: rellena días y devuelve lo perdido por hambre.
+  if (clase === "I" && conRacion(u)) {
+    const tope = topeRacion(u), antes = racionDe(u);
+    const dias = Math.max(0, Math.min(tope - antes, (n / p) * tope));
+    const c: any = { ...u.carga, racion: Math.round((antes + dias) * 100) / 100 };
+    const hambre = Math.max(0, Number(c.hambre) || 0);
+    if (hambre > 0 && dias > 0) {
+      const pm = Math.max(0, Number(u.poder_max) || 0);
+      const vuelve = Math.min(hambre, faltaPoder(u));
+      const nuevo = Math.min(pm, (Number(u.poder_actual) || 0) + vuelve);
+      u.poder_actual = Number(nuevo.toFixed(2));
+      u.estado = nuevo <= pm * 0.2 ? "fuera_combate" : (nuevo <= pm * 0.6 ? "desgastada" : "activa");
+      c.hambre = Math.round((hambre - vuelve) * 100) / 100;
+    }
+    u.carga = c;
+    return dias;
+  }
   const tope = Math.max(0, Number(u.poder_max) || 0);
   const pct = clase === "I" ? SOSTEN_PCT : EVAC_PCT;
   const sube = Math.min(faltaPoder(u), (n / p) * tope * pct);
@@ -2216,7 +2311,7 @@ function fuentesDeApoyo(instalaciones: any[], convoyes: any[]) {
     if (I.combustible) clases.III = I.combustible;
     if (I.municion) clases.V = I.municion;
     if (I.sostiene) clases.I = 1;
-    if (I.sanidad) clases.EVAC = 1;
+    if (I.reemplazos) clases.REEMP = 1;   // v2.9.448 (la sanidad evacúa aparte: `evacuarPorCuentaPropia`)
     out.push({ nom: I.nom, pt, bando: x.bando, instal: x, convoy: null, clases,
       stock: (_k: string) => Math.max(0, capDe(x) - usadoDe(x)),
       gastar: (_k: string, n: number) => {
@@ -2231,7 +2326,7 @@ function fuentesDeApoyo(instalaciones: any[], convoyes: any[]) {
     if (cargaDe(cv, "III") > 0) clases.III = 1;
     if (cargaDe(cv, "V") > 0) clases.V = 1;
     if (cargaDe(cv, "I") > 0 || cargaDe(cv, "AGUA") > 0) clases.I = 1;
-    if (cargaDe(cv, "EVAC") > 0) clases.EVAC = 1;
+    if (cargaDe(cv, "REEMP") > 0) clases.REEMP = 1;   // v2.9.448 (la ambulancia carga heridos aparte)
     if (!Object.keys(clases).length) continue;
     out.push({ nom: `Convoy ${(cv.designacion || "").trim()}`.trim(), pt: [cv.lng, cv.lat], bando: cv.bando,
       instal: null, convoy: cv, clases,
@@ -2250,45 +2345,145 @@ function fuentesDeApoyo(instalaciones: any[], convoyes: any[]) {
 // EL REPARTO DEL FINAL DE LA JORNADA. Primero las instalaciones fijas (la carga
 // del convoy es escasa y no se gasta en una unidad parada sobre el Puesto de
 // Distribución), después los convoyes. Devuelve, por unidad, lo que recibió.
-function repartirAbastecimiento(unidades: any[], instalaciones: any[]) {
+// v2.9.444 — Con `horasConvoy` (id → horas que el convoy estuvo PARADO en el turno)
+// el convoy entrega sólo parado y lo que da su tiempo de descarga (HORAS_DESCARGA);
+// en marcha no reparte nada. Primero, a la unidad que fue a abastecer. Sin el mapa
+// (pruebas viejas, `reabastecer`), como antes.
+function repartirAbastecimiento(unidades: any[], instalaciones: any[], horasConvoy?: Map<any, number>) {
   const fuentes = fuentesDeApoyo(instalaciones, (unidades || []).filter(esConvoy));
   const orden = [...fuentes.filter((f: any) => !f.convoy), ...fuentes.filter((f: any) => f.convoy)];
   const reg = new Map<any, any>();
   const porFuente: any[] = [];
   for (const f of orden) {
+    let horas = Infinity;
+    if (f.convoy && horasConvoy) {
+      if ((f.convoy.carga || {}).fase === "vuelta") continue;   // vuelve con lo que le quedó: no reparte en el camino
+      horas = Math.max(0, Number(horasConvoy.get(f.convoy.id)) || 0);
+      if (horas <= 1e-6) continue;
+    }
     const cerca = (unidades || []).filter((u: any) => u && !esConvoy(u) && u.estado !== "fuera_combate"
       && u.bando === f.bando && Number.isFinite(Number(u.lng)) && haversineKm([u.lng, u.lat], f.pt) <= REABASTECER_KM);
     if (!cerca.length) continue;
-    const hecho = { f, cargas: 0, unidades: new Set<any>(), parcial: false };
-    for (const k of ["III", "V", "I", "EVAC"]) {
-      const factor = f.clases[k];
-      if (!factor) continue;
-      const stock = f.stock(k);
-      if (stock <= 1e-6) continue;
-      const nec = cerca.map((u: any) => ({ u, n: necesidad(u, k, factor) })).filter((x: any) => x.n > 1e-4);
-      const total = nec.reduce((s: number, x: any) => s + x.n, 0);
-      if (total <= 1e-6) continue;
-      const da = Math.min(stock, total), prop = da / total;
-      for (const x of nec) {
-        const n = x.n * prop;
-        const cant = entregar(x.u, k, n);
-        if (cant <= 1e-6) continue;
-        let e = reg.get(x.u.id);
-        if (!e) { e = { u: x.u, de: [], clases: new Set<string>(), km: 0, uf: 0, poder: 0, aDomicilio: false, parcial: false }; reg.set(x.u.id, e); }
-        if (!e.de.includes(f.nom)) e.de.push(f.nom);
-        e.clases.add(k);
-        if (k === "III") e.km += cant; else if (k === "V") e.uf += cant; else e.poder += cant;
-        if (f.convoy) e.aDomicilio = true;
-        if (prop < 0.999) e.parcial = true;
-        hecho.unidades.add(x.u);
+    const prio = f.convoy && f.convoy.carga ? f.convoy.carga.apoya : null;
+    const grupos = prio != null && cerca.some((u: any) => String(u.id) === String(prio))
+      ? [cerca.filter((u: any) => String(u.id) === String(prio)), cerca.filter((u: any) => String(u.id) !== String(prio))]
+      : [cerca];
+    const hecho = { f, cargas: 0, unidades: new Set<any>(), parcial: false, sigue: false, horas: 0 };
+    for (const grupo of grupos) {
+      for (const k of ["III", "V", "I", "REEMP"]) {
+        const factor = f.clases[k];
+        if (!factor || !grupo.length) continue;
+        const stock = f.stock(k);
+        if (stock <= 1e-6) continue;
+        const nec = grupo.map((u: any) => ({ u, n: necesidad(u, k, factor) })).filter((x: any) => x.n > 1e-4);
+        const total = nec.reduce((s: number, x: any) => s + x.n, 0);
+        if (total <= 1e-6) continue;
+        const hPorCarga = f.convoy ? (HORAS_DESCARGA[k] || 1) : 0;
+        const porTiempo = hPorCarga > 0 ? horas / hPorCarga : Infinity;
+        if (porTiempo <= 1e-6) continue;
+        const da = Math.min(stock, total, porTiempo), prop = da / total;
+        // Lo que no se dio: o no había (PARCIAL), o no dio el tiempo (sigue descargando).
+        const porReloj = prop < 0.999 && porTiempo < Math.min(stock, total) - 1e-9;
+        for (const x of nec) {
+          const n = x.n * prop;
+          const cant = entregar(x.u, k, n);
+          if (cant <= 1e-6) continue;
+          let e = reg.get(x.u.id);
+          if (!e) { e = { u: x.u, de: [], clases: new Set<string>(), km: 0, uf: 0, poder: 0, aDomicilio: false, parcial: false, sigue: false }; reg.set(x.u.id, e); }
+          if (!e.de.includes(f.nom)) e.de.push(f.nom);
+          e.clases.add(k);
+          if (k === "III") e.km += cant; else if (k === "V") e.uf += cant;
+          else if (k === "I" && conRacion(x.u)) e.dias = (e.dias || 0) + cant;   // v2.9.447: días de raciones
+          else if (k === "REEMP") e.hombres = (e.hombres || 0) + cant;            // v2.9.448: hombres
+          else e.poder += cant;
+          if (f.convoy) e.aDomicilio = true;
+          if (porReloj) e.sigue = true; else if (prop < 0.999) e.parcial = true;
+          hecho.unidades.add(x.u);
+        }
+        f.gastar(k, da);
+        hecho.cargas += da;
+        if (hPorCarga > 0) { const h = da * hPorCarga; horas -= h; hecho.horas += h; }
+        if (porReloj) hecho.sigue = true; else if (prop < 0.999) hecho.parcial = true;
       }
-      f.gastar(k, da);
-      hecho.cargas += da;
-      if (prop < 0.999) hecho.parcial = true;
     }
     if (hecho.cargas > 1e-6) porFuente.push(hecho);
   }
   return { reg, porFuente };
+}
+// ============================================================
+// v2.9.445 — 📻 LOS PEDIDOS DE LOS COMANDANTES. Sergio (03-11-2026): «que los
+// comandantes pidan reabastecimiento de munición, Clase III combustible, todas
+// las clases… en la vista del azul sólo lo de azul y del rojo sólo lo de rojo».
+// Al cerrar el turno, la unidad que BAJÓ de franja (menos de 40 % · menos de 20 % ·
+// nada) lo pide por radio, en un renglón. Sólo cuando empeora: lo que sigue
+// pendiente lo muestra la pantalla, calculado de la ficha y siempre al día.
+// ============================================================
+function franjaResto(resto: number) { return resto <= 1e-3 ? 3 : resto < 0.2 ? 2 : resto < 0.4 ? 1 : 0; }
+// Lo que le queda del arma PRINCIPAL más baja (la batería pide por su obús, no por
+// el promedio con sus fusiles). Sin armas pesadas, la más baja de todas.
+const ARMAS_LIVIANAS = ["fusil", "ametralladora", "pesada"];
+function municionPrincipal(u: any) {
+  const s = sistemasConDotacion(u);
+  if (!s.length) return null;
+  const pesadas = s.filter((a: any) => !ARMAS_LIVIANAS.includes(a.id));
+  let peor: any = null;
+  for (const a of (pesadas.length ? pesadas : s)) {
+    const r = Math.max(0, Math.min(1, municionDe(u, a.id) / ufTope(u, a.id)));
+    if (!peor || r < peor.resto) peor = { resto: r, arma: a };
+  }
+  return peor;
+}
+function pedidosDelTurno(antes: Map<any, any>, U: Map<any, any>) {
+  const out: any[] = [];
+  const pedir = (u: any, f: number, txt: string[]) => out.push({ tipo: "pedido", bando: u.bando, lat: u.lat, lng: u.lng,
+    descripcion: txt[f - 1], bandos_visibles: [u.bando] });
+  for (const u of U.values()) {
+    if (!u || esConvoy(u) || u.estado === "fuera_combate") continue;
+    const a = antes.get(u.id);
+    if (!a) continue;
+    const nom = nombreUnidad(u);
+    const t = tanqueDe(u);
+    if (t > 0) {
+      const r1 = 1 - faltaTanque(u), f1 = franjaResto(r1);
+      if (f1 > franjaResto(1 - faltaTanque(a))) {
+        const pct = Math.round(100 * r1), km = Math.round(r1 * t);
+        pedir(u, f1, [`📻 ${nom}: pide Cl III — le queda ${pct} % (${km} km).`,
+          `📻 ⚠️ ${nom}: pide Cl III URGENTE — ${pct} % (${km} km).`,
+          `📻 ⛔ ${nom}: SIN COMBUSTIBLE, no se mueve. Pide Cl III.`]);
+      }
+    }
+    // v2.9.448 — 🚑 los heridos nuevos piden evacuación; 👥 los hombres que faltan, reemplazos.
+    {
+      const h1 = herDe(u), h0 = herDe(a);
+      if (h1 >= 5 && h1 - h0 >= 1) out.push({ tipo: "pedido", bando: u.bando, lat: u.lat, lng: u.lng, bandos_visibles: [u.bando],
+        descripcion: `📻 ${nom}: pide evacuación — ${Math.round(h1)} heridos (+${Math.round(h1 - h0)}).` });
+      const f1 = num(u.carga && u.carga.faltan), f0 = num(a.carga && a.carga.faltan), hom = hombresDe(u);
+      const fuerza = Math.round(100 * (1 - f1 / hom));
+      if (f1 - f0 >= 1 && fuerza < 90) out.push({ tipo: "pedido", bando: u.bando, lat: u.lat, lng: u.lng, bandos_visibles: [u.bando],
+        descripcion: `📻 ${fuerza < 75 ? "⚠️ " : ""}${nom}: pide reemplazos — le faltan ${Math.round(f1)} hombres (${fuerza} %).` });
+    }
+    // v2.9.447 — Cl I: los días de raciones y agua que le quedan.
+    {
+      const tr = topeRacion(u), r1 = racionDe(u) / tr, f1 = franjaResto(r1);
+      if (f1 > franjaResto(racionDe(a) / topeRacion(a))) {
+        const dias = racionDe(u).toFixed(1).replace(".0", "");
+        pedir(u, f1, [`📻 ${nom}: pide Cl I — raciones y agua para ${dias} día(s).`,
+          `📻 ⚠️ ${nom}: pide Cl I URGENTE — raciones y agua para ${dias} día(s).`,
+          `📻 ⛔ ${nom}: SIN RACIONES NI AGUA, pierde poder. Pide Cl I.`]);
+      }
+    }
+    const m1 = municionPrincipal(u), m0 = municionPrincipal(a);
+    if (m1 && m0) {
+      const f1 = franjaResto(m1.resto);
+      if (f1 > franjaResto(m0.resto)) {
+        const que = `${m1.arma.nom} ${Math.round(100 * m1.resto)} %`;
+        pedir(u, f1, [`📻 ${nom}: pide Cl V — ${que}.`,
+          `📻 ⚠️ ${nom}: pide Cl V URGENTE — ${que}.`,
+          `📻 ⛔ ${nom}: SIN MUNICIÓN de ${m1.arma.nom}. Pide Cl V.`]);
+      }
+    }
+  }
+  return out;
 }
 // El renglón de bitácora de la unidad que se abasteció: qué recibió y cómo quedó.
 function textoAbastecido(e: any) {
@@ -2301,6 +2496,8 @@ function textoAbastecido(e: any) {
     const lista = sistemasConDotacion(u).map((a: any) => `${a.nom} ${municionDe(u, a.id).toFixed(1)}/${ufTope(u, a.id)} UF`);
     partes.push(`🎯 Cl V: ${lista.join(" · ")}`);
   }
+  if (e.hombres > 0) partes.push(`👥 Reemplazos: +${Math.round(e.hombres)} hombres (le faltan ${Math.round(num(u.carga && u.carga.faltan))})`);
+  if (e.dias > 0.01) partes.push(`🥫 Cl I y agua: +${e.dias.toFixed(1)} día(s) (lleva ${racionDe(u).toFixed(1)} de ${topeRacion(u)})`);
   if (e.poder > 0.01) {
     const txt = e.poder < 10 ? e.poder.toFixed(1) : e.poder.toFixed(0);
     partes.push(e.clases.has("EVAC") && !e.clases.has("I")
@@ -2308,6 +2505,9 @@ function textoAbastecido(e: any) {
       : `🥫 Cl I y agua${e.clases.has("EVAC") ? " + evacuación" : ""}: sostenimiento, +${txt} de poder de combate`);
   }
   if (e.parcial) partes.push("⚠️ PARCIAL: lo que había no alcanzó para completar a todos los que estaban al alcance");
+  else if (e.sigue) partes.push("⏳ la descarga sigue");
+  // v2.9.448: los reemplazos no «reabastecen»: se incorporan.
+  if (e.clases.size === 1 && e.clases.has("REEMP")) return `👥 ${nombreUnidad(u)} recibió reemplazos de ${e.de.join(" + ")} — ${partes.join(" · ")}`;
   return `📦 ${nombreUnidad(u)} se reabasteció${e.aDomicilio ? " A DOMICILIO" : ""} en ${e.de.join(" + ")} — ${partes.join(" · ")}`;
 }
 // v2.9.443 — compatibilidad: abastecer UNA unidad con las fuentes dadas.
@@ -2339,6 +2539,14 @@ function capacidadConvoy(cv: any, despacha: Set<string>) {
 }
 // v2.9.443 — EL CONVOY QUE VUELVE A LA INSTALACIÓN SE RECARGA DE SU ESTIBA. Antes
 // se llenaba gratis, infinitas veces: el escalón superior no hacía falta nunca.
+// v2.9.444 — ¿Llegó a una instalación propia que despacha (para darlo por vuelto)?
+function cercaDeSuInstalacion(cv: any, instalaciones: any[]) {
+  return (instalaciones || []).some((x: any) => {
+    if (!x || !INSTAL_LOG[x.tipo] || x.bando !== cv.bando || !(INSTAL_LOG[x.tipo].despacha || []).length) return false;
+    const pt = puntoInstalacion(x);
+    return !!pt && haversineKm([cv.lng, cv.lat], pt) <= REABASTECER_KM;
+  });
+}
 function recargarConvoy(cv: any, instalaciones: any[]) {
   if (!esConvoy(cv) || cv.estado === "fuera_combate") return null;
   const cerca = (instalaciones || []).filter((x: any) => {
@@ -2374,7 +2582,7 @@ function recargarConvoy(cv: any, instalaciones: any[]) {
   // v2.9.443: y su PROPIO tanque se llena en el puesto que reparte Clase III
   // (también de la estiba). Si no, el convoy se quedaba seco en la quinta vuelta.
   const gastado = Number(cv.combustible_km) || 0;
-  if (gastado > 0.05 && tanqueDe(cv) > 0) {
+  if (gastado >= 0.5 && tanqueDe(cv) > 0) {   // v2.9.451: medio km o más (antes salía «⛽ su tanque +0 km»)
     const nec = pesoDe(cv) * faltaTanque(cv);
     for (const x of cerca) {
       const I = INSTAL_LOG[x.tipo];
@@ -2864,6 +3072,133 @@ function rutaPorCaminos(terreno: any[], desde: number[], hasta: number[], maxAcc
   camino.push(hasta);
   return camino;
 }
+// ============================================================
+// v2.9.444 — EL CONVOY VA POR EL CAMINO HASTA DONDE EL CAMINO LLEGA.
+// Sergio: «muchas veces no habrá camino a la unidad apoyada, por lo tanto se debe
+// considerar que llegue lo más cerca posible, o sea que pare en el camino».
+// `rutaConvoy` entra a la red a lo más CONVOY_FUERA_RUTA_KM de donde está (la
+// salida de su instalación) y termina en el punto del camino ALCANZABLE más cercano
+// a `hasta` — aunque la unidad esté lejos de toda ruta. Cuánto queda entre ese
+// punto y la unidad (`dParada`) decide si hay abastecimiento: a más de
+// REABASTECER_KM, no.
+// ============================================================
+// El pie de la perpendicular de `p` sobre el tramo a–b (plano local, en grados
+// corregidos por la latitud: sobra para tramos de 500 m).
+function pieEnTramo(p: number[], a: number[], b: number[]) {
+  const k = Math.cos((Number(p[1]) * Math.PI) / 180);
+  const ax = a[0] * k, ay = a[1], bx = b[0] * k, by = b[1], px = p[0] * k, py = p[1];
+  const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+  const t = L2 > 0 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L2)) : 0;
+  return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+}
+function rutaConvoy(terreno: any[], desde: number[], hasta: number[]) {
+  const g = grafoVial(terreno);
+  const nada = (motivo: string) => ({ sinCamino: true, motivo, ruta: [] as number[][], parada: desde,
+    dParada: haversineKm(desde, hasta), km: 0, acceso: 0 });
+  if (!g.nodos.length) return nada("la carta no tiene caminos");
+  const a = g.cercano(desde, CONVOY_FUERA_RUTA_KM);
+  if (a == null) return nada(`no hay camino a menos de ${CONVOY_FUERA_RUTA_KM} km`);
+  const n = g.nodos.length;
+  const dist = new Float64Array(n).fill(Infinity), prev = new Int32Array(n).fill(-1);
+  const cerrado = new Uint8Array(n);
+  const heap: number[][] = [];
+  const push = (f: number, i: number) => {
+    heap.push([f, i]);
+    let k = heap.length - 1;
+    while (k > 0) { const p = (k - 1) >> 1; if (heap[p][0] <= heap[k][0]) break; [heap[p], heap[k]] = [heap[k], heap[p]]; k = p; }
+  };
+  const pop = () => {
+    const top = heap[0], last = heap.pop() as number[];
+    if (heap.length) {
+      heap[0] = last;
+      let k = 0;
+      for (;;) {
+        const l = 2 * k + 1, r = l + 1;
+        let m = k;
+        if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
+        if (r < heap.length && heap[r][0] < heap[m][0]) m = r;
+        if (m === k) break;
+        [heap[m], heap[k]] = [heap[k], heap[m]]; k = m;
+      }
+    }
+    return top;
+  };
+  // Dijkstra entero desde la entrada: el mejor nodo es el alcanzable más cercano a
+  // `hasta` (a igual distancia, el de camino más corto).
+  dist[a] = 0; push(0, a);
+  let mejor = a, dMejor = haversineKm(g.nodos[a], hasta), it = 0;
+  while (heap.length && ++it < 2000000) {
+    const [, i] = pop();
+    if (cerrado[i]) continue;
+    cerrado[i] = 1;
+    const d = haversineKm(g.nodos[i], hasta);
+    if (d < dMejor - 1e-9 || (Math.abs(d - dMejor) <= 1e-9 && dist[i] < dist[mejor])) { mejor = i; dMejor = d; }
+    const ad = g.ady[i], ps = g.pes[i];
+    for (let k = 0; k < ad.length; k++) {
+      const j = ad[k];
+      if (cerrado[j]) continue;
+      const nd = dist[i] + ps[k];
+      if (nd < dist[j]) { dist[j] = nd; prev[j] = i; push(nd, j); }
+    }
+  }
+  const idx: number[] = [];
+  for (let i = mejor; i >= 0; i = prev[i]) { idx.push(i); if (i === a) break; }
+  idx.reverse();
+  const ruta = idx.map((i) => g.nodos[i]);
+  // El punto del camino más cercano: el pie sobre los tramos que tocan al mejor nodo.
+  let fin = g.nodos[mejor], dFin = dMejor;
+  for (const j of g.ady[mejor]) {
+    const q = pieEnTramo(hasta, g.nodos[mejor], g.nodos[j]);
+    const dq = haversineKm(q, hasta);
+    if (dq < dFin - 1e-6) { dFin = dq; fin = q; }
+  }
+  if (haversineKm(fin, ruta[ruta.length - 1]) > 0.005) {
+    // Si el pie cae sobre el tramo por el que llegó, se corta ahí (no va y vuelve).
+    const ant = ruta.length > 1 ? ruta[ruta.length - 2] : null;
+    if (ant && haversineKm(pieEnTramo(fin, ant, ruta[ruta.length - 1]), fin) < 0.005) ruta[ruta.length - 1] = fin;
+    else ruta.push(fin);
+  }
+  let km = 0;
+  for (let i = 1; i < ruta.length; i++) km += haversineKm(ruta[i - 1], ruta[i]);
+  return { sinCamino: false, motivo: "", ruta, parada: ruta[ruta.length - 1], dParada: dFin, km,
+    acceso: haversineKm(desde, g.nodos[a]) };
+}
+// La ruta del G-4 (sus puntos de paso), pasada al camino: cada punto se lleva al
+// punto de la red más cercano que se pueda alcanzar desde el anterior.
+function rutaConvoyPorPuntos(terreno: any[], desde: number[], puntos: number[][]) {
+  const pts = (puntos || []).filter((p: any) => Array.isArray(p) && p.length >= 2);
+  let cur = desde, ruta: number[][] = [], km = 0, acceso = 0, ult: any = null;
+  for (let i = 0; i < pts.length; i++) {
+    const r = rutaConvoy(terreno, cur, pts[i]);
+    if (r.sinCamino) {
+      if (i === 0) return r;
+      break;
+    }
+    if (i === 0) acceso = r.acceso;
+    for (const p of r.ruta) if (!ruta.length || haversineKm(ruta[ruta.length - 1], p) > 1e-4) ruta.push(p);
+    km += r.km; cur = r.parada; ult = r;
+  }
+  if (!ult) return rutaConvoy(terreno, desde, desde);
+  return { sinCamino: false, motivo: "", ruta, parada: cur, dParada: ult.dParada, km, acceso };
+}
+// v2.9.444 — LA DESCARGA LLEVA TIEMPO (horas por CARGA DE BATALLÓN, de cada clase).
+// ⚠️ Cifras de referencia propuestas el 03-11-2026, a validar con las tablas de la
+// Escuela: Cl III 1 h, Cl V 1 h 30, Cl I y agua 30 min, evacuación 30 min.
+const HORAS_DESCARGA: any = { III: 1, V: 1.5, I: 0.5, AGUA: 0.5, EVAC: 0.5, REEMP: 0.5 };   // EVAC: 20 heridos · REEMP: 50 hombres
+const ESPERA_MIN_H = 0.5;   // aunque la unidad no venga, el convoy espera lo mínimo en el punto
+// Cuánto tarda en descargar lo que necesita ESA unidad (con lo que el convoy lleva).
+function horasDescarga(cv: any, u: any) {
+  if (!cv || !u) return ESPERA_MIN_H;
+  let h = 0;
+  // v2.9.448: la ambulancia tarda lo que lleva cargar los heridos de esa unidad (lo que entre).
+  if (cargaDe(cv, "EVAC") > 0) h += Math.min(herDe(u), lugarAmbulancia(cv)) / HERIDOS_POR_CARGA * HORAS_DESCARGA.EVAC;
+  for (const k of ["III", "V", "I", "REEMP"]) {
+    const hay = k === "I" ? cargaDe(cv, "I") + cargaDe(cv, "AGUA") : cargaDe(cv, k);
+    if (hay <= 1e-6) continue;
+    h += Math.min(hay, necesidad(u, k, 1)) * HORAS_DESCARGA[k];
+  }
+  return Math.max(ESPERA_MIN_H, h);
+}
 // Recorta la ruta para que termine a `km` del objetivo: el convoy se queda
 // DETRÁS de la unidad que apoya, no encima de ella.
 function rutaHastaCerca(ruta: number[][], objetivo: number[], km: number) {
@@ -2891,9 +3226,16 @@ function rutaHastaCerca(ruta: number[][], objetivo: number[], km: number) {
 //      de 2 km, va por los caminos hasta quedar 1,5 km detrás de ella.
 //   3) EL CONVOY VACÍO vuelve solo, por los caminos, a la instalación de la que
 //      salió; ahí recarga de la estiba y, si estaba agregado, vuelve a la unidad.
+// v2.9.444 — EL CONVOY, SIEMPRE POR EL CAMINO (`rutaConvoy`):
+//   2) «🚚 ABASTECER A…» (la orden `apoyar`) va al punto del camino más cercano a
+//      la unidad, PARA y descarga (`fase: "descarga"`); terminada, vuelve.
+//   3) Vacío o con la descarga terminada (`fase: "vuelta"`), vuelve por el camino a
+//      su instalación y queda ahí, recargado, esperando orden del G-4.
+//   4) La marcha del G-4 que no terminó sigue por el camino hasta su destino.
+// Sin camino a menos de CONVOY_FUERA_RUTA_KM no sale: se avisa una vez por turno.
 // ============================================================
 const APOYO_KM = 1.5;
-function ordenesAutomaticas(estado: any, U: Map<any, any>, instal: any[], terreno: any[], ordenes: any[]) {
+function ordenesAutomaticas(estado: any, U: Map<any, any>, instal: any[], terreno: any[], ordenes: any[], avisos: any[] = []) {
   const ya = new Set((ordenes || []).map((o: any) => o.unidad_id));
   const out: any[] = [];
   const prev = new Map((estado.trazasPrevias || []).map((t: any) => [t.id, t]));
@@ -2902,7 +3244,7 @@ function ordenesAutomaticas(estado: any, U: Map<any, any>, instal: any[], terren
     if (o.tipo !== "mover" && o.tipo !== "replegar") continue;
     const u: any = U.get(o.unidad_id);
     if (!u || poderEfectivo(u) <= 0) continue;
-    if (esConvoy(u) && (cargaTotal(u) <= 1e-6 || (u.carga && u.carga.apoya != null))) continue;   // lo maneja su apoyo / su vuelta
+    if (esConvoy(u)) continue;   // v2.9.444: el convoy sigue por el camino (más abajo), no por su traza vieja
     const t: any = prev.get(o.unidad_id);
     if (!t || t.llego || t.detenida || t.minado || t.contacto) continue;
     const ruta = Array.isArray(o.ruta) && o.ruta.length ? o.ruta : (o.destino_lng != null ? [[o.destino_lng, o.destino_lat]] : []);
@@ -2913,11 +3255,24 @@ function ordenesAutomaticas(estado: any, U: Map<any, any>, instal: any[], terren
       ruta: resto, tarea: o.tarea || null, proposito: o.proposito || null, auto: "sigue" });
     ya.add(u.id);
   }
+  const avisar = (cv: any, texto: string) => {
+    if (cv.carga && cv.carga.avisado === estado.turno) return;
+    cv.carga = { ...(cv.carga || {}), avisado: estado.turno };
+    avisos.push({ tipo: "logistica", bando: cv.bando, lat: cv.lat, lng: cv.lng, descripcion: texto, bandos_visibles: [cv.bando] });
+  };
+  const marchar = (cv: any, r: any, extra: any) => {
+    const fin = r.parada;
+    out.push(Object.assign({ id: null, unidad_id: cv.id, bando: cv.bando, tipo: "mover", destino_lng: fin[0], destino_lat: fin[1],
+      ruta: r.ruta }, extra));
+    ya.add(cv.id);
+  };
   for (const cv of U.values()) {
     if (!esConvoy(cv) || ya.has(cv.id) || poderEfectivo(cv) <= 0) continue;
     const carga = cv.carga || {};
     const aqui = [Number(cv.lng), Number(cv.lat)];
-    if (cargaTotal(cv) <= 1e-6) {
+    if (carga.fase === "descarga") continue;   // parado en el punto, descargando
+    // VACÍO, o TERMINÓ SU DESCARGA: vuelve por el camino a su instalación.
+    if (cargaTotal(cv) <= 1e-6 || carga.fase === "vuelta") {
       const propias = (instal || []).filter((x: any) => x && x.bando === cv.bando && INSTAL_LOG[x.tipo]
         && (INSTAL_LOG[x.tipo].despacha || []).length && puntoInstalacion(x));
       let ori = propias.find((x: any) => carga.origen != null && String(x.id) === String(carga.origen));
@@ -2926,27 +3281,270 @@ function ordenesAutomaticas(estado: any, U: Map<any, any>, instal: any[], terren
       if (!ori) continue;
       const p = puntoInstalacion(ori) as number[];
       if (haversineKm(aqui, p) <= REABASTECER_KM - 0.5) continue;   // ya está en el puesto: recarga al final del turno
-      const ruta = rutaPorCaminos(terreno, aqui, p) || [p];
-      out.push({ id: null, unidad_id: cv.id, bando: cv.bando, tipo: "mover", destino_lng: p[0], destino_lat: p[1],
-        ruta, auto: "volver", hacia: INSTAL_LOG[ori.tipo].nom });
-      ya.add(cv.id);
+      const r = rutaConvoy(terreno, aqui, p);
+      if (r.sinCamino) { avisar(cv, `⛔ ${nombreUnidad(cv)} no puede volver: ${r.motivo}. El convoy no anda campo traviesa.`); continue; }
+      if (haversineKm(aqui, r.parada) < 0.05) {
+        avisar(cv, `⛔ ${nombreUnidad(cv)} no encuentra camino hasta ${INSTAL_LOG[ori.tipo].nom}: queda a ${r.dParada.toFixed(1)} km.`);
+        continue;
+      }
+      marchar(cv, r, { auto: "volver", hacia: INSTAL_LOG[ori.tipo].nom });
       continue;
     }
+    // «🚚 ABASTECER A…»: al punto del camino más cercano a la unidad (aunque se mueva).
     if (carga.apoya != null) {
       const x: any = U.get(carga.apoya);
-      if (!x || x.bando !== cv.bando || poderEfectivo(x) <= 0) continue;
-      const objetivo = [Number(x.lng), Number(x.lat)];
-      if (haversineKm(aqui, objetivo) <= APOYO_KM + 0.6) continue;
-      let ruta = rutaPorCaminos(terreno, aqui, objetivo) || [objetivo];
-      ruta = rutaHastaCerca(ruta, objetivo, APOYO_KM);
-      if (!ruta.length) continue;
-      const fin = ruta[ruta.length - 1];
-      out.push({ id: null, unidad_id: cv.id, bando: cv.bando, tipo: "mover", destino_lng: fin[0], destino_lat: fin[1],
-        ruta, auto: "apoyar", apoya: x.id });
-      ya.add(cv.id);
+      if (!x || x.bando !== cv.bando || poderEfectivo(x) <= 0) {
+        cv.carga = { ...carga, apoya: null, fase: "vuelta" };
+        avisar(cv, `↩️ ${nombreUnidad(cv)}: la unidad que iba a abastecer ya no está. Vuelve a su instalación.`);
+        continue;
+      }
+      const r = rutaConvoy(terreno, aqui, [Number(x.lng), Number(x.lat)]);
+      if (r.sinCamino) { avisar(cv, `⛔ ${nombreUnidad(cv)} no sale: ${r.motivo}. El convoy no anda campo traviesa.`); continue; }
+      if (haversineKm(aqui, r.parada) <= 0.3) {
+        // Ya está en el punto: descarga desde H+0.
+        cv.carga = { ...carga, fase: "descarga", llegoH: 0, resta: horasDescarga(cv, x), dParada: r.dParada, entrego: 0 };
+        continue;
+      }
+      marchar(cv, r, { auto: "apoyar", apoya: x.id, dParada: r.dParada });
+      continue;
+    }
+    // La marcha que el G-4 le dio y no terminó: sigue por el camino.
+    if (Array.isArray(carga.destino) && carga.destino.length >= 2) {
+      const r = rutaConvoy(terreno, aqui, carga.destino);
+      if (r.sinCamino || haversineKm(aqui, r.parada) < 0.05) { cv.carga = { ...carga, destino: null }; continue; }
+      marchar(cv, r, { auto: "camino" });
     }
   }
   return out;
+}
+// ============================================================
+// v2.9.451 — 🤖 EL G-4 AUTOMÁTICO. Lo acordado con Sergio (03-11-2026): «la logística
+// roja se mueve sola, para que el G-2 se dedique a presionar», y «al rojo también se
+// le acaba todo». Al cerrar el turno, el G-4 del bando que nadie juega (por defecto el
+// rojo; el árbitro lo cambia) hace lo que haría uno de carne:
+//   · mira lo que le falta a cada unidad — Cl III, Cl V (el arma principal) y Cl I
+//     por debajo del 60 %, heridos que esperan, hombres que faltan — y atiende primero
+//     lo urgente (a igual urgencia, la unidad que más pesa);
+//   · manda el convoy que tiene listo o FORMA uno en el puesto más cercano que
+//     despache esa clase, de su estiba (agotada, se acabó): a lo más dos por puesto y
+//     por turno. Si a la unidad le faltan dos clases y el puesto las da, va un paquete;
+//   · el convoy anda con las reglas de todos (v2.9.444): sólo por camino, para en el
+//     punto más cercano, descarga y vuelve. Si ese punto queda a más de 3 km de la
+//     unidad, no la abastece y lo dice;
+//   · lo que ya va en camino no se repite, y lo que la unidad saca sola de una
+//     instalación propia a 3 km (por cuenta propia) tampoco.
+// Si un G-4 de carne le da una orden a un convoy, manda él.
+// ⚠️ 60 % y dos convoyes por puesto y por turno: cifras de referencia, a validar.
+// ============================================================
+const G4_UMBRAL = 0.6;
+const G4_FORMA_TURNO = 2;
+const G4_HERIDOS_MIN = 5;
+const G4_PRUEBAS = 3;              // rutas que prueba por pedido (convoyes o puestos más cercanos)
+const G4_ANCLA_CAMINO_KM = 15;     // hasta dónde busca camino para su Área de Servicios
+const G4_INSTAL = "log_asdi";
+const G4_CLASE_TXT: any = { III: "Cl III", V: "Cl V", I: "Cl I", EVAC: "evacuación", REEMP: "reemplazos" };
+// Lo que le falta a la unidad, con su urgencia (3 = sin nada o casi) y una frase corta.
+function necesidadesG4(u: any) {
+  const out: any[] = [];
+  if (!u || esConvoy(u) || u.estado === "fuera_combate" || poderEfectivo(u) <= 0) return out;
+  const urg = (r: number) => r < 0.2 ? 3 : r < 0.4 ? 2 : 1;
+  if (tanqueDe(u) > 0) {
+    const r = 1 - faltaTanque(u);
+    if (r < G4_UMBRAL) out.push({ k: "III", urg: urg(r), txt: `Cl III ⛽ ${Math.round(100 * r)} %` });
+  }
+  const m = municionPrincipal(u);
+  if (m && m.resto < G4_UMBRAL) out.push({ k: "V", urg: urg(m.resto), txt: `Cl V 🎯 ${Math.round(100 * m.resto)} %` });
+  if (conRacion(u)) {
+    const r = racionDe(u) / topeRacion(u);
+    if (r < G4_UMBRAL) out.push({ k: "I", urg: urg(r), txt: `Cl I 🥫 ${racionDe(u).toFixed(1).replace(".0", "")} d` });
+  }
+  const h = herDe(u);
+  if (h >= G4_HERIDOS_MIN) out.push({ k: "EVAC", urg: h >= 40 ? 3 : 2, txt: `🚑 ${Math.round(h)} heridos` });
+  const f = num(u.carga && u.carga.faltan);
+  if (f >= HOMBRES_POR_CARGA / 2) out.push({ k: "REEMP", urg: f / hombresDe(u) > 0.25 ? 2 : 1, txt: `👥 faltan ${Math.round(f)}` });
+  return out;
+}
+// Las clases que puede dar ese convoy ahora (el agua cuenta como Clase I; la
+// ambulancia, si le queda lugar).
+function clasesDeConvoy(cv: any) {
+  const out: string[] = [];
+  if (cargaDe(cv, "III") > 1e-6) out.push("III");
+  if (cargaDe(cv, "V") > 1e-6) out.push("V");
+  if (cargaDe(cv, "I") + cargaDe(cv, "AGUA") > 1e-6) out.push("I");
+  if (cargaDe(cv, "EVAC") > 1e-6 && lugarAmbulancia(cv) >= 1) out.push("EVAC");
+  if (cargaDe(cv, "REEMP") > 1e-6) out.push("REEMP");
+  return out;
+}
+// ¿La unidad a 3 km de esa instalación lo saca sola al final del turno?
+function daPorCuentaPropia(x: any, k: string) {
+  const I = x && INSTAL_LOG[x.tipo];
+  if (!I) return false;
+  if (k === "EVAC") return !!I.sanidad;
+  if (instalSeca(x)) return false;
+  return (k === "III" && I.combustible > 0) || (k === "V" && I.municion > 0) || (k === "I" && !!I.sostiene)
+    || (k === "REEMP" && !!I.reemplazos);
+}
+// El plan del G-4 automático de `bando`: { asignar: [{convoy, para, motivo}],
+// formar: [{instal, clase, para, motivo}], faltan: [{u, k, por: estiba|instal|camino, km}] }.
+function planG4(bando: string, unidades: any[], instalaciones: any[], terreno: any[], ordenes: any[]) {
+  const plan: any = { asignar: [], formar: [], faltan: [] };
+  const S = (x: any) => String(x);
+  const propias = (unidades || []).filter((u: any) => u && u.bando === bando
+    && Number.isFinite(Number(u.lng)) && Number.isFinite(Number(u.lat)));
+  const convoyes = propias.filter((u: any) => esConvoy(u) && u.estado !== "fuera_combate" && poderEfectivo(u) > 0);
+  const conOrden = new Set((ordenes || []).filter(Boolean).map((o: any) => S(o.unidad_id)));
+  // Lo que ya va en camino (unidad|clase): las misiones en curso y las órdenes de este turno.
+  const enCamino = new Set<string>();
+  const marcar = (uid: any, cv: any) => { for (const k of clasesDeConvoy(cv)) enCamino.add(S(uid) + "|" + k); };
+  for (const cv of convoyes) {
+    const c = cv.carga || {};
+    if (c.apoya != null && (c.fase === "ida" || c.fase === "descarga")) marcar(c.apoya, cv);
+  }
+  for (const o of ordenes || []) {
+    if (!o || o.tipo !== "apoyar" || o.objetivo_id == null) continue;
+    const cv = convoyes.find((x: any) => S(x.id) === S(o.unidad_id));
+    if (cv) marcar(o.objetivo_id, cv);
+  }
+  // Los convoyes listos: sin misión, sin marcha a mano y sin orden de este turno.
+  const libres = convoyes.filter((cv: any) => {
+    const c = cv.carga || {};
+    if (conOrden.has(S(cv.id)) || c.apoya != null || ["ida", "descarga", "vuelta"].includes(c.fase)) return false;
+    if (Array.isArray(c.destino) && c.destino.length >= 2) return false;
+    if (num(c.aBordo) >= 0.5) return false;
+    return clasesDeConvoy(cv).length > 0;
+  });
+  const instal = (instalaciones || []).filter((x: any) => x && x.bando === bando && INSTAL_LOG[x.tipo] && puntoInstalacion(x));
+  const despachan = instal.filter((x: any) => (INSTAL_LOG[x.tipo].despacha || []).length);
+  const stock = new Map<any, number>(despachan.map((x: any) => [x.id, Math.max(0, capDe(x) - usadoDe(x))]));
+  const formadas = new Map<any, number>();
+  const nec: any[] = [];
+  for (const u of propias) {
+    if (esConvoy(u)) continue;
+    const pu = [Number(u.lng), Number(u.lat)];
+    for (const n of necesidadesG4(u)) {
+      if (enCamino.has(S(u.id) + "|" + n.k)) continue;
+      if (instal.some((x: any) => daPorCuentaPropia(x, n.k) && haversineKm(pu, puntoInstalacion(x) as number[]) <= REABASTECER_KM)) continue;
+      nec.push({ u, pu, ...n });
+    }
+  }
+  nec.sort((a: any, b: any) => b.urg - a.urg || pesoDe(b.u) - pesoDe(a.u));
+  const atendida = new Set<string>();
+  const lejos = new Map<any, number>();   // unidad → a cuántos km del camino quedó (no la alcanza nadie)
+  const pide = (u: any, k: string) => nec.some((m: any) => m.u === u && m.k === k);
+  const motivo = (u: any, cls: string[]) => nec.filter((m: any) => m.u === u && cls.includes(m.k)).map((m: any) => m.txt).join(" · ");
+  let sinRuta = false;   // el puesto no tiene camino a 2 km (el convoy no anda campo traviesa)
+  const prueba = (desde: number[], n: any) => {
+    const r = rutaConvoy(terreno, desde, n.pu);
+    if (r.sinCamino) { sinRuta = true; return false; }
+    if (r.dParada > REABASTECER_KM) { lejos.set(n.u.id, Math.min(lejos.get(n.u.id) ?? Infinity, r.dParada)); return false; }
+    return true;
+  };
+  const cerca = (n: any) => (a: any, b: any) => haversineKm(a, n.pu) - haversineKm(b, n.pu);
+  for (const n of nec) {
+    const clave = S(n.u.id) + "|" + n.k;
+    if (atendida.has(clave)) continue;
+    if (lejos.has(n.u.id)) { plan.faltan.push({ u: n.u, k: n.k, por: "camino", km: lejos.get(n.u.id) }); atendida.add(clave); continue; }
+    // 1) El convoy listo más cercano que lleve esa clase.
+    const cands = libres.filter((cv: any) => clasesDeConvoy(cv).includes(n.k))
+      .sort((a: any, b: any) => cerca(n)([a.lng, a.lat], [b.lng, b.lat])).slice(0, G4_PRUEBAS);
+    const cv = cands.find((c: any) => prueba([Number(c.lng), Number(c.lat)], n));
+    if (cv) {
+      const cls = clasesDeConvoy(cv).filter((k: string) => pide(n.u, k));
+      plan.asignar.push({ convoy: cv, para: n.u, motivo: motivo(n.u, cls) });
+      libres.splice(libres.indexOf(cv), 1);
+      for (const k of cls) atendida.add(S(n.u.id) + "|" + k);
+      continue;
+    }
+    // 2) Formar uno en el puesto más cercano que despache esa clase y tenga estiba.
+    const deEsa = despachan.filter((x: any) => (INSTAL_LOG[x.tipo].despacha || []).includes(n.k));
+    const conEstiba = deEsa.filter((x: any) => (stock.get(x.id) || 0) > 0.05);
+    if (!deEsa.length || !conEstiba.length) {
+      if (!lejos.has(n.u.id)) { plan.faltan.push({ u: n.u, k: n.k, por: deEsa.length ? "estiba" : "instal" }); atendida.add(clave); continue; }
+    }
+    const puestos = conEstiba.filter((x: any) => (formadas.get(x.id) || 0) < G4_FORMA_TURNO)
+      .sort((a: any, b: any) => cerca(n)(puntoInstalacion(a), puntoInstalacion(b))).slice(0, G4_PRUEBAS);
+    sinRuta = false;
+    const x = puestos.find((p: any) => prueba(puntoInstalacion(p) as number[], n));
+    if (x) {
+      const desp = INSTAL_LOG[x.tipo].despacha || [];
+      const tres = ["III", "V", "I"].filter((k) => desp.includes(k));
+      const otra = tres.some((k) => k !== n.k && pide(n.u, k) && !atendida.has(S(n.u.id) + "|" + k));
+      const paquete = tres.includes(n.k) && tres.length >= 2 && otra;
+      const cls = paquete ? tres : [n.k];
+      stock.set(x.id, Math.max(0, (stock.get(x.id) || 0) - (paquete ? CONVOY_PAQUETE : CONVOY_CAPACIDAD) * cls.length));
+      formadas.set(x.id, (formadas.get(x.id) || 0) + 1);
+      plan.formar.push({ instal: x, clase: paquete ? "PAQUETE" : n.k, para: n.u, motivo: motivo(n.u, cls) });
+      for (const k of cls) atendida.add(S(n.u.id) + "|" + k);
+      continue;
+    }
+    if (lejos.has(n.u.id)) { plan.faltan.push({ u: n.u, k: n.k, por: "camino", km: lejos.get(n.u.id) }); atendida.add(clave); }
+    else if (sinRuta) { plan.faltan.push({ u: n.u, k: n.k, por: "camino", km: null }); atendida.add(clave); }
+    // Si no, los puestos ya formaron lo suyo en este turno: espera al próximo.
+  }
+  return plan;
+}
+// Las redes de caminos que no se tocan entre sí (cada nodo, el número de su red).
+function redesVial(g: any) {
+  if (g._redes) return g._redes;
+  const red = new Int32Array(g.nodos.length).fill(-1);
+  let n = 0;
+  for (let s = 0; s < g.nodos.length; s++) {
+    if (red[s] >= 0) continue;
+    const pila = [s]; red[s] = n;
+    while (pila.length) { const i = pila.pop() as number; for (const j of g.ady[i]) if (red[j] < 0) { red[j] = n; pila.push(j); } }
+    n++;
+  }
+  g._redes = red;
+  return red;
+}
+// Dónde instala el G-4 automático su Área de Servicios si el bando no tiene ninguna
+// instalación: junto a su unidad logística (o su PC más alto, o la unidad más
+// alejada del enemigo), sobre el camino. Medido en «CE-IV9»: el camino más cercano a
+// la CÍA. LOG. roja era un tramo suelto de 2 km, sin salida, y desde ahí no se
+// llegaba a nadie. Por eso va sobre la RED que llega a más unidades propias (a 3 km
+// o menos de algún punto suyo) y, en esa red, lo más cerca de su unidad logística.
+function anclaLogistica(bando: string, unidades: any[], terreno: any[]) {
+  const vale = (u: any) => u && !esConvoy(u) && u.estado !== "fuera_combate"
+    && Number.isFinite(Number(u.lng)) && Number.isFinite(Number(u.lat));
+  const propias = (unidades || []).filter((u: any) => vale(u) && u.bando === bando);
+  if (!propias.length) return null;
+  const ESC = Object.keys(EFECTIVO_REF);   // del equipo al ejército
+  const alto = (a: any, b: any) => ESC.indexOf(b.escalon) - ESC.indexOf(a.escalon);
+  const nom = (u: any) => String(u.designacion || "").trim();
+  let ref: any = propias.filter((u: any) => u.arma === "logistica" || /\bLOG\b|LOG[ÍI]ST/i.test(nom(u))).sort(alto)[0]
+    || propias.filter((u: any) => /^PC\b/i.test(nom(u))).sort(alto)[0];
+  if (!ref) {
+    const ene = (unidades || []).filter((u: any) => vale(u) && u.bando !== bando);
+    const c = ene.length ? [ene.reduce((s: number, u: any) => s + Number(u.lng), 0) / ene.length,
+      ene.reduce((s: number, u: any) => s + Number(u.lat), 0) / ene.length] : null;
+    ref = c ? propias.slice().sort((a: any, b: any) => haversineKm([b.lng, b.lat], c) - haversineKm([a.lng, a.lat], c))[0] : propias[0];
+  }
+  const p = [Number(ref.lng), Number(ref.lat)];
+  const g = grafoVial(terreno);
+  const red = redesVial(g);
+  const cerca = new Map<number, any>();   // red → su nodo más cercano a la unidad logística
+  for (let i = 0; i < g.nodos.length; i++) {
+    const d = haversineKm(p, g.nodos[i]);
+    if (d > G4_ANCLA_CAMINO_KM) continue;
+    const m = cerca.get(red[i]);
+    if (!m || d < m.d) cerca.set(red[i], { i, d });
+  }
+  if (!cerca.size) return { ref, pt: p, dCamino: null };
+  const alcanza = new Map<number, number>([...cerca.keys()].map((r) => [r, 0]));
+  for (const u of propias) {
+    const pu = [Number(u.lng), Number(u.lat)], ya = new Set<number>();
+    for (let i = 0; i < g.nodos.length; i++) {
+      const r = red[i];
+      if (!alcanza.has(r) || ya.has(r) || haversineKm(pu, g.nodos[i]) > REABASTECER_KM) continue;
+      ya.add(r); alcanza.set(r, (alcanza.get(r) || 0) + pesoDe(u));
+    }
+  }
+  let mejor: any = null;
+  for (const [r, m] of cerca) {
+    const a = alcanza.get(r) || 0;
+    if (!mejor || a > mejor.a + 1e-9 || (Math.abs(a - mejor.a) <= 1e-9 && m.d < mejor.d)) mejor = { a, i: m.i, d: m.d };
+  }
+  return { ref, pt: g.nodos[mejor.i].slice(), dCamino: mejor.d };
 }
 function resolverTurno(estado: any) {
   // v2.9.430 — UNA ORDEN POR UNIDAD, LA ÚLTIMA. En la base quedaron turnos con
@@ -2985,26 +3583,49 @@ function resolverTurno(estado: any) {
     const u: any = U.get(o.unidad_id);
     if (!u || !esConvoy(u)) continue;
     // v2.9.443 — «🤝 APOYAR A…»: el convoy queda agregado a esa unidad.
+    // v2.9.444 — «🚚 ABASTECER A…»: va por camino al punto más cercano a la unidad,
+    // para, descarga el tiempo que lleva y vuelve (la misma orden `apoyar`).
     if (o.tipo === "apoyar") {
       const x: any = U.get(o.objetivo_id);
       if (!x || x.bando !== u.bando || esConvoy(x)) {
         eventos.push({ tipo: "logistica", bando: u.bando, lat: u.lat, lng: u.lng,
-          descripcion: `🚫 ${nombreUnidad(u)}: no se puede agregar a esa unidad (tiene que ser una unidad propia, no otro convoy).`,
+          descripcion: `🚫 ${nombreUnidad(u)}: abastece sólo a una unidad propia (no a otro convoy).`,
           bandos_visibles: [u.bando] });
         continue;
       }
-      u.carga = { ...(u.carga || {}), apoya: x.id };
+      // v2.9.451: la orden del 🤖 G-4 automático lleva el pedido que atiende (`o.g4`).
+      u.carga = { ...(u.carga || {}), apoya: x.id, fase: "ida", destino: null, resta: null, llegoH: null, entrego: 0, auto: !!o.g4 };
+      const r = rutaConvoy(terreno, [Number(u.lng), Number(u.lat)], [Number(x.lng), Number(x.lat)]);
+      const bot = o.g4 ? "🤖 " : "", pedido = o.g4 ? ` (${o.g4})` : "";
       eventos.push({ tipo: "logistica", bando: u.bando, lat: u.lat, lng: u.lng,
-        descripcion: `🤝 ${nombreUnidad(u)} queda AGREGADO a ${nombreUnidad(x)}: la sigue por los caminos, a ${APOYO_KM} km `
-          + `detrás, y la abastece al final de cada turno hasta vaciarse; vacío, vuelve solo a recargar.`,
+        descripcion: r.sinCamino
+          ? `${bot}⛔ ${nombreUnidad(u)} → ${nombreUnidad(x)}: ${r.motivo}. El convoy no anda campo traviesa.`
+          : `${bot}🚚 ${nombreUnidad(u)} → ${nombreUnidad(x)}${pedido}: ${r.km.toFixed(1)} km por camino; para a ${r.dParada.toFixed(1)} km de la unidad`
+            + (r.dParada > REABASTECER_KM
+              ? `. ⚠️ Más de ${REABASTECER_KM} km: si la unidad no se acerca, no hay abastecimiento.`
+              : ` y ${cargaDe(u, "EVAC") > 0 ? "carga heridos" : "descarga"} ~${horasATexto(horasDescarga(u, x))}; después vuelve.`),
         bandos_visibles: [u.bando] });
-    } else if (u.carga && u.carga.apoya != null && ["mover", "replegar", "defender"].includes(o.tipo)) {
-      // Una orden a mano del G-4 lo desagrega: manda él.
-      u.carga = { ...u.carga, apoya: null };
+    } else if (["mover", "replegar", "defender"].includes(o.tipo)) {
+      // Una orden a mano del G-4: manda él (deja la misión y la vuelta).
+      u.carga = { ...(u.carga || {}), apoya: null, fase: null, destino: null, resta: null, auto: false };
+      if (o.tipo !== "defender" && o.destino_lat != null) {
+        // v2.9.444 — sus puntos de paso, llevados al camino.
+        const pts = Array.isArray(o.ruta) && o.ruta.length ? o.ruta : [[o.destino_lng, o.destino_lat]];
+        const r = rutaConvoyPorPuntos(terreno, [Number(u.lng), Number(u.lat)], pts);
+        if (r.sinCamino || !r.ruta.length) {
+          o._sinCamino = true;
+          eventos.push({ tipo: "logistica", bando: u.bando, lat: u.lat, lng: u.lng,
+            descripcion: `⛔ ${nombreUnidad(u)} no se mueve: ${r.motivo || "sin camino"}. El convoy no anda campo traviesa.`,
+            bandos_visibles: [u.bando] });
+        } else {
+          o.ruta = r.ruta; o.destino_lng = r.parada[0]; o.destino_lat = r.parada[1];
+          u.carga.destino = r.parada;   // si no llega en este turno, sigue solo por el camino
+        }
+      }
     }
   }
-  ordenes = ordenes.filter((o: any) => o.tipo !== "apoyar");
-  const automaticas = ordenesAutomaticas(estado, U, _instalTodas, terreno, ordenes);
+  ordenes = ordenes.filter((o: any) => o.tipo !== "apoyar" && !o._sinCamino);
+  const automaticas = ordenesAutomaticas(estado, U, _instalTodas, terreno, ordenes, eventos);
   ordenes = [...ordenes, ...automaticas];
   const ordenesNuevas = automaticas.filter((o: any) => o.auto === "sigue");
   // v2.9.203: se guarda la RUTA (replay) y la bitácora cuenta cuánto avanzó, en
@@ -3606,8 +4227,10 @@ function resolverTurno(estado: any) {
         bandos_visibles: [] });
     }
     const auto = m.o.auto === "sigue" ? "🔁 (siguió sola la marcha del turno anterior) "
-      : m.o.auto === "apoyar" ? "🤝 (va detrás de la unidad que apoya) "
-      : m.o.auto === "volver" ? `↩️ (vacío: vuelve solo a recargar${m.o.hacia ? " en " + m.o.hacia : ""}) ` : "";
+      : m.o.auto === "apoyar" ? (cargaDe(u, "EVAC") > 0 ? "🚑 (va a evacuar, por camino) "
+        : cargaDe(u, "REEMP") > 0 ? "👥 (lleva reemplazos, por camino) " : "🚚 (va a abastecer, por camino) ")
+      : m.o.auto === "camino" ? "🔁 (sigue por el camino) "
+      : m.o.auto === "volver" ? `↩️ (vuelve por camino${m.o.hacia ? " a " + m.o.hacia : ""}) ` : "";
     eventosMov.push({ tipo: "movimiento", lat: u.lat, lng: u.lng,
       descripcion: auto + textoMovimiento(u, r) + (marchaTxt ? " " + marchaTxt : "") + castigo
         + (avisos.length ? " " + avisos.join(" · ") : ""),
@@ -3642,6 +4265,51 @@ function resolverTurno(estado: any) {
       if (haversineKm([a.lng, a.lat], pt) <= arma.alcance) { _obraBatida.add(id); break; }
     }
   }
+  // v2.9.448 — LO PERDIDO EN EL TURNO SON HOMBRES: heridos que esperan evacuación y
+  // muertos. Y el herido que espera se agrava (el 1,5 % por hora muere).
+  {
+    const ajustadosIds = new Set(ajustados.map((c: any) => c.u.id));
+    for (const u of U.values()) {
+      if (!u || esConvoy(u)) continue;
+      const a: any = _antes.get(u.id);
+      const pm = Math.max(0, num(u.poder_max));
+      const c: any = { ...(u.carga || {}) };
+      const perd = (a && !ajustadosIds.has(u.id)) ? Math.max(0, num(a.poder_actual) - num(u.poder_actual)) : 0;
+      if (perd > 1e-6 && pm > 0) {
+        const bajas = Math.round((perd / pm) * hombresDe(u));
+        const her = Math.round(bajas * HERIDOS_PCT);
+        c.bajas = num(c.bajas) + bajas; c.heridos = herDe(u) + her;
+        c.muertos = num(c.muertos) + (bajas - her); c.faltan = num(c.faltan) + bajas;
+      }
+      const esperan = num(c.heridos);
+      if (esperan > 0) {
+        const antesM = num(c.muertos);
+        const mueren = Math.min(esperan, esperan * MUERE_H * horas);
+        c.heridos = Math.round((esperan - mueren) * 100) / 100;
+        c.muertos = Math.round((antesM + mueren) * 100) / 100;
+        const n = Math.floor(c.muertos) - Math.floor(antesM);
+        if (n >= 1) eventos.push({ tipo: "pedido", bando: u.bando, lat: u.lat, lng: u.lng,
+          descripcion: `⚠️ ${nombreUnidad(u)}: ${n === 1 ? "murió 1 herido" : `murieron ${n} heridos`} esperando evacuación (quedan ${Math.round(c.heridos)}).`,
+          bandos_visibles: [u.bando] });
+      }
+      u.carga = c;
+    }
+  }
+  // v2.9.447 — LA CLASE I SE CONSUME (un día cada 24 h); sin raciones ni agua, hambre.
+  // Antes de reabastecer: lo que llega al final de la jornada ya encuentra el gasto.
+  for (const u of U.values()) {
+    if (!u || esConvoy(u) || u.estado === "fuera_combate") continue;
+    const r = racionDe(u) - horas / 24;
+    const c: any = { ...(u.carga || {}), racion: Math.max(0, Math.round(r * 100) / 100) };
+    if (r < 0) {
+      const pm = Math.max(0, Number(u.poder_max) || 0), antes = Math.max(0, Number(u.poder_actual) || 0);
+      const nuevo = Math.max(0, antes - pm * HAMBRE_PCT_DIA * Math.min(horas, -r * 24) / 24);
+      c.hambre = Math.round(((Number(c.hambre) || 0) + antes - nuevo) * 100) / 100;
+      u.poder_actual = Number(nuevo.toFixed(2));
+      u.estado = nuevo <= pm * 0.2 ? "fuera_combate" : (nuevo <= pm * 0.6 ? "desgastada" : "activa");
+    }
+    u.carga = c;
+  }
   // v2.9.334 — FINAL DE JORNADA: SE REABASTECE. Las que voló el fuego ya no reparten nada.
   const _instal = _instalTodas.filter((x: any) => !instalBorrar.includes(x.id));
   const _convoyes: any[] = [...U.values()].filter(esConvoy);
@@ -3651,14 +4319,56 @@ function resolverTurno(estado: any) {
     const perdidas = cargaTotal(cv);
     if (perdidas <= 0) continue;
     cv.carga = { ...(cv.carga || {}) }; for (const k of CONVOY_CLASES) cv.carga[k] = 0;
+    const aBordo = num(cv.carga.aBordo);   // v2.9.448: los heridos que llevaba la ambulancia
+    if (aBordo > 0) { cv.carga.muertos = num(cv.carga.muertos) + aBordo; cv.carga.aBordo = 0; }
     eventos.push({ tipo: "logistica", bando: cv.bando, lat: cv.lat, lng: cv.lng,
       descripcion: `💥 ${nombreUnidad(cv)} fue destruido con ${perdidas.toFixed(1)} carga(s) a bordo. `
-        + `Ese abastecimiento NO llega: quien lo esperaba se queda como está.`,
+        + (aBordo > 0 ? `Murieron los ${Math.round(aBordo)} heridos que evacuaba.`
+          : `Ese abastecimiento NO llega: quien lo esperaba se queda como está.`),
       bandos_visibles: [cv.bando] });
+  }
+  // v2.9.448 — 🚑 EVACUACIÓN POR CUENTA PROPIA: la unidad a 3 km o menos de un puesto
+  // de socorro (o del ASDI) propio lleva sus heridos con sus medios.
+  for (const u of U.values()) {
+    if (!u || esConvoy(u) || herDe(u) < 1) continue;
+    const san = _instal.filter((x: any) => x && x.bando === u.bando && INSTAL_LOG[x.tipo] && INSTAL_LOG[x.tipo].sanidad)
+      .map((x: any) => ({ x, d: haversineKm([u.lng, u.lat], puntoInstalacion(x) as number[]) }))
+      .filter((o: any) => o.d <= REABASTECER_KM).sort((a: any, b: any) => a.d - b.d)[0];
+    if (!san) continue;
+    const n = herDe(u);   // todos: los lleva con sus medios
+    u.carga = { ...u.carga, heridos: 0, evacuados: Math.round((num(u.carga.evacuados) + n) * 100) / 100 };
+    san.x.geojson = { ...(san.x.geojson || {}), recibidos: Math.round((num(san.x.geojson && san.x.geojson.recibidos) + n) * 100) / 100 };
+    san.x._sucia = true;
+    eventos.push({ tipo: "logistica", bando: u.bando, lat: u.lat, lng: u.lng,
+      descripcion: `🚑 ${nombreUnidad(u)} evacuó ${Math.round(n)} herido(s) al ${INSTAL_LOG[san.x.tipo].nom} por sus medios (a ${san.d.toFixed(1)} km).`,
+      bandos_visibles: [u.bando] });
+  }
+  // v2.9.444 — CUÁNTO ESTUVO PARADO CADA CONVOY (sólo parado descarga) y el que
+  // llegó a su punto de abastecimiento empieza a descargar desde la hora en que llegó.
+  const horasConvoy = new Map<any, number>();
+  for (const cv of _convoyes) {
+    if (cv.estado === "fuera_combate") continue;
+    const tr = TR.get(cv.id);
+    const quietoDesde = tr ? Math.max(0, Math.min(horas, trFin(tr))) : 0;
+    const m = marcha.get(cv.id);
+    const enMarcha = m && !m.r.llego && !m.r.detenida && !(tr && tr.tStop < Infinity);
+    horasConvoy.set(cv.id, enMarcha ? 0 : Math.max(0, horas - quietoDesde));
+    const c = cv.carga || {};
+    if (m && m.o.auto === "apoyar" && m.r.llego && c.fase === "ida") {
+      const x: any = U.get(c.apoya);
+      const dP = x ? haversineKm([cv.lng, cv.lat], [x.lng, x.lat]) : Infinity;
+      cv.carga = { ...c, fase: "descarga", llegoH: quietoDesde, resta: horasDescarga(cv, x), dParada: dP, entrego: 0 };
+      eventos.push({ tipo: "logistica", bando: cv.bando, lat: cv.lat, lng: cv.lng,
+        descripcion: dP <= REABASTECER_KM
+          ? `🚚 ${nombreUnidad(cv)} llegó a ${dP.toFixed(1)} km de ${nombreUnidad(x)} (${hMas(quietoDesde)}): ${cargaDe(cv, "EVAC") > 0 ? "carga heridos" : "descarga"} ~${horasATexto(cv.carga.resta)}.`
+          : `⛔ ${nombreUnidad(cv)} paró en el camino a ${dP.toFixed(1)} km de ${nombreUnidad(x)}: lejos para descargar. `
+            + `Espera ${horasATexto(cv.carga.resta)}; si la unidad no se acerca a ${REABASTECER_KM} km, vuelve.`,
+        bandos_visibles: [cv.bando] });
+    }
   }
   // v2.9.351 — LA DESCARGA SE VE. v2.9.443 — y alcanza para todos los que estén cerca.
   const entregas: any[] = [];
-  const { reg, porFuente } = repartirAbastecimiento([...U.values()], _instal);
+  const { reg, porFuente } = repartirAbastecimiento([...U.values()], _instal, horasConvoy);
   for (const e of reg.values()) {
     const u = e.u;
     eventos.push({ tipo: "logistica", bando: u.bando, lat: u.lat, lng: u.lng,
@@ -3671,10 +4381,11 @@ function resolverTurno(estado: any) {
     const quienes = [...hf.unidades].map((x: any) => nombreUnidad(x)).join(", ");
     if (f.convoy) {
       const cv = f.convoy, queda = cargaTotal(cv);
+      if (cv.carga) cv.carga.entrego = r3((Number(cv.carga.entrego) || 0) + hf.cargas);
       eventos.push({ tipo: "logistica", bando: cv.bando, lat: cv.lat, lng: cv.lng,
-        descripcion: `🚚 ${nombreUnidad(cv)} repartió ${hf.cargas.toFixed(1)} carga(s) entre ${hf.unidades.size} unidad(es) `
-          + `(${quienes})${hf.parcial ? " — NO ALCANZÓ para completar a todos" : ""}; `
-          + (queda > 1e-6 ? `le quedan ${queda.toFixed(1)}.` : `quedó VACÍO: vuelve solo a su instalación a recargar.`),
+        descripcion: `🚚 ${nombreUnidad(cv)} descargó ${hf.cargas.toFixed(1)} carga(s) en ${horasATexto(hf.horas)} a ${quienes}`
+          + `${hf.parcial ? " (no alcanzó para todo)" : (hf.sigue ? " (sigue descargando)" : "")} · `
+          + (queda > 1e-6 ? `le quedan ${queda.toFixed(1)}.` : `quedó VACÍO.`),
         bandos_visibles: [cv.bando] });
     } else if (f.instal) {
       const cap = capDe(f.instal), quedan = Math.max(0, cap - usadoDe(f.instal));
@@ -3685,15 +4396,83 @@ function resolverTurno(estado: any) {
         bandos_visibles: [f.bando] });
     }
   }
+  // v2.9.448 — 🚑 LAS AMBULANCIAS CARGAN HERIDOS: 20 cada 30 min, primero los de la
+  // unidad que fueron a buscar y después los de las propias a 3 km o menos.
+  for (const cv of _convoyes) {
+    const c = cv.carga || {};
+    if (cv.estado === "fuera_combate" || c.fase !== "descarga" || cargaDe(cv, "EVAC") <= 0) continue;
+    let h = num(horasConvoy.get(cv.id)), lugar = lugarAmbulancia(cv), cargo = 0;
+    const de: string[] = [];
+    const cerca = [...U.values()].filter((u: any) => u && !esConvoy(u) && u.bando === cv.bando && herDe(u) >= 1
+      && haversineKm([u.lng, u.lat], [cv.lng, cv.lat]) <= REABASTECER_KM)
+      .sort((a: any, b: any) => (String(b.id) === String(c.apoya) ? 1 : 0) - (String(a.id) === String(c.apoya) ? 1 : 0));
+    for (const u of cerca) {
+      if (lugar < 1 || h <= 1e-6) break;
+      const n = Math.round(Math.min(herDe(u), lugar, (h / HORAS_DESCARGA.EVAC) * HERIDOS_POR_CARGA) * 100) / 100;
+      if (n < 0.5) continue;
+      u.carga = { ...u.carga, heridos: Math.round((herDe(u) - n) * 100) / 100, evacuados: Math.round((num(u.carga.evacuados) + n) * 100) / 100 };
+      lugar -= n; cargo += n; h -= (n / HERIDOS_POR_CARGA) * HORAS_DESCARGA.EVAC;
+      de.push(`${Math.round(n)} de ${nombreUnidad(u)}`);
+    }
+    if (cargo > 0) {
+      cv.carga = { ...c, aBordo: Math.round((num(c.aBordo) + cargo) * 100) / 100 };
+      eventos.push({ tipo: "logistica", bando: cv.bando, lat: cv.lat, lng: cv.lng,
+        descripcion: `🚑 ${nombreUnidad(cv)} cargó ${Math.round(cargo)} herido(s) (${de.join(", ")}) · lleva ${Math.round(num(cv.carga.aBordo))} de ${cargaDe(cv, "EVAC") * HERIDOS_POR_CARGA}.`,
+        bandos_visibles: [cv.bando] });
+    }
+  }
+  // v2.9.444 — EL QUE DESCARGA, CUENTA SU TIEMPO. Terminado (o vacío, o sin nadie
+  // más a quien darle), vuelve solo por el camino a su instalación.
+  for (const cv of _convoyes) {
+    const c = cv.carga || {};
+    if (c.fase !== "descarga" || cv.estado === "fuera_combate") continue;
+    const resta = Math.max(0, (Number(c.resta) || 0) - (Number(horasConvoy.get(cv.id)) || 0));
+    const x: any = c.apoya != null ? U.get(c.apoya) : null;
+    const cerca = x && poderEfectivo(x) > 0 && haversineKm([cv.lng, cv.lat], [x.lng, x.lat]) <= REABASTECER_KM;
+    const amb = cargaDe(cv, "EVAC") > 0;   // v2.9.448: la ambulancia carga heridos, no descarga
+    const leFalta = cerca && (amb ? (herDe(x) >= 0.5 && lugarAmbulancia(cv) >= 0.5)
+      : ["III", "V", "I", "REEMP"].some((k) =>
+        (k === "I" ? cargaDe(cv, "I") + cargaDe(cv, "AGUA") : cargaDe(cv, k)) > 1e-6 && necesidad(x, k, 1) > 1e-3));
+    const vacio = amb ? lugarAmbulancia(cv) < 0.5 : cargaTotal(cv) <= 1e-6;
+    if (!vacio && resta > 1e-6 && (leFalta || !cerca)) { cv.carga = { ...c, resta }; continue; }
+    const dio = Number(c.entrego) || 0, lleva = num(c.aBordo);
+    cv.carga = { ...c, fase: "vuelta", apoya: null, resta: null };
+    eventos.push({ tipo: "logistica", bando: cv.bando, lat: cv.lat, lng: cv.lng,
+      descripcion: amb
+        ? (lleva >= 0.5 ? `🚑 ${nombreUnidad(cv)} terminó de cargar (${Math.round(lleva)} herido(s)): los lleva a su puesto por camino.`
+          : `↩️ ${nombreUnidad(cv)} vuelve SIN heridos: ${x ? nombreUnidad(x) + " no se acercó" : "la unidad no está"}`
+            + `${x ? ` (quedó a ${haversineKm([cv.lng, cv.lat], [x.lng, x.lat]).toFixed(1)} km)` : ""}.`)
+        : dio > 1e-6
+        ? `↩️ ${nombreUnidad(cv)} terminó la descarga (${dio.toFixed(1)} carga(s)): vuelve a su instalación por camino.`
+        : `↩️ ${nombreUnidad(cv)} vuelve SIN descargar: ${x ? nombreUnidad(x) + " no se acercó" : "la unidad no está"}`
+          + `${x ? ` (quedó a ${haversineKm([cv.lng, cv.lat], [x.lng, x.lat]).toFixed(1)} km)` : ""}.`,
+      bandos_visibles: [cv.bando] });
+  }
   // Y el convoy que volvió a la instalación completa sus cargas de la estiba.
   if (_instal.length) {
     for (const cv of _convoyes) {
       const rec = recargarConvoy(cv, _instal);
+      // v2.9.444: el que volvía y llegó queda listo, esperando orden del G-4.
+      if (cv.carga && cv.carga.fase === "vuelta" && (rec || cercaDeSuInstalacion(cv, _instal))) {
+        // v2.9.448 — la ambulancia entrega sus heridos en el puesto.
+        const lleva = num(cv.carga.aBordo);
+        if (lleva >= 0.5) {
+          const san = _instal.find((x: any) => x && x.bando === cv.bando && INSTAL_LOG[x.tipo] && INSTAL_LOG[x.tipo].sanidad
+            && haversineKm([cv.lng, cv.lat], puntoInstalacion(x) as number[]) <= REABASTECER_KM) || null;
+          if (san) { san.geojson = { ...(san.geojson || {}), recibidos: num(san.geojson && san.geojson.recibidos) + lleva }; san._sucia = true; }
+          eventos.push({ tipo: "logistica", bando: cv.bando, lat: cv.lat, lng: cv.lng,
+            descripcion: `🚑 ${nombreUnidad(cv)} entregó ${Math.round(lleva)} herido(s) en ${san ? INSTAL_LOG[san.tipo].nom : "su puesto"}. Lista para salir.`,
+            bandos_visibles: [cv.bando] });
+        }
+        cv.carga = { ...cv.carga, fase: null, entrego: 0, aBordo: 0 };
+      }
       if (!rec) continue;
       eventos.push({ tipo: "logistica", bando: cv.bando, lat: cv.lat, lng: cv.lng,
         descripcion: rec.texto, bandos_visibles: [cv.bando] });
     }
   }
+  // v2.9.445 — 📻 LOS COMANDANTES PIDEN (al cerrar la jornada, ya abastecido lo que llegó).
+  eventos.push(...pedidosDelTurno(_antes, U));
   for (const o of ordenes) {
     if (!o || !o.tarea || !TAREAS[o.tarea]) continue;
     const u: any = U.get(o.unidad_id);
@@ -3837,6 +4616,183 @@ async function bandoPorClave(partidaId: any, clave: string) {
 // devuelve un 500 SIN cuerpo JSON y sin cabeceras CORS: el navegador solo ve
 // "Edge Function returned a non-2xx status code" y el motivo se pierde. Con
 // esto, cualquier falla imprevista sale como {ok:false,error:"..."} legible.
+// ============================================================
+// v2.9.449 — ⏱️ EL RELOJ DEL JUEGO Y EL ⏹️ ALTO DEL JEM.
+// Sergio (03-11-2026): «debe ser un juego donde el G-3, G-4, G-2 estén moviendo sus
+// fichas a todo dar para tomar decisiones en ese momento, y lanzar un resultado
+// cuando el JEM diga ALTO… cómo quedaron las unidades, la potencia relativa de
+// combate y todo eso».
+//   · El RELOJ: el turno corre solo cada N minutos (lo pone el árbitro o el JEM).
+//     Vive en una fila de wg_terreno (tipo «reloj», con bando para que no cuente
+//     como carta ni se mezcle con las obras): todas las pantallas ven la misma
+//     cuenta regresiva. Cada turno resuelto la reinicia.
+//   · La FOTO del poder de cada bando al iniciar (y al aplicar el arranque):
+//     contra eso se compara al ALTO.
+//   · El ALTO cierra la partida («finalizada»): ya no hay órdenes y se levanta la
+//     niebla para que todos vean los resultados. El árbitro puede reanudarla.
+// ============================================================
+async function relojDe(pid: any) {
+  const { data } = await sb.from("wg_terreno").select("id, geojson").eq("partida_id", pid).eq("tipo", "reloj").limit(1);
+  return (data && data[0]) || null;
+}
+async function guardarReloj(pid: any, fila: any, g: any) {
+  if (fila) return await sb.from("wg_terreno").update({ geojson: g }).eq("id", fila.id).eq("partida_id", pid);
+  return await sb.from("wg_terreno").insert({ partida_id: pid, tipo: "reloj", bando: "azul", geojson: g });
+}
+function fotoPoder(uds: any[], turno: any) {
+  const f: any = { turno: Number(turno) || 0, azul: 0, rojo: 0, azulMax: 0, rojoMax: 0 };
+  for (const u of uds || []) {
+    if (!u || u.arma === CONVOY_ARMA || (u.bando !== "azul" && u.bando !== "rojo")) continue;
+    f[u.bando] += Math.max(0, Number(u.poder_actual) || 0);
+    f[u.bando + "Max"] += Math.max(0, Number(u.poder_max) || 0);
+  }
+  for (const k of ["azul", "rojo", "azulMax", "rojoMax"]) f[k] = Math.round(f[k] * 10) / 10;
+  return f;
+}
+async function fotoInicial(pid: any, turno: any) {
+  const { data: uds } = await sb.from("wg_unidades").select("bando, arma, poder_actual, poder_max").eq("partida_id", pid).limit(2000);
+  const fila = await relojDe(pid);
+  const g = { ...((fila && fila.geojson) || {}), inicio: fotoPoder(uds || [], turno) };
+  await guardarReloj(pid, fila, g);
+}
+// ============================================================
+// v2.9.451 — FORMAR UN CONVOY EN UNA INSTALACIÓN: lo usan el G-4 de carne
+// («formar_convoy») y el 🤖 automático. La carga sale de la estiba del puesto
+// (v2.9.443); la fila en memoria baja también, porque el turno que se está
+// resolviendo la sigue usando.
+// ============================================================
+async function formarConvoyEn(pid: any, f: any, clase: string, designacion?: any, extra?: any) {
+  const I = INSTAL_LOG[f.tipo];
+  const paquete = clase === "PAQUETE";
+  const despacha: string[] = I.despacha || [];
+  const clases = paquete ? ["III", "V", "I"].filter((k) => despacha.includes(k)) : [clase];
+  const pt = puntoInstalacion(f);
+  if (!pt) return { error: "Esa instalación no tiene posición", status: 400 };
+  const porClase = paquete ? CONVOY_PAQUETE : CONVOY_CAPACIDAD;
+  const quiere = porClase * clases.length;
+  const hay = Math.max(0, capDe(f) - usadoDe(f));
+  if (hay <= 1e-6) return { error: `${I.nom} está AGOTADO: no tiene con qué cargar el convoy. Lo repone el escalón superior (árbitro: 📦 Reponer).`, status: 400 };
+  const fr = Math.min(1, hay / quiere);
+  const carga: any = {};
+  for (const k of CONVOY_CLASES) carga[k] = 0;
+  for (const k of clases) carga[k] = Number((porClase * fr).toFixed(3));
+  carga.cap = Object.fromEntries(clases.map((k) => [k, porClase]));
+  carga.origen = f.id;
+  if (extra) Object.assign(carga, extra);
+  const gU = { ...(f.geojson || {}), usado: Number((usadoDe(f) + quiere * fr).toFixed(3)) };
+  const { error: eEst } = await sb.from("wg_terreno").update({ geojson: gU }).eq("id", f.id).eq("partida_id", pid);
+  if (eEst) return { error: `No se pudo descontar la estiba: ${eEst.message}`, status: 500 };
+  f.geojson = gU;
+  const bandoCv = f.bando;
+  const { count } = await sb.from("wg_unidades").select("id", { count: "exact", head: true })
+    .eq("partida_id", pid).eq("bando", bandoCv).eq("arma", CONVOY_ARMA);
+  const desig = String(designacion || "").trim().slice(0, 30)
+    || `Cnv-${paquete ? "PQ" : clase}-${(Number(count) || 0) + 1}`;
+  // v2.9.347 — EL CONVOY FORMA AFUERA DEL PUESTO, NO ENCIMA: cada uno sale en un
+  // rumbo distinto para que no se apilen bajo el símbolo de la instalación.
+  const nCv = Number(count) || 0;
+  const RAD_SALIDA_KM = 0.6;
+  const ang = (nCv * 55) * Math.PI / 180;
+  const dLat = (RAD_SALIDA_KM / 111.32) * Math.cos(ang);
+  const dLng = (RAD_SALIDA_KM / (111.32 * Math.max(0.15, Math.cos(pt[1] * Math.PI / 180)))) * Math.sin(ang);
+  // v2.9.451: el del 🤖 G-4 automático sale del puesto mismo, que está sobre el camino.
+  // En «CE-IV9» el desvío de 600 m le hacía cruzar un río sin puente antes de entrar a la ruta.
+  const sale = extra && extra.auto ? [pt[0], pt[1]] : [pt[0] + dLng, pt[1] + dLat];
+  const fila: any = {
+    partida_id: pid, bando: bandoCv, designacion: desig, escalon: "seccion",
+    arma: CONVOY_ARMA, medio: "motor", lat: sale[1], lng: sale[0],
+    poder_max: CONVOY_PODER, poder_actual: CONVOY_PODER, obs_km: CONVOY_OBS_KM,
+    estado: "activa", combustible_km: 0, carga,
+  };
+  const { data, error } = await sb.from("wg_unidades").insert(fila).select("id").limit(1);
+  if (error) return { error: error.message, status: 500 };
+  const id = data && data[0] ? data[0].id : null;
+  return { id, designacion: desig, carga, fila: { ...fila, id },
+    estiba: { cap: capDe(f), quedan: Number(Math.max(0, capDe(f) - gU.usado).toFixed(2)) } };
+}
+// ============================================================
+// v2.9.451 — 🤖 EL G-4 AUTOMÁTICO, la parte que escribe en la base. Decide el motor
+// (`planG4`); acá se forman los convoyes de verdad (con id y estiba) y sus órdenes
+// entran al turno como las de cualquier jugador. Si el bando no tiene ninguna
+// instalación que despache, instala UNA VEZ su Área de Servicios (si se la destruyen,
+// se quedó sin logística). Lo que no pudo atender se dice una sola vez: mientras
+// siga igual no se repite (`g4firma`, que no viaja a los bandos).
+// Vive en la fila del reloj: `g4auto` = { rojo, azul } (por defecto, sólo el rojo).
+// ============================================================
+function g4AutoDe(g: any) {
+  const a = (g && g.g4auto) || {};
+  return { rojo: a.rojo !== false, azul: a.azul === true };
+}
+// La fila del reloj tal como la ven las pantallas: sin la memoria del G-4 (que nombra
+// las unidades a las que no les llega nada: eso no lo ve el otro bando).
+function relojPublico(g: any) {
+  if (!g) return null;
+  const { g4firma: _f, ...resto } = g;
+  return { ...resto, g4auto: g4AutoDe(g) };
+}
+async function g4Automatico(pid: any, unidades: any[], terreno: any[], instalLog: any[], ordenes: any[], eventos: any[]) {
+  const fila = await relojDe(pid);
+  const g: any = (fila && fila.geojson) || {};
+  const cfg: any = g4AutoDe(g);
+  if (!cfg.rojo && !cfg.azul) return;
+  const firma: any = { ...(g.g4firma || {}) }, instalo: any = { ...(g.g4instalo || {}) };
+  const antes = JSON.stringify([firma, instalo]);
+  const nom = (u: any) => String((u && u.designacion) || "").trim() || nombreUnidad(u);   // la línea ya dice el bando
+  for (const b of ["rojo", "azul"]) {
+    if (!cfg[b]) continue;
+    const ico = b === "rojo" ? "🔴" : "🔵";
+    const decir = (texto: string, p?: number[] | null) => eventos.push({ tipo: "logistica", bando: b,
+      lng: p ? p[0] : null, lat: p ? p[1] : null, descripcion: `🤖 G-4 ${ico}: ${texto}`, bandos_visibles: [b] });
+    const tiene = instalLog.some((x: any) => x && x.bando === b && INSTAL_LOG[x.tipo] && (INSTAL_LOG[x.tipo].despacha || []).length);
+    if (!tiene && !instalo[b]) {
+      const a = anclaLogistica(b, unidades, terreno);
+      if (a) {
+        const geo = { type: "Point", coordinates: a.pt, nota: "🤖 G-4 automático" };
+        const { data, error } = await sb.from("wg_terreno").insert({ partida_id: pid, tipo: G4_INSTAL, bando: b, geojson: geo })
+          .select("id").limit(1);
+        if (!error && data && data[0]) {
+          instalLog.push({ id: data[0].id, tipo: G4_INSTAL, bando: b, geojson: geo });
+          instalo[b] = true;
+          decir(`instaló su ${INSTAL_LOG[G4_INSTAL].nom} `
+            + (a.dCamino != null && a.dCamino > 0.05 ? `sobre el camino, a ${a.dCamino.toFixed(1)} km de ${nom(a.ref)}` : `junto a ${nom(a.ref)}`)
+            + ` — ${INSTAL_LOG[G4_INSTAL].cap} cargas de estiba, y no hay más.`, a.pt);
+        }
+      }
+    }
+    const plan = planG4(b, unidades, instalLog, terreno, ordenes);
+    for (const f of plan.formar) {
+      const r: any = await formarConvoyEn(pid, f.instal, f.clase, "", { auto: true });
+      if (r.error || r.id == null) continue;
+      unidades.push(r.fila);
+      ordenes.push({ id: null, unidad_id: r.id, bando: b, tipo: "apoyar", objetivo_id: f.para.id, g4: f.motivo });
+    }
+    for (const a of plan.asignar) {
+      ordenes.push({ id: null, unidad_id: a.convoy.id, bando: b, tipo: "apoyar", objetivo_id: a.para.id, g4: a.motivo });
+    }
+    // Lo que no pudo atender: sólo lo NUEVO.
+    const clave = (x: any) => `${x.u.id}|${x.k}|${x.por}`;
+    const ya = new Set(firma[b] || []);
+    const nuevas = plan.faltan.filter((x: any) => !ya.has(clave(x)));
+    firma[b] = plan.faltan.map(clave).sort();
+    const quienes = (xs: any[]) => [...new Set(xs.map((x: any) => nom(x.u)))].slice(0, 6).join(", ");
+    const clases = (xs: any[]) => [...new Set(xs.map((x: any) => G4_CLASE_TXT[x.k]))].join(", ");
+    const est = nuevas.filter((x: any) => x.por === "estiba");
+    if (est.length) decir(`sin estiba para ${clases(est)} (${quienes(est)}). La repone el escalón superior (árbitro: 📦 Reponer).`);
+    const sinI = nuevas.filter((x: any) => x.por === "instal");
+    if (sinI.length) decir(`no tiene de dónde sacar ${clases(sinI)} (${quienes(sinI)}).`);
+    const vistas = new Set<any>();
+    for (const x of nuevas.filter((x: any) => x.por === "camino")) {
+      if (vistas.has(x.u.id)) continue;
+      vistas.add(x.u.id);
+      decir(`${nom(x.u)} ${x.km != null ? `queda a ${x.km.toFixed(1)} km del camino` : "no tiene camino desde sus puestos"}: `
+        + `no le llega abastecimiento hasta que se acerque.`, [Number(x.u.lng), Number(x.u.lat)]);
+    }
+  }
+  if (JSON.stringify([firma, instalo]) !== antes) {
+    await guardarReloj(pid, fila, { ...g, g4firma: firma, g4instalo: instalo });
+  }
+}
+
 Deno.serve(async (req: Request) => {
   try {
     return await manejar(req);
@@ -3888,7 +4844,9 @@ async function manejar(req: Request): Promise<Response> {
     // v2.9.317: las instalaciones del G-4 las ubica el Estado Mayor, no el árbitro.
     "colocar_instalacion", "quitar_instalacion", "mover_instalacion",
     // v2.9.335: el convoy lo forma el G-4, que muchas veces entra por enlace.
-    "formar_convoy"];
+    "formar_convoy",
+    // v2.9.449: el JEM (por enlace) maneja el reloj y da el ALTO.
+    "reloj", "alto"];
   let ses: any = token ? await validarSesion(token) : null;
   let invitado: any = null;
   if (!ses) {
@@ -4135,6 +5093,7 @@ async function manejar(req: Request): Promise<Response> {
     if (!arbitro) return err("Solo el árbitro inicia la partida", 403);
     const { error } = await sb.from("wg_partidas").update({ estado: "en_curso", turno_actual: 1 }).eq("id", partida.id);
     if (error) return err(error.message, 500);
+    await fotoInicial(partida.id, 1);   // v2.9.449: contra esto se compara al ALTO
     return ok({ turno: 1 });
   }
 
@@ -4251,6 +5210,63 @@ async function manejar(req: Request): Promise<Response> {
     return ok();
   }
 
+  // ---------- v2.9.449 — ⏱️ reloj · ⏹️ alto · ▶️ reanudar ----------
+  if (accion === "reloj") {
+    if (!puedeVer) return err("Sin acceso", 403);
+    if (partida.estado !== "en_curso") return err("La partida no está en curso");
+    const fila = await relojDe(partida.id);
+    const cadaMin = Math.max(1, Math.min(30, Number(body.cada_min) || Number(fila && fila.geojson && fila.geojson.cadaMin) || 3));
+    const activo = !!body.activo;
+    const g: any = { ...((fila && fila.geojson) || {}), activo, cadaMin,
+      proximo: activo ? Date.now() + cadaMin * 60000 : null, turnoEn: partida.turno_actual };
+    const { error } = await guardarReloj(partida.id, fila, g);
+    if (error) return err(`No se pudo guardar el reloj: ${error.message}`, 500);
+    await sb.from("wg_eventos").insert({ partida_id: partida.id, turno: partida.turno_actual, tipo: "aviso",
+      descripcion: activo ? `⏱️ RELOJ: el turno corre solo cada ${cadaMin} min. ¡A dar órdenes!` : `⏸️ RELOJ en pausa.`,
+      bandos_visibles: ["azul", "rojo"] });
+    return ok({ reloj: relojPublico(g) });   // v2.9.451: sin la memoria del G-4
+  }
+  if (accion === "alto") {
+    if (!puedeVer) return err("Sin acceso", 403);
+    if (partida.estado !== "en_curso") return err("La partida no está en curso");
+    const fila = await relojDe(partida.id);
+    const { data: uds } = await sb.from("wg_unidades").select("bando, arma, poder_actual, poder_max").eq("partida_id", partida.id).limit(2000);
+    const quien = String(body.invitado_nombre || (ses && ses.nombre) || "el JEM").slice(0, 80);
+    const g: any = { ...((fila && fila.geojson) || {}), activo: false, proximo: null,
+      alto: { turno: partida.turno_actual, en: new Date().toISOString(), quien, final: fotoPoder(uds || [], partida.turno_actual) } };
+    if (!g.inicio) g.inicio = { turno: 1, azul: g.alto.final.azulMax, rojo: g.alto.final.rojoMax,
+      azulMax: g.alto.final.azulMax, rojoMax: g.alto.final.rojoMax, sinFoto: true };
+    await guardarReloj(partida.id, fila, g);
+    const { error } = await sb.from("wg_partidas").update({ estado: "finalizada" }).eq("id", partida.id);
+    if (error) return err(error.message, 500);
+    await sb.from("wg_eventos").insert({ partida_id: partida.id, turno: partida.turno_actual, tipo: "aviso",
+      descripcion: `⏹️ ALTO — ${quien} terminó el juego de guerra en el turno ${partida.turno_actual}. Resultados a la vista.`,
+      bandos_visibles: ["azul", "rojo"] });
+    return ok({ reloj: relojPublico(g) });   // v2.9.451: sin la memoria del G-4
+  }
+  if (accion === "reanudar") {
+    if (!arbitro) return err("Sólo el árbitro reanuda una partida terminada", 403);
+    if (partida.estado !== "finalizada") return err("La partida no está terminada");
+    const { error } = await sb.from("wg_partidas").update({ estado: "en_curso" }).eq("id", partida.id);
+    if (error) return err(error.message, 500);
+    return ok({ estado: "en_curso" });
+  }
+  // ---------- v2.9.451 — 🤖 el G-4 automático de un bando (lo decide el árbitro) ----------
+  if (accion === "g4auto") {
+    if (!arbitro) return err("Sólo el árbitro decide qué logística es automática", 403);
+    const b = String(body.bando || "");
+    if (b !== "rojo" && b !== "azul") return err("Falta el bando (rojo o azul)");
+    const fila = await relojDe(partida.id);
+    const g0: any = (fila && fila.geojson) || {};
+    const g: any = { ...g0, g4auto: { ...g4AutoDe(g0), [b]: !!body.activo } };
+    const { error } = await guardarReloj(partida.id, fila, g);
+    if (error) return err(`No se pudo guardar: ${error.message}`, 500);
+    await sb.from("wg_eventos").insert({ partida_id: partida.id, turno: partida.turno_actual, tipo: "aviso",
+      descripcion: `🤖 La logística del ${b === "rojo" ? "🔴 rojo" : "🔵 azul"} ${body.activo ? "pasa a ser AUTOMÁTICA (G-4 automático)." : "la juega su G-4."}`,
+      bandos_visibles: [b] });
+    return ok({ reloj: relojPublico(g) });
+  }
+
   // ---------- estado (CON NIEBLA DE GUERRA) ----------
   if (accion === "estado") {
     if (!puedeVer) return err("Clave de bando inválida o no sos el árbitro", 403);
@@ -4264,7 +5280,7 @@ async function manejar(req: Request): Promise<Response> {
     const turnoDet = Math.max(0, (partida.turno_actual || 1) - 1);
     const qOrd = sb.from("wg_ordenes").select("*").eq("partida_id", partida.id).eq("turno", partida.turno_actual);
     const qDet = sb.from("wg_detecciones").select("unidad_id, bando_observador").eq("partida_id", partida.id).eq("turno", turnoDet);
-    const [rUni, rBan, rTer, rCnt, rUlt, rIns, rDet, rOrd, rInt, rObr] = await Promise.all([
+    const [rUni, rBan, rTer, rCnt, rUlt, rIns, rDet, rOrd, rInt, rObr, rRel] = await Promise.all([
       sb.from("wg_unidades").select("*").eq("partida_id", partida.id).limit(2000),
       sb.from("wg_bandos").select("bando, nombre, grupo_id").eq("partida_id", partida.id),
       // v2.9.201: el terreno importado del Generador pesa MB. Se manda una sola
@@ -4291,6 +5307,8 @@ async function manejar(req: Request): Promise<Response> {
       // v2.9.439: también el plan de barreras PROYECTADO (`obstaculo` con bando).
       sb.from("wg_terreno").select("id, tipo, bando, geojson, hasta_turno").eq("partida_id", partida.id)
         .not("bando", "is", null).in("tipo", [...TIPOS_MOTOR, "obstaculo"]).order("id", { ascending: true }).limit(1000),
+      // v2.9.449: el reloj del juego.
+      sb.from("wg_terreno").select("geojson").eq("partida_id", partida.id).eq("tipo", "reloj").limit(1),
     ]);
     const unidades = (rUni as any).data || [];
     const bandos = (rBan as any).data || [];
@@ -4300,7 +5318,8 @@ async function manejar(req: Request): Promise<Response> {
     const instalaciones = ((rIns as any).data || []).filter((x: any) => arbitro || (miBando && x.bando === miBando.bando));
     // Niebla: el EM ve SUS unidades + enemigos detectados en el último turno resuelto.
     let visibles = unidades || [];
-    if (!arbitro && miBando) {
+    // v2.9.449: terminado el juego (⏹️ ALTO) no hay niebla: todos ven los resultados.
+    if (!arbitro && miBando && partida.estado !== "finalizada") {
       const detectadas = new Set(((rDet as any).data || []).map((d: any) => d.unidad_id));
       // ============================================================
       // v2.9.285 — LO QUE SE VE AHORA, NO SÓLO LO DEL TURNO PASADO.
@@ -4353,6 +5372,7 @@ async function manejar(req: Request): Promise<Response> {
       instalaciones,              // v2.9.317: las del G-4, siempre frescas
       obras,                      // v2.9.324: obras y fajas, siempre frescas y con niebla
       detecciones: detPorBando,   // v2.9.233: sólo para el árbitro
+      reloj: relojPublico((((rRel as any).data || [])[0] || {}).geojson),   // v2.9.449 (v2.9.451: sin la memoria del G-4)
     });
   }
 
@@ -4407,7 +5427,9 @@ async function manejar(req: Request): Promise<Response> {
         .eq("partida_id", partida.id).limit(2000);
       vistos = [...idsVisiblesEnVivo(miBando.bando, uds || [])];
     }
+    const _rel = await relojDe(partida.id);   // v2.9.449: la cuenta regresiva de todos
     return ok({ turno_actual: partida.turno_actual, estado_partida: partida.estado, vistos,
+      reloj: relojPublico(_rel && _rel.geojson),
       // v2.9.443: un turno se está resolviendo ahora mismo (las fichas se están guardando).
       resolviendo: !!(partida.resolviendo_desde && (Date.now() - new Date(partida.resolviendo_desde).getTime()) < 90000) });
   }
@@ -4560,49 +5582,13 @@ async function manejar(req: Request): Promise<Response> {
     if (!paquete && !despacha.includes(clase)) {
       return err(`${I.nom} no despacha ${clase === "AGUA" ? "agua" : (clase === "EVAC" ? "evacuación sanitaria" : "Clase " + clase)}`);
     }
-    const pt = puntoInstalacion(f);
-    if (!pt) return err("Esa instalación no tiene posición");
     // v2.9.443 — LA CARGA SALE DE LA ESTIBA DEL PUESTO. Antes el convoy nacía
     // lleno sin que el puesto perdiera nada: la logística era infinita. Ahora lo
     // que se carga baja la estiba; agotada, se forma con lo que haya (o no se forma).
-    const porClase = paquete ? CONVOY_PAQUETE : CONVOY_CAPACIDAD;
-    const quiere = porClase * clases.length;
-    const hay = Math.max(0, capDe(f) - usadoDe(f));
-    if (hay <= 1e-6) return err(`${I.nom} está AGOTADO: no tiene con qué cargar el convoy. Lo repone el escalón superior (árbitro: 📦 Reponer).`);
-    const fr = Math.min(1, hay / quiere);
-    const carga: any = {};
-    for (const k of CONVOY_CLASES) carga[k] = 0;
-    for (const k of clases) carga[k] = Number((porClase * fr).toFixed(3));
-    carga.cap = Object.fromEntries(clases.map((k) => [k, porClase]));
-    carga.origen = f.id;
-    const gU = { ...(f.geojson || {}), usado: Number((usadoDe(f) + quiere * fr).toFixed(3)) };
-    const { error: eEst } = await sb.from("wg_terreno").update({ geojson: gU }).eq("id", f.id).eq("partida_id", partida.id);
-    if (eEst) return err(`No se pudo descontar la estiba: ${eEst.message}`, 500);
-    const { count } = await sb.from("wg_unidades").select("id", { count: "exact", head: true })
-      .eq("partida_id", partida.id).eq("bando", bandoCv).eq("arma", CONVOY_ARMA);
-    const desig = String(body.designacion || "").trim().slice(0, 30)
-      || `Cnv-${paquete ? "PQ" : clase}-${(Number(count) || 0) + 1}`;
-    // v2.9.347 — EL CONVOY FORMA AFUERA DEL PUESTO, NO ENCIMA.
-    // Nacía en las coordenadas EXACTAS de la instalación, así que quedaba
-    // tapado bajo su símbolo: el G-4 formaba cuatro convoyes, los veía en la
-    // lista y en el mapa no había ninguno. Además es lo que se hace: la columna
-    // se forma fuera del puesto y de ahí arranca la marcha.
-    // Cada uno sale en un rumbo distinto para que no se apilen entre ellos.
-    const nCv = Number(count) || 0;
-    const RAD_SALIDA_KM = 0.6;
-    const ang = (nCv * 55) * Math.PI / 180;
-    const dLat = (RAD_SALIDA_KM / 111.32) * Math.cos(ang);
-    const dLng = (RAD_SALIDA_KM / (111.32 * Math.max(0.15, Math.cos(pt[1] * Math.PI / 180)))) * Math.sin(ang);
-    const sale = [pt[0] + dLng, pt[1] + dLat];
-    const { data, error } = await sb.from("wg_unidades").insert({
-      partida_id: partida.id, bando: bandoCv, designacion: desig, escalon: "seccion",
-      arma: CONVOY_ARMA, medio: "motor", lat: sale[1], lng: sale[0],
-      poder_max: CONVOY_PODER, poder_actual: CONVOY_PODER, obs_km: CONVOY_OBS_KM,
-      estado: "activa", combustible_km: 0, carga,
-    }).select("id").limit(1);
-    if (error) return err(error.message, 500);
-    return ok({ id: data && data[0] ? data[0].id : null, designacion: desig, carga,
-      estiba: { cap: capDe(f), quedan: Number(Math.max(0, capDe(f) - gU.usado).toFixed(2)) } });
+    // v2.9.451: lo hace `formarConvoyEn`, el mismo que usa el 🤖 G-4 automático.
+    const r: any = await formarConvoyEn(partida.id, f, clase, body.designacion);
+    if (r.error) return err(r.error, r.status);
+    return ok({ id: r.id, designacion: r.designacion, carga: r.carga, estiba: r.estiba });
   }
   // ============================================================
   // v2.9.443 — 📦 REPONER UNA INSTALACIÓN (el escalón superior). Sólo el
@@ -4693,6 +5679,66 @@ async function manejar(req: Request): Promise<Response> {
   // manda por tandas: la primera (`limpiar`) borra la carta vieja. Unidades,
   // CMOC, plan de barreras, obras, instalaciones, órdenes y turno no se tocan.
   // ============================================================
+  // ============================================================
+  // v2.9.447 — 🧭 EL DESGASTE DE ARRANQUE. Sergio: «elegí esas fases; se supone que
+  // hasta esas fases las unidades ya habrían entrado en contacto: calculá cómo
+  // fueron desgastadas… y al iniciar la fase debería salir una bitácora de cómo se
+  // está empezando». El cálculo lo hace la pantalla del árbitro con el ejercicio
+  // (las fases anteriores de cada bando y la llegada a la posición); acá se aplica:
+  // el poder que le queda a cada ficha, su combustible, su munición, sus raciones y
+  // sus heridos, y el parte de arranque (turno actual) a la bitácora de cada bando.
+  // Sólo el árbitro. La posición, las órdenes y el turno no se tocan.
+  // ============================================================
+  if (accion === "aplicar_arranque") {
+    if (!arbitro) return err("Sólo el árbitro aplica el desgaste de arranque", 403);
+    const lista = Array.isArray(body.unidades) ? body.unidades.slice(0, 2000) : [];
+    const { data: uds } = await sb.from("wg_unidades").select("*").eq("partida_id", partida.id).limit(2000);
+    const porId = new Map((uds || []).map((u: any) => [String(u.id), u]));
+    const filas: any[] = [];
+    for (const n of lista) {
+      const u: any = porId.get(String(n && n.id));
+      if (!u || u.arma === CONVOY_ARMA) continue;
+      const pm = Math.max(0, Number(u.poder_max) || 0);
+      const pa = Number(n.poder_actual);
+      const fila: any = { id: u.id, partida_id: u.partida_id, bando: u.bando, lat: u.lat, lng: u.lng,
+        poder_max: pm, poder_actual: u.poder_actual, estado: u.estado || "activa" };
+      if (Number.isFinite(pa)) {
+        const v = Math.max(0, Math.min(pm, pa));
+        fila.poder_actual = Number(v.toFixed(2));
+        fila.estado = v <= pm * 0.2 ? "fuera_combate" : (v <= pm * 0.6 ? "desgastada" : "activa");
+      }
+      const cKm = Number(n.combustible_km);
+      if (Number.isFinite(cKm) && cKm >= 0) fila.combustible_km = Number(Math.min(5000, cKm).toFixed(2));
+      const mun = limpiarMunicion(n.municion);
+      if (mun) fila.municion = mun;
+      if (n.carga && typeof n.carga === "object") {
+        const c: any = { ...(u.carga || {}) };
+        for (const k of ["racion", "heridos", "bajas", "muertos", "faltan"]) {
+          const v = Number(n.carga[k]);
+          if (Number.isFinite(v) && v >= 0) c[k] = Math.round(Math.min(100000, v) * 100) / 100;
+        }
+        fila.carga = c;
+      }
+      filas.push(fila);
+    }
+    if (filas.length) {
+      const { error } = await sb.from("wg_unidades").upsert(filas, { onConflict: "id" });
+      if (error) return err(`No se pudo aplicar el arranque: ${error.message}`, 500);
+    }
+    const parte = (Array.isArray(body.parte) ? body.parte : []).slice(0, 400)
+      .filter((e: any) => e && typeof e.descripcion === "string" && e.descripcion.trim())
+      .map((e: any) => ({ partida_id: partida.id, turno: partida.turno_actual || 0,
+        tipo: ["arranque", "pedido"].includes(e.tipo) ? e.tipo : "arranque",
+        descripcion: String(e.descripcion).slice(0, 600),
+        lat: Number.isFinite(Number(e.lat)) ? Number(e.lat) : null, lng: Number.isFinite(Number(e.lng)) ? Number(e.lng) : null,
+        bandos_visibles: (Array.isArray(e.bandos_visibles) ? e.bandos_visibles : []).filter((b: any) => b === "azul" || b === "rojo") }));
+    if (parte.length) {
+      const { error } = await sb.from("wg_eventos").insert(parte);
+      if (error) return err(`Se aplicó el estado, pero no el parte: ${error.message}`, 500);
+    }
+    if ((Number(partida.turno_actual) || 0) <= 1) await fotoInicial(partida.id, partida.turno_actual || 1);   // v2.9.449
+    return ok({ aplicadas: filas.length, parte: parte.length });
+  }
   if (accion === "actualizar_carta") {
     if (!arbitro) return err("Sólo el árbitro actualiza la carta", 403);
     const CAPAS_FONDO = ["via", "hidro", "vegetacion", "poblado", "elevacion", "jurisdiccion"];
@@ -4765,7 +5811,10 @@ async function manejar(req: Request): Promise<Response> {
   // ---------- historial (eventos visibles para el caller) ----------
   if (accion === "historial") {
     if (!puedeVer) return err("Sin acceso", 403);
-    let q = sb.from("wg_eventos").select("turno, tipo, descripcion, lat, lng, creado_en").eq("partida_id", partida.id).order("turno", { ascending: false }).order("creado_en", { ascending: false }).limit(200);
+    // v2.9.445: con `bandos_visibles` (la bitácora de abajo reparte cada renglón en el
+    // cuadro 🔴 o 🔵) y en el orden en que pasó (`id`): los del mismo turno tienen la
+    // misma hora de guardado.
+    let q = sb.from("wg_eventos").select("id, turno, tipo, descripcion, lat, lng, creado_en, bandos_visibles").eq("partida_id", partida.id).order("turno", { ascending: false }).order("creado_en", { ascending: false }).order("id", { ascending: false }).limit(300);
     if (!arbitro && miBando) q = q.contains("bandos_visibles", [miBando.bando]);
     const { data } = await q;
     return ok({ eventos: data || [] });
@@ -4841,9 +5890,14 @@ async function manejar(req: Request): Promise<Response> {
       sb.from("wg_replays").select("trazas").eq("partida_id", partida.id).eq("turno", turno - 1).limit(1),
     ]);
     const unidades = (rU as any).data || [];
-    const terreno = (rT as any).data || [];
+    const terreno = prepararTerreno((rT as any).data || []);   // v2.9.451: una vez (el grafo de caminos sirve a los dos)
     const instalLog = (rI as any).data || [];
     const ordenes = (rO as any).data || [];
+    // v2.9.451 — 🤖 EL G-4 AUTOMÁTICO da sus órdenes antes de resolver, como cualquier
+    // jugador: forma sus convoyes y los manda. Si falla, el turno se resuelve igual.
+    const g4ev: any[] = [];
+    try { await g4Automatico(partida.id, unidades, terreno, instalLog, ordenes, g4ev); }
+    catch (e) { console.error("G-4 automático:", e); }
     let res: any;
     try {
       res = resolverTurno({
@@ -4890,6 +5944,7 @@ async function manejar(req: Request): Promise<Response> {
     const escrituras: Promise<any>[] = [];
     const etiquetas: string[] = [];
     const escribir = (etq: string, p: any) => { etiquetas.push(etq); escrituras.push(Promise.resolve(p)); };
+    if (g4ev.length) res.eventos = [...g4ev, ...res.eventos];   // v2.9.451: lo del 🤖 G-4, primero
     if (res.eventos.length) {
       escribir("la bitácora del turno", sb.from("wg_eventos").insert(res.eventos.map((e: any) => ({
         partida_id: partida.id, turno, tipo: e.tipo, descripcion: e.descripcion,
@@ -4960,6 +6015,13 @@ async function manejar(req: Request): Promise<Response> {
       .update({ turno_actual: turno + 1, resolviendo_desde: null }).eq("id", partida.id);
     if (eP) return err(`No se pudo avanzar al turno siguiente: ${eP.message}`, 500);
     _avanzo = true;
+    // v2.9.449 — ⏱️ con el reloj andando, la cuenta vuelve a empezar para el turno nuevo.
+    try {
+      const fr = await relojDe(partida.id);
+      if (fr && fr.geojson && fr.geojson.activo) {
+        await guardarReloj(partida.id, fr, { ...fr.geojson, proximo: Date.now() + (Number(fr.geojson.cadaMin) || 3) * 60000, turnoEn: turno + 1 });
+      }
+    } catch (_e) { /* el reloj no frena el turno */ }
     return ok({ turno_resuelto: turno, turno_nuevo: turno + 1, eventos: res.eventos.length,
       combates: res.eventos.filter((e: any) => e.tipo === "combate").length,
       // v2.9.203: las rutas recorridas viajan en la RESPUESTA (no se guardan) para
