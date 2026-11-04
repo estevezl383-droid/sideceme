@@ -1,5 +1,5 @@
 // ============================================================
-// EDGE FUNCTION: wargame-ops — Juego de Guerra (PMTD) de SIDECEME.  ·  v2.9.443
+// EDGE FUNCTION: wargame-ops — Juego de Guerra (PMTD) de SIDECEME.  ·  v2.9.453
 // Wargame multijugador POR TURNOS, combate DETERMINISTA, con NIEBLA DE GUERRA.
 //
 // Roles:
@@ -2107,6 +2107,41 @@ function instalacionesBatidas(punto: number[], arma: any, instalaciones: any[], 
     const pt = puntoInstalacion(x);
     return pt && haversineKm(punto, pt) <= r;
   });
+}
+// ============================================================
+// v2.9.453 — LA LOGÍSTICA ENEMIGA EXISTE: SE LA ENCUENTRA, SE LA BATE O SE LA ARRASA.
+// Sergio (04-11-2026): «sus unidades de logística deben ser visibles, o sea
+// deben existir; no es que sean visibles al azul, pero el azul también debe
+// tener chance de destruir o defenderse».
+// Hasta acá cada bando recibía SÓLO sus instalaciones: el ASDI rojo no le
+// llegaba nunca al azul, ni con el CW 40 encima. Se lo podía batir, pero a
+// ciegas. Ahora:
+//   · el DRON la descubre a 24 km (un área con vehículos y estibas se ve desde
+//     el aire) y reconoce QUÉ es a 8 km; la TROPA, a 4 km y sabiendo qué es;
+//   · lo descubierto queda en la carta del bando (wg_inteligencia, con el id de
+//     la instalación en NEGATIVO para no chocar con los de las unidades), así el
+//     G-3 la ve aunque el aparato ya se haya ido, y la puede batir;
+//   · una fuerza de combate que termina el turno a 1,5 km de una instalación
+//     enemiga SIN tropa propia que la defienda, la ARRASA. Defenderla es tener
+//     tropa cerca: entonces pelean las unidades, como siempre.
+// ============================================================
+const INSTAL_TIPO_DRON_KM = 8;
+const INSTAL_ARRASAR_KM = 1.5;
+function idIntelInstal(id: any) { return -Math.abs(Number(id)); }
+// 0 = no la ve · 1 = sabe que hay una instalación · 2 = sabe QUÉ instalación es.
+function nivelInstalVista(bando: string, pt: number[], unidades: any[]) {
+  let n = 0;
+  for (const u of (unidades || [])) {
+    if (!u || u.bando !== bando || u.estado === "fuera_combate") continue;
+    if (!Number.isFinite(Number(u.lng)) || !Number.isFinite(Number(u.lat))) continue;
+    if (haversineKm([Number(u.lng), Number(u.lat)], pt) <= VISTA_TROPA_KM) return 2;
+    const o = ojoDron(u);
+    if (!o) continue;
+    const d = haversineKm(o.pos, pt);
+    if (d <= Math.min(INSTAL_TIPO_DRON_KM, o.dron.km)) return 2;
+    if (d <= o.dron.km) n = 1;
+  }
+  return n;
 }
 function cargaDe(u: any, clase: string) {
   const c = (u && u.carga) || {};
@@ -4310,6 +4345,26 @@ function resolverTurno(estado: any) {
     }
     u.carga = c;
   }
+  // v2.9.453 — LA INSTALACIÓN SIN DEFENSA SE PIERDE. Una fuerza de combate enemiga
+  // terminó el turno encima (1,5 km) y no hay tropa propia que la defienda: la
+  // arrasa. Si había tropa cerca ya pelearon las unidades; si la defensa cayó,
+  // acá se pierde también la instalación. Los convoyes y los PC no arrasan.
+  for (const x of _instalTodas) {
+    if (!x || instalBorrar.includes(x.id)) continue;
+    const ptI = puntoInstalacion(x);
+    if (!ptI) continue;
+    const cerca = (u: any) => u && u.estado !== "fuera_combate" && !esConvoy(u)
+      && Number.isFinite(Number(u.lng)) && poderEfectivo(u) > 0
+      && haversineKm([Number(u.lng), Number(u.lat)], ptI) <= INSTAL_ARRASAR_KM;
+    const atac: any = [...U.values()].find((u: any) => u.bando !== x.bando && !esPC(u) && cerca(u));
+    if (!atac) continue;
+    if ([...U.values()].some((u: any) => u.bando === x.bando && cerca(u))) continue;   // la defienden
+    instalBorrar.push(x.id);
+    eventos.push({ tipo: "logistica", lat: ptI[1], lng: ptI[0],
+      descripcion: `💥 ${nombreUnidad(atac)} ARRASÓ ${INSTAL_LOG[x.tipo].nom} ${x.bando === "rojo" ? "🔴" : "🔵"}: `
+        + `llegó encima y no había tropa que la defendiera. Todo lo que dependía de ese punto se queda sin apoyo.`,
+      bandos_visibles: ["rojo", "azul"] });
+  }
   // v2.9.334 — FINAL DE JORNADA: SE REABASTECE. Las que voló el fuego ya no reparten nada.
   const _instal = _instalTodas.filter((x: any) => !instalBorrar.includes(x.id));
   const _convoyes: any[] = [...U.values()].filter(esConvoy);
@@ -5315,7 +5370,9 @@ async function manejar(req: Request): Promise<Response> {
     const terreno: any[] | null = rTer ? ordenarCarta((rTer as any).data || []) : null;
     const terrenoN = (rCnt as any).count;
     const ultimoId = (((rUlt as any).data || [])[0] || {}).id ?? null;
-    const instalaciones = ((rIns as any).data || []).filter((x: any) => arbitro || (miBando && x.bando === miBando.bando));
+    // v2.9.453: después del ⏹️ ALTO tampoco hay niebla para las instalaciones.
+    const instalaciones = ((rIns as any).data || []).filter((x: any) => arbitro || partida.estado === "finalizada"
+      || (miBando && x.bando === miBando.bando));
     // Niebla: el EM ve SUS unidades + enemigos detectados en el último turno resuelto.
     let visibles = unidades || [];
     // v2.9.449: terminado el juego (⏹️ ALTO) no hay niebla: todos ven los resultados.
@@ -5348,7 +5405,39 @@ async function manejar(req: Request): Promise<Response> {
     }
     // Mis órdenes ya enviadas este turno.
     const misOrdenes: any[] = (rOrd as any).data || [];
-    const intel = (rInt as any).data || [];
+    let intel = (rInt as any).data || [];
+    // ============================================================
+    // v2.9.453 — LAS INSTALACIONES ENEMIGAS QUE ESTE BANDO DESCUBRIÓ.
+    // Se miden con el MISMO ojo que las unidades (el CW 40 desde donde vuela, la
+    // tropa a 4 km) y lo nuevo se anota en su carta: queda aunque el aparato se
+    // vaya, porque una instalación no se mueve. Sólo se escribe si es nuevo o si
+    // ahora se sabe más (de «hay algo» a «es el ASDI»).
+    // ============================================================
+    if (!arbitro && miBando && partida.estado !== "finalizada") {
+      const b = miBando.bando;
+      const previas = new Map(intel.filter((r: any) => Number(r.unidad_id) < 0).map((r: any) => [Number(r.unidad_id), r]));
+      const nuevas: any[] = [];
+      for (const x of ((rIns as any).data || [])) {
+        if (!x || !x.bando || x.bando === b || !esInstalacionLog(x.tipo)) continue;
+        const ptI = puntoInstalacion(x);
+        if (!ptI) continue;
+        const n = nivelInstalVista(b, ptI, unidades);
+        if (!n) continue;
+        const k = idIntelInstal(x.id), ya: any = previas.get(k);
+        if (ya && Number(ya.nivel) >= n) continue;
+        nuevas.push({ partida_id: partida.id, bando: b, unidad_id: k, nivel: n, lat: ptI[1], lng: ptI[0],
+          turno: partida.turno_actual, reportado_en: new Date().toISOString(),
+          datos: { instalacion: true, bando: x.bando, tipo: n >= 2 ? x.tipo : null } });
+      }
+      if (nuevas.length) {
+        const { error: eIn } = await sb.from("wg_inteligencia").upsert(nuevas, { onConflict: "partida_id,bando,unidad_id" });
+        if (!eIn) {
+          const k = new Set(nuevas.map((r: any) => r.unidad_id));
+          intel = intel.filter((r: any) => !k.has(Number(r.unidad_id))).concat(nuevas.map((r: any) => {
+            const { partida_id, ...resto } = r; return resto; }));
+        }
+      }
+    }
     const obrasRaw = (rObr as any).data || [];
     const mias = (unidades || []).filter((u: any) =>
       miBando && u.bando === miBando.bando && u.estado !== "fuera_combate");
@@ -5420,15 +5509,27 @@ async function manejar(req: Request): Promise<Response> {
         } }).eq("id", uidV);
       }
     }
-    let vistos: any = null;
+    let vistos: any = null, instalVistas: any = null;
     if (!arbitro && miBando) {
-      const { data: uds } = await sb.from("wg_unidades")
-        .select("id, bando, lng, lat, estado, dron_rumbo, dron_vuelo")
-        .eq("partida_id", partida.id).limit(2000);
+      const [{ data: uds }, { data: ins }] = await Promise.all([
+        sb.from("wg_unidades")
+          .select("id, bando, lng, lat, estado, dron_rumbo, dron_vuelo, poder_actual, poder_max, suprimida_hasta, escalon")
+          .eq("partida_id", partida.id).limit(2000),
+        // v2.9.453: las instalaciones enemigas que el bando alcanza AHORA (id y nivel).
+        sb.from("wg_terreno").select("id, tipo, bando, geojson").eq("partida_id", partida.id).like("tipo", "log\\_%").limit(400),
+      ]);
       vistos = [...idsVisiblesEnVivo(miBando.bando, uds || [])];
+      instalVistas = [];
+      for (const x of (ins || [])) {
+        if (!x || !x.bando || x.bando === miBando.bando || !esInstalacionLog(x.tipo)) continue;
+        const ptI = puntoInstalacion(x);
+        const n = ptI ? nivelInstalVista(miBando.bando, ptI, uds || []) : 0;
+        if (n) instalVistas.push({ id: idIntelInstal(x.id), n });
+      }
     }
     const _rel = await relojDe(partida.id);   // v2.9.449: la cuenta regresiva de todos
     return ok({ turno_actual: partida.turno_actual, estado_partida: partida.estado, vistos,
+      instal_vistas: instalVistas,   // v2.9.453
       reloj: relojPublico(_rel && _rel.geojson),
       // v2.9.443: un turno se está resolviendo ahora mismo (las fichas se están guardando).
       resolviendo: !!(partida.resolviendo_desde && (Date.now() - new Date(partida.resolviendo_desde).getTime()) < 90000) });
@@ -5969,6 +6070,9 @@ async function manejar(req: Request): Promise<Response> {
     if ((res.instalBorrar || []).length) {
       escribir("las instalaciones destruidas", sb.from("wg_terreno").delete()
         .eq("partida_id", partida.id).like("tipo", "log\\_%").in("id", res.instalBorrar));
+      // v2.9.453: y la marca que el enemigo tenía de ellas (la destrucción la ven los dos bandos).
+      escribir("lo que se sabía de las instalaciones destruidas", sb.from("wg_inteligencia").delete()
+        .eq("partida_id", partida.id).in("unidad_id", res.instalBorrar.map(idIntelInstal)));
     }
     // v2.9.344 — LA ESTIBA QUE BAJÓ.
     for (const it of (res.instalActualizar || [])) {
